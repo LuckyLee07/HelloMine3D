@@ -19,6 +19,8 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 See `docs/architecture.md` for the current code boundaries and the mapping from the original
 project layout.
 See `docs/iteration-plan.md` for the recommended HelloMine3D iteration roadmap.
+See `docs/todolist.md` for the executable task list, validation matrix, and iteration report
+template.
 See `docs/minigame-reference.md` for notes on MiniGame modules that can inform future voxel,
 resource, terrain, tooling, and platform work.
 
