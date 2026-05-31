@@ -1,6 +1,6 @@
-# MineCraft3D Iteration Plan
+# HelloMine3D Iteration Plan
 
-本文档记录 MineCraft3D 后续迭代规划。规划基于当前项目源码状态，以及
+本文档记录 HelloMine3D 后续迭代规划。规划基于当前项目源码状态，以及
 `docs/minigame-reference.md` 中对 MiniGame 项目的参考分析。
 
 总体原则：
@@ -12,7 +12,7 @@
 
 ## 当前项目状态
 
-MineCraft3D 已具备这些基础：
+HelloMine3D 已具备这些基础：
 
 | 能力 | 当前状态 |
 | ---- | -------- |
@@ -57,11 +57,11 @@ MineCraft3D 已具备这些基础：
 
 | 文件 | 关注点 |
 | ---- | ------ |
-| `src/MineCraft3D/World/Chunk/ChunkSection.h` | `Layer` 计数和 section mesh 状态。 |
-| `src/MineCraft3D/World/Chunk/ChunkSection.cpp` | set/get block 越界访问和 mesh dirty。 |
-| `src/MineCraft3D/World/Chunk/Chunk.cpp` | `setBlock()`、height map、dirty 通知。 |
-| `src/MineCraft3D/World/World.cpp` | chunk/block 坐标映射、加载线程、更新队列。 |
-| `src/MineCraft3D/World/Chunk/ChunkManager.cpp` | chunk 创建、加载、卸载 API 边界。 |
+| `src/HelloMine3D/World/Chunk/ChunkSection.h` | `Layer` 计数和 section mesh 状态。 |
+| `src/HelloMine3D/World/Chunk/ChunkSection.cpp` | set/get block 越界访问和 mesh dirty。 |
+| `src/HelloMine3D/World/Chunk/Chunk.cpp` | `setBlock()`、height map、dirty 通知。 |
+| `src/HelloMine3D/World/World.cpp` | chunk/block 坐标映射、加载线程、更新队列。 |
+| `src/HelloMine3D/World/Chunk/ChunkManager.cpp` | chunk 创建、加载、卸载 API 边界。 |
 
 ### 第 1 阶段：工程化和数据化
 
@@ -80,11 +80,11 @@ MineCraft3D 已具备这些基础：
 
 | 文件 | 关注点 |
 | ---- | ------ |
-| `src/MineCraft3D/World/Block/BlockData.cpp` | `.block` 解析和校验。 |
-| `src/MineCraft3D/World/Block/BlockDatabase.cpp` | 方块注册和数据一致性检查。 |
-| `src/MineCraft3D/Util/ResourcePaths.h` | 项目根目录和资源路径解析。 |
-| `src/MineCraft3D/Config.h` | 运行配置来源。 |
-| `src/MineCraft3D/GUI.cpp` | 调试 UI 模块化。 |
+| `src/HelloMine3D/World/Block/BlockData.cpp` | `.block` 解析和校验。 |
+| `src/HelloMine3D/World/Block/BlockDatabase.cpp` | 方块注册和数据一致性检查。 |
+| `src/HelloMine3D/Util/ResourcePaths.h` | 项目根目录和资源路径解析。 |
+| `src/HelloMine3D/Config.h` | 运行配置来源。 |
+| `src/HelloMine3D/GUI.cpp` | 调试 UI 模块化。 |
 
 ### 第 2 阶段：体素核心性能
 
@@ -102,11 +102,11 @@ MineCraft3D 已具备这些基础：
 
 | 文件 | 关注点 |
 | ---- | ------ |
-| `src/MineCraft3D/World/Chunk/ChunkMeshBuilder.cpp` | halo cache、face 判断、greedy meshing。 |
-| `src/MineCraft3D/World/Chunk/ChunkMesh.*` | CPU mesh 数据结构和 GPU buffer。 |
-| `src/MineCraft3D/Renderer/ChunkRenderer.*` | solid mesh 渲染路径。 |
-| `src/MineCraft3D/Renderer/WaterRenderer.*` | water pass 保持独立。 |
-| `src/MineCraft3D/Renderer/FloraRenderer.*` | flora pass 保持独立。 |
+| `src/HelloMine3D/World/Chunk/ChunkMeshBuilder.cpp` | halo cache、face 判断、greedy meshing。 |
+| `src/HelloMine3D/World/Chunk/ChunkMesh.*` | CPU mesh 数据结构和 GPU buffer。 |
+| `src/HelloMine3D/Renderer/ChunkRenderer.*` | solid mesh 渲染路径。 |
+| `src/HelloMine3D/Renderer/WaterRenderer.*` | water pass 保持独立。 |
+| `src/HelloMine3D/Renderer/FloraRenderer.*` | flora pass 保持独立。 |
 
 ### 第 3 阶段：方块和玩法数据模型
 
@@ -148,11 +148,11 @@ MineCraft3D 已具备这些基础：
 
 | 文件 | 关注点 |
 | ---- | ------ |
-| `src/MineCraft3D/World/Generation/Terrain/ClassicOverWorldGenerator.cpp` | 地形生成入口和 decorator 拆分。 |
-| `src/MineCraft3D/World/Generation/Biome/*` | biome 数据和 top/fill/plant/tree 规则。 |
-| `src/MineCraft3D/World/Generation/Structures/*` | 树和结构生成。 |
-| `src/MineCraft3D/World/Chunk/Chunk.*` | height map、存档、section 管理。 |
-| `src/MineCraft3D/World/Block/ChunkBlock.*` | metadata/light 数据承载。 |
+| `src/HelloMine3D/World/Generation/Terrain/ClassicOverWorldGenerator.cpp` | 地形生成入口和 decorator 拆分。 |
+| `src/HelloMine3D/World/Generation/Biome/*` | biome 数据和 top/fill/plant/tree 规则。 |
+| `src/HelloMine3D/World/Generation/Structures/*` | 树和结构生成。 |
+| `src/HelloMine3D/World/Chunk/Chunk.*` | height map、存档、section 管理。 |
+| `src/HelloMine3D/World/Block/ChunkBlock.*` | metadata/light 数据承载。 |
 
 ### 第 5 阶段：视觉、交互和调试体验
 
@@ -260,7 +260,7 @@ MineCraft3D 已具备这些基础：
 ## 与 MiniGame 参考文档的关系
 
 `docs/minigame-reference.md` 负责回答“MiniGame 有哪些架构点值得参考”。本文档负责回答
-“MineCraft3D 接下来按什么顺序做”。两者的关系如下：
+“HelloMine3D 接下来按什么顺序做”。两者的关系如下：
 
 | MiniGame 参考点 | 本项目落地阶段 |
 | --------------- | -------------- |

@@ -47,13 +47,13 @@ int main()
     sf::Window window;
     if (config.isFullscreen)
     {
-        window.create(sf::VideoMode::getDesktopMode(), "MineCraft3D", sf::Style::None,
+        window.create(sf::VideoMode::getDesktopMode(), "HelloMine3D", sf::Style::None,
                       sf::State::Fullscreen, context_settings);
     }
     else
     {
         sf::VideoMode winMode({(unsigned)config.windowX, (unsigned)config.windowY});
-        window.create(winMode, "MineCraft3D", sf::State::Windowed, context_settings);
+        window.create(winMode, "HelloMine3D", sf::State::Windowed, context_settings);
     }
 
     window.setVerticalSyncEnabled(true);

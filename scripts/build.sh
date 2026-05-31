@@ -12,4 +12,4 @@ fi
 
 make -C "$ROOT_DIR/build" config="$CONFIG"
 
-echo "Built MineCraft3D ($CONFIG) into $ROOT_DIR/bin/"
+echo "Built HelloMine3D ($CONFIG) into $ROOT_DIR/bin/"

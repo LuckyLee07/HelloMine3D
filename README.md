@@ -1,6 +1,6 @@
-# MineCraft3D
+# HelloMine3D
 
-MineCraft3D is a C++ Minecraft-style voxel sandbox derived from the original one-week challenge
+HelloMine3D is a C++ Minecraft-style voxel sandbox derived from the original one-week challenge
 project.
 
 ## Project Layout
@@ -9,7 +9,7 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 
 | Path | Responsibility |
 | ---- | -------------- |
-| `src/MineCraft3D/` | Game and engine source code. |
+| `src/HelloMine3D/` | Game and engine source code. |
 | `src/external/` | Small vendored libraries used directly by the build. |
 | `media/` | Runtime assets: blocks, textures, shaders, and fonts. |
 | `bin/` | Runtime configuration and generated executable. |
@@ -18,7 +18,7 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 
 See `docs/architecture.md` for the current code boundaries and the mapping from the original
 project layout.
-See `docs/iteration-plan.md` for the recommended MineCraft3D iteration roadmap.
+See `docs/iteration-plan.md` for the recommended HelloMine3D iteration roadmap.
 See `docs/minigame-reference.md` for notes on MiniGame modules that can inform future voxel,
 resource, terrain, tooling, and platform work.
 
@@ -92,7 +92,7 @@ sh scripts/build.sh release
 sh scripts/run.sh release
 ```
 
-The executable is emitted to `bin/MineCraft3D`. Runtime paths are resolved from the project root,
+The executable is emitted to `bin/HelloMine3D`. Runtime paths are resolved from the project root,
 so the binary can be launched from `bin/`, `build/Debug`, or the repository root.
 
 To generate IDE project files without building:
@@ -109,7 +109,7 @@ On macOS you can use the HelloOgre3D-style shortcut:
 ```
 
 On Windows, run `vs2022.bat` from the repository root. The generated project files are written to
-`build/`, and the executable still outputs to `bin/MineCraft3D`.
+`build/`, and the executable still outputs to `bin/HelloMine3D`.
 
 ## The Challenge
 

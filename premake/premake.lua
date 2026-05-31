@@ -1,4 +1,4 @@
-local project_name = "MineCraft3D"
+local project_name = "HelloMine3D"
 local source_dir = "../src/HelloMine3D"
 
 newoption {
@@ -205,7 +205,7 @@ project(project_name)
     }
 
     add_vcpkg_paths()
-    add_dependency_prefix(first_non_empty(_OPTIONS["deps-prefix"], os.getenv("MINECRAFT3D_DEPS_PREFIX")))
+    add_dependency_prefix(first_non_empty(_OPTIONS["deps-prefix"], os.getenv("HELLOMINE3D_DEPS_PREFIX")))
 
     filter "system:macosx"
         add_dependency_prefix(os.getenv("HOMEBREW_PREFIX"))

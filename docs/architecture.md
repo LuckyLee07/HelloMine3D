@@ -1,4 +1,4 @@
-# MineCraft3D Architecture Notes
+# HelloMine3D Architecture Notes
 
 This cleanup follows the same repository-level direction as `HelloOgre3D`: keep build entry points
 and documents at the root, place product code under `src/<ProjectName>/`, isolate vendored code
@@ -6,9 +6,9 @@ under `src/external/`, and keep runtime assets out of the source tree.
 
 ## Directory Map
 
-| HelloOgre3D pattern | MineCraft3D path | Purpose |
+| HelloOgre3D pattern | HelloMine3D path | Purpose |
 | ------------------- | ---------------- | ------- |
-| `src/HelloOgre3D/` | `src/MineCraft3D/` | First-party game and rendering code. |
+| `src/HelloOgre3D/` | `src/HelloMine3D/` | First-party game and rendering code. |
 | `src/external/` | `src/external/` | Vendored GLAD and ImGui-SFML bridge code. |
 | `media/` | `media/` | Shaders, block definitions, textures, and fonts. |
 | `bin/` | `bin/` | Runtime config, ImGui state, and executable output. |
@@ -49,5 +49,5 @@ lookup so code no longer reaches into hard-coded `Res/` or `Shaders/` directorie
 
 Premake is the canonical build entry point. It uses the same source and asset boundaries to
 generate IDE projects and Makefiles under `build/`, then emits the executable to `bin/`, matching
-the runtime layout. New source files should be introduced through the shared `src/MineCraft3D`
+the runtime layout. New source files should be introduced through the shared `src/HelloMine3D`
 layout first.

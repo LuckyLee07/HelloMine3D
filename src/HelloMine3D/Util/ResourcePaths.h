@@ -8,7 +8,7 @@ namespace ResourcePaths
 {
     inline std::filesystem::path projectRoot()
     {
-        if (const char* root = std::getenv("MINECRAFT3D_ROOT"); root && *root)
+        if (const char* root = std::getenv("HELLOMINE3D_ROOT"); root && *root)
         {
             return root;
         }
