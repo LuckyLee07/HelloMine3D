@@ -49,35 +49,20 @@ To see the commit prior to this change, see: https://github.com/Hopson97/MineCra
 
 ### Dependencies
 
-The repo can use local dependency drops under `src/external/`:
+The repo builds its local dependencies from vendored source under `src/external/`:
 
 | Dependency | Expected local path |
 | ---------- | ------------------- |
-| SFML 3.x | `src/external/sfml/include`, `src/external/sfml/lib` |
+| SFML 3.x | `src/external/sfml/include`, `src/external/sfml/src` |
+| FreeType | `src/external/freetype/include`, `src/external/freetype/src` |
 | Dear ImGui | `src/external/imgui/imgui.cpp` |
 | GLM | `src/external/glm/glm/glm.hpp` |
 
-On Windows, use the Visual C++ 64-bit SFML package and keep its `include/`, `lib/`, and `bin/`
-directories under `src/external/sfml/`. Debug builds link the `sfml-*-d.lib` import libraries;
-release builds link the non-`-d` libraries. When `src/external/sfml/bin` exists, the Premake
-project copies the SFML DLLs into `bin/` after a Visual Studio build.
-
-On macOS, use the Clang/arm64 or universal SFML package. The generated Xcode and Makefile builds
-link the dylibs from `src/external/sfml/lib` and embed an rpath back to that directory.
-
-Alternatively, install the packages with vcpkg or your system package manager:
-
-```bash
-vcpkg install glm sfml imgui
-```
-
-When using vcpkg with Premake, set `VCPKG_ROOT` / `VCPKG_TARGET_TRIPLET`, or pass them explicitly
-when generating project files:
-
-```sh
-export VCPKG_ROOT=/path/to/vcpkg
-export VCPKG_TARGET_TRIPLET=arm64-osx
-```
+Premake generates an `External/sfml` project that runs CMake against `src/external/sfml`, uses the
+vendored FreeType source, and installs build outputs to `build/external/sfml/install`. The game links
+against that install tree; no checked-in SFML binaries or vcpkg install tree is required. The current
+build enables SFML System, Window, and Graphics, while Audio and Network stay disabled until the game
+uses them.
 
 ### Build and Run
 

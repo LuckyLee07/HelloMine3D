@@ -3,17 +3,9 @@ set SCRIPT_DIRECTORY=%~dp0
 set CURRENT_DIRECTORY=%cd%
 set ARGUMENTS=%*
 
-cd /d %SCRIPT_DIRECTORY%\premake
+cd /d %SCRIPT_DIRECTORY%
 
-where premake5 >nul 2>nul
-if errorlevel 1 (
-    echo premake5 not found. Install Premake 5 and make sure it is on PATH.
-    cd /d %CURRENT_DIRECTORY%
-    pause
-    exit /b 1
-)
-
-premake5 --file=premake.lua %ARGUMENTS% vs2022
+tools\premake\premake5 --os=windows --file=premake/premake.lua %ARGUMENTS% vs2022
 
 cd /d %CURRENT_DIRECTORY%
 pause

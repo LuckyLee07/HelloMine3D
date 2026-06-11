@@ -17,7 +17,7 @@ HelloMine3D 已具备这些基础：
 | 能力 | 当前状态 |
 | ---- | -------- |
 | 构建系统 | Premake 已作为主构建入口，支持 Make/Xcode/Visual Studio 工程生成。 |
-| 依赖管理 | 支持 `src/external` 本地依赖，也预留 vcpkg/系统依赖路径。 |
+| 依赖管理 | 通过 `src/external` 本地源码依赖构建 SFML/FreeType，不依赖 vcpkg 安装树。 |
 | 运行资源 | `media/` 保存 shader、texture、block、font，`ResourcePaths` 负责路径解析。 |
 | 世界结构 | 已有 `World`、`ChunkManager`、`Chunk`、`ChunkSection`。 |
 | 区块网格 | 已有 `ChunkMeshBuilder`，按 solid/water/flora 拆 mesh。 |
