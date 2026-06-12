@@ -52,12 +52,18 @@ namespace gl
     {
 #ifndef __APPLE__
 #ifndef NDEBUG
+        if (glDebugMessageCallback == nullptr || glDebugMessageControl == nullptr)
+        {
+            std::cerr << "OpenGL debug output is not available on this context.\n";
+            return;
+        }
+
         glEnable(GL_DEBUG_OUTPUT);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-#endif
         glDebugMessageCallback(glDebugCallback, NULL);
 
         glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
+#endif
 #endif
     }
 

@@ -1,5 +1,6 @@
 #include <SFML/Window/VideoMode.hpp>
 #include <SFML/Window/Window.hpp>
+#include <SFML/Window/Context.hpp>
 #include <fstream>
 #include <glad/glad.h>
 #include <iostream>
@@ -39,10 +40,12 @@ int main()
     context_settings.majorVersion = 4;
     context_settings.minorVersion = 1;
 #else
-    context_settings.majorVersion = 4;
-    context_settings.minorVersion = 6;
+    context_settings.majorVersion = 3;
+    context_settings.minorVersion = 3;
 #endif
+#ifndef NDEBUG
     context_settings.attributeFlags = sf::ContextSettings::Debug;
+#endif
 
     sf::Window window;
     if (config.isFullscreen)
@@ -63,7 +66,10 @@ int main()
         return EXIT_FAILURE;
     }
 
-    if (!gladLoadGL())
+    auto load_gl_function = [](const char* name) -> void* {
+        return reinterpret_cast<void*>(sf::Context::getFunction(name));
+    };
+    if (!gladLoadGLLoader(load_gl_function))
     {
         std::cerr << "Failed to initialise OpenGL - Is OpenGL linked correctly?\n";
         return EXIT_FAILURE;
