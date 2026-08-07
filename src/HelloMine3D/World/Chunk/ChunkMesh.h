@@ -20,6 +20,7 @@ class ChunkMesh {
 
     const Model &getModel() const;
 
+    void clearClientData();
     void deleteData();
 
     int faces = 0;

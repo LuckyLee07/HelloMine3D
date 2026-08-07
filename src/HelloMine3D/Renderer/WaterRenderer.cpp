@@ -21,6 +21,7 @@ void WaterRenderer::render(const Camera &camera)
     glEnable(GL_BLEND);
     glDisable(GL_CULL_FACE);
     m_shader.useProgram();
+    BlockDatabase::get().textureAtlas.bindTexture();
 
     m_shader.loadProjectionViewMatrix(camera.getProjectionViewMatrix());
     m_shader.loadTime(g_timeElapsed);

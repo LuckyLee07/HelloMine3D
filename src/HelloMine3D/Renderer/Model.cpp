@@ -85,6 +85,7 @@ void Model::addEBO(const std::vector<GLuint> &indices)
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint),
                  indices.data(), GL_STATIC_DRAW);
+    m_buffers.push_back(ebo);
 }
 
 /// @brief Deletes model data, used to free models from memory.
