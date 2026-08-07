@@ -16,13 +16,16 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 | `docs/` | Architecture notes and documentation images. |
 | `scripts/` | Build, run, and debug helpers. |
 
-See `docs/architecture.md` for the current code boundaries and the mapping from the original
-project layout.
-See `docs/iteration-plan.md` for the recommended HelloMine3D iteration roadmap.
-See `docs/todolist.md` for the executable task list, validation matrix, and iteration report
-template.
-See `docs/minigame-reference.md` for notes on MiniGame modules that can inform future voxel,
-resource, terrain, tooling, and platform work.
+| Document | Contents |
+| -------- | -------- |
+| `docs/todolist.md` | The executable task list, validation matrix, and iteration report template. Start here. |
+| `docs/architecture.md` | Current code boundaries and the mapping from the original project layout. |
+| `docs/sandbox-foundation-todolist.md` | Detailed record of the S0-S7 sandbox foundation milestones. |
+| `docs/runtime-validation.md` | How runtime behaviour is validated, and what is not covered. |
+| `docs/iteration-plan.md` | Long-term iteration roadmap. |
+| `docs/render-regression-smoke.md` | Non-intrusive render screenshot smoke. |
+| `docs/performance-baseline.md` | Non-intrusive frame timing and chunk counter baseline. |
+| `docs/minigame-reference.md` | Notes on MiniGame modules that can inform future work. |
 
 Original challenge video: https://www.youtube.com/watch?v=Xq3isov6mZ8
 
@@ -95,8 +98,41 @@ On macOS you can use the HelloOgre3D-style shortcut:
 ./xcode.sh
 ```
 
-On Windows, run `vs2022.bat` from the repository root. The generated project files are written to
-`build/`, and the executable still outputs to `bin/HelloMine3D`.
+On Windows, run `vs2022.bat` from the repository root, then build `build/HelloMine3D.sln`. The
+generated project files are written to `build/`, and the executable still outputs to
+`bin/HelloMine3D.exe`.
+
+```powershell
+vs2022.bat
+& "C:\Program Files\Microsoft Visual Studio‚2\Community\MSBuild\Current\Bin\MSBuild.exe" `
+    build\HelloMine3D.sln /p:Configuration=Debug /p:Platform=x64 /m
+```
+
+> **Moving the repository:** the SFML external project stores absolute paths in
+> `build/External/sfml/CMakeCache.txt`. If the repository is renamed or moved, delete
+> `build/External/sfml/` before rebuilding, otherwise CMake fails with a confusing
+> "source directory does not match" error.
+
+### Validation
+
+The build produces the client plus five test targets, all of which run headless:
+
+```powershell
+bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
+bin\HelloMine3DMeshDirtyTests.exe         # mesh dirty planner
+bin\HelloMine3DSaveLoadSmoke.exe          # chunk serialization roundtrip
+bin\HelloMine3DEntityLifecycleSmoke.exe   # actor lifecycle
+bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 89 assertions
+```
+
+Two client-level smokes exercise the assembled game without stealing focus or the mouse:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File toolsun_render_capture.ps1 -StopExisting -CaptureMs 4000,6000 -Seconds 12 -PlayerRotation "20 118.4 0"
+powershell -ExecutionPolicy Bypass -File toolsun_perf_baseline.ps1 -StopExisting -WarmupMs 3000 -DurationMs 10000
+```
+
+See `docs/runtime-validation.md` for what each layer covers.
 
 ## The Challenge
 

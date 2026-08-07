@@ -1,8 +1,15 @@
 # HelloMine3D TODO List
 
-This document is the execution checklist for upcoming iterations. It is intentionally more
-operational than `docs/iteration-plan.md`: each item should have a clear validation path and a
-baseline that can be compared after implementation.
+This document is the single execution checklist for the project. It answers
+"what is done, what is next, and how is it verified".
+
+| Document | Answers |
+| -------- | ------- |
+| `docs/todolist.md` (this file) | What is done, what is next, and how each item is validated. |
+| `docs/sandbox-foundation-todolist.md` | Detailed record of the S0-S7 sandbox foundation milestones. |
+| `docs/iteration-plan.md` | Long-term architectural direction and phase ordering. |
+| `docs/runtime-validation.md` | How runtime behaviour is validated and what is not covered. |
+| `docs/minigame-reference.md` | Which MiniGame architecture points are worth borrowing. |
 
 Status legend:
 
@@ -16,197 +23,178 @@ Status legend:
 
 ## Current Baseline
 
-Record this before a new iteration and update it when a milestone is completed.
+Last refreshed 2026-08-07. Update this when a milestone closes.
 
 | Area | Current state | Verification |
 | ---- | ------------- | ------------ |
-| Build system | Premake generates Make and Xcode projects. Target is `HelloMine3D`. | `sh scripts/build.sh`, `sh xcode.sh`, `xcodebuild -list -project build/HelloMine3D.xcodeproj` |
-| Runtime binary | Debug executable outputs to `bin/HelloMine3D`. | `ls -lh bin/HelloMine3D` |
-| Project naming | Source and docs use `HelloMine3D`; old generated artifacts may still exist under `bin/` and `build/`. | `rg 'Mine''Craft3D|MINE''CRAFT3D'` |
-| Assets | Runtime assets are under `media/`; config/state are under `bin/`. | Manual launch and future `scripts/check_assets.sh` |
-| Render smoke | Runtime screenshot capture exists and has verified the July 2026 pure-blue regression fix. | `powershell -ExecutionPolicy Bypass -File tools\run_render_capture.ps1 -StopExisting -CaptureMs 4000,6000 -Seconds 8 -PlayerRotation "20 118.4 0"`; see `docs/render-regression-smoke.md` |
-| Performance baseline | Runtime frame/chunk metrics can be captured without foreground activation. | `powershell -ExecutionPolicy Bypass -File tools\run_perf_baseline.ps1 -StopExisting -WarmupMs 3000 -DurationMs 10000`; see `docs/performance-baseline.md` |
-| World update | `World::updateChunk()` exists, but `Chunk::setBlock()` does not reliably trigger mesh dirty updates yet. | Manual block break/place test after T0 tasks |
-| Section state | `ChunkSection::Layer` count exists but needs correctness work. | Unit-like runtime assertions or focused test harness after T0.1 |
+| Build system | Premake is the sole project generator. `vs2022.bat` then `build/HelloMine3D.sln` builds all six targets clean on VS2022 x64 Debug. | `vs2022.bat`, `MSBuild build\HelloMine3D.sln /p:Configuration=Debug /p:Platform=x64` |
+| Dependencies | SFML 3 and FreeType build from vendored source into `build/External/sfml/install`. No checked-in binaries. | Full solution build from a wiped `build/External/sfml` |
+| Focused tests | 4 headless test targets, all passing. | `bin\HelloMine3DCoordinateTests.exe`, `bin\HelloMine3DMeshDirtyTests.exe`, `bin\HelloMine3DSaveLoadSmoke.exe`, `bin\HelloMine3DEntityLifecycleSmoke.exe` |
+| Runtime validation | `HelloMine3DWorldRuntimeSmoke` drives the real world/actor stack through 89 assertions covering S0-S6. | `bin\HelloMine3DWorldRuntimeSmoke.exe` -> `checks=89 failures=0` |
+| Render smoke | Terrain, textures, water and flora render correctly. | `bin/render_capture_20260807190230074-46036`, status PASS |
+| Performance baseline | 591 frames, `frame_p95_ms=16.430`, `avg_fps=67.152`, 289 loaded chunks, 449 mesh rebuilds. | `bin/perf_baseline_20260807190255313-41064` |
+| Sandbox foundation | 41 of 44 S-milestones Done, 3 in Verify. | `docs/sandbox-foundation-todolist.md` |
 
-## Milestone M0: Project Hygiene
+## Closed Milestones
 
-Goal: keep the project easy to build, inspect, and compare before deeper gameplay changes.
+These were tracked as `T*` items and are now delivered through the sandbox
+foundation work. They are kept here as a map, not as pending work.
 
-| ID | Status | Task | Why | Validation |
-| -- | ------ | ---- | --- | ---------- |
-| M0.1 | Done | Rename generated target, scripts, docs, and window title to `HelloMine3D`. | Avoid mixed project identity during builds and debugging. | `rg 'Mine''Craft3D|MINE''CRAFT3D'` should only find old generated artifacts if scanning all files. |
-| M0.2 | Todo | Add `.gitignore` for generated `bin/`, `build/`, `.DS_Store`, and debug artifacts. | Keep source diffs readable and avoid committing machine state. | `git status --short` shows only intentional source/docs changes after a build. |
-| M0.3 | Todo | Decide whether `bin/config.txt` and `bin/info.txt` are source-controlled templates or generated runtime files. | Current `bin/` mixes executable output, config, and UI state. | Document the decision in README; clean `git status` after launch. |
-| M0.4 | Todo | Add a short build verification script or README section for Make and Xcode. | Every iteration should have the same validation commands. | Fresh checkout can run the documented commands without guessing. |
-| M0.5 | Done | Document non-intrusive runtime render screenshot smoke. | Pure-blue regressions need a repeatable visual check that does not steal foreground or mouse. | `docs/render-regression-smoke.md`; latest verified output is `bin/render_capture_20260707173412631-53208`. |
-| M0.6 | Done | Add non-intrusive runtime performance baseline. | Refresh regressions need frame timing and chunk/mesh counters, not just visual screenshots. | `docs/performance-baseline.md`; latest verified output is `bin/perf_baseline_20260707201831896-39828`. |
+| Old ID | Task | Delivered by |
+| ------ | ---- | ------------ |
+| M0.1 | Rename target/scripts/docs to `HelloMine3D` | Done |
+| M0.2 | `.gitignore` for generated output | Done |
+| M0.5 | Runtime render screenshot smoke | Done, `docs/render-regression-smoke.md` |
+| M0.6 | Runtime performance baseline | Done, `docs/performance-baseline.md` |
+| T0.1 | `ChunkSection::Layer` solid counts | S0.4 |
+| T0.2 | Explicit section dirty flags | S0.4 |
+| T0.3 | Block edit mesh update path | S0.5 |
+| T0.4 | Boundary neighbour sections dirty | S0.5 |
+| T0.5 | No accidental chunk creation | S0.2 |
+| T0.6 | Debug visibility for mesh updates | S0.4, S7.1 |
+| T1.1 | Negative coordinate policy | S0.1 |
+| T1.2 | Spawn chunk preloading | S0.6 |
+| T1.3 | Split chunk query and creation APIs | S0.2 |
+| T1.4 | Loader thread stops reading `Camera&` | S0.3 |
+| T1.5 | Chunk load budget and counters | S0.3, S0.4 |
+| T2.3 | `BlockDefinition` static data boundary | S3.1 |
+| T2.4 | Stable string IDs for blocks | S3.1 |
+| T3.5 | Explicit render pass separation | S3.2 |
+| T4.1 | `metadata` on `ChunkBlock` | S3.3 |
+| T4.3 | `BlockRenderInfo` | S3.2 |
+| T4.5 | Plan `BlockEntity` without implementing broadly | S3.6 |
+| T5.1 | World seed in config and generator | S6.1 |
+| T5.2 | Dirty chunks separate from dirty sections | S2.4 |
+| T5.3 | Versioned chunk file format | S2.3 |
+| T5.4 | Save and load modified chunks | S2.4, S2.5 |
+| T5.5 | Player position save | S2.6 |
+| T6.1 | Split terrain base and decorators | S6.2 |
+| T6.2 | Biome data definitions | S6.3 |
+| T6.3 | Ore decorator | S6.4 |
 
-## Milestone M1: Reliable Block Editing
+## Milestone V: Close The Remaining Validation Gaps
 
-Goal: breaking and placing blocks should update only the affected section meshes and their visible
-neighbors.
-
-This is the highest priority milestone. It unlocks later work on metadata, block behavior, light,
-save/load, and performance.
-
-| ID | Status | Task | Implementation notes | Validation |
-| -- | ------ | ---- | -------------------- | ---------- |
-| T0.1 | Todo | Fix `ChunkSection::Layer` solid counts. | Compare old block opacity and new block opacity in `setBlock()`. Increment only when air/non-opaque becomes opaque; decrement only when opaque becomes non-opaque. | Add focused assertions or a small test path for all-air, all-solid, and mixed layers. Confirm `isAllSolid()` is correct. |
-| T0.2 | Todo | Add explicit section dirty flags. | Add at least `blocksDirty` and `meshDirty` or equivalent. `setBlock()` should mark block and mesh state dirty. | Debug output shows dirty section count after one block edit. |
-| T0.3 | Todo | Re-enable block edit mesh update path. | `Chunk::setBlock()` should notify `World::updateChunk()` after successful mutation when loaded. Avoid notifying during initial terrain generation unless explicitly intended. | Break/place a block and confirm the visible mesh refreshes without pressing reload keys. |
-| T0.4 | Todo | Mark boundary neighbor sections dirty. | If edited block is on x/z/y section boundary, enqueue the neighboring section because exposed faces may change. | Break/place on chunk and section boundaries; neighbor faces appear/disappear correctly. |
-| T0.5 | Todo | Avoid accidental chunk creation during dirty marking. | Dirty marking should not create unloaded chunks unless generation is intentionally requested. Consider query-only APIs in `ChunkManager`. | Edit near an unloaded edge; chunk count does not spike unexpectedly. |
-| T0.6 | Todo | Add debug visibility for mesh updates. | Start with logs or ImGui counters: dirty sections queued, sections rebuilt this frame, total loaded chunks. | During block editing, counters change predictably and return to zero. |
-| T0.7 | Todo | Fix height map update after block changes. | When removing the highest opaque block, scan downward and store the new top. When placing above top, update directly. | Height queries remain correct after removing and placing top blocks. |
-
-Manual validation checklist for M1:
-
-1. Build debug: `sh scripts/build.sh`.
-2. Launch: `sh scripts/run.sh`.
-3. Break a visible solid block in the middle of a section.
-4. Place a block in the same hole.
-5. Repeat on x, y, and z section boundaries.
-6. Confirm no full-world reload is needed and no obvious mesh holes remain.
-7. Record dirty section count and rebuild count once debug counters exist.
-
-## Milestone M2: Coordinate and Loading Stability
-
-Goal: chunk addressing and loading should be predictable before infinite-world and save work.
+Goal: retire the last three `Verify` items and the assertions that were never
+written. Small, cheap, and it keeps the foundation honest.
 
 | ID | Status | Task | Implementation notes | Validation |
 | -- | ------ | ---- | -------------------- | ---------- |
-| T1.1 | Todo | Define negative coordinate policy. | Prefer floor division and positive local block coordinates for chunk/block mapping. If not supporting negative coordinates yet, clamp deliberately and document it. | Moving across x/z zero does not produce negative local block indices or wrong chunk access. |
-| T1.2 | Todo | Fix spawn chunk preloading. | Current spawn preload loops use world block coordinates where chunk coordinates are expected. Convert to chunk coordinates. | Spawn area consistently appears around the player without delayed holes. |
-| T1.3 | Todo | Split chunk query and chunk creation APIs. | Add methods like `findChunk()`/`tryGetChunk()` beside `getOrCreateChunk()`. | Read-only mesh/build paths do not create chunks by accident. |
-| T1.4 | Todo | Stop background loading thread from reading `Camera&` directly. | Main thread should submit target chunk position or load center; worker consumes immutable requests. | Code review shows no unsynchronized camera reads from worker threads. |
-| T1.5 | Todo | Add chunk load budget and counters. | Track chunks loaded, sections meshed, and time spent per frame. | Debug UI/logs show stable per-frame budget instead of large stalls. |
+| V1 | Todo | Assert the 20Hz simulation tick rate (S1.5). | Record a tick counter in `RuntimePerformanceCapture` alongside the frame counters, then check ticks/second in the summary. | Performance baseline summary reports roughly 20 ticks per second over a 10s run. |
+| V2 | Todo | Validate `PlayerController` input (S5.3). | Needs one interactive run, or an input-injection mode that feeds synthetic key state without warping the mouse. | Movement, jump, fly toggle and hotbar selection all respond. |
+| V3 | Todo | Screenshot the sandbox debug panel (S7.1). | Add an env override that starts the client with `show_debug_info` enabled so the capture script can photograph the panel. | Capture shows live chunk/mesh/actor counters. |
+| V4 | Todo | Assert height map correctness after edits (old T0.7). | Break the highest opaque block and place above the top; compare `Chunk::getHeightAt()` against a brute-force scan. | Added to `HelloMine3DWorldRuntimeSmoke`. |
+| V5 | Todo | Add a thread-stress check for the background loader (S0.3). | MSVC has no ThreadSanitizer. A long-running loader stress with an assertion-heavy debug build is the realistic option. | Loader survives sustained load-center churn without corruption. |
 
-## Milestone M3: Asset and Data Reliability
+## Milestone P: First Playable Foundation
 
-Goal: asset mistakes should fail early with clear messages, and block data should be ready for
-behavior and metadata.
-
-| ID | Status | Task | Implementation notes | Validation |
-| -- | ------ | ---- | -------------------- | ---------- |
-| T2.1 | Todo | Add `scripts/check_assets.sh`. | Check block files, shader files, textures, fonts, and config templates. | Script returns non-zero on missing referenced files. |
-| T2.2 | Todo | Strengthen `.block` parsing diagnostics. | Include filename, missing key, bad enum/value, invalid atlas coordinate, and duplicate ID. | Introduce a temporary bad block file and confirm the error points to the exact file/key. |
-| T2.3 | Todo | Define `BlockDefinition` as the static data boundary. | Keep compatibility with current `BlockDataHolder`, but make room for hardness, collision, render type, light opacity, and drops. | Existing blocks still load; new fields can be defaulted. |
-| T2.4 | Todo | Add stable string IDs for blocks. | Numeric IDs are useful at runtime, but string IDs make data migration and debugging easier. | Logs/debug UI can show both numeric ID and string ID for a selected block. |
-| T2.5 | Todo | Decide config ownership. | Move defaults into code or a template file; keep user state separate from generated executable output. | Deleting runtime config either regenerates a documented default or fails with an actionable message. |
-
-MiniGame reference to use here:
-
-| MiniGame idea | HelloMine3D version |
-| ------------- | ------------------- |
-| `BlockDef` data + `BlockMaterial` behavior | `BlockDefinition` + later `BlockBehavior` |
-| Large CSV content tables | Small `.block` or TOML/JSON definitions first |
-| `BlockMaterialMgr` lookup tables | Startup-built block registry and validation reports |
-
-## Milestone M4: Mesh Pipeline and Performance
-
-Goal: make section mesh rebuilds measurable and then faster.
+Goal: close the three "partly met" criteria in the sandbox foundation target.
+Entity rendering is the biggest single gap in the project right now.
 
 | ID | Status | Task | Implementation notes | Validation |
 | -- | ------ | ---- | -------------------- | ---------- |
-| T3.1 | Todo | Add mesh build metrics. | Track section rebuild count, solid/water/flora face counts, vertex counts, and build milliseconds. | A debug panel or log shows before/after numbers for the same scene. |
-| T3.2 | Todo | Convert dirty sections into a bounded queue. | Process a fixed number or time budget per frame. | Editing many blocks does not cause a single-frame rebuild spike. |
-| T3.3 | Todo | Add 18x18x18 halo cache for mesh building. | Cache neighbor blocks around a section before emitting faces. | Mesh build performs fewer cross-world lookups; output remains visually identical. |
-| T3.4 | Todo | Implement opaque cube greedy meshing. | Only merge faces with same material/render pass/light constraints. Keep flora/water separate. | Face/vertex count drops on flat terrain; visual output remains correct. |
-| T3.5 | Todo | Keep render pass separation explicit. | Solid, water, flora, transparent/model blocks should not be forced into one mesh path. | Glass/leaves/water changes do not regress when solid mesh is optimized. |
+| P1 | Todo | Render actors. | `RenderMaster` only exposes `drawChunk()` and `drawSky()`. Mobs and item entities tick correctly but are invisible, so S5.5/S5.6 cannot be confirmed visually. Start with a simple cube/billboard pass. | Render capture shows a spawned mob and a dropped item. |
+| P2 | Todo | Persist entities. | `ActorSaveState` exists but `WorldSaveData` has no entity list, so mobs and drops vanish on relaunch. | Spawn a mob, relaunch, mob is still there. |
+| P3 | Todo | Add selected-block outline and pick feedback. | Reuse the existing `Ray` cast from the dig path. | Player can see which block will be edited. |
+| P4 | Todo | Add ore textures. | `CoalOre` and `IronOre` currently reuse stone atlas coordinates, so ore is invisible in game. | Ore is visually distinct in a render capture. |
+| P5 | Todo | Implement `use` interactions and `BlockUseEvent`. | The event type and the interaction seam already exist; only the behaviour is missing. Criterion 3 of the foundation target depends on it. | Right-click on a target block publishes `BlockUseEvent`. |
 
-Comparison metrics for M4:
+## Milestone A: Asset And Data Reliability
 
-| Metric | Before | After |
-| ------ | ------ | ----- |
-| Loaded chunks | Record from debug UI | Record from debug UI |
-| Dirty sections per edit | Record once T0.6 exists | Compare after queue changes |
-| Section rebuild ms | Record once T3.1 exists | Compare after halo/greedy |
-| Solid face count | Record once T3.1 exists | Compare after greedy |
-| Frame stutter during block spam | Manual observation | Manual observation |
-
-## Milestone M5: Block State and Behavior
-
-Goal: move from static block IDs toward data-driven, extensible blocks.
+Goal: asset mistakes should fail early with clear messages.
 
 | ID | Status | Task | Implementation notes | Validation |
 | -- | ------ | ---- | -------------------- | ---------- |
-| T4.1 | Todo | Add `metadata` to `ChunkBlock`. | Use an explicit `std::uint8_t` field first; do not bit-pack yet. | Existing worlds still run; all old blocks have metadata 0. |
-| T4.2 | Todo | Add one metadata-backed block behavior. | Good candidates: log orientation, crop growth stage, or water level. | Same block ID renders/behaves differently based on metadata. |
-| T4.3 | Todo | Introduce `BlockRenderInfo`. | Separate atlas/render pass/shape from core static properties. | Mesh builder reads render info instead of scattering block-type checks. |
-| T4.4 | Todo | Introduce lightweight `BlockBehavior`. | Start with callbacks for placed, broken, neighbor changed, tick. | A special block can be added without editing many unrelated switch/if chains. |
-| T4.5 | Todo | Plan `BlockEntity` but do not implement broadly yet. | Containers, signs, furnaces, and machines need persistent state later. | Design note exists; no heavy container system until save/load is ready. |
+| A1 | Todo | Add `scripts/check_assets.sh`. | Check block files, shader files, textures, fonts and config templates. | Script returns non-zero on a missing referenced file. |
+| A2 | Todo | Strengthen `.block` parsing diagnostics. | `BlockData.cpp` only throws when the file cannot be opened. Report filename, missing key, bad enum, invalid atlas coordinate and duplicate id. | A deliberately broken block file names the exact file and key. |
+| A3 | Todo | Decide config and runtime-state ownership (old M0.3/T2.5). | `.gitignore` currently ignores all of `bin/`, so `config.txt` and `info.txt` are effectively generated. `loadConfig()` already regenerates a default config; document that and drop the ambiguity. | Deleting `bin/config.txt` regenerates a documented default. |
+| A4 | Todo | Move world seed into the config file. | Seed is only reachable through `HELLOMINE3D_SEED`. `Config` has window, FOV and render distance but no seed. | Setting a seed in `bin/config.txt` reproduces a world. |
 
-MiniGame reference to use here:
-
-| MiniGame idea | HelloMine3D version |
-| ------------- | ------------------- |
-| `BlockMaterial` large virtual interface | Small optional behavior interface |
-| `WorldContainer` for stateful blocks | Future `BlockEntity` |
-| `BlockDef.Type` creates concrete behavior | Definition chooses optional behavior factory |
-
-## Milestone M6: Save, Seed, and World Persistence
-
-Goal: make the world reproducible and then persistent.
+## Milestone B: Build And Platform Reliability
 
 | ID | Status | Task | Implementation notes | Validation |
 | -- | ------ | ---- | -------------------- | ---------- |
-| T5.1 | Todo | Add world seed to config and terrain generator. | Same seed should generate the same chunks. | Delete world data, reuse seed, compare sampled heights/blocks. |
-| T5.2 | Todo | Mark dirty chunks separately from dirty sections. | Mesh dirty is render state; chunk dirty means save needed. | Editing one block marks one chunk dirty for save. |
-| T5.3 | Todo | Design versioned chunk file format. | Include magic, version, chunk coords, dimensions, block IDs, metadata, and optional compression. | Loader rejects wrong magic/version with clear error. |
-| T5.4 | Todo | Save and load modified chunks. | Start synchronous. Move to async only after correctness is proven. | Edit a block, exit, relaunch, confirm edit persists. |
-| T5.5 | Todo | Add player position save. | Keep separate from chunk data. | Relaunch restores player near last position. |
+| B1 | Todo | Guard against a stale SFML CMake cache. | `build/External/sfml/CMakeCache.txt` stores absolute paths, so moving or renaming the repository breaks every later build with a confusing CMake error. Detect the mismatch in the build scripts and wipe the tree automatically. | Rename the repo directory, build, and the build still succeeds. |
+| B2 | Todo | Document and script build verification (old M0.4). | One documented command per platform, matching what CI would run. | A fresh checkout builds by following the README alone. |
+| B3 | Todo | Verify the macOS path. | Every milestone note so far records Windows verification only. The Xcode generator and the SFML 3 inline-constexpr patch are unproven on macOS. | `sh xcode.sh` then `xcodebuild` builds and the client launches. |
+| B4 | Todo | Remove dead build artifacts. | `bin/HelloMine3DFoundationRuntimeSmoke.exe` has no source file and no premake target; it is a leftover from a deleted target and is confusing next to the live test binaries. | `bin/` only contains targets that premake still generates. |
 
-MiniGame reference to use here:
+## Milestone M: Mesh Pipeline And Performance
 
-| MiniGame idea | HelloMine3D version |
-| ------------- | ------------------- |
-| `WorldManager` session-level data | Later `WorldSession` or `WorldSave` metadata |
-| `ChunkIOMgr` async command queue | Start sync, then evolve to command/result queue |
-| Region files | Consider only after simple per-chunk files work |
-
-## Milestone M7: Terrain and Content Expansion
-
-Goal: add world variety without turning generation into one large function.
+Goal: make section mesh rebuilds measurable and then faster. The performance
+baseline tool already exists, so every item here has a before/after number.
 
 | ID | Status | Task | Implementation notes | Validation |
 | -- | ------ | ---- | -------------------- | ---------- |
-| T6.1 | Todo | Split terrain base and decorators. | Base height/biome first; tree/plant/ore/lake/structure passes after. | Adding a new decorator does not modify the core terrain loop heavily. |
-| T6.2 | Todo | Add biome data definitions. | Start with a small table: grassland, forest, desert, ocean. | Biome choice affects top/fill block and decorations. |
-| T6.3 | Todo | Add ore decorator. | Use seed-stable chunk random. | Same seed and chunk coords produce same ore positions. |
-| T6.4 | Todo | Add cave pass. | Do after save/dirty is stable, because caves affect many blocks. | Caves are deterministic and do not break surface generation. |
+| M1 | Todo | Add mesh build metrics. | Track per-section rebuild ms, solid/water/flora face counts and vertex counts. Today only a cumulative rebuild count exists. | Baseline summary gains face/vertex/ms columns. |
+| M2 | Todo | Convert dirty sections into a bounded queue. | `World::updateChunks()` rebuilds every queued section in one frame. | Editing many blocks does not spike a single frame. |
+| M3 | Todo | Add an 18x18x18 halo cache for mesh building. | Cache neighbour blocks around a section before emitting faces. | Fewer cross-section lookups, identical visual output. |
+| M4 | Todo | Implement opaque cube greedy meshing. | Merge only same-material, same-pass faces. Keep flora and water separate. | Face count drops on flat terrain, render capture unchanged. |
+| M5 | Todo | Investigate unmeshed sections. | The baseline shows 1564 of 2013 sections still mesh-dirty after a 13s run. Confirm this is the intended loader budget and not starvation. | Documented explanation or a fix, plus a baseline comparison. |
 
-## Milestone M8: Light and Visual Feedback
+## Milestone L: Light And Visual Feedback
 
-Goal: add visual quality after block updates, mesh state, and data models are stable.
+Goal: visual quality, after the mesh pipeline is stable. Nothing here exists
+yet; there is no light data in the codebase at all.
 
-| ID | Status | Task | Implementation notes | Validation |
-| -- | ------ | ---- | -------------------- | ---------- |
-| T7.1 | Todo | Add simple selected-block outline. | Use existing raycast result if available; otherwise add focused block pick. | Player can see which block will be edited. |
-| T7.2 | Todo | Add basic sunlight storage. | 4-bit sunlight is enough long term, but explicit bytes are fine first. | Surface and caves have visibly different brightness. |
-| T7.3 | Todo | Add block light storage. | Keep torch/lava light separate from skylight. | A test emissive block lights nearby mesh vertices. |
-| T7.4 | Todo | Add local relight after edits. | Tie light dirty to mesh dirty. | Placing/removing an opaque block changes nearby lighting without full rebuild. |
-| T7.5 | Todo | Improve transparent block rules. | Water, glass, leaves, and flora need explicit render pass and face-culling behavior. | Transparent blocks render without obvious missing faces or wrong draw order in common cases. |
+| ID | Status | Task | Validation |
+| -- | ------ | ---- | ---------- |
+| L1 | Todo | Add sunlight storage. | Surface and caves have visibly different brightness. |
+| L2 | Todo | Add block light storage. | An emissive block lights nearby mesh vertices. |
+| L3 | Todo | Add local relight after edits. | Placing an opaque block changes nearby lighting without a full rebuild. |
+| L4 | Todo | Tighten transparent block rules. | Water, glass, leaves and flora render without missing faces or wrong draw order. |
+
+## Milestone C: Content And Behaviour Expansion
+
+| ID | Status | Task | Validation |
+| -- | ------ | ---- | ---------- |
+| C1 | Todo | Introduce lightweight `BlockBehavior`. | A special block can be added without editing unrelated switch chains. |
+| C2 | Todo | Add one metadata-backed block behaviour. | Same block id renders or behaves differently by metadata. |
+| C3 | Todo | Resource-drive block shapes. | Non-cube blocks are no longer hard-coded in the mesh builder. |
+| C4 | Todo | Add a cave generation pass. | Caves are deterministic and do not break surface generation. |
+| C5 | Todo | Support cross-chunk structures. | Structures near chunk edges neither disappear nor duplicate. |
+| C6 | Todo | Add mob chase AI and damage invulnerability frames. | A mob reacts to the player and cannot be damaged twice in one frame. |
+
+## Not Recommended Yet
+
+| Direction | Reason |
+| --------- | ------ |
+| Async chunk IO | Synchronous save/load is correct now. Add a command queue only once mesh performance work exposes a real IO stall. |
+| Multiplayer | Changes world authority, event sync, entity sync, save format and input model. |
+| Lua / UGC scripting | The C++ event bus is stable but the extension points are not exercised yet. |
+| Full resource packs and hot reload | Do manifest and validation first (A1, A2). |
+| D3D / Vulkan backend | SFML + OpenGL covers the Windows/macOS target. |
+| Large-scale MiniGame code migration | Use it as an architectural reference, not a source. |
+
+## Recommended Order
+
+1. **V1-V5** — retire the last validation gaps while the context is fresh.
+2. **P1-P5** — entity rendering, entity persistence, block outline, ore
+   textures and `use` interactions. This is what turns the foundation into
+   something playable, and it makes S5.5/S5.6 visually confirmable.
+3. **A1-A4, B1-B4** — asset and build reliability, before the codebase grows.
+4. **M1-M5** — mesh metrics first, then the optimizations, each with a
+   baseline comparison.
+5. **L1-L4** — lighting, after the vertex format work in M is settled.
+6. **C1-C6** — content and behaviour expansion.
 
 ## Validation Matrix
 
 Every completed task should list which validations were run.
 
-| Validation | Command or method | Required for |
-| ---------- | ----------------- | ------------ |
-| Make debug build | `sh scripts/build.sh` | All code changes |
-| Make release build | `sh scripts/build.sh release` | Milestone completion |
-| Xcode project generation | `sh xcode.sh` | Build system or file layout changes |
-| Xcode list | `xcodebuild -list -project build/HelloMine3D.xcodeproj` | Build system changes |
-| Xcode debug build | `xcodebuild -project build/HelloMine3D.xcodeproj -scheme HelloMine3D -configuration Debug -derivedDataPath build/XcodeDerivedData build` | Milestone completion on macOS |
-| Asset check | `sh scripts/check_assets.sh` after T2.1 exists | Asset/data changes |
-| Manual smoke run | `sh scripts/run.sh` | Runtime behavior changes |
-| Block edit smoke test | Break/place center and boundary blocks | M1 and later mesh/block changes |
-| Save/load smoke test | Edit, exit, relaunch, confirm persistence | M6 and later save changes |
+| Validation | Command | Required for |
+| ---------- | ------- | ------------ |
+| Windows project generation | `vs2022.bat` | Build system or file layout changes |
+| Windows debug build | `MSBuild build\HelloMine3D.sln /p:Configuration=Debug /p:Platform=x64` | All code changes |
+| Windows release build | same with `/p:Configuration=Release` | Milestone completion |
+| macOS Xcode project | `sh xcode.sh`, then `xcodebuild` | Build system changes, once B3 lands |
+| Focused headless tests | the four `bin\HelloMine3D*Tests.exe` / `*Smoke.exe` binaries | All code changes |
+| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | Chunk, storage, interaction, event, actor or terrain changes |
+| Render smoke | `tools\run_render_capture.ps1` | Renderer, shader, texture, mesh upload or frame sequencing changes |
+| Performance baseline | `tools\run_perf_baseline.ps1` | Chunk loading, mesh building, update flow or render submission changes |
+| Asset check | `sh scripts/check_assets.sh` | Asset and data changes, once A1 lands |
+| Interactive run | `bin\HelloMine3D.exe` | Input, camera or player-facing UI changes |
 
 ## Iteration Report Template
-
-Use this block in PR notes, commits, or follow-up docs after each iteration.
 
 ```text
 Iteration:
@@ -215,45 +203,31 @@ Scope:
 Task IDs:
 
 Changed:
-- 
+-
 
 Validation run:
-- [ ] sh scripts/build.sh
-- [ ] sh scripts/build.sh release
-- [ ] sh xcode.sh
-- [ ] xcodebuild -list -project build/HelloMine3D.xcodeproj
-- [ ] Manual run
-- [ ] Asset check
+- [ ] vs2022.bat + solution build
+- [ ] Focused headless tests
+- [ ] bin\HelloMine3DWorldRuntimeSmoke.exe
+- [ ] tools\run_render_capture.ps1
+- [ ] tools\run_perf_baseline.ps1
+- [ ] Interactive run
 
 Before metrics:
-- Loaded chunks:
-- Dirty sections per edit:
-- Section rebuild ms:
-- Solid faces:
-- Notes:
+- frame_p95_ms:
+- loaded chunks:
+- mesh rebuilds:
+- validation checks/failures:
 
 After metrics:
-- Loaded chunks:
-- Dirty sections per edit:
-- Section rebuild ms:
-- Solid faces:
-- Notes:
+- frame_p95_ms:
+- loaded chunks:
+- mesh rebuilds:
+- validation checks/failures:
 
 Known risks:
-- 
+-
 
 Next recommended task:
-- 
+-
 ```
-
-## Near-Term Recommendation
-
-The next implementation should start with M1, specifically:
-
-1. T0.1 `ChunkSection::Layer` solid count correctness.
-2. T0.2 explicit dirty flags.
-3. T0.3 `setBlock()` to mesh dirty update path.
-4. T0.4 boundary neighbor dirty marking.
-5. T0.6 debug counters for dirty/rebuilt sections.
-
-Do not start save/load, lighting, or new gameplay until this block edit loop is reliable.

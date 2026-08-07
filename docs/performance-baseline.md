@@ -96,7 +96,7 @@ the game window.
 Latest verified local run:
 
 ```text
-bin/perf_baseline_20260707201831896-39828
+bin/perf_baseline_20260807190255313-41064
 ```
 
 Command:
@@ -105,28 +105,45 @@ Command:
 powershell -ExecutionPolicy Bypass -File tools\run_perf_baseline.ps1 -StopExisting -WarmupMs 3000 -DurationMs 10000
 ```
 
+Build configuration: **VS2022 x64 Debug**. Always compare runs from the same
+configuration; a Release build changes the update and mesh-build timings
+substantially.
+
 Key summary:
 
 | Metric | Value |
 | ------ | ----- |
-| `frames` | 73 |
-| `sampled_fps` | 7.300 |
-| `frame_p95_ms` | 16.516 |
-| `frame_p99_ms` | 16.600 |
-| `update_p95_ms` | 0.151 |
-| `render_p95_ms` | 2.696 |
-| `display_p95_ms` | 16.213 |
-| `frames_over_33ms` | 0 |
-| `frames_over_50ms` | 0 |
-| `last_loaded_chunks` | 100 |
-| `last_gpu_buffered_sections` | 271 |
-| `last_mesh_rebuilds` | 299 |
+| `frames` | 591 |
+| `sampled_fps` | 59.100 |
+| `avg_fps` | 67.152 |
+| `frame_p95_ms` | 16.430 |
+| `frame_p99_ms` | 16.522 |
+| `frame_max_ms` | 113.800 |
+| `update_p95_ms` | 0.156 |
+| `render_p95_ms` | 1.238 |
+| `display_p95_ms` | 15.858 |
+| `frames_over_33ms` | 2 |
+| `frames_over_50ms` | 2 |
+| `last_loaded_chunks` | 289 |
+| `last_sections` | 2013 |
+| `last_mesh_dirty_sections` | 1564 |
+| `last_gpu_buffered_sections` | 447 |
+| `last_mesh_rebuilds` | 449 |
 | `terrain_seed` | 296595 |
 
-The low `sampled_fps` and spiky `dt_ms` values are expected for this
-non-activating background run. The useful baseline signal here is that the
-main-loop body, update, render, and display stage percentiles stay bounded and
-there are no `frame_ms` samples over 33 ms or 50 ms.
+The run is vsync bound: `frame_p95_ms` sits at the 16.4 ms refresh interval and
+`display_p95_ms` accounts for almost all of it, while `update_p95_ms` and
+`render_p95_ms` stay well under 1.3 ms. The two frames over 50 ms are startup
+spikes captured after warmup.
+
+Two things to watch in later comparisons:
+
+- `last_mesh_dirty_sections` is 1564 of 2013 sections. Most loaded sections
+  never get meshed inside a 13 second run. Confirm this is the intended chunk
+  loader budget rather than starvation before optimizing mesh building.
+- This run replaces an older baseline (`bin/perf_baseline_20260707201831896-39828`,
+  73 frames at 7.3 sampled fps) that was recorded before the SFML build tree was
+  rebuilt. Do not compare the two directly.
 
 ## Baseline Policy
 

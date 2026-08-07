@@ -62,19 +62,27 @@ Pass condition:
 Last verified command output:
 
 ```text
-[RENDER_CAPTURE] runId=20260707173412631-53208
-[RENDER_CAPTURE] capturesMs=4000,6000 seconds=8 prefix=new mode=RuntimeReadback noActivate=true
-[RENDER_CAPTURE] captured E:\Workspace\MineCraft\bin\render_capture_20260707173412631-53208\new_04000ms.png
-[RENDER_CAPTURE] captured E:\Workspace\MineCraft\bin\render_capture_20260707173412631-53208\new_06000ms.png
-[RENDER_CAPTURE] status=PASS outputDir=E:\Workspace\MineCraft\bin\render_capture_20260707173412631-53208
+[RENDER_CAPTURE] runId=20260807190230074-46036
+[RENDER_CAPTURE] capturesMs=4000,6000 seconds=12 prefix=new mode=RuntimeReadback noActivate=true
+[RENDER_CAPTURE] seed=296595
+[RENDER_CAPTURE] playerPosition=2766 102 2905
+[RENDER_CAPTURE] playerRotation=20 118.4 0
+[RENDER_CAPTURE] captured E:\Workspace\MineCraft3D\bin\render_capture_20260807190230074-46036\new_04000ms.png
+[RENDER_CAPTURE] captured E:\Workspace\MineCraft3D\bin\render_capture_20260807190230074-46036\new_06000ms.png
+[RENDER_CAPTURE] status=PASS outputDir=E:\Workspace\MineCraft3D\bin\render_capture_20260807190230074-46036
 ```
 
 Verified images:
 
-- `bin/render_capture_20260707173412631-53208/new_04000ms.png`
-- `bin/render_capture_20260707173412631-53208/new_06000ms.png`
+- `bin/render_capture_20260807190230074-46036/new_04000ms.png`
+- `bin/render_capture_20260807190230074-46036/new_06000ms.png`
 
-Both images show visible terrain, grass/dirt/stone block textures, and sky.
+Both images show visible terrain with grass, dirt, stone and sand textures,
+water, flora (tall grass and roses), and sky. No pure-blue or black frame.
+
+Earlier verified run, kept for comparison:
+`bin/render_capture_20260707173412631-53208` (recorded while the repository
+still lived at `E:\Workspace\MineCraft`).
 
 ## Implementation Notes
 
