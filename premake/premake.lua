@@ -233,7 +233,10 @@ project "imgui_sfml"
 
 group ""
 
-project(project_name)
+-- Shared configuration for every target that links the full game runtime.
+-- Keeping this in one place stops the client and the runtime validation
+-- target from drifting apart.
+local function configure_game_runtime_target()
     kind "ConsoleApp"
     location "../build/%{prj.name}"
     targetdir "../bin"
@@ -245,8 +248,6 @@ project(project_name)
         "imgui",
         "imgui_sfml"
     }
-
-    files(project_source_patterns())
 
     includedirs {
         source_dir
@@ -333,6 +334,19 @@ project(project_name)
         }
 
     filter {}
+end
+
+project(project_name)
+    configure_game_runtime_target()
+    files(project_source_patterns())
+
+-- Headless runtime validation over the real World/WorldManager/actor code.
+-- Links the whole game runtime except the client entry point.
+project "HelloMine3DWorldRuntimeSmoke"
+    configure_game_runtime_target()
+    files(project_source_patterns())
+    files { source_dir .. "/Tests/WorldRuntimeSmokeMain.cpp" }
+    removefiles { source_dir .. "/Main.cpp" }
 
 project "HelloMine3DCoordinateTests"
     kind "ConsoleApp"
