@@ -79,17 +79,65 @@ Release 每轮做很多个 section，Debug 做少数几个，两者都不会饿�
 
 Release 完全追平：全部 2013 个 section 建完并上传，帧率与卡顿均无回退。
 
+## 后续：halo cache（M3，已完成）
+
+上一轮遗留的根本限制是「mesh 构建持有世界锁」。`ChunkMeshBuilder` 通过
+`World::getBlock()` 读取邻居方块，需要 chunk map 保持稳定，所以整个构建都在锁内。
+
+### 做法
+
+新增 `SectionMeshInput`：18×18×18 的方块快照，加上 `shouldMakeLayer()` 需要的
+层实心标记（自身 y-1/y/y+1，以及四个水平邻居的 y 层）。
+
+worker 的每个目标拆成三段：
+
+```
+锁内   beginMeshJob()   确保邻域已加载 → 找一个脏 section → 快照
+锁外   buildMesh()      只读快照，完全不碰世界
+锁内   finishMeshJob()  校验后安装
+```
+
+`finishMeshJob()` 会拒绝陈旧结果：`ChunkSection` 新增 `m_blockRevision`，每次
+`setBlock()` 递增。若构建期间发生了方块编辑或同步重建，revision 不匹配，结果被丢弃，
+section 保持 dirty 等待下一轮。这防止了锁外构建覆盖掉玩家的编辑。
+
+主线程的方块编辑仍走 `ChunkSection::makeMesh()` 同步路径（快照+构建一次做完）——
+单次编辑只影响少数 section，不值得为它引入异步。
+
+### 顺带修掉一个渲染 bug
+
+原 `buildMesh()` 用一个递增指针遍历方块，但 `shouldMakeLayer(y)` 为假时只 `continue`、
+**不推进指针**。一个层是 256 个连续索引，所以只要跳过任意一层，之后所有方块都会
+读到低 256 格的数据。
+
+后果是地表被渲染成地下的方块。修复前后同一 seed、同一机位的截图对比：
+原本一大片「沙地/石头」实际是被错读的草地，修复后正确显示为长满花草的草原。
+
+改用按坐标读取（`m_pInput->getBlock(x, y, z)`）后此问题自然消失。
+
+### 顺带：卸载扫描节流
+
+`unloadDistantChunks()` 原本每帧扫描全部已加载 chunk。相机不跨 chunk 时不可能有
+chunk 离开视距，所以改为仅在相机 chunk 变化时扫描（预算截断时保留 backlog 标记）。
+这一项单独又带来约 26% 的 mesh 吞吐提升，因为主线程抢锁次数大幅下降。
+
+### 清理
+
+`ChunkManager::makeMesh()` / `Chunk::makeMesh()` / `Chunk::makeMeshes()` 这条链
+在拆分后已无调用者，一并删除，避免两套并行的构建路径。
+
+### 验证
+
+`HelloMine3DWorldRuntimeSmoke` 新增 4 项断言（共 93 项）：
+
+| 断言 | 内容 |
+| ---- | ---- |
+| `M3/halo-matches-world` | 18³ 全部 5832 个格子（含跨 chunk 边界）与 `World::getBlock()` 逐一相等 |
+| `M3/block-revision-advances` | `setBlock()` 后 revision 递增 |
+| `M3/edit-visible-in-new-snapshot` | 新快照能看到刚才的编辑 |
+| `M3/section-available` | 目标 section 存在 |
+
 ## 残留问题
-
-### R1 mesh 构建持有世界锁
-
-这是当前的根本限制。`ChunkMeshBuilder` 通过 `World::getBlock()` 读取邻居方块，
-需要 chunk map 保持稳定，因此整个构建过程都在锁内。
-
-后果是 Debug 下无法进一步提高吞吐——提高预算就会掉帧。
-
-**正确解法是邻居 halo cache**：在锁内快照 18×18×18 的邻域，然后在锁外构建 mesh。
-参见 `docs/minigame-reference.md` 第 14 条。这已列入 `docs/todolist.md` 的 M3。
 
 ### R2 视锥过滤（回归 #2）未恢复
 
@@ -107,6 +155,25 @@ Release 完全追平：全部 2013 个 section 建完并上传，帧率与卡顿
 地下被完全包围的 section 建出来是空 mesh，纯浪费。加一个 non-empty/solid 计数
 即可跳过。参见 `docs/minigame-reference.md` 第 7 条。
 
+### R4 基准的 vsync 状态会漂移
+
+2026-08-07 的测量中途，同一台机器、同一脚本、同一参数下 `sampled_fps` 从 60 跳到
+1200 以上，`display_p95_ms` 从 15.8ms 掉到 0.02ms——**垂直同步失效了**。
+
+用 A/B 确认过这与代码无关：把源码回退到 M3 之前重新构建，同样是 1167fps。
+推测与窗口未激活时的桌面合成状态有关。
+
+影响很实际：无 vsync 时主循环从 60Hz 变成 1200Hz，`World::update()` 的加锁次数
+涨 20 倍，会把 worker 挤掉。**跨 vsync 状态的运行不可比**。
+
+对比前先看 `sampled_fps`：若远高于显示器刷新率，说明该次运行 vsync 未生效。
+
+### R5 渲染截图脚本存在竞态
+
+进程完成两次截图后按 `HELLO_RENDER_CAPTURE_EXIT` 自行退出，但脚本的轮询有时会
+报 `Process exited before runtime captures completed` 并返回非零，尽管两张 PNG
+都已正确写出、stderr 为空。代码变快后更容易触发。属于工具缺陷，不是游戏问题。
+
 ## 教训
 
 1. **性能工具要先于性能敏感的重构落地。** 这次回归存活了两个提交才被发现。
@@ -114,3 +181,7 @@ Release 完全追平：全部 2013 个 section 建完并上传，帧率与卡顿
 3. **基准场景必须钉死。** 脚本默认从 `world.meta` 读位置，而游戏退出会重写它，
    导致运行间不可比。现在必须显式传 `-Seed` 和 `-PlayerPosition`。
 4. **Debug 和 Release 都要测。** 第一版修复在 Release 下完美，在 Debug 下灾难。
+5. **数字异常时先证伪自己的改动。** vsync 漂移一度看起来像是 M3 造成的性能回退，
+   把源码回退重新构建做 A/B，两分钟就排除了。没有这一步会去改根本没坏的东西。
+6. **性能 bug 可能同时是正确性 bug。** 那个方块指针错位既拖慢了构建，也让地表
+   渲染成了地下方块，而它存在了很久都没被发现。

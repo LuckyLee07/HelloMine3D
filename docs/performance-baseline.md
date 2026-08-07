@@ -106,42 +106,56 @@ powershell -ExecutionPolicy Bypass -File tools\run_perf_baseline.ps1 `
     -Seed 296595 -PlayerPosition "2766 102 2905"
 ```
 
+## Check The Vsync State Before Comparing
+
+`sampled_fps` far above the monitor refresh rate means vsync was not active for
+that run. This has been observed to change on the same machine with the same
+script and the same code (see `docs/chunk-streaming-regression.md` R4), and it
+matters a lot: without vsync the main loop runs at over 1000 Hz and takes the
+world lock 20x more often, which starves the chunk worker.
+
+**Only compare runs whose `sampled_fps` and `display_p95_ms` are in the same
+regime.**
+
 ## Current Verified Runs
 
-Both taken 2026-08-07 with the command above, after the chunk streaming fixes.
+Taken 2026-08-07 after the halo cache work (M3), with the command above.
+Both were **vsync inactive** runs, so do not compare them against the 60 fps
+runs recorded earlier the same day.
 
 | Metric | Debug | Release |
 | ------ | ----- | ------- |
-| run | `bin/perf_baseline_20260807204353319-60596` | `bin/perf_baseline_20260807204435048-12972` |
-| `frames` | 601 | 601 |
-| `sampled_fps` | 60.100 | 60.100 |
-| `frame_p95_ms` | 16.525 | 17.454 |
-| `frame_max_ms` | 18.563 | 26.019 |
-| `update_p95_ms` | 0.108 | 0.033 |
+| run | `bin/perf_baseline_20260807213333692-35508` | `bin/perf_baseline_20260807213418957-47016` |
+| `sampled_fps` | 755.9 | 2196.3 |
+| `frame_p95_ms` | 2.128 | 0.543 |
+| `frame_max_ms` | 13.687 | **2.304** |
+| `update_p95_ms` | 0.814 | **0.004** |
+| `render_p95_ms` | 1.047 | 0.467 |
 | `frames_over_33ms` | 0 | 0 |
 | `frames_over_50ms` | 0 | 0 |
-| `last_sections` | 1832 | 2013 |
-| `last_mesh_dirty_sections` | 604 | **0** |
-| `last_gpu_buffered_sections` | 1224 | 2013 |
-| `last_mesh_rebuilds` | 1228 | 2013 |
+| `last_sections` | 2473 | 2473 |
+| `last_mesh_dirty_sections` | 460 | 460 |
+| `last_mesh_rebuilds` | **2013** | **2013** |
 
-Release fully catches up: every loaded section is meshed and uploaded inside
-the run. Debug is roughly 4x slower per section mesh, so it is still working at
-the end of the window, but it holds 60 fps while doing so.
+`update_p95_ms` is the number to watch: it is what the main thread spends
+waiting on the world lock. At 0.004 ms in Release the mesh worker is
+effectively invisible to the render thread, which is the whole point of moving
+the mesh build off the lock.
 
-Both runs are vsync bound. Note that the vsync wait moved from `display_ms` to
-`render_ms` once the whole view distance became resident — total frame time is
-unchanged, there is simply more geometry submitted before the driver blocks.
+An A/B under these same conditions (source reverted to pre-M3, rebuilt) gave
+1598 mesh rebuilds against 2013 now.
 
-### Previous baseline, for contrast
+### Earlier runs, for reference
 
-`bin/perf_baseline_20260807190255313-41064` (Debug, same scene) recorded
-**449 mesh rebuilds with 1564 sections still dirty** after 13 seconds. Chunk
-streaming never caught up in that build. See `docs/chunk-streaming-regression.md`
-for the diagnosis.
+| Run | Config | Note |
+| --- | ------ | ---- |
+| `perf_baseline_20260807204353319-60596` | Debug, vsync on | 1228 rebuilds, 60.1 fps. Before the halo cache. |
+| `perf_baseline_20260807204435048-12972` | Release, vsync on | 2013 rebuilds, 0 dirty, 60.1 fps. Before the halo cache. |
+| `perf_baseline_20260807190255313-41064` | Debug, vsync on | 449 rebuilds with 1564 still dirty. Before the streaming fixes; streaming never caught up. |
 
 Do not compare against `bin/perf_baseline_20260707201831896-39828` (73 frames at
 7.3 sampled fps) at all; it predates the SFML build tree rebuild.
+
 
 ## Baseline Policy
 
