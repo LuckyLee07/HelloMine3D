@@ -84,6 +84,7 @@ class World : public NonCopyable {
 
   private:
     void loadChunks();
+    void unloadDistantChunks(const Camera &camera);
     void setChunkLoadCenter(const Camera &camera);
     void queueChunkUpdate(int blockX, int blockY, int blockZ);
     void updateChunks();

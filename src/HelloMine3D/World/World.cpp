@@ -289,6 +289,7 @@ void World::update(const Camera &camera)
     }
     m_events.clear();
 
+    unloadDistantChunks(camera);
     updateChunks();
 }
 
@@ -296,11 +297,26 @@ void World::update(const Camera &camera)
 /// Optimize for chunkPositionU usage :thinking:
 void World::loadChunks()
 {
-    constexpr int kTargetsPerPass = 1;
+    // Mesh building runs while the world lock is held, so this loop trades
+    // streaming speed against main-thread responsiveness.
+    //
+    // Sleeping once per built mesh (the previous behaviour) capped throughput
+    // at the OS timer granularity (~15.6 ms on Windows), which is why terrain
+    // never caught up. Removing the sleep instead starves the main thread:
+    // `std::mutex` is not fair on Windows, and a section mesh costs ~6 ms in
+    // Debug versus ~1.5 ms in Release.
+    //
+    // A wall-clock work budget balances both automatically: each pass does as
+    // many targets as fit in the budget, then hands the lock back. Release
+    // gets many meshes per pass, Debug gets few, and neither starves the
+    // render thread. Raising this further needs the mesh builder to stop
+    // holding the world lock, i.e. the neighbour halo cache.
+    constexpr auto kPassWorkBudget = std::chrono::milliseconds(6);
+    constexpr int kMaxTargetsPerPass = 64;
     constexpr int kChunkLoadsPerTarget = 1;
-    constexpr int kMeshBuildsPerTarget = 1;
-    constexpr int kActiveSleepMs = 2;
-    constexpr int kIdleSleepMs = 25;
+    constexpr int kMeshBuildsPerTarget = 2;
+    constexpr int kActiveSleepMs = 1;
+    constexpr int kIdleSleepMs = 10;
 
     std::deque<VectorXZ> workQueue;
     VectorXZ lastCenter{m_loadCenterX.load(), m_loadCenterZ.load()};
@@ -327,7 +343,8 @@ void World::loadChunks()
 
         bool didWork = false;
         int processedTargets = 0;
-        while (m_isRunning && processedTargets < kTargetsPerPass &&
+        const auto passStart = std::chrono::steady_clock::now();
+        while (m_isRunning && processedTargets < kMaxTargetsPerPass &&
                !workQueue.empty()) {
             const VectorXZ target = workQueue.front();
             workQueue.pop_front();
@@ -342,8 +359,21 @@ void World::loadChunks()
             }
 
             didWork = didWork || result.loadedChunk || result.meshBuilt;
-            if (!result.neighborhoodReady || result.meshBuilt) {
+            if (result.meshBuilt) {
+                // This chunk still has dirty sections. Keep working on it
+                // instead of sending it to the back of a queue that is sorted
+                // by distance, otherwise the nearest chunks finish last.
+                workQueue.push_front(target);
+            }
+            else if (!result.neighborhoodReady) {
+                // Waiting on neighbour chunk loads; retry after the rest of
+                // the queue has had a turn.
                 workQueue.push_back(target);
+            }
+
+            if (std::chrono::steady_clock::now() - passStart >=
+                kPassWorkBudget) {
+                break;
             }
         }
 
