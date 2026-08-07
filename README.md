@@ -21,10 +21,12 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 | `docs/todolist.md` | The executable task list, validation matrix, and iteration report template. Start here. |
 | `docs/architecture.md` | Current code boundaries and the mapping from the original project layout. |
 | `docs/sandbox-foundation-todolist.md` | Detailed record of the S0-S7 sandbox foundation milestones. |
+| `docs/ogre-migration-plan.md` | Plan for moving the render backend to Ogre 1.10 (milestones E0-E5). |
 | `docs/runtime-validation.md` | How runtime behaviour is validated, and what is not covered. |
 | `docs/iteration-plan.md` | Long-term iteration roadmap. |
 | `docs/render-regression-smoke.md` | Non-intrusive render screenshot smoke. |
 | `docs/performance-baseline.md` | Non-intrusive frame timing and chunk counter baseline. |
+| `docs/chunk-streaming-regression.md` | Diagnosis and fix of the terrain streaming regression. |
 | `docs/minigame-reference.md` | Notes on MiniGame modules that can inform future work. |
 
 Original challenge video: https://www.youtube.com/watch?v=Xq3isov6mZ8

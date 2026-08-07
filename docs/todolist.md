@@ -7,6 +7,8 @@ This document is the single execution checklist for the project. It answers
 | -------- | ------- |
 | `docs/todolist.md` (this file) | What is done, what is next, and how each item is validated. |
 | `docs/sandbox-foundation-todolist.md` | Detailed record of the S0-S7 sandbox foundation milestones. |
+| `docs/ogre-migration-plan.md` | The plan for moving the render backend to Ogre 1.10 (milestones E0-E5). |
+| `docs/chunk-streaming-regression.md` | Diagnosis and fix of the 2026-08-07 terrain streaming regression. |
 | `docs/iteration-plan.md` | Long-term architectural direction and phase ordering. |
 | `docs/runtime-validation.md` | How runtime behaviour is validated and what is not covered. |
 | `docs/minigame-reference.md` | Which MiniGame architecture points are worth borrowing. |
@@ -31,8 +33,9 @@ Last refreshed 2026-08-07. Update this when a milestone closes.
 | Dependencies | SFML 3 and FreeType build from vendored source into `build/External/sfml/install`. No checked-in binaries. | Full solution build from a wiped `build/External/sfml` |
 | Focused tests | 4 headless test targets, all passing. | `bin\HelloMine3DCoordinateTests.exe`, `bin\HelloMine3DMeshDirtyTests.exe`, `bin\HelloMine3DSaveLoadSmoke.exe`, `bin\HelloMine3DEntityLifecycleSmoke.exe` |
 | Runtime validation | `HelloMine3DWorldRuntimeSmoke` drives the real world/actor stack through 89 assertions covering S0-S6. | `bin\HelloMine3DWorldRuntimeSmoke.exe` -> `checks=89 failures=0` |
-| Render smoke | Terrain, textures, water and flora render correctly. | `bin/render_capture_20260807190230074-46036`, status PASS |
-| Performance baseline | 591 frames, `frame_p95_ms=16.430`, `avg_fps=67.152`, 289 loaded chunks, 449 mesh rebuilds. | `bin/perf_baseline_20260807190255313-41064` |
+| Render smoke | Terrain, textures, water and flora render correctly. | `bin/render_capture_20260807204516016-69576`, status PASS |
+| Performance baseline | 60.1 fps in both configs, 0 frames over 33 ms. Release meshes and uploads all 2013 sections inside the run; Debug holds 60 fps while still catching up. Pin `-Seed` and `-PlayerPosition` or runs are not comparable. | `bin/perf_baseline_20260807204353319-60596` (Debug), `bin/perf_baseline_20260807204435048-12972` (Release) |
+| Chunk streaming | Six-part regression from `7a229d8` diagnosed and fixed 2026-08-07. Worker now uses a wall-clock work budget. | `docs/chunk-streaming-regression.md` |
 | Sandbox foundation | 41 of 44 S-milestones Done, 3 in Verify. | `docs/sandbox-foundation-todolist.md` |
 
 ## Closed Milestones
@@ -85,6 +88,28 @@ written. Small, cheap, and it keeps the foundation honest.
 | V4 | Todo | Assert height map correctness after edits (old T0.7). | Break the highest opaque block and place above the top; compare `Chunk::getHeightAt()` against a brute-force scan. | Added to `HelloMine3DWorldRuntimeSmoke`. |
 | V5 | Todo | Add a thread-stress check for the background loader (S0.3). | MSVC has no ThreadSanitizer. A long-running loader stress with an assertion-heavy debug build is the realistic option. | Loader survives sustained load-center churn without corruption. |
 
+## Milestone E: Ogre Engine Migration
+
+Goal: move the render backend from `SFML + raw OpenGL` to Ogre 1.10, reusing
+HelloOgre3D's engine tree and premake definitions. Full plan, facts baseline,
+design decisions and risk register live in `docs/ogre-migration-plan.md`.
+
+Decided 2026-08-07. Scheduled **before** the lighting work, because both rewrite
+the same mesh/shader code and doing it twice is waste.
+
+| ID | Status | Task | Validation |
+| -- | ------ | ---- | ---------- |
+| E0 | Todo | Decouple the data layer from SFML and OpenGL. Replace `sf::Vector2i/3i` with `glm::ivec2/ivec3`, drop `GLfloat`/`GLuint` from `ChunkMesh.h`/`ChunkMeshBuilder.h`, and move texture atlas creation out of `BlockDatabase`. | `World/` includes no SFML and no GL. `HelloMine3DWorldRuntimeSmoke` passes without an offscreen `sf::Context`. |
+| E1 | Todo | Bring Ogre into the build (minimum subset: `ogre3d`, `ogre3d_glsupport`, `ogre3d_gl3plus`, freeimage chain, freetype, zlib, zzip, ois). Unify `staticruntime`, `characterset`, `platforms`, `cppdialect`. | Ogre static libs compile; the game still runs the SFML path unchanged; full validation suite still green. |
+| E2 | Todo | Ogre bootstrap: `Root`/`RenderWindow`/`SceneManager`/`Camera`/`FrameListener`, resource config, OIS input, built-in skybox. | Window opens, skybox renders, free-fly camera works. World not yet rendered. |
+| E3 | Todo | Move chunk rendering to `ChunkSectionRenderable` (custom `MovableObject` + `Renderable` with its own `HardwareVertexBuffer`). Shaders to material scripts, atlas via `TextureManager` with `filtering none`, culling delegated to Ogre. | Render capture shows correct terrain; perf baseline compared against `bin/perf_baseline_20260807190255313-41064`. |
+| E4 | Todo | Remaining render paths: water/flora materials and render queues, HUD, ImGui debug panel, capture and perf diagnostics on Ogre. | Render smoke and perf baseline both pass. |
+| E5 | Todo | Remove SFML, glad, `Shaders/`, `Texture/`, `GL/` and the coexistence switch. Update docs and validation commands. | Single render path; full validation suite green; new performance baseline archived. |
+
+E0 is worth doing regardless of whether the migration proceeds — it removes a
+real coupling problem and simplifies headless testing. Everything from E1 on is
+reversible via the coexistence switch until E5.
+
 ## Milestone P: First Playable Foundation
 
 Goal: close the three "partly met" criteria in the sandbox foundation target.
@@ -127,9 +152,11 @@ baseline tool already exists, so every item here has a before/after number.
 | -- | ------ | ---- | -------------------- | ---------- |
 | M1 | Todo | Add mesh build metrics. | Track per-section rebuild ms, solid/water/flora face counts and vertex counts. Today only a cumulative rebuild count exists. | Baseline summary gains face/vertex/ms columns. |
 | M2 | Todo | Convert dirty sections into a bounded queue. | `World::updateChunks()` rebuilds every queued section in one frame. | Editing many blocks does not spike a single frame. |
-| M3 | Todo | Add an 18x18x18 halo cache for mesh building. | Cache neighbour blocks around a section before emitting faces. | Fewer cross-section lookups, identical visual output. |
+| M3 | Todo | Add an 18x18x18 halo cache for mesh building. | **Now the main throughput limit.** `ChunkMeshBuilder` reads neighbours through `World::getBlock()`, so the whole build holds the world lock. Snapshot the neighbourhood under the lock, then build outside it. See `docs/chunk-streaming-regression.md` R1. | Debug can raise the worker time budget without losing frames; Release still catches up fully. |
 | M4 | Todo | Implement opaque cube greedy meshing. | Merge only same-material, same-pass faces. Keep flora and water separate. | Face count drops on flat terrain, render capture unchanged. |
-| M5 | Todo | Investigate unmeshed sections. | The baseline shows 1564 of 2013 sections still mesh-dirty after a 13s run. Confirm this is the intended loader budget and not starvation. | Documented explanation or a fix, plus a baseline comparison. |
+| M5 | Done | Investigate unmeshed sections. | Diagnosed as a six-part regression from `7a229d8`, not a budget choice. Fixed 2026-08-07; Release now meshes and uploads all 2013 sections inside the run. | `docs/chunk-streaming-regression.md`; baselines `perf_baseline_20260807204353319-60596` (Debug) and `perf_baseline_20260807204435048-12972` (Release). |
+| M6 | Todo | Skip fully enclosed sections. | An underground section surrounded by solid blocks still gets a full mesh build that emits nothing. A non-empty/solid count skips it. See `docs/minigame-reference.md` item 7. | Mesh rebuild count drops with no visual change. |
+| M7 | Todo | Prioritise mesh builds by view frustum. | Only worth doing once view distance grows past 8 (~7600 sections). Must sort, not filter, and must read a frustum snapshot published by the main thread rather than a live `Camera&`. See `docs/chunk-streaming-regression.md` R2. | Terrain in front of the player becomes visible first at view distance 16. |
 
 ## Milestone L: Light And Visual Feedback
 
@@ -162,20 +189,33 @@ yet; there is no light data in the codebase at all.
 | Multiplayer | Changes world authority, event sync, entity sync, save format and input model. |
 | Lua / UGC scripting | The C++ event bus is stable but the extension points are not exercised yet. |
 | Full resource packs and hot reload | Do manifest and validation first (A1, A2). |
-| D3D / Vulkan backend | SFML + OpenGL covers the Windows/macOS target. |
-| Large-scale MiniGame code migration | Use it as an architectural reference, not a source. |
+| D3D / Vulkan backend | Ogre GL3Plus covers the Windows/macOS target (see Milestone E). |
+| Large-scale MiniGame code migration | Use it as an architectural reference, not a source. Its engine is a renamed `MINIW` fork whose API has diverged; code cannot be shared. |
 
 ## Recommended Order
 
 1. **V1-V5** — retire the last validation gaps while the context is fresh.
-2. **P1-P5** — entity rendering, entity persistence, block outline, ore
-   textures and `use` interactions. This is what turns the foundation into
-   something playable, and it makes S5.5/S5.6 visually confirmable.
-3. **A1-A4, B1-B4** — asset and build reliability, before the codebase grows.
-4. **M1-M5** — mesh metrics first, then the optimizations, each with a
-   baseline comparison.
-5. **L1-L4** — lighting, after the vertex format work in M is settled.
-6. **C1-C6** — content and behaviour expansion.
+2. **E0** — decouple the data layer from SFML and OpenGL. Independently
+   valuable and a prerequisite for everything in Milestone E.
+3. **P3, P4** — block outline and ore textures. Neither touches the render
+   pipeline, so they survive the migration.
+4. **E1-E5** — the Ogre migration itself.
+5. **P1, P2** — entity rendering and persistence. Deliberately deferred until
+   after E3: doing it on the current renderer means redoing it, whereas on Ogre
+   it can use `Entity`/`SceneNode` directly.
+6. **M1-M3** — mesh metrics first, then bounded queue and halo cache. Metrics
+   must land before any optimization, otherwise nothing is measurable.
+7. **L1-L4** — lighting.
+8. **M4-M5** — greedy meshing last, because face merging has to include the
+   light value in its merge criterion. Doing it before L means rewriting it.
+9. **A1-A4, B1-B4** — asset and build reliability.
+10. **P5, C1-C6** — `use` interactions, then content and behaviour expansion.
+
+Two ordering constraints worth remembering, both of which cost a rewrite if
+violated:
+
+- **Migration before lighting** — both rewrite the mesh and shader layer.
+- **Lighting before greedy meshing** — merged faces must share a light value.
 
 ## Validation Matrix
 

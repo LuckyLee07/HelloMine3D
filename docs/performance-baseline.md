@@ -91,59 +91,57 @@ primary non-intrusive comparison points. If foreground, player-visible FPS is
 needed, run a separate interactive benchmark with explicit permission to focus
 the game window.
 
-## Current Verified Run
+## Pin The Scene, Or Runs Are Not Comparable
 
-Latest verified local run:
+By default the script reads seed and player position from
+`bin/saves/default/world.meta`, which the game rewrites on every exit. Two runs
+taken on different days therefore benchmark different scenes; a run once
+drifted from 289 to 353 loaded chunks purely for this reason.
 
-```text
-bin/perf_baseline_20260807190255313-41064
-```
-
-Command:
+**Always pass both explicitly when comparing runs:**
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\run_perf_baseline.ps1 -StopExisting -WarmupMs 3000 -DurationMs 10000
+powershell -ExecutionPolicy Bypass -File tools\run_perf_baseline.ps1 `
+    -StopExisting -WarmupMs 3000 -DurationMs 10000 `
+    -Seed 296595 -PlayerPosition "2766 102 2905"
 ```
 
-Build configuration: **VS2022 x64 Debug**. Always compare runs from the same
-configuration; a Release build changes the update and mesh-build timings
-substantially.
+## Current Verified Runs
 
-Key summary:
+Both taken 2026-08-07 with the command above, after the chunk streaming fixes.
 
-| Metric | Value |
-| ------ | ----- |
-| `frames` | 591 |
-| `sampled_fps` | 59.100 |
-| `avg_fps` | 67.152 |
-| `frame_p95_ms` | 16.430 |
-| `frame_p99_ms` | 16.522 |
-| `frame_max_ms` | 113.800 |
-| `update_p95_ms` | 0.156 |
-| `render_p95_ms` | 1.238 |
-| `display_p95_ms` | 15.858 |
-| `frames_over_33ms` | 2 |
-| `frames_over_50ms` | 2 |
-| `last_loaded_chunks` | 289 |
-| `last_sections` | 2013 |
-| `last_mesh_dirty_sections` | 1564 |
-| `last_gpu_buffered_sections` | 447 |
-| `last_mesh_rebuilds` | 449 |
-| `terrain_seed` | 296595 |
+| Metric | Debug | Release |
+| ------ | ----- | ------- |
+| run | `bin/perf_baseline_20260807204353319-60596` | `bin/perf_baseline_20260807204435048-12972` |
+| `frames` | 601 | 601 |
+| `sampled_fps` | 60.100 | 60.100 |
+| `frame_p95_ms` | 16.525 | 17.454 |
+| `frame_max_ms` | 18.563 | 26.019 |
+| `update_p95_ms` | 0.108 | 0.033 |
+| `frames_over_33ms` | 0 | 0 |
+| `frames_over_50ms` | 0 | 0 |
+| `last_sections` | 1832 | 2013 |
+| `last_mesh_dirty_sections` | 604 | **0** |
+| `last_gpu_buffered_sections` | 1224 | 2013 |
+| `last_mesh_rebuilds` | 1228 | 2013 |
 
-The run is vsync bound: `frame_p95_ms` sits at the 16.4 ms refresh interval and
-`display_p95_ms` accounts for almost all of it, while `update_p95_ms` and
-`render_p95_ms` stay well under 1.3 ms. The two frames over 50 ms are startup
-spikes captured after warmup.
+Release fully catches up: every loaded section is meshed and uploaded inside
+the run. Debug is roughly 4x slower per section mesh, so it is still working at
+the end of the window, but it holds 60 fps while doing so.
 
-Two things to watch in later comparisons:
+Both runs are vsync bound. Note that the vsync wait moved from `display_ms` to
+`render_ms` once the whole view distance became resident — total frame time is
+unchanged, there is simply more geometry submitted before the driver blocks.
 
-- `last_mesh_dirty_sections` is 1564 of 2013 sections. Most loaded sections
-  never get meshed inside a 13 second run. Confirm this is the intended chunk
-  loader budget rather than starvation before optimizing mesh building.
-- This run replaces an older baseline (`bin/perf_baseline_20260707201831896-39828`,
-  73 frames at 7.3 sampled fps) that was recorded before the SFML build tree was
-  rebuilt. Do not compare the two directly.
+### Previous baseline, for contrast
+
+`bin/perf_baseline_20260807190255313-41064` (Debug, same scene) recorded
+**449 mesh rebuilds with 1564 sections still dirty** after 13 seconds. Chunk
+streaming never caught up in that build. See `docs/chunk-streaming-regression.md`
+for the diagnosis.
+
+Do not compare against `bin/perf_baseline_20260707201831896-39828` (73 frames at
+7.3 sampled fps) at all; it predates the SFML build tree rebuild.
 
 ## Baseline Policy
 
