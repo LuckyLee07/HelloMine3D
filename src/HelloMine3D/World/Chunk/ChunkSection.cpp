@@ -4,6 +4,7 @@
 
 #include "../World.h"
 #include "ChunkMeshBuilder.h"
+#include "SectionMeshInput.h"
 
 #include <fstream>
 #include <iostream>
@@ -33,6 +34,7 @@ void ChunkSection::setBlock(int x, int y, int z, ChunkBlock block)
 
     m_layers[y].update(currentBlock, block);
     currentBlock = block;
+    ++m_blockRevision;
     markMeshDirty();
 }
 
@@ -88,11 +90,36 @@ sf::Vector3i ChunkSection::toWorldPosition(int x, int y, int z) const
 
 void ChunkSection::makeMesh()
 {
+    // Synchronous path, used by main-thread block edits. It still holds the
+    // world lock for the whole build, which is fine for the handful of
+    // sections a single edit touches. Streaming uses the split path below.
+    SectionMeshInput input;
+    captureMeshInput(input);
+
     m_meshes.solidMesh.clearClientData();
     m_meshes.waterMesh.clearClientData();
     m_meshes.floraMesh.clearClientData();
-    ChunkMeshBuilder(*this, m_meshes).buildMesh();
+    ChunkMeshBuilder(input, m_meshes).buildMesh();
     m_meshState = ChunkSectionMeshState::CpuReady;
+}
+
+void ChunkSection::captureMeshInput(SectionMeshInput &input)
+{
+    input.capture(*this);
+}
+
+void ChunkSection::adoptMesh(ChunkMeshCollection &built)
+{
+    m_meshes.solidMesh.clearClientData();
+    m_meshes.waterMesh.clearClientData();
+    m_meshes.floraMesh.clearClientData();
+    m_meshes.adoptClientData(built);
+    m_meshState = ChunkSectionMeshState::CpuReady;
+}
+
+std::uint32_t ChunkSection::getBlockRevision() const
+{
+    return m_blockRevision;
 }
 
 void ChunkSection::bufferMesh()

@@ -19,6 +19,7 @@
 #include "../Renderer/RenderMaster.h"
 #include "../Util/ResourcePaths.h"
 #include "../Util/Random.h"
+#include "Chunk/ChunkMeshBuilder.h"
 #include "Chunk/ChunkUpdatePlanner.h"
 #include "WorldCoordinates.h"
 
@@ -297,26 +298,26 @@ void World::update(const Camera &camera)
 /// Optimize for chunkPositionU usage :thinking:
 void World::loadChunks()
 {
-    // Mesh building runs while the world lock is held, so this loop trades
-    // streaming speed against main-thread responsiveness.
+    // Each target is processed in three steps: snapshot the section's
+    // neighbourhood under the world lock, build the mesh without it, then
+    // install the result under the lock again. Only the two short lock
+    // sections contend with the render thread; the expensive build does not.
     //
-    // Sleeping once per built mesh (the previous behaviour) capped throughput
-    // at the OS timer granularity (~15.6 ms on Windows), which is why terrain
-    // never caught up. Removing the sleep instead starves the main thread:
-    // `std::mutex` is not fair on Windows, and a section mesh costs ~6 ms in
-    // Debug versus ~1.5 ms in Release.
-    //
-    // A wall-clock work budget balances both automatically: each pass does as
-    // many targets as fit in the budget, then hands the lock back. Release
-    // gets many meshes per pass, Debug gets few, and neither starves the
-    // render thread. Raising this further needs the mesh builder to stop
-    // holding the world lock, i.e. the neighbour halo cache.
+    // Sleeping once per built mesh (the original behaviour) capped throughput
+    // at the OS timer granularity (~15.6 ms on Windows). The wall-clock pass
+    // budget replaces that: it bounds how long the worker runs before handing
+    // the CPU back, without tying throughput to the timer.
+    // Measured on this scene: raising the budget past 6 ms buys no extra mesh
+    // throughput but does widen the worst frame, so the remaining limit is
+    // elsewhere (chunk neighbourhood readiness), not here.
     constexpr auto kPassWorkBudget = std::chrono::milliseconds(6);
     constexpr int kMaxTargetsPerPass = 64;
     constexpr int kChunkLoadsPerTarget = 1;
-    constexpr int kMeshBuildsPerTarget = 2;
     constexpr int kActiveSleepMs = 1;
     constexpr int kIdleSleepMs = 10;
+
+    ChunkMeshJob job;
+    ChunkMeshCollection builtMeshes;
 
     std::deque<VectorXZ> workQueue;
     VectorXZ lastCenter{m_loadCenterX.load(), m_loadCenterZ.load()};
@@ -353,9 +354,17 @@ void World::loadChunks()
             ChunkMeshWorkResult result;
             {
                 std::unique_lock<std::mutex> lock(m_mainMutex);
-                result = m_chunkManager.processMeshTarget(
+                result = m_chunkManager.beginMeshJob(
                     target.x, target.z, kChunkLoadsPerTarget,
-                    kMeshBuildsPerTarget, m_loadCenterSectionY.load());
+                    m_loadCenterSectionY.load(), job);
+            }
+
+            if (job.valid) {
+                // No world access here: the builder reads only the snapshot.
+                ChunkMeshBuilder(job.input, builtMeshes).buildMesh();
+
+                std::unique_lock<std::mutex> lock(m_mainMutex);
+                m_chunkManager.finishMeshJob(job, builtMeshes);
             }
 
             didWork = didWork || result.loadedChunk || result.meshBuilt;
@@ -377,6 +386,10 @@ void World::loadChunks()
             }
         }
 
+        // Measured: replacing this sleep with a bare yield drops Debug to
+        // 30 fps even with the build off-lock, because `std::mutex` is unfair
+        // and the snapshot still contends every target. Sleeping once per
+        // pass, not once per mesh, keeps both throughput and frame rate.
         std::this_thread::sleep_for(std::chrono::milliseconds(
             didWork ? kActiveSleepMs : kIdleSleepMs));
     }

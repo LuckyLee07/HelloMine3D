@@ -48,10 +48,20 @@ void World::unloadDistantChunks(const Camera &camera)
     // budgeted: a fast-moving player must not stall on a burst of file writes.
     constexpr std::size_t kMaxUnloadsPerUpdate = 8;
 
-    std::unique_lock<std::mutex> lock(m_mainMutex);
-
     const auto cameraChunk = getChunkXZ(toBlockCoord(camera.position.x),
                                         toBlockCoord(camera.position.z));
+
+    // Nothing can leave the view distance until the camera crosses into a new
+    // chunk, so scanning every frame is pure lock pressure. Re-run while there
+    // is still a backlog from the last move.
+    if (m_unloadScanValid && cameraChunk == m_lastUnloadScanChunk &&
+        !m_unloadBacklog) {
+        return;
+    }
+    m_lastUnloadScanChunk = cameraChunk;
+    m_unloadScanValid = true;
+
+    std::unique_lock<std::mutex> lock(m_mainMutex);
     const int minX = cameraChunk.x - m_renderDistance;
     const int minZ = cameraChunk.z - m_renderDistance;
     const int maxX = cameraChunk.x + m_renderDistance;
@@ -68,6 +78,10 @@ void World::unloadDistantChunks(const Camera &camera)
             }
         }
     }
+
+    // The budget may have cut the list short; remember to come back next
+    // update even if the camera stays in the same chunk.
+    m_unloadBacklog = chunksToUnload.size() >= kMaxUnloadsPerUpdate;
 
     for (const auto &location : chunksToUnload) {
         m_chunkManager.unloadChunk(location.x, location.z);

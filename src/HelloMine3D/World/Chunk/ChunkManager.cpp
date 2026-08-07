@@ -64,34 +64,15 @@ ChunkMap &ChunkManager::getChunks()
     return m_chunks;
 }
 
-bool ChunkManager::makeMesh(int x, int z)
+ChunkMeshWorkResult ChunkManager::beginMeshJob(int x, int z, int maxChunkLoads,
+                                               int preferredSectionY,
+                                               ChunkMeshJob &job)
 {
-    for (int nx = -1; nx <= 1; nx++)
-        for (int nz = -1; nz <= 1; nz++) {
-            loadChunk(
-                x + nx,
-                z + nz); // getChunk(x + nx, z + nz).load(*m_terrainGenerator);
-        }
+    job.valid = false;
 
-    const bool meshBuilt = getOrCreateChunk(x, z).makeMesh();
-    if (meshBuilt) {
-        recordMeshRebuild();
-    }
-
-    return meshBuilt;
-}
-
-ChunkMeshWorkResult ChunkManager::processMeshTarget(int x, int z,
-                                                    int maxChunkLoads,
-                                                    int maxMeshBuilds,
-                                                    int preferredSectionY)
-{
     ChunkMeshWorkResult result;
     if (maxChunkLoads < 0) {
         maxChunkLoads = 0;
-    }
-    if (maxMeshBuilds < 0) {
-        maxMeshBuilds = 0;
     }
 
     for (int nx = -1; nx <= 1; nx++) {
@@ -128,13 +109,56 @@ ChunkMeshWorkResult ChunkManager::processMeshTarget(int x, int z,
         return result;
     }
 
-    result.meshesBuilt = chunk->makeMeshes(maxMeshBuilds, preferredSectionY);
-    result.meshBuilt = result.meshesBuilt > 0;
-    for (int i = 0; i < result.meshesBuilt; ++i) {
-        recordMeshRebuild();
+    const int sectionIndex = chunk->findDirtySection(preferredSectionY);
+    if (sectionIndex < 0) {
+        return result;
     }
 
+    ChunkSection *section = chunk->findSection(sectionIndex);
+    if (section == nullptr) {
+        return result;
+    }
+
+    job.chunkPosition = {x, z};
+    job.sectionIndex = sectionIndex;
+    job.blockRevision = section->getBlockRevision();
+    section->captureMeshInput(job.input);
+    job.valid = true;
+
+    result.meshBuilt = true;
+    result.meshesBuilt = 1;
     return result;
+}
+
+bool ChunkManager::finishMeshJob(const ChunkMeshJob &job,
+                                 ChunkMeshCollection &built)
+{
+    if (!job.valid) {
+        return false;
+    }
+
+    Chunk *chunk = findChunk(job.chunkPosition.x, job.chunkPosition.z);
+    if (chunk == nullptr) {
+        // The chunk was unloaded while the mesh was being built.
+        return false;
+    }
+
+    ChunkSection *section = chunk->findSection(job.sectionIndex);
+    if (section == nullptr) {
+        return false;
+    }
+
+    if (section->getBlockRevision() != job.blockRevision ||
+        !section->isMeshDirty()) {
+        // A block edit or a synchronous rebuild landed while we were building,
+        // so this result is stale. The section stays dirty and gets picked up
+        // again on a later pass.
+        return false;
+    }
+
+    section->adoptMesh(built);
+    recordMeshRebuild();
+    return true;
 }
 
 bool ChunkManager::chunkLoadedAt(int x, int z) const

@@ -11,6 +11,7 @@
 #include "../Generation/Terrain/TerrainGenerator.h"
 #include "../Storage/ChunkStorage.h"
 #include "Chunk.h"
+#include "SectionMeshInput.h"
 
 class World;
 
@@ -35,6 +36,18 @@ struct ChunkMeshWorkResult {
     int meshesBuilt = 0;
 };
 
+/// @brief One section mesh build, split so the expensive part runs off-lock.
+///
+/// `beginMeshJob()` fills this while the world lock is held, the caller builds
+/// the meshes without the lock, then `finishMeshJob()` installs them under it.
+struct ChunkMeshJob {
+    bool valid = false;
+    VectorXZ chunkPosition{0, 0};
+    int sectionIndex = -1;
+    std::uint32_t blockRevision = 0;
+    SectionMeshInput input;
+};
+
 /// @brief Dynamic chunk manager that affects chunk and block placement.
 class ChunkManager {
   public:
@@ -47,10 +60,11 @@ class ChunkManager {
     const Chunk *findChunk(int x, int z) const;
     ChunkMap &getChunks();
 
-    bool makeMesh(int x, int z);
-    ChunkMeshWorkResult processMeshTarget(int x, int z, int maxChunkLoads,
-                                          int maxMeshBuilds,
-                                          int preferredSectionY);
+    /// Both halves must be called with the world lock held; the mesh build
+    /// between them must not be.
+    ChunkMeshWorkResult beginMeshJob(int x, int z, int maxChunkLoads,
+                                     int preferredSectionY, ChunkMeshJob &job);
+    bool finishMeshJob(const ChunkMeshJob &job, ChunkMeshCollection &built);
 
     bool chunkLoadedAt(int x, int z) const;
     bool chunkExistsAt(int x, int z) const;

@@ -24,8 +24,9 @@ class Chunk : public IChunk {
     Chunk() = default;
     Chunk(World &world, const sf::Vector2i &location);
 
-    bool makeMesh();
-    int makeMeshes(int maxSections, int preferredSectionY = -1);
+    /// Index of a section whose mesh needs rebuilding, searched outwards from
+    /// `preferredSectionY`, or -1 when everything is up to date.
+    int findDirtySection(int preferredSectionY) const;
 
     void setBlock(int x, int y, int z, ChunkBlock block) override;
     ChunkBlock getBlock(int x, int y, int z) const noexcept override;

@@ -117,6 +117,10 @@ class World : public NonCopyable {
     std::atomic<int> m_loadDistance{2};
     const int m_renderDistance;
 
+    VectorXZ m_lastUnloadScanChunk{0, 0};
+    bool m_unloadScanValid = false;
+    bool m_unloadBacklog = false;
+
     glm::vec3 m_playerSpawnPoint;
 };
 

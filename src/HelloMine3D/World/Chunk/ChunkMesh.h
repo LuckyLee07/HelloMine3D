@@ -23,6 +23,10 @@ class ChunkMesh {
     void clearClientData();
     void deleteData();
 
+    /// Takes over CPU mesh data built off the world lock. The GPU model is
+    /// left alone: it belongs to the section, not to the freshly built data.
+    void adoptClientData(ChunkMesh &source);
+
     int faces = 0;
 
   private:
@@ -36,6 +40,13 @@ struct ChunkMeshCollection {
     ChunkMesh solidMesh;
     ChunkMesh waterMesh;
     ChunkMesh floraMesh;
+
+    void adoptClientData(ChunkMeshCollection &source)
+    {
+        solidMesh.adoptClientData(source.solidMesh);
+        waterMesh.adoptClientData(source.waterMesh);
+        floraMesh.adoptClientData(source.floraMesh);
+    }
 };
 
 #endif // CHUNKMESH_H_INCLUDED

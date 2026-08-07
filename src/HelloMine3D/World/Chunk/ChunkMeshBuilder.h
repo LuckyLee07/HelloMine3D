@@ -8,16 +8,21 @@
 
 #include "../Block/ChunkBlock.h"
 
-class ChunkSection;
 class ChunkMesh;
 class BlockData;
+class SectionMeshInput;
 struct BlockDefinition;
 
 struct ChunkMeshCollection;
 
+/// @brief Builds the CPU side mesh of one chunk section.
+///
+/// The builder reads only from a `SectionMeshInput` snapshot, never from the
+/// world, so it can run without holding the world lock.
 class ChunkMeshBuilder {
   public:
-    ChunkMeshBuilder(ChunkSection &chunk, ChunkMeshCollection &meshes);
+    ChunkMeshBuilder(const SectionMeshInput &input,
+                     ChunkMeshCollection &meshes);
 
     void buildMesh();
 
@@ -35,10 +40,7 @@ class ChunkMeshBuilder {
 
     bool shouldMakeFace(const sf::Vector3i &blockPosition);
 
-    bool shouldMakeLayer(int y);
-
-    const ChunkBlock *m_pBlockPtr = nullptr;
-    ChunkSection *m_pChunk = nullptr;
+    const SectionMeshInput *m_pInput = nullptr;
     ChunkMeshCollection *m_pMeshes = nullptr;
     ChunkMesh *m_pActiveMesh = nullptr;
     const BlockDefinition *m_pBlockDefinition = nullptr;

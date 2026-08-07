@@ -56,6 +56,18 @@ void ChunkMesh::clearClientData()
     faces = 0;
 }
 
+void ChunkMesh::adoptClientData(ChunkMesh &source)
+{
+    m_mesh.vertexPositions = std::move(source.m_mesh.vertexPositions);
+    m_mesh.textureCoords = std::move(source.m_mesh.textureCoords);
+    m_mesh.indices = std::move(source.m_mesh.indices);
+    m_light = std::move(source.m_light);
+    m_indexIndex = source.m_indexIndex;
+    faces = source.faces;
+
+    source.clearClientData();
+}
+
 void ChunkMesh::deleteData()
 {
     m_model.deleteData();

@@ -1,15 +1,13 @@
 #include "ChunkMeshBuilder.h"
 
 #include "ChunkMesh.h"
-#include "ChunkSection.h"
+#include "SectionMeshInput.h"
 
 #include "../Block/BlockData.h"
 #include "../Block/BlockDatabase.h"
 #include "../Block/BlockDefinition.h"
 
-#include <SFML/System/Clock.hpp>
 #include <cassert>
-#include <iostream>
 #include <vector>
 
 namespace {
@@ -50,9 +48,9 @@ constexpr GLfloat LIGHT_BOT = 0.4f;
 
 } // namespace
 
-ChunkMeshBuilder::ChunkMeshBuilder(ChunkSection &chunk,
+ChunkMeshBuilder::ChunkMeshBuilder(const SectionMeshInput &input,
                                    ChunkMeshCollection &mesh)
-    : m_pChunk(&chunk)
+    : m_pInput(&input)
     , m_pMeshes(&mesh)
 {
 }
@@ -76,24 +74,23 @@ struct AdjacentBlockPositions {
     sf::Vector3i back;
 };
 
-int faces;
 void ChunkMeshBuilder::buildMesh()
 {
     AdjacentBlockPositions directions;
-    m_pBlockPtr = m_pChunk->begin();
-    faces = 0;
-    sf::Clock timer;
-    for (int16_t i = 0; i < CHUNK_VOLUME; i++) {
-        const int x = i % CHUNK_SIZE;
-        const int y = i / (CHUNK_SIZE * CHUNK_SIZE);
-        const int z = (i / CHUNK_SIZE) % CHUNK_SIZE;
 
-        if (!shouldMakeLayer(y)) {
+    for (int y = 0; y < CHUNK_SIZE; ++y) {
+        // A layer sealed in on every side emits nothing, so skip the whole
+        // slice. Iterating per layer also keeps the block lookup keyed on the
+        // real coordinates: the previous version walked a running pointer that
+        // was not advanced for skipped layers, which silently offset every
+        // block read after the first skipped layer.
+        if (!m_pInput->shouldMakeLayer(y)) {
             continue;
         }
 
-        ChunkBlock block = *m_pBlockPtr;
-        m_pBlockPtr++;
+        for (int z = 0; z < CHUNK_SIZE; ++z) {
+        for (int x = 0; x < CHUNK_SIZE; ++x) {
+        const ChunkBlock block = m_pInput->getBlock(x, y, z);
 
         sf::Vector3i position(x, y, z);
         setActiveMesh(block);
@@ -114,7 +111,7 @@ void ChunkMeshBuilder::buildMesh()
         directions.update(x, y, z);
 
         // Up/ Down
-        if ((m_pChunk->getLocation().y != 0) || y != 0)
+        if ((m_pInput->getLocation().y != 0) || y != 0)
             tryAddFaceToMesh(bottomFace, renderInfo.texBottomCoord, position,
                              directions.down, LIGHT_BOT);
         tryAddFaceToMesh(topFace, renderInfo.texTopCoord, position,
@@ -131,6 +128,8 @@ void ChunkMeshBuilder::buildMesh()
                          directions.front, LIGHT_Z);
         tryAddFaceToMesh(backFace, renderInfo.texSideCoord, position,
                          directions.back, LIGHT_Z);
+        }
+        }
     }
 }
 
@@ -157,14 +156,13 @@ void ChunkMeshBuilder::setActiveMesh(ChunkBlock block)
 void ChunkMeshBuilder::addXBlockToMesh(const sf::Vector2i &textureCoords,
                                        const sf::Vector3i &blockPosition)
 {
-    faces++;
     auto texCoords =
         BlockDatabase::get().textureAtlas.getTexture(textureCoords);
 
-    m_pActiveMesh->addFace(xFace1, texCoords, m_pChunk->getLocation(),
+    m_pActiveMesh->addFace(xFace1, texCoords, m_pInput->getLocation(),
                            blockPosition, LIGHT_X);
 
-    m_pActiveMesh->addFace(xFace2, texCoords, m_pChunk->getLocation(),
+    m_pActiveMesh->addFace(xFace2, texCoords, m_pInput->getLocation(),
                            blockPosition, LIGHT_X);
 }
 
@@ -174,18 +172,17 @@ void ChunkMeshBuilder::tryAddFaceToMesh(
     GLfloat cardinalLight)
 {
     if (shouldMakeFace(blockFacing)) {
-        faces++;
         auto texCoords =
             BlockDatabase::get().textureAtlas.getTexture(textureCoords);
 
-        m_pActiveMesh->addFace(blockFace, texCoords, m_pChunk->getLocation(),
+        m_pActiveMesh->addFace(blockFace, texCoords, m_pInput->getLocation(),
                                blockPosition, cardinalLight);
     }
 }
 
 bool ChunkMeshBuilder::shouldMakeFace(const sf::Vector3i &adjBlock)
 {
-    auto block = m_pChunk->getBlock(adjBlock.x, adjBlock.y, adjBlock.z);
+    auto block = m_pInput->getBlock(adjBlock.x, adjBlock.y, adjBlock.z);
     const auto &definition =
         BlockDatabase::get().getDefinition(static_cast<BlockId>(block.id));
 
@@ -197,19 +194,4 @@ bool ChunkMeshBuilder::shouldMakeFace(const sf::Vector3i &adjBlock)
         return true;
     }
     return false;
-}
-
-bool ChunkMeshBuilder::shouldMakeLayer(int y)
-{
-    auto adjIsSolid = [&](int dx, int dz) {
-        const ChunkSection &sect = m_pChunk->getAdjacent(dx, dz);
-        return sect.getLayer(y).isAllSolid();
-    };
-
-    return (!m_pChunk->getLayer(y).isAllSolid()) ||
-           (!m_pChunk->getLayer(y + 1).isAllSolid()) ||
-           (!m_pChunk->getLayer(y - 1).isAllSolid()) ||
-
-           (!adjIsSolid(1, 0)) || (!adjIsSolid(0, 1)) || (!adjIsSolid(-1, 0)) ||
-           (!adjIsSolid(0, -1));
 }

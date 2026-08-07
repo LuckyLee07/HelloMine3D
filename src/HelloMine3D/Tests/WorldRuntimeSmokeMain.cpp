@@ -38,6 +38,7 @@
 #include "../Util/ResourcePaths.h"
 #include "../World/Block/BlockDatabase.h"
 #include "../World/Interaction/BlockInteractionSystem.h"
+#include "../World/Chunk/SectionMeshInput.h"
 #include "../World/Storage/ChunkStorage.h"
 #include "../World/Storage/WorldSave.h"
 #include "../World/World.h"
@@ -488,6 +489,89 @@ void casePersistence()
                   std::abs(meta.spawnPoint.z - savedSpawn.z) < 0.01f,
               vecToString(savedSpawn) + " -> " + vecToString(meta.spawnPoint));
     }
+}
+
+// ---------------------------------------------------------------------------
+// M3 - the mesh halo snapshot must match what the world reports
+// ---------------------------------------------------------------------------
+void caseSectionMeshInput()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+
+    const auto directory = freshSaveDirectory("section_mesh_input");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+    auto &chunks = world.getChunkManager();
+
+    // Section 4 of chunk (0,0) covers y 64-79, which straddles the surface.
+    const int sectionY = 4;
+    Chunk *chunk = chunks.findChunk(0, 0);
+    if (chunk == nullptr) {
+        check("M3/chunk-available", false);
+        return;
+    }
+    ChunkSection *section = chunk->findSection(sectionY);
+    if (section == nullptr) {
+        check("M3/section-available", false);
+        return;
+    }
+    check("M3/section-available", true);
+
+    SectionMeshInput input;
+    section->captureMeshInput(input);
+
+    // Every cell of the 18^3 halo must agree with a direct world read,
+    // including the border that reaches into neighbouring chunks.
+    int mismatches = 0;
+    int borderMismatches = 0;
+    for (int y = -1; y <= CHUNK_SIZE; ++y) {
+        for (int z = -1; z <= CHUNK_SIZE; ++z) {
+            for (int x = -1; x <= CHUNK_SIZE; ++x) {
+                const int worldY = sectionY * CHUNK_SIZE + y;
+                const auto expected = world.getBlock(x, worldY, z);
+                const auto actual = input.getBlock(x, y, z);
+                if (expected.id != actual.id ||
+                    expected.metadata != actual.metadata) {
+                    ++mismatches;
+                    const bool isBorder = x < 0 || x >= CHUNK_SIZE || y < 0 ||
+                                          y >= CHUNK_SIZE || z < 0 ||
+                                          z >= CHUNK_SIZE;
+                    if (isBorder) {
+                        ++borderMismatches;
+                    }
+                }
+            }
+        }
+    }
+
+    check("M3/halo-matches-world", mismatches == 0,
+          "mismatches=" + std::to_string(mismatches) + " (border " +
+              std::to_string(borderMismatches) + ") over " +
+              std::to_string(SectionMeshInput::Volume) + " cells");
+
+    // A block edit must invalidate a snapshot taken before it, otherwise a
+    // mesh built off-lock could overwrite the edit.
+    const std::uint32_t revisionBefore = section->getBlockRevision();
+    world.setBlock(8, sectionY * CHUNK_SIZE + 8, 8, BlockId::CoalOre);
+    check("M3/block-revision-advances",
+          section->getBlockRevision() != revisionBefore,
+          "revision " + std::to_string(revisionBefore) + " -> " +
+              std::to_string(section->getBlockRevision()));
+
+    // The builder must read blocks by coordinate. It used to walk a running
+    // pointer that was not advanced for skipped layers, so any fully enclosed
+    // layer offset every later block read.
+    SectionMeshInput refreshed;
+    section->captureMeshInput(refreshed);
+    check("M3/edit-visible-in-new-snapshot",
+          refreshed.getBlock(8, 8, 8).id ==
+              static_cast<Block_t>(BlockId::CoalOre),
+          "block id=" +
+              std::to_string(static_cast<int>(refreshed.getBlock(8, 8, 8).id)));
 }
 
 // ---------------------------------------------------------------------------
@@ -1119,6 +1203,7 @@ int main()
         caseNoImplicitChunkCreation();
         caseMeshDirtyPropagation();
         casePersistence();
+        caseSectionMeshInput();
         caseUnloadPersistence();
         caseChunkFormatRejection();
         caseTerrainDeterminism();

@@ -3,6 +3,7 @@
 
 #include <SFML/Graphics.hpp>
 #include <array>
+#include <cstdint>
 
 #include "../Block/ChunkBlock.h"
 #include "../WorldConstants.h"
@@ -13,6 +14,7 @@
 #include "../Block/BlockData.h"
 
 class World;
+class SectionMeshInput;
 
 enum class ChunkSectionMeshState {
     Dirty,
@@ -62,6 +64,18 @@ class ChunkSection : public IChunk {
     void makeMesh();
     void bufferMesh();
 
+    /// Snapshot the data a mesh build reads. Must be called under the world
+    /// lock; the returned input can then be built without it.
+    void captureMeshInput(SectionMeshInput &input);
+
+    /// Install a mesh built off the world lock. Must be called under it.
+    void adoptMesh(ChunkMeshCollection &built);
+
+    /// Bumped on every block change. A mesh built off-lock is only installed
+    /// when this still matches the value captured with the input, otherwise
+    /// the build raced an edit and its result is stale.
+    std::uint32_t getBlockRevision() const;
+
     const Layer &getLayer(int y) const;
     ChunkSection &getAdjacent(int dx, int dz);
 
@@ -93,6 +107,7 @@ class ChunkSection : public IChunk {
     World *m_pWorld;
 
     ChunkSectionMeshState m_meshState = ChunkSectionMeshState::Dirty;
+    std::uint32_t m_blockRevision = 0;
 };
 
 #endif // CHUNKSECTION_H_INCLUDED

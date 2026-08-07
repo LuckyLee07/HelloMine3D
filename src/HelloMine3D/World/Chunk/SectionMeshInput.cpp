@@ -1,0 +1,77 @@
+#include "SectionMeshInput.h"
+
+#include "ChunkSection.h"
+
+namespace {
+// Order matches m_neighbourLayerAllSolid.
+constexpr int kNeighbourOffsetX[4] = {1, 0, -1, 0};
+constexpr int kNeighbourOffsetZ[4] = {0, 1, 0, -1};
+} // namespace
+
+int SectionMeshInput::index(int x, int y, int z)
+{
+    return (x + 1) + (z + 1) * Size + (y + 1) * Size * Size;
+}
+
+void SectionMeshInput::capture(ChunkSection &section)
+{
+    m_location = section.getLocation();
+
+    // ChunkSection::getBlock() resolves out-of-range coordinates through the
+    // world, which is why this has to run under the world lock.
+    for (int y = -1; y <= CHUNK_SIZE; ++y) {
+        for (int z = -1; z <= CHUNK_SIZE; ++z) {
+            for (int x = -1; x <= CHUNK_SIZE; ++x) {
+                m_blocks[index(x, y, z)] = section.getBlock(x, y, z);
+            }
+        }
+    }
+
+    for (int y = -1; y <= CHUNK_SIZE; ++y) {
+        m_ownLayerAllSolid[y + 1] = section.getLayer(y).isAllSolid();
+    }
+
+    for (int neighbour = 0; neighbour < 4; ++neighbour) {
+        ChunkSection &adjacent = section.getAdjacent(
+            kNeighbourOffsetX[neighbour], kNeighbourOffsetZ[neighbour]);
+        for (int y = 0; y < CHUNK_SIZE; ++y) {
+            m_neighbourLayerAllSolid[neighbour][y] =
+                adjacent.getLayer(y).isAllSolid();
+        }
+    }
+}
+
+ChunkBlock SectionMeshInput::getBlock(int x, int y, int z) const
+{
+    if (x < -1 || x > CHUNK_SIZE || y < -1 || y > CHUNK_SIZE || z < -1 ||
+        z > CHUNK_SIZE) {
+        return ChunkBlock(BlockId::Air);
+    }
+
+    return m_blocks[index(x, y, z)];
+}
+
+bool SectionMeshInput::shouldMakeLayer(int y) const
+{
+    if (y < 0 || y >= CHUNK_SIZE) {
+        return false;
+    }
+
+    if (!m_ownLayerAllSolid[y + 1] || !m_ownLayerAllSolid[y + 2] ||
+        !m_ownLayerAllSolid[y]) {
+        return true;
+    }
+
+    for (int neighbour = 0; neighbour < 4; ++neighbour) {
+        if (!m_neighbourLayerAllSolid[neighbour][y]) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+const sf::Vector3i &SectionMeshInput::getLocation() const
+{
+    return m_location;
+}

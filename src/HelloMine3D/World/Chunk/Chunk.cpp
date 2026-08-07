@@ -16,66 +16,50 @@ Chunk::Chunk(World &world, const sf::Vector2i &location)
     m_highestBlocks.setAll(0);
 }
 
-bool Chunk::makeMesh()
+int Chunk::findDirtySection(int preferredSectionY) const
 {
-    return makeMeshes(1) > 0;
-}
-
-int Chunk::makeMeshes(int maxSections, int preferredSectionY)
-{
-    if (maxSections <= 0) {
-        return 0;
-    }
-
-    int builtSections = 0;
     const int sectionCount = static_cast<int>(m_chunks.size());
     if (sectionCount <= 0) {
-        return 0;
+        return -1;
     }
 
-    auto tryBuildSection = [&](int sectionIndex) {
-        if (sectionIndex < 0 || sectionIndex >= sectionCount) {
-            return false;
-        }
-
-        ChunkSection &section = m_chunks[sectionIndex];
-        if (!section.isMeshDirty()) {
-            return false;
-        }
-
-        section.makeMesh();
-        ++builtSections;
-        --maxSections;
-        return maxSections <= 0;
+    auto isDirty = [&](int index) {
+        return index >= 0 && index < sectionCount &&
+               m_chunks[index].isMeshDirty();
     };
 
-    if (preferredSectionY >= 0) {
-        if (preferredSectionY >= sectionCount) {
-            preferredSectionY = sectionCount - 1;
-        }
-
-        for (int offset = 0; offset < sectionCount && maxSections > 0;
-             ++offset) {
-            if (offset == 0) {
-                tryBuildSection(preferredSectionY);
-                continue;
+    if (preferredSectionY < 0) {
+        for (int index = sectionCount - 1; index >= 0; --index) {
+            if (isDirty(index)) {
+                return index;
             }
-
-            if (tryBuildSection(preferredSectionY + offset)) {
-                break;
-            }
-            tryBuildSection(preferredSectionY - offset);
         }
-
-        return builtSections;
+        return -1;
     }
 
-    for (int sectionIndex = sectionCount - 1;
-         sectionIndex >= 0 && maxSections > 0; --sectionIndex) {
-        tryBuildSection(sectionIndex);
+    if (preferredSectionY >= sectionCount) {
+        preferredSectionY = sectionCount - 1;
     }
 
-    return builtSections;
+    // Search outwards from the section the camera is in, so the sections the
+    // player is most likely looking at are rebuilt first.
+    for (int offset = 0; offset < sectionCount; ++offset) {
+        if (offset == 0) {
+            if (isDirty(preferredSectionY)) {
+                return preferredSectionY;
+            }
+            continue;
+        }
+
+        if (isDirty(preferredSectionY + offset)) {
+            return preferredSectionY + offset;
+        }
+        if (isDirty(preferredSectionY - offset)) {
+            return preferredSectionY - offset;
+        }
+    }
+
+    return -1;
 }
 
 void Chunk::setBlock(int x, int y, int z, ChunkBlock block)
