@@ -1,12 +1,16 @@
 #include <SFML/Window/VideoMode.hpp>
 #include <SFML/Window/Window.hpp>
 #include <SFML/Window/Context.hpp>
+#include <chrono>
+#include <cstdlib>
 #include <fstream>
 #include <glad/glad.h>
 #include <iostream>
 
 #include "Application.h"
 
+#include "Diagnostics/RuntimePerformanceCapture.h"
+#include "Diagnostics/RuntimeRenderCapture.h"
 #include "GL/GLUtils.h"
 #include "Debug/DebugGui.h"
 #include "Input/Keyboard.h"
@@ -18,16 +22,19 @@
 
 namespace
 {
+    using PerfClock = std::chrono::steady_clock;
+
     void handle_event(const sf::Event& event, sf::Window& window, bool& show_debug_info,
                       bool& close_requested);
     void loadConfig(Config& config);
     void displayInfo();
+    double elapsedMilliseconds(PerfClock::time_point start,
+                               PerfClock::time_point end);
 
 } // namespace
 
 int main()
 {
-
     Config config;
     loadConfig(config);
     displayInfo();
@@ -57,6 +64,14 @@ int main()
     {
         sf::VideoMode winMode({(unsigned)config.windowX, (unsigned)config.windowY});
         window.create(winMode, "HelloMine3D", sf::State::Windowed, context_settings);
+    }
+
+    const bool render_capture_enabled = RuntimeRenderCapture::isEnabled();
+    const bool perf_capture_enabled = RuntimePerformanceCapture::isEnabled();
+    if (render_capture_enabled || perf_capture_enabled)
+    {
+        window.setSize({static_cast<unsigned>(config.windowX),
+                        static_cast<unsigned>(config.windowY)});
     }
 
     window.setVerticalSyncEnabled(true);
@@ -101,8 +116,14 @@ int main()
     sf::Clock clock;
     while (window.isOpen())
     {
+        RuntimePerformanceCapture::FrameTimings frameTimings;
+        const auto frameStart = PerfClock::now();
+        const auto debugBeginStart = PerfClock::now();
         DebugGui::begin_frame();
+        const auto debugBeginEnd = PerfClock::now();
+
         bool close_requested = false;
+        const auto eventStart = debugBeginEnd;
         while (auto event = window.pollEvent())
         {
             DebugGui::event(window, *event);
@@ -110,20 +131,32 @@ int main()
             app.on_event(*event);
             handle_event(*event, window, show_debug_info, close_requested);
         }
+        const auto eventEnd = PerfClock::now();
+
         auto dt = clock.restart();
+        g_timeElapsed += dt.asSeconds();
+        frameTimings.deltaMs =
+            static_cast<double>(dt.asSeconds()) * 1000.0;
+        frameTimings.eventMs = elapsedMilliseconds(eventStart, eventEnd);
 
         // Update
         {
+            const auto updateStart = PerfClock::now();
             auto& update_profiler = profiler.begin_section("Update");
             app.on_update(keyboard, dt);
             update_profiler.end_section();
+            frameTimings.updateMs =
+                elapsedMilliseconds(updateStart, PerfClock::now());
         }
 
         // Render
         {
+            const auto renderStart = PerfClock::now();
             auto& render_profiler = profiler.begin_section("Render");
             app.on_render(show_debug_info);
             render_profiler.end_section();
+            frameTimings.renderMs =
+                elapsedMilliseconds(renderStart, PerfClock::now());
         }
 
         // Show profiler
@@ -136,8 +169,38 @@ int main()
         // --------------------------
         // ==== End Frame ====
         // --------------------------
+        const auto debugRenderStart = PerfClock::now();
         DebugGui::render();
+        const auto debugRenderEnd = PerfClock::now();
+        frameTimings.debugGuiMs =
+            elapsedMilliseconds(debugBeginStart, debugBeginEnd) +
+            elapsedMilliseconds(debugRenderStart, debugRenderEnd);
+
+        const auto renderCaptureStart = PerfClock::now();
+        RuntimeRenderCapture::update(window, dt);
+        frameTimings.renderCaptureMs =
+            elapsedMilliseconds(renderCaptureStart, PerfClock::now());
+
+        const auto displayStart = PerfClock::now();
         window.display();
+        const auto displayEnd = PerfClock::now();
+        frameTimings.displayMs =
+            elapsedMilliseconds(displayStart, displayEnd);
+        frameTimings.frameMs = elapsedMilliseconds(frameStart, displayEnd);
+
+        if (perf_capture_enabled) {
+            RuntimePerformanceCapture::recordFrame(frameTimings,
+                                                   app.collectDebugStats());
+        }
+
+        if (RuntimeRenderCapture::shouldCloseWindow())
+        {
+            window.close();
+        }
+        if (RuntimePerformanceCapture::shouldCloseWindow())
+        {
+            window.close();
+        }
         if (close_requested)
         {
             window.close();
@@ -147,7 +210,9 @@ int main()
     // --------------------------
     // ==== Graceful Cleanup ====
     // --------------------------
+    RuntimePerformanceCapture::shutdown();
     DebugGui::shutdown();
+    return EXIT_SUCCESS;
 }
 
 namespace
@@ -155,6 +220,8 @@ namespace
     void handle_event(const sf::Event& event, sf::Window& window, bool& show_debug_info,
                       bool& close_requested)
     {
+        (void)window;
+
         if (event.is<sf::Event::Closed>())
         {
             close_requested = true;
@@ -272,5 +339,11 @@ namespace
         {
             std::cout << line << "\n";
         }
+    }
+
+    double elapsedMilliseconds(PerfClock::time_point start,
+                               PerfClock::time_point end)
+    {
+        return std::chrono::duration<double, std::milli>(end - start).count();
     }
 } // namespace
