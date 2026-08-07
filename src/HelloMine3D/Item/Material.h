@@ -21,18 +21,21 @@ struct Material : public NonCopyable {
         Cactus,
         Rose,
         TallGrass,
-        DeadShrub
+        DeadShrub,
+        CoalOre,
+        IronOre
     };
 
     const static Material NOTHING, GRASS_BLOCK, DIRT_BLOCK, STONE_BLOCK,
         OAK_BARK_BLOCK, OAK_LEAF_BLOCK, SAND_BLOCK, CACTUS_BLOCK, ROSE,
-        TALL_GRASS, DEAD_SHRUB;
+        TALL_GRASS, DEAD_SHRUB, COAL_ORE_BLOCK, IRON_ORE_BLOCK;
 
     Material(Material::ID id, int maxStack, bool isBlock, std::string &&name);
 
     BlockId toBlockID() const;
 
     static const Material &toMaterial(BlockId id);
+    static const Material &toMaterial(Material::ID id);
 
     const Material::ID id;
     const int maxStackSize;

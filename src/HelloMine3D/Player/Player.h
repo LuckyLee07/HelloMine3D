@@ -5,15 +5,26 @@
 #include <vector>
 
 #include "../Entity/Entity.h"
-#include "../Input/ToggleKey.h"
-#include "../Item/ItemStack.h"
+#include "../Item/Inventory.h"
+#include "PlayerController.h"
 
 class Keyboard;
 class World;
 class RenderMaster;
 
+using PlayerInventorySlot = InventorySlotState;
+
+struct PlayerSaveState {
+    glm::vec3 position{0.f};
+    glm::vec3 rotation{0.f};
+    int heldItem = 0;
+    std::vector<PlayerInventorySlot> inventory;
+};
+
 /// @brief Player character, including player movements and world interactions.
 class Player : public Entity {
+    friend class PlayerController;
+
   public:
     Player();
 
@@ -22,37 +33,27 @@ class Player : public Entity {
     void update(float dt, World &wolrd);
     void collide(World &world, const glm::vec3 &vel, float dt);
 
-    void addItem(const Material &material);
+    bool addItem(const Material &material);
+    int addItem(const Material &material, int amount);
+    bool removeHeldItem(int amount = 1);
 
     void draw(RenderMaster &master);
 
     ItemStack &getHeldItems();
+    PlayerSaveState getSaveState() const;
+    void applySaveState(const PlayerSaveState &state);
 
   private:
     void jump();
 
-    void keyboardInput(const Keyboard& keyboard);
-    void mouseInput(const sf::Window &window);
     bool m_isOnGround = false;
     bool m_isFlying = false;
     bool m_isSneak = false;
 
-    std::vector<ItemStack> m_items;
+    Inventory m_inventory;
     std::vector<sf::Text> m_itemText;
-    int m_heldItem = 0;
 
-    ToggleKey m_itemDown;
-    ToggleKey m_itemUp;
-    ToggleKey m_flyKey;
-
-    ToggleKey m_num1;
-    ToggleKey m_num2;
-    ToggleKey m_num3;
-    ToggleKey m_num4;
-    ToggleKey m_num5;
-
-    ToggleKey m_slow;
-
+    PlayerController m_controller;
     glm::vec3 m_acceleration;
 };
 

@@ -7,6 +7,7 @@
 #include "../../Util/Singleton.h"
 
 #include "BlockId.h"
+#include "BlockDefinition.h"
 #include "BlockTypes/BlockType.h"
 
 #include "../../Texture/TextureAtlas.h"
@@ -18,14 +19,17 @@ class BlockDatabase : public Singleton {
 
     const BlockType &getBlock(BlockId id) const;
     const BlockData &getData(BlockId id) const;
+    const BlockDefinition &getDefinition(BlockId id) const;
 
     TextureAtlas textureAtlas;
 
   private:
     BlockDatabase();
+    void addBlock(BlockId id, const std::string &fileName);
 
     std::array<std::unique_ptr<BlockType>, (unsigned)BlockId::NUM_TYPES>
         m_blocks;
+    std::array<BlockDefinition, (unsigned)BlockId::NUM_TYPES> m_definitions;
 };
 
 #endif // BLOCKDATABASE_H_INCLUDED

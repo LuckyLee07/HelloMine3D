@@ -24,8 +24,18 @@ int ItemStack::add(int amount)
 
 void ItemStack::remove()
 {
-    m_numInStack--;
-    if (m_numInStack == 0) {
+    remove(1);
+}
+
+void ItemStack::remove(int amount)
+{
+    if (amount <= 0) {
+        return;
+    }
+
+    m_numInStack -= amount;
+    if (m_numInStack <= 0) {
+        m_numInStack = 0;
         m_pMaterial = &Material::NOTHING;
     }
 }
@@ -38,4 +48,9 @@ int ItemStack::getNumInStack() const
 const Material &ItemStack::getMaterial() const
 {
     return *m_pMaterial;
+}
+
+bool ItemStack::isEmpty() const
+{
+    return m_pMaterial->id == Material::ID::Nothing || m_numInStack <= 0;
 }

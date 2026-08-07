@@ -7,106 +7,56 @@
 #include <sstream>
 
 #include "../Input/Keyboard.h"
-#include "../Renderer/RenderMaster.h"
 #include "../World/World.h"
-#include <imgui.h>
 
 Player::Player()
     : Entity({2500, 125, 2500}, {0.f, 0.f, 0.f}, {0.3f, 1.f, 0.3f})
-    , m_itemDown(sf::Keyboard::Key::Down)
-    , m_itemUp(sf::Keyboard::Key::Up)
-    , m_flyKey(sf::Keyboard::Key::F)
-    , m_num1(sf::Keyboard::Key::Num1)
-    , m_num2(sf::Keyboard::Key::Num2)
-    , m_num3(sf::Keyboard::Key::Num3)
-    , m_num4(sf::Keyboard::Key::Num4)
-    , m_num5(sf::Keyboard::Key::Num5)
-    , m_slow(sf::Keyboard::Key::LShift)
+    , m_inventory(5)
     , m_acceleration(glm::vec3(0.f))
 {
-
-    for (int i = 0; i < 5; i++)
-    {
-        m_items.emplace_back(Material::NOTHING, 0);
-    }
 }
 
-void Player::addItem(const Material& material)
+bool Player::addItem(const Material& material)
 {
-    Material::ID id = material.id;
+    return addItem(material, 1) == 1;
+}
 
-    for (unsigned i = 0; i < m_items.size(); i++)
-    {
-        if (m_items[i].getMaterial().id == id)
-        {
-            /*int leftOver =*/m_items[i].add(1);
+int Player::addItem(const Material &material, int amount)
+{
+    return m_inventory.addItem(material, amount);
+}
 
-            return;
-        }
-        else if (m_items[i].getMaterial().id == Material::ID::Nothing)
-        {
-            m_items[i] = {material, 1};
-            return;
-        }
-    }
+bool Player::removeHeldItem(int amount)
+{
+    return m_inventory.removeFromSelected(amount);
 }
 
 ItemStack& Player::getHeldItems()
 {
-    return m_items[m_heldItem];
+    return m_inventory.getSelectedStack();
+}
+
+PlayerSaveState Player::getSaveState() const
+{
+    PlayerSaveState state;
+    state.position = position;
+    state.rotation = rotation;
+    state.heldItem = m_inventory.getSelectedSlot();
+    state.inventory = m_inventory.getSaveState();
+
+    return state;
+}
+
+void Player::applySaveState(const PlayerSaveState &state)
+{
+    position = state.position;
+    rotation = state.rotation;
+    m_inventory.applySaveState(state.inventory, state.heldItem);
 }
 
 void Player::handleInput(const sf::Window& window, const Keyboard& keyboard)
 {
-    keyboardInput(keyboard);
-    mouseInput(window);
-
-    if (m_itemDown.isKeyPressed())
-    {
-        m_heldItem++;
-        if (m_heldItem == (int)m_items.size())
-        {
-            m_heldItem = 0;
-        }
-    }
-    else if (m_itemUp.isKeyPressed())
-    {
-        m_heldItem--;
-        if (m_heldItem == -1)
-        {
-            m_heldItem = m_items.size() - 1;
-        }
-    }
-
-    if (m_flyKey.isKeyPressed())
-    {
-        m_isFlying = !m_isFlying;
-    }
-
-    if (m_num1.isKeyPressed())
-    {
-        m_heldItem = 0;
-    }
-    if (m_num2.isKeyPressed())
-    {
-        m_heldItem = 1;
-    }
-    if (m_num3.isKeyPressed())
-    {
-        m_heldItem = 2;
-    }
-    if (m_num4.isKeyPressed())
-    {
-        m_heldItem = 3;
-    }
-    if (m_num5.isKeyPressed())
-    {
-        m_heldItem = 4;
-    }
-    if (m_slow.isKeyPressed())
-    {
-        m_isSneak = !m_isSneak;
-    }
+    m_controller.handleInput(*this, window, keyboard);
 }
 
 void Player::update(float dt, World& world)
@@ -148,9 +98,18 @@ void Player::update(float dt, World& world)
 
 void Player::collide(World& world, const glm::vec3& vel, float dt)
 {
-    for (int x = position.x - box.dimensions.x; x < position.x + box.dimensions.x; x++)
-        for (int y = position.y - box.dimensions.y; y < position.y + 0.7; y++)
-            for (int z = position.z - box.dimensions.z; z < position.z + box.dimensions.z; z++)
+    (void)dt;
+
+    const int minX = static_cast<int>(position.x - box.dimensions.x);
+    const int maxX = static_cast<int>(position.x + box.dimensions.x);
+    const int minY = static_cast<int>(position.y - box.dimensions.y);
+    const int maxY = static_cast<int>(position.y + 0.7f);
+    const int minZ = static_cast<int>(position.z - box.dimensions.z);
+    const int maxZ = static_cast<int>(position.z + box.dimensions.z);
+
+    for (int x = minX; x < maxX; x++)
+        for (int y = minY; y < maxY; y++)
+            for (int z = minZ; z < maxZ; z++)
             {
                 auto block = world.getBlock(x, y, z);
 
@@ -189,102 +148,6 @@ void Player::collide(World& world, const glm::vec3& vel, float dt)
             }
 }
 
-///@TODO Move this
-float speed = 0.2f;
-
-void Player::keyboardInput(const Keyboard& keyboard)
-{
-    if (keyboard.isKeyDown(sf::Keyboard::Key::W))
-    {
-        float s = speed;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl))
-            s *= 5;
-        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RShift) ||
-                 sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift))
-            s *= 0.35f;
-        m_acceleration.x += -glm::cos(glm::radians(rotation.y + 90)) * s;
-        m_acceleration.z += -glm::sin(glm::radians(rotation.y + 90)) * s;
-    }
-    if (keyboard.isKeyDown(sf::Keyboard::Key::S))
-    {
-        m_acceleration.x += glm::cos(glm::radians(rotation.y + 90)) * speed;
-        m_acceleration.z += glm::sin(glm::radians(rotation.y + 90)) * speed;
-    }
-    if (keyboard.isKeyDown(sf::Keyboard::Key::A))
-    {
-        m_acceleration.x += -glm::cos(glm::radians(rotation.y)) * speed;
-        m_acceleration.z += -glm::sin(glm::radians(rotation.y)) * speed;
-    }
-    if (keyboard.isKeyDown(sf::Keyboard::Key::D))
-    {
-        m_acceleration.x += glm::cos(glm::radians(rotation.y)) * speed;
-        m_acceleration.z += glm::sin(glm::radians(rotation.y)) * speed;
-    }
-
-    if (keyboard.isKeyDown(sf::Keyboard::Key::Space))
-    {
-        jump();
-    }
-    else if (keyboard.isKeyDown(sf::Keyboard::Key::LShift) && m_isFlying)
-    {
-        m_acceleration.y -= speed * 3;
-    }
-}
-
-void Player::mouseInput(const sf::Window& window)
-{
-    static bool useMouse = true;
-    static ToggleKey useMouseKey(sf::Keyboard::Key::L);
-
-    if (useMouseKey.isKeyPressed())
-    {
-        useMouse = !useMouse;
-    }
-
-    if (!useMouse)
-    {
-        return;
-    }
-
-    static float const BOUND = 89.f;
-    static auto lastMousePosition = sf::Mouse::getPosition(window);
-    auto change = sf::Mouse::getPosition() - lastMousePosition;
-
-    rotation.y += change.x * 0.05f;
-    rotation.x += change.y * 0.05f;
-
-    if (rotation.x > BOUND)
-        rotation.x = BOUND;
-    else if (rotation.x < -BOUND)
-        rotation.x = -BOUND;
-
-    if (rotation.y > 360)
-        rotation.y = 0;
-    else if (rotation.y < 0)
-        rotation.y = 360;
-
-    auto cx = static_cast<int>(window.getSize().x / 2);
-    auto cy = static_cast<int>(window.getSize().y / 2);
-
-    sf::Mouse::setPosition({cx, cy}, window);
-
-    lastMousePosition = sf::Mouse::getPosition();
-}
-
-void Player::draw(RenderMaster& master)
-{
-    if (ImGui::Begin("Player"))
-    {
-
-        for (unsigned i = 0; i < m_items.size(); i++)
-        {
-            ImGui::Text("%s %d", m_items[i].getMaterial().name.c_str(), m_items[i].getNumInStack());
-        }
-        ImGui::Text("X: %.2f, Y: %.2f, z: %.2f", position.x, position.y, position.z);
-    }
-    ImGui::End();
-}
-
 void Player::jump()
 {
     if (!m_isFlying)
@@ -293,11 +156,11 @@ void Player::jump()
         {
 
             m_isOnGround = false;
-            m_acceleration.y += speed * 50;
+            m_acceleration.y += 0.2f * 50;
         }
     }
     else
     {
-        m_acceleration.y += speed * 3;
+        m_acceleration.y += 0.2f * 3;
     }
 }

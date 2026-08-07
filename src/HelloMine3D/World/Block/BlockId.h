@@ -4,6 +4,7 @@
 #include <cstdint>
 
 using Block_t = uint8_t;
+using BlockMetadata_t = uint8_t;
 
 /// @brief Known block ID types used in game.
 enum class BlockId : Block_t {
@@ -19,6 +20,8 @@ enum class BlockId : Block_t {
     Rose = 9,
     TallGrass = 10,
     DeadShrub = 11,
+    CoalOre = 12,
+    IronOre = 13,
 
     NUM_TYPES
 };

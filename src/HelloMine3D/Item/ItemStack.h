@@ -10,10 +10,12 @@ class ItemStack {
 
     int add(int amount);
     void remove();
+    void remove(int amount);
 
     int getNumInStack() const;
 
     const Material &getMaterial() const;
+    bool isEmpty() const;
 
   private:
     const Material *m_pMaterial = &Material::NOTHING;

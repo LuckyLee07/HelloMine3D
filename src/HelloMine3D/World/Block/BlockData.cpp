@@ -3,6 +3,7 @@
 #include "../../Util/ResourcePaths.h"
 
 #include <fstream>
+#include <ios>
 
 BlockData::BlockData(const std::string& fileName)
 {
@@ -29,6 +30,10 @@ BlockData::BlockData(const std::string& fileName)
             int x, y;
             inFile >> x >> y;
             m_data.texTopCoord = {x, y};
+        }
+        else if (line == "Name")
+        {
+            std::getline(inFile >> std::ws, m_data.name);
         }
         else if (line == "TexSide")
         {

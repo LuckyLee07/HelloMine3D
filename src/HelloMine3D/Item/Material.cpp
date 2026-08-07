@@ -14,6 +14,10 @@ const Material Material::CACTUS_BLOCK(ID::Cactus, 99, true, "Cactus Block");
 const Material Material::ROSE(ID::Rose, 99, true, "Rose");
 const Material Material::TALL_GRASS(ID::TallGrass, 99, true, "Tall Grass");
 const Material Material::DEAD_SHRUB(ID::DeadShrub, 99, true, "Dead Shrub");
+const Material Material::COAL_ORE_BLOCK(ID::CoalOre, 99, true,
+                                        "Coal Ore Block");
+const Material Material::IRON_ORE_BLOCK(ID::IronOre, 99, true,
+                                        "Iron Ore Block");
 
 Material::Material(Material::ID id, int maxStack, bool isBlock,
                    std::string &&name)
@@ -60,6 +64,12 @@ BlockId Material::toBlockID() const
         case DeadShrub:
             return BlockId::DeadShrub;
 
+        case CoalOre:
+            return BlockId::CoalOre;
+
+        case IronOre:
+            return BlockId::IronOre;
+
         default:
             return BlockId::NUM_TYPES;
     }
@@ -97,6 +107,56 @@ const Material &Material::toMaterial(BlockId id)
 
         case BlockId::DeadShrub:
             return DEAD_SHRUB;
+
+        case BlockId::CoalOre:
+            return COAL_ORE_BLOCK;
+
+        case BlockId::IronOre:
+            return IRON_ORE_BLOCK;
+
+        default:
+            return NOTHING;
+    }
+}
+
+const Material &Material::toMaterial(Material::ID id)
+{
+    switch (id) {
+        case Grass:
+            return GRASS_BLOCK;
+
+        case Dirt:
+            return DIRT_BLOCK;
+
+        case Stone:
+            return STONE_BLOCK;
+
+        case OakBark:
+            return OAK_BARK_BLOCK;
+
+        case OakLeaf:
+            return OAK_LEAF_BLOCK;
+
+        case Sand:
+            return SAND_BLOCK;
+
+        case Cactus:
+            return CACTUS_BLOCK;
+
+        case Rose:
+            return ROSE;
+
+        case TallGrass:
+            return TALL_GRASS;
+
+        case DeadShrub:
+            return DEAD_SHRUB;
+
+        case CoalOre:
+            return COAL_ORE_BLOCK;
+
+        case IronOre:
+            return IRON_ORE_BLOCK;
 
         default:
             return NOTHING;

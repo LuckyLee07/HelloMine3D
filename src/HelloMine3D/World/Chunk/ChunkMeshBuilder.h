@@ -11,9 +11,9 @@
 class ChunkSection;
 class ChunkMesh;
 class BlockData;
+struct BlockDefinition;
 
 struct ChunkMeshCollection;
-struct BlockDataHolder;
 
 class ChunkMeshBuilder {
   public:
@@ -33,8 +33,7 @@ class ChunkMeshBuilder {
                           const sf::Vector3i &blockFacing,
                           GLfloat cardinalLight);
 
-    bool shouldMakeFace(const sf::Vector3i &blockPosition,
-                        const BlockDataHolder &blockData);
+    bool shouldMakeFace(const sf::Vector3i &blockPosition);
 
     bool shouldMakeLayer(int y);
 
@@ -42,7 +41,7 @@ class ChunkMeshBuilder {
     ChunkSection *m_pChunk = nullptr;
     ChunkMeshCollection *m_pMeshes = nullptr;
     ChunkMesh *m_pActiveMesh = nullptr;
-    const BlockDataHolder *m_pBlockData = nullptr;
+    const BlockDefinition *m_pBlockDefinition = nullptr;
 };
 
 #endif // CHUNKMESHBUILDER_H_INCLUDED

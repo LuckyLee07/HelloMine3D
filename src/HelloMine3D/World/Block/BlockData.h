@@ -4,6 +4,7 @@
 #include "../../Util/NonCopyable.h"
 #include "BlockId.h"
 #include <SFML/Graphics.hpp>
+#include <string>
 
 /// @brief Allocates meshes to cubes and non-cube entities.
 enum class BlockMeshType {
@@ -21,6 +22,7 @@ enum class BlockShaderType {
 /// @brief Struct designed to hold geometric and tangibility data for each individual block.
 struct BlockDataHolder : public NonCopyable {
     BlockId id;
+    std::string name;
     sf::Vector2i texTopCoord;
     sf::Vector2i texSideCoord;
     sf::Vector2i texBottomCoord;

@@ -5,6 +5,7 @@
 
 #include "../Block/BlockData.h"
 #include "../Block/BlockDatabase.h"
+#include "../Block/BlockDefinition.h"
 
 #include <SFML/System/Clock.hpp>
 #include <cassert>
@@ -83,9 +84,9 @@ void ChunkMeshBuilder::buildMesh()
     faces = 0;
     sf::Clock timer;
     for (int16_t i = 0; i < CHUNK_VOLUME; i++) {
-        uint8_t x = i % CHUNK_SIZE;
-        uint8_t y = i / (CHUNK_SIZE * CHUNK_SIZE);
-        uint8_t z = (i / CHUNK_SIZE) % CHUNK_SIZE;
+        const int x = i % CHUNK_SIZE;
+        const int y = i / (CHUNK_SIZE * CHUNK_SIZE);
+        const int z = (i / CHUNK_SIZE) % CHUNK_SIZE;
 
         if (!shouldMakeLayer(y)) {
             continue;
@@ -101,11 +102,12 @@ void ChunkMeshBuilder::buildMesh()
             continue;
         }
 
-        m_pBlockData = &block.getData();
-        auto &data = *m_pBlockData;
+        m_pBlockDefinition =
+            &BlockDatabase::get().getDefinition(static_cast<BlockId>(block.id));
+        const auto &renderInfo = m_pBlockDefinition->render;
 
-        if (data.meshType == BlockMeshType::X) {
-            addXBlockToMesh(data.texTopCoord, position);
+        if (renderInfo.meshType == BlockMeshType::X) {
+            addXBlockToMesh(renderInfo.texTopCoord, position);
             continue;
         }
 
@@ -113,28 +115,31 @@ void ChunkMeshBuilder::buildMesh()
 
         // Up/ Down
         if ((m_pChunk->getLocation().y != 0) || y != 0)
-            tryAddFaceToMesh(bottomFace, data.texBottomCoord, position,
+            tryAddFaceToMesh(bottomFace, renderInfo.texBottomCoord, position,
                              directions.down, LIGHT_BOT);
-        tryAddFaceToMesh(topFace, data.texTopCoord, position, directions.up,
-                         LIGHT_TOP);
+        tryAddFaceToMesh(topFace, renderInfo.texTopCoord, position,
+                         directions.up, LIGHT_TOP);
 
         // Left/ Right
-        tryAddFaceToMesh(leftFace, data.texSideCoord, position, directions.left,
-                         LIGHT_X);
-        tryAddFaceToMesh(rightFace, data.texSideCoord, position,
+        tryAddFaceToMesh(leftFace, renderInfo.texSideCoord, position,
+                         directions.left, LIGHT_X);
+        tryAddFaceToMesh(rightFace, renderInfo.texSideCoord, position,
                          directions.right, LIGHT_X);
 
         // Front/ Back
-        tryAddFaceToMesh(frontFace, data.texSideCoord, position,
+        tryAddFaceToMesh(frontFace, renderInfo.texSideCoord, position,
                          directions.front, LIGHT_Z);
-        tryAddFaceToMesh(backFace, data.texSideCoord, position, directions.back,
-                         LIGHT_Z);
+        tryAddFaceToMesh(backFace, renderInfo.texSideCoord, position,
+                         directions.back, LIGHT_Z);
     }
 }
 
 void ChunkMeshBuilder::setActiveMesh(ChunkBlock block)
 {
-    switch (block.getData().shaderType) {
+    const auto &definition =
+        BlockDatabase::get().getDefinition(static_cast<BlockId>(block.id));
+
+    switch (definition.render.shaderType) {
         case BlockShaderType::Chunk:
             m_pActiveMesh = &m_pMeshes->solidMesh;
             break;
@@ -168,7 +173,7 @@ void ChunkMeshBuilder::tryAddFaceToMesh(
     const sf::Vector3i &blockPosition, const sf::Vector3i &blockFacing,
     GLfloat cardinalLight)
 {
-    if (shouldMakeFace(blockFacing, *m_pBlockData)) {
+    if (shouldMakeFace(blockFacing)) {
         faces++;
         auto texCoords =
             BlockDatabase::get().textureAtlas.getTexture(textureCoords);
@@ -178,16 +183,17 @@ void ChunkMeshBuilder::tryAddFaceToMesh(
     }
 }
 
-bool ChunkMeshBuilder::shouldMakeFace(const sf::Vector3i &adjBlock,
-                                      const BlockDataHolder &blockData)
+bool ChunkMeshBuilder::shouldMakeFace(const sf::Vector3i &adjBlock)
 {
     auto block = m_pChunk->getBlock(adjBlock.x, adjBlock.y, adjBlock.z);
-    auto &data = block.getData();
+    const auto &definition =
+        BlockDatabase::get().getDefinition(static_cast<BlockId>(block.id));
 
     if (block == BlockId::Air) {
         return true;
     }
-    else if ((!data.isOpaque) && (data.id != m_pBlockData->id)) {
+    else if (definition.transparent &&
+             definition.id != m_pBlockDefinition->id) {
         return true;
     }
     return false;
