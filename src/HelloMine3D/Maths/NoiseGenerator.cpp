@@ -37,7 +37,7 @@ double NoiseGenerator::getNoise(int n) const noexcept
 /// @return 
 double NoiseGenerator::getNoise(double x, double z) const noexcept
 {
-    return getNoise(x + z * 57.0);
+    return getNoise(static_cast<int>(x + z * 57.0));
 }
 
 double NoiseGenerator::lerp(double a, double b, double z) const noexcept

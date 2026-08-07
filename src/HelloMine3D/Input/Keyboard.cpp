@@ -16,12 +16,12 @@ void Keyboard::update(sf::Event e)
             m_keys[(size_t)key->code] = true;
         }
     }
-    else if (auto* key = e.getIf<sf::Event::KeyReleased>())
+    else if (auto* releasedKey = e.getIf<sf::Event::KeyReleased>())
     {
-        m_recentlyReleased = key->code;
-        if ((size_t)key->code < m_keys.size())
+        m_recentlyReleased = releasedKey->code;
+        if ((size_t)releasedKey->code < m_keys.size())
         {
-            m_keys[(size_t)key->code] = false;
+            m_keys[(size_t)releasedKey->code] = false;
         }
     }
 }

@@ -1,7 +1,8 @@
 #ifndef VECTOR2XZ_H_INCLUDED
 #define VECTOR2XZ_H_INCLUDED
 
-#include <SFML/Graphics.hpp>
+#include <SFML/System/Vector3.hpp>
+#include <cstddef>
 #include <functional>
 
 struct VectorXZ {
@@ -12,30 +13,32 @@ bool operator==(const VectorXZ &left, const VectorXZ &right) noexcept;
 
 namespace std {
 template <> struct hash<VectorXZ> {
-    size_t operator()(const VectorXZ &vect) const noexcept
+    std::size_t operator()(const VectorXZ &vect) const noexcept
     {
-        std::hash<decltype(vect.x)> hasher;
+        std::size_t seed = 0;
+        seed ^= std::hash<int>{}(vect.x) + 0x9e3779b9u + (seed << 6) +
+                (seed >> 2);
+        seed ^= std::hash<int>{}(vect.z) + 0x9e3779b9u + (seed << 6) +
+                (seed >> 2);
 
-        auto hash1 = hasher(vect.x);
-        auto hash2 = hasher(vect.z);
-
-        return std::hash<decltype(vect.x)>{}(size_t((hash1 ^ hash2) >> 2));
+        return seed;
     }
 };
 } // namespace std
 
 namespace std {
 template <> struct hash<sf::Vector3i> {
-    size_t operator()(const sf::Vector3i &vect) const noexcept
+    std::size_t operator()(const sf::Vector3i &vect) const noexcept
     {
-        std::hash<decltype(vect.x)> hasher;
+        std::size_t seed = 0;
+        seed ^= std::hash<int>{}(vect.x) + 0x9e3779b9u + (seed << 6) +
+                (seed >> 2);
+        seed ^= std::hash<int>{}(vect.y) + 0x9e3779b9u + (seed << 6) +
+                (seed >> 2);
+        seed ^= std::hash<int>{}(vect.z) + 0x9e3779b9u + (seed << 6) +
+                (seed >> 2);
 
-        auto hash1 = hasher(vect.x);
-        auto hash2 = hasher(vect.y);
-        auto hash3 = hasher(vect.z);
-
-        return std::hash<decltype(vect.x)>{}(
-            size_t(hash1 ^ (hash2 << hash3) ^ hash3));
+        return seed;
     }
 };
 } // namespace std
