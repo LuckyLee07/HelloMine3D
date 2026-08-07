@@ -13,8 +13,6 @@ class GrasslandBiome : public Biome {
     ChunkBlock getUnderWaterBlock(Rand &rand) const override;
     void makeTree(Rand &rand, Chunk &chunk, int x, int y, int z) const override;
 
-  private:
-    NoiseParameters getNoiseParameters() override;
 };
 
 #endif // GRASSLANDBIOME_H_INCLUDED

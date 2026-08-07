@@ -2,8 +2,20 @@
 
 #include "../Structures/TreeGenerator.h"
 
+namespace
+{
+    const BiomeDefinition &temperateForestDefinition()
+    {
+        static const BiomeDefinition definition{
+            NoiseParameters{5, 100, 195, -30, 0.52}, 55, 75,
+            ChunkBlock(BlockId::Grass), ChunkBlock(BlockId::Sand),
+            ChunkBlock(BlockId::Sand), ChunkBlock(BlockId::TallGrass)};
+        return definition;
+    }
+}
+
 TemperateForestBiome::TemperateForestBiome(int seed)
-    : Biome(getNoiseParameters(), 55, 75, seed)
+    : Biome(temperateForestDefinition(), seed)
 {
 }
 
@@ -23,19 +35,8 @@ void TemperateForestBiome::makeTree(Rand &rand, Chunk &chunk, int x, int y,
     makeOakTree(chunk, rand, x, y, z);
 }
 
-NoiseParameters TemperateForestBiome::getNoiseParameters()
-{
-    NoiseParameters heightParams;
-    heightParams.octaves = 5;
-    heightParams.amplitude = 100;
-    heightParams.smoothness = 195;
-    heightParams.heightOffset = -30;
-    heightParams.roughness = 0.52;
-
-    return heightParams;
-}
-
 ChunkBlock TemperateForestBiome::getPlant(Rand &rand) const
 {
-    return BlockId::TallGrass;
+    (void)rand;
+    return getDefinition().plantBlock;
 }

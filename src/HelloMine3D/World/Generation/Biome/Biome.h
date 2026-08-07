@@ -9,10 +9,19 @@ using Rand = Random<std::minstd_rand>;
 
 class Chunk;
 
+struct BiomeDefinition {
+    NoiseParameters heightNoise;
+    int treeFrequency = 0;
+    int plantFrequency = 0;
+    ChunkBlock topBlock;
+    ChunkBlock underWaterBlock;
+    ChunkBlock beachBlock;
+    ChunkBlock plantBlock;
+};
+
 struct Biome {
   public:
-    Biome(const NoiseParameters &parameters, int treeFreq, int plantFreq,
-          int seed);
+    Biome(const BiomeDefinition &definition, int seed);
     virtual ~Biome() = default;
 
     virtual ChunkBlock getPlant(Rand &rand) const = 0;
@@ -27,12 +36,11 @@ struct Biome {
     int getPlantFrequency() const noexcept;
 
   protected:
-    virtual NoiseParameters getNoiseParameters() = 0;
+    const BiomeDefinition &getDefinition() const noexcept;
 
   private:
+    BiomeDefinition m_definition;
     NoiseGenerator m_heightGenerator;
-    int m_treeFreq;
-    int m_plantFreq;
 };
 
 #endif // BIOME_H_INCLUDED

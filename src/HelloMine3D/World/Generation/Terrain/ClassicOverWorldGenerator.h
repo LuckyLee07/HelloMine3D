@@ -15,20 +15,37 @@
 #include "../Biome/OceanBiome.h"
 #include "../Biome/TemperateForestBiome.h"
 
+#include <vector>
+
 class Chunk;
 
 /// @brief Generates chunks based on perlin noise and recognizable MC parameters.
 class ClassicOverWorldGenerator : public TerrainGenerator {
   public:
-    ClassicOverWorldGenerator();
+    explicit ClassicOverWorldGenerator(int seed = 0);
 
     void generateTerrainFor(Chunk &chunk) override;
     int getMinimumSpawnHeight() const noexcept override;
+    int getSeed() const noexcept;
 
   private:
-    static void setUpNoise();
+    struct BlockPosition {
+        int x = 0;
+        int y = 0;
+        int z = 0;
+    };
 
-    void setBlocks(int maxHeight);
+    void setUpNoise();
+
+    void generateBaseTerrain(int maxHeight,
+                             std::vector<BlockPosition> &treePositions,
+                             std::vector<BlockPosition> &plantPositions);
+    void applyOreDecorators();
+    void placeOreVein(Random<std::minstd_rand> &random, BlockId oreBlock,
+                      int startX, int startY, int startZ, int size);
+    void applyPlantDecorators(const std::vector<BlockPosition> &positions);
+    void applyTreeDecorators(const std::vector<BlockPosition> &positions);
+    bool canPlaceStructureAt(int x, int z, int radius) const;
 
     void getHeightIn(int xMin, int zMin, int xMax, int zMax);
     void getHeightMap();
@@ -39,9 +56,10 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
     Array2D<int, CHUNK_SIZE> m_heightMap;
     Array2D<int, CHUNK_SIZE + 1> m_biomeMap;
 
+    int m_seed = 0;
     Random<std::minstd_rand> m_random;
 
-    static NoiseGenerator m_biomeNoiseGen;
+    NoiseGenerator m_biomeNoiseGen;
 
     GrasslandBiome m_grassBiome;
     TemperateForestBiome m_temperateForest;

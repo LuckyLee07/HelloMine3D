@@ -3,19 +3,33 @@
 #include "../../WorldConstants.h"
 #include "../Structures/TreeGenerator.h"
 
+namespace
+{
+    const BiomeDefinition &desertDefinition()
+    {
+        static const BiomeDefinition definition{
+            NoiseParameters{9, 80, 335, -7, 0.56}, 1350, 500,
+            ChunkBlock(BlockId::Sand), ChunkBlock(BlockId::Sand),
+            ChunkBlock(BlockId::Sand), ChunkBlock(BlockId::DeadShrub)};
+        return definition;
+    }
+}
+
 DesertBiome::DesertBiome(int seed)
-    : Biome(getNoiseParameters(), 1350, 500, seed)
+    : Biome(desertDefinition(), seed)
 {
 }
 
 ChunkBlock DesertBiome::getTopBlock(Rand &rand) const
 {
-    return BlockId::Sand;
+    (void)rand;
+    return getDefinition().topBlock;
 }
 
 ChunkBlock DesertBiome::getUnderWaterBlock(Rand &rand) const
 {
-    return BlockId::Sand;
+    (void)rand;
+    return getDefinition().underWaterBlock;
 }
 
 void DesertBiome::makeTree(Rand &rand, Chunk &chunk, int x, int y, int z) const
@@ -33,19 +47,8 @@ void DesertBiome::makeTree(Rand &rand, Chunk &chunk, int x, int y, int z) const
     }
 }
 
-NoiseParameters DesertBiome::getNoiseParameters()
-{
-    NoiseParameters heightParams;
-    heightParams.octaves = 9;
-    heightParams.amplitude = 80;
-    heightParams.smoothness = 335;
-    heightParams.heightOffset = -7;
-    heightParams.roughness = 0.56;
-
-    return heightParams;
-}
-
 ChunkBlock DesertBiome::getPlant(Rand &rand) const
 {
-    return BlockId::DeadShrub;
+    (void)rand;
+    return getDefinition().plantBlock;
 }

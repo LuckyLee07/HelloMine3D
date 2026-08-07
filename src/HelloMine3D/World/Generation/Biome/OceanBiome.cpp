@@ -2,19 +2,33 @@
 
 #include "../Structures/TreeGenerator.h"
 
+namespace
+{
+    const BiomeDefinition &oceanDefinition()
+    {
+        static const BiomeDefinition definition{
+            NoiseParameters{7, 43, 55, 0, 0.50}, 50, 100,
+            ChunkBlock(BlockId::Grass), ChunkBlock(BlockId::Sand),
+            ChunkBlock(BlockId::Sand), ChunkBlock(BlockId::TallGrass)};
+        return definition;
+    }
+}
+
 OceanBiome::OceanBiome(int seed)
-    : Biome(getNoiseParameters(), 50, 100, seed)
+    : Biome(oceanDefinition(), seed)
 {
 }
 
 ChunkBlock OceanBiome::getTopBlock(Rand &rand) const
 {
-    return BlockId::Grass;
+    (void)rand;
+    return getDefinition().topBlock;
 }
 
 ChunkBlock OceanBiome::getUnderWaterBlock(Rand &rand) const
 {
-    return BlockId::Sand;
+    (void)rand;
+    return getDefinition().underWaterBlock;
 }
 
 void OceanBiome::makeTree(Rand &rand, Chunk &chunk, int x, int y, int z) const
@@ -23,19 +37,8 @@ void OceanBiome::makeTree(Rand &rand, Chunk &chunk, int x, int y, int z) const
                               : makeOakTree(chunk, rand, x, y, z);
 }
 
-NoiseParameters OceanBiome::getNoiseParameters()
-{
-    NoiseParameters heightParams;
-    heightParams.octaves = 7;
-    heightParams.amplitude = 43;
-    heightParams.smoothness = 55;
-    heightParams.heightOffset = 0;
-    heightParams.roughness = 0.50;
-
-    return heightParams;
-}
-
 ChunkBlock OceanBiome::getPlant(Rand &rand) const
 {
-    return rand.intInRange(0, 10) > 6 ? BlockId::Rose : BlockId::TallGrass;
+    return rand.intInRange(0, 10) > 6 ? BlockId::Rose
+                                      : getDefinition().plantBlock;
 }

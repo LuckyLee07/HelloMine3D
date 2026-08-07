@@ -9,14 +9,11 @@
 
 #include "../Structures/TreeGenerator.h"
 
-namespace {
-const int seed = RandomSingleton::get().intInRange(424, 325322);
-}
-
-NoiseGenerator ClassicOverWorldGenerator::m_biomeNoiseGen(seed * 2);
-
-ClassicOverWorldGenerator::ClassicOverWorldGenerator()
-    : m_grassBiome(seed)
+ClassicOverWorldGenerator::ClassicOverWorldGenerator(int seed)
+    : m_seed(seed)
+    , m_random(seed)
+    , m_biomeNoiseGen(seed * 2)
+    , m_grassBiome(seed)
     , m_temperateForest(seed)
     , m_desertBiome(seed)
     , m_oceanBiome(seed)
@@ -27,21 +24,16 @@ ClassicOverWorldGenerator::ClassicOverWorldGenerator()
 
 void ClassicOverWorldGenerator::setUpNoise()
 {
-    std::cout << "Seed: " << seed << '\n';
-    static bool noiseGen = false;
-    if (!noiseGen) {
-        std::cout << "making noise\n";
-        noiseGen = true;
+    std::cout << "Seed: " << m_seed << '\n';
 
-        NoiseParameters biomeParmams;
-        biomeParmams.octaves = 5;
-        biomeParmams.amplitude = 120;
-        biomeParmams.smoothness = 1035;
-        biomeParmams.heightOffset = 0;
-        biomeParmams.roughness = 0.75;
+    NoiseParameters biomeParmams;
+    biomeParmams.octaves = 5;
+    biomeParmams.amplitude = 120;
+    biomeParmams.smoothness = 1035;
+    biomeParmams.heightOffset = 0;
+    biomeParmams.roughness = 0.75;
 
-        m_biomeNoiseGen.setParameters(biomeParmams);
-    }
+    m_biomeNoiseGen.setParameters(biomeParmams);
 }
 
 void ClassicOverWorldGenerator::generateTerrainFor(Chunk &chunk)
@@ -49,20 +41,31 @@ void ClassicOverWorldGenerator::generateTerrainFor(Chunk &chunk)
     m_pChunk = &chunk;
 
     auto location = chunk.getLocation();
-    m_random.setSeed((location.x ^ location.y) << 2);
+    m_random.setSeed(m_seed ^ (location.x * 73428767) ^
+                     (location.y * 91227153));
 
     getBiomeMap();
     getHeightMap();
 
     auto maxHeight = m_heightMap.getMaxValue();
-
     maxHeight = std::max(maxHeight, WATER_LEVEL);
-    setBlocks(maxHeight);
+
+    std::vector<BlockPosition> treePositions;
+    std::vector<BlockPosition> plantPositions;
+    generateBaseTerrain(maxHeight, treePositions, plantPositions);
+    applyOreDecorators();
+    applyPlantDecorators(plantPositions);
+    applyTreeDecorators(treePositions);
 }
 
 int ClassicOverWorldGenerator::getMinimumSpawnHeight() const noexcept
 {
     return WATER_LEVEL;
+}
+
+int ClassicOverWorldGenerator::getSeed() const noexcept
+{
+    return m_seed;
 }
 
 void ClassicOverWorldGenerator::getHeightIn(int xMin, int zMin, int xMax,
@@ -121,11 +124,10 @@ void ClassicOverWorldGenerator::getBiomeMap()
         }
 }
 
-void ClassicOverWorldGenerator::setBlocks(int maxHeight)
+void ClassicOverWorldGenerator::generateBaseTerrain(
+    int maxHeight, std::vector<BlockPosition> &treePositions,
+    std::vector<BlockPosition> &plantPositions)
 {
-    std::vector<sf::Vector3i> trees;
-    std::vector<sf::Vector3i> plants;
-
     for (int y = 0; y < maxHeight + 1; y++)
         for (int x = 0; x < CHUNK_SIZE; x++)
             for (int z = 0; z < CHUNK_SIZE; z++) {
@@ -146,13 +148,15 @@ void ClassicOverWorldGenerator::setBlocks(int maxHeight)
                             continue;
                         }
 
-                        if (m_random.intInRange(0, biome.getTreeFrequency()) ==
-                            5) {
-                            trees.emplace_back(x, y + 1, z);
+                        if (canPlaceStructureAt(x, z, 6) &&
+                            m_random.intInRange(0,
+                                                biome.getTreeFrequency()) ==
+                                5) {
+                            treePositions.push_back({x, y + 1, z});
                         }
                         if (m_random.intInRange(0, biome.getPlantFrequency()) ==
                             5) {
-                            plants.emplace_back(x, y + 1, z);
+                            plantPositions.push_back({x, y + 1, z});
                         }
                         m_pChunk->setBlock(
                             x, y, z, getBiome(x, z).getTopBlock(m_random));
@@ -169,21 +173,79 @@ void ClassicOverWorldGenerator::setBlocks(int maxHeight)
                     m_pChunk->setBlock(x, y, z, BlockId::Stone);
                 }
             }
+}
 
-    for (auto &plant : plants) {
-        int x = plant.x;
-        int z = plant.z;
+void ClassicOverWorldGenerator::applyOreDecorators()
+{
+    auto location = m_pChunk->getLocation();
+    Random<std::minstd_rand> oreRandom(
+        m_seed ^ (location.x * 13371337) ^ (location.y * 265443576) ^
+        0x5a5a);
+
+    auto runOrePass = [&](BlockId oreBlock, int attempts, int minY, int maxY,
+                          int minSize, int maxSize) {
+        for (int i = 0; i < attempts; ++i) {
+            const int x = oreRandom.intInRange(0, CHUNK_SIZE - 1);
+            const int y = oreRandom.intInRange(minY, maxY);
+            const int z = oreRandom.intInRange(0, CHUNK_SIZE - 1);
+            const int size = oreRandom.intInRange(minSize, maxSize);
+            placeOreVein(oreRandom, oreBlock, x, y, z, size);
+        }
+    };
+
+    runOrePass(BlockId::CoalOre, 14, 8, 96, 3, 8);
+    runOrePass(BlockId::IronOre, 8, 6, 64, 2, 6);
+}
+
+void ClassicOverWorldGenerator::placeOreVein(Random<std::minstd_rand> &random,
+                                             BlockId oreBlock, int startX,
+                                             int startY, int startZ, int size)
+{
+    int x = startX;
+    int y = startY;
+    int z = startZ;
+    for (int i = 0; i < size; ++i) {
+        if (x >= 0 && x < CHUNK_SIZE && z >= 0 && z < CHUNK_SIZE && y > 0) {
+            if (static_cast<BlockId>(m_pChunk->getBlock(x, y, z).id) ==
+                BlockId::Stone) {
+                m_pChunk->setBlock(x, y, z, oreBlock);
+            }
+        }
+
+        x += random.intInRange(-1, 1);
+        y += random.intInRange(-1, 1);
+        z += random.intInRange(-1, 1);
+    }
+}
+
+void ClassicOverWorldGenerator::applyPlantDecorators(
+    const std::vector<BlockPosition> &positions)
+{
+    for (auto &plant : positions) {
+        const int x = plant.x;
+        const int z = plant.z;
 
         auto block = getBiome(x, z).getPlant(m_random);
         m_pChunk->setBlock(x, plant.y, z, block);
     }
+}
 
-    for (auto &tree : trees) {
-        int x = tree.x;
-        int z = tree.z;
+void ClassicOverWorldGenerator::applyTreeDecorators(
+    const std::vector<BlockPosition> &positions)
+{
+    for (auto &tree : positions) {
+        const int x = tree.x;
+        const int z = tree.z;
 
         getBiome(x, z).makeTree(m_random, *m_pChunk, x, tree.y, z);
     }
+}
+
+bool ClassicOverWorldGenerator::canPlaceStructureAt(int x, int z,
+                                                    int radius) const
+{
+    return x >= radius && z >= radius && x < CHUNK_SIZE - radius &&
+           z < CHUNK_SIZE - radius;
 }
 
 const Biome &ClassicOverWorldGenerator::getBiome(int x, int z) const

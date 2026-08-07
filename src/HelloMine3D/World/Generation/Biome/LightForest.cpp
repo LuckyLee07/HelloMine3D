@@ -2,14 +2,27 @@
 
 #include "../Structures/TreeGenerator.h"
 
+namespace
+{
+    const BiomeDefinition &lightForestDefinition()
+    {
+        static const BiomeDefinition definition{
+            NoiseParameters{5, 100, 195, -32, 0.52}, 60, 80,
+            ChunkBlock(BlockId::Grass), ChunkBlock(BlockId::Dirt),
+            ChunkBlock(BlockId::Sand), ChunkBlock(BlockId::TallGrass)};
+        return definition;
+    }
+}
+
 LightForest::LightForest(int seed)
-    : Biome(getNoiseParameters(), 60, 80, seed)
+    : Biome(lightForestDefinition(), seed)
 {
 }
 
 ChunkBlock LightForest::getTopBlock(Rand &rand) const
 {
-    return BlockId::Grass;
+    (void)rand;
+    return getDefinition().topBlock;
 }
 
 ChunkBlock LightForest::getUnderWaterBlock(Rand &rand) const
@@ -22,19 +35,8 @@ void LightForest::makeTree(Rand &rand, Chunk &chunk, int x, int y, int z) const
     makeOakTree(chunk, rand, x, y, z);
 }
 
-NoiseParameters LightForest::getNoiseParameters()
-{
-    NoiseParameters heightParams;
-    heightParams.octaves = 5;
-    heightParams.amplitude = 100;
-    heightParams.smoothness = 195; // 195
-    heightParams.heightOffset = -32;
-    heightParams.roughness = 0.52;
-
-    return heightParams;
-}
-
 ChunkBlock LightForest::getPlant(Rand &rand) const
 {
-    return rand.intInRange(0, 10) > 8 ? BlockId::Rose : BlockId::TallGrass;
+    return rand.intInRange(0, 10) > 8 ? BlockId::Rose
+                                      : getDefinition().plantBlock;
 }
