@@ -14,19 +14,26 @@
 
 class World;
 
+enum class ChunkSectionMeshState {
+    Dirty,
+    CpuReady,
+    GpuBuffered,
+};
+
 class ChunkSection : public IChunk {
     friend class Chunk;
 
     class Layer {
       public:
-        void update(ChunkBlock c)
+        void update(ChunkBlock previous, ChunkBlock current)
         {
-            if (c.getData().isOpaque) {
-                m_solidBlockCount--;
+            const bool wasSolid = previous.getData().isOpaque;
+            const bool isSolid = current.getData().isOpaque;
+            if (wasSolid == isSolid) {
+                return;
             }
-            else {
-                m_solidBlockCount++;
-            }
+
+            m_solidBlockCount += isSolid ? 1 : -1;
         }
 
         bool isAllSolid() const
@@ -48,6 +55,9 @@ class ChunkSection : public IChunk {
 
     bool hasMesh() const;
     bool hasBuffered() const;
+    bool isMeshDirty() const;
+    ChunkSectionMeshState getMeshState() const;
+    void markMeshDirty();
 
     void makeMesh();
     void bufferMesh();
@@ -82,8 +92,7 @@ class ChunkSection : public IChunk {
 
     World *m_pWorld;
 
-    bool m_hasMesh = false;
-    bool m_hasBufferedMesh = false;
+    ChunkSectionMeshState m_meshState = ChunkSectionMeshState::Dirty;
 };
 
 #endif // CHUNKSECTION_H_INCLUDED

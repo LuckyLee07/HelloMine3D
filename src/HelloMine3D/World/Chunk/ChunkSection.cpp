@@ -26,9 +26,14 @@ void ChunkSection::setBlock(int x, int y, int z, ChunkBlock block)
         return;
     }
 
-    m_layers[y].update(block);
+    auto &currentBlock = m_blocks[getIndex(x, y, z)];
+    if (currentBlock == block) {
+        return;
+    }
 
-    m_blocks[getIndex(x, y, z)] = block;
+    m_layers[y].update(currentBlock, block);
+    currentBlock = block;
+    markMeshDirty();
 }
 
 ChunkBlock ChunkSection::getBlock(int x, int y, int z) const
@@ -48,12 +53,31 @@ const sf::Vector3i ChunkSection::getLocation() const
 
 bool ChunkSection::hasMesh() const
 {
-    return m_hasMesh;
+    return m_meshState != ChunkSectionMeshState::Dirty;
 }
 
 bool ChunkSection::hasBuffered() const
 {
-    return m_hasBufferedMesh;
+    return m_meshState == ChunkSectionMeshState::GpuBuffered;
+}
+
+bool ChunkSection::isMeshDirty() const
+{
+    return m_meshState == ChunkSectionMeshState::Dirty;
+}
+
+ChunkSectionMeshState ChunkSection::getMeshState() const
+{
+    return m_meshState;
+}
+
+void ChunkSection::markMeshDirty()
+{
+    if (m_meshState != ChunkSectionMeshState::Dirty) {
+        deleteMeshes();
+    }
+
+    m_meshState = ChunkSectionMeshState::Dirty;
 }
 
 sf::Vector3i ChunkSection::toWorldPosition(int x, int y, int z) const
@@ -64,17 +88,23 @@ sf::Vector3i ChunkSection::toWorldPosition(int x, int y, int z) const
 
 void ChunkSection::makeMesh()
 {
+    m_meshes.solidMesh.clearClientData();
+    m_meshes.waterMesh.clearClientData();
+    m_meshes.floraMesh.clearClientData();
     ChunkMeshBuilder(*this, m_meshes).buildMesh();
-    m_hasMesh = true;
-    m_hasBufferedMesh = false;
+    m_meshState = ChunkSectionMeshState::CpuReady;
 }
 
 void ChunkSection::bufferMesh()
 {
+    if (!hasMesh()) {
+        return;
+    }
+
     m_meshes.solidMesh.bufferMesh();
     m_meshes.waterMesh.bufferMesh();
     m_meshes.floraMesh.bufferMesh();
-    m_hasBufferedMesh = true;
+    m_meshState = ChunkSectionMeshState::GpuBuffered;
 }
 
 const ChunkSection::Layer &ChunkSection::getLayer(int y) const
@@ -98,13 +128,13 @@ const ChunkSection::Layer &ChunkSection::getLayer(int y) const
 
 void ChunkSection::deleteMeshes()
 {
-    if (m_hasMesh) {
-        m_hasBufferedMesh = false;
-        m_hasMesh = false;
+    if (m_meshState != ChunkSectionMeshState::Dirty) {
         m_meshes.solidMesh.deleteData();
         m_meshes.waterMesh.deleteData();
         m_meshes.floraMesh.deleteData();
     }
+
+    m_meshState = ChunkSectionMeshState::Dirty;
 }
 
 ChunkSection &ChunkSection::getAdjacent(int dx, int dz)
