@@ -143,14 +143,22 @@ constexpr Color& operator*=(Color& left, Color right)
 
 // Note: the 'inline' keyword here is technically not required, but VS2019 fails
 // to compile with a bogus "multiple definition" error if not explicitly used.
-inline constexpr Color Color::Black(0, 0, 0);
-inline constexpr Color Color::White(255, 255, 255);
-inline constexpr Color Color::Red(255, 0, 0);
-inline constexpr Color Color::Green(0, 255, 0);
-inline constexpr Color Color::Blue(0, 0, 255);
-inline constexpr Color Color::Yellow(255, 255, 0);
-inline constexpr Color Color::Magenta(255, 0, 255);
-inline constexpr Color Color::Cyan(0, 255, 255);
-inline constexpr Color Color::Transparent(0, 0, 0, 0);
+#if defined(_MSC_VER) && _MSC_VER < 1920
+#define SFML_INLINE_CONSTEXPR_STATIC_DATA __declspec(selectany) inline constexpr
+#else
+#define SFML_INLINE_CONSTEXPR_STATIC_DATA inline constexpr
+#endif
+
+SFML_INLINE_CONSTEXPR_STATIC_DATA Color Color::Black(0, 0, 0);
+SFML_INLINE_CONSTEXPR_STATIC_DATA Color Color::White(255, 255, 255);
+SFML_INLINE_CONSTEXPR_STATIC_DATA Color Color::Red(255, 0, 0);
+SFML_INLINE_CONSTEXPR_STATIC_DATA Color Color::Green(0, 255, 0);
+SFML_INLINE_CONSTEXPR_STATIC_DATA Color Color::Blue(0, 0, 255);
+SFML_INLINE_CONSTEXPR_STATIC_DATA Color Color::Yellow(255, 255, 0);
+SFML_INLINE_CONSTEXPR_STATIC_DATA Color Color::Magenta(255, 0, 255);
+SFML_INLINE_CONSTEXPR_STATIC_DATA Color Color::Cyan(0, 255, 255);
+SFML_INLINE_CONSTEXPR_STATIC_DATA Color Color::Transparent(0, 0, 0, 0);
+
+#undef SFML_INLINE_CONSTEXPR_STATIC_DATA
 
 } // namespace sf

@@ -231,6 +231,14 @@ constexpr bool operator!=(const Transform& left, const Transform& right)
 
 // Note: the 'inline' keyword here is technically not required, but VS2019 fails
 // to compile with a bogus "multiple definition" error if not explicitly used.
-inline constexpr Transform Transform::Identity;
+#if defined(_MSC_VER) && _MSC_VER < 1920
+#define SFML_INLINE_CONSTEXPR_STATIC_DATA __declspec(selectany) inline constexpr
+#else
+#define SFML_INLINE_CONSTEXPR_STATIC_DATA inline constexpr
+#endif
+
+SFML_INLINE_CONSTEXPR_STATIC_DATA Transform Transform::Identity;
+
+#undef SFML_INLINE_CONSTEXPR_STATIC_DATA
 
 } // namespace sf

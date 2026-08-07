@@ -99,7 +99,7 @@ public:
     ////////////////////////////////////////////////////////////
     // NOLINTBEGIN(readability-identifier-naming)
     /// Represents an invalid position in the string
-    static inline const std::size_t InvalidPos{std::u32string::npos};
+    static constexpr std::size_t InvalidPos = static_cast<std::size_t>(-1);
     // NOLINTEND(readability-identifier-naming)
 
     ////////////////////////////////////////////////////////////

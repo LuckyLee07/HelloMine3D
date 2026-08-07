@@ -1,0 +1,9 @@
+#ifndef WORLDCOORDINATETESTS_H_INCLUDED
+#define WORLDCOORDINATETESTS_H_INCLUDED
+
+namespace WorldCoordinateTests
+{
+    bool run();
+}
+
+#endif // WORLDCOORDINATETESTS_H_INCLUDED

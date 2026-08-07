@@ -24,6 +24,8 @@ Record this before a new iteration and update it when a milestone is completed.
 | Runtime binary | Debug executable outputs to `bin/HelloMine3D`. | `ls -lh bin/HelloMine3D` |
 | Project naming | Source and docs use `HelloMine3D`; old generated artifacts may still exist under `bin/` and `build/`. | `rg 'Mine''Craft3D|MINE''CRAFT3D'` |
 | Assets | Runtime assets are under `media/`; config/state are under `bin/`. | Manual launch and future `scripts/check_assets.sh` |
+| Render smoke | Runtime screenshot capture exists and has verified the July 2026 pure-blue regression fix. | `powershell -ExecutionPolicy Bypass -File tools\run_render_capture.ps1 -StopExisting -CaptureMs 4000,6000 -Seconds 8 -PlayerRotation "20 118.4 0"`; see `docs/render-regression-smoke.md` |
+| Performance baseline | Runtime frame/chunk metrics can be captured without foreground activation. | `powershell -ExecutionPolicy Bypass -File tools\run_perf_baseline.ps1 -StopExisting -WarmupMs 3000 -DurationMs 10000`; see `docs/performance-baseline.md` |
 | World update | `World::updateChunk()` exists, but `Chunk::setBlock()` does not reliably trigger mesh dirty updates yet. | Manual block break/place test after T0 tasks |
 | Section state | `ChunkSection::Layer` count exists but needs correctness work. | Unit-like runtime assertions or focused test harness after T0.1 |
 
@@ -37,6 +39,8 @@ Goal: keep the project easy to build, inspect, and compare before deeper gamepla
 | M0.2 | Todo | Add `.gitignore` for generated `bin/`, `build/`, `.DS_Store`, and debug artifacts. | Keep source diffs readable and avoid committing machine state. | `git status --short` shows only intentional source/docs changes after a build. |
 | M0.3 | Todo | Decide whether `bin/config.txt` and `bin/info.txt` are source-controlled templates or generated runtime files. | Current `bin/` mixes executable output, config, and UI state. | Document the decision in README; clean `git status` after launch. |
 | M0.4 | Todo | Add a short build verification script or README section for Make and Xcode. | Every iteration should have the same validation commands. | Fresh checkout can run the documented commands without guessing. |
+| M0.5 | Done | Document non-intrusive runtime render screenshot smoke. | Pure-blue regressions need a repeatable visual check that does not steal foreground or mouse. | `docs/render-regression-smoke.md`; latest verified output is `bin/render_capture_20260707173412631-53208`. |
+| M0.6 | Done | Add non-intrusive runtime performance baseline. | Refresh regressions need frame timing and chunk/mesh counters, not just visual screenshots. | `docs/performance-baseline.md`; latest verified output is `bin/perf_baseline_20260707201831896-39828`. |
 
 ## Milestone M1: Reliable Block Editing
 

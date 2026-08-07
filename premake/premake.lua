@@ -65,8 +65,10 @@ local function project_source_patterns()
     }
 
     for _, dir in ipairs(os.matchdirs(source_dir .. "/*")) do
-        table.insert(patterns, dir .. "/**.h")
-        table.insert(patterns, dir .. "/**.cpp")
+        if path.getname(dir) ~= "Tests" then
+            table.insert(patterns, dir .. "/**.h")
+            table.insert(patterns, dir .. "/**.cpp")
+        end
     end
 
     return patterns
@@ -130,13 +132,14 @@ workspace(project_name)
 
     filter "configurations:Debug"
         symbols "On"
+        editandcontinue "Off"
 
     filter "configurations:Release"
         optimize "Full"
         defines { "NDEBUG" }
 
     filter "system:windows"
-        systemversion "latest"
+        systemversion "10.0.22621.0"
 
     filter {}
 
@@ -330,3 +333,137 @@ project(project_name)
         }
 
     filter {}
+
+project "HelloMine3DCoordinateTests"
+    kind "ConsoleApp"
+    location "../build/%{prj.name}"
+    targetdir "../bin"
+    debugdir "../bin"
+    objdir "../build/%{prj.name}/obj/%{cfg.platform}/%{cfg.buildcfg}"
+
+    files {
+        source_dir .. "/Tests/CoordinateTestMain.cpp",
+        source_dir .. "/World/WorldCoordinateTests.h",
+        source_dir .. "/World/WorldCoordinateTests.cpp",
+        source_dir .. "/World/WorldCoordinates.h",
+        source_dir .. "/World/WorldCoordinates.cpp",
+        source_dir .. "/World/WorldConstants.h",
+        source_dir .. "/Maths/Vector2XZ.h",
+        source_dir .. "/Maths/Vector2XZ.cpp"
+    }
+
+    includedirs {
+        source_dir
+    }
+
+    externalincludedirs {
+        "../src/external",
+        "../src/external/sfml/include"
+    }
+
+project "HelloMine3DSaveLoadSmoke"
+    kind "ConsoleApp"
+    location "../build/%{prj.name}"
+    targetdir "../bin"
+    debugdir "../bin"
+    objdir "../build/%{prj.name}/obj/%{cfg.platform}/%{cfg.buildcfg}"
+
+    files {
+        source_dir .. "/Tests/SaveLoadSmokeMain.cpp",
+        source_dir .. "/Util/ResourcePaths.h",
+        source_dir .. "/World/WorldConstants.h",
+        source_dir .. "/World/Block/BlockId.h",
+        source_dir .. "/World/Block/BlockEntity.h",
+        source_dir .. "/World/Storage/ChunkStorageData.h",
+        source_dir .. "/World/Storage/ChunkStorageData.cpp"
+    }
+
+    includedirs {
+        source_dir
+    }
+
+    externalincludedirs {
+        "../src/external"
+    }
+
+    if has_local_glm() then
+        externalincludedirs { "../src/external/glm" }
+    end
+
+    add_dependency_prefix(first_non_empty(_OPTIONS["deps-prefix"], os.getenv("HELLOMINE3D_DEPS_PREFIX")))
+
+    filter "system:windows"
+        defines { "_CRT_SECURE_NO_WARNINGS" }
+
+    filter "system:linux"
+        links {
+            "pthread",
+            "dl"
+        }
+
+    filter {}
+
+project "HelloMine3DMeshDirtyTests"
+    kind "ConsoleApp"
+    location "../build/%{prj.name}"
+    targetdir "../bin"
+    debugdir "../bin"
+    objdir "../build/%{prj.name}/obj/%{cfg.platform}/%{cfg.buildcfg}"
+
+    files {
+        source_dir .. "/Tests/MeshDirtyTestMain.cpp",
+        source_dir .. "/World/Chunk/ChunkUpdatePlanner.h",
+        source_dir .. "/World/Chunk/ChunkUpdatePlanner.cpp",
+        source_dir .. "/World/WorldCoordinates.h",
+        source_dir .. "/World/WorldCoordinates.cpp",
+        source_dir .. "/World/WorldConstants.h",
+        source_dir .. "/Maths/Vector2XZ.h",
+        source_dir .. "/Maths/Vector2XZ.cpp"
+    }
+
+    includedirs {
+        source_dir
+    }
+
+    externalincludedirs {
+        "../src/external",
+        "../src/external/sfml/include"
+    }
+
+project "HelloMine3DEntityLifecycleSmoke"
+    kind "ConsoleApp"
+    location "../build/%{prj.name}"
+    targetdir "../bin"
+    debugdir "../bin"
+    objdir "../build/%{prj.name}/obj/%{cfg.platform}/%{cfg.buildcfg}"
+
+    files {
+        source_dir .. "/Tests/EntityLifecycleSmokeMain.cpp",
+        source_dir .. "/Actor/ActorTypes.h",
+        source_dir .. "/Actor/Actor.h",
+        source_dir .. "/Actor/Actor.cpp",
+        source_dir .. "/Actor/ActorManager.h",
+        source_dir .. "/Actor/ActorManager.cpp",
+        source_dir .. "/Actor/LivingActor.h",
+        source_dir .. "/Actor/LivingActor.cpp",
+        source_dir .. "/Actor/MobActor.h",
+        source_dir .. "/Actor/MobActor.cpp",
+        source_dir .. "/Entity/Entity.h",
+        source_dir .. "/Physics/AABB.h",
+        source_dir .. "/Sandbox/Events/SandboxEventBus.h",
+        source_dir .. "/Sandbox/Events/SandboxEventBus.cpp",
+        source_dir .. "/Sandbox/Events/EntityEvents.h",
+        source_dir .. "/Maths/glm.h"
+    }
+
+    includedirs {
+        source_dir
+    }
+
+    externalincludedirs {
+        "../src/external"
+    }
+
+    if has_local_glm() then
+        externalincludedirs { "../src/external/glm" }
+    end

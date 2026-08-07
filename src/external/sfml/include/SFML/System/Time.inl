@@ -279,6 +279,14 @@ constexpr Time& operator%=(Time& left, Time right)
 
 // Note: the 'inline' keyword here is technically not required, but VS2019 fails
 // to compile with a bogus "multiple definition" error if not explicitly used.
-inline constexpr Time Time::Zero;
+#if defined(_MSC_VER) && _MSC_VER < 1920
+#define SFML_INLINE_CONSTEXPR_STATIC_DATA __declspec(selectany) inline constexpr
+#else
+#define SFML_INLINE_CONSTEXPR_STATIC_DATA inline constexpr
+#endif
+
+SFML_INLINE_CONSTEXPR_STATIC_DATA Time Time::Zero;
+
+#undef SFML_INLINE_CONSTEXPR_STATIC_DATA
 
 } // namespace sf
