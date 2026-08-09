@@ -10,7 +10,7 @@
 #include <iostream>
 #include <thread>
 
-ChunkSection::ChunkSection(const sf::Vector3i &location, World &world)
+ChunkSection::ChunkSection(const glm::ivec3 &location, World &world)
     : m_aabb({CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE})
     , m_location(location)
     , m_pWorld(&world)
@@ -50,7 +50,7 @@ ChunkBlock ChunkSection::getBlock(int x, int y, int z) const
     return m_blocks[getIndex(x, y, z)];
 }
 
-const sf::Vector3i ChunkSection::getLocation() const
+glm::ivec3 ChunkSection::getLocation() const
 {
     return m_location;
 }
@@ -84,7 +84,7 @@ void ChunkSection::markMeshDirty()
     m_meshState = ChunkSectionMeshState::Dirty;
 }
 
-sf::Vector3i ChunkSection::toWorldPosition(int x, int y, int z) const
+glm::ivec3 ChunkSection::toWorldPosition(int x, int y, int z) const
 {
     return {m_location.x * CHUNK_SIZE + x, m_location.y * CHUNK_SIZE + y,
             m_location.z * CHUNK_SIZE + z};

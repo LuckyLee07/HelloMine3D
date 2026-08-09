@@ -1,7 +1,7 @@
 # Ogre 迁移方案
 
 本文档记录把 HelloMine3D 的底层渲染从 `SFML + 裸 OpenGL` 迁移到 `E:\Workspace\HelloOgre3D\src\Engine`
-（Ogre 1.10）的完整方案。本文只做规划，不含实施。
+（Ogre 1.10）的完整方案，并同步记录各阶段的实施状态。
 
 ## 背景与决策
 
@@ -57,11 +57,12 @@
 
 | 位置 | 耦合内容 |
 | ---- | -------- |
-| `World/` 对 SFML | `sf::Vector` 43 处（纯值类型）、`sf::Mouse` 5 处、`sf::Clock` 2 处、`sf::Keyboard` 1 处 |
-| GL 类型外泄 | 仅 `ChunkMesh.h`、`ChunkMeshBuilder.h`（`GLfloat` 即 `float`，`GLuint` 即 `unsigned int`） |
-| 隐式图形依赖 | `BlockDatabase` 构造时创建 `TextureAtlas`，导致数据层依赖 GL 上下文 |
+| `World/` 对 SFML | E0 已清零；输入设备收敛到 `SandboxRuntime` 边界，整数坐标改用 `glm::ivec2/ivec3` |
+| GL 类型外泄 | E0 已清零；`ChunkMesh.h`、`ChunkMeshBuilder.h` 的 CPU 数据改用 `float`/`std::uint32_t` |
+| 隐式图形依赖 | E0 已解除；`TextureAtlas` 由 `RenderMaster` 创建，数据层无需 GL 上下文 |
 
-`World/`、`Actor/`、`Item/`、`Player/`、`Sandbox/` 约 6500 行**不需要改动**。
+除 E0 的边界解耦外，`World/`、`Actor/`、`Item/`、`Player/`、`Sandbox/`
+约 6500 行不需要随渲染后端重写。
 
 ### 当前顶点格式
 
@@ -213,10 +214,13 @@ E5 才删除旧代码。
 | ---- | ---- |
 | `sf::Vector2i/3i` → `glm::ivec2/ivec3` | `World/` 内不再出现 `sf::Vector` |
 | `ChunkMesh.h` / `ChunkMeshBuilder.h` 的 `GLfloat`/`GLuint` → `float`/`std::uint32_t` | 非渲染层无 GL 类型 |
-| 纹理图集创建移出 `BlockDatabase`（见 D5，已完成） | `HelloMine3DWorldRuntimeSmoke` 去掉 `sf::Context` 后 97/97 通过；`E0/texture-coordinates-*` 验证 UV 不变 |
+| 纹理图集创建移出 `BlockDatabase`（见 D5，已完成） | `HelloMine3DWorldRuntimeSmoke` 去掉 `sf::Context` 后 114/114 通过；`E0/texture-coordinates-*` 验证 UV 不变 |
 | `World/` 中 `sf::Mouse`/`sf::Clock`/`sf::Keyboard` 共 8 处收敛到输入/计时边界 | `World/` 不再直接 include SFML |
 
 **阶段目标：`World/` 对 SFML 和 OpenGL 零依赖。**
+
+状态：2026-08-09 已完成。静态扫描无图形 API 直接引用，Debug/Release
+全量构建与五个测试目标全部通过，运行时 smoke 为 114/114。
 
 可回退性：完全独立，即使最终放弃迁移也应保留。
 

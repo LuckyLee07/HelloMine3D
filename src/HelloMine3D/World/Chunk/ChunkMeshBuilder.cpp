@@ -12,40 +12,40 @@
 #include <vector>
 
 namespace {
-const std::array<GLfloat, 12> frontFace{
+const std::array<float, 12> frontFace{
     0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1,
 };
 
-const std::array<GLfloat, 12> backFace{
+const std::array<float, 12> backFace{
     1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0,
 };
 
-const std::array<GLfloat, 12> leftFace{
+const std::array<float, 12> leftFace{
     0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0,
 };
 
-const std::array<GLfloat, 12> rightFace{
+const std::array<float, 12> rightFace{
     1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1,
 };
 
-const std::array<GLfloat, 12> topFace{
+const std::array<float, 12> topFace{
     0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0,
 };
 
-const std::array<GLfloat, 12> bottomFace{0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1};
+const std::array<float, 12> bottomFace{0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1};
 
-const std::array<GLfloat, 12> xFace1{
+const std::array<float, 12> xFace1{
     0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0,
 };
 
-const std::array<GLfloat, 12> xFace2{
+const std::array<float, 12> xFace2{
     0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1,
 };
 
-constexpr GLfloat LIGHT_TOP = 1.0f;
-constexpr GLfloat LIGHT_X = 0.8f;
-constexpr GLfloat LIGHT_Z = 0.6f;
-constexpr GLfloat LIGHT_BOT = 0.4f;
+constexpr float LIGHT_TOP = 1.0f;
+constexpr float LIGHT_X = 0.8f;
+constexpr float LIGHT_Z = 0.6f;
+constexpr float LIGHT_BOT = 0.4f;
 
 } // namespace
 
@@ -67,12 +67,12 @@ struct AdjacentBlockPositions {
         back = {x, y, z - 1};
     }
 
-    sf::Vector3i up;
-    sf::Vector3i down;
-    sf::Vector3i left;
-    sf::Vector3i right;
-    sf::Vector3i front;
-    sf::Vector3i back;
+    glm::ivec3 up;
+    glm::ivec3 down;
+    glm::ivec3 left;
+    glm::ivec3 right;
+    glm::ivec3 front;
+    glm::ivec3 back;
 };
 
 void ChunkMeshBuilder::buildMesh()
@@ -93,7 +93,7 @@ void ChunkMeshBuilder::buildMesh()
         for (int x = 0; x < CHUNK_SIZE; ++x) {
         const ChunkBlock block = m_pInput->getBlock(x, y, z);
 
-        sf::Vector3i position(x, y, z);
+        glm::ivec3 position(x, y, z);
         setActiveMesh(block);
 
         if (block == BlockId::Air) {
@@ -154,8 +154,8 @@ void ChunkMeshBuilder::setActiveMesh(ChunkBlock block)
     }
 }
 
-void ChunkMeshBuilder::addXBlockToMesh(const sf::Vector2i &textureCoords,
-                                       const sf::Vector3i &blockPosition)
+void ChunkMeshBuilder::addXBlockToMesh(const glm::ivec2 &textureCoords,
+                                       const glm::ivec3 &blockPosition)
 {
     const auto texCoords =
         BlockTextureCoordinates::get(textureCoords.x, textureCoords.y);
@@ -168,9 +168,9 @@ void ChunkMeshBuilder::addXBlockToMesh(const sf::Vector2i &textureCoords,
 }
 
 void ChunkMeshBuilder::tryAddFaceToMesh(
-    const std::array<GLfloat, 12> &blockFace, const sf::Vector2i &textureCoords,
-    const sf::Vector3i &blockPosition, const sf::Vector3i &blockFacing,
-    GLfloat cardinalLight)
+    const std::array<float, 12> &blockFace, const glm::ivec2 &textureCoords,
+    const glm::ivec3 &blockPosition, const glm::ivec3 &blockFacing,
+    float cardinalLight)
 {
     if (shouldMakeFace(blockFacing)) {
         const auto texCoords =
@@ -181,7 +181,7 @@ void ChunkMeshBuilder::tryAddFaceToMesh(
     }
 }
 
-bool ChunkMeshBuilder::shouldMakeFace(const sf::Vector3i &adjBlock)
+bool ChunkMeshBuilder::shouldMakeFace(const glm::ivec3 &adjBlock)
 {
     auto block = m_pInput->getBlock(adjBlock.x, adjBlock.y, adjBlock.z);
     const auto &definition =

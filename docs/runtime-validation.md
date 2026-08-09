@@ -17,7 +17,8 @@ milestones in `docs/sandbox-foundation-todolist.md`.
 `src/HelloMine3D/Tests/WorldRuntimeSmokeMain.cpp` links the whole game runtime
 except `Main.cpp` and drives the real gameplay classes through scripted
 scenarios. It no longer creates an SFML or OpenGL context: texture-atlas
-ownership lives in `RenderMaster`, while mesh UV calculation is pure data.
+ownership lives in `RenderMaster`, mesh UV calculation is pure data, and the
+`World/` data layer has no direct SFML or OpenGL types.
 
 ```powershell
 bin\HelloMine3DWorldRuntimeSmoke.exe
@@ -81,6 +82,7 @@ These need a person at the keyboard or a different harness:
 | ----- | ------- | ------ |
 | Focused headless tests | `bin\HelloMine3DCoordinateTests.exe`, `bin\HelloMine3DMeshDirtyTests.exe`, `bin\HelloMine3DSaveLoadSmoke.exe`, `bin\HelloMine3DEntityLifecycleSmoke.exe` | All pass. |
 | World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=114 failures=0` (Debug and Release, 2026-08-09) |
+| E0 dependency boundary | `rg "SFML|sf::|GLfloat|GLuint|glad" src/HelloMine3D/World` | No matches (2026-08-09). |
 | Render smoke | see `docs/render-regression-smoke.md` | `bin/render_capture_20260807190230074-46036`, status PASS |
 | Performance baseline | see `docs/performance-baseline.md` | `bin/perf_baseline_20260807190255313-41064`, `frame_p95_ms=16.430` |
 

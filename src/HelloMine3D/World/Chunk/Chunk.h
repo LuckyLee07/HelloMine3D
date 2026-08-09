@@ -22,7 +22,7 @@ enum class ChunkLoadState {
 class Chunk : public IChunk {
   public:
     Chunk() = default;
-    Chunk(World &world, const sf::Vector2i &location);
+    Chunk(World &world, const glm::ivec2 &location);
 
     /// Index of a section whose mesh needs rebuilding, searched outwards from
     /// `preferredSectionY`, or -1 when everything is up to date.
@@ -56,7 +56,7 @@ class Chunk : public IChunk {
     const ChunkSection *findSection(int index) const;
     bool hasSection(int index) const noexcept;
 
-    const sf::Vector2i &getLocation() const
+    const glm::ivec2 &getLocation() const
     {
         return m_location;
     }
@@ -73,7 +73,7 @@ class Chunk : public IChunk {
     std::vector<ChunkSection> m_chunks;
     std::vector<BlockEntityRecord> m_blockEntities;
     Array2D<int, CHUNK_SIZE> m_highestBlocks;
-    sf::Vector2i m_location;
+    glm::ivec2 m_location;
 
     World *m_pWorld;
 

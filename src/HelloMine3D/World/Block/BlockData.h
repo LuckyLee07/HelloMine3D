@@ -1,9 +1,9 @@
 #ifndef BLOCKDATA_H_INCLUDED
 #define BLOCKDATA_H_INCLUDED
 
+#include "../../Maths/glm.h"
 #include "../../Util/NonCopyable.h"
 #include "BlockId.h"
-#include <SFML/Graphics.hpp>
 #include <string>
 
 /// @brief Allocates meshes to cubes and non-cube entities.
@@ -23,9 +23,9 @@ enum class BlockShaderType {
 struct BlockDataHolder : public NonCopyable {
     BlockId id;
     std::string name;
-    sf::Vector2i texTopCoord;
-    sf::Vector2i texSideCoord;
-    sf::Vector2i texBottomCoord;
+    glm::ivec2 texTopCoord;
+    glm::ivec2 texSideCoord;
+    glm::ivec2 texBottomCoord;
 
     BlockMeshType meshType;
     BlockShaderType shaderType;

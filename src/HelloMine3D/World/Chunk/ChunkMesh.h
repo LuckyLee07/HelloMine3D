@@ -1,20 +1,21 @@
 #ifndef CHUNKMESH_H_INCLUDED
 #define CHUNKMESH_H_INCLUDED
 
+#include "../../Maths/glm.h"
 #include "../../Renderer/Model.h"
 
-#include <SFML/Graphics.hpp>
 #include <array>
+#include <cstdint>
 #include <vector>
 
 class ChunkMesh {
   public:
     ChunkMesh() = default;
 
-    void addFace(const std::array<GLfloat, 12> &blockFace,
-                 const std::array<GLfloat, 8> &textureCoords,
-                 const sf::Vector3i &chunkPosition,
-                 const sf::Vector3i &blockPosition, GLfloat cardinalLight);
+    void addFace(const std::array<float, 12> &blockFace,
+                 const std::array<float, 8> &textureCoords,
+                 const glm::ivec3 &chunkPosition,
+                 const glm::ivec3 &blockPosition, float cardinalLight);
 
     void bufferMesh();
 
@@ -32,8 +33,8 @@ class ChunkMesh {
   private:
     Mesh m_mesh;
     Model m_model;
-    std::vector<GLfloat> m_light;
-    GLuint m_indexIndex = 0;
+    std::vector<float> m_light;
+    std::uint32_t m_indexIndex = 0;
 };
 
 struct ChunkMeshCollection {

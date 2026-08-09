@@ -4,9 +4,9 @@
 #include "../Interaction/BlockInteractionSystem.h"
 #include "../World.h"
 
-PlayerDigEvent::PlayerDigEvent(sf::Mouse::Button button,
+PlayerDigEvent::PlayerDigEvent(PlayerDigAction action,
                                const glm::vec3 &location, Player &player)
-    : m_buttonPress(button)
+    : m_action(action)
     , m_digSpot(location)
     , m_pPlayer(&player)
 {
@@ -29,16 +29,13 @@ void PlayerDigEvent::dig(World &world)
         return;
     }
 
-    switch (m_buttonPress) {
-        case sf::Mouse::Button::Left:
+    switch (m_action) {
+        case PlayerDigAction::Break:
             BlockInteractionSystem::breakBlock(world, *m_pPlayer, m_digSpot);
             break;
 
-        case sf::Mouse::Button::Right:
+        case PlayerDigAction::Place:
             BlockInteractionSystem::placeBlock(world, *m_pPlayer, m_digSpot);
-            break;
-
-        default:
             break;
     }
 }

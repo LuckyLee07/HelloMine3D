@@ -1,7 +1,7 @@
 #ifndef CHUNKSECTION_H_INCLUDED
 #define CHUNKSECTION_H_INCLUDED
 
-#include <SFML/Graphics.hpp>
+#include "../../Maths/glm.h"
 #include <array>
 #include <cstdint>
 
@@ -48,12 +48,12 @@ class ChunkSection : public IChunk {
     };
 
   public:
-    ChunkSection(const sf::Vector3i &position, World &world);
+    ChunkSection(const glm::ivec3 &position, World &world);
 
     void setBlock(int x, int y, int z, ChunkBlock block) override;
     ChunkBlock getBlock(int x, int y, int z) const override;
 
-    const sf::Vector3i getLocation() const;
+    glm::ivec3 getLocation() const;
 
     bool hasMesh() const;
     bool hasBuffered() const;
@@ -92,7 +92,7 @@ class ChunkSection : public IChunk {
     }
 
   private:
-    sf::Vector3i toWorldPosition(int x, int y, int z) const;
+    glm::ivec3 toWorldPosition(int x, int y, int z) const;
 
     static bool outOfBounds(int value);
     static int getIndex(int x, int y, int z);
@@ -102,7 +102,7 @@ class ChunkSection : public IChunk {
 
     ChunkMeshCollection m_meshes;
     AABB m_aabb;
-    sf::Vector3i m_location;
+    glm::ivec3 m_location;
 
     World *m_pWorld;
 

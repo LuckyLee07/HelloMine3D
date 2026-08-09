@@ -5,12 +5,14 @@
 #include <cstddef>
 #include <memory>
 #include <mutex>
-#include <thread>
 #include <string>
+#include <thread>
+#include <unordered_map>
 #include <vector>
 
 #include "../Actor/ActorManager.h"
 #include "../Item/Material.h"
+#include "../Maths/glm.h"
 #include "../Sandbox/Events/SandboxEventBus.h"
 #include "../Util/NonCopyable.h"
 #include "Chunk/Chunk.h"
@@ -51,6 +53,7 @@ class World : public NonCopyable {
 
     void tick(int worldTime);
     void update(const Camera &camera);
+    void resetChunkMeshes();
     void updateChunk(int blockX, int blockY, int blockZ);
     bool save();
     float getWorldTime() const;
@@ -85,6 +88,20 @@ class World : public NonCopyable {
     }
 
   private:
+    struct IVec3Hash {
+        std::size_t operator()(const glm::ivec3 &value) const noexcept
+        {
+            std::size_t seed = 0;
+            seed ^= std::hash<int>{}(value.x) + 0x9e3779b9u + (seed << 6) +
+                    (seed >> 2);
+            seed ^= std::hash<int>{}(value.y) + 0x9e3779b9u + (seed << 6) +
+                    (seed >> 2);
+            seed ^= std::hash<int>{}(value.z) + 0x9e3779b9u + (seed << 6) +
+                    (seed >> 2);
+            return seed;
+        }
+    };
+
     ChunkBlock getBlockUnlocked(int x, int y, int z);
     void loadChunks();
     void unloadDistantChunks(const Camera &camera);
@@ -103,7 +120,7 @@ class World : public NonCopyable {
     WorldSaveData m_worldSaveData;
 
     std::vector<std::unique_ptr<IWorldEvent>> m_events;
-    std::unordered_map<sf::Vector3i, ChunkSection *> m_chunkUpdates;
+    std::unordered_map<glm::ivec3, ChunkSection *, IVec3Hash> m_chunkUpdates;
 
     std::atomic<bool> m_isRunning{true};
     std::vector<std::thread> m_chunkLoadThreads;

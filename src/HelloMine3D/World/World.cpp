@@ -13,7 +13,6 @@
 #include "../Actor/ItemEntity.h"
 #include "../Actor/MobActor.h"
 #include "../Core/Camera.h"
-#include "../Input/ToggleKey.h"
 #include "../Maths/Vector2XZ.h"
 #include "../Player/Player.h"
 #include "../Renderer/RenderMaster.h"
@@ -282,15 +281,6 @@ void World::update(const Camera &camera)
 {
     setChunkLoadCenter(camera);
 
-    static ToggleKey key(sf::Keyboard::Key::C);
-
-    if (key.isKeyPressed()) {
-        std::unique_lock<std::mutex> lock(m_mainMutex);
-        m_chunkManager.deleteMeshes();
-        m_loadDistance.store(2);
-        m_chunkLoadRevision.fetch_add(1);
-    }
-
     for (auto &event : m_events) {
         event->handle(*this);
     }
@@ -298,6 +288,14 @@ void World::update(const Camera &camera)
 
     unloadDistantChunks(camera);
     updateChunks();
+}
+
+void World::resetChunkMeshes()
+{
+    std::unique_lock<std::mutex> lock(m_mainMutex);
+    m_chunkManager.deleteMeshes();
+    m_loadDistance.store(2);
+    m_chunkLoadRevision.fetch_add(1);
 }
 
 ///@TODO
@@ -472,7 +470,7 @@ ActorId World::spawnMob(const std::string &type, const glm::vec3 &position)
 
 void World::queueChunkUpdate(int blockX, int blockY, int blockZ)
 {
-    auto addChunkToUpdateBatch = [&](const sf::Vector3i &key) {
+    auto addChunkToUpdateBatch = [&](const glm::ivec3 &key) {
         Chunk *chunk = m_chunkManager.findChunk(key.x, key.z);
         if (chunk == nullptr || !chunk->hasLoaded()) {
             return;
@@ -591,7 +589,7 @@ bool World::saveWorldState()
 
 void World::setSpawnPoint()
 {
-    sf::Clock timer;
+    const auto start = std::chrono::steady_clock::now();
     std::cout << "Searching for spawn...\n";
     int attempts = 0;
     int chunkX = -1;
@@ -624,6 +622,9 @@ void World::setSpawnPoint()
     preloadChunksAround(m_playerSpawnPoint);
 
     std::cout << "Spawn found! Attempts: " << attempts
-              << " Time Taken: " << timer.getElapsedTime().asSeconds()
+              << " Time Taken: "
+              << std::chrono::duration<double>(std::chrono::steady_clock::now() -
+                                               start)
+                     .count()
               << " seconds\n";
 }

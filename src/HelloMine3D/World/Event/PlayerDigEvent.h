@@ -1,17 +1,20 @@
 #ifndef PLAYERDIGEVENT_H_INCLUDED
 #define PLAYERDIGEVENT_H_INCLUDED
 
-#include <SFML/Graphics.hpp>
-
 #include "../../Maths/glm.h"
 #include "IWorldEvent.h"
 
 class Player;
 
+enum class PlayerDigAction {
+    Break,
+    Place,
+};
+
 /// @brief Event class that handles what happens to a block in a world as a player interacts.
 class PlayerDigEvent : public IWorldEvent {
   public:
-    PlayerDigEvent(sf::Mouse::Button button, const glm::vec3 &location,
+    PlayerDigEvent(PlayerDigAction action, const glm::vec3 &location,
                    Player &player);
 
     void handle(World &world);
@@ -19,7 +22,7 @@ class PlayerDigEvent : public IWorldEvent {
   private:
     void dig(World &world);
 
-    sf::Mouse::Button m_buttonPress;
+    PlayerDigAction m_action;
     glm::vec3 m_digSpot;
     Player *m_pPlayer;
 };

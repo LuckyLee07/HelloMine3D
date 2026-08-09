@@ -71,7 +71,7 @@ bool SectionMeshInput::shouldMakeLayer(int y) const
     return false;
 }
 
-const sf::Vector3i &SectionMeshInput::getLocation() const
+const glm::ivec3 &SectionMeshInput::getLocation() const
 {
     return m_location;
 }

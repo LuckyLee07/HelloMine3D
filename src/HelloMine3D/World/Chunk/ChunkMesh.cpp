@@ -4,11 +4,10 @@
 
 #include <iostream>
 
-void ChunkMesh::addFace(const std::array<GLfloat, 12> &blockFace,
-                        const std::array<GLfloat, 8> &textureCoords,
-                        const sf::Vector3i &chunkPosition,
-                        const sf::Vector3i &blockPosition,
-                        GLfloat cardinalLight)
+void ChunkMesh::addFace(const std::array<float, 12> &blockFace,
+                        const std::array<float, 8> &textureCoords,
+                        const glm::ivec3 &chunkPosition,
+                        const glm::ivec3 &blockPosition, float cardinalLight)
 {
     faces++;
     auto &verticies = m_mesh.vertexPositions;

@@ -1,9 +1,9 @@
 #ifndef CHUNKMESHBUILDER_H_INCLUDED
 #define CHUNKMESHBUILDER_H_INCLUDED
 
-#include <glad/glad.h>
+#include "../../Maths/glm.h"
 
-#include <SFML/Graphics.hpp>
+#include <array>
 #include <vector>
 
 #include "../Block/ChunkBlock.h"
@@ -29,16 +29,16 @@ class ChunkMeshBuilder {
   private:
     void setActiveMesh(ChunkBlock block);
 
-    void addXBlockToMesh(const sf::Vector2i &textureCoords,
-                         const sf::Vector3i &blockPosition);
+    void addXBlockToMesh(const glm::ivec2 &textureCoords,
+                         const glm::ivec3 &blockPosition);
 
-    void tryAddFaceToMesh(const std::array<GLfloat, 12> &blockFace,
-                          const sf::Vector2i &textureCoords,
-                          const sf::Vector3i &blockPosition,
-                          const sf::Vector3i &blockFacing,
-                          GLfloat cardinalLight);
+    void tryAddFaceToMesh(const std::array<float, 12> &blockFace,
+                          const glm::ivec2 &textureCoords,
+                          const glm::ivec3 &blockPosition,
+                          const glm::ivec3 &blockFacing,
+                          float cardinalLight);
 
-    bool shouldMakeFace(const sf::Vector3i &blockPosition);
+    bool shouldMakeFace(const glm::ivec3 &blockPosition);
 
     const SectionMeshInput *m_pInput = nullptr;
     ChunkMeshCollection *m_pMeshes = nullptr;

@@ -1,7 +1,7 @@
 #ifndef SECTIONMESHINPUT_H_INCLUDED
 #define SECTIONMESHINPUT_H_INCLUDED
 
-#include <SFML/System/Vector3.hpp>
+#include "../../Maths/glm.h"
 #include <array>
 #include <cstdint>
 
@@ -33,7 +33,7 @@ class SectionMeshInput {
     /// Valid for y in [0, CHUNK_SIZE).
     bool shouldMakeLayer(int y) const;
 
-    const sf::Vector3i &getLocation() const;
+    const glm::ivec3 &getLocation() const;
 
   private:
     static int index(int x, int y, int z);
@@ -46,7 +46,7 @@ class SectionMeshInput {
     /// Layers of the four horizontal neighbours, y in [0, CHUNK_SIZE).
     std::array<std::array<bool, CHUNK_SIZE>, 4> m_neighbourLayerAllSolid{};
 
-    sf::Vector3i m_location{};
+    glm::ivec3 m_location{};
 };
 
 #endif // SECTIONMESHINPUT_H_INCLUDED

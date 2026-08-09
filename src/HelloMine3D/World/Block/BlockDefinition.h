@@ -8,9 +8,9 @@
 #include "BlockId.h"
 
 struct BlockRenderInfo {
-    sf::Vector2i texTopCoord{0, 0};
-    sf::Vector2i texSideCoord{0, 0};
-    sf::Vector2i texBottomCoord{0, 0};
+    glm::ivec2 texTopCoord{0, 0};
+    glm::ivec2 texSideCoord{0, 0};
+    glm::ivec2 texBottomCoord{0, 0};
     BlockMeshType meshType = BlockMeshType::Cube;
     BlockShaderType shaderType = BlockShaderType::Chunk;
 };

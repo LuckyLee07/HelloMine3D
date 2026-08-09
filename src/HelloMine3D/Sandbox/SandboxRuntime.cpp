@@ -7,6 +7,7 @@
 
 #include "../Diagnostics/RuntimePerformanceCapture.h"
 #include "../Diagnostics/RuntimeRenderCapture.h"
+#include "../Input/ToggleKey.h"
 #include "../Maths/Ray.h"
 #include "../Renderer/RenderMaster.h"
 #include "../World/Block/BlockDatabase.h"
@@ -44,6 +45,10 @@ void SandboxRuntime::update(const Keyboard &keyboard, sf::Time dt)
 
     World *world = m_worldManager.getActiveWorld();
     if (world != nullptr) {
+        static ToggleKey resetMeshesKey(sf::Keyboard::Key::C);
+        if (resetMeshesKey.isKeyPressed()) {
+            world->resetChunkMeshes();
+        }
         world->update(m_camera);
     }
 }
@@ -110,14 +115,14 @@ void SandboxRuntime::handlePlayerInteraction()
             if (m_interactionTimer.getElapsedTime().asSeconds() > 0.2f) {
                 if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
                     m_interactionTimer.restart();
-                    world->addEvent<PlayerDigEvent>(sf::Mouse::Button::Left,
+                    world->addEvent<PlayerDigEvent>(PlayerDigAction::Break,
                                                     ray.getEnd(), m_player);
                     break;
                 }
                 else if (sf::Mouse::isButtonPressed(
                              sf::Mouse::Button::Right)) {
                     m_interactionTimer.restart();
-                    world->addEvent<PlayerDigEvent>(sf::Mouse::Button::Right,
+                    world->addEvent<PlayerDigEvent>(PlayerDigAction::Place,
                                                     lastPosition, m_player);
                     break;
                 }

@@ -9,7 +9,7 @@
 
 #include <utility>
 
-Chunk::Chunk(World &world, const sf::Vector2i &location)
+Chunk::Chunk(World &world, const glm::ivec2 &location)
     : m_location(location)
     , m_pWorld(&world)
 {
@@ -308,7 +308,7 @@ void Chunk::deleteMeshes()
 void Chunk::addSection()
 {
     int y = static_cast<int>(m_chunks.size());
-    m_chunks.emplace_back(sf::Vector3i(m_location.x, y, m_location.y),
+    m_chunks.emplace_back(glm::ivec3(m_location.x, y, m_location.y),
                           *m_pWorld);
 }
 
