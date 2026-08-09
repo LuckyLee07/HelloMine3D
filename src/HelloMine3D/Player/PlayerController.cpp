@@ -25,107 +25,119 @@ PlayerController::PlayerController()
 void PlayerController::handleInput(Player &player, const sf::Window &window,
                                    const Keyboard &keyboard)
 {
-    keyboardInput(player, keyboard);
-    mouseInput(player, window);
+    applyInput(player, collectInput(window, keyboard));
+}
+
+PlayerInputState PlayerController::collectInput(const sf::Window &window,
+                                                const Keyboard &keyboard)
+{
+    PlayerInputState input;
+    input.moveForward = keyboard.isKeyDown(sf::Keyboard::Key::W);
+    input.moveBackward = keyboard.isKeyDown(sf::Keyboard::Key::S);
+    input.moveLeft = keyboard.isKeyDown(sf::Keyboard::Key::A);
+    input.moveRight = keyboard.isKeyDown(sf::Keyboard::Key::D);
+    input.sprint = keyboard.isKeyDown(sf::Keyboard::Key::LControl);
+    input.jump = keyboard.isKeyDown(sf::Keyboard::Key::Space);
+    input.descend = keyboard.isKeyDown(sf::Keyboard::Key::LShift) ||
+                    keyboard.isKeyDown(sf::Keyboard::Key::RShift);
+    input.lookDelta = collectMouseDelta(window);
 
     if (m_itemDown.isKeyPressed()) {
-        player.m_inventory.selectNext();
+        input.hotbarDelta = 1;
     }
     else if (m_itemUp.isKeyPressed()) {
-        player.m_inventory.selectPrevious();
+        input.hotbarDelta = -1;
     }
 
     if (m_flyKey.isKeyPressed()) {
-        player.m_isFlying = !player.m_isFlying;
+        input.toggleFlying = true;
     }
 
     if (m_num1.isKeyPressed()) {
-        player.m_inventory.setSelectedSlot(0);
+        input.hotbarSlot = 0;
     }
     if (m_num2.isKeyPressed()) {
-        player.m_inventory.setSelectedSlot(1);
+        input.hotbarSlot = 1;
     }
     if (m_num3.isKeyPressed()) {
-        player.m_inventory.setSelectedSlot(2);
+        input.hotbarSlot = 2;
     }
     if (m_num4.isKeyPressed()) {
-        player.m_inventory.setSelectedSlot(3);
+        input.hotbarSlot = 3;
     }
     if (m_num5.isKeyPressed()) {
-        player.m_inventory.setSelectedSlot(4);
+        input.hotbarSlot = 4;
     }
     if (m_slow.isKeyPressed()) {
-        player.m_isSneak = !player.m_isSneak;
+        input.toggleSneaking = true;
     }
+
+    return input;
 }
 
-void PlayerController::keyboardInput(Player &player, const Keyboard &keyboard)
+void PlayerController::applyInput(Player &player,
+                                  const PlayerInputState &input)
 {
-    if (keyboard.isKeyDown(sf::Keyboard::Key::W)) {
-        float speed = MovementSpeed;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl)) {
-            speed *= 5;
-        }
-        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RShift) ||
-                 sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) {
-            speed *= 0.35f;
-        }
-
-        player.m_acceleration.x +=
-            -glm::cos(glm::radians(player.rotation.y + 90)) * speed;
-        player.m_acceleration.z +=
-            -glm::sin(glm::radians(player.rotation.y + 90)) * speed;
+    if (input.toggleFlying) {
+        player.m_isFlying = !player.m_isFlying;
     }
-    if (keyboard.isKeyDown(sf::Keyboard::Key::S)) {
+    if (input.toggleSneaking) {
+        player.m_isSneak = !player.m_isSneak;
+    }
+
+    float forwardSpeed = MovementSpeed;
+    if (input.sprint) {
+        forwardSpeed *= 5.f;
+    }
+    else if (input.descend) {
+        forwardSpeed *= 0.35f;
+    }
+
+    if (input.moveForward) {
+        player.m_acceleration.x +=
+            -glm::cos(glm::radians(player.rotation.y + 90)) * forwardSpeed;
+        player.m_acceleration.z +=
+            -glm::sin(glm::radians(player.rotation.y + 90)) * forwardSpeed;
+    }
+    if (input.moveBackward) {
         player.m_acceleration.x +=
             glm::cos(glm::radians(player.rotation.y + 90)) * MovementSpeed;
         player.m_acceleration.z +=
             glm::sin(glm::radians(player.rotation.y + 90)) * MovementSpeed;
     }
-    if (keyboard.isKeyDown(sf::Keyboard::Key::A)) {
+    if (input.moveLeft) {
         player.m_acceleration.x +=
             -glm::cos(glm::radians(player.rotation.y)) * MovementSpeed;
         player.m_acceleration.z +=
             -glm::sin(glm::radians(player.rotation.y)) * MovementSpeed;
     }
-    if (keyboard.isKeyDown(sf::Keyboard::Key::D)) {
+    if (input.moveRight) {
         player.m_acceleration.x +=
             glm::cos(glm::radians(player.rotation.y)) * MovementSpeed;
         player.m_acceleration.z +=
             glm::sin(glm::radians(player.rotation.y)) * MovementSpeed;
     }
 
-    if (keyboard.isKeyDown(sf::Keyboard::Key::Space)) {
+    if (input.jump) {
         player.jump();
     }
-    else if (keyboard.isKeyDown(sf::Keyboard::Key::LShift) &&
-             player.m_isFlying) {
+    else if (input.descend && player.m_isFlying) {
         player.m_acceleration.y -= MovementSpeed * 3;
     }
-}
 
-void PlayerController::mouseInput(Player &player, const sf::Window &window)
-{
-    if (m_useMouseKey.isKeyPressed()) {
-        m_useMouse = !m_useMouse;
+    if (input.hotbarDelta > 0) {
+        player.m_inventory.selectNext();
     }
-
-    if (!m_useMouse) {
-        m_hasLastMousePosition = false;
-        return;
+    else if (input.hotbarDelta < 0) {
+        player.m_inventory.selectPrevious();
     }
-
-    if (!m_hasLastMousePosition) {
-        m_lastMousePosition = sf::Mouse::getPosition(window);
-        m_hasLastMousePosition = true;
+    if (input.hotbarSlot >= 0) {
+        player.m_inventory.setSelectedSlot(input.hotbarSlot);
     }
 
     static const float Bound = 89.f;
-    const auto currentMousePosition = sf::Mouse::getPosition(window);
-    const auto change = currentMousePosition - m_lastMousePosition;
-
-    player.rotation.y += change.x * 0.05f;
-    player.rotation.x += change.y * 0.05f;
+    player.rotation.y += input.lookDelta.x * 0.05f;
+    player.rotation.x += input.lookDelta.y * 0.05f;
 
     if (player.rotation.x > Bound) {
         player.rotation.x = Bound;
@@ -140,10 +152,31 @@ void PlayerController::mouseInput(Player &player, const sf::Window &window)
     else if (player.rotation.y < 0) {
         player.rotation.y = 360;
     }
+}
+
+glm::vec2 PlayerController::collectMouseDelta(const sf::Window &window)
+{
+    if (m_useMouseKey.isKeyPressed()) {
+        m_useMouse = !m_useMouse;
+    }
+
+    if (!m_useMouse) {
+        m_hasLastMousePosition = false;
+        return {0.f, 0.f};
+    }
+
+    if (!m_hasLastMousePosition) {
+        m_lastMousePosition = sf::Mouse::getPosition(window);
+        m_hasLastMousePosition = true;
+    }
+
+    const auto currentMousePosition = sf::Mouse::getPosition(window);
+    const auto change = currentMousePosition - m_lastMousePosition;
 
     const auto cx = static_cast<int>(window.getSize().x / 2);
     const auto cy = static_cast<int>(window.getSize().y / 2);
 
     sf::Mouse::setPosition({cx, cy}, window);
     m_lastMousePosition = sf::Mouse::getPosition(window);
+    return {static_cast<float>(change.x), static_cast<float>(change.y)};
 }

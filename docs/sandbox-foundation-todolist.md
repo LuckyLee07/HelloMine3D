@@ -73,8 +73,8 @@ MiniGame 可参考的方向：
 
 | 结果 | 数量 | 说明 |
 | ---- | ---- | ---- |
-| Done | 42 | 有自动化断言或客户端 smoke 覆盖。 |
-| Verify | 2 | S5.3 / S7.1，见下方说明，需要输入注入或调试面板截图。 |
+| Done | 43 | 有自动化断言或客户端 smoke 覆盖。 |
+| Verify | 1 | S7.1，见下方说明，需要调试面板截图。 |
 
 验证入口：
 
@@ -159,7 +159,7 @@ Goal: replace the current thin `Entity` with a minimal actor model that can supp
 | -- | ------ | ---- | ------------------- |
 | S5.1 | Done | Split `Entity` and `Actor`. | `S5.1/actor-count-tracked`, `S5.1/dead-actors-removed` through `World::tick()`. |
 | S5.2 | Done | Add `LivingActor`. | `S5.2/mob-is-living-actor`, `S5.2/mob-takes-damage`, `S5.2/mob-dies`. Invulnerability timing is still not implemented. |
-| S5.3 | Verify | Add `PlayerActor` and `PlayerController`. | Builds and links; `PlayerActor` sync helpers are covered indirectly by player save state. `PlayerController` keyboard/mouse handling needs a real window, and the capture scripts disable input on purpose. Needs one interactive manual run. |
+| S5.3 | Done | Add `PlayerActor` and `PlayerController`. | `PlayerInputState` feeds the same `PlayerController::applyInput()` path as live SFML collection. `V2/*` asserts movement, flying jump, fly/sneak toggles, look delta and hotbar selection without moving the real mouse. |
 | S5.4 | Done | Add `Inventory` and hotbar. | `S2.6/player-inventory-restored`, `S3.5/break-adds-configured-drop`, `S3.4/place-consumes-item`, `S5.5/item-entity-picked-up`. |
 | S5.5 | Done | Add `ItemEntity`. | `S5.5/item-entity-spawns`, `S5.5/item-entity-found`, `S5.5/item-entity-picked-up`. Rendering and entity persistence remain open (see `docs/todolist.md`). |
 | S5.6 | Done | Add first `MobActor`. | `S5.6/mob-spawns`, `S5.6/mob-wanders-on-tick`, plus the damage/death chain above and `HelloMine3DEntityLifecycleSmoke`. |

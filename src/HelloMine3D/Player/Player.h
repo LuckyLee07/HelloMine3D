@@ -40,6 +40,8 @@ class Player : public Entity {
     void draw(RenderMaster &master);
 
     ItemStack &getHeldItems();
+    bool isFlying() const noexcept;
+    bool isSneaking() const noexcept;
     PlayerSaveState getSaveState() const;
     void applySaveState(const PlayerSaveState &state);
 

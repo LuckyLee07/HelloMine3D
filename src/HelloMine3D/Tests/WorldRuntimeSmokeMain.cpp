@@ -214,6 +214,56 @@ void caseBlockTextureCoordinates()
 }
 
 // ---------------------------------------------------------------------------
+// V2 - player controls accept deterministic synthetic input
+// ---------------------------------------------------------------------------
+void casePlayerControllerInput()
+{
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+
+    const auto directory = freshSaveDirectory("player_controller");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+    PlayerController controller;
+
+    player.position = {8.f, 200.f, 8.f};
+    player.rotation = {0.f, 0.f, 0.f};
+    player.velocity = {0.f, 0.f, 0.f};
+
+    PlayerInputState input;
+    input.moveForward = true;
+    input.jump = true;
+    input.toggleFlying = true;
+    input.toggleSneaking = true;
+    input.hotbarSlot = 3;
+    input.lookDelta = {20.f, -10.f};
+    controller.applyInput(player, input);
+
+    check("V2/fly-toggle", player.isFlying());
+    check("V2/sneak-toggle", player.isSneaking());
+    check("V2/hotbar-selection", player.getSaveState().heldItem == 3,
+          "selected=" + std::to_string(player.getSaveState().heldItem));
+    check("V2/look-input",
+          std::abs(player.rotation.x + 0.5f) < 0.001f &&
+              std::abs(player.rotation.y - 1.f) < 0.001f,
+          vecToString(player.rotation));
+
+    const auto beforeUpdate = player.position;
+    player.update(0.05f, world);
+    check("V2/movement-input", player.position.z < beforeUpdate.z,
+          vecToString(beforeUpdate) + " -> " + vecToString(player.position));
+    check("V2/jump-input", player.position.y > beforeUpdate.y,
+          vecToString(beforeUpdate) + " -> " + vecToString(player.position));
+
+    PlayerInputState toggleOff;
+    toggleOff.toggleFlying = true;
+    controller.applyInput(player, toggleOff);
+    check("V2/fly-toggle-off", !player.isFlying());
+}
+
+// ---------------------------------------------------------------------------
 // S0.6 - spawn preload uses chunk coordinates
 // ---------------------------------------------------------------------------
 void caseSpawnPreload()
@@ -1230,6 +1280,7 @@ int main()
 
         caseFixedTickScheduler();
         caseBlockTextureCoordinates();
+        casePlayerControllerInput();
         caseSpawnPreload();
         caseNegativeCoordinates();
         caseNoImplicitChunkCreation();

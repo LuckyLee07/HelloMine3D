@@ -36,6 +36,16 @@ ItemStack& Player::getHeldItems()
     return m_inventory.getSelectedStack();
 }
 
+bool Player::isFlying() const noexcept
+{
+    return m_isFlying;
+}
+
+bool Player::isSneaking() const noexcept
+{
+    return m_isSneak;
+}
+
 PlayerSaveState Player::getSaveState() const
 {
     PlayerSaveState state;

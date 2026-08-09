@@ -4,9 +4,25 @@
 #include <SFML/Graphics.hpp>
 
 #include "../Input/ToggleKey.h"
+#include "../Maths/glm.h"
 
 class Keyboard;
 class Player;
+
+struct PlayerInputState {
+    bool moveForward = false;
+    bool moveBackward = false;
+    bool moveLeft = false;
+    bool moveRight = false;
+    bool sprint = false;
+    bool jump = false;
+    bool descend = false;
+    bool toggleFlying = false;
+    bool toggleSneaking = false;
+    int hotbarDelta = 0;
+    int hotbarSlot = -1;
+    glm::vec2 lookDelta{0.f};
+};
 
 class PlayerController {
   public:
@@ -14,10 +30,12 @@ class PlayerController {
 
     void handleInput(Player &player, const sf::Window &window,
                      const Keyboard &keyboard);
+    void applyInput(Player &player, const PlayerInputState &input);
 
   private:
-    void keyboardInput(Player &player, const Keyboard &keyboard);
-    void mouseInput(Player &player, const sf::Window &window);
+    PlayerInputState collectInput(const sf::Window &window,
+                                  const Keyboard &keyboard);
+    glm::vec2 collectMouseDelta(const sf::Window &window);
 
     ToggleKey m_itemDown;
     ToggleKey m_itemUp;
