@@ -1426,6 +1426,73 @@ void caseEnclosedSectionSkip()
 }
 
 // ---------------------------------------------------------------------------
+// M7 - frustum priority sorts all chunk targets without filtering any out
+// ---------------------------------------------------------------------------
+void caseFrustumMeshPriority()
+{
+    constexpr int radius = 16;
+    constexpr int sectionY = 4;
+    const VectorXZ center{0, 0};
+    const VectorXZ negativeZ{0, -12};
+    const VectorXZ positiveZ{0, 12};
+    const glm::vec3 eye{8.f, 72.f, 8.f};
+    const glm::mat4 projection =
+        glm::perspective(glm::radians(90.f), 16.f / 9.f, 0.1f, 2000.f);
+
+    ViewFrustum lookingNegativeZ;
+    lookingNegativeZ.update(
+        projection *
+        glm::lookAt(eye, eye + glm::vec3(0.f, 0.f, -1.f),
+                    glm::vec3(0.f, 1.f, 0.f)));
+    const auto negativeZPriority = World::planChunkMeshWork(
+        center, radius, sectionY, &lookingNegativeZ);
+
+    const auto findIndex = [](const std::vector<VectorXZ> &work,
+                              const VectorXZ &target) {
+        const auto found = std::find(work.begin(), work.end(), target);
+        return static_cast<std::size_t>(
+            std::distance(work.begin(), found));
+    };
+    const std::size_t expectedCount =
+        static_cast<std::size_t>((radius * 2 + 1) * (radius * 2 + 1));
+    const std::size_t negativeFrontIndex =
+        findIndex(negativeZPriority, negativeZ);
+    const std::size_t negativeRearIndex =
+        findIndex(negativeZPriority, positiveZ);
+    check("M7/all-view-distance-targets-retained",
+          negativeZPriority.size() == expectedCount &&
+              negativeFrontIndex < negativeZPriority.size() &&
+              negativeRearIndex < negativeZPriority.size(),
+          "targets=" + std::to_string(negativeZPriority.size()));
+    check("M7/forward-terrain-prioritised",
+          negativeFrontIndex < negativeRearIndex,
+          "front=" + std::to_string(negativeFrontIndex) +
+              " rear=" + std::to_string(negativeRearIndex));
+
+    ViewFrustum lookingPositiveZ;
+    lookingPositiveZ.update(
+        projection *
+        glm::lookAt(eye, eye + glm::vec3(0.f, 0.f, 1.f),
+                    glm::vec3(0.f, 1.f, 0.f)));
+    const auto positiveZPriority = World::planChunkMeshWork(
+        center, radius, sectionY, &lookingPositiveZ);
+    const std::size_t positiveFrontIndex =
+        findIndex(positiveZPriority, positiveZ);
+    const std::size_t positiveRearIndex =
+        findIndex(positiveZPriority, negativeZ);
+    check("M7/turning-reorders-priority",
+          positiveFrontIndex < positiveRearIndex,
+          "front=" + std::to_string(positiveFrontIndex) +
+              " rear=" + std::to_string(positiveRearIndex));
+
+    const auto distanceOnly =
+        World::planChunkMeshWork(center, radius, sectionY, nullptr);
+    check("M7/missing-snapshot-falls-back-to-distance",
+          distanceOnly.size() == expectedCount &&
+              !distanceOnly.empty() && distanceOnly.front() == center);
+}
+
+// ---------------------------------------------------------------------------
 // E5 - the renderer consumes versioned CPU mesh snapshots without sharing
 // mutable section pointers with the background loader
 // ---------------------------------------------------------------------------
@@ -2161,6 +2228,7 @@ int main()
         caseSectionMeshInput();
         caseGreedyMeshing();
         caseEnclosedSectionSkip();
+        caseFrustumMeshPriority();
         caseSectionMeshUploadSnapshot();
         caseUnloadPersistence();
         caseChunkFormatRejection();

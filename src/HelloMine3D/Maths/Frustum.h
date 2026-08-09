@@ -11,8 +11,8 @@ struct AABB;
 struct Plane {
     float distanceToPoint(const glm::vec3 &point) const;
 
-    float distanceToOrigin;
-    glm::vec3 normal; // Vector3 normals
+    float distanceToOrigin = 0.f;
+    glm::vec3 normal{0.f}; // Vector3 normals
 };
 
 class ViewFrustum {

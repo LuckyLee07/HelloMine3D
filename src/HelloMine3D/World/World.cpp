@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
 #include <deque>
 #include <future>
@@ -14,6 +15,7 @@
 #include "../Actor/MobActor.h"
 #include "../Core/Camera.h"
 #include "../Maths/Vector2XZ.h"
+#include "../Physics/AABB.h"
 #include "../Player/Player.h"
 #include "../Util/ResourcePaths.h"
 #include "../Util/Random.h"
@@ -90,46 +92,82 @@ namespace
         return std::abs(chunk.x - center.x) + std::abs(chunk.z - center.z);
     }
 
-    std::deque<VectorXZ> buildChunkWorkQueue(const VectorXZ &center,
-                                             int radius)
+    float angularDifference(float left, float right)
     {
-        std::vector<VectorXZ> chunks;
-        const int diameter = radius * 2 + 1;
-        chunks.reserve(static_cast<std::size_t>(diameter * diameter));
-
-        for (int x = center.x - radius; x <= center.x + radius; ++x) {
-            for (int z = center.z - radius; z <= center.z + radius; ++z) {
-                chunks.push_back({x, z});
-            }
-        }
-
-        std::sort(chunks.begin(), chunks.end(),
-                  [&](const VectorXZ &left, const VectorXZ &right) {
-                      const int leftDistance =
-                          chunkDistanceSquared(left, center);
-                      const int rightDistance =
-                          chunkDistanceSquared(right, center);
-                      if (leftDistance != rightDistance) {
-                          return leftDistance < rightDistance;
-                      }
-
-                      const int leftManhattan =
-                          chunkDistanceManhattan(left, center);
-                      const int rightManhattan =
-                          chunkDistanceManhattan(right, center);
-                      if (leftManhattan != rightManhattan) {
-                          return leftManhattan < rightManhattan;
-                      }
-
-                      if (left.x != right.x) {
-                          return left.x < right.x;
-                      }
-
-                      return left.z < right.z;
-                  });
-
-        return std::deque<VectorXZ>(chunks.begin(), chunks.end());
+        const float difference =
+            std::fmod(std::abs(left - right), 360.f);
+        return std::min(difference, 360.f - difference);
     }
+}
+
+std::vector<VectorXZ>
+World::planChunkMeshWork(const VectorXZ &center, int radius, int sectionY,
+                         const ViewFrustum *frustum)
+{
+    radius = std::max(0, radius);
+    sectionY = std::max(0, sectionY);
+
+    struct PrioritisedChunk {
+        VectorXZ position;
+        bool inFrustum = false;
+    };
+
+    std::vector<PrioritisedChunk> prioritised;
+    const int diameter = radius * 2 + 1;
+    prioritised.reserve(static_cast<std::size_t>(diameter * diameter));
+
+    for (int x = center.x - radius; x <= center.x + radius; ++x) {
+        for (int z = center.z - radius; z <= center.z + radius; ++z) {
+            bool inFrustum = false;
+            if (frustum != nullptr) {
+                AABB sectionBounds{
+                    glm::vec3(static_cast<float>(CHUNK_SIZE))};
+                sectionBounds.update(
+                    {static_cast<float>(x * CHUNK_SIZE),
+                     static_cast<float>(sectionY * CHUNK_SIZE),
+                     static_cast<float>(z * CHUNK_SIZE)});
+                inFrustum = frustum->isBoxInFrustum(sectionBounds);
+            }
+            prioritised.push_back({{x, z}, inFrustum});
+        }
+    }
+
+    std::sort(prioritised.begin(), prioritised.end(),
+              [&](const PrioritisedChunk &left,
+                  const PrioritisedChunk &right) {
+                  if (left.inFrustum != right.inFrustum) {
+                      return left.inFrustum;
+                  }
+
+                  const int leftDistance =
+                      chunkDistanceSquared(left.position, center);
+                  const int rightDistance =
+                      chunkDistanceSquared(right.position, center);
+                  if (leftDistance != rightDistance) {
+                      return leftDistance < rightDistance;
+                  }
+
+                  const int leftManhattan =
+                      chunkDistanceManhattan(left.position, center);
+                  const int rightManhattan =
+                      chunkDistanceManhattan(right.position, center);
+                  if (leftManhattan != rightManhattan) {
+                      return leftManhattan < rightManhattan;
+                  }
+
+                  if (left.position.x != right.position.x) {
+                      return left.position.x < right.position.x;
+                  }
+
+                  return left.position.z < right.position.z;
+              });
+
+    std::vector<VectorXZ> result;
+    result.reserve(prioritised.size());
+    for (const PrioritisedChunk &chunk : prioritised) {
+        result.push_back(chunk.position);
+    }
+    return result;
 }
 
 World::World(const Camera &camera, const Config &config, Player &player,
@@ -428,17 +466,30 @@ void World::loadChunks()
     std::deque<VectorXZ> workQueue;
     VectorXZ lastCenter{m_loadCenterX.load(), m_loadCenterZ.load()};
     int lastRevision = m_chunkLoadRevision.load();
+    int lastPriorityRevision = m_meshPriorityRevision.load();
     bool queueValid = false;
 
     while (m_isRunning) {
         VectorXZ loadCenter{m_loadCenterX.load(), m_loadCenterZ.load()};
         const int currentRevision = m_chunkLoadRevision.load();
+        const int currentPriorityRevision = m_meshPriorityRevision.load();
         if (!queueValid || !(loadCenter == lastCenter) ||
-            currentRevision != lastRevision) {
+            currentRevision != lastRevision ||
+            currentPriorityRevision != lastPriorityRevision) {
             const int radius = std::max(1, m_renderDistance);
-            workQueue = buildChunkWorkQueue(loadCenter, radius);
+            MeshPrioritySnapshot prioritySnapshot;
+            {
+                std::lock_guard<std::mutex> lock(m_meshPriorityMutex);
+                prioritySnapshot = m_meshPrioritySnapshot;
+            }
+            const ViewFrustum *frustum =
+                prioritySnapshot.valid ? &prioritySnapshot.frustum : nullptr;
+            const auto planned = planChunkMeshWork(
+                loadCenter, radius, prioritySnapshot.sectionY, frustum);
+            workQueue = std::deque<VectorXZ>(planned.begin(), planned.end());
             lastCenter = loadCenter;
             lastRevision = currentRevision;
+            lastPriorityRevision = currentPriorityRevision;
             queueValid = true;
         }
 
@@ -517,10 +568,41 @@ void World::setChunkLoadCenter(const Camera &camera)
 {
     auto cameraChunk = getChunkXZ(toBlockCoord(camera.position.x),
                                   toBlockCoord(camera.position.z));
+    const int sectionY =
+        std::max(0, toBlockCoord(camera.position.y) / CHUNK_SIZE);
     m_loadCenterX.store(cameraChunk.x);
-    m_loadCenterSectionY.store(
-        std::max(0, toBlockCoord(camera.position.y) / CHUNK_SIZE));
+    m_loadCenterSectionY.store(sectionY);
     m_loadCenterZ.store(cameraChunk.z);
+    publishMeshPrioritySnapshot(camera, sectionY);
+}
+
+void World::publishMeshPrioritySnapshot(const Camera &camera, int sectionY)
+{
+    constexpr float kReorderAngleDegrees = 5.f;
+    const bool orientationChanged =
+        !m_meshPriorityPublished ||
+        angularDifference(camera.rotation.x,
+                          m_lastMeshPriorityRotation.x) >=
+            kReorderAngleDegrees ||
+        angularDifference(camera.rotation.y,
+                          m_lastMeshPriorityRotation.y) >=
+            kReorderAngleDegrees;
+    const bool sectionChanged =
+        sectionY != m_lastMeshPrioritySectionY;
+
+    {
+        std::lock_guard<std::mutex> lock(m_meshPriorityMutex);
+        m_meshPrioritySnapshot.frustum = camera.getFrustum();
+        m_meshPrioritySnapshot.sectionY = sectionY;
+        m_meshPrioritySnapshot.valid = true;
+    }
+
+    if (orientationChanged || sectionChanged) {
+        m_lastMeshPriorityRotation = camera.rotation;
+        m_lastMeshPrioritySectionY = sectionY;
+        m_meshPriorityPublished = true;
+        m_meshPriorityRevision.fetch_add(1);
+    }
 }
 
 void World::updateChunk(int blockX, int blockY, int blockZ)

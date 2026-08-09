@@ -14,6 +14,7 @@
 
 #include "../Actor/ActorManager.h"
 #include "../Item/Material.h"
+#include "../Maths/Frustum.h"
 #include "../Maths/glm.h"
 #include "../Sandbox/Events/SandboxEventBus.h"
 #include "../Util/NonCopyable.h"
@@ -100,6 +101,12 @@ class World : public NonCopyable {
     static VectorXZ getBlockXZ(int x, int z);
     static VectorXZ getChunkXZ(int x, int z);
 
+    /// Produces a complete, stable work order. Chunks intersecting the
+    /// published frustum come first, with distance as the secondary key.
+    static std::vector<VectorXZ>
+    planChunkMeshWork(const VectorXZ &center, int radius, int sectionY,
+                      const ViewFrustum *frustum);
+
     // void collisionTest(Entity &entity);
 
     template <typename T, typename... Args> void addEvent(Args &&... args)
@@ -126,6 +133,7 @@ class World : public NonCopyable {
     void loadChunks();
     void unloadDistantChunks(const Camera &camera);
     void setChunkLoadCenter(const Camera &camera);
+    void publishMeshPrioritySnapshot(const Camera &camera, int sectionY);
     void queueChunkUpdate(int blockX, int blockY, int blockZ);
     void updateChunks();
     void preloadChunksAround(const glm::vec3 &position, int radius = 1);
@@ -151,17 +159,30 @@ class World : public NonCopyable {
 
     std::mutex m_mainMutex;
     std::mutex m_genMutex;
+    std::mutex m_meshPriorityMutex;
+
+    struct MeshPrioritySnapshot {
+        ViewFrustum frustum;
+        int sectionY = 0;
+        bool valid = false;
+    };
+    MeshPrioritySnapshot m_meshPrioritySnapshot;
 
     std::atomic<int> m_loadCenterX{0};
     std::atomic<int> m_loadCenterSectionY{0};
     std::atomic<int> m_loadCenterZ{0};
     std::atomic<int> m_chunkLoadRevision{0};
+    std::atomic<int> m_meshPriorityRevision{0};
     std::atomic<int> m_loadDistance{2};
     const int m_renderDistance;
 
     VectorXZ m_lastUnloadScanChunk{0, 0};
     bool m_unloadScanValid = false;
     bool m_unloadBacklog = false;
+
+    glm::vec3 m_lastMeshPriorityRotation{0.f};
+    int m_lastMeshPrioritySectionY = -1;
+    bool m_meshPriorityPublished = false;
 
     glm::vec3 m_playerSpawnPoint;
 };
