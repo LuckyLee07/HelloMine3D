@@ -10,8 +10,6 @@
 #include "BlockDefinition.h"
 #include "BlockTypes/BlockType.h"
 
-#include "../../Texture/TextureAtlas.h"
-
 /// @brief Singleton class that determines status and ID of blocks as a whole.
 class BlockDatabase : public Singleton {
   public:
@@ -20,8 +18,6 @@ class BlockDatabase : public Singleton {
     const BlockType &getBlock(BlockId id) const;
     const BlockData &getData(BlockId id) const;
     const BlockDefinition &getDefinition(BlockId id) const;
-
-    TextureAtlas textureAtlas;
 
   private:
     BlockDatabase();

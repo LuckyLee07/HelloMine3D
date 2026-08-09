@@ -15,12 +15,9 @@ milestones in `docs/sandbox-foundation-todolist.md`.
 ## World Runtime Smoke
 
 `src/HelloMine3D/Tests/WorldRuntimeSmokeMain.cpp` links the whole game runtime
-except `Main.cpp`, creates an offscreen `sf::Context`, and drives the real
-gameplay classes through scripted scenarios.
-
-The offscreen context is required because `BlockDatabase` builds a texture
-atlas the first time it is used. Nothing is rendered; the context only exists
-so block data can load.
+except `Main.cpp` and drives the real gameplay classes through scripted
+scenarios. It no longer creates an SFML or OpenGL context: texture-atlas
+ownership lives in `RenderMaster`, while mesh UV calculation is pure data.
 
 ```powershell
 bin\HelloMine3DWorldRuntimeSmoke.exe
@@ -49,6 +46,8 @@ position and player rotation are forced per scenario through the same
 
 | Scenario | Milestones | What it proves |
 | -------- | ---------- | -------------- |
+| `caseFixedTickScheduler` | V1, S1.5 | The runtime scheduler emits exactly 200 ticks over 10 seconds and bounds catch-up work to five ticks per frame. |
+| `caseBlockTextureCoordinates` | E0 | Atlas UV generation is stable and does not require a graphics context. |
 | `caseSpawnPreload` | S0.6 | Spawn preloading uses chunk coordinates and produces a full 3x3 loaded neighbourhood on solid ground. |
 | `caseNegativeCoordinates` | S0.1 | Negative and cross-zero world coordinates map to the right chunk and local block, both on write and read back. |
 | `caseNoImplicitChunkCreation` | S0.2 | Reading or writing a block outside the loaded set does not create chunks. |
@@ -70,7 +69,6 @@ These need a person at the keyboard or a different harness:
 | Gap | Why |
 | --- | --- |
 | `PlayerController` keyboard/mouse input (S5.3) | Needs a real `sf::Window`; the capture scripts deliberately disable input so they do not warp the mouse. |
-| `SandboxRuntime` 20Hz accumulator (S1.5) | The accumulator lives behind `sf::Window`. `WorldManager` world-time advance is asserted instead. |
 | Sandbox ImGui debug panel (S7.1) | The panel is behind the F1 toggle. Its data source, `World::collectDebugStats()`, is asserted, but the rendered panel is not. |
 | Thread-safety of the background chunk loader (S0.3) | No data-race tooling on this MSVC toolchain. The client smokes exercise the loader, but cannot prove race freedom. |
 
@@ -79,9 +77,14 @@ These need a person at the keyboard or a different harness:
 | Layer | Command | Result |
 | ----- | ------- | ------ |
 | Focused headless tests | `bin\HelloMine3DCoordinateTests.exe`, `bin\HelloMine3DMeshDirtyTests.exe`, `bin\HelloMine3DSaveLoadSmoke.exe`, `bin\HelloMine3DEntityLifecycleSmoke.exe` | All pass. |
-| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=89 failures=0` |
+| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=97 failures=0` (Debug and Release, 2026-08-09) |
 | Render smoke | see `docs/render-regression-smoke.md` | `bin/render_capture_20260807190230074-46036`, status PASS |
 | Performance baseline | see `docs/performance-baseline.md` | `bin/perf_baseline_20260807190255313-41064`, `frame_p95_ms=16.430` |
+
+The 2026-08-09 automation session exposed only the Windows GDI Generic OpenGL
+1.1 implementation, below the client's required OpenGL 3.3 context. Headless
+validation is therefore fully current, while the last hardware-backed render
+and performance runs remain the 2026-08-07 records above.
 
 ## When To Run
 

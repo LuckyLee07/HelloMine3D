@@ -8,12 +8,13 @@
 struct RenderInfo;
 class ChunkMesh;
 class Camera;
+class TextureAtlas;
 
 /// @brief Block chunk renderer that helps display block data.
 class ChunkRenderer {
   public:
     void add(const ChunkMesh &mesh);
-    void render(const Camera &camera);
+    void render(const Camera &camera, const TextureAtlas &textureAtlas);
 
   private:
     std::vector<const RenderInfo *> m_chunks;

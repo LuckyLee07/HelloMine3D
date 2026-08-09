@@ -68,13 +68,13 @@ MiniGame 可参考的方向：
 ## Validation Status
 
 2026-08-07 收敛：44 个条目此前全部停留在 `Verify`，本轮通过新增的
-`HelloMine3DWorldRuntimeSmoke`（89 项断言）、既有 4 个 headless 测试、渲染截图 smoke 和
+`HelloMine3DWorldRuntimeSmoke`（现为 97 项断言）、既有 4 个 headless 测试、渲染截图 smoke 和
 性能基线全部完成运行时验证。
 
 | 结果 | 数量 | 说明 |
 | ---- | ---- | ---- |
-| Done | 41 | 有自动化断言或客户端 smoke 覆盖。 |
-| Verify | 3 | S1.5 / S5.3 / S7.1，见下方说明，需要交互式客户端或新增采集点。 |
+| Done | 42 | 有自动化断言或客户端 smoke 覆盖。 |
+| Verify | 2 | S5.3 / S7.1，见下方说明，需要输入注入或调试面板截图。 |
 
 验证入口：
 
@@ -111,7 +111,7 @@ Goal: stop `Application` from owning gameplay directly and introduce a sandbox r
 | S1.2 | Done | Add `WorldManager`. | `S1.2/active-world-is-created-world`, `S1.2/active-world-id`, `S1.2/save-world`, `S1.2/save-unknown-world-fails`, `S1.2/load-world`, `S1.2/load-world-activates`. |
 | S1.3 | Done | Move spawn state into world metadata. | `S1.3/spawn-point-stable` plus `S2.1/world-meta-readable` — spawn survives a relaunch through `world.meta`. |
 | S1.4 | Done | Add teleport API. | `S1.4/same-world-teleport`, `S1.4/teleport-moves-player`, `S1.4/teleport-preloads-destination`, `S1.4/cross-world-teleport-rejected`. |
-| S1.5 | Verify | Add fixed simulation tick. | `S1.5/fixed-tick-advances-world-time` covers `WorldManager::tick()`. The `SandboxRuntime` 20Hz accumulator itself is behind `sf::Window` and is exercised but not asserted by the client smokes. Needs a tick-rate counter in the performance capture. |
+| S1.5 | Done | Add fixed simulation tick. | `SandboxRuntime` uses the shared `FixedTickScheduler`; `V1/fixed-tick-scheduler-20hz` observes exactly 200 ticks over 10 seconds and `V1/fixed-tick-catchup-bounded` covers the catch-up cap. Performance capture records `simulation_ticks` and `simulation_tick_hz`, with a 19-21Hz script gate. |
 
 ## Milestone S2: Chunk Storage and World Persistence
 

@@ -45,7 +45,7 @@ void RenderMaster::finishRender(sf::Window &window, const Camera &camera)
     }
 
     // glEnable(GL_CULL_FACE);
-    m_chunkRenderer.render(camera);
-    m_waterRenderer.render(camera);
-    m_floraRenderer.render(camera);
+    m_chunkRenderer.render(camera, m_textureAtlas);
+    m_waterRenderer.render(camera, m_textureAtlas);
+    m_floraRenderer.render(camera, m_textureAtlas);
 }

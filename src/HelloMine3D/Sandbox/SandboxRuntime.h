@@ -12,6 +12,7 @@
 #include "../Player/Player.h"
 #include "../Util/NonCopyable.h"
 #include "../World/World.h"
+#include "FixedTickScheduler.h"
 #include "WorldManager.h"
 
 class RenderMaster;
@@ -38,7 +39,7 @@ class SandboxRuntime : public NonCopyable {
     Camera &m_camera;
     Player m_player;
     WorldManager m_worldManager;
-    sf::Time m_tickAccumulator = sf::Time::Zero;
+    FixedTickScheduler m_tickScheduler;
     const sf::Time m_fixedTickStep = sf::seconds(1.f / 20.f);
     sf::Clock m_interactionTimer;
 };

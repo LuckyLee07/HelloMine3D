@@ -25,18 +25,18 @@ Status legend:
 
 ## Current Baseline
 
-Last refreshed 2026-08-07. Update this when a milestone closes.
+Last refreshed 2026-08-09. Update this when a milestone closes.
 
 | Area | Current state | Verification |
 | ---- | ------------- | ------------ |
 | Build system | Premake is the sole project generator. `vs2022.bat` then `build/HelloMine3D.sln` builds all six targets clean on VS2022 x64 Debug. | `vs2022.bat`, `MSBuild build\HelloMine3D.sln /p:Configuration=Debug /p:Platform=x64` |
 | Dependencies | SFML 3 and FreeType build from vendored source into `build/External/sfml/install`. No checked-in binaries. | Full solution build from a wiped `build/External/sfml` |
 | Focused tests | 4 headless test targets, all passing. | `bin\HelloMine3DCoordinateTests.exe`, `bin\HelloMine3DMeshDirtyTests.exe`, `bin\HelloMine3DSaveLoadSmoke.exe`, `bin\HelloMine3DEntityLifecycleSmoke.exe` |
-| Runtime validation | `HelloMine3DWorldRuntimeSmoke` drives the real world/actor stack through 93 assertions covering S0-S6 and the mesh halo snapshot. | `bin\HelloMine3DWorldRuntimeSmoke.exe` -> `checks=93 failures=0` |
+| Runtime validation | `HelloMine3DWorldRuntimeSmoke` drives the real world/actor stack through 97 assertions covering S0-S6, the fixed-tick scheduler, headless atlas coordinates, and the mesh halo snapshot. | `bin\HelloMine3DWorldRuntimeSmoke.exe` -> `checks=97 failures=0` |
 | Render smoke | Terrain, textures, water and flora render correctly. The halo cache work also corrected surface blocks that were being drawn as underground ones. | `bin/render_capture_20260807213550529-23856` |
 | Performance baseline | 2013 mesh rebuilds in both configs, 0 frames over 33 ms, `update_p95_ms` 0.004 ms in Release. Pin `-Seed` and `-PlayerPosition`, and check the vsync regime, or runs are not comparable. | `bin/perf_baseline_20260807213333692-35508` (Debug), `bin/perf_baseline_20260807213418957-47016` (Release) |
 | Chunk streaming | Six-part regression from `7a229d8` diagnosed and fixed 2026-08-07, then the mesh build was moved off the world lock (M3). | `docs/chunk-streaming-regression.md` |
-| Sandbox foundation | 41 of 44 S-milestones Done, 3 in Verify. | `docs/sandbox-foundation-todolist.md` |
+| Sandbox foundation | 42 of 44 S-milestones Done, 2 in Verify. | `docs/sandbox-foundation-todolist.md` |
 
 ## Closed Milestones
 
@@ -82,7 +82,7 @@ written. Small, cheap, and it keeps the foundation honest.
 
 | ID | Status | Task | Implementation notes | Validation |
 | -- | ------ | ---- | -------------------- | ---------- |
-| V1 | Todo | Assert the 20Hz simulation tick rate (S1.5). | Record a tick counter in `RuntimePerformanceCapture` alongside the frame counters, then check ticks/second in the summary. | Performance baseline summary reports roughly 20 ticks per second over a 10s run. |
+| V1 | Done | Assert the 20Hz simulation tick rate (S1.5). | `FixedTickScheduler` is shared by `SandboxRuntime` and the headless validation. `RuntimePerformanceCapture` also records per-frame ticks and the baseline script rejects rates outside 19-21Hz. | `V1/fixed-tick-scheduler-20hz` observes exactly 200 ticks over 10 seconds; `V1/fixed-tick-catchup-bounded` verifies the five-tick catch-up cap. |
 | V2 | Todo | Validate `PlayerController` input (S5.3). | Needs one interactive run, or an input-injection mode that feeds synthetic key state without warping the mouse. | Movement, jump, fly toggle and hotbar selection all respond. |
 | V3 | Todo | Screenshot the sandbox debug panel (S7.1). | Add an env override that starts the client with `show_debug_info` enabled so the capture script can photograph the panel. | Capture shows live chunk/mesh/actor counters. |
 | V4 | Todo | Assert height map correctness after edits (old T0.7). | Break the highest opaque block and place above the top; compare `Chunk::getHeightAt()` against a brute-force scan. | Added to `HelloMine3DWorldRuntimeSmoke`. |
@@ -99,7 +99,7 @@ the same mesh/shader code and doing it twice is waste.
 
 | ID | Status | Task | Validation |
 | -- | ------ | ---- | ---------- |
-| E0 | Todo | Decouple the data layer from SFML and OpenGL. Replace `sf::Vector2i/3i` with `glm::ivec2/ivec3`, drop `GLfloat`/`GLuint` from `ChunkMesh.h`/`ChunkMeshBuilder.h`, and move texture atlas creation out of `BlockDatabase`. | `World/` includes no SFML and no GL. `HelloMine3DWorldRuntimeSmoke` passes without an offscreen `sf::Context`. |
+| E0 | Doing | Decouple the data layer from SFML and OpenGL. Replace `sf::Vector2i/3i` with `glm::ivec2/ivec3`, drop `GLfloat`/`GLuint` from `ChunkMesh.h`/`ChunkMeshBuilder.h`, and move texture atlas creation out of `BlockDatabase`. The atlas ownership and headless-test part is complete; vector/input/time and mesh GL types remain. | `World/` includes no SFML and no GL. `HelloMine3DWorldRuntimeSmoke` now passes without an offscreen `sf::Context`; `E0/texture-coordinates-*` preserves atlas UVs. |
 | E1 | Todo | Bring Ogre into the build (minimum subset: `ogre3d`, `ogre3d_glsupport`, `ogre3d_gl3plus`, freeimage chain, freetype, zlib, zzip, ois). Unify `staticruntime`, `characterset`, `platforms`, `cppdialect`. | Ogre static libs compile; the game still runs the SFML path unchanged; full validation suite still green. |
 | E2 | Todo | Ogre bootstrap: `Root`/`RenderWindow`/`SceneManager`/`Camera`/`FrameListener`, resource config, OIS input, built-in skybox. | Window opens, skybox renders, free-fly camera works. World not yet rendered. |
 | E3 | Todo | Move chunk rendering to `ChunkSectionRenderable` (custom `MovableObject` + `Renderable` with its own `HardwareVertexBuffer`). Shaders to material scripts, atlas via `TextureManager` with `filtering none`, culling delegated to Ogre. | Render capture shows correct terrain; perf baseline compared against `bin/perf_baseline_20260807190255313-41064`. |

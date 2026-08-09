@@ -1,17 +1,13 @@
 // Headless runtime validation for the sandbox foundation milestones.
 //
 // This runner drives the real World / ChunkManager / WorldManager / actor code
-// paths against an offscreen OpenGL context, so the S0-S7 milestones can be
-// validated without a human driving the client window.
+// paths without a graphics context, so the S0-S7 milestones can be validated
+// without a human driving the client window.
 //
 // Each check prints one line:
 //   [VALIDATION] PASS <id> :: <detail>
 //   [VALIDATION] FAIL <id> :: <detail>
 // and the process exits non-zero when any check fails.
-
-#include <glad/glad.h>
-
-#include <SFML/Window/Context.hpp>
 
 #include <array>
 #include <cmath>
@@ -34,9 +30,11 @@
 #include "../Sandbox/Events/ChunkEvents.h"
 #include "../Sandbox/Events/EntityEvents.h"
 #include "../Sandbox/Events/PlayerEvents.h"
+#include "../Sandbox/FixedTickScheduler.h"
 #include "../Sandbox/WorldManager.h"
 #include "../Util/ResourcePaths.h"
 #include "../World/Block/BlockDatabase.h"
+#include "../World/Block/BlockTextureCoordinates.h"
 #include "../World/Interaction/BlockInteractionSystem.h"
 #include "../World/Chunk/SectionMeshInput.h"
 #include "../World/Storage/ChunkStorage.h"
@@ -172,6 +170,48 @@ class EventRecorder {
     std::vector<SandboxEventBus::SubscriptionId> m_ids;
     std::array<int, 32> m_counts{};
 };
+
+// ---------------------------------------------------------------------------
+// V1 - the runtime fixed-step scheduler produces 20 ticks per second
+// ---------------------------------------------------------------------------
+void caseFixedTickScheduler()
+{
+    FixedTickScheduler scheduler;
+    std::size_t ticks = 0;
+    for (int millisecond = 0; millisecond < 10000; ++millisecond) {
+        ticks += scheduler.advance(std::chrono::milliseconds(1));
+    }
+    check("V1/fixed-tick-scheduler-20hz", ticks == 200,
+          "ticks=" + std::to_string(ticks) + " over 10 seconds");
+
+    FixedTickScheduler cappedScheduler;
+    const auto cappedTicks = cappedScheduler.advance(std::chrono::seconds(1));
+    const auto nextTicks =
+        cappedScheduler.advance(std::chrono::milliseconds(50));
+    check("V1/fixed-tick-catchup-bounded",
+          cappedTicks == 5 && nextTicks == 1,
+          "capped=" + std::to_string(cappedTicks) +
+              " next=" + std::to_string(nextTicks));
+}
+
+// ---------------------------------------------------------------------------
+// E0 - block data and mesh UV generation do not require a graphics context
+// ---------------------------------------------------------------------------
+void caseBlockTextureCoordinates()
+{
+    const auto first = BlockTextureCoordinates::get(0, 0);
+    const auto last = BlockTextureCoordinates::get(15, 15);
+    constexpr float epsilon = 0.000001f;
+
+    check("E0/texture-coordinates-first-tile",
+          std::abs(first[0] - 0.060546875f) < epsilon &&
+              std::abs(first[2] - 0.001953125f) < epsilon &&
+              std::abs(first[5] - 0.001953125f) < epsilon);
+    check("E0/texture-coordinates-last-tile",
+          std::abs(last[0] - 0.998046875f) < epsilon &&
+              std::abs(last[2] - 0.939453125f) < epsilon &&
+              std::abs(last[5] - 0.939453125f) < epsilon);
+}
 
 // ---------------------------------------------------------------------------
 // S0.6 - spawn preload uses chunk coordinates
@@ -1186,18 +1226,10 @@ void caseWorldManager()
 int main()
 {
     try {
-        // BlockDatabase builds a texture atlas at first use, so the validation
-        // run needs a live GL context even though nothing is rendered.
-        sf::Context context;
-        if (!gladLoadGLLoader([](const char *name) -> void * {
-                return reinterpret_cast<void *>(sf::Context::getFunction(name));
-            })) {
-            std::cerr << "Failed to initialise OpenGL for validation run.\n";
-            return EXIT_FAILURE;
-        }
-
         std::cout << "[VALIDATION] world runtime smoke starting\n";
 
+        caseFixedTickScheduler();
+        caseBlockTextureCoordinates();
         caseSpawnPreload();
         caseNegativeCoordinates();
         caseNoImplicitChunkCreation();

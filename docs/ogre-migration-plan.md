@@ -186,8 +186,9 @@ Ogre 自带 `SceneManager::setSkyBox`，可删除 `Renderer/SkyboxRenderer.*` �
 
 把纹理图集的创建从 `BlockDatabase` 构造函数中剥离，`BlockDefinition` 只保留图集坐标。
 
-这一步的价值超出迁移本身：当前 `HelloMine3DWorldRuntimeSmoke` 必须创建离屏 `sf::Context`
-才能跑，正是因为这条隐式依赖。解耦后 headless 测试完全不需要图形环境。
+这一步的价值超出迁移本身。该项已于 2026-08-09 提前完成：纹理对象归 `RenderMaster`
+所有，网格侧只使用纯数据的图集坐标计算，`HelloMine3DWorldRuntimeSmoke` 已移除离屏
+`sf::Context`，headless 测试完全不需要图形环境。
 
 ### D6 整数向量类型
 
@@ -212,7 +213,7 @@ E5 才删除旧代码。
 | ---- | ---- |
 | `sf::Vector2i/3i` → `glm::ivec2/ivec3` | `World/` 内不再出现 `sf::Vector` |
 | `ChunkMesh.h` / `ChunkMeshBuilder.h` 的 `GLfloat`/`GLuint` → `float`/`std::uint32_t` | 非渲染层无 GL 类型 |
-| 纹理图集创建移出 `BlockDatabase`（见 D5） | `HelloMine3DWorldRuntimeSmoke` 去掉 `sf::Context` 后仍通过 |
+| 纹理图集创建移出 `BlockDatabase`（见 D5，已完成） | `HelloMine3DWorldRuntimeSmoke` 去掉 `sf::Context` 后 97/97 通过；`E0/texture-coordinates-*` 验证 UV 不变 |
 | `World/` 中 `sf::Mouse`/`sf::Clock`/`sf::Keyboard` 共 8 处收敛到输入/计时边界 | `World/` 不再直接 include SFML |
 
 **阶段目标：`World/` 对 SFML 和 OpenGL 零依赖。**

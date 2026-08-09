@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 #include "../World/World.h"
 
 namespace RuntimePerformanceCapture
@@ -17,6 +19,7 @@ namespace RuntimePerformanceCapture
     };
 
     bool isEnabled();
+    void recordSimulationTicks(std::size_t ticks);
     void recordFrame(const FrameTimings &timings,
                      const WorldDebugStats &worldStats);
     bool shouldCloseWindow();

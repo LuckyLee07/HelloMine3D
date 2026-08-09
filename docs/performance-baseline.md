@@ -69,6 +69,7 @@ It also records world counters:
 | `mesh_rebuilds` | Cumulative mesh rebuild count. |
 | `actor_count` | Runtime actor count. |
 | `terrain_seed` | Seed used by the run. |
+| `simulation_ticks` | Fixed simulation ticks executed during that frame. |
 
 ## Reading The Summary
 
@@ -82,6 +83,7 @@ Use these values first:
 - `render_p95_ms`: render submission pressure.
 - `display_p95_ms`: vsync/driver/display wait; high values here may not mean CPU render logic got slower.
 - `last_mesh_rebuilds`, `last_loaded_chunks`, `last_gpu_buffered_sections`: sanity checks that two runs are comparing similar world state.
+- `simulation_tick_hz`: measured fixed-step rate. The script fails the run when this is outside 19-21Hz.
 
 Because the benchmark window is displayed without foreground activation,
 Windows may schedule it differently from the active desktop app. In that mode,

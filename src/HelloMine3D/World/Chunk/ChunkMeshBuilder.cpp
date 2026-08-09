@@ -5,6 +5,7 @@
 
 #include "../Block/BlockData.h"
 #include "../Block/BlockDatabase.h"
+#include "../Block/BlockTextureCoordinates.h"
 #include "../Block/BlockDefinition.h"
 
 #include <cassert>
@@ -156,8 +157,8 @@ void ChunkMeshBuilder::setActiveMesh(ChunkBlock block)
 void ChunkMeshBuilder::addXBlockToMesh(const sf::Vector2i &textureCoords,
                                        const sf::Vector3i &blockPosition)
 {
-    auto texCoords =
-        BlockDatabase::get().textureAtlas.getTexture(textureCoords);
+    const auto texCoords =
+        BlockTextureCoordinates::get(textureCoords.x, textureCoords.y);
 
     m_pActiveMesh->addFace(xFace1, texCoords, m_pInput->getLocation(),
                            blockPosition, LIGHT_X);
@@ -172,8 +173,8 @@ void ChunkMeshBuilder::tryAddFaceToMesh(
     GLfloat cardinalLight)
 {
     if (shouldMakeFace(blockFacing)) {
-        auto texCoords =
-            BlockDatabase::get().textureAtlas.getTexture(textureCoords);
+        const auto texCoords =
+            BlockTextureCoordinates::get(textureCoords.x, textureCoords.y);
 
         m_pActiveMesh->addFace(blockFace, texCoords, m_pInput->getLocation(),
                                blockPosition, cardinalLight);

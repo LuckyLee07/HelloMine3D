@@ -8,6 +8,7 @@
 #include "FloraRenderer.h"
 #include "SkyboxRenderer.h"
 #include "WaterRenderer.h"
+#include "../Texture/TextureAtlas.h"
 
 class Camera;
 class ChunkSection;
@@ -25,6 +26,7 @@ class RenderMaster {
     ChunkRenderer m_chunkRenderer;
     WaterRenderer m_waterRenderer;
     FloraRenderer m_floraRenderer;
+    TextureAtlas m_textureAtlas{"DefaultPack"};
 
     // Detail
     SkyboxRenderer m_skyboxRenderer;

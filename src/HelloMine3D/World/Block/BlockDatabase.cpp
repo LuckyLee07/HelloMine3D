@@ -43,7 +43,6 @@ BlockDefinition makeDefinition(const std::string &fileName,
 
 // Block Database initializes to first pack, not the second.
 BlockDatabase::BlockDatabase()
-    : textureAtlas("DefaultPack")
 {
     addBlock(BlockId::Air, "Air");
     addBlock(BlockId::Grass, "Grass");

@@ -9,12 +9,13 @@
 struct RenderInfo;
 class ChunkMesh;
 class Camera;
+class TextureAtlas;
 
 /// @brief Renderer specifically targeting water and handling shader behaviors.
 class WaterRenderer {
   public:
     void add(const ChunkMesh &mesh);
-    void render(const Camera &camera);
+    void render(const Camera &camera, const TextureAtlas &textureAtlas);
 
   private:
     std::vector<const RenderInfo *> m_chunks;

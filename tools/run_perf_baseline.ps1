@@ -12,6 +12,8 @@ param(
     [string]$Seed = "",
     [string]$PlayerPosition = "",
     [string]$PlayerRotation = "",
+    [double]$MinimumSimulationTickHz = 19.0,
+    [double]$MaximumSimulationTickHz = 21.0,
     [switch]$StopExisting,
     [switch]$KeepAlive
 )
@@ -153,6 +155,21 @@ function Read-WorldMetaValue {
     }
 
     return (($line -replace "^$escapedKey\s+", "") -replace "\s+", " ").Trim()
+}
+
+function Read-SummaryValue {
+    param(
+        [string]$Path,
+        [string]$Key
+    )
+
+    $escapedKey = [regex]::Escape($Key)
+    $line = Get-Content -LiteralPath $Path | Where-Object { $_ -match "^$escapedKey=" } | Select-Object -First 1
+    if ([string]::IsNullOrWhiteSpace($line)) {
+        throw "Performance summary is missing '$Key': $Path"
+    }
+
+    return ($line -replace "^$escapedKey=", "").Trim()
 }
 
 function Wait-MainWindowHandle {
@@ -313,6 +330,19 @@ try {
     }
     if (-not (Test-Path -LiteralPath $FramesPath) -or (Get-Item -LiteralPath $FramesPath).Length -le 0) {
         throw "Missing or empty performance frames CSV: $FramesPath"
+    }
+
+    $simulationTickHzText = Read-SummaryValue -Path $SummaryPath -Key "simulation_tick_hz"
+    $simulationTickHz = 0.0
+    if (-not [double]::TryParse(
+        $simulationTickHzText,
+        [System.Globalization.NumberStyles]::Float,
+        [System.Globalization.CultureInfo]::InvariantCulture,
+        [ref]$simulationTickHz)) {
+        throw "Invalid simulation_tick_hz in performance summary: '$simulationTickHzText'"
+    }
+    if ($simulationTickHz -lt $MinimumSimulationTickHz -or $simulationTickHz -gt $MaximumSimulationTickHz) {
+        throw "Simulation tick rate $simulationTickHz Hz is outside the expected range [$MinimumSimulationTickHz, $MaximumSimulationTickHz]."
     }
 }
 finally {

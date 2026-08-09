@@ -2,7 +2,7 @@
 
 #include "../Application.h"
 #include "../Core/Camera.h"
-#include "../World/Block/BlockDatabase.h"
+#include "../Texture/TextureAtlas.h"
 #include "../World/Chunk/ChunkMesh.h"
 
 #include <iostream>
@@ -12,7 +12,8 @@ void FloraRenderer::add(const ChunkMesh &mesh)
     m_chunks.push_back(&mesh.getModel().getRenderInfo());
 }
 
-void FloraRenderer::render(const Camera &camera)
+void FloraRenderer::render(const Camera &camera,
+                           const TextureAtlas &textureAtlas)
 {
     if (m_chunks.empty()) {
         return;
@@ -21,7 +22,7 @@ void FloraRenderer::render(const Camera &camera)
     glDisable(GL_BLEND);
     glDisable(GL_CULL_FACE);
     m_shader.useProgram();
-    BlockDatabase::get().textureAtlas.bindTexture();
+    textureAtlas.bindTexture();
 
     m_shader.loadProjectionViewMatrix(camera.getProjectionViewMatrix());
     m_shader.loadTime(g_timeElapsed);

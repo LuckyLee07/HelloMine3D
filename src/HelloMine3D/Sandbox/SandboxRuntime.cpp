@@ -1,5 +1,7 @@
 #include "SandboxRuntime.h"
 
+#include <chrono>
+
 #include <SFML/Window/Mouse.hpp>
 #include <imgui.h>
 
@@ -128,26 +130,18 @@ void SandboxRuntime::handlePlayerInteraction()
 
 void SandboxRuntime::runFixedTicks(sf::Time dt)
 {
-    m_tickAccumulator += dt;
-
-    int ticksThisFrame = 0;
-    const int maxTicksPerFrame = 5;
-
-    while (m_tickAccumulator >= m_fixedTickStep &&
-           ticksThisFrame < maxTicksPerFrame) {
+    const auto ticksThisFrame = m_tickScheduler.advance(
+        std::chrono::microseconds(dt.asMicroseconds()));
+    for (std::size_t tick = 0; tick < ticksThisFrame; ++tick) {
         World *world = m_worldManager.getActiveWorld();
         if (world != nullptr) {
             m_player.update(m_fixedTickStep.asSeconds(), *world);
         }
 
         m_worldManager.tick();
-        m_tickAccumulator -= m_fixedTickStep;
-        ++ticksThisFrame;
     }
 
-    if (ticksThisFrame == maxTicksPerFrame) {
-        m_tickAccumulator = sf::Time::Zero;
-    }
+    RuntimePerformanceCapture::recordSimulationTicks(ticksThisFrame);
 }
 
 void SandboxRuntime::drawSandboxDebug(World &world)

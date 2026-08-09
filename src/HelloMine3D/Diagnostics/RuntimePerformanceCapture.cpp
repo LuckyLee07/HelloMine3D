@@ -27,6 +27,7 @@ namespace
         FrameTimings timings;
         WorldDebugStats world;
         double measuredElapsedMs = 0.0;
+        std::size_t simulationTicks = 0;
     };
 
     struct CaptureState
@@ -44,6 +45,8 @@ namespace
         double warmupMs = 3000.0;
         double durationMs = 10000.0;
         std::size_t frameIndex = 0;
+        std::size_t pendingSimulationTicks = 0;
+        std::size_t capturedSimulationTicks = 0;
     };
 
     CaptureState &state()
@@ -149,7 +152,7 @@ namespace
                "existing_chunks,loaded_chunks,save_dirty_chunks,sections,"
                "mesh_dirty_sections,cpu_ready_sections,gpu_buffered_sections,"
                "queued_chunk_updates,mesh_rebuilds,actor_count,terrain_seed,"
-               "world_time\n";
+               "world_time,simulation_ticks\n";
     }
 
     void initialize()
@@ -333,6 +336,15 @@ namespace
         }
         summary << "frames_over_33ms=" << framesOver33 << "\n";
         summary << "frames_over_50ms=" << framesOver50 << "\n";
+        summary << "simulation_ticks="
+                << captureState.capturedSimulationTicks << "\n";
+        summary << "simulation_tick_hz="
+                << (captureState.durationMs > 0.0
+                        ? static_cast<double>(
+                              captureState.capturedSimulationTicks) *
+                              1000.0 / captureState.durationMs
+                        : 0.0)
+                << "\n";
 
         if (!captureState.samples.empty()) {
             const WorldDebugStats &last = captureState.samples.back().world;
@@ -366,6 +378,18 @@ bool isEnabled()
     return state().enabled;
 }
 
+void recordSimulationTicks(std::size_t ticks)
+{
+    initialize();
+
+    CaptureState &captureState = state();
+    if (!captureState.enabled || captureState.complete) {
+        return;
+    }
+
+    captureState.pendingSimulationTicks += ticks;
+}
+
 void recordFrame(const FrameTimings &timings,
                  const WorldDebugStats &worldStats)
 {
@@ -387,6 +411,7 @@ void recordFrame(const FrameTimings &timings,
             now - captureState.startTime)
             .count();
     if (elapsedMs < captureState.warmupMs) {
+        captureState.pendingSimulationTicks = 0;
         return;
     }
 
@@ -395,6 +420,10 @@ void recordFrame(const FrameTimings &timings,
     sample.timings = timings;
     sample.world = worldStats;
     sample.measuredElapsedMs = measuredElapsedMs;
+    sample.simulationTicks = captureState.pendingSimulationTicks;
+    captureState.capturedSimulationTicks +=
+        captureState.pendingSimulationTicks;
+    captureState.pendingSimulationTicks = 0;
     captureState.samples.push_back(sample);
 
     captureState.frames << captureState.frameIndex++ << ","
@@ -414,7 +443,8 @@ void recordFrame(const FrameTimings &timings,
                         << worldStats.chunks.meshRebuilds << ","
                         << worldStats.actorCount << ","
                         << worldStats.terrainSeed << ","
-                        << worldStats.worldTime << "\n";
+                        << worldStats.worldTime << ","
+                        << sample.simulationTicks << "\n";
 
     if (measuredElapsedMs >= captureState.durationMs) {
         captureState.complete = true;
