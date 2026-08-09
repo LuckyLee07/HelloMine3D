@@ -1,4 +1,5 @@
 #include "OgreBootstrap.h"
+#include "OgreActorRenderer.h"
 #include "ChunkSectionRenderable.h"
 #include "OgreBlockOutline.h"
 #include "OgreRenderCapture.h"
@@ -11,6 +12,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
@@ -38,6 +40,17 @@ namespace
     constexpr const char* LogFileName = "MineOgre.log";
     constexpr const char* WindowTitle = "HelloMine3D";
     constexpr const char* SkyboxMaterial = "HelloMine3D/Skybox";
+
+    bool isTrueValue(const char* value)
+    {
+        if (value == nullptr || value[0] == '\0')
+        {
+            return false;
+        }
+        const std::string text(value);
+        return text != "0" && text != "false" && text != "FALSE" &&
+               text != "False" && text != "off" && text != "OFF";
+    }
 
     struct TerrainBuildSummary
     {
@@ -86,6 +99,10 @@ namespace
                 OgreRenderCapture::validateConfiguration();
             const OgreUserInterfaceValidation userInterface =
                 OgreUserInterface::validateConfiguration(*m_worldPlayer);
+            spawnValidationActors();
+            const OgreActorRendererValidation actors =
+                OgreActorRenderer::validateSnapshots(
+                    m_world->collectActorSnapshots());
 
             std::cout << "[OGRE_VALIDATION] renderer="
                       << renderSystem->getName() << '\n';
@@ -127,8 +144,18 @@ namespace
             std::cout << "[OGRE_VALIDATION] debug_panel_enabled="
                       << (userInterface.debugPanelVisible ? "true" : "false")
                       << '\n';
+            std::cout << "[OGRE_VALIDATION] actor_config="
+                      << (actors.valid ? "valid" : "invalid") << '\n';
+            std::cout << "[OGRE_VALIDATION] actor_count="
+                      << actors.actorCount << '\n';
+            std::cout << "[OGRE_VALIDATION] mob_count="
+                      << actors.mobCount << '\n';
+            std::cout << "[OGRE_VALIDATION] item_count="
+                      << actors.itemCount << '\n';
 
             return capture.valid && userInterface.valid &&
+                   actors.valid && actors.mobCount > 0 &&
+                   actors.itemCount > 0 &&
                    resourceLocations > 0 &&
                    terrain.sectionCount > 0 &&
                    terrain.vertexCount > 0 && terrain.indexCount > 0 &&
@@ -291,6 +318,14 @@ namespace
                 true, SkyboxMaterial, 5000.0f, true);
 
             const TerrainBuildSummary terrain = buildTerrain(true);
+            m_actorRenderer =
+                std::make_unique<OgreActorRenderer>(*m_sceneManager);
+            if (isTrueValue(std::getenv(
+                    "HELLOMINE3D_SPAWN_VALIDATION_ACTORS")))
+            {
+                spawnValidationActors();
+            }
+            syncActorVisuals();
             m_blockOutline =
                 std::make_unique<OgreBlockOutline>(*m_sceneManager);
             std::cout << "[OGRE_TERRAIN] solid=" << terrain.sectionCount
@@ -616,6 +651,7 @@ namespace
             clearTransientInput();
             syncRenderCamera();
             syncSectionMeshes();
+            syncActorVisuals();
             if (m_blockOutline != nullptr)
             {
                 const auto& selection = m_sandbox->getBlockSelection();
@@ -663,6 +699,41 @@ namespace
                     {section.location, section.blockRevision});
             }
             m_world->acknowledgeSectionMeshUploads(uploaded);
+        }
+
+        void syncActorVisuals()
+        {
+            if (m_world == nullptr || m_actorRenderer == nullptr)
+            {
+                return;
+            }
+            m_actorRenderer->sync(m_world->collectActorSnapshots());
+        }
+
+        void spawnValidationActors()
+        {
+            if (m_validationActorsSpawned || m_world == nullptr ||
+                m_worldPlayer == nullptr)
+            {
+                return;
+            }
+
+            const float yaw = glm::radians(
+                m_worldPlayer->rotation.y + 90.0f);
+            const glm::vec3 forward(-std::cos(yaw), 0.0f,
+                                    -std::sin(yaw));
+            const glm::vec3 right(-forward.z, 0.0f, forward.x);
+            const glm::vec3 origin = m_worldPlayer->position;
+
+            const glm::vec3 itemPosition =
+                origin + forward * 2.0f + right * 0.65f +
+                glm::vec3(0.0f, 0.35f, 0.0f);
+            const glm::vec3 mobPosition =
+                origin + forward * 4.0f - right * 0.75f;
+            m_world->spawnItemEntity(Material::ID::Stone, 1,
+                                     itemPosition);
+            m_world->spawnMob("validation_mob", mobPosition);
+            m_validationActorsSpawned = true;
         }
 
         void uploadSectionVisual(
@@ -976,6 +1047,7 @@ namespace
             m_renderCapture.reset();
             m_userInterface.reset();
             m_blockOutline.reset();
+            m_actorRenderer.reset();
 
             for (auto &entry : m_sectionVisuals)
             {
@@ -1005,6 +1077,7 @@ namespace
         std::unique_ptr<OgreRenderCapture> m_renderCapture;
         std::unique_ptr<OgreUserInterface> m_userInterface;
         std::unique_ptr<OgreBlockOutline> m_blockOutline;
+        std::unique_ptr<OgreActorRenderer> m_actorRenderer;
         Player* m_worldPlayer = nullptr;
         std::unique_ptr<::Camera> m_logicCamera;
         std::unique_ptr<SandboxRuntime> m_sandbox;
@@ -1022,6 +1095,7 @@ namespace
         bool m_toggleSneaking = false;
         bool m_resetMeshes = false;
         bool m_mouseLookEnabled = true;
+        bool m_validationActorsSpawned = false;
         int m_hotbarDelta = 0;
         int m_hotbarSlot = -1;
     };

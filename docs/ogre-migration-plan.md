@@ -327,14 +327,14 @@ Ogre 视锥剔除和与迁移前基线的性能对比需在硬件加速桌面补
 截图与性能诊断现已接入 Ogre：截图按既有环境变量调度，并通过
 `RenderWindow::writeContentsToFile` 写出；固定步进与逐帧耗时由 `FrameListener` 送入
 `RuntimePerformanceCapture`；两条验证脚本现直接使用唯一的 `HelloMine3D.exe` 客户端。无窗口模式
-已在 Debug/Release 验证三组截图目标的配置解析，全量构建和 127/127 回归继续通过。
+已在 Debug/Release 验证三组截图目标的配置解析，全量构建和 132/132 回归继续通过。
 当前会话只有 GDI Generic OpenGL 1.1，因此实际 PNG、性能 CSV 和材质外观仍需硬件桌面补跑。
 
 HUD 与 ImGui 也已迁移：`OgreUserInterface` 将 OIS 键鼠事件映射到 ImGui，常驻绘制准星和
 5 格快捷栏，F1 控制玩家/世界调试面板，并在场景渲染队列结束后通过 OpenGL3 后端提交。
 输入采集已移到 `frameStarted`，UI 捕获输入时会抑制相机操作；按帧退出则在 `frameEnded`
 收尾，保证最后一帧仍进入截图与性能采集。Debug/Release 无窗口校验分别验证调试面板开启
-和关闭配置，HUD 均报告 5 个槽位及合法选中项；全量构建和 127/127 回归通过。受当前
+和关闭配置，HUD 均报告 5 个槽位及合法选中项；全量构建和 132/132 回归通过。受当前
 OpenGL 1.1 会话限制，HUD/调试面板的实际外观仍需硬件截图确认，E4 暂记 `Verify`。
 
 ### E5 清理（1 周）
@@ -351,7 +351,7 @@ SFML/glad/Renderer/Shaders/Texture/GL/Input 外壳和并行引导目标均已移
 平台无关的 `SandboxRuntime`。Ogre 通过带方块版本号的 CPU 网格快照接收后台重建结果，
 只有成功上传的当前版本才会标记为 GPU ready，挖掘、放置、卸载后的场景节点可逐帧同步。
 方块选择反馈也迁移为 `OgreBlockOutline`。Premake、README、截图和性能脚本均只保留一个
-客户端入口，Debug/Release 全量构建、五个测试和 127/127 运行时回归通过。当前会话仅有
+客户端入口，Debug/Release 全量构建、五个测试和 132/132 运行时回归通过。当前会话仅有
 GDI Generic OpenGL 1.1，因此新 Ogre PNG/CSV 硬件基线仍待补跑，E5 暂记 `Verify`。
 
 ## 风险登记

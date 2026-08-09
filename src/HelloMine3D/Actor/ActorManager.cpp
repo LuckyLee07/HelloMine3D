@@ -67,3 +67,15 @@ std::size_t ActorManager::getActorCount() const
 {
     return m_actors.size();
 }
+
+std::vector<ActorSnapshot> ActorManager::collectSnapshots() const
+{
+    std::vector<ActorSnapshot> snapshots;
+    snapshots.reserve(m_actors.size());
+    for (const auto &actor : m_actors) {
+        if (actor && actor->isAlive()) {
+            snapshots.push_back(actor->getSnapshot());
+        }
+    }
+    return snapshots;
+}

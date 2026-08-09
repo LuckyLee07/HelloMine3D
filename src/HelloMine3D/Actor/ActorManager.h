@@ -20,6 +20,7 @@ class ActorManager {
     void tick(World &world, float dt);
     void removeDeadActors();
     std::size_t getActorCount() const;
+    std::vector<ActorSnapshot> collectSnapshots() const;
 
   private:
     std::vector<std::unique_ptr<Actor>> m_actors;

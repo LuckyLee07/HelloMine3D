@@ -16,6 +16,7 @@ param(
     [string]$PlayerPosition = "",
     [string]$PlayerRotation = "",
     [switch]$ShowDebugInfo,
+    [switch]$SpawnValidationActors,
     [switch]$StopExisting,
     [switch]$KeepAlive
 )
@@ -335,6 +336,7 @@ if (-not [string]::IsNullOrWhiteSpace($Seed)) { Write-Host "[RENDER_CAPTURE] see
 if (-not [string]::IsNullOrWhiteSpace($PlayerPosition)) { Write-Host "[RENDER_CAPTURE] playerPosition=$PlayerPosition" }
 if (-not [string]::IsNullOrWhiteSpace($PlayerRotation)) { Write-Host "[RENDER_CAPTURE] playerRotation=$PlayerRotation" }
 if ($ShowDebugInfo) { Write-Host "[RENDER_CAPTURE] showDebugInfo=true" }
+if ($SpawnValidationActors) { Write-Host "[RENDER_CAPTURE] spawnValidationActors=true" }
 
 if ($StopExisting) {
     $existingProcesses = @(Get-Process -Name "HelloMine3D" -ErrorAction SilentlyContinue)
@@ -362,6 +364,9 @@ if (-not [string]::IsNullOrWhiteSpace($PlayerRotation)) {
 }
 if ($ShowDebugInfo) {
     $envValues["HELLOMINE3D_SHOW_DEBUG_INFO"] = "1"
+}
+if ($SpawnValidationActors) {
+    $envValues["HELLOMINE3D_SPAWN_VALIDATION_ACTORS"] = "1"
 }
 if ($CaptureMode -eq "RuntimeReadback") {
     $envValues["HELLO_RENDER_CAPTURE"] = "1"

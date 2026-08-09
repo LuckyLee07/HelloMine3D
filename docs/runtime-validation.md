@@ -29,7 +29,7 @@ Output is one line per assertion plus a summary:
 ```text
 [VALIDATION] PASS S0.5/chunk-boundary-marks-neighbor
 [VALIDATION] FAIL S6.4/ore-decorator-produces-ore :: coal=0 iron=0
-[VALIDATION] checks=127 failures=0
+[VALIDATION] checks=132 failures=0
 [VALIDATION] status=PASS
 ```
 
@@ -67,7 +67,7 @@ position and player rotation are forced per scenario through the same
 | `caseTerrainStructures` | S6.2, S6.3, S6.5 | Tree and plant decorators run, biomes produce varied surfaces, and structures are identical after a save/reload roundtrip. |
 | `caseInteractionAndEvents` | S3.1, S3.3, S3.4, S3.5, S4.2, S4.5 | Break/place go through the interaction system, produce configured drops, consume items, publish events, and block metadata survives a roundtrip. |
 | `caseChunkEvents` | S4.3 | Generate, load, save and unload each publish their chunk event. |
-| `caseActors` | S4.4, S5.1, S5.2, S5.5, S5.6 | Mobs spawn, wander, take damage, die and get culled; item entities spawn and are picked up, publishing the matching events. |
+| `caseActors` | P1, S4.4, S5.1, S5.2, S5.5, S5.6 | Mobs spawn, wander, take damage, die and get culled; item entities spawn and are picked up, publishing the matching events. Immutable actor snapshots track transforms and omit dead or picked-up ids. |
 | `caseWorldManager` | S1.2, S1.4, S1.5, S4.5 | World creation, lookup, save, load, same-world teleport, cross-world rejection and world-time advance. |
 
 ### Not covered
@@ -79,6 +79,7 @@ These need a person at the keyboard or a different harness:
 | Sandbox ImGui debug panel (S7.1) | `run_render_capture.ps1 -ShowDebugInfo` now enables it before frame one and the data source is asserted. The 2026-08-09 session exposed only GDI Generic OpenGL 1.1, so the rendered panel still needs a hardware-backed screenshot. |
 | Selected-block outline (P3) | Picking and interaction share five passing headless assertions, and the line renderer builds in both configurations. The 2026-08-09 capture attempt again exposed only GDI Generic OpenGL 1.1, so the yellow outline still needs a hardware-backed screenshot. |
 | Ore texture render (P4) | Definitions, atlas dimensions and tile identities have four passing headless assertions, and the generated tiles were inspected directly. The GDI Generic OpenGL 1.1 session cannot start the OpenGL 3.3 client, so coal and iron still need a hardware-backed in-world screenshot. |
+| Actor render (P1) | Five lifecycle snapshot assertions and Ogre validation of one mob plus one item pass. `run_render_capture.ps1 -SpawnValidationActors` supplies the visual fixture, but the GL3+ screenshot still needs a hardware-backed session. |
 | Formal data-race detection for the background loader (S0.3) | The V5 stress scenario exercises the real worker and covers the formerly unlocked chunk-map read, but MSVC still provides no ThreadSanitizer proof. |
 
 ## Current Verified Runs
@@ -86,7 +87,7 @@ These need a person at the keyboard or a different harness:
 | Layer | Command | Result |
 | ----- | ------- | ------ |
 | Focused headless tests | `bin\HelloMine3DCoordinateTests.exe`, `bin\HelloMine3DMeshDirtyTests.exe`, `bin\HelloMine3DSaveLoadSmoke.exe`, `bin\HelloMine3DEntityLifecycleSmoke.exe` | All pass. |
-| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=127 failures=0` (Debug and Release, 2026-08-09) |
+| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=132 failures=0` (Debug and Release, 2026-08-09) |
 | E0 dependency boundary | `rg "SFML|sf::|GLfloat|GLuint|glad" src/HelloMine3D/World` | No matches (2026-08-09). |
 | E1 engine build | `tools\premake\premake5 --os=windows --file=premake/premake.lua vs2022`, then full Debug/Release solution builds | Ogre 1.10 core, GLSupport, GL3Plus, FreeImage dependency chain, dedicated Ogre FreeType, zlib, zzip and OIS all compile with 0 errors (2026-08-09). |
 | E2 bootstrap validation | `set HELLOMINE3D_VALIDATE_ONLY=1` then `bin\HelloMine3D.exe` | Debug and Release register `OpenGL 3+ Rendering Subsystem`, 2 resource locations and OIS, then shut down cleanly (2026-08-09). |
@@ -95,6 +96,7 @@ These need a person at the keyboard or a different harness:
 | E4 Ogre diagnostics | Add `HELLO_RENDER_CAPTURE=1`, `HELLO_RENDER_CAPTURE_MS=0,250,1000`, and an isolated `HELLO_RENDER_CAPTURE_DIR` to the E4 validation command | Debug and Release report `capture_config=valid`, `capture_enabled=true`, and `capture_targets=3`. Both scripts target the sole client executable (2026-08-09). |
 | E4 Ogre HUD/ImGui | Add `HELLOMINE3D_SHOW_DEBUG_INFO=1`, then repeat with `off` | Debug and Release report `hud_config=valid`, five hotbar slots, selected slot zero, and the matching enabled/disabled debug-panel state. OIS key/mouse events, F1 toggling, render-queue submission and camera input suppression compile in both configurations (2026-08-09). |
 | E5 single render path | `rg -n "SFML|sf::|glad|imgui.?sfml|HelloMine3DOgreBootstrap" src/HelloMine3D premake tools` plus full Debug/Release builds and all five tests | No old client/render dependencies remain; versioned CPU mesh upload checks pass and `HelloMine3D.exe` is the only client target (2026-08-09). |
+| P1 actor bridge | Add `HELLOMINE3D_SPAWN_VALIDATION_ACTORS=1` to a hardware capture, or use `tools\run_render_capture.ps1 -SpawnValidationActors` | Debug/Release validation report `actor_config=valid`, `actor_count=2`, `mob_count=1`, `item_count=1`; five P1 snapshot assertions pass (2026-08-09). |
 | Render smoke | see `docs/render-regression-smoke.md` | `bin/render_capture_20260807190230074-46036`, status PASS |
 | Performance baseline | see `docs/performance-baseline.md` | `bin/perf_baseline_20260807190255313-41064`, `frame_p95_ms=16.430` |
 

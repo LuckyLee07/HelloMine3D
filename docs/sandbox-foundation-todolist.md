@@ -161,8 +161,8 @@ Goal: replace the current thin `Entity` with a minimal actor model that can supp
 | S5.2 | Done | Add `LivingActor`. | `S5.2/mob-is-living-actor`, `S5.2/mob-takes-damage`, `S5.2/mob-dies`. Invulnerability timing is still not implemented. |
 | S5.3 | Done | Add `PlayerActor` and `PlayerController`. | `PlayerInputState` feeds the same `PlayerController::applyInput()` path as live Ogre/OIS collection. `V2/*` asserts movement, flying jump, fly/sneak toggles, look delta and hotbar selection without moving the real mouse. |
 | S5.4 | Done | Add `Inventory` and hotbar. | `S2.6/player-inventory-restored`, `S3.5/break-adds-configured-drop`, `S3.4/place-consumes-item`, `S5.5/item-entity-picked-up`. |
-| S5.5 | Done | Add `ItemEntity`. | `S5.5/item-entity-spawns`, `S5.5/item-entity-found`, `S5.5/item-entity-picked-up`. Rendering and entity persistence remain open (see `docs/todolist.md`). |
-| S5.6 | Done | Add first `MobActor`. | `S5.6/mob-spawns`, `S5.6/mob-wanders-on-tick`, plus the damage/death chain above and `HelloMine3DEntityLifecycleSmoke`. |
+| S5.5 | Done | Add `ItemEntity`. | `S5.5/item-entity-spawns`, `S5.5/item-entity-found`, `S5.5/item-entity-picked-up`, plus P1 item snapshot creation/removal. Ogre rendering is implemented; entity persistence and the hardware screenshot remain open (see `docs/todolist.md`). |
+| S5.6 | Done | Add first `MobActor`. | `S5.6/mob-spawns`, `S5.6/mob-wanders-on-tick`, plus the damage/death chain and P1 mob snapshot transform/removal assertions. Ogre rendering is implemented; the hardware screenshot remains open. |
 
 ## Milestone S6: Terrain Generation and Content Structure
 
@@ -200,13 +200,13 @@ The sandbox foundation can be considered ready for adventure gameplay when all o
 | 4 | Mesh updates are local, automatic, and visible on chunk/section boundaries. | Met (S0.5) |
 | 5 | World metadata stores seed, spawn point, and player position. | Met (S2.1, S2.6) |
 | 6 | A basic inventory and hotbar exist. | Met (S5.4) |
-| 7 | Dropped item entities can spawn and be picked up. | Partly met — logic works, entities are not rendered |
-| 8 | At least one simple Mob actor can spawn, tick, take damage, die, and drop an item. | Partly met — logic works, mobs are not rendered |
+| 7 | Dropped item entities can spawn and be picked up. | Partly met — logic and Ogre renderer are implemented; hardware capture pending (P1) |
+| 8 | At least one simple Mob actor can spawn, tick, take damage, die, and drop an item. | Partly met — logic and Ogre renderer are implemented; hardware capture pending (P1) |
 | 9 | Debug UI or logs expose chunk, mesh, save, and entity counters. | Met (S0.4, S7.1 data path) |
 | 10 | A smoke test verifies save/load and coordinate conversion. | Met (S7.2, S7.3) |
 
 The three partly-met criteria are carried into `docs/todolist.md` as the next
-closed loop; entity rendering is the single biggest blocker.
+closed loop; entity rendering now only awaits the hardware-backed P1 capture.
 
 ## Notes
 

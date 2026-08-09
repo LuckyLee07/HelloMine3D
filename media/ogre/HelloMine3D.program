@@ -75,3 +75,19 @@ fragment_program HelloMine3D/OutlineFragment glsl
     source HelloMine3DOutline.frag
     syntax glsl150
 }
+
+vertex_program HelloMine3D/ActorVertex glsl
+{
+    source HelloMine3DActor.vert
+    syntax glsl150
+    default_params
+    {
+        param_named_auto worldViewProj worldviewproj_matrix
+    }
+}
+
+fragment_program HelloMine3D/ActorFragment glsl
+{
+    source HelloMine3DActor.frag
+    syntax glsl150
+}

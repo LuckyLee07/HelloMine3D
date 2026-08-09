@@ -131,3 +131,47 @@ material HelloMine3D/Outline
         }
     }
 }
+
+material HelloMine3D/ActorMob
+{
+    technique
+    {
+        pass
+        {
+            lighting off
+            depth_write on
+            cull_hardware none
+
+            vertex_program_ref HelloMine3D/ActorVertex
+            {
+            }
+
+            fragment_program_ref HelloMine3D/ActorFragment
+            {
+                param_named actorTint float4 0.24 0.78 0.30 1.0
+            }
+        }
+    }
+}
+
+material HelloMine3D/ActorItem
+{
+    technique
+    {
+        pass
+        {
+            lighting off
+            depth_write on
+            cull_hardware none
+
+            vertex_program_ref HelloMine3D/ActorVertex
+            {
+            }
+
+            fragment_program_ref HelloMine3D/ActorFragment
+            {
+                param_named actorTint float4 1.0 0.67 0.12 1.0
+            }
+        }
+    }
+}

@@ -40,7 +40,7 @@ through `RenderWindow::writeContentsToFile`; it does not use desktop
 Command:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\run_render_capture.ps1 -StopExisting -CaptureMs 4000,6000 -Seconds 8 -PlayerRotation "20 118.4 0"
+powershell -ExecutionPolicy Bypass -File tools\run_render_capture.ps1 -StopExisting -CaptureMs 4000,6000 -Seconds 8 -PlayerRotation "20 118.4 0" -SpawnValidationActors
 ```
 
 The script always starts `bin\HelloMine3D.exe`, the sole Ogre client. Actual
@@ -60,7 +60,8 @@ Pass condition:
 
 - The script prints `[RENDER_CAPTURE] status=PASS`.
 - The output PNG files are non-empty.
-- The images show terrain blocks and textures, not a solid blue or black frame.
+- The images show terrain blocks and textures, a green mob cube and an amber
+  dropped-item cube, not a solid blue or black frame.
 
 ## Last Hardware-Backed Run (Pre-E5)
 
@@ -108,6 +109,7 @@ environment variables, normally set by `tools/run_render_capture.ps1`:
 | `HELLOMINE3D_PLAYER_POSITION` | Optional deterministic player position override. |
 | `HELLOMINE3D_PLAYER_ROTATION` | Optional deterministic player rotation override. |
 | `HELLOMINE3D_SHOW_DEBUG_INFO` | Starts with the F1 debug panels visible. The script sets it with `-ShowDebugInfo`. |
+| `HELLOMINE3D_SPAWN_VALIDATION_ACTORS` | Spawns one mob and one dropped item in front of the player. The script sets it with `-SpawnValidationActors`. |
 
 `WindowScreenshot` mode is kept only as a fallback/manual diagnostic path. It
 uses desktop screenshot APIs and can capture another foreground window if the
@@ -121,3 +123,4 @@ Rerun this smoke after changes to:
 - `ChunkMesh`, `ChunkSection`, versioned mesh snapshots, or GPU buffer upload/cleanup.
 - world startup, seed/player restore, save directory routing, or camera setup.
 - Ogre window/context creation, OIS input, or frame sequencing in `OgreBootstrap.cpp`.
+- actor snapshots, actor lifecycle, or `OgreActorRenderer` scene-node synchronization.

@@ -33,7 +33,8 @@ queries, block mutation events, and chunk mesh update scheduling.
 collects devices and `PlayerController` applies those commands deterministically.
 
 `Ogre/` is the runtime rendering layer. `ChunkSectionRenderable` owns Ogre GPU
-buffers for solid, water and flora meshes; `OgreBlockOutline`,
+buffers for solid, water and flora meshes; `OgreActorRenderer` mirrors immutable
+actor snapshots into simple mob/item scene nodes; `OgreBlockOutline`,
 `OgreUserInterface` and `OgreRenderCapture` own selection feedback, HUD/debug UI
 and screenshots. Materials and GLSL programs live under `media/ogre/`.
 

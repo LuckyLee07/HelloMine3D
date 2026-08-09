@@ -72,6 +72,7 @@ class World : public NonCopyable {
     bool save();
     float getWorldTime() const;
     WorldDebugStats collectDebugStats();
+    std::vector<ActorSnapshot> collectActorSnapshots();
     WorldMeshSnapshot collectSectionMeshSnapshot();
     void acknowledgeSectionMeshUploads(
         const std::vector<WorldSectionMeshVersion> &versions);

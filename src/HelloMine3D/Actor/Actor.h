@@ -18,6 +18,14 @@ struct ActorSaveState {
     bool alive = true;
 };
 
+struct ActorSnapshot {
+    ActorId id = InvalidActorId;
+    std::string type;
+    glm::vec3 position{0.f};
+    glm::vec3 rotation{0.f};
+    glm::vec3 dimensions{0.f};
+};
+
 class Actor : public Entity {
   public:
     Actor(ActorId id, std::string type, const glm::vec3 &position,
@@ -29,6 +37,7 @@ class Actor : public Entity {
     virtual void tick(World &world, float dt);
 
     ActorSaveState getSaveState() const;
+    ActorSnapshot getSnapshot() const;
     void applySaveState(const ActorSaveState &state);
 
     ActorId getId() const;

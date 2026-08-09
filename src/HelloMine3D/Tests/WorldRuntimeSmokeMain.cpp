@@ -1507,6 +1507,14 @@ void caseActors()
     check("S4.4/entity-spawn-event",
           events.count(SandboxEventType::EntitySpawn) == 1);
 
+    auto actorSnapshots = world.collectActorSnapshots();
+    check("P1/mob-render-snapshot",
+          actorSnapshots.size() == 1 &&
+              actorSnapshots.front().id == mobId &&
+              actorSnapshots.front().type == "validation_mob" &&
+              actorSnapshots.front().dimensions ==
+                  glm::vec3(0.35f, 0.9f, 0.35f));
+
     auto *mob = dynamic_cast<LivingActor *>(
         world.getActorManager().findActor(mobId));
     if (mob == nullptr) {
@@ -1522,6 +1530,10 @@ void caseActors()
     const float moved = glm::length(mob->position - startPosition);
     check("S5.6/mob-wanders-on-tick", moved > 0.f,
           "moved " + std::to_string(moved));
+    actorSnapshots = world.collectActorSnapshots();
+    check("P1/mob-render-transform-updates",
+          actorSnapshots.size() == 1 &&
+              actorSnapshots.front().position == mob->position);
 
     events.reset();
     mob->damage(world, 5.f);
@@ -1536,6 +1548,12 @@ void caseActors()
     check("S5.2/mob-dies", !mob->isAlive());
     check("S4.4/entity-death-event",
           events.count(SandboxEventType::EntityDeath) == 1);
+    actorSnapshots = world.collectActorSnapshots();
+    check("P1/dead-mob-is-not-rendered",
+          std::none_of(actorSnapshots.begin(), actorSnapshots.end(),
+                       [mobId](const ActorSnapshot &snapshot) {
+                           return snapshot.id == mobId;
+                       }));
 
     world.tick(100);
     check("S5.1/dead-actors-removed",
@@ -1547,6 +1565,16 @@ void caseActors()
     const ActorId itemId = world.spawnItemEntity(Material::ID::Stone, 3,
                                                  player.position);
     check("S5.5/item-entity-spawns", itemId != InvalidActorId);
+    actorSnapshots = world.collectActorSnapshots();
+    const auto itemSnapshot = std::find_if(
+        actorSnapshots.begin(), actorSnapshots.end(),
+        [itemId](const ActorSnapshot &snapshot) {
+            return snapshot.id == itemId;
+        });
+    check("P1/item-render-snapshot",
+          itemSnapshot != actorSnapshots.end() &&
+              itemSnapshot->type == "item" &&
+              itemSnapshot->dimensions == glm::vec3(0.25f));
 
     auto *item =
         dynamic_cast<ItemEntity *>(world.getActorManager().findActor(itemId));
@@ -1568,6 +1596,12 @@ void caseActors()
           events.count(SandboxEventType::ItemPickup) == 1);
     check("S4.5/pickup-publishes-inventory-event",
           events.count(SandboxEventType::PlayerInventoryChanged) == 1);
+    actorSnapshots = world.collectActorSnapshots();
+    check("P1/picked-item-is-not-rendered",
+          std::none_of(actorSnapshots.begin(), actorSnapshots.end(),
+                       [itemId](const ActorSnapshot &snapshot) {
+                           return snapshot.id == itemId;
+                       }));
 }
 
 // ---------------------------------------------------------------------------

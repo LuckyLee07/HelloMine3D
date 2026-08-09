@@ -37,6 +37,17 @@ ActorSaveState Actor::getSaveState() const
     return state;
 }
 
+ActorSnapshot Actor::getSnapshot() const
+{
+    ActorSnapshot snapshot;
+    snapshot.id = m_id;
+    snapshot.type = m_type;
+    snapshot.position = position;
+    snapshot.rotation = rotation;
+    snapshot.dimensions = box.dimensions;
+    return snapshot;
+}
+
 void Actor::applySaveState(const ActorSaveState &state)
 {
     m_id = state.id;

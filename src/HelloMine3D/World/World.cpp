@@ -539,6 +539,12 @@ WorldDebugStats World::collectDebugStats()
     return stats;
 }
 
+std::vector<ActorSnapshot> World::collectActorSnapshots()
+{
+    std::unique_lock<std::mutex> lock(m_mainMutex);
+    return m_actorManager.collectSnapshots();
+}
+
 void World::preloadAround(const glm::vec3 &position)
 {
     std::unique_lock<std::mutex> lock(m_mainMutex);
