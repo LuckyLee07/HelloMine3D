@@ -1,5 +1,7 @@
 /.vcpkg/
-/bin/
+/bin/*
+!/bin/Mine.cfg
+!/bin/MineResources.cfg
 /build/
 /vcpkg_installed/
 /packages/

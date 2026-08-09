@@ -65,7 +65,7 @@ local function project_source_patterns()
     }
 
     for _, dir in ipairs(os.matchdirs(source_dir .. "/*")) do
-        if path.getname(dir) ~= "Tests" then
+        if path.getname(dir) ~= "Tests" and path.getname(dir) ~= "Ogre" then
             table.insert(patterns, dir .. "/**.h")
             table.insert(patterns, dir .. "/**.cpp")
         end
@@ -345,6 +345,98 @@ end
 project(project_name)
     configure_game_runtime_target()
     files(project_source_patterns())
+
+project "HelloMine3DOgreBootstrap"
+    kind "ConsoleApp"
+    location "../build/%{prj.name}"
+    targetdir "../bin"
+    debugdir "../bin"
+    objdir "../build/%{prj.name}/obj/%{cfg.platform}/%{cfg.buildcfg}"
+    dependson {
+        "ogre3d",
+        "ogre3d_glsupport",
+        "ogre3d_gl3plus",
+        "freeimage",
+        "ogre_freetype",
+        "zlib",
+        "zzip",
+        "ois"
+    }
+
+    files {
+        source_dir .. "/Ogre/**.h",
+        source_dir .. "/Ogre/**.cpp"
+    }
+
+    includedirs {
+        source_dir,
+        "../src/Engine/ogre3d/include",
+        "../src/Engine/ogre3d_glsupport/include",
+        "../src/Engine/ogre3d_glsupport/include/GLSL",
+        "../src/Engine/ogre3d_glsupport/include/win32",
+        "../src/Engine/ogre3d_gl3plus/include",
+        "../src/Engine/ogre3d_gl3plus/include/GLSL",
+        "../src/external/ois/includes",
+        "../src/external/ois/includes/win32"
+    }
+
+    links {
+        "ogre3d_gl3plus",
+        "ogre3d_glsupport",
+        "ogre3d",
+        "freeimage",
+        "libjpeg",
+        "libopenjpeg",
+        "libpng",
+        "libraw",
+        "libtiff4",
+        "openexr",
+        "ogre_freetype",
+        "zzip",
+        "zlib",
+        "ois"
+    }
+
+    defines {
+        "OGRE_STATIC_LIB",
+        "OGRE_BUILD_RENDERSYSTEM_GL3PLUS",
+        "FREEIMAGE_LIB"
+    }
+
+    filter "system:windows"
+        defines { "_CRT_SECURE_NO_WARNINGS" }
+        links {
+            "opengl32",
+            "winmm",
+            "gdi32",
+            "user32",
+            "shell32",
+            "comctl32",
+            "dinput8",
+            "dxguid",
+            "ws2_32"
+        }
+
+    filter "system:macosx"
+        linkoptions {
+            "-framework Cocoa",
+            "-framework Carbon",
+            "-framework IOKit",
+            "-framework Foundation",
+            "-framework AppKit",
+            "-framework CoreFoundation",
+            "-framework OpenGL"
+        }
+
+    filter "system:linux"
+        links {
+            "GL",
+            "X11",
+            "pthread",
+            "dl"
+        }
+
+    filter {}
 
 -- Headless runtime validation over the real World/WorldManager/actor code.
 -- Links the whole game runtime except the client entry point.

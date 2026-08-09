@@ -262,6 +262,18 @@ GDI Generic OpenGL 1.1，低于客户端要求的 3.3，因此 render capture �
 
 **阶段目标：Ogre 窗口 + 天空盒 + 自由飞行相机，世界尚未渲染。**
 
+状态：2026-08-09 已完成代码接入，等待硬件图形验收。新增独立的
+`HelloMine3DOgreBootstrap` 目标，与原 SFML 客户端及五个测试目标并存；引导程序负责
+`Root`、GL3Plus 静态插件、`RenderWindow`、`SceneManager`、`Camera`、`FrameListener`、
+OIS 键鼠输入和 Ogre 内置天空盒。`Mine.cfg` 与 `MineResources.cfg` 已纳入版本控制，
+资源组挂载 `media/ogre` 和 `media/textures`。自由相机支持 WASD、空格/Ctrl 垂直移动、
+鼠标视角和 Escape 退出，并提供按帧自动退出的验证入口。
+
+VS2022 Debug/Release 全量构建与五个测试目标全部通过，运行时 smoke 为 123/123；
+无窗口校验模式在两个配置下均成功注册 GL3Plus、两个资源目录和 OIS。窗口探针已进入
+GL3Plus 上下文创建，但自动化会话只提供 GDI Generic OpenGL，低于 OpenGL 3.0，故天空盒
+外观、鼠标视角和自由飞行仍需在硬件加速桌面实测，E2 暂记 `Verify`。
+
 ### E3 区块渲染迁移（2–3 周）— 核心阶段
 
 | 任务 | 验收 |

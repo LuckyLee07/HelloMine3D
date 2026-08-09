@@ -1,0 +1,19 @@
+vertex_program HelloMine3D/SkyboxVertex glsl
+{
+    source HelloMine3DSkybox.vert
+    syntax glsl150
+    default_params
+    {
+        param_named_auto worldViewProj worldviewproj_matrix
+    }
+}
+
+fragment_program HelloMine3D/SkyboxFragment glsl
+{
+    source HelloMine3DSkybox.frag
+    syntax glsl150
+    default_params
+    {
+        param_named skyboxMap int 0
+    }
+}

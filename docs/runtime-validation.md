@@ -88,13 +88,17 @@ These need a person at the keyboard or a different harness:
 | World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=123 failures=0` (Debug and Release, 2026-08-09) |
 | E0 dependency boundary | `rg "SFML|sf::|GLfloat|GLuint|glad" src/HelloMine3D/World` | No matches (2026-08-09). |
 | E1 engine build | `tools\premake\premake5 --os=windows --file=premake/premake.lua vs2022`, then full Debug/Release solution builds | Ogre 1.10 core, GLSupport, GL3Plus, FreeImage dependency chain, dedicated Ogre FreeType, zlib, zzip and OIS all compile with 0 errors (2026-08-09). |
+| E2 bootstrap validation | `set HELLOMINE3D_OGRE_VALIDATE_ONLY=1` then `bin\HelloMine3DOgreBootstrap.exe` | Debug and Release register `OpenGL 3+ Rendering Subsystem`, 2 resource locations and OIS, then shut down cleanly (2026-08-09). |
 | Render smoke | see `docs/render-regression-smoke.md` | `bin/render_capture_20260807190230074-46036`, status PASS |
 | Performance baseline | see `docs/performance-baseline.md` | `bin/perf_baseline_20260807190255313-41064`, `frame_p95_ms=16.430` |
 
 The 2026-08-09 automation session exposed only the Windows GDI Generic OpenGL
 1.1 implementation, below the client's required OpenGL 3.3 context. Headless
 validation is therefore fully current, while the last hardware-backed render
-and performance runs remain the 2026-08-07 records above.
+and performance runs remain the 2026-08-07 records above. The E2 window probe
+reaches GL3Plus context creation and then reports that OpenGL 3.0 is unavailable;
+skybox appearance, mouse look and free-flight controls still need one run in a
+hardware-accelerated desktop session.
 
 ## When To Run
 
