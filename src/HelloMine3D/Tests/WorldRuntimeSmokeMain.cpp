@@ -263,6 +263,66 @@ void casePlayerControllerInput()
     check("V2/fly-toggle-off", !player.isFlying());
 }
 
+int scanHighestOpaqueBlock(const Chunk &chunk, int x, int z)
+{
+    const int highestPossible =
+        static_cast<int>(chunk.getSectionCount() * CHUNK_SIZE) - 1;
+    for (int y = highestPossible; y >= 0; --y) {
+        if (chunk.getBlock(x, y, z).getData().isOpaque) {
+            return y;
+        }
+    }
+    return 0;
+}
+
+// ---------------------------------------------------------------------------
+// V4 - the cached height map follows edits to the highest opaque block
+// ---------------------------------------------------------------------------
+void caseHeightMapEdits()
+{
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+
+    const auto directory = freshSaveDirectory("height_map_edits");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+    Chunk *chunk = world.getChunkManager().findChunk(0, 0);
+    if (chunk == nullptr) {
+        check("V4/chunk-available", false);
+        return;
+    }
+
+    constexpr int x = 8;
+    constexpr int z = 8;
+    const int initialHeight = chunk->getHeightAt(x, z);
+    const int initialScan = scanHighestOpaqueBlock(*chunk, x, z);
+    check("V4/generated-height-matches-scan", initialHeight == initialScan,
+          "cached=" + std::to_string(initialHeight) +
+              " scanned=" + std::to_string(initialScan));
+
+    chunk->setBlock(x, initialHeight, z, BlockId::Air);
+    const int heightAfterBreak = chunk->getHeightAt(x, z);
+    const int scanAfterBreak = scanHighestOpaqueBlock(*chunk, x, z);
+    check("V4/break-highest-updates-height",
+          heightAfterBreak < initialHeight &&
+              heightAfterBreak == scanAfterBreak,
+          "cached=" + std::to_string(heightAfterBreak) +
+              " scanned=" + std::to_string(scanAfterBreak));
+
+    const int placedHeight = initialHeight + 5;
+    chunk->setBlock(x, placedHeight, z, BlockId::Stone);
+    const int heightAfterPlace = chunk->getHeightAt(x, z);
+    const int scanAfterPlace = scanHighestOpaqueBlock(*chunk, x, z);
+    check("V4/place-above-updates-height",
+          heightAfterPlace == placedHeight &&
+              heightAfterPlace == scanAfterPlace,
+          "cached=" + std::to_string(heightAfterPlace) +
+              " scanned=" + std::to_string(scanAfterPlace));
+}
+
 // ---------------------------------------------------------------------------
 // S0.6 - spawn preload uses chunk coordinates
 // ---------------------------------------------------------------------------
@@ -1281,6 +1341,7 @@ int main()
         caseFixedTickScheduler();
         caseBlockTextureCoordinates();
         casePlayerControllerInput();
+        caseHeightMapEdits();
         caseSpawnPreload();
         caseNegativeCoordinates();
         caseNoImplicitChunkCreation();
