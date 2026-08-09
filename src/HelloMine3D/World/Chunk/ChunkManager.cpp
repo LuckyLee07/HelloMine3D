@@ -1,5 +1,6 @@
 #include "ChunkManager.h"
 
+#include <algorithm>
 #include <iostream>
 #include <utility>
 
@@ -131,7 +132,8 @@ ChunkMeshWorkResult ChunkManager::beginMeshJob(int x, int z, int maxChunkLoads,
 }
 
 bool ChunkManager::finishMeshJob(const ChunkMeshJob &job,
-                                 ChunkMeshCollection &built)
+                                 ChunkMeshCollection &built,
+                                 double buildMilliseconds)
 {
     if (!job.valid) {
         return false;
@@ -157,7 +159,7 @@ bool ChunkManager::finishMeshJob(const ChunkMeshJob &job,
     }
 
     section->adoptMesh(built);
-    recordMeshRebuild();
+    recordMeshRebuild(section->getMeshes(), buildMilliseconds);
     return true;
 }
 
@@ -198,13 +200,37 @@ ChunkDebugStats ChunkManager::collectDebugStats() const
             chunk.countSections(ChunkSectionMeshState::GpuBuffered);
     }
     stats.meshRebuilds = m_meshRebuildCount;
+    stats.meshBuildTotalMs = m_meshBuildTotalMs;
+    stats.meshBuildLastMs = m_meshBuildLastMs;
+    stats.meshBuildMaxMs = m_meshBuildMaxMs;
+    stats.solidFaces = m_solidFaceCount;
+    stats.waterFaces = m_waterFaceCount;
+    stats.floraFaces = m_floraFaceCount;
+    stats.solidVertices = m_solidVertexCount;
+    stats.waterVertices = m_waterVertexCount;
+    stats.floraVertices = m_floraVertexCount;
 
     return stats;
 }
 
-void ChunkManager::recordMeshRebuild() noexcept
+void ChunkManager::recordMeshRebuild(const ChunkMeshCollection &meshes,
+                                     double buildMilliseconds) noexcept
 {
     ++m_meshRebuildCount;
+    const double elapsed = std::max(0.0, buildMilliseconds);
+    m_meshBuildTotalMs += elapsed;
+    m_meshBuildLastMs = elapsed;
+    m_meshBuildMaxMs = std::max(m_meshBuildMaxMs, elapsed);
+
+    const auto vertexCount = [](const ChunkMesh &mesh) {
+        return mesh.getClientMesh().vertexPositions.size() / 3;
+    };
+    m_solidFaceCount += static_cast<std::size_t>(meshes.solidMesh.faces);
+    m_waterFaceCount += static_cast<std::size_t>(meshes.waterMesh.faces);
+    m_floraFaceCount += static_cast<std::size_t>(meshes.floraMesh.faces);
+    m_solidVertexCount += vertexCount(meshes.solidMesh);
+    m_waterVertexCount += vertexCount(meshes.waterMesh);
+    m_floraVertexCount += vertexCount(meshes.floraMesh);
 }
 
 void ChunkManager::loadChunk(int x, int z)

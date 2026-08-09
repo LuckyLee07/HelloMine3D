@@ -347,6 +347,29 @@ class OgreUserInterface::Impl
             ImGui::Text("Mesh rebuilds: %llu",
                         static_cast<unsigned long long>(
                             worldStats.chunks.meshRebuilds));
+            const double averageBuildMs =
+                worldStats.chunks.meshRebuilds > 0
+                    ? worldStats.chunks.meshBuildTotalMs /
+                          static_cast<double>(worldStats.chunks.meshRebuilds)
+                    : 0.0;
+            ImGui::Text("Mesh build ms last / avg / max: %.3f / %.3f / %.3f",
+                        worldStats.chunks.meshBuildLastMs, averageBuildMs,
+                        worldStats.chunks.meshBuildMaxMs);
+            ImGui::Text("Mesh faces solid / water / flora: %llu / %llu / %llu",
+                        static_cast<unsigned long long>(
+                            worldStats.chunks.solidFaces),
+                        static_cast<unsigned long long>(
+                            worldStats.chunks.waterFaces),
+                        static_cast<unsigned long long>(
+                            worldStats.chunks.floraFaces));
+            ImGui::Text(
+                "Mesh vertices solid / water / flora: %llu / %llu / %llu",
+                static_cast<unsigned long long>(
+                    worldStats.chunks.solidVertices),
+                static_cast<unsigned long long>(
+                    worldStats.chunks.waterVertices),
+                static_cast<unsigned long long>(
+                    worldStats.chunks.floraVertices));
         }
         ImGui::End();
     }

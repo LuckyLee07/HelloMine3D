@@ -151,8 +151,10 @@ namespace
                "render_ms,debug_gui_ms,render_capture_ms,display_ms,frame_ms,"
                "existing_chunks,loaded_chunks,save_dirty_chunks,sections,"
                "mesh_dirty_sections,cpu_ready_sections,gpu_buffered_sections,"
-               "queued_chunk_updates,mesh_rebuilds,actor_count,terrain_seed,"
-               "world_time,simulation_ticks\n";
+               "queued_chunk_updates,mesh_rebuilds,mesh_build_total_ms,"
+               "mesh_build_last_ms,mesh_build_max_ms,solid_faces,water_faces,"
+               "flora_faces,solid_vertices,water_vertices,flora_vertices,"
+               "actor_count,terrain_seed,world_time,simulation_ticks\n";
     }
 
     void initialize()
@@ -363,6 +365,27 @@ namespace
                     << last.queuedChunkUpdates << "\n";
             summary << "last_mesh_rebuilds=" << last.chunks.meshRebuilds
                     << "\n";
+            summary << "last_mesh_build_total_ms="
+                    << last.chunks.meshBuildTotalMs << "\n";
+            summary << "last_mesh_build_avg_ms="
+                    << (last.chunks.meshRebuilds > 0
+                            ? last.chunks.meshBuildTotalMs /
+                                  static_cast<double>(last.chunks.meshRebuilds)
+                            : 0.0)
+                    << "\n";
+            summary << "last_mesh_build_last_ms="
+                    << last.chunks.meshBuildLastMs << "\n";
+            summary << "last_mesh_build_max_ms="
+                    << last.chunks.meshBuildMaxMs << "\n";
+            summary << "last_solid_faces=" << last.chunks.solidFaces << "\n";
+            summary << "last_water_faces=" << last.chunks.waterFaces << "\n";
+            summary << "last_flora_faces=" << last.chunks.floraFaces << "\n";
+            summary << "last_solid_vertices=" << last.chunks.solidVertices
+                    << "\n";
+            summary << "last_water_vertices=" << last.chunks.waterVertices
+                    << "\n";
+            summary << "last_flora_vertices=" << last.chunks.floraVertices
+                    << "\n";
             summary << "last_actor_count=" << last.actorCount << "\n";
             summary << "terrain_seed=" << last.terrainSeed << "\n";
         }
@@ -441,6 +464,15 @@ void recordFrame(const FrameTimings &timings,
                         << worldStats.chunks.gpuBufferedSections << ","
                         << worldStats.queuedChunkUpdates << ","
                         << worldStats.chunks.meshRebuilds << ","
+                        << worldStats.chunks.meshBuildTotalMs << ","
+                        << worldStats.chunks.meshBuildLastMs << ","
+                        << worldStats.chunks.meshBuildMaxMs << ","
+                        << worldStats.chunks.solidFaces << ","
+                        << worldStats.chunks.waterFaces << ","
+                        << worldStats.chunks.floraFaces << ","
+                        << worldStats.chunks.solidVertices << ","
+                        << worldStats.chunks.waterVertices << ","
+                        << worldStats.chunks.floraVertices << ","
                         << worldStats.actorCount << ","
                         << worldStats.terrainSeed << ","
                         << worldStats.worldTime << ","

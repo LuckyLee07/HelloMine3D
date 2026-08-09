@@ -467,10 +467,21 @@ void World::loadChunks()
 
             if (job.valid) {
                 // No world access here: the builder reads only the snapshot.
+                // A rejected stale job is not adopted, so clear its temporary
+                // data before reusing the allocation for the next section.
+                builtMeshes.solidMesh.clearClientData();
+                builtMeshes.waterMesh.clearClientData();
+                builtMeshes.floraMesh.clearClientData();
+                const auto buildStart = std::chrono::steady_clock::now();
                 ChunkMeshBuilder(job.input, builtMeshes).buildMesh();
+                const double buildMilliseconds =
+                    std::chrono::duration<double, std::milli>(
+                        std::chrono::steady_clock::now() - buildStart)
+                        .count();
 
                 std::unique_lock<std::mutex> lock(m_mainMutex);
-                m_chunkManager.finishMeshJob(job, builtMeshes);
+                m_chunkManager.finishMeshJob(job, builtMeshes,
+                                             buildMilliseconds);
             }
 
             didWork = didWork || result.loadedChunk || result.meshBuilt;
@@ -665,8 +676,14 @@ void World::updateChunks()
     for (auto &c : m_chunkUpdates) {
         ChunkSection &s = *c.second;
         if (s.isMeshDirty()) {
+            const auto buildStart = std::chrono::steady_clock::now();
             s.makeMesh();
-            m_chunkManager.recordMeshRebuild();
+            const double buildMilliseconds =
+                std::chrono::duration<double, std::milli>(
+                    std::chrono::steady_clock::now() - buildStart)
+                    .count();
+            m_chunkManager.recordMeshRebuild(s.getMeshes(),
+                                             buildMilliseconds);
         }
     }
     m_chunkUpdates.clear();

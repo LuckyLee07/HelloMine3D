@@ -26,6 +26,15 @@ struct ChunkDebugStats {
     std::size_t cpuReadySections = 0;
     std::size_t gpuBufferedSections = 0;
     std::size_t meshRebuilds = 0;
+    double meshBuildTotalMs = 0.0;
+    double meshBuildLastMs = 0.0;
+    double meshBuildMaxMs = 0.0;
+    std::size_t solidFaces = 0;
+    std::size_t waterFaces = 0;
+    std::size_t floraFaces = 0;
+    std::size_t solidVertices = 0;
+    std::size_t waterVertices = 0;
+    std::size_t floraVertices = 0;
 };
 
 struct ChunkMeshWorkResult {
@@ -64,12 +73,14 @@ class ChunkManager {
     /// between them must not be.
     ChunkMeshWorkResult beginMeshJob(int x, int z, int maxChunkLoads,
                                      int preferredSectionY, ChunkMeshJob &job);
-    bool finishMeshJob(const ChunkMeshJob &job, ChunkMeshCollection &built);
+    bool finishMeshJob(const ChunkMeshJob &job, ChunkMeshCollection &built,
+                       double buildMilliseconds);
 
     bool chunkLoadedAt(int x, int z) const;
     bool chunkExistsAt(int x, int z) const;
     ChunkDebugStats collectDebugStats() const;
-    void recordMeshRebuild() noexcept;
+    void recordMeshRebuild(const ChunkMeshCollection &meshes,
+                           double buildMilliseconds) noexcept;
 
     void loadChunk(int x, int z);
     void unloadChunk(int x, int z);
@@ -88,6 +99,15 @@ class ChunkManager {
     ChunkStorage m_chunkStorage;
     int m_terrainSeed = 0;
     std::size_t m_meshRebuildCount = 0;
+    double m_meshBuildTotalMs = 0.0;
+    double m_meshBuildLastMs = 0.0;
+    double m_meshBuildMaxMs = 0.0;
+    std::size_t m_solidFaceCount = 0;
+    std::size_t m_waterFaceCount = 0;
+    std::size_t m_floraFaceCount = 0;
+    std::size_t m_solidVertexCount = 0;
+    std::size_t m_waterVertexCount = 0;
+    std::size_t m_floraVertexCount = 0;
 
     World *m_world;
 };

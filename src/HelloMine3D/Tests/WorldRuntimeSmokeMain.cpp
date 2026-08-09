@@ -45,6 +45,7 @@
 #include "../World/Block/BlockTextureCoordinates.h"
 #include "../World/Interaction/BlockSelection.h"
 #include "../World/Interaction/BlockInteractionSystem.h"
+#include "../World/Chunk/ChunkMeshBuilder.h"
 #include "../World/Chunk/SectionMeshInput.h"
 #include "../World/Storage/ChunkStorage.h"
 #include "../World/Storage/WorldSave.h"
@@ -1011,6 +1012,53 @@ void caseSectionMeshInput()
 
     SectionMeshInput input;
     section->captureMeshInput(input);
+
+    ChunkMeshCollection measuredMeshes;
+    ChunkMeshBuilder(input, measuredMeshes).buildMesh();
+    const ChunkDebugStats metricsBefore = chunks.collectDebugStats();
+    constexpr double measuredBuildMs = 1.25;
+    chunks.recordMeshRebuild(measuredMeshes, measuredBuildMs);
+    const ChunkDebugStats metricsAfter = chunks.collectDebugStats();
+
+    const std::size_t solidFaces =
+        static_cast<std::size_t>(measuredMeshes.solidMesh.faces);
+    const std::size_t waterFaces =
+        static_cast<std::size_t>(measuredMeshes.waterMesh.faces);
+    const std::size_t floraFaces =
+        static_cast<std::size_t>(measuredMeshes.floraMesh.faces);
+    const auto vertices = [](const ChunkMesh &mesh) {
+        return mesh.getClientMesh().vertexPositions.size() / 3;
+    };
+    check("M1/rebuild-count-recorded",
+          metricsAfter.meshRebuilds == metricsBefore.meshRebuilds + 1);
+    check("M1/build-time-recorded",
+          std::abs(metricsAfter.meshBuildTotalMs -
+                       metricsBefore.meshBuildTotalMs - measuredBuildMs) <
+                  0.001 &&
+              std::abs(metricsAfter.meshBuildLastMs - measuredBuildMs) <
+                  0.001 &&
+              metricsAfter.meshBuildMaxMs >= measuredBuildMs);
+    check("M1/face-counts-recorded",
+          metricsAfter.solidFaces == metricsBefore.solidFaces + solidFaces &&
+              metricsAfter.waterFaces == metricsBefore.waterFaces +
+                  waterFaces &&
+              metricsAfter.floraFaces == metricsBefore.floraFaces +
+                  floraFaces &&
+              solidFaces + waterFaces + floraFaces > 0);
+    check("M1/vertex-counts-recorded",
+          metricsAfter.solidVertices ==
+                  metricsBefore.solidVertices +
+                      vertices(measuredMeshes.solidMesh) &&
+              metricsAfter.waterVertices ==
+                  metricsBefore.waterVertices +
+                      vertices(measuredMeshes.waterMesh) &&
+              metricsAfter.floraVertices ==
+                  metricsBefore.floraVertices +
+                      vertices(measuredMeshes.floraMesh));
+    check("M1/four-vertices-per-face",
+          vertices(measuredMeshes.solidMesh) == solidFaces * 4 &&
+              vertices(measuredMeshes.waterMesh) == waterFaces * 4 &&
+              vertices(measuredMeshes.floraMesh) == floraFaces * 4);
 
     // Every cell of the 18^3 halo must agree with a direct world read,
     // including the border that reaches into neighbouring chunks.
