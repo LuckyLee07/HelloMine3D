@@ -782,6 +782,117 @@ void caseMeshDirtyPropagation()
               " dirty=" + std::to_string(stats.chunks.meshDirtySections));
     check("S0.4/debug-stats-report-seed", stats.terrainSeed == kValidationSeed,
           "seed=" + std::to_string(stats.terrainSeed));
+
+    // M2 - rebuild only a small FIFO batch each frame, even when edits dirty
+    // many independent sections before the next update.
+    int drainGuard = 0;
+    while (world.collectDebugStats().queuedChunkUpdates > 0 &&
+           drainGuard++ < 16) {
+        world.update(camera);
+    }
+
+    struct QueueTarget {
+        int blockX;
+        int blockZ;
+        ChunkSection *section = nullptr;
+    };
+    std::array<QueueTarget, 5> queueTargets{{
+        {-8, -8},
+        {8, -8},
+        {24, -8},
+        {-8, 8},
+        {8, 8},
+    }};
+    constexpr int queueBlockY = 100;
+    const int queueSectionY = queueBlockY / CHUNK_SIZE;
+
+    for (auto &entry : queueTargets) {
+        const ChunkBlock current =
+            world.getBlock(entry.blockX, queueBlockY, entry.blockZ);
+        world.setBlock(entry.blockX, queueBlockY, entry.blockZ,
+                       current.id == static_cast<Block_t>(BlockId::Stone)
+                           ? ChunkBlock(BlockId::Dirt)
+                           : ChunkBlock(BlockId::Stone));
+        const auto chunkPosition =
+            World::getChunkXZ(entry.blockX, entry.blockZ);
+        entry.section =
+            sectionAt(chunkPosition.x, chunkPosition.z, queueSectionY);
+    }
+    drainGuard = 0;
+    while (world.collectDebugStats().queuedChunkUpdates > 0 &&
+           drainGuard++ < 16) {
+        world.update(camera);
+    }
+
+    for (const auto &entry : queueTargets) {
+        const ChunkBlock current =
+            world.getBlock(entry.blockX, queueBlockY, entry.blockZ);
+        world.setBlock(entry.blockX, queueBlockY, entry.blockZ,
+                       current.id == static_cast<Block_t>(BlockId::CoalOre)
+                           ? ChunkBlock(BlockId::Dirt)
+                           : ChunkBlock(BlockId::CoalOre));
+    }
+    const auto queuedBeforeDuplicate =
+        world.collectDebugStats().queuedChunkUpdates;
+    world.setBlock(queueTargets.front().blockX, queueBlockY,
+                   queueTargets.front().blockZ, BlockId::IronOre);
+    const WorldDebugStats queuedStats = world.collectDebugStats();
+    check("M2/queue-deduplicates-sections",
+          queuedBeforeDuplicate == queueTargets.size() &&
+              queuedStats.queuedChunkUpdates == queueTargets.size(),
+          "queued=" + std::to_string(queuedStats.queuedChunkUpdates));
+
+    const std::size_t rebuildsBeforeBatch =
+        queuedStats.chunks.meshRebuilds;
+    world.update(camera);
+    const WorldDebugStats firstBatchStats = world.collectDebugStats();
+    const std::size_t firstBatchRebuilds =
+        firstBatchStats.chunks.meshRebuilds - rebuildsBeforeBatch;
+    check("M2/frame-rebuild-budget",
+          firstBatchRebuilds == World::ChunkMeshRebuildBudgetPerUpdate &&
+              firstBatchStats.queuedChunkUpdates ==
+                  queueTargets.size() -
+                      World::ChunkMeshRebuildBudgetPerUpdate,
+          "rebuilt=" + std::to_string(firstBatchRebuilds) +
+              " remaining=" +
+              std::to_string(firstBatchStats.queuedChunkUpdates));
+
+    bool fifoState = true;
+    for (std::size_t index = 0; index < queueTargets.size(); ++index) {
+        const bool shouldRemainDirty =
+            index >= World::ChunkMeshRebuildBudgetPerUpdate;
+        fifoState = fifoState && queueTargets[index].section != nullptr &&
+                    queueTargets[index].section->isMeshDirty() ==
+                        shouldRemainDirty;
+    }
+    check("M2/fifo-order-preserved", fifoState);
+
+    std::size_t updateCount = 1;
+    while (world.collectDebugStats().queuedChunkUpdates > 0 &&
+           updateCount < queueTargets.size()) {
+        world.update(camera);
+        ++updateCount;
+    }
+    const WorldDebugStats drainedStats = world.collectDebugStats();
+    bool allTargetsReady = true;
+    for (const auto &entry : queueTargets) {
+        allTargetsReady = allTargetsReady && entry.section != nullptr &&
+                          !entry.section->isMeshDirty();
+    }
+    check("M2/queue-drains-across-frames",
+          drainedStats.queuedChunkUpdates == 0 && allTargetsReady &&
+              drainedStats.chunks.meshRebuilds - rebuildsBeforeBatch ==
+                  queueTargets.size(),
+          "updates=" + std::to_string(updateCount) +
+              " rebuilt=" +
+              std::to_string(drainedStats.chunks.meshRebuilds -
+                             rebuildsBeforeBatch));
+
+    const std::size_t rebuildsAfterDrain = drainedStats.chunks.meshRebuilds;
+    world.update(camera);
+    check("M2/empty-queue-does-no-work",
+          world.collectDebugStats().chunks.meshRebuilds ==
+              rebuildsAfterDrain);
 }
 
 // ---------------------------------------------------------------------------

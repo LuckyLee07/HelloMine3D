@@ -4,11 +4,12 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
-#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "../Actor/ActorManager.h"
@@ -56,6 +57,8 @@ class World : public NonCopyable {
     friend class ChunkSection;
 
   public:
+    static constexpr std::size_t ChunkMeshRebuildBudgetPerUpdate = 2;
+
     World(const Camera &camera, const Config &config, Player &player,
           std::string saveDirectory = "",
           bool startBackgroundLoader = true,
@@ -138,7 +141,8 @@ class World : public NonCopyable {
     WorldSaveData m_worldSaveData;
 
     std::vector<std::unique_ptr<IWorldEvent>> m_events;
-    std::unordered_map<glm::ivec3, ChunkSection *, IVec3Hash> m_chunkUpdates;
+    std::deque<glm::ivec3> m_chunkUpdateQueue;
+    std::unordered_set<glm::ivec3, IVec3Hash> m_queuedChunkUpdates;
 
     std::atomic<bool> m_isRunning{true};
     std::vector<std::thread> m_chunkLoadThreads;

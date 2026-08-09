@@ -547,7 +547,7 @@ WorldDebugStats World::collectDebugStats()
     WorldDebugStats stats;
     stats.chunks = m_chunkManager.collectDebugStats();
     stats.actorCount = m_actorManager.getActorCount();
-    stats.queuedChunkUpdates = m_chunkUpdates.size();
+    stats.queuedChunkUpdates = m_chunkUpdateQueue.size();
     stats.terrainSeed = m_chunkManager.getTerrainSeed();
     stats.worldTime = m_worldSaveData.worldTime;
     return stats;
@@ -601,7 +601,9 @@ void World::queueChunkUpdate(int blockX, int blockY, int blockZ)
         }
 
         section->markMeshDirty();
-        m_chunkUpdates.emplace(key, section);
+        if (m_queuedChunkUpdates.emplace(key).second) {
+            m_chunkUpdateQueue.push_back(key);
+        }
     };
 
     for (const auto &update :
@@ -673,20 +675,30 @@ int World::floorMod(int value, int divisor)
 void World::updateChunks()
 {
     std::unique_lock<std::mutex> lock(m_mainMutex);
-    for (auto &c : m_chunkUpdates) {
-        ChunkSection &s = *c.second;
-        if (s.isMeshDirty()) {
+    std::size_t processed = 0;
+    while (processed < ChunkMeshRebuildBudgetPerUpdate &&
+           !m_chunkUpdateQueue.empty()) {
+        const glm::ivec3 key = m_chunkUpdateQueue.front();
+        m_chunkUpdateQueue.pop_front();
+        m_queuedChunkUpdates.erase(key);
+        ++processed;
+
+        Chunk *chunk = m_chunkManager.findChunk(key.x, key.z);
+        ChunkSection *section =
+            chunk != nullptr && chunk->hasLoaded()
+                ? chunk->findSection(key.y)
+                : nullptr;
+        if (section != nullptr && section->isMeshDirty()) {
             const auto buildStart = std::chrono::steady_clock::now();
-            s.makeMesh();
+            section->makeMesh();
             const double buildMilliseconds =
                 std::chrono::duration<double, std::milli>(
                     std::chrono::steady_clock::now() - buildStart)
                     .count();
-            m_chunkManager.recordMeshRebuild(s.getMeshes(),
+            m_chunkManager.recordMeshRebuild(section->getMeshes(),
                                              buildMilliseconds);
         }
     }
-    m_chunkUpdates.clear();
 }
 
 void World::preloadChunksAround(const glm::vec3 &position, int radius)
