@@ -52,3 +52,60 @@ material HelloMine3D/Terrain
         }
     }
 }
+
+material HelloMine3D/Water
+{
+    technique
+    {
+        pass
+        {
+            lighting off
+            depth_write off
+            scene_blend alpha_blend
+            cull_hardware none
+
+            vertex_program_ref HelloMine3D/WaterVertex
+            {
+            }
+
+            fragment_program_ref HelloMine3D/TerrainFragment
+            {
+            }
+
+            texture_unit terrainAtlas
+            {
+                texture DefaultPack.png
+                tex_address_mode clamp
+                filtering none
+            }
+        }
+    }
+}
+
+material HelloMine3D/Flora
+{
+    technique
+    {
+        pass
+        {
+            lighting off
+            depth_write on
+            cull_hardware none
+
+            vertex_program_ref HelloMine3D/FloraVertex
+            {
+            }
+
+            fragment_program_ref HelloMine3D/TerrainFragment
+            {
+            }
+
+            texture_unit terrainAtlas
+            {
+                texture DefaultPack.png
+                tex_address_mode clamp
+                filtering none
+            }
+        }
+    }
+}

@@ -90,6 +90,7 @@ These need a person at the keyboard or a different harness:
 | E1 engine build | `tools\premake\premake5 --os=windows --file=premake/premake.lua vs2022`, then full Debug/Release solution builds | Ogre 1.10 core, GLSupport, GL3Plus, FreeImage dependency chain, dedicated Ogre FreeType, zlib, zzip and OIS all compile with 0 errors (2026-08-09). |
 | E2 bootstrap validation | `set HELLOMINE3D_OGRE_VALIDATE_ONLY=1` then `bin\HelloMine3DOgreBootstrap.exe` | Debug and Release register `OpenGL 3+ Rendering Subsystem`, 2 resource locations and OIS, then shut down cleanly (2026-08-09). |
 | E3 terrain bridge | Set `HELLOMINE3D_OGRE_VALIDATE_ONLY=1`, `HELLOMINE3D_SEED=20260809`, `HELLOMINE3D_PLAYER_POSITION=8 96 8`, then run `bin\HelloMine3DOgreBootstrap.exe` | Debug and Release build real terrain and validate 10 solid sections, 14,460 vertices and 21,690 indices, including section-local bounds, UV/light cardinality and index ranges (2026-08-09). |
+| E4 water/flora bridge | Use the E3 command with `HELLOMINE3D_PLAYER_POSITION=264 96 8` | Debug and Release validate 19 solid sections (20,796 vertices), 3 water sections (1,736 vertices), and 13 flora sections (1,116 vertices); each path has valid UV/light/index data and a dedicated render queue (2026-08-09). |
 | Render smoke | see `docs/render-regression-smoke.md` | `bin/render_capture_20260807190230074-46036`, status PASS |
 | Performance baseline | see `docs/performance-baseline.md` | `bin/perf_baseline_20260807190255313-41064`, `frame_p95_ms=16.430` |
 

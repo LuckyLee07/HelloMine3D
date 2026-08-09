@@ -314,6 +314,16 @@ Ogre 视锥剔除和与迁移前基线的性能对比需在硬件加速桌面补
 | `Diagnostics/RuntimeRenderCapture` 改用 `RenderWindow::writeContentsToFile` | 截图 smoke 通过 |
 | `Diagnostics/RuntimePerformanceCapture` 接 Ogre `FrameListener` | perf CSV 正常 |
 
+进展：2026-08-09 已完成 water / flora 材质与渲染队列迁移。两者复用 E3 的
+`ChunkSectionRenderable` 缓冲和 section AABB；water 使用透明混合、关闭深度写入并进入
+队列 80，flora 保持深度写入并进入队列 60。两套顶点程序保留旧路径的正弦水面起伏与
+植被摆动，时间由 Ogre `time_0_x` 自动常量提供；图集继续使用 `filtering none`。
+
+固定种子 `20260809`、位置 `264 96 8` 的无窗口验证在 Debug/Release 下均得到 19 个
+实体 section（20,796 顶点）、3 个水体 section（1,736 顶点）和 13 个植被 section
+（1,116 顶点），三类网格的 UV/光照/索引校验全部通过。全量构建和 123/123 回归通过；
+材质实际外观仍需硬件窗口确认。HUD、ImGui、截图与性能诊断尚未迁移，E4 继续进行。
+
 ### E5 清理（1 周）
 
 | 任务 | 验收 |

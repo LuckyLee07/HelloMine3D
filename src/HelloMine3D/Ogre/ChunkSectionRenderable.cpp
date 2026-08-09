@@ -64,7 +64,8 @@ namespace
 
 ChunkSectionRenderable::ChunkSectionRenderable(
     const Ogre::String &name, const ChunkMesh &mesh,
-    const glm::ivec3 &sectionLocation)
+    const glm::ivec3 &sectionLocation, const Ogre::String &materialName,
+    std::uint8_t renderQueueGroup)
     : Ogre::SimpleRenderable(name)
 {
     const ChunkMeshValidation validation =
@@ -113,7 +114,8 @@ ChunkSectionRenderable::ChunkSectionRenderable(
     mRenderOp.indexData->indexStart = 0;
     mRenderOp.indexData->indexCount = indices.size();
 
-    setMaterial("HelloMine3D/Terrain");
+    setMaterial(materialName);
+    setRenderQueueGroup(renderQueueGroup);
     setBoundingBox(Ogre::AxisAlignedBox(
         Ogre::Vector3::ZERO,
         Ogre::Vector3(static_cast<Ogre::Real>(CHUNK_SIZE))));

@@ -3,6 +3,7 @@
 #include <OgreSimpleRenderable.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 
 #include "../Maths/glm.h"
@@ -21,7 +22,9 @@ class ChunkSectionRenderable final : public Ogre::SimpleRenderable
 {
   public:
     ChunkSectionRenderable(const Ogre::String &name, const ChunkMesh &mesh,
-                           const glm::ivec3 &sectionLocation);
+                           const glm::ivec3 &sectionLocation,
+                           const Ogre::String &materialName,
+                           std::uint8_t renderQueueGroup);
     ~ChunkSectionRenderable() override;
 
     static ChunkMeshValidation

@@ -37,3 +37,25 @@ fragment_program HelloMine3D/TerrainFragment glsl
         param_named terrainAtlas int 0
     }
 }
+
+vertex_program HelloMine3D/WaterVertex glsl
+{
+    source HelloMine3DWater.vert
+    syntax glsl150
+    default_params
+    {
+        param_named_auto worldViewProj worldviewproj_matrix
+        param_named_auto globalTime time_0_x 1.0
+    }
+}
+
+vertex_program HelloMine3D/FloraVertex glsl
+{
+    source HelloMine3DFlora.vert
+    syntax glsl150
+    default_params
+    {
+        param_named_auto worldViewProj worldviewproj_matrix
+        param_named_auto globalTime time_0_x 1.0
+    }
+}

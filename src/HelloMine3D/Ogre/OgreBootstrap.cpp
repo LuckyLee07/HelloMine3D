@@ -7,6 +7,7 @@
 #include <OgreWindowEventUtilities.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -36,6 +37,12 @@ namespace
         std::size_t sectionCount = 0;
         std::size_t vertexCount = 0;
         std::size_t indexCount = 0;
+        std::size_t waterSectionCount = 0;
+        std::size_t waterVertexCount = 0;
+        std::size_t waterIndexCount = 0;
+        std::size_t floraSectionCount = 0;
+        std::size_t floraVertexCount = 0;
+        std::size_t floraIndexCount = 0;
     };
 
     class OgreBootstrap final : public Ogre::FrameListener,
@@ -68,9 +75,27 @@ namespace
                       << terrain.vertexCount << '\n';
             std::cout << "[OGRE_VALIDATION] terrain_indices="
                       << terrain.indexCount << '\n';
+            std::cout << "[OGRE_VALIDATION] water_sections="
+                      << terrain.waterSectionCount << '\n';
+            std::cout << "[OGRE_VALIDATION] water_vertices="
+                      << terrain.waterVertexCount << '\n';
+            std::cout << "[OGRE_VALIDATION] water_indices="
+                      << terrain.waterIndexCount << '\n';
+            std::cout << "[OGRE_VALIDATION] flora_sections="
+                      << terrain.floraSectionCount << '\n';
+            std::cout << "[OGRE_VALIDATION] flora_vertices="
+                      << terrain.floraVertexCount << '\n';
+            std::cout << "[OGRE_VALIDATION] flora_indices="
+                      << terrain.floraIndexCount << '\n';
 
             return resourceLocations > 0 && terrain.sectionCount > 0 &&
-                   terrain.vertexCount > 0 && terrain.indexCount > 0;
+                   terrain.vertexCount > 0 && terrain.indexCount > 0 &&
+                   terrain.waterSectionCount > 0 &&
+                   terrain.waterVertexCount > 0 &&
+                   terrain.waterIndexCount > 0 &&
+                   terrain.floraSectionCount > 0 &&
+                   terrain.floraVertexCount > 0 &&
+                   terrain.floraIndexCount > 0;
         }
 
         int run()
@@ -222,9 +247,15 @@ namespace
                 true, SkyboxMaterial, 5000.0f, true);
 
             const TerrainBuildSummary terrain = buildTerrain(true);
-            std::cout << "[OGRE_TERRAIN] sections=" << terrain.sectionCount
-                      << " vertices=" << terrain.vertexCount
-                      << " indices=" << terrain.indexCount << '\n';
+            std::cout << "[OGRE_TERRAIN] solid=" << terrain.sectionCount
+                      << '/' << terrain.vertexCount << '/'
+                      << terrain.indexCount << " water="
+                      << terrain.waterSectionCount << '/'
+                      << terrain.waterVertexCount << '/'
+                      << terrain.waterIndexCount << " flora="
+                      << terrain.floraSectionCount << '/'
+                      << terrain.floraVertexCount << '/'
+                      << terrain.floraIndexCount << '\n';
 
             const char* exitFrames =
                 std::getenv("HELLOMINE3D_OGRE_EXIT_AFTER_FRAMES");
@@ -275,53 +306,92 @@ namespace
                     }
 
                     section->makeMesh();
-                    const ChunkMesh &solidMesh =
-                        section->getMeshes().solidMesh;
                     const glm::ivec3 sectionLocation =
                         section->getLocation();
-                    const ChunkMeshValidation validation =
-                        ChunkSectionRenderable::validateCpuMesh(
-                            solidMesh, sectionLocation);
-                    if (!validation.valid)
-                    {
-                        throw std::runtime_error(
-                            "Terrain mesh validation failed: " +
-                            validation.message);
-                    }
-                    if (validation.indexCount == 0)
-                    {
-                        continue;
-                    }
+                    std::ostringstream sectionName;
+                    sectionName << "ChunkSection_" << sectionLocation.x
+                                << '_' << sectionLocation.y << '_'
+                                << sectionLocation.z;
+                    Ogre::SceneNode *node = nullptr;
+                    auto ensureNode = [&]() {
+                        if (node != nullptr)
+                        {
+                            return node;
+                        }
+                        node = m_sceneManager->getRootSceneNode()
+                                   ->createChildSceneNode(
+                                       sectionName.str() + "_Node",
+                                       Ogre::Vector3(
+                                           static_cast<Ogre::Real>(
+                                               sectionLocation.x *
+                                               CHUNK_SIZE),
+                                           static_cast<Ogre::Real>(
+                                               sectionLocation.y *
+                                               CHUNK_SIZE),
+                                           static_cast<Ogre::Real>(
+                                               sectionLocation.z *
+                                               CHUNK_SIZE)));
+                        m_sectionNodes.push_back(node);
+                        return node;
+                    };
 
-                    ++summary.sectionCount;
-                    summary.vertexCount += validation.vertexCount;
-                    summary.indexCount += validation.indexCount;
+                    auto processMesh =
+                        [&](const ChunkMesh &mesh, const char *layerName,
+                            const char *materialName,
+                            std::uint8_t renderQueue,
+                            std::size_t &sectionCount,
+                            std::size_t &vertexCount,
+                            std::size_t &indexCount) {
+                            const ChunkMeshValidation validation =
+                                ChunkSectionRenderable::validateCpuMesh(
+                                    mesh, sectionLocation);
+                            if (!validation.valid)
+                            {
+                                throw std::runtime_error(
+                                    std::string(layerName) +
+                                    " mesh validation failed: " +
+                                    validation.message);
+                            }
+                            if (validation.indexCount == 0)
+                            {
+                                return;
+                            }
 
-                    if (!uploadToOgre)
-                    {
-                        continue;
-                    }
+                            ++sectionCount;
+                            vertexCount += validation.vertexCount;
+                            indexCount += validation.indexCount;
+                            if (!uploadToOgre)
+                            {
+                                return;
+                            }
 
-                    std::ostringstream name;
-                    name << "ChunkSection_" << sectionLocation.x << '_'
-                         << sectionLocation.y << '_' << sectionLocation.z;
-                    auto renderable =
-                        std::make_unique<ChunkSectionRenderable>(
-                            name.str(), solidMesh, sectionLocation);
-                    Ogre::SceneNode *node =
-                        m_sceneManager->getRootSceneNode()
-                            ->createChildSceneNode(
-                                name.str() + "_Node",
-                                Ogre::Vector3(
-                                    static_cast<Ogre::Real>(
-                                        sectionLocation.x * CHUNK_SIZE),
-                                    static_cast<Ogre::Real>(
-                                        sectionLocation.y * CHUNK_SIZE),
-                                    static_cast<Ogre::Real>(
-                                        sectionLocation.z * CHUNK_SIZE)));
-                    node->attachObject(renderable.get());
-                    m_sectionNodes.push_back(node);
-                    m_terrainRenderables.push_back(std::move(renderable));
+                            auto renderable =
+                                std::make_unique<ChunkSectionRenderable>(
+                                    sectionName.str() + "_" + layerName,
+                                    mesh, sectionLocation, materialName,
+                                    renderQueue);
+                            ensureNode()->attachObject(renderable.get());
+                            m_terrainRenderables.push_back(
+                                std::move(renderable));
+                        };
+
+                    const ChunkMeshCollection &meshes =
+                        section->getMeshes();
+                    processMesh(
+                        meshes.solidMesh, "Solid", "HelloMine3D/Terrain",
+                        static_cast<std::uint8_t>(Ogre::RENDER_QUEUE_MAIN),
+                        summary.sectionCount, summary.vertexCount,
+                        summary.indexCount);
+                    processMesh(
+                        meshes.waterMesh, "Water", "HelloMine3D/Water",
+                        static_cast<std::uint8_t>(Ogre::RENDER_QUEUE_8),
+                        summary.waterSectionCount,
+                        summary.waterVertexCount, summary.waterIndexCount);
+                    processMesh(
+                        meshes.floraMesh, "Flora", "HelloMine3D/Flora",
+                        static_cast<std::uint8_t>(Ogre::RENDER_QUEUE_6),
+                        summary.floraSectionCount,
+                        summary.floraVertexCount, summary.floraIndexCount);
                 }
             }
 
