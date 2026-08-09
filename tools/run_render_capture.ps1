@@ -18,7 +18,8 @@ param(
     [switch]$ShowDebugInfo,
     [switch]$SpawnValidationActors,
     [switch]$StopExisting,
-    [switch]$KeepAlive
+    [switch]$KeepAlive,
+    [switch]$ValidateCapturePolling
 )
 
 $ErrorActionPreference = "Stop"
@@ -152,6 +153,64 @@ function Convert-CaptureTimes {
     }
 
     return @($result | Sort-Object -Unique)
+}
+
+function Get-PendingCaptureFiles {
+    param(
+        [string[]]$Paths
+    )
+
+    $pending = @()
+    foreach ($filePath in $Paths) {
+        if (-not (Test-Path -LiteralPath $filePath)) {
+            $pending += $filePath
+        }
+        elseif ((Get-Item -LiteralPath $filePath).Length -le 0) {
+            $pending += "$filePath (empty)"
+        }
+    }
+    return $pending
+}
+
+function Wait-RuntimeCaptureFiles {
+    param(
+        [System.Diagnostics.Process]$Process,
+        [string[]]$Paths,
+        [int]$TimeoutMs,
+        [int]$ExitGraceMs = 2000
+    )
+
+    $deadline = (Get-Date).AddMilliseconds($TimeoutMs)
+    $exitDeadline = $null
+    do {
+        # Check the files before HasExited. The runtime intentionally exits
+        # immediately after its last write, so process exit is not evidence
+        # that a completed capture is missing.
+        $pending = @(Get-PendingCaptureFiles -Paths $Paths)
+        $Process.Refresh()
+        if ($pending.Count -eq 0) {
+            if ($Process.HasExited -and $Process.ExitCode -ne 0) {
+                throw "Runtime capture process failed: exitCode=$($Process.ExitCode)"
+            }
+            return
+        }
+
+        if ($Process.HasExited) {
+            if ($Process.ExitCode -ne 0) {
+                throw "Process exited before runtime captures completed: exitCode=$($Process.ExitCode); pending=$($pending -join '; ')"
+            }
+            if ($null -eq $exitDeadline) {
+                $exitDeadline = (Get-Date).AddMilliseconds($ExitGraceMs)
+            }
+            elseif ((Get-Date) -ge $exitDeadline) {
+                throw "Process exited cleanly but runtime captures remained incomplete: $($pending -join '; ')"
+            }
+        }
+
+        Start-Sleep -Milliseconds 100
+    } while ((Get-Date) -lt $deadline)
+
+    throw "Timed out waiting for runtime captures: $($pending -join '; ')"
 }
 
 function Set-ProcessEnvironment {
@@ -289,6 +348,43 @@ function Save-WindowScreenshot {
     }
 }
 
+if ($ValidateCapturePolling) {
+    $validationRoot = Join-Path ([System.IO.Path]::GetTempPath()) `
+        ("HelloMine3D_capture_polling_{0}_{1}" -f $PID, [guid]::NewGuid())
+    New-Item -ItemType Directory -Force -Path $validationRoot | Out-Null
+    try {
+        foreach ($iteration in 1..10) {
+            $paths = @(
+                (Join-Path $validationRoot ("capture_{0}_a.png" -f $iteration)),
+                (Join-Path $validationRoot ("capture_{0}_b.png" -f $iteration))
+            )
+            foreach ($path in $paths) {
+                [System.IO.File]::WriteAllText($path, "capture")
+            }
+
+            $probe = Start-Process -FilePath $env:ComSpec `
+                -ArgumentList @("/d", "/c", "exit 0") `
+                -WindowStyle Hidden -PassThru
+            $probe.WaitForExit()
+            try {
+                Wait-RuntimeCaptureFiles -Process $probe -Paths $paths `
+                    -TimeoutMs 1000 -ExitGraceMs 250
+            }
+            finally {
+                $probe.Dispose()
+            }
+            Write-Host "[RENDER_CAPTURE_POLLING] run=$iteration status=PASS"
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $validationRoot -Recurse -Force `
+            -ErrorAction SilentlyContinue
+    }
+
+    Write-Host "[RENDER_CAPTURE_POLLING] runs=10 status=PASS"
+    exit 0
+}
+
 if (-not (Test-Path -LiteralPath $ExePath)) {
     throw "$ExeName not found: $ExePath"
 }
@@ -416,33 +512,8 @@ try {
         Start-Sleep -Milliseconds $SettleMs
 
         $lastCaptureMs = [int]($sortedCaptures[$sortedCaptures.Count - 1])
-        $deadline = (Get-Date).AddMilliseconds($StartupTimeoutMs + $lastCaptureMs + 5000)
-        do {
-            $process.Refresh()
-            if ($process.HasExited) {
-                throw "Process exited before runtime captures completed: exitCode=$($process.ExitCode)"
-            }
-
-            $pending = @()
-            foreach ($filePath in $screenshotPaths) {
-                if (-not (Test-Path -LiteralPath $filePath)) {
-                    $pending += $filePath
-                }
-                elseif ((Get-Item -LiteralPath $filePath).Length -le 0) {
-                    $pending += "$filePath (empty)"
-                }
-            }
-
-            if ($pending.Count -eq 0) {
-                break
-            }
-
-            Start-Sleep -Milliseconds 100
-        } while ((Get-Date) -lt $deadline)
-
-        if ($pending.Count -gt 0) {
-            throw "Timed out waiting for runtime captures: $($pending -join '; ')"
-        }
+        Wait-RuntimeCaptureFiles -Process $process -Paths $screenshotPaths `
+            -TimeoutMs ($StartupTimeoutMs + $lastCaptureMs + 5000)
 
         foreach ($filePath in $screenshotPaths) {
             Write-Host "[RENDER_CAPTURE] captured $filePath"
@@ -460,15 +531,7 @@ finally {
     }
 }
 
-$missing = @()
-foreach ($filePath in $screenshotPaths) {
-    if (-not (Test-Path -LiteralPath $filePath)) {
-        $missing += $filePath
-    }
-    elseif ((Get-Item -LiteralPath $filePath).Length -le 0) {
-        $missing += "$filePath (empty)"
-    }
-}
+$missing = @(Get-PendingCaptureFiles -Paths $screenshotPaths)
 
 if ($missing.Count -gt 0) {
     throw "Render capture missing files: $($missing -join '; ')"

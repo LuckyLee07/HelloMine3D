@@ -86,6 +86,31 @@ Verified images:
 Both images show visible terrain with grass, dirt, stone and sand textures,
 water, flora (tall grass and roses), and sky. No pure-blue or black frame.
 
+## Capture Polling Race Regression
+
+Runtime capture intentionally exits immediately after writing its final PNG.
+The script formerly checked `HasExited` before checking the expected files, so
+a clean exit between polling iterations could be reported as a failure even
+when both PNGs were already complete.
+
+The polling path now treats non-empty files as the primary completion signal.
+If a clean process exit is observed while files are still pending, it allows a
+two-second filesystem-visibility grace period; non-zero exits, empty files and
+timeouts still fail. This ordering has a GPU-independent regression command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_render_capture.ps1 -ValidateCapturePolling
+```
+
+It runs the former exit-before-poll state ten times and must finish with:
+
+```text
+[RENDER_CAPTURE_POLLING] runs=10 status=PASS
+```
+
+The 2026-08-09 Windows run passed all ten iterations. Actual GL3+ screenshot
+runs still require a hardware-accelerated desktop.
+
 Earlier verified run, kept for comparison:
 `bin/render_capture_20260707173412631-53208` (recorded while the repository
 still lived at `E:\Workspace\MineCraft`).

@@ -169,11 +169,13 @@ M6 复用每层 opaque 计数识别六面封闭 section，后台和同步路径�
 
 对比前先看 `sampled_fps`：若远高于显示器刷新率，说明该次运行 vsync 未生效。
 
-### R5 渲染截图脚本存在竞态
+### R5 渲染截图脚本轮询竞态（B5 已修复，待硬件复验）
 
 进程完成两次截图后按 `HELLO_RENDER_CAPTURE_EXIT` 自行退出，但脚本的轮询有时会
 报 `Process exited before runtime captures completed` 并返回非零，尽管两张 PNG
-都已正确写出、stderr 为空。代码变快后更容易触发。属于工具缺陷，不是游戏问题。
+都已正确写出、stderr 为空。代码变快后更容易触发。根因是脚本先检查进程退出，
+再检查文件是否完整。B5 已将顺序改为“文件优先”，正常退出后另留两秒文件可见性
+宽限；`-ValidateCapturePolling` 连续 10 轮通过。真实 GL3+ 截图仍需硬件桌面复验。
 
 ## 教训
 
