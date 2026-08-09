@@ -329,7 +329,13 @@ Ogre 视锥剔除和与迁移前基线的性能对比需在硬件加速桌面补
 `RuntimePerformanceCapture`；两条验证脚本可用 `-Backend Ogre` 选择新客户端。无窗口模式
 已在 Debug/Release 验证三组截图目标的配置解析，全量构建和 123/123 回归继续通过。
 当前会话只有 GDI Generic OpenGL 1.1，因此实际 PNG、性能 CSV 和材质外观仍需硬件桌面补跑。
-HUD 与 ImGui 尚未迁移，E4 继续进行。
+
+HUD 与 ImGui 也已迁移：`OgreUserInterface` 将 OIS 键鼠事件映射到 ImGui，常驻绘制准星和
+5 格快捷栏，F1 控制玩家/世界调试面板，并在场景渲染队列结束后通过 OpenGL3 后端提交。
+输入采集已移到 `frameStarted`，UI 捕获输入时会抑制相机操作；按帧退出则在 `frameEnded`
+收尾，保证最后一帧仍进入截图与性能采集。Debug/Release 无窗口校验分别验证调试面板开启
+和关闭配置，HUD 均报告 5 个槽位及合法选中项；全量构建和 123/123 回归通过。受当前
+OpenGL 1.1 会话限制，HUD/调试面板的实际外观仍需硬件截图确认，E4 暂记 `Verify`。
 
 ### E5 清理（1 周）
 

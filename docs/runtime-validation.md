@@ -92,6 +92,7 @@ These need a person at the keyboard or a different harness:
 | E3 terrain bridge | Set `HELLOMINE3D_OGRE_VALIDATE_ONLY=1`, `HELLOMINE3D_SEED=20260809`, `HELLOMINE3D_PLAYER_POSITION=8 96 8`, then run `bin\HelloMine3DOgreBootstrap.exe` | Debug and Release build real terrain and validate 10 solid sections, 14,460 vertices and 21,690 indices, including section-local bounds, UV/light cardinality and index ranges (2026-08-09). |
 | E4 water/flora bridge | Use the E3 command with `HELLOMINE3D_PLAYER_POSITION=264 96 8` | Debug and Release validate 19 solid sections (20,796 vertices), 3 water sections (1,736 vertices), and 13 flora sections (1,116 vertices); each path has valid UV/light/index data and a dedicated render queue (2026-08-09). |
 | E4 Ogre diagnostics | Add `HELLO_RENDER_CAPTURE=1`, `HELLO_RENDER_CAPTURE_MS=0,250,1000`, and an isolated `HELLO_RENDER_CAPTURE_DIR` to the E4 validation command | Debug and Release report `capture_config=valid`, `capture_enabled=true`, and `capture_targets=3`. `run_render_capture.ps1` and `run_perf_baseline.ps1` both parse successfully with the new `-Backend Ogre` route (2026-08-09). |
+| E4 Ogre HUD/ImGui | Add `HELLOMINE3D_SHOW_DEBUG_INFO=1`, then repeat with `off` | Debug and Release report `hud_config=valid`, five hotbar slots, selected slot zero, and the matching enabled/disabled debug-panel state. OIS key/mouse events, F1 toggling, render-queue submission and camera input suppression compile in both configurations (2026-08-09). |
 | Render smoke | see `docs/render-regression-smoke.md` | `bin/render_capture_20260807190230074-46036`, status PASS |
 | Performance baseline | see `docs/performance-baseline.md` | `bin/perf_baseline_20260807190255313-41064`, `frame_p95_ms=16.430` |
 
@@ -101,7 +102,7 @@ validation is therefore fully current, while the last hardware-backed render
 and performance runs remain the 2026-08-07 records above. The E2-E4 window probe
 reaches GL3Plus context creation and then reports that OpenGL 3.0 is unavailable;
 skybox appearance, terrain/water/flora materials, Ogre culling, mouse look,
-free-flight controls, screenshot PNGs and a comparable performance CSV still need one run in a
+free-flight controls, HUD/debug-panel appearance, screenshot PNGs and a comparable performance CSV still need one run in a
 hardware-accelerated desktop session.
 
 ## When To Run

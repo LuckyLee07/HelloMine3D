@@ -1,6 +1,7 @@
 #include "OgreBootstrap.h"
 #include "ChunkSectionRenderable.h"
 #include "OgreRenderCapture.h"
+#include "OgreUserInterface.h"
 
 #include <OIS.h>
 #include <Ogre.h>
@@ -67,6 +68,8 @@ namespace
             const TerrainBuildSummary terrain = buildTerrain(false);
             const OgreRenderCaptureValidation capture =
                 OgreRenderCapture::validateConfiguration();
+            const OgreUserInterfaceValidation userInterface =
+                OgreUserInterface::validateConfiguration(*m_worldPlayer);
 
             std::cout << "[OGRE_VALIDATION] renderer="
                       << renderSystem->getName() << '\n';
@@ -98,8 +101,19 @@ namespace
                       << (capture.enabled ? "true" : "false") << '\n';
             std::cout << "[OGRE_VALIDATION] capture_targets="
                       << capture.targetCount << '\n';
+            std::cout << "[OGRE_VALIDATION] hud_config="
+                      << (userInterface.valid ? "valid" : "invalid")
+                      << '\n';
+            std::cout << "[OGRE_VALIDATION] hud_slots="
+                      << userInterface.hotbarSlots << '\n';
+            std::cout << "[OGRE_VALIDATION] hud_selected_slot="
+                      << userInterface.selectedSlot << '\n';
+            std::cout << "[OGRE_VALIDATION] debug_panel_enabled="
+                      << (userInterface.debugPanelVisible ? "true" : "false")
+                      << '\n';
 
-            return capture.valid && resourceLocations > 0 &&
+            return capture.valid && userInterface.valid &&
+                   resourceLocations > 0 &&
                    terrain.sectionCount > 0 &&
                    terrain.vertexCount > 0 && terrain.indexCount > 0 &&
                    terrain.waterSectionCount > 0 &&
@@ -117,6 +131,8 @@ namespace
             configureRenderSystem();
             createWindowAndScene();
             createInput();
+            m_userInterface = std::make_unique<OgreUserInterface>(
+                *m_window, *m_sceneManager, *m_camera, *m_worldPlayer);
 
             m_root->addFrameListener(this);
             Ogre::WindowEventUtilities::addWindowEventListener(m_window, this);
@@ -454,14 +470,9 @@ namespace
             updateMouseBounds();
         }
 
-        bool frameStarted(const Ogre::FrameEvent&) override
+        bool frameStarted(const Ogre::FrameEvent& event) override
         {
             m_frameStart = std::chrono::steady_clock::now();
-            return true;
-        }
-
-        bool frameRenderingQueued(const Ogre::FrameEvent& event) override
-        {
             Ogre::WindowEventUtilities::messagePump();
             if (m_shutdownRequested || m_window == nullptr ||
                 m_window->isClosed())
@@ -474,9 +485,19 @@ namespace
             updateCamera(event.timeSinceLastFrame);
             advanceSimulation(event.timeSinceLastFrame);
 
+            m_frameWorldStats = collectRuntimeStats();
+            if (m_userInterface != nullptr)
+            {
+                m_userInterface->beginFrame(event.timeSinceLastFrame,
+                                            m_frameWorldStats);
+            }
+            return true;
+        }
+
+        bool frameRenderingQueued(const Ogre::FrameEvent&) override
+        {
             ++m_frameCount;
-            return m_exitAfterFrames <= 0 ||
-                   m_frameCount < m_exitAfterFrames;
+            return true;
         }
 
         bool frameEnded(const Ogre::FrameEvent& event) override
@@ -497,18 +518,16 @@ namespace
             timings.renderMs = frameMs;
             timings.frameMs = frameMs;
 
-            WorldDebugStats stats;
-            if (m_world != nullptr)
-            {
-                stats = m_world->collectDebugStats();
-                stats.chunks.gpuBufferedSections = m_sectionNodes.size();
-            }
-            RuntimePerformanceCapture::recordFrame(timings, stats);
+            RuntimePerformanceCapture::recordFrame(timings,
+                                                    m_frameWorldStats);
 
             const bool captureComplete =
                 m_renderCapture != nullptr &&
                 m_renderCapture->shouldCloseWindow();
-            return !captureComplete &&
+            const bool frameLimitReached =
+                m_exitAfterFrames > 0 &&
+                m_frameCount >= m_exitAfterFrames;
+            return !captureComplete && !frameLimitReached &&
                    !RuntimePerformanceCapture::shouldCloseWindow();
         }
 
@@ -529,8 +548,25 @@ namespace
             RuntimePerformanceCapture::recordSimulationTicks(ticks);
         }
 
+        WorldDebugStats collectRuntimeStats()
+        {
+            WorldDebugStats stats;
+            if (m_world != nullptr)
+            {
+                stats = m_world->collectDebugStats();
+                stats.chunks.gpuBufferedSections = m_sectionNodes.size();
+            }
+            return stats;
+        }
+
         void updateCamera(float deltaSeconds)
         {
+            if (m_userInterface != nullptr &&
+                m_userInterface->wantsKeyboardInput())
+            {
+                return;
+            }
+
             Ogre::Vector3 movement = Ogre::Vector3::ZERO;
             if (m_keyboard->isKeyDown(OIS::KC_W))
             {
@@ -570,6 +606,10 @@ namespace
 
         bool keyPressed(const OIS::KeyEvent& event) override
         {
+            if (m_userInterface != nullptr)
+            {
+                m_userInterface->keyEvent(event, true, *m_keyboard);
+            }
             if (event.key == OIS::KC_ESCAPE)
             {
                 m_shutdownRequested = true;
@@ -577,29 +617,49 @@ namespace
             return true;
         }
 
-        bool keyReleased(const OIS::KeyEvent&) override
+        bool keyReleased(const OIS::KeyEvent& event) override
         {
+            if (m_userInterface != nullptr)
+            {
+                m_userInterface->keyEvent(event, false, *m_keyboard);
+            }
             return true;
         }
 
         bool mouseMoved(const OIS::MouseEvent& event) override
         {
-            m_camera->yaw(
-                Ogre::Degree(-event.state.X.rel * m_lookSensitivity));
-            m_camera->pitch(
-                Ogre::Degree(-event.state.Y.rel * m_lookSensitivity));
+            if (m_userInterface != nullptr)
+            {
+                m_userInterface->mouseMoved(event);
+            }
+            if (m_userInterface == nullptr ||
+                !m_userInterface->wantsMouseInput())
+            {
+                m_camera->yaw(
+                    Ogre::Degree(-event.state.X.rel * m_lookSensitivity));
+                m_camera->pitch(
+                    Ogre::Degree(-event.state.Y.rel * m_lookSensitivity));
+            }
             return true;
         }
 
-        bool mousePressed(const OIS::MouseEvent&,
-                          OIS::MouseButtonID) override
+        bool mousePressed(const OIS::MouseEvent& event,
+                          OIS::MouseButtonID button) override
         {
+            if (m_userInterface != nullptr)
+            {
+                m_userInterface->mouseButton(event, button, true);
+            }
             return true;
         }
 
-        bool mouseReleased(const OIS::MouseEvent&,
-                           OIS::MouseButtonID) override
+        bool mouseReleased(const OIS::MouseEvent& event,
+                           OIS::MouseButtonID button) override
         {
+            if (m_userInterface != nullptr)
+            {
+                m_userInterface->mouseButton(event, button, false);
+            }
             return true;
         }
 
@@ -684,6 +744,7 @@ namespace
                 m_runtimeStarted = false;
             }
             m_renderCapture.reset();
+            m_userInterface.reset();
 
             for (auto &renderable : m_terrainRenderables)
             {
@@ -714,6 +775,7 @@ namespace
         OIS::Keyboard* m_keyboard = nullptr;
         OIS::Mouse* m_mouse = nullptr;
         std::unique_ptr<OgreRenderCapture> m_renderCapture;
+        std::unique_ptr<OgreUserInterface> m_userInterface;
         std::unique_ptr<Player> m_worldPlayer;
         std::unique_ptr<::Camera> m_logicCamera;
         std::unique_ptr<World> m_world;
@@ -727,6 +789,7 @@ namespace
         int m_frameCount = 0;
         int m_worldTime = 0;
         double m_tickAccumulator = 0.0;
+        WorldDebugStats m_frameWorldStats;
         std::chrono::steady_clock::time_point m_frameStart;
         float m_moveSpeed = 12.0f;
         float m_lookSensitivity = 0.12f;
