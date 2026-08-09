@@ -55,7 +55,15 @@ void writeDefaultConfig(const std::string &path, const Config &config)
            << "fullscreen " << (config.isFullscreen ? 1 : 0) << '\n'
            << "windowsize " << config.windowX << ' ' << config.windowY
            << '\n'
-           << "fov " << config.fov << '\n';
+           << "fov " << config.fov << '\n'
+           << "seed ";
+    if (config.worldSeed.has_value()) {
+        output << *config.worldSeed;
+    }
+    else {
+        output << "random";
+    }
+    output << '\n';
     if (!output) {
         throw std::runtime_error("Unable to write runtime config '" + path +
                                  "'.");
@@ -129,6 +137,21 @@ Config loadRuntimeConfig(const std::string &path)
             requireEnd(path, key, values);
             if (config.fov <= 0 || config.fov >= 180) {
                 fail(path, key, "must be between 1 and 179 degrees");
+            }
+        }
+        else if (key == "seed") {
+            std::string seedText;
+            if (!(values >> seedText)) {
+                fail(path, key, "must be an integer or 'random'");
+            }
+            requireEnd(path, key, values);
+            if (seedText == "random") {
+                config.worldSeed.reset();
+            }
+            else {
+                std::istringstream seedValue(seedText);
+                config.worldSeed = readInteger(path, key, seedValue);
+                requireEnd(path, key, seedValue);
             }
         }
         else {

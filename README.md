@@ -122,14 +122,19 @@ renderdistance 8
 fullscreen 0
 windowsize 1280 720
 fov 90
+seed random
 ```
 
 Deleting the file resets these settings on the next launch. The render
 distance, fullscreen flag, window size and field of view are read by the Ogre
-client; blank lines and `#` comments are allowed. `bin/Mine.cfg` and
-`bin/MineResources.cfg` are the only repository-owned files in `bin/` and act
-as Ogre bootstrap templates. Executables, logs, ImGui state, saves, captures
-and the legacy unused `info.txt` are generated local state and remain ignored.
+client. Set `seed` to an integer to reproduce newly created worlds, or leave it
+as `random`; a saved world's seed remains authoritative. The
+`HELLOMINE3D_SEED` environment variable can still override the configured seed
+for a new world during automated runs. Blank lines and `#` comments are
+allowed. `bin/Mine.cfg` and `bin/MineResources.cfg` are the only
+repository-owned files in `bin/` and act as Ogre bootstrap templates.
+Executables, logs, ImGui state, saves, captures and the legacy unused
+`info.txt` are generated local state and remain ignored.
 
 ### Validation
 
@@ -140,7 +145,7 @@ bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
 bin\HelloMine3DMeshDirtyTests.exe         # mesh dirty planner
 bin\HelloMine3DSaveLoadSmoke.exe          # chunk serialization roundtrip
 bin\HelloMine3DEntityLifecycleSmoke.exe   # actor lifecycle
-bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 180 assertions
+bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 183 assertions
 ```
 
 Asset and data changes should also run the reference-aware asset check:

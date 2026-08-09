@@ -266,7 +266,7 @@ void caseRuntimeConfigOwnership()
     check("A3/generated-config-uses-documented-defaults",
           generated.renderDistance == 8 && !generated.isFullscreen &&
               generated.windowX == 1280 && generated.windowY == 720 &&
-              generated.fov == 90,
+              generated.fov == 90 && !generated.worldSeed.has_value(),
           std::to_string(generated.renderDistance) + " " +
               std::to_string(generated.isFullscreen) + " " +
               std::to_string(generated.windowX) + "x" +
@@ -286,6 +286,72 @@ void caseRuntimeConfigOwnership()
           customised.renderDistance == 3 && customised.isFullscreen &&
               customised.windowX == 1024 && customised.windowY == 768 &&
               customised.fov == 100);
+}
+
+// ---------------------------------------------------------------------------
+// A4 - an integer seed in config reproduces a new world
+// ---------------------------------------------------------------------------
+void caseConfiguredWorldSeed()
+{
+    constexpr int configuredSeed = 20260811;
+    const std::filesystem::path configDirectory =
+        freshSaveDirectory("configured_seed_config");
+    const std::filesystem::path configPath =
+        configDirectory / "config.txt";
+    {
+        std::ofstream output(configPath,
+                             std::ios::binary | std::ios::trunc);
+        output << "seed " << configuredSeed << '\n';
+    }
+
+    Config config = loadRuntimeConfig(configPath.string());
+    config.renderDistance = 1;
+    check("A4/config-seed-loaded",
+          config.worldSeed.has_value() &&
+              *config.worldSeed == configuredSeed,
+          config.worldSeed.has_value()
+              ? std::to_string(*config.worldSeed)
+              : "random");
+
+    setEnv("HELLOMINE3D_SEED", "");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    const std::string firstDirectory =
+        freshSaveDirectory("configured_seed_first");
+    const std::string secondDirectory =
+        freshSaveDirectory("configured_seed_second");
+
+    Camera firstCamera(config);
+    Player firstPlayer;
+    World first(firstCamera, config, firstPlayer, firstDirectory, false, 1);
+    Camera secondCamera(config);
+    Player secondPlayer;
+    World second(secondCamera, config, secondPlayer, secondDirectory, false,
+                 1);
+
+    const int firstSeed = first.collectDebugStats().terrainSeed;
+    const int secondSeed = second.collectDebugStats().terrainSeed;
+    check("A4/new-world-uses-config-seed",
+          firstSeed == configuredSeed && secondSeed == configuredSeed,
+          std::to_string(firstSeed) + "/" +
+              std::to_string(secondSeed));
+
+    std::size_t mismatches = 0;
+    std::size_t samples = 0;
+    for (int x = -8; x <= 23; x += 3) {
+        for (int z = -8; z <= 23; z += 3) {
+            for (int y = 0; y <= 127; y += 7) {
+                ++samples;
+                if (first.getBlock(x, y, z).id !=
+                    second.getBlock(x, y, z).id) {
+                    ++mismatches;
+                }
+            }
+        }
+    }
+    check("A4/config-seed-reproduces-terrain", mismatches == 0,
+          "mismatches=" + std::to_string(mismatches) + " over " +
+              std::to_string(samples) + " samples");
+    clearDeterministicEnv();
 }
 
 // ---------------------------------------------------------------------------
@@ -2385,6 +2451,7 @@ int main()
         caseRuntimeConfigOwnership();
         caseBlockDataDiagnostics();
         caseOreTextures();
+        caseConfiguredWorldSeed();
         caseBlockSelection();
         casePlayerControllerInput();
         caseHeightMapEdits();

@@ -203,7 +203,10 @@ World::World(const Camera &camera, const Config &config, Player &player,
     else {
         m_worldSaveData.seed =
             hasForcedSeed ? forcedSeed
-                          : RandomSingleton::get().intInRange(424, 325322);
+                          : config.worldSeed.has_value()
+                                ? *config.worldSeed
+                                : RandomSingleton::get().intInRange(
+                                      424, 325322);
         m_chunkManager.setTerrainSeed(m_worldSaveData.seed);
 
         if (hasForcedPlayerPosition) {
