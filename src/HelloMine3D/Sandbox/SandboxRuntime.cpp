@@ -8,10 +8,8 @@
 #include "../Diagnostics/RuntimePerformanceCapture.h"
 #include "../Diagnostics/RuntimeRenderCapture.h"
 #include "../Input/ToggleKey.h"
-#include "../Maths/Ray.h"
 #include "../Renderer/RenderMaster.h"
 #include "../World/Block/BlockDatabase.h"
-#include "../World/Block/BlockId.h"
 #include "../World/Event/PlayerDigEvent.h"
 #include "../World/World.h"
 
@@ -34,10 +32,10 @@ void SandboxRuntime::onEvent(const sf::Event &event)
 
 void SandboxRuntime::update(const Keyboard &keyboard, sf::Time dt)
 {
-    if (!RuntimeRenderCapture::isEnabled() &&
-        !RuntimePerformanceCapture::isEnabled()) {
+    const bool acceptsPlayerInput = !RuntimeRenderCapture::isEnabled() &&
+                                    !RuntimePerformanceCapture::isEnabled();
+    if (acceptsPlayerInput) {
         m_player.handleInput(m_window, keyboard);
-        handlePlayerInteraction();
     }
 
     runFixedTicks(dt);
@@ -45,11 +43,20 @@ void SandboxRuntime::update(const Keyboard &keyboard, sf::Time dt)
 
     World *world = m_worldManager.getActiveWorld();
     if (world != nullptr) {
+        m_blockSelection = BlockSelectionSystem::pick(
+            *world, m_camera.position, m_player.rotation);
+        if (acceptsPlayerInput) {
+            handlePlayerInteraction(*world);
+        }
+
         static ToggleKey resetMeshesKey(sf::Keyboard::Key::C);
         if (resetMeshesKey.isKeyPressed()) {
             world->resetChunkMeshes();
         }
         world->update(m_camera);
+    }
+    else {
+        m_blockSelection.reset();
     }
 }
 
@@ -62,6 +69,9 @@ void SandboxRuntime::render(RenderMaster &renderer, bool showDebugInfo)
     World *world = m_worldManager.getActiveWorld();
     if (world != nullptr) {
         world->renderWorld(renderer, m_camera);
+    }
+    if (m_blockSelection.has_value()) {
+        renderer.drawBlockOutline(m_blockSelection->blockPosition);
     }
 
     renderer.finishRender(m_window, m_camera);
@@ -91,45 +101,25 @@ WorldManager &SandboxRuntime::getWorldManager()
     return m_worldManager;
 }
 
-void SandboxRuntime::handlePlayerInteraction()
+void SandboxRuntime::handlePlayerInteraction(World &world)
 {
-    World *world = m_worldManager.getActiveWorld();
-    if (world == nullptr) {
+    if (!m_blockSelection.has_value() ||
+        m_interactionTimer.getElapsedTime().asSeconds() <= 0.2f) {
         return;
     }
 
-    glm::vec3 lastPosition = m_player.position;
-
-    for (Ray ray({m_player.position.x, m_player.position.y + 0.6f,
-                  m_player.position.z},
-                 m_player.rotation);
-         ray.getLength() < 6.f; ray.step(0.05f)) {
-        int x = World::toBlockCoord(ray.getEnd().x);
-        int y = World::toBlockCoord(ray.getEnd().y);
-        int z = World::toBlockCoord(ray.getEnd().z);
-
-        auto block = world->getBlock(x, y, z);
-        auto id = static_cast<BlockId>(block.id);
-
-        if (id != BlockId::Air && id != BlockId::Water) {
-            if (m_interactionTimer.getElapsedTime().asSeconds() > 0.2f) {
-                if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
-                    m_interactionTimer.restart();
-                    world->addEvent<PlayerDigEvent>(PlayerDigAction::Break,
-                                                    ray.getEnd(), m_player);
-                    break;
-                }
-                else if (sf::Mouse::isButtonPressed(
-                             sf::Mouse::Button::Right)) {
-                    m_interactionTimer.restart();
-                    world->addEvent<PlayerDigEvent>(PlayerDigAction::Place,
-                                                    lastPosition, m_player);
-                    break;
-                }
-            }
-        }
-
-        lastPosition = ray.getEnd();
+    const BlockSelection &selection = *m_blockSelection;
+    if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
+        m_interactionTimer.restart();
+        world.addEvent<PlayerDigEvent>(PlayerDigAction::Break,
+                                       glm::vec3(selection.blockPosition),
+                                       m_player);
+    }
+    else if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Right)) {
+        m_interactionTimer.restart();
+        world.addEvent<PlayerDigEvent>(PlayerDigAction::Place,
+                                       glm::vec3(selection.placementPosition),
+                                       m_player);
     }
 }
 
@@ -184,6 +174,20 @@ void SandboxRuntime::drawSandboxDebug(World &world)
         ImGui::Text("Mesh rebuilds: %llu",
                     static_cast<unsigned long long>(
                         stats.chunks.meshRebuilds));
+
+        ImGui::Separator();
+        if (m_blockSelection.has_value()) {
+            const auto &selection = *m_blockSelection;
+            const auto &definition =
+                BlockDatabase::get().getDefinition(selection.blockId);
+            ImGui::Text("Selected: %s (%d, %d, %d)",
+                        definition.name.c_str(), selection.blockPosition.x,
+                        selection.blockPosition.y,
+                        selection.blockPosition.z);
+        }
+        else {
+            ImGui::TextUnformatted("Selected: none");
+        }
     }
     ImGui::End();
 }

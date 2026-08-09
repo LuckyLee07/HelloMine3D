@@ -28,6 +28,12 @@ void RenderMaster::drawSky()
     m_drawBox = true;
 }
 
+void RenderMaster::drawBlockOutline(const glm::ivec3 &blockPosition)
+{
+    m_blockOutlinePosition = blockPosition;
+    m_drawBlockOutline = true;
+}
+
 void RenderMaster::finishRender(sf::Window &window, const Camera &camera)
 {
     (void)window;
@@ -48,4 +54,9 @@ void RenderMaster::finishRender(sf::Window &window, const Camera &camera)
     m_chunkRenderer.render(camera, m_textureAtlas);
     m_waterRenderer.render(camera, m_textureAtlas);
     m_floraRenderer.render(camera, m_textureAtlas);
+
+    if (m_drawBlockOutline) {
+        m_blockOutlineRenderer.render(camera, m_blockOutlinePosition);
+        m_drawBlockOutline = false;
+    }
 }

@@ -6,12 +6,15 @@
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/Window.hpp>
 
+#include <optional>
+
 #include "../Config.h"
 #include "../Core/Camera.h"
 #include "../Input/Keyboard.h"
 #include "../Player/Player.h"
 #include "../Util/NonCopyable.h"
 #include "../World/World.h"
+#include "../World/Interaction/BlockSelection.h"
 #include "FixedTickScheduler.h"
 #include "WorldManager.h"
 
@@ -31,7 +34,7 @@ class SandboxRuntime : public NonCopyable {
     WorldManager &getWorldManager();
 
   private:
-    void handlePlayerInteraction();
+    void handlePlayerInteraction(World &world);
     void runFixedTicks(sf::Time dt);
     void drawSandboxDebug(World &world);
 
@@ -40,6 +43,7 @@ class SandboxRuntime : public NonCopyable {
     Player m_player;
     WorldManager m_worldManager;
     FixedTickScheduler m_tickScheduler;
+    std::optional<BlockSelection> m_blockSelection;
     const sf::Time m_fixedTickStep = sf::seconds(1.f / 20.f);
     sf::Clock m_interactionTimer;
 };

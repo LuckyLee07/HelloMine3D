@@ -4,6 +4,7 @@
 #include <SFML/Graphics.hpp>
 
 #include "../Config.h"
+#include "BlockOutlineRenderer.h"
 #include "ChunkRenderer.h"
 #include "FloraRenderer.h"
 #include "SkyboxRenderer.h"
@@ -18,6 +19,7 @@ class RenderMaster {
   public:
     void drawChunk(const ChunkSection &chunk);
     void drawSky();
+    void drawBlockOutline(const glm::ivec3 &blockPosition);
 
     void finishRender(sf::Window &window, const Camera &camera);
 
@@ -30,8 +32,11 @@ class RenderMaster {
 
     // Detail
     SkyboxRenderer m_skyboxRenderer;
+    BlockOutlineRenderer m_blockOutlineRenderer;
 
     bool m_drawBox = false;
+    bool m_drawBlockOutline = false;
+    glm::ivec3 m_blockOutlinePosition{0};
 };
 
 #endif // RENDERMASTER_H_INCLUDED

@@ -38,6 +38,7 @@
 #include "../Util/ResourcePaths.h"
 #include "../World/Block/BlockDatabase.h"
 #include "../World/Block/BlockTextureCoordinates.h"
+#include "../World/Interaction/BlockSelection.h"
 #include "../World/Interaction/BlockInteractionSystem.h"
 #include "../World/Chunk/SectionMeshInput.h"
 #include "../World/Storage/ChunkStorage.h"
@@ -240,6 +241,49 @@ void caseBlockTextureCoordinates()
           std::abs(last[0] - 0.998046875f) < epsilon &&
               std::abs(last[2] - 0.939453125f) < epsilon &&
               std::abs(last[5] - 0.939453125f) < epsilon);
+}
+
+// ---------------------------------------------------------------------------
+// P3 - block picking provides one result for rendering and interaction
+// ---------------------------------------------------------------------------
+void caseBlockSelection()
+{
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+
+    const auto directory = freshSaveDirectory("block_selection");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+
+    world.setBlock(8, 200, 6, ChunkBlock(BlockId::Water));
+    world.setBlock(8, 200, 5, ChunkBlock(BlockId::Stone));
+
+    const auto selection = BlockSelectionSystem::pick(
+        world, glm::vec3(8.5f, 200.5f, 8.5f), glm::vec3(0.f));
+    check("P3/selection-hits-solid",
+          selection.has_value() &&
+              selection->blockPosition == glm::ivec3(8, 200, 5) &&
+              selection->blockId == BlockId::Stone);
+    check("P3/selection-placement-adjacent",
+          selection.has_value() &&
+              selection->placementPosition == glm::ivec3(8, 200, 6));
+    check("P3/selection-skips-water",
+          selection.has_value() && selection->hitPoint.z < 6.f);
+
+    const auto shortRange = BlockSelectionSystem::pick(
+        world, glm::vec3(8.5f, 200.5f, 8.5f), glm::vec3(0.f), 2.f);
+    check("P3/selection-respects-range", !shortRange.has_value());
+
+    world.setBlock(8, 200, 5, ChunkBlock(BlockId::Air));
+    const auto waterOnly = BlockSelectionSystem::pick(
+        world, glm::vec3(8.5f, 200.5f, 8.5f), glm::vec3(0.f));
+    check("P3/selection-misses-with-only-water", !waterOnly.has_value());
+
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", "");
 }
 
 // ---------------------------------------------------------------------------
@@ -1458,6 +1502,7 @@ int main()
         caseDebugPanelStartupOption();
         caseFixedTickScheduler();
         caseBlockTextureCoordinates();
+        caseBlockSelection();
         casePlayerControllerInput();
         caseHeightMapEdits();
         caseBackgroundLoaderStress();
