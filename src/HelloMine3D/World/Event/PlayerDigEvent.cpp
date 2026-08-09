@@ -37,5 +37,9 @@ void PlayerDigEvent::dig(World &world)
         case PlayerDigAction::Place:
             BlockInteractionSystem::placeBlock(world, *m_pPlayer, m_digSpot);
             break;
+
+        case PlayerDigAction::Use:
+            BlockInteractionSystem::useBlock(world, *m_pPlayer, m_digSpot);
+            break;
     }
 }

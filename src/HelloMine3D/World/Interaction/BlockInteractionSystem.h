@@ -12,6 +12,8 @@ class BlockInteractionSystem {
                            const glm::vec3 &location);
     static bool placeBlock(World &world, Player &player,
                            const glm::vec3 &location);
+    static bool useBlock(World &world, Player &player,
+                         const glm::vec3 &location);
 };
 
 #endif // BLOCKINTERACTIONSYSTEM_H_INCLUDED

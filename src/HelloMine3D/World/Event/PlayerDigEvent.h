@@ -9,6 +9,7 @@ class Player;
 enum class PlayerDigAction {
     Break,
     Place,
+    Use,
 };
 
 /// @brief Event class that handles what happens to a block in a world as a player interacts.

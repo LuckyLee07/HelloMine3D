@@ -1940,6 +1940,34 @@ void caseInteractionAndEvents()
           events.count(SandboxEventType::BlockPlace) == 1 &&
               events.count(SandboxEventType::BlockChanged) == 1);
 
+    glm::ivec3 usedPosition{0};
+    BlockId usedBlock = BlockId::Air;
+    const auto useSubscription = world.getEventBus().subscribe(
+        SandboxEventType::BlockUse,
+        [&](const SandboxEvent &event) {
+            const auto &useEvent = static_cast<const BlockUseEvent &>(event);
+            usedPosition = useEvent.position;
+            usedBlock = useEvent.blockId;
+        });
+
+    events.reset();
+    const bool used =
+        BlockInteractionSystem::useBlock(world, player, target);
+    check("P5/use-through-interaction-system", used);
+    check("P5/use-publishes-event",
+          events.count(SandboxEventType::BlockUse) == 1);
+    check("P5/use-event-identifies-target",
+          usedPosition == glm::ivec3(8, y, 8) &&
+              usedBlock == BlockId::Stone);
+
+    events.reset();
+    const bool usedAir = BlockInteractionSystem::useBlock(
+        world, player,
+        glm::vec3(8.5f, static_cast<float>(y) + 5.5f, 8.5f));
+    check("P5/use-air-is-noop",
+          !usedAir && events.count(SandboxEventType::BlockUse) == 0);
+    world.getEventBus().unsubscribe(useSubscription);
+
     // Breaking air must be a no-op and must not publish events.
     events.reset();
     const bool brokeAir = BlockInteractionSystem::breakBlock(

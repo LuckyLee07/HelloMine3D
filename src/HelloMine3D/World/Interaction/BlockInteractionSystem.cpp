@@ -83,3 +83,19 @@ bool BlockInteractionSystem::placeBlock(World &world, Player &player,
         BlockChangedEvent(blockPosition, existingBlock, placedBlock));
     return true;
 }
+
+bool BlockInteractionSystem::useBlock(World &world, Player &player,
+                                      const glm::vec3 &location)
+{
+    const int x = World::toBlockCoord(location.x);
+    const int y = World::toBlockCoord(location.y);
+    const int z = World::toBlockCoord(location.z);
+    const auto blockId = static_cast<BlockId>(world.getBlock(x, y, z).id);
+    if (blockId == BlockId::Air || blockId == BlockId::Water) {
+        return false;
+    }
+
+    (void)player;
+    world.getEventBus().publish(BlockUseEvent({x, y, z}, blockId));
+    return true;
+}

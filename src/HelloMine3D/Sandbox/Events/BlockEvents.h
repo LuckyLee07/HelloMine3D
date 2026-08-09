@@ -29,6 +29,18 @@ struct BlockPlaceEvent : public SandboxEvent {
     BlockId blockId = BlockId::Air;
 };
 
+struct BlockUseEvent : public SandboxEvent {
+    BlockUseEvent(const glm::ivec3 &blockPosition, BlockId usedBlock)
+        : SandboxEvent(SandboxEventType::BlockUse)
+        , position(blockPosition)
+        , blockId(usedBlock)
+    {
+    }
+
+    glm::ivec3 position{0};
+    BlockId blockId = BlockId::Air;
+};
+
 struct BlockChangedEvent : public SandboxEvent {
     BlockChangedEvent(const glm::ivec3 &blockPosition, BlockId oldBlock,
                       BlockId newBlock)

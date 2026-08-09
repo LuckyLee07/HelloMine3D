@@ -135,7 +135,7 @@ Goal: move from simple block IDs to data-driven block properties and unified int
 | S3.1 | Done | Introduce `BlockDefinition`. | `S3.1/block-definition-populated` (string id, solid, default drop), `S3.1/liquid-definition-flagged`. |
 | S3.2 | Done | Add `BlockRenderInfo`. | Mesh builder reads texture coordinates, render pass and shape from definitions; the render capture shows correct solid/water/flora passes. |
 | S3.3 | Done | Add `ChunkBlock` metadata field. | `S3.3/block-metadata-roundtrip`; `HelloMine3DSaveLoadSmoke` covers metadata through the save format. |
-| S3.4 | Done | Add `BlockInteractionSystem`. | `S3.4/break-through-interaction-system`, `S3.4/break-clears-block`, `S3.4/place-through-interaction-system`, `S3.4/place-sets-block`, `S3.4/place-consumes-item`, `S3.4/break-air-is-noop`. `use` interactions remain a later extension point. |
+| S3.4 | Done | Add `BlockInteractionSystem`. | `S3.4/break-through-interaction-system`, `S3.4/break-clears-block`, `S3.4/place-through-interaction-system`, `S3.4/place-sets-block`, `S3.4/place-consumes-item`, `S3.4/break-air-is-noop`, plus the P5 `use` interaction assertions. |
 | S3.5 | Done | Add drop rules. | `S3.5/break-adds-configured-drop` — breaking stone yields the configured material into the inventory. |
 | S3.6 | Done | Add first stateful block placeholder. | `HelloMine3DSaveLoadSmoke` asserts the block-entity record roundtrip. No container UI or runtime behaviour yet, as designed. |
 
@@ -146,7 +146,7 @@ Goal: expose stable gameplay events before adding rules, scripts, or adventure l
 | ID | Status | Task | Validation evidence |
 | -- | ------ | ---- | ------------------- |
 | S4.1 | Done | Add `SandboxEventBus`. | The runtime smoke subscribes to all 15 event types and unsubscribes cleanly across 6 scenarios. |
-| S4.2 | Done | Add block events. | `S4.2/break-publishes-events`, `S4.2/place-publishes-events` — exactly one break/place and one changed event per successful interaction, none on a failed one. `BlockUseEvent` stays reserved. |
+| S4.2 | Done | Add block events. | `S4.2/break-publishes-events`, `S4.2/place-publishes-events` — exactly one break/place and one changed event per successful interaction, none on a failed one. P5 publishes one target-bearing `BlockUseEvent` for a successful use. |
 | S4.3 | Done | Add chunk events. | `S4.3/chunk-load-events` (9 loaded, 9 generated), `S4.3/chunk-save-event`, `S4.3/chunk-unload-event`. |
 | S4.4 | Done | Add entity events. | `S4.4/entity-spawn-event`, `S4.4/entity-damage-event`, `S4.4/entity-death-event`, `S4.4/item-pickup-event`. |
 | S4.5 | Done | Add player events. | `S4.5/teleport-publishes-event`, `S4.5/break-publishes-inventory-event`, `S4.5/pickup-publishes-inventory-event`. |
@@ -196,7 +196,7 @@ The sandbox foundation can be considered ready for adventure gameplay when all o
 | - | --------- | ------ |
 | 1 | The player can move across positive and negative chunk coordinates. | Met (S0.1) |
 | 2 | Chunks load, unload, save, and reload modified block data. | Met (S2.4, S2.5) |
-| 3 | Block break/place/use goes through one interaction layer. | Partly met — break/place done, `use` not implemented (S3.4) |
+| 3 | Block break/place/use goes through one interaction layer. | Met (S3.4, P5) |
 | 4 | Mesh updates are local, automatic, and visible on chunk/section boundaries. | Met (S0.5) |
 | 5 | World metadata stores seed, spawn point, and player position. | Met (S2.1, S2.6) |
 | 6 | A basic inventory and hotbar exist. | Met (S5.4) |
@@ -205,8 +205,8 @@ The sandbox foundation can be considered ready for adventure gameplay when all o
 | 9 | Debug UI or logs expose chunk, mesh, save, and entity counters. | Met (S0.4, S7.1 data path) |
 | 10 | A smoke test verifies save/load and coordinate conversion. | Met (S7.2, S7.3) |
 
-The three partly-met criteria are carried into `docs/todolist.md` as the next
-closed loop; entity rendering now only awaits the hardware-backed P1 capture.
+The two remaining partly-met criteria are carried into `docs/todolist.md`;
+entity rendering now only awaits the hardware-backed P1 capture.
 
 ## Notes
 

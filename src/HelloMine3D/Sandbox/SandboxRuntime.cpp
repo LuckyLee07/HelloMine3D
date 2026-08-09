@@ -100,6 +100,9 @@ void SandboxRuntime::handlePlayerInteraction(
     }
     else if (input.placeBlock) {
         m_interactionCooldownSeconds = 0.2f;
+        world.addEvent<PlayerDigEvent>(PlayerDigAction::Use,
+                                       glm::vec3(selection.blockPosition),
+                                       m_player);
         world.addEvent<PlayerDigEvent>(PlayerDigAction::Place,
                                        glm::vec3(selection.placementPosition),
                                        m_player);
