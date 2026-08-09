@@ -50,6 +50,7 @@ position and player rotation are forced per scenario through the same
 | `caseDebugPanelStartupOption` | V3, S7.1 | False/true environment values are parsed consistently and `HELLOMINE3D_SHOW_DEBUG_INFO` controls the initial panel state before capture begins. |
 | `caseFixedTickScheduler` | V1, S1.5 | The runtime scheduler emits exactly 200 ticks over 10 seconds and bounds catch-up work to five ticks per frame. |
 | `caseBlockTextureCoordinates` | E0 | Atlas UV generation is stable and does not require a graphics context. |
+| `caseOreTextures` | P4 | Coal and iron definitions use dedicated atlas slots, the packed atlas loads at 256x256, and both tile hashes differ from stone and each other. |
 | `caseBlockSelection` | P3 | One ray result identifies the solid target and adjacent placement voxel, skips water, respects reach and reports an empty miss. |
 | `casePlayerControllerInput` | V2, S5.3 | Synthetic input drives movement, flying jump, fly/sneak toggles, camera rotation and hotbar selection through the live controller application path. |
 | `caseHeightMapEdits` | V4 | The cached column height matches a brute-force scan after generation, breaking the highest opaque block, and placing a block above the old top. |
@@ -76,6 +77,7 @@ These need a person at the keyboard or a different harness:
 | --- | --- |
 | Sandbox ImGui debug panel (S7.1) | `run_render_capture.ps1 -ShowDebugInfo` now enables it before frame one and the data source is asserted. The 2026-08-09 session exposed only GDI Generic OpenGL 1.1, so the rendered panel still needs a hardware-backed screenshot. |
 | Selected-block outline (P3) | Picking and interaction share five passing headless assertions, and the line renderer builds in both configurations. The 2026-08-09 capture attempt again exposed only GDI Generic OpenGL 1.1, so the yellow outline still needs a hardware-backed screenshot. |
+| Ore texture render (P4) | Definitions, atlas dimensions and tile identities have four passing headless assertions, and the generated tiles were inspected directly. The GDI Generic OpenGL 1.1 session cannot start the OpenGL 3.3 client, so coal and iron still need a hardware-backed in-world screenshot. |
 | Formal data-race detection for the background loader (S0.3) | The V5 stress scenario exercises the real worker and covers the formerly unlocked chunk-map read, but MSVC still provides no ThreadSanitizer proof. |
 
 ## Current Verified Runs
@@ -83,7 +85,7 @@ These need a person at the keyboard or a different harness:
 | Layer | Command | Result |
 | ----- | ------- | ------ |
 | Focused headless tests | `bin\HelloMine3DCoordinateTests.exe`, `bin\HelloMine3DMeshDirtyTests.exe`, `bin\HelloMine3DSaveLoadSmoke.exe`, `bin\HelloMine3DEntityLifecycleSmoke.exe` | All pass. |
-| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=119 failures=0` (Debug and Release, 2026-08-09) |
+| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=123 failures=0` (Debug and Release, 2026-08-09) |
 | E0 dependency boundary | `rg "SFML|sf::|GLfloat|GLuint|glad" src/HelloMine3D/World` | No matches (2026-08-09). |
 | Render smoke | see `docs/render-regression-smoke.md` | `bin/render_capture_20260807190230074-46036`, status PASS |
 | Performance baseline | see `docs/performance-baseline.md` | `bin/perf_baseline_20260807190255313-41064`, `frame_p95_ms=16.430` |

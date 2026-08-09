@@ -12,6 +12,7 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
@@ -21,6 +22,8 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+#include <SFML/Graphics/Image.hpp>
 
 #include "../Actor/ItemEntity.h"
 #include "../Actor/LivingActor.h"
@@ -241,6 +244,57 @@ void caseBlockTextureCoordinates()
           std::abs(last[0] - 0.998046875f) < epsilon &&
               std::abs(last[2] - 0.939453125f) < epsilon &&
               std::abs(last[5] - 0.939453125f) < epsilon);
+}
+
+// ---------------------------------------------------------------------------
+// P4 - ore definitions point at distinct, populated atlas tiles
+// ---------------------------------------------------------------------------
+void caseOreTextures()
+{
+    const auto &database = BlockDatabase::get();
+    const auto &stone = database.getDefinition(BlockId::Stone);
+    const auto &coal = database.getDefinition(BlockId::CoalOre);
+    const auto &iron = database.getDefinition(BlockId::IronOre);
+
+    check("P4/ore-texture-coordinates",
+          coal.render.texTopCoord == glm::ivec2(13, 0) &&
+              iron.render.texTopCoord == glm::ivec2(14, 0) &&
+              coal.render.texTopCoord != stone.render.texTopCoord &&
+              iron.render.texTopCoord != stone.render.texTopCoord);
+
+    sf::Image atlas;
+    const bool loaded = atlas.loadFromFile(
+        ResourcePaths::media("textures/DefaultPack.png"));
+    check("P4/atlas-loads", loaded && atlas.getSize().x == 256 &&
+                                atlas.getSize().y == 256);
+    if (!loaded || atlas.getSize().x != 256 || atlas.getSize().y != 256) {
+        return;
+    }
+
+    const auto hashTile = [&](int tileX, int tileY) {
+        std::uint64_t hash = 1469598103934665603ull;
+        const std::uint8_t *pixels = atlas.getPixelsPtr();
+        for (int y = 0; y < 16; ++y) {
+            for (int x = 0; x < 16; ++x) {
+                const std::size_t offset =
+                    static_cast<std::size_t>(((tileY * 16 + y) * 256 +
+                                              tileX * 16 + x) *
+                                             4);
+                for (int channel = 0; channel < 4; ++channel) {
+                    hash ^= pixels[offset + channel];
+                    hash *= 1099511628211ull;
+                }
+            }
+        }
+        return hash;
+    };
+
+    const auto stoneHash = hashTile(3, 0);
+    const auto coalHash = hashTile(13, 0);
+    const auto ironHash = hashTile(14, 0);
+    check("P4/coal-texture-distinct", coalHash != stoneHash);
+    check("P4/iron-texture-distinct",
+          ironHash != stoneHash && ironHash != coalHash);
 }
 
 // ---------------------------------------------------------------------------
@@ -1502,6 +1556,7 @@ int main()
         caseDebugPanelStartupOption();
         caseFixedTickScheduler();
         caseBlockTextureCoordinates();
+        caseOreTextures();
         caseBlockSelection();
         casePlayerControllerInput();
         caseHeightMapEdits();

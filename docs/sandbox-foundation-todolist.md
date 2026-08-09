@@ -68,7 +68,7 @@ MiniGame 可参考的方向：
 ## Validation Status
 
 2026-08-07 收敛：44 个条目此前全部停留在 `Verify`，本轮通过新增的
-`HelloMine3DWorldRuntimeSmoke`（现为 97 项断言）、既有 4 个 headless 测试、渲染截图 smoke 和
+`HelloMine3DWorldRuntimeSmoke`（现为 123 项断言）、既有 4 个 headless 测试、渲染截图 smoke 和
 性能基线全部完成运行时验证。
 
 | 结果 | 数量 | 说明 |
@@ -173,7 +173,7 @@ Goal: keep procedural generation deterministic and extensible.
 | S6.1 | Done | Add world seed ownership. | `S6.1/same-seed-same-terrain` over 175104 sampled blocks, `S6.1/seed-restored-from-save`. |
 | S6.2 | Done | Split terrain base and decorators. | `S6.2/decorators-produce-trees` (161 tree blocks over 49 chunks), `S6.2/decorators-produce-plants` (97 plant blocks). |
 | S6.3 | Done | Formalize biome definitions. | `S6.3/biome-surface-variety` — 8 distinct surface block ids across the sampled region. |
-| S6.4 | Done | Add ore decorator. | `S6.4/ore-decorator-produces-ore` (coal 185, iron 171), `S6.4/ore-layout-deterministic`. Dedicated ore textures are still missing; tracked in `docs/todolist.md`. |
+| S6.4 | Done | Add ore decorator. | `S6.4/ore-decorator-produces-ore` (coal 185, iron 171), `S6.4/ore-layout-deterministic`. P4 now supplies dedicated coal and iron atlas tiles with four passing headless assertions; only the hardware-backed in-world screenshot remains in `Verify`. |
 | S6.5 | Done | Add structure placement boundary rules. | `S6.5/structures-survive-reload` — identical tree and plant counts after all 49 chunks go through a save/load roundtrip. `S6.5/surface-composition-stable`. |
 
 ## Milestone S7: Debugging and Validation
