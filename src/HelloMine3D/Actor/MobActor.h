@@ -9,6 +9,8 @@ class MobActor : public LivingActor {
     MobActor(ActorId id, std::string type, const glm::vec3 &position);
 
     void tick(World &world, float dt) override;
+    ActorSaveState getSaveState() const override;
+    void applySaveState(const ActorSaveState &state) override;
     void stepWander(float dt);
     void dropLoot(World &world);
 
@@ -16,6 +18,8 @@ class MobActor : public LivingActor {
     void setDrop(Material::ID materialId, int amount);
     Material::ID getDropMaterialId() const;
     int getDropAmount() const;
+    float getWanderTime() const;
+    float getWanderSpeed() const;
 
   private:
     float m_wanderTime = 0.f;

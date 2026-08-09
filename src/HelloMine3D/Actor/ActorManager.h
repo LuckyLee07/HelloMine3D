@@ -21,6 +21,7 @@ class ActorManager {
     void removeDeadActors();
     std::size_t getActorCount() const;
     std::vector<ActorSnapshot> collectSnapshots() const;
+    std::vector<ActorSaveState> collectSaveStates() const;
 
   private:
     std::vector<std::unique_ptr<Actor>> m_actors;

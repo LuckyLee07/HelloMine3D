@@ -127,6 +127,7 @@ class World : public NonCopyable {
     void updateChunks();
     void preloadChunksAround(const glm::vec3 &position, int radius = 1);
     bool saveWorldState();
+    void restoreActors(const std::vector<ActorSaveState> &states);
     void setSpawnPoint();
 
     ChunkManager m_chunkManager;

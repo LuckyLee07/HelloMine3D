@@ -10,9 +10,12 @@ class ItemEntity : public Actor {
                const glm::vec3 &position);
 
     void tick(World &world, float dt) override;
+    ActorSaveState getSaveState() const override;
+    void applySaveState(const ActorSaveState &state) override;
 
     Material::ID getMaterialId() const;
     int getAmount() const;
+    float getPickupDelay() const;
     void setPickupDelay(float seconds);
 
   private:

@@ -15,6 +15,10 @@ ActorId ActorManager::addActor(std::unique_ptr<Actor> actor,
     }
 
     const ActorId id = actor->getId();
+    if (id == InvalidActorId || findActor(id) != nullptr) {
+        return InvalidActorId;
+    }
+    m_nextActorId = std::max(m_nextActorId, id + 1);
     actor->enterWorld(eventBus);
     m_actors.push_back(std::move(actor));
     return id;
@@ -78,4 +82,16 @@ std::vector<ActorSnapshot> ActorManager::collectSnapshots() const
         }
     }
     return snapshots;
+}
+
+std::vector<ActorSaveState> ActorManager::collectSaveStates() const
+{
+    std::vector<ActorSaveState> states;
+    states.reserve(m_actors.size());
+    for (const auto &actor : m_actors) {
+        if (actor && actor->isAlive()) {
+            states.push_back(actor->getSaveState());
+        }
+    }
+    return states;
 }

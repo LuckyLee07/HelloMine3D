@@ -47,6 +47,44 @@ bool readVec3(std::istream &stream, glm::vec3 &value)
 {
     return static_cast<bool>(stream >> value.x >> value.y >> value.z);
 }
+
+bool readActor(std::istream &stream, ActorSaveState &state)
+{
+    int kind = 0;
+    int alive = 0;
+    if (!(stream >> kind >> state.id >> state.type) ||
+        !readVec3(stream, state.position) ||
+        !readVec3(stream, state.rotation) ||
+        !readVec3(stream, state.velocity) ||
+        !(stream >> alive >> state.health >> state.materialId >>
+          state.amount >> state.pickupDelay >> state.wanderTime >>
+          state.wanderSpeed >> state.dropMaterialId >> state.dropAmount)) {
+        return false;
+    }
+    if (kind < static_cast<int>(ActorSaveKind::Generic) ||
+        kind > static_cast<int>(ActorSaveKind::Item)) {
+        return false;
+    }
+    state.kind = static_cast<ActorSaveKind>(kind);
+    state.alive = alive != 0;
+    return true;
+}
+
+void writeActor(std::ostream &stream, const ActorSaveState &state)
+{
+    stream << "actor " << static_cast<int>(state.kind) << ' '
+           << state.id << ' ' << state.type << ' ';
+    writeVec3(stream, state.position);
+    stream << ' ';
+    writeVec3(stream, state.rotation);
+    stream << ' ';
+    writeVec3(stream, state.velocity);
+    stream << ' ' << (state.alive ? 1 : 0) << ' ' << state.health << ' '
+           << state.materialId << ' ' << state.amount << ' '
+           << state.pickupDelay << ' ' << state.wanderTime << ' '
+           << state.wanderSpeed << ' ' << state.dropMaterialId << ' '
+           << state.dropAmount << '\n';
+}
 } // namespace
 
 WorldSave::WorldSave()
@@ -67,6 +105,8 @@ bool WorldSave::load(WorldSaveData &data) const
     }
 
     WorldSaveData loaded;
+    bool actorCountSeen = false;
+    std::size_t expectedActorCount = 0;
     std::string key;
     while (input >> key) {
         if (key == "version") {
@@ -123,6 +163,19 @@ bool WorldSave::load(WorldSaveData &data) const
             loaded.playerState.inventory.push_back(
                 {static_cast<Material::ID>(materialId), amount});
         }
+        else if (key == "actor_count") {
+            input >> expectedActorCount;
+            loaded.actors.clear();
+            loaded.actors.reserve(expectedActorCount);
+            actorCountSeen = true;
+        }
+        else if (key == "actor") {
+            ActorSaveState actor;
+            if (!readActor(input, actor)) {
+                return false;
+            }
+            loaded.actors.push_back(std::move(actor));
+        }
         else {
             std::string restOfLine;
             std::getline(input, restOfLine);
@@ -131,6 +184,10 @@ bool WorldSave::load(WorldSaveData &data) const
         if (!input) {
             return false;
         }
+    }
+
+    if (actorCountSeen && loaded.actors.size() != expectedActorCount) {
+        return false;
     }
 
     data = loaded;
@@ -173,6 +230,10 @@ bool WorldSave::save(const WorldSaveData &data) const
     for (const auto &slot : data.playerState.inventory) {
         output << "inventory_slot " << static_cast<int>(slot.materialId) << ' '
                << slot.amount << '\n';
+    }
+    output << "actor_count " << data.actors.size() << '\n';
+    for (const ActorSaveState &actor : data.actors) {
+        writeActor(output, actor);
     }
 
     return static_cast<bool>(output);

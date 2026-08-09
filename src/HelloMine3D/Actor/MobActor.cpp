@@ -21,6 +21,26 @@ void MobActor::tick(World &world, float dt)
     stepWander(dt);
 }
 
+ActorSaveState MobActor::getSaveState() const
+{
+    ActorSaveState state = LivingActor::getSaveState();
+    state.kind = ActorSaveKind::Mob;
+    state.wanderTime = m_wanderTime;
+    state.wanderSpeed = m_wanderSpeed;
+    state.dropMaterialId = static_cast<int>(m_dropMaterialId);
+    state.dropAmount = m_dropAmount;
+    return state;
+}
+
+void MobActor::applySaveState(const ActorSaveState &state)
+{
+    LivingActor::applySaveState(state);
+    m_wanderTime = state.wanderTime;
+    m_wanderSpeed = state.wanderSpeed;
+    m_dropMaterialId = static_cast<Material::ID>(state.dropMaterialId);
+    m_dropAmount = state.dropAmount;
+}
+
 void MobActor::stepWander(float dt)
 {
     if (!isAlive()) {
@@ -52,4 +72,14 @@ Material::ID MobActor::getDropMaterialId() const
 int MobActor::getDropAmount() const
 {
     return m_dropAmount;
+}
+
+float MobActor::getWanderTime() const
+{
+    return m_wanderTime;
+}
+
+float MobActor::getWanderSpeed() const
+{
+    return m_wanderSpeed;
 }

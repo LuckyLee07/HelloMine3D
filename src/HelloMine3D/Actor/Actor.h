@@ -9,13 +9,28 @@
 class World;
 class SandboxEventBus;
 
+enum class ActorSaveKind {
+    Generic = 0,
+    Mob = 1,
+    Item = 2
+};
+
 struct ActorSaveState {
+    ActorSaveKind kind = ActorSaveKind::Generic;
     ActorId id = InvalidActorId;
     std::string type;
     glm::vec3 position{0.f};
     glm::vec3 rotation{0.f};
     glm::vec3 velocity{0.f};
     bool alive = true;
+    float health = 0.f;
+    int materialId = 0;
+    int amount = 0;
+    float pickupDelay = 0.f;
+    float wanderTime = 0.f;
+    float wanderSpeed = 0.f;
+    int dropMaterialId = 0;
+    int dropAmount = 0;
 };
 
 struct ActorSnapshot {
@@ -36,9 +51,9 @@ class Actor : public Entity {
     virtual void enterWorld(SandboxEventBus &eventBus);
     virtual void tick(World &world, float dt);
 
-    ActorSaveState getSaveState() const;
+    virtual ActorSaveState getSaveState() const;
     ActorSnapshot getSnapshot() const;
-    void applySaveState(const ActorSaveState &state);
+    virtual void applySaveState(const ActorSaveState &state);
 
     ActorId getId() const;
     const std::string &getType() const;

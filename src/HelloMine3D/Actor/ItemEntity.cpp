@@ -32,6 +32,24 @@ void ItemEntity::tick(World &world, float dt)
     tryPickup(world);
 }
 
+ActorSaveState ItemEntity::getSaveState() const
+{
+    ActorSaveState state = Actor::getSaveState();
+    state.kind = ActorSaveKind::Item;
+    state.materialId = static_cast<int>(m_materialId);
+    state.amount = m_amount;
+    state.pickupDelay = m_pickupDelay;
+    return state;
+}
+
+void ItemEntity::applySaveState(const ActorSaveState &state)
+{
+    Actor::applySaveState(state);
+    m_materialId = static_cast<Material::ID>(state.materialId);
+    m_amount = state.amount;
+    m_pickupDelay = state.pickupDelay;
+}
+
 Material::ID ItemEntity::getMaterialId() const
 {
     return m_materialId;
@@ -40,6 +58,11 @@ Material::ID ItemEntity::getMaterialId() const
 int ItemEntity::getAmount() const
 {
     return m_amount;
+}
+
+float ItemEntity::getPickupDelay() const
+{
+    return m_pickupDelay;
 }
 
 void ItemEntity::setPickupDelay(float seconds)

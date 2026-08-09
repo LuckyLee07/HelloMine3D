@@ -195,6 +195,9 @@ World::World(const Camera &camera, const Config &config, Player &player,
     }
 
     preloadChunksAround(player.position, initialPreloadRadius);
+    if (hasSave) {
+        restoreActors(m_worldSaveData.actors);
+    }
 
     auto playerChunk = getChunkXZ(toBlockCoord(player.position.x),
                                   toBlockCoord(player.position.z));
@@ -683,13 +686,54 @@ void World::preloadChunksAround(const glm::vec3 &position, int radius)
 
 bool World::saveWorldState()
 {
+    m_worldSaveData.version = WorldSaveFormatVersion;
     m_worldSaveData.spawnPoint = m_playerSpawnPoint;
     if (m_player != nullptr) {
         m_worldSaveData.playerState = m_player->getSaveState();
         m_worldSaveData.hasPlayerState = true;
     }
+    m_worldSaveData.actors = m_actorManager.collectSaveStates();
 
     return m_worldSave.save(m_worldSaveData);
+}
+
+void World::restoreActors(const std::vector<ActorSaveState> &states)
+{
+    for (const ActorSaveState &state : states) {
+        if (!state.alive || state.id == InvalidActorId ||
+            state.type.empty()) {
+            continue;
+        }
+
+        std::unique_ptr<Actor> actor;
+        if (state.kind == ActorSaveKind::Item) {
+            const auto materialId =
+                static_cast<Material::ID>(state.materialId);
+            if (materialId <= Material::ID::Nothing ||
+                materialId > Material::ID::IronOre || state.amount <= 0) {
+                continue;
+            }
+            actor = std::make_unique<ItemEntity>(
+                state.id, materialId, state.amount, state.position);
+        }
+        else if (state.kind == ActorSaveKind::Mob) {
+            actor = std::make_unique<MobActor>(
+                state.id, state.type, state.position);
+        }
+        else {
+            continue;
+        }
+
+        actor->applySaveState(state);
+        if (!actor->isAlive()) {
+            continue;
+        }
+        if (m_actorManager.addActor(std::move(actor), *this) ==
+            InvalidActorId) {
+            std::cerr << "Ignoring duplicate persisted actor id: "
+                      << state.id << '\n';
+        }
+    }
 }
 
 void World::setSpawnPoint()

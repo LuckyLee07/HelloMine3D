@@ -12,6 +12,8 @@ class LivingActor : public Actor {
 
     float getHealth() const;
     float getMaxHealth() const;
+    ActorSaveState getSaveState() const override;
+    void applySaveState(const ActorSaveState &state) override;
     bool damage(World &world, float amount,
                 ActorId sourceId = InvalidActorId);
     bool damage(SandboxEventBus &eventBus, float amount,

@@ -26,7 +26,10 @@ input. `Core/Camera.*` lives here because it is consumed by the renderer, world 
 helpers, and the application shell.
 
 `World/` is the gameplay simulation boundary. It owns chunk lifetime, terrain generation, block
-queries, block mutation events, and chunk mesh update scheduling.
+queries, block mutation events, chunk mesh update scheduling, and versioned world metadata.
+World metadata version 2 persists player state plus live mob/item subtype state;
+version 1 saves remain readable with an empty actor list and upgrade on the
+next world save.
 
 `Player/`, `Item/`, and `Physics/` are gameplay support modules.
 `PlayerInputState` is a platform-independent command value; the Ogre/OIS shell

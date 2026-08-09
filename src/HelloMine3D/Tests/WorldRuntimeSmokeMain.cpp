@@ -9,6 +9,7 @@
 //   [VALIDATION] FAIL <id> :: <detail>
 // and the process exits non-zero when any check fails.
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cmath>
@@ -27,6 +28,7 @@
 
 #include "../Actor/ItemEntity.h"
 #include "../Actor/LivingActor.h"
+#include "../Actor/MobActor.h"
 #include "../Config.h"
 #include "../Core/Camera.h"
 #include "../Diagnostics/RuntimeDebugOptions.h"
@@ -797,6 +799,10 @@ void casePersistence()
     const int y = 100;
     int firstSeed = 0;
     glm::vec3 savedSpawn{0.f};
+    ActorId savedMobId = InvalidActorId;
+    ActorId savedItemId = InvalidActorId;
+    ActorSaveState savedMobState;
+    ActorSaveState savedItemState;
 
     {
         Player player;
@@ -817,6 +823,27 @@ void casePersistence()
         player.rotation = glm::vec3(15.f, 45.f, 0.f);
         player.addItem(Material::toMaterial(Material::ID::Stone), 7);
 
+        savedMobId = world.spawnMob(
+            "validation_persistent_mob", glm::vec3(20.5f, 101.f, 20.5f));
+        savedItemId = world.spawnItemEntity(
+            Material::ID::IronOre, 4, glm::vec3(18.5f, 103.f, 18.5f),
+            glm::vec3(0.25f, 0.5f, -0.25f));
+        auto *mob = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(savedMobId));
+        auto *item = dynamic_cast<ItemEntity *>(
+            world.getActorManager().findActor(savedItemId));
+        check("P2/actors-created-before-save",
+              mob != nullptr && item != nullptr);
+        if (mob != nullptr && item != nullptr) {
+            mob->setWanderSpeed(0.45f);
+            mob->setDrop(Material::ID::CoalOre, 2);
+            mob->velocity = glm::vec3(0.1f, 0.f, -0.2f);
+            mob->damage(world, 3.f);
+            item->setPickupDelay(6.5f);
+            savedMobState = mob->getSaveState();
+            savedItemState = item->getSaveState();
+        }
+
         check("S2.1/world-save-succeeds", world.save());
 
         WorldSaveData meta;
@@ -825,6 +852,10 @@ void casePersistence()
         savedSpawn = meta.spawnPoint;
         check("S2.1/world-meta-has-seed", meta.seed == firstSeed,
               "meta seed=" + std::to_string(meta.seed));
+        check("P2/world-meta-stores-actors",
+              meta.version == 2 && meta.actors.size() == 2,
+              "version=" + std::to_string(meta.version) +
+                  " actors=" + std::to_string(meta.actors.size()));
     }
 
     // Relaunch without forced position/rotation so the save state is the only
@@ -864,6 +895,46 @@ void casePersistence()
               "held " + player.getHeldItems().getMaterial().name + " x" +
                   std::to_string(player.getHeldItems().getNumInStack()));
 
+        auto *restoredMob = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(savedMobId));
+        auto *restoredItem = dynamic_cast<ItemEntity *>(
+            world.getActorManager().findActor(savedItemId));
+        check("P2/actors-restored-after-relaunch",
+              restoredMob != nullptr && restoredItem != nullptr &&
+                  world.getActorManager().getActorCount() == 2,
+              "actors=" + std::to_string(
+                  world.getActorManager().getActorCount()));
+        check("P2/mob-state-restored",
+              restoredMob != nullptr &&
+                  restoredMob->getType() == savedMobState.type &&
+                  glm::length(restoredMob->position -
+                              savedMobState.position) < 0.001f &&
+                  glm::length(restoredMob->velocity -
+                              savedMobState.velocity) < 0.001f &&
+                  std::abs(restoredMob->getHealth() -
+                           savedMobState.health) < 0.001f &&
+                  std::abs(restoredMob->getWanderSpeed() -
+                           savedMobState.wanderSpeed) < 0.001f &&
+                  restoredMob->getDropMaterialId() ==
+                      Material::ID::CoalOre &&
+                  restoredMob->getDropAmount() == 2);
+        check("P2/item-state-restored",
+              restoredItem != nullptr &&
+                  restoredItem->getMaterialId() ==
+                      Material::ID::IronOre &&
+                  restoredItem->getAmount() == savedItemState.amount &&
+                  glm::length(restoredItem->position -
+                              savedItemState.position) < 0.001f &&
+                  glm::length(restoredItem->velocity -
+                              savedItemState.velocity) < 0.001f &&
+                  std::abs(restoredItem->getPickupDelay() -
+                           savedItemState.pickupDelay) < 0.001f);
+        const ActorId nextActorId = world.spawnMob(
+            "validation_next_mob", glm::vec3(22.f, 101.f, 22.f));
+        check("P2/restored-ids-advance-sequence",
+              nextActorId > std::max(savedMobId, savedItemId),
+              "next=" + std::to_string(nextActorId));
+
         check("S6.1/seed-restored-from-save",
               world.collectDebugStats().terrainSeed == firstSeed,
               "seed " + std::to_string(firstSeed) + " -> " +
@@ -878,6 +949,34 @@ void casePersistence()
                   std::abs(meta.spawnPoint.z - savedSpawn.z) < 0.01f,
               vecToString(savedSpawn) + " -> " + vecToString(meta.spawnPoint));
     }
+
+    const auto legacyDirectory = freshSaveDirectory("persistence_v1");
+    {
+        std::ofstream legacyMeta(
+            std::filesystem::path(legacyDirectory) / "world.meta");
+        legacyMeta << "version 1\n"
+                   << "world_id legacy\n"
+                   << "world_name LegacyWorld\n"
+                   << "seed 123\n"
+                   << "spawn 1 2 3\n"
+                   << "world_time 4\n"
+                   << "generator ClassicOverWorld\n"
+                   << "player_present 0\n";
+    }
+    WorldSaveData legacyData;
+    check("P2/version-one-save-remains-readable",
+          WorldSave(legacyDirectory).load(legacyData) &&
+              legacyData.version == 1 && legacyData.actors.empty());
+    {
+        Player legacyPlayer;
+        World legacyWorld(camera, config, legacyPlayer, legacyDirectory,
+                          false, 0);
+    }
+    WorldSaveData upgradedData;
+    check("P2/version-one-save-upgrades",
+          WorldSave(legacyDirectory).load(upgradedData) &&
+              upgradedData.version == WorldSaveFormatVersion &&
+              upgradedData.actors.empty());
 }
 
 // ---------------------------------------------------------------------------

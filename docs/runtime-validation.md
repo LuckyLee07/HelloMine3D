@@ -29,7 +29,7 @@ Output is one line per assertion plus a summary:
 ```text
 [VALIDATION] PASS S0.5/chunk-boundary-marks-neighbor
 [VALIDATION] FAIL S6.4/ore-decorator-produces-ore :: coal=0 iron=0
-[VALIDATION] checks=132 failures=0
+[VALIDATION] checks=140 failures=0
 [VALIDATION] status=PASS
 ```
 
@@ -59,7 +59,7 @@ position and player rotation are forced per scenario through the same
 | `caseNegativeCoordinates` | S0.1 | Negative and cross-zero world coordinates map to the right chunk and local block, both on write and read back. |
 | `caseNoImplicitChunkCreation` | S0.2 | Reading or writing a block outside the loaded set does not create chunks. |
 | `caseMeshDirtyPropagation` | S0.4, S0.5 | Interior edits dirty only the owning section; chunk-boundary and section-boundary edits also dirty the correct neighbour. Debug stats report the state. |
-| `casePersistence` | S1.3, S2.1, S2.4, S2.5, S2.6, S6.1 | Block edits, world metadata, seed, spawn point, player transform and inventory all survive a relaunch. |
+| `casePersistence` | P2, S1.3, S2.1, S2.4, S2.5, S2.6, S6.1 | Block edits, world metadata, seed, spawn point, player transform/inventory, mobs and item entities all survive a relaunch. Actor subtype state and id allocation are compared after restore. |
 | `caseSectionMeshUploadSnapshot` | E5 | Ogre-facing CPU mesh snapshots include live section identity and block revision; stale upload acknowledgements cannot overwrite a newer edit. |
 | `caseUnloadPersistence` | S2.4 | Unloading a chunk flushes it to storage first, and reloading restores the edit instead of regenerating. |
 | `caseChunkFormatRejection` | S2.2, S2.3 | Chunk file paths are deterministic, and a corrupted magic is rejected with a diagnostic rather than loaded as garbage. |
@@ -87,7 +87,7 @@ These need a person at the keyboard or a different harness:
 | Layer | Command | Result |
 | ----- | ------- | ------ |
 | Focused headless tests | `bin\HelloMine3DCoordinateTests.exe`, `bin\HelloMine3DMeshDirtyTests.exe`, `bin\HelloMine3DSaveLoadSmoke.exe`, `bin\HelloMine3DEntityLifecycleSmoke.exe` | All pass. |
-| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=132 failures=0` (Debug and Release, 2026-08-09) |
+| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=140 failures=0` (Debug and Release, 2026-08-09) |
 | E0 dependency boundary | `rg "SFML|sf::|GLfloat|GLuint|glad" src/HelloMine3D/World` | No matches (2026-08-09). |
 | E1 engine build | `tools\premake\premake5 --os=windows --file=premake/premake.lua vs2022`, then full Debug/Release solution builds | Ogre 1.10 core, GLSupport, GL3Plus, FreeImage dependency chain, dedicated Ogre FreeType, zlib, zzip and OIS all compile with 0 errors (2026-08-09). |
 | E2 bootstrap validation | `set HELLOMINE3D_VALIDATE_ONLY=1` then `bin\HelloMine3D.exe` | Debug and Release register `OpenGL 3+ Rendering Subsystem`, 2 resource locations and OIS, then shut down cleanly (2026-08-09). |
@@ -97,6 +97,7 @@ These need a person at the keyboard or a different harness:
 | E4 Ogre HUD/ImGui | Add `HELLOMINE3D_SHOW_DEBUG_INFO=1`, then repeat with `off` | Debug and Release report `hud_config=valid`, five hotbar slots, selected slot zero, and the matching enabled/disabled debug-panel state. OIS key/mouse events, F1 toggling, render-queue submission and camera input suppression compile in both configurations (2026-08-09). |
 | E5 single render path | `rg -n "SFML|sf::|glad|imgui.?sfml|HelloMine3DOgreBootstrap" src/HelloMine3D premake tools` plus full Debug/Release builds and all five tests | No old client/render dependencies remain; versioned CPU mesh upload checks pass and `HelloMine3D.exe` is the only client target (2026-08-09). |
 | P1 actor bridge | Add `HELLOMINE3D_SPAWN_VALIDATION_ACTORS=1` to a hardware capture, or use `tools\run_render_capture.ps1 -SpawnValidationActors` | Debug/Release validation report `actor_config=valid`, `actor_count=2`, `mob_count=1`, `item_count=1`; five P1 snapshot assertions pass (2026-08-09). |
+| P2 actor persistence | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`casePersistence`) | World metadata version 2 restores a mob and item with subtype fields intact, retains ids, advances the next id, and reads/upgrades a version 1 fixture; eight P2 assertions pass (2026-08-09). |
 | Render smoke | see `docs/render-regression-smoke.md` | `bin/render_capture_20260807190230074-46036`, status PASS |
 | Performance baseline | see `docs/performance-baseline.md` | `bin/perf_baseline_20260807190255313-41064`, `frame_p95_ms=16.430` |
 

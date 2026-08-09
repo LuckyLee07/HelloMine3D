@@ -161,7 +161,7 @@ Goal: replace the current thin `Entity` with a minimal actor model that can supp
 | S5.2 | Done | Add `LivingActor`. | `S5.2/mob-is-living-actor`, `S5.2/mob-takes-damage`, `S5.2/mob-dies`. Invulnerability timing is still not implemented. |
 | S5.3 | Done | Add `PlayerActor` and `PlayerController`. | `PlayerInputState` feeds the same `PlayerController::applyInput()` path as live Ogre/OIS collection. `V2/*` asserts movement, flying jump, fly/sneak toggles, look delta and hotbar selection without moving the real mouse. |
 | S5.4 | Done | Add `Inventory` and hotbar. | `S2.6/player-inventory-restored`, `S3.5/break-adds-configured-drop`, `S3.4/place-consumes-item`, `S5.5/item-entity-picked-up`. |
-| S5.5 | Done | Add `ItemEntity`. | `S5.5/item-entity-spawns`, `S5.5/item-entity-found`, `S5.5/item-entity-picked-up`, plus P1 item snapshot creation/removal. Ogre rendering is implemented; entity persistence and the hardware screenshot remain open (see `docs/todolist.md`). |
+| S5.5 | Done | Add `ItemEntity`. | `S5.5/item-entity-spawns`, `S5.5/item-entity-found`, `S5.5/item-entity-picked-up`, plus P1 item snapshot creation/removal. P2 persists material, amount, transform, velocity and pickup delay. Ogre rendering is implemented; only the hardware screenshot remains open. |
 | S5.6 | Done | Add first `MobActor`. | `S5.6/mob-spawns`, `S5.6/mob-wanders-on-tick`, plus the damage/death chain and P1 mob snapshot transform/removal assertions. Ogre rendering is implemented; the hardware screenshot remains open. |
 
 ## Milestone S6: Terrain Generation and Content Structure

@@ -1,13 +1,17 @@
 #ifndef WORLDSAVE_H_INCLUDED
 #define WORLDSAVE_H_INCLUDED
 
+#include "../../Actor/Actor.h"
 #include "../../Player/Player.h"
 
 #include <glm/glm.hpp>
 #include <string>
+#include <vector>
+
+inline constexpr int WorldSaveFormatVersion = 2;
 
 struct WorldSaveData {
-    int version = 1;
+    int version = WorldSaveFormatVersion;
     std::string worldId = "default";
     std::string worldName = "DefaultWorld";
     int seed = 0;
@@ -16,6 +20,7 @@ struct WorldSaveData {
     std::string activeGenerator = "ClassicOverWorld";
     bool hasPlayerState = false;
     PlayerSaveState playerState;
+    std::vector<ActorSaveState> actors;
 };
 
 class WorldSave {

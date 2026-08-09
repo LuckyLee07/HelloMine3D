@@ -25,6 +25,22 @@ float LivingActor::getMaxHealth() const
     return m_maxHealth;
 }
 
+ActorSaveState LivingActor::getSaveState() const
+{
+    ActorSaveState state = Actor::getSaveState();
+    state.health = m_health;
+    return state;
+}
+
+void LivingActor::applySaveState(const ActorSaveState &state)
+{
+    Actor::applySaveState(state);
+    m_health = std::clamp(state.health, 0.f, m_maxHealth);
+    if (m_health <= 0.f) {
+        setAlive(false);
+    }
+}
+
 bool LivingActor::damage(SandboxEventBus &eventBus, float amount,
                          ActorId sourceId)
 {
