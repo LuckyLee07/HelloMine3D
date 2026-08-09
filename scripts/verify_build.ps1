@@ -86,6 +86,16 @@ try {
             Invoke-Checked "$configuration $test" { & $testPath }
         }
     }
+
+    $expectedExecutables = @("HelloMine3D.exe") + $tests
+    $unexpectedExecutables = @(
+        Get-ChildItem -LiteralPath $binDirectory -Filter "HelloMine3D*.exe" |
+            Where-Object { $_.Name -notin $expectedExecutables }
+    )
+    if ($unexpectedExecutables.Count -gt 0) {
+        throw "Unexpected stale executables in bin/: $($unexpectedExecutables.Name -join ', ')"
+    }
+    Write-Host "[BUILD_VERIFY] executable inventory valid"
 }
 finally {
     Pop-Location

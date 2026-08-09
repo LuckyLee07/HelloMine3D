@@ -25,4 +25,22 @@ for config in debug release; do
     done
 done
 
+unexpected=()
+for candidate in "$ROOT_DIR"/bin/HelloMine3D*; do
+    [ -f "$candidate" ] && [ -x "$candidate" ] || continue
+    case "$(basename "$candidate")" in
+        HelloMine3D|HelloMine3DCoordinateTests|HelloMine3DMeshDirtyTests|HelloMine3DSaveLoadSmoke|HelloMine3DEntityLifecycleSmoke|HelloMine3DWorldRuntimeSmoke)
+            ;;
+        *)
+            unexpected+=("$(basename "$candidate")")
+            ;;
+    esac
+done
+
+if [ "${#unexpected[@]}" -gt 0 ]; then
+    echo "Unexpected stale executables in bin/: ${unexpected[*]}" >&2
+    exit 1
+fi
+echo "[BUILD_VERIFY] executable inventory valid"
+
 echo "[BUILD_VERIFY] status=PASS"
