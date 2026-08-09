@@ -28,7 +28,9 @@
 #include "../Core/Camera.h"
 #include "../Diagnostics/RuntimePerformanceCapture.h"
 #include "../Player/Player.h"
+#include "../RuntimeConfig.h"
 #include "../Sandbox/SandboxRuntime.h"
+#include "../Util/ResourcePaths.h"
 #include "../World/Chunk/Chunk.h"
 #include "../World/Chunk/ChunkSection.h"
 #include "../World/World.h"
@@ -91,6 +93,7 @@ namespace
 
         bool validate()
         {
+            loadGameConfig();
             createRoot();
             const std::size_t resourceLocations = configureResources();
             Ogre::RenderSystem* renderSystem = configureRenderSystem();
@@ -169,6 +172,7 @@ namespace
 
         int run()
         {
+            loadGameConfig();
             createRoot();
             configureResources();
             configureRenderSystem();
@@ -185,6 +189,12 @@ namespace
         }
 
       private:
+        void loadGameConfig()
+        {
+            m_config = loadRuntimeConfig(
+                ResourcePaths::bin("config.txt"));
+        }
+
         void createRoot()
         {
             m_root = std::make_unique<Ogre::Root>(
@@ -248,10 +258,13 @@ namespace
             }
 
             m_root->setRenderSystem(selected);
-            setOptionIfAvailable(*selected, "Full Screen", "No");
+            setOptionIfAvailable(*selected, "Full Screen",
+                                 m_config.isFullscreen ? "Yes" : "No");
             setOptionIfAvailable(*selected, "VSync", "Yes");
             setOptionIfAvailable(*selected, "FSAA", "0");
-            selectWindowSize(*selected, "1280 x 720");
+            selectWindowSize(
+                *selected, std::to_string(m_config.windowX) + " x " +
+                               std::to_string(m_config.windowY));
             return selected;
         }
 
@@ -302,7 +315,8 @@ namespace
             m_camera->lookAt(0.0f, 1.0f, 0.0f);
             m_camera->setNearClipDistance(0.1f);
             m_camera->setFarClipDistance(10000.0f);
-            m_camera->setFOVy(Ogre::Degree(90.0f));
+            m_camera->setFOVy(
+                Ogre::Degree(static_cast<Ogre::Real>(m_config.fov)));
             m_camera->setFixedYawAxis(true, Ogre::Vector3::UNIT_Y);
 
             Ogre::Viewport* viewport = m_window->addViewport(m_camera);
@@ -351,8 +365,11 @@ namespace
 
         TerrainBuildSummary buildTerrain(bool uploadToOgre)
         {
-            Config config;
-            config.renderDistance = 1;
+            Config config = m_config;
+            if (!uploadToOgre)
+            {
+                config.renderDistance = 1;
+            }
             m_logicCamera = std::make_unique<::Camera>(config);
             m_sandbox = std::make_unique<SandboxRuntime>(
                 config, *m_logicCamera, false, 2);
@@ -1067,6 +1084,7 @@ namespace
         }
 
         std::unique_ptr<Ogre::Root> m_root;
+        Config m_config;
         std::unique_ptr<Ogre::GL3PlusPlugin> m_gl3PlusPlugin;
         Ogre::RenderWindow* m_window = nullptr;
         Ogre::SceneManager* m_sceneManager = nullptr;

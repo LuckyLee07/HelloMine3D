@@ -34,6 +34,7 @@
 #include "../Diagnostics/RuntimeDebugOptions.h"
 #include "../Item/Material.h"
 #include "../Player/Player.h"
+#include "../RuntimeConfig.h"
 #include "../Sandbox/Events/BlockEvents.h"
 #include "../Sandbox/Events/ChunkEvents.h"
 #include "../Sandbox/Events/EntityEvents.h"
@@ -247,6 +248,44 @@ void caseBlockTextureCoordinates()
           std::abs(last[0] - 0.998046875f) < epsilon &&
               std::abs(last[2] - 0.939453125f) < epsilon &&
               std::abs(last[5] - 0.939453125f) < epsilon);
+}
+
+// ---------------------------------------------------------------------------
+// A3 - runtime config is generated locally and remains user-owned
+// ---------------------------------------------------------------------------
+void caseRuntimeConfigOwnership()
+{
+    const std::filesystem::path directory =
+        freshSaveDirectory("runtime_config");
+    const std::filesystem::path configPath = directory / "config.txt";
+
+    const Config generated = loadRuntimeConfig(configPath.string());
+    check("A3/missing-config-regenerated",
+          std::filesystem::is_regular_file(configPath),
+          configPath.string());
+    check("A3/generated-config-uses-documented-defaults",
+          generated.renderDistance == 8 && !generated.isFullscreen &&
+              generated.windowX == 1280 && generated.windowY == 720 &&
+              generated.fov == 90,
+          std::to_string(generated.renderDistance) + " " +
+              std::to_string(generated.isFullscreen) + " " +
+              std::to_string(generated.windowX) + "x" +
+              std::to_string(generated.windowY) + " " +
+              std::to_string(generated.fov));
+
+    {
+        std::ofstream output(configPath,
+                             std::ios::binary | std::ios::trunc);
+        output << "renderdistance 3\n"
+               << "fullscreen 1\n"
+               << "windowsize 1024 768\n"
+               << "fov 100\n";
+    }
+    const Config customised = loadRuntimeConfig(configPath.string());
+    check("A3/user-config-overrides-defaults",
+          customised.renderDistance == 3 && customised.isFullscreen &&
+              customised.windowX == 1024 && customised.windowY == 768 &&
+              customised.fov == 100);
 }
 
 // ---------------------------------------------------------------------------
@@ -2343,6 +2382,7 @@ int main()
         caseDebugPanelStartupOption();
         caseFixedTickScheduler();
         caseBlockTextureCoordinates();
+        caseRuntimeConfigOwnership();
         caseBlockDataDiagnostics();
         caseOreTextures();
         caseBlockSelection();

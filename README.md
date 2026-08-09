@@ -112,6 +112,25 @@ vs2022.bat
     build\HelloMine3D.sln /p:Configuration=Debug /p:Platform=x64 /m
 ```
 
+### Runtime Configuration And State
+
+`bin/config.txt` is a per-user runtime configuration and is intentionally not
+tracked. The client creates it when missing with these defaults:
+
+```text
+renderdistance 8
+fullscreen 0
+windowsize 1280 720
+fov 90
+```
+
+Deleting the file resets these settings on the next launch. The render
+distance, fullscreen flag, window size and field of view are read by the Ogre
+client; blank lines and `#` comments are allowed. `bin/Mine.cfg` and
+`bin/MineResources.cfg` are the only repository-owned files in `bin/` and act
+as Ogre bootstrap templates. Executables, logs, ImGui state, saves, captures
+and the legacy unused `info.txt` are generated local state and remain ignored.
+
 ### Validation
 
 The build produces the client plus five test targets, all of which run headless:
@@ -121,7 +140,7 @@ bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
 bin\HelloMine3DMeshDirtyTests.exe         # mesh dirty planner
 bin\HelloMine3DSaveLoadSmoke.exe          # chunk serialization roundtrip
 bin\HelloMine3DEntityLifecycleSmoke.exe   # actor lifecycle
-bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 177 assertions
+bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 180 assertions
 ```
 
 Asset and data changes should also run the reference-aware asset check:
