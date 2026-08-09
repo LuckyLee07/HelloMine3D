@@ -46,6 +46,7 @@ position and player rotation are forced per scenario through the same
 
 | Scenario | Milestones | What it proves |
 | -------- | ---------- | -------------- |
+| `caseDebugPanelStartupOption` | V3, S7.1 | False/true environment values are parsed consistently and `HELLOMINE3D_SHOW_DEBUG_INFO` controls the initial panel state before capture begins. |
 | `caseFixedTickScheduler` | V1, S1.5 | The runtime scheduler emits exactly 200 ticks over 10 seconds and bounds catch-up work to five ticks per frame. |
 | `caseBlockTextureCoordinates` | E0 | Atlas UV generation is stable and does not require a graphics context. |
 | `casePlayerControllerInput` | V2, S5.3 | Synthetic input drives movement, flying jump, fly/sneak toggles, camera rotation and hotbar selection through the live controller application path. |
@@ -71,7 +72,7 @@ These need a person at the keyboard or a different harness:
 
 | Gap | Why |
 | --- | --- |
-| Sandbox ImGui debug panel (S7.1) | The panel is behind the F1 toggle. Its data source, `World::collectDebugStats()`, is asserted, but the rendered panel is not. |
+| Sandbox ImGui debug panel (S7.1) | `run_render_capture.ps1 -ShowDebugInfo` now enables it before frame one and the data source is asserted. The 2026-08-09 session exposed only GDI Generic OpenGL 1.1, so the rendered panel still needs a hardware-backed screenshot. |
 | Formal data-race detection for the background loader (S0.3) | The V5 stress scenario exercises the real worker and covers the formerly unlocked chunk-map read, but MSVC still provides no ThreadSanitizer proof. |
 
 ## Current Verified Runs
@@ -79,7 +80,7 @@ These need a person at the keyboard or a different harness:
 | Layer | Command | Result |
 | ----- | ------- | ------ |
 | Focused headless tests | `bin\HelloMine3DCoordinateTests.exe`, `bin\HelloMine3DMeshDirtyTests.exe`, `bin\HelloMine3DSaveLoadSmoke.exe`, `bin\HelloMine3DEntityLifecycleSmoke.exe` | All pass. |
-| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=110 failures=0` (Debug and Release, 2026-08-09) |
+| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=114 failures=0` (Debug and Release, 2026-08-09) |
 | Render smoke | see `docs/render-regression-smoke.md` | `bin/render_capture_20260807190230074-46036`, status PASS |
 | Performance baseline | see `docs/performance-baseline.md` | `bin/perf_baseline_20260807190255313-41064`, `frame_p95_ms=16.430` |
 

@@ -182,7 +182,7 @@ Goal: make sandbox behavior measurable while the foundation is being rewritten.
 
 | ID | Status | Task | Validation evidence |
 | -- | ------ | ---- | ------------------- |
-| S7.1 | Verify | Add sandbox debug panel. | The data source `World::collectDebugStats()` is asserted by `S0.4/debug-stats-report-state` and sampled every frame by the performance baseline. The rendered ImGui panel sits behind the F1 toggle, which capture mode cannot reach. Needs one screenshot with the panel open. |
+| S7.1 | Verify | Add sandbox debug panel. | The data source `World::collectDebugStats()` is asserted and sampled every frame by the performance baseline. V3 adds `HELLOMINE3D_SHOW_DEBUG_INFO`, the capture script's `-ShowDebugInfo` switch, and four headless option assertions. The 2026-08-09 session exposed only GDI Generic OpenGL 1.1, so one hardware-backed screenshot with the live panel is still required. |
 | S7.2 | Done | Add focused save/load smoke test. | `bin\HelloMine3DSaveLoadSmoke.exe` passes; full client relaunch persistence is now also covered by `casePersistence` and `caseUnloadPersistence`. |
 | S7.3 | Done | Add coordinate conversion tests. | `bin\HelloMine3DCoordinateTests.exe` passes; runtime behaviour covered by `caseNegativeCoordinates`. |
 | S7.4 | Done | Add mesh dirty validation scenario. | `bin\HelloMine3DMeshDirtyTests.exe` passes; runtime section state covered by `caseMeshDirtyPropagation`. |

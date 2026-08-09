@@ -26,6 +26,7 @@
 #include "../Actor/LivingActor.h"
 #include "../Config.h"
 #include "../Core/Camera.h"
+#include "../Diagnostics/RuntimeDebugOptions.h"
 #include "../Item/Material.h"
 #include "../Player/Player.h"
 #include "../Sandbox/Events/BlockEvents.h"
@@ -172,6 +173,32 @@ class EventRecorder {
     std::vector<SandboxEventBus::SubscriptionId> m_ids;
     std::array<int, 32> m_counts{};
 };
+
+// ---------------------------------------------------------------------------
+// V3 - the debug panel can be enabled before the first captured frame
+// ---------------------------------------------------------------------------
+void caseDebugPanelStartupOption()
+{
+    check("V3/debug-option-false-values",
+          !RuntimeDebugOptions::isEnabledValue(nullptr) &&
+              !RuntimeDebugOptions::isEnabledValue("") &&
+              !RuntimeDebugOptions::isEnabledValue("0") &&
+              !RuntimeDebugOptions::isEnabledValue("false") &&
+              !RuntimeDebugOptions::isEnabledValue("OFF") &&
+              !RuntimeDebugOptions::isEnabledValue("No"));
+    check("V3/debug-option-true-values",
+          RuntimeDebugOptions::isEnabledValue("1") &&
+              RuntimeDebugOptions::isEnabledValue("true") &&
+              RuntimeDebugOptions::isEnabledValue("on"));
+
+    setEnv("HELLOMINE3D_SHOW_DEBUG_INFO", "1");
+    check("V3/debug-option-env-on",
+          RuntimeDebugOptions::showDebugInfoAtStartup());
+    setEnv("HELLOMINE3D_SHOW_DEBUG_INFO", "0");
+    check("V3/debug-option-env-off",
+          !RuntimeDebugOptions::showDebugInfoAtStartup());
+    setEnv("HELLOMINE3D_SHOW_DEBUG_INFO", "");
+}
 
 // ---------------------------------------------------------------------------
 // V1 - the runtime fixed-step scheduler produces 20 ticks per second
@@ -1428,6 +1455,7 @@ int main()
     try {
         std::cout << "[VALIDATION] world runtime smoke starting\n";
 
+        caseDebugPanelStartupOption();
         caseFixedTickScheduler();
         caseBlockTextureCoordinates();
         casePlayerControllerInput();

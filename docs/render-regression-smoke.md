@@ -102,6 +102,7 @@ environment variables, normally set by `tools/run_render_capture.ps1`:
 | `HELLOMINE3D_SEED` | Optional deterministic terrain seed override. |
 | `HELLOMINE3D_PLAYER_POSITION` | Optional deterministic player position override. |
 | `HELLOMINE3D_PLAYER_ROTATION` | Optional deterministic player rotation override. |
+| `HELLOMINE3D_SHOW_DEBUG_INFO` | Starts with the F1 debug panels visible. The script sets it with `-ShowDebugInfo`. |
 
 `WindowScreenshot` mode is kept only as a fallback/manual diagnostic path. It
 uses desktop screenshot APIs and can capture another foreground window if the

@@ -11,6 +11,7 @@
 
 #include "Diagnostics/RuntimePerformanceCapture.h"
 #include "Diagnostics/RuntimeRenderCapture.h"
+#include "Diagnostics/RuntimeDebugOptions.h"
 #include "GL/GLUtils.h"
 #include "Debug/DebugGui.h"
 #include "Input/Keyboard.h"
@@ -98,7 +99,7 @@ int main()
 
     TimeStep updater{50};
     Profiler profiler;
-    bool show_debug_info = false;
+    bool show_debug_info = RuntimeDebugOptions::showDebugInfoAtStartup();
 
     Application app{window, config};
 

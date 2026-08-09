@@ -15,6 +15,7 @@ param(
     [string]$Seed = "",
     [string]$PlayerPosition = "",
     [string]$PlayerRotation = "",
+    [switch]$ShowDebugInfo,
     [switch]$StopExisting,
     [switch]$KeepAlive
 )
@@ -332,6 +333,7 @@ Write-Host "[RENDER_CAPTURE] window=$WindowX,$WindowY ${WindowWidth}x$WindowHeig
 if (-not [string]::IsNullOrWhiteSpace($Seed)) { Write-Host "[RENDER_CAPTURE] seed=$Seed" }
 if (-not [string]::IsNullOrWhiteSpace($PlayerPosition)) { Write-Host "[RENDER_CAPTURE] playerPosition=$PlayerPosition" }
 if (-not [string]::IsNullOrWhiteSpace($PlayerRotation)) { Write-Host "[RENDER_CAPTURE] playerRotation=$PlayerRotation" }
+if ($ShowDebugInfo) { Write-Host "[RENDER_CAPTURE] showDebugInfo=true" }
 
 if ($StopExisting) {
     $existingProcesses = @(Get-Process -Name "HelloMine3D" -ErrorAction SilentlyContinue)
@@ -356,6 +358,9 @@ if (-not [string]::IsNullOrWhiteSpace($PlayerPosition)) {
 }
 if (-not [string]::IsNullOrWhiteSpace($PlayerRotation)) {
     $envValues["HELLOMINE3D_PLAYER_ROTATION"] = $PlayerRotation
+}
+if ($ShowDebugInfo) {
+    $envValues["HELLOMINE3D_SHOW_DEBUG_INFO"] = "1"
 }
 if ($CaptureMode -eq "RuntimeReadback") {
     $envValues["HELLO_RENDER_CAPTURE"] = "1"
