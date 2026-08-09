@@ -1,5 +1,6 @@
 #include "OgreBootstrap.h"
 #include "ChunkSectionRenderable.h"
+#include "OgreRenderCapture.h"
 
 #include <OIS.h>
 #include <Ogre.h>
@@ -7,6 +8,7 @@
 #include <OgreWindowEventUtilities.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
@@ -18,6 +20,7 @@
 
 #include "../Config.h"
 #include "../Core/Camera.h"
+#include "../Diagnostics/RuntimePerformanceCapture.h"
 #include "../Player/Player.h"
 #include "../Util/ResourcePaths.h"
 #include "../World/Chunk/Chunk.h"
@@ -62,6 +65,8 @@ namespace
             const std::size_t resourceLocations = configureResources();
             Ogre::RenderSystem* renderSystem = configureRenderSystem();
             const TerrainBuildSummary terrain = buildTerrain(false);
+            const OgreRenderCaptureValidation capture =
+                OgreRenderCapture::validateConfiguration();
 
             std::cout << "[OGRE_VALIDATION] renderer="
                       << renderSystem->getName() << '\n';
@@ -87,8 +92,15 @@ namespace
                       << terrain.floraVertexCount << '\n';
             std::cout << "[OGRE_VALIDATION] flora_indices="
                       << terrain.floraIndexCount << '\n';
+            std::cout << "[OGRE_VALIDATION] capture_config="
+                      << (capture.valid ? "valid" : "invalid") << '\n';
+            std::cout << "[OGRE_VALIDATION] capture_enabled="
+                      << (capture.enabled ? "true" : "false") << '\n';
+            std::cout << "[OGRE_VALIDATION] capture_targets="
+                      << capture.targetCount << '\n';
 
-            return resourceLocations > 0 && terrain.sectionCount > 0 &&
+            return capture.valid && resourceLocations > 0 &&
+                   terrain.sectionCount > 0 &&
                    terrain.vertexCount > 0 && terrain.indexCount > 0 &&
                    terrain.waterSectionCount > 0 &&
                    terrain.waterVertexCount > 0 &&
@@ -256,6 +268,10 @@ namespace
                       << terrain.floraSectionCount << '/'
                       << terrain.floraVertexCount << '/'
                       << terrain.floraIndexCount << '\n';
+            m_renderCapture =
+                std::make_unique<OgreRenderCapture>(*m_window);
+            m_worldTime = static_cast<int>(m_world->getWorldTime());
+            m_runtimeStarted = true;
 
             const char* exitFrames =
                 std::getenv("HELLOMINE3D_OGRE_EXIT_AFTER_FRAMES");
@@ -273,9 +289,15 @@ namespace
             m_logicCamera = std::make_unique<::Camera>(config);
             m_logicCamera->hookEntity(*m_worldPlayer);
             m_logicCamera->update();
+            const char *saveOverride =
+                std::getenv("HELLOMINE3D_SAVE_DIR");
+            const std::string saveDirectory =
+                saveOverride != nullptr && saveOverride[0] != '\0'
+                    ? saveOverride
+                    : ResourcePaths::bin("ogre_saves/preview");
             m_world = std::make_unique<World>(
                 *m_logicCamera, config, *m_worldPlayer,
-                ResourcePaths::bin("ogre_saves/preview"), false, 2);
+                saveDirectory, false, 2);
             m_logicCamera->update();
 
             const VectorXZ center = World::getChunkXZ(
@@ -432,6 +454,12 @@ namespace
             updateMouseBounds();
         }
 
+        bool frameStarted(const Ogre::FrameEvent&) override
+        {
+            m_frameStart = std::chrono::steady_clock::now();
+            return true;
+        }
+
         bool frameRenderingQueued(const Ogre::FrameEvent& event) override
         {
             Ogre::WindowEventUtilities::messagePump();
@@ -444,10 +472,61 @@ namespace
             m_keyboard->capture();
             m_mouse->capture();
             updateCamera(event.timeSinceLastFrame);
+            advanceSimulation(event.timeSinceLastFrame);
 
             ++m_frameCount;
             return m_exitAfterFrames <= 0 ||
                    m_frameCount < m_exitAfterFrames;
+        }
+
+        bool frameEnded(const Ogre::FrameEvent& event) override
+        {
+            if (m_renderCapture != nullptr)
+            {
+                m_renderCapture->update(event.timeSinceLastFrame);
+            }
+
+            const auto frameEnd = std::chrono::steady_clock::now();
+            const double frameMs =
+                std::chrono::duration<double, std::milli>(
+                    frameEnd - m_frameStart)
+                    .count();
+            RuntimePerformanceCapture::FrameTimings timings;
+            timings.deltaMs =
+                static_cast<double>(event.timeSinceLastFrame) * 1000.0;
+            timings.renderMs = frameMs;
+            timings.frameMs = frameMs;
+
+            WorldDebugStats stats;
+            if (m_world != nullptr)
+            {
+                stats = m_world->collectDebugStats();
+                stats.chunks.gpuBufferedSections = m_sectionNodes.size();
+            }
+            RuntimePerformanceCapture::recordFrame(timings, stats);
+
+            const bool captureComplete =
+                m_renderCapture != nullptr &&
+                m_renderCapture->shouldCloseWindow();
+            return !captureComplete &&
+                   !RuntimePerformanceCapture::shouldCloseWindow();
+        }
+
+        void advanceSimulation(float deltaSeconds)
+        {
+            constexpr double FixedTickSeconds = 1.0 / 20.0;
+            m_tickAccumulator += static_cast<double>(deltaSeconds);
+            std::size_t ticks = 0;
+            while (m_tickAccumulator >= FixedTickSeconds && ticks < 5)
+            {
+                m_tickAccumulator -= FixedTickSeconds;
+                if (m_world != nullptr)
+                {
+                    m_world->tick(++m_worldTime);
+                }
+                ++ticks;
+            }
+            RuntimePerformanceCapture::recordSimulationTicks(ticks);
         }
 
         void updateCamera(float deltaSeconds)
@@ -599,6 +678,13 @@ namespace
                 m_inputManager = nullptr;
             }
 
+            if (m_runtimeStarted)
+            {
+                RuntimePerformanceCapture::shutdown();
+                m_runtimeStarted = false;
+            }
+            m_renderCapture.reset();
+
             for (auto &renderable : m_terrainRenderables)
             {
                 if (renderable->isAttached())
@@ -627,6 +713,7 @@ namespace
         OIS::InputManager* m_inputManager = nullptr;
         OIS::Keyboard* m_keyboard = nullptr;
         OIS::Mouse* m_mouse = nullptr;
+        std::unique_ptr<OgreRenderCapture> m_renderCapture;
         std::unique_ptr<Player> m_worldPlayer;
         std::unique_ptr<::Camera> m_logicCamera;
         std::unique_ptr<World> m_world;
@@ -635,8 +722,12 @@ namespace
         std::vector<Ogre::SceneNode*> m_sectionNodes;
         bool m_listenersInstalled = false;
         bool m_shutdownRequested = false;
+        bool m_runtimeStarted = false;
         int m_exitAfterFrames = 0;
         int m_frameCount = 0;
+        int m_worldTime = 0;
+        double m_tickAccumulator = 0.0;
+        std::chrono::steady_clock::time_point m_frameStart;
         float m_moveSpeed = 12.0f;
         float m_lookSensitivity = 0.12f;
     };

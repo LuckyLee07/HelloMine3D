@@ -322,7 +322,14 @@ Ogre 视锥剔除和与迁移前基线的性能对比需在硬件加速桌面补
 固定种子 `20260809`、位置 `264 96 8` 的无窗口验证在 Debug/Release 下均得到 19 个
 实体 section（20,796 顶点）、3 个水体 section（1,736 顶点）和 13 个植被 section
 （1,116 顶点），三类网格的 UV/光照/索引校验全部通过。全量构建和 123/123 回归通过；
-材质实际外观仍需硬件窗口确认。HUD、ImGui、截图与性能诊断尚未迁移，E4 继续进行。
+材质实际外观仍需硬件窗口确认。
+
+截图与性能诊断现已接入 Ogre：截图按既有环境变量调度，并通过
+`RenderWindow::writeContentsToFile` 写出；固定步进与逐帧耗时由 `FrameListener` 送入
+`RuntimePerformanceCapture`；两条验证脚本可用 `-Backend Ogre` 选择新客户端。无窗口模式
+已在 Debug/Release 验证三组截图目标的配置解析，全量构建和 123/123 回归继续通过。
+当前会话只有 GDI Generic OpenGL 1.1，因此实际 PNG、性能 CSV 和材质外观仍需硬件桌面补跑。
+HUD 与 ImGui 尚未迁移，E4 继续进行。
 
 ### E5 清理（1 周）
 

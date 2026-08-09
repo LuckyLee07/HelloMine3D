@@ -12,6 +12,8 @@ param(
     [string]$Seed = "",
     [string]$PlayerPosition = "",
     [string]$PlayerRotation = "",
+    [ValidateSet("Sfml", "Ogre")]
+    [string]$Backend = "Sfml",
     [double]$MinimumSimulationTickHz = 19.0,
     [double]$MaximumSimulationTickHz = 21.0,
     [switch]$StopExisting,
@@ -23,7 +25,8 @@ $ErrorActionPreference = "Stop"
 $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptRoot "..")).Path
 $BinDir = Join-Path $RepoRoot "bin"
-$ExePath = Join-Path $BinDir "HelloMine3D.exe"
+$ExeName = if ($Backend -eq "Ogre") { "HelloMine3DOgreBootstrap.exe" } else { "HelloMine3D.exe" }
+$ExePath = Join-Path $BinDir $ExeName
 $RunId = "{0:yyyyMMddHHmmssfff}-{1}" -f (Get-Date), $PID
 
 if ([string]::IsNullOrWhiteSpace($OutputDir)) {
@@ -221,7 +224,7 @@ function Show-WindowNoActivate {
 }
 
 if (-not (Test-Path -LiteralPath $ExePath)) {
-    throw "HelloMine3D.exe not found: $ExePath"
+    throw "$ExeName not found: $ExePath"
 }
 
 if ($WarmupMs -lt 0) {

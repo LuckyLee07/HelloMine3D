@@ -9,6 +9,8 @@ param(
     [int]$WindowWidth = 1600,
     [int]$WindowHeight = 900,
     [string]$Prefix = "new",
+    [ValidateSet("Sfml", "Ogre")]
+    [string]$Backend = "Sfml",
     [ValidateSet("RuntimeReadback", "WindowScreenshot")]
     [string]$CaptureMode = "RuntimeReadback",
     [string]$SaveDir = "",
@@ -25,7 +27,8 @@ $ErrorActionPreference = "Stop"
 $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptRoot "..")).Path
 $BinDir = Join-Path $RepoRoot "bin"
-$ExePath = Join-Path $BinDir "HelloMine3D.exe"
+$ExeName = if ($Backend -eq "Ogre") { "HelloMine3DOgreBootstrap.exe" } else { "HelloMine3D.exe" }
+$ExePath = Join-Path $BinDir $ExeName
 $RunId = "{0:yyyyMMddHHmmssfff}-{1}" -f (Get-Date), $PID
 
 if ([string]::IsNullOrWhiteSpace($OutputDir)) {
@@ -288,7 +291,7 @@ function Save-WindowScreenshot {
 }
 
 if (-not (Test-Path -LiteralPath $ExePath)) {
-    throw "HelloMine3D.exe not found: $ExePath"
+    throw "$ExeName not found: $ExePath"
 }
 
 $sortedCaptures = @(Convert-CaptureTimes -Values $CaptureMs)

@@ -41,6 +41,12 @@ Command:
 powershell -ExecutionPolicy Bypass -File tools\run_render_capture.ps1 -StopExisting -CaptureMs 4000,6000 -Seconds 8 -PlayerRotation "20 118.4 0"
 ```
 
+Use `-Backend Ogre` to run the same schedule against
+`bin\HelloMine3DOgreBootstrap.exe`. The default remains the SFML client until
+E5 removes the coexistence path. Ogre writes captures through
+`RenderWindow::writeContentsToFile`; actual Ogre PNG validation requires a
+hardware-accelerated OpenGL 3+ desktop.
+
 Expected behavior:
 
 1. The script starts `bin\HelloMine3D.exe`.
