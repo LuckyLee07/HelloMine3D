@@ -29,7 +29,7 @@ Output is one line per assertion plus a summary:
 ```text
 [VALIDATION] PASS S0.5/chunk-boundary-marks-neighbor
 [VALIDATION] FAIL S6.4/ore-decorator-produces-ore :: coal=0 iron=0
-[VALIDATION] checks=150 failures=0
+[VALIDATION] checks=156 failures=0
 [VALIDATION] status=PASS
 ```
 
@@ -88,12 +88,12 @@ These need a person at the keyboard or a different harness:
 | Layer | Command | Result |
 | ----- | ------- | ------ |
 | Focused headless tests | `bin\HelloMine3DCoordinateTests.exe`, `bin\HelloMine3DMeshDirtyTests.exe`, `bin\HelloMine3DSaveLoadSmoke.exe`, `bin\HelloMine3DEntityLifecycleSmoke.exe` | All pass. |
-| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=150 failures=0` (Debug and Release, 2026-08-09) |
+| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=156 failures=0` (Debug and Release, 2026-08-09) |
 | E0 dependency boundary | `rg "SFML|sf::|GLfloat|GLuint|glad" src/HelloMine3D/World` | No matches (2026-08-09). |
 | E1 engine build | `tools\premake\premake5 --os=windows --file=premake/premake.lua vs2022`, then full Debug/Release solution builds | Ogre 1.10 core, GLSupport, GL3Plus, FreeImage dependency chain, dedicated Ogre FreeType, zlib, zzip and OIS all compile with 0 errors (2026-08-09). |
 | E2 bootstrap validation | `set HELLOMINE3D_VALIDATE_ONLY=1` then `bin\HelloMine3D.exe` | Debug and Release register `OpenGL 3+ Rendering Subsystem`, 2 resource locations and OIS, then shut down cleanly (2026-08-09). |
-| E3 terrain bridge | Set `HELLOMINE3D_VALIDATE_ONLY=1`, `HELLOMINE3D_SEED=20260809`, `HELLOMINE3D_PLAYER_POSITION=8 96 8`, then run `bin\HelloMine3D.exe` | Debug and Release build real terrain and validate 10 solid sections, 14,460 vertices and 21,690 indices, including section-local bounds, UV/light cardinality and index ranges (2026-08-09). |
-| E4 water/flora bridge | Use the E3 command with `HELLOMINE3D_PLAYER_POSITION=264 96 8` | Debug and Release validate 19 solid sections (20,796 vertices), 3 water sections (1,736 vertices), and 13 flora sections (1,116 vertices); each path has valid UV/light/index data and a dedicated render queue (2026-08-09). |
+| E3 terrain bridge | Set `HELLOMINE3D_VALIDATE_ONLY=1`, `HELLOMINE3D_SEED=20260809`, `HELLOMINE3D_PLAYER_POSITION=264 96 8`, then run `bin\HelloMine3D.exe` | Debug and Release build real terrain and validate every position, atlas-UV, repeat-UV, light and index stream before GPU upload, including section-local bounds and index ranges (2026-08-09). |
+| E4 water/flora bridge | Use the E3 command | Debug and Release validate 19 solid sections (8,396 vertices after M4), 3 water sections (1,736 vertices), and 13 flora sections (1,116 vertices); each path has valid CPU streams and a dedicated render queue (2026-08-09). |
 | E4 Ogre diagnostics | Add `HELLO_RENDER_CAPTURE=1`, `HELLO_RENDER_CAPTURE_MS=0,250,1000`, and an isolated `HELLO_RENDER_CAPTURE_DIR` to the E4 validation command | Debug and Release report `capture_config=valid`, `capture_enabled=true`, and `capture_targets=3`. Both scripts target the sole client executable (2026-08-09). |
 | E4 Ogre HUD/ImGui | Add `HELLOMINE3D_SHOW_DEBUG_INFO=1`, then repeat with `off` | Debug and Release report `hud_config=valid`, five hotbar slots, selected slot zero, and the matching enabled/disabled debug-panel state. OIS key/mouse events, F1 toggling, render-queue submission and camera input suppression compile in both configurations (2026-08-09). |
 | E5 single render path | `rg -n "SFML|sf::|glad|imgui.?sfml|HelloMine3DOgreBootstrap" src/HelloMine3D premake tools` plus full Debug/Release builds and all five tests | No old client/render dependencies remain; versioned CPU mesh upload checks pass and `HelloMine3D.exe` is the only client target (2026-08-09). |
@@ -101,6 +101,7 @@ These need a person at the keyboard or a different harness:
 | P2 actor persistence | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`casePersistence`) | World metadata version 2 restores a mob and item with subtype fields intact, retains ids, advances the next id, and reads/upgrades a version 1 fixture; eight P2 assertions pass (2026-08-09). |
 | M1 mesh build metrics | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseSectionMeshInput`) | Five M1 assertions verify per-build timing and cumulative face/vertex counters; the performance CSV/summary and Ogre debug panel expose the same values (2026-08-09). |
 | M2 bounded dirty queue | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseMeshDirtyPropagation`) | Five queued sections rebuild as `2 + 2 + 1`; duplicate edits retain one FIFO entry and empty updates add no rebuilds (2026-08-09). |
+| M4 opaque greedy meshing | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseGreedyMeshing`) | Six assertions reduce an `8x1x8` single-material slab from 160 naive faces to 6, preserve material boundaries and atlas repetition, and prove water/flora keep their original topology. Debug/Release validation-only startup reduces the fixed-scene solid vertex count from 20,796 to 8,396 while water/flora remain unchanged (2026-08-09). |
 | Render smoke | see `docs/render-regression-smoke.md` | `bin/render_capture_20260807190230074-46036`, status PASS |
 | Performance baseline | see `docs/performance-baseline.md` | `bin/perf_baseline_20260807190255313-41064`, `frame_p95_ms=16.430` |
 

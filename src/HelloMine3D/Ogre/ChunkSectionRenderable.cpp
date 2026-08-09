@@ -24,10 +24,12 @@ namespace
         float z;
         float u;
         float v;
+        float repeatU;
+        float repeatV;
         float light;
     };
 
-    static_assert(sizeof(TerrainVertex) == sizeof(float) * 6,
+    static_assert(sizeof(TerrainVertex) == sizeof(float) * 8,
                   "Terrain vertices must be tightly packed.");
 
     std::vector<TerrainVertex>
@@ -37,6 +39,8 @@ namespace
         const auto &clientMesh = mesh.getClientMesh();
         const auto &positions = clientMesh.vertexPositions;
         const auto &textureCoordinates = clientMesh.textureCoords;
+        const auto &textureRepeatCoordinates =
+            clientMesh.textureRepeatCoords;
         const auto &cardinalLight = mesh.getCardinalLight();
         const std::size_t vertexCount = positions.size() / 3;
 
@@ -56,7 +60,10 @@ namespace
                  positions[index * 3 + 1] - originY,
                  positions[index * 3 + 2] - originZ,
                  textureCoordinates[index * 2],
-                 textureCoordinates[index * 2 + 1], cardinalLight[index]});
+                 textureCoordinates[index * 2 + 1],
+                 textureRepeatCoordinates[index * 2],
+                 textureRepeatCoordinates[index * 2 + 1],
+                 cardinalLight[index]});
         }
         return vertices;
     }
@@ -91,8 +98,10 @@ ChunkSectionRenderable::ChunkSectionRenderable(
     declaration->addElement(0, 0, Ogre::VET_FLOAT3, Ogre::VES_POSITION);
     declaration->addElement(0, sizeof(float) * 3, Ogre::VET_FLOAT2,
                             Ogre::VES_TEXTURE_COORDINATES, 0);
-    declaration->addElement(0, sizeof(float) * 5, Ogre::VET_FLOAT1,
+    declaration->addElement(0, sizeof(float) * 5, Ogre::VET_FLOAT2,
                             Ogre::VES_TEXTURE_COORDINATES, 1);
+    declaration->addElement(0, sizeof(float) * 7, Ogre::VET_FLOAT1,
+                            Ogre::VES_TEXTURE_COORDINATES, 2);
 
     Ogre::HardwareVertexBufferSharedPtr vertexBuffer =
         Ogre::HardwareBufferManager::getSingleton().createVertexBuffer(
@@ -152,6 +161,12 @@ ChunkMeshValidation ChunkSectionRenderable::validateCpuMesh(
     if (textureCoordinates.size() != result.vertexCount * 2)
     {
         result.message = "texture coordinate count does not match vertices";
+        return result;
+    }
+    if (clientMesh.textureRepeatCoords.size() != result.vertexCount * 2)
+    {
+        result.message =
+            "texture repeat coordinate count does not match vertices";
         return result;
     }
     if (cardinalLight.size() != result.vertexCount)

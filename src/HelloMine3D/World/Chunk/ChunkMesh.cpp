@@ -7,7 +7,9 @@
 void ChunkMesh::addFace(const std::array<float, 12> &blockFace,
                         const std::array<float, 8> &textureCoords,
                         const glm::ivec3 &chunkPosition,
-                        const glm::ivec3 &blockPosition, float cardinalLight)
+                        const glm::ivec3 &blockPosition, float cardinalLight,
+                        float textureRepeatWidth,
+                        float textureRepeatHeight)
 {
     faces++;
     auto &verticies = m_mesh.vertexPositions;
@@ -16,6 +18,10 @@ void ChunkMesh::addFace(const std::array<float, 12> &blockFace,
 
     texCoords.insert(texCoords.end(), textureCoords.begin(),
                      textureCoords.end());
+    m_mesh.textureRepeatCoords.insert(
+        m_mesh.textureRepeatCoords.end(),
+        {textureRepeatWidth, textureRepeatHeight, 0.f, textureRepeatHeight,
+         0.f, 0.f, textureRepeatWidth, 0.f});
 
     /// Vertex: The current vertex in the "blockFace" vector, 4 vertex in total
     /// hence "< 4" Index: X, Y, Z
@@ -40,6 +46,7 @@ void ChunkMesh::clearClientData()
 {
     m_mesh.vertexPositions.clear();
     m_mesh.textureCoords.clear();
+    m_mesh.textureRepeatCoords.clear();
     m_mesh.indices.clear();
     m_light.clear();
 
@@ -51,6 +58,8 @@ void ChunkMesh::adoptClientData(ChunkMesh &source)
 {
     m_mesh.vertexPositions = std::move(source.m_mesh.vertexPositions);
     m_mesh.textureCoords = std::move(source.m_mesh.textureCoords);
+    m_mesh.textureRepeatCoords =
+        std::move(source.m_mesh.textureRepeatCoords);
     m_mesh.indices = std::move(source.m_mesh.indices);
     m_light = std::move(source.m_light);
     m_indexIndex = source.m_indexIndex;

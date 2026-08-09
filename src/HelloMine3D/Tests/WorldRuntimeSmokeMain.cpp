@@ -1222,6 +1222,99 @@ void caseSectionMeshInput()
 }
 
 // ---------------------------------------------------------------------------
+// M4 - opaque cubes merge into material-safe rectangles while transparent
+// passes keep their original topology
+// ---------------------------------------------------------------------------
+void caseGreedyMeshing()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+
+    const auto directory = freshSaveDirectory("greedy_meshing");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+
+    constexpr int blockY = 200;
+    constexpr int sectionY = blockY / CHUNK_SIZE;
+    for (int z = 4; z < 12; ++z) {
+        for (int x = 4; x < 12; ++x) {
+            world.setBlock(x, blockY, z, BlockId::Stone);
+        }
+    }
+
+    Chunk *chunk = world.getChunkManager().findChunk(0, 0);
+    ChunkSection *section =
+        chunk != nullptr ? chunk->findSection(sectionY) : nullptr;
+    check("M4/high-air-section-available", section != nullptr);
+    if (section == nullptr) {
+        return;
+    }
+
+    const auto buildSectionMeshes = [&]() {
+        SectionMeshInput input;
+        section->captureMeshInput(input);
+        ChunkMeshCollection meshes;
+        ChunkMeshBuilder(input, meshes).buildMesh();
+        return meshes;
+    };
+
+    ChunkMeshCollection singleMaterial = buildSectionMeshes();
+    const Mesh &singleSolid = singleMaterial.solidMesh.getClientMesh();
+    check("M4/flat-cuboid-greedy-face-drop",
+          singleMaterial.solidMesh.faces == 6 &&
+              singleSolid.vertexPositions.size() / 3 == 24 &&
+              singleSolid.indices.size() == 36,
+          "faces=" + std::to_string(singleMaterial.solidMesh.faces) +
+              " naive=160");
+
+    const float maxRepeat = singleSolid.textureRepeatCoords.empty()
+                                ? 0.f
+                                : *std::max_element(
+                                      singleSolid.textureRepeatCoords.begin(),
+                                      singleSolid.textureRepeatCoords.end());
+    bool stoneTileStable = true;
+    for (std::size_t index = 0; index < singleSolid.textureCoords.size();
+         ++index) {
+        const int expectedTile = index % 2 == 0 ? 3 : 0;
+        stoneTileStable =
+            stoneTileStable &&
+            static_cast<int>(
+                std::floor(singleSolid.textureCoords[index] * 16.f)) ==
+                expectedTile;
+    }
+    check("M4/merged-quad-repeats-atlas-tile",
+          std::abs(maxRepeat - 8.f) < 0.001f && stoneTileStable &&
+              singleSolid.textureRepeatCoords.size() ==
+                  singleSolid.vertexPositions.size() / 3 * 2,
+          "max_repeat=" + std::to_string(maxRepeat));
+
+    for (int z = 4; z < 12; ++z) {
+        for (int x = 8; x < 12; ++x) {
+            world.setBlock(x, blockY, z, BlockId::Dirt);
+        }
+    }
+    ChunkMeshCollection splitMaterials = buildSectionMeshes();
+    check("M4/material-boundary-preserved",
+          splitMaterials.solidMesh.faces == 10,
+          "faces=" + std::to_string(splitMaterials.solidMesh.faces));
+
+    world.setBlock(4, blockY + 2, 4, BlockId::Water);
+    world.setBlock(5, blockY + 2, 4, BlockId::Water);
+    world.setBlock(8, blockY + 2, 4, BlockId::TallGrass);
+    world.setBlock(9, blockY + 2, 4, BlockId::TallGrass);
+    ChunkMeshCollection separatePasses = buildSectionMeshes();
+    check("M4/water-topology-remains-separate",
+          separatePasses.waterMesh.faces == 10,
+          "faces=" + std::to_string(separatePasses.waterMesh.faces));
+    check("M4/flora-topology-remains-separate",
+          separatePasses.floraMesh.faces == 4,
+          "faces=" + std::to_string(separatePasses.floraMesh.faces));
+}
+
+// ---------------------------------------------------------------------------
 // E5 - the renderer consumes versioned CPU mesh snapshots without sharing
 // mutable section pointers with the background loader
 // ---------------------------------------------------------------------------
@@ -1955,6 +2048,7 @@ int main()
         caseMeshDirtyPropagation();
         casePersistence();
         caseSectionMeshInput();
+        caseGreedyMeshing();
         caseSectionMeshUploadSnapshot();
         caseUnloadPersistence();
         caseChunkFormatRejection();

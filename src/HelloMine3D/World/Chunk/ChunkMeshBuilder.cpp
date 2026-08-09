@@ -8,6 +8,7 @@
 #include "../Block/BlockTextureCoordinates.h"
 #include "../Block/BlockDefinition.h"
 
+#include <algorithm>
 #include <cassert>
 #include <vector>
 
@@ -77,6 +78,8 @@ struct AdjacentBlockPositions {
 
 void ChunkMeshBuilder::buildMesh()
 {
+    buildGreedySolidMesh();
+
     AdjacentBlockPositions directions;
 
     for (int y = 0; y < CHUNK_SIZE; ++y) {
@@ -94,15 +97,19 @@ void ChunkMeshBuilder::buildMesh()
         const ChunkBlock block = m_pInput->getBlock(x, y, z);
 
         glm::ivec3 position(x, y, z);
-        setActiveMesh(block);
 
         if (block == BlockId::Air) {
             continue;
         }
 
-        m_pBlockDefinition =
-            &BlockDatabase::get().getDefinition(static_cast<BlockId>(block.id));
-        const auto &renderInfo = m_pBlockDefinition->render;
+        const auto &definition = BlockDatabase::get().getDefinition(
+            static_cast<BlockId>(block.id));
+        if (isGreedySolidBlock(block)) {
+            continue;
+        }
+
+        setActiveMesh(block);
+        const auto &renderInfo = definition.render;
 
         if (renderInfo.meshType == BlockMeshType::X) {
             addXBlockToMesh(renderInfo.texTopCoord, position);
@@ -113,25 +120,235 @@ void ChunkMeshBuilder::buildMesh()
 
         // Up/ Down
         if ((m_pInput->getLocation().y != 0) || y != 0)
-            tryAddFaceToMesh(bottomFace, renderInfo.texBottomCoord, position,
-                             directions.down, LIGHT_BOT);
-        tryAddFaceToMesh(topFace, renderInfo.texTopCoord, position,
+            tryAddFaceToMesh(bottomFace, renderInfo.texBottomCoord, block,
+                             position, directions.down, LIGHT_BOT);
+        tryAddFaceToMesh(topFace, renderInfo.texTopCoord, block, position,
                          directions.up, LIGHT_TOP);
 
         // Left/ Right
-        tryAddFaceToMesh(leftFace, renderInfo.texSideCoord, position,
+        tryAddFaceToMesh(leftFace, renderInfo.texSideCoord, block, position,
                          directions.left, LIGHT_X);
-        tryAddFaceToMesh(rightFace, renderInfo.texSideCoord, position,
+        tryAddFaceToMesh(rightFace, renderInfo.texSideCoord, block, position,
                          directions.right, LIGHT_X);
 
         // Front/ Back
-        tryAddFaceToMesh(frontFace, renderInfo.texSideCoord, position,
+        tryAddFaceToMesh(frontFace, renderInfo.texSideCoord, block, position,
                          directions.front, LIGHT_Z);
-        tryAddFaceToMesh(backFace, renderInfo.texSideCoord, position,
+        tryAddFaceToMesh(backFace, renderInfo.texSideCoord, block, position,
                          directions.back, LIGHT_Z);
         }
         }
     }
+}
+
+void ChunkMeshBuilder::buildGreedySolidMesh()
+{
+    buildGreedyFaces(CubeFace::Bottom);
+    buildGreedyFaces(CubeFace::Top);
+    buildGreedyFaces(CubeFace::Left);
+    buildGreedyFaces(CubeFace::Right);
+    buildGreedyFaces(CubeFace::Front);
+    buildGreedyFaces(CubeFace::Back);
+}
+
+void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
+{
+    struct FaceCell {
+        bool visible = false;
+        ChunkBlock block;
+        glm::ivec2 textureCoords{0};
+    };
+
+    const auto matches = [](const FaceCell &left, const FaceCell &right) {
+        return left.visible && right.visible && left.block == right.block &&
+               left.textureCoords.x == right.textureCoords.x &&
+               left.textureCoords.y == right.textureCoords.y;
+    };
+    const auto positionFor = [face](int slice, int u, int v) {
+        switch (face) {
+            case CubeFace::Bottom:
+            case CubeFace::Top:
+                return glm::ivec3(u, slice, v);
+            case CubeFace::Left:
+            case CubeFace::Right:
+                return glm::ivec3(slice, v, u);
+            case CubeFace::Front:
+            case CubeFace::Back:
+                return glm::ivec3(u, v, slice);
+        }
+        return glm::ivec3(0);
+    };
+    const auto adjacentOffset = [face]() {
+        switch (face) {
+            case CubeFace::Bottom:
+                return glm::ivec3(0, -1, 0);
+            case CubeFace::Top:
+                return glm::ivec3(0, 1, 0);
+            case CubeFace::Left:
+                return glm::ivec3(-1, 0, 0);
+            case CubeFace::Right:
+                return glm::ivec3(1, 0, 0);
+            case CubeFace::Front:
+                return glm::ivec3(0, 0, 1);
+            case CubeFace::Back:
+                return glm::ivec3(0, 0, -1);
+        }
+        return glm::ivec3(0);
+    }();
+
+    std::array<FaceCell, CHUNK_AREA> mask;
+    for (int slice = 0; slice < CHUNK_SIZE; ++slice) {
+        mask.fill(FaceCell{});
+        if (face == CubeFace::Bottom && slice == 0 &&
+            m_pInput->getLocation().y == 0) {
+            continue;
+        }
+
+        for (int v = 0; v < CHUNK_SIZE; ++v) {
+            for (int u = 0; u < CHUNK_SIZE; ++u) {
+                const glm::ivec3 position = positionFor(slice, u, v);
+                const ChunkBlock block = m_pInput->getBlock(
+                    position.x, position.y, position.z);
+                if (!isGreedySolidBlock(block) ||
+                    !shouldMakeFace(block, position + adjacentOffset)) {
+                    continue;
+                }
+
+                const auto &renderInfo =
+                    BlockDatabase::get()
+                        .getDefinition(static_cast<BlockId>(block.id))
+                        .render;
+                glm::ivec2 textureCoords = renderInfo.texSideCoord;
+                if (face == CubeFace::Top) {
+                    textureCoords = renderInfo.texTopCoord;
+                }
+                else if (face == CubeFace::Bottom) {
+                    textureCoords = renderInfo.texBottomCoord;
+                }
+                mask[v * CHUNK_SIZE + u] = {true, block, textureCoords};
+            }
+        }
+
+        for (int v = 0; v < CHUNK_SIZE; ++v) {
+            for (int u = 0; u < CHUNK_SIZE;) {
+                FaceCell &cell = mask[v * CHUNK_SIZE + u];
+                if (!cell.visible) {
+                    ++u;
+                    continue;
+                }
+
+                int width = 1;
+                while (u + width < CHUNK_SIZE &&
+                       matches(cell, mask[v * CHUNK_SIZE + u + width])) {
+                    ++width;
+                }
+
+                int height = 1;
+                bool canExtend = true;
+                while (v + height < CHUNK_SIZE && canExtend) {
+                    for (int offset = 0; offset < width; ++offset) {
+                        if (!matches(
+                                cell,
+                                mask[(v + height) * CHUNK_SIZE + u + offset])) {
+                            canExtend = false;
+                            break;
+                        }
+                    }
+                    if (canExtend) {
+                        ++height;
+                    }
+                }
+
+                addGreedyFace(face, cell.textureCoords, slice, u, v, width,
+                              height);
+                for (int dv = 0; dv < height; ++dv) {
+                    for (int du = 0; du < width; ++du) {
+                        mask[(v + dv) * CHUNK_SIZE + u + du].visible = false;
+                    }
+                }
+                u += width;
+            }
+        }
+    }
+}
+
+void ChunkMeshBuilder::addGreedyFace(CubeFace face,
+                                     const glm::ivec2 &textureCoords,
+                                     int slice, int u, int v, int width,
+                                     int height)
+{
+    std::array<float, 12> vertices{};
+    glm::ivec3 blockPosition{0};
+    float cardinalLight = LIGHT_TOP;
+    switch (face) {
+        case CubeFace::Bottom:
+            vertices = {0, 0, 0, static_cast<float>(width), 0, 0,
+                        static_cast<float>(width), 0,
+                        static_cast<float>(height), 0, 0,
+                        static_cast<float>(height)};
+            blockPosition = {u, slice, v};
+            cardinalLight = LIGHT_BOT;
+            break;
+        case CubeFace::Top:
+            vertices = {0, 1, static_cast<float>(height),
+                        static_cast<float>(width), 1,
+                        static_cast<float>(height),
+                        static_cast<float>(width), 1, 0, 0, 1, 0};
+            blockPosition = {u, slice, v};
+            cardinalLight = LIGHT_TOP;
+            break;
+        case CubeFace::Left:
+            vertices = {0, 0, 0, 0, 0, static_cast<float>(width), 0,
+                        static_cast<float>(height),
+                        static_cast<float>(width), 0,
+                        static_cast<float>(height), 0};
+            blockPosition = {slice, v, u};
+            cardinalLight = LIGHT_X;
+            break;
+        case CubeFace::Right:
+            vertices = {1, 0, static_cast<float>(width), 1, 0, 0, 1,
+                        static_cast<float>(height), 0, 1,
+                        static_cast<float>(height),
+                        static_cast<float>(width)};
+            blockPosition = {slice, v, u};
+            cardinalLight = LIGHT_X;
+            break;
+        case CubeFace::Front:
+            vertices = {0, 0, 1, static_cast<float>(width), 0, 1,
+                        static_cast<float>(width),
+                        static_cast<float>(height), 1, 0,
+                        static_cast<float>(height), 1};
+            blockPosition = {u, v, slice};
+            cardinalLight = LIGHT_Z;
+            break;
+        case CubeFace::Back:
+            vertices = {static_cast<float>(width), 0, 0, 0, 0, 0, 0,
+                        static_cast<float>(height), 0,
+                        static_cast<float>(width),
+                        static_cast<float>(height), 0};
+            blockPosition = {u, v, slice};
+            cardinalLight = LIGHT_Z;
+            break;
+    }
+
+    const auto atlasCoords =
+        BlockTextureCoordinates::get(textureCoords.x, textureCoords.y);
+    m_pMeshes->solidMesh.addFace(
+        vertices, atlasCoords, m_pInput->getLocation(), blockPosition,
+        cardinalLight, static_cast<float>(width),
+        static_cast<float>(height));
+}
+
+bool ChunkMeshBuilder::isGreedySolidBlock(ChunkBlock block) const
+{
+    if (block == BlockId::Air) {
+        return false;
+    }
+    const auto &definition = BlockDatabase::get().getDefinition(
+        static_cast<BlockId>(block.id));
+    return !definition.transparent &&
+           definition.render.meshType == BlockMeshType::Cube &&
+           definition.render.shaderType == BlockShaderType::Chunk;
 }
 
 void ChunkMeshBuilder::setActiveMesh(ChunkBlock block)
@@ -169,10 +386,10 @@ void ChunkMeshBuilder::addXBlockToMesh(const glm::ivec2 &textureCoords,
 
 void ChunkMeshBuilder::tryAddFaceToMesh(
     const std::array<float, 12> &blockFace, const glm::ivec2 &textureCoords,
-    const glm::ivec3 &blockPosition, const glm::ivec3 &blockFacing,
-    float cardinalLight)
+    ChunkBlock block, const glm::ivec3 &blockPosition,
+    const glm::ivec3 &blockFacing, float cardinalLight)
 {
-    if (shouldMakeFace(blockFacing)) {
+    if (shouldMakeFace(block, blockFacing)) {
         const auto texCoords =
             BlockTextureCoordinates::get(textureCoords.x, textureCoords.y);
 
@@ -181,17 +398,21 @@ void ChunkMeshBuilder::tryAddFaceToMesh(
     }
 }
 
-bool ChunkMeshBuilder::shouldMakeFace(const glm::ivec3 &adjBlock)
+bool ChunkMeshBuilder::shouldMakeFace(ChunkBlock block,
+                                      const glm::ivec3 &adjBlock) const
 {
-    auto block = m_pInput->getBlock(adjBlock.x, adjBlock.y, adjBlock.z);
-    const auto &definition =
-        BlockDatabase::get().getDefinition(static_cast<BlockId>(block.id));
+    const ChunkBlock adjacent =
+        m_pInput->getBlock(adjBlock.x, adjBlock.y, adjBlock.z);
+    const auto &currentDefinition = BlockDatabase::get().getDefinition(
+        static_cast<BlockId>(block.id));
+    const auto &adjacentDefinition = BlockDatabase::get().getDefinition(
+        static_cast<BlockId>(adjacent.id));
 
-    if (block == BlockId::Air) {
+    if (adjacent == BlockId::Air) {
         return true;
     }
-    else if (definition.transparent &&
-             definition.id != m_pBlockDefinition->id) {
+    else if (adjacentDefinition.transparent &&
+             adjacentDefinition.id != currentDefinition.id) {
         return true;
     }
     return false;

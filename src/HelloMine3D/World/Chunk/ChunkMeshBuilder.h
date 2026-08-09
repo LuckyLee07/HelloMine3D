@@ -27,6 +27,21 @@ class ChunkMeshBuilder {
     void buildMesh();
 
   private:
+    enum class CubeFace {
+        Bottom,
+        Top,
+        Left,
+        Right,
+        Front,
+        Back,
+    };
+
+    void buildGreedySolidMesh();
+    void buildGreedyFaces(CubeFace face);
+    void addGreedyFace(CubeFace face, const glm::ivec2 &textureCoords,
+                       int slice, int u, int v, int width, int height);
+    bool isGreedySolidBlock(ChunkBlock block) const;
+
     void setActiveMesh(ChunkBlock block);
 
     void addXBlockToMesh(const glm::ivec2 &textureCoords,
@@ -34,16 +49,17 @@ class ChunkMeshBuilder {
 
     void tryAddFaceToMesh(const std::array<float, 12> &blockFace,
                           const glm::ivec2 &textureCoords,
+                          ChunkBlock block,
                           const glm::ivec3 &blockPosition,
                           const glm::ivec3 &blockFacing,
                           float cardinalLight);
 
-    bool shouldMakeFace(const glm::ivec3 &blockPosition);
+    bool shouldMakeFace(ChunkBlock block,
+                        const glm::ivec3 &blockPosition) const;
 
     const SectionMeshInput *m_pInput = nullptr;
     ChunkMeshCollection *m_pMeshes = nullptr;
     ChunkMesh *m_pActiveMesh = nullptr;
-    const BlockDefinition *m_pBlockDefinition = nullptr;
 };
 
 #endif // CHUNKMESHBUILDER_H_INCLUDED

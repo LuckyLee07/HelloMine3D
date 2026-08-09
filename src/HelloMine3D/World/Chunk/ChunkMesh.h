@@ -9,6 +9,7 @@
 struct Mesh {
     std::vector<float> vertexPositions;
     std::vector<float> textureCoords;
+    std::vector<float> textureRepeatCoords;
     std::vector<std::uint32_t> indices;
 };
 
@@ -19,7 +20,9 @@ class ChunkMesh {
     void addFace(const std::array<float, 12> &blockFace,
                  const std::array<float, 8> &textureCoords,
                  const glm::ivec3 &chunkPosition,
-                 const glm::ivec3 &blockPosition, float cardinalLight);
+                 const glm::ivec3 &blockPosition, float cardinalLight,
+                 float textureRepeatWidth = 1.f,
+                 float textureRepeatHeight = 1.f);
 
     const Mesh &getClientMesh() const;
     const std::vector<float> &getCardinalLight() const;
