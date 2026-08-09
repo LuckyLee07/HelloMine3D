@@ -112,6 +112,23 @@ vs2022.bat
     build\HelloMine3D.sln /p:Configuration=Debug /p:Platform=x64 /m
 ```
 
+### One-Command Build Verification
+
+Use the platform wrapper below for the same clean project generation,
+Debug/Release builds and five headless test runs expected before a change is
+committed:
+
+| Platform | Command | Required host tools |
+| -------- | ------- | ------------------- |
+| Windows | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify_build.ps1` | Visual Studio 2022 with **Desktop development with C++**; Premake is bundled in `tools/`. |
+| Linux | `bash scripts/verify_build.sh` | A C++17 compiler, GNU Make, Premake 5 and the OpenGL/X11 development packages. |
+| macOS | `bash scripts/verify_build.sh` | Xcode command-line tools and Premake 5 (`brew install premake`). |
+
+Both wrappers stop at the first failed generation, compilation or test step
+and print `[BUILD_VERIFY] status=PASS` only after both configurations pass.
+The macOS-native Xcode generator remains a separate validation path documented
+in the project task list.
+
 ### Runtime Configuration And State
 
 `bin/config.txt` is a per-user runtime configuration and is intentionally not
