@@ -10,9 +10,8 @@
 #include <stdexcept>
 #include <string>
 
-#include <glad/glad.h>
+#include <backends/imgui_impl_opengl3.h>
 #include <imgui.h>
-#include <imgui_sfml/imgui_impl_opengl3.h>
 
 #include "../Diagnostics/RuntimeDebugOptions.h"
 #include "../Item/Material.h"
@@ -157,12 +156,6 @@ class OgreUserInterface::Impl
 
     void initialize(Ogre::RenderQueueListener *listener)
     {
-        if (gladLoadGL() == 0)
-        {
-            throw std::runtime_error(
-                "Ogre ImGui failed to load OpenGL entry points.");
-        }
-
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGuiIO &io = ImGui::GetIO();
@@ -358,29 +351,6 @@ class OgreUserInterface::Impl
         ImGui::End();
     }
 
-    void setSelectedSlot(int selectedSlot)
-    {
-        PlayerSaveState state = player->getSaveState();
-        if (state.inventory.empty())
-        {
-            return;
-        }
-        state.heldItem = std::clamp(
-            selectedSlot, 0, static_cast<int>(state.inventory.size()) - 1);
-        player->applySaveState(state);
-    }
-
-    void selectRelative(int delta)
-    {
-        const PlayerSaveState state = player->getSaveState();
-        if (state.inventory.empty())
-        {
-            return;
-        }
-        const int count = static_cast<int>(state.inventory.size());
-        setSelectedSlot((state.heldItem + delta + count) % count);
-    }
-
     Ogre::RenderWindow *window = nullptr;
     Ogre::SceneManager *sceneManager = nullptr;
     Ogre::Camera *camera = nullptr;
@@ -446,24 +416,6 @@ void OgreUserInterface::keyEvent(const OIS::KeyEvent &event, bool pressed,
     {
         m_impl->showDebugPanel = !m_impl->showDebugPanel;
         return;
-    }
-    if (io.WantCaptureKeyboard)
-    {
-        return;
-    }
-
-    if (event.key >= OIS::KC_1 && event.key <= OIS::KC_5)
-    {
-        m_impl->setSelectedSlot(
-            static_cast<int>(event.key) - static_cast<int>(OIS::KC_1));
-    }
-    else if (event.key == OIS::KC_DOWN)
-    {
-        m_impl->selectRelative(1);
-    }
-    else if (event.key == OIS::KC_UP)
-    {
-        m_impl->selectRelative(-1);
     }
 }
 

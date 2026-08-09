@@ -21,5 +21,5 @@ namespace
 int main()
 {
     return runOgreBootstrap(
-        isTruthy(std::getenv("HELLOMINE3D_OGRE_VALIDATE_ONLY")));
+        isTruthy(std::getenv("HELLOMINE3D_VALIDATE_ONLY")));
 }

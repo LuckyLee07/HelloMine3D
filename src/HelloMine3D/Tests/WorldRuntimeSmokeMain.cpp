@@ -23,7 +23,7 @@
 #include <thread>
 #include <vector>
 
-#include <SFML/Graphics/Image.hpp>
+#include <FreeImage.h>
 
 #include "../Actor/ItemEntity.h"
 #include "../Actor/LivingActor.h"
@@ -262,26 +262,48 @@ void caseOreTextures()
               coal.render.texTopCoord != stone.render.texTopCoord &&
               iron.render.texTopCoord != stone.render.texTopCoord);
 
-    sf::Image atlas;
-    const bool loaded = atlas.loadFromFile(
-        ResourcePaths::media("textures/DefaultPack.png"));
-    check("P4/atlas-loads", loaded && atlas.getSize().x == 256 &&
-                                atlas.getSize().y == 256);
-    if (!loaded || atlas.getSize().x != 256 || atlas.getSize().y != 256) {
+    const std::string atlasPath =
+        ResourcePaths::media("textures/DefaultPack.png");
+    FREE_IMAGE_FORMAT format = FreeImage_GetFileType(atlasPath.c_str(), 0);
+    if (format == FIF_UNKNOWN) {
+        format = FreeImage_GetFIFFromFilename(atlasPath.c_str());
+    }
+    FIBITMAP *source = format != FIF_UNKNOWN
+                           ? FreeImage_Load(format, atlasPath.c_str())
+                           : nullptr;
+    FIBITMAP *atlas =
+        source != nullptr ? FreeImage_ConvertTo32Bits(source) : nullptr;
+    const unsigned int atlasWidth =
+        atlas != nullptr ? FreeImage_GetWidth(atlas) : 0;
+    const unsigned int atlasHeight =
+        atlas != nullptr ? FreeImage_GetHeight(atlas) : 0;
+    const bool loaded = atlas != nullptr && atlasWidth == 256 &&
+                        atlasHeight == 256;
+    check("P4/atlas-loads", loaded,
+          atlasPath + " format=" + std::to_string(static_cast<int>(format)) +
+              " size=" + std::to_string(atlasWidth) + "x" +
+              std::to_string(atlasHeight));
+    if (!loaded) {
+        if (atlas != nullptr) {
+            FreeImage_Unload(atlas);
+        }
+        if (source != nullptr) {
+            FreeImage_Unload(source);
+        }
         return;
     }
 
     const auto hashTile = [&](int tileX, int tileY) {
         std::uint64_t hash = 1469598103934665603ull;
-        const std::uint8_t *pixels = atlas.getPixelsPtr();
         for (int y = 0; y < 16; ++y) {
+            const int sourceY = tileY * 16 + y;
+            const BYTE *scanline = FreeImage_GetScanLine(
+                atlas, static_cast<int>(atlasHeight) - sourceY - 1);
             for (int x = 0; x < 16; ++x) {
                 const std::size_t offset =
-                    static_cast<std::size_t>(((tileY * 16 + y) * 256 +
-                                              tileX * 16 + x) *
-                                             4);
+                    static_cast<std::size_t>((tileX * 16 + x) * 4);
                 for (int channel = 0; channel < 4; ++channel) {
-                    hash ^= pixels[offset + channel];
+                    hash ^= scanline[offset + channel];
                     hash *= 1099511628211ull;
                 }
             }
@@ -295,6 +317,8 @@ void caseOreTextures()
     check("P4/coal-texture-distinct", coalHash != stoneHash);
     check("P4/iron-texture-distinct",
           ironHash != stoneHash && ironHash != coalHash);
+    FreeImage_Unload(atlas);
+    FreeImage_Unload(source);
 }
 
 // ---------------------------------------------------------------------------
@@ -940,6 +964,73 @@ void caseSectionMeshInput()
 }
 
 // ---------------------------------------------------------------------------
+// E5 - the renderer consumes versioned CPU mesh snapshots without sharing
+// mutable section pointers with the background loader
+// ---------------------------------------------------------------------------
+void caseSectionMeshUploadSnapshot()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+
+    const auto directory = freshSaveDirectory("mesh_upload_snapshot");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+
+    constexpr int blockX = 8;
+    constexpr int blockY = 72;
+    constexpr int blockZ = 8;
+    const int sectionY = blockY / CHUNK_SIZE;
+    Chunk *chunk = world.getChunkManager().findChunk(0, 0);
+    ChunkSection *section =
+        chunk != nullptr ? chunk->findSection(sectionY) : nullptr;
+    check("E5/mesh-snapshot-section-available", section != nullptr);
+    if (section == nullptr) {
+        return;
+    }
+
+    section->makeMesh();
+    WorldMeshSnapshot first = world.collectSectionMeshSnapshot();
+    check("E5/cpu-ready-snapshot-produced",
+          first.cpuReadySections.size() == 1,
+          "ready=" + std::to_string(first.cpuReadySections.size()) +
+              " live=" + std::to_string(first.liveSections.size()));
+    if (first.cpuReadySections.empty()) {
+        return;
+    }
+
+    const WorldSectionMeshVersion staleVersion{
+        first.cpuReadySections.front().location,
+        first.cpuReadySections.front().blockRevision};
+    const ChunkBlock previous = world.getBlock(blockX, blockY, blockZ);
+    world.setBlock(blockX, blockY, blockZ,
+                   previous.id == static_cast<Block_t>(BlockId::CoalOre)
+                       ? ChunkBlock(BlockId::Stone)
+                       : ChunkBlock(BlockId::CoalOre));
+    section->makeMesh();
+    world.acknowledgeSectionMeshUploads({staleVersion});
+    check("E5/stale-upload-not-acknowledged",
+          section->getMeshState() == ChunkSectionMeshState::CpuReady,
+          "revision=" + std::to_string(section->getBlockRevision()));
+
+    WorldMeshSnapshot refreshed = world.collectSectionMeshSnapshot();
+    if (refreshed.cpuReadySections.empty()) {
+        check("E5/current-upload-acknowledged", false,
+              "no refreshed CPU mesh");
+        return;
+    }
+    const WorldSectionMeshSnapshot &current =
+        refreshed.cpuReadySections.front();
+    world.acknowledgeSectionMeshUploads(
+        {{current.location, current.blockRevision}});
+    check("E5/current-upload-acknowledged",
+          section->getMeshState() == ChunkSectionMeshState::GpuBuffered,
+          "revision=" + std::to_string(current.blockRevision));
+}
+
+// ---------------------------------------------------------------------------
 // S2.4 - unloading a chunk flushes it to storage before it is dropped
 // ---------------------------------------------------------------------------
 void caseUnloadPersistence()
@@ -1550,6 +1641,11 @@ void caseWorldManager()
 
 int main()
 {
+    struct FreeImageScope {
+        FreeImageScope() { FreeImage_Initialise(FALSE); }
+        ~FreeImageScope() { FreeImage_DeInitialise(); }
+    } freeImageScope;
+
     try {
         std::cout << "[VALIDATION] world runtime smoke starting\n";
 
@@ -1567,6 +1663,7 @@ int main()
         caseMeshDirtyPropagation();
         casePersistence();
         caseSectionMeshInput();
+        caseSectionMeshUploadSnapshot();
         caseUnloadPersistence();
         caseChunkFormatRejection();
         caseTerrainDeterminism();

@@ -2,11 +2,15 @@
 #define CHUNKMESH_H_INCLUDED
 
 #include "../../Maths/glm.h"
-#include "../../Renderer/Model.h"
-
 #include <array>
 #include <cstdint>
 #include <vector>
+
+struct Mesh {
+    std::vector<float> vertexPositions;
+    std::vector<float> textureCoords;
+    std::vector<std::uint32_t> indices;
+};
 
 class ChunkMesh {
   public:
@@ -17,15 +21,10 @@ class ChunkMesh {
                  const glm::ivec3 &chunkPosition,
                  const glm::ivec3 &blockPosition, float cardinalLight);
 
-    void bufferMesh();
-
-    const Model &getModel() const;
-
     const Mesh &getClientMesh() const;
     const std::vector<float> &getCardinalLight() const;
 
     void clearClientData();
-    void deleteData();
 
     /// Takes over CPU mesh data built off the world lock. The GPU model is
     /// left alone: it belongs to the section, not to the freshly built data.
@@ -35,7 +34,6 @@ class ChunkMesh {
 
   private:
     Mesh m_mesh;
-    Model m_model;
     std::vector<float> m_light;
     std::uint32_t m_indexIndex = 0;
 };

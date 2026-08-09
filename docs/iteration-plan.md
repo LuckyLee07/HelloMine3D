@@ -17,14 +17,14 @@ HelloMine3D 已具备这些基础：
 | 能力 | 当前状态 |
 | ---- | -------- |
 | 构建系统 | Premake 已作为主构建入口，支持 Make/Xcode/Visual Studio 工程生成。 |
-| 依赖管理 | 通过 `src/external` 本地源码依赖构建 SFML/FreeType，不依赖 vcpkg 安装树。 |
+| 依赖管理 | 通过 `src/Engine` 与 `src/external` 本地源码构建 Ogre、FreeImage、FreeType、OIS、ImGui 和 GLM，不依赖 vcpkg 安装树。 |
 | 运行资源 | `media/` 保存 shader、texture、block、font，`ResourcePaths` 负责路径解析。 |
 | 世界结构 | 已有 `World`、`ChunkManager`、`Chunk`、`ChunkSection`。 |
 | 区块网格 | 已有 `ChunkMeshBuilder`，按 solid/water/flora 拆 mesh。 |
 | 方块数据 | 已有 `.block` 文件、`BlockDatabase`、`BlockDataHolder`。 |
 | 地形生成 | 已有 biome、tree、structure 和 classic overworld generator。 |
-| 渲染 | 已有 chunk/water/flora/skybox renderer 和 shader 层。 |
-| 调试 UI | 已有 ImGui 集成基础。 |
+| 渲染 | Ogre GL3Plus 是唯一渲染路径，已有 chunk/water/flora/skybox、选择描边和材质程序。 |
+| 调试 UI | Ogre/OIS + ImGui 已提供 HUD 与调试面板。 |
 
 当前主要风险：
 
@@ -173,7 +173,7 @@ HelloMine3D 已具备这些基础：
 | 优先级 | 任务 | 说明 | 验收标准 |
 | ------ | ---- | ---- | -------- |
 | P0 | 固化 Premake 入口 | `premake/premake.lua` 是唯一工程生成入口。 | Windows/macOS 都从 Premake 生成工程。 |
-| P0 | Windows/macOS 构建检查 | 明确 SFML/ImGui/GLM 布局、DLL/dylib/rpath。 | 新机器按 README 能构建运行。 |
+| P0 | Windows/macOS 构建检查 | 明确 Ogre/OIS/ImGui/GLM 布局、静态库和 rpath。 | 新机器按 README 能构建运行。 |
 | P1 | smoke build 脚本 | Make/Xcode/VS 至少有清晰构建命令。 | 每次结构改动后能快速验证构建。 |
 | P1 | 资源打包规划 | 先 manifest，再资源包。 | 不影响当前 `media/` 直读流程。 |
 | P2 | mod/资源包 | 支持覆盖资源和自定义 block/model。 | 等 block 数据模型稳定后再做。 |
@@ -186,7 +186,7 @@ HelloMine3D 已具备这些基础：
 | 多人网络 | 会改变世界权威、事件同步、实体同步、存档和输入模型。 |
 | Lua/脚本系统 | 当前方块和 UI 规模还不需要脚本化，会增加调试成本。 |
 | 完整资源包热更新 | 当前资源规模不大，先做 manifest 和校验更实际。 |
-| D3D/Vulkan 后端 | 当前目标是 Windows/macOS 兼容，SFML + OpenGL 足够支撑近期开发。 |
+| D3D/Vulkan 后端 | 当前目标是 Windows/macOS 兼容，Ogre GL3Plus 足够支撑近期开发。 |
 | 完整编辑器 | 先做资源校验和 block atlas 工具，避免工具链复杂度过早膨胀。 |
 | 大规模引入 MiniGame 代码 | MiniGame 历史依赖重，适合参考架构，不适合迁移源码。 |
 

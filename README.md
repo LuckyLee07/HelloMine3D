@@ -44,9 +44,11 @@ This was made in a week, as a challenge for a video. There do exist other, more 
 
 MineTest here: https://github.com/minetest/minetest
 
-## SFML 3 Update
+## Historical SFML 3 Update
 
-On November 2nd 2025, this project was updated to use SFML 3.0.0 and various changes were made to the codebase to accommodate this.
+On November 2nd 2025, this project was updated to use SFML 3.0.0. The active
+client has since migrated to Ogre 1.10; this note is retained only to identify
+the older history.
 
 To see the commit prior to this change, see: https://github.com/Hopson97/MineCraft-One-Week-Challenge/tree/fead1af708dca0518a6161fbac4c2673393d5ae0
 
@@ -58,16 +60,16 @@ The repo builds its local dependencies from vendored source under `src/external/
 
 | Dependency | Expected local path |
 | ---------- | ------------------- |
-| SFML 3.x | `src/external/sfml/include`, `src/external/sfml/src` |
-| FreeType | `src/external/freetype/include`, `src/external/freetype/src` |
+| Ogre 1.10 / GL3Plus | `src/Engine/ogre3d`, `src/Engine/ogre3d_glsupport`, `src/Engine/ogre3d_gl3plus` |
+| FreeImage / FreeType / zlib / zzip | `src/Engine/ThirdParty/` |
+| OIS | `src/external/ois` |
 | Dear ImGui | `src/external/imgui/imgui.cpp` |
 | GLM | `src/external/glm/glm/glm.hpp` |
 
-Premake generates an `External/sfml` project that runs CMake against `src/external/sfml`, uses the
-vendored FreeType source, and installs build outputs to `build/external/sfml/install`. The game links
-against that install tree; no checked-in SFML binaries or vcpkg install tree is required. The current
-build enables SFML System, Window, and Graphics, while Audio and Network stay disabled until the game
-uses them.
+Premake builds the Ogre, image, font, archive, OIS and ImGui dependency graph
+directly from vendored source. `HelloMine3D` is the only client executable and
+uses Ogre GL3Plus for rendering; there is no backend selection switch or
+checked-in dependency binary tree.
 
 ### Build and Run
 
@@ -106,14 +108,9 @@ generated project files are written to `build/`, and the executable still output
 
 ```powershell
 vs2022.bat
-& "C:\Program Files\Microsoft Visual Studio‚2\Community\MSBuild\Current\Bin\MSBuild.exe" `
+& "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" `
     build\HelloMine3D.sln /p:Configuration=Debug /p:Platform=x64 /m
 ```
-
-> **Moving the repository:** the SFML external project stores absolute paths in
-> `build/External/sfml/CMakeCache.txt`. If the repository is renamed or moved, delete
-> `build/External/sfml/` before rebuilding, otherwise CMake fails with a confusing
-> "source directory does not match" error.
 
 ### Validation
 
@@ -124,7 +121,17 @@ bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
 bin\HelloMine3DMeshDirtyTests.exe         # mesh dirty planner
 bin\HelloMine3DSaveLoadSmoke.exe          # chunk serialization roundtrip
 bin\HelloMine3DEntityLifecycleSmoke.exe   # actor lifecycle
-bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 89 assertions
+bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 127 assertions
+```
+
+The client also has a deterministic validation-only startup that does not
+create a render window:
+
+```powershell
+$env:HELLOMINE3D_VALIDATE_ONLY = "1"
+$env:HELLOMINE3D_SEED = "20260809"
+$env:HELLOMINE3D_PLAYER_POSITION = "264 96 8"
+bin\HelloMine3D.exe
 ```
 
 Two client-level smokes exercise the assembled game without stealing focus or the mouse:

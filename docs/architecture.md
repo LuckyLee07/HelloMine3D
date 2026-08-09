@@ -9,7 +9,7 @@ under `src/external/`, and keep runtime assets out of the source tree.
 | HelloOgre3D pattern | HelloMine3D path | Purpose |
 | ------------------- | ---------------- | ------- |
 | `src/HelloOgre3D/` | `src/HelloMine3D/` | First-party game and rendering code. |
-| `src/external/` | `src/external/` | Vendored GLAD and ImGui-SFML bridge code. |
+| `src/external/` | `src/external/` | Vendored ImGui, GLM and OIS source used directly by the build. |
 | `media/` | `media/` | Shaders, block definitions, textures, and fonts. |
 | `bin/` | `bin/` | Runtime config, ImGui state, and executable output. |
 | `docs/` | `docs/` | Architecture notes and screenshots used by documentation. |
@@ -17,8 +17,9 @@ under `src/external/`, and keep runtime assets out of the source tree.
 
 ## Code Boundaries
 
-`Main.cpp` and `Application.*` are the client shell. They own window creation, input dispatch,
-frame timing, update/render sequencing, and application-level event handling.
+`Ogre/OgreMain.cpp` and `Ogre/OgreBootstrap.cpp` are the client shell. They own
+Ogre startup, the GL3Plus window, OIS dispatch, frame timing and update/render
+sequencing. `HelloMine3D.exe` is the only client target.
 
 `Core/` contains cross-cutting runtime primitives that are not purely rendering, gameplay, or
 input. `Core/Camera.*` lives here because it is consumed by the renderer, world culling, matrix
@@ -27,17 +28,17 @@ helpers, and the application shell.
 `World/` is the gameplay simulation boundary. It owns chunk lifetime, terrain generation, block
 queries, block mutation events, and chunk mesh update scheduling.
 
-`Player/`, `Item/`, `Input/`, and `Physics/` are gameplay support modules. `Input/` owns keyboard
-helpers and the current vestigial `Controller` WIP class; player-specific movement behavior should
-move to `Player/` when it becomes active.
+`Player/`, `Item/`, and `Physics/` are gameplay support modules.
+`PlayerInputState` is a platform-independent command value; the Ogre/OIS shell
+collects devices and `PlayerController` applies those commands deterministically.
 
-`Renderer/`, `Shaders/`, `Texture/`, and `GL/` are the runtime rendering layer. `Renderer/` owns
-render passes plus shared render data objects such as `Model.*`, `Mesh.h`, and `RenderInfo.h`.
-Together these modules own OpenGL buffering, shader program setup, texture upload, and
-skybox/water/flora/chunk rendering.
+`Ogre/` is the runtime rendering layer. `ChunkSectionRenderable` owns Ogre GPU
+buffers for solid, water and flora meshes; `OgreBlockOutline`,
+`OgreUserInterface` and `OgreRenderCapture` own selection feedback, HUD/debug UI
+and screenshots. Materials and GLSL programs live under `media/ogre/`.
 
-`Debug/` contains ImGui-backed diagnostic UI. It is intentionally separate from the main
-application shell and from future player-facing UI.
+`Diagnostics/` contains renderer-independent performance/debug options. The
+ImGui platform and render integration stays in `Ogre/OgreUserInterface.*`.
 
 `Entity/` contains the base entity data shape used by player, camera, matrix helpers, and future
 world actors.

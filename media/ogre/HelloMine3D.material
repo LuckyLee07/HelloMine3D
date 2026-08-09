@@ -109,3 +109,25 @@ material HelloMine3D/Flora
         }
     }
 }
+
+material HelloMine3D/Outline
+{
+    technique
+    {
+        pass
+        {
+            lighting off
+            depth_check on
+            depth_write off
+            scene_blend alpha_blend
+
+            vertex_program_ref HelloMine3D/OutlineVertex
+            {
+            }
+
+            fragment_program_ref HelloMine3D/OutlineFragment
+            {
+            }
+        }
+    }
+}

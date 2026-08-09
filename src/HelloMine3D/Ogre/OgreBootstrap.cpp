@@ -1,5 +1,6 @@
 #include "OgreBootstrap.h"
 #include "ChunkSectionRenderable.h"
+#include "OgreBlockOutline.h"
 #include "OgreRenderCapture.h"
 #include "OgreUserInterface.h"
 
@@ -17,13 +18,15 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "../Config.h"
 #include "../Core/Camera.h"
 #include "../Diagnostics/RuntimePerformanceCapture.h"
 #include "../Player/Player.h"
-#include "../Util/ResourcePaths.h"
+#include "../Sandbox/SandboxRuntime.h"
 #include "../World/Chunk/Chunk.h"
 #include "../World/Chunk/ChunkSection.h"
 #include "../World/World.h"
@@ -33,7 +36,7 @@ namespace
     constexpr const char* ConfigFileName = "Mine.cfg";
     constexpr const char* ResourceFileName = "MineResources.cfg";
     constexpr const char* LogFileName = "MineOgre.log";
-    constexpr const char* WindowTitle = "HelloMine3D - Ogre Bootstrap";
+    constexpr const char* WindowTitle = "HelloMine3D";
     constexpr const char* SkyboxMaterial = "HelloMine3D/Skybox";
 
     struct TerrainBuildSummary
@@ -48,6 +51,19 @@ namespace
         std::size_t floraVertexCount = 0;
         std::size_t floraIndexCount = 0;
     };
+
+    struct SectionVisual
+    {
+        Ogre::SceneNode* node = nullptr;
+        std::vector<std::unique_ptr<ChunkSectionRenderable>> renderables;
+    };
+
+    std::string sectionKey(const glm::ivec3& location)
+    {
+        return std::to_string(location.x) + "_" +
+               std::to_string(location.y) + "_" +
+               std::to_string(location.z);
+    }
 
     class OgreBootstrap final : public Ogre::FrameListener,
                                 public Ogre::WindowEventListener,
@@ -275,6 +291,8 @@ namespace
                 true, SkyboxMaterial, 5000.0f, true);
 
             const TerrainBuildSummary terrain = buildTerrain(true);
+            m_blockOutline =
+                std::make_unique<OgreBlockOutline>(*m_sceneManager);
             std::cout << "[OGRE_TERRAIN] solid=" << terrain.sectionCount
                       << '/' << terrain.vertexCount << '/'
                       << terrain.indexCount << " water="
@@ -286,11 +304,10 @@ namespace
                       << terrain.floraIndexCount << '\n';
             m_renderCapture =
                 std::make_unique<OgreRenderCapture>(*m_window);
-            m_worldTime = static_cast<int>(m_world->getWorldTime());
             m_runtimeStarted = true;
 
             const char* exitFrames =
-                std::getenv("HELLOMINE3D_OGRE_EXIT_AFTER_FRAMES");
+                std::getenv("HELLOMINE3D_EXIT_AFTER_FRAMES");
             if (exitFrames != nullptr)
             {
                 m_exitAfterFrames = std::max(0, std::atoi(exitFrames));
@@ -301,20 +318,17 @@ namespace
         {
             Config config;
             config.renderDistance = 1;
-            m_worldPlayer = std::make_unique<Player>();
             m_logicCamera = std::make_unique<::Camera>(config);
-            m_logicCamera->hookEntity(*m_worldPlayer);
-            m_logicCamera->update();
-            const char *saveOverride =
-                std::getenv("HELLOMINE3D_SAVE_DIR");
-            const std::string saveDirectory =
-                saveOverride != nullptr && saveOverride[0] != '\0'
-                    ? saveOverride
-                    : ResourcePaths::bin("ogre_saves/preview");
-            m_world = std::make_unique<World>(
-                *m_logicCamera, config, *m_worldPlayer,
-                saveDirectory, false, 2);
-            m_logicCamera->update();
+            m_sandbox = std::make_unique<SandboxRuntime>(
+                config, *m_logicCamera, false, 2);
+            m_worldPlayer = &m_sandbox->getPlayer();
+            m_world =
+                m_sandbox->getWorldManager().getActiveWorld();
+            if (m_world == nullptr)
+            {
+                throw std::runtime_error(
+                    "Sandbox did not create an active world.");
+            }
 
             const VectorXZ center = World::getChunkXZ(
                 World::toBlockCoord(m_worldPlayer->position.x),
@@ -351,6 +365,7 @@ namespace
                                 << '_' << sectionLocation.y << '_'
                                 << sectionLocation.z;
                     Ogre::SceneNode *node = nullptr;
+                    SectionVisual visual;
                     auto ensureNode = [&]() {
                         if (node != nullptr)
                         {
@@ -369,7 +384,7 @@ namespace
                                            static_cast<Ogre::Real>(
                                                sectionLocation.z *
                                                CHUNK_SIZE)));
-                        m_sectionNodes.push_back(node);
+                        visual.node = node;
                         return node;
                     };
 
@@ -409,7 +424,7 @@ namespace
                                     mesh, sectionLocation, materialName,
                                     renderQueue);
                             ensureNode()->attachObject(renderable.get());
-                            m_terrainRenderables.push_back(
+                            visual.renderables.push_back(
                                 std::move(renderable));
                         };
 
@@ -430,6 +445,17 @@ namespace
                         static_cast<std::uint8_t>(Ogre::RENDER_QUEUE_6),
                         summary.floraSectionCount,
                         summary.floraVertexCount, summary.floraIndexCount);
+
+                    if (uploadToOgre)
+                    {
+                        section->markGpuBuffered();
+                        if (visual.node != nullptr)
+                        {
+                            m_sectionVisuals.emplace(
+                                sectionKey(sectionLocation),
+                                std::move(visual));
+                        }
+                    }
                 }
             }
 
@@ -439,6 +465,7 @@ namespace
                 m_camera->setPosition(position.x, position.y + 10.0f,
                                       position.z + 14.0f);
                 m_camera->lookAt(position.x, position.y, position.z);
+                m_world->startBackgroundLoader();
             }
             return summary;
         }
@@ -482,8 +509,7 @@ namespace
 
             m_keyboard->capture();
             m_mouse->capture();
-            updateCamera(event.timeSinceLastFrame);
-            advanceSimulation(event.timeSinceLastFrame);
+            updateSandbox(event.timeSinceLastFrame);
 
             m_frameWorldStats = collectRuntimeStats();
             if (m_userInterface != nullptr)
@@ -531,21 +557,230 @@ namespace
                    !RuntimePerformanceCapture::shouldCloseWindow();
         }
 
-        void advanceSimulation(float deltaSeconds)
+        void updateSandbox(float deltaSeconds)
         {
-            constexpr double FixedTickSeconds = 1.0 / 20.0;
-            m_tickAccumulator += static_cast<double>(deltaSeconds);
-            std::size_t ticks = 0;
-            while (m_tickAccumulator >= FixedTickSeconds && ticks < 5)
+            if (m_sandbox == nullptr)
             {
-                m_tickAccumulator -= FixedTickSeconds;
-                if (m_world != nullptr)
-                {
-                    m_world->tick(++m_worldTime);
-                }
-                ++ticks;
+                return;
             }
-            RuntimePerformanceCapture::recordSimulationTicks(ticks);
+
+            const bool keyboardCaptured =
+                m_userInterface != nullptr &&
+                m_userInterface->wantsKeyboardInput();
+            const bool mouseCaptured =
+                m_userInterface != nullptr &&
+                m_userInterface->wantsMouseInput();
+
+            SandboxInputState input;
+            if (!keyboardCaptured)
+            {
+                input.player.moveForward =
+                    m_keyboard->isKeyDown(OIS::KC_W);
+                input.player.moveBackward =
+                    m_keyboard->isKeyDown(OIS::KC_S);
+                input.player.moveLeft =
+                    m_keyboard->isKeyDown(OIS::KC_A);
+                input.player.moveRight =
+                    m_keyboard->isKeyDown(OIS::KC_D);
+                input.player.sprint =
+                    m_keyboard->isKeyDown(OIS::KC_LCONTROL) ||
+                    m_keyboard->isKeyDown(OIS::KC_RCONTROL);
+                input.player.jump =
+                    m_keyboard->isKeyDown(OIS::KC_SPACE);
+                input.player.descend =
+                    m_keyboard->isKeyDown(OIS::KC_LSHIFT) ||
+                    m_keyboard->isKeyDown(OIS::KC_RSHIFT);
+                input.player.toggleFlying = m_toggleFlying;
+                input.player.toggleSneaking = m_toggleSneaking;
+                input.player.hotbarDelta = m_hotbarDelta;
+                input.player.hotbarSlot = m_hotbarSlot;
+                input.resetMeshes = m_resetMeshes;
+            }
+            if (!mouseCaptured && m_mouseLookEnabled)
+            {
+                input.player.lookDelta = m_pendingLookDelta;
+                const OIS::MouseState &mouseState =
+                    m_mouse->getMouseState();
+                input.breakBlock =
+                    mouseState.buttonDown(OIS::MB_Left);
+                input.placeBlock =
+                    mouseState.buttonDown(OIS::MB_Right);
+            }
+
+            const bool diagnosticsActive =
+                (m_renderCapture != nullptr &&
+                 m_renderCapture->isEnabled()) ||
+                RuntimePerformanceCapture::isEnabled();
+            m_sandbox->update(input, deltaSeconds,
+                              !diagnosticsActive);
+            clearTransientInput();
+            syncRenderCamera();
+            syncSectionMeshes();
+            if (m_blockOutline != nullptr)
+            {
+                const auto& selection = m_sandbox->getBlockSelection();
+                m_blockOutline->update(
+                    selection.has_value() ? &*selection : nullptr);
+            }
+        }
+
+        void syncSectionMeshes()
+        {
+            if (m_world == nullptr || m_sceneManager == nullptr)
+            {
+                return;
+            }
+
+            WorldMeshSnapshot snapshot =
+                m_world->collectSectionMeshSnapshot();
+            std::unordered_set<std::string> liveSections;
+            liveSections.reserve(snapshot.liveSections.size());
+            for (const glm::ivec3& location : snapshot.liveSections)
+            {
+                liveSections.insert(sectionKey(location));
+            }
+
+            for (auto it = m_sectionVisuals.begin();
+                 it != m_sectionVisuals.end();)
+            {
+                if (liveSections.find(it->first) != liveSections.end())
+                {
+                    ++it;
+                    continue;
+                }
+
+                destroySectionVisual(it->second);
+                it = m_sectionVisuals.erase(it);
+            }
+
+            std::vector<WorldSectionMeshVersion> uploaded;
+            uploaded.reserve(snapshot.cpuReadySections.size());
+            for (const WorldSectionMeshSnapshot& section :
+                 snapshot.cpuReadySections)
+            {
+                uploadSectionVisual(section);
+                uploaded.push_back(
+                    {section.location, section.blockRevision});
+            }
+            m_world->acknowledgeSectionMeshUploads(uploaded);
+        }
+
+        void uploadSectionVisual(
+            const WorldSectionMeshSnapshot& section)
+        {
+            const std::string key = sectionKey(section.location);
+            const auto existing = m_sectionVisuals.find(key);
+            if (existing != m_sectionVisuals.end())
+            {
+                destroySectionVisual(existing->second);
+                m_sectionVisuals.erase(existing);
+            }
+
+            const std::string objectName = "ChunkSection_" + key;
+            SectionVisual visual;
+            auto ensureNode = [&]() {
+                if (visual.node == nullptr)
+                {
+                    visual.node = m_sceneManager->getRootSceneNode()
+                                      ->createChildSceneNode(
+                                          objectName + "_Node",
+                                          Ogre::Vector3(
+                                              static_cast<Ogre::Real>(
+                                                  section.location.x *
+                                                  CHUNK_SIZE),
+                                              static_cast<Ogre::Real>(
+                                                  section.location.y *
+                                                  CHUNK_SIZE),
+                                              static_cast<Ogre::Real>(
+                                                  section.location.z *
+                                                  CHUNK_SIZE)));
+                }
+                return visual.node;
+            };
+
+            auto uploadLayer =
+                [&](const ChunkMesh& mesh, const char* layerName,
+                    const char* materialName, std::uint8_t renderQueue) {
+                    const ChunkMeshValidation validation =
+                        ChunkSectionRenderable::validateCpuMesh(
+                            mesh, section.location);
+                    if (!validation.valid)
+                    {
+                        throw std::runtime_error(
+                            std::string(layerName) +
+                            " mesh validation failed: " +
+                            validation.message);
+                    }
+                    if (validation.indexCount == 0)
+                    {
+                        return;
+                    }
+
+                    auto renderable =
+                        std::make_unique<ChunkSectionRenderable>(
+                            objectName + "_" + layerName, mesh,
+                            section.location, materialName, renderQueue);
+                    ensureNode()->attachObject(renderable.get());
+                    visual.renderables.push_back(std::move(renderable));
+                };
+
+            uploadLayer(
+                section.meshes.solidMesh, "Solid", "HelloMine3D/Terrain",
+                static_cast<std::uint8_t>(Ogre::RENDER_QUEUE_MAIN));
+            uploadLayer(
+                section.meshes.waterMesh, "Water", "HelloMine3D/Water",
+                static_cast<std::uint8_t>(Ogre::RENDER_QUEUE_8));
+            uploadLayer(
+                section.meshes.floraMesh, "Flora", "HelloMine3D/Flora",
+                static_cast<std::uint8_t>(Ogre::RENDER_QUEUE_6));
+
+            if (visual.node != nullptr)
+            {
+                m_sectionVisuals.emplace(key, std::move(visual));
+            }
+        }
+
+        void destroySectionVisual(SectionVisual& visual)
+        {
+            for (auto& renderable : visual.renderables)
+            {
+                if (renderable->isAttached())
+                {
+                    renderable->detachFromParent();
+                }
+            }
+            visual.renderables.clear();
+            if (visual.node != nullptr && m_sceneManager != nullptr)
+            {
+                m_sceneManager->destroySceneNode(visual.node);
+                visual.node = nullptr;
+            }
+        }
+
+        void clearTransientInput()
+        {
+            m_pendingLookDelta = glm::vec2(0.0f);
+            m_toggleFlying = false;
+            m_toggleSneaking = false;
+            m_resetMeshes = false;
+            m_hotbarDelta = 0;
+            m_hotbarSlot = -1;
+        }
+
+        void syncRenderCamera()
+        {
+            if (m_logicCamera == nullptr || m_camera == nullptr)
+            {
+                return;
+            }
+
+            m_logicCamera->update();
+            const glm::vec3 &position = m_logicCamera->position;
+            const glm::vec3 &rotation = m_logicCamera->rotation;
+            m_camera->setPosition(position.x, position.y, position.z);
+            m_camera->setOrientation(Ogre::Quaternion::IDENTITY);
+            m_camera->yaw(Ogre::Degree(-rotation.y));
+            m_camera->pitch(Ogre::Degree(-rotation.x));
         }
 
         WorldDebugStats collectRuntimeStats()
@@ -554,54 +789,10 @@ namespace
             if (m_world != nullptr)
             {
                 stats = m_world->collectDebugStats();
-                stats.chunks.gpuBufferedSections = m_sectionNodes.size();
+                stats.chunks.gpuBufferedSections =
+                    m_sectionVisuals.size();
             }
             return stats;
-        }
-
-        void updateCamera(float deltaSeconds)
-        {
-            if (m_userInterface != nullptr &&
-                m_userInterface->wantsKeyboardInput())
-            {
-                return;
-            }
-
-            Ogre::Vector3 movement = Ogre::Vector3::ZERO;
-            if (m_keyboard->isKeyDown(OIS::KC_W))
-            {
-                movement.z -= 1.0f;
-            }
-            if (m_keyboard->isKeyDown(OIS::KC_S))
-            {
-                movement.z += 1.0f;
-            }
-            if (m_keyboard->isKeyDown(OIS::KC_A))
-            {
-                movement.x -= 1.0f;
-            }
-            if (m_keyboard->isKeyDown(OIS::KC_D))
-            {
-                movement.x += 1.0f;
-            }
-
-            if (movement.squaredLength() > 0.0f)
-            {
-                movement.normalise();
-                m_camera->moveRelative(
-                    movement * (m_moveSpeed * deltaSeconds));
-            }
-            if (m_keyboard->isKeyDown(OIS::KC_SPACE))
-            {
-                m_camera->move(Ogre::Vector3::UNIT_Y *
-                               (m_moveSpeed * deltaSeconds));
-            }
-            if (m_keyboard->isKeyDown(OIS::KC_C) ||
-                m_keyboard->isKeyDown(OIS::KC_LCONTROL))
-            {
-                m_camera->move(Ogre::Vector3::NEGATIVE_UNIT_Y *
-                               (m_moveSpeed * deltaSeconds));
-            }
         }
 
         bool keyPressed(const OIS::KeyEvent& event) override
@@ -613,6 +804,45 @@ namespace
             if (event.key == OIS::KC_ESCAPE)
             {
                 m_shutdownRequested = true;
+            }
+            if (m_userInterface != nullptr &&
+                m_userInterface->wantsKeyboardInput())
+            {
+                return true;
+            }
+
+            switch (event.key)
+            {
+                case OIS::KC_F:
+                    m_toggleFlying = true;
+                    break;
+                case OIS::KC_LSHIFT:
+                case OIS::KC_RSHIFT:
+                    m_toggleSneaking = true;
+                    break;
+                case OIS::KC_L:
+                    m_mouseLookEnabled = !m_mouseLookEnabled;
+                    break;
+                case OIS::KC_C:
+                    m_resetMeshes = true;
+                    break;
+                case OIS::KC_DOWN:
+                    m_hotbarDelta = 1;
+                    break;
+                case OIS::KC_UP:
+                    m_hotbarDelta = -1;
+                    break;
+                case OIS::KC_1:
+                case OIS::KC_2:
+                case OIS::KC_3:
+                case OIS::KC_4:
+                case OIS::KC_5:
+                    m_hotbarSlot =
+                        static_cast<int>(event.key) -
+                        static_cast<int>(OIS::KC_1);
+                    break;
+                default:
+                    break;
             }
             return true;
         }
@@ -635,10 +865,10 @@ namespace
             if (m_userInterface == nullptr ||
                 !m_userInterface->wantsMouseInput())
             {
-                m_camera->yaw(
-                    Ogre::Degree(-event.state.X.rel * m_lookSensitivity));
-                m_camera->pitch(
-                    Ogre::Degree(-event.state.Y.rel * m_lookSensitivity));
+                m_pendingLookDelta.x +=
+                    static_cast<float>(event.state.X.rel);
+                m_pendingLookDelta.y +=
+                    static_cast<float>(event.state.Y.rel);
             }
             return true;
         }
@@ -745,19 +975,17 @@ namespace
             }
             m_renderCapture.reset();
             m_userInterface.reset();
+            m_blockOutline.reset();
 
-            for (auto &renderable : m_terrainRenderables)
+            for (auto &entry : m_sectionVisuals)
             {
-                if (renderable->isAttached())
-                {
-                    renderable->detachFromParent();
-                }
+                destroySectionVisual(entry.second);
             }
-            m_terrainRenderables.clear();
-            m_sectionNodes.clear();
-            m_world.reset();
+            m_sectionVisuals.clear();
+            m_world = nullptr;
+            m_worldPlayer = nullptr;
+            m_sandbox.reset();
             m_logicCamera.reset();
-            m_worldPlayer.reset();
 
             m_camera = nullptr;
             m_sceneManager = nullptr;
@@ -776,23 +1004,26 @@ namespace
         OIS::Mouse* m_mouse = nullptr;
         std::unique_ptr<OgreRenderCapture> m_renderCapture;
         std::unique_ptr<OgreUserInterface> m_userInterface;
-        std::unique_ptr<Player> m_worldPlayer;
+        std::unique_ptr<OgreBlockOutline> m_blockOutline;
+        Player* m_worldPlayer = nullptr;
         std::unique_ptr<::Camera> m_logicCamera;
-        std::unique_ptr<World> m_world;
-        std::vector<std::unique_ptr<ChunkSectionRenderable>>
-            m_terrainRenderables;
-        std::vector<Ogre::SceneNode*> m_sectionNodes;
+        std::unique_ptr<SandboxRuntime> m_sandbox;
+        World* m_world = nullptr;
+        std::unordered_map<std::string, SectionVisual> m_sectionVisuals;
         bool m_listenersInstalled = false;
         bool m_shutdownRequested = false;
         bool m_runtimeStarted = false;
         int m_exitAfterFrames = 0;
         int m_frameCount = 0;
-        int m_worldTime = 0;
-        double m_tickAccumulator = 0.0;
         WorldDebugStats m_frameWorldStats;
         std::chrono::steady_clock::time_point m_frameStart;
-        float m_moveSpeed = 12.0f;
-        float m_lookSensitivity = 0.12f;
+        glm::vec2 m_pendingLookDelta{0.0f};
+        bool m_toggleFlying = false;
+        bool m_toggleSneaking = false;
+        bool m_resetMeshes = false;
+        bool m_mouseLookEnabled = true;
+        int m_hotbarDelta = 0;
+        int m_hotbarSlot = -1;
     };
 }
 

@@ -1,16 +1,13 @@
 #ifndef PLAYER_H_INCLUDED
 #define PLAYER_H_INCLUDED
 
-#include <SFML/Graphics.hpp>
 #include <vector>
 
 #include "../Entity/Entity.h"
 #include "../Item/Inventory.h"
 #include "PlayerController.h"
 
-class Keyboard;
 class World;
-class RenderMaster;
 
 using PlayerInventorySlot = InventorySlotState;
 
@@ -28,7 +25,7 @@ class Player : public Entity {
   public:
     Player();
 
-    void handleInput(const sf::Window& window, const Keyboard& keyboard);
+    void applyInput(const PlayerInputState &input);
 
     void update(float dt, World &wolrd);
     void collide(World &world, const glm::vec3 &vel, float dt);
@@ -36,8 +33,6 @@ class Player : public Entity {
     bool addItem(const Material &material);
     int addItem(const Material &material, int amount);
     bool removeHeldItem(int amount = 1);
-
-    void draw(RenderMaster &master);
 
     ItemStack &getHeldItems();
     bool isFlying() const noexcept;
@@ -53,8 +48,6 @@ class Player : public Entity {
     bool m_isSneak = false;
 
     Inventory m_inventory;
-    std::vector<sf::Text> m_itemText;
-
     PlayerController m_controller;
     glm::vec3 m_acceleration;
 };

@@ -15,10 +15,10 @@ milestones in `docs/sandbox-foundation-todolist.md`.
 ## World Runtime Smoke
 
 `src/HelloMine3D/Tests/WorldRuntimeSmokeMain.cpp` links the whole game runtime
-except `Main.cpp` and drives the real gameplay classes through scripted
-scenarios. It no longer creates an SFML or OpenGL context: texture-atlas
-ownership lives in `RenderMaster`, mesh UV calculation is pure data, and the
-`World/` data layer has no direct SFML or OpenGL types.
+except the Ogre client shell and drives the real gameplay classes through
+scripted scenarios. It creates no window or graphics context: FreeImage checks
+the packed atlas, mesh UV calculation is pure data, and the `World/` data layer
+has no renderer types.
 
 ```powershell
 bin\HelloMine3DWorldRuntimeSmoke.exe
@@ -29,7 +29,7 @@ Output is one line per assertion plus a summary:
 ```text
 [VALIDATION] PASS S0.5/chunk-boundary-marks-neighbor
 [VALIDATION] FAIL S6.4/ore-decorator-produces-ore :: coal=0 iron=0
-[VALIDATION] checks=89 failures=0
+[VALIDATION] checks=127 failures=0
 [VALIDATION] status=PASS
 ```
 
@@ -60,6 +60,7 @@ position and player rotation are forced per scenario through the same
 | `caseNoImplicitChunkCreation` | S0.2 | Reading or writing a block outside the loaded set does not create chunks. |
 | `caseMeshDirtyPropagation` | S0.4, S0.5 | Interior edits dirty only the owning section; chunk-boundary and section-boundary edits also dirty the correct neighbour. Debug stats report the state. |
 | `casePersistence` | S1.3, S2.1, S2.4, S2.5, S2.6, S6.1 | Block edits, world metadata, seed, spawn point, player transform and inventory all survive a relaunch. |
+| `caseSectionMeshUploadSnapshot` | E5 | Ogre-facing CPU mesh snapshots include live section identity and block revision; stale upload acknowledgements cannot overwrite a newer edit. |
 | `caseUnloadPersistence` | S2.4 | Unloading a chunk flushes it to storage first, and reloading restores the edit instead of regenerating. |
 | `caseChunkFormatRejection` | S2.2, S2.3 | Chunk file paths are deterministic, and a corrupted magic is rejected with a diagnostic rather than loaded as garbage. |
 | `caseTerrainDeterminism` | S6.1, S6.4 | The same seed produces identical terrain over 175k sampled blocks, and ore layout is stable. |
@@ -85,21 +86,22 @@ These need a person at the keyboard or a different harness:
 | Layer | Command | Result |
 | ----- | ------- | ------ |
 | Focused headless tests | `bin\HelloMine3DCoordinateTests.exe`, `bin\HelloMine3DMeshDirtyTests.exe`, `bin\HelloMine3DSaveLoadSmoke.exe`, `bin\HelloMine3DEntityLifecycleSmoke.exe` | All pass. |
-| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=123 failures=0` (Debug and Release, 2026-08-09) |
+| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=127 failures=0` (Debug and Release, 2026-08-09) |
 | E0 dependency boundary | `rg "SFML|sf::|GLfloat|GLuint|glad" src/HelloMine3D/World` | No matches (2026-08-09). |
 | E1 engine build | `tools\premake\premake5 --os=windows --file=premake/premake.lua vs2022`, then full Debug/Release solution builds | Ogre 1.10 core, GLSupport, GL3Plus, FreeImage dependency chain, dedicated Ogre FreeType, zlib, zzip and OIS all compile with 0 errors (2026-08-09). |
-| E2 bootstrap validation | `set HELLOMINE3D_OGRE_VALIDATE_ONLY=1` then `bin\HelloMine3DOgreBootstrap.exe` | Debug and Release register `OpenGL 3+ Rendering Subsystem`, 2 resource locations and OIS, then shut down cleanly (2026-08-09). |
-| E3 terrain bridge | Set `HELLOMINE3D_OGRE_VALIDATE_ONLY=1`, `HELLOMINE3D_SEED=20260809`, `HELLOMINE3D_PLAYER_POSITION=8 96 8`, then run `bin\HelloMine3DOgreBootstrap.exe` | Debug and Release build real terrain and validate 10 solid sections, 14,460 vertices and 21,690 indices, including section-local bounds, UV/light cardinality and index ranges (2026-08-09). |
+| E2 bootstrap validation | `set HELLOMINE3D_VALIDATE_ONLY=1` then `bin\HelloMine3D.exe` | Debug and Release register `OpenGL 3+ Rendering Subsystem`, 2 resource locations and OIS, then shut down cleanly (2026-08-09). |
+| E3 terrain bridge | Set `HELLOMINE3D_VALIDATE_ONLY=1`, `HELLOMINE3D_SEED=20260809`, `HELLOMINE3D_PLAYER_POSITION=8 96 8`, then run `bin\HelloMine3D.exe` | Debug and Release build real terrain and validate 10 solid sections, 14,460 vertices and 21,690 indices, including section-local bounds, UV/light cardinality and index ranges (2026-08-09). |
 | E4 water/flora bridge | Use the E3 command with `HELLOMINE3D_PLAYER_POSITION=264 96 8` | Debug and Release validate 19 solid sections (20,796 vertices), 3 water sections (1,736 vertices), and 13 flora sections (1,116 vertices); each path has valid UV/light/index data and a dedicated render queue (2026-08-09). |
-| E4 Ogre diagnostics | Add `HELLO_RENDER_CAPTURE=1`, `HELLO_RENDER_CAPTURE_MS=0,250,1000`, and an isolated `HELLO_RENDER_CAPTURE_DIR` to the E4 validation command | Debug and Release report `capture_config=valid`, `capture_enabled=true`, and `capture_targets=3`. `run_render_capture.ps1` and `run_perf_baseline.ps1` both parse successfully with the new `-Backend Ogre` route (2026-08-09). |
+| E4 Ogre diagnostics | Add `HELLO_RENDER_CAPTURE=1`, `HELLO_RENDER_CAPTURE_MS=0,250,1000`, and an isolated `HELLO_RENDER_CAPTURE_DIR` to the E4 validation command | Debug and Release report `capture_config=valid`, `capture_enabled=true`, and `capture_targets=3`. Both scripts target the sole client executable (2026-08-09). |
 | E4 Ogre HUD/ImGui | Add `HELLOMINE3D_SHOW_DEBUG_INFO=1`, then repeat with `off` | Debug and Release report `hud_config=valid`, five hotbar slots, selected slot zero, and the matching enabled/disabled debug-panel state. OIS key/mouse events, F1 toggling, render-queue submission and camera input suppression compile in both configurations (2026-08-09). |
+| E5 single render path | `rg -n "SFML|sf::|glad|imgui.?sfml|HelloMine3DOgreBootstrap" src/HelloMine3D premake tools` plus full Debug/Release builds and all five tests | No old client/render dependencies remain; versioned CPU mesh upload checks pass and `HelloMine3D.exe` is the only client target (2026-08-09). |
 | Render smoke | see `docs/render-regression-smoke.md` | `bin/render_capture_20260807190230074-46036`, status PASS |
 | Performance baseline | see `docs/performance-baseline.md` | `bin/perf_baseline_20260807190255313-41064`, `frame_p95_ms=16.430` |
 
 The 2026-08-09 automation session exposed only the Windows GDI Generic OpenGL
 1.1 implementation, below the client's required OpenGL 3.3 context. Headless
 validation is therefore fully current, while the last hardware-backed render
-and performance runs remain the 2026-08-07 records above. The E2-E4 window probe
+and performance runs remain the 2026-08-07 records above. The E2-E5 window probe
 reaches GL3Plus context creation and then reports that OpenGL 3.0 is unavailable;
 skybox appearance, terrain/water/flora materials, Ogre culling, mouse look,
 free-flight controls, HUD/debug-panel appearance, screenshot PNGs and a comparable performance CSV still need one run in a

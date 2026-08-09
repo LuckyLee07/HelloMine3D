@@ -159,7 +159,7 @@ Goal: replace the current thin `Entity` with a minimal actor model that can supp
 | -- | ------ | ---- | ------------------- |
 | S5.1 | Done | Split `Entity` and `Actor`. | `S5.1/actor-count-tracked`, `S5.1/dead-actors-removed` through `World::tick()`. |
 | S5.2 | Done | Add `LivingActor`. | `S5.2/mob-is-living-actor`, `S5.2/mob-takes-damage`, `S5.2/mob-dies`. Invulnerability timing is still not implemented. |
-| S5.3 | Done | Add `PlayerActor` and `PlayerController`. | `PlayerInputState` feeds the same `PlayerController::applyInput()` path as live SFML collection. `V2/*` asserts movement, flying jump, fly/sneak toggles, look delta and hotbar selection without moving the real mouse. |
+| S5.3 | Done | Add `PlayerActor` and `PlayerController`. | `PlayerInputState` feeds the same `PlayerController::applyInput()` path as live Ogre/OIS collection. `V2/*` asserts movement, flying jump, fly/sneak toggles, look delta and hotbar selection without moving the real mouse. |
 | S5.4 | Done | Add `Inventory` and hotbar. | `S2.6/player-inventory-restored`, `S3.5/break-adds-configured-drop`, `S3.4/place-consumes-item`, `S5.5/item-entity-picked-up`. |
 | S5.5 | Done | Add `ItemEntity`. | `S5.5/item-entity-spawns`, `S5.5/item-entity-found`, `S5.5/item-entity-picked-up`. Rendering and entity persistence remain open (see `docs/todolist.md`). |
 | S5.6 | Done | Add first `MobActor`. | `S5.6/mob-spawns`, `S5.6/mob-wanders-on-tick`, plus the damage/death chain above and `HelloMine3DEntityLifecycleSmoke`. |
@@ -212,9 +212,8 @@ closed loop; entity rendering is the single biggest blocker.
 
 - Keep each milestone independently buildable.
 - Windows builds are generated with `vs2022.bat` and built from
-  `build/HelloMine3D.sln`. The SFML external project caches absolute paths in
-  `build/External/sfml/CMakeCache.txt`; moving or renaming the repository
-  requires deleting that build tree before rebuilding.
+  `build/HelloMine3D.sln`. The dependency graph is generated directly by
+  Premake and no longer contains a nested CMake cache.
 - Prefer simple synchronous save/load first; add async IO only after correctness is proven.
 - Prefer C++ events and JSON/TOML-style data first; add Lua only after the native extension points are stable.
 - Avoid copying MiniGame subsystem complexity directly. Use it as an architectural reference, not as a code migration source.

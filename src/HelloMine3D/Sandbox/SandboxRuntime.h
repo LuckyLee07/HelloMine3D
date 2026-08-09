@@ -1,16 +1,10 @@
 #ifndef SANDBOXRUNTIME_H_INCLUDED
 #define SANDBOXRUNTIME_H_INCLUDED
 
-#include <SFML/System/Clock.hpp>
-#include <SFML/System/Time.hpp>
-#include <SFML/Window/Event.hpp>
-#include <SFML/Window/Window.hpp>
-
 #include <optional>
 
 #include "../Config.h"
 #include "../Core/Camera.h"
-#include "../Input/Keyboard.h"
 #include "../Player/Player.h"
 #include "../Util/NonCopyable.h"
 #include "../World/World.h"
@@ -18,34 +12,41 @@
 #include "FixedTickScheduler.h"
 #include "WorldManager.h"
 
-class RenderMaster;
-class World;
+struct SandboxInputState {
+    PlayerInputState player;
+    bool breakBlock = false;
+    bool placeBlock = false;
+    bool resetMeshes = false;
+};
 
 class SandboxRuntime : public NonCopyable {
   public:
-    SandboxRuntime(sf::Window &window, const Config &config, Camera &camera);
+    SandboxRuntime(const Config &config, Camera &camera,
+                   bool startBackgroundLoader = true,
+                   int initialPreloadRadius = 1);
 
-    void onEvent(const sf::Event &event);
-    void update(const Keyboard &keyboard, sf::Time dt);
-    void render(RenderMaster &renderer, bool showDebugInfo);
+    void update(const SandboxInputState &input, float deltaSeconds,
+                bool acceptsPlayerInput = true);
     WorldDebugStats collectDebugStats();
 
     Player &getPlayer();
+    const Player &getPlayer() const;
     WorldManager &getWorldManager();
+    const WorldManager &getWorldManager() const;
+    const std::optional<BlockSelection> &getBlockSelection() const;
 
   private:
-    void handlePlayerInteraction(World &world);
-    void runFixedTicks(sf::Time dt);
-    void drawSandboxDebug(World &world);
+    void handlePlayerInteraction(World &world,
+                                 const SandboxInputState &input);
+    void runFixedTicks(float deltaSeconds);
 
-    sf::Window &m_window;
+    Config m_config;
     Camera &m_camera;
     Player m_player;
     WorldManager m_worldManager;
     FixedTickScheduler m_tickScheduler;
     std::optional<BlockSelection> m_blockSelection;
-    const sf::Time m_fixedTickStep = sf::seconds(1.f / 20.f);
-    sf::Clock m_interactionTimer;
+    float m_interactionCooldownSeconds = 0.0f;
 };
 
 #endif // SANDBOXRUNTIME_H_INCLUDED

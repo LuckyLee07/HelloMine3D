@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -23,7 +24,6 @@
 
 #include "../Config.h"
 
-class RenderMaster;
 class Camera;
 class Player;
 
@@ -35,6 +35,20 @@ struct WorldDebugStats {
     std::size_t queuedChunkUpdates = 0;
     int terrainSeed = 0;
     float worldTime = 0.f;
+};
+
+struct WorldSectionMeshVersion {
+    glm::ivec3 location{0};
+    std::uint32_t blockRevision = 0;
+};
+
+struct WorldSectionMeshSnapshot : WorldSectionMeshVersion {
+    ChunkMeshCollection meshes;
+};
+
+struct WorldMeshSnapshot {
+    std::vector<glm::ivec3> liveSections;
+    std::vector<WorldSectionMeshSnapshot> cpuReadySections;
 };
 
 /// @brief Massive class designed to hold multiple chunks, the player, and most game aspects.
@@ -58,13 +72,15 @@ class World : public NonCopyable {
     bool save();
     float getWorldTime() const;
     WorldDebugStats collectDebugStats();
+    WorldMeshSnapshot collectSectionMeshSnapshot();
+    void acknowledgeSectionMeshUploads(
+        const std::vector<WorldSectionMeshVersion> &versions);
     void preloadAround(const glm::vec3 &position);
+    void startBackgroundLoader();
     ActorId spawnItemEntity(Material::ID materialId, int amount,
                             const glm::vec3 &position,
                             const glm::vec3 &initialVelocity = glm::vec3(0.f));
     ActorId spawnMob(const std::string &type, const glm::vec3 &position);
-
-    void renderWorld(RenderMaster &master, const Camera &camera);
 
     ChunkManager &getChunkManager();
     ActorManager &getActorManager();

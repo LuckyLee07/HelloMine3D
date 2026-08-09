@@ -11,10 +11,13 @@
 #include "../World/World.h"
 
 WorldManager::WorldManager(const Config &config, Camera &camera,
-                           Player &player)
+                           Player &player, bool startBackgroundLoader,
+                           int initialPreloadRadius)
     : m_config(config)
     , m_camera(&camera)
     , m_player(&player)
+    , m_startBackgroundLoader(startBackgroundLoader)
+    , m_initialPreloadRadius(initialPreloadRadius)
 {
 }
 
@@ -31,8 +34,9 @@ World &WorldManager::createWorld(int worldId)
         return *existing->second;
     }
 
-    auto world = std::make_unique<World>(*m_camera, m_config, *m_player,
-                                         saveDirectoryForWorld(worldId));
+    auto world = std::make_unique<World>(
+        *m_camera, m_config, *m_player, saveDirectoryForWorld(worldId),
+        m_startBackgroundLoader, m_initialPreloadRadius);
     World &createdWorld = *world;
     m_worlds.emplace(worldId, std::move(world));
 

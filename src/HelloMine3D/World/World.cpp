@@ -15,7 +15,6 @@
 #include "../Core/Camera.h"
 #include "../Maths/Vector2XZ.h"
 #include "../Player/Player.h"
-#include "../Renderer/RenderMaster.h"
 #include "../Util/ResourcePaths.h"
 #include "../Util/Random.h"
 #include "Chunk/ChunkMeshBuilder.h"
@@ -205,10 +204,7 @@ World::World(const Camera &camera, const Config &config, Player &player,
     m_loadCenterZ.store(playerChunk.z);
 
     if (startBackgroundLoader) {
-        for (int i = 0; i < 1; i++) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(200));
-            m_chunkLoadThreads.emplace_back([this]() { loadChunks(); });
-        }
+        this->startBackgroundLoader();
     }
 }
 
@@ -288,6 +284,109 @@ void World::update(const Camera &camera)
 
     unloadDistantChunks(camera);
     updateChunks();
+}
+
+WorldMeshSnapshot World::collectSectionMeshSnapshot()
+{
+    std::unique_lock<std::mutex> lock(m_mainMutex);
+
+    WorldMeshSnapshot snapshot;
+    for (auto &entry : m_chunkManager.getChunks()) {
+        Chunk &chunk = entry.second;
+        if (!chunk.hasLoaded()) {
+            continue;
+        }
+
+        for (std::size_t sectionIndex = 0;
+             sectionIndex < chunk.getSectionCount(); ++sectionIndex) {
+            ChunkSection *section =
+                chunk.findSection(static_cast<int>(sectionIndex));
+            if (section == nullptr) {
+                continue;
+            }
+
+            snapshot.liveSections.push_back(section->getLocation());
+            if (section->getMeshState() !=
+                ChunkSectionMeshState::CpuReady) {
+                continue;
+            }
+
+            WorldSectionMeshSnapshot sectionSnapshot;
+            sectionSnapshot.location = section->getLocation();
+            sectionSnapshot.blockRevision = section->getBlockRevision();
+            sectionSnapshot.meshes = section->getMeshes();
+            snapshot.cpuReadySections.push_back(
+                std::move(sectionSnapshot));
+        }
+    }
+    return snapshot;
+}
+
+void World::acknowledgeSectionMeshUploads(
+    const std::vector<WorldSectionMeshVersion> &versions)
+{
+    std::unique_lock<std::mutex> lock(m_mainMutex);
+    for (const WorldSectionMeshVersion &version : versions) {
+        Chunk *chunk = m_chunkManager.findChunk(
+            version.location.x, version.location.z);
+        if (chunk == nullptr) {
+            continue;
+        }
+
+        ChunkSection *section = chunk->findSection(version.location.y);
+        if (section != nullptr &&
+            section->getMeshState() == ChunkSectionMeshState::CpuReady &&
+            section->getBlockRevision() == version.blockRevision) {
+            section->markGpuBuffered();
+        }
+    }
+}
+
+void World::startBackgroundLoader()
+{
+    if (!m_chunkLoadThreads.empty()) {
+        return;
+    }
+
+    m_chunkLoadThreads.emplace_back([this]() { loadChunks(); });
+}
+
+void World::unloadDistantChunks(const Camera &camera)
+{
+    constexpr std::size_t MaxUnloadsPerUpdate = 8;
+
+    const VectorXZ cameraChunk = getChunkXZ(
+        toBlockCoord(camera.position.x), toBlockCoord(camera.position.z));
+    if (m_unloadScanValid && cameraChunk == m_lastUnloadScanChunk &&
+        !m_unloadBacklog) {
+        return;
+    }
+    m_lastUnloadScanChunk = cameraChunk;
+    m_unloadScanValid = true;
+
+    std::unique_lock<std::mutex> lock(m_mainMutex);
+    const int minX = cameraChunk.x - m_renderDistance;
+    const int minZ = cameraChunk.z - m_renderDistance;
+    const int maxX = cameraChunk.x + m_renderDistance;
+    const int maxZ = cameraChunk.z + m_renderDistance;
+
+    std::vector<VectorXZ> chunksToUnload;
+    for (const auto &entry : m_chunkManager.getChunks()) {
+        const glm::ivec2 location = entry.second.getLocation();
+        if (minX > location.x || minZ > location.y || maxZ < location.y ||
+            maxX < location.x) {
+            chunksToUnload.push_back({location.x, location.y});
+            if (chunksToUnload.size() >= MaxUnloadsPerUpdate) {
+                break;
+            }
+        }
+    }
+
+    m_unloadBacklog =
+        chunksToUnload.size() >= MaxUnloadsPerUpdate;
+    for (const VectorXZ &location : chunksToUnload) {
+        m_chunkManager.unloadChunk(location.x, location.z);
+    }
 }
 
 void World::resetChunkMeshes()

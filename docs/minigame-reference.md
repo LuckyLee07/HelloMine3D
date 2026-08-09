@@ -100,7 +100,7 @@ HelloMine3D 当前不需要引入这种完整资源系统，但可以沿着 `Res
 | -------- | ---- |
 | 渲染后端隔离 | 游戏世界不应直接依赖具体 OpenGL 调用。 |
 | 平台差异收口 | Windows/macOS 的上下文创建、扩展、路径和动态库处理应放在少数边界里。 |
-| 不直接照搬 D3D9 | D3D9 已过时，当前 HelloMine3D 继续保留 SFML + OpenGL 更合适。 |
+| 不直接照搬 D3D9 | D3D9 已过时，当前 HelloMine3D 使用 Ogre GL3Plus 更合适。 |
 
 ## 运行时资源模型
 
@@ -461,7 +461,7 @@ Windows/macOS 兼容工作，参考点主要是边界意识：
 | 内容 | 原因 |
 | ---- | ---- |
 | OgreMain 整套引擎 | 体量大，历史依赖重，会压垮当前项目复杂度。 |
-| D3D9 渲染后端 | 已过时，且当前目标是 SFML + OpenGL 的 Windows/macOS 兼容。 |
+| D3D9 渲染后端 | 已过时，且当前目标是 Ogre GL3Plus 的 Windows/macOS 兼容。 |
 | 平台 SDK 目录 | 4399、QQ、Steam、WeTest、GVoice 等和当前目标无关。 |
 | 大型 Lua/ToLua 桥接 | 当前没有复杂 UI/任务/活动系统，提前引入收益低。 |
 | RakNet 网络层 | 多人不是当前核心目标，且库选择需要重新评估。 |

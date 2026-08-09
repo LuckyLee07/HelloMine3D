@@ -62,7 +62,7 @@ class ChunkSection : public IChunk {
     void markMeshDirty();
 
     void makeMesh();
-    void bufferMesh();
+    void markGpuBuffered();
 
     /// Snapshot the data a mesh build reads. Must be called under the world
     /// lock; the returned input can then be built without it.

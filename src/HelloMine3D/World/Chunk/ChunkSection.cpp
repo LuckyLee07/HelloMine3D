@@ -124,15 +124,12 @@ std::uint32_t ChunkSection::getBlockRevision() const
     return m_blockRevision;
 }
 
-void ChunkSection::bufferMesh()
+void ChunkSection::markGpuBuffered()
 {
     if (!hasMesh()) {
         return;
     }
 
-    m_meshes.solidMesh.bufferMesh();
-    m_meshes.waterMesh.bufferMesh();
-    m_meshes.floraMesh.bufferMesh();
     m_meshState = ChunkSectionMeshState::GpuBuffered;
 }
 
@@ -158,9 +155,9 @@ const ChunkSection::Layer &ChunkSection::getLayer(int y) const
 void ChunkSection::deleteMeshes()
 {
     if (m_meshState != ChunkSectionMeshState::Dirty) {
-        m_meshes.solidMesh.deleteData();
-        m_meshes.waterMesh.deleteData();
-        m_meshes.floraMesh.deleteData();
+        m_meshes.solidMesh.clearClientData();
+        m_meshes.waterMesh.clearClientData();
+        m_meshes.floraMesh.clearClientData();
     }
 
     m_meshState = ChunkSectionMeshState::Dirty;

@@ -59,3 +59,19 @@ vertex_program HelloMine3D/FloraVertex glsl
         param_named_auto globalTime time_0_x 1.0
     }
 }
+
+vertex_program HelloMine3D/OutlineVertex glsl
+{
+    source HelloMine3DOutline.vert
+    syntax glsl150
+    default_params
+    {
+        param_named_auto worldViewProj worldviewproj_matrix
+    }
+}
+
+fragment_program HelloMine3D/OutlineFragment glsl
+{
+    source HelloMine3DOutline.frag
+    syntax glsl150
+}

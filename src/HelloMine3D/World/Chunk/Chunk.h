@@ -8,8 +8,6 @@
 #include <cstddef>
 #include <vector>
 
-class RenderMaster;
-class Camera;
 class TerrainGenerator;
 
 enum class ChunkLoadState {
@@ -31,9 +29,6 @@ class Chunk : public IChunk {
     void setBlock(int x, int y, int z, ChunkBlock block) override;
     ChunkBlock getBlock(int x, int y, int z) const noexcept override;
     int getHeightAt(int x, int z) const;
-
-    void drawChunks(RenderMaster &renderer, const Camera &camera,
-                    int &meshBufferBudget);
 
     bool hasLoaded() const noexcept;
     bool hasGenerated() const noexcept;

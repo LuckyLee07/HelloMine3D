@@ -1,12 +1,9 @@
 #include "Player.h"
 
-#include <SFML/Graphics.hpp>
-
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 
-#include "../Input/Keyboard.h"
 #include "../World/World.h"
 
 Player::Player()
@@ -64,9 +61,9 @@ void Player::applySaveState(const PlayerSaveState &state)
     m_inventory.applySaveState(state.inventory, state.heldItem);
 }
 
-void Player::handleInput(const sf::Window& window, const Keyboard& keyboard)
+void Player::applyInput(const PlayerInputState &input)
 {
-    m_controller.handleInput(*this, window, keyboard);
+    m_controller.applyInput(*this, input);
 }
 
 void Player::update(float dt, World& world)

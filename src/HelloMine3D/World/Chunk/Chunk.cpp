@@ -2,7 +2,6 @@
 
 #include "../../Core/Camera.h"
 #include "../../Maths/NoiseGenerator.h"
-#include "../../Renderer/RenderMaster.h"
 #include "../../Util/Random.h"
 #include "../Generation/Terrain/TerrainGenerator.h"
 #include "../World.h"

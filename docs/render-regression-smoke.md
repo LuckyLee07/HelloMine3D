@@ -17,9 +17,11 @@ OpenGL and then clears the client-side mesh data. After that upload,
 `faces` can be zero even though the GPU model has valid indices, so the section
 was skipped and only the clear/sky color remained visible.
 
-## Fix
+## Historical Fix
 
-The current render path is stabilized by these changes:
+The original SFML/OpenGL path was stabilized by these changes before it was
+removed in E5. The table is retained as regression history; these files are no
+longer part of the current client.
 
 | Area | File | Fix |
 | ---- | ---- | --- |
@@ -31,8 +33,8 @@ The current render path is stabilized by these changes:
 
 ## Screenshot Smoke
 
-Use the runtime readback capture mode by default. It reads the rendered back
-buffer from inside the process with `glReadPixels`; it does not use desktop
+Use the runtime readback capture mode by default. Ogre writes the render target
+through `RenderWindow::writeContentsToFile`; it does not use desktop
 `CopyFromScreen`, so occluded windows do not capture the wrong application.
 
 Command:
@@ -41,11 +43,8 @@ Command:
 powershell -ExecutionPolicy Bypass -File tools\run_render_capture.ps1 -StopExisting -CaptureMs 4000,6000 -Seconds 8 -PlayerRotation "20 118.4 0"
 ```
 
-Use `-Backend Ogre` to run the same schedule against
-`bin\HelloMine3DOgreBootstrap.exe`. The default remains the SFML client until
-E5 removes the coexistence path. Ogre writes captures through
-`RenderWindow::writeContentsToFile`; actual Ogre PNG validation requires a
-hardware-accelerated OpenGL 3+ desktop.
+The script always starts `bin\HelloMine3D.exe`, the sole Ogre client. Actual
+PNG validation requires a hardware-accelerated OpenGL 3+ desktop.
 
 Expected behavior:
 
@@ -63,7 +62,7 @@ Pass condition:
 - The output PNG files are non-empty.
 - The images show terrain blocks and textures, not a solid blue or black frame.
 
-## Current Verified Run
+## Last Hardware-Backed Run (Pre-E5)
 
 Last verified command output:
 
@@ -93,7 +92,7 @@ still lived at `E:\Workspace\MineCraft`).
 ## Implementation Notes
 
 Runtime capture is implemented in
-`src/HelloMine3D/Diagnostics/RuntimeRenderCapture.*` and enabled through these
+`src/HelloMine3D/Ogre/OgreRenderCapture.*` and enabled through these
 environment variables, normally set by `tools/run_render_capture.ps1`:
 
 | Variable | Meaning |
@@ -118,7 +117,7 @@ game client is occluded, so do not use it as the default regression check.
 
 Rerun this smoke after changes to:
 
-- `RenderMaster`, chunk/water/flora renderers, shaders, or texture binding.
-- `ChunkMesh`, `ChunkSection`, `Model`, or GPU buffer upload/cleanup.
+- Ogre chunk/water/flora renderables, materials, shaders, or texture binding.
+- `ChunkMesh`, `ChunkSection`, versioned mesh snapshots, or GPU buffer upload/cleanup.
 - world startup, seed/player restore, save directory routing, or camera setup.
-- SFML window creation, GL context creation, or frame sequencing in `Main.cpp`.
+- Ogre window/context creation, OIS input, or frame sequencing in `OgreBootstrap.cpp`.

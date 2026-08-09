@@ -1,6 +1,6 @@
 -- Ogre 1.10 and its minimum dependency closure used during the E1-E5
 -- renderer migration. The game does not link these libraries until E2; E1
--- deliberately proves that the imported engine can coexist with SFML.
+-- keeps the imported engine graph isolated from first-party game targets.
 
 local engine_dir = "../src/Engine"
 local third_party_dir = engine_dir .. "/ThirdParty"

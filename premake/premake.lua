@@ -1,10 +1,6 @@
 local project_name = "HelloMine3D"
 local source_dir = "../src/HelloMine3D"
 local external_source_dir = "../src/external"
-local sfml_source_dir = "../src/external/sfml"
-local freetype_source_dir = "../src/external/freetype"
-local sfml_build_dir = "../build/external/sfml"
-local sfml_install_dir = "../build/external/sfml/install"
 
 newoption {
     trigger = "deps-prefix",
@@ -20,10 +16,6 @@ local function first_non_empty(...)
         end
     end
     return nil
-end
-
-local function quote(value)
-    return '"' .. value .. '"'
 end
 
 local function add_dependency_prefix(prefix)
@@ -74,55 +66,6 @@ local function project_source_patterns()
     return patterns
 end
 
-local function cmake_command()
-    local vs_cmake = "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe"
-    if os.isfile(vs_cmake) then
-        return quote(vs_cmake)
-    end
-
-    return "cmake"
-end
-
-local function sfml_configure_command()
-    local command = cmake_command() ..
-        " -S " .. quote(path.getabsolute(sfml_source_dir)) ..
-        " -B " .. quote(path.getabsolute(sfml_build_dir)) ..
-        " -DBUILD_SHARED_LIBS=ON" ..
-        " -DSFML_BUILD_AUDIO=OFF" ..
-        " -DSFML_BUILD_NETWORK=OFF" ..
-        " -DSFML_BUILD_EXAMPLES=OFF" ..
-        " -DSFML_BUILD_TEST_SUITE=OFF" ..
-        " -DSFML_BUILD_DOC=OFF" ..
-        " -DSFML_USE_SYSTEM_DEPS=OFF" ..
-        " -DSTB_INCLUDE_DIR=" .. quote(path.getabsolute(path.join(sfml_source_dir, "extlibs/headers/stb_image"))) ..
-        " -DFETCHCONTENT_SOURCE_DIR_FREETYPE=" .. quote(path.getabsolute(freetype_source_dir)) ..
-        " -DCMAKE_INSTALL_PREFIX=" .. quote(path.getabsolute(sfml_install_dir))
-
-    if os.host() == "windows" then
-        command = command .. ' -G "Visual Studio 17 2022" -A x64'
-    end
-
-    return command
-end
-
-local function sfml_build_command()
-    local command = cmake_command() ..
-        " --build " .. quote(path.getabsolute(sfml_build_dir)) ..
-        " --config %{cfg.buildcfg}" ..
-        " --target install"
-
-    if os.host() == "windows" then
-        command = command .. " -- /m"
-    end
-
-    return command
-end
-
-local function sfml_copy_runtime_command()
-    return '{COPYDIR} "' .. path.getabsolute(path.join(sfml_install_dir, "bin")) .. '" "' ..
-        path.getabsolute("../bin") .. '"'
-end
-
 workspace(project_name)
     location "../build"
     startproject(project_name)
@@ -156,54 +99,6 @@ dofile(path.join(premake_script_dir, "ogre.lua"))
 
 group "External"
 
-project "sfml"
-    kind "Makefile"
-    location "../build/External/sfml"
-
-    files {
-        sfml_source_dir .. "/include/**.hpp",
-        sfml_source_dir .. "/include/**.inl",
-        sfml_source_dir .. "/src/**.hpp",
-        sfml_source_dir .. "/src/**.cpp",
-        sfml_source_dir .. "/src/**.h",
-        sfml_source_dir .. "/cmake/**",
-        freetype_source_dir .. "/include/**.h",
-        freetype_source_dir .. "/src/**.c",
-        freetype_source_dir .. "/src/**.h"
-    }
-
-    buildcommands {
-        sfml_configure_command(),
-        sfml_build_command(),
-        sfml_copy_runtime_command()
-    }
-
-    rebuildcommands {
-        sfml_configure_command(),
-        sfml_build_command(),
-        sfml_copy_runtime_command()
-    }
-
-    cleancommands {
-        cmake_command() .. " --build " .. quote(path.getabsolute(sfml_build_dir)) ..
-            " --config %{cfg.buildcfg} --target clean"
-    }
-
-project "glad"
-    kind "StaticLib"
-    location "../build/External/glad"
-    targetdir "../build/External/%{prj.name}/lib/%{cfg.platform}/%{cfg.buildcfg}"
-    objdir "../build/External/%{prj.name}/obj/%{cfg.platform}/%{cfg.buildcfg}"
-
-    files {
-        external_source_dir .. "/glad/glad.c",
-        external_source_dir .. "/glad/**.h"
-    }
-
-    externalincludedirs {
-        external_source_dir .. "/glad"
-    }
-
 project "imgui"
     kind "StaticLib"
     location "../build/External/imgui"
@@ -222,60 +117,40 @@ project "imgui"
         external_source_dir .. "/imgui"
     }
 
-project "imgui_sfml"
+project "imgui_opengl3"
     kind "StaticLib"
-    location "../build/External/imgui_sfml"
+    location "../build/External/imgui_opengl3"
     targetdir "../build/External/%{prj.name}/lib/%{cfg.platform}/%{cfg.buildcfg}"
     objdir "../build/External/%{prj.name}/obj/%{cfg.platform}/%{cfg.buildcfg}"
     dependson {
-        "glad",
         "imgui"
     }
 
     files {
-        external_source_dir .. "/imgui_sfml/imgui-SFML.cpp",
-        external_source_dir .. "/imgui_sfml/imgui_impl_opengl3.cpp",
-        external_source_dir .. "/imgui_sfml/**.h"
+        external_source_dir .. "/imgui/backends/imgui_impl_opengl3.cpp",
+        external_source_dir .. "/imgui/backends/imgui_impl_opengl3.h",
+        external_source_dir .. "/imgui/backends/imgui_impl_opengl3_loader.h"
     }
 
     externalincludedirs {
-        external_source_dir .. "/imgui",
-        external_source_dir .. "/imgui_sfml",
-        external_source_dir .. "/sfml/include"
+        external_source_dir .. "/imgui"
     }
 
 group ""
 
--- Shared configuration for every target that links the full game runtime.
--- Keeping this in one place stops the client and the runtime validation
--- target from drifting apart.
-local function configure_game_runtime_target()
+local function configure_game_logic_target()
     kind "ConsoleApp"
     location "../build/%{prj.name}"
     targetdir "../bin"
     debugdir "../bin"
     objdir "../build/%{prj.name}/obj/%{cfg.platform}/%{cfg.buildcfg}"
-    dependson {
-        "sfml",
-        "glad",
-        "imgui",
-        "imgui_sfml"
-    }
-
     includedirs {
         source_dir
     }
 
     externalincludedirs {
         "../src/external",
-        "../src/external/glad",
-        "../src/external/imgui",
-        "../src/external/imgui_sfml",
-        "../src/external/sfml/include"
-    }
-
-    libdirs {
-        path.join(sfml_install_dir, "lib")
+        "../src/Engine/ThirdParty/freeimage/include"
     }
 
     if has_local_glm() then
@@ -284,12 +159,6 @@ local function configure_game_runtime_target()
 
     defines {
         "GLM_ENABLE_EXPERIMENTAL"
-    }
-
-    links {
-        "glad",
-        "imgui",
-        "imgui_sfml"
     }
 
     add_dependency_prefix(first_non_empty(_OPTIONS["deps-prefix"], os.getenv("HELLOMINE3D_DEPS_PREFIX")))
@@ -301,29 +170,8 @@ local function configure_game_runtime_target()
 
     filter {}
 
-    filter "configurations:Debug"
-        links {
-            "sfml-graphics-d",
-            "sfml-window-d",
-            "sfml-system-d"
-        }
-
-    filter "configurations:Release"
-        links {
-            "sfml-graphics",
-            "sfml-window",
-            "sfml-system"
-        }
-
-    filter {}
-
     filter "system:windows"
         defines { "_CRT_SECURE_NO_WARNINGS" }
-        links {
-            "opengl32",
-            "winmm",
-            "gdi32"
-        }
 
     filter "system:macosx"
         linkoptions {
@@ -347,12 +195,15 @@ local function configure_game_runtime_target()
 end
 
 project(project_name)
-    configure_game_runtime_target()
+    configure_game_logic_target()
     files(project_source_patterns())
-
-project "HelloMine3DOgreBootstrap"
-    configure_game_runtime_target()
+    files {
+        source_dir .. "/Ogre/**.h",
+        source_dir .. "/Ogre/**.cpp"
+    }
     dependson {
+        "imgui",
+        "imgui_opengl3",
         "ogre3d",
         "ogre3d_glsupport",
         "ogre3d_gl3plus",
@@ -363,13 +214,6 @@ project "HelloMine3DOgreBootstrap"
         "ois"
     }
 
-    files(project_source_patterns())
-    files {
-        source_dir .. "/Ogre/**.h",
-        source_dir .. "/Ogre/**.cpp"
-    }
-    removefiles { source_dir .. "/Main.cpp" }
-
     includedirs {
         source_dir,
         "../src/Engine/ogre3d/include",
@@ -378,11 +222,14 @@ project "HelloMine3DOgreBootstrap"
         "../src/Engine/ogre3d_glsupport/include/win32",
         "../src/Engine/ogre3d_gl3plus/include",
         "../src/Engine/ogre3d_gl3plus/include/GLSL",
+        "../src/external/imgui",
         "../src/external/ois/includes",
         "../src/external/ois/includes/win32"
     }
 
     links {
+        "imgui",
+        "imgui_opengl3",
         "ogre3d_gl3plus",
         "ogre3d_glsupport",
         "ogre3d",
@@ -443,10 +290,30 @@ project "HelloMine3DOgreBootstrap"
 -- Headless runtime validation over the real World/WorldManager/actor code.
 -- Links the whole game runtime except the client entry point.
 project "HelloMine3DWorldRuntimeSmoke"
-    configure_game_runtime_target()
+    configure_game_logic_target()
     files(project_source_patterns())
     files { source_dir .. "/Tests/WorldRuntimeSmokeMain.cpp" }
-    removefiles { source_dir .. "/Main.cpp" }
+    dependson {
+        "freeimage",
+        "libjpeg",
+        "libopenjpeg",
+        "libpng",
+        "libraw",
+        "libtiff4",
+        "openexr",
+        "zlib"
+    }
+    links {
+        "freeimage",
+        "libjpeg",
+        "libopenjpeg",
+        "libpng",
+        "libraw",
+        "libtiff4",
+        "openexr",
+        "zlib"
+    }
+    defines { "FREEIMAGE_LIB" }
 
 project "HelloMine3DCoordinateTests"
     kind "ConsoleApp"
@@ -471,8 +338,7 @@ project "HelloMine3DCoordinateTests"
     }
 
     externalincludedirs {
-        "../src/external",
-        "../src/external/sfml/include"
+        "../src/external"
     }
 
 project "HelloMine3DSaveLoadSmoke"
@@ -540,8 +406,7 @@ project "HelloMine3DMeshDirtyTests"
     }
 
     externalincludedirs {
-        "../src/external",
-        "../src/external/sfml/include"
+        "../src/external"
     }
 
 project "HelloMine3DEntityLifecycleSmoke"

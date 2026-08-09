@@ -26,11 +26,9 @@ Default steady-scene run:
 powershell -ExecutionPolicy Bypass -File tools\run_perf_baseline.ps1 -StopExisting -WarmupMs 3000 -DurationMs 10000
 ```
 
-Add `-Backend Ogre` to target `bin\HelloMine3DOgreBootstrap.exe`. The default
-continues to target the SFML client during E4 coexistence. Ogre feeds fixed-step,
-frame timing and world/section counters into the existing CSV collector from its
-frame listener; comparable Ogre results require a hardware-accelerated OpenGL 3+
-desktop.
+The script always targets `bin\HelloMine3D.exe`. Ogre feeds fixed-step, frame
+timing and world/section counters into the CSV collector from its frame listener;
+comparable results require a hardware-accelerated OpenGL 3+ desktop.
 
 The script writes output under:
 
@@ -53,7 +51,7 @@ Important outputs:
 
 | Column | Meaning |
 | ------ | ------- |
-| `dt_ms` | SFML frame delta used by game simulation. |
+| `dt_ms` | Ogre frame delta supplied to game simulation. |
 | `event_ms` | Event polling and dispatch time. |
 | `update_ms` | Application update time, including sandbox update and chunk update work. |
 | `render_ms` | World/render submission time before ImGui and display. |

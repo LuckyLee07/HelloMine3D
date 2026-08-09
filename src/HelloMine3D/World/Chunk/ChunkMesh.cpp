@@ -36,14 +36,6 @@ void ChunkMesh::addFace(const std::array<float, 12> &blockFace,
     m_indexIndex += 4;
 }
 
-void ChunkMesh::bufferMesh()
-{
-    m_model.addData(m_mesh);
-    m_model.addVBO(1, m_light);
-
-    clearClientData();
-}
-
 void ChunkMesh::clearClientData()
 {
     m_mesh.vertexPositions.clear();
@@ -65,17 +57,6 @@ void ChunkMesh::adoptClientData(ChunkMesh &source)
     faces = source.faces;
 
     source.clearClientData();
-}
-
-void ChunkMesh::deleteData()
-{
-    m_model.deleteData();
-    clearClientData();
-}
-
-const Model &ChunkMesh::getModel() const
-{
-    return m_model;
 }
 
 const Mesh &ChunkMesh::getClientMesh() const
