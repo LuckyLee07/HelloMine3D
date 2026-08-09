@@ -250,6 +250,106 @@ void caseBlockTextureCoordinates()
 }
 
 // ---------------------------------------------------------------------------
+// A2 - malformed block definitions identify the source file and exact key
+// ---------------------------------------------------------------------------
+void caseBlockDataDiagnostics()
+{
+    const std::string directory =
+        freshSaveDirectory("block_data_diagnostics");
+
+    const auto makeBlockText = [](int id, const std::string &atlas,
+                                  int meshType, int shaderType,
+                                  bool includeShader) {
+        std::ostringstream out;
+        out << "Name\nFixture Block\n\n"
+            << "Id\n" << id << "\n\n"
+            << "TexAll\n" << atlas << "\n\n"
+            << "Opaque\n1\n\n"
+            << "MeshType\n" << meshType << "\n\n";
+        if (includeShader) {
+            out << "ShaderType\n" << shaderType << "\n\n";
+        }
+        out << "Collidable\n1\n";
+        return out.str();
+    };
+
+    const auto fixturePath = [&](const std::string &name) {
+        return std::filesystem::path(directory) / (name + ".block");
+    };
+    const auto writeFixture = [&](const std::string &name,
+                                  const std::string &contents) {
+        const std::filesystem::path path = fixturePath(name);
+        std::ofstream output(path, std::ios::binary | std::ios::trunc);
+        output << contents;
+        return path.string();
+    };
+
+    const auto parseError = [&](const std::string &name,
+                                const std::string &contents) {
+        writeFixture(name, contents);
+        try {
+            BlockData data(name, directory);
+            (void)data;
+        }
+        catch (const std::runtime_error &error) {
+            return std::string(error.what());
+        }
+        return std::string();
+    };
+
+    const std::string missingPath = fixturePath("MissingShader").string();
+    const std::string missingError = parseError(
+        "MissingShader", makeBlockText(3, "3 0", 0, 0, false));
+    check("A2/missing-key-identifies-file-and-key",
+          missingError.find(missingPath) != std::string::npos &&
+              missingError.find("ShaderType") != std::string::npos &&
+              missingError.find("missing") != std::string::npos,
+          missingError);
+
+    const std::string enumPath = fixturePath("BadEnum").string();
+    const std::string enumError = parseError(
+        "BadEnum", makeBlockText(3, "3 0", 9, 0, true));
+    check("A2/bad-enum-identifies-file-and-key",
+          enumError.find(enumPath) != std::string::npos &&
+              enumError.find("MeshType") != std::string::npos &&
+              enumError.find("invalid enum") != std::string::npos,
+          enumError);
+
+    const std::string atlasPath = fixturePath("BadAtlas").string();
+    const std::string atlasError = parseError(
+        "BadAtlas", makeBlockText(3, "16 0", 0, 0, true));
+    check("A2/bad-atlas-identifies-file-and-key",
+          atlasError.find(atlasPath) != std::string::npos &&
+              atlasError.find("TexAll") != std::string::npos &&
+              atlasError.find("outside [0, 15]") != std::string::npos,
+          atlasError);
+
+    writeFixture("DuplicateOne",
+                 makeBlockText(3, "3 0", 0, 0, true));
+    const std::string duplicatePath = writeFixture(
+        "DuplicateTwo", makeBlockText(3, "3 0", 0, 0, true));
+    BlockData duplicateOne("DuplicateOne", directory);
+    BlockData duplicateTwo("DuplicateTwo", directory);
+    BlockIdUniquenessValidator validator;
+    std::string duplicateError;
+    try {
+        validator.add(duplicateOne.getBlockData().id,
+                      duplicateOne.getSourcePath());
+        validator.add(duplicateTwo.getBlockData().id,
+                      duplicateTwo.getSourcePath());
+    }
+    catch (const std::runtime_error &error) {
+        duplicateError = error.what();
+    }
+    check("A2/duplicate-id-identifies-file-and-key",
+          duplicateError.find(duplicatePath) != std::string::npos &&
+              duplicateError.find("Id") != std::string::npos &&
+              duplicateError.find("duplicates value 3") !=
+                  std::string::npos,
+          duplicateError);
+}
+
+// ---------------------------------------------------------------------------
 // P4 - ore definitions point at distinct, populated atlas tiles
 // ---------------------------------------------------------------------------
 void caseOreTextures()
@@ -2243,6 +2343,7 @@ int main()
         caseDebugPanelStartupOption();
         caseFixedTickScheduler();
         caseBlockTextureCoordinates();
+        caseBlockDataDiagnostics();
         caseOreTextures();
         caseBlockSelection();
         casePlayerControllerInput();

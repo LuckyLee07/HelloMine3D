@@ -29,7 +29,7 @@ Output is one line per assertion plus a summary:
 ```text
 [VALIDATION] PASS S0.5/chunk-boundary-marks-neighbor
 [VALIDATION] FAIL S6.4/ore-decorator-produces-ore :: coal=0 iron=0
-[VALIDATION] checks=173 failures=0
+[VALIDATION] checks=177 failures=0
 [VALIDATION] status=PASS
 ```
 
@@ -51,6 +51,7 @@ position and player rotation are forced per scenario through the same
 | `caseFixedTickScheduler` | V1, S1.5 | The runtime scheduler emits exactly 200 ticks over 10 seconds and bounds catch-up work to five ticks per frame. |
 | `caseBlockTextureCoordinates` | E0 | Atlas UV generation is stable and does not require a graphics context. |
 | `caseOreTextures` | P4 | Coal and iron definitions use dedicated atlas slots, the packed atlas loads at 256x256, and both tile hashes differ from stone and each other. |
+| `caseBlockDataDiagnostics` | A2 | Isolated malformed definitions prove missing keys, invalid enums, out-of-range atlas coordinates and duplicate ids name both the exact file and offending key. |
 | `caseBlockSelection` | P3 | One ray result identifies the solid target and adjacent placement voxel, skips water, respects reach and reports an empty miss. |
 | `casePlayerControllerInput` | V2, S5.3 | Synthetic input drives movement, flying jump, fly/sneak toggles, camera rotation and hotbar selection through the live controller application path. |
 | `caseHeightMapEdits` | V4 | The cached column height matches a brute-force scan after generation, breaking the highest opaque block, and placing a block above the old top. |
@@ -88,8 +89,9 @@ These need a person at the keyboard or a different harness:
 | Layer | Command | Result |
 | ----- | ------- | ------ |
 | Focused headless tests | `bin\HelloMine3DCoordinateTests.exe`, `bin\HelloMine3DMeshDirtyTests.exe`, `bin\HelloMine3DSaveLoadSmoke.exe`, `bin\HelloMine3DEntityLifecycleSmoke.exe` | All pass. |
-| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=173 failures=0` (Debug and Release, 2026-08-09) |
+| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=177 failures=0` (Debug and Release, 2026-08-09) |
 | A1 asset references | `sh scripts/check_assets.sh` | The repository passes 41 block/shader/texture/font/config checks. An isolated copy with `HelloMine3DTerrain.vert` omitted returns 1 and names the missing referenced shader (2026-08-09). |
+| A2 block diagnostics | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseBlockDataDiagnostics`) | Four malformed fixtures verify missing `ShaderType`, invalid `MeshType`, atlas coordinate `16 0`, and duplicate id 3 all report the full source path and exact key. Debug/Release pass (2026-08-09). |
 | E0 dependency boundary | `rg "SFML|sf::|GLfloat|GLuint|glad" src/HelloMine3D/World` | No matches (2026-08-09). |
 | E1 engine build | `tools\premake\premake5 --os=windows --file=premake/premake.lua vs2022`, then full Debug/Release solution builds | Ogre 1.10 core, GLSupport, GL3Plus, FreeImage dependency chain, dedicated Ogre FreeType, zlib, zzip and OIS all compile with 0 errors (2026-08-09). |
 | E2 bootstrap validation | `set HELLOMINE3D_VALIDATE_ONLY=1` then `bin\HelloMine3D.exe` | Debug and Release register `OpenGL 3+ Rendering Subsystem`, 2 resource locations and OIS, then shut down cleanly (2026-08-09). |

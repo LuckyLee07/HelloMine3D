@@ -21,27 +21,33 @@ enum class BlockShaderType {
 
 /// @brief Struct designed to hold geometric and tangibility data for each individual block.
 struct BlockDataHolder : public NonCopyable {
-    BlockId id;
+    BlockId id = BlockId::Air;
     std::string name;
-    glm::ivec2 texTopCoord;
-    glm::ivec2 texSideCoord;
-    glm::ivec2 texBottomCoord;
+    glm::ivec2 texTopCoord{0};
+    glm::ivec2 texSideCoord{0};
+    glm::ivec2 texBottomCoord{0};
 
-    BlockMeshType meshType;
-    BlockShaderType shaderType;
+    BlockMeshType meshType = BlockMeshType::Cube;
+    BlockShaderType shaderType = BlockShaderType::Chunk;
 
-    bool isOpaque;
-    bool isCollidable;
+    bool isOpaque = false;
+    bool isCollidable = false;
 };
 
 class BlockData : public NonCopyable {
   public:
     BlockData(const std::string &fileName);
+    BlockData(const std::string &fileName,
+              const std::string &blockDirectory);
 
     const BlockDataHolder &getBlockData() const;
+    const std::string &getSourcePath() const;
 
   private:
+    void load(const std::string &path);
+
     BlockDataHolder m_data;
+    std::string m_sourcePath;
 };
 
 #endif // BLOCKDATA_H_INCLUDED

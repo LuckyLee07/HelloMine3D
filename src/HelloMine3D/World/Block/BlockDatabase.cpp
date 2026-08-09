@@ -1,6 +1,7 @@
 #include "BlockDatabase.h"
 
 #include <cctype>
+#include <stdexcept>
 #include <string>
 #include <utility>
 
@@ -40,6 +41,25 @@ BlockDefinition makeDefinition(const std::string &fileName,
     return definition;
 }
 } // namespace
+
+void BlockIdUniquenessValidator::add(BlockId id,
+                                     const std::string &sourcePath)
+{
+    const auto index = static_cast<unsigned>(id);
+    if (index >= m_sources.size()) {
+        throw std::runtime_error("Invalid block file '" + sourcePath +
+                                 "': key 'Id' is outside the registered "
+                                 "block id range.");
+    }
+
+    if (!m_sources[index].empty()) {
+        throw std::runtime_error(
+            "Invalid block file '" + sourcePath +
+            "': key 'Id' duplicates value " + std::to_string(index) +
+            " first declared in '" + m_sources[index] + "'.");
+    }
+    m_sources[index] = sourcePath;
+}
 
 // Block Database initializes to first pack, not the second.
 BlockDatabase::BlockDatabase()
@@ -84,6 +104,17 @@ const BlockDefinition &BlockDatabase::getDefinition(BlockId id) const
 void BlockDatabase::addBlock(BlockId id, const std::string &fileName)
 {
     auto block = std::make_unique<DefaultBlock>(fileName);
+    const auto &data = block->getData().getBlockData();
+    const std::string &sourcePath = block->getData().getSourcePath();
+    m_idValidator.add(data.id, sourcePath);
+    if (data.id != id) {
+        throw std::runtime_error(
+            "Invalid block file '" + sourcePath +
+            "': key 'Id' declares " +
+            std::to_string(static_cast<unsigned>(data.id)) +
+            " but the registry expects " +
+            std::to_string(static_cast<unsigned>(id)) + ".");
+    }
     m_definitions[(int)id] = makeDefinition(fileName, *block);
     m_blocks[(int)id] = std::move(block);
 }

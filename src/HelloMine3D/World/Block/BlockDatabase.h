@@ -3,12 +3,22 @@
 
 #include <array>
 #include <memory>
+#include <string>
 
 #include "../../Util/Singleton.h"
 
 #include "BlockId.h"
 #include "BlockDefinition.h"
 #include "BlockTypes/BlockType.h"
+
+class BlockIdUniquenessValidator {
+  public:
+    void add(BlockId id, const std::string &sourcePath);
+
+  private:
+    std::array<std::string, static_cast<unsigned>(BlockId::NUM_TYPES)>
+        m_sources;
+};
 
 /// @brief Singleton class that determines status and ID of blocks as a whole.
 class BlockDatabase : public Singleton {
@@ -26,6 +36,7 @@ class BlockDatabase : public Singleton {
     std::array<std::unique_ptr<BlockType>, (unsigned)BlockId::NUM_TYPES>
         m_blocks;
     std::array<BlockDefinition, (unsigned)BlockId::NUM_TYPES> m_definitions;
+    BlockIdUniquenessValidator m_idValidator;
 };
 
 #endif // BLOCKDATABASE_H_INCLUDED
