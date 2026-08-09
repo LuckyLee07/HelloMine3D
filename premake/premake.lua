@@ -126,6 +126,8 @@ workspace(project_name)
     language "C++"
     cppdialect "C++17"
     warnings "Extra"
+    multiprocessorcompile "On"
+    staticruntime "On"
 
     filter "platforms:x64"
         architecture "x86_64"
@@ -140,8 +142,12 @@ workspace(project_name)
 
     filter "system:windows"
         systemversion "10.0.22621.0"
+        characterset "MBCS"
 
     filter {}
+
+local premake_script_dir = path.getdirectory(_MAIN_SCRIPT or _SCRIPT or "premake/premake.lua")
+dofile(path.join(premake_script_dir, "ogre.lua"))
 
 group "External"
 

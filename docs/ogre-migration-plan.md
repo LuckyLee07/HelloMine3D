@@ -238,6 +238,19 @@ E5 才删除旧代码。
 
 验证：全套 5 个测试 + render capture + perf baseline 全部照常通过。
 
+状态：2026-08-09 已完成源码与构建接入，等待硬件图形验收。项目只导入 Ogre 核心、
+GLSupport、GL3Plus、FreeImage 完整依赖链、独立的 Ogre FreeType、zlib/zzip 和 OIS 的
+头文件/源码，合计 1868 个文件、约 29.57 MiB；OIS demo 与生成文档未导入。构建统一为
+`x64 + C++17 + staticruntime On + MBCS`，Ogre 的 FreeType 工程命名为 `ogre_freetype`，
+避免与迁移期 SFML 内置 FreeType 混淆。
+
+VS2022 Debug/Release 全量构建与 5 个测试目标全部通过，运行时 smoke 为 123/123。
+为兼容 C++17，仅局部迁移了 LibRaw 的 `auto_ptr` 所有权、Ogre 的现代 MSVC 哈希分支和
+已移除的 STL 函数对象适配器；FreeImage 因历史源码编码保持原文件，使用 MSVC 兼容宏
+`_HAS_AUTO_PTR_ETC=1`。渲染探针确认旧 SFML 路径仍被启动，但自动化会话只能创建
+GDI Generic OpenGL 1.1，低于客户端要求的 3.3，因此 render capture 与可比 perf baseline
+仍需在硬件加速桌面补跑，E1 暂记 `Verify`。
+
 ### E2 Ogre 引导与空场景（1–2 周）
 
 | 任务 | 验收 |
