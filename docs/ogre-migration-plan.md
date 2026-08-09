@@ -290,6 +290,20 @@ GL3Plus 上下文创建，但自动化会话只提供 GDI Generic OpenGL，低�
 验证：render capture 显示正确地形；perf baseline 与迁移前基线对比，重点看
 `frame_p95_ms`、`render_p95_ms`、`last_gpu_buffered_sections`。
 
+状态：2026-08-09 已完成代码接入，等待硬件图形与性能验收。新增
+`ChunkSectionRenderable`，基于 Ogre `SimpleRenderable` 实现自定义
+`MovableObject + Renderable`，每个实体 section 自持交错的位置/UV/面向光照顶点缓冲和
+32 位索引缓冲。CPU 顶点转换为 section 局部坐标，场景节点承担世界平移，每个 section
+使用 `0..CHUNK_SIZE` 的局部 AABB，由 Ogre 场景图负责剔除。原 `ChunkMeshBuilder` 未改写，
+只新增只读 CPU 数据出口；地形 GLSL 已转为 Ogre program/material，图集
+`DefaultPack.png` 由资源组加载并显式设置 `filtering none`。旧 SFML 客户端继续保留。
+
+无窗口校验使用固定种子和固定玩家位置生成真实世界，Debug/Release 均得到 10 个实体
+section、14,460 个顶点和 21,690 个索引，并验证位置/UV/光照数量、索引范围以及 section
+局部边界。两套配置的全量构建、五个测试目标和 123/123 运行时 smoke 全部通过。窗口探针
+仍在 GL3Plus 初始化阶段被 GDI Generic OpenGL 版本阻断，因此地形截图、材质实际表现、
+Ogre 视锥剔除和与迁移前基线的性能对比需在硬件加速桌面补跑，E3 暂记 `Verify`。
+
 ### E4 其余渲染路径（1–2 周）
 
 | 任务 | 验收 |

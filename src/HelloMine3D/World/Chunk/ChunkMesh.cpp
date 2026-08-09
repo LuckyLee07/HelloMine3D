@@ -77,3 +77,13 @@ const Model &ChunkMesh::getModel() const
 {
     return m_model;
 }
+
+const Mesh &ChunkMesh::getClientMesh() const
+{
+    return m_mesh;
+}
+
+const std::vector<float> &ChunkMesh::getCardinalLight() const
+{
+    return m_light;
+}

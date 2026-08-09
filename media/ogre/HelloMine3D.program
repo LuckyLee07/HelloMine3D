@@ -17,3 +17,23 @@ fragment_program HelloMine3D/SkyboxFragment glsl
         param_named skyboxMap int 0
     }
 }
+
+vertex_program HelloMine3D/TerrainVertex glsl
+{
+    source HelloMine3DTerrain.vert
+    syntax glsl150
+    default_params
+    {
+        param_named_auto worldViewProj worldviewproj_matrix
+    }
+}
+
+fragment_program HelloMine3D/TerrainFragment glsl
+{
+    source HelloMine3DTerrain.frag
+    syntax glsl150
+    default_params
+    {
+        param_named terrainAtlas int 0
+    }
+}

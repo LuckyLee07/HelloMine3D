@@ -118,6 +118,11 @@ local function sfml_build_command()
     return command
 end
 
+local function sfml_copy_runtime_command()
+    return '{COPYDIR} "' .. path.getabsolute(path.join(sfml_install_dir, "bin")) .. '" "' ..
+        path.getabsolute("../bin") .. '"'
+end
+
 workspace(project_name)
     location "../build"
     startproject(project_name)
@@ -169,12 +174,14 @@ project "sfml"
 
     buildcommands {
         sfml_configure_command(),
-        sfml_build_command()
+        sfml_build_command(),
+        sfml_copy_runtime_command()
     }
 
     rebuildcommands {
         sfml_configure_command(),
-        sfml_build_command()
+        sfml_build_command(),
+        sfml_copy_runtime_command()
     }
 
     cleancommands {
@@ -317,9 +324,6 @@ local function configure_game_runtime_target()
             "winmm",
             "gdi32"
         }
-        postbuildcommands {
-            '{COPYDIR} "' .. path.getabsolute(path.join(sfml_install_dir, "bin")) .. '" "%{cfg.targetdir}"'
-        }
 
     filter "system:macosx"
         linkoptions {
@@ -347,11 +351,7 @@ project(project_name)
     files(project_source_patterns())
 
 project "HelloMine3DOgreBootstrap"
-    kind "ConsoleApp"
-    location "../build/%{prj.name}"
-    targetdir "../bin"
-    debugdir "../bin"
-    objdir "../build/%{prj.name}/obj/%{cfg.platform}/%{cfg.buildcfg}"
+    configure_game_runtime_target()
     dependson {
         "ogre3d",
         "ogre3d_glsupport",
@@ -363,10 +363,12 @@ project "HelloMine3DOgreBootstrap"
         "ois"
     }
 
+    files(project_source_patterns())
     files {
         source_dir .. "/Ogre/**.h",
         source_dir .. "/Ogre/**.cpp"
     }
+    removefiles { source_dir .. "/Main.cpp" }
 
     includedirs {
         source_dir,

@@ -61,7 +61,7 @@ void Model::addData(const Mesh &mesh)
     addEBO(mesh.indices);
 }
 
-void Model::addVBO(int dimensions, const std::vector<GLfloat> &data)
+void Model::addVBO(int dimensions, const std::vector<float> &data)
 {
     GLuint vbo;
     glGenBuffers(1, &vbo);
@@ -77,13 +77,14 @@ void Model::addVBO(int dimensions, const std::vector<GLfloat> &data)
     m_buffers.push_back(vbo);
 }
 
-void Model::addEBO(const std::vector<GLuint> &indices)
+void Model::addEBO(const std::vector<std::uint32_t> &indices)
 {
     m_renderInfo.indicesCount = static_cast<GLuint>(indices.size());
     GLuint ebo;
     glGenBuffers(1, &ebo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint),
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                 indices.size() * sizeof(std::uint32_t),
                  indices.data(), GL_STATIC_DRAW);
     m_buffers.push_back(ebo);
 }

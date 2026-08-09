@@ -1,4 +1,5 @@
 #include "OgreBootstrap.h"
+#include "ChunkSectionRenderable.h"
 
 #include <OIS.h>
 #include <Ogre.h>
@@ -12,6 +13,15 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <vector>
+
+#include "../Config.h"
+#include "../Core/Camera.h"
+#include "../Player/Player.h"
+#include "../Util/ResourcePaths.h"
+#include "../World/Chunk/Chunk.h"
+#include "../World/Chunk/ChunkSection.h"
+#include "../World/World.h"
 
 namespace
 {
@@ -20,6 +30,13 @@ namespace
     constexpr const char* LogFileName = "MineOgre.log";
     constexpr const char* WindowTitle = "HelloMine3D - Ogre Bootstrap";
     constexpr const char* SkyboxMaterial = "HelloMine3D/Skybox";
+
+    struct TerrainBuildSummary
+    {
+        std::size_t sectionCount = 0;
+        std::size_t vertexCount = 0;
+        std::size_t indexCount = 0;
+    };
 
     class OgreBootstrap final : public Ogre::FrameListener,
                                 public Ogre::WindowEventListener,
@@ -37,6 +54,7 @@ namespace
             createRoot();
             const std::size_t resourceLocations = configureResources();
             Ogre::RenderSystem* renderSystem = configureRenderSystem();
+            const TerrainBuildSummary terrain = buildTerrain(false);
 
             std::cout << "[OGRE_VALIDATION] renderer="
                       << renderSystem->getName() << '\n';
@@ -44,8 +62,15 @@ namespace
                       << resourceLocations << '\n';
             std::cout << "[OGRE_VALIDATION] ois_version="
                       << OIS::InputManager::getVersionNumber() << '\n';
+            std::cout << "[OGRE_VALIDATION] terrain_sections="
+                      << terrain.sectionCount << '\n';
+            std::cout << "[OGRE_VALIDATION] terrain_vertices="
+                      << terrain.vertexCount << '\n';
+            std::cout << "[OGRE_VALIDATION] terrain_indices="
+                      << terrain.indexCount << '\n';
 
-            return resourceLocations > 0;
+            return resourceLocations > 0 && terrain.sectionCount > 0 &&
+                   terrain.vertexCount > 0 && terrain.indexCount > 0;
         }
 
         int run()
@@ -196,12 +221,118 @@ namespace
             m_sceneManager->setSkyBox(
                 true, SkyboxMaterial, 5000.0f, true);
 
+            const TerrainBuildSummary terrain = buildTerrain(true);
+            std::cout << "[OGRE_TERRAIN] sections=" << terrain.sectionCount
+                      << " vertices=" << terrain.vertexCount
+                      << " indices=" << terrain.indexCount << '\n';
+
             const char* exitFrames =
                 std::getenv("HELLOMINE3D_OGRE_EXIT_AFTER_FRAMES");
             if (exitFrames != nullptr)
             {
                 m_exitAfterFrames = std::max(0, std::atoi(exitFrames));
             }
+        }
+
+        TerrainBuildSummary buildTerrain(bool uploadToOgre)
+        {
+            Config config;
+            config.renderDistance = 1;
+            m_worldPlayer = std::make_unique<Player>();
+            m_logicCamera = std::make_unique<::Camera>(config);
+            m_logicCamera->hookEntity(*m_worldPlayer);
+            m_logicCamera->update();
+            m_world = std::make_unique<World>(
+                *m_logicCamera, config, *m_worldPlayer,
+                ResourcePaths::bin("ogre_saves/preview"), false, 2);
+            m_logicCamera->update();
+
+            const VectorXZ center = World::getChunkXZ(
+                World::toBlockCoord(m_worldPlayer->position.x),
+                World::toBlockCoord(m_worldPlayer->position.z));
+
+            TerrainBuildSummary summary;
+            for (auto &entry : m_world->getChunkManager().getChunks())
+            {
+                Chunk &chunk = entry.second;
+                const glm::ivec2 chunkLocation = chunk.getLocation();
+                if (std::abs(chunkLocation.x - center.x) >
+                        config.renderDistance ||
+                    std::abs(chunkLocation.y - center.z) >
+                        config.renderDistance)
+                {
+                    continue;
+                }
+
+                for (std::size_t sectionIndex = 0;
+                     sectionIndex < chunk.getSectionCount(); ++sectionIndex)
+                {
+                    ChunkSection *section =
+                        chunk.findSection(static_cast<int>(sectionIndex));
+                    if (section == nullptr)
+                    {
+                        continue;
+                    }
+
+                    section->makeMesh();
+                    const ChunkMesh &solidMesh =
+                        section->getMeshes().solidMesh;
+                    const glm::ivec3 sectionLocation =
+                        section->getLocation();
+                    const ChunkMeshValidation validation =
+                        ChunkSectionRenderable::validateCpuMesh(
+                            solidMesh, sectionLocation);
+                    if (!validation.valid)
+                    {
+                        throw std::runtime_error(
+                            "Terrain mesh validation failed: " +
+                            validation.message);
+                    }
+                    if (validation.indexCount == 0)
+                    {
+                        continue;
+                    }
+
+                    ++summary.sectionCount;
+                    summary.vertexCount += validation.vertexCount;
+                    summary.indexCount += validation.indexCount;
+
+                    if (!uploadToOgre)
+                    {
+                        continue;
+                    }
+
+                    std::ostringstream name;
+                    name << "ChunkSection_" << sectionLocation.x << '_'
+                         << sectionLocation.y << '_' << sectionLocation.z;
+                    auto renderable =
+                        std::make_unique<ChunkSectionRenderable>(
+                            name.str(), solidMesh, sectionLocation);
+                    Ogre::SceneNode *node =
+                        m_sceneManager->getRootSceneNode()
+                            ->createChildSceneNode(
+                                name.str() + "_Node",
+                                Ogre::Vector3(
+                                    static_cast<Ogre::Real>(
+                                        sectionLocation.x * CHUNK_SIZE),
+                                    static_cast<Ogre::Real>(
+                                        sectionLocation.y * CHUNK_SIZE),
+                                    static_cast<Ogre::Real>(
+                                        sectionLocation.z * CHUNK_SIZE)));
+                    node->attachObject(renderable.get());
+                    m_sectionNodes.push_back(node);
+                    m_terrainRenderables.push_back(std::move(renderable));
+                }
+            }
+
+            if (uploadToOgre && summary.sectionCount > 0)
+            {
+                const glm::vec3 &position = m_worldPlayer->position;
+                m_camera->setPosition(position.x, position.y + 10.0f,
+                                      position.z + 14.0f);
+                m_camera->lookAt(position.x, position.y, position.z);
+            }
+            return summary;
         }
 
         void createInput()
@@ -398,6 +529,19 @@ namespace
                 m_inputManager = nullptr;
             }
 
+            for (auto &renderable : m_terrainRenderables)
+            {
+                if (renderable->isAttached())
+                {
+                    renderable->detachFromParent();
+                }
+            }
+            m_terrainRenderables.clear();
+            m_sectionNodes.clear();
+            m_world.reset();
+            m_logicCamera.reset();
+            m_worldPlayer.reset();
+
             m_camera = nullptr;
             m_sceneManager = nullptr;
             m_window = nullptr;
@@ -413,6 +557,12 @@ namespace
         OIS::InputManager* m_inputManager = nullptr;
         OIS::Keyboard* m_keyboard = nullptr;
         OIS::Mouse* m_mouse = nullptr;
+        std::unique_ptr<Player> m_worldPlayer;
+        std::unique_ptr<::Camera> m_logicCamera;
+        std::unique_ptr<World> m_world;
+        std::vector<std::unique_ptr<ChunkSectionRenderable>>
+            m_terrainRenderables;
+        std::vector<Ogre::SceneNode*> m_sectionNodes;
         bool m_listenersInstalled = false;
         bool m_shutdownRequested = false;
         int m_exitAfterFrames = 0;

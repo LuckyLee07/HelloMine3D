@@ -21,6 +21,9 @@ class ChunkMesh {
 
     const Model &getModel() const;
 
+    const Mesh &getClientMesh() const;
+    const std::vector<float> &getCardinalLight() const;
+
     void clearClientData();
     void deleteData();
 
