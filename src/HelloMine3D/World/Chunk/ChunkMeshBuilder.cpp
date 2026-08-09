@@ -78,6 +78,10 @@ struct AdjacentBlockPositions {
 
 void ChunkMeshBuilder::buildMesh()
 {
+    if (!m_pInput->needsMeshBuild()) {
+        return;
+    }
+
     buildGreedySolidMesh();
 
     AdjacentBlockPositions directions;

@@ -484,8 +484,9 @@ void World::loadChunks()
                                              buildMilliseconds);
             }
 
-            didWork = didWork || result.loadedChunk || result.meshBuilt;
-            if (result.meshBuilt) {
+            didWork = didWork || result.loadedChunk || result.meshBuilt ||
+                      result.meshSkipped;
+            if (result.meshBuilt || result.meshSkipped) {
                 // This chunk still has dirty sections. Keep working on it
                 // instead of sending it to the back of a queue that is sorted
                 // by distance, otherwise the nearest chunks finish last.
@@ -690,13 +691,15 @@ void World::updateChunks()
                 : nullptr;
         if (section != nullptr && section->isMeshDirty()) {
             const auto buildStart = std::chrono::steady_clock::now();
-            section->makeMesh();
+            const bool meshBuilt = section->makeMesh();
             const double buildMilliseconds =
                 std::chrono::duration<double, std::milli>(
                     std::chrono::steady_clock::now() - buildStart)
                     .count();
-            m_chunkManager.recordMeshRebuild(section->getMeshes(),
-                                             buildMilliseconds);
+            if (meshBuilt) {
+                m_chunkManager.recordMeshRebuild(section->getMeshes(),
+                                                 buildMilliseconds);
+            }
         }
     }
 }

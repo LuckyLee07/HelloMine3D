@@ -1315,6 +1315,117 @@ void caseGreedyMeshing()
 }
 
 // ---------------------------------------------------------------------------
+// M6 - sections sealed by opaque neighbours complete without a mesh build
+// ---------------------------------------------------------------------------
+void caseEnclosedSectionSkip()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+
+    const auto directory = freshSaveDirectory("enclosed_section_skip");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+    auto &chunks = world.getChunkManager();
+
+    constexpr int sectionY = 12;
+    constexpr int baseY = sectionY * CHUNK_SIZE;
+    const std::array<glm::ivec2, 5> solidChunks{{
+        {0, 0},
+        {-1, 0},
+        {1, 0},
+        {0, -1},
+        {0, 1},
+    }};
+
+    for (const auto &chunkPosition : solidChunks) {
+        const int baseX = chunkPosition.x * CHUNK_SIZE;
+        const int baseZ = chunkPosition.y * CHUNK_SIZE;
+        for (int y = baseY; y < baseY + CHUNK_SIZE; ++y) {
+            for (int z = 0; z < CHUNK_SIZE; ++z) {
+                for (int x = 0; x < CHUNK_SIZE; ++x) {
+                    world.setBlock(baseX + x, y, baseZ + z, BlockId::Stone);
+                }
+            }
+        }
+    }
+    for (int z = 0; z < CHUNK_SIZE; ++z) {
+        for (int x = 0; x < CHUNK_SIZE; ++x) {
+            world.setBlock(x, baseY - 1, z, BlockId::Stone);
+            world.setBlock(x, baseY + CHUNK_SIZE, z, BlockId::Stone);
+        }
+    }
+
+    Chunk *chunk = chunks.findChunk(0, 0);
+    ChunkSection *section =
+        chunk != nullptr ? chunk->findSection(sectionY) : nullptr;
+    check("M6/enclosed-section-available", section != nullptr);
+    if (section == nullptr) {
+        return;
+    }
+
+    SectionMeshInput enclosedInput;
+    section->captureMeshInput(enclosedInput);
+    check("M6/enclosed-snapshot-skips-build",
+          !enclosedInput.needsMeshBuild());
+
+    ChunkMeshCollection directMeshes;
+    ChunkMeshBuilder(enclosedInput, directMeshes).buildMesh();
+    check("M6/enclosed-builder-emits-nothing",
+          directMeshes.solidMesh.faces == 0 &&
+              directMeshes.waterMesh.faces == 0 &&
+              directMeshes.floraMesh.faces == 0);
+
+    const ChunkDebugStats beforeSkip = chunks.collectDebugStats();
+    ChunkMeshJob skippedJob;
+    const ChunkMeshWorkResult skipped =
+        chunks.beginMeshJob(0, 0, 0, sectionY, skippedJob);
+    check("M6/background-job-skipped",
+          skipped.meshSkipped && !skipped.meshBuilt && !skippedJob.valid &&
+              section->getMeshState() == ChunkSectionMeshState::CpuReady);
+    const ChunkDebugStats afterSkip = chunks.collectDebugStats();
+    check("M6/skipped-build-not-counted",
+          afterSkip.meshRebuilds == beforeSkip.meshRebuilds &&
+              afterSkip.meshBuildTotalMs == beforeSkip.meshBuildTotalMs);
+
+    world.setBlock(8, baseY + CHUNK_SIZE, 8, BlockId::Air);
+    SectionMeshInput openedInput;
+    section->captureMeshInput(openedInput);
+    check("M6/opening-invalidates-enclosure",
+          openedInput.needsMeshBuild() && section->isMeshDirty());
+
+    ChunkMeshJob visibleJob;
+    const ChunkMeshWorkResult scheduled =
+        chunks.beginMeshJob(0, 0, 0, sectionY, visibleJob);
+    ChunkMeshCollection visibleMeshes;
+    if (visibleJob.valid) {
+        ChunkMeshBuilder(visibleJob.input, visibleMeshes).buildMesh();
+    }
+    const bool installed =
+        visibleJob.valid && chunks.finishMeshJob(visibleJob, visibleMeshes, 0.5);
+    check("M6/opening-builds-visible-face",
+          scheduled.meshBuilt && !scheduled.meshSkipped && installed &&
+              section->getMeshes().solidMesh.faces == 1,
+          "faces=" +
+              std::to_string(section->getMeshes().solidMesh.faces));
+    const ChunkDebugStats afterBuild = chunks.collectDebugStats();
+    check("M6/real-build-counted-once",
+          afterBuild.meshRebuilds == afterSkip.meshRebuilds + 1 &&
+              std::abs(afterBuild.meshBuildTotalMs -
+                           afterSkip.meshBuildTotalMs - 0.5) <
+                  0.001);
+
+    world.setBlock(8, baseY + CHUNK_SIZE, 8, BlockId::Stone);
+    const bool synchronousBuildRan = section->makeMesh();
+    check("M6/synchronous-build-skipped",
+          !synchronousBuildRan &&
+              section->getMeshState() == ChunkSectionMeshState::CpuReady &&
+              section->getMeshes().solidMesh.faces == 0);
+}
+
+// ---------------------------------------------------------------------------
 // E5 - the renderer consumes versioned CPU mesh snapshots without sharing
 // mutable section pointers with the background loader
 // ---------------------------------------------------------------------------
@@ -2049,6 +2160,7 @@ int main()
         casePersistence();
         caseSectionMeshInput();
         caseGreedyMeshing();
+        caseEnclosedSectionSkip();
         caseSectionMeshUploadSnapshot();
         caseUnloadPersistence();
         caseChunkFormatRejection();

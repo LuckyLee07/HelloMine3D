@@ -71,6 +71,17 @@ bool SectionMeshInput::shouldMakeLayer(int y) const
     return false;
 }
 
+bool SectionMeshInput::needsMeshBuild() const
+{
+    for (int y = 0; y < CHUNK_SIZE; ++y) {
+        if (shouldMakeLayer(y)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 const glm::ivec3 &SectionMeshInput::getLocation() const
 {
     return m_location;

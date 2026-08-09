@@ -40,6 +40,7 @@ struct ChunkDebugStats {
 struct ChunkMeshWorkResult {
     bool loadedChunk = false;
     bool meshBuilt = false;
+    bool meshSkipped = false;
     bool neighborhoodReady = false;
     int chunksLoaded = 0;
     int meshesBuilt = 0;
@@ -49,6 +50,8 @@ struct ChunkMeshWorkResult {
 ///
 /// `beginMeshJob()` fills this while the world lock is held, the caller builds
 /// the meshes without the lock, then `finishMeshJob()` installs them under it.
+/// Fully enclosed sections are completed inside `beginMeshJob()` without
+/// producing a valid job.
 struct ChunkMeshJob {
     bool valid = false;
     VectorXZ chunkPosition{0, 0};

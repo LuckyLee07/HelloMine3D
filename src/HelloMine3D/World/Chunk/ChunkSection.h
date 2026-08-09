@@ -61,7 +61,9 @@ class ChunkSection : public IChunk {
     ChunkSectionMeshState getMeshState() const;
     void markMeshDirty();
 
-    void makeMesh();
+    /// Builds a mesh when the section has visible layers. Returns false when
+    /// a fully enclosed section was completed without running the builder.
+    bool makeMesh();
     void markGpuBuffered();
 
     /// Snapshot the data a mesh build reads. Must be called under the world

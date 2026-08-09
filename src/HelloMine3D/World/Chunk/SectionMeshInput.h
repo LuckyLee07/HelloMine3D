@@ -33,6 +33,9 @@ class SectionMeshInput {
     /// Valid for y in [0, CHUNK_SIZE).
     bool shouldMakeLayer(int y) const;
 
+    /// False when every layer is sealed by opaque blocks on all six sides.
+    bool needsMeshBuild() const;
+
     const glm::ivec3 &getLocation() const;
 
   private:

@@ -90,7 +90,7 @@ glm::ivec3 ChunkSection::toWorldPosition(int x, int y, int z) const
             m_location.z * CHUNK_SIZE + z};
 }
 
-void ChunkSection::makeMesh()
+bool ChunkSection::makeMesh()
 {
     // Synchronous path, used by main-thread block edits. It still holds the
     // world lock for the whole build, which is fine for the handful of
@@ -101,8 +101,12 @@ void ChunkSection::makeMesh()
     m_meshes.solidMesh.clearClientData();
     m_meshes.waterMesh.clearClientData();
     m_meshes.floraMesh.clearClientData();
-    ChunkMeshBuilder(input, m_meshes).buildMesh();
+    const bool built = input.needsMeshBuild();
+    if (built) {
+        ChunkMeshBuilder(input, m_meshes).buildMesh();
+    }
     m_meshState = ChunkSectionMeshState::CpuReady;
+    return built;
 }
 
 void ChunkSection::captureMeshInput(SectionMeshInput &input)

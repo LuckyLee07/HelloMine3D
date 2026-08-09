@@ -124,6 +124,14 @@ ChunkMeshWorkResult ChunkManager::beginMeshJob(int x, int z, int maxChunkLoads,
     job.sectionIndex = sectionIndex;
     job.blockRevision = section->getBlockRevision();
     section->captureMeshInput(job.input);
+
+    if (!job.input.needsMeshBuild()) {
+        ChunkMeshCollection emptyMeshes;
+        section->adoptMesh(emptyMeshes);
+        result.meshSkipped = true;
+        return result;
+    }
+
     job.valid = true;
 
     result.meshBuilt = true;
