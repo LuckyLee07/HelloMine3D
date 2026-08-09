@@ -129,7 +129,7 @@ Goal: asset mistakes should fail early with clear messages.
 
 | ID | Status | Task | Implementation notes | Validation |
 | -- | ------ | ---- | -------------------- | ---------- |
-| A1 | Todo | Add `scripts/check_assets.sh`. | Check block files, shader files, textures, fonts and config templates. | Script returns non-zero on a missing referenced file. |
+| A1 | Done | Add `scripts/check_assets.sh`. | The Bash script derives block definitions from `BlockDatabase.cpp`, shader sources from the Ogre program script, textures from the material script, and also verifies the bundled font, resource locations and checked-in runtime templates. `--root` supports isolated fixtures without touching live assets. | The repository passes 41 checks. An isolated copy with one referenced terrain shader omitted reports its exact path and returns 1. |
 | A2 | Todo | Strengthen `.block` parsing diagnostics. | `BlockData.cpp` only throws when the file cannot be opened. Report filename, missing key, bad enum, invalid atlas coordinate and duplicate id. | A deliberately broken block file names the exact file and key. |
 | A3 | Todo | Decide config and runtime-state ownership (old M0.3/T2.5). | `.gitignore` currently ignores all of `bin/`, so `config.txt` and `info.txt` are effectively generated. `loadConfig()` already regenerates a default config; document that and drop the ambiguity. | Deleting `bin/config.txt` regenerates a documented default. |
 | A4 | Todo | Move world seed into the config file. | Seed is only reachable through `HELLOMINE3D_SEED`. `Config` has window, FOV and render distance but no seed. | Setting a seed in `bin/config.txt` reproduces a world. |
@@ -232,7 +232,7 @@ Every completed task should list which validations were run.
 | World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | Chunk, storage, interaction, event, actor or terrain changes |
 | Render smoke | `tools\run_render_capture.ps1` | Renderer, shader, texture, mesh upload or frame sequencing changes |
 | Performance baseline | `tools\run_perf_baseline.ps1` | Chunk loading, mesh building, update flow or render submission changes |
-| Asset check | `sh scripts/check_assets.sh` | Asset and data changes, once A1 lands |
+| Asset check | `sh scripts/check_assets.sh` | Asset and data changes |
 | Interactive run | `bin\HelloMine3D.exe` | Input, camera or player-facing UI changes |
 
 ## Iteration Report Template

@@ -121,8 +121,17 @@ bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
 bin\HelloMine3DMeshDirtyTests.exe         # mesh dirty planner
 bin\HelloMine3DSaveLoadSmoke.exe          # chunk serialization roundtrip
 bin\HelloMine3DEntityLifecycleSmoke.exe   # actor lifecycle
-bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 140 assertions
+bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 173 assertions
 ```
+
+Asset and data changes should also run the reference-aware asset check:
+
+```sh
+sh scripts/check_assets.sh
+```
+
+It validates registered block definitions, Ogre shader and texture references,
+the bundled font, resource locations, and the checked-in runtime templates.
 
 The client also has a deterministic validation-only startup that does not
 create a render window:

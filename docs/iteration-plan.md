@@ -244,7 +244,7 @@ HelloMine3D 已具备这些基础：
 | Make release build | `sh scripts/build.sh release` |
 | macOS Xcode project | `sh scripts/premake.sh xcode4` 后用 Xcode 或 `xcodebuild` 编译。 |
 | Windows VS project | `vs2022.bat` 生成工程，并在 Windows 上编译。 |
-| 资源检查 | 后续新增 `scripts/check_assets.sh` 后纳入常规检查。 |
+| 资源检查 | `sh scripts/check_assets.sh`，资产引用缺失时返回非零。 |
 | 手动运行 | `sh scripts/run.sh release`，观察 chunk 加载、放置/破坏、退出是否正常。 |
 
 ## 里程碑定义
