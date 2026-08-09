@@ -37,6 +37,8 @@ struct WorldDebugStats {
 
 /// @brief Massive class designed to hold multiple chunks, the player, and most game aspects.
 class World : public NonCopyable {
+    friend class ChunkSection;
+
   public:
     World(const Camera &camera, const Config &config, Player &player,
           std::string saveDirectory = "",
@@ -83,6 +85,7 @@ class World : public NonCopyable {
     }
 
   private:
+    ChunkBlock getBlockUnlocked(int x, int y, int z);
     void loadChunks();
     void unloadDistantChunks(const Camera &camera);
     void setChunkLoadCenter(const Camera &camera);

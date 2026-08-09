@@ -228,6 +228,12 @@ World::~World()
 // world coords into chunk column coords
 ChunkBlock World::getBlock(int x, int y, int z)
 {
+    std::unique_lock<std::mutex> lock(m_mainMutex);
+    return getBlockUnlocked(x, y, z);
+}
+
+ChunkBlock World::getBlockUnlocked(int x, int y, int z)
+{
     if (y < 0) {
         return BlockId::Air;
     }

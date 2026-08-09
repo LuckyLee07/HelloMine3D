@@ -42,7 +42,9 @@ ChunkBlock ChunkSection::getBlock(int x, int y, int z) const
 {
     if (outOfBounds(x) || outOfBounds(y) || outOfBounds(z)) {
         auto location = toWorldPosition(x, y, z);
-        return m_pWorld->getBlock(location.x, location.y, location.z);
+        // Mesh snapshots already hold the world lock. Calling the public
+        // accessor here would try to acquire the same non-recursive mutex.
+        return m_pWorld->getBlockUnlocked(location.x, location.y, location.z);
     }
 
     return m_blocks[getIndex(x, y, z)];

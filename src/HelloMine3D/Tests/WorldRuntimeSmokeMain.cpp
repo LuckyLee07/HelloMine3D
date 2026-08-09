@@ -10,6 +10,7 @@
 // and the process exits non-zero when any check fails.
 
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <exception>
@@ -18,6 +19,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "../Actor/ItemEntity.h"
@@ -321,6 +323,94 @@ void caseHeightMapEdits()
               heightAfterPlace == scanAfterPlace,
           "cached=" + std::to_string(heightAfterPlace) +
               " scanned=" + std::to_string(scanAfterPlace));
+}
+
+// ---------------------------------------------------------------------------
+// V5 - background loading survives sustained load-center churn
+// ---------------------------------------------------------------------------
+void caseBackgroundLoaderStress()
+{
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+
+    const auto directory = freshSaveDirectory("background_loader_stress");
+    Config config = makeConfig();
+    config.renderDistance = 1;
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, true, 0);
+
+    const std::array<VectorXZ, 9> centers = {
+        VectorXZ{0, 0},   VectorXZ{4, 0},   VectorXZ{4, 4},
+        VectorXZ{0, 4},   VectorXZ{-4, 4},  VectorXZ{-4, 0},
+        VectorXZ{-4, -4}, VectorXZ{0, -4},  VectorXZ{4, -4},
+    };
+
+    constexpr int iterations = 240;
+    bool statsConsistent = true;
+    bool blockReadsValid = true;
+    std::size_t maximumExistingChunks = 0;
+
+    for (int iteration = 0; iteration < iterations; ++iteration) {
+        const VectorXZ center = centers[static_cast<std::size_t>(iteration) %
+                                        centers.size()];
+        camera.position = {
+            static_cast<float>(center.x * CHUNK_SIZE + CHUNK_SIZE / 2),
+            90.f,
+            static_cast<float>(center.z * CHUNK_SIZE + CHUNK_SIZE / 2),
+        };
+        world.update(camera);
+
+        const auto block = world.getBlock(
+            World::toBlockCoord(camera.position.x), 64,
+            World::toBlockCoord(camera.position.z));
+        blockReadsValid =
+            blockReadsValid &&
+            block.id < static_cast<Block_t>(BlockId::NUM_TYPES);
+
+        const WorldDebugStats stats = world.collectDebugStats();
+        const std::size_t classifiedSections =
+            stats.chunks.meshDirtySections + stats.chunks.cpuReadySections +
+            stats.chunks.gpuBufferedSections;
+        statsConsistent =
+            statsConsistent &&
+            stats.chunks.loadedChunks <= stats.chunks.existingChunks &&
+            classifiedSections == stats.chunks.sections;
+        maximumExistingChunks =
+            std::max(maximumExistingChunks, stats.chunks.existingChunks);
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+
+    // Hold one final center long enough to prove that churn did not leave the
+    // worker stuck rebuilding obsolete queues forever.
+    const std::size_t rebuildsBeforeFinalCenter =
+        world.collectDebugStats().chunks.meshRebuilds;
+    camera.position = {
+        static_cast<float>(8 * CHUNK_SIZE + CHUNK_SIZE / 2), 90.f,
+        static_cast<float>(8 * CHUNK_SIZE + CHUNK_SIZE / 2)};
+    const auto progressDeadline = std::chrono::steady_clock::now() +
+                                  std::chrono::seconds(5);
+    WorldDebugStats finalStats;
+    do {
+        world.update(camera);
+        finalStats = world.collectDebugStats();
+        if (finalStats.chunks.meshRebuilds > rebuildsBeforeFinalCenter) {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    } while (std::chrono::steady_clock::now() < progressDeadline);
+
+    check("V5/load-center-churn-completes", statsConsistent,
+          "iterations=" + std::to_string(iterations));
+    check("V5/concurrent-block-reads-valid", blockReadsValid);
+    check("V5/background-loader-makes-progress",
+          finalStats.chunks.meshRebuilds > rebuildsBeforeFinalCenter,
+          "chunks=" + std::to_string(maximumExistingChunks) +
+              " mesh_rebuilds=" +
+              std::to_string(rebuildsBeforeFinalCenter) + " -> " +
+              std::to_string(finalStats.chunks.meshRebuilds));
 }
 
 // ---------------------------------------------------------------------------
@@ -1342,6 +1432,7 @@ int main()
         caseBlockTextureCoordinates();
         casePlayerControllerInput();
         caseHeightMapEdits();
+        caseBackgroundLoaderStress();
         caseSpawnPreload();
         caseNegativeCoordinates();
         caseNoImplicitChunkCreation();
