@@ -67,6 +67,7 @@ BlockDefinition makeDefinition(const std::string &fileName,
     definition.render.texBottomCoord = data.texBottomCoord;
     definition.render.meshType = data.meshType;
     definition.render.shaderType = data.shaderType;
+    definition.render.shape = data.shape;
     return definition;
 }
 } // namespace

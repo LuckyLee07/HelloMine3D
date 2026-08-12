@@ -81,17 +81,28 @@ glm::ivec2 parseAtlasCoordinate(const std::string &path,
 } // namespace
 
 BlockData::BlockData(const std::string &fileName)
-    : BlockData(fileName, ResourcePaths::media("blocks"))
+    : BlockData(fileName, ResourcePaths::media("blocks"),
+                ResourcePaths::media("shapes"))
 {
 }
 
 BlockData::BlockData(const std::string &fileName,
                      const std::string &blockDirectory)
+    : BlockData(fileName, blockDirectory,
+                ResourcePaths::media("shapes"))
 {
-    load(ResourcePaths::join(blockDirectory, fileName + ".block"));
 }
 
-void BlockData::load(const std::string &path)
+BlockData::BlockData(const std::string &fileName,
+                     const std::string &blockDirectory,
+                     const std::string &shapeDirectory)
+{
+    load(ResourcePaths::join(blockDirectory, fileName + ".block"),
+         shapeDirectory);
+}
+
+void BlockData::load(const std::string &path,
+                     const std::string &shapeDirectory)
 {
     m_sourcePath = path;
     std::ifstream input(path);
@@ -103,6 +114,7 @@ void BlockData::load(const std::string &path)
     bool hasTopTexture = false;
     bool hasSideTexture = false;
     bool hasBottomTexture = false;
+    std::string shapeName;
 
     std::string keyLine;
     std::size_t lineNumber = 0;
@@ -116,7 +128,7 @@ void BlockData::load(const std::string &path)
         static const std::set<std::string> validKeys = {
             "Name",       "Id",         "TexTop",   "TexSide",
             "TexBottom",  "TexAll",     "Opaque",   "Collidable",
-            "MeshType",   "ShaderType", "Light",
+            "MeshType",   "ShaderType", "Shape",     "Light",
         };
         if (validKeys.find(key) == validKeys.end()) {
             fail(path, key, "is unknown at line " +
@@ -179,11 +191,14 @@ void BlockData::load(const std::string &path)
         else if (key == "MeshType") {
             const int meshType = parseInteger(path, key, value);
             if (meshType < static_cast<int>(BlockMeshType::Cube) ||
-                meshType > static_cast<int>(BlockMeshType::X)) {
+                meshType > static_cast<int>(BlockMeshType::Resource)) {
                 fail(path, key, "has invalid enum value " +
                                     std::to_string(meshType));
             }
             m_data.meshType = static_cast<BlockMeshType>(meshType);
+        }
+        else if (key == "Shape") {
+            shapeName = value;
         }
         else if (key == "ShaderType") {
             const int shaderType = parseInteger(path, key, value);
@@ -221,6 +236,15 @@ void BlockData::load(const std::string &path)
     requireKey("ShaderType",
                seenKeys.find("ShaderType") != seenKeys.end());
     requireKey("Light", seenKeys.find("Light") != seenKeys.end());
+
+    const bool hasShape = seenKeys.find("Shape") != seenKeys.end();
+    if (m_data.meshType == BlockMeshType::Resource) {
+        requireKey("Shape", hasShape);
+        m_data.shape = loadBlockShape(shapeName, shapeDirectory);
+    }
+    else if (hasShape) {
+        fail(path, "Shape", "is only valid for resource meshes");
+    }
 }
 
 const BlockDataHolder &BlockData::getBlockData() const

@@ -53,9 +53,14 @@ if [ -s "$ROOT_DIR/$BLOCK_DATABASE" ]; then
     while IFS= read -r block_name; do
         require_file "block definition" "media/blocks/$block_name.block"
     done < <(sed -nE \
-        's/.*addBlock\(BlockId::[A-Za-z0-9_]+, "([^"]+)"\);.*/\1/p' \
+        's/.*addBlock\(BlockId::[A-Za-z0-9_]+, "([^"]+)".*/\1/p' \
         "$ROOT_DIR/$BLOCK_DATABASE")
 fi
+
+while IFS= read -r shape_name; do
+    require_file "block shape" "media/shapes/$shape_name.shape"
+done < <(awk '$1 == "Shape" { getline; print $1 }' \
+    "$ROOT_DIR"/media/blocks/*.block | tr -d '\r' | sort -u)
 
 if [ -s "$ROOT_DIR/$OGRE_PROGRAM" ]; then
     while IFS= read -r shader_name; do

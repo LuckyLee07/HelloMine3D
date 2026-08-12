@@ -10,7 +10,7 @@ under `src/external/`, and keep runtime assets out of the source tree.
 | ------------------- | ---------------- | ------- |
 | `src/HelloOgre3D/` | `src/HelloMine3D/` | First-party game and rendering code. |
 | `src/external/` | `src/external/` | Vendored ImGui, GLM and OIS source used directly by the build. |
-| `media/` | `media/` | Shaders, block definitions, textures, and fonts. |
+| `media/` | `media/` | Shaders, block and shape definitions, textures, and fonts. |
 | `bin/` | `bin/` | Runtime config, ImGui state, and executable output. |
 | `docs/` | `docs/` | Architecture notes and screenshots used by documentation. |
 | root scripts | `scripts/` | Build/run/debug commands. |
@@ -27,6 +27,9 @@ helpers, and the application shell.
 
 `World/` is the gameplay simulation boundary. It owns chunk lifetime, terrain generation, block
 queries, block mutation events, chunk mesh update scheduling, and versioned world metadata.
+Cube geometry remains optimized by the greedy mesh path; non-cube geometry is
+loaded from validated `media/shapes/*.shape` resources referenced by block
+definitions, so adding another resource shape does not change the mesh builder.
 World metadata version 2 persists player state plus live mob/item subtype state;
 version 1 saves remain readable with an empty actor list and upgrade on the
 next world save.

@@ -15,6 +15,7 @@ struct BlockRenderInfo {
     glm::ivec2 texBottomCoord{0, 0};
     BlockMeshType meshType = BlockMeshType::Cube;
     BlockShaderType shaderType = BlockShaderType::Chunk;
+    BlockShape shape;
 };
 
 struct BlockDefinition {

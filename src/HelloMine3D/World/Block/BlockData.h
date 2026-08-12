@@ -4,12 +4,13 @@
 #include "../../Maths/glm.h"
 #include "../../Util/NonCopyable.h"
 #include "BlockId.h"
+#include "BlockShape.h"
 #include <string>
 
 /// @brief Allocates meshes to cubes and non-cube entities.
 enum class BlockMeshType {
     Cube = 0,
-    X = 1,
+    Resource = 1,
 };
 
 /// @brief Allocates shader behavior to groups of blocks.
@@ -30,6 +31,7 @@ struct BlockDataHolder : public NonCopyable {
 
     BlockMeshType meshType = BlockMeshType::Cube;
     BlockShaderType shaderType = BlockShaderType::Chunk;
+    BlockShape shape;
 
     int light = 0;
     bool isOpaque = false;
@@ -41,12 +43,16 @@ class BlockData : public NonCopyable {
     BlockData(const std::string &fileName);
     BlockData(const std::string &fileName,
               const std::string &blockDirectory);
+    BlockData(const std::string &fileName,
+              const std::string &blockDirectory,
+              const std::string &shapeDirectory);
 
     const BlockDataHolder &getBlockData() const;
     const std::string &getSourcePath() const;
 
   private:
-    void load(const std::string &path);
+    void load(const std::string &path,
+              const std::string &shapeDirectory);
 
     BlockDataHolder m_data;
     std::string m_sourcePath;

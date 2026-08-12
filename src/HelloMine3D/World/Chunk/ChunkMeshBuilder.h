@@ -13,6 +13,7 @@ class ChunkMesh;
 class BlockData;
 class SectionMeshInput;
 struct BlockDefinition;
+struct BlockShape;
 
 struct ChunkMeshCollection;
 
@@ -46,8 +47,9 @@ class ChunkMeshBuilder {
 
     void setActiveMesh(ChunkBlock block);
 
-    void addXBlockToMesh(const glm::ivec2 &textureCoords,
-                         const glm::ivec3 &blockPosition);
+    void addResourceShapeToMesh(const BlockShape &shape,
+                                const glm::ivec2 &textureCoords,
+                                const glm::ivec3 &blockPosition);
 
     void tryAddFaceToMesh(const std::array<float, 12> &blockFace,
                           const glm::ivec2 &textureCoords,

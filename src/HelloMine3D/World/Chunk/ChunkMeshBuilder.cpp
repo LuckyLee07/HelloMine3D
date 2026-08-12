@@ -35,14 +35,6 @@ const std::array<float, 12> topFace{
 
 const std::array<float, 12> bottomFace{0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1};
 
-const std::array<float, 12> xFace1{
-    0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0,
-};
-
-const std::array<float, 12> xFace2{
-    0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1,
-};
-
 constexpr float LIGHT_TOP = 1.0f;
 constexpr float LIGHT_X = 0.8f;
 constexpr float LIGHT_Z = 0.6f;
@@ -120,8 +112,9 @@ void ChunkMeshBuilder::buildMesh()
         setActiveMesh(block);
         const auto &renderInfo = definition.render;
 
-        if (renderInfo.meshType == BlockMeshType::X) {
-            addXBlockToMesh(renderInfo.texTopCoord, position);
+        if (renderInfo.meshType == BlockMeshType::Resource) {
+            addResourceShapeToMesh(renderInfo.shape,
+                                   renderInfo.texTopCoord, position);
             continue;
         }
 
@@ -392,27 +385,19 @@ void ChunkMeshBuilder::setActiveMesh(ChunkBlock block)
     }
 }
 
-void ChunkMeshBuilder::addXBlockToMesh(const glm::ivec2 &textureCoords,
-                                       const glm::ivec3 &blockPosition)
+void ChunkMeshBuilder::addResourceShapeToMesh(
+    const BlockShape &shape, const glm::ivec2 &textureCoords,
+    const glm::ivec3 &blockPosition)
 {
     const auto texCoords =
         BlockTextureCoordinates::get(textureCoords.x, textureCoords.y);
-
-    m_pActiveMesh->addFace(xFace1, texCoords, m_pInput->getLocation(),
-                           blockPosition,
-                           combineTerrainLight(
-                               LIGHT_X,
-                               m_pInput->getCombinedLight(blockPosition.x,
-                                                         blockPosition.y,
-                                                         blockPosition.z)));
-
-    m_pActiveMesh->addFace(xFace2, texCoords, m_pInput->getLocation(),
-                           blockPosition,
-                           combineTerrainLight(
-                               LIGHT_X,
-                               m_pInput->getCombinedLight(blockPosition.x,
-                                                         blockPosition.y,
-                                                         blockPosition.z)));
+    const float light = combineTerrainLight(
+        LIGHT_X, m_pInput->getCombinedLight(
+                     blockPosition.x, blockPosition.y, blockPosition.z));
+    for (const BlockShapeFace &face : shape.faces) {
+        m_pActiveMesh->addFace(face, texCoords, m_pInput->getLocation(),
+                               blockPosition, light);
+    }
 }
 
 void ChunkMeshBuilder::tryAddFaceToMesh(
@@ -452,7 +437,7 @@ bool ChunkMeshBuilder::shouldMakeFace(ChunkBlock block,
         return false;
     }
 
-    if (adjacentDefinition.render.meshType == BlockMeshType::X) {
+    if (adjacentDefinition.render.meshType == BlockMeshType::Resource) {
         return true;
     }
 

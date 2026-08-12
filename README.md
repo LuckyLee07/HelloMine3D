@@ -162,7 +162,7 @@ bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
 bin\HelloMine3DMeshDirtyTests.exe         # mesh dirty planner
 bin\HelloMine3DSaveLoadSmoke.exe          # chunk serialization roundtrip
 bin\HelloMine3DEntityLifecycleSmoke.exe   # actor lifecycle
-bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 227 assertions
+bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 231 assertions
 ```
 
 Asset and data changes should also run the reference-aware asset check:
@@ -171,8 +171,11 @@ Asset and data changes should also run the reference-aware asset check:
 sh scripts/check_assets.sh
 ```
 
-It validates registered block definitions, Ogre shader and texture references,
-the bundled font, resource locations, and the checked-in runtime templates.
+It validates registered block definitions and their named shape resources,
+Ogre shader and texture references, the bundled font, resource locations, and
+the checked-in runtime templates. Non-cube block definitions use
+`MeshType 1` plus `Shape <name>`; each `media/shapes/<name>.shape` file contains
+one or more `Face` entries with 12 normalized vertex coordinates.
 
 The client also has a deterministic validation-only startup that does not
 create a render window:

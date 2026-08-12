@@ -1787,6 +1787,101 @@ void caseMetadataBackedBehavior()
 }
 
 // ---------------------------------------------------------------------------
+// C3 - non-cube geometry is loaded from named shape resources
+// ---------------------------------------------------------------------------
+void caseResourceDrivenBlockShapes()
+{
+    const auto &database = BlockDatabase::get();
+    const auto &tallGrass =
+        database.getDefinition(BlockId::TallGrass).render;
+    const auto &rose = database.getDefinition(BlockId::Rose).render;
+    const auto &deadShrub =
+        database.getDefinition(BlockId::DeadShrub).render;
+    check("C3/flora-definitions-use-resource-shape",
+          tallGrass.meshType == BlockMeshType::Resource &&
+              rose.meshType == BlockMeshType::Resource &&
+              deadShrub.meshType == BlockMeshType::Resource &&
+              tallGrass.shape.name == "Cross" &&
+              rose.shape.name == "Cross" &&
+              deadShrub.shape.name == "Cross");
+
+    const BlockShapeFace expectedFirst{
+        0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0,
+    };
+    const BlockShapeFace expectedSecond{
+        0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1,
+    };
+    check("C3/cross-shape-loads-resource-vertices",
+          tallGrass.shape.faces.size() == 2 &&
+              tallGrass.shape.faces[0] == expectedFirst &&
+              tallGrass.shape.faces[1] == expectedSecond);
+
+    const std::filesystem::path fixtureRoot =
+        freshSaveDirectory("resource_shape_fixture");
+    const std::filesystem::path blockDirectory = fixtureRoot / "blocks";
+    const std::filesystem::path shapeDirectory = fixtureRoot / "shapes";
+    std::filesystem::create_directories(blockDirectory);
+    std::filesystem::create_directories(shapeDirectory);
+    {
+        std::ofstream shape(shapeDirectory / "SingleQuad.shape",
+                            std::ios::binary | std::ios::trunc);
+        shape << "Face\n0 0 0 1 0 0 1 1 0 0 1 0\n";
+    }
+    {
+        std::ofstream block(blockDirectory / "Fixture.block",
+                            std::ios::binary | std::ios::trunc);
+        block << "Name\nFixture\n\n"
+              << "Id\n10\n\n"
+              << "TexAll\n11 0\n\n"
+              << "Opaque\n0\n\n"
+              << "MeshType\n1\n\n"
+              << "Shape\nSingleQuad\n\n"
+              << "ShaderType\n2\n\n"
+              << "Light\n0\n\n"
+              << "Collidable\n0\n";
+    }
+    const BlockData fixture("Fixture", blockDirectory.string(),
+                            shapeDirectory.string());
+    const auto &fixtureShape = fixture.getBlockData().shape;
+    check("C3/new-resource-shape-needs-no-builder-change",
+          fixtureShape.name == "SingleQuad" &&
+              fixtureShape.faces.size() == 1 &&
+              fixtureShape.faces.front() == BlockShapeFace{
+                  0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0,
+              });
+
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+    const auto directory = freshSaveDirectory("resource_shape_mesh");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+
+    constexpr int blockY = 200;
+    world.setBlock(4, blockY, 4,
+                   ChunkBlock(BlockId::TallGrass,
+                              BlockMetadata::TallGrass::Mature));
+    Chunk *chunk = world.getChunkManager().findChunk(0, 0);
+    ChunkSection *section =
+        chunk != nullptr ? chunk->findSection(blockY / CHUNK_SIZE) : nullptr;
+    ChunkMeshCollection meshes;
+    if (section != nullptr) {
+        SectionMeshInput input;
+        section->captureMeshInput(input);
+        ChunkMeshBuilder(input, meshes).buildMesh();
+    }
+    check("C3/resource-shape-builds-flora-mesh",
+          section != nullptr && meshes.floraMesh.faces == 2 &&
+              meshes.floraMesh.getClientMesh().vertexPositions.size() ==
+                  24 &&
+              meshes.solidMesh.faces == 0 &&
+              meshes.waterMesh.faces == 0 &&
+              meshes.transparentMesh.faces == 0);
+}
+
+// ---------------------------------------------------------------------------
 // L1 - sunlight is stored per voxel, captured with mesh inputs and included in
 // the greedy merge key so a cave face cannot borrow the surface brightness
 // ---------------------------------------------------------------------------
@@ -3144,6 +3239,7 @@ int main()
         caseTransparentBlockRules();
         caseBlockBehaviorDispatch();
         caseMetadataBackedBehavior();
+        caseResourceDrivenBlockShapes();
         caseSunlightStorage();
         caseBlockLightStorage();
         caseLocalRelightAfterEdits();
