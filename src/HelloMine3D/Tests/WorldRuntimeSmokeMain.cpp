@@ -49,6 +49,7 @@
 #include "../World/Interaction/BlockInteractionSystem.h"
 #include "../World/Chunk/ChunkMeshBuilder.h"
 #include "../World/Chunk/SectionMeshInput.h"
+#include "../World/Generation/Biome/TemperateForestBiome.h"
 #include "../World/Storage/ChunkStorage.h"
 #include "../World/Storage/WorldSave.h"
 #include "../World/World.h"
@@ -1733,6 +1734,59 @@ void caseBlockBehaviorDispatch()
 }
 
 // ---------------------------------------------------------------------------
+// C2 - block metadata selects behavior without allocating another block id
+// ---------------------------------------------------------------------------
+void caseMetadataBackedBehavior()
+{
+    const auto &definition =
+        BlockDatabase::get().getDefinition(BlockId::TallGrass);
+    const ChunkBlock immature(
+        BlockId::TallGrass, BlockMetadata::TallGrass::Immature);
+    const ChunkBlock mature(
+        BlockId::TallGrass, BlockMetadata::TallGrass::Mature);
+    check("C2/same-id-metadata-selects-drop",
+          immature.id == mature.id &&
+              definition.behavior->getDrop(definition, immature) ==
+                  Material::ID::Nothing &&
+              definition.behavior->getDrop(definition, mature) ==
+                  Material::ID::TallGrass);
+
+    TemperateForestBiome biome(kValidationSeed);
+    Rand random(kValidationSeed);
+    const ChunkBlock naturalPlant = biome.getPlant(random);
+    check("C2/natural-tall-grass-is-mature",
+          naturalPlant == mature);
+
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+    const auto directory = freshSaveDirectory("metadata_behavior");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+
+    constexpr int y = 100;
+    world.setBlock(8, y, 8, immature);
+    const std::size_t actorsBefore =
+        world.collectDebugStats().actorCount;
+    const bool brokeImmature = BlockInteractionSystem::breakBlock(
+        world, player, {8.5f, static_cast<float>(y) + 0.5f, 8.5f});
+    check("C2/immature-break-has-no-drop",
+          brokeImmature && player.getHeldItems().isEmpty() &&
+              world.collectDebugStats().actorCount == actorsBefore);
+
+    world.setBlock(8, y, 8, mature);
+    const bool brokeMature = BlockInteractionSystem::breakBlock(
+        world, player, {8.5f, static_cast<float>(y) + 0.5f, 8.5f});
+    check("C2/mature-break-drops-tall-grass",
+          brokeMature &&
+              player.getHeldItems().getMaterial().id ==
+                  Material::ID::TallGrass &&
+              player.getHeldItems().getNumInStack() == 1);
+}
+
+// ---------------------------------------------------------------------------
 // L1 - sunlight is stored per voxel, captured with mesh inputs and included in
 // the greedy merge key so a cave face cannot borrow the surface brightness
 // ---------------------------------------------------------------------------
@@ -3089,6 +3143,7 @@ int main()
         caseGreedyMeshing();
         caseTransparentBlockRules();
         caseBlockBehaviorDispatch();
+        caseMetadataBackedBehavior();
         caseSunlightStorage();
         caseBlockLightStorage();
         caseLocalRelightAfterEdits();

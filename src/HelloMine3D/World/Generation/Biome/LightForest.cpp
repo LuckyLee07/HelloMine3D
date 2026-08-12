@@ -9,7 +9,9 @@ namespace
         static const BiomeDefinition definition{
             NoiseParameters{5, 100, 195, -32, 0.52}, 60, 80,
             ChunkBlock(BlockId::Grass), ChunkBlock(BlockId::Dirt),
-            ChunkBlock(BlockId::Sand), ChunkBlock(BlockId::TallGrass)};
+            ChunkBlock(BlockId::Sand),
+            ChunkBlock(BlockId::TallGrass,
+                       BlockMetadata::TallGrass::Mature)};
         return definition;
     }
 }

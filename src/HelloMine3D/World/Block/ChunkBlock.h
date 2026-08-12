@@ -6,6 +6,13 @@
 struct BlockDataHolder;
 class BlockType;
 
+namespace BlockMetadata {
+namespace TallGrass {
+constexpr BlockMetadata_t Immature = 0;
+constexpr BlockMetadata_t Mature = 1;
+} // namespace TallGrass
+} // namespace BlockMetadata
+
 struct ChunkBlock {
     ChunkBlock() = default;
 

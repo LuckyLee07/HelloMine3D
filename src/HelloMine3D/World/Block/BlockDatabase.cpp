@@ -1,4 +1,5 @@
 #include "BlockDatabase.h"
+#include "ChunkBlock.h"
 
 #include <cctype>
 #include <stdexcept>
@@ -13,6 +14,25 @@ class NoDropBlockBehavior final : public BlockBehavior {
     {
         return Material::ID::Nothing;
     }
+};
+
+class MatureDropBlockBehavior final : public BlockBehavior {
+  public:
+    explicit MatureDropBlockBehavior(BlockMetadata_t matureStage)
+        : m_matureStage(matureStage)
+    {
+    }
+
+    Material::ID getDrop(const BlockDefinition &definition,
+                         const ChunkBlock &block) const override
+    {
+        return block.metadata >= m_matureStage
+                   ? BlockBehavior::getDrop(definition, block)
+                   : Material::ID::Nothing;
+    }
+
+  private:
+    BlockMetadata_t m_matureStage;
 };
 
 std::string makeStringId(const std::string &fileName)
@@ -82,7 +102,9 @@ BlockDatabase::BlockDatabase()
     addBlock(BlockId::Sand, "Sand");
     addBlock(BlockId::Water, "Water");
     addBlock(BlockId::Cactus, "Cactus");
-    addBlock(BlockId::TallGrass, "TallGrass");
+    addBlock(BlockId::TallGrass, "TallGrass",
+             std::make_unique<MatureDropBlockBehavior>(
+                 BlockMetadata::TallGrass::Mature));
     addBlock(BlockId::Rose, "Rose");
     addBlock(BlockId::DeadShrub, "DeadShrub");
     addBlock(BlockId::CoalOre, "CoalOre");
