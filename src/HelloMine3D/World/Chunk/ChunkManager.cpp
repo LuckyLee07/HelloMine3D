@@ -299,6 +299,7 @@ void ChunkManager::unloadChunk(int x, int z)
     const int height =
         static_cast<int>(chunk->getSectionCount()) * CHUNK_SIZE;
     saveChunk(*chunk);
+    m_world->removeRandomTickSectionsForChunk(x, z);
     m_chunks.erase({x, z});
     m_world->reconcileBlockLightAfterChunkUnload(x, z, height);
     m_world->getEventBus().publish(ChunkUnloadedEvent({x, z}));

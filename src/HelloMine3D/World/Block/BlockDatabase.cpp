@@ -1,5 +1,6 @@
 #include "BlockDatabase.h"
 #include "ChunkBlock.h"
+#include "../World.h"
 
 #include <cctype>
 #include <stdexcept>
@@ -16,9 +17,9 @@ class NoDropBlockBehavior final : public BlockBehavior {
     }
 };
 
-class MatureDropBlockBehavior final : public BlockBehavior {
+class TallGrassBlockBehavior final : public BlockBehavior {
   public:
-    explicit MatureDropBlockBehavior(BlockMetadata_t matureStage)
+    explicit TallGrassBlockBehavior(BlockMetadata_t matureStage)
         : m_matureStage(matureStage)
     {
     }
@@ -29,6 +30,21 @@ class MatureDropBlockBehavior final : public BlockBehavior {
         return block.metadata >= m_matureStage
                    ? BlockBehavior::getDrop(definition, block)
                    : Material::ID::Nothing;
+    }
+
+    bool receivesRandomTicks(const BlockDefinition &,
+                             const ChunkBlock &block) const noexcept override
+    {
+        return block.metadata < m_matureStage;
+    }
+
+    void onRandomTick(World &world, const glm::ivec3 &position,
+                      const ChunkBlock &block) const override
+    {
+        if (block.metadata < m_matureStage) {
+            world.setBlock(position.x, position.y, position.z,
+                           ChunkBlock(block.id, m_matureStage));
+        }
     }
 
   private:
@@ -104,7 +120,7 @@ BlockDatabase::BlockDatabase()
     addBlock(BlockId::Water, "Water");
     addBlock(BlockId::Cactus, "Cactus");
     addBlock(BlockId::TallGrass, "TallGrass",
-             std::make_unique<MatureDropBlockBehavior>(
+             std::make_unique<TallGrassBlockBehavior>(
                  BlockMetadata::TallGrass::Mature));
     addBlock(BlockId::Rose, "Rose");
     addBlock(BlockId::DeadShrub, "DeadShrub");

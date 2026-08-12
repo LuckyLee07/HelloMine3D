@@ -333,6 +333,16 @@ class OgreUserInterface::Impl
             ImGui::Text("Queued chunk updates: %llu",
                         static_cast<unsigned long long>(
                             worldStats.queuedChunkUpdates));
+            ImGui::Text("Random ticks blocks / sections / last: %llu / %llu / %llu",
+                        static_cast<unsigned long long>(
+                            worldStats.randomTickBlocks),
+                        static_cast<unsigned long long>(
+                            worldStats.randomTickSections),
+                        static_cast<unsigned long long>(
+                            worldStats.randomTickSectionsProcessed));
+            ImGui::Text("Random ticks dispatched: %llu",
+                        static_cast<unsigned long long>(
+                            worldStats.randomTicksDispatched));
             ImGui::Separator();
             ImGui::Text("Sections: %llu",
                         static_cast<unsigned long long>(

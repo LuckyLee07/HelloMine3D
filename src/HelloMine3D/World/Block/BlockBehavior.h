@@ -17,6 +17,10 @@ class BlockBehavior {
 
     virtual Material::ID getDrop(const BlockDefinition &definition,
                                  const ChunkBlock &block) const;
+    virtual bool receivesRandomTicks(const BlockDefinition &definition,
+                                     const ChunkBlock &block) const noexcept;
+    virtual void onRandomTick(World &world, const glm::ivec3 &position,
+                              const ChunkBlock &block) const;
     virtual void onPlaced(World &world, Player &player,
                           const glm::ivec3 &position,
                           const ChunkBlock &previousBlock,

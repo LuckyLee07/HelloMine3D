@@ -32,8 +32,8 @@ HelloMine3D 已具备这些基础：
 
 | 风险 | 说明 |
 | ---- | ---- |
-| macOS 原生路径尚未验收 | Windows 侧的 22 个 Xcode 工程和 123 项生成合同均通过；仍需真实 macOS 主机运行 `bash scripts/verify_xcode.sh`，完成双配置构建、测试和客户端启动。 |
-| 远期产品化方向未排期 | 顶点压缩、random tick、昼夜/雾效、资源包、mod 和多人仍是候选方向，不属于当前执行清单；立项前应单独设计并写入 `docs/todolist.md`。 |
+| macOS 原生路径延期 | Windows 侧的 22 个 Xcode 工程和 123 项生成合同均通过；按当前 Windows-first 方向暂缓真实 macOS 的双配置构建、测试和客户端启动。 |
+| 远期产品化方向未排期 | 完整资源包、mod 和多人仍是候选方向，不属于当前执行清单；立项前应单独设计并写入 `docs/todolist.md`。 |
 
 ## 迭代阶段
 
@@ -45,10 +45,10 @@ HelloMine3D 已具备这些基础：
 | 第 0 阶段 | 已完成 | `S0.1-S0.6`、`V4-V5` |
 | 第 1 阶段 | 已完成 | `S0.4`、`A1-A4`、`S7.1` |
 | 第 2 阶段 | 已完成当前范围 | `M1-M7`；顶点格式压缩未排期 |
-| 第 3 阶段 | 已完成当前范围 | `S3.1-S3.6`、`C1-C3`；random tick 未排期 |
+| 第 3 阶段 | 已完成当前范围 | `S3.1-S3.6`、`C1-C3`、`C7` |
 | 第 4 阶段 | 已完成 | `S2.1-S2.6`、`S6.1-S6.5`、`L1-L3`、`C4-C5` |
 | 第 5 阶段 | 已完成当前范围 | `V3`、`P1-P5`、`L4`；昼夜/雾效未排期 |
-| 第 6 阶段 | B3 阻塞 | `B1`、`B2`、`B4`、`B5` 已完成；macOS 原生门禁待真实主机 |
+| 第 6 阶段 | B3 延期 | `B1`、`B2`、`B4`、`B5` 已完成；Windows 迭代期间暂缓 macOS 原生门禁 |
 
 ### 第 0 阶段：稳定现有基础
 
@@ -128,7 +128,7 @@ HelloMine3D 已具备这些基础：
 | P0 | 拆分方块定义层 | 引入 `BlockDefinition`、`BlockRenderInfo`、`BlockShape` 等概念。 | 渲染、碰撞、基础属性不再全部挤在 `BlockDataHolder`。 |
 | P1 | 引入轻量 `BlockBehavior` | 放置、破坏、tick、邻居变化、掉落等行为集中扩展。 | 新增一种特殊方块不需要到处写 `switch`。 |
 | P1 | 方块形状资源化 | 从 MiniGame 的 `blockgeom.xml` 借鉴，但使用适合本项目的轻量格式。 | 非 cube 方块不再必须写死在 mesh builder 中。 |
-| P2 | random tick 支持 | 植物生长、流体、火等只扫描需要 tick 的 section。 | tick 逻辑不会全世界暴力扫描。 |
+| P2 | random tick 支持（已完成，C7） | 植物生长、流体、火等只处理需要 tick 的 section。 | 去重轮转队列每次最多处理四个活跃 section，每个 section 均匀采样三个体素，不扫描整张世界。 |
 
 建议拆分后的模型：
 
@@ -203,7 +203,7 @@ HelloMine3D 已具备这些基础：
 ## 历史推荐执行顺序
 
 以下顺序记录规划时采用的小闭环。闭环 1、3、4、5 已完成；闭环 2 除
-macOS 原生构建与启动外已完成，剩余项由 `B3` 跟踪。
+macOS 原生构建与启动外已完成，`B3` 在 Windows-first 阶段明确延期。
 
 ### 闭环 1：区块修改可靠
 
@@ -261,7 +261,7 @@ macOS 原生构建与启动外已完成，剩余项由 `B3` 跟踪。
 
 | 里程碑 | 当前状态 | 标准 |
 | ------ | -------- | ---- |
-| M1 稳定 demo | B3 阻塞 | 区块加载、方块修改和资源诊断已完成；Windows 已验收，macOS 原生构建运行待验收。 |
+| M1 稳定 demo | Windows 已完成，B3 延期 | 区块加载、方块修改和资源诊断已完成；Windows 已验收，macOS 原生构建运行暂缓。 |
 | M2 可扩展体素核心 | 已完成 | dirty queue、halo cache、基础 greedy meshing、方块 metadata 完成。 |
 | M3 可保存沙盒 | 已完成 | world seed、chunk 存档、基础光照、decorator 地形生成完成。 |
 | M4 内容扩展阶段 | 已完成当前范围 | 方块 shape 资源化、BlockBehavior、演员、洞穴和跨区块结构完成。 |

@@ -10,6 +10,17 @@ BlockBehavior::getDrop(const BlockDefinition &definition,
     return definition.defaultDrop;
 }
 
+bool BlockBehavior::receivesRandomTicks(const BlockDefinition &,
+                                        const ChunkBlock &) const noexcept
+{
+    return false;
+}
+
+void BlockBehavior::onRandomTick(World &, const glm::ivec3 &,
+                                 const ChunkBlock &) const
+{
+}
+
 void BlockBehavior::onPlaced(World &, Player &, const glm::ivec3 &,
                              const ChunkBlock &, const ChunkBlock &) const
 {

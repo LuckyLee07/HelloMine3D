@@ -151,7 +151,9 @@ namespace
                "render_ms,debug_gui_ms,render_capture_ms,display_ms,frame_ms,"
                "existing_chunks,loaded_chunks,save_dirty_chunks,sections,"
                "mesh_dirty_sections,cpu_ready_sections,gpu_buffered_sections,"
-               "queued_chunk_updates,mesh_rebuilds,mesh_build_total_ms,"
+               "queued_chunk_updates,random_tick_sections,random_tick_blocks,"
+               "random_tick_sections_processed,random_ticks_dispatched,"
+               "mesh_rebuilds,mesh_build_total_ms,"
                "mesh_build_last_ms,mesh_build_max_ms,solid_faces,transparent_faces,"
                "water_faces,flora_faces,solid_vertices,transparent_vertices,"
                "water_vertices,flora_vertices,"
@@ -364,6 +366,14 @@ namespace
                     << last.chunks.gpuBufferedSections << "\n";
             summary << "last_queued_chunk_updates="
                     << last.queuedChunkUpdates << "\n";
+            summary << "last_random_tick_sections="
+                    << last.randomTickSections << "\n";
+            summary << "last_random_tick_blocks="
+                    << last.randomTickBlocks << "\n";
+            summary << "last_random_tick_sections_processed="
+                    << last.randomTickSectionsProcessed << "\n";
+            summary << "last_random_ticks_dispatched="
+                    << last.randomTicksDispatched << "\n";
             summary << "last_mesh_rebuilds=" << last.chunks.meshRebuilds
                     << "\n";
             summary << "last_mesh_build_total_ms="
@@ -468,6 +478,10 @@ void recordFrame(const FrameTimings &timings,
                         << worldStats.chunks.cpuReadySections << ","
                         << worldStats.chunks.gpuBufferedSections << ","
                         << worldStats.queuedChunkUpdates << ","
+                        << worldStats.randomTickSections << ","
+                        << worldStats.randomTickBlocks << ","
+                        << worldStats.randomTickSectionsProcessed << ","
+                        << worldStats.randomTicksDispatched << ","
                         << worldStats.chunks.meshRebuilds << ","
                         << worldStats.chunks.meshBuildTotalMs << ","
                         << worldStats.chunks.meshBuildLastMs << ","

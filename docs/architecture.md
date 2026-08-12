@@ -41,6 +41,13 @@ without making generation depend on neighbouring chunk load order.
 World metadata version 2 persists player state plus live mob/item subtype state;
 version 1 saves remain readable with an empty actor list and upgrade on the
 next world save.
+Random block simulation extends `BlockBehavior`: sections index only block
+states that currently opt in, and `World` rotates those active sections with a
+four-section budget on the fixed 20Hz tick. Each visit samples three uniformly
+distributed voxel positions, so sparse content is not guaranteed an immediate
+callback. The first real behavior advances
+immature tall grass to its mature metadata state; unload and storage reload
+remove and rebuild the index without scanning unrelated blocks.
 
 `Player/`, `Item/`, and `Physics/` are gameplay support modules.
 `PlayerInputState` is a platform-independent command value; the Ogre/OIS shell

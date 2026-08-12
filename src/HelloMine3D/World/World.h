@@ -36,6 +36,10 @@ struct WorldDebugStats {
     ChunkDebugStats chunks;
     std::size_t actorCount = 0;
     std::size_t queuedChunkUpdates = 0;
+    std::size_t randomTickSections = 0;
+    std::size_t randomTickBlocks = 0;
+    std::size_t randomTickSectionsProcessed = 0;
+    std::size_t randomTicksDispatched = 0;
     int terrainSeed = 0;
     float worldTime = 0.f;
 };
@@ -56,11 +60,14 @@ struct WorldMeshSnapshot {
 
 /// @brief Massive class designed to hold multiple chunks, the player, and most game aspects.
 class World : public NonCopyable {
+    friend class Chunk;
     friend class ChunkSection;
     friend class ChunkManager;
 
   public:
     static constexpr std::size_t ChunkMeshRebuildBudgetPerUpdate = 2;
+    static constexpr std::size_t RandomTickSectionBudgetPerTick = 4;
+    static constexpr std::size_t RandomTickAttemptsPerSection = 3;
 
     World(const Camera &camera, const Config &config, Player &player,
           std::string saveDirectory = "",
@@ -104,6 +111,9 @@ class World : public NonCopyable {
     static int floorMod(int value, int divisor);
     static VectorXZ getBlockXZ(int x, int z);
     static VectorXZ getChunkXZ(int x, int z);
+    static std::size_t randomTickBlockIndex(int terrainSeed, int worldTime,
+                                            const glm::ivec3 &section,
+                                            std::size_t attempt);
 
     /// Produces a complete, stable work order. Chunks intersecting the
     /// published frustum come first, with distance as the secondary key.
@@ -149,6 +159,9 @@ class World : public NonCopyable {
     void reconcileBlockLightAfterChunkLoad(int chunkX, int chunkZ);
     void reconcileBlockLightAfterChunkUnload(int chunkX, int chunkZ,
                                              int height);
+    void updateRandomTickSection(const glm::ivec3 &section, bool active);
+    void removeRandomTickSectionsForChunk(int chunkX, int chunkZ);
+    void runRandomTicks(int worldTime);
     void loadChunks();
     void unloadDistantChunks(const Camera &camera);
     void setChunkLoadCenter(const Camera &camera);
@@ -173,6 +186,10 @@ class World : public NonCopyable {
     std::vector<std::unique_ptr<IWorldEvent>> m_events;
     std::deque<glm::ivec3> m_chunkUpdateQueue;
     std::unordered_set<glm::ivec3, IVec3Hash> m_queuedChunkUpdates;
+    std::deque<glm::ivec3> m_randomTickSectionQueue;
+    std::unordered_set<glm::ivec3, IVec3Hash> m_randomTickSections;
+    std::size_t m_randomTickSectionsProcessed = 0;
+    std::size_t m_randomTicksDispatched = 0;
 
     std::atomic<bool> m_isRunning{true};
     std::vector<std::thread> m_chunkLoadThreads;

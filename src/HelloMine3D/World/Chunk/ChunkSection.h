@@ -4,6 +4,7 @@
 #include "../../Maths/glm.h"
 #include <array>
 #include <cstdint>
+#include <vector>
 
 #include "../Block/ChunkBlock.h"
 #include "../Light/LightLevel.h"
@@ -83,6 +84,10 @@ class ChunkSection : public IChunk {
     /// when this still matches the value captured with the input, otherwise
     /// the build raced an edit and its result is stale.
     std::uint32_t getBlockRevision() const;
+    std::size_t getRandomTickBlockCount() const noexcept;
+    bool selectRandomTickBlock(std::size_t selection,
+                               glm::ivec3 &worldPosition,
+                               ChunkBlock &block) const;
 
     const Layer &getLayer(int y) const;
     ChunkSection &getAdjacent(int dx, int dz);
@@ -109,6 +114,7 @@ class ChunkSection : public IChunk {
     std::array<LightLevel, CHUNK_VOLUME> m_sunlight;
     std::array<LightLevel, CHUNK_VOLUME> m_blockLight;
     std::array<Layer, CHUNK_SIZE> m_layers;
+    std::vector<std::uint16_t> m_randomTickBlocks;
 
     ChunkMeshCollection m_meshes;
     AABB m_aabb;

@@ -42,6 +42,25 @@ namespace
         return clampLightLevel(static_cast<LightLevel>(value));
     }
 
+    std::uint32_t randomTickSelection(int terrainSeed, int worldTime,
+                                      const glm::ivec3 &section,
+                                      std::size_t attempt)
+    {
+        std::uint32_t value = 2166136261u;
+        const auto mix = [&value](int component) {
+            value ^= static_cast<std::uint32_t>(component);
+            value *= 16777619u;
+            value ^= value >> 13;
+        };
+        mix(terrainSeed);
+        mix(worldTime);
+        mix(section.x);
+        mix(section.y);
+        mix(section.z);
+        mix(static_cast<int>(attempt));
+        return value;
+    }
+
     bool readIntEnv(const char *name, int &value)
     {
         const char *text = std::getenv(name);
@@ -579,10 +598,135 @@ void World::setBlock(int x, int y, int z, ChunkBlock block)
     queueLightingUpdates(changedPositions);
 }
 
+void World::updateRandomTickSection(const glm::ivec3 &section, bool active)
+{
+    if (active) {
+        if (m_randomTickSections.insert(section).second) {
+            m_randomTickSectionQueue.push_back(section);
+        }
+        return;
+    }
+
+    if (m_randomTickSections.erase(section) == 0) {
+        return;
+    }
+
+    m_randomTickSectionQueue.erase(
+        std::remove_if(m_randomTickSectionQueue.begin(),
+                       m_randomTickSectionQueue.end(),
+                       [&section](const glm::ivec3 &queued) {
+                           return queued.x == section.x &&
+                                  queued.y == section.y &&
+                                  queued.z == section.z;
+                       }),
+        m_randomTickSectionQueue.end());
+}
+
+void World::removeRandomTickSectionsForChunk(int chunkX, int chunkZ)
+{
+    std::vector<glm::ivec3> removed;
+    for (const glm::ivec3 &section : m_randomTickSections) {
+        if (section.x == chunkX && section.z == chunkZ) {
+            removed.push_back(section);
+        }
+    }
+    for (const glm::ivec3 &section : removed) {
+        updateRandomTickSection(section, false);
+    }
+}
+
+void World::runRandomTicks(int worldTime)
+{
+    struct RandomTickCandidate {
+        glm::ivec3 position{0};
+        ChunkBlock block;
+    };
+
+    std::vector<RandomTickCandidate> candidates;
+    {
+        std::unique_lock<std::mutex> lock(m_mainMutex);
+        m_randomTickSectionsProcessed = 0;
+        const std::size_t sectionsAtStart = m_randomTickSectionQueue.size();
+        const std::size_t budget = std::min(
+            RandomTickSectionBudgetPerTick, sectionsAtStart);
+        candidates.reserve(budget);
+
+        for (std::size_t index = 0; index < budget; ++index) {
+            const glm::ivec3 sectionKey = m_randomTickSectionQueue.front();
+            m_randomTickSectionQueue.pop_front();
+
+            if (m_randomTickSections.count(sectionKey) == 0) {
+                continue;
+            }
+
+            Chunk *chunk =
+                m_chunkManager.findChunk(sectionKey.x, sectionKey.z);
+            ChunkSection *section =
+                chunk != nullptr && chunk->hasLoaded()
+                    ? chunk->findSection(sectionKey.y)
+                    : nullptr;
+            if (section == nullptr ||
+                section->getRandomTickBlockCount() == 0) {
+                m_randomTickSections.erase(sectionKey);
+                continue;
+            }
+
+            for (std::size_t attempt = 0;
+                 attempt < RandomTickAttemptsPerSection; ++attempt) {
+                RandomTickCandidate candidate;
+                if (!section->selectRandomTickBlock(
+                        randomTickBlockIndex(
+                            m_chunkManager.getTerrainSeed(), worldTime,
+                            sectionKey, attempt),
+                        candidate.position, candidate.block)) {
+                    continue;
+                }
+                const auto &definition =
+                    BlockDatabase::get().getDefinition(
+                        static_cast<BlockId>(candidate.block.id));
+                if (definition.behavior != nullptr &&
+                    definition.behavior->receivesRandomTicks(
+                        definition, candidate.block)) {
+                    candidates.push_back(candidate);
+                }
+            }
+            m_randomTickSectionQueue.push_back(sectionKey);
+            ++m_randomTickSectionsProcessed;
+        }
+    }
+
+    std::size_t dispatched = 0;
+    for (const RandomTickCandidate &candidate : candidates) {
+        const ChunkBlock current = getBlock(candidate.position.x,
+                                            candidate.position.y,
+                                            candidate.position.z);
+        if (current != candidate.block) {
+            continue;
+        }
+
+        const auto &definition = BlockDatabase::get().getDefinition(
+            static_cast<BlockId>(current.id));
+        if (definition.behavior == nullptr ||
+            !definition.behavior->receivesRandomTicks(definition, current)) {
+            continue;
+        }
+
+        definition.behavior->onRandomTick(*this, candidate.position,
+                                          current);
+        ++dispatched;
+    }
+
+    if (dispatched > 0) {
+        std::unique_lock<std::mutex> lock(m_mainMutex);
+        m_randomTicksDispatched += dispatched;
+    }
+}
+
 void World::tick(int worldTime)
 {
     m_worldSaveData.worldTime = static_cast<float>(worldTime);
     m_actorManager.tick(*this, 1.f / 20.f);
+    runRandomTicks(worldTime);
 }
 
 // loads chunks
@@ -905,6 +1049,20 @@ WorldDebugStats World::collectDebugStats()
     stats.chunks = m_chunkManager.collectDebugStats();
     stats.actorCount = m_actorManager.getActorCount();
     stats.queuedChunkUpdates = m_chunkUpdateQueue.size();
+    stats.randomTickSections = m_randomTickSections.size();
+    for (const glm::ivec3 &sectionKey : m_randomTickSections) {
+        const Chunk *chunk =
+            m_chunkManager.findChunk(sectionKey.x, sectionKey.z);
+        const ChunkSection *section =
+            chunk != nullptr && chunk->hasLoaded()
+                ? chunk->findSection(sectionKey.y)
+                : nullptr;
+        if (section != nullptr) {
+            stats.randomTickBlocks += section->getRandomTickBlockCount();
+        }
+    }
+    stats.randomTickSectionsProcessed = m_randomTickSectionsProcessed;
+    stats.randomTicksDispatched = m_randomTicksDispatched;
     stats.terrainSeed = m_chunkManager.getTerrainSeed();
     stats.worldTime = m_worldSaveData.worldTime;
     return stats;
@@ -1030,6 +1188,14 @@ VectorXZ World::getBlockXZ(int x, int z)
 VectorXZ World::getChunkXZ(int x, int z)
 {
     return WorldCoordinates::getChunkXZ(x, z);
+}
+
+std::size_t World::randomTickBlockIndex(int terrainSeed, int worldTime,
+                                        const glm::ivec3 &section,
+                                        std::size_t attempt)
+{
+    return randomTickSelection(terrainSeed, worldTime, section, attempt) %
+           CHUNK_VOLUME;
 }
 
 int World::toBlockCoord(float value)

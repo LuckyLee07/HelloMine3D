@@ -1788,6 +1788,118 @@ void caseMetadataBackedBehavior()
 }
 
 // ---------------------------------------------------------------------------
+// C7 - random ticks visit only indexed sections with bounded round-robin work
+// ---------------------------------------------------------------------------
+void caseRandomTickScheduling()
+{
+    const auto &definition =
+        BlockDatabase::get().getDefinition(BlockId::TallGrass);
+    const ChunkBlock immature(
+        BlockId::TallGrass, BlockMetadata::TallGrass::Immature);
+    const ChunkBlock mature(
+        BlockId::TallGrass, BlockMetadata::TallGrass::Mature);
+    check("C7/metadata-selects-random-tick",
+          definition.behavior != nullptr &&
+              definition.behavior->receivesRandomTicks(definition,
+                                                         immature) &&
+              !definition.behavior->receivesRandomTicks(definition,
+                                                          mature));
+
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+    const auto directory = freshSaveDirectory("random_tick_scheduling");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+
+    constexpr int sectionCount = 5;
+    const auto sampledPosition = [](int chunkX, int sectionY, int chunkZ,
+                                    int tick) {
+        const std::size_t sample = World::randomTickBlockIndex(
+            kValidationSeed, tick, {chunkX, sectionY, chunkZ}, 0);
+        const int localY = static_cast<int>(sample / CHUNK_AREA);
+        const int remainder = static_cast<int>(sample % CHUNK_AREA);
+        const int localZ = remainder / CHUNK_SIZE;
+        const int localX = remainder % CHUNK_SIZE;
+        return glm::ivec3{chunkX * CHUNK_SIZE + localX,
+                          sectionY * CHUNK_SIZE + localY,
+                          chunkZ * CHUNK_SIZE + localZ};
+    };
+    std::array<glm::ivec3, sectionCount> positions;
+    for (int index = 0; index < sectionCount; ++index) {
+        const int tick = index < 4 ? 100 : 101;
+        positions[index] = sampledPosition(0, 10 + index, 0, tick);
+        world.setBlock(positions[index].x, positions[index].y,
+                       positions[index].z, immature);
+    }
+
+    const WorldDebugStats indexed = world.collectDebugStats();
+    check("C7/indexes-only-tickable-sections",
+          indexed.randomTickSections == sectionCount &&
+              indexed.randomTickBlocks == sectionCount,
+          "sections=" + std::to_string(indexed.randomTickSections) +
+              " blocks=" + std::to_string(indexed.randomTickBlocks));
+
+    world.tick(100);
+    int grown = 0;
+    for (int index = 0; index < sectionCount; ++index) {
+        if (world.getBlock(positions[index].x, positions[index].y,
+                           positions[index].z) == mature) {
+            ++grown;
+        }
+    }
+    const WorldDebugStats firstTick = world.collectDebugStats();
+    check("C7/section-budget-is-bounded",
+          grown == static_cast<int>(World::RandomTickSectionBudgetPerTick) &&
+              firstTick.randomTickSectionsProcessed ==
+                  World::RandomTickSectionBudgetPerTick &&
+              firstTick.randomTickSections == 1 &&
+              firstTick.randomTickBlocks == 1,
+          "grown=" + std::to_string(grown) +
+              " processed=" +
+              std::to_string(firstTick.randomTickSectionsProcessed));
+
+    world.tick(101);
+    const WorldDebugStats drained = world.collectDebugStats();
+    check("C7/round-robin-drains-remaining-section",
+          world.getBlock(positions[4].x, positions[4].y,
+                         positions[4].z) == mature &&
+              drained.randomTickSections == 0 &&
+              drained.randomTickBlocks == 0 &&
+              drained.randomTicksDispatched == sectionCount,
+          "active=" + std::to_string(drained.randomTickSections) +
+              " dispatched=" +
+              std::to_string(drained.randomTicksDispatched));
+
+    constexpr int persistedChunkX = 4;
+    constexpr int persistedChunkZ = 0;
+    constexpr int persistedSectionY = 6;
+    const glm::ivec3 persistedPosition = sampledPosition(
+        persistedChunkX, persistedSectionY, persistedChunkZ, 102);
+    world.getChunkManager().loadChunk(persistedChunkX, persistedChunkZ);
+    world.setBlock(persistedPosition.x, persistedPosition.y,
+                   persistedPosition.z, immature);
+    world.getChunkManager().unloadChunk(persistedChunkX, persistedChunkZ);
+    const WorldDebugStats unloaded = world.collectDebugStats();
+    check("C7/unload-removes-section-index",
+          unloaded.randomTickSections == 0 &&
+              unloaded.randomTickBlocks == 0);
+
+    world.getChunkManager().loadChunk(persistedChunkX, persistedChunkZ);
+    const WorldDebugStats reloaded = world.collectDebugStats();
+    world.tick(102);
+    check("C7/reload-restores-section-index",
+          reloaded.randomTickSections == 1 &&
+              reloaded.randomTickBlocks == 1 &&
+              world.getBlock(persistedPosition.x, persistedPosition.y,
+                             persistedPosition.z) == mature,
+          "sections=" + std::to_string(reloaded.randomTickSections) +
+              " blocks=" + std::to_string(reloaded.randomTickBlocks));
+}
+
+// ---------------------------------------------------------------------------
 // C3 - non-cube geometry is loaded from named shape resources
 // ---------------------------------------------------------------------------
 void caseResourceDrivenBlockShapes()
@@ -3379,6 +3491,7 @@ int main()
         caseTransparentBlockRules();
         caseBlockBehaviorDispatch();
         caseMetadataBackedBehavior();
+        caseRandomTickScheduling();
         caseResourceDrivenBlockShapes();
         caseSunlightStorage();
         caseBlockLightStorage();

@@ -1,11 +1,14 @@
 #include "ChunkSection.h"
 
+#include "../Block/BlockBehavior.h"
+#include "../Block/BlockDatabase.h"
 #include "../Block/BlockId.h"
 
 #include "../World.h"
 #include "ChunkMeshBuilder.h"
 #include "SectionMeshInput.h"
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <thread>
@@ -34,9 +37,36 @@ void ChunkSection::setBlock(int x, int y, int z, ChunkBlock block)
         return;
     }
 
+    const int blockIndex = getIndex(x, y, z);
+    const auto receivesRandomTicks = [](const ChunkBlock &candidate) {
+        const auto &definition = BlockDatabase::get().getDefinition(
+            static_cast<BlockId>(candidate.id));
+        return definition.behavior != nullptr &&
+               definition.behavior->receivesRandomTicks(definition,
+                                                         candidate);
+    };
+    const bool sectionWasActive = !m_randomTickBlocks.empty();
+    if (receivesRandomTicks(currentBlock)) {
+        const auto found = std::find(m_randomTickBlocks.begin(),
+                                     m_randomTickBlocks.end(), blockIndex);
+        if (found != m_randomTickBlocks.end()) {
+            *found = m_randomTickBlocks.back();
+            m_randomTickBlocks.pop_back();
+        }
+    }
+    if (receivesRandomTicks(block)) {
+        m_randomTickBlocks.push_back(
+            static_cast<std::uint16_t>(blockIndex));
+    }
+
     m_layers[y].update(currentBlock, block);
     currentBlock = block;
     invalidateMeshInput();
+
+    const bool sectionIsActive = !m_randomTickBlocks.empty();
+    if (sectionWasActive != sectionIsActive) {
+        m_pWorld->updateRandomTickSection(m_location, sectionIsActive);
+    }
 }
 
 ChunkBlock ChunkSection::getBlock(int x, int y, int z) const
@@ -187,6 +217,29 @@ void ChunkSection::adoptMesh(ChunkMeshCollection &built)
 std::uint32_t ChunkSection::getBlockRevision() const
 {
     return m_blockRevision;
+}
+
+std::size_t ChunkSection::getRandomTickBlockCount() const noexcept
+{
+    return m_randomTickBlocks.size();
+}
+
+bool ChunkSection::selectRandomTickBlock(std::size_t selection,
+                                         glm::ivec3 &worldPosition,
+                                         ChunkBlock &block) const
+{
+    if (m_randomTickBlocks.empty()) {
+        return false;
+    }
+
+    const int index = static_cast<int>(selection % CHUNK_VOLUME);
+    const int y = index / CHUNK_AREA;
+    const int remainder = index % CHUNK_AREA;
+    const int z = remainder / CHUNK_SIZE;
+    const int x = remainder % CHUNK_SIZE;
+    worldPosition = toWorldPosition(x, y, z);
+    block = m_blocks[index];
+    return true;
 }
 
 void ChunkSection::markGpuBuffered()

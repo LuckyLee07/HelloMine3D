@@ -331,6 +331,7 @@ void Chunk::loadBlockData(std::size_t sectionCount,
                           const std::vector<Block_t> &blockIds,
                           const std::vector<BlockMetadata_t> &metadata)
 {
+    m_pWorld->removeRandomTickSectionsForChunk(m_location.x, m_location.y);
     m_chunks.clear();
     m_highestBlocks.setAll(0);
     m_loadState = ChunkLoadState::Generating;
