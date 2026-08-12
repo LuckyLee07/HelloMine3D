@@ -219,12 +219,10 @@ project(project_name)
         "../src/Engine/ogre3d/include",
         "../src/Engine/ogre3d_glsupport/include",
         "../src/Engine/ogre3d_glsupport/include/GLSL",
-        "../src/Engine/ogre3d_glsupport/include/win32",
         "../src/Engine/ogre3d_gl3plus/include",
         "../src/Engine/ogre3d_gl3plus/include/GLSL",
         "../src/external/imgui",
-        "../src/external/ois/includes",
-        "../src/external/ois/includes/win32"
+        "../src/external/ois/includes"
     }
 
     links {
@@ -254,6 +252,10 @@ project(project_name)
 
     filter "system:windows"
         defines { "_CRT_SECURE_NO_WARNINGS" }
+        includedirs {
+            "../src/Engine/ogre3d_glsupport/include/win32",
+            "../src/external/ois/includes/win32"
+        }
         links {
             "opengl32",
             "winmm",
@@ -267,6 +269,11 @@ project(project_name)
         }
 
     filter "system:macosx"
+        includedirs {
+            "../src/Engine/ogre3d/include/OSX",
+            "../src/Engine/ogre3d_glsupport/include/OSX",
+            "../src/external/ois/includes/mac"
+        }
         linkoptions {
             "-framework Cocoa",
             "-framework Carbon",
@@ -278,6 +285,10 @@ project(project_name)
         }
 
     filter "system:linux"
+        includedirs {
+            "../src/Engine/ogre3d_glsupport/include/GLX",
+            "../src/external/ois/includes/linux"
+        }
         links {
             "GL",
             "X11",

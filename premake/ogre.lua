@@ -281,6 +281,7 @@ configure_static_project("ogre3d", "../build/Engine/ogre3d")
     filter "system:macosx"
         pchheader ""
         pchsource ""
+        includedirs { engine_dir .. "/ogre3d/include/OSX" }
         removefiles {
             engine_dir .. "/ogre3d/src/WIN32/**",
             engine_dir .. "/ogre3d/src/Android/**",
@@ -304,10 +305,8 @@ configure_static_project("ogre3d_glsupport", "../build/Engine/ogre3d_glsupport")
     dependson { "ogre3d" }
     includedirs {
         engine_dir .. "/ogre3d/include",
-        engine_dir .. "/ogre3d/include/OSX",
         engine_dir .. "/ogre3d_glsupport/include",
-        engine_dir .. "/ogre3d_glsupport/include/GLSL",
-        engine_dir .. "/ogre3d_glsupport/include/win32"
+        engine_dir .. "/ogre3d_glsupport/include/GLSL"
     }
     files {
         engine_dir .. "/ogre3d_glsupport/include/**.h",
@@ -315,12 +314,17 @@ configure_static_project("ogre3d_glsupport", "../build/Engine/ogre3d_glsupport")
         engine_dir .. "/ogre3d_glsupport/src/**.cpp"
     }
     filter "system:windows"
+        includedirs { engine_dir .. "/ogre3d_glsupport/include/win32" }
         removefiles {
             engine_dir .. "/ogre3d_glsupport/src/OSX/**",
             engine_dir .. "/ogre3d_glsupport/src/GLX/**",
             engine_dir .. "/ogre3d_glsupport/src/EGL/**"
         }
     filter "system:macosx"
+        includedirs {
+            engine_dir .. "/ogre3d/include/OSX",
+            engine_dir .. "/ogre3d_glsupport/include/OSX"
+        }
         removefiles {
             engine_dir .. "/ogre3d_glsupport/src/win32/**",
             engine_dir .. "/ogre3d_glsupport/src/GLX/**",
@@ -328,6 +332,7 @@ configure_static_project("ogre3d_glsupport", "../build/Engine/ogre3d_glsupport")
             engine_dir .. "/ogre3d_glsupport/src/OSX/OgreOSXRenderTexture.cpp"
         }
     filter "system:linux"
+        includedirs { engine_dir .. "/ogre3d_glsupport/include/GLX" }
         removefiles {
             engine_dir .. "/ogre3d_glsupport/src/OSX/**",
             engine_dir .. "/ogre3d_glsupport/src/win32/**",
@@ -354,13 +359,7 @@ configure_static_project("ogre3d_gl3plus", "../build/Engine/ogre3d_gl3plus")
 group "External"
 
 configure_static_project("ois", "../build/External/ois")
-    includedirs {
-        ois_dir .. "/includes",
-        ois_dir .. "/includes/win32",
-        ois_dir .. "/includes/mac",
-        ois_dir .. "/includes/linux",
-        ois_dir .. "/includes/iphone"
-    }
+    includedirs { ois_dir .. "/includes" }
     files {
         ois_dir .. "/includes/**.h",
         ois_dir .. "/src/**.cpp",
@@ -368,14 +367,17 @@ configure_static_project("ois", "../build/External/ois")
     }
     suppress_msvc_warnings { "4512", "4100", "4189" }
     filter "system:windows"
+        includedirs { ois_dir .. "/includes/win32" }
         removefiles {
             ois_dir .. "/src/mac/**",
             ois_dir .. "/src/linux/**",
             ois_dir .. "/src/iphone/**",
             ois_dir .. "/src/SDL/**",
-            ois_dir .. "/src/extras/**"
+            ois_dir .. "/src/extras/**",
+            ois_dir .. "/src/win32/extras/**"
         }
     filter "system:macosx"
+        includedirs { ois_dir .. "/includes/mac" }
         removefiles {
             ois_dir .. "/src/win32/**",
             ois_dir .. "/src/linux/**",
@@ -385,6 +387,7 @@ configure_static_project("ois", "../build/External/ois")
             ois_dir .. "/src/OISInputManager.cpp"
         }
     filter "system:linux"
+        includedirs { ois_dir .. "/includes/linux" }
         removefiles {
             ois_dir .. "/src/win32/**",
             ois_dir .. "/src/mac/**",

@@ -122,7 +122,8 @@ committed:
 | -------- | ------- | ------------------- |
 | Windows | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify_build.ps1` | Visual Studio 2022 with **Desktop development with C++**; Premake is bundled in `tools/`. |
 | Linux | `bash scripts/verify_build.sh` | A C++17 compiler, GNU Make, Premake 5 and the OpenGL/X11 development packages. |
-| macOS | `bash scripts/verify_build.sh` | Xcode command-line tools and Premake 5 (`brew install premake`). |
+| macOS / Make | `bash scripts/verify_build.sh` | Xcode command-line tools, GNU Make and Premake 5 (`brew install premake`). |
+| macOS / Xcode | `bash scripts/verify_xcode.sh` | A graphical macOS session, Xcode command-line tools, Premake 5 and x86_64 execution support. |
 
 Both wrappers stop at the first failed generation, compilation or test step
 and print `[BUILD_VERIFY] status=PASS` only after both configurations pass.
@@ -134,10 +135,16 @@ workspace contract without claiming a native build:
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_xcode_generation.ps1
 ```
 
-This check requires all six first-party targets, the Ogre/OIS dependency graph,
-macOS Cocoa input/GL sources and framework flags, while rejecting `WIN32`
-preprocessor definitions and Win32 build-phase sources. Native `xcodebuild` and
-client launch verification still require a macOS host.
+This 123-check preflight requires all six first-party targets and all 16 library
+projects, the Cocoa/OIS/OSX sources, platform header paths and framework flags.
+It rejects `WIN32` macros, foreign-platform build sources/search paths, and also
+checks the native verifier contract. It cannot replace `xcodebuild`.
+
+On a real macOS host, `scripts/verify_xcode.sh` is the final native gate. It
+generates Xcode projects, builds the client and five tests in Debug and Release,
+runs all ten test executions, then performs both validation-only and real-window
+three-frame client probes. The process prints `[XCODE_VERIFY] status=PASS` only
+after every step succeeds and keeps per-step logs under `build/`.
 
 ### Runtime Configuration And State
 

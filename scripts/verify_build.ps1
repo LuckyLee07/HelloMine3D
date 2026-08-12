@@ -63,6 +63,16 @@ try {
         & $premake --os=windows --file=premake/premake.lua vs2022
     }
 
+    $oisProject = Join-Path $repoRoot "build\External\ois\ois.vcxproj"
+    if (-not (Test-Path -LiteralPath $oisProject -PathType Leaf)) {
+        throw "Generated OIS project is missing: $oisProject"
+    }
+    $oisProjectText = Get-Content -LiteralPath $oisProject -Raw
+    if ($oisProjectText -match 'src[\\/]win32[\\/]extras') {
+        throw "Generated OIS project still contains the Win32 demo sources."
+    }
+    Write-Host "[BUILD_VERIFY] OIS source inventory valid"
+
     $tests = @(
         "HelloMine3DCoordinateTests.exe",
         "HelloMine3DMeshDirtyTests.exe",
