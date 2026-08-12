@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "../Block/ChunkBlock.h"
+#include "../Light/LightLevel.h"
 
 class ChunkMesh;
 class BlockData;
@@ -39,7 +40,8 @@ class ChunkMeshBuilder {
     void buildGreedySolidMesh();
     void buildGreedyFaces(CubeFace face);
     void addGreedyFace(CubeFace face, const glm::ivec2 &textureCoords,
-                       int slice, int u, int v, int width, int height);
+                       LightLevel sunlight, int slice, int u, int v,
+                       int width, int height);
     bool isGreedySolidBlock(ChunkBlock block) const;
 
     void setActiveMesh(ChunkBlock block);

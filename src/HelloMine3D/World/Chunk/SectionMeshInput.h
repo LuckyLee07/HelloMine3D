@@ -6,6 +6,7 @@
 #include <cstdint>
 
 #include "../Block/ChunkBlock.h"
+#include "../Light/LightLevel.h"
 #include "../WorldConstants.h"
 
 class ChunkSection;
@@ -29,6 +30,7 @@ class SectionMeshInput {
 
     /// Valid for coordinates in [-1, CHUNK_SIZE].
     ChunkBlock getBlock(int x, int y, int z) const;
+    LightLevel getSunlight(int x, int y, int z) const;
 
     /// Valid for y in [0, CHUNK_SIZE).
     bool shouldMakeLayer(int y) const;
@@ -42,6 +44,7 @@ class SectionMeshInput {
     static int index(int x, int y, int z);
 
     std::array<ChunkBlock, Volume> m_blocks{};
+    std::array<LightLevel, Volume> m_sunlight{};
 
     /// Own layers for y in [-1, CHUNK_SIZE], stored at y + 1.
     std::array<bool, CHUNK_SIZE + 2> m_ownLayerAllSolid{};

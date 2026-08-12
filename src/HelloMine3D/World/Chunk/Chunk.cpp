@@ -111,6 +111,39 @@ ChunkBlock Chunk::getBlock(int x, int y, int z) const noexcept
     return m_chunks[y / CHUNK_SIZE].getBlock(x, bY, z);
 }
 
+LightLevel Chunk::getSunlight(int x, int y, int z) const noexcept
+{
+    if (x < 0 || x >= CHUNK_SIZE || z < 0 || z >= CHUNK_SIZE || y < 0) {
+        return MIN_LIGHT_LEVEL;
+    }
+
+    if (y >= static_cast<int>(m_chunks.size()) * CHUNK_SIZE) {
+        return MAX_LIGHT_LEVEL;
+    }
+
+    return m_chunks[y / CHUNK_SIZE].getSunlight(x, y % CHUNK_SIZE, z);
+}
+
+void Chunk::rebuildSunlight()
+{
+    const int topY = static_cast<int>(m_chunks.size()) * CHUNK_SIZE - 1;
+    for (int x = 0; x < CHUNK_SIZE; ++x) {
+        for (int z = 0; z < CHUNK_SIZE; ++z) {
+            bool skyVisible = true;
+            for (int y = topY; y >= 0; --y) {
+                const ChunkBlock block = getBlock(x, y, z);
+                if (block.getData().isOpaque) {
+                    skyVisible = false;
+                }
+
+                m_chunks[y / CHUNK_SIZE].setSunlight(
+                    x, y % CHUNK_SIZE, z,
+                    skyVisible ? MAX_LIGHT_LEVEL : MIN_LIGHT_LEVEL);
+            }
+        }
+    }
+}
+
 int Chunk::getHeightAt(int x, int z) const
 {
     return m_highestBlocks.get(x, z);
@@ -240,6 +273,7 @@ void Chunk::loadBlockData(std::size_t sectionCount,
     }
 
     m_loadState = ChunkLoadState::Loaded;
+    rebuildSunlight();
     m_saveDirty = false;
 }
 
@@ -260,6 +294,7 @@ void Chunk::load(TerrainGenerator &generator)
 
     m_loadState = ChunkLoadState::Generating;
     generator.generateTerrainFor(*this);
+    rebuildSunlight();
     m_loadState = ChunkLoadState::Loaded;
     m_saveDirty = false;
 }

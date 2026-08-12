@@ -6,6 +6,7 @@
 #include <cstdint>
 
 #include "../Block/ChunkBlock.h"
+#include "../Light/LightLevel.h"
 #include "../WorldConstants.h"
 #include "ChunkMesh.h"
 #include "IChunk.h"
@@ -52,6 +53,8 @@ class ChunkSection : public IChunk {
 
     void setBlock(int x, int y, int z, ChunkBlock block) override;
     ChunkBlock getBlock(int x, int y, int z) const override;
+    void setSunlight(int x, int y, int z, LightLevel level);
+    LightLevel getSunlight(int x, int y, int z) const;
 
     glm::ivec3 getLocation() const;
 
@@ -100,6 +103,7 @@ class ChunkSection : public IChunk {
     static int getIndex(int x, int y, int z);
 
     std::array<ChunkBlock, CHUNK_VOLUME> m_blocks;
+    std::array<LightLevel, CHUNK_VOLUME> m_sunlight;
     std::array<Layer, CHUNK_SIZE> m_layers;
 
     ChunkMeshCollection m_meshes;

@@ -1520,6 +1520,145 @@ void caseGreedyMeshing()
 }
 
 // ---------------------------------------------------------------------------
+// L1 - sunlight is stored per voxel, captured with mesh inputs and included in
+// the greedy merge key so a cave face cannot borrow the surface brightness
+// ---------------------------------------------------------------------------
+void caseSunlightStorage()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+
+    const auto directory = freshSaveDirectory("sunlight_storage");
+    Config config = makeConfig();
+    Camera camera(config);
+
+    constexpr int floorY = 200;
+    constexpr int sectionY = floorY / CHUNK_SIZE;
+    constexpr int z = 4;
+    constexpr int surfaceX = 4;
+    constexpr int caveX = 5;
+
+    check("L1/light-level-conversion-bounded",
+          std::abs(lightLevelToBrightness(MIN_LIGHT_LEVEL) -
+                   MIN_TERRAIN_BRIGHTNESS) < 0.001f &&
+              std::abs(lightLevelToBrightness(MAX_LIGHT_LEVEL) - 1.f) <
+                  0.001f &&
+              std::abs(lightLevelToBrightness(
+                           static_cast<LightLevel>(255)) -
+                       1.f) < 0.001f);
+
+    {
+        Player player;
+        World world(camera, config, player, directory, false, 1);
+        world.setBlock(surfaceX, floorY, z, BlockId::Stone);
+        world.setBlock(caveX, floorY, z, BlockId::Stone);
+        world.setBlock(caveX, floorY + 2, z, BlockId::Stone);
+
+        Chunk *chunk = world.getChunkManager().findChunk(0, 0);
+        ChunkSection *section =
+            chunk != nullptr ? chunk->findSection(sectionY) : nullptr;
+        check("L1/high-section-available", section != nullptr);
+        if (chunk == nullptr || section == nullptr) {
+            return;
+        }
+
+        chunk->rebuildSunlight();
+        check("L1/open-column-has-full-sunlight",
+              world.getSunlight(surfaceX, floorY + 1, z) ==
+                  MAX_LIGHT_LEVEL,
+              "level=" + std::to_string(world.getSunlight(
+                               surfaceX, floorY + 1, z)));
+        check("L1/roofed-column-has-no-direct-sunlight",
+              world.getSunlight(caveX, floorY + 1, z) == MIN_LIGHT_LEVEL &&
+                  world.getSunlight(caveX, floorY + 3, z) ==
+                      MAX_LIGHT_LEVEL,
+              "below/above=" +
+                  std::to_string(
+                      world.getSunlight(caveX, floorY + 1, z)) +
+                  "/" +
+                  std::to_string(
+                      world.getSunlight(caveX, floorY + 3, z)));
+
+        SectionMeshInput input;
+        section->captureMeshInput(input);
+        int sunlightMismatches = 0;
+        for (int y = -1; y <= CHUNK_SIZE; ++y) {
+            for (int localZ = -1; localZ <= CHUNK_SIZE; ++localZ) {
+                for (int localX = -1; localX <= CHUNK_SIZE; ++localX) {
+                    const int worldY = sectionY * CHUNK_SIZE + y;
+                    if (input.getSunlight(localX, y, localZ) !=
+                        world.getSunlight(localX, worldY, localZ)) {
+                        ++sunlightMismatches;
+                    }
+                }
+            }
+        }
+        check("L1/snapshot-halo-carries-sunlight",
+              sunlightMismatches == 0,
+              "mismatches=" + std::to_string(sunlightMismatches) +
+                  " over " + std::to_string(SectionMeshInput::Volume) +
+                  " cells");
+
+        ChunkMeshCollection meshes;
+        ChunkMeshBuilder(input, meshes).buildMesh();
+        const Mesh &solid = meshes.solidMesh.getClientMesh();
+        const auto &light = meshes.solidMesh.getLight();
+        int floorTopFaces = 0;
+        bool foundSurfaceLight = false;
+        bool foundCaveLight = false;
+        const std::size_t faceCount = solid.vertexPositions.size() / 12;
+        for (std::size_t face = 0; face < faceCount; ++face) {
+            bool isFloorTop = true;
+            for (std::size_t vertex = 0; vertex < 4; ++vertex) {
+                const std::size_t positionIndex =
+                    face * 12 + vertex * 3 + 1;
+                isFloorTop =
+                    isFloorTop &&
+                    std::abs(solid.vertexPositions[positionIndex] -
+                             static_cast<float>(floorY + 1)) < 0.001f;
+            }
+            if (!isFloorTop) {
+                continue;
+            }
+
+            ++floorTopFaces;
+            const float faceLight = light[face * 4];
+            foundSurfaceLight =
+                foundSurfaceLight ||
+                std::abs(faceLight - 1.f) < 0.001f;
+            foundCaveLight =
+                foundCaveLight ||
+                std::abs(faceLight - MIN_TERRAIN_BRIGHTNESS) < 0.001f;
+        }
+        check("L1/mesh-distinguishes-surface-and-cave",
+              foundSurfaceLight && foundCaveLight,
+              "surface=" + std::to_string(foundSurfaceLight) +
+                  " cave=" + std::to_string(foundCaveLight));
+        check("L1/greedy-splits-light-boundary", floorTopFaces == 2,
+              "top_faces=" + std::to_string(floorTopFaces));
+
+        check("L1/sunlight-fixture-saves", world.save());
+    }
+
+    {
+        Player player;
+        World world(camera, config, player, directory, false, 1);
+        check("L1/load-rebuilds-derived-sunlight",
+              world.getSunlight(surfaceX, floorY + 1, z) ==
+                      MAX_LIGHT_LEVEL &&
+                  world.getSunlight(caveX, floorY + 1, z) ==
+                      MIN_LIGHT_LEVEL,
+              "surface/cave=" +
+                  std::to_string(
+                      world.getSunlight(surfaceX, floorY + 1, z)) +
+                  "/" +
+                  std::to_string(
+                      world.getSunlight(caveX, floorY + 1, z)));
+    }
+}
+
+// ---------------------------------------------------------------------------
 // M6 - sections sealed by opaque neighbours complete without a mesh build
 // ---------------------------------------------------------------------------
 void caseEnclosedSectionSkip()
@@ -2463,6 +2602,7 @@ int main()
         casePersistence();
         caseSectionMeshInput();
         caseGreedyMeshing();
+        caseSunlightStorage();
         caseEnclosedSectionSkip();
         caseFrustumMeshPriority();
         caseSectionMeshUploadSnapshot();

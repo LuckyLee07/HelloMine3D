@@ -130,6 +130,34 @@ regime.**
 
 ## Current Verified Runs
 
+The current post-L1 hardware run was taken on 2026-08-12 with a GTX 1050 Ti /
+OpenGL 4.6, seed `20260809`, player position `264 96 8`, rotation
+`20 118.4 0`, a 3-second warmup and a 10-second capture:
+
+| Metric | Release |
+| ------ | ------- |
+| run | `bin/perf_baseline_l1_20260812` |
+| frames | 601 |
+| `sampled_fps` | 60.100 |
+| `avg_fps` | 60.143 |
+| `frame_p95_ms` | 17.749 |
+| `frame_p99_ms` | 18.366 |
+| `frame_max_ms` | 19.321 |
+| `frames_over_33ms` | 0 |
+| `frames_over_50ms` | 0 |
+| `simulation_tick_hz` | 20.000 |
+| `last_loaded_chunks` | 361 |
+| `last_sections` | 2243 |
+| `last_mesh_rebuilds` | 813 |
+| `last_mesh_build_avg_ms` | 0.466 |
+| `last_mesh_build_max_ms` | 1.363 |
+
+This is the first current hardware GL3Plus baseline after the Ogre migration
+and the L1 sunlight mesh changes. It is a vsync-on run; use it only against
+future runs with the same pinned scene and refresh regime.
+
+### Archived M3 runs
+
 Taken 2026-08-07 after the halo cache work (M3), with the command above.
 Both were **vsync inactive** runs, so do not compare them against the 60 fps
 runs recorded earlier the same day.

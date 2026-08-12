@@ -41,7 +41,7 @@ namespace
         const auto &textureCoordinates = clientMesh.textureCoords;
         const auto &textureRepeatCoordinates =
             clientMesh.textureRepeatCoords;
-        const auto &cardinalLight = mesh.getCardinalLight();
+        const auto &light = mesh.getLight();
         const std::size_t vertexCount = positions.size() / 3;
 
         std::vector<TerrainVertex> vertices;
@@ -63,7 +63,7 @@ namespace
                  textureCoordinates[index * 2 + 1],
                  textureRepeatCoordinates[index * 2],
                  textureRepeatCoordinates[index * 2 + 1],
-                 cardinalLight[index]});
+                 light[index]});
         }
         return vertices;
     }
@@ -147,7 +147,7 @@ ChunkMeshValidation ChunkSectionRenderable::validateCpuMesh(
     const auto &positions = clientMesh.vertexPositions;
     const auto &textureCoordinates = clientMesh.textureCoords;
     const auto &indices = clientMesh.indices;
-    const auto &cardinalLight = mesh.getCardinalLight();
+    const auto &light = mesh.getLight();
 
     ChunkMeshValidation result;
     if (positions.size() % 3 != 0)
@@ -169,9 +169,9 @@ ChunkMeshValidation ChunkSectionRenderable::validateCpuMesh(
             "texture repeat coordinate count does not match vertices";
         return result;
     }
-    if (cardinalLight.size() != result.vertexCount)
+    if (light.size() != result.vertexCount)
     {
-        result.message = "cardinal light count does not match vertices";
+        result.message = "light count does not match vertices";
         return result;
     }
     if (indices.size() % 3 != 0)
@@ -204,6 +204,11 @@ ChunkMeshValidation ChunkSectionRenderable::validateCpuMesh(
             !std::isfinite(vertex.light))
         {
             result.message = "a vertex contains a non-finite attribute";
+            return result;
+        }
+        if (vertex.light < 0.f || vertex.light > 1.f)
+        {
+            result.message = "a vertex light value is outside [0, 1]";
             return result;
         }
     }

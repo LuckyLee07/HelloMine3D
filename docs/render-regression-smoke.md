@@ -131,6 +131,22 @@ Earlier verified run, kept for comparison:
 `bin/render_capture_20260707173412631-53208` (recorded while the repository
 still lived at `E:\Workspace\MineCraft`).
 
+## L1 Sunlight Hardware Capture
+
+The 2026-08-12 L1 validation pinned seed `20260809`, player position
+`264 96 8`, and rotation `20 118.4 0`, then captured:
+
+```text
+bin/render_capture_l1_surface_20260812/new_01500ms.png
+```
+
+The GTX 1050 Ti / OpenGL 4.6 runtime wrote a structurally complete PNG that
+also decoded without errors through ffmpeg. The image shows bright open
+terrain and visibly darker faces under opaque tree cover, while retaining the
+terrain atlas, flora, debug panels and selected-block outline. This closes the
+visual half of L1; the matching headless assertions cover exact sunlight
+values, halo propagation, greedy-mesh boundaries and load-time rebuilding.
+
 ## Implementation Notes
 
 Runtime capture is implemented in

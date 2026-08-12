@@ -29,7 +29,7 @@ Output is one line per assertion plus a summary:
 ```text
 [VALIDATION] PASS S0.5/chunk-boundary-marks-neighbor
 [VALIDATION] FAIL S6.4/ore-decorator-produces-ore :: coal=0 iron=0
-[VALIDATION] checks=183 failures=0
+[VALIDATION] checks=192 failures=0
 [VALIDATION] status=PASS
 ```
 
@@ -64,6 +64,7 @@ position and player rotation are forced per scenario through the same
 | `caseMeshDirtyPropagation` | M2, S0.4, S0.5 | Interior and boundary edits dirty the correct sections. Five queued sections are deduplicated, rebuilt FIFO with a two-per-update budget, and drained across three frames. |
 | `casePersistence` | P2, S1.3, S2.1, S2.4, S2.5, S2.6, S6.1 | Block edits, world metadata, seed, spawn point, player transform/inventory, mobs and item entities all survive a relaunch. Actor subtype state and id allocation are compared after restore. |
 | `caseSectionMeshInput` | M1, M3 | The 18x18x18 block halo matches direct world reads, edits advance the section revision, and accepted mesh builds accumulate timing plus solid/water/flora face and vertex metrics. |
+| `caseSunlightStorage` | L1 | Sunlight conversion stays within 0-15, open and roofed columns differ, the full 18x18x18 halo carries sunlight, mesh brightness and greedy boundaries respect light values, and storage reload rebuilds derived sunlight. |
 | `caseSectionMeshUploadSnapshot` | E5 | Ogre-facing CPU mesh snapshots include live section identity and block revision; stale upload acknowledgements cannot overwrite a newer edit. |
 | `caseUnloadPersistence` | S2.4 | Unloading a chunk flushes it to storage first, and reloading restores the edit instead of regenerating. |
 | `caseChunkFormatRejection` | S2.2, S2.3 | Chunk file paths are deterministic, and a corrupted magic is rejected with a diagnostic rather than loaded as garbage. |
@@ -91,12 +92,13 @@ These need a person at the keyboard or a different harness:
 | Layer | Command | Result |
 | ----- | ------- | ------ |
 | Focused headless tests | `bin\HelloMine3DCoordinateTests.exe`, `bin\HelloMine3DMeshDirtyTests.exe`, `bin\HelloMine3DSaveLoadSmoke.exe`, `bin\HelloMine3DEntityLifecycleSmoke.exe` | All pass. |
-| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=183 failures=0` (Debug and Release, 2026-08-09) |
+| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=192 failures=0` (Debug and Release, 2026-08-12) |
 | A1 asset references | `sh scripts/check_assets.sh` | The repository passes 41 block/shader/texture/font/config checks. An isolated copy with `HelloMine3DTerrain.vert` omitted returns 1 and names the missing referenced shader (2026-08-09). |
 | A2 block diagnostics | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseBlockDataDiagnostics`) | Four malformed fixtures verify missing `ShaderType`, invalid `MeshType`, atlas coordinate `16 0`, and duplicate id 3 all report the full source path and exact key. Debug/Release pass (2026-08-09). |
 | A3 runtime config ownership | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseRuntimeConfigOwnership`) | Three assertions delete an isolated `config.txt`, verify regeneration with the documented defaults, then load customised values. `Mine.cfg` and `MineResources.cfg` remain the only tracked `bin/` templates (2026-08-09). |
 | A4 configured world seed | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseConfiguredWorldSeed`) | Three assertions load seed `20260811` from an isolated config, create two fresh worlds without `HELLOMINE3D_SEED`, and compare 2,299 terrain samples with zero mismatches. Debug/Release pass (2026-08-09). |
 | B5 capture polling race | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_render_capture.ps1 -ValidateCapturePolling`; ten real captures plus `ffmpeg -v error -i <png> -f null -` | Rejects a truncated non-empty PNG, then ten writers transition from partial data to a structurally complete PNG and finish with `runs=10 status=PASS`. Ten GTX 1050 Ti / OpenGL 4.6 captures also pass the script and independent decoder validation (`46,343-49,604` bytes). The poller requires a valid signature, bounded chunks and terminal `IEND`; relative paths resolve from the repository root and the native process handle is primed before fast exit (2026-08-12). |
+| L1 sunlight storage | `bin\HelloMine3DWorldRuntimeSmoke.exe`; hardware render capture; `tools\run_perf_baseline.ps1` | Nine L1 assertions pass in Debug and Release. `bin/render_capture_l1_surface_20260812/new_01500ms.png` independently decodes and shows bright open terrain against darker opaque occlusion on a GTX 1050 Ti / OpenGL 4.6. The 10-second performance run records 601 frames, 60.14 FPS, 17.75 ms frame P95, no frames over 33 ms, and 0.466/1.363 ms average/max section mesh build time (2026-08-12). |
 | E0 dependency boundary | `rg "SFML|sf::|GLfloat|GLuint|glad" src/HelloMine3D/World` | No matches (2026-08-09). |
 | E1 engine build | `tools\premake\premake5 --os=windows --file=premake/premake.lua vs2022`, then full Debug/Release solution builds | Ogre 1.10 core, GLSupport, GL3Plus, FreeImage dependency chain, dedicated Ogre FreeType, zlib, zzip and OIS all compile with 0 errors (2026-08-09). |
 | E2 bootstrap validation | `set HELLOMINE3D_VALIDATE_ONLY=1` then `bin\HelloMine3D.exe` | Debug and Release register `OpenGL 3+ Rendering Subsystem`, 2 resource locations and OIS, then shut down cleanly (2026-08-09). |

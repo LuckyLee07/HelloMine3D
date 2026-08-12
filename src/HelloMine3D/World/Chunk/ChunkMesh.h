@@ -20,12 +20,12 @@ class ChunkMesh {
     void addFace(const std::array<float, 12> &blockFace,
                  const std::array<float, 8> &textureCoords,
                  const glm::ivec3 &chunkPosition,
-                 const glm::ivec3 &blockPosition, float cardinalLight,
+                 const glm::ivec3 &blockPosition, float light,
                  float textureRepeatWidth = 1.f,
                  float textureRepeatHeight = 1.f);
 
     const Mesh &getClientMesh() const;
-    const std::vector<float> &getCardinalLight() const;
+    const std::vector<float> &getLight() const;
 
     void clearClientData();
 

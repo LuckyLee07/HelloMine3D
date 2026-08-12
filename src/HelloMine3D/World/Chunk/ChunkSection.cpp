@@ -15,6 +15,7 @@ ChunkSection::ChunkSection(const glm::ivec3 &location, World &world)
     , m_location(location)
     , m_pWorld(&world)
 {
+    m_sunlight.fill(MAX_LIGHT_LEVEL);
     m_aabb.update({location.x * CHUNK_SIZE, location.y * CHUNK_SIZE,
                    location.z * CHUNK_SIZE});
 }
@@ -48,6 +49,26 @@ ChunkBlock ChunkSection::getBlock(int x, int y, int z) const
     }
 
     return m_blocks[getIndex(x, y, z)];
+}
+
+void ChunkSection::setSunlight(int x, int y, int z, LightLevel level)
+{
+    if (outOfBounds(x) || outOfBounds(y) || outOfBounds(z)) {
+        return;
+    }
+
+    m_sunlight[getIndex(x, y, z)] = clampLightLevel(level);
+}
+
+LightLevel ChunkSection::getSunlight(int x, int y, int z) const
+{
+    if (outOfBounds(x) || outOfBounds(y) || outOfBounds(z)) {
+        const auto location = toWorldPosition(x, y, z);
+        return m_pWorld->getSunlightUnlocked(location.x, location.y,
+                                             location.z);
+    }
+
+    return m_sunlight[getIndex(x, y, z)];
 }
 
 glm::ivec3 ChunkSection::getLocation() const

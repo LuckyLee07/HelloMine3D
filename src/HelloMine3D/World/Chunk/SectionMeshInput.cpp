@@ -23,6 +23,8 @@ void SectionMeshInput::capture(ChunkSection &section)
         for (int z = -1; z <= CHUNK_SIZE; ++z) {
             for (int x = -1; x <= CHUNK_SIZE; ++x) {
                 m_blocks[index(x, y, z)] = section.getBlock(x, y, z);
+                m_sunlight[index(x, y, z)] =
+                    section.getSunlight(x, y, z);
             }
         }
     }
@@ -39,6 +41,16 @@ void SectionMeshInput::capture(ChunkSection &section)
                 adjacent.getLayer(y).isAllSolid();
         }
     }
+}
+
+LightLevel SectionMeshInput::getSunlight(int x, int y, int z) const
+{
+    if (x < -1 || x > CHUNK_SIZE || y < -1 || y > CHUNK_SIZE || z < -1 ||
+        z > CHUNK_SIZE) {
+        return MIN_LIGHT_LEVEL;
+    }
+
+    return m_sunlight[index(x, y, z)];
 }
 
 ChunkBlock SectionMeshInput::getBlock(int x, int y, int z) const

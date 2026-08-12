@@ -287,6 +287,29 @@ ChunkBlock World::getBlockUnlocked(int x, int y, int z)
     return chunk->getBlock(bp.x, y, bp.z);
 }
 
+LightLevel World::getSunlight(int x, int y, int z)
+{
+    std::unique_lock<std::mutex> lock(m_mainMutex);
+    return getSunlightUnlocked(x, y, z);
+}
+
+LightLevel World::getSunlightUnlocked(int x, int y, int z)
+{
+    if (y < 0) {
+        return MIN_LIGHT_LEVEL;
+    }
+
+    const auto blockPosition = getBlockXZ(x, z);
+    const auto chunkPosition = getChunkXZ(x, z);
+    const Chunk *chunk =
+        m_chunkManager.findChunk(chunkPosition.x, chunkPosition.z);
+    if (chunk == nullptr || !chunk->hasLoaded()) {
+        return MAX_LIGHT_LEVEL;
+    }
+
+    return chunk->getSunlight(blockPosition.x, y, blockPosition.z);
+}
+
 void World::setBlock(int x, int y, int z, ChunkBlock block)
 {
     if (y <= 0)

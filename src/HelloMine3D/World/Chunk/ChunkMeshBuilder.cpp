@@ -48,6 +48,11 @@ constexpr float LIGHT_X = 0.8f;
 constexpr float LIGHT_Z = 0.6f;
 constexpr float LIGHT_BOT = 0.4f;
 
+float combineTerrainLight(float cardinalLight, LightLevel sunlight)
+{
+    return cardinalLight * lightLevelToBrightness(sunlight);
+}
+
 } // namespace
 
 ChunkMeshBuilder::ChunkMeshBuilder(const SectionMeshInput &input,
@@ -161,12 +166,14 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
         bool visible = false;
         ChunkBlock block;
         glm::ivec2 textureCoords{0};
+        LightLevel sunlight = MIN_LIGHT_LEVEL;
     };
 
     const auto matches = [](const FaceCell &left, const FaceCell &right) {
         return left.visible && right.visible && left.block == right.block &&
                left.textureCoords.x == right.textureCoords.x &&
-               left.textureCoords.y == right.textureCoords.y;
+               left.textureCoords.y == right.textureCoords.y &&
+               left.sunlight == right.sunlight;
     };
     const auto positionFor = [face](int slice, int u, int v) {
         switch (face) {
@@ -229,7 +236,12 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
                 else if (face == CubeFace::Bottom) {
                     textureCoords = renderInfo.texBottomCoord;
                 }
-                mask[v * CHUNK_SIZE + u] = {true, block, textureCoords};
+                const LightLevel sunlight = m_pInput->getSunlight(
+                    position.x + adjacentOffset.x,
+                    position.y + adjacentOffset.y,
+                    position.z + adjacentOffset.z);
+                mask[v * CHUNK_SIZE + u] =
+                    {true, block, textureCoords, sunlight};
             }
         }
 
@@ -263,8 +275,8 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
                     }
                 }
 
-                addGreedyFace(face, cell.textureCoords, slice, u, v, width,
-                              height);
+                addGreedyFace(face, cell.textureCoords, cell.sunlight, slice,
+                              u, v, width, height);
                 for (int dv = 0; dv < height; ++dv) {
                     for (int du = 0; du < width; ++du) {
                         mask[(v + dv) * CHUNK_SIZE + u + du].visible = false;
@@ -278,8 +290,8 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
 
 void ChunkMeshBuilder::addGreedyFace(CubeFace face,
                                      const glm::ivec2 &textureCoords,
-                                     int slice, int u, int v, int width,
-                                     int height)
+                                     LightLevel sunlight, int slice, int u,
+                                     int v, int width, int height)
 {
     std::array<float, 12> vertices{};
     glm::ivec3 blockPosition{0};
@@ -339,7 +351,8 @@ void ChunkMeshBuilder::addGreedyFace(CubeFace face,
         BlockTextureCoordinates::get(textureCoords.x, textureCoords.y);
     m_pMeshes->solidMesh.addFace(
         vertices, atlasCoords, m_pInput->getLocation(), blockPosition,
-        cardinalLight, static_cast<float>(width),
+        combineTerrainLight(cardinalLight, sunlight),
+        static_cast<float>(width),
         static_cast<float>(height));
 }
 
@@ -382,10 +395,20 @@ void ChunkMeshBuilder::addXBlockToMesh(const glm::ivec2 &textureCoords,
         BlockTextureCoordinates::get(textureCoords.x, textureCoords.y);
 
     m_pActiveMesh->addFace(xFace1, texCoords, m_pInput->getLocation(),
-                           blockPosition, LIGHT_X);
+                           blockPosition,
+                           combineTerrainLight(
+                               LIGHT_X,
+                               m_pInput->getSunlight(blockPosition.x,
+                                                     blockPosition.y,
+                                                     blockPosition.z)));
 
     m_pActiveMesh->addFace(xFace2, texCoords, m_pInput->getLocation(),
-                           blockPosition, LIGHT_X);
+                           blockPosition,
+                           combineTerrainLight(
+                               LIGHT_X,
+                               m_pInput->getSunlight(blockPosition.x,
+                                                     blockPosition.y,
+                                                     blockPosition.z)));
 }
 
 void ChunkMeshBuilder::tryAddFaceToMesh(
@@ -398,7 +421,12 @@ void ChunkMeshBuilder::tryAddFaceToMesh(
             BlockTextureCoordinates::get(textureCoords.x, textureCoords.y);
 
         m_pActiveMesh->addFace(blockFace, texCoords, m_pInput->getLocation(),
-                               blockPosition, cardinalLight);
+                               blockPosition,
+                               combineTerrainLight(
+                                   cardinalLight,
+                                   m_pInput->getSunlight(
+                                       blockFacing.x, blockFacing.y,
+                                       blockFacing.z)));
     }
 }
 
