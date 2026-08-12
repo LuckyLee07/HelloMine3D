@@ -3159,7 +3159,7 @@ void caseActors()
               actorSnapshots.front().dimensions ==
                   glm::vec3(0.35f, 0.9f, 0.35f));
 
-    auto *mob = dynamic_cast<LivingActor *>(
+    auto *mob = dynamic_cast<MobActor *>(
         world.getActorManager().findActor(mobId));
     if (mob == nullptr) {
         check("S5.2/mob-is-living-actor", false);
@@ -3167,8 +3167,22 @@ void caseActors()
     }
     check("S5.2/mob-is-living-actor", true);
 
+    player.position = mobPosition + glm::vec3(4.f, 0.f, 0.f);
+    const float chaseDistanceBefore =
+        glm::length(glm::vec2(player.position.x - mob->position.x,
+                              player.position.z - mob->position.z));
+    world.tick(0);
+    const float chaseDistanceAfter =
+        glm::length(glm::vec2(player.position.x - mob->position.x,
+                              player.position.z - mob->position.z));
+    check("C6/mob-chases-nearby-player",
+          chaseDistanceAfter < chaseDistanceBefore,
+          "distance " + std::to_string(chaseDistanceBefore) + " -> " +
+              std::to_string(chaseDistanceAfter));
+
+    player.position = mobPosition + glm::vec3(100.f, 0.f, 100.f);
     const glm::vec3 startPosition = mob->position;
-    for (int i = 0; i < 20; ++i) {
+    for (int i = 1; i <= 20; ++i) {
         world.tick(i);
     }
     const float moved = glm::length(mob->position - startPosition);
@@ -3186,12 +3200,29 @@ void caseActors()
           "health=" + std::to_string(mob->getHealth()));
     check("S4.4/entity-damage-event",
           events.count(SandboxEventType::EntityDamage) == 1);
+    const float healthAfterFirstHit = mob->getHealth();
+    const bool repeatedDamageAccepted = mob->damage(world, 1.f);
+    check("C6/damage-immunity-rejects-repeat",
+          !repeatedDamageAccepted &&
+              mob->getHealth() == healthAfterFirstHit &&
+              mob->getDamageInvulnerabilityRemaining() > 0.f &&
+              events.count(SandboxEventType::EntityDamage) == 1,
+          "health=" + std::to_string(mob->getHealth()) +
+              " events=" +
+              std::to_string(events.count(SandboxEventType::EntityDamage)));
 
     events.reset();
-    mob->damage(world, 1000.f);
+    for (int i = 21; i <= 31; ++i) {
+        world.tick(i);
+    }
+    const bool lethalDamageAccepted = mob->damage(world, 1000.f);
+    check("C6/damage-immunity-expires", lethalDamageAccepted,
+          "remaining=" + std::to_string(
+              mob->getDamageInvulnerabilityRemaining()));
     check("S5.2/mob-dies", !mob->isAlive());
     check("S4.4/entity-death-event",
-          events.count(SandboxEventType::EntityDeath) == 1);
+          lethalDamageAccepted &&
+              events.count(SandboxEventType::EntityDeath) == 1);
     actorSnapshots = world.collectActorSnapshots();
     check("P1/dead-mob-is-not-rendered",
           std::none_of(actorSnapshots.begin(), actorSnapshots.end(),

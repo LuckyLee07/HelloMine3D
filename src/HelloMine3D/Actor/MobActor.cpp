@@ -1,5 +1,6 @@
 #include "MobActor.h"
 
+#include <algorithm>
 #include <cmath>
 #include <utility>
 
@@ -12,13 +13,36 @@ MobActor::MobActor(ActorId id, std::string type,
 
 void MobActor::tick(World &world, float dt)
 {
-    (void)world;
-
     if (!isAlive()) {
         return;
     }
 
+    LivingActor::tick(world, dt);
+    if (m_chaseTarget != nullptr && stepChase(m_chaseTarget->position, dt)) {
+        return;
+    }
+
     stepWander(dt);
+}
+
+bool MobActor::stepChase(const glm::vec3 &targetPosition, float dt)
+{
+    const float offsetX = targetPosition.x - position.x;
+    const float offsetZ = targetPosition.z - position.z;
+    const float distance = std::sqrt(offsetX * offsetX + offsetZ * offsetZ);
+    if (distance > ChaseRadius) {
+        return false;
+    }
+    if (distance <= ChaseStopDistance || distance <= 0.f || dt <= 0.f) {
+        return true;
+    }
+
+    const float travel =
+        std::min(ChaseSpeed * dt, distance - ChaseStopDistance);
+    position.x += offsetX / distance * travel;
+    position.z += offsetZ / distance * travel;
+    box.update(position);
+    return true;
 }
 
 ActorSaveState MobActor::getSaveState() const
@@ -51,6 +75,11 @@ void MobActor::stepWander(float dt)
     position.x += std::cos(m_wanderTime * 0.7f) * m_wanderSpeed * dt;
     position.z += std::sin(m_wanderTime * 0.5f) * m_wanderSpeed * dt;
     box.update(position);
+}
+
+void MobActor::setChaseTarget(const Entity *target)
+{
+    m_chaseTarget = target;
 }
 
 void MobActor::setWanderSpeed(float speed)

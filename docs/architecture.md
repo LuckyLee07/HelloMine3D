@@ -45,6 +45,11 @@ next world save.
 `Player/`, `Item/`, and `Physics/` are gameplay support modules.
 `PlayerInputState` is a platform-independent command value; the Ogre/OIS shell
 collects devices and `PlayerController` applies those commands deterministically.
+Mobs hold a non-owning target supplied by `World`, chase the player within a
+bounded horizontal radius, and otherwise keep their deterministic wander path.
+Damage immunity belongs to `LivingActor`, advances on the fixed simulation
+tick, suppresses duplicate health/event changes, and resets when save state is
+restored rather than becoming persistent world data.
 
 `Ogre/` is the runtime rendering layer. `ChunkSectionRenderable` owns Ogre GPU
 buffers for solid, water and flora meshes; `OgreActorRenderer` mirrors immutable

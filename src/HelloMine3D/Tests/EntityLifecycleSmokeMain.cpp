@@ -111,13 +111,16 @@ int main()
     ok &= expectEqual("health after first hit", events.lastHealthAfter, 6.f);
     ok &= expectTrue("mob alive after first hit", mob->isAlive());
 
-    ok &= expectTrue("lethal damage accepted",
-                     mob->damage(eventBus, 6.f, DefaultPlayerActorId));
-    ok &= expectEqual("damage count after lethal hit", events.damage, 2);
-    ok &= expectEqual("death count after lethal hit", events.deaths, 1);
+    ok &= expectTrue("repeat damage rejected during immunity",
+                     !mob->damage(eventBus, 6.f, DefaultPlayerActorId));
+    ok &= expectEqual("damage count after rejected hit", events.damage, 1);
+    ok &= expectEqual("health after rejected hit", mob->getHealth(), 6.f);
+
+    mob->die(eventBus, DefaultPlayerActorId);
+    ok &= expectEqual("death count after explicit death", events.deaths, 1);
     ok &= expectEqual("last damage id", events.lastDamageId, mobId);
     ok &= expectEqual("last death id", events.lastDeathId, mobId);
-    ok &= expectTrue("mob dead after lethal hit", !mob->isAlive());
+    ok &= expectTrue("mob dead after death event", !mob->isAlive());
 
     manager.removeDeadActors();
     ok &= expectEqual("actor count after cleanup", manager.getActorCount(),

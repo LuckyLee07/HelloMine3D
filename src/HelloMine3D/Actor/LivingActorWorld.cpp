@@ -8,12 +8,14 @@
 
 bool LivingActor::damage(World &world, float amount, ActorId sourceId)
 {
-    if (!isAlive() || amount <= 0.f) {
+    if (!isAlive() || amount <= 0.f ||
+        m_damageInvulnerabilityRemaining > 0.f) {
         return false;
     }
 
     const bool wasAlive = isAlive();
     m_health = std::max(0.f, m_health - amount);
+    m_damageInvulnerabilityRemaining = DamageInvulnerabilityDuration;
     world.getEventBus().publish(
         EntityDamageEvent(getId(), sourceId, amount, m_health, position));
 

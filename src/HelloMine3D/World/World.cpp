@@ -941,6 +941,7 @@ ActorId World::spawnMob(const std::string &type, const glm::vec3 &position)
     auto mob =
         std::make_unique<MobActor>(m_actorManager.allocateActorId(), type,
                                    position);
+    mob->setChaseTarget(m_player);
     return m_actorManager.addActor(std::move(mob), *this);
 }
 
@@ -1123,8 +1124,10 @@ void World::restoreActors(const std::vector<ActorSaveState> &states)
                 state.id, materialId, state.amount, state.position);
         }
         else if (state.kind == ActorSaveKind::Mob) {
-            actor = std::make_unique<MobActor>(
+            auto mob = std::make_unique<MobActor>(
                 state.id, state.type, state.position);
+            mob->setChaseTarget(m_player);
+            actor = std::move(mob);
         }
         else {
             continue;
