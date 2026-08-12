@@ -1305,8 +1305,8 @@ int runOgreBootstrap(bool validateOnly)
 {
     try
     {
-        validateStartupResources(ResourcePaths::projectRoot(),
-                                 bootstrapResourceRequirements());
+        const std::string root = ResourcePaths::projectRoot();
+        validateStartupResources(root, loadStartupResourceManifest(root));
         OgreBootstrap bootstrap;
         if (validateOnly)
         {

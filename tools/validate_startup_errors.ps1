@@ -48,6 +48,20 @@ foreach ($missing in $requirements) {
     $caseRoot = Join-Path $OutputDir $missing.Category
     New-Item -ItemType Directory -Path $caseRoot -Force | Out-Null
 
+    $manifestPath = Join-Path $caseRoot "media\resource-manifest.txt"
+    New-Item -ItemType Directory -Path (Split-Path -Parent $manifestPath) `
+        -Force | Out-Null
+    $manifestLines = @(
+        '# HelloMine3D resource manifest v1',
+        '',
+        'block|media/blocks/Stone.block',
+        'shader|media/ogre/HelloMine3DTerrain.vert',
+        'texture|media/textures/DefaultPack.png'
+    )
+    [System.IO.File]::WriteAllText(
+        $manifestPath, (($manifestLines -join "`n") + "`n"),
+        (New-Object System.Text.UTF8Encoding($false)))
+
     foreach ($present in $requirements) {
         if ($present.Category -eq $missing.Category) {
             continue

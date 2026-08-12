@@ -221,6 +221,19 @@ also shown in a modal error dialog. The non-interactive regression is:
 powershell -ExecutionPolicy Bypass -File tools\validate_startup_errors.ps1
 ```
 
+The startup resource inventory is generated from registered blocks and the
+references in block, material and program files. Regenerate or verify the
+checked-in manifest with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\generate_resource_manifest.ps1
+powershell -ExecutionPolicy Bypass -File tools\generate_resource_manifest.ps1 -Check
+powershell -ExecutionPolicy Bypass -File tools\validate_resource_manifest.ps1
+```
+
+The last command also proves that a missing expected entry and an unreferenced
+stale entry fail even when every resource file still exists.
+
 See `docs/runtime-validation.md` for what each layer covers.
 
 ## The Challenge

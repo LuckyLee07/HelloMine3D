@@ -63,6 +63,11 @@ buffers for solid, water and flora meshes; `OgreActorRenderer` mirrors immutable
 actor snapshots into simple mob/item scene nodes; `OgreBlockOutline`,
 `OgreUserInterface` and `OgreRenderCapture` own selection feedback, HUD/debug UI
 and screenshots. Materials and GLSL programs live under `media/ogre/`.
+Before Ogre construction, `StartupResourcePreflight` strictly parses the
+generated `media/resource-manifest.txt` and requires every listed resource to
+exist and be non-empty. The generator derives the sorted inventory from source
+registrations and resource references, so the runtime shell does not maintain a
+second hard-coded asset list.
 
 `Diagnostics/` contains renderer-independent performance/debug options. The
 ImGui platform and render integration stays in `Ogre/OgreUserInterface.*`.

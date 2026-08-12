@@ -9,6 +9,8 @@ $premake = Join-Path $repoRoot "tools\premake\premake5.exe"
 $solution = Join-Path $repoRoot "build\HelloMine3D.sln"
 $binDirectory = Join-Path $repoRoot "bin"
 $startupErrorVerifier = Join-Path $repoRoot "tools\validate_startup_errors.ps1"
+$resourceManifestVerifier = Join-Path $repoRoot `
+    "tools\validate_resource_manifest.ps1"
 
 function Invoke-Checked {
     param(
@@ -19,6 +21,7 @@ function Invoke-Checked {
     )
 
     Write-Host "[BUILD_VERIFY] $Label"
+    $global:LASTEXITCODE = 0
     & $Command
     if ($LASTEXITCODE -ne 0) {
         throw "$Label failed with exit code $LASTEXITCODE."
@@ -60,6 +63,10 @@ if (-not (Test-Path -LiteralPath $premake)) {
 $msbuild = Find-MSBuild
 Push-Location $repoRoot
 try {
+    Invoke-Checked "Resource manifest" {
+        & $resourceManifestVerifier
+    }
+
     Invoke-Checked "Generate VS2022 projects" {
         & $premake --os=windows --file=premake/premake.lua vs2022
     }
@@ -95,6 +102,49 @@ try {
                 throw "Expected test executable was not built: $testPath"
             }
             Invoke-Checked "$configuration $test" { & $testPath }
+        }
+
+        Invoke-Checked "$configuration validation-only client" {
+            $previousValidateOnly = $env:HELLOMINE3D_VALIDATE_ONLY
+            $previousRoot = $env:HELLOMINE3D_ROOT
+            $previousSeed = $env:HELLOMINE3D_SEED
+            $previousPosition = $env:HELLOMINE3D_PLAYER_POSITION
+            $previousRotation = $env:HELLOMINE3D_PLAYER_ROTATION
+            $previousSaveDir = $env:HELLOMINE3D_SAVE_DIR
+            $previousTransparentFixture =
+                $env:HELLOMINE3D_TRANSPARENT_FIXTURE
+            $validationSaveDir = Join-Path $binDirectory `
+                "build_verify_validation_$configuration"
+            try {
+                if (Test-Path -LiteralPath $validationSaveDir) {
+                    Remove-Item -LiteralPath $validationSaveDir `
+                        -Recurse -Force
+                }
+                $env:HELLOMINE3D_VALIDATE_ONLY = "1"
+                $env:HELLOMINE3D_ROOT = $repoRoot
+                $env:HELLOMINE3D_SEED = "20260809"
+                $env:HELLOMINE3D_PLAYER_POSITION = "264 96 8"
+                $env:HELLOMINE3D_PLAYER_ROTATION = "0 0 0"
+                $env:HELLOMINE3D_SAVE_DIR = $validationSaveDir
+                $env:HELLOMINE3D_TRANSPARENT_FIXTURE = "1"
+                Push-Location $binDirectory
+                try {
+                    & (Join-Path $binDirectory "HelloMine3D.exe")
+                }
+                finally {
+                    Pop-Location
+                }
+            }
+            finally {
+                $env:HELLOMINE3D_VALIDATE_ONLY = $previousValidateOnly
+                $env:HELLOMINE3D_ROOT = $previousRoot
+                $env:HELLOMINE3D_SEED = $previousSeed
+                $env:HELLOMINE3D_PLAYER_POSITION = $previousPosition
+                $env:HELLOMINE3D_PLAYER_ROTATION = $previousRotation
+                $env:HELLOMINE3D_SAVE_DIR = $previousSaveDir
+                $env:HELLOMINE3D_TRANSPARENT_FIXTURE =
+                    $previousTransparentFixture
+            }
         }
 
         Invoke-Checked "$configuration startup error diagnostics" {
