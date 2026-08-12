@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include "../Diagnostics/TerrainBufferMetrics.h"
 #include "../World/Chunk/ChunkMesh.h"
 #include "../World/WorldConstants.h"
 
@@ -29,7 +30,8 @@ namespace
         float light;
     };
 
-    static_assert(sizeof(TerrainVertex) == sizeof(float) * 8,
+    static_assert(sizeof(TerrainVertex) ==
+                      TerrainBufferMetrics::VertexStrideBytes,
                   "Terrain vertices must be tightly packed.");
 
     std::vector<TerrainVertex>
@@ -105,9 +107,11 @@ ChunkSectionRenderable::ChunkSectionRenderable(
 
     Ogre::HardwareVertexBufferSharedPtr vertexBuffer =
         Ogre::HardwareBufferManager::getSingleton().createVertexBuffer(
-            sizeof(TerrainVertex), vertices.size(),
+            TerrainBufferMetrics::VertexStrideBytes, vertices.size(),
             Ogre::HardwareBuffer::HBU_STATIC_WRITE_ONLY);
-    vertexBuffer->writeData(0, sizeof(TerrainVertex) * vertices.size(),
+    vertexBuffer->writeData(0,
+                            TerrainBufferMetrics::VertexStrideBytes *
+                                vertices.size(),
                             vertices.data(), true);
     mRenderOp.vertexData->vertexBufferBinding->setBinding(0, vertexBuffer);
     mRenderOp.vertexData->vertexStart = 0;
@@ -117,8 +121,9 @@ ChunkSectionRenderable::ChunkSectionRenderable(
         Ogre::HardwareBufferManager::getSingleton().createIndexBuffer(
             Ogre::HardwareIndexBuffer::IT_32BIT, indices.size(),
             Ogre::HardwareBuffer::HBU_STATIC_WRITE_ONLY);
-    indexBuffer->writeData(0, sizeof(std::uint32_t) * indices.size(),
-                           indices.data(), true);
+    indexBuffer->writeData(
+        0, TerrainBufferMetrics::IndexStrideBytes * indices.size(),
+        indices.data(), true);
     mRenderOp.indexData->indexBuffer = indexBuffer;
     mRenderOp.indexData->indexStart = 0;
     mRenderOp.indexData->indexCount = indices.size();
@@ -138,6 +143,20 @@ ChunkSectionRenderable::~ChunkSectionRenderable()
     OGRE_DELETE mRenderOp.indexData;
     mRenderOp.vertexData = nullptr;
     mRenderOp.indexData = nullptr;
+}
+
+std::size_t ChunkSectionRenderable::vertexCount() const noexcept
+{
+    return mRenderOp.vertexData == nullptr
+               ? 0
+               : mRenderOp.vertexData->vertexCount;
+}
+
+std::size_t ChunkSectionRenderable::indexCount() const noexcept
+{
+    return mRenderOp.indexData == nullptr
+               ? 0
+               : mRenderOp.indexData->indexCount;
 }
 
 ChunkMeshValidation ChunkSectionRenderable::validateCpuMesh(

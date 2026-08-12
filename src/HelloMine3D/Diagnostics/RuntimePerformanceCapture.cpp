@@ -156,7 +156,10 @@ namespace
                "mesh_rebuilds,mesh_build_total_ms,"
                "mesh_build_last_ms,mesh_build_max_ms,solid_faces,transparent_faces,"
                "water_faces,flora_faces,solid_vertices,transparent_vertices,"
-               "water_vertices,flora_vertices,"
+               "water_vertices,flora_vertices,terrain_vertex_stride_bytes,"
+               "terrain_index_stride_bytes,resident_terrain_vertices,"
+               "resident_terrain_indices,resident_terrain_vertex_bytes,"
+               "resident_terrain_index_bytes,resident_terrain_buffer_bytes,"
                "actor_count,terrain_seed,world_time,day_cycle,daylight,"
                "fog_density,simulation_ticks\n";
     }
@@ -402,6 +405,20 @@ namespace
                     << "\n";
             summary << "last_flora_vertices=" << last.chunks.floraVertices
                     << "\n";
+            summary << "terrain_vertex_stride_bytes="
+                    << TerrainBufferMetrics::VertexStrideBytes << "\n";
+            summary << "terrain_index_stride_bytes="
+                    << TerrainBufferMetrics::IndexStrideBytes << "\n";
+            summary << "last_resident_terrain_vertices="
+                    << last.terrainBuffers.vertexCount << "\n";
+            summary << "last_resident_terrain_indices="
+                    << last.terrainBuffers.indexCount << "\n";
+            summary << "last_resident_terrain_vertex_bytes="
+                    << last.terrainBuffers.vertexBytes() << "\n";
+            summary << "last_resident_terrain_index_bytes="
+                    << last.terrainBuffers.indexBytes() << "\n";
+            summary << "last_resident_terrain_buffer_bytes="
+                    << last.terrainBuffers.totalBytes() << "\n";
             summary << "last_actor_count=" << last.actorCount << "\n";
             summary << "terrain_seed=" << last.terrainSeed << "\n";
             summary << "last_world_time=" << last.worldTime << "\n";
@@ -500,6 +517,13 @@ void recordFrame(const FrameTimings &timings,
                         << worldStats.chunks.transparentVertices << ","
                         << worldStats.chunks.waterVertices << ","
                         << worldStats.chunks.floraVertices << ","
+                        << TerrainBufferMetrics::VertexStrideBytes << ","
+                        << TerrainBufferMetrics::IndexStrideBytes << ","
+                        << worldStats.terrainBuffers.vertexCount << ","
+                        << worldStats.terrainBuffers.indexCount << ","
+                        << worldStats.terrainBuffers.vertexBytes() << ","
+                        << worldStats.terrainBuffers.indexBytes() << ","
+                        << worldStats.terrainBuffers.totalBytes() << ","
                         << worldStats.actorCount << ","
                         << worldStats.terrainSeed << ","
                         << worldStats.worldTime << ","

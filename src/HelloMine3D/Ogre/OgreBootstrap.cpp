@@ -70,6 +70,16 @@ namespace
         std::size_t floraSectionCount = 0;
         std::size_t floraVertexCount = 0;
         std::size_t floraIndexCount = 0;
+
+        TerrainBufferMetrics bufferMetrics() const noexcept
+        {
+            TerrainBufferMetrics metrics;
+            metrics.add(vertexCount + transparentVertexCount +
+                            waterVertexCount + floraVertexCount,
+                        indexCount + transparentIndexCount +
+                            waterIndexCount + floraIndexCount);
+            return metrics;
+        }
     };
 
     struct SectionVisual
@@ -103,6 +113,8 @@ namespace
             const std::size_t resourceLocations = configureResources();
             Ogre::RenderSystem* renderSystem = configureRenderSystem();
             const TerrainBuildSummary terrain = buildTerrain(false);
+            const TerrainBufferMetrics terrainBuffers =
+                terrain.bufferMetrics();
             const OgreRenderCaptureValidation capture =
                 OgreRenderCapture::validateConfiguration();
             const OgreUserInterfaceValidation userInterface =
@@ -142,6 +154,20 @@ namespace
                       << terrain.floraVertexCount << '\n';
             std::cout << "[OGRE_VALIDATION] flora_indices="
                       << terrain.floraIndexCount << '\n';
+            std::cout << "[OGRE_VALIDATION] terrain_vertex_stride_bytes="
+                      << TerrainBufferMetrics::VertexStrideBytes << '\n';
+            std::cout << "[OGRE_VALIDATION] terrain_index_stride_bytes="
+                      << TerrainBufferMetrics::IndexStrideBytes << '\n';
+            std::cout << "[OGRE_VALIDATION] terrain_resident_vertices_estimate="
+                      << terrainBuffers.vertexCount << '\n';
+            std::cout << "[OGRE_VALIDATION] terrain_resident_indices_estimate="
+                      << terrainBuffers.indexCount << '\n';
+            std::cout << "[OGRE_VALIDATION] terrain_vertex_buffer_bytes_estimate="
+                      << terrainBuffers.vertexBytes() << '\n';
+            std::cout << "[OGRE_VALIDATION] terrain_index_buffer_bytes_estimate="
+                      << terrainBuffers.indexBytes() << '\n';
+            std::cout << "[OGRE_VALIDATION] terrain_buffer_bytes_estimate="
+                      << terrainBuffers.totalBytes() << '\n';
             std::cout << "[OGRE_VALIDATION] capture_config="
                       << (capture.valid ? "valid" : "invalid") << '\n';
             std::cout << "[OGRE_VALIDATION] capture_enabled="
@@ -179,6 +205,13 @@ namespace
                    terrain.floraSectionCount > 0 &&
                    terrain.floraVertexCount > 0 &&
                    terrain.floraIndexCount > 0 &&
+                   terrainBuffers.vertexCount > 0 &&
+                   terrainBuffers.indexCount > 0 &&
+                   terrainBuffers.totalBytes() ==
+                       terrainBuffers.vertexCount *
+                               TerrainBufferMetrics::VertexStrideBytes +
+                           terrainBuffers.indexCount *
+                               TerrainBufferMetrics::IndexStrideBytes &&
                    (!isTrueValue(std::getenv(
                         "HELLOMINE3D_TRANSPARENT_FIXTURE")) ||
                     (terrain.transparentSectionCount > 0 &&
@@ -981,6 +1014,16 @@ namespace
                 stats = m_world->collectDebugStats();
                 stats.chunks.gpuBufferedSections =
                     m_sectionVisuals.size();
+                for (const auto& visualEntry : m_sectionVisuals)
+                {
+                    for (const auto& renderable :
+                         visualEntry.second.renderables)
+                    {
+                        stats.terrainBuffers.add(
+                            renderable->vertexCount(),
+                            renderable->indexCount());
+                    }
+                }
             }
             return stats;
         }

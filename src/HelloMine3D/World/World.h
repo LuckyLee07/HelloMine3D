@@ -27,6 +27,7 @@
 #include "Event/IWorldEvent.h"
 
 #include "../Config.h"
+#include "../Diagnostics/TerrainBufferMetrics.h"
 
 class Camera;
 class Player;
@@ -35,6 +36,7 @@ struct Entity;
 
 struct WorldDebugStats {
     ChunkDebugStats chunks;
+    TerrainBufferMetrics terrainBuffers;
     std::size_t actorCount = 0;
     std::size_t queuedChunkUpdates = 0;
     std::size_t randomTickSections = 0;

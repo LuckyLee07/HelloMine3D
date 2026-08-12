@@ -32,6 +32,7 @@
 #include "../Config.h"
 #include "../Core/Camera.h"
 #include "../Diagnostics/RuntimeDebugOptions.h"
+#include "../Diagnostics/TerrainBufferMetrics.h"
 #include "../Item/Material.h"
 #include "../Player/Player.h"
 #include "../RuntimeConfig.h"
@@ -1544,6 +1545,31 @@ void caseGreedyMeshing()
     check("M4/flora-topology-remains-separate",
           separatePasses.floraMesh.faces == 4,
           "faces=" + std::to_string(separatePasses.floraMesh.faces));
+}
+
+// ---------------------------------------------------------------------------
+// W4 - terrain buffer layout measurement
+// ---------------------------------------------------------------------------
+void caseTerrainBufferMetrics()
+{
+    check("W4/terrain-buffer-strides",
+          TerrainBufferMetrics::VertexStrideBytes == 32 &&
+              TerrainBufferMetrics::IndexStrideBytes == 4,
+          "vertex/index=" +
+              std::to_string(TerrainBufferMetrics::VertexStrideBytes) +
+              "/" +
+              std::to_string(TerrainBufferMetrics::IndexStrideBytes));
+
+    TerrainBufferMetrics metrics;
+    metrics.add(10, 12);
+    check("W4/resident-buffer-estimate",
+          metrics.vertexBytes() == 320 &&
+              metrics.indexBytes() == 48 &&
+              metrics.totalBytes() == 368,
+          "vertex/index/total=" +
+              std::to_string(metrics.vertexBytes()) + "/" +
+              std::to_string(metrics.indexBytes()) + "/" +
+              std::to_string(metrics.totalBytes()));
 }
 
 // ---------------------------------------------------------------------------
@@ -3541,6 +3567,7 @@ int main()
         casePersistence();
         caseSectionMeshInput();
         caseGreedyMeshing();
+        caseTerrainBufferMetrics();
         caseTransparentBlockRules();
         caseBlockBehaviorDispatch();
         caseMetadataBackedBehavior();

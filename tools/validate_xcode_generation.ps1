@@ -131,7 +131,7 @@ foreach ($Pattern in @(
     'HELLOMINE3D_EXIT_AFTER_FRAMES=3',
     'CODE_SIGNING_ALLOWED=NO',
     'Debug Release',
-    '\[VALIDATION\] checks=239 failures=0',
+    '\[VALIDATION\] checks=255 failures=0',
     '\[OGRE_VALIDATION\] renderer=OpenGL 3\+',
     '\[OGRE_TERRAIN\]',
     '\[XCODE_VERIFY\] status=PASS'

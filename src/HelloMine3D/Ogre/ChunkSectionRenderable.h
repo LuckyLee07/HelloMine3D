@@ -31,6 +31,9 @@ class ChunkSectionRenderable final : public Ogre::SimpleRenderable
     validateCpuMesh(const ChunkMesh &mesh,
                     const glm::ivec3 &sectionLocation);
 
+    std::size_t vertexCount() const noexcept;
+    std::size_t indexCount() const noexcept;
+
     Ogre::Real getBoundingRadius() const override;
     Ogre::Real
     getSquaredViewDepth(const Ogre::Camera *camera) const override;

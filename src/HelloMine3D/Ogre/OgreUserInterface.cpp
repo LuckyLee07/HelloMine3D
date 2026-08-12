@@ -390,6 +390,25 @@ class OgreUserInterface::Impl
                     worldStats.chunks.waterVertices),
                 static_cast<unsigned long long>(
                     worldStats.chunks.floraVertices));
+            ImGui::Text("Terrain vertex / index stride: %llu / %llu B",
+                        static_cast<unsigned long long>(
+                            TerrainBufferMetrics::VertexStrideBytes),
+                        static_cast<unsigned long long>(
+                            TerrainBufferMetrics::IndexStrideBytes));
+            ImGui::Text("Resident terrain vertices / indices: %llu / %llu",
+                        static_cast<unsigned long long>(
+                            worldStats.terrainBuffers.vertexCount),
+                        static_cast<unsigned long long>(
+                            worldStats.terrainBuffers.indexCount));
+            ImGui::Text(
+                "Resident terrain buffers: %.3f MiB (%llu vertex + %llu index bytes)",
+                static_cast<double>(
+                    worldStats.terrainBuffers.totalBytes()) /
+                    (1024.0 * 1024.0),
+                static_cast<unsigned long long>(
+                    worldStats.terrainBuffers.vertexBytes()),
+                static_cast<unsigned long long>(
+                    worldStats.terrainBuffers.indexBytes()));
         }
         ImGui::End();
     }
