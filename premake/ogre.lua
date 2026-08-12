@@ -33,8 +33,9 @@ configure_static_project("zlib", "../build/Engine/ThirdParty/zlib")
         third_party_dir .. "/zlib/include/**.h",
         third_party_dir .. "/zlib/src/**.c"
     }
-    defines { "WIN32" }
     suppress_msvc_warnings { "4131", "4996", "4244", "4127" }
+    filter "system:windows"
+        defines { "WIN32" }
     filter "system:not windows"
         defines { "HAVE_UNISTD_H" }
     filter {}
@@ -49,8 +50,10 @@ configure_static_project("zzip", "../build/Engine/ThirdParty/zzip")
         third_party_dir .. "/zzip/include/**.h",
         third_party_dir .. "/zzip/src/**.c"
     }
-    defines { "WIN32", "_CRT_SECURE_NO_WARNINGS" }
     suppress_msvc_warnings { "4127", "4996", "4706", "4244", "4267", "4028", "4305" }
+    filter "system:windows"
+        defines { "WIN32", "_CRT_SECURE_NO_WARNINGS" }
+    filter {}
 
 configure_static_project("ogre_freetype", "../build/Engine/ThirdParty/freetype")
     dependson { "zlib" }
@@ -66,9 +69,10 @@ configure_static_project("ogre_freetype", "../build/Engine/ThirdParty/freetype")
         third_party_dir .. "/freetype/src/gxvalid/gxvfgen.c",
         third_party_dir .. "/freetype/src/autofit/aflatin2.c"
     }
-    defines { "FT2_BUILD_LIBRARY", "_CRT_SECURE_NO_WARNINGS" }
+    defines { "FT2_BUILD_LIBRARY" }
     suppress_msvc_warnings { "4100", "4244", "4245", "4701", "4267", "4324", "4306", "4703" }
     filter "system:windows"
+        defines { "_CRT_SECURE_NO_WARNINGS" }
         buildoptions { "/FI\"ft2build.h\"" }
         removefiles { third_party_dir .. "/freetype/src/base/ftmac.c" }
     filter "system:not windows"
@@ -81,8 +85,10 @@ configure_static_project("libjpeg", "../build/Engine/ThirdParty/libjpeg")
         third_party_dir .. "/libjpeg/include/**.h",
         third_party_dir .. "/libjpeg/src/**.c"
     }
-    defines { "WIN32", "_CRT_SECURE_NO_WARNINGS" }
     suppress_msvc_warnings { "4100", "4244", "4127", "4267" }
+    filter "system:windows"
+        defines { "WIN32", "_CRT_SECURE_NO_WARNINGS" }
+    filter {}
 
 configure_static_project("libopenjpeg", "../build/Engine/ThirdParty/libopenjpeg")
     includedirs { third_party_dir .. "/libopenjpeg/include" }
@@ -90,8 +96,11 @@ configure_static_project("libopenjpeg", "../build/Engine/ThirdParty/libopenjpeg"
         third_party_dir .. "/libopenjpeg/include/**.h",
         third_party_dir .. "/libopenjpeg/src/**.c"
     }
-    defines { "WIN32", "_CRT_SECURE_NO_WARNINGS", "OPJ_STATIC" }
+    defines { "OPJ_STATIC" }
     suppress_msvc_warnings { "4100", "4244", "4127", "4267", "4701", "4706" }
+    filter "system:windows"
+        defines { "WIN32", "_CRT_SECURE_NO_WARNINGS" }
+    filter {}
 
 configure_static_project("libpng", "../build/Engine/ThirdParty/libpng")
     dependson { "zlib" }
@@ -103,8 +112,10 @@ configure_static_project("libpng", "../build/Engine/ThirdParty/libpng")
         third_party_dir .. "/libpng/include/**.h",
         third_party_dir .. "/libpng/src/**.c"
     }
-    defines { "WIN32", "_CRT_SECURE_NO_WARNINGS" }
     suppress_msvc_warnings { "4127" }
+    filter "system:windows"
+        defines { "WIN32", "_CRT_SECURE_NO_WARNINGS" }
+    filter {}
 
 configure_static_project("libraw", "../build/Engine/ThirdParty/libraw")
     includedirs { third_party_dir .. "/libraw/include" }
@@ -114,12 +125,14 @@ configure_static_project("libraw", "../build/Engine/ThirdParty/libraw")
         third_party_dir .. "/libraw/src/**.cpp"
     }
     removefiles { third_party_dir .. "/libraw/src/**dcb_demosaicing.c" }
-    defines { "WIN32", "_CRT_SECURE_NO_WARNINGS", "LIBRAW_NODLL" }
+    defines { "LIBRAW_NODLL" }
     suppress_msvc_warnings {
         "4244", "4189", "4101", "4706", "4100", "4018", "4305",
         "4309", "4127", "4389", "4804", "4146", "4245", "4996",
         "4702", "4267", "4701", "4456"
     }
+    filter "system:windows"
+        defines { "WIN32", "_CRT_SECURE_NO_WARNINGS" }
     filter "system:not windows"
         buildoptions { "-Wno-c++11-narrowing" }
     filter {}
@@ -135,11 +148,12 @@ configure_static_project("libtiff4", "../build/Engine/ThirdParty/libtiff4")
         third_party_dir .. "/libtiff4/include/**.h",
         third_party_dir .. "/libtiff4/src/**.c"
     }
-    defines { "WIN32", "_CRT_SECURE_NO_WARNINGS" }
     suppress_msvc_warnings {
         "4127", "4244", "4706", "4702", "4701", "4018", "4306",
         "4305", "4267", "4324", "4703", "4100", "4456"
     }
+    filter "system:windows"
+        defines { "WIN32", "_CRT_SECURE_NO_WARNINGS" }
     filter "system:not windows"
         removefiles { third_party_dir .. "/libtiff4/src/tif_win32.c" }
     filter {}
@@ -159,13 +173,13 @@ configure_static_project("openexr", "../build/Engine/ThirdParty/openexr")
         third_party_dir .. "/openexr/include/**.h",
         third_party_dir .. "/openexr/src/**.cpp"
     }
-    defines { "WIN32", "_CRT_SECURE_NO_WARNINGS" }
     suppress_msvc_warnings {
         "4244", "4305", "4100", "4127", "4245", "4512", "4706",
         "4267", "4702", "4101", "4800", "4018", "4701", "4389",
         "4334", "4722"
     }
     filter "system:windows"
+        defines { "WIN32", "_CRT_SECURE_NO_WARNINGS" }
         linkoptions { "/ignore:4221" }
     filter {}
 
@@ -199,9 +213,6 @@ configure_static_project("freeimage", "../build/Engine/ThirdParty/freeimage")
         third_party_dir .. "/freeimage/src/**.cpp"
     }
     defines {
-        "WIN32",
-        "_CRT_SECURE_NO_WARNINGS",
-        "_HAS_AUTO_PTR_ETC=1",
         "FREEIMAGE_LIB",
         "OPJ_STATIC",
         "LIBRAW_NODLL"
@@ -210,6 +221,13 @@ configure_static_project("freeimage", "../build/Engine/ThirdParty/freeimage")
         "4100", "4127", "4189", "4244", "4611", "4389", "4324",
         "4702", "4701", "4789", "4456"
     }
+    filter "system:windows"
+        defines {
+            "WIN32",
+            "_CRT_SECURE_NO_WARNINGS",
+            "_HAS_AUTO_PTR_ETC=1"
+        }
+    filter {}
 
 group "Engine"
 
@@ -235,8 +253,6 @@ configure_static_project("ogre3d", "../build/Engine/ogre3d")
     }
     removefiles { engine_dir .. "/ogre3d/src/Threading/OgreDefaultWorkQueueTBB.cpp" }
     defines {
-        "WIN32",
-        "_CRT_SECURE_NO_WARNINGS",
         "OGRE_NONCLIENT_BUILD",
         "FREEIMAGE_LIB"
     }
@@ -246,6 +262,7 @@ configure_static_project("ogre3d", "../build/Engine/ogre3d")
         "4005", "4345"
     }
     filter "system:windows"
+        defines { "WIN32", "_CRT_SECURE_NO_WARNINGS" }
         buildoptions { "/bigobj", "/Zm198" }
         removefiles {
             engine_dir .. "/ogre3d/src/OSX/**",

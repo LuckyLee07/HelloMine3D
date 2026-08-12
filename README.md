@@ -127,7 +127,17 @@ committed:
 Both wrappers stop at the first failed generation, compilation or test step
 and print `[BUILD_VERIFY] status=PASS` only after both configurations pass.
 The macOS-native Xcode generator remains a separate validation path documented
-in the project task list.
+in the project task list. A Windows host can still validate the generated
+workspace contract without claiming a native build:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_xcode_generation.ps1
+```
+
+This check requires all six first-party targets, the Ogre/OIS dependency graph,
+macOS Cocoa input/GL sources and framework flags, while rejecting `WIN32`
+preprocessor definitions and Win32 build-phase sources. Native `xcodebuild` and
+client launch verification still require a macOS host.
 
 ### Runtime Configuration And State
 
