@@ -50,6 +50,7 @@
 #include "../World/Chunk/ChunkMeshBuilder.h"
 #include "../World/Chunk/SectionMeshInput.h"
 #include "../World/Generation/Biome/TemperateForestBiome.h"
+#include "../World/Generation/Terrain/ClassicOverWorldGenerator.h"
 #include "../World/Storage/ChunkStorage.h"
 #include "../World/Storage/WorldSave.h"
 #include "../World/World.h"
@@ -2740,6 +2741,7 @@ void caseTerrainDeterminism()
 struct SurfaceSample {
     int treeBlocks = 0;
     int plantBlocks = 0;
+    int crossChunkTreeLinks = 0;
     std::vector<int> topBlockIds;
 };
 
@@ -2770,6 +2772,10 @@ SurfaceSample sampleSurface(World &world, int centerChunk, int chunkRadius)
 {
     SurfaceSample sample;
     std::array<bool, static_cast<int>(BlockId::NUM_TYPES)> seenTop{};
+    const auto isTreeBlock = [](ChunkBlock block) {
+        const auto id = static_cast<BlockId>(block.id);
+        return id == BlockId::OakBark || id == BlockId::OakLeaf;
+    };
 
     for (int chunkX = centerChunk - chunkRadius;
          chunkX <= centerChunk + chunkRadius; ++chunkX) {
@@ -2807,6 +2813,39 @@ SurfaceSample sampleSurface(World &world, int centerChunk, int chunkRadius)
     for (int id = 0; id < static_cast<int>(BlockId::NUM_TYPES); ++id) {
         if (seenTop[id]) {
             sample.topBlockIds.push_back(id);
+        }
+    }
+
+    const int minimumChunk = centerChunk - chunkRadius;
+    const int maximumChunk = centerChunk + chunkRadius;
+    for (int chunkX = minimumChunk; chunkX < maximumChunk; ++chunkX) {
+        const int boundaryX = (chunkX + 1) * CHUNK_SIZE;
+        for (int chunkZ = minimumChunk; chunkZ <= maximumChunk; ++chunkZ) {
+            for (int z = 0; z < CHUNK_SIZE; ++z) {
+                const int worldZ = chunkZ * CHUNK_SIZE + z;
+                for (int y = kSurfaceScanBottom; y <= kSurfaceScanTop; ++y) {
+                    if (isTreeBlock(world.getBlock(boundaryX - 1, y,
+                                                   worldZ)) &&
+                        isTreeBlock(world.getBlock(boundaryX, y, worldZ))) {
+                        ++sample.crossChunkTreeLinks;
+                    }
+                }
+            }
+        }
+    }
+    for (int chunkZ = minimumChunk; chunkZ < maximumChunk; ++chunkZ) {
+        const int boundaryZ = (chunkZ + 1) * CHUNK_SIZE;
+        for (int chunkX = minimumChunk; chunkX <= maximumChunk; ++chunkX) {
+            for (int x = 0; x < CHUNK_SIZE; ++x) {
+                const int worldX = chunkX * CHUNK_SIZE + x;
+                for (int y = kSurfaceScanBottom; y <= kSurfaceScanTop; ++y) {
+                    if (isTreeBlock(world.getBlock(worldX, y,
+                                                   boundaryZ - 1)) &&
+                        isTreeBlock(world.getBlock(worldX, y, boundaryZ))) {
+                        ++sample.crossChunkTreeLinks;
+                    }
+                }
+            }
         }
     }
 
@@ -2854,6 +2893,41 @@ void caseTerrainStructures()
         check("S6.3/biome-surface-variety", before.topBlockIds.size() >= 2,
               "distinct surface block ids: " +
                   idListToString(before.topBlockIds));
+        check("C5/structures-cross-chunk-boundaries",
+              before.crossChunkTreeLinks > 0,
+              "links=" +
+                  std::to_string(before.crossChunkTreeLinks));
+
+        ClassicOverWorldGenerator forwardGenerator(kValidationSeed);
+        ClassicOverWorldGenerator reverseGenerator(kValidationSeed);
+        Chunk forwardWest(world, {kStructureCenterChunk,
+                                  kStructureCenterChunk});
+        Chunk forwardEast(world, {kStructureCenterChunk + 1,
+                                  kStructureCenterChunk});
+        Chunk reverseWest(world, {kStructureCenterChunk,
+                                  kStructureCenterChunk});
+        Chunk reverseEast(world, {kStructureCenterChunk + 1,
+                                  kStructureCenterChunk});
+        forwardWest.load(forwardGenerator);
+        forwardEast.load(forwardGenerator);
+        reverseEast.load(reverseGenerator);
+        reverseWest.load(reverseGenerator);
+
+        std::vector<Block_t> forwardWestBlocks;
+        std::vector<Block_t> forwardEastBlocks;
+        std::vector<Block_t> reverseWestBlocks;
+        std::vector<Block_t> reverseEastBlocks;
+        std::vector<BlockMetadata_t> metadata;
+        forwardWest.collectBlockData(forwardWestBlocks, metadata);
+        forwardEast.collectBlockData(forwardEastBlocks, metadata);
+        reverseWest.collectBlockData(reverseWestBlocks, metadata);
+        reverseEast.collectBlockData(reverseEastBlocks, metadata);
+        check("C5/structure-output-ignores-load-order",
+              forwardWestBlocks == reverseWestBlocks &&
+                  forwardEastBlocks == reverseEastBlocks,
+              "west/east blocks=" +
+                  std::to_string(forwardWestBlocks.size()) + "/" +
+                  std::to_string(forwardEastBlocks.size()));
 
         // Dirty every sampled chunk so the whole neighbourhood goes through
         // the save/load path rather than being regenerated on relaunch.
@@ -2886,11 +2960,15 @@ void caseTerrainStructures()
 
         check("S6.5/structures-survive-reload",
               after.treeBlocks == before.treeBlocks &&
-                  after.plantBlocks == before.plantBlocks,
+                  after.plantBlocks == before.plantBlocks &&
+                  after.crossChunkTreeLinks ==
+                      before.crossChunkTreeLinks,
               "trees " + std::to_string(before.treeBlocks) + " -> " +
                   std::to_string(after.treeBlocks) + ", plants " +
                   std::to_string(before.plantBlocks) + " -> " +
-                  std::to_string(after.plantBlocks));
+                  std::to_string(after.plantBlocks) + ", links " +
+                  std::to_string(before.crossChunkTreeLinks) + " -> " +
+                  std::to_string(after.crossChunkTreeLinks));
         check("S6.5/surface-composition-stable",
               after.topBlockIds == before.topBlockIds,
               idListToString(before.topBlockIds) + "-> " +

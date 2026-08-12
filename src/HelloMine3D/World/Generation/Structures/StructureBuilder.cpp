@@ -6,8 +6,17 @@
 
 void StructureBuilder::build(Chunk &chunk)
 {
+    const glm::ivec2 location = chunk.getLocation();
+    const int worldMinX = location.x * CHUNK_SIZE;
+    const int worldMinZ = location.y * CHUNK_SIZE;
     for (auto &block : m_blocks) {
-        chunk.setBlock(block.x, block.y, block.z, block.id);
+        const int localX = block.x - worldMinX;
+        const int localZ = block.z - worldMinZ;
+        if (localX < 0 || localX >= CHUNK_SIZE ||
+            localZ < 0 || localZ >= CHUNK_SIZE) {
+            continue;
+        }
+        chunk.setBlock(localX, block.y, localZ, block.id);
     }
 }
 

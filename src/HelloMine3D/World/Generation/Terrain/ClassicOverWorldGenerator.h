@@ -39,21 +39,23 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
     void setUpNoise();
 
     void generateBaseTerrain(int maxHeight,
-                             std::vector<BlockPosition> &treePositions,
                              std::vector<BlockPosition> &plantPositions);
     void applyCavePass();
     void applyOreDecorators();
     void placeOreVein(Random<std::minstd_rand> &random, BlockId oreBlock,
                       int startX, int startY, int startZ, int size);
     void applyPlantDecorators(const std::vector<BlockPosition> &positions);
-    void applyTreeDecorators(const std::vector<BlockPosition> &positions);
-    bool canPlaceStructureAt(int x, int z, int radius) const;
+    void applyTreeDecorators();
 
     void getHeightIn(int xMin, int zMin, int xMax, int zMax);
+    int getHeightAt(int x, int z, int chunkX, int chunkZ) const;
     void getHeightMap();
     void getBiomeMap();
 
     const Biome &getBiome(int x, int z) const;
+    const Biome &getBiomeAt(int x, int z, int chunkX,
+                            int chunkZ) const;
+    const Biome &getBiomeForValue(int biomeValue) const;
 
     Array2D<int, CHUNK_SIZE> m_heightMap;
     Array2D<int, CHUNK_SIZE + 1> m_biomeMap;

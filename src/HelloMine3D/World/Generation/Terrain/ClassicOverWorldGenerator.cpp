@@ -1,13 +1,39 @@
 #include "ClassicOverWorldGenerator.h"
 
+#include <cstdint>
 #include <functional>
 #include <iostream>
 
 #include "../../../Maths/GeneralMaths.h"
 #include "../../../Util/Random.h"
 #include "../../Chunk/Chunk.h"
+#include "../../WorldCoordinates.h"
 
 #include "../Structures/TreeGenerator.h"
+
+namespace {
+constexpr int MaximumStructureRadius = 6;
+
+std::uint64_t mixStructureValue(std::uint64_t value)
+{
+    value ^= value >> 30;
+    value *= 0xbf58476d1ce4e5b9ull;
+    value ^= value >> 27;
+    value *= 0x94d049bb133111ebull;
+    return value ^ (value >> 31);
+}
+
+std::uint64_t structureHash(int seed, int worldX, int worldZ)
+{
+    std::uint64_t value = mixStructureValue(static_cast<std::uint64_t>(
+        static_cast<std::int64_t>(seed)));
+    value ^= mixStructureValue(static_cast<std::uint64_t>(
+        static_cast<std::int64_t>(worldX)) + 0x632be59bd9b4e019ull);
+    value ^= mixStructureValue(static_cast<std::uint64_t>(
+        static_cast<std::int64_t>(worldZ)) + 0x8cb92baa3f3d8dd7ull);
+    return mixStructureValue(value ^ 0xd1b54a32d192ed03ull);
+}
+} // namespace
 
 ClassicOverWorldGenerator::ClassicOverWorldGenerator(int seed)
     : m_seed(seed)
@@ -51,13 +77,12 @@ void ClassicOverWorldGenerator::generateTerrainFor(Chunk &chunk)
     auto maxHeight = m_heightMap.getMaxValue();
     maxHeight = std::max(maxHeight, WATER_LEVEL);
 
-    std::vector<BlockPosition> treePositions;
     std::vector<BlockPosition> plantPositions;
-    generateBaseTerrain(maxHeight, treePositions, plantPositions);
+    generateBaseTerrain(maxHeight, plantPositions);
     applyCavePass();
     applyOreDecorators();
     applyPlantDecorators(plantPositions);
-    applyTreeDecorators(treePositions);
+    applyTreeDecorators();
 }
 
 void ClassicOverWorldGenerator::applyCavePass()
@@ -132,8 +157,7 @@ void ClassicOverWorldGenerator::getBiomeMap()
 }
 
 void ClassicOverWorldGenerator::generateBaseTerrain(
-    int maxHeight, std::vector<BlockPosition> &treePositions,
-    std::vector<BlockPosition> &plantPositions)
+    int maxHeight, std::vector<BlockPosition> &plantPositions)
 {
     for (int y = 0; y < maxHeight + 1; y++)
         for (int x = 0; x < CHUNK_SIZE; x++)
@@ -155,11 +179,15 @@ void ClassicOverWorldGenerator::generateBaseTerrain(
                             continue;
                         }
 
-                        if (canPlaceStructureAt(x, z, 6) &&
-                            m_random.intInRange(0,
-                                                biome.getTreeFrequency()) ==
-                                5) {
-                            treePositions.push_back({x, y + 1, z});
+                        // Tree ownership moved to the world-space structure
+                        // pass. Keep the old interior roll in the base stream
+                        // so unrelated plant and surface choices remain stable.
+                        if (x >= MaximumStructureRadius &&
+                            z >= MaximumStructureRadius &&
+                            x < CHUNK_SIZE - MaximumStructureRadius &&
+                            z < CHUNK_SIZE - MaximumStructureRadius) {
+                            (void)m_random.intInRange(
+                                0, biome.getTreeFrequency());
                         }
                         if (m_random.intInRange(0, biome.getPlantFrequency()) ==
                             5) {
@@ -237,28 +265,87 @@ void ClassicOverWorldGenerator::applyPlantDecorators(
     }
 }
 
-void ClassicOverWorldGenerator::applyTreeDecorators(
-    const std::vector<BlockPosition> &positions)
+void ClassicOverWorldGenerator::applyTreeDecorators()
 {
-    for (auto &tree : positions) {
-        const int x = tree.x;
-        const int z = tree.z;
+    const glm::ivec2 target = m_pChunk->getLocation();
+    const int minimumX = target.x * CHUNK_SIZE - MaximumStructureRadius;
+    const int maximumX = (target.x + 1) * CHUNK_SIZE - 1 +
+                         MaximumStructureRadius;
+    const int minimumZ = target.y * CHUNK_SIZE - MaximumStructureRadius;
+    const int maximumZ = (target.y + 1) * CHUNK_SIZE - 1 +
+                         MaximumStructureRadius;
 
-        getBiome(x, z).makeTree(m_random, *m_pChunk, x, tree.y, z);
+    for (int worldX = minimumX; worldX <= maximumX; ++worldX) {
+        const int sourceChunkX =
+            WorldCoordinates::floorDiv(worldX, CHUNK_SIZE);
+        const int localX =
+            WorldCoordinates::floorMod(worldX, CHUNK_SIZE);
+        for (int worldZ = minimumZ; worldZ <= maximumZ; ++worldZ) {
+            const int sourceChunkZ =
+                WorldCoordinates::floorDiv(worldZ, CHUNK_SIZE);
+            const int localZ =
+                WorldCoordinates::floorMod(worldZ, CHUNK_SIZE);
+            const Biome &biome = getBiomeAt(
+                localX, localZ, sourceChunkX, sourceChunkZ);
+            const int height = getHeightAt(
+                localX, localZ, sourceChunkX, sourceChunkZ);
+            if (height < WATER_LEVEL + 4) {
+                continue;
+            }
+
+            const int frequency = biome.getTreeFrequency();
+            const std::uint64_t hash =
+                structureHash(m_seed, worldX, worldZ);
+            if (frequency < 5 ||
+                hash % static_cast<std::uint64_t>(frequency + 1) != 5) {
+                continue;
+            }
+
+            Random<std::minstd_rand> structureRandom(
+                static_cast<int>((hash ^ (hash >> 32)) & 0x7fffffffull));
+            biome.makeTree(structureRandom, *m_pChunk, worldX,
+                           height + 1, worldZ);
+        }
     }
 }
 
-bool ClassicOverWorldGenerator::canPlaceStructureAt(int x, int z,
-                                                    int radius) const
+int ClassicOverWorldGenerator::getHeightAt(int x, int z, int chunkX,
+                                           int chunkZ) const
 {
-    return x >= radius && z >= radius && x < CHUNK_SIZE - radius &&
-           z < CHUNK_SIZE - radius;
+    const int xMin = x < CHUNK_SIZE / 2 ? 0 : CHUNK_SIZE / 2;
+    const int zMin = z < CHUNK_SIZE / 2 ? 0 : CHUNK_SIZE / 2;
+    const int xMax = xMin + CHUNK_SIZE / 2;
+    const int zMax = zMin + CHUNK_SIZE / 2;
+    const auto cornerHeight = [&](int sampleX, int sampleZ) {
+        return getBiomeAt(sampleX, sampleZ, chunkX, chunkZ)
+            .getHeight(sampleX, sampleZ, chunkX, chunkZ);
+    };
+    return static_cast<int>(smoothInterpolation(
+        static_cast<float>(cornerHeight(xMin, zMin)),
+        static_cast<float>(cornerHeight(xMin, zMax)),
+        static_cast<float>(cornerHeight(xMax, zMin)),
+        static_cast<float>(cornerHeight(xMax, zMax)),
+        static_cast<float>(xMin), static_cast<float>(xMax),
+        static_cast<float>(zMin), static_cast<float>(zMax),
+        static_cast<float>(x), static_cast<float>(z)));
 }
 
 const Biome &ClassicOverWorldGenerator::getBiome(int x, int z) const
 {
-    int biomeValue = m_biomeMap.get(x, z);
+    return getBiomeForValue(m_biomeMap.get(x, z));
+}
 
+const Biome &ClassicOverWorldGenerator::getBiomeAt(
+    int x, int z, int chunkX, int chunkZ) const
+{
+    const int biomeValue = static_cast<int>(m_biomeNoiseGen.getHeight(
+        x, z, chunkX + 10, chunkZ + 10));
+    return getBiomeForValue(biomeValue);
+}
+
+const Biome &
+ClassicOverWorldGenerator::getBiomeForValue(int biomeValue) const
+{
     if (biomeValue > 160) {
         return m_oceanBiome;
     }

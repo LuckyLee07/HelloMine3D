@@ -21,6 +21,7 @@ class StructureBuilder {
     };
 
   public:
+    /// Projects world-space structure blocks into the supplied target chunk.
     void build(Chunk &chunk);
 
     void makeColumn(int x, int z, int yStart, int height, BlockId block);
@@ -29,6 +30,7 @@ class StructureBuilder {
 
     void fill(int y, int xStart, int xEnd, int zStart, int zEnd, BlockId block);
 
+    /// Adds one block in world coordinates to the reusable structure plan.
     void addBlock(int x, int y, int z, BlockId block);
 
   private:

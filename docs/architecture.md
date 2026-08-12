@@ -34,6 +34,10 @@ Classic overworld generation runs explicit base-terrain, world-space cave,
 ore, plant and tree passes in that order. Cave sampling uses global voxel
 coordinates, so output is seed-deterministic and independent of chunk load
 order while protected surface, water and bottom buffers remain intact.
+Structure roots are likewise selected from the seed and world block
+coordinates. A target chunk scans a six-block origin halo and projects only
+its own structure fragments, so trees and cacti can cross chunk boundaries
+without making generation depend on neighbouring chunk load order.
 World metadata version 2 persists player state plus live mob/item subtype state;
 version 1 saves remain readable with an empty actor list and upgrade on the
 next world save.
