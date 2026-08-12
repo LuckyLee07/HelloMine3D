@@ -40,7 +40,7 @@ class ChunkMeshBuilder {
     void buildGreedySolidMesh();
     void buildGreedyFaces(CubeFace face);
     void addGreedyFace(CubeFace face, const glm::ivec2 &textureCoords,
-                       LightLevel sunlight, int slice, int u, int v,
+                       LightLevel light, int slice, int u, int v,
                        int width, int height);
     bool isGreedySolidBlock(ChunkBlock block) const;
 

@@ -30,6 +30,8 @@ class Chunk : public IChunk {
     ChunkBlock getBlock(int x, int y, int z) const noexcept override;
     LightLevel getSunlight(int x, int y, int z) const noexcept;
     void rebuildSunlight();
+    LightLevel getBlockLight(int x, int y, int z) const noexcept;
+    void rebuildBlockLight();
     int getHeightAt(int x, int z) const;
 
     bool hasLoaded() const noexcept;

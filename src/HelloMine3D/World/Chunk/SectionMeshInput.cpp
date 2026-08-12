@@ -2,6 +2,8 @@
 
 #include "ChunkSection.h"
 
+#include <algorithm>
+
 namespace {
 // Order matches m_neighbourLayerAllSolid.
 constexpr int kNeighbourOffsetX[4] = {1, 0, -1, 0};
@@ -25,6 +27,8 @@ void SectionMeshInput::capture(ChunkSection &section)
                 m_blocks[index(x, y, z)] = section.getBlock(x, y, z);
                 m_sunlight[index(x, y, z)] =
                     section.getSunlight(x, y, z);
+                m_blockLight[index(x, y, z)] =
+                    section.getBlockLight(x, y, z);
             }
         }
     }
@@ -51,6 +55,21 @@ LightLevel SectionMeshInput::getSunlight(int x, int y, int z) const
     }
 
     return m_sunlight[index(x, y, z)];
+}
+
+LightLevel SectionMeshInput::getBlockLight(int x, int y, int z) const
+{
+    if (x < -1 || x > CHUNK_SIZE || y < -1 || y > CHUNK_SIZE || z < -1 ||
+        z > CHUNK_SIZE) {
+        return MIN_LIGHT_LEVEL;
+    }
+
+    return m_blockLight[index(x, y, z)];
+}
+
+LightLevel SectionMeshInput::getCombinedLight(int x, int y, int z) const
+{
+    return std::max(getSunlight(x, y, z), getBlockLight(x, y, z));
 }
 
 ChunkBlock SectionMeshInput::getBlock(int x, int y, int z) const

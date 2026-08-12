@@ -374,7 +374,8 @@ void caseBlockDataDiagnostics()
         if (includeShader) {
             out << "ShaderType\n" << shaderType << "\n\n";
         }
-        out << "Collidable\n1\n";
+        out << "Light\n0\n\n"
+            << "Collidable\n1\n";
         return out.str();
     };
 
@@ -428,6 +429,18 @@ void caseBlockDataDiagnostics()
               atlasError.find("TexAll") != std::string::npos &&
               atlasError.find("outside [0, 15]") != std::string::npos,
           atlasError);
+
+    std::string badLightText = makeBlockText(3, "3 0", 0, 0, true);
+    const std::size_t lightValue = badLightText.find("Light\n0");
+    badLightText.replace(lightValue, std::string("Light\n0").size(),
+                         "Light\n16");
+    const std::string lightPath = fixturePath("BadLight").string();
+    const std::string lightError = parseError("BadLight", badLightText);
+    check("A2/bad-light-identifies-file-and-key",
+          lightError.find(lightPath) != std::string::npos &&
+              lightError.find("Light") != std::string::npos &&
+              lightError.find("outside [0, 15]") != std::string::npos,
+          lightError);
 
     writeFixture("DuplicateOne",
                  makeBlockText(3, "3 0", 0, 0, true));
@@ -1659,6 +1672,156 @@ void caseSunlightStorage()
 }
 
 // ---------------------------------------------------------------------------
+// L2 - emissive block data is propagated into per-voxel block light, captured
+// by mesh snapshots and combined with sunlight at visible faces
+// ---------------------------------------------------------------------------
+void caseBlockLightStorage()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+
+    const auto directory = freshSaveDirectory("block_light_storage");
+    Config config = makeConfig();
+    Camera camera(config);
+
+    constexpr int floorY = 200;
+    constexpr int sectionY = floorY / CHUNK_SIZE;
+    constexpr int sourceX = 4;
+    constexpr int targetX = 5;
+    constexpr int z = 4;
+
+    check("L2/emissive-definition-is-data-driven",
+          BlockDatabase::get().getDefinition(BlockId::Rose).light == 14,
+          "light=" + std::to_string(
+                         BlockDatabase::get()
+                             .getDefinition(BlockId::Rose)
+                             .light));
+
+    {
+        Player player;
+        World world(camera, config, player, directory, false, 1);
+        world.setBlock(sourceX, floorY, z, BlockId::Stone);
+        world.setBlock(targetX, floorY, z, BlockId::Stone);
+        world.setBlock(sourceX, floorY + 1, z, BlockId::Rose);
+        world.setBlock(6, floorY + 1, z, BlockId::Stone);
+        for (int x = 2; x <= 7; ++x) {
+            world.setBlock(x, floorY + 3, z, BlockId::Stone);
+        }
+
+        Chunk *chunk = world.getChunkManager().findChunk(0, 0);
+        ChunkSection *section =
+            chunk != nullptr ? chunk->findSection(sectionY) : nullptr;
+        if (chunk == nullptr || section == nullptr) {
+            check("L2/source-and-distance-falloff", false,
+                  "fixture section missing");
+            return;
+        }
+
+        chunk->rebuildSunlight();
+        chunk->rebuildBlockLight();
+        check("L2/source-and-distance-falloff",
+              world.getBlockLight(sourceX, floorY + 1, z) == 14 &&
+                  world.getBlockLight(targetX, floorY + 1, z) == 13 &&
+                  world.getBlockLight(2, floorY + 1, z) == 12,
+              "source/one/two=" +
+                  std::to_string(
+                      world.getBlockLight(sourceX, floorY + 1, z)) +
+                  "/" +
+                  std::to_string(
+                      world.getBlockLight(targetX, floorY + 1, z)) +
+                  "/" +
+                  std::to_string(world.getBlockLight(2, floorY + 1, z)));
+        check("L2/opaque-block-stops-light",
+              world.getBlockLight(6, floorY + 1, z) == MIN_LIGHT_LEVEL,
+              "level=" +
+                  std::to_string(world.getBlockLight(6, floorY + 1, z)));
+
+        SectionMeshInput input;
+        section->captureMeshInput(input);
+        int blockLightMismatches = 0;
+        for (int y = -1; y <= CHUNK_SIZE; ++y) {
+            for (int localZ = -1; localZ <= CHUNK_SIZE; ++localZ) {
+                for (int localX = -1; localX <= CHUNK_SIZE; ++localX) {
+                    const int worldY = sectionY * CHUNK_SIZE + y;
+                    if (input.getBlockLight(localX, y, localZ) !=
+                        world.getBlockLight(localX, worldY, localZ)) {
+                        ++blockLightMismatches;
+                    }
+                }
+            }
+        }
+        check("L2/snapshot-halo-carries-block-light",
+              blockLightMismatches == 0,
+              "mismatches=" + std::to_string(blockLightMismatches) +
+                  " over " + std::to_string(SectionMeshInput::Volume) +
+                  " cells");
+        check("L2/combined-light-prefers-strongest-source",
+              input.getCombinedLight(targetX, floorY + 1 -
+                                                  sectionY * CHUNK_SIZE,
+                                     z) == 13 &&
+                  input.getCombinedLight(8, floorY + 1 -
+                                                 sectionY * CHUNK_SIZE,
+                                         z) == MAX_LIGHT_LEVEL);
+
+        ChunkMeshCollection meshes;
+        ChunkMeshBuilder(input, meshes).buildMesh();
+        const Mesh &solid = meshes.solidMesh.getClientMesh();
+        const auto &light = meshes.solidMesh.getLight();
+        bool foundLitTargetFace = false;
+        const std::size_t faceCount = solid.vertexPositions.size() / 12;
+        for (std::size_t face = 0; face < faceCount; ++face) {
+            float minX = 100000.f;
+            float maxX = -100000.f;
+            float minZ = 100000.f;
+            float maxZ = -100000.f;
+            bool topHeight = true;
+            for (std::size_t vertex = 0; vertex < 4; ++vertex) {
+                const std::size_t index = face * 12 + vertex * 3;
+                minX = std::min(minX, solid.vertexPositions[index]);
+                maxX = std::max(maxX, solid.vertexPositions[index]);
+                minZ = std::min(minZ, solid.vertexPositions[index + 2]);
+                maxZ = std::max(maxZ, solid.vertexPositions[index + 2]);
+                topHeight =
+                    topHeight &&
+                    std::abs(solid.vertexPositions[index + 1] -
+                             static_cast<float>(floorY + 1)) < 0.001f;
+            }
+
+            const bool targetBounds =
+                std::abs(minX - targetX) < 0.001f &&
+                std::abs(maxX - (targetX + 1)) < 0.001f &&
+                std::abs(minZ - z) < 0.001f &&
+                std::abs(maxZ - (z + 1)) < 0.001f;
+            if (topHeight && targetBounds &&
+                std::abs(light[face * 4] - lightLevelToBrightness(13)) <
+                    0.001f) {
+                foundLitTargetFace = true;
+                break;
+            }
+        }
+        check("L2/emissive-block-lights-nearby-mesh",
+              foundLitTargetFace);
+
+        world.save();
+    }
+
+    {
+        Player player;
+        World world(camera, config, player, directory, false, 1);
+        check("L2/load-rebuilds-derived-block-light",
+              world.getBlockLight(sourceX, floorY + 1, z) == 14 &&
+                  world.getBlockLight(targetX, floorY + 1, z) == 13,
+              "source/one=" +
+                  std::to_string(
+                      world.getBlockLight(sourceX, floorY + 1, z)) +
+                  "/" +
+                  std::to_string(
+                      world.getBlockLight(targetX, floorY + 1, z)));
+    }
+}
+
+// ---------------------------------------------------------------------------
 // M6 - sections sealed by opaque neighbours complete without a mesh build
 // ---------------------------------------------------------------------------
 void caseEnclosedSectionSkip()
@@ -2603,6 +2766,7 @@ int main()
         caseSectionMeshInput();
         caseGreedyMeshing();
         caseSunlightStorage();
+        caseBlockLightStorage();
         caseEnclosedSectionSkip();
         caseFrustumMeshPriority();
         caseSectionMeshUploadSnapshot();

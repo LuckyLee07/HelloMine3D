@@ -31,7 +31,7 @@ BlockDefinition makeDefinition(const std::string &fileName,
     definition.liquid = data.id == BlockId::Water ||
                         data.shaderType == BlockShaderType::Liquid;
     definition.solid = data.isOpaque && data.isCollidable;
-    definition.light = 0;
+    definition.light = data.light;
     definition.defaultDrop = Material::toMaterial(data.id).id;
     definition.render.texTopCoord = data.texTopCoord;
     definition.render.texSideCoord = data.texSideCoord;

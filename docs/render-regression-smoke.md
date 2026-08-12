@@ -147,6 +147,21 @@ terrain atlas, flora, debug panels and selected-block outline. This closes the
 visual half of L1; the matching headless assertions cover exact sunlight
 values, halo propagation, greedy-mesh boundaries and load-time rebuilding.
 
+## L2 Block-Light Regression Capture
+
+The post-L2 run reused the same pinned seed, position and rotation and wrote:
+
+```text
+bin/render_capture_l2_20260812/new_01500ms.png
+```
+
+The GTX 1050 Ti / OpenGL 4.6 image passed the structural PNG check and an
+independent ffmpeg decode. Terrain, flora, the debug panel and selected-block
+outline remain visible with no corrupt frame. Exact emissive acceptance is
+headless: the fixture places a level-14 rose under an opaque roof and proves a
+neighbouring terrain face receives level 13, avoiding a scene-dependent visual
+claim where surface sunlight would correctly dominate block light.
+
 ## Implementation Notes
 
 Runtime capture is implemented in

@@ -55,6 +55,8 @@ class ChunkSection : public IChunk {
     ChunkBlock getBlock(int x, int y, int z) const override;
     void setSunlight(int x, int y, int z, LightLevel level);
     LightLevel getSunlight(int x, int y, int z) const;
+    void setBlockLight(int x, int y, int z, LightLevel level);
+    LightLevel getBlockLight(int x, int y, int z) const;
 
     glm::ivec3 getLocation() const;
 
@@ -104,6 +106,7 @@ class ChunkSection : public IChunk {
 
     std::array<ChunkBlock, CHUNK_VOLUME> m_blocks;
     std::array<LightLevel, CHUNK_VOLUME> m_sunlight;
+    std::array<LightLevel, CHUNK_VOLUME> m_blockLight;
     std::array<Layer, CHUNK_SIZE> m_layers;
 
     ChunkMeshCollection m_meshes;

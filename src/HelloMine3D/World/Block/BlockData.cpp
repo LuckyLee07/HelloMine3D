@@ -116,7 +116,7 @@ void BlockData::load(const std::string &path)
         static const std::set<std::string> validKeys = {
             "Name",       "Id",         "TexTop",   "TexSide",
             "TexBottom",  "TexAll",     "Opaque",   "Collidable",
-            "MeshType",   "ShaderType",
+            "MeshType",   "ShaderType", "Light",
         };
         if (validKeys.find(key) == validKeys.end()) {
             fail(path, key, "is unknown at line " +
@@ -194,6 +194,13 @@ void BlockData::load(const std::string &path)
             }
             m_data.shaderType = static_cast<BlockShaderType>(shaderType);
         }
+        else if (key == "Light") {
+            const int light = parseInteger(path, key, value);
+            if (light < 0 || light > 15) {
+                fail(path, key, "is outside [0, 15]");
+            }
+            m_data.light = light;
+        }
     }
 
     const auto requireKey = [&](const std::string &key, bool present) {
@@ -212,6 +219,7 @@ void BlockData::load(const std::string &path)
     requireKey("MeshType", seenKeys.find("MeshType") != seenKeys.end());
     requireKey("ShaderType",
                seenKeys.find("ShaderType") != seenKeys.end());
+    requireKey("Light", seenKeys.find("Light") != seenKeys.end());
 }
 
 const BlockDataHolder &BlockData::getBlockData() const

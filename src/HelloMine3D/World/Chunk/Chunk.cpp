@@ -4,8 +4,11 @@
 #include "../../Maths/NoiseGenerator.h"
 #include "../../Util/Random.h"
 #include "../Generation/Terrain/TerrainGenerator.h"
+#include "../Block/BlockDatabase.h"
 #include "../World.h"
 
+#include <array>
+#include <deque>
 #include <utility>
 
 Chunk::Chunk(World &world, const glm::ivec2 &location)
@@ -144,6 +147,74 @@ void Chunk::rebuildSunlight()
     }
 }
 
+LightLevel Chunk::getBlockLight(int x, int y, int z) const noexcept
+{
+    if (outOfBound(x, y, z)) {
+        return MIN_LIGHT_LEVEL;
+    }
+
+    return m_chunks[y / CHUNK_SIZE].getBlockLight(x, y % CHUNK_SIZE, z);
+}
+
+void Chunk::rebuildBlockLight()
+{
+    const int height = static_cast<int>(m_chunks.size()) * CHUNK_SIZE;
+    std::deque<glm::ivec3> pending;
+
+    for (int y = 0; y < height; ++y) {
+        for (int z = 0; z < CHUNK_SIZE; ++z) {
+            for (int x = 0; x < CHUNK_SIZE; ++x) {
+                auto &section = m_chunks[y / CHUNK_SIZE];
+                section.setBlockLight(x, y % CHUNK_SIZE, z,
+                                      MIN_LIGHT_LEVEL);
+                const ChunkBlock block = getBlock(x, y, z);
+                const int emission =
+                    BlockDatabase::get()
+                        .getDefinition(static_cast<BlockId>(block.id))
+                        .light;
+                if (emission > 0) {
+                    section.setBlockLight(
+                        x, y % CHUNK_SIZE, z,
+                        clampLightLevel(static_cast<LightLevel>(emission)));
+                    pending.emplace_back(x, y, z);
+                }
+            }
+        }
+    }
+
+    const std::array<glm::ivec3, 6> offsets = {
+        glm::ivec3{1, 0, 0},  glm::ivec3{-1, 0, 0},
+        glm::ivec3{0, 1, 0},  glm::ivec3{0, -1, 0},
+        glm::ivec3{0, 0, 1},  glm::ivec3{0, 0, -1},
+    };
+    while (!pending.empty()) {
+        const glm::ivec3 position = pending.front();
+        pending.pop_front();
+        const LightLevel current =
+            getBlockLight(position.x, position.y, position.z);
+        if (current <= MIN_LIGHT_LEVEL + 1) {
+            continue;
+        }
+
+        const LightLevel propagated = static_cast<LightLevel>(current - 1);
+        for (const glm::ivec3 &offset : offsets) {
+            const glm::ivec3 adjacent = position + offset;
+            if (outOfBound(adjacent.x, adjacent.y, adjacent.z) ||
+                getBlock(adjacent.x, adjacent.y,
+                         adjacent.z).getData().isOpaque ||
+                getBlockLight(adjacent.x, adjacent.y, adjacent.z) >=
+                    propagated) {
+                continue;
+            }
+
+            m_chunks[adjacent.y / CHUNK_SIZE].setBlockLight(
+                adjacent.x, adjacent.y % CHUNK_SIZE, adjacent.z,
+                propagated);
+            pending.push_back(adjacent);
+        }
+    }
+}
+
 int Chunk::getHeightAt(int x, int z) const
 {
     return m_highestBlocks.get(x, z);
@@ -274,6 +345,7 @@ void Chunk::loadBlockData(std::size_t sectionCount,
 
     m_loadState = ChunkLoadState::Loaded;
     rebuildSunlight();
+    rebuildBlockLight();
     m_saveDirty = false;
 }
 
@@ -295,6 +367,7 @@ void Chunk::load(TerrainGenerator &generator)
     m_loadState = ChunkLoadState::Generating;
     generator.generateTerrainFor(*this);
     rebuildSunlight();
+    rebuildBlockLight();
     m_loadState = ChunkLoadState::Loaded;
     m_saveDirty = false;
 }

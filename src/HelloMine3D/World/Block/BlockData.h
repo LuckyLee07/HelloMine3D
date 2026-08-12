@@ -30,6 +30,7 @@ struct BlockDataHolder : public NonCopyable {
     BlockMeshType meshType = BlockMeshType::Cube;
     BlockShaderType shaderType = BlockShaderType::Chunk;
 
+    int light = 0;
     bool isOpaque = false;
     bool isCollidable = false;
 };

@@ -16,5 +16,8 @@ MeshType
 ShaderType
 1
 
+Light
+0
+
 Collidable
 0

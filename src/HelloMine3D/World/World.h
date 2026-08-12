@@ -68,6 +68,7 @@ class World : public NonCopyable {
 
     ChunkBlock getBlock(int x, int y, int z);
     LightLevel getSunlight(int x, int y, int z);
+    LightLevel getBlockLight(int x, int y, int z);
     void setBlock(int x, int y, int z, ChunkBlock block);
 
     void tick(int worldTime);
@@ -132,6 +133,7 @@ class World : public NonCopyable {
 
     ChunkBlock getBlockUnlocked(int x, int y, int z);
     LightLevel getSunlightUnlocked(int x, int y, int z);
+    LightLevel getBlockLightUnlocked(int x, int y, int z);
     void loadChunks();
     void unloadDistantChunks(const Camera &camera);
     void setChunkLoadCenter(const Camera &camera);
