@@ -8,6 +8,7 @@
 #include "../../Util/Singleton.h"
 
 #include "BlockId.h"
+#include "BlockBehavior.h"
 #include "BlockDefinition.h"
 #include "BlockTypes/BlockType.h"
 
@@ -31,11 +32,15 @@ class BlockDatabase : public Singleton {
 
   private:
     BlockDatabase();
-    void addBlock(BlockId id, const std::string &fileName);
+    void addBlock(BlockId id, const std::string &fileName,
+                  std::unique_ptr<BlockBehavior> behavior = nullptr);
 
     std::array<std::unique_ptr<BlockType>, (unsigned)BlockId::NUM_TYPES>
         m_blocks;
     std::array<BlockDefinition, (unsigned)BlockId::NUM_TYPES> m_definitions;
+    std::array<std::unique_ptr<BlockBehavior>,
+               (unsigned)BlockId::NUM_TYPES>
+        m_behaviors;
     BlockIdUniquenessValidator m_idValidator;
 };
 

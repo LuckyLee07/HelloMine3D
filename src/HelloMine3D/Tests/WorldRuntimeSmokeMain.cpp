@@ -42,6 +42,7 @@
 #include "../Sandbox/FixedTickScheduler.h"
 #include "../Sandbox/WorldManager.h"
 #include "../Util/ResourcePaths.h"
+#include "../World/Block/BlockBehavior.h"
 #include "../World/Block/BlockDatabase.h"
 #include "../World/Block/BlockTextureCoordinates.h"
 #include "../World/Interaction/BlockSelection.h"
@@ -1680,6 +1681,58 @@ void caseTransparentBlockRules()
 }
 
 // ---------------------------------------------------------------------------
+// C1 - block-specific behavior is registered beside the definition
+// ---------------------------------------------------------------------------
+void caseBlockBehaviorDispatch()
+{
+    const auto &database = BlockDatabase::get();
+    bool allDefinitionsHaveBehavior = true;
+    for (int id = 0; id < static_cast<int>(BlockId::NUM_TYPES); ++id) {
+        allDefinitionsHaveBehavior =
+            allDefinitionsHaveBehavior &&
+            database.getDefinition(static_cast<BlockId>(id)).behavior !=
+                nullptr;
+    }
+    check("C1/all-definitions-have-behavior",
+          allDefinitionsHaveBehavior);
+
+    const ChunkBlock stone(BlockId::Stone);
+    const auto &stoneDefinition =
+        database.getDefinition(BlockId::Stone);
+    check("C1/default-behavior-preserves-drop",
+          stoneDefinition.behavior->getDrop(stoneDefinition, stone) ==
+              Material::ID::Stone);
+
+    const ChunkBlock glass(BlockId::Glass);
+    const auto &glassDefinition =
+        database.getDefinition(BlockId::Glass);
+    check("C1/special-behavior-overrides-drop",
+          glassDefinition.defaultDrop == Material::ID::Glass &&
+              glassDefinition.behavior->getDrop(glassDefinition, glass) ==
+                  Material::ID::Nothing);
+
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+    const auto directory = freshSaveDirectory("block_behavior_dispatch");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+
+    constexpr int y = 100;
+    world.setBlock(8, y, 8, BlockId::Glass);
+    const std::size_t actorsBefore =
+        world.collectDebugStats().actorCount;
+    const bool broke = BlockInteractionSystem::breakBlock(
+        world, player, {8.5f, static_cast<float>(y) + 0.5f, 8.5f});
+    check("C1/interaction-dispatches-special-drop",
+          broke && player.getHeldItems().isEmpty() &&
+              world.collectDebugStats().actorCount == actorsBefore &&
+              world.getBlock(8, y, 8) == BlockId::Air);
+}
+
+// ---------------------------------------------------------------------------
 // L1 - sunlight is stored per voxel, captured with mesh inputs and included in
 // the greedy merge key so a cave face cannot borrow the surface brightness
 // ---------------------------------------------------------------------------
@@ -3035,6 +3088,7 @@ int main()
         caseSectionMeshInput();
         caseGreedyMeshing();
         caseTransparentBlockRules();
+        caseBlockBehaviorDispatch();
         caseSunlightStorage();
         caseBlockLightStorage();
         caseLocalRelightAfterEdits();

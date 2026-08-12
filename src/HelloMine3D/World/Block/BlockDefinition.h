@@ -7,6 +7,8 @@
 #include "BlockData.h"
 #include "BlockId.h"
 
+class BlockBehavior;
+
 struct BlockRenderInfo {
     glm::ivec2 texTopCoord{0, 0};
     glm::ivec2 texSideCoord{0, 0};
@@ -26,6 +28,7 @@ struct BlockDefinition {
     bool liquid = false;
     int light = 0;
     Material::ID defaultDrop = Material::ID::Nothing;
+    const BlockBehavior *behavior = nullptr;
     BlockRenderInfo render;
 };
 

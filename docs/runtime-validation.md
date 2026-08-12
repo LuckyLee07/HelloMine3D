@@ -29,7 +29,7 @@ Output is one line per assertion plus a summary:
 ```text
 [VALIDATION] PASS S0.5/chunk-boundary-marks-neighbor
 [VALIDATION] FAIL S6.4/ore-decorator-produces-ore :: coal=0 iron=0
-[VALIDATION] checks=219 failures=0
+[VALIDATION] checks=223 failures=0
 [VALIDATION] status=PASS
 ```
 
@@ -65,6 +65,7 @@ position and player rotation are forced per scenario through the same
 | `casePersistence` | P2, S1.3, S2.1, S2.4, S2.5, S2.6, S6.1 | Block edits, world metadata, seed, spawn point, player transform/inventory, mobs and item entities all survive a relaunch. Actor subtype state and id allocation are compared after restore. |
 | `caseSectionMeshInput` | M1, M3 | The 18x18x18 block halo matches direct world reads, edits advance the section revision, and accepted mesh builds accumulate timing plus solid/glass/water/flora face and vertex metrics. |
 | `caseTransparentBlockRules` | L4 | Glass definitions and materials round-trip, transparent cubes use the glass pass, leaves use static cutout and flora keeps its animated pass. Shared glass faces are removed within and across chunks while opaque/glass boundaries retain exactly one face. |
+| `caseBlockBehaviorDispatch` | C1 | Every definition owns a behavior; default drops delegate to static definitions, while glass registers a no-drop policy. The real break path consumes that policy without adding an item or spawning an entity. |
 | `caseSunlightStorage` | L1 | Sunlight conversion stays within 0-15, open and roofed columns differ, the full 18x18x18 halo carries sunlight, mesh brightness and greedy boundaries respect light values, and storage reload rebuilds derived sunlight. |
 | `caseBlockLightStorage` | L2 | A data-driven level-14 emitter falls off by one per voxel, opaque blocks stop propagation, the halo carries block light, meshes choose the stronger light source, and storage reload rebuilds derived values. |
 | `caseLocalRelightAfterEdits` | L3 | Edits update one sunlight column and locally remove/refill block light across chunk boundaries; mesh revisions and a bounded section queue track light-only changes, while chunk load/unload reconciles boundary light. |
@@ -95,7 +96,7 @@ These need a person at the keyboard or a different harness:
 | Layer | Command | Result |
 | ----- | ------- | ------ |
 | Focused headless tests | `bin\HelloMine3DCoordinateTests.exe`, `bin\HelloMine3DMeshDirtyTests.exe`, `bin\HelloMine3DSaveLoadSmoke.exe`, `bin\HelloMine3DEntityLifecycleSmoke.exe` | All pass. |
-| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=219 failures=0` (Debug and Release, 2026-08-12) |
+| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=223 failures=0` (Debug and Release, 2026-08-12) |
 | A1 asset references | `sh scripts/check_assets.sh` | The repository passes 44 block/shader/texture/font/config checks after registering both glass definitions. An isolated copy with `HelloMine3DTerrain.vert` omitted returns 1 and names the missing referenced shader (2026-08-09; current positive run 2026-08-12). |
 | A2 block diagnostics | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseBlockDataDiagnostics`) | Five malformed fixtures verify missing `ShaderType`, invalid `MeshType`, atlas coordinate `16 0`, light level 16, and duplicate id 3 all report the full source path and exact key. Debug/Release pass (2026-08-12). |
 | A3 runtime config ownership | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseRuntimeConfigOwnership`) | Three assertions delete an isolated `config.txt`, verify regeneration with the documented defaults, then load customised values. `Mine.cfg` and `MineResources.cfg` remain the only tracked `bin/` templates (2026-08-09). |
@@ -105,6 +106,7 @@ These need a person at the keyboard or a different harness:
 | L2 block-light storage | `bin\HelloMine3DWorldRuntimeSmoke.exe`; `tools\run_render_capture.ps1`; `tools\run_perf_baseline.ps1` | Seven L2 assertions plus one A2 range fixture pass in Debug and Release. The hardware PNG independently decodes. The matching 10-second run records 601 frames, 60.14 FPS, 17.69 ms frame P95, no frames over 33 ms, and 0.467/0.988 ms average/max mesh build time; geometry counts match L1 exactly (2026-08-12). |
 | L3 local relight | `bin\HelloMine3DWorldRuntimeSmoke.exe`; `tools\run_render_capture.ps1`; `tools\run_perf_baseline.ps1` | Nine L3 assertions pass in Debug and Release, including cross-chunk edit propagation, opaque add/remove, single-column sunlight, bounded mesh invalidation, reload reconciliation and unload cleanup. The PNG independently decodes. The 10-second run records 601 frames, 60.09 FPS, 17.58 ms frame P95, no frames over 33 ms, and 0.477/0.998 ms average/max mesh build time (2026-08-12). |
 | L4 transparent rules | `bin\HelloMine3DWorldRuntimeSmoke.exe`; `HELLOMINE3D_TRANSPARENT_FIXTURE=1` Ogre validation/capture; `tools\run_perf_baseline.ps1` | Ten L4 assertions pass in Debug and Release. Ogre validation reports one transparent section with 68 vertices/102 indices; `bin/render_capture_l4_20260812_full/new_05000ms.png` shows the deterministic glass/leaf/flora fixture and independently decodes. The 10-second run records 601 frames, 60.10 FPS, 17.54 ms frame P95, no frames over 33 ms, and 0.480/1.169 ms average/max mesh build time (2026-08-12). |
+| C1 block behavior | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseBlockBehaviorDispatch`) | Four C1 assertions verify default and special drop dispatch plus the real no-drop glass break path. The registry owns behavior lifetime and the interaction system has no glass-specific branch (Debug and Release, 2026-08-12). |
 | E0 dependency boundary | `rg "SFML|sf::|GLfloat|GLuint|glad" src/HelloMine3D/World` | No matches (2026-08-09). |
 | E1 engine build | `tools\premake\premake5 --os=windows --file=premake/premake.lua vs2022`, then full Debug/Release solution builds | Ogre 1.10 core, GLSupport, GL3Plus, FreeImage dependency chain, dedicated Ogre FreeType, zlib, zzip and OIS all compile with 0 errors (2026-08-09). |
 | E2 bootstrap validation | `set HELLOMINE3D_VALIDATE_ONLY=1` then `bin\HelloMine3D.exe` | Debug and Release register `OpenGL 3+ Rendering Subsystem`, 2 resource locations and OIS, then shut down cleanly (2026-08-09). |

@@ -6,6 +6,15 @@
 #include <utility>
 
 namespace {
+class NoDropBlockBehavior final : public BlockBehavior {
+  public:
+    Material::ID getDrop(const BlockDefinition &,
+                         const ChunkBlock &) const override
+    {
+        return Material::ID::Nothing;
+    }
+};
+
 std::string makeStringId(const std::string &fileName)
 {
     std::string id = "hellomine:";
@@ -78,8 +87,10 @@ BlockDatabase::BlockDatabase()
     addBlock(BlockId::DeadShrub, "DeadShrub");
     addBlock(BlockId::CoalOre, "CoalOre");
     addBlock(BlockId::IronOre, "IronOre");
-    addBlock(BlockId::Glass, "Glass");
-    addBlock(BlockId::GlassBorderless, "GlassBorderless");
+    addBlock(BlockId::Glass, "Glass",
+             std::make_unique<NoDropBlockBehavior>());
+    addBlock(BlockId::GlassBorderless, "GlassBorderless",
+             std::make_unique<NoDropBlockBehavior>());
 }
 
 BlockDatabase &BlockDatabase::get()
@@ -103,7 +114,8 @@ const BlockDefinition &BlockDatabase::getDefinition(BlockId id) const
     return m_definitions[(int)id];
 }
 
-void BlockDatabase::addBlock(BlockId id, const std::string &fileName)
+void BlockDatabase::addBlock(BlockId id, const std::string &fileName,
+                             std::unique_ptr<BlockBehavior> behavior)
 {
     auto block = std::make_unique<DefaultBlock>(fileName);
     const auto &data = block->getData().getBlockData();
@@ -117,6 +129,12 @@ void BlockDatabase::addBlock(BlockId id, const std::string &fileName)
             " but the registry expects " +
             std::to_string(static_cast<unsigned>(id)) + ".");
     }
-    m_definitions[(int)id] = makeDefinition(fileName, *block);
+    if (!behavior) {
+        behavior = std::make_unique<BlockBehavior>();
+    }
+    BlockDefinition definition = makeDefinition(fileName, *block);
+    definition.behavior = behavior.get();
+    m_definitions[(int)id] = std::move(definition);
+    m_behaviors[(int)id] = std::move(behavior);
     m_blocks[(int)id] = std::move(block);
 }
