@@ -214,6 +214,13 @@ powershell -ExecutionPolicy Bypass -File tools\run_perf_baseline.ps1 -StopExisti
 Pass `-WorldTime 6000` for deterministic noon or `-WorldTime 18000` for
 deterministic midnight captures. One full day is 24,000 fixed simulation ticks.
 
+On Windows, fatal startup and resource errors remain complete on stderr and are
+also shown in a modal error dialog. The non-interactive regression is:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\validate_startup_errors.ps1
+```
+
 See `docs/runtime-validation.md` for what each layer covers.
 
 ## The Challenge

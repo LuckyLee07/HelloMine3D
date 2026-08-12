@@ -8,6 +8,7 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $premake = Join-Path $repoRoot "tools\premake\premake5.exe"
 $solution = Join-Path $repoRoot "build\HelloMine3D.sln"
 $binDirectory = Join-Path $repoRoot "bin"
+$startupErrorVerifier = Join-Path $repoRoot "tools\validate_startup_errors.ps1"
 
 function Invoke-Checked {
     param(
@@ -94,6 +95,13 @@ try {
                 throw "Expected test executable was not built: $testPath"
             }
             Invoke-Checked "$configuration $test" { & $testPath }
+        }
+
+        Invoke-Checked "$configuration startup error diagnostics" {
+            & $startupErrorVerifier `
+                -ExePath (Join-Path $binDirectory "HelloMine3D.exe") `
+                -OutputDir (Join-Path $binDirectory `
+                    "startup_error_validation_$configuration")
         }
     }
 

@@ -1,0 +1,112 @@
+[CmdletBinding()]
+param(
+    [string]$ExePath = "",
+    [string]$OutputDir = ""
+)
+
+$ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
+
+$ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RepoRoot = (Resolve-Path (Join-Path $ScriptRoot "..")).Path
+if ([string]::IsNullOrWhiteSpace($ExePath)) {
+    $ExePath = Join-Path $RepoRoot "bin\HelloMine3D.exe"
+}
+if ([string]::IsNullOrWhiteSpace($OutputDir)) {
+    $OutputDir = Join-Path $RepoRoot "bin\startup_error_validation"
+}
+$ExePath = [System.IO.Path]::GetFullPath($ExePath)
+$OutputDir = [System.IO.Path]::GetFullPath($OutputDir)
+
+if (-not (Test-Path -LiteralPath $ExePath -PathType Leaf)) {
+    throw "Client executable not found: $ExePath"
+}
+if (Test-Path -LiteralPath $OutputDir) {
+    Remove-Item -LiteralPath $OutputDir -Recurse -Force
+}
+New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
+
+$requirements = @(
+    [pscustomobject]@{
+        Category = "shader"
+        RelativePath = "media\ogre\HelloMine3DTerrain.vert"
+        DiagnosticPath = "media/ogre/HelloMine3DTerrain.vert"
+    },
+    [pscustomobject]@{
+        Category = "texture"
+        RelativePath = "media\textures\DefaultPack.png"
+        DiagnosticPath = "media/textures/DefaultPack.png"
+    },
+    [pscustomobject]@{
+        Category = "block"
+        RelativePath = "media\blocks\Stone.block"
+        DiagnosticPath = "media/blocks/Stone.block"
+    }
+)
+
+foreach ($missing in $requirements) {
+    $caseRoot = Join-Path $OutputDir $missing.Category
+    New-Item -ItemType Directory -Path $caseRoot -Force | Out-Null
+
+    foreach ($present in $requirements) {
+        if ($present.Category -eq $missing.Category) {
+            continue
+        }
+        $source = Join-Path $RepoRoot $present.RelativePath
+        $target = Join-Path $caseRoot $present.RelativePath
+        $targetParent = Split-Path -Parent $target
+        New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
+        Copy-Item -LiteralPath $source -Destination $target -Force
+    }
+
+    $reportPath = Join-Path $caseRoot "startup-error-report.txt"
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $ExePath
+    $startInfo.WorkingDirectory = Split-Path -Parent $ExePath
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.EnvironmentVariables["HELLOMINE3D_ROOT"] = $caseRoot
+    $startInfo.EnvironmentVariables["HELLOMINE3D_STARTUP_ERROR_REPORT"] = $reportPath
+    $startInfo.EnvironmentVariables["HELLOMINE3D_STARTUP_ERROR_NO_DIALOG"] = "1"
+    $startInfo.EnvironmentVariables.Remove("HELLOMINE3D_VALIDATE_ONLY")
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $startInfo
+    if (-not $process.Start()) {
+        throw "Failed to start client for missing $($missing.Category) case."
+    }
+    $stdout = $process.StandardOutput.ReadToEnd()
+    $stderr = $process.StandardError.ReadToEnd()
+    $process.WaitForExit()
+    $exitCode = $process.ExitCode
+    $process.Dispose()
+
+    if ($exitCode -eq 0) {
+        throw "Missing $($missing.Category) case unexpectedly returned zero."
+    }
+    $expectedCategory = "Missing startup $($missing.Category) resource"
+    if ($stderr -notlike "*$expectedCategory*" -or
+        $stderr -notlike "*$($missing.DiagnosticPath)*") {
+        throw "Missing $($missing.Category) stderr did not name the failed resource: $stderr"
+    }
+    if (-not (Test-Path -LiteralPath $reportPath -PathType Leaf)) {
+        throw "Missing $($missing.Category) case did not produce the Windows error report."
+    }
+    $report = Get-Content -LiteralPath $reportPath -Raw
+    if ($report -notlike "*ui=MessageBoxW*" -or
+        $report -notlike "*dialog_requested=true*" -or
+        $report -notlike "*$expectedCategory*" -or
+        $report -notlike "*$($missing.DiagnosticPath)*") {
+        throw "Missing $($missing.Category) Windows report is incomplete: $report"
+    }
+
+    Set-Content -LiteralPath (Join-Path $caseRoot "process.stdout.log") `
+        -Value $stdout -Encoding UTF8
+    Set-Content -LiteralPath (Join-Path $caseRoot "process.stderr.log") `
+        -Value $stderr -Encoding UTF8
+    Write-Host "[STARTUP_ERROR_VERIFY] PASS category=$($missing.Category) exitCode=$exitCode resource=$($missing.DiagnosticPath)"
+}
+
+Write-Host "[STARTUP_ERROR_VERIFY] status=PASS cases=$($requirements.Count)"

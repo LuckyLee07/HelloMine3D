@@ -4,6 +4,8 @@
 #include "OgreBlockOutline.h"
 #include "OgreRenderCapture.h"
 #include "OgreUserInterface.h"
+#include "StartupErrorReporter.h"
+#include "StartupResourcePreflight.h"
 
 #include <OIS.h>
 #include <Ogre.h>
@@ -1303,6 +1305,8 @@ int runOgreBootstrap(bool validateOnly)
 {
     try
     {
+        validateStartupResources(ResourcePaths::projectRoot(),
+                                 bootstrapResourceRequirements());
         OgreBootstrap bootstrap;
         if (validateOnly)
         {
@@ -1312,16 +1316,24 @@ int runOgreBootstrap(bool validateOnly)
     }
     catch (const Ogre::Exception& exception)
     {
-        std::cerr << "Ogre bootstrap failed: "
-                  << exception.getFullDescription() << '\n';
+        const std::string diagnostic =
+            "Ogre bootstrap failed: " + exception.getFullDescription();
+        std::cerr << diagnostic << '\n';
+        StartupErrorReporter::present(diagnostic, !validateOnly);
     }
     catch (const OIS::Exception& exception)
     {
-        std::cerr << "OIS bootstrap failed: " << exception.eText << '\n';
+        const std::string diagnostic =
+            "OIS bootstrap failed: " + std::string(exception.eText);
+        std::cerr << diagnostic << '\n';
+        StartupErrorReporter::present(diagnostic, !validateOnly);
     }
     catch (const std::exception& exception)
     {
-        std::cerr << "Ogre bootstrap failed: " << exception.what() << '\n';
+        const std::string diagnostic =
+            "Ogre bootstrap failed: " + std::string(exception.what());
+        std::cerr << diagnostic << '\n';
+        StartupErrorReporter::present(diagnostic, !validateOnly);
     }
     return EXIT_FAILURE;
 }
