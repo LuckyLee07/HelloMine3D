@@ -195,6 +195,32 @@ animated pass. Ogre validation reports one glass section with 68 vertices and
 both glass variants, including at a chunk boundary, without hiding the one
 required face at an opaque/glass interface.
 
+## Visual Milestone Closure
+
+The 2026-08-12 closure run archived three OpenGL 4.6 runtime readbacks in the
+repository so V3, E1-E5, P1, P3, P4 and M4 do not depend on ignored `bin/`
+artifacts:
+
+| Evidence | Covers |
+| -------- | ------ |
+| `docs/screenshots/validation-skybox-panel-outline.png` | Six-face cloud skybox, textured terrain, block-scale atlas repetition, yellow selected-block outline, crosshair, five-slot hotbar and the live chunk/section/mesh/actor panel. |
+| `docs/screenshots/validation-actors.png` | One green mob and one amber dropped-item cube; the panel reports two live actors. |
+| `docs/screenshots/validation-ores.png` | A deterministic coal wall on the left and iron wall on the right, with visibly distinct atlas tiles. |
+
+The skybox was previously black even though all six source PNGs loaded. The
+material supplied six independent 2D textures with `separateUV`, while the
+shader sampled a `samplerCube`. The fixed path uses Ogre's base-name cube-map
+convention (`sky_fr`, `sky_bk`, `sky_lf`, `sky_rt`, `sky_up`, `sky_dn`) with
+`cubic_texture sky.png combinedUVW`; the vertex shader supplies the cube
+direction from `vertex.xyz`. The hardware log now reports one cube texture
+loaded from six images. `scripts/check_assets.sh` expands the same base name
+and requires all six files, preventing a missing face from reaching runtime.
+
+The actor and ore fixtures are opt-in validation aids. During runtime readback
+only, their simulation is frozen so a pinned high-altitude camera cannot fall
+away from the subjects before the scheduled frame. Normal gameplay and
+non-capture runs retain the ordinary simulation delta.
+
 ## Implementation Notes
 
 Runtime capture is implemented in
@@ -215,6 +241,7 @@ environment variables, normally set by `tools/run_render_capture.ps1`:
 | `HELLOMINE3D_PLAYER_ROTATION` | Optional deterministic player rotation override. |
 | `HELLOMINE3D_SHOW_DEBUG_INFO` | Starts with the F1 debug panels visible. The script sets it with `-ShowDebugInfo`. |
 | `HELLOMINE3D_SPAWN_VALIDATION_ACTORS` | Spawns one mob and one dropped item in front of the player. The script sets it with `-SpawnValidationActors`. |
+| `HELLOMINE3D_ORE_FIXTURE` | Places coal and iron walls in front of the pinned player. The script sets it with `-ShowOreFixture`. |
 | `HELLOMINE3D_TRANSPARENT_FIXTURE` | Places the deterministic L4 glass, leaf and flora render fixture. |
 
 `WindowScreenshot` mode is kept only as a fallback/manual diagnostic path. It

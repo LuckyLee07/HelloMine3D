@@ -67,14 +67,13 @@ MiniGame 可参考的方向：
 
 ## Validation Status
 
-2026-08-07 收敛：44 个条目此前全部停留在 `Verify`，本轮通过新增的
-`HelloMine3DWorldRuntimeSmoke`（现为 123 项断言）、既有 4 个 headless 测试、渲染截图 smoke 和
-性能基线全部完成运行时验证。
+2026-08-12 收敛：44 个条目现已全部完成。`HelloMine3DWorldRuntimeSmoke`
+包含 239 项断言，既有 4 个 headless 测试、硬件渲染截图 smoke 和性能基线全部通过。
 
 | 结果 | 数量 | 说明 |
 | ---- | ---- | ---- |
-| Done | 43 | 有自动化断言或客户端 smoke 覆盖。 |
-| Verify | 1 | S7.1，见下方说明，需要调试面板截图。 |
+| Done | 44 | 有自动化断言或客户端 smoke 覆盖。 |
+| Verify | 0 | 无。 |
 
 验证入口：
 
@@ -158,11 +157,11 @@ Goal: replace the current thin `Entity` with a minimal actor model that can supp
 | ID | Status | Task | Validation evidence |
 | -- | ------ | ---- | ------------------- |
 | S5.1 | Done | Split `Entity` and `Actor`. | `S5.1/actor-count-tracked`, `S5.1/dead-actors-removed` through `World::tick()`. |
-| S5.2 | Done | Add `LivingActor`. | `S5.2/mob-is-living-actor`, `S5.2/mob-takes-damage`, `S5.2/mob-dies`. Invulnerability timing is still not implemented. |
+| S5.2 | Done | Add `LivingActor`. | `S5.2/mob-is-living-actor`, `S5.2/mob-takes-damage`, `S5.2/mob-dies`; C6 adds a fixed-tick 0.5-second invulnerability window and verifies immediate/recovered damage. |
 | S5.3 | Done | Add `PlayerActor` and `PlayerController`. | `PlayerInputState` feeds the same `PlayerController::applyInput()` path as live Ogre/OIS collection. `V2/*` asserts movement, flying jump, fly/sneak toggles, look delta and hotbar selection without moving the real mouse. |
 | S5.4 | Done | Add `Inventory` and hotbar. | `S2.6/player-inventory-restored`, `S3.5/break-adds-configured-drop`, `S3.4/place-consumes-item`, `S5.5/item-entity-picked-up`. |
-| S5.5 | Done | Add `ItemEntity`. | `S5.5/item-entity-spawns`, `S5.5/item-entity-found`, `S5.5/item-entity-picked-up`, plus P1 item snapshot creation/removal. P2 persists material, amount, transform, velocity and pickup delay. Ogre rendering is implemented; only the hardware screenshot remains open. |
-| S5.6 | Done | Add first `MobActor`. | `S5.6/mob-spawns`, `S5.6/mob-wanders-on-tick`, plus the damage/death chain and P1 mob snapshot transform/removal assertions. Ogre rendering is implemented; the hardware screenshot remains open. |
+| S5.5 | Done | Add `ItemEntity`. | `S5.5/item-entity-spawns`, `S5.5/item-entity-found`, `S5.5/item-entity-picked-up`, plus P1 item snapshot creation/removal. P2 persists material, amount, transform, velocity and pickup delay. `docs/screenshots/validation-actors.png` shows the amber dropped-item renderer. |
+| S5.6 | Done | Add first `MobActor`. | `S5.6/mob-spawns`, `S5.6/mob-wanders-on-tick`, plus the damage/death chain, C6 chase/immunity assertions and P1 snapshot lifecycle. `docs/screenshots/validation-actors.png` shows the green mob renderer. |
 
 ## Milestone S6: Terrain Generation and Content Structure
 
@@ -171,10 +170,10 @@ Goal: keep procedural generation deterministic and extensible.
 | ID | Status | Task | Validation evidence |
 | -- | ------ | ---- | ------------------- |
 | S6.1 | Done | Add world seed ownership. | `S6.1/same-seed-same-terrain` over 175104 sampled blocks, `S6.1/seed-restored-from-save`. |
-| S6.2 | Done | Split terrain base and decorators. | `S6.2/decorators-produce-trees` (161 tree blocks over 49 chunks), `S6.2/decorators-produce-plants` (97 plant blocks). |
+| S6.2 | Done | Split terrain base and decorators. | `S6.2/decorators-produce-trees` (2,459 tree blocks over 49 chunks), `S6.2/decorators-produce-plants` (152 plant blocks), including C5 cross-chunk projection. |
 | S6.3 | Done | Formalize biome definitions. | `S6.3/biome-surface-variety` — 8 distinct surface block ids across the sampled region. |
-| S6.4 | Done | Add ore decorator. | `S6.4/ore-decorator-produces-ore` (coal 185, iron 171), `S6.4/ore-layout-deterministic`. P4 now supplies dedicated coal and iron atlas tiles with four passing headless assertions; only the hardware-backed in-world screenshot remains in `Verify`. |
-| S6.5 | Done | Add structure placement boundary rules. | `S6.5/structures-survive-reload` — identical tree and plant counts after all 49 chunks go through a save/load roundtrip. `S6.5/surface-composition-stable`. |
+| S6.4 | Done | Add ore decorator. | `S6.4/ore-decorator-produces-ore` (coal 169, iron 155), `S6.4/ore-layout-deterministic`. Four P4 atlas assertions pass and `docs/screenshots/validation-ores.png` confirms both in-world textures. |
+| S6.5 | Done | Add structure placement boundary rules. | `S6.5/structures-survive-reload` preserves all 100 cross-chunk tree links after 49 chunks go through a save/load roundtrip. `S6.5/surface-composition-stable`. |
 
 ## Milestone S7: Debugging and Validation
 
@@ -182,7 +181,7 @@ Goal: make sandbox behavior measurable while the foundation is being rewritten.
 
 | ID | Status | Task | Validation evidence |
 | -- | ------ | ---- | ------------------- |
-| S7.1 | Verify | Add sandbox debug panel. | The data source `World::collectDebugStats()` is asserted and sampled every frame by the performance baseline. V3 adds `HELLOMINE3D_SHOW_DEBUG_INFO`, the capture script's `-ShowDebugInfo` switch, and four headless option assertions. The 2026-08-09 session exposed only GDI Generic OpenGL 1.1, so one hardware-backed screenshot with the live panel is still required. |
+| S7.1 | Done | Add sandbox debug panel. | The data source `World::collectDebugStats()` is asserted and sampled every frame by the performance baseline. V3 adds `HELLOMINE3D_SHOW_DEBUG_INFO`, the capture script's `-ShowDebugInfo` switch, four headless option assertions and the OpenGL 4.6 evidence in `docs/screenshots/validation-skybox-panel-outline.png`. |
 | S7.2 | Done | Add focused save/load smoke test. | `bin\HelloMine3DSaveLoadSmoke.exe` passes; full client relaunch persistence is now also covered by `casePersistence` and `caseUnloadPersistence`. |
 | S7.3 | Done | Add coordinate conversion tests. | `bin\HelloMine3DCoordinateTests.exe` passes; runtime behaviour covered by `caseNegativeCoordinates`. |
 | S7.4 | Done | Add mesh dirty validation scenario. | `bin\HelloMine3DMeshDirtyTests.exe` passes; runtime section state covered by `caseMeshDirtyPropagation`. |
@@ -200,13 +199,13 @@ The sandbox foundation can be considered ready for adventure gameplay when all o
 | 4 | Mesh updates are local, automatic, and visible on chunk/section boundaries. | Met (S0.5) |
 | 5 | World metadata stores seed, spawn point, and player position. | Met (S2.1, S2.6) |
 | 6 | A basic inventory and hotbar exist. | Met (S5.4) |
-| 7 | Dropped item entities can spawn and be picked up. | Partly met — logic and Ogre renderer are implemented; hardware capture pending (P1) |
-| 8 | At least one simple Mob actor can spawn, tick, take damage, die, and drop an item. | Partly met — logic and Ogre renderer are implemented; hardware capture pending (P1) |
+| 7 | Dropped item entities can spawn and be picked up. | Met (S5.5, P1, P2) |
+| 8 | At least one simple Mob actor can spawn, tick, take damage, die, and drop an item. | Met (S5.2, S5.6, P1, C6) |
 | 9 | Debug UI or logs expose chunk, mesh, save, and entity counters. | Met (S0.4, S7.1 data path) |
 | 10 | A smoke test verifies save/load and coordinate conversion. | Met (S7.2, S7.3) |
 
-The two remaining partly-met criteria are carried into `docs/todolist.md`;
-entity rendering now only awaits the hardware-backed P1 capture.
+All ten first-playable foundation criteria are met. Gameplay expansion continues
+in `docs/todolist.md` without carrying a foundation validation gap.
 
 ## Notes
 

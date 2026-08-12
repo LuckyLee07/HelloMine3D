@@ -238,18 +238,17 @@ E5 才删除旧代码。
 
 验证：全套 5 个测试 + render capture + perf baseline 全部照常通过。
 
-状态：2026-08-09 已完成源码与构建接入，等待硬件图形验收。项目只导入 Ogre 核心、
+状态：2026-08-12 已完成源码、构建与硬件图形验收。项目只导入 Ogre 核心、
 GLSupport、GL3Plus、FreeImage 完整依赖链、独立的 Ogre FreeType、zlib/zzip 和 OIS 的
 头文件/源码，合计 1868 个文件、约 29.57 MiB；OIS demo 与生成文档未导入。构建统一为
 `x64 + C++17 + staticruntime On + MBCS`，Ogre 的 FreeType 工程命名为 `ogre_freetype`，
 避免与迁移期 SFML 内置 FreeType 混淆。
 
-VS2022 Debug/Release 全量构建与 5 个测试目标全部通过，运行时 smoke 为 123/123。
+VS2022 Debug/Release 全量构建与 5 个测试目标全部通过，运行时 smoke 为 239/239。
 为兼容 C++17，仅局部迁移了 LibRaw 的 `auto_ptr` 所有权、Ogre 的现代 MSVC 哈希分支和
 已移除的 STL 函数对象适配器；FreeImage 因历史源码编码保持原文件，使用 MSVC 兼容宏
-`_HAS_AUTO_PTR_ETC=1`。渲染探针确认旧 SFML 路径仍被启动，但自动化会话只能创建
-GDI Generic OpenGL 1.1，低于客户端要求的 3.3，因此 render capture 与可比 perf baseline
-仍需在硬件加速桌面补跑，E1 暂记 `Verify`。
+`_HAS_AUTO_PTR_ETC=1`。GTX 1050 Ti / OpenGL 4.6 已完成地形、透明层、UI、演员、矿石和
+天空盒截图；L4 的 10 秒基线记录 60.10 FPS、17.54 ms frame P95，且无超过 33 ms 的帧。
 
 ### E2 Ogre 引导与空场景（1–2 周）
 
@@ -262,17 +261,18 @@ GDI Generic OpenGL 1.1，低于客户端要求的 3.3，因此 render capture �
 
 **阶段目标：Ogre 窗口 + 天空盒 + 自由飞行相机，世界尚未渲染。**
 
-状态：2026-08-09 已完成代码接入，等待硬件图形验收。新增独立的
-`HelloMine3DOgreBootstrap` 目标，与原 SFML 客户端及五个测试目标并存；引导程序负责
+状态：2026-08-12 已完成代码和硬件图形验收。引导程序现由唯一的
+`HelloMine3D.exe` 客户端承载，负责
 `Root`、GL3Plus 静态插件、`RenderWindow`、`SceneManager`、`Camera`、`FrameListener`、
 OIS 键鼠输入和 Ogre 内置天空盒。`Mine.cfg` 与 `MineResources.cfg` 已纳入版本控制，
 资源组挂载 `media/ogre` 和 `media/textures`。自由相机支持 WASD、空格/Ctrl 垂直移动、
 鼠标视角和 Escape 退出，并提供按帧自动退出的验证入口。
 
-VS2022 Debug/Release 全量构建与五个测试目标全部通过，运行时 smoke 为 123/123；
-无窗口校验模式在两个配置下均成功注册 GL3Plus、两个资源目录和 OIS。窗口探针已进入
-GL3Plus 上下文创建，但自动化会话只提供 GDI Generic OpenGL，低于 OpenGL 3.0，故天空盒
-外观、鼠标视角和自由飞行仍需在硬件加速桌面实测，E2 暂记 `Verify`。
+VS2022 Debug/Release 全量构建与五个测试目标全部通过，运行时 smoke 为 239/239；
+无窗口校验模式在两个配置下均成功注册 GL3Plus、两个资源目录和 OIS。硬件运行时创建并
+捕获 OIS 键鼠设备，V2 对设备采集后的 `PlayerInputState` 控制器边界做确定性验证。
+`docs/screenshots/validation-skybox-panel-outline.png` 证明六面云层天空盒正常渲染；资源日志
+报告 `sky.png` 从六张图片加载为 cube texture。
 
 ### E3 区块渲染迁移（2–3 周）— 核心阶段
 
@@ -290,19 +290,18 @@ GL3Plus 上下文创建，但自动化会话只提供 GDI Generic OpenGL，低�
 验证：render capture 显示正确地形；perf baseline 与迁移前基线对比，重点看
 `frame_p95_ms`、`render_p95_ms`、`last_gpu_buffered_sections`。
 
-状态：2026-08-09 已完成代码接入，等待硬件图形与性能验收。新增
+状态：2026-08-12 已完成代码、硬件图形与性能验收。新增
 `ChunkSectionRenderable`，基于 Ogre `SimpleRenderable` 实现自定义
-`MovableObject + Renderable`，每个实体 section 自持交错的位置/UV/面向光照顶点缓冲和
+`MovableObject + Renderable`，每个实体 section 自持交错的位置/图集 UV/重复 UV/组合光照顶点缓冲和
 32 位索引缓冲。CPU 顶点转换为 section 局部坐标，场景节点承担世界平移，每个 section
 使用 `0..CHUNK_SIZE` 的局部 AABB，由 Ogre 场景图负责剔除。原 `ChunkMeshBuilder` 未改写，
 只新增只读 CPU 数据出口；地形 GLSL 已转为 Ogre program/material，图集
-`DefaultPack.png` 由资源组加载并显式设置 `filtering none`。旧 SFML 客户端继续保留。
+`DefaultPack.png` 由资源组加载并显式设置 `filtering none`。E5 已删除旧 SFML 客户端。
 
-无窗口校验使用固定种子和固定玩家位置生成真实世界，Debug/Release 均得到 10 个实体
-section、14,460 个顶点和 21,690 个索引，并验证位置/UV/光照数量、索引范围以及 section
-局部边界。两套配置的全量构建、五个测试目标和 123/123 运行时 smoke 全部通过。窗口探针
-仍在 GL3Plus 初始化阶段被 GDI Generic OpenGL 版本阻断，因此地形截图、材质实际表现、
-Ogre 视锥剔除和与迁移前基线的性能对比需在硬件加速桌面补跑，E3 暂记 `Verify`。
+无窗口校验使用固定种子和固定玩家位置生成真实世界，并验证位置、图集/重复 UV、组合光照、
+索引范围以及 section 局部边界。两套配置的全量构建、五个测试目标和 239/239 运行时 smoke
+全部通过。硬件截图确认地形、最近邻图集和块级重复纹理，L4 性能基线同时验证逐帧 section
+上传和场景图路径。
 
 ### E4 其余渲染路径（1–2 周）
 
@@ -314,28 +313,29 @@ Ogre 视锥剔除和与迁移前基线的性能对比需在硬件加速桌面补
 | `Diagnostics/RuntimeRenderCapture` 改用 `RenderWindow::writeContentsToFile` | 截图 smoke 通过 |
 | `Diagnostics/RuntimePerformanceCapture` 接 Ogre `FrameListener` | perf CSV 正常 |
 
-进展：2026-08-09 已完成 water / flora 材质与渲染队列迁移。两者复用 E3 的
+进展：2026-08-12 已完成 water / flora 材质、渲染队列和硬件外观验收。两者复用 E3 的
 `ChunkSectionRenderable` 缓冲和 section AABB；water 使用透明混合、关闭深度写入并进入
 队列 80，flora 保持深度写入并进入队列 60。两套顶点程序保留旧路径的正弦水面起伏与
 植被摆动，时间由 Ogre `time_0_x` 自动常量提供；图集继续使用 `filtering none`。
 
-固定种子 `20260809`、位置 `264 96 8` 的无窗口验证在 Debug/Release 下均得到 19 个
-实体 section（20,796 顶点）、3 个水体 section（1,736 顶点）和 13 个植被 section
-（1,116 顶点），三类网格的 UV/光照/索引校验全部通过。全量构建和 123/123 回归通过；
-材质实际外观仍需硬件窗口确认。
+固定种子 `20260809`、位置 `264 96 8` 的无窗口验证在 Debug/Release 下覆盖实体、玻璃、
+水体和植被 section，四类网格的 UV/光照/索引校验全部通过。全量构建和 239/239 回归通过；
+L4 硬件截图确认透明墙、叶片和交叉植被的材质与队列关系。
 
 截图与性能诊断现已接入 Ogre：截图按既有环境变量调度，并通过
 `RenderWindow::writeContentsToFile` 写出；固定步进与逐帧耗时由 `FrameListener` 送入
 `RuntimePerformanceCapture`；两条验证脚本现直接使用唯一的 `HelloMine3D.exe` 客户端。无窗口模式
-已在 Debug/Release 验证三组截图目标的配置解析，全量构建和 140/140 回归继续通过。
-当前会话只有 GDI Generic OpenGL 1.1，因此实际 PNG、性能 CSV 和材质外观仍需硬件桌面补跑。
+已在 Debug/Release 验证截图目标的配置解析，全量构建和 239/239 回归继续通过。
+GTX 1050 Ti / OpenGL 4.6 已生成并独立解码实际 PNG；10 秒性能 CSV 同时通过帧率、帧预算和
+20 Hz 固定步进门槛。
 
 HUD 与 ImGui 也已迁移：`OgreUserInterface` 将 OIS 键鼠事件映射到 ImGui，常驻绘制准星和
 5 格快捷栏，F1 控制玩家/世界调试面板，并在场景渲染队列结束后通过 OpenGL3 后端提交。
 输入采集已移到 `frameStarted`，UI 捕获输入时会抑制相机操作；按帧退出则在 `frameEnded`
 收尾，保证最后一帧仍进入截图与性能采集。Debug/Release 无窗口校验分别验证调试面板开启
-和关闭配置，HUD 均报告 5 个槽位及合法选中项；全量构建和 140/140 回归通过。受当前
-OpenGL 1.1 会话限制，HUD/调试面板的实际外观仍需硬件截图确认，E4 暂记 `Verify`。
+和关闭配置，HUD 均报告 5 个槽位及合法选中项；全量构建和 239/239 回归通过。
+`docs/screenshots/validation-skybox-panel-outline.png` 进一步确认准星、快捷栏、黄色选框和实时
+调试面板均在硬件渲染路径中可见。
 
 ### E5 清理（1 周）
 
@@ -351,8 +351,8 @@ SFML/glad/Renderer/Shaders/Texture/GL/Input 外壳和并行引导目标均已移
 平台无关的 `SandboxRuntime`。Ogre 通过带方块版本号的 CPU 网格快照接收后台重建结果，
 只有成功上传的当前版本才会标记为 GPU ready，挖掘、放置、卸载后的场景节点可逐帧同步。
 方块选择反馈也迁移为 `OgreBlockOutline`。Premake、README、截图和性能脚本均只保留一个
-客户端入口，Debug/Release 全量构建、五个测试和 140/140 运行时回归通过。当前会话仅有
-GDI Generic OpenGL 1.1，因此新 Ogre PNG/CSV 硬件基线仍待补跑，E5 暂记 `Verify`。
+客户端入口，Debug/Release 全量构建、五个测试和 239/239 运行时回归通过。新的 Ogre
+PNG/CSV 硬件基线已在 GTX 1050 Ti / OpenGL 4.6 上归档，E5 完成。
 
 ## 风险登记
 
@@ -360,12 +360,12 @@ GDI Generic OpenGL 1.1，因此新 Ogre PNG/CSV 硬件基线仍待补跑，E5 �
 | ---- | ---- | ---- | ---- |
 | R1 | `staticruntime` 不一致（HelloOgre3D 为 `On`，本项目为默认动态） | 直接链接失败 | E1 阶段第一件事就统一，不要拖到 E3 |
 | R2 | freetype 重复：现有 SFML 构建自带一份，Ogre ThirdParty 也有一份 | 符号冲突 | E1 阶段决定保留哪一份；SFML 移除后自然消解 |
-| R3 | ImGui 在 Ogre 下的接入方式未验证 | 调试面板可能暂时不可用 | 首选 `imgui_impl_opengl3` 挂进 GL3Plus 上下文；退路是暂时只保留日志与 perf CSV，S7.1 顺延 |
+| R3 | ImGui 在 Ogre 下的接入方式未验证 | 调试面板可能暂时不可用 | 已使用 `imgui_impl_opengl3` 接入 GL3Plus，并由硬件截图关闭风险。 |
 | R4 | `characterset` MBCS 与本项目默认不一致 | 字符串 API 行为差异 | E1 统一 |
 | R5 | Ogre 1.10 有 1 个文件使用 C++17 已移除的 `bind1st`/`mem_fun` 系列 | 编译失败 | 单文件降标准或小改。已确认无 `auto_ptr`、`random_shuffle`、`register`，整体 C++17 兼容性良好 |
 | R6 | Ogre 场景图在 2000+ Renderable 量级的每帧开销 | 帧时间回退 | E3 结束必须做 perf baseline 对比；若回退明显，考虑合并 section 或降低 Renderable 粒度 |
 | R7 | 构建时间与产物体积上升 | 迭代变慢 | 接受；必要时用 `/MP` 与分组构建缓解 |
-| R8 | macOS 路径未验证 | 跨平台目标受阻 | HelloOgre3D 已有 `xcode.sh` 与 macOS filter 可抄；仍建议 E5 后单独验证 |
+| R8 | macOS 原生构建与启动未验证 | 跨平台目标受阻 | Xcode 工作区已在 Windows 侧通过 69 项生成合同检查，并清除了错误的全局 `WIN32` 宏；最终仍需 macOS 主机执行 `xcodebuild` 和客户端启动。 |
 
 ## 与玩法路线的先后关系
 
