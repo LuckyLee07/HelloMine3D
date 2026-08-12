@@ -130,31 +130,36 @@ regime.**
 
 ## Current Verified Runs
 
-The current L1/L2 hardware runs were taken on 2026-08-12 with a GTX 1050 Ti /
+The current L1/L2/L3 hardware runs were taken on 2026-08-12 with a GTX 1050 Ti /
 OpenGL 4.6, seed `20260809`, player position `264 96 8`, rotation
 `20 118.4 0`, a 3-second warmup and a 10-second capture:
 
-| Metric | L1 Release | L2 Release |
-| ------ | ---------- | ---------- |
-| run | `bin/perf_baseline_l1_20260812` | `bin/perf_baseline_l2_20260812` |
-| frames | 601 | 601 |
-| `sampled_fps` | 60.100 | 60.100 |
-| `avg_fps` | 60.143 | 60.143 |
-| `frame_p95_ms` | 17.749 | 17.690 |
-| `frame_p99_ms` | 18.366 | 18.007 |
-| `frame_max_ms` | 19.321 | 18.935 |
-| `frames_over_33ms` | 0 | 0 |
-| `frames_over_50ms` | 0 | 0 |
-| `simulation_tick_hz` | 20.000 | 20.000 |
-| `last_loaded_chunks` | 361 | 361 |
-| `last_sections` | 2243 | 2243 |
-| `last_mesh_rebuilds` | 813 | 813 |
-| `last_mesh_build_avg_ms` | 0.466 | 0.467 |
-| `last_mesh_build_max_ms` | 1.363 | 0.988 |
+| Metric | L1 Release | L2 Release | L3 Release |
+| ------ | ---------- | ---------- | ---------- |
+| run | `bin/perf_baseline_l1_20260812` | `bin/perf_baseline_l2_20260812` | `bin/perf_baseline_l3_20260812` |
+| frames | 601 | 601 | 601 |
+| `sampled_fps` | 60.100 | 60.100 | 60.100 |
+| `avg_fps` | 60.143 | 60.143 | 60.091 |
+| `frame_p95_ms` | 17.749 | 17.690 | 17.575 |
+| `frame_p99_ms` | 18.366 | 18.007 | 18.130 |
+| `frame_max_ms` | 19.321 | 18.935 | 19.298 |
+| `frames_over_33ms` | 0 | 0 | 0 |
+| `frames_over_50ms` | 0 | 0 | 0 |
+| `simulation_tick_hz` | 20.000 | 20.000 | 20.100 |
+| `last_loaded_chunks` | 361 | 361 | 361 |
+| `last_sections` | 2243 | 2243 | 2243 |
+| `last_mesh_dirty_sections` | 470 | 470 | 424 |
+| `last_gpu_buffered_sections` | 607 | 607 | 653 |
+| `last_mesh_rebuilds` | 813 | 813 | 917 |
+| `last_mesh_build_avg_ms` | 0.466 | 0.467 | 0.477 |
+| `last_mesh_build_max_ms` | 1.363 | 0.988 | 0.998 |
 
 These are vsync-on runs; compare them only with the same pinned scene and
 refresh regime. L2's block-light propagation leaves the generated geometry
-counts unchanged from L1 and shows no frame-time regression in this scene.
+counts unchanged from L1. L3 also shows no frame-time regression. Its worker
+progressed farther during the capture (more accepted rebuilds and GPU-buffered
+sections, with fewer dirty sections), so cumulative geometry counts are not a
+direct L2/L3 comparison.
 
 ### Archived M3 runs
 

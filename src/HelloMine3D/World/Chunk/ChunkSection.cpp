@@ -36,8 +36,7 @@ void ChunkSection::setBlock(int x, int y, int z, ChunkBlock block)
 
     m_layers[y].update(currentBlock, block);
     currentBlock = block;
-    ++m_blockRevision;
-    markMeshDirty();
+    invalidateMeshInput();
 }
 
 ChunkBlock ChunkSection::getBlock(int x, int y, int z) const
@@ -52,13 +51,19 @@ ChunkBlock ChunkSection::getBlock(int x, int y, int z) const
     return m_blocks[getIndex(x, y, z)];
 }
 
-void ChunkSection::setSunlight(int x, int y, int z, LightLevel level)
+bool ChunkSection::setSunlight(int x, int y, int z, LightLevel level)
 {
     if (outOfBounds(x) || outOfBounds(y) || outOfBounds(z)) {
-        return;
+        return false;
     }
 
-    m_sunlight[getIndex(x, y, z)] = clampLightLevel(level);
+    LightLevel &current = m_sunlight[getIndex(x, y, z)];
+    const LightLevel bounded = clampLightLevel(level);
+    if (current == bounded) {
+        return false;
+    }
+    current = bounded;
+    return true;
 }
 
 LightLevel ChunkSection::getSunlight(int x, int y, int z) const
@@ -72,13 +77,19 @@ LightLevel ChunkSection::getSunlight(int x, int y, int z) const
     return m_sunlight[getIndex(x, y, z)];
 }
 
-void ChunkSection::setBlockLight(int x, int y, int z, LightLevel level)
+bool ChunkSection::setBlockLight(int x, int y, int z, LightLevel level)
 {
     if (outOfBounds(x) || outOfBounds(y) || outOfBounds(z)) {
-        return;
+        return false;
     }
 
-    m_blockLight[getIndex(x, y, z)] = clampLightLevel(level);
+    LightLevel &current = m_blockLight[getIndex(x, y, z)];
+    const LightLevel bounded = clampLightLevel(level);
+    if (current == bounded) {
+        return false;
+    }
+    current = bounded;
+    return true;
 }
 
 LightLevel ChunkSection::getBlockLight(int x, int y, int z) const
@@ -124,6 +135,12 @@ void ChunkSection::markMeshDirty()
     }
 
     m_meshState = ChunkSectionMeshState::Dirty;
+}
+
+void ChunkSection::invalidateMeshInput()
+{
+    ++m_blockRevision;
+    markMeshDirty();
 }
 
 glm::ivec3 ChunkSection::toWorldPosition(int x, int y, int z) const

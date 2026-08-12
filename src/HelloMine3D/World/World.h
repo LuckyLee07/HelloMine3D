@@ -10,6 +10,7 @@
 #include <string>
 #include <thread>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "../Actor/ActorManager.h"
@@ -56,6 +57,7 @@ struct WorldMeshSnapshot {
 /// @brief Massive class designed to hold multiple chunks, the player, and most game aspects.
 class World : public NonCopyable {
     friend class ChunkSection;
+    friend class ChunkManager;
 
   public:
     static constexpr std::size_t ChunkMeshRebuildBudgetPerUpdate = 2;
@@ -134,11 +136,27 @@ class World : public NonCopyable {
     ChunkBlock getBlockUnlocked(int x, int y, int z);
     LightLevel getSunlightUnlocked(int x, int y, int z);
     LightLevel getBlockLightUnlocked(int x, int y, int z);
+    bool setBlockLightUnlocked(int x, int y, int z, LightLevel level);
+    void relightBlockEdit(const glm::ivec3 &position,
+                          LightLevel previousLight,
+                          std::vector<glm::ivec3> &changedPositions);
+    void removeBlockLight(
+        std::deque<std::pair<glm::ivec3, LightLevel>> &removalQueue,
+        std::deque<glm::ivec3> &additionQueue,
+        std::vector<glm::ivec3> &changedPositions);
+    void propagateBlockLight(std::deque<glm::ivec3> &pending,
+                             std::vector<glm::ivec3> &changedPositions);
+    void reconcileBlockLightAfterChunkLoad(int chunkX, int chunkZ);
+    void reconcileBlockLightAfterChunkUnload(int chunkX, int chunkZ,
+                                             int height);
     void loadChunks();
     void unloadDistantChunks(const Camera &camera);
     void setChunkLoadCenter(const Camera &camera);
     void publishMeshPrioritySnapshot(const Camera &camera, int sectionY);
     void queueChunkUpdate(int blockX, int blockY, int blockZ);
+    void queueSectionUpdate(const glm::ivec3 &key);
+    void queueLightingUpdates(
+        const std::vector<glm::ivec3> &changedPositions);
     void updateChunks();
     void preloadChunksAround(const glm::vec3 &position, int radius = 1);
     bool saveWorldState();

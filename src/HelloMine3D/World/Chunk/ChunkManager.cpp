@@ -255,6 +255,8 @@ void ChunkManager::loadChunk(int x, int z)
         m_world->getEventBus().publish(ChunkGeneratedEvent(chunkPosition));
     }
 
+    m_world->reconcileBlockLightAfterChunkLoad(x, z);
+
     m_world->getEventBus().publish(
         ChunkLoadedEvent(chunkPosition, loadedFromStorage));
 }
@@ -289,8 +291,11 @@ void ChunkManager::unloadChunk(int x, int z)
         return;
     }
 
+    const int height =
+        static_cast<int>(chunk->getSectionCount()) * CHUNK_SIZE;
     saveChunk(*chunk);
     m_chunks.erase({x, z});
+    m_world->reconcileBlockLightAfterChunkUnload(x, z, height);
     m_world->getEventBus().publish(ChunkUnloadedEvent({x, z}));
 }
 

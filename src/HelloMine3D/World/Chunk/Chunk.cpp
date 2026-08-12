@@ -129,22 +129,33 @@ LightLevel Chunk::getSunlight(int x, int y, int z) const noexcept
 
 void Chunk::rebuildSunlight()
 {
-    const int topY = static_cast<int>(m_chunks.size()) * CHUNK_SIZE - 1;
     for (int x = 0; x < CHUNK_SIZE; ++x) {
         for (int z = 0; z < CHUNK_SIZE; ++z) {
-            bool skyVisible = true;
-            for (int y = topY; y >= 0; --y) {
-                const ChunkBlock block = getBlock(x, y, z);
-                if (block.getData().isOpaque) {
-                    skyVisible = false;
-                }
-
-                m_chunks[y / CHUNK_SIZE].setSunlight(
-                    x, y % CHUNK_SIZE, z,
-                    skyVisible ? MAX_LIGHT_LEVEL : MIN_LIGHT_LEVEL);
-            }
+            rebuildSunlightColumn(x, z);
         }
     }
+}
+
+std::vector<int> Chunk::rebuildSunlightColumn(int x, int z)
+{
+    std::vector<int> changedY;
+    if (x < 0 || x >= CHUNK_SIZE || z < 0 || z >= CHUNK_SIZE) {
+        return changedY;
+    }
+
+    const int topY = static_cast<int>(m_chunks.size()) * CHUNK_SIZE - 1;
+    bool skyVisible = true;
+    for (int y = topY; y >= 0; --y) {
+        if (getBlock(x, y, z).getData().isOpaque) {
+            skyVisible = false;
+        }
+        if (m_chunks[y / CHUNK_SIZE].setSunlight(
+                x, y % CHUNK_SIZE, z,
+                skyVisible ? MAX_LIGHT_LEVEL : MIN_LIGHT_LEVEL)) {
+            changedY.push_back(y);
+        }
+    }
+    return changedY;
 }
 
 LightLevel Chunk::getBlockLight(int x, int y, int z) const noexcept
@@ -154,6 +165,15 @@ LightLevel Chunk::getBlockLight(int x, int y, int z) const noexcept
     }
 
     return m_chunks[y / CHUNK_SIZE].getBlockLight(x, y % CHUNK_SIZE, z);
+}
+
+bool Chunk::setBlockLight(int x, int y, int z, LightLevel level) noexcept
+{
+    if (outOfBound(x, y, z)) {
+        return false;
+    }
+    return m_chunks[y / CHUNK_SIZE].setBlockLight(x, y % CHUNK_SIZE, z,
+                                                  level);
 }
 
 void Chunk::rebuildBlockLight()

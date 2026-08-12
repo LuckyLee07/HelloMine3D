@@ -162,6 +162,21 @@ headless: the fixture places a level-14 rose under an opaque roof and proves a
 neighbouring terrain face receives level 13, avoiding a scene-dependent visual
 claim where surface sunlight would correctly dominate block light.
 
+## L3 Local-Relight Regression Capture
+
+The post-L3 hardware run wrote:
+
+```text
+bin/render_capture_l3_20260812/new_01500ms.png
+```
+
+The structurally complete GTX 1050 Ti / OpenGL 4.6 PNG also decodes through
+ffmpeg. Terrain, flora, the debug panel and selected-block outline remain
+visible. Exact edit-time behavior stays deterministic in the headless fixture:
+one emitter crosses a chunk boundary, an opaque edit removes that light,
+removing it restores the gradient, and a separate roof edit changes only its
+sunlight column.
+
 ## Implementation Notes
 
 Runtime capture is implemented in

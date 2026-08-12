@@ -1,6 +1,7 @@
 #include "World.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -21,10 +22,26 @@
 #include "../Util/Random.h"
 #include "Chunk/ChunkMeshBuilder.h"
 #include "Chunk/ChunkUpdatePlanner.h"
+#include "Block/BlockDatabase.h"
 #include "WorldCoordinates.h"
 
 namespace
 {
+    const std::array<glm::ivec3, 6> LightOffsets = {
+        glm::ivec3{1, 0, 0},  glm::ivec3{-1, 0, 0},
+        glm::ivec3{0, 1, 0},  glm::ivec3{0, -1, 0},
+        glm::ivec3{0, 0, 1},  glm::ivec3{0, 0, -1},
+    };
+
+    LightLevel blockEmission(ChunkBlock block)
+    {
+        const int value =
+            BlockDatabase::get()
+                .getDefinition(static_cast<BlockId>(block.id))
+                .light;
+        return clampLightLevel(static_cast<LightLevel>(value));
+    }
+
     bool readIntEnv(const char *name, int &value)
     {
         const char *text = std::getenv(name);
@@ -333,6 +350,205 @@ LightLevel World::getBlockLightUnlocked(int x, int y, int z)
     return chunk->getBlockLight(blockPosition.x, y, blockPosition.z);
 }
 
+bool World::setBlockLightUnlocked(int x, int y, int z, LightLevel level)
+{
+    if (y < 0) {
+        return false;
+    }
+
+    const auto blockPosition = getBlockXZ(x, z);
+    const auto chunkPosition = getChunkXZ(x, z);
+    Chunk *chunk =
+        m_chunkManager.findChunk(chunkPosition.x, chunkPosition.z);
+    return chunk != nullptr && chunk->hasLoaded() &&
+           chunk->setBlockLight(blockPosition.x, y, blockPosition.z, level);
+}
+
+void World::propagateBlockLight(
+    std::deque<glm::ivec3> &pending,
+    std::vector<glm::ivec3> &changedPositions)
+{
+    while (!pending.empty()) {
+        const glm::ivec3 position = pending.front();
+        pending.pop_front();
+
+        const ChunkBlock block =
+            getBlockUnlocked(position.x, position.y, position.z);
+        LightLevel current =
+            getBlockLightUnlocked(position.x, position.y, position.z);
+        LightLevel desired = blockEmission(block);
+        if (!block.getData().isOpaque) {
+            for (const glm::ivec3 &offset : LightOffsets) {
+                const glm::ivec3 adjacent = position + offset;
+                const LightLevel adjacentLight = getBlockLightUnlocked(
+                    adjacent.x, adjacent.y, adjacent.z);
+                if (adjacentLight > MIN_LIGHT_LEVEL) {
+                    desired = std::max(
+                        desired,
+                        static_cast<LightLevel>(adjacentLight - 1));
+                }
+            }
+        }
+
+        if (desired > current) {
+            if (!setBlockLightUnlocked(position.x, position.y, position.z,
+                                       desired)) {
+                continue;
+            }
+            changedPositions.push_back(position);
+            current = desired;
+        }
+        if (current <= MIN_LIGHT_LEVEL + 1) {
+            continue;
+        }
+
+        const LightLevel propagated = static_cast<LightLevel>(current - 1);
+        for (const glm::ivec3 &offset : LightOffsets) {
+            const glm::ivec3 adjacent = position + offset;
+            const ChunkBlock adjacentBlock =
+                getBlockUnlocked(adjacent.x, adjacent.y, adjacent.z);
+            if (adjacentBlock.getData().isOpaque ||
+                getBlockLightUnlocked(adjacent.x, adjacent.y, adjacent.z) >=
+                    propagated) {
+                continue;
+            }
+            if (setBlockLightUnlocked(adjacent.x, adjacent.y, adjacent.z,
+                                      propagated)) {
+                changedPositions.push_back(adjacent);
+                pending.push_back(adjacent);
+            }
+        }
+    }
+}
+
+void World::relightBlockEdit(
+    const glm::ivec3 &position, LightLevel previousLight,
+    std::vector<glm::ivec3> &changedPositions)
+{
+    std::deque<std::pair<glm::ivec3, LightLevel>> removalQueue;
+    std::deque<glm::ivec3> additionQueue;
+
+    if (previousLight > MIN_LIGHT_LEVEL) {
+        if (setBlockLightUnlocked(position.x, position.y, position.z,
+                                  MIN_LIGHT_LEVEL)) {
+            changedPositions.push_back(position);
+        }
+        removalQueue.emplace_back(position, previousLight);
+        removeBlockLight(removalQueue, additionQueue, changedPositions);
+    }
+    else {
+        additionQueue.push_back(position);
+        propagateBlockLight(additionQueue, changedPositions);
+    }
+}
+
+void World::removeBlockLight(
+    std::deque<std::pair<glm::ivec3, LightLevel>> &removalQueue,
+    std::deque<glm::ivec3> &additionQueue,
+    std::vector<glm::ivec3> &changedPositions)
+{
+    std::vector<glm::ivec3> clearedPositions;
+    for (const auto &root : removalQueue) {
+        clearedPositions.push_back(root.first);
+    }
+
+    while (!removalQueue.empty()) {
+        const auto removal = removalQueue.front();
+        removalQueue.pop_front();
+        for (const glm::ivec3 &offset : LightOffsets) {
+            const glm::ivec3 adjacent = removal.first + offset;
+            const LightLevel adjacentLight = getBlockLightUnlocked(
+                adjacent.x, adjacent.y, adjacent.z);
+            if (adjacentLight == MIN_LIGHT_LEVEL) {
+                continue;
+            }
+
+            if (adjacentLight < removal.second) {
+                if (setBlockLightUnlocked(adjacent.x, adjacent.y, adjacent.z,
+                                          MIN_LIGHT_LEVEL)) {
+                    changedPositions.push_back(adjacent);
+                    clearedPositions.push_back(adjacent);
+                    removalQueue.emplace_back(adjacent, adjacentLight);
+                }
+            }
+            else {
+                additionQueue.push_back(adjacent);
+            }
+        }
+    }
+
+    for (const glm::ivec3 &cleared : clearedPositions) {
+        additionQueue.push_back(cleared);
+    }
+    propagateBlockLight(additionQueue, changedPositions);
+}
+
+void World::reconcileBlockLightAfterChunkLoad(int chunkX, int chunkZ)
+{
+    Chunk *chunk = m_chunkManager.findChunk(chunkX, chunkZ);
+    if (chunk == nullptr || !chunk->hasLoaded()) {
+        return;
+    }
+
+    const int baseX = chunkX * CHUNK_SIZE;
+    const int baseZ = chunkZ * CHUNK_SIZE;
+    const int height = static_cast<int>(chunk->getSectionCount()) * CHUNK_SIZE;
+    std::unordered_set<glm::ivec3, IVec3Hash> uniqueSeeds;
+    for (int y = 0; y < height; ++y) {
+        for (int offset = 0; offset < CHUNK_SIZE; ++offset) {
+            uniqueSeeds.emplace(baseX, y, baseZ + offset);
+            uniqueSeeds.emplace(baseX - 1, y, baseZ + offset);
+            uniqueSeeds.emplace(baseX + CHUNK_SIZE - 1, y, baseZ + offset);
+            uniqueSeeds.emplace(baseX + CHUNK_SIZE, y, baseZ + offset);
+            uniqueSeeds.emplace(baseX + offset, y, baseZ);
+            uniqueSeeds.emplace(baseX + offset, y, baseZ - 1);
+            uniqueSeeds.emplace(baseX + offset, y,
+                                baseZ + CHUNK_SIZE - 1);
+            uniqueSeeds.emplace(baseX + offset, y, baseZ + CHUNK_SIZE);
+        }
+    }
+
+    std::deque<glm::ivec3> pending(uniqueSeeds.begin(), uniqueSeeds.end());
+    std::vector<glm::ivec3> changedPositions;
+    propagateBlockLight(pending, changedPositions);
+    queueLightingUpdates(changedPositions);
+}
+
+void World::reconcileBlockLightAfterChunkUnload(int chunkX, int chunkZ,
+                                                int height)
+{
+    const int baseX = chunkX * CHUNK_SIZE;
+    const int baseZ = chunkZ * CHUNK_SIZE;
+    std::unordered_set<glm::ivec3, IVec3Hash> uniqueRoots;
+    for (int y = 0; y < height; ++y) {
+        for (int offset = 0; offset < CHUNK_SIZE; ++offset) {
+            uniqueRoots.emplace(baseX - 1, y, baseZ + offset);
+            uniqueRoots.emplace(baseX + CHUNK_SIZE, y, baseZ + offset);
+            uniqueRoots.emplace(baseX + offset, y, baseZ - 1);
+            uniqueRoots.emplace(baseX + offset, y, baseZ + CHUNK_SIZE);
+        }
+    }
+
+    std::deque<std::pair<glm::ivec3, LightLevel>> removalQueue;
+    std::deque<glm::ivec3> additionQueue;
+    std::vector<glm::ivec3> changedPositions;
+    for (const glm::ivec3 &position : uniqueRoots) {
+        const LightLevel previous =
+            getBlockLightUnlocked(position.x, position.y, position.z);
+        if (previous == MIN_LIGHT_LEVEL) {
+            continue;
+        }
+        if (setBlockLightUnlocked(position.x, position.y, position.z,
+                                  MIN_LIGHT_LEVEL)) {
+            changedPositions.push_back(position);
+            removalQueue.emplace_back(position, previous);
+        }
+    }
+
+    removeBlockLight(removalQueue, additionQueue, changedPositions);
+    queueLightingUpdates(changedPositions);
+}
+
 void World::setBlock(int x, int y, int z, ChunkBlock block)
 {
     if (y <= 0)
@@ -347,12 +563,20 @@ void World::setBlock(int x, int y, int z, ChunkBlock block)
         return;
     }
 
-    if (chunk->getBlock(bp.x, y, bp.z) == block) {
+    const ChunkBlock previousBlock = chunk->getBlock(bp.x, y, bp.z);
+    if (previousBlock == block) {
         return;
     }
 
+    const LightLevel previousBlockLight =
+        chunk->getBlockLight(bp.x, y, bp.z);
     chunk->setBlock(bp.x, y, bp.z, block);
-    queueChunkUpdate(x, y, z);
+    std::vector<glm::ivec3> changedPositions{{x, y, z}};
+    for (int changedY : chunk->rebuildSunlightColumn(bp.x, bp.z)) {
+        changedPositions.emplace_back(x, changedY, z);
+    }
+    relightBlockEdit({x, y, z}, previousBlockLight, changedPositions);
+    queueLightingUpdates(changedPositions);
 }
 
 void World::tick(int worldTime)
@@ -721,26 +945,43 @@ ActorId World::spawnMob(const std::string &type, const glm::vec3 &position)
 
 void World::queueChunkUpdate(int blockX, int blockY, int blockZ)
 {
-    auto addChunkToUpdateBatch = [&](const glm::ivec3 &key) {
-        Chunk *chunk = m_chunkManager.findChunk(key.x, key.z);
-        if (chunk == nullptr || !chunk->hasLoaded()) {
-            return;
-        }
-
-        ChunkSection *section = chunk->findSection(key.y);
-        if (section == nullptr) {
-            return;
-        }
-
-        section->markMeshDirty();
-        if (m_queuedChunkUpdates.emplace(key).second) {
-            m_chunkUpdateQueue.push_back(key);
-        }
-    };
-
     for (const auto &update :
          ChunkUpdatePlanner::planForBlockEdit(blockX, blockY, blockZ)) {
-        addChunkToUpdateBatch({update.x, update.y, update.z});
+        queueSectionUpdate({update.x, update.y, update.z});
+    }
+}
+
+void World::queueSectionUpdate(const glm::ivec3 &key)
+{
+    Chunk *chunk = m_chunkManager.findChunk(key.x, key.z);
+    if (chunk == nullptr || !chunk->hasLoaded()) {
+        return;
+    }
+
+    ChunkSection *section = chunk->findSection(key.y);
+    if (section == nullptr) {
+        return;
+    }
+
+    section->invalidateMeshInput();
+    if (m_queuedChunkUpdates.emplace(key).second) {
+        m_chunkUpdateQueue.push_back(key);
+    }
+}
+
+void World::queueLightingUpdates(
+    const std::vector<glm::ivec3> &changedPositions)
+{
+    std::unordered_set<glm::ivec3, IVec3Hash> sectionUpdates;
+    for (const glm::ivec3 &position : changedPositions) {
+        for (const ChunkUpdateKey &update :
+             ChunkUpdatePlanner::planForBlockEdit(
+                 position.x, position.y, position.z)) {
+            sectionUpdates.emplace(update.x, update.y, update.z);
+        }
+    }
+    for (const glm::ivec3 &section : sectionUpdates) {
+        queueSectionUpdate(section);
     }
 }
 

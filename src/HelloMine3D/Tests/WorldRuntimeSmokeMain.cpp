@@ -1822,6 +1822,127 @@ void caseBlockLightStorage()
 }
 
 // ---------------------------------------------------------------------------
+// L3 - block edits update one sunlight column and locally remove/re-propagate
+// block light across loaded chunk boundaries
+// ---------------------------------------------------------------------------
+void caseLocalRelightAfterEdits()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+
+    const auto directory = freshSaveDirectory("local_relight");
+    Config config = makeConfig();
+    Camera camera(config);
+
+    constexpr int sourceX = 15;
+    constexpr int neighbourX = 16;
+    constexpr int sourceY = 201;
+    constexpr int z = 8;
+    constexpr int sectionY = sourceY / CHUNK_SIZE;
+
+    {
+        Player player;
+        World world(camera, config, player, directory, false, 1);
+        world.setBlock(sourceX, sourceY - 1, z, BlockId::Stone);
+        world.setBlock(neighbourX, sourceY - 1, z, BlockId::Stone);
+
+        for (int attempt = 0; attempt < 16 &&
+                              world.collectDebugStats().queuedChunkUpdates > 0;
+             ++attempt) {
+            world.update(camera);
+        }
+
+        Chunk *neighbourChunk =
+            world.getChunkManager().findChunk(1, 0);
+        ChunkSection *neighbourSection =
+            neighbourChunk != nullptr
+                ? neighbourChunk->findSection(sectionY)
+                : nullptr;
+        const std::uint32_t revisionBefore =
+            neighbourSection != nullptr
+                ? neighbourSection->getBlockRevision()
+                : 0;
+
+        world.setBlock(sourceX, sourceY, z, BlockId::Rose);
+        check("L3/emissive-edit-crosses-chunk-boundary",
+              world.getBlockLight(sourceX, sourceY, z) == 14 &&
+                  world.getBlockLight(neighbourX, sourceY, z) == 13,
+              "source/neighbour=" +
+                  std::to_string(
+                      world.getBlockLight(sourceX, sourceY, z)) +
+                  "/" +
+                  std::to_string(
+                      world.getBlockLight(neighbourX, sourceY, z)));
+        check("L3/light-only-section-revision-advances",
+              neighbourSection != nullptr &&
+                  neighbourSection->getBlockRevision() != revisionBefore &&
+                  neighbourSection->isMeshDirty());
+
+        const WorldDebugStats relightStats = world.collectDebugStats();
+        check("L3/local-relight-queues-bounded-sections",
+              relightStats.queuedChunkUpdates > 0 &&
+                  relightStats.queuedChunkUpdates <= 12,
+              "queued=" +
+                  std::to_string(relightStats.queuedChunkUpdates) +
+                  " sections=" +
+                  std::to_string(relightStats.chunks.sections));
+
+        world.setBlock(neighbourX, sourceY, z, BlockId::Stone);
+        check("L3/opaque-edit-removes-block-light",
+              world.getBlockLight(neighbourX, sourceY, z) ==
+                  MIN_LIGHT_LEVEL,
+              "level=" + std::to_string(
+                               world.getBlockLight(neighbourX, sourceY, z)));
+        world.setBlock(neighbourX, sourceY, z, BlockId::Air);
+        check("L3/removing-opaque-block-restores-light",
+              world.getBlockLight(neighbourX, sourceY, z) == 13,
+              "level=" + std::to_string(
+                               world.getBlockLight(neighbourX, sourceY, z)));
+
+        constexpr int columnX = 4;
+        constexpr int columnZ = 4;
+        constexpr int floorY = 200;
+        world.setBlock(columnX, floorY, columnZ, BlockId::Stone);
+        const LightLevel openSunlight =
+            world.getSunlight(columnX, floorY + 1, columnZ);
+        world.setBlock(columnX, floorY + 2, columnZ, BlockId::Stone);
+        check("L3/opaque-edit-updates-one-sunlight-column",
+              openSunlight == MAX_LIGHT_LEVEL &&
+                  world.getSunlight(columnX, floorY + 1, columnZ) ==
+                      MIN_LIGHT_LEVEL &&
+                  world.getSunlight(columnX + 1, floorY + 1, columnZ) ==
+                      MAX_LIGHT_LEVEL);
+        world.setBlock(columnX, floorY + 2, columnZ, BlockId::Air);
+        check("L3/removing-roof-restores-sunlight",
+              world.getSunlight(columnX, floorY + 1, columnZ) ==
+                  MAX_LIGHT_LEVEL);
+
+        world.save();
+        world.getChunkManager().unloadChunk(0, 0);
+        check("L3/unloading-source-removes-cross-chunk-light",
+              world.getBlockLight(neighbourX, sourceY, z) ==
+                  MIN_LIGHT_LEVEL,
+              "level=" + std::to_string(
+                               world.getBlockLight(neighbourX, sourceY, z)));
+    }
+
+    {
+        Player player;
+        World world(camera, config, player, directory, false, 1);
+        check("L3/load-reconciles-cross-chunk-block-light",
+              world.getBlockLight(sourceX, sourceY, z) == 14 &&
+                  world.getBlockLight(neighbourX, sourceY, z) == 13,
+              "source/neighbour=" +
+                  std::to_string(
+                      world.getBlockLight(sourceX, sourceY, z)) +
+                  "/" +
+                  std::to_string(
+                      world.getBlockLight(neighbourX, sourceY, z)));
+    }
+}
+
+// ---------------------------------------------------------------------------
 // M6 - sections sealed by opaque neighbours complete without a mesh build
 // ---------------------------------------------------------------------------
 void caseEnclosedSectionSkip()
@@ -2767,6 +2888,7 @@ int main()
         caseGreedyMeshing();
         caseSunlightStorage();
         caseBlockLightStorage();
+        caseLocalRelightAfterEdits();
         caseEnclosedSectionSkip();
         caseFrustumMeshPriority();
         caseSectionMeshUploadSnapshot();

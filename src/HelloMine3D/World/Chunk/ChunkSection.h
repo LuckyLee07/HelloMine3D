@@ -53,9 +53,9 @@ class ChunkSection : public IChunk {
 
     void setBlock(int x, int y, int z, ChunkBlock block) override;
     ChunkBlock getBlock(int x, int y, int z) const override;
-    void setSunlight(int x, int y, int z, LightLevel level);
+    bool setSunlight(int x, int y, int z, LightLevel level);
     LightLevel getSunlight(int x, int y, int z) const;
-    void setBlockLight(int x, int y, int z, LightLevel level);
+    bool setBlockLight(int x, int y, int z, LightLevel level);
     LightLevel getBlockLight(int x, int y, int z) const;
 
     glm::ivec3 getLocation() const;
@@ -65,6 +65,7 @@ class ChunkSection : public IChunk {
     bool isMeshDirty() const;
     ChunkSectionMeshState getMeshState() const;
     void markMeshDirty();
+    void invalidateMeshInput();
 
     /// Builds a mesh when the section has visible layers. Returns false when
     /// a fully enclosed section was completed without running the builder.
