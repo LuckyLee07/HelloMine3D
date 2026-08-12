@@ -17,7 +17,7 @@ material HelloMine3D/Skybox
 
             texture_unit skyboxMap
             {
-                cubic_texture front.png back.png right.png left.png top.png bottom.png separateUV
+                cubic_texture sky.png combinedUVW
                 tex_address_mode clamp
                 filtering trilinear
             }

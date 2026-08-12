@@ -78,8 +78,24 @@ if [ -s "$ROOT_DIR/$OGRE_MATERIAL" ]; then
     while IFS= read -r texture_name; do
         require_file "cube texture" "media/textures/$texture_name"
     done < <(awk '$1 == "cubic_texture" {
-                     for (i = 2; i <= NF && $i != "separateUV"; ++i) {
-                         print $i
+                     mode = $NF
+                     if (mode == "combinedUVW" && NF == 3) {
+                         name = $2
+                         extension = name
+                         sub(/^.*\./, ".", extension)
+                         base = name
+                         sub(/\.[^.]*$/, "", base)
+                         print base "_fr" extension
+                         print base "_bk" extension
+                         print base "_lf" extension
+                         print base "_rt" extension
+                         print base "_up" extension
+                         print base "_dn" extension
+                     }
+                     else {
+                         for (i = 2; i < NF; ++i) {
+                             print $i
+                         }
                      }
                  }' "$ROOT_DIR/$OGRE_MATERIAL" | tr -d '\r')
 fi
