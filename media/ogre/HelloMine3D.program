@@ -15,6 +15,7 @@ fragment_program HelloMine3D/SkyboxFragment glsl
     default_params
     {
         param_named skyboxMap int 0
+        param_named skyTint float3 1.0 1.0 1.0
     }
 }
 
@@ -25,6 +26,7 @@ vertex_program HelloMine3D/TerrainVertex glsl
     default_params
     {
         param_named_auto worldViewProj worldviewproj_matrix
+        param_named_auto worldView worldview_matrix
     }
 }
 
@@ -35,6 +37,9 @@ fragment_program HelloMine3D/TerrainFragment glsl
     default_params
     {
         param_named terrainAtlas int 0
+        param_named environmentLight float 1.0
+        param_named fogColour float3 0.58 0.75 0.92
+        param_named fogDensity float 0.0015
     }
 }
 
@@ -45,6 +50,7 @@ vertex_program HelloMine3D/WaterVertex glsl
     default_params
     {
         param_named_auto worldViewProj worldviewproj_matrix
+        param_named_auto worldView worldview_matrix
         param_named_auto globalTime time_0_x 1.0
     }
 }
@@ -56,6 +62,7 @@ vertex_program HelloMine3D/FloraVertex glsl
     default_params
     {
         param_named_auto worldViewProj worldviewproj_matrix
+        param_named_auto worldView worldview_matrix
         param_named_auto globalTime time_0_x 1.0
     }
 }
@@ -83,6 +90,7 @@ vertex_program HelloMine3D/ActorVertex glsl
     default_params
     {
         param_named_auto worldViewProj worldviewproj_matrix
+        param_named_auto worldView worldview_matrix
     }
 }
 
@@ -90,4 +98,10 @@ fragment_program HelloMine3D/ActorFragment glsl
 {
     source HelloMine3DActor.frag
     syntax glsl150
+    default_params
+    {
+        param_named environmentLight float 1.0
+        param_named fogColour float3 0.58 0.75 0.92
+        param_named fogDensity float 0.0015
+    }
 }

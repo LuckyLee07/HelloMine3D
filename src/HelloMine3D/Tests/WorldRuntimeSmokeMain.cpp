@@ -49,6 +49,7 @@
 #include "../World/Interaction/BlockInteractionSystem.h"
 #include "../World/Chunk/ChunkMeshBuilder.h"
 #include "../World/Chunk/SectionMeshInput.h"
+#include "../World/Environment/WorldEnvironment.h"
 #include "../World/Generation/Biome/TemperateForestBiome.h"
 #include "../World/Generation/Terrain/ClassicOverWorldGenerator.h"
 #include "../World/Storage/ChunkStorage.h"
@@ -95,6 +96,7 @@ void clearDeterministicEnv()
 {
     setEnv("HELLOMINE3D_PLAYER_POSITION", "");
     setEnv("HELLOMINE3D_PLAYER_ROTATION", "");
+    setEnv("HELLOMINE3D_WORLD_TIME", "");
 }
 
 /// Fresh, isolated save directory so a validation run never touches bin/saves.
@@ -1542,6 +1544,46 @@ void caseGreedyMeshing()
     check("M4/flora-topology-remains-separate",
           separatePasses.floraMesh.faces == 4,
           "faces=" + std::to_string(separatePasses.floraMesh.faces));
+}
+
+// ---------------------------------------------------------------------------
+// W1 - world time produces deterministic shader-facing environment values
+// ---------------------------------------------------------------------------
+void caseWorldEnvironment()
+{
+    const WorldEnvironmentState dawn = WorldEnvironment::evaluate(0.f);
+    const WorldEnvironmentState noon = WorldEnvironment::evaluate(6000.f);
+    const WorldEnvironmentState dusk = WorldEnvironment::evaluate(12000.f);
+    const WorldEnvironmentState midnight =
+        WorldEnvironment::evaluate(18000.f);
+    const WorldEnvironmentState wrapped =
+        WorldEnvironment::evaluate(30000.f);
+    const WorldEnvironmentState negative =
+        WorldEnvironment::evaluate(-6000.f);
+    constexpr float epsilon = 0.00001f;
+
+    check("W1/cycle-anchor-phases",
+          std::abs(dawn.cycle) < epsilon &&
+              std::abs(noon.cycle - 0.25f) < epsilon &&
+              std::abs(dusk.cycle - 0.5f) < epsilon &&
+              std::abs(midnight.cycle - 0.75f) < epsilon);
+    check("W1/cycle-wraps-both-directions",
+          std::abs(wrapped.cycle - noon.cycle) < epsilon &&
+              std::abs(negative.cycle - midnight.cycle) < epsilon);
+    check("W1/daylight-is-bounded-and-darker-at-night",
+          noon.daylight <= 1.f && midnight.daylight >= 0.18f &&
+              noon.daylight > midnight.daylight + 0.75f);
+    check("W1/night-fog-is-denser",
+          midnight.fogDensity > noon.fogDensity * 3.f &&
+              noon.fogDensity >= 0.0015f - epsilon &&
+              midnight.fogDensity <= 0.006f + epsilon);
+    check("W1/sky-and-fog-values-change-with-cycle",
+          glm::length(noon.skyTint - midnight.skyTint) > 0.5f &&
+              glm::length(noon.fogColour - midnight.fogColour) > 0.5f);
+    check("W1/dawn-and-dusk-light-are-continuous",
+          std::abs(dawn.daylight - dusk.daylight) < epsilon &&
+              dawn.daylight > midnight.daylight &&
+              dawn.daylight < noon.daylight);
 }
 
 // ---------------------------------------------------------------------------
@@ -3402,6 +3444,7 @@ void caseWorldManager()
 
     const auto directory = freshSaveDirectory("world_manager");
     setEnv("HELLOMINE3D_SAVE_DIR", directory);
+    setEnv("HELLOMINE3D_WORLD_TIME", "18000");
 
     Config config = makeConfig();
     Camera camera(config);
@@ -3410,6 +3453,14 @@ void caseWorldManager()
     {
         WorldManager manager(config, camera, player);
         World &world = manager.createWorld();
+
+        const WorldDebugStats initialStats = world.collectDebugStats();
+        check("W1/world-time-automation-override",
+              manager.getWorldTime() == 18000 &&
+                  std::abs(initialStats.worldTime - 18000.f) < 0.01f);
+        check("W1/world-stats-expose-environment",
+              std::abs(initialStats.environment.cycle - 0.75f) < 0.00001f &&
+                  initialStats.environment.daylight < 0.2f);
 
         check("S1.2/active-world-is-created-world",
               manager.getActiveWorld() == &world &&
@@ -3448,6 +3499,7 @@ void caseWorldManager()
         check("S1.2/save-unknown-world-fails", !manager.saveWorld(9));
     }
 
+    setEnv("HELLOMINE3D_WORLD_TIME", "");
     {
         WorldManager manager(config, camera, player);
         check("S1.2/load-world", manager.loadWorld());
@@ -3472,6 +3524,7 @@ int main()
 
         caseDebugPanelStartupOption();
         caseFixedTickScheduler();
+        caseWorldEnvironment();
         caseBlockTextureCoordinates();
         caseRuntimeConfigOwnership();
         caseBlockDataDiagnostics();

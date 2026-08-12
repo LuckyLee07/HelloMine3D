@@ -13,6 +13,7 @@ param(
     [string]$CaptureMode = "RuntimeReadback",
     [string]$SaveDir = "",
     [string]$Seed = "",
+    [string]$WorldTime = "",
     [string]$PlayerPosition = "",
     [string]$PlayerRotation = "",
     [switch]$ShowDebugInfo,
@@ -570,6 +571,7 @@ Write-Host "[RENDER_CAPTURE] capturesMs=$($sortedCaptures -join ',') seconds=$Se
 Write-Host "[RENDER_CAPTURE] saveDir=$SaveDir"
 Write-Host "[RENDER_CAPTURE] window=$WindowX,$WindowY ${WindowWidth}x$WindowHeight noActivate=true"
 if (-not [string]::IsNullOrWhiteSpace($Seed)) { Write-Host "[RENDER_CAPTURE] seed=$Seed" }
+if (-not [string]::IsNullOrWhiteSpace($WorldTime)) { Write-Host "[RENDER_CAPTURE] worldTime=$WorldTime" }
 if (-not [string]::IsNullOrWhiteSpace($PlayerPosition)) { Write-Host "[RENDER_CAPTURE] playerPosition=$PlayerPosition" }
 if (-not [string]::IsNullOrWhiteSpace($PlayerRotation)) { Write-Host "[RENDER_CAPTURE] playerRotation=$PlayerRotation" }
 if ($ShowDebugInfo) { Write-Host "[RENDER_CAPTURE] showDebugInfo=true" }
@@ -593,6 +595,9 @@ $envValues = @{
 }
 if (-not [string]::IsNullOrWhiteSpace($Seed)) {
     $envValues["HELLOMINE3D_SEED"] = $Seed
+}
+if (-not [string]::IsNullOrWhiteSpace($WorldTime)) {
+    $envValues["HELLOMINE3D_WORLD_TIME"] = $WorldTime
 }
 if (-not [string]::IsNullOrWhiteSpace($PlayerPosition)) {
     $envValues["HELLOMINE3D_PLAYER_POSITION"] = $PlayerPosition

@@ -157,7 +157,8 @@ namespace
                "mesh_build_last_ms,mesh_build_max_ms,solid_faces,transparent_faces,"
                "water_faces,flora_faces,solid_vertices,transparent_vertices,"
                "water_vertices,flora_vertices,"
-               "actor_count,terrain_seed,world_time,simulation_ticks\n";
+               "actor_count,terrain_seed,world_time,day_cycle,daylight,"
+               "fog_density,simulation_ticks\n";
     }
 
     void initialize()
@@ -403,6 +404,11 @@ namespace
                     << "\n";
             summary << "last_actor_count=" << last.actorCount << "\n";
             summary << "terrain_seed=" << last.terrainSeed << "\n";
+            summary << "last_world_time=" << last.worldTime << "\n";
+            summary << "last_day_cycle=" << last.environment.cycle << "\n";
+            summary << "last_daylight=" << last.environment.daylight << "\n";
+            summary << "last_fog_density="
+                    << last.environment.fogDensity << "\n";
         }
 
         summary.close();
@@ -497,6 +503,9 @@ void recordFrame(const FrameTimings &timings,
                         << worldStats.actorCount << ","
                         << worldStats.terrainSeed << ","
                         << worldStats.worldTime << ","
+                        << worldStats.environment.cycle << ","
+                        << worldStats.environment.daylight << ","
+                        << worldStats.environment.fogDensity << ","
                         << sample.simulationTicks << "\n";
 
     if (measuredElapsedMs >= captureState.durationMs) {

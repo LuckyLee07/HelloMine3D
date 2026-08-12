@@ -21,6 +21,7 @@
 #include "../Util/NonCopyable.h"
 #include "Chunk/Chunk.h"
 #include "Chunk/ChunkManager.h"
+#include "Environment/WorldEnvironment.h"
 #include "Storage/WorldSave.h"
 
 #include "Event/IWorldEvent.h"
@@ -42,6 +43,7 @@ struct WorldDebugStats {
     std::size_t randomTicksDispatched = 0;
     int terrainSeed = 0;
     float worldTime = 0.f;
+    WorldEnvironmentState environment;
 };
 
 struct WorldSectionMeshVersion {

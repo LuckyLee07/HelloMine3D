@@ -654,6 +654,7 @@ namespace
             updateSandbox(event.timeSinceLastFrame);
 
             m_frameWorldStats = collectRuntimeStats();
+            syncEnvironment(m_frameWorldStats.environment);
             if (m_userInterface != nullptr)
             {
                 m_userInterface->beginFrame(event.timeSinceLastFrame,
@@ -980,6 +981,85 @@ namespace
                     m_sectionVisuals.size();
             }
             return stats;
+        }
+
+        Ogre::Pass* materialPass(const char* materialName)
+        {
+            Ogre::MaterialPtr material =
+                Ogre::MaterialManager::getSingleton().getByName(
+                    materialName);
+            if (material.isNull())
+            {
+                throw std::runtime_error(
+                    std::string("Missing environment material: ") +
+                    materialName);
+            }
+
+            Ogre::Technique* technique = material->getBestTechnique();
+            if (technique == nullptr || technique->getNumPasses() == 0)
+            {
+                throw std::runtime_error(
+                    std::string("Environment material has no pass: ") +
+                    materialName);
+            }
+            return technique->getPass(0);
+        }
+
+        void syncEnvironment(const WorldEnvironmentState& state)
+        {
+            if (m_sceneManager == nullptr)
+            {
+                return;
+            }
+
+            const Ogre::ColourValue fog(
+                state.fogColour.r, state.fogColour.g,
+                state.fogColour.b);
+            const Ogre::Vector3 fogVector(
+                state.fogColour.r, state.fogColour.g,
+                state.fogColour.b);
+            const Ogre::Vector3 skyVector(
+                state.skyTint.r, state.skyTint.g, state.skyTint.b);
+
+            m_sceneManager->setFog(Ogre::FOG_EXP2, fog,
+                                   state.fogDensity);
+            if (m_camera != nullptr && m_camera->getViewport() != nullptr)
+            {
+                m_camera->getViewport()->setBackgroundColour(fog);
+            }
+
+            const char* terrainMaterials[] = {
+                "HelloMine3D/Terrain", "HelloMine3D/Water",
+                "HelloMine3D/Transparent", "HelloMine3D/Flora"};
+            for (const char* materialName : terrainMaterials)
+            {
+                Ogre::GpuProgramParametersSharedPtr parameters =
+                    materialPass(materialName)
+                        ->getFragmentProgramParameters();
+                parameters->setNamedConstant(
+                    "environmentLight", state.daylight);
+                parameters->setNamedConstant("fogColour", fogVector);
+                parameters->setNamedConstant(
+                    "fogDensity", state.fogDensity);
+            }
+
+            const char* actorMaterials[] = {
+                "HelloMine3D/ActorMob", "HelloMine3D/ActorItem"};
+            for (const char* materialName : actorMaterials)
+            {
+                Ogre::GpuProgramParametersSharedPtr parameters =
+                    materialPass(materialName)
+                        ->getFragmentProgramParameters();
+                parameters->setNamedConstant(
+                    "environmentLight", state.daylight);
+                parameters->setNamedConstant("fogColour", fogVector);
+                parameters->setNamedConstant(
+                    "fogDensity", state.fogDensity);
+            }
+
+            materialPass(SkyboxMaterial)
+                ->getFragmentProgramParameters()
+                ->setNamedConstant("skyTint", skyVector);
         }
 
         bool keyPressed(const OIS::KeyEvent& event) override

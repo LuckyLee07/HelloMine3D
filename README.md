@@ -207,9 +207,12 @@ bin\HelloMine3D.exe
 Two client-level smokes exercise the assembled game without stealing focus or the mouse:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File toolsun_render_capture.ps1 -StopExisting -CaptureMs 4000,6000 -Seconds 12 -PlayerRotation "20 118.4 0"
-powershell -ExecutionPolicy Bypass -File toolsun_perf_baseline.ps1 -StopExisting -WarmupMs 3000 -DurationMs 10000
+powershell -ExecutionPolicy Bypass -File tools\run_render_capture.ps1 -StopExisting -CaptureMs 4000,6000 -Seconds 12 -PlayerRotation "20 118.4 0"
+powershell -ExecutionPolicy Bypass -File tools\run_perf_baseline.ps1 -StopExisting -WarmupMs 3000 -DurationMs 10000
 ```
+
+Pass `-WorldTime 6000` for deterministic noon or `-WorldTime 18000` for
+deterministic midnight captures. One full day is 24,000 fixed simulation ticks.
 
 See `docs/runtime-validation.md` for what each layer covers.
 

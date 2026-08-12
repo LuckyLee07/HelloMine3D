@@ -46,6 +46,14 @@ powershell -ExecutionPolicy Bypass -File tools\run_render_capture.ps1 -StopExist
 The script always starts `bin\HelloMine3D.exe`, the sole Ogre client. Actual
 PNG validation requires a hardware-accelerated OpenGL 3+ desktop.
 
+W1 day/night comparison uses the same seed, position and rotation while only
+changing the world-time automation override:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\run_render_capture.ps1 -StopExisting -Seed 296595 -WorldTime 6000 -PlayerPosition "2766 102 2905" -PlayerRotation "20 118.4 0" -ShowDebugInfo
+powershell -ExecutionPolicy Bypass -File tools\run_render_capture.ps1 -StopExisting -Seed 296595 -WorldTime 18000 -PlayerPosition "2766 102 2905" -PlayerRotation "20 118.4 0" -ShowDebugInfo
+```
+
 Expected behavior:
 
 1. The script starts `bin\HelloMine3D.exe`.
@@ -237,6 +245,7 @@ environment variables, normally set by `tools/run_render_capture.ps1`:
 | `HELLO_RENDER_CAPTURE_EXIT` | Closes the window after all requested captures complete. |
 | `HELLOMINE3D_SAVE_DIR` | Routes the run to an isolated save directory. |
 | `HELLOMINE3D_SEED` | Optional deterministic terrain seed override. |
+| `HELLOMINE3D_WORLD_TIME` | Optional deterministic world-time override. The script sets it with `-WorldTime`; noon is 6000 and midnight is 18000. |
 | `HELLOMINE3D_PLAYER_POSITION` | Optional deterministic player position override. |
 | `HELLOMINE3D_PLAYER_ROTATION` | Optional deterministic player rotation override. |
 | `HELLOMINE3D_SHOW_DEBUG_INFO` | Starts with the F1 debug panels visible. The script sets it with `-ShowDebugInfo`. |

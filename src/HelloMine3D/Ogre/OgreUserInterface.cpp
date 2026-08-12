@@ -318,6 +318,11 @@ class OgreUserInterface::Impl
         {
             ImGui::Text("Seed: %d", worldStats.terrainSeed);
             ImGui::Text("World time: %.0f", worldStats.worldTime);
+            ImGui::Text("Day cycle / light: %.3f / %.3f",
+                        worldStats.environment.cycle,
+                        worldStats.environment.daylight);
+            ImGui::Text("Fog density: %.4f",
+                        worldStats.environment.fogDensity);
             ImGui::Text("Actors: %llu",
                         static_cast<unsigned long long>(
                             worldStats.actorCount));

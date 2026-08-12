@@ -224,6 +224,9 @@ World::World(const Camera &camera, const Config &config, Player &player,
     glm::vec3 forcedPlayerRotation{0.f};
     const bool hasForcedPlayerRotation =
         readVec3Env("HELLOMINE3D_PLAYER_ROTATION", forcedPlayerRotation);
+    int forcedWorldTime = 0;
+    const bool hasForcedWorldTime =
+        readIntEnv("HELLOMINE3D_WORLD_TIME", forcedWorldTime);
 
     const bool hasSave = m_worldSave.load(m_worldSaveData);
     if (hasSave) {
@@ -269,6 +272,9 @@ World::World(const Camera &camera, const Config &config, Player &player,
         player.box.update(player.position);
         m_worldSaveData.playerState = player.getSaveState();
         m_worldSaveData.hasPlayerState = true;
+    }
+    if (hasForcedWorldTime) {
+        m_worldSaveData.worldTime = static_cast<float>(forcedWorldTime);
     }
 
     preloadChunksAround(player.position, initialPreloadRadius);
@@ -1065,6 +1071,7 @@ WorldDebugStats World::collectDebugStats()
     stats.randomTicksDispatched = m_randomTicksDispatched;
     stats.terrainSeed = m_chunkManager.getTerrainSeed();
     stats.worldTime = m_worldSaveData.worldTime;
+    stats.environment = WorldEnvironment::evaluate(stats.worldTime);
     return stats;
 }
 

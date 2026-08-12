@@ -8,8 +8,10 @@ in float uv2;
 out vec2 terrainTileUv;
 out vec2 terrainRepeat;
 out float terrainLight;
+out float terrainDistance;
 
 uniform mat4 worldViewProj;
+uniform mat4 worldView;
 uniform float globalTime;
 
 void main()
@@ -23,4 +25,5 @@ void main()
     terrainTileUv = uv0;
     terrainRepeat = uv1;
     terrainLight = uv2;
+    terrainDistance = length((worldView * animatedVertex).xyz);
 }
