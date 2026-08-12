@@ -93,23 +93,39 @@ The script formerly checked `HasExited` before checking the expected files, so
 a clean exit between polling iterations could be reported as a failure even
 when both PNGs were already complete.
 
-The polling path now treats non-empty files as the primary completion signal.
-If a clean process exit is observed while files are still pending, it allows a
-two-second filesystem-visibility grace period; non-zero exits, empty files and
-timeouts still fail. This ordering has a GPU-independent regression command:
+The polling path now treats structurally complete PNG files as the primary
+completion signal. It verifies the PNG signature, every declared chunk
+boundary and the terminal `IEND` chunk before stopping the client; a non-empty
+partial write is still pending. If a clean process exit is observed while
+files are pending, it allows a two-second filesystem-visibility grace period;
+non-zero exits, missing/empty/incomplete files and timeouts still fail.
+Relative output/save paths are normalized against the repository root so the
+script and the client cannot observe different working-directory-relative
+locations. Once `HasExited` becomes true, the script waits for the process
+handle to finish before reading `ExitCode`. The native handle is primed as
+soon as `Start-Process` returns because Windows PowerShell 5 otherwise leaves
+both `Handle` and `ExitCode` empty when the runtime exits before their first
+access. This path has a GPU-independent regression command:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_render_capture.ps1 -ValidateCapturePolling
 ```
 
-It runs the former exit-before-poll state ten times and must finish with:
+It first rejects a truncated non-empty PNG, then runs the former
+exit-before-poll state ten times while each writer transitions from a partial
+PNG to a complete PNG. It must finish with:
 
 ```text
 [RENDER_CAPTURE_POLLING] runs=10 status=PASS
 ```
 
-The 2026-08-09 Windows run passed all ten iterations. Actual GL3+ screenshot
-runs still require a hardware-accelerated desktop.
+The 2026-08-12 Windows run exposed the second race with a 40 KB PNG whose
+`IDAT` chunk was truncated when the script stopped the client, followed by a
+Windows PowerShell 5 handle race for the fast clean exit. The strengthened
+polling regression passes all ten iterations. A GTX 1050 Ti / OpenGL 4.6 run
+then completed ten consecutive runtime captures; every PNG was structurally
+accepted by the script and independently decoded by ffmpeg (46,343-49,604
+bytes). Final summary: `[RENDER_CAPTURE_HARDWARE] runs=10 status=PASS`.
 
 Earlier verified run, kept for comparison:
 `bin/render_capture_20260707173412631-53208` (recorded while the repository

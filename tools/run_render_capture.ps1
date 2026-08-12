@@ -37,6 +37,14 @@ if ([string]::IsNullOrWhiteSpace($OutputDir)) {
 if ([string]::IsNullOrWhiteSpace($SaveDir)) {
     $SaveDir = Join-Path $OutputDir "save"
 }
+if (-not [System.IO.Path]::IsPathRooted($OutputDir)) {
+    $OutputDir = [System.IO.Path]::GetFullPath(
+        (Join-Path $RepoRoot $OutputDir))
+}
+if (-not [System.IO.Path]::IsPathRooted($SaveDir)) {
+    $SaveDir = [System.IO.Path]::GetFullPath(
+        (Join-Path $RepoRoot $SaveDir))
+}
 
 if (-not ("HelloMine3DRenderCapture.NativeMethods" -as [type])) {
     Add-Type -TypeDefinition @"
@@ -155,6 +163,85 @@ function Convert-CaptureTimes {
     return @($result | Sort-Object -Unique)
 }
 
+function Test-CompletePng {
+    param(
+        [string]$Path
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return $false
+    }
+
+    $stream = $null
+    $reader = $null
+    try {
+        $stream = [System.IO.File]::Open(
+            $Path,
+            [System.IO.FileMode]::Open,
+            [System.IO.FileAccess]::Read,
+            [System.IO.FileShare]::ReadWrite)
+        if ($stream.Length -lt 20) {
+            return $false
+        }
+
+        $reader = New-Object System.IO.BinaryReader($stream)
+        $expectedSignature = [byte[]](137, 80, 78, 71, 13, 10, 26, 10)
+        $signature = $reader.ReadBytes($expectedSignature.Length)
+        if ($signature.Length -ne $expectedSignature.Length) {
+            return $false
+        }
+        for ($index = 0; $index -lt $expectedSignature.Length; ++$index) {
+            if ($signature[$index] -ne $expectedSignature[$index]) {
+                return $false
+            }
+        }
+
+        while ($stream.Position + 12 -le $stream.Length) {
+            $lengthBytes = $reader.ReadBytes(4)
+            [Array]::Reverse($lengthBytes)
+            $chunkLength = [BitConverter]::ToInt32($lengthBytes, 0)
+            if ($chunkLength -lt 0) {
+                return $false
+            }
+
+            $chunkTypeBytes = $reader.ReadBytes(4)
+            if ($chunkTypeBytes.Length -ne 4) {
+                return $false
+            }
+            $remainingBytes = $stream.Length - $stream.Position
+            if ([int64]$chunkLength + 4 -gt $remainingBytes) {
+                return $false
+            }
+
+            $stream.Seek($chunkLength, [System.IO.SeekOrigin]::Current) |
+                Out-Null
+            if ($reader.ReadBytes(4).Length -ne 4) {
+                return $false
+            }
+
+            $chunkType = [System.Text.Encoding]::ASCII.GetString(
+                $chunkTypeBytes)
+            if ($chunkType -eq "IEND") {
+                return $chunkLength -eq 0 -and
+                    $stream.Position -eq $stream.Length
+            }
+        }
+    }
+    catch {
+        return $false
+    }
+    finally {
+        if ($null -ne $reader) {
+            $reader.Dispose()
+        }
+        elseif ($null -ne $stream) {
+            $stream.Dispose()
+        }
+    }
+
+    return $false
+}
+
 function Get-PendingCaptureFiles {
     param(
         [string[]]$Paths
@@ -167,6 +254,9 @@ function Get-PendingCaptureFiles {
         }
         elseif ((Get-Item -LiteralPath $filePath).Length -le 0) {
             $pending += "$filePath (empty)"
+        }
+        elseif (-not (Test-CompletePng -Path $filePath)) {
+            $pending += "$filePath (incomplete PNG)"
         }
     }
     return $pending
@@ -189,15 +279,22 @@ function Wait-RuntimeCaptureFiles {
         $pending = @(Get-PendingCaptureFiles -Paths $Paths)
         $Process.Refresh()
         if ($pending.Count -eq 0) {
-            if ($Process.HasExited -and $Process.ExitCode -ne 0) {
-                throw "Runtime capture process failed: exitCode=$($Process.ExitCode)"
+            if ($Process.HasExited) {
+                $Process.WaitForExit()
+                $Process.Refresh()
+                if ($Process.ExitCode -ne 0) {
+                    throw "Runtime capture process failed: exitCode=$($Process.ExitCode)"
+                }
             }
             return
         }
 
         if ($Process.HasExited) {
-            if ($Process.ExitCode -ne 0) {
-                throw "Process exited before runtime captures completed: exitCode=$($Process.ExitCode); pending=$($pending -join '; ')"
+            $Process.WaitForExit()
+            $Process.Refresh()
+            $exitCode = $Process.ExitCode
+            if ($exitCode -ne 0) {
+                throw "Process exited before runtime captures completed: exitCode=$exitCode; pending=$($pending -join '; ')"
             }
             if ($null -eq $exitDeadline) {
                 $exitDeadline = (Get-Date).AddMilliseconds($ExitGraceMs)
@@ -353,22 +450,65 @@ if ($ValidateCapturePolling) {
         ("HelloMine3D_capture_polling_{0}_{1}" -f $PID, [guid]::NewGuid())
     New-Item -ItemType Directory -Force -Path $validationRoot | Out-Null
     try {
+        $validPngBase64 =
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+        $validPngBytes = [Convert]::FromBase64String($validPngBase64)
+        $truncatedPngBytes = $validPngBytes[0..31]
+
+        $incompletePath = Join-Path $validationRoot "incomplete.png"
+        [System.IO.File]::WriteAllBytes($incompletePath,
+                                        $truncatedPngBytes)
+        $completedProbe = Start-Process -FilePath $env:ComSpec `
+            -ArgumentList @("/d", "/c", "exit 0") `
+            -WindowStyle Hidden -PassThru
+        $completedProbe.WaitForExit()
+        $incompleteRejected = $false
+        try {
+            Wait-RuntimeCaptureFiles -Process $completedProbe `
+                -Paths @($incompletePath) -TimeoutMs 1000 -ExitGraceMs 100
+        }
+        catch {
+            $incompleteRejected =
+                $_.Exception.Message -match "incomplete PNG"
+        }
+        finally {
+            $completedProbe.Dispose()
+        }
+        if (-not $incompleteRejected) {
+            throw "Incomplete PNG fixture was accepted as complete."
+        }
+        Write-Host "[RENDER_CAPTURE_POLLING] incomplete_png status=REJECTED"
+
         foreach ($iteration in 1..10) {
             $paths = @(
                 (Join-Path $validationRoot ("capture_{0}_a.png" -f $iteration)),
                 (Join-Path $validationRoot ("capture_{0}_b.png" -f $iteration))
             )
-            foreach ($path in $paths) {
-                [System.IO.File]::WriteAllText($path, "capture")
-            }
 
-            $probe = Start-Process -FilePath $env:ComSpec `
-                -ArgumentList @("/d", "/c", "exit 0") `
+            $escapedPaths = @($paths | ForEach-Object {
+                $_.Replace("'", "''")
+            })
+            $writerScript =
+                "`$truncated=[Convert]::FromBase64String('" +
+                [Convert]::ToBase64String($truncatedPngBytes) +
+                "'); `$complete=[Convert]::FromBase64String('" +
+                $validPngBase64 + "'); " +
+                "[IO.File]::WriteAllBytes('" + $escapedPaths[0] +
+                "',`$truncated); [IO.File]::WriteAllBytes('" +
+                $escapedPaths[1] + "',`$truncated); " +
+                "Start-Sleep -Milliseconds 100; " +
+                "[IO.File]::WriteAllBytes('" + $escapedPaths[0] +
+                "',`$complete); [IO.File]::WriteAllBytes('" +
+                $escapedPaths[1] + "',`$complete)"
+            $encodedWriter = [Convert]::ToBase64String(
+                [System.Text.Encoding]::Unicode.GetBytes($writerScript))
+            $probe = Start-Process -FilePath "powershell.exe" `
+                -ArgumentList @("-NoProfile", "-EncodedCommand",
+                                $encodedWriter) `
                 -WindowStyle Hidden -PassThru
-            $probe.WaitForExit()
             try {
                 Wait-RuntimeCaptureFiles -Process $probe -Paths $paths `
-                    -TimeoutMs 1000 -ExitGraceMs 250
+                    -TimeoutMs 2000 -ExitGraceMs 250
             }
             finally {
                 $probe.Dispose()
@@ -481,6 +621,11 @@ Set-ProcessEnvironment -Values $envValues -Body {
 }
 $process = $script:CapturedProcess
 $script:CapturedProcess = $null
+# PowerShell 5 opens the native process handle lazily. If a fast runtime exits
+# before the first handle access, both Handle and ExitCode can remain empty
+# even after WaitForExit(). Prime the handle while the process is alive so the
+# final exit code remains available after the last capture closes the client.
+$processHandle = $process.Handle
 Write-Host "[RENDER_CAPTURE] started pid=$($process.Id)"
 
 try {
