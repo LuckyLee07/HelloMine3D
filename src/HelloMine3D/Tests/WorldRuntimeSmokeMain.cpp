@@ -2638,8 +2638,10 @@ void caseChunkFormatRejection()
 // ---------------------------------------------------------------------------
 struct TerrainSample {
     std::vector<Block_t> blocks;
+    std::vector<std::size_t> caveAirIndices;
     int coalCount = 0;
     int ironCount = 0;
+    int shallowAirCount = 0;
 };
 
 TerrainSample sampleTerrain(const std::string &directoryName)
@@ -2659,13 +2661,31 @@ TerrainSample sampleTerrain(const std::string &directoryName)
 
     for (int chunkX = -1; chunkX <= 1; ++chunkX) {
         for (int chunkZ = -1; chunkZ <= 1; ++chunkZ) {
+            const Chunk *chunk =
+                world.getChunkManager().findChunk(chunkX, chunkZ);
             for (int x = 0; x < CHUNK_SIZE; ++x) {
                 for (int z = 0; z < CHUNK_SIZE; ++z) {
+                    const int surfaceY =
+                        chunk != nullptr ? chunk->getHeightAt(x, z) : 0;
                     for (int y = 4; y < 80; ++y) {
                         const auto block =
                             world.getBlock(chunkX * CHUNK_SIZE + x, y,
                                            chunkZ * CHUNK_SIZE + z);
                         sample.blocks.push_back(block.id);
+                        if (block.id ==
+                                static_cast<Block_t>(BlockId::Air) &&
+                            y >= 8 &&
+                            y <= std::min(surfaceY - 5,
+                                          WATER_LEVEL - 8)) {
+                            sample.caveAirIndices.push_back(
+                                sample.blocks.size() - 1);
+                        }
+                        if (block.id ==
+                                static_cast<Block_t>(BlockId::Air) &&
+                            y >= std::max(0, surfaceY - 4) &&
+                            y <= surfaceY) {
+                            ++sample.shallowAirCount;
+                        }
                         if (block.id ==
                             static_cast<Block_t>(BlockId::CoalOre)) {
                             ++sample.coalCount;
@@ -2701,6 +2721,17 @@ void caseTerrainDeterminism()
               std::to_string(second.coalCount) + " iron " +
               std::to_string(first.ironCount) + "/" +
               std::to_string(second.ironCount));
+    check("C4/cave-pass-produces-underground-air",
+          !first.caveAirIndices.empty(),
+          "air=" + std::to_string(first.caveAirIndices.size()));
+    check("C4/cave-layout-deterministic",
+          first.caveAirIndices == second.caveAirIndices,
+          "air " + std::to_string(first.caveAirIndices.size()) + "/" +
+              std::to_string(second.caveAirIndices.size()));
+    check("C4/surface-buffer-remains-solid",
+          first.shallowAirCount == 0 && second.shallowAirCount == 0,
+          "shallow air " + std::to_string(first.shallowAirCount) + "/" +
+              std::to_string(second.shallowAirCount));
 }
 
 // ---------------------------------------------------------------------------

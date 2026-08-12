@@ -30,6 +30,10 @@ queries, block mutation events, chunk mesh update scheduling, and versioned worl
 Cube geometry remains optimized by the greedy mesh path; non-cube geometry is
 loaded from validated `media/shapes/*.shape` resources referenced by block
 definitions, so adding another resource shape does not change the mesh builder.
+Classic overworld generation runs explicit base-terrain, world-space cave,
+ore, plant and tree passes in that order. Cave sampling uses global voxel
+coordinates, so output is seed-deterministic and independent of chunk load
+order while protected surface, water and bottom buffers remain intact.
 World metadata version 2 persists player state plus live mob/item subtype state;
 version 1 saves remain readable with an empty actor list and upgrade on the
 next world save.

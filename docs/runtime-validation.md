@@ -29,7 +29,7 @@ Output is one line per assertion plus a summary:
 ```text
 [VALIDATION] PASS S0.5/chunk-boundary-marks-neighbor
 [VALIDATION] FAIL S6.4/ore-decorator-produces-ore :: coal=0 iron=0
-[VALIDATION] checks=231 failures=0
+[VALIDATION] checks=234 failures=0
 [VALIDATION] status=PASS
 ```
 
@@ -74,7 +74,7 @@ position and player rotation are forced per scenario through the same
 | `caseSectionMeshUploadSnapshot` | E5 | Ogre-facing CPU mesh snapshots include live section identity and block revision; stale upload acknowledgements cannot overwrite a newer edit. |
 | `caseUnloadPersistence` | S2.4 | Unloading a chunk flushes it to storage first, and reloading restores the edit instead of regenerating. |
 | `caseChunkFormatRejection` | S2.2, S2.3 | Chunk file paths are deterministic, and a corrupted magic is rejected with a diagnostic rather than loaded as garbage. |
-| `caseTerrainDeterminism` | S6.1, S6.4 | The same seed produces identical terrain over 175k sampled blocks, and ore layout is stable. |
+| `caseTerrainDeterminism` | S6.1, S6.4, C4 | The same seed produces identical terrain over 175k sampled blocks, ore layout is stable, underground cave indices repeat exactly, caves are non-empty, and protected surface layers remain solid. |
 | `caseTerrainStructures` | S6.2, S6.3, S6.5 | Tree and plant decorators run, biomes produce varied surfaces, and structures are identical after a save/reload roundtrip. |
 | `caseInteractionAndEvents` | S3.1, S3.3, S3.4, S3.5, S4.2, S4.5, P5 | Break/place/use go through the interaction system, produce configured drops, consume items, publish events with the target identity, and block metadata survives a roundtrip. |
 | `caseChunkEvents` | S4.3 | Generate, load, save and unload each publish their chunk event. |
@@ -98,7 +98,7 @@ These need a person at the keyboard or a different harness:
 | Layer | Command | Result |
 | ----- | ------- | ------ |
 | Focused headless tests | `bin\HelloMine3DCoordinateTests.exe`, `bin\HelloMine3DMeshDirtyTests.exe`, `bin\HelloMine3DSaveLoadSmoke.exe`, `bin\HelloMine3DEntityLifecycleSmoke.exe` | All pass. |
-| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=231 failures=0` (Debug and Release, 2026-08-12) |
+| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=234 failures=0` (Debug and Release, 2026-08-12) |
 | A1 asset references | `sh scripts/check_assets.sh` | The repository passes 45 block/shape/shader/texture/font/config checks after discovering named shape resources and multiline block registrations. An isolated copy with `HelloMine3DTerrain.vert` omitted returns 1 and names the missing referenced shader (2026-08-09; current positive equivalent run 2026-08-12). |
 | A2 block diagnostics | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseBlockDataDiagnostics`) | Five malformed fixtures verify missing `ShaderType`, invalid `MeshType`, atlas coordinate `16 0`, light level 16, and duplicate id 3 all report the full source path and exact key. Debug/Release pass (2026-08-12). |
 | A3 runtime config ownership | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseRuntimeConfigOwnership`) | Three assertions delete an isolated `config.txt`, verify regeneration with the documented defaults, then load customised values. `Mine.cfg` and `MineResources.cfg` remain the only tracked `bin/` templates (2026-08-09). |
@@ -111,6 +111,7 @@ These need a person at the keyboard or a different harness:
 | C1 block behavior | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseBlockBehaviorDispatch`) | Four C1 assertions verify default and special drop dispatch plus the real no-drop glass break path. The registry owns behavior lifetime and the interaction system has no glass-specific branch (Debug and Release, 2026-08-12). |
 | C2 metadata behavior | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseMetadataBackedBehavior`) | Four C2 assertions verify one `TallGrass` id selects different drops by maturity metadata, natural biome grass is mature, and both states behave correctly through the real break path (Debug and Release, 2026-08-12). |
 | C3 resource shapes | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseResourceDrivenBlockShapes`); asset reference check | Four C3 assertions verify shared shape resolution, exact resource vertices, isolated shape extensibility and real flora mesh output. The asset equivalent reports 45/45 references present; `ChunkMeshBuilder` contains no crossed-quad geometry (Debug and Release, 2026-08-12). |
+| C4 cave generation | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseTerrainDeterminism`) | Three C4 assertions find 3,766 underground air cells across nine chunks, reproduce their exact indices with the same seed, and observe zero air cells in the protected surface layers. Existing ore, biome and structure checks also pass (Debug and Release, 2026-08-12). |
 | E0 dependency boundary | `rg "SFML|sf::|GLfloat|GLuint|glad" src/HelloMine3D/World` | No matches (2026-08-09). |
 | E1 engine build | `tools\premake\premake5 --os=windows --file=premake/premake.lua vs2022`, then full Debug/Release solution builds | Ogre 1.10 core, GLSupport, GL3Plus, FreeImage dependency chain, dedicated Ogre FreeType, zlib, zzip and OIS all compile with 0 errors (2026-08-09). |
 | E2 bootstrap validation | `set HELLOMINE3D_VALIDATE_ONLY=1` then `bin\HelloMine3D.exe` | Debug and Release register `OpenGL 3+ Rendering Subsystem`, 2 resource locations and OIS, then shut down cleanly (2026-08-09). |

@@ -13,6 +13,7 @@ ClassicOverWorldGenerator::ClassicOverWorldGenerator(int seed)
     : m_seed(seed)
     , m_random(seed)
     , m_biomeNoiseGen(seed * 2)
+    , m_caveGenerator(seed)
     , m_grassBiome(seed)
     , m_temperateForest(seed)
     , m_desertBiome(seed)
@@ -53,9 +54,15 @@ void ClassicOverWorldGenerator::generateTerrainFor(Chunk &chunk)
     std::vector<BlockPosition> treePositions;
     std::vector<BlockPosition> plantPositions;
     generateBaseTerrain(maxHeight, treePositions, plantPositions);
+    applyCavePass();
     applyOreDecorators();
     applyPlantDecorators(plantPositions);
     applyTreeDecorators(treePositions);
+}
+
+void ClassicOverWorldGenerator::applyCavePass()
+{
+    m_caveGenerator.carve(*m_pChunk, m_heightMap);
 }
 
 int ClassicOverWorldGenerator::getMinimumSpawnHeight() const noexcept

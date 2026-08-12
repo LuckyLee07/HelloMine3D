@@ -8,6 +8,7 @@
 
 #include "../../../Maths/NoiseGenerator.h"
 #include "../../WorldConstants.h"
+#include "CaveGenerator.h"
 
 #include "../Biome/DesertBiome.h"
 #include "../Biome/GrasslandBiome.h"
@@ -40,6 +41,7 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
     void generateBaseTerrain(int maxHeight,
                              std::vector<BlockPosition> &treePositions,
                              std::vector<BlockPosition> &plantPositions);
+    void applyCavePass();
     void applyOreDecorators();
     void placeOreVein(Random<std::minstd_rand> &random, BlockId oreBlock,
                       int startX, int startY, int startZ, int size);
@@ -60,6 +62,7 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
     Random<std::minstd_rand> m_random;
 
     NoiseGenerator m_biomeNoiseGen;
+    CaveGenerator m_caveGenerator;
 
     GrasslandBiome m_grassBiome;
     TemperateForestBiome m_temperateForest;
