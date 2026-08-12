@@ -1351,6 +1351,8 @@ void caseSectionMeshInput()
 
     const std::size_t solidFaces =
         static_cast<std::size_t>(measuredMeshes.solidMesh.faces);
+    const std::size_t transparentFaces =
+        static_cast<std::size_t>(measuredMeshes.transparentMesh.faces);
     const std::size_t waterFaces =
         static_cast<std::size_t>(measuredMeshes.waterMesh.faces);
     const std::size_t floraFaces =
@@ -1369,15 +1371,20 @@ void caseSectionMeshInput()
               metricsAfter.meshBuildMaxMs >= measuredBuildMs);
     check("M1/face-counts-recorded",
           metricsAfter.solidFaces == metricsBefore.solidFaces + solidFaces &&
+              metricsAfter.transparentFaces ==
+                  metricsBefore.transparentFaces + transparentFaces &&
               metricsAfter.waterFaces == metricsBefore.waterFaces +
                   waterFaces &&
               metricsAfter.floraFaces == metricsBefore.floraFaces +
                   floraFaces &&
-              solidFaces + waterFaces + floraFaces > 0);
+              solidFaces + transparentFaces + waterFaces + floraFaces > 0);
     check("M1/vertex-counts-recorded",
           metricsAfter.solidVertices ==
                   metricsBefore.solidVertices +
                       vertices(measuredMeshes.solidMesh) &&
+              metricsAfter.transparentVertices ==
+                  metricsBefore.transparentVertices +
+                      vertices(measuredMeshes.transparentMesh) &&
               metricsAfter.waterVertices ==
                   metricsBefore.waterVertices +
                       vertices(measuredMeshes.waterMesh) &&
@@ -1386,6 +1393,8 @@ void caseSectionMeshInput()
                       vertices(measuredMeshes.floraMesh));
     check("M1/four-vertices-per-face",
           vertices(measuredMeshes.solidMesh) == solidFaces * 4 &&
+              vertices(measuredMeshes.transparentMesh) ==
+                  transparentFaces * 4 &&
               vertices(measuredMeshes.waterMesh) == waterFaces * 4 &&
               vertices(measuredMeshes.floraMesh) == floraFaces * 4);
 
@@ -1530,6 +1539,144 @@ void caseGreedyMeshing()
     check("M4/flora-topology-remains-separate",
           separatePasses.floraMesh.faces == 4,
           "faces=" + std::to_string(separatePasses.floraMesh.faces));
+}
+
+// ---------------------------------------------------------------------------
+// L4 - transparent cubes use explicit passes and cull only shared media
+// ---------------------------------------------------------------------------
+void caseTransparentBlockRules()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+
+    const auto directory = freshSaveDirectory("transparent_block_rules");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+
+    constexpr int blockY = 200;
+    constexpr int sectionY = blockY / CHUNK_SIZE;
+    world.setBlock(4, blockY, 4, BlockId::Glass);
+    Chunk *chunk = world.getChunkManager().findChunk(0, 0);
+    ChunkSection *section =
+        chunk != nullptr ? chunk->findSection(sectionY) : nullptr;
+    check("L4/section-available", section != nullptr);
+    if (section == nullptr) {
+        return;
+    }
+
+    const auto buildSectionMeshes = [](ChunkSection &target) {
+        SectionMeshInput input;
+        target.captureMeshInput(input);
+        ChunkMeshCollection meshes;
+        ChunkMeshBuilder(input, meshes).buildMesh();
+        return meshes;
+    };
+
+    const auto &glass =
+        BlockDatabase::get().getDefinition(BlockId::Glass);
+    const auto &borderless =
+        BlockDatabase::get().getDefinition(BlockId::GlassBorderless);
+    const auto &leaves =
+        BlockDatabase::get().getDefinition(BlockId::OakLeaf);
+    check("L4/definitions-select-transparent-rules",
+          glass.transparent && borderless.transparent &&
+              glass.collidable && borderless.collidable &&
+              glass.render.shaderType == BlockShaderType::Transparent &&
+              borderless.render.shaderType ==
+                  BlockShaderType::Transparent &&
+              leaves.transparent &&
+              leaves.render.shaderType == BlockShaderType::Chunk);
+    check("L4/glass-material-roundtrip",
+          Material::GLASS_BLOCK.toBlockID() == BlockId::Glass &&
+              Material::BORDERLESS_GLASS_BLOCK.toBlockID() ==
+                  BlockId::GlassBorderless &&
+              Material::toMaterial(BlockId::Glass).id ==
+                  Material::ID::Glass &&
+              Material::toMaterial(BlockId::GlassBorderless).id ==
+                  Material::ID::GlassBorderless);
+
+    world.setBlock(5, blockY, 4, BlockId::Glass);
+    ChunkMeshCollection sameGlass = buildSectionMeshes(*section);
+    const ChunkDebugStats glassMetricsBefore =
+        world.getChunkManager().collectDebugStats();
+    world.getChunkManager().recordMeshRebuild(sameGlass, 0.0);
+    const ChunkDebugStats glassMetricsAfter =
+        world.getChunkManager().collectDebugStats();
+    check("L4/same-glass-culls-shared-face",
+          sameGlass.transparentMesh.faces == 10 &&
+              sameGlass.solidMesh.faces == 0 &&
+              sameGlass.waterMesh.faces == 0 &&
+              sameGlass.floraMesh.faces == 0 &&
+              glassMetricsAfter.transparentFaces ==
+                  glassMetricsBefore.transparentFaces + 10 &&
+              glassMetricsAfter.transparentVertices ==
+                  glassMetricsBefore.transparentVertices + 40,
+          "transparent=" +
+              std::to_string(sameGlass.transparentMesh.faces));
+
+    world.setBlock(5, blockY, 4, BlockId::GlassBorderless);
+    ChunkMeshCollection mixedGlass = buildSectionMeshes(*section);
+    check("L4/glass-variants-cull-shared-face",
+          mixedGlass.transparentMesh.faces == 10,
+          "transparent=" +
+              std::to_string(mixedGlass.transparentMesh.faces));
+
+    world.setBlock(4, blockY, 4, BlockId::Stone);
+    ChunkMeshCollection solidAgainstGlass = buildSectionMeshes(*section);
+    check("L4/opaque-glass-interface-has-one-face",
+          solidAgainstGlass.solidMesh.faces == 6 &&
+              solidAgainstGlass.transparentMesh.faces == 5,
+          "solid=" + std::to_string(solidAgainstGlass.solidMesh.faces) +
+              " transparent=" +
+              std::to_string(solidAgainstGlass.transparentMesh.faces));
+
+    world.setBlock(4, blockY, 4, BlockId::OakLeaf);
+    world.setBlock(5, blockY, 4, BlockId::OakLeaf);
+    ChunkMeshCollection leafPair = buildSectionMeshes(*section);
+    check("L4/leaves-use-static-cutout-pass",
+          leafPair.solidMesh.faces == 10 &&
+              leafPair.transparentMesh.faces == 0 &&
+              leafPair.floraMesh.faces == 0,
+          "solid=" + std::to_string(leafPair.solidMesh.faces));
+
+    world.setBlock(5, blockY, 4, BlockId::TallGrass);
+    ChunkMeshCollection leafAndFlora = buildSectionMeshes(*section);
+    check("L4/flora-does-not-occlude-leaf-face",
+          leafAndFlora.solidMesh.faces == 6 &&
+              leafAndFlora.floraMesh.faces == 2,
+          "solid=" + std::to_string(leafAndFlora.solidMesh.faces) +
+              " flora=" +
+              std::to_string(leafAndFlora.floraMesh.faces));
+
+    world.setBlock(4, blockY, 4, BlockId::Water);
+    world.setBlock(5, blockY, 4, BlockId::Water);
+    ChunkMeshCollection waterPair = buildSectionMeshes(*section);
+    check("L4/water-keeps-own-transparent-pass",
+          waterPair.waterMesh.faces == 10 &&
+              waterPair.transparentMesh.faces == 0 &&
+              waterPair.solidMesh.faces == 0 &&
+              waterPair.floraMesh.faces == 0,
+          "water=" + std::to_string(waterPair.waterMesh.faces));
+
+    world.setBlock(4, blockY, 4, BlockId::Air);
+    world.setBlock(5, blockY, 4, BlockId::Air);
+    world.setBlock(15, blockY, 8, BlockId::Glass);
+    world.setBlock(16, blockY, 8, BlockId::GlassBorderless);
+    Chunk *eastChunk = world.getChunkManager().findChunk(1, 0);
+    ChunkSection *eastSection =
+        eastChunk != nullptr ? eastChunk->findSection(sectionY) : nullptr;
+    const int westFaces = buildSectionMeshes(*section).transparentMesh.faces;
+    const int eastFaces = eastSection != nullptr
+                              ? buildSectionMeshes(*eastSection)
+                                    .transparentMesh.faces
+                              : -1;
+    check("L4/cross-chunk-glass-culls-shared-face",
+          westFaces == 5 && eastFaces == 5,
+          "west=" + std::to_string(westFaces) +
+              " east=" + std::to_string(eastFaces));
 }
 
 // ---------------------------------------------------------------------------
@@ -2003,6 +2150,7 @@ void caseEnclosedSectionSkip()
     ChunkMeshBuilder(enclosedInput, directMeshes).buildMesh();
     check("M6/enclosed-builder-emits-nothing",
           directMeshes.solidMesh.faces == 0 &&
+              directMeshes.transparentMesh.faces == 0 &&
               directMeshes.waterMesh.faces == 0 &&
               directMeshes.floraMesh.faces == 0);
 
@@ -2886,6 +3034,7 @@ int main()
         casePersistence();
         caseSectionMeshInput();
         caseGreedyMeshing();
+        caseTransparentBlockRules();
         caseSunlightStorage();
         caseBlockLightStorage();
         caseLocalRelightAfterEdits();

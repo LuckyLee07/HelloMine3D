@@ -162,7 +162,7 @@ bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
 bin\HelloMine3DMeshDirtyTests.exe         # mesh dirty planner
 bin\HelloMine3DSaveLoadSmoke.exe          # chunk serialization roundtrip
 bin\HelloMine3DEntityLifecycleSmoke.exe   # actor lifecycle
-bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 209 assertions
+bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 219 assertions
 ```
 
 Asset and data changes should also run the reference-aware asset check:

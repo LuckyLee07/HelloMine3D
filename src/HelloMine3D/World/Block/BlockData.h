@@ -17,6 +17,7 @@ enum class BlockShaderType {
     Chunk = 0,
     Liquid = 1,
     Flora = 2,
+    Transparent = 3,
 };
 
 /// @brief Struct designed to hold geometric and tangibility data for each individual block.

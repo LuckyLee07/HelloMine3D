@@ -30,9 +30,11 @@ struct ChunkDebugStats {
     double meshBuildLastMs = 0.0;
     double meshBuildMaxMs = 0.0;
     std::size_t solidFaces = 0;
+    std::size_t transparentFaces = 0;
     std::size_t waterFaces = 0;
     std::size_t floraFaces = 0;
     std::size_t solidVertices = 0;
+    std::size_t transparentVertices = 0;
     std::size_t waterVertices = 0;
     std::size_t floraVertices = 0;
 };
@@ -106,9 +108,11 @@ class ChunkManager {
     double m_meshBuildLastMs = 0.0;
     double m_meshBuildMaxMs = 0.0;
     std::size_t m_solidFaceCount = 0;
+    std::size_t m_transparentFaceCount = 0;
     std::size_t m_waterFaceCount = 0;
     std::size_t m_floraFaceCount = 0;
     std::size_t m_solidVertexCount = 0;
+    std::size_t m_transparentVertexCount = 0;
     std::size_t m_waterVertexCount = 0;
     std::size_t m_floraVertexCount = 0;
 

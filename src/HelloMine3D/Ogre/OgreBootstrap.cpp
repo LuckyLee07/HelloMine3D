@@ -59,6 +59,9 @@ namespace
         std::size_t sectionCount = 0;
         std::size_t vertexCount = 0;
         std::size_t indexCount = 0;
+        std::size_t transparentSectionCount = 0;
+        std::size_t transparentVertexCount = 0;
+        std::size_t transparentIndexCount = 0;
         std::size_t waterSectionCount = 0;
         std::size_t waterVertexCount = 0;
         std::size_t waterIndexCount = 0;
@@ -119,6 +122,12 @@ namespace
                       << terrain.vertexCount << '\n';
             std::cout << "[OGRE_VALIDATION] terrain_indices="
                       << terrain.indexCount << '\n';
+            std::cout << "[OGRE_VALIDATION] transparent_sections="
+                      << terrain.transparentSectionCount << '\n';
+            std::cout << "[OGRE_VALIDATION] transparent_vertices="
+                      << terrain.transparentVertexCount << '\n';
+            std::cout << "[OGRE_VALIDATION] transparent_indices="
+                      << terrain.transparentIndexCount << '\n';
             std::cout << "[OGRE_VALIDATION] water_sections="
                       << terrain.waterSectionCount << '\n';
             std::cout << "[OGRE_VALIDATION] water_vertices="
@@ -167,7 +176,12 @@ namespace
                    terrain.waterIndexCount > 0 &&
                    terrain.floraSectionCount > 0 &&
                    terrain.floraVertexCount > 0 &&
-                   terrain.floraIndexCount > 0;
+                   terrain.floraIndexCount > 0 &&
+                   (!isTrueValue(std::getenv(
+                        "HELLOMINE3D_TRANSPARENT_FIXTURE")) ||
+                    (terrain.transparentSectionCount > 0 &&
+                     terrain.transparentVertexCount > 0 &&
+                     terrain.transparentIndexCount > 0));
         }
 
         int run()
@@ -344,7 +358,10 @@ namespace
                 std::make_unique<OgreBlockOutline>(*m_sceneManager);
             std::cout << "[OGRE_TERRAIN] solid=" << terrain.sectionCount
                       << '/' << terrain.vertexCount << '/'
-                      << terrain.indexCount << " water="
+                      << terrain.indexCount << " transparent="
+                      << terrain.transparentSectionCount << '/'
+                      << terrain.transparentVertexCount << '/'
+                      << terrain.transparentIndexCount << " water="
                       << terrain.waterSectionCount << '/'
                       << terrain.waterVertexCount << '/'
                       << terrain.waterIndexCount << " flora="
@@ -380,6 +397,36 @@ namespace
             {
                 throw std::runtime_error(
                     "Sandbox did not create an active world.");
+            }
+
+            if (isTrueValue(std::getenv(
+                    "HELLOMINE3D_TRANSPARENT_FIXTURE")))
+            {
+                const int centerX =
+                    World::toBlockCoord(m_worldPlayer->position.x);
+                const int centerY =
+                    World::toBlockCoord(m_worldPlayer->position.y);
+                const int centerZ =
+                    World::toBlockCoord(m_worldPlayer->position.z) + 2;
+                for (int y = 1; y <= 3; ++y)
+                {
+                    for (int x = -2; x <= 2; ++x)
+                    {
+                        const BlockId glass = (x + y) % 2 == 0
+                                                  ? BlockId::Glass
+                                                  : BlockId::GlassBorderless;
+                        m_world->setBlock(centerX + x, centerY + y,
+                                          centerZ, glass);
+                    }
+                }
+                m_world->setBlock(centerX - 3, centerY + 1, centerZ,
+                                  BlockId::OakLeaf);
+                m_world->setBlock(centerX + 3, centerY + 1, centerZ,
+                                  BlockId::OakLeaf);
+                m_world->setBlock(centerX - 3, centerY + 1, centerZ + 1,
+                                  BlockId::TallGrass);
+                m_world->setBlock(centerX + 3, centerY + 1, centerZ + 1,
+                                  BlockId::Rose);
             }
 
             const VectorXZ center = World::getChunkXZ(
@@ -487,6 +534,13 @@ namespace
                         static_cast<std::uint8_t>(Ogre::RENDER_QUEUE_MAIN),
                         summary.sectionCount, summary.vertexCount,
                         summary.indexCount);
+                    processMesh(
+                        meshes.transparentMesh, "Transparent",
+                        "HelloMine3D/Transparent",
+                        static_cast<std::uint8_t>(Ogre::RENDER_QUEUE_8),
+                        summary.transparentSectionCount,
+                        summary.transparentVertexCount,
+                        summary.transparentIndexCount);
                     processMesh(
                         meshes.waterMesh, "Water", "HelloMine3D/Water",
                         static_cast<std::uint8_t>(Ogre::RENDER_QUEUE_8),
@@ -815,6 +869,10 @@ namespace
             uploadLayer(
                 section.meshes.solidMesh, "Solid", "HelloMine3D/Terrain",
                 static_cast<std::uint8_t>(Ogre::RENDER_QUEUE_MAIN));
+            uploadLayer(
+                section.meshes.transparentMesh, "Transparent",
+                "HelloMine3D/Transparent",
+                static_cast<std::uint8_t>(Ogre::RENDER_QUEUE_8));
             uploadLayer(
                 section.meshes.waterMesh, "Water", "HelloMine3D/Water",
                 static_cast<std::uint8_t>(Ogre::RENDER_QUEUE_8));

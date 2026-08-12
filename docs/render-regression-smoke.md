@@ -177,6 +177,24 @@ one emitter crosses a chunk boundary, an opaque edit removes that light,
 removing it restores the gradient, and a separate roof edit changes only its
 sunlight column.
 
+## L4 Transparent-Block Regression Capture
+
+Set `HELLOMINE3D_TRANSPARENT_FIXTURE=1` to place alternating framed and
+borderless glass, two leaf cubes and crossed flora beside the pinned player.
+The post-L4 hardware run wrote:
+
+```text
+bin/render_capture_l4_20260812_full/new_05000ms.png
+```
+
+The GTX 1050 Ti / OpenGL 4.6 PNG is structurally complete and independently
+decodes through ffmpeg. The transparent wall reveals the terrain behind it;
+leaves remain static alpha-cutout geometry and flora retains its separate
+animated pass. Ogre validation reports one glass section with 68 vertices and
+102 indices. Headless checks additionally prove shared faces are removed for
+both glass variants, including at a chunk boundary, without hiding the one
+required face at an opaque/glass interface.
+
 ## Implementation Notes
 
 Runtime capture is implemented in
@@ -197,6 +215,7 @@ environment variables, normally set by `tools/run_render_capture.ps1`:
 | `HELLOMINE3D_PLAYER_ROTATION` | Optional deterministic player rotation override. |
 | `HELLOMINE3D_SHOW_DEBUG_INFO` | Starts with the F1 debug panels visible. The script sets it with `-ShowDebugInfo`. |
 | `HELLOMINE3D_SPAWN_VALIDATION_ACTORS` | Spawns one mob and one dropped item in front of the player. The script sets it with `-SpawnValidationActors`. |
+| `HELLOMINE3D_TRANSPARENT_FIXTURE` | Places the deterministic L4 glass, leaf and flora render fixture. |
 
 `WindowScreenshot` mode is kept only as a fallback/manual diagnostic path. It
 uses desktop screenshot APIs and can capture another foreground window if the

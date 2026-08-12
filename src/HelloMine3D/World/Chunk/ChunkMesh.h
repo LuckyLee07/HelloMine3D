@@ -43,12 +43,14 @@ class ChunkMesh {
 
 struct ChunkMeshCollection {
     ChunkMesh solidMesh;
+    ChunkMesh transparentMesh;
     ChunkMesh waterMesh;
     ChunkMesh floraMesh;
 
     void adoptClientData(ChunkMeshCollection &source)
     {
         solidMesh.adoptClientData(source.solidMesh);
+        transparentMesh.adoptClientData(source.transparentMesh);
         waterMesh.adoptClientData(source.waterMesh);
         floraMesh.adoptClientData(source.floraMesh);
     }

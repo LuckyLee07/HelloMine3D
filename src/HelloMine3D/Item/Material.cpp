@@ -18,6 +18,9 @@ const Material Material::COAL_ORE_BLOCK(ID::CoalOre, 99, true,
                                         "Coal Ore Block");
 const Material Material::IRON_ORE_BLOCK(ID::IronOre, 99, true,
                                         "Iron Ore Block");
+const Material Material::GLASS_BLOCK(ID::Glass, 99, true, "Glass Block");
+const Material Material::BORDERLESS_GLASS_BLOCK(
+    ID::GlassBorderless, 99, true, "Borderless Glass Block");
 
 Material::Material(Material::ID id, int maxStack, bool isBlock,
                    std::string &&name)
@@ -70,6 +73,12 @@ BlockId Material::toBlockID() const
         case IronOre:
             return BlockId::IronOre;
 
+        case Glass:
+            return BlockId::Glass;
+
+        case GlassBorderless:
+            return BlockId::GlassBorderless;
+
         default:
             return BlockId::NUM_TYPES;
     }
@@ -114,6 +123,12 @@ const Material &Material::toMaterial(BlockId id)
         case BlockId::IronOre:
             return IRON_ORE_BLOCK;
 
+        case BlockId::Glass:
+            return GLASS_BLOCK;
+
+        case BlockId::GlassBorderless:
+            return BORDERLESS_GLASS_BLOCK;
+
         default:
             return NOTHING;
     }
@@ -157,6 +172,12 @@ const Material &Material::toMaterial(Material::ID id)
 
         case IronOre:
             return IRON_ORE_BLOCK;
+
+        case Glass:
+            return GLASS_BLOCK;
+
+        case GlassBorderless:
+            return BORDERLESS_GLASS_BLOCK;
 
         default:
             return NOTHING;

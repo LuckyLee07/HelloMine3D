@@ -22,6 +22,8 @@ enum class BlockId : Block_t {
     DeadShrub = 11,
     CoalOre = 12,
     IronOre = 13,
+    Glass = 14,
+    GlassBorderless = 15,
 
     NUM_TYPES
 };

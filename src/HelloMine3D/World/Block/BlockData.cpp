@@ -188,7 +188,8 @@ void BlockData::load(const std::string &path)
         else if (key == "ShaderType") {
             const int shaderType = parseInteger(path, key, value);
             if (shaderType < static_cast<int>(BlockShaderType::Chunk) ||
-                shaderType > static_cast<int>(BlockShaderType::Flora)) {
+                shaderType >
+                    static_cast<int>(BlockShaderType::Transparent)) {
                 fail(path, key, "has invalid enum value " +
                                     std::to_string(shaderType));
             }

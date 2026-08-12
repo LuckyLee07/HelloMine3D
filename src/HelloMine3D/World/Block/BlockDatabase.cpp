@@ -78,6 +78,8 @@ BlockDatabase::BlockDatabase()
     addBlock(BlockId::DeadShrub, "DeadShrub");
     addBlock(BlockId::CoalOre, "CoalOre");
     addBlock(BlockId::IronOre, "IronOre");
+    addBlock(BlockId::Glass, "Glass");
+    addBlock(BlockId::GlassBorderless, "GlassBorderless");
 }
 
 BlockDatabase &BlockDatabase::get()

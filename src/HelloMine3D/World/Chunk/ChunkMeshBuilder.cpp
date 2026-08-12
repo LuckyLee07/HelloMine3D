@@ -385,6 +385,10 @@ void ChunkMeshBuilder::setActiveMesh(ChunkBlock block)
         case BlockShaderType::Flora:
             m_pActiveMesh = &m_pMeshes->floraMesh;
             break;
+
+        case BlockShaderType::Transparent:
+            m_pActiveMesh = &m_pMeshes->transparentMesh;
+            break;
     }
 }
 
@@ -443,9 +447,24 @@ bool ChunkMeshBuilder::shouldMakeFace(ChunkBlock block,
     if (adjacent == BlockId::Air) {
         return true;
     }
-    else if (adjacentDefinition.transparent &&
-             adjacentDefinition.id != currentDefinition.id) {
+
+    if (!adjacentDefinition.transparent) {
+        return false;
+    }
+
+    if (adjacentDefinition.render.meshType == BlockMeshType::X) {
         return true;
     }
-    return false;
+
+    if (adjacentDefinition.id == currentDefinition.id) {
+        return false;
+    }
+
+    // Transparent glass variants are one optical medium. Suppressing their
+    // shared face prevents coplanar triangles and visible internal seams.
+    const bool currentIsGlass =
+        currentDefinition.render.shaderType == BlockShaderType::Transparent;
+    const bool adjacentIsGlass =
+        adjacentDefinition.render.shaderType == BlockShaderType::Transparent;
+    return !(currentIsGlass && adjacentIsGlass);
 }

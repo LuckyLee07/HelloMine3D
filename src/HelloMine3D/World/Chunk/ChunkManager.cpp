@@ -212,9 +212,11 @@ ChunkDebugStats ChunkManager::collectDebugStats() const
     stats.meshBuildLastMs = m_meshBuildLastMs;
     stats.meshBuildMaxMs = m_meshBuildMaxMs;
     stats.solidFaces = m_solidFaceCount;
+    stats.transparentFaces = m_transparentFaceCount;
     stats.waterFaces = m_waterFaceCount;
     stats.floraFaces = m_floraFaceCount;
     stats.solidVertices = m_solidVertexCount;
+    stats.transparentVertices = m_transparentVertexCount;
     stats.waterVertices = m_waterVertexCount;
     stats.floraVertices = m_floraVertexCount;
 
@@ -234,9 +236,12 @@ void ChunkManager::recordMeshRebuild(const ChunkMeshCollection &meshes,
         return mesh.getClientMesh().vertexPositions.size() / 3;
     };
     m_solidFaceCount += static_cast<std::size_t>(meshes.solidMesh.faces);
+    m_transparentFaceCount +=
+        static_cast<std::size_t>(meshes.transparentMesh.faces);
     m_waterFaceCount += static_cast<std::size_t>(meshes.waterMesh.faces);
     m_floraFaceCount += static_cast<std::size_t>(meshes.floraMesh.faces);
     m_solidVertexCount += vertexCount(meshes.solidMesh);
+    m_transparentVertexCount += vertexCount(meshes.transparentMesh);
     m_waterVertexCount += vertexCount(meshes.waterMesh);
     m_floraVertexCount += vertexCount(meshes.floraMesh);
 }

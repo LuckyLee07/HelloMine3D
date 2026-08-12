@@ -794,6 +794,7 @@ void World::loadChunks()
                 // A rejected stale job is not adopted, so clear its temporary
                 // data before reusing the allocation for the next section.
                 builtMeshes.solidMesh.clearClientData();
+                builtMeshes.transparentMesh.clearClientData();
                 builtMeshes.waterMesh.clearClientData();
                 builtMeshes.floraMesh.clearClientData();
                 const auto buildStart = std::chrono::steady_clock::now();
@@ -1114,7 +1115,8 @@ void World::restoreActors(const std::vector<ActorSaveState> &states)
             const auto materialId =
                 static_cast<Material::ID>(state.materialId);
             if (materialId <= Material::ID::Nothing ||
-                materialId > Material::ID::IronOre || state.amount <= 0) {
+                materialId > Material::ID::GlassBorderless ||
+                state.amount <= 0) {
                 continue;
             }
             actor = std::make_unique<ItemEntity>(

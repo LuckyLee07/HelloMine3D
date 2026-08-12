@@ -29,7 +29,7 @@ Output is one line per assertion plus a summary:
 ```text
 [VALIDATION] PASS S0.5/chunk-boundary-marks-neighbor
 [VALIDATION] FAIL S6.4/ore-decorator-produces-ore :: coal=0 iron=0
-[VALIDATION] checks=209 failures=0
+[VALIDATION] checks=219 failures=0
 [VALIDATION] status=PASS
 ```
 
@@ -63,7 +63,8 @@ position and player rotation are forced per scenario through the same
 | `caseNoImplicitChunkCreation` | S0.2 | Reading or writing a block outside the loaded set does not create chunks. |
 | `caseMeshDirtyPropagation` | M2, S0.4, S0.5 | Interior and boundary edits dirty the correct sections. Five queued sections are deduplicated, rebuilt FIFO with a two-per-update budget, and drained across three frames. |
 | `casePersistence` | P2, S1.3, S2.1, S2.4, S2.5, S2.6, S6.1 | Block edits, world metadata, seed, spawn point, player transform/inventory, mobs and item entities all survive a relaunch. Actor subtype state and id allocation are compared after restore. |
-| `caseSectionMeshInput` | M1, M3 | The 18x18x18 block halo matches direct world reads, edits advance the section revision, and accepted mesh builds accumulate timing plus solid/water/flora face and vertex metrics. |
+| `caseSectionMeshInput` | M1, M3 | The 18x18x18 block halo matches direct world reads, edits advance the section revision, and accepted mesh builds accumulate timing plus solid/glass/water/flora face and vertex metrics. |
+| `caseTransparentBlockRules` | L4 | Glass definitions and materials round-trip, transparent cubes use the glass pass, leaves use static cutout and flora keeps its animated pass. Shared glass faces are removed within and across chunks while opaque/glass boundaries retain exactly one face. |
 | `caseSunlightStorage` | L1 | Sunlight conversion stays within 0-15, open and roofed columns differ, the full 18x18x18 halo carries sunlight, mesh brightness and greedy boundaries respect light values, and storage reload rebuilds derived sunlight. |
 | `caseBlockLightStorage` | L2 | A data-driven level-14 emitter falls off by one per voxel, opaque blocks stop propagation, the halo carries block light, meshes choose the stronger light source, and storage reload rebuilds derived values. |
 | `caseLocalRelightAfterEdits` | L3 | Edits update one sunlight column and locally remove/refill block light across chunk boundaries; mesh revisions and a bounded section queue track light-only changes, while chunk load/unload reconciles boundary light. |
@@ -94,8 +95,8 @@ These need a person at the keyboard or a different harness:
 | Layer | Command | Result |
 | ----- | ------- | ------ |
 | Focused headless tests | `bin\HelloMine3DCoordinateTests.exe`, `bin\HelloMine3DMeshDirtyTests.exe`, `bin\HelloMine3DSaveLoadSmoke.exe`, `bin\HelloMine3DEntityLifecycleSmoke.exe` | All pass. |
-| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=209 failures=0` (Debug and Release, 2026-08-12) |
-| A1 asset references | `sh scripts/check_assets.sh` | The repository passes 41 block/shader/texture/font/config checks. An isolated copy with `HelloMine3DTerrain.vert` omitted returns 1 and names the missing referenced shader (2026-08-09). |
+| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=219 failures=0` (Debug and Release, 2026-08-12) |
+| A1 asset references | `sh scripts/check_assets.sh` | The repository passes 44 block/shader/texture/font/config checks after registering both glass definitions. An isolated copy with `HelloMine3DTerrain.vert` omitted returns 1 and names the missing referenced shader (2026-08-09; current positive run 2026-08-12). |
 | A2 block diagnostics | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseBlockDataDiagnostics`) | Five malformed fixtures verify missing `ShaderType`, invalid `MeshType`, atlas coordinate `16 0`, light level 16, and duplicate id 3 all report the full source path and exact key. Debug/Release pass (2026-08-12). |
 | A3 runtime config ownership | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseRuntimeConfigOwnership`) | Three assertions delete an isolated `config.txt`, verify regeneration with the documented defaults, then load customised values. `Mine.cfg` and `MineResources.cfg` remain the only tracked `bin/` templates (2026-08-09). |
 | A4 configured world seed | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseConfiguredWorldSeed`) | Three assertions load seed `20260811` from an isolated config, create two fresh worlds without `HELLOMINE3D_SEED`, and compare 2,299 terrain samples with zero mismatches. Debug/Release pass (2026-08-09). |
@@ -103,11 +104,12 @@ These need a person at the keyboard or a different harness:
 | L1 sunlight storage | `bin\HelloMine3DWorldRuntimeSmoke.exe`; hardware render capture; `tools\run_perf_baseline.ps1` | Nine L1 assertions pass in Debug and Release. `bin/render_capture_l1_surface_20260812/new_01500ms.png` independently decodes and shows bright open terrain against darker opaque occlusion on a GTX 1050 Ti / OpenGL 4.6. The 10-second performance run records 601 frames, 60.14 FPS, 17.75 ms frame P95, no frames over 33 ms, and 0.466/1.363 ms average/max section mesh build time (2026-08-12). |
 | L2 block-light storage | `bin\HelloMine3DWorldRuntimeSmoke.exe`; `tools\run_render_capture.ps1`; `tools\run_perf_baseline.ps1` | Seven L2 assertions plus one A2 range fixture pass in Debug and Release. The hardware PNG independently decodes. The matching 10-second run records 601 frames, 60.14 FPS, 17.69 ms frame P95, no frames over 33 ms, and 0.467/0.988 ms average/max mesh build time; geometry counts match L1 exactly (2026-08-12). |
 | L3 local relight | `bin\HelloMine3DWorldRuntimeSmoke.exe`; `tools\run_render_capture.ps1`; `tools\run_perf_baseline.ps1` | Nine L3 assertions pass in Debug and Release, including cross-chunk edit propagation, opaque add/remove, single-column sunlight, bounded mesh invalidation, reload reconciliation and unload cleanup. The PNG independently decodes. The 10-second run records 601 frames, 60.09 FPS, 17.58 ms frame P95, no frames over 33 ms, and 0.477/0.998 ms average/max mesh build time (2026-08-12). |
+| L4 transparent rules | `bin\HelloMine3DWorldRuntimeSmoke.exe`; `HELLOMINE3D_TRANSPARENT_FIXTURE=1` Ogre validation/capture; `tools\run_perf_baseline.ps1` | Ten L4 assertions pass in Debug and Release. Ogre validation reports one transparent section with 68 vertices/102 indices; `bin/render_capture_l4_20260812_full/new_05000ms.png` shows the deterministic glass/leaf/flora fixture and independently decodes. The 10-second run records 601 frames, 60.10 FPS, 17.54 ms frame P95, no frames over 33 ms, and 0.480/1.169 ms average/max mesh build time (2026-08-12). |
 | E0 dependency boundary | `rg "SFML|sf::|GLfloat|GLuint|glad" src/HelloMine3D/World` | No matches (2026-08-09). |
 | E1 engine build | `tools\premake\premake5 --os=windows --file=premake/premake.lua vs2022`, then full Debug/Release solution builds | Ogre 1.10 core, GLSupport, GL3Plus, FreeImage dependency chain, dedicated Ogre FreeType, zlib, zzip and OIS all compile with 0 errors (2026-08-09). |
 | E2 bootstrap validation | `set HELLOMINE3D_VALIDATE_ONLY=1` then `bin\HelloMine3D.exe` | Debug and Release register `OpenGL 3+ Rendering Subsystem`, 2 resource locations and OIS, then shut down cleanly (2026-08-09). |
 | E3 terrain bridge | Set `HELLOMINE3D_VALIDATE_ONLY=1`, `HELLOMINE3D_SEED=20260809`, `HELLOMINE3D_PLAYER_POSITION=264 96 8`, then run `bin\HelloMine3D.exe` | Debug and Release build real terrain and validate every position, atlas-UV, repeat-UV, light and index stream before GPU upload, including section-local bounds and index ranges (2026-08-09). |
-| E4 water/flora bridge | Use the E3 command | Debug and Release validate 19 solid sections (8,396 vertices after M4), 3 water sections (1,736 vertices), and 13 flora sections (1,116 vertices); each path has valid CPU streams and a dedicated render queue (2026-08-09). |
+| E4 water/flora bridge | Use the E3 command | Release validates 20 solid/cutout sections (9,296 vertices), 3 water sections (1,736 vertices), and 12 flora sections (216 vertices). The L4 fixture additionally validates one glass section (68 vertices); every path has valid CPU streams and an explicit render queue (2026-08-12). |
 | E4 Ogre diagnostics | Add `HELLO_RENDER_CAPTURE=1`, `HELLO_RENDER_CAPTURE_MS=0,250,1000`, and an isolated `HELLO_RENDER_CAPTURE_DIR` to the E4 validation command | Debug and Release report `capture_config=valid`, `capture_enabled=true`, and `capture_targets=3`. Both scripts target the sole client executable (2026-08-09). |
 | E4 Ogre HUD/ImGui | Add `HELLOMINE3D_SHOW_DEBUG_INFO=1`, then repeat with `off` | Debug and Release report `hud_config=valid`, five hotbar slots, selected slot zero, and the matching enabled/disabled debug-panel state. OIS key/mouse events, F1 toggling, render-queue submission and camera input suppression compile in both configurations (2026-08-09). |
 | E5 single render path | `rg -n "SFML|sf::|glad|imgui.?sfml|HelloMine3DOgreBootstrap" src/HelloMine3D premake tools` plus full Debug/Release builds and all five tests | No old client/render dependencies remain; versioned CPU mesh upload checks pass and `HelloMine3D.exe` is the only client target (2026-08-09). |
@@ -119,17 +121,12 @@ These need a person at the keyboard or a different harness:
 | M6 enclosed-section skip | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseEnclosedSectionSkip`) | Nine assertions seal a section with opaque neighbours, prove background and synchronous paths schedule no mesh build or metrics update, then open one top neighbour and require exactly one visible face and one recorded rebuild (2026-08-09). |
 | M7 frustum-priority work order | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseFrustumMeshPriority`) | Four assertions retain all 1,089 chunk targets at view distance 16, prioritise the forward half, reverse priority after turning, and preserve distance ordering when no main-thread frustum snapshot is available (2026-08-09). |
 | P5 block use interaction | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseInteractionAndEvents`) | Four assertions route use through `BlockInteractionSystem`, publish one `BlockUseEvent` with the target position/id, and keep air use as a no-op. Right-click queues use before the existing adjacent placement action (2026-08-09). |
-| Render smoke | see `docs/render-regression-smoke.md` | `bin/render_capture_20260807190230074-46036`, status PASS |
-| Performance baseline | see `docs/performance-baseline.md` | `bin/perf_baseline_20260807190255313-41064`, `frame_p95_ms=16.430` |
+| Render smoke | see `docs/render-regression-smoke.md` | `bin/render_capture_l4_20260812_full/new_05000ms.png`, status PASS |
+| Performance baseline | see `docs/performance-baseline.md` | `bin/perf_baseline_l4_20260812_verified`, `frame_p95_ms=17.543` |
 
-The 2026-08-09 automation session exposed only the Windows GDI Generic OpenGL
-1.1 implementation, below the client's required OpenGL 3.3 context. Headless
-validation is therefore fully current, while the last hardware-backed render
-and performance runs remain the 2026-08-07 records above. The E2-E5 window probe
-reaches GL3Plus context creation and then reports that OpenGL 3.0 is unavailable;
-skybox appearance, terrain/water/flora materials, Ogre culling, mouse look,
-free-flight controls, HUD/debug-panel appearance, screenshot PNGs and a comparable performance CSV still need one run in a
-hardware-accelerated desktop session.
+The current 2026-08-12 runs use an NVIDIA GTX 1050 Ti with OpenGL 4.6. The
+earlier GDI Generic limitation no longer applies to these hardware-backed PNG
+and performance records.
 
 ## When To Run
 

@@ -152,8 +152,9 @@ namespace
                "existing_chunks,loaded_chunks,save_dirty_chunks,sections,"
                "mesh_dirty_sections,cpu_ready_sections,gpu_buffered_sections,"
                "queued_chunk_updates,mesh_rebuilds,mesh_build_total_ms,"
-               "mesh_build_last_ms,mesh_build_max_ms,solid_faces,water_faces,"
-               "flora_faces,solid_vertices,water_vertices,flora_vertices,"
+               "mesh_build_last_ms,mesh_build_max_ms,solid_faces,transparent_faces,"
+               "water_faces,flora_faces,solid_vertices,transparent_vertices,"
+               "water_vertices,flora_vertices,"
                "actor_count,terrain_seed,world_time,simulation_ticks\n";
     }
 
@@ -378,10 +379,14 @@ namespace
             summary << "last_mesh_build_max_ms="
                     << last.chunks.meshBuildMaxMs << "\n";
             summary << "last_solid_faces=" << last.chunks.solidFaces << "\n";
+            summary << "last_transparent_faces="
+                    << last.chunks.transparentFaces << "\n";
             summary << "last_water_faces=" << last.chunks.waterFaces << "\n";
             summary << "last_flora_faces=" << last.chunks.floraFaces << "\n";
             summary << "last_solid_vertices=" << last.chunks.solidVertices
                     << "\n";
+            summary << "last_transparent_vertices="
+                    << last.chunks.transparentVertices << "\n";
             summary << "last_water_vertices=" << last.chunks.waterVertices
                     << "\n";
             summary << "last_flora_vertices=" << last.chunks.floraVertices
@@ -468,9 +473,11 @@ void recordFrame(const FrameTimings &timings,
                         << worldStats.chunks.meshBuildLastMs << ","
                         << worldStats.chunks.meshBuildMaxMs << ","
                         << worldStats.chunks.solidFaces << ","
+                        << worldStats.chunks.transparentFaces << ","
                         << worldStats.chunks.waterFaces << ","
                         << worldStats.chunks.floraFaces << ","
                         << worldStats.chunks.solidVertices << ","
+                        << worldStats.chunks.transparentVertices << ","
                         << worldStats.chunks.waterVertices << ","
                         << worldStats.chunks.floraVertices << ","
                         << worldStats.actorCount << ","

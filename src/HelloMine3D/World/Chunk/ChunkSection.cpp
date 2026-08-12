@@ -158,6 +158,7 @@ bool ChunkSection::makeMesh()
     captureMeshInput(input);
 
     m_meshes.solidMesh.clearClientData();
+    m_meshes.transparentMesh.clearClientData();
     m_meshes.waterMesh.clearClientData();
     m_meshes.floraMesh.clearClientData();
     const bool built = input.needsMeshBuild();
@@ -176,6 +177,7 @@ void ChunkSection::captureMeshInput(SectionMeshInput &input)
 void ChunkSection::adoptMesh(ChunkMeshCollection &built)
 {
     m_meshes.solidMesh.clearClientData();
+    m_meshes.transparentMesh.clearClientData();
     m_meshes.waterMesh.clearClientData();
     m_meshes.floraMesh.clearClientData();
     m_meshes.adoptClientData(built);
@@ -219,6 +221,7 @@ void ChunkSection::deleteMeshes()
 {
     if (m_meshState != ChunkSectionMeshState::Dirty) {
         m_meshes.solidMesh.clearClientData();
+        m_meshes.transparentMesh.clearClientData();
         m_meshes.waterMesh.clearClientData();
         m_meshes.floraMesh.clearClientData();
     }
