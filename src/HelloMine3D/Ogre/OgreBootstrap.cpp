@@ -429,6 +429,42 @@ namespace
                                   BlockId::Rose);
             }
 
+            if (isTrueValue(std::getenv(
+                    "HELLOMINE3D_ORE_FIXTURE")))
+            {
+                const float yaw = glm::radians(
+                    m_worldPlayer->rotation.y + 90.0f);
+                const glm::vec3 forward(-std::cos(yaw), 0.0f,
+                                        -std::sin(yaw));
+                const glm::vec3 right(-forward.z, 0.0f, forward.x);
+                const glm::vec3 center =
+                    m_worldPlayer->position + forward * 6.0f;
+                const int centerY =
+                    World::toBlockCoord(m_worldPlayer->position.y);
+
+                for (int y = 0; y < 3; ++y)
+                {
+                    for (int side = 1; side <= 2; ++side)
+                    {
+                        const glm::vec3 coalPosition =
+                            center - right * static_cast<float>(side);
+                        const glm::vec3 ironPosition =
+                            center + right * static_cast<float>(side);
+                        m_world->setBlock(
+                            World::toBlockCoord(coalPosition.x),
+                            centerY + y,
+                            World::toBlockCoord(coalPosition.z),
+                            BlockId::CoalOre);
+                        m_world->setBlock(
+                            World::toBlockCoord(ironPosition.x),
+                            centerY + y,
+                            World::toBlockCoord(ironPosition.z),
+                            BlockId::IronOre);
+                    }
+                }
+                m_oreFixturePlaced = true;
+            }
+
             const VectorXZ center = World::getChunkXZ(
                 World::toBlockCoord(m_worldPlayer->position.x),
                 World::toBlockCoord(m_worldPlayer->position.z));
@@ -717,7 +753,12 @@ namespace
                 (m_renderCapture != nullptr &&
                  m_renderCapture->isEnabled()) ||
                 RuntimePerformanceCapture::isEnabled();
-            m_sandbox->update(input, deltaSeconds,
+            const bool freezeValidationCapture =
+                (m_validationActorsSpawned || m_oreFixturePlaced) &&
+                m_renderCapture != nullptr &&
+                m_renderCapture->isEnabled();
+            m_sandbox->update(input,
+                              freezeValidationCapture ? 0.0f : deltaSeconds,
                               !diagnosticsActive);
             clearTransientInput();
             syncRenderCamera();
@@ -1172,6 +1213,7 @@ namespace
         bool m_resetMeshes = false;
         bool m_mouseLookEnabled = true;
         bool m_validationActorsSpawned = false;
+        bool m_oreFixturePlaced = false;
         int m_hotbarDelta = 0;
         int m_hotbarSlot = -1;
     };
