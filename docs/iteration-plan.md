@@ -1,7 +1,9 @@
 # HelloMine3D Iteration Plan
 
-本文档记录 HelloMine3D 后续迭代规划。规划基于当前项目源码状态，以及
-`docs/minigame-reference.md` 中对 MiniGame 项目的参考分析。
+本文档保留 HelloMine3D 的长期架构方向和历史阶段划分。规划基于项目源码，
+以及 `docs/minigame-reference.md` 中对 MiniGame 项目的参考分析。可执行任务、
+当前状态和逐项验收证据以 `docs/todolist.md` 为唯一准绳；本文件中的远期候选
+只有在被加入该清单后才成为当前迭代承诺。
 
 总体原则：
 
@@ -18,27 +20,35 @@ HelloMine3D 已具备这些基础：
 | ---- | -------- |
 | 构建系统 | Premake 已作为主构建入口，支持 Make/Xcode/Visual Studio 工程生成。 |
 | 依赖管理 | 通过 `src/Engine` 与 `src/external` 本地源码构建 Ogre、FreeImage、FreeType、OIS、ImGui 和 GLM，不依赖 vcpkg 安装树。 |
-| 运行资源 | `media/` 保存 shader、texture、block、font，`ResourcePaths` 负责路径解析。 |
-| 世界结构 | 已有 `World`、`ChunkManager`、`Chunk`、`ChunkSection`。 |
-| 区块网格 | 已有 `ChunkMeshBuilder`，按 solid/water/flora 拆 mesh。 |
-| 方块数据 | 已有 `.block` 文件、`BlockDatabase`、`BlockDataHolder`。 |
-| 地形生成 | 已有 biome、tree、structure 和 classic overworld generator。 |
-| 渲染 | Ogre GL3Plus 是唯一渲染路径，已有 chunk/water/flora/skybox、选择描边和材质程序。 |
-| 调试 UI | Ogre/OIS + ImGui 已提供 HUD 与调试面板。 |
+| 运行资源 | `media/` 保存 shader、texture、block、shape 和 font；严格解析器与 `scripts/check_assets.sh` 负责引用和边界校验。 |
+| 世界结构 | `World`/`ChunkManager` 已具备负坐标、固定 tick、版本化存档、玩家与演员持久化。 |
+| 区块网格 | `ChunkMeshBuilder` 使用有界 dirty 队列、18x18x18 halo、opaque greedy meshing、光照分界和异步快照版本校验。 |
+| 方块数据 | `BlockDefinition`、`BlockRenderInfo`、`BlockShape`、`BlockBehavior` 与 `ChunkBlock` metadata 已落地。 |
+| 地形生成 | biome、洞穴、矿石、植物和跨区块结构均由确定性阶段生成，且不依赖相邻区块加载顺序。 |
+| 渲染 | Ogre GL3Plus 是唯一渲染路径，已有 terrain/water/glass/flora/skybox、演员、选择描边、HUD 和材质程序。 |
+| 调试 UI | Ogre/OIS + ImGui 已提供 HUD、调试面板、运行时统计、截图和性能采集入口。 |
 
-当前主要风险：
+当前剩余验收风险：
 
 | 风险 | 说明 |
 | ---- | ---- |
-| 区块 dirty 更新不完整 | 方块修改后的 mesh 更新链路尚未可靠启用。 |
-| Section solid layer 计数不可信 | `Layer::update()` 没有基于旧方块和新方块做增量修正。 |
-| 负坐标支持不明确 | 当前 chunk/block 映射对负坐标不安全，加载逻辑也 clamp 到 0。 |
-| 后台加载线程边界较粗 | 线程直接读 camera 引用，后续容易出现同步和生命周期问题。 |
-| 方块数据校验较弱 | `.block` 缺字段、坐标越界、id 不匹配等问题没有集中诊断。 |
-| 资源系统仍是直读路径 | 适合当前规模，但不利于后续资源检查、资源包和 mod。 |
-| 地形生成职责开始变重 | terrain、biome、植物、树等逻辑仍有混合趋势。 |
+| macOS 原生路径尚未验收 | Windows 侧的 22 个 Xcode 工程和 123 项生成合同均通过；仍需真实 macOS 主机运行 `bash scripts/verify_xcode.sh`，完成双配置构建、测试和客户端启动。 |
+| 远期产品化方向未排期 | 顶点压缩、random tick、昼夜/雾效、资源包、mod 和多人仍是候选方向，不属于当前执行清单；立项前应单独设计并写入 `docs/todolist.md`。 |
 
 ## 迭代阶段
+
+下列表格保留最初的架构拆分和优先级，不再直接表示未完成工作。当前交付映射
+如下；其中未进入 `docs/todolist.md` 的 P2/产品化候选不计作当前待办。
+
+| 阶段 | 当前交付状态 | 权威证据 |
+| ---- | ------------ | -------- |
+| 第 0 阶段 | 已完成 | `S0.1-S0.6`、`V4-V5` |
+| 第 1 阶段 | 已完成 | `S0.4`、`A1-A4`、`S7.1` |
+| 第 2 阶段 | 已完成当前范围 | `M1-M7`；顶点格式压缩未排期 |
+| 第 3 阶段 | 已完成当前范围 | `S3.1-S3.6`、`C1-C3`；random tick 未排期 |
+| 第 4 阶段 | 已完成 | `S2.1-S2.6`、`S6.1-S6.5`、`L1-L3`、`C4-C5` |
+| 第 5 阶段 | 已完成当前范围 | `V3`、`P1-P5`、`L4`；昼夜/雾效未排期 |
+| 第 6 阶段 | B3 阻塞 | `B1`、`B2`、`B4`、`B5` 已完成；macOS 原生门禁待真实主机 |
 
 ### 第 0 阶段：稳定现有基础
 
@@ -190,9 +200,10 @@ HelloMine3D 已具备这些基础：
 | 完整编辑器 | 先做资源校验和 block atlas 工具，避免工具链复杂度过早膨胀。 |
 | 大规模引入 MiniGame 代码 | MiniGame 历史依赖重，适合参考架构，不适合迁移源码。 |
 
-## 推荐执行顺序
+## 历史推荐执行顺序
 
-建议按小闭环推进，每个闭环都应该能构建、运行、验证。
+以下顺序记录规划时采用的小闭环。闭环 1、3、4、5 已完成；闭环 2 除
+macOS 原生构建与启动外已完成，剩余项由 `B3` 跟踪。
 
 ### 闭环 1：区块修改可靠
 
@@ -240,22 +251,21 @@ HelloMine3D 已具备这些基础：
 
 | 检查 | 命令/方式 |
 | ---- | --------- |
-| Make debug build | `sh scripts/build.sh` |
-| Make release build | `sh scripts/build.sh release` |
+| Windows 双配置完整门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify_build.ps1` |
+| Linux/macOS Make 双配置门禁 | `bash scripts/verify_build.sh` |
 | macOS Xcode project | `bash scripts/verify_xcode.sh` 生成并构建 Debug/Release，执行五项测试和客户端启动探针。 |
-| Windows VS project | `vs2022.bat` 生成工程，并在 Windows 上编译。 |
-| 资源检查 | `sh scripts/check_assets.sh`，资产引用缺失时返回非零。 |
-| 手动运行 | `sh scripts/run.sh release`，观察 chunk 加载、放置/破坏、退出是否正常。 |
+| 资源检查 | `bash scripts/check_assets.sh`，资产引用缺失时返回非零。 |
+| 手动运行 | `bash scripts/run.sh release`，观察 chunk 加载、放置/破坏、退出是否正常。 |
 
 ## 里程碑定义
 
-| 里程碑 | 标准 |
-| ------ | ---- |
-| M1 稳定 demo | 区块加载和方块修改可靠，资源错误可诊断，Windows/macOS 可构建运行。 |
-| M2 可扩展体素核心 | dirty queue、halo cache、基础 greedy meshing、方块 metadata 完成。 |
-| M3 可保存沙盒 | world seed、chunk 存档、基础光照、decorator 地形生成完成。 |
-| M4 内容扩展阶段 | 方块 shape 资源化、BlockBehavior、更多方块/生物群系/结构完成。 |
-| M5 产品化探索 | 资源包、mod、工具链、实体系统、多人网络按独立设计推进。 |
+| 里程碑 | 当前状态 | 标准 |
+| ------ | -------- | ---- |
+| M1 稳定 demo | B3 阻塞 | 区块加载、方块修改和资源诊断已完成；Windows 已验收，macOS 原生构建运行待验收。 |
+| M2 可扩展体素核心 | 已完成 | dirty queue、halo cache、基础 greedy meshing、方块 metadata 完成。 |
+| M3 可保存沙盒 | 已完成 | world seed、chunk 存档、基础光照、decorator 地形生成完成。 |
+| M4 内容扩展阶段 | 已完成当前范围 | 方块 shape 资源化、BlockBehavior、演员、洞穴和跨区块结构完成。 |
+| M5 产品化探索 | 未排期 | 资源包、mod、工具链和多人网络需分别设计并进入执行清单后再推进。 |
 
 ## 与 MiniGame 参考文档的关系
 
