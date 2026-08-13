@@ -185,6 +185,7 @@ Deviations:
 | P5 block use interaction | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseInteractionAndEvents`) | Four assertions route use through `BlockInteractionSystem`, publish one `BlockUseEvent` with the target position/id, and keep air use as a no-op. Right-click queues use before the existing adjacent placement action (2026-08-09). |
 | Render smoke | see `docs/render-regression-smoke.md` | L4 plus tracked skybox/panel/outline, actor and ore captures all pass on OpenGL 4.6; evidence is under `docs/screenshots/validation-*.png`. |
 | Performance baseline | see `docs/performance-baseline.md` | `bin/perf_baseline_l4_20260812_verified`, `frame_p95_ms=17.543` |
+| R1 performance comparison | `tools\validate_perf_comparison.ps1`; also part of `scripts\verify_build.ps1` | Four fixtures distinguish `PASS` (real L4 self-compare), `REGRESSION` (P95/P99/long frames), `INCOMPARABLE` (scene and residency) and `INVALID` (missing metric). The comparator uses exit codes 0/2/3/4 and exact diagnostic reasons (2026-08-13). |
 
 The current 2026-08-12 runs use an NVIDIA GTX 1050 Ti with OpenGL 4.6. The
 earlier GDI Generic limitation no longer applies to these hardware-backed PNG

@@ -12,6 +12,8 @@ param(
     [string]$Seed = "",
     [string]$PlayerPosition = "",
     [string]$PlayerRotation = "",
+    [string]$WorldTime = "",
+    [string]$SceneId = "",
     [double]$MinimumSimulationTickHz = 19.0,
     [double]$MaximumSimulationTickHz = 21.0,
     [switch]$StopExisting,
@@ -173,6 +175,22 @@ function Read-SummaryValue {
     return ($line -replace "^$escapedKey=", "").Trim()
 }
 
+function Read-ConfigValue {
+    param(
+        [string]$Path,
+        [string]$Key
+    )
+
+    $escapedKey = [regex]::Escape($Key)
+    $line = Get-Content -LiteralPath $Path | Where-Object {
+        $_ -match "^\s*$escapedKey\s*="
+    } | Select-Object -First 1
+    if ([string]::IsNullOrWhiteSpace($line)) {
+        throw "Runtime config is missing '$Key': $Path"
+    }
+    return (($line -split '=', 2)[1]).Trim()
+}
+
 function Wait-MainWindowHandle {
     param(
         [System.Diagnostics.Process]$Process,
@@ -245,6 +263,18 @@ if ([string]::IsNullOrWhiteSpace($PlayerPosition)) {
 if ([string]::IsNullOrWhiteSpace($PlayerRotation)) {
     $PlayerRotation = Read-WorldMetaValue -Path $DefaultMetaPath -Key "player_rotation"
 }
+if ([string]::IsNullOrWhiteSpace($SceneId)) {
+    if ([string]::IsNullOrWhiteSpace($Seed) -or
+        [string]::IsNullOrWhiteSpace($PlayerPosition) -or
+        [string]::IsNullOrWhiteSpace($PlayerRotation)) {
+        throw "SceneId requires an explicit value when seed, player position or player rotation cannot be resolved."
+    }
+    $SceneId = "seed=$Seed;position=$PlayerPosition;rotation=$PlayerRotation;worldTime=$WorldTime"
+}
+
+$OgreConfigPath = Join-Path $BinDir "Mine.cfg"
+$VsyncValue = Read-ConfigValue -Path $OgreConfigPath -Key "VSync"
+$VsyncRegime = if ($VsyncValue -match '^(?i:yes|true|on|1)$') { "on" } else { "off" }
 
 $ProcessStdoutPath = Join-Path $OutputDir "process.stdout.log"
 $ProcessStderrPath = Join-Path $OutputDir "process.stderr.log"
@@ -265,6 +295,8 @@ Write-Host "[PERF_BASELINE] window=$WindowX,$WindowY ${WindowWidth}x$WindowHeigh
 if (-not [string]::IsNullOrWhiteSpace($Seed)) { Write-Host "[PERF_BASELINE] seed=$Seed" }
 if (-not [string]::IsNullOrWhiteSpace($PlayerPosition)) { Write-Host "[PERF_BASELINE] playerPosition=$PlayerPosition" }
 if (-not [string]::IsNullOrWhiteSpace($PlayerRotation)) { Write-Host "[PERF_BASELINE] playerRotation=$PlayerRotation" }
+if (-not [string]::IsNullOrWhiteSpace($WorldTime)) { Write-Host "[PERF_BASELINE] worldTime=$WorldTime" }
+Write-Host "[PERF_BASELINE] sceneId=$SceneId vsync=$VsyncRegime"
 
 if ($StopExisting) {
     $existingProcesses = @(Get-Process -Name "HelloMine3D" -ErrorAction SilentlyContinue)
@@ -294,6 +326,9 @@ if (-not [string]::IsNullOrWhiteSpace($PlayerPosition)) {
 }
 if (-not [string]::IsNullOrWhiteSpace($PlayerRotation)) {
     $envValues["HELLOMINE3D_PLAYER_ROTATION"] = $PlayerRotation
+}
+if (-not [string]::IsNullOrWhiteSpace($WorldTime)) {
+    $envValues["HELLOMINE3D_WORLD_TIME"] = $WorldTime
 }
 
 $process = $null
@@ -345,6 +380,13 @@ try {
     if ($simulationTickHz -lt $MinimumSimulationTickHz -or $simulationTickHz -gt $MaximumSimulationTickHz) {
         throw "Simulation tick rate $simulationTickHz Hz is outside the expected range [$MinimumSimulationTickHz, $MaximumSimulationTickHz]."
     }
+
+    Add-Content -LiteralPath $SummaryPath -Encoding utf8 -Value @(
+        "comparison_schema=1",
+        "comparison_scene_id=$SceneId",
+        "comparison_vsync_regime=$VsyncRegime",
+        "comparison_window=${WindowWidth}x$WindowHeight"
+    )
 }
 finally {
     if ($KeepAlive) {

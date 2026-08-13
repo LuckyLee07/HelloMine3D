@@ -11,6 +11,8 @@ $binDirectory = Join-Path $repoRoot "bin"
 $startupErrorVerifier = Join-Path $repoRoot "tools\validate_startup_errors.ps1"
 $resourceManifestVerifier = Join-Path $repoRoot `
     "tools\validate_resource_manifest.ps1"
+$performanceComparisonVerifier = Join-Path $repoRoot `
+    "tools\validate_perf_comparison.ps1"
 
 function Invoke-Checked {
     param(
@@ -65,6 +67,10 @@ Push-Location $repoRoot
 try {
     Invoke-Checked "Resource manifest" {
         & $resourceManifestVerifier
+    }
+
+    Invoke-Checked "Performance comparison fixtures" {
+        & $performanceComparisonVerifier
     }
 
     Invoke-Checked "Generate VS2022 projects" {

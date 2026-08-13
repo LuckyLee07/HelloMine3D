@@ -45,6 +45,24 @@ Important outputs:
 | `process.stdout.log` | Runtime stdout, including performance capture enable/summary logs. |
 | `process.stderr.log` | Runtime stderr. |
 
+Each new summary also records the build configuration and comparison metadata:
+the fixed scene id, VSync regime and capture window. Compare two run directories
+or summary files with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\compare_perf_baselines.ps1 `
+  -Baseline bin\perf_baseline_<accepted> `
+  -Candidate bin\perf_baseline_<candidate>
+```
+
+Exit code `0` is a pass, `2` is a threshold regression, `3` means the scenes
+or final residency are not comparable, and `4` means a required metric or
+metadata field is invalid. The deterministic fixture gate is:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\validate_perf_comparison.ps1
+```
+
 ## Captured Metrics
 
 `frames.csv` records these timing columns:
@@ -244,10 +262,9 @@ Do not compare against `bin/perf_baseline_20260707201831896-39828` (73 frames at
 
 ## Baseline Policy
 
-The L4 hardware run is the accepted current reference, but this benchmark
-remains informational until roadmap item R1 adds the comparison gate. R1 must
-first reject runs whose scene identity, build/configuration, vsync regime or
-final chunk/section residency are not comparable, then return a non-zero
+The L4 hardware run is the accepted current reference. The R1 comparison gate
+first rejects runs whose scene identity, build/configuration, vsync regime or
+final chunk/section residency are not comparable, then returns a non-zero
 regression result for these thresholds:
 
 - warn when `frame_p95_ms` grows by more than 15%;
@@ -256,10 +273,13 @@ regression result for these thresholds:
 - warn when final chunk/section counts differ enough that two runs are not
   comparable.
 
-The R1 acceptance contract and required pass/fail fixtures are tracked in
-`docs/todolist.md` and `docs/runtime-validation.md`. Later milestones must not
-copy these thresholds into separate scripts or silently choose a different
-reference run.
+An increase in frames over 50 ms is material when it exceeds both two frames
+and 0.5% of the baseline frame count. Loaded-chunk and section residency each
+allow 5% variance with small absolute floors; exceeding either makes the runs
+incomparable instead of labelling the candidate slower. The R1 acceptance
+contract and pass/fail fixtures are tracked in `docs/todolist.md` and
+`docs/runtime-validation.md`. Later milestones must not copy these thresholds
+into separate scripts or silently choose a different reference run.
 
 ## When To Run
 

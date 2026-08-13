@@ -1,0 +1,12 @@
+comparison_schema=1
+build_configuration=Release
+comparison_scene_id=different-scene
+comparison_vsync_regime=on
+comparison_window=1600x900
+frames=601
+frame_p95_ms=17.543
+frame_p99_ms=18.197
+frames_over_50ms=0
+last_loaded_chunks=300
+last_sections=1900
+terrain_seed=20260809

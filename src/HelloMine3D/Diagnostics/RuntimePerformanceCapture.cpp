@@ -287,6 +287,11 @@ namespace
         }
 
         summary << std::fixed << std::setprecision(3);
+#if defined(NDEBUG)
+        summary << "build_configuration=Release\n";
+#else
+        summary << "build_configuration=Debug\n";
+#endif
         summary << "frames=" << captureState.samples.size() << "\n";
         summary << "warmup_ms=" << captureState.warmupMs << "\n";
         summary << "duration_ms=" << captureState.durationMs << "\n";

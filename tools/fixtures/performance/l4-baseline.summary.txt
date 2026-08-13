@@ -1,0 +1,12 @@
+comparison_schema=1
+build_configuration=Release
+comparison_scene_id=l4-seed-20260809-position-264-96-8
+comparison_vsync_regime=on
+comparison_window=1600x900
+frames=601
+frame_p95_ms=17.543
+frame_p99_ms=18.197
+frames_over_50ms=0
+last_loaded_chunks=361
+last_sections=2243
+terrain_seed=20260809
