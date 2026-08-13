@@ -31,7 +31,7 @@ Output is one line per assertion plus a summary:
 ```text
 [VALIDATION] PASS S0.5/chunk-boundary-marks-neighbor
 [VALIDATION] FAIL S6.4/ore-decorator-produces-ore :: coal=0 iron=0
-[VALIDATION] checks=278 failures=0
+[VALIDATION] checks=291 failures=0
 [VALIDATION] status=PASS
 ```
 
@@ -142,7 +142,7 @@ Deviations:
 | Layer | Command | Result |
 | ----- | ------- | ------ |
 | Focused headless tests | `bin\HelloMine3DCoordinateTests.exe`, `bin\HelloMine3DMeshDirtyTests.exe`, `bin\HelloMine3DSaveLoadSmoke.exe`, `bin\HelloMine3DEntityLifecycleSmoke.exe` | All pass. |
-| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=278 failures=0` (Debug and Release, 2026-08-13) |
+| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=291 failures=0` (Debug and Release, 2026-08-13) |
 | A1 asset references | `sh scripts/check_assets.sh` | The repository passes 45 block/shape/shader/texture/font/config checks after discovering named shape resources and multiline block registrations. An isolated copy with `HelloMine3DTerrain.vert` omitted returns 1 and names the missing referenced shader (2026-08-09; current positive equivalent run 2026-08-12). |
 | A2 block diagnostics | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseBlockDataDiagnostics`) | Five malformed fixtures verify missing `ShaderType`, invalid `MeshType`, atlas coordinate `16 0`, light level 16, and duplicate id 3 all report the full source path and exact key. Debug/Release pass (2026-08-12). |
 | A3 runtime config ownership | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseRuntimeConfigOwnership`) | Three assertions delete an isolated `config.txt`, verify regeneration with the documented defaults, then load customised values. `Mine.cfg` and `MineResources.cfg` remain the only tracked `bin/` templates (2026-08-09). |
@@ -188,6 +188,7 @@ Deviations:
 | R1 performance comparison | `tools\validate_perf_comparison.ps1`; also part of `scripts\verify_build.ps1` | Four fixtures distinguish `PASS` (real L4 self-compare), `REGRESSION` (P95/P99/long frames), `INCOMPARABLE` (scene and residency) and `INVALID` (missing metric). The comparator uses exit codes 0/2/3/4 and exact diagnostic reasons (2026-08-13). |
 | D1 stateful-block lifecycle | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseBlockEntityLifecycle`); `bin\HelloMine3DSaveLoadSmoke.exe`; full `scripts\verify_build.ps1` | Eleven world assertions cover owned create/find/update/remove, unique positions, invalid type and position rejection, atomic failed loads, negative world-coordinate translation, unload/reload persistence and automatic removal when the block changes. The focused fixture proves version 1 chunks remain readable with empty block-entity state and zero metadata. Debug/Release and every startup/resource/performance fixture pass with `checks=266 failures=0` (2026-08-13). |
 | D2 chest container | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseChestContainer`); `tools\run_render_capture.ps1 -ShowContainerFixture`; full `scripts\verify_build.ps1` | Twelve assertions cover P5 placement/use, bounded versioned slots, bidirectional total-preserving transfers, change events, malformed payload rejection, save/reload, input-action suppression and the explicit spill-on-break policy. Debug/Release pass with `checks=278 failures=0`. The 1584x861 GTX 1050 Ti / OpenGL 4.6 Release readback decodes cleanly and visibly shows all nine chest slots, five hotbar slots and Close/Escape guidance in `validation-container.png`. Physical focus recovery and Escape remain assigned to R3, so D2 remains `Verify` (2026-08-13). |
+| D3 natural-mob population | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseNaturalMobPopulation`); fixed-seed `tools\run_render_capture.ps1`; `tools\run_perf_baseline.ps1`; R1 comparison; full `scripts\verify_build.ps1` | Thirteen assertions cover deterministic bounded candidates, safe ground/headroom, local/world caps, chunk unload/reload, counters, save restoration and spatial duplicate rejection. Debug/Release pass with `checks=291 failures=0`. `validation-natural-mobs.png` is a 1584x861 GTX 1050 Ti / OpenGL 4.6 Release readback from the normal simulation path: the green Mob is visible and the panel reports four actors, `4 / 12` natural Mobs and four additions. The matching 60.1 FPS sample records P95/P99 `16.693/17.633 ms`, zero >33/50 ms frames and R1 `PASS` (2026-08-13). |
 
 The current 2026-08-12 runs use an NVIDIA GTX 1050 Ti with OpenGL 4.6. The
 earlier GDI Generic limitation no longer applies to these hardware-backed PNG

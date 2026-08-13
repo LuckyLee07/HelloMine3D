@@ -1,6 +1,7 @@
 #include "ActorManager.h"
 
 #include <algorithm>
+#include <cmath>
 
 ActorId ActorManager::allocateActorId()
 {
@@ -94,4 +95,51 @@ std::vector<ActorSaveState> ActorManager::collectSaveStates() const
         }
     }
     return states;
+}
+
+std::size_t ActorManager::countActorsByType(const std::string &type) const
+{
+    return static_cast<std::size_t>(std::count_if(
+        m_actors.begin(), m_actors.end(),
+        [&type](const std::unique_ptr<Actor> &actor) {
+            return actor && actor->isAlive() && actor->getType() == type;
+        }));
+}
+
+std::size_t ActorManager::countActorsByTypeNear(
+    const std::string &type, const glm::vec3 &position, float radius) const
+{
+    const float radiusSquared = std::max(0.f, radius) *
+                                std::max(0.f, radius);
+    return static_cast<std::size_t>(std::count_if(
+        m_actors.begin(), m_actors.end(),
+        [&type, &position, radiusSquared](
+            const std::unique_ptr<Actor> &actor) {
+            if (!actor || !actor->isAlive() || actor->getType() != type) {
+                return false;
+            }
+            const float dx = actor->position.x - position.x;
+            const float dz = actor->position.z - position.z;
+            return dx * dx + dz * dz <= radiusSquared;
+        }));
+}
+
+bool ActorManager::hasActorByTypeNear(const std::string &type,
+                                      const glm::vec3 &position,
+                                      float radius) const
+{
+    return countActorsByTypeNear(type, position, radius) > 0;
+}
+
+std::size_t ActorManager::removeActorsIf(
+    const std::function<bool(const Actor &)> &predicate)
+{
+    const std::size_t before = m_actors.size();
+    m_actors.erase(
+        std::remove_if(m_actors.begin(), m_actors.end(),
+                       [&predicate](const std::unique_ptr<Actor> &actor) {
+                           return !actor || predicate(*actor);
+                       }),
+        m_actors.end());
+    return before - m_actors.size();
 }

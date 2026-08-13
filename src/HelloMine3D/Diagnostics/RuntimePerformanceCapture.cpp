@@ -160,7 +160,10 @@ namespace
                "terrain_index_stride_bytes,resident_terrain_vertices,"
                "resident_terrain_indices,resident_terrain_vertex_bytes,"
                "resident_terrain_index_bytes,resident_terrain_buffer_bytes,"
-               "actor_count,terrain_seed,world_time,day_cycle,daylight,"
+               "actor_count,natural_mob_count,natural_mob_world_cap,"
+               "natural_mob_local_cap,natural_mob_spawn_attempts,"
+               "natural_mobs_spawned,natural_mobs_despawned,terrain_seed,"
+               "world_time,day_cycle,daylight,"
                "fog_density,simulation_ticks\n";
     }
 
@@ -425,6 +428,18 @@ namespace
             summary << "last_resident_terrain_buffer_bytes="
                     << last.terrainBuffers.totalBytes() << "\n";
             summary << "last_actor_count=" << last.actorCount << "\n";
+            summary << "last_natural_mob_count=" << last.naturalMobCount
+                    << "\n";
+            summary << "natural_mob_world_cap=" << last.naturalMobWorldCap
+                    << "\n";
+            summary << "natural_mob_local_cap=" << last.naturalMobLocalCap
+                    << "\n";
+            summary << "last_natural_mob_spawn_attempts="
+                    << last.naturalMobSpawnAttempts << "\n";
+            summary << "last_natural_mobs_spawned="
+                    << last.naturalMobsSpawned << "\n";
+            summary << "last_natural_mobs_despawned="
+                    << last.naturalMobsDespawned << "\n";
             summary << "terrain_seed=" << last.terrainSeed << "\n";
             summary << "last_world_time=" << last.worldTime << "\n";
             summary << "last_day_cycle=" << last.environment.cycle << "\n";
@@ -530,6 +545,12 @@ void recordFrame(const FrameTimings &timings,
                         << worldStats.terrainBuffers.indexBytes() << ","
                         << worldStats.terrainBuffers.totalBytes() << ","
                         << worldStats.actorCount << ","
+                        << worldStats.naturalMobCount << ","
+                        << worldStats.naturalMobWorldCap << ","
+                        << worldStats.naturalMobLocalCap << ","
+                        << worldStats.naturalMobSpawnAttempts << ","
+                        << worldStats.naturalMobsSpawned << ","
+                        << worldStats.naturalMobsDespawned << ","
                         << worldStats.terrainSeed << ","
                         << worldStats.worldTime << ","
                         << worldStats.environment.cycle << ","

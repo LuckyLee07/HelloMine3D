@@ -99,6 +99,8 @@ It also records world counters:
 | `resident_terrain_vertices`, `resident_terrain_indices` | Current counts across live Ogre terrain renderables, excluding unloaded or replaced buffers. |
 | `resident_terrain_vertex_bytes`, `resident_terrain_index_bytes`, `resident_terrain_buffer_bytes` | Current buffer payload estimates derived from live counts and measured strides. Driver allocation overhead and alignment are intentionally excluded. |
 | `actor_count` | Runtime actor count. |
+| `natural_mob_count`, `natural_mob_world_cap`, `natural_mob_local_cap` | Current natural-mob population and its global/local bounds. |
+| `natural_mob_spawn_attempts`, `natural_mobs_spawned`, `natural_mobs_despawned` | Cumulative D3 population decisions for diagnosing candidate rejection and chunk-lifecycle cleanup. |
 | `terrain_seed` | Seed used by the run. |
 | `simulation_ticks` | Fixed simulation ticks executed during that frame. |
 
@@ -187,6 +189,15 @@ sections, with fewer dirty sections), so cumulative geometry counts are not a
 direct L2/L3 comparison. L4 enabled the deterministic transparent fixture, so
 its scene geometry intentionally differs; frame timing remains stable with no
 frames over 33 ms.
+
+The D3 follow-up `bin/perf_baseline_d3_ab_enabled` used the same Release seed,
+position, rotation, 1600x900 window and observed 60.1 FPS refresh regime. Four
+naturally spawned Mobs produced `frame_p95_ms=16.693`,
+`frame_p99_ms=17.633`, no frames over 33/50 ms and a formal R1 comparison
+`PASS` against the L4 fixture. Its final counters report four live Mobs against
+world/local caps `12/4`, seven candidate attempts, four additions and zero
+removals. Samples that observed 72-77 FPS or fully disabled VSync were discarded
+as refresh-regime mismatches, consistent with the warning above.
 
 ## W4 Terrain Buffer Measurement
 

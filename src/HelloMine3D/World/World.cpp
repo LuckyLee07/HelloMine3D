@@ -61,6 +61,22 @@ namespace
         return value;
     }
 
+    std::uint32_t naturalMobSelection(int terrainSeed, int spawnEpoch,
+                                      std::size_t attempt)
+    {
+        std::uint32_t value = 0x9e3779b9u;
+        const auto mix = [&value](std::uint32_t component) {
+            value ^= component + 0x85ebca6bu + (value << 6) + (value >> 2);
+            value ^= value >> 16;
+            value *= 0x7feb352du;
+            value ^= value >> 15;
+        };
+        mix(static_cast<std::uint32_t>(terrainSeed));
+        mix(static_cast<std::uint32_t>(spawnEpoch));
+        mix(static_cast<std::uint32_t>(attempt));
+        return value;
+    }
+
     bool readIntEnv(const char *name, int &value)
     {
         const char *text = std::getenv(name);
@@ -803,6 +819,113 @@ void World::tick(int worldTime)
     m_worldSaveData.worldTime = static_cast<float>(worldTime);
     m_actorManager.tick(*this, 1.f / 20.f);
     runRandomTicks(worldTime);
+    runNaturalMobPopulation(worldTime);
+}
+
+glm::ivec2 World::naturalMobSpawnOffset(int terrainSeed, int spawnEpoch,
+                                        std::size_t attempt)
+{
+    const std::uint32_t first =
+        naturalMobSelection(terrainSeed, spawnEpoch, attempt);
+    const std::uint32_t second = naturalMobSelection(
+        terrainSeed ^ 0x5bd1e995, spawnEpoch, attempt + 97);
+    int x = static_cast<int>(first % 45u) - 22;
+    int z = static_cast<int>(second % 45u) - 22;
+    if (std::abs(x) < 8 && std::abs(z) < 8) {
+        x += x < 0 ? -8 : 8;
+    }
+    return {x, z};
+}
+
+bool World::findSafeNaturalMobPosition(int blockX, int blockZ,
+                                       glm::vec3 &position)
+{
+    std::unique_lock<std::mutex> lock(m_mainMutex);
+    const VectorXZ local = getBlockXZ(blockX, blockZ);
+    const VectorXZ chunkPosition = getChunkXZ(blockX, blockZ);
+    const Chunk *chunk =
+        m_chunkManager.findChunk(chunkPosition.x, chunkPosition.z);
+    if (chunk == nullptr || !chunk->hasLoaded()) {
+        return false;
+    }
+
+    const int feetY = chunk->getHeightAt(local.x, local.z) + 1;
+    if (feetY <= 1 ||
+        static_cast<BlockId>(getBlockUnlocked(blockX, feetY - 1,
+                                              blockZ).id) ==
+            BlockId::Air ||
+        !getBlockUnlocked(blockX, feetY - 1, blockZ)
+             .getData()
+             .isCollidable ||
+        static_cast<BlockId>(getBlockUnlocked(blockX, feetY, blockZ).id) !=
+            BlockId::Air ||
+        static_cast<BlockId>(
+            getBlockUnlocked(blockX, feetY + 1, blockZ).id) != BlockId::Air) {
+        return false;
+    }
+
+    position = {static_cast<float>(blockX) + 0.5f,
+                static_cast<float>(feetY),
+                static_cast<float>(blockZ) + 0.5f};
+    return true;
+}
+
+void World::runNaturalMobPopulation(int worldTime)
+{
+    if (m_player == nullptr || worldTime <= 0 ||
+        worldTime % NaturalMobSpawnIntervalTicks != 0) {
+        return;
+    }
+
+    std::size_t worldCount =
+        m_actorManager.countActorsByType(NaturalMobType);
+    std::size_t localCount = m_actorManager.countActorsByTypeNear(
+        NaturalMobType, m_player->position, NaturalMobLocalRadius);
+    if (worldCount >= NaturalMobWorldCap ||
+        localCount >= NaturalMobLocalCap) {
+        return;
+    }
+
+    const int centerX = toBlockCoord(m_player->position.x);
+    const int centerZ = toBlockCoord(m_player->position.z);
+    const int spawnEpoch = worldTime / NaturalMobSpawnIntervalTicks;
+    for (std::size_t attempt = 0;
+         attempt < NaturalMobSpawnAttemptsPerCycle &&
+         worldCount < NaturalMobWorldCap && localCount < NaturalMobLocalCap;
+         ++attempt) {
+        ++m_naturalMobSpawnAttempts;
+        const glm::ivec2 offset = naturalMobSpawnOffset(
+            m_chunkManager.getTerrainSeed(), spawnEpoch, attempt);
+        glm::vec3 spawnPosition{0.f};
+        if (!findSafeNaturalMobPosition(centerX + offset.x,
+                                        centerZ + offset.y,
+                                        spawnPosition) ||
+            m_actorManager.hasActorByTypeNear(
+                NaturalMobType, spawnPosition, 1.5f)) {
+            continue;
+        }
+
+        if (spawnMob(NaturalMobType, spawnPosition) != InvalidActorId) {
+            ++worldCount;
+            ++localCount;
+            ++m_naturalMobsSpawned;
+        }
+    }
+}
+
+void World::despawnNaturalMobsInChunk(int chunkX, int chunkZ)
+{
+    const std::size_t removed = m_actorManager.removeActorsIf(
+        [chunkX, chunkZ](const Actor &actor) {
+            if (actor.getType() != NaturalMobType) {
+                return false;
+            }
+            const VectorXZ actorChunk = World::getChunkXZ(
+                World::toBlockCoord(actor.position.x),
+                World::toBlockCoord(actor.position.z));
+            return actorChunk.x == chunkX && actorChunk.z == chunkZ;
+        });
+    m_naturalMobsDespawned += removed;
 }
 
 // loads chunks
@@ -1124,6 +1247,13 @@ WorldDebugStats World::collectDebugStats()
     WorldDebugStats stats;
     stats.chunks = m_chunkManager.collectDebugStats();
     stats.actorCount = m_actorManager.getActorCount();
+    stats.naturalMobCount =
+        m_actorManager.countActorsByType(NaturalMobType);
+    stats.naturalMobWorldCap = NaturalMobWorldCap;
+    stats.naturalMobLocalCap = NaturalMobLocalCap;
+    stats.naturalMobSpawnAttempts = m_naturalMobSpawnAttempts;
+    stats.naturalMobsSpawned = m_naturalMobsSpawned;
+    stats.naturalMobsDespawned = m_naturalMobsDespawned;
     stats.queuedChunkUpdates = m_chunkUpdateQueue.size();
     stats.randomTickSections = m_randomTickSections.size();
     for (const glm::ivec3 &sectionKey : m_randomTickSections) {
@@ -1367,6 +1497,17 @@ void World::restoreActors(const std::vector<ActorSaveState> &states)
                 state.id, materialId, state.amount, state.position);
         }
         else if (state.kind == ActorSaveKind::Mob) {
+            if (state.type == NaturalMobType) {
+                const VectorXZ actorChunk = getChunkXZ(
+                    toBlockCoord(state.position.x),
+                    toBlockCoord(state.position.z));
+                if (!m_chunkManager.chunkLoadedAt(actorChunk.x,
+                                                  actorChunk.z) ||
+                    m_actorManager.hasActorByTypeNear(
+                        NaturalMobType, state.position, 1.5f)) {
+                    continue;
+                }
+            }
             auto mob = std::make_unique<MobActor>(
                 state.id, state.type, state.position);
             mob->setChaseTarget(m_player);

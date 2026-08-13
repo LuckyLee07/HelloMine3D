@@ -418,6 +418,20 @@ class OgreUserInterface::Impl
             ImGui::Text("Actors: %llu",
                         static_cast<unsigned long long>(
                             worldStats.actorCount));
+            ImGui::Text("Natural mobs: %llu / %llu (local cap %llu)",
+                        static_cast<unsigned long long>(
+                            worldStats.naturalMobCount),
+                        static_cast<unsigned long long>(
+                            worldStats.naturalMobWorldCap),
+                        static_cast<unsigned long long>(
+                            worldStats.naturalMobLocalCap));
+            ImGui::Text("Natural spawn attempts / added / removed: %llu / %llu / %llu",
+                        static_cast<unsigned long long>(
+                            worldStats.naturalMobSpawnAttempts),
+                        static_cast<unsigned long long>(
+                            worldStats.naturalMobsSpawned),
+                        static_cast<unsigned long long>(
+                            worldStats.naturalMobsDespawned));
             ImGui::Separator();
             ImGui::Text("Chunks: %llu existing / %llu loaded",
                         static_cast<unsigned long long>(

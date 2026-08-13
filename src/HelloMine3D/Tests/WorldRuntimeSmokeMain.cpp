@@ -2971,6 +2971,225 @@ void caseChestContainer()
 }
 
 // ---------------------------------------------------------------------------
+// D3 - deterministic and bounded live-world mob population
+// ---------------------------------------------------------------------------
+void caseNaturalMobPopulation()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+
+    std::vector<glm::ivec2> candidates;
+    bool candidatesInRange = true;
+    for (std::size_t attempt = 0; attempt < 8; ++attempt) {
+        const glm::ivec2 candidate = World::naturalMobSpawnOffset(
+            kValidationSeed, 17, attempt);
+        candidatesInRange = candidatesInRange &&
+                            std::abs(candidate.x) <= 22 &&
+                            std::abs(candidate.y) <= 22 &&
+                            (std::abs(candidate.x) >= 8 ||
+                             std::abs(candidate.y) >= 8);
+        candidates.push_back(candidate);
+    }
+    check("D3/deterministic-candidates",
+          candidates.front() == World::naturalMobSpawnOffset(
+                                    kValidationSeed, 17, 0) &&
+              candidates.front() != World::naturalMobSpawnOffset(
+                                        kValidationSeed + 1, 17, 0));
+    check("D3/candidates-respect-spawn-ring", candidatesInRange);
+
+    const auto directory = freshSaveDirectory("natural_mob_population");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+
+    auto prepareSpawnPads = [](World &target, const glm::vec3 &center,
+                               int spawnEpoch) {
+        for (std::size_t attempt = 0;
+             attempt < World::NaturalMobSpawnAttemptsPerCycle; ++attempt) {
+            const glm::ivec2 offset = World::naturalMobSpawnOffset(
+                target.collectDebugStats().terrainSeed, spawnEpoch, attempt);
+            const int x = World::toBlockCoord(center.x) + offset.x;
+            const int z = World::toBlockCoord(center.z) + offset.y;
+            const VectorXZ chunkPosition = World::getChunkXZ(x, z);
+            const VectorXZ localPosition = World::getBlockXZ(x, z);
+            Chunk *chunk = target.getChunkManager().findChunk(
+                chunkPosition.x, chunkPosition.z);
+            if (chunk == nullptr) {
+                continue;
+            }
+            const int groundY =
+                chunk->getHeightAt(localPosition.x, localPosition.z);
+            target.setBlock(x, groundY, z, BlockId::Stone);
+            target.setBlock(x, groundY + 1, z, BlockId::Air);
+            target.setBlock(x, groundY + 2, z, BlockId::Air);
+        }
+    };
+    prepareSpawnPads(world, player.position, 1);
+
+    auto naturalSnapshots = [&world]() {
+        std::vector<ActorSnapshot> result;
+        for (const ActorSnapshot &snapshot : world.collectActorSnapshots()) {
+            if (snapshot.type == World::NaturalMobType) {
+                result.push_back(snapshot);
+            }
+        }
+        return result;
+    };
+
+    world.tick(World::NaturalMobSpawnIntervalTicks);
+    const std::vector<ActorSnapshot> initial = naturalSnapshots();
+    check("D3/live-world-spawns-mobs",
+          !initial.empty() &&
+              initial.size() <= World::NaturalMobLocalCap,
+          "natural mobs=" + std::to_string(initial.size()));
+
+    bool safePlacement = !initial.empty();
+    for (const ActorSnapshot &snapshot : initial) {
+        const int x = World::toBlockCoord(snapshot.position.x);
+        const int y = World::toBlockCoord(snapshot.position.y);
+        const int z = World::toBlockCoord(snapshot.position.z);
+        const ChunkBlock ground = world.getBlock(x, y - 1, z);
+        safePlacement = safePlacement &&
+                        static_cast<BlockId>(ground.id) != BlockId::Air &&
+                        ground.getData().isCollidable &&
+                        static_cast<BlockId>(world.getBlock(x, y, z).id) ==
+                            BlockId::Air &&
+                        static_cast<BlockId>(
+                            world.getBlock(x, y + 1, z).id) == BlockId::Air;
+    }
+    check("D3/safe-ground-and-headroom", safePlacement);
+
+    world.tick(World::NaturalMobSpawnIntervalTicks * 2);
+    const std::size_t localCount =
+        world.getActorManager().countActorsByTypeNear(
+            World::NaturalMobType, player.position,
+            World::NaturalMobLocalRadius);
+    check("D3/local-cap-enforced",
+          localCount == World::NaturalMobLocalCap);
+
+    while (world.getActorManager().countActorsByType(
+               World::NaturalMobType) < World::NaturalMobWorldCap) {
+        const std::size_t index =
+            world.getActorManager().countActorsByType(World::NaturalMobType);
+        world.spawnMob(World::NaturalMobType,
+                       {1000.f + static_cast<float>(index * 4),
+                        90.f, 1000.f});
+    }
+    player.position = {512.f, 90.f, 512.f};
+    player.box.update(player.position);
+    world.tick(World::NaturalMobSpawnIntervalTicks * 3);
+    const std::size_t cappedCount =
+        world.getActorManager().countActorsByType(World::NaturalMobType);
+    check("D3/world-cap-enforced",
+          cappedCount == World::NaturalMobWorldCap,
+          "natural mobs=" + std::to_string(cappedCount));
+
+    const std::vector<ActorSnapshot> beforeUnload = naturalSnapshots();
+    bool unloadRemoved = false;
+    bool reloadStayedDespawned = false;
+    if (!beforeUnload.empty()) {
+        const ActorSnapshot &target = beforeUnload.front();
+        const VectorXZ chunk = World::getChunkXZ(
+            World::toBlockCoord(target.position.x),
+            World::toBlockCoord(target.position.z));
+        const std::size_t beforeCount = beforeUnload.size();
+        world.getChunkManager().unloadChunk(chunk.x, chunk.z);
+        const std::size_t afterUnload = naturalSnapshots().size();
+        unloadRemoved = afterUnload < beforeCount;
+        world.getChunkManager().loadChunk(chunk.x, chunk.z);
+        reloadStayedDespawned = naturalSnapshots().size() == afterUnload;
+    }
+    check("D3/chunk-unload-despawns-owned-mobs", unloadRemoved);
+    check("D3/chunk-reload-does-not-duplicate-mobs", reloadStayedDespawned);
+
+    const WorldDebugStats stats = world.collectDebugStats();
+    check("D3/debug-stats-expose-population",
+          stats.naturalMobCount == naturalSnapshots().size() &&
+              stats.naturalMobWorldCap == World::NaturalMobWorldCap &&
+              stats.naturalMobLocalCap == World::NaturalMobLocalCap &&
+              stats.naturalMobSpawnAttempts > 0 &&
+              stats.naturalMobsSpawned >= initial.size() &&
+              stats.naturalMobsDespawned > 0);
+
+    const auto persistenceDirectory =
+        freshSaveDirectory("natural_mob_persistence");
+    std::size_t savedNaturalCount = 0;
+    {
+        Player savedPlayer;
+        World savedWorld(camera, config, savedPlayer, persistenceDirectory,
+                         false, 1);
+        prepareSpawnPads(savedWorld, savedPlayer.position, 1);
+        int tick = 0;
+        while (savedNaturalCount < World::NaturalMobLocalCap && tick < 200) {
+            tick += World::NaturalMobSpawnIntervalTicks;
+            savedWorld.tick(tick);
+            savedNaturalCount =
+                savedWorld.getActorManager().countActorsByType(
+                    World::NaturalMobType);
+        }
+        check("D3/save-has-live-natural-mobs",
+              savedNaturalCount == World::NaturalMobLocalCap,
+              "natural mobs=" + std::to_string(savedNaturalCount));
+        savedWorld.save();
+    }
+
+    WorldSave saveFile(persistenceDirectory);
+    WorldSaveData savedData;
+    bool duplicateFixtureWritten = saveFile.load(savedData);
+    auto naturalState = std::find_if(
+        savedData.actors.begin(), savedData.actors.end(),
+        [](const ActorSaveState &state) {
+            return state.type == World::NaturalMobType;
+        });
+    if (duplicateFixtureWritten && naturalState != savedData.actors.end()) {
+        ActorSaveState duplicate = *naturalState;
+        for (const ActorSaveState &state : savedData.actors) {
+            duplicate.id = std::max(duplicate.id, state.id + 1);
+        }
+        savedData.actors.push_back(duplicate);
+        duplicateFixtureWritten = saveFile.save(savedData);
+    }
+    else {
+        duplicateFixtureWritten = false;
+    }
+    check("D3/duplicate-save-fixture-written", duplicateFixtureWritten);
+
+    {
+        Player restoredPlayer;
+        World restoredWorld(camera, config, restoredPlayer,
+                            persistenceDirectory, false, 1);
+        const std::size_t restoredCount =
+            restoredWorld.getActorManager().countActorsByType(
+                World::NaturalMobType);
+        check("D3/reload-restores-natural-mobs",
+              restoredCount == savedNaturalCount,
+              "saved=" + std::to_string(savedNaturalCount) +
+                  " restored=" + std::to_string(restoredCount));
+
+        const std::vector<ActorSnapshot> restored =
+            restoredWorld.collectActorSnapshots();
+        bool duplicatePosition = false;
+        for (std::size_t left = 0; left < restored.size(); ++left) {
+            if (restored[left].type != World::NaturalMobType) {
+                continue;
+            }
+            for (std::size_t right = left + 1; right < restored.size();
+                 ++right) {
+                if (restored[right].type == World::NaturalMobType &&
+                    glm::length(restored[left].position -
+                                restored[right].position) < 1.5f) {
+                    duplicatePosition = true;
+                }
+            }
+        }
+        check("D3/reload-rejects-spatial-duplicates",
+              !duplicatePosition && restoredCount == savedNaturalCount);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // S2.3 - versioned chunk format rejects corrupt files
 // ---------------------------------------------------------------------------
 void caseChunkFormatRejection()
@@ -3796,6 +4015,7 @@ int main()
         caseUnloadPersistence();
         caseBlockEntityLifecycle();
         caseChestContainer();
+        caseNaturalMobPopulation();
         caseChunkFormatRejection();
         caseTerrainDeterminism();
         caseTerrainStructures();

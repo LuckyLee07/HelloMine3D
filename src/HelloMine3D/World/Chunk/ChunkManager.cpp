@@ -298,6 +298,7 @@ void ChunkManager::unloadChunk(int x, int z)
 
     const int height =
         static_cast<int>(chunk->getSectionCount()) * CHUNK_SIZE;
+    m_world->despawnNaturalMobsInChunk(x, z);
     saveChunk(*chunk);
     m_world->removeRandomTickSectionsForChunk(x, z);
     m_chunks.erase({x, z});

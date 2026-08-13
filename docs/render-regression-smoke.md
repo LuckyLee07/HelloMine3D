@@ -233,6 +233,7 @@ artifacts:
 | `docs/screenshots/validation-actors.png` | One green mob and one amber dropped-item cube; the panel reports two live actors. |
 | `docs/screenshots/validation-ores.png` | A deterministic coal wall on the left and iron wall on the right, with visibly distinct atlas tiles. |
 | `docs/screenshots/validation-container.png` | The D2 chest window with nine bounded slots, populated fixture stacks, the five-slot player hotbar and Close/Escape guidance over the live Ogre world. |
+| `docs/screenshots/validation-natural-mobs.png` | A D3 Mob produced by the normal fixed-tick population path, with the panel reporting four live actors, natural population `4 / 12`, seven attempts and four additions. The 1584x861 PNG SHA-256 is `D86C91C535818CABB4320B57B087F6353149D56FE3881E2DCDCB7832725AE4A4`. |
 
 The skybox was previously black even though all six source PNGs loaded. The
 material supplied six independent 2D textures with `separateUV`, while the

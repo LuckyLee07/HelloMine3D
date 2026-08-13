@@ -39,6 +39,12 @@ struct WorldDebugStats {
     ChunkDebugStats chunks;
     TerrainBufferMetrics terrainBuffers;
     std::size_t actorCount = 0;
+    std::size_t naturalMobCount = 0;
+    std::size_t naturalMobWorldCap = 0;
+    std::size_t naturalMobLocalCap = 0;
+    std::size_t naturalMobSpawnAttempts = 0;
+    std::size_t naturalMobsSpawned = 0;
+    std::size_t naturalMobsDespawned = 0;
     std::size_t queuedChunkUpdates = 0;
     std::size_t randomTickSections = 0;
     std::size_t randomTickBlocks = 0;
@@ -73,6 +79,12 @@ class World : public NonCopyable {
     static constexpr std::size_t ChunkMeshRebuildBudgetPerUpdate = 2;
     static constexpr std::size_t RandomTickSectionBudgetPerTick = 4;
     static constexpr std::size_t RandomTickAttemptsPerSection = 3;
+    static constexpr int NaturalMobSpawnIntervalTicks = 20;
+    static constexpr std::size_t NaturalMobSpawnAttemptsPerCycle = 16;
+    static constexpr std::size_t NaturalMobWorldCap = 12;
+    static constexpr std::size_t NaturalMobLocalCap = 4;
+    static constexpr float NaturalMobLocalRadius = 32.f;
+    static constexpr const char *NaturalMobType = "hellomine:natural_mob";
 
     World(const Camera &camera, const Config &config, Player &player,
           std::string saveDirectory = "",
@@ -126,6 +138,8 @@ class World : public NonCopyable {
     static std::size_t randomTickBlockIndex(int terrainSeed, int worldTime,
                                             const glm::ivec3 &section,
                                             std::size_t attempt);
+    static glm::ivec2 naturalMobSpawnOffset(int terrainSeed, int spawnEpoch,
+                                            std::size_t attempt);
 
     /// Produces a complete, stable work order. Chunks intersecting the
     /// published frustum come first, with distance as the secondary key.
@@ -174,6 +188,10 @@ class World : public NonCopyable {
     void updateRandomTickSection(const glm::ivec3 &section, bool active);
     void removeRandomTickSectionsForChunk(int chunkX, int chunkZ);
     void runRandomTicks(int worldTime);
+    void runNaturalMobPopulation(int worldTime);
+    bool findSafeNaturalMobPosition(int blockX, int blockZ,
+                                    glm::vec3 &position);
+    void despawnNaturalMobsInChunk(int chunkX, int chunkZ);
     void loadChunks();
     void unloadDistantChunks(const Camera &camera);
     void setChunkLoadCenter(const Camera &camera);
@@ -202,6 +220,9 @@ class World : public NonCopyable {
     std::unordered_set<glm::ivec3, IVec3Hash> m_randomTickSections;
     std::size_t m_randomTickSectionsProcessed = 0;
     std::size_t m_randomTicksDispatched = 0;
+    std::size_t m_naturalMobSpawnAttempts = 0;
+    std::size_t m_naturalMobsSpawned = 0;
+    std::size_t m_naturalMobsDespawned = 0;
 
     std::atomic<bool> m_isRunning{true};
     std::vector<std::thread> m_chunkLoadThreads;
