@@ -54,6 +54,24 @@ powershell -ExecutionPolicy Bypass -File tools\run_render_capture.ps1 -StopExist
 powershell -ExecutionPolicy Bypass -File tools\run_render_capture.ps1 -StopExisting -Seed 296595 -WorldTime 18000 -PlayerPosition "2766 102 2905" -PlayerRotation "20 118.4 0" -ShowDebugInfo
 ```
 
+W1 hardware evidence (GTX 1050 Ti / OpenGL 4.6, 2026-08-13):
+
+| Time | Tracked image | Debug panel | Sampled mean luma | SHA-256 |
+| ---- | ------------- | ----------- | ----------------: | ------- |
+| Noon (`6000`) | `docs/screenshots/validation-day.png` | cycle `0.252`, light `1.000`, fog `0.0015` | `56.096` | `1CF5A419553E37A750027F09B64C9B756035EAA54ED76A93E7C2AB82155D3EB7` |
+| Midnight (`18000`) | `docs/screenshots/validation-night.png` | cycle `0.752`, light `0.180`, fog `0.0060` | `12.993` | `848078401B68E5EA9601DF06FAE4EC0779A41A3D03BD33FF364C241448FB60FF` |
+
+Both captures are `1584x861`, show the same terrain and camera framing, and
+pass the runtime PNG completeness check. The first hardware attempt exposed a
+scene-independent startup bug: when no water mesh existed, the water material
+had not yet been loaded before environment parameters were applied. The
+runtime now explicitly loads each environment material before selecting its
+technique, so absent water, transparent and actor layers cannot abort startup.
+
+![W1 noon hardware capture](screenshots/validation-day.png)
+
+![W1 midnight hardware capture](screenshots/validation-night.png)
+
 Expected behavior:
 
 1. The script starts `bin\HelloMine3D.exe`.

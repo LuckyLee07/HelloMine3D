@@ -1039,6 +1039,7 @@ namespace
                     std::string("Missing environment material: ") +
                     materialName);
             }
+            material->load();
 
             Ogre::Technique* technique = material->getBestTechnique();
             if (technique == nullptr || technique->getNumPasses() == 0)
