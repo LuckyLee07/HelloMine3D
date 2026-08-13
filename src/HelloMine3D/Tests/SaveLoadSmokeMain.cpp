@@ -4,7 +4,11 @@
 #include "../World/WorldConstants.h"
 
 #include <chrono>
+#include <array>
+#include <cstdint>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
 
@@ -33,6 +37,12 @@ namespace
         std::cerr << label << " expected " << expected << " but got "
                   << actual << "\n";
         return false;
+    }
+
+    template <typename T>
+    void writeValue(std::ostream &stream, const T &value)
+    {
+        stream.write(reinterpret_cast<const char *>(&value), sizeof(T));
     }
 }
 
@@ -114,6 +124,48 @@ int main()
     }
 
     if (!passed) {
+        return EXIT_FAILURE;
+    }
+
+    // Version 1 contains block ids only. It must remain readable with empty
+    // stateful-block data and zero-filled metadata.
+    const int legacyX = 4;
+    const int legacyZ = -3;
+    const std::filesystem::path legacyPath =
+        storage.chunkPath(legacyX, legacyZ);
+    {
+        const std::array<char, 8> magic{
+            {'H', 'M', 'C', 'H', 'N', 'K', '1', '\0'}};
+        const std::uint32_t version = 1;
+        const std::int32_t storedX = legacyX;
+        const std::int32_t storedZ = legacyZ;
+        const std::uint32_t chunkSize = CHUNK_SIZE;
+        const std::uint32_t sectionCount = 1;
+        std::vector<Block_t> legacyBlocks(
+            CHUNK_VOLUME, static_cast<Block_t>(BlockId::Air));
+        legacyBlocks[targetIndex] = static_cast<Block_t>(BlockId::CoalOre);
+
+        std::ofstream output(legacyPath,
+                             std::ios::binary | std::ios::trunc);
+        output.write(magic.data(), static_cast<std::streamsize>(magic.size()));
+        writeValue(output, version);
+        writeValue(output, storedX);
+        writeValue(output, storedZ);
+        writeValue(output, chunkSize);
+        writeValue(output, sectionCount);
+        output.write(reinterpret_cast<const char *>(legacyBlocks.data()),
+                     static_cast<std::streamsize>(legacyBlocks.size() *
+                                                  sizeof(Block_t)));
+    }
+
+    StoredChunkData legacy;
+    if (!storage.loadChunkData(legacyX, legacyZ, legacy) ||
+        legacy.blockEntities.size() != 0 ||
+        legacy.metadata.size() != CHUNK_VOLUME ||
+        legacy.metadata[targetIndex] != 0 ||
+        legacy.blockIds[targetIndex] !=
+            static_cast<Block_t>(BlockId::CoalOre)) {
+        std::cerr << "Version 1 chunk compatibility failed.\n";
         return EXIT_FAILURE;
     }
 

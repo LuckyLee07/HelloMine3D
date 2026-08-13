@@ -7,6 +7,7 @@
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <unordered_set>
@@ -83,6 +84,13 @@ class World : public NonCopyable {
     LightLevel getSunlight(int x, int y, int z);
     LightLevel getBlockLight(int x, int y, int z);
     void setBlock(int x, int y, int z, ChunkBlock block);
+    std::optional<BlockEntityRecord>
+    getBlockEntity(const glm::ivec3 &position);
+    bool createBlockEntity(const glm::ivec3 &position,
+                           const std::string &type, std::string payload);
+    bool updateBlockEntity(const glm::ivec3 &position, std::string payload);
+    std::optional<BlockEntityRecord>
+    removeBlockEntity(const glm::ivec3 &position);
 
     void tick(int worldTime);
     void update(const Camera &camera);

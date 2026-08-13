@@ -1,9 +1,11 @@
 #include "ChunkStorage.h"
 
 #include "ChunkStorageData.h"
+#include "../Block/BlockEntity.h"
 #include "../Chunk/Chunk.h"
 #include "../../Util/ResourcePaths.h"
 
+#include <iostream>
 #include <utility>
 
 ChunkStorage::ChunkStorage()
@@ -25,8 +27,33 @@ bool ChunkStorage::loadChunk(Chunk &chunk) const
         return false;
     }
 
+    std::string validationError;
+    if (!validateBlockEntityRecords(data.blockEntities, data.sectionCount,
+                                    &validationError)) {
+        std::cerr << "Invalid block entity data in "
+                  << chunkPath(location.x, location.y) << ": "
+                  << validationError << '\n';
+        return false;
+    }
+
+    for (const BlockEntityRecord &record : data.blockEntities) {
+        const std::size_t index =
+            static_cast<std::size_t>(record.position.y) * CHUNK_AREA +
+            static_cast<std::size_t>(record.position.z) * CHUNK_SIZE +
+            static_cast<std::size_t>(record.position.x);
+        if (index >= data.blockIds.size() ||
+            data.blockIds[index] == static_cast<Block_t>(BlockId::Air)) {
+            std::cerr << "Invalid block entity data in "
+                      << chunkPath(location.x, location.y)
+                      << ": record is not attached to a block\n";
+            return false;
+        }
+    }
+
     chunk.loadBlockData(data.sectionCount, data.blockIds, data.metadata);
-    chunk.loadBlockEntities(std::move(data.blockEntities));
+    if (!chunk.loadBlockEntities(std::move(data.blockEntities))) {
+        return false;
+    }
     return true;
 }
 

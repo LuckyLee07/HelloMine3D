@@ -6,6 +6,7 @@
 #include "../Block/BlockEntity.h"
 #include "ChunkSection.h"
 #include <cstddef>
+#include <optional>
 #include <vector>
 
 class TerrainGenerator;
@@ -49,7 +50,12 @@ class Chunk : public IChunk {
                        const std::vector<Block_t> &blockIds,
                        const std::vector<BlockMetadata_t> &metadata);
     const std::vector<BlockEntityRecord> &getBlockEntities() const;
-    void loadBlockEntities(std::vector<BlockEntityRecord> blockEntities);
+    const BlockEntityRecord *findBlockEntity(const glm::ivec3 &position) const;
+    bool createBlockEntity(BlockEntityRecord blockEntity);
+    bool updateBlockEntity(const glm::ivec3 &position, std::string payload);
+    std::optional<BlockEntityRecord>
+    removeBlockEntity(const glm::ivec3 &position);
+    bool loadBlockEntities(std::vector<BlockEntityRecord> blockEntities);
     void load(TerrainGenerator &generator);
 
     ChunkSection &getSection(int index);

@@ -35,9 +35,10 @@ The Windows sandbox-foundation scope is complete. The next executable roadmap
 is recorded in `docs/todolist.md` rather than inferred from the historical
 seven-day notes below:
 
-1. add the R1 performance comparison gate;
-2. build the D1-D6 playable vertical slice around a stateful container, live
-   mobs/combat, one crop loop, persistence and hardware acceptance;
+1. extend the completed R1 comparison gate and D1 stateful-block lifecycle
+   with the D2 container UI;
+2. continue the D3-D6 playable vertical slice through live mobs/combat, one
+   crop loop, persistence and hardware acceptance;
 3. add the remaining R soak, physical-input and clean-root packaging gates;
 4. add the bounded X1-X3 read-only resource-pack layer.
 

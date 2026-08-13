@@ -7,8 +7,10 @@
 #include "../Block/BlockDatabase.h"
 #include "../World.h"
 
+#include <algorithm>
 #include <array>
 #include <deque>
+#include <string>
 #include <utility>
 
 Chunk::Chunk(World &world, const glm::ivec2 &location)
@@ -80,6 +82,7 @@ void Chunk::setBlock(int x, int y, int z, ChunkBlock block)
     }
 
     const int previousHighest = m_highestBlocks.get(x, z);
+    removeBlockEntity({x, y, z});
     section.setBlock(x, bY, z, block);
 
     if (block.getData().isOpaque && y > previousHighest) {
@@ -333,6 +336,7 @@ void Chunk::loadBlockData(std::size_t sectionCount,
 {
     m_pWorld->removeRandomTickSectionsForChunk(m_location.x, m_location.y);
     m_chunks.clear();
+    m_blockEntities.clear();
     m_highestBlocks.setAll(0);
     m_loadState = ChunkLoadState::Generating;
     m_saveDirty = false;
@@ -375,9 +379,96 @@ const std::vector<BlockEntityRecord> &Chunk::getBlockEntities() const
     return m_blockEntities;
 }
 
-void Chunk::loadBlockEntities(std::vector<BlockEntityRecord> blockEntities)
+const BlockEntityRecord *
+Chunk::findBlockEntity(const glm::ivec3 &position) const
 {
+    const auto found = std::find_if(
+        m_blockEntities.begin(), m_blockEntities.end(),
+        [&position](const BlockEntityRecord &record) {
+            return record.position.x == position.x &&
+                   record.position.y == position.y &&
+                   record.position.z == position.z;
+        });
+    return found == m_blockEntities.end() ? nullptr : &*found;
+}
+
+bool Chunk::createBlockEntity(BlockEntityRecord blockEntity)
+{
+    std::vector<BlockEntityRecord> candidate = m_blockEntities;
+    candidate.push_back(std::move(blockEntity));
+    if (!validateBlockEntityRecords(candidate, m_chunks.size()) ||
+        getBlock(candidate.back().position.x, candidate.back().position.y,
+                 candidate.back().position.z).id ==
+            static_cast<Block_t>(BlockId::Air)) {
+        return false;
+    }
+
+    m_blockEntities = std::move(candidate);
+    if (hasLoaded()) {
+        m_saveDirty = true;
+    }
+    return true;
+}
+
+bool Chunk::updateBlockEntity(const glm::ivec3 &position,
+                              std::string payload)
+{
+    if (payload.size() > MaxBlockEntityPayloadSize) {
+        return false;
+    }
+
+    for (BlockEntityRecord &record : m_blockEntities) {
+        if (record.position.x == position.x &&
+            record.position.y == position.y &&
+            record.position.z == position.z) {
+            record.payload = std::move(payload);
+            if (hasLoaded()) {
+                m_saveDirty = true;
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
+std::optional<BlockEntityRecord>
+Chunk::removeBlockEntity(const glm::ivec3 &position)
+{
+    const auto found = std::find_if(
+        m_blockEntities.begin(), m_blockEntities.end(),
+        [&position](const BlockEntityRecord &record) {
+            return record.position.x == position.x &&
+                   record.position.y == position.y &&
+                   record.position.z == position.z;
+        });
+    if (found == m_blockEntities.end()) {
+        return std::nullopt;
+    }
+
+    BlockEntityRecord removed = std::move(*found);
+    m_blockEntities.erase(found);
+    if (hasLoaded()) {
+        m_saveDirty = true;
+    }
+    return removed;
+}
+
+bool Chunk::loadBlockEntities(std::vector<BlockEntityRecord> blockEntities)
+{
+    if (!validateBlockEntityRecords(blockEntities, m_chunks.size())) {
+        return false;
+    }
+    for (const BlockEntityRecord &record : blockEntities) {
+        if (getBlock(record.position.x, record.position.y,
+                     record.position.z).id ==
+            static_cast<Block_t>(BlockId::Air)) {
+            return false;
+        }
+    }
+
     m_blockEntities = std::move(blockEntities);
+    m_saveDirty = false;
+    return true;
 }
 
 void Chunk::load(TerrainGenerator &generator)

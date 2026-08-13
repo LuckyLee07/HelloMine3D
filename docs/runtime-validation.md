@@ -142,7 +142,7 @@ Deviations:
 | Layer | Command | Result |
 | ----- | ------- | ------ |
 | Focused headless tests | `bin\HelloMine3DCoordinateTests.exe`, `bin\HelloMine3DMeshDirtyTests.exe`, `bin\HelloMine3DSaveLoadSmoke.exe`, `bin\HelloMine3DEntityLifecycleSmoke.exe` | All pass. |
-| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=255 failures=0` (Debug and Release, 2026-08-13) |
+| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=266 failures=0` (Debug and Release, 2026-08-13) |
 | A1 asset references | `sh scripts/check_assets.sh` | The repository passes 45 block/shape/shader/texture/font/config checks after discovering named shape resources and multiline block registrations. An isolated copy with `HelloMine3DTerrain.vert` omitted returns 1 and names the missing referenced shader (2026-08-09; current positive equivalent run 2026-08-12). |
 | A2 block diagnostics | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseBlockDataDiagnostics`) | Five malformed fixtures verify missing `ShaderType`, invalid `MeshType`, atlas coordinate `16 0`, light level 16, and duplicate id 3 all report the full source path and exact key. Debug/Release pass (2026-08-12). |
 | A3 runtime config ownership | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseRuntimeConfigOwnership`) | Three assertions delete an isolated `config.txt`, verify regeneration with the documented defaults, then load customised values. `Mine.cfg` and `MineResources.cfg` remain the only tracked `bin/` templates (2026-08-09). |
@@ -186,6 +186,7 @@ Deviations:
 | Render smoke | see `docs/render-regression-smoke.md` | L4 plus tracked skybox/panel/outline, actor and ore captures all pass on OpenGL 4.6; evidence is under `docs/screenshots/validation-*.png`. |
 | Performance baseline | see `docs/performance-baseline.md` | `bin/perf_baseline_l4_20260812_verified`, `frame_p95_ms=17.543` |
 | R1 performance comparison | `tools\validate_perf_comparison.ps1`; also part of `scripts\verify_build.ps1` | Four fixtures distinguish `PASS` (real L4 self-compare), `REGRESSION` (P95/P99/long frames), `INCOMPARABLE` (scene and residency) and `INVALID` (missing metric). The comparator uses exit codes 0/2/3/4 and exact diagnostic reasons (2026-08-13). |
+| D1 stateful-block lifecycle | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseBlockEntityLifecycle`); `bin\HelloMine3DSaveLoadSmoke.exe`; full `scripts\verify_build.ps1` | Eleven world assertions cover owned create/find/update/remove, unique positions, invalid type and position rejection, atomic failed loads, negative world-coordinate translation, unload/reload persistence and automatic removal when the block changes. The focused fixture proves version 1 chunks remain readable with empty block-entity state and zero metadata. Debug/Release and every startup/resource/performance fixture pass with `checks=266 failures=0` (2026-08-13). |
 
 The current 2026-08-12 runs use an NVIDIA GTX 1050 Ti with OpenGL 4.6. The
 earlier GDI Generic limitation no longer applies to these hardware-backed PNG

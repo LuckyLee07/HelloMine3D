@@ -604,6 +604,76 @@ void World::setBlock(int x, int y, int z, ChunkBlock block)
     queueLightingUpdates(changedPositions);
 }
 
+std::optional<BlockEntityRecord>
+World::getBlockEntity(const glm::ivec3 &position)
+{
+    std::lock_guard<std::mutex> lock(m_mainMutex);
+    const VectorXZ local = getBlockXZ(position.x, position.z);
+    const VectorXZ chunkPosition = getChunkXZ(position.x, position.z);
+    const Chunk *chunk =
+        m_chunkManager.findChunk(chunkPosition.x, chunkPosition.z);
+    if (chunk == nullptr || !chunk->hasLoaded()) {
+        return std::nullopt;
+    }
+
+    const BlockEntityRecord *record =
+        chunk->findBlockEntity({local.x, position.y, local.z});
+    if (record == nullptr) {
+        return std::nullopt;
+    }
+
+    BlockEntityRecord result = *record;
+    result.position = position;
+    return result;
+}
+
+bool World::createBlockEntity(const glm::ivec3 &position,
+                              const std::string &type,
+                              std::string payload)
+{
+    std::lock_guard<std::mutex> lock(m_mainMutex);
+    const VectorXZ local = getBlockXZ(position.x, position.z);
+    const VectorXZ chunkPosition = getChunkXZ(position.x, position.z);
+    Chunk *chunk = m_chunkManager.findChunk(chunkPosition.x, chunkPosition.z);
+    if (chunk == nullptr || !chunk->hasLoaded()) {
+        return false;
+    }
+
+    return chunk->createBlockEntity(
+        {{local.x, position.y, local.z}, type, std::move(payload)});
+}
+
+bool World::updateBlockEntity(const glm::ivec3 &position,
+                              std::string payload)
+{
+    std::lock_guard<std::mutex> lock(m_mainMutex);
+    const VectorXZ local = getBlockXZ(position.x, position.z);
+    const VectorXZ chunkPosition = getChunkXZ(position.x, position.z);
+    Chunk *chunk = m_chunkManager.findChunk(chunkPosition.x, chunkPosition.z);
+    return chunk != nullptr && chunk->hasLoaded() &&
+           chunk->updateBlockEntity({local.x, position.y, local.z},
+                                    std::move(payload));
+}
+
+std::optional<BlockEntityRecord>
+World::removeBlockEntity(const glm::ivec3 &position)
+{
+    std::lock_guard<std::mutex> lock(m_mainMutex);
+    const VectorXZ local = getBlockXZ(position.x, position.z);
+    const VectorXZ chunkPosition = getChunkXZ(position.x, position.z);
+    Chunk *chunk = m_chunkManager.findChunk(chunkPosition.x, chunkPosition.z);
+    if (chunk == nullptr || !chunk->hasLoaded()) {
+        return std::nullopt;
+    }
+
+    std::optional<BlockEntityRecord> removed =
+        chunk->removeBlockEntity({local.x, position.y, local.z});
+    if (removed) {
+        removed->position = position;
+    }
+    return removed;
+}
+
 void World::updateRandomTickSection(const glm::ivec3 &section, bool active)
 {
     if (active) {

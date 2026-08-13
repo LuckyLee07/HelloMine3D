@@ -2757,6 +2757,83 @@ void caseUnloadPersistence()
 }
 
 // ---------------------------------------------------------------------------
+// D1 - stateful block ownership and lifecycle
+// ---------------------------------------------------------------------------
+void caseBlockEntityLifecycle()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+
+    const auto directory = freshSaveDirectory("block_entity_lifecycle");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+    ChunkManager &chunks = world.getChunkManager();
+
+    const glm::ivec3 position{-7, 100, -5};
+    const glm::ivec3 secondPosition{-6, 100, -5};
+    world.setBlock(position.x, position.y, position.z, BlockId::Stone);
+    world.setBlock(secondPosition.x, secondPosition.y, secondPosition.z,
+                   BlockId::Stone);
+
+    check("D1/create-owned-record",
+          world.createBlockEntity(position, "hellomine:test_state",
+                                  "{\"value\":1}"));
+    check("D1/reject-duplicate-position",
+          !world.createBlockEntity(position, "hellomine:other_state", "{}"));
+    check("D1/find-world-position",
+          world.getBlockEntity(position).has_value() &&
+              world.getBlockEntity(position)->position.x == position.x &&
+              world.getBlockEntity(position)->payload == "{\"value\":1}");
+
+    check("D1/update-owned-record",
+          world.updateBlockEntity(position, "{\"value\":2}") &&
+              world.getBlockEntity(position).has_value() &&
+              world.getBlockEntity(position)->payload == "{\"value\":2}");
+    check("D1/reject-invalid-type",
+          !world.createBlockEntity(secondPosition, "Invalid Type", "{}"));
+
+    Chunk *chunk = chunks.findChunk(-1, -1);
+    bool duplicateLoadRejected = false;
+    bool invalidPositionRejected = false;
+    bool originalPreserved = false;
+    if (chunk != nullptr) {
+        const std::vector<BlockEntityRecord> original =
+            chunk->getBlockEntities();
+        std::vector<BlockEntityRecord> duplicate = original;
+        duplicate.insert(duplicate.end(), original.begin(), original.end());
+        duplicateLoadRejected = !chunk->loadBlockEntities(duplicate);
+
+        std::vector<BlockEntityRecord> invalid = original;
+        if (!invalid.empty()) {
+            invalid.front().position.x = CHUNK_SIZE;
+        }
+        invalidPositionRejected = !chunk->loadBlockEntities(invalid);
+        originalPreserved = chunk->getBlockEntities().size() == 1 &&
+                            chunk->getBlockEntities().front().payload ==
+                                "{\"value\":2}";
+    }
+    check("D1/reject-duplicate-load", duplicateLoadRejected);
+    check("D1/reject-invalid-position-load", invalidPositionRejected);
+    check("D1/rejected-load-is-atomic", originalPreserved);
+
+    chunks.unloadChunk(-1, -1);
+    chunks.loadChunk(-1, -1);
+    const auto restored = world.getBlockEntity(position);
+    check("D1/unload-reload-preserves-state",
+          restored.has_value() && restored->type == "hellomine:test_state" &&
+              restored->payload == "{\"value\":2}");
+
+    world.setBlock(position.x, position.y, position.z, BlockId::Air);
+    check("D1/block-change-removes-state",
+          !world.getBlockEntity(position).has_value());
+    check("D1/remove-missing-is-safe",
+          !world.removeBlockEntity(position).has_value());
+}
+
+// ---------------------------------------------------------------------------
 // S2.3 - versioned chunk format rejects corrupt files
 // ---------------------------------------------------------------------------
 void caseChunkFormatRejection()
@@ -3580,6 +3657,7 @@ int main()
         caseFrustumMeshPriority();
         caseSectionMeshUploadSnapshot();
         caseUnloadPersistence();
+        caseBlockEntityLifecycle();
         caseChunkFormatRejection();
         caseTerrainDeterminism();
         caseTerrainStructures();
