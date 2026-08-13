@@ -266,6 +266,16 @@ class OgreUserInterface::Impl
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(7.0f, 7.0f));
         if (ImGui::Begin("##OgrePlayerHud", nullptr, flags))
         {
+            const float healthRatio =
+                worldStats.playerMaxHealth > 0.f
+                    ? std::clamp(worldStats.playerHealth /
+                                     worldStats.playerMaxHealth,
+                                 0.f, 1.f)
+                    : 0.f;
+            ImGui::Text("Health %.0f / %.0f",
+                        std::ceil(worldStats.playerHealth),
+                        std::ceil(worldStats.playerMaxHealth));
+            ImGui::ProgressBar(healthRatio, ImVec2(-1.0f, 8.0f), "");
             for (std::size_t index = 0; index < state.inventory.size(); ++index)
             {
                 if (index > 0)
@@ -402,6 +412,10 @@ class OgreUserInterface::Impl
                         cameraPosition.y, cameraPosition.z);
             ImGui::Text("Selected slot: %d / %d", state.heldItem + 1,
                         static_cast<int>(state.inventory.size()));
+            ImGui::Text("Health: %.1f / %.1f", worldStats.playerHealth,
+                        worldStats.playerMaxHealth);
+            ImGui::Text("Death inventory policy: %s",
+                        World::PlayerDeathInventoryPolicy);
             ImGui::TextUnformatted("F1: toggle debug panels");
         }
         ImGui::End();

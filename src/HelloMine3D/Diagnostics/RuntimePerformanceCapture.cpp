@@ -162,7 +162,8 @@ namespace
                "resident_terrain_index_bytes,resident_terrain_buffer_bytes,"
                "actor_count,natural_mob_count,natural_mob_world_cap,"
                "natural_mob_local_cap,natural_mob_spawn_attempts,"
-               "natural_mobs_spawned,natural_mobs_despawned,terrain_seed,"
+               "natural_mobs_spawned,natural_mobs_despawned,player_health,"
+               "player_max_health,terrain_seed,"
                "world_time,day_cycle,daylight,"
                "fog_density,simulation_ticks\n";
     }
@@ -440,6 +441,8 @@ namespace
                     << last.naturalMobsSpawned << "\n";
             summary << "last_natural_mobs_despawned="
                     << last.naturalMobsDespawned << "\n";
+            summary << "last_player_health=" << last.playerHealth << "\n";
+            summary << "player_max_health=" << last.playerMaxHealth << "\n";
             summary << "terrain_seed=" << last.terrainSeed << "\n";
             summary << "last_world_time=" << last.worldTime << "\n";
             summary << "last_day_cycle=" << last.environment.cycle << "\n";
@@ -551,6 +554,8 @@ void recordFrame(const FrameTimings &timings,
                         << worldStats.naturalMobSpawnAttempts << ","
                         << worldStats.naturalMobsSpawned << ","
                         << worldStats.naturalMobsDespawned << ","
+                        << worldStats.playerHealth << ","
+                        << worldStats.playerMaxHealth << ","
                         << worldStats.terrainSeed << ","
                         << worldStats.worldTime << ","
                         << worldStats.environment.cycle << ","

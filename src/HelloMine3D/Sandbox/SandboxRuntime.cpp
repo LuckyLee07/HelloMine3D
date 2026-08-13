@@ -34,11 +34,14 @@ void SandboxRuntime::update(const SandboxInputState &input,
     World *world = m_worldManager.getActiveWorld();
     if (world == nullptr) {
         m_blockSelection.reset();
+        m_actorSelection.reset();
         return;
     }
 
-    m_blockSelection = BlockSelectionSystem::pick(
+    PlayerTargetSelection target = PlayerTargetSelectionSystem::pick(
         *world, m_camera.position, m_player.rotation);
+    m_blockSelection = std::move(target.block);
+    m_actorSelection = std::move(target.actor);
     m_interactionCooldownSeconds = std::max(
         0.0f, m_interactionCooldownSeconds -
                   std::max(0.0f, deltaSeconds));
@@ -83,22 +86,38 @@ const std::optional<BlockSelection> &SandboxRuntime::getBlockSelection() const
     return m_blockSelection;
 }
 
+const std::optional<ActorSelection> &SandboxRuntime::getActorSelection() const
+{
+    return m_actorSelection;
+}
+
 void SandboxRuntime::handlePlayerInteraction(
     World &world, const SandboxInputState &input)
 {
-    if (!m_blockSelection.has_value() ||
-        m_interactionCooldownSeconds > 0.0f) {
+    if (m_interactionCooldownSeconds > 0.0f) {
         return;
     }
 
-    const BlockSelection &selection = *m_blockSelection;
     if (input.breakBlock) {
+        if (m_actorSelection.has_value()) {
+            m_interactionCooldownSeconds = 0.2f;
+            world.attackActor(m_actorSelection->actorId);
+            return;
+        }
+        if (!m_blockSelection.has_value()) {
+            return;
+        }
+        const BlockSelection &selection = *m_blockSelection;
         m_interactionCooldownSeconds = 0.2f;
         world.addEvent<PlayerDigEvent>(PlayerDigAction::Break,
                                        glm::vec3(selection.blockPosition),
                                        m_player);
     }
     else if (input.placeBlock) {
+        if (!m_blockSelection.has_value()) {
+            return;
+        }
+        const BlockSelection &selection = *m_blockSelection;
         m_interactionCooldownSeconds = 0.2f;
         world.addEvent<PlayerDigEvent>(PlayerDigAction::Use,
                                        glm::vec3(selection.blockPosition),

@@ -199,6 +199,20 @@ world/local caps `12/4`, seven candidate attempts, four additions and zero
 removals. Samples that observed 72-77 FPS or fully disabled VSync were discarded
 as refresh-regime mismatches, consistent with the warning above.
 
+The D4 follow-up detected a second, subtler driver scheduling regime: several
+fresh samples held the same 60.1 FPS average and zero >33/50 ms frames but
+alternated roughly 10 ms and 24 ms frame intervals, making direct comparison
+with the unusually flat D3 sample fail P95/P99 thresholds. To distinguish an
+environment shift from a code regression, commit `fefc31d` was rebuilt in an
+isolated worktree and sampled immediately before the D4 candidate with the
+same seed, position, rotation, window, VSync and final residency. The D3
+control recorded P95/P99 `20.006/23.808 ms`; D4 recorded
+`20.497/24.095 ms`. Both had zero >50 ms frames, and the R1 comparator returned
+`PASS`. The temporary worktree was then removed; generated samples remain
+ignored. This same-session A/B is the accepted D4 comparison evidence because
+it controls the observed driver regime instead of silently comparing unlike
+frame pacing.
+
 ## W4 Terrain Buffer Measurement
 
 The Ogre terrain path uses one tightly packed vertex stream for solid,

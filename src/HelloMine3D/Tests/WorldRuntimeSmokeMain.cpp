@@ -3190,6 +3190,217 @@ void caseNaturalMobPopulation()
 }
 
 // ---------------------------------------------------------------------------
+// D4 - actor targeting, combat, player death and respawn
+// ---------------------------------------------------------------------------
+void caseCombatAndRespawn()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+
+    Config config = makeConfig();
+    Camera camera(config);
+    const auto combatDirectory = freshSaveDirectory("combat_targeting");
+    Player player;
+    World world(camera, config, player, combatDirectory, false, 1);
+
+    const glm::vec3 rayOrigin{8.5f, 100.5f, 8.5f};
+    world.setBlock(8, 100, 4, BlockId::Stone);
+    const ActorId targetId = world.spawnMob(
+        "hellomine:combat_target", {8.5f, 100.5f, 6.f});
+    MobActor *target = dynamic_cast<MobActor *>(
+        world.getActorManager().findActor(targetId));
+    const PlayerTargetSelection actorFirst =
+        PlayerTargetSelectionSystem::pick(
+            world, rayOrigin, glm::vec3(0.f));
+    check("D4/actor-occludes-farther-block",
+          actorFirst.actor.has_value() &&
+              actorFirst.actor->actorId == targetId &&
+              !actorFirst.block.has_value());
+
+    if (target != nullptr) {
+        target->position.z = 3.5f;
+        target->box.update(target->position);
+    }
+    const PlayerTargetSelection blockFirst =
+        PlayerTargetSelectionSystem::pick(
+            world, rayOrigin, glm::vec3(0.f));
+    check("D4/block-occludes-farther-actor",
+          blockFirst.block.has_value() &&
+              blockFirst.block->blockPosition == glm::ivec3(8, 100, 4) &&
+              !blockFirst.actor.has_value());
+
+    std::vector<SandboxEventType> combatOrder;
+    const auto damageSubscription = world.getEventBus().subscribe(
+        SandboxEventType::EntityDamage,
+        [&combatOrder](const SandboxEvent &) {
+            combatOrder.push_back(SandboxEventType::EntityDamage);
+        });
+    const auto deathSubscription = world.getEventBus().subscribe(
+        SandboxEventType::EntityDeath,
+        [&combatOrder](const SandboxEvent &) {
+            combatOrder.push_back(SandboxEventType::EntityDeath);
+        });
+    const auto spawnSubscription = world.getEventBus().subscribe(
+        SandboxEventType::EntitySpawn,
+        [&combatOrder](const SandboxEvent &) {
+            combatOrder.push_back(SandboxEventType::EntitySpawn);
+        });
+
+    const bool firstAttack = world.attackActor(targetId);
+    const float healthAfterAttack =
+        target != nullptr ? target->getHealth() : -1.f;
+    check("D4/player-attack-uses-living-damage",
+          firstAttack && std::abs(healthAfterAttack - 6.f) < 0.001f);
+    check("D4/repeat-attack-is-suppressed",
+          !world.attackActor(targetId) && target != nullptr &&
+              std::abs(target->getHealth() - healthAfterAttack) < 0.001f);
+
+    for (int tick = 1; tick <= 11; ++tick) {
+        world.tick(tick);
+    }
+    combatOrder.clear();
+    const bool lethalAttack = world.attackActor(targetId, 6.f);
+    const bool orderedMobDeath =
+        combatOrder == std::vector<SandboxEventType>{
+                           SandboxEventType::EntityDamage,
+                           SandboxEventType::EntityDeath,
+                           SandboxEventType::EntitySpawn};
+    check("D4/mob-death-event-order", lethalAttack && orderedMobDeath);
+
+    const std::vector<ActorSaveState> drops =
+        world.getActorManager().collectSaveStates();
+    const bool lootSpawned = std::any_of(
+        drops.begin(), drops.end(), [](const ActorSaveState &state) {
+            return state.kind == ActorSaveKind::Item &&
+                   state.materialId == static_cast<int>(Material::ID::Dirt) &&
+                   state.amount == 1;
+        });
+    check("D4/lethal-hit-spawns-loot", lootSpawned);
+    check("D4/dead-target-rejects-attacks",
+          !world.attackActor(targetId));
+
+    world.getEventBus().unsubscribe(damageSubscription);
+    world.getEventBus().unsubscribe(deathSubscription);
+    world.getEventBus().unsubscribe(spawnSubscription);
+
+    const auto contactDirectory = freshSaveDirectory("combat_contact");
+    Player contactPlayer;
+    World contactWorld(camera, config, contactPlayer, contactDirectory,
+                       false, 1);
+    const ActorId contactMobId = contactWorld.spawnMob(
+        "hellomine:contact_mob",
+        contactPlayer.position + glm::vec3(2.f, 0.f, 0.f));
+    MobActor *contactMob = dynamic_cast<MobActor *>(
+        contactWorld.getActorManager().findActor(contactMobId));
+    int playerDamageEvents = 0;
+    ActorId lastPlayerDamageSource = InvalidActorId;
+    float lastPlayerDamageHealth = -1.f;
+    std::vector<SandboxEventType> playerOrder;
+    const auto playerDamageSubscription = contactWorld.getEventBus().subscribe(
+        SandboxEventType::EntityDamage,
+        [&](const SandboxEvent &event) {
+            const auto &damage =
+                static_cast<const EntityDamageEvent &>(event);
+            if (damage.id == DefaultPlayerActorId) {
+                ++playerDamageEvents;
+                lastPlayerDamageSource = damage.sourceId;
+                lastPlayerDamageHealth = damage.healthAfter;
+                playerOrder.push_back(SandboxEventType::EntityDamage);
+            }
+        });
+    const auto playerDeathSubscription = contactWorld.getEventBus().subscribe(
+        SandboxEventType::EntityDeath,
+        [&](const SandboxEvent &event) {
+            const auto &death = static_cast<const EntityDeathEvent &>(event);
+            if (death.id == DefaultPlayerActorId) {
+                playerOrder.push_back(SandboxEventType::EntityDeath);
+            }
+        });
+    const auto playerSpawnSubscription = contactWorld.getEventBus().subscribe(
+        SandboxEventType::PlayerSpawn,
+        [&](const SandboxEvent &event) {
+            const auto &spawn = static_cast<const PlayerSpawnEvent &>(event);
+            if (spawn.playerId == DefaultPlayerActorId) {
+                playerOrder.push_back(SandboxEventType::PlayerSpawn);
+            }
+        });
+
+    int tick = 1;
+    while (playerDamageEvents == 0 && tick <= 20) {
+        contactWorld.tick(tick++);
+    }
+    check("D4/mob-contact-damages-player",
+          playerDamageEvents == 1 &&
+              lastPlayerDamageSource == contactMobId &&
+              std::abs(lastPlayerDamageHealth - 18.f) < 0.001f &&
+              std::abs(contactWorld.getPlayerHealth() - 18.f) < 0.001f);
+    contactWorld.tick(tick++);
+    check("D4/contact-damage-is-rate-limited",
+          playerDamageEvents == 1 &&
+              std::abs(contactWorld.getPlayerHealth() - 18.f) < 0.001f);
+
+    const int secondDamageDeadline = tick + 14;
+    while (playerDamageEvents < 2 && tick <= secondDamageDeadline) {
+        contactWorld.tick(tick++);
+    }
+    check("D4/contact-damage-resumes-after-cooldown",
+          playerDamageEvents == 2 &&
+              std::abs(contactWorld.getPlayerHealth() - 16.f) < 0.001f);
+
+    if (contactMob != nullptr) {
+        contactMob->position += glm::vec3(100.f, 0.f, 100.f);
+        contactMob->box.update(contactMob->position);
+    }
+    for (int cooldown = 0; cooldown < 11; ++cooldown) {
+        contactWorld.tick(tick++);
+    }
+
+    contactPlayer.addItem(Material::STONE_BLOCK, 7);
+    contactPlayer.position = {20.f, 100.f, 20.f};
+    contactPlayer.velocity = {1.f, 2.f, 3.f};
+    contactPlayer.box.update(contactPlayer.position);
+    contactPlayer.openContainer({8, 100, 8});
+    playerOrder.clear();
+    const bool lethalPlayerDamage =
+        contactWorld.damagePlayer(100.f, contactMobId);
+    check("D4/player-death-event-order",
+          lethalPlayerDamage &&
+              playerOrder == std::vector<SandboxEventType>{
+                                 SandboxEventType::EntityDamage,
+                                 SandboxEventType::EntityDeath,
+                                 SandboxEventType::PlayerSpawn});
+    check("D4/respawn-returns-to-saved-spawn",
+          glm::length(contactPlayer.position -
+                      contactWorld.getPlayerSpawnPoint()) < 0.001f &&
+              glm::length(contactPlayer.velocity) < 0.001f &&
+              std::abs(contactWorld.getPlayerHealth() -
+                       contactWorld.getPlayerMaxHealth()) < 0.001f);
+
+    int retainedStone = 0;
+    for (const InventorySlotState &slot :
+         contactPlayer.getSaveState().inventory) {
+        if (slot.materialId == Material::ID::Stone) {
+            retainedStone += slot.amount;
+        }
+    }
+    check("D4/death-retains-inventory-and-closes-ui",
+          std::string(World::PlayerDeathInventoryPolicy) == "retain" &&
+              retainedStone == 7 && !contactPlayer.hasOpenContainer());
+
+    const WorldDebugStats combatStats = contactWorld.collectDebugStats();
+    check("D4/health-is-exposed-to-hud",
+          combatStats.playerHealth == contactWorld.getPlayerHealth() &&
+              combatStats.playerMaxHealth ==
+                  contactWorld.getPlayerMaxHealth() &&
+              combatStats.playerMaxHealth == 20.f);
+
+    contactWorld.getEventBus().unsubscribe(playerDamageSubscription);
+    contactWorld.getEventBus().unsubscribe(playerDeathSubscription);
+    contactWorld.getEventBus().unsubscribe(playerSpawnSubscription);
+}
+
+// ---------------------------------------------------------------------------
 // S2.3 - versioned chunk format rejects corrupt files
 // ---------------------------------------------------------------------------
 void caseChunkFormatRejection()
@@ -4016,6 +4227,7 @@ int main()
         caseBlockEntityLifecycle();
         caseChestContainer();
         caseNaturalMobPopulation();
+        caseCombatAndRespawn();
         caseChunkFormatRejection();
         caseTerrainDeterminism();
         caseTerrainStructures();

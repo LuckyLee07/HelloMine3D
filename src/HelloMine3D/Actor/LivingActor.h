@@ -23,6 +23,7 @@ class LivingActor : public Actor {
     bool damage(SandboxEventBus &eventBus, float amount,
                 ActorId sourceId = InvalidActorId);
     void heal(float amount);
+    void revive();
     void die(World &world, ActorId killerId = InvalidActorId);
     virtual void die(SandboxEventBus &eventBus,
                      ActorId killerId = InvalidActorId);

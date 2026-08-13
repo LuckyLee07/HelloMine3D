@@ -34,6 +34,7 @@ class SandboxRuntime : public NonCopyable {
     WorldManager &getWorldManager();
     const WorldManager &getWorldManager() const;
     const std::optional<BlockSelection> &getBlockSelection() const;
+    const std::optional<ActorSelection> &getActorSelection() const;
 
   private:
     void handlePlayerInteraction(World &world,
@@ -46,6 +47,7 @@ class SandboxRuntime : public NonCopyable {
     WorldManager m_worldManager;
     FixedTickScheduler m_tickScheduler;
     std::optional<BlockSelection> m_blockSelection;
+    std::optional<ActorSelection> m_actorSelection;
     float m_interactionCooldownSeconds = 0.0f;
 };
 

@@ -83,6 +83,13 @@ void LivingActor::heal(float amount)
     m_health = std::min(m_maxHealth, m_health + amount);
 }
 
+void LivingActor::revive()
+{
+    setAlive(true);
+    m_health = m_maxHealth;
+    m_damageInvulnerabilityRemaining = 0.f;
+}
+
 void LivingActor::die(SandboxEventBus &eventBus, ActorId killerId)
 {
     if (!isAlive()) {

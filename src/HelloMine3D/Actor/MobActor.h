@@ -27,7 +27,7 @@ class MobActor : public LivingActor {
 
     static constexpr float ChaseRadius = 12.f;
     static constexpr float ChaseSpeed = 2.4f;
-    static constexpr float ChaseStopDistance = 0.75f;
+    static constexpr float ChaseStopDistance = 0.55f;
 
     const Entity *m_chaseTarget = nullptr;
     float m_wanderTime = 0.f;

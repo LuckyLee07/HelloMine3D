@@ -536,6 +536,24 @@ namespace
                 m_containerFixturePlaced = true;
             }
 
+            if (isTrueValue(std::getenv(
+                    "HELLOMINE3D_COMBAT_FIXTURE")))
+            {
+                const float yaw = glm::radians(
+                    m_worldPlayer->rotation.y + 90.0f);
+                const glm::vec3 forward(-std::cos(yaw), 0.0f,
+                                        -std::sin(yaw));
+                const ActorId mobId = m_world->spawnMob(
+                    "hellomine:combat_fixture",
+                    m_worldPlayer->position + forward * 4.0f);
+                if (!m_world->damagePlayer(6.0f, mobId))
+                {
+                    throw std::runtime_error(
+                        "Combat fixture failed to damage the player.");
+                }
+                m_combatFixturePlaced = true;
+            }
+
             const VectorXZ center = World::getChunkXZ(
                 World::toBlockCoord(m_worldPlayer->position.x),
                 World::toBlockCoord(m_worldPlayer->position.z));
@@ -829,7 +847,7 @@ namespace
                 RuntimePerformanceCapture::isEnabled();
             const bool freezeValidationCapture =
                 (m_validationActorsSpawned || m_oreFixturePlaced ||
-                 m_containerFixturePlaced) &&
+                 m_containerFixturePlaced || m_combatFixturePlaced) &&
                 m_renderCapture != nullptr &&
                 m_renderCapture->isEnabled();
             m_sandbox->update(input,
@@ -1388,6 +1406,7 @@ namespace
         bool m_validationActorsSpawned = false;
         bool m_oreFixturePlaced = false;
         bool m_containerFixturePlaced = false;
+        bool m_combatFixturePlaced = false;
         int m_hotbarDelta = 0;
         int m_hotbarSlot = -1;
     };

@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "../Actor/ActorManager.h"
+#include "../Actor/PlayerActor.h"
 #include "../Item/Material.h"
 #include "../Maths/Frustum.h"
 #include "../Maths/glm.h"
@@ -45,6 +46,8 @@ struct WorldDebugStats {
     std::size_t naturalMobSpawnAttempts = 0;
     std::size_t naturalMobsSpawned = 0;
     std::size_t naturalMobsDespawned = 0;
+    float playerHealth = 0.f;
+    float playerMaxHealth = 0.f;
     std::size_t queuedChunkUpdates = 0;
     std::size_t randomTickSections = 0;
     std::size_t randomTickBlocks = 0;
@@ -85,6 +88,9 @@ class World : public NonCopyable {
     static constexpr std::size_t NaturalMobLocalCap = 4;
     static constexpr float NaturalMobLocalRadius = 32.f;
     static constexpr const char *NaturalMobType = "hellomine:natural_mob";
+    static constexpr float PlayerAttackDamage = 4.f;
+    static constexpr float MobContactDamage = 2.f;
+    static constexpr const char *PlayerDeathInventoryPolicy = "retain";
 
     World(const Camera &camera, const Config &config, Player &player,
           std::string saveDirectory = "",
@@ -121,6 +127,12 @@ class World : public NonCopyable {
                             const glm::vec3 &position,
                             const glm::vec3 &initialVelocity = glm::vec3(0.f));
     ActorId spawnMob(const std::string &type, const glm::vec3 &position);
+    bool attackActor(ActorId actorId,
+                     float amount = PlayerAttackDamage);
+    bool damagePlayer(float amount, ActorId sourceId = InvalidActorId);
+    float getPlayerHealth() const;
+    float getPlayerMaxHealth() const;
+    glm::vec3 getPlayerSpawnPoint() const;
 
     ChunkManager &getChunkManager();
     ActorManager &getActorManager();
@@ -189,6 +201,8 @@ class World : public NonCopyable {
     void removeRandomTickSectionsForChunk(int chunkX, int chunkZ);
     void runRandomTicks(int worldTime);
     void runNaturalMobPopulation(int worldTime);
+    void applyMobContactDamage();
+    void respawnPlayer();
     bool findSafeNaturalMobPosition(int blockX, int blockZ,
                                     glm::vec3 &position);
     void despawnNaturalMobsInChunk(int chunkX, int chunkZ);
@@ -208,6 +222,7 @@ class World : public NonCopyable {
 
     ChunkManager m_chunkManager;
     ActorManager m_actorManager;
+    PlayerActor m_playerActor;
     SandboxEventBus m_eventBus;
     Player *m_player = nullptr;
     WorldSave m_worldSave;

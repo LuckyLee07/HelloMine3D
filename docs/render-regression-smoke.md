@@ -234,6 +234,7 @@ artifacts:
 | `docs/screenshots/validation-ores.png` | A deterministic coal wall on the left and iron wall on the right, with visibly distinct atlas tiles. |
 | `docs/screenshots/validation-container.png` | The D2 chest window with nine bounded slots, populated fixture stacks, the five-slot player hotbar and Close/Escape guidance over the live Ogre world. |
 | `docs/screenshots/validation-natural-mobs.png` | A D3 Mob produced by the normal fixed-tick population path, with the panel reporting four live actors, natural population `4 / 12`, seven attempts and four additions. The 1584x861 PNG SHA-256 is `D86C91C535818CABB4320B57B087F6353149D56FE3881E2DCDCB7832725AE4A4`. |
+| `docs/screenshots/validation-combat-hud.png` | The D4 combat fixture places one green Mob under the crosshair and applies non-lethal damage through the normal player damage path. The persistent HUD reports `Health 14 / 20`, while the panel reports one live actor. The 1584x861 PNG SHA-256 is `5EB9A5E1344909652EDE9A80D1A6AB08FF8A7B303DA1B928D7E672F6D0132237`. |
 
 The skybox was previously black even though all six source PNGs loaded. The
 material supplied six independent 2D textures with `separateUV`, while the
@@ -272,6 +273,7 @@ environment variables, normally set by `tools/run_render_capture.ps1`:
 | `HELLOMINE3D_SPAWN_VALIDATION_ACTORS` | Spawns one mob and one dropped item in front of the player. The script sets it with `-SpawnValidationActors`. |
 | `HELLOMINE3D_ORE_FIXTURE` | Places coal and iron walls in front of the pinned player. The script sets it with `-ShowOreFixture`. |
 | `HELLOMINE3D_CONTAINER_FIXTURE` | Places and opens a populated chest without synthesizing desktop input. The script sets it with `-ShowContainerFixture`. |
+| `HELLOMINE3D_COMBAT_FIXTURE` | Places one Mob in the view direction and applies non-lethal player damage for a stable HUD capture. The script sets it with `-ShowCombatFixture`. |
 | `HELLOMINE3D_TRANSPARENT_FIXTURE` | Places the deterministic L4 glass, leaf and flora render fixture. |
 
 `WindowScreenshot` mode is kept only as a fallback/manual diagnostic path. It

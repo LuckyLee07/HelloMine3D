@@ -18,6 +18,7 @@
 #include "../Maths/Vector2XZ.h"
 #include "../Physics/AABB.h"
 #include "../Player/Player.h"
+#include "../Sandbox/Events/PlayerEvents.h"
 #include "../Util/ResourcePaths.h"
 #include "../Util/Random.h"
 #include "Chunk/ChunkMeshBuilder.h"
@@ -297,6 +298,7 @@ World::World(const Camera &camera, const Config &config, Player &player,
     if (hasSave) {
         restoreActors(m_worldSaveData.actors);
     }
+    m_playerActor.syncFromPlayer(player);
 
     auto playerChunk = getChunkXZ(toBlockCoord(player.position.x),
                                   toBlockCoord(player.position.z));
@@ -817,9 +819,92 @@ void World::runRandomTicks(int worldTime)
 void World::tick(int worldTime)
 {
     m_worldSaveData.worldTime = static_cast<float>(worldTime);
+    if (m_player != nullptr) {
+        m_playerActor.syncFromPlayer(*m_player);
+    }
+    m_playerActor.tick(*this, 1.f / 20.f);
     m_actorManager.tick(*this, 1.f / 20.f);
+    applyMobContactDamage();
     runRandomTicks(worldTime);
     runNaturalMobPopulation(worldTime);
+}
+
+bool World::attackActor(ActorId actorId, float amount)
+{
+    LivingActor *actor = dynamic_cast<LivingActor *>(
+        m_actorManager.findActor(actorId));
+    return actor != nullptr &&
+           actor->damage(*this, amount, DefaultPlayerActorId);
+}
+
+bool World::damagePlayer(float amount, ActorId sourceId)
+{
+    if (m_player == nullptr) {
+        return false;
+    }
+
+    m_playerActor.syncFromPlayer(*m_player);
+    const bool accepted = m_playerActor.damage(*this, amount, sourceId);
+    if (accepted && !m_playerActor.isAlive()) {
+        respawnPlayer();
+    }
+    return accepted;
+}
+
+float World::getPlayerHealth() const
+{
+    return m_playerActor.getHealth();
+}
+
+float World::getPlayerMaxHealth() const
+{
+    return m_playerActor.getMaxHealth();
+}
+
+glm::vec3 World::getPlayerSpawnPoint() const
+{
+    return m_playerSpawnPoint;
+}
+
+void World::applyMobContactDamage()
+{
+    if (m_player == nullptr || !m_playerActor.isAlive()) {
+        return;
+    }
+
+    const glm::vec3 playerDimensions = m_player->box.dimensions;
+    for (const ActorSnapshot &snapshot : m_actorManager.collectSnapshots()) {
+        const Actor *actor = m_actorManager.findActor(snapshot.id);
+        if (dynamic_cast<const MobActor *>(actor) == nullptr) {
+            continue;
+        }
+
+        const glm::vec3 distance = glm::abs(snapshot.position -
+                                            m_player->position);
+        const glm::vec3 reach = snapshot.dimensions + playerDimensions;
+        if (distance.x <= reach.x && distance.y <= reach.y &&
+            distance.z <= reach.z) {
+            damagePlayer(MobContactDamage, snapshot.id);
+            return;
+        }
+    }
+}
+
+void World::respawnPlayer()
+{
+    if (m_player == nullptr) {
+        return;
+    }
+
+    m_player->closeContainer();
+    m_player->position = m_playerSpawnPoint;
+    m_player->velocity = glm::vec3(0.f);
+    m_player->box.update(m_player->position);
+    preloadChunksAround(m_player->position);
+    m_playerActor.revive();
+    m_playerActor.syncFromPlayer(*m_player);
+    m_eventBus.publish(PlayerSpawnEvent(
+        DefaultPlayerActorId, 0, m_player->position));
 }
 
 glm::ivec2 World::naturalMobSpawnOffset(int terrainSeed, int spawnEpoch,
@@ -1254,6 +1339,8 @@ WorldDebugStats World::collectDebugStats()
     stats.naturalMobSpawnAttempts = m_naturalMobSpawnAttempts;
     stats.naturalMobsSpawned = m_naturalMobsSpawned;
     stats.naturalMobsDespawned = m_naturalMobsDespawned;
+    stats.playerHealth = m_playerActor.getHealth();
+    stats.playerMaxHealth = m_playerActor.getMaxHealth();
     stats.queuedChunkUpdates = m_chunkUpdateQueue.size();
     stats.randomTickSections = m_randomTickSections.size();
     for (const glm::ivec3 &sectionKey : m_randomTickSections) {
