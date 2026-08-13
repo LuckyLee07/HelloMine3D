@@ -34,6 +34,7 @@
 #include "../Diagnostics/RuntimeDebugOptions.h"
 #include "../Diagnostics/TerrainBufferMetrics.h"
 #include "../Item/Material.h"
+#include "../Item/ContainerInventory.h"
 #include "../Player/Player.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/Events/BlockEvents.h"
@@ -44,6 +45,7 @@
 #include "../Sandbox/WorldManager.h"
 #include "../Util/ResourcePaths.h"
 #include "../World/Block/BlockBehavior.h"
+#include "../World/Block/ChestContainer.h"
 #include "../World/Block/BlockDatabase.h"
 #include "../World/Block/BlockTextureCoordinates.h"
 #include "../World/Interaction/BlockSelection.h"
@@ -2834,6 +2836,141 @@ void caseBlockEntityLifecycle()
 }
 
 // ---------------------------------------------------------------------------
+// D2 - chest container, transfers, persistence and break policy
+// ---------------------------------------------------------------------------
+void caseChestContainer()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+
+    const auto directory = freshSaveDirectory("chest_container");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+    EventRecorder events(world.getEventBus());
+
+    const glm::ivec3 chestPosition{8, 100, 8};
+    player.addItem(Material::CHEST_BLOCK, 1);
+    const bool placed = BlockInteractionSystem::placeBlock(
+        world, player, glm::vec3(chestPosition));
+    const auto record = world.getBlockEntity(chestPosition);
+    check("D2/place-initializes-chest",
+          placed &&
+              static_cast<BlockId>(world.getBlock(
+                  chestPosition.x, chestPosition.y, chestPosition.z).id) ==
+                  BlockId::Chest &&
+              record.has_value() &&
+              record->type == ChestContainer::BlockEntityType);
+
+    const bool opened = BlockInteractionSystem::useBlock(
+        world, player, glm::vec3(chestPosition));
+    check("D2/use-opens-container",
+          opened && player.hasOpenContainer() &&
+              player.getOpenContainer()->x == chestPosition.x);
+
+    player.addItem(Material::STONE_BLOCK, 120);
+    auto countPlayer = [&player](Material::ID materialId) {
+        int total = 0;
+        for (const InventorySlotState &slot :
+             player.getSaveState().inventory) {
+            if (slot.materialId == materialId) {
+                total += slot.amount;
+            }
+        }
+        return total;
+    };
+
+    const bool stored =
+        ChestContainer::transferFromPlayer(world, player, 0, 60);
+    auto view = ChestContainer::view(world, player);
+    check("D2/store-preserves-total",
+          stored && view.has_value() &&
+              countPlayer(Material::ID::Stone) +
+                      view->inventory.count(Material::ID::Stone) ==
+                  120,
+          "player=" + std::to_string(countPlayer(Material::ID::Stone)) +
+              " chest=" +
+              std::to_string(view ? view->inventory.count(
+                                         Material::ID::Stone)
+                                  : -1));
+
+    const bool taken =
+        ChestContainer::transferToPlayer(world, player, 0, 25);
+    view = ChestContainer::view(world, player);
+    check("D2/take-preserves-total",
+          taken && view.has_value() &&
+              countPlayer(Material::ID::Stone) +
+                      view->inventory.count(Material::ID::Stone) ==
+                  120);
+    check("D2/transfers-publish-inventory-events",
+          events.count(SandboxEventType::PlayerInventoryChanged) >= 2);
+
+    ContainerInventory full(ChestContainer::SlotCount);
+    const int fullCapacity =
+        ChestContainer::SlotCount * Material::STONE_BLOCK.maxStackSize;
+    const int accepted = full.addItem(Material::STONE_BLOCK,
+                                      fullCapacity + 10);
+    ContainerInventory roundTrip(1);
+    check("D2/capacity-is-bounded",
+          accepted == fullCapacity &&
+              full.addItem(Material::STONE_BLOCK, 1) == 0 &&
+              ContainerInventory::deserialize(full.serialize(),
+                                              roundTrip) &&
+              roundTrip.count(Material::ID::Stone) == fullCapacity);
+    check("D2/rejects-invalid-payload",
+          !ContainerInventory::deserialize("v1|1|3,1000", roundTrip));
+
+    ContainerInventory persisted(ChestContainer::SlotCount);
+    persisted.addItem(Material::IRON_ORE_BLOCK, 7);
+    check("D2/prepare-persisted-contents",
+          world.updateBlockEntity(chestPosition, persisted.serialize()));
+    player.closeContainer();
+    world.getChunkManager().unloadChunk(0, 0);
+    world.getChunkManager().loadChunk(0, 0);
+    const bool reopened = ChestContainer::open(world, player, chestPosition);
+    view = ChestContainer::view(world, player);
+    check("D2/save-reload-preserves-contents",
+          reopened && view.has_value() &&
+              view->inventory.count(Material::ID::IronOre) == 7);
+
+    const bool blockedPlace = BlockInteractionSystem::placeBlock(
+        world, player, glm::vec3(9.f, 100.f, 8.f));
+    const bool blockedBreak = BlockInteractionSystem::breakBlock(
+        world, player, glm::vec3(chestPosition));
+    check("D2/open-ui-blocks-world-actions",
+          !blockedPlace && !blockedBreak &&
+              static_cast<BlockId>(world.getBlock(
+                  chestPosition.x, chestPosition.y, chestPosition.z).id) ==
+                  BlockId::Chest);
+
+    player.closeContainer();
+    const std::size_t actorsBefore =
+        world.getActorManager().getActorCount();
+    const bool broken = BlockInteractionSystem::breakBlock(
+        world, player, glm::vec3(chestPosition));
+    const std::vector<ActorSaveState> drops =
+        world.getActorManager().collectSaveStates();
+    const bool contentsDropped = std::any_of(
+        drops.begin(), drops.end(), [](const ActorSaveState &state) {
+            return state.kind == ActorSaveKind::Item &&
+                   state.materialId ==
+                       static_cast<int>(Material::ID::IronOre) &&
+                   state.amount == 7;
+        });
+    check("D2/break-spills-contents",
+          broken && contentsDropped &&
+              world.getActorManager().getActorCount() == actorsBefore + 1);
+    check("D2/break-removes-container-state",
+          !world.getBlockEntity(chestPosition).has_value() &&
+              static_cast<BlockId>(world.getBlock(
+                  chestPosition.x, chestPosition.y, chestPosition.z).id) ==
+                  BlockId::Air &&
+              !player.hasOpenContainer());
+}
+
+// ---------------------------------------------------------------------------
 // S2.3 - versioned chunk format rejects corrupt files
 // ---------------------------------------------------------------------------
 void caseChunkFormatRejection()
@@ -3658,6 +3795,7 @@ int main()
         caseSectionMeshUploadSnapshot();
         caseUnloadPersistence();
         caseBlockEntityLifecycle();
+        caseChestContainer();
         caseChunkFormatRejection();
         caseTerrainDeterminism();
         caseTerrainStructures();

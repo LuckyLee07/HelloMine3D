@@ -19,6 +19,7 @@ param(
     [switch]$ShowDebugInfo,
     [switch]$SpawnValidationActors,
     [switch]$ShowOreFixture,
+    [switch]$ShowContainerFixture,
     [switch]$StopExisting,
     [switch]$KeepAlive,
     [switch]$ValidateCapturePolling
@@ -577,6 +578,7 @@ if (-not [string]::IsNullOrWhiteSpace($PlayerRotation)) { Write-Host "[RENDER_CA
 if ($ShowDebugInfo) { Write-Host "[RENDER_CAPTURE] showDebugInfo=true" }
 if ($SpawnValidationActors) { Write-Host "[RENDER_CAPTURE] spawnValidationActors=true" }
 if ($ShowOreFixture) { Write-Host "[RENDER_CAPTURE] showOreFixture=true" }
+if ($ShowContainerFixture) { Write-Host "[RENDER_CAPTURE] showContainerFixture=true" }
 
 if ($StopExisting) {
     $existingProcesses = @(Get-Process -Name "HelloMine3D" -ErrorAction SilentlyContinue)
@@ -613,6 +615,9 @@ if ($SpawnValidationActors) {
 }
 if ($ShowOreFixture) {
     $envValues["HELLOMINE3D_ORE_FIXTURE"] = "1"
+}
+if ($ShowContainerFixture) {
+    $envValues["HELLOMINE3D_CONTAINER_FIXTURE"] = "1"
 }
 if ($CaptureMode -eq "RuntimeReadback") {
     $envValues["HELLO_RENDER_CAPTURE"] = "1"

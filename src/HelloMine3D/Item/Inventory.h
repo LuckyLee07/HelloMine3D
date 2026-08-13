@@ -16,6 +16,8 @@ class Inventory {
 
     int addItem(const Material &material, int amount = 1);
     bool removeFromSelected(int amount = 1);
+    int removeFromSlot(int index, int amount);
+    int capacityFor(const Material &material) const;
 
     ItemStack &getSelectedStack();
     const ItemStack &getSelectedStack() const;

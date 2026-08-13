@@ -35,6 +35,7 @@
 #include "../Util/ResourcePaths.h"
 #include "../World/Chunk/Chunk.h"
 #include "../World/Chunk/ChunkSection.h"
+#include "../World/Block/ChestContainer.h"
 #include "../World/World.h"
 
 namespace
@@ -181,6 +182,9 @@ namespace
                       << userInterface.hotbarSlots << '\n';
             std::cout << "[OGRE_VALIDATION] hud_selected_slot="
                       << userInterface.selectedSlot << '\n';
+            std::cout << "[OGRE_VALIDATION] container_open="
+                      << (userInterface.containerOpen ? "true" : "false")
+                      << '\n';
             std::cout << "[OGRE_VALIDATION] debug_panel_enabled="
                       << (userInterface.debugPanelVisible ? "true" : "false")
                       << '\n';
@@ -228,7 +232,8 @@ namespace
             createWindowAndScene();
             createInput();
             m_userInterface = std::make_unique<OgreUserInterface>(
-                *m_window, *m_sceneManager, *m_camera, *m_worldPlayer);
+                *m_window, *m_sceneManager, *m_camera, *m_worldPlayer,
+                *m_world);
 
             m_root->addFrameListener(this);
             Ogre::WindowEventUtilities::addWindowEventListener(m_window, this);
@@ -500,6 +505,37 @@ namespace
                 m_oreFixturePlaced = true;
             }
 
+            if (isTrueValue(std::getenv(
+                    "HELLOMINE3D_CONTAINER_FIXTURE")))
+            {
+                const glm::ivec3 chestPosition{
+                    World::toBlockCoord(m_worldPlayer->position.x) + 2,
+                    World::toBlockCoord(m_worldPlayer->position.y),
+                    World::toBlockCoord(m_worldPlayer->position.z) + 2};
+                m_world->setBlock(chestPosition.x, chestPosition.y,
+                                  chestPosition.z, BlockId::Air);
+                m_world->setBlock(chestPosition.x, chestPosition.y,
+                                  chestPosition.z, BlockId::Chest);
+                if (!ChestContainer::initialize(*m_world, chestPosition))
+                {
+                    throw std::runtime_error(
+                        "Container fixture failed to initialize the chest.");
+                }
+                ContainerInventory contents(ChestContainer::SlotCount);
+                contents.addItem(Material::STONE_BLOCK, 32);
+                contents.addItem(Material::IRON_ORE_BLOCK, 7);
+                contents.addItem(Material::OAK_BARK_BLOCK, 12);
+                if (!m_world->updateBlockEntity(chestPosition,
+                                                contents.serialize()) ||
+                    !ChestContainer::open(*m_world, *m_worldPlayer,
+                                          chestPosition))
+                {
+                    throw std::runtime_error(
+                        "Container fixture failed to open the chest.");
+                }
+                m_containerFixturePlaced = true;
+            }
+
             const VectorXZ center = World::getChunkXZ(
                 World::toBlockCoord(m_worldPlayer->position.x),
                 World::toBlockCoord(m_worldPlayer->position.z));
@@ -743,11 +779,13 @@ namespace
             }
 
             const bool keyboardCaptured =
-                m_userInterface != nullptr &&
-                m_userInterface->wantsKeyboardInput();
+                m_worldPlayer->hasOpenContainer() ||
+                (m_userInterface != nullptr &&
+                 m_userInterface->wantsKeyboardInput());
             const bool mouseCaptured =
-                m_userInterface != nullptr &&
-                m_userInterface->wantsMouseInput();
+                m_worldPlayer->hasOpenContainer() ||
+                (m_userInterface != nullptr &&
+                 m_userInterface->wantsMouseInput());
 
             SandboxInputState input;
             if (!keyboardCaptured)
@@ -790,7 +828,8 @@ namespace
                  m_renderCapture->isEnabled()) ||
                 RuntimePerformanceCapture::isEnabled();
             const bool freezeValidationCapture =
-                (m_validationActorsSpawned || m_oreFixturePlaced) &&
+                (m_validationActorsSpawned || m_oreFixturePlaced ||
+                 m_containerFixturePlaced) &&
                 m_renderCapture != nullptr &&
                 m_renderCapture->isEnabled();
             m_sandbox->update(input,
@@ -1116,6 +1155,12 @@ namespace
             }
             if (event.key == OIS::KC_ESCAPE)
             {
+                if (m_worldPlayer != nullptr &&
+                    m_worldPlayer->hasOpenContainer())
+                {
+                    m_worldPlayer->closeContainer();
+                    return true;
+                }
                 m_shutdownRequested = true;
             }
             if (m_userInterface != nullptr &&
@@ -1176,7 +1221,9 @@ namespace
                 m_userInterface->mouseMoved(event);
             }
             if (m_userInterface == nullptr ||
-                !m_userInterface->wantsMouseInput())
+                (!m_userInterface->wantsMouseInput() &&
+                 (m_worldPlayer == nullptr ||
+                  !m_worldPlayer->hasOpenContainer())))
             {
                 m_pendingLookDelta.x +=
                     static_cast<float>(event.state.X.rel);
@@ -1340,6 +1387,7 @@ namespace
         bool m_mouseLookEnabled = true;
         bool m_validationActorsSpawned = false;
         bool m_oreFixturePlaced = false;
+        bool m_containerFixturePlaced = false;
         int m_hotbarDelta = 0;
         int m_hotbarSlot = -1;
     };

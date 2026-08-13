@@ -1,5 +1,7 @@
 #include "BlockDatabase.h"
+#include "ChestContainer.h"
 #include "ChunkBlock.h"
+#include "../../Player/Player.h"
 #include "../World.h"
 
 #include <cctype>
@@ -49,6 +51,36 @@ class TallGrassBlockBehavior final : public BlockBehavior {
 
   private:
     BlockMetadata_t m_matureStage;
+};
+
+class ChestBlockBehavior final : public BlockBehavior {
+  public:
+    void onPlaced(World &world, Player &,
+                  const glm::ivec3 &position, const ChunkBlock &,
+                  const ChunkBlock &) const override
+    {
+        ChestContainer::initialize(world, position);
+    }
+
+    void onBroken(World &world, Player &player,
+                  const glm::ivec3 &position,
+                  const ChunkBlock &) const override
+    {
+        ChestContainer::spillContents(world, position);
+        if (player.getOpenContainer() &&
+            player.getOpenContainer()->x == position.x &&
+            player.getOpenContainer()->y == position.y &&
+            player.getOpenContainer()->z == position.z) {
+            ChestContainer::close(player);
+        }
+    }
+
+    void onUse(World &world, Player &player,
+               const glm::ivec3 &position,
+               const ChunkBlock &) const override
+    {
+        ChestContainer::open(world, player, position);
+    }
 };
 
 std::string makeStringId(const std::string &fileName)
@@ -130,6 +162,8 @@ BlockDatabase::BlockDatabase()
              std::make_unique<NoDropBlockBehavior>());
     addBlock(BlockId::GlassBorderless, "GlassBorderless",
              std::make_unique<NoDropBlockBehavior>());
+    addBlock(BlockId::Chest, "Chest",
+             std::make_unique<ChestBlockBehavior>());
 }
 
 BlockDatabase &BlockDatabase::get()

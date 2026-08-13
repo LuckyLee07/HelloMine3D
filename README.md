@@ -35,8 +35,8 @@ The Windows sandbox-foundation scope is complete. The next executable roadmap
 is recorded in `docs/todolist.md` rather than inferred from the historical
 seven-day notes below:
 
-1. extend the completed R1 comparison gate and D1 stateful-block lifecycle
-   with the D2 container UI;
+1. finish the physical-input acceptance for the implemented D2 chest and
+   container UI;
 2. continue the D3-D6 playable vertical slice through live mobs/combat, one
    crop loop, persistence and hardware acceptance;
 3. add the remaining R soak, physical-input and clean-root packaging gates;

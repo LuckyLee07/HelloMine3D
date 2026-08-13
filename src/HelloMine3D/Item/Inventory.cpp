@@ -55,6 +55,37 @@ bool Inventory::removeFromSelected(int amount)
     return true;
 }
 
+int Inventory::removeFromSlot(int index, int amount)
+{
+    if (index < 0 || index >= static_cast<int>(m_slots.size()) ||
+        amount <= 0) {
+        return 0;
+    }
+
+    ItemStack &stack = m_slots[index];
+    const int removed = std::min(amount, stack.getNumInStack());
+    stack.remove(removed);
+    return removed;
+}
+
+int Inventory::capacityFor(const Material &material) const
+{
+    if (material.id == Material::ID::Nothing) {
+        return 0;
+    }
+
+    int capacity = 0;
+    for (const ItemStack &slot : m_slots) {
+        if (slot.isEmpty()) {
+            capacity += material.maxStackSize;
+        }
+        else if (slot.getMaterial().id == material.id) {
+            capacity += material.maxStackSize - slot.getNumInStack();
+        }
+    }
+    return capacity;
+}
+
 ItemStack &Inventory::getSelectedStack()
 {
     ensureUsableSlots();

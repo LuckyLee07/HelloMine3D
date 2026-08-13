@@ -21,6 +21,7 @@ const Material Material::IRON_ORE_BLOCK(ID::IronOre, 99, true,
 const Material Material::GLASS_BLOCK(ID::Glass, 99, true, "Glass Block");
 const Material Material::BORDERLESS_GLASS_BLOCK(
     ID::GlassBorderless, 99, true, "Borderless Glass Block");
+const Material Material::CHEST_BLOCK(ID::Chest, 99, true, "Chest");
 
 Material::Material(Material::ID id, int maxStack, bool isBlock,
                    std::string &&name)
@@ -79,6 +80,9 @@ BlockId Material::toBlockID() const
         case GlassBorderless:
             return BlockId::GlassBorderless;
 
+        case Chest:
+            return BlockId::Chest;
+
         default:
             return BlockId::NUM_TYPES;
     }
@@ -129,6 +133,9 @@ const Material &Material::toMaterial(BlockId id)
         case BlockId::GlassBorderless:
             return BORDERLESS_GLASS_BLOCK;
 
+        case BlockId::Chest:
+            return CHEST_BLOCK;
+
         default:
             return NOTHING;
     }
@@ -178,6 +185,9 @@ const Material &Material::toMaterial(Material::ID id)
 
         case GlassBorderless:
             return BORDERLESS_GLASS_BLOCK;
+
+        case Chest:
+            return CHEST_BLOCK;
 
         default:
             return NOTHING;

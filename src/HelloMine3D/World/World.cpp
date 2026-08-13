@@ -1359,7 +1359,7 @@ void World::restoreActors(const std::vector<ActorSaveState> &states)
             const auto materialId =
                 static_cast<Material::ID>(state.materialId);
             if (materialId <= Material::ID::Nothing ||
-                materialId > Material::ID::GlassBorderless ||
+                materialId >= Material::ID::Count ||
                 state.amount <= 0) {
                 continue;
             }

@@ -19,6 +19,9 @@ bool isReplaceable(BlockId id)
 bool BlockInteractionSystem::breakBlock(World &world, Player &player,
                                         const glm::vec3 &location)
 {
+    if (player.hasOpenContainer()) {
+        return false;
+    }
     const int x = World::toBlockCoord(location.x);
     const int y = World::toBlockCoord(location.y);
     const int z = World::toBlockCoord(location.z);
@@ -47,8 +50,8 @@ bool BlockInteractionSystem::breakBlock(World &world, Player &player,
         }
     }
 
-    world.setBlock(x, y, z, BlockId::Air);
     definition.behavior->onBroken(world, player, blockPosition, block);
+    world.setBlock(x, y, z, BlockId::Air);
     world.getEventBus().publish(BlockBreakEvent(blockPosition, blockId));
     world.getEventBus().publish(
         BlockChangedEvent(blockPosition, blockId, BlockId::Air));
@@ -58,6 +61,9 @@ bool BlockInteractionSystem::breakBlock(World &world, Player &player,
 bool BlockInteractionSystem::placeBlock(World &world, Player &player,
                                         const glm::vec3 &location)
 {
+    if (player.hasOpenContainer()) {
+        return false;
+    }
     const int x = World::toBlockCoord(location.x);
     const int y = World::toBlockCoord(location.y);
     const int z = World::toBlockCoord(location.z);

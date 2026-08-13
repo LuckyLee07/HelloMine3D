@@ -33,6 +33,46 @@ ItemStack& Player::getHeldItems()
     return m_inventory.getSelectedStack();
 }
 
+const ItemStack &Player::getInventorySlot(int index) const
+{
+    return m_inventory.getSlot(index);
+}
+
+int Player::getInventorySlotCount() const
+{
+    return m_inventory.getSlotCount();
+}
+
+int Player::getInventoryCapacity(const Material &material) const
+{
+    return m_inventory.capacityFor(material);
+}
+
+int Player::removeInventoryItem(int slot, int amount)
+{
+    return m_inventory.removeFromSlot(slot, amount);
+}
+
+void Player::openContainer(const glm::ivec3 &containerPosition)
+{
+    m_openContainer = containerPosition;
+}
+
+void Player::closeContainer() noexcept
+{
+    m_openContainer.reset();
+}
+
+bool Player::hasOpenContainer() const noexcept
+{
+    return m_openContainer.has_value();
+}
+
+const std::optional<glm::ivec3> &Player::getOpenContainer() const noexcept
+{
+    return m_openContainer;
+}
+
 bool Player::isFlying() const noexcept
 {
     return m_isFlying;
@@ -56,6 +96,7 @@ PlayerSaveState Player::getSaveState() const
 
 void Player::applySaveState(const PlayerSaveState &state)
 {
+    closeContainer();
     position = state.position;
     rotation = state.rotation;
     m_inventory.applySaveState(state.inventory, state.heldItem);

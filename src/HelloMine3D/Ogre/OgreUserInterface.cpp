@@ -18,6 +18,7 @@
 #include "../Player/Player.h"
 #include "../Util/ResourcePaths.h"
 #include "../World/World.h"
+#include "../World/Block/ChestContainer.h"
 
 namespace
 {
@@ -144,11 +145,12 @@ class OgreUserInterface::Impl
   public:
     Impl(Ogre::RenderWindow &renderWindow,
          Ogre::SceneManager &renderSceneManager,
-         Ogre::Camera &renderCamera, Player &worldPlayer)
+         Ogre::Camera &renderCamera, Player &worldPlayer, World &activeWorld)
         : window(&renderWindow)
         , sceneManager(&renderSceneManager)
         , camera(&renderCamera)
         , player(&worldPlayer)
+        , world(&activeWorld)
         , showDebugPanel(RuntimeDebugOptions::showDebugInfoAtStartup())
         , iniPath(ResourcePaths::bin("imgui-ogre.ini"))
     {
@@ -225,6 +227,7 @@ class OgreUserInterface::Impl
         framePending = true;
         worldStats = stats;
         drawHud();
+        drawContainer();
         if (showDebugPanel)
         {
             drawDebugPanels();
@@ -236,14 +239,17 @@ class OgreUserInterface::Impl
         const ImGuiIO &io = ImGui::GetIO();
         const ImVec2 center(io.DisplaySize.x * 0.5f,
                             io.DisplaySize.y * 0.5f);
-        ImDrawList *foreground = ImGui::GetForegroundDrawList();
-        const ImU32 crosshairColour = IM_COL32(255, 255, 255, 230);
-        foreground->AddLine(ImVec2(center.x - 8.0f, center.y),
-                            ImVec2(center.x + 8.0f, center.y),
-                            crosshairColour, 2.0f);
-        foreground->AddLine(ImVec2(center.x, center.y - 8.0f),
-                            ImVec2(center.x, center.y + 8.0f),
-                            crosshairColour, 2.0f);
+        if (!player->hasOpenContainer())
+        {
+            ImDrawList *foreground = ImGui::GetForegroundDrawList();
+            const ImU32 crosshairColour = IM_COL32(255, 255, 255, 230);
+            foreground->AddLine(ImVec2(center.x - 8.0f, center.y),
+                                ImVec2(center.x + 8.0f, center.y),
+                                crosshairColour, 2.0f);
+            foreground->AddLine(ImVec2(center.x, center.y - 8.0f),
+                                ImVec2(center.x, center.y + 8.0f),
+                                crosshairColour, 2.0f);
+        }
 
         const PlayerSaveState state = player->getSaveState();
         ImGui::SetNextWindowPos(
@@ -296,6 +302,92 @@ class OgreUserInterface::Impl
         }
         ImGui::End();
         ImGui::PopStyleVar();
+    }
+
+    void drawContainer()
+    {
+        if (!player->hasOpenContainer() || world == nullptr)
+        {
+            return;
+        }
+
+        std::optional<ChestContainerView> chest =
+            ChestContainer::view(*world, *player);
+        if (!chest)
+        {
+            player->closeContainer();
+            return;
+        }
+
+        const ImGuiIO &io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(
+            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.46f),
+            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2(560.0f, 390.0f), ImGuiCond_Always);
+        ImGui::SetNextWindowBgAlpha(0.96f);
+        bool open = true;
+        const ImGuiWindowFlags flags =
+            ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings |
+            ImGuiWindowFlags_NoResize;
+        if (ImGui::Begin("Chest Container", &open, flags))
+        {
+            ImGui::TextUnformatted(
+                "Chest slots (click to take into your hotbar)");
+            for (int slot = 0; slot < chest->inventory.getSlotCount(); ++slot)
+            {
+                if (slot > 0 && slot % 3 != 0)
+                {
+                    ImGui::SameLine();
+                }
+                const InventorySlotState stack =
+                    chest->inventory.getSlot(slot);
+                const Material &material =
+                    Material::toMaterial(stack.materialId);
+                const std::string label =
+                    (stack.amount > 0 ? material.name : "Empty") + " x" +
+                    std::to_string(stack.amount) + "##chest" +
+                    std::to_string(slot);
+                if (ImGui::Button(label.c_str(), ImVec2(170.0f, 54.0f)) &&
+                    stack.amount > 0)
+                {
+                    ChestContainer::transferToPlayer(
+                        *world, *player, slot, stack.amount);
+                }
+            }
+
+            ImGui::Separator();
+            ImGui::TextUnformatted(
+                "Hotbar (click to store in the chest)");
+            for (int slot = 0; slot < player->getInventorySlotCount(); ++slot)
+            {
+                if (slot > 0)
+                {
+                    ImGui::SameLine();
+                }
+                const ItemStack &stack = player->getInventorySlot(slot);
+                const std::string label =
+                    (stack.isEmpty() ? "Empty" : stack.getMaterial().name) +
+                    " x" + std::to_string(stack.getNumInStack()) +
+                    "##player" + std::to_string(slot);
+                if (ImGui::Button(label.c_str(), ImVec2(102.0f, 50.0f)) &&
+                    !stack.isEmpty())
+                {
+                    ChestContainer::transferFromPlayer(
+                        *world, *player, slot, stack.getNumInStack());
+                }
+            }
+            ImGui::TextUnformatted(
+                "Escape or Close returns to mouse-look.");
+            if (ImGui::Button("Close", ImVec2(100.0f, 32.0f)))
+            {
+                open = false;
+            }
+        }
+        ImGui::End();
+        if (!open)
+        {
+            player->closeContainer();
+        }
     }
 
     void drawDebugPanels()
@@ -417,6 +509,7 @@ class OgreUserInterface::Impl
     Ogre::SceneManager *sceneManager = nullptr;
     Ogre::Camera *camera = nullptr;
     Player *player = nullptr;
+    World *world = nullptr;
     WorldDebugStats worldStats;
     bool showDebugPanel = false;
     bool initialized = false;
@@ -427,8 +520,10 @@ class OgreUserInterface::Impl
 
 OgreUserInterface::OgreUserInterface(Ogre::RenderWindow &window,
                                      Ogre::SceneManager &sceneManager,
-                                     Ogre::Camera &camera, Player &player)
-    : m_impl(std::make_unique<Impl>(window, sceneManager, camera, player))
+                                     Ogre::Camera &camera, Player &player,
+                                     World &world)
+    : m_impl(std::make_unique<Impl>(window, sceneManager, camera, player,
+                                    world))
 {
     m_impl->initialize(this);
 }
@@ -508,12 +603,14 @@ void OgreUserInterface::mouseButton(const OIS::MouseEvent &event,
 
 bool OgreUserInterface::wantsKeyboardInput() const
 {
-    return ImGui::GetIO().WantCaptureKeyboard;
+    return m_impl->player->hasOpenContainer() ||
+           ImGui::GetIO().WantCaptureKeyboard;
 }
 
 bool OgreUserInterface::wantsMouseInput() const
 {
-    return ImGui::GetIO().WantCaptureMouse;
+    return m_impl->player->hasOpenContainer() ||
+           ImGui::GetIO().WantCaptureMouse;
 }
 
 bool OgreUserInterface::isDebugPanelVisible() const noexcept
@@ -541,6 +638,7 @@ OgreUserInterfaceValidation OgreUserInterface::validateConfiguration(
         RuntimeDebugOptions::showDebugInfoAtStartup();
     validation.hotbarSlots = state.inventory.size();
     validation.selectedSlot = state.heldItem;
+    validation.containerOpen = player.hasOpenContainer();
     if (state.inventory.empty())
     {
         validation.message = "player hotbar is empty";

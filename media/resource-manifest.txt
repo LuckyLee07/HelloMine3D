@@ -3,6 +3,7 @@
 
 block|media/blocks/Air.block
 block|media/blocks/Cactus.block
+block|media/blocks/Chest.block
 block|media/blocks/CoalOre.block
 block|media/blocks/DeadShrub.block
 block|media/blocks/Dirt.block

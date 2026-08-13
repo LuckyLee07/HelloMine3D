@@ -21,6 +21,7 @@ namespace OIS
 }
 
 class Player;
+class World;
 struct WorldDebugStats;
 
 struct OgreUserInterfaceValidation
@@ -29,6 +30,7 @@ struct OgreUserInterfaceValidation
     bool debugPanelVisible = false;
     std::size_t hotbarSlots = 0;
     int selectedSlot = -1;
+    bool containerOpen = false;
     std::string message;
 };
 
@@ -37,7 +39,7 @@ class OgreUserInterface final : public Ogre::RenderQueueListener
   public:
     OgreUserInterface(Ogre::RenderWindow &window,
                       Ogre::SceneManager &sceneManager,
-                      Ogre::Camera &camera, Player &player);
+                      Ogre::Camera &camera, Player &player, World &world);
     ~OgreUserInterface() override;
 
     OgreUserInterface(const OgreUserInterface &) = delete;

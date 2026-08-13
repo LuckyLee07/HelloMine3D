@@ -1,6 +1,7 @@
 #ifndef PLAYER_H_INCLUDED
 #define PLAYER_H_INCLUDED
 
+#include <optional>
 #include <vector>
 
 #include "../Entity/Entity.h"
@@ -35,6 +36,14 @@ class Player : public Entity {
     bool removeHeldItem(int amount = 1);
 
     ItemStack &getHeldItems();
+    const ItemStack &getInventorySlot(int index) const;
+    int getInventorySlotCount() const;
+    int getInventoryCapacity(const Material &material) const;
+    int removeInventoryItem(int slot, int amount);
+    void openContainer(const glm::ivec3 &containerPosition);
+    void closeContainer() noexcept;
+    bool hasOpenContainer() const noexcept;
+    const std::optional<glm::ivec3> &getOpenContainer() const noexcept;
     bool isFlying() const noexcept;
     bool isSneaking() const noexcept;
     PlayerSaveState getSaveState() const;
@@ -48,6 +57,7 @@ class Player : public Entity {
     bool m_isSneak = false;
 
     Inventory m_inventory;
+    std::optional<glm::ivec3> m_openContainer;
     PlayerController m_controller;
     glm::vec3 m_acceleration;
 };
