@@ -4,6 +4,7 @@
 #include "SectionMeshInput.h"
 
 #include "../Block/BlockData.h"
+#include "../Block/BlockBehavior.h"
 #include "../Block/BlockDatabase.h"
 #include "../Block/BlockTextureCoordinates.h"
 #include "../Block/BlockDefinition.h"
@@ -114,7 +115,9 @@ void ChunkMeshBuilder::buildMesh()
 
         if (renderInfo.meshType == BlockMeshType::Resource) {
             addResourceShapeToMesh(renderInfo.shape,
-                                   renderInfo.texTopCoord, position);
+                                   renderInfo.texTopCoord, position,
+                                   definition.behavior->verticalRenderScale(
+                                       definition, block));
             continue;
         }
 
@@ -387,7 +390,7 @@ void ChunkMeshBuilder::setActiveMesh(ChunkBlock block)
 
 void ChunkMeshBuilder::addResourceShapeToMesh(
     const BlockShape &shape, const glm::ivec2 &textureCoords,
-    const glm::ivec3 &blockPosition)
+    const glm::ivec3 &blockPosition, float verticalScale)
 {
     const auto texCoords =
         BlockTextureCoordinates::get(textureCoords.x, textureCoords.y);
@@ -395,7 +398,11 @@ void ChunkMeshBuilder::addResourceShapeToMesh(
         LIGHT_X, m_pInput->getCombinedLight(
                      blockPosition.x, blockPosition.y, blockPosition.z));
     for (const BlockShapeFace &face : shape.faces) {
-        m_pActiveMesh->addFace(face, texCoords, m_pInput->getLocation(),
+        BlockShapeFace scaledFace = face;
+        for (std::size_t y = 1; y < scaledFace.size(); y += 3) {
+            scaledFace[y] *= verticalScale;
+        }
+        m_pActiveMesh->addFace(scaledFace, texCoords, m_pInput->getLocation(),
                                blockPosition, light);
     }
 }

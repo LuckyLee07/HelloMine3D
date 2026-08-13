@@ -11,6 +11,12 @@ namespace TallGrass {
 constexpr BlockMetadata_t Immature = 0;
 constexpr BlockMetadata_t Mature = 1;
 } // namespace TallGrass
+namespace WheatCrop {
+constexpr BlockMetadata_t Planted = 0;
+constexpr BlockMetadata_t Growing = 1;
+constexpr BlockMetadata_t Ripening = 2;
+constexpr BlockMetadata_t Mature = 3;
+} // namespace WheatCrop
 } // namespace BlockMetadata
 
 struct ChunkBlock {

@@ -235,6 +235,7 @@ artifacts:
 | `docs/screenshots/validation-container.png` | The D2 chest window with nine bounded slots, populated fixture stacks, the five-slot player hotbar and Close/Escape guidance over the live Ogre world. |
 | `docs/screenshots/validation-natural-mobs.png` | A D3 Mob produced by the normal fixed-tick population path, with the panel reporting four live actors, natural population `4 / 12`, seven attempts and four additions. The 1584x861 PNG SHA-256 is `D86C91C535818CABB4320B57B087F6353149D56FE3881E2DCDCB7832725AE4A4`. |
 | `docs/screenshots/validation-combat-hud.png` | The D4 combat fixture places one green Mob under the crosshair and applies non-lethal damage through the normal player damage path. The persistent HUD reports `Health 14 / 20`, while the panel reports one live actor. The 1584x861 PNG SHA-256 is `5EB9A5E1344909652EDE9A80D1A6AB08FF8A7B303DA1B928D7E672F6D0132237`. |
+| `docs/screenshots/validation-wheat-crop.png` | The D5 crop fixture places planted, growing, ripening and mature wheat from left to right using the same metadata-aware resource mesh as gameplay. Their heights are 25%, 50%, 75% and 100%; the panel reports three immature indexed crops and one active random-tick section. The 1584x861 PNG independently decodes through ffmpeg and has SHA-256 `5262B39A729318355B91FC4ABE8CB0D337F340B97FE0069DF5B30CD5C21FE8BF`. |
 
 The skybox was previously black even though all six source PNGs loaded. The
 material supplied six independent 2D textures with `separateUV`, while the

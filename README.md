@@ -35,11 +35,11 @@ The Windows sandbox-foundation scope is complete. The next executable roadmap
 is recorded in `docs/todolist.md` rather than inferred from the historical
 seven-day notes below:
 
-1. finish the physical-input acceptance for the implemented D2 chest and D4
-   combat paths;
-2. continue the D5-D6 playable vertical slice through one crop loop,
-   persistence and combined hardware acceptance (D3-D4 are implemented);
-3. add the remaining R soak, physical-input and clean-root packaging gates;
+1. run the R2 long soak and finish the R3 physical-input acceptance for the
+   implemented D2 chest and D4 combat paths;
+2. close D6 by combining the implemented D3-D5 mob, combat, crop, container
+   and persistence paths into one playable vertical slice;
+3. add the R5 clean-root packaging gate;
 4. add the bounded X1-X3 read-only resource-pack layer.
 
 Native macOS acceptance (B3) and formal ThreadSanitizer evidence (R4) remain

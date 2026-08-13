@@ -1,0 +1,26 @@
+Name
+Wheat Crop
+
+Id
+17
+
+TexAll
+11 0
+
+Opaque
+0
+
+MeshType
+1
+
+Shape
+Cross
+
+ShaderType
+2
+
+Light
+0
+
+Collidable
+0

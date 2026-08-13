@@ -232,7 +232,8 @@ bool ChunkSection::selectRandomTickBlock(std::size_t selection,
         return false;
     }
 
-    const int index = static_cast<int>(selection % CHUNK_VOLUME);
+    const int index = static_cast<int>(m_randomTickBlocks[
+        selection % m_randomTickBlocks.size()]);
     const int y = index / CHUNK_AREA;
     const int remainder = index % CHUNK_AREA;
     const int z = remainder / CHUNK_SIZE;

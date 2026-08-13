@@ -22,6 +22,9 @@ const Material Material::GLASS_BLOCK(ID::Glass, 99, true, "Glass Block");
 const Material Material::BORDERLESS_GLASS_BLOCK(
     ID::GlassBorderless, 99, true, "Borderless Glass Block");
 const Material Material::CHEST_BLOCK(ID::Chest, 99, true, "Chest");
+const Material Material::WHEAT_SEEDS(ID::WheatSeeds, 99, true,
+                                     "Wheat Seeds");
+const Material Material::WHEAT(ID::Wheat, 99, false, "Wheat");
 
 Material::Material(Material::ID id, int maxStack, bool isBlock,
                    std::string &&name)
@@ -83,6 +86,9 @@ BlockId Material::toBlockID() const
         case Chest:
             return BlockId::Chest;
 
+        case WheatSeeds:
+            return BlockId::WheatCrop;
+
         default:
             return BlockId::NUM_TYPES;
     }
@@ -136,6 +142,9 @@ const Material &Material::toMaterial(BlockId id)
         case BlockId::Chest:
             return CHEST_BLOCK;
 
+        case BlockId::WheatCrop:
+            return WHEAT_SEEDS;
+
         default:
             return NOTHING;
     }
@@ -188,6 +197,12 @@ const Material &Material::toMaterial(Material::ID id)
 
         case Chest:
             return CHEST_BLOCK;
+
+        case WheatSeeds:
+            return WHEAT_SEEDS;
+
+        case Wheat:
+            return WHEAT;
 
         default:
             return NOTHING;

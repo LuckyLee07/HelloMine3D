@@ -213,6 +213,17 @@ ignored. This same-session A/B is the accepted D4 comparison evidence because
 it controls the observed driver regime instead of silently comparing unlike
 frame pacing.
 
+The D5 follow-up repeated that same-session control method after the local
+driver accepted `vsync=true` but stopped pacing the hidden/no-activate window
+at 60 Hz. Commit `023b9d3` was built as a fresh Release control immediately
+before the D5 Release candidate. Both runs used seed `20260809`, player
+position `264 96 8`, a 1600x900 window, 361 loaded chunks and 2,313 sections.
+The D4 control recorded P95/P99 `3.804/11.667 ms`; D5 recorded
+`1.023/3.131 ms`. Both had zero >50 ms frames and R1 returned `PASS`. These
+uncapped numbers establish only that D5 did not regress under the shared
+runtime regime; they are not treated as an FPS improvement and must not be
+mixed with the accepted 60.1 FPS baselines.
+
 ## W4 Terrain Buffer Measurement
 
 The Ogre terrain path uses one tightly packed vertex stream for solid,

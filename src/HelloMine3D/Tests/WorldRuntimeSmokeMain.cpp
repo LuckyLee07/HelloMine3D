@@ -3401,6 +3401,192 @@ void caseCombatAndRespawn()
 }
 
 // ---------------------------------------------------------------------------
+// D5 - seed acquisition, crop growth, harvest, replant and persistence
+// ---------------------------------------------------------------------------
+void caseWheatCropLoop()
+{
+    const auto &cropDefinition =
+        BlockDatabase::get().getDefinition(BlockId::WheatCrop);
+    const ChunkBlock planted(
+        BlockId::WheatCrop, BlockMetadata::WheatCrop::Planted);
+    const ChunkBlock growing(
+        BlockId::WheatCrop, BlockMetadata::WheatCrop::Growing);
+    const ChunkBlock ripening(
+        BlockId::WheatCrop, BlockMetadata::WheatCrop::Ripening);
+    const ChunkBlock mature(
+        BlockId::WheatCrop, BlockMetadata::WheatCrop::Mature);
+    check("D5/crop-definition-and-materials-registered",
+          cropDefinition.stringId == "hellomine:wheatcrop" &&
+              cropDefinition.render.meshType == BlockMeshType::Resource &&
+              cropDefinition.render.shaderType == BlockShaderType::Flora &&
+              cropDefinition.render.shape.name == "Cross" &&
+              cropDefinition.render.texTopCoord == glm::ivec2(11, 0) &&
+              Material::toMaterial(BlockId::WheatCrop).id ==
+                  Material::ID::WheatSeeds &&
+              Material::WHEAT_SEEDS.toBlockID() == BlockId::WheatCrop &&
+              !Material::WHEAT.isBlock);
+    check("D5/metadata-controls-visible-growth",
+          std::abs(cropDefinition.behavior->verticalRenderScale(
+                       cropDefinition, planted) - 0.25f) < 0.001f &&
+              std::abs(cropDefinition.behavior->verticalRenderScale(
+                           cropDefinition, mature) - 1.f) < 0.001f);
+
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+    const auto directory = freshSaveDirectory("wheat_crop_loop");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+
+    const auto countPlayer = [&player](Material::ID materialId) {
+        int total = 0;
+        for (int slot = 0; slot < player.getInventorySlotCount(); ++slot) {
+            const ItemStack &stack = player.getInventorySlot(slot);
+            if (stack.getMaterial().id == materialId) {
+                total += stack.getNumInStack();
+            }
+        }
+        return total;
+    };
+    const auto selectMaterial = [&player](Material::ID materialId) {
+        for (int slot = 0; slot < player.getInventorySlotCount(); ++slot) {
+            if (player.getInventorySlot(slot).getMaterial().id ==
+                materialId) {
+                PlayerInputState input;
+                input.hotbarSlot = slot;
+                player.applyInput(input);
+                return true;
+            }
+        }
+        return false;
+    };
+
+    constexpr int cropY = 101;
+    const glm::ivec3 grassPosition{8, cropY, 8};
+    world.setBlock(grassPosition.x, grassPosition.y, grassPosition.z,
+                   ChunkBlock(BlockId::TallGrass,
+                              BlockMetadata::TallGrass::Mature));
+    const bool gatheredSeed = BlockInteractionSystem::breakBlock(
+        world, player, glm::vec3(grassPosition) + glm::vec3(0.5f));
+    check("D5/mature-grass-provides-seed",
+          gatheredSeed && countPlayer(Material::ID::TallGrass) == 1 &&
+              countPlayer(Material::ID::WheatSeeds) == 1);
+
+    const glm::ivec3 invalidPosition{10, cropY, 10};
+    world.setBlock(invalidPosition.x, invalidPosition.y - 1,
+                   invalidPosition.z, BlockId::Stone);
+    world.setBlock(invalidPosition.x, invalidPosition.y,
+                   invalidPosition.z, BlockId::Air);
+    const bool selectedInitialSeed =
+        selectMaterial(Material::ID::WheatSeeds);
+    const bool invalidPlant = BlockInteractionSystem::placeBlock(
+        world, player, glm::vec3(invalidPosition) + glm::vec3(0.5f));
+    check("D5/planting-rejects-invalid-support",
+          selectedInitialSeed && !invalidPlant &&
+              countPlayer(Material::ID::WheatSeeds) == 1 &&
+              world.getBlock(invalidPosition.x, invalidPosition.y,
+                             invalidPosition.z) == BlockId::Air);
+
+    const glm::ivec3 cropPosition{11, cropY, 11};
+    world.setBlock(cropPosition.x, cropPosition.y - 1, cropPosition.z,
+                   BlockId::Dirt);
+    world.setBlock(cropPosition.x, cropPosition.y, cropPosition.z,
+                   BlockId::Air);
+    const bool validPlant = BlockInteractionSystem::placeBlock(
+        world, player, glm::vec3(cropPosition) + glm::vec3(0.5f));
+    check("D5/seed-plants-on-dirt",
+          validPlant && countPlayer(Material::ID::WheatSeeds) == 0 &&
+              world.getBlock(cropPosition.x, cropPosition.y,
+                             cropPosition.z) == planted);
+
+    world.tick(200);
+    const WorldDebugStats firstGrowth = world.collectDebugStats();
+    check("D5/random-tick-advances-one-stage",
+          world.getBlock(cropPosition.x, cropPosition.y,
+                         cropPosition.z) == growing &&
+              firstGrowth.randomTicksDispatched == 1 &&
+              firstGrowth.randomTickBlocks == 1);
+
+    const bool brokeImmature = BlockInteractionSystem::breakBlock(
+        world, player, glm::vec3(cropPosition) + glm::vec3(0.5f));
+    check("D5/immature-crop-returns-seed-only",
+          brokeImmature && countPlayer(Material::ID::WheatSeeds) == 1 &&
+              countPlayer(Material::ID::Wheat) == 0);
+
+    const bool selectedReturnedSeed =
+        selectMaterial(Material::ID::WheatSeeds);
+    const bool replantedForGrowth = BlockInteractionSystem::placeBlock(
+        world, player, glm::vec3(cropPosition) + glm::vec3(0.5f));
+    world.tick(201);
+    world.tick(202);
+    world.tick(203);
+    check("D5/bounded-random-ticks-reach-maturity",
+          selectedReturnedSeed && replantedForGrowth &&
+              world.getBlock(cropPosition.x, cropPosition.y,
+                             cropPosition.z) == mature &&
+              world.collectDebugStats().randomTickBlocks == 0);
+
+    const bool harvested = BlockInteractionSystem::breakBlock(
+        world, player, glm::vec3(cropPosition) + glm::vec3(0.5f));
+    check("D5/mature-harvest-yields-wheat-and-seed",
+          harvested && countPlayer(Material::ID::Wheat) == 1 &&
+              countPlayer(Material::ID::WheatSeeds) == 1);
+    const bool selectedHarvestSeed =
+        selectMaterial(Material::ID::WheatSeeds);
+    const bool replantedAfterHarvest = BlockInteractionSystem::placeBlock(
+        world, player, glm::vec3(cropPosition) + glm::vec3(0.5f));
+    check("D5/harvest-seed-replants-crop",
+          selectedHarvestSeed && replantedAfterHarvest &&
+              countPlayer(Material::ID::WheatSeeds) == 0 &&
+              countPlayer(Material::ID::Wheat) == 1 &&
+              world.getBlock(cropPosition.x, cropPosition.y,
+                             cropPosition.z) == planted);
+
+    world.setBlock(cropPosition.x, cropPosition.y, cropPosition.z,
+                   BlockId::Air);
+    constexpr int remoteChunkX = 4;
+    const glm::ivec3 unloadedPosition{
+        remoteChunkX * CHUNK_SIZE + 1, cropY, 1};
+    world.getChunkManager().loadChunk(remoteChunkX, 0);
+    world.setBlock(unloadedPosition.x, unloadedPosition.y - 1,
+                   unloadedPosition.z, BlockId::Grass);
+    world.setBlock(unloadedPosition.x, unloadedPosition.y,
+                   unloadedPosition.z, growing);
+    world.getChunkManager().unloadChunk(remoteChunkX, 0);
+    world.tick(300);
+    world.getChunkManager().loadChunk(remoteChunkX, 0);
+    check("D5/unloaded-crop-does-not-tick",
+          world.getBlock(unloadedPosition.x, unloadedPosition.y,
+                         unloadedPosition.z) == growing);
+
+    const auto persistenceDirectory =
+        freshSaveDirectory("wheat_crop_persistence");
+    const glm::ivec3 persistedPosition{12, cropY, 12};
+    {
+        Player savingPlayer;
+        World savingWorld(camera, config, savingPlayer,
+                          persistenceDirectory, false, 1);
+        savingWorld.setBlock(persistedPosition.x,
+                             persistedPosition.y - 1,
+                             persistedPosition.z, BlockId::Dirt);
+        savingWorld.setBlock(persistedPosition.x, persistedPosition.y,
+                             persistedPosition.z, ripening);
+        check("D5/crop-stage-save-succeeds", savingWorld.save());
+    }
+    {
+        Player loadedPlayer;
+        World loadedWorld(camera, config, loadedPlayer,
+                          persistenceDirectory, false, 1);
+        check("D5/save-reload-preserves-crop-stage",
+              loadedWorld.getBlock(persistedPosition.x,
+                                   persistedPosition.y,
+                                   persistedPosition.z) == ripening);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // S2.3 - versioned chunk format rejects corrupt files
 // ---------------------------------------------------------------------------
 void caseChunkFormatRejection()
@@ -4228,6 +4414,7 @@ int main()
         caseChestContainer();
         caseNaturalMobPopulation();
         caseCombatAndRespawn();
+        caseWheatCropLoop();
         caseChunkFormatRejection();
         caseTerrainDeterminism();
         caseTerrainStructures();

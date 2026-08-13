@@ -25,6 +25,7 @@ enum class BlockId : Block_t {
     Glass = 14,
     GlassBorderless = 15,
     Chest = 16,
+    WheatCrop = 17,
 
     NUM_TYPES
 };

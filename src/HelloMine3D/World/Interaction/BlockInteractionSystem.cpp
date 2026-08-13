@@ -83,10 +83,15 @@ bool BlockInteractionSystem::placeBlock(World &world, Player &player,
     }
 
     const auto placedBlock = material.toBlockID();
-    world.setBlock(x, y, z, placedBlock);
-    const ChunkBlock placedChunkBlock(placedBlock);
     const auto &definition =
         BlockDatabase::get().getDefinition(placedBlock);
+    if (!definition.behavior->canPlace(world, player, blockPosition,
+                                       existingBlock)) {
+        return false;
+    }
+
+    world.setBlock(x, y, z, placedBlock);
+    const ChunkBlock placedChunkBlock(placedBlock);
     definition.behavior->onPlaced(world, player, blockPosition,
                                   existingBlock, placedChunkBlock);
     player.removeHeldItem();

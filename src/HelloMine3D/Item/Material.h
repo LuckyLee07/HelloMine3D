@@ -27,13 +27,15 @@ struct Material : public NonCopyable {
         Glass,
         GlassBorderless,
         Chest,
+        WheatSeeds,
+        Wheat,
         Count
     };
 
     const static Material NOTHING, GRASS_BLOCK, DIRT_BLOCK, STONE_BLOCK,
         OAK_BARK_BLOCK, OAK_LEAF_BLOCK, SAND_BLOCK, CACTUS_BLOCK, ROSE,
         TALL_GRASS, DEAD_SHRUB, COAL_ORE_BLOCK, IRON_ORE_BLOCK, GLASS_BLOCK,
-        BORDERLESS_GLASS_BLOCK, CHEST_BLOCK;
+        BORDERLESS_GLASS_BLOCK, CHEST_BLOCK, WHEAT_SEEDS, WHEAT;
 
     Material(Material::ID id, int maxStack, bool isBlock, std::string &&name);
 

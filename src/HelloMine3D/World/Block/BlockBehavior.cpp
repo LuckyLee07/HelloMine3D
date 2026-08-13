@@ -21,6 +21,18 @@ void BlockBehavior::onRandomTick(World &, const glm::ivec3 &,
 {
 }
 
+bool BlockBehavior::canPlace(World &, const Player &, const glm::ivec3 &,
+                             const ChunkBlock &) const
+{
+    return true;
+}
+
+float BlockBehavior::verticalRenderScale(
+    const BlockDefinition &, const ChunkBlock &) const noexcept
+{
+    return 1.f;
+}
+
 void BlockBehavior::onPlaced(World &, Player &, const glm::ivec3 &,
                              const ChunkBlock &, const ChunkBlock &) const
 {

@@ -554,6 +554,35 @@ namespace
                 m_combatFixturePlaced = true;
             }
 
+            if (isTrueValue(std::getenv(
+                    "HELLOMINE3D_CROP_FIXTURE")))
+            {
+                const float yaw = glm::radians(
+                    m_worldPlayer->rotation.y + 90.0f);
+                const glm::vec3 forward(-std::cos(yaw), 0.0f,
+                                        -std::sin(yaw));
+                const glm::vec3 right(-forward.z, 0.0f, forward.x);
+                const glm::vec3 center =
+                    m_worldPlayer->position + forward * 2.75f;
+                const int cropY =
+                    World::toBlockCoord(m_worldPlayer->position.y);
+                for (int stage = 0; stage <= 3; ++stage)
+                {
+                    const float offset =
+                        (static_cast<float>(stage) - 1.5f) * 1.1f;
+                    const glm::vec3 location = center + right * offset;
+                    const int x = World::toBlockCoord(location.x);
+                    const int z = World::toBlockCoord(location.z);
+                    m_world->setBlock(x, cropY - 1, z, BlockId::Dirt);
+                    m_world->setBlock(x, cropY + 1, z, BlockId::Air);
+                    m_world->setBlock(
+                        x, cropY, z,
+                        ChunkBlock(BlockId::WheatCrop,
+                                   static_cast<BlockMetadata_t>(stage)));
+                }
+                m_cropFixturePlaced = true;
+            }
+
             const VectorXZ center = World::getChunkXZ(
                 World::toBlockCoord(m_worldPlayer->position.x),
                 World::toBlockCoord(m_worldPlayer->position.z));
@@ -847,7 +876,8 @@ namespace
                 RuntimePerformanceCapture::isEnabled();
             const bool freezeValidationCapture =
                 (m_validationActorsSpawned || m_oreFixturePlaced ||
-                 m_containerFixturePlaced || m_combatFixturePlaced) &&
+                 m_containerFixturePlaced || m_combatFixturePlaced ||
+                 m_cropFixturePlaced) &&
                 m_renderCapture != nullptr &&
                 m_renderCapture->isEnabled();
             m_sandbox->update(input,
@@ -1407,6 +1437,7 @@ namespace
         bool m_oreFixturePlaced = false;
         bool m_containerFixturePlaced = false;
         bool m_combatFixturePlaced = false;
+        bool m_cropFixturePlaced = false;
         int m_hotbarDelta = 0;
         int m_hotbarSlot = -1;
     };

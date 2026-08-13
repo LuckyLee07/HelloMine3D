@@ -21,6 +21,12 @@ class BlockBehavior {
                                      const ChunkBlock &block) const noexcept;
     virtual void onRandomTick(World &world, const glm::ivec3 &position,
                               const ChunkBlock &block) const;
+    virtual bool canPlace(World &world, const Player &player,
+                          const glm::ivec3 &position,
+                          const ChunkBlock &previousBlock) const;
+    virtual float verticalRenderScale(
+        const BlockDefinition &definition,
+        const ChunkBlock &block) const noexcept;
     virtual void onPlaced(World &world, Player &player,
                           const glm::ivec3 &position,
                           const ChunkBlock &previousBlock,

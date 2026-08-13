@@ -49,7 +49,8 @@ class ChunkMeshBuilder {
 
     void addResourceShapeToMesh(const BlockShape &shape,
                                 const glm::ivec2 &textureCoords,
-                                const glm::ivec3 &blockPosition);
+                                const glm::ivec3 &blockPosition,
+                                float verticalScale);
 
     void tryAddFaceToMesh(const std::array<float, 12> &blockFace,
                           const glm::ivec2 &textureCoords,
