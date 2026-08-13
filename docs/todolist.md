@@ -26,7 +26,8 @@ Status legend:
 
 ## Current Baseline
 
-Last refreshed 2026-08-12. Update this when a milestone closes.
+Last refreshed 2026-08-13. Update this when a milestone closes or the active
+execution scope changes.
 
 | Area | Current state | Verification |
 | ---- | ------------- | ------------ |
@@ -38,6 +39,7 @@ Last refreshed 2026-08-12. Update this when a milestone closes.
 | Performance baseline | Ogre frame/tick/counter collection is wired and the script targets the sole client. The 2026-08-12 L4 hardware baseline records 60.10 FPS, 17.54 ms frame P95 and no frames over 33 ms. | `docs/performance-baseline.md` |
 | Chunk streaming | Six-part regression from `7a229d8` diagnosed and fixed 2026-08-07, then the mesh build was moved off the world lock (M3). | `docs/chunk-streaming-regression.md` |
 | Sandbox foundation | All 44 S-milestones are Done. | `docs/sandbox-foundation-todolist.md` |
+| Active next scope | The Windows sandbox foundation is closed. The next executable scope is R1 first, then the D playable-loop milestones, the remaining R hardening/release work, and finally the bounded X resource-pack work. B3 and R4 remain host-deferred. | Milestones D, R and X below |
 
 ## Closed Milestones
 
@@ -197,42 +199,76 @@ boundaries even though the current acceptance host is Windows.
 | W3 | Done | Add a generated resource manifest before attempting resource packs. The deterministic generator discovers registered blocks and their shapes, Ogre shader and texture references, the font, resource scripts and runtime templates, then writes a sorted unique inventory. Windows startup strictly parses the checked-in manifest before Ogre construction and requires every listed file to exist and be non-empty. | The manifest contains 39 entries: 16 blocks, one shape, 10 shaders, seven textures, one font, two resource scripts and two runtime templates. The positive check passes; isolated missing-entry and existing-but-stale-entry manifests fail independently with exact diagnostics. The full Windows gate repeats generation checks, 255 world assertions, a 39-resource runtime preflight and three startup-error cases in both Debug and Release. |
 | W4 | Done | Measure the current terrain vertex layout and compress it only when the bandwidth/memory evidence justifies the added shader complexity. The unchanged interleaved layout is `float3` position, `float2` atlas UV, `float2` repeat UV and `float1` combined light: 32 bytes per vertex with four-byte indices. Live Ogre renderables now feed current resident counts and byte estimates to the debug panel and performance CSV/summary. | Two `W4/*` assertions and compile-time checks fix the 32/4-byte strides and estimation arithmetic. Debug/Release validation reports 27,176 vertices, 40,764 indices and 1,032,688 bytes (0.985 MiB) for the deterministic fixture. The archived L4 cumulative geometry is a conservative 12.456 MiB upper bound while already sustaining 60.10 FPS / 17.54 ms P95 with no frames over 33 ms. A hypothetical 20-byte packing saves at most 3.934 MiB against that overestimate, so no layout or shader change is justified; the full Windows gate passes `checks=255 failures=0`. |
 
+## Milestone D: Playable Loop
+
+Goal: turn the verified sandbox systems into one player-facing vertical slice.
+Each item must use the existing portable world, event, persistence and input
+boundaries; validation-only fixtures do not count as a completed gameplay
+feature.
+
+| ID | Status | Task | Depends on | Required acceptance |
+| -- | ------ | ---- | ---------- | ------------------- |
+| D1 | Todo | Replace the passive `BlockEntityRecord` placeholder with an owned stateful-block lifecycle. Add position-unique create/find/update/remove operations, reject invalid or duplicate records on load, remove or transfer state when its block changes, and keep the on-disk format versioned. Do not introduce a general scripting layer. | S3.6, P2, C1 | Focused save/load fixtures and `D1/*` world assertions cover create, update, chunk unload/reload, duplicate rejection, block removal and old-save compatibility. Debug and Release pass the full Windows gate. |
+| D2 | Todo | Add the first real container block and inventory UI. Right-click uses the P5 seam to open a chest, UI input suspends mouse-look without leaking clicks into break/place actions, item transfers preserve stack totals, and breaking the chest follows an explicitly tested contents policy. | D1, P5, S5.4 | `D2/*` assertions cover open/close, transfer, capacity, save/reload and break behaviour. A hardware capture shows the container UI; an interactive keyboard/mouse run confirms focus and escape handling. |
+| D3 | Todo | Move mobs from validation-only spawning into bounded live-world population. Define deterministic spawn eligibility, per-world and local caps, safe placement, unload/despawn behaviour and save restoration without duplicate actors. Keep actor lifetime owned by `ActorManager`. | P1, P2, C6 | `D3/*` assertions prove deterministic candidates, cap enforcement, safe placement, unload/reload and no duplicate restored mobs. Debug panel and performance capture expose live/capped counts; a fixed-seed hardware capture shows naturally spawned mobs. |
+| D4 | Todo | Complete the combat, death and respawn loop. Actor targeting must coexist with block selection; player attacks use the existing damage/invulnerability path, mobs can damage the player at a bounded rate, the HUD exposes health, death has an explicit inventory policy, and respawn returns to the saved spawn point. | D3, C6, S4.4 | Entity and world assertions cover targeting priority, accepted/suppressed hits, mob contact damage, death event ordering, loot, inventory policy and respawn. Interactive and hardware-render acceptance prove the input and HUD path. |
+| D5 | Todo | Add one complete crop loop using existing metadata, `BlockBehavior` and bounded random ticks: obtain seed, validate planting support, advance deterministic growth stages, harvest mature output and replant. Unloaded sections must not tick and save/reload must preserve the stage. | D2, C2, C7 | `D5/*` assertions cover invalid/valid planting, bounded growth, immature/mature drops, unload behaviour, harvest/replant and persistence. Asset/manifest checks cover every added definition and texture. |
+| D6 | Todo | Close the playable vertical slice with one fixed-seed scenario: acquire and plant a crop, use a container, encounter and defeat a mob, collect loot, save, relaunch and verify the restored world. No debug-only spawn or state injection may be required after initial fixture selection. | D2-D5, R1-R3 | One documented interactive run, deterministic headless coverage where possible, before/after performance comparison, and tracked hardware captures. The full Windows Debug/Release gate passes and `docs/runtime-validation.md` records the accepted evidence. |
+
+## Milestone R: Regression And Release Hardening
+
+Goal: make later gameplay changes measurable, repeatable and distributable.
+These tasks add gates around existing behaviour; they must not silently change
+simulation or rendering semantics.
+
+| ID | Status | Task | Depends on | Required acceptance |
+| -- | ------ | ---- | ---------- | ------------------- |
+| R1 | Todo | Add a performance-baseline comparison tool before D changes grow the scene. It must compare scene identity, build/configuration, vsync regime and final world residency before applying the documented warnings: frame P95 +15%, frame P99 +20%, material growth in frames over 50 ms, and incomparable chunk/section counts. | W4, M1 | Unit-style summary fixtures cover pass, regression, missing metric and incomparable-scene results. A real L4 baseline compared with itself passes; an intentionally degraded fixture fails with a non-zero result and exact reasons. |
+| R2 | Todo | Add a deterministic long-running Windows soak that repeatedly moves the load centre, edits blocks, exercises actor/item lifecycle, saves and reloads, and records memory, handle, queue and mesh-progress snapshots. Default developer duration may be short, but milestone acceptance is at least 30 minutes. | D1, D3, R1 | The soak has a fixed seed/action schedule, bounded output and non-zero failure codes for stalls, unbounded queue growth, invariant failures or save corruption. A 30-minute Debug or Release evidence directory is recorded without checking generated logs into Git. |
+| R3 | Todo | Turn the remaining physical OIS keyboard/mouse gap into a versioned manual acceptance protocol. Record movement, look, fly/sneak toggles, hotbar selection, break/place/use, UI focus and window focus recovery; repeat after input, window-system or player-facing UI changes. | V2, D2, D4 | `docs/runtime-validation.md` contains the checklist and evidence fields. D6 records one passing run on the target Windows hardware; automation remains non-intrusive and does not synthesize desktop input. |
+| R4 | Deferred | Run formal data-race validation for the background loader on a supported Clang/ThreadSanitizer host. Preserve V5 as the Windows stress gate and do not claim MSVC provides equivalent proof. | V5; supported TSan host | A documented sanitizer build runs the loader churn and world smoke without a race report. Resume only when an appropriate host/toolchain is available. |
+| R5 | Todo | Produce a self-contained Windows distribution directory and archive from Release output. Include the executable, effective runtime resources, configuration templates and required third-party notices; exclude saves, logs, captures, build trees and developer-only files. Validate from an isolated clean root. | D6, W2, W3 | A packaging script creates a deterministic inventory, validates it against the startup manifest, launches validation-only mode and a real window from the isolated root, and fails for a missing or stale packaged resource. Archive contents and clean-root results are recorded. |
+
+## Milestone X: Bounded Resource-Pack Support
+
+Goal: use the completed manifest/preflight work to add a small read-only
+resource override layer. This milestone explicitly excludes hot reload,
+downloaded packs, executable scripts and arbitrary native plugins.
+
+| ID | Status | Task | Depends on | Required acceptance |
+| -- | ------ | ---- | ---------- | ------------------- |
+| X1 | Todo | Define the resource-pack contract before changing lookup code: metadata/version, enabled order, root fallback, allowed resource classes, canonical paths, traversal/symlink policy and duplicate diagnostics. Directory packs come first; archive/web sources remain out of scope. | W3, R5 | The contract is documented with valid and invalid examples. Isolated parser/resolver fixtures prove deterministic precedence, fallback, incompatible-version rejection and path-escape rejection on Windows. |
+| X2 | Todo | Route existing texture, shader, shape, block-definition and font lookups through the resolver so a pack can override an existing logical resource without changing C++ gameplay registration. Startup must operate on one frozen effective view for the process lifetime. | X1 | Positive fixtures override one resource class at a time and preserve fallback for all others. Duplicate, missing and empty effective resources fail before Ogre construction with pack name, logical path and source path. Full tests and validation-only startup pass with no pack. |
+| X3 | Todo | Integrate packs with manifest generation, diagnostics, render capture and packaging. Ship one minimal example/test pack, but do not promise new block ids, behaviour scripts or runtime reload. | X2 | Generated effective manifests are sorted and reproducible; stale/missing override fixtures fail; base and packed hardware captures decode; performance comparison remains within the accepted threshold; R5 can include optional packs without weakening base-resource validation. |
+
 ## Not Recommended Yet
 
 | Direction | Reason |
 | --------- | ------ |
 | Async chunk IO | Synchronous save/load is correct now. Add a command queue only once mesh performance work exposes a real IO stall. |
 | Multiplayer | Changes world authority, event sync, entity sync, save format and input model. |
-| Lua / UGC scripting | The C++ event bus is stable but the extension points are not exercised yet. |
-| Full resource packs and hot reload | Do manifest and validation first (A1, A2). |
+| Lua / UGC scripting | First exercise the C++ extension points through D1-D5 and the bounded X resource layer. Script ownership, sandboxing and debugging require a separate design. |
+| Resource hot reload, downloaded packs or executable mods | X is deliberately a frozen read-only override layer. Runtime invalidation, network trust and executable extension points are separate systems. |
 | D3D / Vulkan backend | Ogre GL3Plus covers the Windows/macOS target (see Milestone E). |
 | Large-scale MiniGame code migration | Use it as an architectural reference, not a source. Its engine is a renamed `MINIW` fork whose API has diverged; code cannot be shared. |
 
 ## Recommended Order
 
-1. **V1-V5** — retire the last validation gaps while the context is fresh.
-2. **E0** — decouple the data layer from SFML and OpenGL. Independently
-   valuable and a prerequisite for everything in Milestone E.
-3. **P3, P4** — block outline and ore textures. Neither touches the render
-   pipeline, so they survive the migration.
-4. **E1-E5** — the Ogre migration itself.
-5. **P1, P2** — entity rendering and persistence. Deliberately deferred until
-   after E3: doing it on the current renderer means redoing it, whereas on Ogre
-   it can use `Entity`/`SceneNode` directly.
-6. **M1-M3** — mesh metrics first, then bounded queue and halo cache. Metrics
-   must land before any optimization, otherwise nothing is measurable.
-7. **L1-L4** — lighting.
-8. **M4-M5** — greedy meshing last, because face merging has to include the
-   light value in its merge criterion. Doing it before L means rewriting it.
-9. **A1-A4, B1-B4** — asset and build reliability.
-10. **C1-C6** — continue from the completed P5 `use` seam into content and behaviour expansion.
-11. **C7, W1-W4** — bounded block simulation first, then the remaining Windows-first visual, diagnostics, manifest and evidence-driven vertex work. B3 stays deferred until macOS work resumes.
+The V/E/P/M/L/A/B/C/W sequence above is complete on Windows. The active order
+for the next scope is:
 
-Two ordering constraints worth remembering, both of which cost a rewrite if
-violated:
+1. **R1** — land the comparison gate before changing the playable scene.
+2. **D1-D2** — exercise stateful blocks, use interactions, inventory, storage and UI through one container.
+3. **D3-D4** — connect the existing actor, AI, damage, drop and persistence primitives into live gameplay.
+4. **D5** — prove metadata and bounded random ticks through a complete player-visible crop loop.
+5. **R2-R3** — soak the expanded world and close the physical input acceptance gap.
+6. **D6** — accept the combined vertical slice with saved state, hardware evidence and performance comparison.
+7. **R5** — package that accepted slice from a clean root.
+8. **X1-X3** — add the bounded read-only resource override layer after the base game and package are stable.
+9. **B3 and R4** — resume only on hosts that can provide native macOS and ThreadSanitizer evidence.
 
-- **Migration before lighting** — both rewrite the mesh and shader layer.
-- **Lighting before greedy meshing** — merged faces must share a light value.
+Do not start a dependent item merely because its implementation is convenient;
+the dependency and acceptance rows above define when it may close.
 
 ## Validation Matrix
 
@@ -248,8 +284,12 @@ Every completed task should list which validations were run.
 | World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | Chunk, storage, interaction, event, actor or terrain changes |
 | Render smoke | `tools\run_render_capture.ps1` | Renderer, shader, texture, mesh upload or frame sequencing changes |
 | Performance baseline | `tools\run_perf_baseline.ps1` | Chunk loading, mesh building, update flow or render submission changes |
+| Performance comparison | R1 comparison tool (planned) | Every D, R5 or X change that can alter frame timing or world residency |
 | Asset check | `sh scripts/check_assets.sh` | Asset and data changes |
 | Interactive run | `bin\HelloMine3D.exe` | Input, camera or player-facing UI changes |
+| Physical input checklist | R3 protocol (planned) | Input, window-system, container UI or combat changes |
+| Long-running soak | R2 runner (planned) | Chunk lifecycle, actor lifecycle, persistence or background-loader changes |
+| Clean-root package smoke | R5 packager/validator (planned) | Release packaging, manifest or resource resolver changes |
 
 ## Iteration Report Template
 
@@ -268,7 +308,11 @@ Validation run:
 - [ ] bin\HelloMine3DWorldRuntimeSmoke.exe
 - [ ] tools\run_render_capture.ps1
 - [ ] tools\run_perf_baseline.ps1
+- [ ] R1 performance comparison, when available
+- [ ] R2 soak, when required
 - [ ] Interactive run
+- [ ] R3 physical input checklist, when required
+- [ ] R5 clean-root package smoke, when required
 
 Before metrics:
 - frame_p95_ms:
@@ -283,6 +327,12 @@ After metrics:
 - validation checks/failures:
 
 Known risks:
+-
+
+Dependency status:
+-
+
+Acceptance evidence:
 -
 
 Next recommended task:

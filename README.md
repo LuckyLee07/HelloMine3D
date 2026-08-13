@@ -18,7 +18,7 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 
 | Document | Contents |
 | -------- | -------- |
-| `docs/todolist.md` | The executable task list, validation matrix, and iteration report template. Start here. |
+| `docs/todolist.md` | The executable task list, dependency order, acceptance matrix, and iteration report template. Start here. |
 | `docs/architecture.md` | Current code boundaries and the mapping from the original project layout. |
 | `docs/sandbox-foundation-todolist.md` | Detailed record of the S0-S7 sandbox foundation milestones. |
 | `docs/ogre-migration-plan.md` | Plan for moving the render backend to Ogre 1.10 (milestones E0-E5). |
@@ -28,6 +28,23 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 | `docs/performance-baseline.md` | Non-intrusive frame timing and chunk counter baseline. |
 | `docs/chunk-streaming-regression.md` | Diagnosis and fix of the terrain streaming regression. |
 | `docs/minigame-reference.md` | Notes on MiniGame modules that can inform future work. |
+
+### Current Development Direction
+
+The Windows sandbox-foundation scope is complete. The next executable roadmap
+is recorded in `docs/todolist.md` rather than inferred from the historical
+seven-day notes below:
+
+1. add the R1 performance comparison gate;
+2. build the D1-D6 playable vertical slice around a stateful container, live
+   mobs/combat, one crop loop, persistence and hardware acceptance;
+3. add the remaining R soak, physical-input and clean-root packaging gates;
+4. add the bounded X1-X3 read-only resource-pack layer.
+
+Native macOS acceptance (B3) and formal ThreadSanitizer evidence (R4) remain
+deferred until suitable hosts are available. Multiplayer, scriptable mods,
+resource hot reload and additional render backends are not part of the active
+scope.
 
 Original challenge video: https://www.youtube.com/watch?v=Xq3isov6mZ8
 

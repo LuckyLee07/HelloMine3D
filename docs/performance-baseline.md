@@ -244,15 +244,22 @@ Do not compare against `bin/perf_baseline_20260707201831896-39828` (73 frames at
 
 ## Baseline Policy
 
-For now this benchmark is informational. Use it to create comparable run
-folders before and after risky changes. Once a stable current baseline is
-accepted, add threshold checks in a later compare script:
+The L4 hardware run is the accepted current reference, but this benchmark
+remains informational until roadmap item R1 adds the comparison gate. R1 must
+first reject runs whose scene identity, build/configuration, vsync regime or
+final chunk/section residency are not comparable, then return a non-zero
+regression result for these thresholds:
 
 - warn when `frame_p95_ms` grows by more than 15%;
 - warn when `frame_p99_ms` grows by more than 20%;
 - warn when `frames_over_50ms` increases materially;
 - warn when final chunk/section counts differ enough that two runs are not
   comparable.
+
+The R1 acceptance contract and required pass/fail fixtures are tracked in
+`docs/todolist.md` and `docs/runtime-validation.md`. Later milestones must not
+copy these thresholds into separate scripts or silently choose a different
+reference run.
 
 ## When To Run
 

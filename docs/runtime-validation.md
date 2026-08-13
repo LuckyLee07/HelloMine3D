@@ -3,8 +3,10 @@
 This document describes how sandbox foundation behaviour is validated at
 runtime, without a human driving the client window.
 
-Three layers exist. Together they are the acceptance gate for the S0-S7
-milestones in `docs/sandbox-foundation-todolist.md`.
+Three implemented layers exist. Together they are the current acceptance gate
+for the S0-S7 foundation and the completed milestones in `docs/todolist.md`.
+Planned D/R/X work must extend these layers as described below before its task
+may move to `Done`.
 
 | Layer | Target | Answers |
 | ----- | ------ | ------- |
@@ -91,6 +93,50 @@ These need a person at the keyboard or a different harness:
 | Physical OIS keyboard/mouse response | The GL3+ client creates and captures both OIS devices, and V2 deterministically verifies the resulting `PlayerInputState` controller seam. A human-at-keyboard check remains appropriate after platform/window-system changes because desktop input injection is deliberately outside the non-intrusive capture harness. |
 | Formal data-race detection for the background loader (S0.3) | The V5 stress scenario exercises the real worker and covers the formerly unlocked chunk-map read, but MSVC still provides no ThreadSanitizer proof. |
 
+## Planned Acceptance Extensions
+
+This table is a contract for future work, not evidence that the tools or
+features already exist. The authoritative status remains in
+`docs/todolist.md`. A milestone may only close after the named evidence is
+implemented, run and added to `Current Verified Runs` with its date and result.
+
+| Scope | Required extension | Evidence required to close |
+| ----- | ------------------ | -------------------------- |
+| R1 performance comparison | Compare two performance summaries only after build configuration, scene identity, vsync regime and final chunk/section residency are compatible. Apply the documented P95 +15%, P99 +20% and material `frames_over_50ms` warnings as a non-zero regression result. | Deterministic pass/fail/incomparable fixtures, a current baseline self-compare and one intentional regression fixture. Record both input run ids and the comparison result. |
+| D1-D2 stateful container | Extend focused save/load and world runtime coverage for block-entity ownership, unique positions, container transfer, block removal and compatibility. Add a client fixture for container UI without bypassing the P5 use path. | Debug/Release assertions, one decoded hardware capture, and the R3 keyboard/mouse checklist covering open, transfer, close, escape and focus recovery. |
+| D3-D4 live mobs and combat | Cover deterministic spawn candidates, population caps, safe placement, restore deduplication, actor targeting, accepted/suppressed damage, death/drop ordering and player respawn. Validation-only spawn helpers remain fixture-only and cannot satisfy D6. | Focused actor tests, world assertions, live/capped counters, a fixed-seed hardware capture and R3 attack/input evidence. |
+| D5 crop loop | Cover support checks, metadata stages, random-tick budgets, unloaded-section exclusion, immature/mature drops, harvest/replant and persistence. | World assertions plus asset and generated-manifest checks for every new block, material, shape or texture. |
+| R2 long-running soak | Use a fixed seed and versioned action schedule to repeat load-centre movement, block edits, actor/item lifecycle and save/reload while sampling memory, process handles, dirty queues and mesh progress. Developer runs may be shorter; milestone evidence is at least 30 minutes. | Timestamped summary and bounded logs outside Git. Fail non-zero on invariant errors, save corruption, stalled mesh progress or unbounded counter growth; record build configuration, seed, duration and peak/final counters. |
+| R3 physical OIS input | Keep desktop input non-intrusive: a person verifies movement, look, fly/sneak toggles, hotbar, break/place/use, UI focus and window focus recovery. | Record date, commit, build configuration, GPU/window mode, each checklist result and any deviation. Repeat after input, window-system, container UI or combat changes. |
+| D6 playable slice | Run the normal fixed-seed player path through crop acquisition/planting, container use, a live mob encounter, combat, loot pickup, save, relaunch and restored-state inspection. | Full Windows gate, applicable headless assertions, R1 before/after comparison, R3 checklist and tracked decoded hardware captures. No debug-only state injection after initial fixture selection. |
+| R4 formal race detection | Build and run the loader churn/world smoke with Clang ThreadSanitizer on a supported host. | Toolchain/host details, exact command, clean sanitizer output and ordinary test result. Until then R4 remains `Deferred`; V5 is stress evidence, not a substitute. |
+| R5 clean-root package | Validate a generated Release distribution from an isolated directory, with no access to the source/build tree. Check the packaged inventory, required notices, validation-only startup, real-window startup and negative missing/stale resource cases. | Archive inventory/hash, isolated-root path, positive startup results and distinct negative diagnostics. Generated archives and logs remain untracked. |
+| X1-X3 resource packs | Exercise resolver precedence, fallback, version rejection, path-escape rejection, effective manifests and per-resource-class overrides from isolated roots. The effective view is frozen before Ogre construction. | No-pack compatibility, valid-pack Debug/Release startup, missing/stale/duplicate/path-escape failures, base/packed decoded captures, R1 comparison and R5 packaging coverage. |
+
+### R3 Physical Input Record
+
+Use this record for each required physical-input acceptance:
+
+```text
+Date:
+Commit:
+Configuration:
+GPU / driver:
+Window mode and size:
+
+[ ] Window focus can be lost and recovered without stuck input
+[ ] WASD movement and mouse look respond correctly
+[ ] Jump/fly/sneak toggles respond correctly
+[ ] Hotbar wheel/number selection responds correctly
+[ ] Left-click break/attack selects the intended target
+[ ] Right-click use/place selects the intended action
+[ ] Container UI captures mouse and keyboard without world-action leakage
+[ ] Escape/close restores mouse-look and gameplay input
+
+Deviations:
+-
+```
+
 ## Current Verified Runs
 
 | Layer | Command | Result |
@@ -148,4 +194,8 @@ and performance records.
 
 Run the full set before closing any milestone. Run the world runtime smoke
 after any change to chunk addressing, chunk storage, block interaction, the
-event bus, actors, or terrain generation.
+event bus, actors, or terrain generation. Once implemented, also run R1 after
+changes that affect timing or residency, R2 after chunk/actor/persistence or
+background-worker changes, R3 after player-facing input/UI changes, and R5
+after manifest, resolver or packaging changes. Add each accepted run to the
+table above rather than relying on an untracked local success.
