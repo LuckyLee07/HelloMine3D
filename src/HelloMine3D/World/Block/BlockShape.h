@@ -14,5 +14,7 @@ struct BlockShape {
 
 BlockShape loadBlockShape(const std::string &name,
                           const std::string &shapeDirectory);
+BlockShape loadBlockShapeFile(const std::string &name,
+                              const std::string &path);
 
 #endif // BLOCKSHAPE_H_INCLUDED

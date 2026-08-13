@@ -326,6 +326,52 @@ project "HelloMine3DWorldRuntimeSmoke"
     }
     defines { "FREEIMAGE_LIB" }
 
+-- Deterministic long-running R2 soak over the same headless world runtime.
+project "HelloMine3DSoak"
+    configure_game_logic_target()
+    files(project_source_patterns())
+    files { source_dir .. "/Tests/SoakMain.cpp" }
+    dependson {
+        "freeimage",
+        "libjpeg",
+        "libopenjpeg",
+        "libpng",
+        "libraw",
+        "libtiff4",
+        "openexr",
+        "zlib"
+    }
+    links {
+        "freeimage",
+        "libjpeg",
+        "libopenjpeg",
+        "libpng",
+        "libraw",
+        "libtiff4",
+        "openexr",
+        "zlib"
+    }
+    defines { "FREEIMAGE_LIB" }
+
+-- X1-X3 parser, precedence, frozen-view and effective-manifest fixtures.
+project "HelloMine3DResourcePackSmoke"
+    kind "ConsoleApp"
+    location "../build/%{prj.name}"
+    targetdir "../bin"
+    debugdir "../bin"
+    objdir "../build/%{prj.name}/obj/%{cfg.platform}/%{cfg.buildcfg}"
+    files {
+        source_dir .. "/Tests/ResourcePackSmokeMain.cpp",
+        source_dir .. "/Util/ResourcePackResolver.h",
+        source_dir .. "/Util/ResourcePackResolver.cpp"
+    }
+    includedirs { source_dir }
+
+    filter "system:windows"
+        defines { "_CRT_SECURE_NO_WARNINGS" }
+
+    filter {}
+
 project "HelloMine3DCoordinateTests"
     kind "ConsoleApp"
     location "../build/%{prj.name}"

@@ -48,6 +48,8 @@ require_file "Ogre material" "$OGRE_MATERIAL"
 require_file "font" "media/fonts/rs.ttf"
 require_file "render config template" "bin/Mine.cfg"
 require_file "resource config template" "bin/MineResources.cfg"
+require_file "resource-pack config template" "bin/resource-packs.txt"
+require_file "startup resource manifest" "media/resource-manifest.txt"
 
 if [ -s "$ROOT_DIR/$BLOCK_DATABASE" ]; then
     while IFS= read -r block_name; do

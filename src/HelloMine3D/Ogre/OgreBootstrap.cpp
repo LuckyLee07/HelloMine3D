@@ -17,6 +17,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -32,6 +33,7 @@
 #include "../Player/Player.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/SandboxRuntime.h"
+#include "../Util/ResourcePackResolver.h"
 #include "../Util/ResourcePaths.h"
 #include "../World/Chunk/Chunk.h"
 #include "../World/Chunk/ChunkSection.h"
@@ -41,7 +43,6 @@
 namespace
 {
     constexpr const char* ConfigFileName = "Mine.cfg";
-    constexpr const char* ResourceFileName = "MineResources.cfg";
     constexpr const char* LogFileName = "MineOgre.log";
     constexpr const char* WindowTitle = "HelloMine3D";
     constexpr const char* SkyboxMaterial = "HelloMine3D/Skybox";
@@ -259,22 +260,18 @@ namespace
 
         std::size_t configureResources()
         {
-            Ogre::ConfigFile resourceConfig;
-            resourceConfig.load(ResourceFileName);
-
             std::size_t locationCount = 0;
-            Ogre::ConfigFile::SectionIterator sections =
-                resourceConfig.getSectionIterator();
-            while (sections.hasMoreElements())
+            for (const std::string &logicalDirectory :
+                 {std::string("media/ogre"),
+                  std::string("media/textures")})
             {
-                const Ogre::String group = sections.peekNextKey();
-                const Ogre::ConfigFile::SettingsMultiMap* settings =
-                    sections.getNext();
-                for (const auto& setting : *settings)
+                for (const std::string &directory :
+                     runtimeResourcePackResolver().resourceDirectories(
+                         logicalDirectory))
                 {
                     Ogre::ResourceGroupManager::getSingleton()
-                        .addResourceLocation(setting.second, setting.first,
-                                             group, true);
+                        .addResourceLocation(directory, "FileSystem",
+                                             "General", true);
                     ++locationCount;
                 }
             }
@@ -583,6 +580,93 @@ namespace
                 m_cropFixturePlaced = true;
             }
 
+            if (isTrueValue(std::getenv(
+                    "HELLOMINE3D_VERTICAL_SLICE_FIXTURE")))
+            {
+                const float yaw = glm::radians(
+                    m_worldPlayer->rotation.y + 90.0f);
+                const glm::vec3 forward(-std::cos(yaw), 0.0f,
+                                        -std::sin(yaw));
+                const glm::vec3 right(-forward.z, 0.0f, forward.x);
+                const int fixtureY =
+                    World::toBlockCoord(m_worldPlayer->position.y);
+                const auto blockPosition =
+                    [&](float forwardOffset, float rightOffset)
+                    {
+                        const glm::vec3 position =
+                            m_worldPlayer->position +
+                            forward * forwardOffset + right * rightOffset;
+                        return glm::ivec3{
+                            World::toBlockCoord(position.x), fixtureY,
+                            World::toBlockCoord(position.z)};
+                    };
+
+                for (int forwardStep = 2; forwardStep <= 7;
+                     ++forwardStep)
+                {
+                    for (int rightStep = -3; rightStep <= 3;
+                         ++rightStep)
+                    {
+                        const glm::ivec3 stage = blockPosition(
+                            static_cast<float>(forwardStep),
+                            static_cast<float>(rightStep));
+                        m_world->setBlock(stage.x, fixtureY - 1, stage.z,
+                                          BlockId::Stone);
+                        for (int height = 0; height <= 3; ++height)
+                        {
+                            m_world->setBlock(stage.x, fixtureY + height,
+                                              stage.z, BlockId::Air);
+                        }
+                    }
+                }
+
+                const glm::ivec3 plantedCrop = blockPosition(3.0f, -1.5f);
+                const glm::ivec3 matureCrop = blockPosition(3.0f, -0.3f);
+                for (const glm::ivec3 &crop : {plantedCrop, matureCrop})
+                {
+                    m_world->setBlock(crop.x, crop.y - 1, crop.z,
+                                      BlockId::Dirt);
+                    m_world->setBlock(crop.x, crop.y + 1, crop.z,
+                                      BlockId::Air);
+                }
+                m_world->setBlock(
+                    plantedCrop.x, plantedCrop.y, plantedCrop.z,
+                    ChunkBlock(BlockId::WheatCrop,
+                               BlockMetadata::WheatCrop::Planted));
+                m_world->setBlock(
+                    matureCrop.x, matureCrop.y, matureCrop.z,
+                    ChunkBlock(BlockId::WheatCrop,
+                               BlockMetadata::WheatCrop::Mature));
+
+                const glm::ivec3 chest = blockPosition(3.0f, 1.5f);
+                m_world->setBlock(chest.x, chest.y, chest.z,
+                                  BlockId::Chest);
+                if (!ChestContainer::initialize(*m_world, chest))
+                {
+                    throw std::runtime_error(
+                        "Vertical-slice fixture failed to initialize the chest.");
+                }
+                ContainerInventory contents(ChestContainer::SlotCount);
+                contents.addItem(Material::WHEAT, 1);
+                if (!m_world->updateBlockEntity(chest,
+                                                contents.serialize()) ||
+                    !ChestContainer::open(*m_world, *m_worldPlayer, chest))
+                {
+                    throw std::runtime_error(
+                        "Vertical-slice fixture failed to store or show the harvest.");
+                }
+
+                const glm::vec3 mobPosition =
+                    m_worldPlayer->position + forward * 5.0f + right * 1.5f;
+                m_world->spawnMob(World::NaturalMobType, mobPosition);
+                m_world->spawnItemEntity(
+                    Material::ID::Dirt, 1,
+                    m_worldPlayer->position + forward * 4.0f - right * 1.5f);
+                m_worldPlayer->addItem(Material::WHEAT_SEEDS, 1);
+                m_worldPlayer->addItem(Material::DIRT_BLOCK, 1);
+                m_verticalSliceFixturePlaced = true;
+            }
+
             const VectorXZ center = World::getChunkXZ(
                 World::toBlockCoord(m_worldPlayer->position.x),
                 World::toBlockCoord(m_worldPlayer->position.z));
@@ -877,7 +961,7 @@ namespace
             const bool freezeValidationCapture =
                 (m_validationActorsSpawned || m_oreFixturePlaced ||
                  m_containerFixturePlaced || m_combatFixturePlaced ||
-                 m_cropFixturePlaced) &&
+                 m_cropFixturePlaced || m_verticalSliceFixturePlaced) &&
                 m_renderCapture != nullptr &&
                 m_renderCapture->isEnabled();
             m_sandbox->update(input,
@@ -1273,6 +1357,14 @@ namespace
                  (m_worldPlayer == nullptr ||
                   !m_worldPlayer->hasOpenContainer())))
             {
+                if (event.state.Z.rel > 0)
+                {
+                    m_hotbarDelta = -1;
+                }
+                else if (event.state.Z.rel < 0)
+                {
+                    m_hotbarDelta = 1;
+                }
                 m_pendingLookDelta.x +=
                     static_cast<float>(event.state.X.rel);
                 m_pendingLookDelta.y +=
@@ -1438,6 +1530,7 @@ namespace
         bool m_containerFixturePlaced = false;
         bool m_combatFixturePlaced = false;
         bool m_cropFixturePlaced = false;
+        bool m_verticalSliceFixturePlaced = false;
         int m_hotbarDelta = 0;
         int m_hotbarSlot = -1;
     };
@@ -1448,7 +1541,40 @@ int runOgreBootstrap(bool validateOnly)
     try
     {
         const std::string root = ResourcePaths::projectRoot();
-        validateStartupResources(root, loadStartupResourceManifest(root));
+        const std::vector<StartupResourceRequirement> startupResources =
+            loadStartupResourceManifest(root);
+        std::vector<ResourcePackRequirement> resourceRequirements;
+        resourceRequirements.reserve(startupResources.size());
+        for (const StartupResourceRequirement &resource : startupResources)
+        {
+            resourceRequirements.push_back(
+                {resource.category, resource.relativePath});
+        }
+        runtimeResourcePackResolver().freezeFromEnvironment(
+            root, resourceRequirements);
+        validateStartupResources(root, startupResources);
+        const char *manifestOutput =
+            std::getenv("HELLOMINE3D_EFFECTIVE_MANIFEST_OUT");
+        if (manifestOutput != nullptr && manifestOutput[0] != '\0')
+        {
+            std::ofstream output(manifestOutput,
+                                 std::ios::binary | std::ios::trunc);
+            if (!output)
+            {
+                throw std::runtime_error(
+                    "Unable to write effective resource manifest to '" +
+                    std::string(manifestOutput) + "'.");
+            }
+            output << runtimeResourcePackResolver().effectiveManifest();
+        }
+        std::cout << "[RESOURCE_PACK] enabled="
+                  << runtimeResourcePackResolver().packs().size()
+                  << " overrides="
+                  << runtimeResourcePackResolver().overrideCount()
+                  << " effective="
+                  << runtimeResourcePackResolver()
+                         .effectiveResources().size()
+                  << '\n';
         OgreBootstrap bootstrap;
         if (validateOnly)
         {

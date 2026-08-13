@@ -71,13 +71,17 @@ BlockShapeFace parseFace(const std::string &path,
 BlockShape loadBlockShape(const std::string &name,
                           const std::string &shapeDirectory)
 {
+    return loadBlockShapeFile(
+        name, ResourcePaths::join(shapeDirectory, name + ".shape"));
+}
+
+BlockShape loadBlockShapeFile(const std::string &name,
+                              const std::string &path)
+{
     if (!isValidName(name)) {
         throw std::runtime_error("Invalid block shape name '" + name +
                                  "'.");
     }
-
-    const std::string path = ResourcePaths::join(
-        shapeDirectory, name + ".shape");
     std::ifstream input(path);
     if (!input.is_open()) {
         throw std::runtime_error("Unable to open block shape file '" + path +

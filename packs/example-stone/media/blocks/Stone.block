@@ -1,0 +1,23 @@
+Name
+Stone
+
+Id
+3
+
+TexAll
+2 0
+
+Opaque
+1
+
+MeshType
+0
+
+ShaderType
+0
+
+Light
+0
+
+Collidable
+1

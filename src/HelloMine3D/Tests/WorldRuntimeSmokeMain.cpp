@@ -19,6 +19,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -3587,6 +3588,274 @@ void caseWheatCropLoop()
 }
 
 // ---------------------------------------------------------------------------
+// D6 - one continuous playable loop across farming, storage and combat
+// ---------------------------------------------------------------------------
+void casePlayableVerticalSlice()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+
+    const auto directory = freshSaveDirectory("playable_vertical_slice");
+    Config config = makeConfig();
+    Camera camera(config);
+
+    const glm::ivec3 grassPosition{8, 101, 8};
+    const glm::ivec3 cropPosition{11, 101, 11};
+    const glm::ivec3 chestPosition{9, 101, 8};
+
+    auto countPlayer = [](const Player &player, Material::ID materialId) {
+        int total = 0;
+        for (int slot = 0; slot < player.getInventorySlotCount(); ++slot) {
+            const ItemStack &stack = player.getInventorySlot(slot);
+            if (stack.getMaterial().id == materialId) {
+                total += stack.getNumInStack();
+            }
+        }
+        return total;
+    };
+    auto findPlayerSlot = [](const Player &player, Material::ID materialId) {
+        for (int slot = 0; slot < player.getInventorySlotCount(); ++slot) {
+            if (player.getInventorySlot(slot).getMaterial().id ==
+                materialId) {
+                return slot;
+            }
+        }
+        return -1;
+    };
+    auto selectPlayerSlot = [](Player &player, int slot) {
+        if (slot < 0) {
+            return false;
+        }
+        PlayerInputState input;
+        input.hotbarSlot = slot;
+        player.applyInput(input);
+        return true;
+    };
+    auto prepareSpawnPads = [](World &world, const glm::vec3 &center,
+                               int spawnEpoch) {
+        for (std::size_t attempt = 0;
+             attempt < World::NaturalMobSpawnAttemptsPerCycle; ++attempt) {
+            const glm::ivec2 offset = World::naturalMobSpawnOffset(
+                world.collectDebugStats().terrainSeed, spawnEpoch, attempt);
+            const int x = World::toBlockCoord(center.x) + offset.x;
+            const int z = World::toBlockCoord(center.z) + offset.y;
+            const VectorXZ chunkPosition = World::getChunkXZ(x, z);
+            Chunk *chunk = world.getChunkManager().findChunk(
+                chunkPosition.x, chunkPosition.z);
+            if (chunk == nullptr) {
+                continue;
+            }
+            // Lift each candidate to the player's test plane. This is part of
+            // the initial fixture and lets the normal chase/pickup systems
+            // complete the encounter without teleporting the player later.
+            const int groundY = World::toBlockCoord(center.y) - 1;
+            world.setBlock(x, groundY, z, BlockId::Stone);
+            world.setBlock(x, groundY + 1, z, BlockId::Air);
+            world.setBlock(x, groundY + 2, z, BlockId::Air);
+        }
+    };
+
+    ActorId defeatedMobId = InvalidActorId;
+    BlockMetadata_t cropStageBeforeSave = 0;
+    int dirtAfterPickup = 0;
+    {
+        Player player;
+        World world(camera, config, player, directory, false, 1);
+        EventRecorder events(world.getEventBus());
+
+        // The only direct world edits in this scenario are deterministic
+        // initial fixtures. Every state transition below uses gameplay APIs.
+        world.setBlock(grassPosition.x, grassPosition.y, grassPosition.z,
+                       ChunkBlock(BlockId::TallGrass,
+                                  BlockMetadata::TallGrass::Mature));
+        world.setBlock(cropPosition.x, cropPosition.y - 1,
+                       cropPosition.z, BlockId::Dirt);
+        world.setBlock(cropPosition.x, cropPosition.y,
+                       cropPosition.z, BlockId::Air);
+        world.setBlock(chestPosition.x, chestPosition.y,
+                       chestPosition.z, BlockId::Chest);
+        const bool chestInitialized =
+            ChestContainer::initialize(world, chestPosition);
+        for (int x = 4; x <= 12; ++x) {
+            for (int z = 4; z <= 12; ++z) {
+                world.setBlock(x, 99, z, BlockId::Stone);
+            }
+        }
+        prepareSpawnPads(world, player.position, 1);
+
+        const bool gatheredSeed = BlockInteractionSystem::breakBlock(
+            world, player, glm::vec3(grassPosition) + glm::vec3(0.5f));
+        const int seedSlot =
+            findPlayerSlot(player, Material::ID::WheatSeeds);
+        const bool planted =
+            selectPlayerSlot(player, seedSlot) &&
+            BlockInteractionSystem::placeBlock(
+                world, player,
+                glm::vec3(cropPosition) + glm::vec3(0.5f));
+        check("D6/gather-and-plant-through-gameplay",
+              chestInitialized && gatheredSeed && planted &&
+                  countPlayer(player, Material::ID::WheatSeeds) == 0 &&
+                  world.getBlock(cropPosition.x, cropPosition.y,
+                                 cropPosition.z) ==
+                      ChunkBlock(BlockId::WheatCrop,
+                                 BlockMetadata::WheatCrop::Planted));
+
+        world.tick(1);
+        world.tick(2);
+        world.tick(3);
+        const bool harvested = BlockInteractionSystem::breakBlock(
+            world, player,
+            glm::vec3(cropPosition) + glm::vec3(0.5f));
+        check("D6/grow-and-harvest-through-random-ticks",
+              harvested &&
+                  countPlayer(player, Material::ID::Wheat) == 1 &&
+                  countPlayer(player, Material::ID::WheatSeeds) == 1);
+
+        const bool opened = BlockInteractionSystem::useBlock(
+            world, player,
+            glm::vec3(chestPosition) + glm::vec3(0.5f));
+        const int wheatSlot = findPlayerSlot(player, Material::ID::Wheat);
+        const bool stored = opened && ChestContainer::transferFromPlayer(
+                                           world, player, wheatSlot, 1);
+        const auto storedView = ChestContainer::view(world, player);
+        check("D6/store-harvest-through-container",
+              stored && storedView.has_value() &&
+                  storedView->inventory.count(Material::ID::Wheat) == 1 &&
+                  countPlayer(player, Material::ID::Wheat) == 0);
+        ChestContainer::close(player);
+
+        world.tick(World::NaturalMobSpawnIntervalTicks);
+        const std::vector<ActorSnapshot> encountered =
+            world.collectActorSnapshots();
+        const auto naturalMob = std::min_element(
+            encountered.begin(), encountered.end(),
+            [&player](const ActorSnapshot &left,
+                      const ActorSnapshot &right) {
+                const auto distanceSquared = [&player](
+                                                 const ActorSnapshot &value) {
+                    if (value.type != World::NaturalMobType) {
+                        return std::numeric_limits<float>::max();
+                    }
+                    const float x = value.position.x - player.position.x;
+                    const float z = value.position.z - player.position.z;
+                    return x * x + z * z;
+                };
+                return distanceSquared(left) < distanceSquared(right);
+            });
+        const bool foundNaturalMob =
+            naturalMob != encountered.end() &&
+            naturalMob->type == World::NaturalMobType;
+        if (foundNaturalMob) {
+            defeatedMobId = naturalMob->id;
+        }
+        const bool firstHit = foundNaturalMob &&
+                              world.attackActor(defeatedMobId);
+        int combatTick = World::NaturalMobSpawnIntervalTicks;
+        bool mobReachedPlayer = false;
+        while (firstHit && combatTick < 200 && !mobReachedPlayer) {
+            world.tick(++combatTick);
+            const Actor *target =
+                world.getActorManager().findActor(defeatedMobId);
+            if (target != nullptr) {
+                const float x = target->position.x - player.position.x;
+                const float z = target->position.z - player.position.z;
+                mobReachedPlayer = x * x + z * z <= 1.f;
+            }
+        }
+        const bool lethalHit =
+            firstHit && mobReachedPlayer &&
+            world.attackActor(defeatedMobId, 6.f);
+        const std::vector<ActorSaveState> postCombat =
+            world.getActorManager().collectSaveStates();
+        const auto loot = std::find_if(
+            postCombat.begin(), postCombat.end(),
+            [](const ActorSaveState &state) {
+                return state.kind == ActorSaveKind::Item &&
+                       state.materialId ==
+                           static_cast<int>(Material::ID::Dirt) &&
+                       state.amount == 1;
+            });
+        check("D6/natural-encounter-produces-combat-loot",
+              foundNaturalMob && firstHit && lethalHit &&
+                  loot != postCombat.end());
+
+        const int dirtBeforePickup =
+            countPlayer(player, Material::ID::Dirt);
+        for (int pickupTick = 0; pickupTick < 11; ++pickupTick) {
+            world.tick(++combatTick);
+        }
+        dirtAfterPickup = countPlayer(player, Material::ID::Dirt);
+        const std::vector<ActorSaveState> postPickup =
+            world.getActorManager().collectSaveStates();
+        const bool lootStillExists = std::any_of(
+            postPickup.begin(), postPickup.end(),
+            [](const ActorSaveState &state) {
+                return state.kind == ActorSaveKind::Item &&
+                       state.materialId ==
+                           static_cast<int>(Material::ID::Dirt);
+            });
+        check("D6/pick-up-defeated-mob-loot",
+              dirtAfterPickup == dirtBeforePickup + 1 &&
+                  !lootStillExists &&
+                  events.count(SandboxEventType::ItemPickup) == 1);
+
+        const int harvestSeedSlot =
+            findPlayerSlot(player, Material::ID::WheatSeeds);
+        const bool replanted =
+            selectPlayerSlot(player, harvestSeedSlot) &&
+            BlockInteractionSystem::placeBlock(
+                world, player,
+                glm::vec3(cropPosition) + glm::vec3(0.5f));
+        const ChunkBlock cropBeforeSave = world.getBlock(
+            cropPosition.x, cropPosition.y, cropPosition.z);
+        cropStageBeforeSave = cropBeforeSave.metadata;
+        check("D6/replant-after-combat-without-state-injection",
+              replanted &&
+                  static_cast<BlockId>(cropBeforeSave.id) ==
+                      BlockId::WheatCrop &&
+                  cropStageBeforeSave ==
+                      BlockMetadata::WheatCrop::Planted);
+        check("D6/gameplay-events-cover-complete-loop",
+              events.count(SandboxEventType::BlockBreak) == 2 &&
+                  events.count(SandboxEventType::BlockPlace) == 2 &&
+                  events.count(SandboxEventType::BlockUse) == 1 &&
+                  events.count(SandboxEventType::EntityDamage) >= 2 &&
+                  events.count(SandboxEventType::EntityDeath) >= 1);
+        check("D6/save-complete-loop", world.save());
+    }
+
+    {
+        Player restoredPlayer;
+        World restoredWorld(camera, config, restoredPlayer, directory,
+                            false, 1);
+        const ChunkBlock restoredCrop = restoredWorld.getBlock(
+            cropPosition.x, cropPosition.y, cropPosition.z);
+        const bool opened = ChestContainer::open(
+            restoredWorld, restoredPlayer, chestPosition);
+        const auto restoredChest =
+            ChestContainer::view(restoredWorld, restoredPlayer);
+        const std::vector<ActorSaveState> restoredActors =
+            restoredWorld.getActorManager().collectSaveStates();
+        const bool defeatedMobRestored = std::any_of(
+            restoredActors.begin(), restoredActors.end(),
+            [defeatedMobId](const ActorSaveState &state) {
+                return state.id == defeatedMobId;
+            });
+        check("D6/relaunch-preserves-loop-state",
+              static_cast<BlockId>(restoredCrop.id) ==
+                      BlockId::WheatCrop &&
+                  restoredCrop.metadata == cropStageBeforeSave && opened &&
+                  restoredChest.has_value() &&
+                  restoredChest->inventory.count(Material::ID::Wheat) == 1 &&
+                  countPlayer(restoredPlayer, Material::ID::Dirt) ==
+                      dirtAfterPickup &&
+                  !defeatedMobRestored);
+        ChestContainer::close(restoredPlayer);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // S2.3 - versioned chunk format rejects corrupt files
 // ---------------------------------------------------------------------------
 void caseChunkFormatRejection()
@@ -4415,6 +4684,7 @@ int main()
         caseNaturalMobPopulation();
         caseCombatAndRespawn();
         caseWheatCropLoop();
+        casePlayableVerticalSlice();
         caseChunkFormatRejection();
         caseTerrainDeterminism();
         caseTerrainStructures();

@@ -16,12 +16,14 @@ param(
     [string]$WorldTime = "",
     [string]$PlayerPosition = "",
     [string]$PlayerRotation = "",
+    [string]$ResourcePacks = "",
     [switch]$ShowDebugInfo,
     [switch]$SpawnValidationActors,
     [switch]$ShowOreFixture,
     [switch]$ShowContainerFixture,
     [switch]$ShowCombatFixture,
     [switch]$ShowCropFixture,
+    [switch]$ShowVerticalSliceFixture,
     [switch]$StopExisting,
     [switch]$KeepAlive,
     [switch]$ValidateCapturePolling
@@ -583,6 +585,8 @@ if ($ShowOreFixture) { Write-Host "[RENDER_CAPTURE] showOreFixture=true" }
 if ($ShowContainerFixture) { Write-Host "[RENDER_CAPTURE] showContainerFixture=true" }
 if ($ShowCombatFixture) { Write-Host "[RENDER_CAPTURE] showCombatFixture=true" }
 if ($ShowCropFixture) { Write-Host "[RENDER_CAPTURE] showCropFixture=true" }
+if ($ShowVerticalSliceFixture) { Write-Host "[RENDER_CAPTURE] showVerticalSliceFixture=true" }
+if (-not [string]::IsNullOrWhiteSpace($ResourcePacks)) { Write-Host "[RENDER_CAPTURE] resourcePacks=$ResourcePacks" }
 
 if ($StopExisting) {
     $existingProcesses = @(Get-Process -Name "HelloMine3D" -ErrorAction SilentlyContinue)
@@ -598,6 +602,7 @@ if ($StopExisting) {
 $envValues = @{
     HELLOMINE3D_ROOT = $RepoRoot
     HELLOMINE3D_SAVE_DIR = $SaveDir
+    HELLOMINE3D_RESOURCE_PACKS = $ResourcePacks
 }
 if (-not [string]::IsNullOrWhiteSpace($Seed)) {
     $envValues["HELLOMINE3D_SEED"] = $Seed
@@ -628,6 +633,9 @@ if ($ShowCombatFixture) {
 }
 if ($ShowCropFixture) {
     $envValues["HELLOMINE3D_CROP_FIXTURE"] = "1"
+}
+if ($ShowVerticalSliceFixture) {
+    $envValues["HELLOMINE3D_VERTICAL_SLICE_FIXTURE"] = "1"
 }
 if ($CaptureMode -eq "RuntimeReadback") {
     $envValues["HELLO_RENDER_CAPTURE"] = "1"

@@ -55,12 +55,18 @@ foreach ($missing in $requirements) {
         '# HelloMine3D resource manifest v1',
         '',
         'block|media/blocks/Stone.block',
+        'runtime-template|bin/resource-packs.txt',
         'shader|media/ogre/HelloMine3DTerrain.vert',
         'texture|media/textures/DefaultPack.png'
     )
     [System.IO.File]::WriteAllText(
         $manifestPath, (($manifestLines -join "`n") + "`n"),
         (New-Object System.Text.UTF8Encoding($false)))
+    $packConfig = Join-Path $caseRoot "bin\resource-packs.txt"
+    New-Item -ItemType Directory -Path (Split-Path -Parent $packConfig) `
+        -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $RepoRoot `
+        "bin\resource-packs.txt") -Destination $packConfig -Force
 
     foreach ($present in $requirements) {
         if ($present.Category -eq $missing.Category) {
@@ -81,26 +87,45 @@ foreach ($missing in $requirements) {
     $startInfo.CreateNoWindow = $true
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
-    $startInfo.EnvironmentVariables["HELLOMINE3D_ROOT"] = $caseRoot
-    $startInfo.EnvironmentVariables["HELLOMINE3D_STARTUP_ERROR_REPORT"] = $reportPath
-    $startInfo.EnvironmentVariables["HELLOMINE3D_STARTUP_ERROR_NO_DIALOG"] = "1"
-    $startInfo.EnvironmentVariables.Remove("HELLOMINE3D_VALIDATE_ONLY")
-
     $process = New-Object System.Diagnostics.Process
     $process.StartInfo = $startInfo
-    if (-not $process.Start()) {
-        throw "Failed to start client for missing $($missing.Category) case."
+    $environmentOverrides = [ordered]@{
+        HELLOMINE3D_ROOT = $caseRoot
+        HELLOMINE3D_STARTUP_ERROR_REPORT = $reportPath
+        HELLOMINE3D_STARTUP_ERROR_NO_DIALOG = "1"
+        HELLOMINE3D_VALIDATE_ONLY = $null
     }
-    $stdout = $process.StandardOutput.ReadToEnd()
-    $stderr = $process.StandardError.ReadToEnd()
+    $previousEnvironment = @{}
+    try {
+        foreach ($key in $environmentOverrides.Keys) {
+            $previousEnvironment[$key] = `
+                [Environment]::GetEnvironmentVariable($key, "Process")
+            [Environment]::SetEnvironmentVariable(
+                $key, $environmentOverrides[$key], "Process")
+        }
+        if (-not $process.Start()) {
+            throw "Failed to start client for missing $($missing.Category) case."
+        }
+    }
+    finally {
+        foreach ($key in $environmentOverrides.Keys) {
+            [Environment]::SetEnvironmentVariable(
+                $key, $previousEnvironment[$key], "Process")
+        }
+    }
+    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+    $stderrTask = $process.StandardError.ReadToEndAsync()
     $process.WaitForExit()
+    $stdout = $stdoutTask.Result
+    $stderr = $stderrTask.Result
     $exitCode = $process.ExitCode
     $process.Dispose()
 
     if ($exitCode -eq 0) {
         throw "Missing $($missing.Category) case unexpectedly returned zero."
     }
-    $expectedCategory = "Missing startup $($missing.Category) resource"
+    $expectedCategory =
+        "Missing or empty effective $($missing.Category) resource"
     if ($stderr -notlike "*$expectedCategory*" -or
         $stderr -notlike "*$($missing.DiagnosticPath)*") {
         throw "Missing $($missing.Category) stderr did not name the failed resource: $stderr"

@@ -1,9 +1,11 @@
 #include "StartupResourcePreflight.h"
 
+#include <algorithm>
 #include <fstream>
 #include <stdexcept>
 
 #include "../Util/ResourcePaths.h"
+#include "../Util/ResourcePackResolver.h"
 
 std::vector<StartupResourceRequirement> loadStartupResourceManifest(
     const std::string& root, const std::string& relativePath)
@@ -95,15 +97,34 @@ void validateStartupResources(
 {
     for (const StartupResourceRequirement& requirement : requirements)
     {
-        const std::string resolved =
-            ResourcePaths::join(root, requirement.relativePath);
+        const std::string resolved = runtimeResourcePackResolver().isFrozen()
+            ? runtimeResourcePackResolver().resolve(requirement.relativePath)
+            : ResourcePaths::join(root, requirement.relativePath);
         std::ifstream input(resolved, std::ios::binary | std::ios::ate);
         if (!input || input.tellg() <= 0)
         {
+            std::string owner = "base resources";
+            if (runtimeResourcePackResolver().isFrozen())
+            {
+                const auto& effective =
+                    runtimeResourcePackResolver().effectiveResources();
+                const auto found = std::find_if(
+                    effective.begin(), effective.end(),
+                    [&requirement](const EffectiveResource& resource)
+                    {
+                        return resource.logicalPath ==
+                               requirement.relativePath;
+                    });
+                if (found != effective.end() && !found->packName.empty())
+                {
+                    owner = "resource pack '" + found->packName + "'";
+                }
+            }
             throw std::runtime_error(
                 "Missing startup " + requirement.category +
                 " resource '" + requirement.relativePath +
-                "': expected a non-empty file at '" + resolved + "'.");
+                "' from " + owner +
+                ": expected a non-empty file at '" + resolved + "'.");
         }
     }
 }

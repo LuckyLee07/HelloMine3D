@@ -1,6 +1,7 @@
 #include "BlockData.h"
 
 #include "../../Util/ResourcePaths.h"
+#include "../../Util/ResourcePackResolver.h"
 
 #include <cctype>
 #include <fstream>
@@ -81,9 +82,10 @@ glm::ivec2 parseAtlasCoordinate(const std::string &path,
 } // namespace
 
 BlockData::BlockData(const std::string &fileName)
-    : BlockData(fileName, ResourcePaths::media("blocks"),
-                ResourcePaths::media("shapes"))
 {
+    load(runtimeResourcePackResolver().resolve(
+             "media/blocks/" + fileName + ".block"),
+         "");
 }
 
 BlockData::BlockData(const std::string &fileName,
@@ -240,7 +242,14 @@ void BlockData::load(const std::string &path,
     const bool hasShape = seenKeys.find("Shape") != seenKeys.end();
     if (m_data.meshType == BlockMeshType::Resource) {
         requireKey("Shape", hasShape);
-        m_data.shape = loadBlockShape(shapeName, shapeDirectory);
+        if (shapeDirectory.empty()) {
+            m_data.shape = loadBlockShapeFile(
+                shapeName, runtimeResourcePackResolver().resolve(
+                               "media/shapes/" + shapeName + ".shape"));
+        }
+        else {
+            m_data.shape = loadBlockShape(shapeName, shapeDirectory);
+        }
     }
     else if (hasShape) {
         fail(path, "Shape", "is only valid for resource meshes");

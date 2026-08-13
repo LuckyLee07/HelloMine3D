@@ -46,6 +46,7 @@ Add-ManifestEntry "resource-script" "media/ogre/HelloMine3D.material"
 Add-ManifestEntry "font" "media/fonts/rs.ttf"
 Add-ManifestEntry "runtime-template" "bin/Mine.cfg"
 Add-ManifestEntry "runtime-template" "bin/MineResources.cfg"
+Add-ManifestEntry "runtime-template" "bin/resource-packs.txt"
 
 $blockSource = Get-Content -LiteralPath $blockDatabasePath -Raw
 $blockMatches = [regex]::Matches(

@@ -13,6 +13,12 @@ $resourceManifestVerifier = Join-Path $repoRoot `
     "tools\validate_resource_manifest.ps1"
 $performanceComparisonVerifier = Join-Path $repoRoot `
     "tools\validate_perf_comparison.ps1"
+$manualInputRecordVerifier = Join-Path $repoRoot `
+    "tools\validate_manual_input_record.ps1"
+$resourcePackVerifier = Join-Path $repoRoot `
+    "tools\validate_resource_packs.ps1"
+$windowsPackager = Join-Path $repoRoot `
+    "tools\package_windows_release.ps1"
 
 function Invoke-Checked {
     param(
@@ -73,6 +79,13 @@ try {
         & $performanceComparisonVerifier
     }
 
+    Invoke-Checked "Manual input protocol schema" {
+        & $manualInputRecordVerifier `
+            -RecordPath (Join-Path $repoRoot `
+                "docs\manual-input-record-v1.template.txt") `
+            -AllowNotRun
+    }
+
     Invoke-Checked "Generate VS2022 projects" {
         & $premake --os=windows --file=premake/premake.lua vs2022
     }
@@ -92,12 +105,15 @@ try {
         "HelloMine3DMeshDirtyTests.exe",
         "HelloMine3DSaveLoadSmoke.exe",
         "HelloMine3DEntityLifecycleSmoke.exe",
-        "HelloMine3DWorldRuntimeSmoke.exe"
+        "HelloMine3DWorldRuntimeSmoke.exe",
+        "HelloMine3DSoak.exe",
+        "HelloMine3DResourcePackSmoke.exe"
     )
 
     foreach ($configuration in @("Debug", "Release")) {
         Invoke-Checked "Build $configuration x64" {
             & $msbuild $solution `
+                "/t:Rebuild" `
                 "/p:Configuration=$configuration" `
                 "/p:Platform=x64" /m /nologo
         }
@@ -119,6 +135,9 @@ try {
             $previousSaveDir = $env:HELLOMINE3D_SAVE_DIR
             $previousTransparentFixture =
                 $env:HELLOMINE3D_TRANSPARENT_FIXTURE
+            $previousResourcePacks = $env:HELLOMINE3D_RESOURCE_PACKS
+            $previousEffectiveManifest =
+                $env:HELLOMINE3D_EFFECTIVE_MANIFEST_OUT
             $validationSaveDir = Join-Path $binDirectory `
                 "build_verify_validation_$configuration"
             try {
@@ -133,6 +152,8 @@ try {
                 $env:HELLOMINE3D_PLAYER_ROTATION = "0 0 0"
                 $env:HELLOMINE3D_SAVE_DIR = $validationSaveDir
                 $env:HELLOMINE3D_TRANSPARENT_FIXTURE = "1"
+                $env:HELLOMINE3D_RESOURCE_PACKS = ""
+                $env:HELLOMINE3D_EFFECTIVE_MANIFEST_OUT = ""
                 Push-Location $binDirectory
                 try {
                     & (Join-Path $binDirectory "HelloMine3D.exe")
@@ -150,7 +171,19 @@ try {
                 $env:HELLOMINE3D_SAVE_DIR = $previousSaveDir
                 $env:HELLOMINE3D_TRANSPARENT_FIXTURE =
                     $previousTransparentFixture
+                $env:HELLOMINE3D_RESOURCE_PACKS = $previousResourcePacks
+                $env:HELLOMINE3D_EFFECTIVE_MANIFEST_OUT =
+                    $previousEffectiveManifest
             }
+        }
+
+        Invoke-Checked "$configuration resource-pack validation" {
+            & $resourcePackVerifier `
+                -ExePath (Join-Path $binDirectory "HelloMine3D.exe") `
+                -SmokePath (Join-Path $binDirectory `
+                    "HelloMine3DResourcePackSmoke.exe") `
+                -OutputDir (Join-Path $binDirectory `
+                    "resource_pack_validation_$configuration")
         }
 
         Invoke-Checked "$configuration startup error diagnostics" {
@@ -170,6 +203,10 @@ try {
         throw "Unexpected stale executables in bin/: $($unexpectedExecutables.Name -join ', ')"
     }
     Write-Host "[BUILD_VERIFY] executable inventory valid"
+
+    Invoke-Checked "Release clean-root package" {
+        & $windowsPackager -IncludePack "example-stone" -SkipRealWindow
+    }
 }
 finally {
     Pop-Location

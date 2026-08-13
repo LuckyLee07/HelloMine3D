@@ -24,6 +24,7 @@ resource-script|media/ogre/HelloMine3D.material
 resource-script|media/ogre/HelloMine3D.program
 runtime-template|bin/Mine.cfg
 runtime-template|bin/MineResources.cfg
+runtime-template|bin/resource-packs.txt
 shader|media/ogre/HelloMine3DActor.frag
 shader|media/ogre/HelloMine3DActor.vert
 shader|media/ogre/HelloMine3DFlora.vert

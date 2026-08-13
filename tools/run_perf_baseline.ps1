@@ -13,9 +13,11 @@ param(
     [string]$PlayerPosition = "",
     [string]$PlayerRotation = "",
     [string]$WorldTime = "",
+    [string]$ResourcePacks = "",
     [string]$SceneId = "",
     [double]$MinimumSimulationTickHz = 19.0,
     [double]$MaximumSimulationTickHz = 21.0,
+    [switch]$VerticalSliceFixture,
     [switch]$StopExisting,
     [switch]$KeepAlive
 )
@@ -34,6 +36,14 @@ if ([string]::IsNullOrWhiteSpace($OutputDir)) {
 }
 if ([string]::IsNullOrWhiteSpace($SaveDir)) {
     $SaveDir = Join-Path $OutputDir "save"
+}
+if (-not [System.IO.Path]::IsPathRooted($OutputDir)) {
+    $OutputDir = [System.IO.Path]::GetFullPath(
+        (Join-Path $RepoRoot $OutputDir))
+}
+if (-not [System.IO.Path]::IsPathRooted($SaveDir)) {
+    $SaveDir = [System.IO.Path]::GetFullPath(
+        (Join-Path $RepoRoot $SaveDir))
 }
 
 if (-not ("HelloMine3DPerfBaseline.NativeMethods" -as [type])) {
@@ -297,6 +307,8 @@ if (-not [string]::IsNullOrWhiteSpace($PlayerPosition)) { Write-Host "[PERF_BASE
 if (-not [string]::IsNullOrWhiteSpace($PlayerRotation)) { Write-Host "[PERF_BASELINE] playerRotation=$PlayerRotation" }
 if (-not [string]::IsNullOrWhiteSpace($WorldTime)) { Write-Host "[PERF_BASELINE] worldTime=$WorldTime" }
 Write-Host "[PERF_BASELINE] sceneId=$SceneId vsync=$VsyncRegime"
+if ($VerticalSliceFixture) { Write-Host "[PERF_BASELINE] verticalSliceFixture=true" }
+if (-not [string]::IsNullOrWhiteSpace($ResourcePacks)) { Write-Host "[PERF_BASELINE] resourcePacks=$ResourcePacks" }
 
 if ($StopExisting) {
     $existingProcesses = @(Get-Process -Name "HelloMine3D" -ErrorAction SilentlyContinue)
@@ -312,6 +324,7 @@ if ($StopExisting) {
 $envValues = @{
     HELLOMINE3D_ROOT = $RepoRoot
     HELLOMINE3D_SAVE_DIR = $SaveDir
+    HELLOMINE3D_RESOURCE_PACKS = $ResourcePacks
     HELLO_PERF_CAPTURE = "1"
     HELLO_PERF_CAPTURE_DIR = $OutputDir
     HELLO_PERF_CAPTURE_WARMUP_MS = $WarmupMs
@@ -329,6 +342,9 @@ if (-not [string]::IsNullOrWhiteSpace($PlayerRotation)) {
 }
 if (-not [string]::IsNullOrWhiteSpace($WorldTime)) {
     $envValues["HELLOMINE3D_WORLD_TIME"] = $WorldTime
+}
+if ($VerticalSliceFixture) {
+    $envValues["HELLOMINE3D_VERTICAL_SLICE_FIXTURE"] = "1"
 }
 
 $process = $null

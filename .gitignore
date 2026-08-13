@@ -1,9 +1,10 @@
 /.vcpkg/
-# Build output and per-user runtime state live in bin/. Only the two Ogre
-# bootstrap templates are repository-owned.
+# Build output and per-user runtime state live in bin/. Only the three runtime
+# templates below are repository-owned.
 /bin/*
 !/bin/Mine.cfg
 !/bin/MineResources.cfg
+!/bin/resource-packs.txt
 /build/
 /vcpkg_installed/
 /packages/

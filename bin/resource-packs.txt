@@ -1,0 +1,4 @@
+# HelloMine3D resource packs, highest priority first.
+# Enable the tracked example with the following line:
+# example-stone
+
