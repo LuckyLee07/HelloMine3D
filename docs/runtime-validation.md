@@ -3,16 +3,16 @@
 This document describes how sandbox foundation behaviour is validated at
 runtime, without a human driving the client window.
 
-Three implemented layers exist. Together they are the current acceptance gate
-for the S0-S7 foundation and the completed milestones in `docs/todolist.md`.
-Planned D/R/X work must extend these layers as described below before its task
-may move to `Done`.
+Five implemented layers exist. Together they are the current acceptance gate
+for the foundation and the completed milestones in `docs/todolist.md`.
 
 | Layer | Target | Answers |
 | ----- | ------ | ------- |
 | Focused headless tests | `HelloMine3DCoordinateTests`, `HelloMine3DMeshDirtyTests`, `HelloMine3DSaveLoadSmoke`, `HelloMine3DEntityLifecycleSmoke` | Do the isolated algorithms behave? |
 | World runtime smoke | `HelloMine3DWorldRuntimeSmoke` | Does the real `World` / `ChunkManager` / `WorldManager` / actor stack behave? |
+| Stability and resource smokes | `HelloMine3DSoak`, `HelloMine3DResourcePackSmoke` | Do long-lived world transitions remain bounded, and is the frozen effective-resource view correct? |
 | Client smokes | `tools/run_render_capture.ps1`, `tools/run_perf_baseline.ps1` | Does the assembled client still render and stay within its frame budget? |
+| Distribution smoke | `tools/package_windows_release.ps1` | Can the Release client start and fail correctly from an isolated self-contained root? |
 
 ## World Runtime Smoke
 
@@ -31,7 +31,7 @@ Output is one line per assertion plus a summary:
 ```text
 [VALIDATION] PASS S0.5/chunk-boundary-marks-neighbor
 [VALIDATION] FAIL S6.4/ore-decorator-produces-ore :: coal=0 iron=0
-[VALIDATION] checks=291 failures=0
+[VALIDATION] checks=327 failures=0
 [VALIDATION] status=PASS
 ```
 
@@ -82,6 +82,7 @@ position and player rotation are forced per scenario through the same
 | `caseInteractionAndEvents` | S3.1, S3.3, S3.4, S3.5, S4.2, S4.5, P5 | Break/place/use go through the interaction system, produce configured drops, consume items, publish events with the target identity, and block metadata survives a roundtrip. |
 | `caseChunkEvents` | S4.3 | Generate, load, save and unload each publish their chunk event. |
 | `caseActors` | P1, S4.4, S5.1, S5.2, S5.5, S5.6, C6 | Mobs spawn, chase nearby players, wander outside chase range, reject repeated damage during invulnerability, die and get culled; item entities spawn and are picked up, publishing the matching events. Immutable actor snapshots track transforms and omit dead or picked-up ids. |
+| `casePlayableVerticalSlice` | D6 | After one deterministic fixture, only normal gameplay paths acquire/plant/grow/harvest a crop, transfer Wheat into a chest, spawn and defeat a natural Mob, pick up its physical drop, replant, save and relaunch with restored state. |
 | `caseWorldManager` | S1.2, S1.4, S1.5, S4.5 | World creation, lookup, save, load, same-world teleport, cross-world rejection and world-time advance. |
 
 ### Not covered
@@ -93,12 +94,11 @@ These need a person at the keyboard or a different harness:
 | Physical OIS keyboard/mouse response | The GL3+ client creates and captures both OIS devices, and V2 deterministically verifies the resulting `PlayerInputState` controller seam. A human-at-keyboard check remains appropriate after platform/window-system changes because desktop input injection is deliberately outside the non-intrusive capture harness. |
 | Formal data-race detection for the background loader (S0.3) | The V5 stress scenario exercises the real worker and covers the formerly unlocked chunk-map read, but MSVC still provides no ThreadSanitizer proof. |
 
-## Planned Acceptance Extensions
+## Acceptance Contracts
 
-This table is a contract for future work, not evidence that the tools or
-features already exist. The authoritative status remains in
-`docs/todolist.md`. A milestone may only close after the named evidence is
-implemented, run and added to `Current Verified Runs` with its date and result.
+This table states the evidence contract. The authoritative implementation
+status and remaining acceptance gaps are in `docs/todolist.md`; completed runs
+are recorded in `Current Verified Runs` below.
 
 | Scope | Required extension | Evidence required to close |
 | ----- | ------------------ | -------------------------- |
@@ -115,43 +115,44 @@ implemented, run and added to `Current Verified Runs` with its date and result.
 
 ### R3 Physical Input Record
 
-Use this record for each required physical-input acceptance:
+Protocol v1 is defined in `docs/manual-input-acceptance-v1.md`; its exact
+machine-checkable skeleton is `docs/manual-input-record-v1.template.txt`.
+The twelve ordered cases cover focus recovery, WASD/sprint, two-axis mouse
+look and its `L` toggle, flight/sneak/vertical controls, number and physical
+wheel hotbar selection, break, attack, place, container use/transfers,
+button/Escape container close and final application/window close. The client
+now maps the physical OIS wheel delta into the same bounded hotbar selection
+path as the already-tested keyboard delta.
 
-```text
-Date:
-Commit:
-Configuration:
-GPU / driver:
-Window mode and size:
+Records are key/value text with protocol version, date, exact commit,
+configuration, GPU/driver, window mode/size, operator, every case result,
+overall result and deviations. Validate a real run with:
 
-[ ] Window focus can be lost and recovered without stuck input
-[ ] WASD movement and mouse look respond correctly
-[ ] Jump/fly/sneak toggles respond correctly
-[ ] Hotbar wheel/number selection responds correctly
-[ ] Left-click break/attack selects the intended target
-[ ] Right-click use/place selects the intended action
-[ ] Container UI captures mouse and keyboard without world-action leakage
-[ ] Escape/close restores mouse-look and gameplay input
-
-Deviations:
--
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_manual_input_record.ps1 -RecordPath <record.txt> -RequirePass
 ```
+
+The validator rejects missing/duplicate/unknown fields, invalid metadata,
+unknown case results and any claimed overall pass with a non-pass case or
+deviation. `scripts\verify_build.ps1` validates the tracked `NOT_RUN` template
+schema, but only a human-operated `-RequirePass` record can close R3. No
+automation may synthesize the physical input.
 
 ## Current Verified Runs
 
 | Layer | Command | Result |
 | ----- | ------- | ------ |
 | Focused headless tests | `bin\HelloMine3DCoordinateTests.exe`, `bin\HelloMine3DMeshDirtyTests.exe`, `bin\HelloMine3DSaveLoadSmoke.exe`, `bin\HelloMine3DEntityLifecycleSmoke.exe` | All pass. |
-| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=291 failures=0` (Debug and Release, 2026-08-13) |
+| World runtime smoke | `bin\HelloMine3DWorldRuntimeSmoke.exe` | `checks=327 failures=0`; D6 contributes nine end-to-end assertions (Release focused run; full Debug/Release gate recorded below, 2026-08-13). |
 | A1 asset references | `sh scripts/check_assets.sh` | The repository passes 45 block/shape/shader/texture/font/config checks after discovering named shape resources and multiline block registrations. An isolated copy with `HelloMine3DTerrain.vert` omitted returns 1 and names the missing referenced shader (2026-08-09; current positive equivalent run 2026-08-12). |
 | A2 block diagnostics | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseBlockDataDiagnostics`) | Five malformed fixtures verify missing `ShaderType`, invalid `MeshType`, atlas coordinate `16 0`, light level 16, and duplicate id 3 all report the full source path and exact key. Debug/Release pass (2026-08-12). |
 | A3 runtime config ownership | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseRuntimeConfigOwnership`) | Three assertions delete an isolated `config.txt`, verify regeneration with the documented defaults, then load customised values. `Mine.cfg` and `MineResources.cfg` remain the only tracked `bin/` templates (2026-08-09). |
 | A4 configured world seed | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseConfiguredWorldSeed`) | Three assertions load seed `20260811` from an isolated config, create two fresh worlds without `HELLOMINE3D_SEED`, and compare 2,299 terrain samples with zero mismatches. Debug/Release pass (2026-08-09). |
 | B5 capture polling race | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_render_capture.ps1 -ValidateCapturePolling`; ten real captures plus `ffmpeg -v error -i <png> -f null -` | Rejects a truncated non-empty PNG, then ten writers transition from partial data to a structurally complete PNG and finish with `runs=10 status=PASS`. Ten GTX 1050 Ti / OpenGL 4.6 captures also pass the script and independent decoder validation (`46,343-49,604` bytes). The poller requires a valid signature, bounded chunks and terminal `IEND`; relative paths resolve from the repository root and the native process handle is primed before fast exit (2026-08-12). |
-| B3 Xcode generation preflight | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_xcode_generation.ps1` | Generates 22 macOS Xcode projects and passes 123 checks over the workspace graph, Cocoa/OIS/OSX sources, seven frameworks, platform header paths, foreign-platform leakage and `scripts/verify_xcode.sh`. Reports `native_build=NOT_RUN` honestly on Windows (2026-08-12). |
+| B3 Xcode generation preflight | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_xcode_generation.ps1` | Generates 24 macOS Xcode projects and passes 133 checks over the workspace graph, Cocoa/OIS/OSX sources, seven frameworks, platform header paths, foreign-platform leakage and `scripts/verify_xcode.sh`. Reports `native_build=NOT_RUN` honestly on Windows (updated 2026-08-13). |
 | B3 native Xcode gate | `bash scripts/verify_xcode.sh` on macOS | Deferred while Windows-first iterations continue. When resumed, the script requires Debug/Release client and test builds, ten test executions, two validation-only bootstraps and two real-window three-frame launches before printing `status=PASS`. |
 | W2 Windows startup errors | `tools\validate_startup_errors.ps1`; also part of `scripts\verify_build.ps1` after each client configuration | Three isolated roots omit the required terrain shader, atlas texture or stone block definition. Every client returns 1, names the category and exact resource in stderr, and writes the identical user-facing payload with `ui=MessageBoxW` and `dialog_requested=true`; automation suppresses the modal call after recording it. Ordinary Windows startup calls `MessageBoxW`, while validate-only runs remain non-interactive. |
-| W3 generated resource manifest | `tools\generate_resource_manifest.ps1 -Check`; `tools\validate_resource_manifest.ps1`; Debug/Release validation-only client runs in `scripts\verify_build.ps1` | The checked-in manifest contains 40 sorted unique entries derived from 17 registered blocks, one referenced shape, 10 shaders, seven textures, one font, two Ogre resource scripts and two runtime templates. The positive check passes; isolated manifests missing the referenced terrain vertex shader or containing the existing-but-unreferenced `test.png` fail with distinct `MISSING_ENTRY` and `STALE_ENTRY` diagnostics. Both client configurations strictly parse and preflight every non-empty resource before Ogre construction (updated 2026-08-13). |
+| W3 generated resource manifest | `tools\generate_resource_manifest.ps1 -Check`; `tools\validate_resource_manifest.ps1`; Debug/Release validation-only client runs in `scripts\verify_build.ps1` | The checked-in manifest contains 42 sorted unique entries: 18 blocks, one shape, 10 shaders, seven textures, one font, two Ogre resource scripts and three runtime templates. Positive, missing-entry and stale-entry checks pass; startup preflights the frozen effective source for every entry (updated 2026-08-13). |
 | W4 terrain buffer measurement | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseTerrainBufferMetrics`); Debug/Release validation-only client; debug panel and performance CSV/summary | Compile-time and two `W4/*` checks fix the current terrain layout at 32 bytes per vertex and four bytes per index. The deterministic client fixture measures 27,176 vertices, 40,764 indices and a 1,032,688-byte (0.985 MiB) payload. The archived L4 cumulative geometry gives a conservative 12.456 MiB upper bound and already sustained 60.10 FPS / 17.54 ms P95, so the layout remains uncompressed. Live runs now report current resident counts and bytes rather than relying on cumulative rebuild counters. Debug/Release pass with `checks=255 failures=0` (2026-08-12). |
 | L1 sunlight storage | `bin\HelloMine3DWorldRuntimeSmoke.exe`; hardware render capture; `tools\run_perf_baseline.ps1` | Nine L1 assertions pass in Debug and Release. `bin/render_capture_l1_surface_20260812/new_01500ms.png` independently decodes and shows bright open terrain against darker opaque occlusion on a GTX 1050 Ti / OpenGL 4.6. The 10-second performance run records 601 frames, 60.14 FPS, 17.75 ms frame P95, no frames over 33 ms, and 0.466/1.363 ms average/max section mesh build time (2026-08-12). |
 | L2 block-light storage | `bin\HelloMine3DWorldRuntimeSmoke.exe`; `tools\run_render_capture.ps1`; `tools\run_perf_baseline.ps1` | Seven L2 assertions plus one A2 range fixture pass in Debug and Release. The hardware PNG independently decodes. The matching 10-second run records 601 frames, 60.14 FPS, 17.69 ms frame P95, no frames over 33 ms, and 0.467/0.988 ms average/max mesh build time; geometry counts match L1 exactly (2026-08-12). |
@@ -191,6 +192,11 @@ Deviations:
 | D3 natural-mob population | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseNaturalMobPopulation`); fixed-seed `tools\run_render_capture.ps1`; `tools\run_perf_baseline.ps1`; R1 comparison; full `scripts\verify_build.ps1` | Thirteen assertions cover deterministic bounded candidates, safe ground/headroom, local/world caps, chunk unload/reload, counters, save restoration and spatial duplicate rejection. Debug/Release pass with `checks=291 failures=0`. `validation-natural-mobs.png` is a 1584x861 GTX 1050 Ti / OpenGL 4.6 Release readback from the normal simulation path: the green Mob is visible and the panel reports four actors, `4 / 12` natural Mobs and four additions. The matching 60.1 FPS sample records P95/P99 `16.693/17.633 ms`, zero >33/50 ms frames and R1 `PASS` (2026-08-13). |
 | D4 combat, death and respawn | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseCombatAndRespawn`); `tools\run_render_capture.ps1 -ShowCombatFixture`; same-session D3/D4 performance A/B; full `scripts\verify_build.ps1` | Fourteen assertions cover nearer actor/block occlusion, accepted and invulnerability-suppressed attacks, chase-to-contact damage and cooldown, ordered Mob damage/death/drop, dead-target rejection, ordered player damage/death/spawn, saved-spawn respawn, zeroed velocity, explicit retained-inventory policy, closed container UI and HUD stats. Debug/Release pass with `checks=305 failures=0`. `validation-combat-hud.png` is a decoded 1584x861 GTX 1050 Ti / OpenGL 4.6 Release readback showing a Mob under the crosshair and `Health 14 / 20`. A freshly built D3 control and D4 candidate under the same current driver regime record P95/P99 `20.006/23.808 ms` and `20.497/24.095 ms`; both have zero >50 ms frames and R1 reports `PASS`. Physical left-click attack remains assigned to R3, so D4 remains `Verify` (2026-08-13). |
 | D5 wheat crop loop | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`caseWheatCropLoop`); `tools\run_render_capture.ps1 -ShowCropFixture`; generated resource manifest; same-session D4/D5 performance A/B; full `scripts\verify_build.ps1` | Thirteen assertions cover block/material registration, metadata-driven render height, initial seed acquisition, rejected support without consumption, accepted planting on dirt, one-stage random-tick progress, bounded maturity, immature/mature drops, harvest/replant, unloaded-section exclusion and stage persistence. Debug/Release pass with `checks=318 failures=0`; the asset gate reports 41 manifest entries. `validation-wheat-crop.png` is a decoded 1584x861 GTX 1050 Ti / OpenGL 4.6 Release readback showing the four fixed metadata stages from 25% to 100% height, while the panel reports three immature crops in the random-tick index. The same-session D4 control and D5 candidate used identical Release scene/residency and actual uncapped pacing; both had zero >50 ms frames and R1 reports `PASS` (2026-08-13). |
+| D6 playable vertical slice | `bin\HelloMine3DWorldRuntimeSmoke.exe` (`casePlayableVerticalSlice`); `tools\run_render_capture.ps1 -ShowVerticalSliceFixture`; R1 comparison | Nine assertions drive crop, chest, natural population, combat, physical loot pickup, replanting, save and relaunch through normal gameplay APIs after fixture creation. The Release focused run reports `checks=327 failures=0`. `validation-playable-loop.png` visibly records the open chest with Wheat, hotbar materials and staged world. Base/candidate P95 is `20.956/21.122 ms`, P99 is `25.926/25.178 ms`, and R1 returns `PASS`. Physical input remains R3, so D6 remains `Verify` (2026-08-13). |
+| R2 deterministic world soak | `tools\run_world_soak.ps1 -DurationSeconds 1800 -Seed 20260813 -Formal` | Accepted Release schedule-v1 run completes 36,000 fixed ticks, 361 load-centre moves, 1,800 block edits, 900 actor cycles and 179 save/reloads with zero failures. Peak private/working memory is `22,790,144/27,377,664` bytes, peak handles/threads `234/4`, steady growth `4,845,568 bytes/1 handle`; no timeout and both child/wrapper summaries report `PASS` (2026-08-13). |
+| R3 physical OIS protocol | `tools\validate_manual_input_record.ps1 -RecordPath docs\manual-input-record-v1.template.txt -AllowNotRun` | Protocol v1 and all 12 ordered case fields pass schema validation. This is deliberately `NOT_RUN`; only a human Release record with `-RequirePass` can close R3, D2, D4 and D6. |
+| R5 Windows package | `tools\package_windows_release.ps1 -IncludePack example-stone`; repeated archive build | The isolated 61-file distribution passes exact inventory, validation-only and real three-frame startup, missing-shader and stale-extra-resource negatives. Repeated deterministic ZIPs both hash to `F4F3C448E75031F30EB788FF72C5F22A6A32CDF6C85A90164D1E16B7F807BB69` (2026-08-13). |
+| X1-X3 resource packs | `HelloMine3DResourcePackSmoke.exe`; `tools\validate_resource_packs.ps1`; base/packed render and performance runs | Eighteen resolver assertions pass. Actual clients emit 42-entry base and packed effective manifests with SHA-256 `A6B707578452F6A60923E00D8EE33F5EF61CB1DAEE7D43B5928CF7745F144D82` / `F143C49EE6D4139AFCC8B1B23B6EFA01FCE16B28E0EDC1F673430E59CCBCF713`. Both tracked PNGs decode; the example pack changes only Stone ownership/appearance and R1 returns `PASS` (2026-08-13). |
 
 The current 2026-08-12 runs use an NVIDIA GTX 1050 Ti with OpenGL 4.6. The
 earlier GDI Generic limitation no longer applies to these hardware-backed PNG

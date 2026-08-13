@@ -224,6 +224,14 @@ uncapped numbers establish only that D5 did not regress under the shared
 runtime regime; they are not treated as an FPS improvement and must not be
 mixed with the accepted 60.1 FPS baselines.
 
+The D6/X3 same-scene comparison used `d6-vertical-slice-v1` with identical
+window, VSync and world residency. The base run `bin/perf_d6_base` recorded
+601 frames, 60.100 sampled FPS, P95/P99 `20.956/25.926 ms` and no frames over
+33/50 ms. The `example-stone` run `bin/perf_d6_example_pack` recorded 601
+frames, 60.100 sampled FPS, P95/P99 `21.122/25.178 ms`, one frame over 33 ms
+and none over 50 ms. `compare_perf_baselines.ps1` returned `PASS`, closing the
+automated D6/X3 timing gate (2026-08-13).
+
 ## W4 Terrain Buffer Measurement
 
 The Ogre terrain path uses one tightly packed vertex stream for solid,

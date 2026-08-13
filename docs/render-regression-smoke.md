@@ -72,6 +72,23 @@ technique, so absent water, transparent and actor layers cannot abort startup.
 
 ![W1 midnight hardware capture](screenshots/validation-night.png)
 
+D6/X3 use the same fixed camera and vertical-slice fixture. The base image
+shows the open chest containing Wheat, the gameplay hotbar and staged Mob;
+the packed image additionally proves that `example-stone` changes the existing
+Stone resource while all other content falls back to base.
+
+| Scope | Tracked image | SHA-256 |
+| ----- | ------------- | ------- |
+| D6 playable loop | `docs/screenshots/validation-playable-loop.png` | `55D4E9180F9E1833CD05A739982BECED94E04338E324DB4F276817F57AEDB2B9` |
+| X3 example pack | `docs/screenshots/validation-resource-pack-example.png` | `5992F4310874E8677346B667744FAF74BEFC28AA858B10D7DB9C9EE0F0CC4782` |
+
+Both `1584x861` Release PNGs decode and pass the completeness poller on the
+same GTX 1050 Ti / OpenGL 4.6 host (2026-08-13).
+
+![D6 playable-loop capture](screenshots/validation-playable-loop.png)
+
+![X3 example resource-pack capture](screenshots/validation-resource-pack-example.png)
+
 Expected behavior:
 
 1. The script starts `bin\HelloMine3D.exe`.
