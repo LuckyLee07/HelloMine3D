@@ -32,9 +32,9 @@ HelloMine3D 已具备这些基础：
 
 | 风险 | 说明 |
 | ---- | ---- |
-| macOS 原生路径延期 | Windows 侧的 22 个 Xcode 工程和 123 项生成合同均通过；按当前 Windows-first 方向暂缓真实 macOS 的双配置构建、测试和客户端启动。 |
+| macOS 原生路径延期 | Windows 侧的 24 个 Xcode 工程和 133 项生成合同均通过；按当前 Windows-first 方向暂缓真实 macOS 的双配置构建、测试和客户端启动。 |
 | 输入和并发仍有平台型证据缺口 | OIS 到控制器的数据边界已自动验证，但真实键鼠仍需人工验收；后台加载器已有压力测试，但正式 ThreadSanitizer 证据要等待受支持主机。对应 `R3`、`R4`。 |
-| 下一阶段尚未实现 | 可玩闭环、回归/发布硬化和有界资源包已经以 `D`、`R`、`X` 任务进入执行清单，当前均不得按“已有能力”描述。多人、脚本化 mod 和热更新仍未立项。 |
+| 新产品阶段尚未选择 | 当前 D/R/X 实现已完成；只剩 R3 人工输入验收，以及依赖特定主机的 B3/R4。多人、脚本化 mod、热更新和新渲染后端仍未立项。 |
 
 ## 迭代阶段
 
@@ -49,8 +49,8 @@ HelloMine3D 已具备这些基础：
 | 第 3 阶段 | 已完成当前范围 | `S3.1-S3.6`、`C1-C3`、`C7` |
 | 第 4 阶段 | 已完成 | `S2.1-S2.6`、`S6.1-S6.5`、`L1-L3`、`C4-C5` |
 | 第 5 阶段 | 已完成当前范围 | `V3`、`P1-P5`、`L4`、`W1-W2` |
-| 第 6 阶段 | 当前范围部分完成 | `B1`、`B2`、`B4`、`B5`、`W3` 已完成；`R5`、`X1-X3` 待办；`B3` 延期 |
-| 第 7 阶段 | 进行中 | `R1` 和 `D1` 已完成；`D2` 已实现并进入物理输入验收，当前继续 `D3-D6`、`R2-R3`，完成后进入 `R5` 和 `X1-X3`；`R4` 按主机条件延期 |
+| 第 6 阶段 | 已完成当前 Windows 范围 | `B1`、`B2`、`B4`、`B5`、`W3`、`R5`、`X1-X3` 已完成；`B3` 延期 |
+| 第 7 阶段 | 实现完成，待人工验收 | D1-D6、R1-R2、R5、X1-X3 已实现并有自动/硬件证据；R3 完成后关闭 D2、D4、D6，R4 按主机条件延期 |
 
 ### 第 0 阶段：稳定现有基础
 
@@ -187,8 +187,8 @@ HelloMine3D 已具备这些基础：
 | P0 | 固化 Premake 入口 | `premake/premake.lua` 是唯一工程生成入口。 | Windows/macOS 都从 Premake 生成工程。 |
 | P0 | Windows/macOS 构建检查 | 明确 Ogre/OIS/ImGui/GLM 布局、静态库和 rpath。 | 新机器按 README 能构建运行。 |
 | P1 | smoke build 脚本 | Make/Xcode/VS 至少有清晰构建命令。 | 每次结构改动后能快速验证构建。 |
-| P1 | 资源打包规划 | manifest 已完成；下一步由 `R5` 生成自包含 Windows 包并从隔离根目录验收。 | 包内资源、模板和许可证清单可复现，不携带开发期状态。 |
-| P2 | 有界资源包 | `X1-X3` 只支持冻结的只读覆盖和回退，不承诺热更新、脚本或新增原生行为。 | 覆盖顺序、路径安全、有效 manifest、诊断和基础包回退均可自动验证。 |
+| P1 | 资源打包 | `R5` 已生成自包含 Windows 包并从隔离根目录完成正/负向验收。 | 61 文件清单和确定性 ZIP 可复现，不携带开发期状态。 |
+| P2 | 有界资源包 | `X1-X3` 已交付冻结的只读覆盖和回退，不承诺热更新、脚本或新增原生行为。 | 18 项 resolver 测试、有效 manifest、硬件截图、性能比较和打包覆盖通过。 |
 | P2 | 多人网络 | 单独设计 server authority、chunk streaming、实体同步。 | 不在单机架构未稳定前启动。 |
 
 ### 第 7 阶段：可玩闭环、回归和发布硬化
@@ -280,13 +280,13 @@ macOS 原生构建与启动外已完成，`B3` 在 Windows-first 阶段明确延
 | ---- | --------- |
 | Windows 双配置完整门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify_build.ps1` |
 | Linux/macOS Make 双配置门禁 | `bash scripts/verify_build.sh` |
-| macOS Xcode project | `bash scripts/verify_xcode.sh` 生成并构建 Debug/Release，执行五项测试和客户端启动探针。 |
+| macOS Xcode project | `bash scripts/verify_xcode.sh` 生成并构建 Debug/Release，执行七项测试和客户端启动探针。 |
 | 资源检查 | `bash scripts/check_assets.sh`，资产引用缺失时返回非零。 |
 | 手动运行 | `bash scripts/run.sh release`，观察 chunk 加载、放置/破坏、退出是否正常。 |
-| 性能回归比较 | `R1` 计划工具；D/R5/X 中改变场景、资源或驻留规模的任务关闭前必须运行。 |
-| 长时间稳定性 | `R2` 计划 runner；区块、演员、存档或后台线程变更按固定种子动作表运行。 |
-| 物理输入验收 | `R3` 计划协议；输入、窗口系统、容器 UI 或战斗交互变更后人工记录。 |
-| 干净目录发布验收 | `R5` 计划工具；从隔离根目录完成 manifest 预检、validation-only 和真实窗口启动。 |
+| 性能回归比较 | `tools/compare_perf_baselines.ps1`；D/R5/X 中改变场景、资源或驻留规模的任务关闭前必须运行。 |
+| 长时间稳定性 | `tools/run_world_soak.ps1`；区块、演员、存档或后台线程变更按固定种子动作表运行。 |
+| 物理输入验收 | `docs/manual-input-acceptance-v1.md`；输入、窗口系统、容器 UI 或战斗交互变更后人工记录。 |
+| 干净目录发布验收 | `tools/package_windows_release.ps1`；从隔离根目录完成 manifest 预检、validation-only、真实窗口和负向校验。 |
 
 ## 里程碑定义
 
@@ -296,7 +296,7 @@ macOS 原生构建与启动外已完成，`B3` 在 Windows-first 阶段明确延
 | M2 可扩展体素核心 | 已完成 | dirty queue、halo cache、基础 greedy meshing、方块 metadata 完成。 |
 | M3 可保存沙盒 | 已完成 | world seed、chunk 存档、基础光照、decorator 地形生成完成。 |
 | M4 内容扩展阶段 | 已完成当前范围 | 方块 shape 资源化、BlockBehavior、演员、洞穴和跨区块结构完成。 |
-| M5 可玩与发布探索 | 已立项，待办 | `D1-D6`、`R1-R5` 和 `X1-X3` 已进入执行清单；脚本化 mod、完整编辑器和多人网络仍未立项。 |
+| M5 可玩与发布探索 | 实现完成，待 R3 | D/R/X 当前范围均已实现；R3 人工记录后关闭余下 `Verify`，脚本化 mod、完整编辑器和多人网络仍未立项。 |
 
 ## 与 MiniGame 参考文档的关系
 

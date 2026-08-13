@@ -26,21 +26,19 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 | `docs/iteration-plan.md` | Long-term iteration roadmap. |
 | `docs/render-regression-smoke.md` | Non-intrusive render screenshot smoke. |
 | `docs/performance-baseline.md` | Non-intrusive frame timing and chunk counter baseline. |
+| `docs/manual-input-acceptance-v1.md` | Versioned physical keyboard/mouse acceptance protocol. |
+| `docs/resource-pack-contract.md` | Bounded read-only resource-pack contract and validation. |
+| `docs/windows-release-packaging.md` | Deterministic self-contained Windows distribution flow. |
 | `docs/chunk-streaming-regression.md` | Diagnosis and fix of the terrain streaming regression. |
 | `docs/minigame-reference.md` | Notes on MiniGame modules that can inform future work. |
 
 ### Current Development Direction
 
-The Windows sandbox-foundation scope is complete. The next executable roadmap
-is recorded in `docs/todolist.md` rather than inferred from the historical
-seven-day notes below:
-
-1. run the R2 long soak and finish the R3 physical-input acceptance for the
-   implemented D2 chest and D4 combat paths;
-2. close D6 by combining the implemented D3-D5 mob, combat, crop, container
-   and persistence paths into one playable vertical slice;
-3. add the R5 clean-root packaging gate;
-4. add the bounded X1-X3 read-only resource-pack layer.
+The selected 13-item Windows D/R/X implementation scope is complete. It now
+includes the playable crop/container/combat/persistence slice, a deterministic
+world soak, clean-root packaging and the bounded read-only resource-pack layer.
+The only current acceptance action is the human-operated R3 physical-input
+record; completing it also closes the remaining D2, D4 and D6 `Verify` states.
 
 Native macOS acceptance (B3) and formal ThreadSanitizer evidence (R4) remain
 deferred until suitable hosts are available. Multiplayer, scriptable mods,
@@ -133,7 +131,7 @@ vs2022.bat
 ### One-Command Build Verification
 
 Use the platform wrapper below for the same clean project generation,
-Debug/Release builds and five headless test runs expected before a change is
+Debug/Release rebuilds and seven headless test runs expected before a change is
 committed:
 
 | Platform | Command | Required host tools |
@@ -153,14 +151,14 @@ workspace contract without claiming a native build:
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_xcode_generation.ps1
 ```
 
-This 123-check preflight requires all six first-party targets and all 16 library
+This 133-check preflight requires all eight first-party targets and all 16 library
 projects, the Cocoa/OIS/OSX sources, platform header paths and framework flags.
 It rejects `WIN32` macros, foreign-platform build sources/search paths, and also
 checks the native verifier contract. It cannot replace `xcodebuild`.
 
 On a real macOS host, `scripts/verify_xcode.sh` is the final native gate. It
-generates Xcode projects, builds the client and five tests in Debug and Release,
-runs all ten test executions, then performs both validation-only and real-window
+generates Xcode projects, builds the client and seven tests in Debug and Release,
+runs all 14 test executions, then performs both validation-only and real-window
 three-frame client probes. The process prints `[XCODE_VERIFY] status=PASS` only
 after every step succeeds and keeps per-step logs under `build/`.
 
@@ -183,21 +181,23 @@ client. Set `seed` to an integer to reproduce newly created worlds, or leave it
 as `random`; a saved world's seed remains authoritative. The
 `HELLOMINE3D_SEED` environment variable can still override the configured seed
 for a new world during automated runs. Blank lines and `#` comments are
-allowed. `bin/Mine.cfg` and `bin/MineResources.cfg` are the only
-repository-owned files in `bin/` and act as Ogre bootstrap templates.
+allowed. `bin/Mine.cfg`, `bin/MineResources.cfg` and `bin/resource-packs.txt`
+are the repository-owned files in `bin/` and act as runtime templates.
 Executables, logs, ImGui state, saves, captures and the legacy unused
 `info.txt` are generated local state and remain ignored.
 
 ### Validation
 
-The build produces the client plus five test targets, all of which run headless:
+The build produces the client plus seven test targets, all of which run headless:
 
 ```powershell
 bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
 bin\HelloMine3DMeshDirtyTests.exe         # mesh dirty planner
 bin\HelloMine3DSaveLoadSmoke.exe          # chunk serialization roundtrip
 bin\HelloMine3DEntityLifecycleSmoke.exe   # actor lifecycle
-bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 255 assertions
+bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 327 assertions
+bin\HelloMine3DSoak.exe                   # deterministic world stability schedule
+bin\HelloMine3DResourcePackSmoke.exe      # resource resolver and frozen view
 ```
 
 Asset and data changes should also run the reference-aware asset check:
@@ -252,6 +252,24 @@ powershell -ExecutionPolicy Bypass -File tools\validate_resource_manifest.ps1
 
 The last command also proves that a missing expected entry and an unreferenced
 stale entry fail even when every resource file still exists.
+
+Resource packs are enabled in priority order through `bin/resource-packs.txt`.
+They may override only existing manifest entries and are frozen at startup:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\validate_resource_packs.ps1
+```
+
+For long-lived world regression and a self-contained Windows Release package:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\run_world_soak.ps1 -DurationSeconds 1800 -Formal
+powershell -ExecutionPolicy Bypass -File tools\package_windows_release.ps1 -IncludePack example-stone
+```
+
+Generated soak evidence, package directories and ZIPs stay under `bin/` and
+remain ignored. See the resource-pack and Windows-packaging documents above
+for their security boundary, deterministic inventory and negative checks.
 
 See `docs/runtime-validation.md` for what each layer covers.
 
