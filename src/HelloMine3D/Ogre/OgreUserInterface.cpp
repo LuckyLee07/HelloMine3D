@@ -22,6 +22,12 @@
 
 namespace
 {
+#if defined(__APPLE__)
+    constexpr const char* ImGuiGlslVersion = "#version 150";
+#else
+    constexpr const char* ImGuiGlslVersion = "#version 130";
+#endif
+
     ImGuiKey toImGuiKey(OIS::KeyCode key)
     {
         switch (key)
@@ -165,7 +171,7 @@ class OgreUserInterface::Impl
         io.IniFilename = iniPath.c_str();
         ImGui::StyleColorsDark();
 
-        if (!ImGui_ImplOpenGL3_Init("#version 130"))
+        if (!ImGui_ImplOpenGL3_Init(ImGuiGlslVersion))
         {
             ImGui::DestroyContext();
             throw std::runtime_error(

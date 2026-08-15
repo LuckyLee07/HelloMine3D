@@ -274,6 +274,9 @@ project(project_name)
             "../src/Engine/ogre3d_glsupport/include/OSX",
             "../src/external/ois/includes/mac"
         }
+        externalincludedirs {
+            "../src/external/imgui"
+        }
         linkoptions {
             "-framework Cocoa",
             "-framework Carbon",

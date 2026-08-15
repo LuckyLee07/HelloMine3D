@@ -6,6 +6,48 @@ local engine_dir = "../src/Engine"
 local third_party_dir = engine_dir .. "/ThirdParty"
 local ois_dir = "../src/external/ois"
 
+-- Xcode 26 emits Premake `includedirs` as quote-only search paths.  The
+-- vendored Ogre dependency graph contains legacy sources that use angle
+-- includes for their own headers (notably OpenEXR and FreeType), so expose
+-- those roots as system search paths on macOS as well.  Keep the existing
+-- per-project include declarations below for Visual Studio and Make.
+filter "system:macosx"
+    defines {
+        "_LIBCPP_ENABLE_CXX17_REMOVED_AUTO_PTR",
+        "_LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION"
+    }
+    buildoptions {
+        "-Wno-dynamic-exception-spec",
+        "-Wno-register"
+    }
+    externalincludedirs {
+        third_party_dir .. "/freeimage/include",
+        third_party_dir .. "/freetype/include",
+        third_party_dir .. "/libjpeg/include",
+        third_party_dir .. "/libopenjpeg/include",
+        third_party_dir .. "/libpng/include",
+        third_party_dir .. "/libraw/include",
+        third_party_dir .. "/libtiff4/include",
+        third_party_dir .. "/openexr/include",
+        third_party_dir .. "/openexr/include/half",
+        third_party_dir .. "/openexr/include/iex",
+        third_party_dir .. "/openexr/include/ilmimf",
+        third_party_dir .. "/openexr/include/ilmthread",
+        third_party_dir .. "/openexr/include/imath",
+        third_party_dir .. "/zlib/include",
+        third_party_dir .. "/zzip/include",
+        engine_dir .. "/ogre3d/include",
+        engine_dir .. "/ogre3d/include/OSX",
+        engine_dir .. "/ogre3d/src/nedmalloc",
+        engine_dir .. "/ogre3d_glsupport/include",
+        engine_dir .. "/ogre3d_glsupport/include/GLSL",
+        engine_dir .. "/ogre3d_glsupport/include/OSX",
+        engine_dir .. "/ogre3d_gl3plus/include",
+        ois_dir .. "/includes",
+        ois_dir .. "/includes/mac"
+    }
+filter {}
+
 local function configure_static_project(name, project_location)
     project(name)
         kind "StaticLib"

@@ -436,7 +436,8 @@ namespace
                     "Sandbox did not create an active world.");
             }
 
-            if (isTrueValue(std::getenv(
+            if (!uploadToOgre ||
+                isTrueValue(std::getenv(
                     "HELLOMINE3D_TRANSPARENT_FIXTURE")))
             {
                 const int centerX =

@@ -43,7 +43,8 @@ constexpr float LIGHT_BOT = 0.4f;
 
 float combineTerrainLight(float cardinalLight, LightLevel sunlight)
 {
-    return cardinalLight * lightLevelToBrightness(sunlight);
+    return std::clamp(cardinalLight * lightLevelToBrightness(sunlight),
+                      0.f, 1.f);
 }
 
 } // namespace

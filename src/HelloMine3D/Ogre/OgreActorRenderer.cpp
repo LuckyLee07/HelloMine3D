@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <stdexcept>
+#include <string>
 #include <unordered_set>
 
 namespace
@@ -178,7 +179,7 @@ OgreActorRenderer::ActorVisual OgreActorRenderer::createVisual(
     const ActorSnapshot& snapshot)
 {
     const Ogre::String baseName =
-        "Actor_" + Ogre::StringConverter::toString(snapshot.id);
+        "Actor_" + std::to_string(snapshot.id);
     ActorVisual visual;
     visual.type = snapshot.type;
     visual.object = m_sceneManager->createManualObject(baseName + "_Mesh");

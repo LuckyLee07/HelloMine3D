@@ -45,7 +45,11 @@ namespace ResourcePaths
             return lhs + rhs;
         }
 
+#if defined(_WIN32)
         return lhs + "\\" + rhs;
+#else
+        return lhs + "/" + rhs;
+#endif
     }
 
     inline std::string currentPath()
