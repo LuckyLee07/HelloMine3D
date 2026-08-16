@@ -250,20 +250,6 @@ project(project_name)
         source_dir .. "/Ogre/**.h",
         source_dir .. "/Ogre/**.cpp"
     }
-    dependson {
-        "tracy",
-        "imgui",
-        "imgui_opengl3",
-        "ogre3d",
-        "ogre3d_glsupport",
-        "ogre3d_gl3plus",
-        "freeimage",
-        "ogre_freetype",
-        "zlib",
-        "zzip",
-        "ois"
-    }
-
     includedirs {
         source_dir,
         "../src/Engine/ogre3d/include",
@@ -373,16 +359,6 @@ project "HelloMine3DWorldRuntimeSmoke"
     configure_game_logic_target()
     files(project_source_patterns())
     files { source_dir .. "/Tests/WorldRuntimeSmokeMain.cpp" }
-    dependson {
-        "freeimage",
-        "libjpeg",
-        "libopenjpeg",
-        "libpng",
-        "libraw",
-        "libtiff4",
-        "openexr",
-        "zlib"
-    }
     links {
         "freeimage",
         "libjpeg",
@@ -400,16 +376,6 @@ project "HelloMine3DSoak"
     configure_game_logic_target()
     files(project_source_patterns())
     files { source_dir .. "/Tests/SoakMain.cpp" }
-    dependson {
-        "freeimage",
-        "libjpeg",
-        "libopenjpeg",
-        "libpng",
-        "libraw",
-        "libtiff4",
-        "openexr",
-        "zlib"
-    }
     links {
         "freeimage",
         "libjpeg",
@@ -433,6 +399,32 @@ project "HelloMine3DResourcePackSmoke"
         source_dir .. "/Tests/ResourcePackSmokeMain.cpp",
         source_dir .. "/Util/ResourcePackResolver.h",
         source_dir .. "/Util/ResourcePackResolver.cpp"
+    }
+    includedirs { source_dir }
+
+    filter "system:windows"
+        defines { "_CRT_SECURE_NO_WARNINGS" }
+
+    filter {}
+
+-- G1 strict recipe parser, immutable registry and base-resource ownership.
+project "HelloMine3DRecipeSmoke"
+    kind "ConsoleApp"
+    location "../build/%{prj.name}"
+    targetdir "../bin"
+    debugdir "../bin"
+    objdir "../build/%{prj.name}/obj/%{cfg.platform}/%{cfg.buildcfg}"
+    files {
+        source_dir .. "/Tests/RecipeSmokeMain.cpp",
+        source_dir .. "/Item/Material.h",
+        source_dir .. "/Item/Material.cpp",
+        source_dir .. "/Item/RecipeRegistry.h",
+        source_dir .. "/Item/RecipeRegistry.cpp",
+        source_dir .. "/Util/NonCopyable.h",
+        source_dir .. "/Util/ResourcePackResolver.h",
+        source_dir .. "/Util/ResourcePackResolver.cpp",
+        source_dir .. "/Util/ResourcePaths.h",
+        source_dir .. "/World/Block/BlockId.h"
     }
     includedirs { source_dir }
 

@@ -48,6 +48,21 @@ Add-ManifestEntry "runtime-template" "bin/Mine.cfg"
 Add-ManifestEntry "runtime-template" "bin/MineResources.cfg"
 Add-ManifestEntry "runtime-template" "bin/resource-packs.txt"
 
+$recipeRoot = Join-Path $Root "media\recipes"
+if (-not (Test-Path -LiteralPath $recipeRoot -PathType Container)) {
+    throw "Recipe resource directory is missing: $recipeRoot"
+}
+$recipeFiles = @(Get-ChildItem -LiteralPath $recipeRoot `
+    -Filter "*.recipe" -File -Recurse)
+if ($recipeFiles.Count -eq 0) {
+    throw "No base recipe resources were discovered."
+}
+foreach ($recipeFile in $recipeFiles) {
+    $relativeRecipe = $recipeFile.FullName.Substring($Root.Length).TrimStart(
+        [char]'\', [char]'/')
+    Add-ManifestEntry "recipe" $relativeRecipe
+}
+
 $blockSource = Get-Content -LiteralPath $blockDatabasePath -Raw
 $blockMatches = [regex]::Matches(
     $blockSource,

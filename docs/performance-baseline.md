@@ -393,12 +393,22 @@ This is a macOS/Rosetta steady-gameplay reference, not a substitute for the
 target-Windows cold-start, world-entry, save, restore, streaming and scaled
 gameplay baselines required to close Q1. Generated samples remain ignored.
 
-## Planned Stage-8 Budget Extensions
+## Stage-8 Budget Contract v1
 
-Q1-Q3 extend this baseline after R3 closes. These are planned contracts, not
-current verified results. Q1 must first capture the current Release baseline,
-approve thresholds and version the schema; later tasks may not invent a looser
-threshold merely to close their own regression.
+`tools/performance-contract-v1.json` now freezes comparison schema 3 and the
+six Q1 scene ids below before K/G systems change their workloads. The JSON is
+the single source for required identity, metrics, phase ordering, exact-count
+compatibility, residency tolerance and budget field names. Both comparator
+frontends consume that contract; later tasks must not copy its rules into a
+new script or invent a looser threshold to close their own regression.
+
+The six tracked `*.baseline.summary.txt` files under
+`tools/fixtures/performance/` are synthetic contract fixtures. Their
+`fixture-windows-target-v1` limits prove comparison behavior only and are not
+approved product budgets. A real schema-3 baseline is valid only when it names
+an approved `comparison_budget_profile` and contains each required
+`budget_<metric>_max` value. This deliberately prevents an unbudgeted capture
+from returning `PASS`.
 
 | Scene identity | Required measurements | Compatibility identity |
 | -------------- | --------------------- | ---------------------- |
@@ -409,15 +419,16 @@ threshold merely to close their own regression.
 | fast streaming | chunk request-to-visible latency percentiles, queue peak, mesh progress, frame P95/P99/long frames and memory | fixed movement path/speed, view distance, seed, final residency and VSync regime |
 | scaled gameplay | frame/update/render percentiles, main-thread max stall, actor/item/crop/chest counts, memory/handles and cap events | versioned population fixture, fixed tick count, world seed and identical save state |
 
-Planned comparator rules:
+Schema-3 comparator rules:
 
 1. Missing required metrics, non-monotonic phase times or an unknown schema are
    `INVALID` and return non-zero.
 2. Changed scene/configuration/residency/storage identity is `INCOMPARABLE` and
    must not be reported as either faster or passing.
 3. Existing R1 P95/P99/long-frame thresholds remain authoritative for frame
-   timing. Q1 adds approved budgets for startup, entry, save, restore and
-   chunk-visible latency only after baseline evidence exists.
+   timing. Absolute startup, entry, save, restore, chunk-visible, stall,
+   memory, handle and capacity limits come from the approved baseline profile,
+   not from the candidate or command-line defaults.
 4. Save and restore comparisons include both total time and longest main-thread
    stall; moving the same work into one blocking phase is not an improvement.
 5. Q3 nominal-scale runs must pass the approved budgets. Stress runs may hit a
@@ -425,6 +436,21 @@ Planned comparator rules:
    metric rather than corrupt state, grow without bound or silently drop work.
 6. K/G changes that affect persistence or population also repeat the formal R2
    soak; a short performance capture cannot replace long-session evidence.
+
+`python3 tools/validate_perf_comparison.py` derives 433 schema-3 cases from
+the six tracked baselines. It removes every required key/metric, violates every
+positive/integer/range/phase rule, crosses each absolute budget, changes every
+identity, exceeds residency tolerance and exercises the inherited frame
+thresholds. Together with eight schema-1/2 compatibility cases, all 441 pass
+on macOS. The Xcode gate runs this verifier before generating projects. The
+native PowerShell comparator and Windows gate use the same JSON; their next
+target-Windows run remains required evidence.
+
+Schema 3 treats `comparison_build_id` as required provenance rather than a
+compatibility key, so a candidate commit can be compared to its approved
+baseline. The budget profile, configuration, platform/architecture and each
+scene-specific workload identity must still match exactly. Legacy schema 2
+keeps its existing exact-build behavior for archived measurements.
 
 ## When To Run
 

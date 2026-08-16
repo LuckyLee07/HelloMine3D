@@ -31,6 +31,7 @@
 #include "../Core/Camera.h"
 #include "../Diagnostics/RuntimePerformanceCapture.h"
 #include "../Diagnostics/RuntimeProfiler.h"
+#include "../Item/RecipeRegistry.h"
 #include "../Player/Player.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/SandboxRuntime.h"
@@ -1613,6 +1614,8 @@ int runOgreBootstrap(bool validateOnly)
         runtimeResourcePackResolver().freezeFromEnvironment(
             root, resourceRequirements);
         validateStartupResources(root, startupResources);
+        runtimeRecipeRegistry().freezeFromResourceView(
+            runtimeResourcePackResolver());
         const char *manifestOutput =
             std::getenv("HELLOMINE3D_EFFECTIVE_MANIFEST_OUT");
         if (manifestOutput != nullptr && manifestOutput[0] != '\0')
@@ -1635,6 +1638,8 @@ int runOgreBootstrap(bool validateOnly)
                   << runtimeResourcePackResolver()
                          .effectiveResources().size()
                   << '\n';
+        std::cout << "[RECIPE_REGISTRY] frozen=1 recipes="
+                  << runtimeRecipeRegistry().recipes().size() << '\n';
         OgreBootstrap bootstrap;
         if (validateOnly)
         {

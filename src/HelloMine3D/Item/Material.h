@@ -43,6 +43,9 @@ struct Material : public NonCopyable {
 
     static const Material &toMaterial(BlockId id);
     static const Material &toMaterial(Material::ID id);
+    static const char *toStringId(Material::ID id) noexcept;
+    static bool tryParseStringId(const std::string &value,
+                                 Material::ID &id) noexcept;
 
     const Material::ID id;
     const int maxStackSize;

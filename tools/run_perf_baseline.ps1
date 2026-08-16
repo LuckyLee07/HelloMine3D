@@ -15,6 +15,7 @@ param(
     [string]$WorldTime = "",
     [string]$ResourcePacks = "",
     [string]$SceneId = "",
+    [string]$StorageClass = "local-default",
     [double]$MinimumSimulationTickHz = 19.0,
     [double]$MaximumSimulationTickHz = 21.0,
     [switch]$VerticalSliceFixture,
@@ -199,6 +200,49 @@ function Read-ConfigValue {
         throw "Runtime config is missing '$Key': $Path"
     }
     return (($line -split '=', 2)[1]).Trim()
+}
+
+function Read-GameConfigValue {
+    param(
+        [string]$Path,
+        [string]$Key
+    )
+
+    $escapedKey = [regex]::Escape($Key)
+    $line = Get-Content -LiteralPath $Path | Where-Object {
+        $_ -match "^\s*$escapedKey\s+"
+    } | Select-Object -First 1
+    if ([string]::IsNullOrWhiteSpace($line)) {
+        throw "Game config is missing '$Key': $Path"
+    }
+    return (($line -replace "^\s*$escapedKey\s+", "") -replace "\s+", " ").Trim()
+}
+
+function Get-BuildIdentity {
+    param([string]$Root)
+
+    $headCommit = (& git -C $Root rev-parse HEAD 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($headCommit)) {
+        throw "Unable to resolve Git build identity."
+    }
+    $diffText = (& git -C $Root diff -- src premake 2>$null | Out-String)
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to resolve Git source state."
+    }
+    if ([string]::IsNullOrWhiteSpace($diffText)) {
+        return $headCommit
+    }
+
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($diffText)
+        $hash = $sha256.ComputeHash($bytes)
+        $suffix = ([BitConverter]::ToString($hash) -replace '-', '').ToLowerInvariant()
+        return "$headCommit+dirty-$($suffix.Substring(0, 12))"
+    }
+    finally {
+        $sha256.Dispose()
+    }
 }
 
 function Wait-MainWindowHandle {
@@ -397,11 +441,55 @@ try {
         throw "Simulation tick rate $simulationTickHz Hz is outside the expected range [$MinimumSimulationTickHz, $MaximumSimulationTickHz]."
     }
 
+    $gameConfigPath = Join-Path $BinDir "config.txt"
+    $fullscreen = Read-GameConfigValue `
+        -Path $gameConfigPath -Key "fullscreen"
+    $fov = Read-GameConfigValue -Path $gameConfigPath -Key "fov"
+    $renderDistance = Read-GameConfigValue `
+        -Path $gameConfigPath -Key "renderdistance"
+    $manifestPath = Join-Path $RepoRoot "media\resource-manifest.txt"
+    $manifestHash = (Get-FileHash `
+        -LiteralPath $manifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $buildIdentity = Get-BuildIdentity -Root $RepoRoot
+    $video = Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    $gpu = if ($null -ne $video -and
+        -not [string]::IsNullOrWhiteSpace($video.Name)) {
+        ([string]$video.Name).Trim()
+    }
+    else { "unknown" }
+    $driver = if ($null -ne $video -and
+        -not [string]::IsNullOrWhiteSpace($video.DriverVersion)) {
+        ([string]$video.DriverVersion).Trim()
+    }
+    else { "unknown" }
+    $saveFormat = Read-WorldMetaValue `
+        -Path (Join-Path $SaveDir "world.meta") -Key "version"
+    if ([string]::IsNullOrWhiteSpace($saveFormat)) { $saveFormat = "unknown" }
+    $resourcePackIdentity = if ([string]::IsNullOrWhiteSpace($ResourcePacks)) {
+        "none"
+    }
+    else { ($ResourcePacks -replace '\s+', '') }
+    $worldFixture = "seed-$Seed-position-$($PlayerPosition -replace '\s+', '_')-time-$WorldTime"
+
     Add-Content -LiteralPath $SummaryPath -Encoding utf8 -Value @(
-        "comparison_schema=1",
+        "comparison_schema=2",
         "comparison_scene_id=$SceneId",
+        "comparison_platform=windows",
+        "comparison_architecture=x86_64",
+        "comparison_build_id=$buildIdentity",
+        "comparison_gpu=$gpu",
+        "comparison_driver=$driver",
         "comparison_vsync_regime=$VsyncRegime",
-        "comparison_window=${WindowWidth}x$WindowHeight"
+        "comparison_window=${WindowWidth}x$WindowHeight",
+        "comparison_fullscreen=$fullscreen",
+        "comparison_fov=$fov",
+        "comparison_resource_manifest_sha256=$manifestHash",
+        "comparison_resource_packs=$resourcePackIdentity",
+        "comparison_world_fixture=$worldFixture",
+        "comparison_save_format=$saveFormat",
+        "comparison_storage_class=$StorageClass",
+        "comparison_render_distance=$renderDistance"
     )
 }
 finally {

@@ -69,6 +69,11 @@ path that is absent from `media/resource-manifest.txt`; such a file is reported
 as a stale or unsupported override. This also means that v1 cannot introduce a
 new block id, shape name, behavior script or executable extension.
 
+The base manifest may also contain `recipe` entries, but `recipe` is
+deliberately not an allowed v1 override class. Recipes are loaded only from
+base-owned sources under `docs/recipe-contract.md`; a pack containing the same
+logical path is rejected as stale or unsupported.
+
 ## Path and trust policy
 
 Logical paths use forward slashes, are repository-relative and canonical, and
@@ -120,10 +125,11 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\validate_resource_packs.ps1
 ```
 
-`HelloMine3DResourcePackSmoke` provides 18 isolated parser/resolver assertions:
+`HelloMine3DResourcePackSmoke` provides 19 isolated parser/resolver assertions:
 no-pack compatibility, deterministic precedence, fallback, all six resource
 classes, Ogre directory order, version/traversal/stale/empty/duplicate/missing
-rejection, sorted ownership and one-time freeze. The wrapper then launches the
-real Release/Debug client with no pack and with `packs/example-stone`, requiring
-42-entry effective manifests that differ only in ownership of Stone.
-
+rejection, explicit recipe-override rejection, sorted ownership and one-time
+freeze. The current base view has 37 entries including one base-owned recipe.
+The wrapper then launches the real Release/Debug client with no pack and with
+`packs/example-stone`, requiring manifests that differ only in ownership of
+Stone.

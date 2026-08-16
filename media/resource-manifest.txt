@@ -20,6 +20,7 @@ block|media/blocks/TallGrass.block
 block|media/blocks/Water.block
 block|media/blocks/WheatCrop.block
 font|media/fonts/rs.ttf
+recipe|media/recipes/Base.recipe
 resource-script|media/ogre/HelloMine3D.material
 resource-script|media/ogre/HelloMine3D.program
 runtime-template|bin/Mine.cfg

@@ -15,10 +15,10 @@ ChunkManager::ChunkManager(World &world)
 }
 
 ChunkManager::ChunkManager(World &world, std::string chunkRootDirectory)
-    : m_world(&world)
-    , m_chunkStorage(chunkRootDirectory.empty()
+    : m_chunkStorage(chunkRootDirectory.empty()
                          ? ChunkStorage()
                          : ChunkStorage(std::move(chunkRootDirectory)))
+    , m_world(&world)
 {
     setTerrainSeed(m_terrainSeed);
 }

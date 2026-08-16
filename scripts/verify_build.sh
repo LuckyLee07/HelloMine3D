@@ -10,6 +10,7 @@ TESTS=(
     HelloMine3DWorldRuntimeSmoke
     HelloMine3DSoak
     HelloMine3DResourcePackSmoke
+    HelloMine3DRecipeSmoke
 )
 
 for config in debug release; do
@@ -31,7 +32,7 @@ unexpected=()
 for candidate in "$ROOT_DIR"/bin/HelloMine3D*; do
     [ -f "$candidate" ] && [ -x "$candidate" ] || continue
     case "$(basename "$candidate")" in
-        HelloMine3D|HelloMine3DCoordinateTests|HelloMine3DMeshDirtyTests|HelloMine3DSaveLoadSmoke|HelloMine3DEntityLifecycleSmoke|HelloMine3DWorldRuntimeSmoke|HelloMine3DSoak|HelloMine3DResourcePackSmoke)
+        HelloMine3D|HelloMine3DCoordinateTests|HelloMine3DMeshDirtyTests|HelloMine3DSaveLoadSmoke|HelloMine3DEntityLifecycleSmoke|HelloMine3DWorldRuntimeSmoke|HelloMine3DSoak|HelloMine3DResourcePackSmoke|HelloMine3DRecipeSmoke)
             ;;
         *)
             unexpected+=("$(basename "$candidate")")

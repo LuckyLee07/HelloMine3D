@@ -1,0 +1,429 @@
+{
+  "contract_version": 1,
+  "comparison_schema": "3",
+  "common_required_keys": [
+    "comparison_contract_version",
+    "comparison_budget_profile",
+    "build_configuration",
+    "comparison_scene_id",
+    "comparison_platform",
+    "comparison_architecture",
+    "comparison_build_id"
+  ],
+  "common_identity_keys": [
+    "comparison_budget_profile",
+    "build_configuration",
+    "comparison_platform",
+    "comparison_architecture"
+  ],
+  "frame_policy": {
+    "p95_percent": 15.0,
+    "p99_percent": 20.0,
+    "long_frame_percent": 0.5,
+    "long_frame_minimum": 2.0
+  },
+  "residency_policy": {
+    "percent": 5.0,
+    "metrics": {
+      "last_loaded_chunks": 2.0,
+      "last_sections": 8.0
+    }
+  },
+  "scenes": {
+    "q1-cold-start-v1": {
+      "identity_keys": [
+        "comparison_gpu",
+        "comparison_driver",
+        "comparison_vsync_regime",
+        "comparison_window",
+        "comparison_fullscreen",
+        "comparison_fov",
+        "comparison_resource_manifest_sha256",
+        "comparison_resource_packs",
+        "comparison_cache_regime"
+      ],
+      "required_metrics": [
+        "startup_preflight_ms",
+        "startup_ogre_ready_ms",
+        "startup_first_window_ms",
+        "startup_first_usable_menu_ms",
+        "peak_private_bytes",
+        "peak_working_set_bytes",
+        "peak_handle_count"
+      ],
+      "positive_metrics": [
+        "startup_first_usable_menu_ms",
+        "peak_private_bytes",
+        "peak_working_set_bytes",
+        "peak_handle_count"
+      ],
+      "integer_metrics": [
+        "peak_private_bytes",
+        "peak_working_set_bytes",
+        "peak_handle_count"
+      ],
+      "monotonic_groups": [
+        [
+          "startup_preflight_ms",
+          "startup_ogre_ready_ms",
+          "startup_first_window_ms",
+          "startup_first_usable_menu_ms"
+        ]
+      ],
+      "budget_metrics": [
+        "startup_first_usable_menu_ms",
+        "peak_private_bytes",
+        "peak_working_set_bytes",
+        "peak_handle_count"
+      ]
+    },
+    "q1-world-entry-v1": {
+      "identity_keys": [
+        "comparison_gpu",
+        "comparison_driver",
+        "comparison_vsync_regime",
+        "comparison_window",
+        "comparison_fullscreen",
+        "comparison_fov",
+        "comparison_resource_manifest_sha256",
+        "comparison_resource_packs",
+        "comparison_world_fixture",
+        "comparison_save_format",
+        "comparison_storage_class",
+        "comparison_render_distance",
+        "terrain_seed"
+      ],
+      "required_metrics": [
+        "entry_world_metadata_ms",
+        "entry_spawn_resident_ms",
+        "entry_first_visible_terrain_ms",
+        "entry_first_controllable_ms",
+        "peak_private_bytes",
+        "peak_working_set_bytes",
+        "peak_handle_count",
+        "last_loaded_chunks",
+        "last_sections"
+      ],
+      "positive_metrics": [
+        "entry_first_controllable_ms",
+        "peak_private_bytes",
+        "peak_working_set_bytes",
+        "peak_handle_count",
+        "last_loaded_chunks",
+        "last_sections"
+      ],
+      "integer_metrics": [
+        "peak_private_bytes",
+        "peak_working_set_bytes",
+        "peak_handle_count",
+        "last_loaded_chunks",
+        "last_sections"
+      ],
+      "monotonic_groups": [
+        [
+          "entry_world_metadata_ms",
+          "entry_spawn_resident_ms",
+          "entry_first_visible_terrain_ms",
+          "entry_first_controllable_ms"
+        ]
+      ],
+      "budget_metrics": [
+        "entry_first_controllable_ms",
+        "peak_private_bytes",
+        "peak_working_set_bytes",
+        "peak_handle_count"
+      ],
+      "residency_metrics": [
+        "last_loaded_chunks",
+        "last_sections"
+      ]
+    },
+    "q1-save-transaction-v1": {
+      "identity_keys": [
+        "comparison_world_fixture",
+        "comparison_save_format",
+        "comparison_storage_class",
+        "comparison_resource_packs",
+        "comparison_dirty_set",
+        "comparison_backup_policy"
+      ],
+      "required_metrics": [
+        "save_prepare_complete_ms",
+        "save_write_complete_ms",
+        "save_flush_complete_ms",
+        "save_validation_complete_ms",
+        "save_replace_complete_ms",
+        "save_total_ms",
+        "save_main_thread_max_stall_ms",
+        "save_files_written",
+        "save_chunks_written",
+        "save_bytes_written"
+      ],
+      "positive_metrics": [
+        "save_total_ms",
+        "save_files_written",
+        "save_chunks_written",
+        "save_bytes_written"
+      ],
+      "integer_metrics": [
+        "save_files_written",
+        "save_chunks_written",
+        "save_bytes_written"
+      ],
+      "monotonic_groups": [
+        [
+          "save_prepare_complete_ms",
+          "save_write_complete_ms",
+          "save_flush_complete_ms",
+          "save_validation_complete_ms",
+          "save_replace_complete_ms",
+          "save_total_ms"
+        ]
+      ],
+      "budget_metrics": [
+        "save_total_ms",
+        "save_main_thread_max_stall_ms"
+      ]
+    },
+    "q1-backup-restore-v1": {
+      "identity_keys": [
+        "comparison_world_fixture",
+        "comparison_save_format",
+        "comparison_storage_class",
+        "comparison_backup_fixture",
+        "comparison_backup_policy"
+      ],
+      "required_metrics": [
+        "restore_catalogue_scan_ms",
+        "restore_candidate_copy_complete_ms",
+        "restore_validation_complete_ms",
+        "restore_publish_complete_ms",
+        "restore_total_ms",
+        "restore_main_thread_max_stall_ms",
+        "restore_bytes_read",
+        "restore_bytes_written"
+      ],
+      "positive_metrics": [
+        "restore_total_ms",
+        "restore_bytes_read",
+        "restore_bytes_written"
+      ],
+      "integer_metrics": [
+        "restore_bytes_read",
+        "restore_bytes_written"
+      ],
+      "monotonic_groups": [
+        [
+          "restore_catalogue_scan_ms",
+          "restore_candidate_copy_complete_ms",
+          "restore_validation_complete_ms",
+          "restore_publish_complete_ms",
+          "restore_total_ms"
+        ]
+      ],
+      "budget_metrics": [
+        "restore_total_ms",
+        "restore_main_thread_max_stall_ms"
+      ]
+    },
+    "q1-fast-streaming-v1": {
+      "identity_keys": [
+        "comparison_gpu",
+        "comparison_driver",
+        "comparison_vsync_regime",
+        "comparison_window",
+        "comparison_fullscreen",
+        "comparison_fov",
+        "comparison_resource_manifest_sha256",
+        "comparison_resource_packs",
+        "comparison_world_fixture",
+        "comparison_save_format",
+        "comparison_storage_class",
+        "comparison_render_distance",
+        "comparison_movement_path",
+        "comparison_movement_speed",
+        "terrain_seed"
+      ],
+      "required_metrics": [
+        "chunk_visible_p50_ms",
+        "chunk_visible_p95_ms",
+        "chunk_visible_p99_ms",
+        "stream_queue_peak",
+        "mesh_progress_completed",
+        "frames",
+        "frame_p95_ms",
+        "frame_p99_ms",
+        "frames_over_50ms",
+        "simulation_tick_hz",
+        "peak_private_bytes",
+        "peak_working_set_bytes",
+        "peak_handle_count",
+        "last_loaded_chunks",
+        "last_sections"
+      ],
+      "positive_metrics": [
+        "chunk_visible_p99_ms",
+        "mesh_progress_completed",
+        "frames",
+        "frame_p95_ms",
+        "frame_p99_ms",
+        "simulation_tick_hz",
+        "peak_private_bytes",
+        "peak_working_set_bytes",
+        "peak_handle_count",
+        "last_loaded_chunks",
+        "last_sections"
+      ],
+      "integer_metrics": [
+        "stream_queue_peak",
+        "mesh_progress_completed",
+        "frames",
+        "frames_over_50ms",
+        "peak_private_bytes",
+        "peak_working_set_bytes",
+        "peak_handle_count",
+        "last_loaded_chunks",
+        "last_sections"
+      ],
+      "monotonic_groups": [
+        [
+          "chunk_visible_p50_ms",
+          "chunk_visible_p95_ms",
+          "chunk_visible_p99_ms"
+        ]
+      ],
+      "metric_ranges": {
+        "simulation_tick_hz": {
+          "minimum": 19.0,
+          "maximum": 21.0
+        }
+      },
+      "budget_metrics": [
+        "chunk_visible_p95_ms",
+        "chunk_visible_p99_ms",
+        "stream_queue_peak",
+        "peak_private_bytes",
+        "peak_working_set_bytes",
+        "peak_handle_count"
+      ],
+      "residency_metrics": [
+        "last_loaded_chunks",
+        "last_sections"
+      ],
+      "apply_frame_policy": true
+    },
+    "q1-scaled-gameplay-v1": {
+      "identity_keys": [
+        "comparison_gpu",
+        "comparison_driver",
+        "comparison_vsync_regime",
+        "comparison_window",
+        "comparison_fullscreen",
+        "comparison_fov",
+        "comparison_resource_manifest_sha256",
+        "comparison_resource_packs",
+        "comparison_world_fixture",
+        "comparison_save_format",
+        "comparison_storage_class",
+        "comparison_render_distance",
+        "comparison_population_fixture",
+        "comparison_save_state_sha256",
+        "comparison_fixed_tick_count",
+        "terrain_seed"
+      ],
+      "required_metrics": [
+        "frames",
+        "frame_p95_ms",
+        "frame_p99_ms",
+        "update_p95_ms",
+        "update_p99_ms",
+        "render_p95_ms",
+        "render_p99_ms",
+        "frames_over_50ms",
+        "simulation_tick_hz",
+        "main_thread_max_stall_ms",
+        "actor_count",
+        "item_entity_count",
+        "crop_count",
+        "chest_count",
+        "peak_private_bytes",
+        "peak_working_set_bytes",
+        "peak_handle_count",
+        "cap_events",
+        "last_loaded_chunks",
+        "last_sections"
+      ],
+      "positive_metrics": [
+        "frames",
+        "frame_p95_ms",
+        "frame_p99_ms",
+        "update_p95_ms",
+        "update_p99_ms",
+        "render_p95_ms",
+        "render_p99_ms",
+        "simulation_tick_hz",
+        "actor_count",
+        "item_entity_count",
+        "crop_count",
+        "chest_count",
+        "peak_private_bytes",
+        "peak_working_set_bytes",
+        "peak_handle_count",
+        "last_loaded_chunks",
+        "last_sections"
+      ],
+      "integer_metrics": [
+        "frames",
+        "frames_over_50ms",
+        "actor_count",
+        "item_entity_count",
+        "crop_count",
+        "chest_count",
+        "peak_private_bytes",
+        "peak_working_set_bytes",
+        "peak_handle_count",
+        "cap_events",
+        "last_loaded_chunks",
+        "last_sections"
+      ],
+      "monotonic_groups": [
+        [
+          "frame_p95_ms",
+          "frame_p99_ms"
+        ],
+        [
+          "update_p95_ms",
+          "update_p99_ms"
+        ],
+        [
+          "render_p95_ms",
+          "render_p99_ms"
+        ]
+      ],
+      "metric_ranges": {
+        "simulation_tick_hz": {
+          "minimum": 19.0,
+          "maximum": 21.0
+        }
+      },
+      "budget_metrics": [
+        "main_thread_max_stall_ms",
+        "peak_private_bytes",
+        "peak_working_set_bytes",
+        "peak_handle_count",
+        "cap_events"
+      ],
+      "exact_metrics": [
+        "actor_count",
+        "item_entity_count",
+        "crop_count",
+        "chest_count"
+      ],
+      "residency_metrics": [
+        "last_loaded_chunks",
+        "last_sections"
+      ],
+      "apply_frame_policy": true
+    }
+  }
+}

@@ -73,6 +73,7 @@ foreach ($Target in @(
     "HelloMine3DWorldRuntimeSmoke",
     "HelloMine3DSoak",
     "HelloMine3DResourcePackSmoke",
+    "HelloMine3DRecipeSmoke",
     "tracy",
     "zlib",
     "zzip",
@@ -134,11 +135,13 @@ foreach ($Project in @(Get-ChildItem -LiteralPath $BuildDir -Recurse -Filter "pr
 foreach ($Pattern in @(
     'uname -s',
     'xcodebuild',
+    '-parallelizeTargets',
     '-configuration "\$configuration"',
     'HelloMine3DCoordinateTests',
     'HelloMine3DWorldRuntimeSmoke',
     'HelloMine3DSoak',
     'HelloMine3DResourcePackSmoke',
+    'HelloMine3DRecipeSmoke',
     'HELLOMINE3D_VALIDATE_ONLY=1',
     'HELLOMINE3D_EXIT_AFTER_FRAMES=120',
     'CODE_SIGNING_ALLOWED=NO',
@@ -146,6 +149,9 @@ foreach ($Pattern in @(
     '\[VALIDATION\] checks=338 failures=0',
     '\[OGRE_VALIDATION\] renderer=OpenGL 3\+',
     '\[OGRE_TERRAIN\]',
+    'duplicate Xcode project reference',
+    'manual Xcode target ordering',
+    'first-party compiler warning',
     '\[XCODE_VERIFY\] status=PASS'
 )) {
     Require-Text -Path $NativeVerifier -Pattern $Pattern -Label "native Xcode verifier contract"

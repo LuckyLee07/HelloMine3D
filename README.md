@@ -167,7 +167,7 @@ vs2022.bat
 ### One-Command Build Verification
 
 Use the platform wrapper below for the same clean project generation,
-Debug/Release rebuilds and seven headless test runs expected before a change is
+Debug/Release rebuilds and eight headless test runs expected before a change is
 committed:
 
 | Platform | Command | Required host tools |
@@ -187,15 +187,15 @@ workspace contract without claiming a native build:
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_xcode_generation.ps1
 ```
 
-This 142-check preflight requires all eight first-party targets and all 17 library
+This 148-check preflight requires all nine first-party targets and all 17 library
 projects, the Cocoa/OIS/OSX sources, platform header paths and framework flags.
 It also verifies the Tracy source/link boundary is present but disabled in the
 default build. It rejects `WIN32` macros, foreign-platform build sources/search
 paths, and checks the native verifier contract. It cannot replace `xcodebuild`.
 
 On a real macOS host, `scripts/verify_xcode.sh` is the final native gate. It
-generates Xcode projects, builds the client and seven tests in Debug and Release,
-runs all 14 test executions, then performs both validation-only and real-window
+generates Xcode projects, builds the client and eight tests in Debug and Release,
+runs all 16 test executions, then performs both validation-only and real-window
 120-frame client probes. The real-window probes also verify that the persisted
 player remains on the fixed surface fixture. The process prints
 `[XCODE_VERIFY] status=PASS` only
@@ -230,7 +230,7 @@ Executables, logs, ImGui state, saves, captures and the legacy unused
 
 ### Validation
 
-The build produces the client plus seven test targets, all of which run headless:
+The build produces the client plus eight test targets, all of which run headless:
 
 ```powershell
 bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
@@ -240,6 +240,7 @@ bin\HelloMine3DEntityLifecycleSmoke.exe   # actor lifecycle
 bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 338 assertions
 bin\HelloMine3DSoak.exe                   # deterministic world stability schedule
 bin\HelloMine3DResourcePackSmoke.exe      # resource resolver and frozen view
+bin\HelloMine3DRecipeSmoke.exe            # strict startup recipe registry
 ```
 
 Asset and data changes should also run the reference-aware asset check:

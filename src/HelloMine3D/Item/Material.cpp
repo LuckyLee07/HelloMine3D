@@ -1,5 +1,31 @@
 #include "Material.h"
 
+#include <array>
+
+namespace
+{
+    constexpr std::array<const char *, Material::ID::Count> MaterialIds = {{
+        "hellomine:nothing",
+        "hellomine:grass",
+        "hellomine:dirt",
+        "hellomine:stone",
+        "hellomine:oak_bark",
+        "hellomine:oak_leaf",
+        "hellomine:sand",
+        "hellomine:cactus",
+        "hellomine:rose",
+        "hellomine:tall_grass",
+        "hellomine:dead_shrub",
+        "hellomine:coal_ore",
+        "hellomine:iron_ore",
+        "hellomine:glass",
+        "hellomine:glass_borderless",
+        "hellomine:chest",
+        "hellomine:wheat_seeds",
+        "hellomine:wheat",
+    }};
+}
+
 const Material Material::NOTHING(ID::Nothing, 0, false, "None");
 const Material Material::GRASS_BLOCK(ID::Grass, 99, true, "Grass Block");
 const Material Material::DIRT_BLOCK(ID::Dirt, 99, true, "Dirt Block");
@@ -207,4 +233,25 @@ const Material &Material::toMaterial(Material::ID id)
         default:
             return NOTHING;
     }
+}
+
+const char *Material::toStringId(Material::ID id) noexcept
+{
+    const int index = static_cast<int>(id);
+    if (index < 0 || index >= static_cast<int>(MaterialIds.size())) {
+        return MaterialIds[Material::ID::Nothing];
+    }
+    return MaterialIds[static_cast<std::size_t>(index)];
+}
+
+bool Material::tryParseStringId(const std::string &value,
+                                Material::ID &id) noexcept
+{
+    for (std::size_t index = 0; index < MaterialIds.size(); ++index) {
+        if (value == MaterialIds[index]) {
+            id = static_cast<Material::ID>(index);
+            return true;
+        }
+    }
+    return false;
 }

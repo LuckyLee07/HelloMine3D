@@ -46,6 +46,7 @@ namespace
         static const std::vector<ResourcePackRequirement> value = {
             {"block", "media/blocks/Stone.block"},
             {"font", "media/fonts/rs.ttf"},
+            {"recipe", "media/recipes/Base.recipe"},
             {"resource-script", "media/ogre/Test.material"},
             {"runtime-template", "bin/resource-packs.txt"},
             {"shader", "media/ogre/Test.vert"},
@@ -143,7 +144,8 @@ namespace
         const fs::path root = freshRoot("classes");
         for (const ResourcePackRequirement &requirement : requirements())
         {
-            if (requirement.category == "runtime-template")
+            if (requirement.category == "runtime-template" ||
+                requirement.category == "recipe")
             {
                 continue;
             }
@@ -240,6 +242,21 @@ namespace
                                           {first.string(), second.string()});
                       },
                       "Duplicate enabled resource-pack name"));
+        }
+        {
+            const fs::path root = freshRoot("recipe-override");
+            const fs::path pack = createPack(
+                root, "recipe", "Recipe Override", 1,
+                {{"media/recipes/Base.recipe", "override\n"}});
+            check("G1/reject-unversioned-recipe-override",
+                  throwsContaining(
+                      [&]
+                      {
+                          ResourcePackResolver resolver;
+                          resolver.freeze(root.string(), requirements(),
+                                          {pack.string()});
+                      },
+                      "stale or unsupported override"));
         }
         {
             const fs::path root = freshRoot("missing-base");

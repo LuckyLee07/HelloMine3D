@@ -14,6 +14,7 @@ TESTS=(
     HelloMine3DWorldRuntimeSmoke
     HelloMine3DSoak
     HelloMine3DResourcePackSmoke
+    HelloMine3DRecipeSmoke
 )
 
 if [ "$(uname -s)" != "Darwin" ]; then
@@ -21,7 +22,7 @@ if [ "$(uname -s)" != "Darwin" ]; then
     exit 2
 fi
 
-for tool in premake5 xcodebuild; do
+for tool in premake5 xcodebuild python3; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         echo "[XCODE_VERIFY] Required tool not found: $tool" >&2
         exit 2
@@ -29,6 +30,9 @@ for tool in premake5 xcodebuild; do
 done
 
 mkdir -p "$LOG_DIR"
+echo "[XCODE_VERIFY] Validate performance contracts"
+python3 "$ROOT_DIR/tools/validate_perf_comparison.py" |
+    tee "$LOG_DIR/performance_contracts.log"
 "$ROOT_DIR/xcode.sh"
 
 build_target() {
@@ -45,12 +49,33 @@ build_target() {
     echo "[XCODE_VERIFY] Build $configuration $target"
     xcodebuild \
         -quiet \
+        -parallelizeTargets \
         -project "$project" \
         -target "$target" \
         -configuration "$configuration" \
         -arch x86_64 \
         CODE_SIGNING_ALLOWED=NO \
         build 2>&1 | tee "$log"
+
+    reject_build_warning "$log" "member of multiple groups" \
+        "duplicate Xcode project reference"
+    reject_build_warning "$log" \
+        "Building targets in manual order is deprecated" \
+        "manual Xcode target ordering"
+    reject_build_warning "$log" "/src/HelloMine3D/.*: warning:" \
+        "first-party compiler warning"
+}
+
+reject_build_warning() {
+    local log="$1"
+    local pattern="$2"
+    local label="$3"
+
+    if grep -E "$pattern" "$log" >/dev/null; then
+        echo "[XCODE_VERIFY] Unexpected $label in $log" >&2
+        grep -E "$pattern" "$log" >&2
+        exit 1
+    fi
 }
 
 run_binary() {

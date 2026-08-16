@@ -3,6 +3,7 @@
 
 #include <ctime>
 #include <random>
+#include <type_traits>
 
 #include "Singleton.h"
 
@@ -26,7 +27,14 @@ class RandomSingleton : public Singleton {
 
 template <typename REngine = std::mt19937> class Random {
   public:
-    Random(int n = std::time(nullptr))
+    using SeedType = typename REngine::result_type;
+
+    Random()
+        : Random(static_cast<SeedType>(std::time(nullptr)))
+    {
+    }
+
+    explicit Random(SeedType n)
     {
         m_randomEngine.seed(n);
         for (int i = 0; i < 5; i++)
@@ -40,7 +48,7 @@ template <typename REngine = std::mt19937> class Random {
         return dist(m_randomEngine);
     }
 
-    void setSeed(int seed)
+    void setSeed(SeedType seed)
     {
         m_randomEngine.seed(seed);
     }

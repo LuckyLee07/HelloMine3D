@@ -1,0 +1,13 @@
+# HelloMine3D recipe registry v1
+
+recipe hellomine:chest shaped
+row hellomine:oak_bark hellomine:oak_bark hellomine:oak_bark
+row hellomine:oak_bark _ hellomine:oak_bark
+row hellomine:oak_bark hellomine:oak_bark hellomine:oak_bark
+output hellomine:chest 1
+end
+
+recipe hellomine:borderless_glass shapeless
+input hellomine:glass 1
+output hellomine:glass_borderless 1
+end
