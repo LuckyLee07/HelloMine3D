@@ -187,17 +187,20 @@ workspace contract without claiming a native build:
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_xcode_generation.ps1
 ```
 
-This 148-check preflight requires all nine first-party targets and all 17 library
-projects, the Cocoa/OIS/OSX sources, platform header paths and framework flags.
-It also verifies the Tracy source/link boundary is present but disabled in the
-default build. It rejects `WIN32` macros, foreign-platform build sources/search
-paths, and checks the native verifier contract. It cannot replace `xcodebuild`.
+This versioned preflight requires the exact 26-project workspace/on-disk
+inventory: nine first-party targets and 17 libraries. It parses every generated
+PBX group and cross-project reference, rejecting stale/missing projects,
+duplicate children, one child in multiple groups, duplicate `ProjectRef`
+entries and undeclared references. It also checks Cocoa/OIS/OSX sources,
+platform paths/frameworks, the default-off Tracy boundary, foreign-platform
+leakage and the native verifier contract. It cannot replace `xcodebuild`.
 
 On a real macOS host, `scripts/verify_xcode.sh` is the final native gate. It
-generates Xcode projects, builds the client and eight tests in Debug and Release,
-runs all 16 test executions, then performs both validation-only and real-window
-120-frame client probes. The real-window probes also verify that the persisted
-player remains on the fixed surface fixture. The process prints
+generates Xcode projects, runs nine positive/negative graph fixtures, validates
+the real 26-project graph, builds the client and eight tests in Debug and
+Release, runs all 16 test executions, then performs both validation-only and
+real-window 120-frame client probes. The real-window probes also verify that the
+persisted player remains on the fixed surface fixture. The process prints
 `[XCODE_VERIFY] status=PASS` only
 after every step succeeds and keeps per-step logs under `build/`.
 

@@ -20,21 +20,21 @@ HelloMine3D 已具备这些基础：
 | ---- | -------- |
 | 构建系统 | Premake 已作为主构建入口，支持 Make/Xcode/Visual Studio 工程生成。 |
 | 依赖管理 | 通过 `src/Engine` 与 `src/external` 本地源码构建 Ogre、FreeImage、FreeType、OIS、ImGui 和 GLM，不依赖 vcpkg 安装树。 |
-| 运行资源 | `media/` 保存 shader、texture、block、shape 和 font；严格解析器与 `scripts/check_assets.sh` 负责引用和边界校验。 |
+| 运行资源 | `media/` 保存 shader、texture、block、shape、font 和基础 recipe；严格解析器与 `scripts/check_assets.sh` 负责引用和边界校验。 |
 | 世界结构 | `World`/`ChunkManager` 已具备负坐标、固定 tick、版本化存档、玩家与演员持久化。 |
 | 区块网格 | `ChunkMeshBuilder` 使用有界 dirty 队列、18x18x18 halo、opaque greedy meshing、光照分界和异步快照版本校验。 |
 | 方块数据 | `BlockDefinition`、`BlockRenderInfo`、`BlockShape`、`BlockBehavior` 与 `ChunkBlock` metadata 已落地。 |
 | 地形生成 | biome、洞穴、矿石、植物和跨区块结构均由确定性阶段生成，且不依赖相邻区块加载顺序。 |
-| 渲染 | Ogre GL3Plus 是唯一渲染路径，已有 terrain/water/glass/flora/skybox、演员、选择描边、HUD 和材质程序。 |
+| 渲染 | Ogre GL3Plus 是唯一渲染路径，已有 terrain/water/glass/flora/程序化天空、演员、选择描边、HUD 和材质程序。 |
 | 调试 UI | Ogre/OIS + ImGui 已提供 HUD、调试面板、运行时统计、截图和性能采集入口。 |
 
 当前剩余验收风险：
 
 | 风险 | 说明 |
 | ---- | ---- |
-| macOS 原生路径延期 | Windows 侧的 24 个 Xcode 工程和 133 项生成合同均通过；按当前 Windows-first 方向暂缓真实 macOS 的双配置构建、测试和客户端启动。 |
+| 目标 Windows 更新门禁待复跑 | macOS 已验证版本化的 26 项 Xcode 工程图、Debug/Release 构建、测试和真实窗口启动；Windows 上次证据早于 G1 与当前工程图合同，需在目标机复跑更新后的 PowerShell 门禁。 |
 | 输入和并发仍有平台型证据缺口 | OIS 到控制器的数据边界已自动验证，但真实键鼠仍需人工验收；后台加载器已有压力测试，但正式 ThreadSanitizer 证据要等待受支持主机。对应 `R3`、`R4`。 |
-| 下一产品阶段已选定 | 第 8 阶段以“更像游戏”为主线，同时补齐存档管理、崩溃诊断和扩展性能预算。R3 仍是开工前封板项；依赖特定主机的 B3/R4 不阻塞 Windows 迭代。多人、脚本化 mod、热更新和新渲染后端仍未立项。 |
+| 下一产品阶段已选定 | 第 8 阶段以“更像游戏”为主线，同时补齐存档管理、崩溃诊断和扩展性能预算。R3 仍是玩家功能的封板项；R4 继续等待受支持的 ThreadSanitizer 主机。多人、脚本化 mod、热更新和新渲染后端仍未立项。 |
 
 ## 迭代阶段
 
@@ -343,7 +343,7 @@ Windows-first 阶段延期，macOS 原生 `B3` 已于 2026-08-16 补齐并通过
 | ---- | --------- |
 | Windows 双配置完整门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify_build.ps1` |
 | Linux/macOS Make 双配置门禁 | `bash scripts/verify_build.sh` |
-| macOS Xcode project | `bash scripts/verify_xcode.sh` 生成并构建 Debug/Release，执行八项测试和客户端启动探针；重复工程引用、手工目标顺序及第一方编译告警均会使门禁失败。 |
+| macOS Xcode project | `bash scripts/verify_xcode.sh` 先验证 9 个合同/工程图夹具及实际 26 项工程清单，再构建 Debug/Release、执行八项测试和客户端启动探针；陈旧/缺失工程、重复或多分组引用、手工目标顺序及第一方编译告警均会使门禁失败。 |
 | 资源检查 | `bash scripts/check_assets.sh`，资产引用缺失时返回非零。 |
 | 手动运行 | `bash scripts/run.sh release`，观察 chunk 加载、放置/破坏、退出是否正常。 |
 | 性能回归比较 | `tools/compare_perf_baselines.ps1`；D/R5/X 中改变场景、资源或驻留规模的任务关闭前必须运行。 |

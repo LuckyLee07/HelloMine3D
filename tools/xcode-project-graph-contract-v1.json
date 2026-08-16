@@ -1,0 +1,33 @@
+{
+  "contract_version": 1,
+  "workspace": "HelloMine3D.xcworkspace/contents.xcworkspacedata",
+  "expected_project_count": 26,
+  "projects": [
+    "Engine/ThirdParty/freeimage/freeimage.xcodeproj",
+    "Engine/ThirdParty/freetype/ogre_freetype.xcodeproj",
+    "Engine/ThirdParty/libjpeg/libjpeg.xcodeproj",
+    "Engine/ThirdParty/libopenjpeg/libopenjpeg.xcodeproj",
+    "Engine/ThirdParty/libpng/libpng.xcodeproj",
+    "Engine/ThirdParty/libraw/libraw.xcodeproj",
+    "Engine/ThirdParty/libtiff4/libtiff4.xcodeproj",
+    "Engine/ThirdParty/openexr/openexr.xcodeproj",
+    "Engine/ThirdParty/zlib/zlib.xcodeproj",
+    "Engine/ThirdParty/zzip/zzip.xcodeproj",
+    "Engine/ogre3d/ogre3d.xcodeproj",
+    "Engine/ogre3d_gl3plus/ogre3d_gl3plus.xcodeproj",
+    "Engine/ogre3d_glsupport/ogre3d_glsupport.xcodeproj",
+    "External/imgui/imgui.xcodeproj",
+    "External/imgui_opengl3/imgui_opengl3.xcodeproj",
+    "External/ois/ois.xcodeproj",
+    "External/tracy/tracy.xcodeproj",
+    "HelloMine3D/HelloMine3D.xcodeproj",
+    "HelloMine3DCoordinateTests/HelloMine3DCoordinateTests.xcodeproj",
+    "HelloMine3DEntityLifecycleSmoke/HelloMine3DEntityLifecycleSmoke.xcodeproj",
+    "HelloMine3DMeshDirtyTests/HelloMine3DMeshDirtyTests.xcodeproj",
+    "HelloMine3DRecipeSmoke/HelloMine3DRecipeSmoke.xcodeproj",
+    "HelloMine3DResourcePackSmoke/HelloMine3DResourcePackSmoke.xcodeproj",
+    "HelloMine3DSaveLoadSmoke/HelloMine3DSaveLoadSmoke.xcodeproj",
+    "HelloMine3DSoak/HelloMine3DSoak.xcodeproj",
+    "HelloMine3DWorldRuntimeSmoke/HelloMine3DWorldRuntimeSmoke.xcodeproj"
+  ]
+}
