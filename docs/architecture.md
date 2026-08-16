@@ -9,7 +9,7 @@ under `src/external/`, and keep runtime assets out of the source tree.
 | HelloOgre3D pattern | HelloMine3D path | Purpose |
 | ------------------- | ---------------- | ------- |
 | `src/HelloOgre3D/` | `src/HelloMine3D/` | First-party game and rendering code. |
-| `src/external/` | `src/external/` | Vendored ImGui, GLM and OIS source used directly by the build. |
+| `src/external/` | `src/external/` | Vendored ImGui, GLM, OIS and optional Tracy source used directly by the build. |
 | `media/` | `media/` | Shaders, block and shape definitions, textures, and fonts. |
 | `bin/` | `bin/` | Runtime config, ImGui state, and executable output. |
 | `docs/` | `docs/` | Architecture notes and screenshots used by documentation. |
@@ -69,8 +69,11 @@ exist and be non-empty. The generator derives the sorted inventory from source
 registrations and resource references, so the runtime shell does not maintain a
 second hard-coded asset list.
 
-`Diagnostics/` contains renderer-independent performance/debug options. The
-ImGui platform and render integration stays in `Ogre/OgreUserInterface.*`.
+`Diagnostics/` contains renderer-independent performance/debug options.
+`RuntimeProfiler.h` is the compile-time boundary for optional Tracy zones; it
+expands to no-ops in ordinary builds, so world and simulation code do not depend
+on Tracy APIs. The ImGui platform and render integration stays in
+`Ogre/OgreUserInterface.*`.
 
 `Entity/` contains the base entity data shape used by player, camera, matrix helpers, and future
 world actors.

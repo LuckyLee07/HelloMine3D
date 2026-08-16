@@ -155,6 +155,10 @@ location 2: float inCardinalLight
 | `ogre3d_gorilla` | 确定用它做游戏 UI 时 |
 | `tracy` | 做性能优化时（`tools/tracy-viewer` 已就位） |
 
+2026-08-16：该触发条件已满足。Tracy 0.13.1 现以可选静态库接入；默认构建关闭，
+`--with-tracy` 或 `HELLOMINE3D_ENABLE_TRACY=1` 才启用按需采集，既有 CSV 性能门禁仍是
+可比较回归的正式证据。
+
 ## 关键设计决策
 
 ### D1 区块如何进入 Ogre

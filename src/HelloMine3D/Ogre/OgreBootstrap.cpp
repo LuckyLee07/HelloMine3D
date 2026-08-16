@@ -30,6 +30,7 @@
 #include "../Config.h"
 #include "../Core/Camera.h"
 #include "../Diagnostics/RuntimePerformanceCapture.h"
+#include "../Diagnostics/RuntimeProfiler.h"
 #include "../Player/Player.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/SandboxRuntime.h"
@@ -844,6 +845,11 @@ namespace
 
         bool frameStarted(const Ogre::FrameEvent& event) override
         {
+            HELLOMINE3D_PROFILE_FRAME();
+            HELLOMINE3D_PROFILE_SCOPE("Ogre::frameStarted");
+            HELLOMINE3D_PROFILE_PLOT(
+                "Frame Delta (ms)",
+                static_cast<double>(event.timeSinceLastFrame) * 1000.0);
             m_frameStart = std::chrono::steady_clock::now();
             Ogre::WindowEventUtilities::messagePump();
             if (m_shutdownRequested || m_window == nullptr ||
@@ -868,12 +874,14 @@ namespace
 
         bool frameRenderingQueued(const Ogre::FrameEvent&) override
         {
+            HELLOMINE3D_PROFILE_SCOPE("Ogre::frameRenderingQueued");
             ++m_frameCount;
             return true;
         }
 
         bool frameEnded(const Ogre::FrameEvent& event) override
         {
+            HELLOMINE3D_PROFILE_SCOPE("Ogre::frameEnded");
             if (m_renderCapture != nullptr)
             {
                 m_renderCapture->update(event.timeSinceLastFrame);
@@ -905,6 +913,7 @@ namespace
 
         void updateSandbox(float deltaSeconds)
         {
+            HELLOMINE3D_PROFILE_SCOPE("Ogre::updateSandbox");
             if (m_sandbox == nullptr)
             {
                 return;
@@ -987,6 +996,7 @@ namespace
 
         void syncSectionMeshes()
         {
+            HELLOMINE3D_PROFILE_SCOPE("Ogre::syncSectionMeshes");
             if (m_world == nullptr || m_sceneManager == nullptr)
             {
                 return;
@@ -1028,6 +1038,7 @@ namespace
 
         void syncActorVisuals()
         {
+            HELLOMINE3D_PROFILE_SCOPE("Ogre::syncActorVisuals");
             if (m_world == nullptr || m_actorRenderer == nullptr)
             {
                 return;
@@ -1578,6 +1589,15 @@ namespace
 
 int runOgreBootstrap(bool validateOnly)
 {
+    HELLOMINE3D_PROFILE_THREAD("Main Thread");
+    std::cout << "[TRACY] enabled="
+              << (RuntimeProfiler::isEnabled() ? 1 : 0);
+    if (RuntimeProfiler::isEnabled())
+    {
+        std::cout << " on_demand=1 version=0.13.1";
+    }
+    std::cout << '\n';
+
     try
     {
         const std::string root = ResourcePaths::projectRoot();

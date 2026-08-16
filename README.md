@@ -90,12 +90,38 @@ The repo builds its local dependencies from vendored source under `src/external/
 | FreeImage / FreeType / zlib / zzip | `src/Engine/ThirdParty/` |
 | OIS | `src/external/ois` |
 | Dear ImGui | `src/external/imgui/imgui.cpp` |
+| Tracy Profiler 0.13.1 (optional) | `src/external/tracy/public/TracyClient.cpp` |
 | GLM | `src/external/glm/glm/glm.hpp` |
 
 Premake builds the Ogre, image, font, archive, OIS and ImGui dependency graph
 directly from vendored source. `HelloMine3D` is the only client executable and
 uses Ogre GL3Plus for rendering; there is no backend selection switch or
 checked-in dependency binary tree.
+
+Tracy instrumentation is disabled by default. Generate an instrumented client
+only when profiling; `TRACY_ON_DEMAND` keeps capture inactive until a profiler
+connects:
+
+```sh
+./xcode.sh --with-tracy
+xcodebuild -workspace build/HelloMine3D.xcworkspace -scheme HelloMine3D \
+  -configuration Release -arch x86_64 build
+```
+
+The equivalent generation flag is available to every Premake backend, and the
+environment form is convenient for wrappers:
+
+```sh
+HELLOMINE3D_ENABLE_TRACY=1 ./xcode.sh
+```
+
+Run `bin/HelloMine3D`, open a Tracy 0.13.1-compatible profiler and connect to
+the local client. The initial timeline names the main and chunk-loader threads,
+marks each Ogre frame, and exposes frame delta, fixed ticks, simulation/world
+updates, section upload, actor sync and chunk mesh build zones. When present,
+`tools/tracy-viewer/tracy-profiler.exe` is the matching local Windows viewer;
+`tools/tracy-viewer/VERSION.txt` records the expected version. Use a matching
+Tracy profiler build on macOS.
 
 ### Build and Run
 
@@ -161,10 +187,11 @@ workspace contract without claiming a native build:
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_xcode_generation.ps1
 ```
 
-This 133-check preflight requires all eight first-party targets and all 16 library
+This 142-check preflight requires all eight first-party targets and all 17 library
 projects, the Cocoa/OIS/OSX sources, platform header paths and framework flags.
-It rejects `WIN32` macros, foreign-platform build sources/search paths, and also
-checks the native verifier contract. It cannot replace `xcodebuild`.
+It also verifies the Tracy source/link boundary is present but disabled in the
+default build. It rejects `WIN32` macros, foreign-platform build sources/search
+paths, and checks the native verifier contract. It cannot replace `xcodebuild`.
 
 On a real macOS host, `scripts/verify_xcode.sh` is the final native gate. It
 generates Xcode projects, builds the client and seven tests in Debug and Release,

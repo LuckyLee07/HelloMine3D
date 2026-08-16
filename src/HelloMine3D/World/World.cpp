@@ -15,6 +15,7 @@
 #include "../Actor/ItemEntity.h"
 #include "../Actor/MobActor.h"
 #include "../Core/Camera.h"
+#include "../Diagnostics/RuntimeProfiler.h"
 #include "../Maths/Vector2XZ.h"
 #include "../Physics/AABB.h"
 #include "../Player/Player.h"
@@ -819,6 +820,7 @@ void World::runRandomTicks(int worldTime)
 
 void World::tick(int worldTime)
 {
+    HELLOMINE3D_PROFILE_SCOPE("World::tick");
     m_worldSaveData.worldTime = static_cast<float>(worldTime);
     if (m_player != nullptr) {
         m_playerActor.syncFromPlayer(*m_player);
@@ -1019,6 +1021,7 @@ void World::despawnNaturalMobsInChunk(int chunkX, int chunkZ)
 // make chunk meshes
 void World::update(const Camera &camera)
 {
+    HELLOMINE3D_PROFILE_SCOPE("World::update");
     setChunkLoadCenter(camera);
 
     for (auto &event : m_events) {
@@ -1145,6 +1148,7 @@ void World::resetChunkMeshes()
 /// Optimize for chunkPositionU usage :thinking:
 void World::loadChunks()
 {
+    HELLOMINE3D_PROFILE_THREAD("Chunk Loader");
     // Each target is processed in three steps: snapshot the section's
     // neighbourhood under the world lock, build the mesh without it, then
     // install the result under the lock again. Only the two short lock
@@ -1202,6 +1206,7 @@ void World::loadChunks()
             continue;
         }
 
+        HELLOMINE3D_PROFILE_SCOPE("World::loadChunks pass");
         bool didWork = false;
         int processedTargets = 0;
         const auto passStart = std::chrono::steady_clock::now();
@@ -1511,6 +1516,7 @@ int World::floorMod(int value, int divisor)
 
 void World::updateChunks()
 {
+    HELLOMINE3D_PROFILE_SCOPE("World::updateChunks");
     std::unique_lock<std::mutex> lock(m_mainMutex);
     std::size_t processed = 0;
     while (processed < ChunkMeshRebuildBudgetPerUpdate &&

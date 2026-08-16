@@ -4,6 +4,7 @@
 #include <chrono>
 
 #include "../Diagnostics/RuntimePerformanceCapture.h"
+#include "../Diagnostics/RuntimeProfiler.h"
 #include "../World/Block/BlockDatabase.h"
 #include "../World/Event/PlayerDigEvent.h"
 
@@ -25,6 +26,7 @@ SandboxRuntime::SandboxRuntime(const Config &config, Camera &camera,
 void SandboxRuntime::update(const SandboxInputState &input,
                             float deltaSeconds, bool acceptsPlayerInput)
 {
+    HELLOMINE3D_PROFILE_SCOPE("SandboxRuntime::update");
     m_player.applyInput(acceptsPlayerInput
                             ? input.player
                             : PlayerInputState());
@@ -133,9 +135,13 @@ void SandboxRuntime::handlePlayerInteraction(
 
 void SandboxRuntime::runFixedTicks(float deltaSeconds)
 {
+    HELLOMINE3D_PROFILE_SCOPE("SandboxRuntime::runFixedTicks");
     const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
         std::chrono::duration<double>(std::max(0.0f, deltaSeconds)));
     const std::size_t ticksThisFrame = m_tickScheduler.advance(elapsed);
+    HELLOMINE3D_PROFILE_PLOT(
+        "Simulation Ticks Per Frame",
+        static_cast<double>(ticksThisFrame));
     for (std::size_t tick = 0; tick < ticksThisFrame; ++tick) {
         World *world = m_worldManager.getActiveWorld();
         if (world != nullptr) {

@@ -8,6 +8,7 @@
 #include "../Block/BlockDatabase.h"
 #include "../Block/BlockTextureCoordinates.h"
 #include "../Block/BlockDefinition.h"
+#include "../../Diagnostics/RuntimeProfiler.h"
 
 #include <algorithm>
 #include <cassert>
@@ -77,6 +78,7 @@ struct AdjacentBlockPositions {
 
 void ChunkMeshBuilder::buildMesh()
 {
+    HELLOMINE3D_PROFILE_SCOPE("ChunkMeshBuilder::buildMesh");
     if (!m_pInput->needsMeshBuild()) {
         return;
     }

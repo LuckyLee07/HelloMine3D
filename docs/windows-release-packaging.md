@@ -12,7 +12,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 The distribution preserves the runtime root layout: the executable and config
 templates are under `bin/`, resources and the startup manifest under `media/`,
 optional directory packs under `packs/`, and dependency licenses under
-`notices/`. It includes `README.md` but excludes saves, logs, captures, build
+`notices/`, including the vendored optional Tracy client notice. It includes
+`README.md` but excludes saves, logs, captures, build
 trees, test executables, symbols, libraries and developer tools.
 
 `distribution-manifest.txt` records sorted SHA-256, byte length and relative
@@ -40,3 +41,6 @@ remain ignored.
 The accepted 2026-08-13 Release run contains 61 inventoried files and the
 optional `example-stone` pack. Both repeated archive builds produced SHA-256
 `F4F3C448E75031F30EB788FF72C5F22A6A32CDF6C85A90164D1E16B7F807BB69`.
+That archived run predates Tracy. The current packager adds its fifteenth
+third-party notice, so the next Windows package will have a different inventory
+and archive hash and must be accepted as a new run.

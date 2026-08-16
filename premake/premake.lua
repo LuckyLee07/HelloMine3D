@@ -8,6 +8,21 @@ newoption {
     description = "Additional dependency prefix containing include/ and lib/"
 }
 
+newoption {
+    trigger = "with-tracy",
+    description = "Enable Tracy profiler instrumentation"
+}
+
+local function is_truthy_env(name)
+    local value = os.getenv(name)
+    return value == "1" or value == "true" or value == "TRUE" or
+           value == "on" or value == "ON"
+end
+
+local tracy_enabled = _OPTIONS["with-tracy"] ~= nil or
+                      is_truthy_env("HELLOMINE3D_ENABLE_TRACY") or
+                      is_truthy_env("TRACY_ENABLE")
+
 local function first_non_empty(...)
     for i = 1, select("#", ...) do
         local value = select(i, ...)
@@ -98,6 +113,40 @@ local premake_script_dir = path.getdirectory(_MAIN_SCRIPT or _SCRIPT or "premake
 dofile(path.join(premake_script_dir, "ogre.lua"))
 
 group "External"
+
+-- Tracy profiler client v0.13.1. The static library remains in the generated
+-- graph for stable project topology, while instrumentation and networking are
+-- compiled only when --with-tracy (or the matching environment flag) is set.
+project "tracy"
+    kind "StaticLib"
+    location "../build/External/tracy"
+    targetdir "../build/External/%{prj.name}/lib/%{cfg.platform}/%{cfg.buildcfg}"
+    objdir "../build/External/%{prj.name}/obj/%{cfg.platform}/%{cfg.buildcfg}"
+    warnings "Off"
+
+    files {
+        external_source_dir .. "/tracy/public/TracyClient.cpp",
+        external_source_dir .. "/tracy/public/**.h",
+        external_source_dir .. "/tracy/public/**.hpp",
+        external_source_dir .. "/tracy/public/**.hmm"
+    }
+
+    externalincludedirs {
+        external_source_dir .. "/tracy/public"
+    }
+
+    if tracy_enabled then
+        defines {
+            "TRACY_ENABLE",
+            "TRACY_ON_DEMAND",
+            "TRACY_ALLOW_SHADOW_WARNING"
+        }
+    end
+
+    filter "system:not windows"
+        buildoptions { "-pthread" }
+
+    filter {}
 
 project "imgui"
     kind "StaticLib"
@@ -202,6 +251,7 @@ project(project_name)
         source_dir .. "/Ogre/**.cpp"
     }
     dependson {
+        "tracy",
         "imgui",
         "imgui_opengl3",
         "ogre3d",
@@ -226,6 +276,7 @@ project(project_name)
     }
 
     links {
+        "tracy",
         "imgui",
         "imgui_opengl3",
         "ogre3d_gl3plus",
@@ -250,6 +301,19 @@ project(project_name)
         "FREEIMAGE_LIB"
     }
 
+    externalincludedirs {
+        external_source_dir .. "/tracy/public"
+    }
+
+    if tracy_enabled then
+        defines {
+            "HELLOMINE3D_ENABLE_TRACY",
+            "TRACY_ENABLE",
+            "TRACY_ON_DEMAND",
+            "TRACY_ALLOW_SHADOW_WARNING"
+        }
+    end
+
     filter "system:windows"
         defines { "_CRT_SECURE_NO_WARNINGS" }
         includedirs {
@@ -257,6 +321,8 @@ project(project_name)
             "../src/external/ois/includes/win32"
         }
         links {
+            "advapi32",
+            "dbghelp",
             "opengl32",
             "winmm",
             "gdi32",

@@ -79,6 +79,7 @@ $notices = [ordered]@{
     "Ogre-LICENSE.txt" = "src\Engine\ogre3d\LICENSE.txt"
     "OIS-LICENSE.md" = "src\external\ois\LICENSE.md"
     "DearImGui-LICENSE.txt" = "src\external\imgui\LICENSE.txt"
+    "Tracy-LICENSE.txt" = "src\external\tracy\LICENSE"
     "GLM-COPYING.txt" = "src\external\glm\copying.txt"
     "FreeImage-LICENSE.txt" = "src\Engine\ThirdParty\freeimage\LICENSE.txt"
     "FreeType-LICENSE.txt" = "src\Engine\ThirdParty\freetype\LICENSE.TXT"

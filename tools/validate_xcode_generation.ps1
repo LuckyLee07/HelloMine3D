@@ -61,6 +61,7 @@ $ClientProject = Join-Path $BuildDir "HelloMine3D\HelloMine3D.xcodeproj\project.
 $OgreProject = Join-Path $BuildDir "Engine\ogre3d\ogre3d.xcodeproj\project.pbxproj"
 $GlSupportProject = Join-Path $BuildDir "Engine\ogre3d_glsupport\ogre3d_glsupport.xcodeproj\project.pbxproj"
 $OisProject = Join-Path $BuildDir "External\ois\ois.xcodeproj\project.pbxproj"
+$TracyProject = Join-Path $BuildDir "External\tracy\tracy.xcodeproj\project.pbxproj"
 $NativeVerifier = Join-Path $RepoRoot "scripts\verify_xcode.sh"
 
 foreach ($Target in @(
@@ -72,6 +73,7 @@ foreach ($Target in @(
     "HelloMine3DWorldRuntimeSmoke",
     "HelloMine3DSoak",
     "HelloMine3DResourcePackSmoke",
+    "tracy",
     "zlib",
     "zzip",
     "ogre_freetype",
@@ -103,6 +105,12 @@ foreach ($Source in @("OgreOSXCocoaContext.mm", "OgreOSXCocoaView.mm", "OgreOSXC
 foreach ($Source in @("OISInputManager.mm", "CocoaInputManager.mm", "CocoaKeyboard.mm", "CocoaMouse.mm")) {
     Require-Text -Path $OisProject -Pattern ([regex]::Escape("$Source in Sources")) -Label "macOS OIS source $Source"
 }
+
+Require-Text -Path $TracyProject -Pattern ([regex]::Escape("TracyClient.cpp in Sources")) -Label "Tracy client source"
+Require-Text -Path $ClientProject -Pattern ([regex]::Escape("../../src/external/tracy/public")) -Label "Tracy client header search path"
+Require-Text -Path $ClientProject -Pattern ([regex]::Escape("libtracy.a in Frameworks")) -Label "Tracy client library dependency"
+Reject-Text -Path $TracyProject -Pattern '\bTRACY_ENABLE\b' -Label "Tracy enable macro in default library generation"
+Reject-Text -Path $ClientProject -Pattern '\bHELLOMINE3D_ENABLE_TRACY\b' -Label "Tracy enable macro in default client generation"
 
 $RequiredSearchPaths = @(
     @($ClientProject, "../../src/Engine/ogre3d/include/OSX"),

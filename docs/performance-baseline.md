@@ -18,6 +18,28 @@ The baseline is intentionally simple:
 - no player input or mouse warping while capture is enabled;
 - per-frame CSV plus a small summary file.
 
+## Interactive Tracy Profiling
+
+CSV capture remains the repeatable regression gate. For interactive diagnosis,
+the client can also be generated with the vendored Tracy 0.13.1 client:
+
+```sh
+./xcode.sh --with-tracy
+xcodebuild -workspace build/HelloMine3D.xcworkspace -scheme HelloMine3D \
+  -configuration Release -arch x86_64 build
+```
+
+Start `bin/HelloMine3D`, then connect a Tracy 0.13.1-compatible profiler to the
+local client. `TRACY_ON_DEMAND` is enabled, so an instrumented process does not
+retain an unbounded capture while no viewer is connected. The first pass marks
+Ogre frames and names the main/chunk-loader threads; zones cover frame stages,
+fixed-step simulation, world/chunk work and chunk mesh generation. Plots expose
+frame delta and fixed ticks per frame.
+
+Do not compare a Tracy-enabled capture directly with the accepted default-build
+CSV baselines. Use Tracy to locate a bottleneck, then rebuild without Tracy and
+run the pinned-scene comparator for acceptance.
+
 ## Command
 
 Default steady-scene run:
