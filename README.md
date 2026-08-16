@@ -25,6 +25,7 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 | `docs/runtime-validation.md` | How runtime behaviour is validated, and what is not covered. |
 | `docs/iteration-plan.md` | Long-term iteration roadmap. |
 | `docs/world-catalogue-contract-v1.md`, `docs/storage-transaction-contract-v1.md`, `docs/world-backup-contract-v1.md` | K1-K3 world identity, atomic publication and verified recovery contracts. |
+| `docs/operation-performance-timing-contract-v1.md` | Q2 bounded startup, world-entry, save, backup and restore timing contract. |
 | `docs/render-regression-smoke.md` | Non-intrusive render screenshot smoke. |
 | `docs/performance-baseline.md` | Non-intrusive frame timing and chunk counter baseline. |
 | `docs/manual-input-acceptance-v1.md` | Versioned physical keyboard/mouse acceptance protocol. |
@@ -53,6 +54,10 @@ backups with rollback-safe restore. The contracts are documented in
 `docs/world-catalogue-contract-v1.md`,
 `docs/storage-transaction-contract-v1.md` and
 `docs/world-backup-contract-v1.md`.
+Q2 now records bounded cumulative phases, totals, longest main-thread stalls
+and storage counters for startup, catalogue, world entry, save, backup and
+restore. Portable and real storage fixtures are green; closure still depends on
+Q1's approved target-Windows Release budgets.
 
 Native macOS acceptance (B3) is complete on an Apple M1 Pro through the full
 Debug/Release Xcode gate. Formal ThreadSanitizer evidence (R4) remains deferred
@@ -194,8 +199,8 @@ workspace contract without claiming a native build:
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_xcode_generation.ps1
 ```
 
-This versioned preflight requires the exact 29-project workspace/on-disk
-inventory: twelve first-party targets and 17 libraries. It parses every generated
+This versioned preflight requires the exact 30-project workspace/on-disk
+inventory: thirteen first-party targets and 17 libraries. It parses every generated
 PBX group and cross-project reference, rejecting stale/missing projects,
 duplicate children, one child in multiple groups, duplicate `ProjectRef`
 entries and undeclared references. It also checks Cocoa/OIS/OSX sources,
@@ -204,8 +209,8 @@ leakage and the native verifier contract. It cannot replace `xcodebuild`.
 
 On a real macOS host, `scripts/verify_xcode.sh` is the final native gate. It
 generates Xcode projects, runs nine positive/negative graph fixtures, validates
-the real 29-project graph, builds the client and eleven tests in Debug and
-Release, runs all 22 test executions, then performs both validation-only and
+the real 30-project graph, builds the client and twelve tests in Debug and
+Release, runs all 24 test executions, then performs both validation-only and
 real-window 120-frame client probes. The real-window probes also verify that the
 persisted player remains on the fixed surface fixture. The process prints
 `[XCODE_VERIFY] status=PASS` only
@@ -240,20 +245,21 @@ Executables, logs, ImGui state, saves, captures and the legacy unused
 
 ### Validation
 
-The build produces the client plus eleven test targets, all of which run headless:
+The build produces the client plus twelve test targets, all of which run headless:
 
 ```powershell
 bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
 bin\HelloMine3DMeshDirtyTests.exe         # mesh dirty planner
 bin\HelloMine3DSaveLoadSmoke.exe          # chunk serialization roundtrip
 bin\HelloMine3DEntityLifecycleSmoke.exe   # actor lifecycle
-bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 343 assertions
+bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 346 assertions
 bin\HelloMine3DSoak.exe                   # deterministic world stability schedule
 bin\HelloMine3DResourcePackSmoke.exe      # resource resolver and frozen view
 bin\HelloMine3DRecipeSmoke.exe            # strict startup recipe registry
 bin\HelloMine3DWorldCatalogueSmoke.exe    # world identity/catalogue contract
 bin\HelloMine3DStorageTransactionSmoke.exe # atomic save/failure recovery
 bin\HelloMine3DWorldBackupSmoke.exe       # bounded backup/verified restore
+bin\HelloMine3DOperationTimingSmoke.exe   # bounded Q2 phase/outcome summaries
 ```
 
 Asset and data changes should also run the reference-aware asset check:

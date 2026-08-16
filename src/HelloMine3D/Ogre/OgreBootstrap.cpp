@@ -29,6 +29,7 @@
 
 #include "../Config.h"
 #include "../Core/Camera.h"
+#include "../Diagnostics/OperationPerformanceTiming.h"
 #include "../Diagnostics/RuntimePerformanceCapture.h"
 #include "../Diagnostics/RuntimeProfiler.h"
 #include "../Item/RecipeRegistry.h"
@@ -232,6 +233,8 @@ namespace
             createRoot();
             configureResources();
             configureRenderSystem();
+            runtimeOperationTimings().markLatestActive(
+                RuntimeOperationKind::Startup);
             createWindowAndScene();
             createInput();
             m_userInterface = std::make_unique<OgreUserInterface>(
@@ -242,6 +245,10 @@ namespace
             Ogre::WindowEventUtilities::addWindowEventListener(m_window, this);
             m_listenersInstalled = true;
             m_root->startRendering();
+            runtimeOperationTimings().completeLatestActive(
+                RuntimeOperationKind::WorldEntry, m_frameCount > 0);
+            runtimeOperationTimings().completeLatestActive(
+                RuntimeOperationKind::Startup, m_frameCount > 0);
             return EXIT_SUCCESS;
         }
 
@@ -359,6 +366,8 @@ namespace
             {
                 throw std::runtime_error("Ogre failed to create a window.");
             }
+            runtimeOperationTimings().markLatestActive(
+                RuntimeOperationKind::Startup);
 
             m_window->setDeactivateOnFocusChange(false);
             m_sceneManager = m_root->createSceneManager(
@@ -421,6 +430,11 @@ namespace
 
         TerrainBuildSummary buildTerrain(bool uploadToOgre)
         {
+            if (uploadToOgre)
+            {
+                runtimeOperationTimings().begin(
+                    RuntimeOperationKind::WorldEntry);
+            }
             Config config = m_config;
             if (!uploadToOgre)
             {
@@ -814,6 +828,11 @@ namespace
                 m_camera->lookAt(position.x, position.y, position.z);
                 m_world->startBackgroundLoader();
             }
+            if (uploadToOgre)
+            {
+                runtimeOperationTimings().markLatestActive(
+                    RuntimeOperationKind::WorldEntry);
+            }
             return summary;
         }
 
@@ -901,6 +920,18 @@ namespace
 
             RuntimePerformanceCapture::recordFrame(timings,
                                                     m_frameWorldStats);
+
+            if (m_frameCount == 1)
+            {
+                runtimeOperationTimings().markLatestActive(
+                    RuntimeOperationKind::WorldEntry);
+                runtimeOperationTimings().completeLatestActive(
+                    RuntimeOperationKind::WorldEntry, true);
+                runtimeOperationTimings().markLatestActive(
+                    RuntimeOperationKind::Startup);
+                runtimeOperationTimings().completeLatestActive(
+                    RuntimeOperationKind::Startup, true);
+            }
 
             const bool captureComplete =
                 m_renderCapture != nullptr &&
@@ -1599,6 +1630,11 @@ int runOgreBootstrap(bool validateOnly)
     }
     std::cout << '\n';
 
+    if (!validateOnly)
+    {
+        runtimeOperationTimings().begin(RuntimeOperationKind::Startup);
+    }
+
     try
     {
         const std::string root = ResourcePaths::projectRoot();
@@ -1640,6 +1676,8 @@ int runOgreBootstrap(bool validateOnly)
                   << '\n';
         std::cout << "[RECIPE_REGISTRY] frozen=1 recipes="
                   << runtimeRecipeRegistry().recipes().size() << '\n';
+        runtimeOperationTimings().markLatestActive(
+            RuntimeOperationKind::Startup);
         OgreBootstrap bootstrap;
         if (validateOnly)
         {
@@ -1652,6 +1690,11 @@ int runOgreBootstrap(bool validateOnly)
         const std::string diagnostic =
             "Ogre bootstrap failed: " + exception.getFullDescription();
         std::cerr << diagnostic << '\n';
+        runtimeOperationTimings().completeLatestActive(
+            RuntimeOperationKind::WorldEntry, false);
+        runtimeOperationTimings().completeLatestActive(
+            RuntimeOperationKind::Startup, false);
+        RuntimePerformanceCapture::shutdown();
         StartupErrorReporter::present(diagnostic, !validateOnly);
     }
     catch (const OIS::Exception& exception)
@@ -1659,6 +1702,11 @@ int runOgreBootstrap(bool validateOnly)
         const std::string diagnostic =
             "OIS bootstrap failed: " + std::string(exception.eText);
         std::cerr << diagnostic << '\n';
+        runtimeOperationTimings().completeLatestActive(
+            RuntimeOperationKind::WorldEntry, false);
+        runtimeOperationTimings().completeLatestActive(
+            RuntimeOperationKind::Startup, false);
+        RuntimePerformanceCapture::shutdown();
         StartupErrorReporter::present(diagnostic, !validateOnly);
     }
     catch (const std::exception& exception)
@@ -1666,6 +1714,11 @@ int runOgreBootstrap(bool validateOnly)
         const std::string diagnostic =
             "Ogre bootstrap failed: " + std::string(exception.what());
         std::cerr << diagnostic << '\n';
+        runtimeOperationTimings().completeLatestActive(
+            RuntimeOperationKind::WorldEntry, false);
+        runtimeOperationTimings().completeLatestActive(
+            RuntimeOperationKind::Startup, false);
+        RuntimePerformanceCapture::shutdown();
         StartupErrorReporter::present(diagnostic, !validateOnly);
     }
     return EXIT_FAILURE;

@@ -19,6 +19,7 @@
 #include "../Actor/MobActor.h"
 #include "../Core/Camera.h"
 #include "../Diagnostics/RuntimeProfiler.h"
+#include "../Diagnostics/OperationPerformanceTiming.h"
 #include "../Maths/Vector2XZ.h"
 #include "../Physics/AABB.h"
 #include "../Player/Player.h"
@@ -334,6 +335,8 @@ World::World(const Camera &camera, const Config &config, Player &player,
         m_worldSaveData.spawnPoint = m_playerSpawnPoint;
         saveWorldState();
     }
+    runtimeOperationTimings().markLatestActive(
+        RuntimeOperationKind::WorldEntry);
 
     if (hasForcedPlayerPosition) {
         player.position = forcedPlayerPosition;
@@ -356,6 +359,8 @@ World::World(const Camera &camera, const Config &config, Player &player,
     if (hasSave) {
         restoreActors(m_worldSaveData.actors);
     }
+    runtimeOperationTimings().markLatestActive(
+        RuntimeOperationKind::WorldEntry);
     m_playerActor.syncFromPlayer(player);
 
     auto playerChunk = getChunkXZ(toBlockCoord(player.position.x),
@@ -1378,19 +1383,26 @@ void World::updateChunk(int blockX, int blockY, int blockZ)
 
 bool World::save()
 {
+    RuntimeOperationTimings &operationTimings = runtimeOperationTimings();
+    const RuntimeOperationHandle operation =
+        operationTimings.begin(RuntimeOperationKind::Save);
+    const auto finish = [&](bool result) {
+        operationTimings.complete(operation, result);
+        return result;
+    };
     std::unique_lock<std::mutex> lock(m_mainMutex);
     const bool chunksSaved = m_chunkManager.saveDirtyChunks();
     const bool worldSaved = saveWorldState();
     if (!chunksSaved || !worldSaved) {
-        return false;
+        return finish(false);
     }
     WorldBackupMetrics backupMetrics;
     if (!m_worldBackup.createBackup(nullptr, &backupMetrics)) {
         std::cerr << "Unable to create world backup: "
                   << backupMetrics.error << '\n';
-        return false;
+        return finish(false);
     }
-    return true;
+    return finish(true);
 }
 
 float World::getWorldTime() const
@@ -1647,8 +1659,23 @@ bool World::saveWorldState()
 
     StorageTransactionMetrics metrics;
     if (!m_worldSave.save(m_worldSaveData, {}, &metrics)) {
+        runtimeOperationTimings().addStorageTransactionToLatest(
+            RuntimeOperationKind::Save,
+            metrics.prepareCompleteMilliseconds,
+            metrics.writeCompleteMilliseconds,
+            metrics.flushCompleteMilliseconds,
+            metrics.validationCompleteMilliseconds,
+            metrics.replaceCompleteMilliseconds,
+            metrics.totalMilliseconds, metrics.bytesWritten, false);
         return false;
     }
+    runtimeOperationTimings().addStorageTransactionToLatest(
+        RuntimeOperationKind::Save, metrics.prepareCompleteMilliseconds,
+        metrics.writeCompleteMilliseconds,
+        metrics.flushCompleteMilliseconds,
+        metrics.validationCompleteMilliseconds,
+        metrics.replaceCompleteMilliseconds, metrics.totalMilliseconds,
+        metrics.bytesWritten, false);
     ++m_worldSaveTransactionCount;
     const double elapsed = std::max(0.0, metrics.totalMilliseconds);
     m_worldSaveTotalMs += elapsed;

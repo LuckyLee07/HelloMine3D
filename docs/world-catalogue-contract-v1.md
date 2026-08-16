@@ -81,6 +81,8 @@ as creation/last-played time and records the current build identity.
 missing and empty root, multiple worlds and stable order, version 1/2 discovery,
 version-3 fields, duplicate ids, malformed names/timestamps/versions, traversal,
 missing/duplicate/unknown metadata and real directory/file symlinks. Before and
-after snapshots prove enumeration is non-mutating. The full world runtime smoke
+after snapshots prove enumeration is non-mutating. Two Q2 assertions bring the
+target to 30 checks and require complete successful and rejected enumeration
+timings. The full world runtime smoke
 also proves version-3 creation, quoted display-name round-trip, immutable id
 across relaunch and version-1 load/upgrade through the real `World` path.

@@ -138,11 +138,34 @@ bool StorageTransaction::publish(
 {
     StorageTransactionMetrics metrics;
     const auto started = std::chrono::steady_clock::now();
+    bool prepareComplete = false;
+    bool writeComplete = false;
+    bool flushComplete = false;
+    bool validationComplete = false;
+    bool replaceComplete = false;
+    const auto elapsed = [&]() {
+        return std::chrono::duration<double, std::milli>(
+                   std::chrono::steady_clock::now() - started)
+            .count();
+    };
     const auto finish = [&](bool result) {
-        metrics.totalMilliseconds =
-            std::chrono::duration<double, std::milli>(
-                std::chrono::steady_clock::now() - started)
-                .count();
+        metrics.totalMilliseconds = elapsed();
+        if (!prepareComplete) {
+            metrics.prepareCompleteMilliseconds = metrics.totalMilliseconds;
+        }
+        if (!writeComplete) {
+            metrics.writeCompleteMilliseconds = metrics.totalMilliseconds;
+        }
+        if (!flushComplete) {
+            metrics.flushCompleteMilliseconds = metrics.totalMilliseconds;
+        }
+        if (!validationComplete) {
+            metrics.validationCompleteMilliseconds =
+                metrics.totalMilliseconds;
+        }
+        if (!replaceComplete) {
+            metrics.replaceCompleteMilliseconds = metrics.totalMilliseconds;
+        }
         if (metricsOutput != nullptr) {
             *metricsOutput = metrics;
         }
@@ -170,6 +193,8 @@ bool StorageTransaction::publish(
             return finish(false);
         }
     }
+    metrics.prepareCompleteMilliseconds = elapsed();
+    prepareComplete = true;
 
     std::FILE *file = nullptr;
 #if defined(_WIN32)
@@ -207,6 +232,8 @@ bool StorageTransaction::publish(
     if (metrics.bytesWritten != writeSize) {
         return failOpenCandidate("candidate write failed");
     }
+    metrics.writeCompleteMilliseconds = elapsed();
+    writeComplete = true;
     if (injected(options, StorageFaultPoint::MidWrite, metrics)) {
         return failOpenCandidate("failure during write");
     }
@@ -224,6 +251,8 @@ bool StorageTransaction::publish(
         return finish(false);
     }
     file = nullptr;
+    metrics.flushCompleteMilliseconds = elapsed();
+    flushComplete = true;
 
     if (injected(options, StorageFaultPoint::BeforeValidation, metrics)) {
         movePendingToQuarantine(pending, quarantine, metrics);
@@ -239,6 +268,8 @@ bool StorageTransaction::publish(
         return finish(false);
     }
     metrics.candidateValidated = true;
+    metrics.validationCompleteMilliseconds = elapsed();
+    validationComplete = true;
 
     if (injected(options, StorageFaultPoint::BeforeReplace, metrics)) {
         movePendingToQuarantine(pending, quarantine, metrics);
@@ -249,6 +280,8 @@ bool StorageTransaction::publish(
         return finish(false);
     }
     metrics.published = true;
+    metrics.replaceCompleteMilliseconds = elapsed();
+    replaceComplete = true;
     return finish(true);
 }
 

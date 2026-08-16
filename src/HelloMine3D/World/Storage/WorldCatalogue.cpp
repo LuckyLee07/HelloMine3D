@@ -1,4 +1,5 @@
 #include "WorldCatalogue.h"
+#include "../../Diagnostics/OperationPerformanceTiming.h"
 
 #include <algorithm>
 #include <charconv>
@@ -284,11 +285,54 @@ namespace
         }
         return entry;
     }
+
+    class CatalogueOperationTiming {
+      public:
+        CatalogueOperationTiming()
+            : m_timings(runtimeOperationTimings())
+            , m_handle(m_timings.begin(RuntimeOperationKind::Catalogue))
+        {
+        }
+
+        ~CatalogueOperationTiming() noexcept
+        {
+            if (m_complete) {
+                return;
+            }
+            try {
+                m_timings.complete(m_handle, false);
+            }
+            catch (...) {
+                // Diagnostics must never replace the catalogue exception.
+            }
+        }
+
+        void succeed(std::size_t entries) noexcept
+        {
+            if (m_complete) {
+                return;
+            }
+            try {
+                m_timings.setCatalogueEntries(m_handle, entries);
+                m_timings.complete(m_handle, true);
+            }
+            catch (...) {
+                // Diagnostics must not change successful enumeration.
+            }
+            m_complete = true;
+        }
+
+      private:
+        RuntimeOperationTimings &m_timings;
+        RuntimeOperationHandle m_handle;
+        bool m_complete = false;
+    };
 }
 
 std::vector<WorldCatalogueEntry>
 WorldCatalogue::enumerate(const std::string &catalogueRoot)
 {
+    CatalogueOperationTiming timing;
     if (catalogueRoot.empty()) {
         throw WorldCatalogueError("World catalogue root must not be empty.");
     }
@@ -298,6 +342,7 @@ WorldCatalogue::enumerate(const std::string &catalogueRoot)
     const fs::file_status rootStatus = fs::symlink_status(requestedRoot, error);
     if (error == std::errc::no_such_file_or_directory ||
         rootStatus.type() == fs::file_type::not_found) {
+        timing.succeed(0);
         return {};
     }
     if (error) {
@@ -402,6 +447,7 @@ WorldCatalogue::enumerate(const std::string &catalogueRoot)
                   }
                   return left.id < right.id;
               });
+    timing.succeed(result.size());
     return result;
 }
 

@@ -1,4 +1,5 @@
 #include "RuntimePerformanceCapture.h"
+#include "OperationPerformanceTiming.h"
 
 #include <algorithm>
 #include <chrono>
@@ -364,6 +365,8 @@ namespace
                               1000.0 / captureState.durationMs
                         : 0.0)
                 << "\n";
+
+        runtimeOperationTimings().appendLatestSummary(summary);
 
         if (!captureState.samples.empty()) {
             const WorldDebugStats &last = captureState.samples.back().world;

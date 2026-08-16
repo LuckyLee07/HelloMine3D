@@ -40,6 +40,7 @@ struct WorldBackupInfo {
 struct WorldBackupMetrics {
     double totalMilliseconds = 0.0;
     std::size_t filesCopied = 0;
+    std::uintmax_t bytesRead = 0;
     std::uintmax_t bytesCopied = 0;
     bool candidateValidated = false;
     bool published = false;

@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "../../Sandbox/Events/ChunkEvents.h"
+#include "../../Diagnostics/OperationPerformanceTiming.h"
 #include "../Generation/Terrain/ClassicOverWorldGenerator.h"
 #include "../Generation/Terrain/SuperFlatGenerator.h"
 #include "../World.h"
@@ -319,8 +320,24 @@ bool ChunkManager::saveChunk(Chunk &chunk)
 
     StorageTransactionMetrics metrics;
     if (!m_chunkStorage.saveChunk(chunk, &metrics)) {
+        runtimeOperationTimings().addStorageTransactionToLatest(
+            RuntimeOperationKind::Save,
+            metrics.prepareCompleteMilliseconds,
+            metrics.writeCompleteMilliseconds,
+            metrics.flushCompleteMilliseconds,
+            metrics.validationCompleteMilliseconds,
+            metrics.replaceCompleteMilliseconds,
+            metrics.totalMilliseconds, metrics.bytesWritten, true);
         return false;
     }
+
+    runtimeOperationTimings().addStorageTransactionToLatest(
+        RuntimeOperationKind::Save, metrics.prepareCompleteMilliseconds,
+        metrics.writeCompleteMilliseconds,
+        metrics.flushCompleteMilliseconds,
+        metrics.validationCompleteMilliseconds,
+        metrics.replaceCompleteMilliseconds, metrics.totalMilliseconds,
+        metrics.bytesWritten, true);
 
     ++m_saveTransactionCount;
     const double elapsed = std::max(0.0, metrics.totalMilliseconds);

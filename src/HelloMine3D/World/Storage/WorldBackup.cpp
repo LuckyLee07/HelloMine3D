@@ -3,6 +3,7 @@
 #include "ChunkStorageData.h"
 #include "StorageTransaction.h"
 #include "WorldSave.h"
+#include "../../Diagnostics/OperationPerformanceTiming.h"
 
 #include <algorithm>
 #include <charconv>
@@ -950,12 +951,19 @@ bool WorldBackup::createBackup(WorldBackupInfo *created,
                                const WorldBackupOptions &options) const
 {
     WorldBackupMetrics metrics;
+    RuntimeOperationTimings &operationTimings = runtimeOperationTimings();
+    const RuntimeOperationHandle operation =
+        operationTimings.begin(RuntimeOperationKind::Backup);
     const auto started = std::chrono::steady_clock::now();
     const auto finish = [&](bool result) {
         metrics.totalMilliseconds =
             std::chrono::duration<double, std::milli>(
                 std::chrono::steady_clock::now() - started)
                 .count();
+        operationTimings.addCounters(
+            operation, metrics.filesCopied, 0, metrics.bytesRead,
+            metrics.bytesCopied);
+        operationTimings.complete(operation, result);
         if (metricsOutput != nullptr) {
             *metricsOutput = metrics;
         }
@@ -971,6 +979,7 @@ bool WorldBackup::createBackup(WorldBackupInfo *created,
                            worldVersion, metrics.error)) {
         return finish(false);
     }
+    metrics.bytesRead += totalFileBytes(files);
     const fs::path backupRoot = backupRootDirectory();
     if (!ensureRealDirectory(backupRoot, metrics.error)) {
         return finish(false);
@@ -979,6 +988,7 @@ bool WorldBackup::createBackup(WorldBackupInfo *created,
     if (!listBackupsInternal(backupRoot, m_policy, existing, metrics.error)) {
         return finish(false);
     }
+    operationTimings.mark(operation);
     const std::uint64_t sequence =
         existing.empty() ? 1 : existing.back().sequence + 1;
     if (sequence == 0) {
@@ -1028,6 +1038,7 @@ bool WorldBackup::createBackup(WorldBackupInfo *created,
                       metrics.error, false)) {
         return failCandidate();
     }
+    operationTimings.mark(operation);
     ParsedManifest candidate;
     if (!loadBackup(pending, m_policy, candidate, metrics.error, &info.id) ||
         candidate.info.sequence != info.sequence ||
@@ -1040,6 +1051,7 @@ bool WorldBackup::createBackup(WorldBackupInfo *created,
         return failCandidate();
     }
     metrics.candidateValidated = true;
+    operationTimings.mark(operation);
     if (options.faultPoint == WorldBackupFaultPoint::BeforeBackupPublish) {
         metrics.error = std::string("injected fault at ") +
                         worldBackupFaultPointName(options.faultPoint);
@@ -1089,6 +1101,7 @@ bool WorldBackup::createBackup(WorldBackupInfo *created,
     }
 
     metrics.published = true;
+    operationTimings.mark(operation);
     if (created != nullptr) {
         *created = info;
     }
@@ -1118,12 +1131,19 @@ bool WorldBackup::restoreBackup(const std::string &backupIdValue,
                                 WorldBackupMetrics *metricsOutput) const
 {
     WorldBackupMetrics metrics;
+    RuntimeOperationTimings &operationTimings = runtimeOperationTimings();
+    const RuntimeOperationHandle operation =
+        operationTimings.begin(RuntimeOperationKind::Restore);
     const auto started = std::chrono::steady_clock::now();
     const auto finish = [&](bool result) {
         metrics.totalMilliseconds =
             std::chrono::duration<double, std::milli>(
                 std::chrono::steady_clock::now() - started)
                 .count();
+        operationTimings.addCounters(
+            operation, metrics.filesCopied, 0, metrics.bytesRead,
+            metrics.bytesCopied);
+        operationTimings.complete(operation, result);
         if (metricsOutput != nullptr) {
             *metricsOutput = metrics;
         }
@@ -1158,6 +1178,8 @@ bool WorldBackup::restoreBackup(const std::string &backupIdValue,
         }
         return finish(false);
     }
+    metrics.bytesRead += manifest.info.totalBytes;
+    operationTimings.mark(operation);
 
     const fs::path pending = backupRoot / RestorePendingName;
     const fs::path failed = backupRoot / RestoreFailedName;
@@ -1186,6 +1208,7 @@ bool WorldBackup::restoreBackup(const std::string &backupIdValue,
     if (!writeFiles(pending, manifest.files, metrics, metrics.error)) {
         return failCandidate();
     }
+    operationTimings.mark(operation);
     if (options.faultPoint ==
         WorldBackupFaultPoint::BeforeRestoreValidation) {
         metrics.error = std::string("injected fault at ") +
@@ -1204,6 +1227,7 @@ bool WorldBackup::restoreBackup(const std::string &backupIdValue,
         return failCandidate();
     }
     metrics.candidateValidated = true;
+    operationTimings.mark(operation);
     if (options.faultPoint == WorldBackupFaultPoint::BeforeRestorePublish) {
         metrics.error = std::string("injected fault at ") +
                         worldBackupFaultPointName(options.faultPoint);
@@ -1218,6 +1242,7 @@ bool WorldBackup::restoreBackup(const std::string &backupIdValue,
         metrics.error = "cannot preserve current primary: " + primaryError;
         return failCandidate();
     }
+    metrics.bytesRead += totalFileBytes(primaryFiles);
     const fs::path recoveryPending =
         fs::path(m_worldDirectory) / RecoveryPendingName;
     const fs::path recoveryFailed =
@@ -1279,6 +1304,7 @@ bool WorldBackup::restoreBackup(const std::string &backupIdValue,
         return failCandidate();
     }
 
+    operationTimings.mark(operation);
     if (!removeTree(pending, metrics.error)) {
         return finish(false);
     }

@@ -22,6 +22,11 @@ struct StorageTransactionOptions {
 };
 
 struct StorageTransactionMetrics {
+    double prepareCompleteMilliseconds = 0.0;
+    double writeCompleteMilliseconds = 0.0;
+    double flushCompleteMilliseconds = 0.0;
+    double validationCompleteMilliseconds = 0.0;
+    double replaceCompleteMilliseconds = 0.0;
     double totalMilliseconds = 0.0;
     std::size_t bytesWritten = 0;
     bool durablyFlushed = false;

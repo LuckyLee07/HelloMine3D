@@ -18,6 +18,7 @@ TESTS=(
     HelloMine3DWorldCatalogueSmoke
     HelloMine3DStorageTransactionSmoke
     HelloMine3DWorldBackupSmoke
+    HelloMine3DOperationTimingSmoke
 )
 
 if [ "$(uname -s)" != "Darwin" ]; then
@@ -42,7 +43,7 @@ XCODE_GRAPH_LOG="$LOG_DIR/xcode_project_graph.log"
 python3 "$ROOT_DIR/tools/validate_xcode_project_graph.py" \
     --self-test \
     --build-dir "$BUILD_DIR" | tee "$XCODE_GRAPH_LOG"
-if ! grep -F "[XCODE_GRAPH] status=PASS projects=29" \
+if ! grep -F "[XCODE_GRAPH] status=PASS projects=30" \
     "$XCODE_GRAPH_LOG" >/dev/null; then
     echo "[XCODE_VERIFY] Generated project graph summary is missing." >&2
     exit 1
@@ -109,12 +110,12 @@ run_binary() {
     ) 2>&1 | tee "$log"
 
     if [ "$name" = "HelloMine3DWorldRuntimeSmoke" ] &&
-       ! grep -F "[VALIDATION] checks=343 failures=0" "$log" >/dev/null; then
+       ! grep -F "[VALIDATION] checks=346 failures=0" "$log" >/dev/null; then
         echo "[XCODE_VERIFY] World runtime summary is missing or failed." >&2
         exit 1
     fi
     if [ "$name" = "HelloMine3DWorldCatalogueSmoke" ] &&
-       ! grep -F "[WORLD_CATALOGUE_TEST] checks=28 failures=0" \
+       ! grep -F "[WORLD_CATALOGUE_TEST] checks=30 failures=0" \
            "$log" >/dev/null; then
         echo "[XCODE_VERIFY] World catalogue summary is missing or failed." >&2
         exit 1
@@ -126,9 +127,15 @@ run_binary() {
         exit 1
     fi
     if [ "$name" = "HelloMine3DWorldBackupSmoke" ] &&
-       ! grep -F "[WORLD_BACKUP_TEST] checks=16 failures=0" \
+       ! grep -F "[WORLD_BACKUP_TEST] checks=19 failures=0" \
            "$log" >/dev/null; then
         echo "[XCODE_VERIFY] World backup summary is missing or failed." >&2
+        exit 1
+    fi
+    if [ "$name" = "HelloMine3DOperationTimingSmoke" ] &&
+       ! grep -F "[OPERATION_TIMING_TEST] checks=12 failures=0" \
+           "$log" >/dev/null; then
+        echo "[XCODE_VERIFY] Operation timing summary is missing or failed." >&2
         exit 1
     fi
 }
@@ -138,6 +145,7 @@ run_client_probe() {
     local mode="$2"
     local log="$LOG_DIR/${configuration}_${CLIENT}_${mode}.log"
     local save_dir="$LOG_DIR/${configuration}_${mode}_save"
+    local perf_dir="$LOG_DIR/${configuration}_${mode}_performance"
     local -a environment=(
         "HELLOMINE3D_ROOT=$ROOT_DIR"
         "HELLOMINE3D_SAVE_DIR=$save_dir"
@@ -149,7 +157,13 @@ run_client_probe() {
     if [ "$mode" = "validate" ]; then
         environment+=("HELLOMINE3D_VALIDATE_ONLY=1")
     else
-        environment+=("HELLOMINE3D_EXIT_AFTER_FRAMES=120")
+        environment+=(
+            "HELLOMINE3D_EXIT_AFTER_FRAMES=120"
+            "HELLO_PERF_CAPTURE=1"
+            "HELLO_PERF_CAPTURE_DIR=$perf_dir"
+            "HELLO_PERF_CAPTURE_WARMUP_MS=1"
+            "HELLO_PERF_CAPTURE_DURATION_MS=60000"
+        )
     fi
 
     echo "[XCODE_VERIFY] Run $configuration client $mode probe"
@@ -205,6 +219,36 @@ run_client_probe() {
             exit 1
         fi
         echo "[XCODE_VERIFY] Surface contact y=$player_y"
+
+        local performance_summary="$perf_dir/summary.txt"
+        if [ ! -f "$performance_summary" ]; then
+            cat "$log" >&2
+            echo "[XCODE_VERIFY] Operation performance summary is missing." >&2
+            exit 1
+        fi
+        for expected in \
+            "startup_preflight_ms=" \
+            "startup_ogre_ready_ms=" \
+            "startup_first_window_ms=" \
+            "startup_first_usable_menu_ms=" \
+            "startup_success=1" \
+            "startup_total_ms=" \
+            "startup_main_thread_max_stall_ms=" \
+            "entry_world_metadata_ms=" \
+            "entry_spawn_resident_ms=" \
+            "entry_first_visible_terrain_ms=" \
+            "entry_first_controllable_ms=" \
+            "entry_success=1" \
+            "entry_total_ms=" \
+            "entry_main_thread_max_stall_ms=" \
+            "operation_timing_dropped_records=0"; do
+            if ! grep -F "$expected" "$performance_summary" >/dev/null; then
+                cat "$performance_summary" >&2
+                echo "[XCODE_VERIFY] Missing operation metric: $expected" >&2
+                exit 1
+            fi
+        done
+        echo "[XCODE_VERIFY] Startup/world-entry operation summary valid"
     fi
 }
 

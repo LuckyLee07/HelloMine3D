@@ -90,7 +90,11 @@ second hard-coded asset list.
 `Diagnostics/` contains renderer-independent performance/debug options.
 `RuntimeProfiler.h` is the compile-time boundary for optional Tracy zones; it
 expands to no-ops in ordinary builds, so world and simulation code do not depend
-on Tracy APIs. The ImGui platform and render integration stays in
+on Tracy APIs. `OperationPerformanceTiming` is the Q2 fixed-capacity timeline
+for startup, catalogue, world-entry, save, backup and restore phases. It follows
+the existing performance-capture switch and appends the newest complete record
+per operation kind to the ordinary summary without introducing renderer types
+into storage code. The ImGui platform and render integration stays in
 `Ogre/OgreUserInterface.*`.
 
 `Entity/` contains the base entity data shape used by player, camera, matrix helpers, and future

@@ -1,3 +1,4 @@
+#include "../Diagnostics/OperationPerformanceTiming.h"
 #include "../World/Storage/WorldCatalogue.h"
 
 #include <algorithm>
@@ -179,6 +180,8 @@ namespace
 int main()
 {
     TestSuite suite;
+    RuntimeOperationTimings &operationTimings = runtimeOperationTimings();
+    operationTimings.reset(true);
 
     {
         TemporaryDirectory missing("missing-root");
@@ -429,6 +432,31 @@ int main()
                         "host cannot create test symlink: " + error.message());
         }
     }
+
+    const std::vector<RuntimeOperationRecord> timingRecords =
+        operationTimings.snapshot();
+    const auto successfulTiming = std::find_if(
+        timingRecords.begin(), timingRecords.end(),
+        [](const RuntimeOperationRecord &record) {
+            return record.kind == RuntimeOperationKind::Catalogue &&
+                   record.complete && record.success &&
+                   record.catalogueEntries == 3 &&
+                   record.totalMilliseconds >=
+                       record.mainThreadMaxStallMilliseconds;
+        });
+    const auto failedTiming = std::find_if(
+        timingRecords.begin(), timingRecords.end(),
+        [](const RuntimeOperationRecord &record) {
+            return record.kind == RuntimeOperationKind::Catalogue &&
+                   record.complete && !record.success &&
+                   record.totalMilliseconds >=
+                       record.mainThreadMaxStallMilliseconds;
+        });
+    suite.check("Q2/catalogue-success-emits-complete-timing",
+                successfulTiming != timingRecords.end());
+    suite.check("Q2/catalogue-failure-emits-complete-timing",
+                failedTiming != timingRecords.end());
+    operationTimings.reset(false);
 
     return suite.finish();
 }

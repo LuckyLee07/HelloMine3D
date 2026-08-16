@@ -419,6 +419,14 @@ from returning `PASS`.
 | fast streaming | chunk request-to-visible latency percentiles, queue peak, mesh progress, frame P95/P99/long frames and memory | fixed movement path/speed, view distance, seed, final residency and VSync regime |
 | scaled gameplay | frame/update/render percentiles, main-thread max stall, actor/item/crop/chest counts, memory/handles and cap events | versioned population fixture, fixed tick count, world seed and identical save state |
 
+Q2 now supplies the first four scene families' operation-side phase values.
+`OperationPerformanceTiming` uses the same `HELLO_PERF_CAPTURE` switch as the
+frame collector, retains at most 32 records and appends the newest complete
+startup, catalogue, world-entry, save, backup and restore records to
+`summary.txt`. Disabled capture retains no operation or timestamp. The exact
+phase/outcome/counter and failure-completion rules are frozen in
+`docs/operation-performance-timing-contract-v1.md`.
+
 Schema-3 comparator rules:
 
 1. Missing required metrics, non-monotonic phase times or an unknown schema are

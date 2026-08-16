@@ -32,6 +32,7 @@
 #include "../Actor/MobActor.h"
 #include "../Config.h"
 #include "../Core/Camera.h"
+#include "../Diagnostics/OperationPerformanceTiming.h"
 #include "../Diagnostics/RuntimeDebugOptions.h"
 #include "../Diagnostics/TerrainBufferMetrics.h"
 #include "../Item/Material.h"
@@ -1324,6 +1325,8 @@ void casePersistence()
 
         const ChunkDebugStats saveMetricsBefore =
             world.collectDebugStats().chunks;
+        RuntimeOperationTimings &operationTimings = runtimeOperationTimings();
+        operationTimings.reset(true);
         const bool worldSaveSucceeded = world.save();
         const ChunkDebugStats saveMetricsAfter =
             world.collectDebugStats().chunks;
@@ -1354,6 +1357,56 @@ void casePersistence()
                   std::to_string(saveMetricsAfter.saveTotalMs) +
                   " max_ms=" +
                   std::to_string(saveMetricsAfter.saveMaxMs));
+
+        RuntimeOperationRecord saveTiming;
+        RuntimeOperationRecord backupTiming;
+        const bool hasSaveTiming = operationTimings.latest(
+            RuntimeOperationKind::Save, saveTiming);
+        const bool hasBackupTiming = operationTimings.latest(
+            RuntimeOperationKind::Backup, backupTiming);
+        check(
+            "Q2/real-world-save-emits-complete-operation-timings",
+            hasSaveTiming && saveTiming.success && saveTiming.phaseCount == 5 &&
+                saveTiming.filesWritten >= 2 &&
+                saveTiming.chunksWritten >= 1 &&
+                saveTiming.bytesWritten > 0 &&
+                saveTiming.totalMilliseconds >=
+                    saveTiming.cumulativeMilliseconds[4] &&
+                saveTiming.totalMilliseconds >=
+                    saveTiming.mainThreadMaxStallMilliseconds &&
+                hasBackupTiming && backupTiming.success &&
+                backupTiming.phaseCount == 4 &&
+                backupTiming.bytesRead > 0 &&
+                backupTiming.bytesWritten > 0,
+            "save_files=" + std::to_string(saveTiming.filesWritten) +
+                " save_chunks=" + std::to_string(saveTiming.chunksWritten) +
+                " save_bytes=" + std::to_string(saveTiming.bytesWritten));
+
+        std::ostringstream operationSummary;
+        operationTimings.appendLatestSummary(operationSummary);
+        const std::string operationSummaryText = operationSummary.str();
+        check(
+            "Q2/real-world-save-summary-matches-q1-schema",
+            operationSummaryText.find("save_prepare_complete_ms=") !=
+                    std::string::npos &&
+                operationSummaryText.find("save_replace_complete_ms=") !=
+                    std::string::npos &&
+                operationSummaryText.find("save_total_ms=") !=
+                    std::string::npos &&
+                operationSummaryText.find(
+                    "save_main_thread_max_stall_ms=") != std::string::npos &&
+                operationSummaryText.find("backup_total_ms=") !=
+                    std::string::npos);
+
+        operationTimings.reset(false);
+        world.setBlock(10, y, 8, BlockId::Dirt);
+        const bool disabledSaveSucceeded = world.save();
+        WorldSaveData disabledSaveData;
+        check("Q2/disabled-timing-preserves-save-and-retains-no-records",
+              disabledSaveSucceeded &&
+                  WorldSave(directory).load(disabledSaveData) &&
+                  WorldCatalogue::isValidWorldId(disabledSaveData.worldId) &&
+                  operationTimings.snapshot().empty());
 
         WorldSaveData meta;
         WorldSave saveFile(directory);

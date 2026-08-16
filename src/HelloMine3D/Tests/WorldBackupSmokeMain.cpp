@@ -1,4 +1,5 @@
 #include "../World/Block/BlockId.h"
+#include "../Diagnostics/OperationPerformanceTiming.h"
 #include "../World/Storage/ChunkStorageData.h"
 #include "../World/Storage/WorldBackup.h"
 #include "../World/Storage/WorldSave.h"
@@ -267,6 +268,8 @@ namespace
 int main()
 {
     TestSuite suite;
+    RuntimeOperationTimings &operationTimings = runtimeOperationTimings();
+    operationTimings.reset(true);
 
     {
         TemporaryDirectory root("complete");
@@ -540,6 +543,41 @@ int main()
                     currentSaved && restored && legacyMatches(root.path()),
                     restoreMetrics.error);
     }
+
+    const std::vector<RuntimeOperationRecord> timingRecords =
+        operationTimings.snapshot();
+    const auto completeSuccess = [&](RuntimeOperationKind kind) {
+        return std::find_if(
+                   timingRecords.begin(), timingRecords.end(),
+                   [kind](const RuntimeOperationRecord &record) {
+                       return record.kind == kind && record.complete &&
+                              record.success && record.phaseCount == 4 &&
+                              record.filesWritten > 0 &&
+                              record.bytesRead > 0 &&
+                              record.bytesWritten > 0 &&
+                              record.totalMilliseconds >=
+                                  record.cumulativeMilliseconds[3] &&
+                              record.totalMilliseconds >=
+                                  record.mainThreadMaxStallMilliseconds;
+                   }) != timingRecords.end();
+    };
+    const bool hasFailedBackupOrRestore = std::any_of(
+        timingRecords.begin(), timingRecords.end(),
+        [](const RuntimeOperationRecord &record) {
+            return (record.kind == RuntimeOperationKind::Backup ||
+                    record.kind == RuntimeOperationKind::Restore) &&
+                   record.complete && !record.success &&
+                   record.phaseCount == 4 &&
+                   record.totalMilliseconds >=
+                       record.mainThreadMaxStallMilliseconds;
+        });
+    suite.check("Q2/backup-success-emits-complete-timing",
+                completeSuccess(RuntimeOperationKind::Backup));
+    suite.check("Q2/restore-success-emits-complete-timing",
+                completeSuccess(RuntimeOperationKind::Restore));
+    suite.check("Q2/backup-restore-failure-emits-complete-timing",
+                hasFailedBackupOrRestore);
+    operationTimings.reset(false);
 
     return suite.finish();
 }

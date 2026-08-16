@@ -469,6 +469,8 @@ project "HelloMine3DWorldCatalogueSmoke"
 
     files {
         source_dir .. "/Tests/WorldCatalogueSmokeMain.cpp",
+        source_dir .. "/Diagnostics/OperationPerformanceTiming.h",
+        source_dir .. "/Diagnostics/OperationPerformanceTiming.cpp",
         source_dir .. "/World/Storage/WorldCatalogue.h",
         source_dir .. "/World/Storage/WorldCatalogue.cpp"
     }
@@ -492,6 +494,8 @@ project "HelloMine3DStorageTransactionSmoke"
 
     files {
         source_dir .. "/Tests/StorageTransactionSmokeMain.cpp",
+        source_dir .. "/Diagnostics/OperationPerformanceTiming.h",
+        source_dir .. "/Diagnostics/OperationPerformanceTiming.cpp",
         source_dir .. "/World/Block/BlockEntity.h",
         source_dir .. "/World/Block/BlockEntity.cpp",
         source_dir .. "/World/Storage/StorageTransaction.h",
@@ -533,6 +537,8 @@ project "HelloMine3DWorldBackupSmoke"
 
     files {
         source_dir .. "/Tests/WorldBackupSmokeMain.cpp",
+        source_dir .. "/Diagnostics/OperationPerformanceTiming.h",
+        source_dir .. "/Diagnostics/OperationPerformanceTiming.cpp",
         source_dir .. "/World/Block/BlockEntity.h",
         source_dir .. "/World/Block/BlockEntity.cpp",
         source_dir .. "/World/Storage/StorageTransaction.h",
@@ -560,6 +566,29 @@ project "HelloMine3DWorldBackupSmoke"
     end
 
     add_dependency_prefix(first_non_empty(_OPTIONS["deps-prefix"], os.getenv("HELLOMINE3D_DEPS_PREFIX")))
+
+    filter "system:windows"
+        defines { "_CRT_SECURE_NO_WARNINGS" }
+
+    filter {}
+
+-- Q2 bounded operation phases, counters and disabled-capture behavior.
+project "HelloMine3DOperationTimingSmoke"
+    kind "ConsoleApp"
+    location "../build/%{prj.name}"
+    targetdir "../bin"
+    debugdir "../bin"
+    objdir "../build/%{prj.name}/obj/%{cfg.platform}/%{cfg.buildcfg}"
+
+    files {
+        source_dir .. "/Tests/OperationTimingSmokeMain.cpp",
+        source_dir .. "/Diagnostics/OperationPerformanceTiming.h",
+        source_dir .. "/Diagnostics/OperationPerformanceTiming.cpp"
+    }
+
+    includedirs {
+        source_dir
+    }
 
     filter "system:windows"
         defines { "_CRT_SECURE_NO_WARNINGS" }

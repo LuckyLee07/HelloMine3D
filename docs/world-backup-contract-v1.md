@@ -72,11 +72,13 @@ The K2 readers remain the authority, so version-1 world metadata and version-1
 chunks can be backed up and restored without an in-place migration. Normal game
 save upgrades them afterward.
 
-`HelloMine3DWorldBackupSmoke` owns 16 focused assertions covering complete
+`HelloMine3DWorldBackupSmoke` owns 19 focused assertions covering complete
 creation/listing, publication ordering, policy rejection, count/byte rotation,
 oversize rejection, corrupt backup and primary handling, interruption before
 validation, rollback after the first published restore file, version-1 restore
-and an exact gameplay-state recovery.
+and an exact gameplay-state recovery. Three Q2 assertions additionally require
+complete successful backup/restore records and a complete failure record.
 The complete fixture restores player inventory, actors, chunks, crop metadata
 and block-entity payloads. `HelloMine3DWorldRuntimeSmoke` separately proves the
-real `World::save()` path publishes one validated snapshot.
+real `World::save()` path publishes one validated snapshot and emits the Q2
+save/backup summary without changing a subsequent instrumentation-off save.
