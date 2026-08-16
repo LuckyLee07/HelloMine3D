@@ -108,7 +108,8 @@ try {
         "HelloMine3DWorldRuntimeSmoke.exe",
         "HelloMine3DSoak.exe",
         "HelloMine3DResourcePackSmoke.exe",
-        "HelloMine3DRecipeSmoke.exe"
+        "HelloMine3DRecipeSmoke.exe",
+        "HelloMine3DWorldCatalogueSmoke.exe"
     )
 
     foreach ($configuration in @("Debug", "Release")) {

@@ -38,9 +38,11 @@ Structure roots are likewise selected from the seed and world block
 coordinates. A target chunk scans a six-block origin halo and projects only
 its own structure fragments, so trees and cacti can cross chunk boundaries
 without making generation depend on neighbouring chunk load order.
-World metadata version 2 persists player state plus live mob/item subtype state;
-version 1 saves remain readable with an empty actor list and upgrade on the
-next world save.
+World metadata version 3 retains player and live mob/item subtype state while
+adding immutable catalogue identity, creation/last-played timestamps and the
+last-known build identity. The read-only catalogue still discovers version 1/2
+metadata without renaming its directory. Version 1 saves remain readable with
+an empty actor list, and both legacy versions upgrade on the next world save.
 Random block simulation extends `BlockBehavior`: sections index only block
 states that currently opt in, and `World` rotates those active sections with a
 four-section budget on the fixed 20Hz tick. Each visit samples three uniformly

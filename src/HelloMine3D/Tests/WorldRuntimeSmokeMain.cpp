@@ -57,6 +57,7 @@
 #include "../World/Generation/Biome/TemperateForestBiome.h"
 #include "../World/Generation/Terrain/ClassicOverWorldGenerator.h"
 #include "../World/Storage/ChunkStorage.h"
+#include "../World/Storage/WorldCatalogue.h"
 #include "../World/Storage/WorldSave.h"
 #include "../World/World.h"
 
@@ -1277,6 +1278,7 @@ void casePersistence()
     glm::vec3 savedSpawn{0.f};
     ActorId savedMobId = InvalidActorId;
     ActorId savedItemId = InvalidActorId;
+    std::string savedWorldId;
     ActorSaveState savedMobState;
     ActorSaveState savedItemState;
 
@@ -1329,9 +1331,33 @@ void casePersistence()
         check("S2.1/world-meta-has-seed", meta.seed == firstSeed,
               "meta seed=" + std::to_string(meta.seed));
         check("P2/world-meta-stores-actors",
-              meta.version == 2 && meta.actors.size() == 2,
+              meta.version == WorldSaveFormatVersion &&
+                  meta.actors.size() == 2,
               "version=" + std::to_string(meta.version) +
                   " actors=" + std::to_string(meta.actors.size()));
+        savedWorldId = meta.worldId;
+        check("K1/version-three-world-identity",
+              WorldCatalogue::isValidWorldId(meta.worldId) &&
+                  WorldCatalogue::isValidDisplayName(meta.worldName) &&
+                  WorldCatalogue::isValidBuildIdentity(
+                      meta.lastBuildIdentity) &&
+                  meta.createdUtc >= LegacyWorldTimestampUtc &&
+                  meta.lastPlayedUtc >= meta.createdUtc,
+              "id=" + meta.worldId + " name=" + meta.worldName +
+                  " build=" + meta.lastBuildIdentity);
+        meta.worldName = "Persistence Fixture";
+        WorldSaveData namedMeta;
+        WorldSaveData invalidMeta = meta;
+        invalidMeta.worldId = "../escape";
+        WorldSaveData preservedMeta;
+        check("K1/quoted-display-name-roundtrip",
+              saveFile.save(meta) && saveFile.load(namedMeta) &&
+                  namedMeta.worldName == meta.worldName &&
+                  !saveFile.save(invalidMeta) &&
+                  saveFile.load(preservedMeta) &&
+                  preservedMeta.worldId == savedWorldId &&
+                  preservedMeta.worldName == meta.worldName,
+              "name=" + namedMeta.worldName);
     }
 
     // Relaunch without forced position/rotation so the save state is the only
@@ -1419,6 +1445,9 @@ void casePersistence()
         WorldSaveData meta;
         WorldSave saveFile(directory);
         saveFile.load(meta);
+        check("K1/world-id-stable-after-reload",
+              !savedWorldId.empty() && meta.worldId == savedWorldId,
+              savedWorldId + " -> " + meta.worldId);
         check("S1.3/spawn-point-stable",
               std::abs(meta.spawnPoint.x - savedSpawn.x) < 0.01f &&
                   std::abs(meta.spawnPoint.y - savedSpawn.y) < 0.01f &&

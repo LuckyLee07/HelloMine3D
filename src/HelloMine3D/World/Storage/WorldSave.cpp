@@ -1,11 +1,15 @@
 #include "WorldSave.h"
 
+#include "WorldCatalogue.h"
+
 #include "../../Util/ResourcePaths.h"
 
 #include <cstddef>
 #include <cerrno>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <utility>
 
 #if defined(_WIN32)
@@ -46,6 +50,33 @@ void writeVec3(std::ostream &stream, const glm::vec3 &value)
 bool readVec3(std::istream &stream, glm::vec3 &value)
 {
     return static_cast<bool>(stream >> value.x >> value.y >> value.z);
+}
+
+bool readWorldName(std::istream &stream, std::string &value)
+{
+    std::string line;
+    std::getline(stream, line);
+    const std::size_t begin = line.find_first_not_of(" \t\r");
+    if (begin == std::string::npos) {
+        return false;
+    }
+    line.erase(0, begin);
+    const std::size_t end = line.find_last_not_of(" \t\r");
+    line.erase(end + 1);
+
+    std::istringstream input(line);
+    if (line.front() == '"') {
+        if (!(input >> std::quoted(value))) {
+            return false;
+        }
+    }
+    else {
+        if (!(input >> value)) {
+            return false;
+        }
+    }
+    input >> std::ws;
+    return input.peek() == std::char_traits<char>::eof();
 }
 
 bool readActor(std::istream &stream, ActorSaveState &state)
@@ -116,10 +147,21 @@ bool WorldSave::load(WorldSaveData &data) const
             input >> loaded.worldId;
         }
         else if (key == "world_name") {
-            input >> loaded.worldName;
+            if (!readWorldName(input, loaded.worldName)) {
+                return false;
+            }
         }
         else if (key == "seed") {
             input >> loaded.seed;
+        }
+        else if (key == "created_utc") {
+            input >> loaded.createdUtc;
+        }
+        else if (key == "last_played_utc") {
+            input >> loaded.lastPlayedUtc;
+        }
+        else if (key == "last_build") {
+            input >> loaded.lastBuildIdentity;
         }
         else if (key == "spawn") {
             if (!readVec3(input, loaded.spawnPoint)) {
@@ -196,6 +238,17 @@ bool WorldSave::load(WorldSaveData &data) const
 
 bool WorldSave::save(const WorldSaveData &data) const
 {
+    if (data.version != WorldSaveFormatVersion ||
+        !WorldCatalogue::isValidWorldId(data.worldId) ||
+        !WorldCatalogue::isValidDisplayName(data.worldName) ||
+        !WorldCatalogue::isValidBuildIdentity(data.lastBuildIdentity) ||
+        !WorldCatalogue::isValidTimestamps(data.createdUtc,
+                                           data.lastPlayedUtc)) {
+        std::cerr << "Refusing to save invalid version-3 world identity: "
+                  << metadataPath() << '\n';
+        return false;
+    }
+
     if (!ensureRootDirectory()) {
         std::cerr << "Unable to create world save directory: " << m_rootDirectory
                   << '\n';
@@ -211,8 +264,11 @@ bool WorldSave::save(const WorldSaveData &data) const
 
     output << "version " << data.version << '\n';
     output << "world_id " << data.worldId << '\n';
-    output << "world_name " << data.worldName << '\n';
+    output << "world_name " << std::quoted(data.worldName) << '\n';
     output << "seed " << data.seed << '\n';
+    output << "created_utc " << data.createdUtc << '\n';
+    output << "last_played_utc " << data.lastPlayedUtc << '\n';
+    output << "last_build " << data.lastBuildIdentity << '\n';
     output << "spawn ";
     writeVec3(output, data.spawnPoint);
     output << '\n';

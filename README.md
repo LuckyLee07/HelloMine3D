@@ -46,6 +46,9 @@ symbolizable crash artifacts, startup/save/streaming/content-scale performance
 budgets, data-driven crafting and tools, pause/settings, basic audio feedback
 and a new clean-package vertical slice. See `docs/iteration-plan.md` for phase
 ordering and `docs/todolist.md` for the authoritative task contracts.
+K1 is now complete: new worlds use version-3 identity metadata and the strict,
+read-only catalogue contract is documented in
+`docs/world-catalogue-contract-v1.md`.
 
 Native macOS acceptance (B3) is complete on an Apple M1 Pro through the full
 Debug/Release Xcode gate. Formal ThreadSanitizer evidence (R4) remains deferred
@@ -187,8 +190,8 @@ workspace contract without claiming a native build:
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_xcode_generation.ps1
 ```
 
-This versioned preflight requires the exact 26-project workspace/on-disk
-inventory: nine first-party targets and 17 libraries. It parses every generated
+This versioned preflight requires the exact 27-project workspace/on-disk
+inventory: ten first-party targets and 17 libraries. It parses every generated
 PBX group and cross-project reference, rejecting stale/missing projects,
 duplicate children, one child in multiple groups, duplicate `ProjectRef`
 entries and undeclared references. It also checks Cocoa/OIS/OSX sources,
@@ -197,8 +200,8 @@ leakage and the native verifier contract. It cannot replace `xcodebuild`.
 
 On a real macOS host, `scripts/verify_xcode.sh` is the final native gate. It
 generates Xcode projects, runs nine positive/negative graph fixtures, validates
-the real 26-project graph, builds the client and eight tests in Debug and
-Release, runs all 16 test executions, then performs both validation-only and
+the real 27-project graph, builds the client and nine tests in Debug and
+Release, runs all 18 test executions, then performs both validation-only and
 real-window 120-frame client probes. The real-window probes also verify that the
 persisted player remains on the fixed surface fixture. The process prints
 `[XCODE_VERIFY] status=PASS` only

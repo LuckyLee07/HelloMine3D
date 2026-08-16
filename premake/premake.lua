@@ -459,6 +459,29 @@ project "HelloMine3DCoordinateTests"
         "../src/external"
     }
 
+-- K1 strict, read-only world catalogue and versioned metadata fixtures.
+project "HelloMine3DWorldCatalogueSmoke"
+    kind "ConsoleApp"
+    location "../build/%{prj.name}"
+    targetdir "../bin"
+    debugdir "../bin"
+    objdir "../build/%{prj.name}/obj/%{cfg.platform}/%{cfg.buildcfg}"
+
+    files {
+        source_dir .. "/Tests/WorldCatalogueSmokeMain.cpp",
+        source_dir .. "/World/Storage/WorldCatalogue.h",
+        source_dir .. "/World/Storage/WorldCatalogue.cpp"
+    }
+
+    includedirs {
+        source_dir
+    }
+
+    filter "system:windows"
+        defines { "_CRT_SECURE_NO_WARNINGS" }
+
+    filter {}
+
 project "HelloMine3DSaveLoadSmoke"
     kind "ConsoleApp"
     location "../build/%{prj.name}"

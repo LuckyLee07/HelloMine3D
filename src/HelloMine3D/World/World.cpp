@@ -6,8 +6,11 @@
 #include <cmath>
 #include <cstdlib>
 #include <deque>
+#include <filesystem>
 #include <future>
+#include <iomanip>
 #include <iostream>
+#include <random>
 #include <sstream>
 #include <utility>
 #include <vector>
@@ -25,7 +28,12 @@
 #include "Chunk/ChunkMeshBuilder.h"
 #include "Chunk/ChunkUpdatePlanner.h"
 #include "Block/BlockDatabase.h"
+#include "Storage/WorldCatalogue.h"
 #include "WorldCoordinates.h"
+
+#ifndef HELLOMINE3D_BUILD_ID
+#define HELLOMINE3D_BUILD_ID "development"
+#endif
 
 namespace
 {
@@ -132,6 +140,51 @@ namespace
     {
         return ResourcePaths::join(resolveSaveDirectory(saveDirectory),
                                    "chunks");
+    }
+
+    std::int64_t currentUtcSeconds()
+    {
+        return std::chrono::duration_cast<std::chrono::seconds>(
+                   std::chrono::system_clock::now().time_since_epoch())
+            .count();
+    }
+
+    std::string createWorldId()
+    {
+        static std::atomic<std::uint64_t> sequence{0};
+        const std::uint64_t high =
+            static_cast<std::uint64_t>(
+                std::chrono::system_clock::now().time_since_epoch().count()) ^
+            (++sequence * 0x9e3779b97f4a7c15ULL);
+        std::uint64_t low = static_cast<std::uint64_t>(
+            std::chrono::steady_clock::now().time_since_epoch().count());
+        try {
+            std::random_device source;
+            low ^= (static_cast<std::uint64_t>(source()) << 32u) ^ source();
+        }
+        catch (...) {
+            low ^= high * 0xbf58476d1ce4e5b9ULL;
+        }
+        std::ostringstream output;
+        output << "world-" << std::hex << std::setfill('0')
+               << std::setw(16) << high << std::setw(16) << low;
+        return output.str();
+    }
+
+    std::string initialWorldName(const std::string &saveDirectory)
+    {
+        const std::filesystem::path path(resolveSaveDirectory(saveDirectory));
+        const std::string candidate = path.filename().string();
+        return WorldCatalogue::isValidDisplayName(candidate) ? candidate
+                                                              : "World";
+    }
+
+    std::string currentBuildIdentity()
+    {
+        const std::string configured = HELLOMINE3D_BUILD_ID;
+        return WorldCatalogue::isValidBuildIdentity(configured)
+                   ? configured
+                   : "development";
     }
 
     int chunkDistanceSquared(const VectorXZ &chunk, const VectorXZ &center)
@@ -258,6 +311,8 @@ World::World(const Camera &camera, const Config &config, Player &player,
         }
     }
     else {
+        m_worldSaveData.worldId = createWorldId();
+        m_worldSaveData.worldName = initialWorldName(saveDirectory);
         m_worldSaveData.seed =
             hasForcedSeed ? forcedSeed
                           : config.worldSeed.has_value()
@@ -1560,6 +1615,13 @@ void World::preloadChunksAround(const glm::vec3 &position, int radius)
 
 bool World::saveWorldState()
 {
+    const std::int64_t now = currentUtcSeconds();
+    if (m_worldSaveData.createdUtc < LegacyWorldTimestampUtc) {
+        m_worldSaveData.createdUtc = now;
+    }
+    m_worldSaveData.lastPlayedUtc =
+        std::max(m_worldSaveData.createdUtc, now);
+    m_worldSaveData.lastBuildIdentity = currentBuildIdentity();
     m_worldSaveData.version = WorldSaveFormatVersion;
     m_worldSaveData.spawnPoint = m_playerSpawnPoint;
     if (m_player != nullptr) {
