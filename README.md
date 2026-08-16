@@ -37,11 +37,21 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 The selected 13-item Windows D/R/X implementation scope is complete. It now
 includes the playable crop/container/combat/persistence slice, a deterministic
 world soak, clean-root packaging and the bounded read-only resource-pack layer.
-The only current acceptance action is the human-operated R3 physical-input
-record; completing it also closes the remaining D2, D4 and D6 `Verify` states.
+R3 physical-input acceptance remains the first closure action and also closes
+the remaining D2, D4 and D6 `Verify` states.
 
-Native macOS acceptance (B3) and formal ThreadSanitizer evidence (R4) remain
-deferred until suitable hosts are available. Multiplayer, scriptable mods,
+Stage 8 is now planned around sustainable play and reliable releases. Its
+16-item K/H/Q/G scope adds durable world management and recovery, local
+symbolizable crash artifacts, startup/save/streaming/content-scale performance
+budgets, data-driven crafting and tools, pause/settings, basic audio feedback
+and a new clean-package vertical slice. See `docs/iteration-plan.md` for phase
+ordering and `docs/todolist.md` for the authoritative task contracts.
+
+Native macOS acceptance (B3) is complete on an Apple M1 Pro through the full
+Debug/Release Xcode gate. Formal ThreadSanitizer evidence (R4) remains deferred
+until a supported sanitizer configuration is available and does not block the
+Windows stage.
+Multiplayer, scriptable mods,
 resource hot reload and additional render backends are not part of the active
 scope.
 
@@ -159,7 +169,9 @@ checks the native verifier contract. It cannot replace `xcodebuild`.
 On a real macOS host, `scripts/verify_xcode.sh` is the final native gate. It
 generates Xcode projects, builds the client and seven tests in Debug and Release,
 runs all 14 test executions, then performs both validation-only and real-window
-three-frame client probes. The process prints `[XCODE_VERIFY] status=PASS` only
+120-frame client probes. The real-window probes also verify that the persisted
+player remains on the fixed surface fixture. The process prints
+`[XCODE_VERIFY] status=PASS` only
 after every step succeeds and keeps per-step logs under `build/`.
 
 ### Runtime Configuration And State
@@ -195,7 +207,7 @@ bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
 bin\HelloMine3DMeshDirtyTests.exe         # mesh dirty planner
 bin\HelloMine3DSaveLoadSmoke.exe          # chunk serialization roundtrip
 bin\HelloMine3DEntityLifecycleSmoke.exe   # actor lifecycle
-bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 327 assertions
+bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 330 assertions
 bin\HelloMine3DSoak.exe                   # deterministic world stability schedule
 bin\HelloMine3DResourcePackSmoke.exe      # resource resolver and frozen view
 ```

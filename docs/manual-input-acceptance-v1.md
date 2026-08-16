@@ -9,9 +9,13 @@ of the operator.
 
 1. Build the exact commit in `Release` and run `bin\HelloMine3D.exe` from the
    repository `bin` directory.
-2. Use a fresh save directory and record the GPU/driver, window mode and
-   client size. Do not enable render-capture, performance-capture or fixture
-   environment variables; those disable or freeze normal input paths.
+2. Use an isolated save directory and record the GPU/driver, window mode and
+   client size. Because a new world has no obtainable chest before G1/G2, a
+   preparation-only three-frame launch may use
+   `HELLOMINE3D_CONTAINER_FIXTURE=1` to persist one ordinary chest. Stop that
+   process, then run the complete physical sequence with every fixture,
+   render-capture and performance-capture variable unset; the actual input
+   run must never use a mode that disables or freezes normal input paths.
 3. Copy `docs\manual-input-record-v1.template.txt` to an evidence file outside
    Git while testing. Replace every `NOT_RUN` value with `PASS`, `FAIL` or
    `BLOCKED`, and describe every non-pass result under `deviations`.
@@ -34,9 +38,9 @@ later restart.
 | `case.flight_sneak` | Press `F`, use Space/Shift to rise/descend, press `F` to land; tap Shift while grounded. | Flight toggles once per press, vertical controls work only as designed, and sneak toggles without a stuck descent. |
 | `case.hotbar_numbers` | Press number keys `1` through `5`. | The highlighted hotbar slot follows every key exactly. |
 | `case.hotbar_wheel` | Roll the physical wheel one detent in each direction. | Selection advances one slot with wrapping and reverses in the other direction. |
-| `case.break_block` | Aim at a visible solid block and hold left mouse until it breaks. | The outlined target is removed and its configured drop enters inventory or appears as an item. |
+| `case.break_block` | Aim at the prepared chest and hold left mouse until it breaks. | The outlined chest is removed, its configured drop enters inventory and its contents spill as ordinary item entities. |
 | `case.attack_mob` | Aim at a naturally spawned Mob and left-click at a clear line of sight until it dies. | The nearer actor is selected, health/death behavior is rate-limited, and loot appears. |
-| `case.place_block` | Select a block and right-click an adjacent face that has room. | Exactly one adjacent block is placed and one held item is consumed. |
+| `case.place_block` | Select the recovered chest and right-click an adjacent face that has room. | Exactly one adjacent chest is placed and one held item is consumed. |
 | `case.container_use_transfer` | Place a chest, right-click it, then click one hotbar stack and one chest stack. | The container opens through normal use; both transfers conserve totals and world movement/look do not leak through the UI. |
 | `case.container_close` | Close once with the button, reopen, then close with Escape. | Both paths return to gameplay, restore mouse-look and require no extra click. |
 | `case.window_close` | Press Escape with no container open, then repeat once using the window close button after relaunch. | Each path closes cleanly without a hang or crash dialog. |
@@ -52,4 +56,3 @@ later restart.
   R3, D2, D4 or D6.
 - Repeat the whole protocol after any OIS, window-system, container UI,
   combat, hotbar or player-facing input change.
-

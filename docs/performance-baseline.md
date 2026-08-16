@@ -325,6 +325,75 @@ contract and pass/fail fixtures are tracked in `docs/todolist.md` and
 `docs/runtime-validation.md`. Later milestones must not copy these thresholds
 into separate scripts or silently choose a different reference run.
 
+## Pre-Stage-8 macOS Reference Baseline
+
+The portable schema-v2 launcher and comparator establish a reproducible
+reference before K/G systems change the workload:
+
+```bash
+bash tools/run_perf_baseline.sh
+python3 tools/validate_perf_comparison.py
+python3 tools/compare_perf_baselines.py --baseline <baseline-dir> --candidate <candidate-dir>
+```
+
+Accepted identity on 2026-08-16: Release x86_64 under Rosetta on an Apple M1
+Pro, macOS 15.7.3 build 24G419, 1600x900 windowed, VSync on, render distance
+32, FOV 105, no resource packs, resource manifest SHA-256
+`7a41801eae3d2abd9b824072dccce5123151ce97d6b23721d54720524cd1b242`, save
+format 2 and fixed seed/position/time `20260809 / 3038 66 1922 / 6000`.
+The fixed position is a verified surface location; the superseded `8 200 8`
+samples were discarded after exposing the player to an unrealistic high fall.
+
+| Run | Frames / FPS | Frame P95 / P99 | >33 ms / >50 ms | Tick Hz | Loaded chunks / sections |
+| --- | ------------ | --------------- | ---------------- | ------- | ------------------------ |
+| `perf_baseline_macos_20260816185941-52794` (approved baseline) | 562 / 56.295 | 25.810 / 31.006 ms | 3 / 0 | 20.000 | 1026 / 7058 |
+| `perf_baseline_macos_20260816190014-52937` (repeat) | 560 / 56.081 | 25.933 / 30.082 ms | 1 / 0 | 20.000 | 1028 / 7070 |
+
+The schema-v2 comparator reports `PASS` in both directions. The approved R1
+limits against the first run are P95 `29.682 ms` (+15%), P99 `37.207 ms`
+(+20%) and at most three additional >50 ms frames (the larger of two frames
+or 0.5% rounded up). Residency remains a compatibility identity, not a speed
+budget: loaded chunks and sections permit 5% drift before returning
+`INCOMPARABLE`. Eight portable schema-v1/v2 fixtures prove PASS,
+REGRESSION, INCOMPARABLE and INVALID outcomes, including missing Q1 identity.
+
+This is a macOS/Rosetta steady-gameplay reference, not a substitute for the
+target-Windows cold-start, world-entry, save, restore, streaming and scaled
+gameplay baselines required to close Q1. Generated samples remain ignored.
+
+## Planned Stage-8 Budget Extensions
+
+Q1-Q3 extend this baseline after R3 closes. These are planned contracts, not
+current verified results. Q1 must first capture the current Release baseline,
+approve thresholds and version the schema; later tasks may not invent a looser
+threshold merely to close their own regression.
+
+| Scene identity | Required measurements | Compatibility identity |
+| -------------- | --------------------- | ---------------------- |
+| cold start | process start to preflight, Ogre construction, first window and first usable menu frame; peak private/working memory and handles | exact build/configuration, GPU/driver, window mode/size, resource packs and empty/warm OS-cache regime |
+| world entry | catalogue selection to world metadata, spawn residency, first visible terrain and first controllable player frame | stable world fixture/version/seed, render distance, final chunks/sections and resource packs |
+| save transaction | total K2 duration, longest main-thread stall, files/chunks/bytes written, flush/validation/replace phases | world dirty-set identity, save format, storage target class and backup policy |
+| backup restore | catalogue scan, candidate copy, validation and publish durations plus bytes read/written | exact backup generation/version/size and destination storage class |
+| fast streaming | chunk request-to-visible latency percentiles, queue peak, mesh progress, frame P95/P99/long frames and memory | fixed movement path/speed, view distance, seed, final residency and VSync regime |
+| scaled gameplay | frame/update/render percentiles, main-thread max stall, actor/item/crop/chest counts, memory/handles and cap events | versioned population fixture, fixed tick count, world seed and identical save state |
+
+Planned comparator rules:
+
+1. Missing required metrics, non-monotonic phase times or an unknown schema are
+   `INVALID` and return non-zero.
+2. Changed scene/configuration/residency/storage identity is `INCOMPARABLE` and
+   must not be reported as either faster or passing.
+3. Existing R1 P95/P99/long-frame thresholds remain authoritative for frame
+   timing. Q1 adds approved budgets for startup, entry, save, restore and
+   chunk-visible latency only after baseline evidence exists.
+4. Save and restore comparisons include both total time and longest main-thread
+   stall; moving the same work into one blocking phase is not an improvement.
+5. Q3 nominal-scale runs must pass the approved budgets. Stress runs may hit a
+   documented capacity limit, but must fail or degrade with the exact limiting
+   metric rather than corrupt state, grow without bound or silently drop work.
+6. K/G changes that affect persistence or population also repeat the formal R2
+   soak; a short performance capture cannot replace long-session evidence.
+
 ## When To Run
 
 Run this baseline after changes to:

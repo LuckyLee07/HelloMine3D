@@ -8,3 +8,7 @@
 /build/
 /vcpkg_installed/
 /packages/
+__pycache__/
+*.pyc
+/MineOgre.log
+/tools/tracy-viewer/tracy-profiler.exe
