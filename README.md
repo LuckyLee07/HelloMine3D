@@ -26,6 +26,7 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 | `docs/iteration-plan.md` | Long-term iteration roadmap. |
 | `docs/world-catalogue-contract-v1.md`, `docs/storage-transaction-contract-v1.md`, `docs/world-backup-contract-v1.md` | K1-K3 world identity, atomic publication and verified recovery contracts. |
 | `docs/operation-performance-timing-contract-v1.md` | Q2 bounded startup, world-entry, save, backup and restore timing contract. |
+| `docs/crash-diagnostics-contract-v1.md` | H1 Windows local-minidump backend, trigger and validation contract. |
 | `docs/render-regression-smoke.md` | Non-intrusive render screenshot smoke. |
 | `docs/performance-baseline.md` | Non-intrusive frame timing and chunk counter baseline. |
 | `docs/manual-input-acceptance-v1.md` | Versioned physical keyboard/mouse acceptance protocol. |
@@ -58,6 +59,10 @@ Q2 now records bounded cumulative phases, totals, longest main-thread stalls
 and storage counters for startup, catalogue, world entry, save, backup and
 restore. Portable and real storage fixtures are green; closure still depends on
 Q1's approved target-Windows Release budgets.
+H1 now has a portable path/trigger contract and a Windows SDK DbgHelp backend
+installed before Ogre construction. The dedicated writer thread, one-shot
+handler and controlled post-save first-frame crash are implemented; the target
+Windows Release dump harness remains the closure evidence.
 
 Native macOS acceptance (B3) is complete on an Apple M1 Pro through the full
 Debug/Release Xcode gate. Formal ThreadSanitizer evidence (R4) remains deferred
@@ -199,8 +204,8 @@ workspace contract without claiming a native build:
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_xcode_generation.ps1
 ```
 
-This versioned preflight requires the exact 30-project workspace/on-disk
-inventory: thirteen first-party targets and 17 libraries. It parses every generated
+This versioned preflight requires the exact 31-project workspace/on-disk
+inventory: fourteen first-party targets and 17 libraries. It parses every generated
 PBX group and cross-project reference, rejecting stale/missing projects,
 duplicate children, one child in multiple groups, duplicate `ProjectRef`
 entries and undeclared references. It also checks Cocoa/OIS/OSX sources,
@@ -209,8 +214,8 @@ leakage and the native verifier contract. It cannot replace `xcodebuild`.
 
 On a real macOS host, `scripts/verify_xcode.sh` is the final native gate. It
 generates Xcode projects, runs nine positive/negative graph fixtures, validates
-the real 30-project graph, builds the client and twelve tests in Debug and
-Release, runs all 24 test executions, then performs both validation-only and
+the real 31-project graph, builds the client and thirteen tests in Debug and
+Release, runs all 26 test executions, then performs both validation-only and
 real-window 120-frame client probes. The real-window probes also verify that the
 persisted player remains on the fixed surface fixture. The process prints
 `[XCODE_VERIFY] status=PASS` only
@@ -240,12 +245,12 @@ world's seed remains authoritative. The
 for a new world during automated runs. Blank lines and `#` comments are
 allowed. `bin/Mine.cfg`, `bin/MineResources.cfg` and `bin/resource-packs.txt`
 are the repository-owned files in `bin/` and act as runtime templates.
-Executables, logs, ImGui state, saves, captures and the legacy unused
+Executables, logs, ImGui state, saves, crashes, captures and the legacy unused
 `info.txt` are generated local state and remain ignored.
 
 ### Validation
 
-The build produces the client plus twelve test targets, all of which run headless:
+The build produces the client plus thirteen test targets, all of which run headless:
 
 ```powershell
 bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
@@ -260,6 +265,7 @@ bin\HelloMine3DWorldCatalogueSmoke.exe    # world identity/catalogue contract
 bin\HelloMine3DStorageTransactionSmoke.exe # atomic save/failure recovery
 bin\HelloMine3DWorldBackupSmoke.exe       # bounded backup/verified restore
 bin\HelloMine3DOperationTimingSmoke.exe   # bounded Q2 phase/outcome summaries
+bin\HelloMine3DCrashDiagnosticsSmoke.exe # H1 path/trigger/backend contract
 ```
 
 Asset and data changes should also run the reference-aware asset check:
@@ -326,12 +332,16 @@ For long-lived world regression and a self-contained Windows Release package:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\run_world_soak.ps1 -DurationSeconds 1800 -Formal
+powershell -ExecutionPolicy Bypass -File tools\validate_crash_diagnostics.ps1 -ExePath bin\HelloMine3D.exe
 powershell -ExecutionPolicy Bypass -File tools\package_windows_release.ps1 -IncludePack example-stone
 ```
 
-Generated soak evidence, package directories and ZIPs stay under `bin/` and
-remain ignored. See the resource-pack and Windows-packaging documents above
-for their security boundary, deterministic inventory and negative checks.
+The crash command is destructive only to its isolated fixture process: it
+expects the current Windows Release client to exit non-zero and writes one
+local dump below `bin/crash_diagnostics_validation/`. Generated soak/crash
+evidence, package directories and ZIPs stay under `bin/` and remain ignored.
+See the corresponding contracts above for their storage boundary,
+deterministic inventory and negative checks.
 
 See `docs/runtime-validation.md` for what each layer covers.
 

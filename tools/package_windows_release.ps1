@@ -190,7 +190,7 @@ function Test-DistributionInventory {
 
 $inventory = Write-DistributionManifest
 $forbidden = @($inventory | Where-Object {
-    $_ -match '(?i)(^|/)(saves?|logs?|captures?|build|validation_runs)(/|$)' -or
+    $_ -match '(?i)(^|/)(saves?|logs?|captures?|crashes?|build|validation_runs)(/|$)' -or
     $_ -match '(?i)\.(pdb|obj|lib|ilk|csv)$'
 })
 if ($forbidden.Count -gt 0 -or
@@ -213,12 +213,16 @@ function Invoke-PackagedClient {
     $startInfo.CreateNoWindow = $true
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
+    $caseCrashDirectory = Join-Path $OutputRoot `
+        "runtime-crashes\$Name"
     $environmentOverrides = [ordered]@{
         HELLOMINE3D_ROOT = $Root
         HELLOMINE3D_SEED = "20260809"
         HELLOMINE3D_PLAYER_POSITION = "264 96 8"
         HELLOMINE3D_PLAYER_ROTATION = "0 0 0"
         HELLOMINE3D_SAVE_DIR = Join-Path $OutputRoot "runtime-state\$Name"
+        HELLOMINE3D_CRASH_DIR = $caseCrashDirectory
+        HELLOMINE3D_CONTROLLED_CRASH = $null
         HELLOMINE3D_STARTUP_ERROR_NO_DIALOG = "1"
         HELLOMINE3D_RESOURCE_PACKS = $null
         HELLOMINE3D_VALIDATE_ONLY = $null
@@ -274,6 +278,16 @@ function Invoke-PackagedClient {
     }
     if (-not $ExpectSuccess -and $exitCode -eq 0) {
         throw "Negative packaged client $Name unexpectedly succeeded."
+    }
+    $unexpectedDumps = @()
+    if (Test-Path -LiteralPath $caseCrashDirectory -PathType Container) {
+        $unexpectedDumps = @(
+            Get-ChildItem -LiteralPath $caseCrashDirectory `
+                -Filter "*.dmp" -File
+        )
+    }
+    if ($unexpectedDumps.Count -ne 0) {
+        throw "Packaged client $Name unexpectedly produced a crash dump."
     }
     return [pscustomobject]@{
         ExitCode = $exitCode
@@ -369,7 +383,8 @@ $summaryLines = @(
     "validation_only=PASS",
     "real_window=$(if ($SkipRealWindow) { 'SKIPPED' } else { 'PASS' })",
     "missing_resource_negative=PASS",
-    "stale_resource_negative=PASS"
+    "stale_resource_negative=PASS",
+    "ordinary_crash_dumps=0"
 )
 $summaryPath = Join-Path $OutputRoot "package-summary.txt"
 [System.IO.File]::WriteAllText(

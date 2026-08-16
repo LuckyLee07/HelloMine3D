@@ -29,6 +29,7 @@
 
 #include "../Config.h"
 #include "../Core/Camera.h"
+#include "../Diagnostics/CrashDiagnostics.h"
 #include "../Diagnostics/OperationPerformanceTiming.h"
 #include "../Diagnostics/RuntimePerformanceCapture.h"
 #include "../Diagnostics/RuntimeProfiler.h"
@@ -931,6 +932,26 @@ namespace
                     RuntimeOperationKind::Startup);
                 runtimeOperationTimings().completeLatestActive(
                     RuntimeOperationKind::Startup, true);
+
+                if (isControlledCrashRequested(
+                        ControlledCrashPoint::AfterFirstFrame))
+                {
+                    if (m_world == nullptr || !m_world->save())
+                    {
+                        throw std::runtime_error(
+                            "Unable to publish the active world before the "
+                            "controlled crash.");
+                    }
+                    std::cout
+                        << "[CRASH_DIAGNOSTICS] controlled_crash="
+                        << controlledCrashPointName(
+                               ControlledCrashPoint::AfterFirstFrame)
+                        << " active_world_saved=1\n"
+                        << std::flush;
+                    std::cerr << std::flush;
+                    triggerControlledCrashIfRequested(
+                        ControlledCrashPoint::AfterFirstFrame);
+                }
             }
 
             const bool captureComplete =

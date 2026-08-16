@@ -19,6 +19,8 @@ $resourcePackVerifier = Join-Path $repoRoot `
     "tools\validate_resource_packs.ps1"
 $windowsPackager = Join-Path $repoRoot `
     "tools\package_windows_release.ps1"
+$crashDiagnosticsVerifier = Join-Path $repoRoot `
+    "tools\validate_crash_diagnostics.ps1"
 
 function Invoke-Checked {
     param(
@@ -100,6 +102,36 @@ try {
     }
     Write-Host "[BUILD_VERIFY] OIS source inventory valid"
 
+    $clientProject = Join-Path $repoRoot `
+        "build\HelloMine3D\HelloMine3D.vcxproj"
+    $crashProject = Join-Path $repoRoot `
+        "build\HelloMine3DCrashDiagnosticsSmoke\HelloMine3DCrashDiagnosticsSmoke.vcxproj"
+    foreach ($projectPath in @($clientProject, $crashProject)) {
+        if (-not (Test-Path -LiteralPath $projectPath -PathType Leaf)) {
+            throw "Generated crash diagnostics project is missing: $projectPath"
+        }
+        $projectText = Get-Content -LiteralPath $projectPath -Raw
+        if ($projectText -notmatch 'WindowsCrashDiagnostics\.cpp' -or
+            $projectText -notmatch '(?i)dbghelp\.lib') {
+            throw "Generated project does not record the Windows DbgHelp backend: $projectPath"
+        }
+    }
+    $portableCrashSources = @(
+        "src\HelloMine3D\Diagnostics\CrashDiagnostics.h",
+        "src\HelloMine3D\Diagnostics\CrashDiagnostics.cpp",
+        "src\HelloMine3D\Diagnostics\CrashDiagnosticsPlatform.h",
+        "src\HelloMine3D\Diagnostics\CrashDiagnosticsPlatformStub.cpp"
+    )
+    foreach ($relativePath in $portableCrashSources) {
+        $sourceText = Get-Content -LiteralPath `
+            (Join-Path $repoRoot $relativePath) -Raw
+        if ($sourceText -match `
+            '(?i)EXCEPTION_POINTERS|MINIDUMP_|windows\.h|dbghelp\.h') {
+            throw "Portable crash boundary leaks a Windows exception type: $relativePath"
+        }
+    }
+    Write-Host "[BUILD_VERIFY] crash diagnostics build boundary valid"
+
     $tests = @(
         "HelloMine3DCoordinateTests.exe",
         "HelloMine3DMeshDirtyTests.exe",
@@ -112,7 +144,8 @@ try {
         "HelloMine3DWorldCatalogueSmoke.exe",
         "HelloMine3DStorageTransactionSmoke.exe",
         "HelloMine3DWorldBackupSmoke.exe",
-        "HelloMine3DOperationTimingSmoke.exe"
+        "HelloMine3DOperationTimingSmoke.exe",
+        "HelloMine3DCrashDiagnosticsSmoke.exe"
     )
 
     foreach ($configuration in @("Debug", "Release")) {
@@ -197,6 +230,13 @@ try {
                 -OutputDir (Join-Path $binDirectory `
                     "startup_error_validation_$configuration")
         }
+    }
+
+    Invoke-Checked "Release local crash diagnostics" {
+        & $crashDiagnosticsVerifier `
+            -ExePath (Join-Path $binDirectory "HelloMine3D.exe") `
+            -OutputDir (Join-Path $binDirectory `
+                "crash_diagnostics_validation")
     }
 
     $expectedExecutables = @("HelloMine3D.exe") + $tests

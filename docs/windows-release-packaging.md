@@ -13,7 +13,7 @@ The distribution preserves the runtime root layout: the executable and config
 templates are under `bin/`, resources and the startup manifest under `media/`,
 optional directory packs under `packs/`, and dependency licenses under
 `notices/`, including the vendored optional Tracy client notice. It includes
-`README.md` but excludes saves, logs, captures, build
+`README.md` but excludes saves, logs, captures, crashes, build
 trees, test executables, symbols, libraries and developer tools.
 
 `distribution-manifest.txt` records sorted SHA-256, byte length and relative
@@ -31,6 +31,8 @@ The packager copies the distribution to an isolated clean root and verifies:
 - an extra unlisted texture fails the distribution inventory check;
 - optional packs are enabled through the packaged `bin/resource-packs.txt`
   without weakening the base startup manifest.
+- every ordinary packaged process receives a crash directory outside both the
+  copied distribution and its world-save tree, and produces no `.dmp`.
 
 `-SkipRealWindow` keeps the deterministic clean-root, archive and negative
 checks while omitting the visible hardware window. The full Windows build gate
@@ -43,4 +45,6 @@ optional `example-stone` pack. Both repeated archive builds produced SHA-256
 `F4F3C448E75031F30EB788FF72C5F22A6A32CDF6C85A90164D1E16B7F807BB69`.
 That archived run predates Tracy. The current packager adds its fifteenth
 third-party notice, so the next Windows package will have a different inventory
-and archive hash and must be accepted as a new run.
+and archive hash and must be accepted as a new run. H1 also tightens the
+inventory against stale crash directories; its controlled package crash remains
+an H3 acceptance item rather than part of this historical R5 record.

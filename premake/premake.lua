@@ -595,6 +595,33 @@ project "HelloMine3DOperationTimingSmoke"
 
     filter {}
 
+-- H1 portable path/trigger policy plus the selected Windows DbgHelp backend.
+project "HelloMine3DCrashDiagnosticsSmoke"
+    kind "ConsoleApp"
+    location "../build/%{prj.name}"
+    targetdir "../bin"
+    debugdir "../bin"
+    objdir "../build/%{prj.name}/obj/%{cfg.platform}/%{cfg.buildcfg}"
+
+    files {
+        source_dir .. "/Tests/CrashDiagnosticsSmokeMain.cpp",
+        source_dir .. "/Diagnostics/CrashDiagnostics.h",
+        source_dir .. "/Diagnostics/CrashDiagnostics.cpp",
+        source_dir .. "/Diagnostics/CrashDiagnosticsPlatform.h",
+        source_dir .. "/Diagnostics/CrashDiagnosticsPlatformStub.cpp",
+        source_dir .. "/Diagnostics/WindowsCrashDiagnostics.cpp"
+    }
+
+    includedirs {
+        source_dir
+    }
+
+    filter "system:windows"
+        defines { "_CRT_SECURE_NO_WARNINGS" }
+        links { "dbghelp" }
+
+    filter {}
+
 project "HelloMine3DSaveLoadSmoke"
     kind "ConsoleApp"
     location "../build/%{prj.name}"

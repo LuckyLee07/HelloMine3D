@@ -19,6 +19,7 @@ TESTS=(
     HelloMine3DStorageTransactionSmoke
     HelloMine3DWorldBackupSmoke
     HelloMine3DOperationTimingSmoke
+    HelloMine3DCrashDiagnosticsSmoke
 )
 
 if [ "$(uname -s)" != "Darwin" ]; then
@@ -43,7 +44,7 @@ XCODE_GRAPH_LOG="$LOG_DIR/xcode_project_graph.log"
 python3 "$ROOT_DIR/tools/validate_xcode_project_graph.py" \
     --self-test \
     --build-dir "$BUILD_DIR" | tee "$XCODE_GRAPH_LOG"
-if ! grep -F "[XCODE_GRAPH] status=PASS projects=30" \
+if ! grep -F "[XCODE_GRAPH] status=PASS projects=31" \
     "$XCODE_GRAPH_LOG" >/dev/null; then
     echo "[XCODE_VERIFY] Generated project graph summary is missing." >&2
     exit 1
@@ -136,6 +137,12 @@ run_binary() {
        ! grep -F "[OPERATION_TIMING_TEST] checks=12 failures=0" \
            "$log" >/dev/null; then
         echo "[XCODE_VERIFY] Operation timing summary is missing or failed." >&2
+        exit 1
+    fi
+    if [ "$name" = "HelloMine3DCrashDiagnosticsSmoke" ] &&
+       ! grep -F "[CRASH_DIAGNOSTICS_TEST] checks=12 failures=0" \
+           "$log" >/dev/null; then
+        echo "[XCODE_VERIFY] Crash diagnostics summary is missing or failed." >&2
         exit 1
     fi
 }

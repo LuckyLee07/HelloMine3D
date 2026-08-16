@@ -94,7 +94,12 @@ on Tracy APIs. `OperationPerformanceTiming` is the Q2 fixed-capacity timeline
 for startup, catalogue, world-entry, save, backup and restore phases. It follows
 the existing performance-capture switch and appends the newest complete record
 per operation kind to the ordinary summary without introducing renderer types
-into storage code. The ImGui platform and render integration stays in
+into storage code. `CrashDiagnostics` owns the portable H1 directory/trigger
+policy. `OgreMain` installs it before Ogre construction; only
+`WindowsCrashDiagnostics.cpp` sees Windows exception structures or DbgHelp.
+The selected backend pre-creates one dedicated writer thread and has no upload
+path. Its contract and the explicit Breakpad audit decision are in
+`docs/crash-diagnostics-contract-v1.md`. The ImGui platform and render integration stays in
 `Ogre/OgreUserInterface.*`.
 
 `Entity/` contains the base entity data shape used by player, camera, matrix helpers, and future
