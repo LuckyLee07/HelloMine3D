@@ -1,7 +1,7 @@
 # HelloMine3D World Catalogue Contract v1
 
 This contract defines the renderer-independent discovery boundary used by K1,
-the delivered K2 save transaction and later K3-K4 recovery/world-screen work.
+the delivered K2 save transaction, K3 recovery and later K4 world-screen work.
 Catalogue enumeration remains read-only; K2 publication semantics are frozen
 separately in `docs/storage-transaction-contract-v1.md`.
 

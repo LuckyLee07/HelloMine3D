@@ -257,6 +257,13 @@ bool ChunkStorageData::loadChunkData(int x, int z, StoredChunkData &data) const
                                  true);
 }
 
+bool ChunkStorageData::loadChunkFile(const std::string &path, int x, int z,
+                                     StoredChunkData &data,
+                                     std::string *errorMessage)
+{
+    return loadChunkDataFromPath(path, x, z, data, errorMessage, false);
+}
+
 bool ChunkStorageData::saveChunkData(const StoredChunkData &data) const
 {
     return saveChunkData(data, {}, nullptr);
@@ -342,8 +349,8 @@ bool ChunkStorageData::saveChunkData(
                                const std::string &candidate,
                                std::string &validationError) {
         StoredChunkData validated;
-        return loadChunkDataFromPath(candidate, x, z, validated,
-                                     &validationError, false);
+        return ChunkStorageData::loadChunkFile(candidate, x, z, validated,
+                                               &validationError);
     };
     StorageTransactionMetrics localMetrics;
     StorageTransactionMetrics *resultMetrics =

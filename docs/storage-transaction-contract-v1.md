@@ -2,8 +2,8 @@
 
 This contract freezes K2 publication semantics for `world.meta` and
 `chunk_<x>_<z>.hmcchunk`. It protects the last validated generation of each
-file. Rotating backups, verified restore and world-management commands remain
-K3/K4 work.
+file. K3 rotating backups and verified restore are defined separately in
+`docs/world-backup-contract-v1.md`; world-management commands remain K4 work.
 
 ## Published, pending and quarantined files
 

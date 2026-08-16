@@ -1,7 +1,7 @@
 {
   "contract_version": 1,
   "workspace": "HelloMine3D.xcworkspace/contents.xcworkspacedata",
-  "expected_project_count": 28,
+  "expected_project_count": 29,
   "projects": [
     "Engine/ThirdParty/freeimage/freeimage.xcodeproj",
     "Engine/ThirdParty/freetype/ogre_freetype.xcodeproj",
@@ -29,6 +29,7 @@
     "HelloMine3DSaveLoadSmoke/HelloMine3DSaveLoadSmoke.xcodeproj",
     "HelloMine3DSoak/HelloMine3DSoak.xcodeproj",
     "HelloMine3DStorageTransactionSmoke/HelloMine3DStorageTransactionSmoke.xcodeproj",
+    "HelloMine3DWorldBackupSmoke/HelloMine3DWorldBackupSmoke.xcodeproj",
     "HelloMine3DWorldCatalogueSmoke/HelloMine3DWorldCatalogueSmoke.xcodeproj",
     "HelloMine3DWorldRuntimeSmoke/HelloMine3DWorldRuntimeSmoke.xcodeproj"
   ]

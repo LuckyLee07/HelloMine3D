@@ -34,6 +34,8 @@ class WorldSave {
     explicit WorldSave(std::string rootDirectory);
 
     bool load(WorldSaveData &data) const;
+    static bool loadFromPath(const std::string &path, WorldSaveData &data,
+                             std::string *errorMessage = nullptr);
     bool save(const WorldSaveData &data) const;
     bool save(const WorldSaveData &data,
               const StorageTransactionOptions &options,

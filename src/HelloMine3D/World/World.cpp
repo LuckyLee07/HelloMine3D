@@ -283,6 +283,7 @@ World::World(const Camera &camera, const Config &config, Player &player,
     : m_chunkManager(*this, chunkDirectoryForSave(saveDirectory))
     , m_player(&player)
     , m_worldSave(resolveSaveDirectory(saveDirectory))
+    , m_worldBackup(resolveSaveDirectory(saveDirectory))
     , m_renderDistance(config.renderDistance)
 {
     (void)camera;
@@ -1380,7 +1381,16 @@ bool World::save()
     std::unique_lock<std::mutex> lock(m_mainMutex);
     const bool chunksSaved = m_chunkManager.saveDirtyChunks();
     const bool worldSaved = saveWorldState();
-    return chunksSaved && worldSaved;
+    if (!chunksSaved || !worldSaved) {
+        return false;
+    }
+    WorldBackupMetrics backupMetrics;
+    if (!m_worldBackup.createBackup(nullptr, &backupMetrics)) {
+        std::cerr << "Unable to create world backup: "
+                  << backupMetrics.error << '\n';
+        return false;
+    }
+    return true;
 }
 
 float World::getWorldTime() const

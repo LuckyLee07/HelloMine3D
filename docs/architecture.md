@@ -52,6 +52,13 @@ siblings as authoritative. Chunk dirty state clears only after publication,
 and failed saves prevent unload. Aggregate save count/total/max duration flows
 through renderer-independent debug stats to ImGui and performance capture; the
 full failure contract is documented in `docs/storage-transaction-contract-v1.md`.
+`World/Storage/WorldBackup.*` builds bounded whole-world snapshots on top of
+that boundary. A strict manifest freezes every world/chunk path, byte count and
+content fingerprint; both backup candidates and restore candidates must pass
+the real format readers before publication. Restore retains the previous
+primary in one `recovery.failed` directory and rolls back already-published
+files if an interruption occurs. The selected backup is never modified; its
+layout and default limits are frozen in `docs/world-backup-contract-v1.md`.
 Random block simulation extends `BlockBehavior`: sections index only block
 states that currently opt in, and `World` rotates those active sections with a
 four-section budget on the fixed 20Hz tick. Each visit samples three uniformly

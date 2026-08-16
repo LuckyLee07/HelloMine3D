@@ -523,6 +523,49 @@ project "HelloMine3DStorageTransactionSmoke"
 
     filter {}
 
+-- K3 bounded backups, corruption quarantine and verified restore.
+project "HelloMine3DWorldBackupSmoke"
+    kind "ConsoleApp"
+    location "../build/%{prj.name}"
+    targetdir "../bin"
+    debugdir "../bin"
+    objdir "../build/%{prj.name}/obj/%{cfg.platform}/%{cfg.buildcfg}"
+
+    files {
+        source_dir .. "/Tests/WorldBackupSmokeMain.cpp",
+        source_dir .. "/World/Block/BlockEntity.h",
+        source_dir .. "/World/Block/BlockEntity.cpp",
+        source_dir .. "/World/Storage/StorageTransaction.h",
+        source_dir .. "/World/Storage/StorageTransaction.cpp",
+        source_dir .. "/World/Storage/ChunkStorageData.h",
+        source_dir .. "/World/Storage/ChunkStorageData.cpp",
+        source_dir .. "/World/Storage/WorldCatalogue.h",
+        source_dir .. "/World/Storage/WorldCatalogue.cpp",
+        source_dir .. "/World/Storage/WorldSave.h",
+        source_dir .. "/World/Storage/WorldSave.cpp",
+        source_dir .. "/World/Storage/WorldBackup.h",
+        source_dir .. "/World/Storage/WorldBackup.cpp"
+    }
+
+    includedirs {
+        source_dir
+    }
+
+    externalincludedirs {
+        "../src/external"
+    }
+
+    if has_local_glm() then
+        externalincludedirs { "../src/external/glm" }
+    end
+
+    add_dependency_prefix(first_non_empty(_OPTIONS["deps-prefix"], os.getenv("HELLOMINE3D_DEPS_PREFIX")))
+
+    filter "system:windows"
+        defines { "_CRT_SECURE_NO_WARNINGS" }
+
+    filter {}
+
 project "HelloMine3DSaveLoadSmoke"
     kind "ConsoleApp"
     location "../build/%{prj.name}"

@@ -25,6 +25,7 @@
 #include "Chunk/ChunkManager.h"
 #include "Environment/WorldEnvironment.h"
 #include "Storage/WorldSave.h"
+#include "Storage/WorldBackup.h"
 
 #include "Event/IWorldEvent.h"
 
@@ -226,6 +227,7 @@ class World : public NonCopyable {
     SandboxEventBus m_eventBus;
     Player *m_player = nullptr;
     WorldSave m_worldSave;
+    WorldBackup m_worldBackup;
     WorldSaveData m_worldSaveData;
     std::size_t m_worldSaveTransactionCount = 0;
     double m_worldSaveTotalMs = 0.0;

@@ -379,7 +379,13 @@ WorldSave::WorldSave(std::string rootDirectory)
 
 bool WorldSave::load(WorldSaveData &data) const
 {
-    return loadWorldSaveFile(metadataPath(), data, nullptr);
+    return loadFromPath(metadataPath(), data, nullptr);
+}
+
+bool WorldSave::loadFromPath(const std::string &path, WorldSaveData &data,
+                             std::string *errorMessage)
+{
+    return loadWorldSaveFile(path, data, errorMessage);
 }
 
 bool WorldSave::save(const WorldSaveData &data) const
@@ -452,7 +458,8 @@ bool WorldSave::save(const WorldSaveData &data,
     const auto validator = [](const std::string &candidate,
                               std::string &validationError) {
         WorldSaveData validated;
-        return loadWorldSaveFile(candidate, validated, &validationError);
+        return WorldSave::loadFromPath(candidate, validated,
+                                       &validationError);
     };
     StorageTransactionMetrics localMetrics;
     StorageTransactionMetrics *resultMetrics =

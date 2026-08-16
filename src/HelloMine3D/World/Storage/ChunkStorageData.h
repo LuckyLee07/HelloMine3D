@@ -23,6 +23,9 @@ class ChunkStorageData {
     explicit ChunkStorageData(std::string rootDirectory);
 
     bool loadChunkData(int x, int z, StoredChunkData &data) const;
+    static bool loadChunkFile(const std::string &path, int x, int z,
+                              StoredChunkData &data,
+                              std::string *errorMessage = nullptr);
     bool saveChunkData(const StoredChunkData &data) const;
     bool saveChunkData(const StoredChunkData &data,
                        const StorageTransactionOptions &options,

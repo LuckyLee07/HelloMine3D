@@ -148,8 +148,8 @@ bool StorageTransaction::publish(
         }
         return result;
     };
-    if (targetPath.empty() || payload.empty() || !validator) {
-        metrics.error = "transaction requires target, payload and validator";
+    if (targetPath.empty() || !validator) {
+        metrics.error = "transaction requires target and validator";
         return finish(false);
     }
 
@@ -198,7 +198,8 @@ bool StorageTransaction::publish(
     }
 
     std::size_t writeSize = payload.size();
-    if (options.faultPoint == StorageFaultPoint::MidWrite) {
+    if (options.faultPoint == StorageFaultPoint::MidWrite &&
+        !payload.empty()) {
         writeSize = std::max<std::size_t>(1, payload.size() / 2);
     }
     metrics.bytesWritten =

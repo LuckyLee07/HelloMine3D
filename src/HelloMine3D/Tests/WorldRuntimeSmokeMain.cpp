@@ -1328,6 +1328,17 @@ void casePersistence()
         const ChunkDebugStats saveMetricsAfter =
             world.collectDebugStats().chunks;
         check("S2.1/world-save-succeeds", worldSaveSucceeded);
+        std::vector<WorldBackupInfo> worldBackups;
+        std::string worldBackupError;
+        check("K3/world-save-publishes-validated-backup",
+              worldSaveSucceeded &&
+                  WorldBackup(directory).listBackups(worldBackups,
+                                                     &worldBackupError) &&
+                  worldBackups.size() == 1 &&
+                  worldBackups.front().worldFormatVersion ==
+                      WorldSaveFormatVersion &&
+                  worldBackups.front().fileCount >= 2,
+              worldBackupError);
         check("K2/world-stats-expose-save-total-and-maximum",
               worldSaveSucceeded &&
                   saveMetricsAfter.saveTransactions >
