@@ -339,7 +339,7 @@ Every completed task should list which validations were run.
 | Render smoke | `tools\run_render_capture.ps1` | Renderer, shader, texture, mesh upload or frame sequencing changes |
 | Performance baseline | `tools\run_perf_baseline.ps1` | Chunk loading, mesh building, update flow or render submission changes |
 | Performance comparison | `tools\compare_perf_baselines.ps1` | Every D, R5 or X change that can alter frame timing or world residency |
-| Asset check | `sh scripts/check_assets.sh` | Asset and data changes |
+| Asset check | `bash scripts/check_assets.sh` | Asset and data changes |
 | Interactive run | `bin\HelloMine3D.exe` | Input, camera or player-facing UI changes |
 | Physical input checklist | `docs\manual-input-acceptance-v1.md`; `tools\validate_manual_input_record.ps1 -RequirePass` | Input, window-system, container UI or combat changes |
 | Long-running soak | `tools\run_world_soak.ps1` | Chunk lifecycle, actor lifecycle, persistence or background-loader changes |

@@ -265,7 +265,7 @@ bin\HelloMine3DOperationTimingSmoke.exe   # bounded Q2 phase/outcome summaries
 Asset and data changes should also run the reference-aware asset check:
 
 ```sh
-sh scripts/check_assets.sh
+bash scripts/check_assets.sh
 ```
 
 It validates registered block definitions and their named shape resources,
