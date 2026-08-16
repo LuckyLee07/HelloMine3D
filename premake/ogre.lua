@@ -275,8 +275,6 @@ group "Engine"
 
 configure_static_project("ogre3d", "../build/Engine/ogre3d")
     dependson { "freeimage", "ogre_freetype", "zlib", "zzip" }
-    pchheader "OgreStableHeaders.h"
-    pchsource(engine_dir .. "/ogre3d/src/OgrePrecompiledHeaders.cpp")
     includedirs {
         engine_dir .. "/ogre3d/include",
         engine_dir .. "/ogre3d/src/nedmalloc",
@@ -288,10 +286,7 @@ configure_static_project("ogre3d", "../build/Engine/ogre3d")
     files {
         engine_dir .. "/ogre3d/include/**.h",
         engine_dir .. "/ogre3d/src/**.mm",
-        engine_dir .. "/ogre3d/src/**.cpp",
-        engine_dir .. "/ogre3d/resources/**.rc",
-        engine_dir .. "/ogre3d/resources/**.ico",
-        engine_dir .. "/ogre3d/resources/**.bmp"
+        engine_dir .. "/ogre3d/src/**.cpp"
     }
     removefiles { engine_dir .. "/ogre3d/src/Threading/OgreDefaultWorkQueueTBB.cpp" }
     defines {
@@ -304,6 +299,13 @@ configure_static_project("ogre3d", "../build/Engine/ogre3d")
         "4005", "4345"
     }
     filter "system:windows"
+        files {
+            engine_dir .. "/ogre3d/resources/**.rc",
+            engine_dir .. "/ogre3d/resources/**.ico",
+            engine_dir .. "/ogre3d/resources/**.bmp"
+        }
+        pchheader "OgreStableHeaders.h"
+        pchsource(engine_dir .. "/ogre3d/src/OgrePrecompiledHeaders.cpp")
         defines { "WIN32", "_CRT_SECURE_NO_WARNINGS" }
         buildoptions { "/bigobj", "/Zm198" }
         removefiles {
@@ -321,8 +323,6 @@ configure_static_project("ogre3d", "../build/Engine/ogre3d")
             engine_dir .. "/ogre3d/src/OgreErrorDialogNoOp.cpp"
         }
     filter "system:macosx"
-        pchheader ""
-        pchsource ""
         includedirs { engine_dir .. "/ogre3d/include/OSX" }
         removefiles {
             engine_dir .. "/ogre3d/src/WIN32/**",
@@ -335,8 +335,6 @@ configure_static_project("ogre3d", "../build/Engine/ogre3d")
             engine_dir .. "/ogre3d/src/OgreErrorDialogNoOp.cpp"
         }
     filter "system:linux"
-        pchheader ""
-        pchsource ""
         removefiles {
             engine_dir .. "/ogre3d/src/WIN32/**",
             engine_dir .. "/ogre3d/src/OSX/**"

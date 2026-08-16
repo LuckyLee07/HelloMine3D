@@ -149,7 +149,8 @@ namespace
         output
             << "frame_index,measured_elapsed_ms,dt_ms,event_ms,update_ms,"
                "render_ms,debug_gui_ms,render_capture_ms,display_ms,frame_ms,"
-               "existing_chunks,loaded_chunks,save_dirty_chunks,sections,"
+               "existing_chunks,loaded_chunks,save_dirty_chunks,"
+               "save_transactions,save_total_ms,save_max_ms,sections,"
                "mesh_dirty_sections,cpu_ready_sections,gpu_buffered_sections,"
                "queued_chunk_updates,random_tick_sections,random_tick_blocks,"
                "random_tick_sections_processed,random_ticks_dispatched,"
@@ -370,6 +371,12 @@ namespace
                     << last.chunks.existingChunks << "\n";
             summary << "last_loaded_chunks=" << last.chunks.loadedChunks
                     << "\n";
+            summary << "last_save_transactions="
+                    << last.chunks.saveTransactions << "\n";
+            summary << "last_save_total_ms=" << last.chunks.saveTotalMs
+                    << "\n";
+            summary << "last_save_max_ms=" << last.chunks.saveMaxMs
+                    << "\n";
             summary << "last_sections=" << last.chunks.sections << "\n";
             summary << "last_mesh_dirty_sections="
                     << last.chunks.meshDirtySections << "\n";
@@ -519,6 +526,9 @@ void recordFrame(const FrameTimings &timings,
                         << worldStats.chunks.existingChunks << ","
                         << worldStats.chunks.loadedChunks << ","
                         << worldStats.chunks.saveDirtyChunks << ","
+                        << worldStats.chunks.saveTransactions << ","
+                        << worldStats.chunks.saveTotalMs << ","
+                        << worldStats.chunks.saveMaxMs << ","
                         << worldStats.chunks.sections << ","
                         << worldStats.chunks.meshDirtySections << ","
                         << worldStats.chunks.cpuReadySections << ","

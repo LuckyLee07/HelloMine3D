@@ -3,6 +3,7 @@
 
 #include "../../Actor/Actor.h"
 #include "../../Player/Player.h"
+#include "StorageTransaction.h"
 
 #include <glm/glm.hpp>
 #include <cstdint>
@@ -34,6 +35,9 @@ class WorldSave {
 
     bool load(WorldSaveData &data) const;
     bool save(const WorldSaveData &data) const;
+    bool save(const WorldSaveData &data,
+              const StorageTransactionOptions &options,
+              StorageTransactionMetrics *metrics) const;
 
     std::string metadataPath() const;
 

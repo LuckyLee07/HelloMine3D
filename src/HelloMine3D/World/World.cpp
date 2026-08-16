@@ -1378,8 +1378,9 @@ void World::updateChunk(int blockX, int blockY, int blockZ)
 bool World::save()
 {
     std::unique_lock<std::mutex> lock(m_mainMutex);
-    m_chunkManager.saveDirtyChunks();
-    return saveWorldState();
+    const bool chunksSaved = m_chunkManager.saveDirtyChunks();
+    const bool worldSaved = saveWorldState();
+    return chunksSaved && worldSaved;
 }
 
 float World::getWorldTime() const
@@ -1393,6 +1394,10 @@ WorldDebugStats World::collectDebugStats()
 
     WorldDebugStats stats;
     stats.chunks = m_chunkManager.collectDebugStats();
+    stats.chunks.saveTransactions += m_worldSaveTransactionCount;
+    stats.chunks.saveTotalMs += m_worldSaveTotalMs;
+    stats.chunks.saveMaxMs =
+        std::max(stats.chunks.saveMaxMs, m_worldSaveMaxMs);
     stats.actorCount = m_actorManager.getActorCount();
     stats.naturalMobCount =
         m_actorManager.countActorsByType(NaturalMobType);
@@ -1630,7 +1635,15 @@ bool World::saveWorldState()
     }
     m_worldSaveData.actors = m_actorManager.collectSaveStates();
 
-    return m_worldSave.save(m_worldSaveData);
+    StorageTransactionMetrics metrics;
+    if (!m_worldSave.save(m_worldSaveData, {}, &metrics)) {
+        return false;
+    }
+    ++m_worldSaveTransactionCount;
+    const double elapsed = std::max(0.0, metrics.totalMilliseconds);
+    m_worldSaveTotalMs += elapsed;
+    m_worldSaveMaxMs = std::max(m_worldSaveMaxMs, elapsed);
+    return true;
 }
 
 void World::restoreActors(const std::vector<ActorSaveState> &states)

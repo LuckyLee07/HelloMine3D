@@ -190,8 +190,8 @@ workspace contract without claiming a native build:
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_xcode_generation.ps1
 ```
 
-This versioned preflight requires the exact 27-project workspace/on-disk
-inventory: ten first-party targets and 17 libraries. It parses every generated
+This versioned preflight requires the exact 28-project workspace/on-disk
+inventory: eleven first-party targets and 17 libraries. It parses every generated
 PBX group and cross-project reference, rejecting stale/missing projects,
 duplicate children, one child in multiple groups, duplicate `ProjectRef`
 entries and undeclared references. It also checks Cocoa/OIS/OSX sources,
@@ -200,8 +200,8 @@ leakage and the native verifier contract. It cannot replace `xcodebuild`.
 
 On a real macOS host, `scripts/verify_xcode.sh` is the final native gate. It
 generates Xcode projects, runs nine positive/negative graph fixtures, validates
-the real 27-project graph, builds the client and nine tests in Debug and
-Release, runs all 18 test executions, then performs both validation-only and
+the real 28-project graph, builds the client and ten tests in Debug and
+Release, runs all 20 test executions, then performs both validation-only and
 real-window 120-frame client probes. The real-window probes also verify that the
 persisted player remains on the fixed surface fixture. The process prints
 `[XCODE_VERIFY] status=PASS` only
@@ -236,17 +236,19 @@ Executables, logs, ImGui state, saves, captures and the legacy unused
 
 ### Validation
 
-The build produces the client plus eight test targets, all of which run headless:
+The build produces the client plus ten test targets, all of which run headless:
 
 ```powershell
 bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
 bin\HelloMine3DMeshDirtyTests.exe         # mesh dirty planner
 bin\HelloMine3DSaveLoadSmoke.exe          # chunk serialization roundtrip
 bin\HelloMine3DEntityLifecycleSmoke.exe   # actor lifecycle
-bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 338 assertions
+bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 342 assertions
 bin\HelloMine3DSoak.exe                   # deterministic world stability schedule
 bin\HelloMine3DResourcePackSmoke.exe      # resource resolver and frozen view
 bin\HelloMine3DRecipeSmoke.exe            # strict startup recipe registry
+bin\HelloMine3DWorldCatalogueSmoke.exe    # world identity/catalogue contract
+bin\HelloMine3DStorageTransactionSmoke.exe # atomic save/failure recovery
 ```
 
 Asset and data changes should also run the reference-aware asset check:

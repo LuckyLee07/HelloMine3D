@@ -227,6 +227,9 @@ class World : public NonCopyable {
     Player *m_player = nullptr;
     WorldSave m_worldSave;
     WorldSaveData m_worldSaveData;
+    std::size_t m_worldSaveTransactionCount = 0;
+    double m_worldSaveTotalMs = 0.0;
+    double m_worldSaveMaxMs = 0.0;
 
     std::vector<std::unique_ptr<IWorldEvent>> m_events;
     std::deque<glm::ivec3> m_chunkUpdateQueue;

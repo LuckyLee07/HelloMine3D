@@ -16,6 +16,7 @@ TESTS=(
     HelloMine3DResourcePackSmoke
     HelloMine3DRecipeSmoke
     HelloMine3DWorldCatalogueSmoke
+    HelloMine3DStorageTransactionSmoke
 )
 
 if [ "$(uname -s)" != "Darwin" ]; then
@@ -40,7 +41,7 @@ XCODE_GRAPH_LOG="$LOG_DIR/xcode_project_graph.log"
 python3 "$ROOT_DIR/tools/validate_xcode_project_graph.py" \
     --self-test \
     --build-dir "$BUILD_DIR" | tee "$XCODE_GRAPH_LOG"
-if ! grep -F "[XCODE_GRAPH] status=PASS projects=27" \
+if ! grep -F "[XCODE_GRAPH] status=PASS projects=28" \
     "$XCODE_GRAPH_LOG" >/dev/null; then
     echo "[XCODE_VERIFY] Generated project graph summary is missing." >&2
     exit 1
@@ -107,7 +108,7 @@ run_binary() {
     ) 2>&1 | tee "$log"
 
     if [ "$name" = "HelloMine3DWorldRuntimeSmoke" ] &&
-       ! grep -F "[VALIDATION] checks=341 failures=0" "$log" >/dev/null; then
+       ! grep -F "[VALIDATION] checks=342 failures=0" "$log" >/dev/null; then
         echo "[XCODE_VERIFY] World runtime summary is missing or failed." >&2
         exit 1
     fi
@@ -115,6 +116,12 @@ run_binary() {
        ! grep -F "[WORLD_CATALOGUE_TEST] checks=28 failures=0" \
            "$log" >/dev/null; then
         echo "[XCODE_VERIFY] World catalogue summary is missing or failed." >&2
+        exit 1
+    fi
+    if [ "$name" = "HelloMine3DStorageTransactionSmoke" ] &&
+       ! grep -F "[STORAGE_TRANSACTION_TEST] checks=16 failures=0" \
+           "$log" >/dev/null; then
+        echo "[XCODE_VERIFY] Storage transaction summary is missing or failed." >&2
         exit 1
     fi
 }

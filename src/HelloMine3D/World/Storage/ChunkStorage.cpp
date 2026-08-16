@@ -59,6 +59,12 @@ bool ChunkStorage::loadChunk(Chunk &chunk) const
 
 bool ChunkStorage::saveChunk(const Chunk &chunk) const
 {
+    return saveChunk(chunk, nullptr);
+}
+
+bool ChunkStorage::saveChunk(const Chunk &chunk,
+                             StorageTransactionMetrics *metrics) const
+{
     const auto &location = chunk.getLocation();
     StoredChunkData data;
     data.x = location.x;
@@ -67,7 +73,7 @@ bool ChunkStorage::saveChunk(const Chunk &chunk) const
     data.blockEntities = chunk.getBlockEntities();
     chunk.collectBlockData(data.blockIds, data.metadata);
 
-    return ChunkStorageData(m_rootDirectory).saveChunkData(data);
+    return ChunkStorageData(m_rootDirectory).saveChunkData(data, {}, metrics);
 }
 
 std::string ChunkStorage::chunkPath(int x, int z) const

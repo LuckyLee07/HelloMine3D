@@ -1322,7 +1322,27 @@ void casePersistence()
             savedItemState = item->getSaveState();
         }
 
-        check("S2.1/world-save-succeeds", world.save());
+        const ChunkDebugStats saveMetricsBefore =
+            world.collectDebugStats().chunks;
+        const bool worldSaveSucceeded = world.save();
+        const ChunkDebugStats saveMetricsAfter =
+            world.collectDebugStats().chunks;
+        check("S2.1/world-save-succeeds", worldSaveSucceeded);
+        check("K2/world-stats-expose-save-total-and-maximum",
+              worldSaveSucceeded &&
+                  saveMetricsAfter.saveTransactions >
+                      saveMetricsBefore.saveTransactions &&
+                  saveMetricsAfter.saveTotalMs >
+                      saveMetricsBefore.saveTotalMs &&
+                  saveMetricsAfter.saveMaxMs > 0.0 &&
+                  saveMetricsAfter.saveTotalMs >=
+                      saveMetricsAfter.saveMaxMs,
+              "transactions=" +
+                  std::to_string(saveMetricsAfter.saveTransactions) +
+                  " total_ms=" +
+                  std::to_string(saveMetricsAfter.saveTotalMs) +
+                  " max_ms=" +
+                  std::to_string(saveMetricsAfter.saveMaxMs));
 
         WorldSaveData meta;
         WorldSave saveFile(directory);

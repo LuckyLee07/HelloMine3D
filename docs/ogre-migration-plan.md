@@ -369,7 +369,7 @@ PNG/CSV 硬件基线已在 GTX 1050 Ti / OpenGL 4.6 上归档，E5 完成。
 | R5 | Ogre 1.10 有 1 个文件使用 C++17 已移除的 `bind1st`/`mem_fun` 系列 | 编译失败 | 单文件降标准或小改。已确认无 `auto_ptr`、`random_shuffle`、`register`，整体 C++17 兼容性良好 |
 | R6 | Ogre 场景图在 2000+ Renderable 量级的每帧开销 | 帧时间回退 | E3 结束必须做 perf baseline 对比；若回退明显，考虑合并 section 或降低 Renderable 粒度 |
 | R7 | 构建时间与产物体积上升 | 迭代变慢 | 接受；必要时用 `/MP` 与分组构建缓解 |
-| R8 | 后续工程变更破坏 macOS Xcode 图 | 跨平台回归 | 风险已由原生门禁关闭：版本化合同固定当前 27 项工程清单，9 个正/负夹具及 PBX 分组/`ProjectRef` 检查拒绝陈旧、缺失、重复或多分组引用；`scripts/verify_xcode.sh` 随后完成 Debug/Release 构建、全部测试和真实窗口启动。 |
+| R8 | 后续工程变更破坏 macOS Xcode 图 | 跨平台回归 | 风险已由原生门禁关闭：版本化合同固定当前 28 项工程清单，9 个正/负夹具及 PBX 分组/`ProjectRef` 检查拒绝陈旧、缺失、重复或多分组引用；`scripts/verify_xcode.sh` 随后完成 Debug/Release 构建、全部测试和真实窗口启动。 |
 
 ## 与玩法路线的先后关系
 

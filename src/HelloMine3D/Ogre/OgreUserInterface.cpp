@@ -461,6 +461,18 @@ class OgreUserInterface::Impl
             ImGui::Text("Dirty chunks: %llu",
                         static_cast<unsigned long long>(
                             worldStats.chunks.saveDirtyChunks));
+            const double averageSaveMs =
+                worldStats.chunks.saveTransactions > 0
+                    ? worldStats.chunks.saveTotalMs /
+                          static_cast<double>(
+                              worldStats.chunks.saveTransactions)
+                    : 0.0;
+            ImGui::Text(
+                "Save transactions / ms total / avg / max: %llu / %.3f / %.3f / %.3f",
+                static_cast<unsigned long long>(
+                    worldStats.chunks.saveTransactions),
+                worldStats.chunks.saveTotalMs, averageSaveMs,
+                worldStats.chunks.saveMaxMs);
             ImGui::Text("Queued chunk updates: %llu",
                         static_cast<unsigned long long>(
                             worldStats.queuedChunkUpdates));

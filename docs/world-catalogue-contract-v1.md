@@ -1,8 +1,9 @@
 # HelloMine3D World Catalogue Contract v1
 
-This contract defines the renderer-independent discovery boundary used by K1
-and the later K2-K4 save, recovery and world-screen work. It does not make
-writes transactional; K2 owns durable publication and fault injection.
+This contract defines the renderer-independent discovery boundary used by K1,
+the delivered K2 save transaction and later K3-K4 recovery/world-screen work.
+Catalogue enumeration remains read-only; K2 publication semantics are frozen
+separately in `docs/storage-transaction-contract-v1.md`.
 
 ## Catalogue boundary
 
@@ -56,8 +57,8 @@ valid and are not catalogue identities.
 
 `WorldSave::save` validates every version-3 identity field before opening the
 published file, so an invalid id/name/time/build request cannot truncate the
-current metadata. This is an input guard, not K2's transactional durability
-claim.
+current metadata. K2 now adds candidate validation and atomic publication
+after this input guard.
 
 ## Legacy discovery and upgrade
 

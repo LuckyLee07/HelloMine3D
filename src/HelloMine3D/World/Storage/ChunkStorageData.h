@@ -3,6 +3,7 @@
 
 #include "../Block/BlockEntity.h"
 #include "../Block/BlockId.h"
+#include "StorageTransaction.h"
 
 #include <cstddef>
 #include <string>
@@ -23,6 +24,9 @@ class ChunkStorageData {
 
     bool loadChunkData(int x, int z, StoredChunkData &data) const;
     bool saveChunkData(const StoredChunkData &data) const;
+    bool saveChunkData(const StoredChunkData &data,
+                       const StorageTransactionOptions &options,
+                       StorageTransactionMetrics *metrics) const;
 
     std::string chunkPath(int x, int z) const;
     bool ensureRootDirectory() const;

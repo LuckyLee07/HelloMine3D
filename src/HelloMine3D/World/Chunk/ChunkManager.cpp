@@ -207,6 +207,9 @@ ChunkDebugStats ChunkManager::collectDebugStats() const
         stats.gpuBufferedSections +=
             chunk.countSections(ChunkSectionMeshState::GpuBuffered);
     }
+    stats.saveTransactions = m_saveTransactionCount;
+    stats.saveTotalMs = m_saveTotalMs;
+    stats.saveMaxMs = m_saveMaxMs;
     stats.meshRebuilds = m_meshRebuildCount;
     stats.meshBuildTotalMs = m_meshBuildTotalMs;
     stats.meshBuildLastMs = m_meshBuildLastMs;
@@ -298,8 +301,10 @@ void ChunkManager::unloadChunk(int x, int z)
 
     const int height =
         static_cast<int>(chunk->getSectionCount()) * CHUNK_SIZE;
+    if (!saveChunk(*chunk)) {
+        return;
+    }
     m_world->despawnNaturalMobsInChunk(x, z);
-    saveChunk(*chunk);
     m_world->removeRandomTickSectionsForChunk(x, z);
     m_chunks.erase({x, z});
     m_world->reconcileBlockLightAfterChunkUnload(x, z, height);
@@ -312,10 +317,15 @@ bool ChunkManager::saveChunk(Chunk &chunk)
         return true;
     }
 
-    if (!m_chunkStorage.saveChunk(chunk)) {
+    StorageTransactionMetrics metrics;
+    if (!m_chunkStorage.saveChunk(chunk, &metrics)) {
         return false;
     }
 
+    ++m_saveTransactionCount;
+    const double elapsed = std::max(0.0, metrics.totalMilliseconds);
+    m_saveTotalMs += elapsed;
+    m_saveMaxMs = std::max(m_saveMaxMs, elapsed);
     chunk.clearSaveDirty();
     const auto &location = chunk.getLocation();
     m_world->getEventBus().publish(
@@ -323,9 +333,11 @@ bool ChunkManager::saveChunk(Chunk &chunk)
     return true;
 }
 
-void ChunkManager::saveDirtyChunks()
+bool ChunkManager::saveDirtyChunks()
 {
+    bool saved = true;
     for (auto &entry : m_chunks) {
-        saveChunk(entry.second);
+        saved = saveChunk(entry.second) && saved;
     }
+    return saved;
 }

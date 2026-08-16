@@ -21,6 +21,9 @@ struct ChunkDebugStats {
     std::size_t existingChunks = 0;
     std::size_t loadedChunks = 0;
     std::size_t saveDirtyChunks = 0;
+    std::size_t saveTransactions = 0;
+    double saveTotalMs = 0.0;
+    double saveMaxMs = 0.0;
     std::size_t sections = 0;
     std::size_t meshDirtySections = 0;
     std::size_t cpuReadySections = 0;
@@ -90,7 +93,7 @@ class ChunkManager {
     void loadChunk(int x, int z);
     void unloadChunk(int x, int z);
     bool saveChunk(Chunk &chunk);
-    void saveDirtyChunks();
+    bool saveDirtyChunks();
 
     void deleteMeshes();
 
@@ -104,6 +107,9 @@ class ChunkManager {
     ChunkStorage m_chunkStorage;
     int m_terrainSeed = 0;
     std::size_t m_meshRebuildCount = 0;
+    std::size_t m_saveTransactionCount = 0;
+    double m_saveTotalMs = 0.0;
+    double m_saveMaxMs = 0.0;
     double m_meshBuildTotalMs = 0.0;
     double m_meshBuildLastMs = 0.0;
     double m_meshBuildMaxMs = 0.0;

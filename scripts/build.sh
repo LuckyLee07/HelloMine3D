@@ -10,6 +10,6 @@ fi
 
 "$ROOT_DIR/scripts/premake.sh" gmake
 
-make -C "$ROOT_DIR/build" config="$CONFIG"
+make -C "$ROOT_DIR/build" config="${CONFIG}_x64"
 
 echo "Built HelloMine3D ($CONFIG) into $ROOT_DIR/bin/"

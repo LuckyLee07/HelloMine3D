@@ -43,6 +43,15 @@ adding immutable catalogue identity, creation/last-played timestamps and the
 last-known build identity. The read-only catalogue still discovers version 1/2
 metadata without renaming its directory. Version 1 saves remain readable with
 an empty actor list, and both legacy versions upgrade on the next world save.
+`World/Storage/StorageTransaction.*` is the common synchronous publication
+boundary for world metadata and binary chunks. It writes a same-directory
+candidate, durably flushes it, validates it through the real format reader and
+atomically replaces the published path only after success. One bounded failed
+candidate is retained for diagnosis; loaders never treat pending or failed
+siblings as authoritative. Chunk dirty state clears only after publication,
+and failed saves prevent unload. Aggregate save count/total/max duration flows
+through renderer-independent debug stats to ImGui and performance capture; the
+full failure contract is documented in `docs/storage-transaction-contract-v1.md`.
 Random block simulation extends `BlockBehavior`: sections index only block
 states that currently opt in, and `World` rotates those active sections with a
 four-section budget on the fixed 20Hz tick. Each visit samples three uniformly
