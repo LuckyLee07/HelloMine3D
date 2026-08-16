@@ -184,13 +184,16 @@ renderdistance 8
 fullscreen 0
 windowsize 1280 720
 fov 90
+mousesensitivity 0.05
+invertmousey 0
 seed random
 ```
 
 Deleting the file resets these settings on the next launch. The render
-distance, fullscreen flag, window size and field of view are read by the Ogre
-client. Set `seed` to an integer to reproduce newly created worlds, or leave it
-as `random`; a saved world's seed remains authoritative. The
+distance, fullscreen flag, window size, field of view, mouse sensitivity and
+optional vertical-look inversion are read by the Ogre client. Set `seed` to an
+integer to reproduce newly created worlds, or leave it as `random`; a saved
+world's seed remains authoritative. The
 `HELLOMINE3D_SEED` environment variable can still override the configured seed
 for a new world during automated runs. Blank lines and `#` comments are
 allowed. `bin/Mine.cfg`, `bin/MineResources.cfg` and `bin/resource-packs.txt`
@@ -207,7 +210,7 @@ bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
 bin\HelloMine3DMeshDirtyTests.exe         # mesh dirty planner
 bin\HelloMine3DSaveLoadSmoke.exe          # chunk serialization roundtrip
 bin\HelloMine3DEntityLifecycleSmoke.exe   # actor lifecycle
-bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 330 assertions
+bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 338 assertions
 bin\HelloMine3DSoak.exe                   # deterministic world stability schedule
 bin\HelloMine3DResourcePackSmoke.exe      # resource resolver and frozen view
 ```

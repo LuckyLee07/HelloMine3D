@@ -46,20 +46,23 @@ class Player : public Entity {
     const std::optional<glm::ivec3> &getOpenContainer() const noexcept;
     bool isFlying() const noexcept;
     bool isSneaking() const noexcept;
+    glm::vec3 getInterpolatedPosition(float alpha) const noexcept;
+    void resetInterpolation() noexcept;
     PlayerSaveState getSaveState() const;
     void applySaveState(const PlayerSaveState &state);
 
   private:
-    void jump();
-
     bool m_isOnGround = false;
     bool m_isFlying = false;
     bool m_isSneak = false;
+    float m_jumpBufferSeconds = 0.f;
+    float m_coyoteSeconds = 0.f;
 
     Inventory m_inventory;
     std::optional<glm::ivec3> m_openContainer;
     PlayerController m_controller;
-    glm::vec3 m_acceleration;
+    PlayerInputState m_input;
+    glm::vec3 m_previousPosition{0.f};
 };
 
 #endif // PLAYER_H_INCLUDED

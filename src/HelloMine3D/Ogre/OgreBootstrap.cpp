@@ -939,14 +939,19 @@ namespace
                     m_keyboard->isKeyDown(OIS::KC_LSHIFT) ||
                     m_keyboard->isKeyDown(OIS::KC_RSHIFT);
                 input.player.toggleFlying = m_toggleFlying;
-                input.player.toggleSneaking = m_toggleSneaking;
                 input.player.hotbarDelta = m_hotbarDelta;
                 input.player.hotbarSlot = m_hotbarSlot;
                 input.resetMeshes = m_resetMeshes;
             }
             if (!mouseCaptured && m_mouseLookEnabled)
             {
-                input.player.lookDelta = m_pendingLookDelta;
+                const float verticalDirection =
+                    m_config.invertMouseY ? -1.f : 1.f;
+                input.player.lookDelta.x =
+                    m_pendingLookDelta.x * m_config.mouseSensitivity;
+                input.player.lookDelta.y =
+                    m_pendingLookDelta.y * m_config.mouseSensitivity *
+                    verticalDirection;
                 const OIS::MouseState &mouseState =
                     m_mouse->getMouseState();
                 input.breakBlock =
@@ -1156,7 +1161,6 @@ namespace
         {
             m_pendingLookDelta = glm::vec2(0.0f);
             m_toggleFlying = false;
-            m_toggleSneaking = false;
             m_resetMeshes = false;
             m_hotbarDelta = 0;
             m_hotbarSlot = -1;
@@ -1169,7 +1173,6 @@ namespace
                 return;
             }
 
-            m_logicCamera->update();
             const glm::vec3 &position = m_logicCamera->position;
             const glm::vec3 &rotation = m_logicCamera->rotation;
             m_camera->setPosition(position.x, position.y, position.z);
@@ -1200,7 +1203,7 @@ namespace
             return stats;
         }
 
-        Ogre::Pass* materialPass(const char* materialName)
+        Ogre::Pass* materialPass(const Ogre::String& materialName)
         {
             Ogre::MaterialPtr material =
                 Ogre::MaterialManager::getSingleton().getByName(
@@ -1236,8 +1239,18 @@ namespace
             const Ogre::Vector3 fogVector(
                 state.fogColour.r, state.fogColour.g,
                 state.fogColour.b);
-            const Ogre::Vector3 skyVector(
-                state.skyTint.r, state.skyTint.g, state.skyTint.b);
+            const Ogre::Vector3 skyZenith(
+                state.skyZenithColour.r, state.skyZenithColour.g,
+                state.skyZenithColour.b);
+            const Ogre::Vector3 skyHorizon(
+                state.skyHorizonColour.r, state.skyHorizonColour.g,
+                state.skyHorizonColour.b);
+            const Ogre::Vector3 sunDirection(
+                state.sunDirection.x, state.sunDirection.y,
+                state.sunDirection.z);
+            const Ogre::Vector3 sunColour(
+                state.sunColour.r, state.sunColour.g,
+                state.sunColour.b);
 
             m_sceneManager->setFog(Ogre::FOG_EXP2, fog,
                                    state.fogDensity);
@@ -1275,9 +1288,40 @@ namespace
                     "fogDensity", state.fogDensity);
             }
 
-            materialPass(SkyboxMaterial)
-                ->getFragmentProgramParameters()
-                ->setNamedConstant("skyTint", skyVector);
+            const auto syncSkyParameters =
+                [&](Ogre::GpuProgramParametersSharedPtr parameters)
+                {
+                    parameters->setNamedConstant(
+                        "skyZenithColour", skyZenith);
+                    parameters->setNamedConstant(
+                        "skyHorizonColour", skyHorizon);
+                    parameters->setNamedConstant(
+                        "sunDirection", sunDirection);
+                    parameters->setNamedConstant(
+                        "sunColour", sunColour);
+                    parameters->setNamedConstant(
+                        "sunIntensity", state.sunIntensity);
+                    parameters->setNamedConstant(
+                        "moonIntensity", state.moonIntensity);
+                    parameters->setNamedConstant(
+                        "starIntensity", state.starIntensity);
+                };
+            syncSkyParameters(
+                materialPass(SkyboxMaterial)
+                    ->getFragmentProgramParameters());
+
+            // Without a cube texture Ogre builds the skybox from six cloned
+            // plane materials. Update those live clones as well as the source
+            // material so the procedural cycle reaches the actual draw calls.
+            for (int face = 0; face < 6; ++face)
+            {
+                const Ogre::String materialName =
+                    m_sceneManager->getName() + "SkyBoxPlane" +
+                    Ogre::StringConverter::toString(face);
+                syncSkyParameters(
+                    materialPass(materialName)
+                        ->getFragmentProgramParameters());
+            }
         }
 
         bool keyPressed(const OIS::KeyEvent& event) override
@@ -1306,10 +1350,6 @@ namespace
             {
                 case OIS::KC_F:
                     m_toggleFlying = true;
-                    break;
-                case OIS::KC_LSHIFT:
-                case OIS::KC_RSHIFT:
-                    m_toggleSneaking = true;
                     break;
                 case OIS::KC_L:
                     m_mouseLookEnabled = !m_mouseLookEnabled;
@@ -1523,7 +1563,6 @@ namespace
         std::chrono::steady_clock::time_point m_frameStart;
         glm::vec2 m_pendingLookDelta{0.0f};
         bool m_toggleFlying = false;
-        bool m_toggleSneaking = false;
         bool m_resetMeshes = false;
         bool m_mouseLookEnabled = true;
         bool m_validationActorsSpawned = false;

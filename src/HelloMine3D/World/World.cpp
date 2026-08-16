@@ -290,6 +290,7 @@ World::World(const Camera &camera, const Config &config, Player &player,
         m_worldSaveData.playerState = player.getSaveState();
         m_worldSaveData.hasPlayerState = true;
     }
+    player.resetInterpolation();
     if (hasForcedWorldTime) {
         m_worldSaveData.worldTime = static_cast<float>(forcedWorldTime);
     }
@@ -900,6 +901,7 @@ void World::respawnPlayer()
     m_player->position = m_playerSpawnPoint;
     m_player->velocity = glm::vec3(0.f);
     m_player->box.update(m_player->position);
+    m_player->resetInterpolation();
     preloadChunksAround(m_player->position);
     m_playerActor.revive();
     m_playerActor.syncFromPlayer(*m_player);

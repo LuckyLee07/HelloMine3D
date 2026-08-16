@@ -357,6 +357,16 @@ budget: loaded chunks and sections permit 5% drift before returning
 `INCOMPARABLE`. Eight portable schema-v1/v2 fixtures prove PASS,
 REGRESSION, INCOMPARABLE and INVALID outcomes, including missing Q1 identity.
 
+A post-polish spot check after the fixed-tick controls, camera interpolation
+and procedural sky change wrote
+`perf_baseline_macos_20260816195245-57506`: 607 frames at 60.826 FPS, P95/P99
+`24.915/27.781 ms`, no frames over 33 or 50 ms, and 20.000 Hz simulation.
+Final residency was 1,001 chunks / 6,888 sections. The standalone launcher
+reports `PASS`; this sample is intentionally not promoted to a formal R1
+before/after comparison because the build id and resource-manifest identity
+changed from the approved reference. It does show that the active Release
+path completes the same scene without a visible frame-time warning.
+
 This is a macOS/Rosetta steady-gameplay reference, not a substitute for the
 target-Windows cold-start, world-entry, save, restore, streaming and scaled
 gameplay baselines required to close Q1. Generated samples remain ignored.

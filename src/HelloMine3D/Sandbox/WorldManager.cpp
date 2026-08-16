@@ -144,6 +144,7 @@ bool WorldManager::teleportPlayer(Player &player, int worldId,
     player.position = position;
     player.velocity = glm::vec3(0.f);
     player.box.update(player.position);
+    player.resetInterpolation();
     world->preloadAround(position);
     world->getEventBus().publish(PlayerTeleportEvent(
         DefaultPlayerActorId, fromWorldId, worldId, fromPosition, position));

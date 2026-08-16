@@ -34,6 +34,16 @@ class FixedTickScheduler {
         return ticks;
     }
 
+    float interpolationAlpha() const noexcept
+    {
+        if (m_step.count() <= 0) {
+            return 0.f;
+        }
+        const double alpha = static_cast<double>(m_accumulator.count()) /
+                             static_cast<double>(m_step.count());
+        return static_cast<float>(std::clamp(alpha, 0.0, 1.0));
+    }
+
   private:
     std::chrono::microseconds m_accumulator{0};
     std::chrono::microseconds m_step;

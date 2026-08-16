@@ -11,6 +11,8 @@ class Camera : public Entity {
     Camera(const Config &config) noexcept;
 
     void update() noexcept;
+    void update(const glm::vec3 &targetPosition,
+                const glm::vec3 &targetRotation) noexcept;
     void hookEntity(const Entity &entity) noexcept;
 
     const glm::mat4 &getViewMatrix() const noexcept;

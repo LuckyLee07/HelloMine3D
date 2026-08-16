@@ -246,7 +246,7 @@ artifacts:
 
 | Evidence | Covers |
 | -------- | ------ |
-| `docs/screenshots/validation-skybox-panel-outline.png` | Six-face cloud skybox, textured terrain, block-scale atlas repetition, yellow selected-block outline, crosshair, five-slot hotbar and the live chunk/section/mesh/actor panel. |
+| `docs/screenshots/validation-skybox-panel-outline.png` | Historical six-face cloud-sky evidence plus textured terrain, block-scale atlas repetition, yellow selected-block outline, crosshair, five-slot hotbar and the live chunk/section/mesh/actor panel. The current sky is procedural. |
 | `docs/screenshots/validation-actors.png` | One green mob and one amber dropped-item cube; the panel reports two live actors. |
 | `docs/screenshots/validation-ores.png` | A deterministic coal wall on the left and iron wall on the right, with visibly distinct atlas tiles. |
 | `docs/screenshots/validation-container.png` | The D2 chest window with nine bounded slots, populated fixture stacks, the five-slot player hotbar and Close/Escape guidance over the live Ogre world. |
@@ -254,14 +254,23 @@ artifacts:
 | `docs/screenshots/validation-combat-hud.png` | The D4 combat fixture places one green Mob under the crosshair and applies non-lethal damage through the normal player damage path. The persistent HUD reports `Health 14 / 20`, while the panel reports one live actor. The 1584x861 PNG SHA-256 is `5EB9A5E1344909652EDE9A80D1A6AB08FF8A7B303DA1B928D7E672F6D0132237`. |
 | `docs/screenshots/validation-wheat-crop.png` | The D5 crop fixture places planted, growing, ripening and mature wheat from left to right using the same metadata-aware resource mesh as gameplay. Their heights are 25%, 50%, 75% and 100%; the panel reports three immature indexed crops and one active random-tick section. The 1584x861 PNG independently decodes through ffmpeg and has SHA-256 `5262B39A729318355B91FC4ABE8CB0D337F340B97FE0069DF5B30CD5C21FE8BF`. |
 
-The skybox was previously black even though all six source PNGs loaded. The
-material supplied six independent 2D textures with `separateUV`, while the
-shader sampled a `samplerCube`. The fixed path uses Ogre's base-name cube-map
-convention (`sky_fr`, `sky_bk`, `sky_lf`, `sky_rt`, `sky_up`, `sky_dn`) with
-`cubic_texture sky.png combinedUVW`; the vertex shader supplies the cube
-direction from `vertex.xyz`. The hardware log now reports one cube texture
-loaded from six images. `scripts/check_assets.sh` expands the same base name
-and requires all six files, preventing a missing face from reaching runtime.
+The tracked 2026-08-12 skybox image predates the procedural replacement. Its
+former black-frame fix switched six independent 2D textures to Ogre's
+base-name cube-map convention. On 2026-08-16 the active material removed that
+cube texture entirely: `HelloMine3DSkybox.frag` now renders a fog-matched
+horizon-to-zenith gradient, sun disc and halo, opposite moon, and procedural
+stars from W1 environment parameters. This leaves only the terrain atlas as a
+manifest texture and reduces the frozen base resource inventory from 42 to 36
+entries.
+
+Ogre's built-in skybox creates six cloned plane materials after `setSkyBox`.
+Updating only `HelloMine3D/Skybox` therefore left the rendered clones on their
+default daytime values. The environment sync now updates the source material
+and `HelloMine3DSceneSkyBoxPlane0` through `Plane5` every frame. Real Apple M1
+Pro / OpenGL 4.1 captures pinned at world times 6000 and 18000 were inspected:
+the day frame shows the blue gradient and sun, while the night frame shows a
+dark navy sky, moon and stars. These local `/tmp` captures are verification
+artifacts rather than tracked regression images.
 
 The actor and ore fixtures are opt-in validation aids. During runtime readback
 only, their simulation is frozen so a pinned high-altitude camera cannot fall

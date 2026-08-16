@@ -42,16 +42,31 @@ WorldEnvironmentState WorldEnvironment::evaluate(float worldTime)
     state.daylight = 0.18f + 0.82f * dayAmount;
     state.fogDensity = 0.006f + (0.0015f - 0.006f) * dayAmount;
 
-    const glm::vec3 daySky(1.f, 1.f, 1.f);
-    const glm::vec3 nightSky(0.12f, 0.18f, 0.34f);
-    const glm::vec3 twilightSky(1.f, 0.48f, 0.28f);
-    state.skyTint = mix(mix(nightSky, daySky, dayAmount), twilightSky,
-                        twilightAmount * 0.55f);
-
     const glm::vec3 dayFog(0.58f, 0.75f, 0.92f);
     const glm::vec3 nightFog(0.035f, 0.055f, 0.11f);
     const glm::vec3 twilightFog(0.78f, 0.38f, 0.25f);
     state.fogColour = mix(mix(nightFog, dayFog, dayAmount), twilightFog,
                          twilightAmount * 0.45f);
+    state.skyHorizonColour = state.fogColour;
+
+    const glm::vec3 dayZenith(0.12f, 0.46f, 0.88f);
+    const glm::vec3 nightZenith(0.006f, 0.012f, 0.045f);
+    const glm::vec3 twilightZenith(0.24f, 0.08f, 0.16f);
+    state.skyZenithColour = mix(
+        mix(nightZenith, dayZenith, dayAmount), twilightZenith,
+        twilightAmount * 0.42f);
+
+    const float angle = state.cycle * 2.f * Pi;
+    state.sunDirection = glm::normalize(
+        glm::vec3(std::cos(angle), std::sin(angle),
+                  0.18f * std::cos(angle)));
+    const glm::vec3 noonSun(1.f, 0.92f, 0.72f);
+    const glm::vec3 twilightSun(1.f, 0.38f, 0.14f);
+    state.sunColour = mix(noonSun, twilightSun, twilightAmount);
+    state.sunIntensity = dayAmount;
+    state.moonIntensity =
+        1.f - smoothStep(-0.20f, 0.08f, sunHeight);
+    state.starIntensity =
+        1.f - smoothStep(-0.35f, -0.05f, sunHeight);
     return state;
 }

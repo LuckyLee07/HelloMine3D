@@ -37,9 +37,3 @@ shader|media/ogre/HelloMine3DTerrain.vert
 shader|media/ogre/HelloMine3DWater.vert
 shape|media/shapes/Cross.shape
 texture|media/textures/DefaultPack.png
-texture|media/textures/sky_bk.png
-texture|media/textures/sky_dn.png
-texture|media/textures/sky_fr.png
-texture|media/textures/sky_lf.png
-texture|media/textures/sky_rt.png
-texture|media/textures/sky_up.png

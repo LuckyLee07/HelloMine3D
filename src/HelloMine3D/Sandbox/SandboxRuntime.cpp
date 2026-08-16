@@ -18,18 +18,21 @@ SandboxRuntime::SandboxRuntime(const Config &config, Camera &camera,
     BlockDatabase::get();
     m_camera.hookEntity(m_player);
     m_worldManager.loadWorld(WorldManager::MainWorldId);
+    m_player.resetInterpolation();
     m_camera.update();
 }
 
 void SandboxRuntime::update(const SandboxInputState &input,
                             float deltaSeconds, bool acceptsPlayerInput)
 {
-    if (acceptsPlayerInput) {
-        m_player.applyInput(input.player);
-    }
+    m_player.applyInput(acceptsPlayerInput
+                            ? input.player
+                            : PlayerInputState());
 
     runFixedTicks(deltaSeconds);
-    m_camera.update();
+    m_camera.update(m_player.getInterpolatedPosition(
+                        m_tickScheduler.interpolationAlpha()),
+                    m_player.rotation);
 
     World *world = m_worldManager.getActiveWorld();
     if (world == nullptr) {

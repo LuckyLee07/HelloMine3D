@@ -12,9 +12,15 @@ Camera::Camera(const Config &config) noexcept
 
 void Camera::update() noexcept
 {
-    position = {m_pEntity->position.x, m_pEntity->position.y + 0.6f,
-                m_pEntity->position.z};
-    rotation = m_pEntity->rotation;
+    update(m_pEntity->position, m_pEntity->rotation);
+}
+
+void Camera::update(const glm::vec3 &targetPosition,
+                    const glm::vec3 &targetRotation) noexcept
+{
+    position = {targetPosition.x, targetPosition.y + 0.6f,
+                targetPosition.z};
+    rotation = targetRotation;
 
     m_viewMatrix = makeViewMatrix(*this);
     m_projViewMatrx = m_projectionMatrix * m_viewMatrix;

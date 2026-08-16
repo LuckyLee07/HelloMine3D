@@ -22,4 +22,5 @@ void PlayerActor::syncToPlayer(Player &player) const
     player.rotation = rotation;
     player.velocity = velocity;
     player.box.update(player.position);
+    player.resetInterpolation();
 }

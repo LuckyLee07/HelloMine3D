@@ -11,7 +11,7 @@
 Player::Player()
     : Entity({2500, 125, 2500}, {0.f, 0.f, 0.f}, {0.3f, 1.f, 0.3f})
     , m_inventory(5)
-    , m_acceleration(glm::vec3(0.f))
+    , m_previousPosition(position)
 {
 }
 
@@ -85,6 +85,17 @@ bool Player::isSneaking() const noexcept
     return m_isSneak;
 }
 
+glm::vec3 Player::getInterpolatedPosition(float alpha) const noexcept
+{
+    const float amount = std::clamp(alpha, 0.f, 1.f);
+    return m_previousPosition + (position - m_previousPosition) * amount;
+}
+
+void Player::resetInterpolation() noexcept
+{
+    m_previousPosition = position;
+}
+
 PlayerSaveState Player::getSaveState() const
 {
     PlayerSaveState state;
@@ -101,6 +112,11 @@ void Player::applySaveState(const PlayerSaveState &state)
     closeContainer();
     position = state.position;
     rotation = state.rotation;
+    velocity = glm::vec3(0.f);
+    m_input = PlayerInputState();
+    m_jumpBufferSeconds = 0.f;
+    m_coyoteSeconds = 0.f;
+    resetInterpolation();
     m_inventory.applySaveState(state.inventory, state.heldItem);
 }
 
@@ -111,8 +127,8 @@ void Player::applyInput(const PlayerInputState &input)
 
 void Player::update(float dt, World& world)
 {
-    velocity += m_acceleration;
-    m_acceleration = {0, 0, 0};
+    m_previousPosition = position;
+    m_controller.applyMovement(*this, dt);
 
     if (!m_isFlying)
     {
@@ -134,12 +150,6 @@ void Player::update(float dt, World& world)
     collide(world, {0, 0, velocity.z}, dt);
 
     box.update(position);
-    velocity.x *= 0.95f;
-    velocity.z *= 0.95f;
-    if (m_isFlying)
-    {
-        velocity.y *= 0.95f;
-    }
 }
 
 void Player::collide(World& world, const glm::vec3& vel, float dt)
@@ -216,22 +226,5 @@ void Player::collide(World& world, const glm::vec3& vel, float dt)
                 }
             }
         }
-    }
-}
-
-void Player::jump()
-{
-    if (!m_isFlying)
-    {
-        if (m_isOnGround)
-        {
-
-            m_isOnGround = false;
-            m_acceleration.y += 0.2f * 50;
-        }
-    }
-    else
-    {
-        m_acceleration.y += 0.2f * 3;
     }
 }

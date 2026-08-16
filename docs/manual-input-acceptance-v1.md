@@ -35,7 +35,7 @@ later restart.
 | `case.focus_recovery` | Move with `W`, Alt-Tab away while holding no key, return, then press/release `W` again. | No movement continues while unfocused; focus returns without a stuck key or click. |
 | `case.wasd_movement` | Walk forward/back/left/right with `W/S/A/D`, then hold Ctrl while moving. | Direction matches each key and Ctrl visibly increases speed. |
 | `case.mouse_look` | Move the physical mouse horizontally and vertically, press `L`, move again, then press `L` once more. | View follows both axes, stops while mouse-look is disabled, and resumes without a jump. |
-| `case.flight_sneak` | Press `F`, use Space/Shift to rise/descend, press `F` to land; tap Shift while grounded. | Flight toggles once per press, vertical controls work only as designed, and sneak toggles without a stuck descent. |
+| `case.flight_sneak` | Press `F`, use Space/Shift to rise/descend, press `F` to land; hold and release Shift while grounded. | Flight toggles once per press, vertical controls work only as designed, and sneak is active only while grounded Shift is held. |
 | `case.hotbar_numbers` | Press number keys `1` through `5`. | The highlighted hotbar slot follows every key exactly. |
 | `case.hotbar_wheel` | Roll the physical wheel one detent in each direction. | Selection advances one slot with wrapping and reverses in the other direction. |
 | `case.break_block` | Aim at the prepared chest and hold left mouse until it breaks. | The outlined chest is removed, its configured drop enters inventory and its contents spill as ordinary item entities. |

@@ -1,5 +1,6 @@
 #include "RuntimeConfig.h"
 
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <set>
@@ -33,6 +34,16 @@ int readInteger(const std::string &path, const std::string &key,
     return value;
 }
 
+float readFloat(const std::string &path, const std::string &key,
+                std::istringstream &input)
+{
+    float value = 0.f;
+    if (!(input >> value) || !std::isfinite(value)) {
+        fail(path, key, "must contain a finite number");
+    }
+    return value;
+}
+
 void writeDefaultConfig(const std::string &path, const Config &config)
 {
     const std::filesystem::path filePath(path);
@@ -56,6 +67,8 @@ void writeDefaultConfig(const std::string &path, const Config &config)
            << "windowsize " << config.windowX << ' ' << config.windowY
            << '\n'
            << "fov " << config.fov << '\n'
+           << "mousesensitivity " << config.mouseSensitivity << '\n'
+           << "invertmousey " << (config.invertMouseY ? 1 : 0) << '\n'
            << "seed ";
     if (config.worldSeed.has_value()) {
         output << *config.worldSeed;
@@ -138,6 +151,22 @@ Config loadRuntimeConfig(const std::string &path)
             if (config.fov <= 0 || config.fov >= 180) {
                 fail(path, key, "must be between 1 and 179 degrees");
             }
+        }
+        else if (key == "mousesensitivity") {
+            config.mouseSensitivity = readFloat(path, key, values);
+            requireEnd(path, key, values);
+            if (config.mouseSensitivity < 0.005f ||
+                config.mouseSensitivity > 1.f) {
+                fail(path, key, "must be between 0.005 and 1.0");
+            }
+        }
+        else if (key == "invertmousey") {
+            const int inverted = readInteger(path, key, values);
+            requireEnd(path, key, values);
+            if (inverted != 0 && inverted != 1) {
+                fail(path, key, "must be 0 or 1");
+            }
+            config.invertMouseY = inverted != 0;
         }
         else if (key == "seed") {
             std::string seedText;

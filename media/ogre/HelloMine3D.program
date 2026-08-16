@@ -14,8 +14,13 @@ fragment_program HelloMine3D/SkyboxFragment glsl
     syntax glsl150
     default_params
     {
-        param_named skyboxMap int 0
-        param_named skyTint float3 1.0 1.0 1.0
+        param_named skyZenithColour float3 0.12 0.46 0.88
+        param_named skyHorizonColour float3 0.58 0.75 0.92
+        param_named sunDirection float3 0.0 1.0 0.0
+        param_named sunColour float3 1.0 0.92 0.72
+        param_named sunIntensity float 1.0
+        param_named moonIntensity float 0.0
+        param_named starIntensity float 0.0
     }
 }
 

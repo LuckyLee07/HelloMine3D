@@ -238,6 +238,17 @@ void caseFixedTickScheduler()
           cappedTicks == 5 && nextTicks == 1,
           "capped=" + std::to_string(cappedTicks) +
               " next=" + std::to_string(nextTicks));
+
+    FixedTickScheduler interpolationScheduler;
+    const std::size_t halfStep = interpolationScheduler.advance(
+        std::chrono::milliseconds(25));
+    const float halfAlpha = interpolationScheduler.interpolationAlpha();
+    const std::size_t fullStep = interpolationScheduler.advance(
+        std::chrono::milliseconds(25));
+    check("V1/fixed-tick-interpolation-alpha",
+          halfStep == 0 && std::abs(halfAlpha - 0.5f) < 0.001f &&
+              fullStep == 1 &&
+              interpolationScheduler.interpolationAlpha() < 0.001f);
 }
 
 // ---------------------------------------------------------------------------
@@ -275,7 +286,10 @@ void caseRuntimeConfigOwnership()
     check("A3/generated-config-uses-documented-defaults",
           generated.renderDistance == 8 && !generated.isFullscreen &&
               generated.windowX == 1280 && generated.windowY == 720 &&
-              generated.fov == 90 && !generated.worldSeed.has_value(),
+              generated.fov == 90 &&
+              std::abs(generated.mouseSensitivity - 0.05f) < 0.0001f &&
+              !generated.invertMouseY &&
+              !generated.worldSeed.has_value(),
           std::to_string(generated.renderDistance) + " " +
               std::to_string(generated.isFullscreen) + " " +
               std::to_string(generated.windowX) + "x" +
@@ -288,13 +302,17 @@ void caseRuntimeConfigOwnership()
         output << "renderdistance 3\n"
                << "fullscreen 1\n"
                << "windowsize 1024 768\n"
-               << "fov 100\n";
+               << "fov 100\n"
+               << "mousesensitivity 0.12\n"
+               << "invertmousey 1\n";
     }
     const Config customised = loadRuntimeConfig(configPath.string());
     check("A3/user-config-overrides-defaults",
           customised.renderDistance == 3 && customised.isFullscreen &&
               customised.windowX == 1024 && customised.windowY == 768 &&
-              customised.fov == 100);
+              customised.fov == 100 &&
+              std::abs(customised.mouseSensitivity - 0.12f) < 0.0001f &&
+              customised.invertMouseY);
 }
 
 // ---------------------------------------------------------------------------
@@ -617,13 +635,11 @@ void casePlayerControllerInput()
     input.moveForward = true;
     input.jump = true;
     input.toggleFlying = true;
-    input.toggleSneaking = true;
     input.hotbarSlot = 3;
-    input.lookDelta = {20.f, -10.f};
+    input.lookDelta = {1.f, -0.5f};
     controller.applyInput(player, input);
 
     check("V2/fly-toggle", player.isFlying());
-    check("V2/sneak-toggle", player.isSneaking());
     check("V2/hotbar-selection", player.getSaveState().heldItem == 3,
           "selected=" + std::to_string(player.getSaveState().heldItem));
     check("V2/look-input",
@@ -642,6 +658,81 @@ void casePlayerControllerInput()
     toggleOff.toggleFlying = true;
     controller.applyInput(player, toggleOff);
     check("V2/fly-toggle-off", !player.isFlying());
+
+    PlayerInputState sneak;
+    sneak.descend = true;
+    player.applyInput(sneak);
+    check("V2/sneak-is-held", player.isSneaking());
+    player.applyInput(PlayerInputState());
+    check("V2/sneak-releases", !player.isSneaking());
+
+    Player sampledOnce;
+    Player sampledRepeatedly;
+    sampledOnce.position = {20.f, 220.f, 20.f};
+    sampledRepeatedly.position = sampledOnce.position;
+    PlayerInputState enableFlight;
+    enableFlight.toggleFlying = true;
+    sampledOnce.applyInput(enableFlight);
+    sampledRepeatedly.applyInput(enableFlight);
+    PlayerInputState heldForward;
+    heldForward.moveForward = true;
+    sampledOnce.applyInput(heldForward);
+    for (int frame = 0; frame < 8; ++frame) {
+        sampledRepeatedly.applyInput(heldForward);
+    }
+    sampledOnce.update(0.05f, world);
+    sampledRepeatedly.update(0.05f, world);
+    check("V2/repeated-frame-sampling-is-idempotent",
+          glm::length(sampledOnce.position -
+                      sampledRepeatedly.position) < 0.0001f,
+          vecToString(sampledOnce.position) + " / " +
+              vecToString(sampledRepeatedly.position));
+
+    const glm::vec3 interpolationMidpoint =
+        sampledOnce.getInterpolatedPosition(0.5f);
+    check("V2/player-position-interpolates-between-ticks",
+          glm::length(interpolationMidpoint -
+                      (glm::vec3(20.f, 220.f, 20.f) +
+                       sampledOnce.position) * 0.5f) < 0.0001f,
+          vecToString(interpolationMidpoint));
+
+    Player diagonal;
+    diagonal.position = {24.f, 220.f, 24.f};
+    diagonal.applyInput(enableFlight);
+    PlayerInputState heldDiagonal;
+    heldDiagonal.moveForward = true;
+    heldDiagonal.moveRight = true;
+    diagonal.applyInput(heldDiagonal);
+    diagonal.update(0.05f, world);
+    const float straightDistance = glm::length(
+        glm::vec2(sampledOnce.position.x - 20.f,
+                  sampledOnce.position.z - 20.f));
+    const float diagonalDistance = glm::length(
+        glm::vec2(diagonal.position.x - 24.f,
+                  diagonal.position.z - 24.f));
+    check("V2/diagonal-speed-is-normalized",
+          std::abs(straightDistance - diagonalDistance) < 0.0001f,
+          std::to_string(straightDistance) + " / " +
+              std::to_string(diagonalDistance));
+
+    Player walkRight;
+    Player sprintRight;
+    walkRight.position = {28.f, 220.f, 28.f};
+    sprintRight.position = {32.f, 220.f, 32.f};
+    walkRight.applyInput(enableFlight);
+    sprintRight.applyInput(enableFlight);
+    PlayerInputState strafe;
+    strafe.moveRight = true;
+    walkRight.applyInput(strafe);
+    strafe.sprint = true;
+    sprintRight.applyInput(strafe);
+    for (int tick = 0; tick < 8; ++tick) {
+        walkRight.update(0.05f, world);
+        sprintRight.update(0.05f, world);
+    }
+    check("V2/sprint-applies-to-strafe",
+          sprintRight.position.x - 32.f >
+              walkRight.position.x - 28.f + 0.3f);
 }
 
 // ---------------------------------------------------------------------------
@@ -1653,8 +1744,23 @@ void caseWorldEnvironment()
               noon.fogDensity >= 0.0015f - epsilon &&
               midnight.fogDensity <= 0.006f + epsilon);
     check("W1/sky-and-fog-values-change-with-cycle",
-          glm::length(noon.skyTint - midnight.skyTint) > 0.5f &&
+          glm::length(noon.skyZenithColour -
+                      midnight.skyZenithColour) > 0.5f &&
               glm::length(noon.fogColour - midnight.fogColour) > 0.5f);
+    check("W1/sky-horizon-matches-fog",
+          glm::length(dawn.skyHorizonColour - dawn.fogColour) < epsilon &&
+              glm::length(noon.skyHorizonColour - noon.fogColour) < epsilon &&
+              glm::length(midnight.skyHorizonColour -
+                          midnight.fogColour) < epsilon);
+    check("W1/celestial-cycle-drives-sun-moon-and-stars",
+          noon.sunDirection.y > 0.95f &&
+              midnight.sunDirection.y < -0.95f &&
+              glm::dot(noon.sunDirection,
+                       midnight.sunDirection) < -0.99f &&
+              noon.sunIntensity > 0.99f &&
+              midnight.moonIntensity > 0.99f &&
+              noon.starIntensity < 0.01f &&
+              midnight.starIntensity > 0.99f);
     check("W1/dawn-and-dusk-light-are-continuous",
           std::abs(dawn.daylight - dusk.daylight) < epsilon &&
               dawn.daylight > midnight.daylight &&

@@ -5,7 +5,9 @@ material HelloMine3D/Skybox
         pass
         {
             lighting off
+            depth_check off
             depth_write off
+            cull_hardware none
 
             vertex_program_ref HelloMine3D/SkyboxVertex
             {
@@ -15,12 +17,6 @@ material HelloMine3D/Skybox
             {
             }
 
-            texture_unit skyboxMap
-            {
-                cubic_texture sky.png combinedUVW
-                tex_address_mode clamp
-                filtering trilinear
-            }
         }
     }
 }

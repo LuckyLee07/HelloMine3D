@@ -10,6 +10,8 @@ struct Config {
     bool isFullscreen = false;
     int renderDistance = 8; // Set initial RD low to prevent long load times
     int fov = 90;
+    float mouseSensitivity = 0.05f;
+    bool invertMouseY = false;
     std::optional<int> worldSeed;
 };
 
