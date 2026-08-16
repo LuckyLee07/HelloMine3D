@@ -44,6 +44,7 @@ build_target() {
 
     echo "[XCODE_VERIFY] Build $configuration $target"
     xcodebuild \
+        -quiet \
         -project "$project" \
         -target "$target" \
         -configuration "$configuration" \
@@ -70,7 +71,7 @@ run_binary() {
     ) 2>&1 | tee "$log"
 
     if [ "$name" = "HelloMine3DWorldRuntimeSmoke" ] &&
-       ! grep -F "[VALIDATION] checks=327 failures=0" "$log" >/dev/null; then
+       ! grep -F "[VALIDATION] checks=330 failures=0" "$log" >/dev/null; then
         echo "[XCODE_VERIFY] World runtime summary is missing or failed." >&2
         exit 1
     fi
@@ -85,14 +86,14 @@ run_client_probe() {
         "HELLOMINE3D_ROOT=$ROOT_DIR"
         "HELLOMINE3D_SAVE_DIR=$save_dir"
         "HELLOMINE3D_SEED=20260809"
-        "HELLOMINE3D_PLAYER_POSITION=8 200 8"
+        "HELLOMINE3D_PLAYER_POSITION=3038 66 1922"
         "HELLOMINE3D_PLAYER_ROTATION=0 0 0"
     )
 
     if [ "$mode" = "validate" ]; then
         environment+=("HELLOMINE3D_VALIDATE_ONLY=1")
     else
-        environment+=("HELLOMINE3D_EXIT_AFTER_FRAMES=3")
+        environment+=("HELLOMINE3D_EXIT_AFTER_FRAMES=120")
     fi
 
     echo "[XCODE_VERIFY] Run $configuration client $mode probe"
@@ -131,10 +132,23 @@ run_client_probe() {
             echo "[XCODE_VERIFY] Validation probe did not register GL3Plus." >&2
             exit 1
         fi
-    elif ! grep -F "[OGRE_TERRAIN]" "$log" >/dev/null; then
-        cat "$log" >&2
-        echo "[XCODE_VERIFY] Window probe did not reach terrain startup." >&2
-        exit 1
+    else
+        if ! grep -F "[OGRE_TERRAIN]" "$log" >/dev/null; then
+            cat "$log" >&2
+            echo "[XCODE_VERIFY] Window probe did not reach terrain startup." >&2
+            exit 1
+        fi
+
+        local world_meta="$save_dir/world.meta"
+        local player_y
+        player_y="$(awk '$1 == "player_position" {print $3; exit}' "$world_meta")"
+        if [ -z "$player_y" ] ||
+           ! awk -v y="$player_y" 'BEGIN {exit !(y >= 65 && y <= 67)}'; then
+            cat "$world_meta" >&2
+            echo "[XCODE_VERIFY] Player did not remain on the surface: y=$player_y" >&2
+            exit 1
+        fi
+        echo "[XCODE_VERIFY] Surface contact y=$player_y"
     fi
 }
 

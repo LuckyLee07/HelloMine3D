@@ -1,5 +1,7 @@
 #include "Player.h"
 
+#include <algorithm>
+#include <cmath>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -114,10 +116,9 @@ void Player::update(float dt, World& world)
 
     if (!m_isFlying)
     {
-        if (!m_isOnGround)
-        {
-            velocity.y -= 40 * dt;
-        }
+        // Apply gravity every tick so resting contact is revalidated. The
+        // collision pass below restores m_isOnGround when the floor remains.
+        velocity.y -= 40 * dt;
         m_isOnGround = false;
     }
 
@@ -126,13 +127,10 @@ void Player::update(float dt, World& world)
         position.y = 300;
     }
 
-    position.x += velocity.x * dt;
     collide(world, {velocity.x, 0, 0}, dt);
 
-    position.y += velocity.y * dt;
     collide(world, {0, velocity.y, 0}, dt);
 
-    position.z += velocity.z * dt;
     collide(world, {0, 0, velocity.z}, dt);
 
     box.update(position);
@@ -146,54 +144,79 @@ void Player::update(float dt, World& world)
 
 void Player::collide(World& world, const glm::vec3& vel, float dt)
 {
-    (void)dt;
+    const glm::vec3 movement = vel * dt;
+    const float distance = std::max(
+        {std::abs(movement.x), std::abs(movement.y),
+         std::abs(movement.z)});
+    if (distance <= 0.f) {
+        return;
+    }
 
-    const int minX = static_cast<int>(position.x - box.dimensions.x);
-    const int maxX = static_cast<int>(position.x + box.dimensions.x);
-    const int minY = static_cast<int>(position.y - box.dimensions.y);
-    const int maxY = static_cast<int>(position.y + 0.7f);
-    const int minZ = static_cast<int>(position.z - box.dimensions.z);
-    const int maxZ = static_cast<int>(position.z + box.dimensions.z);
+    // A single fixed tick can cover several blocks during a long fall. Moving
+    // in sub-block steps turns the former end-point overlap test into a swept
+    // collision test, so a one-block floor cannot be skipped.
+    constexpr float MaxCollisionStep = 0.25f;
+    constexpr float BoundaryEpsilon = 0.0001f;
+    const int stepCount = std::max(
+        1, static_cast<int>(std::ceil(distance / MaxCollisionStep)));
+    const glm::vec3 step = movement / static_cast<float>(stepCount);
 
-    for (int x = minX; x < maxX; x++)
-        for (int y = minY; y < maxY; y++)
-            for (int z = minZ; z < maxZ; z++)
-            {
-                auto block = world.getBlock(x, y, z);
+    for (int index = 0; index < stepCount; ++index) {
+        position += step;
 
-                if (block != 0 && block.getData().isCollidable)
-                {
-                    if (vel.y > 0)
-                    {
+        // Block cells use half-open bounds. Epsilon keeps a player merely
+        // touching a face from colliding with the cell on the other side.
+        const int minX = static_cast<int>(
+            std::floor(position.x - box.dimensions.x + BoundaryEpsilon));
+        const int maxX = static_cast<int>(
+            std::floor(position.x + box.dimensions.x - BoundaryEpsilon));
+        const int minY = static_cast<int>(
+            std::floor(position.y - box.dimensions.y + BoundaryEpsilon));
+        const int maxY = static_cast<int>(
+            std::floor(position.y + box.dimensions.y - BoundaryEpsilon));
+        const int minZ = static_cast<int>(
+            std::floor(position.z - box.dimensions.z + BoundaryEpsilon));
+        const int maxZ = static_cast<int>(
+            std::floor(position.z + box.dimensions.z - BoundaryEpsilon));
+
+        for (int x = minX; x <= maxX; ++x) {
+            for (int y = minY; y <= maxY; ++y) {
+                for (int z = minZ; z <= maxZ; ++z) {
+                    const auto block = world.getBlock(x, y, z);
+                    if (block == 0 || !block.getData().isCollidable) {
+                        continue;
+                    }
+
+                    if (step.y > 0.f) {
                         position.y = y - box.dimensions.y;
-                        velocity.y = 0;
+                        velocity.y = 0.f;
                     }
-                    else if (vel.y < 0)
-                    {
+                    else if (step.y < 0.f) {
                         m_isOnGround = true;
-                        position.y = y + box.dimensions.y + 1;
-                        velocity.y = 0;
+                        position.y = y + box.dimensions.y + 1.f;
+                        velocity.y = 0.f;
                     }
-
-                    if (vel.x > 0)
-                    {
+                    else if (step.x > 0.f) {
                         position.x = x - box.dimensions.x;
+                        velocity.x = 0.f;
                     }
-                    else if (vel.x < 0)
-                    {
-                        position.x = x + box.dimensions.x + 1;
+                    else if (step.x < 0.f) {
+                        position.x = x + box.dimensions.x + 1.f;
+                        velocity.x = 0.f;
                     }
-
-                    if (vel.z > 0)
-                    {
+                    else if (step.z > 0.f) {
                         position.z = z - box.dimensions.z;
+                        velocity.z = 0.f;
                     }
-                    else if (vel.z < 0)
-                    {
-                        position.z = z + box.dimensions.z + 1;
+                    else if (step.z < 0.f) {
+                        position.z = z + box.dimensions.z + 1.f;
+                        velocity.z = 0.f;
                     }
+                    return;
                 }
             }
+        }
+    }
 }
 
 void Player::jump()

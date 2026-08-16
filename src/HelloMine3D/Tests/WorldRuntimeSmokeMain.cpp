@@ -644,6 +644,52 @@ void casePlayerControllerInput()
     check("V2/fly-toggle-off", !player.isFlying());
 }
 
+// ---------------------------------------------------------------------------
+// V2 - player collision sweeps across every crossed block cell
+// ---------------------------------------------------------------------------
+void casePlayerSweptCollision()
+{
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 120 8");
+
+    const auto directory = freshSaveDirectory("player_swept_collision");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+
+    constexpr int floorY = 100;
+    world.setBlock(8, floorY, 8, BlockId::Stone);
+    player.position = {8.5f, 110.f, 8.5f};
+    player.velocity = {0.f, -200.f, 0.f};
+    player.box.update(player.position);
+
+    player.update(0.05f, world);
+    const float expectedRestingY =
+        static_cast<float>(floorY + 1) + player.box.dimensions.y;
+    check("V2/high-speed-fall-stops-on-floor",
+          std::abs(player.position.y - expectedRestingY) < 0.001f &&
+              std::abs(player.velocity.y) < 0.001f,
+          vecToString(player.position));
+
+    player.update(0.05f, world);
+    check("V2/resting-contact-remains-grounded",
+          std::abs(player.position.y - expectedRestingY) < 0.001f &&
+              std::abs(player.velocity.y) < 0.001f,
+          vecToString(player.position));
+
+    PlayerInputState jump;
+    jump.jump = true;
+    player.applyInput(jump);
+    player.update(0.05f, world);
+    check("V2/jump-after-resting-contact",
+          player.position.y > expectedRestingY,
+          vecToString(player.position));
+
+    clearDeterministicEnv();
+}
+
 int scanHighestOpaqueBlock(const Chunk &chunk, int x, int z)
 {
     const int highestPossible =
@@ -4657,6 +4703,7 @@ int main()
         caseConfiguredWorldSeed();
         caseBlockSelection();
         casePlayerControllerInput();
+        casePlayerSweptCollision();
         caseHeightMapEdits();
         caseBackgroundLoaderStress();
         caseSpawnPreload();

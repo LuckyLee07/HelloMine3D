@@ -80,7 +80,10 @@ void OSXGL3PlusSupport::addConfig( void )
 	optHiddenWindow.immutable = false;
 
     // FS setting possibilities
-	optVsync.name = "vsync";
+	// Keep the public render-system option name aligned with the Win32/GLX
+	// backends and the repository-owned Mine.cfg template.  Cocoa still
+	// receives the lower-case misc parameter below.
+	optVsync.name = "VSync";
 	optVsync.possibleValues.push_back( "Yes" );
 	optVsync.possibleValues.push_back( "No" );
 	optVsync.currentValue = "Yes";
@@ -131,6 +134,10 @@ void OSXGL3PlusSupport::addConfig( void )
     mOptions[ optFullScreen.name ] = optFullScreen;
 	mOptions[ optBitDepth.name ] = optBitDepth;
     mOptions[ optContentScalingFactor.name ] = optContentScalingFactor;
+	mOptions[ optRTTMode.name ] = optRTTMode;
+	mOptions[ optHiddenWindow.name ] = optHiddenWindow;
+	mOptions[ optVsync.name ] = optVsync;
+	mOptions[ optSRGB.name ] = optSRGB;
 #if OGRE_NO_QUAD_BUFFER_STEREO == 0
 	mOptions[ optStereoMode.name ] = optStereoMode;
 #endif
@@ -245,10 +252,6 @@ void OSXGL3PlusSupport::addConfig( void )
 	mOptions[optFullScreen.name] = optFullScreen;
 	mOptions[optVideoMode.name] = optVideoMode;
     mOptions[optFSAA.name] = optFSAA;
-	mOptions[optRTTMode.name] = optRTTMode;
-	mOptions[optHiddenWindow.name] = optHiddenWindow;
-	mOptions[optVsync.name] = optVsync;
-	mOptions[optSRGB.name] = optSRGB;
 
     // FIXME: not available here. unsused anyway?
     //setShaderCachePath(Ogre::macCachePath() + "/org.ogre3d.RTShaderCache");
@@ -294,7 +297,7 @@ RenderWindow* OSXGL3PlusSupport::createWindow( bool autoCreateWindow, RenderSyst
             winOptions[ "hidden" ] = opt->second.currentValue;
         }
 
-        opt = mOptions.find( "vsync" );
+        opt = mOptions.find( "VSync" );
         if( opt != mOptions.end() )
         {
             winOptions[ "vsync" ] = opt->second.currentValue;
