@@ -424,6 +424,88 @@
         "last_sections"
       ],
       "apply_frame_policy": true
+    },
+    "q1-alpha-playable-v1": {
+      "identity_keys": [
+        "comparison_gpu",
+        "comparison_driver",
+        "comparison_vsync_regime",
+        "comparison_window",
+        "comparison_window_visibility",
+        "comparison_fullscreen",
+        "comparison_fov",
+        "comparison_resource_manifest_sha256",
+        "comparison_resource_packs",
+        "comparison_world_fixture",
+        "comparison_save_format",
+        "comparison_storage_class",
+        "comparison_render_distance",
+        "terrain_seed"
+      ],
+      "required_metrics": [
+        "frames",
+        "frame_p95_ms",
+        "frame_p99_ms",
+        "frames_over_50ms",
+        "simulation_tick_hz",
+        "startup_first_usable_menu_ms",
+        "entry_first_controllable_ms",
+        "entry_main_thread_max_stall_ms",
+        "last_save_total_ms",
+        "last_loaded_chunks",
+        "last_sections",
+        "last_actor_count",
+        "last_resident_terrain_buffer_bytes"
+      ],
+      "positive_metrics": [
+        "frames",
+        "frame_p95_ms",
+        "frame_p99_ms",
+        "simulation_tick_hz",
+        "startup_first_usable_menu_ms",
+        "entry_first_controllable_ms",
+        "entry_main_thread_max_stall_ms",
+        "last_save_total_ms",
+        "last_loaded_chunks",
+        "last_sections",
+        "last_actor_count",
+        "last_resident_terrain_buffer_bytes"
+      ],
+      "integer_metrics": [
+        "frames",
+        "frames_over_50ms",
+        "last_loaded_chunks",
+        "last_sections",
+        "last_actor_count",
+        "last_resident_terrain_buffer_bytes"
+      ],
+      "monotonic_groups": [
+        [
+          "frame_p95_ms",
+          "frame_p99_ms"
+        ]
+      ],
+      "metric_ranges": {
+        "simulation_tick_hz": {
+          "minimum": 19.0,
+          "maximum": 21.0
+        }
+      },
+      "budget_metrics": [
+        "startup_first_usable_menu_ms",
+        "entry_first_controllable_ms",
+        "entry_main_thread_max_stall_ms",
+        "last_save_total_ms",
+        "last_resident_terrain_buffer_bytes"
+      ],
+      "exact_metrics": [
+        "last_actor_count"
+      ],
+      "residency_metrics": [
+        "last_loaded_chunks",
+        "last_sections"
+      ],
+      "apply_frame_policy": true
     }
   }
 }

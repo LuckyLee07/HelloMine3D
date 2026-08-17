@@ -655,8 +655,12 @@ project "HelloMine3DCrashDiagnosticsSmoke"
 
     files {
         source_dir .. "/Tests/CrashDiagnosticsSmokeMain.cpp",
+        source_dir .. "/Tests/CrashSymbolizer.h",
+        source_dir .. "/Tests/CrashSymbolizer.cpp",
         source_dir .. "/Diagnostics/CrashDiagnostics.h",
         source_dir .. "/Diagnostics/CrashDiagnostics.cpp",
+        source_dir .. "/Diagnostics/CrashSidecar.h",
+        source_dir .. "/Diagnostics/CrashSidecar.cpp",
         source_dir .. "/Diagnostics/CrashDiagnosticsPlatform.h",
         source_dir .. "/Diagnostics/CrashDiagnosticsPlatformStub.cpp",
         source_dir .. "/Diagnostics/WindowsCrashDiagnostics.cpp"

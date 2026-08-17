@@ -143,6 +143,77 @@ function Get-Dumps {
     return @(Get-ChildItem -LiteralPath $Directory -Filter "*.dmp" -File)
 }
 
+function Get-Sidecars {
+    param([string]$Directory)
+    if (-not (Test-Path -LiteralPath $Directory -PathType Container)) {
+        return @()
+    }
+    return @(Get-ChildItem -LiteralPath $Directory `
+        -Filter "*.crash.txt" -File)
+}
+
+function Invoke-OfflineSymbolizer {
+    param(
+        [string]$Name,
+        [string]$Sidecar,
+        [string]$Pdb
+    )
+    $symbolizer = Join-Path $BinRoot `
+        "HelloMine3DCrashDiagnosticsSmoke.exe"
+    $image = Join-Path $BinRoot "HelloMine3D.exe"
+    foreach ($path in @($symbolizer, $image, $Pdb, $Sidecar)) {
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            throw "Offline symbolization input is missing: $path"
+        }
+    }
+
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $symbolizer
+    $startInfo.WorkingDirectory = $BinRoot
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.WindowStyle = `
+        [System.Diagnostics.ProcessWindowStyle]::Hidden
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $quote = {
+        param([string]$Value)
+        return '"' + $Value.Replace('"', '\"') + '"'
+    }
+    $startInfo.Arguments = @(
+        "--symbolize",
+        "--sidecar", (& $quote $Sidecar),
+        "--image", (& $quote $image),
+        "--pdb", (& $quote $Pdb)
+    ) -join " "
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $startInfo
+    if (-not $process.Start()) {
+        throw "Unable to start offline symbolizer case $Name."
+    }
+    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+    $stderrTask = $process.StandardError.ReadToEndAsync()
+    if (-not $process.WaitForExit(30000)) {
+        $process.Kill()
+        $process.WaitForExit()
+        throw "Offline symbolizer case $Name timed out."
+    }
+    $result = [pscustomobject]@{
+        ExitCode = $process.ExitCode
+        Stdout = $stdoutTask.Result
+        Stderr = $stderrTask.Result
+    }
+    $process.Dispose()
+    [System.IO.File]::WriteAllText(
+        (Join-Path $OutputDir "$Name.stdout.log"), $result.Stdout,
+        (New-Object System.Text.UTF8Encoding($false)))
+    [System.IO.File]::WriteAllText(
+        (Join-Path $OutputDir "$Name.stderr.log"), $result.Stderr,
+        (New-Object System.Text.UTF8Encoding($false)))
+    return $result
+}
+
 $OrdinaryCrash = Join-Path $OutputDir "ordinary-crashes"
 $null = Invoke-CrashClientCase `
     -Name "ordinary-validation" `
@@ -154,6 +225,9 @@ $null = Invoke-CrashClientCase `
 if (@(Get-Dumps $OrdinaryCrash).Count -ne 0) {
     throw "Validation-only startup unexpectedly produced a dump."
 }
+if (@(Get-Sidecars $OrdinaryCrash).Count -ne 0) {
+    throw "Validation-only startup unexpectedly produced a sidecar."
+}
 
 $null = Invoke-CrashClientCase `
     -Name "ordinary-window" `
@@ -164,6 +238,9 @@ $null = Invoke-CrashClientCase `
     -ExpectSuccess $true
 if (@(Get-Dumps $OrdinaryCrash).Count -ne 0) {
     throw "Ordinary real-window startup unexpectedly produced a dump."
+}
+if (@(Get-Sidecars $OrdinaryCrash).Count -ne 0) {
+    throw "Ordinary real-window startup unexpectedly produced a sidecar."
 }
 
 $ControlledSave = Join-Path $OutputDir "controlled-save"
@@ -183,6 +260,43 @@ $dumps = @(Get-Dumps $ControlledCrash)
 if ($dumps.Count -ne 1 -or $dumps[0].Length -le 0) {
     throw "Controlled crash must produce exactly one non-empty dump; found $($dumps.Count)."
 }
+$sidecars = @(Get-Sidecars $ControlledCrash)
+if ($sidecars.Count -ne 1 -or $sidecars[0].Length -le 0) {
+    throw "Controlled crash must produce exactly one non-empty sidecar; found $($sidecars.Count)."
+}
+$sidecarText = Get-Content -LiteralPath $sidecars[0].FullName -Raw
+foreach ($secret in @($RepoRoot, $ControlledSave, $ControlledCrash,
+                       $env:USERPROFILE)) {
+    if (-not [string]::IsNullOrWhiteSpace($secret) -and
+        $sidecarText.Contains($secret)) {
+        throw "Crash sidecar leaks a local absolute path."
+    }
+}
+if (-not $sidecarText.Contains("schema 1") -or
+    -not $sidecarText.Contains("upload_enabled 0") -or
+    -not $sidecarText.Contains("build_identity pdb-")) {
+    throw "Crash sidecar is missing its version, build identity or upload policy."
+}
+
+$matchingSymbols = Invoke-OfflineSymbolizer `
+    -Name "matching-symbols" `
+    -Sidecar $sidecars[0].FullName `
+    -Pdb (Join-Path $BinRoot "HelloMine3D.pdb")
+if ($matchingSymbols.ExitCode -ne 0 -or
+    -not $matchingSymbols.Stdout.Contains(
+        "[CRASH_SYMBOLIZER] status=PASS") -or
+    -not $matchingSymbols.Stdout.Contains("triggerControlledCrash")) {
+    throw "Matching symbols did not resolve a controlled project frame: $($matchingSymbols.Stderr)"
+}
+
+$wrongSymbols = Invoke-OfflineSymbolizer `
+    -Name "wrong-symbols" `
+    -Sidecar $sidecars[0].FullName `
+    -Pdb (Join-Path $BinRoot "HelloMine3DWorldRuntimeSmoke.pdb")
+if ($wrongSymbols.ExitCode -eq 0 -or
+    -not $wrongSymbols.Stderr.Contains("symbol-identity-mismatch")) {
+    throw "Wrong symbols were not rejected with an explicit mismatch."
+}
 $worldMetadata = Join-Path $ControlledSave "world.meta"
 if (-not (Test-Path -LiteralPath $worldMetadata -PathType Leaf) -or
     (Get-Item -LiteralPath $worldMetadata).Length -le 0) {
@@ -199,6 +313,9 @@ $null = Invoke-CrashClientCase `
 $dumpsAfterValidation = @(Get-Dumps $ControlledCrash)
 if ($dumpsAfterValidation.Count -ne 1) {
     throw "Post-crash validation unexpectedly changed the dump count."
+}
+if (@(Get-Sidecars $ControlledCrash).Count -ne 1) {
+    throw "Post-crash validation unexpectedly changed the sidecar count."
 }
 $pending = @(
     Get-ChildItem -LiteralPath $ControlledSave -Recurse -Force |
@@ -223,6 +340,10 @@ $summary = @(
     "controlled_exit_code=$($controlledResult.ExitCode)",
     "controlled_dump_count=1",
     "controlled_dump_bytes=$($dumps[0].Length)",
+    "controlled_sidecar_count=1",
+    "controlled_sidecar_bytes=$($sidecars[0].Length)",
+    "matching_symbolization=PASS",
+    "wrong_symbol_rejection=PASS",
     "post_crash_world_validation=PASS",
     "pending_save_candidates=0"
 )

@@ -56,9 +56,13 @@ alpha_journey_flags 0
 
 `HelloMine3DWorldRuntimeSmoke` 的 G6 用例从 `WorldManagementService` 创建并打开世界，沿
 正常 API 完成十步，核对木镐/石镐耐久、受等级限制的铁矿掉落、自然生物战斗、物理拾取、
-资源守恒、保存、重开和非法标志拒绝。版本 3 迁移样本证明旧库存格式和空旅程状态一起升级；
+资源守恒、保存、重开和非法标志拒绝。版本 3 迁移样本固定在
+`tools/fixtures/alpha/world-v3-empty-journey.meta`，证明旧库存格式和空旅程状态一起升级；
 随机种子样本证明新世界从第一步开始。
 
 G6 关闭要求 Debug/Release 相关目标均无编译错误，世界目录、事务、备份和 420 项运行时
 断言全部通过，隐藏验证客户端与三帧客户端正常退出。真人输入、正式发行包、长稳和最终性能
 预算仍按计划后置；它们不改变本合同中的旅程和存档语义。
+
+G6 后的旅程、迁移夹具、性能参考和崩溃诊断开发基线见
+`docs/alpha-development-checkpoint-v1.md`。

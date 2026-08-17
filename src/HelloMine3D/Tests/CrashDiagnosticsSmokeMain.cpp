@@ -1,4 +1,6 @@
 #include "../Diagnostics/CrashDiagnostics.h"
+#include "../Diagnostics/CrashSidecar.h"
+#include "CrashSymbolizer.h"
 
 #include <chrono>
 #include <cstdlib>
@@ -72,8 +74,13 @@ namespace
     }
 }
 
-int main()
+int main(int argc, char** argv)
 {
+    if (argc > 1 && std::string(argv[1]) == "--symbolize")
+    {
+        return runCrashSymbolizerCommand(argc, argv);
+    }
+
     TestSuite suite;
     const fs::path root = fs::temp_directory_path() /
         ("hello-mine-crash-contract-" +
@@ -180,6 +187,49 @@ int main()
 #endif
     suite.check("H1/ordinary-install-produces-no-dump", installContract,
                 install.error);
+
+    CrashSidecar sidecar;
+    sidecar.dumpFile = "HelloMine3D-fixture.dmp";
+    sidecar.moduleName = "HelloMine3D.exe";
+    sidecar.pdbGuid = "0123456789abcdef0123456789abcdef";
+    sidecar.pdbAge = 1;
+    sidecar.buildIdentity =
+        crashBuildIdentity(sidecar.pdbGuid, sidecar.pdbAge);
+    sidecar.moduleTimestamp = 1;
+    sidecar.moduleImageSize = 4096;
+    sidecar.exceptionCode = 0xe0424d33u;
+    sidecar.exceptionRva = 0;
+    sidecar.symbolProbeRva = 128;
+    sidecar.threadId = 7;
+    const std::string serialized = serializeCrashSidecar(sidecar);
+    CrashSidecar parsed;
+    std::string sidecarError;
+    suite.check("H2/sidecar-roundtrip-is-versioned-and-sanitized",
+                parseCrashSidecar(serialized, parsed, &sidecarError) &&
+                    parsed.buildIdentity == sidecar.buildIdentity &&
+                    serialized.find(root.u8string()) == std::string::npos &&
+                    serialized.find("upload_enabled 0") !=
+                        std::string::npos,
+                sidecarError);
+
+    const std::string pathLeak =
+        serialized.substr(0, serialized.find("dump_file")) +
+        "dump_file \"C:\\\\Users\\\\person\\\\dump.dmp\"\n" +
+        serialized.substr(serialized.find("module_name"));
+    suite.check("H2/sidecar-rejects-personal-paths",
+                !parseCrashSidecar(pathLeak, parsed, &sidecarError));
+    suite.check("H2/sidecar-rejects-unknown-fields",
+                !parseCrashSidecar(serialized + "mystery 1\n", parsed,
+                                   &sidecarError));
+    std::string mismatched = serialized;
+    const std::size_t identity = mismatched.find(sidecar.buildIdentity);
+    if (identity != std::string::npos)
+    {
+        mismatched.replace(identity, sidecar.buildIdentity.size(),
+                           "pdb-ffffffffffffffffffffffffffffffff-1");
+    }
+    suite.check("H2/sidecar-rejects-mismatched-build-identity",
+                !parseCrashSidecar(mismatched, parsed, &sidecarError));
 
     fs::remove_all(root, cleanupError);
     return suite.finish();

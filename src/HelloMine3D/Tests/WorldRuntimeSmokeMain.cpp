@@ -3850,22 +3850,14 @@ void caseToolMiningProgression()
     const std::filesystem::path legacyPath =
         std::filesystem::path(legacyDirectory) / "world.meta";
     {
+        std::ifstream fixture(
+            ResourcePaths::join(
+                ResourcePaths::projectRoot(),
+                "tools/fixtures/alpha/world-v3-empty-journey.meta"),
+            std::ios::binary);
         std::ofstream legacy(legacyPath,
                              std::ios::binary | std::ios::trunc);
-        legacy << "version 3\n"
-               << "world_id g3-legacy\n"
-               << "world_name \"G3 Legacy\"\n"
-               << "seed " << kValidationSeed << '\n'
-               << "created_utc " << LegacyWorldTimestampUtc << '\n'
-               << "last_played_utc " << LegacyWorldTimestampUtc << '\n'
-               << "last_build validation\n"
-               << "spawn 0 0 0\nworld_time 0\n"
-               << "generator ClassicOverWorld\nplayer_present 1\n"
-               << "player_position 0 0 0\nplayer_rotation 0 0 0\n"
-               << "player_held 0\ninventory_count 1\n"
-               << "inventory_slot "
-               << static_cast<int>(Material::ID::Stone)
-               << " 3\nactor_count 0\n";
+        legacy << fixture.rdbuf();
     }
     WorldSave legacySave(legacyDirectory);
     WorldSaveData legacyData;

@@ -32,8 +32,10 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 | `docs/runtime-settings-contract-v1.md` | G4 pause, settings draft, versioned persistence and live-apply contract. |
 | `docs/audio-feedback-contract-v1.md` | G5 audio definitions, event ownership, playback, degradation and validation contract. |
 | `docs/playable-alpha-contract-v1.md` | G6 ten-step player journey, version-4 persistence and regression contract. |
+| `docs/alpha-development-checkpoint-v1.md` | Frozen post-G6 journey, migration, performance and crash-diagnostics development baseline. |
 | `docs/operation-performance-timing-contract-v1.md` | Q2 bounded startup, world-entry, save, backup and restore timing contract. |
 | `docs/crash-diagnostics-contract-v1.md` | H1 Windows local-minidump backend, trigger and validation contract. |
+| `docs/crash-sidecar-contract-v1.md` | H2 sanitized sidecar schema and exact-identity offline symbolization contract. |
 | `docs/thread-sanitizer-validation.md` | R4 native Clang ThreadSanitizer gate for the background loader. |
 | `docs/render-regression-smoke.md` | Non-intrusive render screenshot smoke. |
 | `docs/performance-baseline.md` | Non-intrusive frame timing and chunk counter baseline. |
@@ -52,7 +54,8 @@ R3 physical-input acceptance still closes the remaining D2, D4 and D6
 `Verify` states, but it is intentionally deferred while the project prioritizes
 the player-facing gameplay loop. K4 world entry, G2 crafting, G3 tool
 progression, G4 pause/settings, G5 audio feedback and the G6 playable Alpha
-journey are complete; the Alpha development checkpoint is the current batch.
+journey are complete. The Alpha development checkpoint is also complete; N1
+goal guidance is the current batch, followed by N2 smelting and iron progression.
 
 Stage 8 is now planned around sustainable play and reliable releases. Its
 16-item K/H/Q/G scope adds durable world management and recovery, local
@@ -101,13 +104,19 @@ handler and controlled post-save first-frame crash are implemented. The target
 Windows Release harness runs in a hidden background window, writes one non-empty
 local dump, reopens the published save and confirms that no pending save
 candidate remains; upload stays disabled.
+The Alpha checkpoint adds a strict path-free sidecar and an offline symbol
+probe with exact EXE/PDB GUID-age matching. The tracked Alpha performance scene
+has a conservative Windows hidden baseline plus a passing repeat; the other six
+Q1 release scenes and full arbitrary-dump stack symbolization remain open. See
+`docs/alpha-development-checkpoint-v1.md` and
+`docs/crash-sidecar-contract-v1.md`.
 
 The Windows build blocker is closed: every game-logic target that compiles the
 crash backend inherits `dbghelp.lib`. The full Debug/Release gate, thirteen
 targets, 346-check runtime stack, resource/startup diagnostics and clean package
-all pass. Formal performance budgets and physical-input evidence remain later
-quality-stage work while the Alpha development checkpoint freezes the new
-journey, migration and performance references.
+all pass. The Alpha journey, version-3 migration sample, first approved Alpha
+budget and H2 sidecar skeleton are now frozen. Remaining release-scene budgets,
+full symbolization and physical-input evidence stay in the later quality stage.
 
 Native macOS acceptance (B3) is complete on an Apple M1 Pro through the full
 Debug/Release Xcode gate. R4 is also complete: the native arm64 Apple Clang

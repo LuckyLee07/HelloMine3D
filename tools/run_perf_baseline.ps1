@@ -19,6 +19,7 @@ param(
     [double]$MinimumSimulationTickHz = 19.0,
     [double]$MaximumSimulationTickHz = 21.0,
     [switch]$VerticalSliceFixture,
+    [switch]$HiddenWindow,
     [switch]$StopExisting,
     [switch]$KeepAlive
 )
@@ -329,7 +330,13 @@ if ([string]::IsNullOrWhiteSpace($SceneId)) {
 
 $OgreConfigPath = Join-Path $BinDir "Mine.cfg"
 $VsyncValue = Read-ConfigValue -Path $OgreConfigPath -Key "VSync"
-$VsyncRegime = if ($VsyncValue -match '^(?i:yes|true|on|1)$') { "on" } else { "off" }
+$VsyncRegime = if ($HiddenWindow) {
+    "hidden-offscreen"
+} elseif ($VsyncValue -match '^(?i:yes|true|on|1)$') {
+    "on"
+} else {
+    "off"
+}
 
 $ProcessStdoutPath = Join-Path $OutputDir "process.stdout.log"
 $ProcessStderrPath = Join-Path $OutputDir "process.stderr.log"
@@ -344,7 +351,7 @@ Remove-Item -LiteralPath $FramesPath -Force -ErrorAction SilentlyContinue
 Write-Host "[PERF_BASELINE] runId=$RunId"
 Write-Host "[PERF_BASELINE] exe=$ExePath"
 Write-Host "[PERF_BASELINE] outputDir=$OutputDir"
-Write-Host "[PERF_BASELINE] warmupMs=$WarmupMs durationMs=$DurationMs noActivate=true"
+Write-Host "[PERF_BASELINE] warmupMs=$WarmupMs durationMs=$DurationMs noActivate=true hidden=$($HiddenWindow.IsPresent.ToString().ToLowerInvariant())"
 Write-Host "[PERF_BASELINE] saveDir=$SaveDir"
 Write-Host "[PERF_BASELINE] window=$WindowX,$WindowY ${WindowWidth}x$WindowHeight noActivate=true"
 if (-not [string]::IsNullOrWhiteSpace($Seed)) { Write-Host "[PERF_BASELINE] seed=$Seed" }
@@ -391,18 +398,24 @@ if (-not [string]::IsNullOrWhiteSpace($WorldTime)) {
 if ($VerticalSliceFixture) {
     $envValues["HELLOMINE3D_VERTICAL_SLICE_FIXTURE"] = "1"
 }
+if ($HiddenWindow) {
+    $envValues["HELLOMINE3D_WINDOW_HIDDEN"] = "1"
+}
 
 $process = $null
 Set-ProcessEnvironment -Values $envValues -Body {
-    $script:CapturedProcess = Start-Process -FilePath $ExePath -WorkingDirectory $BinDir -WindowStyle Minimized -RedirectStandardOutput $ProcessStdoutPath -RedirectStandardError $ProcessStderrPath -PassThru
+    $windowStyle = if ($HiddenWindow) { "Hidden" } else { "Minimized" }
+    $script:CapturedProcess = Start-Process -FilePath $ExePath -WorkingDirectory $BinDir -WindowStyle $windowStyle -RedirectStandardOutput $ProcessStdoutPath -RedirectStandardError $ProcessStderrPath -PassThru
 }
 $process = $script:CapturedProcess
 $script:CapturedProcess = $null
 Write-Host "[PERF_BASELINE] started pid=$($process.Id)"
 
 try {
-    $handle = Wait-MainWindowHandle -Process $process -TimeoutMs $StartupTimeoutMs
-    Show-WindowNoActivate -WindowHandle $handle -X $WindowX -Y $WindowY -Width $WindowWidth -Height $WindowHeight
+    if (-not $HiddenWindow) {
+        $handle = Wait-MainWindowHandle -Process $process -TimeoutMs $StartupTimeoutMs
+        Show-WindowNoActivate -WindowHandle $handle -X $WindowX -Y $WindowY -Width $WindowWidth -Height $WindowHeight
+    }
     Start-Sleep -Milliseconds $SettleMs
 
     $deadline = (Get-Date).AddMilliseconds($StartupTimeoutMs + $WarmupMs + $DurationMs + 10000)
@@ -483,6 +496,7 @@ try {
         "comparison_driver=$driver",
         "comparison_vsync_regime=$VsyncRegime",
         "comparison_window=${WindowWidth}x$WindowHeight",
+        "comparison_window_visibility=$(if ($HiddenWindow) { 'hidden' } else { 'visible-no-activate' })",
         "comparison_fullscreen=$fullscreen",
         "comparison_fov=$fov",
         "comparison_resource_manifest_sha256=$manifestHash",

@@ -1,9 +1,10 @@
 # Local Crash Diagnostics Contract v1
 
 H1 establishes a local-only Windows minidump boundary. The implementation is
-present and the portable policy is verified as of 2026-08-17; H1 remains
-`Doing` until the controlled Release crash harness passes on the target Windows
-machine.
+present and verified on target Windows as of 2026-08-17; the controlled Release
+crash, post-crash save reopen and no-upload boundary all pass, so H1 is `Done`.
+H2's sanitized sidecar and offline single-frame symbol skeleton are specified
+separately in `docs/crash-sidecar-contract-v1.md`.
 
 ## Backend audit and selection
 
@@ -80,7 +81,7 @@ not install a compatible dump backend.
 
 ## Verification
 
-`HelloMine3DCrashDiagnosticsSmoke` freezes 12 renderer-independent assertions:
+`HelloMine3DCrashDiagnosticsSmoke` freezes 16 renderer-independent assertions:
 
 - stable defaults and trigger names;
 - exact trigger parsing and invalid-value rejection;
@@ -88,6 +89,8 @@ not install a compatible dump backend.
 - equal, parent and child save/crash overlap rejection;
 - non-empty project-root enforcement;
 - platform install identity and zero dumps during an ordinary smoke exit.
+- sidecar roundtrip, path sanitization, unknown-field rejection and mismatched
+  build-identity rejection.
 
 The target-Windows Release harness is:
 
@@ -97,19 +100,23 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -ExePath bin\HelloMine3D.exe
 ```
 
-It runs ordinary validation-only and three-frame real-window cases with zero
+It runs ordinary validation-only and three-frame hidden-window cases with zero
 dumps, then runs the controlled first-frame crash in isolated directories. It
-requires a non-zero exit, exactly one non-empty `.dmp`, the pre-crash active
-world publication marker, a successful validation-only reopen of the same
-world, no pending save candidates and no additional dump on that reopen. The
-full Windows build gate invokes this harness only after the Release rebuild.
+requires a non-zero exit, exactly one non-empty `.dmp` and one sanitized
+`.crash.txt`, the pre-crash active-world publication marker, a successful
+validation-only reopen of the same world, no pending save candidates and no
+additional dump on that reopen. It also resolves the tracked probe with the
+matching PDB and requires an explicit rejection for a wrong PDB. The full
+Windows build gate invokes this harness only after the Release rebuild.
 
-Current portable evidence is the complete macOS Debug/Release gate at
-`build/xcode-validation-20260817075257`: 31-project graph validation, 13 test
-targets per configuration, both 12/0 H1 runs, validation-only startup and real
-Cocoa window startup. The Windows minidump size, exit code and post-crash world
-reopen evidence are intentionally still missing; no macOS result is treated as
-a substitute.
+Current Windows evidence is a 127,425-byte Release dump with a non-zero
+controlled exit, successful save reopen, no pending candidate and no upload.
+The matching EXE/PDB resolves a current-project linker symbol containing
+`triggerControlledCrash`; the current incremental-link PDB has no source line,
+so the tool reports `source=unknown:0`. A wrong PDB returns exit code 3 and
+`symbol-identity-mismatch`. Debug/Release both pass 16/16 portable assertions
+and both hidden client modes exit 0.
 
-H2 sidecars/symbolization and H3 next-start/package UX remain out of scope until
-the H1 Windows harness closes this platform evidence gap.
+H2 still has an open productization gap for arbitrary-dump full stack walking
+and symbol archive workflow. H3 next-start/package UX remains separate and
+open; neither gap changes H1's completed status.

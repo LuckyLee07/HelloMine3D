@@ -395,14 +395,14 @@ gameplay baselines required to close Q1. Generated samples remain ignored.
 
 ## Stage-8 Budget Contract v1
 
-`tools/performance-contract-v1.json` now freezes comparison schema 3 and the
-six Q1 scene ids below before K/G systems change their workloads. The JSON is
+`tools/performance-contract-v1.json` now freezes comparison schema 3 and seven
+Q1 scene ids before K/G/N systems change their workloads. The JSON is
 the single source for required identity, metrics, phase ordering, exact-count
 compatibility, residency tolerance and budget field names. Both comparator
 frontends consume that contract; later tasks must not copy its rules into a
 new script or invent a looser threshold to close their own regression.
 
-The six tracked `*.baseline.summary.txt` files under
+Six of the seven tracked `*.baseline.summary.txt` files under
 `tools/fixtures/performance/` are synthetic contract fixtures. Their
 `fixture-windows-target-v1` limits prove comparison behavior only and are not
 approved product budgets. A real schema-3 baseline is valid only when it names
@@ -418,6 +418,20 @@ from returning `PASS`.
 | backup restore | catalogue scan, candidate copy, validation and publish durations plus bytes read/written | exact backup generation/version/size and destination storage class |
 | fast streaming | chunk request-to-visible latency percentiles, queue peak, mesh progress, frame P95/P99/long frames and memory | fixed movement path/speed, view distance, seed, final residency and VSync regime |
 | scaled gameplay | frame/update/render percentiles, main-thread max stall, actor/item/crop/chest counts, memory/handles and cap events | versioned population fixture, fixed tick count, world seed and identical save state |
+| Alpha playable | frame P95/P99/long frames, startup usable, entry controllable/stall, save total, residency, actor count and resident terrain bytes | exact Windows Release GPU/driver, hidden-offscreen regime, 1600×900 window, no packs, G6 fixture/save format, seed, view distance and final residency |
+
+The seventh fixture,
+`tools/fixtures/performance/q1-alpha-playable-v1.baseline.summary.txt`, is an
+approved real Windows Release development baseline rather than a synthetic
+contract sample. Its tracked repeat is
+`docs/baselines/alpha-windows-hidden-v1.repeat.summary.txt`; R1 returns `PASS`.
+The baseline/repeat P95 values are `26.939/28.557 ms`, P99 values are
+`33.782/38.435 ms`, and frames over 50 ms are `2/4`. Absolute limits are 2000
+ms startup, 1500 ms controllable entry, 1200 ms entry stall, 150 ms save and
+30,000,000 resident terrain bytes, with exactly five actors. This approves one
+development scene only; the other six target-Windows product budgets remain
+open. Selection rationale and hashes are recorded in
+`docs/alpha-development-checkpoint-v1.md`.
 
 Q2 now supplies the first four scene families' operation-side phase values.
 `OperationPerformanceTiming` uses the same `HELLO_PERF_CAPTURE` switch as the
@@ -445,14 +459,14 @@ Schema-3 comparator rules:
 6. K/G changes that affect persistence or population also repeat the formal R2
    soak; a short performance capture cannot replace long-session evidence.
 
-`python3 tools/validate_perf_comparison.py` derives 433 schema-3 cases from
-the six tracked baselines. It removes every required key/metric, violates every
+`python3 tools/validate_perf_comparison.py` derives 524 schema-3 cases from
+the seven tracked baselines. It removes every required key/metric, violates every
 positive/integer/range/phase rule, crosses each absolute budget, changes every
 identity, exceeds residency tolerance and exercises the inherited frame
-thresholds. Together with eight schema-1/2 compatibility cases, all 441 pass
-on macOS. The Xcode gate runs this verifier before generating projects. The
-native PowerShell comparator and Windows gate use the same JSON; their next
-target-Windows run remains required evidence.
+thresholds. Together with eight schema-1/2 compatibility cases, all 532 pass.
+The Xcode gate runs this verifier before generating projects. The native
+PowerShell comparator passes 36 schema-1/2/3 outcome cases against the same
+JSON.
 
 Schema 3 treats `comparison_build_id` as required provenance rather than a
 compatibility key, so a candidate commit can be compared to its approved
