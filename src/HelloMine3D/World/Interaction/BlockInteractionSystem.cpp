@@ -19,7 +19,7 @@ bool isReplaceable(BlockId id)
 bool BlockInteractionSystem::breakBlock(World &world, Player &player,
                                         const glm::vec3 &location)
 {
-    if (player.hasOpenContainer()) {
+    if (player.hasOpenContainer() || player.hasOpenCrafting()) {
         return false;
     }
     const int x = World::toBlockCoord(location.x);
@@ -61,7 +61,7 @@ bool BlockInteractionSystem::breakBlock(World &world, Player &player,
 bool BlockInteractionSystem::placeBlock(World &world, Player &player,
                                         const glm::vec3 &location)
 {
-    if (player.hasOpenContainer()) {
+    if (player.hasOpenContainer() || player.hasOpenCrafting()) {
         return false;
     }
     const int x = World::toBlockCoord(location.x);

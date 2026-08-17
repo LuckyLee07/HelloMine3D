@@ -180,6 +180,28 @@ class ChestBlockBehavior final : public BlockBehavior {
     }
 };
 
+class WorkbenchBlockBehavior final : public BlockBehavior {
+  public:
+    void onBroken(World &, Player &player,
+                  const glm::ivec3 &position,
+                  const ChunkBlock &) const override
+    {
+        if (player.getOpenWorkbench() &&
+            player.getOpenWorkbench()->x == position.x &&
+            player.getOpenWorkbench()->y == position.y &&
+            player.getOpenWorkbench()->z == position.z) {
+            player.closeCrafting();
+        }
+    }
+
+    void onUse(World &, Player &player,
+               const glm::ivec3 &position,
+               const ChunkBlock &) const override
+    {
+        player.openCrafting(3, position);
+    }
+};
+
 std::string makeStringId(const std::string &fileName)
 {
     std::string id = "hellomine:";
@@ -264,6 +286,8 @@ BlockDatabase::BlockDatabase()
     addBlock(BlockId::WheatCrop, "WheatCrop",
              std::make_unique<WheatCropBlockBehavior>(
                  BlockMetadata::WheatCrop::Mature));
+    addBlock(BlockId::Workbench, "Workbench",
+             std::make_unique<WorkbenchBlockBehavior>());
 }
 
 BlockDatabase &BlockDatabase::get()

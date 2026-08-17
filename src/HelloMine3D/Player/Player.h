@@ -9,6 +9,10 @@
 #include "PlayerController.h"
 
 class World;
+class CraftingSession;
+class RecipeRegistry;
+struct CraftingPreview;
+struct CraftingCommitResult;
 
 using PlayerInventorySlot = InventorySlotState;
 
@@ -40,10 +44,22 @@ class Player : public Entity {
     int getInventorySlotCount() const;
     int getInventoryCapacity(const Material &material) const;
     int removeInventoryItem(int slot, int amount);
+    CraftingPreview previewCrafting(
+        const CraftingSession &session,
+        const RecipeRegistry &recipes) const;
+    CraftingCommitResult commitCrafting(
+        CraftingSession &session, const RecipeRegistry &recipes,
+        const CraftingPreview &expected, int craftCount);
     void openContainer(const glm::ivec3 &containerPosition);
     void closeContainer() noexcept;
     bool hasOpenContainer() const noexcept;
     const std::optional<glm::ivec3> &getOpenContainer() const noexcept;
+    void openCrafting(int gridSize,
+                      std::optional<glm::ivec3> workbenchPosition = {});
+    void closeCrafting() noexcept;
+    bool hasOpenCrafting() const noexcept;
+    int getCraftingGridSize() const noexcept;
+    const std::optional<glm::ivec3> &getOpenWorkbench() const noexcept;
     bool isFlying() const noexcept;
     bool isSneaking() const noexcept;
     glm::vec3 getInterpolatedPosition(float alpha) const noexcept;
@@ -60,6 +76,8 @@ class Player : public Entity {
 
     Inventory m_inventory;
     std::optional<glm::ivec3> m_openContainer;
+    std::optional<glm::ivec3> m_openWorkbench;
+    int m_craftingGridSize = 0;
     PlayerController m_controller;
     PlayerInputState m_input;
     glm::vec3 m_previousPosition{0.f};

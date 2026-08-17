@@ -1,10 +1,14 @@
 #include "Player.h"
 
+#include "../Item/CraftingSession.h"
+#include "../Item/RecipeRegistry.h"
+
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <utility>
 
 #include "../World/World.h"
 
@@ -55,8 +59,22 @@ int Player::removeInventoryItem(int slot, int amount)
     return m_inventory.removeFromSlot(slot, amount);
 }
 
+CraftingPreview Player::previewCrafting(
+    const CraftingSession &session, const RecipeRegistry &recipes) const
+{
+    return session.preview(recipes, m_inventory);
+}
+
+CraftingCommitResult Player::commitCrafting(
+    CraftingSession &session, const RecipeRegistry &recipes,
+    const CraftingPreview &expected, int craftCount)
+{
+    return session.commit(recipes, m_inventory, expected, craftCount);
+}
+
 void Player::openContainer(const glm::ivec3 &containerPosition)
 {
+    closeCrafting();
     m_openContainer = containerPosition;
 }
 
@@ -73,6 +91,38 @@ bool Player::hasOpenContainer() const noexcept
 const std::optional<glm::ivec3> &Player::getOpenContainer() const noexcept
 {
     return m_openContainer;
+}
+
+void Player::openCrafting(
+    int gridSize, std::optional<glm::ivec3> workbenchPosition)
+{
+    closeContainer();
+    m_craftingGridSize =
+        gridSize == CraftingSession::WorkbenchGridSize
+            ? CraftingSession::WorkbenchGridSize
+            : CraftingSession::PlayerGridSize;
+    m_openWorkbench = std::move(workbenchPosition);
+}
+
+void Player::closeCrafting() noexcept
+{
+    m_craftingGridSize = 0;
+    m_openWorkbench.reset();
+}
+
+bool Player::hasOpenCrafting() const noexcept
+{
+    return m_craftingGridSize != 0;
+}
+
+int Player::getCraftingGridSize() const noexcept
+{
+    return m_craftingGridSize;
+}
+
+const std::optional<glm::ivec3> &Player::getOpenWorkbench() const noexcept
+{
+    return m_openWorkbench;
 }
 
 bool Player::isFlying() const noexcept
@@ -118,6 +168,7 @@ void Player::applySaveState(const PlayerSaveState &state)
     m_coyoteSeconds = 0.f;
     resetInterpolation();
     m_inventory.applySaveState(state.inventory, state.heldItem);
+    closeCrafting();
 }
 
 void Player::applyInput(const PlayerInputState &input)

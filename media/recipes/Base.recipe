@@ -1,5 +1,11 @@
 # HelloMine3D recipe registry v1
 
+recipe hellomine:workbench shaped
+row hellomine:oak_bark hellomine:oak_bark
+row hellomine:oak_bark hellomine:oak_bark
+output hellomine:workbench 1
+end
+
 recipe hellomine:chest shaped
 row hellomine:oak_bark hellomine:oak_bark hellomine:oak_bark
 row hellomine:oak_bark _ hellomine:oak_bark

@@ -19,6 +19,8 @@
 
 #include "../Diagnostics/RuntimeDebugOptions.h"
 #include "../Item/Material.h"
+#include "../Item/CraftingSession.h"
+#include "../Item/RecipeRegistry.h"
 #include "../Player/Player.h"
 #include "../Sandbox/GameApplicationFlow.h"
 #include "../Util/ResourcePaths.h"
@@ -258,6 +260,7 @@ class OgreUserInterface::Impl
             case GameApplicationState::Playing:
                 drawHud();
                 drawContainer();
+                drawCrafting();
                 if (showDebugPanel)
                 {
                     drawDebugPanels();
@@ -616,7 +619,7 @@ class OgreUserInterface::Impl
         const ImGuiIO &io = ImGui::GetIO();
         const ImVec2 center(io.DisplaySize.x * 0.5f,
                             io.DisplaySize.y * 0.5f);
-        if (!player->hasOpenContainer())
+        if (!player->hasOpenContainer() && !player->hasOpenCrafting())
         {
             ImDrawList *foreground = ImGui::GetForegroundDrawList();
             const ImU32 crosshairColour = IM_COL32(255, 255, 255, 230);
@@ -694,7 +697,7 @@ class OgreUserInterface::Impl
     void drawContainer()
     {
         if (player == nullptr || !player->hasOpenContainer() ||
-            world == nullptr)
+            player->hasOpenCrafting() || world == nullptr)
         {
             return;
         }
@@ -775,6 +778,156 @@ class OgreUserInterface::Impl
         if (!open)
         {
             player->closeContainer();
+        }
+    }
+
+    void drawCrafting()
+    {
+        if (player == nullptr || !player->hasOpenCrafting())
+        {
+            craftingSession.reset();
+            return;
+        }
+        const int gridSize = player->getCraftingGridSize();
+        if (craftingSession == nullptr ||
+            craftingSession->gridSize() != gridSize)
+        {
+            craftingSession = std::make_unique<CraftingSession>(gridSize);
+            selectedCraftingMaterial = Material::ID::Nothing;
+            craftingMessage.clear();
+        }
+
+        const ImGuiIO &io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(
+            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.48f),
+            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2(690.0f, 520.0f), ImGuiCond_Always);
+        bool open = true;
+        const char *title =
+            gridSize == CraftingSession::WorkbenchGridSize
+                ? "Workbench Crafting"
+                : "Player Crafting";
+        if (ImGui::Begin(title, &open,
+                         ImGuiWindowFlags_NoCollapse |
+                             ImGuiWindowFlags_NoResize |
+                             ImGuiWindowFlags_NoSavedSettings))
+        {
+            ImGui::TextUnformatted(
+                "Choose an inventory material, fill the virtual grid, then craft.");
+            ImGui::TextUnformatted(
+                "Grid previews never remove items; right-click a cell to clear it.");
+            ImGui::Separator();
+
+            const PlayerSaveState state = player->getSaveState();
+            ImGui::TextUnformatted("Inventory materials");
+            for (std::size_t index = 0; index < state.inventory.size();
+                 ++index)
+            {
+                if (index > 0)
+                {
+                    ImGui::SameLine();
+                }
+                const InventorySlotState &slot = state.inventory[index];
+                const Material &material =
+                    Material::toMaterial(slot.materialId);
+                const std::string label =
+                    (slot.amount > 0 ? material.name : "Empty") + " x" +
+                    std::to_string(slot.amount) + "##craft-source-" +
+                    std::to_string(index);
+                if (ImGui::Button(label.c_str(), ImVec2(122.0f, 46.0f)) &&
+                    slot.amount > 0)
+                {
+                    selectedCraftingMaterial = slot.materialId;
+                }
+            }
+            ImGui::Text("Selected: %s",
+                        Material::toMaterial(selectedCraftingMaterial)
+                            .name.c_str());
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Clear selection"))
+            {
+                selectedCraftingMaterial = Material::ID::Nothing;
+            }
+
+            ImGui::Separator();
+            ImGui::Text("%dx%d input grid", gridSize, gridSize);
+            for (int index = 0; index < craftingSession->cellCount();
+                 ++index)
+            {
+                if (index % gridSize != 0)
+                {
+                    ImGui::SameLine();
+                }
+                const InventorySlotState &cell =
+                    craftingSession->cell(index);
+                const Material &material =
+                    Material::toMaterial(cell.materialId);
+                const std::string label =
+                    (cell.amount > 0 ? material.name : "Empty") +
+                    "##craft-cell-" + std::to_string(index);
+                if (ImGui::Button(label.c_str(), ImVec2(145.0f, 52.0f)) &&
+                    selectedCraftingMaterial != Material::ID::Nothing)
+                {
+                    craftingSession->setCell(
+                        index, selectedCraftingMaterial);
+                }
+                if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+                {
+                    craftingSession->clearCell(index);
+                }
+            }
+            if (ImGui::Button("Clear grid"))
+            {
+                craftingSession->clear();
+            }
+
+            const CraftingPreview preview = player->previewCrafting(
+                *craftingSession, runtimeRecipeRegistry());
+            ImGui::Separator();
+            if (!preview.recipeId.empty())
+            {
+                const Material &output =
+                    Material::toMaterial(preview.outputMaterialId);
+                ImGui::Text("Recipe: %s", preview.recipeId.c_str());
+                ImGui::Text("Output: %s x%d | maximum crafts: %d",
+                            output.name.c_str(), preview.outputCount,
+                            preview.maxCrafts);
+            }
+            ImGui::TextWrapped("%s", preview.message.c_str());
+            ImGui::BeginDisabled(!preview.ready());
+            if (ImGui::Button("Craft one", ImVec2(150.0f, 38.0f)))
+            {
+                const CraftingCommitResult committed =
+                    player->commitCrafting(
+                        *craftingSession, runtimeRecipeRegistry(), preview,
+                        1);
+                craftingMessage = committed.message;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Craft maximum", ImVec2(170.0f, 38.0f)))
+            {
+                const CraftingCommitResult committed =
+                    player->commitCrafting(
+                        *craftingSession, runtimeRecipeRegistry(), preview,
+                        preview.maxCrafts);
+                craftingMessage = committed.message;
+            }
+            ImGui::EndDisabled();
+            ImGui::SameLine();
+            if (ImGui::Button("Close", ImVec2(110.0f, 38.0f)))
+            {
+                open = false;
+            }
+            if (!craftingMessage.empty())
+            {
+                ImGui::TextWrapped("%s", craftingMessage.c_str());
+            }
+        }
+        ImGui::End();
+        if (!open)
+        {
+            player->closeCrafting();
+            craftingSession.reset();
         }
     }
 
@@ -934,6 +1087,9 @@ class OgreUserInterface::Impl
     World *world = nullptr;
     GameApplicationFlow *flow = nullptr;
     WorldManagementService *management = nullptr;
+    std::unique_ptr<CraftingSession> craftingSession;
+    Material::ID selectedCraftingMaterial = Material::ID::Nothing;
+    std::string craftingMessage;
     std::vector<WorldCatalogueEntry> worlds;
     std::vector<DeletedWorldInfo> deletedWorlds;
     std::vector<WorldBackupInfo> backups;
@@ -1048,7 +1204,8 @@ bool OgreUserInterface::wantsKeyboardInput() const
 {
     return m_impl->flow->state() != GameApplicationState::Playing ||
            (m_impl->player != nullptr &&
-            m_impl->player->hasOpenContainer()) ||
+            (m_impl->player->hasOpenContainer() ||
+             m_impl->player->hasOpenCrafting())) ||
            ImGui::GetIO().WantCaptureKeyboard;
 }
 
@@ -1056,7 +1213,8 @@ bool OgreUserInterface::wantsMouseInput() const
 {
     return m_impl->flow->state() != GameApplicationState::Playing ||
            (m_impl->player != nullptr &&
-            m_impl->player->hasOpenContainer()) ||
+            (m_impl->player->hasOpenContainer() ||
+             m_impl->player->hasOpenCrafting())) ||
            ImGui::GetIO().WantCaptureMouse;
 }
 

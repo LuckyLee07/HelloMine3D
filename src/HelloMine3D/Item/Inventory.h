@@ -2,12 +2,23 @@
 #define INVENTORY_H_INCLUDED
 
 #include <vector>
+#include <cstdint>
 
 #include "ItemStack.h"
 
 struct InventorySlotState {
     Material::ID materialId = Material::ID::Nothing;
     int amount = 0;
+
+    bool operator==(const InventorySlotState &other) const noexcept
+    {
+        return materialId == other.materialId && amount == other.amount;
+    }
+
+    bool operator!=(const InventorySlotState &other) const noexcept
+    {
+        return !(*this == other);
+    }
 };
 
 class Inventory {
@@ -18,6 +29,14 @@ class Inventory {
     bool removeFromSelected(int amount = 1);
     int removeFromSlot(int index, int amount);
     int capacityFor(const Material &material) const;
+    int count(Material::ID materialId) const noexcept;
+    std::uint64_t revision() const noexcept;
+    bool canExchange(const std::vector<InventorySlotState> &consumed,
+                     const Material &produced,
+                     int producedAmount) const;
+    bool exchange(const std::vector<InventorySlotState> &consumed,
+                  const Material &produced, int producedAmount,
+                  std::uint64_t expectedRevision);
 
     ItemStack &getSelectedStack();
     const ItemStack &getSelectedStack() const;
@@ -39,6 +58,7 @@ class Inventory {
 
     std::vector<ItemStack> m_slots;
     int m_selectedSlot = 0;
+    std::uint64_t m_revision = 1;
 };
 
 #endif // INVENTORY_H_INCLUDED

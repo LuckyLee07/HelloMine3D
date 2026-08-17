@@ -23,6 +23,7 @@ namespace
         "hellomine:chest",
         "hellomine:wheat_seeds",
         "hellomine:wheat",
+        "hellomine:workbench",
     }};
 }
 
@@ -51,6 +52,8 @@ const Material Material::CHEST_BLOCK(ID::Chest, 99, true, "Chest");
 const Material Material::WHEAT_SEEDS(ID::WheatSeeds, 99, true,
                                      "Wheat Seeds");
 const Material Material::WHEAT(ID::Wheat, 99, false, "Wheat");
+const Material Material::WORKBENCH_BLOCK(ID::Workbench, 99, true,
+                                         "Workbench");
 
 Material::Material(Material::ID id, int maxStack, bool isBlock,
                    std::string &&name)
@@ -115,6 +118,9 @@ BlockId Material::toBlockID() const
         case WheatSeeds:
             return BlockId::WheatCrop;
 
+        case Workbench:
+            return BlockId::Workbench;
+
         default:
             return BlockId::NUM_TYPES;
     }
@@ -170,6 +176,9 @@ const Material &Material::toMaterial(BlockId id)
 
         case BlockId::WheatCrop:
             return WHEAT_SEEDS;
+
+        case BlockId::Workbench:
+            return WORKBENCH_BLOCK;
 
         default:
             return NOTHING;
@@ -229,6 +238,9 @@ const Material &Material::toMaterial(Material::ID id)
 
         case Wheat:
             return WHEAT;
+
+        case Workbench:
+            return WORKBENCH_BLOCK;
 
         default:
             return NOTHING;

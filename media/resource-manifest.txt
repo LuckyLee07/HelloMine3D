@@ -19,6 +19,7 @@ block|media/blocks/Stone.block
 block|media/blocks/TallGrass.block
 block|media/blocks/Water.block
 block|media/blocks/WheatCrop.block
+block|media/blocks/Workbench.block
 font|media/fonts/rs.ttf
 recipe|media/recipes/Base.recipe
 resource-script|media/ogre/HelloMine3D.material

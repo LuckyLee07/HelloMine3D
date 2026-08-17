@@ -22,6 +22,7 @@ int Inventory::addItem(const Material &material, int amount)
         if (slot.getMaterial().id == material.id && !slot.isEmpty()) {
             remaining = slot.add(remaining);
             if (remaining == 0) {
+                ++m_revision;
                 return amount;
             }
         }
@@ -32,12 +33,17 @@ int Inventory::addItem(const Material &material, int amount)
             slot = ItemStack(material, 0);
             remaining = slot.add(remaining);
             if (remaining == 0) {
+                ++m_revision;
                 return amount;
             }
         }
     }
 
-    return amount - remaining;
+    const int added = amount - remaining;
+    if (added > 0) {
+        ++m_revision;
+    }
+    return added;
 }
 
 bool Inventory::removeFromSelected(int amount)
@@ -52,6 +58,7 @@ bool Inventory::removeFromSelected(int amount)
     }
 
     stack.remove(amount);
+    ++m_revision;
     return true;
 }
 
@@ -65,6 +72,9 @@ int Inventory::removeFromSlot(int index, int amount)
     ItemStack &stack = m_slots[index];
     const int removed = std::min(amount, stack.getNumInStack());
     stack.remove(removed);
+    if (removed > 0) {
+        ++m_revision;
+    }
     return removed;
 }
 
@@ -84,6 +94,124 @@ int Inventory::capacityFor(const Material &material) const
         }
     }
     return capacity;
+}
+
+int Inventory::count(Material::ID materialId) const noexcept
+{
+    int total = 0;
+    for (const ItemStack &slot : m_slots) {
+        if (!slot.isEmpty() && slot.getMaterial().id == materialId) {
+            total += slot.getNumInStack();
+        }
+    }
+    return total;
+}
+
+std::uint64_t Inventory::revision() const noexcept
+{
+    return m_revision;
+}
+
+bool Inventory::canExchange(
+    const std::vector<InventorySlotState> &consumed,
+    const Material &produced, int producedAmount) const
+{
+    if (produced.id == Material::ID::Nothing || producedAmount <= 0) {
+        return false;
+    }
+    std::vector<ItemStack> candidate = m_slots;
+    for (const InventorySlotState &requirement : consumed) {
+        if (requirement.materialId == Material::ID::Nothing ||
+            requirement.amount <= 0) {
+            return false;
+        }
+        int remaining = requirement.amount;
+        for (ItemStack &slot : candidate) {
+            if (slot.isEmpty() ||
+                slot.getMaterial().id != requirement.materialId) {
+                continue;
+            }
+            const int removed =
+                std::min(remaining, slot.getNumInStack());
+            slot.remove(removed);
+            remaining -= removed;
+            if (remaining == 0) {
+                break;
+            }
+        }
+        if (remaining != 0) {
+            return false;
+        }
+    }
+
+    int remainingOutput = producedAmount;
+    for (ItemStack &slot : candidate) {
+        if (!slot.isEmpty() && slot.getMaterial().id == produced.id) {
+            remainingOutput = slot.add(remainingOutput);
+            if (remainingOutput == 0) {
+                return true;
+            }
+        }
+    }
+    for (ItemStack &slot : candidate) {
+        if (slot.isEmpty()) {
+            slot = ItemStack(produced, 0);
+            remainingOutput = slot.add(remainingOutput);
+            if (remainingOutput == 0) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool Inventory::exchange(
+    const std::vector<InventorySlotState> &consumed,
+    const Material &produced, int producedAmount,
+    std::uint64_t expectedRevision)
+{
+    if (expectedRevision != m_revision ||
+        !canExchange(consumed, produced, producedAmount)) {
+        return false;
+    }
+    std::vector<ItemStack> candidate = m_slots;
+    for (const InventorySlotState &requirement : consumed) {
+        int remaining = requirement.amount;
+        for (ItemStack &slot : candidate) {
+            if (slot.isEmpty() ||
+                slot.getMaterial().id != requirement.materialId) {
+                continue;
+            }
+            const int removed =
+                std::min(remaining, slot.getNumInStack());
+            slot.remove(removed);
+            remaining -= removed;
+            if (remaining == 0) {
+                break;
+            }
+        }
+    }
+    int remainingOutput = producedAmount;
+    for (ItemStack &slot : candidate) {
+        if (!slot.isEmpty() && slot.getMaterial().id == produced.id) {
+            remainingOutput = slot.add(remainingOutput);
+        }
+    }
+    for (ItemStack &slot : candidate) {
+        if (remainingOutput == 0) {
+            break;
+        }
+        if (slot.isEmpty()) {
+            slot = ItemStack(produced, 0);
+            remainingOutput = slot.add(remainingOutput);
+        }
+    }
+    if (remainingOutput != 0) {
+        return false;
+    }
+    m_slots.swap(candidate);
+    ++m_revision;
+    return true;
 }
 
 ItemStack &Inventory::getSelectedStack()
@@ -188,6 +316,7 @@ void Inventory::applySaveState(const std::vector<InventorySlotState> &slots,
 
     ensureUsableSlots();
     setSelectedSlot(selectedSlot);
+    ++m_revision;
 }
 
 void Inventory::ensureUsableSlots()

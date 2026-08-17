@@ -34,6 +34,7 @@
 #include "../Diagnostics/RuntimePerformanceCapture.h"
 #include "../Diagnostics/RuntimeProfiler.h"
 #include "../Item/RecipeRegistry.h"
+#include "../Item/CraftingSession.h"
 #include "../Player/Player.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/GameApplicationFlow.h"
@@ -600,6 +601,15 @@ namespace
                         "Container fixture failed to open the chest.");
                 }
                 m_containerFixturePlaced = true;
+            }
+
+            if (isTrueValue(std::getenv(
+                    "HELLOMINE3D_CRAFTING_FIXTURE")))
+            {
+                m_worldPlayer->addItem(Material::OAK_BARK_BLOCK, 8);
+                m_worldPlayer->addItem(Material::GLASS_BLOCK, 2);
+                m_worldPlayer->openCrafting(
+                    CraftingSession::WorkbenchGridSize);
             }
 
             if (isTrueValue(std::getenv(
@@ -1579,6 +1589,12 @@ namespace
             if (event.key == OIS::KC_ESCAPE)
             {
                 if (m_worldPlayer != nullptr &&
+                    m_worldPlayer->hasOpenCrafting())
+                {
+                    m_worldPlayer->closeCrafting();
+                    return true;
+                }
+                if (m_worldPlayer != nullptr &&
                     m_worldPlayer->hasOpenContainer())
                 {
                     m_worldPlayer->closeContainer();
@@ -1619,6 +1635,14 @@ namespace
                     break;
                 case OIS::KC_C:
                     m_resetMeshes = true;
+                    break;
+                case OIS::KC_E:
+                    if (m_worldPlayer != nullptr &&
+                        !m_worldPlayer->hasOpenContainer())
+                    {
+                        m_worldPlayer->openCrafting(
+                            CraftingSession::PlayerGridSize);
+                    }
                     break;
                 case OIS::KC_DOWN:
                     m_hotbarDelta = 1;

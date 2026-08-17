@@ -36,6 +36,7 @@
 #include "../Diagnostics/RuntimeDebugOptions.h"
 #include "../Diagnostics/TerrainBufferMetrics.h"
 #include "../Item/Material.h"
+#include "../Item/CraftingSession.h"
 #include "../Item/ContainerInventory.h"
 #include "../Player/Player.h"
 #include "../RuntimeConfig.h"
@@ -3237,6 +3238,67 @@ void caseChestContainer()
 }
 
 // ---------------------------------------------------------------------------
+// G2 - player and workbench crafting focus boundary
+// ---------------------------------------------------------------------------
+void caseWorkbenchCrafting()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    const auto directory = freshSaveDirectory("workbench_crafting");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+
+    const glm::ivec3 workbenchPosition{8, 100, 8};
+    player.addItem(Material::WORKBENCH_BLOCK, 1);
+    const bool placed = BlockInteractionSystem::placeBlock(
+        world, player, glm::vec3(workbenchPosition));
+    check("G2/workbench-material-places-appended-block-id",
+          placed &&
+              static_cast<BlockId>(world.getBlock(
+                  workbenchPosition.x, workbenchPosition.y,
+                  workbenchPosition.z).id) == BlockId::Workbench);
+
+    const bool opened = BlockInteractionSystem::useBlock(
+        world, player, glm::vec3(workbenchPosition));
+    check("G2/workbench-use-opens-three-by-three-session",
+          opened && player.hasOpenCrafting() &&
+              player.getCraftingGridSize() ==
+                  CraftingSession::WorkbenchGridSize &&
+              player.getOpenWorkbench().has_value());
+
+    player.addItem(Material::DIRT_BLOCK, 1);
+    check("G2/crafting-focus-blocks-world-actions",
+          !BlockInteractionSystem::placeBlock(
+              world, player, glm::vec3(9.f, 100.f, 8.f)) &&
+              !BlockInteractionSystem::breakBlock(
+                  world, player, glm::vec3(workbenchPosition)));
+
+    const ChunkBlock workbenchBlock = world.getBlock(
+        workbenchPosition.x, workbenchPosition.y, workbenchPosition.z);
+    BlockDatabase::get()
+        .getDefinition(BlockId::Workbench)
+        .behavior->onBroken(world, player, workbenchPosition,
+                            workbenchBlock);
+    const bool closedByLifecycle = !player.hasOpenCrafting();
+    const bool broken = BlockInteractionSystem::breakBlock(
+        world, player, glm::vec3(workbenchPosition));
+    check("G2/closed-workbench-can-be-broken-and-recovered",
+          closedByLifecycle && broken && !player.hasOpenCrafting() &&
+              static_cast<BlockId>(world.getBlock(
+                  workbenchPosition.x, workbenchPosition.y,
+                  workbenchPosition.z).id) == BlockId::Air);
+
+    player.openCrafting(CraftingSession::PlayerGridSize);
+    PlayerSaveState state = player.getSaveState();
+    player.applySaveState(state);
+    check("G2/player-crafting-is-two-by-two-and-not-persisted",
+          !player.hasOpenCrafting() &&
+              player.getCraftingGridSize() == 0 &&
+              !player.getOpenWorkbench().has_value());
+}
+
+// ---------------------------------------------------------------------------
 // D3 - deterministic and bounded live-world mob population
 // ---------------------------------------------------------------------------
 void caseNaturalMobPopulation()
@@ -4949,6 +5011,7 @@ int main()
         caseUnloadPersistence();
         caseBlockEntityLifecycle();
         caseChestContainer();
+        caseWorkbenchCrafting();
         caseNaturalMobPopulation();
         caseCombatAndRespawn();
         caseWheatCropLoop();

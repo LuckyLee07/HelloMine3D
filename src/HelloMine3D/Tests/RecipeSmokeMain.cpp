@@ -1,4 +1,5 @@
 #include "../Item/RecipeRegistry.h"
+#include "../Item/CraftingSession.h"
 #include "../Util/ResourcePackResolver.h"
 
 #include <cstdlib>
@@ -91,7 +92,12 @@ end
                                          Material::toStringId(expected), actual) &&
                         actual == expected;
         }
-        check("G1/material-ids-roundtrip", roundTrip);
+        check("G1/material-ids-roundtrip",
+              roundTrip &&
+                  static_cast<int>(Material::ID::Workbench) ==
+                      static_cast<int>(Material::ID::Count) - 1 &&
+                  static_cast<int>(BlockId::Workbench) ==
+                      static_cast<int>(BlockId::NUM_TYPES) - 1);
         Material::ID unchanged = Material::ID::Stone;
         check("G1/unknown-material-id-rejected",
               !Material::tryParseStringId("hellomine:not_registered",
@@ -593,6 +599,163 @@ end
                   },
                   "Missing or empty effective recipe resource"));
     }
+
+    RecipeRegistry craftingRecipes()
+    {
+        RecipeRegistry registry;
+        registry.freeze({{"crafting.recipe", oneRecipe(
+            "recipe hellomine:glass_upgrade shapeless\n"
+            "input hellomine:glass 1\n"
+            "output hellomine:glass_borderless 1\nend\n"
+            "recipe hellomine:compact shaped\n"
+            "row hellomine:stone\nrow hellomine:dirt\n"
+            "output hellomine:grass 1\nend\n"
+            "recipe hellomine:chest shaped\n"
+            "row hellomine:oak_bark hellomine:oak_bark hellomine:oak_bark\n"
+            "row hellomine:oak_bark _ hellomine:oak_bark\n"
+            "row hellomine:oak_bark hellomine:oak_bark hellomine:oak_bark\n"
+            "output hellomine:chest 1\nend\n")}});
+        return registry;
+    }
+
+    void caseCraftingSession()
+    {
+        const RecipeRegistry recipes = craftingRecipes();
+        Inventory inventory;
+        inventory.addItem(Material::GLASS_BLOCK, 3);
+        CraftingSession session(CraftingSession::PlayerGridSize);
+        session.setCell(0, Material::ID::Glass);
+        const std::vector<InventorySlotState> beforePreview =
+            inventory.getSaveState();
+        const std::uint64_t sessionBefore = session.version();
+        const CraftingPreview preview = session.preview(recipes, inventory);
+        check("G2/preview-is-pure-and-counts-maximum",
+              preview.ready() && preview.maxCrafts == 3 &&
+                  preview.outputMaterialId ==
+                      Material::ID::GlassBorderless &&
+                  inventory.getSaveState() == beforePreview &&
+                  session.version() == sessionBefore);
+
+        const CraftingCommitResult crafted =
+            session.commit(recipes, inventory, preview, 1);
+        check("G2/single-craft-consumes-and-produces-atomically",
+              crafted.succeeded() && crafted.craftsCompleted == 1 &&
+                  inventory.count(Material::ID::Glass) == 2 &&
+                  inventory.count(Material::ID::GlassBorderless) == 1);
+        check("G2/stale-session-preview-is-rejected",
+              session.commit(recipes, inventory, preview, 1).status ==
+                  CraftingCommitStatus::StaleSession);
+
+        const CraftingPreview beforeInventoryChange =
+            session.preview(recipes, inventory);
+        inventory.addItem(Material::DIRT_BLOCK, 1);
+        const std::vector<InventorySlotState> afterInventoryChange =
+            inventory.getSaveState();
+        check("G2/stale-inventory-preview-is-rejected-without-mutation",
+              session.commit(recipes, inventory, beforeInventoryChange, 1)
+                      .status == CraftingCommitStatus::StaleInventory &&
+                  inventory.getSaveState() == afterInventoryChange);
+
+        const CraftingPreview batch = session.preview(recipes, inventory);
+        const CraftingCommitResult batchResult =
+            session.commit(recipes, inventory, batch, batch.maxCrafts);
+        check("G2/batch-craft-reuses-bounded-atomic-rule",
+              batch.maxCrafts == 2 && batchResult.succeeded() &&
+                  inventory.count(Material::ID::Glass) == 0 &&
+                  inventory.count(Material::ID::GlassBorderless) == 3);
+
+        Inventory missing;
+        const CraftingPreview missingPreview =
+            session.preview(recipes, missing);
+        check("G2/insufficient-ingredients-are-reported",
+              missingPreview.status ==
+                      CraftingPreviewStatus::MissingIngredients &&
+                  missingPreview.maxCrafts == 0);
+
+        Inventory full;
+        full.applySaveState(
+            {{Material::ID::Glass, 2},
+             {Material::ID::Dirt, 99},
+             {Material::ID::Stone, 99},
+             {Material::ID::Sand, 99},
+             {Material::ID::Wheat, 99}},
+            0);
+        const std::vector<InventorySlotState> fullBefore =
+            full.getSaveState();
+        const CraftingPreview fullPreview = session.preview(recipes, full);
+        check("G2/full-output-inventory-fails-without-consuming-input",
+              fullPreview.status == CraftingPreviewStatus::OutputFull &&
+                  !session.commit(recipes, full, fullPreview, 1)
+                       .succeeded() &&
+                  full.getSaveState() == fullBefore);
+
+        Inventory freedSlot;
+        freedSlot.applySaveState(
+            {{Material::ID::Glass, 1},
+             {Material::ID::Dirt, 99},
+             {Material::ID::Stone, 99},
+             {Material::ID::Sand, 99},
+             {Material::ID::Wheat, 99}},
+            0);
+        const CraftingPreview freedPreview =
+            session.preview(recipes, freedSlot);
+        check("G2/consumed-stack-can-free-output-capacity",
+              freedPreview.ready() && freedPreview.maxCrafts == 1 &&
+                  session.commit(recipes, freedSlot, freedPreview, 1)
+                      .succeeded() &&
+                  freedSlot.count(Material::ID::GlassBorderless) == 1);
+
+        CraftingSession playerGrid(CraftingSession::PlayerGridSize);
+        for (int index = 0; index < playerGrid.cellCount(); ++index) {
+            playerGrid.setCell(index, Material::ID::OakBark);
+        }
+        Inventory bark;
+        bark.addItem(Material::OAK_BARK_BLOCK, 8);
+        check("G2/player-grid-rejects-three-by-three-recipe",
+              playerGrid.preview(recipes, bark).status ==
+                  CraftingPreviewStatus::NoMatch);
+
+        CraftingSession workbench(CraftingSession::WorkbenchGridSize);
+        for (int index = 0; index < workbench.cellCount(); ++index) {
+            if (index != 4) {
+                workbench.setCell(index, Material::ID::OakBark);
+            }
+        }
+        const CraftingPreview chest = workbench.preview(recipes, bark);
+        check("G2/workbench-matches-three-by-three-recipe",
+              chest.ready() && chest.recipeId == "hellomine:chest" &&
+                  chest.maxCrafts == 1);
+
+        CraftingSession offset(CraftingSession::WorkbenchGridSize);
+        offset.setCell(5, Material::ID::Stone);
+        offset.setCell(8, Material::ID::Dirt);
+        Inventory compactInputs;
+        compactInputs.addItem(Material::STONE_BLOCK, 1);
+        compactInputs.addItem(Material::DIRT_BLOCK, 1);
+        check("G2/shaped-recipe-normalizes-grid-offset",
+              offset.preview(recipes, compactInputs).recipeId ==
+                  "hellomine:compact");
+
+        const std::vector<InventorySlotState> beforeClear =
+            compactInputs.getSaveState();
+        offset.clear();
+        check("G2/closing-virtual-grid-never-holds-player-items",
+              compactInputs.getSaveState() == beforeClear &&
+                  offset.preview(recipes, compactInputs).status ==
+                      CraftingPreviewStatus::NoMatch);
+
+        Inventory reloaded;
+        reloaded.applySaveState(inventory.getSaveState(), 0);
+        check("G2/crafted-output-survives-inventory-reload",
+              reloaded.count(Material::ID::GlassBorderless) == 3 &&
+                  reloaded.count(Material::ID::Glass) == 0);
+        check("G2/invalid-grid-and-batch-values-are-rejected",
+              !session.setCell(-1, Material::ID::Stone) &&
+                  !session.setCell(0, Material::ID::Nothing) &&
+                  !session.commit(recipes, inventory,
+                                  session.preview(recipes, inventory), 0)
+                       .succeeded());
+    }
 }
 
 int main()
@@ -607,7 +770,8 @@ int main()
     caseDuplicates();
     caseAtomicFailureAndLimits();
     caseFrozenBaseResourceView();
-    constexpr int ExpectedChecks = 40;
+    caseCraftingSession();
+    constexpr int ExpectedChecks = 54;
     if (checks != ExpectedChecks) {
         ++failures;
         std::cout << "[RECIPE_TEST] FAIL G1/expected-check-count"
