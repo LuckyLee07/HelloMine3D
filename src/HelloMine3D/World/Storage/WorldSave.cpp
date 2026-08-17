@@ -1,5 +1,7 @@
 #include "WorldSave.h"
 
+#include "../../Gameplay/AlphaJourney.h"
+
 #include "WorldCatalogue.h"
 
 #include "../../Item/ToolRegistry.h"
@@ -30,6 +32,9 @@ namespace fs = std::filesystem;
 constexpr std::size_t MaxStoredInventorySlots = 4096;
 constexpr std::size_t MaxStoredActors = 65536;
 constexpr int CurrentInventoryFormat = 2;
+static_assert(WorldSaveFormatVersion ==
+                  WorldCatalogue::CurrentSaveFormatVersion,
+              "World save and catalogue versions must match.");
 
 bool createDirectory(const std::string &path)
 {
@@ -165,6 +170,7 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
     std::size_t expectedInventoryCount = 0;
     bool actorCountSeen = false;
     std::size_t expectedActorCount = 0;
+    bool alphaJourneySeen = false;
     const auto claimSingleton = [&](const std::string &key) {
         return singletonFields.emplace(key).second;
     };
@@ -223,6 +229,14 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
                 !(input >> loaded.activeGenerator)) {
                 return fail("invalid or duplicate generator");
             }
+        }
+        else if (key == "alpha_journey_flags") {
+            if (!claimSingleton(key) ||
+                !(input >> loaded.alphaJourneyFlags) ||
+                !AlphaJourney::validFlags(loaded.alphaJourneyFlags)) {
+                return fail("invalid or duplicate alpha_journey_flags");
+            }
+            alphaJourneySeen = true;
         }
         else if (key == "player_present") {
             int present = 0;
@@ -323,7 +337,7 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
         return fail("actor count does not match records");
     }
 
-    if (loaded.version == WorldSaveFormatVersion) {
+    if (loaded.version >= 3) {
         static const char *const requiredFields[] = {
             "world_id",       "world_name",       "seed",
             "created_utc",    "last_played_utc",  "last_build",
@@ -344,6 +358,10 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
                                                loaded.lastPlayedUtc)) {
             return fail("version-3 identity is invalid");
         }
+    }
+    if ((loaded.version >= 4 && !alphaJourneySeen) ||
+        (loaded.version < 4 && alphaJourneySeen)) {
+        return fail("alpha journey field does not match save version");
     }
 
     if (!finiteVec3(loaded.spawnPoint) ||
@@ -428,12 +446,13 @@ bool WorldSave::save(const WorldSaveData &data,
                      StorageTransactionMetrics *metrics) const
 {
     if (data.version != WorldSaveFormatVersion ||
+        !AlphaJourney::validFlags(data.alphaJourneyFlags) ||
         !WorldCatalogue::isValidWorldId(data.worldId) ||
         !WorldCatalogue::isValidDisplayName(data.worldName) ||
         !WorldCatalogue::isValidBuildIdentity(data.lastBuildIdentity) ||
         !WorldCatalogue::isValidTimestamps(data.createdUtc,
                                            data.lastPlayedUtc)) {
-        std::cerr << "Refusing to save invalid version-3 world identity: "
+        std::cerr << "Refusing to save invalid current world state: "
                   << metadataPath() << '\n';
         return false;
     }
@@ -459,6 +478,7 @@ bool WorldSave::save(const WorldSaveData &data,
     output << '\n';
     output << "world_time " << data.worldTime << '\n';
     output << "generator " << data.activeGenerator << '\n';
+    output << "alpha_journey_flags " << data.alphaJourneyFlags << '\n';
     output << "player_present " << (data.hasPlayerState ? 1 : 0) << '\n';
     output << "player_position ";
     writeVec3(output, data.playerState.position);

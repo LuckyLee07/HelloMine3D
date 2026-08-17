@@ -363,6 +363,8 @@ World::World(const Camera &camera, const Config &config, Player &player,
     runtimeOperationTimings().markLatestActive(
         RuntimeOperationKind::WorldEntry);
     m_playerActor.syncFromPlayer(player);
+    m_alphaJourney = std::make_unique<AlphaJourney>(
+        player, m_eventBus, m_worldSaveData.alphaJourneyFlags, hasSave);
 
     auto playerChunk = getChunkXZ(toBlockCoord(player.position.x),
                                   toBlockCoord(player.position.z));
@@ -895,6 +897,9 @@ void World::tick(int worldTime)
     applyMobContactDamage();
     runRandomTicks(worldTime);
     runNaturalMobPopulation(worldTime);
+    if (m_alphaJourney != nullptr) {
+        m_alphaJourney->update(1.f / 20.f);
+    }
 }
 
 bool World::attackActor(ActorId actorId, float amount)
@@ -932,6 +937,13 @@ float World::getPlayerMaxHealth() const
 glm::vec3 World::getPlayerSpawnPoint() const
 {
     return m_playerSpawnPoint;
+}
+
+AlphaJourneySnapshot World::getAlphaJourneySnapshot() const
+{
+    return m_alphaJourney != nullptr
+               ? m_alphaJourney->snapshot()
+               : AlphaJourneySnapshot{};
 }
 
 void World::applyMobContactDamage()
@@ -1676,6 +1688,8 @@ bool World::saveWorldState()
         m_worldSaveData.playerState = m_player->getSaveState();
         m_worldSaveData.hasPlayerState = true;
     }
+    m_worldSaveData.alphaJourneyFlags =
+        m_alphaJourney != nullptr ? m_alphaJourney->flags() : 0u;
     m_worldSaveData.actors = m_actorManager.collectSaveStates();
 
     StorageTransactionMetrics metrics;

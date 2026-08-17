@@ -38,11 +38,11 @@ Structure roots are likewise selected from the seed and world block
 coordinates. A target chunk scans a six-block origin halo and projects only
 its own structure fragments, so trees and cacti can cross chunk boundaries
 without making generation depend on neighbouring chunk load order.
-World metadata version 3 retains player and live mob/item subtype state while
-adding immutable catalogue identity, creation/last-played timestamps and the
-last-known build identity. The read-only catalogue still discovers version 1/2
-metadata without renaming its directory. Version 1 saves remain readable with
-an empty actor list, and both legacy versions upgrade on the next world save.
+World metadata version 4 retains player and live mob/item subtype state plus
+the version-3 immutable catalogue identity, timestamps and build identity, and
+adds the bounded ten-bit playable-Alpha journey state. The read-only catalogue
+still discovers version 1-3 metadata without renaming its directory. Legacy
+saves default to an empty journey and upgrade on the next world save.
 `World/Storage/StorageTransaction.*` is the common synchronous publication
 boundary for world metadata and binary chunks. It writes a same-directory
 candidate, durably flushes it, validates it through the real format reader and
@@ -67,7 +67,10 @@ callback. The first real behavior advances
 immature tall grass to its mature metadata state; unload and storage reload
 remove and rebuild the index without scanning unrelated blocks.
 
-`Player/`, `Item/`, and `Physics/` are gameplay support modules.
+`Gameplay/` owns the renderer-independent G6 Alpha journey controller. It
+consumes existing domain events and observable inventory state, exposes a HUD
+snapshot and persists only a bounded completion mask; it does not own items,
+blocks or actors. `Player/`, `Item/`, and `Physics/` are gameplay support modules.
 `PlayerInputState` is a platform-independent command value; the Ogre/OIS shell
 collects devices and `PlayerController` applies those commands deterministically.
 Mobs hold a non-owning target supplied by `World`, chase the player within a

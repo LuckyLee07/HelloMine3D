@@ -814,6 +814,50 @@ class OgreUserInterface::Impl
             ImGui::End();
         }
 
+        if (world != nullptr)
+        {
+            const AlphaJourneySnapshot journey =
+                world->getAlphaJourneySnapshot();
+            ImGui::SetNextWindowPos(ImVec2(18.0f, 18.0f),
+                                    ImGuiCond_Always);
+            ImGui::SetNextWindowBgAlpha(0.76f);
+            if (ImGui::Begin(
+                    "##AlphaJourney", nullptr,
+                    ImGuiWindowFlags_NoDecoration |
+                        ImGuiWindowFlags_AlwaysAutoResize |
+                        ImGuiWindowFlags_NoSavedSettings |
+                        ImGuiWindowFlags_NoInputs |
+                        ImGuiWindowFlags_NoFocusOnAppearing |
+                        ImGuiWindowFlags_NoNav))
+            {
+                ImGui::Text("Alpha Journey  %zu / %zu",
+                            journey.completedSteps, journey.totalSteps);
+                ImGui::Separator();
+                ImGui::TextUnformatted(journey.title.c_str());
+                ImGui::TextWrapped("%s", journey.instruction.c_str());
+                if (journey.required > 0)
+                {
+                    const float ratio = std::clamp(
+                        static_cast<float>(journey.progress) /
+                            static_cast<float>(journey.required),
+                        0.0f, 1.0f);
+                    const std::string overlay =
+                        std::to_string(std::min(journey.progress,
+                                                journey.required)) +
+                        " / " + std::to_string(journey.required);
+                    ImGui::ProgressBar(ratio, ImVec2(260.0f, 10.0f),
+                                       overlay.c_str());
+                }
+                if (!journey.completionFeedback.empty())
+                {
+                    ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.45f, 1.0f),
+                                       "%s",
+                                       journey.completionFeedback.c_str());
+                }
+            }
+            ImGui::End();
+        }
+
         const PlayerSaveState state = player->getSaveState();
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y - 18.0f),

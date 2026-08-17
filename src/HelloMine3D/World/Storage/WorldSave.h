@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-inline constexpr int WorldSaveFormatVersion = 3;
+inline constexpr int WorldSaveFormatVersion = 4;
 
 struct WorldSaveData {
     int version = WorldSaveFormatVersion;
@@ -23,6 +23,7 @@ struct WorldSaveData {
     glm::vec3 spawnPoint{0.f};
     float worldTime = 0.f;
     std::string activeGenerator = "ClassicOverWorld";
+    std::uint32_t alphaJourneyFlags = 0;
     bool hasPlayerState = false;
     PlayerSaveState playerState;
     std::vector<ActorSaveState> actors;

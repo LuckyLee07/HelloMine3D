@@ -126,14 +126,14 @@ namespace
         output << "version " << fixture.version << '\n'
                << "world_id " << fixture.id << '\n'
                << "world_name ";
-        if (fixture.version >= WorldCatalogue::CurrentSaveFormatVersion) {
+        if (fixture.version >= 3) {
             output << std::quoted(fixture.name);
         }
         else {
             output << fixture.name;
         }
         output << '\n' << "seed " << fixture.seed << '\n';
-        if (fixture.version >= WorldCatalogue::CurrentSaveFormatVersion) {
+        if (fixture.version >= 3) {
             output << "created_utc " << fixture.created << '\n'
                    << "last_played_utc " << fixture.lastPlayed << '\n'
                    << "last_build " << fixture.build << '\n';
@@ -231,10 +231,11 @@ int main()
                            first[1].id == "world-a" &&
                            first[2].id == "world-z";
         suite.check("K1/multiple-worlds-stable-order", order);
-        suite.check("K1/version-three-fields",
+        suite.check("K1/current-version-fields",
                     first.size() == 3 && first[0].displayName == "Beta World" &&
                         first[0].directoryName == "folder-b" &&
-                        first[0].saveFormatVersion == 3 &&
+                        first[0].saveFormatVersion ==
+                            WorldCatalogue::CurrentSaveFormatVersion &&
                         first[0].seed == 42 &&
                         first[0].createdUtc == 1786838400 &&
                         first[0].lastPlayedUtc == 1786838600 &&
@@ -251,6 +252,23 @@ int main()
                                    }));
         suite.check("K1/enumeration-never-mutates-worlds",
                     before == snapshot(multiple.path()));
+    }
+
+    {
+        TemporaryDirectory previous("previous-v3");
+        previous.create();
+        MetadataFixture version3;
+        version3.version = 3;
+        version3.id = "previous-three";
+        version3.name = "Previous Three";
+        writeMetadata(previous.path(), "stable-v3-folder", version3);
+        const auto entries =
+            WorldCatalogue::enumerate(previous.path().string());
+        suite.check("G6/version-three-catalogue-remains-readable",
+                    entries.size() == 1 &&
+                        entries.front().saveFormatVersion == 3 &&
+                        entries.front().id == version3.id &&
+                        !entries.front().legacyMetadata);
     }
 
     {
@@ -335,7 +353,8 @@ int main()
                            });
     }
 
-    for (const int invalidVersion : {0, 4}) {
+    for (const int invalidVersion :
+         {0, WorldCatalogue::CurrentSaveFormatVersion + 1}) {
         TemporaryDirectory root("version-" +
                                 std::to_string(invalidVersion));
         root.create();

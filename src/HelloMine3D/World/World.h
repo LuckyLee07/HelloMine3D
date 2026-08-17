@@ -31,6 +31,7 @@
 
 #include "../Config.h"
 #include "../Diagnostics/TerrainBufferMetrics.h"
+#include "../Gameplay/AlphaJourney.h"
 
 class Camera;
 class Player;
@@ -136,6 +137,7 @@ class World : public NonCopyable {
     float getPlayerHealth() const;
     float getPlayerMaxHealth() const;
     glm::vec3 getPlayerSpawnPoint() const;
+    AlphaJourneySnapshot getAlphaJourneySnapshot() const;
 
     ChunkManager &getChunkManager();
     ActorManager &getActorManager();
@@ -231,6 +233,7 @@ class World : public NonCopyable {
     WorldSave m_worldSave;
     WorldBackup m_worldBackup;
     WorldSaveData m_worldSaveData;
+    std::unique_ptr<AlphaJourney> m_alphaJourney;
     std::size_t m_worldSaveTransactionCount = 0;
     double m_worldSaveTotalMs = 0.0;
     double m_worldSaveMaxMs = 0.0;

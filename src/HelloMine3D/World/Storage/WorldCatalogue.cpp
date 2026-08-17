@@ -19,7 +19,8 @@ namespace
     constexpr std::int64_t MaximumWorldTimestampUtc = 253402300799;
 
     const std::set<std::string> KnownMetadataKeys = {
-        "actor",          "actor_count",       "created_utc",
+        "actor",          "actor_count",       "alpha_journey_flags",
+        "created_utc",
         "generator",      "inventory_count",   "inventory_format",
         "inventory_slot",
         "last_build",     "last_played_utc",   "player_held",
@@ -247,13 +248,12 @@ namespace
         }
         entry.seed = parseInteger<int>(metadataPath, "seed", fields["seed"]);
 
-        if (entry.saveFormatVersion <
-            WorldCatalogue::CurrentSaveFormatVersion) {
+        if (entry.saveFormatVersion < 3) {
             if (fields.count("created_utc") != 0 ||
                 fields.count("last_played_utc") != 0 ||
                 fields.count("last_build") != 0) {
                 reject(metadataPath,
-                       "legacy metadata contains partial version-3 fields");
+                       "legacy metadata contains partial identity fields");
             }
             entry.createdUtc = LegacyWorldTimestampUtc;
             entry.lastPlayedUtc = LegacyWorldTimestampUtc;

@@ -39,6 +39,7 @@
 #include "../Diagnostics/OperationPerformanceTiming.h"
 #include "../Diagnostics/RuntimeDebugOptions.h"
 #include "../Diagnostics/TerrainBufferMetrics.h"
+#include "../Gameplay/AlphaJourney.h"
 #include "../Item/Material.h"
 #include "../Item/CraftingSession.h"
 #include "../Item/ContainerInventory.h"
@@ -69,6 +70,7 @@
 #include "../World/Generation/Terrain/ClassicOverWorldGenerator.h"
 #include "../World/Storage/ChunkStorage.h"
 #include "../World/Storage/WorldCatalogue.h"
+#include "../World/Storage/WorldManagementService.h"
 #include "../World/Storage/WorldSave.h"
 #include "../World/World.h"
 
@@ -3868,6 +3870,10 @@ void caseToolMiningProgression()
     WorldSave legacySave(legacyDirectory);
     WorldSaveData legacyData;
     const bool legacyLoaded = legacySave.load(legacyData);
+    const int loadedLegacyVersion = legacyData.version;
+    if (legacyLoaded) {
+        legacyData.version = WorldSaveFormatVersion;
+    }
     const bool legacyUpgraded = legacyLoaded && legacySave.save(legacyData);
     std::ifstream upgradedInput(legacyPath, std::ios::binary);
     const std::string upgraded(
@@ -3878,6 +3884,12 @@ void caseToolMiningProgression()
               legacyData.playerState.inventory[0].durability == 0 &&
               upgraded.find("inventory_format 2") != std::string::npos &&
               upgraded.find("inventory_slot 3 3 0") != std::string::npos);
+    check("G6/version-three-migrates-with-empty-alpha-journey",
+          legacyLoaded && loadedLegacyVersion == 3 &&
+              legacyData.alphaJourneyFlags == 0u && legacyUpgraded &&
+              upgraded.find("version 4") != std::string::npos &&
+              upgraded.find("alpha_journey_flags 0") !=
+                  std::string::npos);
 }
 
 // ---------------------------------------------------------------------------
@@ -4771,6 +4783,407 @@ void casePlayableVerticalSlice()
 }
 
 // ---------------------------------------------------------------------------
+// G6 - clean-start Alpha journey through progression, combat and relaunch
+// ---------------------------------------------------------------------------
+void casePlayableAlphaJourney()
+{
+    setEnv("HELLOMINE3D_SEED", "");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+
+    const auto catalogueRoot =
+        freshSaveDirectory("playable_alpha_catalogue");
+    const WorldManagementService management(catalogueRoot);
+    const WorldManagementResult created =
+        management.createWorld("Playable Alpha", kValidationSeed);
+    const WorldManagementResult opened =
+        created.succeeded()
+            ? management.prepareWorldForOpen(created.worldId)
+            : WorldManagementResult{};
+    check("G6/main-menu-service-creates-and-opens-alpha-world",
+          created.succeeded() && opened.succeeded() &&
+              opened.worldId == created.worldId &&
+              std::filesystem::weakly_canonical(opened.directoryPath) ==
+                  std::filesystem::weakly_canonical(created.directoryPath));
+    if (!opened.succeeded()) {
+        return;
+    }
+
+    RecipeRegistry recipes;
+    std::ifstream recipeInput(ResourcePaths::media("recipes/Base.recipe"),
+                              std::ios::binary);
+    std::ostringstream recipeContent;
+    recipeContent << recipeInput.rdbuf();
+    recipes.freeze({{"base.recipe", recipeContent.str()}});
+
+    Config config = makeConfig();
+    Camera camera(config);
+    const glm::ivec3 workbenchPosition{9, 100, 8};
+    const glm::ivec3 ironPosition{8, 100, 10};
+    const std::array<glm::ivec3, 3> stonePositions{{
+        {5, 100, 10}, {6, 100, 10}, {7, 100, 10}}};
+    std::vector<glm::ivec3> oakPositions;
+    for (int x = 4; x <= 14; ++x) {
+        oakPositions.push_back({x, 100, 6});
+    }
+
+    auto countPlayer = [](const Player &player, Material::ID materialId) {
+        int total = 0;
+        for (int slot = 0; slot < player.getInventorySlotCount(); ++slot) {
+            const ItemStack &stack = player.getInventorySlot(slot);
+            if (stack.getMaterial().id == materialId) {
+                total += stack.getNumInStack();
+            }
+        }
+        return total;
+    };
+    auto findPlayerSlot = [](const Player &player,
+                             Material::ID materialId) {
+        for (int slot = 0; slot < player.getInventorySlotCount(); ++slot) {
+            if (player.getInventorySlot(slot).getMaterial().id ==
+                materialId) {
+                return slot;
+            }
+        }
+        return -1;
+    };
+    auto selectPlayerSlot = [](Player &player, int slot) {
+        if (slot < 0) {
+            return false;
+        }
+        PlayerInputState input;
+        input.hotbarSlot = slot;
+        player.applyInput(input);
+        return true;
+    };
+    auto craft = [&recipes](
+                     Player &player, int gridSize,
+                     const std::vector<std::pair<int, Material::ID>> &cells,
+                     Material::ID expectedOutput) {
+        CraftingSession session(gridSize);
+        bool cellsSet = true;
+        for (const auto &cell : cells) {
+            cellsSet = cellsSet &&
+                       session.setCell(cell.first, cell.second);
+        }
+        const CraftingPreview preview =
+            player.previewCrafting(session, recipes);
+        const CraftingCommitResult result = player.commitCrafting(
+            session, recipes, preview, 1);
+        return cellsSet && preview.outputMaterialId == expectedOutput &&
+               result.succeeded() && result.outputAdded == 1;
+    };
+    auto prepareSpawnPads = [](World &world, const glm::vec3 &center,
+                               int spawnEpoch) {
+        for (std::size_t attempt = 0;
+             attempt < World::NaturalMobSpawnAttemptsPerCycle; ++attempt) {
+            const glm::ivec2 offset = World::naturalMobSpawnOffset(
+                world.collectDebugStats().terrainSeed, spawnEpoch, attempt);
+            const int x = World::toBlockCoord(center.x) + offset.x;
+            const int z = World::toBlockCoord(center.z) + offset.y;
+            const VectorXZ chunkPosition = World::getChunkXZ(x, z);
+            if (world.getChunkManager().findChunk(
+                    chunkPosition.x, chunkPosition.z) == nullptr) {
+                continue;
+            }
+            world.setBlock(x, 99, z, BlockId::Stone);
+            world.setBlock(x, 100, z, BlockId::Air);
+            world.setBlock(x, 101, z, BlockId::Air);
+        }
+    };
+
+    std::uint32_t flagsBeforeRelaunch = 0;
+    int stonePickaxeDurability = 0;
+    int ironBeforeRelaunch = 0;
+    int dirtBeforeRelaunch = 0;
+    ActorId defeatedMobId = InvalidActorId;
+    {
+        Player player;
+        World world(camera, config, player, opened.directoryPath, false, 1);
+        const AlphaJourneySnapshot initial =
+            world.getAlphaJourneySnapshot();
+        check("G6/clean-world-starts-with-minimal-wood-guidance",
+              initial.step == AlphaJourneyStep::GatherWood &&
+                  initial.completedSteps == 0 && initial.required ==
+                      AlphaJourney::RequiredOakBark);
+
+        for (int x = 2; x <= 15; ++x) {
+            for (int z = 3; z <= 12; ++z) {
+                world.setBlock(x, 99, z, BlockId::Stone);
+                world.setBlock(x, 100, z, BlockId::Air);
+                world.setBlock(x, 101, z, BlockId::Air);
+            }
+        }
+        for (const glm::ivec3 &position : oakPositions) {
+            world.setBlock(position.x, position.y, position.z,
+                           BlockId::OakBark);
+        }
+        for (const glm::ivec3 &position : stonePositions) {
+            world.setBlock(position.x, position.y, position.z,
+                           BlockId::Stone);
+        }
+        world.setBlock(ironPosition.x, ironPosition.y, ironPosition.z,
+                       BlockId::IronOre);
+        prepareSpawnPads(world, player.position, 1);
+
+        bool gatheredWood = true;
+        for (const glm::ivec3 &position : oakPositions) {
+            gatheredWood = gatheredWood &&
+                BlockInteractionSystem::breakBlock(
+                    world, player,
+                    glm::vec3(position) + glm::vec3(0.5f));
+        }
+        check("G6/gather-eleven-wood-through-break-path",
+              gatheredWood &&
+                  countPlayer(player, Material::ID::OakBark) ==
+                      AlphaJourney::RequiredOakBark &&
+                  world.getAlphaJourneySnapshot().step ==
+                      AlphaJourneyStep::CraftWorkbench);
+
+        player.openCrafting(CraftingSession::PlayerGridSize);
+        const bool workbenchCrafted = craft(
+            player, CraftingSession::PlayerGridSize,
+            {{0, Material::ID::OakBark}, {1, Material::ID::OakBark},
+             {2, Material::ID::OakBark}, {3, Material::ID::OakBark}},
+            Material::ID::Workbench);
+        player.closeCrafting();
+        check("G6/craft-workbench-through-player-grid",
+              workbenchCrafted &&
+                  world.getAlphaJourneySnapshot().step ==
+                      AlphaJourneyStep::PlaceWorkbench);
+
+        const bool workbenchPlaced =
+            selectPlayerSlot(
+                player, findPlayerSlot(player, Material::ID::Workbench)) &&
+            BlockInteractionSystem::placeBlock(
+                world, player,
+                glm::vec3(workbenchPosition) + glm::vec3(0.5f));
+        check("G6/place-workbench-through-world-interaction",
+              workbenchPlaced &&
+                  static_cast<BlockId>(world.getBlock(
+                      workbenchPosition.x, workbenchPosition.y,
+                      workbenchPosition.z).id) == BlockId::Workbench &&
+                  world.getAlphaJourneySnapshot().step ==
+                      AlphaJourneyStep::CraftWoodenPickaxe);
+
+        const bool workbenchOpened = BlockInteractionSystem::useBlock(
+            world, player,
+            glm::vec3(workbenchPosition) + glm::vec3(0.5f));
+        const bool woodenPickaxeCrafted = workbenchOpened && craft(
+            player, CraftingSession::WorkbenchGridSize,
+            {{0, Material::ID::OakBark}, {1, Material::ID::OakBark},
+             {2, Material::ID::OakBark}, {4, Material::ID::OakBark},
+             {7, Material::ID::OakBark}},
+            Material::ID::WoodenPickaxe);
+        player.closeCrafting();
+        check("G6/craft-wooden-pickaxe-at-placed-workbench",
+              woodenPickaxeCrafted &&
+                  world.getAlphaJourneySnapshot().step ==
+                      AlphaJourneyStep::GatherStone);
+
+        const int woodenSlot =
+            findPlayerSlot(player, Material::ID::WoodenPickaxe);
+        bool gatheredStone = selectPlayerSlot(player, woodenSlot);
+        for (const glm::ivec3 &position : stonePositions) {
+            gatheredStone = gatheredStone &&
+                BlockInteractionSystem::breakBlock(
+                    world, player,
+                    glm::vec3(position) + glm::vec3(0.5f));
+        }
+        check("G6/wooden-pickaxe-gathers-stone-and-loses-durability",
+              gatheredStone &&
+                  countPlayer(player, Material::ID::Stone) ==
+                      AlphaJourney::RequiredStone &&
+                  player.getInventorySlot(woodenSlot).getDurability() == 13 &&
+                  world.getAlphaJourneySnapshot().step ==
+                      AlphaJourneyStep::CraftStonePickaxe);
+
+        const bool reopenedWorkbench = BlockInteractionSystem::useBlock(
+            world, player,
+            glm::vec3(workbenchPosition) + glm::vec3(0.5f));
+        const bool stonePickaxeCrafted = reopenedWorkbench && craft(
+            player, CraftingSession::WorkbenchGridSize,
+            {{0, Material::ID::Stone}, {1, Material::ID::Stone},
+             {2, Material::ID::Stone}, {4, Material::ID::OakBark},
+             {7, Material::ID::OakBark}},
+            Material::ID::StonePickaxe);
+        player.closeCrafting();
+        check("G6/craft-stone-pickaxe-through-progression-recipe",
+              stonePickaxeCrafted &&
+                  world.getAlphaJourneySnapshot().step ==
+                      AlphaJourneyStep::GatherIronOre);
+
+        const int stoneSlot =
+            findPlayerSlot(player, Material::ID::StonePickaxe);
+        const bool ironGathered =
+            selectPlayerSlot(player, stoneSlot) &&
+            BlockInteractionSystem::breakBlock(
+                world, player,
+                glm::vec3(ironPosition) + glm::vec3(0.5f));
+        stonePickaxeDurability =
+            stoneSlot >= 0
+                ? player.getInventorySlot(stoneSlot).getDurability()
+                : 0;
+        check("G6/stone-pickaxe-unlocks-iron-drop",
+              ironGathered && stonePickaxeDurability == 31 &&
+                  countPlayer(player, Material::ID::IronOre) == 1 &&
+                  world.getAlphaJourneySnapshot().step ==
+                      AlphaJourneyStep::DefeatMob);
+
+        world.tick(World::NaturalMobSpawnIntervalTicks);
+        const std::vector<ActorSnapshot> encountered =
+            world.collectActorSnapshots();
+        const auto naturalMob = std::min_element(
+            encountered.begin(), encountered.end(),
+            [&player](const ActorSnapshot &left,
+                      const ActorSnapshot &right) {
+                const auto distanceSquared = [&player](
+                                                 const ActorSnapshot &value) {
+                    if (value.type != World::NaturalMobType) {
+                        return std::numeric_limits<float>::max();
+                    }
+                    const float x = value.position.x - player.position.x;
+                    const float z = value.position.z - player.position.z;
+                    return x * x + z * z;
+                };
+                return distanceSquared(left) < distanceSquared(right);
+            });
+        const bool foundNaturalMob =
+            naturalMob != encountered.end() &&
+            naturalMob->type == World::NaturalMobType;
+        if (foundNaturalMob) {
+            defeatedMobId = naturalMob->id;
+        }
+        const bool firstHit = foundNaturalMob &&
+                              world.attackActor(defeatedMobId);
+        int combatTick = World::NaturalMobSpawnIntervalTicks;
+        bool mobReachedPlayer = false;
+        while (firstHit && combatTick < 200 && !mobReachedPlayer) {
+            world.tick(++combatTick);
+            const Actor *target =
+                world.getActorManager().findActor(defeatedMobId);
+            if (target != nullptr) {
+                const float x = target->position.x - player.position.x;
+                const float z = target->position.z - player.position.z;
+                mobReachedPlayer = x * x + z * z <= 1.f;
+            }
+        }
+        const bool lethalHit = firstHit && mobReachedPlayer &&
+                               world.attackActor(defeatedMobId, 6.f);
+        check("G6/natural-mob-is-defeated-through-combat-rules",
+              foundNaturalMob && lethalHit &&
+                  world.getAlphaJourneySnapshot().step ==
+                      AlphaJourneyStep::CollectMobLoot);
+
+        const int dirtBeforePickup =
+            countPlayer(player, Material::ID::Dirt);
+        for (int pickupTick = 0; pickupTick < 11; ++pickupTick) {
+            world.tick(++combatTick);
+        }
+        dirtBeforeRelaunch = countPlayer(player, Material::ID::Dirt);
+        check("G6/physical-mob-drop-is-picked-up",
+              dirtBeforeRelaunch == dirtBeforePickup + 1 &&
+                  world.getAlphaJourneySnapshot().step ==
+                      AlphaJourneyStep::ReopenWorld);
+
+        flagsBeforeRelaunch =
+            world.getAlphaJourneySnapshot().step ==
+                    AlphaJourneyStep::ReopenWorld
+                ? static_cast<std::uint32_t>(
+                      world.getAlphaJourneySnapshot().completedSteps)
+                : 0u;
+        ironBeforeRelaunch =
+            countPlayer(player, Material::ID::IronOre);
+        const int totalBeforeSave =
+            countPlayer(player, Material::ID::WoodenPickaxe) +
+            countPlayer(player, Material::ID::StonePickaxe) +
+            ironBeforeRelaunch + dirtBeforeRelaunch;
+        check("G6/pre-save-state-conserves-tools-ore-and-loot",
+              totalBeforeSave == 4 && flagsBeforeRelaunch == 9u &&
+                  world.getBlock(ironPosition.x, ironPosition.y,
+                                 ironPosition.z).id == 0);
+
+        const bool saved = world.save();
+        WorldSaveData persisted;
+        const bool metadataLoaded =
+            WorldSave(opened.directoryPath).load(persisted);
+        flagsBeforeRelaunch =
+            metadataLoaded ? persisted.alphaJourneyFlags : 0u;
+        check("G6/save-publishes-version-four-alpha-progress",
+              saved && metadataLoaded &&
+                  persisted.version == WorldSaveFormatVersion &&
+                  flagsBeforeRelaunch ==
+                      (AlphaJourney::KnownFlags &
+                       ~(1u << static_cast<unsigned>(
+                           AlphaJourneyStep::ReopenWorld))));
+    }
+
+    const WorldManagementResult reopened =
+        management.prepareWorldForOpen(created.worldId);
+    Player restoredPlayer;
+    World restoredWorld(camera, config, restoredPlayer,
+                        reopened.succeeded() ? reopened.directoryPath
+                                             : opened.directoryPath,
+                        false, 1);
+    const AlphaJourneySnapshot restoredJourney =
+        restoredWorld.getAlphaJourneySnapshot();
+    const int restoredStoneSlot =
+        findPlayerSlot(restoredPlayer, Material::ID::StonePickaxe);
+    const std::vector<ActorSaveState> restoredActors =
+        restoredWorld.getActorManager().collectSaveStates();
+    const bool defeatedMobRestored = std::any_of(
+        restoredActors.begin(), restoredActors.end(),
+        [defeatedMobId](const ActorSaveState &state) {
+            return state.id == defeatedMobId;
+        });
+    check("G6/reopen-completes-journey-and-restores-conserved-state",
+          reopened.succeeded() && restoredJourney.complete() &&
+              restoredJourney.completedSteps == AlphaJourney::StepCount &&
+              restoredStoneSlot >= 0 &&
+              restoredPlayer.getInventorySlot(
+                  restoredStoneSlot).getDurability() ==
+                  stonePickaxeDurability &&
+              countPlayer(restoredPlayer, Material::ID::IronOre) ==
+                  ironBeforeRelaunch &&
+              countPlayer(restoredPlayer, Material::ID::Dirt) ==
+                  dirtBeforeRelaunch &&
+              static_cast<BlockId>(restoredWorld.getBlock(
+                  workbenchPosition.x, workbenchPosition.y,
+                  workbenchPosition.z).id) == BlockId::Workbench &&
+              !defeatedMobRestored);
+
+    const bool completedSaved = restoredWorld.save();
+    WorldSave save(opened.directoryPath);
+    WorldSaveData completeData;
+    const bool completeLoaded = save.load(completeData);
+    WorldSaveData invalidData = completeData;
+    invalidData.alphaJourneyFlags |= (1u << 20u);
+    const bool invalidRejected = !save.save(invalidData);
+    WorldSaveData preservedData;
+    check("G6/invalid-journey-bits-preserve-last-good-save",
+          completedSaved && completeLoaded &&
+              completeData.alphaJourneyFlags == AlphaJourney::KnownFlags &&
+              invalidRejected && save.load(preservedData) &&
+              preservedData.alphaJourneyFlags ==
+                  AlphaJourney::KnownFlags);
+
+    setEnv("HELLOMINE3D_SEED", "");
+    clearDeterministicEnv();
+    const auto randomDirectory =
+        freshSaveDirectory("playable_alpha_random_seed");
+    Player randomPlayer;
+    World randomWorld(camera, config, randomPlayer, randomDirectory,
+                      false, 0);
+    WorldSaveData randomData;
+    check("G6/random-seed-world-starts-with-valid-journey",
+          randomWorld.getAlphaJourneySnapshot().step ==
+                  AlphaJourneyStep::GatherWood &&
+              WorldSave(randomDirectory).load(randomData) &&
+              randomData.version == WorldSaveFormatVersion &&
+              randomData.alphaJourneyFlags == 0u);
+}
+
+// ---------------------------------------------------------------------------
 // S2.3 - versioned chunk format rejects corrupt files
 // ---------------------------------------------------------------------------
 void caseChunkFormatRejection()
@@ -5615,6 +6028,7 @@ int main()
         caseCombatAndRespawn();
         caseWheatCropLoop();
         casePlayableVerticalSlice();
+        casePlayableAlphaJourney();
         caseChunkFormatRejection();
         caseTerrainDeterminism();
         caseTerrainStructures();
