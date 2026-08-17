@@ -19,7 +19,8 @@ enum class ObjectiveType
     DefeatEnemy,
     ReachLocation,
     PickupItem,
-    ReopenWorld
+    ReopenWorld,
+    SmeltItem
 };
 
 struct ObjectiveDefinition

@@ -8,6 +8,7 @@ block|media/blocks/Chest.block
 block|media/blocks/CoalOre.block
 block|media/blocks/DeadShrub.block
 block|media/blocks/Dirt.block
+block|media/blocks/Furnace.block
 block|media/blocks/Glass.block
 block|media/blocks/GlassBorderless.block
 block|media/blocks/Grass.block
@@ -40,5 +41,6 @@ shader|media/ogre/HelloMine3DTerrain.frag
 shader|media/ogre/HelloMine3DTerrain.vert
 shader|media/ogre/HelloMine3DWater.vert
 shape|media/shapes/Cross.shape
+smelting|media/smelting/Base.smelting
 texture|media/textures/DefaultPack.png
 tool|media/tools/Base.tool

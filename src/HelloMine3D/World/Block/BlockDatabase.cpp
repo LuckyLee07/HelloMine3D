@@ -1,7 +1,9 @@
 #include "BlockDatabase.h"
 #include "ChestContainer.h"
+#include "FurnaceContainer.h"
 #include "ChunkBlock.h"
 #include "../../Player/Player.h"
+#include "../../Item/SmeltingRegistry.h"
 #include "../../Sandbox/Events/PlayerEvents.h"
 #include "../World.h"
 
@@ -202,6 +204,45 @@ class WorkbenchBlockBehavior final : public BlockBehavior {
     }
 };
 
+class FurnaceBlockBehavior final : public BlockBehavior {
+  public:
+    void onPlaced(World &world, Player &,
+                  const glm::ivec3 &position, const ChunkBlock &,
+                  const ChunkBlock &) const override
+    {
+        FurnaceContainer::initialize(world, position);
+    }
+
+    void onBroken(World &world, Player &player,
+                  const glm::ivec3 &position,
+                  const ChunkBlock &) const override
+    {
+        if (runtimeSmeltingRegistry().isFrozen()) {
+            FurnaceContainer::spillContents(
+                world, position, runtimeSmeltingRegistry());
+        }
+        else {
+            world.removeBlockEntity(position);
+        }
+        if (player.getOpenContainer() &&
+            player.getOpenContainer()->x == position.x &&
+            player.getOpenContainer()->y == position.y &&
+            player.getOpenContainer()->z == position.z) {
+            FurnaceContainer::close(player);
+        }
+    }
+
+    void onUse(World &world, Player &player,
+               const glm::ivec3 &position,
+               const ChunkBlock &) const override
+    {
+        if (runtimeSmeltingRegistry().isFrozen()) {
+            FurnaceContainer::open(world, player, position,
+                                   runtimeSmeltingRegistry());
+        }
+    }
+};
+
 std::string makeStringId(const std::string &fileName)
 {
     std::string id = "hellomine:";
@@ -292,6 +333,8 @@ BlockDatabase::BlockDatabase()
                  BlockMetadata::WheatCrop::Mature));
     addBlock(BlockId::Workbench, "Workbench",
              std::make_unique<WorkbenchBlockBehavior>());
+    addBlock(BlockId::Furnace, "Furnace",
+             std::make_unique<FurnaceBlockBehavior>());
 }
 
 BlockDatabase &BlockDatabase::get()

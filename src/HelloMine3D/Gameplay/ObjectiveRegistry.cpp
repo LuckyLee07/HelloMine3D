@@ -142,7 +142,8 @@ namespace
                type == ObjectiveType::CraftItem ||
                type == ObjectiveType::PlaceBlock ||
                type == ObjectiveType::BreakBlock ||
-               type == ObjectiveType::PickupItem;
+               type == ObjectiveType::PickupItem ||
+               type == ObjectiveType::SmeltItem;
     }
 
     void validateDefinition(const ObjectiveSource& source,
@@ -534,6 +535,7 @@ const char* ObjectiveRegistry::typeName(ObjectiveType type) noexcept
     case ObjectiveType::ReachLocation: return "reach_location";
     case ObjectiveType::PickupItem: return "pickup_item";
     case ObjectiveType::ReopenWorld: return "reopen_world";
+    case ObjectiveType::SmeltItem: return "smelt_item";
     }
     return "unknown";
 }
@@ -549,7 +551,8 @@ bool ObjectiveRegistry::tryParseType(const std::string& value,
         {"defeat_enemy", ObjectiveType::DefeatEnemy},
         {"reach_location", ObjectiveType::ReachLocation},
         {"pickup_item", ObjectiveType::PickupItem},
-        {"reopen_world", ObjectiveType::ReopenWorld}};
+        {"reopen_world", ObjectiveType::ReopenWorld},
+        {"smelt_item", ObjectiveType::SmeltItem}};
     for (const auto& entry : values)
     {
         if (value == entry.first)

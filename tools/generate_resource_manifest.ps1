@@ -78,6 +78,21 @@ foreach ($objectiveFile in $objectiveFiles) {
     Add-ManifestEntry "objective" $relativeObjective
 }
 
+$smeltingRoot = Join-Path $Root "media\smelting"
+if (-not (Test-Path -LiteralPath $smeltingRoot -PathType Container)) {
+    throw "Smelting resource directory is missing: $smeltingRoot"
+}
+$smeltingFiles = @(Get-ChildItem -LiteralPath $smeltingRoot `
+    -Filter "*.smelting" -File -Recurse)
+if ($smeltingFiles.Count -eq 0) {
+    throw "No base smelting resources were discovered."
+}
+foreach ($smeltingFile in $smeltingFiles) {
+    $relativeSmelting = $smeltingFile.FullName.Substring($Root.Length).TrimStart(
+        [char]'\', [char]'/')
+    Add-ManifestEntry "smelting" $relativeSmelting
+}
+
 $recipeRoot = Join-Path $Root "media\recipes"
 if (-not (Test-Path -LiteralPath $recipeRoot -PathType Container)) {
     throw "Recipe resource directory is missing: $recipeRoot"

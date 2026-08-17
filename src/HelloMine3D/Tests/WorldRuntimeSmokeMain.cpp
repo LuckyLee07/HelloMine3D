@@ -45,6 +45,7 @@
 #include "../Item/CraftingSession.h"
 #include "../Item/ContainerInventory.h"
 #include "../Item/RecipeRegistry.h"
+#include "../Item/SmeltingRegistry.h"
 #include "../Item/ToolRegistry.h"
 #include "../Player/Player.h"
 #include "../RuntimeConfig.h"
@@ -53,12 +54,14 @@
 #include "../Sandbox/Events/CraftingEvents.h"
 #include "../Sandbox/Events/EntityEvents.h"
 #include "../Sandbox/Events/PlayerEvents.h"
+#include "../Sandbox/Events/SmeltingEvents.h"
 #include "../Sandbox/FixedTickScheduler.h"
 #include "../Sandbox/GameApplicationFlow.h"
 #include "../Sandbox/WorldManager.h"
 #include "../Util/ResourcePaths.h"
 #include "../World/Block/BlockBehavior.h"
 #include "../World/Block/ChestContainer.h"
+#include "../World/Block/FurnaceContainer.h"
 #include "../World/Block/BlockDatabase.h"
 #include "../World/Block/BlockTextureCoordinates.h"
 #include "../World/Interaction/BlockSelection.h"
@@ -198,6 +201,7 @@ class EventRecorder {
             SandboxEventType::PlayerTeleport,
             SandboxEventType::PlayerInventoryChanged,
             SandboxEventType::CraftCompleted,
+            SandboxEventType::SmeltCompleted,
         };
         return types;
     }
@@ -3410,6 +3414,241 @@ void caseChestContainer()
               !player.hasOpenContainer());
 }
 
+// ---------------------------------------------------------------------------
+// N2 - strict smelting, dedicated slots and fixed-tick persistence
+// ---------------------------------------------------------------------------
+void caseFurnaceProgression()
+{
+    const std::string smeltingDefinitions =
+        "# HelloMine3D smelting registry v1\n"
+        "smelt hellomine:iron_ingot\n"
+        "input hellomine:iron_ore\n"
+        "output hellomine:iron_ingot 1\n"
+        "ticks 100\n"
+        "end\n"
+        "fuel hellomine:coal_ore\n"
+        "ticks 160\n"
+        "end\n";
+    auto rejectsSmelting = [](const std::string &source,
+                              const std::string &expected) {
+        try {
+            SmeltingRegistry invalid;
+            invalid.freeze({{"invalid.smelting", source}});
+        }
+        catch (const std::exception &error) {
+            return std::string(error.what()).find(expected) !=
+                   std::string::npos;
+        }
+        return false;
+    };
+    SmeltingRegistry localRegistry;
+    localRegistry.freeze({{"base.smelting", smeltingDefinitions}});
+    const SmeltingRecipeDefinition *ironRecipe =
+        localRegistry.findRecipe(Material::ID::IronOre);
+    const SmeltingFuelDefinition *coalFuel =
+        localRegistry.findFuel(Material::ID::CoalOre);
+    check("N2/smelting-registry-freezes-bounded-base-definitions",
+          localRegistry.isFrozen() && localRegistry.recipes().size() == 1 &&
+              localRegistry.fuels().size() == 1 && ironRecipe != nullptr &&
+              ironRecipe->outputMaterialId == Material::ID::IronIngot &&
+              ironRecipe->durationTicks == 100 && coalFuel != nullptr &&
+              coalFuel->burnTicks == 160);
+    bool rejectedSecondFreeze = false;
+    try {
+        localRegistry.freeze({{"again.smelting", smeltingDefinitions}});
+    }
+    catch (const std::exception &error) {
+        rejectedSecondFreeze =
+            std::string(error.what()).find("already frozen") !=
+            std::string::npos;
+    }
+    check("N2/smelting-registry-freezes-once", rejectedSecondFreeze);
+    check("N2/smelting-registry-rejects-header-and-missing-fields",
+          rejectsSmelting("not smelting\n", "unsupported or missing") &&
+              rejectsSmelting(
+                  "# HelloMine3D smelting registry v1\n"
+                  "smelt hellomine:bad\n"
+                  "input hellomine:iron_ore\n"
+                  "output hellomine:iron_ingot 1\n"
+                  "end\n"
+                  "fuel hellomine:coal_ore\n"
+                  "ticks 1\n"
+                  "end\n",
+                  "requires distinct input/output and ticks"));
+    check("N2/smelting-registry-rejects-duplicate-input",
+          rejectsSmelting(
+              smeltingDefinitions +
+                  "smelt hellomine:duplicate\n"
+                  "input hellomine:iron_ore\n"
+                  "output hellomine:dirt 1\n"
+                  "ticks 1\n"
+                  "end\n",
+              "Duplicate or excessive smelting recipe"));
+
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    const auto directory = freshSaveDirectory("furnace_progression");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+    EventRecorder events(world.getEventBus());
+    const glm::ivec3 position{8, 100, 8};
+
+    player.addItem(Material::FURNACE_BLOCK, 1);
+    const bool placed = BlockInteractionSystem::placeBlock(
+        world, player, glm::vec3(position));
+    const bool opened = BlockInteractionSystem::useBlock(
+        world, player, glm::vec3(position));
+    check("N2/furnace-place-creates-versioned-block-entity",
+          placed && opened && player.hasOpenContainer() &&
+              world.getBlockEntity(position).has_value() &&
+              world.getBlockEntity(position)->type ==
+                  FurnaceContainer::BlockEntityType);
+
+    player.addItem(Material::IRON_ORE_BLOCK, 2);
+    player.addItem(Material::COAL_ORE_BLOCK, 1);
+    player.addItem(Material::DIRT_BLOCK, 1);
+    auto findSlot = [&player](Material::ID materialId) {
+        for (int index = 0; index < player.getInventorySlotCount(); ++index) {
+            if (player.getInventorySlot(index).getMaterial().id == materialId) {
+                return index;
+            }
+        }
+        return -1;
+    };
+    const int ironSlot = findSlot(Material::ID::IronOre);
+    const int coalSlot = findSlot(Material::ID::CoalOre);
+    const int dirtSlot = findSlot(Material::ID::Dirt);
+    check("N2/dedicated-slots-reject-wrong-items-and-output-insert",
+          ironSlot >= 0 && coalSlot >= 0 && dirtSlot >= 0 &&
+              !FurnaceContainer::transferFromPlayer(
+                  world, player, FurnaceSlot::Fuel, ironSlot, 1,
+                  runtimeSmeltingRegistry()) &&
+              !FurnaceContainer::transferFromPlayer(
+                  world, player, FurnaceSlot::Input, dirtSlot, 1,
+                  runtimeSmeltingRegistry()) &&
+              !FurnaceContainer::transferFromPlayer(
+                  world, player, FurnaceSlot::Output, ironSlot, 1,
+                  runtimeSmeltingRegistry()));
+    check("N2/input-and-fuel-transfer-are-independent",
+          FurnaceContainer::transferFromPlayer(
+              world, player, FurnaceSlot::Input, ironSlot, 2,
+              runtimeSmeltingRegistry()) &&
+              FurnaceContainer::transferFromPlayer(
+                  world, player, FurnaceSlot::Fuel, coalSlot, 1,
+                  runtimeSmeltingRegistry()));
+
+    for (int tick = 0; tick < 40; ++tick) {
+        world.tick(tick);
+    }
+    auto furnace = FurnaceContainer::view(
+        world, player, runtimeSmeltingRegistry());
+    check("N2/fixed-tick-advances-progress-and-fuel-exactly",
+          furnace && furnace->state.progressTicks == 40 &&
+              furnace->state.burnTicksRemaining == 120 &&
+              furnace->state.input.amount == 2 &&
+              furnace->state.output.amount == 0);
+
+    player.closeContainer();
+    world.getChunkManager().unloadChunk(0, 0);
+    world.getChunkManager().loadChunk(0, 0);
+    FurnaceContainer::open(world, player, position,
+                           runtimeSmeltingRegistry());
+    furnace = FurnaceContainer::view(
+        world, player, runtimeSmeltingRegistry());
+    check("N2/unload-reload-resumes-exact-state-without-catchup",
+          furnace && furnace->state.progressTicks == 40 &&
+              furnace->state.burnTicksRemaining == 120);
+
+    for (int tick = 40; tick < 100; ++tick) {
+        world.tick(tick);
+    }
+    furnace = FurnaceContainer::view(
+        world, player, runtimeSmeltingRegistry());
+    check("N2/completion-consumes-input-and-publishes-domain-event",
+          furnace && furnace->state.input.amount == 1 &&
+              furnace->state.output.materialId == Material::ID::IronIngot &&
+              furnace->state.output.amount == 1 &&
+              furnace->state.progressTicks == 0 &&
+              furnace->state.burnTicksRemaining == 60 &&
+              events.count(SandboxEventType::SmeltCompleted) == 1);
+
+    FurnaceState blocked = furnace->state;
+    blocked.output.amount = Material::IRON_INGOT.maxStackSize;
+    check("N2/full-output-state-can-be-persisted",
+          world.updateBlockEntity(position,
+                                  FurnaceContainer::serialize(blocked)));
+    for (int tick = 100; tick < 110; ++tick) {
+        world.tick(tick);
+    }
+    furnace = FurnaceContainer::view(
+        world, player, runtimeSmeltingRegistry());
+    check("N2/full-output-pauses-both-progress-and-fuel",
+          furnace && furnace->state.progressTicks == 0 &&
+              furnace->state.burnTicksRemaining == 60 &&
+              furnace->state.output.amount ==
+                  Material::IRON_INGOT.maxStackSize);
+
+    blocked.output.amount = 1;
+    world.updateBlockEntity(position, FurnaceContainer::serialize(blocked));
+    for (int tick = 110; tick < 170; ++tick) {
+        world.tick(tick);
+    }
+    furnace = FurnaceContainer::view(
+        world, player, runtimeSmeltingRegistry());
+    check("N2/fuel-exhaustion-preserves-partial-progress",
+          furnace && furnace->state.progressTicks == 60 &&
+              furnace->state.burnTicksRemaining == 0 &&
+              furnace->state.input.amount == 1);
+
+    player.addItem(Material::COAL_ORE_BLOCK, 1);
+    const int refillSlot = findSlot(Material::ID::CoalOre);
+    FurnaceContainer::transferFromPlayer(
+        world, player, FurnaceSlot::Fuel, refillSlot, 1,
+        runtimeSmeltingRegistry());
+    for (int tick = 170; tick < 210; ++tick) {
+        world.tick(tick);
+    }
+    furnace = FurnaceContainer::view(
+        world, player, runtimeSmeltingRegistry());
+    check("N2/refuel-resumes-partial-recipe",
+          furnace && furnace->state.input.amount == 0 &&
+              furnace->state.output.amount == 2 &&
+              furnace->state.progressTicks == 0 &&
+              events.count(SandboxEventType::SmeltCompleted) == 2);
+    check("N2/output-take-is-capacity-checked-and-atomic",
+          FurnaceContainer::transferToPlayer(
+              world, player, FurnaceSlot::Output, 2,
+              runtimeSmeltingRegistry()) &&
+              findSlot(Material::ID::IronIngot) >= 0 &&
+              FurnaceContainer::view(
+                  world, player, runtimeSmeltingRegistry())
+                      ->state.output.amount == 0);
+
+    FurnaceState spill;
+    spill.input = {Material::ID::IronOre, 1, 0};
+    spill.fuel = {Material::ID::CoalOre, 1, 0};
+    spill.output = {Material::ID::IronIngot, 1, 0};
+    world.updateBlockEntity(position, FurnaceContainer::serialize(spill));
+    player.closeContainer();
+    const std::size_t actorsBefore =
+        world.getActorManager().getActorCount();
+    const bool broken = BlockInteractionSystem::breakBlock(
+        world, player, glm::vec3(position));
+    check("N2/breaking-furnace-spills-three-dedicated-slots",
+          broken && !world.getBlockEntity(position) &&
+              world.getActorManager().getActorCount() == actorsBefore + 3);
+
+    FurnaceState parsed;
+    check("N2/furnace-payload-rejects-invalid-version-and-materials",
+          !FurnaceContainer::deserialize(
+              "v2|0,0|0,0|0,0|0|0|0",
+              runtimeSmeltingRegistry(), parsed) &&
+              !FurnaceContainer::deserialize(
+                  "v1|3,1|12,1|0,0|0|0|0",
+                  runtimeSmeltingRegistry(), parsed));
+}
+
 std::string validAudioDefinitions()
 {
     return R"(# HelloMine3D audio definitions v1
@@ -3656,6 +3895,34 @@ class pickaxe
 tier 2
 speed 4
 durability 32
+end
+tool hellomine:iron_pickaxe
+class pickaxe
+tier 3
+speed 6
+durability 64
+attack 4
+end
+tool hellomine:iron_sword
+class weapon
+tier 3
+speed 1
+durability 80
+attack 7
+end
+)";
+}
+
+std::string validSmeltingDefinitions()
+{
+    return R"(# HelloMine3D smelting registry v1
+smelt hellomine:iron_ingot
+input hellomine:iron_ore
+output hellomine:iron_ingot 1
+ticks 100
+end
+fuel hellomine:coal_ore
+ticks 160
 end
 )";
 }
@@ -4206,6 +4473,29 @@ void caseCombatAndRespawn()
     check("D4/lethal-hit-spawns-loot", lootSpawned);
     check("D4/dead-target-rejects-attacks",
           !world.attackActor(targetId));
+
+    player.addItem(Material::IRON_SWORD, 1);
+    int swordSlot = -1;
+    for (int slot = 0; slot < player.getInventorySlotCount(); ++slot) {
+        if (player.getInventorySlot(slot).getMaterial().id ==
+            Material::ID::IronSword) {
+            swordSlot = slot;
+            break;
+        }
+    }
+    PlayerInputState swordInput;
+    swordInput.hotbarSlot = swordSlot;
+    player.applyInput(swordInput);
+    const ActorId swordTargetId = world.spawnMob(
+        "hellomine:iron_sword_target", {10.5f, 100.5f, 8.5f});
+    MobActor *swordTarget = dynamic_cast<MobActor *>(
+        world.getActorManager().findActor(swordTargetId));
+    const bool swordAttack = swordSlot >= 0 &&
+                             world.attackActor(swordTargetId);
+    check("N2/iron-sword-applies-data-driven-damage-and-durability",
+          swordAttack && swordTarget != nullptr &&
+              std::abs(swordTarget->getHealth() - 3.f) < 0.001f &&
+              player.getInventorySlot(swordSlot).getDurability() == 79);
 
     world.getEventBus().unsubscribe(damageSubscription);
     world.getEventBus().unsubscribe(deathSubscription);
@@ -4902,9 +5192,12 @@ void caseDataDrivenObjectives()
             : nullptr;
     check("N1/base-objective-registry-is-versioned-and-complete",
           baseLoaded && baseRegistry.definitionVersion() == 1 &&
-              baseRegistry.definitions().size() == 11 &&
+              baseRegistry.definitions().size() == 16 &&
               baseRegistry.find("alpha.gather_wood") != nullptr &&
               baseRegistry.find("alpha.reopen_world") != nullptr &&
+              baseRegistry.find("progression.smelt_iron") != nullptr &&
+              baseRegistry.find("progression.smelt_iron")->type ==
+                  ObjectiveType::SmeltItem &&
               baseReach != nullptr &&
               baseReach->type == ObjectiveType::ReachLocation &&
               !baseReach->visible && baseReach->optional);
@@ -5360,7 +5653,9 @@ void casePlayableAlphaJourney()
             defeatedMobId = naturalMob->id;
         }
         const bool firstHit = foundNaturalMob &&
-                              world.attackActor(defeatedMobId);
+                              world.attackActor(
+                                  defeatedMobId,
+                                  World::PlayerAttackDamage);
         int combatTick = World::NaturalMobSpawnIntervalTicks;
         bool mobReachedPlayer = false;
         while (firstHit && combatTick < 200 && !mobReachedPlayer) {
@@ -6293,6 +6588,8 @@ int main()
         std::cout << "[VALIDATION] world runtime smoke starting\n";
         runtimeToolRegistry().freeze(
             {{"runtime.tool", validToolDefinitions()}});
+        runtimeSmeltingRegistry().freeze(
+            {{"runtime.smelting", validSmeltingDefinitions()}});
 
         caseDebugPanelStartupOption();
         caseFixedTickScheduler();
@@ -6331,6 +6628,7 @@ int main()
         caseUnloadPersistence();
         caseBlockEntityLifecycle();
         caseChestContainer();
+        caseFurnaceProgression();
         caseWorkbenchCrafting();
         caseToolMiningProgression();
         caseNaturalMobPopulation();

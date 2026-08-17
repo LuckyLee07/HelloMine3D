@@ -131,3 +131,63 @@ title "Reach the Alpha start"
 instruction "Enter the fixed Alpha start area."
 feedback "Alpha start reached"
 end
+
+objective progression.craft_furnace
+type craft_item
+target hellomine:furnace
+required 1
+prerequisite alpha.reopen_world
+visible 1
+optional 0
+title "Build a Furnace"
+instruction "Mine 8 Stone, then craft a Furnace at the Workbench."
+feedback "Furnace crafted"
+end
+
+objective progression.place_furnace
+type place_block
+target hellomine:furnace
+required 1
+prerequisite progression.craft_furnace
+visible 1
+optional 0
+title "Place the Furnace"
+instruction "Place the Furnace near your Workbench."
+feedback "Furnace placed"
+end
+
+objective progression.smelt_iron
+type smelt_item
+target hellomine:iron_ingot
+required 5
+prerequisite progression.place_furnace
+visible 1
+optional 0
+title "Smelt Iron"
+instruction "Put Iron Ore in the input and Coal Ore in the fuel slot; smelt 5 ingots."
+feedback "Iron supply ready"
+end
+
+objective progression.craft_iron_pickaxe
+type craft_item
+target hellomine:iron_pickaxe
+required 1
+prerequisite progression.smelt_iron
+visible 1
+optional 0
+title "Craft an Iron Pickaxe"
+instruction "Use 3 Iron Ingots and 2 Oak Bark at the Workbench."
+feedback "Iron Pickaxe crafted"
+end
+
+objective progression.craft_iron_sword
+type craft_item
+target hellomine:iron_sword
+required 1
+prerequisite progression.craft_iron_pickaxe
+visible 1
+optional 0
+title "Craft an Iron Sword"
+instruction "Use 2 Iron Ingots over 1 Oak Bark at the Workbench."
+feedback "Iron progression complete"
+end

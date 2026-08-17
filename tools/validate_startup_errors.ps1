@@ -46,6 +46,11 @@ $requirements = @(
         Category = "objective"
         RelativePath = "media\objectives\Base.objective"
         DiagnosticPath = "media/objectives/Base.objective"
+    },
+    [pscustomobject]@{
+        Category = "smelting"
+        RelativePath = "media\smelting\Base.smelting"
+        DiagnosticPath = "media/smelting/Base.smelting"
     }
 )
 
@@ -63,6 +68,7 @@ foreach ($missing in $requirements) {
         'objective|media/objectives/Base.objective',
         'runtime-template|bin/resource-packs.txt',
         'shader|media/ogre/HelloMine3DTerrain.vert',
+        'smelting|media/smelting/Base.smelting',
         'texture|media/textures/DefaultPack.png'
     )
     [System.IO.File]::WriteAllText(

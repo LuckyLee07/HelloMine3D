@@ -29,6 +29,9 @@
 #include "Chunk/ChunkMeshBuilder.h"
 #include "Chunk/ChunkUpdatePlanner.h"
 #include "Block/BlockDatabase.h"
+#include "Block/FurnaceContainer.h"
+#include "../Item/SmeltingRegistry.h"
+#include "../Item/ToolRegistry.h"
 #include "Storage/WorldCatalogue.h"
 #include "WorldCoordinates.h"
 
@@ -763,6 +766,28 @@ World::removeBlockEntity(const glm::ivec3 &position)
     return removed;
 }
 
+std::vector<glm::ivec3> World::collectLoadedBlockEntityPositions(
+    const std::string &type)
+{
+    std::lock_guard<std::mutex> lock(m_mainMutex);
+    std::vector<glm::ivec3> positions;
+    for (const auto &entry : m_chunkManager.getChunks()) {
+        const Chunk &chunk = entry.second;
+        if (!chunk.hasLoaded()) {
+            continue;
+        }
+        for (const BlockEntityRecord &record : chunk.getBlockEntities()) {
+            if (record.type == type) {
+                positions.emplace_back(
+                    entry.first.x * CHUNK_SIZE + record.position.x,
+                    record.position.y,
+                    entry.first.z * CHUNK_SIZE + record.position.z);
+            }
+        }
+    }
+    return positions;
+}
+
 void World::updateRandomTickSection(const glm::ivec3 &section, bool active)
 {
     if (active) {
@@ -899,9 +924,34 @@ void World::tick(int worldTime)
     applyMobContactDamage();
     runRandomTicks(worldTime);
     runNaturalMobPopulation(worldTime);
+    if (runtimeSmeltingRegistry().isFrozen()) {
+        FurnaceContainer::tickLoaded(*this, runtimeSmeltingRegistry());
+    }
     if (m_alphaJourney != nullptr) {
         m_alphaJourney->update(1.f / 20.f);
     }
+}
+
+bool World::attackActor(ActorId actorId)
+{
+    float amount = PlayerAttackDamage;
+    bool usesTool = false;
+    if (m_player != nullptr && runtimeToolRegistry().isFrozen()) {
+        const ItemStack &held = m_player->getHeldItems();
+        if (!held.isEmpty()) {
+            const ToolDefinition *tool =
+                runtimeToolRegistry().find(held.getMaterial().id);
+            if (tool != nullptr) {
+                amount = tool->attackDamage;
+                usesTool = true;
+            }
+        }
+    }
+    const bool accepted = attackActor(actorId, amount);
+    if (accepted && usesTool) {
+        m_player->damageHeldTool();
+    }
+    return accepted;
 }
 
 bool World::attackActor(ActorId actorId, float amount)

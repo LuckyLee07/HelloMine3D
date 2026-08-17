@@ -31,3 +31,24 @@ recipe hellomine:borderless_glass shapeless
 input hellomine:glass 1
 output hellomine:glass_borderless 1
 end
+
+recipe hellomine:furnace shaped
+row hellomine:stone hellomine:stone hellomine:stone
+row hellomine:stone _ hellomine:stone
+row hellomine:stone hellomine:stone hellomine:stone
+output hellomine:furnace 1
+end
+
+recipe hellomine:iron_pickaxe shaped
+row hellomine:iron_ingot hellomine:iron_ingot hellomine:iron_ingot
+row _ hellomine:oak_bark _
+row _ hellomine:oak_bark _
+output hellomine:iron_pickaxe 1
+end
+
+recipe hellomine:iron_sword shaped
+row _ hellomine:iron_ingot _
+row _ hellomine:iron_ingot _
+row _ hellomine:oak_bark _
+output hellomine:iron_sword 1
+end

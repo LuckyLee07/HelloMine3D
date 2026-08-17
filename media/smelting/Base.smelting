@@ -1,0 +1,11 @@
+# HelloMine3D smelting registry v1
+
+smelt hellomine:iron_ingot
+input hellomine:iron_ore
+output hellomine:iron_ingot 1
+ticks 100
+end
+
+fuel hellomine:coal_ore
+ticks 160
+end

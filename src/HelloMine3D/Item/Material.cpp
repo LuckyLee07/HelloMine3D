@@ -26,6 +26,10 @@ namespace
         "hellomine:workbench",
         "hellomine:wooden_pickaxe",
         "hellomine:stone_pickaxe",
+        "hellomine:furnace",
+        "hellomine:iron_ingot",
+        "hellomine:iron_pickaxe",
+        "hellomine:iron_sword",
     }};
 }
 
@@ -60,6 +64,12 @@ const Material Material::WOODEN_PICKAXE(ID::WoodenPickaxe, 1, false,
                                         "Wooden Pickaxe", true);
 const Material Material::STONE_PICKAXE(ID::StonePickaxe, 1, false,
                                        "Stone Pickaxe", true);
+const Material Material::FURNACE_BLOCK(ID::Furnace, 99, true, "Furnace");
+const Material Material::IRON_INGOT(ID::IronIngot, 99, false, "Iron Ingot");
+const Material Material::IRON_PICKAXE(ID::IronPickaxe, 1, false,
+                                      "Iron Pickaxe", true);
+const Material Material::IRON_SWORD(ID::IronSword, 1, false,
+                                    "Iron Sword", true);
 
 Material::Material(Material::ID id, int maxStack, bool isBlock,
                    std::string &&name, bool isTool)
@@ -128,6 +138,9 @@ BlockId Material::toBlockID() const
         case Workbench:
             return BlockId::Workbench;
 
+        case Furnace:
+            return BlockId::Furnace;
+
         default:
             return BlockId::NUM_TYPES;
     }
@@ -186,6 +199,9 @@ const Material &Material::toMaterial(BlockId id)
 
         case BlockId::Workbench:
             return WORKBENCH_BLOCK;
+
+        case BlockId::Furnace:
+            return FURNACE_BLOCK;
 
         default:
             return NOTHING;
@@ -254,6 +270,18 @@ const Material &Material::toMaterial(Material::ID id)
 
         case StonePickaxe:
             return STONE_PICKAXE;
+
+        case Furnace:
+            return FURNACE_BLOCK;
+
+        case IronIngot:
+            return IRON_INGOT;
+
+        case IronPickaxe:
+            return IRON_PICKAXE;
+
+        case IronSword:
+            return IRON_SWORD;
 
         default:
             return NOTHING;

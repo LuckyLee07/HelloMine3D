@@ -12,6 +12,7 @@
 #include "../Sandbox/Events/EntityEvents.h"
 #include "../Sandbox/Events/PlayerEvents.h"
 #include "../Sandbox/Events/SandboxEventBus.h"
+#include "../Sandbox/Events/SmeltingEvents.h"
 
 namespace
 {
@@ -102,7 +103,8 @@ ObjectiveSystem::ObjectiveSystem(const ObjectiveRegistry& registry,
         SandboxEventType::BlockPlace,
         SandboxEventType::BlockBreak,
         SandboxEventType::EntityDeath,
-        SandboxEventType::ItemPickup};
+        SandboxEventType::ItemPickup,
+        SandboxEventType::SmeltCompleted};
     for (SandboxEventType type : eventTypes)
     {
         m_subscriptions.push_back(eventBus.subscribe(
@@ -323,6 +325,18 @@ void ObjectiveSystem::consumeEvent(const SandboxEvent& event)
                     pickup.amount > 0)
                 {
                     addProgress(definition, pickup.amount);
+                }
+            }
+            break;
+        case SandboxEventType::SmeltCompleted:
+            if (definition.type == ObjectiveType::SmeltItem)
+            {
+                const auto& smelt =
+                    static_cast<const SmeltCompletedEvent&>(event);
+                if (smelt.outputMaterialId == definition.targetMaterial &&
+                    smelt.amount > 0)
+                {
+                    addProgress(definition, smelt.amount);
                 }
             }
             break;

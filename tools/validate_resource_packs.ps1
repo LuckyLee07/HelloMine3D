@@ -172,4 +172,4 @@ if (Compare-Object $baseWithoutStone $packedWithoutStone -SyncWindow 0) {
 
 Write-Host "[RESOURCE_PACK_VERIFY] PASS base_hash=$($base.Hash)"
 Write-Host "[RESOURCE_PACK_VERIFY] PASS packed_hash=$($packed.Hash) override=$expectedOverride"
-Write-Host "[RESOURCE_PACK_VERIFY] status=PASS resolver_checks=24 startup_cases=2 entries=$ExpectedEntryCount"
+Write-Host "[RESOURCE_PACK_VERIFY] status=PASS resolver_checks=25 startup_cases=2 entries=$ExpectedEntryCount"

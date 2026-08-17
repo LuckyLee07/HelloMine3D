@@ -111,6 +111,8 @@ class World : public NonCopyable {
     bool updateBlockEntity(const glm::ivec3 &position, std::string payload);
     std::optional<BlockEntityRecord>
     removeBlockEntity(const glm::ivec3 &position);
+    std::vector<glm::ivec3> collectLoadedBlockEntityPositions(
+        const std::string &type);
 
     void tick(int worldTime);
     void update(const Camera &camera);
@@ -131,8 +133,8 @@ class World : public NonCopyable {
                             const glm::vec3 &position,
                             const glm::vec3 &initialVelocity = glm::vec3(0.f));
     ActorId spawnMob(const std::string &type, const glm::vec3 &position);
-    bool attackActor(ActorId actorId,
-                     float amount = PlayerAttackDamage);
+    bool attackActor(ActorId actorId);
+    bool attackActor(ActorId actorId, float amount);
     bool damagePlayer(float amount, ActorId sourceId = InvalidActorId);
     float getPlayerHealth() const;
     float getPlayerMaxHealth() const;

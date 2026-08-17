@@ -28,6 +28,8 @@
 #include "../Util/ResourcePaths.h"
 #include "../World/World.h"
 #include "../World/Block/ChestContainer.h"
+#include "../World/Block/FurnaceContainer.h"
+#include "../Item/SmeltingRegistry.h"
 #include "../World/Interaction/BlockMiningProgress.h"
 #include "../World/Storage/WorldManagementService.h"
 
@@ -942,6 +944,132 @@ class OgreUserInterface::Impl
             player->hasOpenCrafting() || world == nullptr)
         {
             return;
+        }
+
+        if (runtimeSmeltingRegistry().isFrozen())
+        {
+            std::optional<FurnaceContainerView> furnace =
+                FurnaceContainer::view(*world, *player,
+                                       runtimeSmeltingRegistry());
+            if (furnace)
+            {
+                const ImGuiIO &io = ImGui::GetIO();
+                ImGui::SetNextWindowPos(
+                    ImVec2(io.DisplaySize.x * 0.5f,
+                           io.DisplaySize.y * 0.46f),
+                    ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+                ImGui::SetNextWindowSize(
+                    ImVec2(620.0f, 390.0f), ImGuiCond_Always);
+                ImGui::SetNextWindowBgAlpha(0.96f);
+                bool open = true;
+                const ImGuiWindowFlags flags =
+                    ImGuiWindowFlags_NoCollapse |
+                    ImGuiWindowFlags_NoSavedSettings |
+                    ImGuiWindowFlags_NoResize;
+                if (ImGui::Begin("Furnace", &open, flags))
+                {
+                    const FurnaceSlot furnaceSlots[] = {
+                        FurnaceSlot::Input, FurnaceSlot::Fuel,
+                        FurnaceSlot::Output};
+                    const char *slotNames[] = {"Input", "Fuel", "Output"};
+                    const InventorySlotState stacks[] = {
+                        furnace->state.input, furnace->state.fuel,
+                        furnace->state.output};
+                    for (int index = 0; index < 3; ++index)
+                    {
+                        if (index > 0) ImGui::SameLine();
+                        const Material &material =
+                            Material::toMaterial(stacks[index].materialId);
+                        const std::string label =
+                            std::string(slotNames[index]) + "\n" +
+                            (stacks[index].amount > 0
+                                 ? material.name
+                                 : "Empty") +
+                            " x" + std::to_string(stacks[index].amount) +
+                            "##furnace" + std::to_string(index);
+                        if (ImGui::Button(label.c_str(),
+                                          ImVec2(190.0f, 58.0f)) &&
+                            stacks[index].amount > 0 &&
+                            FurnaceContainer::transferToPlayer(
+                                *world, *player, furnaceSlots[index],
+                                stacks[index].amount,
+                                runtimeSmeltingRegistry()))
+                        {
+                            playUiFeedback();
+                        }
+                    }
+                    const float smeltProgress =
+                        furnace->recipeDurationTicks > 0
+                            ? static_cast<float>(
+                                  furnace->state.progressTicks) /
+                                  static_cast<float>(
+                                      furnace->recipeDurationTicks)
+                            : 0.f;
+                    const float fuelProgress =
+                        furnace->state.burnTicksTotal > 0
+                            ? static_cast<float>(
+                                  furnace->state.burnTicksRemaining) /
+                                  static_cast<float>(
+                                      furnace->state.burnTicksTotal)
+                            : 0.f;
+                    ImGui::TextUnformatted("Smelting progress");
+                    ImGui::ProgressBar(smeltProgress,
+                                       ImVec2(-1.0f, 0.0f));
+                    ImGui::TextUnformatted("Fuel remaining");
+                    ImGui::ProgressBar(fuelProgress,
+                                       ImVec2(-1.0f, 0.0f));
+                    ImGui::Separator();
+                    ImGui::TextUnformatted(
+                        "Hotbar: smeltable items go to Input; fuel goes to Fuel");
+                    for (int playerSlot = 0;
+                         playerSlot < player->getInventorySlotCount();
+                         ++playerSlot)
+                    {
+                        if (playerSlot > 0) ImGui::SameLine();
+                        const ItemStack &stack =
+                            player->getInventorySlot(playerSlot);
+                        const std::string label =
+                            (stack.isEmpty() ? "Empty"
+                                             : stack.getMaterial().name) +
+                            " x" +
+                            std::to_string(stack.getNumInStack()) +
+                            "##furnaceplayer" +
+                            std::to_string(playerSlot);
+                        if (ImGui::Button(label.c_str(),
+                                          ImVec2(112.0f, 50.0f)) &&
+                            !stack.isEmpty())
+                        {
+                            FurnaceSlot target = FurnaceSlot::Output;
+                            if (runtimeSmeltingRegistry().findRecipe(
+                                    stack.getMaterial().id) != nullptr)
+                            {
+                                target = FurnaceSlot::Input;
+                            }
+                            else if (runtimeSmeltingRegistry().findFuel(
+                                         stack.getMaterial().id) != nullptr)
+                            {
+                                target = FurnaceSlot::Fuel;
+                            }
+                            if (target != FurnaceSlot::Output &&
+                                FurnaceContainer::transferFromPlayer(
+                                    *world, *player, target, playerSlot,
+                                    stack.getNumInStack(),
+                                    runtimeSmeltingRegistry()))
+                            {
+                                playUiFeedback();
+                            }
+                        }
+                    }
+                    if (ImGui::Button("Close", ImVec2(100.0f, 32.0f)))
+                    {
+                        open = false;
+                        playUiFeedback();
+                    }
+                }
+                ImGui::End();
+                if (!open) player->closeContainer();
+                return;
+            }
         }
 
         std::optional<ChestContainerView> chest =

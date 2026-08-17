@@ -78,6 +78,20 @@ tier 2
 speed 4
 durability 32
 end
+tool hellomine:iron_pickaxe
+class pickaxe
+tier 3
+speed 6
+durability 64
+attack 4
+end
+tool hellomine:iron_sword
+class weapon
+tier 3
+speed 1
+durability 80
+attack 7
+end
 )";
     }
 
@@ -113,9 +127,9 @@ end
         }
         check("G1/material-ids-roundtrip",
               roundTrip &&
-                  static_cast<int>(Material::ID::StonePickaxe) ==
+                  static_cast<int>(Material::ID::IronSword) ==
                       static_cast<int>(Material::ID::Count) - 1 &&
-                  static_cast<int>(BlockId::Workbench) ==
+                  static_cast<int>(BlockId::Furnace) ==
                       static_cast<int>(BlockId::NUM_TYPES) - 1);
         Material::ID unchanged = Material::ID::Stone;
         check("G1/unknown-material-id-rejected",
@@ -784,15 +798,26 @@ end
             registry.find(Material::ID::WoodenPickaxe);
         const ToolDefinition *stone =
             registry.find(Material::ID::StonePickaxe);
+        const ToolDefinition *iron =
+            registry.find(Material::ID::IronPickaxe);
+        const ToolDefinition *sword =
+            registry.find(Material::ID::IronSword);
         check("G3/tool-registry-freezes-complete-base-set",
-              registry.isFrozen() && registry.tools().size() == 2 &&
-                  wood != nullptr && stone != nullptr);
+              registry.isFrozen() && registry.tools().size() == 4 &&
+                  wood != nullptr && stone != nullptr && iron != nullptr &&
+                  sword != nullptr);
         check("G3/tool-stats-are-data-driven",
               wood != nullptr && wood->miningClass == MiningClass::Pickaxe &&
                   wood->tier == 1 && wood->speedMultiplier == 2.0f &&
                   wood->maxDurability == 16 && stone != nullptr &&
                   stone->tier == 2 && stone->speedMultiplier == 4.0f &&
-                  stone->maxDurability == 32);
+                  stone->maxDurability == 32 && iron != nullptr &&
+                  iron->tier == 3 && iron->speedMultiplier == 6.0f &&
+                  iron->maxDurability == 64 && iron->attackDamage == 4.0f &&
+                  sword != nullptr &&
+                  sword->miningClass == MiningClass::Weapon &&
+                  sword->tier == 3 && sword->maxDurability == 80 &&
+                  sword->attackDamage == 7.0f);
         check("G3/tool-registry-is-startup-frozen",
               throwsContaining(
                   [&registry]
@@ -835,6 +860,17 @@ end
                       invalid.freeze({{"speed.tool", source}});
                   },
                   "speed must be in"));
+        check("N2/invalid-tool-attack-is-rejected",
+              throwsContaining(
+                  []
+                  {
+                      std::string source = validTools();
+                      source.replace(source.find("attack 7"), 8,
+                                     "attack 65");
+                      ToolRegistry invalid;
+                      invalid.freeze({{"attack.tool", source}});
+                  },
+                  "attack must be in"));
 
         RecipeRegistry recipes;
         recipes.freeze({{"tools.recipe", oneRecipe(
@@ -921,7 +957,7 @@ int main()
     caseFrozenBaseResourceView();
     caseCraftingSession();
     caseToolProgression();
-    constexpr int ExpectedChecks = 64;
+    constexpr int ExpectedChecks = 65;
     if (checks != ExpectedChecks) {
         ++failures;
         std::cout << "[RECIPE_TEST] FAIL G1/expected-check-count"

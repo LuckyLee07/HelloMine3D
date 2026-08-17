@@ -32,6 +32,10 @@ struct Material : public NonCopyable {
         Workbench,
         WoodenPickaxe,
         StonePickaxe,
+        Furnace,
+        IronIngot,
+        IronPickaxe,
+        IronSword,
         Count
     };
 
@@ -39,7 +43,8 @@ struct Material : public NonCopyable {
         OAK_BARK_BLOCK, OAK_LEAF_BLOCK, SAND_BLOCK, CACTUS_BLOCK, ROSE,
         TALL_GRASS, DEAD_SHRUB, COAL_ORE_BLOCK, IRON_ORE_BLOCK, GLASS_BLOCK,
         BORDERLESS_GLASS_BLOCK, CHEST_BLOCK, WHEAT_SEEDS, WHEAT,
-        WORKBENCH_BLOCK, WOODEN_PICKAXE, STONE_PICKAXE;
+        WORKBENCH_BLOCK, WOODEN_PICKAXE, STONE_PICKAXE, FURNACE_BLOCK,
+        IRON_INGOT, IRON_PICKAXE, IRON_SWORD;
 
     Material(Material::ID id, int maxStack, bool isBlock, std::string &&name,
              bool isTool = false);

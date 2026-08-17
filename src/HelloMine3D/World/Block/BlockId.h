@@ -27,6 +27,7 @@ enum class BlockId : Block_t {
     Chest = 16,
     WheatCrop = 17,
     Workbench = 18,
+    Furnace = 19,
 
     NUM_TYPES
 };

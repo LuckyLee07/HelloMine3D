@@ -12,7 +12,8 @@ class ResourcePackResolver;
 enum class MiningClass
 {
     None,
-    Pickaxe
+    Pickaxe,
+    Weapon
 };
 
 struct ToolDefinition
@@ -22,6 +23,7 @@ struct ToolDefinition
     int tier = 0;
     float speedMultiplier = 1.0f;
     int maxDurability = 0;
+    float attackDamage = 2.0f;
     std::string sourceName;
 };
 
@@ -41,6 +43,7 @@ class ToolRegistry
     static constexpr int MaxTier = 10;
     static constexpr int MaxDurability = 100000;
     static constexpr float MaxSpeedMultiplier = 16.0f;
+    static constexpr float MaxAttackDamage = 64.0f;
 
     void freeze(std::vector<ToolSource> sources);
     void freezeFromResourceView(const ResourcePackResolver &resolver);

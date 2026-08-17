@@ -39,6 +39,7 @@
 #include "../Item/RecipeRegistry.h"
 #include "../Item/CraftingSession.h"
 #include "../Item/ToolRegistry.h"
+#include "../Item/SmeltingRegistry.h"
 #include "../Player/Player.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/GameApplicationFlow.h"
@@ -2048,6 +2049,8 @@ int runOgreBootstrap(bool validateOnly)
             runtimeResourcePackResolver());
         runtimeToolRegistry().freezeFromResourceView(
             runtimeResourcePackResolver());
+        runtimeSmeltingRegistry().freezeFromResourceView(
+            runtimeResourcePackResolver());
         runtimeObjectiveRegistry().freezeFromResourceView(
             runtimeResourcePackResolver());
         const char *manifestOutput =
@@ -2076,6 +2079,10 @@ int runOgreBootstrap(bool validateOnly)
                   << runtimeRecipeRegistry().recipes().size() << '\n';
         std::cout << "[TOOL_REGISTRY] frozen=1 tools="
                   << runtimeToolRegistry().tools().size() << '\n';
+        std::cout << "[SMELTING_REGISTRY] frozen=1 recipes="
+                  << runtimeSmeltingRegistry().recipes().size()
+                  << " fuels="
+                  << runtimeSmeltingRegistry().fuels().size() << '\n';
         std::cout << "[OBJECTIVE_REGISTRY] frozen=1 version="
                   << runtimeObjectiveRegistry().definitionVersion()
                   << " objectives="

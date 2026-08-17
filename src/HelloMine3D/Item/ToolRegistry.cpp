@@ -23,6 +23,7 @@ namespace
         bool tierSeen = false;
         bool speedSeen = false;
         bool durabilitySeen = false;
+        bool attackSeen = false;
         std::size_t startLine = 0;
     };
 
@@ -103,6 +104,33 @@ namespace
             fail(source, line,
                  "speed must be in [1, " +
                      std::to_string(ToolRegistry::MaxSpeedMultiplier) +
+                     "].");
+        }
+        return value;
+    }
+
+    float parseAttack(const std::string &text, const std::string &source,
+                      std::size_t line)
+    {
+        float value = 0.0f;
+        try {
+            std::size_t consumed = 0;
+            value = std::stof(text, &consumed);
+            if (consumed != text.size()) {
+                fail(source, line, "attack must be a finite number.");
+            }
+        }
+        catch (const std::invalid_argument &) {
+            fail(source, line, "attack must be a finite number.");
+        }
+        catch (const std::out_of_range &) {
+            fail(source, line, "attack is outside the supported range.");
+        }
+        if (!std::isfinite(value) || value < 1.0f ||
+            value > ToolRegistry::MaxAttackDamage) {
+            fail(source, line,
+                 "attack must be in [1, " +
+                     std::to_string(ToolRegistry::MaxAttackDamage) +
                      "].");
         }
         return value;
@@ -194,6 +222,14 @@ namespace
                     parts[1], 1, ToolRegistry::MaxDurability,
                     source.name, lineNumber, "durability");
                 pending.durabilitySeen = true;
+            }
+            else if (parts.size() == 2 && parts[0] == "attack") {
+                if (pending.attackSeen) {
+                    fail(source.name, lineNumber, "attack is duplicated.");
+                }
+                pending.definition.attackDamage =
+                    parseAttack(parts[1], source.name, lineNumber);
+                pending.attackSeen = true;
             }
             else if (parts.size() == 1 && parts[0] == "end") {
                 if (!pending.classSeen || !pending.tierSeen ||
@@ -353,6 +389,8 @@ const char *ToolRegistry::miningClassName(MiningClass value) noexcept
     switch (value) {
         case MiningClass::Pickaxe:
             return "pickaxe";
+        case MiningClass::Weapon:
+            return "weapon";
         default:
             return "none";
     }
@@ -367,6 +405,10 @@ bool ToolRegistry::tryParseMiningClass(
     }
     if (text == "pickaxe") {
         value = MiningClass::Pickaxe;
+        return true;
+    }
+    if (text == "weapon") {
+        value = MiningClass::Weapon;
         return true;
     }
     return false;
