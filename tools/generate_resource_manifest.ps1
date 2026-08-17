@@ -63,6 +63,21 @@ foreach ($audioFile in $audioFiles) {
     Add-ManifestEntry "audio" $relativeAudio
 }
 
+$objectiveRoot = Join-Path $Root "media\objectives"
+if (-not (Test-Path -LiteralPath $objectiveRoot -PathType Container)) {
+    throw "Objective resource directory is missing: $objectiveRoot"
+}
+$objectiveFiles = @(Get-ChildItem -LiteralPath $objectiveRoot `
+    -Filter "*.objective" -File -Recurse)
+if ($objectiveFiles.Count -eq 0) {
+    throw "No base objective resources were discovered."
+}
+foreach ($objectiveFile in $objectiveFiles) {
+    $relativeObjective = $objectiveFile.FullName.Substring($Root.Length).TrimStart(
+        [char]'\', [char]'/')
+    Add-ManifestEntry "objective" $relativeObjective
+}
+
 $recipeRoot = Join-Path $Root "media\recipes"
 if (-not (Test-Path -LiteralPath $recipeRoot -PathType Container)) {
     throw "Recipe resource directory is missing: $recipeRoot"

@@ -48,6 +48,7 @@ namespace
             {"audio", "media/audio/Base.audio"},
             {"block", "media/blocks/Stone.block"},
             {"font", "media/fonts/rs.ttf"},
+            {"objective", "media/objectives/Base.objective"},
             {"recipe", "media/recipes/Base.recipe"},
             {"tool", "media/tools/Base.tool"},
             {"resource-script", "media/ogre/Test.material"},
@@ -149,6 +150,7 @@ namespace
         {
             if (requirement.category == "runtime-template" ||
                 requirement.category == "audio" ||
+                requirement.category == "objective" ||
                 requirement.category == "recipe" ||
                 requirement.category == "tool")
             {
@@ -247,6 +249,21 @@ namespace
                                           {first.string(), second.string()});
                       },
                       "Duplicate enabled resource-pack name"));
+        }
+        {
+            const fs::path root = freshRoot("objective-override");
+            const fs::path pack = createPack(
+                root, "objective", "Objective Override", 1,
+                {{"media/objectives/Base.objective", "override\n"}});
+            check("N1/reject-unversioned-objective-override",
+                  throwsContaining(
+                      [&]
+                      {
+                          ResourcePackResolver resolver;
+                          resolver.freeze(root.string(), requirements(),
+                                          {pack.string()});
+                      },
+                      "stale or unsupported override"));
         }
         {
             const fs::path root = freshRoot("recipe-override");

@@ -31,6 +31,7 @@ namespace fs = std::filesystem;
 
 constexpr std::size_t MaxStoredInventorySlots = 4096;
 constexpr std::size_t MaxStoredActors = 65536;
+constexpr std::size_t MaxStoredObjectives = 256;
 constexpr int CurrentInventoryFormat = 2;
 static_assert(WorldSaveFormatVersion ==
                   WorldCatalogue::CurrentSaveFormatVersion,
@@ -140,6 +141,36 @@ bool finiteVec3(const glm::vec3 &value)
            std::isfinite(value.z);
 }
 
+bool validObjectiveState(const WorldSaveData &data)
+{
+    if (data.objectiveState.definitionVersion !=
+            ObjectiveSaveState::CurrentDefinitionVersion ||
+        data.objectiveState.completedIds.size() > MaxStoredObjectives ||
+        data.objectiveState.progress.size() > MaxStoredObjectives ||
+        ObjectiveState::legacyFlagsFromCompleted(
+            data.objectiveState.completedIds) != data.alphaJourneyFlags) {
+        return false;
+    }
+
+    std::unordered_set<std::string> completed;
+    for (const std::string &id : data.objectiveState.completedIds) {
+        if (!ObjectiveState::isCanonicalId(id) ||
+            !completed.emplace(id).second) {
+            return false;
+        }
+    }
+    std::unordered_set<std::string> progress;
+    for (const ObjectiveProgressState &state :
+         data.objectiveState.progress) {
+        if (!ObjectiveState::isCanonicalId(state.id) || state.value < 0 ||
+            state.value > 1000000 || completed.count(state.id) != 0 ||
+            !progress.emplace(state.id).second) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
                        std::string *errorMessage)
 {
@@ -163,6 +194,7 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
     }
 
     WorldSaveData loaded;
+    loaded.objectiveState.definitionVersion = 0;
     std::unordered_set<std::string> singletonFields;
     bool inventoryCountSeen = false;
     bool inventoryFormatSeen = false;
@@ -171,6 +203,11 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
     bool actorCountSeen = false;
     std::size_t expectedActorCount = 0;
     bool alphaJourneySeen = false;
+    bool objectiveDefinitionSeen = false;
+    bool objectiveCompletedCountSeen = false;
+    bool objectiveProgressCountSeen = false;
+    std::size_t expectedObjectiveCompletedCount = 0;
+    std::size_t expectedObjectiveProgressCount = 0;
     const auto claimSingleton = [&](const std::string &key) {
         return singletonFields.emplace(key).second;
     };
@@ -237,6 +274,57 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
                 return fail("invalid or duplicate alpha_journey_flags");
             }
             alphaJourneySeen = true;
+        }
+        else if (key == "objective_definition_version") {
+            if (!claimSingleton(key) ||
+                !(input >> loaded.objectiveState.definitionVersion)) {
+                return fail(
+                    "invalid or duplicate objective_definition_version");
+            }
+            objectiveDefinitionSeen = true;
+        }
+        else if (key == "objective_completed_count") {
+            if (!claimSingleton(key) ||
+                !(input >> expectedObjectiveCompletedCount) ||
+                expectedObjectiveCompletedCount > MaxStoredObjectives) {
+                return fail(
+                    "invalid or duplicate objective_completed_count");
+            }
+            loaded.objectiveState.completedIds.clear();
+            loaded.objectiveState.completedIds.reserve(
+                expectedObjectiveCompletedCount);
+            objectiveCompletedCountSeen = true;
+        }
+        else if (key == "objective_completed") {
+            std::string id;
+            if (!objectiveCompletedCountSeen || !(input >> id) ||
+                loaded.objectiveState.completedIds.size() >=
+                    expectedObjectiveCompletedCount) {
+                return fail("invalid objective_completed record");
+            }
+            loaded.objectiveState.completedIds.push_back(std::move(id));
+        }
+        else if (key == "objective_progress_count") {
+            if (!claimSingleton(key) ||
+                !(input >> expectedObjectiveProgressCount) ||
+                expectedObjectiveProgressCount > MaxStoredObjectives) {
+                return fail(
+                    "invalid or duplicate objective_progress_count");
+            }
+            loaded.objectiveState.progress.clear();
+            loaded.objectiveState.progress.reserve(
+                expectedObjectiveProgressCount);
+            objectiveProgressCountSeen = true;
+        }
+        else if (key == "objective_progress") {
+            ObjectiveProgressState state;
+            if (!objectiveProgressCountSeen ||
+                !(input >> state.id >> state.value) ||
+                loaded.objectiveState.progress.size() >=
+                    expectedObjectiveProgressCount) {
+                return fail("invalid objective_progress record");
+            }
+            loaded.objectiveState.progress.push_back(std::move(state));
         }
         else if (key == "player_present") {
             int present = 0;
@@ -336,6 +424,16 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
     if (actorCountSeen && loaded.actors.size() != expectedActorCount) {
         return fail("actor count does not match records");
     }
+    if (objectiveCompletedCountSeen &&
+        loaded.objectiveState.completedIds.size() !=
+            expectedObjectiveCompletedCount) {
+        return fail("objective completed count does not match records");
+    }
+    if (objectiveProgressCountSeen &&
+        loaded.objectiveState.progress.size() !=
+            expectedObjectiveProgressCount) {
+        return fail("objective progress count does not match records");
+    }
 
     if (loaded.version >= 3) {
         static const char *const requiredFields[] = {
@@ -362,6 +460,16 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
     if ((loaded.version >= 4 && !alphaJourneySeen) ||
         (loaded.version < 4 && alphaJourneySeen)) {
         return fail("alpha journey field does not match save version");
+    }
+    const bool objectiveFieldsPresent = objectiveDefinitionSeen ||
+        objectiveCompletedCountSeen || objectiveProgressCountSeen ||
+        !loaded.objectiveState.completedIds.empty() ||
+        !loaded.objectiveState.progress.empty();
+    if ((loaded.version >= 5 &&
+         (!objectiveDefinitionSeen || !objectiveCompletedCountSeen ||
+          !objectiveProgressCountSeen || !validObjectiveState(loaded))) ||
+        (loaded.version < 5 && objectiveFieldsPresent)) {
+        return fail("objective state does not match save version");
     }
 
     if (!finiteVec3(loaded.spawnPoint) ||
@@ -447,6 +555,7 @@ bool WorldSave::save(const WorldSaveData &data,
 {
     if (data.version != WorldSaveFormatVersion ||
         !AlphaJourney::validFlags(data.alphaJourneyFlags) ||
+        !validObjectiveState(data) ||
         !WorldCatalogue::isValidWorldId(data.worldId) ||
         !WorldCatalogue::isValidDisplayName(data.worldName) ||
         !WorldCatalogue::isValidBuildIdentity(data.lastBuildIdentity) ||
@@ -479,6 +588,20 @@ bool WorldSave::save(const WorldSaveData &data,
     output << "world_time " << data.worldTime << '\n';
     output << "generator " << data.activeGenerator << '\n';
     output << "alpha_journey_flags " << data.alphaJourneyFlags << '\n';
+    output << "objective_definition_version "
+           << data.objectiveState.definitionVersion << '\n';
+    output << "objective_completed_count "
+           << data.objectiveState.completedIds.size() << '\n';
+    for (const std::string &id : data.objectiveState.completedIds) {
+        output << "objective_completed " << id << '\n';
+    }
+    output << "objective_progress_count "
+           << data.objectiveState.progress.size() << '\n';
+    for (const ObjectiveProgressState &state :
+         data.objectiveState.progress) {
+        output << "objective_progress " << state.id << ' ' << state.value
+               << '\n';
+    }
     output << "player_present " << (data.hasPlayerState ? 1 : 0) << '\n';
     output << "player_position ";
     writeVec3(output, data.playerState.position);

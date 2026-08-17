@@ -41,6 +41,11 @@ $requirements = @(
         Category = "block"
         RelativePath = "media\blocks\Stone.block"
         DiagnosticPath = "media/blocks/Stone.block"
+    },
+    [pscustomobject]@{
+        Category = "objective"
+        RelativePath = "media\objectives\Base.objective"
+        DiagnosticPath = "media/objectives/Base.objective"
     }
 )
 
@@ -55,6 +60,7 @@ foreach ($missing in $requirements) {
         '# HelloMine3D resource manifest v1',
         '',
         'block|media/blocks/Stone.block',
+        'objective|media/objectives/Base.objective',
         'runtime-template|bin/resource-packs.txt',
         'shader|media/ogre/HelloMine3DTerrain.vert',
         'texture|media/textures/DefaultPack.png'

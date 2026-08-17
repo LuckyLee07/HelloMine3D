@@ -53,9 +53,9 @@ world soak, clean-root packaging and the bounded read-only resource-pack layer.
 R3 physical-input acceptance still closes the remaining D2, D4 and D6
 `Verify` states, but it is intentionally deferred while the project prioritizes
 the player-facing gameplay loop. K4 world entry, G2 crafting, G3 tool
-progression, G4 pause/settings, G5 audio feedback and the G6 playable Alpha
-journey are complete. The Alpha development checkpoint is also complete; N1
-goal guidance is the current batch, followed by N2 smelting and iron progression.
+progression, G4 pause/settings, G5 audio feedback, the G6 playable Alpha journey
+and N1 data-driven goal guidance are complete. The Alpha development checkpoint
+is also complete; N2 smelting and iron progression is the current batch.
 
 Stage 8 is now planned around sustainable play and reliable releases. Its
 16-item K/H/Q/G scope adds durable world management and recovery, local
@@ -94,6 +94,12 @@ tool progression to iron, combat loot, save and reopen. Version-4 world
 metadata persists its bounded progress flags while versions 1-3 remain
 readable. The Debug/Release world stack passes 420 checks; see
 `docs/playable-alpha-contract-v1.md`.
+N1 replaces the one-off controller with a strict versioned objective registry,
+event-driven progress, a read-only current/next HUD snapshot and world metadata
+version 5. Versions 1-3 migrate empty, version 4 maps its ten flags to stable
+objective ids, and unknown canonical ids are preserved without driving UI.
+The world stack now passes 429 checks and the resource resolver passes 24; see
+`docs/objective-system-contract-v1.md`.
 Q2 now records bounded cumulative phases, totals, longest main-thread stalls
 and storage counters for startup, catalogue, world entry, save, backup and
 restore. Portable and real storage fixtures are green; closure still depends on
@@ -321,7 +327,7 @@ bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
 bin\HelloMine3DMeshDirtyTests.exe         # mesh dirty planner
 bin\HelloMine3DSaveLoadSmoke.exe          # chunk serialization roundtrip
 bin\HelloMine3DEntityLifecycleSmoke.exe   # actor lifecycle
-bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor/audio/Alpha stack, 420 assertions
+bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor/audio/objective stack, 429 assertions
 bin\HelloMine3DSoak.exe                   # deterministic world stability schedule
 bin\HelloMine3DResourcePackSmoke.exe      # resource resolver and frozen view
 bin\HelloMine3DRecipeSmoke.exe            # strict startup recipe registry

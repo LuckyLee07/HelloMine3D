@@ -25,6 +25,7 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include <FreeImage.h>
@@ -3865,6 +3866,12 @@ void caseToolMiningProgression()
     const int loadedLegacyVersion = legacyData.version;
     if (legacyLoaded) {
         legacyData.version = WorldSaveFormatVersion;
+        legacyData.objectiveState.definitionVersion =
+            ObjectiveSaveState::CurrentDefinitionVersion;
+        legacyData.objectiveState.completedIds =
+            ObjectiveState::completedFromLegacyFlags(
+                legacyData.alphaJourneyFlags);
+        legacyData.objectiveState.progress.clear();
     }
     const bool legacyUpgraded = legacyLoaded && legacySave.save(legacyData);
     std::ifstream upgradedInput(legacyPath, std::ios::binary);
@@ -3876,11 +3883,17 @@ void caseToolMiningProgression()
               legacyData.playerState.inventory[0].durability == 0 &&
               upgraded.find("inventory_format 2") != std::string::npos &&
               upgraded.find("inventory_slot 3 3 0") != std::string::npos);
-    check("G6/version-three-migrates-with-empty-alpha-journey",
+    check("N1/version-three-migrates-with-empty-objective-state",
           legacyLoaded && loadedLegacyVersion == 3 &&
               legacyData.alphaJourneyFlags == 0u && legacyUpgraded &&
-              upgraded.find("version 4") != std::string::npos &&
+              upgraded.find("version 5") != std::string::npos &&
               upgraded.find("alpha_journey_flags 0") !=
+                  std::string::npos &&
+              upgraded.find("objective_definition_version 1") !=
+                  std::string::npos &&
+              upgraded.find("objective_completed_count 0") !=
+                  std::string::npos &&
+              upgraded.find("objective_progress_count 0") !=
                   std::string::npos);
 }
 
@@ -4774,6 +4787,306 @@ void casePlayableVerticalSlice()
     }
 }
 
+std::string validObjectiveTestDefinitions()
+{
+    return R"(# HelloMine3D objective registry v1
+version 1
+objective n1.break_dirt
+type break_block
+target hellomine:dirt
+required 2
+prerequisite none
+visible 1
+optional 0
+title "Break Dirt"
+instruction "Break two Dirt blocks."
+feedback "Dirt broken"
+end
+objective n1.craft_workbench
+type craft_item
+target hellomine:workbench
+required 1
+prerequisite n1.break_dirt
+visible 1
+optional 0
+title "Craft Workbench"
+instruction "Craft one Workbench."
+feedback "Workbench crafted"
+end
+objective n1.place_workbench
+type place_block
+target hellomine:workbench
+required 1
+prerequisite n1.craft_workbench
+visible 1
+optional 0
+title "Place Workbench"
+instruction "Place one Workbench."
+feedback "Workbench placed"
+end
+objective n1.defeat_enemy
+type defeat_enemy
+required 1
+prerequisite n1.place_workbench
+visible 1
+optional 0
+title "Defeat Enemy"
+instruction "Defeat one enemy."
+feedback "Enemy defeated"
+end
+objective n1.pickup_dirt
+type pickup_item
+target hellomine:dirt
+required 1
+prerequisite n1.defeat_enemy
+visible 1
+optional 0
+title "Pickup Dirt"
+instruction "Pickup one Dirt item."
+feedback "Dirt picked up"
+end
+objective n1.obtain_stone
+type obtain_item
+target hellomine:stone
+required 1
+prerequisite n1.pickup_dirt
+visible 1
+optional 0
+title "Obtain Stone"
+instruction "Hold one Stone."
+feedback "Stone obtained"
+end
+objective n1.reach_marker
+type reach_location
+required 1
+location 10 20 30 2
+prerequisite n1.obtain_stone
+visible 1
+optional 0
+title "Reach Marker"
+instruction "Reach the marker."
+feedback "Marker reached"
+end
+objective n1.reopen_world
+type reopen_world
+required 1
+prerequisite n1.reach_marker
+visible 1
+optional 0
+title "Reopen World"
+instruction "Reopen the world."
+feedback "Session complete"
+end
+)";
+}
+
+void caseDataDrivenObjectives()
+{
+    std::ifstream baseInput(ResourcePaths::media(
+                                "objectives/Base.objective"),
+                            std::ios::binary);
+    const std::string baseText(
+        (std::istreambuf_iterator<char>(baseInput)),
+        std::istreambuf_iterator<char>());
+    ObjectiveRegistry baseRegistry;
+    bool baseLoaded = false;
+    try {
+        baseRegistry.freeze({{"Base.objective", baseText}});
+        baseLoaded = true;
+    }
+    catch (const std::exception &) {
+    }
+    const ObjectiveDefinition *baseReach =
+        baseLoaded
+            ? baseRegistry.find("alpha.reach_spawn_marker")
+            : nullptr;
+    check("N1/base-objective-registry-is-versioned-and-complete",
+          baseLoaded && baseRegistry.definitionVersion() == 1 &&
+              baseRegistry.definitions().size() == 11 &&
+              baseRegistry.find("alpha.gather_wood") != nullptr &&
+              baseRegistry.find("alpha.reopen_world") != nullptr &&
+              baseReach != nullptr &&
+              baseReach->type == ObjectiveType::ReachLocation &&
+              !baseReach->visible && baseReach->optional);
+
+    const std::string valid = validObjectiveTestDefinitions();
+    const auto rejects = [](std::vector<ObjectiveSource> sources) {
+        try {
+            ObjectiveRegistry registry;
+            registry.freeze(std::move(sources));
+        }
+        catch (const std::exception &) {
+            return true;
+        }
+        return false;
+    };
+    std::string unknownType = valid;
+    unknownType.replace(unknownType.find("type break_block"),
+                        std::string("type break_block").size(),
+                        "type unknown_type");
+    std::string missingPrerequisite = valid;
+    missingPrerequisite.replace(
+        missingPrerequisite.find("prerequisite none"),
+        std::string("prerequisite none").size(),
+        "prerequisite n1.future");
+    std::string hiddenRequired = valid;
+    hiddenRequired.replace(hiddenRequired.find("visible 1"),
+                           std::string("visible 1").size(),
+                           "visible 0");
+    std::string repeatedReach = valid;
+    const std::size_t reachBegin =
+        repeatedReach.find("objective n1.reach_marker");
+    repeatedReach.replace(
+        repeatedReach.find("required 1", reachBegin),
+        std::string("required 1").size(), "required 2");
+    check("N1/objective-registry-rejects-invalid-contracts",
+          rejects({{"unknown.objective", unknownType}}) &&
+              rejects({{"missing.objective", missingPrerequisite}}) &&
+              rejects({{"hidden.objective", hiddenRequired}}) &&
+              rejects({{"repeated-reach.objective", repeatedReach}}) &&
+              rejects({{"first.objective", valid},
+                       {"duplicate.objective", valid}}));
+
+    ObjectiveRegistry registry;
+    registry.freeze({{"test.objective", valid}});
+    ObjectiveSaveState initial;
+    initial.completedIds.push_back("future.optional");
+    initial.progress.push_back({"future.progress", 7});
+    ObjectiveSaveState beforeReopen;
+    {
+        Player player;
+        SandboxEventBus eventBus;
+        ObjectiveSystem objectives(registry, player, eventBus, initial,
+                                   0u, false);
+        const ObjectiveSnapshot first = objectives.snapshot();
+        const ObjectiveSnapshot repeated = objectives.snapshot();
+        check("N1/objective-query-is-read-only-and-starts-first-goal",
+              first.currentId == "n1.break_dirt" &&
+                  first.totalObjectives == 8 &&
+                  first.completedObjectives == 0 && first.progress == 0 &&
+                  repeated.currentId == first.currentId &&
+                  repeated.progress == first.progress);
+
+        eventBus.publish(BlockBreakEvent({0, 0, 0}, BlockId::Stone));
+        eventBus.publish(BlockBreakEvent({0, 0, 0}, BlockId::Dirt));
+        const ObjectiveSaveState partial = objectives.saveState();
+        const auto partialProgress = std::find_if(
+            partial.progress.begin(), partial.progress.end(),
+            [](const ObjectiveProgressState &state) {
+                return state.id == "n1.break_dirt" && state.value == 1;
+            });
+        check("N1/event-progress-is-filtered-and-persisted",
+              objectives.progress("n1.break_dirt") == 1 &&
+                  partialProgress != partial.progress.end());
+
+        eventBus.publish(BlockBreakEvent({0, 0, 0}, BlockId::Dirt));
+        eventBus.publish(CraftCompletedEvent(
+            "test", Material::ID::Workbench, 1, 1, {}));
+        eventBus.publish(BlockPlaceEvent({0, 0, 0}, BlockId::Workbench));
+        eventBus.publish(EntityDeathEvent(2, DefaultPlayerActorId, {}));
+        eventBus.publish(ItemPickupEvent(
+            DefaultPlayerActorId, 3, Material::ID::Dirt, 1, {}));
+        const bool stoneAdded =
+            player.addItem(Material::STONE_BLOCK, 1) == 1;
+        eventBus.publish(PlayerInventoryChangedEvent(
+            DefaultPlayerActorId, Material::ID::Stone, 1,
+            "objective_test"));
+        player.position = {10.f, 20.f, 30.f};
+        objectives.update(0.05f);
+        const ObjectiveSnapshot before = objectives.snapshot();
+        beforeReopen = objectives.saveState();
+        const bool unknownCompletedPreserved = std::find(
+            beforeReopen.completedIds.begin(),
+            beforeReopen.completedIds.end(),
+            "future.optional") != beforeReopen.completedIds.end();
+        const bool unknownProgressPreserved = std::any_of(
+            beforeReopen.progress.begin(), beforeReopen.progress.end(),
+            [](const ObjectiveProgressState &state) {
+                return state.id == "future.progress" && state.value == 7;
+            });
+        check("N1/all-objective-event-types-advance-in-order",
+              stoneAdded && before.currentId == "n1.reopen_world" &&
+                  before.completedObjectives == 7 &&
+                  unknownCompletedPreserved && unknownProgressPreserved);
+    }
+    {
+        Player player;
+        SandboxEventBus eventBus;
+        ObjectiveSystem objectives(registry, player, eventBus,
+                                   beforeReopen, 0u, true);
+        const ObjectiveSnapshot complete = objectives.snapshot();
+        check("N1/reopen-completes-session-without-item-reward",
+              complete.sessionComplete &&
+                  complete.completedObjectives == 8 &&
+                  player.getInventorySlot(0).getMaterial().id ==
+                      Material::ID::Nothing);
+    }
+
+    const auto saveDirectory = freshSaveDirectory("objective_v5_contract");
+    WorldSaveData validSave;
+    validSave.worldId = "objective-v5-contract";
+    validSave.worldName = "Objective V5 Contract";
+    validSave.seed = kValidationSeed;
+    validSave.createdUtc = LegacyWorldTimestampUtc;
+    validSave.lastPlayedUtc = LegacyWorldTimestampUtc;
+    validSave.lastBuildIdentity = "validation";
+    validSave.alphaJourneyFlags = 1u;
+    validSave.objectiveState.completedIds = {"alpha.gather_wood",
+                                             "future.optional"};
+    validSave.objectiveState.progress = {{"alpha.craft_workbench", 1}};
+    WorldSave save(saveDirectory);
+    WorldSaveData loaded;
+    const bool saved = save.save(validSave) && save.load(loaded);
+    WorldSaveData invalidDefinition = validSave;
+    invalidDefinition.objectiveState.definitionVersion = 2;
+    WorldSaveData duplicate = validSave;
+    duplicate.objectiveState.completedIds.push_back("future.optional");
+    WorldSaveData completedProgress = validSave;
+    completedProgress.objectiveState.progress.push_back(
+        {"alpha.gather_wood", 1});
+    WorldSaveData mismatchedFlags = validSave;
+    mismatchedFlags.alphaJourneyFlags = 0u;
+    WorldSaveData preserved;
+    check("N1/version-five-objective-state-roundtrips",
+          saved && loaded.version == 5 &&
+              loaded.objectiveState.definitionVersion == 1 &&
+              loaded.objectiveState.completedIds ==
+                  validSave.objectiveState.completedIds &&
+              loaded.objectiveState.progress.size() == 1);
+    check("N1/invalid-objective-state-preserves-last-good-save",
+          !save.save(invalidDefinition) && !save.save(duplicate) &&
+              !save.save(completedProgress) &&
+              !save.save(mismatchedFlags) && save.load(preserved) &&
+              preserved.objectiveState.completedIds ==
+                  validSave.objectiveState.completedIds);
+
+    const std::filesystem::path migrationRoot =
+        freshSaveDirectory("objective_v4_migration");
+    const std::filesystem::path migratedWorld =
+        migrationRoot / "objective-v4-partial";
+    std::filesystem::create_directories(migratedWorld);
+    std::filesystem::copy_file(
+        ResourcePaths::join(
+            ResourcePaths::projectRoot(),
+            "tools/fixtures/objectives/world-v4-partial-alpha.meta"),
+        migratedWorld / "world.meta",
+        std::filesystem::copy_options::overwrite_existing);
+    const WorldManagementService management(migrationRoot.string());
+    const WorldManagementResult migrated =
+        management.prepareWorldForOpen("objective-v4-partial");
+    WorldSaveData migratedData;
+    const bool migratedLoaded =
+        migrated.succeeded() &&
+        WorldSave(migratedWorld.string()).load(migratedData);
+    check("N1/version-four-flags-migrate-to-version-five-objectives",
+          migratedLoaded && migratedData.version == 5 &&
+              migratedData.alphaJourneyFlags == 3u &&
+              migratedData.objectiveState.definitionVersion == 1 &&
+              migratedData.objectiveState.completedIds ==
+                  ObjectiveState::completedFromLegacyFlags(3u) &&
+              migratedData.objectiveState.progress.empty());
+}
+
 // ---------------------------------------------------------------------------
 // G6 - clean-start Alpha journey through progression, combat and relaunch
 // ---------------------------------------------------------------------------
@@ -5076,7 +5389,11 @@ void casePlayableAlphaJourney()
         check("G6/physical-mob-drop-is-picked-up",
               dirtBeforeRelaunch == dirtBeforePickup + 1 &&
                   world.getAlphaJourneySnapshot().step ==
-                      AlphaJourneyStep::ReopenWorld);
+                      AlphaJourneyStep::ReopenWorld,
+              "dirt=" + std::to_string(dirtBeforePickup) + "->" +
+                  std::to_string(dirtBeforeRelaunch) + " step=" +
+                  std::to_string(static_cast<int>(
+                      world.getAlphaJourneySnapshot().step)));
 
         flagsBeforeRelaunch =
             world.getAlphaJourneySnapshot().step ==
@@ -5101,7 +5418,7 @@ void casePlayableAlphaJourney()
             WorldSave(opened.directoryPath).load(persisted);
         flagsBeforeRelaunch =
             metadataLoaded ? persisted.alphaJourneyFlags : 0u;
-        check("G6/save-publishes-version-four-alpha-progress",
+        check("G6/save-publishes-version-five-objective-progress",
               saved && metadataLoaded &&
                   persisted.version == WorldSaveFormatVersion &&
                   flagsBeforeRelaunch ==
@@ -6020,6 +6337,7 @@ int main()
         caseCombatAndRespawn();
         caseWheatCropLoop();
         casePlayableVerticalSlice();
+        caseDataDrivenObjectives();
         casePlayableAlphaJourney();
         caseChunkFormatRejection();
         caseTerrainDeterminism();

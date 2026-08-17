@@ -25,6 +25,9 @@ namespace
         "inventory_slot",
         "last_build",     "last_played_utc",   "player_held",
         "player_position", "player_present",    "player_rotation",
+        "objective_completed", "objective_completed_count",
+        "objective_definition_version", "objective_progress",
+        "objective_progress_count",
         "seed",           "spawn",             "version",
         "world_id",       "world_name",        "world_time"};
 

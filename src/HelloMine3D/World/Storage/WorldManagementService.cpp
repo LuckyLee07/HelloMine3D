@@ -98,6 +98,12 @@ namespace
                           entry.id, entry.directoryPath);
         }
         if (data.version < WorldSaveFormatVersion) {
+            data.objectiveState.definitionVersion =
+                ObjectiveSaveState::CurrentDefinitionVersion;
+            data.objectiveState.completedIds =
+                ObjectiveState::completedFromLegacyFlags(
+                    data.alphaJourneyFlags);
+            data.objectiveState.progress.clear();
             data.version = WorldSaveFormatVersion;
             data.worldId = entry.id;
             data.worldName = entry.displayName;

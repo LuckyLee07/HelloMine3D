@@ -4,12 +4,15 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
-#include <vector>
+
+#include "ObjectiveState.h"
+#include "ObjectiveSystem.h"
 
 class Player;
 class SandboxEventBus;
 
-enum class AlphaJourneyStep : std::uint8_t {
+enum class AlphaJourneyStep : std::uint8_t
+{
     GatherWood = 0,
     CraftWorkbench,
     PlaceWorkbench,
@@ -23,7 +26,8 @@ enum class AlphaJourneyStep : std::uint8_t {
     Complete
 };
 
-struct AlphaJourneySnapshot {
+struct AlphaJourneySnapshot
+{
     AlphaJourneyStep step = AlphaJourneyStep::GatherWood;
     std::size_t completedSteps = 0;
     std::size_t totalSteps = 10;
@@ -39,23 +43,32 @@ struct AlphaJourneySnapshot {
     }
 };
 
-class AlphaJourney {
+/// Compatibility facade for the frozen G6 ten-step view. N1 progression is
+/// owned by ObjectiveSystem; this class only preserves the old public snapshot
+/// and flag contract while worlds migrate from save version 4.
+class AlphaJourney
+{
   public:
     static constexpr int RequiredOakBark = 11;
     static constexpr int RequiredStone = 3;
-    static constexpr std::size_t StepCount = 10;
+    static constexpr std::size_t StepCount =
+        ObjectiveState::LegacyAlphaIds.size();
     static constexpr std::uint32_t KnownFlags =
-        (1u << static_cast<unsigned>(StepCount)) - 1u;
+        ObjectiveState::LegacyAlphaKnownFlags;
 
-    AlphaJourney(Player &player, SandboxEventBus &eventBus,
+    AlphaJourney(Player& player, SandboxEventBus& eventBus,
                  std::uint32_t persistedFlags, bool restoredWorld);
-    ~AlphaJourney();
+    AlphaJourney(Player& player, SandboxEventBus& eventBus,
+                 const ObjectiveSaveState& objectiveState,
+                 std::uint32_t persistedFlags, bool restoredWorld);
 
-    AlphaJourney(const AlphaJourney &) = delete;
-    AlphaJourney &operator=(const AlphaJourney &) = delete;
+    AlphaJourney(const AlphaJourney&) = delete;
+    AlphaJourney& operator=(const AlphaJourney&) = delete;
 
     void update(float deltaSeconds);
     AlphaJourneySnapshot snapshot() const;
+    ObjectiveSnapshot objectiveSnapshot() const;
+    ObjectiveSaveState objectiveSaveState() const;
     std::uint32_t flags() const noexcept;
 
     static constexpr bool validFlags(std::uint32_t flags) noexcept
@@ -64,18 +77,7 @@ class AlphaJourney {
     }
 
   private:
-    void refreshInventory();
-    void mark(AlphaJourneyStep step, const char *feedback);
-    bool has(AlphaJourneyStep step) const noexcept;
-    int inventoryCount(int materialId) const noexcept;
-    AlphaJourneyStep currentStep() const noexcept;
-
-    Player *m_player = nullptr;
-    SandboxEventBus *m_eventBus = nullptr;
-    std::vector<unsigned> m_subscriptions;
-    std::uint32_t m_flags = 0;
-    std::string m_completionFeedback;
-    float m_feedbackSeconds = 0.f;
+    ObjectiveSystem m_objectives;
 };
 
 #endif // ALPHAJOURNEY_H_INCLUDED

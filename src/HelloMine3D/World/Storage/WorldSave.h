@@ -2,6 +2,7 @@
 #define WORLDSAVE_H_INCLUDED
 
 #include "../../Actor/Actor.h"
+#include "../../Gameplay/ObjectiveState.h"
 #include "../../Player/Player.h"
 #include "StorageTransaction.h"
 
@@ -10,7 +11,7 @@
 #include <string>
 #include <vector>
 
-inline constexpr int WorldSaveFormatVersion = 4;
+inline constexpr int WorldSaveFormatVersion = 5;
 
 struct WorldSaveData {
     int version = WorldSaveFormatVersion;
@@ -24,6 +25,7 @@ struct WorldSaveData {
     float worldTime = 0.f;
     std::string activeGenerator = "ClassicOverWorld";
     std::uint32_t alphaJourneyFlags = 0;
+    ObjectiveSaveState objectiveState;
     bool hasPlayerState = false;
     PlayerSaveState playerState;
     std::vector<ActorSaveState> actors;

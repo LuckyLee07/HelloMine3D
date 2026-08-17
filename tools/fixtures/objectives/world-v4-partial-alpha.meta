@@ -1,0 +1,18 @@
+version 4
+world_id objective-v4-partial
+world_name "Objective V4 Partial"
+seed 20260807
+created_utc 946684800
+last_played_utc 946684800
+last_build validation
+spawn 0 0 0
+world_time 0
+generator ClassicOverWorld
+alpha_journey_flags 3
+player_present 1
+player_position 0 0 0
+player_rotation 0 0 0
+player_held 0
+inventory_format 2
+inventory_count 0
+actor_count 0

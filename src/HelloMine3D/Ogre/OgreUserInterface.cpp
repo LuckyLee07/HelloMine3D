@@ -816,13 +816,13 @@ class OgreUserInterface::Impl
 
         if (world != nullptr)
         {
-            const AlphaJourneySnapshot journey =
-                world->getAlphaJourneySnapshot();
+            const ObjectiveSnapshot objective =
+                world->getObjectiveSnapshot();
             ImGui::SetNextWindowPos(ImVec2(18.0f, 18.0f),
                                     ImGuiCond_Always);
             ImGui::SetNextWindowBgAlpha(0.76f);
             if (ImGui::Begin(
-                    "##AlphaJourney", nullptr,
+                    "##Objectives", nullptr,
                     ImGuiWindowFlags_NoDecoration |
                         ImGuiWindowFlags_AlwaysAutoResize |
                         ImGuiWindowFlags_NoSavedSettings |
@@ -830,29 +830,36 @@ class OgreUserInterface::Impl
                         ImGuiWindowFlags_NoFocusOnAppearing |
                         ImGuiWindowFlags_NoNav))
             {
-                ImGui::Text("Alpha Journey  %zu / %zu",
-                            journey.completedSteps, journey.totalSteps);
+                ImGui::Text("First Session  %zu / %zu",
+                            objective.completedObjectives,
+                            objective.totalObjectives);
                 ImGui::Separator();
-                ImGui::TextUnformatted(journey.title.c_str());
-                ImGui::TextWrapped("%s", journey.instruction.c_str());
-                if (journey.required > 0)
+                ImGui::TextUnformatted(objective.title.c_str());
+                ImGui::TextWrapped("%s", objective.instruction.c_str());
+                if (objective.required > 1)
                 {
                     const float ratio = std::clamp(
-                        static_cast<float>(journey.progress) /
-                            static_cast<float>(journey.required),
+                        static_cast<float>(objective.progress) /
+                            static_cast<float>(objective.required),
                         0.0f, 1.0f);
                     const std::string overlay =
-                        std::to_string(std::min(journey.progress,
-                                                journey.required)) +
-                        " / " + std::to_string(journey.required);
+                        std::to_string(std::min(objective.progress,
+                                                objective.required)) +
+                        " / " + std::to_string(objective.required);
                     ImGui::ProgressBar(ratio, ImVec2(260.0f, 10.0f),
                                        overlay.c_str());
                 }
-                if (!journey.completionFeedback.empty())
+                if (!objective.nextTitle.empty() &&
+                    !objective.sessionComplete)
+                {
+                    ImGui::TextDisabled("Next: %s",
+                                        objective.nextTitle.c_str());
+                }
+                if (!objective.completionFeedback.empty())
                 {
                     ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.45f, 1.0f),
                                        "%s",
-                                       journey.completionFeedback.c_str());
+                                       objective.completionFeedback.c_str());
                 }
             }
             ImGui::End();

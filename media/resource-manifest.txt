@@ -22,6 +22,7 @@ block|media/blocks/Water.block
 block|media/blocks/WheatCrop.block
 block|media/blocks/Workbench.block
 font|media/fonts/rs.ttf
+objective|media/objectives/Base.objective
 recipe|media/recipes/Base.recipe
 resource-script|media/ogre/HelloMine3D.material
 resource-script|media/ogre/HelloMine3D.program

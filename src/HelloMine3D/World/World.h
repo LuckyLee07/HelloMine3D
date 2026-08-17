@@ -138,6 +138,7 @@ class World : public NonCopyable {
     float getPlayerMaxHealth() const;
     glm::vec3 getPlayerSpawnPoint() const;
     AlphaJourneySnapshot getAlphaJourneySnapshot() const;
+    ObjectiveSnapshot getObjectiveSnapshot() const;
 
     ChunkManager &getChunkManager();
     ActorManager &getActorManager();

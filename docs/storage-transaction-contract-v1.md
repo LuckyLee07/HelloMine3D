@@ -38,13 +38,14 @@ dirty chunks after failure, and a chunk that cannot be saved is not unloaded.
 
 ## Candidate validation
 
-World saves always publish format 4. Validation uses the same `WorldSave`
+World saves always publish format 5. Validation uses the same `WorldSave`
 parser as normal loading and requires the full version-3 identity field set,
-one bounded `alpha_journey_flags` field, exact
+one bounded `alpha_journey_flags` compatibility field, the version-1 objective
+definition id plus exact bounded completed/progress records, exact
 inventory/actor counts, valid K1 identity and timestamps, bounded metadata,
 finite numeric state and a complete end-of-file parse. Normal loading retains
-version 1-3 compatibility and normal saving upgrades those generations to
-version 4.
+version 1-4 compatibility; world-management opening upgrades those generations
+to version 5 and maps version-4 Alpha flags to objective ids.
 
 Chunk validation uses the same binary reader as normal loading. It checks the
 magic, supported version (1 or 2), expected coordinates, chunk size, section

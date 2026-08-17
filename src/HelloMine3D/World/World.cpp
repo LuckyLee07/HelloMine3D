@@ -363,8 +363,10 @@ World::World(const Camera &camera, const Config &config, Player &player,
     runtimeOperationTimings().markLatestActive(
         RuntimeOperationKind::WorldEntry);
     m_playerActor.syncFromPlayer(player);
+    ensureRuntimeObjectiveRegistry();
     m_alphaJourney = std::make_unique<AlphaJourney>(
-        player, m_eventBus, m_worldSaveData.alphaJourneyFlags, hasSave);
+        player, m_eventBus, m_worldSaveData.objectiveState,
+        m_worldSaveData.alphaJourneyFlags, hasSave);
 
     auto playerChunk = getChunkXZ(toBlockCoord(player.position.x),
                                   toBlockCoord(player.position.z));
@@ -944,6 +946,13 @@ AlphaJourneySnapshot World::getAlphaJourneySnapshot() const
     return m_alphaJourney != nullptr
                ? m_alphaJourney->snapshot()
                : AlphaJourneySnapshot{};
+}
+
+ObjectiveSnapshot World::getObjectiveSnapshot() const
+{
+    return m_alphaJourney != nullptr
+               ? m_alphaJourney->objectiveSnapshot()
+               : ObjectiveSnapshot{};
 }
 
 void World::applyMobContactDamage()
@@ -1690,6 +1699,10 @@ bool World::saveWorldState()
     }
     m_worldSaveData.alphaJourneyFlags =
         m_alphaJourney != nullptr ? m_alphaJourney->flags() : 0u;
+    m_worldSaveData.objectiveState =
+        m_alphaJourney != nullptr
+            ? m_alphaJourney->objectiveSaveState()
+            : ObjectiveSaveState{};
     m_worldSaveData.actors = m_actorManager.collectSaveStates();
 
     StorageTransactionMetrics metrics;

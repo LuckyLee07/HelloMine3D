@@ -1,0 +1,133 @@
+# HelloMine3D objective registry v1
+
+version 1
+
+objective alpha.gather_wood
+type break_block
+target hellomine:oak_bark
+required 11
+prerequisite none
+visible 1
+optional 0
+title "Start with wood"
+instruction "Collect 11 Oak Bark for a Workbench and tools."
+feedback "Enough Oak Bark collected"
+end
+
+objective alpha.craft_workbench
+type craft_item
+target hellomine:workbench
+required 1
+prerequisite alpha.gather_wood
+visible 1
+optional 0
+title "Craft a Workbench"
+instruction "Press E and fill the 2x2 grid with Oak Bark."
+feedback "Workbench crafted"
+end
+
+objective alpha.place_workbench
+type place_block
+target hellomine:workbench
+required 1
+prerequisite alpha.craft_workbench
+visible 1
+optional 0
+title "Place the Workbench"
+instruction "Select the Workbench and place it nearby."
+feedback "Workbench placed"
+end
+
+objective alpha.craft_wooden_pickaxe
+type craft_item
+target hellomine:wooden_pickaxe
+required 1
+prerequisite alpha.place_workbench
+visible 1
+optional 0
+title "Craft a Wooden Pickaxe"
+instruction "Use the Workbench: 3 Oak Bark over 2 handles."
+feedback "Wooden Pickaxe crafted"
+end
+
+objective alpha.gather_stone
+type break_block
+target hellomine:stone
+required 3
+prerequisite alpha.craft_wooden_pickaxe
+visible 1
+optional 0
+title "Mine Stone"
+instruction "Use the Wooden Pickaxe to collect 3 Stone."
+feedback "Enough Stone collected"
+end
+
+objective alpha.craft_stone_pickaxe
+type craft_item
+target hellomine:stone_pickaxe
+required 1
+prerequisite alpha.gather_stone
+visible 1
+optional 0
+title "Craft a Stone Pickaxe"
+instruction "Use 3 Stone and 2 Oak Bark at the Workbench."
+feedback "Stone Pickaxe crafted"
+end
+
+objective alpha.gather_iron_ore
+type obtain_item
+target hellomine:iron_ore
+required 1
+prerequisite alpha.craft_stone_pickaxe
+visible 1
+optional 0
+title "Mine Iron Ore"
+instruction "Iron drops only when mined with the Stone Pickaxe."
+feedback "Iron Ore acquired"
+end
+
+objective alpha.defeat_mob
+type defeat_enemy
+required 1
+prerequisite alpha.gather_iron_ore
+visible 1
+optional 0
+title "Defeat an enemy"
+instruction "Find a roaming Mob and attack until it drops loot."
+feedback "Enemy defeated"
+end
+
+objective alpha.collect_mob_loot
+type pickup_item
+target hellomine:dirt
+required 1
+prerequisite alpha.defeat_mob
+visible 1
+optional 0
+title "Collect the loot"
+instruction "Move close to the dropped item to pick it up."
+feedback "Enemy loot collected"
+end
+
+objective alpha.reopen_world
+type reopen_world
+required 1
+prerequisite alpha.collect_mob_loot
+visible 1
+optional 0
+title "Save and continue"
+instruction "Pause, save to the main menu, then reopen this world."
+feedback "First session complete"
+end
+
+objective alpha.reach_spawn_marker
+type reach_location
+required 1
+location 3038.5 66 1922.5 8
+prerequisite none
+visible 0
+optional 1
+title "Reach the Alpha start"
+instruction "Enter the fixed Alpha start area."
+feedback "Alpha start reached"
+end

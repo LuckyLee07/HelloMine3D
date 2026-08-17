@@ -35,6 +35,7 @@
 #include "../Diagnostics/OperationPerformanceTiming.h"
 #include "../Diagnostics/RuntimePerformanceCapture.h"
 #include "../Diagnostics/RuntimeProfiler.h"
+#include "../Gameplay/ObjectiveRegistry.h"
 #include "../Item/RecipeRegistry.h"
 #include "../Item/CraftingSession.h"
 #include "../Item/ToolRegistry.h"
@@ -2047,6 +2048,8 @@ int runOgreBootstrap(bool validateOnly)
             runtimeResourcePackResolver());
         runtimeToolRegistry().freezeFromResourceView(
             runtimeResourcePackResolver());
+        runtimeObjectiveRegistry().freezeFromResourceView(
+            runtimeResourcePackResolver());
         const char *manifestOutput =
             std::getenv("HELLOMINE3D_EFFECTIVE_MANIFEST_OUT");
         if (manifestOutput != nullptr && manifestOutput[0] != '\0')
@@ -2073,6 +2076,11 @@ int runOgreBootstrap(bool validateOnly)
                   << runtimeRecipeRegistry().recipes().size() << '\n';
         std::cout << "[TOOL_REGISTRY] frozen=1 tools="
                   << runtimeToolRegistry().tools().size() << '\n';
+        std::cout << "[OBJECTIVE_REGISTRY] frozen=1 version="
+                  << runtimeObjectiveRegistry().definitionVersion()
+                  << " objectives="
+                  << runtimeObjectiveRegistry().definitions().size()
+                  << '\n';
         runtimeOperationTimings().markLatestActive(
             RuntimeOperationKind::Startup);
         OgreBootstrap bootstrap;
