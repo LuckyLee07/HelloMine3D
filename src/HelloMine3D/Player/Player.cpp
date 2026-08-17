@@ -2,6 +2,8 @@
 
 #include "../Item/CraftingSession.h"
 #include "../Item/RecipeRegistry.h"
+#include "../Sandbox/Events/CraftingEvents.h"
+#include "../Sandbox/Events/SandboxEventBus.h"
 
 #include <algorithm>
 #include <cmath>
@@ -74,7 +76,26 @@ CraftingCommitResult Player::commitCrafting(
     CraftingSession &session, const RecipeRegistry &recipes,
     const CraftingPreview &expected, int craftCount)
 {
-    return session.commit(recipes, m_inventory, expected, craftCount);
+    CraftingCommitResult result =
+        session.commit(recipes, m_inventory, expected, craftCount);
+    if (result.succeeded() && m_eventBus != nullptr) {
+        m_eventBus->publish(CraftCompletedEvent(
+            result.recipeId, expected.outputMaterialId,
+            result.craftsCompleted, result.outputAdded, position));
+    }
+    return result;
+}
+
+void Player::attachEventBus(SandboxEventBus &eventBus) noexcept
+{
+    m_eventBus = &eventBus;
+}
+
+void Player::detachEventBus(const SandboxEventBus &eventBus) noexcept
+{
+    if (m_eventBus == &eventBus) {
+        m_eventBus = nullptr;
+    }
 }
 
 void Player::openContainer(const glm::ivec3 &containerPosition)

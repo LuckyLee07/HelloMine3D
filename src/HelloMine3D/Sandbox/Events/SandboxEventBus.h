@@ -21,6 +21,7 @@ enum class SandboxEventType {
     PlayerSpawn,
     PlayerTeleport,
     PlayerInventoryChanged,
+    CraftCompleted,
 };
 
 struct SandboxEvent {

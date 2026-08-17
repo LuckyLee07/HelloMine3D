@@ -288,6 +288,7 @@ World::World(const Camera &camera, const Config &config, Player &player,
     , m_renderDistance(config.renderDistance)
 {
     (void)camera;
+    player.attachEventBus(m_eventBus);
 
     int forcedSeed = 0;
     const bool hasForcedSeed = readIntEnv("HELLOMINE3D_SEED", forcedSeed);
@@ -377,6 +378,9 @@ World::World(const Camera &camera, const Config &config, Player &player,
 
 World::~World()
 {
+    if (m_player != nullptr) {
+        m_player->detachEventBus(m_eventBus);
+    }
     m_isRunning = false;
     for (auto &thread : m_chunkLoadThreads) {
         thread.join();

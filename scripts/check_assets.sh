@@ -51,6 +51,12 @@ require_file "resource config template" "bin/MineResources.cfg"
 require_file "resource-pack config template" "bin/resource-packs.txt"
 require_file "startup resource manifest" "media/resource-manifest.txt"
 require_directory "recipe resources" "media/recipes"
+require_directory "audio resources" "media/audio"
+
+while IFS= read -r audio_path; do
+    require_file "audio definition" "$audio_path"
+done < <(find "$ROOT_DIR/media/audio" -type f -name '*.audio' 2>/dev/null |
+    sed "s#^$ROOT_DIR/##" | sort)
 
 while IFS= read -r recipe_path; do
     require_file "recipe" "$recipe_path"

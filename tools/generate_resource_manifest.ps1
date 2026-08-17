@@ -48,6 +48,21 @@ Add-ManifestEntry "runtime-template" "bin/Mine.cfg"
 Add-ManifestEntry "runtime-template" "bin/MineResources.cfg"
 Add-ManifestEntry "runtime-template" "bin/resource-packs.txt"
 
+$audioRoot = Join-Path $Root "media\audio"
+if (-not (Test-Path -LiteralPath $audioRoot -PathType Container)) {
+    throw "Audio resource directory is missing: $audioRoot"
+}
+$audioFiles = @(Get-ChildItem -LiteralPath $audioRoot `
+    -Filter "*.audio" -File -Recurse)
+if ($audioFiles.Count -eq 0) {
+    throw "No base audio resources were discovered."
+}
+foreach ($audioFile in $audioFiles) {
+    $relativeAudio = $audioFile.FullName.Substring($Root.Length).TrimStart(
+        [char]'\', [char]'/')
+    Add-ManifestEntry "audio" $relativeAudio
+}
+
 $recipeRoot = Join-Path $Root "media\recipes"
 if (-not (Test-Path -LiteralPath $recipeRoot -PathType Container)) {
     throw "Recipe resource directory is missing: $recipeRoot"

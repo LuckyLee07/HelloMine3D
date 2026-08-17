@@ -165,7 +165,7 @@ class OgreUserInterface::Impl
          Ogre::Camera &renderCamera, Player *worldPlayer, World *activeWorld,
          GameApplicationFlow &applicationFlow,
          WorldManagementService &worldManagement,
-         const UserSettings &settings)
+         const UserSettings &settings, std::function<void()> feedback)
         : window(&renderWindow)
         , sceneManager(&renderSceneManager)
         , camera(&renderCamera)
@@ -174,6 +174,7 @@ class OgreUserInterface::Impl
         , flow(&applicationFlow)
         , management(&worldManagement)
         , appliedSettings(settings)
+        , uiFeedback(std::move(feedback))
         , showDebugPanel(RuntimeDebugOptions::showDebugInfoAtStartup())
         , iniPath(ResourcePaths::bin("imgui-ogre.ini"))
     {
@@ -309,12 +310,14 @@ class OgreUserInterface::Impl
                 if (flow->showWorldList())
                 {
                     worldsDirty = true;
+                    playUiFeedback();
                 }
             }
             ImGui::SetCursorPos(ImVec2(90.0f, 170.0f));
             if (ImGui::Button("Quit", ImVec2(240.0f, 42.0f)))
             {
                 pendingAction.type = OgreUserInterfaceActionType::Quit;
+                playUiFeedback();
             }
         }
         ImGui::End();
@@ -362,6 +365,23 @@ class OgreUserInterface::Impl
         if (result.succeeded())
         {
             worldsDirty = true;
+            playUiFeedback();
+        }
+    }
+
+    void playUiFeedback() noexcept
+    {
+        if (!uiFeedback)
+        {
+            return;
+        }
+        try
+        {
+            uiFeedback();
+        }
+        catch (...)
+        {
+            // Audio feedback must never interrupt a UI command.
         }
     }
 
@@ -383,12 +403,16 @@ class OgreUserInterface::Impl
         {
             if (ImGui::Button("Back to Main Menu"))
             {
-                flow->returnToMainMenu();
+                if (flow->returnToMainMenu())
+                {
+                    playUiFeedback();
+                }
             }
             ImGui::SameLine();
             if (ImGui::Button("Refresh"))
             {
                 worldsDirty = true;
+                playUiFeedback();
             }
             ImGui::Separator();
 
@@ -426,6 +450,7 @@ class OgreUserInterface::Impl
                     pendingAction.type =
                         OgreUserInterfaceActionType::OpenWorld;
                     pendingAction.worldId = entry.id;
+                    playUiFeedback();
                 }
                 ImGui::SameLine();
                 if (ImGui::SmallButton("Delete"))
@@ -528,6 +553,7 @@ class OgreUserInterface::Impl
                 ImGui::SameLine();
                 if (ImGui::Button("Cancel", ImVec2(120.0f, 0.0f)))
                 {
+                    playUiFeedback();
                     ImGui::CloseCurrentPopup();
                 }
                 ImGui::EndPopup();
@@ -548,6 +574,7 @@ class OgreUserInterface::Impl
                 if (ImGui::Button("Cancel##permanent",
                                   ImVec2(120.0f, 0.0f)))
                 {
+                    playUiFeedback();
                     ImGui::CloseCurrentPopup();
                 }
                 ImGui::EndPopup();
@@ -567,6 +594,7 @@ class OgreUserInterface::Impl
                 if (ImGui::Button("Cancel##backup",
                                   ImVec2(120.0f, 0.0f)))
                 {
+                    playUiFeedback();
                     ImGui::CloseCurrentPopup();
                 }
                 ImGui::EndPopup();
@@ -608,23 +636,29 @@ class OgreUserInterface::Impl
         {
             if (ImGui::Button("Resume", ImVec2(-1.0f, 45.0f)))
             {
-                flow->resume();
+                if (flow->resume())
+                {
+                    playUiFeedback();
+                }
             }
             if (ImGui::Button("Settings", ImVec2(-1.0f, 45.0f)))
             {
                 settingsSession.begin(appliedSettings);
                 settingsMessage.clear();
                 settingsApplyPending = false;
+                playUiFeedback();
             }
             if (ImGui::Button("Save and Main Menu",
                               ImVec2(-1.0f, 45.0f)))
             {
                 pendingAction.type =
                     OgreUserInterfaceActionType::ReturnToMainMenu;
+                playUiFeedback();
             }
             if (ImGui::Button("Save and Quit", ImVec2(-1.0f, 45.0f)))
             {
                 pendingAction.type = OgreUserInterfaceActionType::Quit;
+                playUiFeedback();
             }
             if (!statusMessage.empty())
             {
@@ -694,12 +728,14 @@ class OgreUserInterface::Impl
             {
                 settingsSession.cancel();
                 settingsMessage.clear();
+                playUiFeedback();
             }
             ImGui::SameLine();
             if (ImGui::Button("Defaults", ImVec2(140.0f, 38.0f)))
             {
                 settingsSession.restoreDefaults();
                 settingsMessage.clear();
+                playUiFeedback();
             }
             ImGui::EndDisabled();
         }
@@ -734,6 +770,7 @@ class OgreUserInterface::Impl
         appliedSettings = settings;
         settingsSession.acceptApplied();
         statusMessage = settingsMessage;
+        playUiFeedback();
     }
 
     void drawHud()
@@ -895,8 +932,11 @@ class OgreUserInterface::Impl
                 if (ImGui::Button(label.c_str(), ImVec2(170.0f, 54.0f)) &&
                     stack.amount > 0)
                 {
-                    ChestContainer::transferToPlayer(
-                        *world, *player, slot, stack.amount);
+                    if (ChestContainer::transferToPlayer(
+                            *world, *player, slot, stack.amount))
+                    {
+                        playUiFeedback();
+                    }
                 }
             }
 
@@ -917,8 +957,12 @@ class OgreUserInterface::Impl
                 if (ImGui::Button(label.c_str(), ImVec2(102.0f, 50.0f)) &&
                     !stack.isEmpty())
                 {
-                    ChestContainer::transferFromPlayer(
-                        *world, *player, slot, stack.getNumInStack());
+                    if (ChestContainer::transferFromPlayer(
+                            *world, *player, slot,
+                            stack.getNumInStack()))
+                    {
+                        playUiFeedback();
+                    }
                 }
             }
             ImGui::TextUnformatted(
@@ -926,6 +970,7 @@ class OgreUserInterface::Impl
             if (ImGui::Button("Close", ImVec2(100.0f, 32.0f)))
             {
                 open = false;
+                playUiFeedback();
             }
         }
         ImGui::End();
@@ -1071,6 +1116,7 @@ class OgreUserInterface::Impl
             if (ImGui::Button("Close", ImVec2(110.0f, 38.0f)))
             {
                 open = false;
+                playUiFeedback();
             }
             if (!craftingMessage.empty())
             {
@@ -1242,6 +1288,7 @@ class OgreUserInterface::Impl
     GameApplicationFlow *flow = nullptr;
     WorldManagementService *management = nullptr;
     UserSettings appliedSettings;
+    std::function<void()> uiFeedback;
     RuntimeSettingsSession settingsSession;
     std::string settingsMessage;
     bool settingsApplyPending = false;
@@ -1279,10 +1326,12 @@ OgreUserInterface::OgreUserInterface(Ogre::RenderWindow &window,
                                      World *world,
                                      GameApplicationFlow &applicationFlow,
                                      WorldManagementService &worldManagement,
-                                     const UserSettings &settings)
+                                     const UserSettings &settings,
+                                     std::function<void()> uiFeedback)
     : m_impl(std::make_unique<Impl>(window, sceneManager, camera, player,
                                     world, applicationFlow,
-                                    worldManagement, settings))
+                                    worldManagement, settings,
+                                    std::move(uiFeedback)))
 {
     m_impl->initialize(this);
 }

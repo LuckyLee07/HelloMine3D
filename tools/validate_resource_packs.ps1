@@ -48,6 +48,25 @@ if ($LASTEXITCODE -ne 0) {
     throw "Resource-pack parser/resolver smoke failed with $LASTEXITCODE."
 }
 
+function Get-Sha256File {
+    param([string]$Path)
+
+    $stream = [System.IO.File]::OpenRead($Path)
+    try {
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            return ([System.BitConverter]::ToString(
+                $sha256.ComputeHash($stream))).Replace("-", "")
+        }
+        finally {
+            $sha256.Dispose()
+        }
+    }
+    finally {
+        $stream.Dispose()
+    }
+}
+
 function Invoke-PackStartup {
     param(
         [string]$Name,
@@ -127,8 +146,7 @@ function Invoke-PackStartup {
     return [pscustomobject]@{
         Path = $manifestPath
         Entries = $entries
-        Hash = (Get-FileHash -LiteralPath $manifestPath `
-            -Algorithm SHA256).Hash
+        Hash = Get-Sha256File -Path $manifestPath
     }
 }
 
@@ -154,4 +172,4 @@ if (Compare-Object $baseWithoutStone $packedWithoutStone -SyncWindow 0) {
 
 Write-Host "[RESOURCE_PACK_VERIFY] PASS base_hash=$($base.Hash)"
 Write-Host "[RESOURCE_PACK_VERIFY] PASS packed_hash=$($packed.Hash) override=$expectedOverride"
-Write-Host "[RESOURCE_PACK_VERIFY] status=PASS resolver_checks=18 startup_cases=2 entries=$ExpectedEntryCount"
+Write-Host "[RESOURCE_PACK_VERIFY] status=PASS resolver_checks=23 startup_cases=2 entries=$ExpectedEntryCount"

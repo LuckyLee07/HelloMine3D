@@ -221,7 +221,7 @@ local function configure_game_logic_target()
 
     filter "system:windows"
         defines { "_CRT_SECURE_NO_WARNINGS" }
-        links { "dbghelp" }
+        links { "dbghelp", "winmm" }
 
     filter "system:macosx"
         linkoptions {
@@ -398,7 +398,9 @@ project "HelloMine3DResourcePackSmoke"
     files {
         source_dir .. "/Tests/ResourcePackSmokeMain.cpp",
         source_dir .. "/Util/ResourcePackResolver.h",
-        source_dir .. "/Util/ResourcePackResolver.cpp"
+        source_dir .. "/Util/ResourcePackResolver.cpp",
+        source_dir .. "/Ogre/StartupResourcePreflight.h",
+        source_dir .. "/Ogre/StartupResourcePreflight.cpp"
     }
     includedirs { source_dir }
 

@@ -103,6 +103,10 @@ void validateStartupResources(
         std::ifstream input(resolved, std::ios::binary | std::ios::ate);
         if (!input || input.tellg() <= 0)
         {
+            if (requirement.category == "audio")
+            {
+                continue;
+            }
             std::string owner = "base resources";
             if (runtimeResourcePackResolver().isFrozen())
             {

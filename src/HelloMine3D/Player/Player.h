@@ -11,6 +11,7 @@
 class World;
 class CraftingSession;
 class RecipeRegistry;
+class SandboxEventBus;
 struct CraftingPreview;
 struct CraftingCommitResult;
 
@@ -52,6 +53,8 @@ class Player : public Entity {
     CraftingCommitResult commitCrafting(
         CraftingSession &session, const RecipeRegistry &recipes,
         const CraftingPreview &expected, int craftCount);
+    void attachEventBus(SandboxEventBus &eventBus) noexcept;
+    void detachEventBus(const SandboxEventBus &eventBus) noexcept;
     void openContainer(const glm::ivec3 &containerPosition);
     void closeContainer() noexcept;
     bool hasOpenContainer() const noexcept;
@@ -83,6 +86,7 @@ class Player : public Entity {
     PlayerController m_controller;
     PlayerInputState m_input;
     glm::vec3 m_previousPosition{0.f};
+    SandboxEventBus *m_eventBus = nullptr;
 };
 
 #endif // PLAYER_H_INCLUDED

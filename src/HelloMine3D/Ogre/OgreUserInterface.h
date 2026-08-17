@@ -3,6 +3,7 @@
 #include <OgreRenderQueueListener.h>
 
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -63,7 +64,8 @@ class OgreUserInterface final : public Ogre::RenderQueueListener
                       Ogre::Camera &camera, Player *player, World *world,
                       GameApplicationFlow &applicationFlow,
                       WorldManagementService &worldManagement,
-                      const UserSettings &settings);
+                      const UserSettings &settings,
+                      std::function<void()> uiFeedback = {});
     ~OgreUserInterface() override;
 
     OgreUserInterface(const OgreUserInterface &) = delete;

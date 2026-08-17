@@ -21,6 +21,7 @@
 #include <iostream>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -31,6 +32,8 @@
 #include "../Actor/ItemEntity.h"
 #include "../Actor/LivingActor.h"
 #include "../Actor/MobActor.h"
+#include "../Audio/AudioDefinitionRegistry.h"
+#include "../Audio/AudioRuntime.h"
 #include "../Config.h"
 #include "../Core/Camera.h"
 #include "../Diagnostics/OperationPerformanceTiming.h"
@@ -39,11 +42,13 @@
 #include "../Item/Material.h"
 #include "../Item/CraftingSession.h"
 #include "../Item/ContainerInventory.h"
+#include "../Item/RecipeRegistry.h"
 #include "../Item/ToolRegistry.h"
 #include "../Player/Player.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/Events/BlockEvents.h"
 #include "../Sandbox/Events/ChunkEvents.h"
+#include "../Sandbox/Events/CraftingEvents.h"
 #include "../Sandbox/Events/EntityEvents.h"
 #include "../Sandbox/Events/PlayerEvents.h"
 #include "../Sandbox/FixedTickScheduler.h"
@@ -189,6 +194,7 @@ class EventRecorder {
             SandboxEventType::PlayerSpawn,
             SandboxEventType::PlayerTeleport,
             SandboxEventType::PlayerInventoryChanged,
+            SandboxEventType::CraftCompleted,
         };
         return types;
     }
@@ -3401,6 +3407,238 @@ void caseChestContainer()
               !player.hasOpenContainer());
 }
 
+std::string validAudioDefinitions()
+{
+    return R"(# HelloMine3D audio definitions v1
+sound ui.click ui 2d sine 720 45 0.22 2
+sound block.break effects 3d noise 180 95 0.48 4
+sound block.place effects 3d square 130 70 0.32 4
+sound item.pickup effects 3d sine 980 85 0.28 3
+sound craft.success effects 2d sine 540 150 0.30 2
+sound combat.hit effects 3d noise 90 110 0.52 4
+sound ambient.wind ambient 2d noise 55 1200 0.10 1
+)";
+}
+
+// ---------------------------------------------------------------------------
+// G5 - strict audio definitions, event routing and silent degradation
+// ---------------------------------------------------------------------------
+void caseAudioFeedback()
+{
+    AudioDefinitionRegistry loaded;
+    std::string loadError;
+    const bool loadedBase = loaded.tryFreezeFromFile(
+        ResourcePaths::media("audio/Base.audio"), loadError);
+    const AudioDefinition *ui = loaded.find("ui.click");
+    const AudioDefinition *block = loaded.find("block.break");
+    check("G5/base-audio-definitions-freeze-complete-cue-set",
+          loadedBase && loadError.empty() && loaded.isFrozen() &&
+              loaded.definitions().size() == 7 && ui != nullptr &&
+              block != nullptr);
+    check("G5/audio-definitions-carry-category-and-spatial-mode",
+          ui != nullptr && ui->category == AudioCategory::Ui &&
+              !ui->spatial && block != nullptr && block->spatial &&
+              block->category == AudioCategory::Effects);
+
+    auto rejects = [](const std::string &source,
+                      const std::string &expected) {
+        try {
+            AudioDefinitionRegistry invalid;
+            invalid.freeze({{"invalid.audio", source}});
+        }
+        catch (const std::exception &error) {
+            return std::string(error.what()).find(expected) !=
+                   std::string::npos;
+        }
+        return false;
+    };
+    check("G5/duplicate-audio-cue-is-rejected",
+          rejects(validAudioDefinitions() +
+                      "sound ui.click ui 2d sine 440 50 0.2 1\n",
+                  "duplicate cue id"));
+    std::string invalidFrequency = validAudioDefinitions();
+    invalidFrequency.replace(invalidFrequency.find("720 45"), 6,
+                             "10 45");
+    check("G5/audio-range-is-strictly-validated",
+          rejects(invalidFrequency, "frequency must be between"));
+    const std::size_t ambientLine =
+        validAudioDefinitions().find("sound ambient.wind");
+    std::string missingCue = validAudioDefinitions().substr(0, ambientLine);
+    check("G5/missing-required-audio-cue-is-rejected",
+          rejects(missingCue, "missing required cue"));
+
+    AudioDefinitionRegistry unavailable;
+    std::string unavailableError;
+    const bool missingLoaded = unavailable.tryFreezeFromFile(
+        ResourcePaths::bin("validation_runs/missing.audio"),
+        unavailableError);
+    std::unique_ptr<AudioRuntime> degraded = AudioRuntime::create(
+        std::move(unavailable), userSettings(makeConfig()));
+    check("G5/missing-audio-resource-freezes-empty-view",
+          !missingLoaded && !unavailableError.empty() &&
+              degraded->definitions().isFrozen() &&
+              degraded->definitions().definitions().empty());
+    check("G5/missing-audio-resource-selects-silent-dummy",
+          std::string(degraded->backendName()) == "dummy" &&
+              !degraded->usesRealBackend() &&
+              degraded->degradedReason().find("unavailable") !=
+                  std::string::npos);
+
+    AudioDefinitionRegistry routedDefinitions;
+    routedDefinitions.freeze({{"runtime.audio", validAudioDefinitions()}});
+    Config config = makeConfig();
+    UserSettings settings = userSettings(config);
+    SandboxEventBus eventBus;
+    std::unique_ptr<AudioRuntime> audio = AudioRuntime::createDummy(
+        std::move(routedDefinitions), settings);
+    audio->attach(eventBus);
+    eventBus.publish(BlockBreakEvent({1, 2, 3}, BlockId::Stone));
+    eventBus.publish(BlockPlaceEvent({2, 2, 3}, BlockId::Dirt));
+    eventBus.publish(ItemPickupEvent(
+        DefaultPlayerActorId, 7, Material::ID::Stone, 1,
+        glm::vec3(2.f, 2.f, 3.f)));
+    eventBus.publish(EntityDamageEvent(
+        9, DefaultPlayerActorId, 2.f, 8.f, glm::vec3(3.f, 2.f, 3.f)));
+    eventBus.publish(CraftCompletedEvent(
+        "hellomine:workbench", Material::ID::Workbench, 1, 1,
+        glm::vec3(4.f, 2.f, 3.f)));
+    check("G5/domain-events-route-once-to-five-audio-cues",
+          audio->stats().submittedEvents == 5 &&
+              audio->stats().playedEvents == 5 &&
+              audio->stats().suppressedEvents == 0);
+
+    for (int index = 0; index < 5; ++index) {
+        eventBus.publish(EntityDamageEvent(
+            10 + index, DefaultPlayerActorId, 1.f, 7.f,
+            glm::vec3(3.f + index, 2.f, 3.f)));
+    }
+    check("G5/per-cue-concurrency-is-bounded",
+          audio->stats().playedEvents == 8 &&
+              audio->stats().suppressedEvents == 2);
+
+    AudioListenerState listener;
+    audio->update(0.f, false, listener);
+    const AudioRuntimeStats beforePause = audio->stats();
+    audio->setWorldPaused(true);
+    eventBus.publish(BlockBreakEvent({1, 2, 3}, BlockId::Stone));
+    audio->emitUiClick();
+    check("G5/pause-suppresses-world-audio-but-keeps-ui",
+          audio->stats().suppressedEvents ==
+                  beforePause.suppressedEvents + 1 &&
+              audio->stats().playedEvents ==
+                  beforePause.playedEvents + 1);
+
+    audio->setWorldPaused(false);
+    audio->update(0.f, false, listener);
+    settings.effectsVolume = 0.f;
+    audio->setUserSettings(settings);
+    const AudioRuntimeStats beforeEffectsZero = audio->stats();
+    eventBus.publish(BlockPlaceEvent({1, 2, 3}, BlockId::Dirt));
+    audio->emitUiClick();
+    check("G5/category-volume-is-applied-independently",
+          audio->stats().suppressedEvents ==
+                  beforeEffectsZero.suppressedEvents + 1 &&
+              audio->stats().playedEvents ==
+                  beforeEffectsZero.playedEvents + 1);
+
+    audio->update(0.f, false, listener);
+    settings.masterVolume = 0.f;
+    audio->setUserSettings(settings);
+    const std::size_t suppressedBeforeMaster =
+        audio->stats().suppressedEvents;
+    audio->emitUiClick();
+    check("G5/master-volume-zero-suppresses-all-categories",
+          audio->stats().suppressedEvents ==
+              suppressedBeforeMaster + 1);
+
+    settings.masterVolume = 1.f;
+    settings.effectsVolume = 1.f;
+    audio->setUserSettings(settings);
+    audio->update(0.f, false, listener);
+    audio->setMuted(true);
+    const std::size_t suppressedBeforeMute =
+        audio->stats().suppressedEvents;
+    audio->emitUiClick();
+    audio->setMuted(false);
+    audio->setSuspended(true);
+    audio->emitUiClick();
+    audio->setSuspended(false);
+    audio->update(0.f, false, listener);
+    const std::size_t playedBeforeResume = audio->stats().playedEvents;
+    audio->emitUiClick();
+    check("G5/mute-and-device-suspend-are-nonfatal",
+          audio->stats().suppressedEvents ==
+                  suppressedBeforeMute + 2 &&
+              audio->stats().playedEvents == playedBeforeResume + 1);
+
+    const std::size_t missingBefore = audio->stats().missingDefinitions;
+    audio->submit({"missing.cue", false, glm::vec3(0.f), 1.f});
+    check("G5/missing-cue-is-diagnosed-without-backend-call",
+          audio->stats().missingDefinitions == missingBefore + 1);
+    const std::size_t submittedBeforeDetach =
+        audio->stats().submittedEvents;
+    audio->detach();
+    eventBus.publish(BlockBreakEvent({1, 2, 3}, BlockId::Stone));
+    check("G5/detach-removes-all-domain-subscriptions",
+          audio->stats().submittedEvents == submittedBeforeDetach);
+
+    AudioDefinitionRegistry ambientDefinitions;
+    ambientDefinitions.freeze(
+        {{"ambient.audio", validAudioDefinitions()}});
+    std::unique_ptr<AudioRuntime> ambient = AudioRuntime::createDummy(
+        std::move(ambientDefinitions), userSettings(makeConfig()));
+    ambient->update(AudioRuntime::AmbientIntervalSeconds - 0.1f, true,
+                    listener);
+    const bool earlySilent = ambient->stats().ambientEvents == 0;
+    ambient->update(0.2f, true, listener);
+    const bool intervalPlayed = ambient->stats().ambientEvents == 1 &&
+                                ambient->stats().playedEvents == 1;
+    ambient->setWorldPaused(true);
+    ambient->update(AudioRuntime::AmbientIntervalSeconds * 2.f, true,
+                    listener);
+    check("G5/ambient-cadence-is-bounded-and-pause-aware",
+          earlySilent && intervalPlayed &&
+              ambient->stats().ambientEvents == 1);
+
+    RecipeRegistry recipes;
+    std::ifstream recipeInput(ResourcePaths::media("recipes/Base.recipe"),
+                              std::ios::binary);
+    std::ostringstream recipeContent;
+    recipeContent << recipeInput.rdbuf();
+    recipes.freeze({{"base.recipe", recipeContent.str()}});
+    Player crafter;
+    SandboxEventBus craftingBus;
+    int completedEvents = 0;
+    CraftCompletedEvent lastCompleted(
+        "", Material::ID::Nothing, 0, 0, glm::vec3(0.f));
+    craftingBus.subscribe(
+        SandboxEventType::CraftCompleted,
+        [&completedEvents, &lastCompleted](const SandboxEvent &event) {
+            ++completedEvents;
+            lastCompleted = static_cast<const CraftCompletedEvent &>(event);
+        });
+    crafter.attachEventBus(craftingBus);
+    crafter.addItem(Material::OAK_BARK_BLOCK, 4);
+    CraftingSession crafting(CraftingSession::PlayerGridSize);
+    for (int index = 0; index < crafting.cellCount(); ++index) {
+        crafting.setCell(index, Material::ID::OakBark);
+    }
+    const CraftingPreview preview = crafter.previewCrafting(
+        crafting, recipes);
+    const CraftingCommitResult committed = crafter.commitCrafting(
+        crafting, recipes, preview, 1);
+    const CraftingCommitResult rejected = crafter.commitCrafting(
+        crafting, recipes, preview, 1);
+    check("G5/successful-craft-publishes-one-domain-event",
+          committed.succeeded() && !rejected.succeeded() &&
+              completedEvents == 1 &&
+              lastCompleted.recipeId == "hellomine:workbench" &&
+              lastCompleted.outputMaterialId == Material::ID::Workbench &&
+              lastCompleted.craftsCompleted == 1 &&
+              lastCompleted.outputAdded == 1);
+    crafter.detachEventBus(craftingBus);
+}
+
 std::string validToolDefinitions()
 {
     return R"(# HelloMine3D tool registry v1
@@ -5340,6 +5578,7 @@ int main()
         caseBlockTextureCoordinates();
         caseRuntimeConfigOwnership();
         casePausedApplicationFlow();
+        caseAudioFeedback();
         caseBlockDataDiagnostics();
         caseOreTextures();
         caseConfiguredWorldSeed();

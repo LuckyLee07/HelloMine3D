@@ -425,6 +425,11 @@ void ResourcePackResolver::freeze(
                             std::ios::binary | std::ios::ate);
         if (!input || input.tellg() <= 0)
         {
+            if (requirement.category == "audio")
+            {
+                m_effectiveResources.push_back(std::move(effective));
+                continue;
+            }
             const std::string owner = effective.packName.empty()
                                           ? "base resources"
                                           : "resource pack '" +

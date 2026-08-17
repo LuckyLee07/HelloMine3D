@@ -28,6 +28,8 @@
 #include <vector>
 
 #include "../Config.h"
+#include "../Audio/AudioDefinitionRegistry.h"
+#include "../Audio/AudioRuntime.h"
 #include "../Core/Camera.h"
 #include "../Diagnostics/CrashDiagnostics.h"
 #include "../Diagnostics/OperationPerformanceTiming.h"
@@ -119,6 +121,13 @@ namespace
         bool validate()
         {
             loadGameConfig();
+            AudioDefinitionRegistry audioDefinitions =
+                loadAudioDefinitions();
+            std::cout << "[AUDIO_REGISTRY] frozen=1 definitions="
+                      << audioDefinitions.definitions().size()
+                      << " degraded="
+                      << (m_audioDefinitionError.empty() ? 0 : 1)
+                      << '\n';
             createRoot();
             const std::size_t resourceLocations = configureResources();
             Ogre::RenderSystem* renderSystem = configureRenderSystem();
@@ -235,6 +244,7 @@ namespace
         int run()
         {
             loadGameConfig();
+            initializeAudio();
             createRoot();
             configureResources();
             configureRenderSystem();
@@ -272,7 +282,12 @@ namespace
             m_userInterface = std::make_unique<OgreUserInterface>(
                 *m_window, *m_sceneManager, *m_camera, m_worldPlayer,
                 m_world, m_applicationFlow, *m_worldManagement,
-                userSettings(m_config));
+                userSettings(m_config), [this]() {
+                    if (m_audio != nullptr)
+                    {
+                        m_audio->emitUiClick();
+                    }
+                });
 
             m_root->addFrameListener(this);
             Ogre::WindowEventUtilities::addWindowEventListener(m_window, this);
@@ -290,6 +305,43 @@ namespace
         {
             m_config = loadRuntimeConfig(
                 ResourcePaths::bin("config.txt"));
+        }
+
+        AudioDefinitionRegistry loadAudioDefinitions()
+        {
+            AudioDefinitionRegistry definitions;
+            m_audioDefinitionError.clear();
+            std::string error;
+            const std::string path = runtimeResourcePackResolver().resolve(
+                "media/audio/Base.audio");
+            if (!definitions.tryFreezeFromFile(path, error))
+            {
+                m_audioDefinitionError = std::move(error);
+            }
+            return definitions;
+        }
+
+        void initializeAudio()
+        {
+            AudioDefinitionRegistry definitions = loadAudioDefinitions();
+            m_audio = AudioRuntime::create(
+                std::move(definitions), userSettings(m_config));
+            std::cout << "[AUDIO] backend=" << m_audio->backendName()
+                      << " real=" << (m_audio->usesRealBackend() ? 1 : 0)
+                      << " definitions="
+                      << m_audio->definitions().definitions().size()
+                      << " degraded="
+                      << (m_audio->degradedReason().empty() ? 0 : 1);
+            if (!m_audioDefinitionError.empty())
+            {
+                std::cout << " definition_error="
+                          << m_audioDefinitionError;
+            }
+            else if (!m_audio->degradedReason().empty())
+            {
+                std::cout << " reason=" << m_audio->degradedReason();
+            }
+            std::cout << '\n';
         }
 
         void createRoot()
@@ -505,6 +557,10 @@ namespace
             {
                 throw std::runtime_error(
                     "Sandbox did not create an active world.");
+            }
+            if (m_audio != nullptr)
+            {
+                m_audio->attach(m_world->getEventBus());
             }
 
             if (!uploadToOgre ||
@@ -929,9 +985,17 @@ namespace
 
         bool clearActiveWorld(bool requireSave = true)
         {
+            if (m_audio != nullptr)
+            {
+                m_audio->detach();
+            }
             if (requireSave && m_sandbox != nullptr &&
                 !m_sandbox->closeWorld())
             {
+                if (m_audio != nullptr && m_world != nullptr)
+                {
+                    m_audio->attach(m_world->getEventBus());
+                }
                 return false;
             }
             if (m_userInterface != nullptr)
@@ -1025,6 +1089,10 @@ namespace
                         m_sandbox->applyUserSettings(
                             userSettings(m_config));
                     }
+                    if (m_audio != nullptr)
+                    {
+                        m_audio->setUserSettings(userSettings(m_config));
+                    }
                     m_userInterface->reportSettingsApplied(
                         true, userSettings(m_config),
                         restartRequired
@@ -1104,6 +1172,7 @@ namespace
                 activatePendingWorld();
             }
             updateSandbox(event.timeSinceLastFrame);
+            updateAudio(event.timeSinceLastFrame);
 
             m_frameWorldStats = collectRuntimeStats();
             if (m_world != nullptr)
@@ -1280,6 +1349,27 @@ namespace
                 m_blockOutline->update(
                     selection.has_value() ? &*selection : nullptr);
             }
+        }
+
+        void updateAudio(float deltaSeconds)
+        {
+            if (m_audio == nullptr)
+            {
+                return;
+            }
+            AudioListenerState listener;
+            if (m_worldPlayer != nullptr)
+            {
+                listener.position = m_worldPlayer->position;
+                const float yaw = glm::radians(m_worldPlayer->rotation.y);
+                listener.forward = glm::vec3(
+                    std::sin(yaw), 0.f, -std::cos(yaw));
+            }
+            m_audio->setWorldPaused(
+                m_applicationFlow.state() == GameApplicationState::Paused);
+            m_audio->update(deltaSeconds,
+                            m_applicationFlow.acceptsWorldSimulation(),
+                            listener);
         }
 
         void syncSectionMeshes()
@@ -1859,10 +1949,15 @@ namespace
                 destroySectionVisual(entry.second);
             }
             m_sectionVisuals.clear();
+            if (m_audio != nullptr)
+            {
+                m_audio->detach();
+            }
             m_world = nullptr;
             m_worldPlayer = nullptr;
             m_sandbox.reset();
             m_logicCamera.reset();
+            m_audio.reset();
 
             m_camera = nullptr;
             m_sceneManager = nullptr;
@@ -1882,6 +1977,8 @@ namespace
         OIS::Mouse* m_mouse = nullptr;
         std::unique_ptr<OgreRenderCapture> m_renderCapture;
         std::unique_ptr<OgreUserInterface> m_userInterface;
+        std::unique_ptr<AudioRuntime> m_audio;
+        std::string m_audioDefinitionError;
         GameApplicationFlow m_applicationFlow;
         std::unique_ptr<WorldManagementService> m_worldManagement;
         std::unique_ptr<OgreBlockOutline> m_blockOutline;

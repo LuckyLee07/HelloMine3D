@@ -1,4 +1,5 @@
 #include "../Util/ResourcePackResolver.h"
+#include "../Ogre/StartupResourcePreflight.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -44,6 +45,7 @@ namespace
     const std::vector<ResourcePackRequirement> &requirements()
     {
         static const std::vector<ResourcePackRequirement> value = {
+            {"audio", "media/audio/Base.audio"},
             {"block", "media/blocks/Stone.block"},
             {"font", "media/fonts/rs.ttf"},
             {"recipe", "media/recipes/Base.recipe"},
@@ -146,6 +148,7 @@ namespace
         for (const ResourcePackRequirement &requirement : requirements())
         {
             if (requirement.category == "runtime-template" ||
+                requirement.category == "audio" ||
                 requirement.category == "recipe" ||
                 requirement.category == "tool")
             {
@@ -276,6 +279,21 @@ namespace
                       "stale or unsupported override"));
         }
         {
+            const fs::path root = freshRoot("audio-override");
+            const fs::path pack = createPack(
+                root, "audio", "Audio Override", 1,
+                {{"media/audio/Base.audio", "override\n"}});
+            check("G5/reject-unversioned-audio-override",
+                  throwsContaining(
+                      [&]
+                      {
+                          ResourcePackResolver resolver;
+                          resolver.freeze(root.string(), requirements(),
+                                          {pack.string()});
+                      },
+                      "stale or unsupported override"));
+        }
+        {
             const fs::path root = freshRoot("missing-base");
             fs::remove(root / "media/ogre/Test.vert");
             check("X2/reject-missing-effective-resource",
@@ -287,6 +305,45 @@ namespace
                       },
                       "Missing or empty effective shader resource"));
         }
+    }
+
+    void caseOptionalAudio()
+    {
+        const fs::path root = freshRoot("optional-audio");
+        const fs::path audio = root / "media/audio/Base.audio";
+        fs::remove(audio);
+        ResourcePackResolver resolver;
+        bool frozen = false;
+        try
+        {
+            resolver.freeze(root.string(), requirements(), {});
+            frozen = true;
+        }
+        catch (...)
+        {
+        }
+        check("G5/missing-audio-keeps-effective-view-loadable",
+              frozen && resolver.isFrozen() &&
+                  resolver.resolve("media/audio/Base.audio") ==
+                      audio.generic_string());
+
+        bool preflightPassed = false;
+        try
+        {
+            std::vector<StartupResourceRequirement> startupRequirements;
+            for (const ResourcePackRequirement &requirement : requirements())
+            {
+                startupRequirements.push_back(
+                    {requirement.category, requirement.logicalPath});
+            }
+            validateStartupResources(root.string(), startupRequirements);
+            preflightPassed = true;
+        }
+        catch (...)
+        {
+        }
+        check("G5/missing-audio-does-not-fail-startup-preflight",
+              preflightPassed);
     }
 
     void caseFrozenManifest()
@@ -329,6 +386,7 @@ int main()
     caseNoPackAndPrecedence();
     caseEveryAllowedClass();
     caseInvalidPacks();
+    caseOptionalAudio();
     caseFrozenManifest();
     std::cout << "[RESOURCE_PACK_TEST] checks=" << checks
               << " failures=" << failures << '\n';
