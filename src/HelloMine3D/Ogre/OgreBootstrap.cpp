@@ -36,6 +36,7 @@
 #include "../Item/RecipeRegistry.h"
 #include "../Player/Player.h"
 #include "../RuntimeConfig.h"
+#include "../Sandbox/GameApplicationFlow.h"
 #include "../Sandbox/SandboxRuntime.h"
 #include "../Util/ResourcePackResolver.h"
 #include "../Util/ResourcePaths.h"
@@ -43,6 +44,7 @@
 #include "../World/Chunk/ChunkSection.h"
 #include "../World/Block/ChestContainer.h"
 #include "../World/World.h"
+#include "../World/Storage/WorldManagementService.h"
 
 namespace
 {
@@ -234,13 +236,40 @@ namespace
             createRoot();
             configureResources();
             configureRenderSystem();
+            const char* catalogueOverride =
+                std::getenv("HELLOMINE3D_CATALOGUE_DIR");
+            m_worldManagement =
+                std::make_unique<WorldManagementService>(
+                    catalogueOverride != nullptr &&
+                            catalogueOverride[0] != '\0'
+                        ? catalogueOverride
+                        : ResourcePaths::bin("saves"));
+            const char* saveOverride =
+                std::getenv("HELLOMINE3D_SAVE_DIR");
+            const bool directLaunch =
+                (saveOverride != nullptr && saveOverride[0] != '\0') ||
+                isTrueValue(std::getenv(
+                    "HELLOMINE3D_SKIP_MAIN_MENU"));
+            std::string initialSaveDirectory;
+            if (directLaunch)
+            {
+                initialSaveDirectory =
+                    saveOverride != nullptr && saveOverride[0] != '\0'
+                        ? saveOverride
+                        : ResourcePaths::bin("saves/default");
+                m_applicationFlow.beginLoading("direct-launch");
+            }
             runtimeOperationTimings().markLatestActive(
                 RuntimeOperationKind::Startup);
-            createWindowAndScene();
+            createWindowAndScene(initialSaveDirectory);
+            if (directLaunch)
+            {
+                m_applicationFlow.completeLoading(true);
+            }
             createInput();
             m_userInterface = std::make_unique<OgreUserInterface>(
-                *m_window, *m_sceneManager, *m_camera, *m_worldPlayer,
-                *m_world);
+                *m_window, *m_sceneManager, *m_camera, m_worldPlayer,
+                m_world, m_applicationFlow, *m_worldManagement);
 
             m_root->addFrameListener(this);
             Ogre::WindowEventUtilities::addWindowEventListener(m_window, this);
@@ -360,7 +389,7 @@ namespace
             }
         }
 
-        void createWindowAndScene()
+        void createWindowAndScene(const std::string &initialSaveDirectory)
         {
             const bool hiddenWindow = isTrueValue(
                 std::getenv("HELLOMINE3D_WINDOW_HIDDEN"));
@@ -410,17 +439,21 @@ namespace
             m_sceneManager->setSkyBox(
                 true, SkyboxMaterial, 5000.0f, true);
 
-            const TerrainBuildSummary terrain = buildTerrain(true);
             m_actorRenderer =
                 std::make_unique<OgreActorRenderer>(*m_sceneManager);
-            if (isTrueValue(std::getenv(
-                    "HELLOMINE3D_SPAWN_VALIDATION_ACTORS")))
-            {
-                spawnValidationActors();
-            }
-            syncActorVisuals();
             m_blockOutline =
                 std::make_unique<OgreBlockOutline>(*m_sceneManager);
+            TerrainBuildSummary terrain;
+            if (!initialSaveDirectory.empty())
+            {
+                terrain = buildTerrain(true, initialSaveDirectory);
+                if (isTrueValue(std::getenv(
+                        "HELLOMINE3D_SPAWN_VALIDATION_ACTORS")))
+                {
+                    spawnValidationActors();
+                }
+                syncActorVisuals();
+            }
             std::cout << "[OGRE_TERRAIN] solid=" << terrain.sectionCount
                       << '/' << terrain.vertexCount << '/'
                       << terrain.indexCount << " transparent="
@@ -445,7 +478,9 @@ namespace
             }
         }
 
-        TerrainBuildSummary buildTerrain(bool uploadToOgre)
+        TerrainBuildSummary buildTerrain(
+            bool uploadToOgre,
+            const std::string &mainSaveDirectory = std::string())
         {
             if (uploadToOgre)
             {
@@ -459,7 +494,7 @@ namespace
             }
             m_logicCamera = std::make_unique<::Camera>(config);
             m_sandbox = std::make_unique<SandboxRuntime>(
-                config, *m_logicCamera, false, 2);
+                config, *m_logicCamera, false, 2, mainSaveDirectory);
             m_worldPlayer = &m_sandbox->getPlayer();
             m_world =
                 m_sandbox->getWorldManager().getActiveWorld();
@@ -880,6 +915,122 @@ namespace
             updateMouseBounds();
         }
 
+        bool clearActiveWorld(bool requireSave = true)
+        {
+            if (requireSave && m_sandbox != nullptr &&
+                !m_sandbox->closeWorld())
+            {
+                return false;
+            }
+            if (m_userInterface != nullptr)
+            {
+                m_userInterface->setWorldContext(nullptr, nullptr);
+            }
+            if (m_blockOutline != nullptr)
+            {
+                m_blockOutline->update(nullptr);
+            }
+            for (auto &entry : m_sectionVisuals)
+            {
+                destroySectionVisual(entry.second);
+            }
+            m_sectionVisuals.clear();
+            m_actorRenderer.reset();
+            if (m_sceneManager != nullptr)
+            {
+                m_actorRenderer =
+                    std::make_unique<OgreActorRenderer>(*m_sceneManager);
+            }
+            m_sandbox.reset();
+            m_world = nullptr;
+            m_worldPlayer = nullptr;
+            m_logicCamera.reset();
+            if (m_camera != nullptr)
+            {
+                m_camera->setPosition(0.0f, 1.0f, 5.0f);
+                m_camera->lookAt(0.0f, 1.0f, 0.0f);
+            }
+            return true;
+        }
+
+        void processInterfaceAction()
+        {
+            if (m_userInterface == nullptr)
+            {
+                return;
+            }
+            const OgreUserInterfaceAction action =
+                m_userInterface->consumeAction();
+            switch (action.type)
+            {
+                case OgreUserInterfaceActionType::None:
+                    return;
+                case OgreUserInterfaceActionType::Quit:
+                    if (!clearActiveWorld())
+                    {
+                        m_userInterface->setStatusMessage(
+                            "World save failed; quit was cancelled.");
+                        return;
+                    }
+                    m_shutdownRequested = true;
+                    return;
+                case OgreUserInterfaceActionType::ReturnToMainMenu:
+                    if (!clearActiveWorld())
+                    {
+                        m_userInterface->setStatusMessage(
+                            "World save failed; return to menu was cancelled.");
+                        return;
+                    }
+                    m_applicationFlow.returnToMainMenu();
+                    return;
+                case OgreUserInterfaceActionType::OpenWorld:
+                    break;
+            }
+
+            if (!m_applicationFlow.beginLoading(action.worldId))
+            {
+                return;
+            }
+            const WorldManagementResult prepared =
+                m_worldManagement->prepareWorldForOpen(action.worldId);
+            if (!prepared.succeeded())
+            {
+                m_applicationFlow.completeLoading(false);
+                m_userInterface->setStatusMessage(prepared.message);
+                return;
+            }
+            m_pendingWorldDirectory = prepared.directoryPath;
+            m_loadingRequestedFrame = m_frameCount;
+        }
+
+        void activatePendingWorld()
+        {
+            if (m_pendingWorldDirectory.empty())
+            {
+                return;
+            }
+            const std::string directory =
+                std::move(m_pendingWorldDirectory);
+            m_pendingWorldDirectory.clear();
+            try
+            {
+                buildTerrain(true, directory);
+                syncActorVisuals();
+                m_userInterface->setWorldContext(m_worldPlayer, m_world);
+                m_applicationFlow.completeLoading(true);
+            }
+            catch (const std::exception &exception)
+            {
+                clearActiveWorld(false);
+                runtimeOperationTimings().completeLatestActive(
+                    RuntimeOperationKind::WorldEntry, false);
+                m_applicationFlow.completeLoading(false);
+                m_userInterface->setStatusMessage(
+                    std::string("World loading failed: ") +
+                    exception.what());
+            }
+        }
+
         bool frameStarted(const Ogre::FrameEvent& event) override
         {
             HELLOMINE3D_PROFILE_FRAME();
@@ -897,10 +1048,19 @@ namespace
 
             m_keyboard->capture();
             m_mouse->capture();
+            processInterfaceAction();
+            if (!m_pendingWorldDirectory.empty() &&
+                m_frameCount > m_loadingRequestedFrame)
+            {
+                activatePendingWorld();
+            }
             updateSandbox(event.timeSinceLastFrame);
 
             m_frameWorldStats = collectRuntimeStats();
-            syncEnvironment(m_frameWorldStats.environment);
+            if (m_world != nullptr)
+            {
+                syncEnvironment(m_frameWorldStats.environment);
+            }
             if (m_userInterface != nullptr)
             {
                 m_userInterface->beginFrame(event.timeSinceLastFrame,
@@ -985,6 +1145,12 @@ namespace
             HELLOMINE3D_PROFILE_SCOPE("Ogre::updateSandbox");
             if (m_sandbox == nullptr)
             {
+                return;
+            }
+            if (m_applicationFlow.state() !=
+                GameApplicationState::Playing)
+            {
+                clearTransientInput();
                 return;
             }
 
@@ -1418,7 +1584,24 @@ namespace
                     m_worldPlayer->closeContainer();
                     return true;
                 }
-                m_shutdownRequested = true;
+                switch (m_applicationFlow.state())
+                {
+                    case GameApplicationState::Playing:
+                        m_applicationFlow.pause();
+                        break;
+                    case GameApplicationState::Paused:
+                        m_applicationFlow.resume();
+                        break;
+                    case GameApplicationState::WorldList:
+                        m_applicationFlow.returnToMainMenu();
+                        break;
+                    case GameApplicationState::MainMenu:
+                        m_shutdownRequested = true;
+                        break;
+                    case GameApplicationState::Loading:
+                        break;
+                }
+                return true;
             }
             if (m_userInterface != nullptr &&
                 m_userInterface->wantsKeyboardInput())
@@ -1627,6 +1810,8 @@ namespace
         OIS::Mouse* m_mouse = nullptr;
         std::unique_ptr<OgreRenderCapture> m_renderCapture;
         std::unique_ptr<OgreUserInterface> m_userInterface;
+        GameApplicationFlow m_applicationFlow;
+        std::unique_ptr<WorldManagementService> m_worldManagement;
         std::unique_ptr<OgreBlockOutline> m_blockOutline;
         std::unique_ptr<OgreActorRenderer> m_actorRenderer;
         Player* m_worldPlayer = nullptr;
@@ -1637,6 +1822,8 @@ namespace
         bool m_listenersInstalled = false;
         bool m_shutdownRequested = false;
         bool m_runtimeStarted = false;
+        std::string m_pendingWorldDirectory;
+        int m_loadingRequestedFrame = -1;
         int m_exitAfterFrames = 0;
         int m_frameCount = 0;
         WorldDebugStats m_frameWorldStats;

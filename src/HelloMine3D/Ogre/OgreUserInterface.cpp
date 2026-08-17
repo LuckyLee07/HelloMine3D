@@ -6,9 +6,13 @@
 #include <OgreSceneManager.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstdio>
 #include <stdexcept>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <backends/imgui_impl_opengl3.h>
 #include <imgui.h>
@@ -16,9 +20,11 @@
 #include "../Diagnostics/RuntimeDebugOptions.h"
 #include "../Item/Material.h"
 #include "../Player/Player.h"
+#include "../Sandbox/GameApplicationFlow.h"
 #include "../Util/ResourcePaths.h"
 #include "../World/World.h"
 #include "../World/Block/ChestContainer.h"
+#include "../World/Storage/WorldManagementService.h"
 
 namespace
 {
@@ -151,15 +157,21 @@ class OgreUserInterface::Impl
   public:
     Impl(Ogre::RenderWindow &renderWindow,
          Ogre::SceneManager &renderSceneManager,
-         Ogre::Camera &renderCamera, Player &worldPlayer, World &activeWorld)
+         Ogre::Camera &renderCamera, Player *worldPlayer, World *activeWorld,
+         GameApplicationFlow &applicationFlow,
+         WorldManagementService &worldManagement)
         : window(&renderWindow)
         , sceneManager(&renderSceneManager)
         , camera(&renderCamera)
-        , player(&worldPlayer)
-        , world(&activeWorld)
+        , player(worldPlayer)
+        , world(activeWorld)
+        , flow(&applicationFlow)
+        , management(&worldManagement)
         , showDebugPanel(RuntimeDebugOptions::showDebugInfoAtStartup())
         , iniPath(ResourcePaths::bin("imgui-ogre.ini"))
     {
+        std::snprintf(createName.data(), createName.size(), "%s",
+                      "New World");
     }
 
     void initialize(Ogre::RenderQueueListener *listener)
@@ -232,16 +244,375 @@ class OgreUserInterface::Impl
         ImGui::NewFrame();
         framePending = true;
         worldStats = stats;
-        drawHud();
-        drawContainer();
-        if (showDebugPanel)
+        switch (flow->state())
         {
-            drawDebugPanels();
+            case GameApplicationState::MainMenu:
+                drawMainMenu();
+                break;
+            case GameApplicationState::WorldList:
+                drawWorldList();
+                break;
+            case GameApplicationState::Loading:
+                drawLoading();
+                break;
+            case GameApplicationState::Playing:
+                drawHud();
+                drawContainer();
+                if (showDebugPanel)
+                {
+                    drawDebugPanels();
+                }
+                break;
+            case GameApplicationState::Paused:
+                drawHud();
+                drawPauseMenu();
+                break;
         }
+    }
+
+    void drawMainMenu()
+    {
+        const ImGuiIO &io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(
+            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.45f),
+            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2(420.0f, 280.0f), ImGuiCond_Always);
+        const ImGuiWindowFlags flags =
+            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoSavedSettings;
+        if (ImGui::Begin("##MainMenu", nullptr, flags))
+        {
+            ImGui::SetCursorPosY(38.0f);
+            const float titleWidth = ImGui::CalcTextSize("HelloMine3D").x;
+            ImGui::SetCursorPosX((420.0f - titleWidth) * 0.5f);
+            ImGui::TextUnformatted("HelloMine3D");
+            ImGui::SetCursorPos(ImVec2(90.0f, 105.0f));
+            if (ImGui::Button("Single Player", ImVec2(240.0f, 48.0f)))
+            {
+                if (flow->showWorldList())
+                {
+                    worldsDirty = true;
+                }
+            }
+            ImGui::SetCursorPos(ImVec2(90.0f, 170.0f));
+            if (ImGui::Button("Quit", ImVec2(240.0f, 42.0f)))
+            {
+                pendingAction.type = OgreUserInterfaceActionType::Quit;
+            }
+        }
+        ImGui::End();
+    }
+
+    void refreshCatalogue()
+    {
+        worldsDirty = false;
+        worlds.clear();
+        deletedWorlds.clear();
+        const WorldManagementListResult active = management->listWorlds();
+        if (!active.succeeded())
+        {
+            statusMessage = active.message;
+            return;
+        }
+        worlds = active.worlds;
+        const DeletedWorldListResult deleted =
+            management->listDeletedWorlds();
+        if (!deleted.succeeded())
+        {
+            statusMessage = deleted.message;
+            return;
+        }
+        deletedWorlds = deleted.worlds;
+    }
+
+    void selectWorld(const WorldCatalogueEntry &entry)
+    {
+        selectedWorldId = entry.id;
+        renameName.fill('\0');
+        std::snprintf(renameName.data(), renameName.size(), "%s",
+                      entry.displayName.c_str());
+        backups.clear();
+        WorldManagementResult listed;
+        if (!management->listBackups(entry.id, backups, &listed))
+        {
+            statusMessage = listed.message;
+        }
+    }
+
+    void reportResult(const WorldManagementResult &result)
+    {
+        statusMessage = result.message;
+        if (result.succeeded())
+        {
+            worldsDirty = true;
+        }
+    }
+
+    void drawWorldList()
+    {
+        if (worldsDirty)
+        {
+            refreshCatalogue();
+        }
+        const ImGuiIO &io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(
+            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
+            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2(820.0f, 620.0f), ImGuiCond_Always);
+        const ImGuiWindowFlags flags =
+            ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoSavedSettings;
+        if (ImGui::Begin("Worlds", nullptr, flags))
+        {
+            if (ImGui::Button("Back to Main Menu"))
+            {
+                flow->returnToMainMenu();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Refresh"))
+            {
+                worldsDirty = true;
+            }
+            ImGui::Separator();
+
+            ImGui::TextUnformatted("Create world");
+            ImGui::SetNextItemWidth(280.0f);
+            ImGui::InputText("Name##create", createName.data(),
+                             createName.size());
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(140.0f);
+            ImGui::InputInt("Seed##create", &createSeed);
+            ImGui::SameLine();
+            if (ImGui::Button("Create"))
+            {
+                reportResult(management->createWorld(createName.data(),
+                                                     createSeed));
+            }
+
+            ImGui::Separator();
+            ImGui::Text("Active worlds (%llu)",
+                        static_cast<unsigned long long>(worlds.size()));
+            ImGui::BeginChild("WorldList", ImVec2(0.0f, 185.0f), true);
+            for (const WorldCatalogueEntry &entry : worlds)
+            {
+                ImGui::PushID(entry.id.c_str());
+                const bool selected = selectedWorldId == entry.id;
+                if (ImGui::Selectable(entry.displayName.c_str(), selected))
+                {
+                    selectWorld(entry);
+                }
+                ImGui::SameLine(330.0f);
+                ImGui::Text("seed %d", entry.seed);
+                ImGui::SameLine(520.0f);
+                if (ImGui::SmallButton("Play"))
+                {
+                    pendingAction.type =
+                        OgreUserInterfaceActionType::OpenWorld;
+                    pendingAction.worldId = entry.id;
+                }
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Delete"))
+                {
+                    pendingDeleteWorldId = entry.id;
+                    openDeletePopup = true;
+                }
+                ImGui::PopID();
+            }
+            ImGui::EndChild();
+
+            if (!selectedWorldId.empty())
+            {
+                ImGui::SetNextItemWidth(300.0f);
+                ImGui::InputText("Display name##rename", renameName.data(),
+                                 renameName.size());
+                ImGui::SameLine();
+                if (ImGui::Button("Rename"))
+                {
+                    reportResult(management->renameWorld(
+                        selectedWorldId, renameName.data()));
+                }
+                ImGui::SameLine();
+                ImGui::Text("Backups: %llu",
+                            static_cast<unsigned long long>(backups.size()));
+                for (const WorldBackupInfo &backup : backups)
+                {
+                    ImGui::PushID(backup.id.c_str());
+                    ImGui::Text("%s (%llu files)", backup.id.c_str(),
+                                static_cast<unsigned long long>(
+                                    backup.fileCount));
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("Restore backup"))
+                    {
+                        pendingBackupId = backup.id;
+                        openBackupPopup = true;
+                    }
+                    ImGui::PopID();
+                }
+            }
+
+            ImGui::Separator();
+            ImGui::Text("Recoverable worlds (%llu)",
+                        static_cast<unsigned long long>(
+                            deletedWorlds.size()));
+            ImGui::BeginChild("DeletedWorldList", ImVec2(0.0f, 105.0f),
+                              true);
+            for (const DeletedWorldInfo &entry : deletedWorlds)
+            {
+                ImGui::PushID(entry.recoveryId.c_str());
+                ImGui::TextUnformatted(entry.world.displayName.c_str());
+                ImGui::SameLine(400.0f);
+                if (ImGui::SmallButton("Restore"))
+                {
+                    reportResult(management->restoreDeletedWorld(
+                        entry.world.id));
+                }
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Delete permanently"))
+                {
+                    pendingPermanentDeleteWorldId = entry.world.id;
+                    openPermanentDeletePopup = true;
+                }
+                ImGui::PopID();
+            }
+            ImGui::EndChild();
+            if (!statusMessage.empty())
+            {
+                ImGui::TextWrapped("%s", statusMessage.c_str());
+            }
+
+            if (openDeletePopup)
+            {
+                ImGui::OpenPopup("Confirm recoverable delete");
+                openDeletePopup = false;
+            }
+            if (openPermanentDeletePopup)
+            {
+                ImGui::OpenPopup("Confirm permanent delete");
+                openPermanentDeletePopup = false;
+            }
+            if (openBackupPopup)
+            {
+                ImGui::OpenPopup("Confirm backup restore");
+                openBackupPopup = false;
+            }
+
+            if (ImGui::BeginPopupModal("Confirm recoverable delete", nullptr,
+                                       ImGuiWindowFlags_AlwaysAutoResize))
+            {
+                ImGui::TextUnformatted(
+                    "Move this world into bounded recovery storage?");
+                if (ImGui::Button("Delete", ImVec2(120.0f, 0.0f)))
+                {
+                    reportResult(management->deleteWorld(
+                        pendingDeleteWorldId));
+                    selectedWorldId.clear();
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Cancel", ImVec2(120.0f, 0.0f)))
+                {
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndPopup();
+            }
+            if (ImGui::BeginPopupModal("Confirm permanent delete", nullptr,
+                                       ImGuiWindowFlags_AlwaysAutoResize))
+            {
+                ImGui::TextUnformatted(
+                    "Permanently remove this recovered world?");
+                if (ImGui::Button("Delete permanently",
+                                  ImVec2(170.0f, 0.0f)))
+                {
+                    reportResult(management->permanentlyDeleteWorld(
+                        pendingPermanentDeleteWorldId));
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Cancel##permanent",
+                                  ImVec2(120.0f, 0.0f)))
+                {
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndPopup();
+            }
+            if (ImGui::BeginPopupModal("Confirm backup restore", nullptr,
+                                       ImGuiWindowFlags_AlwaysAutoResize))
+            {
+                ImGui::TextUnformatted(
+                    "Replace the active world with this backup?");
+                if (ImGui::Button("Restore", ImVec2(120.0f, 0.0f)))
+                {
+                    reportResult(management->restoreBackup(
+                        selectedWorldId, pendingBackupId));
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Cancel##backup",
+                                  ImVec2(120.0f, 0.0f)))
+                {
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndPopup();
+            }
+        }
+        ImGui::End();
+    }
+
+    void drawLoading()
+    {
+        const ImGuiIO &io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(
+            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
+            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2(430.0f, 130.0f), ImGuiCond_Always);
+        if (ImGui::Begin("##Loading", nullptr,
+                         ImGuiWindowFlags_NoDecoration |
+                             ImGuiWindowFlags_NoResize |
+                             ImGuiWindowFlags_NoSavedSettings))
+        {
+            ImGui::SetCursorPos(ImVec2(32.0f, 40.0f));
+            ImGui::Text("Loading world %s...",
+                        flow->activeWorldId().c_str());
+        }
+        ImGui::End();
+    }
+
+    void drawPauseMenu()
+    {
+        const ImGuiIO &io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(
+            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.45f),
+            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2(360.0f, 265.0f), ImGuiCond_Always);
+        if (ImGui::Begin("Paused", nullptr,
+                         ImGuiWindowFlags_NoCollapse |
+                             ImGuiWindowFlags_NoResize |
+                             ImGuiWindowFlags_NoSavedSettings))
+        {
+            if (ImGui::Button("Resume", ImVec2(-1.0f, 45.0f)))
+            {
+                flow->resume();
+            }
+            if (ImGui::Button("Save and Main Menu",
+                              ImVec2(-1.0f, 45.0f)))
+            {
+                pendingAction.type =
+                    OgreUserInterfaceActionType::ReturnToMainMenu;
+            }
+            if (ImGui::Button("Save and Quit", ImVec2(-1.0f, 45.0f)))
+            {
+                pendingAction.type = OgreUserInterfaceActionType::Quit;
+            }
+        }
+        ImGui::End();
     }
 
     void drawHud()
     {
+        if (player == nullptr)
+        {
+            return;
+        }
         const ImGuiIO &io = ImGui::GetIO();
         const ImVec2 center(io.DisplaySize.x * 0.5f,
                             io.DisplaySize.y * 0.5f);
@@ -322,7 +693,8 @@ class OgreUserInterface::Impl
 
     void drawContainer()
     {
-        if (!player->hasOpenContainer() || world == nullptr)
+        if (player == nullptr || !player->hasOpenContainer() ||
+            world == nullptr)
         {
             return;
         }
@@ -408,6 +780,10 @@ class OgreUserInterface::Impl
 
     void drawDebugPanels()
     {
+        if (player == nullptr || world == nullptr)
+        {
+            return;
+        }
         if (ImGui::Begin("Player"))
         {
             const PlayerSaveState state = player->getSaveState();
@@ -556,6 +932,24 @@ class OgreUserInterface::Impl
     Ogre::Camera *camera = nullptr;
     Player *player = nullptr;
     World *world = nullptr;
+    GameApplicationFlow *flow = nullptr;
+    WorldManagementService *management = nullptr;
+    std::vector<WorldCatalogueEntry> worlds;
+    std::vector<DeletedWorldInfo> deletedWorlds;
+    std::vector<WorldBackupInfo> backups;
+    std::string selectedWorldId;
+    std::string pendingDeleteWorldId;
+    std::string pendingPermanentDeleteWorldId;
+    std::string pendingBackupId;
+    std::string statusMessage;
+    std::array<char, 81> createName{};
+    std::array<char, 81> renameName{};
+    int createSeed = 0;
+    bool worldsDirty = true;
+    bool openDeletePopup = false;
+    bool openPermanentDeletePopup = false;
+    bool openBackupPopup = false;
+    OgreUserInterfaceAction pendingAction;
     WorldDebugStats worldStats;
     bool showDebugPanel = false;
     bool initialized = false;
@@ -566,10 +960,13 @@ class OgreUserInterface::Impl
 
 OgreUserInterface::OgreUserInterface(Ogre::RenderWindow &window,
                                      Ogre::SceneManager &sceneManager,
-                                     Ogre::Camera &camera, Player &player,
-                                     World &world)
+                                     Ogre::Camera &camera, Player *player,
+                                     World *world,
+                                     GameApplicationFlow &applicationFlow,
+                                     WorldManagementService &worldManagement)
     : m_impl(std::make_unique<Impl>(window, sceneManager, camera, player,
-                                    world))
+                                    world, applicationFlow,
+                                    worldManagement))
 {
     m_impl->initialize(this);
 }
@@ -649,19 +1046,43 @@ void OgreUserInterface::mouseButton(const OIS::MouseEvent &event,
 
 bool OgreUserInterface::wantsKeyboardInput() const
 {
-    return m_impl->player->hasOpenContainer() ||
+    return m_impl->flow->state() != GameApplicationState::Playing ||
+           (m_impl->player != nullptr &&
+            m_impl->player->hasOpenContainer()) ||
            ImGui::GetIO().WantCaptureKeyboard;
 }
 
 bool OgreUserInterface::wantsMouseInput() const
 {
-    return m_impl->player->hasOpenContainer() ||
+    return m_impl->flow->state() != GameApplicationState::Playing ||
+           (m_impl->player != nullptr &&
+            m_impl->player->hasOpenContainer()) ||
            ImGui::GetIO().WantCaptureMouse;
 }
 
 bool OgreUserInterface::isDebugPanelVisible() const noexcept
 {
     return m_impl->showDebugPanel;
+}
+
+void OgreUserInterface::setWorldContext(Player *player,
+                                        World *world) noexcept
+{
+    m_impl->player = player;
+    m_impl->world = world;
+}
+
+void OgreUserInterface::setStatusMessage(std::string message)
+{
+    m_impl->statusMessage = std::move(message);
+    m_impl->worldsDirty = true;
+}
+
+OgreUserInterfaceAction OgreUserInterface::consumeAction()
+{
+    OgreUserInterfaceAction action = std::move(m_impl->pendingAction);
+    m_impl->pendingAction = {};
+    return action;
 }
 
 void OgreUserInterface::postRenderQueues()

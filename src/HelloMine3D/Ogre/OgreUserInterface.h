@@ -22,7 +22,23 @@ namespace OIS
 
 class Player;
 class World;
+class GameApplicationFlow;
+class WorldManagementService;
 struct WorldDebugStats;
+
+enum class OgreUserInterfaceActionType
+{
+    None,
+    OpenWorld,
+    ReturnToMainMenu,
+    Quit
+};
+
+struct OgreUserInterfaceAction
+{
+    OgreUserInterfaceActionType type = OgreUserInterfaceActionType::None;
+    std::string worldId;
+};
 
 struct OgreUserInterfaceValidation
 {
@@ -39,7 +55,9 @@ class OgreUserInterface final : public Ogre::RenderQueueListener
   public:
     OgreUserInterface(Ogre::RenderWindow &window,
                       Ogre::SceneManager &sceneManager,
-                      Ogre::Camera &camera, Player &player, World &world);
+                      Ogre::Camera &camera, Player *player, World *world,
+                      GameApplicationFlow &applicationFlow,
+                      WorldManagementService &worldManagement);
     ~OgreUserInterface() override;
 
     OgreUserInterface(const OgreUserInterface &) = delete;
@@ -54,6 +72,9 @@ class OgreUserInterface final : public Ogre::RenderQueueListener
     bool wantsKeyboardInput() const;
     bool wantsMouseInput() const;
     bool isDebugPanelVisible() const noexcept;
+    void setWorldContext(Player *player, World *world) noexcept;
+    void setStatusMessage(std::string message);
+    OgreUserInterfaceAction consumeAction();
 
     void postRenderQueues() override;
 

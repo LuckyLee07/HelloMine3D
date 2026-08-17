@@ -1,5 +1,9 @@
 #include "../Diagnostics/OperationPerformanceTiming.h"
+#include "../Sandbox/GameApplicationFlow.h"
+#include "../World/Storage/WorldBackup.h"
 #include "../World/Storage/WorldCatalogue.h"
+#include "../World/Storage/WorldManagementService.h"
+#include "../World/Storage/WorldSave.h"
 
 #include <algorithm>
 #include <chrono>
@@ -50,6 +54,7 @@ namespace
         {
             std::error_code error;
             fs::remove_all(m_path, error);
+            fs::remove_all(m_path.string() + ".recovery", error);
         }
 
         const fs::path &path() const
@@ -161,6 +166,13 @@ namespace
             result << record << '\n';
         }
         return result.str();
+    }
+
+    std::string readFile(const fs::path &path)
+    {
+        std::ifstream input(path, std::ios::binary);
+        return std::string(std::istreambuf_iterator<char>(input),
+                           std::istreambuf_iterator<char>());
     }
 
     MetadataFixture fixtureWith(const std::string &id,
@@ -431,6 +443,215 @@ int main()
             suite.check("K1/symlink-metadata-rejected", true,
                         "host cannot create test symlink: " + error.message());
         }
+    }
+
+    {
+        TemporaryDirectory root("management");
+        const WorldManagementService service(root.path().string());
+        const WorldManagementListResult empty = service.listWorlds();
+        suite.check("K4/missing-catalogue-is-empty-and-read-only",
+                    empty.succeeded() && empty.worlds.empty() &&
+                        !fs::exists(root.path()));
+        suite.check("K4/invalid-create-name-is-rejected",
+                    service.createWorld("../outside", 1).status ==
+                            WorldManagementStatus::InvalidArgument &&
+                        !fs::exists(root.path()));
+
+        const WorldManagementResult first =
+            service.createWorld("Same Name", 101);
+        const WorldManagementResult second =
+            service.createWorld("Same Name", 202);
+        const WorldManagementListResult created = service.listWorlds();
+        suite.check(
+            "K4/same-display-name-keeps-distinct-stable-identities",
+            first.succeeded() && second.succeeded() &&
+                first.worldId != second.worldId &&
+                first.directoryPath != second.directoryPath &&
+                created.succeeded() && created.worlds.size() == 2);
+
+        const fs::path firstDirectory(first.directoryPath);
+        const WorldManagementResult renamed =
+            service.renameWorld(first.worldId, "Renamed World");
+        const WorldManagementResult opened =
+            service.prepareWorldForOpen(first.worldId);
+        const WorldManagementListResult afterRename = service.listWorlds();
+        const auto renamedEntry = std::find_if(
+            afterRename.worlds.begin(), afterRename.worlds.end(),
+            [&](const WorldCatalogueEntry &entry) {
+                return entry.id == first.worldId;
+            });
+        suite.check(
+            "K4/rename-and-open-preserve-id-and-directory",
+            renamed.succeeded() && opened.succeeded() &&
+                renamed.worldId == first.worldId &&
+                fs::path(renamed.directoryPath) == firstDirectory &&
+                renamedEntry != afterRename.worlds.end() &&
+                renamedEntry->displayName == "Renamed World" &&
+                fs::path(renamedEntry->directoryPath) == firstDirectory);
+        suite.check(
+            "K4/path-traversal-command-is-rejected",
+            service.deleteWorld("../outside").status ==
+                    WorldManagementStatus::InvalidArgument &&
+                fs::is_directory(firstDirectory));
+
+        const WorldManagementResult deleted =
+            service.deleteWorld(first.worldId);
+        const DeletedWorldListResult deletedWorlds =
+            service.listDeletedWorlds();
+        const WorldManagementResult restored =
+            service.restoreDeletedWorld(first.worldId);
+        suite.check(
+            "K4/delete-is-recoverable-and-restores-original-directory",
+            deleted.succeeded() && deletedWorlds.succeeded() &&
+                deletedWorlds.worlds.size() == 1 &&
+                deletedWorlds.worlds.front().world.id == first.worldId &&
+                restored.succeeded() &&
+                fs::path(restored.directoryPath) == firstDirectory &&
+                fs::is_directory(firstDirectory));
+
+        const WorldManagementResult deleteSecond =
+            service.deleteWorld(second.worldId);
+        const WorldManagementResult purgeSecond =
+            service.permanentlyDeleteWorld(second.worldId);
+        suite.check("K4/permanent-delete-only-targets-recovery-entry",
+                    deleteSecond.succeeded() && purgeSecond.succeeded() &&
+                        service.listDeletedWorlds().worlds.empty() &&
+                        fs::is_directory(firstDirectory));
+    }
+
+    {
+        TemporaryDirectory root("recovery-bound");
+        WorldManagementPolicy policy;
+        policy.maxRecoverableDeletes = 2;
+        const WorldManagementService service(root.path().string(), policy);
+        std::vector<std::string> ids;
+        bool completed = true;
+        for (int index = 0; index < 3; ++index) {
+            const WorldManagementResult created = service.createWorld(
+                "Bounded " + std::to_string(index), 500 + index);
+            completed = completed && created.succeeded();
+            ids.push_back(created.worldId);
+        }
+        for (const std::string &id : ids) {
+            completed = completed && service.deleteWorld(id).succeeded();
+        }
+        const DeletedWorldListResult deleted = service.listDeletedWorlds();
+        const bool oldestEvicted =
+            std::none_of(deleted.worlds.begin(), deleted.worlds.end(),
+                         [&](const DeletedWorldInfo &entry) {
+                             return entry.world.id == ids.front();
+                         });
+        suite.check("K4/recoverable-delete-count-is-bounded",
+                    completed && deleted.succeeded() &&
+                        deleted.worlds.size() == 2 && oldestEvicted);
+    }
+
+    {
+        TemporaryDirectory root("legacy-management");
+        root.create();
+        MetadataFixture legacy;
+        legacy.version = 1;
+        legacy.id = "legacy-managed";
+        legacy.name = "LegacyManaged";
+        legacy.seed = "37";
+        writeMetadata(root.path(), "stable-legacy-directory", legacy);
+        const WorldManagementService service(root.path().string());
+        const WorldManagementResult renamed =
+            service.renameWorld(legacy.id, "Legacy Renamed");
+        WorldSaveData loaded;
+        const bool loadedSave = WorldSave::loadFromPath(
+            (root.path() / "stable-legacy-directory" / "world.meta")
+                .string(),
+            loaded);
+        suite.check(
+            "K4/legacy-rename-upgrades-metadata-without-moving-directory",
+            renamed.succeeded() && loadedSave &&
+                loaded.version == WorldSaveFormatVersion &&
+                loaded.worldId == legacy.id &&
+                loaded.worldName == "Legacy Renamed" &&
+                fs::is_directory(root.path() / "stable-legacy-directory"));
+    }
+
+    {
+        TemporaryDirectory root("corrupt-management");
+        root.create();
+        fs::create_directories(root.path() / "missing-meta");
+        const WorldManagementListResult listed =
+            WorldManagementService(root.path().string()).listWorlds();
+        suite.check("K4/corrupt-catalogue-has-structured-failure",
+                    listed.status ==
+                            WorldManagementStatus::CatalogueInvalid &&
+                        !listed.message.empty());
+    }
+
+    {
+        TemporaryDirectory root("management-backup");
+        const WorldManagementService service(root.path().string());
+        const WorldManagementResult created =
+            service.createWorld("Backup Original", 909);
+        WorldBackupInfo backupInfo;
+        WorldBackupMetrics createMetrics;
+        const bool backupCreated =
+            created.succeeded() &&
+            WorldBackup(created.directoryPath)
+                .createBackup(&backupInfo, &createMetrics);
+        const bool mutated =
+            service.renameWorld(created.worldId, "Backup Modified")
+                .succeeded();
+        std::vector<WorldBackupInfo> backups;
+        WorldManagementResult listResult;
+        const bool listed = service.listBackups(
+            created.worldId, backups, &listResult);
+        const WorldManagementResult restored = service.restoreBackup(
+            created.worldId, backupInfo.id);
+        const WorldManagementListResult afterRestore = service.listWorlds();
+        suite.check(
+            "K4/backup-list-and-restore-use-structured-service-boundary",
+            backupCreated && mutated && listed && listResult.succeeded() &&
+                backups.size() == 1 && restored.succeeded() &&
+                afterRestore.succeeded() && afterRestore.worlds.size() == 1 &&
+                afterRestore.worlds.front().displayName == "Backup Original",
+            restored.message);
+
+        const bool changedAgain =
+            service.renameWorld(created.worldId, "Rollback Primary")
+                .succeeded();
+        const std::string beforeFailure =
+            readFile(fs::path(created.directoryPath) / "world.meta");
+        WorldBackupOptions interrupted;
+        interrupted.faultPoint =
+            WorldBackupFaultPoint::AfterFirstRestorePublish;
+        const WorldManagementResult failedRestore = service.restoreBackup(
+            created.worldId, backupInfo.id, interrupted);
+        suite.check(
+            "K4/interrupted-backup-restore-rolls-back-active-world",
+            changedAgain && !failedRestore.succeeded() &&
+                failedRestore.status ==
+                    WorldManagementStatus::StorageFailure &&
+                readFile(fs::path(created.directoryPath) / "world.meta") ==
+                    beforeFailure,
+            failedRestore.message);
+    }
+
+    {
+        GameApplicationFlow flow;
+        const bool validPath =
+            flow.state() == GameApplicationState::MainMenu &&
+            flow.showWorldList() && flow.beginLoading("world-flow") &&
+            flow.completeLoading(true) && flow.pause() && flow.resume() &&
+            flow.returnToMainMenu() &&
+            flow.state() == GameApplicationState::MainMenu &&
+            flow.activeWorldId().empty();
+        suite.check("K4/menu-world-loading-play-pause-state-path",
+                    validPath);
+        suite.check(
+            "K4/invalid-state-transitions-are-rejected",
+            !flow.pause() && !flow.resume() &&
+                !flow.beginLoading(std::string()) && flow.showWorldList() &&
+                !flow.showWorldList() && flow.beginLoading("world-failure") &&
+                flow.completeLoading(false) &&
+                flow.state() == GameApplicationState::WorldList &&
+                flow.activeWorldId().empty());
     }
 
     const std::vector<RuntimeOperationRecord> timingRecords =

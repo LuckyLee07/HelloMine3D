@@ -471,13 +471,35 @@ project "HelloMine3DWorldCatalogueSmoke"
         source_dir .. "/Tests/WorldCatalogueSmokeMain.cpp",
         source_dir .. "/Diagnostics/OperationPerformanceTiming.h",
         source_dir .. "/Diagnostics/OperationPerformanceTiming.cpp",
+        source_dir .. "/Sandbox/GameApplicationFlow.h",
+        source_dir .. "/Sandbox/GameApplicationFlow.cpp",
+        source_dir .. "/World/Block/BlockEntity.h",
+        source_dir .. "/World/Block/BlockEntity.cpp",
+        source_dir .. "/World/Storage/StorageTransaction.h",
+        source_dir .. "/World/Storage/StorageTransaction.cpp",
+        source_dir .. "/World/Storage/ChunkStorageData.h",
+        source_dir .. "/World/Storage/ChunkStorageData.cpp",
+        source_dir .. "/World/Storage/WorldBackup.h",
+        source_dir .. "/World/Storage/WorldBackup.cpp",
         source_dir .. "/World/Storage/WorldCatalogue.h",
-        source_dir .. "/World/Storage/WorldCatalogue.cpp"
+        source_dir .. "/World/Storage/WorldCatalogue.cpp",
+        source_dir .. "/World/Storage/WorldManagementService.h",
+        source_dir .. "/World/Storage/WorldManagementService.cpp",
+        source_dir .. "/World/Storage/WorldSave.h",
+        source_dir .. "/World/Storage/WorldSave.cpp"
     }
 
     includedirs {
         source_dir
     }
+
+    externalincludedirs {
+        "../src/external"
+    }
+
+    if has_local_glm() then
+        externalincludedirs { "../src/external/glm" }
+    end
 
     filter "system:windows"
         defines { "_CRT_SECURE_NO_WARNINGS" }

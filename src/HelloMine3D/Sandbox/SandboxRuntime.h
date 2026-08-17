@@ -2,6 +2,7 @@
 #define SANDBOXRUNTIME_H_INCLUDED
 
 #include <optional>
+#include <string>
 
 #include "../Config.h"
 #include "../Core/Camera.h"
@@ -23,10 +24,12 @@ class SandboxRuntime : public NonCopyable {
   public:
     SandboxRuntime(const Config &config, Camera &camera,
                    bool startBackgroundLoader = true,
-                   int initialPreloadRadius = 1);
+                   int initialPreloadRadius = 1,
+                   std::string mainSaveDirectory = {});
 
     void update(const SandboxInputState &input, float deltaSeconds,
                 bool acceptsPlayerInput = true);
+    bool closeWorld();
     WorldDebugStats collectDebugStats();
 
     Player &getPlayer();

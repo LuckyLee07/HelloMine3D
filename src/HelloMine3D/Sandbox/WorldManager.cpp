@@ -12,12 +12,14 @@
 
 WorldManager::WorldManager(const Config &config, Camera &camera,
                            Player &player, bool startBackgroundLoader,
-                           int initialPreloadRadius)
+                           int initialPreloadRadius,
+                           std::string mainSaveDirectory)
     : m_config(config)
     , m_camera(&camera)
     , m_player(&player)
     , m_startBackgroundLoader(startBackgroundLoader)
     , m_initialPreloadRadius(initialPreloadRadius)
+    , m_mainSaveDirectory(std::move(mainSaveDirectory))
 {
 }
 
@@ -70,6 +72,17 @@ void WorldManager::saveAllWorlds()
             entry.second->save();
         }
     }
+}
+
+bool WorldManager::closeAllWorlds()
+{
+    for (auto &entry : m_worlds) {
+        if (entry.second && !entry.second->save()) {
+            return false;
+        }
+    }
+    m_worlds.clear();
+    return true;
 }
 
 World *WorldManager::getWorld(int worldId)
@@ -164,6 +177,14 @@ World &WorldManager::getOrCreateWorld(int worldId)
 
 std::string WorldManager::saveDirectoryForWorld(int worldId) const
 {
+    if (!m_mainSaveDirectory.empty()) {
+        if (worldId == MainWorldId) {
+            return m_mainSaveDirectory;
+        }
+        return ResourcePaths::join(
+            m_mainSaveDirectory, "world_" + std::to_string(worldId));
+    }
+
     const char *overrideRoot = std::getenv("HELLOMINE3D_SAVE_DIR");
     if (overrideRoot != nullptr && overrideRoot[0] != '\0') {
         if (worldId == MainWorldId) {

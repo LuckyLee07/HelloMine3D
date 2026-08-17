@@ -27,7 +27,7 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 | `docs/ogre-migration-plan.md` | Plan for moving the render backend to Ogre 1.10 (milestones E0-E5). |
 | `docs/runtime-validation.md` | How runtime behaviour is validated, and what is not covered. |
 | `docs/iteration-plan.md` | Long-term iteration roadmap. |
-| `docs/world-catalogue-contract-v1.md`, `docs/storage-transaction-contract-v1.md`, `docs/world-backup-contract-v1.md` | K1-K3 world identity, atomic publication and verified recovery contracts. |
+| `docs/world-catalogue-contract-v1.md`, `docs/storage-transaction-contract-v1.md`, `docs/world-backup-contract-v1.md`, `docs/world-management-contract-v1.md` | K1-K4 world identity, atomic publication, verified recovery and player-facing management contracts. |
 | `docs/operation-performance-timing-contract-v1.md` | Q2 bounded startup, world-entry, save, backup and restore timing contract. |
 | `docs/crash-diagnostics-contract-v1.md` | H1 Windows local-minidump backend, trigger and validation contract. |
 | `docs/thread-sanitizer-validation.md` | R4 native Clang ThreadSanitizer gate for the background loader. |
@@ -46,7 +46,7 @@ includes the playable crop/container/combat/persistence slice, a deterministic
 world soak, clean-root packaging and the bounded read-only resource-pack layer.
 R3 physical-input acceptance still closes the remaining D2, D4 and D6
 `Verify` states, but it is intentionally deferred while the project prioritizes
-the player-facing K4 and G2-G6 gameplay loop.
+the player-facing G2-G6 gameplay loop. K4 world entry is complete.
 
 Stage 8 is now planned around sustainable play and reliable releases. Its
 16-item K/H/Q/G scope adds durable world management and recovery, local
@@ -54,12 +54,15 @@ symbolizable crash artifacts, startup/save/streaming/content-scale performance
 budgets, data-driven crafting and tools, pause/settings, basic audio feedback
 and a new clean-package vertical slice. See `docs/iteration-plan.md` for phase
 ordering and `docs/todolist.md` for the authoritative task contracts.
-K1-K3 are now complete: new worlds use version-3 identity metadata, file saves
+K1-K4 are now complete: new worlds use version-3 identity metadata, file saves
 publish transactionally, and explicit successful saves create bounded verified
-backups with rollback-safe restore. The contracts are documented in
+backups with rollback-safe restore. Normal launches now open a main-menu world
+screen for create/open/rename/backup recovery/recoverable deletion, while test
+save-directory launches retain the direct path. The contracts are documented in
 `docs/world-catalogue-contract-v1.md`,
 `docs/storage-transaction-contract-v1.md` and
-`docs/world-backup-contract-v1.md`.
+`docs/world-backup-contract-v1.md`, plus
+`docs/world-management-contract-v1.md`.
 Q2 now records bounded cumulative phases, totals, longest main-thread stalls
 and storage counters for startup, catalogue, world entry, save, backup and
 restore. Portable and real storage fixtures are green; closure still depends on
@@ -75,7 +78,7 @@ The Windows build blocker is closed: every game-logic target that compiles the
 crash backend inherits `dbghelp.lib`. The full Debug/Release gate, thirteen
 targets, 346-check runtime stack, resource/startup diagnostics and clean package
 all pass. Formal performance budgets and physical-input evidence remain later
-quality-stage work while K4 and G2-G5 drive the gameplay slice.
+quality-stage work while G2-G5 drive the gameplay slice.
 
 Native macOS acceptance (B3) is complete on an Apple M1 Pro through the full
 Debug/Release Xcode gate. R4 is also complete: the native arm64 Apple Clang

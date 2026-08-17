@@ -4894,7 +4894,9 @@ void caseWorldManager()
         WorldManager manager(config, camera, player);
         check("S1.2/load-world", manager.loadWorld());
         check("S1.2/load-world-activates",
-              manager.getActiveWorld() != nullptr);
+              manager.getActiveWorld() != nullptr &&
+                  manager.closeAllWorlds() &&
+                  manager.getActiveWorld() == nullptr);
     }
 
     setEnv("HELLOMINE3D_SAVE_DIR", "");

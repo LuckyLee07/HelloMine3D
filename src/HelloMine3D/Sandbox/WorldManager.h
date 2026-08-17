@@ -19,13 +19,15 @@ class WorldManager : public NonCopyable {
 
     WorldManager(const Config &config, Camera &camera, Player &player,
                  bool startBackgroundLoader = true,
-                 int initialPreloadRadius = 1);
+                 int initialPreloadRadius = 1,
+                 std::string mainSaveDirectory = {});
     ~WorldManager();
 
     World &createWorld(int worldId = MainWorldId);
     bool loadWorld(int worldId = MainWorldId);
     bool saveWorld(int worldId = MainWorldId);
     void saveAllWorlds();
+    bool closeAllWorlds();
 
     World *getWorld(int worldId);
     const World *getWorld(int worldId) const;
@@ -53,6 +55,7 @@ class WorldManager : public NonCopyable {
     int m_worldTime = 0;
     bool m_startBackgroundLoader = true;
     int m_initialPreloadRadius = 1;
+    std::string m_mainSaveDirectory;
 };
 
 #endif // WORLDMANAGER_H_INCLUDED

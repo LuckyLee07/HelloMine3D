@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <utility>
 
 #include "../Diagnostics/RuntimePerformanceCapture.h"
 #include "../Diagnostics/RuntimeProfiler.h"
@@ -10,11 +11,12 @@
 
 SandboxRuntime::SandboxRuntime(const Config &config, Camera &camera,
                                bool startBackgroundLoader,
-                               int initialPreloadRadius)
+                               int initialPreloadRadius,
+                               std::string mainSaveDirectory)
     : m_config(config)
     , m_camera(camera)
     , m_worldManager(m_config, camera, m_player, startBackgroundLoader,
-                     initialPreloadRadius)
+                     initialPreloadRadius, std::move(mainSaveDirectory))
 {
     BlockDatabase::get();
     m_camera.hookEntity(m_player);
@@ -57,6 +59,16 @@ void SandboxRuntime::update(const SandboxInputState &input,
         world->resetChunkMeshes();
     }
     world->update(m_camera);
+}
+
+bool SandboxRuntime::closeWorld()
+{
+    if (!m_worldManager.closeAllWorlds()) {
+        return false;
+    }
+    m_blockSelection.reset();
+    m_actorSelection.reset();
+    return true;
 }
 
 WorldDebugStats SandboxRuntime::collectDebugStats()
