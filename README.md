@@ -27,6 +27,7 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 | `docs/world-catalogue-contract-v1.md`, `docs/storage-transaction-contract-v1.md`, `docs/world-backup-contract-v1.md` | K1-K3 world identity, atomic publication and verified recovery contracts. |
 | `docs/operation-performance-timing-contract-v1.md` | Q2 bounded startup, world-entry, save, backup and restore timing contract. |
 | `docs/crash-diagnostics-contract-v1.md` | H1 Windows local-minidump backend, trigger and validation contract. |
+| `docs/thread-sanitizer-validation.md` | R4 native Clang ThreadSanitizer gate for the background loader. |
 | `docs/render-regression-smoke.md` | Non-intrusive render screenshot smoke. |
 | `docs/performance-baseline.md` | Non-intrusive frame timing and chunk counter baseline. |
 | `docs/manual-input-acceptance-v1.md` | Versioned physical keyboard/mouse acceptance protocol. |
@@ -65,9 +66,9 @@ handler and controlled post-save first-frame crash are implemented; the target
 Windows Release dump harness remains the closure evidence.
 
 Native macOS acceptance (B3) is complete on an Apple M1 Pro through the full
-Debug/Release Xcode gate. Formal ThreadSanitizer evidence (R4) remains deferred
-until a supported sanitizer configuration is available and does not block the
-Windows stage.
+Debug/Release Xcode gate. R4 is also complete: the native arm64 Apple Clang
+ThreadSanitizer gate runs the full 346-check world stack and its concurrent V5
+loader workload without a sanitizer report.
 Multiplayer, scriptable mods,
 resource hot reload and additional render backends are not part of the active
 scope.
@@ -183,9 +184,10 @@ vs2022.bat
 
 ### One-Command Build Verification
 
-Use the platform wrapper below for the same clean project generation,
-Debug/Release rebuilds and eight headless test runs expected before a change is
-committed:
+Use the platform wrapper below for clean project generation, Debug/Release
+rebuilds and the thirteen headless targets expected before a change is
+committed. The dedicated TSan row is additionally required after loader or
+synchronization changes:
 
 | Platform | Command | Required host tools |
 | -------- | ------- | ------------------- |
@@ -193,9 +195,12 @@ committed:
 | Linux | `bash scripts/verify_build.sh` | A C++17 compiler, GNU Make, Premake 5 and the OpenGL/X11 development packages. |
 | macOS / Make | `bash scripts/verify_build.sh` | Xcode command-line tools, GNU Make and Premake 5 (`brew install premake`). |
 | macOS / Xcode | `bash scripts/verify_xcode.sh` | A graphical macOS session, Xcode command-line tools, Premake 5 and x86_64 execution support. |
+| macOS / TSan | `bash scripts/verify_tsan.sh` | Native 64-bit macOS, Xcode/Apple Clang and Premake 5. |
 
-Both wrappers stop at the first failed generation, compilation or test step
-and print `[BUILD_VERIFY] status=PASS` only after both configurations pass.
+The ordinary build wrappers stop at the first failed generation, compilation
+or test step and print `[BUILD_VERIFY] status=PASS` only after both
+configurations pass. The Xcode and TSan gates have their own terminal PASS
+markers.
 The macOS-native Xcode generator remains a separate validation path documented
 in the project task list. A Windows host can still validate the generated
 workspace contract without claiming a native build:
@@ -210,7 +215,7 @@ PBX group and cross-project reference, rejecting stale/missing projects,
 duplicate children, one child in multiple groups, duplicate `ProjectRef`
 entries and undeclared references. It also checks Cocoa/OIS/OSX sources,
 platform paths/frameworks, the default-off Tracy boundary, foreign-platform
-leakage and the native verifier contract. It cannot replace `xcodebuild`.
+leakage and the native verifier contracts. It cannot replace `xcodebuild`.
 
 On a real macOS host, `scripts/verify_xcode.sh` is the final native gate. It
 generates Xcode projects, runs nine positive/negative graph fixtures, validates
@@ -220,6 +225,12 @@ real-window 120-frame client probes. The real-window probes also verify that the
 persisted player remains on the fixed surface fixture. The process prints
 `[XCODE_VERIFY] status=PASS` only
 after every step succeeds and keeps per-step logs under `build/`.
+
+`scripts/verify_tsan.sh` separately regenerates the project, builds the real
+world target as a native ThreadSanitizer binary, and runs all 346 assertions
+including the concurrent V5 loader scenario. It rejects first-party sanitizer
+suppressions, missing TSan linkage, any sanitizer report or incomplete runtime
+summary. See `docs/thread-sanitizer-validation.md`.
 
 ### Runtime Configuration And State
 

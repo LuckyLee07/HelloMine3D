@@ -210,6 +210,7 @@ $GlSupportProject = Join-Path $BuildDir "Engine\ogre3d_glsupport\ogre3d_glsuppor
 $OisProject = Join-Path $BuildDir "External\ois\ois.xcodeproj\project.pbxproj"
 $TracyProject = Join-Path $BuildDir "External\tracy\tracy.xcodeproj\project.pbxproj"
 $NativeVerifier = Join-Path $RepoRoot "scripts\verify_xcode.sh"
+$TsanVerifier = Join-Path $RepoRoot "scripts\verify_tsan.sh"
 
 $WorkspaceText = Get-Content -LiteralPath $Workspace -Raw -Encoding UTF8
 $WorkspaceProjects = @(
@@ -320,6 +321,29 @@ foreach ($Pattern in @(
     '\[XCODE_VERIFY\] status=PASS'
 )) {
     Require-Text -Path $NativeVerifier -Pattern $Pattern -Label "native Xcode verifier contract"
+}
+
+foreach ($Pattern in @(
+    'xcodebuild -find clang\+\+',
+    '-scheme "\$TARGET"',
+    'tsan-race-probe\.cpp',
+    'ENABLE_THREAD_SANITIZER=YES',
+    '-derivedDataPath',
+    'CLANG_MODULE_CACHE_PATH=',
+    'COMPILER_INDEX_STORE_ENABLE=NO',
+    'libclang_rt\.tsan_osx_dynamic\.dylib',
+    '___tsan_init',
+    '___tsan_read1',
+    '___tsan_write1',
+    'no_sanitize\.\*thread',
+    'detector_probe_exit=66',
+    '\[VALIDATION\] PASS V5/load-center-churn-completes',
+    '\[VALIDATION\] PASS V5/concurrent-block-reads-valid',
+    '\[VALIDATION\] PASS V5/background-loader-makes-progress',
+    '\[VALIDATION\] checks=346 failures=0',
+    '\[TSAN_VERIFY\] status=PASS'
+)) {
+    Require-Text -Path $TsanVerifier -Pattern $Pattern -Label "native ThreadSanitizer verifier contract"
 }
 
 Write-Host "[XCODE_VALIDATE] status=PASS checks=$Checks native_build=NOT_RUN"
