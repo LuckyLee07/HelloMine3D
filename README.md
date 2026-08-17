@@ -28,6 +28,7 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 | `docs/runtime-validation.md` | How runtime behaviour is validated, and what is not covered. |
 | `docs/iteration-plan.md` | Long-term iteration roadmap. |
 | `docs/world-catalogue-contract-v1.md`, `docs/storage-transaction-contract-v1.md`, `docs/world-backup-contract-v1.md`, `docs/world-management-contract-v1.md` | K1-K4 world identity, atomic publication, verified recovery and player-facing management contracts. |
+| `docs/runtime-settings-contract-v1.md` | G4 pause, settings draft, versioned persistence and live-apply contract. |
 | `docs/operation-performance-timing-contract-v1.md` | Q2 bounded startup, world-entry, save, backup and restore timing contract. |
 | `docs/crash-diagnostics-contract-v1.md` | H1 Windows local-minidump backend, trigger and validation contract. |
 | `docs/thread-sanitizer-validation.md` | R4 native Clang ThreadSanitizer gate for the background loader. |
@@ -46,8 +47,8 @@ includes the playable crop/container/combat/persistence slice, a deterministic
 world soak, clean-root packaging and the bounded read-only resource-pack layer.
 R3 physical-input acceptance still closes the remaining D2, D4 and D6
 `Verify` states, but it is intentionally deferred while the project prioritizes
-the player-facing G4-G6 gameplay loop. K4 world entry, G2 crafting and G3 tool
-progression are complete.
+the player-facing G5-G6 gameplay loop. K4 world entry, G2 crafting, G3 tool
+progression and G4 pause/settings are complete.
 
 Stage 8 is now planned around sustainable play and reliable releases. Its
 16-item K/H/Q/G scope adds durable world management and recovery, local
@@ -71,6 +72,11 @@ G3 adds data-driven wooden/stone pickaxes, hold-to-mine progress, tiered drops,
 per-instance durability and backward-compatible inventory persistence. The
 current Debug/Release gates pass 64 focused recipe/tool checks, 365 world checks
 and 20 resource-pack checks; see `docs/tool-progression-contract-v1.md`.
+G4 turns pause into a simulation gate and adds a bounded settings draft with
+apply/cancel/default semantics. Version-1 settings are published atomically,
+legacy files migrate automatically, display changes are restart-marked, FOV,
+input, logical/visual FOV and render distance apply live, and world creation seed ownership is kept
+outside the settings page; see `docs/runtime-settings-contract-v1.md`.
 Q2 now records bounded cumulative phases, totals, longest main-thread stalls
 and storage counters for startup, catalogue, world entry, save, backup and
 restore. Portable and real storage fixtures are green; closure still depends on
@@ -86,7 +92,7 @@ The Windows build blocker is closed: every game-logic target that compiles the
 crash backend inherits `dbghelp.lib`. The full Debug/Release gate, thirteen
 targets, 346-check runtime stack, resource/startup diagnostics and clean package
 all pass. Formal performance budgets and physical-input evidence remain later
-quality-stage work while G4-G5 drive the gameplay slice.
+quality-stage work while G5 drives the gameplay feedback layer.
 
 Native macOS acceptance (B3) is complete on an Apple M1 Pro through the full
 Debug/Release Xcode gate. R4 is also complete: the native arm64 Apple Clang

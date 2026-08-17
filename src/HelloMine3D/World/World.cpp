@@ -1159,6 +1159,22 @@ void World::startBackgroundLoader()
     m_chunkLoadThreads.emplace_back([this]() { loadChunks(); });
 }
 
+void World::setRenderDistance(int renderDistance) noexcept
+{
+    const int previous = m_renderDistance.exchange(renderDistance);
+    if (previous == renderDistance) {
+        return;
+    }
+    m_unloadScanValid = false;
+    m_unloadBacklog = true;
+    m_chunkLoadRevision.fetch_add(1);
+}
+
+int World::getRenderDistance() const noexcept
+{
+    return m_renderDistance.load();
+}
+
 void World::unloadDistantChunks(const Camera &camera)
 {
     constexpr std::size_t MaxUnloadsPerUpdate = 8;
@@ -1173,10 +1189,11 @@ void World::unloadDistantChunks(const Camera &camera)
     m_unloadScanValid = true;
 
     std::unique_lock<std::mutex> lock(m_mainMutex);
-    const int minX = cameraChunk.x - m_renderDistance;
-    const int minZ = cameraChunk.z - m_renderDistance;
-    const int maxX = cameraChunk.x + m_renderDistance;
-    const int maxZ = cameraChunk.z + m_renderDistance;
+    const int renderDistance = m_renderDistance.load();
+    const int minX = cameraChunk.x - renderDistance;
+    const int minZ = cameraChunk.z - renderDistance;
+    const int maxX = cameraChunk.x + renderDistance;
+    const int maxZ = cameraChunk.z + renderDistance;
 
     std::vector<VectorXZ> chunksToUnload;
     for (const auto &entry : m_chunkManager.getChunks()) {
@@ -1244,7 +1261,7 @@ void World::loadChunks()
         if (!queueValid || !(loadCenter == lastCenter) ||
             currentRevision != lastRevision ||
             currentPriorityRevision != lastPriorityRevision) {
-            const int radius = std::max(1, m_renderDistance);
+            const int radius = std::max(1, m_renderDistance.load());
             MeshPrioritySnapshot prioritySnapshot;
             {
                 std::lock_guard<std::mutex> lock(m_meshPriorityMutex);

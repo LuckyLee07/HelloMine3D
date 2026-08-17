@@ -27,6 +27,17 @@ void Camera::update(const glm::vec3 &targetPosition,
     m_frustum.update(m_projViewMatrx);
 }
 
+void Camera::setFov(int fov) noexcept
+{
+    if (m_config.fov == fov) {
+        return;
+    }
+    m_config.fov = fov;
+    m_projectionMatrix = makeProjectionMatrix(m_config);
+    m_projViewMatrx = m_projectionMatrix * m_viewMatrix;
+    m_frustum.update(m_projViewMatrx);
+}
+
 void Camera::hookEntity(const Entity &entity) noexcept
 {
     m_pEntity = &entity;

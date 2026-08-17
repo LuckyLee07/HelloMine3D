@@ -13,6 +13,7 @@ class Camera : public Entity {
     void update() noexcept;
     void update(const glm::vec3 &targetPosition,
                 const glm::vec3 &targetRotation) noexcept;
+    void setFov(int fov) noexcept;
     void hookEntity(const Entity &entity) noexcept;
 
     const glm::mat4 &getViewMatrix() const noexcept;

@@ -27,6 +27,11 @@ const std::string &GameApplicationFlow::activeWorldId() const noexcept
     return m_activeWorldId;
 }
 
+bool GameApplicationFlow::acceptsWorldSimulation() const noexcept
+{
+    return m_state == GameApplicationState::Playing;
+}
+
 bool GameApplicationFlow::showWorldList() noexcept
 {
     if (m_state != GameApplicationState::MainMenu) {

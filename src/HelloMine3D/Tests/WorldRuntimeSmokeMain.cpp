@@ -47,6 +47,7 @@
 #include "../Sandbox/Events/EntityEvents.h"
 #include "../Sandbox/Events/PlayerEvents.h"
 #include "../Sandbox/FixedTickScheduler.h"
+#include "../Sandbox/GameApplicationFlow.h"
 #include "../Sandbox/WorldManager.h"
 #include "../Util/ResourcePaths.h"
 #include "../World/Block/BlockBehavior.h"
@@ -301,6 +302,16 @@ void caseRuntimeConfigOwnership()
               std::to_string(generated.windowX) + "x" +
               std::to_string(generated.windowY) + " " +
               std::to_string(generated.fov));
+    {
+        std::ifstream input(configPath, std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(input)),
+                               std::istreambuf_iterator<char>());
+        check("G4/settings-file-is-versioned",
+              text.find("settings_version 1\n") != std::string::npos &&
+                  text.find("mastervolume 1") != std::string::npos &&
+                  text.find("ambientvolume 1") != std::string::npos,
+              text);
+    }
 
     {
         std::ofstream output(configPath,
@@ -318,7 +329,134 @@ void caseRuntimeConfigOwnership()
               customised.windowX == 1024 && customised.windowY == 768 &&
               customised.fov == 100 &&
               std::abs(customised.mouseSensitivity - 0.12f) < 0.0001f &&
-              customised.invertMouseY);
+              customised.invertMouseY &&
+              std::abs(customised.masterVolume - 1.0f) < 0.0001f);
+    {
+        std::ifstream input(configPath, std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(input)),
+                               std::istreambuf_iterator<char>());
+        check("G4/legacy-settings-migrated-atomically",
+              text.find("settings_version 1\n") == 0 &&
+                  text.find("uivolume 1") != std::string::npos,
+              text);
+    }
+
+    RuntimeSettingsSession session;
+    session.begin(userSettings(customised));
+    session.draft().fov = 115;
+    session.draft().renderDistance = 5;
+    RuntimeSettingsApplyPlan plan;
+    std::string settingsError;
+    check("G4/settings-draft-prepares-valid-apply",
+          session.prepareApply(plan, settingsError) &&
+              plan.settings.fov == 115 &&
+              plan.renderDistanceChanged && !plan.restartRequired,
+          settingsError);
+    session.cancel();
+    check("G4/settings-cancel-restores-snapshot",
+          !session.isOpen() && session.draft().fov == customised.fov &&
+              session.draft().renderDistance == customised.renderDistance);
+
+    session.begin(userSettings(customised));
+    session.draft().windowX = 1600;
+    check("G4/display-change-requires-restart",
+          session.prepareApply(plan, settingsError) &&
+              plan.restartRequired);
+    session.restoreDefaults();
+    check("G4/settings-defaults-are-bounded",
+          session.prepareApply(plan, settingsError) &&
+              plan.settings.windowX == 1280 &&
+              plan.settings.renderDistance == 8 &&
+              std::abs(plan.settings.masterVolume - 1.0f) < 0.0001f);
+    session.draft().fov = 121;
+    check("G4/settings-reject-out-of-range-draft",
+          !session.prepareApply(plan, settingsError) &&
+              settingsError.find("FOV") != std::string::npos,
+          settingsError);
+
+    Config persisted = customised;
+    persisted.worldSeed = 77123;
+    userSettings(persisted) = plan.settings;
+    persisted.fov = 96;
+    check("G4/settings-save-publishes-valid-candidate",
+          saveRuntimeConfig(configPath.string(), persisted,
+                            &settingsError),
+          settingsError);
+    const Config reloaded = loadRuntimeConfig(configPath.string());
+    check("G4/settings-save-preserves-world-creation-seed",
+          reloaded.fov == 96 && reloaded.worldSeed.has_value() &&
+              *reloaded.worldSeed == 77123);
+
+    Config rejected = reloaded;
+    rejected.fov = 101;
+    StorageTransactionOptions fault;
+    fault.faultPoint = StorageFaultPoint::BeforeReplace;
+    check("G4/settings-atomic-failure-is-reported",
+          !saveRuntimeConfig(configPath.string(), rejected,
+                             &settingsError, fault) &&
+              settingsError.find("before-replace") !=
+                  std::string::npos,
+          settingsError);
+    const Config afterFailure = loadRuntimeConfig(configPath.string());
+    check("G4/settings-atomic-failure-keeps-previous-file",
+          afterFailure.fov == 96 && afterFailure.worldSeed.has_value() &&
+              *afterFailure.worldSeed == 77123);
+
+    Camera settingsCamera(afterFailure);
+    const float previousProjection = settingsCamera.getProjMatrix()[1][1];
+    settingsCamera.setFov(110);
+    check("G4/live-fov-refreshes-logic-camera",
+          std::abs(settingsCamera.getProjMatrix()[1][1] -
+                   previousProjection) > 0.0001f);
+
+    const std::filesystem::path futurePath =
+        directory / "future-config.txt";
+    {
+        std::ofstream output(futurePath,
+                             std::ios::binary | std::ios::trunc);
+        output << "settings_version 999\n";
+    }
+    bool futureRejected = false;
+    try {
+        (void)loadRuntimeConfig(futurePath.string());
+    }
+    catch (const std::exception &) {
+        futureRejected = true;
+    }
+    check("G4/unknown-settings-version-rejected", futureRejected);
+}
+
+void casePausedApplicationFlow()
+{
+    GameApplicationFlow flow;
+    check("G4/main-menu-does-not-advance-simulation",
+          !flow.acceptsWorldSimulation());
+    check("G4/application-enters-playing",
+          flow.showWorldList() && flow.beginLoading("pause-smoke") &&
+              flow.completeLoading(true) &&
+              flow.acceptsWorldSimulation());
+
+    int simulatedTicks = 0;
+    const auto pump = [&]() {
+        if (flow.acceptsWorldSimulation()) {
+            ++simulatedTicks;
+        }
+    };
+    pump();
+    check("G4/pause-transition-is-stateful",
+          flow.pause() && flow.state() == GameApplicationState::Paused &&
+              !flow.acceptsWorldSimulation());
+    for (int frame = 0; frame < 10; ++frame) {
+        pump();
+    }
+    check("G4/paused-frames-freeze-simulation", simulatedTicks == 1,
+          std::to_string(simulatedTicks));
+    check("G4/invalid-double-pause-rejected", !flow.pause());
+    check("G4/resume-restores-simulation",
+          flow.resume() && flow.acceptsWorldSimulation());
+    pump();
+    check("G4/resumed-frame-advances-simulation", simulatedTicks == 2,
+          std::to_string(simulatedTicks));
 }
 
 // ---------------------------------------------------------------------------
@@ -360,6 +498,10 @@ void caseConfiguredWorldSeed()
     Player secondPlayer;
     World second(secondCamera, config, secondPlayer, secondDirectory, false,
                  1);
+
+    first.setRenderDistance(3);
+    check("G4/live-render-distance-updates-world",
+          first.getRenderDistance() == 3);
 
     const int firstSeed = first.collectDebugStats().terrainSeed;
     const int secondSeed = second.collectDebugStats().terrainSeed;
@@ -5197,6 +5339,7 @@ int main()
         caseWorldEnvironment();
         caseBlockTextureCoordinates();
         caseRuntimeConfigOwnership();
+        casePausedApplicationFlow();
         caseBlockDataDiagnostics();
         caseOreTextures();
         caseConfiguredWorldSeed();

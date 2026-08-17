@@ -17,6 +17,7 @@ class GameApplicationFlow {
   public:
     GameApplicationState state() const noexcept;
     const std::string &activeWorldId() const noexcept;
+    bool acceptsWorldSimulation() const noexcept;
 
     bool showWorldList() noexcept;
     bool beginLoading(const std::string &worldId) noexcept;

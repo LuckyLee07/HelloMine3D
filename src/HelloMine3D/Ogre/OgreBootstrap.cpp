@@ -271,7 +271,8 @@ namespace
             createInput();
             m_userInterface = std::make_unique<OgreUserInterface>(
                 *m_window, *m_sceneManager, *m_camera, m_worldPlayer,
-                m_world, m_applicationFlow, *m_worldManagement);
+                m_world, m_applicationFlow, *m_worldManagement,
+                userSettings(m_config));
 
             m_root->addFrameListener(this);
             Ogre::WindowEventUtilities::addWindowEventListener(m_window, this);
@@ -994,6 +995,43 @@ namespace
                     }
                     m_applicationFlow.returnToMainMenu();
                     return;
+                case OgreUserInterfaceActionType::ApplySettings:
+                {
+                    Config candidate = m_config;
+                    userSettings(candidate) = action.settings;
+                    std::string error;
+                    if (!saveRuntimeConfig(
+                            ResourcePaths::bin("config.txt"), candidate,
+                            &error))
+                    {
+                        m_userInterface->reportSettingsApplied(
+                            false, userSettings(m_config),
+                            "Settings were not saved: " + error);
+                        return;
+                    }
+
+                    const bool restartRequired =
+                        candidate.windowX != m_config.windowX ||
+                        candidate.windowY != m_config.windowY ||
+                        candidate.isFullscreen != m_config.isFullscreen;
+                    userSettings(m_config) = action.settings;
+                    if (m_camera != nullptr)
+                    {
+                        m_camera->setFOVy(Ogre::Degree(
+                            static_cast<Ogre::Real>(m_config.fov)));
+                    }
+                    if (m_sandbox != nullptr)
+                    {
+                        m_sandbox->applyUserSettings(
+                            userSettings(m_config));
+                    }
+                    m_userInterface->reportSettingsApplied(
+                        true, userSettings(m_config),
+                        restartRequired
+                            ? "Settings applied. Restart to apply display changes."
+                            : "Settings applied.");
+                    return;
+                }
                 case OgreUserInterfaceActionType::OpenWorld:
                     break;
             }
@@ -1162,8 +1200,7 @@ namespace
             {
                 return;
             }
-            if (m_applicationFlow.state() !=
-                GameApplicationState::Playing)
+            if (!m_applicationFlow.acceptsWorldSimulation())
             {
                 m_sandbox->cancelMiningProgress();
                 clearTransientInput();
@@ -1594,6 +1631,11 @@ namespace
             }
             if (event.key == OIS::KC_ESCAPE)
             {
+                if (m_userInterface != nullptr &&
+                    m_userInterface->dismissSettings())
+                {
+                    return true;
+                }
                 if (m_worldPlayer != nullptr &&
                     m_worldPlayer->hasOpenCrafting())
                 {

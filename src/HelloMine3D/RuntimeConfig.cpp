@@ -3,11 +3,18 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <set>
 #include <sstream>
 #include <stdexcept>
+#include <vector>
 
 namespace {
+struct ParsedRuntimeConfig {
+    Config config;
+    bool legacy = false;
+};
+
 [[noreturn]] void fail(const std::string &path, const std::string &key,
                        const std::string &detail)
 {
@@ -44,64 +51,25 @@ float readFloat(const std::string &path, const std::string &key,
     return value;
 }
 
-void writeDefaultConfig(const std::string &path, const Config &config)
+void validateVolume(const char *name, float value)
 {
-    const std::filesystem::path filePath(path);
-    const std::filesystem::path parent = filePath.parent_path();
-    std::error_code error;
-    if (!parent.empty()) {
-        std::filesystem::create_directories(parent, error);
-        if (error) {
-            throw std::runtime_error("Unable to create runtime config directory '" +
-                                     parent.string() + "'.");
-        }
-    }
-
-    std::ofstream output(path, std::ios::trunc);
-    if (!output.is_open()) {
-        throw std::runtime_error("Unable to write runtime config '" + path +
-                                 "'.");
-    }
-    output << "renderdistance " << config.renderDistance << '\n'
-           << "fullscreen " << (config.isFullscreen ? 1 : 0) << '\n'
-           << "windowsize " << config.windowX << ' ' << config.windowY
-           << '\n'
-           << "fov " << config.fov << '\n'
-           << "mousesensitivity " << config.mouseSensitivity << '\n'
-           << "invertmousey " << (config.invertMouseY ? 1 : 0) << '\n'
-           << "seed ";
-    if (config.worldSeed.has_value()) {
-        output << *config.worldSeed;
-    }
-    else {
-        output << "random";
-    }
-    output << '\n';
-    if (!output) {
-        throw std::runtime_error("Unable to write runtime config '" + path +
-                                 "'.");
+    if (!std::isfinite(value) || value < 0.f || value > 1.f) {
+        throw std::runtime_error(std::string(name) +
+                                 " must be between 0.0 and 1.0");
     }
 }
-} // namespace
 
-Config loadRuntimeConfig(const std::string &path)
+ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
+                                       bool allowLegacy)
 {
-    Config config;
     std::ifstream input(path);
-    if (!input.is_open()) {
-        std::error_code error;
-        if (std::filesystem::exists(path, error)) {
-            throw std::runtime_error("Unable to read runtime config '" + path +
-                                     "'.");
-        }
-        writeDefaultConfig(path, config);
-        input.open(path);
-    }
     if (!input.is_open()) {
         throw std::runtime_error("Unable to read runtime config '" + path +
                                  "'.");
     }
 
+    ParsedRuntimeConfig parsed;
+    bool hasVersion = false;
     std::set<std::string> seenKeys;
     std::string line;
     std::size_t lineNumber = 0;
@@ -122,12 +90,18 @@ Config loadRuntimeConfig(const std::string &path)
                                 std::to_string(lineNumber));
         }
 
-        if (key == "renderdistance") {
-            config.renderDistance = readInteger(path, key, values);
+        if (key == "settings_version") {
+            const int version = readInteger(path, key, values);
             requireEnd(path, key, values);
-            if (config.renderDistance < 0 || config.renderDistance > 64) {
-                fail(path, key, "must be between 0 and 64");
+            if (version != RuntimeSettingsFormatVersion) {
+                fail(path, key, "uses unsupported version " +
+                                    std::to_string(version));
             }
+            hasVersion = true;
+        }
+        else if (key == "renderdistance") {
+            parsed.config.renderDistance = readInteger(path, key, values);
+            requireEnd(path, key, values);
         }
         else if (key == "fullscreen") {
             const int fullscreen = readInteger(path, key, values);
@@ -135,30 +109,20 @@ Config loadRuntimeConfig(const std::string &path)
             if (fullscreen != 0 && fullscreen != 1) {
                 fail(path, key, "must be 0 or 1");
             }
-            config.isFullscreen = fullscreen != 0;
+            parsed.config.isFullscreen = fullscreen != 0;
         }
         else if (key == "windowsize") {
-            config.windowX = readInteger(path, key, values);
-            config.windowY = readInteger(path, key, values);
+            parsed.config.windowX = readInteger(path, key, values);
+            parsed.config.windowY = readInteger(path, key, values);
             requireEnd(path, key, values);
-            if (config.windowX <= 0 || config.windowY <= 0) {
-                fail(path, key, "must contain positive dimensions");
-            }
         }
         else if (key == "fov") {
-            config.fov = readInteger(path, key, values);
+            parsed.config.fov = readInteger(path, key, values);
             requireEnd(path, key, values);
-            if (config.fov <= 0 || config.fov >= 180) {
-                fail(path, key, "must be between 1 and 179 degrees");
-            }
         }
         else if (key == "mousesensitivity") {
-            config.mouseSensitivity = readFloat(path, key, values);
+            parsed.config.mouseSensitivity = readFloat(path, key, values);
             requireEnd(path, key, values);
-            if (config.mouseSensitivity < 0.005f ||
-                config.mouseSensitivity > 1.f) {
-                fail(path, key, "must be between 0.005 and 1.0");
-            }
         }
         else if (key == "invertmousey") {
             const int inverted = readInteger(path, key, values);
@@ -166,7 +130,23 @@ Config loadRuntimeConfig(const std::string &path)
             if (inverted != 0 && inverted != 1) {
                 fail(path, key, "must be 0 or 1");
             }
-            config.invertMouseY = inverted != 0;
+            parsed.config.invertMouseY = inverted != 0;
+        }
+        else if (key == "mastervolume") {
+            parsed.config.masterVolume = readFloat(path, key, values);
+            requireEnd(path, key, values);
+        }
+        else if (key == "uivolume") {
+            parsed.config.uiVolume = readFloat(path, key, values);
+            requireEnd(path, key, values);
+        }
+        else if (key == "effectsvolume") {
+            parsed.config.effectsVolume = readFloat(path, key, values);
+            requireEnd(path, key, values);
+        }
+        else if (key == "ambientvolume") {
+            parsed.config.ambientVolume = readFloat(path, key, values);
+            requireEnd(path, key, values);
         }
         else if (key == "seed") {
             std::string seedText;
@@ -175,11 +155,11 @@ Config loadRuntimeConfig(const std::string &path)
             }
             requireEnd(path, key, values);
             if (seedText == "random") {
-                config.worldSeed.reset();
+                parsed.config.worldSeed.reset();
             }
             else {
                 std::istringstream seedValue(seedText);
-                config.worldSeed = readInteger(path, key, seedValue);
+                parsed.config.worldSeed = readInteger(path, key, seedValue);
                 requireEnd(path, key, seedValue);
             }
         }
@@ -188,5 +168,218 @@ Config loadRuntimeConfig(const std::string &path)
                                 std::to_string(lineNumber));
         }
     }
-    return config;
+
+    if (!hasVersion && !allowLegacy) {
+        fail(path, "settings_version", "is required");
+    }
+    parsed.legacy = !hasVersion;
+    try {
+        validateUserSettings(parsed.config);
+    }
+    catch (const std::exception &exception) {
+        throw std::runtime_error("Invalid runtime config '" + path +
+                                 "': " + exception.what() + ".");
+    }
+    return parsed;
+}
+
+std::vector<char> serializeRuntimeConfig(const Config &config)
+{
+    std::ostringstream output;
+    output << std::setprecision(9)
+           << "settings_version " << RuntimeSettingsFormatVersion << '\n'
+           << "renderdistance " << config.renderDistance << '\n'
+           << "fullscreen " << (config.isFullscreen ? 1 : 0) << '\n'
+           << "windowsize " << config.windowX << ' ' << config.windowY
+           << '\n'
+           << "fov " << config.fov << '\n'
+           << "mousesensitivity " << config.mouseSensitivity << '\n'
+           << "invertmousey " << (config.invertMouseY ? 1 : 0) << '\n'
+           << "mastervolume " << config.masterVolume << '\n'
+           << "uivolume " << config.uiVolume << '\n'
+           << "effectsvolume " << config.effectsVolume << '\n'
+           << "ambientvolume " << config.ambientVolume << '\n'
+           << "seed ";
+    if (config.worldSeed.has_value()) {
+        output << *config.worldSeed;
+    }
+    else {
+        output << "random";
+    }
+    output << '\n';
+    const std::string text = output.str();
+    return std::vector<char>(text.begin(), text.end());
+}
+} // namespace
+
+void validateUserSettings(const UserSettings &settings)
+{
+    if (settings.renderDistance < 1 || settings.renderDistance > 32) {
+        throw std::runtime_error("render distance must be between 1 and 32");
+    }
+    if (settings.windowX < 640 || settings.windowX > 7680 ||
+        settings.windowY < 480 || settings.windowY > 4320) {
+        throw std::runtime_error(
+            "window size must be between 640x480 and 7680x4320");
+    }
+    if (settings.fov < 45 || settings.fov > 120) {
+        throw std::runtime_error("FOV must be between 45 and 120 degrees");
+    }
+    if (!std::isfinite(settings.mouseSensitivity) ||
+        settings.mouseSensitivity < 0.005f ||
+        settings.mouseSensitivity > 1.f) {
+        throw std::runtime_error(
+            "mouse sensitivity must be between 0.005 and 1.0");
+    }
+    validateVolume("master volume", settings.masterVolume);
+    validateVolume("UI volume", settings.uiVolume);
+    validateVolume("effects volume", settings.effectsVolume);
+    validateVolume("ambient volume", settings.ambientVolume);
+}
+
+Config loadRuntimeConfig(const std::string &path)
+{
+    std::error_code existsError;
+    if (!std::filesystem::exists(path, existsError)) {
+        if (existsError) {
+            throw std::runtime_error("Unable to inspect runtime config '" +
+                                     path + "'.");
+        }
+        Config defaults;
+        std::string error;
+        if (!saveRuntimeConfig(path, defaults, &error)) {
+            throw std::runtime_error("Unable to write runtime config '" +
+                                     path + "': " + error + ".");
+        }
+        return defaults;
+    }
+
+    ParsedRuntimeConfig parsed = parseRuntimeConfig(path, true);
+    if (parsed.legacy) {
+        std::string error;
+        if (!saveRuntimeConfig(path, parsed.config, &error)) {
+            throw std::runtime_error("Unable to migrate runtime config '" +
+                                     path + "': " + error + ".");
+        }
+    }
+    return parsed.config;
+}
+
+bool saveRuntimeConfig(const std::string &path, const Config &config,
+                       std::string *error,
+                       const StorageTransactionOptions &options)
+{
+    try {
+        validateUserSettings(config);
+        const std::filesystem::path parent =
+            std::filesystem::path(path).parent_path();
+        std::error_code directoryError;
+        if (!parent.empty()) {
+            std::filesystem::create_directories(parent, directoryError);
+            if (directoryError) {
+                throw std::runtime_error(
+                    "cannot create config directory: " +
+                    directoryError.message());
+            }
+        }
+
+        StorageTransactionMetrics metrics;
+        const bool published = StorageTransaction::publish(
+            path, serializeRuntimeConfig(config),
+            [](const std::string &candidate, std::string &validationError) {
+                try {
+                    (void)parseRuntimeConfig(candidate, false);
+                    return true;
+                }
+                catch (const std::exception &exception) {
+                    validationError = exception.what();
+                    return false;
+                }
+            },
+            options, &metrics);
+        if (!published) {
+            throw std::runtime_error(metrics.error.empty()
+                                         ? "atomic publication failed"
+                                         : metrics.error);
+        }
+        if (error != nullptr) {
+            error->clear();
+        }
+        return true;
+    }
+    catch (const std::exception &exception) {
+        if (error != nullptr) {
+            *error = exception.what();
+        }
+        return false;
+    }
+}
+
+void RuntimeSettingsSession::begin(const UserSettings &settings) noexcept
+{
+    m_original = settings;
+    m_draft = settings;
+    m_open = true;
+}
+
+bool RuntimeSettingsSession::isOpen() const noexcept
+{
+    return m_open;
+}
+
+UserSettings &RuntimeSettingsSession::draft() noexcept
+{
+    return m_draft;
+}
+
+const UserSettings &RuntimeSettingsSession::draft() const noexcept
+{
+    return m_draft;
+}
+
+void RuntimeSettingsSession::restoreDefaults() noexcept
+{
+    if (m_open) {
+        m_draft = UserSettings();
+    }
+}
+
+void RuntimeSettingsSession::cancel() noexcept
+{
+    m_draft = m_original;
+    m_open = false;
+}
+
+bool RuntimeSettingsSession::prepareApply(
+    RuntimeSettingsApplyPlan &plan, std::string &error) const noexcept
+{
+    if (!m_open) {
+        error = "settings session is not open";
+        return false;
+    }
+    try {
+        validateUserSettings(m_draft);
+        plan.settings = m_draft;
+        plan.restartRequired =
+            m_draft.windowX != m_original.windowX ||
+            m_draft.windowY != m_original.windowY ||
+            m_draft.isFullscreen != m_original.isFullscreen;
+        plan.renderDistanceChanged =
+            m_draft.renderDistance != m_original.renderDistance;
+        error.clear();
+        return true;
+    }
+    catch (const std::exception &exception) {
+        error = exception.what();
+        return false;
+    }
+}
+
+void RuntimeSettingsSession::acceptApplied() noexcept
+{
+    if (!m_open) {
+        return;
+    }
+    m_original = m_draft;
+    m_open = false;
 }

@@ -23,6 +23,7 @@
 #include "../Item/RecipeRegistry.h"
 #include "../Item/ToolRegistry.h"
 #include "../Player/Player.h"
+#include "../RuntimeConfig.h"
 #include "../Sandbox/GameApplicationFlow.h"
 #include "../Util/ResourcePaths.h"
 #include "../World/World.h"
@@ -163,7 +164,8 @@ class OgreUserInterface::Impl
          Ogre::SceneManager &renderSceneManager,
          Ogre::Camera &renderCamera, Player *worldPlayer, World *activeWorld,
          GameApplicationFlow &applicationFlow,
-         WorldManagementService &worldManagement)
+         WorldManagementService &worldManagement,
+         const UserSettings &settings)
         : window(&renderWindow)
         , sceneManager(&renderSceneManager)
         , camera(&renderCamera)
@@ -171,6 +173,7 @@ class OgreUserInterface::Impl
         , world(activeWorld)
         , flow(&applicationFlow)
         , management(&worldManagement)
+        , appliedSettings(settings)
         , showDebugPanel(RuntimeDebugOptions::showDebugInfoAtStartup())
         , iniPath(ResourcePaths::bin("imgui-ogre.ini"))
     {
@@ -272,7 +275,14 @@ class OgreUserInterface::Impl
                 break;
             case GameApplicationState::Paused:
                 drawHud();
-                drawPauseMenu();
+                if (settingsSession.isOpen())
+                {
+                    drawSettingsMenu();
+                }
+                else
+                {
+                    drawPauseMenu();
+                }
                 break;
         }
     }
@@ -590,7 +600,7 @@ class OgreUserInterface::Impl
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.45f),
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowSize(ImVec2(360.0f, 265.0f), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(360.0f, 320.0f), ImGuiCond_Always);
         if (ImGui::Begin("Paused", nullptr,
                          ImGuiWindowFlags_NoCollapse |
                              ImGuiWindowFlags_NoResize |
@@ -599,6 +609,12 @@ class OgreUserInterface::Impl
             if (ImGui::Button("Resume", ImVec2(-1.0f, 45.0f)))
             {
                 flow->resume();
+            }
+            if (ImGui::Button("Settings", ImVec2(-1.0f, 45.0f)))
+            {
+                settingsSession.begin(appliedSettings);
+                settingsMessage.clear();
+                settingsApplyPending = false;
             }
             if (ImGui::Button("Save and Main Menu",
                               ImVec2(-1.0f, 45.0f)))
@@ -610,8 +626,114 @@ class OgreUserInterface::Impl
             {
                 pendingAction.type = OgreUserInterfaceActionType::Quit;
             }
+            if (!statusMessage.empty())
+            {
+                ImGui::TextWrapped("%s", statusMessage.c_str());
+            }
         }
         ImGui::End();
+    }
+
+    void drawSettingsMenu()
+    {
+        const ImGuiIO &io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(
+            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.48f),
+            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2(500.0f, 600.0f), ImGuiCond_Always);
+        if (ImGui::Begin("Paused Settings", nullptr,
+                         ImGuiWindowFlags_NoCollapse |
+                             ImGuiWindowFlags_NoResize |
+                             ImGuiWindowFlags_NoSavedSettings))
+        {
+            UserSettings &draft = settingsSession.draft();
+            int windowSize[2] = {draft.windowX, draft.windowY};
+            if (ImGui::InputInt2("Window size", windowSize))
+            {
+                draft.windowX = windowSize[0];
+                draft.windowY = windowSize[1];
+            }
+            ImGui::Checkbox("Fullscreen", &draft.isFullscreen);
+            ImGui::SliderInt("Render distance", &draft.renderDistance,
+                             1, 32);
+            ImGui::SliderInt("Field of view", &draft.fov, 45, 120);
+            ImGui::SliderFloat("Mouse sensitivity",
+                               &draft.mouseSensitivity, 0.005f, 1.0f,
+                               "%.3f", ImGuiSliderFlags_Logarithmic);
+            ImGui::Checkbox("Invert mouse Y", &draft.invertMouseY);
+            ImGui::SeparatorText("Audio");
+            ImGui::SliderFloat("Master", &draft.masterVolume, 0.0f, 1.0f);
+            ImGui::SliderFloat("UI", &draft.uiVolume, 0.0f, 1.0f);
+            ImGui::SliderFloat("Effects", &draft.effectsVolume,
+                               0.0f, 1.0f);
+            ImGui::SliderFloat("Ambient", &draft.ambientVolume,
+                               0.0f, 1.0f);
+            ImGui::TextWrapped(
+                "FOV, input, render distance and volume apply immediately. "
+                "Window size and fullscreen apply after restart.");
+            if (!settingsMessage.empty())
+            {
+                ImGui::TextWrapped("%s", settingsMessage.c_str());
+            }
+
+            ImGui::BeginDisabled(settingsApplyPending);
+            if (ImGui::Button("Apply", ImVec2(140.0f, 38.0f)))
+            {
+                RuntimeSettingsApplyPlan plan;
+                if (settingsSession.prepareApply(plan, settingsMessage))
+                {
+                    pendingAction.type =
+                        OgreUserInterfaceActionType::ApplySettings;
+                    pendingAction.settings = plan.settings;
+                    settingsMessage = "Saving settings...";
+                    settingsApplyPending = true;
+                }
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", ImVec2(140.0f, 38.0f)))
+            {
+                settingsSession.cancel();
+                settingsMessage.clear();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Defaults", ImVec2(140.0f, 38.0f)))
+            {
+                settingsSession.restoreDefaults();
+                settingsMessage.clear();
+            }
+            ImGui::EndDisabled();
+        }
+        ImGui::End();
+    }
+
+    bool dismissSettings() noexcept
+    {
+        if (!settingsSession.isOpen())
+        {
+            return false;
+        }
+        if (settingsApplyPending)
+        {
+            return true;
+        }
+        settingsSession.cancel();
+        settingsMessage.clear();
+        return true;
+    }
+
+    void reportSettingsApplied(bool succeeded,
+                               const UserSettings &settings,
+                               std::string message)
+    {
+        settingsApplyPending = false;
+        settingsMessage = std::move(message);
+        if (!succeeded)
+        {
+            return;
+        }
+        appliedSettings = settings;
+        settingsSession.acceptApplied();
+        statusMessage = settingsMessage;
     }
 
     void drawHud()
@@ -1119,6 +1241,10 @@ class OgreUserInterface::Impl
     World *world = nullptr;
     GameApplicationFlow *flow = nullptr;
     WorldManagementService *management = nullptr;
+    UserSettings appliedSettings;
+    RuntimeSettingsSession settingsSession;
+    std::string settingsMessage;
+    bool settingsApplyPending = false;
     std::unique_ptr<CraftingSession> craftingSession;
     Material::ID selectedCraftingMaterial = Material::ID::Nothing;
     std::string craftingMessage;
@@ -1152,10 +1278,11 @@ OgreUserInterface::OgreUserInterface(Ogre::RenderWindow &window,
                                      Ogre::Camera &camera, Player *player,
                                      World *world,
                                      GameApplicationFlow &applicationFlow,
-                                     WorldManagementService &worldManagement)
+                                     WorldManagementService &worldManagement,
+                                     const UserSettings &settings)
     : m_impl(std::make_unique<Impl>(window, sceneManager, camera, player,
                                     world, applicationFlow,
-                                    worldManagement))
+                                    worldManagement, settings))
 {
     m_impl->initialize(this);
 }
@@ -1268,6 +1395,17 @@ void OgreUserInterface::setStatusMessage(std::string message)
 {
     m_impl->statusMessage = std::move(message);
     m_impl->worldsDirty = true;
+}
+
+bool OgreUserInterface::dismissSettings() noexcept
+{
+    return m_impl->dismissSettings();
+}
+
+void OgreUserInterface::reportSettingsApplied(
+    bool succeeded, const UserSettings &settings, std::string message)
+{
+    m_impl->reportSettingsApplied(succeeded, settings, std::move(message));
 }
 
 OgreUserInterfaceAction OgreUserInterface::consumeAction()

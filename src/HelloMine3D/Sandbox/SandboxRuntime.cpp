@@ -66,6 +66,17 @@ void SandboxRuntime::update(const SandboxInputState &input,
     world->update(m_camera);
 }
 
+void SandboxRuntime::applyUserSettings(
+    const UserSettings &settings) noexcept
+{
+    userSettings(m_config) = settings;
+    m_camera.setFov(settings.fov);
+    World *world = m_worldManager.getActiveWorld();
+    if (world != nullptr) {
+        world->setRenderDistance(settings.renderDistance);
+    }
+}
+
 bool SandboxRuntime::closeWorld()
 {
     if (!m_worldManager.closeAllWorlds()) {

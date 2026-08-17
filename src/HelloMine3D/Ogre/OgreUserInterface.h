@@ -6,6 +6,8 @@
 #include <memory>
 #include <string>
 
+#include "../Config.h"
+
 namespace Ogre
 {
     class Camera;
@@ -31,6 +33,7 @@ enum class OgreUserInterfaceActionType
 {
     None,
     OpenWorld,
+    ApplySettings,
     ReturnToMainMenu,
     Quit
 };
@@ -39,6 +42,7 @@ struct OgreUserInterfaceAction
 {
     OgreUserInterfaceActionType type = OgreUserInterfaceActionType::None;
     std::string worldId;
+    UserSettings settings;
 };
 
 struct OgreUserInterfaceValidation
@@ -58,7 +62,8 @@ class OgreUserInterface final : public Ogre::RenderQueueListener
                       Ogre::SceneManager &sceneManager,
                       Ogre::Camera &camera, Player *player, World *world,
                       GameApplicationFlow &applicationFlow,
-                      WorldManagementService &worldManagement);
+                      WorldManagementService &worldManagement,
+                      const UserSettings &settings);
     ~OgreUserInterface() override;
 
     OgreUserInterface(const OgreUserInterface &) = delete;
@@ -76,6 +81,10 @@ class OgreUserInterface final : public Ogre::RenderQueueListener
     bool isDebugPanelVisible() const noexcept;
     void setWorldContext(Player *player, World *world) noexcept;
     void setStatusMessage(std::string message);
+    bool dismissSettings() noexcept;
+    void reportSettingsApplied(bool succeeded,
+                               const UserSettings &settings,
+                               std::string message);
     OgreUserInterfaceAction consumeAction();
 
     void postRenderQueues() override;

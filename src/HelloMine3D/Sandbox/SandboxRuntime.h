@@ -30,6 +30,7 @@ class SandboxRuntime : public NonCopyable {
 
     void update(const SandboxInputState &input, float deltaSeconds,
                 bool acceptsPlayerInput = true);
+    void applyUserSettings(const UserSettings &settings) noexcept;
     bool closeWorld();
     WorldDebugStats collectDebugStats();
 

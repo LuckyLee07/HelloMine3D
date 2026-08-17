@@ -113,6 +113,8 @@ class World : public NonCopyable {
 
     void tick(int worldTime);
     void update(const Camera &camera);
+    void setRenderDistance(int renderDistance) noexcept;
+    int getRenderDistance() const noexcept;
     void resetChunkMeshes();
     void updateChunk(int blockX, int blockY, int blockZ);
     bool save();
@@ -266,7 +268,7 @@ class World : public NonCopyable {
     std::atomic<int> m_chunkLoadRevision{0};
     std::atomic<int> m_meshPriorityRevision{0};
     std::atomic<int> m_loadDistance{2};
-    const int m_renderDistance;
+    std::atomic<int> m_renderDistance;
 
     VectorXZ m_lastUnloadScanChunk{0, 0};
     bool m_unloadScanValid = false;
