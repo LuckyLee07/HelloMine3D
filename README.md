@@ -27,6 +27,7 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 | `docs/ogre-migration-plan.md` | Plan for moving the render backend to Ogre 1.10 (milestones E0-E5). |
 | `docs/runtime-validation.md` | How runtime behaviour is validated, and what is not covered. |
 | `docs/iteration-plan.md` | Long-term iteration roadmap. |
+| `docs/game-development-roadmap.md` | Detailed G5/G6, post-Alpha gameplay and Release Candidate development order. |
 | `docs/world-catalogue-contract-v1.md`, `docs/storage-transaction-contract-v1.md`, `docs/world-backup-contract-v1.md`, `docs/world-management-contract-v1.md` | K1-K4 world identity, atomic publication, verified recovery and player-facing management contracts. |
 | `docs/runtime-settings-contract-v1.md` | G4 pause, settings draft, versioned persistence and live-apply contract. |
 | `docs/operation-performance-timing-contract-v1.md` | Q2 bounded startup, world-entry, save, backup and restore timing contract. |
