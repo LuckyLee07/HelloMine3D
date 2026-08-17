@@ -4,7 +4,8 @@ This document describes how sandbox foundation behaviour is validated at
 runtime, without a human driving the client window.
 
 Five implemented layers exist. Together they are the current acceptance gate
-for the foundation and the completed milestones in `docs/todolist.md`.
+for the foundation and the completed milestones archived in
+`docs/project-ledger-2026-08-17.md`.
 
 | Layer | Target | Answers |
 | ----- | ------ | ------- |
@@ -96,9 +97,10 @@ This still needs a person at the keyboard:
 
 ## Acceptance Contracts
 
-This table states the evidence contract. The authoritative implementation
-status and remaining acceptance gaps are in `docs/todolist.md`; completed runs
-are recorded in `Current Verified Runs` below.
+This table states the evidence contract. Current implementation status and
+remaining acceptance gaps are in `docs/todolist.md`; historical task detail is
+in `docs/project-ledger-2026-08-17.md`, and completed runs are recorded in
+`Current Verified Runs` below.
 
 | Scope | Required extension | Evidence required to close |
 | ----- | ------------------ | -------------------------- |
@@ -126,8 +128,8 @@ portable contract and Windows implementation are present, but no macOS run can
 prove a Windows dump. Remaining rows retain the status in `docs/todolist.md`.
 New harnesses must first prove their own positive,
 negative, invalid and incomparable fixtures before their output can be added to
-`Current Verified Runs`. R3 remains the required human closure before stage-8
-player-facing input or UI baselines are accepted.
+`Current Verified Runs`. R3 remains required for final stage-8 physical-input
+and UI acceptance, but it does not block K4/G2-G6 implementation work.
 
 ### R3 Physical Input Record
 

@@ -18,7 +18,10 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 
 | Document | Contents |
 | -------- | -------- |
-| `docs/todolist.md` | The executable task list, dependency order, acceptance matrix, and iteration report template. Start here. |
+| `docs/todolist.md` | Compact current task list, product priority and active blockers. Start here. |
+| `docs/project-ledger-2026-08-17.md` | Frozen pre-split ledger with detailed evidence for completed milestones. |
+| `docs/validation-matrix.md` | Change-type to validation-command routing. |
+| `docs/iteration-report-template.md` | Reusable iteration and regression report template. |
 | `docs/architecture.md` | Current code boundaries and the mapping from the original project layout. |
 | `docs/sandbox-foundation-todolist.md` | Detailed record of the S0-S7 sandbox foundation milestones. |
 | `docs/ogre-migration-plan.md` | Plan for moving the render backend to Ogre 1.10 (milestones E0-E5). |
@@ -34,15 +37,16 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 | `docs/resource-pack-contract.md` | Bounded read-only resource-pack contract and validation. |
 | `docs/windows-release-packaging.md` | Deterministic self-contained Windows distribution flow. |
 | `docs/chunk-streaming-regression.md` | Diagnosis and fix of the terrain streaming regression. |
-| `docs/minigame-reference.md` | Notes on MiniGame modules that can inform future work. |
+| `docs/minigame-reference.md` | Historical architecture study of an external MiniGame project; reference only, not a backlog. |
 
 ### Current Development Direction
 
 The selected 13-item Windows D/R/X implementation scope is complete. It now
 includes the playable crop/container/combat/persistence slice, a deterministic
 world soak, clean-root packaging and the bounded read-only resource-pack layer.
-R3 physical-input acceptance remains the first closure action and also closes
-the remaining D2, D4 and D6 `Verify` states.
+R3 physical-input acceptance still closes the remaining D2, D4 and D6
+`Verify` states, but it is intentionally deferred while the project prioritizes
+the player-facing K4 and G2-G6 gameplay loop.
 
 Stage 8 is now planned around sustainable play and reliable releases. Its
 16-item K/H/Q/G scope adds durable world management and recovery, local
@@ -64,6 +68,11 @@ H1 now has a portable path/trigger contract and a Windows SDK DbgHelp backend
 installed before Ogre construction. The dedicated writer thread, one-shot
 handler and controlled post-save first-frame crash are implemented; the target
 Windows Release dump harness remains the closure evidence.
+
+The current Windows gate has one known build blocker: the world-runtime and
+soak targets compile the Windows crash backend without inheriting `dbghelp.lib`.
+Restoring a buildable mainline is the immediate engineering fix; formal crash,
+performance, physical-input and packaging evidence follows the gameplay slice.
 
 Native macOS acceptance (B3) is complete on an Apple M1 Pro through the full
 Debug/Release Xcode gate. R4 is also complete: the native arm64 Apple Clang

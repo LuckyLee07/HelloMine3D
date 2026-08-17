@@ -1,9 +1,61 @@
 # MiniGame Reference Notes
 
-本文记录对本机 `/Users/lizi/Desktop/Workspace/MiniGame` 项目的结构分析，以及它对
-HelloMine3D 后续迭代的可参考点。结论先行：MiniGame 更像一个成熟但历史包袱较重的
-Ogre 时代商业体素客户端，适合作为架构和功能拆分参考，不适合直接复制源码、第三方库
-或构建方式。
+> 当前定位（2026-08-17 复核）：本文对应的本机参考仓库是 `F:\env1_trunk`，不是
+> 早期笔记误写的 `/Users/lizi/Desktop/Workspace/MiniGame`。参考仓库当前可读，但未纳入
+> HelloMine3D，也不是它的构建依赖。本文仍然只是架构考察，不是 backlog、需求来源或
+> 优先级依据。使用前应先检查 HelloMine3D 当前代码和 `docs/todolist.md`，只借鉴模块
+> 边界，不复制参考仓库的源码、资源、第三方库、账号/网络逻辑或构建方式。
+
+## 当前用途
+
+本文最适合在一个明确功能已经进入开发时回答“成熟体素项目通常如何拆这个系统”，
+而不适合回答“下一步应该做什么”。当前任务顺序只由 `docs/todolist.md` 决定。
+
+| 用法 | 结论 |
+| ---- | ---- |
+| 体素核心设计复核 | 可参考 block/metadata/light、section、halo、greedy mesh、行为与形状分层。 |
+| K4/G2-G4 UI 设计 | 只借鉴 View/Model/Controller 和状态隔离，不引入旧 XML/Lua 体系。 |
+| G5 音频边界 | 可参考 2D/3D、listener、音量、pause/mute 和 dummy backend，不引入 FMOD/直播 DSP。 |
+| G3 工具与采集 | 可借鉴方块硬度、行为、掉落和碰撞职责分离，不复制大型 `BlockMaterial` 接口。 |
+| 内容扩展 | 可参考 biome/decorator、资源索引和轻量工具链的模块边界。 |
+| 当前不采用 | RakNet、多平台 SDK、D3D9、完整编辑器、旧 OgreMain、Lua/ToLua、在线更新和大规模 mod。 |
+
+## 对当前玩法主线的直接价值
+
+重新读取 `F:\env1_trunk` 后，当前 K4/G2-G6 可以使用的参考边界如下。参考强度只表示
+“值得阅读”，不表示应该移植代码。
+
+| 当前任务 | 参考位置 | 价值与边界 |
+| -------- | -------- | ---------- |
+| K4 世界管理 | `client\miniModule\MiniPlatform\GameWorld\WorldListMgr.*`、`Account\OWorldList\*` | 可参考世界描述、最近打开和列表更新语义；实现深度耦合账号、云世界、网络和 Lua，不能作为本地世界管理实现模板。HelloMine3D 应继续以 `WorldCatalogue`/`WorldBackup` 为核心。 |
+| G2 工作台制作 | `client\miniSandbox\sandboxPlay\gameplay\mgr\CraftMgr.*`、`sandboxCore\blocks\container*` | 可参考可制作数量、材料组替换、产物容量、烹饪与普通制作分离；应避免其 Singleton、Player、BackPack 和 UI 混合方式，保留 HelloMine3D 的纯预览与原子提交。 |
+| G3 工具成长 | `client\miniModule\CsvLoader\ToolDefCsv.*`、`sandboxCore\blocks\BlockMaterial*` | 可参考数据驱动工具表、方块硬度/掉落/能力边界；不复制超大的 `BlockMaterial` 虚接口。 |
+| G4 设置与暂停 | `bin_externel\iworld.cfg`、`sandboxPlay\gameplay\GameSettings.*` | 配置覆盖视距、音量、灵敏度、反转 Y 等产品字段；但 `GameSettings::loadSettings/saveSettings` 当前为空实现，只适合作为字段清单，不是持久化范例。 |
+| G5 基础音频 | `client\miniEngine\OgreMain\sound\OgreSoundSystem.*` | 2D/3D、listener、全局音乐/音效音量、pause/mute 和 dummy backend 的接口边界很有价值；FMOD、直播 DSP、资源和平台实现都过重，不应移植。 |
+| G6 综合流程 | `bin_externel\res\ui\mobile` 和既有新手引导配置 | 只能用于检查完整产品会覆盖哪些入口和反馈；其在线活动、账号、商城和脚本复杂度不属于当前单机切片。 |
+
+## 与当前实现的关系
+
+本文最初列出的许多“短期/中期建议”现已完成或被更合适的本项目方案替代：
+
+| 原参考点 | 当前 HelloMine3D 结果 |
+| -------- | -------------------- |
+| section dirty、边界失效 | 已由 S0/M 系列完成并有定向自动测试。 |
+| block metadata、定义/渲染/行为/形状分层 | 已由 S3 系列完成。 |
+| 18x18x18 halo、opaque greedy meshing | 已由 M 系列完成。 |
+| height map、sunlight/block light | 已有缓存、更新和运行时验证。 |
+| biome、decorator、稳定随机和跨区块结构 | 已由 S6/C 系列完成。 |
+| chunk 级版本化保存 | 已扩展到 K1-K3 世界身份、事务发布和验证恢复。 |
+| 资源检查、manifest、只读资源包 | 已由 W3/X1-X3 完成；无需照搬 MiniGame package 系统。 |
+| actor 生命周期和持久化 | 已由 P/D 系列完成。 |
+| 紧凑顶点 | W4 已用实际数据判定当前收益不足，因此暂不实施。 |
+
+因此，本文现在最有价值的剩余部分是“架构经验库”，不是一张尚未完成的功能清单。
+尤其是多人、脚本、mod、编辑器和多渲染后端都不应因为出现在本文中而自动进入规划。
+
+本文记录对本机 `F:\env1_trunk` 的结构分析，以及它对 HelloMine3D 后续迭代的可参考点。
+结论先行：它是一个成熟但历史包袱较重的商业体素客户端/工具/平台仓库，适合作为架构
+和功能拆分参考，不适合直接复制源码、第三方库或构建方式。
 
 ## 分析范围
 
@@ -11,23 +63,28 @@ Ogre 时代商业体素客户端，适合作为架构和功能拆分参考，不
 
 | 路径 | 观察重点 |
 | ---- | -------- |
-| `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/iworld` | 方块、区块、世界数据、地形生成、渲染网格、玩家、网络和游戏逻辑。 |
-| `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/OgreMain` | 资源管理、文件包、UI、Lua、图片/压缩/网络等运行时基础设施。 |
-| `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/RenderSystem_D3D9` | D3D9 渲染后端，说明其渲染层有后端拆分思路。 |
-| `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/RenderSystem_OGL` | OpenGL 渲染后端，说明渲染后端不是完全绑定 D3D。 |
-| `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/RakNet` | 网络库和多人通信基础设施。 |
-| `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/ObjectEditor` | 对象/资源编辑工具。 |
-| `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/UIEditor` | UI 编辑工具。 |
-| `/Users/lizi/Desktop/Workspace/MiniGame/bin` | 运行时 exe/dll、配置、资源包、脚本、UI、CSV、模型和工具输出。 |
+| `F:\env1_trunk\client\miniSandbox\sandboxCore` 与 `miniSandboxSDK\sandboxCore\include` | 方块、区块、世界数据、地形生成、网格、光照、实体和存档核心。 |
+| `F:\env1_trunk\client\miniSandbox\sandboxPlay` | 玩家、制作、玩法管理器、AI、输入状态与游戏模式。 |
+| `F:\env1_trunk\client\miniGame\iworld` | 客户端运行时、平台、UI 控制和业务接入层；体素核心已经不主要位于此处。 |
+| `F:\env1_trunk\client\miniEngine\OgreMain` 与 `client\miniShared` | 渲染/声音基础设施，以及资源、文件和 package 抽象。 |
+| `F:\env1_trunk\client\miniEngine\RenderSystemD3D9`、`RenderSystemOGL` | D3D9/OpenGL 渲染后端。 |
+| `F:\env1_trunk\client\miniModule\MiniSandbox\RakNet` | 网络库和多人通信基础设施。 |
+| `F:\env1_trunk\client\miniModule\MiniDeveloper\uieditor`、`SceneEditor` | UI、场景、资源和开发者工具；旧笔记中的独立 ObjectEditor 路径并不存在。 |
+| `F:\env1_trunk\bin_externel` | 运行时配置、资源包、脚本、UI、CSV、模型、工具输出和历史运行数据。 |
+| `F:\env1_trunk\client\miniSandbox\docs` | 仓库内已有的总架构和 17 篇系统分解文档，适合优先阅读。 |
 
 局部规模参考：
 
 | 项 | 规模 |
 | -- | ---- |
-| `Miniw-Client` | 约 423 MB。 |
-| `bin` | 约 1.6 GB。 |
-| `Miniw-Client/iworld` C++ 头/源文件 | 约 1574 个。 |
-| `bin/res` 资源文件 | 约 17187 个。 |
+| `client` | 37,731 个文件，约 17.82 GiB。 |
+| `bin_externel` | 87,540 个文件，约 6.45 GiB。 |
+| `miniSandbox/sandboxCore` | 1,698 个文件，其中约 1,691 个原生源码文件。 |
+| `miniSandboxSDK/sandboxCore` | 796 个公开/预构建头文件。 |
+| `miniGame/iworld` | 317 个文件，其中约 273 个原生源码文件；它不再等同于整个体素核心。 |
+| `miniSandbox/sandboxPlay` | 731 个文件，其中约 730 个原生源码文件。 |
+| `miniModule` | 2,740 个文件，其中约 2,288 个原生源码文件。 |
+| `bin_externel/res` | 61,922 个资源文件。 |
 
 这不是一个小型示例项目，而是一个包含客户端、编辑器、资源管线、脚本、平台 SDK、网络
 和大量历史依赖的完整工程。因此后续参考时要按模块取思想，避免把复杂度搬进当前项目。
@@ -38,41 +95,41 @@ MiniGame 对 HelloMine3D 的最大价值不是构建脚本或第三方库，而�
 
 | 方向 | 参考价值 | 当前 HelloMine3D 状态 |
 | ---- | -------- | --------------------- |
-| 方块数据模型 | 证明 `block id + metadata + light` 的紧凑表示很有价值。 | 目前 `ChunkBlock` 主要存 block id，适合后续扩展 metadata/light。 |
-| 区块/Section 管理 | 有懒分配、dirty flags、邻居关系、光照脏标记、mesh/physics/minimap 分离。 | 当前区块结构更轻量，适合逐步加入 dirty 标记和邻居缓存。 |
-| 网格生成 | 使用邻居 halo 缓存和面片合并思路，避免每次重复跨 chunk 查询。 | 当前 `ChunkMeshBuilder` 是直观面剔除，可以先保留，再引入局部优化。 |
-| 方块材质/行为 | `BlockMaterial` 把渲染、碰撞、放置、tick、事件等行为集中抽象。 | 当前 `BlockDataHolder` 偏渲染数据，行为仍比较分散。 |
-| 资源系统 | 有 package/mount、zip/web/patch/mod 等资源层概念。 | 当前有 `media/` 和 `ResourcePaths`，后续可演进到资源索引和包挂载。 |
-| 地形生成 | 用生态/装饰器单元拆分地貌、树、草、矿物、湖、地牢等。 | 当前生成逻辑较直接，适合按 biome/decorator 拆分。 |
-| 工具链 | 有 ObjectEditor、UIEditor、资源转换工具、几何定义文件。 | 当前没有编辑器工具，后续可先做轻量资源校验和 block atlas 工具。 |
+| 方块数据模型 | 证明 `block id + metadata + light` 的紧凑表示很有价值。 | metadata 与 block light 已完成；当前只在扩展状态方块时回看兼容边界。 |
+| 区块/Section 管理 | 有懒分配、dirty flags、邻居关系、光照脏标记和多用途 mesh。 | dirty、邻居边界、height/light 等关键能力已落地，不再是当前主线。 |
+| 网格生成 | 使用邻居 halo 缓存和面片合并思路，避免重复跨 chunk 查询。 | halo 与 opaque greedy meshing 已完成；后续只在性能证据需要时继续优化。 |
+| 方块材质/行为 | `BlockMaterial` 集中渲染、碰撞、放置、tick、事件等行为。 | HelloMine3D 已拆成 Definition/Behavior/Shape/RenderInfo，边界更适合当前规模。 |
+| 资源系统 | 有 package/mount、zip/web/patch/mod 等资源层概念。 | manifest 与有界只读资源包已完成，不引入 web/patch/mod 复杂度。 |
+| 地形生成 | 用生态/装饰器单元拆分地貌、树、草、矿物、湖、地牢等。 | biome/decorator/结构已经落地，不再是当前主线。 |
+| 工具链 | 有 UI/Scene 编辑器、资源转换工具和几何定义文件。 | 资产检查和 manifest 已完成；完整编辑器仍不值得近期投入。 |
 | 脚本/UI | UI 资源存在 XML + Lua + MVC 分层。 | 当前用 ImGui 调试界面即可，复杂 UI 可参考它的 View/Model/Controller 思路。 |
 | 跨平台/后端 | 有 D3D9/OGL、Android、Apple、平台 SDK 目录。 | 当前重点是 Windows/macOS，参考其抽象边界，不参考旧 SDK 细节。 |
 | 网络/多人 | RakNet 和大量 net/cs 代码说明多人系统是独立大模块。 | 当前不建议引入，多人化应作为远期独立里程碑。 |
 
 ## MiniGame 顶层结构
 
-### `Miniw-Client/iworld`
+### `client/miniSandbox/sandboxCore` 与 `miniSandboxSDK/sandboxCore/include`
 
 这是 MiniGame 最值得看的目录，核心内容包括：
 
 | 子目录 | 作用 | 对 HelloMine3D 的参考点 |
 | ------ | ---- | ---------------------- |
-| `worlddata` | `Block`、`BlockLight`、`Chunk`、`Section`、mesh/light/save 等世界数据。 | 后续区块存储、光照、dirty flags、邻居缓存、序列化设计的主要参考。 |
+| `worldData` | `Block`、`BlockLight`、`Chunk`、`Section`、mesh/light/save 等世界数据。 | 区块存储、光照、dirty flags、邻居缓存、序列化设计的主要参考。 |
 | `blocks` | `BlockMaterial`、`BlockMaterialMgr` 和各种方块行为。 | 方块从“数据表”升级到“数据 + 行为策略”的参考。 |
-| `display` | 方块几何、顶点格式、显示相关数据。 | 非标准方块、紧凑顶点格式、模型/几何模板的参考。 |
+| `worldMesh` / `display` | 方块几何、顶点格式、显示相关数据。 | 非标准方块、紧凑顶点格式、模型/几何模板的参考。 |
 | `terrgen` | 地形生成、生态系统、树、矿物、湖、地牢等生成单元。 | 把 terrain base 和 decorator 拆开的参考。 |
-| `player` | 玩家行为、控制、交互。 | 当前暂时参考价值一般，等交互系统复杂后再看。 |
+| `sandboxPlay/player` | 玩家行为、控制、交互。 | G2-G4 只参考状态和职责拆分。 |
 | `actors` | 实体/生物/动态对象。 | 未来实体系统、chunk 内 actor 管理的参考。 |
 | `camera` | 相机系统。 | 当前 HelloMine3D 已有基础相机，参考价值较小。 |
-| `ai` | AI 行为。 | 远期实体 AI 可参考，但不应现在引入。 |
-| `net` / `cs` | 网络和客户端/服务器交互。 | 多人化前不引入。 |
-| `mod` | 模组相关。 | 未来支持自定义方块/模型/资源包时参考。 |
+| `sandboxPlay/ai` | AI 行为。 | 远期实体 AI 可参考，但不应现在引入。 |
+| `sandboxPlay/gamenet` / `miniModule` | 网络和客户端/服务器交互。 | 多人化前不引入。 |
+| `miniModule/MiniDeveloper/mod` | 模组相关。 | 当前不引入可执行 mod。 |
 | `utility` | 通用工具。 | 可按需查看，不建议整包迁移。 |
 
-### `Miniw-Client/OgreMain`
+### `client/miniEngine/OgreMain` 与 `client/miniShared`
 
-这是运行时基础设施和历史第三方依赖集合，包含资源管理、文件系统、UI、Lua、图片格式、
-压缩库、网络库等。值得关注的不是它的具体实现，而是模块边界：
+OgreMain 主要提供渲染、场景、输入和声音边界；资源管理、文件系统和 package 实现主要
+位于 `miniShared`，Lua/UI/网络又分散在其他模块。值得关注的是边界，不是具体实现：
 
 | 模块 | 参考点 |
 | ---- | ------ |
@@ -85,14 +142,11 @@ MiniGame 对 HelloMine3D 的最大价值不是构建脚本或第三方库，而�
 | `UILib` | UI 运行时的独立层。 |
 | `Lua` / `ToLua` | 脚本桥接层，说明游戏逻辑可从 C++ 逐步外置。 |
 
-HelloMine3D 当前不需要引入这种完整资源系统，但可以沿着 `ResourcePaths` 演进：
+HelloMine3D 已经用严格 manifest、启动冻结的有效资源视图、路径约束和 X1-X3 只读资源包
+吸收了其中适合当前规模的部分。zip/web/patch/mod 和运行时热更新不属于当前路线；G5
+如果增加声音资源，应通过新的版本化资源类别扩展现有合同，而不是另建 package 系统。
 
-1. 先保持 `media/` 直读。
-2. 增加一个资源索引/manifest，记录 texture、shader、block data。
-3. 增加资源加载失败诊断和路径打印。
-4. 再考虑资源包挂载、mod 和覆盖顺序。
-
-### `RenderSystem_D3D9` / `RenderSystem_OGL`
+### `client/miniEngine/RenderSystemD3D9` / `RenderSystemOGL`
 
 这两个目录说明 MiniGame 把渲染后端和游戏逻辑做了拆分。对当前项目的意义是：
 
@@ -104,7 +158,7 @@ HelloMine3D 当前不需要引入这种完整资源系统，但可以沿着 `Res
 
 ## 运行时资源模型
 
-MiniGame 的 `/Users/lizi/Desktop/Workspace/MiniGame/bin/iworld.cfg` 里能看到典型资源挂载：
+`F:\env1_trunk\bin_externel\iworld.cfg` 里能看到典型资源挂载：
 
 ```xml
 <Package name="default" path="res\" readonly="true" />
@@ -124,7 +178,9 @@ MiniGame 的 `/Users/lizi/Desktop/Workspace/MiniGame/bin/iworld.cfg` 里能看�
 | web package | 远端下载资源。 | 当前不需要。 |
 | mod package | 用户扩展资源。 | 远期自定义 block/model 时有价值。 |
 
-当前项目可以先实现一个小的 `AssetRegistry`，不要直接实现完整 package 系统。建议字段：
+这条早期建议已经由当前的 manifest、严格启动资源视图和 X1-X3 有界资源包实现覆盖。
+除非 G5 声音或后续模型资源需要新增版本化类别，不应再平行增加一个 `AssetRegistry`。
+如果未来扩展资源合同，仍可沿用这些字段：
 
 | 字段 | 用途 |
 | ---- | ---- |
@@ -148,12 +204,12 @@ MiniGame 的 `worlddata/block.h` 很有参考价值。它把一个方块压进 `
 
 | 文件 | 可关注内容 |
 | ---- | ---------- |
-| `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/iworld/worlddata/block.h` | `Block`、`BlockLight`、id/data/light packing。 |
-| `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/iworld/worlddata/section.h` | Section 内 block/light 存储和 lazy allocation。 |
-| `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/iworld/worlddata/chunk.h` | Chunk 对 section、height、biome、light、neighbor 的组织。 |
+| `F:\env1_trunk\client\miniSandboxSDK\sandboxCore\include\worldData\block.h` | `Block`、`BlockLight`、id/data/light packing。 |
+| `F:\env1_trunk\client\miniSandboxSDK\sandboxCore\include\worldData\section.h` | Section 内 block/light 存储和 lazy allocation。 |
+| `F:\env1_trunk\client\miniSandboxSDK\sandboxCore\include\worldData\chunk.h` | Chunk 对 section、height、biome、light、neighbor 的组织。 |
 
-HelloMine3D 当前 `src/HelloMine3D/World/Block/ChunkBlock.h` 的模型更简单，主要存 block id。
-建议演进路线：
+这条演进路线已经大体完成：HelloMine3D 的 `ChunkBlock` 已有 metadata，光照存储、查询、
+传播与局部更新也已进入世界运行栈。下面保留的是原始设计顺序，不再是当前待办：
 
 | 阶段 | 建议 |
 | ---- | ---- |
@@ -162,7 +218,7 @@ HelloMine3D 当前 `src/HelloMine3D/World/Block/ChunkBlock.h` 的模型更简单
 | 中期 | 新增 `BlockLight` 存储，先只支持 sunlight 和 torch light 的查询。 |
 | 长期 | 引入区块光照传播、dirty light bitset 和局部 relight。 |
 
-不要一开始就把 4096 种上限、位布局和所有状态照搬。当前项目可以先这样定义：
+项目仍不需要照搬 4096 种上限和完全相同的位布局。当前显式表示比过早压缩更容易维护：
 
 ```cpp
 struct ChunkBlock {
@@ -194,12 +250,12 @@ MiniGame 的 `blocks/BlockMaterial.h` 把方块行为做成一个较大的虚函
 
 对 HelloMine3D 的可参考点：
 
-| 当前问题 | 可借鉴方向 |
-| -------- | ---------- |
-| `BlockDataHolder` 偏静态渲染数据。 | 增加 `BlockBehavior` 或 `BlockType` 策略层，不把所有行为塞进 enum 判断。 |
-| 方块渲染类型有限。 | 引入 render type/draw type：opaque、transparent、water、flora、model、decal。 |
-| 碰撞和渲染耦合风险。 | 把 collision shape 和 render mesh shape 分开。 |
-| 后续状态方块会增多。 | id 表示类型，metadata 表示状态，behavior 根据两者给出结果。 |
+| 原问题 | 当前结果 |
+| ------ | -------- |
+| 静态渲染数据与行为混杂风险 | 已拆出 `BlockDefinition`、`BlockBehavior`、`BlockShape`、`BlockRenderInfo`。 |
+| 方块渲染类型有限 | opaque、transparent、water、flora 等渲染通道已经显式分离。 |
+| 碰撞和渲染耦合风险 | 当前已有独立 shape/碰撞边界，G3 只需扩展硬度、工具和掉落策略。 |
+| 状态方块增多 | id 表示类型、metadata 表示状态的方向已由作物等功能验证。 |
 
 建议不要复制 MiniGame 的超大 `BlockMaterial` 虚接口。更适合当前项目的轻量拆法：
 
@@ -383,14 +439,15 @@ MiniGame 包含多个工具和资源管线痕迹：
 
 | 工具/资源 | 参考价值 |
 | --------- | -------- |
-| `ObjectEditor` | 编辑模型/对象/资源的独立工具思路。 |
+| `SceneEditor` / `BlockModelEditor` | 编辑场景、模型、方块和资源的工具思路。 |
 | `UIEditor` | UI 可视化编辑工具思路。 |
 | `Tool_UIEditor` | 工具和运行时共用部分 UI 代码。 |
 | `resbuild.bat` / `ConvertFile` | 资源预处理和打包。 |
 | `blockgeom.xml` | 方块几何可以变成资源，而不是 C++ 常量。 |
 | `csvdef` | 表格数据定义方块、道具、UI 文案等。 |
 
-HelloMine3D 短期最值得做的不是编辑器，而是轻量工具：
+这份早期工具建议中的 asset check、manifest、数据输出和截图冒烟已经落地；完整编辑器仍
+不值得近期投入。保留清单用于新增资源类型时复核：
 
 | 工具 | 用途 |
 | ---- | ---- |
@@ -429,7 +486,8 @@ HelloMine3D 可以参考：
 | block palette | 一个 chunk 内用局部 palette 压缩 block id。 |
 | delayed save | block 修改后标记 dirty，后台或定期写盘。 |
 
-建议不要直接选 protobuf 或 MiniGame 的格式。当前可以先做简单二进制版本：
+HelloMine3D 已经有版本化世界/区块格式和 K1-K3 的事务发布、备份恢复合同，不需要改用
+FlatBuffers/Protobuf 或 MiniGame 的格式。下面的简单布局只保留为历史设计起点：
 
 ```text
 magic
@@ -469,9 +527,10 @@ Windows/macOS 兼容工作，参考点主要是边界意识：
 | bin 下完整资源和 exe/dll | 版权、体量和依赖都不适合迁移。 |
 | 超大 `BlockMaterial` 虚函数接口 | 思路可借鉴，接口应按当前项目规模重做。 |
 
-## 可参考点清单
+## 可参考点清单（历史映射）
 
-下面是后续迭代时可以逐项回看的清单。
+下面保留最初的 35 个参考点。很多项目已经完成；真实落地状态以本文顶部的当前对照和
+`docs/todolist.md` 为准，不能把本表直接转换成 backlog。
 
 | 编号 | 可参考点 | MiniGame 位置 | HelloMine3D 落地建议 |
 | ---- | -------- | ------------- | -------------------- |
@@ -503,7 +562,7 @@ Windows/macOS 兼容工作，参考点主要是边界意识：
 | 26 | ecosystem/decorator | `terrgen/Ecosystem.h`、`EcosysUnit_*` | 把树、矿、草、湖等从主生成逻辑拆开。 |
 | 27 | stable chunk random | `ChunkRandGen` | world seed + chunk coord 派生随机。 |
 | 28 | UI XML + Lua MVC | `bin/res/ui/mobile` | 复杂 UI 时参考 View/Model/Controller 分离。 |
-| 29 | resource/editor tools | `ObjectEditor`、`UIEditor` | 先做资源校验工具，不做完整编辑器。 |
+| 29 | resource/editor tools | `SceneEditor`、`uieditor`、`BlockModelEditor` | 资源校验工具已完成，不做完整编辑器。 |
 | 30 | localization/table data | `bin/res/csvdef` | UI 文案、block/item 数据增加后可表格化。 |
 | 31 | renderer backend boundary | `RenderSystem_D3D9`、`RenderSystem_OGL` | 保持游戏逻辑不直接依赖平台后端。 |
 | 32 | platform-specific SDK isolation | `lib4399MGSDK`、`qqrailsdk`、`steamsdk` | 平台相关代码必须独立边界，不污染核心。 |
@@ -511,7 +570,10 @@ Windows/macOS 兼容工作，参考点主要是边界意识：
 | 34 | runtime config | `iworld.cfg` | 把窗口、资源、渲染配置外置。 |
 | 35 | asset preprocess | `resbuild.bat`、`ConvertFile` | 增加 atlas/manifest 生成和校验脚本。 |
 
-## 建议迭代路线
+## 历史建议迭代路线
+
+以下路线形成于 HelloMine3D 早期，资源检查、dirty/metadata、halo/greedy、光照、存档、
+实体和资源包等大部分内容已经完成。它用于解释历史决策，不覆盖当前 K4/G2-G6 顺序。
 
 ### 短期
 
@@ -553,54 +615,68 @@ Windows/macOS 兼容工作，参考点主要是边界意识：
 
 ## 推荐阅读路径
 
-后续要深入某个方向时，可以按这些文件顺序看 MiniGame：
+优先阅读参考仓库自己维护的总览与系统分解：
+
+1. `F:\env1_trunk\client\miniSandbox\docs\architecture.md`
+2. `F:\env1_trunk\client\miniSandbox\docs\systems\04-worlddata-chunk-save.md`
+3. `F:\env1_trunk\client\miniSandbox\docs\systems\05-block-container-material.md`
+4. `F:\env1_trunk\client\miniSandbox\docs\systems\12-gameplay-gamemode-cloud.md`
+5. `F:\env1_trunk\client\miniSandbox\docs\systems\13-player-control-state.md`
+
+当前玩法主线的定向入口：
+
+1. K4：`client\miniModule\MiniPlatform\GameWorld\WorldListMgr.h`，只看列表模型。
+2. G2：`client\miniSandbox\sandboxPlay\gameplay\mgr\CraftMgr.h` 和
+   `client\miniSandboxSDK\sandboxCore\include\blocks\container.h`。
+3. G3：`client\miniModule\CsvLoader\ToolDefCsv.h` 和 `BlockMaterial.h` 的硬度/掉落边界。
+4. G4：`bin_externel\iworld.cfg` 的字段集合；不要把空的 `GameSettings` 持久化函数当范例。
+5. G5：`client\miniEngine\OgreMain\sound\OgreSoundSystem.h` 的接口与 dummy backend。
+
+要继续深入体素底座时，再按这些文件顺序查看：
 
 ### 方块和区块
 
-1. `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/iworld/worlddata/block.h`
-2. `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/iworld/worlddata/section.h`
-3. `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/iworld/worlddata/chunk.h`
-4. `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/iworld/worlddata/section_mesh.cpp`
+1. `F:\env1_trunk\client\miniSandboxSDK\sandboxCore\include\worldData\block.h`
+2. `F:\env1_trunk\client\miniSandboxSDK\sandboxCore\include\worldData\section.h`
+3. `F:\env1_trunk\client\miniSandboxSDK\sandboxCore\include\worldData\chunk.h`
+4. `F:\env1_trunk\client\miniSandbox\sandboxCore\worldData\section_mesh.cpp`
 
 ### 方块材质和形状
 
-1. `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/iworld/blocks/BlockMaterial.h`
-2. `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/iworld/blocks/BlockMaterialMgr.h`
-3. `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/iworld/display/BlockGeom.h`
-4. `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/iworld/display/BlockMeshVert.h`
-5. `/Users/lizi/Desktop/Workspace/MiniGame/bin/res/blockgeom.xml`
+1. `F:\env1_trunk\client\miniSandboxSDK\sandboxCore\include\blocks\BlockMaterial.h`
+2. `F:\env1_trunk\client\miniSandboxSDK\sandboxCore\include\blocks\BlockMaterialMgr.h`
+3. `F:\env1_trunk\client\miniSandboxSDK\sandboxCore\include\worldMesh\BlockGeom.h`
+4. `F:\env1_trunk\client\miniSandboxSDK\sandboxCore\include\worldMesh\BlockMeshVert.h`
+5. `F:\env1_trunk\bin_externel\res\blockgeom.xml`
 
 ### 地形生成
 
-1. `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/iworld/terrgen/ChunkGenerator.h`
-2. `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/iworld/terrgen/Ecosystem.h`
-3. `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/iworld/terrgen/EcosysUnit_*.h`
-4. `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/iworld/terrgen/EcosysUnit_*.cpp`
+1. `F:\env1_trunk\client\miniSandboxSDK\sandboxCore\include\terrgen\ChunkGenerator.h`
+2. `F:\env1_trunk\client\miniSandboxSDK\sandboxCore\include\terrgen\Ecosystem.h`
+3. `F:\env1_trunk\client\miniSandboxSDK\sandboxCore\include\terrgen\EcosysUnit_*.h`
+4. `F:\env1_trunk\client\miniSandbox\sandboxCore\terrgen\EcosysUnit_*.cpp`
 
 ### 资源系统
 
-1. `/Users/lizi/Desktop/Workspace/MiniGame/bin/iworld.cfg`
-2. `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/OgreMain/OgreResourceManager.h`
-3. `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/OgreMain/OgrePackageFile.h`
-4. `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/OgreMain/OgrePackageZipFile.h`
-5. `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/OgreMain/OgreModFileManager.h`
+1. `F:\env1_trunk\bin_externel\iworld.cfg`
+2. `F:\env1_trunk\client\miniShared\res\OgreResourceManager.h`
+3. `F:\env1_trunk\client\miniShared\filesystem\OgrePackageFile.h`
+4. `F:\env1_trunk\client\miniShared\filesystem\OgrePackageZipFile.h`
+5. `F:\env1_trunk\client\miniModule\MiniDeveloper\mod\OgreModFileManager.h`
 
 ### UI 和工具
 
-1. `/Users/lizi/Desktop/Workspace/MiniGame/bin/res/ui/mobile`
-2. `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/UIEditor`
-3. `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/ObjectEditor`
+1. `F:\env1_trunk\bin_externel\res\ui\mobile`
+2. `F:\env1_trunk\client\miniModule\MiniDeveloper\uieditor`
+3. `F:\env1_trunk\client\miniModule\MiniDeveloper\SceneEditor`
 
 ## 对 HelloMine3D 的最终建议
 
-MiniGame 的参考价值可以概括为一句话：它展示了一个体素游戏从 demo 走向完整产品时，
-哪些系统会自然长出来。HelloMine3D 当前不应该追求一次性复刻这些系统，而应该按以下
-顺序吸收：
+`F:\env1_trunk` 展示了体素游戏从 demo 走向商业产品时会自然长出的系统，也展示了账号、
+云世界、多人、Lua、平台 SDK、编辑器和多份生成代码叠加后的复杂度代价。HelloMine3D
+已经吸收了其中大部分体素底座经验，当前不应继续按旧路线扩基础设施。
 
-1. 先补齐当前项目最缺的工程化能力：资源检查、dirty mesh、block metadata。
-2. 再优化体素核心：halo cache、greedy meshing、light storage、height map。
-3. 然后扩展内容生产能力：block shape 资源化、terrain decorator、简单工具脚本。
-4. 最后再考虑大系统：存档、mod、脚本 UI、实体、多人与资源包。
-
-这样做能保留当前 HelloMine3D 的轻量和可维护性，同时把 MiniGame 里经过验证的体素项目
-经验逐步吸收进来。
+接下来的正确用法是按任务点查阅：K4 只参考世界列表模型，G2 参考制作数量与容器边界，
+G3 参考数据驱动工具/硬度/掉落，G5 参考 2D/3D 与 dummy 音频接口；所有实现继续采用
+HelloMine3D 自己的小型、renderer-independent、可测试边界。多人、脚本、在线资源、
+完整编辑器和旧引擎代码仍不进入当前范围。

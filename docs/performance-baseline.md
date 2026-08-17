@@ -343,8 +343,8 @@ An increase in frames over 50 ms is material when it exceeds both two frames
 and 0.5% of the baseline frame count. Loaded-chunk and section residency each
 allow 5% variance with small absolute floors; exceeding either makes the runs
 incomparable instead of labelling the candidate slower. The R1 acceptance
-contract and pass/fail fixtures are tracked in `docs/todolist.md` and
-`docs/runtime-validation.md`. Later milestones must not copy these thresholds
+contract and pass/fail fixtures are tracked in `docs/validation-matrix.md`,
+`docs/runtime-validation.md` and the archived project ledger. Later milestones must not copy these thresholds
 into separate scripts or silently choose a different reference run.
 
 ## Pre-Stage-8 macOS Reference Baseline
