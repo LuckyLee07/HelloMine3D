@@ -63,6 +63,21 @@ foreach ($recipeFile in $recipeFiles) {
     Add-ManifestEntry "recipe" $relativeRecipe
 }
 
+$toolRoot = Join-Path $Root "media\tools"
+if (-not (Test-Path -LiteralPath $toolRoot -PathType Container)) {
+    throw "Tool resource directory is missing: $toolRoot"
+}
+$toolFiles = @(Get-ChildItem -LiteralPath $toolRoot `
+    -Filter "*.tool" -File -Recurse)
+if ($toolFiles.Count -eq 0) {
+    throw "No base tool resources were discovered."
+}
+foreach ($toolFile in $toolFiles) {
+    $relativeTool = $toolFile.FullName.Substring($Root.Length).TrimStart(
+        [char]'\', [char]'/')
+    Add-ManifestEntry "tool" $relativeTool
+}
+
 $blockSource = Get-Content -LiteralPath $blockDatabasePath -Raw
 $blockMatches = [regex]::Matches(
     $blockSource,

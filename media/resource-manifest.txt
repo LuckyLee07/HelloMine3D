@@ -39,3 +39,4 @@ shader|media/ogre/HelloMine3DTerrain.vert
 shader|media/ogre/HelloMine3DWater.vert
 shape|media/shapes/Cross.shape
 texture|media/textures/DefaultPack.png
+tool|media/tools/Base.tool

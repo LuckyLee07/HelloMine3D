@@ -24,9 +24,9 @@ bool Player::addItem(const Material& material)
     return addItem(material, 1) == 1;
 }
 
-int Player::addItem(const Material &material, int amount)
+int Player::addItem(const Material &material, int amount, int durability)
 {
-    return m_inventory.addItem(material, amount);
+    return m_inventory.addItem(material, amount, durability);
 }
 
 bool Player::removeHeldItem(int amount)
@@ -57,6 +57,11 @@ int Player::getInventoryCapacity(const Material &material) const
 int Player::removeInventoryItem(int slot, int amount)
 {
     return m_inventory.removeFromSlot(slot, amount);
+}
+
+Inventory::ToolDamageResult Player::damageHeldTool(int amount)
+{
+    return m_inventory.damageSelectedTool(amount);
 }
 
 CraftingPreview Player::previewCrafting(

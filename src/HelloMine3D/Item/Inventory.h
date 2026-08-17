@@ -9,10 +9,12 @@
 struct InventorySlotState {
     Material::ID materialId = Material::ID::Nothing;
     int amount = 0;
+    int durability = 0;
 
     bool operator==(const InventorySlotState &other) const noexcept
     {
-        return materialId == other.materialId && amount == other.amount;
+        return materialId == other.materialId && amount == other.amount &&
+               durability == other.durability;
     }
 
     bool operator!=(const InventorySlotState &other) const noexcept
@@ -23,11 +25,19 @@ struct InventorySlotState {
 
 class Inventory {
   public:
+    enum class ToolDamageResult {
+        NotTool,
+        Damaged,
+        Broken
+    };
+
     explicit Inventory(int slotCount = 5);
 
-    int addItem(const Material &material, int amount = 1);
+    int addItem(const Material &material, int amount = 1,
+                int durability = -1);
     bool removeFromSelected(int amount = 1);
     int removeFromSlot(int index, int amount);
+    ToolDamageResult damageSelectedTool(int amount = 1);
     int capacityFor(const Material &material) const;
     int count(Material::ID materialId) const noexcept;
     std::uint64_t revision() const noexcept;
@@ -55,6 +65,7 @@ class Inventory {
 
   private:
     void ensureUsableSlots();
+    void selectNextOccupiedSlot();
 
     std::vector<ItemStack> m_slots;
     int m_selectedSlot = 0;

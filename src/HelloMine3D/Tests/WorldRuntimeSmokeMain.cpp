@@ -19,6 +19,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <sstream>
 #include <string>
@@ -38,6 +39,7 @@
 #include "../Item/Material.h"
 #include "../Item/CraftingSession.h"
 #include "../Item/ContainerInventory.h"
+#include "../Item/ToolRegistry.h"
 #include "../Player/Player.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/Events/BlockEvents.h"
@@ -53,6 +55,7 @@
 #include "../World/Block/BlockTextureCoordinates.h"
 #include "../World/Interaction/BlockSelection.h"
 #include "../World/Interaction/BlockInteractionSystem.h"
+#include "../World/Interaction/BlockMiningProgress.h"
 #include "../World/Chunk/ChunkMeshBuilder.h"
 #include "../World/Chunk/SectionMeshInput.h"
 #include "../World/Environment/WorldEnvironment.h"
@@ -1302,6 +1305,7 @@ void casePersistence()
         player.position = glm::vec3(12.5f, 101.f, 13.5f);
         player.rotation = glm::vec3(15.f, 45.f, 0.f);
         player.addItem(Material::toMaterial(Material::ID::Stone), 7);
+        player.addItem(Material::WOODEN_PICKAXE, 1, 7);
 
         savedMobId = world.spawnMob(
             "validation_persistent_mob", glm::vec3(20.5f, 101.f, 20.5f));
@@ -1481,6 +1485,10 @@ void casePersistence()
                   player.getHeldItems().getNumInStack() == 7,
               "held " + player.getHeldItems().getMaterial().name + " x" +
                   std::to_string(player.getHeldItems().getNumInStack()));
+        check("G3/tool-durability-survives-save-and-reload",
+              player.getInventorySlot(1).getMaterial().id ==
+                      Material::ID::WoodenPickaxe &&
+                  player.getInventorySlot(1).getDurability() == 7);
 
         auto *restoredMob = dynamic_cast<MobActor *>(
             world.getActorManager().findActor(savedMobId));
@@ -3171,6 +3179,20 @@ void caseChestContainer()
               countPlayer(Material::ID::Stone) +
                       view->inventory.count(Material::ID::Stone) ==
                   120);
+    player.addItem(Material::WOODEN_PICKAXE, 1, 7);
+    int toolSlot = -1;
+    for (int slot = 0; slot < player.getInventorySlotCount(); ++slot) {
+        if (player.getInventorySlot(slot).getMaterial().id ==
+            Material::ID::WoodenPickaxe) {
+            toolSlot = slot;
+            break;
+        }
+    }
+    check("G3/container-rejects-durability-bearing-tools",
+          toolSlot >= 0 &&
+              !ChestContainer::transferFromPlayer(
+                  world, player, toolSlot, 1) &&
+              player.getInventorySlot(toolSlot).getDurability() == 7);
     check("D2/transfers-publish-inventory-events",
           events.count(SandboxEventType::PlayerInventoryChanged) >= 2);
 
@@ -3237,6 +3259,24 @@ void caseChestContainer()
               !player.hasOpenContainer());
 }
 
+std::string validToolDefinitions()
+{
+    return R"(# HelloMine3D tool registry v1
+tool hellomine:wooden_pickaxe
+class pickaxe
+tier 1
+speed 2
+durability 16
+end
+tool hellomine:stone_pickaxe
+class pickaxe
+tier 2
+speed 4
+durability 32
+end
+)";
+}
+
 // ---------------------------------------------------------------------------
 // G2 - player and workbench crafting focus boundary
 // ---------------------------------------------------------------------------
@@ -3296,6 +3336,168 @@ void caseWorkbenchCrafting()
           !player.hasOpenCrafting() &&
               player.getCraftingGridSize() == 0 &&
               !player.getOpenWorkbench().has_value());
+}
+
+// ---------------------------------------------------------------------------
+// G3 - tool tiers, hold-to-mine progress and durability persistence
+// ---------------------------------------------------------------------------
+void caseToolMiningProgression()
+{
+    ItemStack empty(Material::NOTHING, 0);
+    ItemStack wooden(Material::WOODEN_PICKAXE, 1);
+    ItemStack stone(Material::STONE_PICKAXE, 1);
+    const BlockMiningEvaluation handStone =
+        BlockInteractionSystem::evaluateMining(BlockId::Stone, empty);
+    const BlockMiningEvaluation woodStone =
+        BlockInteractionSystem::evaluateMining(BlockId::Stone, wooden);
+    const BlockMiningEvaluation stoneStone =
+        BlockInteractionSystem::evaluateMining(BlockId::Stone, stone);
+    check("G3/matching-tools-accelerate-mining-by-tier",
+          handStone.requiredSeconds > woodStone.requiredSeconds &&
+              woodStone.requiredSeconds > stoneStone.requiredSeconds &&
+              !handStone.dropAllowed && woodStone.dropAllowed &&
+              stoneStone.dropAllowed);
+
+    const BlockMiningEvaluation woodIron =
+        BlockInteractionSystem::evaluateMining(BlockId::IronOre, wooden);
+    const BlockMiningEvaluation stoneIron =
+        BlockInteractionSystem::evaluateMining(BlockId::IronOre, stone);
+    check("G3/required-tier-gates-drops-not-breaking",
+          woodIron.matchingClass && !woodIron.meetsTier &&
+              !woodIron.dropAllowed && stoneIron.matchingClass &&
+              stoneIron.meetsTier && stoneIron.dropAllowed);
+
+    BlockMiningProgress progress;
+    const glm::ivec3 firstTarget{1, 2, 3};
+    const glm::ivec3 secondTarget{2, 2, 3};
+    check("G3/partial-hold-does-not-break",
+          !progress.advance(firstTarget, BlockId::Stone,
+                            Material::ID::Nothing, 1.5f, 0.1f) &&
+              progress.snapshot().active &&
+              progress.snapshot().normalized() > 0.0f &&
+              progress.snapshot().normalized() < 1.0f);
+    progress.advance(secondTarget, BlockId::Stone,
+                     Material::ID::Nothing, 1.5f, 0.1f);
+    check("G3/target-change-resets-progress",
+          progress.snapshot().target == secondTarget &&
+              std::abs(progress.snapshot().elapsedSeconds - 0.1f) <
+                  0.0001f);
+    progress.advance(secondTarget, BlockId::Stone,
+                     Material::ID::WoodenPickaxe, 0.75f, 10.0f);
+    check("G3/tool-change-resets-and-clamps-frame-progress",
+          progress.snapshot().toolMaterialId ==
+                  Material::ID::WoodenPickaxe &&
+              std::abs(progress.snapshot().elapsedSeconds -
+                       BlockMiningProgress::MaxFrameContributionSeconds) <
+                  0.0001f);
+    progress.cancel();
+    check("G3/cancel-clears-mining-progress",
+          !progress.snapshot().active &&
+              progress.snapshot().normalized() == 0.0f);
+
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    const auto directory = freshSaveDirectory("tool_mining");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+    player.addItem(Material::WOODEN_PICKAXE, 1, 2);
+    world.setBlock(8, 100, 8, BlockId::Stone);
+    world.setBlock(9, 100, 8, BlockId::Stone);
+    const bool firstBreak = BlockInteractionSystem::breakBlock(
+        world, player, glm::vec3(8.5f, 100.5f, 8.5f));
+    check("G3/successful-break-consumes-one-durability",
+          firstBreak && player.getHeldItems().getMaterial().id ==
+                            Material::ID::WoodenPickaxe &&
+              player.getHeldItems().getDurability() == 1);
+    const bool secondBreak = BlockInteractionSystem::breakBlock(
+        world, player, glm::vec3(9.5f, 100.5f, 8.5f));
+    check("G3/broken-tool-advances-to-occupied-slot",
+          secondBreak && player.getHeldItems().getMaterial().id ==
+                             Material::ID::Stone &&
+              player.getHeldItems().getNumInStack() == 2);
+
+    world.setBlock(10, 100, 8, BlockId::IronOre);
+    const bool wrongToolBreak = BlockInteractionSystem::breakBlock(
+        world, player, glm::vec3(10.5f, 100.5f, 8.5f));
+    check("G3/wrong-tool-breaks-without-forbidden-drop",
+          wrongToolBreak && world.getBlock(10, 100, 8).id == 0 &&
+              player.getInventorySlot(0).getMaterial().id !=
+                  Material::ID::IronOre &&
+              player.getInventorySlot(1).getMaterial().id !=
+                  Material::ID::IronOre);
+
+    player.addItem(Material::STONE_PICKAXE, 1);
+    PlayerSaveState selectedTool = player.getSaveState();
+    selectedTool.heldItem = 0;
+    player.applySaveState(selectedTool);
+    world.setBlock(11, 100, 8, BlockId::IronOre);
+    const bool correctToolBreak = BlockInteractionSystem::breakBlock(
+        world, player, glm::vec3(11.5f, 100.5f, 8.5f));
+    check("G3/stone-pickaxe-harvests-iron-and-loses-durability",
+          correctToolBreak && player.getInventorySlot(0).getDurability() ==
+                                  31 &&
+              player.getSaveState().inventory[2].materialId ==
+                  Material::ID::IronOre);
+
+    const auto saveDirectory = freshSaveDirectory("tool_save_contract");
+    WorldSaveData toolSave;
+    toolSave.worldId = "g3-tool-save";
+    toolSave.worldName = "G3 Tool Save";
+    toolSave.seed = kValidationSeed;
+    toolSave.createdUtc = LegacyWorldTimestampUtc;
+    toolSave.lastPlayedUtc = LegacyWorldTimestampUtc;
+    toolSave.lastBuildIdentity = "validation";
+    toolSave.hasPlayerState = true;
+    toolSave.playerState.inventory = {
+        {Material::ID::WoodenPickaxe, 1, 7}};
+    WorldSave save(saveDirectory);
+    WorldSaveData loadedTool;
+    const bool validSaved = save.save(toolSave) && save.load(loadedTool);
+    WorldSaveData invalidTool = toolSave;
+    invalidTool.playerState.inventory[0].durability = 17;
+    const bool invalidRejected = !save.save(invalidTool);
+    WorldSaveData preservedTool;
+    check("G3/save-validates-and-preserves-exact-durability",
+          validSaved && loadedTool.playerState.inventory[0].durability == 7 &&
+              invalidRejected && save.load(preservedTool) &&
+              preservedTool.playerState.inventory[0].durability == 7);
+
+    const auto legacyDirectory =
+        freshSaveDirectory("tool_inventory_legacy");
+    const std::filesystem::path legacyPath =
+        std::filesystem::path(legacyDirectory) / "world.meta";
+    {
+        std::ofstream legacy(legacyPath,
+                             std::ios::binary | std::ios::trunc);
+        legacy << "version 3\n"
+               << "world_id g3-legacy\n"
+               << "world_name \"G3 Legacy\"\n"
+               << "seed " << kValidationSeed << '\n'
+               << "created_utc " << LegacyWorldTimestampUtc << '\n'
+               << "last_played_utc " << LegacyWorldTimestampUtc << '\n'
+               << "last_build validation\n"
+               << "spawn 0 0 0\nworld_time 0\n"
+               << "generator ClassicOverWorld\nplayer_present 1\n"
+               << "player_position 0 0 0\nplayer_rotation 0 0 0\n"
+               << "player_held 0\ninventory_count 1\n"
+               << "inventory_slot "
+               << static_cast<int>(Material::ID::Stone)
+               << " 3\nactor_count 0\n";
+    }
+    WorldSave legacySave(legacyDirectory);
+    WorldSaveData legacyData;
+    const bool legacyLoaded = legacySave.load(legacyData);
+    const bool legacyUpgraded = legacyLoaded && legacySave.save(legacyData);
+    std::ifstream upgradedInput(legacyPath, std::ios::binary);
+    const std::string upgraded(
+        (std::istreambuf_iterator<char>(upgradedInput)),
+        std::istreambuf_iterator<char>());
+    check("G3/legacy-inventory-migrates-to-durability-format",
+          legacyUpgraded && legacyData.playerState.inventory.size() == 1 &&
+              legacyData.playerState.inventory[0].durability == 0 &&
+              upgraded.find("inventory_format 2") != std::string::npos &&
+              upgraded.find("inventory_slot 3 3 0") != std::string::npos);
 }
 
 // ---------------------------------------------------------------------------
@@ -3685,6 +3887,7 @@ void caseCombatAndRespawn()
     }
 
     contactPlayer.addItem(Material::STONE_BLOCK, 7);
+    contactPlayer.addItem(Material::WOODEN_PICKAXE, 1, 5);
     contactPlayer.position = {20.f, 100.f, 20.f};
     contactPlayer.velocity = {1.f, 2.f, 3.f};
     contactPlayer.box.update(contactPlayer.position);
@@ -3706,15 +3909,20 @@ void caseCombatAndRespawn()
                        contactWorld.getPlayerMaxHealth()) < 0.001f);
 
     int retainedStone = 0;
+    int retainedToolDurability = 0;
     for (const InventorySlotState &slot :
          contactPlayer.getSaveState().inventory) {
         if (slot.materialId == Material::ID::Stone) {
             retainedStone += slot.amount;
         }
+        else if (slot.materialId == Material::ID::WoodenPickaxe) {
+            retainedToolDurability = slot.durability;
+        }
     }
     check("D4/death-retains-inventory-and-closes-ui",
           std::string(World::PlayerDeathInventoryPolicy) == "retain" &&
-              retainedStone == 7 && !contactPlayer.hasOpenContainer());
+              retainedStone == 7 && retainedToolDurability == 5 &&
+              !contactPlayer.hasOpenContainer());
 
     const WorldDebugStats combatStats = contactWorld.collectDebugStats();
     check("D4/health-is-exposed-to-hud",
@@ -4600,6 +4808,7 @@ void caseInteractionAndEvents()
     EventRecorder events(world.getEventBus());
 
     const int y = 100;
+    player.addItem(Material::WOODEN_PICKAXE, 1);
     world.setBlock(8, y, 8, BlockId::Stone);
 
     const glm::vec3 target(8.5f, static_cast<float>(y) + 0.5f, 8.5f);
@@ -4607,10 +4816,12 @@ void caseInteractionAndEvents()
     check("S3.4/break-through-interaction-system", broke);
     check("S3.4/break-clears-block", world.getBlock(8, y, 8).id == 0);
     check("S3.5/break-adds-configured-drop",
-          player.getHeldItems().getMaterial().id == Material::ID::Stone &&
-              player.getHeldItems().getNumInStack() == 1,
-          "held " + player.getHeldItems().getMaterial().name + " x" +
-              std::to_string(player.getHeldItems().getNumInStack()));
+          player.getSaveState().inventory.size() >= 2 &&
+              player.getInventorySlot(1).getMaterial().id ==
+                  Material::ID::Stone &&
+              player.getInventorySlot(1).getNumInStack() == 1,
+          "stone=" + std::to_string(
+              player.getInventorySlot(1).getNumInStack()));
     check("S4.2/break-publishes-events",
           events.count(SandboxEventType::BlockBreak) == 1 &&
               events.count(SandboxEventType::BlockChanged) == 1,
@@ -4618,9 +4829,12 @@ void caseInteractionAndEvents()
               " changed=" +
               std::to_string(events.count(SandboxEventType::BlockChanged)));
     check("S4.5/break-publishes-inventory-event",
-          events.count(SandboxEventType::PlayerInventoryChanged) == 1);
+          events.count(SandboxEventType::PlayerInventoryChanged) == 2);
 
     events.reset();
+    PlayerSaveState placementState = player.getSaveState();
+    placementState.heldItem = 1;
+    player.applySaveState(placementState);
     const bool placed =
         BlockInteractionSystem::placeBlock(world, player, target);
     check("S3.4/place-through-interaction-system", placed);
@@ -4975,6 +5189,8 @@ int main()
 
     try {
         std::cout << "[VALIDATION] world runtime smoke starting\n";
+        runtimeToolRegistry().freeze(
+            {{"runtime.tool", validToolDefinitions()}});
 
         caseDebugPanelStartupOption();
         caseFixedTickScheduler();
@@ -5012,6 +5228,7 @@ int main()
         caseBlockEntityLifecycle();
         caseChestContainer();
         caseWorkbenchCrafting();
+        caseToolMiningProgression();
         caseNaturalMobPopulation();
         caseCombatAndRespawn();
         caseWheatCropLoop();

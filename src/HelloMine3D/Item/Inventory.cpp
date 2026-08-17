@@ -11,7 +11,7 @@ Inventory::Inventory(int slotCount)
     }
 }
 
-int Inventory::addItem(const Material &material, int amount)
+int Inventory::addItem(const Material &material, int amount, int durability)
 {
     if (material.id == Material::ID::Nothing || amount <= 0) {
         return 0;
@@ -30,8 +30,8 @@ int Inventory::addItem(const Material &material, int amount)
 
     for (auto &slot : m_slots) {
         if (slot.isEmpty()) {
-            slot = ItemStack(material, 0);
-            remaining = slot.add(remaining);
+            slot = ItemStack(material, remaining, durability);
+            remaining -= slot.getNumInStack();
             if (remaining == 0) {
                 ++m_revision;
                 return amount;
@@ -60,6 +60,24 @@ bool Inventory::removeFromSelected(int amount)
     stack.remove(amount);
     ++m_revision;
     return true;
+}
+
+Inventory::ToolDamageResult Inventory::damageSelectedTool(int amount)
+{
+    if (amount <= 0) {
+        return ToolDamageResult::NotTool;
+    }
+    ItemStack &stack = getSelectedStack();
+    if (!stack.isDamageable()) {
+        return ToolDamageResult::NotTool;
+    }
+    const bool broken = stack.damage(amount);
+    ++m_revision;
+    if (broken) {
+        selectNextOccupiedSlot();
+        return ToolDamageResult::Broken;
+    }
+    return ToolDamageResult::Damaged;
 }
 
 int Inventory::removeFromSlot(int index, int amount)
@@ -291,7 +309,8 @@ std::vector<InventorySlotState> Inventory::getSaveState() const
     std::vector<InventorySlotState> state;
     state.reserve(m_slots.size());
     for (const auto &slot : m_slots) {
-        state.push_back({slot.getMaterial().id, slot.getNumInStack()});
+        state.push_back({slot.getMaterial().id, slot.getNumInStack(),
+                         slot.getDurability()});
     }
 
     return state;
@@ -306,7 +325,7 @@ void Inventory::applySaveState(const std::vector<InventorySlotState> &slots,
         for (const auto &slot : slots) {
             if (slot.amount > 0 && slot.materialId != Material::ID::Nothing) {
                 m_slots.emplace_back(Material::toMaterial(slot.materialId),
-                                     slot.amount);
+                                     slot.amount, slot.durability);
             }
             else {
                 m_slots.emplace_back(Material::NOTHING, 0);
@@ -317,6 +336,24 @@ void Inventory::applySaveState(const std::vector<InventorySlotState> &slots,
     ensureUsableSlots();
     setSelectedSlot(selectedSlot);
     ++m_revision;
+}
+
+void Inventory::selectNextOccupiedSlot()
+{
+    if (m_slots.empty()) {
+        return;
+    }
+    const int start = m_selectedSlot;
+    for (int offset = 1; offset <= static_cast<int>(m_slots.size());
+         ++offset) {
+        const int candidate =
+            (start + offset) % static_cast<int>(m_slots.size());
+        if (!m_slots[static_cast<std::size_t>(candidate)].isEmpty()) {
+            m_selectedSlot = candidate;
+            return;
+        }
+    }
+    m_selectedSlot = start;
 }
 
 void Inventory::ensureUsableSlots()

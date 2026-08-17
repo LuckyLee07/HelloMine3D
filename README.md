@@ -46,7 +46,8 @@ includes the playable crop/container/combat/persistence slice, a deterministic
 world soak, clean-root packaging and the bounded read-only resource-pack layer.
 R3 physical-input acceptance still closes the remaining D2, D4 and D6
 `Verify` states, but it is intentionally deferred while the project prioritizes
-the player-facing G3-G6 gameplay loop. K4 world entry and G2 crafting are complete.
+the player-facing G4-G6 gameplay loop. K4 world entry, G2 crafting and G3 tool
+progression are complete.
 
 Stage 8 is now planned around sustainable play and reliable releases. Its
 16-item K/H/Q/G scope adds durable world management and recovery, local
@@ -66,6 +67,10 @@ save-directory launches retain the direct path. The contracts are documented in
 G2 adds a pure revisioned crafting session, atomic inventory exchange, player
 2x2 crafting and a placeable 3x3 workbench. Its 54 focused assertions and
 351-check world stack are documented in `docs/crafting-contract-v1.md`.
+G3 adds data-driven wooden/stone pickaxes, hold-to-mine progress, tiered drops,
+per-instance durability and backward-compatible inventory persistence. The
+current Debug/Release gates pass 64 focused recipe/tool checks, 365 world checks
+and 20 resource-pack checks; see `docs/tool-progression-contract-v1.md`.
 Q2 now records bounded cumulative phases, totals, longest main-thread stalls
 and storage counters for startup, catalogue, world entry, save, backup and
 restore. Portable and real storage fixtures are green; closure still depends on
@@ -81,7 +86,7 @@ The Windows build blocker is closed: every game-logic target that compiles the
 crash backend inherits `dbghelp.lib`. The full Debug/Release gate, thirteen
 targets, 346-check runtime stack, resource/startup diagnostics and clean package
 all pass. Formal performance budgets and physical-input evidence remain later
-quality-stage work while G3-G5 drive the gameplay slice.
+quality-stage work while G4-G5 drive the gameplay slice.
 
 Native macOS acceptance (B3) is complete on an Apple M1 Pro through the full
 Debug/Release Xcode gate. R4 is also complete: the native arm64 Apple Clang
@@ -286,7 +291,7 @@ bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
 bin\HelloMine3DMeshDirtyTests.exe         # mesh dirty planner
 bin\HelloMine3DSaveLoadSmoke.exe          # chunk serialization roundtrip
 bin\HelloMine3DEntityLifecycleSmoke.exe   # actor lifecycle
-bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 351 assertions
+bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor stack, 365 assertions
 bin\HelloMine3DSoak.exe                   # deterministic world stability schedule
 bin\HelloMine3DResourcePackSmoke.exe      # resource resolver and frozen view
 bin\HelloMine3DRecipeSmoke.exe            # strict startup recipe registry

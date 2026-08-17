@@ -21,11 +21,13 @@
 #include "../Item/Material.h"
 #include "../Item/CraftingSession.h"
 #include "../Item/RecipeRegistry.h"
+#include "../Item/ToolRegistry.h"
 #include "../Player/Player.h"
 #include "../Sandbox/GameApplicationFlow.h"
 #include "../Util/ResourcePaths.h"
 #include "../World/World.h"
 #include "../World/Block/ChestContainer.h"
+#include "../World/Interaction/BlockMiningProgress.h"
 #include "../World/Storage/WorldManagementService.h"
 
 namespace
@@ -218,7 +220,8 @@ class OgreUserInterface::Impl
         initialized = false;
     }
 
-    void beginFrame(float deltaSeconds, const WorldDebugStats &stats)
+    void beginFrame(float deltaSeconds, const WorldDebugStats &stats,
+                    const MiningProgressSnapshot &progress)
     {
         if (!initialized)
         {
@@ -246,6 +249,7 @@ class OgreUserInterface::Impl
         ImGui::NewFrame();
         framePending = true;
         worldStats = stats;
+        miningProgress = progress;
         switch (flow->state())
         {
             case GameApplicationState::MainMenu:
@@ -631,6 +635,26 @@ class OgreUserInterface::Impl
                                 crosshairColour, 2.0f);
         }
 
+        if (miningProgress.active &&
+            !player->hasOpenContainer() && !player->hasOpenCrafting())
+        {
+            ImGui::SetNextWindowPos(
+                ImVec2(center.x, center.y + 24.0f), ImGuiCond_Always,
+                ImVec2(0.5f, 0.0f));
+            ImGui::SetNextWindowBgAlpha(0.68f);
+            if (ImGui::Begin(
+                    "##MiningProgress", nullptr,
+                    ImGuiWindowFlags_NoDecoration |
+                        ImGuiWindowFlags_AlwaysAutoResize |
+                        ImGuiWindowFlags_NoSavedSettings |
+                        ImGuiWindowFlags_NoInputs))
+            {
+                ImGui::ProgressBar(miningProgress.normalized(),
+                                   ImVec2(180.0f, 10.0f), "");
+            }
+            ImGui::End();
+        }
+
         const PlayerSaveState state = player->getSaveState();
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y - 18.0f),
@@ -677,10 +701,18 @@ class OgreUserInterface::Impl
 
                 const Material &material =
                     Material::toMaterial(slot.materialId);
+                const ToolDefinition *tool =
+                    runtimeToolRegistry().find(slot.materialId);
+                const std::string amountText =
+                    tool != nullptr && slot.amount > 0
+                        ? ("\n" + std::to_string(slot.durability) + "/" +
+                           std::to_string(tool->maxDurability))
+                        : (" x" +
+                           std::to_string(std::max(0, slot.amount)));
                 const std::string label =
                     std::to_string(index + 1) + "\n" +
-                    (slot.amount > 0 ? material.name : "Empty") + " x" +
-                    std::to_string(std::max(0, slot.amount)) + "##slot" +
+                    (slot.amount > 0 ? material.name : "Empty") +
+                    amountText + "##slot" +
                     std::to_string(index);
                 ImGui::Button(label.c_str(), ImVec2(92.0f, 46.0f));
 
@@ -1107,6 +1139,7 @@ class OgreUserInterface::Impl
     bool openBackupPopup = false;
     OgreUserInterfaceAction pendingAction;
     WorldDebugStats worldStats;
+    MiningProgressSnapshot miningProgress;
     bool showDebugPanel = false;
     bool initialized = false;
     bool listenerInstalled = false;
@@ -1133,9 +1166,10 @@ OgreUserInterface::~OgreUserInterface()
 }
 
 void OgreUserInterface::beginFrame(
-    float deltaSeconds, const WorldDebugStats &worldStats)
+    float deltaSeconds, const WorldDebugStats &worldStats,
+    const MiningProgressSnapshot &miningProgress)
 {
-    m_impl->beginFrame(deltaSeconds, worldStats);
+    m_impl->beginFrame(deltaSeconds, worldStats, miningProgress);
 }
 
 void OgreUserInterface::keyEvent(const OIS::KeyEvent &event, bool pressed,

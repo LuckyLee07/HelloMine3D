@@ -13,6 +13,20 @@ row hellomine:oak_bark hellomine:oak_bark hellomine:oak_bark
 output hellomine:chest 1
 end
 
+recipe hellomine:wooden_pickaxe shaped
+row hellomine:oak_bark hellomine:oak_bark hellomine:oak_bark
+row _ hellomine:oak_bark _
+row _ hellomine:oak_bark _
+output hellomine:wooden_pickaxe 1
+end
+
+recipe hellomine:stone_pickaxe shaped
+row hellomine:stone hellomine:stone hellomine:stone
+row _ hellomine:oak_bark _
+row _ hellomine:oak_bark _
+output hellomine:stone_pickaxe 1
+end
+
 recipe hellomine:borderless_glass shapeless
 input hellomine:glass 1
 output hellomine:glass_borderless 1

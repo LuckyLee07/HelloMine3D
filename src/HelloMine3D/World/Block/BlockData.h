@@ -3,6 +3,7 @@
 
 #include "../../Maths/glm.h"
 #include "../../Util/NonCopyable.h"
+#include "../../Item/ToolRegistry.h"
 #include "BlockId.h"
 #include "BlockShape.h"
 #include <string>
@@ -36,6 +37,10 @@ struct BlockDataHolder : public NonCopyable {
     int light = 0;
     bool isOpaque = false;
     bool isCollidable = false;
+    float hardnessSeconds = 0.25f;
+    MiningClass miningClass = MiningClass::None;
+    int requiredToolTier = 0;
+    bool wrongToolDrops = true;
 };
 
 class BlockData : public NonCopyable {

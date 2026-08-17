@@ -25,6 +25,7 @@ class World;
 class GameApplicationFlow;
 class WorldManagementService;
 struct WorldDebugStats;
+struct MiningProgressSnapshot;
 
 enum class OgreUserInterfaceActionType
 {
@@ -63,7 +64,8 @@ class OgreUserInterface final : public Ogre::RenderQueueListener
     OgreUserInterface(const OgreUserInterface &) = delete;
     OgreUserInterface &operator=(const OgreUserInterface &) = delete;
 
-    void beginFrame(float deltaSeconds, const WorldDebugStats &worldStats);
+    void beginFrame(float deltaSeconds, const WorldDebugStats &worldStats,
+                    const MiningProgressSnapshot &miningProgress);
     void keyEvent(const OIS::KeyEvent &event, bool pressed,
                   const OIS::Keyboard &keyboard);
     void mouseMoved(const OIS::MouseEvent &event);

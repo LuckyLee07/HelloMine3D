@@ -8,6 +8,7 @@
 #include "../Diagnostics/RuntimeProfiler.h"
 #include "../World/Block/BlockDatabase.h"
 #include "../World/Event/PlayerDigEvent.h"
+#include "../World/Interaction/BlockInteractionSystem.h"
 
 SandboxRuntime::SandboxRuntime(const Config &config, Camera &camera,
                                bool startBackgroundLoader,
@@ -42,6 +43,7 @@ void SandboxRuntime::update(const SandboxInputState &input,
     if (world == nullptr) {
         m_blockSelection.reset();
         m_actorSelection.reset();
+        m_miningProgress.cancel();
         return;
     }
 
@@ -53,7 +55,10 @@ void SandboxRuntime::update(const SandboxInputState &input,
         0.0f, m_interactionCooldownSeconds -
                   std::max(0.0f, deltaSeconds));
     if (acceptsPlayerInput) {
-        handlePlayerInteraction(*world, input);
+        handlePlayerInteraction(*world, input, deltaSeconds);
+    }
+    else {
+        m_miningProgress.cancel();
     }
     if (input.resetMeshes) {
         world->resetChunkMeshes();
@@ -68,6 +73,7 @@ bool SandboxRuntime::closeWorld()
     }
     m_blockSelection.reset();
     m_actorSelection.reset();
+    m_miningProgress.cancel();
     return true;
 }
 
@@ -108,29 +114,61 @@ const std::optional<ActorSelection> &SandboxRuntime::getActorSelection() const
     return m_actorSelection;
 }
 
+const MiningProgressSnapshot &SandboxRuntime::getMiningProgress() const noexcept
+{
+    return m_miningProgress.snapshot();
+}
+
+void SandboxRuntime::cancelMiningProgress() noexcept
+{
+    m_miningProgress.cancel();
+}
+
 void SandboxRuntime::handlePlayerInteraction(
-    World &world, const SandboxInputState &input)
+    World &world, const SandboxInputState &input, float deltaSeconds)
 {
     if (m_interactionCooldownSeconds > 0.0f) {
+        if (!input.breakBlock) {
+            m_miningProgress.cancel();
+        }
         return;
     }
 
     if (input.breakBlock) {
         if (m_actorSelection.has_value()) {
+            m_miningProgress.cancel();
             m_interactionCooldownSeconds = 0.2f;
             world.attackActor(m_actorSelection->actorId);
             return;
         }
         if (!m_blockSelection.has_value()) {
+            m_miningProgress.cancel();
             return;
         }
         const BlockSelection &selection = *m_blockSelection;
-        m_interactionCooldownSeconds = 0.2f;
-        world.addEvent<PlayerDigEvent>(PlayerDigAction::Break,
-                                       glm::vec3(selection.blockPosition),
-                                       m_player);
+        const BlockId blockId = static_cast<BlockId>(
+            world.getBlock(selection.blockPosition.x,
+                           selection.blockPosition.y,
+                           selection.blockPosition.z).id);
+        if (blockId == BlockId::Air || blockId == BlockId::Water) {
+            m_miningProgress.cancel();
+            return;
+        }
+        const ItemStack &held = m_player.getHeldItems();
+        const BlockMiningEvaluation evaluation =
+            BlockInteractionSystem::evaluateMining(blockId, held);
+        if (m_miningProgress.advance(
+                selection.blockPosition, blockId,
+                held.getMaterial().id, evaluation.requiredSeconds,
+                deltaSeconds)) {
+            m_interactionCooldownSeconds = 0.2f;
+            world.addEvent<PlayerDigEvent>(
+                PlayerDigAction::Break,
+                glm::vec3(selection.blockPosition), m_player);
+        }
     }
     else if (input.placeBlock) {
+        m_miningProgress.cancel();
         if (!m_blockSelection.has_value()) {
             return;
         }
@@ -142,6 +180,9 @@ void SandboxRuntime::handlePlayerInteraction(
         world.addEvent<PlayerDigEvent>(PlayerDigAction::Place,
                                        glm::vec3(selection.placementPosition),
                                        m_player);
+    }
+    else {
+        m_miningProgress.cancel();
     }
 }
 

@@ -22,7 +22,10 @@ struct BlockDefinition {
     BlockId id = BlockId::Air;
     std::string stringId;
     std::string name;
-    float hardness = 1.f;
+    float hardness = 0.25f;
+    MiningClass miningClass = MiningClass::None;
+    int requiredToolTier = 0;
+    bool wrongToolDrops = true;
     bool solid = false;
     bool collidable = false;
     bool transparent = true;

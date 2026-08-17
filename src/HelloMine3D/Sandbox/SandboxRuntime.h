@@ -10,6 +10,7 @@
 #include "../Util/NonCopyable.h"
 #include "../World/World.h"
 #include "../World/Interaction/BlockSelection.h"
+#include "../World/Interaction/BlockMiningProgress.h"
 #include "FixedTickScheduler.h"
 #include "WorldManager.h"
 
@@ -38,10 +39,13 @@ class SandboxRuntime : public NonCopyable {
     const WorldManager &getWorldManager() const;
     const std::optional<BlockSelection> &getBlockSelection() const;
     const std::optional<ActorSelection> &getActorSelection() const;
+    const MiningProgressSnapshot &getMiningProgress() const noexcept;
+    void cancelMiningProgress() noexcept;
 
   private:
     void handlePlayerInteraction(World &world,
-                                 const SandboxInputState &input);
+                                 const SandboxInputState &input,
+                                 float deltaSeconds);
     void runFixedTicks(float deltaSeconds);
 
     Config m_config;
@@ -51,6 +55,7 @@ class SandboxRuntime : public NonCopyable {
     FixedTickScheduler m_tickScheduler;
     std::optional<BlockSelection> m_blockSelection;
     std::optional<ActorSelection> m_actorSelection;
+    BlockMiningProgress m_miningProgress;
     float m_interactionCooldownSeconds = 0.0f;
 };
 

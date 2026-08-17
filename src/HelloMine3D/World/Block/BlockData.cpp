@@ -5,6 +5,7 @@
 
 #include <cctype>
 #include <fstream>
+#include <cmath>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -88,6 +89,24 @@ BlockData::BlockData(const std::string &fileName)
          "");
 }
 
+float parseFloat(const std::string &path, const std::string &key,
+                 const std::string &value)
+{
+    std::istringstream input(value);
+    float parsed = 0.0f;
+    if (!(input >> parsed)) {
+        fail(path, key, "must be a number");
+    }
+    input >> std::ws;
+    if (!input.eof()) {
+        fail(path, key, "contains trailing data");
+    }
+    if (!std::isfinite(parsed) || parsed < 0.05f || parsed > 60.0f) {
+        fail(path, key, "is outside [0.05, 60]");
+    }
+    return parsed;
+}
+
 BlockData::BlockData(const std::string &fileName,
                      const std::string &blockDirectory)
     : BlockData(fileName, blockDirectory,
@@ -131,6 +150,8 @@ void BlockData::load(const std::string &path,
             "Name",       "Id",         "TexTop",   "TexSide",
             "TexBottom",  "TexAll",     "Opaque",   "Collidable",
             "MeshType",   "ShaderType", "Shape",     "Light",
+            "Hardness",   "MiningClass", "RequiredToolTier",
+            "WrongToolDrops",
         };
         if (validKeys.find(key) == validKeys.end()) {
             fail(path, key, "is unknown at line " +
@@ -219,6 +240,27 @@ void BlockData::load(const std::string &path,
             }
             m_data.light = light;
         }
+        else if (key == "Hardness") {
+            m_data.hardnessSeconds = parseFloat(path, key, value);
+        }
+        else if (key == "MiningClass") {
+            if (!ToolRegistry::tryParseMiningClass(
+                    value, m_data.miningClass)) {
+                fail(path, key, "has invalid value '" + value + "'");
+            }
+        }
+        else if (key == "RequiredToolTier") {
+            const int tier = parseInteger(path, key, value);
+            if (tier < 0 || tier > ToolRegistry::MaxTier) {
+                fail(path, key, "is outside [0, " +
+                                    std::to_string(ToolRegistry::MaxTier) +
+                                    "]");
+            }
+            m_data.requiredToolTier = tier;
+        }
+        else if (key == "WrongToolDrops") {
+            m_data.wrongToolDrops = parseBoolean(path, key, value);
+        }
     }
 
     const auto requireKey = [&](const std::string &key, bool present) {
@@ -253,6 +295,12 @@ void BlockData::load(const std::string &path,
     }
     else if (hasShape) {
         fail(path, "Shape", "is only valid for resource meshes");
+    }
+
+    if (m_data.miningClass == MiningClass::None &&
+        m_data.requiredToolTier != 0) {
+        fail(path, "RequiredToolTier",
+             "must be 0 when MiningClass is none");
     }
 }
 

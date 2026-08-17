@@ -24,6 +24,8 @@ namespace
         "hellomine:wheat_seeds",
         "hellomine:wheat",
         "hellomine:workbench",
+        "hellomine:wooden_pickaxe",
+        "hellomine:stone_pickaxe",
     }};
 }
 
@@ -54,13 +56,18 @@ const Material Material::WHEAT_SEEDS(ID::WheatSeeds, 99, true,
 const Material Material::WHEAT(ID::Wheat, 99, false, "Wheat");
 const Material Material::WORKBENCH_BLOCK(ID::Workbench, 99, true,
                                          "Workbench");
+const Material Material::WOODEN_PICKAXE(ID::WoodenPickaxe, 1, false,
+                                        "Wooden Pickaxe", true);
+const Material Material::STONE_PICKAXE(ID::StonePickaxe, 1, false,
+                                       "Stone Pickaxe", true);
 
 Material::Material(Material::ID id, int maxStack, bool isBlock,
-                   std::string &&name)
+                   std::string &&name, bool isTool)
     : id(id)
     , maxStackSize(maxStack)
     , isBlock(isBlock)
     , name(std::move(name))
+    , isTool(isTool)
 {
 }
 
@@ -241,6 +248,12 @@ const Material &Material::toMaterial(Material::ID id)
 
         case Workbench:
             return WORKBENCH_BLOCK;
+
+        case WoodenPickaxe:
+            return WOODEN_PICKAXE;
+
+        case StonePickaxe:
+            return STONE_PICKAXE;
 
         default:
             return NOTHING;

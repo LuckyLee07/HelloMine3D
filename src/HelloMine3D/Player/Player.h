@@ -36,8 +36,10 @@ class Player : public Entity {
     void collide(World &world, const glm::vec3 &vel, float dt);
 
     bool addItem(const Material &material);
-    int addItem(const Material &material, int amount);
+    int addItem(const Material &material, int amount,
+                int durability = -1);
     bool removeHeldItem(int amount = 1);
+    Inventory::ToolDamageResult damageHeldTool(int amount = 1);
 
     ItemStack &getHeldItems();
     const ItemStack &getInventorySlot(int index) const;

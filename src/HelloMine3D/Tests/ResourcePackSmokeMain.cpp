@@ -47,6 +47,7 @@ namespace
             {"block", "media/blocks/Stone.block"},
             {"font", "media/fonts/rs.ttf"},
             {"recipe", "media/recipes/Base.recipe"},
+            {"tool", "media/tools/Base.tool"},
             {"resource-script", "media/ogre/Test.material"},
             {"runtime-template", "bin/resource-packs.txt"},
             {"shader", "media/ogre/Test.vert"},
@@ -145,7 +146,8 @@ namespace
         for (const ResourcePackRequirement &requirement : requirements())
         {
             if (requirement.category == "runtime-template" ||
-                requirement.category == "recipe")
+                requirement.category == "recipe" ||
+                requirement.category == "tool")
             {
                 continue;
             }
@@ -249,6 +251,21 @@ namespace
                 root, "recipe", "Recipe Override", 1,
                 {{"media/recipes/Base.recipe", "override\n"}});
             check("G1/reject-unversioned-recipe-override",
+                  throwsContaining(
+                      [&]
+                      {
+                          ResourcePackResolver resolver;
+                          resolver.freeze(root.string(), requirements(),
+                                          {pack.string()});
+                      },
+                      "stale or unsupported override"));
+        }
+        {
+            const fs::path root = freshRoot("tool-override");
+            const fs::path pack = createPack(
+                root, "tool", "Tool Override", 1,
+                {{"media/tools/Base.tool", "override\n"}});
+            check("G3/reject-unversioned-tool-override",
                   throwsContaining(
                       [&]
                       {

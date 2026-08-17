@@ -35,6 +35,7 @@
 #include "../Diagnostics/RuntimeProfiler.h"
 #include "../Item/RecipeRegistry.h"
 #include "../Item/CraftingSession.h"
+#include "../Item/ToolRegistry.h"
 #include "../Player/Player.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/GameApplicationFlow.h"
@@ -1073,8 +1074,12 @@ namespace
             }
             if (m_userInterface != nullptr)
             {
+                const MiningProgressSnapshot progress =
+                    m_sandbox != nullptr
+                        ? m_sandbox->getMiningProgress()
+                        : MiningProgressSnapshot();
                 m_userInterface->beginFrame(event.timeSinceLastFrame,
-                                            m_frameWorldStats);
+                                            m_frameWorldStats, progress);
             }
             return true;
         }
@@ -1160,6 +1165,7 @@ namespace
             if (m_applicationFlow.state() !=
                 GameApplicationState::Playing)
             {
+                m_sandbox->cancelMiningProgress();
                 clearTransientInput();
                 return;
             }
@@ -1900,6 +1906,8 @@ int runOgreBootstrap(bool validateOnly)
         validateStartupResources(root, startupResources);
         runtimeRecipeRegistry().freezeFromResourceView(
             runtimeResourcePackResolver());
+        runtimeToolRegistry().freezeFromResourceView(
+            runtimeResourcePackResolver());
         const char *manifestOutput =
             std::getenv("HELLOMINE3D_EFFECTIVE_MANIFEST_OUT");
         if (manifestOutput != nullptr && manifestOutput[0] != '\0')
@@ -1924,6 +1932,8 @@ int runOgreBootstrap(bool validateOnly)
                   << '\n';
         std::cout << "[RECIPE_REGISTRY] frozen=1 recipes="
                   << runtimeRecipeRegistry().recipes().size() << '\n';
+        std::cout << "[TOOL_REGISTRY] frozen=1 tools="
+                  << runtimeToolRegistry().tools().size() << '\n';
         runtimeOperationTimings().markLatestActive(
             RuntimeOperationKind::Startup);
         OgreBootstrap bootstrap;

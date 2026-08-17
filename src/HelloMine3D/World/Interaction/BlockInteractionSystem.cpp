@@ -1,6 +1,7 @@
 #include "BlockInteractionSystem.h"
 
 #include "../../Item/Material.h"
+#include "../../Item/ToolRegistry.h"
 #include "../../Player/Player.h"
 #include "../../Sandbox/Events/BlockEvents.h"
 #include "../../Sandbox/Events/PlayerEvents.h"
@@ -9,12 +10,40 @@
 #include "../Block/BlockDefinition.h"
 #include "../World.h"
 
+#include <algorithm>
+
 namespace {
 bool isReplaceable(BlockId id)
 {
     return id == BlockId::Air || id == BlockId::Water;
 }
 } // namespace
+
+BlockMiningEvaluation BlockInteractionSystem::evaluateMining(
+    BlockId blockId, const ItemStack &heldItem)
+{
+    const BlockDefinition &block =
+        BlockDatabase::get().getDefinition(blockId);
+    BlockMiningEvaluation result;
+    const ToolDefinition *tool =
+        runtimeToolRegistry().find(heldItem.getMaterial().id);
+    result.matchingClass =
+        block.miningClass == MiningClass::None ||
+        (tool != nullptr && tool->miningClass == block.miningClass);
+    result.meetsTier =
+        block.requiredToolTier == 0 ||
+        (result.matchingClass && tool != nullptr &&
+         tool->tier >= block.requiredToolTier);
+    if (tool != nullptr && block.miningClass != MiningClass::None &&
+        tool->miningClass == block.miningClass) {
+        result.speedMultiplier = tool->speedMultiplier;
+    }
+    result.requiredSeconds = std::max(
+        0.05f, block.hardness / result.speedMultiplier);
+    result.dropAllowed = block.wrongToolDrops ||
+                         (result.matchingClass && result.meetsTier);
+    return result;
+}
 
 bool BlockInteractionSystem::breakBlock(World &world, Player &player,
                                         const glm::vec3 &location)
@@ -34,7 +63,14 @@ bool BlockInteractionSystem::breakBlock(World &world, Player &player,
     }
 
     const auto &definition = BlockDatabase::get().getDefinition(blockId);
-    const Material::ID drop = definition.behavior->getDrop(definition, block);
+    const BlockMiningEvaluation mining =
+        evaluateMining(blockId, player.getHeldItems());
+    const Material::ID drop =
+        mining.dropAllowed
+            ? definition.behavior->getDrop(definition, block)
+            : Material::ID::Nothing;
+    const Inventory::ToolDamageResult toolDamage =
+        player.damageHeldTool();
     if (drop != Material::ID::Nothing) {
         if (player.addItem(Material::toMaterial(drop))) {
             world.getEventBus().publish(PlayerInventoryChangedEvent(
@@ -55,6 +91,13 @@ bool BlockInteractionSystem::breakBlock(World &world, Player &player,
     world.getEventBus().publish(BlockBreakEvent(blockPosition, blockId));
     world.getEventBus().publish(
         BlockChangedEvent(blockPosition, blockId, BlockId::Air));
+    if (toolDamage != Inventory::ToolDamageResult::NotTool) {
+        world.getEventBus().publish(PlayerInventoryChangedEvent(
+            DefaultPlayerActorId, Material::ID::Nothing, 0,
+            toolDamage == Inventory::ToolDamageResult::Broken
+                ? "tool_broken"
+                : "tool_damaged"));
+    }
     return true;
 }
 

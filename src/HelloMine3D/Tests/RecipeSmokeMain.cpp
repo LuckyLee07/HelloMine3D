@@ -1,5 +1,6 @@
 #include "../Item/RecipeRegistry.h"
 #include "../Item/CraftingSession.h"
+#include "../Item/ToolRegistry.h"
 #include "../Util/ResourcePackResolver.h"
 
 #include <cstdlib>
@@ -62,6 +63,24 @@ end
 )";
     }
 
+    std::string validTools()
+    {
+        return R"(# HelloMine3D tool registry v1
+tool hellomine:wooden_pickaxe
+class pickaxe
+tier 1
+speed 2
+durability 16
+end
+tool hellomine:stone_pickaxe
+class pickaxe
+tier 2
+speed 4
+durability 32
+end
+)";
+    }
+
     std::string oneRecipe(const std::string &body)
     {
         return "# HelloMine3D recipe registry v1\n" + body;
@@ -94,7 +113,7 @@ end
         }
         check("G1/material-ids-roundtrip",
               roundTrip &&
-                  static_cast<int>(Material::ID::Workbench) ==
+                  static_cast<int>(Material::ID::StonePickaxe) ==
                       static_cast<int>(Material::ID::Count) - 1 &&
                   static_cast<int>(BlockId::Workbench) ==
                       static_cast<int>(BlockId::NUM_TYPES) - 1);
@@ -756,10 +775,140 @@ end
                                   session.preview(recipes, inventory), 0)
                        .succeeded());
     }
+
+    void caseToolProgression()
+    {
+        ToolRegistry registry;
+        registry.freeze({{"base.tool", validTools()}});
+        const ToolDefinition *wood =
+            registry.find(Material::ID::WoodenPickaxe);
+        const ToolDefinition *stone =
+            registry.find(Material::ID::StonePickaxe);
+        check("G3/tool-registry-freezes-complete-base-set",
+              registry.isFrozen() && registry.tools().size() == 2 &&
+                  wood != nullptr && stone != nullptr);
+        check("G3/tool-stats-are-data-driven",
+              wood != nullptr && wood->miningClass == MiningClass::Pickaxe &&
+                  wood->tier == 1 && wood->speedMultiplier == 2.0f &&
+                  wood->maxDurability == 16 && stone != nullptr &&
+                  stone->tier == 2 && stone->speedMultiplier == 4.0f &&
+                  stone->maxDurability == 32);
+        check("G3/tool-registry-is-startup-frozen",
+              throwsContaining(
+                  [&registry]
+                  {
+                      registry.freeze({{"again.tool", validTools()}});
+                  },
+                  "already frozen"));
+
+        const std::string duplicate = validTools() +
+            "tool hellomine:wooden_pickaxe\nclass pickaxe\n"
+            "tier 1\nspeed 2\ndurability 16\nend\n";
+        check("G3/duplicate-tool-is-rejected",
+              throwsContaining(
+                  [&duplicate]
+                  {
+                      ToolRegistry invalid;
+                      invalid.freeze({{"duplicate.tool", duplicate}});
+                  },
+                  "Duplicate tool material"));
+        check("G3/missing-tool-definition-is-rejected",
+              throwsContaining(
+                  []
+                  {
+                      ToolRegistry invalid;
+                      invalid.freeze({{"missing.tool",
+                          "# HelloMine3D tool registry v1\n"
+                          "tool hellomine:wooden_pickaxe\n"
+                          "class pickaxe\ntier 1\nspeed 2\n"
+                          "durability 16\nend\n"}});
+                  },
+                  "Missing tool definition"));
+        check("G3/invalid-tool-speed-is-rejected",
+              throwsContaining(
+                  []
+                  {
+                      std::string source = validTools();
+                      source.replace(source.find("speed 2"), 7,
+                                     "speed 99");
+                      ToolRegistry invalid;
+                      invalid.freeze({{"speed.tool", source}});
+                  },
+                  "speed must be in"));
+
+        RecipeRegistry recipes;
+        recipes.freeze({{"tools.recipe", oneRecipe(
+            "recipe hellomine:wooden_pickaxe shaped\n"
+            "row hellomine:oak_bark hellomine:oak_bark hellomine:oak_bark\n"
+            "row _ hellomine:oak_bark _\n"
+            "row _ hellomine:oak_bark _\n"
+            "output hellomine:wooden_pickaxe 1\nend\n"
+            "recipe hellomine:stone_pickaxe shaped\n"
+            "row hellomine:stone hellomine:stone hellomine:stone\n"
+            "row _ hellomine:oak_bark _\n"
+            "row _ hellomine:oak_bark _\n"
+            "output hellomine:stone_pickaxe 1\nend\n")}});
+        Inventory inventory;
+        inventory.addItem(Material::OAK_BARK_BLOCK, 7);
+        inventory.addItem(Material::STONE_BLOCK, 3);
+        CraftingSession session(CraftingSession::WorkbenchGridSize);
+        session.setCell(0, Material::ID::OakBark);
+        session.setCell(1, Material::ID::OakBark);
+        session.setCell(2, Material::ID::OakBark);
+        session.setCell(4, Material::ID::OakBark);
+        session.setCell(7, Material::ID::OakBark);
+        const CraftingPreview woodPreview = session.preview(recipes, inventory);
+        const CraftingCommitResult woodResult =
+            session.commit(recipes, inventory, woodPreview, 1);
+        int woodenDurability = 0;
+        for (const InventorySlotState &slot : inventory.getSaveState()) {
+            if (slot.materialId == Material::ID::WoodenPickaxe) {
+                woodenDurability = slot.durability;
+            }
+        }
+        check("G3/workbench-crafts-full-durability-wooden-pickaxe",
+              woodPreview.recipeId == "hellomine:wooden_pickaxe" &&
+                  woodResult.succeeded() && woodenDurability == 16);
+
+        session.clear();
+        session.setCell(0, Material::ID::Stone);
+        session.setCell(1, Material::ID::Stone);
+        session.setCell(2, Material::ID::Stone);
+        session.setCell(4, Material::ID::OakBark);
+        session.setCell(7, Material::ID::OakBark);
+        const CraftingPreview stonePreview = session.preview(recipes, inventory);
+        const CraftingCommitResult stoneResult =
+            session.commit(recipes, inventory, stonePreview, 1);
+        int stoneDurability = 0;
+        for (const InventorySlotState &slot : inventory.getSaveState()) {
+            if (slot.materialId == Material::ID::StonePickaxe) {
+                stoneDurability = slot.durability;
+            }
+        }
+        check("G3/crafting-chain-produces-stone-pickaxe",
+              stonePreview.recipeId == "hellomine:stone_pickaxe" &&
+                  stoneResult.succeeded() && stoneDurability == 32 &&
+                  inventory.count(Material::ID::Stone) == 0);
+
+        Inventory unstackable(2);
+        check("G3/tools-are-unstackable-per-slot",
+              unstackable.addItem(Material::WOODEN_PICKAXE, 2) == 2 &&
+                  unstackable.getSlot(0).getNumInStack() == 1 &&
+                  unstackable.getSlot(1).getNumInStack() == 1);
+        Inventory damaged(1);
+        damaged.addItem(Material::WOODEN_PICKAXE, 1, 2);
+        const auto firstDamage = damaged.damageSelectedTool();
+        const auto secondDamage = damaged.damageSelectedTool();
+        check("G3/durability-decrements-and-breaks-at-zero",
+              firstDamage == Inventory::ToolDamageResult::Damaged &&
+                  secondDamage == Inventory::ToolDamageResult::Broken &&
+                  damaged.getSelectedStack().isEmpty());
+    }
 }
 
 int main()
 {
+    runtimeToolRegistry().freeze({{"runtime.tool", validTools()}});
     caseMaterialIds();
     caseValidAndFrozen();
     caseStrictParsing();
@@ -771,7 +920,8 @@ int main()
     caseAtomicFailureAndLimits();
     caseFrozenBaseResourceView();
     caseCraftingSession();
-    constexpr int ExpectedChecks = 54;
+    caseToolProgression();
+    constexpr int ExpectedChecks = 64;
     if (checks != ExpectedChecks) {
         ++failures;
         std::cout << "[RECIPE_TEST] FAIL G1/expected-check-count"

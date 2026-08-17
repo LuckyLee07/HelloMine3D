@@ -20,7 +20,8 @@ namespace
 
     const std::set<std::string> KnownMetadataKeys = {
         "actor",          "actor_count",       "created_utc",
-        "generator",      "inventory_count",   "inventory_slot",
+        "generator",      "inventory_count",   "inventory_format",
+        "inventory_slot",
         "last_build",     "last_played_utc",   "player_held",
         "player_position", "player_present",    "player_rotation",
         "seed",           "spawn",             "version",

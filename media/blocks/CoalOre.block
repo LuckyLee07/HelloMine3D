@@ -21,3 +21,15 @@ Light
 
 Collidable
 1
+
+Hardness
+2.0
+
+MiningClass
+pickaxe
+
+RequiredToolTier
+1
+
+WrongToolDrops
+0

@@ -75,7 +75,7 @@ bool ChestContainer::transferFromPlayer(World &world, Player &player,
     }
 
     const ItemStack &source = player.getInventorySlot(playerSlot);
-    if (source.isEmpty()) {
+    if (source.isEmpty() || source.getMaterial().isTool) {
         return false;
     }
     const Material::ID materialId = source.getMaterial().id;

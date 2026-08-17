@@ -47,7 +47,8 @@ const InventorySlotState &ContainerInventory::getSlot(int index) const
 
 int ContainerInventory::addItem(const Material &material, int amount)
 {
-    if (material.id == Material::ID::Nothing || amount <= 0) {
+    if (material.id == Material::ID::Nothing || material.isTool ||
+        amount <= 0) {
         return 0;
     }
 
@@ -167,7 +168,7 @@ bool ContainerInventory::deserialize(const std::string &payload,
         if ((amount == 0 && materialId != Material::ID::Nothing) ||
             (amount > 0 &&
              (materialId == Material::ID::Nothing ||
-              amount > material.maxStackSize))) {
+              amount > material.maxStackSize || material.isTool))) {
             return reject("container stack violates material limits");
         }
         parsed.m_slots[static_cast<std::size_t>(index)] =

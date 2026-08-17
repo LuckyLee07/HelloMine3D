@@ -424,6 +424,8 @@ project "HelloMine3DRecipeSmoke"
         source_dir .. "/Item/Inventory.cpp",
         source_dir .. "/Item/CraftingSession.h",
         source_dir .. "/Item/CraftingSession.cpp",
+        source_dir .. "/Item/ToolRegistry.h",
+        source_dir .. "/Item/ToolRegistry.cpp",
         source_dir .. "/Item/RecipeRegistry.h",
         source_dir .. "/Item/RecipeRegistry.cpp",
         source_dir .. "/Util/NonCopyable.h",

@@ -221,7 +221,11 @@ BlockDefinition makeDefinition(const std::string &fileName,
     definition.id = data.id;
     definition.stringId = makeStringId(fileName);
     definition.name = data.name.empty() ? fileName : data.name;
-    definition.hardness = data.id == BlockId::Air ? 0.f : 1.f;
+    definition.hardness =
+        data.id == BlockId::Air ? 0.f : data.hardnessSeconds;
+    definition.miningClass = data.miningClass;
+    definition.requiredToolTier = data.requiredToolTier;
+    definition.wrongToolDrops = data.wrongToolDrops;
     definition.collidable = data.isCollidable;
     definition.transparent = !data.isOpaque;
     definition.liquid = data.id == BlockId::Water ||

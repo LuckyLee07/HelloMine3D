@@ -2,6 +2,7 @@
 
 #include "WorldCatalogue.h"
 
+#include "../../Item/ToolRegistry.h"
 #include "../../Util/ResourcePaths.h"
 
 #include <cstddef>
@@ -28,6 +29,7 @@ namespace fs = std::filesystem;
 
 constexpr std::size_t MaxStoredInventorySlots = 4096;
 constexpr std::size_t MaxStoredActors = 65536;
+constexpr int CurrentInventoryFormat = 2;
 
 bool createDirectory(const std::string &path)
 {
@@ -158,6 +160,8 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
     WorldSaveData loaded;
     std::unordered_set<std::string> singletonFields;
     bool inventoryCountSeen = false;
+    bool inventoryFormatSeen = false;
+    int inventoryFormat = 1;
     std::size_t expectedInventoryCount = 0;
     bool actorCountSeen = false;
     std::size_t expectedActorCount = 0;
@@ -255,16 +259,29 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
             loaded.playerState.inventory.reserve(expectedInventoryCount);
             inventoryCountSeen = true;
         }
+        else if (key == "inventory_format") {
+            if (inventoryFormatSeen ||
+                !(input >> inventoryFormat) ||
+                inventoryFormat < 1 ||
+                inventoryFormat > CurrentInventoryFormat ||
+                !loaded.playerState.inventory.empty()) {
+                return fail("invalid, duplicate or misplaced inventory_format");
+            }
+            inventoryFormatSeen = true;
+        }
         else if (key == "inventory_slot") {
             int materialId = 0;
             int amount = 0;
+            int durability = 0;
             if (!(input >> materialId >> amount) ||
+                (inventoryFormat >= 2 && !(input >> durability)) ||
                 loaded.playerState.inventory.size() >=
                     MaxStoredInventorySlots) {
                 return fail("invalid inventory_slot");
             }
             loaded.playerState.inventory.push_back(
-                {static_cast<Material::ID>(materialId), amount});
+                {static_cast<Material::ID>(materialId), amount,
+                 durability});
         }
         else if (key == "actor_count") {
             if (!claimSingleton(key) || !(input >> expectedActorCount) ||
@@ -343,11 +360,24 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
     }
     for (const PlayerInventorySlot &slot : loaded.playerState.inventory) {
         const int materialId = static_cast<int>(slot.materialId);
+        const Material &material = Material::toMaterial(slot.materialId);
+        const ToolDefinition *tool =
+            material.isTool
+                ? runtimeToolRegistry().find(slot.materialId)
+                : nullptr;
         if (materialId < static_cast<int>(Material::ID::Nothing) ||
             materialId >= static_cast<int>(Material::ID::Count) ||
             slot.amount < 0 ||
             (slot.materialId == Material::ID::Nothing && slot.amount != 0) ||
-            (slot.materialId != Material::ID::Nothing && slot.amount == 0)) {
+            (slot.materialId != Material::ID::Nothing && slot.amount == 0) ||
+            slot.amount > material.maxStackSize ||
+            slot.durability < 0 ||
+            (material.isTool &&
+             (tool == nullptr ||
+              inventoryFormat < CurrentInventoryFormat ||
+              slot.amount != 1 || slot.durability == 0 ||
+              slot.durability > tool->maxDurability)) ||
+            (!material.isTool && slot.durability != 0)) {
             return fail("inventory slot contains invalid material state");
         }
     }
@@ -437,10 +467,11 @@ bool WorldSave::save(const WorldSaveData &data,
     writeVec3(output, data.playerState.rotation);
     output << '\n';
     output << "player_held " << data.playerState.heldItem << '\n';
+    output << "inventory_format " << CurrentInventoryFormat << '\n';
     output << "inventory_count " << data.playerState.inventory.size() << '\n';
     for (const auto &slot : data.playerState.inventory) {
         output << "inventory_slot " << static_cast<int>(slot.materialId) << ' '
-               << slot.amount << '\n';
+               << slot.amount << ' ' << slot.durability << '\n';
     }
     output << "actor_count " << data.actors.size() << '\n';
     for (const ActorSaveState &actor : data.actors) {
