@@ -25,6 +25,13 @@ $SmokePath = [System.IO.Path]::GetFullPath($SmokePath)
 $OutputDir = [System.IO.Path]::GetFullPath($OutputDir)
 $ExamplePack = (Resolve-Path (Join-Path $RepoRoot `
     "packs\example-stone")).Path
+$BaseManifest = (Resolve-Path (Join-Path $RepoRoot `
+    "media\resource-manifest.txt")).Path
+$ExpectedEntryCount = @(
+    Get-Content -LiteralPath $BaseManifest | Where-Object {
+        $_ -and -not $_.StartsWith('#')
+    }
+).Count
 
 foreach ($required in @($ExePath, $SmokePath)) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
@@ -113,9 +120,9 @@ function Invoke-PackStartup {
     }
     $entries = @($lines | Where-Object { $_ -and -not $_.StartsWith('#') })
     $sorted = @($entries | Sort-Object -CaseSensitive)
-    if ($entries.Count -ne 42 -or
+    if ($entries.Count -ne $ExpectedEntryCount -or
         (Compare-Object $entries $sorted -SyncWindow 0)) {
-        throw "$Name effective manifest is not a sorted 42-entry view."
+        throw "$Name effective manifest is not a sorted $ExpectedEntryCount-entry view."
     }
     return [pscustomobject]@{
         Path = $manifestPath
@@ -126,9 +133,9 @@ function Invoke-PackStartup {
 }
 
 $base = Invoke-PackStartup -Name "base" -PackList "" `
-    -ExpectedMarker "[RESOURCE_PACK] enabled=0 overrides=0 effective=42"
+    -ExpectedMarker "[RESOURCE_PACK] enabled=0 overrides=0 effective=$ExpectedEntryCount"
 $packed = Invoke-PackStartup -Name "example" -PackList $ExamplePack `
-    -ExpectedMarker "[RESOURCE_PACK] enabled=1 overrides=1 effective=42"
+    -ExpectedMarker "[RESOURCE_PACK] enabled=1 overrides=1 effective=$ExpectedEntryCount"
 
 $expectedOverride = 'block|media/blocks/Stone.block|Example Stone'
 if ($expectedOverride -notin $packed.Entries -or
@@ -147,4 +154,4 @@ if (Compare-Object $baseWithoutStone $packedWithoutStone -SyncWindow 0) {
 
 Write-Host "[RESOURCE_PACK_VERIFY] PASS base_hash=$($base.Hash)"
 Write-Host "[RESOURCE_PACK_VERIFY] PASS packed_hash=$($packed.Hash) override=$expectedOverride"
-Write-Host "[RESOURCE_PACK_VERIFY] status=PASS resolver_checks=18 startup_cases=2 entries=42"
+Write-Host "[RESOURCE_PACK_VERIFY] status=PASS resolver_checks=18 startup_cases=2 entries=$ExpectedEntryCount"

@@ -202,8 +202,18 @@ namespace CrashDiagnosticsPlatform
 
     [[noreturn]] void triggerControlledCrash() noexcept
     {
-        RaiseException(ControlledCrashExceptionCode,
-                       EXCEPTION_NONCONTINUABLE, 0, nullptr);
+        // Route the deterministic validation exception through the same dump
+        // writer with real exception pointers. Windows does not guarantee
+        // that an application-raised exception reaches the process-wide
+        // unhandled filter before another runtime intercepts it.
+        __try
+        {
+            RaiseException(ControlledCrashExceptionCode,
+                           EXCEPTION_NONCONTINUABLE, 0, nullptr);
+        }
+        __except (topLevelExceptionFilter(GetExceptionInformation()))
+        {
+        }
         TerminateProcess(GetCurrentProcess(), ControlledCrashExceptionCode);
         for (;;)
         {

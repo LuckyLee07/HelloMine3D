@@ -58,7 +58,7 @@
 
 | 批次 | 合入前最低证据 | 可后置证据 |
 | ---- | -------------- | ---------- |
-| `BLD-1` | 重新生成 VS 工程；WorldRuntimeSmoke/Soak 项目同时包含崩溃源和 `dbghelp.lib`；Windows Debug 编译及定向目标通过。 | Release 受控 dump 和干净包。 |
+| `BLD-1` | 重新生成 VS 工程；WorldRuntimeSmoke/Soak 项目同时包含崩溃源和 `dbghelp.lib`；Windows Debug/Release 全量编译及定向目标通过。 | 已于 2026-08-17 通过后台 Release 受控 dump 和干净包。 |
 | `K4` | WorldCatalogue、StorageTransaction、WorldBackup 定向测试；创建/重命名/删除恢复的路径与故障边界；一次菜单交互冒烟。 | 正式真人输入记录和发行包恢复演练。 |
 | `G2` | RecipeSmoke；库存/制作状态守恒；预览无副作用；提交失败原子性；关闭、满背包、连点和重载。 | UI 截图和完整流程真人记录。 |
 | `G3` | 工具表解析；破坏进度状态机；等级/掉落/耐久边界；物品实例存档迁移；固定动作性能采样。 | 正式 Q1/Q3 预算和长稳。 |

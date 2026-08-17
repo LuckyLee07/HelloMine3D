@@ -225,7 +225,8 @@ function Get-BuildIdentity {
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($headCommit)) {
         throw "Unable to resolve Git build identity."
     }
-    $diffText = (& git -C $Root diff -- src premake 2>$null | Out-String)
+    $diffText = (& git -C $Root -c core.safecrlf=false diff -- src premake `
+        2>$null | Out-String)
     if ($LASTEXITCODE -ne 0) {
         throw "Unable to resolve Git source state."
     }

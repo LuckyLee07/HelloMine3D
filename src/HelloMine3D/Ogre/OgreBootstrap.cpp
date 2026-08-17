@@ -362,7 +362,23 @@ namespace
 
         void createWindowAndScene()
         {
-            m_window = m_root->initialise(true, WindowTitle);
+            const bool hiddenWindow = isTrueValue(
+                std::getenv("HELLOMINE3D_WINDOW_HIDDEN"));
+            if (hiddenWindow)
+            {
+                m_root->initialise(false, WindowTitle);
+                Ogre::NameValuePairList windowParameters;
+                windowParameters["hidden"] = "true";
+                m_window = m_root->createRenderWindow(
+                    WindowTitle,
+                    static_cast<unsigned int>(m_config.windowX),
+                    static_cast<unsigned int>(m_config.windowY), false,
+                    &windowParameters);
+            }
+            else
+            {
+                m_window = m_root->initialise(true, WindowTitle);
+            }
             if (m_window == nullptr)
             {
                 throw std::runtime_error("Ogre failed to create a window.");

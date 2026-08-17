@@ -66,13 +66,16 @@ restore. Portable and real storage fixtures are green; closure still depends on
 Q1's approved target-Windows Release budgets.
 H1 now has a portable path/trigger contract and a Windows SDK DbgHelp backend
 installed before Ogre construction. The dedicated writer thread, one-shot
-handler and controlled post-save first-frame crash are implemented; the target
-Windows Release dump harness remains the closure evidence.
+handler and controlled post-save first-frame crash are implemented. The target
+Windows Release harness runs in a hidden background window, writes one non-empty
+local dump, reopens the published save and confirms that no pending save
+candidate remains; upload stays disabled.
 
-The current Windows gate has one known build blocker: the world-runtime and
-soak targets compile the Windows crash backend without inheriting `dbghelp.lib`.
-Restoring a buildable mainline is the immediate engineering fix; formal crash,
-performance, physical-input and packaging evidence follows the gameplay slice.
+The Windows build blocker is closed: every game-logic target that compiles the
+crash backend inherits `dbghelp.lib`. The full Debug/Release gate, thirteen
+targets, 346-check runtime stack, resource/startup diagnostics and clean package
+all pass. Formal performance budgets and physical-input evidence remain later
+quality-stage work while K4 and G2-G5 drive the gameplay slice.
 
 Native macOS acceptance (B3) is complete on an Apple M1 Pro through the full
 Debug/Release Xcode gate. R4 is also complete: the native arm64 Apple Clang

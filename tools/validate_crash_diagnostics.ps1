@@ -52,6 +52,7 @@ function Invoke-CrashClientCase {
     $startInfo.WorkingDirectory = Split-Path -Parent $ExePath
     $startInfo.UseShellExecute = $false
     $startInfo.CreateNoWindow = $true
+    $startInfo.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
 
@@ -60,6 +61,7 @@ function Invoke-CrashClientCase {
         HELLOMINE3D_SAVE_DIR = $SaveDirectory
         HELLOMINE3D_CRASH_DIR = $CrashDirectory
         HELLOMINE3D_CONTROLLED_CRASH = $ControlledCrash
+        HELLOMINE3D_WINDOW_HIDDEN = "1"
         HELLOMINE3D_VALIDATE_ONLY = $null
         HELLOMINE3D_EXIT_AFTER_FRAMES = $null
         HELLOMINE3D_SEED = "20260809"
@@ -149,7 +151,7 @@ $null = Invoke-CrashClientCase `
     -ValidateOnly $true `
     -ControlledCrash "" `
     -ExpectSuccess $true
-if ((Get-Dumps $OrdinaryCrash).Count -ne 0) {
+if (@(Get-Dumps $OrdinaryCrash).Count -ne 0) {
     throw "Validation-only startup unexpectedly produced a dump."
 }
 
@@ -160,7 +162,7 @@ $null = Invoke-CrashClientCase `
     -ValidateOnly $false `
     -ControlledCrash "" `
     -ExpectSuccess $true
-if ((Get-Dumps $OrdinaryCrash).Count -ne 0) {
+if (@(Get-Dumps $OrdinaryCrash).Count -ne 0) {
     throw "Ordinary real-window startup unexpectedly produced a dump."
 }
 
@@ -177,7 +179,7 @@ if (-not $controlledResult.Stdout.Contains(
         "controlled_crash=after-first-frame active_world_saved=1")) {
     throw "Controlled crash did not publish the active world first."
 }
-$dumps = Get-Dumps $ControlledCrash
+$dumps = @(Get-Dumps $ControlledCrash)
 if ($dumps.Count -ne 1 -or $dumps[0].Length -le 0) {
     throw "Controlled crash must produce exactly one non-empty dump; found $($dumps.Count)."
 }
@@ -194,7 +196,7 @@ $null = Invoke-CrashClientCase `
     -ValidateOnly $true `
     -ControlledCrash "" `
     -ExpectSuccess $true
-$dumpsAfterValidation = Get-Dumps $ControlledCrash
+$dumpsAfterValidation = @(Get-Dumps $ControlledCrash)
 if ($dumpsAfterValidation.Count -ne 1) {
     throw "Post-crash validation unexpectedly changed the dump count."
 }

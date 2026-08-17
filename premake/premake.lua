@@ -221,6 +221,7 @@ local function configure_game_logic_target()
 
     filter "system:windows"
         defines { "_CRT_SECURE_NO_WARNINGS" }
+        links { "dbghelp" }
 
     filter "system:macosx"
         linkoptions {
@@ -308,7 +309,6 @@ project(project_name)
         }
         links {
             "advapi32",
-            "dbghelp",
             "opengl32",
             "winmm",
             "gdi32",
