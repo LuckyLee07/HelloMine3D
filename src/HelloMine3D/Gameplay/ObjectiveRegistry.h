@@ -20,7 +20,8 @@ enum class ObjectiveType
     ReachLocation,
     PickupItem,
     ReopenWorld,
-    SmeltItem
+    SmeltItem,
+    ConsumeItem
 };
 
 struct ObjectiveDefinition

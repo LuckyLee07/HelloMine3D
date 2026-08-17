@@ -133,14 +133,32 @@ function Get-RelativeDistributionPath {
     return $Path.Substring($DistributionRoot.Length + 1).Replace('\', '/')
 }
 
+function Get-Sha256File {
+    param([string]$Path)
+    $stream = [System.IO.File]::OpenRead($Path)
+    try {
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            return [System.BitConverter]::ToString(
+                $sha256.ComputeHash($stream)).Replace('-', '')
+        }
+        finally {
+            $sha256.Dispose()
+        }
+    }
+    finally {
+        $stream.Dispose()
+    }
+}
+
 function Write-DistributionManifest {
     $records = @(
         Get-ChildItem -LiteralPath $DistributionRoot -Recurse -File |
             Where-Object { $_.FullName -ne $ManifestPath } |
             ForEach-Object {
                 $relative = Get-RelativeDistributionPath $_.FullName
-                $hash = (Get-FileHash -LiteralPath $_.FullName `
-                    -Algorithm SHA256).Hash.ToLowerInvariant()
+                $hash = (Get-Sha256File `
+                    -Path $_.FullName).ToLowerInvariant()
                 "$hash|$($_.Length)|$relative"
             } |
             Sort-Object -CaseSensitive
@@ -178,8 +196,8 @@ function Test-DistributionInventory {
             return $false
         }
         $expected = $declared[$relative]
-        $hash = (Get-FileHash -LiteralPath $file.FullName `
-            -Algorithm SHA256).Hash.ToLowerInvariant()
+        $hash = (Get-Sha256File `
+            -Path $file.FullName).ToLowerInvariant()
         if ($expected[0] -ne $hash -or
             [long]$expected[1] -ne $file.Length) {
             return $false
@@ -370,8 +388,7 @@ try {
 }
 finally { $stream.Dispose() }
 
-$archiveHash = (Get-FileHash -LiteralPath $ArchivePath `
-    -Algorithm SHA256).Hash
+$archiveHash = Get-Sha256File -Path $ArchivePath
 $summaryLines = @(
     "status=PASS",
     "distribution=$DistributionRoot",

@@ -74,13 +74,15 @@ bool LivingActor::damage(SandboxEventBus &eventBus, float amount,
     return true;
 }
 
-void LivingActor::heal(float amount)
+float LivingActor::heal(float amount)
 {
     if (!isAlive() || amount <= 0.f) {
-        return;
+        return 0.f;
     }
 
+    const float previousHealth = m_health;
     m_health = std::min(m_maxHealth, m_health + amount);
+    return m_health - previousHealth;
 }
 
 void LivingActor::revive()

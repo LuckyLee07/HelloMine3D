@@ -44,6 +44,7 @@
 #include "../Item/Material.h"
 #include "../Item/CraftingSession.h"
 #include "../Item/ContainerInventory.h"
+#include "../Item/FoodRegistry.h"
 #include "../Item/RecipeRegistry.h"
 #include "../Item/SmeltingRegistry.h"
 #include "../Item/ToolRegistry.h"
@@ -53,6 +54,7 @@
 #include "../Sandbox/Events/ChunkEvents.h"
 #include "../Sandbox/Events/CraftingEvents.h"
 #include "../Sandbox/Events/EntityEvents.h"
+#include "../Sandbox/Events/FoodEvents.h"
 #include "../Sandbox/Events/PlayerEvents.h"
 #include "../Sandbox/Events/SmeltingEvents.h"
 #include "../Sandbox/FixedTickScheduler.h"
@@ -202,6 +204,7 @@ class EventRecorder {
             SandboxEventType::PlayerInventoryChanged,
             SandboxEventType::CraftCompleted,
             SandboxEventType::SmeltCompleted,
+            SandboxEventType::FoodConsumed,
         };
         return types;
     }
@@ -3649,6 +3652,275 @@ void caseFurnaceProgression()
                   runtimeSmeltingRegistry(), parsed));
 }
 
+// ---------------------------------------------------------------------------
+// N3 - active food recovery, fixed-tick cooldown and version-six persistence
+// ---------------------------------------------------------------------------
+void caseFoodRecovery()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
+    Config config = makeConfig();
+    Camera camera(config);
+
+    const auto countMaterial = [](const Player &player,
+                                  Material::ID materialId) {
+        int amount = 0;
+        for (int slot = 0; slot < player.getInventorySlotCount(); ++slot) {
+            const ItemStack &stack = player.getInventorySlot(slot);
+            if (stack.getMaterial().id == materialId) {
+                amount += stack.getNumInStack();
+            }
+        }
+        return amount;
+    };
+
+    const auto directory = freshSaveDirectory("food_recovery");
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+    EventRecorder events(world.getEventBus());
+    player.addItem(Material::BREAD, 3);
+
+    check("N3/full-health-rejects-without-consuming",
+          world.useHeldFood() == FoodUseResult::FullHealth &&
+              countMaterial(player, Material::ID::Bread) == 3 &&
+              world.getFoodCooldownTicksRemaining() == 0 &&
+              events.count(SandboxEventType::FoodConsumed) == 0);
+
+    const bool damaged = world.damagePlayer(8.f);
+    const int beforeRejectedUses =
+        countMaterial(player, Material::ID::Bread);
+    const FoodUseResult paused = world.useHeldFood(false);
+    player.openCrafting(CraftingSession::PlayerGridSize);
+    const FoodUseResult uiBusy = world.useHeldFood();
+    player.closeCrafting();
+    check("N3/pause-and-ui-busy-reject-before-inventory-change",
+          damaged && paused == FoodUseResult::SimulationPaused &&
+              uiBusy == FoodUseResult::UiBusy &&
+              countMaterial(player, Material::ID::Bread) ==
+                  beforeRejectedUses &&
+              std::abs(world.getPlayerHealth() - 12.f) < 0.001f);
+
+    const FoodUseResult firstUse = world.useHeldFood();
+    check("N3/success-consumes-once-heals-and-publishes-once",
+          firstUse == FoodUseResult::Consumed &&
+              countMaterial(player, Material::ID::Bread) == 2 &&
+              std::abs(world.getPlayerHealth() - 18.f) < 0.001f &&
+              world.getFoodCooldownTicksRemaining() == 20 &&
+              events.count(SandboxEventType::FoodConsumed) == 1 &&
+              events.count(SandboxEventType::PlayerInventoryChanged) == 1);
+
+    const FoodUseResult immediateRepeat = world.useHeldFood();
+    for (int tick = 0; tick < 19; ++tick) {
+        world.tick(1000 + tick);
+    }
+    const FoodUseResult earlyRepeat = world.useHeldFood();
+    check("N3/cooldown-is-exact-and-rejected-uses-are-atomic",
+          immediateRepeat == FoodUseResult::CoolingDown &&
+              earlyRepeat == FoodUseResult::CoolingDown &&
+              world.getFoodCooldownTicksRemaining() == 1 &&
+              countMaterial(player, Material::ID::Bread) == 2 &&
+              events.count(SandboxEventType::FoodConsumed) == 1);
+
+    world.tick(1019);
+    const FoodUseResult secondUse = world.useHeldFood();
+    check("N3/recovery-clamps-to-max-health",
+          secondUse == FoodUseResult::Consumed &&
+              countMaterial(player, Material::ID::Bread) == 1 &&
+              std::abs(world.getPlayerHealth() -
+                       world.getPlayerMaxHealth()) < 0.001f &&
+              events.count(SandboxEventType::FoodConsumed) == 2);
+
+    for (int tick = 0; tick < 20; ++tick) {
+        world.tick(1100 + tick);
+    }
+    check("N3/full-health-remains-non-consuming-after-cooldown",
+          world.useHeldFood() == FoodUseResult::FullHealth &&
+              countMaterial(player, Material::ID::Bread) == 1 &&
+              world.getFoodCooldownTicksRemaining() == 0);
+
+    const bool lethal = world.damagePlayer(100.f);
+    const int breadBeforeDeathUse =
+        countMaterial(player, Material::ID::Bread);
+    const FoodUseResult deadUse = world.useHeldFood();
+    const bool deadSaved = world.save();
+    WorldSaveData deadState;
+    const bool deadLoaded = WorldSave(directory).load(deadState);
+    check("N3/dead-player-cannot-eat-and-zero-health-is-saveable",
+          lethal && deadUse == FoodUseResult::PlayerDead &&
+              countMaterial(player, Material::ID::Bread) ==
+                  breadBeforeDeathUse &&
+              deadSaved && deadLoaded && deadState.version == 6 &&
+              deadState.playerState.health == 0.f);
+    world.tick(1200);
+    check("N3/pending-death-respawns-on-next-fixed-tick",
+          std::abs(world.getPlayerHealth() -
+                   world.getPlayerMaxHealth()) < 0.001f &&
+              glm::length(player.position - world.getPlayerSpawnPoint()) <
+                  0.001f);
+
+    const auto persistedDirectory =
+        freshSaveDirectory("food_recovery_persisted");
+    {
+        Player persistedPlayer;
+        World persistedWorld(camera, config, persistedPlayer,
+                             persistedDirectory, false, 1);
+        persistedPlayer.addItem(Material::BREAD, 2);
+        const bool persistenceDamage = persistedWorld.damagePlayer(10.f);
+        const FoodUseResult persistenceUse =
+            persistedWorld.useHeldFood();
+        check("N3/prepare-damaged-cooldown-save-state",
+              persistenceDamage &&
+                  persistenceUse == FoodUseResult::Consumed &&
+                  std::abs(persistedWorld.getPlayerHealth() - 16.f) <
+                      0.001f &&
+                  persistedWorld.getFoodCooldownTicksRemaining() == 20 &&
+                  persistedWorld.save());
+    }
+    {
+        Player restoredPlayer;
+        World restoredWorld(camera, config, restoredPlayer,
+                            persistedDirectory, false, 1);
+        const bool restoredExactly =
+            std::abs(restoredWorld.getPlayerHealth() - 16.f) < 0.001f &&
+            restoredWorld.getFoodCooldownTicksRemaining() == 20 &&
+            countMaterial(restoredPlayer, Material::ID::Bread) == 1;
+        for (int tick = 0; tick < 20; ++tick) {
+            restoredWorld.tick(1300 + tick);
+        }
+        const FoodUseResult restoredUse = restoredWorld.useHeldFood();
+        const int restoredBread = countMaterial(
+            restoredPlayer, Material::ID::Bread);
+        check("N3/health-cooldown-and-inventory-resume-after-reload",
+              restoredExactly &&
+                  restoredUse == FoodUseResult::Consumed &&
+                  std::abs(restoredWorld.getPlayerHealth() - 20.f) <
+                      0.001f && restoredBread == 0,
+              "exact=" + std::to_string(restoredExactly ? 1 : 0) +
+                  " health=" +
+                  std::to_string(restoredWorld.getPlayerHealth()) +
+                  " cooldown=" + std::to_string(
+                      restoredWorld.getFoodCooldownTicksRemaining()) +
+                  " bread=" + std::to_string(restoredBread) +
+                  " result=" +
+                  std::to_string(static_cast<int>(restoredUse)));
+    }
+
+    const auto validationDirectory =
+        freshSaveDirectory("food_recovery_save_validation");
+    WorldSaveData valid;
+    valid.worldId = "n3-recovery-contract";
+    valid.worldName = "N3 Recovery Contract";
+    valid.seed = kValidationSeed;
+    valid.createdUtc = LegacyWorldTimestampUtc;
+    valid.lastPlayedUtc = LegacyWorldTimestampUtc;
+    valid.lastBuildIdentity = "validation";
+    valid.hasPlayerState = true;
+    valid.playerState.health = 7.f;
+    valid.playerState.foodCooldownTicks = 13;
+    valid.playerState.inventory = {{Material::ID::Bread, 1, 0}};
+    WorldSave recoverySave(validationDirectory);
+    WorldSaveData validRoundTrip;
+    check("N3/version-six-recovery-state-roundtrips",
+          recoverySave.save(valid) &&
+              recoverySave.load(validRoundTrip) &&
+              validRoundTrip.playerState.health == 7.f &&
+              validRoundTrip.playerState.foodCooldownTicks == 13);
+    WorldSaveData invalidHealth = valid;
+    invalidHealth.playerState.health = 21.f;
+    WorldSaveData invalidCooldown = valid;
+    invalidCooldown.playerState.foodCooldownTicks = 1201;
+    WorldSaveData preserved;
+    check("N3/invalid-recovery-state-preserves-last-good-save",
+          !recoverySave.save(invalidHealth) &&
+              !recoverySave.save(invalidCooldown) &&
+              recoverySave.load(preserved) &&
+              preserved.playerState.health == 7.f &&
+              preserved.playerState.foodCooldownTicks == 13);
+
+    const std::filesystem::path migrationRoot =
+        freshSaveDirectory("food_recovery_v5_migration");
+    const std::filesystem::path migratedWorld =
+        migrationRoot / "n3-v5-objectives";
+    std::filesystem::create_directories(migratedWorld);
+    std::filesystem::copy_file(
+        ResourcePaths::join(
+            ResourcePaths::projectRoot(),
+            "tools/fixtures/food/world-v5-objectives.meta"),
+        migratedWorld / "world.meta",
+        std::filesystem::copy_options::overwrite_existing);
+    const WorldManagementService management(migrationRoot.string());
+    const WorldManagementResult migrated =
+        management.prepareWorldForOpen("n3-v5-objectives");
+    WorldSaveData migratedData;
+    const bool migratedLoaded =
+        migrated.succeeded() &&
+        WorldSave(migratedWorld.string()).load(migratedData);
+    const bool preservedUnknownObjective =
+        std::find(migratedData.objectiveState.completedIds.begin(),
+                  migratedData.objectiveState.completedIds.end(),
+                  "future.optional") !=
+        migratedData.objectiveState.completedIds.end();
+    check("N3/version-five-objectives-survive-recovery-migration",
+          migratedLoaded && migratedData.version == 6 &&
+              migratedData.playerState.health == 20.f &&
+              migratedData.playerState.foodCooldownTicks == 0 &&
+              migratedData.objectiveState.progress.size() == 1 &&
+              migratedData.objectiveState.progress.front().id ==
+                  "alpha.craft_workbench" &&
+              migratedData.objectiveState.progress.front().value == 1 &&
+              preservedUnknownObjective);
+
+    const std::string objectiveSource =
+        "# HelloMine3D objective registry v1\n"
+        "version 1\n"
+        "objective n3.consume_bread\n"
+        "type consume_item\n"
+        "target hellomine:bread\n"
+        "required 1\n"
+        "prerequisite none\n"
+        "visible 1\n"
+        "optional 0\n"
+        "title \"Eat Bread\"\n"
+        "instruction \"Recover health.\"\n"
+        "feedback \"Recovered\"\n"
+        "end\n";
+    ObjectiveRegistry foodObjectives;
+    foodObjectives.freeze({{"n3.objective", objectiveSource}});
+    bool rejectedNonFoodTarget = false;
+    try {
+        std::string invalidObjective = objectiveSource;
+        invalidObjective.replace(
+            invalidObjective.find("target hellomine:bread"),
+            std::string("target hellomine:bread").size(),
+            "target hellomine:wheat");
+        ObjectiveRegistry invalid;
+        invalid.freeze({{"invalid.objective", invalidObjective}});
+    }
+    catch (const std::exception &error) {
+        rejectedNonFoodTarget =
+            std::string(error.what()).find("not food") !=
+            std::string::npos;
+    }
+    check("N3/consume-objective-requires-food-target",
+          rejectedNonFoodTarget &&
+              foodObjectives.find("n3.consume_bread") != nullptr);
+    Player objectivePlayer;
+    SandboxEventBus objectiveBus;
+    ObjectiveSystem foodObjectiveSystem(
+        foodObjectives, objectivePlayer, objectiveBus, {}, 0u, false);
+    objectiveBus.publish(FoodConsumedEvent(
+        DefaultPlayerActorId, Material::ID::Wheat, 3.f, 10.f, {}));
+    objectiveBus.publish(FoodConsumedEvent(
+        DefaultPlayerActorId, Material::ID::Bread, 0.f, 10.f, {}));
+    check("N3/failed-or-wrong-food-event-does-not-advance-objective",
+          foodObjectiveSystem.progress("n3.consume_bread") == 0);
+    objectiveBus.publish(FoodConsumedEvent(
+        DefaultPlayerActorId, Material::ID::Bread, 2.f, 12.f, {}));
+    check("N3/successful-food-event-completes-objective-once",
+          foodObjectiveSystem.isCompleted("n3.consume_bread") &&
+              foodObjectiveSystem.snapshot().sessionComplete);
+}
+
 std::string validAudioDefinitions()
 {
     return R"(# HelloMine3D audio definitions v1
@@ -3927,6 +4199,16 @@ end
 )";
 }
 
+std::string validFoodDefinitions()
+{
+    return R"(# HelloMine3D food registry v1
+food hellomine:bread
+restore 6
+cooldown_ticks 20
+end
+)";
+}
+
 // ---------------------------------------------------------------------------
 // G2 - player and workbench crafting focus boundary
 // ---------------------------------------------------------------------------
@@ -4153,7 +4435,7 @@ void caseToolMiningProgression()
     check("N1/version-three-migrates-with-empty-objective-state",
           legacyLoaded && loadedLegacyVersion == 3 &&
               legacyData.alphaJourneyFlags == 0u && legacyUpgraded &&
-              upgraded.find("version 5") != std::string::npos &&
+              upgraded.find("version 6") != std::string::npos &&
               upgraded.find("alpha_journey_flags 0") !=
                   std::string::npos &&
               upgraded.find("objective_definition_version 1") !=
@@ -4586,9 +4868,14 @@ void caseCombatAndRespawn()
           lethalPlayerDamage &&
               playerOrder == std::vector<SandboxEventType>{
                                  SandboxEventType::EntityDamage,
-                                 SandboxEventType::EntityDeath,
-                                 SandboxEventType::PlayerSpawn});
+                                 SandboxEventType::EntityDeath} &&
+              contactWorld.getPlayerHealth() == 0.f);
+    contactWorld.tick(tick++);
     check("D4/respawn-returns-to-saved-spawn",
+          playerOrder == std::vector<SandboxEventType>{
+                             SandboxEventType::EntityDamage,
+                             SandboxEventType::EntityDeath,
+                             SandboxEventType::PlayerSpawn} &&
           glm::length(contactPlayer.position -
                       contactWorld.getPlayerSpawnPoint()) < 0.001f &&
               glm::length(contactPlayer.velocity) < 0.001f &&
@@ -5192,12 +5479,15 @@ void caseDataDrivenObjectives()
             : nullptr;
     check("N1/base-objective-registry-is-versioned-and-complete",
           baseLoaded && baseRegistry.definitionVersion() == 1 &&
-              baseRegistry.definitions().size() == 16 &&
+              baseRegistry.definitions().size() == 18 &&
               baseRegistry.find("alpha.gather_wood") != nullptr &&
               baseRegistry.find("alpha.reopen_world") != nullptr &&
               baseRegistry.find("progression.smelt_iron") != nullptr &&
               baseRegistry.find("progression.smelt_iron")->type ==
                   ObjectiveType::SmeltItem &&
+              baseRegistry.find("survival.eat_bread") != nullptr &&
+              baseRegistry.find("survival.eat_bread")->type ==
+                  ObjectiveType::ConsumeItem &&
               baseReach != nullptr &&
               baseReach->type == ObjectiveType::ReachLocation &&
               !baseReach->visible && baseReach->optional);
@@ -5340,8 +5630,8 @@ void caseDataDrivenObjectives()
     WorldSaveData mismatchedFlags = validSave;
     mismatchedFlags.alphaJourneyFlags = 0u;
     WorldSaveData preserved;
-    check("N1/version-five-objective-state-roundtrips",
-          saved && loaded.version == 5 &&
+    check("N1/version-six-preserves-objective-state",
+          saved && loaded.version == 6 &&
               loaded.objectiveState.definitionVersion == 1 &&
               loaded.objectiveState.completedIds ==
                   validSave.objectiveState.completedIds &&
@@ -5371,8 +5661,8 @@ void caseDataDrivenObjectives()
     const bool migratedLoaded =
         migrated.succeeded() &&
         WorldSave(migratedWorld.string()).load(migratedData);
-    check("N1/version-four-flags-migrate-to-version-five-objectives",
-          migratedLoaded && migratedData.version == 5 &&
+    check("N1/version-four-flags-migrate-to-current-objectives",
+          migratedLoaded && migratedData.version == 6 &&
               migratedData.alphaJourneyFlags == 3u &&
               migratedData.objectiveState.definitionVersion == 1 &&
               migratedData.objectiveState.completedIds ==
@@ -6590,6 +6880,8 @@ int main()
             {{"runtime.tool", validToolDefinitions()}});
         runtimeSmeltingRegistry().freeze(
             {{"runtime.smelting", validSmeltingDefinitions()}});
+        runtimeFoodRegistry().freeze(
+            {{"runtime.food", validFoodDefinitions()}});
 
         caseDebugPanelStartupOption();
         caseFixedTickScheduler();
@@ -6629,6 +6921,7 @@ int main()
         caseBlockEntityLifecycle();
         caseChestContainer();
         caseFurnaceProgression();
+        caseFoodRecovery();
         caseWorkbenchCrafting();
         caseToolMiningProgression();
         caseNaturalMobPopulation();

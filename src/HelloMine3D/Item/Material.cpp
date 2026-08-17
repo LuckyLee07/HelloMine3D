@@ -30,6 +30,7 @@ namespace
         "hellomine:iron_ingot",
         "hellomine:iron_pickaxe",
         "hellomine:iron_sword",
+        "hellomine:bread",
     }};
 }
 
@@ -70,14 +71,16 @@ const Material Material::IRON_PICKAXE(ID::IronPickaxe, 1, false,
                                       "Iron Pickaxe", true);
 const Material Material::IRON_SWORD(ID::IronSword, 1, false,
                                     "Iron Sword", true);
+const Material Material::BREAD(ID::Bread, 99, false, "Bread", false, true);
 
 Material::Material(Material::ID id, int maxStack, bool isBlock,
-                   std::string &&name, bool isTool)
+                   std::string &&name, bool isTool, bool isFood)
     : id(id)
     , maxStackSize(maxStack)
     , isBlock(isBlock)
     , name(std::move(name))
     , isTool(isTool)
+    , isFood(isFood)
 {
 }
 
@@ -282,6 +285,9 @@ const Material &Material::toMaterial(Material::ID id)
 
         case IronSword:
             return IRON_SWORD;
+
+        case Bread:
+            return BREAD;
 
         default:
             return NOTHING;

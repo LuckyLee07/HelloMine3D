@@ -33,6 +33,8 @@ constexpr std::size_t MaxStoredInventorySlots = 4096;
 constexpr std::size_t MaxStoredActors = 65536;
 constexpr std::size_t MaxStoredObjectives = 256;
 constexpr int CurrentInventoryFormat = 2;
+constexpr float MaxStoredPlayerHealth = 20.f;
+constexpr int MaxStoredFoodCooldownTicks = 1200;
 static_assert(WorldSaveFormatVersion ==
                   WorldCatalogue::CurrentSaveFormatVersion,
               "World save and catalogue versions must match.");
@@ -203,6 +205,8 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
     bool actorCountSeen = false;
     std::size_t expectedActorCount = 0;
     bool alphaJourneySeen = false;
+    bool playerHealthSeen = false;
+    bool playerFoodCooldownSeen = false;
     bool objectiveDefinitionSeen = false;
     bool objectiveCompletedCountSeen = false;
     bool objectiveProgressCountSeen = false;
@@ -352,6 +356,20 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
                 return fail("invalid or duplicate player_held");
             }
         }
+        else if (key == "player_health") {
+            if (!claimSingleton(key) ||
+                !(input >> loaded.playerState.health)) {
+                return fail("invalid or duplicate player_health");
+            }
+            playerHealthSeen = true;
+        }
+        else if (key == "player_food_cooldown") {
+            if (!claimSingleton(key) ||
+                !(input >> loaded.playerState.foodCooldownTicks)) {
+                return fail("invalid or duplicate player_food_cooldown");
+            }
+            playerFoodCooldownSeen = true;
+        }
         else if (key == "inventory_count") {
             if (!claimSingleton(key) || !(input >> expectedInventoryCount) ||
                 expectedInventoryCount > MaxStoredInventorySlots) {
@@ -471,11 +489,24 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
         (loaded.version < 5 && objectiveFieldsPresent)) {
         return fail("objective state does not match save version");
     }
+    const bool playerRecoveryFieldsPresent =
+        playerHealthSeen || playerFoodCooldownSeen;
+    if ((loaded.version >= 6 &&
+         (!playerHealthSeen || !playerFoodCooldownSeen)) ||
+        (loaded.version < 6 && playerRecoveryFieldsPresent)) {
+        return fail("player recovery state does not match save version");
+    }
 
     if (!finiteVec3(loaded.spawnPoint) ||
         !finiteVec3(loaded.playerState.position) ||
         !finiteVec3(loaded.playerState.rotation) ||
-        !std::isfinite(loaded.worldTime) || loaded.activeGenerator.empty()) {
+        !std::isfinite(loaded.worldTime) ||
+        !std::isfinite(loaded.playerState.health) ||
+        loaded.playerState.health < 0.f ||
+        loaded.playerState.health > MaxStoredPlayerHealth ||
+        loaded.playerState.foodCooldownTicks < 0 ||
+        loaded.playerState.foodCooldownTicks > MaxStoredFoodCooldownTicks ||
+        loaded.activeGenerator.empty()) {
         return fail("world state contains a non-finite or empty field");
     }
     if (loaded.playerState.heldItem < 0 ||
@@ -610,6 +641,9 @@ bool WorldSave::save(const WorldSaveData &data,
     writeVec3(output, data.playerState.rotation);
     output << '\n';
     output << "player_held " << data.playerState.heldItem << '\n';
+    output << "player_health " << data.playerState.health << '\n';
+    output << "player_food_cooldown "
+           << data.playerState.foodCooldownTicks << '\n';
     output << "inventory_format " << CurrentInventoryFormat << '\n';
     output << "inventory_count " << data.playerState.inventory.size() << '\n';
     for (const auto &slot : data.playerState.inventory) {

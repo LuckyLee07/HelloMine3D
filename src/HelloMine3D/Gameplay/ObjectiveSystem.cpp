@@ -10,6 +10,7 @@
 #include "../Sandbox/Events/BlockEvents.h"
 #include "../Sandbox/Events/CraftingEvents.h"
 #include "../Sandbox/Events/EntityEvents.h"
+#include "../Sandbox/Events/FoodEvents.h"
 #include "../Sandbox/Events/PlayerEvents.h"
 #include "../Sandbox/Events/SandboxEventBus.h"
 #include "../Sandbox/Events/SmeltingEvents.h"
@@ -104,7 +105,8 @@ ObjectiveSystem::ObjectiveSystem(const ObjectiveRegistry& registry,
         SandboxEventType::BlockBreak,
         SandboxEventType::EntityDeath,
         SandboxEventType::ItemPickup,
-        SandboxEventType::SmeltCompleted};
+        SandboxEventType::SmeltCompleted,
+        SandboxEventType::FoodConsumed};
     for (SandboxEventType type : eventTypes)
     {
         m_subscriptions.push_back(eventBus.subscribe(
@@ -337,6 +339,19 @@ void ObjectiveSystem::consumeEvent(const SandboxEvent& event)
                     smelt.amount > 0)
                 {
                     addProgress(definition, smelt.amount);
+                }
+            }
+            break;
+        case SandboxEventType::FoodConsumed:
+            if (definition.type == ObjectiveType::ConsumeItem)
+            {
+                const auto& consumed =
+                    static_cast<const FoodConsumedEvent&>(event);
+                if (consumed.playerId == DefaultPlayerActorId &&
+                    consumed.materialId == definition.targetMaterial &&
+                    consumed.healthRestored > 0.f)
+                {
+                    addProgress(definition, 1);
                 }
             }
             break;

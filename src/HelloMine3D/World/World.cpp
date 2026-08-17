@@ -23,6 +23,7 @@
 #include "../Maths/Vector2XZ.h"
 #include "../Physics/AABB.h"
 #include "../Player/Player.h"
+#include "../Sandbox/Events/FoodEvents.h"
 #include "../Sandbox/Events/PlayerEvents.h"
 #include "../Util/ResourcePaths.h"
 #include "../Util/Random.h"
@@ -30,6 +31,7 @@
 #include "Chunk/ChunkUpdatePlanner.h"
 #include "Block/BlockDatabase.h"
 #include "Block/FurnaceContainer.h"
+#include "../Item/FoodRegistry.h"
 #include "../Item/SmeltingRegistry.h"
 #include "../Item/ToolRegistry.h"
 #include "Storage/WorldCatalogue.h"
@@ -351,7 +353,8 @@ World::World(const Camera &camera, const Config &config, Player &player,
     if (hasForcedPlayerPosition || hasForcedPlayerRotation) {
         player.velocity = glm::vec3(0.f);
         player.box.update(player.position);
-        m_worldSaveData.playerState = player.getSaveState();
+        m_worldSaveData.playerState.position = player.position;
+        m_worldSaveData.playerState.rotation = player.rotation;
         m_worldSaveData.hasPlayerState = true;
     }
     player.resetInterpolation();
@@ -366,6 +369,15 @@ World::World(const Camera &camera, const Config &config, Player &player,
     runtimeOperationTimings().markLatestActive(
         RuntimeOperationKind::WorldEntry);
     m_playerActor.syncFromPlayer(player);
+    if (hasSave && m_worldSaveData.hasPlayerState) {
+        ActorSaveState playerActorState = m_playerActor.getSaveState();
+        playerActorState.health = m_worldSaveData.playerState.health;
+        playerActorState.alive = playerActorState.health > 0.f;
+        m_playerActor.applySaveState(playerActorState);
+        m_foodCooldownTicksRemaining =
+            m_worldSaveData.playerState.foodCooldownTicks;
+        m_playerRespawnPending = !m_playerActor.isAlive();
+    }
     ensureRuntimeObjectiveRegistry();
     m_alphaJourney = std::make_unique<AlphaJourney>(
         player, m_eventBus, m_worldSaveData.objectiveState,
@@ -920,6 +932,8 @@ void World::tick(int worldTime)
         m_playerActor.syncFromPlayer(*m_player);
     }
     m_playerActor.tick(*this, 1.f / 20.f);
+    m_foodCooldownTicksRemaining =
+        std::max(0, m_foodCooldownTicksRemaining - 1);
     m_actorManager.tick(*this, 1.f / 20.f);
     applyMobContactDamage();
     runRandomTicks(worldTime);
@@ -929,6 +943,9 @@ void World::tick(int worldTime)
     }
     if (m_alphaJourney != nullptr) {
         m_alphaJourney->update(1.f / 20.f);
+    }
+    if (m_playerRespawnPending) {
+        respawnPlayer();
     }
 }
 
@@ -971,9 +988,57 @@ bool World::damagePlayer(float amount, ActorId sourceId)
     m_playerActor.syncFromPlayer(*m_player);
     const bool accepted = m_playerActor.damage(*this, amount, sourceId);
     if (accepted && !m_playerActor.isAlive()) {
-        respawnPlayer();
+        m_playerRespawnPending = true;
     }
     return accepted;
+}
+
+FoodUseResult World::useHeldFood(bool simulationRunning)
+{
+    if (!simulationRunning) {
+        return FoodUseResult::SimulationPaused;
+    }
+    if (m_player == nullptr) {
+        return FoodUseResult::PlayerUnavailable;
+    }
+    if (m_player->hasOpenContainer() || m_player->hasOpenCrafting()) {
+        return FoodUseResult::UiBusy;
+    }
+    if (!m_playerActor.isAlive()) {
+        return FoodUseResult::PlayerDead;
+    }
+    if (m_foodCooldownTicksRemaining > 0) {
+        return FoodUseResult::CoolingDown;
+    }
+
+    const ItemStack &held = m_player->getHeldItems();
+    if (held.isEmpty()) {
+        return FoodUseResult::EmptyHand;
+    }
+    const Material::ID materialId = held.getMaterial().id;
+    const FoodDefinition *food = runtimeFoodRegistry().find(materialId);
+    if (food == nullptr) {
+        return FoodUseResult::NotFood;
+    }
+    if (m_playerActor.getHealth() >= m_playerActor.getMaxHealth()) {
+        return FoodUseResult::FullHealth;
+    }
+    if (!m_player->removeHeldItem()) {
+        return FoodUseResult::InventoryRejected;
+    }
+
+    const float restored = m_playerActor.heal(food->healthRestored);
+    if (restored <= 0.f) {
+        m_player->addItem(Material::toMaterial(materialId), 1);
+        return FoodUseResult::InventoryRejected;
+    }
+    m_foodCooldownTicksRemaining = food->cooldownTicks;
+    m_eventBus.publish(FoodConsumedEvent(
+        DefaultPlayerActorId, materialId, restored,
+        m_playerActor.getHealth(), m_player->position));
+    m_eventBus.publish(PlayerInventoryChangedEvent(
+        DefaultPlayerActorId, materialId, -1, "food_consumed"));
+    return FoodUseResult::Consumed;
 }
 
 float World::getPlayerHealth() const
@@ -984,6 +1049,11 @@ float World::getPlayerHealth() const
 float World::getPlayerMaxHealth() const
 {
     return m_playerActor.getMaxHealth();
+}
+
+int World::getFoodCooldownTicksRemaining() const noexcept
+{
+    return m_foodCooldownTicksRemaining;
 }
 
 glm::vec3 World::getPlayerSpawnPoint() const
@@ -1043,6 +1113,7 @@ void World::respawnPlayer()
     preloadChunksAround(m_player->position);
     m_playerActor.revive();
     m_playerActor.syncFromPlayer(*m_player);
+    m_playerRespawnPending = false;
     m_eventBus.publish(PlayerSpawnEvent(
         DefaultPlayerActorId, 0, m_player->position));
 }
@@ -1522,6 +1593,7 @@ WorldDebugStats World::collectDebugStats()
     stats.naturalMobsDespawned = m_naturalMobsDespawned;
     stats.playerHealth = m_playerActor.getHealth();
     stats.playerMaxHealth = m_playerActor.getMaxHealth();
+    stats.foodCooldownTicksRemaining = m_foodCooldownTicksRemaining;
     stats.queuedChunkUpdates = m_chunkUpdateQueue.size();
     stats.randomTickSections = m_randomTickSections.size();
     for (const glm::ivec3 &sectionKey : m_randomTickSections) {
@@ -1745,6 +1817,9 @@ bool World::saveWorldState()
     m_worldSaveData.spawnPoint = m_playerSpawnPoint;
     if (m_player != nullptr) {
         m_worldSaveData.playerState = m_player->getSaveState();
+        m_worldSaveData.playerState.health = m_playerActor.getHealth();
+        m_worldSaveData.playerState.foodCooldownTicks =
+            m_foodCooldownTicksRemaining;
         m_worldSaveData.hasPlayerState = true;
     }
     m_worldSaveData.alphaJourneyFlags =

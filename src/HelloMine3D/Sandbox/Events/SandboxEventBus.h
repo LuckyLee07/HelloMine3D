@@ -23,6 +23,7 @@ enum class SandboxEventType {
     PlayerInventoryChanged,
     CraftCompleted,
     SmeltCompleted,
+    FoodConsumed,
 };
 
 struct SandboxEvent {

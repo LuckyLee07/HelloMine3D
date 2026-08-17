@@ -138,6 +138,11 @@ void SandboxRuntime::cancelMiningProgress() noexcept
 void SandboxRuntime::handlePlayerInteraction(
     World &world, const SandboxInputState &input, float deltaSeconds)
 {
+    if (input.useHeldFood) {
+        m_miningProgress.cancel();
+        world.useHeldFood(true);
+        return;
+    }
     if (m_interactionCooldownSeconds > 0.0f) {
         if (!input.breakBlock) {
             m_miningProgress.cancel();

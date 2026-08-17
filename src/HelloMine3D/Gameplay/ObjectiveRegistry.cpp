@@ -143,7 +143,8 @@ namespace
                type == ObjectiveType::PlaceBlock ||
                type == ObjectiveType::BreakBlock ||
                type == ObjectiveType::PickupItem ||
-               type == ObjectiveType::SmeltItem;
+               type == ObjectiveType::SmeltItem ||
+               type == ObjectiveType::ConsumeItem;
     }
 
     void validateDefinition(const ObjectiveSource& source,
@@ -179,6 +180,11 @@ namespace
             !Material::toMaterial(definition.targetMaterial).isBlock)
         {
             reject(source, line, "block objective target is not a block");
+        }
+        if (definition.type == ObjectiveType::ConsumeItem &&
+            !Material::toMaterial(definition.targetMaterial).isFood)
+        {
+            reject(source, line, "consume objective target is not food");
         }
         if (!definition.visible && !definition.optional)
         {
@@ -536,6 +542,7 @@ const char* ObjectiveRegistry::typeName(ObjectiveType type) noexcept
     case ObjectiveType::PickupItem: return "pickup_item";
     case ObjectiveType::ReopenWorld: return "reopen_world";
     case ObjectiveType::SmeltItem: return "smelt_item";
+    case ObjectiveType::ConsumeItem: return "consume_item";
     }
     return "unknown";
 }
@@ -552,7 +559,8 @@ bool ObjectiveRegistry::tryParseType(const std::string& value,
         {"reach_location", ObjectiveType::ReachLocation},
         {"pickup_item", ObjectiveType::PickupItem},
         {"reopen_world", ObjectiveType::ReopenWorld},
-        {"smelt_item", ObjectiveType::SmeltItem}};
+        {"smelt_item", ObjectiveType::SmeltItem},
+        {"consume_item", ObjectiveType::ConsumeItem}};
     for (const auto& entry : values)
     {
         if (value == entry.first)

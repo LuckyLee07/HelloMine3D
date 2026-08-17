@@ -1,13 +1,16 @@
 #include "../Item/RecipeRegistry.h"
 #include "../Item/CraftingSession.h"
+#include "../Item/FoodRegistry.h"
 #include "../Item/ToolRegistry.h"
 #include "../Util/ResourcePackResolver.h"
+#include "../Util/ResourcePaths.h"
 
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -95,6 +98,16 @@ end
 )";
     }
 
+    std::string validFoods()
+    {
+        return R"(# HelloMine3D food registry v1
+food hellomine:bread
+restore 6
+cooldown_ticks 20
+end
+)";
+    }
+
     std::string oneRecipe(const std::string &body)
     {
         return "# HelloMine3D recipe registry v1\n" + body;
@@ -127,8 +140,9 @@ end
         }
         check("G1/material-ids-roundtrip",
               roundTrip &&
-                  static_cast<int>(Material::ID::IronSword) ==
+                  static_cast<int>(Material::ID::Bread) ==
                       static_cast<int>(Material::ID::Count) - 1 &&
+                  Material::BREAD.isFood && !Material::BREAD.isTool &&
                   static_cast<int>(BlockId::Furnace) ==
                       static_cast<int>(BlockId::NUM_TYPES) - 1);
         Material::ID unchanged = Material::ID::Stone;
@@ -940,6 +954,137 @@ end
                   secondDamage == Inventory::ToolDamageResult::Broken &&
                   damaged.getSelectedStack().isEmpty());
     }
+
+    void caseFoodRegistry()
+    {
+        FoodRegistry registry;
+        registry.freeze({{"base.food", validFoods()}});
+        const FoodDefinition *bread = registry.find(Material::ID::Bread);
+        check("N3/food-registry-freezes-complete-base-set",
+              registry.isFrozen() && registry.foods().size() == 1 &&
+                  bread != nullptr);
+        check("N3/food-stats-are-data-driven",
+              bread != nullptr && bread->healthRestored == 6.f &&
+                  bread->cooldownTicks == 20);
+        check("N3/food-registry-is-startup-frozen",
+              throwsContaining(
+                  [&registry]
+                  {
+                      registry.freeze({{"again.food", validFoods()}});
+                  },
+                  "already frozen"));
+
+        check("N3/food-header-is-strict",
+              throwsContaining(
+                  []
+                  {
+                      FoodRegistry invalid;
+                      invalid.freeze({{"bad.food", "food bread\n"}});
+                  },
+                  "unsupported or missing header"));
+        check("N3/non-food-material-is-rejected",
+              throwsContaining(
+                  []
+                  {
+                      FoodRegistry invalid;
+                      invalid.freeze({{"bad.food",
+                          "# HelloMine3D food registry v1\n"
+                          "food hellomine:wheat\nrestore 2\n"
+                          "cooldown_ticks 10\nend\n"}});
+                  },
+                  "registered as food"));
+        check("N3/incomplete-food-is-rejected",
+              throwsContaining(
+                  []
+                  {
+                      FoodRegistry invalid;
+                      invalid.freeze({{"bad.food",
+                          "# HelloMine3D food registry v1\n"
+                          "food hellomine:bread\nrestore 2\nend\n"}});
+                  },
+                  "missing restore or cooldown_ticks"));
+        check("N3/duplicate-food-is-rejected",
+              throwsContaining(
+                  []
+                  {
+                      FoodRegistry invalid;
+                      invalid.freeze({{"a.food", validFoods()},
+                                      {"b.food", validFoods()}});
+                  },
+                  "Duplicate food material"));
+        check("N3/food-bounds-are-strict",
+              throwsContaining(
+                  []
+                  {
+                      std::string source = validFoods();
+                      source.replace(source.find("restore 6"), 9,
+                                     "restore 21");
+                      FoodRegistry invalid;
+                      invalid.freeze({{"bad.food", source}});
+                  },
+                  "restore must be in") &&
+              throwsContaining(
+                  []
+                  {
+                      std::string source = validFoods();
+                      source.replace(source.find("cooldown_ticks 20"), 17,
+                                     "cooldown_ticks 0");
+                      FoodRegistry invalid;
+                      invalid.freeze({{"bad.food", source}});
+                  },
+                  "cooldown_ticks must be in"));
+
+        FoodRegistry atomic;
+        const bool failed = throwsContaining(
+            [&atomic]
+            {
+                atomic.freeze({{"bad.food", "invalid\n"}});
+            },
+            "unsupported or missing header");
+        atomic.freeze({{"valid.food", validFoods()}});
+        check("N3/failed-food-freeze-is-atomic",
+              failed && atomic.isFrozen() && atomic.foods().size() == 1);
+
+        const fs::path root = fs::current_path() / "bin" /
+                              "validation_runs" / "foods";
+        std::error_code error;
+        fs::remove_all(root, error);
+        const std::string logicalPath = "media/foods/Base.food";
+        writeFile(root / logicalPath, validFoods());
+        ResourcePackResolver resolver;
+        resolver.freeze(root.string(), {{"food", logicalPath}}, {});
+        FoodRegistry fromView;
+        fromView.freezeFromResourceView(resolver);
+        check("N3/frozen-food-resource-loads",
+              fromView.isFrozen() && fromView.foods().size() == 1 &&
+                  resolver.effectiveManifest().find(
+                      "food|media/foods/Base.food|base\n") !=
+                      std::string::npos);
+
+        std::ifstream baseRecipes(
+            ResourcePaths::media("recipes/Base.recipe"),
+            std::ios::binary);
+        std::ostringstream baseContent;
+        baseContent << baseRecipes.rdbuf();
+        RecipeRegistry recipes;
+        bool recipeLoaded = false;
+        try {
+            recipes.freeze({{"Base.recipe", baseContent.str()}});
+            recipeLoaded = true;
+        }
+        catch (const std::exception &) {
+        }
+        const RecipeDefinition *breadRecipe =
+            recipeLoaded ? recipes.find("hellomine:bread") : nullptr;
+        check("N3/base-bread-recipe-consumes-three-wheat",
+              breadRecipe != nullptr &&
+                  breadRecipe->outputMaterialId == Material::ID::Bread &&
+                  breadRecipe->outputCount == 1 &&
+                  breadRecipe->ingredients.size() == 1 &&
+                  breadRecipe->ingredients[0].materialId ==
+                      Material::ID::Wheat &&
+                  breadRecipe->ingredients[0].count == 3);
+    }
 }
 
 int main()
@@ -957,7 +1102,8 @@ int main()
     caseFrozenBaseResourceView();
     caseCraftingSession();
     caseToolProgression();
-    constexpr int ExpectedChecks = 65;
+    caseFoodRegistry();
+    constexpr int ExpectedChecks = 76;
     if (checks != ExpectedChecks) {
         ++failures;
         std::cout << "[RECIPE_TEST] FAIL G1/expected-check-count"

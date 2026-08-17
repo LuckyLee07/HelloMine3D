@@ -191,3 +191,27 @@ title "Craft an Iron Sword"
 instruction "Use 2 Iron Ingots over 1 Oak Bark at the Workbench."
 feedback "Iron progression complete"
 end
+
+objective survival.craft_bread
+type craft_item
+target hellomine:bread
+required 1
+prerequisite progression.craft_iron_sword
+visible 1
+optional 0
+title "Bake Bread"
+instruction "Harvest 3 Wheat and craft a loaf of Bread at the Workbench."
+feedback "Bread crafted"
+end
+
+objective survival.eat_bread
+type consume_item
+target hellomine:bread
+required 1
+prerequisite survival.craft_bread
+visible 1
+optional 0
+title "Recover with Food"
+instruction "After taking damage, hold Bread and press R to restore health."
+feedback "Food recovery complete"
+end

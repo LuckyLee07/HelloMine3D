@@ -36,6 +36,7 @@
 #include "../Diagnostics/RuntimePerformanceCapture.h"
 #include "../Diagnostics/RuntimeProfiler.h"
 #include "../Gameplay/ObjectiveRegistry.h"
+#include "../Item/FoodRegistry.h"
 #include "../Item/RecipeRegistry.h"
 #include "../Item/CraftingSession.h"
 #include "../Item/ToolRegistry.h"
@@ -1310,6 +1311,7 @@ namespace
                 input.player.hotbarDelta = m_hotbarDelta;
                 input.player.hotbarSlot = m_hotbarSlot;
                 input.resetMeshes = m_resetMeshes;
+                input.useHeldFood = m_useHeldFood;
             }
             if (!mouseCaptured && m_mouseLookEnabled)
             {
@@ -1553,6 +1555,7 @@ namespace
             m_pendingLookDelta = glm::vec2(0.0f);
             m_toggleFlying = false;
             m_resetMeshes = false;
+            m_useHeldFood = false;
             m_hotbarDelta = 0;
             m_hotbarSlot = -1;
         }
@@ -1775,6 +1778,9 @@ namespace
                     break;
                 case OIS::KC_C:
                     m_resetMeshes = true;
+                    break;
+                case OIS::KC_R:
+                    m_useHeldFood = true;
                     break;
                 case OIS::KC_E:
                     if (m_worldPlayer != nullptr &&
@@ -2002,6 +2008,7 @@ namespace
         glm::vec2 m_pendingLookDelta{0.0f};
         bool m_toggleFlying = false;
         bool m_resetMeshes = false;
+        bool m_useHeldFood = false;
         bool m_mouseLookEnabled = true;
         bool m_validationActorsSpawned = false;
         bool m_oreFixturePlaced = false;
@@ -2051,6 +2058,8 @@ int runOgreBootstrap(bool validateOnly)
             runtimeResourcePackResolver());
         runtimeSmeltingRegistry().freezeFromResourceView(
             runtimeResourcePackResolver());
+        runtimeFoodRegistry().freezeFromResourceView(
+            runtimeResourcePackResolver());
         runtimeObjectiveRegistry().freezeFromResourceView(
             runtimeResourcePackResolver());
         const char *manifestOutput =
@@ -2083,6 +2092,8 @@ int runOgreBootstrap(bool validateOnly)
                   << runtimeSmeltingRegistry().recipes().size()
                   << " fuels="
                   << runtimeSmeltingRegistry().fuels().size() << '\n';
+        std::cout << "[FOOD_REGISTRY] frozen=1 foods="
+                  << runtimeFoodRegistry().foods().size() << '\n';
         std::cout << "[OBJECTIVE_REGISTRY] frozen=1 version="
                   << runtimeObjectiveRegistry().definitionVersion()
                   << " objectives="

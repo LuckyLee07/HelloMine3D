@@ -892,6 +892,11 @@ class OgreUserInterface::Impl
                         std::ceil(worldStats.playerHealth),
                         std::ceil(worldStats.playerMaxHealth));
             ImGui::ProgressBar(healthRatio, ImVec2(-1.0f, 8.0f), "");
+            if (worldStats.foodCooldownTicksRemaining > 0)
+            {
+                ImGui::Text("Food cooldown: %.1fs",
+                            worldStats.foodCooldownTicksRemaining / 20.f);
+            }
             for (std::size_t index = 0; index < state.inventory.size(); ++index)
             {
                 if (index > 0)
@@ -1328,6 +1333,9 @@ class OgreUserInterface::Impl
                         static_cast<int>(state.inventory.size()));
             ImGui::Text("Health: %.1f / %.1f", worldStats.playerHealth,
                         worldStats.playerMaxHealth);
+            ImGui::Text("Food cooldown ticks: %d",
+                        worldStats.foodCooldownTicksRemaining);
+            ImGui::TextUnformatted("R: consume held food");
             ImGui::Text("Death inventory policy: %s",
                         World::PlayerDeathInventoryPolicy);
             ImGui::TextUnformatted("F1: toggle debug panels");

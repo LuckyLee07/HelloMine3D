@@ -1,0 +1,6 @@
+# HelloMine3D food registry v1
+
+food hellomine:bread
+restore 6
+cooldown_ticks 20
+end

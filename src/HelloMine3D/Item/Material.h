@@ -36,6 +36,7 @@ struct Material : public NonCopyable {
         IronIngot,
         IronPickaxe,
         IronSword,
+        Bread,
         Count
     };
 
@@ -44,10 +45,10 @@ struct Material : public NonCopyable {
         TALL_GRASS, DEAD_SHRUB, COAL_ORE_BLOCK, IRON_ORE_BLOCK, GLASS_BLOCK,
         BORDERLESS_GLASS_BLOCK, CHEST_BLOCK, WHEAT_SEEDS, WHEAT,
         WORKBENCH_BLOCK, WOODEN_PICKAXE, STONE_PICKAXE, FURNACE_BLOCK,
-        IRON_INGOT, IRON_PICKAXE, IRON_SWORD;
+        IRON_INGOT, IRON_PICKAXE, IRON_SWORD, BREAD;
 
     Material(Material::ID id, int maxStack, bool isBlock, std::string &&name,
-             bool isTool = false);
+             bool isTool = false, bool isFood = false);
 
     BlockId toBlockID() const;
 
@@ -62,6 +63,7 @@ struct Material : public NonCopyable {
     const bool isBlock;
     const std::string name;
     const bool isTool;
+    const bool isFood;
 };
 
 namespace std {

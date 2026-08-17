@@ -47,6 +47,7 @@ namespace
         static const std::vector<ResourcePackRequirement> value = {
             {"audio", "media/audio/Base.audio"},
             {"block", "media/blocks/Stone.block"},
+            {"food", "media/foods/Base.food"},
             {"font", "media/fonts/rs.ttf"},
             {"objective", "media/objectives/Base.objective"},
             {"recipe", "media/recipes/Base.recipe"},
@@ -151,6 +152,7 @@ namespace
         {
             if (requirement.category == "runtime-template" ||
                 requirement.category == "audio" ||
+                requirement.category == "food" ||
                 requirement.category == "objective" ||
                 requirement.category == "recipe" ||
                 requirement.category == "smelting" ||
@@ -251,6 +253,21 @@ namespace
                                           {first.string(), second.string()});
                       },
                       "Duplicate enabled resource-pack name"));
+        }
+        {
+            const fs::path root = freshRoot("food-override");
+            const fs::path pack = createPack(
+                root, "food", "Food Override", 1,
+                {{"media/foods/Base.food", "override\n"}});
+            check("N3/reject-unversioned-food-override",
+                  throwsContaining(
+                      [&]
+                      {
+                          ResourcePackResolver resolver;
+                          resolver.freeze(root.string(), requirements(),
+                                          {pack.string()});
+                      },
+                      "stale or unsupported override"));
         }
         {
             const fs::path root = freshRoot("objective-override");

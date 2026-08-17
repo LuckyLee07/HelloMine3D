@@ -50,6 +50,7 @@ struct WorldDebugStats {
     std::size_t naturalMobsDespawned = 0;
     float playerHealth = 0.f;
     float playerMaxHealth = 0.f;
+    int foodCooldownTicksRemaining = 0;
     std::size_t queuedChunkUpdates = 0;
     std::size_t randomTickSections = 0;
     std::size_t randomTickBlocks = 0;
@@ -58,6 +59,19 @@ struct WorldDebugStats {
     int terrainSeed = 0;
     float worldTime = 0.f;
     WorldEnvironmentState environment;
+};
+
+enum class FoodUseResult {
+    Consumed,
+    SimulationPaused,
+    UiBusy,
+    PlayerUnavailable,
+    PlayerDead,
+    CoolingDown,
+    EmptyHand,
+    NotFood,
+    FullHealth,
+    InventoryRejected
 };
 
 struct WorldSectionMeshVersion {
@@ -136,8 +150,10 @@ class World : public NonCopyable {
     bool attackActor(ActorId actorId);
     bool attackActor(ActorId actorId, float amount);
     bool damagePlayer(float amount, ActorId sourceId = InvalidActorId);
+    FoodUseResult useHeldFood(bool simulationRunning = true);
     float getPlayerHealth() const;
     float getPlayerMaxHealth() const;
+    int getFoodCooldownTicksRemaining() const noexcept;
     glm::vec3 getPlayerSpawnPoint() const;
     AlphaJourneySnapshot getAlphaJourneySnapshot() const;
     ObjectiveSnapshot getObjectiveSnapshot() const;
@@ -285,6 +301,8 @@ class World : public NonCopyable {
     bool m_meshPriorityPublished = false;
 
     glm::vec3 m_playerSpawnPoint;
+    int m_foodCooldownTicksRemaining = 0;
+    bool m_playerRespawnPending = false;
 };
 
 #endif // WORLD_H_INCLUDED

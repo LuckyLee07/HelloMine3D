@@ -18,6 +18,7 @@ struct SandboxInputState {
     PlayerInputState player;
     bool breakBlock = false;
     bool placeBlock = false;
+    bool useHeldFood = false;
     bool resetMeshes = false;
 };
 
