@@ -335,6 +335,7 @@ BlockDatabase::BlockDatabase()
              std::make_unique<WorkbenchBlockBehavior>());
     addBlock(BlockId::Furnace, "Furnace",
              std::make_unique<FurnaceBlockBehavior>());
+    addBlock(BlockId::WaystoneCore, "WaystoneCore");
 }
 
 BlockDatabase &BlockDatabase::get()

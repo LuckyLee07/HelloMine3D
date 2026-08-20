@@ -131,7 +131,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 no-pack compatibility, deterministic precedence, fallback, all six resource
 classes, Ogre directory order, version/traversal/stale/empty/duplicate/missing
 rejection, explicit recipe/tool/audio/objective/smelting/food/enemy-override rejection,
-sorted ownership and one-time freeze. The current base view has 45 entries
+sorted ownership and one-time freeze. The current base view has 46 entries
 including the seven base-owned gameplay registries.
 The wrapper then launches the real Release/Debug client with no pack and with
 `packs/example-stone`, requiring manifests that differ only in ownership of

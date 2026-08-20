@@ -19,6 +19,7 @@ comparison_save_format=2
 comparison_storage_class=nvme-local
 comparison_render_distance=32
 terrain_seed=20260809
+terrain_generation_version=1
 entry_world_metadata_ms=10
 entry_spawn_resident_ms=400
 entry_first_visible_terrain_ms=800

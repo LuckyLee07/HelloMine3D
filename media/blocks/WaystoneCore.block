@@ -1,0 +1,35 @@
+Name
+Waystone Core
+
+Id
+20
+
+TexAll
+15 0
+
+Opaque
+1
+
+MeshType
+0
+
+ShaderType
+0
+
+Light
+12
+
+Collidable
+1
+
+Hardness
+3.0
+
+MiningClass
+pickaxe
+
+RequiredToolTier
+3
+
+WrongToolDrops
+0

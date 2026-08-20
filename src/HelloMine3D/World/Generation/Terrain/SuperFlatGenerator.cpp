@@ -21,3 +21,16 @@ int SuperFlatGenerator::getMinimumSpawnHeight() const noexcept
 {
     return 1;
 }
+
+int SuperFlatGenerator::getGenerationVersion() const noexcept
+{
+    return CurrentTerrainGenerationVersion;
+}
+
+TerrainBiome SuperFlatGenerator::getBiomeAtWorld(int worldX,
+                                                 int worldZ) const noexcept
+{
+    (void)worldX;
+    (void)worldZ;
+    return TerrainBiome::Grassland;
+}

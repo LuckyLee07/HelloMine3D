@@ -99,13 +99,16 @@ class ChunkManager {
 
     const TerrainGenerator &getTerrainGenerator() const noexcept;
     int getTerrainSeed() const noexcept;
+    int getTerrainGenerationVersion() const noexcept;
     void setTerrainSeed(int seed);
+    void setTerrainIdentity(int seed, int generationVersion);
 
   private:
     ChunkMap m_chunks;
     std::unique_ptr<TerrainGenerator> m_terrainGenerator;
     ChunkStorage m_chunkStorage;
     int m_terrainSeed = 0;
+    int m_terrainGenerationVersion = CurrentTerrainGenerationVersion;
     std::size_t m_meshRebuildCount = 0;
     std::size_t m_saveTransactionCount = 0;
     double m_saveTotalMs = 0.0;

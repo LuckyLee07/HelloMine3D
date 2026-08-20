@@ -1351,7 +1351,8 @@ class OgreUserInterface::Impl
 
         if (ImGui::Begin("Sandbox"))
         {
-            ImGui::Text("Seed: %d", worldStats.terrainSeed);
+            ImGui::Text("Seed: %d (terrain v%d)", worldStats.terrainSeed,
+                        worldStats.terrainGenerationVersion);
             ImGui::Text("World time: %.0f", worldStats.worldTime);
             ImGui::Text("Day cycle / light: %.3f / %.3f",
                         worldStats.environment.cycle,

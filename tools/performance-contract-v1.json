@@ -91,7 +91,8 @@
         "comparison_save_format",
         "comparison_storage_class",
         "comparison_render_distance",
-        "terrain_seed"
+        "terrain_seed",
+        "terrain_generation_version"
       ],
       "required_metrics": [
         "entry_world_metadata_ms",
@@ -242,7 +243,8 @@
         "comparison_render_distance",
         "comparison_movement_path",
         "comparison_movement_speed",
-        "terrain_seed"
+        "terrain_seed",
+        "terrain_generation_version"
       ],
       "required_metrics": [
         "chunk_visible_p50_ms",
@@ -329,7 +331,8 @@
         "comparison_population_fixture",
         "comparison_save_state_sha256",
         "comparison_fixed_tick_count",
-        "terrain_seed"
+        "terrain_seed",
+        "terrain_generation_version"
       ],
       "required_metrics": [
         "frames",
@@ -440,7 +443,8 @@
         "comparison_save_format",
         "comparison_storage_class",
         "comparison_render_distance",
-        "terrain_seed"
+        "terrain_seed",
+        "terrain_generation_version"
       ],
       "required_metrics": [
         "frames",

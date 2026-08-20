@@ -4,6 +4,7 @@
 #include "../../Actor/Actor.h"
 #include "../../Gameplay/ObjectiveState.h"
 #include "../../Player/Player.h"
+#include "../Generation/Terrain/TerrainGenerator.h"
 #include "StorageTransaction.h"
 
 #include <glm/glm.hpp>
@@ -11,7 +12,7 @@
 #include <string>
 #include <vector>
 
-inline constexpr int WorldSaveFormatVersion = 7;
+inline constexpr int WorldSaveFormatVersion = 8;
 
 struct WorldSaveData {
     int version = WorldSaveFormatVersion;
@@ -24,6 +25,7 @@ struct WorldSaveData {
     glm::vec3 spawnPoint{0.f};
     float worldTime = 0.f;
     std::string activeGenerator = "ClassicOverWorld";
+    int terrainGenerationVersion = CurrentTerrainGenerationVersion;
     std::uint32_t alphaJourneyFlags = 0;
     ObjectiveSaveState objectiveState;
     bool hasPlayerState = false;

@@ -330,7 +330,9 @@ World::World(const Camera &camera, const Config &config, Player &player,
 
     const bool hasSave = m_worldSave.load(m_worldSaveData);
     if (hasSave) {
-        m_chunkManager.setTerrainSeed(m_worldSaveData.seed);
+        m_chunkManager.setTerrainIdentity(
+            m_worldSaveData.seed,
+            m_worldSaveData.terrainGenerationVersion);
         m_playerSpawnPoint = m_worldSaveData.spawnPoint;
         if (m_worldSaveData.hasPlayerState) {
             player.applySaveState(m_worldSaveData.playerState);
@@ -348,7 +350,9 @@ World::World(const Camera &camera, const Config &config, Player &player,
                                 ? *config.worldSeed
                                 : RandomSingleton::get().intInRange(
                                       424, 325322);
-        m_chunkManager.setTerrainSeed(m_worldSaveData.seed);
+        m_chunkManager.setTerrainIdentity(
+            m_worldSaveData.seed,
+            m_worldSaveData.terrainGenerationVersion);
 
         if (hasForcedPlayerPosition) {
             m_playerSpawnPoint = forcedPlayerPosition;
@@ -1227,6 +1231,20 @@ bool World::isNaturalMobType(const std::string &type)
     return definition != nullptr && definition->natural;
 }
 
+const char *World::naturalMobTypeForBiome(TerrainBiome biome) noexcept
+{
+    switch (biome) {
+        case TerrainBiome::Desert:
+            return BruteMobType;
+        case TerrainBiome::Grassland:
+        case TerrainBiome::LightForest:
+        case TerrainBiome::TemperateForest:
+        case TerrainBiome::Ocean:
+            return StalkerMobType;
+    }
+    return StalkerMobType;
+}
+
 bool World::findSafeNaturalMobPosition(int blockX, int blockZ,
                                        glm::vec3 &position)
 {
@@ -1306,11 +1324,6 @@ void World::runNaturalMobPopulation(int worldTime)
         ++m_naturalMobSpawnAttempts;
         const glm::ivec2 offset = naturalMobSpawnOffset(
             m_chunkManager.getTerrainSeed(), spawnEpoch, attempt);
-        const std::size_t typeIndex = static_cast<std::size_t>(
-            naturalMobSelection(m_chunkManager.getTerrainSeed(),
-                                spawnEpoch, attempt + 193)) %
-            naturalEnemies.size();
-        const std::string &type = naturalEnemies[typeIndex]->type;
         glm::vec3 spawnPosition{0.f};
         if (!findSafeNaturalMobPosition(centerX + offset.x,
                                         centerZ + offset.y,
@@ -1329,6 +1342,21 @@ void World::runNaturalMobPopulation(int worldTime)
         if (occupied) {
             continue;
         }
+
+        const TerrainBiome biome =
+            m_chunkManager.getTerrainGenerator().getBiomeAtWorld(
+                toBlockCoord(spawnPosition.x),
+                toBlockCoord(spawnPosition.z));
+        const EnemyDefinition *selectedEnemy =
+            runtimeEnemyRegistry().find(naturalMobTypeForBiome(biome));
+        if (selectedEnemy == nullptr || !selectedEnemy->natural) {
+            const std::size_t typeIndex = static_cast<std::size_t>(
+                naturalMobSelection(m_chunkManager.getTerrainSeed(),
+                                    spawnEpoch, attempt + 193)) %
+                naturalEnemies.size();
+            selectedEnemy = naturalEnemies[typeIndex];
+        }
+        const std::string &type = selectedEnemy->type;
 
         if (spawnMob(type, spawnPosition) != InvalidActorId) {
             ++worldCount;
@@ -1745,6 +1773,8 @@ WorldDebugStats World::collectDebugStats()
     stats.randomTickSectionsProcessed = m_randomTickSectionsProcessed;
     stats.randomTicksDispatched = m_randomTicksDispatched;
     stats.terrainSeed = m_chunkManager.getTerrainSeed();
+    stats.terrainGenerationVersion =
+        m_chunkManager.getTerrainGenerationVersion();
     stats.worldTime = m_worldSaveData.worldTime;
     stats.environment = WorldEnvironment::evaluate(stats.worldTime);
     return stats;
@@ -1948,6 +1978,8 @@ bool World::saveWorldState()
         std::max(m_worldSaveData.createdUtc, now);
     m_worldSaveData.lastBuildIdentity = currentBuildIdentity();
     m_worldSaveData.version = WorldSaveFormatVersion;
+    m_worldSaveData.terrainGenerationVersion =
+        m_chunkManager.getTerrainGenerationVersion();
     m_worldSaveData.spawnPoint = m_playerSpawnPoint;
     if (m_player != nullptr) {
         m_worldSaveData.playerState = m_player->getSaveState();

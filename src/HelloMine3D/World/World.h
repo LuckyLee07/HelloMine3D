@@ -58,6 +58,7 @@ struct WorldDebugStats {
     std::size_t randomTickSectionsProcessed = 0;
     std::size_t randomTicksDispatched = 0;
     int terrainSeed = 0;
+    int terrainGenerationVersion = 0;
     float worldTime = 0.f;
     WorldEnvironmentState environment;
 };
@@ -197,6 +198,7 @@ class World : public NonCopyable {
     static glm::ivec2 naturalMobSpawnOffset(int terrainSeed, int spawnEpoch,
                                             std::size_t attempt);
     static bool isNaturalMobType(const std::string &type);
+    static const char *naturalMobTypeForBiome(TerrainBiome biome) noexcept;
 
     /// Produces a complete, stable work order. Chunks intersecting the
     /// published frustum come first, with distance as the secondary key.

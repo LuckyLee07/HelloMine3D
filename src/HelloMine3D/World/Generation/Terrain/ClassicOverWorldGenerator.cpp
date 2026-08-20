@@ -1,5 +1,6 @@
 #include "ClassicOverWorldGenerator.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <iostream>
@@ -10,9 +11,13 @@
 #include "../../WorldCoordinates.h"
 
 #include "../Structures/TreeGenerator.h"
+#include "../Structures/StructureBuilder.h"
 
 namespace {
 constexpr int MaximumStructureRadius = 6;
+constexpr int LandmarkHeight = 6;
+constexpr int LandmarkCandidateCount = 8;
+constexpr std::uint64_t LandmarkSalt = 0x6a09e667f3bcc909ull;
 
 std::uint64_t mixStructureValue(std::uint64_t value)
 {
@@ -35,8 +40,10 @@ std::uint64_t structureHash(int seed, int worldX, int worldZ)
 }
 } // namespace
 
-ClassicOverWorldGenerator::ClassicOverWorldGenerator(int seed)
+ClassicOverWorldGenerator::ClassicOverWorldGenerator(
+    int seed, int generationVersion)
     : m_seed(seed)
+    , m_generationVersion(generationVersion)
     , m_random(seed)
     , m_biomeNoiseGen(seed * 2)
     , m_caveGenerator(seed)
@@ -46,6 +53,10 @@ ClassicOverWorldGenerator::ClassicOverWorldGenerator(int seed)
     , m_oceanBiome(seed)
     , m_lightForest(seed)
 {
+    if (m_generationVersion < LegacyTerrainGenerationVersion ||
+        m_generationVersion > CurrentTerrainGenerationVersion) {
+        m_generationVersion = CurrentTerrainGenerationVersion;
+    }
     setUpNoise();
 }
 
@@ -83,6 +94,7 @@ void ClassicOverWorldGenerator::generateTerrainFor(Chunk &chunk)
     applyOreDecorators();
     applyPlantDecorators(plantPositions);
     applyTreeDecorators();
+    applyLandmarkDecorators();
 }
 
 void ClassicOverWorldGenerator::applyCavePass()
@@ -98,6 +110,58 @@ int ClassicOverWorldGenerator::getMinimumSpawnHeight() const noexcept
 int ClassicOverWorldGenerator::getSeed() const noexcept
 {
     return m_seed;
+}
+
+int ClassicOverWorldGenerator::getGenerationVersion() const noexcept
+{
+    return m_generationVersion;
+}
+
+TerrainBiome ClassicOverWorldGenerator::getBiomeAtWorld(
+    int worldX, int worldZ) const noexcept
+{
+    const int chunkX = WorldCoordinates::floorDiv(worldX, CHUNK_SIZE);
+    const int chunkZ = WorldCoordinates::floorDiv(worldZ, CHUNK_SIZE);
+    const int localX = WorldCoordinates::floorMod(worldX, CHUNK_SIZE);
+    const int localZ = WorldCoordinates::floorMod(worldZ, CHUNK_SIZE);
+    const int biomeValue = static_cast<int>(m_biomeNoiseGen.getHeight(
+        localX, localZ, chunkX + 10, chunkZ + 10));
+    return getBiomeKindForValue(biomeValue);
+}
+
+ClassicOverWorldGenerator::LandmarkPlacement
+ClassicOverWorldGenerator::getLandmarkForCell(int cellX, int cellZ) const
+{
+    LandmarkPlacement best;
+    const int cellSize = LandmarkCellChunks * CHUNK_SIZE;
+    const int inset = LandmarkRadius + 1;
+    const int coordinateRange = cellSize - inset * 2;
+    int bestHeight = -1;
+
+    for (int attempt = 0; attempt < LandmarkCandidateCount; ++attempt) {
+        const std::uint64_t xHash = structureHash(
+            m_seed ^ static_cast<int>(LandmarkSalt),
+            cellX * 31 + attempt, cellZ * 17 - attempt);
+        const std::uint64_t zHash = structureHash(
+            m_seed ^ static_cast<int>(LandmarkSalt >> 32),
+            cellX * 13 - attempt, cellZ * 37 + attempt);
+        const int worldX = cellX * cellSize + inset +
+            static_cast<int>(xHash %
+                             static_cast<std::uint64_t>(coordinateRange));
+        const int worldZ = cellZ * cellSize + inset +
+            static_cast<int>(zHash %
+                             static_cast<std::uint64_t>(coordinateRange));
+        const int chunkX = WorldCoordinates::floorDiv(worldX, CHUNK_SIZE);
+        const int chunkZ = WorldCoordinates::floorDiv(worldZ, CHUNK_SIZE);
+        const int localX = WorldCoordinates::floorMod(worldX, CHUNK_SIZE);
+        const int localZ = WorldCoordinates::floorMod(worldZ, CHUNK_SIZE);
+        const int height = getHeightAt(localX, localZ, chunkX, chunkZ);
+        if (height > bestHeight) {
+            bestHeight = height;
+            best = {height >= WATER_LEVEL + 4, worldX, height, worldZ};
+        }
+    }
+    return best;
 }
 
 void ClassicOverWorldGenerator::getHeightIn(int xMin, int zMin, int xMax,
@@ -309,6 +373,87 @@ void ClassicOverWorldGenerator::applyTreeDecorators()
     }
 }
 
+void ClassicOverWorldGenerator::applyLandmarkDecorators()
+{
+    if (m_generationVersion < CurrentTerrainGenerationVersion) {
+        return;
+    }
+
+    const glm::ivec2 target = m_pChunk->getLocation();
+    const int targetMinX = target.x * CHUNK_SIZE;
+    const int targetMaxX = targetMinX + CHUNK_SIZE - 1;
+    const int targetMinZ = target.y * CHUNK_SIZE;
+    const int targetMaxZ = targetMinZ + CHUNK_SIZE - 1;
+    const int cellSize = LandmarkCellChunks * CHUNK_SIZE;
+    const int minimumCellX = WorldCoordinates::floorDiv(
+        targetMinX - LandmarkRadius, cellSize);
+    const int maximumCellX = WorldCoordinates::floorDiv(
+        targetMaxX + LandmarkRadius, cellSize);
+    const int minimumCellZ = WorldCoordinates::floorDiv(
+        targetMinZ - LandmarkRadius, cellSize);
+    const int maximumCellZ = WorldCoordinates::floorDiv(
+        targetMaxZ + LandmarkRadius, cellSize);
+
+    for (int cellX = minimumCellX; cellX <= maximumCellX; ++cellX) {
+        for (int cellZ = minimumCellZ; cellZ <= maximumCellZ; ++cellZ) {
+            const LandmarkPlacement landmark =
+                getLandmarkForCell(cellX, cellZ);
+            if (!landmark.valid ||
+                landmark.x + LandmarkRadius < targetMinX ||
+                landmark.x - LandmarkRadius > targetMaxX ||
+                landmark.z + LandmarkRadius < targetMinZ ||
+                landmark.z - LandmarkRadius > targetMaxZ) {
+                continue;
+            }
+
+            StructureBuilder builder;
+            for (int y = landmark.y + 1;
+                 y <= landmark.y + LandmarkHeight; ++y) {
+                builder.fill(y, landmark.x - LandmarkRadius,
+                             landmark.x + LandmarkRadius + 1,
+                             landmark.z - LandmarkRadius,
+                             landmark.z + LandmarkRadius + 1,
+                             BlockId::Air);
+            }
+            builder.fill(landmark.y + 1,
+                         landmark.x - LandmarkRadius,
+                         landmark.x + LandmarkRadius + 1,
+                         landmark.z - LandmarkRadius,
+                         landmark.z + LandmarkRadius + 1,
+                         BlockId::Stone);
+            builder.makeColumn(landmark.x - LandmarkRadius,
+                               landmark.z - LandmarkRadius,
+                               landmark.y + 2, 3, BlockId::Stone);
+            builder.makeColumn(landmark.x + LandmarkRadius,
+                               landmark.z - LandmarkRadius,
+                               landmark.y + 2, 3, BlockId::Stone);
+            builder.makeColumn(landmark.x - LandmarkRadius,
+                               landmark.z + LandmarkRadius,
+                               landmark.y + 2, 3, BlockId::Stone);
+            builder.makeColumn(landmark.x + LandmarkRadius,
+                               landmark.z + LandmarkRadius,
+                               landmark.y + 2, 3, BlockId::Stone);
+            builder.addBlock(landmark.x, landmark.y + 2, landmark.z,
+                             BlockId::IronOre);
+            builder.addBlock(landmark.x, landmark.y + 3, landmark.z,
+                             BlockId::WaystoneCore);
+            builder.addBlock(landmark.x, landmark.y + 4, landmark.z,
+                             BlockId::Glass);
+            builder.addBlock(landmark.x, landmark.y + 5, landmark.z,
+                             BlockId::Stone);
+            builder.addBlock(landmark.x - 1, landmark.y + 2,
+                             landmark.z, BlockId::CoalOre);
+            builder.addBlock(landmark.x + 1, landmark.y + 2,
+                             landmark.z, BlockId::CoalOre);
+            builder.addBlock(landmark.x, landmark.y + 2,
+                             landmark.z - 1, BlockId::CoalOre);
+            builder.addBlock(landmark.x, landmark.y + 2,
+                             landmark.z + 1, BlockId::CoalOre);
+            builder.build(*m_pChunk);
+        }
+    }
+}
+
 int ClassicOverWorldGenerator::getHeightAt(int x, int z, int chunkX,
                                            int chunkZ) const
 {
@@ -346,25 +491,41 @@ const Biome &ClassicOverWorldGenerator::getBiomeAt(
 const Biome &
 ClassicOverWorldGenerator::getBiomeForValue(int biomeValue) const
 {
+    switch (getBiomeKindForValue(biomeValue)) {
+        case TerrainBiome::Ocean:
+            return m_oceanBiome;
+        case TerrainBiome::Grassland:
+            return m_grassBiome;
+        case TerrainBiome::LightForest:
+            return m_lightForest;
+        case TerrainBiome::TemperateForest:
+            return m_temperateForest;
+        case TerrainBiome::Desert:
+            return m_desertBiome;
+    }
+    return m_grassBiome;
+}
+
+TerrainBiome ClassicOverWorldGenerator::getBiomeKindForValue(
+    int biomeValue) noexcept
+{
     if (biomeValue > 160) {
-        return m_oceanBiome;
+        return TerrainBiome::Ocean;
     }
-    else if (biomeValue > 150) {
-        return m_grassBiome;
+    if (biomeValue > 150) {
+        return TerrainBiome::Grassland;
     }
-    else if (biomeValue > 130) {
-        return m_lightForest;
+    if (biomeValue > 130) {
+        return TerrainBiome::LightForest;
     }
-    else if (biomeValue > 120) {
-        return m_temperateForest;
+    if (biomeValue > 120) {
+        return TerrainBiome::TemperateForest;
     }
-    else if (biomeValue > 110) {
-        return m_lightForest;
+    if (biomeValue > 110) {
+        return TerrainBiome::LightForest;
     }
-    else if (biomeValue > 100) {
-        return m_grassBiome;
+    if (biomeValue > 100) {
+        return TerrainBiome::Grassland;
     }
-    else {
-        return m_desertBiome;
-    }
+    return TerrainBiome::Desert;
 }

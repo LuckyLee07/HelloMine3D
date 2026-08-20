@@ -20,6 +20,7 @@ comparison_save_format=4
 comparison_storage_class=local-default
 comparison_render_distance=8
 terrain_seed=20260809
+terrain_generation_version=1
 frames=1483
 frame_p95_ms=28.557
 frame_p99_ms=38.435

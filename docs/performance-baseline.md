@@ -124,6 +124,7 @@ It also records world counters:
 | `natural_mob_count`, `natural_mob_world_cap`, `natural_mob_local_cap` | Current natural-mob population and its global/local bounds. |
 | `natural_mob_spawn_attempts`, `natural_mobs_spawned`, `natural_mobs_despawned` | Cumulative D3 population decisions for diagnosing candidate rejection and chunk-lifecycle cleanup. |
 | `terrain_seed` | Seed used by the run. |
+| `terrain_generation_version` | Versioned terrain identity. Runs with different values are not comparable even when the seed matches. |
 | `simulation_ticks` | Fixed simulation ticks executed during that frame. |
 
 ## Reading The Summary

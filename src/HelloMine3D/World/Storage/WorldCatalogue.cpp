@@ -29,7 +29,8 @@ namespace
         "objective_completed", "objective_completed_count",
         "objective_definition_version", "objective_progress",
         "objective_progress_count",
-        "seed",           "spawn",             "version",
+        "seed",           "spawn",             "terrain_generation_version",
+        "version",
         "world_id",       "world_name",        "world_time"};
 
     const std::set<std::string> CatalogueKeys = {

@@ -33,6 +33,7 @@ namespace
         "hellomine:bread",
         "hellomine:wooden_sword",
         "hellomine:stone_sword",
+        "hellomine:waystone_core",
     }};
 }
 
@@ -78,6 +79,8 @@ const Material Material::WOODEN_SWORD(ID::WoodenSword, 1, false,
                                       "Wooden Sword", true);
 const Material Material::STONE_SWORD(ID::StoneSword, 1, false,
                                      "Stone Sword", true);
+const Material Material::WAYSTONE_CORE(ID::WaystoneCore, 16, true,
+                                       "Waystone Core");
 
 Material::Material(Material::ID id, int maxStack, bool isBlock,
                    std::string &&name, bool isTool, bool isFood)
@@ -150,6 +153,9 @@ BlockId Material::toBlockID() const
         case Furnace:
             return BlockId::Furnace;
 
+        case WaystoneCore:
+            return BlockId::WaystoneCore;
+
         default:
             return BlockId::NUM_TYPES;
     }
@@ -211,6 +217,9 @@ const Material &Material::toMaterial(BlockId id)
 
         case BlockId::Furnace:
             return FURNACE_BLOCK;
+
+        case BlockId::WaystoneCore:
+            return WAYSTONE_CORE;
 
         default:
             return NOTHING;
@@ -300,6 +309,9 @@ const Material &Material::toMaterial(Material::ID id)
 
         case StoneSword:
             return STONE_SWORD;
+
+        case WaystoneCore:
+            return WAYSTONE_CORE;
 
         default:
             return NOTHING;

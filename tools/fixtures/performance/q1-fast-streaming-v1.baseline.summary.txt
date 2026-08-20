@@ -21,6 +21,7 @@ comparison_render_distance=32
 comparison_movement_path=fixture-fast-path-v1
 comparison_movement_speed=12-blocks-per-second
 terrain_seed=20260809
+terrain_generation_version=1
 chunk_visible_p50_ms=30
 chunk_visible_p95_ms=80
 chunk_visible_p99_ms=120

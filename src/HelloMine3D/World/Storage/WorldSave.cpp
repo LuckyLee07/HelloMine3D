@@ -197,6 +197,7 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
     }
 
     WorldSaveData loaded;
+    loaded.terrainGenerationVersion = LegacyTerrainGenerationVersion;
     loaded.objectiveState.definitionVersion = 0;
     std::unordered_set<std::string> singletonFields;
     bool inventoryCountSeen = false;
@@ -209,6 +210,7 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
     bool playerHealthSeen = false;
     bool playerFoodCooldownSeen = false;
     bool playerAttackCooldownSeen = false;
+    bool terrainGenerationVersionSeen = false;
     bool objectiveDefinitionSeen = false;
     bool objectiveCompletedCountSeen = false;
     bool objectiveProgressCountSeen = false;
@@ -272,6 +274,14 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
                 !(input >> loaded.activeGenerator)) {
                 return fail("invalid or duplicate generator");
             }
+        }
+        else if (key == "terrain_generation_version") {
+            if (!claimSingleton(key) ||
+                !(input >> loaded.terrainGenerationVersion)) {
+                return fail(
+                    "invalid or duplicate terrain_generation_version");
+            }
+            terrainGenerationVersionSeen = true;
         }
         else if (key == "alpha_journey_flags") {
             if (!claimSingleton(key) ||
@@ -509,6 +519,10 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
         (loaded.version < 7 && playerAttackCooldownSeen)) {
         return fail("player attack state does not match save version");
     }
+    if ((loaded.version >= 8 && !terrainGenerationVersionSeen) ||
+        (loaded.version < 8 && terrainGenerationVersionSeen)) {
+        return fail("terrain generation state does not match save version");
+    }
 
     if (!finiteVec3(loaded.spawnPoint) ||
         !finiteVec3(loaded.playerState.position) ||
@@ -522,6 +536,10 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
         loaded.playerState.attackCooldownTicks < 0 ||
         loaded.playerState.attackCooldownTicks >
             MaxStoredAttackCooldownTicks ||
+        loaded.terrainGenerationVersion <
+            LegacyTerrainGenerationVersion ||
+        loaded.terrainGenerationVersion >
+            CurrentTerrainGenerationVersion ||
         loaded.activeGenerator.empty()) {
         return fail("world state contains a non-finite or empty field");
     }
@@ -606,6 +624,8 @@ bool WorldSave::save(const WorldSaveData &data,
         !WorldCatalogue::isValidWorldId(data.worldId) ||
         !WorldCatalogue::isValidDisplayName(data.worldName) ||
         !WorldCatalogue::isValidBuildIdentity(data.lastBuildIdentity) ||
+        data.terrainGenerationVersion < LegacyTerrainGenerationVersion ||
+        data.terrainGenerationVersion > CurrentTerrainGenerationVersion ||
         !WorldCatalogue::isValidTimestamps(data.createdUtc,
                                            data.lastPlayedUtc)) {
         std::cerr << "Refusing to save invalid current world state: "
@@ -634,6 +654,8 @@ bool WorldSave::save(const WorldSaveData &data,
     output << '\n';
     output << "world_time " << data.worldTime << '\n';
     output << "generator " << data.activeGenerator << '\n';
+    output << "terrain_generation_version "
+           << data.terrainGenerationVersion << '\n';
     output << "alpha_journey_flags " << data.alphaJourneyFlags << '\n';
     output << "objective_definition_version "
            << data.objectiveState.definitionVersion << '\n';

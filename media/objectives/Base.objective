@@ -250,3 +250,27 @@ title "Claim Brute Spoils"
 instruction "Defeat a Brute and collect 1 Coal Ore from its loot."
 feedback "Combat progression complete"
 end
+
+objective exploration.recover_waystone
+type break_block
+target hellomine:waystone_core
+required 1
+prerequisite combat.collect_coal
+visible 1
+optional 0
+title "Discover a Waystone"
+instruction "Explore beyond familiar terrain; a luminous stone spire protects a Waystone Core."
+feedback "Waystone Core recovered"
+end
+
+objective exploration.restore_waystone
+type place_block
+target hellomine:waystone_core
+required 1
+prerequisite exploration.recover_waystone
+visible 1
+optional 0
+title "Make the Discovery Yours"
+instruction "Place the recovered Waystone Core at a site you want to remember."
+feedback "Exploration milestone complete"
+end

@@ -23,11 +23,27 @@ class Chunk;
 /// @brief Generates chunks based on perlin noise and recognizable MC parameters.
 class ClassicOverWorldGenerator : public TerrainGenerator {
   public:
-    explicit ClassicOverWorldGenerator(int seed = 0);
+    struct LandmarkPlacement {
+        bool valid = false;
+        int x = 0;
+        int y = 0;
+        int z = 0;
+    };
+
+    static constexpr int LandmarkCellChunks = 4;
+    static constexpr int LandmarkRadius = 2;
+
+    explicit ClassicOverWorldGenerator(
+        int seed = 0,
+        int generationVersion = CurrentTerrainGenerationVersion);
 
     void generateTerrainFor(Chunk &chunk) override;
     int getMinimumSpawnHeight() const noexcept override;
+    int getGenerationVersion() const noexcept override;
+    TerrainBiome getBiomeAtWorld(int worldX,
+                                 int worldZ) const noexcept override;
     int getSeed() const noexcept;
+    LandmarkPlacement getLandmarkForCell(int cellX, int cellZ) const;
 
   private:
     struct BlockPosition {
@@ -46,6 +62,7 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
                       int startX, int startY, int startZ, int size);
     void applyPlantDecorators(const std::vector<BlockPosition> &positions);
     void applyTreeDecorators();
+    void applyLandmarkDecorators();
 
     void getHeightIn(int xMin, int zMin, int xMax, int zMax);
     int getHeightAt(int x, int z, int chunkX, int chunkZ) const;
@@ -56,11 +73,13 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
     const Biome &getBiomeAt(int x, int z, int chunkX,
                             int chunkZ) const;
     const Biome &getBiomeForValue(int biomeValue) const;
+    static TerrainBiome getBiomeKindForValue(int biomeValue) noexcept;
 
     Array2D<int, CHUNK_SIZE> m_heightMap;
     Array2D<int, CHUNK_SIZE + 1> m_biomeMap;
 
     int m_seed = 0;
+    int m_generationVersion = CurrentTerrainGenerationVersion;
     Random<std::minstd_rand> m_random;
 
     NoiseGenerator m_biomeNoiseGen;

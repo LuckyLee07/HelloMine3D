@@ -208,12 +208,17 @@ end
         }
         check("G1/material-ids-roundtrip",
               roundTrip &&
-                  static_cast<int>(Material::ID::StoneSword) ==
+                  static_cast<int>(Material::ID::WaystoneCore) ==
                       static_cast<int>(Material::ID::Count) - 1 &&
                   Material::BREAD.isFood && !Material::BREAD.isTool &&
                   Material::WOODEN_SWORD.isTool &&
                   Material::STONE_SWORD.isTool &&
-                  static_cast<int>(BlockId::Furnace) ==
+                  Material::WAYSTONE_CORE.isBlock &&
+                  Material::WAYSTONE_CORE.toBlockID() ==
+                      BlockId::WaystoneCore &&
+                  Material::toMaterial(BlockId::WaystoneCore).id ==
+                      Material::ID::WaystoneCore &&
+                  static_cast<int>(BlockId::WaystoneCore) ==
                       static_cast<int>(BlockId::NUM_TYPES) - 1);
         Material::ID unchanged = Material::ID::Stone;
         check("G1/unknown-material-id-rejected",

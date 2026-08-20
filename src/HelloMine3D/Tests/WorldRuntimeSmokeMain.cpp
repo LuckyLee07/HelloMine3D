@@ -3751,7 +3751,8 @@ void caseFoodRecovery()
           lethal && deadUse == FoodUseResult::PlayerDead &&
               countMaterial(player, Material::ID::Bread) ==
                   breadBeforeDeathUse &&
-              deadSaved && deadLoaded && deadState.version == 7 &&
+              deadSaved && deadLoaded &&
+              deadState.version == WorldSaveFormatVersion &&
               deadState.playerState.health == 0.f);
     world.tick(1200);
     check("N3/pending-death-respawns-on-next-fixed-tick",
@@ -3863,7 +3864,8 @@ void caseFoodRecovery()
                   "future.optional") !=
         migratedData.objectiveState.completedIds.end();
     check("N3/version-five-objectives-survive-recovery-migration",
-          migratedLoaded && migratedData.version == 7 &&
+          migratedLoaded &&
+              migratedData.version == WorldSaveFormatVersion &&
               migratedData.playerState.health == 20.f &&
               migratedData.playerState.foodCooldownTicks == 0 &&
               migratedData.objectiveState.progress.size() == 1 &&
@@ -4504,7 +4506,7 @@ void caseToolMiningProgression()
     check("N1/version-three-migrates-with-empty-objective-state",
           legacyLoaded && loadedLegacyVersion == 3 &&
               legacyData.alphaJourneyFlags == 0u && legacyUpgraded &&
-              upgraded.find("version 7") != std::string::npos &&
+              upgraded.find("version 8") != std::string::npos &&
               upgraded.find("alpha_journey_flags 0") !=
                   std::string::npos &&
               upgraded.find("objective_definition_version 1") !=
@@ -5234,7 +5236,8 @@ void caseCombatDepth()
         "future.optional") !=
         migratedData.objectiveState.completedIds.end();
     check("N4/version-six-migrates-with-recovery-and-objectives-intact",
-          migratedLoaded && migratedData.version == 7 &&
+          migratedLoaded &&
+              migratedData.version == WorldSaveFormatVersion &&
               migratedData.playerState.health == 13.f &&
               migratedData.playerState.foodCooldownTicks == 7 &&
               migratedData.playerState.attackCooldownTicks == 0 &&
@@ -5830,7 +5833,7 @@ void caseDataDrivenObjectives()
             : nullptr;
     check("N1/base-objective-registry-is-versioned-and-complete",
           baseLoaded && baseRegistry.definitionVersion() == 1 &&
-              baseRegistry.definitions().size() == 21 &&
+              baseRegistry.definitions().size() == 23 &&
               baseRegistry.find("alpha.gather_wood") != nullptr &&
               baseRegistry.find("alpha.reopen_world") != nullptr &&
               baseRegistry.find("progression.smelt_iron") != nullptr &&
@@ -5844,6 +5847,12 @@ void caseDataDrivenObjectives()
                   ObjectiveType::DefeatEnemy &&
               baseRegistry.find("combat.collect_wheat") != nullptr &&
               baseRegistry.find("combat.collect_coal") != nullptr &&
+              baseRegistry.find("exploration.recover_waystone") != nullptr &&
+              baseRegistry.find("exploration.recover_waystone")->type ==
+                  ObjectiveType::BreakBlock &&
+              baseRegistry.find("exploration.restore_waystone") != nullptr &&
+              baseRegistry.find("exploration.restore_waystone")->type ==
+                  ObjectiveType::PlaceBlock &&
               baseReach != nullptr &&
               baseReach->type == ObjectiveType::ReachLocation &&
               !baseReach->visible && baseReach->optional);
@@ -5987,7 +5996,7 @@ void caseDataDrivenObjectives()
     mismatchedFlags.alphaJourneyFlags = 0u;
     WorldSaveData preserved;
     check("N1/current-version-preserves-objective-state",
-          saved && loaded.version == 7 &&
+          saved && loaded.version == WorldSaveFormatVersion &&
               loaded.objectiveState.definitionVersion == 1 &&
               loaded.objectiveState.completedIds ==
                   validSave.objectiveState.completedIds &&
@@ -6018,7 +6027,8 @@ void caseDataDrivenObjectives()
         migrated.succeeded() &&
         WorldSave(migratedWorld.string()).load(migratedData);
     check("N1/version-four-flags-migrate-to-current-objectives",
-          migratedLoaded && migratedData.version == 7 &&
+          migratedLoaded &&
+              migratedData.version == WorldSaveFormatVersion &&
               migratedData.alphaJourneyFlags == 3u &&
               migratedData.objectiveState.definitionVersion == 1 &&
               migratedData.objectiveState.completedIds ==
@@ -6850,6 +6860,237 @@ void caseTerrainStructures()
 }
 
 // ---------------------------------------------------------------------------
+// N5 - versioned ecology, biome danger and seed-stable Waystone landmarks
+// ---------------------------------------------------------------------------
+struct GeneratedChunkSample {
+    int x = 0;
+    int z = 0;
+    std::vector<Block_t> blocks;
+};
+
+std::vector<GeneratedChunkSample> sampleLandmarkChunks(
+    World &world, ClassicOverWorldGenerator &generator,
+    const ClassicOverWorldGenerator::LandmarkPlacement &landmark,
+    bool reverseOrder)
+{
+    const int minimumChunkX = World::floorDiv(
+        landmark.x - ClassicOverWorldGenerator::LandmarkRadius,
+        CHUNK_SIZE);
+    const int maximumChunkX = World::floorDiv(
+        landmark.x + ClassicOverWorldGenerator::LandmarkRadius,
+        CHUNK_SIZE);
+    const int minimumChunkZ = World::floorDiv(
+        landmark.z - ClassicOverWorldGenerator::LandmarkRadius,
+        CHUNK_SIZE);
+    const int maximumChunkZ = World::floorDiv(
+        landmark.z + ClassicOverWorldGenerator::LandmarkRadius,
+        CHUNK_SIZE);
+    std::vector<glm::ivec2> positions;
+    for (int chunkX = minimumChunkX; chunkX <= maximumChunkX; ++chunkX) {
+        for (int chunkZ = minimumChunkZ; chunkZ <= maximumChunkZ; ++chunkZ) {
+            positions.push_back({chunkX, chunkZ});
+        }
+    }
+    if (reverseOrder) {
+        std::reverse(positions.begin(), positions.end());
+    }
+
+    std::vector<GeneratedChunkSample> samples;
+    for (const glm::ivec2 &position : positions) {
+        Chunk chunk(world, position);
+        chunk.load(generator);
+        GeneratedChunkSample sample;
+        sample.x = position.x;
+        sample.z = position.y;
+        std::vector<BlockMetadata_t> metadata;
+        chunk.collectBlockData(sample.blocks, metadata);
+        samples.push_back(std::move(sample));
+    }
+    std::sort(samples.begin(), samples.end(),
+              [](const GeneratedChunkSample &left,
+                 const GeneratedChunkSample &right) {
+                  return left.x != right.x ? left.x < right.x
+                                           : left.z < right.z;
+              });
+    return samples;
+}
+
+void caseEcologyAndExploration()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+
+    Config config = makeConfig();
+    Camera camera(config);
+    const auto directory = freshSaveDirectory("n5_ecology");
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+
+    ClassicOverWorldGenerator currentGenerator(
+        kValidationSeed, CurrentTerrainGenerationVersion);
+    ClassicOverWorldGenerator legacyGenerator(
+        kValidationSeed, LegacyTerrainGenerationVersion);
+    ClassicOverWorldGenerator otherSeedGenerator(
+        kValidationSeed + 1, CurrentTerrainGenerationVersion);
+    ClassicOverWorldGenerator::LandmarkPlacement landmark;
+    int landmarkCellX = 0;
+    int landmarkCellZ = 0;
+    for (int cellX = -8; cellX <= 8 && !landmark.valid; ++cellX) {
+        for (int cellZ = -8; cellZ <= 8 && !landmark.valid; ++cellZ) {
+            const auto candidate =
+                currentGenerator.getLandmarkForCell(cellX, cellZ);
+            if (candidate.valid) {
+                landmark = candidate;
+                landmarkCellX = cellX;
+                landmarkCellZ = cellZ;
+            }
+        }
+    }
+    const auto otherLandmark = otherSeedGenerator.getLandmarkForCell(
+        landmarkCellX, landmarkCellZ);
+    check("N5/landmark-anchor-is-seed-stable-and-seed-sensitive",
+          landmark.valid && otherLandmark.valid &&
+              (landmark.x != otherLandmark.x ||
+               landmark.z != otherLandmark.z ||
+               landmark.y != otherLandmark.y),
+          "anchor=" + std::to_string(landmark.x) + "," +
+              std::to_string(landmark.y) + "," +
+              std::to_string(landmark.z));
+
+    const auto forward = sampleLandmarkChunks(
+        world, currentGenerator, landmark, false);
+    const auto reverse = sampleLandmarkChunks(
+        world, currentGenerator, landmark, true);
+    const auto legacy = sampleLandmarkChunks(
+        world, legacyGenerator, landmark, false);
+    bool sameLoadOrderOutput = forward.size() == reverse.size();
+    int currentCoreCount = 0;
+    int legacyCoreCount = 0;
+    for (std::size_t index = 0;
+         index < forward.size() && index < reverse.size(); ++index) {
+        sameLoadOrderOutput = sameLoadOrderOutput &&
+            forward[index].x == reverse[index].x &&
+            forward[index].z == reverse[index].z &&
+            forward[index].blocks == reverse[index].blocks;
+        currentCoreCount += static_cast<int>(std::count(
+            forward[index].blocks.begin(), forward[index].blocks.end(),
+            static_cast<Block_t>(BlockId::WaystoneCore)));
+        legacyCoreCount += static_cast<int>(std::count(
+            legacy[index].blocks.begin(), legacy[index].blocks.end(),
+            static_cast<Block_t>(BlockId::WaystoneCore)));
+    }
+    check("N5/landmark-output-ignores-chunk-load-order",
+          sameLoadOrderOutput,
+          "chunks=" + std::to_string(forward.size()));
+    check("N5/new-generation-adds-one-bounded-waystone-core",
+          currentCoreCount == 1,
+          "cores=" + std::to_string(currentCoreCount));
+    check("N5/legacy-generation-does-not-backfill-landmarks",
+          legacyCoreCount == 0,
+          "legacy cores=" + std::to_string(legacyCoreCount));
+
+    std::array<bool, 5> observedBiomes{};
+    for (int x = -4096; x <= 4096; x += 64) {
+        for (int z = -4096; z <= 4096; z += 64) {
+            const TerrainBiome biome =
+                currentGenerator.getBiomeAtWorld(x, z);
+            observedBiomes[static_cast<std::size_t>(biome)] = true;
+        }
+    }
+    check("N5/five-biome-identities-are-queryable",
+          std::all_of(observedBiomes.begin(), observedBiomes.end(),
+                      [](bool observed) { return observed; }));
+    check("N5/biomes-select-readable-enemy-pressure",
+          std::string(World::naturalMobTypeForBiome(
+              TerrainBiome::Desert)) == World::BruteMobType &&
+              std::string(World::naturalMobTypeForBiome(
+                  TerrainBiome::Grassland)) == World::StalkerMobType &&
+              std::string(World::naturalMobTypeForBiome(
+                  TerrainBiome::LightForest)) == World::StalkerMobType &&
+              std::string(World::naturalMobTypeForBiome(
+                  TerrainBiome::TemperateForest)) == World::StalkerMobType &&
+              std::string(World::naturalMobTypeForBiome(
+                  TerrainBiome::Ocean)) == World::StalkerMobType);
+
+    const BlockDefinition &coreDefinition =
+        BlockDatabase::get().getDefinition(BlockId::WaystoneCore);
+    check("N5/waystone-core-is-a-tier-three-placeable-trophy",
+          coreDefinition.requiredToolTier == 3 &&
+              coreDefinition.miningClass == MiningClass::Pickaxe &&
+              coreDefinition.light == 12 &&
+              coreDefinition.defaultDrop == Material::ID::WaystoneCore &&
+              Material::WAYSTONE_CORE.toBlockID() ==
+                  BlockId::WaystoneCore);
+
+    WorldSave currentSave(directory);
+    WorldSaveData currentData;
+    const bool currentLoaded = currentSave.load(currentData);
+    WorldSaveData invalidGeneration = currentData;
+    invalidGeneration.terrainGenerationVersion =
+        CurrentTerrainGenerationVersion + 1;
+    WorldSaveData preservedCurrent;
+    check("N5/new-world-persists-generation-v2-and-rejects-invalid-version",
+          currentLoaded &&
+              currentData.version == WorldSaveFormatVersion &&
+              currentData.terrainGenerationVersion ==
+                  CurrentTerrainGenerationVersion &&
+              !currentSave.save(invalidGeneration) &&
+              currentSave.load(preservedCurrent) &&
+              preservedCurrent.terrainGenerationVersion ==
+                  CurrentTerrainGenerationVersion);
+
+    const std::filesystem::path migrationRoot =
+        freshSaveDirectory("n5_generation_migration");
+    const std::filesystem::path migratedWorld =
+        migrationRoot / "n5-v7-generation";
+    std::filesystem::create_directories(migratedWorld);
+    std::filesystem::copy_file(
+        ResourcePaths::join(
+            ResourcePaths::projectRoot(),
+            "tools/fixtures/exploration/world-v7-generation.meta"),
+        migratedWorld / "world.meta",
+        std::filesystem::copy_options::overwrite_existing);
+    const WorldManagementService management(migrationRoot.string());
+    const WorldManagementResult migrated =
+        management.prepareWorldForOpen("n5-v7-generation");
+    WorldSaveData migratedData;
+    const bool migratedLoaded = migrated.succeeded() &&
+        WorldSave(migratedWorld.string()).load(migratedData);
+    std::ifstream migratedInput(migratedWorld / "world.meta",
+                                std::ios::binary);
+    const std::string migratedText(
+        (std::istreambuf_iterator<char>(migratedInput)),
+        std::istreambuf_iterator<char>());
+    check("N5/v7-world-migrates-with-legacy-generation-identity",
+          migratedLoaded &&
+              migratedData.version == WorldSaveFormatVersion &&
+              migratedData.terrainGenerationVersion ==
+                  LegacyTerrainGenerationVersion &&
+              migratedText.find("terrain_generation_version 1") !=
+                  std::string::npos);
+
+    if (migratedLoaded && landmark.valid) {
+        Player legacyPlayer;
+        World legacyWorld(camera, config, legacyPlayer,
+                          migratedWorld.string(), false, 1);
+        const VectorXZ landmarkChunk = World::getChunkXZ(
+            landmark.x, landmark.z);
+        legacyWorld.getChunkManager().loadChunk(
+            landmarkChunk.x, landmarkChunk.z);
+        check("N5/migrated-world-keeps-old-unexplored-chunk-output",
+              legacyWorld.collectDebugStats().terrainGenerationVersion ==
+                      LegacyTerrainGenerationVersion &&
+                  static_cast<BlockId>(legacyWorld.getBlock(
+                      landmark.x, landmark.y + 3, landmark.z).id) !=
+                      BlockId::WaystoneCore);
+    }
+    else {
+        check("N5/migrated-world-keeps-old-unexplored-chunk-output", false);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // S3.4 / S3.5 / S4.2 / S4.5 - interaction, drops and block/player events
 // ---------------------------------------------------------------------------
 void caseInteractionAndEvents()
@@ -7308,6 +7549,7 @@ int main()
         caseChunkFormatRejection();
         caseTerrainDeterminism();
         caseTerrainStructures();
+        caseEcologyAndExploration();
         caseInteractionAndEvents();
         caseChunkEvents();
         caseActors();
