@@ -8,6 +8,7 @@
 #endif
 #include <windows.h>
 #include <dbghelp.h>
+#include <shellapi.h>
 
 #include <exception>
 #include <filesystem>
@@ -388,6 +389,52 @@ namespace CrashDiagnosticsPlatform
             error = "Unknown Windows crash-handler installation failure.";
         }
         closeInstallationHandles();
+        return false;
+    }
+
+    bool openReportLocation(const std::string& reportPath,
+                            std::string* error) noexcept
+    {
+        try
+        {
+            const fs::path path = fs::u8path(reportPath);
+            if (!fs::is_regular_file(path))
+            {
+                if (error != nullptr)
+                {
+                    *error = "Crash report file no longer exists.";
+                }
+                return false;
+            }
+            const std::wstring arguments = L"/select,\"" +
+                                           path.wstring() + L"\"";
+            const HINSTANCE launched = ShellExecuteW(
+                nullptr, L"open", L"explorer.exe", arguments.c_str(),
+                path.parent_path().wstring().c_str(), SW_SHOWNORMAL);
+            if (reinterpret_cast<std::intptr_t>(launched) <= 32)
+            {
+                if (error != nullptr)
+                {
+                    *error = "Unable to open the local crash report folder.";
+                }
+                return false;
+            }
+            return true;
+        }
+        catch (const std::exception& exception)
+        {
+            if (error != nullptr)
+            {
+                *error = exception.what();
+            }
+        }
+        catch (...)
+        {
+            if (error != nullptr)
+            {
+                *error = "Unknown crash report folder failure.";
+            }
+        }
         return false;
     }
 

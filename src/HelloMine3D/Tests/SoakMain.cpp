@@ -30,17 +30,38 @@
 
 namespace {
 
-constexpr int SoakScheduleVersion = 1;
 constexpr int FixedTicksPerSecond = 20;
 constexpr int DefaultDurationSeconds = 2;
 constexpr int DefaultSeed = 20260813;
+
+enum class SoakProfile {
+    Legacy,
+    Nominal,
+    Stress,
+};
 
 struct Options {
     int durationSeconds = DefaultDurationSeconds;
     int seed = DefaultSeed;
     std::filesystem::path outputDirectory;
     bool explicitOutputDirectory = false;
+    SoakProfile profile = SoakProfile::Legacy;
 };
+
+const char *profileName(SoakProfile profile)
+{
+    switch (profile) {
+    case SoakProfile::Legacy: return "legacy";
+    case SoakProfile::Nominal: return "nominal";
+    case SoakProfile::Stress: return "stress";
+    }
+    return "unknown";
+}
+
+int scheduleVersion(SoakProfile profile)
+{
+    return profile == SoakProfile::Legacy ? 1 : 2;
+}
 
 int parseBoundedInt(const std::string &text, const char *label,
                     int minimum, int maximum)
@@ -70,6 +91,18 @@ Options parseOptions(int argc, char **argv)
         else if (argument == "--output-dir" && index + 1 < argc) {
             options.outputDirectory = argv[++index];
             options.explicitOutputDirectory = true;
+        }
+        else if (argument == "--profile" && index + 1 < argc) {
+            const std::string profile = argv[++index];
+            if (profile == "nominal") {
+                options.profile = SoakProfile::Nominal;
+            }
+            else if (profile == "stress") {
+                options.profile = SoakProfile::Stress;
+            }
+            else if (profile != "legacy") {
+                throw std::runtime_error("Invalid soak profile: " + profile);
+            }
         }
         else {
             throw std::runtime_error("Unknown or incomplete argument: " +
@@ -124,7 +157,8 @@ void writeSummary(const std::filesystem::path &path, const Options &options,
     }
 
     summary << "status=" << (failures == 0 ? "PASS" : "FAIL") << '\n'
-            << "schedule_version=" << SoakScheduleVersion << '\n'
+            << "schedule_version=" << scheduleVersion(options.profile) << '\n'
+            << "profile=" << profileName(options.profile) << '\n'
             << "build_configuration=" << buildConfiguration() << '\n'
             << "seed=" << options.seed << '\n'
             << "duration_requested_seconds=" << options.durationSeconds
@@ -209,7 +243,8 @@ int main(int argc, char **argv)
                "random_tick_sections,random_tick_blocks,random_dispatches\n";
 
         Config config;
-        config.renderDistance = 1;
+        config.renderDistance =
+            options.profile == SoakProfile::Stress ? 2 : 1;
         config.worldSeed = options.seed;
         Player player;
         Camera camera(config);
@@ -232,18 +267,28 @@ int main(int argc, char **argv)
         std::unique_ptr<World> world = makeWorld();
         setEnvironment("HELLOMINE3D_PLAYER_POSITION", "");
 
+        const int travelRadius =
+            options.profile == SoakProfile::Stress ? 8 : 4;
         const std::array<VectorXZ, 9> centers = {
-            VectorXZ{0, 0},   VectorXZ{4, 0},   VectorXZ{4, 4},
-            VectorXZ{0, 4},   VectorXZ{-4, 4},  VectorXZ{-4, 0},
-            VectorXZ{-4, -4}, VectorXZ{0, -4},  VectorXZ{4, -4},
+            VectorXZ{0, 0},
+            VectorXZ{travelRadius, 0},
+            VectorXZ{travelRadius, travelRadius},
+            VectorXZ{0, travelRadius},
+            VectorXZ{-travelRadius, travelRadius},
+            VectorXZ{-travelRadius, 0},
+            VectorXZ{-travelRadius, -travelRadius},
+            VectorXZ{0, -travelRadius},
+            VectorXZ{travelRadius, -travelRadius},
         };
 
         const int totalTicks =
             options.durationSeconds * FixedTicksPerSecond;
-        const int movementInterval =
-            std::max(10, std::min(100, totalTicks / 4));
-        const int reloadInterval =
-            std::max(20, std::min(200, totalTicks / 2));
+        const int movementInterval = options.profile == SoakProfile::Legacy
+            ? std::max(10, std::min(100, totalTicks / 4))
+            : (options.profile == SoakProfile::Stress ? 40 : 100);
+        const int reloadInterval = options.profile == SoakProfile::Legacy
+            ? std::max(20, std::min(200, totalTicks / 2))
+            : (options.profile == SoakProfile::Stress ? 100 : 200);
         std::size_t centerIndex = 0;
         std::size_t previousRebuilds = 0;
         int stalledSnapshots = 0;
@@ -273,7 +318,11 @@ int main(int argc, char **argv)
                 ++movementActions;
             }
 
-            if (tick % FixedTicksPerSecond == 0) {
+            const int editInterval =
+                options.profile == SoakProfile::Stress
+                    ? FixedTicksPerSecond / 4
+                    : FixedTicksPerSecond;
+            if (tick % editInterval == 0) {
                 const int x = World::toBlockCoord(player.position.x) +
                               (blockEditActions % 4);
                 const int z = World::toBlockCoord(player.position.z) + 2;
@@ -284,24 +333,35 @@ int main(int argc, char **argv)
                 ++blockEditActions;
             }
 
-            if (tick % (FixedTicksPerSecond * 2) == 0) {
+            const int actorInterval =
+                options.profile == SoakProfile::Stress
+                    ? FixedTicksPerSecond
+                    : FixedTicksPerSecond * 2;
+            if (tick % actorInterval == 0) {
                 world->getActorManager().removeActorsIf(
                     [](const Actor &actor) {
                         return actor.getType() == "hellomine:soak_mob" ||
                                actor.getType() == "item";
                     });
-                const ActorId mobId = world->spawnMob(
-                    "hellomine:soak_mob",
-                    player.position + glm::vec3(3.f, 0.f, 0.f));
-                if (mobId == InvalidActorId ||
-                    !world->attackActor(mobId, 100.f)) {
-                    fail("actor damage lifecycle rejected");
-                }
-                if (world->spawnItemEntity(
-                        Material::ID::Stone, 1,
-                        player.position + glm::vec3(0.f, 1.f, 0.f)) ==
-                    InvalidActorId) {
-                    fail("item lifecycle spawn rejected");
+                const int actorPairs =
+                    options.profile == SoakProfile::Stress ? 8 : 1;
+                for (int actor = 0; actor < actorPairs; ++actor) {
+                    const glm::vec3 offset(
+                        3.f + static_cast<float>(actor % 4), 0.f,
+                        static_cast<float>(actor / 4) * 2.f);
+                    const ActorId mobId = world->spawnMob(
+                        "hellomine:soak_mob", player.position + offset);
+                    if (mobId == InvalidActorId ||
+                        !world->attackActor(mobId, 100.f)) {
+                        fail("actor damage lifecycle rejected");
+                    }
+                    if (world->spawnItemEntity(
+                            Material::ID::Stone, 1,
+                            player.position + offset +
+                                glm::vec3(0.f, 1.f, 0.f)) ==
+                        InvalidActorId) {
+                        fail("item lifecycle spawn rejected");
+                    }
                 }
                 ++actorLifecycleActions;
             }

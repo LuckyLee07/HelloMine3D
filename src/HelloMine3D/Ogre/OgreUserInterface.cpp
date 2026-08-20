@@ -197,7 +197,8 @@ class OgreUserInterface::Impl
          Ogre::Camera &renderCamera, Player *worldPlayer, World *activeWorld,
          GameApplicationFlow &applicationFlow,
          WorldManagementService &worldManagement,
-         const UserSettings &settings, std::function<void()> feedback)
+         const UserSettings &settings, std::function<void()> feedback,
+         std::vector<PendingCrashReport> pendingCrashReports)
         : window(&renderWindow)
         , sceneManager(&renderSceneManager)
         , camera(&renderCamera)
@@ -205,8 +206,9 @@ class OgreUserInterface::Impl
         , world(activeWorld)
         , flow(&applicationFlow)
         , management(&worldManagement)
-        , appliedSettings(settings)
-        , uiFeedback(std::move(feedback))
+         , appliedSettings(settings)
+         , uiFeedback(std::move(feedback))
+         , crashReports(std::move(pendingCrashReports))
         , showDebugPanel(RuntimeDebugOptions::showDebugInfoAtStartup())
         , iniPath(ResourcePaths::bin("imgui-ogre.ini"))
     {
@@ -324,6 +326,79 @@ class OgreUserInterface::Impl
                 }
                 break;
         }
+        drawCrashReportPrompt();
+    }
+
+    void drawCrashReportPrompt()
+    {
+        if (crashReports.empty())
+        {
+            return;
+        }
+        if (!crashPopupOpened)
+        {
+            ImGui::OpenPopup("Previous crash report");
+            crashPopupOpened = true;
+        }
+        ImGui::SetNextWindowSize(ImVec2(520.0f, 0.0f), ImGuiCond_Appearing);
+        if (!ImGui::BeginPopupModal("Previous crash report", nullptr,
+                                    ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            return;
+        }
+
+        const PendingCrashReport& report = crashReports.front();
+        ImGui::TextWrapped(
+            "HelloMine3D detected a local crash report from the previous "
+            "run. Nothing has been uploaded.");
+        ImGui::Separator();
+        ImGui::Text("Report: %s", report.dumpFile.c_str());
+        ImGui::Text("Build: %s", report.buildIdentity.c_str());
+        ImGui::Text("Exception: %s", report.exceptionCode.c_str());
+        if (crashReports.size() > 1)
+        {
+            ImGui::Text("Pending reports: %llu",
+                        static_cast<unsigned long long>(crashReports.size()));
+        }
+        if (!crashReportMessage.empty())
+        {
+            ImGui::TextWrapped("%s", crashReportMessage.c_str());
+        }
+        ImGui::Separator();
+        if (ImGui::Button("Open folder", ImVec2(140.0f, 38.0f)))
+        {
+            std::string error;
+            crashReportMessage = openCrashReportLocation(report, &error)
+                                     ? "Opened the local report folder."
+                                     : "Could not open the folder: " + error;
+            playUiFeedback();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Copy details", ImVec2(140.0f, 38.0f)))
+        {
+            ImGui::SetClipboardText(report.clipboardText.c_str());
+            crashReportMessage = "Copied sanitized local details.";
+            playUiFeedback();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Ignore", ImVec2(140.0f, 38.0f)))
+        {
+            std::string error;
+            if (acknowledgeCrashReport(report, &error))
+            {
+                crashReports.erase(crashReports.begin());
+                crashReportMessage.clear();
+                crashPopupOpened = false;
+                ImGui::CloseCurrentPopup();
+                playUiFeedback();
+            }
+            else
+            {
+                crashReportMessage =
+                    "Could not ignore this report: " + error;
+            }
+        }
+        ImGui::EndPopup();
     }
 
     void drawMainMenu()
@@ -1694,6 +1769,9 @@ class OgreUserInterface::Impl
     WorldManagementService *management = nullptr;
     UserSettings appliedSettings;
     std::function<void()> uiFeedback;
+    std::vector<PendingCrashReport> crashReports;
+    std::string crashReportMessage;
+    bool crashPopupOpened = false;
     RuntimeSettingsSession settingsSession;
     std::string settingsMessage;
     bool settingsApplyPending = false;
@@ -1733,13 +1811,15 @@ OgreUserInterface::OgreUserInterface(Ogre::RenderWindow &window,
                                      Ogre::Camera &camera, Player *player,
                                      World *world,
                                      GameApplicationFlow &applicationFlow,
-                                     WorldManagementService &worldManagement,
-                                     const UserSettings &settings,
-                                     std::function<void()> uiFeedback)
+                                      WorldManagementService &worldManagement,
+                                      const UserSettings &settings,
+                                      std::function<void()> uiFeedback,
+                                      std::vector<PendingCrashReport> crashReports)
     : m_impl(std::make_unique<Impl>(window, sceneManager, camera, player,
                                     world, applicationFlow,
-                                    worldManagement, settings,
-                                    std::move(uiFeedback)))
+                                     worldManagement, settings,
+                                     std::move(uiFeedback),
+                                     std::move(crashReports)))
 {
     m_impl->initialize(this);
 }
@@ -1834,6 +1914,11 @@ bool OgreUserInterface::wantsMouseInput() const
             (m_impl->player->hasOpenContainer() ||
              m_impl->player->hasOpenCrafting())) ||
            ImGui::GetIO().WantCaptureMouse;
+}
+
+bool OgreUserInterface::hasBlockingModal() const noexcept
+{
+    return !m_impl->crashReports.empty();
 }
 
 bool OgreUserInterface::isDebugPanelVisible() const noexcept

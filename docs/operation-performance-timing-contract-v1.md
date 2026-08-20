@@ -91,7 +91,10 @@ does not change the stream's prior formatting state.
   real startup/world-entry phase, outcome, total and stall keys. All ordinary
   headless and validation-only runs keep capture disabled.
 
-Q2 remains `Doing` until Q1 has approved real target-Windows Release budgets
-and the native comparator rejects measured startup, entry, save and restore
-regressions against those approved baselines. Synthetic comparator fixtures
-are contract evidence, not product performance limits.
+Q2 is `Done` as of 2026-08-20. The approved target-Windows Release profile
+`release-candidate-windows-hidden-v1` records two independent startup/entry,
+save and restore measurements. Baseline/repeat save totals are
+`195.821/160.612 ms` with the same bounded main-thread stall; restore totals are
+`53.861/58.516 ms` with `37.768/41.061 ms` maximum stall. The schema-3 native
+comparator returns `PASS` for all four operation families. Synthetic comparator
+fixtures remain contract evidence only, not product performance limits.

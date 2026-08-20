@@ -5,6 +5,8 @@ param(
     [int]$Seed = 20260813,
     [int]$SampleIntervalSeconds = 5,
     [int]$ShutdownGraceSeconds = 180,
+    [ValidateSet("legacy", "nominal", "stress")]
+    [string]$Profile = "legacy",
     [switch]$Formal
 )
 
@@ -55,6 +57,9 @@ $arguments = @(
     "--seed", $Seed,
     "--output-dir", $OutputDir
 )
+if ($Profile -ne "legacy") {
+    $arguments += @("--profile", $Profile)
+}
 
 $previousRoot = $env:HELLOMINE3D_ROOT
 $process = $null
@@ -90,7 +95,7 @@ $started = Get-Date
 $samples = @()
 $timedOut = $false
 Write-Host "[WORLD_SOAK] started pid=$($process.Id) durationSeconds=$DurationSeconds formal=$($Formal.IsPresent)"
-Write-Host "[WORLD_SOAK] outputDir=$OutputDir seed=$Seed scheduleVersion=1"
+Write-Host "[WORLD_SOAK] outputDir=$OutputDir seed=$Seed profile=$Profile scheduleVersion=$(if ($Profile -eq 'legacy') { 1 } else { 2 })"
 
 while (-not $process.HasExited) {
     try {
@@ -195,7 +200,8 @@ $summaryLines = @(
     "status=$status",
     "formal=$($Formal.IsPresent.ToString().ToLowerInvariant())",
     "seed=$Seed",
-    "schedule_version=1",
+    "profile=$Profile",
+    "schedule_version=$(if ($Profile -eq 'legacy') { 1 } else { 2 })",
     "duration_requested_seconds=$DurationSeconds",
     "wall_duration_seconds=$elapsedSeconds",
     "sample_interval_seconds=$SampleIntervalSeconds",

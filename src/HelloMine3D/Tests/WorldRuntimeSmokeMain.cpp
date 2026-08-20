@@ -1617,6 +1617,14 @@ void casePersistence()
         std::ostringstream operationSummary;
         operationTimings.appendLatestSummary(operationSummary);
         const std::string operationSummaryText = operationSummary.str();
+        const char *operationSummaryOutput =
+            std::getenv("HELLO_OPERATION_SUMMARY_OUT");
+        if (operationSummaryOutput != nullptr &&
+            operationSummaryOutput[0] != '\0') {
+            std::ofstream output(operationSummaryOutput,
+                                 std::ios::trunc);
+            output << operationSummaryText;
+        }
         check(
             "Q2/real-world-save-summary-matches-q1-schema",
             operationSummaryText.find("save_prepare_complete_ms=") !=

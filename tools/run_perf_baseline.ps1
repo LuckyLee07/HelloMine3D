@@ -15,12 +15,17 @@ param(
     [string]$WorldTime = "",
     [string]$ResourcePacks = "",
     [string]$SceneId = "",
+    [string]$BudgetProfile = "unapproved-local-capture",
+    [string]$CacheRegime = "warm-process-clean",
+    [ValidateSet("", "fast-streaming", "scaled-gameplay")]
+    [string]$RcPerformanceProfile = "",
     [string]$StorageClass = "local-default",
     [double]$MinimumSimulationTickHz = 19.0,
     [double]$MaximumSimulationTickHz = 21.0,
     [switch]$VerticalSliceFixture,
     [switch]$HiddenWindow,
     [switch]$StopExisting,
+    [switch]$QuietSummary,
     [switch]$KeepAlive
 )
 
@@ -359,6 +364,7 @@ if (-not [string]::IsNullOrWhiteSpace($PlayerPosition)) { Write-Host "[PERF_BASE
 if (-not [string]::IsNullOrWhiteSpace($PlayerRotation)) { Write-Host "[PERF_BASELINE] playerRotation=$PlayerRotation" }
 if (-not [string]::IsNullOrWhiteSpace($WorldTime)) { Write-Host "[PERF_BASELINE] worldTime=$WorldTime" }
 Write-Host "[PERF_BASELINE] sceneId=$SceneId vsync=$VsyncRegime"
+Write-Host "[PERF_BASELINE] budgetProfile=$BudgetProfile cacheRegime=$CacheRegime rcProfile=$RcPerformanceProfile"
 if ($VerticalSliceFixture) { Write-Host "[PERF_BASELINE] verticalSliceFixture=true" }
 if (-not [string]::IsNullOrWhiteSpace($ResourcePacks)) { Write-Host "[PERF_BASELINE] resourcePacks=$ResourcePacks" }
 
@@ -401,6 +407,9 @@ if ($VerticalSliceFixture) {
 if ($HiddenWindow) {
     $envValues["HELLOMINE3D_WINDOW_HIDDEN"] = "1"
 }
+if (-not [string]::IsNullOrWhiteSpace($RcPerformanceProfile)) {
+    $envValues["HELLOMINE3D_RC_PERF_PROFILE"] = $RcPerformanceProfile
+}
 
 $process = $null
 Set-ProcessEnvironment -Values $envValues -Body {
@@ -411,15 +420,26 @@ $process = $script:CapturedProcess
 $script:CapturedProcess = $null
 Write-Host "[PERF_BASELINE] started pid=$($process.Id)"
 
+$peakPrivateBytes = [int64]0
+$peakWorkingSetBytes = [int64]0
+$peakHandleCount = 0
+
 try {
     if (-not $HiddenWindow) {
         $handle = Wait-MainWindowHandle -Process $process -TimeoutMs $StartupTimeoutMs
         Show-WindowNoActivate -WindowHandle $handle -X $WindowX -Y $WindowY -Width $WindowWidth -Height $WindowHeight
     }
-    Start-Sleep -Milliseconds $SettleMs
-
     $deadline = (Get-Date).AddMilliseconds($StartupTimeoutMs + $WarmupMs + $DurationMs + 10000)
     do {
+        if (-not $process.HasExited) {
+            $process.Refresh()
+            $peakPrivateBytes = [Math]::Max(
+                $peakPrivateBytes, [int64]$process.PrivateMemorySize64)
+            $peakWorkingSetBytes = [Math]::Max(
+                $peakWorkingSetBytes, [int64]$process.WorkingSet64)
+            $peakHandleCount = [Math]::Max(
+                $peakHandleCount, [int]$process.HandleCount)
+        }
         if (Test-Path -LiteralPath $SummaryPath) {
             break
         }
@@ -486,8 +506,24 @@ try {
     else { ($ResourcePacks -replace '\s+', '') }
     $worldFixture = "seed-$Seed-position-$($PlayerPosition -replace '\s+', '_')-time-$WorldTime"
 
+    $scenarioIdentity =
+        "profile=$RcPerformanceProfile;seed=$Seed;renderDistance=$renderDistance"
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $scenarioHash = ([BitConverter]::ToString(
+            $sha256.ComputeHash(
+                [System.Text.Encoding]::UTF8.GetBytes($scenarioIdentity))) `
+            -replace '-', '').ToLowerInvariant()
+    }
+    finally {
+        $sha256.Dispose()
+    }
+    $fixedTickCount = [Math]::Floor($DurationMs / 50)
+
     Add-Content -LiteralPath $SummaryPath -Encoding utf8 -Value @(
-        "comparison_schema=2",
+        "comparison_schema=3",
+        "comparison_contract_version=1",
+        "comparison_budget_profile=$BudgetProfile",
         "comparison_scene_id=$SceneId",
         "comparison_platform=windows",
         "comparison_architecture=x86_64",
@@ -504,7 +540,16 @@ try {
         "comparison_world_fixture=$worldFixture",
         "comparison_save_format=$saveFormat",
         "comparison_storage_class=$StorageClass",
-        "comparison_render_distance=$renderDistance"
+        "comparison_render_distance=$renderDistance",
+        "comparison_cache_regime=$CacheRegime",
+        "comparison_movement_path=rc-ring-12-chunks-v1",
+        "comparison_movement_speed=teleport-after-visible-plus-2s",
+        "comparison_population_fixture=rc-8-mobs-16-items-64-crops-8-chests-v1",
+        "comparison_save_state_sha256=$scenarioHash",
+        "comparison_fixed_tick_count=$fixedTickCount",
+        "peak_private_bytes=$peakPrivateBytes",
+        "peak_working_set_bytes=$peakWorkingSetBytes",
+        "peak_handle_count=$peakHandleCount"
     )
 }
 finally {
@@ -520,5 +565,8 @@ finally {
 
 Write-Host "[PERF_BASELINE] summary=$SummaryPath"
 Write-Host "[PERF_BASELINE] frames=$FramesPath"
-Get-Content -LiteralPath $SummaryPath | ForEach-Object { Write-Host "[PERF_BASELINE] $_" }
+if (-not $QuietSummary) {
+    Get-Content -LiteralPath $SummaryPath |
+        ForEach-Object { Write-Host "[PERF_BASELINE] $_" }
+}
 Write-Host "[PERF_BASELINE] status=PASS outputDir=$OutputDir"

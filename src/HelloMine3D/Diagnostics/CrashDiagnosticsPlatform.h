@@ -12,5 +12,8 @@ namespace CrashDiagnosticsPlatform
     bool install(const std::string& crashDirectory,
                  std::string& error) noexcept;
 
+    bool openReportLocation(const std::string& reportPath,
+                            std::string* error = nullptr) noexcept;
+
     [[noreturn]] void triggerControlledCrash() noexcept;
 }

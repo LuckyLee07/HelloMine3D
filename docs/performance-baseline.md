@@ -390,9 +390,10 @@ before/after comparison because the build id and resource-manifest identity
 changed from the approved reference. It does show that the active Release
 path completes the same scene without a visible frame-time warning.
 
-This is a macOS/Rosetta steady-gameplay reference, not a substitute for the
-target-Windows cold-start, world-entry, save, restore, streaming and scaled
-gameplay baselines required to close Q1. Generated samples remain ignored.
+This remains a historical macOS/Rosetta steady-gameplay reference. The target-
+Windows cold-start, world-entry, save, restore, streaming and scaled-gameplay
+baselines were approved separately for the Release Candidate on 2026-08-20.
+Generated samples under `bin/` remain ignored.
 
 ## Stage-8 Budget Contract v1
 
@@ -429,10 +430,35 @@ contract sample. Its tracked repeat is
 The baseline/repeat P95 values are `26.939/28.557 ms`, P99 values are
 `33.782/38.435 ms`, and frames over 50 ms are `2/4`. Absolute limits are 2000
 ms startup, 1500 ms controllable entry, 1200 ms entry stall, 150 ms save and
-30,000,000 resident terrain bytes, with exactly five actors. This approves one
-development scene only; the other six target-Windows product budgets remain
-open. Selection rationale and hashes are recorded in
+30,000,000 resident terrain bytes, with exactly five actors. This remains the
+frozen Alpha development scene; selection rationale and hashes are recorded in
 `docs/alpha-development-checkpoint-v1.md`.
+
+## Release Candidate Windows profile
+
+`tools/capture_release_candidate_performance.ps1` now captures the other six
+scenes twice from hidden Release clients or real headless storage paths and
+runs the schema-3 comparator for every pair. The approved profile is
+`release-candidate-windows-hidden-v1`; tracked summaries and its PASS manifest
+live under `docs/baselines/release-candidate-windows-hidden-v1/`. Client phases
+always use fresh save directories so a repeated scale fixture cannot stack old
+Actors or block entities.
+
+| Scene | Baseline / repeat evidence | Approved maximum |
+| ----- | -------------------------- | ---------------- |
+| cold start | usable menu `1080.027 / 1136.785 ms`; private peak `275099648 / 269053952` bytes; handles `530 / 530` | `3000 ms`, private/working `512 MiB`, `768` handles |
+| world entry | controllable `739.218 / 804.583 ms`; final residency `361` chunks / `1829` sections in both runs | `2500 ms`, private/working `512 MiB`, `768` handles |
+| save transaction | total/stall `195.821 / 160.612 ms`; one dirty chunk plus world metadata | `300 ms` total and stall |
+| backup restore | total `53.861 / 58.516 ms`; stall `37.768 / 41.061 ms` | `500 ms` total and stall |
+| fast streaming | visible P95/P99 `36.147/36.147` then `49.097/49.097 ms`; queue peak `23 / 18`; final `361 / 1847` residency in both runs | P95 `1000 ms`, P99 `2000 ms`, queue `512`, private/working `768 MiB`, `768` handles |
+| scaled gameplay | P95/P99 `16.558/25.130` then `16.303/27.731 ms`; exact `24` Actors, `16` items, `64` crops, `8` chests, zero cap events | stall `250 ms`, private/working `768 MiB`, `768` handles, zero cap events |
+
+All six baseline/repeat pairs return `PASS`. The cold-start cache identity is
+honestly labelled `warm-process-clean`; it does not claim an OS cache flush.
+The fast-streaming route performs four 12-chunk teleports and then settles for
+the remainder of a 30-second capture so final residency is comparable. Q1 and
+Q2 are therefore `Done`; future candidates compare against these tracked
+limits rather than regenerating or relaxing them.
 
 Q2 now supplies the first four scene families' operation-side phase values.
 `OperationPerformanceTiming` uses the same `HELLO_PERF_CAPTURE` switch as the

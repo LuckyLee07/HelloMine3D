@@ -20,6 +20,12 @@ namespace RuntimePerformanceCapture
 
     bool isEnabled();
     void recordSimulationTicks(std::size_t ticks);
+    void recordStreamingLatency(double milliseconds);
+    void recordScenarioPopulation(std::size_t actorCount,
+                                  std::size_t itemEntityCount,
+                                  std::size_t cropCount,
+                                  std::size_t chestCount,
+                                  std::size_t capEvents);
     void recordFrame(const FrameTimings &timings,
                      const WorldDebugStats &worldStats);
     bool shouldCloseWindow();

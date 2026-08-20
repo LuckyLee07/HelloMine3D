@@ -13,6 +13,7 @@
 #include <OgreWindowEventUtilities.h>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -161,6 +162,12 @@ namespace
                                 public OIS::MouseListener
     {
       public:
+        explicit OgreBootstrap(
+            std::vector<PendingCrashReport> crashReports = {})
+            : m_pendingCrashReports(std::move(crashReports))
+        {
+        }
+
         ~OgreBootstrap() override
         {
             shutdown();
@@ -335,7 +342,7 @@ namespace
                     {
                         m_audio->emitUiClick();
                     }
-                });
+                }, std::move(m_pendingCrashReports));
             if (m_audio != nullptr)
             {
                 m_audio->setCaptionSink([this](std::string caption)
@@ -863,6 +870,8 @@ namespace
                 m_verticalSliceFixturePlaced = true;
             }
 
+            configureRcPerformanceFixture();
+
             const VectorXZ center = World::getChunkXZ(
                 World::toBlockCoord(m_worldPlayer->position.x),
                 World::toBlockCoord(m_worldPlayer->position.z));
@@ -1247,6 +1256,7 @@ namespace
                 m_userInterface->beginFrame(event.timeSinceLastFrame,
                                             m_frameWorldStats, progress);
             }
+            m_updateEnd = std::chrono::steady_clock::now();
             return true;
         }
 
@@ -1273,7 +1283,14 @@ namespace
             RuntimePerformanceCapture::FrameTimings timings;
             timings.deltaMs =
                 static_cast<double>(event.timeSinceLastFrame) * 1000.0;
-            timings.renderMs = frameMs;
+            timings.updateMs =
+                std::chrono::duration<double, std::milli>(
+                    m_updateEnd - m_frameStart)
+                    .count();
+            timings.renderMs =
+                std::chrono::duration<double, std::milli>(
+                    frameEnd - m_updateEnd)
+                    .count();
             timings.frameMs = frameMs;
 
             RuntimePerformanceCapture::recordFrame(timings,
@@ -1328,6 +1345,7 @@ namespace
             {
                 return;
             }
+            updateRcPerformanceScenario(deltaSeconds);
             if (!m_applicationFlow.acceptsWorldSimulation())
             {
                 m_sandbox->cancelMiningProgress();
@@ -1474,6 +1492,21 @@ namespace
                  snapshot.cpuReadySections)
             {
                 uploadSectionVisual(section);
+                if (m_fastStreamingPending &&
+                    section.location.x == m_fastStreamingTarget.x &&
+                    section.location.z == m_fastStreamingTarget.z)
+                {
+                    const double visibleMilliseconds =
+                        std::chrono::duration<double, std::milli>(
+                            std::chrono::steady_clock::now() -
+                            m_fastStreamingStarted)
+                            .count();
+                    RuntimePerformanceCapture::recordStreamingLatency(
+                        visibleMilliseconds);
+                    m_fastStreamingPending = false;
+                    m_nextFastStreamingMoveSeconds =
+                        m_rcPerformanceElapsedSeconds + 2.0f;
+                }
                 uploaded.push_back(
                     {section.location, section.blockRevision});
             }
@@ -1514,6 +1547,162 @@ namespace
                                      itemPosition);
             m_world->spawnMob("validation_mob", mobPosition);
             m_validationActorsSpawned = true;
+        }
+
+        void configureRcPerformanceFixture()
+        {
+            const char *profile =
+                std::getenv("HELLOMINE3D_RC_PERF_PROFILE");
+            if (profile == nullptr || profile[0] == '\0' ||
+                m_world == nullptr || m_worldPlayer == nullptr)
+            {
+                return;
+            }
+
+            const std::string profileName(profile);
+            if (profileName == "fast-streaming")
+            {
+                m_fastStreamingEnabled = true;
+                m_fastStreamingOrigin = World::getChunkXZ(
+                    World::toBlockCoord(m_worldPlayer->position.x),
+                    World::toBlockCoord(m_worldPlayer->position.z));
+                std::cout << "[RC_PERF] profile=fast-streaming path=v1\n";
+                return;
+            }
+            if (profileName != "scaled-gameplay")
+            {
+                throw std::runtime_error(
+                    "Unknown RC performance profile: " + profileName);
+            }
+
+            const int centerX =
+                World::toBlockCoord(m_worldPlayer->position.x);
+            const int centerY =
+                World::toBlockCoord(m_worldPlayer->position.y);
+            const int centerZ =
+                World::toBlockCoord(m_worldPlayer->position.z);
+            std::size_t crops = 0;
+            std::size_t chests = 0;
+            std::size_t capEvents = 0;
+
+            for (int z = 0; z < 8; ++z)
+            {
+                for (int x = 0; x < 8; ++x)
+                {
+                    const int blockX = centerX + 10 + x;
+                    const int blockZ = centerZ + 10 + z;
+                    m_world->setBlock(blockX, centerY - 1, blockZ,
+                                      BlockId::Dirt);
+                    m_world->setBlock(blockX, centerY + 1, blockZ,
+                                      BlockId::Air);
+                    m_world->setBlock(
+                        blockX, centerY, blockZ,
+                        ChunkBlock(BlockId::WheatCrop,
+                                   BlockMetadata::WheatCrop::Mature));
+                    ++crops;
+                }
+            }
+
+            for (int index = 0; index < 8; ++index)
+            {
+                const glm::ivec3 chest{
+                    centerX - 12 + index * 2, centerY, centerZ + 10};
+                m_world->setBlock(chest.x, chest.y - 1, chest.z,
+                                  BlockId::Stone);
+                m_world->setBlock(chest.x, chest.y, chest.z,
+                                  BlockId::Chest);
+                if (ChestContainer::initialize(*m_world, chest))
+                {
+                    ++chests;
+                }
+                else
+                {
+                    ++capEvents;
+                }
+            }
+
+            for (int index = 0; index < 8; ++index)
+            {
+                const glm::vec3 position =
+                    m_worldPlayer->position +
+                    glm::vec3(6.f + static_cast<float>(index % 4), 0.f,
+                              5.f + static_cast<float>(index / 4) * 2.f);
+                if (m_world->spawnMob("hellomine:scaled_fixture",
+                                      position) == InvalidActorId)
+                {
+                    ++capEvents;
+                }
+            }
+            for (int index = 0; index < 16; ++index)
+            {
+                const glm::vec3 position =
+                    m_worldPlayer->position +
+                    glm::vec3(18.f + static_cast<float>(index % 8), 3.f,
+                              12.f + static_cast<float>(index / 8) * 2.f);
+                if (m_world->spawnItemEntity(Material::ID::Stone, 1,
+                                             position) == InvalidActorId)
+                {
+                    ++capEvents;
+                }
+            }
+
+            const WorldDebugStats stats = m_world->collectDebugStats();
+            const std::size_t items =
+                m_world->getActorManager().countActorsByType("item");
+            RuntimePerformanceCapture::recordScenarioPopulation(
+                stats.actorCount, items, crops, chests, capEvents);
+            std::cout << "[RC_PERF] profile=scaled-gameplay actors="
+                      << stats.actorCount << " items=" << items
+                      << " crops=" << crops << " chests=" << chests
+                      << " cap_events=" << capEvents << '\n';
+        }
+
+        void updateRcPerformanceScenario(float deltaSeconds)
+        {
+            if (!m_fastStreamingEnabled || m_fastStreamingPending ||
+                m_world == nullptr || m_worldPlayer == nullptr)
+            {
+                if (m_fastStreamingEnabled)
+                {
+                    m_rcPerformanceElapsedSeconds += deltaSeconds;
+                }
+                return;
+            }
+
+            m_rcPerformanceElapsedSeconds += deltaSeconds;
+            if (m_rcPerformanceElapsedSeconds <
+                m_nextFastStreamingMoveSeconds)
+            {
+                return;
+            }
+            if (m_fastStreamingMoveIndex >= 4)
+            {
+                return;
+            }
+
+            static const std::array<VectorXZ, 8> Offsets = {
+                VectorXZ{12, 0}, VectorXZ{12, 12},
+                VectorXZ{0, 12}, VectorXZ{-12, 12},
+                VectorXZ{-12, 0}, VectorXZ{-12, -12},
+                VectorXZ{0, -12}, VectorXZ{12, -12}};
+            const VectorXZ offset =
+                Offsets[m_fastStreamingMoveIndex % Offsets.size()];
+            ++m_fastStreamingMoveIndex;
+            m_fastStreamingTarget = {
+                m_fastStreamingOrigin.x + offset.x,
+                m_fastStreamingOrigin.z + offset.z};
+            m_worldPlayer->position = {
+                static_cast<float>(m_fastStreamingTarget.x * CHUNK_SIZE +
+                                   CHUNK_SIZE / 2),
+                m_worldPlayer->position.y,
+                static_cast<float>(m_fastStreamingTarget.z * CHUNK_SIZE +
+                                   CHUNK_SIZE / 2)};
+            m_worldPlayer->velocity = glm::vec3(0.f);
+            m_worldPlayer->box.update(m_worldPlayer->position);
+            m_logicCamera->update();
+            m_world->preloadAround(m_worldPlayer->position);
+            m_fastStreamingStarted = std::chrono::steady_clock::now();
+            m_fastStreamingPending = true;
         }
 
         void uploadSectionVisual(
@@ -1789,6 +1978,11 @@ namespace
             if (event.key == OIS::KC_ESCAPE)
             {
                 if (m_userInterface != nullptr &&
+                    m_userInterface->hasBlockingModal())
+                {
+                    return true;
+                }
+                if (m_userInterface != nullptr &&
                     m_userInterface->dismissSettings())
                 {
                     return true;
@@ -2055,6 +2249,7 @@ namespace
         std::unique_ptr<OgreRenderCapture> m_renderCapture;
         std::unique_ptr<OgreUserInterface> m_userInterface;
         std::unique_ptr<AudioRuntime> m_audio;
+        std::vector<PendingCrashReport> m_pendingCrashReports;
         std::string m_audioDefinitionError;
         GameApplicationFlow m_applicationFlow;
         std::unique_ptr<WorldManagementService> m_worldManagement;
@@ -2074,6 +2269,7 @@ namespace
         int m_frameCount = 0;
         WorldDebugStats m_frameWorldStats;
         std::chrono::steady_clock::time_point m_frameStart;
+        std::chrono::steady_clock::time_point m_updateEnd;
         glm::vec2 m_pendingLookDelta{0.0f};
         bool m_toggleFlying = false;
         bool m_resetMeshes = false;
@@ -2085,12 +2281,21 @@ namespace
         bool m_combatFixturePlaced = false;
         bool m_cropFixturePlaced = false;
         bool m_verticalSliceFixturePlaced = false;
+        bool m_fastStreamingEnabled = false;
+        bool m_fastStreamingPending = false;
+        VectorXZ m_fastStreamingOrigin{0, 0};
+        VectorXZ m_fastStreamingTarget{0, 0};
+        std::chrono::steady_clock::time_point m_fastStreamingStarted;
+        float m_rcPerformanceElapsedSeconds = 0.f;
+        float m_nextFastStreamingMoveSeconds = 4.f;
+        std::size_t m_fastStreamingMoveIndex = 0;
         int m_hotbarDelta = 0;
         int m_hotbarSlot = -1;
     };
 }
 
-int runOgreBootstrap(bool validateOnly)
+int runOgreBootstrap(bool validateOnly,
+                     std::vector<PendingCrashReport> crashReports)
 {
     HELLOMINE3D_PROFILE_THREAD("Main Thread");
     std::cout << "[TRACY] enabled="
@@ -2177,7 +2382,7 @@ int runOgreBootstrap(bool validateOnly)
                   << '\n';
         runtimeOperationTimings().markLatestActive(
             RuntimeOperationKind::Startup);
-        OgreBootstrap bootstrap;
+        OgreBootstrap bootstrap(std::move(crashReports));
         if (validateOnly)
         {
             return bootstrap.validate() ? EXIT_SUCCESS : EXIT_FAILURE;

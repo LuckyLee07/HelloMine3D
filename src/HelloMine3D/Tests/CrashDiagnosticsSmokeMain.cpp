@@ -1,4 +1,5 @@
 #include "../Diagnostics/CrashDiagnostics.h"
+#include "../Diagnostics/CrashReportInbox.h"
 #include "../Diagnostics/CrashSidecar.h"
 #include "CrashSymbolizer.h"
 
@@ -6,6 +7,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <functional>
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -230,6 +232,60 @@ int main(int argc, char** argv)
     }
     suite.check("H2/sidecar-rejects-mismatched-build-identity",
                 !parseCrashSidecar(mismatched, parsed, &sidecarError));
+
+    fs::create_directories(crashes);
+    {
+        std::ofstream dump(crashes / sidecar.dumpFile,
+                           std::ios::binary | std::ios::trunc);
+        dump << "local-minidump-fixture";
+        std::ofstream report(crashes / "HelloMine3D-fixture.crash.txt",
+                             std::ios::binary | std::ios::trunc);
+        report << serialized;
+        std::ofstream malformed(crashes / "malformed.crash.txt",
+                                std::ios::binary | std::ios::trunc);
+        malformed << "schema 99\n";
+        std::ofstream orphan(crashes / "orphan.crash.txt",
+                             std::ios::binary | std::ios::trunc);
+        CrashSidecar orphanSidecar = sidecar;
+        orphanSidecar.dumpFile = "missing.dmp";
+        orphan << serializeCrashSidecar(orphanSidecar);
+    }
+    const CrashReportInboxResult pending =
+        scanCrashReportInbox(crashes.u8string());
+    suite.check("H3/inbox-publishes-only-valid-local-pairs",
+                pending.error.empty() && pending.reports.size() == 1 &&
+                    pending.invalidReports == 2 &&
+                    pending.ignoredReports == 0);
+    suite.check("H3/copied-details-are-sanitized-and-offline",
+                pending.reports.size() == 1 &&
+                    pending.reports.front().clipboardText.find(
+                        root.u8string()) == std::string::npos &&
+                    pending.reports.front().clipboardText.find(
+                        sidecar.buildIdentity) != std::string::npos &&
+                    pending.reports.front().clipboardText.find(
+                        "upload_enabled=0") != std::string::npos);
+    std::string acknowledgementError;
+    suite.check("H3/ignore-is-persisted-without-deleting-artifacts",
+                pending.reports.size() == 1 &&
+                    acknowledgeCrashReport(pending.reports.front(),
+                                           &acknowledgementError) &&
+                    fs::is_regular_file(
+                        pending.reports.front().acknowledgementPath) &&
+                    fs::is_regular_file(pending.reports.front().dumpPath) &&
+                    fs::is_regular_file(pending.reports.front().sidecarPath),
+                acknowledgementError);
+    const CrashReportInboxResult acknowledged =
+        scanCrashReportInbox(crashes.u8string());
+    suite.check("H3/acknowledged-report-does-not-prompt-again",
+                acknowledged.error.empty() &&
+                    acknowledged.reports.empty() &&
+                    acknowledged.ignoredReports == 1 &&
+                    acknowledged.invalidReports == 2);
+    const CrashReportInboxResult missingInbox =
+        scanCrashReportInbox((root / "missing-crash-directory").u8string());
+    suite.check("H3/missing-inbox-is-an-empty-nonfatal-state",
+                missingInbox.error.empty() &&
+                    missingInbox.reports.empty());
 
     fs::remove_all(root, cleanupError);
     return suite.finish();

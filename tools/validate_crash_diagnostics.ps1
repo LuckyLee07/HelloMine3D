@@ -285,6 +285,8 @@ $matchingSymbols = Invoke-OfflineSymbolizer `
 if ($matchingSymbols.ExitCode -ne 0 -or
     -not $matchingSymbols.Stdout.Contains(
         "[CRASH_SYMBOLIZER] status=PASS") -or
+    -not $matchingSymbols.Stdout.Contains(
+        "mode=minidump-stack-hybrid") -or
     -not $matchingSymbols.Stdout.Contains("triggerControlledCrash")) {
     throw "Matching symbols did not resolve a controlled project frame: $($matchingSymbols.Stderr)"
 }
@@ -297,19 +299,33 @@ if ($wrongSymbols.ExitCode -eq 0 -or
     -not $wrongSymbols.Stderr.Contains("symbol-identity-mismatch")) {
     throw "Wrong symbols were not rejected with an explicit mismatch."
 }
+$symbolArchiveDir = Join-Path $OutputDir "symbol-archives"
+& (Join-Path $RepoRoot "tools\archive_windows_symbols.ps1") `
+    -SidecarPath $sidecars[0].FullName `
+    -OutputDir $symbolArchiveDir
+$symbolArchives = @(
+    Get-ChildItem -LiteralPath $symbolArchiveDir -Filter "*.zip" -File
+)
+if ($symbolArchives.Count -ne 1 -or $symbolArchives[0].Length -le 0) {
+    throw "Symbol archival must produce exactly one non-empty ZIP."
+}
 $worldMetadata = Join-Path $ControlledSave "world.meta"
 if (-not (Test-Path -LiteralPath $worldMetadata -PathType Leaf) -or
     (Get-Item -LiteralPath $worldMetadata).Length -le 0) {
     throw "Controlled crash did not leave non-empty active-world metadata."
 }
 
-$null = Invoke-CrashClientCase `
+$postCrashResult = Invoke-CrashClientCase `
     -Name "post-crash-save-validation" `
     -SaveDirectory $ControlledSave `
     -CrashDirectory $ControlledCrash `
     -ValidateOnly $true `
     -ControlledCrash "" `
     -ExpectSuccess $true
+if (-not $postCrashResult.Stdout.Contains(
+        "[CRASH_REPORT] pending=1 ignored=0 invalid=0 upload=0")) {
+    throw "Next startup did not expose exactly one local crash report."
+}
 $dumpsAfterValidation = @(Get-Dumps $ControlledCrash)
 if ($dumpsAfterValidation.Count -ne 1) {
     throw "Post-crash validation unexpectedly changed the dump count."
@@ -343,7 +359,11 @@ $summary = @(
     "controlled_sidecar_count=1",
     "controlled_sidecar_bytes=$($sidecars[0].Length)",
     "matching_symbolization=PASS",
+    "minidump_stack=PASS",
     "wrong_symbol_rejection=PASS",
+    "symbol_archive=PASS",
+    "symbol_archive_bytes=$($symbolArchives[0].Length)",
+    "next_start_local_prompt=PASS",
     "post_crash_world_validation=PASS",
     "pending_save_candidates=0"
 )

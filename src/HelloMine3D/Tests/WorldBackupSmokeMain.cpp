@@ -577,6 +577,13 @@ int main()
                 completeSuccess(RuntimeOperationKind::Restore));
     suite.check("Q2/backup-restore-failure-emits-complete-timing",
                 hasFailedBackupOrRestore);
+    const char *operationSummaryOutput =
+        std::getenv("HELLO_OPERATION_SUMMARY_OUT");
+    if (operationSummaryOutput != nullptr &&
+        operationSummaryOutput[0] != '\0') {
+        std::ofstream output(operationSummaryOutput, std::ios::trunc);
+        operationTimings.appendLatestSummary(output);
+    }
     operationTimings.reset(false);
 
     return suite.finish();

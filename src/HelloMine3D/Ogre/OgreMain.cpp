@@ -6,6 +6,7 @@
 #include <string>
 
 #include "../Diagnostics/CrashDiagnostics.h"
+#include "../Diagnostics/CrashReportInbox.h"
 #include "../Util/ResourcePaths.h"
 
 namespace
@@ -65,8 +66,22 @@ int main()
             return EXIT_FAILURE;
         }
 
+        CrashReportInboxResult crashInbox =
+            scanCrashReportInbox(crashConfiguration.crashDirectory);
+        std::cout << "[CRASH_REPORT] pending="
+                  << crashInbox.reports.size()
+                  << " ignored=" << crashInbox.ignoredReports
+                  << " invalid=" << crashInbox.invalidReports
+                  << " upload=0";
+        if (!crashInbox.error.empty())
+        {
+            std::cout << " scan_error=" << crashInbox.error;
+        }
+        std::cout << '\n';
+
         return runOgreBootstrap(
-            isTruthy(std::getenv("HELLOMINE3D_VALIDATE_ONLY")));
+            isTruthy(std::getenv("HELLOMINE3D_VALIDATE_ONLY")),
+            std::move(crashInbox.reports));
     }
     catch (const std::exception& exception)
     {

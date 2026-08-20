@@ -48,6 +48,17 @@ namespace
         std::size_t frameIndex = 0;
         std::size_t pendingSimulationTicks = 0;
         std::size_t capturedSimulationTicks = 0;
+        std::vector<double> streamingLatenciesMs;
+        std::size_t streamQueuePeak = 0;
+        std::size_t firstMeshRebuildCount = 0;
+        std::size_t lastMeshRebuildCount = 0;
+        bool meshProgressObserved = false;
+        bool scenarioPopulationRecorded = false;
+        std::size_t scenarioActorCount = 0;
+        std::size_t scenarioItemEntityCount = 0;
+        std::size_t scenarioCropCount = 0;
+        std::size_t scenarioChestCount = 0;
+        std::size_t scenarioCapEvents = 0;
     };
 
     CaptureState &state()
@@ -340,6 +351,43 @@ namespace
         writeMetric(summary, "render", renderMs);
         writeMetric(summary, "display", displayMs);
 
+        if (!captureState.streamingLatenciesMs.empty()) {
+            std::vector<double> latency =
+                captureState.streamingLatenciesMs;
+            std::sort(latency.begin(), latency.end());
+            summary << "chunk_visible_p50_ms="
+                    << percentile(latency, 50.0) << "\n";
+            summary << "chunk_visible_p95_ms="
+                    << percentile(latency, 95.0) << "\n";
+            summary << "chunk_visible_p99_ms="
+                    << percentile(latency, 99.0) << "\n";
+            summary << "stream_queue_peak="
+                    << captureState.streamQueuePeak << "\n";
+            summary << "mesh_progress_completed="
+                    << (captureState.meshProgressObserved &&
+                                captureState.lastMeshRebuildCount >=
+                                    captureState.firstMeshRebuildCount
+                            ? captureState.lastMeshRebuildCount -
+                                  captureState.firstMeshRebuildCount
+                            : 0)
+                    << "\n";
+        }
+
+        if (captureState.scenarioPopulationRecorded) {
+            summary << "main_thread_max_stall_ms="
+                    << (frameMs.empty() ? 0.0 : frameMs.back()) << "\n";
+            summary << "actor_count="
+                    << captureState.scenarioActorCount << "\n";
+            summary << "item_entity_count="
+                    << captureState.scenarioItemEntityCount << "\n";
+            summary << "crop_count="
+                    << captureState.scenarioCropCount << "\n";
+            summary << "chest_count="
+                    << captureState.scenarioChestCount << "\n";
+            summary << "cap_events="
+                    << captureState.scenarioCapEvents << "\n";
+        }
+
         const double avgFrame = average(frameMs);
         summary << "avg_fps=" << (avgFrame > 0.0 ? 1000.0 / avgFrame : 0.0)
                 << "\n";
@@ -486,6 +534,35 @@ void recordSimulationTicks(std::size_t ticks)
     captureState.pendingSimulationTicks += ticks;
 }
 
+void recordStreamingLatency(double milliseconds)
+{
+    initialize();
+    CaptureState &captureState = state();
+    if (!captureState.enabled || captureState.complete ||
+        milliseconds <= 0.0) {
+        return;
+    }
+    captureState.streamingLatenciesMs.push_back(milliseconds);
+}
+
+void recordScenarioPopulation(std::size_t actorCount,
+                              std::size_t itemEntityCount,
+                              std::size_t cropCount,
+                              std::size_t chestCount,
+                              std::size_t capEvents)
+{
+    initialize();
+    CaptureState &captureState = state();
+    if (!captureState.enabled || captureState.complete) {
+        return;
+    }
+    captureState.scenarioPopulationRecorded = true;
+    captureState.scenarioActorCount = actorCount;
+    captureState.scenarioItemEntityCount = itemEntityCount;
+    captureState.scenarioCropCount = cropCount;
+    captureState.scenarioChestCount = chestCount;
+    captureState.scenarioCapEvents = capEvents;
+}
 void recordFrame(const FrameTimings &timings,
                  const WorldDebugStats &worldStats)
 {
@@ -500,6 +577,16 @@ void recordFrame(const FrameTimings &timings,
         captureState.startTime = std::chrono::steady_clock::now();
         captureState.timingStarted = true;
     }
+
+    captureState.streamQueuePeak = std::max(
+        captureState.streamQueuePeak, worldStats.queuedChunkUpdates);
+    if (!captureState.meshProgressObserved) {
+        captureState.firstMeshRebuildCount =
+            worldStats.chunks.meshRebuilds;
+        captureState.meshProgressObserved = true;
+    }
+    captureState.lastMeshRebuildCount =
+        worldStats.chunks.meshRebuilds;
 
     const auto now = std::chrono::steady_clock::now();
     const double elapsedMs =

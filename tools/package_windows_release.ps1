@@ -221,7 +221,10 @@ function Invoke-PackagedClient {
         [string]$Root,
         [bool]$ValidateOnly,
         [string]$Name,
-        [bool]$ExpectSuccess
+        [bool]$ExpectSuccess,
+        [string]$ControlledCrash = "",
+        [string]$CrashDirectory = "",
+        [int]$ExpectedCrashArtifacts = 0
     )
     $exe = Join-Path $Root "bin\HelloMine3D.exe"
     $startInfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -231,8 +234,10 @@ function Invoke-PackagedClient {
     $startInfo.CreateNoWindow = $true
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
-    $caseCrashDirectory = Join-Path $OutputRoot `
-        "runtime-crashes\$Name"
+    $caseCrashDirectory = if ([string]::IsNullOrWhiteSpace($CrashDirectory)) {
+        Join-Path $OutputRoot "runtime-crashes\$Name"
+    }
+    else { $CrashDirectory }
     $environmentOverrides = [ordered]@{
         HELLOMINE3D_ROOT = $Root
         HELLOMINE3D_SEED = "20260809"
@@ -240,7 +245,7 @@ function Invoke-PackagedClient {
         HELLOMINE3D_PLAYER_ROTATION = "0 0 0"
         HELLOMINE3D_SAVE_DIR = Join-Path $OutputRoot "runtime-state\$Name"
         HELLOMINE3D_CRASH_DIR = $caseCrashDirectory
-        HELLOMINE3D_CONTROLLED_CRASH = $null
+        HELLOMINE3D_CONTROLLED_CRASH = $ControlledCrash
         HELLOMINE3D_STARTUP_ERROR_NO_DIALOG = "1"
         HELLOMINE3D_RESOURCE_PACKS = $null
         HELLOMINE3D_VALIDATE_ONLY = $null
@@ -304,8 +309,16 @@ function Invoke-PackagedClient {
                 -Filter "*.dmp" -File
         )
     }
-    if ($unexpectedDumps.Count -ne 0) {
-        throw "Packaged client $Name unexpectedly produced a crash dump."
+    $sidecars = @()
+    if (Test-Path -LiteralPath $caseCrashDirectory -PathType Container) {
+        $sidecars = @(
+            Get-ChildItem -LiteralPath $caseCrashDirectory `
+                -Filter "*.crash.txt" -File
+        )
+    }
+    if ($unexpectedDumps.Count -ne $ExpectedCrashArtifacts -or
+        $sidecars.Count -ne $ExpectedCrashArtifacts) {
+        throw "Packaged client $Name expected $ExpectedCrashArtifacts crash artifact pairs but found $($unexpectedDumps.Count) dumps and $($sidecars.Count) sidecars."
     }
     return [pscustomobject]@{
         ExitCode = $exitCode
@@ -329,6 +342,31 @@ if (-not $validationResult.Stdout.Contains("[RESOURCE_PACK] enabled=")) {
 if (-not $SkipRealWindow) {
     $null = Invoke-PackagedClient $ValidationRoot $false `
         "real-window-three-frames" $true
+}
+
+$h3CrashDirectory = Join-Path $OutputRoot "runtime-crashes\h3-local"
+$controlledPackageCrash = Invoke-PackagedClient `
+    -Root $ValidationRoot `
+    -ValidateOnly $false `
+    -Name "controlled-crash" `
+    -ExpectSuccess $false `
+    -ControlledCrash "after-first-frame" `
+    -CrashDirectory $h3CrashDirectory `
+    -ExpectedCrashArtifacts 1
+if (-not $controlledPackageCrash.Stdout.Contains(
+        "controlled_crash=after-first-frame active_world_saved=1")) {
+    throw "Packaged controlled crash did not publish the active world."
+}
+$postCrashPrompt = Invoke-PackagedClient `
+    -Root $ValidationRoot `
+    -ValidateOnly $false `
+    -Name "next-start-crash-prompt" `
+    -ExpectSuccess $true `
+    -CrashDirectory $h3CrashDirectory `
+    -ExpectedCrashArtifacts 1
+if (-not $postCrashPrompt.Stdout.Contains(
+        "[CRASH_REPORT] pending=1 ignored=0 invalid=0 upload=0")) {
+    throw "Packaged next startup did not expose the local crash prompt."
 }
 
 $missingRoot = Join-Path $OutputRoot "negative-missing"
@@ -401,7 +439,9 @@ $summaryLines = @(
     "real_window=$(if ($SkipRealWindow) { 'SKIPPED' } else { 'PASS' })",
     "missing_resource_negative=PASS",
     "stale_resource_negative=PASS",
-    "ordinary_crash_dumps=0"
+    "ordinary_crash_dumps=0",
+    "controlled_package_crash=PASS",
+    "next_start_local_prompt=PASS"
 )
 $summaryPath = Join-Path $OutputRoot "package-summary.txt"
 [System.IO.File]::WriteAllText(

@@ -670,6 +670,8 @@ project "HelloMine3DCrashDiagnosticsSmoke"
         source_dir .. "/Diagnostics/CrashDiagnostics.cpp",
         source_dir .. "/Diagnostics/CrashSidecar.h",
         source_dir .. "/Diagnostics/CrashSidecar.cpp",
+        source_dir .. "/Diagnostics/CrashReportInbox.h",
+        source_dir .. "/Diagnostics/CrashReportInbox.cpp",
         source_dir .. "/Diagnostics/CrashDiagnosticsPlatform.h",
         source_dir .. "/Diagnostics/CrashDiagnosticsPlatformStub.cpp",
         source_dir .. "/Diagnostics/WindowsCrashDiagnostics.cpp"

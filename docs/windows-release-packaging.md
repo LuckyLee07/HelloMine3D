@@ -32,7 +32,9 @@ The packager copies the distribution to an isolated clean root and verifies:
 - optional packs are enabled through the packaged `bin/resource-packs.txt`
   without weakening the base startup manifest.
 - every ordinary packaged process receives a crash directory outside both the
-  copied distribution and its world-save tree, and produces no `.dmp`.
+  copied distribution and its world-save tree, and produces no `.dmp`;
+- a clean packaged controlled crash writes one external local report, and the
+  next packaged startup discovers exactly that report without networking.
 
 `-SkipRealWindow` keeps the deterministic clean-root, archive and negative
 checks while omitting the visible hardware window. The full Windows build gate
@@ -40,11 +42,10 @@ uses that non-intrusive form; formal R5 acceptance runs the three-frame window.
 Generated directories, ZIP files and logs live below `bin/package_runs/` and
 remain ignored.
 
-The accepted 2026-08-13 Release run contains 61 inventoried files and the
-optional `example-stone` pack. Both repeated archive builds produced SHA-256
-`F4F3C448E75031F30EB788FF72C5F22A6A32CDF6C85A90164D1E16B7F807BB69`.
-That archived run predates Tracy. The current packager adds its fifteenth
-third-party notice, so the next Windows package will have a different inventory
-and archive hash and must be accepted as a new run. H1 also tightens the
-inventory against stale crash directories; its controlled package crash remains
-an H3 acceptance item rather than part of this historical R5 record.
+The accepted final 2026-08-20 RC gate contains 66 inventoried files with the
+`example-stone` optional pack and produces archive SHA-256
+`AB5E07D151E8C9973815F5969AA281CE7CBD57413A446825CC9FC12C04AAD81C`.
+The distribution contains no PDB, symbol archive, old crash, save, log or test
+binary. Its clean-package controlled crash and next-start local prompt both
+pass, so H3 packaging is complete. Symbols remain a separate build-identity
+archive and are never copied into this ZIP.

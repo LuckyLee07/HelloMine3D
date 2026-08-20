@@ -3,8 +3,9 @@
 H1 establishes a local-only Windows minidump boundary. The implementation is
 present and verified on target Windows as of 2026-08-17; the controlled Release
 crash, post-crash save reopen and no-upload boundary all pass, so H1 is `Done`.
-H2's sanitized sidecar and offline single-frame symbol skeleton are specified
-separately in `docs/crash-sidecar-contract-v1.md`.
+H2 的脱敏 sidecar、混合栈离线符号化和独立符号归档，以及 H3 的下次启动本地提示，
+均已在 2026-08-20 的 Release Candidate 验证中闭环；详细合同见
+`docs/crash-sidecar-contract-v1.md`。
 
 ## Backend audit and selection
 
@@ -81,16 +82,18 @@ not install a compatible dump backend.
 
 ## Verification
 
-`HelloMine3DCrashDiagnosticsSmoke` freezes 16 renderer-independent assertions:
+`HelloMine3DCrashDiagnosticsSmoke` freezes 21 renderer-independent assertions:
 
 - stable defaults and trigger names;
 - exact trigger parsing and invalid-value rejection;
 - working-directory semantics for relative overrides;
 - equal, parent and child save/crash overlap rejection;
 - non-empty project-root enforcement;
-- platform install identity and zero dumps during an ordinary smoke exit.
+- platform install identity and zero dumps during an ordinary smoke exit;
 - sidecar roundtrip, path sanitization, unknown-field rejection and mismatched
-  build-identity rejection.
+  build-identity rejection;
+- pending/invalid/orphan/acknowledged report discovery, bounded ordering,
+  sanitized clipboard text and persistent acknowledgement.
 
 The target-Windows Release harness is:
 
@@ -105,18 +108,21 @@ dumps, then runs the controlled first-frame crash in isolated directories. It
 requires a non-zero exit, exactly one non-empty `.dmp` and one sanitized
 `.crash.txt`, the pre-crash active-world publication marker, a successful
 validation-only reopen of the same world, no pending save candidates and no
-additional dump on that reopen. It also resolves the tracked probe with the
-matching PDB and requires an explicit rejection for a wrong PDB. The full
-Windows build gate invokes this harness only after the Release rebuild.
+additional dump on that reopen. It also reads the actual minidump
+module/thread/memory/exception streams, requires a bounded hybrid stack with at
+least one current-project frame, rejects a wrong PDB, archives matching symbols
+outside the package, then starts the client again and requires exactly one
+local pending-report prompt. The full Windows build gate invokes this harness
+only after the Release rebuild.
 
-Current Windows evidence is a 127,425-byte Release dump with a non-zero
+Current Windows evidence is a 124,513-byte Release dump with a non-zero
 controlled exit, successful save reopen, no pending candidate and no upload.
-The matching EXE/PDB resolves a current-project linker symbol containing
-`triggerControlledCrash`; the current incremental-link PDB has no source line,
-so the tool reports `source=unknown:0`. A wrong PDB returns exit code 3 and
-`symbol-identity-mismatch`. Debug/Release both pass 16/16 portable assertions
-and both hidden client modes exit 0.
-
-H2 still has an open productization gap for arbitrary-dump full stack walking
-and symbol archive workflow. H3 next-start/package UX remains separate and
-open; neither gap changes H1's completed status.
+The matching EXE/PDB resolves a bounded project stack including
+`CrashDiagnosticsPlatform::triggerControlledCrash`; when native `StackWalk64`
+cannot advance beyond the saved system context, the tool labels and uses its
+bounded saved-stack scan instead of claiming a native unwind. A wrong PDB
+returns exit code 3 and `symbol-identity-mismatch`. The separate seven-entry
+symbol ZIP hashes to
+`1e614f64e7ac2f8be55d39cf26aa817a14bb1e30fdc9237644cc044df01b2ca3`.
+Debug/Release both pass 21/21 portable assertions. H2 and H3 are `Done`; upload
+remains hard-disabled and R3 human input remains a separate release gate.

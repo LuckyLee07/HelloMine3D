@@ -21,6 +21,15 @@ namespace CrashDiagnosticsPlatform
         return false;
     }
 
+    bool openReportLocation(const std::string&, std::string* error) noexcept
+    {
+        if (error != nullptr)
+        {
+            *error = "Opening a crash report is unsupported on this platform.";
+        }
+        return false;
+    }
+
     [[noreturn]] void triggerControlledCrash() noexcept
     {
         std::abort();

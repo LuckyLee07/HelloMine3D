@@ -6,8 +6,10 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "../Config.h"
+#include "../Diagnostics/CrashReportInbox.h"
 
 namespace Ogre
 {
@@ -65,7 +67,8 @@ class OgreUserInterface final : public Ogre::RenderQueueListener
                       GameApplicationFlow &applicationFlow,
                       WorldManagementService &worldManagement,
                       const UserSettings &settings,
-                      std::function<void()> uiFeedback = {});
+                      std::function<void()> uiFeedback = {},
+                      std::vector<PendingCrashReport> crashReports = {});
     ~OgreUserInterface() override;
 
     OgreUserInterface(const OgreUserInterface &) = delete;
@@ -80,6 +83,7 @@ class OgreUserInterface final : public Ogre::RenderQueueListener
                      int button, bool pressed);
     bool wantsKeyboardInput() const;
     bool wantsMouseInput() const;
+    bool hasBlockingModal() const noexcept;
     bool isDebugPanelVisible() const noexcept;
     void setWorldContext(Player *player, World *world) noexcept;
     void setStatusMessage(std::string message);
