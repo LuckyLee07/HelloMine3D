@@ -19,7 +19,7 @@
 
 | 所有者 | 字段 | 设置页权限 |
 | ------ | ---- | ---------- |
-| `UserSettings` | 窗口宽高、全屏、视距、FOV、鼠标灵敏度、反转 Y、主/UI/效果/环境音量 | 可编辑 |
+| `UserSettings` | 窗口宽高、全屏、视距、FOV、鼠标灵敏度、反转 Y、主/UI/效果/环境音量、UI 缩放、声音字幕、操作提示和九项玩法键位 | 可编辑 |
 | `WorldCreationConfig` | 可选世界 seed | 不可见、不可编辑 |
 
 恢复默认值只重新创建 `UserSettings`。应用时以当前完整 `Config` 为基底替换用户设置，
@@ -31,7 +31,7 @@
 2. `Cancel` 丢弃草稿并恢复快照；`Defaults` 只覆盖草稿，不立即保存。
 3. `Apply` 先做完整范围校验，再把草稿作为命令交给应用层。
 4. 应用层先原子发布配置；失败时内存配置、相机和世界都保持旧值，设置页保留草稿和错误。
-5. 成功后才更新内存配置。视觉/逻辑相机 FOV、灵敏度、反转 Y、视距和音量立即生效；窗口尺寸和全屏
+5. 成功后才更新内存配置。视觉/逻辑相机 FOV、灵敏度、反转 Y、视距、音量、UI 缩放、辅助选项和键位立即生效；窗口尺寸和全屏
    保存成功但明确提示重启生效。
 
 第一版不在运行中重建 Ogre 窗口。视距通过线程安全原子值更新，并递增加载计划修订号，
@@ -39,10 +39,10 @@
 
 ## 文件格式
 
-`bin/config.txt` 使用严格文本格式，当前版本为 1：
+`bin/config.txt` 使用严格文本格式，N6 后当前版本为 2：
 
 ```text
-settings_version 1
+settings_version 2
 renderdistance 8
 fullscreen 0
 windowsize 1280 720
@@ -53,15 +53,27 @@ mastervolume 1
 uivolume 1
 effectsvolume 1
 ambientvolume 1
+uiscale 1
+audiocaptions 1
+actionhints 1
+key_move_forward w
+key_move_backward s
+key_move_left a
+key_move_right d
+key_jump space
+key_sneak left_shift
+key_sprint left_control
+key_open_crafting e
+key_consume_food r
 seed random
 ```
 
 - 空行和 `#` 后注释可忽略；重复字段、未知字段、尾随数据和非有限浮点数拒绝。
-- 无 `settings_version` 的旧文件按 legacy v0 读取，缺失字段使用默认值，成功校验后立即
-  原子迁移到 v1。
+- 无 `settings_version` 的旧文件按 legacy v0 读取；显式版本 1 仍按原字段边界读取。两者
+  缺失的 N6 字段使用默认值，成功校验后立即原子迁移到 v2。版本 1 混入版本 2 字段拒绝。
 - 未知版本明确拒绝，不尝试猜测或降级。
 - 视距范围为 1-32，窗口为 640×480 至 7680×4320，FOV 为 45-120，灵敏度为
-  0.005-1.0，各音量为 0.0-1.0。
+  0.005-1.0，各音量为 0.0-1.0，UI 缩放为 0.75-1.75；九项玩法键位不得重复。
 
 ## 原子性与失败
 
@@ -73,8 +85,9 @@ seed random
 
 `HelloMine3DWorldRuntimeSmoke` 的 G4 用例覆盖：
 
-- 缺失文件生成 v1 和四类音量默认值；
-- legacy v0 自动迁移、未知版本拒绝；
+- 缺失文件生成 v2、四类音量、辅助选项和九项键位默认值；
+- legacy v0、版本 1 自动迁移，版本 1 越界字段和未知版本拒绝；
+- 辅助选项与自定义键位往返，重复/未知键位和 UI 缩放越界拒绝；
 - 草稿应用计划、取消、默认值、显示重启分类和非法范围；
 - 成功保存保留 seed，替换前故障保持上一份有效文件；
 - 逻辑相机 FOV 和世界视距即时更新；

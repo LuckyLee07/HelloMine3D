@@ -1,4 +1,4 @@
-# G5 基础音频反馈合同 v1
+# G5/N6 基础音频反馈合同 v1
 
 本文固定 HelloMine3D 第一版基础音频的数据、事件、播放、降级和验证边界。目标是给正常
 玩家动作提供一致反馈，同时保证音频永远不能阻止世界加载、保存或退出。本合同不引入
@@ -9,21 +9,22 @@ FMOD、流式音乐、音频资源热更新或可执行资源包扩展。
 基础定义位于 `media/audio/Base.audio`，首行必须是：
 
 ```text
-# HelloMine3D audio definitions v1
+# HelloMine3D audio definitions v2
 ```
 
-每条非注释行使用固定的八字段格式：
+每条非注释行使用固定字段和一个带引号字幕：
 
 ```text
-sound <id> <category> <mode> <waveform> <frequency_hz> <duration_ms> <gain> <max_voices>
+sound <id> <category> <mode> <waveform> <frequency_hz> <duration_ms> <gain> <max_voices> "<caption>"
 ```
 
 - `category` 只允许 `ui`、`effects`、`ambient`。
 - `mode` 只允许 `2d`、`3d`。
 - `waveform` 只允许 `sine`、`square`、`noise`。
 - 频率、时长、增益和单提示并发数必须落在解析器规定的有界范围内。
+- 字幕必须包含 1-96 个可打印字符；未知、缺失或越界字幕拒绝整份定义。
 - id 必须唯一；未知字段、重复 id、非法数值或缺少必需提示都会拒绝整份定义。
-- v1 必须同时定义 `ui.click`、`block.break`、`block.place`、`item.pickup`、
+- v2 必须同时定义 `ui.click`、`block.break`、`block.place`、`item.pickup`、
   `craft.success`、`combat.hit` 和 `ambient.wind`。
 
 当前声音由轻量后端按定义实时合成，不依赖外部音频 SDK 或压缩音频文件。定义文件作为
@@ -60,7 +61,9 @@ sound <id> <category> <mode> <waveform> <frequency_hz> <duration_ms> <gain> <max
   影响。
 - 主音量先与 `ui`、`effects`、`ambient` 分类音量相乘；设置应用后立即更新。
 - 暂停世界时停止新的效果和环境提示与环境计时；菜单 UI 提示仍可提交。
-- 静音或挂起时所有提示都被抑制；恢复后继续接受新事件，不补播已经跳过的事件。
+- 静音、零音量或挂起时听觉播放被抑制；恢复后继续接受新事件，不补播已经跳过的事件。
+  N6 声音字幕在静音和零音量下仍提交，关闭字幕选项后不提交；暂停仍会先抑制非 UI 事件，
+  因而不会生成与未发生世界声音对应的字幕。
 - 环境提示只在世界模拟正常推进时累计时间，暂停期间不追赶播放。
 
 ## 启动与失败语义

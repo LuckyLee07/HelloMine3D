@@ -313,6 +313,12 @@ void caseRuntimeConfigOwnership()
               generated.fov == 90 &&
               std::abs(generated.mouseSensitivity - 0.05f) < 0.0001f &&
               !generated.invertMouseY &&
+              std::abs(generated.uiScale - 1.f) < 0.0001f &&
+              generated.audioCaptions && generated.showActionHints &&
+              generated.inputBindings.get(GameplayAction::MoveForward) ==
+                  GameplayKey::W &&
+              generated.inputBindings.get(GameplayAction::ConsumeFood) ==
+                  GameplayKey::R &&
               !generated.worldSeed.has_value(),
           std::to_string(generated.renderDistance) + " " +
               std::to_string(generated.isFullscreen) + " " +
@@ -324,9 +330,11 @@ void caseRuntimeConfigOwnership()
         const std::string text((std::istreambuf_iterator<char>(input)),
                                std::istreambuf_iterator<char>());
         check("G4/settings-file-is-versioned",
-              text.find("settings_version 1\n") != std::string::npos &&
-                  text.find("mastervolume 1") != std::string::npos &&
-                  text.find("ambientvolume 1") != std::string::npos,
+               text.find("settings_version 2\n") != std::string::npos &&
+                   text.find("mastervolume 1") != std::string::npos &&
+                   text.find("ambientvolume 1") != std::string::npos &&
+                   text.find("uiscale 1") != std::string::npos &&
+                   text.find("key_consume_food r") != std::string::npos,
               text);
     }
 
@@ -353,8 +361,32 @@ void caseRuntimeConfigOwnership()
         const std::string text((std::istreambuf_iterator<char>(input)),
                                std::istreambuf_iterator<char>());
         check("G4/legacy-settings-migrated-atomically",
-              text.find("settings_version 1\n") == 0 &&
-                  text.find("uivolume 1") != std::string::npos,
+               text.find("settings_version 2\n") == 0 &&
+                   text.find("uivolume 1") != std::string::npos &&
+                   text.find("audiocaptions 1") != std::string::npos,
+               text);
+    }
+
+    const std::filesystem::path versionOnePath =
+        directory / "version-one-config.txt";
+    {
+        std::ofstream output(versionOnePath,
+                             std::ios::binary | std::ios::trunc);
+        output << "settings_version 1\n"
+               << "renderdistance 6\n"
+               << "fov 95\n";
+    }
+    const Config versionOne = loadRuntimeConfig(versionOnePath.string());
+    {
+        std::ifstream input(versionOnePath, std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(input)),
+                               std::istreambuf_iterator<char>());
+        check("N6/version-one-settings-migrate-with-accessibility-defaults",
+              versionOne.renderDistance == 6 && versionOne.fov == 95 &&
+                  versionOne.audioCaptions && versionOne.showActionHints &&
+                  versionOne.inputBindings.get(
+                      GameplayAction::OpenCrafting) == GameplayKey::E &&
+                  text.find("settings_version 2\n") == 0,
               text);
     }
 
@@ -395,6 +427,11 @@ void caseRuntimeConfigOwnership()
     persisted.worldSeed = 77123;
     userSettings(persisted) = plan.settings;
     persisted.fov = 96;
+    persisted.uiScale = 1.25f;
+    persisted.audioCaptions = false;
+    persisted.showActionHints = false;
+    persisted.inputBindings.set(GameplayAction::ConsumeFood,
+                                GameplayKey::Q);
     check("G4/settings-save-publishes-valid-candidate",
           saveRuntimeConfig(configPath.string(), persisted,
                             &settingsError),
@@ -402,7 +439,11 @@ void caseRuntimeConfigOwnership()
     const Config reloaded = loadRuntimeConfig(configPath.string());
     check("G4/settings-save-preserves-world-creation-seed",
           reloaded.fov == 96 && reloaded.worldSeed.has_value() &&
-              *reloaded.worldSeed == 77123);
+              *reloaded.worldSeed == 77123 &&
+              std::abs(reloaded.uiScale - 1.25f) < 0.0001f &&
+              !reloaded.audioCaptions && !reloaded.showActionHints &&
+              reloaded.inputBindings.get(GameplayAction::ConsumeFood) ==
+                  GameplayKey::Q);
 
     Config rejected = reloaded;
     rejected.fov = 101;
@@ -441,6 +482,32 @@ void caseRuntimeConfigOwnership()
         futureRejected = true;
     }
     check("G4/unknown-settings-version-rejected", futureRejected);
+
+    const auto invalidSettingsRejected =
+        [&directory](const std::string &name, const std::string &content) {
+            const std::filesystem::path path = directory / name;
+            {
+                std::ofstream output(path,
+                                     std::ios::binary | std::ios::trunc);
+                output << content;
+            }
+            try {
+                (void)loadRuntimeConfig(path.string());
+            }
+            catch (const std::exception &) {
+                return true;
+            }
+            return false;
+        };
+    check("N6/invalid-accessibility-and-bindings-are-rejected",
+          invalidSettingsRejected("bad-scale.txt",
+                                  "settings_version 2\nuiscale 2\n") &&
+              invalidSettingsRejected(
+                  "duplicate-binding.txt",
+                  "settings_version 2\nkey_consume_food e\n") &&
+              invalidSettingsRejected(
+                  "unknown-binding.txt",
+                  "settings_version 2\nkey_consume_food mouse9\n"));
 }
 
 void casePausedApplicationFlow()
@@ -3927,14 +3994,14 @@ void caseFoodRecovery()
 
 std::string validAudioDefinitions()
 {
-    return R"(# HelloMine3D audio definitions v1
-sound ui.click ui 2d sine 720 45 0.22 2
-sound block.break effects 3d noise 180 95 0.48 4
-sound block.place effects 3d square 130 70 0.32 4
-sound item.pickup effects 3d sine 980 85 0.28 3
-sound craft.success effects 2d sine 540 150 0.30 2
-sound combat.hit effects 3d noise 90 110 0.52 4
-sound ambient.wind ambient 2d noise 55 1200 0.10 1
+    return R"(# HelloMine3D audio definitions v2
+sound ui.click ui 2d sine 720 45 0.22 2 "Menu selection"
+sound block.break effects 3d noise 180 95 0.48 4 "Block broken"
+sound block.place effects 3d square 130 70 0.32 4 "Block placed"
+sound item.pickup effects 3d sine 980 85 0.28 3 "Item collected"
+sound craft.success effects 2d sine 540 150 0.30 2 "Crafting complete"
+sound combat.hit effects 3d noise 90 110 0.52 4 "Combat hit"
+sound ambient.wind ambient 2d noise 55 1200 0.10 1 "Wind"
 )";
 }
 
@@ -3952,7 +4019,8 @@ void caseAudioFeedback()
     check("G5/base-audio-definitions-freeze-complete-cue-set",
           loadedBase && loadError.empty() && loaded.isFrozen() &&
               loaded.definitions().size() == 7 && ui != nullptr &&
-              block != nullptr);
+              block != nullptr && ui->caption == "Menu selection" &&
+              block->caption == "Block broken");
     check("G5/audio-definitions-carry-category-and-spatial-mode",
           ui != nullptr && ui->category == AudioCategory::Ui &&
               !ui->spatial && block != nullptr && block->spatial &&
@@ -3972,8 +4040,14 @@ void caseAudioFeedback()
     };
     check("G5/duplicate-audio-cue-is-rejected",
           rejects(validAudioDefinitions() +
-                      "sound ui.click ui 2d sine 440 50 0.2 1\n",
+                      "sound ui.click ui 2d sine 440 50 0.2 1 \"Again\"\n",
                   "duplicate cue id"));
+    std::string missingCaption = validAudioDefinitions();
+    missingCaption.replace(missingCaption.find(" \"Menu selection\""),
+                           std::string(" \"Menu selection\"").size(), "");
+    check("N6/audio-caption-is-required-and-bounded",
+          rejects(missingCaption, "expected sound") ||
+              rejects(missingCaption, "caption"));
     std::string invalidFrequency = validAudioDefinitions();
     invalidFrequency.replace(invalidFrequency.find("720 45"), 6,
                              "10 45");
@@ -4009,6 +4083,10 @@ void caseAudioFeedback()
     SandboxEventBus eventBus;
     std::unique_ptr<AudioRuntime> audio = AudioRuntime::createDummy(
         std::move(routedDefinitions), settings);
+    std::vector<std::string> captions;
+    audio->setCaptionSink([&captions](std::string caption) {
+        captions.push_back(std::move(caption));
+    });
     audio->attach(eventBus);
     eventBus.publish(BlockBreakEvent({1, 2, 3}, BlockId::Stone));
     eventBus.publish(BlockPlaceEvent({2, 2, 3}, BlockId::Dirt));
@@ -4064,13 +4142,24 @@ void caseAudioFeedback()
     audio->setUserSettings(settings);
     const std::size_t suppressedBeforeMaster =
         audio->stats().suppressedEvents;
+    const std::size_t captionsBeforeMaster = captions.size();
     audio->emitUiClick();
-    check("G5/master-volume-zero-suppresses-all-categories",
+    check("N6/captions-remain-observable-when-volume-is-zero",
           audio->stats().suppressedEvents ==
-              suppressedBeforeMaster + 1);
+              suppressedBeforeMaster + 1 &&
+              captions.size() == captionsBeforeMaster + 1 &&
+              captions.back() == "Menu selection");
+
+    settings.audioCaptions = false;
+    audio->setUserSettings(settings);
+    const std::size_t captionsBeforeDisabled = captions.size();
+    audio->emitUiClick();
+    check("N6/disabled-audio-captions-do-not-reach-the-sink",
+          captions.size() == captionsBeforeDisabled);
 
     settings.masterVolume = 1.f;
     settings.effectsVolume = 1.f;
+    settings.audioCaptions = true;
     audio->setUserSettings(settings);
     audio->update(0.f, false, listener);
     audio->setMuted(true);
@@ -5955,6 +6044,9 @@ void caseDataDrivenObjectives()
         check("N1/all-objective-event-types-advance-in-order",
               stoneAdded && before.currentId == "n1.reopen_world" &&
                   before.completedObjectives == 7 &&
+                  before.completedTitles.size() == 7 &&
+                  before.completedTitles.front() == "Break Dirt" &&
+                  before.completedTitles.back() == "Reach Marker" &&
                   unknownCompletedPreserved && unknownProgressPreserved);
     }
     {
@@ -5966,6 +6058,8 @@ void caseDataDrivenObjectives()
         check("N1/reopen-completes-session-without-item-reward",
               complete.sessionComplete &&
                   complete.completedObjectives == 8 &&
+                  complete.completedTitles.size() == 8 &&
+                  complete.completedTitles.back() == "Reopen World" &&
                   player.getInventorySlot(0).getMaterial().id ==
                       Material::ID::Nothing);
     }

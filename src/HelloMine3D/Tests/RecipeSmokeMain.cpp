@@ -877,6 +877,28 @@ end
                   !session.commit(recipes, inventory,
                                   session.preview(recipes, inventory), 0)
                        .succeeded());
+
+        CraftingSession recipeBook(CraftingSession::PlayerGridSize);
+        const RecipeDefinition *compact =
+            recipes.find("hellomine:compact");
+        const std::vector<InventorySlotState> inventoryBeforeLoad =
+            inventory.getSaveState();
+        check("N6/recipe-book-loads-shaped-pattern-without-inventory-use",
+              compact != nullptr && recipeBook.loadRecipe(*compact) &&
+                  recipeBook.cell(0).materialId == Material::ID::Stone &&
+                  recipeBook.cell(2).materialId == Material::ID::Dirt &&
+                  inventory.getSaveState() == inventoryBeforeLoad);
+        const RecipeDefinition *shapeless =
+            recipes.find("hellomine:glass_upgrade");
+        check("N6/recipe-book-loads-shapeless-pattern",
+              shapeless != nullptr && recipeBook.loadRecipe(*shapeless) &&
+                  recipeBook.cell(0).materialId == Material::ID::Glass &&
+                  recipeBook.cell(1).materialId == Material::ID::Nothing);
+        const RecipeDefinition *large = recipes.find("hellomine:chest");
+        const InventorySlotState beforeRejected = recipeBook.cell(0);
+        check("N6/recipe-book-rejects-pattern-larger-than-grid",
+              large != nullptr && !recipeBook.loadRecipe(*large) &&
+                  recipeBook.cell(0) == beforeRejected);
     }
 
     void caseToolProgression()
@@ -1398,7 +1420,7 @@ int main()
     caseFoodRegistry();
     caseEnemyRegistry();
     caseCombatRecipes();
-    constexpr int ExpectedChecks = 92;
+    constexpr int ExpectedChecks = 95;
     if (checks != ExpectedChecks) {
         ++failures;
         std::cout << "[RECIPE_TEST] FAIL G1/expected-check-count"

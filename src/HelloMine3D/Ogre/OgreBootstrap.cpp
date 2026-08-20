@@ -72,6 +72,50 @@ namespace
                text != "False" && text != "off" && text != "OFF";
     }
 
+    OIS::KeyCode toOisKey(GameplayKey key) noexcept
+    {
+        static constexpr OIS::KeyCode Keys[] = {
+            OIS::KC_A, OIS::KC_B, OIS::KC_C, OIS::KC_D, OIS::KC_E,
+            OIS::KC_F, OIS::KC_G, OIS::KC_H, OIS::KC_I, OIS::KC_J,
+            OIS::KC_K, OIS::KC_L, OIS::KC_M, OIS::KC_N, OIS::KC_O,
+            OIS::KC_P, OIS::KC_Q, OIS::KC_R, OIS::KC_S, OIS::KC_T,
+            OIS::KC_U, OIS::KC_V, OIS::KC_W, OIS::KC_X, OIS::KC_Y,
+            OIS::KC_Z, OIS::KC_SPACE, OIS::KC_LSHIFT,
+            OIS::KC_LCONTROL, OIS::KC_UP, OIS::KC_DOWN, OIS::KC_LEFT,
+            OIS::KC_RIGHT};
+        const std::size_t index = static_cast<std::size_t>(key);
+        return index < static_cast<std::size_t>(GameplayKey::Count)
+                   ? Keys[index]
+                   : OIS::KC_UNASSIGNED;
+    }
+
+    const char *foodUseResultMessage(FoodUseResult result) noexcept
+    {
+        switch (result)
+        {
+            case FoodUseResult::Consumed: return "Food consumed.";
+            case FoodUseResult::SimulationPaused:
+                return "Cannot eat while the simulation is paused.";
+            case FoodUseResult::UiBusy:
+                return "Close the current interface before eating.";
+            case FoodUseResult::PlayerUnavailable:
+                return "The player is not available.";
+            case FoodUseResult::PlayerDead:
+                return "A defeated player cannot eat.";
+            case FoodUseResult::CoolingDown:
+                return "Food is still cooling down.";
+            case FoodUseResult::EmptyHand:
+                return "Hold food before trying to eat.";
+            case FoodUseResult::NotFood:
+                return "The held item is not food.";
+            case FoodUseResult::FullHealth:
+                return "Health is already full.";
+            case FoodUseResult::InventoryRejected:
+                return "The food could not be consumed.";
+        }
+        return "Food use failed.";
+    }
+
     struct TerrainBuildSummary
     {
         std::size_t sectionCount = 0;
@@ -292,6 +336,17 @@ namespace
                         m_audio->emitUiClick();
                     }
                 });
+            if (m_audio != nullptr)
+            {
+                m_audio->setCaptionSink([this](std::string caption)
+                {
+                    if (m_userInterface != nullptr)
+                    {
+                        m_userInterface->setAudioCaption(
+                            std::move(caption));
+                    }
+                });
+            }
 
             m_root->addFrameListener(this);
             Ogre::WindowEventUtilities::addWindowEventListener(m_window, this);
@@ -1292,22 +1347,22 @@ namespace
             SandboxInputState input;
             if (!keyboardCaptured)
             {
-                input.player.moveForward =
-                    m_keyboard->isKeyDown(OIS::KC_W);
-                input.player.moveBackward =
-                    m_keyboard->isKeyDown(OIS::KC_S);
-                input.player.moveLeft =
-                    m_keyboard->isKeyDown(OIS::KC_A);
-                input.player.moveRight =
-                    m_keyboard->isKeyDown(OIS::KC_D);
-                input.player.sprint =
-                    m_keyboard->isKeyDown(OIS::KC_LCONTROL) ||
-                    m_keyboard->isKeyDown(OIS::KC_RCONTROL);
-                input.player.jump =
-                    m_keyboard->isKeyDown(OIS::KC_SPACE);
-                input.player.descend =
-                    m_keyboard->isKeyDown(OIS::KC_LSHIFT) ||
-                    m_keyboard->isKeyDown(OIS::KC_RSHIFT);
+                const GameplayInputBindings &bindings =
+                    m_config.inputBindings;
+                input.player.moveForward = m_keyboard->isKeyDown(
+                    toOisKey(bindings.get(GameplayAction::MoveForward)));
+                input.player.moveBackward = m_keyboard->isKeyDown(
+                    toOisKey(bindings.get(GameplayAction::MoveBackward)));
+                input.player.moveLeft = m_keyboard->isKeyDown(
+                    toOisKey(bindings.get(GameplayAction::MoveLeft)));
+                input.player.moveRight = m_keyboard->isKeyDown(
+                    toOisKey(bindings.get(GameplayAction::MoveRight)));
+                input.player.sprint = m_keyboard->isKeyDown(
+                    toOisKey(bindings.get(GameplayAction::Sprint)));
+                input.player.jump = m_keyboard->isKeyDown(
+                    toOisKey(bindings.get(GameplayAction::Jump)));
+                input.player.descend = m_keyboard->isKeyDown(
+                    toOisKey(bindings.get(GameplayAction::Sneak)));
                 input.player.toggleFlying = m_toggleFlying;
                 input.player.hotbarDelta = m_hotbarDelta;
                 input.player.hotbarSlot = m_hotbarSlot;
@@ -1344,6 +1399,12 @@ namespace
             m_sandbox->update(input,
                               freezeValidationCapture ? 0.0f : deltaSeconds,
                               !diagnosticsActive);
+            if (m_userInterface != nullptr &&
+                m_sandbox->getFoodUseResult().has_value())
+            {
+                m_userInterface->setStatusMessage(foodUseResultMessage(
+                    *m_sandbox->getFoodUseResult()));
+            }
             clearTransientInput();
             syncRenderCamera();
             syncSectionMeshes();
@@ -1769,6 +1830,24 @@ namespace
                 return true;
             }
 
+            if (event.key == toOisKey(m_config.inputBindings.get(
+                                 GameplayAction::ConsumeFood)))
+            {
+                m_useHeldFood = true;
+                return true;
+            }
+            if (event.key == toOisKey(m_config.inputBindings.get(
+                                 GameplayAction::OpenCrafting)))
+            {
+                if (m_worldPlayer != nullptr &&
+                    !m_worldPlayer->hasOpenContainer())
+                {
+                    m_worldPlayer->openCrafting(
+                        CraftingSession::PlayerGridSize);
+                }
+                return true;
+            }
+
             switch (event.key)
             {
                 case OIS::KC_F:
@@ -1779,17 +1858,6 @@ namespace
                     break;
                 case OIS::KC_C:
                     m_resetMeshes = true;
-                    break;
-                case OIS::KC_R:
-                    m_useHeldFood = true;
-                    break;
-                case OIS::KC_E:
-                    if (m_worldPlayer != nullptr &&
-                        !m_worldPlayer->hasOpenContainer())
-                    {
-                        m_worldPlayer->openCrafting(
-                            CraftingSession::PlayerGridSize);
-                    }
                     break;
                 case OIS::KC_DOWN:
                     m_hotbarDelta = 1;

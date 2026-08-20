@@ -70,6 +70,7 @@ class CraftingSession {
     bool setCell(int index, Material::ID materialId, int amount = 1);
     bool clearCell(int index);
     void clear();
+    bool loadRecipe(const RecipeDefinition &recipe);
 
     CraftingPreview preview(const RecipeRegistry &recipes,
                             const Inventory &inventory) const;

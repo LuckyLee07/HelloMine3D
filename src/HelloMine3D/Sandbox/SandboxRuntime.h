@@ -42,6 +42,7 @@ class SandboxRuntime : public NonCopyable {
     const std::optional<BlockSelection> &getBlockSelection() const;
     const std::optional<ActorSelection> &getActorSelection() const;
     const MiningProgressSnapshot &getMiningProgress() const noexcept;
+    const std::optional<FoodUseResult> &getFoodUseResult() const noexcept;
     void cancelMiningProgress() noexcept;
 
   private:
@@ -58,6 +59,7 @@ class SandboxRuntime : public NonCopyable {
     std::optional<BlockSelection> m_blockSelection;
     std::optional<ActorSelection> m_actorSelection;
     BlockMiningProgress m_miningProgress;
+    std::optional<FoodUseResult> m_foodUseResult;
     float m_interactionCooldownSeconds = 0.0f;
 };
 

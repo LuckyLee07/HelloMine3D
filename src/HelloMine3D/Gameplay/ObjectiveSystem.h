@@ -21,6 +21,7 @@ struct ObjectiveSnapshot
     std::string instruction;
     std::string nextTitle;
     std::string completionFeedback;
+    std::vector<std::string> completedTitles;
     int progress = 0;
     int required = 0;
     std::size_t completedObjectives = 0;

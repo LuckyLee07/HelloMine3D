@@ -93,6 +93,47 @@ void CraftingSession::clear()
     ++m_version;
 }
 
+bool CraftingSession::loadRecipe(const RecipeDefinition &recipe)
+{
+    std::vector<InventorySlotState> loaded(m_cells.size());
+    if (recipe.type == RecipeType::Shaped) {
+        if (recipe.width <= 0 || recipe.height <= 0 ||
+            recipe.width > m_gridSize || recipe.height > m_gridSize ||
+            recipe.shapedCells.size() != static_cast<std::size_t>(
+                                             recipe.width * recipe.height)) {
+            return false;
+        }
+        for (int y = 0; y < recipe.height; ++y) {
+            for (int x = 0; x < recipe.width; ++x) {
+                const Material::ID materialId =
+                    recipe.shapedCells[static_cast<std::size_t>(
+                        y * recipe.width + x)];
+                if (materialId != Material::ID::Nothing) {
+                    loaded[static_cast<std::size_t>(y * m_gridSize + x)] =
+                        {materialId, 1};
+                }
+            }
+        }
+    }
+    else {
+        int cellIndex = 0;
+        for (const RecipeIngredient &ingredient : recipe.ingredients) {
+            for (int unit = 0; unit < ingredient.count; ++unit) {
+                if (cellIndex >= cellCount()) {
+                    return false;
+                }
+                loaded[static_cast<std::size_t>(cellIndex++)] =
+                    {ingredient.materialId, 1};
+            }
+        }
+    }
+    if (loaded != m_cells) {
+        m_cells = std::move(loaded);
+        ++m_version;
+    }
+    return true;
+}
+
 CraftingPreview CraftingSession::preview(
     const RecipeRegistry &recipes, const Inventory &inventory) const
 {

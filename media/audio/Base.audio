@@ -1,9 +1,9 @@
-# HelloMine3D audio definitions v1
-# sound id category mode waveform frequency_hz duration_ms gain max_voices
-sound ui.click ui 2d sine 720 45 0.22 2
-sound block.break effects 3d noise 180 95 0.48 4
-sound block.place effects 3d square 130 70 0.32 4
-sound item.pickup effects 3d sine 980 85 0.28 3
-sound craft.success effects 2d sine 540 150 0.30 2
-sound combat.hit effects 3d noise 90 110 0.52 4
-sound ambient.wind ambient 2d noise 55 1200 0.10 1
+# HelloMine3D audio definitions v2
+# sound id category mode waveform frequency_hz duration_ms gain max_voices caption
+sound ui.click ui 2d sine 720 45 0.22 2 "Menu selection"
+sound block.break effects 3d noise 180 95 0.48 4 "Block broken"
+sound block.place effects 3d square 130 70 0.32 4 "Block placed"
+sound item.pickup effects 3d sine 980 85 0.28 3 "Item collected"
+sound craft.success effects 2d sine 540 150 0.30 2 "Crafting complete"
+sound combat.hit effects 3d noise 90 110 0.52 4 "Combat hit"
+sound ambient.wind ambient 2d noise 55 1200 0.10 1 "Wind"

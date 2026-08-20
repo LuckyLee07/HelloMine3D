@@ -157,6 +157,36 @@ namespace
         }
         return relative > 0 ? 1.0f : -1.0f;
     }
+
+    bool recipeFitsGrid(const RecipeDefinition &recipe, int gridSize)
+    {
+        if (recipe.type == RecipeType::Shaped)
+        {
+            return recipe.width > 0 && recipe.height > 0 &&
+                   recipe.width <= gridSize && recipe.height <= gridSize;
+        }
+        int units = 0;
+        for (const RecipeIngredient &ingredient : recipe.ingredients)
+        {
+            units += ingredient.count;
+        }
+        return units > 0 && units <= gridSize * gridSize;
+    }
+
+    std::string recipeIngredientSummary(const RecipeDefinition &recipe)
+    {
+        std::string summary;
+        for (const RecipeIngredient &ingredient : recipe.ingredients)
+        {
+            if (!summary.empty())
+            {
+                summary += ", ";
+            }
+            summary += Material::toMaterial(ingredient.materialId).name +
+                       " x" + std::to_string(ingredient.count);
+        }
+        return summary;
+    }
 }
 
 class OgreUserInterface::Impl
@@ -191,6 +221,7 @@ class OgreUserInterface::Impl
         ImGuiIO &io = ImGui::GetIO();
         io.BackendPlatformName = "HelloMine3D_OIS";
         io.IniFilename = iniPath.c_str();
+        io.FontGlobalScale = appliedSettings.uiScale;
         ImGui::StyleColorsDark();
 
         if (!ImGui_ImplOpenGL3_Init(ImGuiGlslVersion))
@@ -250,6 +281,11 @@ class OgreUserInterface::Impl
                                 static_cast<float>(height));
         io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
         io.DeltaTime = std::max(deltaSeconds, 1.0f / 1000.0f);
+        io.FontGlobalScale = appliedSettings.uiScale;
+        statusMessageSeconds = std::max(
+            0.f, statusMessageSeconds - std::max(0.f, deltaSeconds));
+        audioCaptionSeconds = std::max(
+            0.f, audioCaptionSeconds - std::max(0.f, deltaSeconds));
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui::NewFrame();
@@ -630,20 +666,43 @@ class OgreUserInterface::Impl
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.45f),
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowSize(ImVec2(360.0f, 320.0f), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(460.0f, 570.0f), ImGuiCond_Always);
         if (ImGui::Begin("Paused", nullptr,
                          ImGuiWindowFlags_NoCollapse |
                              ImGuiWindowFlags_NoResize |
                              ImGuiWindowFlags_NoSavedSettings))
         {
-            if (ImGui::Button("Resume", ImVec2(-1.0f, 45.0f)))
+            if (world != nullptr)
+            {
+                const ObjectiveSnapshot objective =
+                    world->getObjectiveSnapshot();
+                ImGui::Text("Journey  %zu / %zu",
+                            objective.completedObjectives,
+                            objective.totalObjectives);
+                ImGui::TextUnformatted(objective.title.c_str());
+                ImGui::TextWrapped("%s", objective.instruction.c_str());
+                if (!objective.completedTitles.empty() &&
+                    ImGui::CollapsingHeader("Completed objectives"))
+                {
+                    ImGui::BeginChild("##ObjectiveHistory",
+                                      ImVec2(0.0f, 105.0f), true);
+                    for (const std::string &title :
+                         objective.completedTitles)
+                    {
+                        ImGui::Text("[x] %s", title.c_str());
+                    }
+                    ImGui::EndChild();
+                }
+                ImGui::Separator();
+            }
+            if (ImGui::Button("Resume", ImVec2(-1.0f, 38.0f)))
             {
                 if (flow->resume())
                 {
                     playUiFeedback();
                 }
             }
-            if (ImGui::Button("Settings", ImVec2(-1.0f, 45.0f)))
+            if (ImGui::Button("Settings", ImVec2(-1.0f, 38.0f)))
             {
                 settingsSession.begin(appliedSettings);
                 settingsMessage.clear();
@@ -651,13 +710,13 @@ class OgreUserInterface::Impl
                 playUiFeedback();
             }
             if (ImGui::Button("Save and Main Menu",
-                              ImVec2(-1.0f, 45.0f)))
+                              ImVec2(-1.0f, 38.0f)))
             {
                 pendingAction.type =
                     OgreUserInterfaceActionType::ReturnToMainMenu;
                 playUiFeedback();
             }
-            if (ImGui::Button("Save and Quit", ImVec2(-1.0f, 45.0f)))
+            if (ImGui::Button("Save and Quit", ImVec2(-1.0f, 38.0f)))
             {
                 pendingAction.type = OgreUserInterfaceActionType::Quit;
                 playUiFeedback();
@@ -676,13 +735,16 @@ class OgreUserInterface::Impl
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.48f),
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowSize(ImVec2(500.0f, 600.0f), ImGuiCond_Always);
+        const float height = std::min(680.0f, io.DisplaySize.y - 30.0f);
+        ImGui::SetNextWindowSize(ImVec2(620.0f, height), ImGuiCond_Always);
         if (ImGui::Begin("Paused Settings", nullptr,
                          ImGuiWindowFlags_NoCollapse |
                              ImGuiWindowFlags_NoResize |
                              ImGuiWindowFlags_NoSavedSettings))
         {
             UserSettings &draft = settingsSession.draft();
+            ImGui::BeginChild("##SettingsContent", ImVec2(0.0f, -58.0f),
+                              false);
             int windowSize[2] = {draft.windowX, draft.windowY};
             if (ImGui::InputInt2("Window size", windowSize))
             {
@@ -697,6 +759,9 @@ class OgreUserInterface::Impl
                                &draft.mouseSensitivity, 0.005f, 1.0f,
                                "%.3f", ImGuiSliderFlags_Logarithmic);
             ImGui::Checkbox("Invert mouse Y", &draft.invertMouseY);
+            ImGui::SliderFloat("UI scale", &draft.uiScale, 0.75f, 1.75f,
+                               "%.2fx");
+            ImGui::Checkbox("Show action hints", &draft.showActionHints);
             ImGui::SeparatorText("Audio");
             ImGui::SliderFloat("Master", &draft.masterVolume, 0.0f, 1.0f);
             ImGui::SliderFloat("UI", &draft.uiVolume, 0.0f, 1.0f);
@@ -704,13 +769,46 @@ class OgreUserInterface::Impl
                                0.0f, 1.0f);
             ImGui::SliderFloat("Ambient", &draft.ambientVolume,
                                0.0f, 1.0f);
+            ImGui::Checkbox("Audio captions", &draft.audioCaptions);
+            ImGui::SeparatorText("Controls");
+            for (std::size_t actionIndex = 0;
+                 actionIndex < GameplayActionCount; ++actionIndex)
+            {
+                const auto action =
+                    static_cast<GameplayAction>(actionIndex);
+                const GameplayKey current = draft.inputBindings.get(action);
+                const std::string label =
+                    std::string(gameplayActionName(action)) +
+                    "##binding-" + std::to_string(actionIndex);
+                if (ImGui::BeginCombo(label.c_str(),
+                                      gameplayKeyName(current)))
+                {
+                    for (std::size_t keyIndex = 0;
+                         keyIndex < GameplayKeyCount; ++keyIndex)
+                    {
+                        const auto key = static_cast<GameplayKey>(keyIndex);
+                        const bool selected = key == current;
+                        if (ImGui::Selectable(gameplayKeyName(key), selected))
+                        {
+                            draft.inputBindings.set(action, key);
+                        }
+                        if (selected)
+                        {
+                            ImGui::SetItemDefaultFocus();
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+            }
             ImGui::TextWrapped(
-                "FOV, input, render distance and volume apply immediately. "
+                "FOV, controls, accessibility, render distance and volume "
+                "apply immediately. "
                 "Window size and fullscreen apply after restart.");
             if (!settingsMessage.empty())
             {
                 ImGui::TextWrapped("%s", settingsMessage.c_str());
             }
+            ImGui::EndChild();
 
             ImGui::BeginDisabled(settingsApplyPending);
             if (ImGui::Button("Apply", ImVec2(140.0f, 38.0f)))
@@ -770,9 +868,33 @@ class OgreUserInterface::Impl
             return;
         }
         appliedSettings = settings;
+        ImGui::GetIO().FontGlobalScale = appliedSettings.uiScale;
+        if (!appliedSettings.audioCaptions)
+        {
+            audioCaption.clear();
+            audioCaptionSeconds = 0.f;
+        }
         settingsSession.acceptApplied();
         statusMessage = settingsMessage;
+        statusMessageSeconds = 4.f;
         playUiFeedback();
+    }
+
+    void setStatusMessage(std::string message)
+    {
+        statusMessage = std::move(message);
+        statusMessageSeconds = 4.f;
+        worldsDirty = true;
+    }
+
+    void setAudioCaption(std::string caption)
+    {
+        if (!appliedSettings.audioCaptions)
+        {
+            return;
+        }
+        audioCaption = std::move(caption);
+        audioCaptionSeconds = 2.5f;
     }
 
     void drawHud()
@@ -863,6 +985,61 @@ class OgreUserInterface::Impl
                                        "%s",
                                        objective.completionFeedback.c_str());
                 }
+            }
+            ImGui::End();
+        }
+
+        const ImGuiWindowFlags overlayFlags =
+            ImGuiWindowFlags_NoDecoration |
+            ImGuiWindowFlags_AlwaysAutoResize |
+            ImGuiWindowFlags_NoSavedSettings |
+            ImGuiWindowFlags_NoInputs |
+            ImGuiWindowFlags_NoFocusOnAppearing |
+            ImGuiWindowFlags_NoNav;
+        if (appliedSettings.showActionHints &&
+            flow->state() == GameApplicationState::Playing &&
+            !player->hasOpenContainer() && !player->hasOpenCrafting())
+        {
+            ImGui::SetNextWindowPos(
+                ImVec2(io.DisplaySize.x - 18.0f, 18.0f),
+                ImGuiCond_Always, ImVec2(1.0f, 0.0f));
+            ImGui::SetNextWindowBgAlpha(0.66f);
+            if (ImGui::Begin("##ActionHints", nullptr, overlayFlags))
+            {
+                ImGui::Text("%s  Crafting",
+                            gameplayKeyName(appliedSettings.inputBindings.get(
+                                GameplayAction::OpenCrafting)));
+                ImGui::Text("%s  Eat held food",
+                            gameplayKeyName(appliedSettings.inputBindings.get(
+                                GameplayAction::ConsumeFood)));
+                ImGui::TextUnformatted("Esc  Pause");
+            }
+            ImGui::End();
+        }
+        if (audioCaptionSeconds > 0.f && !audioCaption.empty())
+        {
+            ImGui::SetNextWindowPos(
+                ImVec2(io.DisplaySize.x * 0.5f,
+                       io.DisplaySize.y - 105.0f),
+                ImGuiCond_Always, ImVec2(0.5f, 1.0f));
+            ImGui::SetNextWindowBgAlpha(0.82f);
+            if (ImGui::Begin("##AudioCaption", nullptr, overlayFlags))
+            {
+                ImGui::Text("[Sound] %s", audioCaption.c_str());
+            }
+            ImGui::End();
+        }
+        if (statusMessageSeconds > 0.f && !statusMessage.empty() &&
+            flow->state() == GameApplicationState::Playing)
+        {
+            ImGui::SetNextWindowPos(
+                ImVec2(io.DisplaySize.x * 0.5f,
+                       io.DisplaySize.y - 132.0f),
+                ImGuiCond_Always, ImVec2(0.5f, 1.0f));
+            ImGui::SetNextWindowBgAlpha(0.82f);
+            if (ImGui::Begin("##StatusToast", nullptr, overlayFlags))
+            {
+                ImGui::TextUnformatted(statusMessage.c_str());
             }
             ImGui::End();
         }
@@ -1189,7 +1366,7 @@ class OgreUserInterface::Impl
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.48f),
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowSize(ImVec2(690.0f, 520.0f), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(820.0f, 660.0f), ImGuiCond_Always);
         bool open = true;
         const char *title =
             gridSize == CraftingSession::WorkbenchGridSize
@@ -1204,6 +1381,39 @@ class OgreUserInterface::Impl
                 "Choose an inventory material, fill the virtual grid, then craft.");
             ImGui::TextUnformatted(
                 "Grid previews never remove items; right-click a cell to clear it.");
+            if (ImGui::CollapsingHeader("Recipe Book",
+                                        ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::BeginChild("##RecipeBook", ImVec2(0.0f, 135.0f),
+                                  true);
+                for (const RecipeDefinition &recipe :
+                     runtimeRecipeRegistry().recipes())
+                {
+                    if (!recipeFitsGrid(recipe, gridSize))
+                    {
+                        continue;
+                    }
+                    const Material &output =
+                        Material::toMaterial(recipe.outputMaterialId);
+                    const std::string button =
+                        "Load##recipe-" + recipe.id;
+                    if (ImGui::SmallButton(button.c_str()))
+                    {
+                        if (craftingSession->loadRecipe(recipe))
+                        {
+                            craftingMessage = "Loaded " + output.name +
+                                              " into the crafting grid.";
+                            playUiFeedback();
+                        }
+                    }
+                    ImGui::SameLine();
+                    const std::string ingredients =
+                        recipeIngredientSummary(recipe);
+                    ImGui::Text("%s x%d  <-  %s", output.name.c_str(),
+                                recipe.outputCount, ingredients.c_str());
+                }
+                ImGui::EndChild();
+            }
             ImGui::Separator();
 
             const PlayerSaveState state = player->getSaveState();
@@ -1498,6 +1708,9 @@ class OgreUserInterface::Impl
     std::string pendingPermanentDeleteWorldId;
     std::string pendingBackupId;
     std::string statusMessage;
+    float statusMessageSeconds = 0.f;
+    std::string audioCaption;
+    float audioCaptionSeconds = 0.f;
     std::array<char, 81> createName{};
     std::array<char, 81> renameName{};
     int createSeed = 0;
@@ -1637,8 +1850,12 @@ void OgreUserInterface::setWorldContext(Player *player,
 
 void OgreUserInterface::setStatusMessage(std::string message)
 {
-    m_impl->statusMessage = std::move(message);
-    m_impl->worldsDirty = true;
+    m_impl->setStatusMessage(std::move(message));
+}
+
+void OgreUserInterface::setAudioCaption(std::string caption)
+{
+    m_impl->setAudioCaption(std::move(caption));
 }
 
 bool OgreUserInterface::dismissSettings() noexcept

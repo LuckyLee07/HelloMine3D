@@ -49,7 +49,7 @@ execution scope changes.
 | Performance baseline | Ogre frame/tick/counter collection is wired and the script targets the sole client. Optional Tracy zones cover the frame, simulation, world and chunk-mesh paths for live diagnosis without replacing the CSV gate. The 2026-08-12 L4 hardware baseline records 60.10 FPS, 17.54 ms frame P95 and no frames over 33 ms. | `docs/performance-baseline.md` |
 | Chunk streaming | Six-part regression from `7a229d8` diagnosed and fixed 2026-08-07, then the mesh build was moved off the world lock (M3). | `docs/chunk-streaming-regression.md` |
 | Sandbox foundation | All 44 S-milestones are Done. | `docs/sandbox-foundation-todolist.md` |
-| Active next scope | Stage 8 has delivered K1-K4, G1-G2 and H1, plus Q1's portable contract and Q2's portable instrumentation/fixtures. G3 tool progression is the next gameplay batch; H2-H3, Q1/Q2 Windows budgets, Q3 and G4-G6 remain. R3 still closes physical input during the final acceptance batch. | Milestones K, H, Q and G below; ordering in `Recommended Order` |
+| Active next scope | Stage 8 has delivered K1-K4, G1-G6, N1-N6 and H1, plus Q1's portable contract and Q2's portable instrumentation/fixtures. Release Candidate is now active: H2-H3, the remaining Q1/Q2 Windows budgets, Q3 and R3 remain. | Current status is maintained in `docs/todolist.md`; the dated rows below preserve the 2026-08-17 baseline. |
 
 ## Closed Milestones
 
@@ -304,6 +304,19 @@ resource boundaries.
 | G4 | Todo | P2 | Add pause and settings flow for display, render distance, FOV, input sensitivity and audio levels. Apply/revert uses validated bounds, persistence is versioned and pausing a local world stops simulation without corrupting save or UI focus. | K4, R3, Q1 | Config migration and invalid-value fixtures pass. Release input covers open/apply/cancel, focus recovery and return to world/menu; render-distance changes are labelled incomparable until residency stabilizes. |
 | G5 | Todo | P2 | Add a minimal renderer-independent audio event channel and basic UI, block, pickup, crafting, combat and ambient feedback. Select a small portable backend separately; missing devices/assets degrade to silence with diagnostics rather than startup failure. Sound files remain base resources unless a future pack contract explicitly versions an audio class. | G2-G4, A1, W3 | Event tests prove accepted gameplay actions emit once and rejected actions emit nothing. Asset/manifest checks cover sound references, resource-pack v1 rejects unversioned sound overrides, mute/volume persistence passes, and a no-device fixture keeps the full gameplay loop operational. |
 | G6 | Todo | P1 | Deliver the stage-8 vertical slice from a clean package: create/select a world, gather materials, craft a workbench and tools, mine a gated resource, fight and loot, save/exit, restore a backup after an injected failed save, then continue. Validate the controlled crash path separately without treating a crash as a gameplay action. | K1-K4, H1-H3, Q1-Q3, G1-G5 | Debug/Release gates, focused state-conservation tests, decoded hardware capture, updated physical-input record, deterministic package, controlled dump/symbolization and before/after performance comparisons all pass. No debug-only state injection is allowed after initial fixture selection. |
+
+### Current Stage-8 Addendum (2026-08-20)
+
+The task rows above intentionally preserve the ledger's 2026-08-17 snapshot. Since
+then G3-G6 and N1-N6 have been delivered. N6 freezes the player-facing surface:
+settings v2 and nine remappable actions, UI scaling and hints, audio captions,
+food-result toasts, objective history and recipe-book loading. Debug and Release
+full gates pass with World `491/491`, Recipe `95/95`, Resource Pack `27/27`, 46
+manifest entries and 36 performance fixtures. The controlled crash produced a
+128,321-byte dump and the isolated 66-file package passed. R3 remains an honest
+human-operated `NOT_RUN`; Release Candidate now owns H2-H3, Q1-Q3, R3 and final
+R5 evidence. See `docs/product-experience-contract-v1.md` and
+`docs/runtime-validation.md`.
 
 ## Not Recommended Yet
 

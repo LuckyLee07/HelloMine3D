@@ -3,6 +3,8 @@
 
 #include <optional>
 
+#include "GameplayInput.h"
+
 /// Settings owned by the player and safe to change without recreating a world.
 struct UserSettings {
     int windowX = 1280;
@@ -16,6 +18,10 @@ struct UserSettings {
     float uiVolume = 1.0f;
     float effectsVolume = 1.0f;
     float ambientVolume = 1.0f;
+    float uiScale = 1.0f;
+    bool audioCaptions = true;
+    bool showActionHints = true;
+    GameplayInputBindings inputBindings;
 };
 
 /// Parameters used only when a world is created.

@@ -448,8 +448,19 @@ void AudioRuntime::submit(AudioPlaybackEvent event) noexcept
         ++m_stats.missingDefinitions;
         return;
     }
-    if (m_muted || (m_worldPaused && definition->category !=
-                                         AudioCategory::Ui)) {
+    if (m_worldPaused && definition->category != AudioCategory::Ui) {
+        ++m_stats.suppressedEvents;
+        return;
+    }
+    if (m_settings.audioCaptions && m_captionSink &&
+        !definition->caption.empty()) {
+        try {
+            m_captionSink(definition->caption);
+        }
+        catch (...) {
+        }
+    }
+    if (m_muted) {
         ++m_stats.suppressedEvents;
         return;
     }
@@ -507,6 +518,12 @@ void AudioRuntime::update(float deltaSeconds, bool worldSimulationActive,
 void AudioRuntime::setUserSettings(const UserSettings &settings) noexcept
 {
     m_settings = settings;
+}
+
+void AudioRuntime::setCaptionSink(
+    std::function<void(std::string)> sink) noexcept
+{
+    m_captionSink = std::move(sink);
 }
 
 void AudioRuntime::setWorldPaused(bool paused) noexcept

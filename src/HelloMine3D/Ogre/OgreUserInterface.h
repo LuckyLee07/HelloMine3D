@@ -83,6 +83,7 @@ class OgreUserInterface final : public Ogre::RenderQueueListener
     bool isDebugPanelVisible() const noexcept;
     void setWorldContext(Player *player, World *world) noexcept;
     void setStatusMessage(std::string message);
+    void setAudioCaption(std::string caption);
     bool dismissSettings() noexcept;
     void reportSettingsApplied(bool succeeded,
                                const UserSettings &settings,

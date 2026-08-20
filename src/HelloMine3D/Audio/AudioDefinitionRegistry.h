@@ -26,6 +26,7 @@ struct AudioDefinition {
     int durationMilliseconds = 100;
     float gain = 1.f;
     int maxVoices = 1;
+    std::string caption;
 };
 
 struct AudioDefinitionSource {
@@ -38,7 +39,7 @@ const char *audioWaveformName(AudioWaveform waveform) noexcept;
 
 class AudioDefinitionRegistry {
   public:
-    static constexpr int SupportedFormatVersion = 1;
+    static constexpr int SupportedFormatVersion = 2;
 
     void freeze(const std::vector<AudioDefinitionSource> &sources);
     bool tryFreezeFromFile(const std::string &path,

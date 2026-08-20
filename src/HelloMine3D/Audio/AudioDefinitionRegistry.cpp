@@ -4,13 +4,14 @@
 #include <cctype>
 #include <cmath>
 #include <fstream>
+#include <iomanip>
 #include <set>
 #include <sstream>
 #include <stdexcept>
 
 namespace {
 constexpr const char *AudioHeader =
-    "# HelloMine3D audio definitions v1";
+    "# HelloMine3D audio definitions v2";
 
 std::string trim(const std::string &value)
 {
@@ -175,10 +176,10 @@ void AudioDefinitionRegistry::freeze(
             if (!(values >> directive >> definition.id >> category >> mode >>
                   waveform >> definition.frequency >>
                   definition.durationMilliseconds >> definition.gain >>
-                  definition.maxVoices) ||
+                  definition.maxVoices >> std::quoted(definition.caption)) ||
                 directive != "sound") {
                 fail(source, lineNumber,
-                     "expected sound id category 2d|3d waveform frequency duration_ms gain max_voices");
+                     "expected sound id category 2d|3d waveform frequency duration_ms gain max_voices caption");
             }
             values >> std::ws;
             if (!values.eof()) {
@@ -215,6 +216,14 @@ void AudioDefinitionRegistry::freeze(
             if (definition.maxVoices < 1 || definition.maxVoices > 8) {
                 fail(source, lineNumber,
                      "max voices must be between 1 and 8");
+            }
+            if (definition.caption.empty() || definition.caption.size() > 96 ||
+                std::any_of(definition.caption.begin(), definition.caption.end(),
+                            [](unsigned char value) {
+                                return value < 32 || value == 127;
+                            })) {
+                fail(source, lineNumber,
+                     "caption must contain 1 to 96 printable characters");
             }
             if (!byId.emplace(definition.id, parsed.size()).second) {
                 fail(source, lineNumber, "duplicate cue id '" +

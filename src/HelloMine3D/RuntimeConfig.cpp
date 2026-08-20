@@ -12,7 +12,8 @@
 namespace {
 struct ParsedRuntimeConfig {
     Config config;
-    bool legacy = false;
+    int version = 0;
+    bool needsMigration = false;
 };
 
 [[noreturn]] void fail(const std::string &path, const std::string &key,
@@ -70,6 +71,7 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
 
     ParsedRuntimeConfig parsed;
     bool hasVersion = false;
+    bool usesVersionTwoKey = false;
     std::set<std::string> seenKeys;
     std::string line;
     std::size_t lineNumber = 0;
@@ -93,10 +95,12 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
         if (key == "settings_version") {
             const int version = readInteger(path, key, values);
             requireEnd(path, key, values);
-            if (version != RuntimeSettingsFormatVersion) {
+            if (version != LegacyRuntimeSettingsFormatVersion &&
+                version != RuntimeSettingsFormatVersion) {
                 fail(path, key, "uses unsupported version " +
                                     std::to_string(version));
             }
+            parsed.version = version;
             hasVersion = true;
         }
         else if (key == "renderdistance") {
@@ -148,6 +152,29 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
             parsed.config.ambientVolume = readFloat(path, key, values);
             requireEnd(path, key, values);
         }
+        else if (key == "uiscale") {
+            parsed.config.uiScale = readFloat(path, key, values);
+            requireEnd(path, key, values);
+            usesVersionTwoKey = true;
+        }
+        else if (key == "audiocaptions") {
+            const int enabled = readInteger(path, key, values);
+            requireEnd(path, key, values);
+            if (enabled != 0 && enabled != 1) {
+                fail(path, key, "must be 0 or 1");
+            }
+            parsed.config.audioCaptions = enabled != 0;
+            usesVersionTwoKey = true;
+        }
+        else if (key == "actionhints") {
+            const int enabled = readInteger(path, key, values);
+            requireEnd(path, key, values);
+            if (enabled != 0 && enabled != 1) {
+                fail(path, key, "must be 0 or 1");
+            }
+            parsed.config.showActionHints = enabled != 0;
+            usesVersionTwoKey = true;
+        }
         else if (key == "seed") {
             std::string seedText;
             if (!(values >> seedText)) {
@@ -164,15 +191,43 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
             }
         }
         else {
-            fail(path, key, "is unknown at line " +
-                                std::to_string(lineNumber));
+            bool bindingMatched = false;
+            for (std::size_t actionIndex = 0;
+                 actionIndex < GameplayActionCount; ++actionIndex) {
+                const auto action =
+                    static_cast<GameplayAction>(actionIndex);
+                if (key != gameplayActionConfigKey(action)) {
+                    continue;
+                }
+                std::string token;
+                GameplayKey binding = GameplayKey::W;
+                if (!(values >> token) ||
+                    !tryParseGameplayKey(token, binding)) {
+                    fail(path, key, "contains an unknown key binding");
+                }
+                requireEnd(path, key, values);
+                parsed.config.inputBindings.set(action, binding);
+                bindingMatched = true;
+                usesVersionTwoKey = true;
+                break;
+            }
+            if (!bindingMatched) {
+                fail(path, key, "is unknown at line " +
+                                    std::to_string(lineNumber));
+            }
         }
     }
 
     if (!hasVersion && !allowLegacy) {
         fail(path, "settings_version", "is required");
     }
-    parsed.legacy = !hasVersion;
+    if (hasVersion && parsed.version == LegacyRuntimeSettingsFormatVersion &&
+        usesVersionTwoKey) {
+        fail(path, "settings_version",
+             "version 1 cannot contain version 2 settings");
+    }
+    parsed.needsMigration =
+        !hasVersion || parsed.version < RuntimeSettingsFormatVersion;
     try {
         validateUserSettings(parsed.config);
     }
@@ -199,7 +254,16 @@ std::vector<char> serializeRuntimeConfig(const Config &config)
            << "uivolume " << config.uiVolume << '\n'
            << "effectsvolume " << config.effectsVolume << '\n'
            << "ambientvolume " << config.ambientVolume << '\n'
-           << "seed ";
+           << "uiscale " << config.uiScale << '\n'
+           << "audiocaptions " << (config.audioCaptions ? 1 : 0) << '\n'
+           << "actionhints " << (config.showActionHints ? 1 : 0) << '\n';
+    for (std::size_t actionIndex = 0;
+         actionIndex < GameplayActionCount; ++actionIndex) {
+        const auto action = static_cast<GameplayAction>(actionIndex);
+        output << gameplayActionConfigKey(action) << ' '
+               << gameplayKeyToken(config.inputBindings.get(action)) << '\n';
+    }
+    output << "seed ";
     if (config.worldSeed.has_value()) {
         output << *config.worldSeed;
     }
@@ -235,6 +299,16 @@ void validateUserSettings(const UserSettings &settings)
     validateVolume("UI volume", settings.uiVolume);
     validateVolume("effects volume", settings.effectsVolume);
     validateVolume("ambient volume", settings.ambientVolume);
+    if (!std::isfinite(settings.uiScale) || settings.uiScale < 0.75f ||
+        settings.uiScale > 1.75f) {
+        throw std::runtime_error("UI scale must be between 0.75 and 1.75");
+    }
+    std::string bindingError;
+    if (!validateGameplayInputBindings(settings.inputBindings,
+                                       bindingError)) {
+        throw std::runtime_error("invalid gameplay bindings: " +
+                                 bindingError);
+    }
 }
 
 Config loadRuntimeConfig(const std::string &path)
@@ -255,7 +329,7 @@ Config loadRuntimeConfig(const std::string &path)
     }
 
     ParsedRuntimeConfig parsed = parseRuntimeConfig(path, true);
-    if (parsed.legacy) {
+    if (parsed.needsMigration) {
         std::string error;
         if (!saveRuntimeConfig(path, parsed.config, &error)) {
             throw std::runtime_error("Unable to migrate runtime config '" +

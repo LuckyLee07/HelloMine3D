@@ -30,6 +30,7 @@ void SandboxRuntime::update(const SandboxInputState &input,
                             float deltaSeconds, bool acceptsPlayerInput)
 {
     HELLOMINE3D_PROFILE_SCOPE("SandboxRuntime::update");
+    m_foodUseResult.reset();
     m_player.applyInput(acceptsPlayerInput
                             ? input.player
                             : PlayerInputState());
@@ -130,6 +131,12 @@ const MiningProgressSnapshot &SandboxRuntime::getMiningProgress() const noexcept
     return m_miningProgress.snapshot();
 }
 
+const std::optional<FoodUseResult> &
+SandboxRuntime::getFoodUseResult() const noexcept
+{
+    return m_foodUseResult;
+}
+
 void SandboxRuntime::cancelMiningProgress() noexcept
 {
     m_miningProgress.cancel();
@@ -140,7 +147,7 @@ void SandboxRuntime::handlePlayerInteraction(
 {
     if (input.useHeldFood) {
         m_miningProgress.cancel();
-        world.useHeldFood(true);
+        m_foodUseResult = world.useHeldFood(true);
         return;
     }
     if (m_interactionCooldownSeconds > 0.0f) {

@@ -154,6 +154,7 @@ ObjectiveSnapshot ObjectiveSystem::snapshot() const
         if (isCompleted(definition.id))
         {
             ++result.completedObjectives;
+            result.completedTitles.push_back(definition.title);
         }
     }
     result.completionFeedback = m_completionFeedback;
