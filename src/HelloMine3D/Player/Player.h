@@ -23,6 +23,7 @@ struct PlayerSaveState {
     int heldItem = 0;
     float health = 20.f;
     int foodCooldownTicks = 0;
+    int attackCooldownTicks = 0;
     std::vector<PlayerInventorySlot> inventory;
 };
 

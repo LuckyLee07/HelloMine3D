@@ -57,3 +57,17 @@ recipe hellomine:bread shaped
 row hellomine:wheat hellomine:wheat hellomine:wheat
 output hellomine:bread 1
 end
+
+recipe hellomine:wooden_sword shaped
+row _ hellomine:oak_bark _
+row _ hellomine:oak_bark _
+row _ hellomine:oak_bark _
+output hellomine:wooden_sword 1
+end
+
+recipe hellomine:stone_sword shaped
+row _ hellomine:stone _
+row _ hellomine:stone _
+row _ hellomine:oak_bark _
+output hellomine:stone_sword 1
+end

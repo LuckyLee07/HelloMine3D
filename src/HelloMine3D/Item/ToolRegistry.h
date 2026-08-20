@@ -24,6 +24,8 @@ struct ToolDefinition
     float speedMultiplier = 1.0f;
     int maxDurability = 0;
     float attackDamage = 2.0f;
+    int attackCooldownTicks = 10;
+    float attackReach = 3.0f;
     std::string sourceName;
 };
 
@@ -44,6 +46,8 @@ class ToolRegistry
     static constexpr int MaxDurability = 100000;
     static constexpr float MaxSpeedMultiplier = 16.0f;
     static constexpr float MaxAttackDamage = 64.0f;
+    static constexpr int MaxAttackCooldownTicks = 60;
+    static constexpr float MaxAttackReach = 6.0f;
 
     void freeze(std::vector<ToolSource> sources);
     void freezeFromResourceView(const ResourcePackResolver &resolver);

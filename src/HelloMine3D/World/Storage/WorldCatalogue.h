@@ -35,7 +35,7 @@ class WorldCatalogueError : public std::runtime_error {
 /// callers never present a partial catalogue as authoritative.
 class WorldCatalogue {
   public:
-    static constexpr int CurrentSaveFormatVersion = 6;
+    static constexpr int CurrentSaveFormatVersion = 7;
     static constexpr std::size_t MaxMetadataBytes = 64 * 1024;
     static constexpr std::size_t MaxWorldIdBytes = 64;
     static constexpr std::size_t MaxDisplayNameCodepoints = 80;

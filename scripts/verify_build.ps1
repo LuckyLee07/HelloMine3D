@@ -38,6 +38,44 @@ function Invoke-Checked {
     }
 }
 
+function Invoke-HiddenExecutable {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+        [Parameter(Mandatory = $true)]
+        [string]$WorkingDirectory
+    )
+
+    $token = [Guid]::NewGuid().ToString("N")
+    $stdoutPath = Join-Path ([IO.Path]::GetTempPath()) `
+        "hellomine3d-$token.stdout.log"
+    $stderrPath = Join-Path ([IO.Path]::GetTempPath()) `
+        "hellomine3d-$token.stderr.log"
+    try {
+        $process = Start-Process -FilePath $FilePath `
+            -WorkingDirectory $WorkingDirectory `
+            -WindowStyle Hidden `
+            -RedirectStandardOutput $stdoutPath `
+            -RedirectStandardError $stderrPath `
+            -PassThru -Wait
+        if (Test-Path -LiteralPath $stdoutPath) {
+            Get-Content -LiteralPath $stdoutPath | Write-Host
+        }
+        if (Test-Path -LiteralPath $stderrPath) {
+            Get-Content -LiteralPath $stderrPath | Write-Host
+        }
+        $global:LASTEXITCODE = $process.ExitCode
+    }
+    finally {
+        if (Test-Path -LiteralPath $stdoutPath) {
+            Remove-Item -LiteralPath $stdoutPath -Force
+        }
+        if (Test-Path -LiteralPath $stderrPath) {
+            Remove-Item -LiteralPath $stderrPath -Force
+        }
+    }
+}
+
 function Find-MSBuild {
     $vswhere = Join-Path ${env:ProgramFiles(x86)} `
         "Microsoft Visual Studio\Installer\vswhere.exe"
@@ -161,7 +199,10 @@ try {
             if (-not (Test-Path -LiteralPath $testPath)) {
                 throw "Expected test executable was not built: $testPath"
             }
-            Invoke-Checked "$configuration $test" { & $testPath }
+            Invoke-Checked "$configuration $test" {
+                Invoke-HiddenExecutable -FilePath $testPath `
+                    -WorkingDirectory $binDirectory
+            }
         }
 
         Invoke-Checked "$configuration validation-only client" {
@@ -194,7 +235,9 @@ try {
                 $env:HELLOMINE3D_EFFECTIVE_MANIFEST_OUT = ""
                 Push-Location $binDirectory
                 try {
-                    & (Join-Path $binDirectory "HelloMine3D.exe")
+                    Invoke-HiddenExecutable `
+                        -FilePath (Join-Path $binDirectory "HelloMine3D.exe") `
+                        -WorkingDirectory $binDirectory
                 }
                 finally {
                     Pop-Location

@@ -897,6 +897,11 @@ class OgreUserInterface::Impl
                 ImGui::Text("Food cooldown: %.1fs",
                             worldStats.foodCooldownTicksRemaining / 20.f);
             }
+            if (worldStats.attackCooldownTicksRemaining > 0)
+            {
+                ImGui::Text("Attack ready in: %.1fs",
+                            worldStats.attackCooldownTicksRemaining / 20.f);
+            }
             for (std::size_t index = 0; index < state.inventory.size(); ++index)
             {
                 if (index > 0)
@@ -1335,6 +1340,8 @@ class OgreUserInterface::Impl
                         worldStats.playerMaxHealth);
             ImGui::Text("Food cooldown ticks: %d",
                         worldStats.foodCooldownTicksRemaining);
+            ImGui::Text("Attack cooldown ticks: %d",
+                        worldStats.attackCooldownTicksRemaining);
             ImGui::TextUnformatted("R: consume held food");
             ImGui::Text("Death inventory policy: %s",
                         World::PlayerDeathInventoryPolicy);

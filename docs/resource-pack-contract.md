@@ -70,7 +70,7 @@ as a stale or unsupported override. This also means that v1 cannot introduce a
 new block id, shape name, behavior script or executable extension.
 
 The base manifest may also contain `recipe`, `tool`, `audio`, `objective`,
-`smelting` and `food` entries, but none is an allowed v1 override class. These
+`smelting`, `food` and `enemy` entries, but none is an allowed v1 override class. These
 versioned gameplay registries load only from base-owned sources; a pack containing the same
 logical path is rejected as stale or unsupported. Adding ownership for any of
 these categories requires a new resource-pack format and an explicit migration
@@ -127,12 +127,12 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\validate_resource_packs.ps1
 ```
 
-`HelloMine3DResourcePackSmoke` provides 26 isolated parser/resolver assertions:
+`HelloMine3DResourcePackSmoke` provides 27 isolated parser/resolver assertions:
 no-pack compatibility, deterministic precedence, fallback, all six resource
 classes, Ogre directory order, version/traversal/stale/empty/duplicate/missing
-rejection, explicit recipe/tool/audio/objective/smelting/food-override rejection,
-sorted ownership and one-time freeze. The current base view has 44 entries
-including the six base-owned gameplay registries.
+rejection, explicit recipe/tool/audio/objective/smelting/food/enemy-override rejection,
+sorted ownership and one-time freeze. The current base view has 45 entries
+including the seven base-owned gameplay registries.
 The wrapper then launches the real Release/Debug client with no pack and with
 `packs/example-stone`, requiring manifests that differ only in ownership of
 Stone.

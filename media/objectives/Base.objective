@@ -215,3 +215,38 @@ title "Recover with Food"
 instruction "After taking damage, hold Bread and press R to restore health."
 feedback "Food recovery complete"
 end
+
+objective combat.defeat_enemies
+type defeat_enemy
+required 3
+prerequisite survival.eat_bread
+visible 1
+optional 0
+title "Clear the Threat"
+instruction "Defeat 3 Stalkers or Brutes and learn their combat rhythm."
+feedback "Enemy threat contained"
+end
+
+objective combat.collect_wheat
+type pickup_item
+target hellomine:wheat
+required 2
+prerequisite combat.defeat_enemies
+visible 1
+optional 0
+title "Recover Enemy Supplies"
+instruction "Collect 2 Wheat dropped by defeated enemies."
+feedback "Wheat supplies recovered"
+end
+
+objective combat.collect_coal
+type pickup_item
+target hellomine:coal_ore
+required 1
+prerequisite combat.collect_wheat
+visible 1
+optional 0
+title "Claim Brute Spoils"
+instruction "Defeat a Brute and collect 1 Coal Ore from its loot."
+feedback "Combat progression complete"
+end

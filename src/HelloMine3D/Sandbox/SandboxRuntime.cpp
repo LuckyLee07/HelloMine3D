@@ -153,8 +153,7 @@ void SandboxRuntime::handlePlayerInteraction(
     if (input.breakBlock) {
         if (m_actorSelection.has_value()) {
             m_miningProgress.cancel();
-            m_interactionCooldownSeconds = 0.2f;
-            world.attackActor(m_actorSelection->actorId);
+            world.tryAttackActor(m_actorSelection->actorId, true);
             return;
         }
         if (!m_blockSelection.has_value()) {

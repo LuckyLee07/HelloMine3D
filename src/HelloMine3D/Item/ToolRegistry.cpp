@@ -24,6 +24,8 @@ namespace
         bool speedSeen = false;
         bool durabilitySeen = false;
         bool attackSeen = false;
+        bool attackCooldownSeen = false;
+        bool attackReachSeen = false;
         std::size_t startLine = 0;
     };
 
@@ -136,6 +138,31 @@ namespace
         return value;
     }
 
+    float parseAttackReach(const std::string &text,
+                           const std::string &source, std::size_t line)
+    {
+        float value = 0.0f;
+        try {
+            std::size_t consumed = 0;
+            value = std::stof(text, &consumed);
+            if (consumed != text.size()) {
+                fail(source, line,
+                     "attack_reach must be a finite number.");
+            }
+        }
+        catch (const std::exception &) {
+            fail(source, line,
+                 "attack_reach must be a finite number.");
+        }
+        if (!std::isfinite(value) || value < 1.0f ||
+            value > ToolRegistry::MaxAttackReach) {
+            fail(source, line,
+                 "attack_reach must be in [1, " +
+                     std::to_string(ToolRegistry::MaxAttackReach) + "].");
+        }
+        return value;
+    }
+
     std::vector<ToolDefinition> parseSource(const ToolSource &source)
     {
         std::istringstream input(source.content);
@@ -231,11 +258,32 @@ namespace
                     parseAttack(parts[1], source.name, lineNumber);
                 pending.attackSeen = true;
             }
+            else if (parts.size() == 2 && parts[0] == "attack_cooldown") {
+                if (pending.attackCooldownSeen) {
+                    fail(source.name, lineNumber,
+                         "attack_cooldown is duplicated.");
+                }
+                pending.definition.attackCooldownTicks = parseInteger(
+                    parts[1], 1, ToolRegistry::MaxAttackCooldownTicks,
+                    source.name, lineNumber, "attack_cooldown");
+                pending.attackCooldownSeen = true;
+            }
+            else if (parts.size() == 2 && parts[0] == "attack_reach") {
+                if (pending.attackReachSeen) {
+                    fail(source.name, lineNumber,
+                         "attack_reach is duplicated.");
+                }
+                pending.definition.attackReach = parseAttackReach(
+                    parts[1], source.name, lineNumber);
+                pending.attackReachSeen = true;
+            }
             else if (parts.size() == 1 && parts[0] == "end") {
                 if (!pending.classSeen || !pending.tierSeen ||
-                    !pending.speedSeen || !pending.durabilitySeen) {
+                    !pending.speedSeen || !pending.durabilitySeen ||
+                    !pending.attackSeen || !pending.attackCooldownSeen ||
+                    !pending.attackReachSeen) {
                     fail(source.name, pending.startLine,
-                         "tool is missing class, tier, speed or durability.");
+                         "tool is missing a required mining or combat field.");
                 }
                 result.push_back(std::move(pending.definition));
                 insideTool = false;

@@ -2,6 +2,7 @@
 #include "../Item/CraftingSession.h"
 #include "../Item/FoodRegistry.h"
 #include "../Item/ToolRegistry.h"
+#include "../Actor/EnemyRegistry.h"
 #include "../Util/ResourcePackResolver.h"
 #include "../Util/ResourcePaths.h"
 
@@ -74,12 +75,18 @@ class pickaxe
 tier 1
 speed 2
 durability 16
+attack 2
+attack_cooldown 12
+attack_reach 3
 end
 tool hellomine:stone_pickaxe
 class pickaxe
 tier 2
 speed 4
 durability 32
+attack 3
+attack_cooldown 11
+attack_reach 3
 end
 tool hellomine:iron_pickaxe
 class pickaxe
@@ -87,6 +94,8 @@ tier 3
 speed 6
 durability 64
 attack 4
+attack_cooldown 10
+attack_reach 3
 end
 tool hellomine:iron_sword
 class weapon
@@ -94,6 +103,65 @@ tier 3
 speed 1
 durability 80
 attack 7
+attack_cooldown 8
+attack_reach 3.75
+end
+tool hellomine:wooden_sword
+class weapon
+tier 1
+speed 1
+durability 32
+attack 4
+attack_cooldown 10
+attack_reach 3.25
+end
+tool hellomine:stone_sword
+class weapon
+tier 2
+speed 1
+durability 56
+attack 5
+attack_cooldown 9
+attack_reach 3.5
+end
+)";
+    }
+
+    std::string validEnemies()
+    {
+        return R"(# HelloMine3D enemy registry v1
+enemy hellomine:natural_mob
+health 10
+dimensions 0.35 0.9 0.35
+wander_speed 1.2
+chase_radius 12
+chase_speed 2.4
+contact_damage 2
+natural 0
+loot hellomine:dirt 1 1
+end
+enemy hellomine:stalker
+health 8
+dimensions 0.30 0.75 0.30
+wander_speed 1.6
+chase_radius 14
+chase_speed 3.2
+contact_damage 1
+natural 1
+loot hellomine:dirt 1 1
+loot hellomine:wheat 1 2
+end
+enemy hellomine:brute
+health 16
+dimensions 0.45 1.05 0.45
+wander_speed 0.8
+chase_radius 10
+chase_speed 1.6
+contact_damage 4
+natural 1
+loot hellomine:dirt 1 1
+loot hellomine:coal_ore 1 1
+loot hellomine:wheat 1 1
 end
 )";
     }
@@ -140,9 +208,11 @@ end
         }
         check("G1/material-ids-roundtrip",
               roundTrip &&
-                  static_cast<int>(Material::ID::Bread) ==
+                  static_cast<int>(Material::ID::StoneSword) ==
                       static_cast<int>(Material::ID::Count) - 1 &&
                   Material::BREAD.isFood && !Material::BREAD.isTool &&
+                  Material::WOODEN_SWORD.isTool &&
+                  Material::STONE_SWORD.isTool &&
                   static_cast<int>(BlockId::Furnace) ==
                       static_cast<int>(BlockId::NUM_TYPES) - 1);
         Material::ID unchanged = Material::ID::Stone;
@@ -816,10 +886,15 @@ end
             registry.find(Material::ID::IronPickaxe);
         const ToolDefinition *sword =
             registry.find(Material::ID::IronSword);
+        const ToolDefinition *woodenSword =
+            registry.find(Material::ID::WoodenSword);
+        const ToolDefinition *stoneSword =
+            registry.find(Material::ID::StoneSword);
         check("G3/tool-registry-freezes-complete-base-set",
-              registry.isFrozen() && registry.tools().size() == 4 &&
+              registry.isFrozen() && registry.tools().size() == 6 &&
                   wood != nullptr && stone != nullptr && iron != nullptr &&
-                  sword != nullptr);
+                  sword != nullptr && woodenSword != nullptr &&
+                  stoneSword != nullptr);
         check("G3/tool-stats-are-data-driven",
               wood != nullptr && wood->miningClass == MiningClass::Pickaxe &&
                   wood->tier == 1 && wood->speedMultiplier == 2.0f &&
@@ -831,7 +906,15 @@ end
                   sword != nullptr &&
                   sword->miningClass == MiningClass::Weapon &&
                   sword->tier == 3 && sword->maxDurability == 80 &&
-                  sword->attackDamage == 7.0f);
+                  sword->attackDamage == 7.0f &&
+                  sword->attackCooldownTicks == 8 &&
+                  sword->attackReach == 3.75f &&
+                  woodenSword->attackDamage == 4.f &&
+                  woodenSword->attackCooldownTicks == 10 &&
+                  woodenSword->attackReach == 3.25f &&
+                  stoneSword->attackDamage == 5.f &&
+                  stoneSword->attackCooldownTicks == 9 &&
+                  stoneSword->attackReach == 3.5f);
         check("G3/tool-registry-is-startup-frozen",
               throwsContaining(
                   [&registry]
@@ -842,7 +925,8 @@ end
 
         const std::string duplicate = validTools() +
             "tool hellomine:wooden_pickaxe\nclass pickaxe\n"
-            "tier 1\nspeed 2\ndurability 16\nend\n";
+            "tier 1\nspeed 2\ndurability 16\nattack 2\n"
+            "attack_cooldown 12\nattack_reach 3\nend\n";
         check("G3/duplicate-tool-is-rejected",
               throwsContaining(
                   [&duplicate]
@@ -860,7 +944,8 @@ end
                           "# HelloMine3D tool registry v1\n"
                           "tool hellomine:wooden_pickaxe\n"
                           "class pickaxe\ntier 1\nspeed 2\n"
-                          "durability 16\nend\n"}});
+                          "durability 16\nattack 2\n"
+                          "attack_cooldown 12\nattack_reach 3\nend\n"}});
                   },
                   "Missing tool definition"));
         check("G3/invalid-tool-speed-is-rejected",
@@ -885,6 +970,28 @@ end
                       invalid.freeze({{"attack.tool", source}});
                   },
                   "attack must be in"));
+        check("N4/invalid-attack-cooldown-is-rejected",
+              throwsContaining(
+                  []
+                  {
+                      std::string source = validTools();
+                      source.replace(source.find("attack_cooldown 8"), 17,
+                                     "attack_cooldown 0");
+                      ToolRegistry invalid;
+                      invalid.freeze({{"cooldown.tool", source}});
+                  },
+                  "attack_cooldown must be in"));
+        check("N4/invalid-attack-reach-is-rejected",
+              throwsContaining(
+                  []
+                  {
+                      std::string source = validTools();
+                      source.replace(source.find("attack_reach 3.75"), 17,
+                                     "attack_reach 7");
+                      ToolRegistry invalid;
+                      invalid.freeze({{"reach.tool", source}});
+                  },
+                  "attack_reach must be in"));
 
         RecipeRegistry recipes;
         recipes.freeze({{"tools.recipe", oneRecipe(
@@ -1085,6 +1192,187 @@ end
                       Material::ID::Wheat &&
                   breadRecipe->ingredients[0].count == 3);
     }
+
+    void caseEnemyRegistry()
+    {
+        EnemyRegistry registry;
+        registry.freeze({{"Base.enemy", validEnemies()}});
+        const EnemyDefinition *stalker = registry.find("hellomine:stalker");
+        const EnemyDefinition *brute = registry.find("hellomine:brute");
+        const std::vector<const EnemyDefinition *> natural =
+            registry.naturalEnemies();
+        check("N4/enemy-registry-freezes-complete-base-set",
+              registry.isFrozen() && registry.enemies().size() == 3 &&
+                  stalker != nullptr && brute != nullptr &&
+                  natural.size() == 2);
+        check("N4/enemy-archetypes-are-readable-and-data-driven",
+              stalker->maxHealth == 8.f && stalker->wanderSpeed == 1.6f &&
+                  stalker->chaseSpeed == 3.2f &&
+                  stalker->contactDamage == 1.f &&
+                  stalker->loot.size() == 2 &&
+                  stalker->loot[0].materialId == Material::ID::Dirt &&
+                  stalker->loot[1].materialId == Material::ID::Wheat &&
+                  stalker->loot[1].minimumAmount == 1 &&
+                  stalker->loot[1].maximumAmount == 2 &&
+                  brute->maxHealth == 16.f && brute->wanderSpeed == 0.8f &&
+                  brute->chaseSpeed == 1.6f &&
+                  brute->contactDamage == 4.f && brute->loot.size() == 3 &&
+                  brute->loot[0].materialId == Material::ID::Dirt &&
+                  brute->loot[1].materialId == Material::ID::CoalOre &&
+                  brute->loot[2].materialId == Material::ID::Wheat &&
+                  natural[0]->type == "hellomine:brute" &&
+                  natural[1]->type == "hellomine:stalker");
+        check("N4/enemy-registry-is-startup-frozen",
+              throwsContaining(
+                  [&registry]
+                  {
+                      registry.freeze({{"again.enemy", validEnemies()}});
+                  },
+                  "already frozen"));
+        check("N4/enemy-header-is-strict",
+              throwsContaining(
+                  []
+                  {
+                      EnemyRegistry invalid;
+                      invalid.freeze({{"bad.enemy", "enemy stalker\n"}});
+                  },
+                  "unsupported or missing header"));
+        check("N4/incomplete-enemy-is-rejected",
+              throwsContaining(
+                  []
+                  {
+                      EnemyRegistry invalid;
+                      invalid.freeze({{"bad.enemy",
+                          "# HelloMine3D enemy registry v1\n"
+                          "enemy hellomine:stalker\nhealth 8\nend\n"}});
+                  },
+                  "incomplete or has no loot"));
+        check("N4/duplicate-enemy-type-is-rejected",
+              throwsContaining(
+                  []
+                  {
+                      EnemyRegistry invalid;
+                      invalid.freeze({{"a.enemy", validEnemies()},
+                                      {"b.enemy", validEnemies()}});
+                  },
+                  "Duplicate enemy type"));
+        check("N4/enemy-numeric-bounds-are-strict",
+              throwsContaining(
+                  []
+                  {
+                      std::string source = validEnemies();
+                      source.replace(source.find("health 8"), 8,
+                                     "health 101");
+                      EnemyRegistry invalid;
+                      invalid.freeze({{"health.enemy", source}});
+                  },
+                  "health must be a finite number in") &&
+              throwsContaining(
+                  []
+                  {
+                      std::string source = validEnemies();
+                      source.replace(source.find("wheat 1 2"), 9,
+                                     "wheat 3 2");
+                      EnemyRegistry invalid;
+                      invalid.freeze({{"loot.enemy", source}});
+                  },
+                  "loot maximum must be an integer in"));
+        check("N4/duplicate-enemy-loot-is-rejected",
+              throwsContaining(
+                  []
+                  {
+                      std::string source = validEnemies();
+                      const std::string marker = "loot hellomine:wheat 1 2\n";
+                      source.insert(source.find(marker) + marker.size(),
+                                    "loot hellomine:wheat 1 1\n");
+                      EnemyRegistry invalid;
+                      invalid.freeze({{"loot.enemy", source}});
+                  },
+                  "loot material is duplicated"));
+        check("N4/enemy-loot-entry-limit-is-enforced",
+              throwsContaining(
+                  []
+                  {
+                      std::string source = validEnemies();
+                      const std::size_t stalker =
+                          source.find("enemy hellomine:stalker");
+                      const std::size_t end = source.find("end\n", stalker);
+                      source.insert(end,
+                                    "loot hellomine:stone 1 1\n"
+                                    "loot hellomine:coal_ore 1 1\n"
+                                    "loot hellomine:oak_bark 1 1\n");
+                      EnemyRegistry invalid;
+                      invalid.freeze({{"loot-limit.enemy", source}});
+                  },
+                  "loot table exceeds its entry limit"));
+        check("N4/natural-enemy-is-required",
+              throwsContaining(
+                  []
+                  {
+                      std::string source = validEnemies();
+                      std::size_t offset = 0;
+                      while ((offset = source.find("natural 1", offset)) !=
+                             std::string::npos) {
+                          source.replace(offset, 9, "natural 0");
+                          offset += 9;
+                      }
+                      EnemyRegistry invalid;
+                      invalid.freeze({{"natural.enemy", source}});
+                  },
+                  "requires at least one natural enemy"));
+
+        EnemyRegistry atomic;
+        const bool failed = throwsContaining(
+            [&atomic]
+            {
+                atomic.freeze({{"bad.enemy", "invalid\n"}});
+            },
+            "unsupported or missing header");
+        atomic.freeze({{"valid.enemy", validEnemies()}});
+        check("N4/failed-enemy-freeze-is-atomic",
+              failed && atomic.isFrozen() && atomic.enemies().size() == 3);
+
+        const fs::path root = fs::current_path() / "bin" /
+                              "validation_runs" / "enemies";
+        std::error_code error;
+        fs::remove_all(root, error);
+        const std::string logicalPath = "media/enemies/Base.enemy";
+        writeFile(root / logicalPath, validEnemies());
+        ResourcePackResolver resolver;
+        resolver.freeze(root.string(), {{"enemy", logicalPath}}, {});
+        EnemyRegistry fromView;
+        fromView.freezeFromResourceView(resolver);
+        check("N4/frozen-enemy-resource-loads",
+              fromView.isFrozen() && fromView.enemies().size() == 3 &&
+                  resolver.effectiveManifest().find(
+                      "enemy|media/enemies/Base.enemy|base\n") !=
+                      std::string::npos);
+    }
+
+    void caseCombatRecipes()
+    {
+        std::ifstream baseRecipes(
+            ResourcePaths::media("recipes/Base.recipe"),
+            std::ios::binary);
+        std::ostringstream content;
+        content << baseRecipes.rdbuf();
+        RecipeRegistry recipes;
+        recipes.freeze({{"Base.recipe", content.str()}});
+        const RecipeDefinition *wood =
+            recipes.find("hellomine:wooden_sword");
+        const RecipeDefinition *stone =
+            recipes.find("hellomine:stone_sword");
+        check("N4/wooden-sword-recipe-is-progression-bounded",
+              wood != nullptr &&
+                  wood->outputMaterialId == Material::ID::WoodenSword &&
+                  wood->outputCount == 1 && wood->ingredients.size() == 1 &&
+                  wood->ingredients[0].materialId == Material::ID::OakBark &&
+                  wood->ingredients[0].count == 3);
+        check("N4/stone-sword-recipe-uses-stone-and-handle",
+              stone != nullptr &&
+                  stone->outputMaterialId == Material::ID::StoneSword &&
+                  stone->outputCount == 1 && stone->ingredients.size() == 2);
+    }
 }
 
 int main()
@@ -1103,7 +1391,9 @@ int main()
     caseCraftingSession();
     caseToolProgression();
     caseFoodRegistry();
-    constexpr int ExpectedChecks = 76;
+    caseEnemyRegistry();
+    caseCombatRecipes();
+    constexpr int ExpectedChecks = 92;
     if (checks != ExpectedChecks) {
         ++failures;
         std::cout << "[RECIPE_TEST] FAIL G1/expected-check-count"

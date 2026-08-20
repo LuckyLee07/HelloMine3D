@@ -432,6 +432,8 @@ project "HelloMine3DRecipeSmoke"
         source_dir .. "/Item/ToolRegistry.cpp",
         source_dir .. "/Item/RecipeRegistry.h",
         source_dir .. "/Item/RecipeRegistry.cpp",
+        source_dir .. "/Actor/EnemyRegistry.h",
+        source_dir .. "/Actor/EnemyRegistry.cpp",
         source_dir .. "/Util/NonCopyable.h",
         source_dir .. "/Util/ResourcePackResolver.h",
         source_dir .. "/Util/ResourcePackResolver.cpp",
@@ -439,6 +441,11 @@ project "HelloMine3DRecipeSmoke"
         source_dir .. "/World/Block/BlockId.h"
     }
     includedirs { source_dir }
+    externalincludedirs { "../src/external" }
+
+    if has_local_glm() then
+        externalincludedirs { "../src/external/glm" }
+    end
 
     filter "system:windows"
         defines { "_CRT_SECURE_NO_WARNINGS" }

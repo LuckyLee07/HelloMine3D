@@ -43,6 +43,11 @@ $requirements = @(
         DiagnosticPath = "media/blocks/Stone.block"
     },
     [pscustomobject]@{
+        Category = "enemy"
+        RelativePath = "media\enemies\Base.enemy"
+        DiagnosticPath = "media/enemies/Base.enemy"
+    },
+    [pscustomobject]@{
         Category = "food"
         RelativePath = "media\foods\Base.food"
         DiagnosticPath = "media/foods/Base.food"
@@ -70,6 +75,7 @@ foreach ($missing in $requirements) {
         '# HelloMine3D resource manifest v1',
         '',
         'block|media/blocks/Stone.block',
+        'enemy|media/enemies/Base.enemy',
         'food|media/foods/Base.food',
         'objective|media/objectives/Base.objective',
         'runtime-template|bin/resource-packs.txt',

@@ -35,6 +35,7 @@ constexpr std::size_t MaxStoredObjectives = 256;
 constexpr int CurrentInventoryFormat = 2;
 constexpr float MaxStoredPlayerHealth = 20.f;
 constexpr int MaxStoredFoodCooldownTicks = 1200;
+constexpr int MaxStoredAttackCooldownTicks = 1200;
 static_assert(WorldSaveFormatVersion ==
                   WorldCatalogue::CurrentSaveFormatVersion,
               "World save and catalogue versions must match.");
@@ -207,6 +208,7 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
     bool alphaJourneySeen = false;
     bool playerHealthSeen = false;
     bool playerFoodCooldownSeen = false;
+    bool playerAttackCooldownSeen = false;
     bool objectiveDefinitionSeen = false;
     bool objectiveCompletedCountSeen = false;
     bool objectiveProgressCountSeen = false;
@@ -370,6 +372,13 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
             }
             playerFoodCooldownSeen = true;
         }
+        else if (key == "player_attack_cooldown") {
+            if (!claimSingleton(key) ||
+                !(input >> loaded.playerState.attackCooldownTicks)) {
+                return fail("invalid or duplicate player_attack_cooldown");
+            }
+            playerAttackCooldownSeen = true;
+        }
         else if (key == "inventory_count") {
             if (!claimSingleton(key) || !(input >> expectedInventoryCount) ||
                 expectedInventoryCount > MaxStoredInventorySlots) {
@@ -496,6 +505,10 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
         (loaded.version < 6 && playerRecoveryFieldsPresent)) {
         return fail("player recovery state does not match save version");
     }
+    if ((loaded.version >= 7 && !playerAttackCooldownSeen) ||
+        (loaded.version < 7 && playerAttackCooldownSeen)) {
+        return fail("player attack state does not match save version");
+    }
 
     if (!finiteVec3(loaded.spawnPoint) ||
         !finiteVec3(loaded.playerState.position) ||
@@ -506,6 +519,9 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
         loaded.playerState.health > MaxStoredPlayerHealth ||
         loaded.playerState.foodCooldownTicks < 0 ||
         loaded.playerState.foodCooldownTicks > MaxStoredFoodCooldownTicks ||
+        loaded.playerState.attackCooldownTicks < 0 ||
+        loaded.playerState.attackCooldownTicks >
+            MaxStoredAttackCooldownTicks ||
         loaded.activeGenerator.empty()) {
         return fail("world state contains a non-finite or empty field");
     }
@@ -644,6 +660,8 @@ bool WorldSave::save(const WorldSaveData &data,
     output << "player_health " << data.playerState.health << '\n';
     output << "player_food_cooldown "
            << data.playerState.foodCooldownTicks << '\n';
+    output << "player_attack_cooldown "
+           << data.playerState.attackCooldownTicks << '\n';
     output << "inventory_format " << CurrentInventoryFormat << '\n';
     output << "inventory_count " << data.playerState.inventory.size() << '\n';
     for (const auto &slot : data.playerState.inventory) {

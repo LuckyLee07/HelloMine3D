@@ -30,6 +30,7 @@
 
 #include <FreeImage.h>
 
+#include "../Actor/EnemyRegistry.h"
 #include "../Actor/ItemEntity.h"
 #include "../Actor/LivingActor.h"
 #include "../Actor/MobActor.h"
@@ -783,6 +784,7 @@ void casePlayerControllerInput()
 {
     clearDeterministicEnv();
     setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
 
     const auto directory = freshSaveDirectory("player_controller");
     Config config = makeConfig();
@@ -3653,7 +3655,7 @@ void caseFurnaceProgression()
 }
 
 // ---------------------------------------------------------------------------
-// N3 - active food recovery, fixed-tick cooldown and version-six persistence
+// N3 - active food recovery, fixed-tick cooldown and current persistence
 // ---------------------------------------------------------------------------
 void caseFoodRecovery()
 {
@@ -3749,7 +3751,7 @@ void caseFoodRecovery()
           lethal && deadUse == FoodUseResult::PlayerDead &&
               countMaterial(player, Material::ID::Bread) ==
                   breadBeforeDeathUse &&
-              deadSaved && deadLoaded && deadState.version == 6 &&
+              deadSaved && deadLoaded && deadState.version == 7 &&
               deadState.playerState.health == 0.f);
     world.tick(1200);
     check("N3/pending-death-respawns-on-next-fixed-tick",
@@ -3820,7 +3822,7 @@ void caseFoodRecovery()
     valid.playerState.inventory = {{Material::ID::Bread, 1, 0}};
     WorldSave recoverySave(validationDirectory);
     WorldSaveData validRoundTrip;
-    check("N3/version-six-recovery-state-roundtrips",
+    check("N3/current-recovery-state-roundtrips",
           recoverySave.save(valid) &&
               recoverySave.load(validRoundTrip) &&
               validRoundTrip.playerState.health == 7.f &&
@@ -3861,7 +3863,7 @@ void caseFoodRecovery()
                   "future.optional") !=
         migratedData.objectiveState.completedIds.end();
     check("N3/version-five-objectives-survive-recovery-migration",
-          migratedLoaded && migratedData.version == 6 &&
+          migratedLoaded && migratedData.version == 7 &&
               migratedData.playerState.health == 20.f &&
               migratedData.playerState.foodCooldownTicks == 0 &&
               migratedData.objectiveState.progress.size() == 1 &&
@@ -4161,12 +4163,18 @@ class pickaxe
 tier 1
 speed 2
 durability 16
+attack 2
+attack_cooldown 12
+attack_reach 3
 end
 tool hellomine:stone_pickaxe
 class pickaxe
 tier 2
 speed 4
 durability 32
+attack 3
+attack_cooldown 11
+attack_reach 3
 end
 tool hellomine:iron_pickaxe
 class pickaxe
@@ -4174,6 +4182,8 @@ tier 3
 speed 6
 durability 64
 attack 4
+attack_cooldown 10
+attack_reach 3
 end
 tool hellomine:iron_sword
 class weapon
@@ -4181,6 +4191,65 @@ tier 3
 speed 1
 durability 80
 attack 7
+attack_cooldown 8
+attack_reach 3.75
+end
+tool hellomine:wooden_sword
+class weapon
+tier 1
+speed 1
+durability 32
+attack 4
+attack_cooldown 10
+attack_reach 3.25
+end
+tool hellomine:stone_sword
+class weapon
+tier 2
+speed 1
+durability 56
+attack 5
+attack_cooldown 9
+attack_reach 3.5
+end
+)";
+}
+
+std::string validEnemyDefinitions()
+{
+    return R"(# HelloMine3D enemy registry v1
+enemy hellomine:natural_mob
+health 10
+dimensions 0.35 0.9 0.35
+wander_speed 1.2
+chase_radius 12
+chase_speed 2.4
+contact_damage 2
+natural 0
+loot hellomine:dirt 1 1
+end
+enemy hellomine:stalker
+health 8
+dimensions 0.30 0.75 0.30
+wander_speed 1.6
+chase_radius 14
+chase_speed 3.2
+contact_damage 1
+natural 1
+loot hellomine:dirt 1 1
+loot hellomine:wheat 1 2
+end
+enemy hellomine:brute
+health 16
+dimensions 0.45 1.05 0.45
+wander_speed 0.8
+chase_radius 10
+chase_speed 1.6
+contact_damage 4
+natural 1
+loot hellomine:dirt 1 1
+loot hellomine:coal_ore 1 1
+loot hellomine:wheat 1 1
 end
 )";
 }
@@ -4435,7 +4504,7 @@ void caseToolMiningProgression()
     check("N1/version-three-migrates-with-empty-objective-state",
           legacyLoaded && loadedLegacyVersion == 3 &&
               legacyData.alphaJourneyFlags == 0u && legacyUpgraded &&
-              upgraded.find("version 6") != std::string::npos &&
+              upgraded.find("version 7") != std::string::npos &&
               upgraded.find("alpha_journey_flags 0") !=
                   std::string::npos &&
               upgraded.find("objective_definition_version 1") !=
@@ -4507,7 +4576,7 @@ void caseNaturalMobPopulation()
     auto naturalSnapshots = [&world]() {
         std::vector<ActorSnapshot> result;
         for (const ActorSnapshot &snapshot : world.collectActorSnapshots()) {
-            if (snapshot.type == World::NaturalMobType) {
+            if (World::isNaturalMobType(snapshot.type)) {
                 result.push_back(snapshot);
             }
         }
@@ -4538,17 +4607,21 @@ void caseNaturalMobPopulation()
     check("D3/safe-ground-and-headroom", safePlacement);
 
     world.tick(World::NaturalMobSpawnIntervalTicks * 2);
-    const std::size_t localCount =
-        world.getActorManager().countActorsByTypeNear(
-            World::NaturalMobType, player.position,
-            World::NaturalMobLocalRadius);
+    const std::vector<ActorSnapshot> localSnapshots = naturalSnapshots();
+    const std::size_t localCount = static_cast<std::size_t>(std::count_if(
+        localSnapshots.begin(), localSnapshots.end(),
+        [&player](const ActorSnapshot &snapshot) {
+            const float x = snapshot.position.x - player.position.x;
+            const float z = snapshot.position.z - player.position.z;
+            return x * x + z * z <=
+                World::NaturalMobLocalRadius *
+                    World::NaturalMobLocalRadius;
+        }));
     check("D3/local-cap-enforced",
           localCount == World::NaturalMobLocalCap);
 
-    while (world.getActorManager().countActorsByType(
-               World::NaturalMobType) < World::NaturalMobWorldCap) {
-        const std::size_t index =
-            world.getActorManager().countActorsByType(World::NaturalMobType);
+    while (naturalSnapshots().size() < World::NaturalMobWorldCap) {
+        const std::size_t index = naturalSnapshots().size();
         world.spawnMob(World::NaturalMobType,
                        {1000.f + static_cast<float>(index * 4),
                         90.f, 1000.f});
@@ -4556,8 +4629,7 @@ void caseNaturalMobPopulation()
     player.position = {512.f, 90.f, 512.f};
     player.box.update(player.position);
     world.tick(World::NaturalMobSpawnIntervalTicks * 3);
-    const std::size_t cappedCount =
-        world.getActorManager().countActorsByType(World::NaturalMobType);
+    const std::size_t cappedCount = naturalSnapshots().size();
     check("D3/world-cap-enforced",
           cappedCount == World::NaturalMobWorldCap,
           "natural mobs=" + std::to_string(cappedCount));
@@ -4601,9 +4673,13 @@ void caseNaturalMobPopulation()
         while (savedNaturalCount < World::NaturalMobLocalCap && tick < 200) {
             tick += World::NaturalMobSpawnIntervalTicks;
             savedWorld.tick(tick);
-            savedNaturalCount =
-                savedWorld.getActorManager().countActorsByType(
-                    World::NaturalMobType);
+            const std::vector<ActorSnapshot> current =
+                savedWorld.collectActorSnapshots();
+            savedNaturalCount = static_cast<std::size_t>(std::count_if(
+                current.begin(), current.end(),
+                [](const ActorSnapshot &snapshot) {
+                    return World::isNaturalMobType(snapshot.type);
+                }));
         }
         check("D3/save-has-live-natural-mobs",
               savedNaturalCount == World::NaturalMobLocalCap,
@@ -4617,7 +4693,7 @@ void caseNaturalMobPopulation()
     auto naturalState = std::find_if(
         savedData.actors.begin(), savedData.actors.end(),
         [](const ActorSaveState &state) {
-            return state.type == World::NaturalMobType;
+            return World::isNaturalMobType(state.type);
         });
     if (duplicateFixtureWritten && naturalState != savedData.actors.end()) {
         ActorSaveState duplicate = *naturalState;
@@ -4636,24 +4712,26 @@ void caseNaturalMobPopulation()
         Player restoredPlayer;
         World restoredWorld(camera, config, restoredPlayer,
                             persistenceDirectory, false, 1);
-        const std::size_t restoredCount =
-            restoredWorld.getActorManager().countActorsByType(
-                World::NaturalMobType);
+        const std::vector<ActorSnapshot> restored =
+            restoredWorld.collectActorSnapshots();
+        const std::size_t restoredCount = static_cast<std::size_t>(
+            std::count_if(restored.begin(), restored.end(),
+                          [](const ActorSnapshot &snapshot) {
+                              return World::isNaturalMobType(snapshot.type);
+                          }));
         check("D3/reload-restores-natural-mobs",
               restoredCount == savedNaturalCount,
               "saved=" + std::to_string(savedNaturalCount) +
                   " restored=" + std::to_string(restoredCount));
 
-        const std::vector<ActorSnapshot> restored =
-            restoredWorld.collectActorSnapshots();
         bool duplicatePosition = false;
         for (std::size_t left = 0; left < restored.size(); ++left) {
-            if (restored[left].type != World::NaturalMobType) {
+            if (!World::isNaturalMobType(restored[left].type)) {
                 continue;
             }
             for (std::size_t right = left + 1; right < restored.size();
                  ++right) {
-                if (restored[right].type == World::NaturalMobType &&
+                if (World::isNaturalMobType(restored[right].type) &&
                     glm::length(restored[left].position -
                                 restored[right].position) < 1.5f) {
                     duplicatePosition = true;
@@ -4722,6 +4800,13 @@ void caseCombatAndRespawn()
         [&combatOrder](const SandboxEvent &) {
             combatOrder.push_back(SandboxEventType::EntitySpawn);
         });
+
+    if (target != nullptr) {
+        target->position = {8.5f, 100.5f, 6.f};
+        target->box.update(target->position);
+    }
+    player.position = {8.5f, 100.5f, 8.f};
+    player.box.update(player.position);
 
     const bool firstAttack = world.attackActor(targetId);
     const float healthAfterAttack =
@@ -4908,6 +4993,256 @@ void caseCombatAndRespawn()
     contactWorld.getEventBus().unsubscribe(playerDamageSubscription);
     contactWorld.getEventBus().unsubscribe(playerDeathSubscription);
     contactWorld.getEventBus().unsubscribe(playerSpawnSubscription);
+}
+
+// ---------------------------------------------------------------------------
+// N4 - readable enemies, bounded loot, weapon reach/cooldown and v7 saves
+// ---------------------------------------------------------------------------
+void caseCombatDepth()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
+    Config config = makeConfig();
+    Camera camera(config);
+
+    const auto directory = freshSaveDirectory("combat_depth");
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+    player.addItem(Material::WOODEN_SWORD, 1);
+    int swordSlot = -1;
+    for (int slot = 0; slot < player.getInventorySlotCount(); ++slot) {
+        if (player.getInventorySlot(slot).getMaterial().id ==
+            Material::ID::WoodenSword) {
+            swordSlot = slot;
+            break;
+        }
+    }
+    PlayerInputState swordInput;
+    swordInput.hotbarSlot = swordSlot;
+    player.applyInput(swordInput);
+
+    const ActorId stalkerId = world.spawnMob(
+        World::StalkerMobType, player.position + glm::vec3(10.f, 0.f, 0.f));
+    MobActor *stalker = dynamic_cast<MobActor *>(
+        world.getActorManager().findActor(stalkerId));
+    check("N4/stalker-definition-is-applied-to-live-actor",
+          stalker != nullptr && stalker->getMaxHealth() == 8.f &&
+              stalker->getWanderSpeed() == 1.6f &&
+              stalker->getChaseRadius() == 14.f &&
+              stalker->getChaseSpeed() == 3.2f &&
+              stalker->getContactDamage() == 1.f &&
+              stalker->getLootTable().size() == 2);
+
+    const int pristineDurability = swordSlot >= 0
+        ? player.getInventorySlot(swordSlot).getDurability()
+        : -1;
+    const CombatAttackResult paused =
+        world.tryAttackActor(stalkerId, false);
+    player.openCrafting(CraftingSession::PlayerGridSize);
+    const CombatAttackResult uiBusy = world.tryAttackActor(stalkerId);
+    player.closeCrafting();
+    const CombatAttackResult missing =
+        world.tryAttackActor(InvalidActorId);
+    const CombatAttackResult outOfReach = world.tryAttackActor(stalkerId);
+    check("N4/rejected-attacks-are-atomic",
+          paused == CombatAttackResult::SimulationPaused &&
+              uiBusy == CombatAttackResult::UiBusy &&
+              missing == CombatAttackResult::TargetMissing &&
+              outOfReach == CombatAttackResult::OutOfReach &&
+              world.getAttackCooldownTicksRemaining() == 0 &&
+              swordSlot >= 0 &&
+              player.getInventorySlot(swordSlot).getDurability() ==
+                  pristineDurability && stalker != nullptr &&
+              stalker->getHealth() == 8.f);
+
+    if (stalker != nullptr) {
+        stalker->position = player.position + glm::vec3(2.f, 0.f, 0.f);
+        stalker->box.update(stalker->position);
+    }
+    const CombatAttackResult firstHit = world.tryAttackActor(stalkerId);
+    check("N4/wooden-sword-hit-uses-data-and-durability-on-success",
+          firstHit == CombatAttackResult::Hit && stalker != nullptr &&
+              stalker->getHealth() == 4.f &&
+              world.getAttackCooldownTicksRemaining() == 10 &&
+              player.getInventorySlot(swordSlot).getDurability() == 31);
+
+    const CombatAttackResult immediate = world.tryAttackActor(stalkerId);
+    for (int tick = 0; tick < 9; ++tick) {
+        world.tick(2000 + tick);
+    }
+    const CombatAttackResult early = world.tryAttackActor(stalkerId);
+    check("N4/attack-cooldown-is-exact-fixed-tick-state",
+          immediate == CombatAttackResult::CoolingDown &&
+              early == CombatAttackResult::CoolingDown &&
+              world.getAttackCooldownTicksRemaining() == 1 &&
+              player.getInventorySlot(swordSlot).getDurability() == 31 &&
+              stalker != nullptr && stalker->getHealth() == 4.f);
+
+    world.tick(2009);
+    if (stalker != nullptr) {
+        stalker->setDamageInvulnerabilityRemaining(1.f);
+    }
+    const CombatAttackResult targetRejected =
+        world.tryAttackActor(stalkerId);
+    check("N4/target-rejection-does-not-consume-cooldown-or-durability",
+          targetRejected == CombatAttackResult::TargetRejected &&
+              world.getAttackCooldownTicksRemaining() == 0 &&
+              player.getInventorySlot(swordSlot).getDurability() == 31 &&
+              stalker != nullptr && stalker->getHealth() == 4.f);
+    if (stalker != nullptr) {
+        stalker->setDamageInvulnerabilityRemaining(0.f);
+    }
+    const CombatAttackResult lethal = world.tryAttackActor(stalkerId);
+    const std::vector<ActorSaveState> stalkerDrops =
+        world.getActorManager().collectSaveStates();
+    int wheatAmount = 0;
+    int dirtAmount = 0;
+    int stalkerItemCount = 0;
+    for (const ActorSaveState &state : stalkerDrops) {
+        if (state.kind != ActorSaveKind::Item) {
+            continue;
+        }
+        ++stalkerItemCount;
+        if (state.materialId == static_cast<int>(Material::ID::Wheat)) {
+            wheatAmount += state.amount;
+        }
+        else if (state.materialId == static_cast<int>(Material::ID::Dirt)) {
+            dirtAmount += state.amount;
+        }
+    }
+    check("N4/stalker-death-drops-bounded-recovery-loot",
+          lethal == CombatAttackResult::Hit && stalker != nullptr &&
+              !stalker->isAlive() && wheatAmount >= 1 && wheatAmount <= 2 &&
+              dirtAmount == 1 && stalkerItemCount == 2 &&
+              player.getInventorySlot(swordSlot).getDurability() == 30);
+    if (stalker != nullptr) {
+        stalker->dropLoot(world);
+    }
+    check("N4/death-loot-is-emitted-exactly-once",
+          world.getActorManager().collectSaveStates().size() ==
+              stalkerDrops.size());
+
+    const std::size_t beforeBruteDrops =
+        world.getActorManager().collectSaveStates().size();
+    const ActorId bruteId = world.spawnMob(
+        World::BruteMobType, player.position + glm::vec3(2.f, 0.f, 0.f));
+    MobActor *brute = dynamic_cast<MobActor *>(
+        world.getActorManager().findActor(bruteId));
+    check("N4/brute-definition-is-slower-heavier-and-stronger",
+          brute != nullptr && brute->getMaxHealth() == 16.f &&
+              brute->getWanderSpeed() == 0.8f &&
+              brute->getChaseRadius() == 10.f &&
+              brute->getChaseSpeed() == 1.6f &&
+              brute->getContactDamage() == 4.f &&
+              brute->getLootTable().size() == 3);
+    const bool bruteKilled = world.attackActor(bruteId, 100.f);
+    const std::vector<ActorSaveState> allDrops =
+        world.getActorManager().collectSaveStates();
+    int coalAmount = 0;
+    for (const ActorSaveState &state : allDrops) {
+        if (state.kind == ActorSaveKind::Item &&
+            state.materialId == static_cast<int>(Material::ID::CoalOre)) {
+            coalAmount += state.amount;
+        }
+    }
+    check("N4/brute-death-drops-bounded-progression-loot",
+          bruteKilled && brute != nullptr && !brute->isAlive() &&
+              coalAmount == 1 && allDrops.size() == beforeBruteDrops + 3);
+    const WorldDebugStats enemyStats = world.collectDebugStats();
+    check("N4/both-new-archetypes-are-natural-population-types",
+          World::isNaturalMobType(World::StalkerMobType) &&
+              World::isNaturalMobType(World::BruteMobType) &&
+              enemyStats.naturalMobWorldCap == World::NaturalMobWorldCap);
+
+    const auto contactDamage = [&](const std::string &name,
+                                   const std::string &type) {
+        const auto contactDirectory = freshSaveDirectory(name);
+        Player contactPlayer;
+        World contactWorld(camera, config, contactPlayer,
+                           contactDirectory, false, 1);
+        contactWorld.spawnMob(type, contactPlayer.position);
+        contactWorld.tick(1);
+        return contactWorld.getPlayerHealth();
+    };
+    check("N4/contact-damage-distinguishes-stalker-and-brute",
+          contactDamage("combat_stalker_contact", World::StalkerMobType) ==
+                  19.f &&
+              contactDamage("combat_brute_contact", World::BruteMobType) ==
+                  16.f);
+
+    const auto persistenceDirectory =
+        freshSaveDirectory("combat_cooldown_persistence");
+    bool persistencePrepared = false;
+    {
+        Player savedPlayer;
+        World savedWorld(camera, config, savedPlayer, persistenceDirectory,
+                         false, 1);
+        savedPlayer.addItem(Material::WOODEN_SWORD, 1);
+        PlayerInputState select;
+        select.hotbarSlot = 0;
+        savedPlayer.applyInput(select);
+        const ActorId targetId = savedWorld.spawnMob(
+            World::StalkerMobType,
+            savedPlayer.position + glm::vec3(2.f, 0.f, 0.f));
+        persistencePrepared =
+            savedWorld.tryAttackActor(targetId) == CombatAttackResult::Hit &&
+            savedWorld.getAttackCooldownTicksRemaining() == 10 &&
+            savedWorld.save();
+    }
+    {
+        Player restoredPlayer;
+        World restoredWorld(camera, config, restoredPlayer,
+                            persistenceDirectory, false, 1);
+        check("N4/attack-cooldown-and-weapon-durability-resume-after-reload",
+              persistencePrepared &&
+                  restoredWorld.getAttackCooldownTicksRemaining() == 10 &&
+                  restoredPlayer.getInventorySlot(0).getMaterial().id ==
+                      Material::ID::WoodenSword &&
+                  restoredPlayer.getInventorySlot(0).getDurability() == 31);
+    }
+    WorldSave combatSave(persistenceDirectory);
+    WorldSaveData validCombatSave;
+    const bool validCombatLoaded = combatSave.load(validCombatSave);
+    WorldSaveData invalidCombatSave = validCombatSave;
+    invalidCombatSave.playerState.attackCooldownTicks = 1201;
+    WorldSaveData preservedCombatSave;
+    check("N4/invalid-attack-cooldown-preserves-last-good-save",
+          validCombatLoaded && !combatSave.save(invalidCombatSave) &&
+              combatSave.load(preservedCombatSave) &&
+              preservedCombatSave.playerState.attackCooldownTicks == 10);
+
+    const std::filesystem::path migrationRoot =
+        freshSaveDirectory("combat_v6_migration");
+    const std::filesystem::path migratedWorld =
+        migrationRoot / "n4-v6-combat";
+    std::filesystem::create_directories(migratedWorld);
+    std::filesystem::copy_file(
+        ResourcePaths::join(
+            ResourcePaths::projectRoot(),
+            "tools/fixtures/combat/world-v6-recovery.meta"),
+        migratedWorld / "world.meta",
+        std::filesystem::copy_options::overwrite_existing);
+    const WorldManagementService management(migrationRoot.string());
+    const WorldManagementResult migrated =
+        management.prepareWorldForOpen("n4-v6-combat");
+    WorldSaveData migratedData;
+    const bool migratedLoaded = migrated.succeeded() &&
+        WorldSave(migratedWorld.string()).load(migratedData);
+    const bool preservedUnknownObjective = std::find(
+        migratedData.objectiveState.completedIds.begin(),
+        migratedData.objectiveState.completedIds.end(),
+        "future.optional") !=
+        migratedData.objectiveState.completedIds.end();
+    check("N4/version-six-migrates-with-recovery-and-objectives-intact",
+          migratedLoaded && migratedData.version == 7 &&
+              migratedData.playerState.health == 13.f &&
+              migratedData.playerState.foodCooldownTicks == 7 &&
+              migratedData.playerState.attackCooldownTicks == 0 &&
+              migratedData.playerState.inventory.size() == 1 &&
+              migratedData.playerState.inventory.front().materialId ==
+                  Material::ID::Bread &&
+              migratedData.objectiveState.progress.size() == 1 &&
+              preservedUnknownObjective);
 }
 
 // ---------------------------------------------------------------------------
@@ -5243,7 +5578,7 @@ void casePlayableVerticalSlice()
                       const ActorSnapshot &right) {
                 const auto distanceSquared = [&player](
                                                  const ActorSnapshot &value) {
-                    if (value.type != World::NaturalMobType) {
+                    if (!World::isNaturalMobType(value.type)) {
                         return std::numeric_limits<float>::max();
                     }
                     const float x = value.position.x - player.position.x;
@@ -5254,9 +5589,25 @@ void casePlayableVerticalSlice()
             });
         const bool foundNaturalMob =
             naturalMob != encountered.end() &&
-            naturalMob->type == World::NaturalMobType;
+            World::isNaturalMobType(naturalMob->type);
         if (foundNaturalMob) {
             defeatedMobId = naturalMob->id;
+            player.position = naturalMob->position +
+                glm::vec3(0.f, 0.f, 2.f);
+            player.box.update(player.position);
+            const int mobX = World::toBlockCoord(naturalMob->position.x);
+            const int mobZ = World::toBlockCoord(naturalMob->position.z);
+            const int playerZ = World::toBlockCoord(player.position.z);
+            const int groundY =
+                World::toBlockCoord(naturalMob->position.y) - 1;
+            for (int x = mobX - 1; x <= mobX + 1; ++x) {
+                for (int z = std::min(mobZ, playerZ) - 1;
+                     z <= std::max(mobZ, playerZ) + 1; ++z) {
+                    world.setBlock(x, groundY, z, BlockId::Stone);
+                    world.setBlock(x, groundY + 1, z, BlockId::Air);
+                    world.setBlock(x, groundY + 2, z, BlockId::Air);
+                }
+            }
         }
         const bool firstHit = foundNaturalMob &&
                               world.attackActor(defeatedMobId);
@@ -5274,7 +5625,7 @@ void casePlayableVerticalSlice()
         }
         const bool lethalHit =
             firstHit && mobReachedPlayer &&
-            world.attackActor(defeatedMobId, 6.f);
+            world.attackActor(defeatedMobId, 100.f);
         const std::vector<ActorSaveState> postCombat =
             world.getActorManager().collectSaveStates();
         const auto loot = std::find_if(
@@ -5307,7 +5658,7 @@ void casePlayableVerticalSlice()
         check("D6/pick-up-defeated-mob-loot",
               dirtAfterPickup == dirtBeforePickup + 1 &&
                   !lootStillExists &&
-                  events.count(SandboxEventType::ItemPickup) == 1);
+                  events.count(SandboxEventType::ItemPickup) >= 2);
 
         const int harvestSeedSlot =
             findPlayerSlot(player, Material::ID::WheatSeeds);
@@ -5479,7 +5830,7 @@ void caseDataDrivenObjectives()
             : nullptr;
     check("N1/base-objective-registry-is-versioned-and-complete",
           baseLoaded && baseRegistry.definitionVersion() == 1 &&
-              baseRegistry.definitions().size() == 18 &&
+              baseRegistry.definitions().size() == 21 &&
               baseRegistry.find("alpha.gather_wood") != nullptr &&
               baseRegistry.find("alpha.reopen_world") != nullptr &&
               baseRegistry.find("progression.smelt_iron") != nullptr &&
@@ -5488,6 +5839,11 @@ void caseDataDrivenObjectives()
               baseRegistry.find("survival.eat_bread") != nullptr &&
               baseRegistry.find("survival.eat_bread")->type ==
                   ObjectiveType::ConsumeItem &&
+              baseRegistry.find("combat.defeat_enemies") != nullptr &&
+              baseRegistry.find("combat.defeat_enemies")->type ==
+                  ObjectiveType::DefeatEnemy &&
+              baseRegistry.find("combat.collect_wheat") != nullptr &&
+              baseRegistry.find("combat.collect_coal") != nullptr &&
               baseReach != nullptr &&
               baseReach->type == ObjectiveType::ReachLocation &&
               !baseReach->visible && baseReach->optional);
@@ -5630,8 +5986,8 @@ void caseDataDrivenObjectives()
     WorldSaveData mismatchedFlags = validSave;
     mismatchedFlags.alphaJourneyFlags = 0u;
     WorldSaveData preserved;
-    check("N1/version-six-preserves-objective-state",
-          saved && loaded.version == 6 &&
+    check("N1/current-version-preserves-objective-state",
+          saved && loaded.version == 7 &&
               loaded.objectiveState.definitionVersion == 1 &&
               loaded.objectiveState.completedIds ==
                   validSave.objectiveState.completedIds &&
@@ -5662,7 +6018,7 @@ void caseDataDrivenObjectives()
         migrated.succeeded() &&
         WorldSave(migratedWorld.string()).load(migratedData);
     check("N1/version-four-flags-migrate-to-current-objectives",
-          migratedLoaded && migratedData.version == 6 &&
+          migratedLoaded && migratedData.version == 7 &&
               migratedData.alphaJourneyFlags == 3u &&
               migratedData.objectiveState.definitionVersion == 1 &&
               migratedData.objectiveState.completedIds ==
@@ -5927,7 +6283,7 @@ void casePlayableAlphaJourney()
                       const ActorSnapshot &right) {
                 const auto distanceSquared = [&player](
                                                  const ActorSnapshot &value) {
-                    if (value.type != World::NaturalMobType) {
+                    if (!World::isNaturalMobType(value.type)) {
                         return std::numeric_limits<float>::max();
                     }
                     const float x = value.position.x - player.position.x;
@@ -5938,9 +6294,25 @@ void casePlayableAlphaJourney()
             });
         const bool foundNaturalMob =
             naturalMob != encountered.end() &&
-            naturalMob->type == World::NaturalMobType;
+            World::isNaturalMobType(naturalMob->type);
         if (foundNaturalMob) {
             defeatedMobId = naturalMob->id;
+            player.position = naturalMob->position +
+                glm::vec3(0.f, 0.f, 2.f);
+            player.box.update(player.position);
+            const int mobX = World::toBlockCoord(naturalMob->position.x);
+            const int mobZ = World::toBlockCoord(naturalMob->position.z);
+            const int playerZ = World::toBlockCoord(player.position.z);
+            const int groundY =
+                World::toBlockCoord(naturalMob->position.y) - 1;
+            for (int x = mobX - 1; x <= mobX + 1; ++x) {
+                for (int z = std::min(mobZ, playerZ) - 1;
+                     z <= std::max(mobZ, playerZ) + 1; ++z) {
+                    world.setBlock(x, groundY, z, BlockId::Stone);
+                    world.setBlock(x, groundY + 1, z, BlockId::Air);
+                    world.setBlock(x, groundY + 2, z, BlockId::Air);
+                }
+            }
         }
         const bool firstHit = foundNaturalMob &&
                               world.attackActor(
@@ -5959,7 +6331,7 @@ void casePlayableAlphaJourney()
             }
         }
         const bool lethalHit = firstHit && mobReachedPlayer &&
-                               world.attackActor(defeatedMobId, 6.f);
+                               world.attackActor(defeatedMobId, 100.f);
         check("G6/natural-mob-is-defeated-through-combat-rules",
               foundNaturalMob && lethalHit &&
                   world.getAlphaJourneySnapshot().step ==
@@ -6878,6 +7250,8 @@ int main()
         std::cout << "[VALIDATION] world runtime smoke starting\n";
         runtimeToolRegistry().freeze(
             {{"runtime.tool", validToolDefinitions()}});
+        runtimeEnemyRegistry().freeze(
+            {{"runtime.enemy", validEnemyDefinitions()}});
         runtimeSmeltingRegistry().freeze(
             {{"runtime.smelting", validSmeltingDefinitions()}});
         runtimeFoodRegistry().freeze(
@@ -6926,6 +7300,7 @@ int main()
         caseToolMiningProgression();
         caseNaturalMobPopulation();
         caseCombatAndRespawn();
+        caseCombatDepth();
         caseWheatCropLoop();
         casePlayableVerticalSlice();
         caseDataDrivenObjectives();

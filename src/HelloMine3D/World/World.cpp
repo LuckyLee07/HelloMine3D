@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include "../Actor/EnemyRegistry.h"
 #include "../Actor/ItemEntity.h"
 #include "../Actor/MobActor.h"
 #include "../Core/Camera.h"
@@ -91,6 +92,25 @@ namespace
         mix(static_cast<std::uint32_t>(spawnEpoch));
         mix(static_cast<std::uint32_t>(attempt));
         return value;
+    }
+
+    std::unique_ptr<MobActor> createMobActor(
+        ActorId id, const std::string &type, const glm::vec3 &position)
+    {
+        const EnemyDefinition *definition =
+            runtimeEnemyRegistry().isFrozen()
+                ? runtimeEnemyRegistry().find(type)
+                : nullptr;
+        auto mob = std::make_unique<MobActor>(
+            id, type, position,
+            definition != nullptr ? definition->maxHealth : 10.f,
+            definition != nullptr
+                ? definition->dimensions
+                : glm::vec3(0.35f, 0.9f, 0.35f));
+        if (definition != nullptr) {
+            mob->applyDefinition(*definition);
+        }
+        return mob;
     }
 
     bool readIntEnv(const char *name, int &value)
@@ -294,6 +314,7 @@ World::World(const Camera &camera, const Config &config, Player &player,
 {
     (void)camera;
     player.attachEventBus(m_eventBus);
+    ensureRuntimeEnemyRegistry();
 
     int forcedSeed = 0;
     const bool hasForcedSeed = readIntEnv("HELLOMINE3D_SEED", forcedSeed);
@@ -376,6 +397,8 @@ World::World(const Camera &camera, const Config &config, Player &player,
         m_playerActor.applySaveState(playerActorState);
         m_foodCooldownTicksRemaining =
             m_worldSaveData.playerState.foodCooldownTicks;
+        m_attackCooldownTicksRemaining =
+            m_worldSaveData.playerState.attackCooldownTicks;
         m_playerRespawnPending = !m_playerActor.isAlive();
     }
     ensureRuntimeObjectiveRegistry();
@@ -934,6 +957,8 @@ void World::tick(int worldTime)
     m_playerActor.tick(*this, 1.f / 20.f);
     m_foodCooldownTicksRemaining =
         std::max(0, m_foodCooldownTicksRemaining - 1);
+    m_attackCooldownTicksRemaining =
+        std::max(0, m_attackCooldownTicksRemaining - 1);
     m_actorManager.tick(*this, 1.f / 20.f);
     applyMobContactDamage();
     runRandomTicks(worldTime);
@@ -951,24 +976,75 @@ void World::tick(int worldTime)
 
 bool World::attackActor(ActorId actorId)
 {
+    return tryAttackActor(actorId) == CombatAttackResult::Hit;
+}
+
+CombatAttackResult World::tryAttackActor(ActorId actorId,
+                                         bool simulationRunning)
+{
+    if (!simulationRunning) {
+        return CombatAttackResult::SimulationPaused;
+    }
+    if (m_player == nullptr) {
+        return CombatAttackResult::PlayerUnavailable;
+    }
+    if (m_player->hasOpenContainer() || m_player->hasOpenCrafting()) {
+        return CombatAttackResult::UiBusy;
+    }
+    if (!m_playerActor.isAlive()) {
+        return CombatAttackResult::PlayerDead;
+    }
+    if (m_attackCooldownTicksRemaining > 0) {
+        return CombatAttackResult::CoolingDown;
+    }
+
+    LivingActor *actor = dynamic_cast<LivingActor *>(
+        m_actorManager.findActor(actorId));
+    if (actor == nullptr) {
+        return CombatAttackResult::TargetMissing;
+    }
+    if (!actor->isAlive()) {
+        return CombatAttackResult::TargetDead;
+    }
+
     float amount = PlayerAttackDamage;
+    int cooldownTicks = PlayerAttackCooldownTicks;
+    float reach = PlayerAttackReach;
     bool usesTool = false;
-    if (m_player != nullptr && runtimeToolRegistry().isFrozen()) {
+    if (runtimeToolRegistry().isFrozen()) {
         const ItemStack &held = m_player->getHeldItems();
         if (!held.isEmpty()) {
             const ToolDefinition *tool =
                 runtimeToolRegistry().find(held.getMaterial().id);
             if (tool != nullptr) {
                 amount = tool->attackDamage;
+                cooldownTicks = tool->attackCooldownTicks;
+                reach = tool->attackReach;
                 usesTool = true;
             }
         }
     }
-    const bool accepted = attackActor(actorId, amount);
+
+    const glm::vec3 separation = glm::max(
+        glm::abs(actor->position - m_player->position) -
+            actor->box.dimensions - m_player->box.dimensions,
+        glm::vec3(0.f));
+    if (glm::length(separation) > reach) {
+        return CombatAttackResult::OutOfReach;
+    }
+
+    const bool accepted = actor->damage(
+        *this, amount, DefaultPlayerActorId);
+    if (!accepted) {
+        return CombatAttackResult::TargetRejected;
+    }
+    actor->setDamageInvulnerabilityRemaining(
+        static_cast<float>(cooldownTicks) / 20.f);
+    m_attackCooldownTicksRemaining = cooldownTicks;
     if (accepted && usesTool) {
         m_player->damageHeldTool();
     }
-    return accepted;
+    return CombatAttackResult::Hit;
 }
 
 bool World::attackActor(ActorId actorId, float amount)
@@ -1056,6 +1132,11 @@ int World::getFoodCooldownTicksRemaining() const noexcept
     return m_foodCooldownTicksRemaining;
 }
 
+int World::getAttackCooldownTicksRemaining() const noexcept
+{
+    return m_attackCooldownTicksRemaining;
+}
+
 glm::vec3 World::getPlayerSpawnPoint() const
 {
     return m_playerSpawnPoint;
@@ -1083,8 +1164,9 @@ void World::applyMobContactDamage()
 
     const glm::vec3 playerDimensions = m_player->box.dimensions;
     for (const ActorSnapshot &snapshot : m_actorManager.collectSnapshots()) {
-        const Actor *actor = m_actorManager.findActor(snapshot.id);
-        if (dynamic_cast<const MobActor *>(actor) == nullptr) {
+        const auto *mob = dynamic_cast<const MobActor *>(
+            m_actorManager.findActor(snapshot.id));
+        if (mob == nullptr) {
             continue;
         }
 
@@ -1093,7 +1175,7 @@ void World::applyMobContactDamage()
         const glm::vec3 reach = snapshot.dimensions + playerDimensions;
         if (distance.x <= reach.x && distance.y <= reach.y &&
             distance.z <= reach.z) {
-            damagePlayer(MobContactDamage, snapshot.id);
+            damagePlayer(mob->getContactDamage(), snapshot.id);
             return;
         }
     }
@@ -1131,6 +1213,18 @@ glm::ivec2 World::naturalMobSpawnOffset(int terrainSeed, int spawnEpoch,
         x += x < 0 ? -8 : 8;
     }
     return {x, z};
+}
+
+bool World::isNaturalMobType(const std::string &type)
+{
+    if (type == NaturalMobType) {
+        return true;
+    }
+    const EnemyDefinition *definition =
+        runtimeEnemyRegistry().isFrozen()
+            ? runtimeEnemyRegistry().find(type)
+            : nullptr;
+    return definition != nullptr && definition->natural;
 }
 
 bool World::findSafeNaturalMobPosition(int blockX, int blockZ,
@@ -1173,12 +1267,32 @@ void World::runNaturalMobPopulation(int worldTime)
         return;
     }
 
-    std::size_t worldCount =
-        m_actorManager.countActorsByType(NaturalMobType);
-    std::size_t localCount = m_actorManager.countActorsByTypeNear(
-        NaturalMobType, m_player->position, NaturalMobLocalRadius);
+    const std::vector<ActorSnapshot> initialSnapshots =
+        m_actorManager.collectSnapshots();
+    std::size_t worldCount = 0;
+    std::size_t localCount = 0;
+    for (const ActorSnapshot &snapshot : initialSnapshots) {
+        if (!isNaturalMobType(snapshot.type)) {
+            continue;
+        }
+        ++worldCount;
+        const float dx = snapshot.position.x - m_player->position.x;
+        const float dz = snapshot.position.z - m_player->position.z;
+        if (dx * dx + dz * dz <=
+            NaturalMobLocalRadius * NaturalMobLocalRadius) {
+            ++localCount;
+        }
+    }
     if (worldCount >= NaturalMobWorldCap ||
         localCount >= NaturalMobLocalCap) {
+        return;
+    }
+
+    const std::vector<const EnemyDefinition *> naturalEnemies =
+        runtimeEnemyRegistry().isFrozen()
+            ? runtimeEnemyRegistry().naturalEnemies()
+            : std::vector<const EnemyDefinition *>{};
+    if (naturalEnemies.empty()) {
         return;
     }
 
@@ -1192,16 +1306,31 @@ void World::runNaturalMobPopulation(int worldTime)
         ++m_naturalMobSpawnAttempts;
         const glm::ivec2 offset = naturalMobSpawnOffset(
             m_chunkManager.getTerrainSeed(), spawnEpoch, attempt);
+        const std::size_t typeIndex = static_cast<std::size_t>(
+            naturalMobSelection(m_chunkManager.getTerrainSeed(),
+                                spawnEpoch, attempt + 193)) %
+            naturalEnemies.size();
+        const std::string &type = naturalEnemies[typeIndex]->type;
         glm::vec3 spawnPosition{0.f};
         if (!findSafeNaturalMobPosition(centerX + offset.x,
                                         centerZ + offset.y,
-                                        spawnPosition) ||
-            m_actorManager.hasActorByTypeNear(
-                NaturalMobType, spawnPosition, 1.5f)) {
+                                        spawnPosition)) {
+            continue;
+        }
+        bool occupied = false;
+        for (const ActorSnapshot &snapshot :
+             m_actorManager.collectSnapshots()) {
+            if (isNaturalMobType(snapshot.type) &&
+                glm::distance(snapshot.position, spawnPosition) <= 1.5f) {
+                occupied = true;
+                break;
+            }
+        }
+        if (occupied) {
             continue;
         }
 
-        if (spawnMob(NaturalMobType, spawnPosition) != InvalidActorId) {
+        if (spawnMob(type, spawnPosition) != InvalidActorId) {
             ++worldCount;
             ++localCount;
             ++m_naturalMobsSpawned;
@@ -1213,7 +1342,7 @@ void World::despawnNaturalMobsInChunk(int chunkX, int chunkZ)
 {
     const std::size_t removed = m_actorManager.removeActorsIf(
         [chunkX, chunkZ](const Actor &actor) {
-            if (actor.getType() != NaturalMobType) {
+            if (!World::isNaturalMobType(actor.getType())) {
                 return false;
             }
             const VectorXZ actorChunk = World::getChunkXZ(
@@ -1584,8 +1713,13 @@ WorldDebugStats World::collectDebugStats()
     stats.chunks.saveMaxMs =
         std::max(stats.chunks.saveMaxMs, m_worldSaveMaxMs);
     stats.actorCount = m_actorManager.getActorCount();
-    stats.naturalMobCount =
-        m_actorManager.countActorsByType(NaturalMobType);
+    const std::vector<ActorSnapshot> actorSnapshots =
+        m_actorManager.collectSnapshots();
+    stats.naturalMobCount = static_cast<std::size_t>(std::count_if(
+        actorSnapshots.begin(), actorSnapshots.end(),
+        [](const ActorSnapshot &snapshot) {
+            return World::isNaturalMobType(snapshot.type);
+        }));
     stats.naturalMobWorldCap = NaturalMobWorldCap;
     stats.naturalMobLocalCap = NaturalMobLocalCap;
     stats.naturalMobSpawnAttempts = m_naturalMobSpawnAttempts;
@@ -1594,6 +1728,7 @@ WorldDebugStats World::collectDebugStats()
     stats.playerHealth = m_playerActor.getHealth();
     stats.playerMaxHealth = m_playerActor.getMaxHealth();
     stats.foodCooldownTicksRemaining = m_foodCooldownTicksRemaining;
+    stats.attackCooldownTicksRemaining = m_attackCooldownTicksRemaining;
     stats.queuedChunkUpdates = m_chunkUpdateQueue.size();
     stats.randomTickSections = m_randomTickSections.size();
     for (const glm::ivec3 &sectionKey : m_randomTickSections) {
@@ -1643,9 +1778,8 @@ ActorId World::spawnItemEntity(Material::ID materialId, int amount,
 
 ActorId World::spawnMob(const std::string &type, const glm::vec3 &position)
 {
-    auto mob =
-        std::make_unique<MobActor>(m_actorManager.allocateActorId(), type,
-                                   position);
+    auto mob = createMobActor(
+        m_actorManager.allocateActorId(), type, position);
     mob->setChaseTarget(m_player);
     return m_actorManager.addActor(std::move(mob), *this);
 }
@@ -1820,6 +1954,8 @@ bool World::saveWorldState()
         m_worldSaveData.playerState.health = m_playerActor.getHealth();
         m_worldSaveData.playerState.foodCooldownTicks =
             m_foodCooldownTicksRemaining;
+        m_worldSaveData.playerState.attackCooldownTicks =
+            m_attackCooldownTicksRemaining;
         m_worldSaveData.hasPlayerState = true;
     }
     m_worldSaveData.alphaJourneyFlags =
@@ -1877,18 +2013,27 @@ void World::restoreActors(const std::vector<ActorSaveState> &states)
                 state.id, materialId, state.amount, state.position);
         }
         else if (state.kind == ActorSaveKind::Mob) {
-            if (state.type == NaturalMobType) {
+            if (isNaturalMobType(state.type)) {
                 const VectorXZ actorChunk = getChunkXZ(
                     toBlockCoord(state.position.x),
                     toBlockCoord(state.position.z));
+                bool duplicateNaturalPosition = false;
+                for (const ActorSnapshot &snapshot :
+                     m_actorManager.collectSnapshots()) {
+                    if (isNaturalMobType(snapshot.type) &&
+                        glm::distance(snapshot.position, state.position) <=
+                            1.5f) {
+                        duplicateNaturalPosition = true;
+                        break;
+                    }
+                }
                 if (!m_chunkManager.chunkLoadedAt(actorChunk.x,
                                                   actorChunk.z) ||
-                    m_actorManager.hasActorByTypeNear(
-                        NaturalMobType, state.position, 1.5f)) {
+                    duplicateNaturalPosition) {
                     continue;
                 }
             }
-            auto mob = std::make_unique<MobActor>(
+            auto mob = createMobActor(
                 state.id, state.type, state.position);
             mob->setChaseTarget(m_player);
             actor = std::move(mob);

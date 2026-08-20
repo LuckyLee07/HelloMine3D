@@ -19,7 +19,9 @@ void LivingActor::tick(World &world, float dt)
 {
     Actor::tick(world, dt);
     m_damageInvulnerabilityRemaining =
-        std::max(0.f, m_damageInvulnerabilityRemaining - dt);
+        m_damageInvulnerabilityRemaining <= dt
+            ? 0.f
+            : m_damageInvulnerabilityRemaining - dt;
 }
 
 float LivingActor::getHealth() const
@@ -35,6 +37,11 @@ float LivingActor::getMaxHealth() const
 float LivingActor::getDamageInvulnerabilityRemaining() const
 {
     return m_damageInvulnerabilityRemaining;
+}
+
+void LivingActor::setDamageInvulnerabilityRemaining(float seconds)
+{
+    m_damageInvulnerabilityRemaining = std::max(0.f, seconds);
 }
 
 ActorSaveState LivingActor::getSaveState() const

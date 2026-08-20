@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-inline constexpr int WorldSaveFormatVersion = 6;
+inline constexpr int WorldSaveFormatVersion = 7;
 
 struct WorldSaveData {
     int version = WorldSaveFormatVersion;

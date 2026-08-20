@@ -10,6 +10,8 @@
 namespace
 {
     constexpr const char* MobMaterial = "HelloMine3D/ActorMob";
+    constexpr const char* StalkerMaterial = "HelloMine3D/ActorStalker";
+    constexpr const char* BruteMaterial = "HelloMine3D/ActorBrute";
     constexpr const char* ItemMaterial = "HelloMine3D/ActorItem";
 
     bool finiteVector(const glm::vec3& value)
@@ -20,7 +22,19 @@ namespace
 
     const char* materialFor(const ActorSnapshot& snapshot)
     {
-        return snapshot.type == "item" ? ItemMaterial : MobMaterial;
+        if (snapshot.type == "item")
+        {
+            return ItemMaterial;
+        }
+        if (snapshot.type == "hellomine:stalker")
+        {
+            return StalkerMaterial;
+        }
+        if (snapshot.type == "hellomine:brute")
+        {
+            return BruteMaterial;
+        }
+        return MobMaterial;
     }
 
     void buildUnitCube(Ogre::ManualObject& object,

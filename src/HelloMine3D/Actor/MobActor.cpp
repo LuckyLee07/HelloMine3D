@@ -5,9 +5,10 @@
 #include <utility>
 
 MobActor::MobActor(ActorId id, std::string type,
-                   const glm::vec3 &actorPosition)
+                   const glm::vec3 &actorPosition, float maxHealth,
+                   const glm::vec3 &dimensions)
     : LivingActor(id, std::move(type), actorPosition,
-                  glm::vec3(0.35f, 0.9f, 0.35f), 10.f)
+                  dimensions, maxHealth)
 {
 }
 
@@ -30,7 +31,7 @@ bool MobActor::stepChase(const glm::vec3 &targetPosition, float dt)
     const float offsetX = targetPosition.x - position.x;
     const float offsetZ = targetPosition.z - position.z;
     const float distance = std::sqrt(offsetX * offsetX + offsetZ * offsetZ);
-    if (distance > ChaseRadius) {
+    if (distance > m_chaseRadius) {
         return false;
     }
     if (distance <= ChaseStopDistance || distance <= 0.f || dt <= 0.f) {
@@ -38,7 +39,7 @@ bool MobActor::stepChase(const glm::vec3 &targetPosition, float dt)
     }
 
     const float travel =
-        std::min(ChaseSpeed * dt, distance - ChaseStopDistance);
+        std::min(m_chaseSpeed * dt, distance - ChaseStopDistance);
     position.x += offsetX / distance * travel;
     position.z += offsetZ / distance * travel;
     box.update(position);
@@ -51,8 +52,11 @@ ActorSaveState MobActor::getSaveState() const
     state.kind = ActorSaveKind::Mob;
     state.wanderTime = m_wanderTime;
     state.wanderSpeed = m_wanderSpeed;
-    state.dropMaterialId = static_cast<int>(m_dropMaterialId);
-    state.dropAmount = m_dropAmount;
+    if (!m_loot.empty()) {
+        state.dropMaterialId =
+            static_cast<int>(m_loot.front().materialId);
+        state.dropAmount = m_loot.front().minimumAmount;
+    }
     return state;
 }
 
@@ -61,8 +65,11 @@ void MobActor::applySaveState(const ActorSaveState &state)
     LivingActor::applySaveState(state);
     m_wanderTime = state.wanderTime;
     m_wanderSpeed = state.wanderSpeed;
-    m_dropMaterialId = static_cast<Material::ID>(state.dropMaterialId);
-    m_dropAmount = state.dropAmount;
+    if (!m_definitionBacked) {
+        setDrop(static_cast<Material::ID>(state.dropMaterialId),
+                state.dropAmount);
+    }
+    m_lootDropped = false;
 }
 
 void MobActor::stepWander(float dt)
@@ -89,18 +96,23 @@ void MobActor::setWanderSpeed(float speed)
 
 void MobActor::setDrop(Material::ID materialId, int amount)
 {
-    m_dropMaterialId = materialId;
-    m_dropAmount = amount;
+    m_loot.clear();
+    if (materialId != Material::ID::Nothing && amount > 0) {
+        m_loot.push_back({materialId, amount, amount});
+    }
+    m_definitionBacked = false;
+    m_lootDropped = false;
 }
 
 Material::ID MobActor::getDropMaterialId() const
 {
-    return m_dropMaterialId;
+    return m_loot.empty() ? Material::ID::Nothing
+                          : m_loot.front().materialId;
 }
 
 int MobActor::getDropAmount() const
 {
-    return m_dropAmount;
+    return m_loot.empty() ? 0 : m_loot.front().minimumAmount;
 }
 
 float MobActor::getWanderTime() const
@@ -111,4 +123,35 @@ float MobActor::getWanderTime() const
 float MobActor::getWanderSpeed() const
 {
     return m_wanderSpeed;
+}
+
+void MobActor::applyDefinition(const EnemyDefinition &definition)
+{
+    m_wanderSpeed = definition.wanderSpeed;
+    m_chaseRadius = definition.chaseRadius;
+    m_chaseSpeed = definition.chaseSpeed;
+    m_contactDamage = definition.contactDamage;
+    m_loot = definition.loot;
+    m_definitionBacked = true;
+    m_lootDropped = false;
+}
+
+float MobActor::getChaseRadius() const
+{
+    return m_chaseRadius;
+}
+
+float MobActor::getChaseSpeed() const
+{
+    return m_chaseSpeed;
+}
+
+float MobActor::getContactDamage() const
+{
+    return m_contactDamage;
+}
+
+const std::vector<EnemyLootDefinition> &MobActor::getLootTable() const
+{
+    return m_loot;
 }

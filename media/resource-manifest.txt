@@ -22,6 +22,7 @@ block|media/blocks/TallGrass.block
 block|media/blocks/Water.block
 block|media/blocks/WheatCrop.block
 block|media/blocks/Workbench.block
+enemy|media/enemies/Base.enemy
 font|media/fonts/rs.ttf
 food|media/foods/Base.food
 objective|media/objectives/Base.objective

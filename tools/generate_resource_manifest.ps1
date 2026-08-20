@@ -93,6 +93,21 @@ foreach ($foodFile in $foodFiles) {
     Add-ManifestEntry "food" $relativeFood
 }
 
+$enemyRoot = Join-Path $Root "media\enemies"
+if (-not (Test-Path -LiteralPath $enemyRoot -PathType Container)) {
+    throw "Enemy resource directory is missing: $enemyRoot"
+}
+$enemyFiles = @(Get-ChildItem -LiteralPath $enemyRoot `
+    -Filter "*.enemy" -File -Recurse)
+if ($enemyFiles.Count -eq 0) {
+    throw "No base enemy resources were discovered."
+}
+foreach ($enemyFile in $enemyFiles) {
+    $relativeEnemy = $enemyFile.FullName.Substring($Root.Length).TrimStart(
+        [char]'\', [char]'/')
+    Add-ManifestEntry "enemy" $relativeEnemy
+}
+
 $smeltingRoot = Join-Path $Root "media\smelting"
 if (-not (Test-Path -LiteralPath $smeltingRoot -PathType Container)) {
     throw "Smelting resource directory is missing: $smeltingRoot"

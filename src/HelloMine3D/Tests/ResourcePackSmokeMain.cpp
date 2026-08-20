@@ -47,6 +47,7 @@ namespace
         static const std::vector<ResourcePackRequirement> value = {
             {"audio", "media/audio/Base.audio"},
             {"block", "media/blocks/Stone.block"},
+            {"enemy", "media/enemies/Base.enemy"},
             {"food", "media/foods/Base.food"},
             {"font", "media/fonts/rs.ttf"},
             {"objective", "media/objectives/Base.objective"},
@@ -152,6 +153,7 @@ namespace
         {
             if (requirement.category == "runtime-template" ||
                 requirement.category == "audio" ||
+                requirement.category == "enemy" ||
                 requirement.category == "food" ||
                 requirement.category == "objective" ||
                 requirement.category == "recipe" ||
@@ -253,6 +255,21 @@ namespace
                                           {first.string(), second.string()});
                       },
                       "Duplicate enabled resource-pack name"));
+        }
+        {
+            const fs::path root = freshRoot("enemy-override");
+            const fs::path pack = createPack(
+                root, "enemy", "Enemy Override", 1,
+                {{"media/enemies/Base.enemy", "override\n"}});
+            check("N4/reject-unversioned-enemy-override",
+                  throwsContaining(
+                      [&]
+                      {
+                          ResourcePackResolver resolver;
+                          resolver.freeze(root.string(), requirements(),
+                                          {pack.string()});
+                      },
+                      "stale or unsupported override"));
         }
         {
             const fs::path root = freshRoot("food-override");

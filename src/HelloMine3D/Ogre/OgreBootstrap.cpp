@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "../Config.h"
+#include "../Actor/EnemyRegistry.h"
 #include "../Audio/AudioDefinitionRegistry.h"
 #include "../Audio/AudioRuntime.h"
 #include "../Core/Camera.h"
@@ -2060,6 +2061,8 @@ int runOgreBootstrap(bool validateOnly)
             runtimeResourcePackResolver());
         runtimeFoodRegistry().freezeFromResourceView(
             runtimeResourcePackResolver());
+        runtimeEnemyRegistry().freezeFromResourceView(
+            runtimeResourcePackResolver());
         runtimeObjectiveRegistry().freezeFromResourceView(
             runtimeResourcePackResolver());
         const char *manifestOutput =
@@ -2094,6 +2097,11 @@ int runOgreBootstrap(bool validateOnly)
                   << runtimeSmeltingRegistry().fuels().size() << '\n';
         std::cout << "[FOOD_REGISTRY] frozen=1 foods="
                   << runtimeFoodRegistry().foods().size() << '\n';
+        std::cout << "[ENEMY_REGISTRY] frozen=1 enemies="
+                  << runtimeEnemyRegistry().enemies().size()
+                  << " natural="
+                  << runtimeEnemyRegistry().naturalEnemies().size()
+                  << '\n';
         std::cout << "[OBJECTIVE_REGISTRY] frozen=1 version="
                   << runtimeObjectiveRegistry().definitionVersion()
                   << " objectives="

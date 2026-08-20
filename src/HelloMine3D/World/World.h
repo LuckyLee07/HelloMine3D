@@ -51,6 +51,7 @@ struct WorldDebugStats {
     float playerHealth = 0.f;
     float playerMaxHealth = 0.f;
     int foodCooldownTicksRemaining = 0;
+    int attackCooldownTicksRemaining = 0;
     std::size_t queuedChunkUpdates = 0;
     std::size_t randomTickSections = 0;
     std::size_t randomTickBlocks = 0;
@@ -72,6 +73,19 @@ enum class FoodUseResult {
     NotFood,
     FullHealth,
     InventoryRejected
+};
+
+enum class CombatAttackResult {
+    Hit,
+    SimulationPaused,
+    UiBusy,
+    PlayerUnavailable,
+    PlayerDead,
+    CoolingDown,
+    TargetMissing,
+    TargetDead,
+    OutOfReach,
+    TargetRejected
 };
 
 struct WorldSectionMeshVersion {
@@ -104,8 +118,11 @@ class World : public NonCopyable {
     static constexpr std::size_t NaturalMobLocalCap = 4;
     static constexpr float NaturalMobLocalRadius = 32.f;
     static constexpr const char *NaturalMobType = "hellomine:natural_mob";
+    static constexpr const char *StalkerMobType = "hellomine:stalker";
+    static constexpr const char *BruteMobType = "hellomine:brute";
     static constexpr float PlayerAttackDamage = 4.f;
-    static constexpr float MobContactDamage = 2.f;
+    static constexpr int PlayerAttackCooldownTicks = 10;
+    static constexpr float PlayerAttackReach = 3.f;
     static constexpr const char *PlayerDeathInventoryPolicy = "retain";
 
     World(const Camera &camera, const Config &config, Player &player,
@@ -147,6 +164,8 @@ class World : public NonCopyable {
                             const glm::vec3 &position,
                             const glm::vec3 &initialVelocity = glm::vec3(0.f));
     ActorId spawnMob(const std::string &type, const glm::vec3 &position);
+    CombatAttackResult tryAttackActor(ActorId actorId,
+                                      bool simulationRunning = true);
     bool attackActor(ActorId actorId);
     bool attackActor(ActorId actorId, float amount);
     bool damagePlayer(float amount, ActorId sourceId = InvalidActorId);
@@ -154,6 +173,7 @@ class World : public NonCopyable {
     float getPlayerHealth() const;
     float getPlayerMaxHealth() const;
     int getFoodCooldownTicksRemaining() const noexcept;
+    int getAttackCooldownTicksRemaining() const noexcept;
     glm::vec3 getPlayerSpawnPoint() const;
     AlphaJourneySnapshot getAlphaJourneySnapshot() const;
     ObjectiveSnapshot getObjectiveSnapshot() const;
@@ -176,6 +196,7 @@ class World : public NonCopyable {
                                             std::size_t attempt);
     static glm::ivec2 naturalMobSpawnOffset(int terrainSeed, int spawnEpoch,
                                             std::size_t attempt);
+    static bool isNaturalMobType(const std::string &type);
 
     /// Produces a complete, stable work order. Chunks intersecting the
     /// published frustum come first, with distance as the secondary key.
@@ -302,6 +323,7 @@ class World : public NonCopyable {
 
     glm::vec3 m_playerSpawnPoint;
     int m_foodCooldownTicksRemaining = 0;
+    int m_attackCooldownTicksRemaining = 0;
     bool m_playerRespawnPending = false;
 };
 
