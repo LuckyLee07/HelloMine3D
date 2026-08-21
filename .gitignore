@@ -12,3 +12,4 @@ __pycache__/
 *.pyc
 /MineOgre.log
 /tools/tracy-viewer/tracy-profiler.exe
+/tmp/*
