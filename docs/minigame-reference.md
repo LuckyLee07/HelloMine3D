@@ -1,6 +1,6 @@
 # MiniGame Reference Notes
 
-> 当前定位（2026-08-17 复核）：本文对应的本机参考仓库是 `F:\env1_trunk`，不是
+> 当前定位（2026-08-21 复核）：本文对应的本机参考仓库是 `F:\env1_trunk`，不是
 > 早期笔记误写的 `/Users/lizi/Desktop/Workspace/MiniGame`。参考仓库当前可读，但未纳入
 > HelloMine3D，也不是它的构建依赖。本文仍然只是架构考察，不是 backlog、需求来源或
 > 优先级依据。使用前应先检查 HelloMine3D 当前代码和 `docs/todolist.md`，只借鉴模块
@@ -18,11 +18,12 @@
 | G5 音频边界 | 可参考 2D/3D、listener、音量、pause/mute 和 dummy backend，不引入 FMOD/直播 DSP。 |
 | G3 工具与采集 | 可借鉴方块硬度、行为、掉落和碰撞职责分离，不复制大型 `BlockMaterial` 接口。 |
 | 内容扩展 | 可参考 biome/decorator、资源索引和轻量工具链的模块边界。 |
+| Stage 9 / N7-N12 | 只作为胜利、AI、投射物、结构、经济、本地化和音频的边界/反模式库；详细映射见本文“Stage 9 定向参考映射”。 |
 | 当前不采用 | RakNet、多平台 SDK、D3D9、完整编辑器、旧 OgreMain、Lua/ToLua、在线更新和大规模 mod。 |
 
 ## 对当前玩法主线的直接价值
 
-重新读取 `F:\env1_trunk` 后，当前 K4/G2-G6 可以使用的参考边界如下。参考强度只表示
+重新读取 `F:\env1_trunk` 后，已经完成的 K4/G2-G6 可以使用的历史参考边界如下。参考强度只表示
 “值得阅读”，不表示应该移植代码。
 
 | 当前任务 | 参考位置 | 价值与边界 |
@@ -527,6 +528,29 @@ Windows/macOS 兼容工作，参考点主要是边界意识：
 | bin 下完整资源和 exe/dll | 版权、体量和依赖都不适合迁移。 |
 | 超大 `BlockMaterial` 虚函数接口 | 思路可借鉴，接口应按当前项目规模重做。 |
 
+## Stage 9 定向参考映射
+
+本节只服务 `docs/beta-gameplay-roadmap.md` 的 N7-N12。参考仓库展示的是系统扩大后的真实边界
+和耦合代价，不是目标体量；每批先看 HelloMine3D 当前实现，再用下表核对生命周期、失败语义
+和明确不带入的复杂度。
+
+| 批次 | 定向入口 | 只借鉴什么 | 明确不带入什么 | 对当前计划的结论 |
+| ---- | -------- | ---------- | -------------- | ---------------- |
+| N7A/N7B 结局与路标胜利 | `sandboxPlay\player\PlayerTaskManager.*`、`sandboxPlay\gamemode\GameMode.*`、`docs\systems\10-gamestage-lifecycle.md`、`12-gameplay-gamemode-cloud.md` | 任务事件、结果阶段、一次性奖励、保存恢复和胜利后继续游玩的边界问题。 | 把任务、背包、UI、脚本、团队、网络和胜负塞进一个 TaskManager/GameMode；新增独立 Victory 应用阶段。 | 目标只做引导；另建持久化结局状态作为世界列表、奖励和恢复的唯一事实来源。首轮守卫战复用现有敌人。 |
+| N8A/N8B 战斗与投射物 | `docs\systems\14-ai-system.md`、`sandboxPlay\ai\AIProjectileAttack.*`、`sandboxCore\actors\ClientActorProjectile.*`、`ProjectileFactory.*`、`docs\systems\06-actor-attribute-locomotion.md` | 显式攻击阶段、前摇/冷却、目标失效、投射物所有者、碰撞、寿命、容量和调试快照。 | 多套 AI 后端、Lua/行为树、Boss 巨类、三千行投射物层级、同步/保存投射物、巨型 ActorManager。 | 使用小型版本化战斗档案和显式 FSM；投射物瞬态、有上限，并受每 tick 射线/寻路预算约束。 |
+| N9A/N9B 结构与战利品 | `docs\systems\07-terrain-mesh-physics-nav.md`、`sandboxCore\terrgen\EcosysUnit_Dungeons.*`、`EcosysUnit_BonusChest.*`、`EcosysUnit_ShipWrecks.*`、`EcosysUnit_VoxelModel.*` | 结构 footprint、跨区块投影、固定 seed 测试、初始箱子和生成耗时指标。 | `std::rand`、生成期间同步加载相邻区块、专用结构 manager、通用 VOX/模型导入器和大型资源生命周期。 | 继续复用现有 cell hash 与 `StructureBuilder`；结构跟随 terrain 身份，不另设版本；箱子初始化后只认持久库存。 |
+| N10 资源经济 | `sandboxPlay\gameplay\mgr\CraftMgr.*`、`sandboxCore\blocks\FurnaceContainer.*`、`docs\systems\05-block-container-material.md` | 制作预览/提交、燃料/输入/输出、暂停和容器生命周期需要覆盖的边界。 | 材料组模糊替换、硬编码背包槽、十二槽/多通道熔炉、温度品质和 UI/背包/规则混合。 | 保持精确配方与现有三槽熔炉，补资源可达性、守恒、净增益循环、库存和保存规模审计。 |
+| N11A/N11B 难度与重玩 | `sandboxPlay\gamemode\GameMode.*` 及零散 difficulty 调用仅作反例 | 难度需要统一身份、默认值、固定 tick 生效、世界 metadata 和回归维度。 | GameMode 分支和散落倍率；把无限任务、在线活动或 Boss 系统当作“重玩性”。 | 建立集中、版本化档案；旧世界 Normal；不改变 terrain seed。胜利后重复事件是 P2 伸缩项。 |
+| N12A 本地化 | `StringDefCsv` 调用链、`IMiniGameProxy` 语言 JSON 入口、UI View/Model/Ctrl 边界 | 文本资源加载、fallback、视图与状态分离，以及晚加本地化会渗透全代码的教训。 | 数字字符串 ID、Lua 文案层、在线语言资源和整套 XML UI。 | N7A 先建立语义化 key；N12A 完成中英文、字体、长文本、字幕和 Credits。 |
+| N12B/N12C 音频 | `miniEngine\OgreMain\sound\OgreSoundSystem.*`、`OgreSoundSystemFMod.*` | 可控制声音句柄、2D/3D、listener、分类音量、暂停/停止、音乐淡入淡出、dummy backend 和设备失败。 | FMOD 迁移、四音乐通道、实时 DSP、平台资源层、直播/在线音频。 | 正式采样音效与单通道流式音乐分开交付；先改资源 schema/后端，再接资产和许可。 |
+
+跨批约束：
+
+1. MiniGame 的 Manager/Singleton、脚本和网络生命周期只能用于暴露风险，不能成为新架构模板。
+2. HelloMine3D 已有固定 tick、确定性结构、事务保存、注册表和无渲染测试优先于参考仓库做法。
+3. 任何源文件、资源、第三方库、配置和生成产物都不得从 `F:\env1_trunk` 复制进当前仓库。
+4. 每批只阅读上表直接相关入口；发现参考实现体量明显超出合同，应记录为后置项而不是扩大批次。
+
 ## 可参考点清单（历史映射）
 
 下面保留最初的 35 个参考点。很多项目已经完成；真实落地状态以本文顶部的当前对照和
@@ -573,7 +597,7 @@ Windows/macOS 兼容工作，参考点主要是边界意识：
 ## 历史建议迭代路线
 
 以下路线形成于 HelloMine3D 早期，资源检查、dirty/metadata、halo/greedy、光照、存档、
-实体和资源包等大部分内容已经完成。它用于解释历史决策，不覆盖当前 K4/G2-G6 顺序。
+实体和资源包等大部分内容已经完成。它用于解释历史决策，不覆盖当前 Stage 9/N7-N12 顺序。
 
 ### 短期
 
@@ -623,7 +647,7 @@ Windows/macOS 兼容工作，参考点主要是边界意识：
 4. `F:\env1_trunk\client\miniSandbox\docs\systems\12-gameplay-gamemode-cloud.md`
 5. `F:\env1_trunk\client\miniSandbox\docs\systems\13-player-control-state.md`
 
-当前玩法主线的定向入口：
+已经完成的 K4/G2-G5 历史定向入口：
 
 1. K4：`client\miniModule\MiniPlatform\GameWorld\WorldListMgr.h`，只看列表模型。
 2. G2：`client\miniSandbox\sandboxPlay\gameplay\mgr\CraftMgr.h` 和
@@ -631,6 +655,17 @@ Windows/macOS 兼容工作，参考点主要是边界意识：
 3. G3：`client\miniModule\CsvLoader\ToolDefCsv.h` 和 `BlockMaterial.h` 的硬度/掉落边界。
 4. G4：`bin_externel\iworld.cfg` 的字段集合；不要把空的 `GameSettings` 持久化函数当范例。
 5. G5：`client\miniEngine\OgreMain\sound\OgreSoundSystem.h` 的接口与 dummy backend。
+
+Stage 9 按批次定向入口：
+
+1. N7：`PlayerTaskManager.*`、`GameMode.*`、`10-gamestage-lifecycle.md`，重点看耦合风险和恢复边界。
+2. N8：`14-ai-system.md`、`AIProjectileAttack.*`、`ClientActorProjectile.*`，只提取显式状态、
+   生命周期、容量和调试信息。
+3. N9：`07-terrain-mesh-physics-nav.md`、`EcosysUnit_Dungeons.*`、`EcosysUnit_ShipWrecks.*`，
+   同时记录确定性做法和同步邻区块加载等反模式。
+4. N10：`CraftMgr.*`、`FurnaceContainer.*`，只核对守恒与容器生命周期，不扩大设备复杂度。
+5. N11：不把 `GameMode` 当难度模板；只用其分支扩张证明集中版本化档案的必要性。
+6. N12：`StringDefCsv` 调用链和 `OgreSoundSystem.*`，分别参考文本/音频边界及晚期耦合代价。
 
 要继续深入体素底座时，再按这些文件顺序查看：
 
@@ -676,7 +711,8 @@ Windows/macOS 兼容工作，参考点主要是边界意识：
 云世界、多人、Lua、平台 SDK、编辑器和多份生成代码叠加后的复杂度代价。HelloMine3D
 已经吸收了其中大部分体素底座经验，当前不应继续按旧路线扩基础设施。
 
-接下来的正确用法是按任务点查阅：K4 只参考世界列表模型，G2 参考制作数量与容器边界，
-G3 参考数据驱动工具/硬度/掉落，G5 参考 2D/3D 与 dummy 音频接口；所有实现继续采用
-HelloMine3D 自己的小型、renderer-independent、可测试边界。多人、脚本、在线资源、
-完整编辑器和旧引擎代码仍不进入当前范围。
+接下来的正确用法是按 N7-N12 的具体合同定向查阅：N7 把 Task/GameMode 当作防耦合案例，
+N8 提取显式 AI 状态和瞬态投射物边界，N9 对照确定性结构与反模式，N10 约束制作/熔炉体量，
+N11 坚持集中难度档案，N12 只吸收语义化文本资源和可控制音频接口概念。所有实现继续采用
+HelloMine3D 自己的小型、renderer-independent、可测试边界。多人、脚本、在线资源、完整
+编辑器、通用 Boss/AI 框架和旧引擎代码仍不进入当前范围。

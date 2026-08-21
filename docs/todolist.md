@@ -4,7 +4,7 @@
 已完成里程碑的逐项实现和验收证据已经冻结到
 `docs/project-ledger-2026-08-17.md`，不再挤占当前任务视图。
 
-最后更新：2026-08-20。
+最后更新：2026-08-21。
 
 ## 产品目标
 
@@ -24,10 +24,11 @@
 | `docs/project-ledger-2026-08-17.md` | 2026-08-17 拆分前的完整历史总账和逐项验收证据。 |
 | `docs/iteration-plan.md` | 长期阶段、依赖关系和产品方向。 |
 | `docs/game-development-roadmap.md` | G5/G6、Alpha 后内容批次与最终封板的详细开发计划。 |
+| `docs/beta-gameplay-roadmap.md` | Release Candidate 后 Stage 9 / Beta 的 N7-N12 预排批次、版本边界和回归合同。 |
 | `docs/validation-matrix.md` | 代码改动类型到验证命令的映射。 |
 | `docs/iteration-report-template.md` | 新迭代的统一回归记录模板。 |
 | `docs/runtime-validation.md` | 运行时覆盖范围、已有证据和限制。 |
-| `docs/minigame-reference.md` | 外部 MiniGame 项目的架构参考，不是当前任务来源。 |
+| `docs/minigame-reference.md` | 外部 MiniGame 的架构/反模式参考及 Stage 9 定向映射，不是当前任务来源。 |
 | `docs/alpha-development-checkpoint-v1.md` | G6 后冻结的旅程、迁移、性能和 H2 开发基线。 |
 
 状态含义：`Todo` 尚未开始；`Doing` 已有实现但未闭环；`Verify` 功能已实现、只差最终
@@ -125,12 +126,40 @@ BLD-1 是保持主干可开发的构建修复，不代表要立即执行所有�
 | 6：可玩 Alpha（Done） | `G6` | 从干净启动串联世界创建、采集、工作台、工具升级、战斗、保存退出和继续游戏。 | 十步正常 API 旅程、跨系统数据守恒、v1-v3 迁移和 v4 重开恢复均通过。 |
 | 7：Alpha 开发检查点（Done） | `H2`、`Q1/Q2` 跟随 | 已冻结 G6 旅程和 v3 迁移样本，批准 Alpha 性能基线，建立脱敏 sidecar/离线符号工具骨架。 | 双配置 420/420 与 16/16、隐藏客户端、性能复测、匹配/错误符号均通过；证据见 `alpha-development-checkpoint-v1.md`。 |
 | 8：内容扩展（Done） | `N1-N6` | 已完成目标、成长、恢复、战斗掉落、生态探索、统一 UI、配方/目标可读性、键位辅助与声音反馈。 | N6 未改写已冻结的玩法、生成和存档语义；491/95/27 项定向断言及双配置完整门禁通过，合同见 `product-experience-contract-v1.md`。 |
-| 9：发行候选封板（当前） | `R3` | H2-H3、Q1-Q3 和最终 Windows 自动门禁已完成；继续取得真人输入记录。 | 关闭 D2/D4/D6/R3；其余目标 Windows Release 和发行包门禁已满足。 |
+| 9：发行候选封板（待人工验收） | `R3` | H2-H3、Q1-Q3 和最终 Windows 自动门禁已完成；继续取得真人输入记录。 | 关闭 D2/D4/D6/R3；其余目标 Windows Release 和发行包门禁已满足。 |
+
+## Stage 9 / Beta 预排批次
+
+下列批次已经落成可回归路线，但状态统一为 `Planned`，尚未转成当前 `Todo` 或 `Doing`，
+因此不计入拆分前 77 项总账，也不改变本页的 `73 Done / 4 Verify / 0 Doing / 0 Todo`。
+详细范围、版本预案、回归触发器和批次合同见 `docs/beta-gameplay-roadmap.md`。
+
+| 批次 | 状态 | 优先级 | 计划交付 | 启动/退出边界 |
+| ---- | ---- | ------ | -------- | ------------- |
+| RC0 基线收口 | Planned | P0 | 验证未推送提交 bundle，完成 R3，并关闭 D2/D4/D6。 | 不改玩法和版本；bundle、文档、R3 与本地 RC 标签边界全部确认。 |
+| N7A 结局状态与文本键 | Planned | P0 | 独立持久结局状态、奖励 epoch、世界列表标记和语义化中英文 key 骨架。 | 不以目标耗尽代替胜利；预计保存 v9；迁移、恢复、回退和幂等通过。 |
+| N7B 路标激活与首个胜利闭环 | Planned | P0 | 激活仪式、复用现有敌人的有界守卫战、胜利覆盖层和约 3-5 个终局目标。 | 干净新世界可胜利并继续沙盒；不新增 Victory 应用阶段或 Boss 框架。 |
+| N8A 战斗可读性 | Planned | P0 | 攻击前摇/恢复、方向性受击、击退和反馈。 | 显式小状态机、目标失效和每 tick 预算可观察。 |
+| N8B 远程敌人与投射物 | Planned | P1 | 小型版本化战斗档案、一种远程敌人、有界瞬态投射物和最低限度格挡。 | 遮挡、寿命、距离、数量及死亡/卸载/重载清理可靠；投射物不保存。 |
+| N9A 确定性结构框架 | Planned | P1 | 复用 cell hash/`StructureBuilder`，固定结构归属、footprint、投影和覆盖优先级。 | 不用 `std::rand`、不同步加载邻区块、不另建结构版本或通用 Manager。 |
+| N9B 遗迹、营地与生态战利品 | Planned | P1 | 两类有界结构、seed 稳定箱子战利品和少量生态内容。 | 初始战利品确定，后续只认持久库存；旧 terrain v1/v2 不漂移。 |
+| N10 食物、冶炼与资源经济 | Planned | P1 | 约 4 种食物、3 类冶炼、18-22 个精确配方及经济可达性校验。 | 守恒、无净增益循环、来源/消耗点、暂停/卸载和规模预算通过；维持三槽熔炉。 |
+| N11A 难度档案 | Planned | P1 | 三档版本化难度；创建时选择，暂停菜单事务修改，下个固定 tick 生效。 | 旧世界 Normal；写入 metadata/测试身份但不改变 terrain seed。 |
+| N11B 胜利后事件 | Planned（伸缩项） | P2 | 少量有界、可选的胜利后事件。 | 不做无限任务；未纳入首个 Beta 时明确后置且不阻塞封板。 |
+| N12A 本地化完成 | Planned | P1 | 完成 `en-US`/`zh-CN`、字体、长文本、字幕和 Credits。 | key 对齐、fallback、资源/许可、截图和 R3 可读性通过。 |
+| N12B 正式采样音效 | Planned | P1 | 采样音效 schema、后端、缓存/并发、正式资源和许可清单。 | 缺文件/设备可降级；生命周期、隐藏客户端和听感通过。 |
+| N12C 低密度音乐 | Planned（伸缩项） | P2 | 单通道流式环境音乐及暂停、停止、淡入淡出和清理。 | 不引入 FMOD/多通道/DSP；未纳入首个 Beta 时明确后置。 |
+| BETA-RC 集中封板 | Planned | P0 | 全迁移、正式性能、双档长稳、崩溃符号、真人输入和新干净包。 | 只修缺陷；生成新哈希和 bundle；本地标签，不 push。 |
+
+预排执行顺序为 `RC0 -> N7A -> N7B -> N8A -> N8B -> N9A -> N9B -> N10 -> N11A ->
+N11B -> N12A -> N12B -> N12C -> BETA-RC`。N11B/N12C 是否纳入首个 Beta 在对应合同启动前
+决定，其余 P0/P1 基础批次不因伸缩项后置而删减。
 
 批次 2/3 的历史范围没有加入烹饪、材料组替换、修理或附魔；熔炉和铁级工具现已由 N2 独立
 交付。批次 5 不迁移 MiniGame 的 FMOD、直播 DSP 或平台资源层。Alpha 之后的目标系统和
-熔炉/铁级成长、食物恢复、战斗掉落、生态探索和产品体验已由 N1-N6 交付；当前按
-`docs/game-development-roadmap.md` 进入 Release Candidate，但不回写拆分前 77 项历史总账。
+熔炉/铁级成长、食物恢复、战斗掉落、生态探索和产品体验已由 N1-N6 交付；当前 Release
+Candidate 自动化已关闭，只等待 R3。之后按 `docs/beta-gameplay-roadmap.md` 逐批启动
+Stage 9，但不回写拆分前 77 项历史总账。
 
 开发过程中按 `docs/validation-matrix.md` 选择与改动相关的最低必要验证。不要为了延后
 发布验收而取消数据守恒、存档兼容、定向自动测试或主干编译。
