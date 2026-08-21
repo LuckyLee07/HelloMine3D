@@ -547,31 +547,46 @@ class OgreUserInterface::Impl
             ImGui::Text("Active worlds (%llu)",
                         static_cast<unsigned long long>(worlds.size()));
             ImGui::BeginChild("WorldList", ImVec2(0.0f, 185.0f), true);
-            for (const WorldCatalogueEntry &entry : worlds)
+            const ImGuiTableFlags worldTableFlags =
+                ImGuiTableFlags_SizingStretchProp |
+                ImGuiTableFlags_NoSavedSettings;
+            if (ImGui::BeginTable("ActiveWorlds", 3, worldTableFlags))
             {
-                ImGui::PushID(entry.id.c_str());
-                const bool selected = selectedWorldId == entry.id;
-                if (ImGui::Selectable(entry.displayName.c_str(), selected))
+                ImGui::TableSetupColumn(
+                    "World", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+                ImGui::TableSetupColumn(
+                    "Seed", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+                ImGui::TableSetupColumn(
+                    "Actions", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+                for (const WorldCatalogueEntry &entry : worlds)
                 {
-                    selectWorld(entry);
+                    ImGui::PushID(entry.id.c_str());
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    const bool selected = selectedWorldId == entry.id;
+                    if (ImGui::Selectable(entry.displayName.c_str(), selected))
+                    {
+                        selectWorld(entry);
+                    }
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::Text("seed %d", entry.seed);
+                    ImGui::TableSetColumnIndex(2);
+                    if (ImGui::SmallButton("Play"))
+                    {
+                        pendingAction.type =
+                            OgreUserInterfaceActionType::OpenWorld;
+                        pendingAction.worldId = entry.id;
+                        playUiFeedback();
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("Delete"))
+                    {
+                        pendingDeleteWorldId = entry.id;
+                        openDeletePopup = true;
+                    }
+                    ImGui::PopID();
                 }
-                ImGui::SameLine(330.0f);
-                ImGui::Text("seed %d", entry.seed);
-                ImGui::SameLine(520.0f);
-                if (ImGui::SmallButton("Play"))
-                {
-                    pendingAction.type =
-                        OgreUserInterfaceActionType::OpenWorld;
-                    pendingAction.worldId = entry.id;
-                    playUiFeedback();
-                }
-                ImGui::SameLine();
-                if (ImGui::SmallButton("Delete"))
-                {
-                    pendingDeleteWorldId = entry.id;
-                    openDeletePopup = true;
-                }
-                ImGui::PopID();
+                ImGui::EndTable();
             }
             ImGui::EndChild();
 
