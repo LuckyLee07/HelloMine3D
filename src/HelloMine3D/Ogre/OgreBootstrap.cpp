@@ -7,6 +7,16 @@
 #include "StartupErrorReporter.h"
 #include "StartupResourcePreflight.h"
 
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
+
 #include <OIS.h>
 #include <Ogre.h>
 #include <OgreGL3PlusPlugin.h>
@@ -1041,6 +1051,7 @@ namespace
         {
             std::size_t windowHandle = 0;
             m_window->getCustomAttribute("WINDOW", &windowHandle);
+            m_nativeWindowHandle = static_cast<std::uintptr_t>(windowHandle);
 
             std::ostringstream handleText;
             handleText << windowHandle;
@@ -1246,12 +1257,14 @@ namespace
                 return false;
             }
 
+            updateNativeCursorCapture();
             if (!m_hiddenWindow)
             {
                 m_keyboard->capture();
                 m_mouse->capture();
             }
             processInterfaceAction();
+            updateNativeCursorCapture();
             if (!m_pendingWorldDirectory.empty() &&
                 m_frameCount > m_loadingRequestedFrame)
             {
@@ -2193,12 +2206,24 @@ namespace
         {
             updateAspectRatio();
             updateMouseBounds();
+            refreshNativeCursorClip();
+        }
+
+        void windowMoved(Ogre::RenderWindow*) override
+        {
+            refreshNativeCursorClip();
+        }
+
+        void windowFocusChange(Ogre::RenderWindow*) override
+        {
+            updateNativeCursorCapture();
         }
 
         void windowClosed(Ogre::RenderWindow* window) override
         {
             if (window == m_window)
             {
+                releaseNativeCursorCapture();
                 m_shutdownRequested = true;
             }
         }
@@ -2238,8 +2263,97 @@ namespace
             state.height = static_cast<int>(height);
         }
 
+        bool shouldCaptureNativeCursor() const
+        {
+            if (m_hiddenWindow || m_window == nullptr ||
+                m_nativeWindowHandle == 0 || m_worldPlayer == nullptr ||
+                m_applicationFlow.state() != GameApplicationState::Playing ||
+                !m_mouseLookEnabled || m_worldPlayer->hasOpenContainer() ||
+                m_worldPlayer->hasOpenCrafting() ||
+                (m_userInterface != nullptr &&
+                 m_userInterface->hasBlockingModal()))
+            {
+                return false;
+            }
+#if defined(_WIN32)
+            return GetForegroundWindow() == reinterpret_cast<HWND>(
+                m_nativeWindowHandle);
+#else
+            return m_window->isActive();
+#endif
+        }
+
+        void refreshNativeCursorClip()
+        {
+#if defined(_WIN32)
+            if (!m_nativeCursorCaptured || m_nativeWindowHandle == 0)
+            {
+                return;
+            }
+            const HWND handle = reinterpret_cast<HWND>(m_nativeWindowHandle);
+            RECT client{};
+            if (!GetClientRect(handle, &client))
+            {
+                return;
+            }
+            POINT upperLeft{client.left, client.top};
+            POINT lowerRight{client.right, client.bottom};
+            if (!ClientToScreen(handle, &upperLeft) ||
+                !ClientToScreen(handle, &lowerRight))
+            {
+                return;
+            }
+            const RECT screenBounds{upperLeft.x, upperLeft.y,
+                                    lowerRight.x, lowerRight.y};
+            ClipCursor(&screenBounds);
+#endif
+        }
+
+        void updateNativeCursorCapture()
+        {
+#if defined(_WIN32)
+            const bool shouldCapture = shouldCaptureNativeCursor();
+            if (shouldCapture == m_nativeCursorCaptured)
+            {
+                return;
+            }
+            if (!shouldCapture)
+            {
+                releaseNativeCursorCapture();
+                return;
+            }
+
+            m_nativeCursorCaptured = true;
+            refreshNativeCursorClip();
+            do
+            {
+                ++m_cursorHideAdjustments;
+            }
+            while (ShowCursor(FALSE) >= 0 &&
+                   m_cursorHideAdjustments < 16);
+#endif
+        }
+
+        void releaseNativeCursorCapture()
+        {
+#if defined(_WIN32)
+            if (!m_nativeCursorCaptured && m_cursorHideAdjustments == 0)
+            {
+                return;
+            }
+            ClipCursor(nullptr);
+            while (m_cursorHideAdjustments > 0)
+            {
+                ShowCursor(TRUE);
+                --m_cursorHideAdjustments;
+            }
+            m_nativeCursorCaptured = false;
+#endif
+        }
+
         void shutdown()
         {
+            releaseNativeCursorCapture();
             if (m_listenersInstalled && m_root != nullptr)
             {
                 m_root->removeFrameListener(this);
@@ -2305,6 +2419,7 @@ namespace
         OIS::InputManager* m_inputManager = nullptr;
         OIS::Keyboard* m_keyboard = nullptr;
         OIS::Mouse* m_mouse = nullptr;
+        std::uintptr_t m_nativeWindowHandle = 0;
         std::unique_ptr<OgreRenderCapture> m_renderCapture;
         std::unique_ptr<OgreUserInterface> m_userInterface;
         std::unique_ptr<AudioRuntime> m_audio;
@@ -2335,6 +2450,8 @@ namespace
         bool m_useHeldFood = false;
         bool m_mouseLookEnabled = true;
         bool m_hiddenWindow = false;
+        bool m_nativeCursorCaptured = false;
+        int m_cursorHideAdjustments = 0;
         bool m_validationActorsSpawned = false;
         bool m_oreFixturePlaced = false;
         bool m_containerFixturePlaced = false;
