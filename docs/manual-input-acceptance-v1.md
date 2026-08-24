@@ -45,6 +45,31 @@ later restart.
 | `case.container_close` | Close once with the button, reopen, then close with Escape. | Both paths return to gameplay, restore mouse-look and require no extra click. |
 | `case.window_close` | Press Escape with no container open, then repeat once using the window close button after relaunch. | Each path closes cleanly without a hang or crash dialog. |
 
+## Automated preflight
+
+Before arranging the physical sequence, run the deterministic logical and
+background-window preflight against the exact configuration that will be used
+for R3:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_r3_automated_preflight.ps1 -Configuration Release -Build
+```
+
+The preflight maps existing controller, interaction, container, combat and D6
+checks to the twelve R3 cases, adds focused checks for neutral input release,
+frame-local mouse look, hotbar wrapping, flight vertical controls and container
+capture release, and verifies that a hidden client never owns the foreground or
+creates a visible top-level window. Its evidence is written under `tmp/` by
+default, records the tested commit plus clean/dirty worktree state, and records
+each mapped case as `AUTOMATED_LOGIC_PASS`, plus
+`physical_input_result=NOT_RUN` and
+`r3_closure=NOT_ELIGIBLE` even when every automated check passes.
+
+This preflight detects deterministic regressions before operator time is spent;
+it does not exercise a physical device, foreground focus recovery, Escape/UI
+event routing or the native window close button, so it cannot close R3, D2, D4
+or D6.
+
 ## Record rules
 
 - `protocol_version` must be `1`.

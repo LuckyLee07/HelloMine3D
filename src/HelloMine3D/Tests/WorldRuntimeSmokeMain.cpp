@@ -1021,6 +1021,85 @@ void casePlayerControllerInput()
     check("V2/sprint-applies-to-strafe",
           sprintRight.position.x - 32.f >
               walkRight.position.x - 28.f + 0.3f);
+
+    Player focusRecovery;
+    focusRecovery.position = {36.f, 220.f, 36.f};
+    focusRecovery.applyInput(enableFlight);
+    focusRecovery.applyInput(heldForward);
+    focusRecovery.update(0.05f, world);
+    const bool movedBeforeNeutral =
+        glm::length(glm::vec2(focusRecovery.velocity.x,
+                              focusRecovery.velocity.z)) > 0.001f;
+    focusRecovery.applyInput(PlayerInputState());
+    for (int tick = 0; tick < 20; ++tick) {
+        focusRecovery.update(0.05f, world);
+    }
+    const glm::vec3 stoppedPosition = focusRecovery.position;
+    focusRecovery.update(0.05f, world);
+    check("R3A/focus-neutral-input-stops-held-movement",
+          movedBeforeNeutral &&
+              glm::length(glm::vec2(focusRecovery.velocity.x,
+                                    focusRecovery.velocity.z)) < 0.0001f &&
+              glm::length(focusRecovery.position - stoppedPosition) <
+                  0.0001f);
+
+    Player opposedDirections;
+    opposedDirections.position = {40.f, 220.f, 40.f};
+    opposedDirections.applyInput(enableFlight);
+    PlayerInputState opposedInput;
+    opposedInput.moveForward = true;
+    opposedInput.moveBackward = true;
+    opposedInput.moveLeft = true;
+    opposedInput.moveRight = true;
+    opposedDirections.applyInput(opposedInput);
+    opposedDirections.update(0.05f, world);
+    check("R3A/opposed-direction-state-is-neutral",
+          glm::length(opposedDirections.position -
+                      glm::vec3(40.f, 220.f, 40.f)) < 0.0001f);
+
+    Player frameLocalLook;
+    PlayerInputState lookOnce;
+    lookOnce.lookDelta = {7.f, -3.f};
+    frameLocalLook.applyInput(lookOnce);
+    const glm::vec3 rotationAfterLook = frameLocalLook.rotation;
+    frameLocalLook.applyInput(PlayerInputState());
+    check("R3A/mouse-look-delta-is-frame-local",
+          glm::length(frameLocalLook.rotation - rotationAfterLook) <
+              0.0001f);
+
+    Player wheelSelection;
+    PlayerInputState previousSlot;
+    previousSlot.hotbarDelta = -1;
+    wheelSelection.applyInput(previousSlot);
+    const int lastSlot = wheelSelection.getInventorySlotCount() - 1;
+    const bool wrappedBackward =
+        wheelSelection.getSaveState().heldItem == lastSlot;
+    PlayerInputState nextSlot;
+    nextSlot.hotbarDelta = 1;
+    wheelSelection.applyInput(nextSlot);
+    check("R3A/hotbar-wheel-wraps-both-directions",
+          wrappedBackward && wheelSelection.getSaveState().heldItem == 0);
+
+    Player verticalFlight;
+    verticalFlight.position = {44.f, 220.f, 44.f};
+    verticalFlight.applyInput(enableFlight);
+    PlayerInputState rise;
+    rise.jump = true;
+    verticalFlight.applyInput(rise);
+    for (int tick = 0; tick < 4; ++tick) {
+        verticalFlight.update(0.05f, world);
+    }
+    const float heightAfterRise = verticalFlight.position.y;
+    PlayerInputState descend;
+    descend.descend = true;
+    verticalFlight.applyInput(descend);
+    for (int tick = 0; tick < 8; ++tick) {
+        verticalFlight.update(0.05f, world);
+    }
+    check("R3A/flight-rise-descend-uses-held-state",
+          heightAfterRise > 220.f &&
+              verticalFlight.position.y < heightAfterRise &&
+              !verticalFlight.isSneaking());
 }
 
 // ---------------------------------------------------------------------------
@@ -3782,6 +3861,8 @@ void caseChestContainer()
                   BlockId::Chest);
 
     player.closeContainer();
+    check("R3A/container-close-clears-ui-capture",
+          !player.hasOpenContainer());
     const std::size_t actorsBefore =
         world.getActorManager().getActorCount();
     const bool broken = BlockInteractionSystem::breakBlock(

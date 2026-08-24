@@ -33,6 +33,7 @@
 | 性能采集 | `tools\run_perf_baseline.ps1`；正式六场景使用 `tools\capture_release_candidate_performance.ps1` | 区块加载、网格、更新、渲染提交 |
 | 性能比较 | `tools\compare_perf_baselines.ps1` | 可能改变帧时间或世界驻留的改动 |
 | 资产检查 | `bash scripts/check_assets.sh` | 资产和数据 |
+| R3 自动预检 | `tools\validate_r3_automated_preflight.ps1 -Configuration Release -Build` | 控制器、交互、容器、战斗、D6 和后台窗口焦点的逻辑回归；结果不能替代真人输入 |
 | 真人输入 | `docs\manual-input-acceptance-v1.md` 和 `tools\validate_manual_input_record.ps1 -RequirePass` | 正式输入、窗口焦点、容器、战斗封板 |
 | 长时间 soak | `tools\run_world_soak.ps1`；正式双 profile 使用 `tools\run_release_candidate_soak.ps1` | 区块/实体生命周期、存档、后台加载 |
 | 资源包 | `tools\validate_resource_packs.ps1` | manifest、资源解析、启动预检 |
