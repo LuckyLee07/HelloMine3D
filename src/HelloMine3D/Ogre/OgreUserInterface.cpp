@@ -315,6 +315,33 @@ class OgreUserInterface::Impl
             0.f, interactionFeedbackSeconds -
                      std::max(0.f, deltaSeconds));
         hudElapsedSeconds += std::max(0.f, deltaSeconds);
+        const float frameSeconds = std::max(0.f, deltaSeconds);
+        if (frameSeconds > 0.f)
+        {
+            performanceSampleSeconds += frameSeconds;
+            performanceSamplePeakMs = std::max(
+                performanceSamplePeakMs, frameSeconds * 1000.f);
+            ++performanceSampleFrames;
+            if (displayedFramesPerSecond <= 0.f)
+            {
+                displayedFramesPerSecond = 1.f / frameSeconds;
+                displayedFrameMs = frameSeconds * 1000.f;
+                displayedPeakFrameMs = displayedFrameMs;
+            }
+            if (performanceSampleSeconds >= 0.5f)
+            {
+                displayedFramesPerSecond =
+                    static_cast<float>(performanceSampleFrames) /
+                    performanceSampleSeconds;
+                displayedFrameMs =
+                    performanceSampleSeconds * 1000.f /
+                    static_cast<float>(performanceSampleFrames);
+                displayedPeakFrameMs = performanceSamplePeakMs;
+                performanceSampleSeconds = 0.f;
+                performanceSamplePeakMs = 0.f;
+                performanceSampleFrames = 0;
+            }
+        }
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui::NewFrame();
@@ -1218,6 +1245,44 @@ class OgreUserInterface::Impl
         const ImGuiIO &io = ImGui::GetIO();
         const ImVec2 center(io.DisplaySize.x * 0.5f,
                             io.DisplaySize.y * 0.5f);
+
+        const ImGuiWindowFlags performanceFlags =
+            ImGuiWindowFlags_NoDecoration |
+            ImGuiWindowFlags_AlwaysAutoResize |
+            ImGuiWindowFlags_NoSavedSettings |
+            ImGuiWindowFlags_NoInputs |
+            ImGuiWindowFlags_NoFocusOnAppearing |
+            ImGuiWindowFlags_NoNav;
+        ImGui::SetNextWindowPos(ImVec2(18.0f, 18.0f), ImGuiCond_Always);
+        ImGui::SetNextWindowBgAlpha(0.76f);
+        if (ImGui::Begin("##FramePerformance", nullptr, performanceFlags))
+        {
+            const ImVec4 fpsColour = displayedFramesPerSecond >= 55.f
+                ? ImVec4(0.42f, 0.92f, 0.46f, 1.f)
+                : (displayedFramesPerSecond >= 30.f
+                    ? ImVec4(1.f, 0.78f, 0.28f, 1.f)
+                    : ImVec4(1.f, 0.35f, 0.30f, 1.f));
+            ImGui::TextColored(fpsColour, "FPS  %.1f",
+                               displayedFramesPerSecond);
+            ImGui::Text("Frame  %.2f ms", displayedFrameMs);
+#if defined(_DEBUG)
+            ImGui::TextDisabled("Debug | 0.5s peak %.2f ms",
+                                displayedPeakFrameMs);
+#else
+            ImGui::TextDisabled("Release | 0.5s peak %.2f ms",
+                                displayedPeakFrameMs);
+#endif
+            ImGui::TextDisabled(
+                "Stream Q %llu | Mesh dirty %llu",
+                static_cast<unsigned long long>(
+                    worldStats.queuedChunkUpdates),
+                static_cast<unsigned long long>(
+                    worldStats.chunks.meshDirtySections));
+            performanceOverlayBottom =
+                ImGui::GetWindowPos().y + ImGui::GetWindowSize().y;
+        }
+        ImGui::End();
+
         if (!player->hasOpenContainer() && !player->hasOpenCrafting())
         {
             ImDrawList *foreground = ImGui::GetForegroundDrawList();
@@ -1294,7 +1359,8 @@ class OgreUserInterface::Impl
         {
             const ObjectiveSnapshot objective =
                 world->getObjectiveSnapshot();
-            ImGui::SetNextWindowPos(ImVec2(18.0f, 18.0f),
+            ImGui::SetNextWindowPos(ImVec2(18.0f,
+                                          performanceOverlayBottom + 10.f),
                                     ImGuiCond_Always);
             ImGui::SetNextWindowBgAlpha(0.76f);
             if (ImGui::Begin(
@@ -2070,6 +2136,13 @@ class OgreUserInterface::Impl
     float interactionFeedbackSeconds = 0.f;
     ImVec4 interactionFeedbackColour = ImVec4(1.f, 1.f, 1.f, 1.f);
     float hudElapsedSeconds = 0.f;
+    float performanceSampleSeconds = 0.f;
+    float performanceSamplePeakMs = 0.f;
+    float displayedFramesPerSecond = 0.f;
+    float displayedFrameMs = 0.f;
+    float displayedPeakFrameMs = 0.f;
+    float performanceOverlayBottom = 90.f;
+    std::size_t performanceSampleFrames = 0;
     std::array<char, 81> createName{};
     std::array<char, 81> renameName{};
     int createSeed = 0;
