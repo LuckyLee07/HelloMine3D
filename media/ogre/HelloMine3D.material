@@ -64,15 +64,8 @@ material HelloMine3D/Water
             {
             }
 
-            fragment_program_ref HelloMine3D/TerrainFragment
+            fragment_program_ref HelloMine3D/WaterFragment
             {
-            }
-
-            texture_unit terrainAtlas
-            {
-                texture DefaultPack.png
-                tex_address_mode clamp
-                filtering none
             }
         }
     }

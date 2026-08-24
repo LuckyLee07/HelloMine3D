@@ -42,6 +42,7 @@ shader|media/ogre/HelloMine3DSkybox.frag
 shader|media/ogre/HelloMine3DSkybox.vert
 shader|media/ogre/HelloMine3DTerrain.frag
 shader|media/ogre/HelloMine3DTerrain.vert
+shader|media/ogre/HelloMine3DWater.frag
 shader|media/ogre/HelloMine3DWater.vert
 shape|media/shapes/Cross.shape
 smelting|media/smelting/Base.smelting

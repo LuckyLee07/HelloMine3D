@@ -2,11 +2,15 @@
 
 #include <OIS.h>
 #include <OgreCamera.h>
+#include <OgreResourceGroupManager.h>
 #include <OgreRenderWindow.h>
 #include <OgreSceneManager.h>
+#include <OgreTexture.h>
+#include <OgreTextureManager.h>
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <stdexcept>
@@ -214,6 +218,7 @@ class OgreUserInterface::Impl
     {
         std::snprintf(createName.data(), createName.size(), "%s",
                       "New World");
+        createSeed = WorldManagementService::suggestWorldSeed();
     }
 
     void initialize(Ogre::RenderQueueListener *listener)
@@ -232,6 +237,22 @@ class OgreUserInterface::Impl
             throw std::runtime_error(
                 "Ogre ImGui failed to initialize the OpenGL backend.");
         }
+
+        atlasTexture = Ogre::TextureManager::getSingleton().load(
+            "DefaultPack.png",
+            Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+            Ogre::TEX_TYPE_2D, 0);
+        unsigned int atlasGlId = 0;
+        atlasTexture->getCustomAttribute("GLID", &atlasGlId);
+        if (atlasGlId == 0)
+        {
+            ImGui_ImplOpenGL3_Shutdown();
+            ImGui::DestroyContext();
+            atlasTexture.setNull();
+            throw std::runtime_error(
+                "Ogre ImGui failed to resolve the gameplay atlas GL ID.");
+        }
+        atlasTextureId = static_cast<ImTextureID>(atlasGlId);
 
         sceneManager->addRenderQueueListener(listener);
         listenerInstalled = true;
@@ -256,6 +277,8 @@ class OgreUserInterface::Impl
         }
         ImGui_ImplOpenGL3_Shutdown();
         ImGui::DestroyContext();
+        atlasTextureId = ImTextureID_Invalid;
+        atlasTexture.setNull();
         initialized = false;
     }
 
@@ -288,6 +311,10 @@ class OgreUserInterface::Impl
             0.f, statusMessageSeconds - std::max(0.f, deltaSeconds));
         audioCaptionSeconds = std::max(
             0.f, audioCaptionSeconds - std::max(0.f, deltaSeconds));
+        interactionFeedbackSeconds = std::max(
+            0.f, interactionFeedbackSeconds -
+                     std::max(0.f, deltaSeconds));
+        hudElapsedSeconds += std::max(0.f, deltaSeconds);
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui::NewFrame();
@@ -539,8 +566,13 @@ class OgreUserInterface::Impl
             ImGui::SameLine();
             if (ImGui::Button("Create"))
             {
-                reportResult(management->createWorld(createName.data(),
-                                                     createSeed));
+                const WorldManagementResult result =
+                    management->createWorld(createName.data(), createSeed);
+                reportResult(result);
+                if (result.succeeded())
+                {
+                    createSeed = WorldManagementService::suggestWorldSeed();
+                }
             }
 
             ImGui::Separator();
@@ -979,12 +1011,202 @@ class OgreUserInterface::Impl
 
     void setAudioCaption(std::string caption)
     {
+        std::string lower = caption;
+        std::transform(lower.begin(), lower.end(), lower.begin(),
+                       [](unsigned char value) {
+                           return static_cast<char>(std::tolower(value));
+                       });
+        if (lower.find("broken") != std::string::npos)
+        {
+            interactionFeedbackColour = ImVec4(0.95f, 0.72f, 0.28f, 1.f);
+            interactionFeedbackSeconds = 0.32f;
+        }
+        else if (lower.find("placed") != std::string::npos)
+        {
+            interactionFeedbackColour = ImVec4(0.35f, 0.72f, 1.f, 1.f);
+            interactionFeedbackSeconds = 0.28f;
+        }
+        else if (lower.find("collected") != std::string::npos ||
+                 lower.find("crafting") != std::string::npos)
+        {
+            interactionFeedbackColour = ImVec4(0.42f, 0.94f, 0.48f, 1.f);
+            interactionFeedbackSeconds = 0.34f;
+        }
+        else if (lower.find("hit") != std::string::npos)
+        {
+            interactionFeedbackColour = ImVec4(1.f, 0.34f, 0.28f, 1.f);
+            interactionFeedbackSeconds = 0.28f;
+        }
         if (!appliedSettings.audioCaptions)
         {
             return;
         }
         audioCaption = std::move(caption);
         audioCaptionSeconds = 2.5f;
+    }
+
+    bool materialIconUv(Material::ID id, ImVec2 &uvMin,
+                        ImVec2 &uvMax) const
+    {
+        if (atlasTextureId == ImTextureID_Invalid)
+        {
+            return false;
+        }
+        const Material::IconCoordinate coordinate =
+            Material::iconCoordinate(id);
+        if (!coordinate.available())
+        {
+            return false;
+        }
+        constexpr float atlasSize = 256.f;
+        constexpr float tileSize = 16.f;
+        constexpr float inset = 0.5f;
+        uvMin = ImVec2((coordinate.x * tileSize + inset) / atlasSize,
+                       (coordinate.y * tileSize + inset) / atlasSize);
+        uvMax = ImVec2(((coordinate.x + 1) * tileSize - inset) /
+                           atlasSize,
+                       ((coordinate.y + 1) * tileSize - inset) /
+                           atlasSize);
+        return true;
+    }
+
+    bool drawMaterialIcon(ImDrawList *drawList, Material::ID id,
+                          const ImVec2 &minimum, const ImVec2 &maximum,
+                          ImU32 tint = IM_COL32_WHITE) const
+    {
+        ImVec2 uvMin;
+        ImVec2 uvMax;
+        if (drawList == nullptr || !materialIconUv(id, uvMin, uvMax))
+        {
+            return false;
+        }
+        drawList->AddImage(ImTextureRef(atlasTextureId), minimum, maximum,
+                           uvMin, uvMax, tint);
+        return true;
+    }
+
+    void drawHeldMaterial(const PlayerSaveState &state,
+                          const ImGuiIO &io) const
+    {
+        if (flow->state() != GameApplicationState::Playing ||
+            player->hasOpenContainer() || player->hasOpenCrafting() ||
+            state.heldItem < 0 ||
+            state.heldItem >= static_cast<int>(state.inventory.size()))
+        {
+            return;
+        }
+        const InventorySlotState &slot =
+            state.inventory[static_cast<std::size_t>(state.heldItem)];
+        ImVec2 uvMin;
+        ImVec2 uvMax;
+        if (slot.amount <= 0 || !materialIconUv(slot.materialId, uvMin, uvMax))
+        {
+            return;
+        }
+
+        const float feedbackKick = interactionFeedbackSeconds > 0.f
+            ? interactionFeedbackSeconds * 20.f : 0.f;
+        const float bob = std::sin(hudElapsedSeconds * 2.1f) * 2.5f -
+                          feedbackKick;
+        const float angle = -0.12f +
+                            std::sin(hudElapsedSeconds * 1.4f) * 0.025f;
+        const float half = 38.f;
+        const ImVec2 center(io.DisplaySize.x - 77.f,
+                            io.DisplaySize.y - 84.f + bob);
+        const float cosine = std::cos(angle);
+        const float sine = std::sin(angle);
+        const auto rotate = [&](float x, float y) {
+            return ImVec2(center.x + x * cosine - y * sine,
+                          center.y + x * sine + y * cosine);
+        };
+        const ImVec2 p1 = rotate(-half, -half);
+        const ImVec2 p2 = rotate(half, -half);
+        const ImVec2 p3 = rotate(half, half);
+        const ImVec2 p4 = rotate(-half, half);
+        ImDrawList *foreground = ImGui::GetForegroundDrawList();
+        const ImVec2 shadowOffset(5.f, 7.f);
+        foreground->AddImageQuad(
+            ImTextureRef(atlasTextureId),
+            ImVec2(p1.x + shadowOffset.x, p1.y + shadowOffset.y),
+            ImVec2(p2.x + shadowOffset.x, p2.y + shadowOffset.y),
+            ImVec2(p3.x + shadowOffset.x, p3.y + shadowOffset.y),
+            ImVec2(p4.x + shadowOffset.x, p4.y + shadowOffset.y),
+            uvMin, ImVec2(uvMax.x, uvMin.y), uvMax,
+            ImVec2(uvMin.x, uvMax.y), IM_COL32(0, 0, 0, 90));
+        foreground->AddImageQuad(
+            ImTextureRef(atlasTextureId), p1, p2, p3, p4, uvMin,
+            ImVec2(uvMax.x, uvMin.y), uvMax,
+            ImVec2(uvMin.x, uvMax.y), IM_COL32_WHITE);
+    }
+
+    void drawHotbarSlot(const InventorySlotState &slot,
+                        std::size_t index, bool selected)
+    {
+        constexpr float slotSize = 56.f;
+        ImGui::PushID(static_cast<int>(index));
+        ImGui::InvisibleButton("##hotbar_slot", ImVec2(slotSize, slotSize));
+        const ImVec2 minimum = ImGui::GetItemRectMin();
+        const ImVec2 maximum = ImGui::GetItemRectMax();
+        ImDrawList *drawList = ImGui::GetWindowDrawList();
+        drawList->AddRectFilled(
+            minimum, maximum,
+            selected ? IM_COL32(83, 68, 30, 238)
+                     : IM_COL32(24, 29, 38, 228),
+            3.f);
+        drawList->AddRect(
+            minimum, maximum,
+            selected ? IM_COL32(241, 196, 54, 255)
+                     : IM_COL32(96, 108, 126, 210),
+            3.f, 0, selected ? 3.f : 1.f);
+
+        const std::string key = std::to_string(index + 1);
+        drawList->AddText(ImVec2(minimum.x + 4.f, minimum.y + 3.f),
+                          IM_COL32(225, 230, 238, 230), key.c_str());
+        if (slot.amount > 0)
+        {
+            drawMaterialIcon(drawList, slot.materialId,
+                             ImVec2(minimum.x + 12.f, minimum.y + 8.f),
+                             ImVec2(maximum.x - 8.f, maximum.y - 12.f));
+            const ToolDefinition *tool =
+                runtimeToolRegistry().find(slot.materialId);
+            if (tool != nullptr && tool->maxDurability > 0)
+            {
+                const float durability = std::clamp(
+                    static_cast<float>(slot.durability) /
+                        static_cast<float>(tool->maxDurability),
+                    0.f, 1.f);
+                const ImVec2 barMin(minimum.x + 5.f, maximum.y - 7.f);
+                const ImVec2 barMax(maximum.x - 5.f, maximum.y - 4.f);
+                drawList->AddRectFilled(barMin, barMax,
+                                        IM_COL32(10, 12, 16, 230));
+                drawList->AddRectFilled(
+                    barMin,
+                    ImVec2(barMin.x + (barMax.x - barMin.x) * durability,
+                           barMax.y),
+                    durability > 0.35f
+                        ? IM_COL32(72, 208, 88, 255)
+                        : IM_COL32(230, 76, 56, 255));
+            }
+            else
+            {
+                const std::string amount = std::to_string(slot.amount);
+                const ImVec2 amountSize = ImGui::CalcTextSize(amount.c_str());
+                drawList->AddText(
+                    ImVec2(maximum.x - amountSize.x - 4.f,
+                           maximum.y - amountSize.y - 3.f),
+                    IM_COL32(255, 255, 255, 255), amount.c_str());
+            }
+        }
+        else
+        {
+            const char *emptyMark = "-";
+            const ImVec2 markSize = ImGui::CalcTextSize(emptyMark);
+            drawList->AddText(
+                ImVec2((minimum.x + maximum.x - markSize.x) * 0.5f,
+                       (minimum.y + maximum.y - markSize.y) * 0.5f),
+                IM_COL32(120, 130, 145, 180), emptyMark);
+        }
+        ImGui::PopID();
     }
 
     void drawHud()
@@ -1006,6 +1228,46 @@ class OgreUserInterface::Impl
             foreground->AddLine(ImVec2(center.x, center.y - 8.0f),
                                 ImVec2(center.x, center.y + 8.0f),
                                 crosshairColour, 2.0f);
+            if (miningProgress.active)
+            {
+                constexpr float pi = 3.14159265358979323846f;
+                foreground->AddCircle(center, 15.f,
+                                      IM_COL32(16, 20, 26, 180), 32, 3.f);
+                foreground->PathArcTo(
+                    center, 15.f, -pi * 0.5f,
+                    -pi * 0.5f + pi * 2.f *
+                        miningProgress.normalized(),
+                    32);
+                foreground->PathStroke(IM_COL32(245, 195, 58, 255),
+                                       0, 3.f);
+            }
+            if (interactionFeedbackSeconds > 0.f)
+            {
+                const float fade = std::clamp(
+                    interactionFeedbackSeconds / 0.34f, 0.f, 1.f);
+                ImVec4 colour = interactionFeedbackColour;
+                colour.w = fade;
+                const ImU32 feedbackColour = ImGui::ColorConvertFloat4ToU32(
+                    colour);
+                const float outer = 18.f + (1.f - fade) * 8.f;
+                const float inner = outer - 6.f;
+                foreground->AddLine(
+                    ImVec2(center.x - outer, center.y - outer),
+                    ImVec2(center.x - inner, center.y - inner),
+                    feedbackColour, 3.f);
+                foreground->AddLine(
+                    ImVec2(center.x + outer, center.y - outer),
+                    ImVec2(center.x + inner, center.y - inner),
+                    feedbackColour, 3.f);
+                foreground->AddLine(
+                    ImVec2(center.x + outer, center.y + outer),
+                    ImVec2(center.x + inner, center.y + inner),
+                    feedbackColour, 3.f);
+                foreground->AddLine(
+                    ImVec2(center.x - outer, center.y + outer),
+                    ImVec2(center.x - inner, center.y + inner),
+                    feedbackColour, 3.f);
+            }
         }
 
         if (miningProgress.active &&
@@ -1135,6 +1397,7 @@ class OgreUserInterface::Impl
         }
 
         const PlayerSaveState state = player->getSaveState();
+        drawHeldMaterial(state, io);
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y - 18.0f),
             ImGuiCond_Always, ImVec2(0.5f, 1.0f));
@@ -1169,6 +1432,26 @@ class OgreUserInterface::Impl
                 ImGui::Text("Attack ready in: %.1fs",
                             worldStats.attackCooldownTicksRemaining / 20.f);
             }
+            const bool heldItemValid = state.heldItem >= 0 &&
+                state.heldItem < static_cast<int>(state.inventory.size());
+            if (heldItemValid)
+            {
+                const InventorySlotState &held =
+                    state.inventory[static_cast<std::size_t>(state.heldItem)];
+                if (held.amount > 0)
+                {
+                    const std::string heldName =
+                        Material::toMaterial(held.materialId).name;
+                    const float available = ImGui::GetContentRegionAvail().x;
+                    const float width = ImGui::CalcTextSize(
+                        heldName.c_str()).x;
+                    ImGui::SetCursorPosX(
+                        ImGui::GetCursorPosX() +
+                        std::max(0.f, (available - width) * 0.5f));
+                    ImGui::TextColored(ImVec4(0.96f, 0.82f, 0.34f, 1.f),
+                                       "%s", heldName.c_str());
+                }
+            }
             for (std::size_t index = 0; index < state.inventory.size(); ++index)
             {
                 if (index > 0)
@@ -1176,39 +1459,9 @@ class OgreUserInterface::Impl
                     ImGui::SameLine();
                 }
 
-                const InventorySlotState &slot = state.inventory[index];
-                const bool selected =
-                    static_cast<int>(index) == state.heldItem;
-                if (selected)
-                {
-                    ImGui::PushStyleColor(
-                        ImGuiCol_Button, ImVec4(0.82f, 0.68f, 0.18f, 0.95f));
-                    ImGui::PushStyleColor(
-                        ImGuiCol_ButtonHovered,
-                        ImVec4(0.82f, 0.68f, 0.18f, 0.95f));
-                }
-
-                const Material &material =
-                    Material::toMaterial(slot.materialId);
-                const ToolDefinition *tool =
-                    runtimeToolRegistry().find(slot.materialId);
-                const std::string amountText =
-                    tool != nullptr && slot.amount > 0
-                        ? ("\n" + std::to_string(slot.durability) + "/" +
-                           std::to_string(tool->maxDurability))
-                        : (" x" +
-                           std::to_string(std::max(0, slot.amount)));
-                const std::string label =
-                    std::to_string(index + 1) + "\n" +
-                    (slot.amount > 0 ? material.name : "Empty") +
-                    amountText + "##slot" +
-                    std::to_string(index);
-                ImGui::Button(label.c_str(), ImVec2(92.0f, 46.0f));
-
-                if (selected)
-                {
-                    ImGui::PopStyleColor(2);
-                }
+                drawHotbarSlot(
+                    state.inventory[index], index,
+                    static_cast<int>(index) == state.heldItem);
             }
         }
         ImGui::End();
@@ -1659,6 +1912,16 @@ class OgreUserInterface::Impl
                         worldStats.environment.daylight);
             ImGui::Text("Fog density: %.4f",
                         worldStats.environment.fogDensity);
+            ImGui::Text("Cloud coverage: %.3f",
+                        worldStats.environment.cloudCoverage);
+            ImGui::Text(
+                "Water shallow / deep: %.2f %.2f %.2f / %.2f %.2f %.2f",
+                worldStats.environment.waterShallowColour.r,
+                worldStats.environment.waterShallowColour.g,
+                worldStats.environment.waterShallowColour.b,
+                worldStats.environment.waterDeepColour.r,
+                worldStats.environment.waterDeepColour.g,
+                worldStats.environment.waterDeepColour.b);
             ImGui::Text("Actors: %llu",
                         static_cast<unsigned long long>(
                             worldStats.actorCount));
@@ -1804,6 +2067,9 @@ class OgreUserInterface::Impl
     float statusMessageSeconds = 0.f;
     std::string audioCaption;
     float audioCaptionSeconds = 0.f;
+    float interactionFeedbackSeconds = 0.f;
+    ImVec4 interactionFeedbackColour = ImVec4(1.f, 1.f, 1.f, 1.f);
+    float hudElapsedSeconds = 0.f;
     std::array<char, 81> createName{};
     std::array<char, 81> renameName{};
     int createSeed = 0;
@@ -1818,6 +2084,8 @@ class OgreUserInterface::Impl
     bool initialized = false;
     bool listenerInstalled = false;
     bool framePending = false;
+    Ogre::TexturePtr atlasTexture;
+    ImTextureID atlasTextureId = ImTextureID_Invalid;
     std::string iniPath;
 };
 

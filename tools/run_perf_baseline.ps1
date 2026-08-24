@@ -23,7 +23,7 @@ param(
     [double]$MinimumSimulationTickHz = 19.0,
     [double]$MaximumSimulationTickHz = 21.0,
     [switch]$VerticalSliceFixture,
-    [switch]$HiddenWindow,
+    [switch]$HiddenWindow = $true,
     [switch]$StopExisting,
     [switch]$QuietSummary,
     [switch]$KeepAlive

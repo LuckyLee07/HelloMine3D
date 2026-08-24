@@ -10,6 +10,8 @@ class SuperFlatGenerator : public TerrainGenerator {
     int getGenerationVersion() const noexcept override;
     TerrainBiome getBiomeAtWorld(int worldX,
                                  int worldZ) const noexcept override;
+    int getSurfaceHeightAtWorld(int worldX,
+                                int worldZ) const noexcept override;
 };
 
 #endif // SUPERFLATGENERATOR_H_INCLUDED

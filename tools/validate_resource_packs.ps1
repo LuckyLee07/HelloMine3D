@@ -86,6 +86,7 @@ function Invoke-PackStartup {
     $process.StartInfo = $startInfo
     $environmentOverrides = [ordered]@{
         HELLOMINE3D_ROOT = $RepoRoot
+        HELLOMINE3D_WINDOW_HIDDEN = "1"
         HELLOMINE3D_VALIDATE_ONLY = "1"
         HELLOMINE3D_SEED = "20260809"
         HELLOMINE3D_PLAYER_POSITION = "264 96 8"

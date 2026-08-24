@@ -21,6 +21,8 @@ class TerrainGenerator {
     virtual int getGenerationVersion() const noexcept = 0;
     virtual TerrainBiome getBiomeAtWorld(int worldX,
                                          int worldZ) const noexcept = 0;
+    virtual int getSurfaceHeightAtWorld(int worldX,
+                                        int worldZ) const noexcept = 0;
 
     virtual ~TerrainGenerator() = default;
 };

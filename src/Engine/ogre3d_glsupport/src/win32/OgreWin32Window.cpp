@@ -110,6 +110,7 @@ namespace Ogre {
         HWND parent = 0;
         String title = name;
         bool hidden = false;
+        bool noActivate = false;
         String border;
         bool outerSize = false;
         bool hwGamma = false;
@@ -143,6 +144,9 @@ namespace Ogre {
 
             if ((opt = miscParams->find("hidden")) != end)
                 hidden = StringConverter::parseBool(opt->second);
+
+            if ((opt = miscParams->find("noActivate")) != end)
+                noActivate = StringConverter::parseBool(opt->second);
 
             if ((opt = miscParams->find("vsyncInterval")) != end)
                 mVSyncInterval = StringConverter::parseUnsignedInt(opt->second);
@@ -286,6 +290,8 @@ namespace Ogre {
             strcpy(mDeviceName, monitorInfoEx.szDevice);
 
             // Update window style flags.
+            if (noActivate)
+                dwStyleEx |= WS_EX_NOACTIVATE;
             mFullscreenWinStyle = (hidden ? 0 : WS_VISIBLE) | WS_CLIPCHILDREN | WS_POPUP;
             mWindowedWinStyle   = (hidden ? 0 : WS_VISIBLE) | WS_CLIPCHILDREN;
             

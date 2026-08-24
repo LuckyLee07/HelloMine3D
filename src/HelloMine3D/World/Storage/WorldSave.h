@@ -14,6 +14,11 @@
 
 inline constexpr int WorldSaveFormatVersion = 8;
 
+inline glm::vec3 initialWorldSpawnPlaceholder() noexcept
+{
+    return {0.5f, 96.0f, 0.5f};
+}
+
 struct WorldSaveData {
     int version = WorldSaveFormatVersion;
     std::string worldId = "default";

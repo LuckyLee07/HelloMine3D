@@ -35,6 +35,15 @@ namespace
         "hellomine:stone_sword",
         "hellomine:waystone_core",
     }};
+
+    constexpr std::array<Material::IconCoordinate, Material::ID::Count>
+        MaterialIcons = {{
+            {-1, -1}, {0, 0}, {2, 0}, {3, 0}, {4, 0}, {6, 0},
+            {7, 0}, {9, 0}, {10, 0}, {11, 0}, {12, 0}, {13, 0},
+            {14, 0}, {3, 1}, {4, 1}, {0, 1}, {0, 2}, {1, 2},
+            {1, 1}, {2, 2}, {3, 2}, {2, 1}, {4, 2}, {5, 2},
+            {6, 2}, {7, 2}, {8, 2}, {9, 2}, {15, 0},
+        }};
 }
 
 const Material Material::NOTHING(ID::Nothing, 0, false, "None");
@@ -316,6 +325,15 @@ const Material &Material::toMaterial(Material::ID id)
         default:
             return NOTHING;
     }
+}
+
+Material::IconCoordinate Material::iconCoordinate(Material::ID id) noexcept
+{
+    const int index = static_cast<int>(id);
+    if (index < 0 || index >= static_cast<int>(MaterialIcons.size())) {
+        return {};
+    }
+    return MaterialIcons[static_cast<std::size_t>(index)];
 }
 
 const char *Material::toStringId(Material::ID id) noexcept

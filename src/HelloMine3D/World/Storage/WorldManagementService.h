@@ -73,6 +73,8 @@ class WorldManagementService {
     explicit WorldManagementService(
         std::string catalogueRoot, WorldManagementPolicy policy = {});
 
+    static int suggestWorldSeed() noexcept;
+
     WorldManagementListResult listWorlds() const;
     DeletedWorldListResult listDeletedWorlds() const;
 

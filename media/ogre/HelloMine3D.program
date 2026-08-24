@@ -21,6 +21,10 @@ fragment_program HelloMine3D/SkyboxFragment glsl
         param_named sunIntensity float 1.0
         param_named moonIntensity float 0.0
         param_named starIntensity float 0.0
+        param_named cloudLightColour float3 0.90 0.93 0.95
+        param_named cloudShadowColour float3 0.42 0.53 0.60
+        param_named cloudCoverage float 0.46
+        param_named_auto globalTime time_0_x 1.0
     }
 }
 
@@ -56,7 +60,28 @@ vertex_program HelloMine3D/WaterVertex glsl
     {
         param_named_auto worldViewProj worldviewproj_matrix
         param_named_auto worldView worldview_matrix
+        param_named_auto world world_matrix
         param_named_auto globalTime time_0_x 1.0
+    }
+}
+
+fragment_program HelloMine3D/WaterFragment glsl
+{
+    source HelloMine3DWater.frag
+    syntax glsl150
+    default_params
+    {
+        param_named environmentLight float 1.0
+        param_named fogColour float3 0.56 0.70 0.80
+        param_named fogDensity float 0.0015
+        param_named skyZenithColour float3 0.12 0.36 0.68
+        param_named skyHorizonColour float3 0.56 0.70 0.80
+        param_named sunDirection float3 0.0 1.0 0.0
+        param_named sunColour float3 1.0 0.92 0.72
+        param_named sunIntensity float 1.0
+        param_named waterShallowColour float3 0.12 0.43 0.53
+        param_named waterDeepColour float3 0.018 0.15 0.24
+        param_named_auto cameraPosition camera_position
     }
 }
 

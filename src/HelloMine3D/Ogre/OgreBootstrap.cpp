@@ -514,11 +514,13 @@ namespace
         {
             const bool hiddenWindow = isTrueValue(
                 std::getenv("HELLOMINE3D_WINDOW_HIDDEN"));
+            m_hiddenWindow = hiddenWindow;
             if (hiddenWindow)
             {
                 m_root->initialise(false, WindowTitle);
                 Ogre::NameValuePairList windowParameters;
                 windowParameters["hidden"] = "true";
+                windowParameters["noActivate"] = "true";
                 m_window = m_root->createRenderWindow(
                     WindowTitle,
                     static_cast<unsigned int>(m_config.windowX),
@@ -752,6 +754,17 @@ namespace
                         "Combat fixture failed to damage the player.");
                 }
                 m_combatFixturePlaced = true;
+            }
+
+            if (isTrueValue(std::getenv(
+                    "HELLOMINE3D_HUD_FIXTURE")))
+            {
+                m_worldPlayer->addItem(Material::STONE_SWORD, 1);
+                m_worldPlayer->addItem(Material::WHEAT_SEEDS, 9);
+                m_worldPlayer->addItem(Material::DIRT_BLOCK, 32);
+                m_worldPlayer->addItem(Material::BREAD, 3);
+                m_worldPlayer->addItem(Material::IRON_ORE_BLOCK, 7);
+                std::cout << "[HUD_FIXTURE] slots=5 selected=0\n";
             }
 
             if (isTrueValue(std::getenv(
@@ -1034,9 +1047,11 @@ namespace
             OIS::ParamList parameters;
             parameters.insert({"WINDOW", handleText.str()});
 #if defined(OIS_WIN32_PLATFORM)
-            parameters.insert({"w32_mouse", "DISCL_FOREGROUND"});
+            parameters.insert({"w32_mouse", m_hiddenWindow
+                ? "DISCL_BACKGROUND" : "DISCL_FOREGROUND"});
             parameters.insert({"w32_mouse", "DISCL_NONEXCLUSIVE"});
-            parameters.insert({"w32_keyboard", "DISCL_FOREGROUND"});
+            parameters.insert({"w32_keyboard", m_hiddenWindow
+                ? "DISCL_BACKGROUND" : "DISCL_FOREGROUND"});
             parameters.insert({"w32_keyboard", "DISCL_NONEXCLUSIVE"});
 #endif
 
@@ -1231,8 +1246,11 @@ namespace
                 return false;
             }
 
-            m_keyboard->capture();
-            m_mouse->capture();
+            if (!m_hiddenWindow)
+            {
+                m_keyboard->capture();
+                m_mouse->capture();
+            }
             processInterfaceAction();
             if (!m_pendingWorldDirectory.empty() &&
                 m_frameCount > m_loadingRequestedFrame)
@@ -1896,6 +1914,18 @@ namespace
             const Ogre::Vector3 sunColour(
                 state.sunColour.r, state.sunColour.g,
                 state.sunColour.b);
+            const Ogre::Vector3 cloudLightColour(
+                state.cloudLightColour.r, state.cloudLightColour.g,
+                state.cloudLightColour.b);
+            const Ogre::Vector3 cloudShadowColour(
+                state.cloudShadowColour.r, state.cloudShadowColour.g,
+                state.cloudShadowColour.b);
+            const Ogre::Vector3 waterShallowColour(
+                state.waterShallowColour.r, state.waterShallowColour.g,
+                state.waterShallowColour.b);
+            const Ogre::Vector3 waterDeepColour(
+                state.waterDeepColour.r, state.waterDeepColour.g,
+                state.waterDeepColour.b);
 
             m_sceneManager->setFog(Ogre::FOG_EXP2, fog,
                                    state.fogDensity);
@@ -1905,8 +1935,8 @@ namespace
             }
 
             const char* terrainMaterials[] = {
-                "HelloMine3D/Terrain", "HelloMine3D/Water",
-                "HelloMine3D/Transparent", "HelloMine3D/Flora"};
+                "HelloMine3D/Terrain", "HelloMine3D/Transparent",
+                "HelloMine3D/Flora"};
             for (const char* materialName : terrainMaterials)
             {
                 Ogre::GpuProgramParametersSharedPtr parameters =
@@ -1919,8 +1949,31 @@ namespace
                     "fogDensity", state.fogDensity);
             }
 
+            Ogre::GpuProgramParametersSharedPtr waterParameters =
+                materialPass("HelloMine3D/Water")
+                    ->getFragmentProgramParameters();
+            waterParameters->setNamedConstant(
+                "environmentLight", state.daylight);
+            waterParameters->setNamedConstant("fogColour", fogVector);
+            waterParameters->setNamedConstant(
+                "fogDensity", state.fogDensity);
+            waterParameters->setNamedConstant(
+                "skyZenithColour", skyZenith);
+            waterParameters->setNamedConstant(
+                "skyHorizonColour", skyHorizon);
+            waterParameters->setNamedConstant(
+                "sunDirection", sunDirection);
+            waterParameters->setNamedConstant("sunColour", sunColour);
+            waterParameters->setNamedConstant(
+                "sunIntensity", state.sunIntensity);
+            waterParameters->setNamedConstant(
+                "waterShallowColour", waterShallowColour);
+            waterParameters->setNamedConstant(
+                "waterDeepColour", waterDeepColour);
+
             const char* actorMaterials[] = {
-                "HelloMine3D/ActorMob", "HelloMine3D/ActorItem"};
+                "HelloMine3D/ActorMob", "HelloMine3D/ActorStalker",
+                "HelloMine3D/ActorBrute", "HelloMine3D/ActorItem"};
             for (const char* materialName : actorMaterials)
             {
                 Ogre::GpuProgramParametersSharedPtr parameters =
@@ -1950,6 +2003,12 @@ namespace
                         "moonIntensity", state.moonIntensity);
                     parameters->setNamedConstant(
                         "starIntensity", state.starIntensity);
+                    parameters->setNamedConstant(
+                        "cloudLightColour", cloudLightColour);
+                    parameters->setNamedConstant(
+                        "cloudShadowColour", cloudShadowColour);
+                    parameters->setNamedConstant(
+                        "cloudCoverage", state.cloudCoverage);
                 };
             syncSkyParameters(
                 materialPass(SkyboxMaterial)
@@ -2275,6 +2334,7 @@ namespace
         bool m_resetMeshes = false;
         bool m_useHeldFood = false;
         bool m_mouseLookEnabled = true;
+        bool m_hiddenWindow = false;
         bool m_validationActorsSpawned = false;
         bool m_oreFixturePlaced = false;
         bool m_containerFixturePlaced = false;

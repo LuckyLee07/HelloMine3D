@@ -15,6 +15,11 @@ struct WorldEnvironmentState {
     float sunIntensity = 1.f;
     float moonIntensity = 0.f;
     float starIntensity = 0.f;
+    glm::vec3 cloudLightColour{0.9f, 0.93f, 0.96f};
+    glm::vec3 cloudShadowColour{0.46f, 0.56f, 0.64f};
+    float cloudCoverage = 0.46f;
+    glm::vec3 waterShallowColour{0.12f, 0.46f, 0.56f};
+    glm::vec3 waterDeepColour{0.025f, 0.18f, 0.28f};
 };
 
 class WorldEnvironment {

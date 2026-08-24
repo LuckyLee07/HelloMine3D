@@ -42,16 +42,16 @@ WorldEnvironmentState WorldEnvironment::evaluate(float worldTime)
     state.daylight = 0.18f + 0.82f * dayAmount;
     state.fogDensity = 0.006f + (0.0015f - 0.006f) * dayAmount;
 
-    const glm::vec3 dayFog(0.58f, 0.75f, 0.92f);
-    const glm::vec3 nightFog(0.035f, 0.055f, 0.11f);
-    const glm::vec3 twilightFog(0.78f, 0.38f, 0.25f);
+    const glm::vec3 dayFog(0.56f, 0.70f, 0.80f);
+    const glm::vec3 nightFog(0.025f, 0.040f, 0.085f);
+    const glm::vec3 twilightFog(0.72f, 0.42f, 0.30f);
     state.fogColour = mix(mix(nightFog, dayFog, dayAmount), twilightFog,
-                         twilightAmount * 0.45f);
+                         twilightAmount * 0.38f);
     state.skyHorizonColour = state.fogColour;
 
-    const glm::vec3 dayZenith(0.12f, 0.46f, 0.88f);
-    const glm::vec3 nightZenith(0.006f, 0.012f, 0.045f);
-    const glm::vec3 twilightZenith(0.24f, 0.08f, 0.16f);
+    const glm::vec3 dayZenith(0.12f, 0.36f, 0.68f);
+    const glm::vec3 nightZenith(0.006f, 0.014f, 0.050f);
+    const glm::vec3 twilightZenith(0.25f, 0.10f, 0.18f);
     state.skyZenithColour = mix(
         mix(nightZenith, dayZenith, dayAmount), twilightZenith,
         twilightAmount * 0.42f);
@@ -68,5 +68,35 @@ WorldEnvironmentState WorldEnvironment::evaluate(float worldTime)
         1.f - smoothStep(-0.20f, 0.08f, sunHeight);
     state.starIntensity =
         1.f - smoothStep(-0.35f, -0.05f, sunHeight);
+
+    const glm::vec3 dayCloudLight(0.90f, 0.93f, 0.95f);
+    const glm::vec3 nightCloudLight(0.10f, 0.14f, 0.22f);
+    const glm::vec3 twilightCloudLight(0.94f, 0.60f, 0.42f);
+    state.cloudLightColour = mix(
+        mix(nightCloudLight, dayCloudLight, dayAmount),
+        twilightCloudLight, twilightAmount * 0.34f);
+
+    const glm::vec3 dayCloudShadow(0.42f, 0.53f, 0.60f);
+    const glm::vec3 nightCloudShadow(0.018f, 0.032f, 0.075f);
+    const glm::vec3 twilightCloudShadow(0.52f, 0.29f, 0.25f);
+    state.cloudShadowColour = mix(
+        mix(nightCloudShadow, dayCloudShadow, dayAmount),
+        twilightCloudShadow, twilightAmount * 0.30f);
+    state.cloudCoverage = 0.44f +
+        0.04f * (0.5f + 0.5f * std::cos(angle * 2.f));
+
+    const glm::vec3 dayWaterShallow(0.12f, 0.43f, 0.53f);
+    const glm::vec3 nightWaterShallow(0.020f, 0.075f, 0.13f);
+    const glm::vec3 twilightWaterShallow(0.22f, 0.27f, 0.31f);
+    state.waterShallowColour = mix(
+        mix(nightWaterShallow, dayWaterShallow, dayAmount),
+        twilightWaterShallow, twilightAmount * 0.22f);
+
+    const glm::vec3 dayWaterDeep(0.018f, 0.15f, 0.24f);
+    const glm::vec3 nightWaterDeep(0.005f, 0.024f, 0.060f);
+    const glm::vec3 twilightWaterDeep(0.085f, 0.10f, 0.15f);
+    state.waterDeepColour = mix(
+        mix(nightWaterDeep, dayWaterDeep, dayAmount),
+        twilightWaterDeep, twilightAmount * 0.18f);
     return state;
 }

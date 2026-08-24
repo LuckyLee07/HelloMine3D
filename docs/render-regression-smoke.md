@@ -36,6 +36,10 @@ longer part of the current client.
 Use the runtime readback capture mode by default. Ogre writes the render target
 through `RenderWindow::writeContentsToFile`; it does not use desktop
 `CopyFromScreen`, so occluded windows do not capture the wrong application.
+The PowerShell entry now defaults to `-HiddenWindow`: Ogre creates the Win32
+window without `WS_VISIBLE` and with `WS_EX_NOACTIVATE`, and the client skips
+OIS keyboard/mouse capture for the whole hidden run. This prevents automated
+captures from taking focus or consuming input typed into another application.
 
 Command:
 
@@ -92,9 +96,11 @@ same GTX 1050 Ti / OpenGL 4.6 host (2026-08-13).
 Expected behavior:
 
 1. The script starts `bin\HelloMine3D.exe`.
-2. The window is shown with `SW_SHOWNOACTIVATE` / `SWP_NOACTIVATE`.
-3. Runtime capture mode disables player input and block interaction so the run
-   does not warp the mouse.
+2. The default path creates a hidden, non-activating window and never shows or
+   moves it. A visible capture requires the explicit opt-in
+   `-HiddenWindow:$false -CaptureMode WindowScreenshot`.
+3. Hidden mode skips OIS capture, so it does not warp the mouse or consume the
+   user's real keyboard/mouse input.
 4. The process writes `new_04000ms.png` and `new_06000ms.png` under
    `bin\render_capture_<runId>\`.
 5. The process exits automatically after the requested captures.
@@ -105,6 +111,8 @@ Pass condition:
 - The output PNG files are non-empty.
 - The images show terrain blocks and textures, a green mob cube and an amber
   dropped-item cube, not a solid blue or black frame.
+- `tools\validate_background_client.ps1` reports
+  `foreground_owned=false visible_window=false exit_code=0`.
 
 ## Last Hardware-Backed Run (Pre-E5)
 

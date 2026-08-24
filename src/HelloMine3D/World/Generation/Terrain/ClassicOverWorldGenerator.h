@@ -42,6 +42,8 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
     int getGenerationVersion() const noexcept override;
     TerrainBiome getBiomeAtWorld(int worldX,
                                  int worldZ) const noexcept override;
+    int getSurfaceHeightAtWorld(int worldX,
+                                int worldZ) const noexcept override;
     int getSeed() const noexcept;
     LandmarkPlacement getLandmarkForCell(int cellX, int cellZ) const;
 

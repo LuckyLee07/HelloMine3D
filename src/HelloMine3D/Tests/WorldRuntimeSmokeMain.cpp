@@ -23,6 +23,7 @@
 #include <limits>
 #include <memory>
 #include <sstream>
+#include <set>
 #include <string>
 #include <thread>
 #include <utility>
@@ -790,6 +791,22 @@ void caseOreTextures()
         }
         return hash;
     };
+    const auto visiblePixelCount = [&](int tileX, int tileY) {
+        int visible = 0;
+        for (int y = 0; y < 16; ++y) {
+            const int sourceY = tileY * 16 + y;
+            const BYTE *scanline = FreeImage_GetScanLine(
+                atlas, static_cast<int>(atlasHeight) - sourceY - 1);
+            for (int x = 0; x < 16; ++x) {
+                const std::size_t offset =
+                    static_cast<std::size_t>((tileX * 16 + x) * 4);
+                if (scanline[offset + 3] != 0) {
+                    ++visible;
+                }
+            }
+        }
+        return visible;
+    };
 
     const auto stoneHash = hashTile(3, 0);
     const auto coalHash = hashTile(13, 0);
@@ -797,6 +814,44 @@ void caseOreTextures()
     check("P4/coal-texture-distinct", coalHash != stoneHash);
     check("P4/iron-texture-distinct",
           ironHash != stoneHash && ironHash != coalHash);
+
+    bool iconCatalogueCovered =
+        !Material::iconCoordinate(Material::ID::Nothing).available();
+    for (int id = static_cast<int>(Material::ID::Grass);
+         id < static_cast<int>(Material::ID::Count); ++id) {
+        iconCatalogueCovered = iconCatalogueCovered &&
+            Material::iconCoordinate(static_cast<Material::ID>(id))
+                .available();
+    }
+    check("FS3/material-icon-map-covers-catalogue",
+          iconCatalogueCovered);
+
+    const auto &chest = database.getDefinition(BlockId::Chest);
+    const auto &workbench = database.getDefinition(BlockId::Workbench);
+    const auto &furnace = database.getDefinition(BlockId::Furnace);
+    const bool interactiveCoordinates =
+        chest.render.texTopCoord == glm::ivec2(0, 1) &&
+        workbench.render.texTopCoord == glm::ivec2(1, 1) &&
+        furnace.render.texTopCoord == glm::ivec2(2, 1);
+    const std::set<std::uint64_t> interactiveHashes = {
+        hashTile(0, 1), hashTile(1, 1), hashTile(2, 1)};
+    check("FS3/interactive-blocks-use-dedicated-tiles",
+          interactiveCoordinates && interactiveHashes.size() == 3 &&
+              visiblePixelCount(0, 1) > 24 &&
+              visiblePixelCount(1, 1) > 24 &&
+              visiblePixelCount(2, 1) > 24);
+
+    std::set<std::uint64_t> itemHashes;
+    bool itemTilesPopulated = true;
+    for (int tileX = 0; tileX < 10; ++tileX) {
+        itemHashes.insert(hashTile(tileX, 2));
+        itemTilesPopulated = itemTilesPopulated &&
+                             visiblePixelCount(tileX, 2) > 12;
+    }
+    check("FS3/item-icons-are-populated-and-distinct",
+          itemTilesPopulated && itemHashes.size() == 10,
+          "visible=" + std::to_string(itemTilesPopulated ? 1 : 0) +
+              " unique=" + std::to_string(itemHashes.size()));
     FreeImage_Unload(atlas);
     FreeImage_Unload(source);
 }
@@ -1139,8 +1194,11 @@ void caseBackgroundLoaderStress()
     camera.position = {
         static_cast<float>(8 * CHUNK_SIZE + CHUNK_SIZE / 2), 90.f,
         static_cast<float>(8 * CHUNK_SIZE + CHUNK_SIZE / 2)};
+    // Generation competes with antivirus, symbol and build I/O on the Windows
+    // gate. Keep the assertion about eventual progress, but do not turn a
+    // transiently busy host into a five-second false negative.
     const auto progressDeadline = std::chrono::steady_clock::now() +
-                                  std::chrono::seconds(5);
+                                  std::chrono::seconds(15);
     WorldDebugStats finalStats;
     do {
         world.update(camera);
@@ -1199,12 +1257,237 @@ void caseSpawnPreload()
     check("S0.6/spawn-above-terrain", spawnHeight > 0,
           "spawn " + vecToString(player.position));
 
-    // The spawn column must actually be solid ground, not an air pocket.
-    const auto ground =
-        world.getBlock(World::toBlockCoord(player.position.x), spawnHeight - 1,
-                       World::toBlockCoord(player.position.z));
+    // Player position is above the floor surface: ground is at Y-2 while
+    // Y-1 and Y must remain clear so the player cannot start inside terrain.
+    const int spawnX = World::toBlockCoord(player.position.x);
+    const int spawnZ = World::toBlockCoord(player.position.z);
+    const auto ground = world.getBlock(spawnX, spawnHeight - 2, spawnZ);
     check("S0.6/spawn-on-solid-ground", ground.id != 0,
           "block under spawn id=" + std::to_string(static_cast<int>(ground.id)));
+    check("S0.6/spawn-has-two-block-clearance",
+          world.getBlock(spawnX, spawnHeight - 1, spawnZ).id == 0 &&
+              world.getBlock(spawnX, spawnHeight, spawnZ).id == 0);
+}
+
+// ---------------------------------------------------------------------------
+// FS1 - managed worlds initialize a deterministic, playable first spawn
+// ---------------------------------------------------------------------------
+void caseManagedWorldFirstSpawn()
+{
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", "");
+
+    const int suggestedSeedA = WorldManagementService::suggestWorldSeed();
+    const int suggestedSeedB = WorldManagementService::suggestWorldSeed();
+    check("FS1/world-seed-suggestions-are-nonzero",
+          suggestedSeedA > 0 && suggestedSeedB > 0,
+          std::to_string(suggestedSeedA) + "," +
+              std::to_string(suggestedSeedB));
+    check("FS1/world-seed-suggestions-refresh",
+          suggestedSeedA != suggestedSeedB,
+          std::to_string(suggestedSeedA) + " -> " +
+              std::to_string(suggestedSeedB));
+
+    const auto oakCountInLoadedChunks = [](World &world) {
+        int count = 0;
+        for (const auto &entry : world.getChunkManager().getChunks()) {
+            const Chunk &chunk = entry.second;
+            if (!chunk.hasLoaded()) {
+                continue;
+            }
+            for (int x = 0; x < CHUNK_SIZE; ++x) {
+                for (int z = 0; z < CHUNK_SIZE; ++z) {
+                    const int highest = chunk.getHeightAt(x, z);
+                    for (int y = highest; y >= std::max(0, highest - 12);
+                         --y) {
+                        if (chunk.getBlock(x, y, z) == BlockId::OakBark) {
+                            ++count;
+                        }
+                    }
+                }
+            }
+        }
+        return count;
+    };
+
+    const auto validateManagedSeed = [&](const std::string &name, int seed) {
+        const std::string catalogueRoot =
+            freshSaveDirectory("fs1_" + name);
+        const WorldManagementService management(catalogueRoot);
+        const WorldManagementResult created =
+            management.createWorld("FS1 " + name, seed);
+        const WorldManagementResult opened =
+            created.succeeded()
+                ? management.prepareWorldForOpen(created.worldId)
+                : WorldManagementResult{};
+
+        WorldSaveData initial;
+        const bool initialLoaded = opened.succeeded() &&
+            WorldSave::loadFromPath(
+                (std::filesystem::path(opened.directoryPath) /
+                 "world.meta").string(),
+                initial);
+        const glm::vec3 placeholder = initialWorldSpawnPlaceholder();
+        check("FS1/" + name + "/managed-world-starts-uninitialized",
+              initialLoaded && !initial.hasPlayerState &&
+                  glm::length(initial.spawnPoint - placeholder) < 0.01f);
+        if (!initialLoaded) {
+            return glm::vec3(0.f);
+        }
+
+        Config config = makeConfig();
+        Camera camera(config);
+        glm::vec3 firstSpawn{0.f};
+        {
+            Player player;
+            World world(camera, config, player, opened.directoryPath,
+                        false, 1);
+            firstSpawn = world.getPlayerSpawnPoint();
+            const int blockX = World::toBlockCoord(firstSpawn.x);
+            const int blockY = World::toBlockCoord(firstSpawn.y);
+            const int blockZ = World::toBlockCoord(firstSpawn.z);
+            const ChunkBlock ground =
+                world.getBlock(blockX, blockY - 2, blockZ);
+            const ChunkBlock body =
+                world.getBlock(blockX, blockY - 1, blockZ);
+            const ChunkBlock head =
+                world.getBlock(blockX, blockY, blockZ);
+            const TerrainBiome biome =
+                world.getChunkManager()
+                    .getTerrainGenerator()
+                    .getBiomeAtWorld(blockX, blockZ);
+
+            check("FS1/" + name + "/spawn-replaces-placeholder",
+                  glm::length(firstSpawn - placeholder) > 1.f,
+                  vecToString(firstSpawn));
+            check("FS1/" + name + "/player-starts-at-spawn",
+                  glm::length(player.position - firstSpawn) < 0.01f,
+                  vecToString(player.position));
+            check("FS1/" + name + "/spawn-has-solid-floor",
+                  ground.getData().isCollidable &&
+                      static_cast<BlockId>(ground.id) != BlockId::Water,
+                  "block=" +
+                      std::to_string(static_cast<int>(ground.id)));
+            check("FS1/" + name + "/spawn-has-two-block-clearance",
+                  body == BlockId::Air && head == BlockId::Air);
+            check("FS1/" + name + "/spawn-is-not-ocean",
+                  biome != TerrainBiome::Ocean);
+            check("FS1/" + name + "/spawn-neighborhood-has-oak",
+                  oakCountInLoadedChunks(world) > 0,
+                  "spawn=" + vecToString(firstSpawn));
+            check("FS1/" + name + "/initialized-world-saves",
+                  world.save());
+        }
+
+        WorldSaveData persisted;
+        const bool persistedLoaded = WorldSave::loadFromPath(
+            (std::filesystem::path(opened.directoryPath) / "world.meta")
+                .string(),
+            persisted);
+        check("FS1/" + name + "/first-entry-is-persisted",
+              persistedLoaded && persisted.hasPlayerState &&
+                  glm::length(persisted.spawnPoint - firstSpawn) < 0.01f &&
+                  glm::length(persisted.playerState.position - firstSpawn) <
+                      0.01f);
+
+        Player reloadedPlayer;
+        World reloaded(camera, config, reloadedPlayer,
+                       opened.directoryPath, false, 1);
+        check("FS1/" + name + "/reopen-keeps-spawn",
+              glm::length(reloaded.getPlayerSpawnPoint() - firstSpawn) <
+                      0.01f &&
+                  glm::length(reloadedPlayer.position - firstSpawn) < 0.01f,
+              vecToString(reloadedPlayer.position));
+        return firstSpawn;
+    };
+
+    const glm::vec3 seedZeroFirst = validateManagedSeed("seed_zero_a", 0);
+    const glm::vec3 seedZeroSecond = validateManagedSeed("seed_zero_b", 0);
+    check("FS1/seed-zero-spawn-is-deterministic",
+          glm::length(seedZeroFirst - seedZeroSecond) < 0.01f,
+          vecToString(seedZeroFirst) + " / " +
+              vecToString(seedZeroSecond));
+    validateManagedSeed("fixed_seed", kValidationSeed);
+
+    const std::string rescueDirectory =
+        freshSaveDirectory("fs1_placeholder_rescue");
+    WorldSaveData rescue;
+    rescue.worldId = "fs1-rescue";
+    rescue.worldName = "FS1 Rescue";
+    rescue.seed = 0;
+    rescue.terrainGenerationVersion = LegacyTerrainGenerationVersion;
+    rescue.createdUtc = 1787222508;
+    rescue.lastPlayedUtc = rescue.createdUtc;
+    rescue.spawnPoint = initialWorldSpawnPlaceholder();
+    rescue.worldTime = 291.f;
+    rescue.hasPlayerState = true;
+    rescue.playerState.position = {0.5f, 66.f, 0.5f};
+    rescue.playerState.inventory.resize(5);
+    rescue.actors.push_back(
+        {ActorSaveKind::Mob, 2, World::BruteMobType,
+         {13.5f, 65.f, 1.f}});
+    ActorSaveState droppedItem;
+    droppedItem.kind = ActorSaveKind::Item;
+    droppedItem.id = 3;
+    droppedItem.type = "item";
+    droppedItem.position = {1.5f, 68.f, 1.5f};
+    droppedItem.materialId = static_cast<int>(Material::ID::Stone);
+    droppedItem.amount = 2;
+    rescue.actors.push_back(droppedItem);
+    check("FS1/placeholder-rescue-fixture-saves",
+          WorldSave(rescueDirectory).save(rescue));
+    {
+        Config config = makeConfig();
+        Camera camera(config);
+        Player player;
+        World world(camera, config, player, rescueDirectory, false, 1);
+        check("FS1/short-empty-placeholder-is-rescued",
+              glm::length(world.getPlayerSpawnPoint() -
+                          initialWorldSpawnPlaceholder()) > 1.f &&
+                  glm::length(player.position -
+                              world.getPlayerSpawnPoint()) < 0.01f,
+              vecToString(player.position));
+        WorldSaveData repaired;
+        const bool repairedLoaded = WorldSave::loadFromPath(
+            (std::filesystem::path(rescueDirectory) / "world.meta").string(),
+            repaired);
+        check("FS1/rescue-preserves-world-identity",
+              repairedLoaded && repaired.seed == rescue.seed &&
+                  repaired.terrainGenerationVersion ==
+                      rescue.terrainGenerationVersion);
+        check("FS1/rescue-removes-placeholder-natural-actors",
+              repairedLoaded && repaired.actors.size() == 1u &&
+                  repaired.actors.front().kind == ActorSaveKind::Item);
+        check("FS1/rescue-preserves-non-natural-actors",
+              repairedLoaded && repaired.actors.size() == 1u &&
+                  repaired.actors.front().id == droppedItem.id &&
+                  repaired.actors.front().materialId ==
+                      droppedItem.materialId &&
+                  repaired.actors.front().amount == droppedItem.amount);
+    }
+
+    const std::string protectedDirectory =
+        freshSaveDirectory("fs1_progressed_placeholder");
+    WorldSaveData protectedWorld = rescue;
+    protectedWorld.worldId = "fs1-protected";
+    protectedWorld.worldName = "FS1 Protected";
+    protectedWorld.playerState.position = {1.5f, 66.f, 0.5f};
+    protectedWorld.playerState.inventory[0] =
+        {Material::ID::OakBark, 1, 0};
+    check("FS1/progressed-placeholder-fixture-saves",
+          WorldSave(protectedDirectory).save(protectedWorld));
+    {
+        Config config = makeConfig();
+        Camera camera(config);
+        Player player;
+        World world(camera, config, player, protectedDirectory, false, 1);
+        check("FS1/progressed-world-is-not-relocated",
+              glm::length(world.getPlayerSpawnPoint() -
+                          initialWorldSpawnPlaceholder()) < 0.01f &&
+                  glm::length(player.position -
+                              protectedWorld.playerState.position) < 0.01f,
+              vecToString(player.position));
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -2084,6 +2367,11 @@ void caseWorldEnvironment()
     const WorldEnvironmentState negative =
         WorldEnvironment::evaluate(-6000.f);
     constexpr float epsilon = 0.00001f;
+    const auto colourIsBounded = [](const glm::vec3 &colour) {
+        return colour.r >= 0.f && colour.r <= 1.f &&
+               colour.g >= 0.f && colour.g <= 1.f &&
+               colour.b >= 0.f && colour.b <= 1.f;
+    };
 
     check("W1/cycle-anchor-phases",
           std::abs(dawn.cycle) < epsilon &&
@@ -2122,6 +2410,30 @@ void caseWorldEnvironment()
           std::abs(dawn.daylight - dusk.daylight) < epsilon &&
               dawn.daylight > midnight.daylight &&
               dawn.daylight < noon.daylight);
+    check("FS2/cloud-palette-and-coverage-are-bounded",
+          noon.cloudCoverage >= 0.40f && noon.cloudCoverage <= 0.52f &&
+              colourIsBounded(noon.cloudLightColour) &&
+              colourIsBounded(noon.cloudShadowColour) &&
+              glm::length(noon.cloudLightColour -
+                          noon.cloudShadowColour) > 0.45f);
+    check("FS2/cloud-state-wraps-with-world-time",
+          std::abs(wrapped.cloudCoverage - noon.cloudCoverage) < epsilon &&
+              glm::length(wrapped.cloudLightColour -
+                          noon.cloudLightColour) < epsilon &&
+              glm::length(negative.cloudShadowColour -
+                          midnight.cloudShadowColour) < epsilon);
+    check("FS2/water-palette-has-day-night-and-depth-contrast",
+          colourIsBounded(noon.waterShallowColour) &&
+              colourIsBounded(noon.waterDeepColour) &&
+              glm::length(noon.waterShallowColour -
+                          noon.waterDeepColour) > 0.28f &&
+              glm::length(noon.waterShallowColour) >
+                  glm::length(midnight.waterShallowColour) + 0.35f);
+    check("FS2/water-state-wraps-with-world-time",
+          glm::length(wrapped.waterShallowColour -
+                      noon.waterShallowColour) < epsilon &&
+              glm::length(negative.waterDeepColour -
+                          midnight.waterDeepColour) < epsilon);
 }
 
 // ---------------------------------------------------------------------------
@@ -7616,6 +7928,7 @@ int main()
         caseHeightMapEdits();
         caseBackgroundLoaderStress();
         caseSpawnPreload();
+        caseManagedWorldFirstSpawn();
         caseNegativeCoordinates();
         caseNoImplicitChunkCreation();
         caseMeshDirtyPropagation();

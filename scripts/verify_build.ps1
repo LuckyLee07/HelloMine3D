@@ -217,6 +217,7 @@ try {
             $previousResourcePacks = $env:HELLOMINE3D_RESOURCE_PACKS
             $previousEffectiveManifest =
                 $env:HELLOMINE3D_EFFECTIVE_MANIFEST_OUT
+            $previousHiddenWindow = $env:HELLOMINE3D_WINDOW_HIDDEN
             $validationSaveDir = Join-Path $binDirectory `
                 "build_verify_validation_$configuration"
             try {
@@ -233,6 +234,7 @@ try {
                 $env:HELLOMINE3D_TRANSPARENT_FIXTURE = "1"
                 $env:HELLOMINE3D_RESOURCE_PACKS = ""
                 $env:HELLOMINE3D_EFFECTIVE_MANIFEST_OUT = ""
+                $env:HELLOMINE3D_WINDOW_HIDDEN = "1"
                 Push-Location $binDirectory
                 try {
                     Invoke-HiddenExecutable `
@@ -255,6 +257,7 @@ try {
                 $env:HELLOMINE3D_RESOURCE_PACKS = $previousResourcePacks
                 $env:HELLOMINE3D_EFFECTIVE_MANIFEST_OUT =
                     $previousEffectiveManifest
+                $env:HELLOMINE3D_WINDOW_HIDDEN = $previousHiddenWindow
             }
         }
 

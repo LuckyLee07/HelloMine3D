@@ -115,6 +115,7 @@ foreach ($missing in $requirements) {
     $process.StartInfo = $startInfo
     $environmentOverrides = [ordered]@{
         HELLOMINE3D_ROOT = $caseRoot
+        HELLOMINE3D_WINDOW_HIDDEN = "1"
         HELLOMINE3D_STARTUP_ERROR_REPORT = $reportPath
         HELLOMINE3D_STARTUP_ERROR_NO_DIALOG = "1"
         HELLOMINE3D_VALIDATE_ONLY = $null

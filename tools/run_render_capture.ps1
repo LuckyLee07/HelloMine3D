@@ -24,6 +24,8 @@ param(
     [switch]$ShowCombatFixture,
     [switch]$ShowCropFixture,
     [switch]$ShowVerticalSliceFixture,
+    [switch]$ShowHudFixture,
+    [switch]$HiddenWindow = $true,
     [switch]$StopExisting,
     [switch]$KeepAlive,
     [switch]$ValidateCapturePolling
@@ -536,6 +538,10 @@ if (-not (Test-Path -LiteralPath $ExePath)) {
     throw "$ExeName not found: $ExePath"
 }
 
+if ($HiddenWindow -and $CaptureMode -eq "WindowScreenshot") {
+    throw "HiddenWindow requires RuntimeReadback capture mode."
+}
+
 $sortedCaptures = @(Convert-CaptureTimes -Values $CaptureMs)
 if ($sortedCaptures.Count -eq 0) {
     throw "CaptureMs is empty."
@@ -572,7 +578,7 @@ Remove-Item -LiteralPath $ProcessStderrPath -Force -ErrorAction SilentlyContinue
 Write-Host "[RENDER_CAPTURE] runId=$RunId"
 Write-Host "[RENDER_CAPTURE] exe=$ExePath"
 Write-Host "[RENDER_CAPTURE] outputDir=$OutputDir"
-Write-Host "[RENDER_CAPTURE] capturesMs=$($sortedCaptures -join ',') seconds=$Seconds prefix=$Prefix mode=$CaptureMode noActivate=true"
+Write-Host "[RENDER_CAPTURE] capturesMs=$($sortedCaptures -join ',') seconds=$Seconds prefix=$Prefix mode=$CaptureMode noActivate=true hidden=$($HiddenWindow.IsPresent.ToString().ToLowerInvariant())"
 Write-Host "[RENDER_CAPTURE] saveDir=$SaveDir"
 Write-Host "[RENDER_CAPTURE] window=$WindowX,$WindowY ${WindowWidth}x$WindowHeight noActivate=true"
 if (-not [string]::IsNullOrWhiteSpace($Seed)) { Write-Host "[RENDER_CAPTURE] seed=$Seed" }
@@ -586,6 +592,7 @@ if ($ShowContainerFixture) { Write-Host "[RENDER_CAPTURE] showContainerFixture=t
 if ($ShowCombatFixture) { Write-Host "[RENDER_CAPTURE] showCombatFixture=true" }
 if ($ShowCropFixture) { Write-Host "[RENDER_CAPTURE] showCropFixture=true" }
 if ($ShowVerticalSliceFixture) { Write-Host "[RENDER_CAPTURE] showVerticalSliceFixture=true" }
+if ($ShowHudFixture) { Write-Host "[RENDER_CAPTURE] showHudFixture=true" }
 if (-not [string]::IsNullOrWhiteSpace($ResourcePacks)) { Write-Host "[RENDER_CAPTURE] resourcePacks=$ResourcePacks" }
 
 if ($StopExisting) {
@@ -637,6 +644,9 @@ if ($ShowCropFixture) {
 if ($ShowVerticalSliceFixture) {
     $envValues["HELLOMINE3D_VERTICAL_SLICE_FIXTURE"] = "1"
 }
+if ($ShowHudFixture) {
+    $envValues["HELLOMINE3D_HUD_FIXTURE"] = "1"
+}
 if ($CaptureMode -eq "RuntimeReadback") {
     $envValues["HELLO_RENDER_CAPTURE"] = "1"
     $envValues["HELLO_RENDER_CAPTURE_DIR"] = $OutputDir
@@ -645,8 +655,11 @@ if ($CaptureMode -eq "RuntimeReadback") {
     $envValues["HELLO_RENDER_CAPTURE_MAX_DELTA_MS"] = "5000"
     $envValues["HELLO_RENDER_CAPTURE_EXIT"] = "1"
 }
+if ($HiddenWindow) {
+    $envValues["HELLOMINE3D_WINDOW_HIDDEN"] = "1"
+}
 
-$windowStyle = "Minimized"
+$windowStyle = if ($HiddenWindow) { "Hidden" } else { "Minimized" }
 
 $process = $null
 Set-ProcessEnvironment -Values $envValues -Body {
@@ -685,9 +698,11 @@ try {
         }
     }
     else {
-        $handle = Wait-MainWindowHandle -Process $process -TimeoutMs $StartupTimeoutMs
-        Show-WindowNoActivate -WindowHandle $handle -X $WindowX -Y $WindowY -Width $WindowWidth -Height $WindowHeight
-        Start-Sleep -Milliseconds $SettleMs
+        if (-not $HiddenWindow) {
+            $handle = Wait-MainWindowHandle -Process $process -TimeoutMs $StartupTimeoutMs
+            Show-WindowNoActivate -WindowHandle $handle -X $WindowX -Y $WindowY -Width $WindowWidth -Height $WindowHeight
+            Start-Sleep -Milliseconds $SettleMs
+        }
 
         $lastCaptureMs = [int]($sortedCaptures[$sortedCaptures.Count - 1])
         Wait-RuntimeCaptureFiles -Process $process -Paths $screenshotPaths `

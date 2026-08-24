@@ -34,3 +34,11 @@ TerrainBiome SuperFlatGenerator::getBiomeAtWorld(int worldX,
     (void)worldZ;
     return TerrainBiome::Grassland;
 }
+
+int SuperFlatGenerator::getSurfaceHeightAtWorld(int worldX,
+                                                int worldZ) const noexcept
+{
+    (void)worldX;
+    (void)worldZ;
+    return 4;
+}

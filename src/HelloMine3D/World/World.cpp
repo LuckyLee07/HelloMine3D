@@ -12,6 +12,7 @@
 #include <iostream>
 #include <random>
 #include <sstream>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -49,6 +50,70 @@ namespace
         glm::ivec3{0, 1, 0},  glm::ivec3{0, -1, 0},
         glm::ivec3{0, 0, 1},  glm::ivec3{0, 0, -1},
     };
+
+    constexpr int MaximumSpawnSearchChunkRadius = 200;
+    constexpr int MaximumLoadedSpawnCandidates = 64;
+    constexpr float LegacyPlaceholderRescueMaxWorldTime = 1200.f;
+    constexpr float SpawnComparisonEpsilon = 0.01f;
+
+    bool approximatelyEqual(float left, float right)
+    {
+        return std::abs(left - right) <= SpawnComparisonEpsilon;
+    }
+
+    bool inventoryIsEmpty(const PlayerSaveState &state)
+    {
+        return std::all_of(
+            state.inventory.begin(), state.inventory.end(),
+            [](const InventorySlotState &slot) {
+                return slot.materialId == Material::ID::Nothing ||
+                       slot.amount <= 0;
+            });
+    }
+
+    bool shouldRescueLegacyPlaceholder(const WorldSaveData &data)
+    {
+        if (!data.hasPlayerState || data.worldTime < 0.f ||
+            data.worldTime > LegacyPlaceholderRescueMaxWorldTime ||
+            data.alphaJourneyFlags != 0u ||
+            !data.objectiveState.completedIds.empty() ||
+            !data.objectiveState.progress.empty() ||
+            !inventoryIsEmpty(data.playerState)) {
+            return false;
+        }
+
+        const glm::vec3 placeholder = initialWorldSpawnPlaceholder();
+        return approximatelyEqual(data.spawnPoint.x, placeholder.x) &&
+               approximatelyEqual(data.spawnPoint.y, placeholder.y) &&
+               approximatelyEqual(data.spawnPoint.z, placeholder.z) &&
+               approximatelyEqual(data.playerState.position.x,
+                                  placeholder.x) &&
+               approximatelyEqual(data.playerState.position.z,
+                                  placeholder.z) &&
+               data.playerState.position.y <=
+                   placeholder.y + SpawnComparisonEpsilon;
+    }
+
+    bool isPreferredSpawnBiome(TerrainBiome biome)
+    {
+        return biome == TerrainBiome::LightForest ||
+               biome == TerrainBiome::TemperateForest;
+    }
+
+    bool isNaturalSpawnGround(BlockId block)
+    {
+        switch (block) {
+            case BlockId::Grass:
+            case BlockId::Dirt:
+            case BlockId::Stone:
+            case BlockId::Sand:
+            case BlockId::CoalOre:
+            case BlockId::IronOre:
+                return true;
+            default:
+                return false;
+        }
+    }
 
     LightLevel blockEmission(ChunkBlock block)
     {
@@ -328,6 +393,7 @@ World::World(const Camera &camera, const Config &config, Player &player,
     const bool hasForcedWorldTime =
         readIntEnv("HELLOMINE3D_WORLD_TIME", forcedWorldTime);
 
+    bool persistInitializedSpawn = false;
     const bool hasSave = m_worldSave.load(m_worldSaveData);
     if (hasSave) {
         m_chunkManager.setTerrainIdentity(
@@ -339,6 +405,30 @@ World::World(const Camera &camera, const Config &config, Player &player,
         }
         else {
             player.position = m_playerSpawnPoint;
+        }
+
+        const bool firstPlayerEntry = !m_worldSaveData.hasPlayerState;
+        const bool rescuePlaceholder =
+            shouldRescueLegacyPlaceholder(m_worldSaveData);
+        if (firstPlayerEntry || rescuePlaceholder) {
+            if (rescuePlaceholder) {
+                std::cout << "Repairing unstarted placeholder world at seed "
+                          << m_worldSaveData.seed << '\n';
+                auto &actors = m_worldSaveData.actors;
+                actors.erase(
+                    std::remove_if(
+                        actors.begin(), actors.end(),
+                        [](const ActorSaveState &actor) {
+                            return World::isNaturalMobType(actor.type);
+                        }),
+                    actors.end());
+            }
+            setSpawnPoint();
+            player.position = m_playerSpawnPoint;
+            player.velocity = glm::vec3(0.f);
+            player.box.update(player.position);
+            m_worldSaveData.spawnPoint = m_playerSpawnPoint;
+            persistInitializedSpawn = true;
         }
     }
     else {
@@ -409,6 +499,13 @@ World::World(const Camera &camera, const Config &config, Player &player,
     m_alphaJourney = std::make_unique<AlphaJourney>(
         player, m_eventBus, m_worldSaveData.objectiveState,
         m_worldSaveData.alphaJourneyFlags, hasSave);
+
+    // Restore retained actors and objectives before persisting the repaired
+    // spawn so empty runtime managers cannot erase non-natural save state.
+    if (persistInitializedSpawn && !saveWorldState()) {
+        throw std::runtime_error(
+            "Cannot persist the initialized player spawn point.");
+    }
 
     auto playerChunk = getChunkXZ(toBlockCoord(player.position.x),
                                   toBlockCoord(player.position.z));
@@ -2090,37 +2187,172 @@ void World::setSpawnPoint()
 {
     const auto start = std::chrono::steady_clock::now();
     std::cout << "Searching for spawn...\n";
-    int attempts = 0;
-    int chunkX = -1;
-    int chunkZ = -1;
-    int blockX = 0;
-    int blockZ = 0;
-    int blockY = 0;
+    const TerrainGenerator &generator =
+        m_chunkManager.getTerrainGenerator();
+    const int minimumHeight = generator.getMinimumSpawnHeight();
+    int loadedCandidates = 0;
+    glm::vec3 selected{0.f};
+    bool found = false;
+    bool treeBacked = false;
 
-    auto h = m_chunkManager.getTerrainGenerator().getMinimumSpawnHeight();
+    const auto findSafeColumn = [&](int chunkX, int chunkZ,
+                                    glm::vec3 &candidate) {
+        Chunk &chunk = m_chunkManager.getChunk(chunkX, chunkZ);
+        std::vector<glm::ivec2> columns;
+        columns.reserve((CHUNK_SIZE - 2) * (CHUNK_SIZE - 2));
+        for (int x = 1; x < CHUNK_SIZE - 1; ++x) {
+            for (int z = 1; z < CHUNK_SIZE - 1; ++z) {
+                columns.push_back({x, z});
+            }
+        }
+        const glm::ivec2 center{CHUNK_SIZE / 2, CHUNK_SIZE / 2};
+        std::sort(columns.begin(), columns.end(),
+                  [&](const glm::ivec2 &left,
+                      const glm::ivec2 &right) {
+                      const glm::ivec2 leftOffset = left - center;
+                      const glm::ivec2 rightOffset = right - center;
+                      const int leftDistance =
+                          leftOffset.x * leftOffset.x +
+                          leftOffset.y * leftOffset.y;
+                      const int rightDistance =
+                          rightOffset.x * rightOffset.x +
+                          rightOffset.y * rightOffset.y;
+                      if (leftDistance != rightDistance) {
+                          return leftDistance < rightDistance;
+                      }
+                      if (left.x != right.x) {
+                          return left.x < right.x;
+                      }
+                      return left.y < right.y;
+                  });
 
-    while (blockY <= h) {
-        m_chunkManager.unloadChunk(chunkX, chunkZ);
+        for (const glm::ivec2 &column : columns) {
+            const int surfaceY = chunk.getHeightAt(column.x, column.y);
+            if (surfaceY <= minimumHeight) {
+                continue;
+            }
+            const BlockId ground = static_cast<BlockId>(
+                chunk.getBlock(column.x, surfaceY, column.y).id);
+            if (!isNaturalSpawnGround(ground) ||
+                chunk.getBlock(column.x, surfaceY + 1, column.y) !=
+                    BlockId::Air ||
+                chunk.getBlock(column.x, surfaceY + 2, column.y) !=
+                    BlockId::Air) {
+                continue;
+            }
 
-        chunkX = RandomSingleton::get().intInRange(100, 200);
-        chunkZ = RandomSingleton::get().intInRange(100, 200);
-        blockX = RandomSingleton::get().intInRange(0, 15);
-        blockZ = RandomSingleton::get().intInRange(0, 15);
+            const int north = chunk.getHeightAt(column.x, column.y - 1);
+            const int south = chunk.getHeightAt(column.x, column.y + 1);
+            const int west = chunk.getHeightAt(column.x - 1, column.y);
+            const int east = chunk.getHeightAt(column.x + 1, column.y);
+            if (std::abs(north - surfaceY) > 2 ||
+                std::abs(south - surfaceY) > 2 ||
+                std::abs(west - surfaceY) > 2 ||
+                std::abs(east - surfaceY) > 2) {
+                continue;
+            }
 
-        m_chunkManager.loadChunk(chunkX, chunkZ);
-        blockY =
-            m_chunkManager.getChunk(chunkX, chunkZ).getHeightAt(blockX, blockZ);
-        attempts++;
+            const int worldX = chunkX * CHUNK_SIZE + column.x;
+            const int worldZ = chunkZ * CHUNK_SIZE + column.y;
+            if (generator.getBiomeAtWorld(worldX, worldZ) ==
+                TerrainBiome::Ocean) {
+                continue;
+            }
+            candidate = {static_cast<float>(worldX) + 0.5f,
+                         static_cast<float>(surfaceY) + 2.f,
+                         static_cast<float>(worldZ) + 0.5f};
+            return true;
+        }
+        return false;
+    };
+
+    const auto chunkContainsOak = [&](int chunkX, int chunkZ) {
+        const Chunk &chunk = m_chunkManager.getChunk(chunkX, chunkZ);
+        for (int x = 0; x < CHUNK_SIZE; ++x) {
+            for (int z = 0; z < CHUNK_SIZE; ++z) {
+                const int highest = chunk.getHeightAt(x, z);
+                const int lowest = std::max(0, highest - 12);
+                for (int y = highest; y >= lowest; --y) {
+                    if (chunk.getBlock(x, y, z) == BlockId::OakBark) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    };
+
+    const auto searchPass = [&](bool preferredOnly) {
+        for (int radius = 0;
+             radius <= MaximumSpawnSearchChunkRadius &&
+             loadedCandidates < MaximumLoadedSpawnCandidates;
+             ++radius) {
+            const auto inspect = [&](int chunkX, int chunkZ) {
+                if (found ||
+                    loadedCandidates >= MaximumLoadedSpawnCandidates) {
+                    return;
+                }
+                const int hintX = chunkX * CHUNK_SIZE + CHUNK_SIZE / 2;
+                const int hintZ = chunkZ * CHUNK_SIZE + CHUNK_SIZE / 2;
+                const TerrainBiome biome =
+                    generator.getBiomeAtWorld(hintX, hintZ);
+                if (biome == TerrainBiome::Ocean ||
+                    (preferredOnly && !isPreferredSpawnBiome(biome)) ||
+                    generator.getSurfaceHeightAtWorld(hintX, hintZ) <=
+                        minimumHeight) {
+                    return;
+                }
+
+                ++loadedCandidates;
+                m_chunkManager.loadChunk(chunkX, chunkZ);
+                glm::vec3 candidate{0.f};
+                const bool safe =
+                    findSafeColumn(chunkX, chunkZ, candidate);
+                const bool hasOak = safe && chunkContainsOak(chunkX, chunkZ);
+                if (safe && (!preferredOnly || hasOak)) {
+                    selected = candidate;
+                    treeBacked = hasOak;
+                    found = true;
+                    return;
+                }
+                m_chunkManager.unloadChunk(chunkX, chunkZ);
+            };
+
+            if (radius == 0) {
+                inspect(0, 0);
+                continue;
+            }
+            for (int x = -radius; x <= radius && !found; ++x) {
+                inspect(x, -radius);
+                inspect(x, radius);
+            }
+            for (int z = -radius + 1; z < radius && !found; ++z) {
+                inspect(-radius, z);
+                inspect(radius, z);
+            }
+            if (found) {
+                return;
+            }
+        }
+    };
+
+    searchPass(true);
+    if (!found) {
+        loadedCandidates = 0;
+        std::cout << "Spawn search did not find nearby oak; using bounded "
+                     "safe-land fallback.\n";
+        searchPass(false);
+    }
+    if (!found) {
+        throw std::runtime_error(
+            "Unable to find a safe spawn within the bounded search area.");
     }
 
-    int worldX = chunkX * CHUNK_SIZE + blockX;
-    int worldZ = chunkZ * CHUNK_SIZE + blockZ;
-
-    m_playerSpawnPoint = {worldX, blockY, worldZ};
-
+    m_playerSpawnPoint = selected;
     preloadChunksAround(m_playerSpawnPoint);
 
-    std::cout << "Spawn found! Attempts: " << attempts
+    std::cout << "Spawn found! Loaded candidates: " << loadedCandidates
+              << " Nearby oak: " << (treeBacked ? "yes" : "fallback")
               << " Time Taken: "
               << std::chrono::duration<double>(std::chrono::steady_clock::now() -
                                                start)

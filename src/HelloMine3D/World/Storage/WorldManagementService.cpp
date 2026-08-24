@@ -183,10 +183,34 @@ namespace
         data.createdUtc = currentUtcSeconds();
         data.lastPlayedUtc = data.createdUtc;
         data.lastBuildIdentity = "development";
-        data.spawnPoint = glm::vec3(0.5f, 96.0f, 0.5f);
+        data.spawnPoint = initialWorldSpawnPlaceholder();
         data.playerState.position = data.spawnPoint;
         return data;
     }
+}
+
+int WorldManagementService::suggestWorldSeed() noexcept
+{
+    static std::atomic<std::uint64_t> sequence{0};
+    std::uint64_t value = static_cast<std::uint64_t>(
+        std::chrono::steady_clock::now().time_since_epoch().count());
+    value ^= ++sequence * 0x9e3779b97f4a7c15ULL;
+    try {
+        std::random_device source;
+        value ^= (static_cast<std::uint64_t>(source()) << 32u) ^ source();
+    }
+    catch (...) {
+        value ^= value >> 29u;
+    }
+    value ^= value >> 30u;
+    value *= 0xbf58476d1ce4e5b9ULL;
+    value ^= value >> 27u;
+    value *= 0x94d049bb133111ebULL;
+    value ^= value >> 31u;
+    constexpr int MinimumSuggestedSeed = 1;
+    constexpr int MaximumSuggestedSeed = 2000000000;
+    return MinimumSuggestedSeed + static_cast<int>(
+        value % static_cast<std::uint64_t>(MaximumSuggestedSeed));
 }
 
 const char *worldManagementStatusName(WorldManagementStatus status) noexcept

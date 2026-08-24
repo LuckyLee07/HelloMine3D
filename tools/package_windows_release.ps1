@@ -240,6 +240,7 @@ function Invoke-PackagedClient {
     else { $CrashDirectory }
     $environmentOverrides = [ordered]@{
         HELLOMINE3D_ROOT = $Root
+        HELLOMINE3D_WINDOW_HIDDEN = "1"
         HELLOMINE3D_SEED = "20260809"
         HELLOMINE3D_PLAYER_POSITION = "264 96 8"
         HELLOMINE3D_PLAYER_ROTATION = "0 0 0"

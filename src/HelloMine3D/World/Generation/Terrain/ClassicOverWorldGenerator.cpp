@@ -129,6 +129,16 @@ TerrainBiome ClassicOverWorldGenerator::getBiomeAtWorld(
     return getBiomeKindForValue(biomeValue);
 }
 
+int ClassicOverWorldGenerator::getSurfaceHeightAtWorld(
+    int worldX, int worldZ) const noexcept
+{
+    const int chunkX = WorldCoordinates::floorDiv(worldX, CHUNK_SIZE);
+    const int chunkZ = WorldCoordinates::floorDiv(worldZ, CHUNK_SIZE);
+    const int localX = WorldCoordinates::floorMod(worldX, CHUNK_SIZE);
+    const int localZ = WorldCoordinates::floorMod(worldZ, CHUNK_SIZE);
+    return getHeightAt(localX, localZ, chunkX, chunkZ);
+}
+
 ClassicOverWorldGenerator::LandmarkPlacement
 ClassicOverWorldGenerator::getLandmarkForCell(int cellX, int cellZ) const
 {
