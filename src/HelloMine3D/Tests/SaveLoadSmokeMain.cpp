@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 
 namespace
@@ -73,6 +74,37 @@ int main()
 
     if (!storage.saveChunkData(saved)) {
         std::cerr << "Chunk save failed.\n";
+        return EXIT_FAILURE;
+    }
+
+    StoredChunkData absent;
+    std::ostringstream absentDiagnostics;
+    std::streambuf *originalErrorBuffer = std::cerr.rdbuf(
+        absentDiagnostics.rdbuf());
+    const bool absentLoaded = storage.loadChunkData(7001, -7001, absent);
+    std::cerr.rdbuf(originalErrorBuffer);
+    if (absentLoaded || !absentDiagnostics.str().empty()) {
+        std::cerr << "A missing procedural chunk was not a silent cache miss.\n";
+        return EXIT_FAILURE;
+    }
+
+    constexpr int corruptX = 7002;
+    constexpr int corruptZ = -7002;
+    {
+        std::ofstream corrupt(storage.chunkPath(corruptX, corruptZ),
+                              std::ios::binary | std::ios::trunc);
+        corrupt << "broken";
+    }
+    StoredChunkData corrupt;
+    std::ostringstream corruptDiagnostics;
+    originalErrorBuffer = std::cerr.rdbuf(corruptDiagnostics.rdbuf());
+    const bool corruptLoaded = storage.loadChunkData(
+        corruptX, corruptZ, corrupt);
+    std::cerr.rdbuf(originalErrorBuffer);
+    if (corruptLoaded ||
+        corruptDiagnostics.str().find("Invalid chunk file magic") ==
+            std::string::npos) {
+        std::cerr << "A corrupt chunk did not retain its diagnostic.\n";
         return EXIT_FAILURE;
     }
 

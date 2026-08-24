@@ -164,8 +164,15 @@ namespace
             return false;
         };
 
+        errno = 0;
         std::ifstream input(path, std::ios::binary);
         if (!input.is_open()) {
+            if (errno == ENOENT) {
+                if (errorMessage != nullptr) {
+                    *errorMessage = "Chunk file does not exist";
+                }
+                return false;
+            }
             return fail("Unable to open chunk file");
         }
 
