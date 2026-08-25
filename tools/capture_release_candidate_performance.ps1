@@ -254,7 +254,7 @@ foreach ($pass in $passes) {
         -SceneId "q1-save-transaction-v1" -BuildId $buildId `
         -IdentityLines @(
             "comparison_world_fixture=world-runtime-one-dirty-chunk-v1",
-            "comparison_save_format=8",
+            "comparison_save_format=11",
             "comparison_storage_class=local-default",
             "comparison_resource_packs=none",
             "comparison_dirty_set=world-meta-plus-one-dirty-chunk-v1",
@@ -272,7 +272,7 @@ foreach ($pass in $passes) {
         -SceneId "q1-backup-restore-v1" -BuildId $buildId `
         -IdentityLines @(
             "comparison_world_fixture=world-backup-complete-state-v1",
-            "comparison_save_format=8",
+            "comparison_save_format=11",
             "comparison_storage_class=local-default",
             "comparison_backup_fixture=three-file-generation-v1",
             "comparison_backup_policy=rotating-3") `

@@ -1,5 +1,5 @@
 profile=release-candidate-windows-hidden-v1
-captured_utc=2026-08-20T14:37:37Z
+captured_utc=2026-08-25T18:40:26Z
 platform=windows
 architecture=x86_64
 window_visibility=hidden

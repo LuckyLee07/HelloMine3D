@@ -56,8 +56,10 @@ R3 physical-input acceptance still closes the remaining D2, D4 and D6
 `Verify` states, but it is intentionally deferred while the project prioritizes
 the player-facing gameplay loop. K4 world entry, G2 crafting, G3 tool
 progression, G4 pause/settings, G5 audio feedback, the G6 playable Alpha journey
-and Stage 9 through N12C are complete. The next batch is the BETA-RC engineering
-audit; R3 remains partially tested and explicitly deferred.
+and Stage 9 through N12C are complete. The BETA-RC engineering audit is also
+complete: the refreshed six-scene Q1 comparison and both 1,800-second Q3
+profiles pass, and the release evidence is frozen for bundling. R3 remains
+partially tested and explicitly deferred, so no local Beta tag has been made.
 
 Stage 8 is now planned around sustainable play and reliable releases. Its
 16-item K/H/Q/G scope adds durable world management and recovery, local

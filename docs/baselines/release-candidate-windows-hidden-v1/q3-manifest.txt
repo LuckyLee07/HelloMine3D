@@ -1,5 +1,5 @@
-﻿contract=q3-scale-soak-contract-v1
-captured_utc=2026-08-20T14:33:07Z
+contract=q3-scale-soak-contract-v1
+captured_utc=2026-08-25T19:41:15Z
 build_configuration=Release
 seed=20260820
 duration_seconds=1800
