@@ -1,4 +1,4 @@
-# HelloMine3D enemy registry v1
+# HelloMine3D enemy registry v2
 
 enemy hellomine:natural_mob
 health 10
@@ -7,6 +7,12 @@ wander_speed 1.2
 chase_radius 12
 chase_speed 2.4
 contact_damage 2
+combat_mode melee
+attack_range 0.75
+attack_windup_ticks 8
+attack_recover_ticks 8
+attack_cooldown_ticks 20
+knockback 2.5
 natural 0
 loot hellomine:dirt 1 1
 end
@@ -18,6 +24,12 @@ wander_speed 1.6
 chase_radius 14
 chase_speed 3.2
 contact_damage 1
+combat_mode melee
+attack_range 0.75
+attack_windup_ticks 6
+attack_recover_ticks 7
+attack_cooldown_ticks 16
+knockback 2.0
 natural 1
 loot hellomine:dirt 1 1
 loot hellomine:wheat 1 2
@@ -30,6 +42,12 @@ wander_speed 0.8
 chase_radius 10
 chase_speed 1.6
 contact_damage 4
+combat_mode melee
+attack_range 0.90
+attack_windup_ticks 14
+attack_recover_ticks 12
+attack_cooldown_ticks 28
+knockback 4.0
 natural 1
 loot hellomine:dirt 1 1
 loot hellomine:coal_ore 1 1
@@ -43,6 +61,12 @@ wander_speed 1.6
 chase_radius 18
 chase_speed 3.2
 contact_damage 1
+combat_mode melee
+attack_range 0.75
+attack_windup_ticks 6
+attack_recover_ticks 7
+attack_cooldown_ticks 16
+knockback 2.0
 natural 0
 loot hellomine:dirt 1 1
 end
@@ -54,6 +78,12 @@ wander_speed 0.8
 chase_radius 18
 chase_speed 1.6
 contact_damage 4
+combat_mode melee
+attack_range 0.90
+attack_windup_ticks 14
+attack_recover_ticks 12
+attack_cooldown_ticks 28
+knockback 4.0
 natural 0
 loot hellomine:coal_ore 1 1
 end

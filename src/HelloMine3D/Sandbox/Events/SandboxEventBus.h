@@ -24,6 +24,8 @@ enum class SandboxEventType {
     CraftCompleted,
     SmeltCompleted,
     FoodConsumed,
+    CombatWindup,
+    CombatGuard,
     WaystoneActivated,
     VictoryRewardClaimed,
 };

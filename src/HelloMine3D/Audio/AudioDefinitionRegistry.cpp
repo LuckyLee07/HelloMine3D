@@ -83,7 +83,8 @@ void requireCompleteCueSet(
 {
     static const std::vector<std::string> required = {
         "ui.click", "block.break", "block.place", "item.pickup",
-        "craft.success", "combat.hit", "ambient.wind"};
+        "craft.success", "combat.hit", "combat.windup", "combat.guard",
+        "ambient.wind"};
     for (const std::string &id : required) {
         if (byId.find(id) == byId.end()) {
             throw std::runtime_error(

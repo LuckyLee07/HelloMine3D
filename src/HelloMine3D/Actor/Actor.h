@@ -5,6 +5,7 @@
 
 #include "../Entity/Entity.h"
 #include "ActorTypes.h"
+#include "CombatTypes.h"
 
 class World;
 class SandboxEventBus;
@@ -39,6 +40,14 @@ struct ActorSnapshot {
     glm::vec3 position{0.f};
     glm::vec3 rotation{0.f};
     glm::vec3 dimensions{0.f};
+    bool combatant = false;
+    MobCombatState combatState = MobCombatState::Idle;
+    ActorId combatTargetId = InvalidActorId;
+    int combatStateTicksRemaining = 0;
+    int combatStateTicksTotal = 0;
+    MobCombatTransitionReason combatTransitionReason =
+        MobCombatTransitionReason::Spawned;
+    float hitFeedback = 0.f;
 };
 
 class Actor : public Entity {
@@ -52,7 +61,7 @@ class Actor : public Entity {
     virtual void tick(World &world, float dt);
 
     virtual ActorSaveState getSaveState() const;
-    ActorSnapshot getSnapshot() const;
+    virtual ActorSnapshot getSnapshot() const;
     virtual void applySaveState(const ActorSaveState &state);
 
     ActorId getId() const;

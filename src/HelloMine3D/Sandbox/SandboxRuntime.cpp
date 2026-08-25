@@ -35,6 +35,12 @@ void SandboxRuntime::update(const SandboxInputState &input,
                             ? input.player
                             : PlayerInputState());
 
+    World *worldBeforeTick = m_worldManager.getActiveWorld();
+    if (worldBeforeTick != nullptr) {
+        worldBeforeTick->setPlayerGuarding(
+            acceptsPlayerInput && input.guardCombat &&
+            m_actorSelection.has_value());
+    }
     runFixedTicks(deltaSeconds);
     m_camera.update(m_player.getInterpolatedPosition(
                         m_tickScheduler.interpolationAlpha()),
@@ -52,6 +58,9 @@ void SandboxRuntime::update(const SandboxInputState &input,
         *world, m_camera.position, m_player.rotation);
     m_blockSelection = std::move(target.block);
     m_actorSelection = std::move(target.actor);
+    world->setPlayerGuarding(
+        acceptsPlayerInput && input.guardCombat &&
+        m_actorSelection.has_value());
     m_interactionCooldownSeconds = std::max(
         0.0f, m_interactionCooldownSeconds -
                   std::max(0.0f, deltaSeconds));
@@ -191,6 +200,10 @@ void SandboxRuntime::handlePlayerInteraction(
     }
     else if (input.placeBlock) {
         m_miningProgress.cancel();
+        if (input.guardCombat && m_actorSelection.has_value() &&
+            world.isPlayerGuarding()) {
+            return;
+        }
         if (!m_blockSelection.has_value()) {
             return;
         }

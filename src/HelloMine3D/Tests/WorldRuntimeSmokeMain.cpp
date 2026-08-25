@@ -212,6 +212,8 @@ class EventRecorder {
             SandboxEventType::CraftCompleted,
             SandboxEventType::SmeltCompleted,
             SandboxEventType::FoodConsumed,
+            SandboxEventType::CombatWindup,
+            SandboxEventType::CombatGuard,
             SandboxEventType::WaystoneActivated,
             SandboxEventType::VictoryRewardClaimed,
         };
@@ -4914,6 +4916,8 @@ sound block.place effects 3d square 130 70 0.32 4 "Block placed"
 sound item.pickup effects 3d sine 980 85 0.28 3 "Item collected"
 sound craft.success effects 2d sine 540 150 0.30 2 "Crafting complete"
 sound combat.hit effects 3d noise 90 110 0.52 4 "Combat hit"
+sound combat.windup effects 3d square 210 170 0.34 4 "Enemy attack warning"
+sound combat.guard effects 3d noise 620 90 0.46 3 "Attack blocked"
 sound ambient.wind ambient 2d noise 55 1200 0.10 1 "Wind"
 )";
 }
@@ -4931,7 +4935,7 @@ void caseAudioFeedback()
     const AudioDefinition *block = loaded.find("block.break");
     check("G5/base-audio-definitions-freeze-complete-cue-set",
           loadedBase && loadError.empty() && loaded.isFrozen() &&
-              loaded.definitions().size() == 7 && ui != nullptr &&
+              loaded.definitions().size() == 9 && ui != nullptr &&
               block != nullptr && ui->caption == "Menu selection" &&
               block->caption == "Block broken");
     check("G5/audio-definitions-carry-category-and-spatial-mode",
@@ -5024,6 +5028,18 @@ void caseAudioFeedback()
     check("G5/per-cue-concurrency-is-bounded",
           audio->stats().playedEvents == 8 &&
               audio->stats().suppressedEvents == 2);
+
+    const AudioRuntimeStats beforeCombatReadability = audio->stats();
+    eventBus.publish(CombatWindupEvent(
+        12, DefaultPlayerActorId, glm::vec3(1.f, 2.f, 3.f), 6));
+    eventBus.publish(CombatGuardEvent(
+        DefaultPlayerActorId, 12, glm::vec3(2.f, 2.f, 3.f),
+        CombatDirection::Front));
+    check("N8A/windup-and-guard-events-route-once-to-audio",
+          audio->stats().submittedEvents ==
+                  beforeCombatReadability.submittedEvents + 2 &&
+              audio->stats().playedEvents ==
+                  beforeCombatReadability.playedEvents + 2);
 
     AudioListenerState listener;
     audio->update(0.f, false, listener);
@@ -5221,7 +5237,7 @@ end
 
 std::string validEnemyDefinitions()
 {
-    return R"(# HelloMine3D enemy registry v1
+    return R"(# HelloMine3D enemy registry v2
 enemy hellomine:natural_mob
 health 10
 dimensions 0.35 0.9 0.35
@@ -5229,6 +5245,12 @@ wander_speed 1.2
 chase_radius 12
 chase_speed 2.4
 contact_damage 2
+combat_mode melee
+attack_range 0.75
+attack_windup_ticks 8
+attack_recover_ticks 8
+attack_cooldown_ticks 20
+knockback 2.5
 natural 0
 loot hellomine:dirt 1 1
 end
@@ -5239,6 +5261,12 @@ wander_speed 1.6
 chase_radius 14
 chase_speed 3.2
 contact_damage 1
+combat_mode melee
+attack_range 0.75
+attack_windup_ticks 6
+attack_recover_ticks 7
+attack_cooldown_ticks 16
+knockback 2
 natural 1
 loot hellomine:dirt 1 1
 loot hellomine:wheat 1 2
@@ -5250,6 +5278,12 @@ wander_speed 0.8
 chase_radius 10
 chase_speed 1.6
 contact_damage 4
+combat_mode melee
+attack_range 0.9
+attack_windup_ticks 14
+attack_recover_ticks 12
+attack_cooldown_ticks 28
+knockback 4
 natural 1
 loot hellomine:dirt 1 1
 loot hellomine:coal_ore 1 1
@@ -5262,6 +5296,12 @@ wander_speed 1.6
 chase_radius 18
 chase_speed 3.2
 contact_damage 1
+combat_mode melee
+attack_range 0.75
+attack_windup_ticks 6
+attack_recover_ticks 7
+attack_cooldown_ticks 16
+knockback 2
 natural 0
 loot hellomine:dirt 1 1
 end
@@ -5272,6 +5312,12 @@ wander_speed 0.8
 chase_radius 18
 chase_speed 1.6
 contact_damage 4
+combat_mode melee
+attack_range 0.9
+attack_windup_ticks 14
+attack_recover_ticks 12
+attack_cooldown_ticks 28
+knockback 4
 natural 0
 loot hellomine:coal_ore 1 1
 end
@@ -5948,7 +5994,7 @@ void caseCombatAndRespawn()
           playerDamageEvents == 1 &&
               std::abs(contactWorld.getPlayerHealth() - 18.f) < 0.001f);
 
-    const int secondDamageDeadline = tick + 14;
+    const int secondDamageDeadline = tick + 40;
     while (playerDamageEvents < 2 && tick <= secondDamageDeadline) {
         contactWorld.tick(tick++);
     }
@@ -6185,7 +6231,11 @@ void caseCombatDepth()
         World contactWorld(camera, config, contactPlayer,
                            contactDirectory, false, 1);
         contactWorld.spawnMob(type, contactPlayer.position);
-        contactWorld.tick(1);
+        for (int tick = 1;
+             tick <= 40 && contactWorld.getPlayerHealth() == 20.f;
+             ++tick) {
+            contactWorld.tick(tick);
+        }
         return contactWorld.getPlayerHealth();
     };
     check("N4/contact-damage-distinguishes-stalker-and-brute",
@@ -6268,6 +6318,360 @@ void caseCombatDepth()
                   Material::ID::Bread &&
               migratedData.objectiveState.progress.size() == 1 &&
               preservedUnknownObjective);
+}
+
+// ---------------------------------------------------------------------------
+// N8A - readable melee encounters, directional feedback and bounded work
+// ---------------------------------------------------------------------------
+void caseCombatReadability()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+    Config config = makeConfig();
+    Camera camera(config);
+
+    const auto prepareArena = [](World &world) {
+        for (int x = 5; x <= 11; ++x) {
+            for (int z = 4; z <= 13; ++z) {
+                world.setBlock(x, 99, z, BlockId::Stone);
+                world.setBlock(x, 100, z, BlockId::Air);
+                world.setBlock(x, 101, z, BlockId::Air);
+                world.setBlock(x, 102, z, BlockId::Air);
+            }
+        }
+    };
+
+    {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("n8a_fsm_telegraph"), false, 1);
+        prepareArena(world);
+        EventRecorder events(world.getEventBus());
+        const ActorId mobId = world.spawnMob(
+            World::StalkerMobType, player.position + glm::vec3(0.f, 0.f, -1.1f));
+        MobActor *mob = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(mobId));
+
+        world.tick(1);
+        const ActorSnapshot windup = mob != nullptr
+            ? mob->getSnapshot() : ActorSnapshot{};
+        check("N8A/melee-enters-explicit-windup-with-one-telegraph",
+              mob != nullptr &&
+                  mob->getCombatState() == MobCombatState::Windup &&
+                  mob->getLastCombatTransitionReason() ==
+                      MobCombatTransitionReason::AttackRangeReached &&
+                  windup.combatant &&
+                  windup.combatTargetId == DefaultPlayerActorId &&
+                  windup.combatStateTicksRemaining == 6 &&
+                  events.count(SandboxEventType::CombatWindup) == 1 &&
+                  world.getPlayerHealth() == 20.f);
+
+        for (int tick = 2; tick <= 6; ++tick) {
+            world.tick(tick);
+        }
+        check("N8A/windup-never-damages-or-republishes-warning-early",
+              world.getPlayerHealth() == 20.f &&
+                  events.count(SandboxEventType::CombatWindup) == 1 &&
+                  events.count(SandboxEventType::EntityDamage) == 0 &&
+                  mob != nullptr &&
+                  mob->getCombatState() == MobCombatState::Windup &&
+                  mob->getCombatStateTicksRemaining() == 1);
+
+        world.tick(7);
+        const WorldDebugStats hitStats = world.collectDebugStats();
+        check("N8A/windup-resolves-once-into-hit-recover-and-knockback",
+              mob != nullptr &&
+                  mob->getCombatState() == MobCombatState::Recover &&
+                  mob->getLastCombatTransitionReason() ==
+                      MobCombatTransitionReason::AttackHit &&
+                  world.getPlayerHealth() == 19.f &&
+                  events.count(SandboxEventType::EntityDamage) == 1 &&
+                  player.velocity.z > 0.f && player.velocity.y > 0.f &&
+                  hitStats.combatFeedback.kind ==
+                      PlayerCombatFeedbackKind::Damage &&
+                  hitStats.combatFeedback.direction == CombatDirection::Front &&
+                  hitStats.combatFeedback.sourceId == mobId &&
+                  hitStats.combatFeedback.epoch == 1);
+
+        for (int tick = 8; tick <= 14; ++tick) {
+            world.tick(tick);
+        }
+        check("N8A/recover-is-fixed-tick-and-cooldown-prevents-duplicate-hit",
+              mob != nullptr &&
+                  mob->getCombatState() == MobCombatState::Chase &&
+                  mob->getLastCombatTransitionReason() ==
+                      MobCombatTransitionReason::RecoveryComplete &&
+                  mob->getCombatCooldownTicksRemaining() > 0 &&
+                  world.getPlayerHealth() == 19.f &&
+                  events.count(SandboxEventType::EntityDamage) == 1);
+    }
+
+    const auto damageDirection = [&](const std::string &name,
+                                     const glm::vec3 &offset) {
+        Player player;
+        World world(camera, config, player, freshSaveDirectory(name), false, 1);
+        prepareArena(world);
+        const ActorId sourceId = world.spawnMob(
+            World::StalkerMobType, player.position + offset);
+        const bool damaged = world.damagePlayer(1.f, sourceId);
+        const WorldDebugStats stats = world.collectDebugStats();
+        return damaged ? stats.combatFeedback.direction
+                       : CombatDirection::None;
+    };
+    check("N8A/damage-feedback-classifies-four-view-relative-directions",
+          damageDirection("n8a_direction_front", {0.f, 0.f, -1.f}) ==
+                  CombatDirection::Front &&
+              damageDirection("n8a_direction_right", {1.f, 0.f, 0.f}) ==
+                  CombatDirection::Right &&
+              damageDirection("n8a_direction_back", {0.f, 0.f, 1.f}) ==
+                  CombatDirection::Back &&
+              damageDirection("n8a_direction_left", {-1.f, 0.f, 0.f}) ==
+                  CombatDirection::Left);
+
+    {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("n8a_guard"), false, 1);
+        prepareArena(world);
+        player.addItem(Material::WOODEN_SWORD, 1);
+        PlayerInputState input;
+        input.hotbarSlot = 0;
+        player.applyInput(input);
+        EventRecorder events(world.getEventBus());
+        const ActorId mobId = world.spawnMob(
+            World::StalkerMobType, player.position + glm::vec3(0.f, 0.f, -1.1f));
+        MobActor *mob = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(mobId));
+        world.setPlayerGuarding(true);
+        for (int tick = 1; tick <= 7; ++tick) {
+            world.tick(tick);
+        }
+        const WorldDebugStats guardStats = world.collectDebugStats();
+        check("N8A/front-weapon-guard-is-atomic-readable-and-damages-tool-once",
+              mob != nullptr && world.getPlayerHealth() == 20.f &&
+                  player.getInventorySlot(0).getDurability() == 31 &&
+                  events.count(SandboxEventType::CombatGuard) == 1 &&
+                  events.count(SandboxEventType::EntityDamage) == 0 &&
+                  mob->getCombatState() == MobCombatState::Recover &&
+                  mob->getLastCombatTransitionReason() ==
+                      MobCombatTransitionReason::AttackGuarded &&
+                  guardStats.combatFeedback.kind ==
+                      PlayerCombatFeedbackKind::Guard &&
+                  guardStats.combatFeedback.direction ==
+                      CombatDirection::Front &&
+                  guardStats.combatFeedback.guardRecoverTicksRemaining ==
+                      World::PlayerGuardRecoverTicks);
+
+        const MobMeleeAttackResult duringRecovery = mob != nullptr
+            ? world.resolveMobMeleeAttack(*mob, DefaultPlayerActorId)
+            : MobMeleeAttackResult::TargetMissing;
+        check("N8A/guard-recovery-prevents-permanent-hold-blocking",
+              duringRecovery == MobMeleeAttackResult::Hit &&
+                  world.getPlayerHealth() == 19.f &&
+                  player.getInventorySlot(0).getDurability() == 31 &&
+                  events.count(SandboxEventType::CombatGuard) == 1);
+    }
+
+    {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("n8a_guard_back"), false, 1);
+        prepareArena(world);
+        player.addItem(Material::WOODEN_SWORD, 1);
+        PlayerInputState input;
+        input.hotbarSlot = 0;
+        player.applyInput(input);
+        const ActorId mobId = world.spawnMob(
+            World::StalkerMobType, player.position + glm::vec3(0.f, 0.f, 1.1f));
+        MobActor *mob = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(mobId));
+        world.setPlayerGuarding(true);
+        const MobMeleeAttackResult result = mob != nullptr
+            ? world.resolveMobMeleeAttack(*mob, DefaultPlayerActorId)
+            : MobMeleeAttackResult::TargetMissing;
+        check("N8A/rear-attacks-bypass-front-only-guard",
+              result == MobMeleeAttackResult::Hit &&
+                  world.getPlayerHealth() == 19.f &&
+                  player.getInventorySlot(0).getDurability() == 32 &&
+                  world.collectDebugStats().combatFeedback.direction ==
+                      CombatDirection::Back);
+    }
+
+    {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("n8a_occlusion"), false, 1);
+        prepareArena(world);
+        const ActorId mobId = world.spawnMob(
+            World::StalkerMobType, player.position + glm::vec3(0.f, 0.f, -1.1f));
+        MobActor *mob = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(mobId));
+        world.setBlock(8, 100, 7, BlockId::Stone);
+        world.setBlock(8, 101, 7, BlockId::Stone);
+        const MobMeleeAttackResult result = mob != nullptr
+            ? world.resolveMobMeleeAttack(*mob, DefaultPlayerActorId)
+            : MobMeleeAttackResult::TargetMissing;
+        const WorldDebugStats stats = world.collectDebugStats();
+        check("N8A/melee-line-of-sight-rejects-occluded-contact",
+              result == MobMeleeAttackResult::Occluded &&
+                  world.getPlayerHealth() == 20.f &&
+                  stats.combat.raycastsUsed == 1 &&
+                  stats.combat.raycastBudgetDenied == 0);
+    }
+
+    {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("n8a_target_escape"), false, 1);
+        prepareArena(world);
+        const ActorId mobId = world.spawnMob(
+            World::StalkerMobType, player.position + glm::vec3(0.f, 0.f, -1.1f));
+        MobActor *mob = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(mobId));
+        world.tick(1);
+        player.position += glm::vec3(40.f, 0.f, 0.f);
+        player.box.update(player.position);
+        for (int tick = 2; tick <= 7; ++tick) {
+            world.tick(tick);
+        }
+        check("N8A/committed-windup-resolves-target-escape-without-damage",
+              mob != nullptr && world.getPlayerHealth() == 20.f &&
+                  mob->getCombatState() == MobCombatState::Recover &&
+                  mob->getLastCombatTransitionReason() ==
+                      MobCombatTransitionReason::TargetEscaped);
+    }
+
+    {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("n8a_hit_interrupt"), false, 1);
+        prepareArena(world);
+        const ActorId mobId = world.spawnMob(
+            World::StalkerMobType, player.position + glm::vec3(0.f, 0.f, -1.1f));
+        MobActor *mob = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(mobId));
+        world.tick(1);
+        const glm::vec3 before = mob != nullptr ? mob->position : glm::vec3(0.f);
+        const bool accepted = world.attackActor(mobId, 1.f);
+        const ActorSnapshot snapshot = mob != nullptr
+            ? mob->getSnapshot() : ActorSnapshot{};
+        check("N8A/player-hit-interrupts-windup-with-stagger-and-feedback",
+              accepted && mob != nullptr &&
+                  mob->getCombatState() == MobCombatState::Recover &&
+                  mob->getLastCombatTransitionReason() ==
+                      MobCombatTransitionReason::HitInterrupted &&
+                  mob->getCombatStateTicksRemaining() ==
+                      World::MobPlayerHitRecoverTicks &&
+                  glm::length(mob->position - before) > 0.5f &&
+                  snapshot.hitFeedback > 0.f &&
+                  world.getPlayerHealth() == 20.f);
+    }
+
+    {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("n8a_chase_budget"), false, 1);
+        prepareArena(world);
+        for (int index = 0; index < 34; ++index) {
+            world.spawnMob(World::StalkerMobType,
+                           player.position + glm::vec3(0.f, 0.f, 5.f));
+        }
+        world.tick(1);
+        const WorldDebugStats stats = world.collectDebugStats();
+        check("N8A/chase-work-is-capped-and-reported-per-fixed-tick",
+              stats.combat.combatantCount == 34 &&
+                  stats.combat.chaseCount == 34 &&
+                  stats.combat.chaseStepBudget ==
+                      World::CombatChaseStepBudgetPerTick &&
+                  stats.combat.chaseStepsUsed ==
+                      World::CombatChaseStepBudgetPerTick &&
+                  stats.combat.chaseStepBudgetDenied == 2);
+    }
+
+    {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("n8a_raycast_budget"), false, 1);
+        prepareArena(world);
+        const ActorId mobId = world.spawnMob(
+            World::StalkerMobType, player.position + glm::vec3(0.f, 0.f, -1.1f));
+        MobActor *mob = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(mobId));
+        MobMeleeAttackResult finalResult = MobMeleeAttackResult::TargetMissing;
+        if (mob != nullptr) {
+            for (std::size_t attempt = 0;
+                 attempt <= World::CombatRaycastBudgetPerTick; ++attempt) {
+                finalResult = world.resolveMobMeleeAttack(
+                    *mob, DefaultPlayerActorId);
+            }
+        }
+        const WorldDebugStats stats = world.collectDebugStats();
+        check("N8A/melee-rays-are-capped-and-budget-exhaustion-is-explicit",
+              finalResult == MobMeleeAttackResult::RayBudgetExhausted &&
+                  stats.combat.raycastBudget ==
+                      World::CombatRaycastBudgetPerTick &&
+                  stats.combat.raycastsUsed ==
+                      World::CombatRaycastBudgetPerTick &&
+                  stats.combat.raycastBudgetDenied == 1);
+    }
+
+    const auto persistenceDirectory =
+        freshSaveDirectory("n8a_transient_fsm_reload");
+    ActorId persistedMobId = InvalidActorId;
+    bool prepared = false;
+    {
+        Player player;
+        World world(camera, config, player, persistenceDirectory, false, 1);
+        prepareArena(world);
+        persistedMobId = world.spawnMob(
+            World::StalkerMobType, player.position + glm::vec3(0.f, 0.f, -1.1f));
+        world.tick(1);
+        MobActor *mob = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(persistedMobId));
+        prepared = mob != nullptr &&
+            mob->getCombatState() == MobCombatState::Windup && world.save();
+    }
+    {
+        Player player;
+        World world(camera, config, player, persistenceDirectory, false, 1);
+        MobActor *mob = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(persistedMobId));
+        const bool reset = mob != nullptr &&
+            mob->getCombatState() == MobCombatState::Idle &&
+            mob->getLastCombatTransitionReason() ==
+                MobCombatTransitionReason::Spawned &&
+            mob->getCombatStateTicksRemaining() == 0 &&
+            mob->getCombatCooldownTicksRemaining() == 0;
+        world.tick(2);
+        check("N8A/reload-clears-transient-fsm-and-never-resolves-stale-hit",
+              prepared && reset && mob != nullptr &&
+                  mob->getCombatState() == MobCombatState::Windup &&
+                  mob->getCombatStateTicksRemaining() == 6 &&
+                  world.getPlayerHealth() == 20.f);
+    }
+
+    {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("n8a_missing_target"), false, 1);
+        prepareArena(world);
+        const ActorId mobId = world.spawnMob(
+            World::StalkerMobType, player.position + glm::vec3(0.f, 0.f, 5.f));
+        MobActor *mob = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(mobId));
+        if (mob != nullptr) {
+            mob->setChaseTarget(nullptr);
+        }
+        world.tick(1);
+        check("N8A/missing-target-fails-safe-to-idle",
+              mob != nullptr &&
+                  mob->getCombatTargetId() == InvalidActorId &&
+                  mob->getCombatState() == MobCombatState::Idle &&
+                  mob->getLastCombatTransitionReason() ==
+                      MobCombatTransitionReason::TargetMissing &&
+                  world.getPlayerHealth() == 20.f);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -6642,15 +7046,21 @@ void casePlayableVerticalSlice()
             world.tick(++combatTick);
             const Actor *target =
                 world.getActorManager().findActor(defeatedMobId);
-            if (target != nullptr) {
-                const float x = target->position.x - player.position.x;
-                const float z = target->position.z - player.position.z;
-                mobReachedPlayer = x * x + z * z <= 1.f;
+            const auto *combatMob = dynamic_cast<const MobActor *>(target);
+            if (combatMob != nullptr) {
+                const glm::vec3 separation = glm::max(
+                    glm::abs(combatMob->position - player.position) -
+                        combatMob->box.dimensions - player.box.dimensions,
+                    glm::vec3(0.f));
+                mobReachedPlayer = glm::length(separation) <=
+                    combatMob->getCombatProfile().attackRange + 0.001f;
             }
         }
         const bool lethalHit =
             firstHit && mobReachedPlayer &&
             world.attackActor(defeatedMobId, 100.f);
+        const auto *remainingMob = dynamic_cast<const MobActor *>(
+            world.getActorManager().findActor(defeatedMobId));
         const std::vector<ActorSaveState> postCombat =
             world.getActorManager().collectSaveStates();
         const auto loot = std::find_if(
@@ -6663,7 +7073,18 @@ void casePlayableVerticalSlice()
             });
         check("D6/natural-encounter-produces-combat-loot",
               foundNaturalMob && firstHit && lethalHit &&
-                  loot != postCombat.end());
+                  loot != postCombat.end(),
+              "found=" + std::to_string(foundNaturalMob) +
+                  " first=" + std::to_string(firstHit) +
+                  " reached=" + std::to_string(mobReachedPlayer) +
+                  " lethal=" + std::to_string(lethalHit) +
+                  " state=" +
+                  (remainingMob != nullptr
+                       ? std::string(mobCombatStateName(
+                             remainingMob->getCombatState())) + "/" +
+                             mobCombatTransitionReasonName(
+                                 remainingMob->getLastCombatTransitionReason())
+                       : "gone"));
 
         const int dirtBeforePickup =
             countPlayer(player, Material::ID::Dirt);
@@ -7361,18 +7782,35 @@ void casePlayableAlphaJourney()
             world.tick(++combatTick);
             const Actor *target =
                 world.getActorManager().findActor(defeatedMobId);
-            if (target != nullptr) {
-                const float x = target->position.x - player.position.x;
-                const float z = target->position.z - player.position.z;
-                mobReachedPlayer = x * x + z * z <= 1.f;
+            const auto *combatMob = dynamic_cast<const MobActor *>(target);
+            if (combatMob != nullptr) {
+                const glm::vec3 separation = glm::max(
+                    glm::abs(combatMob->position - player.position) -
+                        combatMob->box.dimensions - player.box.dimensions,
+                    glm::vec3(0.f));
+                mobReachedPlayer = glm::length(separation) <=
+                    combatMob->getCombatProfile().attackRange + 0.001f;
             }
         }
         const bool lethalHit = firstHit && mobReachedPlayer &&
                                world.attackActor(defeatedMobId, 100.f);
+        const auto *remainingMob = dynamic_cast<const MobActor *>(
+            world.getActorManager().findActor(defeatedMobId));
         check("G6/natural-mob-is-defeated-through-combat-rules",
               foundNaturalMob && lethalHit &&
                   world.getAlphaJourneySnapshot().step ==
-                      AlphaJourneyStep::CollectMobLoot);
+                      AlphaJourneyStep::CollectMobLoot,
+              "found=" + std::to_string(foundNaturalMob) +
+                  " first=" + std::to_string(firstHit) +
+                  " reached=" + std::to_string(mobReachedPlayer) +
+                  " lethal=" + std::to_string(lethalHit) +
+                  " state=" +
+                  (remainingMob != nullptr
+                       ? std::string(mobCombatStateName(
+                             remainingMob->getCombatState())) + "/" +
+                             mobCombatTransitionReasonName(
+                                 remainingMob->getLastCombatTransitionReason())
+                       : "gone"));
 
         const int dirtBeforePickup =
             countPlayer(player, Material::ID::Dirt);
@@ -8572,6 +9010,7 @@ int main()
         caseNaturalMobPopulation();
         caseCombatAndRespawn();
         caseCombatDepth();
+        caseCombatReadability();
         caseWheatCropLoop();
         casePlayableVerticalSlice();
         caseDataDrivenObjectives();

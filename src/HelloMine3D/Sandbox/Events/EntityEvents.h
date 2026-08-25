@@ -2,6 +2,7 @@
 #define ENTITYEVENTS_H_INCLUDED
 
 #include "../../Actor/ActorTypes.h"
+#include "../../Actor/CombatTypes.h"
 #include "../../Item/Material.h"
 #include "../../Maths/glm.h"
 #include "SandboxEventBus.h"
@@ -60,6 +61,41 @@ struct EntityDeathEvent : public SandboxEvent {
     ActorId killerId = InvalidActorId;
     glm::vec3 position{0.f};
     std::string type;
+};
+
+struct CombatWindupEvent : public SandboxEvent {
+    CombatWindupEvent(ActorId attackingActorId, ActorId targetActorId,
+                      const glm::vec3 &attackerPosition, int warningTicks)
+        : SandboxEvent(SandboxEventType::CombatWindup)
+        , attackerId(attackingActorId)
+        , targetId(targetActorId)
+        , position(attackerPosition)
+        , windupTicks(warningTicks)
+    {
+    }
+
+    ActorId attackerId = InvalidActorId;
+    ActorId targetId = InvalidActorId;
+    glm::vec3 position{0.f};
+    int windupTicks = 0;
+};
+
+struct CombatGuardEvent : public SandboxEvent {
+    CombatGuardEvent(ActorId defendingActorId, ActorId attackingActorId,
+                     const glm::vec3 &defenderPosition,
+                     CombatDirection incomingDirection)
+        : SandboxEvent(SandboxEventType::CombatGuard)
+        , defenderId(defendingActorId)
+        , attackerId(attackingActorId)
+        , position(defenderPosition)
+        , direction(incomingDirection)
+    {
+    }
+
+    ActorId defenderId = InvalidActorId;
+    ActorId attackerId = InvalidActorId;
+    glm::vec3 position{0.f};
+    CombatDirection direction = CombatDirection::None;
 };
 
 struct ItemPickupEvent : public SandboxEvent {

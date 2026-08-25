@@ -13,12 +13,14 @@ class MobActor : public LivingActor {
 
     void tick(World &world, float dt) override;
     ActorSaveState getSaveState() const override;
+    ActorSnapshot getSnapshot() const override;
     void applySaveState(const ActorSaveState &state) override;
     void stepWander(float dt);
     void dropLoot(World &world);
     void applyDefinition(const EnemyDefinition &definition);
 
-    void setChaseTarget(const Entity *target);
+    void setChaseTarget(const Entity *target,
+                        ActorId targetId = DefaultPlayerActorId);
     void setWanderSpeed(float speed);
     void setDrop(Material::ID materialId, int amount);
     Material::ID getDropMaterialId() const;
@@ -28,19 +30,42 @@ class MobActor : public LivingActor {
     float getChaseRadius() const;
     float getChaseSpeed() const;
     float getContactDamage() const;
+    const EnemyCombatProfile &getCombatProfile() const noexcept;
+    MobCombatState getCombatState() const noexcept;
+    ActorId getCombatTargetId() const noexcept;
+    int getCombatStateTicksRemaining() const noexcept;
+    int getCombatCooldownTicksRemaining() const noexcept;
+    MobCombatTransitionReason getLastCombatTransitionReason() const noexcept;
+    void interruptByPlayerHit(World &world,
+                              const glm::vec3 &sourcePosition,
+                              float knockbackDistance,
+                              int recoverTicks);
     const std::vector<EnemyLootDefinition> &getLootTable() const;
 
   private:
-    bool stepChase(const glm::vec3 &targetPosition, float dt);
-
-    static constexpr float ChaseStopDistance = 0.55f;
+    bool stepChase(World &world, const Entity &target, float dt);
+    float targetSeparation(const Entity &target) const;
+    void faceTarget(const glm::vec3 &targetPosition);
+    void transitionTo(MobCombatState state,
+                      MobCombatTransitionReason reason,
+                      int ticks = 0);
+    static MobCombatTransitionReason reasonForAttackResult(
+        MobMeleeAttackResult result) noexcept;
 
     const Entity *m_chaseTarget = nullptr;
+    ActorId m_chaseTargetId = InvalidActorId;
     float m_wanderTime = 0.f;
     float m_wanderSpeed = 1.2f;
     float m_chaseRadius = 12.f;
     float m_chaseSpeed = 2.4f;
     float m_contactDamage = 2.f;
+    EnemyCombatProfile m_combat;
+    MobCombatState m_combatState = MobCombatState::Idle;
+    MobCombatTransitionReason m_lastCombatTransitionReason =
+        MobCombatTransitionReason::Spawned;
+    int m_combatStateTicksRemaining = 0;
+    int m_combatStateTicksTotal = 0;
+    int m_combatCooldownTicksRemaining = 0;
     std::vector<EnemyLootDefinition> m_loot{{Material::ID::Dirt, 1, 1}};
     bool m_definitionBacked = false;
     bool m_lootDropped = false;

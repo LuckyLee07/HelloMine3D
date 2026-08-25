@@ -1425,6 +1425,50 @@ class OgreUserInterface::Impl
             ImGuiWindowFlags_NoInputs |
             ImGuiWindowFlags_NoFocusOnAppearing |
             ImGuiWindowFlags_NoNav;
+        if (worldStats.combatFeedback.kind !=
+                PlayerCombatFeedbackKind::None &&
+            worldStats.combatFeedback.ticksRemaining > 0)
+        {
+            const ImVec2 center(io.DisplaySize.x * 0.5f,
+                                io.DisplaySize.y * 0.5f);
+            const ImU32 colour = worldStats.combatFeedback.kind ==
+                    PlayerCombatFeedbackKind::Guard
+                ? IM_COL32(80, 220, 235, 225)
+                : IM_COL32(245, 72, 64, 225);
+            ImVec2 tip = center;
+            ImVec2 left = center;
+            ImVec2 right = center;
+            switch (worldStats.combatFeedback.direction)
+            {
+                case CombatDirection::Front:
+                    tip = ImVec2(center.x, center.y - 40.0f);
+                    left = ImVec2(center.x - 9.0f, center.y - 58.0f);
+                    right = ImVec2(center.x + 9.0f, center.y - 58.0f);
+                    break;
+                case CombatDirection::Right:
+                    tip = ImVec2(center.x + 40.0f, center.y);
+                    left = ImVec2(center.x + 58.0f, center.y - 9.0f);
+                    right = ImVec2(center.x + 58.0f, center.y + 9.0f);
+                    break;
+                case CombatDirection::Back:
+                    tip = ImVec2(center.x, center.y + 40.0f);
+                    left = ImVec2(center.x - 9.0f, center.y + 58.0f);
+                    right = ImVec2(center.x + 9.0f, center.y + 58.0f);
+                    break;
+                case CombatDirection::Left:
+                    tip = ImVec2(center.x - 40.0f, center.y);
+                    left = ImVec2(center.x - 58.0f, center.y - 9.0f);
+                    right = ImVec2(center.x - 58.0f, center.y + 9.0f);
+                    break;
+                case CombatDirection::None:
+                    tip = ImVec2(center.x, center.y - 40.0f);
+                    left = ImVec2(center.x - 9.0f, center.y - 58.0f);
+                    right = ImVec2(center.x + 9.0f, center.y - 58.0f);
+                    break;
+            }
+            ImGui::GetForegroundDrawList()->AddTriangleFilled(
+                tip, left, right, colour);
+        }
         if (appliedSettings.showActionHints &&
             flow->state() == GameApplicationState::Playing &&
             !player->hasOpenContainer() && !player->hasOpenCrafting())
@@ -1440,7 +1484,9 @@ class OgreUserInterface::Impl
                                 GameplayAction::OpenCrafting)));
                 ImGui::Text("%s  Eat held food",
                             gameplayKeyName(appliedSettings.inputBindings.get(
-                                GameplayAction::ConsumeFood)));
+                                 GameplayAction::ConsumeFood)));
+                ImGui::TextUnformatted(
+                    "RMB  Guard while aiming at an enemy with a sword");
                 ImGui::TextUnformatted("Esc  Pause");
             }
             ImGui::End();
@@ -1507,7 +1553,18 @@ class OgreUserInterface::Impl
             if (worldStats.attackCooldownTicksRemaining > 0)
             {
                 ImGui::Text("Attack ready in: %.1fs",
-                            worldStats.attackCooldownTicksRemaining / 20.f);
+                             worldStats.attackCooldownTicksRemaining / 20.f);
+            }
+            if (worldStats.combatFeedback.guarding)
+            {
+                ImGui::TextColored(ImVec4(0.30f, 0.90f, 0.95f, 1.0f),
+                                   "Guarding");
+            }
+            else if (worldStats.combatFeedback.guardRecoverTicksRemaining > 0)
+            {
+                ImGui::Text("Guard ready in: %.1fs",
+                            worldStats.combatFeedback.guardRecoverTicksRemaining /
+                                20.f);
             }
             const bool heldItemValid = state.heldItem >= 0 &&
                 state.heldItem < static_cast<int>(state.inventory.size());
@@ -2048,6 +2105,48 @@ class OgreUserInterface::Impl
                         worldStats.foodCooldownTicksRemaining);
             ImGui::Text("Attack cooldown ticks: %d",
                         worldStats.attackCooldownTicksRemaining);
+            ImGui::Text("Guard: %s recover=%d",
+                        worldStats.combatFeedback.guarding ? "active" : "off",
+                        worldStats.combatFeedback.guardRecoverTicksRemaining);
+            ImGui::Text("Combatants I/C/W/R: %llu/%llu/%llu/%llu",
+                        static_cast<unsigned long long>(
+                            worldStats.combat.idleCount),
+                        static_cast<unsigned long long>(
+                            worldStats.combat.chaseCount),
+                        static_cast<unsigned long long>(
+                            worldStats.combat.windupCount),
+                        static_cast<unsigned long long>(
+                            worldStats.combat.recoverCount));
+            ImGui::Text("Combat ray budget: %llu / %llu denied=%llu",
+                        static_cast<unsigned long long>(
+                            worldStats.combat.raycastsUsed),
+                        static_cast<unsigned long long>(
+                            worldStats.combat.raycastBudget),
+                        static_cast<unsigned long long>(
+                            worldStats.combat.raycastBudgetDenied));
+            ImGui::Text("Combat chase budget: %llu / %llu denied=%llu",
+                        static_cast<unsigned long long>(
+                            worldStats.combat.chaseStepsUsed),
+                        static_cast<unsigned long long>(
+                            worldStats.combat.chaseStepBudget),
+                        static_cast<unsigned long long>(
+                            worldStats.combat.chaseStepBudgetDenied));
+            ImGui::Text("Observed combat: actor=%llu target=%llu %s %d",
+                        static_cast<unsigned long long>(
+                            worldStats.combat.observedActorId),
+                        static_cast<unsigned long long>(
+                            worldStats.combat.observedTargetId),
+                        mobCombatStateName(worldStats.combat.observedState),
+                        worldStats.combat.observedStateTicksRemaining);
+            ImGui::Text("Transition: %s | feedback=%s source=%llu epoch=%llu",
+                        mobCombatTransitionReasonName(
+                            worldStats.combat.observedReason),
+                        combatDirectionName(
+                            worldStats.combatFeedback.direction),
+                        static_cast<unsigned long long>(
+                            worldStats.combatFeedback.sourceId),
+                        static_cast<unsigned long long>(
+                            worldStats.combatFeedback.epoch));
             ImGui::TextUnformatted("R: consume held food");
             ImGui::Text("Death inventory policy: %s",
                         World::PlayerDeathInventoryPolicy);

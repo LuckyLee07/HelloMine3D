@@ -5,8 +5,9 @@
 
 ## 敌人数据与资源所有权
 
-基础定义位于 `media/enemies/Base.enemy`，使用严格头部
-`# HelloMine3D enemy registry v1`。每个敌人必须完整声明：
+基础定义位于 `media/enemies/Base.enemy`；N4 当时使用的严格头部为
+`# HelloMine3D enemy registry v1`，现已由 N8A 的 registry v2 战斗档案取代，迁移后的字段和
+攻击阶段以 `combat-encounter-contract-v1.md` 为准。N4 冻结的基础字段仍要求每个敌人声明：
 
 - 唯一的 namespaced type；
 - 生命、碰撞尺寸、游荡速度、追击半径、追击速度和接触伤害；

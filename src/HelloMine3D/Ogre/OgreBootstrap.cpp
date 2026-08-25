@@ -1441,6 +1441,7 @@ namespace
                     mouseState.buttonDown(OIS::MB_Left);
                 input.placeBlock =
                     mouseState.buttonDown(OIS::MB_Right);
+                input.guardCombat = input.placeBlock;
             }
 
             const bool diagnosticsActive =

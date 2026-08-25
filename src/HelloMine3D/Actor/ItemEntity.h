@@ -25,7 +25,10 @@ class ItemEntity : public Actor {
     Material::ID m_materialId = Material::ID::Nothing;
     int m_amount = 0;
     float m_pickupDelay = 0.5f;
-    float m_pickupRadius = 1.2f;
+    // N8 melee profiles commit attacks before physical overlap. Keep drops
+    // reachable from the largest current melee envelope without teleporting
+    // either the player or the item.
+    float m_pickupRadius = 1.75f;
 };
 
 #endif // ITEMENTITY_H_INCLUDED

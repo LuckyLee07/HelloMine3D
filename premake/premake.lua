@@ -767,6 +767,7 @@ project "HelloMine3DEntityLifecycleSmoke"
 
     files {
         source_dir .. "/Tests/EntityLifecycleSmokeMain.cpp",
+        source_dir .. "/Tests/EntityLifecycleWorldStub.cpp",
         source_dir .. "/Actor/ActorTypes.h",
         source_dir .. "/Actor/Actor.h",
         source_dir .. "/Actor/Actor.cpp",

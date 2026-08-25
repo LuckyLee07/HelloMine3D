@@ -1075,6 +1075,21 @@ void World::tick(int worldTime)
 {
     HELLOMINE3D_PROFILE_SCOPE("World::tick");
     m_worldSaveData.worldTime = static_cast<float>(worldTime);
+    m_combatRaycastsUsed = 0;
+    m_combatRaycastBudgetDenied = 0;
+    m_combatChaseStepsUsed = 0;
+    m_combatChaseStepBudgetDenied = 0;
+    if (m_playerGuardRecoverTicksRemaining > 0) {
+        --m_playerGuardRecoverTicksRemaining;
+    }
+    if (m_playerCombatFeedback.ticksRemaining > 0) {
+        --m_playerCombatFeedback.ticksRemaining;
+        if (m_playerCombatFeedback.ticksRemaining == 0) {
+            m_playerCombatFeedback.kind = PlayerCombatFeedbackKind::None;
+            m_playerCombatFeedback.direction = CombatDirection::None;
+            m_playerCombatFeedback.sourceId = InvalidActorId;
+        }
+    }
     if (m_player != nullptr) {
         m_playerActor.syncFromPlayer(*m_player);
     }
@@ -1085,7 +1100,6 @@ void World::tick(int worldTime)
         std::max(0, m_attackCooldownTicksRemaining - 1);
     m_actorManager.tick(*this, 1.f / 20.f);
     reconcileWaystoneEncounter();
-    applyMobContactDamage();
     runRandomTicks(worldTime);
     runNaturalMobPopulation(worldTime);
     if (runtimeSmeltingRegistry().isFrozen()) {
@@ -1166,6 +1180,13 @@ CombatAttackResult World::tryAttackActor(ActorId actorId,
     actor->setDamageInvulnerabilityRemaining(
         static_cast<float>(cooldownTicks) / 20.f);
     m_attackCooldownTicksRemaining = cooldownTicks;
+    if (actor->isAlive()) {
+        if (auto *mob = dynamic_cast<MobActor *>(actor)) {
+            mob->interruptByPlayerHit(
+                *this, m_player->position, MobPlayerHitKnockback,
+                MobPlayerHitRecoverTicks);
+        }
+    }
     if (accepted && usesTool) {
         m_player->damageHeldTool();
     }
@@ -1176,8 +1197,16 @@ bool World::attackActor(ActorId actorId, float amount)
 {
     LivingActor *actor = dynamic_cast<LivingActor *>(
         m_actorManager.findActor(actorId));
-    return actor != nullptr &&
-           actor->damage(*this, amount, DefaultPlayerActorId);
+    const bool accepted = actor != nullptr &&
+        actor->damage(*this, amount, DefaultPlayerActorId);
+    if (accepted && actor->isAlive() && m_player != nullptr) {
+        if (auto *mob = dynamic_cast<MobActor *>(actor)) {
+            mob->interruptByPlayerHit(
+                *this, m_player->position, MobPlayerHitKnockback,
+                MobPlayerHitRecoverTicks);
+        }
+    }
+    return accepted;
 }
 
 bool World::damagePlayer(float amount, ActorId sourceId)
@@ -1188,6 +1217,12 @@ bool World::damagePlayer(float amount, ActorId sourceId)
 
     m_playerActor.syncFromPlayer(*m_player);
     const bool accepted = m_playerActor.damage(*this, amount, sourceId);
+    if (accepted) {
+        const Actor *source = m_actorManager.findActor(sourceId);
+        recordPlayerCombatFeedback(
+            PlayerCombatFeedbackKind::Damage, sourceId,
+            source != nullptr ? source->position : m_player->position);
+    }
     if (accepted && !m_playerActor.isAlive()) {
         m_playerRespawnPending = true;
         abandonWaystoneEncounter();
@@ -1785,29 +1820,248 @@ void World::reconcileWaystoneEncounter()
     }
 }
 
-void World::applyMobContactDamage()
+void World::setPlayerGuarding(bool requested) noexcept
 {
-    if (m_player == nullptr || !m_playerActor.isAlive()) {
+    m_playerGuardRequested = requested;
+}
+
+bool World::playerHoldsGuardWeapon() const noexcept
+{
+    if (m_player == nullptr || !runtimeToolRegistry().isFrozen()) {
+        return false;
+    }
+    const ItemStack &held = m_player->getHeldItems();
+    if (held.isEmpty()) {
+        return false;
+    }
+    const ToolDefinition *tool =
+        runtimeToolRegistry().find(held.getMaterial().id);
+    return tool != nullptr && tool->miningClass == MiningClass::Weapon;
+}
+
+bool World::isPlayerGuarding() const noexcept
+{
+    return m_playerGuardRequested && m_player != nullptr &&
+           m_playerActor.isAlive() &&
+           m_playerGuardRecoverTicksRemaining == 0 &&
+           !m_player->hasOpenContainer() && !m_player->hasOpenCrafting() &&
+           playerHoldsGuardWeapon();
+}
+
+bool World::isCombatTargetAvailable(ActorId actorId) const noexcept
+{
+    if (actorId == DefaultPlayerActorId) {
+        return m_player != nullptr && m_playerActor.isAlive();
+    }
+    const Actor *actor = m_actorManager.findActor(actorId);
+    return actor != nullptr && actor->isAlive();
+}
+
+bool World::tryConsumeCombatChaseStep() noexcept
+{
+    if (m_combatChaseStepsUsed >= CombatChaseStepBudgetPerTick) {
+        ++m_combatChaseStepBudgetDenied;
+        return false;
+    }
+    ++m_combatChaseStepsUsed;
+    return true;
+}
+
+bool World::canOccupyCombatPosition(const MobActor &mob,
+                                    const glm::vec3 &candidate)
+{
+    if (!std::isfinite(candidate.x) || !std::isfinite(candidate.y) ||
+        !std::isfinite(candidate.z)) {
+        return false;
+    }
+
+    constexpr float Epsilon = 0.01f;
+    const int minimumX = toBlockCoord(candidate.x - mob.box.dimensions.x +
+                                      Epsilon);
+    const int maximumX = toBlockCoord(candidate.x + mob.box.dimensions.x -
+                                      Epsilon);
+    const int minimumY = toBlockCoord(candidate.y + Epsilon);
+    const int maximumY = toBlockCoord(
+        candidate.y + mob.box.dimensions.y * 2.f - Epsilon);
+    const int minimumZ = toBlockCoord(candidate.z - mob.box.dimensions.z +
+                                      Epsilon);
+    const int maximumZ = toBlockCoord(candidate.z + mob.box.dimensions.z -
+                                      Epsilon);
+    for (int x = minimumX; x <= maximumX; ++x) {
+        for (int y = minimumY; y <= maximumY; ++y) {
+            for (int z = minimumZ; z <= maximumZ; ++z) {
+                const ChunkBlock block = getBlock(x, y, z);
+                const BlockDefinition &definition =
+                    BlockDatabase::get().getDefinition(
+                        static_cast<BlockId>(block.id));
+                if (definition.collidable) {
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+void World::publishCombatWindup(const MobActor &attacker, ActorId targetId,
+                                int windupTicks)
+{
+    m_eventBus.publish(CombatWindupEvent(
+        attacker.getId(), targetId, attacker.position, windupTicks));
+}
+
+bool World::hasCombatLineOfSight(const MobActor &attacker,
+                                 const Entity &target)
+{
+    if (m_combatRaycastsUsed >= CombatRaycastBudgetPerTick) {
+        ++m_combatRaycastBudgetDenied;
+        return false;
+    }
+    ++m_combatRaycastsUsed;
+
+    const glm::vec3 origin = attacker.position +
+        glm::vec3(0.f, attacker.box.dimensions.y, 0.f);
+    const glm::vec3 destination = target.position +
+        glm::vec3(0.f, target.box.dimensions.y, 0.f);
+    const glm::vec3 offset = destination - origin;
+    const float distance = glm::length(offset);
+    if (!std::isfinite(distance) || distance <= 0.000001f) {
+        return true;
+    }
+    const int steps = std::clamp(
+        static_cast<int>(std::ceil(distance * 4.f)), 1, 32);
+    for (int step = 1; step < steps; ++step) {
+        const float fraction = static_cast<float>(step) /
+                               static_cast<float>(steps);
+        const glm::vec3 sample = origin + offset * fraction;
+        const ChunkBlock block = getBlock(
+            toBlockCoord(sample.x), toBlockCoord(sample.y),
+            toBlockCoord(sample.z));
+        if (BlockDatabase::get().getDefinition(
+                static_cast<BlockId>(block.id)).collidable) {
+            return false;
+        }
+    }
+    return true;
+}
+
+CombatDirection World::directionFromPlayerTo(
+    const glm::vec3 &sourcePosition) const noexcept
+{
+    if (m_player == nullptr) {
+        return CombatDirection::None;
+    }
+    glm::vec2 sourceDirection(sourcePosition.x - m_player->position.x,
+                              sourcePosition.z - m_player->position.z);
+    const float length = glm::length(sourceDirection);
+    if (!std::isfinite(length) || length <= 0.000001f) {
+        return CombatDirection::None;
+    }
+    sourceDirection /= length;
+    const float yaw = glm::radians(m_player->rotation.y);
+    const glm::vec2 forward(std::sin(yaw), -std::cos(yaw));
+    const glm::vec2 right(std::cos(yaw), std::sin(yaw));
+    const float forwardDot = glm::dot(sourceDirection, forward);
+    const float rightDot = glm::dot(sourceDirection, right);
+    if (std::abs(forwardDot) >= std::abs(rightDot)) {
+        return forwardDot >= 0.f ? CombatDirection::Front
+                                 : CombatDirection::Back;
+    }
+    return rightDot >= 0.f ? CombatDirection::Right
+                           : CombatDirection::Left;
+}
+
+bool World::canGuardSource(const glm::vec3 &sourcePosition) const noexcept
+{
+    if (m_player == nullptr) {
+        return false;
+    }
+    glm::vec2 sourceDirection(sourcePosition.x - m_player->position.x,
+                              sourcePosition.z - m_player->position.z);
+    const float length = glm::length(sourceDirection);
+    if (!std::isfinite(length) || length <= 0.000001f) {
+        return false;
+    }
+    sourceDirection /= length;
+    const float yaw = glm::radians(m_player->rotation.y);
+    const glm::vec2 forward(std::sin(yaw), -std::cos(yaw));
+    return glm::dot(sourceDirection, forward) >= 0.5f;
+}
+
+void World::recordPlayerCombatFeedback(PlayerCombatFeedbackKind kind,
+                                       ActorId sourceId,
+                                       const glm::vec3 &sourcePosition)
+{
+    ++m_playerCombatFeedback.epoch;
+    m_playerCombatFeedback.kind = kind;
+    m_playerCombatFeedback.direction =
+        directionFromPlayerTo(sourcePosition);
+    m_playerCombatFeedback.sourceId = sourceId;
+    m_playerCombatFeedback.ticksRemaining = PlayerCombatFeedbackTicks;
+}
+
+void World::applyPlayerKnockback(const glm::vec3 &sourcePosition,
+                                 float strength)
+{
+    if (m_player == nullptr || !std::isfinite(strength) || strength <= 0.f) {
         return;
     }
-
-    const glm::vec3 playerDimensions = m_player->box.dimensions;
-    for (const ActorSnapshot &snapshot : m_actorManager.collectSnapshots()) {
-        const auto *mob = dynamic_cast<const MobActor *>(
-            m_actorManager.findActor(snapshot.id));
-        if (mob == nullptr) {
-            continue;
-        }
-
-        const glm::vec3 distance = glm::abs(snapshot.position -
-                                            m_player->position);
-        const glm::vec3 reach = snapshot.dimensions + playerDimensions;
-        if (distance.x <= reach.x && distance.y <= reach.y &&
-            distance.z <= reach.z) {
-            damagePlayer(mob->getContactDamage(), snapshot.id);
-            return;
-        }
+    glm::vec2 direction(m_player->position.x - sourcePosition.x,
+                        m_player->position.z - sourcePosition.z);
+    const float length = glm::length(direction);
+    if (!std::isfinite(length) || length <= 0.000001f) {
+        return;
     }
+    direction /= length;
+    m_player->velocity.x += direction.x * strength;
+    m_player->velocity.z += direction.y * strength;
+    m_player->velocity.y = std::max(
+        m_player->velocity.y, std::min(1.5f, strength * 0.35f));
+}
+
+MobMeleeAttackResult World::resolveMobMeleeAttack(
+    const MobActor &attacker, ActorId targetId)
+{
+    if (m_player == nullptr || targetId != DefaultPlayerActorId) {
+        return MobMeleeAttackResult::TargetMissing;
+    }
+    if (!m_playerActor.isAlive()) {
+        return MobMeleeAttackResult::TargetDead;
+    }
+
+    const glm::vec3 separation = glm::max(
+        glm::abs(attacker.position - m_player->position) -
+            attacker.box.dimensions - m_player->box.dimensions,
+        glm::vec3(0.f));
+    if (glm::length(separation) >
+        attacker.getCombatProfile().attackRange + 0.001f) {
+        return MobMeleeAttackResult::OutOfRange;
+    }
+    const std::size_t raycastsBefore = m_combatRaycastsUsed;
+    if (!hasCombatLineOfSight(attacker, *m_player)) {
+        return raycastsBefore >= CombatRaycastBudgetPerTick
+            ? MobMeleeAttackResult::RayBudgetExhausted
+            : MobMeleeAttackResult::Occluded;
+    }
+
+    const CombatDirection direction = directionFromPlayerTo(attacker.position);
+    if (isPlayerGuarding() && canGuardSource(attacker.position)) {
+        m_player->damageHeldTool();
+        m_playerGuardRecoverTicksRemaining = PlayerGuardRecoverTicks;
+        recordPlayerCombatFeedback(PlayerCombatFeedbackKind::Guard,
+                                   attacker.getId(), attacker.position);
+        m_eventBus.publish(CombatGuardEvent(
+            DefaultPlayerActorId, attacker.getId(), m_player->position,
+            direction));
+        return MobMeleeAttackResult::Guarded;
+    }
+
+    if (!damagePlayer(attacker.getContactDamage(), attacker.getId())) {
+        return MobMeleeAttackResult::TargetRejected;
+    }
+    applyPlayerKnockback(attacker.position,
+                         attacker.getCombatProfile().knockback);
+    return MobMeleeAttackResult::Hit;
 }
 
 void World::respawnPlayer()
@@ -1824,6 +2078,12 @@ void World::respawnPlayer()
     preloadChunksAround(m_player->position);
     m_playerActor.revive();
     m_playerActor.syncFromPlayer(*m_player);
+    m_playerGuardRequested = false;
+    m_playerGuardRecoverTicksRemaining = 0;
+    m_playerCombatFeedback.kind = PlayerCombatFeedbackKind::None;
+    m_playerCombatFeedback.direction = CombatDirection::None;
+    m_playerCombatFeedback.sourceId = InvalidActorId;
+    m_playerCombatFeedback.ticksRemaining = 0;
     m_playerRespawnPending = false;
     m_eventBus.publish(PlayerSpawnEvent(
         DefaultPlayerActorId, 0, m_player->position));
@@ -2385,10 +2645,55 @@ WorldDebugStats World::collectDebugStats()
     stats.naturalMobSpawnAttempts = m_naturalMobSpawnAttempts;
     stats.naturalMobsSpawned = m_naturalMobsSpawned;
     stats.naturalMobsDespawned = m_naturalMobsDespawned;
+    stats.combat.raycastBudget = CombatRaycastBudgetPerTick;
+    stats.combat.raycastsUsed = m_combatRaycastsUsed;
+    stats.combat.raycastBudgetDenied = m_combatRaycastBudgetDenied;
+    stats.combat.chaseStepBudget = CombatChaseStepBudgetPerTick;
+    stats.combat.chaseStepsUsed = m_combatChaseStepsUsed;
+    stats.combat.chaseStepBudgetDenied = m_combatChaseStepBudgetDenied;
+    int observedPriority = -1;
+    for (const ActorSnapshot &snapshot : actorSnapshots) {
+        if (!snapshot.combatant) {
+            continue;
+        }
+        ++stats.combat.combatantCount;
+        int priority = 0;
+        switch (snapshot.combatState) {
+            case MobCombatState::Idle:
+                ++stats.combat.idleCount;
+                priority = 0;
+                break;
+            case MobCombatState::Chase:
+                ++stats.combat.chaseCount;
+                priority = 1;
+                break;
+            case MobCombatState::Windup:
+                ++stats.combat.windupCount;
+                priority = 3;
+                break;
+            case MobCombatState::Recover:
+                ++stats.combat.recoverCount;
+                priority = 2;
+                break;
+        }
+        if (priority > observedPriority) {
+            observedPriority = priority;
+            stats.combat.observedActorId = snapshot.id;
+            stats.combat.observedTargetId = snapshot.combatTargetId;
+            stats.combat.observedState = snapshot.combatState;
+            stats.combat.observedReason = snapshot.combatTransitionReason;
+            stats.combat.observedStateTicksRemaining =
+                snapshot.combatStateTicksRemaining;
+        }
+    }
     stats.playerHealth = m_playerActor.getHealth();
     stats.playerMaxHealth = m_playerActor.getMaxHealth();
     stats.foodCooldownTicksRemaining = m_foodCooldownTicksRemaining;
     stats.attackCooldownTicksRemaining = m_attackCooldownTicksRemaining;
+    stats.combatFeedback = m_playerCombatFeedback;
+    stats.combatFeedback.guarding = isPlayerGuarding();
+    stats.combatFeedback.guardRecoverTicksRemaining =
+        m_playerGuardRecoverTicksRemaining;
     stats.queuedChunkUpdates = m_chunkUpdateQueue.size();
     stats.randomTickSections = m_randomTickSections.size();
     for (const glm::ivec3 &sectionKey : m_randomTickSections) {

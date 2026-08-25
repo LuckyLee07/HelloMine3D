@@ -22,6 +22,9 @@ void LivingActor::tick(World &world, float dt)
         m_damageInvulnerabilityRemaining <= dt
             ? 0.f
             : m_damageInvulnerabilityRemaining - dt;
+    if (dt > 0.f && m_hitFeedbackTicksRemaining > 0) {
+        --m_hitFeedbackTicksRemaining;
+    }
 }
 
 float LivingActor::getHealth() const
@@ -39,6 +42,11 @@ float LivingActor::getDamageInvulnerabilityRemaining() const
     return m_damageInvulnerabilityRemaining;
 }
 
+int LivingActor::getHitFeedbackTicksRemaining() const noexcept
+{
+    return m_hitFeedbackTicksRemaining;
+}
+
 void LivingActor::setDamageInvulnerabilityRemaining(float seconds)
 {
     m_damageInvulnerabilityRemaining = std::max(0.f, seconds);
@@ -51,11 +59,20 @@ ActorSaveState LivingActor::getSaveState() const
     return state;
 }
 
+ActorSnapshot LivingActor::getSnapshot() const
+{
+    ActorSnapshot snapshot = Actor::getSnapshot();
+    snapshot.hitFeedback = std::clamp(
+        static_cast<float>(m_hitFeedbackTicksRemaining) / 4.f, 0.f, 1.f);
+    return snapshot;
+}
+
 void LivingActor::applySaveState(const ActorSaveState &state)
 {
     Actor::applySaveState(state);
     m_health = std::clamp(state.health, 0.f, m_maxHealth);
     m_damageInvulnerabilityRemaining = 0.f;
+    m_hitFeedbackTicksRemaining = 0;
     if (m_health <= 0.f) {
         setAlive(false);
     }
@@ -71,6 +88,7 @@ bool LivingActor::damage(SandboxEventBus &eventBus, float amount,
 
     m_health = std::max(0.f, m_health - amount);
     m_damageInvulnerabilityRemaining = DamageInvulnerabilityDuration;
+    m_hitFeedbackTicksRemaining = 4;
     eventBus.publish(
         EntityDamageEvent(getId(), sourceId, amount, m_health, position));
 
@@ -97,6 +115,7 @@ void LivingActor::revive()
     setAlive(true);
     m_health = m_maxHealth;
     m_damageInvulnerabilityRemaining = 0.f;
+    m_hitFeedbackTicksRemaining = 0;
 }
 
 void LivingActor::die(SandboxEventBus &eventBus, ActorId killerId)

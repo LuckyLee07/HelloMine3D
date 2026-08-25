@@ -15,7 +15,7 @@
 namespace
 {
     constexpr const char *EnemyHeader =
-        "# HelloMine3D enemy registry v1";
+        "# HelloMine3D enemy registry v2";
 
     struct PendingEnemy
     {
@@ -208,6 +208,50 @@ namespace
                     parts[1], 0.f, EnemyRegistry::MaxContactDamage,
                     source.name, lineNumber, "contact_damage");
             }
+            else if (parts.size() == 2 && parts[0] == "combat_mode") {
+                claim(pending, "combat_mode", source.name, lineNumber);
+                if (parts[1] != "melee") {
+                    fail(source.name, lineNumber,
+                         "combat_mode must be melee in enemy registry v2.");
+                }
+                pending.definition.combat.mode = EnemyCombatMode::Melee;
+            }
+            else if (parts.size() == 2 && parts[0] == "attack_range") {
+                claim(pending, "attack_range", source.name, lineNumber);
+                pending.definition.combat.attackRange = floatValue(
+                    parts[1], 0.f, EnemyRegistry::MaxAttackRange,
+                    source.name, lineNumber, "attack_range");
+            }
+            else if (parts.size() == 2 &&
+                     parts[0] == "attack_windup_ticks") {
+                claim(pending, "attack_windup_ticks", source.name,
+                      lineNumber);
+                pending.definition.combat.windupTicks = integerValue(
+                    parts[1], 1, EnemyRegistry::MaxAttackWindupTicks,
+                    source.name, lineNumber, "attack_windup_ticks");
+            }
+            else if (parts.size() == 2 &&
+                     parts[0] == "attack_recover_ticks") {
+                claim(pending, "attack_recover_ticks", source.name,
+                      lineNumber);
+                pending.definition.combat.recoverTicks = integerValue(
+                    parts[1], 1, EnemyRegistry::MaxAttackRecoverTicks,
+                    source.name, lineNumber, "attack_recover_ticks");
+            }
+            else if (parts.size() == 2 &&
+                     parts[0] == "attack_cooldown_ticks") {
+                claim(pending, "attack_cooldown_ticks", source.name,
+                      lineNumber);
+                pending.definition.combat.cooldownTicks = integerValue(
+                    parts[1], 1, EnemyRegistry::MaxAttackCooldownTicks,
+                    source.name, lineNumber, "attack_cooldown_ticks");
+            }
+            else if (parts.size() == 2 && parts[0] == "knockback") {
+                claim(pending, "knockback", source.name, lineNumber);
+                pending.definition.combat.knockback = floatValue(
+                    parts[1], 0.f, EnemyRegistry::MaxKnockback,
+                    source.name, lineNumber, "knockback");
+            }
             else if (parts.size() == 2 && parts[0] == "natural") {
                 claim(pending, "natural", source.name, lineNumber);
                 if (parts[1] != "0" && parts[1] != "1") {
@@ -252,11 +296,19 @@ namespace
                 static const std::set<std::string> required = {
                     "health", "dimensions", "wander_speed",
                     "chase_radius", "chase_speed", "contact_damage",
-                    "natural"};
+                    "combat_mode", "attack_range",
+                    "attack_windup_ticks", "attack_recover_ticks",
+                    "attack_cooldown_ticks", "knockback", "natural"};
                 if (pending.fields != required ||
                     pending.definition.loot.empty()) {
                     fail(source.name, pending.startLine,
                          "enemy is incomplete or has no loot.");
+                }
+                if (pending.definition.combat.cooldownTicks <
+                    pending.definition.combat.recoverTicks) {
+                    fail(source.name, pending.startLine,
+                         "attack_cooldown_ticks must be greater than or "
+                         "equal to attack_recover_ticks.");
                 }
                 result.push_back(std::move(pending.definition));
                 insideEnemy = false;

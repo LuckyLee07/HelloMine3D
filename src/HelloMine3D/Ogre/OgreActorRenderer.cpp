@@ -130,6 +130,30 @@ OgreActorRendererValidation OgreActorRenderer::validateSnapshots(
             validation.message = "actor transform is invalid";
             return validation;
         }
+        if (!std::isfinite(snapshot.hitFeedback) ||
+            snapshot.hitFeedback < 0.f || snapshot.hitFeedback > 1.f ||
+            snapshot.combatStateTicksRemaining < 0 ||
+            snapshot.combatStateTicksTotal < 0 ||
+            snapshot.combatStateTicksRemaining >
+                snapshot.combatStateTicksTotal)
+        {
+            validation.message = "actor combat snapshot is invalid";
+            return validation;
+        }
+        if (snapshot.combatant)
+        {
+            switch (snapshot.combatState)
+            {
+                case MobCombatState::Idle:
+                case MobCombatState::Chase:
+                case MobCombatState::Windup:
+                case MobCombatState::Recover:
+                    break;
+                default:
+                    validation.message = "actor combat state is invalid";
+                    return validation;
+            }
+        }
 
         ++validation.actorCount;
         if (snapshot.type == "item")
@@ -230,11 +254,29 @@ void OgreActorRenderer::updateVisual(
         !intersectsFirstPersonNearPlane(snapshot, cameraPosition));
     visual.node->setPosition(snapshot.position.x, snapshot.position.y,
                              snapshot.position.z);
-    visual.node->setScale(snapshot.dimensions.x * 2.0f,
-                          snapshot.dimensions.y * 2.0f,
-                          snapshot.dimensions.z * 2.0f);
+    float combatScale = 1.0f + snapshot.hitFeedback * 0.08f;
+    float telegraphProgress = 0.0f;
+    if (snapshot.combatant &&
+        snapshot.combatState == MobCombatState::Windup &&
+        snapshot.combatStateTicksTotal > 0)
+    {
+        telegraphProgress = 1.0f - std::clamp(
+            static_cast<float>(snapshot.combatStateTicksRemaining) /
+                static_cast<float>(snapshot.combatStateTicksTotal),
+            0.0f, 1.0f);
+        combatScale += telegraphProgress * 0.18f;
+    }
+    else if (snapshot.combatant &&
+             snapshot.combatState == MobCombatState::Recover)
+    {
+        combatScale *= 0.94f;
+    }
+    visual.node->setScale(snapshot.dimensions.x * 2.0f * combatScale,
+                          snapshot.dimensions.y * 2.0f * combatScale,
+                          snapshot.dimensions.z * 2.0f * combatScale);
     const Ogre::Quaternion pitch(
-        Ogre::Degree(snapshot.rotation.x), Ogre::Vector3::UNIT_X);
+        Ogre::Degree(snapshot.rotation.x - telegraphProgress * 12.0f),
+        Ogre::Vector3::UNIT_X);
     const Ogre::Quaternion yaw(
         Ogre::Degree(snapshot.rotation.y), Ogre::Vector3::UNIT_Y);
     const Ogre::Quaternion roll(

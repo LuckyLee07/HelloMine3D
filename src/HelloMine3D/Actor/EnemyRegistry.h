@@ -7,6 +7,7 @@
 
 #include "../Item/Material.h"
 #include "../Maths/glm.h"
+#include "CombatTypes.h"
 
 class ResourcePackResolver;
 
@@ -26,6 +27,7 @@ struct EnemyDefinition
     float chaseRadius = 12.f;
     float chaseSpeed = 2.4f;
     float contactDamage = 2.f;
+    EnemyCombatProfile combat;
     bool natural = false;
     std::vector<EnemyLootDefinition> loot;
     std::string sourceName;
@@ -52,6 +54,11 @@ class EnemyRegistry
     static constexpr float MaxChaseRadius = 64.f;
     static constexpr float MaxChaseSpeed = 12.f;
     static constexpr float MaxContactDamage = 20.f;
+    static constexpr float MaxAttackRange = 6.f;
+    static constexpr int MaxAttackWindupTicks = 120;
+    static constexpr int MaxAttackRecoverTicks = 120;
+    static constexpr int MaxAttackCooldownTicks = 240;
+    static constexpr float MaxKnockback = 12.f;
 
     void freeze(std::vector<EnemySource> sources);
     void freezeFromResourceView(const ResourcePackResolver &resolver);

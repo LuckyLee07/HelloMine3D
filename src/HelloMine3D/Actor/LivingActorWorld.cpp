@@ -16,6 +16,7 @@ bool LivingActor::damage(World &world, float amount, ActorId sourceId)
     const bool wasAlive = isAlive();
     m_health = std::max(0.f, m_health - amount);
     m_damageInvulnerabilityRemaining = DamageInvulnerabilityDuration;
+    m_hitFeedbackTicksRemaining = 4;
     world.getEventBus().publish(
         EntityDamageEvent(getId(), sourceId, amount, m_health, position));
 

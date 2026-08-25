@@ -129,7 +129,7 @@ end
 
     std::string validEnemies()
     {
-        return R"(# HelloMine3D enemy registry v1
+        return R"(# HelloMine3D enemy registry v2
 enemy hellomine:natural_mob
 health 10
 dimensions 0.35 0.9 0.35
@@ -137,6 +137,12 @@ wander_speed 1.2
 chase_radius 12
 chase_speed 2.4
 contact_damage 2
+combat_mode melee
+attack_range 0.75
+attack_windup_ticks 8
+attack_recover_ticks 8
+attack_cooldown_ticks 20
+knockback 2.5
 natural 0
 loot hellomine:dirt 1 1
 end
@@ -147,6 +153,12 @@ wander_speed 1.6
 chase_radius 14
 chase_speed 3.2
 contact_damage 1
+combat_mode melee
+attack_range 0.75
+attack_windup_ticks 6
+attack_recover_ticks 7
+attack_cooldown_ticks 16
+knockback 2
 natural 1
 loot hellomine:dirt 1 1
 loot hellomine:wheat 1 2
@@ -158,6 +170,12 @@ wander_speed 0.8
 chase_radius 10
 chase_speed 1.6
 contact_damage 4
+combat_mode melee
+attack_range 0.9
+attack_windup_ticks 14
+attack_recover_ticks 12
+attack_cooldown_ticks 28
+knockback 4
 natural 1
 loot hellomine:dirt 1 1
 loot hellomine:coal_ore 1 1
@@ -1249,6 +1267,19 @@ end
                   brute->loot[2].materialId == Material::ID::Wheat &&
                   natural[0]->type == "hellomine:brute" &&
                   natural[1]->type == "hellomine:stalker");
+        check("N8A/melee-combat-profiles-are-versioned-and-distinct",
+              stalker != nullptr && brute != nullptr &&
+                  stalker->combat.mode == EnemyCombatMode::Melee &&
+                  stalker->combat.attackRange == 0.75f &&
+                  stalker->combat.windupTicks == 6 &&
+                  stalker->combat.recoverTicks == 7 &&
+                  stalker->combat.cooldownTicks == 16 &&
+                  stalker->combat.knockback == 2.f &&
+                  brute->combat.attackRange == 0.9f &&
+                  brute->combat.windupTicks == 14 &&
+                  brute->combat.recoverTicks == 12 &&
+                  brute->combat.cooldownTicks == 28 &&
+                  brute->combat.knockback == 4.f);
         check("N4/enemy-registry-is-startup-frozen",
               throwsContaining(
                   [&registry]
@@ -1264,13 +1295,24 @@ end
                       invalid.freeze({{"bad.enemy", "enemy stalker\n"}});
                   },
                   "unsupported or missing header"));
+        check("N8A/legacy-enemy-header-cannot-bypass-combat-profile",
+              throwsContaining(
+                  []
+                  {
+                      std::string source = validEnemies();
+                      source.replace(source.find("registry v2"), 11,
+                                     "registry v1");
+                      EnemyRegistry invalid;
+                      invalid.freeze({{"legacy.enemy", source}});
+                  },
+                  "unsupported or missing header"));
         check("N4/incomplete-enemy-is-rejected",
               throwsContaining(
                   []
                   {
                       EnemyRegistry invalid;
                       invalid.freeze({{"bad.enemy",
-                          "# HelloMine3D enemy registry v1\n"
+                          "# HelloMine3D enemy registry v2\n"
                           "enemy hellomine:stalker\nhealth 8\nend\n"}});
                   },
                   "incomplete or has no loot"));
@@ -1304,6 +1346,52 @@ end
                       invalid.freeze({{"loot.enemy", source}});
                   },
                   "loot maximum must be an integer in"));
+        check("N8A/combat-mode-and-timing-bounds-are-strict",
+              throwsContaining(
+                  []
+                  {
+                      std::string source = validEnemies();
+                      source.replace(source.find("combat_mode melee"), 17,
+                                     "combat_mode ranged");
+                      EnemyRegistry invalid;
+                      invalid.freeze({{"ranged.enemy", source}});
+                  },
+                  "combat_mode must be melee") &&
+              throwsContaining(
+                  []
+                  {
+                      std::string source = validEnemies();
+                      source.replace(source.find("attack_windup_ticks 6"),
+                                     21, "attack_windup_ticks 0");
+                      EnemyRegistry invalid;
+                      invalid.freeze({{"windup.enemy", source}});
+                  },
+                  "attack_windup_ticks must be an integer in"));
+        check("N8A/combat-cooldown-cannot-be-shorter-than-recovery",
+              throwsContaining(
+                  []
+                  {
+                      std::string source = validEnemies();
+                      const std::size_t position =
+                          source.find("attack_cooldown_ticks 16");
+                      source.replace(position, 24,
+                                     "attack_cooldown_ticks 6");
+                      EnemyRegistry invalid;
+                      invalid.freeze({{"cooldown.enemy", source}});
+                  },
+                  "must be greater than or equal"));
+        check("N8A/combat-profile-fields-cannot-be-duplicated",
+              throwsContaining(
+                  []
+                  {
+                      std::string source = validEnemies();
+                      const std::size_t end = source.find(
+                          "natural 0\nloot hellomine:dirt");
+                      source.insert(end, "attack_range 1\n");
+                      EnemyRegistry invalid;
+                      invalid.freeze({{"duplicate.enemy", source}});
+                  },
+                  "attack_range is duplicated"));
         check("N4/duplicate-enemy-loot-is-rejected",
               throwsContaining(
                   []
@@ -1420,7 +1508,7 @@ int main()
     caseFoodRegistry();
     caseEnemyRegistry();
     caseCombatRecipes();
-    constexpr int ExpectedChecks = 95;
+    constexpr int ExpectedChecks = 100;
     if (checks != ExpectedChecks) {
         ++failures;
         std::cout << "[RECIPE_TEST] FAIL G1/expected-check-count"

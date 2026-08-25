@@ -16,8 +16,10 @@ class LivingActor : public Actor {
     float getHealth() const;
     float getMaxHealth() const;
     float getDamageInvulnerabilityRemaining() const;
+    int getHitFeedbackTicksRemaining() const noexcept;
     void setDamageInvulnerabilityRemaining(float seconds);
     ActorSaveState getSaveState() const override;
+    ActorSnapshot getSnapshot() const override;
     void applySaveState(const ActorSaveState &state) override;
     bool damage(World &world, float amount,
                 ActorId sourceId = InvalidActorId);
@@ -33,6 +35,7 @@ class LivingActor : public Actor {
     float m_health = 20.f;
     float m_maxHealth = 20.f;
     float m_damageInvulnerabilityRemaining = 0.f;
+    int m_hitFeedbackTicksRemaining = 0;
 };
 
 #endif // LIVINGACTOR_H_INCLUDED

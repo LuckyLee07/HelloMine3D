@@ -37,8 +37,39 @@
 
 class Camera;
 class Player;
+class MobActor;
 
 struct Entity;
+
+struct CombatRuntimeDebugStats {
+    std::size_t combatantCount = 0;
+    std::size_t idleCount = 0;
+    std::size_t chaseCount = 0;
+    std::size_t windupCount = 0;
+    std::size_t recoverCount = 0;
+    std::size_t raycastsUsed = 0;
+    std::size_t raycastBudget = 0;
+    std::size_t raycastBudgetDenied = 0;
+    std::size_t chaseStepsUsed = 0;
+    std::size_t chaseStepBudget = 0;
+    std::size_t chaseStepBudgetDenied = 0;
+    ActorId observedActorId = InvalidActorId;
+    ActorId observedTargetId = InvalidActorId;
+    MobCombatState observedState = MobCombatState::Idle;
+    MobCombatTransitionReason observedReason =
+        MobCombatTransitionReason::Spawned;
+    int observedStateTicksRemaining = 0;
+};
+
+struct PlayerCombatFeedbackSnapshot {
+    PlayerCombatFeedbackKind kind = PlayerCombatFeedbackKind::None;
+    CombatDirection direction = CombatDirection::None;
+    ActorId sourceId = InvalidActorId;
+    std::uint64_t epoch = 0;
+    int ticksRemaining = 0;
+    bool guarding = false;
+    int guardRecoverTicksRemaining = 0;
+};
 
 struct WorldDebugStats {
     ChunkDebugStats chunks;
@@ -54,6 +85,8 @@ struct WorldDebugStats {
     float playerMaxHealth = 0.f;
     int foodCooldownTicksRemaining = 0;
     int attackCooldownTicksRemaining = 0;
+    CombatRuntimeDebugStats combat;
+    PlayerCombatFeedbackSnapshot combatFeedback;
     std::size_t queuedChunkUpdates = 0;
     std::size_t randomTickSections = 0;
     std::size_t randomTickBlocks = 0;
@@ -126,6 +159,12 @@ class World : public NonCopyable {
     static constexpr float PlayerAttackDamage = 4.f;
     static constexpr int PlayerAttackCooldownTicks = 10;
     static constexpr float PlayerAttackReach = 3.f;
+    static constexpr std::size_t CombatRaycastBudgetPerTick = 16;
+    static constexpr std::size_t CombatChaseStepBudgetPerTick = 32;
+    static constexpr int PlayerGuardRecoverTicks = 8;
+    static constexpr int PlayerCombatFeedbackTicks = 10;
+    static constexpr int MobPlayerHitRecoverTicks = 3;
+    static constexpr float MobPlayerHitKnockback = 0.65f;
     static constexpr const char *PlayerDeathInventoryPolicy = "retain";
 
     World(const Camera &camera, const Config &config, Player &player,
@@ -172,6 +211,16 @@ class World : public NonCopyable {
     bool attackActor(ActorId actorId);
     bool attackActor(ActorId actorId, float amount);
     bool damagePlayer(float amount, ActorId sourceId = InvalidActorId);
+    void setPlayerGuarding(bool requested) noexcept;
+    bool isPlayerGuarding() const noexcept;
+    bool isCombatTargetAvailable(ActorId actorId) const noexcept;
+    bool tryConsumeCombatChaseStep() noexcept;
+    bool canOccupyCombatPosition(const MobActor &mob,
+                                 const glm::vec3 &position);
+    void publishCombatWindup(const MobActor &attacker, ActorId targetId,
+                             int windupTicks);
+    MobMeleeAttackResult resolveMobMeleeAttack(const MobActor &attacker,
+                                               ActorId targetId);
     FoodUseResult useHeldFood(bool simulationRunning = true);
     float getPlayerHealth() const;
     float getPlayerMaxHealth() const;
@@ -260,8 +309,18 @@ class World : public NonCopyable {
     void removeRandomTickSectionsForChunk(int chunkX, int chunkZ);
     void runRandomTicks(int worldTime);
     void runNaturalMobPopulation(int worldTime);
-    void applyMobContactDamage();
     void respawnPlayer();
+    bool hasCombatLineOfSight(const MobActor &attacker,
+                              const Entity &target);
+    bool playerHoldsGuardWeapon() const noexcept;
+    CombatDirection directionFromPlayerTo(
+        const glm::vec3 &sourcePosition) const noexcept;
+    bool canGuardSource(const glm::vec3 &sourcePosition) const noexcept;
+    void recordPlayerCombatFeedback(PlayerCombatFeedbackKind kind,
+                                    ActorId sourceId,
+                                    const glm::vec3 &sourcePosition);
+    void applyPlayerKnockback(const glm::vec3 &sourcePosition,
+                              float strength);
     bool findSafeNaturalMobPosition(int blockX, int blockZ,
                                     glm::vec3 &position);
     void despawnNaturalMobsInChunk(int chunkX, int chunkZ);
@@ -356,6 +415,13 @@ class World : public NonCopyable {
     glm::vec3 m_playerSpawnPoint;
     int m_foodCooldownTicksRemaining = 0;
     int m_attackCooldownTicksRemaining = 0;
+    std::size_t m_combatRaycastsUsed = 0;
+    std::size_t m_combatRaycastBudgetDenied = 0;
+    std::size_t m_combatChaseStepsUsed = 0;
+    std::size_t m_combatChaseStepBudgetDenied = 0;
+    bool m_playerGuardRequested = false;
+    int m_playerGuardRecoverTicksRemaining = 0;
+    PlayerCombatFeedbackSnapshot m_playerCombatFeedback;
     bool m_playerRespawnPending = false;
 };
 

@@ -421,6 +421,17 @@ void AudioRuntime::attach(SandboxEventBus &eventBus)
             submit({"combat.hit", true, damage.position, 1.f});
         }));
     m_subscriptions.push_back(eventBus.subscribe(
+        SandboxEventType::CombatWindup, [this](const SandboxEvent &event) {
+            const auto &windup =
+                static_cast<const CombatWindupEvent &>(event);
+            submit({"combat.windup", true, windup.position, 1.f});
+        }));
+    m_subscriptions.push_back(eventBus.subscribe(
+        SandboxEventType::CombatGuard, [this](const SandboxEvent &event) {
+            const auto &guard = static_cast<const CombatGuardEvent &>(event);
+            submit({"combat.guard", true, guard.position, 1.f});
+        }));
+    m_subscriptions.push_back(eventBus.subscribe(
         SandboxEventType::CraftCompleted,
         [this](const SandboxEvent &event) {
             const auto &craft =
