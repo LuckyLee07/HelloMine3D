@@ -1547,11 +1547,13 @@ namespace
         void syncActorVisuals()
         {
             HELLOMINE3D_PROFILE_SCOPE("Ogre::syncActorVisuals");
-            if (m_world == nullptr || m_actorRenderer == nullptr)
+            if (m_world == nullptr || m_actorRenderer == nullptr ||
+                m_logicCamera == nullptr)
             {
                 return;
             }
-            m_actorRenderer->sync(m_world->collectActorSnapshots());
+            m_actorRenderer->sync(m_world->collectActorSnapshots(),
+                                  m_logicCamera->position);
         }
 
         void spawnValidationActors()
@@ -2258,9 +2260,13 @@ namespace
             int left = 0;
             int top = 0;
             m_window->getMetrics(width, height, colourDepth, left, top);
+            const float viewPointScale =
+                std::max(1.0f, m_window->getViewPointToPixelScale());
             const OIS::MouseState& state = m_mouse->getMouseState();
-            state.width = static_cast<int>(width);
-            state.height = static_cast<int>(height);
+            state.width = static_cast<int>(
+                static_cast<float>(width) / viewPointScale);
+            state.height = static_cast<int>(
+                static_cast<float>(height) / viewPointScale);
         }
 
         bool shouldCaptureNativeCursor() const

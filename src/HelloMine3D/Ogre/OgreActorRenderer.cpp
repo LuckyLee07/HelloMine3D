@@ -13,6 +13,7 @@ namespace
     constexpr const char* StalkerMaterial = "HelloMine3D/ActorStalker";
     constexpr const char* BruteMaterial = "HelloMine3D/ActorBrute";
     constexpr const char* ItemMaterial = "HelloMine3D/ActorItem";
+    constexpr float FirstPersonNearPlanePadding = 0.15f;
 
     bool finiteVector(const glm::vec3& value)
     {
@@ -35,6 +36,17 @@ namespace
             return BruteMaterial;
         }
         return MobMaterial;
+    }
+
+    bool intersectsFirstPersonNearPlane(
+        const ActorSnapshot& snapshot, const glm::vec3& cameraPosition)
+    {
+        const glm::vec3 separation = glm::max(
+            glm::abs(cameraPosition - snapshot.position) -
+                snapshot.dimensions,
+            glm::vec3(0.0f));
+        return glm::dot(separation, separation) <=
+               FirstPersonNearPlanePadding * FirstPersonNearPlanePadding;
     }
 
     void buildUnitCube(Ogre::ManualObject& object,
@@ -131,7 +143,8 @@ OgreActorRendererValidation OgreActorRenderer::validateSnapshots(
 }
 
 void OgreActorRenderer::sync(
-    const std::vector<ActorSnapshot>& snapshots)
+    const std::vector<ActorSnapshot>& snapshots,
+    const glm::vec3& cameraPosition)
 {
     if (m_sceneManager == nullptr)
     {
@@ -165,7 +178,7 @@ void OgreActorRenderer::sync(
             existing = m_visuals.emplace(
                 snapshot.id, createVisual(snapshot)).first;
         }
-        updateVisual(existing->second, snapshot);
+        updateVisual(existing->second, snapshot, cameraPosition);
     }
 
     for (auto it = m_visuals.begin(); it != m_visuals.end();)
@@ -205,8 +218,11 @@ OgreActorRenderer::ActorVisual OgreActorRenderer::createVisual(
 }
 
 void OgreActorRenderer::updateVisual(
-    ActorVisual& visual, const ActorSnapshot& snapshot)
+    ActorVisual& visual, const ActorSnapshot& snapshot,
+    const glm::vec3& cameraPosition)
 {
+    visual.node->setVisible(
+        !intersectsFirstPersonNearPlane(snapshot, cameraPosition));
     visual.node->setPosition(snapshot.position.x, snapshot.position.y,
                              snapshot.position.z);
     visual.node->setScale(snapshot.dimensions.x * 2.0f,

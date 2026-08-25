@@ -30,7 +30,8 @@ class OgreActorRenderer
     explicit OgreActorRenderer(Ogre::SceneManager& sceneManager);
     ~OgreActorRenderer();
 
-    void sync(const std::vector<ActorSnapshot>& snapshots);
+    void sync(const std::vector<ActorSnapshot>& snapshots,
+              const glm::vec3& cameraPosition);
     void clear();
 
     static OgreActorRendererValidation validateSnapshots(
@@ -46,7 +47,8 @@ class OgreActorRenderer
 
     ActorVisual createVisual(const ActorSnapshot& snapshot);
     void updateVisual(ActorVisual& visual,
-                      const ActorSnapshot& snapshot);
+                      const ActorSnapshot& snapshot,
+                      const glm::vec3& cameraPosition);
     void destroyVisual(ActorVisual& visual);
 
     Ogre::SceneManager* m_sceneManager = nullptr;

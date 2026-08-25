@@ -302,9 +302,13 @@ class OgreUserInterface::Impl
         window->getMetrics(width, height, colourDepth, left, top);
 
         ImGuiIO &io = ImGui::GetIO();
-        io.DisplaySize = ImVec2(static_cast<float>(width),
-                                static_cast<float>(height));
-        io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
+        const float framebufferScale =
+            std::max(1.0f, window->getViewPointToPixelScale());
+        io.DisplaySize =
+            ImVec2(static_cast<float>(width) / framebufferScale,
+                   static_cast<float>(height) / framebufferScale);
+        io.DisplayFramebufferScale =
+            ImVec2(framebufferScale, framebufferScale);
         io.DeltaTime = std::max(deltaSeconds, 1.0f / 1000.0f);
         io.FontGlobalScale = appliedSettings.uiScale;
         statusMessageSeconds = std::max(
