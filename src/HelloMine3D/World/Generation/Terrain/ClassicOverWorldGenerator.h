@@ -9,6 +9,7 @@
 #include "../../../Maths/NoiseGenerator.h"
 #include "../../WorldConstants.h"
 #include "CaveGenerator.h"
+#include "../Structures/StructurePlanning.h"
 
 #include "../Biome/DesertBiome.h"
 #include "../Biome/GrasslandBiome.h"
@@ -30,8 +31,10 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
         int z = 0;
     };
 
-    static constexpr int LandmarkCellChunks = 4;
-    static constexpr int LandmarkRadius = 2;
+    static constexpr int LandmarkCellChunks =
+        DeterministicStructurePlanner::WaystoneCellChunks;
+    static constexpr int LandmarkRadius =
+        DeterministicStructurePlanner::WaystoneRadius;
 
     explicit ClassicOverWorldGenerator(
         int seed = 0,
@@ -46,6 +49,10 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
                                 int worldZ) const noexcept override;
     int getSeed() const noexcept;
     LandmarkPlacement getLandmarkForCell(int cellX, int cellZ) const;
+    StructurePlanSnapshot getStructurePlanForCell(
+        StructureType type, int cellX, int cellZ) const;
+    std::vector<StructurePlanSnapshot> getStructurePlansForChunk(
+        int chunkX, int chunkZ) const;
 
   private:
     struct BlockPosition {
@@ -65,6 +72,7 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
     void applyPlantDecorators(const std::vector<BlockPosition> &positions);
     void applyTreeDecorators();
     void applyLandmarkDecorators();
+    void projectStructurePlan(const StructurePlanSnapshot &plan);
 
     void getHeightIn(int xMin, int zMin, int xMax, int zMax);
     int getHeightAt(int x, int z, int chunkX, int chunkZ) const;

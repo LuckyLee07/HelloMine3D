@@ -80,6 +80,7 @@
 #include "../World/Chunk/SectionMeshInput.h"
 #include "../World/Environment/WorldEnvironment.h"
 #include "../World/Generation/Biome/TemperateForestBiome.h"
+#include "../World/Generation/Structures/StructurePlanning.h"
 #include "../World/Generation/Terrain/ClassicOverWorldGenerator.h"
 #include "../World/Storage/ChunkStorage.h"
 #include "../World/Storage/WorldCatalogue.h"
@@ -8797,6 +8798,37 @@ std::vector<GeneratedChunkSample> sampleLandmarkChunks(
     return samples;
 }
 
+bool sameStructurePlan(const StructurePlanSnapshot &left,
+                       const StructurePlanSnapshot &right)
+{
+    return left.key == right.key && left.valid == right.valid &&
+           left.anchor == right.anchor &&
+           left.footprint.minimumX == right.footprint.minimumX &&
+           left.footprint.maximumX == right.footprint.maximumX &&
+           left.footprint.minimumY == right.footprint.minimumY &&
+           left.footprint.maximumY == right.footprint.maximumY &&
+           left.footprint.minimumZ == right.footprint.minimumZ &&
+           left.footprint.maximumZ == right.footprint.maximumZ &&
+           left.projectionPriority == right.projectionPriority &&
+           left.selectedCandidate == right.selectedCandidate &&
+           left.plannedBlockCount == right.plannedBlockCount &&
+           left.selectionHash == right.selectionHash;
+}
+
+bool sameStructurePlans(const std::vector<StructurePlanSnapshot> &left,
+                        const std::vector<StructurePlanSnapshot> &right)
+{
+    if (left.size() != right.size()) {
+        return false;
+    }
+    for (std::size_t index = 0; index < left.size(); ++index) {
+        if (!sameStructurePlan(left[index], right[index])) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void caseEcologyAndExploration()
 {
     setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
@@ -8970,6 +9002,293 @@ void caseEcologyAndExploration()
     else {
         check("N5/migrated-world-keeps-old-unexplored-chunk-output", false);
     }
+}
+
+// ---------------------------------------------------------------------------
+// N9A - deterministic structure ownership, planning and chunk projection
+// ---------------------------------------------------------------------------
+void caseDeterministicStructurePlanning()
+{
+    check("N9A/structure-type-and-cap-contract",
+          std::string(structureTypeName(StructureType::Waystone)) ==
+                  "waystone" &&
+              std::string(structureTypeName(
+                  static_cast<StructureType>(255))) == "unknown" &&
+              DeterministicStructurePlanner::WaystoneCellChunks == 4 &&
+              DeterministicStructurePlanner::WaystoneCandidateCount == 8 &&
+              DeterministicStructurePlanner::MaximumPlansPerChunk == 4);
+
+    ClassicOverWorldGenerator currentGenerator(
+        kValidationSeed, CurrentTerrainGenerationVersion);
+    ClassicOverWorldGenerator otherSeedGenerator(
+        kValidationSeed + 1, CurrentTerrainGenerationVersion);
+    ClassicOverWorldGenerator legacyGenerator(
+        kValidationSeed, LegacyTerrainGenerationVersion);
+    const StructurePlanSnapshot frozen =
+        currentGenerator.getStructurePlanForCell(
+            StructureType::Waystone, 0, 5);
+    check("N9A/terrain-v2-waystone-plan-keeps-frozen-identity",
+          frozen.valid && frozen.key.type == StructureType::Waystone &&
+              frozen.key.terrainGenerationVersion ==
+                  CurrentTerrainGenerationVersion &&
+              frozen.key.cellX == 0 && frozen.key.cellZ == 5 &&
+              frozen.anchor == glm::ivec3(18, 70, 328),
+          "anchor=" + std::to_string(frozen.anchor.x) + "," +
+              std::to_string(frozen.anchor.y) + "," +
+              std::to_string(frozen.anchor.z));
+
+    const StructurePlanSnapshot repeated =
+        currentGenerator.getStructurePlanForCell(
+            StructureType::Waystone, 0, 5);
+    const StructurePlanSnapshot otherSeed =
+        otherSeedGenerator.getStructurePlanForCell(
+            StructureType::Waystone, 0, 5);
+    check("N9A/plan-is-seed-stable-and-seed-sensitive",
+          sameStructurePlan(frozen, repeated) &&
+              (frozen.anchor != otherSeed.anchor ||
+               frozen.selectionHash != otherSeed.selectionHash));
+
+    const StructurePlanSnapshot legacy =
+        legacyGenerator.getStructurePlanForCell(
+            StructureType::Waystone, 0, 5);
+    const StructurePlanSnapshot unknown =
+        currentGenerator.getStructurePlanForCell(
+            static_cast<StructureType>(255), 0, 5);
+    check("N9A/legacy-and-unknown-structure-plans-are-rejected",
+          !legacy.valid && !legacy.footprint.valid() &&
+              legacy.key.terrainGenerationVersion ==
+                  LegacyTerrainGenerationVersion &&
+              !unknown.valid && !unknown.footprint.valid() &&
+              unknown.key.type == static_cast<StructureType>(255));
+
+    const StructurePlanSnapshot negative =
+        currentGenerator.getStructurePlanForCell(
+            StructureType::Waystone, -2, -3);
+    const int cellSize =
+        DeterministicStructurePlanner::WaystoneCellChunks * CHUNK_SIZE;
+    const int inset = DeterministicStructurePlanner::WaystoneRadius + 1;
+    check("N9A/negative-cell-ownership-uses-floor-coordinates",
+          negative.anchor.x >= -2 * cellSize + inset &&
+              negative.anchor.x < -1 * cellSize - inset &&
+              negative.anchor.z >= -3 * cellSize + inset &&
+              negative.anchor.z < -2 * cellSize - inset,
+          "anchor=" + std::to_string(negative.anchor.x) + "," +
+              std::to_string(negative.anchor.z));
+
+    check("N9A/footprint-and-plan-size-are-bounded",
+          frozen.footprint.width() == 5 &&
+              frozen.footprint.height() == 6 &&
+              frozen.footprint.depth() == 5 &&
+              frozen.selectedCandidate >= 0 &&
+              frozen.selectedCandidate <
+                  DeterministicStructurePlanner::WaystoneCandidateCount &&
+              frozen.plannedBlockCount == 195 &&
+              frozen.selectionHash != 0);
+
+    const StructurePlanSnapshot adjacentX =
+        currentGenerator.getStructurePlanForCell(
+            StructureType::Waystone, 1, 5);
+    const StructurePlanSnapshot adjacentZ =
+        currentGenerator.getStructurePlanForCell(
+            StructureType::Waystone, 0, 6);
+    check("N9A/adjacent-cells-respect-minimum-anchor-spacing",
+          std::abs(adjacentX.anchor.x - frozen.anchor.x) >=
+                  DeterministicStructurePlanner::
+                      WaystoneMinimumAnchorSpacing &&
+              std::abs(adjacentZ.anchor.z - frozen.anchor.z) >=
+                  DeterministicStructurePlanner::
+                      WaystoneMinimumAnchorSpacing);
+
+    std::srand(0x4e3941);
+    const int expectedFirstRandom = std::rand();
+    const int expectedSecondRandom = std::rand();
+    std::srand(0x4e3941);
+    const int observedFirstRandom = std::rand();
+    const StructurePlanSnapshot randomIsolated =
+        currentGenerator.getStructurePlanForCell(
+            StructureType::Waystone, 0, 5);
+    const int observedSecondRandom = std::rand();
+    check("N9A/planning-does-not-consume-global-rand",
+          expectedFirstRandom == observedFirstRandom &&
+              expectedSecondRandom == observedSecondRandom &&
+              sameStructurePlan(frozen, randomIsolated));
+
+    const int frozenChunkX = World::floorDiv(frozen.anchor.x, CHUNK_SIZE);
+    const int frozenChunkZ = World::floorDiv(frozen.anchor.z, CHUNK_SIZE);
+    const std::vector<StructurePlanSnapshot> firstQuery =
+        currentGenerator.getStructurePlansForChunk(
+            frozenChunkX, frozenChunkZ);
+    const std::vector<StructurePlanSnapshot> secondQuery =
+        currentGenerator.getStructurePlansForChunk(
+            frozenChunkX, frozenChunkZ);
+    check("N9A/chunk-plan-query-is-repeatable-and-capped",
+          sameStructurePlans(firstQuery, secondQuery) &&
+              !firstQuery.empty() &&
+              firstQuery.size() <=
+                  DeterministicStructurePlanner::MaximumPlansPerChunk,
+          "plans=" + std::to_string(firstQuery.size()));
+
+    bool ownedOverlapsOnly = true;
+    for (const StructurePlanSnapshot &plan : firstQuery) {
+        const int ownerMinimumX = plan.key.cellX * cellSize + inset;
+        const int ownerMinimumZ = plan.key.cellZ * cellSize + inset;
+        ownedOverlapsOnly = ownedOverlapsOnly &&
+            plan.footprint.overlapsChunk(frozenChunkX, frozenChunkZ) &&
+            plan.anchor.x >= ownerMinimumX &&
+            plan.anchor.x < ownerMinimumX + cellSize - inset * 2 &&
+            plan.anchor.z >= ownerMinimumZ &&
+            plan.anchor.z < ownerMinimumZ + cellSize - inset * 2;
+    }
+    check("N9A/chunk-query-returns-only-owned-overlaps",
+          ownedOverlapsOnly && !firstQuery.empty());
+
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player,
+                freshSaveDirectory("n9a_structure_planning"), false, 1);
+    const ChunkDebugStats beforeQuery = world.collectDebugStats().chunks;
+    const auto isolatedQuery = currentGenerator.getStructurePlansForChunk(
+        frozenChunkX, frozenChunkZ);
+    const ChunkDebugStats afterQuery = world.collectDebugStats().chunks;
+    check("N9A/plan-query-does-not-load-neighbor-chunks",
+          !isolatedQuery.empty() &&
+              beforeQuery.existingChunks == afterQuery.existingChunks &&
+              beforeQuery.loadedChunks == afterQuery.loadedChunks,
+          "chunks=" + std::to_string(beforeQuery.existingChunks) +
+              "->" + std::to_string(afterQuery.existingChunks));
+
+    StructurePlanSnapshot lowPriority = frozen;
+    lowPriority.key.cellX = 10;
+    lowPriority.key.cellZ = 10;
+    lowPriority.projectionPriority = 10;
+    lowPriority.footprint.minimumY += 100;
+    lowPriority.footprint.maximumY += 100;
+    StructurePlanSnapshot highPriority = lowPriority;
+    highPriority.key.cellX = 11;
+    highPriority.projectionPriority = 20;
+    StructurePlanSnapshot farPlan = lowPriority;
+    farPlan.key.cellX = 12;
+    farPlan.footprint.minimumX += 100;
+    farPlan.footprint.maximumX += 100;
+    const auto priorityResolved =
+        DeterministicStructurePlanner::resolveOverlaps(
+            {lowPriority, farPlan, highPriority});
+    check("N9A/higher-priority-horizontal-overlap-wins",
+          priorityResolved.size() == 2 &&
+              std::any_of(priorityResolved.begin(), priorityResolved.end(),
+                          [&highPriority](const StructurePlanSnapshot &plan) {
+                              return plan.key == highPriority.key;
+                          }) &&
+              std::any_of(priorityResolved.begin(), priorityResolved.end(),
+                          [&farPlan](const StructurePlanSnapshot &plan) {
+                              return plan.key == farPlan.key;
+                          }));
+
+    StructurePlanSnapshot stableFirst = frozen;
+    stableFirst.key.cellX = 2;
+    stableFirst.key.cellZ = 3;
+    StructurePlanSnapshot stableSecond = stableFirst;
+    stableSecond.key.cellX = 3;
+    const auto stableResolved =
+        DeterministicStructurePlanner::resolveOverlaps(
+            {stableSecond, stableFirst});
+    check("N9A/equal-priority-overlap-has-stable-key-tiebreak",
+          stableResolved.size() == 1 &&
+              stableResolved.front().key == stableFirst.key);
+
+    StructurePlanSnapshot threadedLeft;
+    StructurePlanSnapshot threadedRight;
+    std::thread leftThread([&currentGenerator, &threadedLeft]() {
+        threadedLeft = currentGenerator.getStructurePlanForCell(
+            StructureType::Waystone, 0, 5);
+    });
+    std::thread rightThread([&otherSeedGenerator, &threadedRight]() {
+        threadedRight = otherSeedGenerator.getStructurePlanForCell(
+            StructureType::Waystone, 0, 5);
+    });
+    leftThread.join();
+    rightThread.join();
+    check("N9A/thread-scheduling-does-not-change-plan",
+          sameStructurePlan(frozen, threadedLeft) &&
+              sameStructurePlan(otherSeed, threadedRight));
+
+    StructurePlanSnapshot crossing;
+    for (int cellX = -16; cellX <= 16 && !crossing.valid; ++cellX) {
+        for (int cellZ = -16; cellZ <= 16 && !crossing.valid; ++cellZ) {
+            const StructurePlanSnapshot candidate =
+                currentGenerator.getStructurePlanForCell(
+                    StructureType::Waystone, cellX, cellZ);
+            const int localX = World::floorMod(candidate.anchor.x, CHUNK_SIZE);
+            const int localZ = World::floorMod(candidate.anchor.z, CHUNK_SIZE);
+            const bool crossesBoundary =
+                localX < DeterministicStructurePlanner::WaystoneRadius ||
+                localX + DeterministicStructurePlanner::WaystoneRadius >=
+                    CHUNK_SIZE ||
+                localZ < DeterministicStructurePlanner::WaystoneRadius ||
+                localZ + DeterministicStructurePlanner::WaystoneRadius >=
+                    CHUNK_SIZE;
+            if (candidate.valid && crossesBoundary) {
+                crossing = candidate;
+            }
+        }
+    }
+    bool crossingDiscoverable = crossing.valid;
+    int crossingChunkCount = 0;
+    if (crossing.valid) {
+        const int minimumChunkX = World::floorDiv(
+            crossing.footprint.minimumX, CHUNK_SIZE);
+        const int maximumChunkX = World::floorDiv(
+            crossing.footprint.maximumX, CHUNK_SIZE);
+        const int minimumChunkZ = World::floorDiv(
+            crossing.footprint.minimumZ, CHUNK_SIZE);
+        const int maximumChunkZ = World::floorDiv(
+            crossing.footprint.maximumZ, CHUNK_SIZE);
+        for (int chunkX = minimumChunkX; chunkX <= maximumChunkX; ++chunkX) {
+            for (int chunkZ = minimumChunkZ; chunkZ <= maximumChunkZ;
+                 ++chunkZ) {
+                ++crossingChunkCount;
+                const auto plans = currentGenerator.getStructurePlansForChunk(
+                    chunkX, chunkZ);
+                crossingDiscoverable = crossingDiscoverable &&
+                    std::any_of(plans.begin(), plans.end(),
+                                [&crossing](const StructurePlanSnapshot &plan) {
+                                    return plan.key == crossing.key;
+                                });
+            }
+        }
+    }
+    check("N9A/cross-chunk-plan-is-discoverable-and-bounded",
+          crossingDiscoverable && crossingChunkCount >= 2 &&
+              crossingChunkCount <= 4,
+          "chunks=" + std::to_string(crossingChunkCount));
+
+    ClassicOverWorldGenerator::LandmarkPlacement crossingLandmark{
+        crossing.valid, crossing.anchor.x, crossing.anchor.y,
+        crossing.anchor.z};
+    const auto forward = sampleLandmarkChunks(
+        world, currentGenerator, crossingLandmark, false);
+    const auto reverse = sampleLandmarkChunks(
+        world, currentGenerator, crossingLandmark, true);
+    bool sameProjection = crossing.valid && forward.size() == reverse.size();
+    int coreCount = 0;
+    for (std::size_t index = 0;
+         index < forward.size() && index < reverse.size(); ++index) {
+        sameProjection = sameProjection &&
+            forward[index].x == reverse[index].x &&
+            forward[index].z == reverse[index].z &&
+            forward[index].blocks == reverse[index].blocks;
+        coreCount += static_cast<int>(std::count(
+            forward[index].blocks.begin(), forward[index].blocks.end(),
+            static_cast<Block_t>(BlockId::WaystoneCore)));
+    }
+    check("N9A/cross-chunk-projection-ignores-load-order",
+          sameProjection && forward.size() >= 2 && coreCount == 1,
+          "chunks=" + std::to_string(forward.size()) +
+              ", cores=" + std::to_string(coreCount));
 }
 
 // ---------------------------------------------------------------------------
@@ -9437,6 +9756,7 @@ int main()
         caseTerrainDeterminism();
         caseTerrainStructures();
         caseEcologyAndExploration();
+        caseDeterministicStructurePlanning();
         caseInteractionAndEvents();
         caseChunkEvents();
         caseActors();

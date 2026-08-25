@@ -15,9 +15,6 @@
 
 namespace {
 constexpr int MaximumStructureRadius = 6;
-constexpr int LandmarkHeight = 6;
-constexpr int LandmarkCandidateCount = 8;
-constexpr std::uint64_t LandmarkSalt = 0x6a09e667f3bcc909ull;
 
 std::uint64_t mixStructureValue(std::uint64_t value)
 {
@@ -142,36 +139,32 @@ int ClassicOverWorldGenerator::getSurfaceHeightAtWorld(
 ClassicOverWorldGenerator::LandmarkPlacement
 ClassicOverWorldGenerator::getLandmarkForCell(int cellX, int cellZ) const
 {
-    LandmarkPlacement best;
-    const int cellSize = LandmarkCellChunks * CHUNK_SIZE;
-    const int inset = LandmarkRadius + 1;
-    const int coordinateRange = cellSize - inset * 2;
-    int bestHeight = -1;
+    const StructurePlanSnapshot plan = getStructurePlanForCell(
+        StructureType::Waystone, cellX, cellZ);
+    return {plan.valid, plan.anchor.x, plan.anchor.y, plan.anchor.z};
+}
 
-    for (int attempt = 0; attempt < LandmarkCandidateCount; ++attempt) {
-        const std::uint64_t xHash = structureHash(
-            m_seed ^ static_cast<int>(LandmarkSalt),
-            cellX * 31 + attempt, cellZ * 17 - attempt);
-        const std::uint64_t zHash = structureHash(
-            m_seed ^ static_cast<int>(LandmarkSalt >> 32),
-            cellX * 13 - attempt, cellZ * 37 + attempt);
-        const int worldX = cellX * cellSize + inset +
-            static_cast<int>(xHash %
-                             static_cast<std::uint64_t>(coordinateRange));
-        const int worldZ = cellZ * cellSize + inset +
-            static_cast<int>(zHash %
-                             static_cast<std::uint64_t>(coordinateRange));
-        const int chunkX = WorldCoordinates::floorDiv(worldX, CHUNK_SIZE);
-        const int chunkZ = WorldCoordinates::floorDiv(worldZ, CHUNK_SIZE);
-        const int localX = WorldCoordinates::floorMod(worldX, CHUNK_SIZE);
-        const int localZ = WorldCoordinates::floorMod(worldZ, CHUNK_SIZE);
-        const int height = getHeightAt(localX, localZ, chunkX, chunkZ);
-        if (height > bestHeight) {
-            bestHeight = height;
-            best = {height >= WATER_LEVEL + 4, worldX, height, worldZ};
-        }
-    }
-    return best;
+StructurePlanSnapshot ClassicOverWorldGenerator::getStructurePlanForCell(
+    StructureType type, int cellX, int cellZ) const
+{
+    const DeterministicStructurePlanner planner(
+        m_seed, m_generationVersion,
+        [this](int worldX, int worldZ) {
+            return getSurfaceHeightAtWorld(worldX, worldZ);
+        });
+    return planner.planForCell(type, cellX, cellZ);
+}
+
+std::vector<StructurePlanSnapshot>
+ClassicOverWorldGenerator::getStructurePlansForChunk(
+    int chunkX, int chunkZ) const
+{
+    const DeterministicStructurePlanner planner(
+        m_seed, m_generationVersion,
+        [this](int worldX, int worldZ) {
+            return getSurfaceHeightAtWorld(worldX, worldZ);
+        });
+    return planner.plansForChunk(chunkX, chunkZ);
 }
 
 void ClassicOverWorldGenerator::getHeightIn(int xMin, int zMin, int xMax,
@@ -385,83 +378,50 @@ void ClassicOverWorldGenerator::applyTreeDecorators()
 
 void ClassicOverWorldGenerator::applyLandmarkDecorators()
 {
-    if (m_generationVersion < CurrentTerrainGenerationVersion) {
+    const glm::ivec2 target = m_pChunk->getLocation();
+    for (const StructurePlanSnapshot &plan :
+         getStructurePlansForChunk(target.x, target.y)) {
+        projectStructurePlan(plan);
+    }
+}
+
+void ClassicOverWorldGenerator::projectStructurePlan(
+    const StructurePlanSnapshot &plan)
+{
+    if (!plan.valid || plan.key.type != StructureType::Waystone) {
         return;
     }
-
-    const glm::ivec2 target = m_pChunk->getLocation();
-    const int targetMinX = target.x * CHUNK_SIZE;
-    const int targetMaxX = targetMinX + CHUNK_SIZE - 1;
-    const int targetMinZ = target.y * CHUNK_SIZE;
-    const int targetMaxZ = targetMinZ + CHUNK_SIZE - 1;
-    const int cellSize = LandmarkCellChunks * CHUNK_SIZE;
-    const int minimumCellX = WorldCoordinates::floorDiv(
-        targetMinX - LandmarkRadius, cellSize);
-    const int maximumCellX = WorldCoordinates::floorDiv(
-        targetMaxX + LandmarkRadius, cellSize);
-    const int minimumCellZ = WorldCoordinates::floorDiv(
-        targetMinZ - LandmarkRadius, cellSize);
-    const int maximumCellZ = WorldCoordinates::floorDiv(
-        targetMaxZ + LandmarkRadius, cellSize);
-
-    for (int cellX = minimumCellX; cellX <= maximumCellX; ++cellX) {
-        for (int cellZ = minimumCellZ; cellZ <= maximumCellZ; ++cellZ) {
-            const LandmarkPlacement landmark =
-                getLandmarkForCell(cellX, cellZ);
-            if (!landmark.valid ||
-                landmark.x + LandmarkRadius < targetMinX ||
-                landmark.x - LandmarkRadius > targetMaxX ||
-                landmark.z + LandmarkRadius < targetMinZ ||
-                landmark.z - LandmarkRadius > targetMaxZ) {
-                continue;
-            }
-
-            StructureBuilder builder;
-            for (int y = landmark.y + 1;
-                 y <= landmark.y + LandmarkHeight; ++y) {
-                builder.fill(y, landmark.x - LandmarkRadius,
-                             landmark.x + LandmarkRadius + 1,
-                             landmark.z - LandmarkRadius,
-                             landmark.z + LandmarkRadius + 1,
-                             BlockId::Air);
-            }
-            builder.fill(landmark.y + 1,
-                         landmark.x - LandmarkRadius,
-                         landmark.x + LandmarkRadius + 1,
-                         landmark.z - LandmarkRadius,
-                         landmark.z + LandmarkRadius + 1,
-                         BlockId::Stone);
-            builder.makeColumn(landmark.x - LandmarkRadius,
-                               landmark.z - LandmarkRadius,
-                               landmark.y + 2, 3, BlockId::Stone);
-            builder.makeColumn(landmark.x + LandmarkRadius,
-                               landmark.z - LandmarkRadius,
-                               landmark.y + 2, 3, BlockId::Stone);
-            builder.makeColumn(landmark.x - LandmarkRadius,
-                               landmark.z + LandmarkRadius,
-                               landmark.y + 2, 3, BlockId::Stone);
-            builder.makeColumn(landmark.x + LandmarkRadius,
-                               landmark.z + LandmarkRadius,
-                               landmark.y + 2, 3, BlockId::Stone);
-            builder.addBlock(landmark.x, landmark.y + 2, landmark.z,
-                             BlockId::IronOre);
-            builder.addBlock(landmark.x, landmark.y + 3, landmark.z,
-                             BlockId::WaystoneCore);
-            builder.addBlock(landmark.x, landmark.y + 4, landmark.z,
-                             BlockId::Glass);
-            builder.addBlock(landmark.x, landmark.y + 5, landmark.z,
-                             BlockId::Stone);
-            builder.addBlock(landmark.x - 1, landmark.y + 2,
-                             landmark.z, BlockId::CoalOre);
-            builder.addBlock(landmark.x + 1, landmark.y + 2,
-                             landmark.z, BlockId::CoalOre);
-            builder.addBlock(landmark.x, landmark.y + 2,
-                             landmark.z - 1, BlockId::CoalOre);
-            builder.addBlock(landmark.x, landmark.y + 2,
-                             landmark.z + 1, BlockId::CoalOre);
-            builder.build(*m_pChunk);
-        }
+    const int x = plan.anchor.x;
+    const int y = plan.anchor.y;
+    const int z = plan.anchor.z;
+    StructureBuilder builder;
+    for (int clearY = y + 1;
+         clearY <= y + DeterministicStructurePlanner::WaystoneHeight;
+         ++clearY) {
+        builder.fill(clearY, x - LandmarkRadius, x + LandmarkRadius + 1,
+                     z - LandmarkRadius, z + LandmarkRadius + 1,
+                     BlockId::Air);
     }
+    builder.fill(y + 1, x - LandmarkRadius, x + LandmarkRadius + 1,
+                 z - LandmarkRadius, z + LandmarkRadius + 1,
+                 BlockId::Stone);
+    builder.makeColumn(x - LandmarkRadius, z - LandmarkRadius,
+                       y + 2, 3, BlockId::Stone);
+    builder.makeColumn(x + LandmarkRadius, z - LandmarkRadius,
+                       y + 2, 3, BlockId::Stone);
+    builder.makeColumn(x - LandmarkRadius, z + LandmarkRadius,
+                       y + 2, 3, BlockId::Stone);
+    builder.makeColumn(x + LandmarkRadius, z + LandmarkRadius,
+                       y + 2, 3, BlockId::Stone);
+    builder.addBlock(x, y + 2, z, BlockId::IronOre);
+    builder.addBlock(x, y + 3, z, BlockId::WaystoneCore);
+    builder.addBlock(x, y + 4, z, BlockId::Glass);
+    builder.addBlock(x, y + 5, z, BlockId::Stone);
+    builder.addBlock(x - 1, y + 2, z, BlockId::CoalOre);
+    builder.addBlock(x + 1, y + 2, z, BlockId::CoalOre);
+    builder.addBlock(x, y + 2, z - 1, BlockId::CoalOre);
+    builder.addBlock(x, y + 2, z + 1, BlockId::CoalOre);
+    builder.build(*m_pChunk);
 }
 
 int ClassicOverWorldGenerator::getHeightAt(int x, int z, int chunkX,
