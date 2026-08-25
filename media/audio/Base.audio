@@ -1,11 +1,11 @@
-# HelloMine3D audio definitions v2
-# sound id category mode waveform frequency_hz duration_ms gain max_voices caption
-sound ui.click ui 2d sine 720 45 0.22 2 "Menu selection"
-sound block.break effects 3d noise 180 95 0.48 4 "Block broken"
-sound block.place effects 3d square 130 70 0.32 4 "Block placed"
-sound item.pickup effects 3d sine 980 85 0.28 3 "Item collected"
-sound craft.success effects 2d sine 540 150 0.30 2 "Crafting complete"
-sound combat.hit effects 3d noise 90 110 0.52 4 "Combat hit"
-sound combat.windup effects 3d square 210 170 0.34 4 "Enemy attack warning"
-sound combat.guard effects 3d noise 620 90 0.46 3 "Attack blocked"
-sound ambient.wind ambient 2d noise 55 1200 0.10 1 "Wind"
+# HelloMine3D audio definitions v3
+# sample id category mode logical_path gain max_voices caption_key fallback_caption
+sample ui.click ui 2d "media/audio/samples/ui-click.wav" 0.30 2 "audio.ui.click.caption" "Menu selection"
+sample block.break effects 3d "media/audio/samples/block-break.wav" 0.58 4 "audio.block.break.caption" "Block broken"
+sample block.place effects 3d "media/audio/samples/block-place.wav" 0.48 4 "audio.block.place.caption" "Block placed"
+sample item.pickup effects 3d "media/audio/samples/item-pickup.wav" 0.42 3 "audio.item.pickup.caption" "Item collected"
+sample craft.success effects 2d "media/audio/samples/craft-success.wav" 0.42 2 "audio.craft.success.caption" "Crafting complete"
+sample combat.hit effects 3d "media/audio/samples/combat-hit.wav" 0.62 4 "audio.combat.hit.caption" "Combat hit"
+sample combat.windup effects 3d "media/audio/samples/combat-windup.wav" 0.50 4 "audio.combat.windup.caption" "Enemy attack warning"
+sample combat.guard effects 3d "media/audio/samples/combat-guard.wav" 0.55 3 "audio.combat.guard.caption" "Attack blocked"
+sample ambient.wind ambient 2d "media/audio/samples/ambient-wind.wav" 0.20 1 "audio.ambient.wind.caption" "Wind"

@@ -628,7 +628,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 341);
+              registry.keys("en-US").size() == 346);
     check("N7A/localized-victory-text-resolves",
           registry.lookup("en-US", "victory.overlay.title") ==
                   "Waystone Restored" &&
@@ -780,6 +780,9 @@ void caseWorldOutcomeAndLocalizedText()
               !missingFont.usable && !missingFont.diagnostic.empty());
     const std::string fontLicense = readTextFile(
         ResourcePaths::media("fonts/NotoSansSC-OFL.txt"));
+    const std::string audioLicense = readTextFile(
+        ResourcePaths::media(
+            "audio/samples/LICENSE-HelloMine3D-Audio.txt"));
     check("N12A/credits-and-font-license-assets-are-present",
           registry.lookup("en-US", "credits.title") ==
                   "Credits and Licenses" &&
@@ -788,7 +791,13 @@ void caseWorldOutcomeAndLocalizedText()
               registry.lookup("en-US", "credits.font_path").find(
                   "media/fonts/NotoSansSC-OFL.txt") != std::string::npos &&
               fontLicense.find("SIL OPEN FONT LICENSE Version 1.1") !=
-                  std::string::npos);
+                  std::string::npos &&
+              registry.lookup("en-US", "credits.audio_path").find(
+                  "media/audio/samples/LICENSE-HelloMine3D-Audio.txt") !=
+                  std::string::npos &&
+              registry.lookup("zh-CN", "credits.audio_name") !=
+                  registry.lookup("en-US", "credits.audio_name") &&
+              audioLicense.find("MIT License") != std::string::npos);
 
     const PresentationWindowLayout minimumLayout =
         fitPresentationWindow(640.0f, 480.0f, 820.0f, 660.0f, 1.75f);
@@ -5933,16 +5942,16 @@ void casePostVictoryEvents()
 
 std::string validAudioDefinitions()
 {
-    return R"(# HelloMine3D audio definitions v2
-sound ui.click ui 2d sine 720 45 0.22 2 "Menu selection"
-sound block.break effects 3d noise 180 95 0.48 4 "Block broken"
-sound block.place effects 3d square 130 70 0.32 4 "Block placed"
-sound item.pickup effects 3d sine 980 85 0.28 3 "Item collected"
-sound craft.success effects 2d sine 540 150 0.30 2 "Crafting complete"
-sound combat.hit effects 3d noise 90 110 0.52 4 "Combat hit"
-sound combat.windup effects 3d square 210 170 0.34 4 "Enemy attack warning"
-sound combat.guard effects 3d noise 620 90 0.46 3 "Attack blocked"
-sound ambient.wind ambient 2d noise 55 1200 0.10 1 "Wind"
+    return R"(# HelloMine3D audio definitions v3
+sample ui.click ui 2d "media/audio/samples/ui-click.wav" 0.30 2 "audio.ui.click.caption" "Menu selection"
+sample block.break effects 3d "media/audio/samples/block-break.wav" 0.58 4 "audio.block.break.caption" "Block broken"
+sample block.place effects 3d "media/audio/samples/block-place.wav" 0.48 4 "audio.block.place.caption" "Block placed"
+sample item.pickup effects 3d "media/audio/samples/item-pickup.wav" 0.42 3 "audio.item.pickup.caption" "Item collected"
+sample craft.success effects 2d "media/audio/samples/craft-success.wav" 0.42 2 "audio.craft.success.caption" "Crafting complete"
+sample combat.hit effects 3d "media/audio/samples/combat-hit.wav" 0.62 4 "audio.combat.hit.caption" "Combat hit"
+sample combat.windup effects 3d "media/audio/samples/combat-windup.wav" 0.50 4 "audio.combat.windup.caption" "Enemy attack warning"
+sample combat.guard effects 3d "media/audio/samples/combat-guard.wav" 0.55 3 "audio.combat.guard.caption" "Attack blocked"
+sample ambient.wind ambient 2d "media/audio/samples/ambient-wind.wav" 0.20 1 "audio.ambient.wind.caption" "Wind"
 )";
 }
 
@@ -5961,7 +5970,9 @@ void caseAudioFeedback()
           loadedBase && loadError.empty() && loaded.isFrozen() &&
               loaded.definitions().size() == 9 && ui != nullptr &&
               block != nullptr && ui->caption == "Menu selection" &&
-              block->caption == "Block broken");
+              block->caption == "Block broken" &&
+              ui->samplePath == "media/audio/samples/ui-click.wav" &&
+              ui->captionKey == "audio.ui.click.caption");
     check("G5/audio-definitions-carry-category-and-spatial-mode",
           ui != nullptr && ui->category == AudioCategory::Ui &&
               !ui->spatial && block != nullptr && block->spatial &&
@@ -5981,21 +5992,30 @@ void caseAudioFeedback()
     };
     check("G5/duplicate-audio-cue-is-rejected",
           rejects(validAudioDefinitions() +
-                      "sound ui.click ui 2d sine 440 50 0.2 1 \"Again\"\n",
+                      "sample ui.click ui 2d \"media/audio/samples/ui-click.wav\" 0.2 1 \"audio.ui.click.caption\" \"Again\"\n",
                   "duplicate cue id"));
     std::string missingCaption = validAudioDefinitions();
     missingCaption.replace(missingCaption.find(" \"Menu selection\""),
                            std::string(" \"Menu selection\"").size(), "");
     check("N6/audio-caption-is-required-and-bounded",
-          rejects(missingCaption, "expected sound") ||
+          rejects(missingCaption, "expected sample") ||
               rejects(missingCaption, "caption"));
-    std::string invalidFrequency = validAudioDefinitions();
-    invalidFrequency.replace(invalidFrequency.find("720 45"), 6,
-                             "10 45");
-    check("G5/audio-range-is-strictly-validated",
-          rejects(invalidFrequency, "frequency must be between"));
+    std::string invalidPath = validAudioDefinitions();
+    invalidPath.replace(
+        invalidPath.find("media/audio/samples/ui-click.wav"),
+        std::string("media/audio/samples/ui-click.wav").size(),
+        "media/audio/../ui-click.wav");
+    check("N12B/audio-sample-path-is-strictly-validated",
+          rejects(invalidPath, "sample path must be a canonical"));
+    std::string invalidCaptionKey = validAudioDefinitions();
+    invalidCaptionKey.replace(
+        invalidCaptionKey.find("audio.ui.click.caption"),
+        std::string("audio.ui.click.caption").size(),
+        "audio.wrong.caption");
+    check("N12B/audio-caption-key-is-cue-derived",
+          rejects(invalidCaptionKey, "caption key must be"));
     const std::size_t ambientLine =
-        validAudioDefinitions().find("sound ambient.wind");
+        validAudioDefinitions().find("sample ambient.wind");
     std::string missingCue = validAudioDefinitions().substr(0, ambientLine);
     check("G5/missing-required-audio-cue-is-rejected",
           rejects(missingCue, "missing required cue"));
@@ -6024,6 +6044,103 @@ void caseAudioFeedback()
     SandboxEventBus eventBus;
     std::unique_ptr<AudioRuntime> audio = AudioRuntime::createDummy(
         std::move(routedDefinitions), settings);
+    check("N12B/bundled-pcm16-samples-freeze-into-bounded-cache",
+          audio->samples().isFrozen() && audio->samples().cueCount() == 9 &&
+              audio->samples().uniqueSampleCount() == 9 &&
+              audio->samples().decodedBytes() > 0 &&
+              audio->samples().decodedBytes() <=
+                  AudioSampleBank::MaximumDecodedBytes &&
+              audio->samples().find("ambient.wind") != nullptr &&
+              audio->samples().find("ambient.wind")->sampleRate ==
+                  AudioSampleBank::RequiredSampleRate);
+
+    std::string sharedSampleDefinitions = validAudioDefinitions();
+    const std::array<const char *, 8> otherSamples = {{
+        "block-break.wav", "block-place.wav", "item-pickup.wav",
+        "craft-success.wav", "combat-hit.wav", "combat-windup.wav",
+        "combat-guard.wav", "ambient-wind.wav"}};
+    for (const char *name : otherSamples) {
+        const std::string needle = name;
+        sharedSampleDefinitions.replace(
+            sharedSampleDefinitions.find(needle), needle.size(),
+            "ui-click.wav");
+    }
+    AudioDefinitionRegistry sharedRegistry;
+    sharedRegistry.freeze({{"shared.audio", sharedSampleDefinitions}});
+    std::unique_ptr<AudioRuntime> sharedSamples = AudioRuntime::createDummy(
+        std::move(sharedRegistry), settings);
+    check("N12B/sample-cache-deduplicates-shared-logical-paths",
+          sharedSamples->samples().cueCount() == 9 &&
+              sharedSamples->samples().uniqueSampleCount() == 1);
+
+    const std::string invalidWaveRoot =
+        freshSaveDirectory("n12b-invalid-wave");
+    const std::filesystem::path invalidWavePath =
+        std::filesystem::path(invalidWaveRoot) / "invalid.wav";
+    {
+        std::ofstream invalidWave(
+            invalidWavePath, std::ios::binary | std::ios::trunc);
+        invalidWave << "RIFF invalid sampled audio";
+    }
+    AudioDefinitionRegistry invalidWaveRegistry;
+    invalidWaveRegistry.freeze(
+        {{"invalid-wave.audio", validAudioDefinitions()}});
+    std::unique_ptr<AudioRuntime> invalidWave = AudioRuntime::createDummy(
+        std::move(invalidWaveRegistry), settings,
+        [&invalidWavePath](const std::string &)
+        {
+            return invalidWavePath.string();
+        });
+    check("N12B/malformed-wave-selects-bounded-silent-degradation",
+          invalidWave->samples().cueCount() == 0 &&
+              std::string(invalidWave->backendName()) == "dummy" &&
+              invalidWave->degradedReason().find("outside 44..524288") !=
+                  std::string::npos);
+
+    const std::filesystem::path stereoWavePath =
+        std::filesystem::path(invalidWaveRoot) / "stereo.wav";
+    std::filesystem::copy_file(
+        ResourcePaths::media("audio/samples/ui-click.wav"),
+        stereoWavePath,
+        std::filesystem::copy_options::overwrite_existing);
+    {
+        std::fstream stereoWave(stereoWavePath,
+                                std::ios::binary | std::ios::in |
+                                    std::ios::out);
+        const char stereoChannels[2] = {2, 0};
+        stereoWave.seekp(22, std::ios::beg);
+        stereoWave.write(stereoChannels, sizeof(stereoChannels));
+    }
+    AudioDefinitionRegistry stereoWaveRegistry;
+    stereoWaveRegistry.freeze(
+        {{"stereo-wave.audio", validAudioDefinitions()}});
+    std::unique_ptr<AudioRuntime> stereoWave = AudioRuntime::createDummy(
+        std::move(stereoWaveRegistry), settings,
+        [&stereoWavePath](const std::string &)
+        {
+            return stereoWavePath.string();
+        });
+    check("N12B/non-mono-or-non-pcm16-wave-is-rejected",
+          stereoWave->samples().cueCount() == 0 &&
+              stereoWave->degradedReason().find(
+                  "44100 Hz mono PCM16") != std::string::npos);
+
+    std::string missingSampleDefinitions = validAudioDefinitions();
+    missingSampleDefinitions.replace(
+        missingSampleDefinitions.find("ui-click.wav"),
+        std::string("ui-click.wav").size(), "missing.wav");
+    AudioDefinitionRegistry missingSampleRegistry;
+    missingSampleRegistry.freeze(
+        {{"missing-sample.audio", missingSampleDefinitions}});
+    std::unique_ptr<AudioRuntime> missingSample = AudioRuntime::createDummy(
+        std::move(missingSampleRegistry), settings);
+    missingSample->emitUiClick();
+    check("N12B/missing-sample-is-silent-and-nonfatal",
+          missingSample->samples().cueCount() == 0 &&
+              missingSample->stats().missingSamples == 1 &&
+              missingSample->stats().playedEvents == 0 &&
+              missingSample->degradedReason().find("unable to open") !=
+                  std::string::npos);
     std::vector<std::string> captions;
     audio->setCaptionSink([&captions](std::string cueId,
                                      std::string caption) {

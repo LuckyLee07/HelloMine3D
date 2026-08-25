@@ -69,7 +69,7 @@ path that is absent from `media/resource-manifest.txt`; such a file is reported
 as a stale or unsupported override. This also means that v1 cannot introduce a
 new block id, shape name, behavior script or executable extension.
 
-The base manifest may also contain `recipe`, `tool`, `audio`, `objective`,
+The base manifest may also contain `recipe`, `tool`, `audio`, `audio-sample`, `objective`,
 `smelting`, `food`, `enemy`, `text`, `presentation-font` and `license` entries,
 but none is an allowed v1 override class. These versioned gameplay registries,
 localized catalogues and product-presentation/legal assets load only from
@@ -132,7 +132,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 `HelloMine3DResourcePackSmoke` provides 32 isolated parser/resolver assertions:
 no-pack compatibility, deterministic precedence, fallback, all six resource
 classes, Ogre directory order, version/traversal/stale/empty/duplicate/missing
-rejection, explicit recipe/tool/audio/objective/smelting/food/enemy/text-override rejection,
+rejection, explicit recipe/tool/audio/audio-sample/objective/smelting/food/enemy/text-override rejection,
 base-only presentation-font/license rejection, optional-font startup fallback,
 sorted ownership and one-time freeze. The current base view has 51 entries,
 including the base-owned gameplay registries, two localized text catalogues,

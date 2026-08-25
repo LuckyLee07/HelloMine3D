@@ -46,11 +46,13 @@ namespace
     {
         static const std::vector<ResourcePackRequirement> value = {
             {"audio", "media/audio/Base.audio"},
+            {"audio-sample", "media/audio/samples/ui-click.wav"},
             {"block", "media/blocks/Stone.block"},
             {"enemy", "media/enemies/Base.enemy"},
             {"food", "media/foods/Base.food"},
             {"font", "media/fonts/rs.ttf"},
             {"license", "media/fonts/NotoSansSC-OFL.txt"},
+            {"license", "media/audio/samples/LICENSE-HelloMine3D-Audio.txt"},
             {"objective", "media/objectives/Base.objective"},
             {"presentation-font", "media/fonts/NotoSansSC-VF.ttf"},
             {"recipe", "media/recipes/Base.recipe"},
@@ -157,6 +159,7 @@ namespace
         {
             if (requirement.category == "runtime-template" ||
                 requirement.category == "audio" ||
+                requirement.category == "audio-sample" ||
                 requirement.category == "enemy" ||
                 requirement.category == "food" ||
                 requirement.category == "objective" ||
@@ -369,6 +372,21 @@ namespace
                       "stale or unsupported override"));
         }
         {
+            const fs::path root = freshRoot("audio-sample-override");
+            const fs::path pack = createPack(
+                root, "audio-sample", "Audio Sample Override", 1,
+                {{"media/audio/samples/ui-click.wav", "override\n"}});
+            check("N12B/reject-unversioned-audio-sample-override",
+                  throwsContaining(
+                      [&]
+                      {
+                          ResourcePackResolver resolver;
+                          resolver.freeze(root.string(), requirements(),
+                                          {pack.string()});
+                      },
+                      "stale or unsupported override"));
+        }
+        {
             const fs::path root = freshRoot("text-override");
             const fs::path pack = createPack(
                 root, "text", "Text Override", 1,
@@ -464,6 +482,36 @@ namespace
         }
         check("G5/missing-audio-does-not-fail-startup-preflight",
               preflightPassed);
+
+        const fs::path sampleRoot = freshRoot("optional-audio-sample");
+        const fs::path sample =
+            sampleRoot / "media/audio/samples/ui-click.wav";
+        fs::remove(sample);
+        ResourcePackResolver sampleResolver;
+        bool sampleFrozen = false;
+        bool samplePreflightPassed = false;
+        try
+        {
+            sampleResolver.freeze(sampleRoot.string(), requirements(), {});
+            sampleFrozen = sampleResolver.isFrozen();
+            std::vector<StartupResourceRequirement> startupRequirements;
+            for (const ResourcePackRequirement &requirement : requirements())
+            {
+                startupRequirements.push_back(
+                    {requirement.category, requirement.logicalPath});
+            }
+            validateStartupResources(sampleRoot.string(),
+                                     startupRequirements);
+            samplePreflightPassed = true;
+        }
+        catch (...)
+        {
+        }
+        check("N12B/missing-sample-keeps-resource-view-and-preflight-loadable",
+              sampleFrozen && samplePreflightPassed &&
+                  sampleResolver.resolve(
+                      "media/audio/samples/ui-click.wav") ==
+                      sample.generic_string());
     }
 
     void caseOptionalPresentationFont()

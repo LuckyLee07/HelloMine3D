@@ -426,6 +426,7 @@ void ResourcePackResolver::freeze(
         if (!input || input.tellg() <= 0)
         {
             if (requirement.category == "audio" ||
+                requirement.category == "audio-sample" ||
                 requirement.category == "presentation-font")
             {
                 m_effectiveResources.push_back(std::move(effective));

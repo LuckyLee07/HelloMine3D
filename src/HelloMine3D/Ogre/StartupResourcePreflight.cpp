@@ -104,6 +104,7 @@ void validateStartupResources(
         if (!input || input.tellg() <= 0)
         {
             if (requirement.category == "audio" ||
+                requirement.category == "audio-sample" ||
                 requirement.category == "presentation-font")
             {
                 continue;

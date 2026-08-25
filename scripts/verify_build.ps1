@@ -11,6 +11,8 @@ $binDirectory = Join-Path $repoRoot "bin"
 $startupErrorVerifier = Join-Path $repoRoot "tools\validate_startup_errors.ps1"
 $resourceManifestVerifier = Join-Path $repoRoot `
     "tools\validate_resource_manifest.ps1"
+$audioSampleVerifier = Join-Path $repoRoot `
+    "tools\generate_n12b_audio_samples.ps1"
 $performanceComparisonVerifier = Join-Path $repoRoot `
     "tools\validate_perf_comparison.ps1"
 $manualInputRecordVerifier = Join-Path $repoRoot `
@@ -113,6 +115,10 @@ Push-Location $repoRoot
 try {
     Invoke-Checked "Resource manifest" {
         & $resourceManifestVerifier
+    }
+
+    Invoke-Checked "N12B sampled audio assets" {
+        & $audioSampleVerifier -Root $repoRoot -Check
     }
 
     Invoke-Checked "Performance comparison fixtures" {

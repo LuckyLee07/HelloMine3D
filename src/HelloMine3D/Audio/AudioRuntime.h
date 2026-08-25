@@ -11,6 +11,7 @@
 #include "../Config.h"
 #include "../Maths/glm.h"
 #include "AudioDefinitionRegistry.h"
+#include "AudioSampleBank.h"
 
 class SandboxEventBus;
 
@@ -38,6 +39,7 @@ class IAudioBackend {
     virtual bool initialize(std::string &error) noexcept = 0;
     virtual AudioBackendPlayResult play(
         const AudioDefinition &definition,
+        const AudioSampleData &sample,
         const AudioPlaybackEvent &event, float effectiveGain,
         const AudioListenerState &listener) noexcept = 0;
     virtual void update() noexcept = 0;
@@ -52,6 +54,7 @@ class DummyAudioBackend final : public IAudioBackend {
     bool initialize(std::string &error) noexcept override;
     AudioBackendPlayResult play(
         const AudioDefinition &definition,
+        const AudioSampleData &sample,
         const AudioPlaybackEvent &event, float effectiveGain,
         const AudioListenerState &listener) noexcept override;
     void update() noexcept override;
@@ -74,6 +77,7 @@ struct AudioRuntimeStats {
     std::size_t playedEvents = 0;
     std::size_t suppressedEvents = 0;
     std::size_t missingDefinitions = 0;
+    std::size_t missingSamples = 0;
     std::size_t backendFailures = 0;
     std::size_t ambientEvents = 0;
     std::size_t activeVoices = 0;
@@ -85,12 +89,15 @@ class AudioRuntime {
 
     static std::unique_ptr<AudioRuntime> create(
         AudioDefinitionRegistry definitions,
-        const UserSettings &settings);
+        const UserSettings &settings,
+        AudioSampleBank::PathResolver resolvePath = {});
     static std::unique_ptr<AudioRuntime> createDummy(
         AudioDefinitionRegistry definitions,
-        const UserSettings &settings);
+        const UserSettings &settings,
+        AudioSampleBank::PathResolver resolvePath = {});
 
     AudioRuntime(AudioDefinitionRegistry definitions,
+                 AudioSampleBank samples,
                  const UserSettings &settings,
                  std::unique_ptr<IAudioBackend> backend,
                  std::string degradedReason = {});
@@ -114,6 +121,7 @@ class AudioRuntime {
 
     const AudioRuntimeStats &stats() const noexcept;
     const AudioDefinitionRegistry &definitions() const noexcept;
+    const AudioSampleBank &samples() const noexcept;
     const char *backendName() const noexcept;
     bool usesRealBackend() const noexcept;
     const std::string &degradedReason() const noexcept;
@@ -122,6 +130,7 @@ class AudioRuntime {
     float categoryVolume(AudioCategory category) const noexcept;
 
     AudioDefinitionRegistry m_definitions;
+    AudioSampleBank m_samples;
     UserSettings m_settings;
     std::unique_ptr<IAudioBackend> m_backend;
     SandboxEventBus *m_eventBus = nullptr;

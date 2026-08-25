@@ -11,7 +11,7 @@
 
 namespace {
 constexpr const char *AudioHeader =
-    "# HelloMine3D audio definitions v2";
+    "# HelloMine3D audio definitions v3";
 
 std::string trim(const std::string &value)
 {
@@ -40,6 +40,37 @@ bool validId(const std::string &id)
     });
 }
 
+bool validSamplePath(const std::string &path)
+{
+    constexpr const char *Prefix = "media/audio/samples/";
+    if (path.size() <= std::char_traits<char>::length(Prefix) + 4 ||
+        path.compare(0, std::char_traits<char>::length(Prefix), Prefix) != 0 ||
+        path.compare(path.size() - 4, 4, ".wav") != 0 ||
+        path.find('\\') != std::string::npos ||
+        path.find(':') != std::string::npos) {
+        return false;
+    }
+    std::size_t begin = 0;
+    while (begin < path.size()) {
+        const std::size_t end = path.find('/', begin);
+        const std::string part = path.substr(
+            begin, end == std::string::npos ? std::string::npos
+                                             : end - begin);
+        if (part.empty() || part == "." || part == ".." ||
+            !std::all_of(part.begin(), part.end(), [](unsigned char value) {
+                return std::isalnum(value) || value == '_' || value == '-' ||
+                       value == '.';
+            })) {
+            return false;
+        }
+        if (end == std::string::npos) {
+            break;
+        }
+        begin = end + 1;
+    }
+    return true;
+}
+
 [[noreturn]] void fail(const AudioDefinitionSource &source,
                        std::size_t line, const std::string &detail)
 {
@@ -61,21 +92,6 @@ AudioCategory parseCategory(const AudioDefinitionSource &source,
         return AudioCategory::Ambient;
     }
     fail(source, line, "unknown category '" + value + "'");
-}
-
-AudioWaveform parseWaveform(const AudioDefinitionSource &source,
-                            std::size_t line, const std::string &value)
-{
-    if (value == "sine") {
-        return AudioWaveform::Sine;
-    }
-    if (value == "square") {
-        return AudioWaveform::Square;
-    }
-    if (value == "noise") {
-        return AudioWaveform::Noise;
-    }
-    fail(source, line, "unknown waveform '" + value + "'");
 }
 
 void requireCompleteCueSet(
@@ -104,19 +120,6 @@ const char *audioCategoryName(AudioCategory category) noexcept
         return "effects";
     case AudioCategory::Ambient:
         return "ambient";
-    }
-    return "unknown";
-}
-
-const char *audioWaveformName(AudioWaveform waveform) noexcept
-{
-    switch (waveform) {
-    case AudioWaveform::Sine:
-        return "sine";
-    case AudioWaveform::Square:
-        return "square";
-    case AudioWaveform::Noise:
-        return "noise";
     }
     return "unknown";
 }
@@ -173,14 +176,14 @@ void AudioDefinitionRegistry::freeze(
             AudioDefinition definition;
             std::string category;
             std::string mode;
-            std::string waveform;
             if (!(values >> directive >> definition.id >> category >> mode >>
-                  waveform >> definition.frequency >>
-                  definition.durationMilliseconds >> definition.gain >>
-                  definition.maxVoices >> std::quoted(definition.caption)) ||
-                directive != "sound") {
+                  std::quoted(definition.samplePath) >> definition.gain >>
+                  definition.maxVoices >>
+                  std::quoted(definition.captionKey) >>
+                  std::quoted(definition.caption)) ||
+                directive != "sample") {
                 fail(source, lineNumber,
-                     "expected sound id category 2d|3d waveform frequency duration_ms gain max_voices caption");
+                     "expected sample id category 2d|3d logical_path gain max_voices caption_key fallback_caption");
             }
             values >> std::ws;
             if (!values.eof()) {
@@ -196,18 +199,9 @@ void AudioDefinitionRegistry::freeze(
                 fail(source, lineNumber, "mode must be 2d or 3d");
             }
             definition.spatial = mode == "3d";
-            definition.waveform =
-                parseWaveform(source, lineNumber, waveform);
-            if (!std::isfinite(definition.frequency) ||
-                definition.frequency < 20.f ||
-                definition.frequency > 20000.f) {
+            if (!validSamplePath(definition.samplePath)) {
                 fail(source, lineNumber,
-                     "frequency must be between 20 and 20000 Hz");
-            }
-            if (definition.durationMilliseconds < 10 ||
-                definition.durationMilliseconds > 3000) {
-                fail(source, lineNumber,
-                     "duration must be between 10 and 3000 ms");
+                     "sample path must be a canonical media/audio/samples/*.wav path");
             }
             if (!std::isfinite(definition.gain) || definition.gain < 0.f ||
                 definition.gain > 1.f) {
@@ -217,6 +211,12 @@ void AudioDefinitionRegistry::freeze(
             if (definition.maxVoices < 1 || definition.maxVoices > 8) {
                 fail(source, lineNumber,
                      "max voices must be between 1 and 8");
+            }
+            const std::string expectedCaptionKey =
+                "audio." + definition.id + ".caption";
+            if (definition.captionKey != expectedCaptionKey) {
+                fail(source, lineNumber, "caption key must be '" +
+                                             expectedCaptionKey + "'");
             }
             if (definition.caption.empty() || definition.caption.size() > 96 ||
                 std::any_of(definition.caption.begin(), definition.caption.end(),

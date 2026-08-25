@@ -64,6 +64,18 @@ foreach ($audioFile in $audioFiles) {
         [char]'\', [char]'/')
     Add-ManifestEntry "audio" $relativeAudio
 }
+$sampleFiles = @(Get-ChildItem -LiteralPath $audioRoot `
+    -Filter "*.wav" -File -Recurse)
+if ($sampleFiles.Count -ne 9) {
+    throw "Expected exactly 9 N12B audio samples, found $($sampleFiles.Count)."
+}
+foreach ($sampleFile in $sampleFiles) {
+    $relativeSample = $sampleFile.FullName.Substring($Root.Length).TrimStart(
+        [char]'\', [char]'/')
+    Add-ManifestEntry "audio-sample" $relativeSample
+}
+Add-ManifestEntry "license" `
+    "media/audio/samples/LICENSE-HelloMine3D-Audio.txt"
 
 $objectiveRoot = Join-Path $Root "media\objectives"
 if (-not (Test-Path -LiteralPath $objectiveRoot -PathType Container)) {

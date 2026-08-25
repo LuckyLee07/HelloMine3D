@@ -12,6 +12,7 @@
 #include "../Sandbox/Events/CraftingEvents.h"
 #include "../Sandbox/Events/EntityEvents.h"
 #include "../Sandbox/Events/SandboxEventBus.h"
+#include "../Util/ResourcePaths.h"
 
 #if defined(_WIN32)
 #ifndef NOMINMAX
@@ -23,7 +24,6 @@
 
 namespace {
 constexpr std::size_t MaxGlobalVoices = 16;
-constexpr float Pi = 3.14159265358979323846f;
 
 glm::vec3 blockCenter(const glm::ivec3 &position)
 {
@@ -40,6 +40,11 @@ bool truthy(const char *value)
     const std::string text(value);
     return text == "1" || text == "true" || text == "TRUE" ||
            text == "on" || text == "ON";
+}
+
+std::string resolveBaseAudioPath(const std::string &logicalPath)
+{
+    return ResourcePaths::join(ResourcePaths::projectRoot(), logicalPath);
 }
 
 #if defined(_WIN32)
@@ -86,6 +91,7 @@ class WindowsWaveOutBackend final : public IAudioBackend {
 
     AudioBackendPlayResult play(
         const AudioDefinition &definition,
+        const AudioSampleData &sample,
         const AudioPlaybackEvent &event, float effectiveGain,
         const AudioListenerState &listener) noexcept override
     {
@@ -137,43 +143,15 @@ class WindowsWaveOutBackend final : public IAudioBackend {
 
         auto voice = std::make_unique<Voice>();
         voice->cueId = definition.id;
-        const std::size_t frames = static_cast<std::size_t>(
-            (static_cast<std::uint64_t>(SampleRate) *
-             static_cast<std::uint64_t>(definition.durationMilliseconds)) /
-            1000u);
+        const std::size_t frames = sample.monoSamples.size();
         voice->samples.resize(frames * 2u);
-        std::uint32_t noise = static_cast<std::uint32_t>(
-            std::hash<std::string>{}(definition.id) ^ m_sequence++);
         for (std::size_t frame = 0; frame < frames; ++frame) {
-            const float time = static_cast<float>(frame) /
-                               static_cast<float>(SampleRate);
-            const float phase = 2.f * Pi * definition.frequency * time;
-            float sample = 0.f;
-            switch (definition.waveform) {
-            case AudioWaveform::Sine:
-                sample = std::sin(phase);
-                break;
-            case AudioWaveform::Square:
-                sample = std::sin(phase) >= 0.f ? 1.f : -1.f;
-                break;
-            case AudioWaveform::Noise:
-                noise ^= noise << 13;
-                noise ^= noise >> 17;
-                noise ^= noise << 5;
-                sample = static_cast<float>(noise & 0xffffu) / 32767.5f -
-                         1.f;
-                break;
-            }
-            const float normalized =
-                frames > 1 ? static_cast<float>(frame) /
-                                 static_cast<float>(frames - 1)
-                           : 1.f;
-            const float envelope = std::min(
-                {1.f, normalized * 24.f, (1.f - normalized) * 12.f});
-            const float shaped = sample * std::max(0.f, envelope);
-            voice->samples[frame * 2u] = toSample(shaped * leftGain);
+            const float source = static_cast<float>(
+                                     sample.monoSamples[frame]) /
+                                 32768.f;
+            voice->samples[frame * 2u] = toSample(source * leftGain);
             voice->samples[frame * 2u + 1u] =
-                toSample(shaped * rightGain);
+                toSample(source * rightGain);
         }
         voice->header.lpData = reinterpret_cast<LPSTR>(
             voice->samples.data());
@@ -259,7 +237,6 @@ class WindowsWaveOutBackend final : public IAudioBackend {
 
     HWAVEOUT m_output = nullptr;
     std::list<std::unique_ptr<Voice>> m_voices;
-    std::uint32_t m_sequence = 1;
     bool m_paused = false;
 };
 #endif
@@ -281,7 +258,8 @@ bool DummyAudioBackend::initialize(std::string &error) noexcept
 }
 
 AudioBackendPlayResult DummyAudioBackend::play(
-    const AudioDefinition &definition, const AudioPlaybackEvent &,
+    const AudioDefinition &definition, const AudioSampleData &,
+    const AudioPlaybackEvent &,
     float effectiveGain,
     const AudioListenerState &) noexcept
 {
@@ -331,17 +309,34 @@ std::size_t DummyAudioBackend::acceptedEvents() const noexcept
 }
 
 std::unique_ptr<AudioRuntime> AudioRuntime::create(
-    AudioDefinitionRegistry definitions, const UserSettings &settings)
+    AudioDefinitionRegistry definitions, const UserSettings &settings,
+    AudioSampleBank::PathResolver resolvePath)
 {
     const char *requested = std::getenv("HELLOMINE3D_AUDIO_BACKEND");
     const std::string requestedName = requested != nullptr
                                           ? requested
                                           : "auto";
     std::string degradedReason;
+    AudioSampleBank samples;
+    bool samplesAvailable = false;
+    if (!definitions.definitions().empty()) {
+        if (!resolvePath) {
+            resolvePath = resolveBaseAudioPath;
+        }
+        std::string sampleError;
+        samplesAvailable = samples.tryFreeze(
+            definitions, resolvePath, sampleError);
+        if (!samplesAvailable) {
+            degradedReason = "audio samples are unavailable: " + sampleError;
+        }
+    }
     std::unique_ptr<IAudioBackend> backend;
     if (definitions.definitions().empty()) {
         backend = std::make_unique<DummyAudioBackend>();
         degradedReason = "audio definitions are unavailable";
+    }
+    else if (!samplesAvailable) {
+        backend = std::make_unique<DummyAudioBackend>();
     }
     else if (requestedName == "dummy" || truthy(std::getenv(
                                         "HELLOMINE3D_DISABLE_AUDIO"))) {
@@ -365,26 +360,41 @@ std::unique_ptr<AudioRuntime> AudioRuntime::create(
         backend->initialize(ignored);
     }
     return std::make_unique<AudioRuntime>(
-        std::move(definitions), settings, std::move(backend),
+        std::move(definitions), std::move(samples), settings,
+        std::move(backend),
         std::move(degradedReason));
 }
 
 std::unique_ptr<AudioRuntime> AudioRuntime::createDummy(
-    AudioDefinitionRegistry definitions, const UserSettings &settings)
+    AudioDefinitionRegistry definitions, const UserSettings &settings,
+    AudioSampleBank::PathResolver resolvePath)
 {
+    AudioSampleBank samples;
+    std::string degradedReason = "dummy backend requested";
+    if (!definitions.definitions().empty()) {
+        if (!resolvePath) {
+            resolvePath = resolveBaseAudioPath;
+        }
+        std::string sampleError;
+        if (!samples.tryFreeze(definitions, resolvePath, sampleError)) {
+            degradedReason = "audio samples are unavailable: " + sampleError;
+        }
+    }
     auto backend = std::make_unique<DummyAudioBackend>();
     std::string ignored;
     backend->initialize(ignored);
     return std::make_unique<AudioRuntime>(
-        std::move(definitions), settings, std::move(backend),
-        "dummy backend requested");
+        std::move(definitions), std::move(samples), settings,
+        std::move(backend), std::move(degradedReason));
 }
 
 AudioRuntime::AudioRuntime(AudioDefinitionRegistry definitions,
+                           AudioSampleBank samples,
                            const UserSettings &settings,
                            std::unique_ptr<IAudioBackend> backend,
                            std::string degradedReason)
     : m_definitions(std::move(definitions))
+    , m_samples(std::move(samples))
     , m_settings(settings)
     , m_backend(std::move(backend))
     , m_degradedReason(std::move(degradedReason))
@@ -483,11 +493,17 @@ void AudioRuntime::submit(AudioPlaybackEvent event) noexcept
         ++m_stats.suppressedEvents;
         return;
     }
+    const AudioSampleData *sample = m_samples.find(definition->id);
+    if (sample == nullptr) {
+        ++m_stats.missingSamples;
+        return;
+    }
     if (m_backend == nullptr) {
         ++m_stats.backendFailures;
         return;
     }
-    switch (m_backend->play(*definition, event, effectiveGain, m_listener)) {
+    switch (m_backend->play(
+        *definition, *sample, event, effectiveGain, m_listener)) {
     case AudioBackendPlayResult::Played:
         ++m_stats.playedEvents;
         break;
@@ -562,6 +578,11 @@ const AudioRuntimeStats &AudioRuntime::stats() const noexcept
 const AudioDefinitionRegistry &AudioRuntime::definitions() const noexcept
 {
     return m_definitions;
+}
+
+const AudioSampleBank &AudioRuntime::samples() const noexcept
+{
+    return m_samples;
 }
 
 const char *AudioRuntime::backendName() const noexcept

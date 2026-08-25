@@ -694,6 +694,11 @@ class OgreUserInterface::Impl
             ImGui::TextWrapped("%s", tr("credits.font_source").c_str());
             ImGui::TextWrapped("%s", tr("credits.font_license").c_str());
             ImGui::TextWrapped("%s", tr("credits.font_path").c_str());
+            ImGui::SeparatorText(tr("credits.audio_heading").c_str());
+            ImGui::TextWrapped("%s", tr("credits.audio_name").c_str());
+            ImGui::TextWrapped("%s", tr("credits.audio_source").c_str());
+            ImGui::TextWrapped("%s", tr("credits.audio_license").c_str());
+            ImGui::TextWrapped("%s", tr("credits.audio_path").c_str());
             if (!fontDiagnostic.empty())
             {
                 ImGui::Spacing();

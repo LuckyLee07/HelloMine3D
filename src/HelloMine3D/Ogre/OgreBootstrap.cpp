@@ -190,10 +190,27 @@ namespace
             loadGameConfig();
             AudioDefinitionRegistry audioDefinitions =
                 loadAudioDefinitions();
+            std::unique_ptr<AudioRuntime> audioValidation =
+                AudioRuntime::createDummy(
+                    std::move(audioDefinitions), userSettings(m_config),
+                    [](const std::string &logicalPath)
+                    {
+                        return runtimeResourcePackResolver().resolve(
+                            logicalPath);
+                    });
             std::cout << "[AUDIO_REGISTRY] frozen=1 definitions="
-                      << audioDefinitions.definitions().size()
+                      << audioValidation->definitions().definitions().size()
+                      << " samples="
+                      << audioValidation->samples().cueCount()
+                      << " unique_samples="
+                      << audioValidation->samples().uniqueSampleCount()
+                      << " decoded_bytes="
+                      << audioValidation->samples().decodedBytes()
                       << " degraded="
-                      << (m_audioDefinitionError.empty() ? 0 : 1)
+                      << ((m_audioDefinitionError.empty() &&
+                           audioValidation->samples().cueCount() > 0)
+                              ? 0
+                              : 1)
                       << '\n';
             createRoot();
             const std::size_t resourceLocations = configureResources();
@@ -416,11 +433,20 @@ namespace
         {
             AudioDefinitionRegistry definitions = loadAudioDefinitions();
             m_audio = AudioRuntime::create(
-                std::move(definitions), userSettings(m_config));
+                std::move(definitions), userSettings(m_config),
+                [](const std::string &logicalPath)
+                {
+                    return runtimeResourcePackResolver().resolve(logicalPath);
+                });
             std::cout << "[AUDIO] backend=" << m_audio->backendName()
                       << " real=" << (m_audio->usesRealBackend() ? 1 : 0)
                       << " definitions="
                       << m_audio->definitions().definitions().size()
+                      << " samples=" << m_audio->samples().cueCount()
+                      << " unique_samples="
+                      << m_audio->samples().uniqueSampleCount()
+                      << " decoded_bytes="
+                      << m_audio->samples().decodedBytes()
                       << " degraded="
                       << (m_audio->degradedReason().empty() ? 0 : 1);
             if (!m_audioDefinitionError.empty())

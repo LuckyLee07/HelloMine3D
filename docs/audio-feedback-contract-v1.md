@@ -1,35 +1,42 @@
-# G5/N6 基础音频反馈合同 v1
+# G5/N6/N12B 音频反馈合同 v1
 
 本文固定 HelloMine3D 第一版基础音频的数据、事件、播放、降级和验证边界。目标是给正常
 玩家动作提供一致反馈，同时保证音频永远不能阻止世界加载、保存或退出。本合同不引入
 FMOD、流式音乐、音频资源热更新或可执行资源包扩展。
 
-## 数据格式
+## N12B 数据格式与资产所有权
 
 基础定义位于 `media/audio/Base.audio`，首行必须是：
 
 ```text
-# HelloMine3D audio definitions v2
+# HelloMine3D audio definitions v3
 ```
 
-每条非注释行使用固定字段和一个带引号字幕：
+每条非注释行使用固定字段；逻辑路径、字幕 key 和英文降级字幕都带引号：
 
 ```text
-sound <id> <category> <mode> <waveform> <frequency_hz> <duration_ms> <gain> <max_voices> "<caption>"
+sample <id> <category> <mode> "<logical_path>" <gain> <max_voices> "<caption_key>" "<fallback_caption>"
 ```
 
 - `category` 只允许 `ui`、`effects`、`ambient`。
 - `mode` 只允许 `2d`、`3d`。
-- `waveform` 只允许 `sine`、`square`、`noise`。
-- 频率、时长、增益和单提示并发数必须落在解析器规定的有界范围内。
-- 字幕必须包含 1-96 个可打印字符；未知、缺失或越界字幕拒绝整份定义。
+- `logical_path` 必须是 `media/audio/samples/*.wav` 下不含反斜杠、盘符、空段、`.` 或 `..`
+  的规范路径；运行时不接受绝对路径和目录逃逸。
+- `gain` 必须在 0-1，单 cue 并发数必须在 1-8；未知字段和尾随数据拒绝整份定义。
+- `caption_key` 必须精确等于 `audio.<cue-id>.caption`。英文降级字幕必须包含 1-96 个可打印
+  字符；本地化目录正常时仍由该语义 key 决定显示文本。
 - id 必须唯一；未知字段、重复 id、非法数值或缺少必需提示都会拒绝整份定义。
-- v2 必须同时定义 `ui.click`、`block.break`、`block.place`、`item.pickup`、
-  `craft.success`、`combat.hit` 和 `ambient.wind`。
+- v3 必须同时定义 `ui.click`、`block.break`、`block.place`、`item.pickup`、
+  `craft.success`、`combat.hit`、`combat.windup`、`combat.guard` 和 `ambient.wind`。
 
-当前声音由轻量后端按定义实时合成，不依赖外部音频 SDK 或压缩音频文件。定义文件作为
-`audio` 条目进入基础资源清单；resource-pack v1 不允许覆盖该类别，未来如需替换声音，
-必须先建立独立的版本化资源包合同。
+九个固定 WAV 由 `tools/generate_n12b_audio_samples.ps1` 离线确定性生成和筛选，运行时不再生成
+正弦、方波或噪声。资产统一为 44,100 Hz、单声道、PCM16、小端 RIFF/WAVE，单个文件必须为
+44-524,288 字节且持续 10-3,000 ms。文件、生成脚本、逐文件 SHA-256 和来源记录进入仓库；
+`media/audio/samples/LICENSE-HelloMine3D-Audio.txt` 以 MIT License 授权这些项目原创采样。
+
+清单分别使用 `audio`、`audio-sample` 和 `license` 类别。三类在 resource-pack v1 中均为
+base-only，不能被现有包覆盖；未来允许替换音效时必须显式升版资源包合同，而不是复用纹理或
+字体覆盖权限。缺采样属于可降级启动资源；许可证缺失仍是发行错误。
 
 ## 事件所有权
 
@@ -42,6 +49,8 @@ sound <id> <category> <mode> <waveform> <frequency_hz> <duration_ms> <gain> <max
 | 方块成功放置 | `block.place` | 3D，放置位置 |
 | 物品实体成功进入库存 | `item.pickup` | 3D，拾取位置 |
 | 实体实际受到伤害 | `combat.hit` | 3D，受击位置 |
+| 敌人进入攻击前摇 | `combat.windup` | 3D，敌人位置 |
+| 玩家成功格挡 | `combat.guard` | 3D，格挡位置 |
 | 制作事务成功提交 | `craft.success` | 2D |
 | 成功的菜单/UI 操作 | `ui.click` | 2D |
 | 世界持续运行满八秒 | `ambient.wind` | 2D |
@@ -52,7 +61,10 @@ sound <id> <category> <mode> <waveform> <frequency_hz> <duration_ms> <gain> <max
 
 ## 后端与播放规则
 
-- Windows 默认使用系统 `waveOut` 输出立体声 PCM；初始化失败时自动退回 dummy。
+- 启动时一次性严格解码并冻结采样库；相同逻辑路径只缓存一份。唯一采样最多 32 个，解码后
+  PCM 总量最多 4 MiB；当前 9 个 cue/9 个唯一采样共 312,230 字节。
+- Windows 默认使用系统 `waveOut` 输出立体声 PCM；播放时只从冻结的单声道采样复制并应用
+  gain、距离衰减和左右声像，不在提交路径打开文件或合成波形。初始化失败时自动退回 dummy。
 - 非 Windows、定义缺失、无音频设备或显式设置
   `HELLOMINE3D_AUDIO_BACKEND=dummy` 时使用 dummy。
 - dummy 保留事件、并发和统计语义，但不打开设备、不发声，供无设备环境和自动化使用。
@@ -68,31 +80,43 @@ sound <id> <category> <mode> <waveform> <frequency_hz> <duration_ms> <gain> <max
 
 ## 启动与失败语义
 
-启动先冻结有效资源视图，再读取音频定义并创建运行时。缺少或无法解析
-`media/audio/Base.audio` 时记录诊断，冻结空定义并选择 dummy；该情况不是启动资源预检
-的致命错误。真实后端打开失败、单次播放失败或 UI 回调异常也只能增加诊断/统计，不能
-中断玩家命令、世界保存或进程退出。
+启动先冻结有效资源视图，再读取音频定义、解析全部被引用的采样并创建运行时。缺少或无法
+解析 `media/audio/Base.audio` 时冻结空定义；任何必需采样缺失、截断、格式不符或超界时冻结
+空采样库。两类情况都选择 dummy、保留有界诊断且不属于启动资源预检的致命错误；定义仍有效
+时字幕可继续显示，听觉提交计入 `missingSamples` 后静默返回。真实后端打开失败、单次播放失败
+或 UI 回调异常也只能增加诊断/统计，不能中断玩家命令、世界保存或进程退出。
 
 正常日志至少说明定义数量和所选后端：
 
 ```text
-[AUDIO_REGISTRY] frozen=1 definitions=7 degraded=0
-[AUDIO] backend=dummy real=0 definitions=7 degraded=1 reason=dummy backend requested
+[AUDIO_REGISTRY] frozen=1 definitions=9 samples=9 unique_samples=9 decoded_bytes=312230 degraded=0
+[AUDIO] backend=windows-waveout real=1 definitions=9 samples=9 unique_samples=9 decoded_bytes=312230 degraded=0
 ```
 
 ## 验证合同
 
-关闭 G5 至少需要：
+关闭 N12B 更新至少需要：
 
-1. 严格解析、必需提示、重复/范围错误和缺文件降级测试。
-2. 方块破坏/放置、拾取、受击和制作五类业务事件各精确提交一次，失败制作零提交。
-3. 2D/3D 分类、分类/主音量、暂停、静音、挂起、缺少提示、解绑、环境节拍和并发上限
+1. 严格 v3 解析、必需提示、规范路径、字幕 key、重复/范围错误和缺文件降级测试。
+2. 九个正式 WAV 的 RIFF 大小、PCM16/单声道/44.1 kHz、时长、单文件/总缓存上限、共享路径
+   去重、损坏格式和缺文件降级测试。
+3. 方块破坏/放置、拾取、受击和制作五类业务事件各精确提交一次，失败制作零提交。
+4. 2D/3D 分类、分类/主音量、暂停、静音、挂起、缺少提示、解绑、环境节拍和并发上限
    测试。
-4. 资源包 v1 拒绝音频覆盖；缺少基础音频时有效资源视图和启动预检仍可完成。
-5. Windows Debug/Release 编译、`WorldRuntimeSmoke`、`ResourcePackSmoke`、资源清单正负例，
+5. 资源包 v1 拒绝定义、采样和许可证覆盖；缺少基础音频/采样时有效资源视图和启动预检仍可
+   完成，许可证缺失则失败。
+6. Windows Debug/Release 编译、`WorldRuntimeSmoke`、`ResourcePackSmoke`、资源清单正负例，
    以及强制 dummy 的隐藏校验启动和隐藏三帧真实启动全部通过。
 
-2026-08-17 的关闭证据为：资源清单 40 项，清单门禁 3/3，资源包门禁 23/23，世界运行时
-门禁 403/403；Debug 与 Release 的验证模式和三帧运行均在隐藏窗口中以退出码 0 完成。
-人工听感、物理输入和最终发行包仍按 R3/N6/Release Candidate 计划后置，不影响本合同的
-自动化完成状态。
+2026-08-17 的 G5 历史关闭证据为：资源清单 40 项，清单门禁 3/3，资源包门禁 23/23，世界
+运行时门禁 403/403；Debug 与 Release 的验证模式和三帧运行均在隐藏窗口中以退出码 0 完成。
+
+N12B 的 2026-08-26 正式证据为：9 个原创 WAV 的固定哈希/格式检查、严格 v3 定义、312,230
+字节解码缓存、共享路径去重、损坏/缺失静音降级和生命周期自动断言通过；资源清单为 61 项，
+双语目录各 346 个 key。VS2017/v141 Debug/Release 客户端、681/681 世界和 34/34 资源包目标
+通过；隐藏校验和真实三帧客户端均退出 0，真实运行报告 `windows-waveout real=1`、9/9 采样和
+`degraded=0`。完整门禁通过十三个测试目标、38 个性能夹具、128,209 字节受控 dump 和 81 文件
+包；发行 ZIP SHA-256 为 `1F7AEBFF35A796053A739D99CE060C14A7E39459A818DC1A6B609C5A778C416F`。
+同身份可用菜单 `711.836/712.408 ms`、首次可控世界 `398.068/416.950 ms` 均比较 `PASS`。
+人工听感与真实无设备机器体验属于用户决定延期的 R3 项，不能由自动化格式测试代替或标为
+`PASS`。

@@ -11,21 +11,14 @@ enum class AudioCategory {
     Ambient
 };
 
-enum class AudioWaveform {
-    Sine,
-    Square,
-    Noise
-};
-
 struct AudioDefinition {
     std::string id;
     AudioCategory category = AudioCategory::Effects;
     bool spatial = false;
-    AudioWaveform waveform = AudioWaveform::Sine;
-    float frequency = 440.f;
-    int durationMilliseconds = 100;
+    std::string samplePath;
     float gain = 1.f;
     int maxVoices = 1;
+    std::string captionKey;
     std::string caption;
 };
 
@@ -35,11 +28,10 @@ struct AudioDefinitionSource {
 };
 
 const char *audioCategoryName(AudioCategory category) noexcept;
-const char *audioWaveformName(AudioWaveform waveform) noexcept;
 
 class AudioDefinitionRegistry {
   public:
-    static constexpr int SupportedFormatVersion = 2;
+    static constexpr int SupportedFormatVersion = 3;
 
     void freeze(const std::vector<AudioDefinitionSource> &sources);
     bool tryFreezeFromFile(const std::string &path,
