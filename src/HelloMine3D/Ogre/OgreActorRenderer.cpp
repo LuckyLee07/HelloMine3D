@@ -13,7 +13,12 @@ namespace
     constexpr const char* StalkerMaterial = "HelloMine3D/ActorStalker";
     constexpr const char* BruteMaterial = "HelloMine3D/ActorBrute";
     constexpr const char* ItemMaterial = "HelloMine3D/ActorItem";
-    constexpr float FirstPersonNearPlanePadding = 0.15f;
+    // Hostile mobs stop 0.55 m from the player centre. With a 0.35 m
+    // half-width that leaves their nearest face only 0.20 m from the
+    // first-person camera, where it can fill the viewport before crossing
+    // the 0.10 m near plane. Hide visuals once they enter the player's
+    // contact envelope; simulation, selection and collision remain active.
+    constexpr float FirstPersonContactPadding = 0.30f;
 
     bool finiteVector(const glm::vec3& value)
     {
@@ -46,7 +51,7 @@ namespace
                 snapshot.dimensions,
             glm::vec3(0.0f));
         return glm::dot(separation, separation) <=
-               FirstPersonNearPlanePadding * FirstPersonNearPlanePadding;
+               FirstPersonContactPadding * FirstPersonContactPadding;
     }
 
     void buildUnitCube(Ogre::ManualObject& object,
