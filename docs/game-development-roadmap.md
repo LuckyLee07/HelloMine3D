@@ -76,10 +76,10 @@ Release Candidate 自动证据也已关闭，当前只等待 R3 真人输入。
 | 8 | N5 生态差异与探索目标 | P1 | 不同区域提供不同资源、危险和一个值得寻找的地标。 | `Done`：terrain v2 路标、生态敌人压力、v8 迁移和 487 项世界回归通过；合同见 `ecology-exploration-contract-v1.md`。 |
 | 9 | N6 产品体验完善 | P1 | HUD、目标、配方发现、键位与辅助选项统一，声音反馈和可访问提示形成一致体验。 | `Done`：491 项世界回归、95 项配方/产品体验断言及完整 Windows 门禁通过；合同见 `product-experience-contract-v1.md`。 |
 | 10 | Release Candidate 封板 | P0 | 形成可重复构建、诊断、测量、迁移和分发的本地单机发行候选。 | 自动化 `Done`，只等待 R3 真人输入关闭 D2/D4/D6。 |
-| 11 | Stage 9 / Beta | P0/P1 | 增加首个胜利闭环、遭遇、探索地点、资源经济、难度、本地化和正式表现。 | `Doing`：N7A/N7B、N8A/N8B 与 N9A 已完成，下一批 N9B；N9B-N12 与 BETA-RC 见 `beta-gameplay-roadmap.md`。 |
+| 11 | Stage 9 / Beta | P0/P1 | 增加首个胜利闭环、遭遇、探索地点、资源经济、难度、本地化和正式表现。 | `Doing`：N7A/N7B、N8A/N8B 与 N9A/N9B 已完成，下一批 N10；N10-N12 与 BETA-RC 见 `beta-gameplay-roadmap.md`。 |
 
 `N1-N6` 是 Alpha 之后已经完成的工作包，不回写拆分前的 77 项正式总账。Stage 9 的
-`N7A/N7B`、`N8A/N8B` 与 `N9A` 已完成，`N9B-N12` 继续作为 `Planned` 预排，均不回写拆分前统计；每个
+`N7A/N7B`、`N8A/N8B` 与 `N9A/N9B` 已完成，`N10-N12` 继续作为 `Planned` 预排，均不回写拆分前统计；每个
 工作包开始前根据实际玩家阻塞点确认范围，避免同时扩张多条共享状态实现线。
 
 ## 近期详细批次
@@ -274,7 +274,7 @@ RC 自动化闭环后，下一阶段继续解决“为什么准备、为什么�
 | 6 | N8A | 攻击前摇/恢复、方向性受击、击退和反馈，先让战斗意图可读。 | Done |
 | 7 | N8B | 小型战斗档案、远程敌人、有界瞬态投射物和最低限度格挡。 | Done |
 | 8 | N9A | 复用 cell hash/`StructureBuilder` 固定结构归属、投影和覆盖规则。 | Done |
-| 9 | N9B | 两类 seed 稳定遗迹/营地、一次性箱子初始化和少量生态资源。 | Planned |
+| 9 | N9B | 两类 seed 稳定遗迹/营地、一次性箱子初始化和少量生态资源。 | Done |
 | 10 | N10 | 约 4 种食物、3 类冶炼、18-22 个精确配方和经济可达性校验。 | Planned |
 | 11 | N11A | Casual/Normal/Challenging 三档集中式、版本化难度档案。 | Planned |
 | 12 | N11B | 有界胜利后事件；P2 伸缩项，不阻塞首个 Beta。 | Planned（伸缩项） |

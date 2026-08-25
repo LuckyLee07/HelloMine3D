@@ -12,7 +12,8 @@ enum class TerrainBiome {
 };
 
 inline constexpr int LegacyTerrainGenerationVersion = 1;
-inline constexpr int CurrentTerrainGenerationVersion = 2;
+inline constexpr int WaystoneTerrainGenerationVersion = 2;
+inline constexpr int CurrentTerrainGenerationVersion = 3;
 
 class TerrainGenerator {
   public:

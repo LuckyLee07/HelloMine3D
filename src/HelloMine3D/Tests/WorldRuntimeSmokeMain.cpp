@@ -8809,10 +8809,13 @@ bool sameStructurePlan(const StructurePlanSnapshot &left,
            left.footprint.maximumY == right.footprint.maximumY &&
            left.footprint.minimumZ == right.footprint.minimumZ &&
            left.footprint.maximumZ == right.footprint.maximumZ &&
+           left.biome == right.biome &&
            left.projectionPriority == right.projectionPriority &&
            left.selectedCandidate == right.selectedCandidate &&
            left.plannedBlockCount == right.plannedBlockCount &&
-           left.selectionHash == right.selectionHash;
+           left.selectionHash == right.selectionHash &&
+           left.hasChest == right.hasChest &&
+           left.chestPosition == right.chestPosition;
 }
 
 bool sameStructurePlans(const std::vector<StructurePlanSnapshot> &left,
@@ -8842,11 +8845,11 @@ void caseEcologyAndExploration()
     World world(camera, config, player, directory, false, 1);
 
     ClassicOverWorldGenerator currentGenerator(
-        kValidationSeed, CurrentTerrainGenerationVersion);
+        kValidationSeed, WaystoneTerrainGenerationVersion);
     ClassicOverWorldGenerator legacyGenerator(
         kValidationSeed, LegacyTerrainGenerationVersion);
     ClassicOverWorldGenerator otherSeedGenerator(
-        kValidationSeed + 1, CurrentTerrainGenerationVersion);
+        kValidationSeed + 1, WaystoneTerrainGenerationVersion);
     ClassicOverWorldGenerator::LandmarkPlacement landmark;
     int landmarkCellX = 0;
     int landmarkCellZ = 0;
@@ -8944,7 +8947,7 @@ void caseEcologyAndExploration()
     invalidGeneration.terrainGenerationVersion =
         CurrentTerrainGenerationVersion + 1;
     WorldSaveData preservedCurrent;
-    check("N5/new-world-persists-generation-v2-and-rejects-invalid-version",
+    check("N9B/new-world-persists-terrain-v3-and-rejects-v4",
           currentLoaded &&
               currentData.version == WorldSaveFormatVersion &&
               currentData.terrainGenerationVersion ==
@@ -9019,9 +9022,9 @@ void caseDeterministicStructurePlanning()
               DeterministicStructurePlanner::MaximumPlansPerChunk == 4);
 
     ClassicOverWorldGenerator currentGenerator(
-        kValidationSeed, CurrentTerrainGenerationVersion);
+        kValidationSeed, WaystoneTerrainGenerationVersion);
     ClassicOverWorldGenerator otherSeedGenerator(
-        kValidationSeed + 1, CurrentTerrainGenerationVersion);
+        kValidationSeed + 1, WaystoneTerrainGenerationVersion);
     ClassicOverWorldGenerator legacyGenerator(
         kValidationSeed, LegacyTerrainGenerationVersion);
     const StructurePlanSnapshot frozen =
@@ -9030,7 +9033,7 @@ void caseDeterministicStructurePlanning()
     check("N9A/terrain-v2-waystone-plan-keeps-frozen-identity",
           frozen.valid && frozen.key.type == StructureType::Waystone &&
               frozen.key.terrainGenerationVersion ==
-                  CurrentTerrainGenerationVersion &&
+                  WaystoneTerrainGenerationVersion &&
               frozen.key.cellX == 0 && frozen.key.cellZ == 5 &&
               frozen.anchor == glm::ivec3(18, 70, 328),
           "anchor=" + std::to_string(frozen.anchor.x) + "," +
@@ -9289,6 +9292,700 @@ void caseDeterministicStructurePlanning()
           sameProjection && forward.size() >= 2 && coreCount == 1,
           "chunks=" + std::to_string(forward.size()) +
               ", cores=" + std::to_string(coreCount));
+}
+
+// ---------------------------------------------------------------------------
+// N9B - terrain-v3 ruins, raider camps and persistent structure loot
+// ---------------------------------------------------------------------------
+struct GeneratedStructureChunkSample {
+    int x = 0;
+    int z = 0;
+    std::vector<Block_t> blocks;
+    std::vector<BlockEntityRecord> blockEntities;
+};
+
+bool sameBlockEntityRecord(const BlockEntityRecord &left,
+                           const BlockEntityRecord &right)
+{
+    return left.position == right.position && left.type == right.type &&
+           left.payload == right.payload;
+}
+
+bool sameGeneratedStructureSamples(
+    const std::vector<GeneratedStructureChunkSample> &left,
+    const std::vector<GeneratedStructureChunkSample> &right)
+{
+    if (left.size() != right.size()) {
+        return false;
+    }
+    for (std::size_t index = 0; index < left.size(); ++index) {
+        if (left[index].x != right[index].x ||
+            left[index].z != right[index].z ||
+            left[index].blocks != right[index].blocks ||
+            left[index].blockEntities.size() !=
+                right[index].blockEntities.size()) {
+            return false;
+        }
+        for (std::size_t entity = 0;
+             entity < left[index].blockEntities.size(); ++entity) {
+            if (!sameBlockEntityRecord(
+                    left[index].blockEntities[entity],
+                    right[index].blockEntities[entity])) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+std::vector<GeneratedStructureChunkSample> sampleStructureChunks(
+    World &world, ClassicOverWorldGenerator &generator,
+    const StructurePlanSnapshot &plan, bool reverseOrder)
+{
+    std::vector<glm::ivec2> positions;
+    const int minimumChunkX = World::floorDiv(
+        plan.footprint.minimumX, CHUNK_SIZE);
+    const int maximumChunkX = World::floorDiv(
+        plan.footprint.maximumX, CHUNK_SIZE);
+    const int minimumChunkZ = World::floorDiv(
+        plan.footprint.minimumZ, CHUNK_SIZE);
+    const int maximumChunkZ = World::floorDiv(
+        plan.footprint.maximumZ, CHUNK_SIZE);
+    for (int chunkX = minimumChunkX; chunkX <= maximumChunkX; ++chunkX) {
+        for (int chunkZ = minimumChunkZ; chunkZ <= maximumChunkZ;
+             ++chunkZ) {
+            positions.push_back({chunkX, chunkZ});
+        }
+    }
+    if (reverseOrder) {
+        std::reverse(positions.begin(), positions.end());
+    }
+
+    std::vector<GeneratedStructureChunkSample> samples;
+    for (const glm::ivec2 &position : positions) {
+        Chunk chunk(world, position);
+        chunk.load(generator);
+        GeneratedStructureChunkSample sample;
+        sample.x = position.x;
+        sample.z = position.y;
+        std::vector<BlockMetadata_t> metadata;
+        chunk.collectBlockData(sample.blocks, metadata);
+        sample.blockEntities = chunk.getBlockEntities();
+        samples.push_back(std::move(sample));
+    }
+    std::sort(samples.begin(), samples.end(),
+              [](const GeneratedStructureChunkSample &left,
+                 const GeneratedStructureChunkSample &right) {
+                  return left.x != right.x ? left.x < right.x
+                                           : left.z < right.z;
+              });
+    return samples;
+}
+
+StructurePlanSnapshot findStructurePlan(
+    const ClassicOverWorldGenerator &generator, StructureType type,
+    bool requireCrossChunk)
+{
+    for (int radius = 0; radius <= 32; ++radius) {
+        for (int cellX = -radius; cellX <= radius; ++cellX) {
+            for (int cellZ = -radius; cellZ <= radius; ++cellZ) {
+                if (radius > 0 && std::abs(cellX) != radius &&
+                    std::abs(cellZ) != radius) {
+                    continue;
+                }
+                const StructurePlanSnapshot plan =
+                    generator.getStructurePlanForCell(type, cellX, cellZ);
+                if (!plan.valid) {
+                    continue;
+                }
+                const bool crosses =
+                    World::floorDiv(plan.footprint.minimumX, CHUNK_SIZE) !=
+                        World::floorDiv(plan.footprint.maximumX,
+                                        CHUNK_SIZE) ||
+                    World::floorDiv(plan.footprint.minimumZ, CHUNK_SIZE) !=
+                        World::floorDiv(plan.footprint.maximumZ,
+                                        CHUNK_SIZE);
+                if (!requireCrossChunk || crosses) {
+                    return plan;
+                }
+            }
+        }
+    }
+    return {};
+}
+
+bool inventoryMatchesLoot(const ContainerInventory &inventory,
+                          const StructureLootSnapshot &loot)
+{
+    int nonEmptySlots = 0;
+    for (int slot = 0; slot < inventory.getSlotCount(); ++slot) {
+        if (inventory.getSlot(slot).amount > 0) {
+            ++nonEmptySlots;
+        }
+    }
+    if (!loot.valid || nonEmptySlots !=
+            static_cast<int>(loot.entries.size())) {
+        return false;
+    }
+    return std::all_of(
+        loot.entries.begin(), loot.entries.end(),
+        [&inventory](const StructureLootEntry &entry) {
+            return inventory.count(entry.materialId) == entry.amount;
+        });
+}
+
+bool generatedChestMatchesLoot(
+    const std::vector<GeneratedStructureChunkSample> &samples,
+    const StructurePlanSnapshot &plan,
+    const StructureLootSnapshot &loot)
+{
+    int matchingChestBlocks = 0;
+    int matchingBlockEntities = 0;
+    bool payloadMatches = false;
+    for (const GeneratedStructureChunkSample &sample : samples) {
+        const int chunkMinimumX = sample.x * CHUNK_SIZE;
+        const int chunkMinimumZ = sample.z * CHUNK_SIZE;
+        const int localX = plan.chestPosition.x - chunkMinimumX;
+        const int localZ = plan.chestPosition.z - chunkMinimumZ;
+        if (localX >= 0 && localX < CHUNK_SIZE &&
+            localZ >= 0 && localZ < CHUNK_SIZE) {
+            const std::size_t section = static_cast<std::size_t>(
+                plan.chestPosition.y / CHUNK_SIZE);
+            const std::size_t sectionOffset = static_cast<std::size_t>(
+                plan.chestPosition.y % CHUNK_SIZE) * CHUNK_SIZE * CHUNK_SIZE;
+            const std::size_t localOffset = static_cast<std::size_t>(
+                localZ) * CHUNK_SIZE + static_cast<std::size_t>(localX);
+            const std::size_t blockIndex =
+                section * CHUNK_VOLUME + sectionOffset + localOffset;
+            if (blockIndex < sample.blocks.size() &&
+                static_cast<BlockId>(sample.blocks[blockIndex]) ==
+                    BlockId::Chest) {
+                ++matchingChestBlocks;
+            }
+        }
+        for (const BlockEntityRecord &record : sample.blockEntities) {
+            const glm::ivec3 worldPosition{
+                chunkMinimumX + record.position.x,
+                record.position.y,
+                chunkMinimumZ + record.position.z};
+            if (worldPosition != plan.chestPosition ||
+                record.type != ChestContainer::BlockEntityType) {
+                continue;
+            }
+            ++matchingBlockEntities;
+            ContainerInventory inventory(ChestContainer::SlotCount);
+            payloadMatches =
+                ContainerInventory::deserialize(record.payload, inventory) &&
+                inventoryMatchesLoot(inventory, loot);
+        }
+    }
+    return matchingChestBlocks == 1 && matchingBlockEntities == 1 &&
+           payloadMatches;
+}
+
+void loadStructureFootprint(World &world,
+                            const StructurePlanSnapshot &plan)
+{
+    const int minimumChunkX = World::floorDiv(
+        plan.footprint.minimumX, CHUNK_SIZE);
+    const int maximumChunkX = World::floorDiv(
+        plan.footprint.maximumX, CHUNK_SIZE);
+    const int minimumChunkZ = World::floorDiv(
+        plan.footprint.minimumZ, CHUNK_SIZE);
+    const int maximumChunkZ = World::floorDiv(
+        plan.footprint.maximumZ, CHUNK_SIZE);
+    for (int chunkX = minimumChunkX; chunkX <= maximumChunkX; ++chunkX) {
+        for (int chunkZ = minimumChunkZ; chunkZ <= maximumChunkZ;
+             ++chunkZ) {
+            world.getChunkManager().loadChunk(chunkX, chunkZ);
+        }
+    }
+}
+
+void caseExplorationStructuresAndLoot()
+{
+    check("N9B/terrain-v3-and-structure-type-contract",
+          WaystoneTerrainGenerationVersion == 2 &&
+              CurrentTerrainGenerationVersion == 3 &&
+              std::string(structureTypeName(StructureType::Ruin)) ==
+                  "ruin" &&
+              std::string(structureTypeName(
+                  StructureType::RaiderCamp)) == "raider_camp" &&
+              DeterministicStructurePlanner::SiteCellChunks == 4 &&
+              DeterministicStructurePlanner::SiteCandidateCount == 8 &&
+              DeterministicStructurePlanner::MaximumPlansPerChunk == 4);
+
+    ClassicOverWorldGenerator currentGenerator(
+        kValidationSeed, CurrentTerrainGenerationVersion);
+    ClassicOverWorldGenerator repeatedGenerator(
+        kValidationSeed, CurrentTerrainGenerationVersion);
+    ClassicOverWorldGenerator otherSeedGenerator(
+        kValidationSeed + 1, CurrentTerrainGenerationVersion);
+    ClassicOverWorldGenerator v2Generator(
+        kValidationSeed, WaystoneTerrainGenerationVersion);
+    ClassicOverWorldGenerator legacyGenerator(
+        kValidationSeed, LegacyTerrainGenerationVersion);
+    const DeterministicStructurePlanner selector(
+        kValidationSeed, CurrentTerrainGenerationVersion,
+        [&currentGenerator](int x, int z) {
+            return currentGenerator.getSurfaceHeightAtWorld(x, z);
+        },
+        [&currentGenerator](int x, int z) {
+            return currentGenerator.getBiomeAtWorld(x, z);
+        });
+
+    std::array<bool, 3> selectedTypes{};
+    bool oneTypePerCell = true;
+    for (int cellX = -8; cellX <= 8; ++cellX) {
+        for (int cellZ = -8; cellZ <= 8; ++cellZ) {
+            const StructureType selectedType =
+                selector.selectedStructureTypeForCell(cellX, cellZ);
+            selectedTypes[static_cast<std::size_t>(selectedType)] = true;
+            int validPlans = 0;
+            for (StructureType type : {
+                     StructureType::Waystone, StructureType::Ruin,
+                     StructureType::RaiderCamp}) {
+                const StructurePlanSnapshot plan =
+                    currentGenerator.getStructurePlanForCell(
+                        type, cellX, cellZ);
+                validPlans += plan.valid ? 1 : 0;
+                if (type != selectedType && plan.valid) {
+                    oneTypePerCell = false;
+                }
+            }
+            oneTypePerCell = oneTypePerCell && validPlans <= 1;
+        }
+    }
+    check("N9B/cell-selector-covers-three-types-and-keeps-one-plan",
+          std::all_of(selectedTypes.begin(), selectedTypes.end(),
+                      [](bool selected) { return selected; }) &&
+              oneTypePerCell);
+
+    const StructurePlanSnapshot ruin = findStructurePlan(
+        currentGenerator, StructureType::Ruin, true);
+    const StructurePlanSnapshot camp = findStructurePlan(
+        currentGenerator, StructureType::RaiderCamp, true);
+    const auto flatSurface = [](int, int) { return 70; };
+    const DeterministicStructurePlanner negativeRuinPlanner(
+        kValidationSeed, CurrentTerrainGenerationVersion, flatSurface,
+        [](int, int) { return TerrainBiome::LightForest; });
+    const DeterministicStructurePlanner negativeCampPlanner(
+        kValidationSeed, CurrentTerrainGenerationVersion, flatSurface,
+        [](int, int) { return TerrainBiome::Desert; });
+    StructurePlanSnapshot negativeRuin;
+    StructurePlanSnapshot negativeCamp;
+    for (int cellX = -1; cellX >= -8; --cellX) {
+        for (int cellZ = -1; cellZ >= -8; --cellZ) {
+            if (!negativeRuin.valid) {
+                negativeRuin = negativeRuinPlanner.planForCell(
+                    StructureType::Ruin, cellX, cellZ);
+            }
+            if (!negativeCamp.valid) {
+                negativeCamp = negativeCampPlanner.planForCell(
+                    StructureType::RaiderCamp, cellX, cellZ);
+            }
+        }
+    }
+    check("N9B/ruin-and-camp-are-discoverable-in-eligible-biomes",
+          ruin.valid && camp.valid &&
+              (ruin.biome == TerrainBiome::LightForest ||
+               ruin.biome == TerrainBiome::TemperateForest) &&
+              (camp.biome == TerrainBiome::Desert ||
+               camp.biome == TerrainBiome::Grassland),
+          "ruin cell=" + std::to_string(ruin.key.cellX) + "," +
+              std::to_string(ruin.key.cellZ) + " anchor=" +
+              std::to_string(ruin.anchor.x) + "," +
+              std::to_string(ruin.anchor.y) + "," +
+              std::to_string(ruin.anchor.z) + "; camp cell=" +
+              std::to_string(camp.key.cellX) + "," +
+              std::to_string(camp.key.cellZ) + " anchor=" +
+              std::to_string(camp.anchor.x) + "," +
+              std::to_string(camp.anchor.y) + "," +
+              std::to_string(camp.anchor.z));
+
+    check("N9B/site-footprints-priorities-and-write-budgets-are-frozen",
+          ruin.footprint.width() == 9 &&
+              ruin.footprint.height() == 9 &&
+              ruin.footprint.depth() == 9 && ruin.hasChest &&
+              ruin.projectionPriority == 80 &&
+              ruin.plannedBlockCount == 790 &&
+              camp.footprint.width() == 11 &&
+              camp.footprint.height() == 8 &&
+              camp.footprint.depth() == 9 && camp.hasChest &&
+              camp.projectionPriority == 60 &&
+              camp.plannedBlockCount == 905);
+
+    const int siteCellSize =
+        DeterministicStructurePlanner::SiteCellChunks * CHUNK_SIZE;
+    const auto insideOwnedCell = [siteCellSize](
+        const StructurePlanSnapshot &plan) {
+        const int minimumX = plan.key.cellX * siteCellSize +
+            DeterministicStructurePlanner::SiteEdgeInset;
+        const int minimumZ = plan.key.cellZ * siteCellSize +
+            DeterministicStructurePlanner::SiteEdgeInset;
+        const int maximumExclusiveX =
+            (plan.key.cellX + 1) * siteCellSize -
+            DeterministicStructurePlanner::SiteEdgeInset;
+        const int maximumExclusiveZ =
+            (plan.key.cellZ + 1) * siteCellSize -
+            DeterministicStructurePlanner::SiteEdgeInset;
+        return plan.anchor.x >= minimumX &&
+               plan.anchor.x < maximumExclusiveX &&
+               plan.anchor.z >= minimumZ &&
+               plan.anchor.z < maximumExclusiveZ;
+    };
+    check("N9B/site-ownership-is-bounded",
+          insideOwnedCell(ruin) && insideOwnedCell(camp) &&
+              negativeRuin.valid && insideOwnedCell(negativeRuin) &&
+              negativeCamp.valid && insideOwnedCell(negativeCamp),
+          "negative ruin=" + std::to_string(negativeRuin.key.cellX) +
+              "," + std::to_string(negativeRuin.key.cellZ) +
+              " camp=" + std::to_string(negativeCamp.key.cellX) +
+              "," + std::to_string(negativeCamp.key.cellZ));
+
+    const StructurePlanSnapshot repeatedRuin =
+        repeatedGenerator.getStructurePlanForCell(
+            StructureType::Ruin, ruin.key.cellX, ruin.key.cellZ);
+    const StructurePlanSnapshot repeatedCamp =
+        repeatedGenerator.getStructurePlanForCell(
+            StructureType::RaiderCamp, camp.key.cellX, camp.key.cellZ);
+    const StructurePlanSnapshot otherSeedRuin =
+        otherSeedGenerator.getStructurePlanForCell(
+            StructureType::Ruin, ruin.key.cellX, ruin.key.cellZ);
+    check("N9B/site-plans-are-seed-stable-and-seed-sensitive",
+          sameStructurePlan(ruin, repeatedRuin) &&
+              sameStructurePlan(camp, repeatedCamp) &&
+              (!sameStructurePlan(ruin, otherSeedRuin) ||
+               currentGenerator.getStructurePlanForCell(
+                   StructureType::RaiderCamp,
+                   camp.key.cellX, camp.key.cellZ).selectionHash !=
+                   otherSeedGenerator.getStructurePlanForCell(
+                       StructureType::RaiderCamp,
+                       camp.key.cellX, camp.key.cellZ).selectionHash));
+
+    check("N9B/terrain-v1-v2-never-plan-new-sites",
+          !v2Generator.getStructurePlanForCell(
+               StructureType::Ruin, ruin.key.cellX,
+               ruin.key.cellZ).valid &&
+              !v2Generator.getStructurePlanForCell(
+                  StructureType::RaiderCamp, camp.key.cellX,
+                  camp.key.cellZ).valid &&
+              !legacyGenerator.getStructurePlanForCell(
+                  StructureType::Ruin, ruin.key.cellX,
+                  ruin.key.cellZ).valid &&
+              !legacyGenerator.getStructurePlanForCell(
+                  StructureType::RaiderCamp, camp.key.cellX,
+                  camp.key.cellZ).valid &&
+              v2Generator.getStructurePlanForCell(
+                  StructureType::Waystone, 0, 5).anchor ==
+                  glm::ivec3(18, 70, 328));
+
+    bool queryBounded = true;
+    for (const StructurePlanSnapshot *site : {&ruin, &camp}) {
+        const int minimumChunkX = World::floorDiv(
+            site->footprint.minimumX, CHUNK_SIZE);
+        const int maximumChunkX = World::floorDiv(
+            site->footprint.maximumX, CHUNK_SIZE);
+        const int minimumChunkZ = World::floorDiv(
+            site->footprint.minimumZ, CHUNK_SIZE);
+        const int maximumChunkZ = World::floorDiv(
+            site->footprint.maximumZ, CHUNK_SIZE);
+        for (int chunkX = minimumChunkX; chunkX <= maximumChunkX;
+             ++chunkX) {
+            for (int chunkZ = minimumChunkZ; chunkZ <= maximumChunkZ;
+                 ++chunkZ) {
+                const auto plans =
+                    currentGenerator.getStructurePlansForChunk(
+                        chunkX, chunkZ);
+                queryBounded = queryBounded &&
+                    plans.size() <=
+                        DeterministicStructurePlanner::MaximumPlansPerChunk &&
+                    std::count_if(
+                        plans.begin(), plans.end(),
+                        [site](const StructurePlanSnapshot &plan) {
+                            return plan.key == site->key;
+                        }) == 1;
+            }
+        }
+    }
+    check("N9B/cross-chunk-queries-are-complete-and-capped",
+          queryBounded);
+
+    StructurePlanSnapshot threadedRuin;
+    StructurePlanSnapshot threadedCamp;
+    std::thread ruinThread([&currentGenerator, &ruin, &threadedRuin]() {
+        threadedRuin = currentGenerator.getStructurePlanForCell(
+            StructureType::Ruin, ruin.key.cellX, ruin.key.cellZ);
+    });
+    std::thread campThread([&currentGenerator, &camp, &threadedCamp]() {
+        threadedCamp = currentGenerator.getStructurePlanForCell(
+            StructureType::RaiderCamp, camp.key.cellX, camp.key.cellZ);
+    });
+    ruinThread.join();
+    campThread.join();
+    check("N9B/thread-scheduling-does-not-change-sites",
+          sameStructurePlan(ruin, threadedRuin) &&
+              sameStructurePlan(camp, threadedCamp));
+
+    const StructureLootSnapshot ruinLoot = structureLootForPlan(ruin);
+    const StructureLootSnapshot repeatedRuinLoot =
+        structureLootForPlan(repeatedRuin);
+    const StructureLootSnapshot campLoot = structureLootForPlan(camp);
+    const auto validLoot = [](const StructureLootSnapshot &loot,
+                              StructureType expectedType) {
+        if (!loot.valid || loot.key.type != expectedType ||
+            loot.entries.size() != 3 || loot.selectionHash == 0) {
+            return false;
+        }
+        std::set<Material::ID> materials;
+        for (const StructureLootEntry &entry : loot.entries) {
+            const Material &material = Material::toMaterial(
+                entry.materialId);
+            if (entry.materialId == Material::ID::Nothing ||
+                entry.amount <= 0 || entry.amount > material.maxStackSize ||
+                material.isTool || !materials.insert(entry.materialId).second) {
+                return false;
+            }
+        }
+        return true;
+    };
+    check("N9B/type-specific-loot-snapshots-are-valid-and-stable",
+          validLoot(ruinLoot, StructureType::Ruin) &&
+              validLoot(campLoot, StructureType::RaiderCamp) &&
+              ruinLoot.entries == repeatedRuinLoot.entries &&
+              ruinLoot.selectionHash == repeatedRuinLoot.selectionHash &&
+              ruinLoot.chestPosition == ruin.chestPosition &&
+              campLoot.chestPosition == camp.chestPosition &&
+              ruinLoot.entries != campLoot.entries,
+          "ruin=" + std::to_string(ruinLoot.entries[0].amount) + "," +
+              std::to_string(ruinLoot.entries[1].amount) + "," +
+              std::to_string(ruinLoot.entries[2].amount) +
+              "; camp=" + std::to_string(campLoot.entries[0].amount) +
+              "," + std::to_string(campLoot.entries[1].amount) + "," +
+              std::to_string(campLoot.entries[2].amount));
+    check("N9B/loot-ranges-and-non-site-rejection-are-frozen",
+          ruinLoot.entries[0].materialId == Material::ID::IronIngot &&
+              ruinLoot.entries[0].amount >= 1 &&
+              ruinLoot.entries[0].amount <= 2 &&
+              ruinLoot.entries[1].materialId == Material::ID::Glass &&
+              ruinLoot.entries[1].amount >= 2 &&
+              ruinLoot.entries[1].amount <= 5 &&
+              ruinLoot.entries[2].materialId == Material::ID::WheatSeeds &&
+              ruinLoot.entries[2].amount >= 2 &&
+              ruinLoot.entries[2].amount <= 6 &&
+              campLoot.entries[0].materialId == Material::ID::Bread &&
+              campLoot.entries[0].amount >= 1 &&
+              campLoot.entries[0].amount <= 3 &&
+              campLoot.entries[1].materialId == Material::ID::CoalOre &&
+              campLoot.entries[1].amount >= 4 &&
+              campLoot.entries[1].amount <= 8 &&
+              campLoot.entries[2].materialId == Material::ID::IronOre &&
+              campLoot.entries[2].amount >= 1 &&
+              campLoot.entries[2].amount <= 4 &&
+              !structureLootForPlan(
+                  v2Generator.getStructurePlanForCell(
+                      StructureType::Waystone, 0, 5)).valid);
+    check("N9B/fixed-seed-structure-and-loot-snapshot",
+          ruin.key.cellX == 3 && ruin.key.cellZ == 6 &&
+              ruin.anchor == glm::ivec3(222, 70, 400) &&
+              ruin.chestPosition == glm::ivec3(222, 72, 400) &&
+              ruinLoot.entries[0].amount == 1 &&
+              ruinLoot.entries[1].amount == 4 &&
+              ruinLoot.entries[2].amount == 4 &&
+              camp.key.cellX == 6 && camp.key.cellZ == 0 &&
+              camp.anchor == glm::ivec3(436, 102, 37) &&
+              camp.chestPosition == glm::ivec3(436, 104, 38) &&
+              campLoot.entries[0].amount == 3 &&
+              campLoot.entries[1].amount == 6 &&
+              campLoot.entries[2].amount == 2);
+
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player samplePlayer;
+    World sampleWorld(camera, config, samplePlayer,
+                      freshSaveDirectory("n9b_projection"), false, 0);
+    const auto ruinForward = sampleStructureChunks(
+        sampleWorld, currentGenerator, ruin, false);
+    const auto ruinReverse = sampleStructureChunks(
+        sampleWorld, repeatedGenerator, ruin, true);
+    const auto campForward = sampleStructureChunks(
+        sampleWorld, currentGenerator, camp, false);
+    const auto campReverse = sampleStructureChunks(
+        sampleWorld, repeatedGenerator, camp, true);
+    check("N9B/ruin-and-camp-projection-ignore-load-order",
+          sameGeneratedStructureSamples(ruinForward, ruinReverse) &&
+              sameGeneratedStructureSamples(campForward, campReverse));
+    check("N9B/each-site-projects-one-chest-with-exact-loot",
+          generatedChestMatchesLoot(ruinForward, ruin, ruinLoot) &&
+              generatedChestMatchesLoot(campForward, camp, campLoot));
+
+    const auto v2RuinArea = sampleStructureChunks(
+        sampleWorld, v2Generator, ruin, false);
+    const auto v2CampArea = sampleStructureChunks(
+        sampleWorld, v2Generator, camp, false);
+    auto containsNewSiteChest = [](const auto &samples,
+                                   const glm::ivec3 &position) {
+        for (const auto &sample : samples) {
+            for (const BlockEntityRecord &record : sample.blockEntities) {
+                const glm::ivec3 worldPosition{
+                    sample.x * CHUNK_SIZE + record.position.x,
+                    record.position.y,
+                    sample.z * CHUNK_SIZE + record.position.z};
+                if (worldPosition == position &&
+                    record.type == ChestContainer::BlockEntityType) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+    check("N9B/terrain-v2-output-does-not-backfill-site-chests",
+          !containsNewSiteChest(v2RuinArea, ruin.chestPosition) &&
+              !containsNewSiteChest(v2CampArea, camp.chestPosition));
+
+    const auto persistenceDirectory =
+        freshSaveDirectory("n9b_loot_persistence");
+    const glm::ivec3 damagedBlock{
+        ruin.footprint.minimumX, ruin.anchor.y + 2,
+        ruin.footprint.minimumZ};
+    bool emptiedAndSaved = false;
+    {
+        setEnv("HELLOMINE3D_PLAYER_POSITION",
+               std::to_string(ruin.chestPosition.x) + " " +
+                   std::to_string(ruin.chestPosition.y + 2) + " " +
+                   std::to_string(ruin.chestPosition.z));
+        Player player;
+        World world(camera, config, player, persistenceDirectory, false, 0);
+        loadStructureFootprint(world, ruin);
+        const auto record = world.getBlockEntity(ruin.chestPosition);
+        ContainerInventory initial(ChestContainer::SlotCount);
+        const bool initialMatches = record &&
+            record->type == ChestContainer::BlockEntityType &&
+            ContainerInventory::deserialize(record->payload, initial) &&
+            inventoryMatchesLoot(initial, ruinLoot) &&
+            ChestContainer::open(world, player, ruin.chestPosition);
+        bool transferred = initialMatches;
+        for (int slot = 0;
+             slot < ChestContainer::SlotCount && transferred; ++slot) {
+            const auto view = ChestContainer::view(world, player);
+            if (!view) {
+                transferred = false;
+                break;
+            }
+            const InventorySlotState entry = view->inventory.getSlot(slot);
+            if (entry.amount > 0) {
+                transferred = ChestContainer::transferToPlayer(
+                    world, player, slot, entry.amount);
+            }
+        }
+        const auto emptied = ChestContainer::view(world, player);
+        bool empty = emptied.has_value();
+        for (int slot = 0;
+             slot < ChestContainer::SlotCount && empty; ++slot) {
+            empty = emptied->inventory.getSlot(slot).amount == 0;
+        }
+        ChestContainer::close(player);
+        world.setBlock(damagedBlock.x, damagedBlock.y, damagedBlock.z,
+                       BlockId::Air);
+        emptiedAndSaved = transferred && empty && world.save();
+    }
+
+    bool emptyAndDamageRestored = false;
+    bool depositSaved = false;
+    {
+        Player player;
+        World world(camera, config, player, persistenceDirectory, false, 0);
+        loadStructureFootprint(world, ruin);
+        const auto record = world.getBlockEntity(ruin.chestPosition);
+        ContainerInventory inventory(ChestContainer::SlotCount);
+        bool empty = record &&
+            ContainerInventory::deserialize(record->payload, inventory);
+        for (int slot = 0;
+             slot < ChestContainer::SlotCount && empty; ++slot) {
+            empty = inventory.getSlot(slot).amount == 0;
+        }
+        emptyAndDamageRestored = empty &&
+            static_cast<BlockId>(world.getBlock(
+                damagedBlock.x, damagedBlock.y, damagedBlock.z).id) ==
+                BlockId::Air;
+
+        const int added = player.addItem(Material::DIRT_BLOCK, 7);
+        int dirtSlot = -1;
+        for (int slot = 0; slot < player.getInventorySlotCount(); ++slot) {
+            if (player.getInventorySlot(slot).getMaterial().id ==
+                Material::ID::Dirt) {
+                dirtSlot = slot;
+                break;
+            }
+        }
+        const bool opened = ChestContainer::open(
+            world, player, ruin.chestPosition);
+        const bool deposited = opened && dirtSlot >= 0 &&
+            ChestContainer::transferFromPlayer(
+                world, player, dirtSlot, 7);
+        ChestContainer::close(player);
+        depositSaved = added == 7 && deposited && world.save();
+    }
+
+    bool depositRestored = false;
+    {
+        Player player;
+        World world(camera, config, player, persistenceDirectory, false, 0);
+        loadStructureFootprint(world, ruin);
+        const auto record = world.getBlockEntity(ruin.chestPosition);
+        ContainerInventory inventory(ChestContainer::SlotCount);
+        depositRestored = record &&
+            ContainerInventory::deserialize(record->payload, inventory) &&
+            inventory.count(Material::ID::Dirt) == 7 &&
+            std::all_of(
+                ruinLoot.entries.begin(), ruinLoot.entries.end(),
+                [&inventory](const StructureLootEntry &entry) {
+                    return inventory.count(entry.materialId) == 0;
+                }) &&
+            static_cast<BlockId>(world.getBlock(
+                damagedBlock.x, damagedBlock.y, damagedBlock.z).id) ==
+                BlockId::Air;
+    }
+    check("N9B/empty-loot-and-structure-damage-survive-reload",
+          emptiedAndSaved && emptyAndDamageRestored);
+    check("N9B/player-deposit-survives-without-loot-reinitialization",
+          depositSaved && depositRestored);
+
+    const auto v2IdentityDirectory =
+        freshSaveDirectory("n9b_v2_identity");
+    {
+        Player player;
+        World world(camera, config, player, v2IdentityDirectory, false, 0);
+    }
+    WorldSave v2Save(v2IdentityDirectory);
+    WorldSaveData v2Data;
+    bool v2IdentityPrepared = v2Save.load(v2Data);
+    if (v2IdentityPrepared) {
+        v2Data.terrainGenerationVersion = WaystoneTerrainGenerationVersion;
+        v2IdentityPrepared = v2Save.save(v2Data);
+    }
+    bool v2WorldStayedStructureFree = false;
+    if (v2IdentityPrepared) {
+        Player player;
+        World world(camera, config, player, v2IdentityDirectory, false, 0);
+        loadStructureFootprint(world, ruin);
+        v2WorldStayedStructureFree =
+            world.collectDebugStats().terrainGenerationVersion ==
+                WaystoneTerrainGenerationVersion &&
+            static_cast<BlockId>(world.getBlock(
+                ruin.chestPosition.x, ruin.chestPosition.y,
+                ruin.chestPosition.z).id) != BlockId::Chest &&
+            !world.getBlockEntity(ruin.chestPosition).has_value() &&
+            world.save();
+    }
+    WorldSaveData preservedV2;
+    check("N9B/existing-terrain-v2-world-never-upgrades-or-backfills",
+          v2WorldStayedStructureFree && v2Save.load(preservedV2) &&
+              preservedV2.terrainGenerationVersion ==
+                  WaystoneTerrainGenerationVersion);
 }
 
 // ---------------------------------------------------------------------------
@@ -9757,6 +10454,7 @@ int main()
         caseTerrainStructures();
         caseEcologyAndExploration();
         caseDeterministicStructurePlanning();
+        caseExplorationStructuresAndLoot();
         caseInteractionAndEvents();
         caseChunkEvents();
         caseActors();

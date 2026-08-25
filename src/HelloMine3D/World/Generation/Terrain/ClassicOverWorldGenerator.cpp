@@ -7,6 +7,8 @@
 
 #include "../../../Maths/GeneralMaths.h"
 #include "../../../Util/Random.h"
+#include "../../../Item/ContainerInventory.h"
+#include "../../Block/ChestContainer.h"
 #include "../../Chunk/Chunk.h"
 #include "../../WorldCoordinates.h"
 
@@ -151,6 +153,9 @@ StructurePlanSnapshot ClassicOverWorldGenerator::getStructurePlanForCell(
         m_seed, m_generationVersion,
         [this](int worldX, int worldZ) {
             return getSurfaceHeightAtWorld(worldX, worldZ);
+        },
+        [this](int worldX, int worldZ) {
+            return getBiomeAtWorld(worldX, worldZ);
         });
     return planner.planForCell(type, cellX, cellZ);
 }
@@ -163,6 +168,9 @@ ClassicOverWorldGenerator::getStructurePlansForChunk(
         m_seed, m_generationVersion,
         [this](int worldX, int worldZ) {
             return getSurfaceHeightAtWorld(worldX, worldZ);
+        },
+        [this](int worldX, int worldZ) {
+            return getBiomeAtWorld(worldX, worldZ);
         });
     return planner.plansForChunk(chunkX, chunkZ);
 }
@@ -388,40 +396,173 @@ void ClassicOverWorldGenerator::applyLandmarkDecorators()
 void ClassicOverWorldGenerator::projectStructurePlan(
     const StructurePlanSnapshot &plan)
 {
-    if (!plan.valid || plan.key.type != StructureType::Waystone) {
+    if (!plan.valid) {
         return;
     }
     const int x = plan.anchor.x;
     const int y = plan.anchor.y;
     const int z = plan.anchor.z;
     StructureBuilder builder;
-    for (int clearY = y + 1;
-         clearY <= y + DeterministicStructurePlanner::WaystoneHeight;
-         ++clearY) {
-        builder.fill(clearY, x - LandmarkRadius, x + LandmarkRadius + 1,
+
+    if (plan.key.type == StructureType::Waystone) {
+        for (int clearY = y + 1;
+             clearY <= y + DeterministicStructurePlanner::WaystoneHeight;
+             ++clearY) {
+            builder.fill(clearY,
+                         x - LandmarkRadius, x + LandmarkRadius + 1,
+                         z - LandmarkRadius, z + LandmarkRadius + 1,
+                         BlockId::Air);
+        }
+        builder.fill(y + 1,
+                     x - LandmarkRadius, x + LandmarkRadius + 1,
                      z - LandmarkRadius, z + LandmarkRadius + 1,
-                     BlockId::Air);
+                     BlockId::Stone);
+        builder.makeColumn(x - LandmarkRadius, z - LandmarkRadius,
+                           y + 2, 3, BlockId::Stone);
+        builder.makeColumn(x + LandmarkRadius, z - LandmarkRadius,
+                           y + 2, 3, BlockId::Stone);
+        builder.makeColumn(x - LandmarkRadius, z + LandmarkRadius,
+                           y + 2, 3, BlockId::Stone);
+        builder.makeColumn(x + LandmarkRadius, z + LandmarkRadius,
+                           y + 2, 3, BlockId::Stone);
+        builder.addBlock(x, y + 2, z, BlockId::IronOre);
+        builder.addBlock(x, y + 3, z, BlockId::WaystoneCore);
+        builder.addBlock(x, y + 4, z, BlockId::Glass);
+        builder.addBlock(x, y + 5, z, BlockId::Stone);
+        builder.addBlock(x - 1, y + 2, z, BlockId::CoalOre);
+        builder.addBlock(x + 1, y + 2, z, BlockId::CoalOre);
+        builder.addBlock(x, y + 2, z - 1, BlockId::CoalOre);
+        builder.addBlock(x, y + 2, z + 1, BlockId::CoalOre);
     }
-    builder.fill(y + 1, x - LandmarkRadius, x + LandmarkRadius + 1,
-                 z - LandmarkRadius, z + LandmarkRadius + 1,
-                 BlockId::Stone);
-    builder.makeColumn(x - LandmarkRadius, z - LandmarkRadius,
-                       y + 2, 3, BlockId::Stone);
-    builder.makeColumn(x + LandmarkRadius, z - LandmarkRadius,
-                       y + 2, 3, BlockId::Stone);
-    builder.makeColumn(x - LandmarkRadius, z + LandmarkRadius,
-                       y + 2, 3, BlockId::Stone);
-    builder.makeColumn(x + LandmarkRadius, z + LandmarkRadius,
-                       y + 2, 3, BlockId::Stone);
-    builder.addBlock(x, y + 2, z, BlockId::IronOre);
-    builder.addBlock(x, y + 3, z, BlockId::WaystoneCore);
-    builder.addBlock(x, y + 4, z, BlockId::Glass);
-    builder.addBlock(x, y + 5, z, BlockId::Stone);
-    builder.addBlock(x - 1, y + 2, z, BlockId::CoalOre);
-    builder.addBlock(x + 1, y + 2, z, BlockId::CoalOre);
-    builder.addBlock(x, y + 2, z - 1, BlockId::CoalOre);
-    builder.addBlock(x, y + 2, z + 1, BlockId::CoalOre);
+    else if (plan.key.type == StructureType::Ruin) {
+        const int radius = DeterministicStructurePlanner::RuinRadius;
+        for (int clearY = y + 2;
+             clearY <= y + DeterministicStructurePlanner::RuinHeight;
+             ++clearY) {
+            builder.fill(clearY, x - radius, x + radius + 1,
+                         z - radius, z + radius + 1, BlockId::Air);
+        }
+        for (int supportY = y - 2; supportY <= y; ++supportY) {
+            builder.fill(supportY, x - radius, x + radius + 1,
+                         z - radius, z + radius + 1, BlockId::Stone);
+        }
+        builder.fill(y + 1, x - radius, x + radius + 1,
+                     z - radius, z + radius + 1, BlockId::Stone);
+        builder.makeRowX(x - radius, x + radius, y + 2,
+                         z - radius, BlockId::Stone);
+        builder.makeRowX(x - radius, x + radius, y + 2,
+                         z + radius, BlockId::Stone);
+        builder.makeRowZ(z - radius + 1, z + radius - 1,
+                         x - radius, y + 2, BlockId::Stone);
+        builder.makeRowZ(z - radius + 1, z + radius - 1,
+                         x + radius, y + 2, BlockId::Stone);
+        builder.makeColumn(x - radius, z - radius,
+                           y + 3, 3, BlockId::Stone);
+        builder.makeColumn(x + radius, z - radius,
+                           y + 3, 3, BlockId::Stone);
+        builder.makeColumn(x - radius, z + radius,
+                           y + 3, 3, BlockId::Stone);
+        builder.makeColumn(x + radius, z + radius,
+                           y + 3, 3, BlockId::Stone);
+        builder.makeColumn(x - radius, z, y + 3, 2, BlockId::Stone);
+        builder.makeColumn(x + radius, z, y + 3, 2, BlockId::Stone);
+        builder.makeColumn(x, z - radius, y + 3, 2, BlockId::Stone);
+        builder.makeColumn(x, z + radius, y + 3, 2, BlockId::Stone);
+        builder.addBlock(x, y + 2, z, BlockId::Chest);
+        builder.addBlock(x - 2, y + 2, z - 2, BlockId::IronOre);
+        builder.addBlock(x + 2, y + 2, z - 2, BlockId::IronOre);
+        builder.addBlock(x - 2, y + 2, z + 2, BlockId::IronOre);
+        builder.addBlock(x + 2, y + 2, z + 2, BlockId::IronOre);
+        builder.addBlock(x - 1, y + 5, z, BlockId::Glass);
+        builder.addBlock(x + 1, y + 5, z, BlockId::Glass);
+        builder.addBlock(x, y + 5, z - 1, BlockId::Glass);
+        builder.addBlock(x, y + 5, z + 1, BlockId::Glass);
+    }
+    else if (plan.key.type == StructureType::RaiderCamp) {
+        const int radiusX = DeterministicStructurePlanner::CampRadiusX;
+        const int radiusZ = DeterministicStructurePlanner::CampRadiusZ;
+        for (int clearY = y + 2;
+             clearY <= y + DeterministicStructurePlanner::CampHeight;
+             ++clearY) {
+            builder.fill(clearY, x - radiusX, x + radiusX + 1,
+                         z - radiusZ, z + radiusZ + 1, BlockId::Air);
+        }
+        for (int supportY = y - 2; supportY <= y; ++supportY) {
+            builder.fill(supportY, x - radiusX, x + radiusX + 1,
+                         z - radiusZ, z + radiusZ + 1, BlockId::Dirt);
+        }
+        builder.fill(y + 1, x - radiusX, x + radiusX + 1,
+                     z - radiusZ, z + radiusZ + 1, BlockId::Dirt);
+        builder.makeRowX(x - radiusX, x + radiusX, y + 2,
+                         z - radiusZ, BlockId::OakBark);
+        builder.makeRowX(x - radiusX, x + radiusX, y + 2,
+                         z + radiusZ, BlockId::OakBark);
+        builder.makeRowZ(z - radiusZ + 1, z + radiusZ - 1,
+                         x - radiusX, y + 2, BlockId::OakBark);
+        builder.makeRowZ(z - radiusZ + 1, z + radiusZ - 1,
+                         x + radiusX, y + 2, BlockId::OakBark);
+        builder.addBlock(x, y + 2, z - radiusZ, BlockId::Air);
+        builder.addBlock(x, y + 3, z - radiusZ, BlockId::Air);
+        builder.makeColumn(x - radiusX, z - radiusZ,
+                           y + 2, 3, BlockId::OakBark);
+        builder.makeColumn(x + radiusX, z - radiusZ,
+                           y + 2, 3, BlockId::OakBark);
+        builder.makeColumn(x - radiusX, z + radiusZ,
+                           y + 2, 3, BlockId::OakBark);
+        builder.makeColumn(x + radiusX, z + radiusZ,
+                           y + 2, 3, BlockId::OakBark);
+        builder.makeColumn(x - 2, z - 2, y + 2, 2, BlockId::OakBark);
+        builder.makeColumn(x + 2, z - 2, y + 2, 2, BlockId::OakBark);
+        builder.makeColumn(x - 2, z + 2, y + 2, 2, BlockId::OakBark);
+        builder.makeColumn(x + 2, z + 2, y + 2, 2, BlockId::OakBark);
+        builder.fill(y + 4, x - 3, x + 4, z - 3, z + 4,
+                     BlockId::OakLeaf);
+        builder.addBlock(x, y + 2, z + 1, BlockId::Chest);
+        builder.addBlock(x, y + 2, z - 2, BlockId::CoalOre);
+        builder.addBlock(x - 1, y + 2, z - 2, BlockId::Stone);
+        builder.addBlock(x + 1, y + 2, z - 2, BlockId::Stone);
+        builder.addBlock(x, y + 2, z - 3, BlockId::Stone);
+        builder.addBlock(x, y + 2, z - 1, BlockId::Stone);
+    }
+    else {
+        return;
+    }
     builder.build(*m_pChunk);
+
+    const StructureLootSnapshot loot = structureLootForPlan(plan);
+    if (!loot.valid) {
+        return;
+    }
+    const glm::ivec2 target = m_pChunk->getLocation();
+    const int localX = loot.chestPosition.x - target.x * CHUNK_SIZE;
+    const int localZ = loot.chestPosition.z - target.y * CHUNK_SIZE;
+    if (localX < 0 || localX >= CHUNK_SIZE ||
+        localZ < 0 || localZ >= CHUNK_SIZE) {
+        return;
+    }
+
+    ContainerInventory inventory(ChestContainer::SlotCount);
+    for (const StructureLootEntry &entry : loot.entries) {
+        const Material &material = Material::toMaterial(entry.materialId);
+        if (inventory.addItem(material, entry.amount) != entry.amount) {
+            std::cerr << "Unable to initialize structure loot for "
+                      << structureTypeName(plan.key.type) << " at "
+                      << loot.chestPosition.x << ','
+                      << loot.chestPosition.y << ','
+                      << loot.chestPosition.z << '\n';
+            return;
+        }
+    }
+    const BlockEntityRecord record{
+        {localX, loot.chestPosition.y, localZ},
+        ChestContainer::BlockEntityType, inventory.serialize()};
+    if (!m_pChunk->createBlockEntity(record)) {
+        std::cerr << "Unable to initialize structure chest for "
+                  << structureTypeName(plan.key.type) << " at "
+                  << loot.chestPosition.x << ','
+                  << loot.chestPosition.y << ','
+                  << loot.chestPosition.z << '\n';
+    }
 }
 
 int ClassicOverWorldGenerator::getHeightAt(int x, int z, int chunkX,
