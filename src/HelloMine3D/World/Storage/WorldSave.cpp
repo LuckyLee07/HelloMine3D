@@ -218,6 +218,8 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
     bool terrainGenerationVersionSeen = false;
     bool difficultyProfileVersionSeen = false;
     bool difficultySeen = false;
+    bool postVictoryEventVersionSeen = false;
+    bool completedPostVictoryEventsSeen = false;
     bool worldOutcomePhaseSeen = false;
     bool worldOutcomeRewardEpochSeen = false;
     bool worldOutcomeClaimedEpochSeen = false;
@@ -308,6 +310,22 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
             }
             loaded.difficulty = static_cast<WorldDifficulty>(difficulty);
             difficultySeen = true;
+        }
+        else if (key == "post_victory_event_version") {
+            if (!claimSingleton(key) ||
+                !(input >> loaded.postVictoryEventVersion)) {
+                return fail(
+                    "invalid or duplicate post_victory_event_version");
+            }
+            postVictoryEventVersionSeen = true;
+        }
+        else if (key == "post_victory_completed_events") {
+            if (!claimSingleton(key) ||
+                !(input >> loaded.completedPostVictoryEvents)) {
+                return fail(
+                    "invalid or duplicate post_victory_completed_events");
+            }
+            completedPostVictoryEventsSeen = true;
         }
         else if (key == "alpha_journey_flags") {
             if (!claimSingleton(key) ||
@@ -595,6 +613,20 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
         (loaded.version < 10 && difficultyFieldsPresent)) {
         return fail("difficulty state does not match save version");
     }
+    const bool postVictoryFieldsPresent = postVictoryEventVersionSeen ||
+        completedPostVictoryEventsSeen;
+    if ((loaded.version >= 11 &&
+         (!postVictoryEventVersionSeen ||
+          !completedPostVictoryEventsSeen ||
+          !PostVictoryEvents::validProgress(
+              loaded.postVictoryEventVersion,
+              loaded.completedPostVictoryEvents) ||
+          (loaded.completedPostVictoryEvents > 0 &&
+           loaded.worldOutcome.phase !=
+               WorldOutcomePhase::RewardClaimed))) ||
+        (loaded.version < 11 && postVictoryFieldsPresent)) {
+        return fail("post-victory event state does not match save version");
+    }
 
     if (!finiteVec3(loaded.spawnPoint) ||
         !finiteVec3(loaded.playerState.position) ||
@@ -704,6 +736,11 @@ bool WorldSave::save(const WorldSaveData &data,
         data.difficultyProfileVersion !=
             CurrentDifficultyProfileVersion ||
         !validWorldDifficulty(data.difficulty) ||
+        !PostVictoryEvents::validProgress(
+            data.postVictoryEventVersion,
+            data.completedPostVictoryEvents) ||
+        (data.completedPostVictoryEvents > 0 &&
+         data.worldOutcome.phase != WorldOutcomePhase::RewardClaimed) ||
         !WorldCatalogue::isValidWorldId(data.worldId) ||
         !WorldCatalogue::isValidDisplayName(data.worldName) ||
         !WorldCatalogue::isValidBuildIdentity(data.lastBuildIdentity) ||
@@ -743,6 +780,10 @@ bool WorldSave::save(const WorldSaveData &data,
            << data.difficultyProfileVersion << '\n';
     output << "difficulty_id " << static_cast<int>(data.difficulty)
            << '\n';
+    output << "post_victory_event_version "
+           << data.postVictoryEventVersion << '\n';
+    output << "post_victory_completed_events "
+           << data.completedPostVictoryEvents << '\n';
     output << "alpha_journey_flags " << data.alphaJourneyFlags << '\n';
     output << "world_outcome_phase "
            << static_cast<int>(data.worldOutcome.phase) << '\n';

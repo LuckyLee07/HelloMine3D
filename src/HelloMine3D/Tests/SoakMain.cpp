@@ -165,6 +165,14 @@ void writeSummary(const std::filesystem::path &path, const Options &options,
             << finalStats.difficultyProfileVersion << '\n'
             << "difficulty_id="
             << static_cast<int>(finalStats.difficulty) << '\n'
+            << "post_victory_event_version="
+            << finalStats.postVictoryEventVersion << '\n'
+            << "post_victory_completed_events="
+            << finalStats.completedPostVictoryEvents << '\n'
+            << "post_victory_active_event="
+            << finalStats.activePostVictoryEvent << '\n'
+            << "post_victory_event_wave="
+            << finalStats.postVictoryEventWave << '\n'
             << "duration_requested_seconds=" << options.durationSeconds
             << '\n'
             << "duration_completed_seconds="

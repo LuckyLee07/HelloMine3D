@@ -119,6 +119,11 @@ struct WorldDebugStats {
     float playerIncomingDamageMultiplier = 1.f;
     int lootAmountNumerator = 1;
     int lootAmountDenominator = 1;
+    int postVictoryEventVersion = PostVictoryEvents::CurrentVersion;
+    int completedPostVictoryEvents = 0;
+    int activePostVictoryEvent = 0;
+    int postVictoryEventWave = 0;
+    int postVictoryEventRemainingGuardians = 0;
     float worldTime = 0.f;
     WorldEnvironmentState environment;
 };
@@ -266,6 +271,7 @@ class World : public NonCopyable {
     DifficultyChangeResult requestDifficulty(
         WorldDifficulty difficulty) noexcept;
     int scaleDifficultyLootAmount(int amount) const noexcept;
+    PostVictoryEventSnapshot getPostVictoryEventSnapshot() const;
     WaystoneEncounterSnapshot getWaystoneEncounterSnapshot() const;
     bool initializeWaystone(const glm::ivec3 &position);
     void onWaystoneBroken(const glm::ivec3 &position);
@@ -406,6 +412,12 @@ class World : public NonCopyable {
                                     int count,
                                     std::vector<glm::vec3> &positions);
     bool spawnWaystoneGuardians(int wave, int count);
+    WaystoneActionResult usePostVictoryWaystone(
+        const glm::ivec3 &position,
+        const WaystoneEncounterState &persisted);
+    WaystoneActionResult claimPostVictoryReward(
+        const glm::ivec3 &position,
+        const WaystoneEncounterState &persisted);
     void reconcileWaystoneEncounter();
     void handleWaystoneGuardianDeath(const SandboxEvent &event);
     void abandonWaystoneEncounter();

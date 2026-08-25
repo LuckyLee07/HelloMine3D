@@ -4,6 +4,7 @@
 #include "../../Actor/Actor.h"
 #include "../../Gameplay/ObjectiveState.h"
 #include "../../Gameplay/DifficultyProfile.h"
+#include "../../Gameplay/PostVictoryEvents.h"
 #include "../../Gameplay/WorldOutcomeState.h"
 #include "../../Player/Player.h"
 #include "../Generation/Terrain/TerrainGenerator.h"
@@ -14,7 +15,7 @@
 #include <string>
 #include <vector>
 
-inline constexpr int WorldSaveFormatVersion = 10;
+inline constexpr int WorldSaveFormatVersion = 11;
 
 inline glm::vec3 initialWorldSpawnPlaceholder() noexcept
 {
@@ -35,6 +36,8 @@ struct WorldSaveData {
     int terrainGenerationVersion = CurrentTerrainGenerationVersion;
     int difficultyProfileVersion = CurrentDifficultyProfileVersion;
     WorldDifficulty difficulty = WorldDifficulty::Normal;
+    int postVictoryEventVersion = PostVictoryEvents::CurrentVersion;
+    int completedPostVictoryEvents = 0;
     std::uint32_t alphaJourneyFlags = 0;
     ObjectiveSaveState objectiveState;
     WorldOutcomeState worldOutcome;

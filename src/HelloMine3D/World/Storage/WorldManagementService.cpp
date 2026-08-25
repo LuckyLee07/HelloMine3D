@@ -111,6 +111,11 @@ namespace
                     CurrentDifficultyProfileVersion;
                 data.difficulty = WorldDifficulty::Normal;
             }
+            if (data.version < 11) {
+                data.postVictoryEventVersion =
+                    PostVictoryEvents::CurrentVersion;
+                data.completedPostVictoryEvents = 0;
+            }
             data.version = WorldSaveFormatVersion;
             data.worldId = entry.id;
             data.worldName = entry.displayName;

@@ -94,7 +94,11 @@
         "terrain_seed",
         "terrain_generation_version",
         "difficulty_profile_version",
-        "difficulty_id"
+        "difficulty_id",
+        "post_victory_event_version",
+        "post_victory_completed_events",
+        "post_victory_active_event",
+        "post_victory_event_wave"
       ],
       "required_metrics": [
         "entry_world_metadata_ms",
@@ -248,7 +252,11 @@
         "terrain_seed",
         "terrain_generation_version",
         "difficulty_profile_version",
-        "difficulty_id"
+        "difficulty_id",
+        "post_victory_event_version",
+        "post_victory_completed_events",
+        "post_victory_active_event",
+        "post_victory_event_wave"
       ],
       "required_metrics": [
         "chunk_visible_p50_ms",
@@ -338,7 +346,11 @@
         "terrain_seed",
         "terrain_generation_version",
         "difficulty_profile_version",
-        "difficulty_id"
+        "difficulty_id",
+        "post_victory_event_version",
+        "post_victory_completed_events",
+        "post_victory_active_event",
+        "post_victory_event_wave"
       ],
       "required_metrics": [
         "frames",
@@ -452,7 +464,11 @@
         "terrain_seed",
         "terrain_generation_version",
         "difficulty_profile_version",
-        "difficulty_id"
+        "difficulty_id",
+        "post_victory_event_version",
+        "post_victory_completed_events",
+        "post_victory_active_event",
+        "post_victory_event_wave"
       ],
       "required_metrics": [
         "frames",

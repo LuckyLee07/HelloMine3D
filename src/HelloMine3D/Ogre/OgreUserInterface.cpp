@@ -670,6 +670,13 @@ class OgreUserInterface::Impl
                     ImGui::TableSetColumnIndex(2);
                     ImGui::TextUnformatted(
                         worldDifficultyName(entry.difficulty));
+                    if (entry.completedPostVictoryEvents > 0)
+                    {
+                        ImGui::TextDisabled(
+                            "Echo %d / %d",
+                            entry.completedPostVictoryEvents,
+                            PostVictoryEvents::MaximumEvents);
+                    }
                     ImGui::TableSetColumnIndex(3);
                     if (ImGui::SmallButton("Play"))
                     {
@@ -1495,6 +1502,33 @@ class OgreUserInterface::Impl
                                        "%s",
                                        objective.completionFeedback.c_str());
                 }
+                const WorldOutcomeSnapshot outcome =
+                    world->getWorldOutcomeSnapshot();
+                if (outcome.phase ==
+                    WorldOutcomePhase::RewardClaimed)
+                {
+                    const PostVictoryEventSnapshot replay =
+                        world->getPostVictoryEventSnapshot();
+                    LocalizedTextRegistry &text =
+                        runtimeLocalizedTextRegistry();
+                    ImGui::Separator();
+                    const std::string replayTitle = text.lookup(
+                        "en-US", "post_victory.hud.title");
+                    ImGui::Text("%s  %d / %d", replayTitle.c_str(),
+                                replay.completedEvents,
+                                replay.totalEvents);
+                    const char *instructionKey = replay.complete
+                        ? "post_victory.hud.complete"
+                        : (replay.rewardPending
+                            ? "post_victory.hud.reward_pending"
+                            : (replay.activeEvent > 0
+                                ? "post_victory.hud.active"
+                                : "post_victory.hud.available"));
+                    const std::string replayInstruction =
+                        text.lookup("en-US", instructionKey);
+                    ImGui::TextWrapped("%s",
+                                       replayInstruction.c_str());
+                }
             }
             ImGui::End();
         }
@@ -2277,6 +2311,13 @@ class OgreUserInterface::Impl
                         worldStats.difficultyApplicationEpoch,
                         worldStats.difficultyChangePending
                             ? " [pending]" : "");
+            ImGui::Text(
+                "Echo trials: %d/%d (event %d, wave %d, remaining %d)",
+                worldStats.completedPostVictoryEvents,
+                PostVictoryEvents::MaximumEvents,
+                worldStats.activePostVictoryEvent,
+                worldStats.postVictoryEventWave,
+                worldStats.postVictoryEventRemainingGuardians);
             ImGui::Text("World time: %.0f", worldStats.worldTime);
             ImGui::Text("Day cycle / light: %.3f / %.3f",
                         worldStats.environment.cycle,

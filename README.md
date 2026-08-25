@@ -55,8 +55,8 @@ R3 physical-input acceptance still closes the remaining D2, D4 and D6
 `Verify` states, but it is intentionally deferred while the project prioritizes
 the player-facing gameplay loop. K4 world entry, G2 crafting, G3 tool
 progression, G4 pause/settings, G5 audio feedback, the G6 playable Alpha journey
-and Stage 9 through N11A are complete. The current batch is N11B's bounded,
-optional post-victory content; R3 remains partially tested and explicitly deferred.
+and Stage 9 through N11B are complete. The current batch is N12A localization;
+R3 remains partially tested and explicitly deferred.
 
 Stage 8 is now planned around sustainable play and reliable releases. Its
 16-item K/H/Q/G scope adds durable world management and recovery, local

@@ -587,7 +587,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 26);
+              registry.keys("en-US").size() == 36);
     check("N7A/localized-victory-text-resolves",
           registry.lookup("en-US", "victory.overlay.title") ==
                   "Waystone Restored" &&
@@ -5217,9 +5217,14 @@ void caseDifficultyProfiles()
         migrationRoot / "n11a-v9-migration";
     std::filesystem::create_directories(migratedWorld);
     std::string versionNine = removeField(
-        removeField(validText, "difficulty_profile_version "),
-        "difficulty_id ");
-    const std::size_t versionPosition = versionNine.find("version 10");
+        removeField(
+            removeField(
+                removeField(validText,
+                            "difficulty_profile_version "),
+                "difficulty_id "),
+            "post_victory_event_version "),
+        "post_victory_completed_events ");
+    const std::size_t versionPosition = versionNine.find("version 11");
     if (versionPosition != std::string::npos) {
         versionNine.replace(versionPosition, 10, "version 9");
     }
@@ -5391,6 +5396,338 @@ void caseDifficultyProfiles()
     // Keep the following legacy world-interaction fixtures independent from
     // the runtime worlds above.  They place and mine blocks around this fixed
     // validation position.
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
+}
+
+// ---------------------------------------------------------------------------
+// N11B - bounded, optional and idempotent post-victory Waystone events
+// ---------------------------------------------------------------------------
+void casePostVictoryEvents()
+{
+    WaystoneEncounterState migratedPayload;
+    const std::string legacyPayload =
+        "version 1\n"
+        "wave 3\n"
+        "remaining 0\n"
+        "reward_epoch 1\n";
+    const bool legacyPayloadLoaded = WaystoneEncounter::deserialize(
+        legacyPayload, migratedPayload);
+    WaystoneEncounterState activePayload{
+        3, 0, WaystoneEncounter::RewardEpoch, 3, 2, 2};
+    WaystoneEncounterState activeRoundTrip;
+    const std::string currentPayload =
+        WaystoneEncounter::serialize(activePayload);
+    check("N11B/three-events-use-a-versioned-bounded-schedule",
+          PostVictoryEvents::CurrentVersion == 1 &&
+              PostVictoryEvents::MaximumEvents == 3 &&
+              PostVictoryEvents::guardianCount(1, 1) == 1 &&
+              PostVictoryEvents::guardianCount(2, 1) == 2 &&
+              PostVictoryEvents::guardianCount(2, 2) == 1 &&
+              PostVictoryEvents::guardianCount(3, 2) == 2 &&
+              legacyPayloadLoaded &&
+              migratedPayload.postVictoryEvent == 0 &&
+              currentPayload.find("version 2") != std::string::npos &&
+              WaystoneEncounter::deserialize(
+                  currentPayload, activeRoundTrip) &&
+              activeRoundTrip.postVictoryEvent == 3 &&
+              activeRoundTrip.postVictoryWave == 2 &&
+              activeRoundTrip.postVictoryRemainingGuardians == 2 &&
+              !WaystoneEncounter::validState(
+                  {3, 0, WaystoneEncounter::RewardEpoch, 4, 1, 1}));
+
+    const std::string currentDirectory =
+        freshSaveDirectory("n11b_current_save");
+    WorldSaveData current;
+    current.worldId = "n11b-current-save";
+    current.worldName = "N11B Current Save";
+    current.seed = kValidationSeed;
+    current.createdUtc = LegacyWorldTimestampUtc;
+    current.lastPlayedUtc = LegacyWorldTimestampUtc;
+    current.lastBuildIdentity = "n11b-validation";
+    current.worldOutcome = {
+        WorldOutcomePhase::RewardClaimed,
+        WaystoneEncounter::RewardEpoch,
+        WaystoneEncounter::RewardEpoch};
+    WorldSave currentSave(currentDirectory);
+    WorldSaveData currentRoundTrip;
+    const bool currentSaved = currentSave.save(current) &&
+        currentSave.load(currentRoundTrip);
+    WorldSaveData invalidProgress = current;
+    invalidProgress.completedPostVictoryEvents =
+        PostVictoryEvents::MaximumEvents + 1;
+    WorldSaveData preserved;
+    const std::string validText = readTextFile(currentSave.metadataPath());
+    const auto removeField = [](std::string text,
+                                const std::string &field) {
+        const std::size_t begin = text.find(field);
+        if (begin != std::string::npos) {
+            const std::size_t end = text.find('\n', begin);
+            text.erase(begin, end == std::string::npos
+                                  ? text.size() - begin
+                                  : end - begin + 1);
+        }
+        return text;
+    };
+    const std::filesystem::path malformedRoot =
+        freshSaveDirectory("n11b_malformed_saves");
+    const std::filesystem::path missingPath =
+        malformedRoot / "missing.meta";
+    const std::filesystem::path duplicatePath =
+        malformedRoot / "duplicate.meta";
+    {
+        std::ofstream missing(missingPath,
+                              std::ios::binary | std::ios::trunc);
+        missing << removeField(
+            validText, "post_victory_completed_events ");
+        std::ofstream duplicate(duplicatePath,
+                                std::ios::binary | std::ios::trunc);
+        duplicate << validText
+                  << "post_victory_completed_events 0\n";
+    }
+    WorldSaveData malformed;
+    std::string malformedError;
+    check("N11B/v11-progress-roundtrips-and-malformed-state-rejects",
+          currentSaved && currentRoundTrip.version == 11 &&
+              currentRoundTrip.postVictoryEventVersion == 1 &&
+              currentRoundTrip.completedPostVictoryEvents == 0 &&
+              !currentSave.save(invalidProgress) &&
+              currentSave.load(preserved) &&
+              preserved.completedPostVictoryEvents == 0 &&
+              !WorldSave::loadFromPath(
+                  missingPath.string(), malformed, &malformedError) &&
+              !WorldSave::loadFromPath(
+                  duplicatePath.string(), malformed, &malformedError));
+
+    const std::filesystem::path migrationRoot =
+        freshSaveDirectory("n11b_v10_migration");
+    const std::filesystem::path migratedWorld =
+        migrationRoot / "n11b-v10-migration";
+    std::filesystem::create_directories(migratedWorld);
+    std::string versionTen = removeField(
+        removeField(validText, "post_victory_event_version "),
+        "post_victory_completed_events ");
+    const std::size_t versionPosition = versionTen.find("version 11");
+    if (versionPosition != std::string::npos) {
+        versionTen.replace(versionPosition, 10, "version 10");
+    }
+    const std::size_t idPosition = versionTen.find(
+        "world_id n11b-current-save");
+    if (idPosition != std::string::npos) {
+        versionTen.replace(
+            idPosition,
+            std::string("world_id n11b-current-save").size(),
+            "world_id n11b-v10-migration");
+    }
+    {
+        std::ofstream legacy(migratedWorld / "world.meta",
+                             std::ios::binary | std::ios::trunc);
+        legacy << versionTen;
+    }
+    const WorldManagementService migrationManagement(
+        migrationRoot.string());
+    const WorldManagementResult migrated =
+        migrationManagement.prepareWorldForOpen(
+            "n11b-v10-migration");
+    WorldSaveData migratedData;
+    const bool migratedLoaded = migrated.succeeded() &&
+        WorldSave(migratedWorld.string()).load(migratedData);
+    check("N11B/v1-v10-worlds-migrate-with-zero-completed-events",
+          migratedLoaded && migratedData.version == 11 &&
+              migratedData.postVictoryEventVersion == 1 &&
+              migratedData.completedPostVictoryEvents == 0 &&
+              migratedData.worldOutcome.phase ==
+                  WorldOutcomePhase::RewardClaimed);
+
+    setEnv("HELLOMINE3D_SEED", "20260825");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+    setEnv("HELLOMINE3D_WORLD_TIME", "1");
+    const std::string runtimeDirectory =
+        freshSaveDirectory("n11b_bounded_runtime");
+    WorldSaveData runtimeSave = current;
+    runtimeSave.worldId = "n11b-bounded-runtime";
+    runtimeSave.worldName = "N11B Bounded Runtime";
+    runtimeSave.spawnPoint = {8.f, 100.f, 8.f};
+    runtimeSave.hasPlayerState = true;
+    runtimeSave.playerState.position = runtimeSave.spawnPoint;
+    runtimeSave.playerState.health = 20.f;
+    const bool runtimeSaved =
+        WorldSave(runtimeDirectory).save(runtimeSave);
+    const glm::ivec3 core{9, 100, 8};
+    const Config config = makeConfig();
+    const auto prepareArena = [&core](World &world,
+                                      const glm::ivec3 &anchor) {
+        for (int x = 1; x <= 15; ++x) {
+            for (int z = 1; z <= 15; ++z) {
+                world.setBlock(x, 99, z, BlockId::Stone);
+                world.setBlock(x, 100, z, BlockId::Air);
+                world.setBlock(x, 101, z, BlockId::Air);
+            }
+        }
+        world.setBlock(anchor.x, anchor.y, anchor.z,
+                       BlockId::WaystoneCore);
+        return world.initializeWaystone(anchor);
+    };
+    const auto guardianIds = [](const World &world) {
+        std::vector<ActorId> result;
+        for (const ActorSnapshot &actor :
+             world.getActorManager().collectSnapshots()) {
+            if (actor.type == WaystoneEncounter::StalkerType ||
+                actor.type == WaystoneEncounter::BruteType) {
+                result.push_back(actor.id);
+            }
+        }
+        std::sort(result.begin(), result.end());
+        return result;
+    };
+    const auto finishCombat = [&guardianIds](World &world) {
+        int iterations = 0;
+        while (iterations++ < 12) {
+            const PostVictoryEventSnapshot snapshot =
+                world.getPostVictoryEventSnapshot();
+            if (snapshot.rewardPending || snapshot.activeEvent == 0) {
+                break;
+            }
+            const std::vector<ActorId> ids = guardianIds(world);
+            if (ids.empty()) {
+                world.tick(iterations + 10);
+                continue;
+            }
+            for (ActorId id : ids) {
+                world.attackActor(id, 100.f);
+            }
+        }
+        return world.getPostVictoryEventSnapshot().rewardPending;
+    };
+
+    {
+        Camera camera(config);
+        Player player;
+        World world(camera, config, player, runtimeDirectory, false, 1);
+        const bool arenaReady = runtimeSaved &&
+            prepareArena(world, core);
+        const WaystoneActionResult firstStart =
+            world.useWaystone(core, player, true);
+        const PostVictoryEventSnapshot firstActive =
+            world.getPostVictoryEventSnapshot();
+        const bool deathAccepted = world.damagePlayer(100.f);
+        const PostVictoryEventSnapshot abandoned =
+            world.getPostVictoryEventSnapshot();
+        world.tick(2);
+        const WaystoneActionResult restarted =
+            world.useWaystone(core, player, true);
+        check("N11B/death-restarts-current-event-without-consuming-progress",
+              arenaReady &&
+                  firstStart ==
+                      WaystoneActionResult::PostVictoryEventStarted &&
+                  firstActive.activeEvent == 1 &&
+                  firstActive.wave == 1 &&
+                  firstActive.loadedGuardians == 1 &&
+                  deathAccepted && abandoned.activeEvent == 0 &&
+                  abandoned.completedEvents == 0 &&
+                  abandoned.loadedGuardians == 0 &&
+                  restarted ==
+                      WaystoneActionResult::PostVictoryEventStarted);
+
+        const bool firstPending = finishCombat(world);
+        const WaystoneActionResult firstReward =
+            world.useWaystone(core, player, true);
+        const WaystoneActionResult secondStart =
+            world.useWaystone(core, player, true);
+        std::vector<ActorId> secondGuardians = guardianIds(world);
+        if (!secondGuardians.empty()) {
+            world.attackActor(secondGuardians.front(), 100.f);
+        }
+        const PostVictoryEventSnapshot partial =
+            world.getPostVictoryEventSnapshot();
+        check("N11B/reward-is-once-only-and-next-event-is-explicit",
+              firstPending &&
+                  firstReward ==
+                      WaystoneActionResult::PostVictoryRewardClaimed &&
+                  player.getInventoryCount(Material::ID::IronIngot) ==
+                      PostVictoryEvents::RewardIronIngots &&
+                  world.getPostVictoryEventSnapshot().completedEvents == 1 &&
+                  secondStart ==
+                      WaystoneActionResult::PostVictoryEventStarted &&
+                  partial.activeEvent == 2 && partial.wave == 1 &&
+                  partial.remainingGuardians == 1 &&
+                  partial.loadedGuardians == 1 && world.save());
+    }
+
+    {
+        Camera camera(config);
+        Player player;
+        World world(camera, config, player, runtimeDirectory, false, 1);
+        const PostVictoryEventSnapshot restored =
+            world.getPostVictoryEventSnapshot();
+        check("N11B/mid-event-reopen-restores-exactly-one-guardian",
+              restored.completedEvents == 1 &&
+                  restored.activeEvent == 2 && restored.wave == 1 &&
+                  restored.remainingGuardians == 1 &&
+                  restored.loadedGuardians == 1 &&
+                  guardianIds(world).size() == 1);
+
+        const bool secondPending = finishCombat(world);
+        const WaystoneActionResult secondReward =
+            world.useWaystone(core, player, true);
+        const WaystoneActionResult thirdStart =
+            world.useWaystone(core, player, true);
+        const bool thirdPending = finishCombat(world);
+        const WaystoneActionResult thirdReward =
+            world.useWaystone(core, player, true);
+        const int rewardCount =
+            player.getInventoryCount(Material::ID::IronIngot);
+        const WaystoneActionResult complete =
+            world.useWaystone(core, player, true);
+        const WaystoneActionResult repeated =
+            world.useWaystone(core, player, true);
+        const PostVictoryEventSnapshot finished =
+            world.getPostVictoryEventSnapshot();
+        check("N11B/three-events-finish-with-bounded-actors-and-rewards",
+              secondPending &&
+                  secondReward ==
+                      WaystoneActionResult::PostVictoryRewardClaimed &&
+                  thirdStart ==
+                      WaystoneActionResult::PostVictoryEventStarted &&
+                  thirdPending &&
+                  thirdReward ==
+                      WaystoneActionResult::PostVictoryRewardClaimed &&
+                  complete == WaystoneActionResult::PostVictoryComplete &&
+                  repeated == WaystoneActionResult::PostVictoryComplete &&
+                  finished.complete && finished.completedEvents == 3 &&
+                  finished.activeEvent == 0 &&
+                  finished.loadedGuardians == 0 &&
+                  rewardCount ==
+                      PostVictoryEvents::MaximumEvents *
+                          PostVictoryEvents::RewardIronIngots &&
+                  player.getInventoryCount(Material::ID::IronIngot) ==
+                      rewardCount && world.save());
+    }
+
+    {
+        Camera camera(config);
+        Player player;
+        World world(camera, config, player, runtimeDirectory, false, 1);
+        const glm::ivec3 replacement{10, 100, 8};
+        world.onWaystoneBroken(core);
+        world.setBlock(core.x, core.y, core.z, BlockId::Air);
+        world.setBlock(replacement.x, replacement.y, replacement.z,
+                       BlockId::WaystoneCore);
+        const bool initialized = world.initializeWaystone(replacement);
+        const int rewardCount =
+            player.getInventoryCount(Material::ID::IronIngot);
+        const WaystoneActionResult replacementUse =
+            world.useWaystone(replacement, player, true);
+        check("N11B/breaking-or-replacing-core-cannot-reset-rewards",
+              initialized &&
+                  world.getPostVictoryEventSnapshot().completedEvents == 3 &&
+                  replacementUse ==
+                      WaystoneActionResult::PostVictoryComplete &&
+                  player.getInventoryCount(Material::ID::IronIngot) ==
+                      rewardCount);
+    }
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", "");
     setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
 }
 
@@ -6113,7 +6450,7 @@ void caseToolMiningProgression()
     check("N1/version-three-migrates-with-empty-objective-state",
           legacyLoaded && loadedLegacyVersion == 3 &&
               legacyData.alphaJourneyFlags == 0u && legacyUpgraded &&
-              upgraded.find("version 10") != std::string::npos &&
+              upgraded.find("version 11") != std::string::npos &&
               upgraded.find("alpha_journey_flags 0") !=
                   std::string::npos &&
               upgraded.find("objective_definition_version 2") !=
@@ -10971,6 +11308,7 @@ int main()
         caseFoodRecovery();
         caseExpandedResourceEconomy();
         caseDifficultyProfiles();
+        casePostVictoryEvents();
         caseWorkbenchCrafting();
         caseToolMiningProgression();
         caseNaturalMobPopulation();

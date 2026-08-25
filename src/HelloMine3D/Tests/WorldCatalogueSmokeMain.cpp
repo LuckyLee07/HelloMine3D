@@ -37,6 +37,8 @@ namespace
         std::uint32_t claimedRewardEpoch = 0;
         int difficultyProfileVersion = CurrentDifficultyProfileVersion;
         int difficultyId = static_cast<int>(WorldDifficulty::Normal);
+        int postVictoryEventVersion = PostVictoryEvents::CurrentVersion;
+        int completedPostVictoryEvents = 0;
         std::string extra;
     };
 
@@ -156,6 +158,12 @@ namespace
                    << fixture.difficultyProfileVersion << '\n'
                    << "difficulty_id " << fixture.difficultyId << '\n';
         }
+        if (fixture.version >= 11) {
+            output << "post_victory_event_version "
+                   << fixture.postVictoryEventVersion << '\n'
+                   << "post_victory_completed_events "
+                   << fixture.completedPostVictoryEvents << '\n';
+        }
         output << fixture.extra;
     }
 
@@ -263,6 +271,9 @@ int main()
                         first[0].difficultyProfileVersion ==
                             CurrentDifficultyProfileVersion &&
                         first[0].difficulty == WorldDifficulty::Normal &&
+                        first[0].postVictoryEventVersion ==
+                            PostVictoryEvents::CurrentVersion &&
+                        first[0].completedPostVictoryEvents == 0 &&
                         !first[0].completed &&
                         !first[0].legacyMetadata);
         suite.check("K1/repeated-enumeration-is-deterministic",
@@ -513,6 +524,61 @@ int main()
         suite.expectReject("K1/world-id-path-escape", "world_id", [&]() {
             WorldCatalogue::enumerate(traversal.path().string());
         });
+    }
+
+    for (const auto &invalidReplay :
+         std::vector<std::pair<std::string, MetadataFixture>>{
+             {"version-zero", [] {
+                  MetadataFixture fixture;
+                  fixture.postVictoryEventVersion = 0;
+                  return fixture;
+              }()},
+             {"version-future", [] {
+                  MetadataFixture fixture;
+                  fixture.postVictoryEventVersion =
+                      PostVictoryEvents::CurrentVersion + 1;
+                  return fixture;
+              }()},
+             {"completed-negative", [] {
+                  MetadataFixture fixture;
+                  fixture.completedPostVictoryEvents = -1;
+                  return fixture;
+              }()},
+             {"completed-over-cap", [] {
+                  MetadataFixture fixture;
+                  fixture.completedPostVictoryEvents =
+                      PostVictoryEvents::MaximumEvents + 1;
+                  return fixture;
+              }()},
+             {"progress-before-reward", [] {
+                  MetadataFixture fixture;
+                  fixture.completedPostVictoryEvents = 1;
+                  return fixture;
+              }()}}) {
+        TemporaryDirectory root("post-victory-" + invalidReplay.first);
+        root.create();
+        writeMetadata(root.path(), "world", invalidReplay.second);
+        suite.expectReject("N11B/catalogue-rejects-" +
+                               invalidReplay.first,
+                           "post-victory event progress", [&]() {
+                               WorldCatalogue::enumerate(
+                                   root.path().string());
+                           });
+    }
+
+    {
+        TemporaryDirectory legacyReplay("post-victory-on-v10");
+        legacyReplay.create();
+        MetadataFixture fixture;
+        fixture.version = 10;
+        fixture.extra = "post_victory_event_version 1\n"
+                        "post_victory_completed_events 0\n";
+        writeMetadata(legacyReplay.path(), "world", fixture);
+        suite.expectReject("N11B/v10-catalogue-rejects-replay-fields",
+                           "require save format version 11", [&]() {
+                               WorldCatalogue::enumerate(
+                                   legacyReplay.path().string());
+                           });
     }
 
     {

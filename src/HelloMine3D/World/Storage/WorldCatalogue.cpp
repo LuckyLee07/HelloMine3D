@@ -26,6 +26,7 @@ namespace
         "last_build",     "last_played_utc",   "player_attack_cooldown",
         "player_food_cooldown", "player_health", "player_held", "player_position",
         "player_present", "player_rotation",
+        "post_victory_completed_events", "post_victory_event_version",
         "objective_completed", "objective_completed_count",
         "objective_definition_version", "objective_progress",
         "objective_progress_count",
@@ -37,7 +38,8 @@ namespace
 
     const std::set<std::string> CatalogueKeys = {
         "created_utc", "difficulty_id", "difficulty_profile_version",
-        "last_build", "last_played_utc", "seed",
+        "last_build", "last_played_utc", "post_victory_completed_events",
+        "post_victory_event_version", "seed",
         "version", "world_id", "world_name", "world_outcome_phase",
         "world_outcome_reward_epoch", "world_outcome_claimed_epoch"};
 
@@ -272,6 +274,13 @@ namespace
             reject(metadataPath,
                    "difficulty fields require save format version 10");
         }
+        const bool postVictoryFieldsPresent =
+            fields.count("post_victory_event_version") != 0 ||
+            fields.count("post_victory_completed_events") != 0;
+        if (entry.saveFormatVersion < 11 && postVictoryFieldsPresent) {
+            reject(metadataPath,
+                   "post-victory fields require save format version 11");
+        }
 
         if (entry.saveFormatVersion < 3) {
             if (fields.count("created_utc") != 0 ||
@@ -356,6 +365,30 @@ namespace
                 !validWorldDifficulty(entry.difficulty)) {
                 reject(metadataPath,
                        "difficulty profile version or id is outside its range");
+            }
+        }
+        if (entry.saveFormatVersion >= 11) {
+            for (const std::string &required :
+                 {"post_victory_event_version",
+                  "post_victory_completed_events"}) {
+                if (fields.find(required) == fields.end()) {
+                    reject(metadataPath, "missing field '" + required + "'");
+                }
+            }
+            entry.postVictoryEventVersion = parseInteger<int>(
+                metadataPath, "post_victory_event_version",
+                fields["post_victory_event_version"]);
+            entry.completedPostVictoryEvents = parseInteger<int>(
+                metadataPath, "post_victory_completed_events",
+                fields["post_victory_completed_events"]);
+            if (!PostVictoryEvents::validProgress(
+                    entry.postVictoryEventVersion,
+                    entry.completedPostVictoryEvents) ||
+                (entry.completedPostVictoryEvents > 0 &&
+                 entry.outcomePhase !=
+                     WorldOutcomePhase::RewardClaimed)) {
+                reject(metadataPath,
+                       "post-victory event progress is inconsistent");
             }
         }
         return entry;

@@ -178,6 +178,8 @@ namespace
                "natural_mobs_spawned,natural_mobs_despawned,player_health,"
                "player_max_health,terrain_seed,terrain_generation_version,"
                "difficulty_profile_version,difficulty_id,"
+               "post_victory_event_version,post_victory_completed_events,"
+               "post_victory_active_event,post_victory_event_wave,"
                "world_time,day_cycle,daylight,"
                "fog_density,simulation_ticks\n";
     }
@@ -509,6 +511,14 @@ namespace
                     << last.difficultyProfileVersion << "\n";
             summary << "difficulty_id="
                     << static_cast<int>(last.difficulty) << "\n";
+            summary << "post_victory_event_version="
+                    << last.postVictoryEventVersion << "\n";
+            summary << "post_victory_completed_events="
+                    << last.completedPostVictoryEvents << "\n";
+            summary << "post_victory_active_event="
+                    << last.activePostVictoryEvent << "\n";
+            summary << "post_victory_event_wave="
+                    << last.postVictoryEventWave << "\n";
             summary << "last_world_time=" << last.worldTime << "\n";
             summary << "last_day_cycle=" << last.environment.cycle << "\n";
             summary << "last_daylight=" << last.environment.daylight << "\n";
@@ -667,6 +677,10 @@ void recordFrame(const FrameTimings &timings,
                         << worldStats.terrainGenerationVersion << ","
                         << worldStats.difficultyProfileVersion << ","
                         << static_cast<int>(worldStats.difficulty) << ","
+                        << worldStats.postVictoryEventVersion << ","
+                        << worldStats.completedPostVictoryEvents << ","
+                        << worldStats.activePostVictoryEvent << ","
+                        << worldStats.postVictoryEventWave << ","
                         << worldStats.worldTime << ","
                         << worldStats.environment.cycle << ","
                         << worldStats.environment.daylight << ","

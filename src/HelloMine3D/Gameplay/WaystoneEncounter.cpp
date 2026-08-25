@@ -6,7 +6,7 @@
 
 namespace
 {
-    constexpr int PayloadVersion = 1;
+    constexpr int PayloadVersion = 2;
 
     bool fail(std::string* error, const char* message)
     {
@@ -21,23 +21,54 @@ namespace
 bool WaystoneEncounter::validState(
     const WaystoneEncounterState& state) noexcept
 {
+    bool originalStateValid = false;
     switch (state.wave)
     {
     case 0:
-        return state.remainingGuardians == 0 && state.rewardEpoch == 0;
+        originalStateValid = state.remainingGuardians == 0 &&
+                             state.rewardEpoch == 0;
+        break;
     case 1:
-        return state.remainingGuardians >= 1 &&
-               state.remainingGuardians <= FirstWaveGuardians &&
-               state.rewardEpoch == 0;
+        originalStateValid = state.remainingGuardians >= 1 &&
+                             state.remainingGuardians <=
+                                 FirstWaveGuardians &&
+                             state.rewardEpoch == 0;
+        break;
     case 2:
-        return state.remainingGuardians == SecondWaveGuardians &&
-               state.rewardEpoch == 0;
+        originalStateValid = state.remainingGuardians ==
+                                 SecondWaveGuardians &&
+                             state.rewardEpoch == 0;
+        break;
     case 3:
-        return state.remainingGuardians == 0 &&
-               state.rewardEpoch == RewardEpoch;
+        originalStateValid = state.remainingGuardians == 0 &&
+                             state.rewardEpoch == RewardEpoch;
+        break;
     default:
         return false;
     }
+    if (!originalStateValid)
+    {
+        return false;
+    }
+    if (state.postVictoryEvent == 0)
+    {
+        return state.postVictoryWave == 0 &&
+               state.postVictoryRemainingGuardians == 0;
+    }
+    if (state.wave != 3 || state.rewardEpoch != RewardEpoch ||
+        state.postVictoryEvent < 1 ||
+        state.postVictoryEvent > PostVictoryEvents::MaximumEvents)
+    {
+        return false;
+    }
+    if (state.postVictoryWave == 3)
+    {
+        return state.postVictoryRemainingGuardians == 0;
+    }
+    const int maximum = PostVictoryEvents::guardianCount(
+        state.postVictoryEvent, state.postVictoryWave);
+    return maximum > 0 && state.postVictoryRemainingGuardians >= 1 &&
+           state.postVictoryRemainingGuardians <= maximum;
 }
 
 std::string WaystoneEncounter::serialize(
@@ -51,7 +82,11 @@ std::string WaystoneEncounter::serialize(
     output << "version " << PayloadVersion << '\n'
            << "wave " << state.wave << '\n'
            << "remaining " << state.remainingGuardians << '\n'
-           << "reward_epoch " << state.rewardEpoch << '\n';
+           << "reward_epoch " << state.rewardEpoch << '\n'
+           << "post_victory_event " << state.postVictoryEvent << '\n'
+           << "post_victory_wave " << state.postVictoryWave << '\n'
+           << "post_victory_remaining "
+           << state.postVictoryRemainingGuardians << '\n';
     return output.str();
 }
 
@@ -111,6 +146,31 @@ bool WaystoneEncounter::deserialize(const std::string& payload,
                             "waystone payload reward epoch is invalid");
             }
         }
+        else if (key == "post_victory_event")
+        {
+            if (!(row >> parsed.postVictoryEvent))
+            {
+                return fail(error,
+                            "waystone payload post-victory event is invalid");
+            }
+        }
+        else if (key == "post_victory_wave")
+        {
+            if (!(row >> parsed.postVictoryWave))
+            {
+                return fail(error,
+                            "waystone payload post-victory wave is invalid");
+            }
+        }
+        else if (key == "post_victory_remaining")
+        {
+            if (!(row >> parsed.postVictoryRemainingGuardians))
+            {
+                return fail(
+                    error,
+                    "waystone payload post-victory remaining is invalid");
+            }
+        }
         else
         {
             return fail(error, "waystone payload field is unknown");
@@ -121,8 +181,10 @@ bool WaystoneEncounter::deserialize(const std::string& payload,
             return fail(error, "waystone payload has trailing data");
         }
     }
-    if (version != PayloadVersion || fields.size() != 4 ||
-        !validState(parsed))
+    const bool supported =
+        (version == 1 && fields.size() == 4) ||
+        (version == PayloadVersion && fields.size() == 7);
+    if (!supported || !validState(parsed))
     {
         return fail(error, "waystone payload state is unsupported");
     }
@@ -171,6 +233,16 @@ const char* WaystoneEncounter::feedbackKey(
         return "waystone.feedback.reward_claimed";
     case WaystoneActionResult::RewardAlreadyClaimed:
         return "waystone.feedback.reward_already_claimed";
+    case WaystoneActionResult::PostVictoryEventStarted:
+        return "waystone.feedback.post_victory_started";
+    case WaystoneActionResult::PostVictoryEventInProgress:
+        return "waystone.feedback.post_victory_in_progress";
+    case WaystoneActionResult::PostVictoryRewardClaimed:
+        return "waystone.feedback.post_victory_reward_claimed";
+    case WaystoneActionResult::PostVictoryComplete:
+        return "waystone.feedback.post_victory_complete";
+    case WaystoneActionResult::PostVictoryInventoryFull:
+        return "waystone.feedback.post_victory_inventory_full";
     case WaystoneActionResult::SimulationPaused:
         return "waystone.feedback.paused";
     case WaystoneActionResult::PlayerUnavailable:

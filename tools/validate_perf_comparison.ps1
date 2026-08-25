@@ -174,6 +174,16 @@ try {
         -Name "q1-scaled-gameplay-v1/difficulty-incomparable" `
         -Baseline $difficultyBaseline -Candidate $difficultyMismatch `
         -ExpectedExit 3 -ExpectedStatus "INCOMPARABLE"
+
+    $postVictoryMismatch = Copy-Fixture `
+        -Source $difficultyBaseline -Name "q1-post-victory-incomparable"
+    Set-SummaryValue `
+        -Path $postVictoryMismatch `
+        -Key "post_victory_completed_events" -Value "1"
+    Invoke-ComparisonCase `
+        -Name "q1-scaled-gameplay-v1/post-victory-incomparable" `
+        -Baseline $difficultyBaseline -Candidate $postVictoryMismatch `
+        -ExpectedExit 3 -ExpectedStatus "INCOMPARABLE"
 }
 finally {
     if (Test-Path -LiteralPath $TempRoot) {

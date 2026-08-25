@@ -5,6 +5,7 @@
 #include <string>
 
 #include "../Maths/glm.h"
+#include "PostVictoryEvents.h"
 
 enum class WaystoneActionResult
 {
@@ -13,6 +14,11 @@ enum class WaystoneActionResult
     EncounterInProgress,
     RewardClaimed,
     RewardAlreadyClaimed,
+    PostVictoryEventStarted,
+    PostVictoryEventInProgress,
+    PostVictoryRewardClaimed,
+    PostVictoryComplete,
+    PostVictoryInventoryFull,
     SimulationPaused,
     PlayerUnavailable,
     PlayerDead,
@@ -30,6 +36,9 @@ struct WaystoneEncounterState
     int wave = 0;
     int remainingGuardians = 0;
     std::uint32_t rewardEpoch = 0;
+    int postVictoryEvent = 0;
+    int postVictoryWave = 0;
+    int postVictoryRemainingGuardians = 0;
 };
 
 struct WaystoneEncounterSnapshot
@@ -39,6 +48,9 @@ struct WaystoneEncounterSnapshot
     int wave = 0;
     int remainingGuardians = 0;
     std::size_t loadedGuardians = 0;
+    int postVictoryEvent = 0;
+    int postVictoryWave = 0;
+    int postVictoryRemainingGuardians = 0;
 };
 
 namespace WaystoneEncounter

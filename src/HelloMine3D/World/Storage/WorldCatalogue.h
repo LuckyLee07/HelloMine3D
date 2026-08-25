@@ -9,6 +9,7 @@
 
 #include "../../Gameplay/WorldOutcomeState.h"
 #include "../../Gameplay/DifficultyProfile.h"
+#include "../../Gameplay/PostVictoryEvents.h"
 
 inline constexpr std::int64_t LegacyWorldTimestampUtc = 946684800;
 
@@ -25,6 +26,8 @@ struct WorldCatalogueEntry {
     bool legacyMetadata = false;
     int difficultyProfileVersion = CurrentDifficultyProfileVersion;
     WorldDifficulty difficulty = WorldDifficulty::Normal;
+    int postVictoryEventVersion = PostVictoryEvents::CurrentVersion;
+    int completedPostVictoryEvents = 0;
     WorldOutcomePhase outcomePhase = WorldOutcomePhase::Unstarted;
     bool completed = false;
 };
@@ -42,7 +45,7 @@ class WorldCatalogueError : public std::runtime_error {
 /// callers never present a partial catalogue as authoritative.
 class WorldCatalogue {
   public:
-    static constexpr int CurrentSaveFormatVersion = 10;
+    static constexpr int CurrentSaveFormatVersion = 11;
     static constexpr std::size_t MaxMetadataBytes = 64 * 1024;
     static constexpr std::size_t MaxWorldIdBytes = 64;
     static constexpr std::size_t MaxDisplayNameCodepoints = 80;
