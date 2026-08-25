@@ -208,6 +208,15 @@ namespace
             const OgreActorRendererValidation actors =
                 OgreActorRenderer::validateSnapshots(
                     m_world->collectActorSnapshots());
+            const OgreProjectileRendererValidation projectiles =
+                OgreActorRenderer::validateProjectileSnapshots(
+                    m_world->collectCombatProjectileSnapshots());
+            if (!projectiles.valid)
+            {
+                throw std::runtime_error(
+                    "Projectile validation failed: " +
+                    projectiles.message);
+            }
 
             std::cout << "[OGRE_VALIDATION] renderer="
                       << renderSystem->getName() << '\n';
@@ -1574,6 +1583,8 @@ namespace
             }
             m_actorRenderer->sync(m_world->collectActorSnapshots(),
                                   m_logicCamera->position);
+            m_actorRenderer->syncProjectiles(
+                m_world->collectCombatProjectileSnapshots());
         }
 
         void spawnValidationActors()
@@ -2008,7 +2019,9 @@ namespace
 
             const char* actorMaterials[] = {
                 "HelloMine3D/ActorMob", "HelloMine3D/ActorStalker",
-                "HelloMine3D/ActorBrute", "HelloMine3D/ActorItem"};
+                "HelloMine3D/ActorBrute", "HelloMine3D/ActorSpitter",
+                "HelloMine3D/ActorItem",
+                "HelloMine3D/CombatProjectile"};
             for (const char* materialName : actorMaterials)
             {
                 Ogre::GpuProgramParametersSharedPtr parameters =

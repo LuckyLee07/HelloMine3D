@@ -51,6 +51,8 @@ class MobActor : public LivingActor {
                       int ticks = 0);
     static MobCombatTransitionReason reasonForAttackResult(
         MobMeleeAttackResult result) noexcept;
+    static MobCombatTransitionReason reasonForAttackResult(
+        MobRangedAttackResult result) noexcept;
 
     const Entity *m_chaseTarget = nullptr;
     ActorId m_chaseTargetId = InvalidActorId;

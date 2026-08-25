@@ -24,6 +24,13 @@ struct OgreActorRendererValidation
     std::string message;
 };
 
+struct OgreProjectileRendererValidation
+{
+    bool valid = false;
+    std::size_t projectileCount = 0;
+    std::string message;
+};
+
 class OgreActorRenderer
 {
   public:
@@ -32,10 +39,14 @@ class OgreActorRenderer
 
     void sync(const std::vector<ActorSnapshot>& snapshots,
               const glm::vec3& cameraPosition);
+    void syncProjectiles(
+        const std::vector<CombatProjectileSnapshot>& snapshots);
     void clear();
 
     static OgreActorRendererValidation validateSnapshots(
         const std::vector<ActorSnapshot>& snapshots);
+    static OgreProjectileRendererValidation validateProjectileSnapshots(
+        const std::vector<CombatProjectileSnapshot>& snapshots);
 
   private:
     struct ActorVisual
@@ -50,9 +61,14 @@ class OgreActorRenderer
                       const ActorSnapshot& snapshot,
                       const glm::vec3& cameraPosition);
     void destroyVisual(ActorVisual& visual);
+    ActorVisual createProjectileVisual(CombatProjectileId id);
+    void updateProjectileVisual(
+        ActorVisual& visual, const CombatProjectileSnapshot& snapshot);
 
     Ogre::SceneManager* m_sceneManager = nullptr;
     std::unordered_map<ActorId, ActorVisual> m_visuals;
+    std::unordered_map<CombatProjectileId, ActorVisual>
+        m_projectileVisuals;
 };
 
 #endif // OGREACTORRENDERER_H_INCLUDED

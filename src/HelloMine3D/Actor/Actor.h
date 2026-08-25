@@ -41,6 +41,7 @@ struct ActorSnapshot {
     glm::vec3 rotation{0.f};
     glm::vec3 dimensions{0.f};
     bool combatant = false;
+    EnemyCombatMode combatMode = EnemyCombatMode::Melee;
     MobCombatState combatState = MobCombatState::Idle;
     ActorId combatTargetId = InvalidActorId;
     int combatStateTicksRemaining = 0;

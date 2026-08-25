@@ -237,3 +237,47 @@ material HelloMine3D/ActorItem
         }
     }
 }
+
+material HelloMine3D/ActorSpitter
+{
+    technique
+    {
+        pass
+        {
+            lighting off
+            depth_write on
+            cull_hardware clockwise
+
+            vertex_program_ref HelloMine3D/ActorVertex
+            {
+            }
+
+            fragment_program_ref HelloMine3D/ActorFragment
+            {
+                param_named actorTint float4 0.68 0.28 0.88 1.0
+            }
+        }
+    }
+}
+
+material HelloMine3D/CombatProjectile
+{
+    technique
+    {
+        pass
+        {
+            lighting off
+            depth_write on
+            cull_hardware clockwise
+
+            vertex_program_ref HelloMine3D/ActorVertex
+            {
+            }
+
+            fragment_program_ref HelloMine3D/ActorFragment
+            {
+                param_named actorTint float4 0.92 0.35 1.0 1.0
+            }
+        }
+    }
+}

@@ -80,12 +80,21 @@ void MobActor::tick(World &world, float dt)
                 --m_combatStateTicksRemaining;
             }
             if (m_combatStateTicksRemaining == 0) {
-                const MobMeleeAttackResult result =
-                    world.resolveMobMeleeAttack(*this, m_chaseTargetId);
                 m_combatCooldownTicksRemaining = m_combat.cooldownTicks;
-                transitionTo(MobCombatState::Recover,
-                             reasonForAttackResult(result),
-                             m_combat.recoverTicks);
+                if (m_combat.mode == EnemyCombatMode::Ranged) {
+                    const MobRangedAttackResult result =
+                        world.launchMobProjectile(*this, m_chaseTargetId);
+                    transitionTo(MobCombatState::Recover,
+                                 reasonForAttackResult(result),
+                                 m_combat.recoverTicks);
+                }
+                else {
+                    const MobMeleeAttackResult result =
+                        world.resolveMobMeleeAttack(*this, m_chaseTargetId);
+                    transitionTo(MobCombatState::Recover,
+                                 reasonForAttackResult(result),
+                                 m_combat.recoverTicks);
+                }
             }
             return;
         case MobCombatState::Recover:
@@ -196,6 +205,30 @@ MobCombatTransitionReason MobActor::reasonForAttackResult(
     return MobCombatTransitionReason::TargetRejected;
 }
 
+MobCombatTransitionReason MobActor::reasonForAttackResult(
+    MobRangedAttackResult result) noexcept
+{
+    switch (result) {
+        case MobRangedAttackResult::Launched:
+            return MobCombatTransitionReason::ProjectileLaunched;
+        case MobRangedAttackResult::CapacityReached:
+            return MobCombatTransitionReason::ProjectileCapacityReached;
+        case MobRangedAttackResult::TargetMissing:
+            return MobCombatTransitionReason::TargetMissing;
+        case MobRangedAttackResult::TargetDead:
+            return MobCombatTransitionReason::TargetDead;
+        case MobRangedAttackResult::OutOfRange:
+            return MobCombatTransitionReason::TargetEscaped;
+        case MobRangedAttackResult::Occluded:
+            return MobCombatTransitionReason::AttackOccluded;
+        case MobRangedAttackResult::TargetRejected:
+            return MobCombatTransitionReason::TargetRejected;
+        case MobRangedAttackResult::RayBudgetExhausted:
+            return MobCombatTransitionReason::RayBudgetExhausted;
+    }
+    return MobCombatTransitionReason::TargetRejected;
+}
+
 ActorSaveState MobActor::getSaveState() const
 {
     ActorSaveState state = LivingActor::getSaveState();
@@ -213,6 +246,7 @@ ActorSnapshot MobActor::getSnapshot() const
 {
     ActorSnapshot snapshot = LivingActor::getSnapshot();
     snapshot.combatant = true;
+    snapshot.combatMode = m_combat.mode;
     snapshot.combatState = m_combatState;
     snapshot.combatTargetId = m_chaseTargetId;
     snapshot.combatStateTicksRemaining = m_combatStateTicksRemaining;

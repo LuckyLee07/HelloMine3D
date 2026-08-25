@@ -53,9 +53,25 @@ struct CombatRuntimeDebugStats {
     std::size_t chaseStepsUsed = 0;
     std::size_t chaseStepBudget = 0;
     std::size_t chaseStepBudgetDenied = 0;
+    std::size_t projectileCount = 0;
+    std::size_t projectileWorldLimit = 0;
+    std::size_t projectileStepsUsed = 0;
+    std::size_t projectileStepBudget = 0;
+    std::size_t projectileStepBudgetDenied = 0;
+    std::size_t projectilesLaunched = 0;
+    std::size_t projectileCapacityDenied = 0;
+    std::size_t projectileHits = 0;
+    std::size_t projectileGuards = 0;
+    std::size_t projectileBlocks = 0;
+    std::size_t projectileExpirations = 0;
+    std::size_t projectileOwnerClears = 0;
+    CombatProjectileId observedProjectileId = InvalidCombatProjectileId;
+    CombatProjectileRemovalReason lastProjectileRemovalReason =
+        CombatProjectileRemovalReason::None;
     ActorId observedActorId = InvalidActorId;
     ActorId observedTargetId = InvalidActorId;
     MobCombatState observedState = MobCombatState::Idle;
+    EnemyCombatMode observedMode = EnemyCombatMode::Melee;
     MobCombatTransitionReason observedReason =
         MobCombatTransitionReason::Spawned;
     int observedStateTicksRemaining = 0;
@@ -156,11 +172,14 @@ class World : public NonCopyable {
     static constexpr const char *NaturalMobType = "hellomine:natural_mob";
     static constexpr const char *StalkerMobType = "hellomine:stalker";
     static constexpr const char *BruteMobType = "hellomine:brute";
+    static constexpr const char *SpitterMobType = "hellomine:spitter";
     static constexpr float PlayerAttackDamage = 4.f;
     static constexpr int PlayerAttackCooldownTicks = 10;
     static constexpr float PlayerAttackReach = 3.f;
     static constexpr std::size_t CombatRaycastBudgetPerTick = 16;
     static constexpr std::size_t CombatChaseStepBudgetPerTick = 32;
+    static constexpr std::size_t CombatProjectileWorldLimit = 32;
+    static constexpr std::size_t CombatProjectileStepBudgetPerTick = 32;
     static constexpr int PlayerGuardRecoverTicks = 8;
     static constexpr int PlayerCombatFeedbackTicks = 10;
     static constexpr int MobPlayerHitRecoverTicks = 3;
@@ -221,6 +240,10 @@ class World : public NonCopyable {
                              int windupTicks);
     MobMeleeAttackResult resolveMobMeleeAttack(const MobActor &attacker,
                                                ActorId targetId);
+    MobRangedAttackResult launchMobProjectile(const MobActor &attacker,
+                                              ActorId targetId);
+    std::vector<CombatProjectileSnapshot>
+    collectCombatProjectileSnapshots();
     FoodUseResult useHeldFood(bool simulationRunning = true);
     float getPlayerHealth() const;
     float getPlayerMaxHealth() const;
@@ -289,6 +312,22 @@ class World : public NonCopyable {
         }
     };
 
+    struct CombatProjectile {
+        CombatProjectileId id = InvalidCombatProjectileId;
+        ActorId ownerId = InvalidActorId;
+        std::string ownerType;
+        glm::vec3 origin{0.f};
+        glm::vec3 position{0.f};
+        glm::vec3 velocity{0.f};
+        float radius = 0.f;
+        float damage = 0.f;
+        float knockback = 0.f;
+        int ticksRemaining = 0;
+        float distanceTravelled = 0.f;
+        float maximumDistance = 0.f;
+        float activeRadius = 0.f;
+    };
+
     ChunkBlock getBlockUnlocked(int x, int y, int z);
     LightLevel getSunlightUnlocked(int x, int y, int z);
     LightLevel getBlockLightUnlocked(int x, int y, int z);
@@ -310,6 +349,14 @@ class World : public NonCopyable {
     void runRandomTicks(int worldTime);
     void runNaturalMobPopulation(int worldTime);
     void respawnPlayer();
+    void tickCombatProjectiles();
+    CombatProjectileRemovalReason stepCombatProjectile(
+        CombatProjectile &projectile);
+    void removeCombatProjectilesOwnedBy(ActorId ownerId);
+    void removeCombatProjectilesInChunk(int chunkX, int chunkZ);
+    void clearInvalidCombatProjectiles();
+    void recordCombatProjectileRemoval(
+        CombatProjectileId id, CombatProjectileRemovalReason reason);
     bool hasCombatLineOfSight(const MobActor &attacker,
                               const Entity &target);
     bool playerHoldsGuardWeapon() const noexcept;
@@ -419,6 +466,21 @@ class World : public NonCopyable {
     std::size_t m_combatRaycastBudgetDenied = 0;
     std::size_t m_combatChaseStepsUsed = 0;
     std::size_t m_combatChaseStepBudgetDenied = 0;
+    std::vector<CombatProjectile> m_combatProjectiles;
+    CombatProjectileId m_nextCombatProjectileId = 1;
+    std::size_t m_combatProjectileStepsUsed = 0;
+    std::size_t m_combatProjectileStepBudgetDenied = 0;
+    std::size_t m_combatProjectilesLaunched = 0;
+    std::size_t m_combatProjectileCapacityDenied = 0;
+    std::size_t m_combatProjectileHits = 0;
+    std::size_t m_combatProjectileGuards = 0;
+    std::size_t m_combatProjectileBlocks = 0;
+    std::size_t m_combatProjectileExpirations = 0;
+    std::size_t m_combatProjectileOwnerClears = 0;
+    CombatProjectileId m_observedCombatProjectileId =
+        InvalidCombatProjectileId;
+    CombatProjectileRemovalReason m_lastCombatProjectileRemovalReason =
+        CombatProjectileRemovalReason::None;
     bool m_playerGuardRequested = false;
     int m_playerGuardRecoverTicksRemaining = 0;
     PlayerCombatFeedbackSnapshot m_playerCombatFeedback;

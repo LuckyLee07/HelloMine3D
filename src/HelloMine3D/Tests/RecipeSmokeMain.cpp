@@ -129,7 +129,7 @@ end
 
     std::string validEnemies()
     {
-        return R"(# HelloMine3D enemy registry v2
+        return R"(# HelloMine3D enemy registry v3
 enemy hellomine:natural_mob
 health 10
 dimensions 0.35 0.9 0.35
@@ -180,6 +180,31 @@ natural 1
 loot hellomine:dirt 1 1
 loot hellomine:coal_ore 1 1
 loot hellomine:wheat 1 1
+end
+enemy hellomine:spitter
+health 7
+dimensions 0.32 0.80 0.32
+wander_speed 1.1
+chase_radius 18
+chase_speed 2
+contact_damage 0
+combat_mode ranged
+attack_range 12
+attack_windup_ticks 12
+attack_recover_ticks 10
+attack_cooldown_ticks 32
+knockback 1.5
+projectile_speed 10
+projectile_damage 2
+projectile_lifetime_ticks 50
+projectile_max_distance 20
+projectile_radius 0.15
+projectile_world_limit 24
+projectile_local_limit 8
+projectile_active_radius 32
+natural 1
+loot hellomine:dirt 1 1
+loot hellomine:wheat_seeds 1 2
 end
 )";
     }
@@ -1244,12 +1269,13 @@ end
         registry.freeze({{"Base.enemy", validEnemies()}});
         const EnemyDefinition *stalker = registry.find("hellomine:stalker");
         const EnemyDefinition *brute = registry.find("hellomine:brute");
+        const EnemyDefinition *spitter = registry.find("hellomine:spitter");
         const std::vector<const EnemyDefinition *> natural =
             registry.naturalEnemies();
         check("N4/enemy-registry-freezes-complete-base-set",
-              registry.isFrozen() && registry.enemies().size() == 3 &&
+              registry.isFrozen() && registry.enemies().size() == 4 &&
                   stalker != nullptr && brute != nullptr &&
-                  natural.size() == 2);
+                  spitter != nullptr && natural.size() == 3);
         check("N4/enemy-archetypes-are-readable-and-data-driven",
               stalker->maxHealth == 8.f && stalker->wanderSpeed == 1.6f &&
                   stalker->chaseSpeed == 3.2f &&
@@ -1266,7 +1292,8 @@ end
                   brute->loot[1].materialId == Material::ID::CoalOre &&
                   brute->loot[2].materialId == Material::ID::Wheat &&
                   natural[0]->type == "hellomine:brute" &&
-                  natural[1]->type == "hellomine:stalker");
+                  natural[1]->type == "hellomine:spitter" &&
+                  natural[2]->type == "hellomine:stalker");
         check("N8A/melee-combat-profiles-are-versioned-and-distinct",
               stalker != nullptr && brute != nullptr &&
                   stalker->combat.mode == EnemyCombatMode::Melee &&
@@ -1280,6 +1307,42 @@ end
                   brute->combat.recoverTicks == 12 &&
                   brute->combat.cooldownTicks == 28 &&
                   brute->combat.knockback == 4.f);
+        check("N8B/ranged-combat-profile-is-complete-and-bounded",
+              spitter != nullptr &&
+                  spitter->combat.mode == EnemyCombatMode::Ranged &&
+                  spitter->combat.attackRange == 12.f &&
+                  spitter->combat.windupTicks == 12 &&
+                  spitter->combat.recoverTicks == 10 &&
+                  spitter->combat.cooldownTicks == 32 &&
+                  spitter->combat.knockback == 1.5f &&
+                  spitter->combat.projectileSpeed == 10.f &&
+                  spitter->combat.projectileDamage == 2.f &&
+                  spitter->combat.projectileLifetimeTicks == 50 &&
+                  spitter->combat.projectileMaxDistance == 20.f &&
+                  spitter->combat.projectileRadius == 0.15f &&
+                  spitter->combat.projectileWorldLimit == 24 &&
+                  spitter->combat.projectileLocalLimit == 8 &&
+                  spitter->combat.projectileActiveRadius == 32.f);
+        std::ifstream baseEnemyInput(
+            ResourcePaths::media("enemies/Base.enemy"),
+            std::ios::binary);
+        std::ostringstream baseEnemyContent;
+        baseEnemyContent << baseEnemyInput.rdbuf();
+        EnemyRegistry baseRegistry;
+        bool baseLoaded = false;
+        try {
+            baseRegistry.freeze(
+                {{"Base.enemy", baseEnemyContent.str()}});
+            baseLoaded = true;
+        }
+        catch (const std::exception &) {
+        }
+        check("N8B/base-enemy-resource-includes-one-ranged-archetype",
+              baseLoaded && baseRegistry.enemies().size() == 6 &&
+                  baseRegistry.naturalEnemies().size() == 3 &&
+                  baseRegistry.find("hellomine:spitter") != nullptr &&
+                  baseRegistry.find("hellomine:spitter")
+                          ->combat.mode == EnemyCombatMode::Ranged);
         check("N4/enemy-registry-is-startup-frozen",
               throwsContaining(
                   [&registry]
@@ -1295,13 +1358,13 @@ end
                       invalid.freeze({{"bad.enemy", "enemy stalker\n"}});
                   },
                   "unsupported or missing header"));
-        check("N8A/legacy-enemy-header-cannot-bypass-combat-profile",
+        check("N8B/legacy-v2-header-cannot-bypass-projectile-profile",
               throwsContaining(
                   []
                   {
                       std::string source = validEnemies();
-                      source.replace(source.find("registry v2"), 11,
-                                     "registry v1");
+                      source.replace(source.find("registry v3"), 11,
+                                     "registry v2");
                       EnemyRegistry invalid;
                       invalid.freeze({{"legacy.enemy", source}});
                   },
@@ -1312,7 +1375,7 @@ end
                   {
                       EnemyRegistry invalid;
                       invalid.freeze({{"bad.enemy",
-                          "# HelloMine3D enemy registry v2\n"
+                          "# HelloMine3D enemy registry v3\n"
                           "enemy hellomine:stalker\nhealth 8\nend\n"}});
                   },
                   "incomplete or has no loot"));
@@ -1346,17 +1409,17 @@ end
                       invalid.freeze({{"loot.enemy", source}});
                   },
                   "loot maximum must be an integer in"));
-        check("N8A/combat-mode-and-timing-bounds-are-strict",
+        check("N8B/combat-mode-and-timing-bounds-are-strict",
               throwsContaining(
                   []
                   {
                       std::string source = validEnemies();
                       source.replace(source.find("combat_mode melee"), 17,
-                                     "combat_mode ranged");
+                                     "combat_mode magic");
                       EnemyRegistry invalid;
                       invalid.freeze({{"ranged.enemy", source}});
                   },
-                  "combat_mode must be melee") &&
+                  "combat_mode must be melee or ranged") &&
               throwsContaining(
                   []
                   {
@@ -1367,6 +1430,50 @@ end
                       invalid.freeze({{"windup.enemy", source}});
                   },
                   "attack_windup_ticks must be an integer in"));
+        check("N8B/ranged-projectile-fields-are-required-and-strict",
+              throwsContaining(
+                  []
+                  {
+                      std::string source = validEnemies();
+                      const std::string field = "projectile_speed 10\n";
+                      source.erase(source.find(field), field.size());
+                      EnemyRegistry invalid;
+                      invalid.freeze({{"missing-projectile.enemy", source}});
+                  },
+                  "incomplete or has no loot") &&
+              throwsContaining(
+                  []
+                  {
+                      std::string source = validEnemies();
+                      source.replace(source.find("projectile_radius 0.15"),
+                                     22, "projectile_radius 0.9");
+                      EnemyRegistry invalid;
+                      invalid.freeze({{"radius.enemy", source}});
+                  },
+                  "projectile_radius must be a finite number in"));
+        check("N8B/projectile-capacity-and-active-range-are-consistent",
+              throwsContaining(
+                  []
+                  {
+                      std::string source = validEnemies();
+                      source.replace(source.find("projectile_local_limit 8"),
+                                     24, "projectile_local_limit 16");
+                      source.replace(source.find("projectile_world_limit 24"),
+                                     25, "projectile_world_limit 8");
+                      EnemyRegistry invalid;
+                      invalid.freeze({{"capacity.enemy", source}});
+                  },
+                  "projectile_local_limit must not exceed") &&
+              throwsContaining(
+                  []
+                  {
+                      std::string source = validEnemies();
+                      source.replace(source.find("projectile_active_radius 32"),
+                                     27, "projectile_active_radius 8");
+                      EnemyRegistry invalid;
+                      invalid.freeze({{"active.enemy", source}});
+                  },
+                  "attack_range must not exceed"));
         check("N8A/combat-cooldown-cannot-be-shorter-than-recovery",
               throwsContaining(
                   []
@@ -1445,7 +1552,7 @@ end
             "unsupported or missing header");
         atomic.freeze({{"valid.enemy", validEnemies()}});
         check("N4/failed-enemy-freeze-is-atomic",
-              failed && atomic.isFrozen() && atomic.enemies().size() == 3);
+              failed && atomic.isFrozen() && atomic.enemies().size() == 4);
 
         const fs::path root = fs::current_path() / "bin" /
                               "validation_runs" / "enemies";
@@ -1458,7 +1565,7 @@ end
         EnemyRegistry fromView;
         fromView.freezeFromResourceView(resolver);
         check("N4/frozen-enemy-resource-loads",
-              fromView.isFrozen() && fromView.enemies().size() == 3 &&
+              fromView.isFrozen() && fromView.enemies().size() == 4 &&
                   resolver.effectiveManifest().find(
                       "enemy|media/enemies/Base.enemy|base\n") !=
                       std::string::npos);
@@ -1508,7 +1615,7 @@ int main()
     caseFoodRegistry();
     caseEnemyRegistry();
     caseCombatRecipes();
-    constexpr int ExpectedChecks = 100;
+    constexpr int ExpectedChecks = 104;
     if (checks != ExpectedChecks) {
         ++failures;
         std::cout << "[RECIPE_TEST] FAIL G1/expected-check-count"

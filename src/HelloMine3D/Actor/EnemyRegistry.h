@@ -54,11 +54,20 @@ class EnemyRegistry
     static constexpr float MaxChaseRadius = 64.f;
     static constexpr float MaxChaseSpeed = 12.f;
     static constexpr float MaxContactDamage = 20.f;
-    static constexpr float MaxAttackRange = 6.f;
+    static constexpr float MaxMeleeAttackRange = 6.f;
+    static constexpr float MaxAttackRange = 24.f;
     static constexpr int MaxAttackWindupTicks = 120;
     static constexpr int MaxAttackRecoverTicks = 120;
     static constexpr int MaxAttackCooldownTicks = 240;
     static constexpr float MaxKnockback = 12.f;
+    static constexpr float MaxProjectileSpeed = 40.f;
+    static constexpr float MaxProjectileDamage = 20.f;
+    static constexpr int MaxProjectileLifetimeTicks = 240;
+    static constexpr float MaxProjectileDistance = 64.f;
+    static constexpr float MaxProjectileRadius = 0.5f;
+    static constexpr int MaxProjectileWorldLimit = 32;
+    static constexpr int MaxProjectileLocalLimit = 16;
+    static constexpr float MaxProjectileActiveRadius = 64.f;
 
     void freeze(std::vector<EnemySource> sources);
     void freezeFromResourceView(const ResourcePackResolver &resolver);

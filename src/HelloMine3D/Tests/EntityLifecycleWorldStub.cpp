@@ -30,3 +30,9 @@ MobMeleeAttackResult World::resolveMobMeleeAttack(const MobActor &,
 {
     return MobMeleeAttackResult::TargetMissing;
 }
+
+MobRangedAttackResult World::launchMobProjectile(const MobActor &,
+                                                 ActorId)
+{
+    return MobRangedAttackResult::TargetMissing;
+}

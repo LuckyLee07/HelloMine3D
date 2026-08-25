@@ -1,4 +1,4 @@
-# HelloMine3D enemy registry v2
+# HelloMine3D enemy registry v3
 
 enemy hellomine:natural_mob
 health 10
@@ -52,6 +52,32 @@ natural 1
 loot hellomine:dirt 1 1
 loot hellomine:coal_ore 1 1
 loot hellomine:wheat 1 1
+end
+
+enemy hellomine:spitter
+health 7
+dimensions 0.32 0.80 0.32
+wander_speed 1.1
+chase_radius 18
+chase_speed 2.0
+contact_damage 0
+combat_mode ranged
+attack_range 12
+attack_windup_ticks 12
+attack_recover_ticks 10
+attack_cooldown_ticks 32
+knockback 1.5
+projectile_speed 10
+projectile_damage 2
+projectile_lifetime_ticks 50
+projectile_max_distance 20
+projectile_radius 0.15
+projectile_world_limit 24
+projectile_local_limit 8
+projectile_active_radius 32
+natural 1
+loot hellomine:dirt 1 1
+loot hellomine:wheat_seeds 1 2
 end
 
 enemy hellomine:waystone_stalker

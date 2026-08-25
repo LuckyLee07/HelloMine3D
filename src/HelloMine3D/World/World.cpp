@@ -1079,6 +1079,8 @@ void World::tick(int worldTime)
     m_combatRaycastBudgetDenied = 0;
     m_combatChaseStepsUsed = 0;
     m_combatChaseStepBudgetDenied = 0;
+    m_combatProjectileStepsUsed = 0;
+    m_combatProjectileStepBudgetDenied = 0;
     if (m_playerGuardRecoverTicksRemaining > 0) {
         --m_playerGuardRecoverTicksRemaining;
     }
@@ -1099,6 +1101,7 @@ void World::tick(int worldTime)
     m_attackCooldownTicksRemaining =
         std::max(0, m_attackCooldownTicksRemaining - 1);
     m_actorManager.tick(*this, 1.f / 20.f);
+    tickCombatProjectiles();
     reconcileWaystoneEncounter();
     runRandomTicks(worldTime);
     runNaturalMobPopulation(worldTime);
@@ -1187,6 +1190,9 @@ CombatAttackResult World::tryAttackActor(ActorId actorId,
                 MobPlayerHitRecoverTicks);
         }
     }
+    else {
+        removeCombatProjectilesOwnedBy(actorId);
+    }
     if (accepted && usesTool) {
         m_player->damageHeldTool();
     }
@@ -1205,6 +1211,9 @@ bool World::attackActor(ActorId actorId, float amount)
                 *this, m_player->position, MobPlayerHitKnockback,
                 MobPlayerHitRecoverTicks);
         }
+    }
+    else if (accepted && actor != nullptr && !actor->isAlive()) {
+        removeCombatProjectilesOwnedBy(actorId);
     }
     return accepted;
 }
@@ -1643,6 +1652,7 @@ void World::removeWaystoneGuardians()
     m_actorManager.removeActorsIf([](const Actor &actor) {
         return isWaystoneGuardianType(actor.getType());
     });
+    clearInvalidCombatProjectiles();
     m_waystoneGuardianIds.clear();
 }
 
@@ -2064,6 +2074,322 @@ MobMeleeAttackResult World::resolveMobMeleeAttack(
     return MobMeleeAttackResult::Hit;
 }
 
+MobRangedAttackResult World::launchMobProjectile(
+    const MobActor &attacker, ActorId targetId)
+{
+    if (m_player == nullptr || targetId != DefaultPlayerActorId) {
+        return MobRangedAttackResult::TargetMissing;
+    }
+    if (!m_playerActor.isAlive()) {
+        return MobRangedAttackResult::TargetDead;
+    }
+    const EnemyCombatProfile &profile = attacker.getCombatProfile();
+    if (profile.mode != EnemyCombatMode::Ranged ||
+        profile.projectileSpeed <= 0.f || profile.projectileDamage <= 0.f ||
+        profile.projectileLifetimeTicks <= 0 ||
+        profile.projectileMaxDistance <= 0.f ||
+        profile.projectileRadius <= 0.f ||
+        profile.projectileWorldLimit <= 0 ||
+        profile.projectileLocalLimit <= 0 ||
+        profile.projectileActiveRadius <= 0.f) {
+        return MobRangedAttackResult::TargetRejected;
+    }
+
+    const glm::vec3 separation = glm::max(
+        glm::abs(attacker.position - m_player->position) -
+            attacker.box.dimensions - m_player->box.dimensions,
+        glm::vec3(0.f));
+    if (glm::length(separation) > profile.attackRange + 0.001f) {
+        return MobRangedAttackResult::OutOfRange;
+    }
+    const std::size_t raycastsBefore = m_combatRaycastsUsed;
+    if (!hasCombatLineOfSight(attacker, *m_player)) {
+        return raycastsBefore >= CombatRaycastBudgetPerTick
+            ? MobRangedAttackResult::RayBudgetExhausted
+            : MobRangedAttackResult::Occluded;
+    }
+
+    const glm::vec3 origin = attacker.position +
+        glm::vec3(0.f, attacker.box.dimensions.y, 0.f);
+    const glm::vec3 destination = m_player->position +
+        glm::vec3(0.f, m_player->box.dimensions.y, 0.f);
+    glm::vec3 direction = destination - origin;
+    const float directionLength = glm::length(direction);
+    if (!std::isfinite(directionLength) || directionLength <= 0.000001f) {
+        return MobRangedAttackResult::TargetRejected;
+    }
+    direction /= directionLength;
+
+    const std::size_t typeCount = static_cast<std::size_t>(std::count_if(
+        m_combatProjectiles.begin(), m_combatProjectiles.end(),
+        [&attacker](const CombatProjectile &projectile) {
+            return projectile.ownerType == attacker.getType();
+        }));
+    const std::size_t localCount = static_cast<std::size_t>(std::count_if(
+        m_combatProjectiles.begin(), m_combatProjectiles.end(),
+        [&attacker, &origin, &profile](const CombatProjectile &projectile) {
+            return projectile.ownerType == attacker.getType() &&
+                   glm::distance(projectile.position, origin) <=
+                       profile.projectileActiveRadius;
+        }));
+    if (m_combatProjectiles.size() >= CombatProjectileWorldLimit ||
+        typeCount >= static_cast<std::size_t>(profile.projectileWorldLimit) ||
+        localCount >= static_cast<std::size_t>(profile.projectileLocalLimit)) {
+        ++m_combatProjectileCapacityDenied;
+        return MobRangedAttackResult::CapacityReached;
+    }
+
+    CombatProjectile projectile;
+    projectile.id = m_nextCombatProjectileId++;
+    if (projectile.id == InvalidCombatProjectileId) {
+        projectile.id = m_nextCombatProjectileId++;
+    }
+    projectile.ownerId = attacker.getId();
+    projectile.ownerType = attacker.getType();
+    projectile.origin = origin;
+    projectile.position = origin + direction *
+        (std::max(attacker.box.dimensions.x,
+                  attacker.box.dimensions.z) +
+         profile.projectileRadius + 0.05f);
+    projectile.velocity = direction * profile.projectileSpeed;
+    projectile.radius = profile.projectileRadius;
+    projectile.damage = profile.projectileDamage;
+    projectile.knockback = profile.knockback;
+    projectile.ticksRemaining = profile.projectileLifetimeTicks;
+    projectile.maximumDistance = profile.projectileMaxDistance;
+    projectile.activeRadius = profile.projectileActiveRadius;
+    m_observedCombatProjectileId = projectile.id;
+    m_combatProjectiles.push_back(std::move(projectile));
+    ++m_combatProjectilesLaunched;
+    return MobRangedAttackResult::Launched;
+}
+
+CombatProjectileRemovalReason World::stepCombatProjectile(
+    CombatProjectile &projectile)
+{
+    const Actor *owner = m_actorManager.findActor(projectile.ownerId);
+    if (owner == nullptr || !owner->isAlive()) {
+        return CombatProjectileRemovalReason::OwnerMissing;
+    }
+    if (m_player == nullptr || !m_playerActor.isAlive()) {
+        return CombatProjectileRemovalReason::PlayerUnavailable;
+    }
+
+    const VectorXZ currentChunk = getChunkXZ(
+        toBlockCoord(projectile.position.x),
+        toBlockCoord(projectile.position.z));
+    if (!m_chunkManager.chunkLoadedAt(currentChunk.x, currentChunk.z)) {
+        return CombatProjectileRemovalReason::ChunkUnloaded;
+    }
+    const float activeDistance = glm::length(glm::vec2(
+        projectile.position.x - m_player->position.x,
+        projectile.position.z - m_player->position.z));
+    if (!std::isfinite(activeDistance) ||
+        activeDistance > projectile.activeRadius) {
+        return CombatProjectileRemovalReason::OutsideActiveArea;
+    }
+    if (projectile.ticksRemaining <= 0) {
+        return CombatProjectileRemovalReason::LifetimeExpired;
+    }
+    if (projectile.distanceTravelled >= projectile.maximumDistance) {
+        return CombatProjectileRemovalReason::MaximumDistance;
+    }
+
+    glm::vec3 travel = projectile.velocity * (1.f / 20.f);
+    float travelDistance = glm::length(travel);
+    if (!std::isfinite(travelDistance) || travelDistance <= 0.000001f) {
+        return CombatProjectileRemovalReason::MaximumDistance;
+    }
+    const float remainingDistance =
+        projectile.maximumDistance - projectile.distanceTravelled;
+    if (travelDistance > remainingDistance) {
+        travel *= remainingDistance / travelDistance;
+        travelDistance = remainingDistance;
+    }
+    const glm::vec3 destination = projectile.position + travel;
+    const VectorXZ destinationChunk = getChunkXZ(
+        toBlockCoord(destination.x), toBlockCoord(destination.z));
+    if (!m_chunkManager.chunkLoadedAt(destinationChunk.x,
+                                      destinationChunk.z)) {
+        return CombatProjectileRemovalReason::ChunkUnloaded;
+    }
+
+    const float sampleSpacing = std::max(0.05f,
+                                         projectile.radius * 0.5f);
+    const int steps = std::clamp(
+        static_cast<int>(std::ceil(travelDistance / sampleSpacing)),
+        1, 64);
+    for (int step = 1; step <= steps; ++step) {
+        const float fraction = static_cast<float>(step) /
+                               static_cast<float>(steps);
+        const glm::vec3 sample = projectile.position + travel * fraction;
+        const int minimumX = toBlockCoord(sample.x - projectile.radius);
+        const int maximumX = toBlockCoord(sample.x + projectile.radius);
+        const int minimumY = toBlockCoord(sample.y - projectile.radius);
+        const int maximumY = toBlockCoord(sample.y + projectile.radius);
+        const int minimumZ = toBlockCoord(sample.z - projectile.radius);
+        const int maximumZ = toBlockCoord(sample.z + projectile.radius);
+        for (int x = minimumX; x <= maximumX; ++x) {
+            for (int y = minimumY; y <= maximumY; ++y) {
+                for (int z = minimumZ; z <= maximumZ; ++z) {
+                    const ChunkBlock block = getBlock(x, y, z);
+                    if (BlockDatabase::get().getDefinition(
+                            static_cast<BlockId>(block.id)).collidable) {
+                        projectile.position = sample;
+                        return CombatProjectileRemovalReason::Blocked;
+                    }
+                }
+            }
+        }
+
+        const glm::vec3 playerSeparation = glm::max(
+            glm::abs(sample - m_player->position) -
+                m_player->box.dimensions -
+                glm::vec3(projectile.radius),
+            glm::vec3(0.f));
+        if (glm::dot(playerSeparation, playerSeparation) > 0.f) {
+            continue;
+        }
+
+        const glm::vec3 incomingSource = sample -
+            glm::normalize(projectile.velocity);
+        if (isPlayerGuarding() && canGuardSource(incomingSource)) {
+            m_player->damageHeldTool();
+            m_playerGuardRecoverTicksRemaining = PlayerGuardRecoverTicks;
+            recordPlayerCombatFeedback(PlayerCombatFeedbackKind::Guard,
+                                       projectile.ownerId,
+                                       incomingSource);
+            m_eventBus.publish(CombatGuardEvent(
+                DefaultPlayerActorId, projectile.ownerId,
+                m_player->position,
+                directionFromPlayerTo(incomingSource)));
+            projectile.position = sample;
+            return CombatProjectileRemovalReason::Guarded;
+        }
+
+        const bool damaged = damagePlayer(projectile.damage,
+                                          projectile.ownerId);
+        if (damaged) {
+            applyPlayerKnockback(incomingSource, projectile.knockback);
+        }
+        projectile.position = sample;
+        return CombatProjectileRemovalReason::HitPlayer;
+    }
+
+    projectile.position = destination;
+    projectile.distanceTravelled += travelDistance;
+    --projectile.ticksRemaining;
+    if (projectile.distanceTravelled + 0.000001f >=
+        projectile.maximumDistance) {
+        return CombatProjectileRemovalReason::MaximumDistance;
+    }
+    if (projectile.ticksRemaining <= 0) {
+        return CombatProjectileRemovalReason::LifetimeExpired;
+    }
+    return CombatProjectileRemovalReason::None;
+}
+
+void World::recordCombatProjectileRemoval(
+    CombatProjectileId id, CombatProjectileRemovalReason reason)
+{
+    if (reason == CombatProjectileRemovalReason::None) {
+        return;
+    }
+    m_observedCombatProjectileId = id;
+    m_lastCombatProjectileRemovalReason = reason;
+    switch (reason) {
+        case CombatProjectileRemovalReason::HitPlayer:
+            ++m_combatProjectileHits;
+            break;
+        case CombatProjectileRemovalReason::Guarded:
+            ++m_combatProjectileGuards;
+            break;
+        case CombatProjectileRemovalReason::Blocked:
+            ++m_combatProjectileBlocks;
+            break;
+        case CombatProjectileRemovalReason::OwnerMissing:
+            ++m_combatProjectileOwnerClears;
+            break;
+        case CombatProjectileRemovalReason::LifetimeExpired:
+        case CombatProjectileRemovalReason::MaximumDistance:
+        case CombatProjectileRemovalReason::OutsideActiveArea:
+            ++m_combatProjectileExpirations;
+            break;
+        case CombatProjectileRemovalReason::ChunkUnloaded:
+        case CombatProjectileRemovalReason::PlayerUnavailable:
+        case CombatProjectileRemovalReason::None:
+            break;
+    }
+}
+
+void World::tickCombatProjectiles()
+{
+    for (auto iterator = m_combatProjectiles.begin();
+         iterator != m_combatProjectiles.end();) {
+        if (m_combatProjectileStepsUsed >=
+            CombatProjectileStepBudgetPerTick) {
+            ++m_combatProjectileStepBudgetDenied;
+            ++iterator;
+            continue;
+        }
+        ++m_combatProjectileStepsUsed;
+        const CombatProjectileRemovalReason reason =
+            stepCombatProjectile(*iterator);
+        if (reason == CombatProjectileRemovalReason::None) {
+            ++iterator;
+            continue;
+        }
+        recordCombatProjectileRemoval(iterator->id, reason);
+        iterator = m_combatProjectiles.erase(iterator);
+    }
+}
+
+void World::removeCombatProjectilesOwnedBy(ActorId ownerId)
+{
+    for (auto iterator = m_combatProjectiles.begin();
+         iterator != m_combatProjectiles.end();) {
+        if (iterator->ownerId != ownerId) {
+            ++iterator;
+            continue;
+        }
+        recordCombatProjectileRemoval(
+            iterator->id, CombatProjectileRemovalReason::OwnerMissing);
+        iterator = m_combatProjectiles.erase(iterator);
+    }
+}
+
+void World::removeCombatProjectilesInChunk(int chunkX, int chunkZ)
+{
+    for (auto iterator = m_combatProjectiles.begin();
+         iterator != m_combatProjectiles.end();) {
+        const VectorXZ projectileChunk = getChunkXZ(
+            toBlockCoord(iterator->position.x),
+            toBlockCoord(iterator->position.z));
+        if (projectileChunk.x != chunkX || projectileChunk.z != chunkZ) {
+            ++iterator;
+            continue;
+        }
+        recordCombatProjectileRemoval(
+            iterator->id, CombatProjectileRemovalReason::ChunkUnloaded);
+        iterator = m_combatProjectiles.erase(iterator);
+    }
+}
+
+void World::clearInvalidCombatProjectiles()
+{
+    for (auto iterator = m_combatProjectiles.begin();
+         iterator != m_combatProjectiles.end();) {
+        const Actor *owner = m_actorManager.findActor(iterator->ownerId);
+        if (owner != nullptr && owner->isAlive()) {
+            ++iterator;
+            continue;
+        }
+        recordCombatProjectileRemoval(
+            iterator->id, CombatProjectileRemovalReason::OwnerMissing);
+        iterator = m_combatProjectiles.erase(iterator);
+    }
+}
+
 void World::respawnPlayer()
 {
     if (m_player == nullptr) {
@@ -2084,6 +2410,12 @@ void World::respawnPlayer()
     m_playerCombatFeedback.direction = CombatDirection::None;
     m_playerCombatFeedback.sourceId = InvalidActorId;
     m_playerCombatFeedback.ticksRemaining = 0;
+    for (const CombatProjectile &projectile : m_combatProjectiles) {
+        recordCombatProjectileRemoval(
+            projectile.id,
+            CombatProjectileRemovalReason::PlayerUnavailable);
+    }
+    m_combatProjectiles.clear();
     m_playerRespawnPending = false;
     m_eventBus.publish(PlayerSpawnEvent(
         DefaultPlayerActorId, 0, m_player->position));
@@ -2121,9 +2453,10 @@ const char *World::naturalMobTypeForBiome(TerrainBiome biome) noexcept
     switch (biome) {
         case TerrainBiome::Desert:
             return BruteMobType;
+        case TerrainBiome::TemperateForest:
+            return SpitterMobType;
         case TerrainBiome::Grassland:
         case TerrainBiome::LightForest:
-        case TerrainBiome::TemperateForest:
         case TerrainBiome::Ocean:
             return StalkerMobType;
     }
@@ -2264,6 +2597,8 @@ void World::despawnNaturalMobsInChunk(int chunkX, int chunkZ)
             return actorChunk.x == chunkX && actorChunk.z == chunkZ;
         });
     m_naturalMobsDespawned += removed;
+    removeCombatProjectilesInChunk(chunkX, chunkZ);
+    clearInvalidCombatProjectiles();
     if (m_waystoneAnchor.has_value()) {
         const VectorXZ anchorChunk = getChunkXZ(
             m_waystoneAnchor->x, m_waystoneAnchor->z);
@@ -2651,6 +2986,25 @@ WorldDebugStats World::collectDebugStats()
     stats.combat.chaseStepBudget = CombatChaseStepBudgetPerTick;
     stats.combat.chaseStepsUsed = m_combatChaseStepsUsed;
     stats.combat.chaseStepBudgetDenied = m_combatChaseStepBudgetDenied;
+    stats.combat.projectileCount = m_combatProjectiles.size();
+    stats.combat.projectileWorldLimit = CombatProjectileWorldLimit;
+    stats.combat.projectileStepsUsed = m_combatProjectileStepsUsed;
+    stats.combat.projectileStepBudget =
+        CombatProjectileStepBudgetPerTick;
+    stats.combat.projectileStepBudgetDenied =
+        m_combatProjectileStepBudgetDenied;
+    stats.combat.projectilesLaunched = m_combatProjectilesLaunched;
+    stats.combat.projectileCapacityDenied =
+        m_combatProjectileCapacityDenied;
+    stats.combat.projectileHits = m_combatProjectileHits;
+    stats.combat.projectileGuards = m_combatProjectileGuards;
+    stats.combat.projectileBlocks = m_combatProjectileBlocks;
+    stats.combat.projectileExpirations = m_combatProjectileExpirations;
+    stats.combat.projectileOwnerClears =
+        m_combatProjectileOwnerClears;
+    stats.combat.observedProjectileId = m_observedCombatProjectileId;
+    stats.combat.lastProjectileRemovalReason =
+        m_lastCombatProjectileRemovalReason;
     int observedPriority = -1;
     for (const ActorSnapshot &snapshot : actorSnapshots) {
         if (!snapshot.combatant) {
@@ -2681,6 +3035,7 @@ WorldDebugStats World::collectDebugStats()
             stats.combat.observedActorId = snapshot.id;
             stats.combat.observedTargetId = snapshot.combatTargetId;
             stats.combat.observedState = snapshot.combatState;
+            stats.combat.observedMode = snapshot.combatMode;
             stats.combat.observedReason = snapshot.combatTransitionReason;
             stats.combat.observedStateTicksRemaining =
                 snapshot.combatStateTicksRemaining;
@@ -2721,6 +3076,22 @@ std::vector<ActorSnapshot> World::collectActorSnapshots()
 {
     std::unique_lock<std::mutex> lock(m_mainMutex);
     return m_actorManager.collectSnapshots();
+}
+
+std::vector<CombatProjectileSnapshot>
+World::collectCombatProjectileSnapshots()
+{
+    std::unique_lock<std::mutex> lock(m_mainMutex);
+    std::vector<CombatProjectileSnapshot> snapshots;
+    snapshots.reserve(m_combatProjectiles.size());
+    for (const CombatProjectile &projectile : m_combatProjectiles) {
+        snapshots.push_back({
+            projectile.id, projectile.ownerId, projectile.position,
+            projectile.velocity, projectile.radius,
+            projectile.ticksRemaining, projectile.distanceTravelled,
+            projectile.maximumDistance});
+    }
+    return snapshots;
 }
 
 void World::preloadAround(const glm::vec3 &position)

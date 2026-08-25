@@ -2131,16 +2131,48 @@ class OgreUserInterface::Impl
                             worldStats.combat.chaseStepBudget),
                         static_cast<unsigned long long>(
                             worldStats.combat.chaseStepBudgetDenied));
-            ImGui::Text("Observed combat: actor=%llu target=%llu %s %d",
+            ImGui::Text("Projectiles: %llu / %llu steps=%llu/%llu denied=%llu",
+                        static_cast<unsigned long long>(
+                            worldStats.combat.projectileCount),
+                        static_cast<unsigned long long>(
+                            worldStats.combat.projectileWorldLimit),
+                        static_cast<unsigned long long>(
+                            worldStats.combat.projectileStepsUsed),
+                        static_cast<unsigned long long>(
+                            worldStats.combat.projectileStepBudget),
+                        static_cast<unsigned long long>(
+                            worldStats.combat.projectileStepBudgetDenied));
+            ImGui::Text("Projectile L/C/H/G/B/E/O: %llu/%llu/%llu/%llu/%llu/%llu/%llu",
+                        static_cast<unsigned long long>(
+                            worldStats.combat.projectilesLaunched),
+                        static_cast<unsigned long long>(
+                            worldStats.combat.projectileCapacityDenied),
+                        static_cast<unsigned long long>(
+                            worldStats.combat.projectileHits),
+                        static_cast<unsigned long long>(
+                            worldStats.combat.projectileGuards),
+                        static_cast<unsigned long long>(
+                            worldStats.combat.projectileBlocks),
+                        static_cast<unsigned long long>(
+                            worldStats.combat.projectileExpirations),
+                        static_cast<unsigned long long>(
+                            worldStats.combat.projectileOwnerClears));
+            ImGui::Text("Observed combat: actor=%llu target=%llu %s/%s %d",
                         static_cast<unsigned long long>(
                             worldStats.combat.observedActorId),
                         static_cast<unsigned long long>(
                             worldStats.combat.observedTargetId),
+                        enemyCombatModeName(worldStats.combat.observedMode),
                         mobCombatStateName(worldStats.combat.observedState),
                         worldStats.combat.observedStateTicksRemaining);
-            ImGui::Text("Transition: %s | feedback=%s source=%llu epoch=%llu",
+            ImGui::Text("Transition: %s | projectile=%llu %s",
                         mobCombatTransitionReasonName(
                             worldStats.combat.observedReason),
+                        static_cast<unsigned long long>(
+                            worldStats.combat.observedProjectileId),
+                        combatProjectileRemovalReasonName(
+                            worldStats.combat.lastProjectileRemovalReason));
+            ImGui::Text("Feedback=%s source=%llu epoch=%llu",
                         combatDirectionName(
                             worldStats.combatFeedback.direction),
                         static_cast<unsigned long long>(

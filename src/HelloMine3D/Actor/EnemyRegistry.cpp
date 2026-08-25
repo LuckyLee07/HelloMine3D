@@ -15,7 +15,7 @@
 namespace
 {
     constexpr const char *EnemyHeader =
-        "# HelloMine3D enemy registry v2";
+        "# HelloMine3D enemy registry v3";
 
     struct PendingEnemy
     {
@@ -210,11 +210,17 @@ namespace
             }
             else if (parts.size() == 2 && parts[0] == "combat_mode") {
                 claim(pending, "combat_mode", source.name, lineNumber);
-                if (parts[1] != "melee") {
-                    fail(source.name, lineNumber,
-                         "combat_mode must be melee in enemy registry v2.");
+                if (parts[1] == "melee") {
+                    pending.definition.combat.mode = EnemyCombatMode::Melee;
                 }
-                pending.definition.combat.mode = EnemyCombatMode::Melee;
+                else if (parts[1] == "ranged") {
+                    pending.definition.combat.mode = EnemyCombatMode::Ranged;
+                }
+                else {
+                    fail(source.name, lineNumber,
+                         "combat_mode must be melee or ranged in enemy "
+                         "registry v3.");
+                }
             }
             else if (parts.size() == 2 && parts[0] == "attack_range") {
                 claim(pending, "attack_range", source.name, lineNumber);
@@ -251,6 +257,75 @@ namespace
                 pending.definition.combat.knockback = floatValue(
                     parts[1], 0.f, EnemyRegistry::MaxKnockback,
                     source.name, lineNumber, "knockback");
+            }
+            else if (parts.size() == 2 &&
+                     parts[0] == "projectile_speed") {
+                claim(pending, "projectile_speed", source.name, lineNumber);
+                pending.definition.combat.projectileSpeed = floatValue(
+                    parts[1], 1.f, EnemyRegistry::MaxProjectileSpeed,
+                    source.name, lineNumber, "projectile_speed");
+            }
+            else if (parts.size() == 2 &&
+                     parts[0] == "projectile_damage") {
+                claim(pending, "projectile_damage", source.name, lineNumber);
+                pending.definition.combat.projectileDamage = floatValue(
+                    parts[1], 0.5f, EnemyRegistry::MaxProjectileDamage,
+                    source.name, lineNumber, "projectile_damage");
+            }
+            else if (parts.size() == 2 &&
+                     parts[0] == "projectile_lifetime_ticks") {
+                claim(pending, "projectile_lifetime_ticks", source.name,
+                      lineNumber);
+                pending.definition.combat.projectileLifetimeTicks =
+                    integerValue(
+                        parts[1], 1,
+                        EnemyRegistry::MaxProjectileLifetimeTicks,
+                        source.name, lineNumber,
+                        "projectile_lifetime_ticks");
+            }
+            else if (parts.size() == 2 &&
+                     parts[0] == "projectile_max_distance") {
+                claim(pending, "projectile_max_distance", source.name,
+                      lineNumber);
+                pending.definition.combat.projectileMaxDistance = floatValue(
+                    parts[1], 1.f, EnemyRegistry::MaxProjectileDistance,
+                    source.name, lineNumber, "projectile_max_distance");
+            }
+            else if (parts.size() == 2 &&
+                     parts[0] == "projectile_radius") {
+                claim(pending, "projectile_radius", source.name, lineNumber);
+                pending.definition.combat.projectileRadius = floatValue(
+                    parts[1], 0.05f, EnemyRegistry::MaxProjectileRadius,
+                    source.name, lineNumber, "projectile_radius");
+            }
+            else if (parts.size() == 2 &&
+                     parts[0] == "projectile_world_limit") {
+                claim(pending, "projectile_world_limit", source.name,
+                      lineNumber);
+                pending.definition.combat.projectileWorldLimit =
+                    integerValue(
+                        parts[1], 1, EnemyRegistry::MaxProjectileWorldLimit,
+                        source.name, lineNumber, "projectile_world_limit");
+            }
+            else if (parts.size() == 2 &&
+                     parts[0] == "projectile_local_limit") {
+                claim(pending, "projectile_local_limit", source.name,
+                      lineNumber);
+                pending.definition.combat.projectileLocalLimit =
+                    integerValue(
+                        parts[1], 1, EnemyRegistry::MaxProjectileLocalLimit,
+                        source.name, lineNumber, "projectile_local_limit");
+            }
+            else if (parts.size() == 2 &&
+                     parts[0] == "projectile_active_radius") {
+                claim(pending, "projectile_active_radius", source.name,
+                      lineNumber);
+                pending.definition.combat.projectileActiveRadius =
+                    floatValue(
+                        parts[1], 1.f,
+                        EnemyRegistry::MaxProjectileActiveRadius,
+                        source.name, lineNumber,
+                        "projectile_active_radius");
             }
             else if (parts.size() == 2 && parts[0] == "natural") {
                 claim(pending, "natural", source.name, lineNumber);
@@ -293,12 +368,21 @@ namespace
                     {materialId, minimum, maximum});
             }
             else if (parts.size() == 1 && parts[0] == "end") {
-                static const std::set<std::string> required = {
+                std::set<std::string> required = {
                     "health", "dimensions", "wander_speed",
                     "chase_radius", "chase_speed", "contact_damage",
                     "combat_mode", "attack_range",
                     "attack_windup_ticks", "attack_recover_ticks",
                     "attack_cooldown_ticks", "knockback", "natural"};
+                if (pending.definition.combat.mode ==
+                    EnemyCombatMode::Ranged) {
+                    required.insert({
+                        "projectile_speed", "projectile_damage",
+                        "projectile_lifetime_ticks",
+                        "projectile_max_distance", "projectile_radius",
+                        "projectile_world_limit", "projectile_local_limit",
+                        "projectile_active_radius"});
+                }
                 if (pending.fields != required ||
                     pending.definition.loot.empty()) {
                     fail(source.name, pending.startLine,
@@ -309,6 +393,31 @@ namespace
                     fail(source.name, pending.startLine,
                          "attack_cooldown_ticks must be greater than or "
                          "equal to attack_recover_ticks.");
+                }
+                if (pending.definition.combat.mode ==
+                        EnemyCombatMode::Melee &&
+                    pending.definition.combat.attackRange >
+                        EnemyRegistry::MaxMeleeAttackRange) {
+                    fail(source.name, pending.startLine,
+                         "melee attack_range must not exceed " +
+                         std::to_string(
+                             EnemyRegistry::MaxMeleeAttackRange) + ".");
+                }
+                if (pending.definition.combat.mode ==
+                        EnemyCombatMode::Ranged &&
+                    pending.definition.combat.projectileLocalLimit >
+                        pending.definition.combat.projectileWorldLimit) {
+                    fail(source.name, pending.startLine,
+                         "projectile_local_limit must not exceed "
+                         "projectile_world_limit.");
+                }
+                if (pending.definition.combat.mode ==
+                        EnemyCombatMode::Ranged &&
+                    pending.definition.combat.attackRange >
+                        pending.definition.combat.projectileActiveRadius) {
+                    fail(source.name, pending.startLine,
+                         "attack_range must not exceed "
+                         "projectile_active_radius.");
                 }
                 result.push_back(std::move(pending.definition));
                 insideEnemy = false;

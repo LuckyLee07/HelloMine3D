@@ -1,11 +1,18 @@
 #ifndef COMBATTYPES_H_INCLUDED
 #define COMBATTYPES_H_INCLUDED
 
+#include <cstdint>
+
 #include "ActorTypes.h"
+#include "../Maths/glm.h"
+
+using CombatProjectileId = std::uint64_t;
+constexpr CombatProjectileId InvalidCombatProjectileId = 0;
 
 enum class EnemyCombatMode
 {
-    Melee = 0
+    Melee = 0,
+    Ranged
 };
 
 enum class MobCombatState
@@ -26,6 +33,8 @@ enum class MobCombatTransitionReason
     AttackRangeReached,
     AttackHit,
     AttackGuarded,
+    ProjectileLaunched,
+    ProjectileCapacityReached,
     TargetEscaped,
     AttackOccluded,
     TargetRejected,
@@ -46,6 +55,32 @@ enum class MobMeleeAttackResult
     Occluded,
     TargetRejected,
     RayBudgetExhausted
+};
+
+enum class MobRangedAttackResult
+{
+    Launched = 0,
+    CapacityReached,
+    TargetMissing,
+    TargetDead,
+    OutOfRange,
+    Occluded,
+    TargetRejected,
+    RayBudgetExhausted
+};
+
+enum class CombatProjectileRemovalReason
+{
+    None = 0,
+    HitPlayer,
+    Guarded,
+    Blocked,
+    LifetimeExpired,
+    MaximumDistance,
+    OutsideActiveArea,
+    OwnerMissing,
+    ChunkUnloaded,
+    PlayerUnavailable
 };
 
 enum class PlayerCombatFeedbackKind
@@ -72,11 +107,35 @@ struct EnemyCombatProfile
     int recoverTicks = 7;
     int cooldownTicks = 16;
     float knockback = 2.f;
+    float projectileSpeed = 0.f;
+    float projectileDamage = 0.f;
+    int projectileLifetimeTicks = 0;
+    float projectileMaxDistance = 0.f;
+    float projectileRadius = 0.f;
+    int projectileWorldLimit = 0;
+    int projectileLocalLimit = 0;
+    float projectileActiveRadius = 0.f;
+};
+
+struct CombatProjectileSnapshot
+{
+    CombatProjectileId id = InvalidCombatProjectileId;
+    ActorId ownerId = InvalidActorId;
+    glm::vec3 position{0.f};
+    glm::vec3 velocity{0.f};
+    float radius = 0.f;
+    int ticksRemaining = 0;
+    float distanceTravelled = 0.f;
+    float maximumDistance = 0.f;
 };
 
 inline const char *enemyCombatModeName(EnemyCombatMode mode) noexcept
 {
-    return mode == EnemyCombatMode::Melee ? "melee" : "unknown";
+    switch (mode) {
+        case EnemyCombatMode::Melee: return "melee";
+        case EnemyCombatMode::Ranged: return "ranged";
+    }
+    return "unknown";
 }
 
 inline const char *mobCombatStateName(MobCombatState state) noexcept
@@ -105,6 +164,10 @@ inline const char *mobCombatTransitionReasonName(
             return "attack_range_reached";
         case MobCombatTransitionReason::AttackHit: return "attack_hit";
         case MobCombatTransitionReason::AttackGuarded: return "attack_guarded";
+        case MobCombatTransitionReason::ProjectileLaunched:
+            return "projectile_launched";
+        case MobCombatTransitionReason::ProjectileCapacityReached:
+            return "projectile_capacity_reached";
         case MobCombatTransitionReason::TargetEscaped: return "target_escaped";
         case MobCombatTransitionReason::AttackOccluded:
             return "attack_occluded";
@@ -119,6 +182,30 @@ inline const char *mobCombatTransitionReasonName(
             return "hit_interrupted";
         case MobCombatTransitionReason::RecoveryComplete:
             return "recovery_complete";
+    }
+    return "unknown";
+}
+
+inline const char *combatProjectileRemovalReasonName(
+    CombatProjectileRemovalReason reason) noexcept
+{
+    switch (reason) {
+        case CombatProjectileRemovalReason::None: return "none";
+        case CombatProjectileRemovalReason::HitPlayer: return "hit_player";
+        case CombatProjectileRemovalReason::Guarded: return "guarded";
+        case CombatProjectileRemovalReason::Blocked: return "blocked";
+        case CombatProjectileRemovalReason::LifetimeExpired:
+            return "lifetime_expired";
+        case CombatProjectileRemovalReason::MaximumDistance:
+            return "maximum_distance";
+        case CombatProjectileRemovalReason::OutsideActiveArea:
+            return "outside_active_area";
+        case CombatProjectileRemovalReason::OwnerMissing:
+            return "owner_missing";
+        case CombatProjectileRemovalReason::ChunkUnloaded:
+            return "chunk_unloaded";
+        case CombatProjectileRemovalReason::PlayerUnavailable:
+            return "player_unavailable";
     }
     return "unknown";
 }

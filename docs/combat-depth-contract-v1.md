@@ -6,8 +6,9 @@
 ## 敌人数据与资源所有权
 
 基础定义位于 `media/enemies/Base.enemy`；N4 当时使用的严格头部为
-`# HelloMine3D enemy registry v1`，现已由 N8A 的 registry v2 战斗档案取代，迁移后的字段和
-攻击阶段以 `combat-encounter-contract-v1.md` 为准。N4 冻结的基础字段仍要求每个敌人声明：
+`# HelloMine3D enemy registry v1`，后来由 N8A 的 registry v2 近战档案取代，当前又由 N8B 的
+registry v3 ranged/projectile 档案取代；迁移后的字段和攻击阶段以
+`combat-encounter-contract-v1.md` 为准。N4 冻结的基础字段仍要求每个敌人声明：
 
 - 唯一的 namespaced type；
 - 生命、碰撞尺寸、游荡速度、追击半径、追击速度和接触伤害；
@@ -91,5 +92,6 @@ player_attack_cooldown 10
 minidump、可执行文件清单和 65 文件干净目录发行包同时通过。验证脚本以隐藏进程和独立
 stdout/stderr 日志运行 EXE，避免大量诊断输出造成管道互锁。
 
-持续组合攻击、护甲、远程武器、首领、复杂 AI、状态效果和大规模敌群不属于 N4。它们必须
-先证明能增加玩家决策，而不是只增加 Actor 数量和性能压力。
+持续组合攻击、护甲、远程武器、首领、复杂 AI、状态效果和大规模敌群不属于 N4。N8B 后续
+只增加了一个有界自然 Spitter 和非 Actor 瞬态投射物，未放宽这些 N4 边界；详情见战斗遭遇
+合同。其余扩展仍必须先证明能增加玩家决策，而不是只增加 Actor 数量和性能压力。

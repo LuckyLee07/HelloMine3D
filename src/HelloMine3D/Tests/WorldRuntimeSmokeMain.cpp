@@ -5237,7 +5237,7 @@ end
 
 std::string validEnemyDefinitions()
 {
-    return R"(# HelloMine3D enemy registry v2
+    return R"(# HelloMine3D enemy registry v3
 enemy hellomine:natural_mob
 health 10
 dimensions 0.35 0.9 0.35
@@ -5288,6 +5288,31 @@ natural 1
 loot hellomine:dirt 1 1
 loot hellomine:coal_ore 1 1
 loot hellomine:wheat 1 1
+end
+enemy hellomine:spitter
+health 7
+dimensions 0.32 0.80 0.32
+wander_speed 1.1
+chase_radius 18
+chase_speed 2
+contact_damage 0
+combat_mode ranged
+attack_range 12
+attack_windup_ticks 12
+attack_recover_ticks 10
+attack_cooldown_ticks 32
+knockback 1.5
+projectile_speed 10
+projectile_damage 2
+projectile_lifetime_ticks 50
+projectile_max_distance 20
+projectile_radius 0.15
+projectile_world_limit 24
+projectile_local_limit 8
+projectile_active_radius 32
+natural 1
+loot hellomine:dirt 1 1
+loot hellomine:wheat_seeds 1 2
 end
 enemy hellomine:waystone_stalker
 health 8
@@ -6219,9 +6244,10 @@ void caseCombatDepth()
           bruteKilled && brute != nullptr && !brute->isAlive() &&
               coalAmount == 1 && allDrops.size() == beforeBruteDrops + 3);
     const WorldDebugStats enemyStats = world.collectDebugStats();
-    check("N4/both-new-archetypes-are-natural-population-types",
+    check("N8B/all-combat-archetypes-are-natural-population-types",
           World::isNaturalMobType(World::StalkerMobType) &&
               World::isNaturalMobType(World::BruteMobType) &&
+              World::isNaturalMobType(World::SpitterMobType) &&
               enemyStats.naturalMobWorldCap == World::NaturalMobWorldCap);
 
     const auto contactDamage = [&](const std::string &name,
@@ -6671,6 +6697,397 @@ void caseCombatReadability()
                   mob->getLastCombatTransitionReason() ==
                       MobCombatTransitionReason::TargetMissing &&
                   world.getPlayerHealth() == 20.f);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// N8B - ranged combat profiles and bounded transient projectiles
+// ---------------------------------------------------------------------------
+void caseRangedCombatProjectiles()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+    Config config = makeConfig();
+    Camera camera(config);
+
+    const auto prepareArena = [](World &world) {
+        for (int x = 5; x <= 11; ++x) {
+            for (int z = -4; z <= 14; ++z) {
+                world.setBlock(x, 99, z, BlockId::Stone);
+                world.setBlock(x, 100, z, BlockId::Air);
+                world.setBlock(x, 101, z, BlockId::Air);
+                world.setBlock(x, 102, z, BlockId::Air);
+            }
+        }
+    };
+    const auto spawnSpitter = [](World &world, Player &player) {
+        return world.spawnMob(
+            World::SpitterMobType,
+            player.position + glm::vec3(0.f, 0.f, -8.f));
+    };
+
+    {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("n8b_ranged_fsm_hit"), false, 1);
+        prepareArena(world);
+        EventRecorder events(world.getEventBus());
+        const ActorId spitterId = spawnSpitter(world, player);
+        MobActor *spitter = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(spitterId));
+        world.tick(1);
+        const ActorSnapshot windup = spitter != nullptr
+            ? spitter->getSnapshot() : ActorSnapshot{};
+        check("N8B/ranged-enemy-telegraphs-explicit-windup-once",
+              spitter != nullptr && windup.combatant &&
+                  windup.combatMode == EnemyCombatMode::Ranged &&
+                  windup.combatState == MobCombatState::Windup &&
+                  windup.combatStateTicksRemaining == 12 &&
+                  events.count(SandboxEventType::CombatWindup) == 1 &&
+                  world.getPlayerHealth() == 20.f &&
+                  world.collectCombatProjectileSnapshots().empty());
+
+        for (int tick = 0; tick < 11; ++tick) {
+            world.tick(1);
+        }
+        check("N8B/ranged-windup-never-launches-or-damages-early",
+              spitter != nullptr &&
+                  spitter->getCombatState() == MobCombatState::Windup &&
+                  spitter->getCombatStateTicksRemaining() == 1 &&
+                  events.count(SandboxEventType::CombatWindup) == 1 &&
+                  world.getPlayerHealth() == 20.f &&
+                  world.collectCombatProjectileSnapshots().empty());
+
+        world.tick(1);
+        const std::vector<CombatProjectileSnapshot> launched =
+            world.collectCombatProjectileSnapshots();
+        const WorldDebugStats launchStats = world.collectDebugStats();
+        check("N8B/windup-launches-one-owned-transient-projectile",
+              spitter != nullptr && launched.size() == 1 &&
+                  launched.front().id != InvalidCombatProjectileId &&
+                  launched.front().ownerId == spitterId &&
+                  launched.front().ticksRemaining == 49 &&
+                  launched.front().radius == 0.15f &&
+                  spitter->getCombatState() == MobCombatState::Recover &&
+                  spitter->getLastCombatTransitionReason() ==
+                      MobCombatTransitionReason::ProjectileLaunched &&
+                  launchStats.combat.projectilesLaunched == 1 &&
+                  launchStats.combat.projectileCount == 1);
+        if (spitter != nullptr) {
+            spitter->setChaseTarget(nullptr);
+        }
+        for (int tick = 0;
+             tick < 40 &&
+                 !world.collectCombatProjectileSnapshots().empty();
+             ++tick) {
+            world.tick(1);
+        }
+        const WorldDebugStats hitStats = world.collectDebugStats();
+        check("N8B/projectile-hits-once-with-damage-knockback-and-direction",
+              world.collectCombatProjectileSnapshots().empty() &&
+                  world.getPlayerHealth() == 18.f &&
+                  player.velocity.z > 0.f && player.velocity.y > 0.f &&
+                  events.count(SandboxEventType::EntityDamage) == 1 &&
+                  hitStats.combat.projectileHits == 1 &&
+                  hitStats.combatFeedback.kind ==
+                      PlayerCombatFeedbackKind::Damage &&
+                  hitStats.combatFeedback.direction ==
+                      CombatDirection::Front);
+    }
+
+    {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("n8b_projectile_wall"), false, 1);
+        prepareArena(world);
+        const ActorId spitterId = spawnSpitter(world, player);
+        MobActor *spitter = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(spitterId));
+        const MobRangedAttackResult launched = spitter != nullptr
+            ? world.launchMobProjectile(*spitter, DefaultPlayerActorId)
+            : MobRangedAttackResult::TargetMissing;
+        if (spitter != nullptr) {
+            spitter->setChaseTarget(nullptr);
+        }
+        world.setBlock(8, 100, 4, BlockId::Stone);
+        world.setBlock(8, 101, 4, BlockId::Stone);
+        for (int tick = 0;
+             tick < 20 &&
+                 !world.collectCombatProjectileSnapshots().empty();
+             ++tick) {
+            world.tick(1);
+        }
+        const WorldDebugStats stats = world.collectDebugStats();
+        check("N8B/projectile-collision-stops-at-solid-wall",
+              launched == MobRangedAttackResult::Launched &&
+                  world.collectCombatProjectileSnapshots().empty() &&
+                  world.getPlayerHealth() == 20.f &&
+                  stats.combat.projectileBlocks == 1 &&
+                  stats.combat.lastProjectileRemovalReason ==
+                      CombatProjectileRemovalReason::Blocked);
+    }
+
+    {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("n8b_projectile_guard"), false, 1);
+        prepareArena(world);
+        player.addItem(Material::WOODEN_SWORD, 1);
+        PlayerInputState input;
+        input.hotbarSlot = 0;
+        player.applyInput(input);
+        EventRecorder events(world.getEventBus());
+        const ActorId spitterId = spawnSpitter(world, player);
+        MobActor *spitter = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(spitterId));
+        const MobRangedAttackResult launched = spitter != nullptr
+            ? world.launchMobProjectile(*spitter, DefaultPlayerActorId)
+            : MobRangedAttackResult::TargetMissing;
+        if (spitter != nullptr) {
+            spitter->setChaseTarget(nullptr);
+        }
+        world.setPlayerGuarding(true);
+        for (int tick = 0;
+             tick < 40 &&
+                 !world.collectCombatProjectileSnapshots().empty();
+             ++tick) {
+            world.tick(1);
+        }
+        const WorldDebugStats stats = world.collectDebugStats();
+        check("N8B/front-guard-consumes-projectile-and-durability-once",
+              launched == MobRangedAttackResult::Launched &&
+                  world.collectCombatProjectileSnapshots().empty() &&
+                  world.getPlayerHealth() == 20.f &&
+                  player.getInventorySlot(0).getDurability() == 31 &&
+                  events.count(SandboxEventType::CombatGuard) == 1 &&
+                  events.count(SandboxEventType::EntityDamage) == 0 &&
+                  stats.combat.projectileGuards == 1 &&
+                  stats.combatFeedback.kind ==
+                      PlayerCombatFeedbackKind::Guard);
+    }
+
+    {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("n8b_projectile_capacity"), false, 1);
+        prepareArena(world);
+        const ActorId spitterId = spawnSpitter(world, player);
+        MobActor *spitter = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(spitterId));
+        bool launchedEight = spitter != nullptr;
+        for (int index = 0; index < 8 && spitter != nullptr; ++index) {
+            launchedEight = launchedEight &&
+                world.launchMobProjectile(*spitter,
+                    DefaultPlayerActorId) ==
+                    MobRangedAttackResult::Launched;
+        }
+        const MobRangedAttackResult ninth = spitter != nullptr
+            ? world.launchMobProjectile(*spitter, DefaultPlayerActorId)
+            : MobRangedAttackResult::TargetMissing;
+        const std::vector<CombatProjectileSnapshot> snapshots =
+            world.collectCombatProjectileSnapshots();
+        std::set<CombatProjectileId> ids;
+        for (const CombatProjectileSnapshot &snapshot : snapshots) {
+            ids.insert(snapshot.id);
+        }
+        world.tick(1);
+        const WorldDebugStats budgetStats = world.collectDebugStats();
+        check("N8B/local-capacity-and-step-budget-are-hard-bounded",
+              launchedEight &&
+                  ninth == MobRangedAttackResult::CapacityReached &&
+                  snapshots.size() == 8 && ids.size() == snapshots.size() &&
+                  budgetStats.combat.projectileCount == 8 &&
+                  budgetStats.combat.projectileCapacityDenied == 1 &&
+                  budgetStats.combat.projectileStepsUsed == 8 &&
+                  budgetStats.combat.projectileStepBudget ==
+                      World::CombatProjectileStepBudgetPerTick &&
+                  budgetStats.combat.projectileStepBudgetDenied == 0 &&
+                  budgetStats.combat.projectileWorldLimit ==
+                      World::CombatProjectileWorldLimit);
+        const bool killed = world.attackActor(spitterId, 100.f);
+        const WorldDebugStats clearStats = world.collectDebugStats();
+        check("N8B/owner-death-clears-all-owned-projectiles-immediately",
+              killed && world.collectCombatProjectileSnapshots().empty() &&
+                  clearStats.combat.projectileOwnerClears == 8 &&
+                  clearStats.combat.lastProjectileRemovalReason ==
+                      CombatProjectileRemovalReason::OwnerMissing);
+    }
+
+    {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("n8b_launch_rejections"), false, 1);
+        prepareArena(world);
+        const ActorId spitterId = spawnSpitter(world, player);
+        MobActor *spitter = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(spitterId));
+        world.setBlock(8, 100, 4, BlockId::Stone);
+        world.setBlock(8, 101, 4, BlockId::Stone);
+        const MobRangedAttackResult occluded = spitter != nullptr
+            ? world.launchMobProjectile(*spitter, DefaultPlayerActorId)
+            : MobRangedAttackResult::TargetMissing;
+        world.setBlock(8, 100, 4, BlockId::Air);
+        world.setBlock(8, 101, 4, BlockId::Air);
+        player.position += glm::vec3(40.f, 0.f, 0.f);
+        player.box.update(player.position);
+        const MobRangedAttackResult escaped = spitter != nullptr
+            ? world.launchMobProjectile(*spitter, DefaultPlayerActorId)
+            : MobRangedAttackResult::TargetMissing;
+        const MobRangedAttackResult missing = spitter != nullptr
+            ? world.launchMobProjectile(*spitter, InvalidActorId)
+            : MobRangedAttackResult::TargetMissing;
+        check("N8B/ranged-launch-rejects-occlusion-escape-and-missing-target",
+              occluded == MobRangedAttackResult::Occluded &&
+                  escaped == MobRangedAttackResult::OutOfRange &&
+                  missing == MobRangedAttackResult::TargetMissing &&
+                  world.collectCombatProjectileSnapshots().empty() &&
+                  world.getPlayerHealth() == 20.f);
+    }
+
+    {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("n8b_projectile_lifecycle"), false, 1);
+        prepareArena(world);
+        const ActorId spitterId = spawnSpitter(world, player);
+        MobActor *spitter = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(spitterId));
+        const bool launched = spitter != nullptr &&
+            world.launchMobProjectile(*spitter, DefaultPlayerActorId) ==
+                MobRangedAttackResult::Launched;
+        if (spitter != nullptr) {
+            spitter->setChaseTarget(nullptr);
+        }
+        player.position += glm::vec3(10.f, 0.f, 0.f);
+        player.box.update(player.position);
+        for (int tick = 0;
+             tick < 60 &&
+                 !world.collectCombatProjectileSnapshots().empty();
+             ++tick) {
+            world.tick(1);
+        }
+        const WorldDebugStats distanceStats = world.collectDebugStats();
+        check("N8B/projectile-max-distance-expires-without-ghost-hit",
+              launched && world.collectCombatProjectileSnapshots().empty() &&
+                  world.getPlayerHealth() == 20.f &&
+                  distanceStats.combat.projectileExpirations == 1 &&
+                  distanceStats.combat.lastProjectileRemovalReason ==
+                      CombatProjectileRemovalReason::MaximumDistance);
+
+        player.position -= glm::vec3(10.f, 0.f, 0.f);
+        player.box.update(player.position);
+        const bool relaunched = spitter != nullptr &&
+            world.launchMobProjectile(*spitter, DefaultPlayerActorId) ==
+                MobRangedAttackResult::Launched;
+        player.position += glm::vec3(40.f, 0.f, 0.f);
+        player.box.update(player.position);
+        world.tick(1);
+        const WorldDebugStats activeStats = world.collectDebugStats();
+        check("N8B/leaving-active-area-clears-projectile-on-next-tick",
+              relaunched && world.collectCombatProjectileSnapshots().empty() &&
+                  activeStats.combat.lastProjectileRemovalReason ==
+                      CombatProjectileRemovalReason::OutsideActiveArea);
+
+        player.position -= glm::vec3(40.f, 0.f, 0.f);
+        player.box.update(player.position);
+        const EnemyDefinition *baseSpitter =
+            runtimeEnemyRegistry().find(World::SpitterMobType);
+        bool lifetimeLaunched = false;
+        if (spitter != nullptr && baseSpitter != nullptr) {
+            EnemyDefinition shortLived = *baseSpitter;
+            shortLived.combat.projectileLifetimeTicks = 2;
+            shortLived.combat.projectileMaxDistance = 64.f;
+            shortLived.combat.projectileActiveRadius = 64.f;
+            spitter->applyDefinition(shortLived);
+            lifetimeLaunched = world.launchMobProjectile(
+                *spitter, DefaultPlayerActorId) ==
+                MobRangedAttackResult::Launched;
+            spitter->setChaseTarget(nullptr);
+        }
+        player.position += glm::vec3(10.f, 0.f, 0.f);
+        player.box.update(player.position);
+        world.tick(1);
+        world.tick(1);
+        check("N8B/projectile-lifetime-is-an-independent-hard-bound",
+              lifetimeLaunched &&
+                  world.collectCombatProjectileSnapshots().empty() &&
+                  world.collectDebugStats()
+                          .combat.lastProjectileRemovalReason ==
+                      CombatProjectileRemovalReason::LifetimeExpired);
+    }
+
+    const auto persistenceDirectory =
+        freshSaveDirectory("n8b_transient_projectile_reload");
+    bool persisted = false;
+    {
+        Player player;
+        World world(camera, config, player, persistenceDirectory, false, 1);
+        prepareArena(world);
+        const ActorId spitterId = spawnSpitter(world, player);
+        MobActor *spitter = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(spitterId));
+        persisted = spitter != nullptr &&
+            world.launchMobProjectile(*spitter, DefaultPlayerActorId) ==
+                MobRangedAttackResult::Launched &&
+            world.collectCombatProjectileSnapshots().size() == 1 &&
+            world.save();
+    }
+    {
+        Player player;
+        World world(camera, config, player, persistenceDirectory, false, 1);
+        check("N8B/projectiles-are-never-serialized-or-restored",
+              persisted && world.collectCombatProjectileSnapshots().empty() &&
+                  world.getActorManager().countActorsByType(
+                      World::SpitterMobType) == 1);
+    }
+
+    {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("n8b_projectile_chunk_unload"),
+                    false, 1);
+        prepareArena(world);
+        const ActorId spitterId = spawnSpitter(world, player);
+        MobActor *spitter = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(spitterId));
+        const bool launched = spitter != nullptr &&
+            world.launchMobProjectile(*spitter, DefaultPlayerActorId) ==
+                MobRangedAttackResult::Launched;
+        world.getChunkManager().unloadChunk(0, 0);
+        const WorldDebugStats stats = world.collectDebugStats();
+        check("N8B/chunk-unload-clears-projectile-and-natural-owner",
+              launched && world.collectCombatProjectileSnapshots().empty() &&
+                  world.getActorManager().findActor(spitterId) == nullptr &&
+                  stats.combat.lastProjectileRemovalReason ==
+                      CombatProjectileRemovalReason::ChunkUnloaded);
+    }
+
+    {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("n8b_projectile_player_death"),
+                    false, 1);
+        prepareArena(world);
+        const ActorId spitterId = spawnSpitter(world, player);
+        MobActor *spitter = dynamic_cast<MobActor *>(
+            world.getActorManager().findActor(spitterId));
+        bool launched = spitter != nullptr;
+        for (int index = 0; index < 2 && spitter != nullptr; ++index) {
+            launched = launched &&
+                world.launchMobProjectile(*spitter,
+                    DefaultPlayerActorId) ==
+                    MobRangedAttackResult::Launched;
+        }
+        const bool killed = world.damagePlayer(100.f, spitterId);
+        world.tick(1);
+        check("N8B/player-death-respawn-clears-every-live-projectile",
+              launched && killed &&
+                  world.collectCombatProjectileSnapshots().empty() &&
+                  world.getPlayerHealth() == world.getPlayerMaxHealth() &&
+                  world.collectDebugStats()
+                          .combat.lastProjectileRemovalReason ==
+                      CombatProjectileRemovalReason::PlayerUnavailable);
     }
 }
 
@@ -8474,7 +8891,7 @@ void caseEcologyAndExploration()
               std::string(World::naturalMobTypeForBiome(
                   TerrainBiome::LightForest)) == World::StalkerMobType &&
               std::string(World::naturalMobTypeForBiome(
-                  TerrainBiome::TemperateForest)) == World::StalkerMobType &&
+                  TerrainBiome::TemperateForest)) == World::SpitterMobType &&
               std::string(World::naturalMobTypeForBiome(
                   TerrainBiome::Ocean)) == World::StalkerMobType);
 
@@ -9011,6 +9428,7 @@ int main()
         caseCombatAndRespawn();
         caseCombatDepth();
         caseCombatReadability();
+        caseRangedCombatProjectiles();
         caseWheatCropLoop();
         casePlayableVerticalSlice();
         caseDataDrivenObjectives();

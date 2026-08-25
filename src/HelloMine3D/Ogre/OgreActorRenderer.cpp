@@ -12,7 +12,10 @@ namespace
     constexpr const char* MobMaterial = "HelloMine3D/ActorMob";
     constexpr const char* StalkerMaterial = "HelloMine3D/ActorStalker";
     constexpr const char* BruteMaterial = "HelloMine3D/ActorBrute";
+    constexpr const char* SpitterMaterial = "HelloMine3D/ActorSpitter";
     constexpr const char* ItemMaterial = "HelloMine3D/ActorItem";
+    constexpr const char* ProjectileMaterial =
+        "HelloMine3D/CombatProjectile";
     // Hostile mobs stop 0.55 m from the player centre. With a 0.35 m
     // half-width that leaves their nearest face only 0.20 m from the
     // first-person camera, where it can fill the viewport before crossing
@@ -39,6 +42,10 @@ namespace
         if (snapshot.type == "hellomine:brute")
         {
             return BruteMaterial;
+        }
+        if (snapshot.type == "hellomine:spitter")
+        {
+            return SpitterMaterial;
         }
         return MobMaterial;
     }
@@ -142,6 +149,15 @@ OgreActorRendererValidation OgreActorRenderer::validateSnapshots(
         }
         if (snapshot.combatant)
         {
+            switch (snapshot.combatMode)
+            {
+                case EnemyCombatMode::Melee:
+                case EnemyCombatMode::Ranged:
+                    break;
+                default:
+                    validation.message = "actor combat mode is invalid";
+                    return validation;
+            }
             switch (snapshot.combatState)
             {
                 case MobCombatState::Idle:
@@ -166,6 +182,47 @@ OgreActorRendererValidation OgreActorRenderer::validateSnapshots(
         }
     }
 
+    validation.valid = true;
+    validation.message = "ok";
+    return validation;
+}
+
+OgreProjectileRendererValidation
+OgreActorRenderer::validateProjectileSnapshots(
+    const std::vector<CombatProjectileSnapshot>& snapshots)
+{
+    OgreProjectileRendererValidation validation;
+    std::unordered_set<CombatProjectileId> ids;
+    ids.reserve(snapshots.size());
+    for (const CombatProjectileSnapshot& snapshot : snapshots)
+    {
+        if (snapshot.id == InvalidCombatProjectileId ||
+            snapshot.ownerId == InvalidActorId)
+        {
+            validation.message = "projectile identity is invalid";
+            return validation;
+        }
+        if (!ids.insert(snapshot.id).second)
+        {
+            validation.message = "projectile id is duplicated";
+            return validation;
+        }
+        if (!finiteVector(snapshot.position) ||
+            !finiteVector(snapshot.velocity) ||
+            glm::length(snapshot.velocity) <= 0.000001f ||
+            snapshot.radius <= 0.0f || snapshot.radius > 0.5f ||
+            snapshot.ticksRemaining <= 0 ||
+            !std::isfinite(snapshot.distanceTravelled) ||
+            !std::isfinite(snapshot.maximumDistance) ||
+            snapshot.distanceTravelled < 0.0f ||
+            snapshot.maximumDistance <= 0.0f ||
+            snapshot.distanceTravelled > snapshot.maximumDistance)
+        {
+            validation.message = "projectile state is invalid";
+            return validation;
+        }
+        ++validation.projectileCount;
+    }
     validation.valid = true;
     validation.message = "ok";
     return validation;
@@ -222,6 +279,48 @@ void OgreActorRenderer::sync(
     }
 }
 
+void OgreActorRenderer::syncProjectiles(
+    const std::vector<CombatProjectileSnapshot>& snapshots)
+{
+    if (m_sceneManager == nullptr)
+    {
+        return;
+    }
+    const OgreProjectileRendererValidation validation =
+        validateProjectileSnapshots(snapshots);
+    if (!validation.valid)
+    {
+        throw std::runtime_error(
+            "Projectile snapshot validation failed: " +
+            validation.message);
+    }
+
+    std::unordered_set<CombatProjectileId> liveIds;
+    liveIds.reserve(snapshots.size());
+    for (const CombatProjectileSnapshot& snapshot : snapshots)
+    {
+        liveIds.insert(snapshot.id);
+        auto existing = m_projectileVisuals.find(snapshot.id);
+        if (existing == m_projectileVisuals.end())
+        {
+            existing = m_projectileVisuals.emplace(
+                snapshot.id, createProjectileVisual(snapshot.id)).first;
+        }
+        updateProjectileVisual(existing->second, snapshot);
+    }
+    for (auto iterator = m_projectileVisuals.begin();
+         iterator != m_projectileVisuals.end();)
+    {
+        if (liveIds.find(iterator->first) != liveIds.end())
+        {
+            ++iterator;
+            continue;
+        }
+        destroyVisual(iterator->second);
+        iterator = m_projectileVisuals.erase(iterator);
+    }
+}
+
 void OgreActorRenderer::clear()
 {
     for (auto& entry : m_visuals)
@@ -229,6 +328,44 @@ void OgreActorRenderer::clear()
         destroyVisual(entry.second);
     }
     m_visuals.clear();
+    for (auto& entry : m_projectileVisuals)
+    {
+        destroyVisual(entry.second);
+    }
+    m_projectileVisuals.clear();
+}
+
+OgreActorRenderer::ActorVisual OgreActorRenderer::createProjectileVisual(
+    CombatProjectileId id)
+{
+    const Ogre::String baseName =
+        "CombatProjectile_" + std::to_string(id);
+    ActorVisual visual;
+    visual.type = "combat_projectile";
+    visual.object = m_sceneManager->createManualObject(baseName + "_Mesh");
+    buildUnitCube(*visual.object, ProjectileMaterial);
+    visual.node = m_sceneManager->getRootSceneNode()->createChildSceneNode(
+        baseName + "_Node");
+    visual.node->attachObject(visual.object);
+    return visual;
+}
+
+void OgreActorRenderer::updateProjectileVisual(
+    ActorVisual& visual, const CombatProjectileSnapshot& snapshot)
+{
+    visual.node->setVisible(true);
+    visual.node->setPosition(snapshot.position.x, snapshot.position.y,
+                             snapshot.position.z);
+    const float diameter = snapshot.radius * 2.0f;
+    visual.node->setScale(diameter, diameter, diameter * 1.8f);
+    const glm::vec3 direction = glm::normalize(snapshot.velocity);
+    const float yaw = glm::degrees(std::atan2(direction.x, -direction.z));
+    const float horizontal = std::sqrt(
+        direction.x * direction.x + direction.z * direction.z);
+    const float pitch = glm::degrees(std::atan2(direction.y, horizontal));
+    visual.node->setOrientation(
+        Ogre::Quaternion(Ogre::Degree(yaw), Ogre::Vector3::UNIT_Y) *
+        Ogre::Quaternion(Ogre::Degree(pitch), Ogre::Vector3::UNIT_X));
 }
 
 OgreActorRenderer::ActorVisual OgreActorRenderer::createVisual(
