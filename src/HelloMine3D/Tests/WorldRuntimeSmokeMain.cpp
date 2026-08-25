@@ -1358,13 +1358,13 @@ void caseOreTextures()
 
     std::set<std::uint64_t> itemHashes;
     bool itemTilesPopulated = true;
-    for (int tileX = 0; tileX < 10; ++tileX) {
+    for (int tileX = 0; tileX < 15; ++tileX) {
         itemHashes.insert(hashTile(tileX, 2));
         itemTilesPopulated = itemTilesPopulated &&
                              visiblePixelCount(tileX, 2) > 12;
     }
     check("FS3/item-icons-are-populated-and-distinct",
-          itemTilesPopulated && itemHashes.size() == 10,
+          itemTilesPopulated && itemHashes.size() == 15,
           "visible=" + std::to_string(itemTilesPopulated ? 1 : 0) +
               " unique=" + std::to_string(itemHashes.size()));
     FreeImage_Unload(atlas);
@@ -4908,6 +4908,158 @@ void caseFoodRecovery()
               foodObjectiveSystem.snapshot().sessionComplete);
 }
 
+// ---------------------------------------------------------------------------
+// N10 - expanded food/smelting choices and current-format capacity metrics
+// ---------------------------------------------------------------------------
+void caseExpandedResourceEconomy()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
+    Config config = makeConfig();
+    Camera camera(config);
+
+    struct FoodExpectation
+    {
+        const Material *material;
+        float restored;
+        int cooldownTicks;
+    };
+    const FoodExpectation choices[] = {
+        {&Material::BREAD, 6.f, 20},
+        {&Material::COOKED_MEAT, 9.f, 28},
+        {&Material::CACTUS_SALAD, 4.f, 12},
+        {&Material::TRAIL_RATION, 14.f, 40},
+    };
+    bool foodChoicesExact = true;
+    for (std::size_t index = 0;
+         index < sizeof(choices) / sizeof(choices[0]); ++index) {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory(
+                        "n10_food_" + std::to_string(index)),
+                    false, 1);
+        player.addItem(*choices[index].material, 1);
+        foodChoicesExact = foodChoicesExact && world.damagePlayer(19.f) &&
+            world.useHeldFood() == FoodUseResult::Consumed &&
+            std::abs(world.getPlayerHealth() -
+                     (1.f + choices[index].restored)) < 0.001f &&
+            world.getFoodCooldownTicksRemaining() ==
+                choices[index].cooldownTicks &&
+            player.getInventoryCount(choices[index].material->id) == 0;
+    }
+    check("N10/four-food-runtime-outcomes-are-distinct-and-exact",
+          foodChoicesExact);
+
+    Player furnacePlayer;
+    World furnaceWorld(camera, config, furnacePlayer,
+                       freshSaveDirectory("n10_smelting_paths"), false, 1);
+    EventRecorder events(furnaceWorld.getEventBus());
+    const glm::ivec3 position{8, 100, 8};
+    furnacePlayer.addItem(Material::FURNACE_BLOCK, 1);
+    const bool furnaceReady = BlockInteractionSystem::placeBlock(
+        furnaceWorld, furnacePlayer, glm::vec3(position));
+    FurnaceState meatState;
+    meatState.input = {Material::ID::RawMeat, 1, 0};
+    meatState.fuel = {Material::ID::PlantFiber, 2, 0};
+    const bool meatPrepared = furnaceWorld.updateBlockEntity(
+        position, FurnaceContainer::serialize(meatState));
+    for (int tick = 0; tick < 60; ++tick) {
+        furnaceWorld.tick(20000 + tick);
+    }
+    FurnaceState cookedState;
+    const auto cookedRecord = furnaceWorld.getBlockEntity(position);
+    const bool cooked = cookedRecord && FurnaceContainer::deserialize(
+        cookedRecord->payload, runtimeSmeltingRegistry(), cookedState) &&
+        cookedState.input.amount == 0 &&
+        cookedState.output.materialId == Material::ID::CookedMeat &&
+        cookedState.output.amount == 1 &&
+        cookedState.fuel.amount == 0 &&
+        cookedState.burnTicksRemaining == 20;
+    check("N10/raw-meat-smelts-with-bounded-plant-fiber-fuel",
+          furnaceReady && meatPrepared && cooked &&
+              events.count(SandboxEventType::SmeltCompleted) == 1);
+
+    FurnaceState sandState;
+    sandState.input = {Material::ID::Sand, 1, 0};
+    sandState.fuel = {Material::ID::PlantFiber, 2, 0};
+    const bool sandPrepared = furnaceWorld.updateBlockEntity(
+        position, FurnaceContainer::serialize(sandState));
+    for (int tick = 0; tick < 80; ++tick) {
+        furnaceWorld.tick(21000 + tick);
+    }
+    FurnaceState glassState;
+    const auto glassRecord = furnaceWorld.getBlockEntity(position);
+    const bool glass = glassRecord && FurnaceContainer::deserialize(
+        glassRecord->payload, runtimeSmeltingRegistry(), glassState) &&
+        glassState.input.amount == 0 &&
+        glassState.output.materialId == Material::ID::Glass &&
+        glassState.output.amount == 1 && glassState.fuel.amount == 0 &&
+        glassState.burnTicksRemaining == 0;
+    check("N10/sand-smelts-to-glass-with-exact-fixed-tick-cost",
+          sandPrepared && glass &&
+              events.count(SandboxEventType::SmeltCompleted) == 2);
+
+    Inventory expandedInventory;
+    const bool capacityFilled =
+        expandedInventory.addItem(Material::RAW_MEAT, 99) == 99 &&
+        expandedInventory.addItem(Material::COOKED_MEAT, 99) == 99 &&
+        expandedInventory.addItem(Material::CACTUS_SALAD, 99) == 99 &&
+        expandedInventory.addItem(Material::TRAIL_RATION, 99) == 99 &&
+        expandedInventory.addItem(Material::PLANT_FIBER, 99) == 99 &&
+        expandedInventory.capacityFor(Material::RAW_MEAT) == 0;
+    WorldSaveData baseline;
+    baseline.worldId = "n10-baseline";
+    baseline.worldName = "N10 Baseline";
+    baseline.seed = kValidationSeed;
+    baseline.createdUtc = LegacyWorldTimestampUtc;
+    baseline.lastPlayedUtc = LegacyWorldTimestampUtc;
+    baseline.lastBuildIdentity = "n10-validation";
+    baseline.hasPlayerState = true;
+    baseline.playerState.inventory = {{Material::ID::Bread, 1, 0}};
+    WorldSaveData expanded = baseline;
+    expanded.worldId = "n10-expanded";
+    expanded.worldName = "N10 Expanded";
+    expanded.playerState.inventory = expandedInventory.getSaveState();
+
+    const std::string baselineDirectory =
+        freshSaveDirectory("n10_save_baseline");
+    const std::string expandedDirectory =
+        freshSaveDirectory("n10_save_expanded");
+    WorldSave baselineSave(baselineDirectory);
+    WorldSave expandedSave(expandedDirectory);
+    const auto baselineStart = std::chrono::steady_clock::now();
+    const bool baselineSaved = baselineSave.save(baseline);
+    const auto baselineElapsed =
+        std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now() - baselineStart).count();
+    const auto expandedStart = std::chrono::steady_clock::now();
+    const bool expandedSaved = expandedSave.save(expanded);
+    const auto expandedElapsed =
+        std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now() - expandedStart).count();
+    const std::uintmax_t baselineBytes = baselineSaved
+        ? std::filesystem::file_size(baselineSave.metadataPath()) : 0;
+    const std::uintmax_t expandedBytes = expandedSaved
+        ? std::filesystem::file_size(expandedSave.metadataPath()) : 0;
+    WorldSaveData roundTrip;
+    const bool expandedLoaded = expandedSaved &&
+        expandedSave.load(roundTrip);
+    check("N10/new-material-ids-roundtrip-without-save-version-bump",
+          capacityFilled && expandedLoaded && roundTrip.version == 9 &&
+              roundTrip.playerState.inventory ==
+                  expanded.playerState.inventory);
+    check("N10/inventory-save-size-and-time-stay-bounded",
+          baselineSaved && expandedSaved && baselineBytes > 0 &&
+              expandedBytes >= baselineBytes &&
+              expandedBytes <= baselineBytes + 256 &&
+              baselineElapsed < 2000000 && expandedElapsed < 2000000,
+          "slots=5 units=495 baseline_bytes=" +
+              std::to_string(baselineBytes) + " expanded_bytes=" +
+              std::to_string(expandedBytes) + " baseline_us=" +
+              std::to_string(baselineElapsed) + " expanded_us=" +
+              std::to_string(expandedElapsed));
+}
+
 std::string validAudioDefinitions()
 {
     return R"(# HelloMine3D audio definitions v2
@@ -5271,6 +5423,7 @@ knockback 2
 natural 1
 loot hellomine:dirt 1 1
 loot hellomine:wheat 1 2
+loot hellomine:raw_meat 1 1
 end
 enemy hellomine:brute
 health 16
@@ -5289,6 +5442,7 @@ natural 1
 loot hellomine:dirt 1 1
 loot hellomine:coal_ore 1 1
 loot hellomine:wheat 1 1
+loot hellomine:raw_meat 1 2
 end
 enemy hellomine:spitter
 health 7
@@ -5358,8 +5512,21 @@ input hellomine:iron_ore
 output hellomine:iron_ingot 1
 ticks 100
 end
+smelt hellomine:cooked_meat
+input hellomine:raw_meat
+output hellomine:cooked_meat 1
+ticks 60
+end
+smelt hellomine:glass
+input hellomine:sand
+output hellomine:glass 1
+ticks 80
+end
 fuel hellomine:coal_ore
 ticks 160
+end
+fuel hellomine:plant_fiber
+ticks 40
 end
 )";
 }
@@ -5370,6 +5537,18 @@ std::string validFoodDefinitions()
 food hellomine:bread
 restore 6
 cooldown_ticks 20
+end
+food hellomine:cooked_meat
+restore 9
+cooldown_ticks 28
+end
+food hellomine:cactus_salad
+restore 4
+cooldown_ticks 12
+end
+food hellomine:trail_ration
+restore 14
+cooldown_ticks 40
 end
 )";
 }
@@ -6127,7 +6306,9 @@ void caseCombatDepth()
               stalker->getChaseRadius() == 14.f &&
               stalker->getChaseSpeed() == 3.2f &&
               stalker->getContactDamage() == 1.f &&
-              stalker->getLootTable().size() == 2);
+              stalker->getLootTable().size() == 3 &&
+              stalker->getLootTable()[2].materialId ==
+                  Material::ID::RawMeat);
 
     const int pristineDurability = swordSlot >= 0
         ? player.getInventorySlot(swordSlot).getDurability()
@@ -6193,6 +6374,7 @@ void caseCombatDepth()
         world.getActorManager().collectSaveStates();
     int wheatAmount = 0;
     int dirtAmount = 0;
+    int rawMeatAmount = 0;
     int stalkerItemCount = 0;
     for (const ActorSaveState &state : stalkerDrops) {
         if (state.kind != ActorSaveKind::Item) {
@@ -6205,11 +6387,16 @@ void caseCombatDepth()
         else if (state.materialId == static_cast<int>(Material::ID::Dirt)) {
             dirtAmount += state.amount;
         }
+        else if (state.materialId ==
+                 static_cast<int>(Material::ID::RawMeat)) {
+            rawMeatAmount += state.amount;
+        }
     }
     check("N4/stalker-death-drops-bounded-recovery-loot",
           lethal == CombatAttackResult::Hit && stalker != nullptr &&
               !stalker->isAlive() && wheatAmount >= 1 && wheatAmount <= 2 &&
-              dirtAmount == 1 && stalkerItemCount == 2 &&
+              dirtAmount == 1 && rawMeatAmount == 1 &&
+              stalkerItemCount == 3 &&
               player.getInventorySlot(swordSlot).getDurability() == 30);
     if (stalker != nullptr) {
         stalker->dropLoot(world);
@@ -6230,20 +6417,30 @@ void caseCombatDepth()
               brute->getChaseRadius() == 10.f &&
               brute->getChaseSpeed() == 1.6f &&
               brute->getContactDamage() == 4.f &&
-              brute->getLootTable().size() == 3);
+              brute->getLootTable().size() == 4 &&
+              brute->getLootTable()[3].materialId ==
+                  Material::ID::RawMeat);
     const bool bruteKilled = world.attackActor(bruteId, 100.f);
     const std::vector<ActorSaveState> allDrops =
         world.getActorManager().collectSaveStates();
     int coalAmount = 0;
+    int allRawMeatAmount = 0;
     for (const ActorSaveState &state : allDrops) {
         if (state.kind == ActorSaveKind::Item &&
             state.materialId == static_cast<int>(Material::ID::CoalOre)) {
             coalAmount += state.amount;
         }
+        if (state.kind == ActorSaveKind::Item &&
+            state.materialId == static_cast<int>(Material::ID::RawMeat)) {
+            allRawMeatAmount += state.amount;
+        }
     }
     check("N4/brute-death-drops-bounded-progression-loot",
           bruteKilled && brute != nullptr && !brute->isAlive() &&
-              coalAmount == 1 && allDrops.size() == beforeBruteDrops + 3);
+              coalAmount == 1 &&
+              allRawMeatAmount - rawMeatAmount >= 1 &&
+              allRawMeatAmount - rawMeatAmount <= 2 &&
+              allDrops.size() == beforeBruteDrops + 4);
     const WorldDebugStats enemyStats = world.collectDebugStats();
     check("N8B/all-combat-archetypes-are-natural-population-types",
           World::isNaturalMobType(World::StalkerMobType) &&
@@ -10438,6 +10635,7 @@ int main()
         caseChestContainer();
         caseFurnaceProgression();
         caseFoodRecovery();
+        caseExpandedResourceEconomy();
         caseWorkbenchCrafting();
         caseToolMiningProgression();
         caseNaturalMobPopulation();

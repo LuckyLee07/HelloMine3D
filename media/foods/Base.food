@@ -4,3 +4,18 @@ food hellomine:bread
 restore 6
 cooldown_ticks 20
 end
+
+food hellomine:cooked_meat
+restore 9
+cooldown_ticks 28
+end
+
+food hellomine:cactus_salad
+restore 4
+cooldown_ticks 12
+end
+
+food hellomine:trail_ration
+restore 14
+cooldown_ticks 40
+end

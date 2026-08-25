@@ -71,3 +71,51 @@ row _ hellomine:stone _
 row _ hellomine:oak_bark _
 output hellomine:stone_sword 1
 end
+
+recipe hellomine:plant_fiber_from_tall_grass shapeless
+input hellomine:tall_grass 2
+output hellomine:plant_fiber 1
+end
+
+recipe hellomine:plant_fiber_from_dead_shrub shapeless
+input hellomine:dead_shrub 2
+output hellomine:plant_fiber 1
+end
+
+recipe hellomine:plant_fiber_from_rose shapeless
+input hellomine:rose 2
+output hellomine:plant_fiber 1
+end
+
+recipe hellomine:cactus_salad shapeless
+input hellomine:cactus 2
+input hellomine:wheat 1
+output hellomine:cactus_salad 1
+end
+
+recipe hellomine:trail_ration shapeless
+input hellomine:bread 1
+input hellomine:cooked_meat 1
+input hellomine:cactus_salad 1
+input hellomine:plant_fiber 1
+output hellomine:trail_ration 1
+end
+
+recipe hellomine:field_chest shapeless
+input hellomine:oak_bark 4
+input hellomine:plant_fiber 2
+output hellomine:chest 1
+end
+
+recipe hellomine:field_workbench shaped
+row hellomine:oak_bark hellomine:plant_fiber
+row hellomine:plant_fiber hellomine:oak_bark
+output hellomine:workbench 1
+end
+
+recipe hellomine:reinforced_furnace shaped
+row hellomine:stone hellomine:glass hellomine:stone
+row hellomine:stone _ hellomine:stone
+row hellomine:stone hellomine:glass hellomine:stone
+output hellomine:furnace 1
+end

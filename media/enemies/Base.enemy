@@ -33,6 +33,7 @@ knockback 2.0
 natural 1
 loot hellomine:dirt 1 1
 loot hellomine:wheat 1 2
+loot hellomine:raw_meat 1 1
 end
 
 enemy hellomine:brute
@@ -52,6 +53,7 @@ natural 1
 loot hellomine:dirt 1 1
 loot hellomine:coal_ore 1 1
 loot hellomine:wheat 1 1
+loot hellomine:raw_meat 1 2
 end
 
 enemy hellomine:spitter

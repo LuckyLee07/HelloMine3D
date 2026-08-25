@@ -34,6 +34,11 @@ namespace
         "hellomine:wooden_sword",
         "hellomine:stone_sword",
         "hellomine:waystone_core",
+        "hellomine:raw_meat",
+        "hellomine:cooked_meat",
+        "hellomine:cactus_salad",
+        "hellomine:trail_ration",
+        "hellomine:plant_fiber",
     }};
 
     constexpr std::array<Material::IconCoordinate, Material::ID::Count>
@@ -42,7 +47,8 @@ namespace
             {7, 0}, {9, 0}, {10, 0}, {11, 0}, {12, 0}, {13, 0},
             {14, 0}, {3, 1}, {4, 1}, {0, 1}, {0, 2}, {1, 2},
             {1, 1}, {2, 2}, {3, 2}, {2, 1}, {4, 2}, {5, 2},
-            {6, 2}, {7, 2}, {8, 2}, {9, 2}, {15, 0},
+            {6, 2}, {7, 2}, {8, 2}, {9, 2}, {15, 0}, {10, 2},
+            {11, 2}, {12, 2}, {13, 2}, {14, 2},
         }};
 }
 
@@ -90,6 +96,15 @@ const Material Material::STONE_SWORD(ID::StoneSword, 1, false,
                                      "Stone Sword", true);
 const Material Material::WAYSTONE_CORE(ID::WaystoneCore, 16, true,
                                        "Waystone Core");
+const Material Material::RAW_MEAT(ID::RawMeat, 99, false, "Raw Meat");
+const Material Material::COOKED_MEAT(ID::CookedMeat, 99, false,
+                                     "Cooked Meat", false, true);
+const Material Material::CACTUS_SALAD(ID::CactusSalad, 99, false,
+                                      "Cactus Salad", false, true);
+const Material Material::TRAIL_RATION(ID::TrailRation, 99, false,
+                                      "Trail Ration", false, true);
+const Material Material::PLANT_FIBER(ID::PlantFiber, 99, false,
+                                     "Plant Fiber");
 
 Material::Material(Material::ID id, int maxStack, bool isBlock,
                    std::string &&name, bool isTool, bool isFood)
@@ -321,6 +336,21 @@ const Material &Material::toMaterial(Material::ID id)
 
         case WaystoneCore:
             return WAYSTONE_CORE;
+
+        case RawMeat:
+            return RAW_MEAT;
+
+        case CookedMeat:
+            return COOKED_MEAT;
+
+        case CactusSalad:
+            return CACTUS_SALAD;
+
+        case TrailRation:
+            return TRAIL_RATION;
+
+        case PlantFiber:
+            return PLANT_FIBER;
 
         default:
             return NOTHING;

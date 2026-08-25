@@ -19,3 +19,17 @@
 图像生成源不是运行时图集。打包脚本按固定像素矩形裁切并以最近邻方式缩放到严格的 16×16 单元，恢复既有方块坐标，补充独立交互方块与物品图标，并跳过生成源中的重复铁剑。修改生成源后必须重新运行脚本，再运行资源清单和 `FS3/*` 图集断言。
 
 本资源为本项目定向生成和加工的来源记录，没有复制 `F:\env1_trunk` 或其他第三方项目的美术文件，也没有引入第三方商标、徽标或署名素材。若未来改用外部素材包，必须在本文件新增作者、原始链接、许可证文本、允许的修改/分发方式和版本哈希；在这些信息齐备前不得进入发行包。
+
+## N10 资源经济图标
+
+- 可追溯生成源：`docs/art-sources/hellomine3d-economy-icons-imagegen-source.png`
+- 生成日期：2026-08-25
+- 生成方式：Codex 内置 OpenAI 图像生成工具；先用 `precise-object-edit` 生成 RawMeat、
+  CookedMeat、CactusSalad、TrailRation、PlantFiber 五个像素图标，再用
+  `background-extraction` 提取真实 Alpha。
+- 生成源 SHA-256：`7373ad0ba60d2f47d921a5fb050ffd2f6861b58160ff80da345e2d5b92cce4ae`
+- N10 图集 SHA-256：`4997b668024456ebd9704f5b89cc1923f64bb047ccdc115083e3e84062e274fd`
+
+`tools/build_fs3_texture_atlas.ps1` 继续从原 FS3 来源重建全部既有单元，只从 N10 来源的固定
+包围框裁切五个新图标到第三行 x=10..14。脚本使用 SourceCopy、最近邻、无平滑，并在 14×14
+可视范围内居中；因此新增内容不会重绘或漂移已冻结的方块和物品图标。

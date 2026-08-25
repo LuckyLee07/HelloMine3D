@@ -1,12 +1,15 @@
 #include "../Item/RecipeRegistry.h"
 #include "../Item/CraftingSession.h"
 #include "../Item/FoodRegistry.h"
+#include "../Item/ResourceEconomyVerifier.h"
+#include "../Item/SmeltingRegistry.h"
 #include "../Item/ToolRegistry.h"
 #include "../Actor/EnemyRegistry.h"
 #include "../Util/ResourcePackResolver.h"
 #include "../Util/ResourcePaths.h"
 
 #include <cstdlib>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -162,6 +165,7 @@ knockback 2
 natural 1
 loot hellomine:dirt 1 1
 loot hellomine:wheat 1 2
+loot hellomine:raw_meat 1 1
 end
 enemy hellomine:brute
 health 16
@@ -180,6 +184,7 @@ natural 1
 loot hellomine:dirt 1 1
 loot hellomine:coal_ore 1 1
 loot hellomine:wheat 1 1
+loot hellomine:raw_meat 1 2
 end
 enemy hellomine:spitter
 health 7
@@ -216,6 +221,45 @@ food hellomine:bread
 restore 6
 cooldown_ticks 20
 end
+food hellomine:cooked_meat
+restore 9
+cooldown_ticks 28
+end
+food hellomine:cactus_salad
+restore 4
+cooldown_ticks 12
+end
+food hellomine:trail_ration
+restore 14
+cooldown_ticks 40
+end
+)";
+    }
+
+    std::string validSmelting()
+    {
+        return R"(# HelloMine3D smelting registry v1
+smelt hellomine:iron_ingot
+input hellomine:iron_ore
+output hellomine:iron_ingot 1
+ticks 100
+end
+smelt hellomine:cooked_meat
+input hellomine:raw_meat
+output hellomine:cooked_meat 1
+ticks 60
+end
+smelt hellomine:glass
+input hellomine:sand
+output hellomine:glass 1
+ticks 80
+end
+fuel hellomine:coal_ore
+ticks 160
+end
+fuel hellomine:plant_fiber
+ticks 40
+end
 )";
     }
 
@@ -251,9 +295,14 @@ end
         }
         check("G1/material-ids-roundtrip",
               roundTrip &&
-                  static_cast<int>(Material::ID::WaystoneCore) ==
+                  static_cast<int>(Material::ID::PlantFiber) ==
                       static_cast<int>(Material::ID::Count) - 1 &&
                   Material::BREAD.isFood && !Material::BREAD.isTool &&
+                  Material::COOKED_MEAT.isFood &&
+                  Material::CACTUS_SALAD.isFood &&
+                  Material::TRAIL_RATION.isFood &&
+                  !Material::RAW_MEAT.isFood &&
+                  !Material::PLANT_FIBER.isFood &&
                   Material::WOODEN_SWORD.isTool &&
                   Material::STONE_SWORD.isTool &&
                   Material::WAYSTONE_CORE.isBlock &&
@@ -1137,12 +1186,26 @@ end
         FoodRegistry registry;
         registry.freeze({{"base.food", validFoods()}});
         const FoodDefinition *bread = registry.find(Material::ID::Bread);
-        check("N3/food-registry-freezes-complete-base-set",
-              registry.isFrozen() && registry.foods().size() == 1 &&
-                  bread != nullptr);
+        const FoodDefinition *cooked =
+            registry.find(Material::ID::CookedMeat);
+        const FoodDefinition *salad =
+            registry.find(Material::ID::CactusSalad);
+        const FoodDefinition *ration =
+            registry.find(Material::ID::TrailRation);
+        check("N10/food-registry-freezes-expanded-base-set",
+              registry.isFrozen() && registry.foods().size() == 4 &&
+                  bread != nullptr && cooked != nullptr &&
+                  salad != nullptr && ration != nullptr);
         check("N3/food-stats-are-data-driven",
               bread != nullptr && bread->healthRestored == 6.f &&
                   bread->cooldownTicks == 20);
+        check("N10/food-choices-have-distinct-recovery-and-cooldown",
+              cooked->healthRestored == 9.f &&
+                  cooked->cooldownTicks == 28 &&
+                  salad->healthRestored == 4.f &&
+                  salad->cooldownTicks == 12 &&
+                  ration->healthRestored == 14.f &&
+                  ration->cooldownTicks == 40);
         check("N3/food-registry-is-startup-frozen",
               throwsContaining(
                   [&registry]
@@ -1220,7 +1283,7 @@ end
             "unsupported or missing header");
         atomic.freeze({{"valid.food", validFoods()}});
         check("N3/failed-food-freeze-is-atomic",
-              failed && atomic.isFrozen() && atomic.foods().size() == 1);
+              failed && atomic.isFrozen() && atomic.foods().size() == 4);
 
         const fs::path root = fs::current_path() / "bin" /
                               "validation_runs" / "foods";
@@ -1233,7 +1296,7 @@ end
         FoodRegistry fromView;
         fromView.freezeFromResourceView(resolver);
         check("N3/frozen-food-resource-loads",
-              fromView.isFrozen() && fromView.foods().size() == 1 &&
+              fromView.isFrozen() && fromView.foods().size() == 4 &&
                   resolver.effectiveManifest().find(
                       "food|media/foods/Base.food|base\n") !=
                       std::string::npos);
@@ -1280,17 +1343,19 @@ end
               stalker->maxHealth == 8.f && stalker->wanderSpeed == 1.6f &&
                   stalker->chaseSpeed == 3.2f &&
                   stalker->contactDamage == 1.f &&
-                  stalker->loot.size() == 2 &&
+                  stalker->loot.size() == 3 &&
                   stalker->loot[0].materialId == Material::ID::Dirt &&
                   stalker->loot[1].materialId == Material::ID::Wheat &&
                   stalker->loot[1].minimumAmount == 1 &&
                   stalker->loot[1].maximumAmount == 2 &&
+                  stalker->loot[2].materialId == Material::ID::RawMeat &&
                   brute->maxHealth == 16.f && brute->wanderSpeed == 0.8f &&
                   brute->chaseSpeed == 1.6f &&
-                  brute->contactDamage == 4.f && brute->loot.size() == 3 &&
+                  brute->contactDamage == 4.f && brute->loot.size() == 4 &&
                   brute->loot[0].materialId == Material::ID::Dirt &&
                   brute->loot[1].materialId == Material::ID::CoalOre &&
                   brute->loot[2].materialId == Material::ID::Wheat &&
+                  brute->loot[3].materialId == Material::ID::RawMeat &&
                   natural[0]->type == "hellomine:brute" &&
                   natural[1]->type == "hellomine:spitter" &&
                   natural[2]->type == "hellomine:stalker");
@@ -1595,6 +1660,175 @@ end
                   stone->outputMaterialId == Material::ID::StoneSword &&
                   stone->outputCount == 1 && stone->ingredients.size() == 2);
     }
+
+    void caseResourceEconomy()
+    {
+        const auto readResource = [](const std::string &path) {
+            std::ifstream input(ResourcePaths::media(path),
+                                std::ios::binary);
+            std::ostringstream content;
+            content << input.rdbuf();
+            return content.str();
+        };
+
+        RecipeRegistry recipes;
+        recipes.freeze({{"Base.recipe",
+                         readResource("recipes/Base.recipe")}});
+        SmeltingRegistry smelting;
+        smelting.freeze({{"Base.smelting",
+                          readResource("smelting/Base.smelting")}});
+        FoodRegistry foods;
+        foods.freeze({{"Base.food", readResource("foods/Base.food")}});
+
+        const SmeltingRecipeDefinition *meat =
+            smelting.findRecipe(Material::ID::RawMeat);
+        const SmeltingRecipeDefinition *glass =
+            smelting.findRecipe(Material::ID::Sand);
+        const SmeltingFuelDefinition *fiberFuel =
+            smelting.findFuel(Material::ID::PlantFiber);
+        check("N10/base-content-counts-are-frozen",
+              recipes.recipes().size() == 19 &&
+                  smelting.recipes().size() == 3 &&
+                  smelting.fuels().size() == 2 &&
+                  foods.foods().size() == 4);
+        check("N10/new-smelting-paths-reuse-three-slot-contract",
+              meat != nullptr &&
+                  meat->outputMaterialId == Material::ID::CookedMeat &&
+                  meat->durationTicks == 60 && glass != nullptr &&
+                  glass->outputMaterialId == Material::ID::Glass &&
+                  glass->durationTicks == 80 && fiberFuel != nullptr &&
+                  fiberFuel->burnTicks == 40);
+
+        const RecipeDefinition *fiber =
+            recipes.find("hellomine:plant_fiber_from_tall_grass");
+        const RecipeDefinition *salad =
+            recipes.find("hellomine:cactus_salad");
+        const RecipeDefinition *ration =
+            recipes.find("hellomine:trail_ration");
+        const RecipeDefinition *fieldChest =
+            recipes.find("hellomine:field_chest");
+        const RecipeDefinition *fieldWorkbench =
+            recipes.find("hellomine:field_workbench");
+        const RecipeDefinition *reinforcedFurnace =
+            recipes.find("hellomine:reinforced_furnace");
+        check("N10/ecology-crop-and-enemy-chains-have-useful-sinks",
+              fiber != nullptr && salad != nullptr && ration != nullptr &&
+                  fieldChest != nullptr && fieldWorkbench != nullptr &&
+                  reinforcedFurnace != nullptr &&
+                  ration->ingredients.size() == 4 &&
+                  ration->outputMaterialId == Material::ID::TrailRation);
+
+        Inventory rationInputs;
+        rationInputs.addItem(Material::BREAD, 1);
+        rationInputs.addItem(Material::COOKED_MEAT, 1);
+        rationInputs.addItem(Material::CACTUS_SALAD, 1);
+        rationInputs.addItem(Material::PLANT_FIBER, 1);
+        CraftingSession workbench(CraftingSession::WorkbenchGridSize);
+        const bool loaded = workbench.loadRecipe(*ration);
+        const CraftingPreview preview =
+            workbench.preview(recipes, rationInputs);
+        const CraftingCommitResult committed =
+            workbench.commit(recipes, rationInputs, preview, 1);
+        check("N10/trail-ration-craft-is-atomic-and-conservative",
+              loaded && preview.ready() && committed.succeeded() &&
+                  rationInputs.count(Material::ID::Bread) == 0 &&
+                  rationInputs.count(Material::ID::CookedMeat) == 0 &&
+                  rationInputs.count(Material::ID::CactusSalad) == 0 &&
+                  rationInputs.count(Material::ID::PlantFiber) == 0 &&
+                  rationInputs.count(Material::ID::TrailRation) == 1);
+
+        const ResourceEconomyContract contract =
+            makeBaseResourceEconomyContract();
+        const ResourceEconomyReport report =
+            ResourceEconomyVerifier::verify(
+                contract, recipes, smelting, foods);
+        check("N10/clean-world-mainline-is-reachable",
+              report.allRequiredReachable && report.issues.empty());
+        check("N10/new-materials-have-source-and-sink",
+              report.trackedSourcesAndSinks);
+        check("N10/transformation-graph-has-no-cycle-or-duplication-path",
+              report.transformationGraphAcyclic && report.passed());
+
+        bool trackedMetricsComplete = true;
+        int trackedMetricCount = 0;
+        int ironGoalAmount = 0;
+        for (const ResourceEconomyMetric &metric : report.metrics) {
+            if (std::find(contract.trackedNewMaterials.begin(),
+                          contract.trackedNewMaterials.end(),
+                          metric.materialId) !=
+                contract.trackedNewMaterials.end()) {
+                ++trackedMetricCount;
+                trackedMetricsComplete = trackedMetricsComplete &&
+                    std::isfinite(metric.acquisitionTicksPerUnit) &&
+                    metric.acquisitionTicksPerUnit > 0.0 &&
+                    metric.maxStackSize == 99;
+            }
+            if (metric.materialId == Material::ID::IronIngot) {
+                ironGoalAmount = metric.goalAmount;
+            }
+        }
+        check("N10/balance-metrics-cover-cost-recovery-capacity-and-goals",
+              trackedMetricCount == 5 && trackedMetricsComplete &&
+                  ironGoalAmount == 7);
+
+        const std::string csv = report.toCsv();
+        const fs::path outputDirectory = fs::current_path() / "bin" /
+            "validation_runs" / "resource_economy";
+        std::error_code error;
+        fs::create_directories(outputDirectory, error);
+        const fs::path csvPath = outputDirectory / "resource-economy.csv";
+        writeFile(csvPath, csv);
+        check("N10/balance-report-is-exportable-and-bounded",
+              !error && csv.size() < 32 * 1024 &&
+                  csv.find("recovery_per_acquisition_tick") !=
+                      std::string::npos &&
+                  csv.find("hellomine:trail_ration") !=
+                      std::string::npos && fs::file_size(csvPath) ==
+                      csv.size());
+
+        ResourceEconomyContract missingSource = contract;
+        missingSource.acquisitionSources.erase(
+            std::remove_if(
+                missingSource.acquisitionSources.begin(),
+                missingSource.acquisitionSources.end(),
+                [](const ResourceAcquisitionSource &source) {
+                    return source.materialId == Material::ID::RawMeat;
+                }),
+            missingSource.acquisitionSources.end());
+        const ResourceEconomyReport unreachable =
+            ResourceEconomyVerifier::verify(
+                missingSource, recipes, smelting, foods);
+        check("N10/missing-source-dead-chain-is-rejected",
+              !unreachable.allRequiredReachable &&
+                  !unreachable.trackedSourcesAndSinks &&
+                  !unreachable.passed());
+
+        ResourceEconomyContract missingSink = contract;
+        missingSink.trackedNewMaterials = {Material::ID::OakLeaf};
+        const ResourceEconomyReport noSink =
+            ResourceEconomyVerifier::verify(
+                missingSink, recipes, smelting, foods);
+        check("N10/tracked-resource-without-sink-is-rejected",
+              !noSink.trackedSourcesAndSinks && !noSink.passed());
+
+        RecipeRegistry cyclicRecipes;
+        cyclicRecipes.freeze({{"cycle.recipe", oneRecipe(
+            "recipe hellomine:dirt_to_stone shapeless\n"
+            "input hellomine:dirt 1\n"
+            "output hellomine:stone 2\nend\n"
+            "recipe hellomine:stone_to_dirt shapeless\n"
+            "input hellomine:stone 1\n"
+            "output hellomine:dirt 1\nend\n")}});
+        ResourceEconomyContract cycleContract = contract;
+        cycleContract.requiredMaterials.clear();
+        cycleContract.trackedNewMaterials.clear();
+        cycleContract.goalRequirements.clear();
+        const ResourceEconomyReport cycle =
+            ResourceEconomyVerifier::verify(
+                cycleContract, cyclicRecipes, smelting, foods);
+        check("N10/net-positive-material-cycle-is-rejected",
+              !cycle.transformationGraphAcyclic && !cycle.passed());
+    }
 }
 
 int main()
@@ -1615,7 +1849,8 @@ int main()
     caseFoodRegistry();
     caseEnemyRegistry();
     caseCombatRecipes();
-    constexpr int ExpectedChecks = 104;
+    caseResourceEconomy();
+    constexpr int ExpectedChecks = 117;
     if (checks != ExpectedChecks) {
         ++failures;
         std::cout << "[RECIPE_TEST] FAIL G1/expected-check-count"
