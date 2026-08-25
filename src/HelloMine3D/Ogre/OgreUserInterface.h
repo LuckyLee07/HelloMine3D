@@ -71,6 +71,7 @@ class OgreUserInterface final : public Ogre::RenderQueueListener
                       GameApplicationFlow &applicationFlow,
                       WorldManagementService &worldManagement,
                       const UserSettings &settings,
+                      std::string presentationFontPath,
                       std::function<void()> uiFeedback = {},
                       std::vector<PendingCrashReport> crashReports = {});
     ~OgreUserInterface() override;
@@ -91,7 +92,7 @@ class OgreUserInterface final : public Ogre::RenderQueueListener
     bool isDebugPanelVisible() const noexcept;
     void setWorldContext(Player *player, World *world) noexcept;
     void setStatusMessage(std::string message);
-    void setAudioCaption(std::string caption);
+    void setAudioCaption(std::string cueId, std::string caption);
     bool dismissSettings() noexcept;
     void reportSettingsApplied(bool succeeded,
                                const UserSettings &settings,

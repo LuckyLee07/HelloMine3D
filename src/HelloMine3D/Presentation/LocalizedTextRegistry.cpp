@@ -214,7 +214,8 @@ namespace
     }
 }
 
-void LocalizedTextRegistry::freeze(std::vector<LocalizedTextSource> sources)
+void LocalizedTextRegistry::freeze(std::vector<LocalizedTextSource> sources,
+                                   bool requireKeyParity)
 {
     if (m_frozen)
     {
@@ -240,6 +241,26 @@ void LocalizedTextRegistry::freeze(std::vector<LocalizedTextSource> sources)
     {
         throw std::runtime_error(
             "Localized text registry requires the en-US fallback locale.");
+    }
+    if (requireKeyParity)
+    {
+        const Catalogue& fallback = catalogues.at(DefaultLocale);
+        for (const auto& locale : catalogues)
+        {
+            if (locale.second.size() != fallback.size() ||
+                !std::all_of(
+                    fallback.begin(), fallback.end(),
+                    [&locale](const auto& entry)
+                    {
+                        return locale.second.find(entry.first) !=
+                               locale.second.end();
+                    }))
+            {
+                throw std::runtime_error(
+                    "Localized text locale '" + locale.first +
+                    "' does not match the en-US semantic key set.");
+            }
+        }
     }
     m_catalogues = std::move(catalogues);
     m_frozen = true;
@@ -286,7 +307,7 @@ void LocalizedTextRegistry::freezeFromResourceView(
         }
         sources.push_back({resource.logicalPath, std::move(content)});
     }
-    freeze(std::move(sources));
+    freeze(std::move(sources), true);
 }
 
 bool LocalizedTextRegistry::isFrozen() const noexcept
@@ -454,5 +475,5 @@ void ensureRuntimeLocalizedTextRegistry()
         }
         sources.push_back({path, std::move(content)});
     }
-    registry.freeze(std::move(sources));
+    registry.freeze(std::move(sources), true);
 }

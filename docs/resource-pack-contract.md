@@ -70,11 +70,13 @@ as a stale or unsupported override. This also means that v1 cannot introduce a
 new block id, shape name, behavior script or executable extension.
 
 The base manifest may also contain `recipe`, `tool`, `audio`, `objective`,
-`smelting`, `food`, `enemy` and `text` entries, but none is an allowed v1 override class. These
-versioned gameplay registries load only from base-owned sources; a pack containing the same
-logical path is rejected as stale or unsupported. Adding ownership for any of
-these categories requires a new resource-pack format and an explicit migration
-policy for saved gameplay state.
+`smelting`, `food`, `enemy`, `text`, `presentation-font` and `license` entries,
+but none is an allowed v1 override class. These versioned gameplay registries,
+localized catalogues and product-presentation/legal assets load only from
+base-owned sources; a pack containing the same logical path is rejected as
+stale or unsupported. Adding ownership for any of these categories requires a
+new resource-pack format and an explicit migration policy for saved gameplay
+state or presentation/legal ownership.
 
 ## Path and trust policy
 
@@ -127,12 +129,14 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\validate_resource_packs.ps1
 ```
 
-`HelloMine3DResourcePackSmoke` provides 28 isolated parser/resolver assertions:
+`HelloMine3DResourcePackSmoke` provides 32 isolated parser/resolver assertions:
 no-pack compatibility, deterministic precedence, fallback, all six resource
 classes, Ogre directory order, version/traversal/stale/empty/duplicate/missing
 rejection, explicit recipe/tool/audio/objective/smelting/food/enemy/text-override rejection,
-sorted ownership and one-time freeze. The current base view has 49 entries,
-including the base-owned gameplay registries and two localized text catalogues.
+base-only presentation-font/license rejection, optional-font startup fallback,
+sorted ownership and one-time freeze. The current base view has 51 entries,
+including the base-owned gameplay registries, two localized text catalogues,
+the Noto Sans SC presentation font and its OFL license.
 The wrapper then launches the real Release/Debug client with no pack and with
 `packs/example-stone`, requiring manifests that differ only in ownership of
 Stone.

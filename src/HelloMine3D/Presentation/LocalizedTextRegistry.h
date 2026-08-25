@@ -25,7 +25,8 @@ class LocalizedTextRegistry
     static constexpr std::size_t MaxTextBytes = 1024;
     static constexpr std::size_t MaxDiagnostics = 128;
 
-    void freeze(std::vector<LocalizedTextSource> sources);
+    void freeze(std::vector<LocalizedTextSource> sources,
+                bool requireKeyParity = true);
     void freezeFromResourceView(const ResourcePackResolver& resolver);
 
     bool isFrozen() const noexcept;

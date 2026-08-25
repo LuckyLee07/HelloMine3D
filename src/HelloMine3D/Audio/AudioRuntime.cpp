@@ -466,7 +466,7 @@ void AudioRuntime::submit(AudioPlaybackEvent event) noexcept
     if (m_settings.audioCaptions && m_captionSink &&
         !definition->caption.empty()) {
         try {
-            m_captionSink(definition->caption);
+            m_captionSink(definition->id, definition->caption);
         }
         catch (...) {
         }
@@ -532,7 +532,7 @@ void AudioRuntime::setUserSettings(const UserSettings &settings) noexcept
 }
 
 void AudioRuntime::setCaptionSink(
-    std::function<void(std::string)> sink) noexcept
+    std::function<void(std::string, std::string)> sink) noexcept
 {
     m_captionSink = std::move(sink);
 }

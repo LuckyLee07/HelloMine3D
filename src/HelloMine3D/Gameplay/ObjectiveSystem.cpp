@@ -140,6 +140,7 @@ void ObjectiveSystem::update(float deltaSeconds)
     if (m_feedbackSeconds <= 0.f)
     {
         m_completionFeedback.clear();
+        m_completionFeedbackId.clear();
     }
 }
 
@@ -157,10 +158,12 @@ ObjectiveSnapshot ObjectiveSystem::snapshot() const
         if (isCompleted(definition.id))
         {
             ++result.completedObjectives;
+            result.completedIds.push_back(definition.id);
             result.completedTitles.push_back(definition.title);
         }
     }
     result.completionFeedback = m_completionFeedback;
+    result.completionFeedbackId = m_completionFeedbackId;
 
     const ObjectiveDefinition* current = currentDefinition();
     if (current == nullptr)
@@ -194,6 +197,7 @@ ObjectiveSnapshot ObjectiveSystem::snapshot() const
             !isCompleted(definition.id))
         {
             result.nextTitle = definition.title;
+            result.nextId = definition.id;
             break;
         }
     }
@@ -467,6 +471,7 @@ void ObjectiveSystem::complete(const ObjectiveDefinition& definition)
     if (definition.visible)
     {
         m_completionFeedback = definition.feedback;
+        m_completionFeedbackId = definition.id;
         m_feedbackSeconds = FeedbackDurationSeconds;
     }
 }

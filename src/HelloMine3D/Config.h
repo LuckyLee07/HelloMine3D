@@ -2,6 +2,7 @@
 #define CONFIG_H_INCLUDED
 
 #include <optional>
+#include <string>
 
 #include "GameplayInput.h"
 
@@ -19,6 +20,7 @@ struct UserSettings {
     float effectsVolume = 1.0f;
     float ambientVolume = 1.0f;
     float uiScale = 1.0f;
+    std::string locale = "en-US";
     bool audioCaptions = true;
     bool showActionHints = true;
     GameplayInputBindings inputBindings;

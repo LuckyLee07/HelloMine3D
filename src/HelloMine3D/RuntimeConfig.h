@@ -6,7 +6,8 @@
 #include "Config.h"
 #include "World/Storage/StorageTransaction.h"
 
-constexpr int RuntimeSettingsFormatVersion = 2;
+constexpr int RuntimeSettingsFormatVersion = 3;
+constexpr int PreviousRuntimeSettingsFormatVersion = 2;
 constexpr int LegacyRuntimeSettingsFormatVersion = 1;
 
 struct RuntimeSettingsApplyPlan {

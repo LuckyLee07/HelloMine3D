@@ -33,3 +33,20 @@
 `tools/build_fs3_texture_atlas.ps1` 继续从原 FS3 来源重建全部既有单元，只从 N10 来源的固定
 包围框裁切五个新图标到第三行 x=10..14。脚本使用 SourceCopy、最近邻、无平滑，并在 14×14
 可视范围内居中；因此新增内容不会重绘或漂移已冻结的方块和物品图标。
+
+## N12A 中文界面字体
+
+- 最终运行时资源：`media/fonts/NotoSansSC-VF.ttf`
+- 随包许可证：`media/fonts/NotoSansSC-OFL.txt`
+- Google Fonts 目录：`https://github.com/google/fonts/tree/main/ofl/notosanssc`
+- 字体下载地址：`https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf`
+- 许可证地址：`https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/OFL.txt`
+- 上游项目：`https://github.com/notofonts/noto-cjk`
+- 上游版本：Noto Sans SC 2.004，commit `523d033d6cb47f4a80c58a35753646f5c3608a78`
+- 许可证：SIL Open Font License 1.1；Copyright 2014-2021 Adobe，保留字体名 `Source`
+- 字体 SHA-256：`A3041811A78C361B1DE50F953C805E0244951C21C5BD412F7232EF0D899AF0DA`
+- 许可证 SHA-256：`1C05C68C34F9708415AADA51F17E1B0092D2CEA709BF4A94CD38114F9E73D7D9`
+- 下载日期：2026-08-25
+
+文件直接取自 Google Fonts 官方 `notosanssc` 目录，未修改字体名称、轮廓或表结构。项目只在
+运行时构建 ImGui 字形图集；字体文件本身保持原版并与 OFL 原文一起进入资源清单和发行包。

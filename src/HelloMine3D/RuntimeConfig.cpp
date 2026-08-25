@@ -72,6 +72,7 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
     ParsedRuntimeConfig parsed;
     bool hasVersion = false;
     bool usesVersionTwoKey = false;
+    bool usesVersionThreeKey = false;
     std::set<std::string> seenKeys;
     std::string line;
     std::size_t lineNumber = 0;
@@ -96,6 +97,7 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
             const int version = readInteger(path, key, values);
             requireEnd(path, key, values);
             if (version != LegacyRuntimeSettingsFormatVersion &&
+                version != PreviousRuntimeSettingsFormatVersion &&
                 version != RuntimeSettingsFormatVersion) {
                 fail(path, key, "uses unsupported version " +
                                     std::to_string(version));
@@ -156,6 +158,13 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
             parsed.config.uiScale = readFloat(path, key, values);
             requireEnd(path, key, values);
             usesVersionTwoKey = true;
+        }
+        else if (key == "locale") {
+            if (!(values >> parsed.config.locale)) {
+                fail(path, key, "must contain a locale");
+            }
+            requireEnd(path, key, values);
+            usesVersionThreeKey = true;
         }
         else if (key == "audiocaptions") {
             const int enabled = readInteger(path, key, values);
@@ -226,6 +235,11 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
         fail(path, "settings_version",
              "version 1 cannot contain version 2 settings");
     }
+    if (usesVersionThreeKey &&
+        (!hasVersion || parsed.version < RuntimeSettingsFormatVersion)) {
+        fail(path, "settings_version",
+             "older versions cannot contain version 3 settings");
+    }
     parsed.needsMigration =
         !hasVersion || parsed.version < RuntimeSettingsFormatVersion;
     try {
@@ -255,6 +269,7 @@ std::vector<char> serializeRuntimeConfig(const Config &config)
            << "effectsvolume " << config.effectsVolume << '\n'
            << "ambientvolume " << config.ambientVolume << '\n'
            << "uiscale " << config.uiScale << '\n'
+           << "locale " << config.locale << '\n'
            << "audiocaptions " << (config.audioCaptions ? 1 : 0) << '\n'
            << "actionhints " << (config.showActionHints ? 1 : 0) << '\n';
     for (std::size_t actionIndex = 0;
@@ -302,6 +317,10 @@ void validateUserSettings(const UserSettings &settings)
     if (!std::isfinite(settings.uiScale) || settings.uiScale < 0.75f ||
         settings.uiScale > 1.75f) {
         throw std::runtime_error("UI scale must be between 0.75 and 1.75");
+    }
+    if (settings.locale != "en-US" && settings.locale != "zh-CN") {
+        throw std::runtime_error(
+            "locale must be one of en-US or zh-CN");
     }
     std::string bindingError;
     if (!validateGameplayInputBindings(settings.inputBindings,

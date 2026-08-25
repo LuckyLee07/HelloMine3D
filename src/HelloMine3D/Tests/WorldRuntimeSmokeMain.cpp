@@ -44,6 +44,7 @@
 #include "../Diagnostics/RuntimeDebugOptions.h"
 #include "../Diagnostics/TerrainBufferMetrics.h"
 #include "../Gameplay/AlphaJourney.h"
+#include "../Gameplay/ObjectiveRegistry.h"
 #include "../Gameplay/VictoryFlow.h"
 #include "../Gameplay/WaystoneEncounter.h"
 #include "../Item/Material.h"
@@ -55,6 +56,9 @@
 #include "../Item/ToolRegistry.h"
 #include "../Player/Player.h"
 #include "../Presentation/LocalizedTextRegistry.h"
+#include "../Presentation/LocalizedPresentation.h"
+#include "../Presentation/PresentationCaption.h"
+#include "../Presentation/PresentationLayout.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/Events/BlockEvents.h"
 #include "../Sandbox/Events/ChunkEvents.h"
@@ -325,6 +329,7 @@ void caseRuntimeConfigOwnership()
               std::abs(generated.mouseSensitivity - 0.05f) < 0.0001f &&
               !generated.invertMouseY &&
               std::abs(generated.uiScale - 1.f) < 0.0001f &&
+              generated.locale == "en-US" &&
               generated.audioCaptions && generated.showActionHints &&
               generated.inputBindings.get(GameplayAction::MoveForward) ==
                   GameplayKey::W &&
@@ -340,11 +345,12 @@ void caseRuntimeConfigOwnership()
         std::ifstream input(configPath, std::ios::binary);
         const std::string text((std::istreambuf_iterator<char>(input)),
                                std::istreambuf_iterator<char>());
-        check("G4/settings-file-is-versioned",
-               text.find("settings_version 2\n") != std::string::npos &&
+        check("N12A/settings-file-is-versioned-with-locale",
+               text.find("settings_version 3\n") != std::string::npos &&
                    text.find("mastervolume 1") != std::string::npos &&
                    text.find("ambientvolume 1") != std::string::npos &&
                    text.find("uiscale 1") != std::string::npos &&
+                   text.find("locale en-US") != std::string::npos &&
                    text.find("key_consume_food r") != std::string::npos,
               text);
     }
@@ -371,9 +377,10 @@ void caseRuntimeConfigOwnership()
         std::ifstream input(configPath, std::ios::binary);
         const std::string text((std::istreambuf_iterator<char>(input)),
                                std::istreambuf_iterator<char>());
-        check("G4/legacy-settings-migrated-atomically",
-               text.find("settings_version 2\n") == 0 &&
+        check("N12A/legacy-settings-migrated-atomically",
+               text.find("settings_version 3\n") == 0 &&
                    text.find("uivolume 1") != std::string::npos &&
+                   text.find("locale en-US") != std::string::npos &&
                    text.find("audiocaptions 1") != std::string::npos,
                text);
     }
@@ -392,12 +399,36 @@ void caseRuntimeConfigOwnership()
         std::ifstream input(versionOnePath, std::ios::binary);
         const std::string text((std::istreambuf_iterator<char>(input)),
                                std::istreambuf_iterator<char>());
-        check("N6/version-one-settings-migrate-with-accessibility-defaults",
+        check("N12A/version-one-settings-migrate-with-presentation-defaults",
               versionOne.renderDistance == 6 && versionOne.fov == 95 &&
+                  versionOne.locale == "en-US" &&
                   versionOne.audioCaptions && versionOne.showActionHints &&
                   versionOne.inputBindings.get(
                       GameplayAction::OpenCrafting) == GameplayKey::E &&
-                  text.find("settings_version 2\n") == 0,
+                  text.find("settings_version 3\n") == 0,
+              text);
+    }
+
+    const std::filesystem::path versionTwoPath =
+        directory / "version-two-config.txt";
+    {
+        std::ofstream output(versionTwoPath,
+                             std::ios::binary | std::ios::trunc);
+        output << "settings_version 2\n"
+               << "uiscale 1.25\n"
+               << "audiocaptions 0\n";
+    }
+    const Config versionTwo = loadRuntimeConfig(versionTwoPath.string());
+    {
+        std::ifstream input(versionTwoPath, std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(input)),
+                               std::istreambuf_iterator<char>());
+        check("N12A/version-two-settings-migrate-with-locale-default",
+              std::abs(versionTwo.uiScale - 1.25f) < 0.0001f &&
+                  !versionTwo.audioCaptions &&
+                  versionTwo.locale == "en-US" &&
+                  text.find("settings_version 3\n") == 0 &&
+                  text.find("locale en-US\n") != std::string::npos,
               text);
     }
 
@@ -439,6 +470,7 @@ void caseRuntimeConfigOwnership()
     userSettings(persisted) = plan.settings;
     persisted.fov = 96;
     persisted.uiScale = 1.25f;
+    persisted.locale = "zh-CN";
     persisted.audioCaptions = false;
     persisted.showActionHints = false;
     persisted.inputBindings.set(GameplayAction::ConsumeFood,
@@ -452,6 +484,7 @@ void caseRuntimeConfigOwnership()
           reloaded.fov == 96 && reloaded.worldSeed.has_value() &&
               *reloaded.worldSeed == 77123 &&
               std::abs(reloaded.uiScale - 1.25f) < 0.0001f &&
+              reloaded.locale == "zh-CN" &&
               !reloaded.audioCaptions && !reloaded.showActionHints &&
               reloaded.inputBindings.get(GameplayAction::ConsumeFood) ==
                   GameplayKey::Q);
@@ -518,7 +551,15 @@ void caseRuntimeConfigOwnership()
                   "settings_version 2\nkey_consume_food e\n") &&
               invalidSettingsRejected(
                   "unknown-binding.txt",
-                  "settings_version 2\nkey_consume_food mouse9\n"));
+                  "settings_version 2\nkey_consume_food mouse9\n") &&
+              invalidSettingsRejected(
+                  "old-version-locale.txt",
+                  "settings_version 2\nlocale zh-CN\n") &&
+              invalidSettingsRejected(
+                  "legacy-locale.txt", "locale zh-CN\n") &&
+              invalidSettingsRejected(
+                  "unknown-locale.txt",
+                  "settings_version 3\nlocale fr-FR\n"));
 }
 
 std::string readTextFile(const std::string &path)
@@ -587,12 +628,88 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 36);
+              registry.keys("en-US").size() == 341);
     check("N7A/localized-victory-text-resolves",
           registry.lookup("en-US", "victory.overlay.title") ==
                   "Waystone Restored" &&
               registry.lookup("zh-CN", "victory.overlay.title") !=
                   registry.lookup("en-US", "victory.overlay.title"));
+
+    ensureRuntimeLocalizedTextRegistry();
+    check("N12A/semantic-ids-localize-without-changing-identity",
+          LocalizedPresentation::materialName(
+              "zh-CN", Material::ID::IronIngot) ==
+                  runtimeLocalizedTextRegistry().lookup(
+                      "zh-CN", "material.iron_ingot.name") &&
+              LocalizedPresentation::objectiveText(
+                  "zh-CN", "alpha.gather_wood", "title") ==
+                  runtimeLocalizedTextRegistry().lookup(
+                      "zh-CN", "objective.alpha.gather_wood.title") &&
+              LocalizedPresentation::audioCaption(
+                  "zh-CN", "block.break") ==
+                  runtimeLocalizedTextRegistry().lookup(
+                      "zh-CN", "audio.block.break.caption") &&
+              LocalizedPresentation::materialName(
+                  "zh-CN", Material::ID::IronIngot) !=
+                  LocalizedPresentation::materialName(
+                      "en-US", Material::ID::IronIngot));
+
+    ensureRuntimeObjectiveRegistry();
+    bool semanticCoverageComplete = true;
+    for (int value = 0; value < static_cast<int>(Material::ID::Count); ++value)
+    {
+        std::string id = Material::toStringId(
+            static_cast<Material::ID>(value));
+        const std::size_t separator = id.find(':');
+        if (separator != std::string::npos)
+        {
+            id.erase(0, separator + 1);
+        }
+        const std::string key = "material." + id + ".name";
+        semanticCoverageComplete = semanticCoverageComplete &&
+            registry.hasKey("en-US", key) && registry.hasKey("zh-CN", key);
+    }
+    for (const ObjectiveDefinition& definition :
+         runtimeObjectiveRegistry().definitions())
+    {
+        const std::string prefix = "objective." + definition.id + ".";
+        semanticCoverageComplete = semanticCoverageComplete &&
+            registry.hasKey("en-US", prefix + "title") &&
+            registry.hasKey("zh-CN", prefix + "title") &&
+            registry.hasKey("en-US", prefix + "instruction") &&
+            registry.hasKey("zh-CN", prefix + "instruction") &&
+            registry.hasKey("en-US", prefix + "feedback") &&
+            registry.hasKey("zh-CN", prefix + "feedback");
+    }
+    const std::array<const char*, 9> captionCueIds = {{
+        "ui.click", "block.break", "block.place", "item.pickup",
+        "craft.success", "combat.hit", "combat.windup", "combat.guard",
+        "ambient.wind"}};
+    for (const char* cueId : captionCueIds)
+    {
+        const std::string key = "audio." + std::string(cueId) + ".caption";
+        semanticCoverageComplete = semanticCoverageComplete &&
+            registry.hasKey("en-US", key) && registry.hasKey("zh-CN", key);
+    }
+    check("N12A/all-material-objective-and-caption-ids-have-text",
+          semanticCoverageComplete);
+
+    bool parityRejected = false;
+    try {
+        LocalizedTextRegistry mismatched;
+        mismatched.freeze({
+            {"mismatch-en", "# HelloMine3D localized text v1\n"
+                            "locale en-US\n"
+                            "text app.title \"HelloMine3D\"\n"},
+            {"mismatch-zh", "# HelloMine3D localized text v1\n"
+                            "locale zh-CN\n"
+                            "text common.close \"CloseZh\"\n"}});
+    }
+    catch (const std::runtime_error &) {
+        parityRejected = true;
+    }
+    check("N12A/production-catalogues-require-key-parity",
+          parityRejected);
 
     LocalizedTextRegistry fallback;
     fallback.freeze({
@@ -601,7 +718,8 @@ void caseWorldOutcomeAndLocalizedText()
                         "text victory.overlay.title \"Victory\"\n"},
         {"fallback-zh", "# HelloMine3D localized text v1\n"
                         "locale zh-CN\n"
-                        "text world.list.completed \"Complete\"\n"}});
+                        "text world.list.completed \"Complete\"\n"}},
+        false);
     const bool translationFallback =
         fallback.lookup("zh-CN", "victory.overlay.title") == "Victory";
     const bool localeFallback =
@@ -627,6 +745,88 @@ void caseWorldOutcomeAndLocalizedText()
     }
     check("N7A/invalid-text-source-does-not-partially-freeze",
           invalidTextRejected && !invalidText.isFrozen());
+
+    auto rejectedLocalizedValue = [](const std::string& value)
+    {
+        LocalizedTextRegistry candidate;
+        try
+        {
+            candidate.freeze({
+                {"invalid-value", "# HelloMine3D localized text v1\n"
+                                  "locale en-US\n"
+                                  "text test.value \"" + value + "\"\n"}});
+        }
+        catch (const std::runtime_error&)
+        {
+            return !candidate.isFrozen();
+        }
+        return false;
+    };
+    const unsigned char invalidUtf8Bytes[] = {0xf0u, 0x28u, 0x8cu, 0x28u};
+    const std::string invalidUtf8(
+        reinterpret_cast<const char*>(invalidUtf8Bytes),
+        sizeof(invalidUtf8Bytes));
+    check("N12A/invalid-utf8-and-oversized-text-are-rejected",
+          rejectedLocalizedValue(invalidUtf8) &&
+              rejectedLocalizedValue(std::string(
+                  LocalizedTextRegistry::MaxTextBytes + 1, 'x')));
+
+    const PresentationFontProbe bundledFont = probePresentationFont(
+        ResourcePaths::media("fonts/NotoSansSC-VF.ttf"));
+    const PresentationFontProbe missingFont = probePresentationFont(
+        ResourcePaths::media("fonts/missing-presentation-font.ttf"));
+    check("N12A/font-probe-accepts-bundle-and-bounds-missing-fallback",
+          bundledFont.usable && bundledFont.bytes > 1024u * 1024u &&
+              !missingFont.usable && !missingFont.diagnostic.empty());
+    const std::string fontLicense = readTextFile(
+        ResourcePaths::media("fonts/NotoSansSC-OFL.txt"));
+    check("N12A/credits-and-font-license-assets-are-present",
+          registry.lookup("en-US", "credits.title") ==
+                  "Credits and Licenses" &&
+              registry.lookup("zh-CN", "credits.title") !=
+                  registry.lookup("en-US", "credits.title") &&
+              registry.lookup("en-US", "credits.font_path").find(
+                  "media/fonts/NotoSansSC-OFL.txt") != std::string::npos &&
+              fontLicense.find("SIL OPEN FONT LICENSE Version 1.1") !=
+                  std::string::npos);
+
+    const PresentationWindowLayout minimumLayout =
+        fitPresentationWindow(640.0f, 480.0f, 820.0f, 660.0f, 1.75f);
+    const PresentationWindowLayout maximumLayout =
+        fitPresentationWindow(7680.0f, 4320.0f, 820.0f, 660.0f, 0.75f);
+    const PresentationWindowLayout invalidLayout =
+        fitPresentationWindow(NAN, NAN, 820.0f, 660.0f, NAN);
+    const std::size_t longTextLines =
+        estimateWrappedPresentationLines(
+            std::string(LocalizedTextRegistry::MaxTextBytes, 'x'), 32);
+    check("N12A/extreme-ui-scale-layout-remains-on-screen",
+          minimumLayout.width == 610.0f &&
+              minimumLayout.height == 450.0f &&
+              minimumLayout.scrollRequired &&
+              maximumLayout.width == 820.0f &&
+              maximumLayout.height == 660.0f &&
+              !maximumLayout.scrollRequired &&
+              invalidLayout.width == 610.0f &&
+              invalidLayout.height == 450.0f && longTextLines == 32);
+
+    PresentationCaptionTimeline captionTimeline;
+    captionTimeline.submit("ambient.wind", "Wind");
+    captionTimeline.update(2.4f);
+    const PresentationCaptionSnapshot nearlyExpired =
+        captionTimeline.snapshot();
+    captionTimeline.submit("ambient.wind", "Wind");
+    const PresentationCaptionSnapshot refreshed = captionTimeline.snapshot();
+    captionTimeline.submit("combat.windup", "Enemy attack warning");
+    captionTimeline.submit("ambient.wind", "Wind");
+    const PresentationCaptionSnapshot protectedCombat =
+        captionTimeline.snapshot();
+    captionTimeline.update(PresentationCaptionTimeline::DurationSeconds);
+    check("N12A/caption-duration-refresh-priority-and-expiry-are-bounded",
+          nearlyExpired.visible() && nearlyExpired.remainingSeconds < 0.11f &&
+              refreshed.remainingSeconds ==
+                  PresentationCaptionTimeline::DurationSeconds &&
+              protectedCombat.cueId == "combat.windup" &&
+              !captionTimeline.snapshot().visible());
 
     const auto saveDirectory = freshSaveDirectory("n7a_outcome_current");
     WorldSaveData valid;
@@ -5825,8 +6025,9 @@ void caseAudioFeedback()
     std::unique_ptr<AudioRuntime> audio = AudioRuntime::createDummy(
         std::move(routedDefinitions), settings);
     std::vector<std::string> captions;
-    audio->setCaptionSink([&captions](std::string caption) {
-        captions.push_back(std::move(caption));
+    audio->setCaptionSink([&captions](std::string cueId,
+                                     std::string caption) {
+        captions.push_back(std::move(cueId) + ":" + caption);
     });
     audio->attach(eventBus);
     eventBus.publish(BlockBreakEvent({1, 2, 3}, BlockId::Stone));
@@ -5901,7 +6102,7 @@ void caseAudioFeedback()
           audio->stats().suppressedEvents ==
               suppressedBeforeMaster + 1 &&
               captions.size() == captionsBeforeMaster + 1 &&
-              captions.back() == "Menu selection");
+              captions.back() == "ui.click:Menu selection");
 
     settings.audioCaptions = false;
     audio->setUserSettings(settings);

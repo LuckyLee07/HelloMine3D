@@ -19,7 +19,7 @@
 
 | 所有者 | 字段 | 设置页权限 |
 | ------ | ---- | ---------- |
-| `UserSettings` | 窗口宽高、全屏、视距、FOV、鼠标灵敏度、反转 Y、主/UI/效果/环境音量、UI 缩放、声音字幕、操作提示和九项玩法键位 | 可编辑 |
+| `UserSettings` | 窗口宽高、全屏、视距、FOV、鼠标灵敏度、反转 Y、主/UI/效果/环境音量、UI 缩放、语言、声音字幕、操作提示和九项玩法键位 | 可编辑 |
 | `WorldCreationConfig` | 可选世界 seed | 不可见、不可编辑 |
 
 恢复默认值只重新创建 `UserSettings`。应用时以当前完整 `Config` 为基底替换用户设置，
@@ -39,10 +39,10 @@
 
 ## 文件格式
 
-`bin/config.txt` 使用严格文本格式，N6 后当前版本为 2：
+`bin/config.txt` 使用严格文本格式，N12A 后当前版本为 3：
 
 ```text
-settings_version 2
+settings_version 3
 renderdistance 8
 fullscreen 0
 windowsize 1280 720
@@ -54,6 +54,7 @@ uivolume 1
 effectsvolume 1
 ambientvolume 1
 uiscale 1
+locale en-US
 audiocaptions 1
 actionhints 1
 key_move_forward w
@@ -69,11 +70,13 @@ seed random
 ```
 
 - 空行和 `#` 后注释可忽略；重复字段、未知字段、尾随数据和非有限浮点数拒绝。
-- 无 `settings_version` 的旧文件按 legacy v0 读取；显式版本 1 仍按原字段边界读取。两者
-  缺失的 N6 字段使用默认值，成功校验后立即原子迁移到 v2。版本 1 混入版本 2 字段拒绝。
+- 无 `settings_version` 的旧文件按 legacy v0 读取；显式版本 1/2 仍按各自字段边界读取。
+  缺失字段使用默认值，成功校验后立即原子迁移到 v3；v0-v2 的 locale 固定迁移为 `en-US`。
+  版本 1 混入版本 2 字段或旧版本混入 v3 `locale` 都拒绝。
 - 未知版本明确拒绝，不尝试猜测或降级。
 - 视距范围为 1-32，窗口为 640×480 至 7680×4320，FOV 为 45-120，灵敏度为
-  0.005-1.0，各音量为 0.0-1.0，UI 缩放为 0.75-1.75；九项玩法键位不得重复。
+  0.005-1.0，各音量为 0.0-1.0，UI 缩放为 0.75-1.75；locale 只接受 `en-US`/`zh-CN`；
+  九项玩法键位不得重复。
 
 ## 原子性与失败
 
@@ -85,8 +88,8 @@ seed random
 
 `HelloMine3DWorldRuntimeSmoke` 的 G4 用例覆盖：
 
-- 缺失文件生成 v2、四类音量、辅助选项和九项键位默认值；
-- legacy v0、版本 1 自动迁移，版本 1 越界字段和未知版本拒绝；
+- 缺失文件生成 v3、四类音量、语言、辅助选项和九项键位默认值；
+- legacy v0、版本 1/2 自动迁移，旧版本越界字段和未知版本拒绝；
 - 辅助选项与自定义键位往返，重复/未知键位和 UI 缩放越界拒绝；
 - 草稿应用计划、取消、默认值、显示重启分类和非法范围；
 - 成功保存保留 seed，替换前故障保持上一份有效文件；

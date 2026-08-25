@@ -425,7 +425,8 @@ void ResourcePackResolver::freeze(
                             std::ios::binary | std::ios::ate);
         if (!input || input.tellg() <= 0)
         {
-            if (requirement.category == "audio")
+            if (requirement.category == "audio" ||
+                requirement.category == "presentation-font")
             {
                 m_effectiveResources.push_back(std::move(effective));
                 continue;

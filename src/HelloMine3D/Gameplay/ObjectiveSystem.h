@@ -17,10 +17,13 @@ struct ObjectiveSnapshot
 {
     int definitionVersion = 0;
     std::string currentId;
+    std::string nextId;
     std::string title;
     std::string instruction;
     std::string nextTitle;
     std::string completionFeedback;
+    std::string completionFeedbackId;
+    std::vector<std::string> completedIds;
     std::vector<std::string> completedTitles;
     int progress = 0;
     int required = 0;
@@ -68,5 +71,6 @@ class ObjectiveSystem
     std::vector<std::string> m_unknownCompleted;
     std::vector<ObjectiveProgressState> m_unknownProgress;
     std::string m_completionFeedback;
+    std::string m_completionFeedbackId;
     float m_feedbackSeconds = 0.f;
 };

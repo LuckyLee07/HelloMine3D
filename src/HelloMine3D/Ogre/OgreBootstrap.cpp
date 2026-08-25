@@ -101,31 +101,32 @@ namespace
                    : OIS::KC_UNASSIGNED;
     }
 
-    const char *foodUseResultMessage(FoodUseResult result) noexcept
+    const char *foodUseResultKey(FoodUseResult result) noexcept
     {
         switch (result)
         {
-            case FoodUseResult::Consumed: return "Food consumed.";
+            case FoodUseResult::Consumed:
+                return "food.feedback.consumed";
             case FoodUseResult::SimulationPaused:
-                return "Cannot eat while the simulation is paused.";
+                return "food.feedback.paused";
             case FoodUseResult::UiBusy:
-                return "Close the current interface before eating.";
+                return "food.feedback.ui_busy";
             case FoodUseResult::PlayerUnavailable:
-                return "The player is not available.";
+                return "food.feedback.player_unavailable";
             case FoodUseResult::PlayerDead:
-                return "A defeated player cannot eat.";
+                return "food.feedback.player_dead";
             case FoodUseResult::CoolingDown:
-                return "Food is still cooling down.";
+                return "food.feedback.cooldown";
             case FoodUseResult::EmptyHand:
-                return "Hold food before trying to eat.";
+                return "food.feedback.empty_hand";
             case FoodUseResult::NotFood:
-                return "The held item is not food.";
+                return "food.feedback.not_food";
             case FoodUseResult::FullHealth:
-                return "Health is already full.";
+                return "food.feedback.full_health";
             case FoodUseResult::InventoryRejected:
-                return "The food could not be consumed.";
+                return "food.feedback.inventory_rejected";
         }
-        return "Food use failed.";
+        return "food.feedback.failed";
     }
 
     struct TerrainBuildSummary
@@ -357,7 +358,10 @@ namespace
             m_userInterface = std::make_unique<OgreUserInterface>(
                 *m_window, *m_sceneManager, *m_camera, m_worldPlayer,
                 m_world, m_applicationFlow, *m_worldManagement,
-                userSettings(m_config), [this]() {
+                userSettings(m_config),
+                runtimeResourcePackResolver().resolve(
+                    "media/fonts/NotoSansSC-VF.ttf"),
+                [this]() {
                     if (m_audio != nullptr)
                     {
                         m_audio->emitUiClick();
@@ -365,12 +369,13 @@ namespace
                 }, std::move(m_pendingCrashReports));
             if (m_audio != nullptr)
             {
-                m_audio->setCaptionSink([this](std::string caption)
+                m_audio->setCaptionSink([this](std::string cueId,
+                                               std::string caption)
                 {
                     if (m_userInterface != nullptr)
                     {
                         m_userInterface->setAudioCaption(
-                            std::move(caption));
+                            std::move(cueId), std::move(caption));
                     }
                 });
             }
@@ -1496,8 +1501,10 @@ namespace
             if (m_userInterface != nullptr &&
                 m_sandbox->getFoodUseResult().has_value())
             {
-                m_userInterface->setStatusMessage(foodUseResultMessage(
-                    *m_sandbox->getFoodUseResult()));
+                m_userInterface->setStatusMessage(
+                    runtimeLocalizedTextRegistry().lookup(
+                        m_config.locale, foodUseResultKey(
+                            *m_sandbox->getFoodUseResult())));
             }
             if (m_userInterface != nullptr && m_world != nullptr)
             {
@@ -1507,7 +1514,7 @@ namespace
                 {
                     m_userInterface->setStatusMessage(
                         runtimeLocalizedTextRegistry().lookup(
-                            "en-US", feedback));
+                            m_config.locale, feedback));
                 }
             }
             clearTransientInput();

@@ -44,6 +44,8 @@ foreach ($requiredInput in @($blockDatabasePath, $programPath, $materialPath)) {
 Add-ManifestEntry "resource-script" "media/ogre/HelloMine3D.program"
 Add-ManifestEntry "resource-script" "media/ogre/HelloMine3D.material"
 Add-ManifestEntry "font" "media/fonts/rs.ttf"
+Add-ManifestEntry "presentation-font" "media/fonts/NotoSansSC-VF.ttf"
+Add-ManifestEntry "license" "media/fonts/NotoSansSC-OFL.txt"
 Add-ManifestEntry "runtime-template" "bin/Mine.cfg"
 Add-ManifestEntry "runtime-template" "bin/MineResources.cfg"
 Add-ManifestEntry "runtime-template" "bin/resource-packs.txt"

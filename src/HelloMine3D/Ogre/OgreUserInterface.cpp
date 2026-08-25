@@ -13,6 +13,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <fstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -28,6 +29,9 @@
 #include "../Item/ToolRegistry.h"
 #include "../Player/Player.h"
 #include "../Presentation/LocalizedTextRegistry.h"
+#include "../Presentation/LocalizedPresentation.h"
+#include "../Presentation/PresentationCaption.h"
+#include "../Presentation/PresentationLayout.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/GameApplicationFlow.h"
 #include "../Util/ResourcePaths.h"
@@ -178,7 +182,8 @@ namespace
         return units > 0 && units <= gridSize * gridSize;
     }
 
-    std::string recipeIngredientSummary(const RecipeDefinition &recipe)
+    std::string recipeIngredientSummary(const RecipeDefinition &recipe,
+                                        const std::string& locale)
     {
         std::string summary;
         for (const RecipeIngredient &ingredient : recipe.ingredients)
@@ -187,7 +192,8 @@ namespace
             {
                 summary += ", ";
             }
-            summary += Material::toMaterial(ingredient.materialId).name +
+            summary += LocalizedPresentation::materialName(
+                           locale, ingredient.materialId) +
                        " x" + std::to_string(ingredient.count);
         }
         return summary;
@@ -202,7 +208,8 @@ class OgreUserInterface::Impl
          Ogre::Camera &renderCamera, Player *worldPlayer, World *activeWorld,
          GameApplicationFlow &applicationFlow,
          WorldManagementService &worldManagement,
-         const UserSettings &settings, std::function<void()> feedback,
+         const UserSettings &settings, std::string presentationFontPath,
+         std::function<void()> feedback,
          std::vector<PendingCrashReport> pendingCrashReports)
         : window(&renderWindow)
         , sceneManager(&renderSceneManager)
@@ -212,14 +219,105 @@ class OgreUserInterface::Impl
         , flow(&applicationFlow)
         , management(&worldManagement)
          , appliedSettings(settings)
+         , fontPath(std::move(presentationFontPath))
          , uiFeedback(std::move(feedback))
          , crashReports(std::move(pendingCrashReports))
         , showDebugPanel(RuntimeDebugOptions::showDebugInfoAtStartup())
         , iniPath(ResourcePaths::bin("imgui-ogre.ini"))
     {
         std::snprintf(createName.data(), createName.size(), "%s",
-                      "New World");
+                      LocalizedPresentation::text(
+                          appliedSettings.locale,
+                          "world.default_name", "New World").c_str());
         createSeed = WorldManagementService::suggestWorldSeed();
+    }
+
+    std::string tr(const std::string& key,
+                   const std::string& fallback = {}) const
+    {
+        return LocalizedPresentation::text(
+            appliedSettings.locale, key, fallback);
+    }
+
+    std::string label(const std::string& key, const char* stableId,
+                      const std::string& fallback = {}) const
+    {
+        return tr(key, fallback) + stableId;
+    }
+
+    std::string materialName(Material::ID id) const
+    {
+        return LocalizedPresentation::materialName(
+            appliedSettings.locale, id);
+    }
+
+    std::string difficultyName(WorldDifficulty difficulty) const
+    {
+        switch (difficulty)
+        {
+            case WorldDifficulty::Casual:
+                return tr("difficulty.casual", "Casual");
+            case WorldDifficulty::Normal:
+                return tr("difficulty.normal", "Normal");
+            case WorldDifficulty::Challenging:
+                return tr("difficulty.challenging", "Challenging");
+            case WorldDifficulty::Count:
+                break;
+        }
+        return tr("difficulty.normal", "Normal");
+    }
+
+    std::string actionName(GameplayAction action) const
+    {
+        const std::string configKey = gameplayActionConfigKey(action);
+        const std::string suffix = configKey.rfind("key_", 0) == 0
+            ? configKey.substr(4)
+            : configKey;
+        return tr("action." + suffix, gameplayActionName(action));
+    }
+
+    std::string objectiveText(const std::string& id, const char* field,
+                              const std::string& fallback) const
+    {
+        return LocalizedPresentation::objectiveText(
+            appliedSettings.locale, id, field, fallback);
+    }
+
+    std::string craftingPreviewMessage(CraftingPreviewStatus status) const
+    {
+        switch (status)
+        {
+            case CraftingPreviewStatus::NoMatch:
+                return tr("crafting.preview.no_match");
+            case CraftingPreviewStatus::MissingIngredients:
+                return tr("crafting.preview.missing");
+            case CraftingPreviewStatus::OutputFull:
+                return tr("crafting.preview.output_full");
+            case CraftingPreviewStatus::Ready:
+                return tr("crafting.preview.ready");
+        }
+        return tr("crafting.preview.no_match");
+    }
+
+    std::string craftingCommitMessage(CraftingCommitStatus status) const
+    {
+        switch (status)
+        {
+            case CraftingCommitStatus::Success:
+                return tr("crafting.commit.success");
+            case CraftingCommitStatus::StaleSession:
+            case CraftingCommitStatus::StaleInventory:
+                return tr("crafting.commit.stale");
+            case CraftingCommitStatus::NoMatch:
+                return tr("crafting.commit.no_match");
+            case CraftingCommitStatus::MissingIngredients:
+                return tr("crafting.commit.missing");
+            case CraftingCommitStatus::OutputFull:
+                return tr("crafting.commit.output_full");
+            case CraftingCommitStatus::InvalidRequest:
+                return tr("crafting.commit.invalid");
+        }
+        return tr("crafting.commit.invalid");
     }
 
     void initialize(Ogre::RenderQueueListener *listener)
@@ -230,6 +328,39 @@ class OgreUserInterface::Impl
         io.BackendPlatformName = "HelloMine3D_OIS";
         io.IniFilename = iniPath.c_str();
         io.FontGlobalScale = appliedSettings.uiScale;
+        const PresentationFontProbe fontProbe =
+            probePresentationFont(fontPath);
+        if (fontProbe.usable)
+        {
+            ImFontGlyphRangesBuilder glyphBuilder;
+            glyphBuilder.AddRanges(
+                io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
+            const LocalizedTextRegistry& textRegistry =
+                runtimeLocalizedTextRegistry();
+            for (const std::string& key : textRegistry.keys("zh-CN"))
+            {
+                const std::string translated =
+                    textRegistry.lookup("zh-CN", key);
+                glyphBuilder.AddText(translated.c_str());
+            }
+            glyphBuilder.BuildRanges(&presentationGlyphRanges);
+            if (io.Fonts->AddFontFromFileTTF(
+                    fontPath.c_str(), 17.0f, nullptr,
+                    presentationGlyphRanges.Data) ==
+                nullptr)
+            {
+                fontDiagnostic = "Unable to parse presentation font: " +
+                                 fontPath;
+            }
+        }
+        else
+        {
+            fontDiagnostic = fontProbe.diagnostic;
+        }
+        if (io.Fonts->Fonts.empty())
+        {
+            io.Fonts->AddFontDefault();
+        }
         ImGui::StyleColorsDark();
 
         if (!ImGui_ImplOpenGL3_Init(ImGuiGlslVersion))
@@ -314,11 +445,20 @@ class OgreUserInterface::Impl
         io.FontGlobalScale = appliedSettings.uiScale;
         statusMessageSeconds = std::max(
             0.f, statusMessageSeconds - std::max(0.f, deltaSeconds));
-        audioCaptionSeconds = std::max(
-            0.f, audioCaptionSeconds - std::max(0.f, deltaSeconds));
+        captionTimeline.update(deltaSeconds);
         interactionFeedbackSeconds = std::max(
             0.f, interactionFeedbackSeconds -
                      std::max(0.f, deltaSeconds));
+        if (flow->state() == GameApplicationState::Playing &&
+            previousPlayerHealth > 0.f && stats.playerHealth <= 0.f)
+        {
+            statusMessage = tr("death.respawn");
+            statusMessageSeconds = 4.f;
+        }
+        if (stats.playerMaxHealth > 0.f)
+        {
+            previousPlayerHealth = stats.playerHealth;
+        }
         hudElapsedSeconds += std::max(0.f, deltaSeconds);
         const float frameSeconds = std::max(0.f, deltaSeconds);
         if (frameSeconds > 0.f)
@@ -387,6 +527,7 @@ class OgreUserInterface::Impl
                 break;
         }
         drawCrashReportPrompt();
+        drawCredits();
     }
 
     void drawCrashReportPrompt()
@@ -397,27 +538,34 @@ class OgreUserInterface::Impl
         }
         if (!crashPopupOpened)
         {
-            ImGui::OpenPopup("Previous crash report");
+            const std::string popup =
+                label("crash.title", "##PreviousCrashReport",
+                      "Previous crash report");
+            ImGui::OpenPopup(popup.c_str());
             crashPopupOpened = true;
         }
         ImGui::SetNextWindowSize(ImVec2(520.0f, 0.0f), ImGuiCond_Appearing);
-        if (!ImGui::BeginPopupModal("Previous crash report", nullptr,
+        const std::string popup =
+            label("crash.title", "##PreviousCrashReport",
+                  "Previous crash report");
+        if (!ImGui::BeginPopupModal(popup.c_str(), nullptr,
                                     ImGuiWindowFlags_AlwaysAutoResize))
         {
             return;
         }
 
         const PendingCrashReport& report = crashReports.front();
-        ImGui::TextWrapped(
-            "HelloMine3D detected a local crash report from the previous "
-            "run. Nothing has been uploaded.");
+        ImGui::TextWrapped("%s", tr("crash.body").c_str());
         ImGui::Separator();
-        ImGui::Text("Report: %s", report.dumpFile.c_str());
-        ImGui::Text("Build: %s", report.buildIdentity.c_str());
-        ImGui::Text("Exception: %s", report.exceptionCode.c_str());
+        ImGui::Text("%s: %s", tr("crash.report").c_str(),
+                    report.dumpFile.c_str());
+        ImGui::Text("%s: %s", tr("crash.build").c_str(),
+                    report.buildIdentity.c_str());
+        ImGui::Text("%s: %s", tr("crash.exception").c_str(),
+                    report.exceptionCode.c_str());
         if (crashReports.size() > 1)
         {
-            ImGui::Text("Pending reports: %llu",
+            ImGui::Text("%s: %llu", tr("crash.pending").c_str(),
                         static_cast<unsigned long long>(crashReports.size()));
         }
         if (!crashReportMessage.empty())
@@ -425,23 +573,26 @@ class OgreUserInterface::Impl
             ImGui::TextWrapped("%s", crashReportMessage.c_str());
         }
         ImGui::Separator();
-        if (ImGui::Button("Open folder", ImVec2(140.0f, 38.0f)))
+        if (ImGui::Button(label("crash.open_folder", "##CrashOpen").c_str(),
+                          ImVec2(140.0f, 38.0f)))
         {
             std::string error;
             crashReportMessage = openCrashReportLocation(report, &error)
-                                     ? "Opened the local report folder."
-                                     : "Could not open the folder: " + error;
+                                     ? tr("crash.opened")
+                                     : tr("crash.open_failed") + ": " + error;
             playUiFeedback();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Copy details", ImVec2(140.0f, 38.0f)))
+        if (ImGui::Button(label("crash.copy_details", "##CrashCopy").c_str(),
+                          ImVec2(140.0f, 38.0f)))
         {
             ImGui::SetClipboardText(report.clipboardText.c_str());
-            crashReportMessage = "Copied sanitized local details.";
+            crashReportMessage = tr("crash.copied");
             playUiFeedback();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Ignore", ImVec2(140.0f, 38.0f)))
+        if (ImGui::Button(label("crash.ignore", "##CrashIgnore").c_str(),
+                          ImVec2(140.0f, 38.0f)))
         {
             std::string error;
             if (acknowledgeCrashReport(report, &error))
@@ -455,7 +606,7 @@ class OgreUserInterface::Impl
             else
             {
                 crashReportMessage =
-                    "Could not ignore this report: " + error;
+                    tr("crash.ignore_failed") + ": " + error;
             }
         }
         ImGui::EndPopup();
@@ -467,18 +618,21 @@ class OgreUserInterface::Impl
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.45f),
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowSize(ImVec2(420.0f, 280.0f), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(420.0f, 340.0f), ImGuiCond_Always);
         const ImGuiWindowFlags flags =
             ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize |
             ImGuiWindowFlags_NoSavedSettings;
         if (ImGui::Begin("##MainMenu", nullptr, flags))
         {
             ImGui::SetCursorPosY(38.0f);
-            const float titleWidth = ImGui::CalcTextSize("HelloMine3D").x;
+            const std::string appTitle = tr("app.title", "HelloMine3D");
+            const float titleWidth = ImGui::CalcTextSize(appTitle.c_str()).x;
             ImGui::SetCursorPosX((420.0f - titleWidth) * 0.5f);
-            ImGui::TextUnformatted("HelloMine3D");
+            ImGui::TextUnformatted(appTitle.c_str());
             ImGui::SetCursorPos(ImVec2(90.0f, 105.0f));
-            if (ImGui::Button("Single Player", ImVec2(240.0f, 48.0f)))
+            if (ImGui::Button(
+                    label("main.single_player", "##SinglePlayer").c_str(),
+                    ImVec2(240.0f, 48.0f)))
             {
                 if (flow->showWorldList())
                 {
@@ -487,13 +641,74 @@ class OgreUserInterface::Impl
                 }
             }
             ImGui::SetCursorPos(ImVec2(90.0f, 170.0f));
-            if (ImGui::Button("Quit", ImVec2(240.0f, 42.0f)))
+            if (ImGui::Button(label("main.credits", "##Credits").c_str(),
+                              ImVec2(240.0f, 42.0f)))
+            {
+                showCredits = true;
+                playUiFeedback();
+            }
+            ImGui::SetCursorPos(ImVec2(90.0f, 225.0f));
+            if (ImGui::Button(label("common.quit", "##Quit").c_str(),
+                              ImVec2(240.0f, 42.0f)))
             {
                 pendingAction.type = OgreUserInterfaceActionType::Quit;
                 playUiFeedback();
             }
         }
         ImGui::End();
+    }
+
+    void drawCredits()
+    {
+        if (!showCredits)
+        {
+            return;
+        }
+        const ImGuiIO& io = ImGui::GetIO();
+        const PresentationWindowLayout layout = fitPresentationWindow(
+            io.DisplaySize.x, io.DisplaySize.y, 620.0f, 440.0f,
+            appliedSettings.uiScale);
+        ImGui::SetNextWindowPos(
+            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
+            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height),
+                                 ImGuiCond_Always);
+        bool open = true;
+        const std::string title =
+            label("credits.title", "##CreditsWindow");
+        if (ImGui::Begin(title.c_str(), &open,
+                         ImGuiWindowFlags_NoCollapse |
+                             ImGuiWindowFlags_NoResize |
+                             ImGuiWindowFlags_NoSavedSettings))
+        {
+            ImGui::BeginChild("##CreditsContent", ImVec2(0.0f, -52.0f),
+                              false,
+                              layout.scrollRequired
+                                  ? ImGuiWindowFlags_AlwaysVerticalScrollbar
+                                  : ImGuiWindowFlags_None);
+            ImGui::TextWrapped("%s", tr("credits.intro").c_str());
+            ImGui::Spacing();
+            ImGui::TextWrapped("%s", tr("credits.project").c_str());
+            ImGui::SeparatorText(tr("credits.font_heading").c_str());
+            ImGui::TextWrapped("%s", tr("credits.font_name").c_str());
+            ImGui::TextWrapped("%s", tr("credits.font_source").c_str());
+            ImGui::TextWrapped("%s", tr("credits.font_license").c_str());
+            ImGui::TextWrapped("%s", tr("credits.font_path").c_str());
+            if (!fontDiagnostic.empty())
+            {
+                ImGui::Spacing();
+                ImGui::TextDisabled("%s", fontDiagnostic.c_str());
+            }
+            ImGui::EndChild();
+            if (ImGui::Button(label("common.close", "##CreditsClose").c_str(),
+                              ImVec2(-1.0f, 38.0f)))
+            {
+                open = false;
+                playUiFeedback();
+            }
+        }
+        ImGui::End();
+        showCredits = open;
     }
 
     void refreshCatalogue()
@@ -572,9 +787,10 @@ class OgreUserInterface::Impl
         const ImGuiWindowFlags flags =
             ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
             ImGuiWindowFlags_NoSavedSettings;
-        if (ImGui::Begin("Worlds", nullptr, flags))
+        const std::string windowTitle = label("world.title", "##Worlds");
+        if (ImGui::Begin(windowTitle.c_str(), nullptr, flags))
         {
-            if (ImGui::Button("Back to Main Menu"))
+            if (ImGui::Button(label("world.back_to_main", "##WorldBack").c_str()))
             {
                 if (flow->returnToMainMenu())
                 {
@@ -582,26 +798,29 @@ class OgreUserInterface::Impl
                 }
             }
             ImGui::SameLine();
-            if (ImGui::Button("Refresh"))
+            if (ImGui::Button(label("common.refresh", "##WorldRefresh").c_str()))
             {
                 worldsDirty = true;
                 playUiFeedback();
             }
             ImGui::Separator();
 
-            ImGui::TextUnformatted("Create world");
+            ImGui::TextUnformatted(tr("world.create_title").c_str());
             ImGui::SetNextItemWidth(280.0f);
-            ImGui::InputText("Name##create", createName.data(),
+            ImGui::InputText(label("world.name", "##create-name").c_str(),
+                             createName.data(),
                              createName.size());
             ImGui::SameLine();
             ImGui::SetNextItemWidth(140.0f);
-            ImGui::InputInt("Seed##create", &createSeed);
+            ImGui::InputInt(label("world.seed", "##create-seed").c_str(),
+                            &createSeed);
             ImGui::SameLine();
             ImGui::SetNextItemWidth(135.0f);
+            const std::string createDifficultyName = difficultyName(
+                static_cast<WorldDifficulty>(createDifficulty));
             if (ImGui::BeginCombo(
-                    "Difficulty##create",
-                    worldDifficultyName(static_cast<WorldDifficulty>(
-                        createDifficulty))))
+                    label("world.difficulty", "##create-difficulty").c_str(),
+                    createDifficultyName.c_str()))
             {
                 for (int value = 0;
                      value < static_cast<int>(WorldDifficulty::Count);
@@ -610,8 +829,8 @@ class OgreUserInterface::Impl
                     const auto difficulty =
                         static_cast<WorldDifficulty>(value);
                     const bool selected = value == createDifficulty;
-                    if (ImGui::Selectable(
-                            worldDifficultyName(difficulty), selected))
+                    const std::string option = difficultyName(difficulty);
+                    if (ImGui::Selectable(option.c_str(), selected))
                     {
                         createDifficulty = value;
                     }
@@ -620,7 +839,7 @@ class OgreUserInterface::Impl
                 ImGui::EndCombo();
             }
             ImGui::SameLine();
-            if (ImGui::Button("Create"))
+            if (ImGui::Button(label("common.create", "##WorldCreate").c_str()))
             {
                 const WorldManagementResult result =
                     management->createWorld(
@@ -634,7 +853,7 @@ class OgreUserInterface::Impl
             }
 
             ImGui::Separator();
-            ImGui::Text("Active worlds (%llu)",
+            ImGui::Text("%s (%llu)", tr("world.active").c_str(),
                         static_cast<unsigned long long>(worlds.size()));
             ImGui::BeginChild("WorldList", ImVec2(0.0f, 185.0f), true);
             const ImGuiTableFlags worldTableFlags =
@@ -643,13 +862,17 @@ class OgreUserInterface::Impl
             if (ImGui::BeginTable("ActiveWorlds", 4, worldTableFlags))
             {
                 ImGui::TableSetupColumn(
-                    "World", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+                    tr("world.world").c_str(),
+                    ImGuiTableColumnFlags_WidthStretch, 1.0f);
                 ImGui::TableSetupColumn(
-                    "Seed", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+                    tr("world.seed").c_str(),
+                    ImGuiTableColumnFlags_WidthFixed, 150.0f);
                 ImGui::TableSetupColumn(
-                    "Difficulty", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+                    tr("world.difficulty").c_str(),
+                    ImGuiTableColumnFlags_WidthFixed, 110.0f);
                 ImGui::TableSetupColumn(
-                    "Actions", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+                    tr("world.actions").c_str(),
+                    ImGuiTableColumnFlags_WidthFixed, 150.0f);
                 for (const WorldCatalogueEntry &entry : worlds)
                 {
                     ImGui::PushID(entry.id.c_str());
@@ -659,26 +882,28 @@ class OgreUserInterface::Impl
                     const std::string worldLabel = entry.completed
                         ? entry.displayName + "  [" +
                               runtimeLocalizedTextRegistry().lookup(
-                                  "en-US", "world.list.completed") + "]"
+                                  appliedSettings.locale,
+                                  "world.list.completed") + "]"
                         : entry.displayName;
                     if (ImGui::Selectable(worldLabel.c_str(), selected))
                     {
                         selectWorld(entry);
                     }
                     ImGui::TableSetColumnIndex(1);
-                    ImGui::Text("seed %d", entry.seed);
+                    ImGui::Text("%s %d", tr("world.seed").c_str(),
+                                entry.seed);
                     ImGui::TableSetColumnIndex(2);
                     ImGui::TextUnformatted(
-                        worldDifficultyName(entry.difficulty));
+                        difficultyName(entry.difficulty).c_str());
                     if (entry.completedPostVictoryEvents > 0)
                     {
                         ImGui::TextDisabled(
-                            "Echo %d / %d",
+                            "%s %d / %d", tr("world.echo_trials").c_str(),
                             entry.completedPostVictoryEvents,
                             PostVictoryEvents::MaximumEvents);
                     }
                     ImGui::TableSetColumnIndex(3);
-                    if (ImGui::SmallButton("Play"))
+                    if (ImGui::SmallButton(label("common.play", "##Play").c_str()))
                     {
                         pendingAction.type =
                             OgreUserInterfaceActionType::OpenWorld;
@@ -686,7 +911,7 @@ class OgreUserInterface::Impl
                         playUiFeedback();
                     }
                     ImGui::SameLine();
-                    if (ImGui::SmallButton("Delete"))
+                    if (ImGui::SmallButton(label("common.delete", "##Delete").c_str()))
                     {
                         pendingDeleteWorldId = entry.id;
                         openDeletePopup = true;
@@ -700,25 +925,27 @@ class OgreUserInterface::Impl
             if (!selectedWorldId.empty())
             {
                 ImGui::SetNextItemWidth(300.0f);
-                ImGui::InputText("Display name##rename", renameName.data(),
+                ImGui::InputText(label("world.display_name", "##rename").c_str(),
+                                 renameName.data(),
                                  renameName.size());
                 ImGui::SameLine();
-                if (ImGui::Button("Rename"))
+                if (ImGui::Button(label("common.rename", "##Rename").c_str()))
                 {
                     reportResult(management->renameWorld(
                         selectedWorldId, renameName.data()));
                 }
                 ImGui::SameLine();
-                ImGui::Text("Backups: %llu",
+                ImGui::Text("%s: %llu", tr("world.backups").c_str(),
                             static_cast<unsigned long long>(backups.size()));
                 for (const WorldBackupInfo &backup : backups)
                 {
                     ImGui::PushID(backup.id.c_str());
-                    ImGui::Text("%s (%llu files)", backup.id.c_str(),
+                    ImGui::Text("%s (%llu %s)", backup.id.c_str(),
                                 static_cast<unsigned long long>(
-                                    backup.fileCount));
+                                    backup.fileCount),
+                                tr("world.files").c_str());
                     ImGui::SameLine();
-                    if (ImGui::SmallButton("Restore backup"))
+                    if (ImGui::SmallButton(label("world.restore_backup", "##RestoreBackup").c_str()))
                     {
                         pendingBackupId = backup.id;
                         openBackupPopup = true;
@@ -728,7 +955,7 @@ class OgreUserInterface::Impl
             }
 
             ImGui::Separator();
-            ImGui::Text("Recoverable worlds (%llu)",
+            ImGui::Text("%s (%llu)", tr("world.recoverable").c_str(),
                         static_cast<unsigned long long>(
                             deletedWorlds.size()));
             ImGui::BeginChild("DeletedWorldList", ImVec2(0.0f, 105.0f),
@@ -738,13 +965,13 @@ class OgreUserInterface::Impl
                 ImGui::PushID(entry.recoveryId.c_str());
                 ImGui::TextUnformatted(entry.world.displayName.c_str());
                 ImGui::SameLine(400.0f);
-                if (ImGui::SmallButton("Restore"))
+                if (ImGui::SmallButton(label("common.restore", "##RestoreWorld").c_str()))
                 {
                     reportResult(management->restoreDeletedWorld(
                         entry.world.id));
                 }
                 ImGui::SameLine();
-                if (ImGui::SmallButton("Delete permanently"))
+                if (ImGui::SmallButton(label("world.delete_permanently", "##DeletePermanent").c_str()))
                 {
                     pendingPermanentDeleteWorldId = entry.world.id;
                     openPermanentDeletePopup = true;
@@ -759,26 +986,25 @@ class OgreUserInterface::Impl
 
             if (openDeletePopup)
             {
-                ImGui::OpenPopup("Confirm recoverable delete");
+                ImGui::OpenPopup(label("world.delete_recoverable_title", "##RecoverableDelete").c_str());
                 openDeletePopup = false;
             }
             if (openPermanentDeletePopup)
             {
-                ImGui::OpenPopup("Confirm permanent delete");
+                ImGui::OpenPopup(label("world.delete_permanent_title", "##PermanentDelete").c_str());
                 openPermanentDeletePopup = false;
             }
             if (openBackupPopup)
             {
-                ImGui::OpenPopup("Confirm backup restore");
+                ImGui::OpenPopup(label("world.restore_backup_title", "##BackupRestore").c_str());
                 openBackupPopup = false;
             }
 
-            if (ImGui::BeginPopupModal("Confirm recoverable delete", nullptr,
+            if (ImGui::BeginPopupModal(label("world.delete_recoverable_title", "##RecoverableDelete").c_str(), nullptr,
                                        ImGuiWindowFlags_AlwaysAutoResize))
             {
-                ImGui::TextUnformatted(
-                    "Move this world into bounded recovery storage?");
-                if (ImGui::Button("Delete", ImVec2(120.0f, 0.0f)))
+                ImGui::TextWrapped("%s", tr("world.delete_recoverable_body").c_str());
+                if (ImGui::Button(label("common.delete", "##ConfirmDelete").c_str(), ImVec2(120.0f, 0.0f)))
                 {
                     reportResult(management->deleteWorld(
                         pendingDeleteWorldId));
@@ -786,19 +1012,18 @@ class OgreUserInterface::Impl
                     ImGui::CloseCurrentPopup();
                 }
                 ImGui::SameLine();
-                if (ImGui::Button("Cancel", ImVec2(120.0f, 0.0f)))
+                if (ImGui::Button(label("common.cancel", "##CancelDelete").c_str(), ImVec2(120.0f, 0.0f)))
                 {
                     playUiFeedback();
                     ImGui::CloseCurrentPopup();
                 }
                 ImGui::EndPopup();
             }
-            if (ImGui::BeginPopupModal("Confirm permanent delete", nullptr,
+            if (ImGui::BeginPopupModal(label("world.delete_permanent_title", "##PermanentDelete").c_str(), nullptr,
                                        ImGuiWindowFlags_AlwaysAutoResize))
             {
-                ImGui::TextUnformatted(
-                    "Permanently remove this recovered world?");
-                if (ImGui::Button("Delete permanently",
+                ImGui::TextWrapped("%s", tr("world.delete_permanent_body").c_str());
+                if (ImGui::Button(label("world.delete_permanently", "##ConfirmPermanent").c_str(),
                                   ImVec2(170.0f, 0.0f)))
                 {
                     reportResult(management->permanentlyDeleteWorld(
@@ -806,7 +1031,7 @@ class OgreUserInterface::Impl
                     ImGui::CloseCurrentPopup();
                 }
                 ImGui::SameLine();
-                if (ImGui::Button("Cancel##permanent",
+                if (ImGui::Button(label("common.cancel", "##CancelPermanent").c_str(),
                                   ImVec2(120.0f, 0.0f)))
                 {
                     playUiFeedback();
@@ -814,19 +1039,18 @@ class OgreUserInterface::Impl
                 }
                 ImGui::EndPopup();
             }
-            if (ImGui::BeginPopupModal("Confirm backup restore", nullptr,
+            if (ImGui::BeginPopupModal(label("world.restore_backup_title", "##BackupRestore").c_str(), nullptr,
                                        ImGuiWindowFlags_AlwaysAutoResize))
             {
-                ImGui::TextUnformatted(
-                    "Replace the active world with this backup?");
-                if (ImGui::Button("Restore", ImVec2(120.0f, 0.0f)))
+                ImGui::TextWrapped("%s", tr("world.restore_backup_body").c_str());
+                if (ImGui::Button(label("common.restore", "##ConfirmBackup").c_str(), ImVec2(120.0f, 0.0f)))
                 {
                     reportResult(management->restoreBackup(
                         selectedWorldId, pendingBackupId));
                     ImGui::CloseCurrentPopup();
                 }
                 ImGui::SameLine();
-                if (ImGui::Button("Cancel##backup",
+                if (ImGui::Button(label("common.cancel", "##CancelBackup").c_str(),
                                   ImVec2(120.0f, 0.0f)))
                 {
                     playUiFeedback();
@@ -851,7 +1075,7 @@ class OgreUserInterface::Impl
                              ImGuiWindowFlags_NoSavedSettings))
         {
             ImGui::SetCursorPos(ImVec2(32.0f, 40.0f));
-            ImGui::Text("Loading world %s...",
+            ImGui::Text("%s %s...", tr("loading.world").c_str(),
                         flow->activeWorldId().c_str());
         }
         ImGui::End();
@@ -864,7 +1088,8 @@ class OgreUserInterface::Impl
             ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.45f),
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
         ImGui::SetNextWindowSize(ImVec2(460.0f, 570.0f), ImGuiCond_Always);
-        if (ImGui::Begin("Paused", nullptr,
+        const std::string pauseTitle = label("pause.title", "##PauseMenu");
+        if (ImGui::Begin(pauseTitle.c_str(), nullptr,
                          ImGuiWindowFlags_NoCollapse |
                              ImGuiWindowFlags_NoResize |
                              ImGuiWindowFlags_NoSavedSettings))
@@ -873,19 +1098,35 @@ class OgreUserInterface::Impl
             {
                 const ObjectiveSnapshot objective =
                     world->getObjectiveSnapshot();
-                ImGui::Text("Journey  %zu / %zu",
+                ImGui::Text("%s  %zu / %zu", tr("pause.journey").c_str(),
                             objective.completedObjectives,
                             objective.totalObjectives);
-                ImGui::TextUnformatted(objective.title.c_str());
-                ImGui::TextWrapped("%s", objective.instruction.c_str());
+                const std::string objectiveTitle = objective.sessionComplete
+                    ? tr("objective.complete.title")
+                    : objectiveText(objective.currentId, "title",
+                                    objective.title);
+                const std::string objectiveInstruction =
+                    objective.sessionComplete
+                        ? tr("objective.complete.instruction")
+                        : objectiveText(objective.currentId, "instruction",
+                                        objective.instruction);
+                ImGui::TextUnformatted(objectiveTitle.c_str());
+                ImGui::TextWrapped("%s", objectiveInstruction.c_str());
                 if (!objective.completedTitles.empty() &&
-                    ImGui::CollapsingHeader("Completed objectives"))
+                    ImGui::CollapsingHeader(
+                        tr("pause.completed_objectives").c_str()))
                 {
                     ImGui::BeginChild("##ObjectiveHistory",
                                       ImVec2(0.0f, 105.0f), true);
-                    for (const std::string &title :
-                         objective.completedTitles)
+                    for (std::size_t index = 0;
+                         index < objective.completedTitles.size(); ++index)
                     {
+                        const std::string id =
+                            index < objective.completedIds.size()
+                                ? objective.completedIds[index]
+                                : std::string();
+                        const std::string title = objectiveText(
+                            id, "title", objective.completedTitles[index]);
                         ImGui::Text("[x] %s", title.c_str());
                     }
                     ImGui::EndChild();
@@ -900,19 +1141,20 @@ class OgreUserInterface::Impl
                                                  : difficulty.active);
                     difficultyDraftInitialized = true;
                 }
-                ImGui::Text("Difficulty: %s",
-                            worldDifficultyName(difficulty.active));
+                ImGui::Text("%s: %s", tr("world.difficulty").c_str(),
+                            difficultyName(difficulty.active).c_str());
                 if (difficulty.changePending)
                 {
                     ImGui::SameLine();
-                    ImGui::TextDisabled("(pending %s)",
-                        worldDifficultyName(difficulty.pending));
+                    ImGui::TextDisabled("(%s %s)",
+                        tr("pause.pending").c_str(),
+                        difficultyName(difficulty.pending).c_str());
                 }
                 ImGui::SetNextItemWidth(-1.0f);
                 if (ImGui::BeginCombo(
                         "##PauseDifficulty",
-                        worldDifficultyName(static_cast<WorldDifficulty>(
-                            pauseDifficulty))))
+                        difficultyName(static_cast<WorldDifficulty>(
+                            pauseDifficulty)).c_str()))
                 {
                     for (int value = 0;
                          value < static_cast<int>(WorldDifficulty::Count);
@@ -921,8 +1163,10 @@ class OgreUserInterface::Impl
                         const auto candidate =
                             static_cast<WorldDifficulty>(value);
                         const bool selected = value == pauseDifficulty;
+                        const std::string candidateName =
+                            difficultyName(candidate);
                         if (ImGui::Selectable(
-                                worldDifficultyName(candidate), selected))
+                                candidateName.c_str(), selected))
                         {
                             pauseDifficulty = value;
                         }
@@ -930,7 +1174,7 @@ class OgreUserInterface::Impl
                     }
                     ImGui::EndCombo();
                 }
-                if (ImGui::Button("Apply difficulty",
+                if (ImGui::Button(label("pause.apply_difficulty", "##ApplyDifficulty").c_str(),
                                   ImVec2(-1.0f, 32.0f)))
                 {
                     pendingAction.type =
@@ -939,32 +1183,32 @@ class OgreUserInterface::Impl
                         static_cast<WorldDifficulty>(pauseDifficulty);
                     playUiFeedback();
                 }
-                ImGui::TextDisabled(
-                    "Applies on the next simulation tick after Resume.");
+                ImGui::TextDisabled("%s",
+                    tr("pause.difficulty_pending").c_str());
                 ImGui::Separator();
             }
-            if (ImGui::Button("Resume", ImVec2(-1.0f, 38.0f)))
+            if (ImGui::Button(label("pause.resume", "##Resume").c_str(), ImVec2(-1.0f, 38.0f)))
             {
                 if (flow->resume())
                 {
                     playUiFeedback();
                 }
             }
-            if (ImGui::Button("Settings", ImVec2(-1.0f, 38.0f)))
+            if (ImGui::Button(label("pause.settings", "##Settings").c_str(), ImVec2(-1.0f, 38.0f)))
             {
                 settingsSession.begin(appliedSettings);
                 settingsMessage.clear();
                 settingsApplyPending = false;
                 playUiFeedback();
             }
-            if (ImGui::Button("Save and Main Menu",
+            if (ImGui::Button(label("pause.save_main", "##SaveMain").c_str(),
                               ImVec2(-1.0f, 38.0f)))
             {
                 pendingAction.type =
                     OgreUserInterfaceActionType::ReturnToMainMenu;
                 playUiFeedback();
             }
-            if (ImGui::Button("Save and Quit", ImVec2(-1.0f, 38.0f)))
+            if (ImGui::Button(label("pause.save_quit", "##SaveQuit").c_str(), ImVec2(-1.0f, 38.0f)))
             {
                 pendingAction.type = OgreUserInterfaceActionType::Quit;
                 playUiFeedback();
@@ -985,7 +1229,9 @@ class OgreUserInterface::Impl
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
         const float height = std::min(680.0f, io.DisplaySize.y - 30.0f);
         ImGui::SetNextWindowSize(ImVec2(620.0f, height), ImGuiCond_Always);
-        if (ImGui::Begin("Paused Settings", nullptr,
+        const std::string settingsTitle =
+            label("settings.title", "##PausedSettings");
+        if (ImGui::Begin(settingsTitle.c_str(), nullptr,
                          ImGuiWindowFlags_NoCollapse |
                              ImGuiWindowFlags_NoResize |
                              ImGuiWindowFlags_NoSavedSettings))
@@ -994,41 +1240,60 @@ class OgreUserInterface::Impl
             ImGui::BeginChild("##SettingsContent", ImVec2(0.0f, -58.0f),
                               false);
             int windowSize[2] = {draft.windowX, draft.windowY};
-            if (ImGui::InputInt2("Window size", windowSize))
+            if (ImGui::InputInt2(label("settings.window_size", "##WindowSize").c_str(), windowSize))
             {
                 draft.windowX = windowSize[0];
                 draft.windowY = windowSize[1];
             }
-            ImGui::Checkbox("Fullscreen", &draft.isFullscreen);
-            ImGui::SliderInt("Render distance", &draft.renderDistance,
+            ImGui::Checkbox(label("settings.fullscreen", "##Fullscreen").c_str(), &draft.isFullscreen);
+            ImGui::SliderInt(label("settings.render_distance", "##RenderDistance").c_str(), &draft.renderDistance,
                              1, 32);
-            ImGui::SliderInt("Field of view", &draft.fov, 45, 120);
-            ImGui::SliderFloat("Mouse sensitivity",
+            ImGui::SliderInt(label("settings.fov", "##Fov").c_str(), &draft.fov, 45, 120);
+            ImGui::SliderFloat(label("settings.mouse_sensitivity", "##MouseSensitivity").c_str(),
                                &draft.mouseSensitivity, 0.005f, 1.0f,
                                "%.3f", ImGuiSliderFlags_Logarithmic);
-            ImGui::Checkbox("Invert mouse Y", &draft.invertMouseY);
-            ImGui::SliderFloat("UI scale", &draft.uiScale, 0.75f, 1.75f,
+            ImGui::Checkbox(label("settings.invert_mouse_y", "##InvertMouseY").c_str(), &draft.invertMouseY);
+            const std::string languagePreview = draft.locale == "zh-CN"
+                ? tr("language.zh-cn") : tr("language.en-us");
+            if (ImGui::BeginCombo(label("settings.language", "##Language").c_str(),
+                                  languagePreview.c_str()))
+            {
+                const char* locales[] = {"en-US", "zh-CN"};
+                const char* keys[] = {"language.en-us", "language.zh-cn"};
+                for (int index = 0; index < 2; ++index)
+                {
+                    const bool selected = draft.locale == locales[index];
+                    const std::string option = tr(keys[index]);
+                    if (ImGui::Selectable(option.c_str(), selected))
+                    {
+                        draft.locale = locales[index];
+                    }
+                    if (selected) ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            ImGui::SliderFloat(label("settings.ui_scale", "##UiScale").c_str(), &draft.uiScale, 0.75f, 1.75f,
                                "%.2fx");
-            ImGui::Checkbox("Show action hints", &draft.showActionHints);
-            ImGui::SeparatorText("Audio");
-            ImGui::SliderFloat("Master", &draft.masterVolume, 0.0f, 1.0f);
-            ImGui::SliderFloat("UI", &draft.uiVolume, 0.0f, 1.0f);
-            ImGui::SliderFloat("Effects", &draft.effectsVolume,
+            ImGui::Checkbox(label("settings.show_action_hints", "##ActionHints").c_str(), &draft.showActionHints);
+            ImGui::SeparatorText(tr("settings.audio").c_str());
+            ImGui::SliderFloat(label("settings.master_volume", "##MasterVolume").c_str(), &draft.masterVolume, 0.0f, 1.0f);
+            ImGui::SliderFloat(label("settings.ui_volume", "##UiVolume").c_str(), &draft.uiVolume, 0.0f, 1.0f);
+            ImGui::SliderFloat(label("settings.effects_volume", "##EffectsVolume").c_str(), &draft.effectsVolume,
                                0.0f, 1.0f);
-            ImGui::SliderFloat("Ambient", &draft.ambientVolume,
+            ImGui::SliderFloat(label("settings.ambient_volume", "##AmbientVolume").c_str(), &draft.ambientVolume,
                                0.0f, 1.0f);
-            ImGui::Checkbox("Audio captions", &draft.audioCaptions);
-            ImGui::SeparatorText("Controls");
+            ImGui::Checkbox(label("settings.audio_captions", "##AudioCaptions").c_str(), &draft.audioCaptions);
+            ImGui::SeparatorText(tr("settings.controls").c_str());
             for (std::size_t actionIndex = 0;
                  actionIndex < GameplayActionCount; ++actionIndex)
             {
                 const auto action =
                     static_cast<GameplayAction>(actionIndex);
                 const GameplayKey current = draft.inputBindings.get(action);
-                const std::string label =
-                    std::string(gameplayActionName(action)) +
+                const std::string bindingLabel =
+                    actionName(action) +
                     "##binding-" + std::to_string(actionIndex);
-                if (ImGui::BeginCombo(label.c_str(),
+                if (ImGui::BeginCombo(bindingLabel.c_str(),
                                       gameplayKeyName(current)))
                 {
                     for (std::size_t keyIndex = 0;
@@ -1048,10 +1313,7 @@ class OgreUserInterface::Impl
                     ImGui::EndCombo();
                 }
             }
-            ImGui::TextWrapped(
-                "FOV, controls, accessibility, render distance and volume "
-                "apply immediately. "
-                "Window size and fullscreen apply after restart.");
+            ImGui::TextWrapped("%s", tr("settings.apply_note").c_str());
             if (!settingsMessage.empty())
             {
                 ImGui::TextWrapped("%s", settingsMessage.c_str());
@@ -1059,7 +1321,7 @@ class OgreUserInterface::Impl
             ImGui::EndChild();
 
             ImGui::BeginDisabled(settingsApplyPending);
-            if (ImGui::Button("Apply", ImVec2(140.0f, 38.0f)))
+            if (ImGui::Button(label("common.apply", "##ApplySettings").c_str(), ImVec2(140.0f, 38.0f)))
             {
                 RuntimeSettingsApplyPlan plan;
                 if (settingsSession.prepareApply(plan, settingsMessage))
@@ -1067,19 +1329,19 @@ class OgreUserInterface::Impl
                     pendingAction.type =
                         OgreUserInterfaceActionType::ApplySettings;
                     pendingAction.settings = plan.settings;
-                    settingsMessage = "Saving settings...";
+                    settingsMessage = tr("settings.saving");
                     settingsApplyPending = true;
                 }
             }
             ImGui::SameLine();
-            if (ImGui::Button("Cancel", ImVec2(140.0f, 38.0f)))
+            if (ImGui::Button(label("common.cancel", "##CancelSettings").c_str(), ImVec2(140.0f, 38.0f)))
             {
                 settingsSession.cancel();
                 settingsMessage.clear();
                 playUiFeedback();
             }
             ImGui::SameLine();
-            if (ImGui::Button("Defaults", ImVec2(140.0f, 38.0f)))
+            if (ImGui::Button(label("common.defaults", "##DefaultSettings").c_str(), ImVec2(140.0f, 38.0f)))
             {
                 settingsSession.restoreDefaults();
                 settingsMessage.clear();
@@ -1115,12 +1377,18 @@ class OgreUserInterface::Impl
         {
             return;
         }
+        const bool restartRequired =
+            appliedSettings.windowX != settings.windowX ||
+            appliedSettings.windowY != settings.windowY ||
+            appliedSettings.isFullscreen != settings.isFullscreen;
         appliedSettings = settings;
+        settingsMessage = tr(restartRequired
+                                 ? "settings.saved_restart"
+                                 : "settings.saved");
         ImGui::GetIO().FontGlobalScale = appliedSettings.uiScale;
         if (!appliedSettings.audioCaptions)
         {
-            audioCaption.clear();
-            audioCaptionSeconds = 0.f;
+            captionTimeline.clear();
         }
         settingsSession.acceptApplied();
         statusMessage = settingsMessage;
@@ -1135,30 +1403,24 @@ class OgreUserInterface::Impl
         worldsDirty = true;
     }
 
-    void setAudioCaption(std::string caption)
+    void setAudioCaption(std::string cueId, std::string caption)
     {
-        std::string lower = caption;
-        std::transform(lower.begin(), lower.end(), lower.begin(),
-                       [](unsigned char value) {
-                           return static_cast<char>(std::tolower(value));
-                       });
-        if (lower.find("broken") != std::string::npos)
+        if (cueId == "block.break")
         {
             interactionFeedbackColour = ImVec4(0.95f, 0.72f, 0.28f, 1.f);
             interactionFeedbackSeconds = 0.32f;
         }
-        else if (lower.find("placed") != std::string::npos)
+        else if (cueId == "block.place")
         {
             interactionFeedbackColour = ImVec4(0.35f, 0.72f, 1.f, 1.f);
             interactionFeedbackSeconds = 0.28f;
         }
-        else if (lower.find("collected") != std::string::npos ||
-                 lower.find("crafting") != std::string::npos)
+        else if (cueId == "item.pickup" || cueId == "craft.success")
         {
             interactionFeedbackColour = ImVec4(0.42f, 0.94f, 0.48f, 1.f);
             interactionFeedbackSeconds = 0.34f;
         }
-        else if (lower.find("hit") != std::string::npos)
+        else if (cueId == "combat.hit")
         {
             interactionFeedbackColour = ImVec4(1.f, 0.34f, 0.28f, 1.f);
             interactionFeedbackSeconds = 0.28f;
@@ -1167,8 +1429,7 @@ class OgreUserInterface::Impl
         {
             return;
         }
-        audioCaption = std::move(caption);
-        audioCaptionSeconds = 2.5f;
+        captionTimeline.submit(std::move(cueId), std::move(caption));
     }
 
     bool materialIconUv(Material::ID id, ImVec2 &uvMin,
@@ -1363,12 +1624,15 @@ class OgreUserInterface::Impl
                     : ImVec4(1.f, 0.35f, 0.30f, 1.f));
             ImGui::TextColored(fpsColour, "FPS  %.1f",
                                displayedFramesPerSecond);
-            ImGui::Text("Frame  %.2f ms", displayedFrameMs);
+            ImGui::Text("%s  %.2f ms", tr("hud.frame").c_str(),
+                        displayedFrameMs);
 #if defined(_DEBUG)
-            ImGui::TextDisabled("Debug | 0.5s peak %.2f ms",
+            ImGui::TextDisabled("Debug | %s %.2f ms",
+                                tr("hud.debug_peak").c_str(),
                                 displayedPeakFrameMs);
 #else
-            ImGui::TextDisabled("Release | 0.5s peak %.2f ms",
+            ImGui::TextDisabled("Release | %s %.2f ms",
+                                tr("hud.debug_peak").c_str(),
                                 displayedPeakFrameMs);
 #endif
             ImGui::TextDisabled(
@@ -1471,12 +1735,21 @@ class OgreUserInterface::Impl
                         ImGuiWindowFlags_NoFocusOnAppearing |
                         ImGuiWindowFlags_NoNav))
             {
-                ImGui::Text("Journey  %zu / %zu",
+                ImGui::Text("%s  %zu / %zu", tr("hud.journey").c_str(),
                             objective.completedObjectives,
                             objective.totalObjectives);
                 ImGui::Separator();
-                ImGui::TextUnformatted(objective.title.c_str());
-                ImGui::TextWrapped("%s", objective.instruction.c_str());
+                const std::string currentTitle = objective.sessionComplete
+                    ? tr("objective.complete.title")
+                    : objectiveText(objective.currentId, "title",
+                                    objective.title);
+                const std::string currentInstruction =
+                    objective.sessionComplete
+                        ? tr("objective.complete.instruction")
+                        : objectiveText(objective.currentId, "instruction",
+                                        objective.instruction);
+                ImGui::TextUnformatted(currentTitle.c_str());
+                ImGui::TextWrapped("%s", currentInstruction.c_str());
                 if (objective.required > 1)
                 {
                     const float ratio = std::clamp(
@@ -1493,14 +1766,18 @@ class OgreUserInterface::Impl
                 if (!objective.nextTitle.empty() &&
                     !objective.sessionComplete)
                 {
-                    ImGui::TextDisabled("Next: %s",
-                                        objective.nextTitle.c_str());
+                    const std::string nextTitle = objectiveText(
+                        objective.nextId, "title", objective.nextTitle);
+                    ImGui::TextDisabled("%s: %s", tr("hud.next").c_str(),
+                                        nextTitle.c_str());
                 }
                 if (!objective.completionFeedback.empty())
                 {
+                    const std::string feedback = objectiveText(
+                        objective.completionFeedbackId, "feedback",
+                        objective.completionFeedback);
                     ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.45f, 1.0f),
-                                       "%s",
-                                       objective.completionFeedback.c_str());
+                                       "%s", feedback.c_str());
                 }
                 const WorldOutcomeSnapshot outcome =
                     world->getWorldOutcomeSnapshot();
@@ -1509,11 +1786,9 @@ class OgreUserInterface::Impl
                 {
                     const PostVictoryEventSnapshot replay =
                         world->getPostVictoryEventSnapshot();
-                    LocalizedTextRegistry &text =
-                        runtimeLocalizedTextRegistry();
                     ImGui::Separator();
-                    const std::string replayTitle = text.lookup(
-                        "en-US", "post_victory.hud.title");
+                    const std::string replayTitle =
+                        tr("post_victory.hud.title");
                     ImGui::Text("%s  %d / %d", replayTitle.c_str(),
                                 replay.completedEvents,
                                 replay.totalEvents);
@@ -1524,8 +1799,7 @@ class OgreUserInterface::Impl
                             : (replay.activeEvent > 0
                                 ? "post_victory.hud.active"
                                 : "post_victory.hud.available"));
-                    const std::string replayInstruction =
-                        text.lookup("en-US", instructionKey);
+                    const std::string replayInstruction = tr(instructionKey);
                     ImGui::TextWrapped("%s",
                                        replayInstruction.c_str());
                 }
@@ -1544,41 +1818,56 @@ class OgreUserInterface::Impl
                 PlayerCombatFeedbackKind::None &&
             worldStats.combatFeedback.ticksRemaining > 0)
         {
-            const ImVec2 center(io.DisplaySize.x * 0.5f,
-                                io.DisplaySize.y * 0.5f);
+            const ImVec2 feedbackCenter(io.DisplaySize.x * 0.5f,
+                                        io.DisplaySize.y * 0.5f);
             const ImU32 colour = worldStats.combatFeedback.kind ==
                     PlayerCombatFeedbackKind::Guard
                 ? IM_COL32(80, 220, 235, 225)
                 : IM_COL32(245, 72, 64, 225);
-            ImVec2 tip = center;
-            ImVec2 left = center;
-            ImVec2 right = center;
+            ImVec2 tip = feedbackCenter;
+            ImVec2 left = feedbackCenter;
+            ImVec2 right = feedbackCenter;
             switch (worldStats.combatFeedback.direction)
             {
                 case CombatDirection::Front:
-                    tip = ImVec2(center.x, center.y - 40.0f);
-                    left = ImVec2(center.x - 9.0f, center.y - 58.0f);
-                    right = ImVec2(center.x + 9.0f, center.y - 58.0f);
+                    tip = ImVec2(feedbackCenter.x,
+                                 feedbackCenter.y - 40.0f);
+                    left = ImVec2(feedbackCenter.x - 9.0f,
+                                  feedbackCenter.y - 58.0f);
+                    right = ImVec2(feedbackCenter.x + 9.0f,
+                                   feedbackCenter.y - 58.0f);
                     break;
                 case CombatDirection::Right:
-                    tip = ImVec2(center.x + 40.0f, center.y);
-                    left = ImVec2(center.x + 58.0f, center.y - 9.0f);
-                    right = ImVec2(center.x + 58.0f, center.y + 9.0f);
+                    tip = ImVec2(feedbackCenter.x + 40.0f,
+                                 feedbackCenter.y);
+                    left = ImVec2(feedbackCenter.x + 58.0f,
+                                  feedbackCenter.y - 9.0f);
+                    right = ImVec2(feedbackCenter.x + 58.0f,
+                                   feedbackCenter.y + 9.0f);
                     break;
                 case CombatDirection::Back:
-                    tip = ImVec2(center.x, center.y + 40.0f);
-                    left = ImVec2(center.x - 9.0f, center.y + 58.0f);
-                    right = ImVec2(center.x + 9.0f, center.y + 58.0f);
+                    tip = ImVec2(feedbackCenter.x,
+                                 feedbackCenter.y + 40.0f);
+                    left = ImVec2(feedbackCenter.x - 9.0f,
+                                  feedbackCenter.y + 58.0f);
+                    right = ImVec2(feedbackCenter.x + 9.0f,
+                                   feedbackCenter.y + 58.0f);
                     break;
                 case CombatDirection::Left:
-                    tip = ImVec2(center.x - 40.0f, center.y);
-                    left = ImVec2(center.x - 58.0f, center.y - 9.0f);
-                    right = ImVec2(center.x - 58.0f, center.y + 9.0f);
+                    tip = ImVec2(feedbackCenter.x - 40.0f,
+                                 feedbackCenter.y);
+                    left = ImVec2(feedbackCenter.x - 58.0f,
+                                  feedbackCenter.y - 9.0f);
+                    right = ImVec2(feedbackCenter.x - 58.0f,
+                                   feedbackCenter.y + 9.0f);
                     break;
                 case CombatDirection::None:
-                    tip = ImVec2(center.x, center.y - 40.0f);
-                    left = ImVec2(center.x - 9.0f, center.y - 58.0f);
-                    right = ImVec2(center.x + 9.0f, center.y - 58.0f);
+                    tip = ImVec2(feedbackCenter.x,
+                                 feedbackCenter.y - 40.0f);
+                    left = ImVec2(feedbackCenter.x - 9.0f,
+                                  feedbackCenter.y - 58.0f);
+                    right = ImVec2(feedbackCenter.x + 9.0f,
+                                   feedbackCenter.y - 58.0f);
                     break;
             }
             ImGui::GetForegroundDrawList()->AddTriangleFilled(
@@ -1594,19 +1883,22 @@ class OgreUserInterface::Impl
             ImGui::SetNextWindowBgAlpha(0.66f);
             if (ImGui::Begin("##ActionHints", nullptr, overlayFlags))
             {
-                ImGui::Text("%s  Crafting",
+                ImGui::Text("%s  %s",
                             gameplayKeyName(appliedSettings.inputBindings.get(
-                                GameplayAction::OpenCrafting)));
-                ImGui::Text("%s  Eat held food",
+                                GameplayAction::OpenCrafting)),
+                            tr("hint.crafting").c_str());
+                ImGui::Text("%s  %s",
                             gameplayKeyName(appliedSettings.inputBindings.get(
-                                 GameplayAction::ConsumeFood)));
-                ImGui::TextUnformatted(
-                    "RMB  Guard while aiming at an enemy with a sword");
-                ImGui::TextUnformatted("Esc  Pause");
+                                 GameplayAction::ConsumeFood)),
+                            tr("hint.eat").c_str());
+                ImGui::Text("RMB  %s", tr("hint.guard").c_str());
+                ImGui::Text("Esc  %s", tr("hint.pause").c_str());
             }
             ImGui::End();
         }
-        if (audioCaptionSeconds > 0.f && !audioCaption.empty())
+        const PresentationCaptionSnapshot caption =
+            captionTimeline.snapshot();
+        if (caption.visible())
         {
             ImGui::SetNextWindowPos(
                 ImVec2(io.DisplaySize.x * 0.5f,
@@ -1615,7 +1907,12 @@ class OgreUserInterface::Impl
             ImGui::SetNextWindowBgAlpha(0.82f);
             if (ImGui::Begin("##AudioCaption", nullptr, overlayFlags))
             {
-                ImGui::Text("[Sound] %s", audioCaption.c_str());
+                const std::string localizedCaption =
+                    LocalizedPresentation::audioCaption(
+                        appliedSettings.locale, caption.cueId,
+                        caption.fallback);
+                ImGui::Text("[%s] %s", tr("caption.prefix").c_str(),
+                            localizedCaption.c_str());
             }
             ImGui::End();
         }
@@ -1656,28 +1953,28 @@ class OgreUserInterface::Impl
                                      worldStats.playerMaxHealth,
                                  0.f, 1.f)
                     : 0.f;
-            ImGui::Text("Health %.0f / %.0f",
+            ImGui::Text("%s %.0f / %.0f", tr("hud.health").c_str(),
                         std::ceil(worldStats.playerHealth),
                         std::ceil(worldStats.playerMaxHealth));
             ImGui::ProgressBar(healthRatio, ImVec2(-1.0f, 8.0f), "");
             if (worldStats.foodCooldownTicksRemaining > 0)
             {
-                ImGui::Text("Food cooldown: %.1fs",
+                ImGui::Text("%s: %.1fs", tr("hud.food_cooldown").c_str(),
                             worldStats.foodCooldownTicksRemaining / 20.f);
             }
             if (worldStats.attackCooldownTicksRemaining > 0)
             {
-                ImGui::Text("Attack ready in: %.1fs",
+                ImGui::Text("%s: %.1fs", tr("hud.attack_ready").c_str(),
                              worldStats.attackCooldownTicksRemaining / 20.f);
             }
             if (worldStats.combatFeedback.guarding)
             {
                 ImGui::TextColored(ImVec4(0.30f, 0.90f, 0.95f, 1.0f),
-                                   "Guarding");
+                                   "%s", tr("hud.guarding").c_str());
             }
             else if (worldStats.combatFeedback.guardRecoverTicksRemaining > 0)
             {
-                ImGui::Text("Guard ready in: %.1fs",
+                ImGui::Text("%s: %.1fs", tr("hud.guard_ready").c_str(),
                             worldStats.combatFeedback.guardRecoverTicksRemaining /
                                 20.f);
             }
@@ -1689,8 +1986,7 @@ class OgreUserInterface::Impl
                     state.inventory[static_cast<std::size_t>(state.heldItem)];
                 if (held.amount > 0)
                 {
-                    const std::string heldName =
-                        Material::toMaterial(held.materialId).name;
+                    const std::string heldName = materialName(held.materialId);
                     const float available = ImGui::GetContentRegionAvail().x;
                     const float width = ImGui::CalcTextSize(
                         heldName.c_str()).x;
@@ -1753,26 +2049,20 @@ class OgreUserInterface::Impl
                     ImGuiWindowFlags_NoSavedSettings |
                     ImGuiWindowFlags_AlwaysAutoResize))
         {
-            LocalizedTextRegistry &text =
-                runtimeLocalizedTextRegistry();
-            const std::string title =
-                text.lookup("en-US", "victory.overlay.title");
+            const std::string title = tr("victory.overlay.title");
             ImGui::SetWindowFontScale(1.35f);
             ImGui::TextUnformatted(title.c_str());
             ImGui::SetWindowFontScale(1.0f);
             ImGui::Separator();
-            const std::string summary =
-                text.lookup("en-US", "victory.overlay.summary");
+            const std::string summary = tr("victory.overlay.summary");
             ImGui::TextWrapped("%s", summary.c_str());
-            const std::string rewardMessage = text.lookup(
-                "en-US", outcome.rewardAvailable
-                             ? "victory.reward.pending"
-                             : "victory.reward.claimed");
+            const std::string rewardMessage = tr(
+                outcome.rewardAvailable ? "victory.reward.pending"
+                                        : "victory.reward.claimed");
             ImGui::TextWrapped("%s", rewardMessage.c_str());
             if (outcome.rewardAvailable)
             {
-                const std::string claim =
-                    text.lookup("en-US", "victory.reward.claim");
+                const std::string claim = tr("victory.reward.claim");
                 if (ImGui::Button(claim.c_str(), ImVec2(220.0f, 42.0f)))
                 {
                     pendingAction.type =
@@ -1782,7 +2072,7 @@ class OgreUserInterface::Impl
                 ImGui::SameLine();
             }
             const std::string continueLabel =
-                text.lookup("en-US", "victory.overlay.continue");
+                tr("victory.overlay.continue");
             if (ImGui::Button(continueLabel.c_str(),
                               ImVec2(220.0f, 42.0f)))
             {
@@ -1821,12 +2111,16 @@ class OgreUserInterface::Impl
                     ImGuiWindowFlags_NoCollapse |
                     ImGuiWindowFlags_NoSavedSettings |
                     ImGuiWindowFlags_NoResize;
-                if (ImGui::Begin("Furnace", &open, flags))
+                const std::string furnaceTitle =
+                    label("furnace.title", "##Furnace");
+                if (ImGui::Begin(furnaceTitle.c_str(), &open, flags))
                 {
                     const FurnaceSlot furnaceSlots[] = {
                         FurnaceSlot::Input, FurnaceSlot::Fuel,
                         FurnaceSlot::Output};
-                    const char *slotNames[] = {"Input", "Fuel", "Output"};
+                    const std::string slotNames[] = {
+                        tr("furnace.input"), tr("furnace.fuel"),
+                        tr("furnace.output")};
                     const InventorySlotState stacks[] = {
                         furnace->state.input, furnace->state.fuel,
                         furnace->state.output};
@@ -1836,10 +2130,10 @@ class OgreUserInterface::Impl
                         const Material &material =
                             Material::toMaterial(stacks[index].materialId);
                         const std::string label =
-                            std::string(slotNames[index]) + "\n" +
+                            slotNames[index] + "\n" +
                             (stacks[index].amount > 0
-                                 ? material.name
-                                 : "Empty") +
+                                 ? materialName(material.id)
+                                 : tr("common.empty")) +
                             " x" + std::to_string(stacks[index].amount) +
                             "##furnace" + std::to_string(index);
                         if (ImGui::Button(label.c_str(),
@@ -1867,15 +2161,16 @@ class OgreUserInterface::Impl
                                   static_cast<float>(
                                       furnace->state.burnTicksTotal)
                             : 0.f;
-                    ImGui::TextUnformatted("Smelting progress");
+                    ImGui::TextUnformatted(tr("furnace.progress").c_str());
                     ImGui::ProgressBar(smeltProgress,
                                        ImVec2(-1.0f, 0.0f));
-                    ImGui::TextUnformatted("Fuel remaining");
+                    ImGui::TextUnformatted(
+                        tr("furnace.fuel_remaining").c_str());
                     ImGui::ProgressBar(fuelProgress,
                                        ImVec2(-1.0f, 0.0f));
                     ImGui::Separator();
-                    ImGui::TextUnformatted(
-                        "Hotbar: smeltable items go to Input; fuel goes to Fuel");
+                    ImGui::TextWrapped("%s",
+                        tr("furnace.inventory_hint").c_str());
                     for (int playerSlot = 0;
                          playerSlot < player->getInventorySlotCount();
                          ++playerSlot)
@@ -1884,8 +2179,9 @@ class OgreUserInterface::Impl
                         const ItemStack &stack =
                             player->getInventorySlot(playerSlot);
                         const std::string label =
-                            (stack.isEmpty() ? "Empty"
-                                             : stack.getMaterial().name) +
+                            (stack.isEmpty()
+                                 ? tr("common.empty")
+                                 : materialName(stack.getMaterial().id)) +
                             " x" +
                             std::to_string(stack.getNumInStack()) +
                             "##furnaceplayer" +
@@ -1915,7 +2211,7 @@ class OgreUserInterface::Impl
                             }
                         }
                     }
-                    if (ImGui::Button("Close", ImVec2(100.0f, 32.0f)))
+                    if (ImGui::Button(label("common.close", "##CloseFurnace").c_str(), ImVec2(100.0f, 32.0f)))
                     {
                         open = false;
                         playUiFeedback();
@@ -1945,10 +2241,10 @@ class OgreUserInterface::Impl
         const ImGuiWindowFlags flags =
             ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings |
             ImGuiWindowFlags_NoResize;
-        if (ImGui::Begin("Chest Container", &open, flags))
+        const std::string chestTitle = label("chest.title", "##Chest");
+        if (ImGui::Begin(chestTitle.c_str(), &open, flags))
         {
-            ImGui::TextUnformatted(
-                "Chest slots (click to take into your hotbar)");
+            ImGui::TextWrapped("%s", tr("chest.slots_hint").c_str());
             for (int slot = 0; slot < chest->inventory.getSlotCount(); ++slot)
             {
                 if (slot > 0 && slot % 3 != 0)
@@ -1960,7 +2256,8 @@ class OgreUserInterface::Impl
                 const Material &material =
                     Material::toMaterial(stack.materialId);
                 const std::string label =
-                    (stack.amount > 0 ? material.name : "Empty") + " x" +
+                    (stack.amount > 0 ? materialName(material.id)
+                                      : tr("common.empty")) + " x" +
                     std::to_string(stack.amount) + "##chest" +
                     std::to_string(slot);
                 if (ImGui::Button(label.c_str(), ImVec2(170.0f, 54.0f)) &&
@@ -1975,8 +2272,7 @@ class OgreUserInterface::Impl
             }
 
             ImGui::Separator();
-            ImGui::TextUnformatted(
-                "Hotbar (click to store in the chest)");
+            ImGui::TextWrapped("%s", tr("chest.hotbar_hint").c_str());
             for (int slot = 0; slot < player->getInventorySlotCount(); ++slot)
             {
                 if (slot > 0)
@@ -1985,7 +2281,8 @@ class OgreUserInterface::Impl
                 }
                 const ItemStack &stack = player->getInventorySlot(slot);
                 const std::string label =
-                    (stack.isEmpty() ? "Empty" : stack.getMaterial().name) +
+                    (stack.isEmpty() ? tr("common.empty")
+                                     : materialName(stack.getMaterial().id)) +
                     " x" + std::to_string(stack.getNumInStack()) +
                     "##player" + std::to_string(slot);
                 if (ImGui::Button(label.c_str(), ImVec2(102.0f, 50.0f)) &&
@@ -1999,9 +2296,8 @@ class OgreUserInterface::Impl
                     }
                 }
             }
-            ImGui::TextUnformatted(
-                "Escape or Close returns to mouse-look.");
-            if (ImGui::Button("Close", ImVec2(100.0f, 32.0f)))
+            ImGui::TextWrapped("%s", tr("container.close_hint").c_str());
+            if (ImGui::Button(label("common.close", "##CloseChest").c_str(), ImVec2(100.0f, 32.0f)))
             {
                 open = false;
                 playUiFeedback();
@@ -2036,20 +2332,18 @@ class OgreUserInterface::Impl
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
         ImGui::SetNextWindowSize(ImVec2(820.0f, 660.0f), ImGuiCond_Always);
         bool open = true;
-        const char *title =
+        const std::string title =
             gridSize == CraftingSession::WorkbenchGridSize
-                ? "Workbench Crafting"
-                : "Player Crafting";
-        if (ImGui::Begin(title, &open,
+                ? label("crafting.workbench_title", "##Crafting")
+                : label("crafting.player_title", "##Crafting");
+        if (ImGui::Begin(title.c_str(), &open,
                          ImGuiWindowFlags_NoCollapse |
                              ImGuiWindowFlags_NoResize |
                              ImGuiWindowFlags_NoSavedSettings))
         {
-            ImGui::TextUnformatted(
-                "Choose an inventory material, fill the virtual grid, then craft.");
-            ImGui::TextUnformatted(
-                "Grid previews never remove items; right-click a cell to clear it.");
-            if (ImGui::CollapsingHeader("Recipe Book",
+            ImGui::TextWrapped("%s", tr("crafting.choose_hint").c_str());
+            ImGui::TextWrapped("%s", tr("crafting.grid_hint").c_str());
+            if (ImGui::CollapsingHeader(tr("crafting.recipe_book").c_str(),
                                         ImGuiTreeNodeFlags_DefaultOpen))
             {
                 ImGui::BeginChild("##RecipeBook", ImVec2(0.0f, 135.0f),
@@ -2061,23 +2355,25 @@ class OgreUserInterface::Impl
                     {
                         continue;
                     }
-                    const Material &output =
-                        Material::toMaterial(recipe.outputMaterialId);
                     const std::string button =
-                        "Load##recipe-" + recipe.id;
+                        tr("crafting.load") + "##recipe-" + recipe.id;
                     if (ImGui::SmallButton(button.c_str()))
                     {
                         if (craftingSession->loadRecipe(recipe))
                         {
-                            craftingMessage = "Loaded " + output.name +
-                                              " into the crafting grid.";
+                            craftingMessage =
+                                materialName(recipe.outputMaterialId) + ": " +
+                                tr("crafting.loaded");
                             playUiFeedback();
                         }
                     }
                     ImGui::SameLine();
                     const std::string ingredients =
-                        recipeIngredientSummary(recipe);
-                    ImGui::Text("%s x%d  <-  %s", output.name.c_str(),
+                        recipeIngredientSummary(recipe,
+                                                appliedSettings.locale);
+                    const std::string outputName =
+                        materialName(recipe.outputMaterialId);
+                    ImGui::Text("%s x%d  <-  %s", outputName.c_str(),
                                 recipe.outputCount, ingredients.c_str());
                 }
                 ImGui::EndChild();
@@ -2085,7 +2381,7 @@ class OgreUserInterface::Impl
             ImGui::Separator();
 
             const PlayerSaveState state = player->getSaveState();
-            ImGui::TextUnformatted("Inventory materials");
+            ImGui::TextUnformatted(tr("crafting.inventory").c_str());
             for (std::size_t index = 0; index < state.inventory.size();
                  ++index)
             {
@@ -2097,7 +2393,8 @@ class OgreUserInterface::Impl
                 const Material &material =
                     Material::toMaterial(slot.materialId);
                 const std::string label =
-                    (slot.amount > 0 ? material.name : "Empty") + " x" +
+                    (slot.amount > 0 ? materialName(material.id)
+                                     : tr("common.empty")) + " x" +
                     std::to_string(slot.amount) + "##craft-source-" +
                     std::to_string(index);
                 if (ImGui::Button(label.c_str(), ImVec2(122.0f, 46.0f)) &&
@@ -2106,17 +2403,17 @@ class OgreUserInterface::Impl
                     selectedCraftingMaterial = slot.materialId;
                 }
             }
-            ImGui::Text("Selected: %s",
-                        Material::toMaterial(selectedCraftingMaterial)
-                            .name.c_str());
+            ImGui::Text("%s: %s", tr("crafting.selected").c_str(),
+                        materialName(selectedCraftingMaterial).c_str());
             ImGui::SameLine();
-            if (ImGui::SmallButton("Clear selection"))
+            if (ImGui::SmallButton(label("crafting.clear_selection", "##ClearSelection").c_str()))
             {
                 selectedCraftingMaterial = Material::ID::Nothing;
             }
 
             ImGui::Separator();
-            ImGui::Text("%dx%d input grid", gridSize, gridSize);
+            ImGui::Text("%dx%d %s", gridSize, gridSize,
+                        tr("crafting.input_grid").c_str());
             for (int index = 0; index < craftingSession->cellCount();
                  ++index)
             {
@@ -2129,7 +2426,8 @@ class OgreUserInterface::Impl
                 const Material &material =
                     Material::toMaterial(cell.materialId);
                 const std::string label =
-                    (cell.amount > 0 ? material.name : "Empty") +
+                    (cell.amount > 0 ? materialName(material.id)
+                                     : tr("common.empty")) +
                     "##craft-cell-" + std::to_string(index);
                 if (ImGui::Button(label.c_str(), ImVec2(145.0f, 52.0f)) &&
                     selectedCraftingMaterial != Material::ID::Nothing)
@@ -2142,7 +2440,7 @@ class OgreUserInterface::Impl
                     craftingSession->clearCell(index);
                 }
             }
-            if (ImGui::Button("Clear grid"))
+            if (ImGui::Button(label("crafting.clear_grid", "##ClearGrid").c_str()))
             {
                 craftingSession->clear();
             }
@@ -2152,35 +2450,38 @@ class OgreUserInterface::Impl
             ImGui::Separator();
             if (!preview.recipeId.empty())
             {
-                const Material &output =
-                    Material::toMaterial(preview.outputMaterialId);
-                ImGui::Text("Recipe: %s", preview.recipeId.c_str());
-                ImGui::Text("Output: %s x%d | maximum crafts: %d",
-                            output.name.c_str(), preview.outputCount,
+                ImGui::Text("%s: %s", tr("crafting.recipe").c_str(),
+                            preview.recipeId.c_str());
+                ImGui::Text("%s: %s x%d | %s: %d",
+                            tr("crafting.output").c_str(),
+                            materialName(preview.outputMaterialId).c_str(),
+                            preview.outputCount,
+                            tr("crafting.maximum_crafts").c_str(),
                             preview.maxCrafts);
             }
-            ImGui::TextWrapped("%s", preview.message.c_str());
+            ImGui::TextWrapped("%s",
+                               craftingPreviewMessage(preview.status).c_str());
             ImGui::BeginDisabled(!preview.ready());
-            if (ImGui::Button("Craft one", ImVec2(150.0f, 38.0f)))
+            if (ImGui::Button(label("crafting.craft_one", "##CraftOne").c_str(), ImVec2(150.0f, 38.0f)))
             {
                 const CraftingCommitResult committed =
                     player->commitCrafting(
                         *craftingSession, runtimeRecipeRegistry(), preview,
                         1);
-                craftingMessage = committed.message;
+                craftingMessage = craftingCommitMessage(committed.status);
             }
             ImGui::SameLine();
-            if (ImGui::Button("Craft maximum", ImVec2(170.0f, 38.0f)))
+            if (ImGui::Button(label("crafting.craft_maximum", "##CraftMaximum").c_str(), ImVec2(170.0f, 38.0f)))
             {
                 const CraftingCommitResult committed =
                     player->commitCrafting(
                         *craftingSession, runtimeRecipeRegistry(), preview,
                         preview.maxCrafts);
-                craftingMessage = committed.message;
+                craftingMessage = craftingCommitMessage(committed.status);
             }
             ImGui::EndDisabled();
             ImGui::SameLine();
-            if (ImGui::Button("Close", ImVec2(110.0f, 38.0f)))
+            if (ImGui::Button(label("common.close", "##CloseCrafting").c_str(), ImVec2(110.0f, 38.0f)))
             {
                 open = false;
                 playUiFeedback();
@@ -2204,7 +2505,9 @@ class OgreUserInterface::Impl
         {
             return;
         }
-        if (ImGui::Begin("Player"))
+        const std::string playerDiagnostics =
+            label("diagnostics.player_title", "##PlayerDiagnostics");
+        if (ImGui::Begin(playerDiagnostics.c_str()))
         {
             const PlayerSaveState state = player->getSaveState();
             const Ogre::Vector3 cameraPosition = camera->getPosition();
@@ -2297,16 +2600,18 @@ class OgreUserInterface::Impl
             ImGui::TextUnformatted("R: consume held food");
             ImGui::Text("Death inventory policy: %s",
                         World::PlayerDeathInventoryPolicy);
-            ImGui::TextUnformatted("F1: toggle debug panels");
+            ImGui::Text("F1: %s", tr("diagnostics.toggle").c_str());
         }
         ImGui::End();
 
-        if (ImGui::Begin("Sandbox"))
+        const std::string worldDiagnostics =
+            label("diagnostics.sandbox_title", "##WorldDiagnostics");
+        if (ImGui::Begin(worldDiagnostics.c_str()))
         {
             ImGui::Text("Seed: %d (terrain v%d)", worldStats.terrainSeed,
                         worldStats.terrainGenerationVersion);
             ImGui::Text("Difficulty: %s (profile v%d, epoch %llu)%s",
-                        worldDifficultyName(worldStats.difficulty),
+                        difficultyName(worldStats.difficulty).c_str(),
                         worldStats.difficultyProfileVersion,
                         worldStats.difficultyApplicationEpoch,
                         worldStats.difficultyChangePending
@@ -2477,8 +2782,8 @@ class OgreUserInterface::Impl
     std::string pendingBackupId;
     std::string statusMessage;
     float statusMessageSeconds = 0.f;
-    std::string audioCaption;
-    float audioCaptionSeconds = 0.f;
+    PresentationCaptionTimeline captionTimeline;
+    float previousPlayerHealth = -1.f;
     float interactionFeedbackSeconds = 0.f;
     ImVec4 interactionFeedbackColour = ImVec4(1.f, 1.f, 1.f, 1.f);
     float hudElapsedSeconds = 0.f;
@@ -2504,12 +2809,16 @@ class OgreUserInterface::Impl
     WorldDebugStats worldStats;
     MiningProgressSnapshot miningProgress;
     bool showDebugPanel = false;
+    bool showCredits = false;
     bool initialized = false;
     bool listenerInstalled = false;
     bool framePending = false;
     Ogre::TexturePtr atlasTexture;
     ImTextureID atlasTextureId = ImTextureID_Invalid;
     std::string iniPath;
+    std::string fontPath;
+    std::string fontDiagnostic;
+    ImVector<ImWchar> presentationGlyphRanges;
 };
 
 OgreUserInterface::OgreUserInterface(Ogre::RenderWindow &window,
@@ -2517,13 +2826,15 @@ OgreUserInterface::OgreUserInterface(Ogre::RenderWindow &window,
                                      Ogre::Camera &camera, Player *player,
                                      World *world,
                                      GameApplicationFlow &applicationFlow,
-                                      WorldManagementService &worldManagement,
+                                     WorldManagementService &worldManagement,
                                       const UserSettings &settings,
+                                      std::string presentationFontPath,
                                       std::function<void()> uiFeedback,
                                       std::vector<PendingCrashReport> crashReports)
     : m_impl(std::make_unique<Impl>(window, sceneManager, camera, player,
                                     world, applicationFlow,
                                      worldManagement, settings,
+                                     std::move(presentationFontPath),
                                      std::move(uiFeedback),
                                      std::move(crashReports)))
 {
@@ -2641,6 +2952,7 @@ void OgreUserInterface::setWorldContext(Player *player,
     m_impl->player = player;
     m_impl->world = world;
     m_impl->dismissedVictoryEpoch = 0;
+    m_impl->previousPlayerHealth = -1.f;
     m_impl->difficultyDraftInitialized = false;
     if (world != nullptr)
     {
@@ -2657,9 +2969,10 @@ void OgreUserInterface::setStatusMessage(std::string message)
     m_impl->setStatusMessage(std::move(message));
 }
 
-void OgreUserInterface::setAudioCaption(std::string caption)
+void OgreUserInterface::setAudioCaption(std::string cueId,
+                                        std::string caption)
 {
-    m_impl->setAudioCaption(std::move(caption));
+    m_impl->setAudioCaption(std::move(cueId), std::move(caption));
 }
 
 bool OgreUserInterface::dismissSettings() noexcept

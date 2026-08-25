@@ -106,7 +106,8 @@ class AudioRuntime {
     void update(float deltaSeconds, bool worldSimulationActive,
                 const AudioListenerState &listener) noexcept;
     void setUserSettings(const UserSettings &settings) noexcept;
-    void setCaptionSink(std::function<void(std::string)> sink) noexcept;
+    void setCaptionSink(
+        std::function<void(std::string, std::string)> sink) noexcept;
     void setWorldPaused(bool paused) noexcept;
     void setMuted(bool muted) noexcept;
     void setSuspended(bool suspended) noexcept;
@@ -128,7 +129,7 @@ class AudioRuntime {
     AudioListenerState m_listener;
     AudioRuntimeStats m_stats;
     std::string m_degradedReason;
-    std::function<void(std::string)> m_captionSink;
+    std::function<void(std::string, std::string)> m_captionSink;
     float m_ambientElapsedSeconds = 0.f;
     bool m_worldPaused = false;
     bool m_muted = false;

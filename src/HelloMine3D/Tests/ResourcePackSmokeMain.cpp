@@ -50,7 +50,9 @@ namespace
             {"enemy", "media/enemies/Base.enemy"},
             {"food", "media/foods/Base.food"},
             {"font", "media/fonts/rs.ttf"},
+            {"license", "media/fonts/NotoSansSC-OFL.txt"},
             {"objective", "media/objectives/Base.objective"},
+            {"presentation-font", "media/fonts/NotoSansSC-VF.ttf"},
             {"recipe", "media/recipes/Base.recipe"},
             {"smelting", "media/smelting/Base.smelting"},
             {"text", "media/text/en-US.text"},
@@ -158,9 +160,11 @@ namespace
                 requirement.category == "enemy" ||
                 requirement.category == "food" ||
                 requirement.category == "objective" ||
+                requirement.category == "presentation-font" ||
                 requirement.category == "recipe" ||
                 requirement.category == "smelting" ||
                 requirement.category == "text" ||
+                requirement.category == "license" ||
                 requirement.category == "tool")
             {
                 continue;
@@ -380,6 +384,36 @@ namespace
                       "stale or unsupported override"));
         }
         {
+            const fs::path root = freshRoot("presentation-font-override");
+            const fs::path pack = createPack(
+                root, "font", "Presentation Font Override", 1,
+                {{"media/fonts/NotoSansSC-VF.ttf", "override\n"}});
+            check("N12A/reject-unversioned-presentation-font-override",
+                  throwsContaining(
+                      [&]
+                      {
+                          ResourcePackResolver resolver;
+                          resolver.freeze(root.string(), requirements(),
+                                          {pack.string()});
+                      },
+                      "stale or unsupported override"));
+        }
+        {
+            const fs::path root = freshRoot("font-license-override");
+            const fs::path pack = createPack(
+                root, "license", "Font License Override", 1,
+                {{"media/fonts/NotoSansSC-OFL.txt", "override\n"}});
+            check("N12A/reject-unversioned-font-license-override",
+                  throwsContaining(
+                      [&]
+                      {
+                          ResourcePackResolver resolver;
+                          resolver.freeze(root.string(), requirements(),
+                                          {pack.string()});
+                      },
+                      "stale or unsupported override"));
+        }
+        {
             const fs::path root = freshRoot("missing-base");
             fs::remove(root / "media/ogre/Test.vert");
             check("X2/reject-missing-effective-resource",
@@ -432,6 +466,45 @@ namespace
               preflightPassed);
     }
 
+    void caseOptionalPresentationFont()
+    {
+        const fs::path root = freshRoot("optional-presentation-font");
+        const fs::path font = root / "media/fonts/NotoSansSC-VF.ttf";
+        fs::remove(font);
+        ResourcePackResolver resolver;
+        bool frozen = false;
+        try
+        {
+            resolver.freeze(root.string(), requirements(), {});
+            frozen = true;
+        }
+        catch (...)
+        {
+        }
+        check("N12A/missing-presentation-font-keeps-view-loadable",
+              frozen && resolver.isFrozen() &&
+                  resolver.resolve("media/fonts/NotoSansSC-VF.ttf") ==
+                      font.generic_string());
+
+        bool preflightPassed = false;
+        try
+        {
+            std::vector<StartupResourceRequirement> startupRequirements;
+            for (const ResourcePackRequirement& requirement : requirements())
+            {
+                startupRequirements.push_back(
+                    {requirement.category, requirement.logicalPath});
+            }
+            validateStartupResources(root.string(), startupRequirements);
+            preflightPassed = true;
+        }
+        catch (...)
+        {
+        }
+        check("N12A/missing-presentation-font-keeps-preflight-loadable",
+              preflightPassed);
+    }
+
     void caseFrozenManifest()
     {
         const fs::path root = freshRoot("manifest");
@@ -473,6 +546,7 @@ int main()
     caseEveryAllowedClass();
     caseInvalidPacks();
     caseOptionalAudio();
+    caseOptionalPresentationFont();
     caseFrozenManifest();
     std::cout << "[RESOURCE_PACK_TEST] checks=" << checks
               << " failures=" << failures << '\n';
