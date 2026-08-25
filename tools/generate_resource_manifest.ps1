@@ -77,6 +77,33 @@ foreach ($sampleFile in $sampleFiles) {
 Add-ManifestEntry "license" `
     "media/audio/samples/LICENSE-HelloMine3D-Audio.txt"
 
+$musicRoot = Join-Path $Root "media\music"
+if (-not (Test-Path -LiteralPath $musicRoot -PathType Container)) {
+    throw "Music resource directory is missing: $musicRoot"
+}
+$musicDefinitions = @(Get-ChildItem -LiteralPath $musicRoot `
+    -Filter "*.music" -File -Recurse)
+if ($musicDefinitions.Count -ne 1) {
+    throw "Expected exactly one N12C music definition, found $($musicDefinitions.Count)."
+}
+foreach ($musicDefinition in $musicDefinitions) {
+    $relativeMusic = $musicDefinition.FullName.Substring($Root.Length).TrimStart(
+        [char]'\', [char]'/')
+    Add-ManifestEntry "music" $relativeMusic
+}
+$musicTracks = @(Get-ChildItem -LiteralPath $musicRoot `
+    -Filter "*.wav" -File -Recurse)
+if ($musicTracks.Count -ne 1) {
+    throw "Expected exactly one N12C music track, found $($musicTracks.Count)."
+}
+foreach ($musicTrack in $musicTracks) {
+    $relativeTrack = $musicTrack.FullName.Substring($Root.Length).TrimStart(
+        [char]'\', [char]'/')
+    Add-ManifestEntry "music-track" $relativeTrack
+}
+Add-ManifestEntry "license" `
+    "media/music/tracks/LICENSE-HelloMine3D-Music.txt"
+
 $objectiveRoot = Join-Path $Root "media\objectives"
 if (-not (Test-Path -LiteralPath $objectiveRoot -PathType Container)) {
     throw "Objective resource directory is missing: $objectiveRoot"

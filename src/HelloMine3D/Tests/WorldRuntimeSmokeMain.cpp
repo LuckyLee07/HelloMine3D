@@ -38,6 +38,8 @@
 #include "../Actor/MobActor.h"
 #include "../Audio/AudioDefinitionRegistry.h"
 #include "../Audio/AudioRuntime.h"
+#include "../Audio/MusicDefinitionRegistry.h"
+#include "../Audio/MusicRuntime.h"
 #include "../Config.h"
 #include "../Core/Camera.h"
 #include "../Diagnostics/OperationPerformanceTiming.h"
@@ -328,6 +330,7 @@ void caseRuntimeConfigOwnership()
               generated.fov == 90 &&
               std::abs(generated.mouseSensitivity - 0.05f) < 0.0001f &&
               !generated.invertMouseY &&
+              std::abs(generated.musicVolume - 0.65f) < 0.0001f &&
               std::abs(generated.uiScale - 1.f) < 0.0001f &&
               generated.locale == "en-US" &&
               generated.audioCaptions && generated.showActionHints &&
@@ -345,10 +348,11 @@ void caseRuntimeConfigOwnership()
         std::ifstream input(configPath, std::ios::binary);
         const std::string text((std::istreambuf_iterator<char>(input)),
                                std::istreambuf_iterator<char>());
-        check("N12A/settings-file-is-versioned-with-locale",
-               text.find("settings_version 3\n") != std::string::npos &&
+        check("N12C/settings-file-is-versioned-with-music-volume",
+               text.find("settings_version 4\n") != std::string::npos &&
                    text.find("mastervolume 1") != std::string::npos &&
                    text.find("ambientvolume 1") != std::string::npos &&
+                   text.find("musicvolume 0.649") != std::string::npos &&
                    text.find("uiscale 1") != std::string::npos &&
                    text.find("locale en-US") != std::string::npos &&
                    text.find("key_consume_food r") != std::string::npos,
@@ -377,9 +381,10 @@ void caseRuntimeConfigOwnership()
         std::ifstream input(configPath, std::ios::binary);
         const std::string text((std::istreambuf_iterator<char>(input)),
                                std::istreambuf_iterator<char>());
-        check("N12A/legacy-settings-migrated-atomically",
-               text.find("settings_version 3\n") == 0 &&
+        check("N12C/legacy-settings-migrated-atomically",
+               text.find("settings_version 4\n") == 0 &&
                    text.find("uivolume 1") != std::string::npos &&
+                   text.find("musicvolume 0.649") != std::string::npos &&
                    text.find("locale en-US") != std::string::npos &&
                    text.find("audiocaptions 1") != std::string::npos,
                text);
@@ -405,7 +410,8 @@ void caseRuntimeConfigOwnership()
                   versionOne.audioCaptions && versionOne.showActionHints &&
                   versionOne.inputBindings.get(
                       GameplayAction::OpenCrafting) == GameplayKey::E &&
-                  text.find("settings_version 3\n") == 0,
+                  std::abs(versionOne.musicVolume - 0.65f) < 0.0001f &&
+                  text.find("settings_version 4\n") == 0,
               text);
     }
 
@@ -427,8 +433,32 @@ void caseRuntimeConfigOwnership()
               std::abs(versionTwo.uiScale - 1.25f) < 0.0001f &&
                   !versionTwo.audioCaptions &&
                   versionTwo.locale == "en-US" &&
-                  text.find("settings_version 3\n") == 0 &&
+                  std::abs(versionTwo.musicVolume - 0.65f) < 0.0001f &&
+                  text.find("settings_version 4\n") == 0 &&
                   text.find("locale en-US\n") != std::string::npos,
+              text);
+    }
+
+    const std::filesystem::path versionThreePath =
+        directory / "version-three-config.txt";
+    {
+        std::ofstream output(versionThreePath,
+                             std::ios::binary | std::ios::trunc);
+        output << "settings_version 3\n"
+               << "locale zh-CN\n"
+               << "ambientvolume 0.4\n";
+    }
+    const Config versionThree = loadRuntimeConfig(versionThreePath.string());
+    {
+        std::ifstream input(versionThreePath, std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(input)),
+                               std::istreambuf_iterator<char>());
+        check("N12C/version-three-settings-migrate-with-music-default",
+              versionThree.locale == "zh-CN" &&
+                  std::abs(versionThree.ambientVolume - 0.4f) < 0.0001f &&
+                  std::abs(versionThree.musicVolume - 0.65f) < 0.0001f &&
+                  text.find("settings_version 4\n") == 0 &&
+                  text.find("musicvolume 0.649") != std::string::npos,
               text);
     }
 
@@ -458,7 +488,8 @@ void caseRuntimeConfigOwnership()
           session.prepareApply(plan, settingsError) &&
               plan.settings.windowX == 1280 &&
               plan.settings.renderDistance == 8 &&
-              std::abs(plan.settings.masterVolume - 1.0f) < 0.0001f);
+              std::abs(plan.settings.masterVolume - 1.0f) < 0.0001f &&
+              std::abs(plan.settings.musicVolume - 0.65f) < 0.0001f);
     session.draft().fov = 121;
     check("G4/settings-reject-out-of-range-draft",
           !session.prepareApply(plan, settingsError) &&
@@ -471,6 +502,7 @@ void caseRuntimeConfigOwnership()
     persisted.fov = 96;
     persisted.uiScale = 1.25f;
     persisted.locale = "zh-CN";
+    persisted.musicVolume = 0.4f;
     persisted.audioCaptions = false;
     persisted.showActionHints = false;
     persisted.inputBindings.set(GameplayAction::ConsumeFood,
@@ -485,6 +517,7 @@ void caseRuntimeConfigOwnership()
               *reloaded.worldSeed == 77123 &&
               std::abs(reloaded.uiScale - 1.25f) < 0.0001f &&
               reloaded.locale == "zh-CN" &&
+              std::abs(reloaded.musicVolume - 0.4f) < 0.0001f &&
               !reloaded.audioCaptions && !reloaded.showActionHints &&
               reloaded.inputBindings.get(GameplayAction::ConsumeFood) ==
                   GameplayKey::Q);
@@ -559,7 +592,13 @@ void caseRuntimeConfigOwnership()
                   "legacy-locale.txt", "locale zh-CN\n") &&
               invalidSettingsRejected(
                   "unknown-locale.txt",
-                  "settings_version 3\nlocale fr-FR\n"));
+                  "settings_version 3\nlocale fr-FR\n") &&
+              invalidSettingsRejected(
+                  "old-version-music.txt",
+                  "settings_version 3\nmusicvolume 0.5\n") &&
+              invalidSettingsRejected(
+                  "invalid-music-volume.txt",
+                  "settings_version 4\nmusicvolume 1.1\n"));
 }
 
 std::string readTextFile(const std::string &path)
@@ -628,7 +667,11 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 346);
+              registry.keys("en-US").size() == 352 &&
+              registry.lookup("en-US", "settings.music_volume") ==
+                  "Music" &&
+              registry.lookup("zh-CN", "settings.music_volume") !=
+                  registry.lookup("en-US", "settings.music_volume"));
     check("N7A/localized-victory-text-resolves",
           registry.lookup("en-US", "victory.overlay.title") ==
                   "Waystone Restored" &&
@@ -783,6 +826,9 @@ void caseWorldOutcomeAndLocalizedText()
     const std::string audioLicense = readTextFile(
         ResourcePaths::media(
             "audio/samples/LICENSE-HelloMine3D-Audio.txt"));
+    const std::string musicLicense = readTextFile(
+        ResourcePaths::media(
+            "music/tracks/LICENSE-HelloMine3D-Music.txt"));
     check("N12A/credits-and-font-license-assets-are-present",
           registry.lookup("en-US", "credits.title") ==
                   "Credits and Licenses" &&
@@ -797,7 +843,13 @@ void caseWorldOutcomeAndLocalizedText()
                   std::string::npos &&
               registry.lookup("zh-CN", "credits.audio_name") !=
                   registry.lookup("en-US", "credits.audio_name") &&
-              audioLicense.find("MIT License") != std::string::npos);
+              audioLicense.find("MIT License") != std::string::npos &&
+              registry.lookup("en-US", "credits.music_path").find(
+                  "media/music/tracks/LICENSE-HelloMine3D-Music.txt") !=
+                  std::string::npos &&
+              registry.lookup("zh-CN", "credits.music_name") !=
+                  registry.lookup("en-US", "credits.music_name") &&
+              musicLicense.find("MIT License") != std::string::npos);
 
     const PresentationWindowLayout minimumLayout =
         fitPresentationWindow(640.0f, 480.0f, 820.0f, 660.0f, 1.75f);
@@ -6317,6 +6369,223 @@ void caseAudioFeedback()
     crafter.detachEventBus(craftingBus);
 }
 
+std::string validMusicDefinitions()
+{
+    return R"(# HelloMine3D music definitions v1
+track overworld.quiet "media/music/tracks/quiet-horizons.wav" 0.36 20000 2500 1800 6000 45000 90000
+)";
+}
+
+// ---------------------------------------------------------------------------
+// N12C - strict single-track definitions and bounded streamed playback
+// ---------------------------------------------------------------------------
+void caseStreamedMusic()
+{
+    MusicDefinitionRegistry loaded;
+    std::string loadError;
+    const bool loadedBase = loaded.tryFreezeFromFile(
+        ResourcePaths::media("music/Base.music"), loadError);
+    const MusicTrackDefinition *track = loaded.track();
+    check("N12C/base-music-definition-freezes-one-low-density-track",
+          loadedBase && loadError.empty() && loaded.isFrozen() &&
+              loaded.tracks().size() == 1 && track != nullptr &&
+              track->id == "overworld.quiet" &&
+              track->streamPath ==
+                  "media/music/tracks/quiet-horizons.wav" &&
+              track->durationMilliseconds == 20000 &&
+              track->minimumGapMilliseconds == 45000 &&
+              track->maximumGapMilliseconds == 90000);
+
+    const MusicStreamFileInfo stream = inspectMusicStreamFile(
+        ResourcePaths::media("music/tracks/quiet-horizons.wav"));
+    check("N12C/music-stream-header-is-strict-and-bounded",
+          stream.sampleRate == 44100 && stream.channels == 1 &&
+              stream.bitsPerSample == 16 &&
+              stream.durationMilliseconds == 20000 &&
+              stream.dataOffset == 44 && stream.dataBytes > 0 &&
+              stream.dataBytes < stream.fileBytes &&
+              stream.fileBytes <= 32u * 1024u * 1024u);
+
+    auto rejects = [](const std::string &source,
+                      const std::string &expected) {
+        try {
+            MusicDefinitionRegistry invalid;
+            invalid.freeze({{"invalid.music", source}});
+        }
+        catch (const std::exception &error) {
+            return std::string(error.what()).find(expected) !=
+                   std::string::npos;
+        }
+        return false;
+    };
+    check("N12C/duplicate-or-wrong-track-identity-is-rejected",
+          rejects(validMusicDefinitions() +
+                      "track overworld.quiet \"media/music/tracks/quiet-horizons.wav\" 0.2 20000 500 500 0 10000 10000\n",
+                  "duplicate track id") &&
+              rejects(
+                  "# HelloMine3D music definitions v1\n"
+                  "track overworld.loud \"media/music/tracks/quiet-horizons.wav\" 0.2 20000 500 500 0 10000 10000\n",
+                  "requires exactly overworld.quiet"));
+    std::string traversal = validMusicDefinitions();
+    traversal.replace(
+        traversal.find("media/music/tracks/quiet-horizons.wav"),
+        std::string("media/music/tracks/quiet-horizons.wav").size(),
+        "media/music/tracks/../quiet-horizons.wav");
+    check("N12C/music-stream-path-traversal-is-rejected",
+          rejects(traversal, "stream path must be a canonical"));
+    std::string invalidBounds = validMusicDefinitions();
+    invalidBounds.replace(invalidBounds.find("0.36 20000 2500"),
+                          std::string("0.36 20000 2500").size(),
+                          "1.1 9000 50");
+    check("N12C/music-gain-duration-and-fades-are-bounded",
+          rejects(invalidBounds, "gain must be between 0 and 1"));
+    std::string invalidGap = validMusicDefinitions();
+    invalidGap.replace(invalidGap.find("45000 90000"),
+                       std::string("45000 90000").size(),
+                       "90000 45000");
+    check("N12C/music-gap-order-is-bounded",
+          rejects(invalidGap, "low-density gap is outside"));
+
+    Config config = makeConfig();
+    UserSettings settings = userSettings(config);
+    std::unique_ptr<MusicRuntime> music = MusicRuntime::createDummy(
+        std::move(loaded), settings);
+    music->update(5.9f, true, false);
+    const bool initialDelayHeld =
+        music->state() == MusicPlaybackState::Waiting &&
+        music->stats().playsStarted == 0;
+    music->update(0.2f, true, false);
+    const bool startedAfterDelay =
+        music->state() == MusicPlaybackState::FadingIn &&
+        music->stats().playsStarted == 1;
+    music->update(2.5f, true, false);
+    check("N12C/world-entry-delay-and-fade-in-are-deterministic",
+          initialDelayHeld && startedAfterDelay &&
+              music->state() == MusicPlaybackState::Playing &&
+              music->stats().playsStarted == 1);
+    check("N12C/streaming-does-not-preload-the-whole-track",
+          music->stats().streamedBytes > 0 &&
+              music->stats().streamedBytes < music->stream().dataBytes);
+
+    music->update(1.8f, true, true);
+    const std::size_t bytesAtPause = music->stats().streamedBytes;
+    music->update(5.f, true, true);
+    check("N12C/pause-fades-and-holds-stream-progress",
+          music->state() == MusicPlaybackState::Paused &&
+              music->stats().pauses == 1 &&
+              music->stats().streamedBytes == bytesAtPause);
+    music->setSuspended(true);
+    music->update(30.f, true, false);
+    const bool suspendedHeld =
+        music->stats().streamedBytes == bytesAtPause;
+    music->setSuspended(false);
+    music->update(2.5f, true, false);
+    check("N12C/device-suspend-and-resume-are-nonfatal",
+          suspendedHeld &&
+              music->state() == MusicPlaybackState::Playing &&
+              music->stats().playsStarted == 1);
+
+    music->setMuted(true);
+    music->update(1.8f, true, false);
+    check("N12C/mute-fades-to-a-bounded-stop",
+          music->state() == MusicPlaybackState::Stopped &&
+              music->stats().stops == 1 &&
+              !music->stats().workerActive);
+    music->stopImmediately();
+    check("N12C/explicit-shutdown-leaves-no-stream-worker",
+          music->state() == MusicPlaybackState::Stopped &&
+              !music->stats().workerActive);
+
+    MusicDefinitionRegistry completionDefinitions;
+    completionDefinitions.freeze(
+        {{"completion.music", validMusicDefinitions()}});
+    std::unique_ptr<MusicRuntime> completion =
+        MusicRuntime::createDummy(std::move(completionDefinitions),
+                                  settings);
+    completion->update(6.1f, true, false);
+    completion->update(2.5f, true, false);
+    completion->update(20.f, true, false);
+    check("N12C/completion-enters-a-low-density-replay-gap",
+          completion->state() == MusicPlaybackState::Waiting &&
+              completion->stats().playsStarted == 1 &&
+              completion->stats().playsCompleted == 1);
+
+    MusicDefinitionRegistry zeroVolumeDefinitions;
+    zeroVolumeDefinitions.freeze(
+        {{"zero-volume.music", validMusicDefinitions()}});
+    std::unique_ptr<MusicRuntime> zeroVolume =
+        MusicRuntime::createDummy(std::move(zeroVolumeDefinitions),
+                                  settings);
+    zeroVolume->update(6.1f, true, false);
+    zeroVolume->update(2.5f, true, false);
+    UserSettings silentSettings = settings;
+    silentSettings.musicVolume = 0.f;
+    zeroVolume->setUserSettings(silentSettings);
+    zeroVolume->update(0.9f, true, false);
+    const bool zeroVolumeStillFading =
+        zeroVolume->state() == MusicPlaybackState::FadingOut;
+    zeroVolume->update(0.9f, true, false);
+    check("N12C/zero-music-volume-stops-without-restart",
+          zeroVolumeStillFading &&
+              zeroVolume->state() == MusicPlaybackState::Stopped &&
+              zeroVolume->stats().playsStarted == 1 &&
+              zeroVolume->stats().stops == 1);
+
+    MusicDefinitionRegistry unavailable;
+    std::string unavailableError;
+    const bool missingLoaded = unavailable.tryFreezeFromFile(
+        ResourcePaths::bin("validation_runs/missing.music"),
+        unavailableError);
+    std::unique_ptr<MusicRuntime> missing = MusicRuntime::createDummy(
+        std::move(unavailable), settings);
+    missing->update(100.f, true, false);
+    check("N12C/missing-music-is-silent-and-nonfatal",
+          !missingLoaded && !unavailableError.empty() &&
+              missing->definitions().isFrozen() &&
+              missing->definitions().tracks().empty() &&
+              !missing->streamAvailable() &&
+              missing->state() == MusicPlaybackState::Degraded &&
+              missing->stats().playsStarted == 0);
+
+    const std::string invalidWaveRoot =
+        freshSaveDirectory("n12c-invalid-wave");
+    const std::filesystem::path invalidWavePath =
+        std::filesystem::path(invalidWaveRoot) / "invalid.wav";
+    {
+        std::ofstream invalidWave(
+            invalidWavePath, std::ios::binary | std::ios::trunc);
+        invalidWave << "RIFF invalid streamed music";
+    }
+    MusicDefinitionRegistry invalidWaveDefinitions;
+    invalidWaveDefinitions.freeze(
+        {{"invalid-wave.music", validMusicDefinitions()}});
+    std::unique_ptr<MusicRuntime> invalidWave =
+        MusicRuntime::createDummy(
+            std::move(invalidWaveDefinitions), settings,
+            [&invalidWavePath](const std::string &) {
+                return invalidWavePath.string();
+            });
+    check("N12C/malformed-stream-selects-silent-degradation",
+          !invalidWave->streamAvailable() &&
+              invalidWave->state() == MusicPlaybackState::Degraded &&
+              invalidWave->degradedReason().find("outside 44..33554432") !=
+                  std::string::npos);
+
+    std::string durationMismatch = validMusicDefinitions();
+    durationMismatch.replace(durationMismatch.find("20000"), 5, "21000");
+    MusicDefinitionRegistry mismatchedDefinitions;
+    mismatchedDefinitions.freeze(
+        {{"mismatched.music", durationMismatch}});
+    std::unique_ptr<MusicRuntime> mismatched =
+        MusicRuntime::createDummy(std::move(mismatchedDefinitions),
+                                  settings);
+    check("N12C/declared-and-stream-duration-must-match",
+          !mismatched->streamAvailable() &&
+              mismatched->state() == MusicPlaybackState::Degraded &&
+              mismatched->degradedReason().find(
+                  "duration does not match") != std::string::npos);
+}
+
 std::string validToolDefinitions()
 {
     return R"(# HelloMine3D tool registry v1
@@ -11591,6 +11860,7 @@ int main()
         caseRuntimeConfigOwnership();
         casePausedApplicationFlow();
         caseAudioFeedback();
+        caseStreamedMusic();
         caseBlockDataDiagnostics();
         caseOreTextures();
         caseConfiguredWorldSeed();

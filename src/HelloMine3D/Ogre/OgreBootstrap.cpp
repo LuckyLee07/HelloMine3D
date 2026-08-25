@@ -42,6 +42,8 @@
 #include "../Actor/EnemyRegistry.h"
 #include "../Audio/AudioDefinitionRegistry.h"
 #include "../Audio/AudioRuntime.h"
+#include "../Audio/MusicDefinitionRegistry.h"
+#include "../Audio/MusicRuntime.h"
 #include "../Core/Camera.h"
 #include "../Diagnostics/CrashDiagnostics.h"
 #include "../Diagnostics/OperationPerformanceTiming.h"
@@ -212,6 +214,28 @@ namespace
                               ? 0
                               : 1)
                       << '\n';
+            MusicDefinitionRegistry musicDefinitions =
+                loadMusicDefinitions();
+            std::unique_ptr<MusicRuntime> musicValidation =
+                MusicRuntime::createDummy(
+                    std::move(musicDefinitions), userSettings(m_config),
+                    [](const std::string &logicalPath)
+                    {
+                        return runtimeResourcePackResolver().resolve(
+                            logicalPath);
+                    });
+            std::cout << "[MUSIC_REGISTRY] frozen=1 tracks="
+                      << musicValidation->definitions().tracks().size()
+                      << " stream_bytes="
+                      << musicValidation->stream().dataBytes
+                      << " duration_ms="
+                      << musicValidation->stream().durationMilliseconds
+                      << " degraded="
+                      << ((m_musicDefinitionError.empty() &&
+                           musicValidation->streamAvailable())
+                              ? 0
+                              : 1)
+                      << '\n';
             createRoot();
             const std::size_t resourceLocations = configureResources();
             Ogre::RenderSystem* renderSystem = configureRenderSystem();
@@ -338,6 +362,7 @@ namespace
         {
             loadGameConfig();
             initializeAudio();
+            initializeMusic();
             createRoot();
             configureResources();
             configureRenderSystem();
@@ -429,6 +454,20 @@ namespace
             return definitions;
         }
 
+        MusicDefinitionRegistry loadMusicDefinitions()
+        {
+            MusicDefinitionRegistry definitions;
+            m_musicDefinitionError.clear();
+            std::string error;
+            const std::string path = runtimeResourcePackResolver().resolve(
+                "media/music/Base.music");
+            if (!definitions.tryFreezeFromFile(path, error))
+            {
+                m_musicDefinitionError = std::move(error);
+            }
+            return definitions;
+        }
+
         void initializeAudio()
         {
             AudioDefinitionRegistry definitions = loadAudioDefinitions();
@@ -457,6 +496,38 @@ namespace
             else if (!m_audio->degradedReason().empty())
             {
                 std::cout << " reason=" << m_audio->degradedReason();
+            }
+            std::cout << '\n';
+        }
+
+        void initializeMusic()
+        {
+            MusicDefinitionRegistry definitions = loadMusicDefinitions();
+            m_music = MusicRuntime::create(
+                std::move(definitions), userSettings(m_config),
+                [](const std::string &logicalPath)
+                {
+                    return runtimeResourcePackResolver().resolve(logicalPath);
+                });
+            std::cout << "[MUSIC] backend=" << m_music->backendName()
+                      << " real=" << (m_music->usesRealBackend() ? 1 : 0)
+                      << " tracks="
+                      << m_music->definitions().tracks().size()
+                      << " stream_bytes=" << m_music->stream().dataBytes
+                      << " duration_ms="
+                      << m_music->stream().durationMilliseconds
+                      << " state="
+                      << musicPlaybackStateName(m_music->state())
+                      << " degraded="
+                      << (m_music->degradedReason().empty() ? 0 : 1);
+            if (!m_musicDefinitionError.empty())
+            {
+                std::cout << " definition_error="
+                          << m_musicDefinitionError;
+            }
+            else if (!m_music->degradedReason().empty())
+            {
+                std::cout << " reason=" << m_music->degradedReason();
             }
             std::cout << '\n';
         }
@@ -1228,6 +1299,10 @@ namespace
                     {
                         m_audio->setUserSettings(userSettings(m_config));
                     }
+                    if (m_music != nullptr)
+                    {
+                        m_music->setUserSettings(userSettings(m_config));
+                    }
                     m_userInterface->reportSettingsApplied(
                         true, userSettings(m_config),
                         restartRequired
@@ -1557,10 +1632,6 @@ namespace
 
         void updateAudio(float deltaSeconds)
         {
-            if (m_audio == nullptr)
-            {
-                return;
-            }
             AudioListenerState listener;
             if (m_worldPlayer != nullptr)
             {
@@ -1569,11 +1640,20 @@ namespace
                 listener.forward = glm::vec3(
                     std::sin(yaw), 0.f, -std::cos(yaw));
             }
-            m_audio->setWorldPaused(
-                m_applicationFlow.state() == GameApplicationState::Paused);
-            m_audio->update(deltaSeconds,
-                            m_applicationFlow.acceptsWorldSimulation(),
-                            listener);
+            const bool worldPaused =
+                m_applicationFlow.state() == GameApplicationState::Paused;
+            if (m_audio != nullptr)
+            {
+                m_audio->setWorldPaused(worldPaused);
+                m_audio->update(deltaSeconds,
+                                m_applicationFlow.acceptsWorldSimulation(),
+                                listener);
+            }
+            if (m_music != nullptr)
+            {
+                m_music->update(deltaSeconds, m_world != nullptr,
+                                worldPaused);
+            }
         }
 
         void syncSectionMeshes()
@@ -2496,10 +2576,15 @@ namespace
             {
                 m_audio->detach();
             }
+            if (m_music != nullptr)
+            {
+                m_music->stopImmediately();
+            }
             m_world = nullptr;
             m_worldPlayer = nullptr;
             m_sandbox.reset();
             m_logicCamera.reset();
+            m_music.reset();
             m_audio.reset();
 
             m_camera = nullptr;
@@ -2522,8 +2607,10 @@ namespace
         std::unique_ptr<OgreRenderCapture> m_renderCapture;
         std::unique_ptr<OgreUserInterface> m_userInterface;
         std::unique_ptr<AudioRuntime> m_audio;
+        std::unique_ptr<MusicRuntime> m_music;
         std::vector<PendingCrashReport> m_pendingCrashReports;
         std::string m_audioDefinitionError;
+        std::string m_musicDefinitionError;
         GameApplicationFlow m_applicationFlow;
         std::unique_ptr<WorldManagementService> m_worldManagement;
         std::unique_ptr<OgreBlockOutline> m_blockOutline;

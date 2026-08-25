@@ -699,6 +699,11 @@ class OgreUserInterface::Impl
             ImGui::TextWrapped("%s", tr("credits.audio_source").c_str());
             ImGui::TextWrapped("%s", tr("credits.audio_license").c_str());
             ImGui::TextWrapped("%s", tr("credits.audio_path").c_str());
+            ImGui::SeparatorText(tr("credits.music_heading").c_str());
+            ImGui::TextWrapped("%s", tr("credits.music_name").c_str());
+            ImGui::TextWrapped("%s", tr("credits.music_source").c_str());
+            ImGui::TextWrapped("%s", tr("credits.music_license").c_str());
+            ImGui::TextWrapped("%s", tr("credits.music_path").c_str());
             if (!fontDiagnostic.empty())
             {
                 ImGui::Spacing();
@@ -1286,6 +1291,8 @@ class OgreUserInterface::Impl
             ImGui::SliderFloat(label("settings.effects_volume", "##EffectsVolume").c_str(), &draft.effectsVolume,
                                0.0f, 1.0f);
             ImGui::SliderFloat(label("settings.ambient_volume", "##AmbientVolume").c_str(), &draft.ambientVolume,
+                               0.0f, 1.0f);
+            ImGui::SliderFloat(label("settings.music_volume", "##MusicVolume").c_str(), &draft.musicVolume,
                                0.0f, 1.0f);
             ImGui::Checkbox(label("settings.audio_captions", "##AudioCaptions").c_str(), &draft.audioCaptions);
             ImGui::SeparatorText(tr("settings.controls").c_str());

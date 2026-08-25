@@ -53,6 +53,9 @@ namespace
             {"font", "media/fonts/rs.ttf"},
             {"license", "media/fonts/NotoSansSC-OFL.txt"},
             {"license", "media/audio/samples/LICENSE-HelloMine3D-Audio.txt"},
+            {"license", "media/music/tracks/LICENSE-HelloMine3D-Music.txt"},
+            {"music", "media/music/Base.music"},
+            {"music-track", "media/music/tracks/quiet-horizons.wav"},
             {"objective", "media/objectives/Base.objective"},
             {"presentation-font", "media/fonts/NotoSansSC-VF.ttf"},
             {"recipe", "media/recipes/Base.recipe"},
@@ -160,6 +163,8 @@ namespace
             if (requirement.category == "runtime-template" ||
                 requirement.category == "audio" ||
                 requirement.category == "audio-sample" ||
+                requirement.category == "music" ||
+                requirement.category == "music-track" ||
                 requirement.category == "enemy" ||
                 requirement.category == "food" ||
                 requirement.category == "objective" ||
@@ -402,6 +407,37 @@ namespace
                       "stale or unsupported override"));
         }
         {
+            const fs::path root = freshRoot("music-override");
+            const fs::path pack = createPack(
+                root, "music", "Music Override", 1,
+                {{"media/music/Base.music", "override\n"}});
+            check("N12C/reject-unversioned-music-override",
+                  throwsContaining(
+                      [&]
+                      {
+                          ResourcePackResolver resolver;
+                          resolver.freeze(root.string(), requirements(),
+                                          {pack.string()});
+                      },
+                      "stale or unsupported override"));
+        }
+        {
+            const fs::path root = freshRoot("music-track-override");
+            const fs::path pack = createPack(
+                root, "music-track", "Music Track Override", 1,
+                {{"media/music/tracks/quiet-horizons.wav",
+                  "override\n"}});
+            check("N12C/reject-unversioned-music-track-override",
+                  throwsContaining(
+                      [&]
+                      {
+                          ResourcePackResolver resolver;
+                          resolver.freeze(root.string(), requirements(),
+                                          {pack.string()});
+                      },
+                      "stale or unsupported override"));
+        }
+        {
             const fs::path root = freshRoot("presentation-font-override");
             const fs::path pack = createPack(
                 root, "font", "Presentation Font Override", 1,
@@ -553,6 +589,46 @@ namespace
               preflightPassed);
     }
 
+    void caseOptionalMusic()
+    {
+        for (const std::string logicalPath : {
+                 std::string("media/music/Base.music"),
+                 std::string("media/music/tracks/quiet-horizons.wav")})
+        {
+            const fs::path root = freshRoot(
+                logicalPath.find("Base.music") != std::string::npos
+                    ? "optional-music-definition"
+                    : "optional-music-track");
+            const fs::path missing = root / fs::path(logicalPath);
+            fs::remove(missing);
+            ResourcePackResolver resolver;
+            bool frozen = false;
+            bool preflightPassed = false;
+            try
+            {
+                resolver.freeze(root.string(), requirements(), {});
+                frozen = resolver.isFrozen();
+                std::vector<StartupResourceRequirement> startupRequirements;
+                for (const ResourcePackRequirement &requirement : requirements())
+                {
+                    startupRequirements.push_back(
+                        {requirement.category, requirement.logicalPath});
+                }
+                validateStartupResources(root.string(),
+                                         startupRequirements);
+                preflightPassed = true;
+            }
+            catch (...)
+            {
+            }
+            check(logicalPath.find("Base.music") != std::string::npos
+                      ? "N12C/missing-music-definition-keeps-startup-loadable"
+                      : "N12C/missing-music-track-keeps-startup-loadable",
+                  frozen && preflightPassed &&
+                      resolver.resolve(logicalPath) == missing.generic_string());
+        }
+    }
+
     void caseFrozenManifest()
     {
         const fs::path root = freshRoot("manifest");
@@ -594,6 +670,7 @@ int main()
     caseEveryAllowedClass();
     caseInvalidPacks();
     caseOptionalAudio();
+    caseOptionalMusic();
     caseOptionalPresentationFont();
     caseFrozenManifest();
     std::cout << "[RESOURCE_PACK_TEST] checks=" << checks

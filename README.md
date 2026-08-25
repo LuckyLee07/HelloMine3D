@@ -31,6 +31,7 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 | `docs/world-catalogue-contract-v1.md`, `docs/storage-transaction-contract-v1.md`, `docs/world-backup-contract-v1.md`, `docs/world-management-contract-v1.md` | K1-K4 world identity, atomic publication, verified recovery and player-facing management contracts. |
 | `docs/runtime-settings-contract-v1.md` | G4 pause, settings draft, versioned persistence and live-apply contract. |
 | `docs/audio-feedback-contract-v1.md` | G5 audio definitions, event ownership, playback, degradation and validation contract. |
+| `docs/streamed-music-contract-v1.md` | N12C single-channel streamed music resources, lifecycle, degradation and settings-v4 contract. |
 | `docs/playable-alpha-contract-v1.md` | G6 ten-step player journey, version-4 persistence and regression contract. |
 | `docs/alpha-development-checkpoint-v1.md` | Frozen post-G6 journey, migration, performance and crash-diagnostics development baseline. |
 | `docs/operation-performance-timing-contract-v1.md` | Q2 bounded startup, world-entry, save, backup and restore timing contract. |
@@ -55,8 +56,8 @@ R3 physical-input acceptance still closes the remaining D2, D4 and D6
 `Verify` states, but it is intentionally deferred while the project prioritizes
 the player-facing gameplay loop. K4 world entry, G2 crafting, G3 tool
 progression, G4 pause/settings, G5 audio feedback, the G6 playable Alpha journey
-and Stage 9 through N11B are complete. The current batch is N12A localization;
-R3 remains partially tested and explicitly deferred.
+and Stage 9 through N12C are complete. The next batch is the BETA-RC engineering
+audit; R3 remains partially tested and explicitly deferred.
 
 Stage 8 is now planned around sustainable play and reliable releases. Its
 16-item K/H/Q/G scope adds durable world management and recovery, local

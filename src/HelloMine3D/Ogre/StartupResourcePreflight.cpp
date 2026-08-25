@@ -105,6 +105,8 @@ void validateStartupResources(
         {
             if (requirement.category == "audio" ||
                 requirement.category == "audio-sample" ||
+                requirement.category == "music" ||
+                requirement.category == "music-track" ||
                 requirement.category == "presentation-font")
             {
                 continue;

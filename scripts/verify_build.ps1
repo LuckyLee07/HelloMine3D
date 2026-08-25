@@ -13,6 +13,8 @@ $resourceManifestVerifier = Join-Path $repoRoot `
     "tools\validate_resource_manifest.ps1"
 $audioSampleVerifier = Join-Path $repoRoot `
     "tools\generate_n12b_audio_samples.ps1"
+$musicTrackVerifier = Join-Path $repoRoot `
+    "tools\generate_n12c_music_track.ps1"
 $performanceComparisonVerifier = Join-Path $repoRoot `
     "tools\validate_perf_comparison.ps1"
 $manualInputRecordVerifier = Join-Path $repoRoot `
@@ -119,6 +121,10 @@ try {
 
     Invoke-Checked "N12B sampled audio assets" {
         & $audioSampleVerifier -Root $repoRoot -Check
+    }
+
+    Invoke-Checked "N12C streamed music asset" {
+        & $musicTrackVerifier -Root $repoRoot -Check
     }
 
     Invoke-Checked "Performance comparison fixtures" {

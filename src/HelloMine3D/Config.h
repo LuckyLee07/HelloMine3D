@@ -19,6 +19,7 @@ struct UserSettings {
     float uiVolume = 1.0f;
     float effectsVolume = 1.0f;
     float ambientVolume = 1.0f;
+    float musicVolume = 0.65f;
     float uiScale = 1.0f;
     std::string locale = "en-US";
     bool audioCaptions = true;

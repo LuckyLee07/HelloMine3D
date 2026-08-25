@@ -427,6 +427,8 @@ void ResourcePackResolver::freeze(
         {
             if (requirement.category == "audio" ||
                 requirement.category == "audio-sample" ||
+                requirement.category == "music" ||
+                requirement.category == "music-track" ||
                 requirement.category == "presentation-font")
             {
                 m_effectiveResources.push_back(std::move(effective));

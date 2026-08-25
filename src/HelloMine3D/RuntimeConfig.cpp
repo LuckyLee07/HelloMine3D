@@ -73,6 +73,7 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
     bool hasVersion = false;
     bool usesVersionTwoKey = false;
     bool usesVersionThreeKey = false;
+    bool usesVersionFourKey = false;
     std::set<std::string> seenKeys;
     std::string line;
     std::size_t lineNumber = 0;
@@ -97,6 +98,7 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
             const int version = readInteger(path, key, values);
             requireEnd(path, key, values);
             if (version != LegacyRuntimeSettingsFormatVersion &&
+                version != AccessibilityRuntimeSettingsFormatVersion &&
                 version != PreviousRuntimeSettingsFormatVersion &&
                 version != RuntimeSettingsFormatVersion) {
                 fail(path, key, "uses unsupported version " +
@@ -153,6 +155,11 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
         else if (key == "ambientvolume") {
             parsed.config.ambientVolume = readFloat(path, key, values);
             requireEnd(path, key, values);
+        }
+        else if (key == "musicvolume") {
+            parsed.config.musicVolume = readFloat(path, key, values);
+            requireEnd(path, key, values);
+            usesVersionFourKey = true;
         }
         else if (key == "uiscale") {
             parsed.config.uiScale = readFloat(path, key, values);
@@ -236,9 +243,15 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
              "version 1 cannot contain version 2 settings");
     }
     if (usesVersionThreeKey &&
-        (!hasVersion || parsed.version < RuntimeSettingsFormatVersion)) {
+        (!hasVersion || parsed.version <
+                            PreviousRuntimeSettingsFormatVersion)) {
         fail(path, "settings_version",
              "older versions cannot contain version 3 settings");
+    }
+    if (usesVersionFourKey &&
+        (!hasVersion || parsed.version < RuntimeSettingsFormatVersion)) {
+        fail(path, "settings_version",
+             "older versions cannot contain version 4 settings");
     }
     parsed.needsMigration =
         !hasVersion || parsed.version < RuntimeSettingsFormatVersion;
@@ -268,6 +281,7 @@ std::vector<char> serializeRuntimeConfig(const Config &config)
            << "uivolume " << config.uiVolume << '\n'
            << "effectsvolume " << config.effectsVolume << '\n'
            << "ambientvolume " << config.ambientVolume << '\n'
+           << "musicvolume " << config.musicVolume << '\n'
            << "uiscale " << config.uiScale << '\n'
            << "locale " << config.locale << '\n'
            << "audiocaptions " << (config.audioCaptions ? 1 : 0) << '\n'
@@ -314,6 +328,7 @@ void validateUserSettings(const UserSettings &settings)
     validateVolume("UI volume", settings.uiVolume);
     validateVolume("effects volume", settings.effectsVolume);
     validateVolume("ambient volume", settings.ambientVolume);
+    validateVolume("music volume", settings.musicVolume);
     if (!std::isfinite(settings.uiScale) || settings.uiScale < 0.75f ||
         settings.uiScale > 1.75f) {
         throw std::runtime_error("UI scale must be between 0.75 and 1.75");
