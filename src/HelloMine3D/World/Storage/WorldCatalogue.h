@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+#include "../../Gameplay/WorldOutcomeState.h"
+
 inline constexpr std::int64_t LegacyWorldTimestampUtc = 946684800;
 
 struct WorldCatalogueEntry {
@@ -20,6 +22,8 @@ struct WorldCatalogueEntry {
     std::int64_t createdUtc = 0;
     std::int64_t lastPlayedUtc = 0;
     bool legacyMetadata = false;
+    WorldOutcomePhase outcomePhase = WorldOutcomePhase::Unstarted;
+    bool completed = false;
 };
 
 class WorldCatalogueError : public std::runtime_error {
@@ -35,7 +39,7 @@ class WorldCatalogueError : public std::runtime_error {
 /// callers never present a partial catalogue as authoritative.
 class WorldCatalogue {
   public:
-    static constexpr int CurrentSaveFormatVersion = 8;
+    static constexpr int CurrentSaveFormatVersion = 9;
     static constexpr std::size_t MaxMetadataBytes = 64 * 1024;
     static constexpr std::size_t MaxWorldIdBytes = 64;
     static constexpr std::size_t MaxDisplayNameCodepoints = 80;

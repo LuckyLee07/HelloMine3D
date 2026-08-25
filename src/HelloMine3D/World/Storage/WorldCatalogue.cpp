@@ -29,13 +29,16 @@ namespace
         "objective_completed", "objective_completed_count",
         "objective_definition_version", "objective_progress",
         "objective_progress_count",
+        "world_outcome_phase", "world_outcome_reward_epoch",
+        "world_outcome_claimed_epoch",
         "seed",           "spawn",             "terrain_generation_version",
         "version",
         "world_id",       "world_name",        "world_time"};
 
     const std::set<std::string> CatalogueKeys = {
         "created_utc", "last_build", "last_played_utc", "seed",
-        "version", "world_id", "world_name"};
+        "version", "world_id", "world_name", "world_outcome_phase",
+        "world_outcome_reward_epoch", "world_outcome_claimed_epoch"};
 
     std::string generic(const fs::path &path)
     {
@@ -253,6 +256,15 @@ namespace
         }
         entry.seed = parseInteger<int>(metadataPath, "seed", fields["seed"]);
 
+        const bool worldOutcomeFieldsPresent =
+            fields.count("world_outcome_phase") != 0 ||
+            fields.count("world_outcome_reward_epoch") != 0 ||
+            fields.count("world_outcome_claimed_epoch") != 0;
+        if (entry.saveFormatVersion < 9 && worldOutcomeFieldsPresent) {
+            reject(metadataPath,
+                   "world outcome fields require save format version 9");
+        }
+
         if (entry.saveFormatVersion < 3) {
             if (fields.count("created_utc") != 0 ||
                 fields.count("last_played_utc") != 0 ||
@@ -288,6 +300,35 @@ namespace
                 entry.lastBuildIdentity)) {
             reject(metadataPath,
                    "field 'last_build' is not a valid build identity");
+        }
+        if (entry.saveFormatVersion >= 9) {
+            for (const std::string &required :
+                 {"world_outcome_phase", "world_outcome_reward_epoch",
+                  "world_outcome_claimed_epoch"}) {
+                if (fields.find(required) == fields.end()) {
+                    reject(metadataPath, "missing field '" + required + "'");
+                }
+            }
+            const int phase = parseInteger<int>(
+                metadataPath, "world_outcome_phase",
+                fields["world_outcome_phase"]);
+            if (!validWorldOutcomePhase(phase)) {
+                reject(metadataPath,
+                       "field 'world_outcome_phase' is outside its range");
+            }
+            WorldOutcomeState outcome;
+            outcome.phase = static_cast<WorldOutcomePhase>(phase);
+            outcome.rewardEpoch = parseInteger<std::uint32_t>(
+                metadataPath, "world_outcome_reward_epoch",
+                fields["world_outcome_reward_epoch"]);
+            outcome.claimedRewardEpoch = parseInteger<std::uint32_t>(
+                metadataPath, "world_outcome_claimed_epoch",
+                fields["world_outcome_claimed_epoch"]);
+            if (!validWorldOutcomeState(outcome)) {
+                reject(metadataPath, "world outcome state is inconsistent");
+            }
+            entry.outcomePhase = outcome.phase;
+            entry.completed = worldOutcomeIsVictory(outcome);
         }
         return entry;
     }

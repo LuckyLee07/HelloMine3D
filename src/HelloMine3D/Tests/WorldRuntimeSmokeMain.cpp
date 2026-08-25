@@ -24,6 +24,7 @@
 #include <memory>
 #include <sstream>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <utility>
@@ -43,6 +44,7 @@
 #include "../Diagnostics/RuntimeDebugOptions.h"
 #include "../Diagnostics/TerrainBufferMetrics.h"
 #include "../Gameplay/AlphaJourney.h"
+#include "../Gameplay/VictoryFlow.h"
 #include "../Item/Material.h"
 #include "../Item/CraftingSession.h"
 #include "../Item/ContainerInventory.h"
@@ -51,6 +53,7 @@
 #include "../Item/SmeltingRegistry.h"
 #include "../Item/ToolRegistry.h"
 #include "../Player/Player.h"
+#include "../Presentation/LocalizedTextRegistry.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/Events/BlockEvents.h"
 #include "../Sandbox/Events/ChunkEvents.h"
@@ -509,6 +512,167 @@ void caseRuntimeConfigOwnership()
               invalidSettingsRejected(
                   "unknown-binding.txt",
                   "settings_version 2\nkey_consume_food mouse9\n"));
+}
+
+std::string readTextFile(const std::string &path)
+{
+    std::ifstream input(path, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(input),
+                       std::istreambuf_iterator<char>());
+}
+
+void caseWorldOutcomeAndLocalizedText()
+{
+    VictoryFlow flow;
+    check("N7A/outcome-starts-unstarted",
+          flow.snapshot().phase == WorldOutcomePhase::Unstarted &&
+              !flow.snapshot().victory);
+    check("N7A/outcome-rejects-skipped-transition",
+          flow.beginEncounter() == VictoryTransitionResult::Rejected &&
+              flow.resolveVictory(1) == VictoryTransitionResult::Rejected);
+    check("N7A/activation-and-encounter-are-idempotent",
+          flow.activate() == VictoryTransitionResult::Applied &&
+              flow.activate() == VictoryTransitionResult::AlreadyApplied &&
+              flow.beginEncounter() == VictoryTransitionResult::Applied &&
+              flow.beginEncounter() ==
+                  VictoryTransitionResult::AlreadyApplied);
+    check("N7A/abandoned-encounter-can-resume",
+          flow.abandonEncounter() == VictoryTransitionResult::Applied &&
+              flow.abandonEncounter() ==
+                  VictoryTransitionResult::AlreadyApplied &&
+              flow.beginEncounter() == VictoryTransitionResult::Applied);
+    check("N7A/victory-requires-nonzero-reward-epoch",
+          flow.resolveVictory(0) == VictoryTransitionResult::Rejected &&
+              flow.resolveVictory(41) == VictoryTransitionResult::Applied &&
+              flow.resolveVictory(41) ==
+                  VictoryTransitionResult::AlreadyApplied &&
+              flow.resolveVictory(42) == VictoryTransitionResult::Rejected);
+    const WorldOutcomeSnapshot victorious = flow.snapshot();
+    check("N7A/victory-snapshot-is-authoritative",
+          victorious.victory && victorious.rewardAvailable &&
+              !victorious.rewardClaimed && victorious.rewardEpoch == 41);
+    check("N7A/reward-claim-is-epoch-bound-and-idempotent",
+          flow.claimReward(42) == VictoryTransitionResult::Rejected &&
+              flow.claimReward(41) == VictoryTransitionResult::Applied &&
+              flow.claimReward(41) ==
+                  VictoryTransitionResult::AlreadyApplied &&
+              flow.snapshot().rewardClaimed &&
+              !flow.snapshot().rewardAvailable);
+
+    bool invalidRestoreRejected = false;
+    try {
+        VictoryFlow invalid({WorldOutcomePhase::RewardClaimed, 4, 3});
+        (void)invalid;
+    }
+    catch (const std::invalid_argument &) {
+        invalidRestoreRejected = true;
+    }
+    check("N7A/invalid-restored-outcome-is-rejected",
+          invalidRestoreRejected);
+
+    const std::string english =
+        readTextFile(ResourcePaths::media("text/en-US.text"));
+    const std::string chinese =
+        readTextFile(ResourcePaths::media("text/zh-CN.text"));
+    LocalizedTextRegistry registry;
+    registry.freeze({{"en-US.text", english}, {"zh-CN.text", chinese}});
+    check("N7A/locales-freeze-with-identical-semantic-keys",
+          registry.isFrozen() && registry.hasLocale("en-US") &&
+              registry.hasLocale("zh-CN") &&
+              registry.keys("en-US") == registry.keys("zh-CN") &&
+              registry.keys("en-US").size() == 11);
+    check("N7A/localized-victory-text-resolves",
+          registry.lookup("en-US", "victory.overlay.title") ==
+                  "Waystone Restored" &&
+              registry.lookup("zh-CN", "victory.overlay.title") !=
+                  registry.lookup("en-US", "victory.overlay.title"));
+
+    LocalizedTextRegistry fallback;
+    fallback.freeze({
+        {"fallback-en", "# HelloMine3D localized text v1\n"
+                        "locale en-US\n"
+                        "text victory.overlay.title \"Victory\"\n"},
+        {"fallback-zh", "# HelloMine3D localized text v1\n"
+                        "locale zh-CN\n"
+                        "text world.list.completed \"Complete\"\n"}});
+    const bool translationFallback =
+        fallback.lookup("zh-CN", "victory.overlay.title") == "Victory";
+    const bool localeFallback =
+        fallback.lookup("fr-FR", "victory.overlay.title") == "Victory";
+    const bool missingFallback =
+        fallback.lookup("zh-CN", "missing.semantic.key") ==
+        "[missing.semantic.key]";
+    fallback.lookup("zh-CN", "missing.semantic.key");
+    check("N7A/text-fallbacks-are-bounded-and-diagnosed",
+          translationFallback && localeFallback && missingFallback &&
+              fallback.diagnostics().size() == 3);
+
+    LocalizedTextRegistry invalidText;
+    bool invalidTextRejected = false;
+    try {
+        invalidText.freeze({
+            {"invalid", "# HelloMine3D localized text v1\n"
+                        "locale en-US\n"
+                        "text Invalid.Key \"bad\"\n"}});
+    }
+    catch (const std::runtime_error &) {
+        invalidTextRejected = true;
+    }
+    check("N7A/invalid-text-source-does-not-partially-freeze",
+          invalidTextRejected && !invalidText.isFrozen());
+
+    const auto saveDirectory = freshSaveDirectory("n7a_outcome_v9");
+    WorldSaveData valid;
+    valid.worldId = "n7a-outcome-v9";
+    valid.worldName = "N7A Outcome V9";
+    valid.seed = kValidationSeed;
+    valid.createdUtc = LegacyWorldTimestampUtc;
+    valid.lastPlayedUtc = LegacyWorldTimestampUtc;
+    valid.lastBuildIdentity = "validation";
+    valid.worldOutcome = {WorldOutcomePhase::Victorious, 41, 0};
+    WorldSave save(saveDirectory);
+    WorldSaveData roundTrip;
+    const bool saved = save.save(valid) && save.load(roundTrip);
+    check("N7A/v9-outcome-round-trips",
+          saved && roundTrip.version == 9 &&
+              roundTrip.worldOutcome.phase ==
+                  WorldOutcomePhase::Victorious &&
+              roundTrip.worldOutcome.rewardEpoch == 41 &&
+              roundTrip.worldOutcome.claimedRewardEpoch == 0);
+    WorldSaveData invalidOutcome = valid;
+    invalidOutcome.worldOutcome =
+        {WorldOutcomePhase::RewardClaimed, 41, 40};
+    WorldSaveData preserved;
+    check("N7A/invalid-outcome-preserves-last-good-save",
+          !save.save(invalidOutcome) && save.load(preserved) &&
+              preserved.worldOutcome.phase ==
+                  WorldOutcomePhase::Victorious &&
+              preserved.worldOutcome.rewardEpoch == 41);
+
+    const std::filesystem::path migrationRoot =
+        freshSaveDirectory("n7a_v8_migration");
+    const std::filesystem::path migratedWorld =
+        migrationRoot / "n7a-v8-outcome";
+    std::filesystem::create_directories(migratedWorld);
+    std::filesystem::copy_file(
+        ResourcePaths::join(
+            ResourcePaths::projectRoot(),
+            "tools/fixtures/victory/world-v8-pre-outcome.meta"),
+        migratedWorld / "world.meta",
+        std::filesystem::copy_options::overwrite_existing);
+    const WorldManagementService management(migrationRoot.string());
+    const WorldManagementResult migrated =
+        management.prepareWorldForOpen("n7a-v8-outcome");
+    WorldSaveData migratedData;
+    const bool migratedLoaded =
+        migrated.succeeded() &&
+        WorldSave(migratedWorld.string()).load(migratedData);
+    check("N7A/v8-migrates-to-unstarted-v9-outcome",
+          migratedLoaded && migratedData.version == 9 &&
+              migratedData.worldOutcome.phase ==
+                  WorldOutcomePhase::Unstarted &&
+              migratedData.worldOutcome.rewardEpoch == 0 &&
+              migratedData.worldOutcome.claimedRewardEpoch == 0);
 }
 
 void casePausedApplicationFlow()
@@ -4996,7 +5160,7 @@ void caseToolMiningProgression()
     check("N1/version-three-migrates-with-empty-objective-state",
           legacyLoaded && loadedLegacyVersion == 3 &&
               legacyData.alphaJourneyFlags == 0u && legacyUpgraded &&
-              upgraded.find("version 8") != std::string::npos &&
+              upgraded.find("version 9") != std::string::npos &&
               upgraded.find("alpha_journey_flags 0") !=
                   std::string::npos &&
               upgraded.find("objective_definition_version 1") !=
@@ -7993,6 +8157,7 @@ int main()
         runtimeFoodRegistry().freeze(
             {{"runtime.food", validFoodDefinitions()}});
 
+        caseWorldOutcomeAndLocalizedText();
         caseDebugPanelStartupOption();
         caseFixedTickScheduler();
         caseWorldEnvironment();

@@ -1,0 +1,13 @@
+# HelloMine3D localized text v1
+locale en-US
+text world.outcome.unstarted "Adventure not started"
+text world.outcome.activated "Waystone activated"
+text world.outcome.encounter "Waystone under attack"
+text world.outcome.victorious "Victory achieved"
+text world.outcome.reward_claimed "Victory reward claimed"
+text world.list.completed "Complete"
+text victory.overlay.title "Waystone Restored"
+text victory.overlay.summary "The waystone is secure. You can keep exploring this world."
+text victory.overlay.continue "Continue Sandbox"
+text victory.reward.pending "Claim your one-time victory reward."
+text victory.reward.claimed "Victory reward claimed."

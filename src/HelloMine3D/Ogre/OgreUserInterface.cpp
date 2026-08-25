@@ -27,6 +27,7 @@
 #include "../Item/RecipeRegistry.h"
 #include "../Item/ToolRegistry.h"
 #include "../Player/Player.h"
+#include "../Presentation/LocalizedTextRegistry.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/GameApplicationFlow.h"
 #include "../Util/ResourcePaths.h"
@@ -627,7 +628,12 @@ class OgreUserInterface::Impl
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
                     const bool selected = selectedWorldId == entry.id;
-                    if (ImGui::Selectable(entry.displayName.c_str(), selected))
+                    const std::string worldLabel = entry.completed
+                        ? entry.displayName + "  [" +
+                              runtimeLocalizedTextRegistry().lookup(
+                                  "en-US", "world.list.completed") + "]"
+                        : entry.displayName;
+                    if (ImGui::Selectable(worldLabel.c_str(), selected))
                     {
                         selectWorld(entry);
                     }

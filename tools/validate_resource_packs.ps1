@@ -139,7 +139,8 @@ function Invoke-PackStartup {
         throw "$Name effective manifest has an invalid header."
     }
     $entries = @($lines | Where-Object { $_ -and -not $_.StartsWith('#') })
-    $sorted = @($entries | Sort-Object -CaseSensitive)
+    [string[]]$sorted = @($entries | ForEach-Object { [string]$_ })
+    [Array]::Sort($sorted, [StringComparer]::Ordinal)
     if ($entries.Count -ne $ExpectedEntryCount -or
         (Compare-Object $entries $sorted -SyncWindow 0)) {
         throw "$Name effective manifest is not a sorted $ExpectedEntryCount-entry view."
@@ -173,4 +174,4 @@ if (Compare-Object $baseWithoutStone $packedWithoutStone -SyncWindow 0) {
 
 Write-Host "[RESOURCE_PACK_VERIFY] PASS base_hash=$($base.Hash)"
 Write-Host "[RESOURCE_PACK_VERIFY] PASS packed_hash=$($packed.Hash) override=$expectedOverride"
-Write-Host "[RESOURCE_PACK_VERIFY] status=PASS resolver_checks=27 startup_cases=2 entries=$ExpectedEntryCount"
+Write-Host "[RESOURCE_PACK_VERIFY] status=PASS resolver_checks=28 startup_cases=2 entries=$ExpectedEntryCount"

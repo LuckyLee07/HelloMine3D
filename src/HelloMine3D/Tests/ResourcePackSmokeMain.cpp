@@ -53,6 +53,8 @@ namespace
             {"objective", "media/objectives/Base.objective"},
             {"recipe", "media/recipes/Base.recipe"},
             {"smelting", "media/smelting/Base.smelting"},
+            {"text", "media/text/en-US.text"},
+            {"text", "media/text/zh-CN.text"},
             {"tool", "media/tools/Base.tool"},
             {"resource-script", "media/ogre/Test.material"},
             {"runtime-template", "bin/resource-packs.txt"},
@@ -158,6 +160,7 @@ namespace
                 requirement.category == "objective" ||
                 requirement.category == "recipe" ||
                 requirement.category == "smelting" ||
+                requirement.category == "text" ||
                 requirement.category == "tool")
             {
                 continue;
@@ -352,6 +355,21 @@ namespace
                 root, "audio", "Audio Override", 1,
                 {{"media/audio/Base.audio", "override\n"}});
             check("G5/reject-unversioned-audio-override",
+                  throwsContaining(
+                      [&]
+                      {
+                          ResourcePackResolver resolver;
+                          resolver.freeze(root.string(), requirements(),
+                                          {pack.string()});
+                      },
+                      "stale or unsupported override"));
+        }
+        {
+            const fs::path root = freshRoot("text-override");
+            const fs::path pack = createPack(
+                root, "text", "Text Override", 1,
+                {{"media/text/en-US.text", "override\n"}});
+            check("N7A/reject-unversioned-text-override",
                   throwsContaining(
                       [&]
                       {

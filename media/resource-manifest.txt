@@ -47,4 +47,6 @@ shader|media/ogre/HelloMine3DWater.vert
 shape|media/shapes/Cross.shape
 smelting|media/smelting/Base.smelting
 texture|media/textures/DefaultPack.png
+text|media/text/en-US.text
+text|media/text/zh-CN.text
 tool|media/tools/Base.tool

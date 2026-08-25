@@ -164,7 +164,7 @@ for symbol in ___tsan_init ___tsan_read1 ___tsan_write1; do
     fi
 done
 
-echo "[TSAN_VERIFY] Run the 346-check world stack"
+echo "[TSAN_VERIFY] Run the 560-check world stack"
 set +e
 (
     cd "$BIN_DIR"
@@ -189,7 +189,7 @@ for expected in \
     '[VALIDATION] PASS V5/load-center-churn-completes' \
     '[VALIDATION] PASS V5/concurrent-block-reads-valid' \
     '[VALIDATION] PASS V5/background-loader-makes-progress' \
-    '[VALIDATION] checks=346 failures=0' \
+    '[VALIDATION] checks=560 failures=0' \
     '[VALIDATION] status=PASS'; do
     if ! grep -F "$expected" "$RUN_LOG" >/dev/null; then
         echo "[TSAN_VERIFY] Expected runtime evidence is missing: $expected" >&2
@@ -207,10 +207,10 @@ done
     echo "sanitizer_suppressions=0"
     echo "detector_probe=PASS"
     echo "detector_probe_exit=66"
-    echo "world_checks=346"
+    echo "world_checks=560"
     echo "world_failures=0"
     echo "v5_checks=3"
     echo "tsan_reports=0"
 } >"$LOG_DIR/summary.txt"
 
-echo "[TSAN_VERIFY] status=PASS arch=$HOST_ARCH checks=346 tsan_reports=0 logs=$LOG_DIR"
+echo "[TSAN_VERIFY] status=PASS arch=$HOST_ARCH checks=560 tsan_reports=0 logs=$LOG_DIR"

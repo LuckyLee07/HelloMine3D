@@ -31,6 +31,10 @@ namespace
         std::string created = "1786838400";
         std::string lastPlayed = "1786838460";
         std::string build = "fixture-a1b2c3";
+        int outcomePhase =
+            static_cast<int>(WorldOutcomePhase::Unstarted);
+        std::uint32_t rewardEpoch = 0;
+        std::uint32_t claimedRewardEpoch = 0;
         std::string extra;
     };
 
@@ -138,6 +142,13 @@ namespace
                    << "last_played_utc " << fixture.lastPlayed << '\n'
                    << "last_build " << fixture.build << '\n';
         }
+        if (fixture.version >= 9) {
+            output << "world_outcome_phase " << fixture.outcomePhase << '\n'
+                   << "world_outcome_reward_epoch "
+                   << fixture.rewardEpoch << '\n'
+                   << "world_outcome_claimed_epoch "
+                   << fixture.claimedRewardEpoch << '\n';
+        }
         output << fixture.extra;
     }
 
@@ -240,6 +251,9 @@ int main()
                         first[0].createdUtc == 1786838400 &&
                         first[0].lastPlayedUtc == 1786838600 &&
                         first[0].lastBuildIdentity == "fixture-a1b2c3" &&
+                        first[0].outcomePhase ==
+                            WorldOutcomePhase::Unstarted &&
+                        !first[0].completed &&
                         !first[0].legacyMetadata);
         suite.check("K1/repeated-enumeration-is-deterministic",
                     first.size() == second.size() &&
@@ -252,6 +266,68 @@ int main()
                                    }));
         suite.check("K1/enumeration-never-mutates-worlds",
                     before == snapshot(multiple.path()));
+    }
+
+    {
+        TemporaryDirectory outcomes("outcomes");
+        outcomes.create();
+        MetadataFixture victorious;
+        victorious.id = "victorious-world";
+        victorious.name = "Victorious World";
+        victorious.outcomePhase =
+            static_cast<int>(WorldOutcomePhase::Victorious);
+        victorious.rewardEpoch = 7;
+        writeMetadata(outcomes.path(), "victorious", victorious);
+        MetadataFixture claimed = victorious;
+        claimed.id = "claimed-world";
+        claimed.name = "Claimed World";
+        claimed.outcomePhase =
+            static_cast<int>(WorldOutcomePhase::RewardClaimed);
+        claimed.claimedRewardEpoch = 7;
+        writeMetadata(outcomes.path(), "claimed", claimed);
+        const auto entries = WorldCatalogue::enumerate(outcomes.path().string());
+        const bool bothCompleted = entries.size() == 2 &&
+            std::all_of(entries.begin(), entries.end(),
+                        [](const WorldCatalogueEntry &entry) {
+                            return entry.completed &&
+                                   (entry.outcomePhase ==
+                                        WorldOutcomePhase::Victorious ||
+                                    entry.outcomePhase ==
+                                        WorldOutcomePhase::RewardClaimed);
+                        });
+        suite.check("N7A/list-marker-uses-persisted-outcome-only",
+                    bothCompleted);
+    }
+
+    {
+        TemporaryDirectory invalid("invalid-outcomes");
+        invalid.create();
+        MetadataFixture phase;
+        phase.id = "invalid-phase";
+        phase.outcomePhase = 99;
+        writeMetadata(invalid.path(), "phase", phase);
+        suite.expectReject("N7A/reject-invalid-outcome-phase",
+                           "outside its range", [&]() {
+                               WorldCatalogue::enumerate(
+                                   invalid.path().string());
+                           });
+    }
+
+    {
+        TemporaryDirectory invalid("legacy-outcome");
+        invalid.create();
+        MetadataFixture legacy;
+        legacy.version = 8;
+        legacy.id = "legacy-outcome";
+        legacy.extra = "world_outcome_phase 3\n"
+                       "world_outcome_reward_epoch 1\n"
+                       "world_outcome_claimed_epoch 0\n";
+        writeMetadata(invalid.path(), "world", legacy);
+        suite.expectReject("N7A/reject-outcome-fields-before-v9",
+                           "require save format version 9", [&]() {
+                               WorldCatalogue::enumerate(
+                                   invalid.path().string());
+                           });
     }
 
     {

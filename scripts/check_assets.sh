@@ -55,6 +55,7 @@ require_file "base food registry" "media/foods/Base.food"
 require_file "base enemy registry" "media/enemies/Base.enemy"
 require_directory "recipe resources" "media/recipes"
 require_directory "objective resources" "media/objectives"
+require_directory "localized text resources" "media/text"
 require_directory "audio resources" "media/audio"
 
 while IFS= read -r audio_path; do
@@ -70,6 +71,11 @@ done < <(find "$ROOT_DIR/media/recipes" -type f -name '*.recipe' 2>/dev/null |
 while IFS= read -r objective_path; do
     require_file "objective" "$objective_path"
 done < <(find "$ROOT_DIR/media/objectives" -type f -name '*.objective' 2>/dev/null |
+    sed "s#^$ROOT_DIR/##" | sort)
+
+while IFS= read -r text_path; do
+    require_file "localized text" "$text_path"
+done < <(find "$ROOT_DIR/media/text" -type f -name '*.text' 2>/dev/null |
     sed "s#^$ROOT_DIR/##" | sort)
 
 if [ -s "$ROOT_DIR/$BLOCK_DATABASE" ]; then

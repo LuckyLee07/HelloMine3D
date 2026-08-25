@@ -499,6 +499,8 @@ World::World(const Camera &camera, const Config &config, Player &player,
     m_alphaJourney = std::make_unique<AlphaJourney>(
         player, m_eventBus, m_worldSaveData.objectiveState,
         m_worldSaveData.alphaJourneyFlags, hasSave);
+    m_victoryFlow = std::make_unique<VictoryFlow>(
+        m_worldSaveData.worldOutcome);
 
     // Restore retained actors and objectives before persisting the repaired
     // spawn so empty runtime managers cannot erase non-natural save state.
@@ -1255,6 +1257,13 @@ ObjectiveSnapshot World::getObjectiveSnapshot() const
     return m_alphaJourney != nullptr
                ? m_alphaJourney->objectiveSnapshot()
                : ObjectiveSnapshot{};
+}
+
+WorldOutcomeSnapshot World::getWorldOutcomeSnapshot() const noexcept
+{
+    return m_victoryFlow != nullptr
+               ? m_victoryFlow->snapshot()
+               : WorldOutcomeSnapshot{};
 }
 
 void World::applyMobContactDamage()
@@ -2093,6 +2102,10 @@ bool World::saveWorldState()
         m_alphaJourney != nullptr
             ? m_alphaJourney->objectiveSaveState()
             : ObjectiveSaveState{};
+    m_worldSaveData.worldOutcome =
+        m_victoryFlow != nullptr
+            ? m_victoryFlow->state()
+            : WorldOutcomeState{};
     m_worldSaveData.actors = m_actorManager.collectSaveStates();
 
     StorageTransactionMetrics metrics;

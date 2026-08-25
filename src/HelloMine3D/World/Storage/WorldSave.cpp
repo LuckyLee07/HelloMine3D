@@ -211,6 +211,9 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
     bool playerFoodCooldownSeen = false;
     bool playerAttackCooldownSeen = false;
     bool terrainGenerationVersionSeen = false;
+    bool worldOutcomePhaseSeen = false;
+    bool worldOutcomeRewardEpochSeen = false;
+    bool worldOutcomeClaimedEpochSeen = false;
     bool objectiveDefinitionSeen = false;
     bool objectiveCompletedCountSeen = false;
     bool objectiveProgressCountSeen = false;
@@ -290,6 +293,32 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
                 return fail("invalid or duplicate alpha_journey_flags");
             }
             alphaJourneySeen = true;
+        }
+        else if (key == "world_outcome_phase") {
+            int phase = 0;
+            if (!claimSingleton(key) || !(input >> phase) ||
+                !validWorldOutcomePhase(phase)) {
+                return fail("invalid or duplicate world_outcome_phase");
+            }
+            loaded.worldOutcome.phase =
+                static_cast<WorldOutcomePhase>(phase);
+            worldOutcomePhaseSeen = true;
+        }
+        else if (key == "world_outcome_reward_epoch") {
+            if (!claimSingleton(key) ||
+                !(input >> loaded.worldOutcome.rewardEpoch)) {
+                return fail(
+                    "invalid or duplicate world_outcome_reward_epoch");
+            }
+            worldOutcomeRewardEpochSeen = true;
+        }
+        else if (key == "world_outcome_claimed_epoch") {
+            if (!claimSingleton(key) ||
+                !(input >> loaded.worldOutcome.claimedRewardEpoch)) {
+                return fail(
+                    "invalid or duplicate world_outcome_claimed_epoch");
+            }
+            worldOutcomeClaimedEpochSeen = true;
         }
         else if (key == "objective_definition_version") {
             if (!claimSingleton(key) ||
@@ -523,6 +552,15 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
         (loaded.version < 8 && terrainGenerationVersionSeen)) {
         return fail("terrain generation state does not match save version");
     }
+    const bool worldOutcomeFieldsPresent = worldOutcomePhaseSeen ||
+        worldOutcomeRewardEpochSeen || worldOutcomeClaimedEpochSeen;
+    if ((loaded.version >= 9 &&
+         (!worldOutcomePhaseSeen || !worldOutcomeRewardEpochSeen ||
+          !worldOutcomeClaimedEpochSeen ||
+          !validWorldOutcomeState(loaded.worldOutcome))) ||
+        (loaded.version < 9 && worldOutcomeFieldsPresent)) {
+        return fail("world outcome state does not match save version");
+    }
 
     if (!finiteVec3(loaded.spawnPoint) ||
         !finiteVec3(loaded.playerState.position) ||
@@ -621,6 +659,7 @@ bool WorldSave::save(const WorldSaveData &data,
     if (data.version != WorldSaveFormatVersion ||
         !AlphaJourney::validFlags(data.alphaJourneyFlags) ||
         !validObjectiveState(data) ||
+        !validWorldOutcomeState(data.worldOutcome) ||
         !WorldCatalogue::isValidWorldId(data.worldId) ||
         !WorldCatalogue::isValidDisplayName(data.worldName) ||
         !WorldCatalogue::isValidBuildIdentity(data.lastBuildIdentity) ||
@@ -657,6 +696,12 @@ bool WorldSave::save(const WorldSaveData &data,
     output << "terrain_generation_version "
            << data.terrainGenerationVersion << '\n';
     output << "alpha_journey_flags " << data.alphaJourneyFlags << '\n';
+    output << "world_outcome_phase "
+           << static_cast<int>(data.worldOutcome.phase) << '\n';
+    output << "world_outcome_reward_epoch "
+           << data.worldOutcome.rewardEpoch << '\n';
+    output << "world_outcome_claimed_epoch "
+           << data.worldOutcome.claimedRewardEpoch << '\n';
     output << "objective_definition_version "
            << data.objectiveState.definitionVersion << '\n';
     output << "objective_completed_count "

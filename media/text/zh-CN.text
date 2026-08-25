@@ -1,0 +1,13 @@
+# HelloMine3D localized text v1
+locale zh-CN
+text world.outcome.unstarted "冒险尚未开始"
+text world.outcome.activated "路标已激活"
+text world.outcome.encounter "路标正在遭受攻击"
+text world.outcome.victorious "已取得胜利"
+text world.outcome.reward_claimed "胜利奖励已领取"
+text world.list.completed "已完成"
+text victory.overlay.title "路标已修复"
+text victory.overlay.summary "路标已经安全，你可以继续探索这个世界。"
+text victory.overlay.continue "继续沙盒"
+text victory.reward.pending "领取一次性的胜利奖励。"
+text victory.reward.claimed "胜利奖励已领取。"

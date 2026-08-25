@@ -78,6 +78,21 @@ foreach ($objectiveFile in $objectiveFiles) {
     Add-ManifestEntry "objective" $relativeObjective
 }
 
+$textRoot = Join-Path $Root "media\text"
+if (-not (Test-Path -LiteralPath $textRoot -PathType Container)) {
+    throw "Localized text resource directory is missing: $textRoot"
+}
+$textFiles = @(Get-ChildItem -LiteralPath $textRoot `
+    -Filter "*.text" -File -Recurse)
+if ($textFiles.Count -lt 2) {
+    throw "Both en-US and zh-CN localized text resources are required."
+}
+foreach ($textFile in $textFiles) {
+    $relativeText = $textFile.FullName.Substring($Root.Length).TrimStart(
+        [char]'\', [char]'/')
+    Add-ManifestEntry "text" $relativeText
+}
+
 $foodRoot = Join-Path $Root "media\foods"
 if (-not (Test-Path -LiteralPath $foodRoot -PathType Container)) {
     throw "Food resource directory is missing: $foodRoot"
@@ -208,7 +223,8 @@ foreach ($match in [regex]::Matches(
     }
 }
 
-$sortedEntries = @($entries | Sort-Object)
+[string[]]$sortedEntries = @($entries)
+[Array]::Sort($sortedEntries, [StringComparer]::Ordinal)
 foreach ($entry in $sortedEntries) {
     $relativePath = $entry.Substring($entry.IndexOf('|') + 1)
     $resolved = Join-Path $Root $relativePath

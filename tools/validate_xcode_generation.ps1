@@ -66,8 +66,14 @@ function Assert-ExactInventory {
     )
 
     $script:Checks++
-    $ExpectedSorted = @($Expected | Sort-Object)
-    $ActualSorted = @($Actual | Sort-Object)
+    [string[]]$ExpectedSorted = @(
+        $Expected | ForEach-Object { [string]$_ }
+    )
+    [string[]]$ActualSorted = @(
+        $Actual | ForEach-Object { [string]$_ }
+    )
+    [Array]::Sort($ExpectedSorted, [StringComparer]::Ordinal)
+    [Array]::Sort($ActualSorted, [StringComparer]::Ordinal)
     $ExpectedKey = [string]::Join("`n", $ExpectedSorted)
     $ActualKey = [string]::Join("`n", $ActualSorted)
     if ($ExpectedSorted.Count -ne $ActualSorted.Count -or
@@ -180,7 +186,10 @@ if ($GraphContract.expected_project_count -ne $ExpectedProjects.Count -or
         $ExpectedProjects.Count) {
     throw "[XCODE_VALIDATE] Graph contract project count/uniqueness is invalid."
 }
-$SortedExpectedProjects = @($ExpectedProjects | Sort-Object)
+[string[]]$SortedExpectedProjects = @(
+    $ExpectedProjects | ForEach-Object { [string]$_ }
+)
+[Array]::Sort($SortedExpectedProjects, [StringComparer]::Ordinal)
 if ([string]::Join("`n", $ExpectedProjects) -cne
     [string]::Join("`n", $SortedExpectedProjects)) {
     throw "[XCODE_VALIDATE] Graph contract projects must be sorted."
@@ -306,7 +315,7 @@ foreach ($Pattern in @(
     'entry_first_controllable_ms=',
     'CODE_SIGNING_ALLOWED=NO',
     'Debug Release',
-    '\[VALIDATION\] checks=346 failures=0',
+    '\[VALIDATION\] checks=560 failures=0',
     '\[WORLD_CATALOGUE_TEST\] checks=30 failures=0',
     '\[STORAGE_TRANSACTION_TEST\] checks=16 failures=0',
     '\[WORLD_BACKUP_TEST\] checks=19 failures=0',
@@ -340,7 +349,7 @@ foreach ($Pattern in @(
     '\[VALIDATION\] PASS V5/load-center-churn-completes',
     '\[VALIDATION\] PASS V5/concurrent-block-reads-valid',
     '\[VALIDATION\] PASS V5/background-loader-makes-progress',
-    '\[VALIDATION\] checks=346 failures=0',
+    '\[VALIDATION\] checks=560 failures=0',
     '\[TSAN_VERIFY\] status=PASS'
 )) {
     Require-Text -Path $TsanVerifier -Pattern $Pattern -Label "native ThreadSanitizer verifier contract"

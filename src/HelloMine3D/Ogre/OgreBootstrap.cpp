@@ -54,6 +54,7 @@
 #include "../Item/ToolRegistry.h"
 #include "../Item/SmeltingRegistry.h"
 #include "../Player/Player.h"
+#include "../Presentation/LocalizedTextRegistry.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/GameApplicationFlow.h"
 #include "../Sandbox/SandboxRuntime.h"
@@ -2521,6 +2522,8 @@ int runOgreBootstrap(bool validateOnly,
             runtimeResourcePackResolver());
         runtimeObjectiveRegistry().freezeFromResourceView(
             runtimeResourcePackResolver());
+        runtimeLocalizedTextRegistry().freezeFromResourceView(
+            runtimeResourcePackResolver());
         const char *manifestOutput =
             std::getenv("HELLOMINE3D_EFFECTIVE_MANIFEST_OUT");
         if (manifestOutput != nullptr && manifestOutput[0] != '\0')
@@ -2562,6 +2565,12 @@ int runOgreBootstrap(bool validateOnly,
                   << runtimeObjectiveRegistry().definitionVersion()
                   << " objectives="
                   << runtimeObjectiveRegistry().definitions().size()
+                  << '\n';
+        std::cout << "[TEXT_REGISTRY] frozen=1 locales="
+                  << (runtimeLocalizedTextRegistry().hasLocale("en-US") ? 1 : 0) +
+                         (runtimeLocalizedTextRegistry().hasLocale("zh-CN") ? 1 : 0)
+                  << " keys="
+                  << runtimeLocalizedTextRegistry().keys("en-US").size()
                   << '\n';
         runtimeOperationTimings().markLatestActive(
             RuntimeOperationKind::Startup);
