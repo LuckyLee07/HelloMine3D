@@ -199,9 +199,15 @@ void SandboxRuntime::handlePlayerInteraction(
         world.addEvent<PlayerDigEvent>(PlayerDigAction::Use,
                                        glm::vec3(selection.blockPosition),
                                        m_player);
-        world.addEvent<PlayerDigEvent>(PlayerDigAction::Place,
-                                       glm::vec3(selection.placementPosition),
-                                       m_player);
+        const BlockId selectedBlock = static_cast<BlockId>(
+            world.getBlock(selection.blockPosition.x,
+                           selection.blockPosition.y,
+                           selection.blockPosition.z).id);
+        if (selectedBlock != BlockId::WaystoneCore) {
+            world.addEvent<PlayerDigEvent>(
+                PlayerDigAction::Place,
+                glm::vec3(selection.placementPosition), m_player);
+        }
     }
     else {
         m_miningProgress.cancel();

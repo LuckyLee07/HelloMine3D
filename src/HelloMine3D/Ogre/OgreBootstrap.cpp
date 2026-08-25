@@ -1195,6 +1195,13 @@ namespace
                             : "Settings applied.");
                     return;
                 }
+                case OgreUserInterfaceActionType::ClaimVictoryReward:
+                    if (m_world != nullptr)
+                    {
+                        m_world->claimWaystoneReward(
+                            m_applicationFlow.acceptsWorldSimulation());
+                    }
+                    return;
                 case OgreUserInterfaceActionType::OpenWorld:
                     break;
             }
@@ -1454,6 +1461,17 @@ namespace
             {
                 m_userInterface->setStatusMessage(foodUseResultMessage(
                     *m_sandbox->getFoodUseResult()));
+            }
+            if (m_userInterface != nullptr && m_world != nullptr)
+            {
+                const std::string feedback =
+                    m_world->consumeWaystoneFeedbackKey();
+                if (!feedback.empty())
+                {
+                    m_userInterface->setStatusMessage(
+                        runtimeLocalizedTextRegistry().lookup(
+                            "en-US", feedback));
+                }
             }
             clearTransientInput();
             syncRenderCamera();

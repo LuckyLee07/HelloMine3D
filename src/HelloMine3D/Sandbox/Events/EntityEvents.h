@@ -46,17 +46,20 @@ struct EntityDamageEvent : public SandboxEvent {
 
 struct EntityDeathEvent : public SandboxEvent {
     EntityDeathEvent(ActorId deadActorId, ActorId killerActorId,
-                     const glm::vec3 &actorPosition)
+                     const glm::vec3 &actorPosition,
+                     std::string actorType = {})
         : SandboxEvent(SandboxEventType::EntityDeath)
         , id(deadActorId)
         , killerId(killerActorId)
         , position(actorPosition)
+        , type(std::move(actorType))
     {
     }
 
     ActorId id = InvalidActorId;
     ActorId killerId = InvalidActorId;
     glm::vec3 position{0.f};
+    std::string type;
 };
 
 struct ItemPickupEvent : public SandboxEvent {

@@ -56,6 +56,29 @@ int Player::getInventoryCapacity(const Material &material) const
     return m_inventory.capacityFor(material);
 }
 
+int Player::getInventoryCount(Material::ID materialId) const noexcept
+{
+    return m_inventory.count(materialId);
+}
+
+std::uint64_t Player::getInventoryRevision() const noexcept
+{
+    return m_inventory.revision();
+}
+
+bool Player::canConsumeInventory(
+    const std::vector<InventorySlotState> &consumed) const
+{
+    return m_inventory.canConsume(consumed);
+}
+
+bool Player::consumeInventory(
+    const std::vector<InventorySlotState> &consumed,
+    std::uint64_t expectedRevision)
+{
+    return m_inventory.consume(consumed, expectedRevision);
+}
+
 int Player::removeInventoryItem(int slot, int amount)
 {
     return m_inventory.removeFromSlot(slot, amount);

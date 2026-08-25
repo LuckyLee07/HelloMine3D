@@ -41,6 +41,10 @@ class Inventory {
     int capacityFor(const Material &material) const;
     int count(Material::ID materialId) const noexcept;
     std::uint64_t revision() const noexcept;
+    bool canConsume(
+        const std::vector<InventorySlotState> &consumed) const;
+    bool consume(const std::vector<InventorySlotState> &consumed,
+                 std::uint64_t expectedRevision);
     bool canExchange(const std::vector<InventorySlotState> &consumed,
                      const Material &produced,
                      int producedAmount) const;

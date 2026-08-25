@@ -78,3 +78,22 @@ R3 真人输入当前只有部分自测，其余按用户决定延后；该事�
 只证明当前 N7A 工作区，不替代提交身份或最终 Beta 封板。
 
 这份证据关闭 N7A 的自动化边界，不声称 N7B 玩法闭环或 R3 真人输入已经完成。
+
+## N7B 冻结证据
+
+2026-08-25 的实现把普通路标交互接入既有结局模型：激活原子消耗 2 个铁锭；第一波生成
+2 个 `hellomine:waystone_stalker`，第二波生成 1 个 `hellomine:waystone_brute`，驻留守卫上限
+为 2；胜利 epoch 固定为 1，一次性奖励为 3 个铁锭。两个守卫变体只来自遭遇，不进入自然
+刷怪；5 个追加终局目标只消费激活、带类型死亡和领取事件，不拥有或反推胜利状态。
+
+`HelloMine3DWorldRuntimeSmoke` 增加 20 项 N7B 断言，覆盖严格路标 payload、库存 revision、
+激活守恒、Activated/Encounter/Victorious/RewardClaimed 保存重开、死亡放弃、重复死亡去重、
+区块卸载冻结和回载、满背包待领取、一次性奖励、胜利后继续方块编辑，以及遭遇中备份恢复
+后的波次/actor 对账。Debug/Release 世界栈均为 580/580；VS2017 v141 的 Debug/Release
+客户端和 Release 定向目标编译通过。固定 seed 的 nominal/stress 短时 soak 各 5 秒、零失败。
+
+完整 Windows 门禁还通过 49 项资源、36 个性能比较夹具、28/28 资源包、8 类启动错误、
+十三个测试目标、两套隐藏客户端、131,817 字节受控 dump、可执行文件清单和 69 文件干净包。
+发行 ZIP SHA-256 为
+`9F52C3C9F6F9DE60F85D7864ED707A60FD358B15E062CF9E85807ABA8494BDD2`。这些自动证据关闭
+N7B；R3 仍只记录部分非正式真人自测，其余按用户决定延后，不能写成真人验收 `PASS`。

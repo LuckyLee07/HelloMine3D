@@ -28,7 +28,8 @@ stable even when the host returns directory entries in a different order.
 ## `world.meta` version 3+ identity fields
 
 Version 3 introduced these singleton identity fields alongside the existing
-runtime state. Current new worlds use version 5 and retain the same fields:
+runtime state. The following historical version-5 example added objective
+state; current version-9 worlds retain the same identity fields:
 
 ```text
 version 5
@@ -46,7 +47,7 @@ objective_progress_count 0
 
 | Field | Contract |
 | ----- | -------- |
-| `version` | Canonical integer `5` for current saves. Catalogue v1 also reads legacy values `1`, `2`, `3` and `4`. Other versions fail explicitly. |
+| `version` | Canonical integer `9` for current saves. Catalogue v1 also reads legacy values `1` through `8`. Other versions fail explicitly. |
 | `world_id` | Immutable, 1-64 byte lowercase ASCII identity. The first byte is alphanumeric; remaining bytes are `[a-z0-9_-]`. It is independent of the directory name. Duplicate ids invalidate the scan. |
 | `world_name` | Quoted UTF-8 display text for version 3+, 1-80 Unicode scalar values. Leading/trailing spaces, controls, invalid UTF-8, quotes, path separators, `.` and `..` are rejected. Rename work in K4 changes only this field. |
 | `seed` | Canonical signed 32-bit integer. |

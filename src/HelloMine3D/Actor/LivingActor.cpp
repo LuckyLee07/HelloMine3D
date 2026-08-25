@@ -107,5 +107,6 @@ void LivingActor::die(SandboxEventBus &eventBus, ActorId killerId)
 
     kill();
     m_health = 0.f;
-    eventBus.publish(EntityDeathEvent(getId(), killerId, position));
+    eventBus.publish(EntityDeathEvent(getId(), killerId, position,
+                                      getType()));
 }

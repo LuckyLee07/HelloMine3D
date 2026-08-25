@@ -147,6 +147,23 @@ namespace
                type == ObjectiveType::ConsumeItem;
     }
 
+    bool canonicalActorType(const std::string& value)
+    {
+        if (value.size() < 3 || value.size() > 80 ||
+            value.find(':') == std::string::npos)
+        {
+            return false;
+        }
+        return std::all_of(value.begin(), value.end(),
+                           [](unsigned char character)
+                           {
+                               return std::islower(character) ||
+                                      std::isdigit(character) ||
+                                      character == ':' || character == '_' ||
+                                      character == '-' || character == '.';
+                           });
+    }
+
     void validateDefinition(const ObjectiveSource& source,
                             std::size_t line,
                             const ObjectiveDefinition& definition,
@@ -164,6 +181,8 @@ namespace
             }
         }
         const bool hasTarget = fields.find("target") != fields.end();
+        const bool hasActorTarget =
+            fields.find("target_actor") != fields.end();
         const bool hasLocation = fields.find("location") != fields.end();
         if (typeNeedsTarget(definition.type) != hasTarget)
         {
@@ -174,6 +193,13 @@ namespace
         {
             reject(source, line,
                    "location presence does not match the objective type");
+        }
+        if (hasActorTarget &&
+            (definition.type != ObjectiveType::DefeatEnemy ||
+             !canonicalActorType(definition.targetActorType)))
+        {
+            reject(source, line,
+                   "target_actor presence does not match the objective type");
         }
         if ((definition.type == ObjectiveType::PlaceBlock ||
              definition.type == ObjectiveType::BreakBlock) &&
@@ -192,11 +218,13 @@ namespace
                    "a hidden objective must be optional");
         }
         if ((definition.type == ObjectiveType::ReachLocation ||
-             definition.type == ObjectiveType::ReopenWorld) &&
+             definition.type == ObjectiveType::ReopenWorld ||
+             definition.type == ObjectiveType::ActivateWaystone ||
+             definition.type == ObjectiveType::ClaimVictoryReward) &&
             definition.required != 1)
         {
             reject(source, line,
-                   "reach and reopen objectives must require exactly one");
+                   "single-event objectives must require exactly one");
         }
     }
 
@@ -269,7 +297,8 @@ namespace
                         reject(source, lineNumber, "duplicate version");
                     }
                     const int parsed = positiveInt(source, lineNumber,
-                                                   value, 1);
+                        value,
+                        ObjectiveSaveState::CurrentDefinitionVersion);
                     if (version != 0 && version != parsed)
                     {
                         reject(source, lineNumber,
@@ -333,6 +362,11 @@ namespace
             {
                 current.targetMaterial =
                     materialValue(source, lineNumber, value);
+            }
+            else if (key == "target_actor")
+            {
+                current.targetActorType =
+                    singleValue(source, lineNumber, value);
             }
             else if (key == "required")
             {
@@ -543,6 +577,9 @@ const char* ObjectiveRegistry::typeName(ObjectiveType type) noexcept
     case ObjectiveType::ReopenWorld: return "reopen_world";
     case ObjectiveType::SmeltItem: return "smelt_item";
     case ObjectiveType::ConsumeItem: return "consume_item";
+    case ObjectiveType::ActivateWaystone: return "activate_waystone";
+    case ObjectiveType::ClaimVictoryReward:
+        return "claim_victory_reward";
     }
     return "unknown";
 }
@@ -560,7 +597,9 @@ bool ObjectiveRegistry::tryParseType(const std::string& value,
         {"pickup_item", ObjectiveType::PickupItem},
         {"reopen_world", ObjectiveType::ReopenWorld},
         {"smelt_item", ObjectiveType::SmeltItem},
-        {"consume_item", ObjectiveType::ConsumeItem}};
+        {"consume_item", ObjectiveType::ConsumeItem},
+        {"activate_waystone", ObjectiveType::ActivateWaystone},
+        {"claim_victory_reward", ObjectiveType::ClaimVictoryReward}};
     for (const auto& entry : values)
     {
         if (value == entry.first)

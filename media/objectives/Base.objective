@@ -1,6 +1,6 @@
 # HelloMine3D objective registry v1
 
-version 1
+version 2
 
 objective alpha.gather_wood
 type break_block
@@ -273,4 +273,62 @@ optional 0
 title "Make the Discovery Yours"
 instruction "Place the recovered Waystone Core at a site you want to remember."
 feedback "Exploration milestone complete"
+end
+
+objective finale.prepare_ritual
+type obtain_item
+target hellomine:iron_ingot
+required 2
+prerequisite exploration.restore_waystone
+visible 1
+optional 0
+title "Prepare the Waystone Ritual"
+instruction "Bring 2 Iron Ingots to the restored Waystone Core."
+feedback "Ritual materials ready"
+end
+
+objective finale.activate_waystone
+type activate_waystone
+required 1
+prerequisite finale.prepare_ritual
+visible 1
+optional 0
+title "Activate the Waystone"
+instruction "Use the Waystone Core to bind the Iron Ingots, then use it again to begin the defense."
+feedback "Waystone activated"
+end
+
+objective finale.defeat_stalkers
+type defeat_enemy
+target_actor hellomine:waystone_stalker
+required 2
+prerequisite finale.activate_waystone
+visible 1
+optional 0
+title "Hold the First Wave"
+instruction "Defeat the 2 Stalkers drawn to the active Waystone."
+feedback "First wave defeated"
+end
+
+objective finale.defeat_brute
+type defeat_enemy
+target_actor hellomine:waystone_brute
+required 1
+prerequisite finale.defeat_stalkers
+visible 1
+optional 0
+title "Break the Final Guard"
+instruction "Defeat the Brute without abandoning the Waystone."
+feedback "Waystone secured"
+end
+
+objective finale.claim_reward
+type claim_victory_reward
+required 1
+prerequisite finale.defeat_brute
+visible 1
+optional 0
+title "Claim the Waystone Reward"
+instruction "Claim the one-time reward from the victory overlay or the Waystone Core."
+feedback "Finale complete"
 end

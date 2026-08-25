@@ -49,6 +49,13 @@ class Player : public Entity {
     const ItemStack &getInventorySlot(int index) const;
     int getInventorySlotCount() const;
     int getInventoryCapacity(const Material &material) const;
+    int getInventoryCount(Material::ID materialId) const noexcept;
+    std::uint64_t getInventoryRevision() const noexcept;
+    bool canConsumeInventory(
+        const std::vector<InventorySlotState> &consumed) const;
+    bool consumeInventory(
+        const std::vector<InventorySlotState> &consumed,
+        std::uint64_t expectedRevision);
     int removeInventoryItem(int slot, int amount);
     CraftingPreview previewCrafting(
         const CraftingSession &session,

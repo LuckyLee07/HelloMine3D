@@ -243,6 +243,30 @@ class FurnaceBlockBehavior final : public BlockBehavior {
     }
 };
 
+class WaystoneBlockBehavior final : public BlockBehavior {
+  public:
+    void onPlaced(World &world, Player &,
+                  const glm::ivec3 &position, const ChunkBlock &,
+                  const ChunkBlock &) const override
+    {
+        world.initializeWaystone(position);
+    }
+
+    void onBroken(World &world, Player &,
+                  const glm::ivec3 &position,
+                  const ChunkBlock &) const override
+    {
+        world.onWaystoneBroken(position);
+    }
+
+    void onUse(World &world, Player &player,
+               const glm::ivec3 &position,
+               const ChunkBlock &) const override
+    {
+        world.useWaystone(position, player, true);
+    }
+};
+
 std::string makeStringId(const std::string &fileName)
 {
     std::string id = "hellomine:";
@@ -335,7 +359,8 @@ BlockDatabase::BlockDatabase()
              std::make_unique<WorkbenchBlockBehavior>());
     addBlock(BlockId::Furnace, "Furnace",
              std::make_unique<FurnaceBlockBehavior>());
-    addBlock(BlockId::WaystoneCore, "WaystoneCore");
+    addBlock(BlockId::WaystoneCore, "WaystoneCore",
+             std::make_unique<WaystoneBlockBehavior>());
 }
 
 BlockDatabase &BlockDatabase::get()

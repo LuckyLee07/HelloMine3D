@@ -368,6 +368,7 @@ class OgreUserInterface::Impl
                 drawHud();
                 drawContainer();
                 drawCrafting();
+                drawVictoryOverlay();
                 if (showDebugPanel)
                 {
                     drawDebugPanels();
@@ -1382,7 +1383,7 @@ class OgreUserInterface::Impl
                         ImGuiWindowFlags_NoFocusOnAppearing |
                         ImGuiWindowFlags_NoNav))
             {
-                ImGui::Text("First Session  %zu / %zu",
+                ImGui::Text("Journey  %zu / %zu",
                             objective.completedObjectives,
                             objective.totalObjectives);
                 ImGui::Separator();
@@ -1542,6 +1543,82 @@ class OgreUserInterface::Impl
         }
         ImGui::End();
         ImGui::PopStyleVar();
+    }
+
+    bool victoryOverlayVisible() const
+    {
+        if (world == nullptr || flow == nullptr ||
+            flow->state() != GameApplicationState::Playing)
+        {
+            return false;
+        }
+        const WorldOutcomeSnapshot outcome =
+            world->getWorldOutcomeSnapshot();
+        return outcome.victory && outcome.rewardEpoch > 0 &&
+               dismissedVictoryEpoch != outcome.rewardEpoch;
+    }
+
+    void drawVictoryOverlay()
+    {
+        if (!victoryOverlayVisible())
+        {
+            return;
+        }
+        const WorldOutcomeSnapshot outcome =
+            world->getWorldOutcomeSnapshot();
+        const ImGuiIO &io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(
+            ImVec2(io.DisplaySize.x * 0.5f,
+                   io.DisplaySize.y * 0.42f),
+            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2(520.0f, 0.0f),
+                                 ImGuiCond_Always);
+        ImGui::SetNextWindowBgAlpha(0.96f);
+        if (ImGui::Begin(
+                "##VictoryOverlay", nullptr,
+                ImGuiWindowFlags_NoCollapse |
+                    ImGuiWindowFlags_NoResize |
+                    ImGuiWindowFlags_NoSavedSettings |
+                    ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            LocalizedTextRegistry &text =
+                runtimeLocalizedTextRegistry();
+            const std::string title =
+                text.lookup("en-US", "victory.overlay.title");
+            ImGui::SetWindowFontScale(1.35f);
+            ImGui::TextUnformatted(title.c_str());
+            ImGui::SetWindowFontScale(1.0f);
+            ImGui::Separator();
+            const std::string summary =
+                text.lookup("en-US", "victory.overlay.summary");
+            ImGui::TextWrapped("%s", summary.c_str());
+            const std::string rewardMessage = text.lookup(
+                "en-US", outcome.rewardAvailable
+                             ? "victory.reward.pending"
+                             : "victory.reward.claimed");
+            ImGui::TextWrapped("%s", rewardMessage.c_str());
+            if (outcome.rewardAvailable)
+            {
+                const std::string claim =
+                    text.lookup("en-US", "victory.reward.claim");
+                if (ImGui::Button(claim.c_str(), ImVec2(220.0f, 42.0f)))
+                {
+                    pendingAction.type =
+                        OgreUserInterfaceActionType::ClaimVictoryReward;
+                    playUiFeedback();
+                }
+                ImGui::SameLine();
+            }
+            const std::string continueLabel =
+                text.lookup("en-US", "victory.overlay.continue");
+            if (ImGui::Button(continueLabel.c_str(),
+                              ImVec2(220.0f, 42.0f)))
+            {
+                dismissedVictoryEpoch = outcome.rewardEpoch;
+                playUiFeedback();
+            }
+        }
+        ImGui::End();
     }
 
     void drawContainer()
@@ -2153,6 +2230,7 @@ class OgreUserInterface::Impl
     float displayedPeakFrameMs = 0.f;
     float performanceOverlayBottom = 90.f;
     std::size_t performanceSampleFrames = 0;
+    std::uint32_t dismissedVictoryEpoch = 0;
     std::array<char, 81> createName{};
     std::array<char, 81> renameName{};
     int createSeed = 0;
@@ -2270,6 +2348,7 @@ bool OgreUserInterface::wantsKeyboardInput() const
            (m_impl->player != nullptr &&
             (m_impl->player->hasOpenContainer() ||
              m_impl->player->hasOpenCrafting())) ||
+           m_impl->victoryOverlayVisible() ||
            ImGui::GetIO().WantCaptureKeyboard;
 }
 
@@ -2279,12 +2358,14 @@ bool OgreUserInterface::wantsMouseInput() const
            (m_impl->player != nullptr &&
             (m_impl->player->hasOpenContainer() ||
              m_impl->player->hasOpenCrafting())) ||
+           m_impl->victoryOverlayVisible() ||
            ImGui::GetIO().WantCaptureMouse;
 }
 
 bool OgreUserInterface::hasBlockingModal() const noexcept
 {
-    return !m_impl->crashReports.empty();
+    return !m_impl->crashReports.empty() ||
+           m_impl->victoryOverlayVisible();
 }
 
 bool OgreUserInterface::isDebugPanelVisible() const noexcept
@@ -2297,6 +2378,7 @@ void OgreUserInterface::setWorldContext(Player *player,
 {
     m_impl->player = player;
     m_impl->world = world;
+    m_impl->dismissedVictoryEpoch = 0;
 }
 
 void OgreUserInterface::setStatusMessage(std::string message)

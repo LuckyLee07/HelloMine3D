@@ -130,6 +130,65 @@ std::uint64_t Inventory::revision() const noexcept
     return m_revision;
 }
 
+bool Inventory::canConsume(
+    const std::vector<InventorySlotState> &consumed) const
+{
+    std::vector<ItemStack> candidate = m_slots;
+    for (const InventorySlotState &requirement : consumed) {
+        if (requirement.materialId == Material::ID::Nothing ||
+            requirement.amount <= 0) {
+            return false;
+        }
+        int remaining = requirement.amount;
+        for (ItemStack &slot : candidate) {
+            if (slot.isEmpty() ||
+                slot.getMaterial().id != requirement.materialId) {
+                continue;
+            }
+            const int removed =
+                std::min(remaining, slot.getNumInStack());
+            slot.remove(removed);
+            remaining -= removed;
+            if (remaining == 0) {
+                break;
+            }
+        }
+        if (remaining != 0) {
+            return false;
+        }
+    }
+    return !consumed.empty();
+}
+
+bool Inventory::consume(
+    const std::vector<InventorySlotState> &consumed,
+    std::uint64_t expectedRevision)
+{
+    if (expectedRevision != m_revision || !canConsume(consumed)) {
+        return false;
+    }
+    std::vector<ItemStack> candidate = m_slots;
+    for (const InventorySlotState &requirement : consumed) {
+        int remaining = requirement.amount;
+        for (ItemStack &slot : candidate) {
+            if (slot.isEmpty() ||
+                slot.getMaterial().id != requirement.materialId) {
+                continue;
+            }
+            const int removed =
+                std::min(remaining, slot.getNumInStack());
+            slot.remove(removed);
+            remaining -= removed;
+            if (remaining == 0) {
+                break;
+            }
+        }
+    }
+    m_slots.swap(candidate);
+    ++m_revision;
+    return true;
+}
+
 bool Inventory::canExchange(
     const std::vector<InventorySlotState> &consumed,
     const Material &produced, int producedAmount) const

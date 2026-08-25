@@ -37,6 +37,7 @@ enum class OgreUserInterfaceActionType
     None,
     OpenWorld,
     ApplySettings,
+    ClaimVictoryReward,
     ReturnToMainMenu,
     Quit
 };

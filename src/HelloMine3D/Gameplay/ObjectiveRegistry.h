@@ -21,7 +21,9 @@ enum class ObjectiveType
     PickupItem,
     ReopenWorld,
     SmeltItem,
-    ConsumeItem
+    ConsumeItem,
+    ActivateWaystone,
+    ClaimVictoryReward
 };
 
 struct ObjectiveDefinition
@@ -30,6 +32,7 @@ struct ObjectiveDefinition
     std::string prerequisite;
     ObjectiveType type = ObjectiveType::ObtainItem;
     Material::ID targetMaterial = Material::ID::Nothing;
+    std::string targetActorType;
     int required = 1;
     glm::vec3 location{0.f};
     float radius = 0.f;

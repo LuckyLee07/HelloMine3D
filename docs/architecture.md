@@ -70,13 +70,19 @@ immature tall grass to its mature metadata state; unload and storage reload
 remove and rebuild the index without scanning unrelated blocks.
 
 `Gameplay/` owns the renderer-independent N1 objective registry and runtime.
-The strict version-1 registry freezes before world construction. The runtime
+The strict current version-2 registry freezes before world construction and
+explicitly normalizes persisted version-1 progress. The runtime
 consumes existing domain events and observable player state, exposes a read-only
 HUD snapshot and persists bounded completion/progress records; it does not own
 items, blocks, actors or rewards. `AlphaJourney` remains only as the G6 ten-step
 compatibility view. The full boundary is frozen in
 `docs/objective-system-contract-v1.md`. `Player/`, `Item/`, and `Physics/` are
 gameplay support modules.
+`VictoryFlow` separately owns the persistent N7 world-outcome state and reward
+epoch. `WaystoneEncounter` stores one strict block-entity wave payload, while
+`World` reconciles bounded guardian actors against that payload across save,
+chunk unload and backup restore. Objectives, the world list and Ogre victory
+overlay consume read-only snapshots/events and cannot infer or mutate victory.
 `PlayerInputState` is a platform-independent command value; the Ogre/OIS shell
 collects devices and `PlayerController` applies those commands deterministically.
 Mobs hold a non-owning target supplied by `World`, chase the player within a

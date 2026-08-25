@@ -144,10 +144,15 @@ bool finiteVec3(const glm::vec3 &value)
            std::isfinite(value.z);
 }
 
-bool validObjectiveState(const WorldSaveData &data)
+bool validObjectiveState(const WorldSaveData &data,
+                         bool allowLegacyDefinition = false)
 {
-    if (data.objectiveState.definitionVersion !=
-            ObjectiveSaveState::CurrentDefinitionVersion ||
+    const int definitionVersion =
+        data.objectiveState.definitionVersion;
+    if ((definitionVersion !=
+             ObjectiveSaveState::CurrentDefinitionVersion &&
+         (!allowLegacyDefinition || definitionVersion !=
+              ObjectiveSaveState::LegacyDefinitionVersion)) ||
         data.objectiveState.completedIds.size() > MaxStoredObjectives ||
         data.objectiveState.progress.size() > MaxStoredObjectives ||
         ObjectiveState::legacyFlagsFromCompleted(
@@ -533,7 +538,8 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
         !loaded.objectiveState.progress.empty();
     if ((loaded.version >= 5 &&
          (!objectiveDefinitionSeen || !objectiveCompletedCountSeen ||
-          !objectiveProgressCountSeen || !validObjectiveState(loaded))) ||
+          !objectiveProgressCountSeen ||
+          !validObjectiveState(loaded, true))) ||
         (loaded.version < 5 && objectiveFieldsPresent)) {
         return fail("objective state does not match save version");
     }
@@ -621,6 +627,13 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
         }
     }
 
+    if (loaded.version >= 5 &&
+        loaded.objectiveState.definitionVersion ==
+            ObjectiveSaveState::LegacyDefinitionVersion)
+    {
+        loaded.objectiveState.definitionVersion =
+            ObjectiveSaveState::CurrentDefinitionVersion;
+    }
     data = std::move(loaded);
     return true;
 }

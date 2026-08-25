@@ -76,10 +76,10 @@ Release Candidate 自动证据也已关闭，当前只等待 R3 真人输入。
 | 8 | N5 生态差异与探索目标 | P1 | 不同区域提供不同资源、危险和一个值得寻找的地标。 | `Done`：terrain v2 路标、生态敌人压力、v8 迁移和 487 项世界回归通过；合同见 `ecology-exploration-contract-v1.md`。 |
 | 9 | N6 产品体验完善 | P1 | HUD、目标、配方发现、键位与辅助选项统一，声音反馈和可访问提示形成一致体验。 | `Done`：491 项世界回归、95 项配方/产品体验断言及完整 Windows 门禁通过；合同见 `product-experience-contract-v1.md`。 |
 | 10 | Release Candidate 封板 | P0 | 形成可重复构建、诊断、测量、迁移和分发的本地单机发行候选。 | 自动化 `Done`，只等待 R3 真人输入关闭 D2/D4/D6。 |
-| 11 | Stage 9 / Beta | P0/P1 | 增加首个胜利闭环、遭遇、探索地点、资源经济、难度、本地化和正式表现。 | `Doing`：N7A 已完成，N7B-N12 与 BETA-RC 见 `beta-gameplay-roadmap.md`。 |
+| 11 | Stage 9 / Beta | P0/P1 | 增加首个胜利闭环、遭遇、探索地点、资源经济、难度、本地化和正式表现。 | `Doing`：N7A/N7B 已完成，下一批 N8A；N8A-N12 与 BETA-RC 见 `beta-gameplay-roadmap.md`。 |
 
 `N1-N6` 是 Alpha 之后已经完成的工作包，不回写拆分前的 77 项正式总账。Stage 9 的
-`N7A` 已完成，`N7B-N12` 继续作为 `Planned` 预排，均不回写拆分前统计；每个
+`N7A/N7B` 已完成，`N8A-N12` 继续作为 `Planned` 预排，均不回写拆分前统计；每个
 工作包开始前根据实际玩家阻塞点确认范围，避免同时扩张多条共享状态实现线。
 
 ## 近期详细批次
@@ -270,7 +270,7 @@ RC 自动化闭环后，下一阶段继续解决“为什么准备、为什么�
 | 2 | FS3 | 统一方块图集、快捷栏图标、手持物和基础交互反馈。 | Done |
 | 3 | RC0 | bundle 已提供；R3 部分非正式自测后，其余真人输入与 D2/D4/D6 按用户决定延后。 | Planned（延后） |
 | 4 | N7A | 独立结局状态、奖励 epoch、世界列表标记和语义化文本 key 骨架。 | Done |
-| 5 | N7B | 路标激活、复用现有敌人的有界守卫战、胜利覆盖层和继续沙盒。 | Planned |
+| 5 | N7B | 路标激活、复用现有敌人的有界守卫战、胜利覆盖层和继续沙盒。 | Done |
 | 6 | N8A | 攻击前摇/恢复、方向性受击、击退和反馈，先让战斗意图可读。 | Planned |
 | 7 | N8B | 小型战斗档案、远程敌人、有界瞬态投射物和最低限度格挡。 | Planned |
 | 8 | N9A | 复用 cell hash/`StructureBuilder` 固定结构归属、投影和覆盖规则。 | Planned |
@@ -283,7 +283,7 @@ RC 自动化闭环后，下一阶段继续解决“为什么准备、为什么�
 | 15 | N12C | 单通道流式低密度音乐；P2 伸缩项。 | Planned（伸缩项） |
 | 16 | BETA-RC | 全迁移、正式性能、双档长稳、崩溃符号、R3 和干净包集中封板。 | Planned |
 
-N7A 预计只在新增持久结局状态时把保存升级为 v9；N9 只在生成身份变化时引入 terrain v3，
+N7A 已因新增持久结局状态把保存升级为 v9；N9 只在生成身份变化时引入 terrain v3，
 结构不另设独立版本；N11A/N12 只在真实载荷变化时决定后续格式编号。执行顺序和伸缩项边界
 以 `docs/beta-gameplay-roadmap.md` 为准。
 FS1-FS3 的权威兼容和验收边界见 `docs/first-session-visual-baseline-contract-v1.md`；R3 延后到

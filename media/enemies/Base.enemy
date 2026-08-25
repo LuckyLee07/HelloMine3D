@@ -35,3 +35,25 @@ loot hellomine:dirt 1 1
 loot hellomine:coal_ore 1 1
 loot hellomine:wheat 1 1
 end
+
+enemy hellomine:waystone_stalker
+health 8
+dimensions 0.30 0.75 0.30
+wander_speed 1.6
+chase_radius 18
+chase_speed 3.2
+contact_damage 1
+natural 0
+loot hellomine:dirt 1 1
+end
+
+enemy hellomine:waystone_brute
+health 16
+dimensions 0.45 1.05 0.45
+wander_speed 0.8
+chase_radius 18
+chase_speed 1.6
+contact_damage 4
+natural 0
+loot hellomine:coal_ore 1 1
+end

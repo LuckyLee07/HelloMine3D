@@ -26,7 +26,9 @@
 #include "../Physics/AABB.h"
 #include "../Player/Player.h"
 #include "../Sandbox/Events/FoodEvents.h"
+#include "../Sandbox/Events/EntityEvents.h"
 #include "../Sandbox/Events/PlayerEvents.h"
+#include "../Sandbox/Events/WaystoneEvents.h"
 #include "../Util/ResourcePaths.h"
 #include "../Util/Random.h"
 #include "Chunk/ChunkMeshBuilder.h"
@@ -55,6 +57,19 @@ namespace
     constexpr int MaximumLoadedSpawnCandidates = 64;
     constexpr float LegacyPlaceholderRescueMaxWorldTime = 1200.f;
     constexpr float SpawnComparisonEpsilon = 0.01f;
+
+    bool sameBlockPosition(const glm::ivec3 &left,
+                           const glm::ivec3 &right) noexcept
+    {
+        return left.x == right.x && left.y == right.y &&
+               left.z == right.z;
+    }
+
+    bool isWaystoneGuardianType(const std::string &type) noexcept
+    {
+        return type == WaystoneEncounter::StalkerType ||
+               type == WaystoneEncounter::BruteType;
+    }
 
     bool approximatelyEqual(float left, float right)
     {
@@ -501,6 +516,12 @@ World::World(const Camera &camera, const Config &config, Player &player,
         m_worldSaveData.alphaJourneyFlags, hasSave);
     m_victoryFlow = std::make_unique<VictoryFlow>(
         m_worldSaveData.worldOutcome);
+    m_eventBus.subscribe(
+        SandboxEventType::EntityDeath,
+        [this](const SandboxEvent &event) {
+            handleWaystoneGuardianDeath(event);
+        });
+    reconcileWaystoneEncounter();
 
     // Restore retained actors and objectives before persisting the repaired
     // spawn so empty runtime managers cannot erase non-natural save state.
@@ -1063,6 +1084,7 @@ void World::tick(int worldTime)
     m_attackCooldownTicksRemaining =
         std::max(0, m_attackCooldownTicksRemaining - 1);
     m_actorManager.tick(*this, 1.f / 20.f);
+    reconcileWaystoneEncounter();
     applyMobContactDamage();
     runRandomTicks(worldTime);
     runNaturalMobPopulation(worldTime);
@@ -1168,6 +1190,7 @@ bool World::damagePlayer(float amount, ActorId sourceId)
     const bool accepted = m_playerActor.damage(*this, amount, sourceId);
     if (accepted && !m_playerActor.isAlive()) {
         m_playerRespawnPending = true;
+        abandonWaystoneEncounter();
     }
     return accepted;
 }
@@ -1264,6 +1287,502 @@ WorldOutcomeSnapshot World::getWorldOutcomeSnapshot() const noexcept
     return m_victoryFlow != nullptr
                ? m_victoryFlow->snapshot()
                : WorldOutcomeSnapshot{};
+}
+
+WaystoneEncounterSnapshot World::getWaystoneEncounterSnapshot() const
+{
+    WaystoneEncounterSnapshot result;
+    result.wave = m_waystoneEncounterState.wave;
+    result.remainingGuardians =
+        m_waystoneEncounterState.remainingGuardians;
+    result.loadedGuardians =
+        m_actorManager.countActorsByType(WaystoneEncounter::StalkerType) +
+        m_actorManager.countActorsByType(WaystoneEncounter::BruteType);
+    if (m_waystoneAnchor.has_value()) {
+        result.anchorKnown = true;
+        result.anchor = *m_waystoneAnchor;
+    }
+    return result;
+}
+
+bool World::initializeWaystone(const glm::ivec3 &position)
+{
+    if (static_cast<BlockId>(getBlock(position.x, position.y,
+                                      position.z).id) !=
+        BlockId::WaystoneCore) {
+        return false;
+    }
+    const auto existing = getBlockEntity(position);
+    if (existing.has_value()) {
+        WaystoneEncounterState state;
+        return existing->type == WaystoneEncounter::BlockEntityType &&
+               WaystoneEncounter::deserialize(existing->payload, state);
+    }
+    return createBlockEntity(
+        position, WaystoneEncounter::BlockEntityType,
+        WaystoneEncounter::serialize(WaystoneEncounterState{}));
+}
+
+bool World::readWaystoneState(const glm::ivec3 &position,
+                              WaystoneEncounterState &state)
+{
+    const auto record = getBlockEntity(position);
+    return record.has_value() &&
+           record->type == WaystoneEncounter::BlockEntityType &&
+           WaystoneEncounter::deserialize(record->payload, state);
+}
+
+bool World::writeWaystoneState(const glm::ivec3 &position,
+                               const WaystoneEncounterState &state)
+{
+    return WaystoneEncounter::validState(state) &&
+           updateBlockEntity(position,
+                             WaystoneEncounter::serialize(state));
+}
+
+void World::setWaystoneFeedback(WaystoneActionResult result)
+{
+    m_waystoneFeedbackKey = WaystoneEncounter::feedbackKey(result);
+}
+
+std::string World::consumeWaystoneFeedbackKey()
+{
+    std::string result = std::move(m_waystoneFeedbackKey);
+    m_waystoneFeedbackKey.clear();
+    return result;
+}
+
+WaystoneActionResult World::useWaystone(const glm::ivec3 &position,
+                                        Player &player,
+                                        bool simulationRunning)
+{
+    const auto finish = [this](WaystoneActionResult result) {
+        setWaystoneFeedback(result);
+        return result;
+    };
+    if (!simulationRunning) {
+        return finish(WaystoneActionResult::SimulationPaused);
+    }
+    if (m_player == nullptr || &player != m_player) {
+        return finish(WaystoneActionResult::PlayerUnavailable);
+    }
+    if (!m_playerActor.isAlive()) {
+        return finish(WaystoneActionResult::PlayerDead);
+    }
+    if (player.hasOpenContainer() || player.hasOpenCrafting()) {
+        return finish(WaystoneActionResult::UiBusy);
+    }
+    const glm::vec3 coreCenter =
+        glm::vec3(position) + glm::vec3(0.5f);
+    const glm::vec3 distance = player.position - coreCenter;
+    if (glm::dot(distance, distance) >
+        WaystoneEncounter::InteractionReach *
+            WaystoneEncounter::InteractionReach) {
+        return finish(WaystoneActionResult::OutOfReach);
+    }
+    if (!initializeWaystone(position)) {
+        return finish(WaystoneActionResult::InvalidCore);
+    }
+
+    WaystoneEncounterState persisted;
+    if (!readWaystoneState(position, persisted) ||
+        m_victoryFlow == nullptr) {
+        return finish(WaystoneActionResult::InvalidCore);
+    }
+    const WorldOutcomeSnapshot outcome = m_victoryFlow->snapshot();
+    if (outcome.phase == WorldOutcomePhase::Unstarted) {
+        if (persisted.wave != 0) {
+            return finish(WaystoneActionResult::Rejected);
+        }
+        if (m_alphaJourney != nullptr) {
+            m_alphaJourney->update(0.f);
+        }
+        const std::vector<InventorySlotState> ritual = {{
+            Material::ID::IronIngot,
+            WaystoneEncounter::ActivationIronIngots, 0}};
+        const std::uint64_t revision = player.getInventoryRevision();
+        if (!player.canConsumeInventory(ritual)) {
+            return finish(WaystoneActionResult::MissingMaterials);
+        }
+        if (!player.consumeInventory(ritual, revision)) {
+            return finish(WaystoneActionResult::Rejected);
+        }
+        if (m_victoryFlow->activate() !=
+            VictoryTransitionResult::Applied) {
+            player.addItem(Material::IRON_INGOT,
+                           WaystoneEncounter::ActivationIronIngots);
+            return finish(WaystoneActionResult::Rejected);
+        }
+        m_waystoneAnchor = position;
+        m_waystoneEncounterState = {};
+        m_eventBus.publish(PlayerInventoryChangedEvent(
+            DefaultPlayerActorId, Material::ID::IronIngot,
+            -WaystoneEncounter::ActivationIronIngots,
+            "waystone_activation"));
+        m_eventBus.publish(WaystoneActivatedEvent(
+            DefaultPlayerActorId, position));
+        return finish(WaystoneActionResult::Activated);
+    }
+    if (outcome.phase == WorldOutcomePhase::Activated) {
+        m_waystoneAnchor = position;
+        if (persisted.wave != 0) {
+            persisted = {};
+            if (!writeWaystoneState(position, persisted)) {
+                return finish(WaystoneActionResult::Rejected);
+            }
+        }
+        std::vector<glm::vec3> positions;
+        if (!findWaystoneSpawnPositions(
+                position, WaystoneEncounter::FirstWaveGuardians,
+                positions)) {
+            return finish(WaystoneActionResult::SpawnBlocked);
+        }
+        if (m_victoryFlow->beginEncounter() !=
+            VictoryTransitionResult::Applied) {
+            return finish(WaystoneActionResult::Rejected);
+        }
+        m_waystoneEncounterState = {
+            1, WaystoneEncounter::FirstWaveGuardians, 0};
+        if (!writeWaystoneState(position, m_waystoneEncounterState) ||
+            !spawnWaystoneGuardians(
+                1, WaystoneEncounter::FirstWaveGuardians)) {
+            abandonWaystoneEncounter();
+            return finish(WaystoneActionResult::SpawnBlocked);
+        }
+        return finish(WaystoneActionResult::EncounterStarted);
+    }
+    if (outcome.phase == WorldOutcomePhase::Encounter) {
+        return finish(
+            m_waystoneAnchor.has_value() &&
+                    sameBlockPosition(*m_waystoneAnchor, position)
+                ? WaystoneActionResult::EncounterInProgress
+                : WaystoneActionResult::Rejected);
+    }
+    if (outcome.phase == WorldOutcomePhase::Victorious) {
+        return claimWaystoneReward(simulationRunning);
+    }
+    if (outcome.phase == WorldOutcomePhase::RewardClaimed) {
+        return finish(WaystoneActionResult::RewardAlreadyClaimed);
+    }
+    return finish(WaystoneActionResult::Rejected);
+}
+
+WaystoneActionResult World::claimWaystoneReward(bool simulationRunning)
+{
+    const auto finish = [this](WaystoneActionResult result) {
+        setWaystoneFeedback(result);
+        return result;
+    };
+    if (!simulationRunning) {
+        return finish(WaystoneActionResult::SimulationPaused);
+    }
+    if (m_player == nullptr || m_victoryFlow == nullptr) {
+        return finish(WaystoneActionResult::PlayerUnavailable);
+    }
+    if (!m_playerActor.isAlive()) {
+        return finish(WaystoneActionResult::PlayerDead);
+    }
+    const WorldOutcomeSnapshot outcome = m_victoryFlow->snapshot();
+    if (outcome.phase == WorldOutcomePhase::RewardClaimed) {
+        return finish(WaystoneActionResult::RewardAlreadyClaimed);
+    }
+    if (outcome.phase != WorldOutcomePhase::Victorious ||
+        outcome.rewardEpoch != WaystoneEncounter::RewardEpoch) {
+        return finish(WaystoneActionResult::Rejected);
+    }
+    const Material &reward = Material::IRON_INGOT;
+    if (m_player->getInventoryCapacity(reward) <
+        WaystoneEncounter::RewardIronIngots) {
+        return finish(WaystoneActionResult::InventoryFull);
+    }
+    const int rewarded = m_player->addItem(
+        reward, WaystoneEncounter::RewardIronIngots);
+    if (rewarded != WaystoneEncounter::RewardIronIngots) {
+        if (rewarded > 0) {
+            const std::vector<InventorySlotState> rollback = {{
+                Material::ID::IronIngot, rewarded, 0}};
+            m_player->consumeInventory(
+                rollback, m_player->getInventoryRevision());
+        }
+        return finish(WaystoneActionResult::InventoryFull);
+    }
+    if (m_victoryFlow->claimReward(outcome.rewardEpoch) !=
+        VictoryTransitionResult::Applied) {
+        const std::vector<InventorySlotState> rollback = {{
+            Material::ID::IronIngot,
+            WaystoneEncounter::RewardIronIngots, 0}};
+        m_player->consumeInventory(
+            rollback, m_player->getInventoryRevision());
+        return finish(WaystoneActionResult::Rejected);
+    }
+    if (m_waystoneAnchor.has_value()) {
+        WaystoneEncounterState claimed = {
+            3, 0, WaystoneEncounter::RewardEpoch};
+        if (readWaystoneState(*m_waystoneAnchor,
+                              m_waystoneEncounterState)) {
+            writeWaystoneState(*m_waystoneAnchor, claimed);
+        }
+        m_waystoneEncounterState = claimed;
+    }
+    m_eventBus.publish(PlayerInventoryChangedEvent(
+        DefaultPlayerActorId, Material::ID::IronIngot,
+        WaystoneEncounter::RewardIronIngots, "waystone_victory_reward"));
+    m_eventBus.publish(VictoryRewardClaimedEvent(
+        DefaultPlayerActorId, outcome.rewardEpoch));
+    return finish(WaystoneActionResult::RewardClaimed);
+}
+
+bool World::findWaystoneSpawnPositions(
+    const glm::ivec3 &anchor, int count,
+    std::vector<glm::vec3> &positions)
+{
+    positions.clear();
+    if (count <= 0 ||
+        count > static_cast<int>(WaystoneEncounter::MaximumLoadedGuardians)) {
+        return false;
+    }
+    static const std::array<glm::ivec2, 12> offsets = {{
+        {6, 0}, {-6, 0}, {0, 6}, {0, -6},
+        {5, 5}, {-5, 5}, {5, -5}, {-5, -5},
+        {7, 2}, {-7, 2}, {2, 7}, {2, -7}}};
+    const std::vector<ActorSnapshot> actors =
+        m_actorManager.collectSnapshots();
+    for (const glm::ivec2 &offset : offsets) {
+        glm::vec3 candidate{0.f};
+        if (!findSafeNaturalMobPosition(anchor.x + offset.x,
+                                        anchor.z + offset.y,
+                                        candidate)) {
+            continue;
+        }
+        bool occupied = false;
+        for (const ActorSnapshot &actor : actors) {
+            if (glm::distance(actor.position, candidate) <= 1.5f) {
+                occupied = true;
+                break;
+            }
+        }
+        for (const glm::vec3 &selected : positions) {
+            if (glm::distance(selected, candidate) <= 1.5f) {
+                occupied = true;
+                break;
+            }
+        }
+        if (occupied) {
+            continue;
+        }
+        positions.push_back(candidate);
+        if (static_cast<int>(positions.size()) == count) {
+            return true;
+        }
+    }
+    positions.clear();
+    return false;
+}
+
+bool World::spawnWaystoneGuardians(int wave, int count)
+{
+    if (!m_waystoneAnchor.has_value() || count <= 0) {
+        return false;
+    }
+    std::vector<glm::vec3> positions;
+    if (!findWaystoneSpawnPositions(*m_waystoneAnchor, count,
+                                    positions)) {
+        return false;
+    }
+    const char *type = WaystoneEncounter::actorTypeForWave(wave);
+    if (type[0] == '\0') {
+        return false;
+    }
+    for (const glm::vec3 &position : positions) {
+        const ActorId id = spawnMob(type, position);
+        if (id == InvalidActorId) {
+            return false;
+        }
+        m_waystoneGuardianIds.emplace(id);
+    }
+    return true;
+}
+
+void World::removeWaystoneGuardians()
+{
+    m_actorManager.removeActorsIf([](const Actor &actor) {
+        return isWaystoneGuardianType(actor.getType());
+    });
+    m_waystoneGuardianIds.clear();
+}
+
+void World::abandonWaystoneEncounter()
+{
+    if (m_victoryFlow == nullptr ||
+        m_victoryFlow->snapshot().phase != WorldOutcomePhase::Encounter) {
+        return;
+    }
+    if (m_waystoneAnchor.has_value()) {
+        const WaystoneEncounterState reset;
+        writeWaystoneState(*m_waystoneAnchor, reset);
+    }
+    m_victoryFlow->abandonEncounter();
+    m_waystoneEncounterState = {};
+    removeWaystoneGuardians();
+}
+
+void World::onWaystoneBroken(const glm::ivec3 &position)
+{
+    if (!m_waystoneAnchor.has_value() ||
+        !sameBlockPosition(*m_waystoneAnchor, position)) {
+        return;
+    }
+    abandonWaystoneEncounter();
+    m_waystoneAnchor.reset();
+}
+
+void World::handleWaystoneGuardianDeath(const SandboxEvent &event)
+{
+    if (event.type != SandboxEventType::EntityDeath ||
+        m_victoryFlow == nullptr || !m_waystoneAnchor.has_value() ||
+        m_victoryFlow->snapshot().phase != WorldOutcomePhase::Encounter) {
+        return;
+    }
+    const auto &death = static_cast<const EntityDeathEvent &>(event);
+    const char *expected = WaystoneEncounter::actorTypeForWave(
+        m_waystoneEncounterState.wave);
+    if (death.type != expected ||
+        m_waystoneGuardianIds.erase(death.id) == 0 ||
+        m_waystoneEncounterState.remainingGuardians <= 0) {
+        return;
+    }
+
+    WaystoneEncounterState next = m_waystoneEncounterState;
+    --next.remainingGuardians;
+    if (next.remainingGuardians > 0) {
+        if (writeWaystoneState(*m_waystoneAnchor, next)) {
+            m_waystoneEncounterState = next;
+        }
+        return;
+    }
+    if (next.wave == 1) {
+        next = {2, WaystoneEncounter::SecondWaveGuardians, 0};
+        if (!writeWaystoneState(*m_waystoneAnchor, next)) {
+            return;
+        }
+        m_waystoneEncounterState = next;
+        spawnWaystoneGuardians(2, next.remainingGuardians);
+        return;
+    }
+    if (next.wave == 2) {
+        next = {3, 0, WaystoneEncounter::RewardEpoch};
+        if (!writeWaystoneState(*m_waystoneAnchor, next)) {
+            return;
+        }
+        m_waystoneEncounterState = next;
+        m_victoryFlow->resolveVictory(WaystoneEncounter::RewardEpoch);
+    }
+}
+
+void World::reconcileWaystoneEncounter()
+{
+    if (m_victoryFlow == nullptr) {
+        return;
+    }
+    const WorldOutcomeSnapshot outcome = m_victoryFlow->snapshot();
+    if (outcome.phase != WorldOutcomePhase::Encounter) {
+        removeWaystoneGuardians();
+        if (outcome.phase == WorldOutcomePhase::Activated &&
+            m_waystoneAnchor.has_value()) {
+            const VectorXZ anchorChunk = getChunkXZ(
+                m_waystoneAnchor->x, m_waystoneAnchor->z);
+            if (m_chunkManager.chunkLoadedAt(anchorChunk.x,
+                                             anchorChunk.z)) {
+                const WaystoneEncounterState reset;
+                writeWaystoneState(*m_waystoneAnchor, reset);
+                m_waystoneEncounterState = reset;
+            }
+        }
+        return;
+    }
+
+    if (!m_waystoneAnchor.has_value()) {
+        std::vector<glm::ivec3> candidates =
+            collectLoadedBlockEntityPositions(
+                WaystoneEncounter::BlockEntityType);
+        std::sort(candidates.begin(), candidates.end(),
+                  [](const glm::ivec3 &left, const glm::ivec3 &right) {
+                      if (left.x != right.x) return left.x < right.x;
+                      if (left.y != right.y) return left.y < right.y;
+                      return left.z < right.z;
+                  });
+        for (const glm::ivec3 &candidate : candidates) {
+            WaystoneEncounterState state;
+            if (readWaystoneState(candidate, state) && state.wave >= 1) {
+                m_waystoneAnchor = candidate;
+                m_waystoneEncounterState = state;
+                break;
+            }
+        }
+    }
+    if (!m_waystoneAnchor.has_value()) {
+        removeWaystoneGuardians();
+        return;
+    }
+    const VectorXZ anchorChunk = getChunkXZ(
+        m_waystoneAnchor->x, m_waystoneAnchor->z);
+    if (!m_chunkManager.chunkLoadedAt(anchorChunk.x, anchorChunk.z)) {
+        removeWaystoneGuardians();
+        return;
+    }
+    if (static_cast<BlockId>(getBlock(
+            m_waystoneAnchor->x, m_waystoneAnchor->y,
+            m_waystoneAnchor->z).id) != BlockId::WaystoneCore ||
+        !readWaystoneState(*m_waystoneAnchor,
+                           m_waystoneEncounterState)) {
+        abandonWaystoneEncounter();
+        m_waystoneAnchor.reset();
+        return;
+    }
+    if (m_waystoneEncounterState.wave == 3) {
+        removeWaystoneGuardians();
+        m_victoryFlow->resolveVictory(
+            m_waystoneEncounterState.rewardEpoch);
+        return;
+    }
+    const char *expected = WaystoneEncounter::actorTypeForWave(
+        m_waystoneEncounterState.wave);
+    if (expected[0] == '\0') {
+        abandonWaystoneEncounter();
+        return;
+    }
+
+    m_actorManager.removeActorsIf([expected](const Actor &actor) {
+        return isWaystoneGuardianType(actor.getType()) &&
+               actor.getType() != expected;
+    });
+    std::vector<ActorId> loadedIds;
+    for (const ActorSnapshot &actor : m_actorManager.collectSnapshots()) {
+        if (actor.type == expected) {
+            loadedIds.push_back(actor.id);
+        }
+    }
+    std::sort(loadedIds.begin(), loadedIds.end());
+    if (static_cast<int>(loadedIds.size()) >
+        m_waystoneEncounterState.remainingGuardians) {
+        std::unordered_set<ActorId> extras(
+            loadedIds.begin() +
+                m_waystoneEncounterState.remainingGuardians,
+            loadedIds.end());
+        m_actorManager.removeActorsIf(
+            [&extras](const Actor &actor) {
+                return extras.find(actor.getId()) != extras.end();
+            });
+        loadedIds.resize(static_cast<std::size_t>(
+            m_waystoneEncounterState.remainingGuardians));
+    }
+    m_waystoneGuardianIds.clear();
+    m_waystoneGuardianIds.insert(loadedIds.begin(), loadedIds.end());
+    const int missing = m_waystoneEncounterState.remainingGuardians -
+                        static_cast<int>(loadedIds.size());
+    if (missing > 0) {
+        spawnWaystoneGuardians(m_waystoneEncounterState.wave, missing);
+    }
 }
 
 void World::applyMobContactDamage()
@@ -1485,6 +2004,13 @@ void World::despawnNaturalMobsInChunk(int chunkX, int chunkZ)
             return actorChunk.x == chunkX && actorChunk.z == chunkZ;
         });
     m_naturalMobsDespawned += removed;
+    if (m_waystoneAnchor.has_value()) {
+        const VectorXZ anchorChunk = getChunkXZ(
+            m_waystoneAnchor->x, m_waystoneAnchor->z);
+        if (anchorChunk.x == chunkX && anchorChunk.z == chunkZ) {
+            removeWaystoneGuardians();
+        }
+    }
 }
 
 // loads chunks

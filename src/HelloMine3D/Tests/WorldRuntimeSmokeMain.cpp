@@ -45,6 +45,7 @@
 #include "../Diagnostics/TerrainBufferMetrics.h"
 #include "../Gameplay/AlphaJourney.h"
 #include "../Gameplay/VictoryFlow.h"
+#include "../Gameplay/WaystoneEncounter.h"
 #include "../Item/Material.h"
 #include "../Item/CraftingSession.h"
 #include "../Item/ContainerInventory.h"
@@ -62,6 +63,7 @@
 #include "../Sandbox/Events/FoodEvents.h"
 #include "../Sandbox/Events/PlayerEvents.h"
 #include "../Sandbox/Events/SmeltingEvents.h"
+#include "../Sandbox/Events/WaystoneEvents.h"
 #include "../Sandbox/FixedTickScheduler.h"
 #include "../Sandbox/GameApplicationFlow.h"
 #include "../Sandbox/WorldManager.h"
@@ -210,6 +212,8 @@ class EventRecorder {
             SandboxEventType::CraftCompleted,
             SandboxEventType::SmeltCompleted,
             SandboxEventType::FoodConsumed,
+            SandboxEventType::WaystoneActivated,
+            SandboxEventType::VictoryRewardClaimed,
         };
         return types;
     }
@@ -580,7 +584,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 11);
+              registry.keys("en-US").size() == 26);
     check("N7A/localized-victory-text-resolves",
           registry.lookup("en-US", "victory.overlay.title") ==
                   "Waystone Restored" &&
@@ -673,6 +677,350 @@ void caseWorldOutcomeAndLocalizedText()
                   WorldOutcomePhase::Unstarted &&
               migratedData.worldOutcome.rewardEpoch == 0 &&
               migratedData.worldOutcome.claimedRewardEpoch == 0);
+}
+
+void caseWaystoneVictoryLoop()
+{
+    WaystoneEncounterState payloadState{
+        1, WaystoneEncounter::FirstWaveGuardians, 0};
+    WaystoneEncounterState decoded;
+    const std::string payload =
+        WaystoneEncounter::serialize(payloadState);
+    std::string payloadError;
+    check("N7B/waystone-payload-is-strict-and-versioned",
+          WaystoneEncounter::deserialize(payload, decoded,
+                                          &payloadError) &&
+              decoded.wave == 1 &&
+              decoded.remainingGuardians == 2 &&
+              !WaystoneEncounter::deserialize(
+                  payload + "wave 2\n", decoded, &payloadError) &&
+              !WaystoneEncounter::validState({2, 2, 0}),
+          payloadError);
+
+    Inventory atomicInventory(2);
+    atomicInventory.addItem(Material::IRON_INGOT, 2);
+    const std::vector<InventorySlotState> ritual = {{
+        Material::ID::IronIngot,
+        WaystoneEncounter::ActivationIronIngots, 0}};
+    const std::uint64_t atomicRevision = atomicInventory.revision();
+    check("N7B/ritual-consumption-is-revision-guarded-and-atomic",
+          atomicInventory.canConsume(ritual) &&
+              !atomicInventory.consume(ritual, atomicRevision + 1) &&
+              atomicInventory.count(Material::ID::IronIngot) == 2 &&
+              atomicInventory.consume(ritual, atomicRevision) &&
+              atomicInventory.count(Material::ID::IronIngot) == 0);
+
+    ObjectiveRegistry finaleRegistry;
+    finaleRegistry.freeze({{
+        "Base.objective",
+        readTextFile(ResourcePaths::media("objectives/Base.objective"))}});
+    const ObjectiveDefinition *stalkerObjective =
+        finaleRegistry.find("finale.defeat_stalkers");
+    const ObjectiveDefinition *claimObjective =
+        finaleRegistry.find("finale.claim_reward");
+    check("N7B/five-ordered-finale-objectives-are-data-driven",
+          finaleRegistry.definitionVersion() == 2 &&
+              finaleRegistry.definitions().size() == 28 &&
+              finaleRegistry.find("finale.prepare_ritual") != nullptr &&
+              finaleRegistry.find("finale.activate_waystone") != nullptr &&
+              finaleRegistry.find("finale.activate_waystone")->type ==
+                  ObjectiveType::ActivateWaystone &&
+              stalkerObjective != nullptr &&
+              stalkerObjective->targetActorType ==
+                  WaystoneEncounter::StalkerType &&
+              claimObjective != nullptr &&
+              claimObjective->type ==
+                  ObjectiveType::ClaimVictoryReward);
+    ObjectiveSaveState finaleProgress;
+    for (const ObjectiveDefinition &definition :
+         finaleRegistry.definitions()) {
+        if (definition.id == "finale.activate_waystone") {
+            break;
+        }
+        finaleProgress.completedIds.push_back(definition.id);
+    }
+    Player objectivePlayer;
+    SandboxEventBus objectiveBus;
+    ObjectiveSystem finaleObjectives(
+        finaleRegistry, objectivePlayer, objectiveBus, finaleProgress,
+        ObjectiveState::LegacyAlphaKnownFlags, false);
+    objectiveBus.publish(WaystoneActivatedEvent(
+        DefaultPlayerActorId, {0, 0, 0}));
+    objectiveBus.publish(EntityDeathEvent(
+        2, DefaultPlayerActorId, {}, World::StalkerMobType));
+    const bool wrongActorIgnored =
+        finaleObjectives.progress("finale.defeat_stalkers") == 0;
+    objectiveBus.publish(EntityDeathEvent(
+        3, DefaultPlayerActorId, {}, WaystoneEncounter::StalkerType));
+    objectiveBus.publish(EntityDeathEvent(
+        4, DefaultPlayerActorId, {}, WaystoneEncounter::StalkerType));
+    objectiveBus.publish(EntityDeathEvent(
+        5, DefaultPlayerActorId, {}, WaystoneEncounter::BruteType));
+    objectiveBus.publish(VictoryRewardClaimedEvent(
+        DefaultPlayerActorId, WaystoneEncounter::RewardEpoch));
+    const ObjectiveSnapshot finaleComplete = finaleObjectives.snapshot();
+    check("N7B/finale-objectives-filter-actors-and-remain-read-only-guidance",
+          wrongActorIgnored && finaleComplete.sessionComplete &&
+              finaleComplete.completedObjectives == 27);
+
+    setEnv("HELLOMINE3D_SEED", "20260825");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+    setEnv("HELLOMINE3D_WORLD_TIME", "1");
+    const std::string saveDirectory =
+        freshSaveDirectory("n7b_waystone_victory");
+    const glm::ivec3 core{9, 100, 8};
+    const Config config = makeConfig();
+
+    const auto prepareArena = [&core](World &world) {
+        for (int x = 1; x <= 15; ++x) {
+            for (int z = 1; z <= 15; ++z) {
+                world.setBlock(x, 99, z, BlockId::Stone);
+                world.setBlock(x, 100, z, BlockId::Air);
+                world.setBlock(x, 101, z, BlockId::Air);
+            }
+        }
+        world.setBlock(core.x, core.y, core.z,
+                       BlockId::WaystoneCore);
+        return world.initializeWaystone(core);
+    };
+    const auto actorIds = [](const World &world,
+                             const std::string &type) {
+        std::vector<ActorId> ids;
+        for (const ActorSnapshot &actor :
+             world.getActorManager().collectSnapshots()) {
+            if (actor.type == type) {
+                ids.push_back(actor.id);
+            }
+        }
+        std::sort(ids.begin(), ids.end());
+        return ids;
+    };
+
+    {
+        Camera camera(config);
+        Player player;
+        World world(camera, config, player, saveDirectory, false, 1);
+        const bool arenaReady = prepareArena(world);
+        const WaystoneActionResult paused =
+            world.useWaystone(core, player, false);
+        const WaystoneActionResult missing =
+            world.useWaystone(core, player, true);
+        const bool supplied =
+            player.addItem(Material::IRON_INGOT,
+                           WaystoneEncounter::ActivationIronIngots) ==
+            WaystoneEncounter::ActivationIronIngots;
+        const WaystoneActionResult activated =
+            world.useWaystone(core, player, true);
+        WaystoneEncounterState stored;
+        check("N7B/normal-use-activation-conserves-materials",
+              arenaReady && supplied &&
+                  paused == WaystoneActionResult::SimulationPaused &&
+                  missing == WaystoneActionResult::MissingMaterials &&
+                  activated == WaystoneActionResult::Activated &&
+                  player.getInventoryCount(Material::ID::IronIngot) == 0 &&
+                  world.getWorldOutcomeSnapshot().phase ==
+                      WorldOutcomePhase::Activated &&
+                  world.getWaystoneEncounterSnapshot().loadedGuardians == 0 &&
+                  world.getBlockEntity(core).has_value() &&
+                  WaystoneEncounter::deserialize(
+                      world.getBlockEntity(core)->payload, stored) &&
+                  stored.wave == 0);
+        check("N7B/activated-stage-saves-before-encounter",
+              world.save());
+    }
+
+    ActorId killedBeforeSave = InvalidActorId;
+    {
+        Camera camera(config);
+        Player player;
+        World world(camera, config, player, saveDirectory, false, 1);
+        const WaystoneActionResult started =
+            world.useWaystone(core, player, true);
+        const auto firstWave =
+            actorIds(world, WaystoneEncounter::StalkerType);
+        check("N7B/activated-stage-reopens-and-starts-bounded-first-wave",
+              world.getWorldOutcomeSnapshot().phase ==
+                      WorldOutcomePhase::Encounter &&
+                  started == WaystoneActionResult::EncounterStarted &&
+                  firstWave.size() ==
+                      WaystoneEncounter::FirstWaveGuardians &&
+                  world.getWaystoneEncounterSnapshot().loadedGuardians <=
+                      WaystoneEncounter::MaximumLoadedGuardians);
+
+        const bool deathAccepted = world.damagePlayer(100.f);
+        check("N7B/player-death-abandons-encounter-without-losing-activation",
+              deathAccepted &&
+                  world.getWorldOutcomeSnapshot().phase ==
+                      WorldOutcomePhase::Activated &&
+                  world.getWaystoneEncounterSnapshot().loadedGuardians == 0);
+        world.tick(2);
+        const WaystoneActionResult restarted =
+            world.useWaystone(core, player, true);
+        const auto restartedWave =
+            actorIds(world, WaystoneEncounter::StalkerType);
+        check("N7B/death-reset-can-restart-the-same-finite-encounter",
+              restarted == WaystoneActionResult::EncounterStarted &&
+                  restartedWave.size() == 2);
+        if (!restartedWave.empty()) {
+            killedBeforeSave = restartedWave.front();
+            world.attackActor(killedBeforeSave, 100.f);
+        }
+        const WaystoneEncounterSnapshot partial =
+            world.getWaystoneEncounterSnapshot();
+        check("N7B/half-wave-death-updates-persisted-remaining-count",
+              partial.wave == 1 && partial.remainingGuardians == 1 &&
+                  partial.loadedGuardians == 1 && world.save());
+    }
+
+    {
+        Camera camera(config);
+        Player player;
+        World world(camera, config, player, saveDirectory, false, 1);
+        const auto restoredStalkers =
+            actorIds(world, WaystoneEncounter::StalkerType);
+        check("N7B/half-wave-reopen-reconciles-without-duplicate-spawn",
+              world.getWorldOutcomeSnapshot().phase ==
+                      WorldOutcomePhase::Encounter &&
+                  restoredStalkers.size() == 1 &&
+                  world.getWaystoneEncounterSnapshot().remainingGuardians ==
+                      1);
+        if (!restoredStalkers.empty()) {
+            world.attackActor(restoredStalkers.front(), 100.f);
+        }
+        const auto bruteWave =
+            actorIds(world, WaystoneEncounter::BruteType);
+        const WaystoneEncounterSnapshot beforeDuplicate =
+            world.getWaystoneEncounterSnapshot();
+        world.getEventBus().publish(EntityDeathEvent(
+            killedBeforeSave, DefaultPlayerActorId, {},
+            WaystoneEncounter::StalkerType));
+        const WaystoneEncounterSnapshot afterDuplicate =
+            world.getWaystoneEncounterSnapshot();
+        check("N7B/duplicate-death-event-cannot-skip-the-final-wave",
+              bruteWave.size() == 1 && beforeDuplicate.wave == 2 &&
+                  beforeDuplicate.remainingGuardians == 1 &&
+                  afterDuplicate.wave == beforeDuplicate.wave &&
+                  afterDuplicate.remainingGuardians ==
+                      beforeDuplicate.remainingGuardians &&
+                  !world.getWorldOutcomeSnapshot().victory);
+
+        const VectorXZ coreChunk =
+            World::getChunkXZ(core.x, core.z);
+        world.getChunkManager().unloadChunk(coreChunk.x, coreChunk.z);
+        const bool frozen =
+            world.getWorldOutcomeSnapshot().phase ==
+                WorldOutcomePhase::Encounter &&
+            world.getWaystoneEncounterSnapshot().loadedGuardians == 0;
+        world.getChunkManager().loadChunk(coreChunk.x, coreChunk.z);
+        world.tick(3);
+        const auto restoredBrute =
+            actorIds(world, WaystoneEncounter::BruteType);
+        check("N7B/core-chunk-unload-freezes-and-reloads-the-pending-wave",
+              frozen && restoredBrute.size() == 1 &&
+                  world.getWaystoneEncounterSnapshot().remainingGuardians ==
+                      1);
+        if (!restoredBrute.empty()) {
+            world.attackActor(restoredBrute.front(), 100.f);
+        }
+        check("N7B/final-guardian-normal-death-resolves-authoritative-victory",
+              world.getWorldOutcomeSnapshot().victory &&
+                  world.getWorldOutcomeSnapshot().phase ==
+                      WorldOutcomePhase::Victorious &&
+                  world.getWorldOutcomeSnapshot().rewardAvailable &&
+                  world.getWaystoneEncounterSnapshot().loadedGuardians == 0);
+
+        const std::array<const Material *, 5> fillers = {{
+            &Material::DIRT_BLOCK, &Material::STONE_BLOCK,
+            &Material::OAK_BARK_BLOCK, &Material::WHEAT,
+            &Material::COAL_ORE_BLOCK}};
+        for (const Material *material : fillers) {
+            player.addItem(*material, material->maxStackSize);
+        }
+        const WaystoneActionResult full =
+            world.claimWaystoneReward(true);
+        check("N7B/full-inventory-keeps-victory-reward-pending",
+              full == WaystoneActionResult::InventoryFull &&
+                  world.getWorldOutcomeSnapshot().phase ==
+                      WorldOutcomePhase::Victorious &&
+                  world.getWorldOutcomeSnapshot().rewardAvailable);
+        int freedSlot = -1;
+        for (int slot = 0; slot < player.getInventorySlotCount(); ++slot) {
+            if (player.getInventorySlot(slot).getMaterial().id ==
+                Material::ID::Dirt) {
+                freedSlot = slot;
+                break;
+            }
+        }
+        if (freedSlot >= 0) {
+            player.removeInventoryItem(
+                freedSlot,
+                player.getInventorySlot(freedSlot).getNumInStack());
+        }
+        const WaystoneActionResult claimed =
+            world.claimWaystoneReward(true);
+        const int rewardCount =
+            player.getInventoryCount(Material::ID::IronIngot);
+        const WaystoneActionResult repeated =
+            world.claimWaystoneReward(true);
+        check("N7B/reward-claim-is-capacity-checked-and-one-time",
+              claimed == WaystoneActionResult::RewardClaimed &&
+                  rewardCount == WaystoneEncounter::RewardIronIngots &&
+                  repeated ==
+                      WaystoneActionResult::RewardAlreadyClaimed &&
+                  player.getInventoryCount(Material::ID::IronIngot) ==
+                      rewardCount &&
+                  world.getWorldOutcomeSnapshot().rewardClaimed);
+
+        world.setBlock(12, 100, 12, BlockId::Dirt);
+        check("N7B/victory-keeps-the-world-playing-as-a-sandbox",
+              static_cast<BlockId>(world.getBlock(12, 100, 12).id) ==
+                      BlockId::Dirt &&
+                  world.getWorldOutcomeSnapshot().phase ==
+                      WorldOutcomePhase::RewardClaimed &&
+                  world.save());
+    }
+
+    {
+        Camera camera(config);
+        Player player;
+        World world(camera, config, player, saveDirectory, false, 1);
+        check("N7B/reward-claimed-stage-reopens-without-guardians",
+              world.getWorldOutcomeSnapshot().phase ==
+                      WorldOutcomePhase::RewardClaimed &&
+                  world.getWorldOutcomeSnapshot().rewardClaimed &&
+                  world.getWaystoneEncounterSnapshot().loadedGuardians == 0 &&
+                  player.getInventoryCount(Material::ID::IronIngot) ==
+                      WaystoneEncounter::RewardIronIngots);
+    }
+
+    WorldBackup backup(saveDirectory);
+    std::vector<WorldBackupInfo> backups;
+    std::string backupError;
+    WorldBackupMetrics restoreMetrics;
+    const bool restoredMidEncounter =
+        backup.listBackups(backups, &backupError) &&
+        backups.size() == 3 &&
+        backup.restoreBackup(backups[1].id, {}, &restoreMetrics);
+    check("N7B/mid-encounter-backup-is-valid-and-restorable",
+          restoredMidEncounter,
+          backupError.empty() ? restoreMetrics.error : backupError);
+    if (restoredMidEncounter) {
+        Camera camera(config);
+        Player player;
+        World world(camera, config, player, saveDirectory, false, 1);
+        const WaystoneEncounterSnapshot restored =
+            world.getWaystoneEncounterSnapshot();
+        check("N7B/backup-restore-reconciles-persisted-wave-and-actors",
+              world.getWorldOutcomeSnapshot().phase ==
+                      WorldOutcomePhase::Encounter &&
+                  restored.wave == 1 &&
+                  restored.remainingGuardians == 1 &&
+                  restored.loadedGuardians == 1 &&
+                  actorIds(world, WaystoneEncounter::StalkerType).size() == 1);
+    }
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", "");
 }
 
 void casePausedApplicationFlow()
@@ -4508,7 +4856,7 @@ void caseFoodRecovery()
 
     const std::string objectiveSource =
         "# HelloMine3D objective registry v1\n"
-        "version 1\n"
+        "version 2\n"
         "objective n3.consume_bread\n"
         "type consume_item\n"
         "target hellomine:bread\n"
@@ -4907,6 +5255,26 @@ loot hellomine:dirt 1 1
 loot hellomine:coal_ore 1 1
 loot hellomine:wheat 1 1
 end
+enemy hellomine:waystone_stalker
+health 8
+dimensions 0.30 0.75 0.30
+wander_speed 1.6
+chase_radius 18
+chase_speed 3.2
+contact_damage 1
+natural 0
+loot hellomine:dirt 1 1
+end
+enemy hellomine:waystone_brute
+health 16
+dimensions 0.45 1.05 0.45
+wander_speed 0.8
+chase_radius 18
+chase_speed 1.6
+contact_damage 4
+natural 0
+loot hellomine:coal_ore 1 1
+end
 )";
 }
 
@@ -5163,7 +5531,7 @@ void caseToolMiningProgression()
               upgraded.find("version 9") != std::string::npos &&
               upgraded.find("alpha_journey_flags 0") !=
                   std::string::npos &&
-              upgraded.find("objective_definition_version 1") !=
+              upgraded.find("objective_definition_version 2") !=
                   std::string::npos &&
               upgraded.find("objective_completed_count 0") !=
                   std::string::npos &&
@@ -6375,7 +6743,7 @@ void casePlayableVerticalSlice()
 std::string validObjectiveTestDefinitions()
 {
     return R"(# HelloMine3D objective registry v1
-version 1
+version 2
 objective n1.break_dirt
 type break_block
 target hellomine:dirt
@@ -6486,8 +6854,8 @@ void caseDataDrivenObjectives()
             ? baseRegistry.find("alpha.reach_spawn_marker")
             : nullptr;
     check("N1/base-objective-registry-is-versioned-and-complete",
-          baseLoaded && baseRegistry.definitionVersion() == 1 &&
-              baseRegistry.definitions().size() == 23 &&
+          baseLoaded && baseRegistry.definitionVersion() == 2 &&
+              baseRegistry.definitions().size() == 28 &&
               baseRegistry.find("alpha.gather_wood") != nullptr &&
               baseRegistry.find("alpha.reopen_world") != nullptr &&
               baseRegistry.find("progression.smelt_iron") != nullptr &&
@@ -6645,7 +7013,7 @@ void caseDataDrivenObjectives()
     WorldSaveData loaded;
     const bool saved = save.save(validSave) && save.load(loaded);
     WorldSaveData invalidDefinition = validSave;
-    invalidDefinition.objectiveState.definitionVersion = 2;
+    invalidDefinition.objectiveState.definitionVersion = 3;
     WorldSaveData duplicate = validSave;
     duplicate.objectiveState.completedIds.push_back("future.optional");
     WorldSaveData completedProgress = validSave;
@@ -6656,7 +7024,7 @@ void caseDataDrivenObjectives()
     WorldSaveData preserved;
     check("N1/current-version-preserves-objective-state",
           saved && loaded.version == WorldSaveFormatVersion &&
-              loaded.objectiveState.definitionVersion == 1 &&
+              loaded.objectiveState.definitionVersion == 2 &&
               loaded.objectiveState.completedIds ==
                   validSave.objectiveState.completedIds &&
               loaded.objectiveState.progress.size() == 1);
@@ -6689,7 +7057,7 @@ void caseDataDrivenObjectives()
           migratedLoaded &&
               migratedData.version == WorldSaveFormatVersion &&
               migratedData.alphaJourneyFlags == 3u &&
-              migratedData.objectiveState.definitionVersion == 1 &&
+              migratedData.objectiveState.definitionVersion == 2 &&
               migratedData.objectiveState.completedIds ==
                   ObjectiveState::completedFromLegacyFlags(3u) &&
               migratedData.objectiveState.progress.empty());
@@ -8158,6 +8526,7 @@ int main()
             {{"runtime.food", validFoodDefinitions()}});
 
         caseWorldOutcomeAndLocalizedText();
+        caseWaystoneVictoryLoop();
         caseDebugPanelStartupOption();
         caseFixedTickScheduler();
         caseWorldEnvironment();

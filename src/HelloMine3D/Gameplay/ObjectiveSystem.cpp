@@ -14,6 +14,7 @@
 #include "../Sandbox/Events/PlayerEvents.h"
 #include "../Sandbox/Events/SandboxEventBus.h"
 #include "../Sandbox/Events/SmeltingEvents.h"
+#include "../Sandbox/Events/WaystoneEvents.h"
 
 namespace
 {
@@ -106,7 +107,9 @@ ObjectiveSystem::ObjectiveSystem(const ObjectiveRegistry& registry,
         SandboxEventType::EntityDeath,
         SandboxEventType::ItemPickup,
         SandboxEventType::SmeltCompleted,
-        SandboxEventType::FoodConsumed};
+        SandboxEventType::FoodConsumed,
+        SandboxEventType::WaystoneActivated,
+        SandboxEventType::VictoryRewardClaimed};
     for (SandboxEventType type : eventTypes)
     {
         m_subscriptions.push_back(eventBus.subscribe(
@@ -313,7 +316,32 @@ void ObjectiveSystem::consumeEvent(const SandboxEvent& event)
             {
                 const auto& death = static_cast<const EntityDeathEvent&>(event);
                 if (death.id != DefaultPlayerActorId &&
-                    death.killerId == DefaultPlayerActorId)
+                    death.killerId == DefaultPlayerActorId &&
+                    (definition.targetActorType.empty() ||
+                     definition.targetActorType == death.type))
+                {
+                    addProgress(definition, 1);
+                }
+            }
+            break;
+        case SandboxEventType::WaystoneActivated:
+            if (definition.type == ObjectiveType::ActivateWaystone)
+            {
+                const auto& activated =
+                    static_cast<const WaystoneActivatedEvent&>(event);
+                if (activated.playerId == DefaultPlayerActorId)
+                {
+                    addProgress(definition, 1);
+                }
+            }
+            break;
+        case SandboxEventType::VictoryRewardClaimed:
+            if (definition.type == ObjectiveType::ClaimVictoryReward)
+            {
+                const auto& claimed =
+                    static_cast<const VictoryRewardClaimedEvent&>(event);
+                if (claimed.playerId == DefaultPlayerActorId &&
+                    claimed.rewardEpoch > 0)
                 {
                     addProgress(definition, 1);
                 }
