@@ -10,6 +10,7 @@
 
 #include "../Config.h"
 #include "../Diagnostics/CrashReportInbox.h"
+#include "../Gameplay/DifficultyProfile.h"
 
 namespace Ogre
 {
@@ -37,6 +38,7 @@ enum class OgreUserInterfaceActionType
     None,
     OpenWorld,
     ApplySettings,
+    ApplyDifficulty,
     ClaimVictoryReward,
     ReturnToMainMenu,
     Quit
@@ -47,6 +49,7 @@ struct OgreUserInterfaceAction
     OgreUserInterfaceActionType type = OgreUserInterfaceActionType::None;
     std::string worldId;
     UserSettings settings;
+    WorldDifficulty difficulty = WorldDifficulty::Normal;
 };
 
 struct OgreUserInterfaceValidation

@@ -1074,6 +1074,7 @@ void World::runRandomTicks(int worldTime)
 void World::tick(int worldTime)
 {
     HELLOMINE3D_PROFILE_SCOPE("World::tick");
+    applyPendingDifficulty();
     m_worldSaveData.worldTime = static_cast<float>(worldTime);
     m_combatRaycastsUsed = 0;
     m_combatRaycastBudgetDenied = 0;
@@ -1175,6 +1176,8 @@ CombatAttackResult World::tryAttackActor(ActorId actorId,
         return CombatAttackResult::OutOfReach;
     }
 
+    amount *= difficultyProfile(m_worldSaveData.difficulty)
+                  .playerOutgoingDamageMultiplier;
     const bool accepted = actor->damage(
         *this, amount, DefaultPlayerActorId);
     if (!accepted) {
@@ -1203,6 +1206,8 @@ bool World::attackActor(ActorId actorId, float amount)
 {
     LivingActor *actor = dynamic_cast<LivingActor *>(
         m_actorManager.findActor(actorId));
+    amount *= difficultyProfile(m_worldSaveData.difficulty)
+                  .playerOutgoingDamageMultiplier;
     const bool accepted = actor != nullptr &&
         actor->damage(*this, amount, DefaultPlayerActorId);
     if (accepted && actor->isAlive() && m_player != nullptr) {
@@ -1225,6 +1230,8 @@ bool World::damagePlayer(float amount, ActorId sourceId)
     }
 
     m_playerActor.syncFromPlayer(*m_player);
+    amount *= difficultyProfile(m_worldSaveData.difficulty)
+                  .playerIncomingDamageMultiplier;
     const bool accepted = m_playerActor.damage(*this, amount, sourceId);
     if (accepted) {
         const Actor *source = m_actorManager.findActor(sourceId);
@@ -1331,6 +1338,47 @@ WorldOutcomeSnapshot World::getWorldOutcomeSnapshot() const noexcept
     return m_victoryFlow != nullptr
                ? m_victoryFlow->snapshot()
                : WorldOutcomeSnapshot{};
+}
+
+DifficultyRuntimeSnapshot World::getDifficultySnapshot() const noexcept
+{
+    DifficultyRuntimeSnapshot snapshot;
+    snapshot.profileVersion = m_worldSaveData.difficultyProfileVersion;
+    snapshot.active = m_worldSaveData.difficulty;
+    snapshot.changePending = m_pendingDifficulty.has_value();
+    snapshot.pending = m_pendingDifficulty.value_or(
+        m_worldSaveData.difficulty);
+    snapshot.applicationEpoch = m_difficultyApplicationEpoch;
+    snapshot.parameters = difficultyProfile(m_worldSaveData.difficulty);
+    return snapshot;
+}
+
+DifficultyChangeResult World::requestDifficulty(
+    WorldDifficulty difficulty) noexcept
+{
+    if (!validWorldDifficulty(difficulty)) {
+        return DifficultyChangeResult::Invalid;
+    }
+    if (m_pendingDifficulty.has_value()) {
+        if (*m_pendingDifficulty == difficulty) {
+            return DifficultyChangeResult::Unchanged;
+        }
+        if (m_worldSaveData.difficulty == difficulty) {
+            m_pendingDifficulty.reset();
+            return DifficultyChangeResult::Queued;
+        }
+    }
+    else if (m_worldSaveData.difficulty == difficulty) {
+        return DifficultyChangeResult::Unchanged;
+    }
+    m_pendingDifficulty = difficulty;
+    return DifficultyChangeResult::Queued;
+}
+
+int World::scaleDifficultyLootAmount(int amount) const noexcept
+{
+    return difficultyProfile(m_worldSaveData.difficulty)
+        .scaleLootAmount(amount);
 }
 
 WaystoneEncounterSnapshot World::getWaystoneEncounterSnapshot() const
@@ -2503,6 +2551,8 @@ void World::runNaturalMobPopulation(int worldTime)
         return;
     }
 
+    const DifficultyProfile profile = difficultyProfile(
+        m_worldSaveData.difficulty);
     const std::vector<ActorSnapshot> initialSnapshots =
         m_actorManager.collectSnapshots();
     std::size_t worldCount = 0;
@@ -2519,8 +2569,8 @@ void World::runNaturalMobPopulation(int worldTime)
             ++localCount;
         }
     }
-    if (worldCount >= NaturalMobWorldCap ||
-        localCount >= NaturalMobLocalCap) {
+    if (worldCount >= profile.naturalMobWorldCap ||
+        localCount >= profile.naturalMobLocalCap) {
         return;
     }
 
@@ -2536,8 +2586,9 @@ void World::runNaturalMobPopulation(int worldTime)
     const int centerZ = toBlockCoord(m_player->position.z);
     const int spawnEpoch = worldTime / NaturalMobSpawnIntervalTicks;
     for (std::size_t attempt = 0;
-         attempt < NaturalMobSpawnAttemptsPerCycle &&
-         worldCount < NaturalMobWorldCap && localCount < NaturalMobLocalCap;
+         attempt < profile.naturalSpawnAttemptsPerCycle &&
+         worldCount < profile.naturalMobWorldCap &&
+         localCount < profile.naturalMobLocalCap;
          ++attempt) {
         ++m_naturalMobSpawnAttempts;
         const glm::ivec2 offset = naturalMobSpawnOffset(
@@ -2606,6 +2657,18 @@ void World::despawnNaturalMobsInChunk(int chunkX, int chunkZ)
             removeWaystoneGuardians();
         }
     }
+}
+
+void World::applyPendingDifficulty() noexcept
+{
+    if (!m_pendingDifficulty.has_value()) {
+        return;
+    }
+    m_worldSaveData.difficultyProfileVersion =
+        CurrentDifficultyProfileVersion;
+    m_worldSaveData.difficulty = *m_pendingDifficulty;
+    m_pendingDifficulty.reset();
+    ++m_difficultyApplicationEpoch;
 }
 
 // loads chunks
@@ -2975,8 +3038,11 @@ WorldDebugStats World::collectDebugStats()
         [](const ActorSnapshot &snapshot) {
             return World::isNaturalMobType(snapshot.type);
         }));
-    stats.naturalMobWorldCap = NaturalMobWorldCap;
-    stats.naturalMobLocalCap = NaturalMobLocalCap;
+    const DifficultyRuntimeSnapshot difficulty = getDifficultySnapshot();
+    stats.naturalMobWorldCap =
+        difficulty.parameters.naturalMobWorldCap;
+    stats.naturalMobLocalCap =
+        difficulty.parameters.naturalMobLocalCap;
     stats.naturalMobSpawnAttempts = m_naturalMobSpawnAttempts;
     stats.naturalMobsSpawned = m_naturalMobsSpawned;
     stats.naturalMobsDespawned = m_naturalMobsDespawned;
@@ -3067,6 +3133,19 @@ WorldDebugStats World::collectDebugStats()
     stats.terrainSeed = m_chunkManager.getTerrainSeed();
     stats.terrainGenerationVersion =
         m_chunkManager.getTerrainGenerationVersion();
+    stats.difficultyProfileVersion = difficulty.profileVersion;
+    stats.difficulty = difficulty.active;
+    stats.difficultyChangePending = difficulty.changePending;
+    stats.pendingDifficulty = difficulty.pending;
+    stats.difficultyApplicationEpoch = difficulty.applicationEpoch;
+    stats.playerOutgoingDamageMultiplier =
+        difficulty.parameters.playerOutgoingDamageMultiplier;
+    stats.playerIncomingDamageMultiplier =
+        difficulty.parameters.playerIncomingDamageMultiplier;
+    stats.lootAmountNumerator =
+        difficulty.parameters.lootAmountNumerator;
+    stats.lootAmountDenominator =
+        difficulty.parameters.lootAmountDenominator;
     stats.worldTime = m_worldSaveData.worldTime;
     stats.environment = WorldEnvironment::evaluate(stats.worldTime);
     return stats;
@@ -3286,6 +3365,8 @@ bool World::saveWorldState()
         std::max(m_worldSaveData.createdUtc, now);
     m_worldSaveData.lastBuildIdentity = currentBuildIdentity();
     m_worldSaveData.version = WorldSaveFormatVersion;
+    m_worldSaveData.difficultyProfileVersion =
+        CurrentDifficultyProfileVersion;
     m_worldSaveData.terrainGenerationVersion =
         m_chunkManager.getTerrainGenerationVersion();
     m_worldSaveData.spawnPoint = m_playerSpawnPoint;

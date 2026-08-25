@@ -597,10 +597,35 @@ class OgreUserInterface::Impl
             ImGui::SetNextItemWidth(140.0f);
             ImGui::InputInt("Seed##create", &createSeed);
             ImGui::SameLine();
+            ImGui::SetNextItemWidth(135.0f);
+            if (ImGui::BeginCombo(
+                    "Difficulty##create",
+                    worldDifficultyName(static_cast<WorldDifficulty>(
+                        createDifficulty))))
+            {
+                for (int value = 0;
+                     value < static_cast<int>(WorldDifficulty::Count);
+                     ++value)
+                {
+                    const auto difficulty =
+                        static_cast<WorldDifficulty>(value);
+                    const bool selected = value == createDifficulty;
+                    if (ImGui::Selectable(
+                            worldDifficultyName(difficulty), selected))
+                    {
+                        createDifficulty = value;
+                    }
+                    if (selected) ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            ImGui::SameLine();
             if (ImGui::Button("Create"))
             {
                 const WorldManagementResult result =
-                    management->createWorld(createName.data(), createSeed);
+                    management->createWorld(
+                        createName.data(), createSeed,
+                        static_cast<WorldDifficulty>(createDifficulty));
                 reportResult(result);
                 if (result.succeeded())
                 {
@@ -615,12 +640,14 @@ class OgreUserInterface::Impl
             const ImGuiTableFlags worldTableFlags =
                 ImGuiTableFlags_SizingStretchProp |
                 ImGuiTableFlags_NoSavedSettings;
-            if (ImGui::BeginTable("ActiveWorlds", 3, worldTableFlags))
+            if (ImGui::BeginTable("ActiveWorlds", 4, worldTableFlags))
             {
                 ImGui::TableSetupColumn(
                     "World", ImGuiTableColumnFlags_WidthStretch, 1.0f);
                 ImGui::TableSetupColumn(
                     "Seed", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+                ImGui::TableSetupColumn(
+                    "Difficulty", ImGuiTableColumnFlags_WidthFixed, 110.0f);
                 ImGui::TableSetupColumn(
                     "Actions", ImGuiTableColumnFlags_WidthFixed, 150.0f);
                 for (const WorldCatalogueEntry &entry : worlds)
@@ -641,6 +668,9 @@ class OgreUserInterface::Impl
                     ImGui::TableSetColumnIndex(1);
                     ImGui::Text("seed %d", entry.seed);
                     ImGui::TableSetColumnIndex(2);
+                    ImGui::TextUnformatted(
+                        worldDifficultyName(entry.difficulty));
+                    ImGui::TableSetColumnIndex(3);
                     if (ImGui::SmallButton("Play"))
                     {
                         pendingAction.type =
@@ -853,6 +883,57 @@ class OgreUserInterface::Impl
                     }
                     ImGui::EndChild();
                 }
+                ImGui::Separator();
+                const DifficultyRuntimeSnapshot difficulty =
+                    world->getDifficultySnapshot();
+                if (!difficultyDraftInitialized)
+                {
+                    pauseDifficulty = static_cast<int>(
+                        difficulty.changePending ? difficulty.pending
+                                                 : difficulty.active);
+                    difficultyDraftInitialized = true;
+                }
+                ImGui::Text("Difficulty: %s",
+                            worldDifficultyName(difficulty.active));
+                if (difficulty.changePending)
+                {
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("(pending %s)",
+                        worldDifficultyName(difficulty.pending));
+                }
+                ImGui::SetNextItemWidth(-1.0f);
+                if (ImGui::BeginCombo(
+                        "##PauseDifficulty",
+                        worldDifficultyName(static_cast<WorldDifficulty>(
+                            pauseDifficulty))))
+                {
+                    for (int value = 0;
+                         value < static_cast<int>(WorldDifficulty::Count);
+                         ++value)
+                    {
+                        const auto candidate =
+                            static_cast<WorldDifficulty>(value);
+                        const bool selected = value == pauseDifficulty;
+                        if (ImGui::Selectable(
+                                worldDifficultyName(candidate), selected))
+                        {
+                            pauseDifficulty = value;
+                        }
+                        if (selected) ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
+                }
+                if (ImGui::Button("Apply difficulty",
+                                  ImVec2(-1.0f, 32.0f)))
+                {
+                    pendingAction.type =
+                        OgreUserInterfaceActionType::ApplyDifficulty;
+                    pendingAction.difficulty =
+                        static_cast<WorldDifficulty>(pauseDifficulty);
+                    playUiFeedback();
+                }
+                ImGui::TextDisabled(
+                    "Applies on the next simulation tick after Resume.");
                 ImGui::Separator();
             }
             if (ImGui::Button("Resume", ImVec2(-1.0f, 38.0f)))
@@ -2190,6 +2271,12 @@ class OgreUserInterface::Impl
         {
             ImGui::Text("Seed: %d (terrain v%d)", worldStats.terrainSeed,
                         worldStats.terrainGenerationVersion);
+            ImGui::Text("Difficulty: %s (profile v%d, epoch %llu)%s",
+                        worldDifficultyName(worldStats.difficulty),
+                        worldStats.difficultyProfileVersion,
+                        worldStats.difficultyApplicationEpoch,
+                        worldStats.difficultyChangePending
+                            ? " [pending]" : "");
             ImGui::Text("World time: %.0f", worldStats.worldTime);
             ImGui::Text("Day cycle / light: %.3f / %.3f",
                         worldStats.environment.cycle,
@@ -2365,6 +2452,9 @@ class OgreUserInterface::Impl
     std::array<char, 81> createName{};
     std::array<char, 81> renameName{};
     int createSeed = 0;
+    int createDifficulty = static_cast<int>(WorldDifficulty::Normal);
+    int pauseDifficulty = static_cast<int>(WorldDifficulty::Normal);
+    bool difficultyDraftInitialized = false;
     bool worldsDirty = true;
     bool openDeletePopup = false;
     bool openPermanentDeletePopup = false;
@@ -2510,6 +2600,15 @@ void OgreUserInterface::setWorldContext(Player *player,
     m_impl->player = player;
     m_impl->world = world;
     m_impl->dismissedVictoryEpoch = 0;
+    m_impl->difficultyDraftInitialized = false;
+    if (world != nullptr)
+    {
+        const DifficultyRuntimeSnapshot snapshot =
+            world->getDifficultySnapshot();
+        m_impl->pauseDifficulty = static_cast<int>(
+            snapshot.changePending ? snapshot.pending : snapshot.active);
+        m_impl->difficultyDraftInitialized = true;
+    }
 }
 
 void OgreUserInterface::setStatusMessage(std::string message)

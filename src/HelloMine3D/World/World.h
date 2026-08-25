@@ -110,6 +110,15 @@ struct WorldDebugStats {
     std::size_t randomTicksDispatched = 0;
     int terrainSeed = 0;
     int terrainGenerationVersion = 0;
+    int difficultyProfileVersion = CurrentDifficultyProfileVersion;
+    WorldDifficulty difficulty = WorldDifficulty::Normal;
+    bool difficultyChangePending = false;
+    WorldDifficulty pendingDifficulty = WorldDifficulty::Normal;
+    unsigned long long difficultyApplicationEpoch = 0;
+    float playerOutgoingDamageMultiplier = 1.f;
+    float playerIncomingDamageMultiplier = 1.f;
+    int lootAmountNumerator = 1;
+    int lootAmountDenominator = 1;
     float worldTime = 0.f;
     WorldEnvironmentState environment;
 };
@@ -253,6 +262,10 @@ class World : public NonCopyable {
     AlphaJourneySnapshot getAlphaJourneySnapshot() const;
     ObjectiveSnapshot getObjectiveSnapshot() const;
     WorldOutcomeSnapshot getWorldOutcomeSnapshot() const noexcept;
+    DifficultyRuntimeSnapshot getDifficultySnapshot() const noexcept;
+    DifficultyChangeResult requestDifficulty(
+        WorldDifficulty difficulty) noexcept;
+    int scaleDifficultyLootAmount(int amount) const noexcept;
     WaystoneEncounterSnapshot getWaystoneEncounterSnapshot() const;
     bool initializeWaystone(const glm::ivec3 &position);
     void onWaystoneBroken(const glm::ivec3 &position);
@@ -348,6 +361,7 @@ class World : public NonCopyable {
     void removeRandomTickSectionsForChunk(int chunkX, int chunkZ);
     void runRandomTicks(int worldTime);
     void runNaturalMobPopulation(int worldTime);
+    void applyPendingDifficulty() noexcept;
     void respawnPlayer();
     void tickCombatProjectiles();
     CombatProjectileRemovalReason stepCombatProjectile(
@@ -426,6 +440,8 @@ class World : public NonCopyable {
     std::size_t m_naturalMobSpawnAttempts = 0;
     std::size_t m_naturalMobsSpawned = 0;
     std::size_t m_naturalMobsDespawned = 0;
+    std::optional<WorldDifficulty> m_pendingDifficulty;
+    unsigned long long m_difficultyApplicationEpoch = 0;
 
     std::atomic<bool> m_isRunning{true};
     std::vector<std::thread> m_chunkLoadThreads;

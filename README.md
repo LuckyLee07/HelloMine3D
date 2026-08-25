@@ -39,6 +39,7 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 | `docs/thread-sanitizer-validation.md` | R4 native Clang ThreadSanitizer gate for the background loader. |
 | `docs/render-regression-smoke.md` | Non-intrusive render screenshot smoke. |
 | `docs/performance-baseline.md` | Non-intrusive frame timing and chunk counter baseline. |
+| `docs/difficulty-replay-contract-v1.md` | N11A versioned difficulty, migration, transactional apply and performance identity contract. |
 | `docs/manual-input-acceptance-v1.md` | Versioned physical keyboard/mouse acceptance protocol. |
 | `docs/resource-pack-contract.md` | Bounded read-only resource-pack contract and validation. |
 | `docs/windows-release-packaging.md` | Deterministic self-contained Windows distribution flow. |
@@ -54,8 +55,8 @@ R3 physical-input acceptance still closes the remaining D2, D4 and D6
 `Verify` states, but it is intentionally deferred while the project prioritizes
 the player-facing gameplay loop. K4 world entry, G2 crafting, G3 tool
 progression, G4 pause/settings, G5 audio feedback, the G6 playable Alpha journey
-and N1 data-driven goal guidance are complete. The Alpha development checkpoint
-is also complete; N2 smelting and iron progression is the current batch.
+and Stage 9 through N11A are complete. The current batch is N11B's bounded,
+optional post-victory content; R3 remains partially tested and explicitly deferred.
 
 Stage 8 is now planned around sustainable play and reliable releases. Its
 16-item K/H/Q/G scope adds durable world management and recovery, local

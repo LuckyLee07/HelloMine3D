@@ -161,6 +161,10 @@ void writeSummary(const std::filesystem::path &path, const Options &options,
             << "profile=" << profileName(options.profile) << '\n'
             << "build_configuration=" << buildConfiguration() << '\n'
             << "seed=" << options.seed << '\n'
+            << "difficulty_profile_version="
+            << finalStats.difficultyProfileVersion << '\n'
+            << "difficulty_id="
+            << static_cast<int>(finalStats.difficulty) << '\n'
             << "duration_requested_seconds=" << options.durationSeconds
             << '\n'
             << "duration_completed_seconds="

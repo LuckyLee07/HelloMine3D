@@ -1204,6 +1204,33 @@ namespace
                             : "Settings applied.");
                     return;
                 }
+                case OgreUserInterfaceActionType::ApplyDifficulty:
+                {
+                    if (m_world == nullptr)
+                    {
+                        m_userInterface->setStatusMessage(
+                            "No active world can accept a difficulty change.");
+                        return;
+                    }
+                    const DifficultyChangeResult result =
+                        m_world->requestDifficulty(action.difficulty);
+                    if (result == DifficultyChangeResult::Invalid)
+                    {
+                        m_userInterface->setStatusMessage(
+                            "Difficulty change was rejected.");
+                    }
+                    else if (result == DifficultyChangeResult::Unchanged)
+                    {
+                        m_userInterface->setStatusMessage(
+                            "Difficulty is already selected.");
+                    }
+                    else
+                    {
+                        m_userInterface->setStatusMessage(
+                            "Difficulty queued for the next simulation tick.");
+                    }
+                    return;
+                }
                 case OgreUserInterfaceActionType::ClaimVictoryReward:
                     if (m_world != nullptr)
                     {

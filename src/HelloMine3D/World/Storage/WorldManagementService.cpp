@@ -106,6 +106,11 @@ namespace
                         data.alphaJourneyFlags);
                 data.objectiveState.progress.clear();
             }
+            if (data.version < 10) {
+                data.difficultyProfileVersion =
+                    CurrentDifficultyProfileVersion;
+                data.difficulty = WorldDifficulty::Normal;
+            }
             data.version = WorldSaveFormatVersion;
             data.worldId = entry.id;
             data.worldName = entry.displayName;
@@ -174,7 +179,8 @@ namespace
     }
 
     WorldSaveData initialSave(const std::string &worldId,
-                              const std::string &displayName, int seed)
+                              const std::string &displayName, int seed,
+                              WorldDifficulty difficulty)
     {
         WorldSaveData data;
         data.worldId = worldId;
@@ -183,6 +189,8 @@ namespace
         data.createdUtc = currentUtcSeconds();
         data.lastPlayedUtc = data.createdUtc;
         data.lastBuildIdentity = "development";
+        data.difficultyProfileVersion = CurrentDifficultyProfileVersion;
+        data.difficulty = difficulty;
         data.spawnPoint = initialWorldSpawnPlaceholder();
         data.playerState.position = data.spawnPoint;
         return data;
@@ -317,11 +325,16 @@ DeletedWorldListResult WorldManagementService::listDeletedWorlds() const
 }
 
 WorldManagementResult WorldManagementService::createWorld(
-    const std::string &displayName, int seed) const
+    const std::string &displayName, int seed,
+    WorldDifficulty difficulty) const
 {
     if (!WorldCatalogue::isValidDisplayName(displayName)) {
         return result(WorldManagementStatus::InvalidArgument,
                       "World display name is invalid.");
+    }
+    if (!validWorldDifficulty(difficulty)) {
+        return result(WorldManagementStatus::InvalidArgument,
+                      "World difficulty is invalid.");
     }
     const WorldManagementListResult existing = listWorlds();
     if (!existing.succeeded()) {
@@ -359,7 +372,8 @@ WorldManagementResult WorldManagementService::createWorld(
                       "Cannot create world directory: " + error.message(),
                       id, directory.string());
     }
-    const WorldSaveData data = initialSave(id, displayName, seed);
+    const WorldSaveData data = initialSave(id, displayName, seed,
+                                           difficulty);
     if (!WorldSave(directory.string()).save(data)) {
         std::error_code cleanupError;
         fs::remove_all(directory, cleanupError);

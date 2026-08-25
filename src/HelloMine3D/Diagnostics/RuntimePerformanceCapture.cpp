@@ -177,6 +177,7 @@ namespace
                "natural_mob_local_cap,natural_mob_spawn_attempts,"
                "natural_mobs_spawned,natural_mobs_despawned,player_health,"
                "player_max_health,terrain_seed,terrain_generation_version,"
+               "difficulty_profile_version,difficulty_id,"
                "world_time,day_cycle,daylight,"
                "fog_density,simulation_ticks\n";
     }
@@ -504,6 +505,10 @@ namespace
             summary << "terrain_seed=" << last.terrainSeed << "\n";
             summary << "terrain_generation_version="
                     << last.terrainGenerationVersion << "\n";
+            summary << "difficulty_profile_version="
+                    << last.difficultyProfileVersion << "\n";
+            summary << "difficulty_id="
+                    << static_cast<int>(last.difficulty) << "\n";
             summary << "last_world_time=" << last.worldTime << "\n";
             summary << "last_day_cycle=" << last.environment.cycle << "\n";
             summary << "last_daylight=" << last.environment.daylight << "\n";
@@ -660,6 +665,8 @@ void recordFrame(const FrameTimings &timings,
                         << worldStats.playerMaxHealth << ","
                         << worldStats.terrainSeed << ","
                         << worldStats.terrainGenerationVersion << ","
+                        << worldStats.difficultyProfileVersion << ","
+                        << static_cast<int>(worldStats.difficulty) << ","
                         << worldStats.worldTime << ","
                         << worldStats.environment.cycle << ","
                         << worldStats.environment.daylight << ","

@@ -628,10 +628,10 @@ void caseWorldOutcomeAndLocalizedText()
     check("N7A/invalid-text-source-does-not-partially-freeze",
           invalidTextRejected && !invalidText.isFrozen());
 
-    const auto saveDirectory = freshSaveDirectory("n7a_outcome_v9");
+    const auto saveDirectory = freshSaveDirectory("n7a_outcome_current");
     WorldSaveData valid;
-    valid.worldId = "n7a-outcome-v9";
-    valid.worldName = "N7A Outcome V9";
+    valid.worldId = "n7a-outcome-current";
+    valid.worldName = "N7A Outcome Current";
     valid.seed = kValidationSeed;
     valid.createdUtc = LegacyWorldTimestampUtc;
     valid.lastPlayedUtc = LegacyWorldTimestampUtc;
@@ -640,8 +640,8 @@ void caseWorldOutcomeAndLocalizedText()
     WorldSave save(saveDirectory);
     WorldSaveData roundTrip;
     const bool saved = save.save(valid) && save.load(roundTrip);
-    check("N7A/v9-outcome-round-trips",
-          saved && roundTrip.version == 9 &&
+    check("N7A/current-outcome-round-trips",
+          saved && roundTrip.version == WorldSaveFormatVersion &&
               roundTrip.worldOutcome.phase ==
                   WorldOutcomePhase::Victorious &&
               roundTrip.worldOutcome.rewardEpoch == 41 &&
@@ -674,8 +674,9 @@ void caseWorldOutcomeAndLocalizedText()
     const bool migratedLoaded =
         migrated.succeeded() &&
         WorldSave(migratedWorld.string()).load(migratedData);
-    check("N7A/v8-migrates-to-unstarted-v9-outcome",
-          migratedLoaded && migratedData.version == 9 &&
+    check("N7A/v8-migrates-to-unstarted-current-outcome",
+          migratedLoaded &&
+              migratedData.version == WorldSaveFormatVersion &&
               migratedData.worldOutcome.phase ==
                   WorldOutcomePhase::Unstarted &&
               migratedData.worldOutcome.rewardEpoch == 0 &&
@@ -5044,8 +5045,9 @@ void caseExpandedResourceEconomy()
     WorldSaveData roundTrip;
     const bool expandedLoaded = expandedSaved &&
         expandedSave.load(roundTrip);
-    check("N10/new-material-ids-roundtrip-without-save-version-bump",
-          capacityFilled && expandedLoaded && roundTrip.version == 9 &&
+    check("N10/new-material-ids-roundtrip-in-current-save",
+          capacityFilled && expandedLoaded &&
+              roundTrip.version == WorldSaveFormatVersion &&
               roundTrip.playerState.inventory ==
                   expanded.playerState.inventory);
     check("N10/inventory-save-size-and-time-stay-bounded",
@@ -5058,6 +5060,338 @@ void caseExpandedResourceEconomy()
               std::to_string(expandedBytes) + " baseline_us=" +
               std::to_string(baselineElapsed) + " expanded_us=" +
               std::to_string(expandedElapsed));
+}
+
+// ---------------------------------------------------------------------------
+// N11A - versioned world difficulty, transactional apply and pressure profile
+// ---------------------------------------------------------------------------
+void caseDifficultyProfiles()
+{
+    const DifficultyProfile casual = difficultyProfile(
+        WorldDifficulty::Casual);
+    const DifficultyProfile normal = difficultyProfile(
+        WorldDifficulty::Normal);
+    const DifficultyProfile challenging = difficultyProfile(
+        WorldDifficulty::Challenging);
+    check("N11A/three-stable-versioned-profiles-are-centralized",
+          CurrentDifficultyProfileVersion == 1 &&
+              std::string(worldDifficultyName(WorldDifficulty::Casual)) ==
+                  "Casual" &&
+              std::string(worldDifficultyName(WorldDifficulty::Normal)) ==
+                  "Normal" &&
+              std::string(worldDifficultyName(
+                  WorldDifficulty::Challenging)) == "Challenging" &&
+              casual.playerOutgoingDamageMultiplier >
+                  normal.playerOutgoingDamageMultiplier &&
+              normal.playerOutgoingDamageMultiplier >
+                  challenging.playerOutgoingDamageMultiplier &&
+              casual.playerIncomingDamageMultiplier <
+                  normal.playerIncomingDamageMultiplier &&
+              normal.playerIncomingDamageMultiplier <
+                  challenging.playerIncomingDamageMultiplier &&
+              casual.naturalSpawnAttemptsPerCycle <
+                  normal.naturalSpawnAttemptsPerCycle &&
+              normal.naturalSpawnAttemptsPerCycle <
+                  challenging.naturalSpawnAttemptsPerCycle &&
+              casual.scaleLootAmount(2) == 3 &&
+              normal.scaleLootAmount(2) == 2 &&
+              challenging.scaleLootAmount(2) == 1);
+
+    const std::string catalogueRoot =
+        freshSaveDirectory("n11a_create_difficulty");
+    const WorldManagementService management(catalogueRoot);
+    const WorldManagementResult casualCreated = management.createWorld(
+        "Casual World", kValidationSeed, WorldDifficulty::Casual);
+    const WorldManagementResult normalCreated = management.createWorld(
+        "Normal World", kValidationSeed, WorldDifficulty::Normal);
+    const WorldManagementResult challengingCreated = management.createWorld(
+        "Challenging World", kValidationSeed,
+        WorldDifficulty::Challenging);
+    const WorldManagementResult invalidCreated = management.createWorld(
+        "Invalid World", kValidationSeed, WorldDifficulty::Count);
+    const WorldManagementListResult listed = management.listWorlds();
+    const auto findDifficulty = [&](const std::string &id,
+                                    WorldDifficulty difficulty) {
+        return std::any_of(
+            listed.worlds.begin(), listed.worlds.end(),
+            [&](const WorldCatalogueEntry &entry) {
+                return entry.id == id && entry.seed == kValidationSeed &&
+                    entry.saveFormatVersion == WorldSaveFormatVersion &&
+                    entry.difficultyProfileVersion ==
+                        CurrentDifficultyProfileVersion &&
+                    entry.difficulty == difficulty;
+            });
+    };
+    check("N11A/create-command-and-catalogue-preserve-difficulty",
+          casualCreated.succeeded() && normalCreated.succeeded() &&
+              challengingCreated.succeeded() && listed.succeeded() &&
+              listed.worlds.size() == 3 &&
+              findDifficulty(casualCreated.worldId,
+                             WorldDifficulty::Casual) &&
+              findDifficulty(normalCreated.worldId,
+                             WorldDifficulty::Normal) &&
+              findDifficulty(challengingCreated.worldId,
+                             WorldDifficulty::Challenging) &&
+              invalidCreated.status ==
+                  WorldManagementStatus::InvalidArgument);
+
+    WorldSaveData casualData;
+    WorldSaveData challengingData;
+    const bool createdMetadataLoaded = WorldSave(
+        casualCreated.directoryPath).load(casualData) &&
+        WorldSave(challengingCreated.directoryPath).load(challengingData);
+    check("N11A/difficulty-never-changes-seed-or-terrain-identity",
+          createdMetadataLoaded && casualData.seed == challengingData.seed &&
+              casualData.terrainGenerationVersion ==
+                  challengingData.terrainGenerationVersion &&
+              casualData.difficulty == WorldDifficulty::Casual &&
+              challengingData.difficulty ==
+                  WorldDifficulty::Challenging);
+
+    const std::string currentDirectory =
+        freshSaveDirectory("n11a_current_save");
+    WorldSaveData current;
+    current.worldId = "n11a-current-save";
+    current.worldName = "N11A Current Save";
+    current.seed = kValidationSeed;
+    current.createdUtc = LegacyWorldTimestampUtc;
+    current.lastPlayedUtc = LegacyWorldTimestampUtc;
+    current.lastBuildIdentity = "n11a-validation";
+    current.difficulty = WorldDifficulty::Challenging;
+    WorldSave currentSave(currentDirectory);
+    WorldSaveData currentRoundTrip;
+    const bool currentSaved = currentSave.save(current) &&
+        currentSave.load(currentRoundTrip);
+    WorldSaveData invalidId = current;
+    invalidId.difficulty = WorldDifficulty::Count;
+    WorldSaveData invalidProfile = current;
+    invalidProfile.difficultyProfileVersion = 2;
+    WorldSaveData preserved;
+    check("N11A/v10-roundtrip-and-invalid-save-preserve-last-good-state",
+          currentSaved &&
+              currentRoundTrip.version == WorldSaveFormatVersion &&
+              currentRoundTrip.difficultyProfileVersion == 1 &&
+              currentRoundTrip.difficulty ==
+                  WorldDifficulty::Challenging &&
+              !currentSave.save(invalidId) &&
+              !currentSave.save(invalidProfile) &&
+              currentSave.load(preserved) &&
+              preserved.difficulty == WorldDifficulty::Challenging);
+
+    const std::string validText = readTextFile(currentSave.metadataPath());
+    const auto removeField = [](std::string text,
+                                const std::string &field) {
+        const std::size_t begin = text.find(field);
+        if (begin != std::string::npos) {
+            const std::size_t end = text.find('\n', begin);
+            text.erase(begin, end == std::string::npos
+                                  ? text.size() - begin : end - begin + 1);
+        }
+        return text;
+    };
+    const std::filesystem::path malformedRoot =
+        freshSaveDirectory("n11a_malformed_saves");
+    const std::filesystem::path missingPath = malformedRoot / "missing.meta";
+    const std::filesystem::path duplicatePath =
+        malformedRoot / "duplicate.meta";
+    {
+        std::ofstream missing(missingPath,
+                              std::ios::binary | std::ios::trunc);
+        missing << removeField(validText, "difficulty_id ");
+        std::ofstream duplicate(duplicatePath,
+                                std::ios::binary | std::ios::trunc);
+        duplicate << validText << "difficulty_id 1\n";
+    }
+    WorldSaveData malformed;
+    std::string malformedError;
+    const bool missingRejected = !WorldSave::loadFromPath(
+        missingPath.string(), malformed, &malformedError);
+    const bool duplicateRejected = !WorldSave::loadFromPath(
+        duplicatePath.string(), malformed, &malformedError);
+    check("N11A/v10-missing-and-duplicate-difficulty-fields-reject",
+          missingRejected && duplicateRejected);
+
+    const std::filesystem::path migrationRoot =
+        freshSaveDirectory("n11a_v9_migration");
+    const std::filesystem::path migratedWorld =
+        migrationRoot / "n11a-v9-migration";
+    std::filesystem::create_directories(migratedWorld);
+    std::string versionNine = removeField(
+        removeField(validText, "difficulty_profile_version "),
+        "difficulty_id ");
+    const std::size_t versionPosition = versionNine.find("version 10");
+    if (versionPosition != std::string::npos) {
+        versionNine.replace(versionPosition, 10, "version 9");
+    }
+    const std::size_t idPosition = versionNine.find(
+        "world_id n11a-current-save");
+    if (idPosition != std::string::npos) {
+        versionNine.replace(idPosition,
+                            std::string("world_id n11a-current-save").size(),
+                            "world_id n11a-v9-migration");
+    }
+    {
+        std::ofstream legacy(migratedWorld / "world.meta",
+                             std::ios::binary | std::ios::trunc);
+        legacy << versionNine;
+    }
+    const WorldManagementService migrationManagement(
+        migrationRoot.string());
+    const WorldManagementResult migrated =
+        migrationManagement.prepareWorldForOpen("n11a-v9-migration");
+    WorldSaveData migratedData;
+    const bool migratedLoaded = migrated.succeeded() &&
+        WorldSave(migratedWorld.string()).load(migratedData);
+    check("N11A/v1-v9-worlds-migrate-to-normal-v1-profile",
+          migratedLoaded && migratedData.version == WorldSaveFormatVersion &&
+              migratedData.difficultyProfileVersion ==
+                  CurrentDifficultyProfileVersion &&
+              migratedData.difficulty == WorldDifficulty::Normal &&
+              migratedData.seed == kValidationSeed &&
+              migratedData.terrainGenerationVersion ==
+                  current.terrainGenerationVersion);
+
+    setEnv("HELLOMINE3D_SEED", "");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "");
+    Config config = makeConfig();
+    Camera camera(config);
+    const auto makeRuntimeSave = [&](const std::string &name,
+                                     WorldDifficulty difficulty) {
+        const std::string directory = freshSaveDirectory(name);
+        WorldSaveData data;
+        data.worldId = name;
+        data.worldName = name;
+        data.seed = kValidationSeed;
+        data.createdUtc = LegacyWorldTimestampUtc;
+        data.lastPlayedUtc = LegacyWorldTimestampUtc;
+        data.lastBuildIdentity = "n11a-runtime";
+        data.spawnPoint = {8.f, 100.f, 8.f};
+        data.hasPlayerState = true;
+        data.playerState.position = data.spawnPoint;
+        data.playerState.health = 20.f;
+        data.difficulty = difficulty;
+        if (!WorldSave(directory).save(data)) {
+            return std::string();
+        }
+        return directory;
+    };
+
+    struct PressureObservation
+    {
+        float outgoingDamage = 0.f;
+        float incomingDamage = 0.f;
+        std::size_t spawnAttempts = 0;
+        std::size_t worldCap = 0;
+        std::size_t localCap = 0;
+        int scaledLoot = 0;
+    };
+    const auto observe = [&](const std::string &name,
+                             WorldDifficulty difficulty) {
+        PressureObservation result;
+        Player player;
+        const std::string directory = makeRuntimeSave(name, difficulty);
+        if (directory.empty()) return result;
+        World world(camera, config, player, directory, false, 1);
+        const ActorId mobId = world.spawnMob(
+            World::StalkerMobType, {9.f, 100.f, 8.f});
+        auto *mob = dynamic_cast<LivingActor *>(
+            world.getActorManager().findActor(mobId));
+        const float mobHealth = mob != nullptr ? mob->getHealth() : 0.f;
+        if (mob != nullptr && world.attackActor(mobId, 4.f)) {
+            result.outgoingDamage = mobHealth - mob->getHealth();
+        }
+        const float playerHealth = world.getPlayerHealth();
+        if (world.damagePlayer(4.f, mobId)) {
+            result.incomingDamage = playerHealth - world.getPlayerHealth();
+        }
+        const WorldDebugStats before = world.collectDebugStats();
+        world.tick(20);
+        const WorldDebugStats after = world.collectDebugStats();
+        result.spawnAttempts = after.naturalMobSpawnAttempts -
+            before.naturalMobSpawnAttempts;
+        result.worldCap = after.naturalMobWorldCap;
+        result.localCap = after.naturalMobLocalCap;
+        result.scaledLoot = world.scaleDifficultyLootAmount(2);
+        return result;
+    };
+    const PressureObservation casualObserved = observe(
+        "n11a-casual-runtime", WorldDifficulty::Casual);
+    const PressureObservation normalObserved = observe(
+        "n11a-normal-runtime", WorldDifficulty::Normal);
+    const PressureObservation challengingObserved = observe(
+        "n11a-challenging-runtime", WorldDifficulty::Challenging);
+    check("N11A/three-difficulties-produce-monotonic-runtime-pressure",
+          casualObserved.outgoingDamage > normalObserved.outgoingDamage &&
+              normalObserved.outgoingDamage >
+                  challengingObserved.outgoingDamage &&
+              casualObserved.incomingDamage < normalObserved.incomingDamage &&
+              normalObserved.incomingDamage <
+                  challengingObserved.incomingDamage &&
+              casualObserved.worldCap < normalObserved.worldCap &&
+              normalObserved.worldCap < challengingObserved.worldCap &&
+              casualObserved.localCap < normalObserved.localCap &&
+              normalObserved.localCap < challengingObserved.localCap &&
+              casualObserved.spawnAttempts <=
+                  casual.naturalSpawnAttemptsPerCycle &&
+              normalObserved.spawnAttempts <=
+                  normal.naturalSpawnAttemptsPerCycle &&
+              challengingObserved.spawnAttempts <=
+                  challenging.naturalSpawnAttemptsPerCycle &&
+              casualObserved.scaledLoot == 3 &&
+              normalObserved.scaledLoot == 2 &&
+              challengingObserved.scaledLoot == 1,
+          "damage_out=" + std::to_string(casualObserved.outgoingDamage) +
+              "/" + std::to_string(normalObserved.outgoingDamage) + "/" +
+              std::to_string(challengingObserved.outgoingDamage) +
+              " damage_in=" +
+              std::to_string(casualObserved.incomingDamage) + "/" +
+              std::to_string(normalObserved.incomingDamage) + "/" +
+              std::to_string(challengingObserved.incomingDamage));
+
+    const std::string pendingDirectory = makeRuntimeSave(
+        "n11a-pending-runtime", WorldDifficulty::Normal);
+    Player pendingPlayer;
+    World pendingWorld(camera, config, pendingPlayer, pendingDirectory,
+                       false, 1);
+    const WorldDebugStats pendingBefore = pendingWorld.collectDebugStats();
+    const DifficultyChangeResult queued = pendingWorld.requestDifficulty(
+        WorldDifficulty::Challenging);
+    const DifficultyRuntimeSnapshot beforeTick =
+        pendingWorld.getDifficultySnapshot();
+    const DifficultyChangeResult duplicate = pendingWorld.requestDifficulty(
+        WorldDifficulty::Challenging);
+    const DifficultyChangeResult invalid = pendingWorld.requestDifficulty(
+        WorldDifficulty::Count);
+    pendingWorld.tick(1);
+    const DifficultyRuntimeSnapshot afterTick =
+        pendingWorld.getDifficultySnapshot();
+    const WorldDebugStats pendingAfter = pendingWorld.collectDebugStats();
+    const bool pendingSaved = pendingWorld.save();
+    WorldSaveData pendingReload;
+    const bool pendingLoaded = pendingSaved &&
+        WorldSave(pendingDirectory).load(pendingReload);
+    check("N11A/pause-command-applies-once-at-next-fixed-tick-and-persists",
+          queued == DifficultyChangeResult::Queued &&
+              duplicate == DifficultyChangeResult::Unchanged &&
+              invalid == DifficultyChangeResult::Invalid &&
+              beforeTick.active == WorldDifficulty::Normal &&
+              beforeTick.changePending &&
+              beforeTick.pending == WorldDifficulty::Challenging &&
+              beforeTick.applicationEpoch == 0 &&
+              afterTick.active == WorldDifficulty::Challenging &&
+              !afterTick.changePending && afterTick.applicationEpoch == 1 &&
+              pendingBefore.terrainSeed == pendingAfter.terrainSeed &&
+              pendingBefore.terrainGenerationVersion ==
+                  pendingAfter.terrainGenerationVersion &&
+              pendingLoaded &&
+              pendingReload.difficulty == WorldDifficulty::Challenging &&
+              pendingAfter.difficultyProfileVersion == 1 &&
+              pendingAfter.difficulty == WorldDifficulty::Challenging);
+
+    // Keep the following legacy world-interaction fixtures independent from
+    // the runtime worlds above.  They place and mine blocks around this fixed
+    // validation position.
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
 }
 
 std::string validAudioDefinitions()
@@ -5779,7 +6113,7 @@ void caseToolMiningProgression()
     check("N1/version-three-migrates-with-empty-objective-state",
           legacyLoaded && loadedLegacyVersion == 3 &&
               legacyData.alphaJourneyFlags == 0u && legacyUpgraded &&
-              upgraded.find("version 9") != std::string::npos &&
+              upgraded.find("version 10") != std::string::npos &&
               upgraded.find("alpha_journey_flags 0") !=
                   std::string::npos &&
               upgraded.find("objective_definition_version 2") !=
@@ -10636,6 +10970,7 @@ int main()
         caseFurnaceProgression();
         caseFoodRecovery();
         caseExpandedResourceEconomy();
+        caseDifficultyProfiles();
         caseWorkbenchCrafting();
         caseToolMiningProgression();
         caseNaturalMobPopulation();

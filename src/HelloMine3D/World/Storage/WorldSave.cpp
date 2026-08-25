@@ -216,6 +216,8 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
     bool playerFoodCooldownSeen = false;
     bool playerAttackCooldownSeen = false;
     bool terrainGenerationVersionSeen = false;
+    bool difficultyProfileVersionSeen = false;
+    bool difficultySeen = false;
     bool worldOutcomePhaseSeen = false;
     bool worldOutcomeRewardEpochSeen = false;
     bool worldOutcomeClaimedEpochSeen = false;
@@ -290,6 +292,22 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
                     "invalid or duplicate terrain_generation_version");
             }
             terrainGenerationVersionSeen = true;
+        }
+        else if (key == "difficulty_profile_version") {
+            if (!claimSingleton(key) ||
+                !(input >> loaded.difficultyProfileVersion)) {
+                return fail(
+                    "invalid or duplicate difficulty_profile_version");
+            }
+            difficultyProfileVersionSeen = true;
+        }
+        else if (key == "difficulty_id") {
+            int difficulty = 0;
+            if (!claimSingleton(key) || !(input >> difficulty)) {
+                return fail("invalid or duplicate difficulty_id");
+            }
+            loaded.difficulty = static_cast<WorldDifficulty>(difficulty);
+            difficultySeen = true;
         }
         else if (key == "alpha_journey_flags") {
             if (!claimSingleton(key) ||
@@ -567,6 +585,16 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
         (loaded.version < 9 && worldOutcomeFieldsPresent)) {
         return fail("world outcome state does not match save version");
     }
+    const bool difficultyFieldsPresent = difficultyProfileVersionSeen ||
+        difficultySeen;
+    if ((loaded.version >= 10 &&
+         (!difficultyProfileVersionSeen || !difficultySeen ||
+          loaded.difficultyProfileVersion !=
+              CurrentDifficultyProfileVersion ||
+          !validWorldDifficulty(loaded.difficulty))) ||
+        (loaded.version < 10 && difficultyFieldsPresent)) {
+        return fail("difficulty state does not match save version");
+    }
 
     if (!finiteVec3(loaded.spawnPoint) ||
         !finiteVec3(loaded.playerState.position) ||
@@ -673,6 +701,9 @@ bool WorldSave::save(const WorldSaveData &data,
         !AlphaJourney::validFlags(data.alphaJourneyFlags) ||
         !validObjectiveState(data) ||
         !validWorldOutcomeState(data.worldOutcome) ||
+        data.difficultyProfileVersion !=
+            CurrentDifficultyProfileVersion ||
+        !validWorldDifficulty(data.difficulty) ||
         !WorldCatalogue::isValidWorldId(data.worldId) ||
         !WorldCatalogue::isValidDisplayName(data.worldName) ||
         !WorldCatalogue::isValidBuildIdentity(data.lastBuildIdentity) ||
@@ -708,6 +739,10 @@ bool WorldSave::save(const WorldSaveData &data,
     output << "generator " << data.activeGenerator << '\n';
     output << "terrain_generation_version "
            << data.terrainGenerationVersion << '\n';
+    output << "difficulty_profile_version "
+           << data.difficultyProfileVersion << '\n';
+    output << "difficulty_id " << static_cast<int>(data.difficulty)
+           << '\n';
     output << "alpha_journey_flags " << data.alphaJourneyFlags << '\n';
     output << "world_outcome_phase "
            << static_cast<int>(data.worldOutcome.phase) << '\n';

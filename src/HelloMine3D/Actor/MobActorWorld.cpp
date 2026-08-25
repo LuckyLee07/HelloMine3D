@@ -21,8 +21,9 @@ void MobActor::dropLoot(World &world)
         const std::uint32_t selection =
             static_cast<std::uint32_t>(getId()) * 2654435761u +
             static_cast<std::uint32_t>(index) * 2246822519u;
-        const int amount = loot.minimumAmount +
+        const int baseAmount = loot.minimumAmount +
             static_cast<int>(selection % static_cast<std::uint32_t>(range));
+        const int amount = world.scaleDifficultyLootAmount(baseAmount);
         world.spawnItemEntity(loot.materialId, amount, position);
     }
 }

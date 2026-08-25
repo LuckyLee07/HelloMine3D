@@ -20,7 +20,7 @@ namespace
 
     const std::set<std::string> KnownMetadataKeys = {
         "actor",          "actor_count",       "alpha_journey_flags",
-        "created_utc",
+        "created_utc",    "difficulty_id",      "difficulty_profile_version",
         "generator",      "inventory_count",   "inventory_format",
         "inventory_slot",
         "last_build",     "last_played_utc",   "player_attack_cooldown",
@@ -36,7 +36,8 @@ namespace
         "world_id",       "world_name",        "world_time"};
 
     const std::set<std::string> CatalogueKeys = {
-        "created_utc", "last_build", "last_played_utc", "seed",
+        "created_utc", "difficulty_id", "difficulty_profile_version",
+        "last_build", "last_played_utc", "seed",
         "version", "world_id", "world_name", "world_outcome_phase",
         "world_outcome_reward_epoch", "world_outcome_claimed_epoch"};
 
@@ -264,6 +265,13 @@ namespace
             reject(metadataPath,
                    "world outcome fields require save format version 9");
         }
+        const bool difficultyFieldsPresent =
+            fields.count("difficulty_profile_version") != 0 ||
+            fields.count("difficulty_id") != 0;
+        if (entry.saveFormatVersion < 10 && difficultyFieldsPresent) {
+            reject(metadataPath,
+                   "difficulty fields require save format version 10");
+        }
 
         if (entry.saveFormatVersion < 3) {
             if (fields.count("created_utc") != 0 ||
@@ -329,6 +337,26 @@ namespace
             }
             entry.outcomePhase = outcome.phase;
             entry.completed = worldOutcomeIsVictory(outcome);
+        }
+        if (entry.saveFormatVersion >= 10) {
+            for (const std::string &required :
+                 {"difficulty_profile_version", "difficulty_id"}) {
+                if (fields.find(required) == fields.end()) {
+                    reject(metadataPath, "missing field '" + required + "'");
+                }
+            }
+            entry.difficultyProfileVersion = parseInteger<int>(
+                metadataPath, "difficulty_profile_version",
+                fields["difficulty_profile_version"]);
+            const int difficulty = parseInteger<int>(
+                metadataPath, "difficulty_id", fields["difficulty_id"]);
+            entry.difficulty = static_cast<WorldDifficulty>(difficulty);
+            if (entry.difficultyProfileVersion !=
+                    CurrentDifficultyProfileVersion ||
+                !validWorldDifficulty(entry.difficulty)) {
+                reject(metadataPath,
+                       "difficulty profile version or id is outside its range");
+            }
         }
         return entry;
     }

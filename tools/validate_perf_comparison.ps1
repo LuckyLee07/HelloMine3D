@@ -163,6 +163,17 @@ try {
             -Baseline $baseline -Candidate $invalid `
             -ExpectedExit 4 -ExpectedStatus "INVALID"
     }
+
+    $difficultyBaseline = Join-Path $FixtureRoot `
+        "q1-scaled-gameplay-v1.baseline.summary.txt"
+    $difficultyMismatch = Copy-Fixture `
+        -Source $difficultyBaseline -Name "q1-difficulty-incomparable"
+    Set-SummaryValue `
+        -Path $difficultyMismatch -Key "difficulty_id" -Value "2"
+    Invoke-ComparisonCase `
+        -Name "q1-scaled-gameplay-v1/difficulty-incomparable" `
+        -Baseline $difficultyBaseline -Candidate $difficultyMismatch `
+        -ExpectedExit 3 -ExpectedStatus "INCOMPARABLE"
 }
 finally {
     if (Test-Path -LiteralPath $TempRoot) {

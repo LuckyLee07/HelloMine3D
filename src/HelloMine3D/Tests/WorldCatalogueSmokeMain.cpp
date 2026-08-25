@@ -35,6 +35,8 @@ namespace
             static_cast<int>(WorldOutcomePhase::Unstarted);
         std::uint32_t rewardEpoch = 0;
         std::uint32_t claimedRewardEpoch = 0;
+        int difficultyProfileVersion = CurrentDifficultyProfileVersion;
+        int difficultyId = static_cast<int>(WorldDifficulty::Normal);
         std::string extra;
     };
 
@@ -149,6 +151,11 @@ namespace
                    << "world_outcome_claimed_epoch "
                    << fixture.claimedRewardEpoch << '\n';
         }
+        if (fixture.version >= 10) {
+            output << "difficulty_profile_version "
+                   << fixture.difficultyProfileVersion << '\n'
+                   << "difficulty_id " << fixture.difficultyId << '\n';
+        }
         output << fixture.extra;
     }
 
@@ -253,6 +260,9 @@ int main()
                         first[0].lastBuildIdentity == "fixture-a1b2c3" &&
                         first[0].outcomePhase ==
                             WorldOutcomePhase::Unstarted &&
+                        first[0].difficultyProfileVersion ==
+                            CurrentDifficultyProfileVersion &&
+                        first[0].difficulty == WorldDifficulty::Normal &&
                         !first[0].completed &&
                         !first[0].legacyMetadata);
         suite.check("K1/repeated-enumeration-is-deterministic",
@@ -442,6 +452,55 @@ int main()
                                std::to_string(invalidVersion),
                            "unsupported save format version", [&]() {
                                WorldCatalogue::enumerate(root.path().string());
+                           });
+    }
+
+    for (const auto &invalidDifficulty :
+         std::vector<std::pair<std::string, MetadataFixture>>{
+             {"profile-zero", [] {
+                  MetadataFixture fixture;
+                  fixture.difficultyProfileVersion = 0;
+                  return fixture;
+              }()},
+             {"profile-future", [] {
+                  MetadataFixture fixture;
+                  fixture.difficultyProfileVersion =
+                      CurrentDifficultyProfileVersion + 1;
+                  return fixture;
+              }()},
+             {"id-negative", [] {
+                  MetadataFixture fixture;
+                  fixture.difficultyId = -1;
+                  return fixture;
+              }()},
+             {"id-out-of-range", [] {
+                  MetadataFixture fixture;
+                  fixture.difficultyId =
+                      static_cast<int>(WorldDifficulty::Count);
+                  return fixture;
+              }()}}) {
+        TemporaryDirectory root("difficulty-" + invalidDifficulty.first);
+        root.create();
+        writeMetadata(root.path(), "world", invalidDifficulty.second);
+        suite.expectReject("N11A/catalogue-rejects-" +
+                               invalidDifficulty.first,
+                           "difficulty profile version or id", [&]() {
+                               WorldCatalogue::enumerate(root.path().string());
+                           });
+    }
+
+    {
+        TemporaryDirectory legacyDifficulty("difficulty-on-v9");
+        legacyDifficulty.create();
+        MetadataFixture fixture;
+        fixture.version = 9;
+        fixture.extra = "difficulty_profile_version 1\n"
+                        "difficulty_id 1\n";
+        writeMetadata(legacyDifficulty.path(), "world", fixture);
+        suite.expectReject("N11A/v9-catalogue-rejects-difficulty-fields",
+                           "require save format version 10", [&]() {
+                               WorldCatalogue::enumerate(
+                                   legacyDifficulty.path().string());
                            });
     }
 

@@ -79,7 +79,9 @@ class WorldManagementService {
     DeletedWorldListResult listDeletedWorlds() const;
 
     WorldManagementResult createWorld(const std::string &displayName,
-                                      int seed) const;
+                                      int seed,
+                                      WorldDifficulty difficulty =
+                                          WorldDifficulty::Normal) const;
     WorldManagementResult prepareWorldForOpen(
         const std::string &worldId) const;
     WorldManagementResult renameWorld(const std::string &worldId,
