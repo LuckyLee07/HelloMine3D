@@ -28,6 +28,7 @@
 | `docs/beta-gameplay-roadmap.md` | Release Candidate 后 Stage 9 / Beta 的 N7-N12 预排批次、版本边界和回归合同。 |
 | `docs/visual-quality-roadmap.md` | BETA-RC 后 Stage 10 的 V10A、V10B1-B3、V10C-V10E、VISUAL-RC 视觉升级批次、版本预案与性能护栏。 |
 | `docs/vertex-lighting-contract-v1.md` | V10A 四角采样、AO/光照合成、对角线、greedy 重建和 mesh-dirty 边界。 |
+| `docs/terrain-material-profile-contract-v1.md` | V10B1 图集/tile/颜色参数、资源包覆盖、CPU/GPU 坐标兼容和启动失败边界。 |
 | `docs/validation-matrix.md` | 代码改动类型到验证命令的映射。 |
 | `docs/manual-product-experience-acceptance-v1.md` | 与 R3 分离的开发者视觉检查、正式视觉/双语可读性和听感验收合同。 |
 | `docs/iteration-report-template.md` | 新迭代的统一回归记录模板。 |
@@ -44,7 +45,7 @@
 | ---- | -------- |
 | 现有玩法 | 已有移动、方块放置/破坏、箱子、作物、自然生物、战斗、死亡重生、物品拾取和保存恢复。 |
 | 世界可靠性 | K1 世界目录、K2 事务保存、K3 有界备份与验证恢复、K4 世界管理和主菜单入口已经完成。 |
-| 玩法数据层 | G1-G6、N1-N6、N7A-N12C、BETA-RC 工程封板与 V10A 均已完成；当前开发批次为 V10B1 材质与图集管线。 |
+| 玩法数据层 | G1-G6、N1-N6、N7A-N12C、BETA-RC 工程封板、V10A 与 V10B1 均已完成；当前开发批次为 V10B2 原创材质资产。 |
 | 性能观测 | Q1 七类场景和 Q2 有界阶段计时已闭环；BETA-RC 六类 Windows 基线/复测和 Q3 双档正式长稳全部通过。 |
 | 崩溃诊断 | H1-H3 已闭环：本地 dump、脱敏 sidecar、混合栈离线符号、独立符号归档和下次启动提示均通过，默认不上传。 |
 | 跨平台 | macOS Debug/Release、真实窗口、31 项 Xcode 工程图和原生 TSan 门禁已有证据。 |
@@ -55,7 +56,8 @@
 拆分前总账共有 77 个正式任务；历史总账仍为 73 个 `Done`、4 个 `Verify`。新增的 Stage 9
 批次不回写该统计：`FS1-FS3`、`N7A/N7B`、`N8A/N8B`、`N9A/N9B`、`N10`、`N11A/N11B`
 与 `N12A/N12B/N12C`、`BETA-RC` 工程封板当前为 `Done`。新增 Stage 10 不回写历史统计，
-当前建立 8 个视觉批次，其中 V10A 为 `Done`、V10B1 为 `In Progress`、其余为 `Planned`。
+当前建立 8 个视觉批次，其中 V10A/V10B1 为 `Done`、V10B2 为 `In Progress`、其余为 `Planned`；
+V10B1 的 macOS shader 子状态因当前无目标机器保持 `Verify`。
 R3 已做部分非正式真人自测；现有 v1 十二项记录尚未完成，而且其范围不足以单独关闭当前
 D4/D6 和 Stage 9/10 的全部人工体验。后续必须把物理输入 v2 与视觉/双语/听感验收分开，
 人工项继续延期且不阻塞 V10A 开发。
@@ -64,8 +66,8 @@ D4/D6 和 Stage 9/10 的全部人工体验。后续必须把物理输入 v2 与�
 | ---- | ---- | ---- |
 | 已完成的第 8 阶段正式任务 | 16 | K1-K4、G1-G6、H1-H3、Q1-Q3 |
 | Stage 9 已完成 | 16 | FS1 首次进入正确性、FS2 天空/水面/颜色、FS3 体素美术/HUD、N7A 结局状态与文本键基础、N7B 路标胜利闭环、N8A 战斗可读性、N8B 远程敌人与投射物、N9A 确定性结构框架、N9B 遗迹/营地与生态战利品、N10 食物/冶炼/资源经济、N11A 难度档案、N11B 胜利后事件、N12A 本地化完成、N12B 正式采样音效、N12C 低密度音乐、BETA-RC 工程封板 |
-| Stage 10 已完成 | 1 | V10A 顶点平滑光照/AO |
-| Stage 10 待开发 | 7 | V10B1 材质/图集管线、V10B2 原创材质资产、V10B3 生态着色/确定性变体、V10C 定向大气/立体云、V10D 可选方向阴影、V10E 轻量后处理、VISUAL-RC 视觉封板 |
+| Stage 10 已完成 | 2 | V10A 顶点平滑光照/AO、V10B1 材质/图集管线 |
+| Stage 10 待开发 | 6 | V10B2 原创材质资产、V10B3 生态着色/确定性变体、V10C 定向大气/立体云、V10D 可选方向阴影、V10E 轻量后处理、VISUAL-RC 视觉封板 |
 | 等待最终验收 | 4 | D2、D4、D6、R3 |
 
 ## Stage 10 视觉质量待办
@@ -77,8 +79,8 @@ Stage 10 只提升已有世界的表现，不改玩法、世界生成、save v11
 | 批次 | 状态 | 优先级 | 计划交付 | 退出边界 |
 | ---- | ---- | ------ | -------- | -------- |
 | V10A 顶点平滑光照与 AO | Done | P0 | 四角采样、透明规则、确定性对角线、greedy 重建保护和边角 dirty 传播已实现；solid 共面顶点复用、全局 repeat UV、18³ lazy 光照样本缓存、uniform-light 与非共享 pass 快路把 14-face 夹具从 56 压到 36 顶点。最终 VS2017/v141 双配置聚焦为 39/39、Release 完整世界为 716/716，保持 32 字节顶点布局；八场景 AO/no-AO 共 16 张截图和开发者窗口检查已通过。 | 项目所有者于 2026-08-27 批准 exact AO 性能例外：fast 旧核心预算通过；scaled P95 只超旧上限 0.045 ms。AO-disabled 诊断证明 +41.8% 索引主要来自 exact AO 内部明暗边界；后续批次不继承例外，最终身份仍在 VISUAL-RC 重跑 Q1/Q3。合同见 `docs/vertex-lighting-contract-v1.md`。 |
-| V10B1 材质与图集管线 | In Progress | P0 | 参数化图集、tile 和颜色管线，保留旧图集兼容与 V10A 光照曲线。 | 参数正反例、shader 负例、旧路径像素兼容、Windows 双配置、开发者检查和 macOS Release 窗口冒烟。 |
-| V10B2 原创材质资产 | Planned | P0 | 建立原创 top/side/bottom 材质、统一像素密度，并同步世界、HUD 和手持物。 | manifest、生成脚本、来源/许可、固定截图、资源包、相关 Q1、干净包和开发者检查通过。 |
+| V10B1 材质与图集管线 | Done（macOS Verify） | P0 | v1 profile 参数化 atlas/tile/颜色，CPU/GPU 共用像素中心，三类 terrain pass 从冻结资源视图同步 uniform；保持 V10A AO、`shapedLight=0.24` 和合成顺序。 | 双配置资源包 54/54、V10B1 世界 4/4、Release 完整世界 718/718、12 类启动负例、65 项 manifest、默认静态前景 216,000 像素一致和 5 分钟 Release 检查通过；macOS Release shader 窗口仍为 `Verify`，合同见 `docs/terrain-material-profile-contract-v1.md`。 |
+| V10B2 原创材质资产 | In Progress | P0 | 建立原创 top/side/bottom 材质、统一像素密度，并同步世界、HUD 和手持物。 | manifest、生成脚本、来源/许可、固定截图、资源包、相关 Q1、干净包和开发者检查通过。 |
 | V10B3 生态着色与确定性变体 | Planned | P1 | 对草/叶/水做受控生态 tint，并给自然方块增加坐标确定性 tile 变体。 | 不升级 terrain；加载顺序和坐标夹具、greedy key、截图、相关 Q1、短 Q3 和开发者检查通过。 |
 | V10C 定向大气与立体云 | Planned | P1 | 增加随太阳/观察方向变化的雾色，以及有高度、厚度、速度和云底明暗的独立云层。 | 关闭时退回 FS2；昼夜/高处截图、相关 Q1、开发者检查和 macOS Release 窗口冒烟通过。 |
 | V10D 可选方向阴影 | Planned | P1 | 单近景方向 shadow map，提供 Off/Medium/High 与有界距离、分辨率、bias、PCF；settings 升 v5。 | v0-v4→Off 迁移、双语 key、Stage 10 补充图形身份、关闭回退、各档性能、开发者检查和 macOS 冒烟通过。 |
@@ -198,7 +200,7 @@ N11B/N12C 均已
 交付。批次 5 不迁移 MiniGame 的 FMOD、直播 DSP 或平台资源层。Alpha 之后的目标系统和
 熔炉/铁级成长、食物恢复、战斗掉落、生态探索和产品体验已由 N1-N6 交付；RC0 自动化基线
 已经闭环，BETA-RC 工程封板也已完成；R3 维持部分自测、其余延期。Stage 9 没有后续批次，
-当前转入 Stage 10 的 V10A；以上新增批次仍不回写拆分前 77 项历史总账。
+当前转入 Stage 10 的 V10B2；以上新增批次仍不回写拆分前 77 项历史总账。
 
 开发过程中按 `docs/validation-matrix.md` 选择与改动相关的最低必要验证。不要为了延后
 发布验收而取消数据守恒、存档兼容、定向自动测试或主干编译。

@@ -1,0 +1,10 @@
+# HelloMine3D terrain material parameters v1
+# V10B1 compatibility profile. V10B2 may replace atlas pixels, not this contract.
+atlas_texture=media/textures/DefaultPack.png
+atlas_pixels=256
+tile_pixels=16
+tiles_per_row=16
+colour_saturation=0.62
+green_suppression=0.22
+green_red_shift=0.07
+tone_gamma=1.05

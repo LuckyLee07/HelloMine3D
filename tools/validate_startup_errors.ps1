@@ -29,8 +29,13 @@ New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 $requirements = @(
     [pscustomobject]@{
         Category = "shader"
-        RelativePath = "media\ogre\HelloMine3DTerrain.vert"
-        DiagnosticPath = "media/ogre/HelloMine3DTerrain.vert"
+        RelativePath = "media\ogre\HelloMine3DTerrain.frag"
+        DiagnosticPath = "media/ogre/HelloMine3DTerrain.frag"
+    },
+    [pscustomobject]@{
+        Category = "material-profile"
+        RelativePath = "media\materials\Base.terrain-material"
+        DiagnosticPath = "media/materials/Base.terrain-material"
     },
     [pscustomobject]@{
         Category = "texture"
@@ -82,9 +87,10 @@ foreach ($missing in $requirements) {
         'block|media/blocks/Stone.block',
         'enemy|media/enemies/Base.enemy',
         'food|media/foods/Base.food',
+        'material-profile|media/materials/Base.terrain-material',
         'objective|media/objectives/Base.objective',
         'runtime-template|bin/resource-packs.txt',
-        'shader|media/ogre/HelloMine3DTerrain.vert',
+        'shader|media/ogre/HelloMine3DTerrain.frag',
         'smelting|media/smelting/Base.smelting',
         'texture|media/textures/DefaultPack.png',
         'text|media/text/en-US.text'
@@ -179,4 +185,136 @@ foreach ($missing in $requirements) {
     Write-Host "[STARTUP_ERROR_VERIFY] PASS category=$($missing.Category) exitCode=$exitCode resource=$($missing.DiagnosticPath)"
 }
 
-Write-Host "[STARTUP_ERROR_VERIFY] status=PASS cases=$($requirements.Count)"
+$invalidOverrides = @(
+    [pscustomobject]@{
+        Name = "invalid-material-profile"
+        LogicalPath = "media\materials\Base.terrain-material"
+        Content = @"
+# HelloMine3D terrain material parameters v1
+atlas_texture=media/textures/DefaultPack.png
+atlas_pixels=256
+tile_pixels=15
+tiles_per_row=16
+colour_saturation=0.62
+green_suppression=0.22
+green_red_shift=0.07
+tone_gamma=1.05
+"@
+        Expected = "atlas_pixels must be evenly divisible by tile_pixels"
+    },
+    [pscustomobject]@{
+        Name = "out-of-range-block-tile"
+        LogicalPath = "media\materials\Base.terrain-material"
+        Content = @"
+# HelloMine3D terrain material parameters v1
+atlas_texture=media/textures/DefaultPack.png
+atlas_pixels=256
+tile_pixels=32
+tiles_per_row=8
+colour_saturation=0.62
+green_suppression=0.22
+green_red_shift=0.07
+tone_gamma=1.05
+"@
+        Expected = "atlas coordinate outside [0, 7]"
+    },
+    [pscustomobject]@{
+        Name = "invalid-terrain-shader-interface"
+        LogicalPath = "media\ogre\HelloMine3DTerrain.frag"
+        Content = @"
+uniform float atlasPixels;
+uniform float tilePixels;
+uniform float tilesPerRow;
+uniform float colourSaturation;
+uniform float greenSuppression;
+uniform float greenRedShift;
+"@
+        Expected = "missing interface declaration 'uniform float toneGamma;'"
+    }
+)
+
+foreach ($invalid in $invalidOverrides) {
+    $caseRoot = Join-Path $OutputDir $invalid.Name
+    $packRoot = Join-Path $caseRoot "pack"
+    New-Item -ItemType Directory -Path $packRoot -Force | Out-Null
+    [System.IO.File]::WriteAllText(
+        (Join-Path $packRoot "pack.meta"),
+        ("# HelloMine3D resource pack v1`nname=" +
+            $invalid.Name + "`nformat=1`n"),
+        (New-Object System.Text.UTF8Encoding($false)))
+    $overridePath = Join-Path $packRoot $invalid.LogicalPath
+    New-Item -ItemType Directory -Path (Split-Path -Parent $overridePath) `
+        -Force | Out-Null
+    [System.IO.File]::WriteAllText(
+        $overridePath, $invalid.Content.TrimStart(),
+        (New-Object System.Text.UTF8Encoding($false)))
+
+    $reportPath = Join-Path $caseRoot "startup-error-report.txt"
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $ExePath
+    $startInfo.WorkingDirectory = Split-Path -Parent $ExePath
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $startInfo
+    $environmentOverrides = [ordered]@{
+        HELLOMINE3D_ROOT = $RepoRoot
+        HELLOMINE3D_RESOURCE_PACKS = $packRoot
+        HELLOMINE3D_WINDOW_HIDDEN = "1"
+        HELLOMINE3D_STARTUP_ERROR_REPORT = $reportPath
+        HELLOMINE3D_STARTUP_ERROR_NO_DIALOG = "1"
+        HELLOMINE3D_VALIDATE_ONLY = $null
+    }
+    $previousEnvironment = @{}
+    try {
+        foreach ($key in $environmentOverrides.Keys) {
+            $previousEnvironment[$key] =
+                [Environment]::GetEnvironmentVariable($key, "Process")
+            [Environment]::SetEnvironmentVariable(
+                $key, $environmentOverrides[$key], "Process")
+        }
+        if (-not $process.Start()) {
+            throw "Failed to start client for $($invalid.Name) case."
+        }
+    }
+    finally {
+        foreach ($key in $environmentOverrides.Keys) {
+            [Environment]::SetEnvironmentVariable(
+                $key, $previousEnvironment[$key], "Process")
+        }
+    }
+    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+    $stderrTask = $process.StandardError.ReadToEndAsync()
+    $process.WaitForExit()
+    $stdout = $stdoutTask.Result
+    $stderr = $stderrTask.Result
+    $exitCode = $process.ExitCode
+    $process.Dispose()
+
+    if ($exitCode -eq 0) {
+        throw "$($invalid.Name) case unexpectedly returned zero."
+    }
+    if (-not $stderr.Contains($invalid.Expected)) {
+        throw "$($invalid.Name) stderr did not contain the expected diagnostic: $stderr"
+    }
+    if (-not (Test-Path -LiteralPath $reportPath -PathType Leaf)) {
+        throw "$($invalid.Name) case did not produce the Windows error report."
+    }
+    $report = Get-Content -LiteralPath $reportPath -Raw
+    if ($report -notlike "*ui=MessageBoxW*" -or
+        $report -notlike "*dialog_requested=true*" -or
+        -not $report.Contains($invalid.Expected)) {
+        throw "$($invalid.Name) Windows report is incomplete: $report"
+    }
+
+    Set-Content -LiteralPath (Join-Path $caseRoot "process.stdout.log") `
+        -Value $stdout -Encoding UTF8
+    Set-Content -LiteralPath (Join-Path $caseRoot "process.stderr.log") `
+        -Value $stderr -Encoding UTF8
+    Write-Host "[STARTUP_ERROR_VERIFY] PASS category=$($invalid.Name) exitCode=$exitCode resource=$($invalid.LogicalPath)"
+}
+
+$caseCount = $requirements.Count + $invalidOverrides.Count
+Write-Host "[STARTUP_ERROR_VERIFY] status=PASS cases=$caseCount"

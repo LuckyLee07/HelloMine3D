@@ -1,12 +1,17 @@
 #include "../Util/ResourcePackResolver.h"
 #include "../Ogre/StartupResourcePreflight.h"
+#include "../World/Block/TerrainMaterialProfile.h"
+#include "../World/Block/BlockTextureCoordinates.h"
 
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <map>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -42,6 +47,83 @@ namespace
         output << content;
     }
 
+    std::string pngHeader(std::uint32_t width, std::uint32_t height)
+    {
+        std::string value(24, '\0');
+        const unsigned char signature[8] = {
+            0x89u, 0x50u, 0x4eu, 0x47u, 0x0du, 0x0au, 0x1au, 0x0au};
+        for (std::size_t index = 0; index < 8; ++index)
+        {
+            value[index] = static_cast<char>(signature[index]);
+        }
+        value[11] = 13;
+        value[12] = 'I';
+        value[13] = 'H';
+        value[14] = 'D';
+        value[15] = 'R';
+        const auto writeDimension = [&value](std::size_t offset,
+                                             std::uint32_t dimension)
+        {
+            value[offset] = static_cast<char>((dimension >> 24u) & 0xffu);
+            value[offset + 1] =
+                static_cast<char>((dimension >> 16u) & 0xffu);
+            value[offset + 2] =
+                static_cast<char>((dimension >> 8u) & 0xffu);
+            value[offset + 3] = static_cast<char>(dimension & 0xffu);
+        };
+        writeDimension(16, width);
+        writeDimension(20, height);
+        return value;
+    }
+
+    std::string terrainShaderInterface()
+    {
+        return
+            "uniform float atlasPixels;\n"
+            "uniform float tilePixels;\n"
+            "uniform float tilesPerRow;\n"
+            "uniform float colourSaturation;\n"
+            "uniform float greenSuppression;\n"
+            "uniform float greenRedShift;\n"
+            "uniform float toneGamma;\n";
+    }
+
+    std::string terrainProfile(
+        const std::string &overrides = "")
+    {
+        std::map<std::string, std::string> values = {
+            {"atlas_texture", "media/textures/DefaultPack.png"},
+            {"atlas_pixels", "256"},
+            {"tile_pixels", "16"},
+            {"tiles_per_row", "16"},
+            {"colour_saturation", "0.62"},
+            {"green_suppression", "0.22"},
+            {"green_red_shift", "0.07"},
+            {"tone_gamma", "1.05"},
+        };
+        std::istringstream changes(overrides);
+        std::string change;
+        while (std::getline(changes, change))
+        {
+            const std::size_t separator = change.find('=');
+            if (separator != std::string::npos)
+            {
+                values[change.substr(0, separator)] =
+                    change.substr(separator + 1);
+            }
+        }
+        std::ostringstream output;
+        output << "# HelloMine3D terrain material parameters v1\n";
+        for (const char *key : {
+                 "atlas_texture", "atlas_pixels", "tile_pixels",
+                 "tiles_per_row", "colour_saturation",
+                 "green_suppression", "green_red_shift", "tone_gamma"})
+        {
+            output << key << '=' << values[key] << '\n';
+        }
+        return output.str();
+    }
+
     const std::vector<ResourcePackRequirement> &requirements()
     {
         static const std::vector<ResourcePackRequirement> value = {
@@ -54,6 +136,7 @@ namespace
             {"license", "media/fonts/NotoSansSC-OFL.txt"},
             {"license", "media/audio/samples/LICENSE-HelloMine3D-Audio.txt"},
             {"license", "media/music/tracks/LICENSE-HelloMine3D-Music.txt"},
+            {"material-profile", "media/materials/Base.terrain-material"},
             {"music", "media/music/Base.music"},
             {"music-track", "media/music/tracks/quiet-horizons.wav"},
             {"objective", "media/objectives/Base.objective"},
@@ -66,6 +149,7 @@ namespace
             {"resource-script", "media/ogre/Test.material"},
             {"runtime-template", "bin/resource-packs.txt"},
             {"shader", "media/ogre/Test.vert"},
+            {"shader", "media/ogre/HelloMine3DTerrain.frag"},
             {"shape", "media/shapes/Cross.shape"},
             {"texture", "media/textures/DefaultPack.png"},
         };
@@ -118,6 +202,26 @@ namespace
         return false;
     }
 
+    TerrainMaterialParameters loadTerrainFixture(
+        const fs::path &root, const std::string &profile,
+        std::uint32_t width = 256, std::uint32_t height = 256,
+        const std::string &shader = terrainShaderInterface())
+    {
+        writeFile(root / "media/materials/Base.terrain-material",
+                  profile);
+        writeFile(root / "media/textures/DefaultPack.png",
+                  pngHeader(width, height));
+        writeFile(root / "media/ogre/HelloMine3DTerrain.frag", shader);
+        ResourcePackResolver resolver;
+        resolver.freeze(root.string(), requirements(), {});
+        return loadTerrainMaterialParameters(
+            resolver.resolve(TerrainMaterialParameters::LogicalPath),
+            [&resolver](const std::string &logicalPath)
+            {
+                return resolver.resolve(logicalPath);
+            });
+    }
+
     void caseNoPackAndPrecedence()
     {
         const fs::path root = freshRoot("precedence");
@@ -158,6 +262,7 @@ namespace
     void caseEveryAllowedClass()
     {
         const fs::path root = freshRoot("classes");
+        std::map<std::string, int> categoryOccurrences;
         for (const ResourcePackRequirement &requirement : requirements())
         {
             if (requirement.category == "runtime-template" ||
@@ -189,7 +294,14 @@ namespace
             const bool fallback =
                 resolver.resolve("bin/resource-packs.txt") ==
                 (root / "bin/resource-packs.txt").generic_string();
-            check("X2/override-class-" + requirement.category,
+            const int occurrence = ++categoryOccurrences[requirement.category];
+            const std::string checkId =
+                "X2/override-class-" + requirement.category +
+                (occurrence == 1
+                     ? ""
+                     : "-" + fs::path(requirement.logicalPath)
+                                   .filename().string());
+            check(checkId,
                   selected && fallback);
         }
     }
@@ -550,6 +662,208 @@ namespace
                       sample.generic_string());
     }
 
+    void caseTerrainMaterialProfile()
+    {
+        {
+            const fs::path root = freshRoot("terrain-material-valid");
+            const TerrainMaterialParameters profile = loadTerrainFixture(
+                root, terrainProfile());
+            const auto first = BlockTextureCoordinates::get(0, 0, profile);
+            const auto last = BlockTextureCoordinates::get(15, 15, profile);
+            check("V10B1/default-profile-is-pixel-compatible",
+                  profile.atlasPixels == 256 &&
+                      profile.tilePixels == 16 &&
+                      profile.tilesPerRow == 16 &&
+                      std::abs(profile.colourSaturation - 0.62f) < 0.000001f &&
+                      std::abs(profile.greenSuppression - 0.22f) < 0.000001f &&
+                      std::abs(profile.greenRedShift - 0.07f) < 0.000001f &&
+                      std::abs(profile.toneGamma - 1.05f) < 0.000001f &&
+                      std::abs(first[0] - 0.060546875f) < 0.000001f &&
+                      std::abs(first[2] - 0.001953125f) < 0.000001f &&
+                      std::abs(last[0] - 0.998046875f) < 0.000001f &&
+                      std::abs(last[2] - 0.939453125f) < 0.000001f);
+            check("V10B1/profile-bounds-atlas-tiles",
+                  profile.containsTile(0, 0) &&
+                      profile.containsTile(15, 15) &&
+                      !profile.containsTile(-1, 0) &&
+                      !profile.containsTile(16, 0));
+        }
+        {
+            const fs::path root = freshRoot("terrain-material-scaled");
+            const TerrainMaterialParameters profile = loadTerrainFixture(
+                root,
+                terrainProfile("atlas_pixels=512\ntile_pixels=32"),
+                512, 512);
+            const auto first = BlockTextureCoordinates::get(0, 0, profile);
+            check("V10B1/scaled-atlas-uses-profile-pixel-centres",
+                  profile.atlasPixels == 512 &&
+                      profile.tilePixels == 32 &&
+                      profile.tilesPerRow == 16 &&
+                      std::abs(first[0] - 0.0615234375f) < 0.000001f &&
+                      std::abs(first[2] - 0.0009765625f) < 0.000001f);
+        }
+        {
+            const fs::path root = freshRoot("terrain-material-missing-key");
+            std::string profile = terrainProfile();
+            const std::string line = "tone_gamma=1.05\n";
+            profile.erase(profile.find(line), line.size());
+            check("V10B1/reject-missing-parameter",
+                  throwsContaining(
+                      [&]
+                      {
+                          loadTerrainFixture(root, profile);
+                      },
+                      "key 'tone_gamma' is missing"));
+        }
+        {
+            const fs::path root = freshRoot("terrain-material-duplicate");
+            check("V10B1/reject-duplicate-parameter",
+                  throwsContaining(
+                      [&]
+                      {
+                          loadTerrainFixture(
+                              root, terrainProfile() +
+                                        "tone_gamma=1.05\n");
+                      },
+                      "key 'tone_gamma' is duplicated"));
+        }
+        {
+            const fs::path root = freshRoot("terrain-material-unknown");
+            check("V10B1/reject-unknown-parameter",
+                  throwsContaining(
+                      [&]
+                      {
+                          loadTerrainFixture(
+                              root, terrainProfile() + "legacy_tint=1\n");
+                      },
+                      "key 'legacy_tint' is unknown"));
+        }
+        {
+            const fs::path root = freshRoot("terrain-material-division");
+            check("V10B1/reject-noninteger-atlas-division",
+                  throwsContaining(
+                      [&]
+                      {
+                          loadTerrainFixture(
+                              root,
+                              terrainProfile("tile_pixels=15"));
+                      },
+                      "atlas_pixels must be evenly divisible"));
+        }
+        {
+            const fs::path root = freshRoot("terrain-material-row-count");
+            check("V10B1/reject-inconsistent-row-count",
+                  throwsContaining(
+                      [&]
+                      {
+                          loadTerrainFixture(
+                              root,
+                              terrainProfile("tiles_per_row=8"));
+                      },
+                      "tiles_per_row must equal"));
+        }
+        {
+            const fs::path root = freshRoot("terrain-material-colour-range");
+            check("V10B1/reject-colour-parameter-out-of-range",
+                  throwsContaining(
+                      [&]
+                      {
+                          loadTerrainFixture(
+                              root,
+                              terrainProfile("green_suppression=1.1"));
+                      },
+                      "green_suppression' is outside [0, 1]"));
+        }
+        {
+            const fs::path root = freshRoot("terrain-material-gamma-range");
+            check("V10B1/reject-gamma-out-of-range",
+                  throwsContaining(
+                      [&]
+                      {
+                          loadTerrainFixture(
+                              root, terrainProfile("tone_gamma=0.49"));
+                      },
+                      "tone_gamma' is outside [0.5, 2]"));
+        }
+        {
+            const fs::path root = freshRoot("terrain-material-size");
+            check("V10B1/reject-atlas-size-mismatch",
+                  throwsContaining(
+                      [&]
+                      {
+                          loadTerrainFixture(
+                              root, terrainProfile(), 128, 256);
+                      },
+                      "expected 256x256 pixels, got 128x256"));
+        }
+        {
+            const fs::path root = freshRoot("terrain-material-shader");
+            check("V10B1/reject-shader-interface-drift",
+                  throwsContaining(
+                      [&]
+                      {
+                          loadTerrainFixture(
+                              root, terrainProfile(), 256, 256,
+                              "uniform float atlasPixels;\n");
+                      },
+                      "missing interface declaration"));
+        }
+        {
+            const fs::path root = freshRoot("terrain-material-missing-atlas");
+            writeFile(root / "media/materials/Base.terrain-material",
+                      terrainProfile());
+            writeFile(root / "media/ogre/HelloMine3DTerrain.frag",
+                      terrainShaderInterface());
+            fs::remove(root / "media/textures/DefaultPack.png");
+            check("V10B1/reject-missing-atlas",
+                  throwsContaining(
+                      [&]
+                      {
+                          loadTerrainMaterialParameters(
+                              (root /
+                               "media/materials/Base.terrain-material")
+                                  .generic_string(),
+                              [&root](const std::string &logicalPath)
+                              {
+                                  return (root / fs::path(logicalPath))
+                                      .generic_string();
+                              });
+                      },
+                      "Missing terrain atlas resource"));
+        }
+        {
+            const fs::path root = freshRoot("terrain-material-override");
+            writeFile(root / "media/materials/Base.terrain-material",
+                      terrainProfile());
+            writeFile(root / "media/textures/DefaultPack.png",
+                      pngHeader(256, 256));
+            writeFile(root / "media/ogre/HelloMine3DTerrain.frag",
+                      terrainShaderInterface());
+            const fs::path pack = createPack(
+                root, "terrain", "Terrain Profile", 1,
+                {{TerrainMaterialParameters::LogicalPath,
+                  terrainProfile("colour_saturation=0.5")}});
+            ResourcePackResolver resolver;
+            resolver.freeze(root.string(), requirements(),
+                            {pack.string()});
+            const TerrainMaterialParameters profile =
+                loadTerrainMaterialParameters(
+                    resolver.resolve(
+                        TerrainMaterialParameters::LogicalPath),
+                    [&resolver](const std::string &logicalPath)
+                    {
+                        return resolver.resolve(logicalPath);
+                    });
+            check("V10B1/resource-pack-profile-override-is-effective",
+                  std::abs(profile.colourSaturation - 0.5f) < 0.000001f &&
+                      resolver.resolve(
+                          TerrainMaterialParameters::LogicalPath) ==
+                          (pack /
+                           TerrainMaterialParameters::LogicalPath)
+                              .generic_string());
+        }
+    }
+
     void caseOptionalPresentationFont()
     {
         const fs::path root = freshRoot("optional-presentation-font");
@@ -669,6 +983,7 @@ int main()
     caseNoPackAndPrecedence();
     caseEveryAllowedClass();
     caseInvalidPacks();
+    caseTerrainMaterialProfile();
     caseOptionalAudio();
     caseOptionalMusic();
     caseOptionalPresentationFont();

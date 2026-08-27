@@ -330,6 +330,8 @@ void caseFixedTickScheduler()
 // ---------------------------------------------------------------------------
 void caseBlockTextureCoordinates()
 {
+    const TerrainMaterialParameters &defaults =
+        runtimeTerrainMaterialProfile().parameters();
     const auto first = BlockTextureCoordinates::get(0, 0);
     const auto last = BlockTextureCoordinates::get(15, 15);
     constexpr float epsilon = 0.000001f;
@@ -342,6 +344,21 @@ void caseBlockTextureCoordinates()
           std::abs(last[0] - 0.998046875f) < epsilon &&
               std::abs(last[2] - 0.939453125f) < epsilon &&
               std::abs(last[5] - 0.939453125f) < epsilon);
+    check("V10B1/default-terrain-material-profile-is-compatible",
+          TerrainMaterialParameters::ContractVersion == 1 &&
+              defaults.atlasPixels == 256 &&
+              defaults.tilePixels == 16 &&
+              defaults.tilesPerRow == 16 &&
+              defaults.containsTile(15, 15) &&
+              !defaults.containsTile(16, 0));
+
+    TerrainMaterialParameters scaled = defaults;
+    scaled.atlasPixels = 512;
+    scaled.tilePixels = 32;
+    const auto scaledFirst = BlockTextureCoordinates::get(0, 0, scaled);
+    check("V10B1/scaled-atlas-pixel-centres-are-parameterized",
+          std::abs(scaledFirst[0] - 0.0615234375f) < epsilon &&
+              std::abs(scaledFirst[2] - 0.0009765625f) < epsilon);
 }
 
 // ---------------------------------------------------------------------------
@@ -12234,6 +12251,9 @@ int main()
             caseVertexLighting();
             caseSunlightStorage();
             caseBlockLightStorage();
+        }
+        else if (focus != nullptr && std::string(focus) == "V10B1") {
+            caseBlockTextureCoordinates();
         }
         else {
         caseWorldOutcomeAndLocalizedText();

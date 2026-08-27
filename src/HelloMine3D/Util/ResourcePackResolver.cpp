@@ -66,8 +66,8 @@ namespace
     bool isAllowedCategory(const std::string &category)
     {
         static const std::set<std::string> allowed = {
-            "block", "font", "resource-script", "shader", "shape",
-            "texture"};
+            "block", "font", "material-profile", "resource-script",
+            "shader", "shape", "texture"};
         return allowed.find(category) != allowed.end();
     }
 

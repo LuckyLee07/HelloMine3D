@@ -400,7 +400,9 @@ project "HelloMine3DResourcePackSmoke"
         source_dir .. "/Util/ResourcePackResolver.h",
         source_dir .. "/Util/ResourcePackResolver.cpp",
         source_dir .. "/Ogre/StartupResourcePreflight.h",
-        source_dir .. "/Ogre/StartupResourcePreflight.cpp"
+        source_dir .. "/Ogre/StartupResourcePreflight.cpp",
+        source_dir .. "/World/Block/TerrainMaterialProfile.h",
+        source_dir .. "/World/Block/TerrainMaterialProfile.cpp"
     }
     includedirs { source_dir }
 

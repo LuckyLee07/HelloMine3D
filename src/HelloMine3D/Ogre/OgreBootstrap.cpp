@@ -64,7 +64,9 @@
 #include "../Util/ResourcePaths.h"
 #include "../World/Chunk/Chunk.h"
 #include "../World/Chunk/ChunkSection.h"
+#include "../World/Block/BlockDatabase.h"
 #include "../World/Block/ChestContainer.h"
+#include "../World/Block/TerrainMaterialProfile.h"
 #include "../World/World.h"
 #include "../World/Storage/WorldManagementService.h"
 
@@ -679,6 +681,7 @@ namespace
 
             Ogre::ResourceGroupManager::getSingleton()
                 .initialiseAllResourceGroups();
+            syncTerrainMaterialParameters();
             m_sceneManager->setAmbientLight(
                 Ogre::ColourValue(0.7f, 0.7f, 0.7f));
             m_sceneManager->setSkyBox(
@@ -2209,6 +2212,38 @@ namespace
             return technique->getPass(0);
         }
 
+        void syncTerrainMaterialParameters()
+        {
+            const TerrainMaterialParameters &profile =
+                runtimeTerrainMaterialProfile().parameters();
+            const char *terrainMaterials[] = {
+                "HelloMine3D/Terrain", "HelloMine3D/Transparent",
+                "HelloMine3D/Flora"};
+            for (const char *materialName : terrainMaterials)
+            {
+                Ogre::GpuProgramParametersSharedPtr parameters =
+                    materialPass(materialName)
+                        ->getFragmentProgramParameters();
+                parameters->setNamedConstant(
+                    "atlasPixels",
+                    static_cast<float>(profile.atlasPixels));
+                parameters->setNamedConstant(
+                    "tilePixels",
+                    static_cast<float>(profile.tilePixels));
+                parameters->setNamedConstant(
+                    "tilesPerRow",
+                    static_cast<float>(profile.tilesPerRow));
+                parameters->setNamedConstant(
+                    "colourSaturation", profile.colourSaturation);
+                parameters->setNamedConstant(
+                    "greenSuppression", profile.greenSuppression);
+                parameters->setNamedConstant(
+                    "greenRedShift", profile.greenRedShift);
+                parameters->setNamedConstant(
+                    "toneGamma", profile.toneGamma);
+            }
+        }
+
         void syncEnvironment(const WorldEnvironmentState& state)
         {
             if (m_sceneManager == nullptr)
@@ -2823,6 +2858,9 @@ int runOgreBootstrap(bool validateOnly,
         runtimeResourcePackResolver().freezeFromEnvironment(
             root, resourceRequirements);
         validateStartupResources(root, startupResources);
+        runtimeTerrainMaterialProfile().freezeFromResourceView(
+            runtimeResourcePackResolver());
+        BlockDatabase::get();
         runtimeRecipeRegistry().freezeFromResourceView(
             runtimeResourcePackResolver());
         runtimeToolRegistry().freezeFromResourceView(
@@ -2858,6 +2896,22 @@ int runOgreBootstrap(bool validateOnly,
                   << " effective="
                   << runtimeResourcePackResolver()
                          .effectiveResources().size()
+                  << '\n';
+        const TerrainMaterialParameters &terrainMaterial =
+            runtimeTerrainMaterialProfile().parameters();
+        std::cout << "[TERRAIN_MATERIAL] frozen=1 version="
+                  << TerrainMaterialParameters::ContractVersion
+                  << " atlas=" << terrainMaterial.atlasTexture
+                  << " atlas_pixels=" << terrainMaterial.atlasPixels
+                  << " tile_pixels=" << terrainMaterial.tilePixels
+                  << " tiles_per_row=" << terrainMaterial.tilesPerRow
+                  << " colour_saturation="
+                  << terrainMaterial.colourSaturation
+                  << " green_suppression="
+                  << terrainMaterial.greenSuppression
+                  << " green_red_shift="
+                  << terrainMaterial.greenRedShift
+                  << " tone_gamma=" << terrainMaterial.toneGamma
                   << '\n';
         std::cout << "[RECIPE_REGISTRY] frozen=1 recipes="
                   << runtimeRecipeRegistry().recipes().size() << '\n';

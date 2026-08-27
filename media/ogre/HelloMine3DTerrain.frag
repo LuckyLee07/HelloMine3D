@@ -8,15 +8,19 @@ in float terrainDistance;
 out vec4 fragmentColour;
 
 uniform sampler2D terrainAtlas;
+uniform float atlasPixels;
+uniform float tilePixels;
+uniform float tilesPerRow;
+uniform float colourSaturation;
+uniform float greenSuppression;
+uniform float greenRedShift;
+uniform float toneGamma;
 uniform float environmentLight;
 uniform vec3 fogColour;
 uniform float fogDensity;
 
 void main()
 {
-    const float tilesPerRow = 16.0;
-    const float atlasPixels = 256.0;
-    const float tilePixels = 16.0;
     vec2 tileIndex = floor(terrainTileUv * tilesPerRow);
     vec2 tilePixel = vec2(0.5) + fract(terrainRepeat) * (tilePixels - 1.0);
     vec2 atlasUv = (tileIndex * tilePixels + tilePixel) / atlasPixels;
@@ -26,12 +30,14 @@ void main()
         discard;
     }
     float luminance = dot(texel.rgb, vec3(0.2126, 0.7152, 0.0722));
-    vec3 balancedColour = mix(vec3(luminance), texel.rgb, 0.62);
+    vec3 balancedColour = mix(
+        vec3(luminance), texel.rgb, colourSaturation);
     float greenExcess = max(
         balancedColour.g - max(balancedColour.r, balancedColour.b), 0.0);
-    balancedColour.g -= greenExcess * 0.22;
-    balancedColour.r += greenExcess * 0.07;
-    balancedColour = pow(max(balancedColour, vec3(0.0)), vec3(1.05));
+    balancedColour.g -= greenExcess * greenSuppression;
+    balancedColour.r += greenExcess * greenRedShift;
+    balancedColour = pow(
+        max(balancedColour, vec3(0.0)), vec3(toneGamma));
     float shapedLight = mix(0.24, 1.0, clamp(terrainLight, 0.0, 1.0));
     float environmentExposure = mix(
         0.34, 1.0, clamp(environmentLight, 0.0, 1.0));

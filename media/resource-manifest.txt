@@ -38,6 +38,7 @@ food|media/foods/Base.food
 license|media/audio/samples/LICENSE-HelloMine3D-Audio.txt
 license|media/fonts/NotoSansSC-OFL.txt
 license|media/music/tracks/LICENSE-HelloMine3D-Music.txt
+material-profile|media/materials/Base.terrain-material
 music-track|media/music/tracks/quiet-horizons.wav
 music|media/music/Base.music
 objective|media/objectives/Base.objective

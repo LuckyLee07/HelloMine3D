@@ -3,7 +3,8 @@
 本文把改动类型映射到最低必要验证。当前 Release Candidate 的 H2-H3、Q1-Q3 和干净包
 路径及 Stage 9 / BETA-RC 工程封板已集中完成，真实输入与产品体验仍需目标机器上的操作者记录；
 现有 R3 v1 只保留为十二项物理输入基线，不能单独关闭当前 D4/D6 或视觉/双语/听感验收。
-当前进入 Stage 10 的 V10A 视觉批次；详细退出条件见 `docs/visual-quality-roadmap.md`。
+Stage 10 的 V10A/V10B1 已完成 Windows 工程范围，当前进入 V10B2；V10B1 的 macOS
+Release shader/窗口证据保持 `Verify`。详细退出条件见 `docs/visual-quality-roadmap.md`。
 
 历史运行结果和逐项证据保存在 `docs/project-ledger-2026-08-17.md` 与
 `docs/runtime-validation.md`。
@@ -111,8 +112,9 @@
 | 音效、音乐、字体或本地化 | manifest，资源包，语言 key/fallback，字体/长文本，许可证，采样缓存/并发，句柄/线程生命周期，隐藏客户端和听感。 |
 | 构建、崩溃或打包 | H2/H3 受控崩溃、符号、隐私、可执行清单、干净包和新 SHA-256。 |
 
-Windows 自动化 EXE 一律隐藏或后台运行。只有必须由真人操作并观察的 R3 可以在安排好的
-验收窗口前台运行；不得用自动输入伪装真人证据。
+Windows 自动化 EXE 一律隐藏或后台运行。只有必须由真人操作并观察的 R3，以及事先取得用户
+明确同意的 Stage 10 开发者视觉检查，才可以在安排好的验收窗口前台运行；`ShowWindowNoActivate`
+只是 best-effort，不能作为不会抢焦点的保证。不得用自动输入伪装真人证据。
 
 ## Stage 10 视觉门禁
 

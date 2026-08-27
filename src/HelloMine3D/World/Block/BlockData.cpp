@@ -1,4 +1,5 @@
 #include "BlockData.h"
+#include "TerrainMaterialProfile.h"
 
 #include "../../Util/ResourcePaths.h"
 #include "../../Util/ResourcePackResolver.h"
@@ -11,8 +12,6 @@
 #include <stdexcept>
 
 namespace {
-constexpr int AtlasTilesPerAxis = 16;
-
 std::string trim(const std::string &value)
 {
     std::size_t begin = 0;
@@ -74,9 +73,12 @@ glm::ivec2 parseAtlasCoordinate(const std::string &path,
     if (!input.eof()) {
         fail(path, key, "contains trailing data");
     }
-    if (coordinate.x < 0 || coordinate.x >= AtlasTilesPerAxis ||
-        coordinate.y < 0 || coordinate.y >= AtlasTilesPerAxis) {
-        fail(path, key, "has an atlas coordinate outside [0, 15]");
+    const TerrainMaterialParameters &parameters =
+        runtimeTerrainMaterialProfile().parameters();
+    if (!parameters.containsTile(coordinate.x, coordinate.y)) {
+        fail(path, key, "has an atlas coordinate outside [0, " +
+                            std::to_string(parameters.tilesPerRow - 1) +
+                            "]");
     }
     return coordinate;
 }
