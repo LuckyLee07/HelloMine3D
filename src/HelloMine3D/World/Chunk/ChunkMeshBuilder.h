@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "../Block/ChunkBlock.h"
+#include "../Block/TerrainAppearance.h"
 #include "../Light/LightLevel.h"
 #include "../Light/VertexLighting.h"
 #include "../WorldConstants.h"
@@ -70,8 +71,16 @@ class ChunkMeshBuilder {
 
     void addResourceShapeToMesh(const BlockShape &shape,
                                 const glm::ivec2 &textureCoords,
+                                ChunkBlock block,
                                 const glm::ivec3 &blockPosition,
                                 float verticalScale);
+
+    TerrainTileSelection selectTerrainTile(
+        ChunkBlock block, CubeFace face,
+        const glm::ivec2 &baseCoordinates,
+        const glm::ivec3 &blockPosition) const;
+    glm::ivec3 worldPositionFor(
+        const glm::ivec3 &blockPosition) const;
 
     void tryAddFaceToMesh(const std::array<float, 12> &blockFace,
                           const glm::ivec2 &textureCoords,

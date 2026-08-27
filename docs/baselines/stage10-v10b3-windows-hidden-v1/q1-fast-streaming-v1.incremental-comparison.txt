@@ -1,0 +1,21 @@
+﻿stage10_performance_supplement=1
+comparison_scene_id=q1-fast-streaming-v1
+threshold_percent=10
+resource_manifest_bridge=allowed
+baseline_resource_manifest_sha256=beedb7817adc4faaff45da35ba857b48bb2381dee015a037948a8fcc9eb08aaa
+candidate_resource_manifest_sha256=b0fb5467eebe2f78f7bb79653adefab0a1ff6b1d486b10d24d4d0dc6e383d811
+metric=frame_p95_ms baseline=8.924 candidate=7.944 delta_percent=-10.982 status=PASS
+metric=frame_p99_ms baseline=13.769 candidate=12.443 delta_percent=-9.63 status=PASS
+metric=last_mesh_build_avg_ms baseline=0.682 candidate=0.717 delta_percent=5.132 status=PASS
+metric=last_mesh_build_max_ms baseline=1.551 candidate=1.463 delta_percent=-5.674 status=PASS
+metric=last_solid_vertices baseline=1138855 candidate=1147277 delta_percent=0.74 status=PASS
+metric=last_transparent_vertices baseline=320 candidate=384 delta_percent=20 status=REVIEW_REQUIRED
+metric=last_water_vertices baseline=373336 candidate=471512 delta_percent=26.297 status=REVIEW_REQUIRED
+metric=last_flora_vertices baseline=15736 candidate=9200 delta_percent=-41.535 status=PASS
+metric=last_resident_terrain_vertices baseline=457085 candidate=596642 delta_percent=30.532 status=REVIEW_REQUIRED
+metric=last_resident_terrain_indices baseline=874488 candidate=1136502 delta_percent=29.962 status=REVIEW_REQUIRED
+metric=last_resident_terrain_buffer_bytes baseline=18124672 candidate=23638552 delta_percent=30.422 status=REVIEW_REQUIRED
+metric=chunk_visible_p95_ms baseline=37.276 candidate=40.584 delta_percent=8.874 status=PASS
+metric=chunk_visible_p99_ms baseline=37.276 candidate=40.584 delta_percent=8.874 status=PASS
+status=REVIEW_REQUIRED
+review_metrics=last_transparent_vertices,last_water_vertices,last_resident_terrain_vertices,last_resident_terrain_indices,last_resident_terrain_buffer_bytes

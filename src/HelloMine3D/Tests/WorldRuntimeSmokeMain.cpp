@@ -79,6 +79,7 @@
 #include "../World/Block/FurnaceContainer.h"
 #include "../World/Block/BlockDatabase.h"
 #include "../World/Block/BlockTextureCoordinates.h"
+#include "../World/Block/TerrainAppearance.h"
 #include "../World/Interaction/BlockSelection.h"
 #include "../World/Interaction/BlockInteractionSystem.h"
 #include "../World/Interaction/BlockMiningProgress.h"
@@ -3240,6 +3241,323 @@ void caseGreedyMeshing()
     check("M4/flora-topology-remains-separate",
           separatePasses.floraMesh.faces == 4,
           "faces=" + std::to_string(separatePasses.floraMesh.faces));
+}
+
+// ---------------------------------------------------------------------------
+// V10B3 - biome-controlled world tint and coordinate-stable atlas variants
+// retain base UI coordinates and enter the real greedy merge identity
+// ---------------------------------------------------------------------------
+void caseTerrainAppearance()
+{
+    check("V10B3/appearance-contract-version-and-layout",
+          TerrainAppearance::ContractVersion == 1 &&
+              TerrainAppearance::VariantsPerEcology == 3 &&
+              TerrainAppearance::VariantPatchSize == 4 &&
+              TerrainAppearance::EcologyRowBase == 3 &&
+              TerrainAppearance::ecologyRow(TerrainBiome::Desert) == 3 &&
+              TerrainAppearance::ecologyRow(TerrainBiome::Grassland) == 4 &&
+              TerrainAppearance::ecologyRow(TerrainBiome::LightForest) == 5 &&
+              TerrainAppearance::ecologyRow(
+                  TerrainBiome::TemperateForest) == 6 &&
+              TerrainAppearance::ecologyRow(TerrainBiome::Ocean) == 7);
+
+    const glm::ivec3 negativePosition{-193, 71, -257};
+    const std::uint8_t negativeFirst =
+        TerrainAppearance::coordinateVariant(
+            kValidationSeed, negativePosition, BlockId::Grass);
+    const std::uint8_t negativeSecond =
+        TerrainAppearance::coordinateVariant(
+            kValidationSeed, negativePosition, BlockId::Grass);
+    check("V10B3/negative-coordinate-variant-is-deterministic",
+          negativeFirst == negativeSecond &&
+              negativeFirst < TerrainAppearance::VariantsPerEcology,
+          "variant=" + std::to_string(negativeFirst));
+
+    const std::uint8_t patchOrigin =
+        TerrainAppearance::coordinateVariant(
+            kValidationSeed, {8, 80, -12}, BlockId::Grass);
+    bool patchIsStable = true;
+    for (int y = 80; y <= 83; ++y) {
+        for (int z = -12; z <= -9; ++z) {
+            for (int x = 8; x <= 11; ++x) {
+                patchIsStable = patchIsStable &&
+                    TerrainAppearance::coordinateVariant(
+                        kValidationSeed, {x, y, z}, BlockId::Grass) ==
+                        patchOrigin;
+            }
+        }
+    }
+    check("V10B3/four-block-appearance-patch-is-stable",
+          patchIsStable, "variant=" + std::to_string(patchOrigin));
+
+    std::set<int> observedVariants;
+    bool seedChangesAtLeastOneCoordinate = false;
+    for (int x = -64; x <= 64; ++x) {
+        const glm::ivec3 position{x, 80, x * 3 - 7};
+        const std::uint8_t first =
+            TerrainAppearance::coordinateVariant(
+                kValidationSeed, position, BlockId::Grass);
+        const std::uint8_t second =
+            TerrainAppearance::coordinateVariant(
+                kValidationSeed + 1, position, BlockId::Grass);
+        observedVariants.insert(first);
+        seedChangesAtLeastOneCoordinate =
+            seedChangesAtLeastOneCoordinate || first != second;
+    }
+    check("V10B3/all-three-coordinate-variants-are-reachable",
+          observedVariants.size() == 3,
+          "variants=" + std::to_string(observedVariants.size()));
+    check("V10B3/terrain-seed-participates-in-variant",
+          seedChangesAtLeastOneCoordinate);
+
+    const std::array<TerrainBiome, 5> biomes{{
+        TerrainBiome::Desert,
+        TerrainBiome::Grassland,
+        TerrainBiome::LightForest,
+        TerrainBiome::TemperateForest,
+        TerrainBiome::Ocean,
+    }};
+    std::set<int> ecologyRows;
+    bool allBiomesUseEcologyTiles = true;
+    for (TerrainBiome biome : biomes) {
+        const TerrainTileSelection grass = TerrainAppearance::select(
+            BlockId::Grass, TerrainFaceKind::Top, {0, 0}, biome,
+            kValidationSeed, {12, 80, -7});
+        const TerrainTileSelection leaves = TerrainAppearance::select(
+            BlockId::OakLeaf, TerrainFaceKind::Side, {6, 0}, biome,
+            kValidationSeed, {12, 81, -7});
+        const TerrainTileSelection water = TerrainAppearance::select(
+            BlockId::Water, TerrainFaceKind::Top, {8, 0}, biome,
+            kValidationSeed, {12, 79, -7});
+        const TerrainTileSelection tallGrass = TerrainAppearance::select(
+            BlockId::TallGrass, TerrainFaceKind::Resource, {11, 0},
+            biome, kValidationSeed, {13, 81, -7});
+        ecologyRows.insert(grass.coordinates.y);
+        allBiomesUseEcologyTiles = allBiomesUseEcologyTiles &&
+            grass.ecologyTinted && grass.coordinates.x >= 0 &&
+            grass.coordinates.x <= 2 &&
+            leaves.ecologyTinted && leaves.coordinates.x >= 6 &&
+            leaves.coordinates.x <= 8 &&
+            water.ecologyTinted && water.coordinates.x >= 9 &&
+            water.coordinates.x <= 11 &&
+            tallGrass.ecologyTinted && tallGrass.coordinates.x >= 12 &&
+            tallGrass.coordinates.x <= 14 &&
+            grass.coordinates.y == TerrainAppearance::ecologyRow(biome) &&
+            leaves.coordinates.y == grass.coordinates.y &&
+            water.coordinates.y == grass.coordinates.y &&
+            tallGrass.coordinates.y == grass.coordinates.y;
+    }
+    check("V10B3/five-biomes-select-bounded-ecology-rows",
+          allBiomesUseEcologyTiles && ecologyRows.size() == 5,
+          "rows=" + std::to_string(ecologyRows.size()));
+
+    const TerrainTileSelection grassBottom = TerrainAppearance::select(
+        BlockId::Grass, TerrainFaceKind::Bottom, {2, 0},
+        TerrainBiome::Desert, kValidationSeed, {1, 2, 3});
+    const TerrainTileSelection stone = TerrainAppearance::select(
+        BlockId::Stone, TerrainFaceKind::Top, {3, 0},
+        TerrainBiome::Ocean, kValidationSeed, {1, 2, 3});
+    const TerrainTileSelection wheat = TerrainAppearance::select(
+        BlockId::WheatCrop, TerrainFaceKind::Resource, {11, 0},
+        TerrainBiome::LightForest, kValidationSeed, {1, 2, 3});
+    const Material::IconCoordinate grassIcon =
+        Material::iconCoordinate(Material::ID::Grass);
+    check("V10B3/non-target-and-ui-base-identities-stay-stable",
+          !grassBottom.ecologyTinted &&
+              grassBottom.coordinates.x == 2 &&
+              grassBottom.coordinates.y == 0 &&
+              !stone.ecologyTinted && stone.coordinates.x == 3 &&
+              stone.coordinates.y == 0 &&
+              !wheat.ecologyTinted && wheat.coordinates.x == 11 &&
+              wheat.coordinates.y == 0 &&
+              grassIcon.x == 0 && grassIcon.y == 0);
+
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+    const auto directory = freshSaveDirectory("terrain_appearance");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+
+    constexpr int blockY = 200;
+    constexpr int blockZ = 8;
+    int leftX = 3;
+    for (; leftX < CHUNK_SIZE - 2; ++leftX) {
+        const std::uint8_t left =
+            TerrainAppearance::coordinateVariant(
+                kValidationSeed, {leftX, blockY, blockZ},
+                BlockId::Grass);
+        const std::uint8_t right =
+            TerrainAppearance::coordinateVariant(
+                kValidationSeed, {leftX + 1, blockY, blockZ},
+                BlockId::Grass);
+        if (left != right) {
+            break;
+        }
+    }
+    check("V10B3/adjacent-different-variant-fixture-found",
+          leftX < CHUNK_SIZE - 2,
+          "x=" + std::to_string(leftX));
+    if (leftX >= CHUNK_SIZE - 2) {
+        return;
+    }
+
+    world.setBlock(leftX, blockY, blockZ, BlockId::Grass);
+    world.setBlock(leftX + 1, blockY, blockZ, BlockId::Grass);
+    Chunk *chunk = world.getChunkManager().findChunk(0, 0);
+    ChunkSection *section = chunk != nullptr
+        ? chunk->findSection(blockY / CHUNK_SIZE)
+        : nullptr;
+    check("V10B3/appearance-fixture-section-available",
+          section != nullptr);
+    if (section == nullptr) {
+        return;
+    }
+
+    SectionMeshInput input;
+    section->captureMeshInput(input);
+    const TerrainGenerator &generator =
+        world.getChunkManager().getTerrainGenerator();
+    const auto biomeIndex = [](TerrainBiome biome) {
+        switch (biome) {
+            case TerrainBiome::Desert: return 0;
+            case TerrainBiome::Grassland: return 1;
+            case TerrainBiome::LightForest: return 2;
+            case TerrainBiome::TemperateForest: return 3;
+            case TerrainBiome::Ocean: return 4;
+        }
+        return 1;
+    };
+    std::array<glm::ivec3, 5> biomeProbes{};
+    std::array<bool, 5> foundBiomeProbe{};
+    int remainingBiomeProbes = static_cast<int>(foundBiomeProbe.size());
+    for (int z = -2048; z <= 2048 && remainingBiomeProbes > 0;
+         z += CHUNK_SIZE) {
+        for (int x = -2048; x <= 2048 && remainingBiomeProbes > 0;
+             x += CHUNK_SIZE) {
+            const TerrainBiome biome = generator.getBiomeAtWorld(x, z);
+            const int index = biomeIndex(biome);
+            if (foundBiomeProbe[index]) {
+                continue;
+            }
+            bool stable = true;
+            for (int dz : {-8, 0, 8}) {
+                for (int dx : {-8, 0, 8}) {
+                    stable = stable &&
+                        generator.getBiomeAtWorld(x + dx, z + dz) == biome;
+                }
+            }
+            if (!stable) {
+                continue;
+            }
+            const int surface = generator.getSurfaceHeightAtWorld(x, z);
+            const bool ocean = biome == TerrainBiome::Ocean;
+            if ((!ocean && surface < WATER_LEVEL + 6) ||
+                (ocean && surface > WATER_LEVEL)) {
+                continue;
+            }
+            biomeProbes[index] = {
+                x, std::max(surface + 8, WATER_LEVEL + 8), z,
+            };
+            foundBiomeProbe[index] = true;
+            --remainingBiomeProbes;
+        }
+    }
+    std::ostringstream biomeProbeDetail;
+    constexpr const char *biomeNames[5] = {
+        "desert", "grassland", "light_forest",
+        "temperate_forest", "ocean",
+    };
+    for (std::size_t index = 0; index < biomeProbes.size(); ++index) {
+        if (index != 0) {
+            biomeProbeDetail << ';';
+        }
+        biomeProbeDetail << biomeNames[index] << '='
+                         << biomeProbes[index].x << ','
+                         << biomeProbes[index].y << ','
+                         << biomeProbes[index].z;
+    }
+    check("V10B3/five-stable-biome-capture-probes-found",
+          remainingBiomeProbes == 0, biomeProbeDetail.str());
+
+    int biomeMismatches = 0;
+    for (int z = -1; z <= CHUNK_SIZE; ++z) {
+        for (int x = -1; x <= CHUNK_SIZE; ++x) {
+            const int worldX =
+                input.getLocation().x * CHUNK_SIZE + x;
+            const int worldZ =
+                input.getLocation().z * CHUNK_SIZE + z;
+            if (input.getBiome(x, z) !=
+                generator.getBiomeAtWorld(worldX, worldZ)) {
+                ++biomeMismatches;
+            }
+        }
+    }
+    check("V10B3/snapshot-freezes-biome-halo-and-seed",
+          biomeMismatches == 0 &&
+              input.getTerrainSeed() == kValidationSeed,
+          "biome_mismatches=" + std::to_string(biomeMismatches) +
+              " seed=" + std::to_string(input.getTerrainSeed()));
+
+    ChunkMeshCollection firstBuild;
+    ChunkMeshCollection secondBuild;
+    ChunkMeshBuilder(input, firstBuild).buildMesh();
+    ChunkMeshBuilder(input, secondBuild).buildMesh();
+    const Mesh &first = firstBuild.solidMesh.getClientMesh();
+    const Mesh &second = secondBuild.solidMesh.getClientMesh();
+    check("V10B3/rebuild-order-keeps-byte-identical-appearance",
+          first.vertexPositions == second.vertexPositions &&
+              first.textureCoords == second.textureCoords &&
+              first.textureRepeatCoords == second.textureRepeatCoords &&
+              first.indices == second.indices &&
+              firstBuild.solidMesh.getLight() ==
+                  secondBuild.solidMesh.getLight());
+
+    int topFaces = 0;
+    std::set<int> topTileColumns;
+    const std::size_t faceCount = first.indices.size() / 6;
+    for (std::size_t face = 0; face < faceCount; ++face) {
+        const IndexedQuad quad = indexedQuad(first, face);
+        if (quad.count != 4) {
+            continue;
+        }
+        bool targetHeight = true;
+        float minX = 100000.f;
+        float maxX = -100000.f;
+        float minZ = 100000.f;
+        float maxZ = -100000.f;
+        for (std::size_t vertex = 0; vertex < 4; ++vertex) {
+            const std::size_t position = quad.vertices[vertex] * 3;
+            targetHeight = targetHeight &&
+                std::abs(first.vertexPositions[position + 1] -
+                         static_cast<float>(blockY + 1)) < 0.001f;
+            minX = std::min(minX, first.vertexPositions[position]);
+            maxX = std::max(maxX, first.vertexPositions[position]);
+            minZ = std::min(minZ, first.vertexPositions[position + 2]);
+            maxZ = std::max(maxZ, first.vertexPositions[position + 2]);
+        }
+        if (!targetHeight || minX < leftX - 0.001f ||
+            maxX > leftX + 2.f + 0.001f ||
+            minZ < blockZ - 0.001f ||
+            maxZ > blockZ + 1.f + 0.001f) {
+            continue;
+        }
+        ++topFaces;
+        const std::uint32_t vertex = quad.vertices[0];
+        topTileColumns.insert(static_cast<int>(std::floor(
+            first.textureCoords[vertex * 2] * 16.f)));
+    }
+    check("V10B3/greedy-key-preserves-adjacent-variants",
+          topFaces == 2 && topTileColumns.size() == 2,
+          "top_faces=" + std::to_string(topFaces) +
+              " tile_columns=" +
+              std::to_string(topTileColumns.size()));
+    check("V10B3/vertex-and-terrain-identities-unchanged",
+          TerrainBufferMetrics::VertexStrideBytes == 32 &&
+              world.getChunkManager().getTerrainGenerationVersion() ==
+                  CurrentTerrainGenerationVersion);
 }
 
 // ---------------------------------------------------------------------------
@@ -12255,6 +12573,10 @@ int main()
         else if (focus != nullptr && std::string(focus) == "V10B1") {
             caseBlockTextureCoordinates();
         }
+        else if (focus != nullptr && std::string(focus) == "V10B3") {
+            caseTerrainAppearance();
+            caseGreedyMeshing();
+        }
         else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
@@ -12282,6 +12604,7 @@ int main()
         casePersistence();
         caseSectionMeshInput();
         caseGreedyMeshing();
+        caseTerrainAppearance();
         caseVertexLighting();
         caseTerrainBufferMetrics();
         caseTransparentBlockRules();

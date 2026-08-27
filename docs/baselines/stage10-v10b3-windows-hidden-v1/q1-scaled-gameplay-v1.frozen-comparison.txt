@@ -1,0 +1,19 @@
+﻿stage10_performance_supplement=1
+comparison_scene_id=q1-scaled-gameplay-v1
+threshold_percent=10
+resource_manifest_bridge=allowed
+baseline_resource_manifest_sha256=beedb7817adc4faaff45da35ba857b48bb2381dee015a037948a8fcc9eb08aaa
+candidate_resource_manifest_sha256=b0fb5467eebe2f78f7bb79653adefab0a1ff6b1d486b10d24d4d0dc6e383d811
+metric=frame_p95_ms baseline=6.83 candidate=7.407 delta_percent=8.448 status=PASS
+metric=frame_p99_ms baseline=9.238 candidate=9.928 delta_percent=7.469 status=PASS
+metric=last_mesh_build_avg_ms baseline=0.531 candidate=0.709 delta_percent=33.522 status=REVIEW_REQUIRED
+metric=last_mesh_build_max_ms baseline=1.458 candidate=1.406 delta_percent=-3.567 status=PASS
+metric=last_solid_vertices baseline=532792 candidate=644692 delta_percent=21.003 status=REVIEW_REQUIRED
+metric=last_transparent_vertices baseline=80 candidate=96 delta_percent=20 status=REVIEW_REQUIRED
+metric=last_water_vertices baseline=257420 candidate=259848 delta_percent=0.943 status=PASS
+metric=last_flora_vertices baseline=760 candidate=848 delta_percent=11.579 status=REVIEW_REQUIRED
+metric=last_resident_terrain_vertices baseline=805364 candidate=893329 delta_percent=10.922 status=REVIEW_REQUIRED
+metric=last_resident_terrain_indices baseline=1208046 candidate=1713624 delta_percent=41.851 status=REVIEW_REQUIRED
+metric=last_resident_terrain_buffer_bytes baseline=30603832 candidate=35441024 delta_percent=15.806 status=REVIEW_REQUIRED
+status=REVIEW_REQUIRED
+review_metrics=last_mesh_build_avg_ms,last_solid_vertices,last_transparent_vertices,last_flora_vertices,last_resident_terrain_vertices,last_resident_terrain_indices,last_resident_terrain_buffer_bytes

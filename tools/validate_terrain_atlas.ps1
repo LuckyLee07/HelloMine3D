@@ -16,6 +16,12 @@ $atlasPath = Join-Path $Root "media\textures\DefaultPack.png"
 $builderPath = Join-Path $Root "tools\build_fs3_texture_atlas.ps1"
 $materialSourcePath = Join-Path $Root "src\HelloMine3D\Item\Material.cpp"
 $uiSourcePath = Join-Path $Root "src\HelloMine3D\Ogre\OgreUserInterface.cpp"
+$appearanceSourcePath = Join-Path $Root `
+    "src\HelloMine3D\World\Block\TerrainAppearance.cpp"
+$meshBuilderSourcePath = Join-Path $Root `
+    "src\HelloMine3D\World\Chunk\ChunkMeshBuilder.cpp"
+$meshInputSourcePath = Join-Path $Root `
+    "src\HelloMine3D\World\Chunk\SectionMeshInput.cpp"
 
 $checks = 0
 $failures = 0
@@ -23,17 +29,19 @@ function Test-Contract {
     param([string]$Name, [bool]$Condition, [string]$Detail = "")
     ++$script:checks
     if ($Condition) {
-        Write-Host "[V10B2_ATLAS] PASS $Name"
+        Write-Host "[TERRAIN_ATLAS] PASS $Name"
         return
     }
     ++$script:failures
     [Console]::Error.WriteLine(
-        "[V10B2_ATLAS] FAIL $Name" +
+        "[TERRAIN_ATLAS] FAIL $Name" +
         $(if ($Detail) { ": $Detail" } else { "" }))
 }
 
 foreach ($required in @($layoutPath, $atlasPath, $builderPath,
-                         $materialSourcePath, $uiSourcePath)) {
+                         $materialSourcePath, $uiSourcePath,
+                         $appearanceSourcePath, $meshBuilderSourcePath,
+                         $meshInputSourcePath)) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
         throw "V10B2 atlas validation input is missing: $required"
     }
@@ -83,8 +91,8 @@ foreach ($line in $lines | Select-Object -Skip 1) {
          $semanticSet.Add($entry.Semantic) -and
          $coordinateSet.Add("$x,$y")) $trimmed
 }
-Test-Contract "layout-populated-count" ($entries.Count -eq 37) `
-    "expected=37 actual=$($entries.Count)"
+Test-Contract "layout-populated-count" ($entries.Count -eq 112) `
+    "expected=112 actual=$($entries.Count)"
 
 $requiredSemantics = @(
     'grass_top', 'grass_side', 'dirt', 'stone', 'oak_bark_side',
@@ -100,6 +108,39 @@ Test-Contract "required-material-coverage" `
     (@($requiredSemantics | Where-Object {
         -not $semanticSet.Contains($_)
     }).Count -eq 0)
+
+$ecologyRows = [ordered]@{
+    desert = 3
+    grassland = 4
+    light_forest = 5
+    temperate_forest = 6
+    ocean = 7
+}
+$ecologyGroups = [ordered]@{
+    grass_top = @{X=0; Alpha='opaque'}
+    grass_side = @{X=3; Alpha='opaque'}
+    oak_leaves = @{X=6; Alpha='cutout'}
+    water = @{X=9; Alpha='translucent'}
+    tall_grass = @{X=12; Alpha='cutout'}
+}
+$ecologyLayoutMatches = $true
+foreach ($ecology in $ecologyRows.Keys) {
+    foreach ($group in $ecologyGroups.Keys) {
+        for ($variant = 0; $variant -lt 3; ++$variant) {
+            $semantic = "${group}_${ecology}_v${variant}"
+            $entry = $entries | Where-Object {
+                $_.Semantic -eq $semantic
+            } | Select-Object -First 1
+            $ecologyLayoutMatches = $ecologyLayoutMatches -and
+                $null -ne $entry -and
+                $entry.X -eq $ecologyGroups[$group].X + $variant -and
+                $entry.Y -eq $ecologyRows[$ecology] -and
+                $entry.Alpha -eq $ecologyGroups[$group].Alpha
+        }
+    }
+}
+Test-Contract "v10b3-ecology-layout-5x5x3" `
+    $ecologyLayoutMatches
 
 Add-Type -AssemblyName System.Drawing
 $bitmap = [Drawing.Bitmap]::FromFile($atlasPath)
@@ -290,7 +331,29 @@ Test-Contract "hud-uses-frozen-terrain-profile" `
      $uiSource.Contains('terrainMaterial.containsTile') -and
      -not $uiSource.Contains('constexpr float atlasSize = 256.f'))
 
-$temporaryOutput = Join-Path $Root "tmp\v10b2-atlas-rebuild.png"
+$appearanceSource = Get-Content -LiteralPath $appearanceSourcePath -Raw
+$meshBuilderSource = Get-Content -LiteralPath $meshBuilderSourcePath -Raw
+$meshInputSource = Get-Content -LiteralPath $meshInputSourcePath -Raw
+Test-Contract "v10b3-world-only-ecology-selection" `
+    ($appearanceSource.Contains('BlockId::Grass') -and
+     $appearanceSource.Contains('BlockId::OakLeaf') -and
+     $appearanceSource.Contains('BlockId::Water') -and
+     $appearanceSource.Contains('BlockId::TallGrass') -and
+     $appearanceSource.Contains('coordinateVariant') -and
+     $appearanceSource.Contains('ecologyRow'))
+Test-Contract "v10b3-coordinate-patch-bounds-fragmentation" `
+    ($appearanceSource.Contains('VariantPatchSize') -and
+     $appearanceSource.Contains('patchCoordinate') -and
+     $appearanceSource.Contains('remainder < 0'))
+Test-Contract "v10b3-greedy-key-includes-appearance" `
+    ($meshBuilderSource.Contains('appearanceKey') -and
+     $meshBuilderSource.Contains(
+         'left.appearanceKey == right.appearanceKey'))
+Test-Contract "v10b3-snapshot-freezes-biome-and-seed" `
+    ($meshInputSource.Contains('getBiomeAtWorld') -and
+     $meshInputSource.Contains('m_terrainSeed = terrainSeed'))
+
+$temporaryOutput = Join-Path $Root "tmp\v10b3-atlas-rebuild.png"
 try {
     New-Item -ItemType Directory -Path (Split-Path -Parent $temporaryOutput) `
         -Force | Out-Null
@@ -309,8 +372,8 @@ finally {
     }
 }
 
-Write-Host "[V10B2_ATLAS] checks=$checks failures=$failures"
-Write-Host "[V10B2_ATLAS] status=$(if ($failures -eq 0) {'PASS'} else {'FAIL'})"
+Write-Host "[TERRAIN_ATLAS] checks=$checks failures=$failures"
+Write-Host "[TERRAIN_ATLAS] status=$(if ($failures -eq 0) {'PASS'} else {'FAIL'})"
 if ($failures -ne 0) {
     exit 1
 }

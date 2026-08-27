@@ -201,7 +201,9 @@ bool ChunkSection::makeMesh()
 
 void ChunkSection::captureMeshInput(SectionMeshInput &input)
 {
-    input.capture(*this);
+    ChunkManager &manager = m_pWorld->getChunkManager();
+    input.capture(*this, manager.getTerrainGenerator(),
+                  manager.getTerrainSeed());
 }
 
 void ChunkSection::adoptMesh(ChunkMeshCollection &built)

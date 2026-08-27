@@ -6,10 +6,12 @@
 #include <cstdint>
 
 #include "../Block/ChunkBlock.h"
+#include "../Generation/Terrain/TerrainGenerator.h"
 #include "../Light/LightLevel.h"
 #include "../WorldConstants.h"
 
 class ChunkSection;
+class TerrainGenerator;
 
 /// @brief Snapshot of everything a section mesh build reads.
 ///
@@ -26,13 +28,17 @@ class SectionMeshInput {
     static constexpr int Volume = Size * Size * Size;
 
     /// Must be called while the world lock is held.
-    void capture(ChunkSection &section);
+    void capture(ChunkSection &section,
+                 const TerrainGenerator &terrainGenerator,
+                 int terrainSeed);
 
     /// Valid for coordinates in [-1, CHUNK_SIZE].
     ChunkBlock getBlock(int x, int y, int z) const;
     LightLevel getSunlight(int x, int y, int z) const;
     LightLevel getBlockLight(int x, int y, int z) const;
     LightLevel getCombinedLight(int x, int y, int z) const;
+    TerrainBiome getBiome(int x, int z) const;
+    int getTerrainSeed() const noexcept;
 
     /// Valid for y in [0, CHUNK_SIZE).
     bool shouldMakeLayer(int y) const;
@@ -48,6 +54,7 @@ class SectionMeshInput {
     std::array<ChunkBlock, Volume> m_blocks{};
     std::array<LightLevel, Volume> m_sunlight{};
     std::array<LightLevel, Volume> m_blockLight{};
+    std::array<TerrainBiome, Size * Size> m_biomes{};
 
     /// Own layers for y in [-1, CHUNK_SIZE], stored at y + 1.
     std::array<bool, CHUNK_SIZE + 2> m_ownLayerAllSolid{};
@@ -56,6 +63,7 @@ class SectionMeshInput {
     std::array<std::array<bool, CHUNK_SIZE>, 4> m_neighbourLayerAllSolid{};
 
     glm::ivec3 m_location{};
+    int m_terrainSeed = 0;
 };
 
 #endif // SECTIONMESHINPUT_H_INCLUDED

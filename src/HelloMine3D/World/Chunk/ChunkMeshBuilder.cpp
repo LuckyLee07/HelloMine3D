@@ -8,6 +8,7 @@
 #include "../Block/BlockDatabase.h"
 #include "../Block/BlockTextureCoordinates.h"
 #include "../Block/BlockDefinition.h"
+#include "../Block/TerrainAppearance.h"
 #include "../../Diagnostics/RuntimeProfiler.h"
 
 #include <algorithm>
@@ -149,7 +150,7 @@ void ChunkMeshBuilder::buildMesh()
 
         if (renderInfo.meshType == BlockMeshType::Resource) {
             addResourceShapeToMesh(renderInfo.shape,
-                                   renderInfo.texTopCoord, position,
+                                   renderInfo.texTopCoord, block, position,
                                    definition.behavior->verticalRenderScale(
                                        definition, block));
             continue;
@@ -198,6 +199,7 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
         bool visible = false;
         ChunkBlock block;
         glm::ivec2 textureCoords{0};
+        std::uint16_t appearanceKey = 0;
         VertexLightingQuad lighting;
     };
 
@@ -205,7 +207,8 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
                                  const FaceCell &right) {
         return left.visible && right.visible && left.block == right.block &&
                left.textureCoords.x == right.textureCoords.x &&
-               left.textureCoords.y == right.textureCoords.y;
+               left.textureCoords.y == right.textureCoords.y &&
+               left.appearanceKey == right.appearanceKey;
     };
     const auto sameCorner = [](const VertexLightCorner &left,
                                const VertexLightCorner &right) {
@@ -362,10 +365,14 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
                 else if (face == CubeFace::Bottom) {
                     textureCoords = renderInfo.texBottomCoord;
                 }
+                const TerrainTileSelection appearance =
+                    selectTerrainTile(block, face, textureCoords,
+                                      position);
                 FaceCell &cell = mask[v * CHUNK_SIZE + u];
                 cell.visible = true;
                 cell.block = block;
-                cell.textureCoords = textureCoords;
+                cell.textureCoords = appearance.coordinates;
+                cell.appearanceKey = appearance.mergeKey;
                 cell.lighting = calculateVertexLighting(face, position);
             }
         }
@@ -736,10 +743,17 @@ void ChunkMeshBuilder::setActiveMesh(ChunkBlock block)
 
 void ChunkMeshBuilder::addResourceShapeToMesh(
     const BlockShape &shape, const glm::ivec2 &textureCoords,
-    const glm::ivec3 &blockPosition, float verticalScale)
+    ChunkBlock block, const glm::ivec3 &blockPosition,
+    float verticalScale)
 {
+    const TerrainTileSelection appearance = TerrainAppearance::select(
+        static_cast<BlockId>(block.id), TerrainFaceKind::Resource,
+        textureCoords,
+        m_pInput->getBiome(blockPosition.x, blockPosition.z),
+        m_pInput->getTerrainSeed(), worldPositionFor(blockPosition));
     const auto texCoords =
-        BlockTextureCoordinates::get(textureCoords.x, textureCoords.y);
+        BlockTextureCoordinates::get(appearance.coordinates.x,
+                                     appearance.coordinates.y);
     const float light = combineTerrainLight(
         LIGHT_X, m_pInput->getCombinedLight(
                      blockPosition.x, blockPosition.y, blockPosition.z));
@@ -759,13 +773,40 @@ void ChunkMeshBuilder::tryAddFaceToMesh(
     const glm::ivec3 &blockFacing, CubeFace face)
 {
     if (shouldMakeFace(block, blockFacing)) {
+        const TerrainTileSelection appearance =
+            selectTerrainTile(block, face, textureCoords, blockPosition);
         const auto texCoords =
-            BlockTextureCoordinates::get(textureCoords.x, textureCoords.y);
+            BlockTextureCoordinates::get(appearance.coordinates.x,
+                                         appearance.coordinates.y);
 
         addVertexLitFace(*m_pActiveMesh, face, blockFace, texCoords,
                          blockPosition,
                          calculateVertexLighting(face, blockPosition));
     }
+}
+
+TerrainTileSelection ChunkMeshBuilder::selectTerrainTile(
+    ChunkBlock block, CubeFace face,
+    const glm::ivec2 &baseCoordinates,
+    const glm::ivec3 &blockPosition) const
+{
+    TerrainFaceKind faceKind = TerrainFaceKind::Side;
+    if (face == CubeFace::Top) {
+        faceKind = TerrainFaceKind::Top;
+    }
+    else if (face == CubeFace::Bottom) {
+        faceKind = TerrainFaceKind::Bottom;
+    }
+    return TerrainAppearance::select(
+        static_cast<BlockId>(block.id), faceKind, baseCoordinates,
+        m_pInput->getBiome(blockPosition.x, blockPosition.z),
+        m_pInput->getTerrainSeed(), worldPositionFor(blockPosition));
+}
+
+glm::ivec3 ChunkMeshBuilder::worldPositionFor(
+    const glm::ivec3 &blockPosition) const
+{
+    return m_pInput->getLocation() * CHUNK_SIZE + blockPosition;
 }
 
 bool ChunkMeshBuilder::shouldMakeFace(ChunkBlock block,

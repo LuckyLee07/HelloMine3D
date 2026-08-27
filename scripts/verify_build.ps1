@@ -125,7 +125,7 @@ try {
         & $resourceManifestVerifier
     }
 
-    Invoke-Checked "V10B2 terrain atlas contract" {
+    Invoke-Checked "Stage 10 terrain atlas contract" {
         & $terrainAtlasVerifier -Root $repoRoot
     }
 

@@ -41,10 +41,18 @@ function Invoke-Case {
         [string]$Name,
         [string]$Candidate,
         [int]$ExpectedExit,
-        [string]$ExpectedStatus
+        [string]$ExpectedStatus,
+        [switch]$AllowResourceManifestChange
     )
-    $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass `
-        -File $comparator -Baseline $source -Candidate $Candidate 2>&1
+    if ($AllowResourceManifestChange) {
+        $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass `
+            -File $comparator -Baseline $source -Candidate $Candidate `
+            -AllowResourceManifestChange 2>&1
+    }
+    else {
+        $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass `
+            -File $comparator -Baseline $source -Candidate $Candidate 2>&1
+    }
     $exitCode = $LASTEXITCODE
     $text = $output | Out-String
     if ($exitCode -ne $ExpectedExit -or
@@ -82,6 +90,18 @@ try {
         -Value "36"
     Invoke-Case -Name "vertex-format-change" -Candidate $stride `
         -ExpectedExit 2 -ExpectedStatus "REVIEW_REQUIRED"
+
+    $manifest = Join-Path $tempRoot "manifest.summary.txt"
+    Copy-Item -LiteralPath $source -Destination $manifest
+    Set-SummaryValue -Path $manifest `
+        -Key "comparison_resource_manifest_sha256" `
+        -Value ("a" * 64)
+    Invoke-Case -Name "manifest-change-without-bridge" `
+        -Candidate $manifest -ExpectedExit 3 `
+        -ExpectedStatus "INCOMPARABLE"
+    Invoke-Case -Name "explicit-manifest-bridge" -Candidate $manifest `
+        -ExpectedExit 0 -ExpectedStatus "PASS" `
+        -AllowResourceManifestChange
 
     $missing = Join-Path $tempRoot "missing.summary.txt"
     Copy-Item -LiteralPath $source -Destination $missing

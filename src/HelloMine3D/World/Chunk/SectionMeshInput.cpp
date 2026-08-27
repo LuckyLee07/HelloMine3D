@@ -1,6 +1,7 @@
 #include "SectionMeshInput.h"
 
 #include "ChunkSection.h"
+#include "../Generation/Terrain/TerrainGenerator.h"
 
 #include <algorithm>
 
@@ -15,9 +16,21 @@ int SectionMeshInput::index(int x, int y, int z)
     return (x + 1) + (z + 1) * Size + (y + 1) * Size * Size;
 }
 
-void SectionMeshInput::capture(ChunkSection &section)
+void SectionMeshInput::capture(
+    ChunkSection &section, const TerrainGenerator &terrainGenerator,
+    int terrainSeed)
 {
     m_location = section.getLocation();
+    m_terrainSeed = terrainSeed;
+
+    for (int z = -1; z <= CHUNK_SIZE; ++z) {
+        for (int x = -1; x <= CHUNK_SIZE; ++x) {
+            const int worldX = m_location.x * CHUNK_SIZE + x;
+            const int worldZ = m_location.z * CHUNK_SIZE + z;
+            m_biomes[(x + 1) + (z + 1) * Size] =
+                terrainGenerator.getBiomeAtWorld(worldX, worldZ);
+        }
+    }
 
     // ChunkSection::getBlock() resolves out-of-range coordinates through the
     // world, which is why this has to run under the world lock.
@@ -70,6 +83,19 @@ LightLevel SectionMeshInput::getBlockLight(int x, int y, int z) const
 LightLevel SectionMeshInput::getCombinedLight(int x, int y, int z) const
 {
     return std::max(getSunlight(x, y, z), getBlockLight(x, y, z));
+}
+
+TerrainBiome SectionMeshInput::getBiome(int x, int z) const
+{
+    if (x < -1 || x > CHUNK_SIZE || z < -1 || z > CHUNK_SIZE) {
+        return TerrainBiome::Grassland;
+    }
+    return m_biomes[(x + 1) + (z + 1) * Size];
+}
+
+int SectionMeshInput::getTerrainSeed() const noexcept
+{
+    return m_terrainSeed;
 }
 
 ChunkBlock SectionMeshInput::getBlock(int x, int y, int z) const

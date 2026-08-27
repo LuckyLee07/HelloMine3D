@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory = $true)] [string]$Baseline,
     [Parameter(Mandatory = $true)] [string]$Candidate,
     [ValidateRange(0.0, 1000.0)] [double]$ThresholdPercent = 10.0,
-    [string]$ReportPath = ""
+    [string]$ReportPath = "",
+    [switch]$AllowResourceManifestChange
 )
 
 $ErrorActionPreference = "Stop"
@@ -73,21 +74,72 @@ function Require-Number {
     return $value
 }
 
+function Write-SummaryWithValue {
+    param(
+        [string]$Source,
+        [string]$Destination,
+        [string]$Key,
+        [string]$Value
+    )
+    $prefix = "$Key="
+    $found = $false
+    $lines = Get-Content -LiteralPath $Source -Encoding utf8 |
+        ForEach-Object {
+            if ($_.StartsWith($prefix)) {
+                $found = $true
+                "$prefix$Value"
+            }
+            else { $_ }
+        }
+    if (-not $found) {
+        throw "Summary bridge source is missing '$Key'."
+    }
+    Set-Content -LiteralPath $Destination -Encoding utf8 -Value $lines
+}
+
+$bridgeTempRoot = ""
 try {
     $baselinePath = Resolve-SummaryPath -Path $Baseline
     $candidatePath = Resolve-SummaryPath -Path $Candidate
 
+    $baselineSummary = Read-Summary -Path $baselinePath -Label "Baseline"
+    $candidateSummary = Read-Summary -Path $candidatePath -Label "Candidate"
+    $baselineManifest = Require-Text -Summary $baselineSummary `
+        -Key "comparison_resource_manifest_sha256" -Label "Baseline"
+    $candidateManifest = Require-Text -Summary $candidateSummary `
+        -Key "comparison_resource_manifest_sha256" -Label "Candidate"
+    $coreCandidatePath = $candidatePath
+    $resourceManifestBridge = "not-required"
+    if ($baselineManifest -cne $candidateManifest -and
+        $AllowResourceManifestChange) {
+        foreach ($entry in @(
+            @{ Label = "Baseline"; Value = $baselineManifest },
+            @{ Label = "Candidate"; Value = $candidateManifest })) {
+            if ($entry.Value -notmatch '^[0-9a-fA-F]{64}$') {
+                throw "$($entry.Label) resource manifest hash is invalid."
+            }
+        }
+        $bridgeTempRoot = Join-Path ([IO.Path]::GetTempPath()) `
+            ("HelloMine3D-stage10-manifest-bridge-" +
+             [Guid]::NewGuid().ToString("N"))
+        New-Item -ItemType Directory -Path $bridgeTempRoot | Out-Null
+        $coreCandidatePath = Join-Path $bridgeTempRoot "candidate.summary.txt"
+        Write-SummaryWithValue -Source $candidatePath `
+            -Destination $coreCandidatePath `
+            -Key "comparison_resource_manifest_sha256" `
+            -Value $baselineManifest
+        $resourceManifestBridge = "allowed"
+    }
+
     $coreOutput = & powershell.exe -NoProfile -ExecutionPolicy Bypass `
         -File $coreComparator -Baseline $baselinePath `
-        -Candidate $candidatePath 2>&1
+        -Candidate $coreCandidatePath 2>&1
     $coreExit = $LASTEXITCODE
     $coreOutput | Write-Host
     if ($coreExit -ne 0) {
         exit $coreExit
     }
 
-    $baselineSummary = Read-Summary -Path $baselinePath -Label "Baseline"
-    $candidateSummary = Read-Summary -Path $candidatePath -Label "Candidate"
     foreach ($entry in @(
         @{ Label = "Baseline"; Summary = $baselineSummary },
         @{ Label = "Candidate"; Summary = $candidateSummary })) {
@@ -124,7 +176,10 @@ try {
     $report = @(
         "stage10_performance_supplement=1",
         "comparison_scene_id=$scene",
-        "threshold_percent=$($ThresholdPercent.ToString($invariant))"
+        "threshold_percent=$($ThresholdPercent.ToString($invariant))",
+        "resource_manifest_bridge=$resourceManifestBridge",
+        "baseline_resource_manifest_sha256=$baselineManifest",
+        "candidate_resource_manifest_sha256=$candidateManifest"
     )
     $review = @()
     foreach ($metric in $metrics) {
@@ -186,4 +241,10 @@ catch {
     Write-Host "[STAGE10_PERF] invalid=$($_.Exception.Message)"
     Write-Host "[STAGE10_PERF] status=INVALID"
     exit 4
+}
+finally {
+    if (-not [string]::IsNullOrWhiteSpace($bridgeTempRoot) -and
+        (Test-Path -LiteralPath $bridgeTempRoot)) {
+        Remove-Item -LiteralPath $bridgeTempRoot -Recurse -Force
+    }
 }

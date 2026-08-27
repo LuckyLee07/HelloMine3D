@@ -87,8 +87,8 @@ function Read-AtlasLayout {
         $byCoordinate[$coordinate] = $entry
     }
 
-    if ($bySemantic.Count -ne 37) {
-        throw "Terrain atlas layout must define exactly 37 populated tiles; got $($bySemantic.Count)."
+    if ($bySemantic.Count -ne 112) {
+        throw "Terrain atlas layout must define exactly 112 populated tiles; got $($bySemantic.Count)."
     }
     return $bySemantic
 }
@@ -262,6 +262,101 @@ function Copy-GeneratedTile {
     }
 }
 
+function Copy-EcologyTile {
+    param(
+        [string]$SourceSemantic,
+        [string]$DestinationSemantic,
+        [double[]]$Tint,
+        [ValidateRange(0, 2)][int]$Variant
+    )
+
+    if (-not $layoutEntries.ContainsKey($SourceSemantic) -or
+        -not $layoutEntries.ContainsKey($DestinationSemantic)) {
+        throw "Ecology tile references an unknown semantic: $SourceSemantic -> $DestinationSemantic"
+    }
+    if (-not $builtSemantics.Contains($SourceSemantic)) {
+        throw "Ecology source tile was not built first: $SourceSemantic"
+    }
+    if (-not $builtSemantics.Add($DestinationSemantic)) {
+        throw "Generated tile was emitted twice: $DestinationSemantic"
+    }
+    if ($Tint.Count -ne 3) {
+        throw "Ecology tint requires exactly three RGB multipliers."
+    }
+
+    $sourceEntry = $layoutEntries[$SourceSemantic]
+    $destinationEntry = $layoutEntries[$DestinationSemantic]
+    # Top-facing natural surfaces use quarter turns so the strongest pixel
+    # strokes do not repeat in one direction across every block. Vertical
+    # flora and grass sides may only mirror horizontally; rotating those
+    # would put roots/cut edges on the wrong side. The brightness delta stays
+    # deliberately small so the variants read as one material, not patches.
+    $variantFactor = @(1.0, 1.02, 0.98)[$Variant]
+    $tile = New-Object Drawing.Bitmap 16, 16,
+        ([Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    try {
+        for ($y = 0; $y -lt 16; ++$y) {
+            for ($x = 0; $x -lt 16; ++$x) {
+                $sourceX = $x
+                $sourceY = $y
+                if ($SourceSemantic -in @(
+                        'grass_top', 'oak_leaves', 'water')) {
+                    if ($Variant -eq 1) {
+                        $sourceX = $y
+                        $sourceY = 15 - $x
+                    }
+                    elseif ($Variant -eq 2) {
+                        $sourceX = 15 - $y
+                        $sourceY = $x
+                    }
+                }
+                elseif ($SourceSemantic -in @(
+                        'grass_side', 'tall_grass') -and
+                        $Variant -eq 1) {
+                    $sourceX = 15 - $x
+                }
+
+                $pixel = $atlas.GetPixel(
+                    [int]$sourceEntry.X * 16 + $sourceX,
+                    [int]$sourceEntry.Y * 16 + $sourceY)
+                if ($pixel.A -eq 0) {
+                    $tile.SetPixel($x, $y, [Drawing.Color]::Transparent)
+                    continue
+                }
+
+                # Grass sides keep their dirt body neutral; only pixels whose
+                # green channel clearly dominates receive the ecology tint.
+                $applyTint = $SourceSemantic -ne 'grass_side' -or
+                    ($pixel.G -gt $pixel.R * 1.05 -and
+                     $pixel.G -gt $pixel.B * 1.05)
+                $redTint = if ($applyTint) { $Tint[0] } else { 1.0 }
+                $greenTint = if ($applyTint) { $Tint[1] } else { 1.0 }
+                $blueTint = if ($applyTint) { $Tint[2] } else { 1.0 }
+                $red = [Math]::Min(255, [Math]::Max(
+                    0, [int][Math]::Round(
+                        $pixel.R * $redTint * $variantFactor)))
+                $green = [Math]::Min(255, [Math]::Max(
+                    0, [int][Math]::Round(
+                        $pixel.G * $greenTint * $variantFactor)))
+                $blue = [Math]::Min(255, [Math]::Max(
+                    0, [int][Math]::Round(
+                        $pixel.B * $blueTint * $variantFactor)))
+                $tile.SetPixel(
+                    $x, $y,
+                    [Drawing.Color]::FromArgb(
+                        $pixel.A, $red, $green, $blue))
+            }
+        }
+
+        $graphics.DrawImageUnscaled(
+            $tile, [int]$destinationEntry.X * 16,
+            [int]$destinationEntry.Y * 16)
+    }
+    finally {
+        $tile.Dispose()
+    }
+}
+
 try {
     # V10B2 original material source. Opaque surface crops exclude the
     # presentation outline; flora and icons keep their transparent silhouette.
@@ -306,6 +401,51 @@ try {
     Copy-GeneratedTile cactus_salad economy 962 169 69 74 -KeepAspect
     Copy-GeneratedTile trail_ration economy 1042 175 65 68 -KeepAspect
     Copy-GeneratedTile plant_fiber economy 1116 176 74 71 -KeepAspect
+
+    # V10B3 derives restrained world-only ecology colours and three small
+    # orientation/brightness variants from the frozen V10B2 tiles. This stays
+    # deterministic, preserves every alpha value and leaves the base HUD/held
+    # coordinates untouched.
+    $ecologies = @(
+        [PSCustomObject]@{
+            Slug='desert'; Plant=@(1.12, 0.88, 0.68);
+            Water=@(0.94, 1.02, 1.04)
+        },
+        [PSCustomObject]@{
+            Slug='grassland'; Plant=@(1.02, 1.05, 0.92);
+            Water=@(0.92, 1.02, 1.04)
+        },
+        [PSCustomObject]@{
+            Slug='light_forest'; Plant=@(0.92, 1.03, 0.90);
+            Water=@(0.88, 1.00, 1.06)
+        },
+        [PSCustomObject]@{
+            Slug='temperate_forest'; Plant=@(0.82, 0.96, 0.84);
+            Water=@(0.84, 0.96, 1.08)
+        },
+        [PSCustomObject]@{
+            Slug='ocean'; Plant=@(0.84, 0.98, 1.02);
+            Water=@(0.80, 0.98, 1.14)
+        }
+    )
+    foreach ($ecology in $ecologies) {
+        foreach ($variant in 0..2) {
+            foreach ($semantic in @(
+                    'grass_top', 'grass_side', 'oak_leaves',
+                    'water', 'tall_grass')) {
+                $tint = if ($semantic -eq 'water') {
+                    $ecology.Water
+                }
+                else {
+                    $ecology.Plant
+                }
+                $destination = '{0}_{1}_v{2}' -f
+                    $semantic, $ecology.Slug, $variant
+                Copy-EcologyTile -SourceSemantic $semantic -DestinationSemantic (
+                    $destination) -Tint $tint -Variant $variant
+            }
+        }
+    }
 
     if ($builtSemantics.Count -ne $layoutEntries.Count) {
         $missing = @($layoutEntries.Keys | Where-Object {
