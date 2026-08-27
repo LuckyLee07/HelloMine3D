@@ -1,9 +1,29 @@
 # R3 Physical Input Acceptance Protocol v1
 
-This protocol closes the validation gap between deterministic controller tests
-and the real Windows OIS keyboard/mouse path. It is deliberately physical: no
+This protocol records the original twelve-case validation gap between
+deterministic controller tests and the real Windows OIS keyboard/mouse path. It
+is deliberately physical: no
 tool may synthesize desktop input, move the pointer, or mark a case on behalf
 of the operator.
+
+## Current status and scope limit
+
+Version 1 remains a valid historical input baseline and its validator continues
+to check the exact record schema. It is no longer sufficient by itself to close
+the current D4, D6 or project-wide R3 `Verify` state:
+
+- `case.attack_mob` observes attacking a mob, but does not require the player to
+  take damage, die and respawn;
+- the twelve cases do not cover crop acquisition/planting, an explicit save,
+  relaunch and restored-state inspection required by D6;
+- they predate Stage 9 guard/ranged/difficulty paths and do not cover visual,
+  bilingual-readability or listening acceptance.
+
+A future Physical Input v2 must add the missing player-input journeys before it
+can close D2/D4/D6/R3. Visual, bilingual-readability and listening evidence must
+use a separate product-experience checklist; it must not be appended to this
+physical-input schema. A v1 `PASS` therefore means only "all twelve v1 cases
+passed on the recorded identity".
 
 ## Preconditions
 
@@ -74,9 +94,12 @@ or D6.
 
 - `protocol_version` must be `1`.
 - `commit` is the tested Git commit, not merely the current branch name.
-- `configuration` is `Debug` or `Release`; D6 acceptance requires `Release`.
+- `configuration` is `Debug` or `Release`; records intended as a baseline for
+  the later D6 journey must use `Release`, but v1 alone cannot close D6.
 - `overall_result=PASS` is valid only when every case is `PASS` and
   `deviations=none`.
+- `overall_result=PASS` proves only the v1 scope described above; it does not
+  automatically close the current D4, D6 or project-wide R3 state.
 - A `FAIL` or `BLOCKED` result is still useful evidence, but it does not close
   R3, D2, D4 or D6.
 - Repeat the whole protocol after any OIS, window-system, container UI,

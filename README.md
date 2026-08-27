@@ -28,6 +28,7 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 | `docs/runtime-validation.md` | How runtime behaviour is validated, and what is not covered. |
 | `docs/iteration-plan.md` | Long-term iteration roadmap. |
 | `docs/game-development-roadmap.md` | Detailed G5/G6, post-Alpha gameplay and Release Candidate development order. |
+| `docs/visual-quality-roadmap.md` | Stage 10 vertex lighting/AO, split material pipeline/assets/tint batches, atmosphere/clouds, optional shadows, post-processing, version plan and visual-RC gates. |
 | `docs/world-catalogue-contract-v1.md`, `docs/storage-transaction-contract-v1.md`, `docs/world-backup-contract-v1.md`, `docs/world-management-contract-v1.md` | K1-K4 world identity, atomic publication, verified recovery and player-facing management contracts. |
 | `docs/runtime-settings-contract-v1.md` | G4 pause, settings draft, versioned persistence and live-apply contract. |
 | `docs/audio-feedback-contract-v1.md` | G5 audio definitions, event ownership, playback, degradation and validation contract. |
@@ -41,7 +42,8 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 | `docs/render-regression-smoke.md` | Non-intrusive render screenshot smoke. |
 | `docs/performance-baseline.md` | Non-intrusive frame timing and chunk counter baseline. |
 | `docs/difficulty-replay-contract-v1.md` | N11A versioned difficulty, migration, transactional apply and performance identity contract. |
-| `docs/manual-input-acceptance-v1.md` | Versioned physical keyboard/mouse acceptance protocol. |
+| `docs/manual-input-acceptance-v1.md` | Historical twelve-case physical keyboard/mouse baseline; a passing v1 record no longer closes the expanded D4/D6 or product-experience scope by itself. |
+| `docs/manual-product-experience-acceptance-v1.md` | Separate developer visual, formal visual/readability and listening acceptance contract; it does not replace physical-input evidence. |
 | `docs/resource-pack-contract.md` | Bounded read-only resource-pack contract and validation. |
 | `docs/windows-release-packaging.md` | Deterministic self-contained Windows distribution flow. |
 | `docs/chunk-streaming-regression.md` | Diagnosis and fix of the terrain streaming regression. |
@@ -52,14 +54,21 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 The selected 13-item Windows D/R/X implementation scope is complete. It now
 includes the playable crop/container/combat/persistence slice, a deterministic
 world soak, clean-root packaging and the bounded read-only resource-pack layer.
-R3 physical-input acceptance still closes the remaining D2, D4 and D6
-`Verify` states, but it is intentionally deferred while the project prioritizes
-the player-facing gameplay loop. K4 world entry, G2 crafting, G3 tool
+Physical-input acceptance is intentionally deferred while the project
+prioritizes the player-facing gameplay loop. The existing R3 v1 protocol remains
+a useful twelve-case baseline, but D4/D6 now require a future Physical Input v2;
+visual, bilingual-readability and listening acceptance remain separate. K4 world entry, G2 crafting, G3 tool
 progression, G4 pause/settings, G5 audio feedback, the G6 playable Alpha journey
 and Stage 9 through N12C are complete. The BETA-RC engineering audit is also
 complete: the refreshed six-scene Q1 comparison and both 1,800-second Q3
 profiles pass, and the release evidence is frozen for bundling. R3 remains
 partially tested and explicitly deferred, so no local Beta tag has been made.
+The current development batch is Stage 10 `V10A`: deterministic per-vertex
+smooth lighting and ambient occlusion, followed by separate material-pipeline,
+original-asset and biome-tint/variant batches, then atmosphere/cloud, optional
+shadow and bounded post-processing work. Every visual batch requires a short
+developer visual record; formal physical input and product-experience acceptance
+remain independent release evidence.
 
 Stage 8 is now planned around sustainable play and reliable releases. Its
 16-item K/H/Q/G scope adds durable world management and recovery, local

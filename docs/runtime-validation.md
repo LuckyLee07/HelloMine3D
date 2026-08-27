@@ -113,8 +113,8 @@ in `docs/project-ledger-2026-08-17.md`, and completed runs are recorded in
 | D3-D4 live mobs and combat | Cover deterministic spawn candidates, population caps, safe placement, restore deduplication, actor targeting, accepted/suppressed damage, death/drop ordering and player respawn. Validation-only spawn helpers remain fixture-only and cannot satisfy D6. | Focused actor tests, world assertions, live/capped counters, a fixed-seed hardware capture and R3 attack/input evidence. |
 | D5 crop loop | Cover support checks, metadata stages, random-tick budgets, unloaded-section exclusion, immature/mature drops, harvest/replant and persistence. | World assertions plus asset and generated-manifest checks for every new block, material, shape or texture. |
 | R2 long-running soak | Use a fixed seed and versioned action schedule to repeat load-centre movement, block edits, actor/item lifecycle and save/reload while sampling memory, process handles, dirty queues and mesh progress. Developer runs may be shorter; milestone evidence is at least 30 minutes. | Timestamped summary and bounded logs outside Git. Fail non-zero on invariant errors, save corruption, stalled mesh progress or unbounded counter growth; record build configuration, seed, duration and peak/final counters. |
-| R3 physical OIS input | Keep desktop input non-intrusive: a person verifies movement, look, flight toggle/held sneak, hotbar, break/place/use, UI focus and window focus recovery. | Record date, commit, build configuration, GPU/window mode, each checklist result and any deviation. Repeat after input, window-system, container UI or combat changes. |
-| D6 playable slice | Run the normal fixed-seed player path through crop acquisition/planting, container use, a live mob encounter, combat, loot pickup, save, relaunch and restored-state inspection. | Full Windows gate, applicable headless assertions, R1 before/after comparison, R3 checklist and tracked decoded hardware captures. No debug-only state injection after initial fixture selection. |
+| R3 physical OIS input | Version 1 remains a twelve-case historical baseline for movement, look, hotbar, break/place/use, UI focus and window focus recovery. It does not cover player damage/death/respawn, the complete D6 save journey or later Stage 9 input paths. | Keep v1 records and validator truthful; do not use a v1 PASS to close current D4/D6/R3. A future Physical Input v2 must record date, commit, build, GPU/window identity, the expanded cases and deviations. Visual, bilingual and listening acceptance stays separate. |
+| D6 playable slice | Run the normal fixed-seed player path through crop acquisition/planting, container use, a live mob encounter, combat, loot pickup, save, relaunch and restored-state inspection. | Full Windows gate, applicable headless assertions, R1 before/after comparison, future Physical Input v2 and tracked decoded hardware captures. No debug-only state injection after initial fixture selection. |
 | R4 formal race detection | Build and run the loader churn/world smoke with Clang ThreadSanitizer on a supported native host. | `bash scripts/verify_tsan.sh` first requires an isolated race probe to produce the expected report/exit 66, then records Xcode's selected compiler and host identity, proves native architecture plus TSan runtime linkage/instrumentation, rejects suppressions, and requires the three V5 checks plus the complete 346/0 world result with zero project reports. |
 | R5 clean-root package | Validate a generated Release distribution from an isolated directory, with no access to the source/build tree. Check the packaged inventory, required notices, validation-only startup, real-window startup and negative missing/stale resource cases. | Archive inventory/hash, isolated-root path, positive startup results and distinct negative diagnostics. Generated archives and logs remain untracked. |
 | X1-X3 resource packs | Exercise resolver precedence, fallback, version rejection, path-escape rejection, effective manifests and per-resource-class overrides from isolated roots. The effective view is frozen before Ogre construction. | No-pack compatibility, valid-pack Debug/Release startup, missing/stale/duplicate/path-escape failures, base/packed decoded captures, R1 comparison and R5 packaging coverage. |
@@ -131,8 +131,9 @@ H1-H3 和 Q1-Q3 已完成；目标 Windows 的六类 RC Release 基线/复测、
 状态以 `docs/todolist.md` 为准。
 New harnesses must first prove their own positive,
 negative, invalid and incomparable fixtures before their output can be added to
-`Current Verified Runs`. R3 remains required for final stage-8 physical-input
-and UI acceptance, but it does not block K4/G2-G6 implementation work.
+`Current Verified Runs`. Physical-input evidence remains required for final
+stage-8 acceptance, but protocol v1 no longer closes the expanded D4/D6 scope
+by itself and does not block K4/G2-G6 or Stage 10 implementation work.
 
 ### R3 Physical Input Record
 
@@ -156,8 +157,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_manual_input_
 The validator rejects missing/duplicate/unknown fields, invalid metadata,
 unknown case results and any claimed overall pass with a non-pass case or
 deviation. `scripts\verify_build.ps1` validates the tracked `NOT_RUN` template
-schema, but only a human-operated `-RequirePass` record can close R3. No
-automation may synthesize the physical input.
+schema. A human-operated `-RequirePass` record proves the twelve v1 cases only;
+it cannot close the current D4/D6/R3 scope until Physical Input v2 is defined.
+No automation may synthesize the physical input.
 
 As of 2026-08-25 the operator has reported only partial informal self-testing
 (items 1 and 8 plus block breaking/pickup). No full record was produced, so
@@ -271,6 +273,7 @@ Run the full set before closing any milestone. Run the world runtime smoke
 after any change to chunk addressing, chunk storage, block interaction, the
 event bus, actors, or terrain generation. Once implemented, also run R1 after
 changes that affect timing or residency, R2 after chunk/actor/persistence or
-background-worker changes, R3 after player-facing input/UI changes, and R5
+background-worker changes, Physical Input v2 after player-facing input/UI
+changes, independent product-experience checks after visual/localization/audio changes, and R5
 after manifest, resolver or packaging changes. Add each accepted run to the
 table above rather than relying on an untracked local success.

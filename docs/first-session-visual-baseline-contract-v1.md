@@ -129,8 +129,9 @@ FS3 的 2026-08-24 关闭证据：
 - 隐藏窗口增加 `WS_EX_NOACTIVATE`，截图/性能脚本默认隐藏；隐藏客户端不执行 OIS
   `capture()`，因此不会抢占前台，也不会读取用户正在其他窗口输入的键鼠。焦点守卫实际确认
   `foreground_owned=false`、`visible_window=false`、退出码 0。
-- R3 仍为 `NOT_RUN`，只在 RC0 由真人使用显式前台 Release 窗口关闭 D2/D4/D6；这不反向
-  改写 FS3 的自动实现和截图状态。
+- R3 v1 仍为 `NOT_RUN`，RC0 已被 BETA-RC 取代；v1 即使通过也不再自动关闭当前 D4/D6。
+  后续 Physical Input v2 与独立产品体验使用显式前台 Release 窗口执行，不反向改写 FS3 的
+  自动实现和截图状态。
 
 ## 非目标
 
@@ -138,3 +139,8 @@ FS3 的 2026-08-24 关闭证据：
 - 不在 FS1 改 terrain generation version、世界保存版本或目标定义。
 - 不在 FS2 首轮引入 PBR、实时反射、级联阴影、天气系统或重型后处理框架。
 - 不复制 `F:\env1_trunk` 的美术资源；只参考其渲染/UI 分层和有界资源管理思路。
+
+FS2/FS3 是已经冻结的 before 基线，不代表视觉方向结束。BETA-RC 后的顶点平滑光照/AO、材质
+管线、原创资产、生态 tint/变体、定向大气/立体云、可选方向阴影和轻量后处理已拆入 Stage 10，
+权威顺序与退出条件见
+`docs/visual-quality-roadmap.md`；新批次必须保留本文固定 seed/位置/时间截图作为比较基线。

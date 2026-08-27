@@ -59,7 +59,8 @@ N12C 至少覆盖：
 - settings v4 及 v0-v3 原子迁移、双语 key/Credits/许可、64 项清单和资源包 base-only；
 - VS2017/v141 Debug/Release 世界、资源包与客户端，以及隐藏真实 WaveOut 三帧启动。
 
-真人听感、实际暂停/切世界的听觉过渡和真实无设备机器体验属于用户决定延期的 R3 项。
+真人听感、实际暂停/切世界的听觉过渡和真实无设备机器体验在本批完成时随人工项延期；当前
+改由 `docs/manual-product-experience-acceptance-v1.md` 独立记录。
 自动格式与生命周期测试不能把这些项目标记为 `PASS`，但不阻塞 N12C 自动开发门禁或后续
 BETA-RC 工程封板。
 
