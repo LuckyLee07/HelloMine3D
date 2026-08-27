@@ -11,6 +11,8 @@ $binDirectory = Join-Path $repoRoot "bin"
 $startupErrorVerifier = Join-Path $repoRoot "tools\validate_startup_errors.ps1"
 $resourceManifestVerifier = Join-Path $repoRoot `
     "tools\validate_resource_manifest.ps1"
+$terrainAtlasVerifier = Join-Path $repoRoot `
+    "tools\validate_terrain_atlas.ps1"
 $audioSampleVerifier = Join-Path $repoRoot `
     "tools\generate_n12b_audio_samples.ps1"
 $musicTrackVerifier = Join-Path $repoRoot `
@@ -119,6 +121,10 @@ Push-Location $repoRoot
 try {
     Invoke-Checked "Resource manifest" {
         & $resourceManifestVerifier
+    }
+
+    Invoke-Checked "V10B2 terrain atlas contract" {
+        & $terrainAtlasVerifier -Root $repoRoot
     }
 
     Invoke-Checked "N12B sampled audio assets" {

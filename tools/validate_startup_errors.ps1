@@ -38,6 +38,11 @@ $requirements = @(
         DiagnosticPath = "media/materials/Base.terrain-material"
     },
     [pscustomobject]@{
+        Category = "atlas-layout"
+        RelativePath = "media\materials\Base.terrain-atlas"
+        DiagnosticPath = "media/materials/Base.terrain-atlas"
+    },
+    [pscustomobject]@{
         Category = "texture"
         RelativePath = "media\textures\DefaultPack.png"
         DiagnosticPath = "media/textures/DefaultPack.png"
@@ -84,6 +89,7 @@ foreach ($missing in $requirements) {
     $manifestLines = @(
         '# HelloMine3D resource manifest v1',
         '',
+        'atlas-layout|media/materials/Base.terrain-atlas',
         'block|media/blocks/Stone.block',
         'enemy|media/enemies/Base.enemy',
         'food|media/foods/Base.food',

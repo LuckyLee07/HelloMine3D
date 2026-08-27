@@ -1,0 +1,39 @@
+# HelloMine3D terrain atlas layout v1
+# semantic|x|y|alpha|fill_rgb|en-US|zh-CN
+grass_top|0|0|opaque|4F742D|Grass top|草地顶部
+grass_side|1|0|opaque|6B4A2B|Grass side|草方块侧面
+dirt|2|0|opaque|6B4A2B|Dirt|泥土
+stone|3|0|opaque|747879|Stone|石头
+oak_bark_side|4|0|opaque|5A3B1B|Oak bark side|橡木树皮侧面
+oak_bark_top|5|0|opaque|956A32|Oak bark rings|橡木年轮
+oak_leaves|6|0|cutout|000000|Oak leaves|橡树叶
+sand|7|0|opaque|D8BD75|Sand|沙
+water|8|0|translucent|000000|Water|水
+cactus|9|0|opaque|3F7A1E|Cactus|仙人掌
+rose|10|0|cutout|000000|Rose|玫瑰
+tall_grass|11|0|cutout|000000|Tall grass|高草
+dead_shrub|12|0|cutout|000000|Dead shrub and sapling|枯灌木与树苗
+coal_ore|13|0|opaque|666A6B|Coal ore|煤矿石
+iron_ore|14|0|opaque|666A6B|Iron ore|铁矿石
+waystone_core|15|0|opaque|153A57|Waystone core|路标核心
+chest|0|1|opaque|744708|Chest|箱子
+workbench|1|1|opaque|875121|Workbench|工作台
+furnace|2|1|opaque|464B4D|Furnace|熔炉
+glass|3|1|translucent|000000|Framed glass|有框玻璃
+glass_borderless|4|1|translucent|000000|Borderless glass|无边框玻璃
+oak_planks|5|1|opaque|A27432|Oak planks|橡木木板
+wheat_seeds|0|2|icon|000000|Wheat seeds|小麦种子
+wheat|1|2|icon|000000|Wheat|小麦
+wooden_pickaxe|2|2|icon|000000|Wooden pickaxe|木镐
+stone_pickaxe|3|2|icon|000000|Stone pickaxe|石镐
+iron_ingot|4|2|icon|000000|Iron ingot|铁锭
+iron_pickaxe|5|2|icon|000000|Iron pickaxe|铁镐
+iron_sword|6|2|icon|000000|Iron sword|铁剑
+bread|7|2|icon|000000|Bread|面包
+wooden_sword|8|2|icon|000000|Wooden sword|木剑
+stone_sword|9|2|icon|000000|Stone sword|石剑
+raw_meat|10|2|icon|000000|Raw meat|生肉
+cooked_meat|11|2|icon|000000|Cooked meat|熟肉
+cactus_salad|12|2|icon|000000|Cactus salad|仙人掌沙拉
+trail_ration|13|2|icon|000000|Trail ration|旅行口粮
+plant_fiber|14|2|icon|000000|Plant fiber|植物纤维

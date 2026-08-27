@@ -2,9 +2,9 @@
 
 本文记录项目内自制或生成式美术资源的来源、加工链路和许可边界，供资源回归、打包和后续替换时核对。
 
-## FS3 基础体素图集
+## FS3 历史基础体素图集
 
-- 最终运行时资源：`media/textures/DefaultPack.png`
+- 历史运行时资源：`media/textures/DefaultPack.png`（已由 V10B2 像素替换）
 - 可追溯生成源：`docs/art-sources/hellomine3d-atlas-imagegen-source.png`
 - 确定性打包脚本：`tools/build_fs3_texture_atlas.ps1`
 - 生成日期：2026-08-24
@@ -16,9 +16,30 @@
 
 第二轮提示词仅做背景提取：把灰白棋盘格和空白单元转换为真正的 Alpha 透明区域，保持已有图标的形状、位置、颜色和画布尺寸，不重绘、不移动、不裁切，也不增加文字或水印。
 
-图像生成源不是运行时图集。打包脚本按固定像素矩形裁切并以最近邻方式缩放到严格的 16×16 单元，恢复既有方块坐标，补充独立交互方块与物品图标，并跳过生成源中的重复铁剑。修改生成源后必须重新运行脚本，再运行资源清单和 `FS3/*` 图集断言。
+该母版和哈希继续作为 FS3 历史证据保留，不再是打包脚本的默认地形来源。V10B2 仍复用其
+坐标语义，但从新的原创母版生成当前运行时像素。
 
 本资源为本项目定向生成和加工的来源记录，没有复制 `F:\env1_trunk` 或其他第三方项目的美术文件，也没有引入第三方商标、徽标或署名素材。若未来改用外部素材包，必须在本文件新增作者、原始链接、许可证文本、允许的修改/分发方式和版本哈希；在这些信息齐备前不得进入发行包。
+
+## V10B2 原创材质资产
+
+- 最终运行时资源：`media/textures/DefaultPack.png`
+- 可追溯生成源：`docs/art-sources/hellomine3d-v10b2-materials-imagegen-source.png`
+- 机器可读布局：`media/materials/Base.terrain-atlas`
+- 确定性打包脚本：`tools/build_fs3_texture_atlas.ps1`
+- 独立验证脚本：`tools/validate_terrain_atlas.ps1`
+- 随包许可证：`media/textures/LICENSE-HelloMine3D-Textures.txt`
+- 生成日期：2026-08-27
+- 生成方式：Codex 内置 OpenAI 图像生成工具；一次 `precise-object-edit` 统一材质语言，一次
+  `precise-object-edit` 只修安全边距，一次 `background-extraction` 提取真实 Alpha。
+- 生成源 SHA-256：`177AFDB8247C5D8E3ED5888CD00B335BB605DB47E503E0BB77533D8D291623CD`
+- 最终图集 SHA-256：`82A592F3EA957B40D6EDE041EF92DD834A875C064AA847C33D5CFB53D82D933D`
+- 许可证 SHA-256：`1D91CDD12F1A0F66B802AE751B3364116A6C5366EE80C126EAF612463D428B1C`
+
+完整材质表现、提示词、分面、Alpha、资源包和固定截图合同见
+`docs/material-visual-contract-v1.md`。最终 atlas 不直接采用生成图：构建脚本裁去方块展示外框，
+对 opaque/cutout/translucent/icon 执行不同 Alpha 规则，并逐项消费 37 条布局清单；独立验证器
+再重建临时图集并以 SHA-256 比对，未使用 tile 必须全透明。
 
 ## N10 资源经济图标
 
@@ -30,9 +51,9 @@
 - 生成源 SHA-256：`7373ad0ba60d2f47d921a5fb050ffd2f6861b58160ff80da345e2d5b92cce4ae`
 - N10 图集 SHA-256：`4997b668024456ebd9704f5b89cc1923f64bb047ccdc115083e3e84062e274fd`
 
-`tools/build_fs3_texture_atlas.ps1` 继续从原 FS3 来源重建全部既有单元，只从 N10 来源的固定
-包围框裁切五个新图标到第三行 x=10..14。脚本使用 SourceCopy、最近邻、无平滑，并在 14×14
-可视范围内居中；因此新增内容不会重绘或漂移已冻结的方块和物品图标。
+`tools/build_fs3_texture_atlas.ps1` 现在从 V10B2 母版重建方块和既有物品单元，只从 N10 来源的
+固定包围框裁切五个经济图标到第三行 x=10..14。所有 item 使用最近邻、无平滑并在 14×14
+可视范围内居中；N10 的语义和坐标没有改变。
 
 ## N12A 中文界面字体
 

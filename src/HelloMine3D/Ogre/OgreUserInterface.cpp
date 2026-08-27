@@ -38,6 +38,7 @@
 #include "../World/World.h"
 #include "../World/Block/ChestContainer.h"
 #include "../World/Block/FurnaceContainer.h"
+#include "../World/Block/TerrainMaterialProfile.h"
 #include "../Item/SmeltingRegistry.h"
 #include "../World/Interaction/BlockMiningProgress.h"
 #include "../World/Storage/WorldManagementService.h"
@@ -1453,12 +1454,17 @@ class OgreUserInterface::Impl
         }
         const Material::IconCoordinate coordinate =
             Material::iconCoordinate(id);
-        if (!coordinate.available())
+        const TerrainMaterialParameters& terrainMaterial =
+            runtimeTerrainMaterialProfile().parameters();
+        if (!coordinate.available() ||
+            !terrainMaterial.containsTile(coordinate.x, coordinate.y))
         {
             return false;
         }
-        constexpr float atlasSize = 256.f;
-        constexpr float tileSize = 16.f;
+        const float atlasSize =
+            static_cast<float>(terrainMaterial.atlasPixels);
+        const float tileSize =
+            static_cast<float>(terrainMaterial.tilePixels);
         constexpr float inset = 0.5f;
         uvMin = ImVec2((coordinate.x * tileSize + inset) / atlasSize,
                        (coordinate.y * tileSize + inset) / atlasSize);

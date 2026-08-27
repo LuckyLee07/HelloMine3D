@@ -45,6 +45,8 @@ Add-ManifestEntry "resource-script" "media/ogre/HelloMine3D.program"
 Add-ManifestEntry "resource-script" "media/ogre/HelloMine3D.material"
 Add-ManifestEntry "material-profile" `
     "media/materials/Base.terrain-material"
+Add-ManifestEntry "atlas-layout" `
+    "media/materials/Base.terrain-atlas"
 Add-ManifestEntry "font" "media/fonts/rs.ttf"
 Add-ManifestEntry "presentation-font" "media/fonts/NotoSansSC-VF.ttf"
 Add-ManifestEntry "license" "media/fonts/NotoSansSC-OFL.txt"
@@ -105,6 +107,8 @@ foreach ($musicTrack in $musicTracks) {
 }
 Add-ManifestEntry "license" `
     "media/music/tracks/LICENSE-HelloMine3D-Music.txt"
+Add-ManifestEntry "license" `
+    "media/textures/LICENSE-HelloMine3D-Textures.txt"
 
 $objectiveRoot = Join-Path $Root "media\objectives"
 if (-not (Test-Path -LiteralPath $objectiveRoot -PathType Container)) {

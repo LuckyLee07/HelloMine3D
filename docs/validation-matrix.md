@@ -3,8 +3,9 @@
 本文把改动类型映射到最低必要验证。当前 Release Candidate 的 H2-H3、Q1-Q3 和干净包
 路径及 Stage 9 / BETA-RC 工程封板已集中完成，真实输入与产品体验仍需目标机器上的操作者记录；
 现有 R3 v1 只保留为十二项物理输入基线，不能单独关闭当前 D4/D6 或视觉/双语/听感验收。
-Stage 10 的 V10A/V10B1 已完成 Windows 工程范围，当前进入 V10B2；V10B1 的 macOS
-Release shader/窗口证据保持 `Verify`。详细退出条件见 `docs/visual-quality-roadmap.md`。
+Stage 10 的 V10A/V10B1 已完成 Windows 工程范围；V10B2 工程与隐藏画面证据已完成，当前等待
+项目所有者自行启动前台 Release 关闭视觉 `Verify`。V10B1 的 macOS Release shader/窗口证据
+保持 `Verify`。详细退出条件见 `docs/visual-quality-roadmap.md`。
 
 历史运行结果和逐项证据保存在 `docs/project-ledger-2026-08-17.md` 与
 `docs/runtime-validation.md`。
@@ -18,6 +19,7 @@ Release shader/窗口证据保持 `Verify`。详细退出条件见 `docs/visual-
 | 物品、容器、制作、工具或食物 | 状态守恒、容量边界、失败原子性、固定 tick 和保存/重载测试。 |
 | UI 或输入 | 自动焦点隔离测试；开发者进行一次交互冒烟。正式 Physical Input v2 记录可后移。 |
 | 资源、配方、声音或 shader | 资源清单/解析验证；缺失和非法引用必须明确失败。 |
+| terrain atlas 或 HUD/手持图标 | `tools\validate_terrain_atlas.ps1`、确定性重建、Alpha/空 tile、block 分面、Material 坐标、资源包与隐藏固定截图。 |
 | 顶点格式、网格、光照或 AO | 确定性角落/边界夹具、MeshDirty、隐藏固定截图、既有 schema 3 顶点/索引/构建/驻留字段的补充比较和相关 Q1。仅改每顶点值时不得误报为顶点格式升级。 |
 | 雾、天空、云、阴影或后处理 | shader 正反例、关闭回退、固定昼夜截图、窗口缩放/切世界清理、各图形档性能和开发者视觉检查；修改 shader/顶点接口时增加 macOS Release 真实窗口冒烟。 |
 | 构建图或平台代码 | 对应平台工程生成和受影响目标编译。 |
@@ -37,9 +39,10 @@ Release shader/窗口证据保持 `Verify`。详细退出条件见 `docs/visual-
 | 性能采集 | `tools\run_perf_baseline.ps1`；正式六场景使用 `tools\capture_release_candidate_performance.ps1` | 区块加载、网格、更新、渲染提交 |
 | 性能比较 | `tools\compare_perf_baselines.ps1` | 可能改变帧时间或世界驻留的改动 |
 | 资产检查 | `bash scripts/check_assets.sh` | 资产和数据 |
+| V10B2 图集合同 | `tools\validate_terrain_atlas.ps1` | 37 个语义/双语名、Alpha 边界、分面、HUD/手持一致性与确定性输出 |
 | R3 自动预检 | `tools\validate_r3_automated_preflight.ps1 -Configuration Release -Build` | 控制器、交互、容器、战斗、D6 和后台窗口焦点的逻辑回归；结果不能替代真人输入 |
 | R3 v1 真人输入基线 | `docs\manual-input-acceptance-v1.md` 和 `tools\validate_manual_input_record.ps1 -RequirePass` | 只验证现有十二项键鼠/焦点记录；通过也不自动关闭当前 D4/D6/R3，后续先立 Physical Input v2。 |
-| 开发者视觉检查 | `docs\manual-product-experience-acceptance-v1.md` A 节和视觉路线截图矩阵 | 每个 V10 批次真实 Release 窗口观察 5-10 分钟，记录身份、场景、PASS/FAIL 和一句理由；不使用 R3 `-RequirePass`。 |
+| 开发者视觉检查 | `docs\manual-product-experience-acceptance-v1.md` A 节和视觉路线截图矩阵 | 每个 V10 批次由项目所有者自行启动真实 Release 窗口观察 5-10 分钟，记录身份、场景、PASS/FAIL 和一句理由；自动化不打开可见窗口，不使用 R3 `-RequirePass`。 |
 | 正式产品体验 | `docs\manual-product-experience-acceptance-v1.md` B/C 节 | 视觉风格、双语可读性、音效/音乐听感；与 Physical Input v2 共享构建身份但分开判定。 |
 | 长时间 soak | `tools\run_world_soak.ps1`；正式双 profile 使用 `tools\run_release_candidate_soak.ps1` | 区块/实体生命周期、存档、后台加载 |
 | 资源包 | `tools\validate_resource_packs.ps1` | manifest、资源解析、启动预检 |

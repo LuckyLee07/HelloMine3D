@@ -129,6 +129,7 @@ namespace
         static const std::vector<ResourcePackRequirement> value = {
             {"audio", "media/audio/Base.audio"},
             {"audio-sample", "media/audio/samples/ui-click.wav"},
+            {"atlas-layout", "media/materials/Base.terrain-atlas"},
             {"block", "media/blocks/Stone.block"},
             {"enemy", "media/enemies/Base.enemy"},
             {"food", "media/foods/Base.food"},
@@ -136,6 +137,7 @@ namespace
             {"license", "media/fonts/NotoSansSC-OFL.txt"},
             {"license", "media/audio/samples/LICENSE-HelloMine3D-Audio.txt"},
             {"license", "media/music/tracks/LICENSE-HelloMine3D-Music.txt"},
+            {"license", "media/textures/LICENSE-HelloMine3D-Textures.txt"},
             {"material-profile", "media/materials/Base.terrain-material"},
             {"music", "media/music/Base.music"},
             {"music-track", "media/music/tracks/quiet-horizons.wav"},
@@ -266,6 +268,7 @@ namespace
         for (const ResourcePackRequirement &requirement : requirements())
         {
             if (requirement.category == "runtime-template" ||
+                requirement.category == "atlas-layout" ||
                 requirement.category == "audio" ||
                 requirement.category == "audio-sample" ||
                 requirement.category == "music" ||
@@ -862,6 +865,33 @@ namespace
                            TerrainMaterialParameters::LogicalPath)
                               .generic_string());
         }
+        {
+            const fs::path root = freshRoot("terrain-atlas-layout-missing");
+            fs::remove(root / "media/materials/Base.terrain-atlas");
+            ResourcePackResolver resolver;
+            check("V10B2/reject-missing-atlas-layout",
+                  throwsContaining(
+                      [&]
+                      {
+                          resolver.freeze(root.string(), requirements(), {});
+                      },
+                      "Missing or empty effective atlas-layout resource"));
+        }
+        {
+            const fs::path root = freshRoot("terrain-atlas-layout-override");
+            const fs::path pack = createPack(
+                root, "layout", "Layout Override", 1,
+                {{"media/materials/Base.terrain-atlas", "override\n"}});
+            ResourcePackResolver resolver;
+            check("V10B2/resource-pack-cannot-desynchronise-atlas-layout",
+                  throwsContaining(
+                      [&]
+                      {
+                          resolver.freeze(root.string(), requirements(),
+                                          {pack.string()});
+                      },
+                      "stale or unsupported override"));
+        }
     }
 
     void caseOptionalPresentationFont()
@@ -980,6 +1010,7 @@ namespace
 
 int main()
 {
+    std::cout << std::unitbuf;
     caseNoPackAndPrecedence();
     caseEveryAllowedClass();
     caseInvalidPacks();
