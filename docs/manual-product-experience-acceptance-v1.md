@@ -37,6 +37,11 @@ reason=<one concise sentence>
 不可读或明显不适。它不要求 R3 的十二项、`-RequirePass` 或正式发行签字；`FAIL/BLOCKED` 必须
 保留原因并阻止该视觉批次关闭。
 
+未执行的预填记录可以暂用 `result=NOT_RUN`，并把 `date/gpu/driver/window` 保持为 `NOT_RUN`；
+这只是可提交的待办状态，不属于验收结果。`tools/validate_developer_visual_record.ps1 -AllowNotRun`
+只检查结构，关闭批次必须改用 `-RequirePass`。V10B2 的预填记录位于
+`docs/developer-visual-record-v10b2.txt`。
+
 ## B：正式视觉与可读性
 
 VISUAL-RC/1.0-RC 使用同一最终构建身份完成：

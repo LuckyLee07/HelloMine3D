@@ -23,6 +23,8 @@ $stage10PerformanceVerifier = Join-Path $repoRoot `
     "tools\validate_stage10_visual_performance.ps1"
 $manualInputRecordVerifier = Join-Path $repoRoot `
     "tools\validate_manual_input_record.ps1"
+$developerVisualRecordVerifier = Join-Path $repoRoot `
+    "tools\validate_developer_visual_record.ps1"
 $resourcePackVerifier = Join-Path $repoRoot `
     "tools\validate_resource_packs.ps1"
 $windowsPackager = Join-Path $repoRoot `
@@ -147,6 +149,13 @@ try {
         & $manualInputRecordVerifier `
             -RecordPath (Join-Path $repoRoot `
                 "docs\manual-input-record-v1.template.txt") `
+            -AllowNotRun
+    }
+
+    Invoke-Checked "Developer visual record schema" {
+        & $developerVisualRecordVerifier `
+            -RecordPath (Join-Path $repoRoot `
+                "docs\developer-visual-record-v10b2.txt") `
             -AllowNotRun
     }
 

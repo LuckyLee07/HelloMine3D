@@ -42,7 +42,7 @@ Stage 10 的 V10A/V10B1 已完成 Windows 工程范围；V10B2 工程与隐藏�
 | V10B2 图集合同 | `tools\validate_terrain_atlas.ps1` | 37 个语义/双语名、Alpha 边界、分面、HUD/手持一致性与确定性输出 |
 | R3 自动预检 | `tools\validate_r3_automated_preflight.ps1 -Configuration Release -Build` | 控制器、交互、容器、战斗、D6 和后台窗口焦点的逻辑回归；结果不能替代真人输入 |
 | R3 v1 真人输入基线 | `docs\manual-input-acceptance-v1.md` 和 `tools\validate_manual_input_record.ps1 -RequirePass` | 只验证现有十二项键鼠/焦点记录；通过也不自动关闭当前 D4/D6/R3，后续先立 Physical Input v2。 |
-| 开发者视觉检查 | `docs\manual-product-experience-acceptance-v1.md` A 节和视觉路线截图矩阵 | 每个 V10 批次由项目所有者自行启动真实 Release 窗口观察 5-10 分钟，记录身份、场景、PASS/FAIL 和一句理由；自动化不打开可见窗口，不使用 R3 `-RequirePass`。 |
+| 开发者视觉检查 | `docs\manual-product-experience-acceptance-v1.md` A 节、`tools\validate_developer_visual_record.ps1 -RequirePass` 和视觉路线截图矩阵 | 每个 V10 批次由项目所有者自行启动真实 Release 窗口观察 5-10 分钟，记录身份、场景、PASS/FAIL 和一句理由；自动化不打开可见窗口，不使用 R3 `-RequirePass`。 |
 | 正式产品体验 | `docs\manual-product-experience-acceptance-v1.md` B/C 节 | 视觉风格、双语可读性、音效/音乐听感；与 Physical Input v2 共享构建身份但分开判定。 |
 | 长时间 soak | `tools\run_world_soak.ps1`；正式双 profile 使用 `tools\run_release_candidate_soak.ps1` | 区块/实体生命周期、存档、后台加载 |
 | 资源包 | `tools\validate_resource_packs.ps1` | manifest、资源解析、启动预检 |

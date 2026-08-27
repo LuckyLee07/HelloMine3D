@@ -1,0 +1,18 @@
+# HelloMine3D developer visual record v1
+# V10B2 engineering commit: 6bcfd12849075f70bc029b05b11c02daeb3ad880
+# Release executable SHA-256 used by automated hidden captures:
+# 42ADCC6F45E5175CB5EAD27405782CA2C20C165146ADE4D10C75AA5D59F20BB1
+# Replace every NOT_RUN field after a project-owner foreground observation.
+record_version=1
+kind=developer_visual
+batch=V10B2
+date=NOT_RUN
+commit=6bcfd12849075f70bc029b05b11c02daeb3ad880
+configuration=Release
+gpu=NOT_RUN
+driver=NOT_RUN
+window=NOT_RUN
+graphics=terrain_profile_v1;atlas_82A592F3;vertex_ao_on
+scenes=forest_hud_noon,ruin_noon,camp_noon
+result=NOT_RUN
+reason=Pending project-owner foreground Release observation.
