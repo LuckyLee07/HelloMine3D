@@ -1,0 +1,19 @@
+# HelloMine3D developer visual record v1
+# V10C engineering commit: 51ed5ecb5fe97853fec3bd0d6811757b475c4b37
+# Release executable SHA-256 used by all hidden RuntimeReadback captures:
+# C079622C8684678AF4767B684B7EBC267442BB6A5280B6DDC3472ABDC42BA4B2
+# The developer reviewer inspected every tracked image at original size and
+# compared the noon motion sequence as a continuous multi-frame observation.
+record_version=1
+kind=developer_visual
+batch=V10C
+date=2026-08-28
+commit=51ed5ecb5fe97853fec3bd0d6811757b475c4b37
+configuration=Release
+gpu=NVIDIA GeForce GTX 1050 Ti
+driver=NVIDIA 472.12;OpenGL 4.6.0.0
+window=1280x720;fullscreen=0
+graphics=directional_atmosphere_v1;cloud_slab_156_180;fov_105;runtime_readback_hidden
+scenes=forest_noon_motion,dusk_sunward,dusk_backlit,forest_night,coast_noon,cloud_inside,cloud_above,fs2_fallback
+result=PASS
+reason=Ten real Release images prove continuous cloud motion, directional dusk fog, day/night and coast continuity, below/inside/above cloud boundaries, and a working FS2 fallback with no seams, flicker, exposure break, or shader errors.

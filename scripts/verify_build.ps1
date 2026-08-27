@@ -166,6 +166,13 @@ try {
             -RequirePass
     }
 
+    Invoke-Checked "V10C developer visual record" {
+        & $developerVisualRecordVerifier `
+            -RecordPath (Join-Path $repoRoot `
+                "docs\developer-visual-record-v10c.txt") `
+            -RequirePass
+    }
+
     Invoke-Checked "Generate VS2022 projects" {
         & $premake --os=windows --file=premake/premake.lua vs2022
     }
