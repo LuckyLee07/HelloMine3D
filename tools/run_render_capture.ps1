@@ -25,6 +25,9 @@ param(
     [switch]$ShowCropFixture,
     [switch]$ShowVerticalSliceFixture,
     [switch]$ShowHudFixture,
+    [ValidateSet("none", "cave", "canopy")]
+    [string]$VertexLightingFixture = "none",
+    [switch]$DisableVertexAo,
     [switch]$HiddenWindow = $true,
     [switch]$StopExisting,
     [switch]$KeepAlive,
@@ -593,6 +596,8 @@ if ($ShowCombatFixture) { Write-Host "[RENDER_CAPTURE] showCombatFixture=true" }
 if ($ShowCropFixture) { Write-Host "[RENDER_CAPTURE] showCropFixture=true" }
 if ($ShowVerticalSliceFixture) { Write-Host "[RENDER_CAPTURE] showVerticalSliceFixture=true" }
 if ($ShowHudFixture) { Write-Host "[RENDER_CAPTURE] showHudFixture=true" }
+if ($VertexLightingFixture -ne "none") { Write-Host "[RENDER_CAPTURE] vertexLightingFixture=$VertexLightingFixture" }
+if ($DisableVertexAo) { Write-Host "[RENDER_CAPTURE] disableVertexAo=true" }
 if (-not [string]::IsNullOrWhiteSpace($ResourcePacks)) { Write-Host "[RENDER_CAPTURE] resourcePacks=$ResourcePacks" }
 
 if ($StopExisting) {
@@ -646,6 +651,13 @@ if ($ShowVerticalSliceFixture) {
 }
 if ($ShowHudFixture) {
     $envValues["HELLOMINE3D_HUD_FIXTURE"] = "1"
+}
+if ($VertexLightingFixture -ne "none") {
+    $envValues["HELLOMINE3D_VERTEX_LIGHTING_FIXTURE"] =
+        $VertexLightingFixture
+}
+if ($DisableVertexAo) {
+    $envValues["HELLOMINE3D_DISABLE_VERTEX_AO"] = "1"
 }
 if ($CaptureMode -eq "RuntimeReadback") {
     $envValues["HELLO_RENDER_CAPTURE"] = "1"

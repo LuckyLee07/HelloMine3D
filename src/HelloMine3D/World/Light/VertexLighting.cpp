@@ -31,7 +31,8 @@ std::uint8_t VertexLighting::ambientOcclusion(bool sideUOccludes,
 }
 
 VertexLightCorner VertexLighting::evaluateCorner(
-    float cardinalLight, const VertexLightCornerSamples &samples) noexcept
+    float cardinalLight, const VertexLightCornerSamples &samples,
+    bool ambientOcclusionEnabled) noexcept
 {
     const std::array<LightLevel, 4> levels = {
         samples.centre,
@@ -63,9 +64,12 @@ VertexLightCorner VertexLighting::evaluateCorner(
                              ? MIN_TERRAIN_BRIGHTNESS
                              : brightnessSum /
                                    static_cast<float>(brightnessCount);
-    result.ambientOcclusion = ambientOcclusion(
-        samples.sideUOccludes, samples.sideVOccludes,
-        samples.diagonalOccludes);
+    result.ambientOcclusion = ambientOcclusionEnabled
+                                  ? ambientOcclusion(
+                                        samples.sideUOccludes,
+                                        samples.sideVOccludes,
+                                        samples.diagonalOccludes)
+                                  : 0;
     const float aoFactor =
         1.f - AmbientOcclusionStep * result.ambientOcclusion;
     result.finalLight = std::clamp(

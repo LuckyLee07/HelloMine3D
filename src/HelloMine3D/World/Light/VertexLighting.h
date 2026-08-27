@@ -44,7 +44,8 @@ class VertexLighting {
 
     static VertexLightCorner
     evaluateCorner(float cardinalLight,
-                   const VertexLightCornerSamples &samples) noexcept;
+                   const VertexLightCornerSamples &samples,
+                   bool ambientOcclusionEnabled = true) noexcept;
 
     /// Chooses the 1-3 diagonal when it has lower endpoint interpolation
     /// error than the legacy 0-2 diagonal. Exact ties retain 0-2.

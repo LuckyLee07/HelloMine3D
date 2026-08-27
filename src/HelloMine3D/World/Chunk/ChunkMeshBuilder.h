@@ -9,6 +9,7 @@
 #include "../Block/ChunkBlock.h"
 #include "../Light/LightLevel.h"
 #include "../Light/VertexLighting.h"
+#include "../WorldConstants.h"
 
 class ChunkMesh;
 class BlockData;
@@ -26,6 +27,9 @@ class ChunkMeshBuilder {
   public:
     ChunkMeshBuilder(const SectionMeshInput &input,
                      ChunkMeshCollection &meshes);
+    ChunkMeshBuilder(const SectionMeshInput &input,
+                     ChunkMeshCollection &meshes,
+                     bool ambientOcclusionEnabled);
 
     void buildMesh();
 
@@ -48,6 +52,9 @@ class ChunkMeshBuilder {
 
     VertexLightingQuad calculateVertexLighting(
         CubeFace face, const glm::ivec3 &blockPosition) const;
+    void sampleVertexLighting(const glm::ivec3 &position,
+                              LightLevel &light,
+                              bool &occludes) const;
     bool isAmbientOccluder(const glm::ivec3 &position) const;
     void addVertexLitFace(ChunkMesh &mesh, CubeFace face,
                           const std::array<float, 12> &blockFace,
@@ -55,7 +62,9 @@ class ChunkMeshBuilder {
                           const glm::ivec3 &blockPosition,
                           const VertexLightingQuad &lighting,
                           float textureRepeatWidth = 1.f,
-                          float textureRepeatHeight = 1.f);
+                          float textureRepeatHeight = 1.f,
+                          const std::array<float, 8> *textureRepeatCoords =
+                              nullptr);
 
     void setActiveMesh(ChunkBlock block);
 
@@ -77,6 +86,19 @@ class ChunkMeshBuilder {
     const SectionMeshInput *m_pInput = nullptr;
     ChunkMeshCollection *m_pMeshes = nullptr;
     ChunkMesh *m_pActiveMesh = nullptr;
+    bool m_ambientOcclusionEnabled = true;
+
+    struct CachedVertexSample
+    {
+        LightLevel light = MIN_LIGHT_LEVEL;
+        bool occludes = false;
+        bool valid = false;
+    };
+    static constexpr int VertexSampleSize = CHUNK_SIZE + 2;
+    static constexpr int VertexSampleCount =
+        VertexSampleSize * VertexSampleSize * VertexSampleSize;
+    mutable std::array<CachedVertexSample, VertexSampleCount>
+        m_vertexSamples{};
 };
 
 #endif // CHUNKMESHBUILDER_H_INCLUDED

@@ -117,6 +117,38 @@ void check(const std::string &id, bool passed, const std::string &detail = "")
     std::cout.flush();
 }
 
+struct IndexedQuad
+{
+    std::array<std::uint32_t, 4> vertices{};
+    std::size_t count = 0;
+};
+
+IndexedQuad indexedQuad(const Mesh &mesh, std::size_t face)
+{
+    IndexedQuad result;
+    const std::size_t firstIndex = face * 6;
+    if (firstIndex + 6 > mesh.indices.size()) {
+        return result;
+    }
+    for (std::size_t offset = 0; offset < 6; ++offset) {
+        const std::uint32_t candidate = mesh.indices[firstIndex + offset];
+        if (std::find(result.vertices.begin(),
+                      result.vertices.begin() + result.count,
+                      candidate) != result.vertices.begin() + result.count) {
+            continue;
+        }
+        if (result.count == result.vertices.size()) {
+            result.count = 0;
+            return result;
+        }
+        result.vertices[result.count++] = candidate;
+    }
+    if (result.count != result.vertices.size()) {
+        result.count = 0;
+    }
+    return result;
+}
+
 void setEnv(const char *name, const std::string &value)
 {
 #if defined(_WIN32)
@@ -3135,16 +3167,22 @@ void caseGreedyMeshing()
     const Mesh &singleSolid = singleMaterial.solidMesh.getClientMesh();
     check("M4/flat-cuboid-reconstruction-safe-greedy",
           singleMaterial.solidMesh.faces == 14 &&
-              singleSolid.vertexPositions.size() / 3 == 56 &&
+              singleSolid.vertexPositions.size() / 3 < 56 &&
               singleSolid.indices.size() == 84,
           "faces=" + std::to_string(singleMaterial.solidMesh.faces) +
-              " naive=160");
+              " vertices=" +
+              std::to_string(singleSolid.vertexPositions.size() / 3) +
+              " unshared=56 naive_faces=160");
 
+    const auto repeatRange = std::minmax_element(
+        singleSolid.textureRepeatCoords.begin(),
+        singleSolid.textureRepeatCoords.end());
+    const float minRepeat = singleSolid.textureRepeatCoords.empty()
+                                ? 0.f
+                                : *repeatRange.first;
     const float maxRepeat = singleSolid.textureRepeatCoords.empty()
                                 ? 0.f
-                                : *std::max_element(
-                                      singleSolid.textureRepeatCoords.begin(),
-                                      singleSolid.textureRepeatCoords.end());
+                                : *repeatRange.second;
     bool stoneTileStable = true;
     for (std::size_t index = 0; index < singleSolid.textureCoords.size();
          ++index) {
@@ -3155,11 +3193,14 @@ void caseGreedyMeshing()
                 std::floor(singleSolid.textureCoords[index] * 16.f)) ==
                 expectedTile;
     }
-    check("M4/merged-quad-repeats-atlas-tile",
-          std::abs(maxRepeat - 8.f) < 0.001f && stoneTileStable &&
+    check("M4/global-repeat-preserves-atlas-tile",
+          std::abs((maxRepeat - minRepeat) - 8.f) < 0.001f &&
+              minRepeat >= 0.f && maxRepeat <= CHUNK_SIZE &&
+              stoneTileStable &&
               singleSolid.textureRepeatCoords.size() ==
                   singleSolid.vertexPositions.size() / 3 * 2,
-          "max_repeat=" + std::to_string(maxRepeat));
+          "repeat_range=" + std::to_string(minRepeat) + "/" +
+              std::to_string(maxRepeat));
 
     for (int z = 4; z < 12; ++z) {
         for (int x = 8; x < 12; ++x) {
@@ -3231,6 +3272,14 @@ void caseVertexLighting()
           enclosedCorner.ambientOcclusion == 3 &&
               std::abs(enclosedCorner.smoothLight - 1.f) < 0.001f &&
               enclosedCorner.finalLight < oneSide.finalLight);
+    const VertexLightCorner aoDisabled = VertexLighting::evaluateCorner(
+        1.f, enclosedCornerSamples, false);
+    check("V10A/ao-disabled-keeps-smooth-light-only",
+          aoDisabled.ambientOcclusion == 0 &&
+              std::abs(aoDisabled.smoothLight -
+                       enclosedCorner.smoothLight) < 0.001f &&
+              std::abs(aoDisabled.finalLight -
+                       aoDisabled.smoothLight) < 0.001f);
 
     std::array<VertexLightCorner, 4> diagonalChoice{};
     diagonalChoice[0].smoothLight = 0.f;
@@ -3293,11 +3342,12 @@ void caseVertexLighting()
         return;
     }
 
-    const auto buildSection = [](ChunkSection &source) {
+    const auto buildSection = [](ChunkSection &source,
+                                 bool ambientOcclusionEnabled = true) {
         SectionMeshInput input;
         source.captureMeshInput(input);
         ChunkMeshCollection meshes;
-        ChunkMeshBuilder(input, meshes).buildMesh();
+        ChunkMeshBuilder(input, meshes, ambientOcclusionEnabled).buildMesh();
         return meshes;
     };
     const auto findUnitTop = [](const ChunkMeshCollection &meshes, int x,
@@ -3305,15 +3355,19 @@ void caseVertexLighting()
                                 std::array<float, 4> &result) {
         const Mesh &mesh = meshes.solidMesh.getClientMesh();
         const auto &lights = meshes.solidMesh.getLight();
-        const std::size_t faceCount = mesh.vertexPositions.size() / 12;
+        const std::size_t faceCount = mesh.indices.size() / 6;
         for (std::size_t face = 0; face < faceCount; ++face) {
+            const IndexedQuad quad = indexedQuad(mesh, face);
+            if (quad.count != 4) {
+                continue;
+            }
             float minX = 100000.f;
             float maxX = -100000.f;
             float minZ = 100000.f;
             float maxZ = -100000.f;
             bool top = true;
             for (std::size_t vertex = 0; vertex < 4; ++vertex) {
-                const std::size_t position = face * 12 + vertex * 3;
+                const std::size_t position = quad.vertices[vertex] * 3;
                 minX = std::min(minX, mesh.vertexPositions[position]);
                 maxX = std::max(maxX, mesh.vertexPositions[position]);
                 minZ = std::min(minZ, mesh.vertexPositions[position + 2]);
@@ -3326,7 +3380,9 @@ void caseVertexLighting()
                 std::abs(maxX - (x + 1)) < 0.001f &&
                 std::abs(minZ - z) < 0.001f &&
                 std::abs(maxZ - (z + 1)) < 0.001f) {
-                std::copy_n(lights.begin() + face * 4, 4, result.begin());
+                for (std::size_t vertex = 0; vertex < 4; ++vertex) {
+                    result[vertex] = lights[quad.vertices[vertex]];
+                }
                 return true;
             }
         }
@@ -3366,6 +3422,15 @@ void caseVertexLighting()
                   0.7f &&
               *std::max_element(enclosedTop.begin(), enclosedTop.end()) >
                   0.99f);
+
+    std::array<float, 4> aoDisabledTop{};
+    const bool foundAoDisabled = findUnitTop(
+        buildSection(*section, false), targetX, blockY, targetZ,
+        aoDisabledTop);
+    check("V10A/builder-ao-override-removes-contact-darkening",
+          foundAoDisabled &&
+              *std::min_element(aoDisabledTop.begin(),
+                                aoDisabledTop.end()) > 0.99f);
 
     constexpr int boundaryX = CHUNK_SIZE;
     constexpr int boundaryZ = 6;
@@ -3417,42 +3482,48 @@ void caseVertexLighting()
                                    float &result) {
         const Mesh &mesh = meshes.solidMesh.getClientMesh();
         const auto &lights = meshes.solidMesh.getLight();
-        const std::size_t faceCount = mesh.vertexPositions.size() / 12;
+        const std::size_t faceCount = mesh.indices.size() / 6;
         for (std::size_t face = 0; face < faceCount; ++face) {
+            const IndexedQuad quad = indexedQuad(mesh, face);
+            if (quad.count != 4) {
+                continue;
+            }
             bool top = true;
             for (std::size_t vertex = 0; vertex < 4; ++vertex) {
                 top = top &&
-                      std::abs(mesh.vertexPositions[face * 12 +
-                                                    vertex * 3 + 1] -
+                      std::abs(mesh.vertexPositions[
+                                   quad.vertices[vertex] * 3 + 1] -
                                y) < 0.001f;
             }
             if (!top) {
                 continue;
             }
-            const std::size_t faceStart = face * 12;
+            const std::uint32_t first = mesh.indices[face * 6];
+            const std::uint32_t second = mesh.indices[face * 6 + 1];
+            const std::uint32_t third = mesh.indices[face * 6 + 2];
             const float edgeOneX =
-                mesh.vertexPositions[faceStart + 3] -
-                mesh.vertexPositions[faceStart];
+                mesh.vertexPositions[second * 3] -
+                mesh.vertexPositions[first * 3];
             const float edgeOneZ =
-                mesh.vertexPositions[faceStart + 5] -
-                mesh.vertexPositions[faceStart + 2];
+                mesh.vertexPositions[second * 3 + 2] -
+                mesh.vertexPositions[first * 3 + 2];
             const float edgeTwoX =
-                mesh.vertexPositions[faceStart + 6] -
-                mesh.vertexPositions[faceStart];
+                mesh.vertexPositions[third * 3] -
+                mesh.vertexPositions[first * 3];
             const float edgeTwoZ =
-                mesh.vertexPositions[faceStart + 8] -
-                mesh.vertexPositions[faceStart + 2];
+                mesh.vertexPositions[third * 3 + 2] -
+                mesh.vertexPositions[first * 3 + 2];
             const float normalY =
                 edgeOneZ * edgeTwoX - edgeOneX * edgeTwoZ;
             if (normalY <= 0.f) {
                 continue;
             }
             for (std::size_t vertex = 0; vertex < 4; ++vertex) {
-                const std::size_t position = face * 12 + vertex * 3;
+                const std::size_t position = quad.vertices[vertex] * 3;
                 if (std::abs(mesh.vertexPositions[position] - x) < 0.001f &&
                     std::abs(mesh.vertexPositions[position + 2] - z) <
                         0.001f) {
-                    result = lights[face * 4 + vertex];
+                    result = lights[quad.vertices[vertex]];
                     return true;
                 }
             }
@@ -4124,12 +4195,16 @@ void caseSunlightStorage()
         bool foundSurfaceLight = false;
         float darkestTopLight = 1.f;
         float brightestTopLight = 0.f;
-        const std::size_t faceCount = solid.vertexPositions.size() / 12;
+        const std::size_t faceCount = solid.indices.size() / 6;
         for (std::size_t face = 0; face < faceCount; ++face) {
+            const IndexedQuad quad = indexedQuad(solid, face);
+            if (quad.count != 4) {
+                continue;
+            }
             bool isFloorTop = true;
             for (std::size_t vertex = 0; vertex < 4; ++vertex) {
                 const std::size_t positionIndex =
-                    face * 12 + vertex * 3 + 1;
+                    quad.vertices[vertex] * 3 + 1;
                 isFloorTop =
                     isFloorTop &&
                     std::abs(solid.vertexPositions[positionIndex] -
@@ -4141,7 +4216,7 @@ void caseSunlightStorage()
 
             ++floorTopFaces;
             for (std::size_t vertex = 0; vertex < 4; ++vertex) {
-                const float vertexLight = light[face * 4 + vertex];
+                const float vertexLight = light[quad.vertices[vertex]];
                 darkestTopLight = std::min(darkestTopLight, vertexLight);
                 brightestTopLight =
                     std::max(brightestTopLight, vertexLight);
@@ -4276,15 +4351,19 @@ void caseBlockLightStorage()
         const Mesh &solid = meshes.solidMesh.getClientMesh();
         const auto &light = meshes.solidMesh.getLight();
         bool foundLitTargetFace = false;
-        const std::size_t faceCount = solid.vertexPositions.size() / 12;
+        const std::size_t faceCount = solid.indices.size() / 6;
         for (std::size_t face = 0; face < faceCount; ++face) {
+            const IndexedQuad quad = indexedQuad(solid, face);
+            if (quad.count != 4) {
+                continue;
+            }
             float minX = 100000.f;
             float maxX = -100000.f;
             float minZ = 100000.f;
             float maxZ = -100000.f;
             bool topHeight = true;
             for (std::size_t vertex = 0; vertex < 4; ++vertex) {
-                const std::size_t index = face * 12 + vertex * 3;
+                const std::size_t index = quad.vertices[vertex] * 3;
                 minX = std::min(minX, solid.vertexPositions[index]);
                 maxX = std::max(maxX, solid.vertexPositions[index]);
                 minZ = std::min(minZ, solid.vertexPositions[index + 2]);
@@ -4303,7 +4382,7 @@ void caseBlockLightStorage()
                 for (std::size_t vertex = 0; vertex < 4; ++vertex) {
                     foundLitTargetFace =
                         foundLitTargetFace ||
-                        light[face * 4 + vertex] >=
+                        light[quad.vertices[vertex]] >=
                             lightLevelToBrightness(11);
                 }
             }

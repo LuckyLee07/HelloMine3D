@@ -13,6 +13,8 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <vector>
 
 namespace {
@@ -49,12 +51,40 @@ float combineTerrainLight(float cardinalLight, LightLevel sunlight)
                       0.f, 1.f);
 }
 
+bool isTrueEnvironmentValue(const char *value)
+{
+    return value != nullptr &&
+           (std::strcmp(value, "1") == 0 ||
+            std::strcmp(value, "true") == 0 ||
+            std::strcmp(value, "TRUE") == 0 ||
+            std::strcmp(value, "on") == 0 ||
+            std::strcmp(value, "ON") == 0 ||
+            std::strcmp(value, "yes") == 0 ||
+            std::strcmp(value, "YES") == 0);
+}
+
+bool ambientOcclusionEnabledFromEnvironment()
+{
+    static const bool enabled = !isTrueEnvironmentValue(
+        std::getenv("HELLOMINE3D_DISABLE_VERTEX_AO"));
+    return enabled;
+}
+
 } // namespace
 
 ChunkMeshBuilder::ChunkMeshBuilder(const SectionMeshInput &input,
                                    ChunkMeshCollection &mesh)
+    : ChunkMeshBuilder(input, mesh,
+                       ambientOcclusionEnabledFromEnvironment())
+{
+}
+
+ChunkMeshBuilder::ChunkMeshBuilder(const SectionMeshInput &input,
+                                   ChunkMeshCollection &mesh,
+                                   bool ambientOcclusionEnabled)
     : m_pInput(&input)
     , m_pMeshes(&mesh)
+    , m_ambientOcclusionEnabled(ambientOcclusionEnabled)
 {
 }
 
@@ -162,6 +192,8 @@ void ChunkMeshBuilder::buildGreedySolidMesh()
 
 void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
 {
+    m_pMeshes->solidMesh.beginSharedFaces();
+
     struct FaceCell {
         bool visible = false;
         ChunkBlock block;
@@ -175,6 +207,27 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
                left.textureCoords.x == right.textureCoords.x &&
                left.textureCoords.y == right.textureCoords.y;
     };
+    const auto sameCorner = [](const VertexLightCorner &left,
+                               const VertexLightCorner &right) {
+        return left.smoothLight == right.smoothLight &&
+               left.finalLight == right.finalLight &&
+               left.ambientOcclusion == right.ambientOcclusion;
+    };
+    const auto isConstantLighting = [&sameCorner](const FaceCell &cell) {
+        return std::all_of(
+            cell.lighting.corners.begin() + 1,
+            cell.lighting.corners.end(),
+            [&](const VertexLightCorner &corner) {
+                return sameCorner(cell.lighting.corners[0], corner);
+            });
+    };
+    const auto hasSameConstantLighting =
+        [&sameCorner, &isConstantLighting](const FaceCell &reference,
+                                           const FaceCell &candidate) {
+            return isConstantLighting(candidate) &&
+                   sameCorner(reference.lighting.corners[0],
+                              candidate.lighting.corners[0]);
+        };
     const auto positionFor = [face](int slice, int u, int v) {
         switch (face) {
             case CubeFace::Bottom:
@@ -326,29 +379,43 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
                 }
 
                 int width = 1;
+                bool constantRectangle = isConstantLighting(cell);
                 while (u + width < CHUNK_SIZE &&
                        sameMaterial(
-                           cell, mask[v * CHUNK_SIZE + u + width]) &&
-                       reconstructsLighting(u, v, width + 1, 1)) {
+                           cell, mask[v * CHUNK_SIZE + u + width])) {
+                    const bool nextConstant =
+                        constantRectangle && hasSameConstantLighting(
+                            cell, mask[v * CHUNK_SIZE + u + width]);
+                    if (!nextConstant &&
+                        !reconstructsLighting(u, v, width + 1, 1)) {
+                        break;
+                    }
                     ++width;
+                    constantRectangle = nextConstant;
                 }
 
                 int height = 1;
                 bool canExtend = true;
                 while (v + height < CHUNK_SIZE && canExtend) {
+                    bool constantRow = constantRectangle;
                     for (int offset = 0; offset < width; ++offset) {
-                        if (!sameMaterial(
-                                cell,
-                                mask[(v + height) * CHUNK_SIZE + u + offset])) {
+                        const FaceCell &candidate =
+                            mask[(v + height) * CHUNK_SIZE + u + offset];
+                        if (!sameMaterial(cell, candidate)) {
                             canExtend = false;
                             break;
                         }
+                        constantRow =
+                            constantRow &&
+                            hasSameConstantLighting(cell, candidate);
                     }
                     if (canExtend) {
-                        canExtend = reconstructsLighting(
-                            u, v, width, height + 1);
+                        canExtend =
+                            constantRow || reconstructsLighting(
+                                               u, v, width, height + 1);
                         if (canExtend) {
                             ++height;
+                            constantRectangle = constantRow;
                         }
                     }
                 }
@@ -420,11 +487,44 @@ void ChunkMeshBuilder::addGreedyFace(CubeFace face,
             break;
     }
 
-    const auto atlasCoords =
+    auto atlasCoords =
         BlockTextureCoordinates::get(textureCoords.x, textureCoords.y);
+    // The terrain shader only uses uv0 to select a tile. A single canonical
+    // coordinate therefore preserves the sampled tile while allowing
+    // coplanar split faces to share a vertex.
+    for (std::size_t index = 2; index < atlasCoords.size(); index += 2) {
+        atlasCoords[index] = atlasCoords[0];
+        atlasCoords[index + 1] = atlasCoords[1];
+    }
+
+    const float startU = static_cast<float>(u);
+    const float endU = static_cast<float>(u + width);
+    const float startV = static_cast<float>(v);
+    const float endV = static_cast<float>(v + height);
+    const float edge = static_cast<float>(CHUNK_SIZE);
+    std::array<float, 8> repeatCoords{};
+    switch (face) {
+        case CubeFace::Top:
+            repeatCoords = {edge - startU, endV, edge - endU, endV,
+                            edge - endU, startV, edge - startU, startV};
+            break;
+        case CubeFace::Right:
+        case CubeFace::Back:
+            repeatCoords = {endU, edge - startV, startU, edge - startV,
+                            startU, edge - endV, endU, edge - endV};
+            break;
+        case CubeFace::Bottom:
+        case CubeFace::Left:
+        case CubeFace::Front:
+            repeatCoords = {edge - startU, edge - startV,
+                            edge - endU, edge - startV,
+                            edge - endU, edge - endV,
+                            edge - startU, edge - endV};
+            break;
+    }
     addVertexLitFace(m_pMeshes->solidMesh, face, vertices, atlasCoords,
                      blockPosition, lighting, static_cast<float>(width),
-                     static_cast<float>(height));
+                     static_cast<float>(height), &repeatCoords);
 }
 
 VertexLightingQuad ChunkMeshBuilder::calculateVertexLighting(
@@ -477,33 +577,59 @@ VertexLightingQuad ChunkMeshBuilder::calculateVertexLighting(
     constexpr int tangentVSign[4] = {-1, -1, 1, 1};
     const glm::ivec3 centre = blockPosition + normal;
 
+    std::array<std::array<LightLevel, 3>, 3> neighbourhoodLight{};
+    std::array<std::array<bool, 3>, 3> neighbourhoodOcclusion{};
+    for (int u = -1; u <= 1; ++u) {
+        for (int v = -1; v <= 1; ++v) {
+            const glm::ivec3 sample =
+                centre + tangentU * u + tangentV * v;
+            sampleVertexLighting(
+                sample, neighbourhoodLight[u + 1][v + 1],
+                neighbourhoodOcclusion[u + 1][v + 1]);
+        }
+    }
+
     VertexLightingQuad lighting;
     for (std::size_t corner = 0; corner < 4; ++corner) {
-        const glm::ivec3 sideU =
-            centre + tangentU * tangentUSign[corner];
-        const glm::ivec3 sideV =
-            centre + tangentV * tangentVSign[corner];
-        const glm::ivec3 diagonal =
-            sideU + tangentV * tangentVSign[corner];
+        const int u = tangentUSign[corner] + 1;
+        const int v = tangentVSign[corner] + 1;
 
         VertexLightCornerSamples samples;
-        samples.centre = m_pInput->getCombinedLight(
-            centre.x, centre.y, centre.z);
-        samples.sideU =
-            m_pInput->getCombinedLight(sideU.x, sideU.y, sideU.z);
-        samples.sideV =
-            m_pInput->getCombinedLight(sideV.x, sideV.y, sideV.z);
-        samples.diagonal = m_pInput->getCombinedLight(
-            diagonal.x, diagonal.y, diagonal.z);
-        samples.sideUOccludes = isAmbientOccluder(sideU);
-        samples.sideVOccludes = isAmbientOccluder(sideV);
-        samples.diagonalOccludes = isAmbientOccluder(diagonal);
+        samples.centre = neighbourhoodLight[1][1];
+        samples.sideU = neighbourhoodLight[u][1];
+        samples.sideV = neighbourhoodLight[1][v];
+        samples.diagonal = neighbourhoodLight[u][v];
+        samples.sideUOccludes = neighbourhoodOcclusion[u][1];
+        samples.sideVOccludes = neighbourhoodOcclusion[1][v];
+        samples.diagonalOccludes = neighbourhoodOcclusion[u][v];
         lighting.corners[corner] =
-            VertexLighting::evaluateCorner(cardinalLight, samples);
+            VertexLighting::evaluateCorner(
+                cardinalLight, samples, m_ambientOcclusionEnabled);
     }
     lighting.flipDiagonal =
         VertexLighting::shouldFlipDiagonal(lighting.corners);
     return lighting;
+}
+
+void ChunkMeshBuilder::sampleVertexLighting(
+    const glm::ivec3 &position, LightLevel &light, bool &occludes) const
+{
+    const int x = position.x + 1;
+    const int y = position.y + 1;
+    const int z = position.z + 1;
+    assert(x >= 0 && x < VertexSampleSize && y >= 0 &&
+           y < VertexSampleSize && z >= 0 && z < VertexSampleSize);
+    const int index = x + VertexSampleSize *
+                              (z + VertexSampleSize * y);
+    CachedVertexSample &sample = m_vertexSamples[index];
+    if (!sample.valid) {
+        sample.light = m_pInput->getCombinedLight(
+            position.x, position.y, position.z);
+        sample.occludes = isAmbientOccluder(position);
+        sample.valid = true;
+    }
+    light = sample.light;
+    occludes = sample.occludes;
 }
 
 bool ChunkMeshBuilder::isAmbientOccluder(
@@ -529,7 +655,8 @@ void ChunkMeshBuilder::addVertexLitFace(
     const std::array<float, 8> &textureCoords,
     const glm::ivec3 &blockPosition,
     const VertexLightingQuad &lighting, float textureRepeatWidth,
-    float textureRepeatHeight)
+    float textureRepeatHeight,
+    const std::array<float, 8> *textureRepeatCoords)
 {
     std::array<float, 4> light{};
     bool flipDiagonal = lighting.flipDiagonal;
@@ -559,9 +686,16 @@ void ChunkMeshBuilder::addVertexLitFace(
             break;
     }
 
-    mesh.addFace(blockFace, textureCoords, m_pInput->getLocation(),
-                 blockPosition, light, flipDiagonal, textureRepeatWidth,
-                 textureRepeatHeight);
+    if (textureRepeatCoords != nullptr) {
+        mesh.addSharedFace(blockFace, textureCoords,
+                           m_pInput->getLocation(), blockPosition, light,
+                           flipDiagonal, *textureRepeatCoords);
+    }
+    else {
+        mesh.addFace(blockFace, textureCoords, m_pInput->getLocation(),
+                     blockPosition, light, flipDiagonal, textureRepeatWidth,
+                     textureRepeatHeight);
+    }
 }
 
 bool ChunkMeshBuilder::isGreedySolidBlock(ChunkBlock block) const

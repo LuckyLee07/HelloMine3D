@@ -889,6 +889,140 @@ namespace
                 std::cout << "[HUD_FIXTURE] slots=5 selected=0\n";
             }
 
+            const char *vertexLightingFixtureValue = std::getenv(
+                "HELLOMINE3D_VERTEX_LIGHTING_FIXTURE");
+            if (vertexLightingFixtureValue != nullptr &&
+                vertexLightingFixtureValue[0] != '\0')
+            {
+                const std::string fixture(vertexLightingFixtureValue);
+                if (fixture != "cave" && fixture != "canopy")
+                {
+                    throw std::runtime_error(
+                        "Unknown vertex-lighting fixture: " + fixture);
+                }
+
+                const float yaw = glm::radians(
+                    m_worldPlayer->rotation.y + 90.0f);
+                const glm::vec3 forward(-std::cos(yaw), 0.0f,
+                                        -std::sin(yaw));
+                const glm::vec3 right(-forward.z, 0.0f, forward.x);
+                const int fixtureY =
+                    World::toBlockCoord(m_worldPlayer->position.y);
+                const auto blockPosition =
+                    [&](int forwardOffset, int rightOffset, int height)
+                    {
+                        const glm::vec3 position =
+                            m_worldPlayer->position +
+                            forward * static_cast<float>(forwardOffset) +
+                            right * static_cast<float>(rightOffset);
+                        return glm::ivec3{
+                            World::toBlockCoord(position.x),
+                            fixtureY + height,
+                            World::toBlockCoord(position.z)};
+                    };
+                const auto setFixtureBlock =
+                    [&](int forwardOffset, int rightOffset, int height,
+                        BlockId block)
+                    {
+                        const glm::ivec3 position = blockPosition(
+                            forwardOffset, rightOffset, height);
+                        m_world->setBlock(position.x, position.y,
+                                          position.z, block);
+                    };
+
+                for (int forwardStep = 0; forwardStep <= 12;
+                     ++forwardStep)
+                {
+                    for (int rightStep = -5; rightStep <= 5;
+                         ++rightStep)
+                    {
+                        setFixtureBlock(forwardStep, rightStep, -1,
+                                        fixture == "cave"
+                                            ? BlockId::Stone
+                                            : BlockId::Grass);
+                        for (int height = 0; height <= 7; ++height)
+                        {
+                            setFixtureBlock(forwardStep, rightStep, height,
+                                            BlockId::Air);
+                        }
+                    }
+                }
+
+                if (fixture == "cave")
+                {
+                    for (int forwardStep = 4; forwardStep <= 11;
+                         ++forwardStep)
+                    {
+                        for (int rightStep = -3; rightStep <= 3;
+                             ++rightStep)
+                        {
+                            setFixtureBlock(forwardStep, rightStep, -1,
+                                            BlockId::Stone);
+                            setFixtureBlock(forwardStep, rightStep, 4,
+                                            BlockId::Stone);
+                        }
+                        for (int height = 0; height <= 4; ++height)
+                        {
+                            setFixtureBlock(forwardStep, -3, height,
+                                            BlockId::Stone);
+                            setFixtureBlock(forwardStep, 3, height,
+                                            BlockId::Stone);
+                        }
+                    }
+                    for (int rightStep = -3; rightStep <= 3;
+                         ++rightStep)
+                    {
+                        for (int height = 0; height <= 4; ++height)
+                        {
+                            setFixtureBlock(11, rightStep, height,
+                                            BlockId::Stone);
+                        }
+                    }
+                    setFixtureBlock(3, -3, 0, BlockId::Stone);
+                    setFixtureBlock(3, 3, 0, BlockId::Stone);
+                }
+                else
+                {
+                    for (int height = 0; height <= 4; ++height)
+                    {
+                        setFixtureBlock(6, 0, height,
+                                        BlockId::OakBark);
+                    }
+                    for (int height = 4; height <= 6; ++height)
+                    {
+                        const int radius = height == 6 ? 2 : 4;
+                        for (int forwardStep = 2;
+                             forwardStep <= 10; ++forwardStep)
+                        {
+                            for (int rightStep = -4; rightStep <= 4;
+                                 ++rightStep)
+                            {
+                                const int distance =
+                                    std::abs(forwardStep - 6) +
+                                    std::abs(rightStep);
+                                if (distance <= radius + 2)
+                                {
+                                    setFixtureBlock(
+                                        forwardStep, rightStep, height,
+                                        BlockId::OakLeaf);
+                                }
+                            }
+                        }
+                    }
+                    setFixtureBlock(5, -2, 3, BlockId::OakLeaf);
+                    setFixtureBlock(5, 2, 3, BlockId::OakLeaf);
+                    setFixtureBlock(7, -2, 3, BlockId::OakLeaf);
+                    setFixtureBlock(7, 2, 3, BlockId::OakLeaf);
+                }
+                std::cout << "[VERTEX_LIGHTING_FIXTURE] mode="
+                          << fixture << " ao="
+                          << (isTrueValue(std::getenv(
+                                  "HELLOMINE3D_DISABLE_VERTEX_AO"))
+                                  ? "off"
+                                  : "on")
+                          << "\n";
+            }
+
             if (isTrueValue(std::getenv(
                     "HELLOMINE3D_CROP_FIXTURE")))
             {
