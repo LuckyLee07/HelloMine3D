@@ -2,15 +2,16 @@
 
 ## 状态与范围
 
-V10B2 已完成 Windows 工程实现与自动证据，状态为
-`Implemented（前台开发者视觉 Verify）`。本批只替换已有 atlas 像素、补齐资产合同和 HUD/手持
+V10B2 已完成 Windows 工程实现、自动证据和授权开发者视觉检查，状态为 `Done`。本批只替换
+已有 atlas 像素、补齐资产合同和 HUD/手持
 参数链，不改变 block/material id、玩法、save v11、terrain v3、32 字节 terrain vertex、V10A
 AO 或 V10B1 shader 合成顺序。
 
-由于自动化原生窗口在创建阶段可能抢占用户焦点，本批只使用
-`RuntimeReadback + HELLOMINE3D_WINDOW_HIDDEN=1` 取得真实 Release 图像。三张固定图已由开发者
-逐图检查，但按 `docs/validation-matrix.md` 的严格定义，仍需项目所有者在自己启动的真实窗口中
-连续观察 5-10 分钟后才能关闭前台视觉 `Verify`；Codex 不会为此自行打开可见窗口。
+由于自动化原生窗口在创建阶段可能抢占用户焦点，本批使用
+`RuntimeReadback + HELLOMINE3D_WINDOW_HIDDEN=1` 取得真实 Release 图像。项目所有者于
+2026-08-27 明确授权 Codex 承担本批视觉判断；审阅者随后逐张按原尺寸检查三张固定图。V10B2
+只改变静态材质资产，不包含动画或时间稳定性退出条件，因此按开发者视觉合同以固定图关闭，
+没有打开可见窗口，也不把单帧证据扩张为闪烁/运动结论。
 
 ## 材质语言
 
@@ -108,10 +109,14 @@ V10B2 使用 Codex 内置 OpenAI 图像生成工具，没有使用 CLI/API key�
 森林图与 V10B1 固定森林图使用同一 seed/机位，构成 before/after；FPS 数字和流送状态不参与
 像素身份。遗迹图中的自然树干遮挡属于 terrain v3 固定输出，不为截图修改世界生成。
 
-## 待关闭项
+## 开发者视觉结果
 
-1. 项目所有者自行启动 Release，在森林近/中景、遗迹、营地、HUD/手持间连续观察 5-10 分钟，
-   确认无接缝、透明错误、过强噪声或身份混淆；记录 PASS/FAIL 和一句理由。
-2. V10B1 遗留的真实 macOS Release shader/窗口证据仍为 `Verify`；V10B2 没有修改 shader 或
-   顶点接口，不新增独立 macOS shader 门禁。
-3. 前台视觉 Verify 关闭前不把 V10B3 标记为 `In Progress`。
+- 记录：`docs/developer-visual-record-v10b2.txt`，`result=PASS`，可由
+  `tools/validate_developer_visual_record.ps1 -RequirePass` 校验。
+- 森林图中草/土/石分面清楚，HUD 五格图标、选中态与手持石剑身份一致；遗迹图中石材、树干、
+  叶片和水边界可辨；营地图中沙、土、原木与树叶可辨。
+- 三图均未见 atlas 接缝、黑材质、透明漏色、HUD/手持 UV 漂移、严重过亮/过暗或材质身份混淆。
+- 近景草地与沙地仍有规则重复感，这是 V10B3 确定性 tile 变体的已规划问题，不构成 V10B2
+  资产合同失败。
+- V10B1 遗留的真实 macOS Release shader/窗口证据仍为 `Verify`；V10B2 没有修改 shader 或
+  顶点接口，不新增独立 macOS shader 门禁。
