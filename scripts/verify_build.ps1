@@ -17,6 +17,8 @@ $musicTrackVerifier = Join-Path $repoRoot `
     "tools\generate_n12c_music_track.ps1"
 $performanceComparisonVerifier = Join-Path $repoRoot `
     "tools\validate_perf_comparison.ps1"
+$stage10PerformanceVerifier = Join-Path $repoRoot `
+    "tools\validate_stage10_visual_performance.ps1"
 $manualInputRecordVerifier = Join-Path $repoRoot `
     "tools\validate_manual_input_record.ps1"
 $resourcePackVerifier = Join-Path $repoRoot `
@@ -129,6 +131,10 @@ try {
 
     Invoke-Checked "Performance comparison fixtures" {
         & $performanceComparisonVerifier
+    }
+
+    Invoke-Checked "Stage 10 visual performance supplement" {
+        & $stage10PerformanceVerifier
     }
 
     Invoke-Checked "Manual input protocol schema" {

@@ -24,6 +24,15 @@ class ChunkMesh {
                  float textureRepeatWidth = 1.f,
                  float textureRepeatHeight = 1.f);
 
+    void addFace(const std::array<float, 12> &blockFace,
+                 const std::array<float, 8> &textureCoords,
+                 const glm::ivec3 &chunkPosition,
+                 const glm::ivec3 &blockPosition,
+                 const std::array<float, 4> &vertexLight,
+                 bool flipDiagonal,
+                 float textureRepeatWidth = 1.f,
+                 float textureRepeatHeight = 1.f);
+
     const Mesh &getClientMesh() const;
     const std::vector<float> &getLight() const;
 

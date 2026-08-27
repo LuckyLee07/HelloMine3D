@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <vector>
 
 namespace {
@@ -129,21 +130,21 @@ void ChunkMeshBuilder::buildMesh()
         // Up/ Down
         if ((m_pInput->getLocation().y != 0) || y != 0)
             tryAddFaceToMesh(bottomFace, renderInfo.texBottomCoord, block,
-                             position, directions.down, LIGHT_BOT);
+                             position, directions.down, CubeFace::Bottom);
         tryAddFaceToMesh(topFace, renderInfo.texTopCoord, block, position,
-                         directions.up, LIGHT_TOP);
+                         directions.up, CubeFace::Top);
 
         // Left/ Right
         tryAddFaceToMesh(leftFace, renderInfo.texSideCoord, block, position,
-                         directions.left, LIGHT_X);
+                         directions.left, CubeFace::Left);
         tryAddFaceToMesh(rightFace, renderInfo.texSideCoord, block, position,
-                         directions.right, LIGHT_X);
+                         directions.right, CubeFace::Right);
 
         // Front/ Back
         tryAddFaceToMesh(frontFace, renderInfo.texSideCoord, block, position,
-                         directions.front, LIGHT_Z);
+                         directions.front, CubeFace::Front);
         tryAddFaceToMesh(backFace, renderInfo.texSideCoord, block, position,
-                         directions.back, LIGHT_Z);
+                         directions.back, CubeFace::Back);
         }
         }
     }
@@ -165,14 +166,14 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
         bool visible = false;
         ChunkBlock block;
         glm::ivec2 textureCoords{0};
-        LightLevel light = MIN_LIGHT_LEVEL;
+        VertexLightingQuad lighting;
     };
 
-    const auto matches = [](const FaceCell &left, const FaceCell &right) {
+    const auto sameMaterial = [](const FaceCell &left,
+                                 const FaceCell &right) {
         return left.visible && right.visible && left.block == right.block &&
                left.textureCoords.x == right.textureCoords.x &&
-               left.textureCoords.y == right.textureCoords.y &&
-               left.light == right.light;
+               left.textureCoords.y == right.textureCoords.y;
     };
     const auto positionFor = [face](int slice, int u, int v) {
         switch (face) {
@@ -207,6 +208,79 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
     }();
 
     std::array<FaceCell, CHUNK_AREA> mask;
+    const auto rectangleLighting = [&mask](int startU, int startV,
+                                           int width, int height) {
+        VertexLightingQuad result;
+        result.corners[0] =
+            mask[startV * CHUNK_SIZE + startU].lighting.corners[0];
+        result.corners[1] =
+            mask[startV * CHUNK_SIZE + startU + width - 1]
+                .lighting.corners[1];
+        result.corners[2] =
+            mask[(startV + height - 1) * CHUNK_SIZE + startU + width - 1]
+                .lighting.corners[2];
+        result.corners[3] =
+            mask[(startV + height - 1) * CHUNK_SIZE + startU]
+                .lighting.corners[3];
+        result.flipDiagonal =
+            VertexLighting::shouldFlipDiagonal(result.corners);
+        return result;
+    };
+    const auto reconstructsLighting =
+        [&mask, &rectangleLighting](int startU, int startV, int width,
+                                    int height) {
+            const VertexLightingQuad rectangle =
+                rectangleLighting(startU, startV, width, height);
+            std::array<float, 4> outerFinal{};
+            std::array<float, 4> outerSmooth{};
+            std::array<float, 4> outerAo{};
+            for (std::size_t corner = 0; corner < 4; ++corner) {
+                outerFinal[corner] = rectangle.corners[corner].finalLight;
+                outerSmooth[corner] = rectangle.corners[corner].smoothLight;
+                outerAo[corner] = static_cast<float>(
+                    rectangle.corners[corner].ambientOcclusion);
+            }
+
+            constexpr int cornerU[4] = {0, 1, 1, 0};
+            constexpr int cornerV[4] = {0, 0, 1, 1};
+            constexpr float epsilon = 0.00001f;
+            for (int dv = 0; dv < height; ++dv) {
+                for (int du = 0; du < width; ++du) {
+                    const FaceCell &cell =
+                        mask[(startV + dv) * CHUNK_SIZE + startU + du];
+                    for (std::size_t corner = 0; corner < 4; ++corner) {
+                        const float x =
+                            static_cast<float>(du + cornerU[corner]) /
+                            static_cast<float>(width);
+                        const float y =
+                            static_cast<float>(dv + cornerV[corner]) /
+                            static_cast<float>(height);
+                        const VertexLightCorner &actual =
+                            cell.lighting.corners[corner];
+                        const float expectedFinal =
+                            VertexLighting::interpolateQuad(
+                                outerFinal, rectangle.flipDiagonal, x, y);
+                        const float expectedSmooth =
+                            VertexLighting::interpolateQuad(
+                                outerSmooth, rectangle.flipDiagonal, x, y);
+                        const float expectedAo =
+                            VertexLighting::interpolateQuad(
+                                outerAo, rectangle.flipDiagonal, x, y);
+                        if (std::abs(actual.finalLight - expectedFinal) >
+                                epsilon ||
+                            std::abs(actual.smoothLight - expectedSmooth) >
+                                epsilon ||
+                            std::abs(static_cast<float>(
+                                         actual.ambientOcclusion) -
+                                     expectedAo) > epsilon) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        };
+
     for (int slice = 0; slice < CHUNK_SIZE; ++slice) {
         mask.fill(FaceCell{});
         if (face == CubeFace::Bottom && slice == 0 &&
@@ -235,12 +309,11 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
                 else if (face == CubeFace::Bottom) {
                     textureCoords = renderInfo.texBottomCoord;
                 }
-                const LightLevel light = m_pInput->getCombinedLight(
-                    position.x + adjacentOffset.x,
-                    position.y + adjacentOffset.y,
-                    position.z + adjacentOffset.z);
-                mask[v * CHUNK_SIZE + u] =
-                    {true, block, textureCoords, light};
+                FaceCell &cell = mask[v * CHUNK_SIZE + u];
+                cell.visible = true;
+                cell.block = block;
+                cell.textureCoords = textureCoords;
+                cell.lighting = calculateVertexLighting(face, position);
             }
         }
 
@@ -254,7 +327,9 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
 
                 int width = 1;
                 while (u + width < CHUNK_SIZE &&
-                       matches(cell, mask[v * CHUNK_SIZE + u + width])) {
+                       sameMaterial(
+                           cell, mask[v * CHUNK_SIZE + u + width]) &&
+                       reconstructsLighting(u, v, width + 1, 1)) {
                     ++width;
                 }
 
@@ -262,7 +337,7 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
                 bool canExtend = true;
                 while (v + height < CHUNK_SIZE && canExtend) {
                     for (int offset = 0; offset < width; ++offset) {
-                        if (!matches(
+                        if (!sameMaterial(
                                 cell,
                                 mask[(v + height) * CHUNK_SIZE + u + offset])) {
                             canExtend = false;
@@ -270,11 +345,16 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
                         }
                     }
                     if (canExtend) {
-                        ++height;
+                        canExtend = reconstructsLighting(
+                            u, v, width, height + 1);
+                        if (canExtend) {
+                            ++height;
+                        }
                     }
                 }
 
-                addGreedyFace(face, cell.textureCoords, cell.light, slice,
+                addGreedyFace(face, cell.textureCoords,
+                              rectangleLighting(u, v, width, height), slice,
                               u, v, width, height);
                 for (int dv = 0; dv < height; ++dv) {
                     for (int du = 0; du < width; ++du) {
@@ -289,12 +369,12 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
 
 void ChunkMeshBuilder::addGreedyFace(CubeFace face,
                                      const glm::ivec2 &textureCoords,
-                                     LightLevel light, int slice, int u,
-                                     int v, int width, int height)
+                                     const VertexLightingQuad &lighting,
+                                     int slice, int u, int v, int width,
+                                     int height)
 {
     std::array<float, 12> vertices{};
     glm::ivec3 blockPosition{0};
-    float cardinalLight = LIGHT_TOP;
     switch (face) {
         case CubeFace::Bottom:
             vertices = {0, 0, 0, static_cast<float>(width), 0, 0,
@@ -302,7 +382,6 @@ void ChunkMeshBuilder::addGreedyFace(CubeFace face,
                         static_cast<float>(height), 0, 0,
                         static_cast<float>(height)};
             blockPosition = {u, slice, v};
-            cardinalLight = LIGHT_BOT;
             break;
         case CubeFace::Top:
             vertices = {0, 1, static_cast<float>(height),
@@ -310,7 +389,6 @@ void ChunkMeshBuilder::addGreedyFace(CubeFace face,
                         static_cast<float>(height),
                         static_cast<float>(width), 1, 0, 0, 1, 0};
             blockPosition = {u, slice, v};
-            cardinalLight = LIGHT_TOP;
             break;
         case CubeFace::Left:
             vertices = {0, 0, 0, 0, 0, static_cast<float>(width), 0,
@@ -318,7 +396,6 @@ void ChunkMeshBuilder::addGreedyFace(CubeFace face,
                         static_cast<float>(width), 0,
                         static_cast<float>(height), 0};
             blockPosition = {slice, v, u};
-            cardinalLight = LIGHT_X;
             break;
         case CubeFace::Right:
             vertices = {1, 0, static_cast<float>(width), 1, 0, 0, 1,
@@ -326,7 +403,6 @@ void ChunkMeshBuilder::addGreedyFace(CubeFace face,
                         static_cast<float>(height),
                         static_cast<float>(width)};
             blockPosition = {slice, v, u};
-            cardinalLight = LIGHT_X;
             break;
         case CubeFace::Front:
             vertices = {0, 0, 1, static_cast<float>(width), 0, 1,
@@ -334,7 +410,6 @@ void ChunkMeshBuilder::addGreedyFace(CubeFace face,
                         static_cast<float>(height), 1, 0,
                         static_cast<float>(height), 1};
             blockPosition = {u, v, slice};
-            cardinalLight = LIGHT_Z;
             break;
         case CubeFace::Back:
             vertices = {static_cast<float>(width), 0, 0, 0, 0, 0, 0,
@@ -342,17 +417,151 @@ void ChunkMeshBuilder::addGreedyFace(CubeFace face,
                         static_cast<float>(width),
                         static_cast<float>(height), 0};
             blockPosition = {u, v, slice};
-            cardinalLight = LIGHT_Z;
             break;
     }
 
     const auto atlasCoords =
         BlockTextureCoordinates::get(textureCoords.x, textureCoords.y);
-    m_pMeshes->solidMesh.addFace(
-        vertices, atlasCoords, m_pInput->getLocation(), blockPosition,
-        combineTerrainLight(cardinalLight, light),
-        static_cast<float>(width),
-        static_cast<float>(height));
+    addVertexLitFace(m_pMeshes->solidMesh, face, vertices, atlasCoords,
+                     blockPosition, lighting, static_cast<float>(width),
+                     static_cast<float>(height));
+}
+
+VertexLightingQuad ChunkMeshBuilder::calculateVertexLighting(
+    CubeFace face, const glm::ivec3 &blockPosition) const
+{
+    glm::ivec3 normal{0};
+    glm::ivec3 tangentU{0};
+    glm::ivec3 tangentV{0};
+    float cardinalLight = LIGHT_TOP;
+    switch (face) {
+        case CubeFace::Bottom:
+            normal = {0, -1, 0};
+            tangentU = {1, 0, 0};
+            tangentV = {0, 0, 1};
+            cardinalLight = LIGHT_BOT;
+            break;
+        case CubeFace::Top:
+            normal = {0, 1, 0};
+            tangentU = {1, 0, 0};
+            tangentV = {0, 0, 1};
+            cardinalLight = LIGHT_TOP;
+            break;
+        case CubeFace::Left:
+            normal = {-1, 0, 0};
+            tangentU = {0, 0, 1};
+            tangentV = {0, 1, 0};
+            cardinalLight = LIGHT_X;
+            break;
+        case CubeFace::Right:
+            normal = {1, 0, 0};
+            tangentU = {0, 0, 1};
+            tangentV = {0, 1, 0};
+            cardinalLight = LIGHT_X;
+            break;
+        case CubeFace::Front:
+            normal = {0, 0, 1};
+            tangentU = {1, 0, 0};
+            tangentV = {0, 1, 0};
+            cardinalLight = LIGHT_Z;
+            break;
+        case CubeFace::Back:
+            normal = {0, 0, -1};
+            tangentU = {1, 0, 0};
+            tangentV = {0, 1, 0};
+            cardinalLight = LIGHT_Z;
+            break;
+    }
+
+    constexpr int tangentUSign[4] = {-1, 1, 1, -1};
+    constexpr int tangentVSign[4] = {-1, -1, 1, 1};
+    const glm::ivec3 centre = blockPosition + normal;
+
+    VertexLightingQuad lighting;
+    for (std::size_t corner = 0; corner < 4; ++corner) {
+        const glm::ivec3 sideU =
+            centre + tangentU * tangentUSign[corner];
+        const glm::ivec3 sideV =
+            centre + tangentV * tangentVSign[corner];
+        const glm::ivec3 diagonal =
+            sideU + tangentV * tangentVSign[corner];
+
+        VertexLightCornerSamples samples;
+        samples.centre = m_pInput->getCombinedLight(
+            centre.x, centre.y, centre.z);
+        samples.sideU =
+            m_pInput->getCombinedLight(sideU.x, sideU.y, sideU.z);
+        samples.sideV =
+            m_pInput->getCombinedLight(sideV.x, sideV.y, sideV.z);
+        samples.diagonal = m_pInput->getCombinedLight(
+            diagonal.x, diagonal.y, diagonal.z);
+        samples.sideUOccludes = isAmbientOccluder(sideU);
+        samples.sideVOccludes = isAmbientOccluder(sideV);
+        samples.diagonalOccludes = isAmbientOccluder(diagonal);
+        lighting.corners[corner] =
+            VertexLighting::evaluateCorner(cardinalLight, samples);
+    }
+    lighting.flipDiagonal =
+        VertexLighting::shouldFlipDiagonal(lighting.corners);
+    return lighting;
+}
+
+bool ChunkMeshBuilder::isAmbientOccluder(
+    const glm::ivec3 &position) const
+{
+    const ChunkBlock block =
+        m_pInput->getBlock(position.x, position.y, position.z);
+    if (block == BlockId::Air) {
+        return false;
+    }
+
+    // Water, glass and resource flora are transparent in the block contract,
+    // so they do not become solid AO walls. Out-of-halo and unloaded samples
+    // resolve to Air through SectionMeshInput and follow the same rule.
+    return !BlockDatabase::get()
+                .getDefinition(static_cast<BlockId>(block.id))
+                .transparent;
+}
+
+void ChunkMeshBuilder::addVertexLitFace(
+    ChunkMesh &mesh, CubeFace face,
+    const std::array<float, 12> &blockFace,
+    const std::array<float, 8> &textureCoords,
+    const glm::ivec3 &blockPosition,
+    const VertexLightingQuad &lighting, float textureRepeatWidth,
+    float textureRepeatHeight)
+{
+    std::array<float, 4> light{};
+    bool flipDiagonal = lighting.flipDiagonal;
+    switch (face) {
+        case CubeFace::Bottom:
+        case CubeFace::Left:
+        case CubeFace::Front:
+            light = {lighting.corners[0].finalLight,
+                     lighting.corners[1].finalLight,
+                     lighting.corners[2].finalLight,
+                     lighting.corners[3].finalLight};
+            break;
+        case CubeFace::Top:
+            light = {lighting.corners[3].finalLight,
+                     lighting.corners[2].finalLight,
+                     lighting.corners[1].finalLight,
+                     lighting.corners[0].finalLight};
+            flipDiagonal = !flipDiagonal;
+            break;
+        case CubeFace::Right:
+        case CubeFace::Back:
+            light = {lighting.corners[1].finalLight,
+                     lighting.corners[0].finalLight,
+                     lighting.corners[3].finalLight,
+                     lighting.corners[2].finalLight};
+            flipDiagonal = !flipDiagonal;
+            break;
+    }
+
+    mesh.addFace(blockFace, textureCoords, m_pInput->getLocation(),
+                 blockPosition, light, flipDiagonal, textureRepeatWidth,
+                 textureRepeatHeight);
 }
 
 bool ChunkMeshBuilder::isGreedySolidBlock(ChunkBlock block) const
@@ -413,19 +622,15 @@ void ChunkMeshBuilder::addResourceShapeToMesh(
 void ChunkMeshBuilder::tryAddFaceToMesh(
     const std::array<float, 12> &blockFace, const glm::ivec2 &textureCoords,
     ChunkBlock block, const glm::ivec3 &blockPosition,
-    const glm::ivec3 &blockFacing, float cardinalLight)
+    const glm::ivec3 &blockFacing, CubeFace face)
 {
     if (shouldMakeFace(block, blockFacing)) {
         const auto texCoords =
             BlockTextureCoordinates::get(textureCoords.x, textureCoords.y);
 
-        m_pActiveMesh->addFace(blockFace, texCoords, m_pInput->getLocation(),
-                               blockPosition,
-                               combineTerrainLight(
-                                   cardinalLight,
-                                   m_pInput->getCombinedLight(
-                                       blockFacing.x, blockFacing.y,
-                                       blockFacing.z)));
+        addVertexLitFace(*m_pActiveMesh, face, blockFace, texCoords,
+                         blockPosition,
+                         calculateVertexLighting(face, blockPosition));
     }
 }
 

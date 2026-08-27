@@ -85,6 +85,7 @@
 #include "../World/Chunk/ChunkMeshBuilder.h"
 #include "../World/Chunk/SectionMeshInput.h"
 #include "../World/Environment/WorldEnvironment.h"
+#include "../World/Light/VertexLighting.h"
 #include "../World/Generation/Biome/TemperateForestBiome.h"
 #include "../World/Generation/Structures/StructurePlanning.h"
 #include "../World/Generation/Terrain/ClassicOverWorldGenerator.h"
@@ -3132,10 +3133,10 @@ void caseGreedyMeshing()
 
     ChunkMeshCollection singleMaterial = buildSectionMeshes();
     const Mesh &singleSolid = singleMaterial.solidMesh.getClientMesh();
-    check("M4/flat-cuboid-greedy-face-drop",
-          singleMaterial.solidMesh.faces == 6 &&
-              singleSolid.vertexPositions.size() / 3 == 24 &&
-              singleSolid.indices.size() == 36,
+    check("M4/flat-cuboid-reconstruction-safe-greedy",
+          singleMaterial.solidMesh.faces == 14 &&
+              singleSolid.vertexPositions.size() / 3 == 56 &&
+              singleSolid.indices.size() == 84,
           "faces=" + std::to_string(singleMaterial.solidMesh.faces) +
               " naive=160");
 
@@ -3167,7 +3168,7 @@ void caseGreedyMeshing()
     }
     ChunkMeshCollection splitMaterials = buildSectionMeshes();
     check("M4/material-boundary-preserved",
-          splitMaterials.solidMesh.faces == 10,
+          splitMaterials.solidMesh.faces == 20,
           "faces=" + std::to_string(splitMaterials.solidMesh.faces));
 
     world.setBlock(4, blockY + 2, 4, BlockId::Water);
@@ -3181,6 +3182,298 @@ void caseGreedyMeshing()
     check("M4/flora-topology-remains-separate",
           separatePasses.floraMesh.faces == 4,
           "faces=" + std::to_string(separatePasses.floraMesh.faces));
+}
+
+// ---------------------------------------------------------------------------
+// V10A - deterministic per-vertex smooth light, ambient occlusion and
+// diagonal selection retain the 32-byte terrain vertex layout
+// ---------------------------------------------------------------------------
+void caseVertexLighting()
+{
+    VertexLightCornerSamples clearSamples;
+    clearSamples.centre = MAX_LIGHT_LEVEL;
+    clearSamples.sideU = MAX_LIGHT_LEVEL;
+    clearSamples.sideV = MAX_LIGHT_LEVEL;
+    clearSamples.diagonal = MAX_LIGHT_LEVEL;
+    const VertexLightCorner clear =
+        VertexLighting::evaluateCorner(1.f, clearSamples);
+
+    VertexLightCornerSamples diagonalSamples = clearSamples;
+    diagonalSamples.diagonalOccludes = true;
+    diagonalSamples.diagonal = MIN_LIGHT_LEVEL;
+    const VertexLightCorner diagonal =
+        VertexLighting::evaluateCorner(1.f, diagonalSamples);
+
+    VertexLightCornerSamples oneSideSamples = clearSamples;
+    oneSideSamples.sideUOccludes = true;
+    oneSideSamples.sideU = MIN_LIGHT_LEVEL;
+    const VertexLightCorner oneSide =
+        VertexLighting::evaluateCorner(1.f, oneSideSamples);
+
+    VertexLightCornerSamples enclosedCornerSamples = clearSamples;
+    enclosedCornerSamples.sideUOccludes = true;
+    enclosedCornerSamples.sideVOccludes = true;
+    enclosedCornerSamples.sideU = MIN_LIGHT_LEVEL;
+    enclosedCornerSamples.sideV = MIN_LIGHT_LEVEL;
+    const VertexLightCorner enclosedCorner =
+        VertexLighting::evaluateCorner(1.f, enclosedCornerSamples);
+
+    check("V10A/vertex-lighting-contract-is-derived-version-one",
+          VertexLighting::ContractVersion == 1 &&
+              std::abs(clear.smoothLight - 1.f) < 0.001f &&
+              std::abs(clear.finalLight - 1.f) < 0.001f &&
+              clear.ambientOcclusion == 0);
+    check("V10A/diagonal-and-single-side-each-occlude-once",
+          diagonal.ambientOcclusion == 1 &&
+              oneSide.ambientOcclusion == 1 &&
+              std::abs(diagonal.finalLight - oneSide.finalLight) < 0.001f);
+    check("V10A/two-sides-force-closed-corner",
+          enclosedCorner.ambientOcclusion == 3 &&
+              std::abs(enclosedCorner.smoothLight - 1.f) < 0.001f &&
+              enclosedCorner.finalLight < oneSide.finalLight);
+
+    std::array<VertexLightCorner, 4> diagonalChoice{};
+    diagonalChoice[0].smoothLight = 0.f;
+    diagonalChoice[0].finalLight = 0.f;
+    diagonalChoice[1].smoothLight = 0.5f;
+    diagonalChoice[1].finalLight = 0.5f;
+    diagonalChoice[2].smoothLight = 1.f;
+    diagonalChoice[2].finalLight = 1.f;
+    diagonalChoice[3].smoothLight = 0.5f;
+    diagonalChoice[3].finalLight = 0.5f;
+    check("V10A/lower-error-diagonal-is-selected",
+          VertexLighting::shouldFlipDiagonal(diagonalChoice));
+    diagonalChoice.fill(clear);
+    check("V10A/diagonal-tie-keeps-fixed-zero-two-split",
+          !VertexLighting::shouldFlipDiagonal(diagonalChoice));
+
+    const std::array<float, 4> planar = {0.f, 0.5f, 1.f, 0.5f};
+    check("V10A/quad-interpolation-is-deterministic",
+          std::abs(VertexLighting::interpolateQuad(
+                       planar, false, 0.5f, 0.5f) -
+                   0.5f) < 0.001f &&
+              std::abs(VertexLighting::interpolateQuad(
+                           planar, true, 0.5f, 0.5f) -
+                       0.5f) < 0.001f);
+
+    ChunkMesh diagonalMesh;
+    const std::array<float, 12> quad = {
+        0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0,
+    };
+    const std::array<float, 8> texture = {0, 0, 1, 0, 1, 1, 0, 1};
+    const std::array<float, 4> light = {0.2f, 0.4f, 0.6f, 0.8f};
+    diagonalMesh.addFace(quad, texture, glm::ivec3(0), glm::ivec3(0),
+                         light, true);
+    check("V10A/four-light-values-use-existing-vertex-stream",
+          diagonalMesh.getLight() ==
+                  std::vector<float>(light.begin(), light.end()) &&
+              TerrainBufferMetrics::VertexStrideBytes == 32);
+    check("V10A/flipped-diagonal-emits-stable-indices",
+          diagonalMesh.getClientMesh().indices ==
+              std::vector<std::uint32_t>({0, 1, 3, 1, 2, 3}));
+
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+    const auto directory = freshSaveDirectory("vertex_lighting");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+
+    constexpr int blockY = 200;
+    constexpr int targetX = 8;
+    constexpr int targetZ = 8;
+    world.setBlock(targetX, blockY, targetZ, BlockId::Stone);
+    Chunk *chunk = world.getChunkManager().findChunk(0, 0);
+    ChunkSection *section =
+        chunk != nullptr ? chunk->findSection(blockY / CHUNK_SIZE) : nullptr;
+    check("V10A/fixture-section-available", section != nullptr);
+    if (section == nullptr) {
+        return;
+    }
+
+    const auto buildSection = [](ChunkSection &source) {
+        SectionMeshInput input;
+        source.captureMeshInput(input);
+        ChunkMeshCollection meshes;
+        ChunkMeshBuilder(input, meshes).buildMesh();
+        return meshes;
+    };
+    const auto findUnitTop = [](const ChunkMeshCollection &meshes, int x,
+                                int y, int z,
+                                std::array<float, 4> &result) {
+        const Mesh &mesh = meshes.solidMesh.getClientMesh();
+        const auto &lights = meshes.solidMesh.getLight();
+        const std::size_t faceCount = mesh.vertexPositions.size() / 12;
+        for (std::size_t face = 0; face < faceCount; ++face) {
+            float minX = 100000.f;
+            float maxX = -100000.f;
+            float minZ = 100000.f;
+            float maxZ = -100000.f;
+            bool top = true;
+            for (std::size_t vertex = 0; vertex < 4; ++vertex) {
+                const std::size_t position = face * 12 + vertex * 3;
+                minX = std::min(minX, mesh.vertexPositions[position]);
+                maxX = std::max(maxX, mesh.vertexPositions[position]);
+                minZ = std::min(minZ, mesh.vertexPositions[position + 2]);
+                maxZ = std::max(maxZ, mesh.vertexPositions[position + 2]);
+                top = top &&
+                      std::abs(mesh.vertexPositions[position + 1] -
+                               static_cast<float>(y + 1)) < 0.001f;
+            }
+            if (top && std::abs(minX - x) < 0.001f &&
+                std::abs(maxX - (x + 1)) < 0.001f &&
+                std::abs(minZ - z) < 0.001f &&
+                std::abs(maxZ - (z + 1)) < 0.001f) {
+                std::copy_n(lights.begin() + face * 4, 4, result.begin());
+                return true;
+            }
+        }
+        return false;
+    };
+
+    std::array<float, 4> openTop{};
+    const bool foundOpen =
+        findUnitTop(buildSection(*section), targetX, blockY, targetZ,
+                    openTop);
+    check("V10A/isolated-top-has-four-clear-corners",
+          foundOpen &&
+              std::all_of(openTop.begin(), openTop.end(), [](float value) {
+                  return std::abs(value - 1.f) < 0.001f;
+              }));
+
+    world.setBlock(targetX - 1, blockY + 1, targetZ, BlockId::Glass);
+    world.setBlock(targetX, blockY + 1, targetZ - 1, BlockId::Glass);
+    world.setBlock(targetX - 1, blockY + 1, targetZ - 1, BlockId::Glass);
+    std::array<float, 4> transparentTop{};
+    const bool foundTransparent =
+        findUnitTop(buildSection(*section), targetX, blockY, targetZ,
+                    transparentTop);
+    check("V10A/transparent-neighbours-do-not-occlude-ao",
+          foundTransparent && transparentTop == openTop);
+
+    world.setBlock(targetX - 1, blockY + 1, targetZ, BlockId::Stone);
+    world.setBlock(targetX, blockY + 1, targetZ - 1, BlockId::Stone);
+    world.setBlock(targetX - 1, blockY + 1, targetZ - 1, BlockId::Stone);
+    std::array<float, 4> enclosedTop{};
+    const bool foundEnclosed =
+        findUnitTop(buildSection(*section), targetX, blockY, targetZ,
+                    enclosedTop);
+    check("V10A/l-shaped-opaque-neighbours-darken-one-corner",
+          foundEnclosed &&
+              *std::min_element(enclosedTop.begin(), enclosedTop.end()) <
+                  0.7f &&
+              *std::max_element(enclosedTop.begin(), enclosedTop.end()) >
+                  0.99f);
+
+    constexpr int boundaryX = CHUNK_SIZE;
+    constexpr int boundaryZ = 6;
+    world.setBlock(boundaryX - 1, blockY, boundaryZ, BlockId::Stone);
+    world.setBlock(boundaryX, blockY, boundaryZ, BlockId::Stone);
+    world.setBlock(boundaryX, blockY + 1, boundaryZ - 1,
+                   BlockId::Stone);
+    Chunk *eastChunk = world.getChunkManager().findChunk(1, 0);
+    ChunkSection *eastSection =
+        eastChunk != nullptr
+            ? eastChunk->findSection(blockY / CHUNK_SIZE)
+            : nullptr;
+    check("V10A/cross-section-fixture-available", eastSection != nullptr);
+    if (eastSection == nullptr) {
+        return;
+    }
+
+    SectionMeshInput westInput;
+    SectionMeshInput eastInput;
+    section->captureMeshInput(westInput);
+    eastSection->captureMeshInput(eastInput);
+    ChunkMeshCollection westFirst;
+    ChunkMeshCollection eastSecond;
+    ChunkMeshBuilder(westInput, westFirst).buildMesh();
+    ChunkMeshBuilder(eastInput, eastSecond).buildMesh();
+    ChunkMeshCollection eastFirst;
+    ChunkMeshCollection westSecond;
+    ChunkMeshBuilder(eastInput, eastFirst).buildMesh();
+    ChunkMeshBuilder(westInput, westSecond).buildMesh();
+
+    const auto identicalMesh = [](const ChunkMesh &left,
+                                   const ChunkMesh &right) {
+        return left.getClientMesh().vertexPositions ==
+                   right.getClientMesh().vertexPositions &&
+               left.getClientMesh().textureCoords ==
+                   right.getClientMesh().textureCoords &&
+               left.getClientMesh().textureRepeatCoords ==
+                   right.getClientMesh().textureRepeatCoords &&
+               left.getClientMesh().indices ==
+                   right.getClientMesh().indices &&
+               left.getLight() == right.getLight();
+    };
+    check("V10A/rebuild-order-is-byte-deterministic",
+          identicalMesh(westFirst.solidMesh, westSecond.solidMesh) &&
+              identicalMesh(eastFirst.solidMesh, eastSecond.solidMesh));
+
+    const auto sharedTopLight = [](const ChunkMeshCollection &meshes,
+                                   float x, float y, float z,
+                                   float &result) {
+        const Mesh &mesh = meshes.solidMesh.getClientMesh();
+        const auto &lights = meshes.solidMesh.getLight();
+        const std::size_t faceCount = mesh.vertexPositions.size() / 12;
+        for (std::size_t face = 0; face < faceCount; ++face) {
+            bool top = true;
+            for (std::size_t vertex = 0; vertex < 4; ++vertex) {
+                top = top &&
+                      std::abs(mesh.vertexPositions[face * 12 +
+                                                    vertex * 3 + 1] -
+                               y) < 0.001f;
+            }
+            if (!top) {
+                continue;
+            }
+            const std::size_t faceStart = face * 12;
+            const float edgeOneX =
+                mesh.vertexPositions[faceStart + 3] -
+                mesh.vertexPositions[faceStart];
+            const float edgeOneZ =
+                mesh.vertexPositions[faceStart + 5] -
+                mesh.vertexPositions[faceStart + 2];
+            const float edgeTwoX =
+                mesh.vertexPositions[faceStart + 6] -
+                mesh.vertexPositions[faceStart];
+            const float edgeTwoZ =
+                mesh.vertexPositions[faceStart + 8] -
+                mesh.vertexPositions[faceStart + 2];
+            const float normalY =
+                edgeOneZ * edgeTwoX - edgeOneX * edgeTwoZ;
+            if (normalY <= 0.f) {
+                continue;
+            }
+            for (std::size_t vertex = 0; vertex < 4; ++vertex) {
+                const std::size_t position = face * 12 + vertex * 3;
+                if (std::abs(mesh.vertexPositions[position] - x) < 0.001f &&
+                    std::abs(mesh.vertexPositions[position + 2] - z) <
+                        0.001f) {
+                    result = lights[face * 4 + vertex];
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+    float westLight = 0.f;
+    float eastLight = 0.f;
+    const bool foundWest = sharedTopLight(
+        westFirst, static_cast<float>(boundaryX),
+        static_cast<float>(blockY + 1), static_cast<float>(boundaryZ),
+        westLight);
+    const bool foundEast = sharedTopLight(
+        eastFirst, static_cast<float>(boundaryX),
+        static_cast<float>(blockY + 1), static_cast<float>(boundaryZ),
+        eastLight);
+    check("V10A/cross-section-shared-vertex-matches",
+          foundWest && foundEast &&
+              std::abs(westLight - eastLight) < 0.000001f,
+          "west/east=" + std::to_string(westLight) + "/" +
+              std::to_string(eastLight));
 }
 
 // ---------------------------------------------------------------------------
@@ -3829,7 +4122,8 @@ void caseSunlightStorage()
         const auto &light = meshes.solidMesh.getLight();
         int floorTopFaces = 0;
         bool foundSurfaceLight = false;
-        bool foundCaveLight = false;
+        float darkestTopLight = 1.f;
+        float brightestTopLight = 0.f;
         const std::size_t faceCount = solid.vertexPositions.size() / 12;
         for (std::size_t face = 0; face < faceCount; ++face) {
             bool isFloorTop = true;
@@ -3846,18 +4140,21 @@ void caseSunlightStorage()
             }
 
             ++floorTopFaces;
-            const float faceLight = light[face * 4];
-            foundSurfaceLight =
-                foundSurfaceLight ||
-                std::abs(faceLight - 1.f) < 0.001f;
-            foundCaveLight =
-                foundCaveLight ||
-                std::abs(faceLight - MIN_TERRAIN_BRIGHTNESS) < 0.001f;
+            for (std::size_t vertex = 0; vertex < 4; ++vertex) {
+                const float vertexLight = light[face * 4 + vertex];
+                darkestTopLight = std::min(darkestTopLight, vertexLight);
+                brightestTopLight =
+                    std::max(brightestTopLight, vertexLight);
+                foundSurfaceLight =
+                    foundSurfaceLight ||
+                    std::abs(vertexLight - 1.f) < 0.001f;
+            }
         }
         check("L1/mesh-distinguishes-surface-and-cave",
-              foundSurfaceLight && foundCaveLight,
-              "surface=" + std::to_string(foundSurfaceLight) +
-                  " cave=" + std::to_string(foundCaveLight));
+              foundSurfaceLight && darkestTopLight < 0.85f &&
+                  brightestTopLight - darkestTopLight > 0.15f,
+              "bright/dark=" + std::to_string(brightestTopLight) +
+                  "/" + std::to_string(darkestTopLight));
         check("L1/greedy-splits-light-boundary", floorTopFaces == 2,
               "top_faces=" + std::to_string(floorTopFaces));
 
@@ -3998,16 +4295,17 @@ void caseBlockLightStorage()
                              static_cast<float>(floorY + 1)) < 0.001f;
             }
 
-            const bool targetBounds =
-                std::abs(minX - targetX) < 0.001f &&
-                std::abs(maxX - (targetX + 1)) < 0.001f &&
-                std::abs(minZ - z) < 0.001f &&
-                std::abs(maxZ - (z + 1)) < 0.001f;
-            if (topHeight && targetBounds &&
-                std::abs(light[face * 4] - lightLevelToBrightness(13)) <
-                    0.001f) {
-                foundLitTargetFace = true;
-                break;
+            const bool coversTarget =
+                minX <= targetX + 0.001f &&
+                maxX >= targetX + 1.f - 0.001f &&
+                minZ <= z + 0.001f && maxZ >= z + 1.f - 0.001f;
+            if (topHeight && coversTarget) {
+                for (std::size_t vertex = 0; vertex < 4; ++vertex) {
+                    foundLitTargetFace =
+                        foundLitTargetFace ||
+                        light[face * 4 + vertex] >=
+                            lightLevelToBrightness(11);
+                }
             }
         }
         check("L2/emissive-block-lights-nearby-mesh",
@@ -11851,6 +12149,14 @@ int main()
         runtimeFoodRegistry().freeze(
             {{"runtime.food", validFoodDefinitions()}});
 
+        const char *focus = std::getenv("HELLOMINE3D_WORLD_SMOKE_FOCUS");
+        if (focus != nullptr && std::string(focus) == "V10A") {
+            caseGreedyMeshing();
+            caseVertexLighting();
+            caseSunlightStorage();
+            caseBlockLightStorage();
+        }
+        else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
         caseDebugPanelStartupOption();
@@ -11877,6 +12183,7 @@ int main()
         casePersistence();
         caseSectionMeshInput();
         caseGreedyMeshing();
+        caseVertexLighting();
         caseTerrainBufferMetrics();
         caseTransparentBlockRules();
         caseBlockBehaviorDispatch();
@@ -11918,6 +12225,7 @@ int main()
         caseChunkEvents();
         caseActors();
         caseWorldManager();
+        }
     }
     catch (const std::exception &error) {
         std::cerr << "[VALIDATION] unhandled exception: " << error.what()

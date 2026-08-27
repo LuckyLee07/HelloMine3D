@@ -11,6 +11,19 @@ void ChunkMesh::addFace(const std::array<float, 12> &blockFace,
                         float textureRepeatWidth,
                         float textureRepeatHeight)
 {
+    addFace(blockFace, textureCoords, chunkPosition, blockPosition,
+            {light, light, light, light}, false, textureRepeatWidth,
+            textureRepeatHeight);
+}
+
+void ChunkMesh::addFace(const std::array<float, 12> &blockFace,
+                        const std::array<float, 8> &textureCoords,
+                        const glm::ivec3 &chunkPosition,
+                        const glm::ivec3 &blockPosition,
+                        const std::array<float, 4> &vertexLight,
+                        bool flipDiagonal, float textureRepeatWidth,
+                        float textureRepeatHeight)
+{
     faces++;
     auto &verticies = m_mesh.vertexPositions;
     auto &texCoords = m_mesh.textureCoords;
@@ -32,13 +45,21 @@ void ChunkMesh::addFace(const std::array<float, 12> &blockFace,
                             blockPosition.y);
         verticies.push_back(blockFace[index++] + chunkPosition.z * CHUNK_SIZE +
                             blockPosition.z);
-        m_light.push_back(light);
+        m_light.push_back(vertexLight[i]);
     }
 
-    indices.insert(indices.end(),
-                   {m_indexIndex, m_indexIndex + 1, m_indexIndex + 2,
-
-                    m_indexIndex + 2, m_indexIndex + 3, m_indexIndex});
+    if (flipDiagonal) {
+        indices.insert(indices.end(),
+                       {m_indexIndex, m_indexIndex + 1, m_indexIndex + 3,
+                        m_indexIndex + 1, m_indexIndex + 2,
+                        m_indexIndex + 3});
+    }
+    else {
+        indices.insert(indices.end(),
+                       {m_indexIndex, m_indexIndex + 1, m_indexIndex + 2,
+                        m_indexIndex + 2, m_indexIndex + 3,
+                        m_indexIndex});
+    }
     m_indexIndex += 4;
 }
 

@@ -8,6 +8,7 @@
 
 #include "../Block/ChunkBlock.h"
 #include "../Light/LightLevel.h"
+#include "../Light/VertexLighting.h"
 
 class ChunkMesh;
 class BlockData;
@@ -41,9 +42,20 @@ class ChunkMeshBuilder {
     void buildGreedySolidMesh();
     void buildGreedyFaces(CubeFace face);
     void addGreedyFace(CubeFace face, const glm::ivec2 &textureCoords,
-                       LightLevel light, int slice, int u, int v,
-                       int width, int height);
+                       const VertexLightingQuad &lighting, int slice,
+                       int u, int v, int width, int height);
     bool isGreedySolidBlock(ChunkBlock block) const;
+
+    VertexLightingQuad calculateVertexLighting(
+        CubeFace face, const glm::ivec3 &blockPosition) const;
+    bool isAmbientOccluder(const glm::ivec3 &position) const;
+    void addVertexLitFace(ChunkMesh &mesh, CubeFace face,
+                          const std::array<float, 12> &blockFace,
+                          const std::array<float, 8> &textureCoords,
+                          const glm::ivec3 &blockPosition,
+                          const VertexLightingQuad &lighting,
+                          float textureRepeatWidth = 1.f,
+                          float textureRepeatHeight = 1.f);
 
     void setActiveMesh(ChunkBlock block);
 
@@ -57,7 +69,7 @@ class ChunkMeshBuilder {
                           ChunkBlock block,
                           const glm::ivec3 &blockPosition,
                           const glm::ivec3 &blockFacing,
-                          float cardinalLight);
+                          CubeFace face);
 
     bool shouldMakeFace(ChunkBlock block,
                         const glm::ivec3 &blockPosition) const;

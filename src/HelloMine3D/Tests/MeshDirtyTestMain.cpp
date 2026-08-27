@@ -56,7 +56,10 @@ int main()
     ok &= expectPlan("section top", 5, 31, 7,
                      {{0, 1, 0}, {0, 2, 0}});
     ok &= expectPlan("corner boundaries", 15, 31, -16,
-                     {{0, 1, -1}, {1, 1, -1}, {0, 2, -1}, {0, 1, -2}});
+                     {{0, 1, -1}, {1, 1, -1}, {0, 2, -1}, {1, 2, -1},
+                      {0, 1, -2}, {1, 1, -2}, {0, 2, -2}, {1, 2, -2}});
+    ok &= expectPlan("horizontal AO corner", 16, 18, 16,
+                     {{1, 1, 1}, {0, 1, 1}, {1, 1, 0}, {0, 1, 0}});
     ok &= expectPlan("negative y ignored", 5, -1, 7, {});
 
     if (!ok) {
