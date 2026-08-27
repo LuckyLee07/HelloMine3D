@@ -1,0 +1,18 @@
+# HelloMine3D developer visual record v1
+# V10B3 engineering commit: 706acafab3849100b86334e2914295d9ebcdbe64
+# Release executable SHA-256 used by the hidden RuntimeReadback captures:
+# 168A37D402C3510AFA836A900DBBEB412DF3A7EDBF8DFD4C97B74062B3981C30
+# The authorized developer reviewer inspected all five original-size images.
+record_version=1
+kind=developer_visual
+batch=V10B3
+date=2026-08-27
+commit=706acafab3849100b86334e2914295d9ebcdbe64
+configuration=Release
+gpu=NVIDIA GeForce GTX 1050 Ti
+driver=NVIDIA 472.12;OpenGL 4.6.0.0
+window=1280x720;fullscreen=0
+graphics=terrain_appearance_v1;atlas_6EA21822;patch_4;vertex_ao_on
+scenes=desert_noon,grassland_noon,light_forest_noon,temperate_forest_noon,ocean_noon
+result=PASS
+reason=Five real Release captures show stable patch variation and distinct ecology colour with no checkerboard, atlas seams, black tiles, alpha leaks, neutral-dirt drift, or HUD identity drift.

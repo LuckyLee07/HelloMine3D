@@ -12,7 +12,7 @@ $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = (Resolve-Path (Join-Path $scriptRoot "..")).Path
 if ([string]::IsNullOrWhiteSpace($RecordPath)) {
     $RecordPath = Join-Path $repoRoot `
-        "docs\developer-visual-record-v10b2.txt"
+        "docs\developer-visual-record-v10b3.txt"
 }
 if (-not [IO.Path]::IsPathRooted($RecordPath)) {
     $RecordPath = Join-Path $repoRoot $RecordPath

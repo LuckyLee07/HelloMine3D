@@ -126,7 +126,7 @@ Windows 自动化 EXE 一律隐藏或后台运行。只有必须由真人操作�
 | `V10A` | 顶点 AO 0-3、侧边/对角规则、天空光/方块光、透明/未知邻域、跨 section 一致性；只有合并结果可重建全部内部采样才 greedy 合并，对角线按误差和固定 tie-break 选择；保持 32 字节 stride；Debug/Release 受影响目标。 | FS2 四图加洞穴/树冠/遗迹/营地 before/after；schema 3 既有 geometry/mesh/residency 字段补充比较、快速流送/规模 Q1、短 Q3 和开发者检查。超过 10% 未获批准不得关闭。 |
 | `V10B1` | 图集尺寸/分格/坐标和颜色参数严格解析；旧图集像素兼容；不得静默改变 V10A AO/光照曲线；缺失/越界负例。 | shader 负例、Windows 双配置、开发者检查和 macOS Release 真实窗口冒烟。 |
 | `V10B2` | 原创 top/side/bottom 资产、生成脚本、来源/许可、manifest、透明边界和世界/HUD/手持一致性。 | 近景/中景截图、资源包、相关 Q1、干净包和开发者检查。 |
-| `V10B3` | 生态 tint 范围、坐标/seed/加载顺序确定性 tile 变体、greedy merge key 和 terrain v3 不变。 | 固定截图、相关 Q1、短 Q3 和开发者检查。 |
+| `V10B3`（Done） | 生态 tint 范围、坐标/seed/加载顺序确定性 tile 变体、greedy merge key 和 terrain v3 不变。 | 261 项图集、732 项 Release 世界、五张固定截图、相关 Q1、短 Q3 和 `developer-visual-record-v10b3.txt` 均通过。 |
 | `V10C` | 定向雾共享参数、云层高度/厚度/速度/颜色边界、帧率无关移动、进入云层与关闭回退。 | 森林/海岸正午/黄昏/夜晚/高处截图；地形/水/actor 雾一致；相关 Q1、开发者检查和 macOS Release 冒烟。 |
 | `V10D` | settings v5、v0-v4→Off 迁移、双语 key、Stage 10 shadow 补充身份；Off/Medium/High、距离/纹理/bias/PCF 上限、能力不足回退和资源清理。 | 正午/黄昏各档截图和同档性能；Off 与 BETA/V10C 兼容；开发者检查和 macOS Release 冒烟。 |
 | `V10E` | settings 预计 v6、v0-v5→Off 迁移、双语 key、Stage 10 post 补充身份；tone curve/抖动/轻 bloom 开关、HUD 排除、缩放和清理。 | 明暗阶梯、白天/夜晚/菜单截图、同档 Q1、开发者检查和 macOS Release 冒烟；未批准自动曝光、运动模糊、景深、SSAO、体积光。 |

@@ -156,7 +156,14 @@ try {
         & $developerVisualRecordVerifier `
             -RecordPath (Join-Path $repoRoot `
                 "docs\developer-visual-record-v10b2.txt") `
-            -AllowNotRun
+            -RequirePass
+    }
+
+    Invoke-Checked "V10B3 developer visual record" {
+        & $developerVisualRecordVerifier `
+            -RecordPath (Join-Path $repoRoot `
+                "docs\developer-visual-record-v10b3.txt") `
+            -RequirePass
     }
 
     Invoke-Checked "Generate VS2022 projects" {
