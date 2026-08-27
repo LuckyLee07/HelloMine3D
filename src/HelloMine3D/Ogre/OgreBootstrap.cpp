@@ -67,6 +67,7 @@
 #include "../World/Block/BlockDatabase.h"
 #include "../World/Block/ChestContainer.h"
 #include "../World/Block/TerrainMaterialProfile.h"
+#include "../World/Environment/AtmosphereShaderContract.h"
 #include "../World/World.h"
 #include "../World/Storage/WorldManagementService.h"
 
@@ -681,6 +682,7 @@ namespace
 
             Ogre::ResourceGroupManager::getSingleton()
                 .initialiseAllResourceGroups();
+            selectAtmosphereMode();
             syncTerrainMaterialParameters();
             m_sceneManager->setAmbientLight(
                 Ogre::ColourValue(0.7f, 0.7f, 0.7f));
@@ -2212,6 +2214,36 @@ namespace
             return technique->getPass(0);
         }
 
+        void selectAtmosphereMode()
+        {
+            const bool forcedFallback = isTrueValue(
+                std::getenv("HELLOMINE3D_V10C_FALLBACK"));
+            Ogre::RenderSystem* renderSystem =
+                m_root != nullptr ? m_root->getRenderSystem() : nullptr;
+            const Ogre::RenderSystemCapabilities* capabilities =
+                renderSystem != nullptr
+                    ? renderSystem->getCapabilities()
+                    : nullptr;
+            const bool programCapabilities =
+                capabilities != nullptr &&
+                capabilities->hasCapability(Ogre::RSC_VERTEX_PROGRAM) &&
+                capabilities->hasCapability(Ogre::RSC_FRAGMENT_PROGRAM);
+            const bool syntaxSupported =
+                Ogre::GpuProgramManager::getSingleton()
+                    .isSyntaxSupported("glsl150");
+            m_v10cAtmosphereEnabled =
+                !forcedFallback && programCapabilities && syntaxSupported;
+            const char* reason = m_v10cAtmosphereEnabled
+                ? "supported"
+                : (forcedFallback ? "forced-fs2"
+                                  : "unsupported-program-capability");
+            std::cout << "[V10C_ATMOSPHERE] enabled="
+                      << (m_v10cAtmosphereEnabled ? 1 : 0)
+                      << " fallback="
+                      << (m_v10cAtmosphereEnabled ? 0 : 1)
+                      << " reason=" << reason << '\n';
+        }
+
         void syncTerrainMaterialParameters()
         {
             const TerrainMaterialParameters &profile =
@@ -2257,6 +2289,10 @@ namespace
             const Ogre::Vector3 fogVector(
                 state.fogColour.r, state.fogColour.g,
                 state.fogColour.b);
+            const Ogre::Vector3 fogSunwardColour(
+                state.fogSunwardColour.r,
+                state.fogSunwardColour.g,
+                state.fogSunwardColour.b);
             const Ogre::Vector3 skyZenith(
                 state.skyZenithColour.r, state.skyZenithColour.g,
                 state.skyZenithColour.b);
@@ -2281,6 +2317,10 @@ namespace
             const Ogre::Vector3 waterDeepColour(
                 state.waterDeepColour.r, state.waterDeepColour.g,
                 state.waterDeepColour.b);
+            const float directionalStrength =
+                m_v10cAtmosphereEnabled
+                    ? state.fogDirectionalStrength
+                    : 0.f;
 
             m_sceneManager->setFog(Ogre::FOG_EXP2, fog,
                                    state.fogDensity);
@@ -2301,6 +2341,12 @@ namespace
                     "environmentLight", state.daylight);
                 parameters->setNamedConstant("fogColour", fogVector);
                 parameters->setNamedConstant(
+                    "fogSunwardColour", fogSunwardColour);
+                parameters->setNamedConstant(
+                    "sunDirection", sunDirection);
+                parameters->setNamedConstant(
+                    "fogDirectionalStrength", directionalStrength);
+                parameters->setNamedConstant(
                     "fogDensity", state.fogDensity);
             }
 
@@ -2310,6 +2356,10 @@ namespace
             waterParameters->setNamedConstant(
                 "environmentLight", state.daylight);
             waterParameters->setNamedConstant("fogColour", fogVector);
+            waterParameters->setNamedConstant(
+                "fogSunwardColour", fogSunwardColour);
+            waterParameters->setNamedConstant(
+                "fogDirectionalStrength", directionalStrength);
             waterParameters->setNamedConstant(
                 "fogDensity", state.fogDensity);
             waterParameters->setNamedConstant(
@@ -2340,6 +2390,12 @@ namespace
                     "environmentLight", state.daylight);
                 parameters->setNamedConstant("fogColour", fogVector);
                 parameters->setNamedConstant(
+                    "fogSunwardColour", fogSunwardColour);
+                parameters->setNamedConstant(
+                    "sunDirection", sunDirection);
+                parameters->setNamedConstant(
+                    "fogDirectionalStrength", directionalStrength);
+                parameters->setNamedConstant(
                     "fogDensity", state.fogDensity);
             }
 
@@ -2366,6 +2422,26 @@ namespace
                         "cloudShadowColour", cloudShadowColour);
                     parameters->setNamedConstant(
                         "cloudCoverage", state.cloudCoverage);
+                    parameters->setNamedConstant(
+                        "fogSunwardColour", fogSunwardColour);
+                    parameters->setNamedConstant(
+                        "fogDirectionalStrength", directionalStrength);
+                    parameters->setNamedConstant(
+                        "cloudLayerEnabled",
+                        m_v10cAtmosphereEnabled ? 1.f : 0.f);
+                    parameters->setNamedConstant(
+                        "cloudBaseHeight", state.cloudBaseHeight);
+                    parameters->setNamedConstant(
+                        "cloudThickness", state.cloudThickness);
+                    parameters->setNamedConstant(
+                        "cloudHorizontalScale",
+                        state.cloudHorizontalScale);
+                    parameters->setNamedConstant(
+                        "cloudVelocity",
+                        Ogre::Vector2(state.cloudVelocity.x,
+                                      state.cloudVelocity.y));
+                    parameters->setNamedConstant(
+                        "cloudMaxDistance", state.cloudMaxDistance);
                 };
             syncSkyParameters(
                 materialPass(SkyboxMaterial)
@@ -2805,6 +2881,7 @@ namespace
         bool m_useHeldFood = false;
         bool m_mouseLookEnabled = true;
         bool m_hiddenWindow = false;
+        bool m_v10cAtmosphereEnabled = true;
         bool m_nativeCursorCaptured = false;
         int m_cursorHideAdjustments = 0;
         bool m_validationActorsSpawned = false;
@@ -2859,6 +2936,8 @@ int runOgreBootstrap(bool validateOnly,
             root, resourceRequirements);
         validateStartupResources(root, startupResources);
         runtimeTerrainMaterialProfile().freezeFromResourceView(
+            runtimeResourcePackResolver());
+        validateAtmosphereShaderContract(
             runtimeResourcePackResolver());
         BlockDatabase::get();
         runtimeRecipeRegistry().freezeFromResourceView(

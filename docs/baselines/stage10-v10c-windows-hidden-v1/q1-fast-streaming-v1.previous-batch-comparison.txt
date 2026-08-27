@@ -1,0 +1,29 @@
+stage10_previous_batch_comparison=1
+baseline_batch=V10B3
+candidate_batch=V10C
+comparison_scene_id=q1-fast-streaming-v1
+threshold_percent=10
+baseline_loaded_chunks=320
+candidate_loaded_chunks=320
+baseline_sections=1624
+candidate_sections=1624
+baseline_gpu_buffered_sections=825
+candidate_gpu_buffered_sections=815
+metric=frame_p95_ms baseline=7.944 candidate=8.313 delta_percent=4.645 status=PASS
+metric=frame_p99_ms baseline=12.443 candidate=12.983 delta_percent=4.340 status=PASS
+metric=last_mesh_build_avg_ms baseline=0.717 candidate=0.743 delta_percent=3.626 status=PASS
+metric=last_mesh_build_max_ms baseline=1.463 candidate=1.506 delta_percent=2.939 status=PASS
+metric=last_solid_vertices baseline=1147277 candidate=1131034 delta_percent=-1.416 status=PASS
+metric=last_transparent_vertices baseline=384 candidate=384 delta_percent=0.000 status=PASS
+metric=last_water_vertices baseline=471512 candidate=464140 delta_percent=-1.563 status=PASS
+metric=last_flora_vertices baseline=9200 candidate=8984 delta_percent=-2.348 status=PASS
+metric=last_resident_terrain_vertices baseline=596642 candidate=590205 delta_percent=-1.079 status=PASS
+metric=last_resident_terrain_indices baseline=1136502 candidate=1124574 delta_percent=-1.050 status=PASS
+metric=last_resident_terrain_buffer_bytes baseline=23638552 candidate=23384856 delta_percent=-1.073 status=PASS
+metric=chunk_visible_p95_ms baseline=40.584 candidate=49.636 delta_percent=22.304 status=REVIEW_REQUIRED
+metric=chunk_visible_p99_ms baseline=40.584 candidate=49.636 delta_percent=22.304 status=REVIEW_REQUIRED
+repeat_chunk_visible_p95_ms=50.873
+forced_fs2_fallback_chunk_visible_p95_ms=53.999
+interpretation=Frame, mesh, geometry and residency cost stay within threshold. The one-sample chunk-visible latency is above the relative threshold but far below the frozen 1000 ms absolute budget; forced FS2 is slower, so the signal is not attributable to the V10C cloud shader.
+status=REVIEW_REQUIRED
+review_metrics=chunk_visible_p95_ms,chunk_visible_p99_ms

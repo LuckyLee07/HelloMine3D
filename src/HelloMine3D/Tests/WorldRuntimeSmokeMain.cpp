@@ -3989,6 +3989,94 @@ void caseWorldEnvironment()
                       noon.waterShallowColour) < epsilon &&
               glm::length(negative.waterDeepColour -
                           midnight.waterDeepColour) < epsilon);
+
+    const glm::vec3 duskSunwardFog =
+        WorldEnvironment::directionalFogColour(
+            dusk, dusk.sunDirection);
+    const glm::vec3 duskBacklitFog =
+        WorldEnvironment::directionalFogColour(
+            dusk, -dusk.sunDirection);
+    check("V10C/directional-fog-is-warmer-toward-low-sun",
+          duskSunwardFog.r > duskBacklitFog.r + 0.12f &&
+              duskSunwardFog.r > duskSunwardFog.b &&
+              glm::length(duskBacklitFog - dusk.fogColour) < epsilon,
+          "sunward/backlit red=" +
+              std::to_string(duskSunwardFog.r) + "/" +
+              std::to_string(duskBacklitFog.r));
+    check("V10C/directional-fog-fades-away-from-horizon",
+          glm::length(WorldEnvironment::directionalFogColour(
+                          dusk, glm::vec3(0.f, 1.f, 0.f)) -
+                      dusk.fogColour) < epsilon);
+    check("V10C/directional-fog-palette-is-bounded",
+          colourIsBounded(dawn.fogSunwardColour) &&
+              colourIsBounded(noon.fogSunwardColour) &&
+              colourIsBounded(dusk.fogSunwardColour) &&
+              colourIsBounded(midnight.fogSunwardColour) &&
+              dawn.fogDirectionalStrength >= 0.f &&
+              dusk.fogDirectionalStrength <= 1.f);
+
+    check("V10C/cloud-layer-contract-is-bounded",
+          WorldEnvironmentState::AtmosphereContractVersion == 1 &&
+              noon.cloudBaseHeight >= 128.f &&
+              noon.cloudBaseHeight <= 512.f &&
+              noon.cloudThickness >= 8.f &&
+              noon.cloudThickness <= 64.f &&
+              noon.cloudHorizontalScale >= 32.f &&
+              noon.cloudHorizontalScale <= 256.f &&
+              noon.cloudMaxDistance >= 512.f &&
+              noon.cloudMaxDistance <= 5000.f &&
+              glm::length(noon.cloudVelocity) > 0.1f &&
+              glm::length(noon.cloudVelocity) < 8.f);
+    check("V10C/cloud-layer-state-wraps-with-world-time",
+          std::abs(wrapped.cloudBaseHeight - noon.cloudBaseHeight) <
+                  epsilon &&
+              std::abs(wrapped.cloudThickness - noon.cloudThickness) <
+                  epsilon &&
+              glm::length(wrapped.cloudVelocity - noon.cloudVelocity) <
+                  epsilon);
+
+    const float cloudBottom =
+        noon.cloudBaseHeight - noon.cloudThickness * 0.5f;
+    const float cloudTop =
+        noon.cloudBaseHeight + noon.cloudThickness * 0.5f;
+    const CloudRayInterval fromBelow =
+        WorldEnvironment::cloudRayInterval(
+            noon, glm::vec3(0.f, cloudBottom - 32.f, 0.f),
+            glm::vec3(0.2f, 1.f, 0.1f));
+    const CloudRayInterval fromAbove =
+        WorldEnvironment::cloudRayInterval(
+            noon, glm::vec3(0.f, cloudTop + 32.f, 0.f),
+            glm::vec3(-0.1f, -1.f, 0.2f));
+    const CloudRayInterval insideHorizontal =
+        WorldEnvironment::cloudRayInterval(
+            noon, glm::vec3(0.f, noon.cloudBaseHeight, 0.f),
+            glm::vec3(1.f, 0.f, 0.f));
+    const CloudRayInterval lookingAway =
+        WorldEnvironment::cloudRayInterval(
+            noon, glm::vec3(0.f, cloudBottom - 32.f, 0.f),
+            glm::vec3(0.f, -1.f, 0.f));
+    check("V10C/cloud-ray-covers-below-and-above-views",
+          fromBelow.visible && !fromBelow.cameraInside &&
+              fromAbove.visible && !fromAbove.cameraInside &&
+              fromBelow.farDistance > fromBelow.nearDistance &&
+              fromAbove.farDistance > fromAbove.nearDistance);
+    check("V10C/cloud-ray-is-stable-inside-layer",
+          insideHorizontal.visible && insideHorizontal.cameraInside &&
+              std::abs(insideHorizontal.nearDistance) < epsilon &&
+              std::abs(insideHorizontal.farDistance -
+                       noon.cloudMaxDistance) < epsilon);
+    check("V10C/cloud-ray-rejects-away-facing-view",
+          !lookingAway.visible && !lookingAway.cameraInside);
+
+    const glm::vec2 oneStep =
+        WorldEnvironment::cloudOffset(noon, 10.f);
+    const glm::vec2 splitSteps =
+        WorldEnvironment::cloudOffset(noon, 4.f) +
+        WorldEnvironment::cloudOffset(noon, 6.f);
+    check("V10C/cloud-motion-is-frame-rate-independent",
+          glm::length(oneStep - splitSteps) < epsilon &&
+              glm::length(WorldEnvironment::cloudOffset(noon, -1.f)) <
+                  epsilon);
 }
 
 // ---------------------------------------------------------------------------
@@ -12576,6 +12664,9 @@ int main()
         else if (focus != nullptr && std::string(focus) == "V10B3") {
             caseTerrainAppearance();
             caseGreedyMeshing();
+        }
+        else if (focus != nullptr && std::string(focus) == "V10C") {
+            caseWorldEnvironment();
         }
         else {
         caseWorldOutcomeAndLocalizedText();

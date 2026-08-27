@@ -9,9 +9,11 @@ out vec2 terrainTileUv;
 out vec2 terrainRepeat;
 out float terrainLight;
 out float terrainDistance;
+out vec3 terrainWorldPosition;
 
 uniform mat4 worldViewProj;
 uniform mat4 worldView;
+uniform mat4 world;
 
 void main()
 {
@@ -20,4 +22,5 @@ void main()
     terrainRepeat = uv1;
     terrainLight = uv2;
     terrainDistance = length((worldView * vertex).xyz);
+    terrainWorldPosition = (world * vertex).xyz;
 }

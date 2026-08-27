@@ -236,6 +236,14 @@ uniform float greenSuppression;
 uniform float greenRedShift;
 "@
         Expected = "missing interface declaration 'uniform float toneGamma;'"
+    },
+    [pscustomobject]@{
+        Name = "invalid-v10c-atmosphere-interface"
+        LogicalPath = "media\ogre\HelloMine3DSkybox.frag"
+        Content = @"
+uniform float cloudLayerEnabled;
+"@
+        Expected = "missing interface declaration 'uniform vec3 fogSunwardColour;'"
     }
 )
 

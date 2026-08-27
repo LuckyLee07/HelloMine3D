@@ -2,6 +2,7 @@
 #include "../Ogre/StartupResourcePreflight.h"
 #include "../World/Block/TerrainMaterialProfile.h"
 #include "../World/Block/BlockTextureCoordinates.h"
+#include "../World/Environment/AtmosphereShaderContract.h"
 
 #include <algorithm>
 #include <cmath>
@@ -149,9 +150,16 @@ namespace
             {"text", "media/text/zh-CN.text"},
             {"tool", "media/tools/Base.tool"},
             {"resource-script", "media/ogre/Test.material"},
+            {"resource-script", "media/ogre/HelloMine3D.program"},
             {"runtime-template", "bin/resource-packs.txt"},
             {"shader", "media/ogre/Test.vert"},
+            {"shader", "media/ogre/HelloMine3DActor.frag"},
+            {"shader", "media/ogre/HelloMine3DActor.vert"},
+            {"shader", "media/ogre/HelloMine3DFlora.vert"},
+            {"shader", "media/ogre/HelloMine3DSkybox.frag"},
             {"shader", "media/ogre/HelloMine3DTerrain.frag"},
+            {"shader", "media/ogre/HelloMine3DTerrain.vert"},
+            {"shader", "media/ogre/HelloMine3DWater.frag"},
             {"shape", "media/shapes/Cross.shape"},
             {"texture", "media/textures/DefaultPack.png"},
         };
@@ -222,6 +230,99 @@ namespace
             {
                 return resolver.resolve(logicalPath);
             });
+    }
+
+    void writeAtmosphereFixture(const fs::path &root)
+    {
+        writeFile(root / "media/ogre/HelloMine3D.program",
+            "param_named fogSunwardColour float3\n"
+            "param_named fogDirectionalStrength float\n"
+            "param_named cloudLayerEnabled float\n"
+            "param_named cloudBaseHeight float\n"
+            "param_named cloudThickness float\n"
+            "param_named cloudHorizontalScale float\n"
+            "param_named cloudVelocity float2\n"
+            "param_named cloudMaxDistance float\n"
+            "param_named_auto cameraPosition camera_position\n"
+            "param_named_auto globalTime time 1.0\n"
+            "param_named_auto legacyTime time_0_x 1.0\n");
+        writeFile(root / "media/ogre/HelloMine3DSkybox.frag",
+            "uniform vec3 fogSunwardColour;\n"
+            "uniform float fogDirectionalStrength;\n"
+            "uniform float cloudLayerEnabled;\n"
+            "uniform float cloudBaseHeight;\n"
+            "uniform float cloudThickness;\n"
+            "uniform float cloudHorizontalScale;\n"
+            "uniform vec2 cloudVelocity;\n"
+            "uniform float cloudMaxDistance;\n"
+            "uniform vec3 cameraPosition;\n"
+            "uniform float globalTime;\n"
+            "uniform float legacyTime;\n"
+            "void sampleLegacyClouds() {}\n"
+            "void sampleBoundedCloudLayer() {}\n");
+        writeFile(root / "media/ogre/HelloMine3DTerrain.vert",
+            "out vec3 terrainWorldPosition;\nuniform mat4 world;\n");
+        writeFile(root / "media/ogre/HelloMine3DFlora.vert",
+            "out vec3 terrainWorldPosition;\nuniform mat4 world;\n");
+        writeFile(root / "media/ogre/HelloMine3DTerrain.frag",
+            terrainShaderInterface() +
+            "in vec3 terrainWorldPosition;\n"
+            "uniform vec3 fogSunwardColour;\n"
+            "uniform vec3 sunDirection;\n"
+            "uniform float fogDirectionalStrength;\n"
+            "uniform vec3 cameraPosition;\n"
+            "vec3 directionalFogColour() {}\n");
+        writeFile(root / "media/ogre/HelloMine3DWater.frag",
+            "uniform vec3 fogSunwardColour;\n"
+            "uniform float fogDirectionalStrength;\n"
+            "vec3 directionalFogColour() {}\n");
+        writeFile(root / "media/ogre/HelloMine3DActor.vert",
+            "out vec3 actorWorldPosition;\nuniform mat4 world;\n");
+        writeFile(root / "media/ogre/HelloMine3DActor.frag",
+            "in vec3 actorWorldPosition;\n"
+            "uniform vec3 fogSunwardColour;\n"
+            "uniform vec3 sunDirection;\n"
+            "uniform float fogDirectionalStrength;\n"
+            "uniform vec3 cameraPosition;\n"
+            "vec3 directionalFogColour() {}\n");
+    }
+
+    void caseAtmosphereShaderContract()
+    {
+        {
+            const fs::path root = freshRoot("v10c-atmosphere-valid");
+            writeAtmosphereFixture(root);
+            ResourcePackResolver resolver;
+            resolver.freeze(root.string(), requirements(), {});
+            bool passed = false;
+            try
+            {
+                validateAtmosphereShaderContract(resolver);
+                passed = true;
+            }
+            catch (...)
+            {
+            }
+            check("V10C/atmosphere-shader-interface-valid", passed);
+        }
+        {
+            const fs::path root = freshRoot(
+                "v10c-atmosphere-invalid-pack");
+            writeAtmosphereFixture(root);
+            const fs::path pack = createPack(
+                root, "invalid-atmosphere", "Invalid Atmosphere", 1,
+                {{"media/ogre/HelloMine3DSkybox.frag",
+                  "uniform float cloudLayerEnabled;\n"}});
+            ResourcePackResolver resolver;
+            resolver.freeze(root.string(), requirements(), {pack.string()});
+            check("V10C/reject-atmosphere-interface-drift",
+                  throwsContaining(
+                      [&]
+                      {
+                          validateAtmosphereShaderContract(resolver);
+                      },
+                      "missing interface declaration"));
+        }
     }
 
     void caseNoPackAndPrecedence()
@@ -1015,6 +1116,7 @@ int main()
     caseEveryAllowedClass();
     caseInvalidPacks();
     caseTerrainMaterialProfile();
+    caseAtmosphereShaderContract();
     caseOptionalAudio();
     caseOptionalMusic();
     caseOptionalPresentationFont();

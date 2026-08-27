@@ -1,0 +1,24 @@
+stage10_previous_batch_comparison=1
+baseline_batch=V10B3
+candidate_batch=V10C
+comparison_scene_id=q1-scaled-gameplay-v1
+threshold_percent=10
+baseline_loaded_chunks=361
+candidate_loaded_chunks=361
+baseline_sections=1833
+candidate_sections=1833
+baseline_gpu_buffered_sections=1292
+candidate_gpu_buffered_sections=1292
+metric=frame_p95_ms baseline=7.407 candidate=7.303 delta_percent=-1.404 status=PASS
+metric=frame_p99_ms baseline=9.928 candidate=10.004 delta_percent=0.766 status=PASS
+metric=last_mesh_build_avg_ms baseline=0.709 candidate=0.711 delta_percent=0.282 status=PASS
+metric=last_mesh_build_max_ms baseline=1.406 candidate=1.501 delta_percent=6.757 status=PASS
+metric=last_solid_vertices baseline=644692 candidate=644692 delta_percent=0.000 status=PASS
+metric=last_transparent_vertices baseline=96 candidate=96 delta_percent=0.000 status=PASS
+metric=last_water_vertices baseline=259848 candidate=259848 delta_percent=0.000 status=PASS
+metric=last_flora_vertices baseline=848 candidate=848 delta_percent=0.000 status=PASS
+metric=last_resident_terrain_vertices baseline=893329 candidate=893329 delta_percent=0.000 status=PASS
+metric=last_resident_terrain_indices baseline=1713624 candidate=1713624 delta_percent=0.000 status=PASS
+metric=last_resident_terrain_buffer_bytes baseline=35441024 candidate=35441024 delta_percent=0.000 status=PASS
+status=PASS
+review_metrics=
