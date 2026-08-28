@@ -35,7 +35,7 @@ HelloMine3D 已具备这些基础：
 | ---- | ---- |
 | 目标 Windows 更新门禁已恢复 | 2026-08-20 最终 PowerShell 门禁通过 46 项资源、36 个性能夹具、Debug/Release 0 错误全量重建、十三目标、491 项世界回归、隐藏客户端、124,513 字节后台受控 minidump 与 66 文件干净发行包。 |
 | 输入仍有平台型证据缺口 | OIS 到控制器的数据边界已自动验证，但真实 Windows 键鼠仍需人工验收；原生 arm64 Apple Clang ThreadSanitizer 已关闭后台加载器的 R4 证据缺口。现有 R3 v1 不足以单独关闭当前 D4/D6，后续需独立建立 Physical Input v2；视觉、双语和听感不并入 R3。 |
-| 下一产品阶段已选定 | 第 8 阶段、Stage 9/N7-N12 与 BETA-RC 工程均已完成；人工输入和正式产品体验继续延期。Stage 10 的 V10A、V10B1-B3、V10C 与 V10D 已完成，当前进入 V10E 评估，详细范围见 `docs/visual-quality-roadmap.md`。多人、脚本化 mod、热更新和新渲染后端仍未立项。 |
+| 下一产品阶段已选定 | 第 8 阶段、Stage 9/N7-N12 与 BETA-RC 工程均已完成；人工输入和正式产品体验继续延期。Stage 10 的 V10A-V10E 已完成 Windows 工程范围，当前进入 VISUAL-RC，详细范围见 `docs/visual-quality-roadmap.md`。多人、脚本化 mod、热更新和新渲染后端仍未立项。 |
 
 ## 迭代阶段
 
@@ -54,7 +54,7 @@ HelloMine3D 已具备这些基础：
 | 第 7 阶段 | 实现完成，待人工验收 | D1-D6、R1-R2、R4-R5、X1-X3 已实现并有自动/硬件/TSan 证据；D2/D4/D6 的最终关闭等待扩展后的物理输入协议，不再宣称 R3 v1 单独足够。 |
 | 第 8 阶段 | 自动化闭环，待人工验收 | `K1-K4`、`G1-G6`、`N1-N6`、`H1-H3` 和 `Q1-Q3` 已完成；目标、成长、恢复、战斗掉落、生态探索、可访问体验、诊断、正式 Windows 预算和双档长稳均已串联；物理输入、视觉/双语和听感证据独立延期。 |
 | 第 9 阶段 | 工程完成，待 R3 | `N7-N12` 与 `BETA-RC` 不计入当前 77 项总账；BETA-RC 自动门禁、正式 Q1/Q3 和发行证据已封板，R3 真人项延期。 |
-| 第 10 阶段 | V10E Planned | `V10A`、`V10B1-B3`、`V10C-V10E` 与 `VISUAL-RC` 不计入当前 77 项总账；V10A/V10C 已按各自的所有者性能例外关闭，V10D 最终调优无需消耗已授权例外；V10B1/V10C/V10D 的 macOS shader 子状态保持 Verify，V10B2-B3/V10D 静态视觉与 V10C 多帧视觉检查均已通过。 |
+| 第 10 阶段 | VISUAL-RC Planned | `V10A`、`V10B1-B3`、`V10C-V10E` 与 `VISUAL-RC` 不计入当前 77 项总账；V10A/V10C 已按各自的所有者性能例外关闭，V10D/V10E 无需性能例外；V10B1/V10C/V10D/V10E 的 macOS shader 子状态保持 Verify，各批 Windows 开发者视觉检查均已通过。 |
 
 ### 第 0 阶段：稳定现有基础
 
@@ -446,7 +446,7 @@ N7A 已把保存升级到 v9，N11A 升到 v10，N11B 升到 v11；N9 只在生�
 | 4 | V10B3 生态着色与确定性变体（Done） | M | 受控 tint 和坐标稳定的自然 tile 变体。 | terrain v3 不变；变体进入 greedy key；261 项图集、Q1、短 Q3 与五图开发者检查通过。 |
 | 5 | V10C 定向大气与立体云（Done；macOS Verify） | M/L | terrain/water/actor/sky 共享定向雾，有界云层提供视差、绝对时间移动和上下表面。 | 双配置聚焦 21/21、Release 世界 741/741、十图多帧视觉 PASS；所有者批准快速流送单样本可见延迟例外，macOS Release 窗口待补。 |
 | 6 | V10D 可选方向阴影（Done；macOS Verify） | L | 单近景太阳 shadow map 与 Off/Medium/High 档位已经落地。 | settings v5、v0-v4→Off、双语 key、图形性能身份、能力回退、双配置回归、同场景各档性能和六图视觉 PASS；最终无需性能例外，macOS 窗口待补。 |
-| 7 | V10E 轻量后处理（Planned） | M/L | 可关闭 tone curve、色带抖动和预算内轻 bloom。 | settings 预计 v6；不做自动曝光、运动模糊、景深、SSAO 或 HDR/PBR 重写。 |
+| 7 | V10E 轻量后处理（Done；macOS Verify） | M/L | 可关闭 tone curve、确定性抖动和八采样极轻 bloom 已落地。 | settings v6、v0-v5→Off、HUD 排除、能力回退、双配置/资源/失败负例、同档性能与六图视觉 PASS；macOS 窗口待补。 |
 | 8 | VISUAL-RC（Planned） | M | before/after、开发者检查、渲染身份、性能、许可证、干净包和 bundle 封板。 | 完整 Windows/macOS、正式 Q1/Q3；正式产品体验与 Physical Input v2 独立保持真实状态；不 push。 |
 
 执行顺序固定为
@@ -545,7 +545,7 @@ Windows-first 阶段延期，macOS 原生 `B3` 已于 2026-08-16 补齐并通过
 | M5 可玩与发布探索 | 实现完成，待人工验收 | D/R/X 当前范围均已实现；Physical Input v2 后才能按实际覆盖关闭余下 `Verify`，脚本化 mod、完整编辑器和多人网络仍未立项。 |
 | M6 可持续游玩与可靠发布 | 自动化闭环，待人工验收 | K1-K4、G1-G6、N1-N6、H1-H3、Q1-Q3 已完成；nominal/stress 正式长稳双 PASS，剩余输入与产品体验分开记录。 |
 | M7 Beta 单机游戏闭环 | 工程完成，待人工验收 | 首次进入、视觉/HUD、胜利、战斗、探索结构、资源经济、难度/胜利后事件、双语、本地化音频与 BETA-RC 工程证据均已关闭；RC0 已被 BETA-RC 取代，Physical Input v2 与产品体验验收独立延期。 |
-| M8 视觉质量升级 | V10E Planned | V10A 顶点光照/AO、V10B1-B3 材质/生态表现、V10C 大气云层与 V10D 可选阴影已完成；当前按轻量后处理和 VISUAL-RC 顺序关闭。 |
+| M8 视觉质量升级 | VISUAL-RC Planned | V10A 顶点光照/AO、V10B1-B3 材质/生态表现、V10C 大气云层、V10D 可选阴影与 V10E 轻量后处理已完成 Windows 工程范围；当前进入 VISUAL-RC 集中封板。 |
 
 ## 与 MiniGame 参考文档的关系
 
