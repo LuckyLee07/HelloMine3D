@@ -150,15 +150,23 @@ namespace
             {"text", "media/text/zh-CN.text"},
             {"tool", "media/tools/Base.tool"},
             {"resource-script", "media/ogre/Test.material"},
+            {"resource-script", "media/ogre/HelloMine3D.material"},
             {"resource-script", "media/ogre/HelloMine3D.program"},
             {"runtime-template", "bin/resource-packs.txt"},
             {"shader", "media/ogre/Test.vert"},
             {"shader", "media/ogre/HelloMine3DActor.frag"},
             {"shader", "media/ogre/HelloMine3DActor.vert"},
+            {"shader", "media/ogre/HelloMine3DActorShadow.frag"},
+            {"shader", "media/ogre/HelloMine3DActorShadow.vert"},
+            {"shader", "media/ogre/HelloMine3DDirectionalShadowCaster.frag"},
+            {"shader", "media/ogre/HelloMine3DDirectionalShadowCaster.vert"},
             {"shader", "media/ogre/HelloMine3DFlora.vert"},
+            {"shader", "media/ogre/HelloMine3DFloraShadow.vert"},
             {"shader", "media/ogre/HelloMine3DSkybox.frag"},
             {"shader", "media/ogre/HelloMine3DTerrain.frag"},
             {"shader", "media/ogre/HelloMine3DTerrain.vert"},
+            {"shader", "media/ogre/HelloMine3DTerrainShadow.frag"},
+            {"shader", "media/ogre/HelloMine3DTerrainShadow.vert"},
             {"shader", "media/ogre/HelloMine3DWater.frag"},
             {"shape", "media/shapes/Cross.shape"},
             {"texture", "media/textures/DefaultPack.png"},
@@ -320,6 +328,90 @@ namespace
                       [&]
                       {
                           validateAtmosphereShaderContract(resolver);
+                      },
+                      "missing interface declaration"));
+        }
+    }
+
+    void writeDirectionalShadowFixture(const fs::path &root)
+    {
+        writeFile(root / "media/ogre/HelloMine3D.program",
+            "HelloMine3D/TerrainShadowVertex\n"
+            "HelloMine3D/TerrainShadowFragment\n"
+            "HelloMine3D/ActorShadowVertex\n"
+            "HelloMine3D/ActorShadowFragment\n"
+            "param_named_auto shadowWorldViewProj texture_worldviewproj_matrix 0\n"
+            "param_named directionalShadowMap int 1\n"
+            "param_named directionalShadowEnabled float 0\n"
+            "param_named directionalShadowBias float 0.001\n"
+            "param_named directionalShadowStrength float 0\n"
+            "HelloMine3D/DirectionalShadowCasterVertex\n"
+            "HelloMine3D/DirectionalShadowCasterFragment\n");
+        writeFile(root / "media/ogre/HelloMine3D.material",
+            "material HelloMine3D/DirectionalShadowCaster\n"
+            "vertex_program_ref HelloMine3D/DirectionalShadowCasterVertex\n"
+            "fragment_program_ref HelloMine3D/DirectionalShadowCasterFragment\n");
+        writeFile(root / "media/ogre/HelloMine3DTerrainShadow.vert",
+            "out vec4 terrainShadowPosition;\n"
+            "uniform mat4 shadowWorldViewProj;\n");
+        writeFile(root / "media/ogre/HelloMine3DTerrainShadow.frag",
+            "in vec4 terrainShadowPosition;\n"
+            "uniform sampler2D directionalShadowMap;\n"
+            "uniform float directionalShadowBias;\n"
+            "float directionalShadowVisibility() {}\n"
+            "projected.z = projected.z * 0.5 + 0.5;\n"
+            "litSamples / 4.0\n");
+        writeFile(root / "media/ogre/HelloMine3DActorShadow.vert",
+            "out vec4 actorShadowPosition;\n"
+            "uniform mat4 shadowWorldViewProj;\n");
+        writeFile(root / "media/ogre/HelloMine3DActorShadow.frag",
+            "in vec4 actorShadowPosition;\n"
+            "uniform sampler2D directionalShadowMap;\n"
+            "float directionalShadowVisibility() {}\n"
+            "projected.z = projected.z * 0.5 + 0.5;\n"
+            "litSamples / 4.0\n");
+        writeFile(
+            root / "media/ogre/HelloMine3DDirectionalShadowCaster.vert",
+            "uniform mat4 worldViewProj;\n"
+            "gl_Position = worldViewProj * vertex;\n");
+        writeFile(
+            root / "media/ogre/HelloMine3DDirectionalShadowCaster.frag",
+            "out vec4 fragmentColour;\ngl_FragCoord.zzz\n");
+    }
+
+    void caseDirectionalShadowShaderContract()
+    {
+        {
+            const fs::path root = freshRoot("v10d-shadow-valid");
+            writeDirectionalShadowFixture(root);
+            ResourcePackResolver resolver;
+            resolver.freeze(root.string(), requirements(), {});
+            bool passed = false;
+            try
+            {
+                validateDirectionalShadowShaderContract(resolver);
+                passed = true;
+            }
+            catch (...)
+            {
+            }
+            check("V10D/directional-shadow-interface-valid", passed);
+        }
+        {
+            const fs::path root = freshRoot(
+                "v10d-shadow-invalid-pack");
+            writeDirectionalShadowFixture(root);
+            const fs::path pack = createPack(
+                root, "invalid-shadow", "Invalid Shadow", 1,
+                {{"media/ogre/HelloMine3DTerrainShadow.frag",
+                  "uniform sampler2D directionalShadowMap;\n"}});
+            ResourcePackResolver resolver;
+            resolver.freeze(root.string(), requirements(), {pack.string()});
+            check("V10D/reject-directional-shadow-interface-drift",
+                  throwsContaining(
+                      [&]
+                      {
+                          validateDirectionalShadowShaderContract(resolver);
                       },
                       "missing interface declaration"));
         }
@@ -1117,6 +1209,7 @@ int main()
     caseInvalidPacks();
     caseTerrainMaterialProfile();
     caseAtmosphereShaderContract();
+    caseDirectionalShadowShaderContract();
     caseOptionalAudio();
     caseOptionalMusic();
     caseOptionalPresentationFont();

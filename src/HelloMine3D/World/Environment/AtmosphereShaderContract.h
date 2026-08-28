@@ -9,4 +9,9 @@ class ResourcePackResolver;
 void validateAtmosphereShaderContract(
     const ResourcePackResolver &resolver);
 
+/// Validates the V10D single directional shadow map seam, including the
+/// receiver and depth-caster programs used by Ogre's integrated path.
+void validateDirectionalShadowShaderContract(
+    const ResourcePackResolver &resolver);
+
 #endif // ATMOSPHERE_SHADER_CONTRACT_H_INCLUDED

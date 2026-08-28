@@ -7,6 +7,7 @@
 #include <OgreSceneManager.h>
 #include <OgreTexture.h>
 #include <OgreTextureManager.h>
+#include <OgreViewport.h>
 
 #include <algorithm>
 #include <array>
@@ -1259,6 +1260,44 @@ class OgreUserInterface::Impl
             ImGui::Checkbox(label("settings.fullscreen", "##Fullscreen").c_str(), &draft.isFullscreen);
             ImGui::SliderInt(label("settings.render_distance", "##RenderDistance").c_str(), &draft.renderDistance,
                              1, 32);
+            const char* shadowPreviewKey =
+                draft.directionalShadowQuality ==
+                        DirectionalShadowQuality::High
+                    ? "settings.shadow_high"
+                    : draft.directionalShadowQuality ==
+                              DirectionalShadowQuality::Medium
+                          ? "settings.shadow_medium"
+                          : "settings.shadow_off";
+            if (ImGui::BeginCombo(
+                    label("settings.shadow_quality",
+                          "##DirectionalShadowQuality").c_str(),
+                    tr(shadowPreviewKey).c_str()))
+            {
+                const DirectionalShadowQuality qualities[] = {
+                    DirectionalShadowQuality::Off,
+                    DirectionalShadowQuality::Medium,
+                    DirectionalShadowQuality::High};
+                const char* keys[] = {
+                    "settings.shadow_off", "settings.shadow_medium",
+                    "settings.shadow_high"};
+                for (int index = 0; index < 3; ++index)
+                {
+                    const bool selected =
+                        draft.directionalShadowQuality ==
+                        qualities[index];
+                    const std::string option = tr(keys[index]);
+                    if (ImGui::Selectable(option.c_str(), selected))
+                    {
+                        draft.directionalShadowQuality =
+                            qualities[index];
+                    }
+                    if (selected)
+                    {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
             ImGui::SliderInt(label("settings.fov", "##Fov").c_str(), &draft.fov, 45, 120);
             ImGui::SliderFloat(label("settings.mouse_sensitivity", "##MouseSensitivity").c_str(),
                                &draft.mouseSensitivity, 0.005f, 1.0f,
@@ -1395,9 +1434,11 @@ class OgreUserInterface::Impl
             appliedSettings.windowY != settings.windowY ||
             appliedSettings.isFullscreen != settings.isFullscreen;
         appliedSettings = settings;
-        settingsMessage = tr(restartRequired
-                                 ? "settings.saved_restart"
-                                 : "settings.saved");
+        settingsMessage = message.empty()
+            ? tr(restartRequired
+                     ? "settings.saved_restart"
+                     : "settings.saved")
+            : tr(message, message);
         ImGui::GetIO().FontGlobalScale = appliedSettings.uiScale;
         if (!appliedSettings.audioCaptions)
         {
@@ -3014,6 +3055,13 @@ OgreUserInterfaceAction OgreUserInterface::consumeAction()
 void OgreUserInterface::postRenderQueues()
 {
     if (!m_impl->framePending)
+    {
+        return;
+    }
+    Ogre::Viewport* viewport = m_impl->sceneManager != nullptr
+        ? m_impl->sceneManager->getCurrentViewport()
+        : nullptr;
+    if (viewport == nullptr || viewport->getTarget() != m_impl->window)
     {
         return;
     }

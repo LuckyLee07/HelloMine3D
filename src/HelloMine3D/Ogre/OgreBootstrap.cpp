@@ -30,6 +30,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
@@ -165,6 +166,28 @@ namespace
         Ogre::SceneNode* node = nullptr;
         std::vector<std::unique_ptr<ChunkSectionRenderable>> renderables;
     };
+
+    struct DirectionalShadowProfile
+    {
+        unsigned short textureSize = 0;
+        float farDistance = 0.f;
+        float fadeStart = 0.f;
+        float bias = 0.f;
+    };
+
+    DirectionalShadowProfile directionalShadowProfile(
+        DirectionalShadowQuality quality) noexcept
+    {
+        if (quality == DirectionalShadowQuality::High)
+        {
+            return {1024, 96.f, 72.f, 0.004f};
+        }
+        if (quality == DirectionalShadowQuality::Medium)
+        {
+            return {512, 64.f, 48.f, 0.008f};
+        }
+        return {};
+    }
 
     std::string sectionKey(const glm::ivec3& location)
     {
@@ -688,9 +711,18 @@ namespace
                 Ogre::ColourValue(0.7f, 0.7f, 0.7f));
             m_sceneManager->setSkyBox(
                 true, SkyboxMaterial, 5000.0f, true);
+            if (!configureDirectionalShadows(
+                    m_config.directionalShadowQuality))
+            {
+                m_config.directionalShadowQuality =
+                    DirectionalShadowQuality::Off;
+            }
 
             m_actorRenderer =
                 std::make_unique<OgreActorRenderer>(*m_sceneManager);
+            m_actorRenderer->setCastShadows(
+                m_directionalShadowQuality !=
+                DirectionalShadowQuality::Off);
             m_blockOutline =
                 std::make_unique<OgreBlockOutline>(*m_sceneManager);
             TerrainBuildSummary terrain;
@@ -787,6 +819,67 @@ namespace
                                   BlockId::TallGrass);
                 m_world->setBlock(centerX + 3, centerY + 1, centerZ + 1,
                                   BlockId::Rose);
+            }
+
+            if (isTrueValue(std::getenv(
+                    "HELLOMINE3D_V10D_SHADOW_FIXTURE")))
+            {
+                const float yaw = glm::radians(
+                    m_worldPlayer->rotation.y + 90.0f);
+                const glm::vec3 forward(-std::cos(yaw), 0.0f,
+                                        -std::sin(yaw));
+                const glm::vec3 fixtureCenter =
+                    m_worldPlayer->position + forward * 8.0f;
+                const int centerX =
+                    World::toBlockCoord(fixtureCenter.x);
+                const int centerZ =
+                    World::toBlockCoord(fixtureCenter.z);
+                const int floorY = World::toBlockCoord(
+                    m_worldPlayer->position.y) - 2;
+
+                for (int z = -9; z <= 9; ++z)
+                {
+                    for (int x = -9; x <= 9; ++x)
+                    {
+                        for (int y = 1; y <= 7; ++y)
+                        {
+                            m_world->setBlock(centerX + x, floorY + y,
+                                              centerZ + z,
+                                              BlockId::Air);
+                        }
+                        m_world->setBlock(centerX + x, floorY,
+                                          centerZ + z,
+                                          BlockId::Sand);
+                    }
+                }
+
+                const auto placePillar =
+                    [&](int offsetX, int offsetZ, int height,
+                        BlockId block)
+                    {
+                        for (int y = 1; y <= height; ++y)
+                        {
+                            m_world->setBlock(centerX + offsetX,
+                                              floorY + y,
+                                              centerZ + offsetZ, block);
+                        }
+                    };
+                placePillar(-3, 1, 5, BlockId::OakBark);
+                placePillar(3, 1, 5, BlockId::OakBark);
+                placePillar(0, 4, 3, BlockId::Stone);
+                for (int x = -3; x <= 3; ++x)
+                {
+                    m_world->setBlock(centerX + x, floorY + 5,
+                                      centerZ + 1,
+                                      BlockId::OakBark);
+                }
+                m_world->setBlock(centerX - 5, floorY + 3,
+                                  centerZ + 4, BlockId::Stone);
+                m_world->setBlock(centerX + 5, floorY + 1,
+                                  centerZ + 4, BlockId::Glass);
+                std::cout << "[V10D_SHADOW_FIXTURE] center="
+                          << centerX << ',' << floorY << ',' << centerZ
+                          << " floor=19x19 casters=4\n";
             }
 
             if (isTrueValue(std::getenv(
@@ -1239,6 +1332,9 @@ namespace
                                     sectionName.str() + "_" + layerName,
                                     mesh, sectionLocation, materialName,
                                     renderQueue);
+                            renderable->setCastShadows(
+                                std::string(materialName) ==
+                                "HelloMine3D/Terrain");
                             ensureNode()->attachObject(renderable.get());
                             visual.renderables.push_back(
                                 std::move(renderable));
@@ -1356,6 +1452,7 @@ namespace
                 destroySectionVisual(entry.second);
             }
             m_sectionVisuals.clear();
+            destroyDirectionalShadowResources();
             m_actorRenderer.reset();
             if (m_sceneManager != nullptr)
             {
@@ -1419,11 +1516,28 @@ namespace
                         return;
                     }
 
-                    const bool restartRequired =
-                        candidate.windowX != m_config.windowX ||
-                        candidate.windowY != m_config.windowY ||
-                        candidate.isFullscreen != m_config.isFullscreen;
-                    userSettings(m_config) = action.settings;
+                    bool shadowFallback = false;
+                    if (candidate.directionalShadowQuality !=
+                        m_config.directionalShadowQuality)
+                    {
+                        if (!configureDirectionalShadows(
+                                candidate.directionalShadowQuality))
+                        {
+                            candidate.directionalShadowQuality =
+                                DirectionalShadowQuality::Off;
+                            shadowFallback = true;
+                            std::string fallbackSaveError;
+                            if (!saveRuntimeConfig(
+                                    ResourcePaths::bin("config.txt"),
+                                    candidate, &fallbackSaveError))
+                            {
+                                std::cerr
+                                    << "[V10D_SHADOW] fallback-save-failed="
+                                    << fallbackSaveError << '\n';
+                            }
+                        }
+                    }
+                    userSettings(m_config) = userSettings(candidate);
                     if (m_camera != nullptr)
                     {
                         m_camera->setFOVy(Ogre::Degree(
@@ -1444,9 +1558,9 @@ namespace
                     }
                     m_userInterface->reportSettingsApplied(
                         true, userSettings(m_config),
-                        restartRequired
-                            ? "Settings applied. Restart to apply display changes."
-                            : "Settings applied.");
+                        shadowFallback
+                            ? "settings.shadow_fallback"
+                            : std::string());
                     return;
                 }
                 case OgreUserInterfaceActionType::ApplyDifficulty:
@@ -1515,6 +1629,12 @@ namespace
             try
             {
                 buildTerrain(true, directory);
+                if (!configureDirectionalShadows(
+                        m_config.directionalShadowQuality))
+                {
+                    m_config.directionalShadowQuality =
+                        DirectionalShadowQuality::Off;
+                }
                 syncActorVisuals();
                 m_userInterface->setWorldContext(m_worldPlayer, m_world);
                 m_applicationFlow.completeLoading(true);
@@ -1594,6 +1714,7 @@ namespace
             {
                 m_renderCapture->update(event.timeSinceLastFrame);
             }
+            emitDirectionalShadowDiagnostics();
 
             const auto frameEnd = std::chrono::steady_clock::now();
             const double frameMs =
@@ -2103,6 +2224,9 @@ namespace
                         std::make_unique<ChunkSectionRenderable>(
                             objectName + "_" + layerName, mesh,
                             section.location, materialName, renderQueue);
+                    renderable->setCastShadows(
+                        std::string(materialName) ==
+                        "HelloMine3D/Terrain");
                     ensureNode()->attachObject(renderable.get());
                     visual.renderables.push_back(std::move(renderable));
                 };
@@ -2214,6 +2338,400 @@ namespace
             return technique->getPass(0);
         }
 
+        void ensureDirectionalShadowReceiver(
+            const char* materialName)
+        {
+            Ogre::Pass* pass = materialPass(materialName);
+            for (unsigned short index = 0;
+                 index < pass->getNumTextureUnitStates(); ++index)
+            {
+                if (pass->getTextureUnitState(index)->getContentType() ==
+                    Ogre::TextureUnitState::CONTENT_SHADOW)
+                {
+                    return;
+                }
+            }
+            Ogre::TextureUnitState* shadow =
+                pass->createTextureUnitState();
+            shadow->setContentType(
+                Ogre::TextureUnitState::CONTENT_SHADOW);
+            shadow->setTextureAddressingMode(
+                Ogre::TextureUnitState::TAM_CLAMP);
+            shadow->setTextureFiltering(Ogre::TFO_NONE);
+        }
+
+        void setDirectionalShadowReceiverPrograms(bool enabled)
+        {
+            struct ReceiverPrograms
+            {
+                const char* material;
+                const char* vertex;
+                const char* shadowVertex;
+                const char* fragment;
+                const char* shadowFragment;
+            };
+            const ReceiverPrograms receivers[] = {
+                {"HelloMine3D/Terrain", "HelloMine3D/TerrainVertex",
+                 "HelloMine3D/TerrainShadowVertex",
+                 "HelloMine3D/TerrainFragment",
+                 "HelloMine3D/TerrainShadowFragment"},
+                {"HelloMine3D/Transparent", "HelloMine3D/TerrainVertex",
+                 "HelloMine3D/TerrainShadowVertex",
+                 "HelloMine3D/TerrainFragment",
+                 "HelloMine3D/TerrainShadowFragment"},
+                {"HelloMine3D/Flora", "HelloMine3D/FloraVertex",
+                 "HelloMine3D/FloraShadowVertex",
+                 "HelloMine3D/TerrainFragment",
+                 "HelloMine3D/TerrainShadowFragment"},
+                {"HelloMine3D/ActorMob", "HelloMine3D/ActorVertex",
+                 "HelloMine3D/ActorShadowVertex",
+                 "HelloMine3D/ActorFragment",
+                 "HelloMine3D/ActorShadowFragment"},
+                {"HelloMine3D/ActorStalker", "HelloMine3D/ActorVertex",
+                 "HelloMine3D/ActorShadowVertex",
+                 "HelloMine3D/ActorFragment",
+                 "HelloMine3D/ActorShadowFragment"},
+                {"HelloMine3D/ActorBrute", "HelloMine3D/ActorVertex",
+                 "HelloMine3D/ActorShadowVertex",
+                 "HelloMine3D/ActorFragment",
+                 "HelloMine3D/ActorShadowFragment"},
+                {"HelloMine3D/ActorSpitter", "HelloMine3D/ActorVertex",
+                 "HelloMine3D/ActorShadowVertex",
+                 "HelloMine3D/ActorFragment",
+                 "HelloMine3D/ActorShadowFragment"},
+                {"HelloMine3D/ActorItem", "HelloMine3D/ActorVertex",
+                 "HelloMine3D/ActorShadowVertex",
+                 "HelloMine3D/ActorFragment",
+                 "HelloMine3D/ActorShadowFragment"},
+                {"HelloMine3D/CombatProjectile", "HelloMine3D/ActorVertex",
+                 "HelloMine3D/ActorShadowVertex",
+                 "HelloMine3D/ActorFragment",
+                 "HelloMine3D/ActorShadowFragment"}};
+            for (const ReceiverPrograms& receiver : receivers)
+            {
+                Ogre::Pass* pass = materialPass(receiver.material);
+                pass->setVertexProgram(
+                    enabled ? receiver.shadowVertex : receiver.vertex);
+                pass->setFragmentProgram(
+                    enabled ? receiver.shadowFragment : receiver.fragment);
+                if (enabled)
+                {
+                    ensureDirectionalShadowReceiver(receiver.material);
+                    continue;
+                }
+                for (int index =
+                         static_cast<int>(pass->getNumTextureUnitStates()) - 1;
+                     index >= 0; --index)
+                {
+                    if (pass->getTextureUnitState(
+                            static_cast<unsigned short>(index))
+                            ->getContentType() ==
+                        Ogre::TextureUnitState::CONTENT_SHADOW)
+                    {
+                        pass->removeTextureUnitState(
+                            static_cast<unsigned short>(index));
+                    }
+                }
+            }
+            syncTerrainMaterialParameters();
+        }
+
+        void syncDirectionalShadowMaterialParameters(float strength)
+        {
+            m_directionalShadowStrength = strength;
+            if (m_directionalShadowQuality ==
+                DirectionalShadowQuality::Off)
+            {
+                return;
+            }
+            const DirectionalShadowProfile profile =
+                directionalShadowProfile(m_directionalShadowQuality);
+            const float enabled = 1.f;
+            const char* terrainMaterials[] = {
+                "HelloMine3D/Terrain", "HelloMine3D/Transparent",
+                "HelloMine3D/Flora"};
+            for (const char* materialName : terrainMaterials)
+            {
+                Ogre::GpuProgramParametersSharedPtr parameters =
+                    materialPass(materialName)
+                        ->getFragmentProgramParameters();
+                parameters->setNamedConstant(
+                    "directionalShadowEnabled", enabled);
+                parameters->setNamedConstant(
+                    "directionalShadowBias", profile.bias);
+                parameters->setNamedConstant(
+                    "directionalShadowStrength", strength);
+                parameters->setNamedConstant(
+                    "directionalShadowFadeStart", profile.fadeStart);
+                parameters->setNamedConstant(
+                    "directionalShadowFadeEnd", profile.farDistance);
+            }
+
+            const char* actorMaterials[] = {
+                "HelloMine3D/ActorMob", "HelloMine3D/ActorStalker",
+                "HelloMine3D/ActorBrute", "HelloMine3D/ActorSpitter",
+                "HelloMine3D/ActorItem",
+                "HelloMine3D/CombatProjectile"};
+            for (const char* materialName : actorMaterials)
+            {
+                Ogre::GpuProgramParametersSharedPtr parameters =
+                    materialPass(materialName)
+                        ->getFragmentProgramParameters();
+                parameters->setNamedConstant(
+                    "directionalShadowEnabled", enabled);
+                parameters->setNamedConstant(
+                    "directionalShadowBias", profile.bias);
+                parameters->setNamedConstant(
+                    "directionalShadowStrength", strength);
+                parameters->setNamedConstant(
+                    "directionalShadowFadeStart", profile.fadeStart);
+                parameters->setNamedConstant(
+                    "directionalShadowFadeEnd", profile.farDistance);
+            }
+        }
+
+        void emitDirectionalShadowDiagnostics()
+        {
+            if (m_directionalShadowDiagnosticsEmitted ||
+                m_frameCount < 3 ||
+                !isTrueValue(std::getenv(
+                    "HELLOMINE3D_V10D_SHADOW_DIAGNOSTICS")))
+            {
+                return;
+            }
+            m_directionalShadowDiagnosticsEmitted = true;
+            std::cout << "[V10D_SHADOW_DIAGNOSTICS] active="
+                      << directionalShadowQualityToken(
+                             m_directionalShadowQuality)
+                      << " strength=" << m_directionalShadowStrength
+                      << " light_attached="
+                      << (m_directionalSunLight != nullptr &&
+                                  m_directionalSunLight->isAttached()
+                              ? 1
+                              : 0);
+            if (m_sceneManager == nullptr ||
+                m_directionalShadowQuality ==
+                    DirectionalShadowQuality::Off ||
+                m_sceneManager->getShadowTextureCount() == 0)
+            {
+                std::cout << " texture=none\n";
+                return;
+            }
+            try
+            {
+                const Ogre::TexturePtr& texture =
+                    m_sceneManager->getShadowTexture(0);
+                const Ogre::uint32 width = texture->getWidth();
+                const Ogre::uint32 height = texture->getHeight();
+                std::vector<float> pixels(width * height, 1.f);
+                Ogre::PixelBox destination(
+                    width, height, 1, Ogre::PF_FLOAT32_R,
+                    pixels.data());
+                texture->getBuffer()->blitToMemory(destination);
+                float minimum = std::numeric_limits<float>::max();
+                float maximum = std::numeric_limits<float>::lowest();
+                double sum = 0.0;
+                for (float value : pixels)
+                {
+                    minimum = std::min(minimum, value);
+                    maximum = std::max(maximum, value);
+                    sum += value;
+                }
+                std::cout << " texture=" << width << 'x' << height
+                          << " min=" << minimum
+                          << " max=" << maximum
+                          << " mean=" << (sum / pixels.size()) << '\n';
+            }
+            catch (const std::exception& exception)
+            {
+                std::cout << " texture=read-failed detail="
+                          << exception.what() << '\n';
+            }
+        }
+
+        void destroyDirectionalShadowResources()
+        {
+            if (m_sceneManager == nullptr)
+            {
+                m_directionalSunLight = nullptr;
+                m_directionalSunNode = nullptr;
+                m_directionalShadowQuality =
+                    DirectionalShadowQuality::Off;
+                return;
+            }
+            m_sceneManager->setShadowTechnique(Ogre::SHADOWTYPE_NONE);
+            m_directionalShadowDiagnosticsEmitted = false;
+            if (m_directionalSunLight != nullptr)
+            {
+                if (m_directionalSunNode != nullptr)
+                {
+                    m_directionalSunNode->detachObject(
+                        m_directionalSunLight);
+                }
+                m_sceneManager->destroyLight(m_directionalSunLight);
+                m_directionalSunLight = nullptr;
+            }
+            if (m_directionalSunNode != nullptr)
+            {
+                m_sceneManager->destroySceneNode(m_directionalSunNode);
+                m_directionalSunNode = nullptr;
+            }
+            m_directionalShadowQuality =
+                DirectionalShadowQuality::Off;
+            m_directionalShadowStrength = 0.f;
+            setDirectionalShadowReceiverPrograms(false);
+            if (m_actorRenderer != nullptr)
+            {
+                m_actorRenderer->setCastShadows(false);
+            }
+        }
+
+        bool configureDirectionalShadows(
+            DirectionalShadowQuality requestedQuality)
+        {
+            if (m_sceneManager == nullptr)
+            {
+                return false;
+            }
+
+            m_sceneManager->setShadowTechnique(Ogre::SHADOWTYPE_NONE);
+            if (m_directionalSunLight != nullptr)
+            {
+                m_directionalSunLight->setCastShadows(false);
+            }
+            m_directionalShadowQuality =
+                DirectionalShadowQuality::Off;
+            m_directionalShadowStrength = 0.f;
+            setDirectionalShadowReceiverPrograms(false);
+            if (m_actorRenderer != nullptr)
+            {
+                m_actorRenderer->setCastShadows(false);
+            }
+
+            if (requestedQuality == DirectionalShadowQuality::Off)
+            {
+                destroyDirectionalShadowResources();
+                std::cout << "[V10D_SHADOW] requested=off active=off "
+                             "fallback=0 reason=disabled texture=0 "
+                             "distance=0 pcf=0\n";
+                return true;
+            }
+
+            const bool forcedFallback = isTrueValue(
+                std::getenv("HELLOMINE3D_V10D_SHADOW_FALLBACK"));
+            Ogre::RenderSystem* renderSystem =
+                m_root != nullptr ? m_root->getRenderSystem() : nullptr;
+            const Ogre::RenderSystemCapabilities* capabilities =
+                renderSystem != nullptr
+                    ? renderSystem->getCapabilities()
+                    : nullptr;
+            const bool supported =
+                !forcedFallback && capabilities != nullptr &&
+                capabilities->hasCapability(
+                    Ogre::RSC_HWRENDER_TO_TEXTURE) &&
+                capabilities->hasCapability(Ogre::RSC_TEXTURE_FLOAT) &&
+                capabilities->hasCapability(Ogre::RSC_VERTEX_PROGRAM) &&
+                capabilities->hasCapability(Ogre::RSC_FRAGMENT_PROGRAM) &&
+                Ogre::GpuProgramManager::getSingleton()
+                    .isSyntaxSupported("glsl150");
+            if (!supported)
+            {
+                destroyDirectionalShadowResources();
+                std::cout << "[V10D_SHADOW] requested="
+                          << directionalShadowQualityToken(requestedQuality)
+                          << " active=off fallback=1 reason="
+                          << (forcedFallback
+                                  ? "forced"
+                                  : "unsupported-capability")
+                          << " texture=0 distance=0 pcf=0\n";
+                return false;
+            }
+
+            try
+            {
+                setDirectionalShadowReceiverPrograms(true);
+
+                if (m_directionalSunLight == nullptr)
+                {
+                    m_directionalSunLight =
+                        m_sceneManager->createLight(
+                            "HelloMine3D_DirectionalSun");
+                    m_directionalSunLight->setType(
+                        Ogre::Light::LT_DIRECTIONAL);
+                    m_directionalSunLight->setDiffuseColour(
+                        Ogre::ColourValue::White);
+                    m_directionalSunLight->setSpecularColour(
+                        Ogre::ColourValue::White);
+                    m_directionalSunNode =
+                        m_sceneManager->getRootSceneNode()
+                            ->createChildSceneNode(
+                                "HelloMine3D_DirectionalSun_Node");
+                    m_directionalSunNode->attachObject(
+                        m_directionalSunLight);
+                }
+
+                const DirectionalShadowProfile profile =
+                    directionalShadowProfile(requestedQuality);
+                m_sceneManager->setShadowTextureSettings(
+                    profile.textureSize, 1, Ogre::PF_FLOAT32_R);
+                m_sceneManager->setShadowTextureCountPerLightType(
+                    Ogre::Light::LT_DIRECTIONAL, 1);
+                m_sceneManager->setShadowTextureCountPerLightType(
+                    Ogre::Light::LT_POINT, 0);
+                m_sceneManager->setShadowTextureCountPerLightType(
+                    Ogre::Light::LT_SPOTLIGHT, 0);
+                m_sceneManager->setShadowFarDistance(
+                    profile.farDistance);
+                m_sceneManager->setShadowDirectionalLightExtrusionDistance(
+                    profile.farDistance);
+                m_directionalSunLight->setShadowNearClipDistance(0.5f);
+                m_directionalSunLight->setShadowFarClipDistance(
+                    profile.farDistance * 2.f);
+                m_sceneManager->setShadowDirLightTextureOffset(0.55f);
+                m_sceneManager->setShadowTextureSelfShadow(true);
+                m_sceneManager->setShadowCasterRenderBackFaces(false);
+                m_sceneManager->setShadowTextureCasterMaterial(
+                    "HelloMine3D/DirectionalShadowCaster");
+                m_sceneManager->setShadowTechnique(
+                    Ogre::SHADOWTYPE_TEXTURE_MODULATIVE_INTEGRATED);
+                m_directionalSunLight->setCastShadows(true);
+                m_directionalShadowQuality = requestedQuality;
+                if (m_actorRenderer != nullptr)
+                {
+                    m_actorRenderer->setCastShadows(true);
+                }
+                syncDirectionalShadowMaterialParameters(0.f);
+                std::cout << "[V10D_SHADOW] requested="
+                          << directionalShadowQualityToken(requestedQuality)
+                          << " active="
+                          << directionalShadowQualityToken(
+                                 m_directionalShadowQuality)
+                          << " fallback=0 reason=supported texture="
+                          << profile.textureSize << " distance="
+                          << profile.farDistance
+                          << " pcf=2x2 bias=" << profile.bias << '\n';
+                return true;
+            }
+            catch (const std::exception& exception)
+            {
+                m_sceneManager->setShadowTechnique(
+                    Ogre::SHADOWTYPE_NONE);
+                if (m_directionalSunLight != nullptr)
+                {
+                    m_directionalSunLight->setCastShadows(false);
+                }
+                m_directionalShadowQuality =
+                    DirectionalShadowQuality::Off;
+                destroyDirectionalShadowResources();
+                std::cout << "[V10D_SHADOW] requested="
+                          << directionalShadowQualityToken(requestedQuality)
+                          << " active=off fallback=1 reason=setup-failed "
+                             "texture=0 distance=0 pcf=0 detail="
+                          << exception.what() << '\n';
+                return false;
+            }
+        }
+
         void selectAtmosphereMode()
         {
             const bool forcedFallback = isTrueValue(
@@ -2321,6 +2839,24 @@ namespace
                 m_v10cAtmosphereEnabled
                     ? state.fogDirectionalStrength
                     : 0.f;
+            const bool shadowActive =
+                m_directionalShadowQuality !=
+                DirectionalShadowQuality::Off;
+            const float shadowStrength = shadowActive
+                ? std::max(0.f, std::min(0.42f,
+                      state.sunIntensity * 0.42f))
+                : 0.f;
+            if (m_directionalSunLight != nullptr)
+            {
+                m_directionalSunLight->setDirection(-sunDirection);
+                m_directionalSunLight->setDiffuseColour(
+                    Ogre::ColourValue(state.sunColour.r,
+                                      state.sunColour.g,
+                                      state.sunColour.b));
+                m_directionalSunLight->setCastShadows(
+                    shadowActive && state.sunIntensity > 0.02f);
+            }
+            syncDirectionalShadowMaterialParameters(shadowStrength);
 
             m_sceneManager->setFog(Ogre::FOG_EXP2, fog,
                                    state.fogDensity);
@@ -2817,6 +3353,7 @@ namespace
                 destroySectionVisual(entry.second);
             }
             m_sectionVisuals.clear();
+            destroyDirectionalShadowResources();
             if (m_audio != nullptr)
             {
                 m_audio->detach();
@@ -2845,6 +3382,8 @@ namespace
         Ogre::RenderWindow* m_window = nullptr;
         Ogre::SceneManager* m_sceneManager = nullptr;
         Ogre::Camera* m_camera = nullptr;
+        Ogre::Light* m_directionalSunLight = nullptr;
+        Ogre::SceneNode* m_directionalSunNode = nullptr;
         OIS::InputManager* m_inputManager = nullptr;
         OIS::Keyboard* m_keyboard = nullptr;
         OIS::Mouse* m_mouse = nullptr;
@@ -2882,6 +3421,10 @@ namespace
         bool m_mouseLookEnabled = true;
         bool m_hiddenWindow = false;
         bool m_v10cAtmosphereEnabled = true;
+        bool m_directionalShadowDiagnosticsEmitted = false;
+        float m_directionalShadowStrength = 0.f;
+        DirectionalShadowQuality m_directionalShadowQuality =
+            DirectionalShadowQuality::Off;
         bool m_nativeCursorCaptured = false;
         int m_cursorHideAdjustments = 0;
         bool m_validationActorsSpawned = false;
@@ -2938,6 +3481,8 @@ int runOgreBootstrap(bool validateOnly,
         runtimeTerrainMaterialProfile().freezeFromResourceView(
             runtimeResourcePackResolver());
         validateAtmosphereShaderContract(
+            runtimeResourcePackResolver());
+        validateDirectionalShadowShaderContract(
             runtimeResourcePackResolver());
         BlockDatabase::get();
         runtimeRecipeRegistry().freezeFromResourceView(

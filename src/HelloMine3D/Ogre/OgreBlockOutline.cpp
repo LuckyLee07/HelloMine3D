@@ -21,6 +21,7 @@ OgreBlockOutline::OgreBlockOutline(Ogre::SceneManager &sceneManager)
     : m_sceneManager(&sceneManager)
 {
     m_object = sceneManager.createManualObject("SelectedBlockOutline");
+    m_object->setCastShadows(false);
     m_object->setDynamic(false);
     m_object->begin("HelloMine3D/Outline",
                     Ogre::RenderOperation::OT_LINE_LIST);

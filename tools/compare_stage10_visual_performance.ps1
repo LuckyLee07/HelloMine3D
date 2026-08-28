@@ -104,6 +104,28 @@ try {
 
     $baselineSummary = Read-Summary -Path $baselinePath -Label "Baseline"
     $candidateSummary = Read-Summary -Path $candidatePath -Label "Candidate"
+    $baselineShadowQuality = if ($baselineSummary.ContainsKey(
+            "stage10_shadow_quality")) {
+        [string]$baselineSummary["stage10_shadow_quality"]
+    }
+    else { "off" }
+    $candidateShadowQuality = if ($candidateSummary.ContainsKey(
+            "stage10_shadow_quality")) {
+        [string]$candidateSummary["stage10_shadow_quality"]
+    }
+    else { "off" }
+    foreach ($entry in @(
+        @{ Label = "Baseline"; Value = $baselineShadowQuality },
+        @{ Label = "Candidate"; Value = $candidateShadowQuality })) {
+        if ($entry.Value -notin @("off", "medium", "high")) {
+            throw "$($entry.Label) summary has invalid stage10_shadow_quality='$($entry.Value)'."
+        }
+    }
+    if ($baselineShadowQuality -cne $candidateShadowQuality) {
+        Write-Host "[STAGE10_PERF] incomparable=stage10 shadow quality differs baseline=$baselineShadowQuality candidate=$candidateShadowQuality"
+        Write-Host "[STAGE10_PERF] status=INCOMPARABLE"
+        exit 3
+    }
     $baselineManifest = Require-Text -Summary $baselineSummary `
         -Key "comparison_resource_manifest_sha256" -Label "Baseline"
     $candidateManifest = Require-Text -Summary $candidateSummary `
@@ -177,6 +199,7 @@ try {
         "stage10_performance_supplement=1",
         "comparison_scene_id=$scene",
         "threshold_percent=$($ThresholdPercent.ToString($invariant))",
+        "stage10_shadow_quality=$candidateShadowQuality",
         "resource_manifest_bridge=$resourceManifestBridge",
         "baseline_resource_manifest_sha256=$baselineManifest",
         "candidate_resource_manifest_sha256=$candidateManifest"

@@ -379,6 +379,8 @@ void caseRuntimeConfigOwnership()
           generated.renderDistance == 8 && !generated.isFullscreen &&
               generated.windowX == 1280 && generated.windowY == 720 &&
               generated.fov == 90 &&
+              generated.directionalShadowQuality ==
+                  DirectionalShadowQuality::Off &&
               std::abs(generated.mouseSensitivity - 0.05f) < 0.0001f &&
               !generated.invertMouseY &&
               std::abs(generated.musicVolume - 0.65f) < 0.0001f &&
@@ -399,8 +401,10 @@ void caseRuntimeConfigOwnership()
         std::ifstream input(configPath, std::ios::binary);
         const std::string text((std::istreambuf_iterator<char>(input)),
                                std::istreambuf_iterator<char>());
-        check("N12C/settings-file-is-versioned-with-music-volume",
-               text.find("settings_version 4\n") != std::string::npos &&
+        check("V10D/settings-file-is-versioned-with-shadow-quality",
+               text.find("settings_version 5\n") != std::string::npos &&
+                   text.find("directionalshadowquality off\n") !=
+                       std::string::npos &&
                    text.find("mastervolume 1") != std::string::npos &&
                    text.find("ambientvolume 1") != std::string::npos &&
                    text.find("musicvolume 0.649") != std::string::npos &&
@@ -432,8 +436,12 @@ void caseRuntimeConfigOwnership()
         std::ifstream input(configPath, std::ios::binary);
         const std::string text((std::istreambuf_iterator<char>(input)),
                                std::istreambuf_iterator<char>());
-        check("N12C/legacy-settings-migrated-atomically",
-               text.find("settings_version 4\n") == 0 &&
+        check("V10D/legacy-settings-migrated-atomically",
+               customised.directionalShadowQuality ==
+                       DirectionalShadowQuality::Off &&
+                   text.find("settings_version 5\n") == 0 &&
+                   text.find("directionalshadowquality off\n") !=
+                       std::string::npos &&
                    text.find("uivolume 1") != std::string::npos &&
                    text.find("musicvolume 0.649") != std::string::npos &&
                    text.find("locale en-US") != std::string::npos &&
@@ -462,7 +470,9 @@ void caseRuntimeConfigOwnership()
                   versionOne.inputBindings.get(
                       GameplayAction::OpenCrafting) == GameplayKey::E &&
                   std::abs(versionOne.musicVolume - 0.65f) < 0.0001f &&
-                  text.find("settings_version 4\n") == 0,
+                  versionOne.directionalShadowQuality ==
+                      DirectionalShadowQuality::Off &&
+                  text.find("settings_version 5\n") == 0,
               text);
     }
 
@@ -485,7 +495,9 @@ void caseRuntimeConfigOwnership()
                   !versionTwo.audioCaptions &&
                   versionTwo.locale == "en-US" &&
                   std::abs(versionTwo.musicVolume - 0.65f) < 0.0001f &&
-                  text.find("settings_version 4\n") == 0 &&
+                  versionTwo.directionalShadowQuality ==
+                      DirectionalShadowQuality::Off &&
+                  text.find("settings_version 5\n") == 0 &&
                   text.find("locale en-US\n") != std::string::npos,
               text);
     }
@@ -508,8 +520,33 @@ void caseRuntimeConfigOwnership()
               versionThree.locale == "zh-CN" &&
                   std::abs(versionThree.ambientVolume - 0.4f) < 0.0001f &&
                   std::abs(versionThree.musicVolume - 0.65f) < 0.0001f &&
-                  text.find("settings_version 4\n") == 0 &&
+                  versionThree.directionalShadowQuality ==
+                      DirectionalShadowQuality::Off &&
+                  text.find("settings_version 5\n") == 0 &&
                   text.find("musicvolume 0.649") != std::string::npos,
+              text);
+    }
+
+    const std::filesystem::path versionFourPath =
+        directory / "version-four-config.txt";
+    {
+        std::ofstream output(versionFourPath,
+                             std::ios::binary | std::ios::trunc);
+        output << "settings_version 4\n"
+               << "musicvolume 0.4\n";
+    }
+    const Config versionFour = loadRuntimeConfig(versionFourPath.string());
+    {
+        std::ifstream input(versionFourPath, std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(input)),
+                               std::istreambuf_iterator<char>());
+        check("V10D/version-four-settings-migrate-shadows-off",
+              std::abs(versionFour.musicVolume - 0.4f) < 0.0001f &&
+                  versionFour.directionalShadowQuality ==
+                      DirectionalShadowQuality::Off &&
+                  text.find("settings_version 5\n") == 0 &&
+                  text.find("directionalshadowquality off\n") !=
+                      std::string::npos,
               text);
     }
 
@@ -517,12 +554,16 @@ void caseRuntimeConfigOwnership()
     session.begin(userSettings(customised));
     session.draft().fov = 115;
     session.draft().renderDistance = 5;
+    session.draft().directionalShadowQuality =
+        DirectionalShadowQuality::Medium;
     RuntimeSettingsApplyPlan plan;
     std::string settingsError;
     check("G4/settings-draft-prepares-valid-apply",
           session.prepareApply(plan, settingsError) &&
               plan.settings.fov == 115 &&
-              plan.renderDistanceChanged && !plan.restartRequired,
+              plan.renderDistanceChanged &&
+              plan.directionalShadowQualityChanged &&
+              !plan.restartRequired,
           settingsError);
     session.cancel();
     check("G4/settings-cancel-restores-snapshot",
@@ -539,6 +580,8 @@ void caseRuntimeConfigOwnership()
           session.prepareApply(plan, settingsError) &&
               plan.settings.windowX == 1280 &&
               plan.settings.renderDistance == 8 &&
+              plan.settings.directionalShadowQuality ==
+                  DirectionalShadowQuality::Off &&
               std::abs(plan.settings.masterVolume - 1.0f) < 0.0001f &&
               std::abs(plan.settings.musicVolume - 0.65f) < 0.0001f);
     session.draft().fov = 121;
@@ -554,6 +597,8 @@ void caseRuntimeConfigOwnership()
     persisted.uiScale = 1.25f;
     persisted.locale = "zh-CN";
     persisted.musicVolume = 0.4f;
+    persisted.directionalShadowQuality =
+        DirectionalShadowQuality::High;
     persisted.audioCaptions = false;
     persisted.showActionHints = false;
     persisted.inputBindings.set(GameplayAction::ConsumeFood,
@@ -569,6 +614,8 @@ void caseRuntimeConfigOwnership()
               std::abs(reloaded.uiScale - 1.25f) < 0.0001f &&
               reloaded.locale == "zh-CN" &&
               std::abs(reloaded.musicVolume - 0.4f) < 0.0001f &&
+              reloaded.directionalShadowQuality ==
+                  DirectionalShadowQuality::High &&
               !reloaded.audioCaptions && !reloaded.showActionHints &&
               reloaded.inputBindings.get(GameplayAction::ConsumeFood) ==
                   GameplayKey::Q);
@@ -649,7 +696,16 @@ void caseRuntimeConfigOwnership()
                   "settings_version 3\nmusicvolume 0.5\n") &&
               invalidSettingsRejected(
                   "invalid-music-volume.txt",
-                  "settings_version 4\nmusicvolume 1.1\n"));
+                  "settings_version 4\nmusicvolume 1.1\n") &&
+              invalidSettingsRejected(
+                  "old-version-shadow.txt",
+                  "settings_version 4\ndirectionalshadowquality medium\n") &&
+              invalidSettingsRejected(
+                  "missing-v5-shadow.txt",
+                  "settings_version 5\nrenderdistance 8\n") &&
+              invalidSettingsRejected(
+                  "invalid-v5-shadow.txt",
+                  "settings_version 5\ndirectionalshadowquality ultra\n"));
 }
 
 std::string readTextFile(const std::string &path)
@@ -718,7 +774,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 352 &&
+              registry.keys("en-US").size() == 357 &&
               registry.lookup("en-US", "settings.music_volume") ==
                   "Music" &&
               registry.lookup("zh-CN", "settings.music_volume") !=
@@ -12667,6 +12723,9 @@ int main()
         }
         else if (focus != nullptr && std::string(focus) == "V10C") {
             caseWorldEnvironment();
+        }
+        else if (focus != nullptr && std::string(focus) == "V10D") {
+            caseRuntimeConfigOwnership();
         }
         else {
         caseWorldOutcomeAndLocalizedText();

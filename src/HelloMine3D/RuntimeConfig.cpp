@@ -52,6 +52,27 @@ float readFloat(const std::string &path, const std::string &key,
     return value;
 }
 
+DirectionalShadowQuality readDirectionalShadowQuality(
+    const std::string &path, const std::string &key,
+    std::istringstream &input)
+{
+    std::string value;
+    if (!(input >> value)) {
+        fail(path, key, "must contain off, medium, or high");
+    }
+    requireEnd(path, key, input);
+    if (value == "off") {
+        return DirectionalShadowQuality::Off;
+    }
+    if (value == "medium") {
+        return DirectionalShadowQuality::Medium;
+    }
+    if (value == "high") {
+        return DirectionalShadowQuality::High;
+    }
+    fail(path, key, "must be one of off, medium, or high");
+}
+
 void validateVolume(const char *name, float value)
 {
     if (!std::isfinite(value) || value < 0.f || value > 1.f) {
@@ -74,6 +95,7 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
     bool usesVersionTwoKey = false;
     bool usesVersionThreeKey = false;
     bool usesVersionFourKey = false;
+    bool usesVersionFiveKey = false;
     std::set<std::string> seenKeys;
     std::string line;
     std::size_t lineNumber = 0;
@@ -99,6 +121,7 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
             requireEnd(path, key, values);
             if (version != LegacyRuntimeSettingsFormatVersion &&
                 version != AccessibilityRuntimeSettingsFormatVersion &&
+                version != LocaleRuntimeSettingsFormatVersion &&
                 version != PreviousRuntimeSettingsFormatVersion &&
                 version != RuntimeSettingsFormatVersion) {
                 fail(path, key, "uses unsupported version " +
@@ -110,6 +133,11 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
         else if (key == "renderdistance") {
             parsed.config.renderDistance = readInteger(path, key, values);
             requireEnd(path, key, values);
+        }
+        else if (key == "directionalshadowquality") {
+            parsed.config.directionalShadowQuality =
+                readDirectionalShadowQuality(path, key, values);
+            usesVersionFiveKey = true;
         }
         else if (key == "fullscreen") {
             const int fullscreen = readInteger(path, key, values);
@@ -244,14 +272,25 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
     }
     if (usesVersionThreeKey &&
         (!hasVersion || parsed.version <
-                            PreviousRuntimeSettingsFormatVersion)) {
+                            LocaleRuntimeSettingsFormatVersion)) {
         fail(path, "settings_version",
              "older versions cannot contain version 3 settings");
     }
     if (usesVersionFourKey &&
-        (!hasVersion || parsed.version < RuntimeSettingsFormatVersion)) {
+        (!hasVersion || parsed.version <
+                            PreviousRuntimeSettingsFormatVersion)) {
         fail(path, "settings_version",
              "older versions cannot contain version 4 settings");
+    }
+    if (usesVersionFiveKey &&
+        (!hasVersion || parsed.version < RuntimeSettingsFormatVersion)) {
+        fail(path, "settings_version",
+             "older versions cannot contain version 5 settings");
+    }
+    if (hasVersion && parsed.version == RuntimeSettingsFormatVersion &&
+        !usesVersionFiveKey) {
+        fail(path, "directionalshadowquality",
+             "is required by settings version 5");
     }
     parsed.needsMigration =
         !hasVersion || parsed.version < RuntimeSettingsFormatVersion;
@@ -271,6 +310,10 @@ std::vector<char> serializeRuntimeConfig(const Config &config)
     output << std::setprecision(9)
            << "settings_version " << RuntimeSettingsFormatVersion << '\n'
            << "renderdistance " << config.renderDistance << '\n'
+           << "directionalshadowquality "
+           << directionalShadowQualityToken(
+                  config.directionalShadowQuality)
+           << '\n'
            << "fullscreen " << (config.isFullscreen ? 1 : 0) << '\n'
            << "windowsize " << config.windowX << ' ' << config.windowY
            << '\n'
@@ -309,6 +352,15 @@ void validateUserSettings(const UserSettings &settings)
 {
     if (settings.renderDistance < 1 || settings.renderDistance > 32) {
         throw std::runtime_error("render distance must be between 1 and 32");
+    }
+    if (settings.directionalShadowQuality !=
+            DirectionalShadowQuality::Off &&
+        settings.directionalShadowQuality !=
+            DirectionalShadowQuality::Medium &&
+        settings.directionalShadowQuality !=
+            DirectionalShadowQuality::High) {
+        throw std::runtime_error(
+            "directional shadow quality must be off, medium, or high");
     }
     if (settings.windowX < 640 || settings.windowX > 7680 ||
         settings.windowY < 480 || settings.windowY > 4320) {
@@ -474,6 +526,9 @@ bool RuntimeSettingsSession::prepareApply(
             m_draft.isFullscreen != m_original.isFullscreen;
         plan.renderDistanceChanged =
             m_draft.renderDistance != m_original.renderDistance;
+        plan.directionalShadowQualityChanged =
+            m_draft.directionalShadowQuality !=
+            m_original.directionalShadowQuality;
         error.clear();
         return true;
     }

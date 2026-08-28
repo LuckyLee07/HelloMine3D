@@ -41,6 +41,7 @@ class OgreActorRenderer
               const glm::vec3& cameraPosition);
     void syncProjectiles(
         const std::vector<CombatProjectileSnapshot>& snapshots);
+    void setCastShadows(bool enabled) noexcept;
     void clear();
 
     static OgreActorRendererValidation validateSnapshots(
@@ -69,6 +70,7 @@ class OgreActorRenderer
     std::unordered_map<ActorId, ActorVisual> m_visuals;
     std::unordered_map<CombatProjectileId, ActorVisual>
         m_projectileVisuals;
+    bool m_castShadows = false;
 };
 
 #endif // OGREACTORRENDERER_H_INCLUDED

@@ -6,12 +6,34 @@
 
 #include "GameplayInput.h"
 
+enum class DirectionalShadowQuality {
+    Off = 0,
+    Medium = 1,
+    High = 2
+};
+
+inline const char *directionalShadowQualityToken(
+    DirectionalShadowQuality quality) noexcept
+{
+    switch (quality) {
+        case DirectionalShadowQuality::Off:
+            return "off";
+        case DirectionalShadowQuality::Medium:
+            return "medium";
+        case DirectionalShadowQuality::High:
+            return "high";
+    }
+    return "off";
+}
+
 /// Settings owned by the player and safe to change without recreating a world.
 struct UserSettings {
     int windowX = 1280;
     int windowY = 720;
     bool isFullscreen = false;
     int renderDistance = 8; // Set initial RD low to prevent long load times
+    DirectionalShadowQuality directionalShadowQuality =
+        DirectionalShadowQuality::Off;
     int fov = 90;
     float mouseSensitivity = 0.05f;
     bool invertMouseY = false;

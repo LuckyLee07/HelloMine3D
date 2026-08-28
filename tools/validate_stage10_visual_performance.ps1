@@ -36,6 +36,11 @@ function Remove-SummaryKey {
     Set-Content -LiteralPath $Path -Encoding utf8 -Value $lines
 }
 
+function Add-SummaryValue {
+    param([string]$Path, [string]$Key, [string]$Value)
+    Add-Content -LiteralPath $Path -Encoding utf8 -Value "$Key=$Value"
+}
+
 function Invoke-Case {
     param(
         [string]$Name,
@@ -69,6 +74,22 @@ try {
     Copy-Item -LiteralPath $source -Destination $pass
     Invoke-Case -Name "unchanged" -Candidate $pass `
         -ExpectedExit 0 -ExpectedStatus "PASS"
+
+    $shadowMismatch = Join-Path $tempRoot "shadow-mismatch.summary.txt"
+    Copy-Item -LiteralPath $source -Destination $shadowMismatch
+    Add-SummaryValue -Path $shadowMismatch `
+        -Key "stage10_shadow_quality" -Value "medium"
+    Invoke-Case -Name "shadow-quality-mismatch" `
+        -Candidate $shadowMismatch -ExpectedExit 3 `
+        -ExpectedStatus "INCOMPARABLE"
+
+    $shadowInvalid = Join-Path $tempRoot "shadow-invalid.summary.txt"
+    Copy-Item -LiteralPath $source -Destination $shadowInvalid
+    Add-SummaryValue -Path $shadowInvalid `
+        -Key "stage10_shadow_quality" -Value "ultra"
+    Invoke-Case -Name "shadow-quality-invalid" `
+        -Candidate $shadowInvalid -ExpectedExit 4 `
+        -ExpectedStatus "INVALID"
 
     $within = Join-Path $tempRoot "within.summary.txt"
     Copy-Item -LiteralPath $source -Destination $within

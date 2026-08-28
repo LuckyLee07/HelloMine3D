@@ -20,6 +20,7 @@ param(
     [ValidateSet("", "fast-streaming", "scaled-gameplay")]
     [string]$RcPerformanceProfile = "",
     [string]$StorageClass = "local-default",
+    [string]$RuntimeRoot = "",
     [double]$MinimumSimulationTickHz = 19.0,
     [double]$MaximumSimulationTickHz = 21.0,
     [switch]$VerticalSliceFixture,
@@ -36,6 +37,11 @@ $RepoRoot = (Resolve-Path (Join-Path $ScriptRoot "..")).Path
 $BinDir = Join-Path $RepoRoot "bin"
 $ExeName = "HelloMine3D.exe"
 $ExePath = Join-Path $BinDir $ExeName
+$RuntimeRootPath = if ([string]::IsNullOrWhiteSpace($RuntimeRoot)) {
+    $RepoRoot
+}
+else { (Resolve-Path -LiteralPath $RuntimeRoot).Path }
+$RuntimeBinDir = Join-Path $RuntimeRootPath "bin"
 $RunId = "{0:yyyyMMddHHmmssfff}-{1}" -f (Get-Date), $PID
 
 if ([string]::IsNullOrWhiteSpace($OutputDir)) {
@@ -314,7 +320,7 @@ if ($DurationMs -le 0) {
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 New-Item -ItemType Directory -Force -Path $SaveDir | Out-Null
 
-$DefaultMetaPath = Join-Path $BinDir "saves\default\world.meta"
+$DefaultMetaPath = Join-Path $RuntimeBinDir "saves\default\world.meta"
 if ([string]::IsNullOrWhiteSpace($Seed)) {
     $Seed = Read-WorldMetaValue -Path $DefaultMetaPath -Key "seed"
 }
@@ -333,7 +339,7 @@ if ([string]::IsNullOrWhiteSpace($SceneId)) {
     $SceneId = "seed=$Seed;position=$PlayerPosition;rotation=$PlayerRotation;worldTime=$WorldTime"
 }
 
-$OgreConfigPath = Join-Path $BinDir "Mine.cfg"
+$OgreConfigPath = Join-Path $RuntimeBinDir "Mine.cfg"
 $VsyncValue = Read-ConfigValue -Path $OgreConfigPath -Key "VSync"
 $VsyncRegime = if ($HiddenWindow) {
     "hidden-offscreen"
@@ -355,6 +361,7 @@ Remove-Item -LiteralPath $FramesPath -Force -ErrorAction SilentlyContinue
 
 Write-Host "[PERF_BASELINE] runId=$RunId"
 Write-Host "[PERF_BASELINE] exe=$ExePath"
+Write-Host "[PERF_BASELINE] runtimeRoot=$RuntimeRootPath"
 Write-Host "[PERF_BASELINE] outputDir=$OutputDir"
 Write-Host "[PERF_BASELINE] warmupMs=$WarmupMs durationMs=$DurationMs noActivate=true hidden=$($HiddenWindow.IsPresent.ToString().ToLowerInvariant())"
 Write-Host "[PERF_BASELINE] saveDir=$SaveDir"
@@ -380,7 +387,7 @@ if ($StopExisting) {
 }
 
 $envValues = @{
-    HELLOMINE3D_ROOT = $RepoRoot
+    HELLOMINE3D_ROOT = $RuntimeRootPath
     HELLOMINE3D_SAVE_DIR = $SaveDir
     HELLOMINE3D_RESOURCE_PACKS = $ResourcePacks
     HELLO_PERF_CAPTURE = "1"
@@ -414,7 +421,7 @@ if (-not [string]::IsNullOrWhiteSpace($RcPerformanceProfile)) {
 $process = $null
 Set-ProcessEnvironment -Values $envValues -Body {
     $windowStyle = if ($HiddenWindow) { "Hidden" } else { "Minimized" }
-    $script:CapturedProcess = Start-Process -FilePath $ExePath -WorkingDirectory $BinDir -WindowStyle $windowStyle -RedirectStandardOutput $ProcessStdoutPath -RedirectStandardError $ProcessStderrPath -PassThru
+    $script:CapturedProcess = Start-Process -FilePath $ExePath -WorkingDirectory $RuntimeBinDir -WindowStyle $windowStyle -RedirectStandardOutput $ProcessStdoutPath -RedirectStandardError $ProcessStderrPath -PassThru
 }
 $process = $script:CapturedProcess
 $script:CapturedProcess = $null
@@ -475,12 +482,17 @@ try {
         throw "Simulation tick rate $simulationTickHz Hz is outside the expected range [$MinimumSimulationTickHz, $MaximumSimulationTickHz]."
     }
 
-    $gameConfigPath = Join-Path $BinDir "config.txt"
+    $gameConfigPath = Join-Path $RuntimeBinDir "config.txt"
     $fullscreen = Read-GameConfigValue `
         -Path $gameConfigPath -Key "fullscreen"
     $fov = Read-GameConfigValue -Path $gameConfigPath -Key "fov"
     $renderDistance = Read-GameConfigValue `
         -Path $gameConfigPath -Key "renderdistance"
+    $shadowQuality = Read-GameConfigValue `
+        -Path $gameConfigPath -Key "directionalshadowquality"
+    if ($shadowQuality -notin @("off", "medium", "high")) {
+        throw "Invalid directionalshadowquality in runtime config: '$shadowQuality'"
+    }
     $manifestPath = Join-Path $RepoRoot "media\resource-manifest.txt"
     $manifestHash = (Get-FileHash `
         -LiteralPath $manifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -547,6 +559,7 @@ try {
         "comparison_population_fixture=rc-8-mobs-16-items-64-crops-8-chests-v1",
         "comparison_save_state_sha256=$scenarioHash",
         "comparison_fixed_tick_count=$fixedTickCount",
+        "stage10_shadow_quality=$shadowQuality",
         "peak_private_bytes=$peakPrivateBytes",
         "peak_working_set_bytes=$peakWorkingSetBytes",
         "peak_handle_count=$peakHandleCount"

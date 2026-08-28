@@ -87,6 +87,49 @@ vertex_program HelloMine3D/WaterVertex glsl
     }
 }
 
+vertex_program HelloMine3D/TerrainShadowVertex glsl
+{
+    source HelloMine3DTerrainShadow.vert
+    syntax glsl150
+    default_params
+    {
+        param_named_auto worldViewProj worldviewproj_matrix
+        param_named_auto worldView worldview_matrix
+        param_named_auto world world_matrix
+        param_named_auto shadowWorldViewProj texture_worldviewproj_matrix 0
+    }
+}
+
+fragment_program HelloMine3D/TerrainShadowFragment glsl
+{
+    source HelloMine3DTerrainShadow.frag
+    syntax glsl150
+    default_params
+    {
+        param_named terrainAtlas int 0
+        param_named directionalShadowMap int 1
+        param_named directionalShadowEnabled float 1.0
+        param_named directionalShadowBias float 0.003
+        param_named directionalShadowStrength float 0.0
+        param_named directionalShadowFadeStart float 72.0
+        param_named directionalShadowFadeEnd float 96.0
+        param_named atlasPixels float 256.0
+        param_named tilePixels float 16.0
+        param_named tilesPerRow float 16.0
+        param_named colourSaturation float 0.62
+        param_named greenSuppression float 0.22
+        param_named greenRedShift float 0.07
+        param_named toneGamma float 1.05
+        param_named environmentLight float 1.0
+        param_named fogColour float3 0.58 0.75 0.92
+        param_named fogSunwardColour float3 0.78 0.70 0.59
+        param_named sunDirection float3 0.0 1.0 0.0
+        param_named fogDirectionalStrength float 0.12
+        param_named fogDensity float 0.0015
+        param_named_auto cameraPosition camera_position
+    }
+}
+
 fragment_program HelloMine3D/WaterFragment glsl
 {
     source HelloMine3DWater.frag
@@ -118,6 +161,20 @@ vertex_program HelloMine3D/FloraVertex glsl
         param_named_auto worldViewProj worldviewproj_matrix
         param_named_auto worldView worldview_matrix
         param_named_auto world world_matrix
+        param_named_auto globalTime time_0_x 1.0
+    }
+}
+
+vertex_program HelloMine3D/FloraShadowVertex glsl
+{
+    source HelloMine3DFloraShadow.vert
+    syntax glsl150
+    default_params
+    {
+        param_named_auto worldViewProj worldviewproj_matrix
+        param_named_auto worldView worldview_matrix
+        param_named_auto world world_matrix
+        param_named_auto shadowWorldViewProj texture_worldviewproj_matrix 0
         param_named_auto globalTime time_0_x 1.0
     }
 }
@@ -164,4 +221,55 @@ fragment_program HelloMine3D/ActorFragment glsl
         param_named fogDensity float 0.0015
         param_named_auto cameraPosition camera_position
     }
+}
+
+vertex_program HelloMine3D/ActorShadowVertex glsl
+{
+    source HelloMine3DActorShadow.vert
+    syntax glsl150
+    default_params
+    {
+        param_named_auto worldViewProj worldviewproj_matrix
+        param_named_auto worldView worldview_matrix
+        param_named_auto world world_matrix
+        param_named_auto shadowWorldViewProj texture_worldviewproj_matrix 0
+    }
+}
+
+fragment_program HelloMine3D/ActorShadowFragment glsl
+{
+    source HelloMine3DActorShadow.frag
+    syntax glsl150
+    default_params
+    {
+        param_named environmentLight float 1.0
+        param_named directionalShadowMap int 0
+        param_named directionalShadowEnabled float 1.0
+        param_named directionalShadowBias float 0.003
+        param_named directionalShadowStrength float 0.0
+        param_named directionalShadowFadeStart float 72.0
+        param_named directionalShadowFadeEnd float 96.0
+        param_named fogColour float3 0.58 0.75 0.92
+        param_named fogSunwardColour float3 0.78 0.70 0.59
+        param_named sunDirection float3 0.0 1.0 0.0
+        param_named fogDirectionalStrength float 0.12
+        param_named fogDensity float 0.0015
+        param_named_auto cameraPosition camera_position
+    }
+}
+
+vertex_program HelloMine3D/DirectionalShadowCasterVertex glsl
+{
+    source HelloMine3DDirectionalShadowCaster.vert
+    syntax glsl150
+    default_params
+    {
+        param_named_auto worldViewProj worldviewproj_matrix
+    }
+}
+
+fragment_program HelloMine3D/DirectionalShadowCasterFragment glsl
+{
+    source HelloMine3DDirectionalShadowCaster.frag
+    syntax glsl150
 }

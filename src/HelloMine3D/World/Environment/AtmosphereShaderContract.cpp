@@ -101,3 +101,56 @@ void validateAtmosphereShaderContract(
          "uniform vec3 cameraPosition;",
          "vec3 directionalFogColour"});
 }
+
+void validateDirectionalShadowShaderContract(
+    const ResourcePackResolver &resolver)
+{
+    requireTokens(
+        resolver, "media/ogre/HelloMine3D.program",
+        {"HelloMine3D/TerrainShadowVertex",
+         "HelloMine3D/TerrainShadowFragment",
+         "HelloMine3D/ActorShadowVertex",
+         "HelloMine3D/ActorShadowFragment",
+         "param_named_auto shadowWorldViewProj texture_worldviewproj_matrix 0",
+         "param_named directionalShadowMap int 1",
+         "param_named directionalShadowEnabled float",
+         "param_named directionalShadowBias float",
+         "param_named directionalShadowStrength float",
+         "HelloMine3D/DirectionalShadowCasterVertex",
+         "HelloMine3D/DirectionalShadowCasterFragment"});
+    requireTokens(
+        resolver, "media/ogre/HelloMine3D.material",
+        {"material HelloMine3D/DirectionalShadowCaster",
+         "vertex_program_ref HelloMine3D/DirectionalShadowCasterVertex",
+         "fragment_program_ref HelloMine3D/DirectionalShadowCasterFragment"});
+    requireTokens(
+        resolver, "media/ogre/HelloMine3DTerrainShadow.vert",
+        {"out vec4 terrainShadowPosition;",
+         "uniform mat4 shadowWorldViewProj;"});
+    requireTokens(
+        resolver, "media/ogre/HelloMine3DTerrainShadow.frag",
+        {"in vec4 terrainShadowPosition;",
+         "uniform sampler2D directionalShadowMap;",
+         "uniform float directionalShadowBias;",
+         "float directionalShadowVisibility()",
+         "projected.z = projected.z * 0.5 + 0.5;",
+         "litSamples / 4.0"});
+    requireTokens(
+        resolver, "media/ogre/HelloMine3DActorShadow.vert",
+        {"out vec4 actorShadowPosition;",
+         "uniform mat4 shadowWorldViewProj;"});
+    requireTokens(
+        resolver, "media/ogre/HelloMine3DActorShadow.frag",
+        {"in vec4 actorShadowPosition;",
+         "uniform sampler2D directionalShadowMap;",
+         "float directionalShadowVisibility()",
+         "projected.z = projected.z * 0.5 + 0.5;",
+         "litSamples / 4.0"});
+    requireTokens(
+        resolver, "media/ogre/HelloMine3DDirectionalShadowCaster.vert",
+        {"uniform mat4 worldViewProj;",
+         "gl_Position = worldViewProj * vertex;"});
+    requireTokens(
+        resolver, "media/ogre/HelloMine3DDirectionalShadowCaster.frag",
+        {"gl_FragCoord.zzz", "out vec4 fragmentColour;"});
+}

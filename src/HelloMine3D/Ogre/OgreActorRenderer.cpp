@@ -62,7 +62,8 @@ namespace
     }
 
     void buildUnitCube(Ogre::ManualObject& object,
-                       const Ogre::String& material)
+                       const Ogre::String& material,
+                       bool castShadows)
     {
         object.begin(material, Ogre::RenderOperation::OT_TRIANGLE_LIST);
 
@@ -88,7 +89,7 @@ namespace
             object.index(index);
         }
         object.end();
-        object.setCastShadows(false);
+        object.setCastShadows(castShadows);
         object.setRenderQueueGroup(Ogre::RENDER_QUEUE_MAIN);
     }
 }
@@ -335,6 +336,19 @@ void OgreActorRenderer::clear()
     m_projectileVisuals.clear();
 }
 
+void OgreActorRenderer::setCastShadows(bool enabled) noexcept
+{
+    m_castShadows = enabled;
+    for (auto& entry : m_visuals)
+    {
+        entry.second.object->setCastShadows(enabled);
+    }
+    for (auto& entry : m_projectileVisuals)
+    {
+        entry.second.object->setCastShadows(enabled);
+    }
+}
+
 OgreActorRenderer::ActorVisual OgreActorRenderer::createProjectileVisual(
     CombatProjectileId id)
 {
@@ -343,7 +357,7 @@ OgreActorRenderer::ActorVisual OgreActorRenderer::createProjectileVisual(
     ActorVisual visual;
     visual.type = "combat_projectile";
     visual.object = m_sceneManager->createManualObject(baseName + "_Mesh");
-    buildUnitCube(*visual.object, ProjectileMaterial);
+    buildUnitCube(*visual.object, ProjectileMaterial, m_castShadows);
     visual.node = m_sceneManager->getRootSceneNode()->createChildSceneNode(
         baseName + "_Node");
     visual.node->attachObject(visual.object);
@@ -376,7 +390,7 @@ OgreActorRenderer::ActorVisual OgreActorRenderer::createVisual(
     ActorVisual visual;
     visual.type = snapshot.type;
     visual.object = m_sceneManager->createManualObject(baseName + "_Mesh");
-    buildUnitCube(*visual.object, materialFor(snapshot));
+    buildUnitCube(*visual.object, materialFor(snapshot), m_castShadows);
     visual.node = m_sceneManager->getRootSceneNode()->createChildSceneNode(
         baseName + "_Node");
     visual.node->attachObject(visual.object);
