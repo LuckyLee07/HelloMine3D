@@ -2,9 +2,9 @@
 
 ## 状态与范围
 
-V10C 的 Windows 工程、自动回归和开发者视觉检查已经完成；视觉结论为 `PASS`。批次暂保留
-`Verify`，只等待快速流送 Q1 单样本可见延迟的例外决策。macOS 没有本机目标，继续为
-`Verify`，不得把 Windows 结果写成跨平台通过。
+V10C 的 Windows 工程、自动回归和开发者视觉检查已经完成；视觉结论为 `PASS`。项目所有者于
+2026-08-28 批准下述快速流送 Q1 单样本可见延迟例外，因此批次状态为
+`Done（Windows；macOS Verify）`。macOS 没有本机目标，不得把 Windows 结果写成跨平台通过。
 
 本批只改变天空、雾和相关 shader 参数：不改变方块 id、terrain v3、save v11、settings v4、
 掉落、世界生成、网格格式、图集或资源包优先级。`WorldEnvironmentState` 的大气合同版本固定为
@@ -63,7 +63,9 @@ terrain/water/actor/sky shader 接口。缺失 V10C uniform 或错误覆盖会�
 - 快速流送 Q1 的 frame P95/P99 为 +4.645%/+4.340%，mesh 与几何/驻留指标也在 10% 内；但
   `chunk_visible_p95/p99` 从 40.584 ms 到 49.636 ms（+22.304%）。复测为 50.873 ms，强制
   FS2 回退为 53.999 ms，说明该单样本信号不由 V10C 云 shader 引起；绝对预算上限为 1000 ms。
-  按 Stage 10 纪律仍保留 `REVIEW_REQUIRED`，未获得项目所有者批准前不把整批改为 `Done`。
+  原始补充报告保留 `REVIEW_REQUIRED`；项目所有者于 2026-08-28 批准该例外。批准理由是核心
+  帧时间、mesh、几何和规模场景均在阈值内，绝对延迟远低于预算，且同构建强制 FS2 回退更慢，
+  不支持把该差异归因于 V10C 云 shader。该批准只关闭 V10C，不由 V10D/V10E 继承。
 
 性能原始 summary、冻结/增量比较与上一批逐项比较位于
 `docs/baselines/stage10-v10c-windows-hidden-v1/`。
