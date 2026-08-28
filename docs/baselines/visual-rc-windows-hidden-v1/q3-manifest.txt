@@ -1,0 +1,7 @@
+﻿contract=q3-scale-soak-contract-v1
+captured_utc=2026-08-28T08:27:57Z
+build_configuration=Release
+seed=20260820
+duration_seconds=1800
+profiles=nominal,stress
+status=PASS

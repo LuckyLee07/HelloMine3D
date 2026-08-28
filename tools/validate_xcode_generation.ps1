@@ -53,7 +53,7 @@ function Reject-Text {
 
     $script:Checks++
     $Text = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
-    if ($Text -match $Pattern) {
+    if ($Text -cmatch $Pattern) {
         throw "[XCODE_VALIDATE] Unexpected ${Label}: $Pattern"
     }
 }

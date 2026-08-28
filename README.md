@@ -29,6 +29,7 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 | `docs/iteration-plan.md` | Long-term iteration roadmap. |
 | `docs/game-development-roadmap.md` | Detailed G5/G6, post-Alpha gameplay and Release Candidate development order. |
 | `docs/visual-quality-roadmap.md` | Stage 10 vertex lighting/AO, split material pipeline/assets/tint batches, atmosphere/clouds, optional shadows, post-processing, version plan and visual-RC gates. |
+| `docs/visual-release-candidate-report-2026-08-28.md` | Final Windows Stage 10 visual, Q1/Q3, resource/licence, packaging and cross-platform evidence boundary. |
 | `docs/vertex-lighting-contract-v1.md` | V10A corner sampling, AO/light composition, deterministic diagonals, reconstruction-safe greedy merging, and dirty propagation. |
 | `docs/world-catalogue-contract-v1.md`, `docs/storage-transaction-contract-v1.md`, `docs/world-backup-contract-v1.md`, `docs/world-management-contract-v1.md` | K1-K4 world identity, atomic publication, verified recovery and player-facing management contracts. |
 | `docs/runtime-settings-contract-v1.md` | G4 pause, settings draft, versioned persistence and live-apply contract. |
@@ -64,12 +65,15 @@ and Stage 9 through N12C are complete. The BETA-RC engineering audit is also
 complete: the refreshed six-scene Q1 comparison and both 1,800-second Q3
 profiles pass, and the release evidence is frozen for bundling. R3 remains
 partially tested and explicitly deferred, so no local Beta tag has been made.
-The current development batch is Stage 10 `V10A`: deterministic per-vertex
-smooth lighting and ambient occlusion, followed by separate material-pipeline,
-original-asset and biome-tint/variant batches, then atmosphere/cloud, optional
-shadow and bounded post-processing work. Every visual batch requires a short
-developer visual record; formal physical input and product-experience acceptance
-remain independent release evidence.
+Stage 10 `V10A-V10E` is complete for the Windows engineering scope: vertex
+lighting/AO, the material pipeline and original assets, ecology tint/variants,
+directional atmosphere/clouds, optional shadows and bounded post-processing all
+have passing developer visual records. `VISUAL-RC` is now complete for the
+Windows engineering scope: the final Q1/Q3, resource/licence, Xcode project-graph
+preflight and 97-file clean-package gates pass. Native macOS shader/window
+evidence, formal product experience and Physical Input v2 remain independent
+`Verify` evidence rather than automatic passes; see
+`docs/visual-release-candidate-report-2026-08-28.md`.
 
 Stage 8 is now planned around sustainable play and reliable releases. Its
 16-item K/H/Q/G scope adds durable world management and recovery, local
@@ -311,7 +315,10 @@ summary. See `docs/thread-sanitizer-validation.md`.
 tracked. The client creates it when missing with these defaults:
 
 ```text
+settings_version 6
 renderdistance 8
+directionalshadowquality off
+postprocessingquality off
 fullscreen 0
 windowsize 1280 720
 fov 90
@@ -341,7 +348,7 @@ bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
 bin\HelloMine3DMeshDirtyTests.exe         # mesh dirty planner
 bin\HelloMine3DSaveLoadSmoke.exe          # chunk serialization roundtrip
 bin\HelloMine3DEntityLifecycleSmoke.exe   # actor lifecycle
-bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor/audio/objective stack, 429 assertions
+bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor/audio/objective/visual-settings stack, 743 assertions
 bin\HelloMine3DSoak.exe                   # deterministic world stability schedule
 bin\HelloMine3DResourcePackSmoke.exe      # resource resolver and frozen view
 bin\HelloMine3DRecipeSmoke.exe            # strict startup recipe registry
@@ -377,8 +384,8 @@ bin\HelloMine3D.exe
 Two client-level smokes exercise the assembled game without stealing focus or the mouse:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\run_render_capture.ps1 -StopExisting -CaptureMs 4000,6000 -Seconds 12 -PlayerRotation "20 118.4 0"
-powershell -ExecutionPolicy Bypass -File tools\run_perf_baseline.ps1 -StopExisting -WarmupMs 3000 -DurationMs 10000
+powershell -ExecutionPolicy Bypass -File tools\run_render_capture.ps1 -CaptureMs 4000,6000 -Seconds 12 -PlayerRotation "20 118.4 0"
+powershell -ExecutionPolicy Bypass -File tools\run_perf_baseline.ps1 -WarmupMs 3000 -DurationMs 10000
 powershell -ExecutionPolicy Bypass -File tools\compare_perf_baselines.ps1 -Baseline <accepted-run> -Candidate <candidate-run>
 ```
 

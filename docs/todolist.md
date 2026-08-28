@@ -10,8 +10,9 @@
 
 把 HelloMine3D 从技术可靠的体素沙盒推进成一个更接近完整单机游戏的产品：玩家能够
 创建和管理世界，采集资源，制作工作台与工具，获得成长反馈，暂停和调整设置，听到
-基础声音，并在保存、退出、恢复后继续游玩。BETA-RC 工程闭环后，当前产品重点转为提升
-方块接触层次、原创材质、大气、云层和可选阴影，使已有玩法拥有一致且可伸缩的视觉质量。
+基础声音，并在保存、退出、恢复后继续游玩。BETA-RC 与 Stage 10/VISUAL-RC Windows 工程
+闭环后，当前重点转为产品方向评审：依据实际试玩决定进入 1.0 缺陷封板，还是只立项一个
+有玩家问题证据的最小玩法批次。
 
 当前采用“玩法闭环优先”策略。正式硬件证据、真人输入记录、完整性能预算、崩溃符号化
 和发行包封板可以在玩法主线完成后集中验收；编译、定向自动测试、数据守恒和存档兼容
@@ -31,6 +32,7 @@
 | `docs/terrain-material-profile-contract-v1.md` | V10B1 图集/tile/颜色参数、资源包覆盖、CPU/GPU 坐标兼容和启动失败边界。 |
 | `docs/directional-shadow-contract-v1.md` | V10D settings v5、方向阴影档位、回退、性能和开发者视觉证据。 |
 | `docs/post-processing-contract-v1.md` | V10E settings v6、轻量后处理、能力回退、性能和开发者视觉证据。 |
+| `docs/visual-release-candidate-report-2026-08-28.md` | VISUAL-RC 最终 Windows 门禁、视觉矩阵、Q1/Q3、资源许可、发行包和跨平台边界。 |
 | `docs/validation-matrix.md` | 代码改动类型到验证命令的映射。 |
 | `docs/manual-product-experience-acceptance-v1.md` | 与 R3 分离的开发者视觉检查、正式视觉/双语可读性和听感验收合同。 |
 | `docs/iteration-report-template.md` | 新迭代的统一回归记录模板。 |
@@ -47,29 +49,29 @@
 | ---- | -------- |
 | 现有玩法 | 已有移动、方块放置/破坏、箱子、作物、自然生物、战斗、死亡重生、物品拾取和保存恢复。 |
 | 世界可靠性 | K1 世界目录、K2 事务保存、K3 有界备份与验证恢复、K4 世界管理和主菜单入口已经完成。 |
-| 玩法数据层 | G1-G6、N1-N6、N7A-N12C、BETA-RC 工程封板与 V10A-V10E 均已完成 Windows 工程范围；当前进入 VISUAL-RC。 |
-| 性能观测 | Q1 七类场景和 Q2 有界阶段计时已闭环；BETA-RC 六类 Windows 基线/复测和 Q3 双档正式长稳全部通过。 |
+| 玩法数据层 | G1-G6、N1-N6、N7A-N12C、BETA-RC 与 Stage 10/VISUAL-RC 均已完成 Windows 工程范围；下一步为产品方向评审。 |
+| 性能观测 | Q1 七类场景和 Q2 有界阶段计时已闭环；VISUAL-RC 六类 Windows 基线/复测和 Q3 双档正式长稳全部通过。 |
 | 崩溃诊断 | H1-H3 已闭环：本地 dump、脱敏 sidecar、混合栈离线符号、独立符号归档和下次启动提示均通过，默认不上传。 |
 | 跨平台 | macOS Debug/Release、真实窗口、31 项 Xcode 工程图和原生 TSan 门禁已有证据。 |
-| 当前 Windows 门禁 | 2026-08-26 BETA-RC 工程封板通过：N12C 的 64 项资源、38 个性能夹具、VS2017/v141 双配置客户端、699/699 世界、38/38 资源包、十三目标、隐藏真实后端、131,321 字节 dump 和 84 文件干净包保持通过；六类正式 Q1 与 nominal/stress 各 1800 秒 Q3 全部 `PASS`。发行 ZIP SHA-256 为 `DABE356BC511A110838DC1CD98BEE9392D0FC03FFBA1D40DB8271B6BD5392E2A`；R3 自动预检通过但真人项仍部分自测/其余延期。 |
+| 当前 Windows 门禁 | 2026-08-28 VISUAL-RC 工程封板通过：77 项资源、261 项图集、38 个性能夹具、11 项 Stage 10 补充合同、VS2017/v141 双配置、743/743 世界、80/80 资源包、117/117 配方、15/15 启动负例、145,169 字节 dump 和 97 文件干净包均通过；六类正式 Q1 与 nominal/stress 各 1800 秒 Q3 全部 `PASS`。发行 ZIP SHA-256 为 `ACCB99B3F984D5FB8EF11279280406F8477ED625719F4801479DB6F7FE7A6005`；macOS 原生、正式产品体验和 Physical Input v2 保持 Verify。 |
 
 ## 进度摘要
 
 拆分前总账共有 77 个正式任务；历史总账仍为 73 个 `Done`、4 个 `Verify`。新增的 Stage 9
 批次不回写该统计：`FS1-FS3`、`N7A/N7B`、`N8A/N8B`、`N9A/N9B`、`N10`、`N11A/N11B`
 与 `N12A/N12B/N12C`、`BETA-RC` 工程封板当前为 `Done`。新增 Stage 10 不回写历史统计，
-当前建立 8 个视觉批次，其中 V10A-V10E 为 `Done`、VISUAL-RC 为 `Planned`；
+当前建立的 8 个视觉批次均已完成 Windows 工程范围，VISUAL-RC 为 `Done（Windows 工程）`；
 V10B1/V10C/V10D/V10E 的 macOS shader 子状态因当前无目标机器保持 `Verify`。
 R3 已做部分非正式真人自测；现有 v1 十二项记录尚未完成，而且其范围不足以单独关闭当前
 D4/D6 和 Stage 9/10 的全部人工体验。后续必须把物理输入 v2 与视觉/双语/听感验收分开，
-人工项继续延期且不阻塞 V10A 开发。
+人工项继续延期且不阻塞产品方向评审。
 
 | 类型 | 数量 | 任务 |
 | ---- | ---- | ---- |
 | 已完成的第 8 阶段正式任务 | 16 | K1-K4、G1-G6、H1-H3、Q1-Q3 |
 | Stage 9 已完成 | 16 | FS1 首次进入正确性、FS2 天空/水面/颜色、FS3 体素美术/HUD、N7A 结局状态与文本键基础、N7B 路标胜利闭环、N8A 战斗可读性、N8B 远程敌人与投射物、N9A 确定性结构框架、N9B 遗迹/营地与生态战利品、N10 食物/冶炼/资源经济、N11A 难度档案、N11B 胜利后事件、N12A 本地化完成、N12B 正式采样音效、N12C 低密度音乐、BETA-RC 工程封板 |
-| Stage 10 已完成 | 7 | V10A 顶点平滑光照/AO、V10B1 材质/图集管线、V10B2 原创材质资产、V10B3 生态着色/确定性变体、V10C 定向大气/立体云、V10D 可选方向阴影、V10E 轻量后处理 |
-| Stage 10 待开发 | 1 | VISUAL-RC 视觉封板 |
+| Stage 10 已完成 | 8 | V10A 顶点平滑光照/AO、V10B1 材质/图集管线、V10B2 原创材质资产、V10B3 生态着色/确定性变体、V10C 定向大气/立体云、V10D 可选方向阴影、V10E 轻量后处理、VISUAL-RC Windows 工程封板 |
+| Stage 10 待开发 | 0 | 无；下一步是产品方向评审，不自动立项新玩法 |
 | 等待最终验收 | 4 | D2、D4、D6、R3 |
 
 ## Stage 10 视觉质量待办
@@ -80,14 +82,14 @@ Stage 10 只提升已有世界的表现，不改玩法、世界生成、save v11
 
 | 批次 | 状态 | 优先级 | 计划交付 | 退出边界 |
 | ---- | ---- | ------ | -------- | -------- |
-| V10A 顶点平滑光照与 AO | Done | P0 | 四角采样、透明规则、确定性对角线、greedy 重建保护和边角 dirty 传播已实现；solid 共面顶点复用、全局 repeat UV、18³ lazy 光照样本缓存、uniform-light 与非共享 pass 快路把 14-face 夹具从 56 压到 36 顶点。最终 VS2017/v141 双配置聚焦为 39/39、Release 完整世界为 716/716，保持 32 字节顶点布局；八场景 AO/no-AO 共 16 张截图和开发者窗口检查已通过。 | 项目所有者于 2026-08-27 批准 exact AO 性能例外：fast 旧核心预算通过；scaled P95 只超旧上限 0.045 ms。AO-disabled 诊断证明 +41.8% 索引主要来自 exact AO 内部明暗边界；后续批次不继承例外，最终身份仍在 VISUAL-RC 重跑 Q1/Q3。合同见 `docs/vertex-lighting-contract-v1.md`。 |
+| V10A 顶点平滑光照与 AO | Done | P0 | 四角采样、透明规则、确定性对角线、greedy 重建保护和边角 dirty 传播已实现；solid 共面顶点复用、全局 repeat UV、18³ lazy 光照样本缓存、uniform-light 与非共享 pass 快路把 14-face 夹具从 56 压到 36 顶点。最终 VS2017/v141 双配置聚焦为 39/39、Release 完整世界为 716/716，保持 32 字节顶点布局；八场景 AO/no-AO 共 16 张截图和开发者窗口检查已通过。 | 项目所有者于 2026-08-27 批准 exact AO 性能例外：fast 旧核心预算通过；scaled P95 只超旧上限 0.045 ms。AO-disabled 诊断证明 +41.8% 索引主要来自 exact AO 内部明暗边界；后续批次未继承例外，最终身份已在 VISUAL-RC 重跑并通过 Q1/Q3。合同见 `docs/vertex-lighting-contract-v1.md`。 |
 | V10B1 材质与图集管线 | Done（macOS Verify） | P0 | v1 profile 参数化 atlas/tile/颜色，CPU/GPU 共用像素中心，三类 terrain pass 从冻结资源视图同步 uniform；保持 V10A AO、`shapedLight=0.24` 和合成顺序。 | 双配置资源包 54/54、V10B1 世界 4/4、Release 完整世界 718/718、12 类启动负例、65 项 manifest、默认静态前景 216,000 像素一致和 5 分钟 Release 检查通过；macOS Release shader 窗口仍为 `Verify`，合同见 `docs/terrain-material-profile-contract-v1.md`。 |
 | V10B2 原创材质资产 | Done | P0 | 37 个原创语义 tile、top/side/bottom、四类 Alpha、双语 layout、确定性生成与许可已落地；HUD/手持改用冻结 atlas profile。 | 自动合同 106/106、资源包 56/56、Release 世界 718/718、13 类启动负例、67 项 manifest、3 张隐藏固定图和 85 文件干净包通过；项目所有者授权 Codex 逐图完成静态视觉检查，记录为 PASS，合同见 `docs/material-visual-contract-v1.md`。 |
 | V10B3 生态着色与确定性变体 | Done | P1 | 五生态、五表面组、每组三变体以 4x4x4 坐标小块接入世界网格，变体进入 greedy key；UI/手持与非着色材质保持基础身份。 | terrain v3/save v11/32 字节顶点不变；261 项图集、732 项 Release 世界、相关 Q1、短 Q3 和五图开发者静态检查通过，合同见 `docs/ecology-appearance-contract-v1.md`。 |
 | V10C 定向大气与立体云 | Done（Windows；macOS Verify） | P1 | terrain/water/actor/sky 已共享定向雾；有界空间云层具备高度、厚度、绝对时间速度、云底/云顶和稳定层内处理。 | 双配置聚焦 21/21、Release 世界 741/741、资源包 65/65、14 类启动负例、相关 Q1 和十图多帧开发者检查通过；所有者批准单样本可见延迟例外，macOS 待补。合同见 `docs/directional-atmosphere-contract-v1.md`。 |
 | V10D 可选方向阴影 | Done（Windows；macOS Verify） | P1 | 单近景方向 shadow map 已提供 Off/Medium/High；settings v5、v0-v4→Off、双语 key、独立 Off shader、2×2 PCF、距离淡出、能力回退和资源清理已落地。 | 双配置聚焦 21/21、资源包 75/75、Release 世界 742/742、74 项 manifest、14 类启动负例、9 项档位合同、强制回退、同场景各档性能和六图开发者视觉 PASS；最终 frame P95/P99 无需性能例外，macOS 冒烟待补。合同见 `docs/directional-shadow-contract-v1.md`。 |
 | V10E 轻量后处理 | Done（Windows；macOS Verify） | P2 | settings v6、v0-v5→Off、可关闭 tone curve/确定性抖动/八采样极轻 bloom、HUD 排除、能力回退和 Stage 10 补充身份已落地。 | 双配置聚焦 22/22、资源包 80/80、Release 世界 743/743、77 项 manifest、15 类启动负例、11 项性能合同、真实支持/强制回退、同档三次中位数和六图开发者视觉检查通过；无需性能例外，macOS 冒烟待补。合同见 `docs/post-processing-contract-v1.md`。 |
-| VISUAL-RC 视觉集中封板 | Planned | P0 | 固化 before/after、开发者检查、渲染身份、性能、许可证、干净包和 bundle。 | 完整 Windows/macOS 门禁、正式 Q1、V10A/V10B3 触发的正式 Q3 和独立人工体验边界通过；不 push、不自动打标签。 |
+| VISUAL-RC 视觉集中封板 | Done（Windows 工程；macOS/产品体验 Verify） | P0 | 已固化逐批开发者检查、最终渲染身份、性能、许可证、干净包和 bundle 边界。 | Windows 全门禁、正式 Q1、nominal/stress 各 1800 秒 Q3、239 项 Xcode 工程图静态检查、资源/许可/Credits 和 97 文件干净包通过；macOS 原生及正式人工体验保持 Verify，不 push、不自动打标签。报告见 `docs/visual-release-candidate-report-2026-08-28.md`。 |
 
 当前开发顺序固定为
 `V10A -> V10B1 -> V10B2 -> V10B3 -> V10C -> V10D -> V10E -> VISUAL-RC`。每批实现、
@@ -203,7 +205,8 @@ N11B/N12C 均已
 熔炉/铁级成长、食物恢复、战斗掉落、生态探索和产品体验已由 N1-N6 交付；RC0 自动化基线
 已经闭环，BETA-RC 工程封板也已完成；R3 维持部分自测、其余延期。Stage 9 没有后续批次，
 当前 V10E 已由 Codex 基于六张真实 Release 原图完成视觉关闭；Off/On 最终性能均未超过护栏，
-因此未消耗性能例外。按焦点安全约定使用隐藏且不抢焦点的真实客户端，下一批转入 VISUAL-RC。
+因此未消耗性能例外。VISUAL-RC 随后使用隐藏且不抢焦点的客户端完成 Windows 工程封板；
+下一步是产品方向评审，macOS 原生与正式产品体验保持 Verify。
 以上新增批次
 仍不回写拆分前 77 项历史总账。
 

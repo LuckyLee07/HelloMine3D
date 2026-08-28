@@ -16,8 +16,8 @@
    洞穴和结构接缝显得平。
 2. V10B1-B3 已把图集/颜色参数、原创分面资产、生态 tint 和确定性变体接入同一严格材质合同。
 3. V10C 已让地形、水、actor 与天空共享定向雾，并用独立有界云层提供视差、厚度和云底层次。
-4. V10D/V10E 已增加可关闭、可回退的方向阴影和轻量后处理；当前不再扩张渲染功能，转入
-   VISUAL-RC 集中复核最终身份、性能、资源、许可证、发行包和跨平台状态。
+4. V10D/V10E 已增加可关闭、可回退的方向阴影和轻量后处理；VISUAL-RC 已完成 Windows
+   最终身份、性能、资源、许可证、发行包和工程图封板，macOS 原生与正式产品体验保持 Verify。
 
 ## 参考与许可证边界
 
@@ -46,7 +46,7 @@
 | 5 | V10C 定向大气与立体云 | P1 | M/L | Done（Windows；macOS Verify） | 日出/日落方向、远景雾、云层视差和云底明暗形成更有深度的天空。 |
 | 6 | V10D 可选方向阴影 | P1 | L | Done（Windows；macOS Verify） | 玩家、实体、结构和植被在近景获得可配置、可关闭的太阳阴影。 |
 | 7 | V10E 轻量后处理 | P2 | M/L | Done（Windows；macOS Verify） | 在不改变像素风格的前提下统一亮部、暗部和色带，按能力安全降级。 |
-| 8 | VISUAL-RC 视觉集中封板 | P0 | M | Planned | 固定截图、性能、资源、许可证和干净包形成新的可比较视觉基线。 |
+| 8 | VISUAL-RC 视觉集中封板 | P0 | M | Done（Windows 工程；macOS/产品体验 Verify） | 固定截图、性能、资源、许可证和干净包形成新的可比较视觉基线。 |
 
 执行顺序固定为
 `V10A -> V10B1 -> V10B2 -> V10B3 -> V10C -> V10D -> V10E -> VISUAL-RC`。
@@ -73,7 +73,7 @@ Stage 10 的主观判断不并入 R3 v1。物理输入路线只负责真实键�
 实现合同见 `docs/vertex-lighting-contract-v1.md`。四角光照/AO、greedy 重建保护、边角 dirty
 传播、共面顶点复用和自动夹具已经落地；短 Q3、八场景 AO/no-AO 截图和开发者窗口检查已
 通过。项目所有者于 2026-08-27 明确批准记录在合同中的 Q1 性能例外，V10A 状态为 `Done`；
-该例外只覆盖当前 exact AO 身份，不自动覆盖后续视觉批次，最终 Q1/Q3 仍在 VISUAL-RC 重跑。
+该例外只覆盖当前 exact AO 身份，不自动覆盖后续视觉批次；最终 Q1/Q3 已在 VISUAL-RC 重跑通过。
 
 玩家问题：当前 `ChunkMeshBuilder` 为每个面写入一个亮度值，顶、X、Z、底面分别使用固定系数；
 即使太阳光传播正确，面内四个角仍完全一致，邻接方块也不会在角落产生接触阴影。
@@ -113,8 +113,8 @@ Stage 10 的主观判断不并入 R3 v1。物理输入路线只负责真实键�
   比较入口固定为 `tools/compare_stage10_visual_performance.ps1`：它先调用既有 schema 3 核心
   比较器验证身份和绝对预算，再读取同一份 summary 的 mesh/geometry/residency 字段；不复制、
   改写或重新采集 BETA-RC baseline。
-- V10A 完成时运行短 nominal/stress Q3 探针；正式双 1800 秒 Q3 留到 VISUAL-RC 与最终代码身份
-  一次执行。Q3 证明后台 CPU 网格/驻留生命周期，不代替真实 Ogre 客户端的 GPU buffer/Q1。
+- V10A 完成时运行短 nominal/stress Q3 探针；正式双 1800 秒 Q3 已在 VISUAL-RC 与最终代码身份
+  一次执行通过。Q3 证明后台 CPU 网格/驻留生命周期，不代替真实 Ogre 客户端的 GPU buffer/Q1。
 
 截图矩阵：沿用 FS2 固定森林正午、海岸正午、森林黄昏、森林夜晚，新增同 seed 洞穴入口、
 树冠下方、遗迹墙角和营地夜景。截图必须来自隐藏 Release Ogre RuntimeReadback，并保存
@@ -131,7 +131,7 @@ Stage 10 的主观判断不并入 R3 v1。物理输入路线只负责真实键�
 V10A 静态前景 216,000 像素完全一致。VS2017/v141 双配置资源包为 54/54、V10B1 世界聚焦为
 4/4，Release 完整世界为 718/718；12 类真实客户端启动失败、65 项 manifest、真实 GL3Plus
 启动和 5 分钟隐藏 Release 观察通过。Windows 工程状态为 `Done`，macOS Release 编译/窗口
-因当前无目标机器保持 `Verify`，必须在 VISUAL-RC 前补齐。
+因当前无目标机器保持 `Verify`；该原生证据需在 macOS 机器补齐，不由 Windows VISUAL-RC 替代。
 
 玩家问题：固定图集和全局颜色修正让草、叶、土、木、石与建筑材料缺少统一但可辨的色彩层级，
 连续地表又重复同一 tile，远看容易形成明显棋盘纹理。
@@ -179,7 +179,7 @@ Codex 承担视觉结论；三张 1280x720 原尺寸图经逐张检查，材质�
 3. tile 变体进入 greedy merge key；不得为了保留大面合并而让相邻世界坐标错误共享变体。
 
 退出条件：生态/坐标/加载顺序夹具、近景/中景矩阵、相关 Q1、开发者视觉检查和短
-nominal/stress Q3 探针通过；正式 Q3 留到 VISUAL-RC。
+nominal/stress Q3 探针通过；正式 Q3 已在 VISUAL-RC 通过。
 
 工程结果（2026-08-27）：世界专用的五生态、五表面组、每组三变体已经接入 4x4x4 坐标小块，
 选中 tile 进入 greedy identity；save v11、terrain v3、settings v4 与 32 字节顶点保持不变。
@@ -242,8 +242,8 @@ Q3 均通过。五张 1280x720 隐藏真实 Release 原图由授权审阅者逐�
 六张最终 Release 原图由开发者逐图审阅为 `PASS`；Off/Medium/High 同场景各档性能保持 361 chunks、
 1833 sections，最终 frame P95/P99 均未超过 Off 参考，所有者的性能例外授权未实际消耗。
 合同与视觉记录见 `docs/directional-shadow-contract-v1.md`、
-`docs/developer-visual-record-v10d.txt`。Windows 状态为 `Done`，macOS 保持 `Verify`；当前进入
-VISUAL-RC。
+`docs/developer-visual-record-v10d.txt`。Windows 状态为 `Done`，macOS 保持 `Verify`；最终
+Windows 身份已由 VISUAL-RC 复核。
 
 ## V10E：轻量后处理
 
@@ -260,7 +260,7 @@ post viewport 阶段绘制并排除在后处理外。双配置聚焦 22/22、资
 均通过。Off/On 三次中位数的 frame P95/P99 分别为 14.28/17.13 ms 与 12.99/16.45 ms，无需
 性能例外。明暗阶梯、正午、夜晚、1024x768 设置页及 Off 控制共六张最终 Release 原图由 Codex
 按原尺寸检查，记录为 `PASS`。完整证据见 `docs/post-processing-contract-v1.md`。Windows 状态
-为 `Done`，macOS 保持 `Verify`；当前进入 VISUAL-RC。
+为 `Done`，macOS 保持 `Verify`；最终 Windows 身份已由 VISUAL-RC 复核。
 
 ## Stage 10 版本预案
 
@@ -288,6 +288,11 @@ post viewport 阶段绘制并排除在后处理外。双配置聚焦 22/22、资
 5. 汇总每批开发者视觉检查，并独立安排正式产品体验验收与 Physical Input v2；二者未完成
    时保持 `Verify`，不得由固定截图或 R3 v1 自动关闭。
 6. 生成并验证覆盖全部未 push 提交的 bundle；不因人工项延期创建 1.0 标签，也不 push。
+
+2026-08-28 封板结果：Windows 全门禁、最终六类 Q1、nominal/stress 各 1800 秒 Q3、资源/许可/
+Credits、97 文件干净包、逐批开发者视觉矩阵与 239 项 Xcode 工程图静态检查均通过，报告见
+`docs/visual-release-candidate-report-2026-08-28.md`。VISUAL-RC 标记为 `Done（Windows 工程）`；
+真实 macOS `xcodebuild`/窗口冒烟、正式产品体验和 Physical Input v2 保持 `Verify`。
 
 ## VISUAL-RC 后产品决策
 

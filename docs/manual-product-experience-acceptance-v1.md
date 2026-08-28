@@ -49,10 +49,9 @@ R3 的十二项、正式发行签字或物理输入结果；`FAIL/BLOCKED` 必�
 
 未执行的预填记录可以暂用 `result=NOT_RUN`，并把 `date/gpu/driver/window` 保持为 `NOT_RUN`；
 这只是可提交的待办状态，不属于验收结果。`tools/validate_developer_visual_record.ps1 -AllowNotRun`
-只检查结构，关闭批次必须改用 `-RequirePass`。已关闭的 V10B2/V10B3/V10C 记录分别位于
-`docs/developer-visual-record-v10b2.txt`、`docs/developer-visual-record-v10b3.txt` 和
-`docs/developer-visual-record-v10c.txt`；V10C 使用十张 Release 原图及正午多帧序列，不以单帧
-替代运动检查。
+只检查结构，关闭批次必须改用 `-RequirePass`。已关闭的 V10B2/V10B3/V10C/V10D/V10E 记录
+位于对应的 `docs/developer-visual-record-<batch>.txt`；V10C 使用十张 Release 原图及正午多帧
+序列，不以单帧替代运动检查，V10D/V10E 分别冻结阴影档位与后处理开关的最终原图。
 
 ## B：正式视觉与可读性
 

@@ -1,0 +1,8 @@
+﻿profile=release-candidate-windows-hidden-v1
+captured_utc=2026-08-28T07:27:21Z
+platform=windows
+architecture=x86_64
+window_visibility=hidden
+seed=20260820
+scenes=6
+status=PASS

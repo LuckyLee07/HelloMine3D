@@ -2,6 +2,7 @@
 param(
     [string]$OutputDir = "",
     [string]$EvidenceDir = "docs\baselines\release-candidate-windows-hidden-v1",
+    [string]$RuntimeRoot = "",
     [int]$GeneralDurationMs = 10000,
     [int]$StreamingDurationMs = 15000,
     [int]$ScaledDurationMs = 10000,
@@ -11,7 +12,8 @@ param(
     [string]$ClientSelection = "all",
     [switch]$ClientsOnly,
     [switch]$OperationsOnly,
-    [switch]$FinalizeOnly
+    [switch]$FinalizeOnly,
+    [switch]$StopExistingClient
 )
 
 $ErrorActionPreference = "Stop"
@@ -169,6 +171,9 @@ $passes = if ($PassSelection -eq "all") {
     @("baseline", "repeat")
 }
 else { @($PassSelection) }
+$clientProcessArgs = @{
+    StopExisting = $StopExistingClient
+}
 
 foreach ($pass in $passes) {
     $passDir = Join-Path $OutputDir $pass
@@ -184,7 +189,8 @@ foreach ($pass in $passes) {
             -Seed $seed -PlayerPosition $position -PlayerRotation $rotation `
             -WorldTime $worldTime -SceneId "q1-world-entry-v1" `
             -BudgetProfile $budgetProfile -CacheRegime "warm-process-clean" `
-            -HiddenWindow -StopExisting -QuietSummary
+            -RuntimeRoot $RuntimeRoot -HiddenWindow -QuietSummary `
+            @clientProcessArgs
         if ($LASTEXITCODE -ne 0) { throw "General client capture failed." }
 
         $worldEvidence = Join-Path $EvidenceDir `
@@ -206,7 +212,8 @@ foreach ($pass in $passes) {
             -Seed $seed -PlayerPosition $position -PlayerRotation $rotation `
             -WorldTime $worldTime -SceneId "q1-fast-streaming-v1" `
             -BudgetProfile $budgetProfile -RcPerformanceProfile "fast-streaming" `
-            -HiddenWindow -StopExisting -QuietSummary
+            -RuntimeRoot $RuntimeRoot -HiddenWindow -QuietSummary `
+            @clientProcessArgs
         if ($LASTEXITCODE -ne 0) { throw "Fast-streaming client capture failed." }
         Copy-Item -LiteralPath (Join-Path $streamingDir "summary.txt") `
             -Destination (Join-Path $EvidenceDir `
@@ -223,7 +230,8 @@ foreach ($pass in $passes) {
             -Seed $seed -PlayerPosition $position -PlayerRotation $rotation `
             -WorldTime $worldTime -SceneId "q1-scaled-gameplay-v1" `
             -BudgetProfile $budgetProfile -RcPerformanceProfile "scaled-gameplay" `
-            -HiddenWindow -StopExisting -QuietSummary
+            -RuntimeRoot $RuntimeRoot -HiddenWindow -QuietSummary `
+            @clientProcessArgs
         if ($LASTEXITCODE -ne 0) { throw "Scaled-gameplay client capture failed." }
         Copy-Item -LiteralPath (Join-Path $scaledDir "summary.txt") `
             -Destination (Join-Path $EvidenceDir `

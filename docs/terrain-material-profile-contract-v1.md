@@ -3,7 +3,7 @@
 本文冻结 Stage 10 `V10B1` 的地形图集、tile、颜色修正、资源包覆盖和启动失败边界。
 合同版本只描述运行时资源接口，不写入世界、玩家或设置存档。
 
-最后更新：2026-08-27。
+最后更新：2026-08-28。
 
 ## 状态与范围
 
@@ -11,7 +11,7 @@
   已完成，V10B1 工程状态为 `Done`。
 - 本批修改了 terrain fragment shader；当前机器没有 macOS 目标，因此 macOS Release 编译和
   真实窗口冒烟保持 `Verify`，不得写成 `PASS`。该跨平台子状态不阻止 Windows 上继续 V10B2，
-  但必须在 VISUAL-RC 前补齐。
+  也不由 Windows VISUAL-RC 工程封板替代，仍需在真实 macOS 机器补齐。
 - 本批只建立参数管线并保持旧画面兼容，不制作正式新图集，不改变 save v11、terrain v3、
   settings v4、32 字节 terrain vertex 或性能 comparison schema 3。
 - V10A 的 AO 强度、`shapedLight` 最暗值 `0.24`、environment exposure 与最终合成顺序保持不变；

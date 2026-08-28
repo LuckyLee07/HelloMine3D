@@ -3,9 +3,9 @@
 本文把改动类型映射到最低必要验证。当前 Release Candidate 的 H2-H3、Q1-Q3 和干净包
 路径及 Stage 9 / BETA-RC 工程封板已集中完成，真实输入与产品体验仍需目标机器上的操作者记录；
 现有 R3 v1 只保留为十二项物理输入基线，不能单独关闭当前 D4/D6 或视觉/双语/听感验收。
-Stage 10 的 V10A-V10E 已完成 Windows 工程和对应开发者视觉范围；
-V10B1/V10C/V10D/V10E 的 macOS Release shader/窗口证据保持 `Verify`。当前进入 VISUAL-RC，详细
-退出条件见 `docs/visual-quality-roadmap.md`。
+Stage 10 的 V10A-V10E 与 VISUAL-RC 已完成 Windows 工程和对应开发者视觉范围；
+V10B1/V10C/V10D/V10E 的 macOS Release shader/窗口证据、正式产品体验与 Physical Input v2
+保持 `Verify`。封板证据见 `docs/visual-release-candidate-report-2026-08-28.md`。
 
 历史运行结果和逐项证据保存在 `docs/project-ledger-2026-08-17.md` 与
 `docs/runtime-validation.md`。
@@ -130,7 +130,7 @@ Windows 自动化 EXE 一律隐藏或后台运行。只有必须由真人操作�
 | `V10C`（Done；macOS Verify） | 定向雾共享参数、云层高度/厚度/速度/颜色边界、帧率无关移动、进入云层与关闭回退。 | 双配置聚焦 21/21、Release 世界 741/741、资源包 65/65、启动负例 14/14、十图多帧开发者视觉 PASS；相关 Q1 保留已批准的快速流送单样本延迟例外，macOS Release 冒烟待补。 |
 | `V10D`（Done；macOS Verify） | settings v5、v0-v4→Off、双语 key、Stage 10 shadow 补充身份；Off/Medium/High、距离/纹理/bias/PCF 上限、能力回退和资源清理。 | 双配置聚焦 21/21、资源包 75/75、Release 世界 742/742、74 项 manifest、14 类启动负例、9 项档位合同和强制回退通过；正午/黄昏六图开发者检查 PASS，最终同场景各档 frame P95/P99 无需例外，macOS Release 冒烟待补。 |
 | `V10E`（Done；macOS Verify） | settings v6、v0-v5→Off、双语 key、Stage 10 post 补充身份；Off/On tone curve/确定性抖动/八采样极轻 bloom、HUD 排除、缩放、回退和清理。 | 双配置聚焦 22/22、资源包 80/80、Release 世界 743/743、77 项 manifest、15 类启动负例、11 项性能合同和真实支持/强制回退通过；明暗阶梯、白天/夜晚/1024x768 设置页与 Off 控制六图开发者检查 PASS，同档性能无需例外，macOS Release 冒烟待补。 |
-| `VISUAL-RC` | 适用全门禁、完整截图/开发者检查矩阵、资源/许可/Credits、正式相关 Q1、干净包和 bundle。 | 因 V10A/V10B3 改变网格输出/驻留，以最终身份正式重跑 Q3 双 1800 秒；完整 macOS Xcode 门禁；产品体验和 Physical Input v2 独立记录，不 push、不自动打标签。 |
+| `VISUAL-RC`（Done：Windows 工程；macOS/产品体验 Verify） | 适用全门禁、完整截图/开发者检查矩阵、资源/许可/Credits、正式相关 Q1、干净包和 bundle。 | Windows 77 项 manifest、743/743 世界、80/80 资源包、六类 Q1、nominal/stress 各 1800 秒 Q3、97 文件包和 239 项 Xcode 工程图静态检查通过；macOS 原生、产品体验和 Physical Input v2 独立记录，不 push、不自动打标签。 |
 
 Stage 10 的地形 shader、顶点数据、图集、云、阴影或后处理变化都必须保留一个明确的低画质
 回退路径。固定截图证明确定性和明显渲染缺陷；开发者视觉检查负责单批主观退出，正式产品体验
