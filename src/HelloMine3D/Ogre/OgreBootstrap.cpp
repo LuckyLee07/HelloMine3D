@@ -19,6 +19,7 @@
 
 #include <OIS.h>
 #include <Ogre.h>
+#include <OgreCompositorManager.h>
 #include <OgreGL3PlusPlugin.h>
 #include <OgreWindowEventUtilities.h>
 
@@ -716,6 +717,13 @@ namespace
             {
                 m_config.directionalShadowQuality =
                     DirectionalShadowQuality::Off;
+            }
+            syncPostProcessingParameters();
+            if (!configurePostProcessing(
+                    m_config.postProcessingQuality))
+            {
+                m_config.postProcessingQuality =
+                    PostProcessingQuality::Off;
             }
 
             m_actorRenderer =
@@ -1517,6 +1525,7 @@ namespace
                     }
 
                     bool shadowFallback = false;
+                    bool postFallback = false;
                     if (candidate.directionalShadowQuality !=
                         m_config.directionalShadowQuality)
                     {
@@ -1526,15 +1535,30 @@ namespace
                             candidate.directionalShadowQuality =
                                 DirectionalShadowQuality::Off;
                             shadowFallback = true;
-                            std::string fallbackSaveError;
-                            if (!saveRuntimeConfig(
-                                    ResourcePaths::bin("config.txt"),
-                                    candidate, &fallbackSaveError))
-                            {
-                                std::cerr
-                                    << "[V10D_SHADOW] fallback-save-failed="
-                                    << fallbackSaveError << '\n';
-                            }
+                        }
+                    }
+                    if (candidate.postProcessingQuality !=
+                        m_config.postProcessingQuality)
+                    {
+                        if (!configurePostProcessing(
+                                candidate.postProcessingQuality))
+                        {
+                            candidate.postProcessingQuality =
+                                PostProcessingQuality::Off;
+                            postFallback = true;
+                        }
+                    }
+                    if (shadowFallback || postFallback)
+                    {
+                        std::string fallbackSaveError;
+                        if (!saveRuntimeConfig(
+                                ResourcePaths::bin("config.txt"),
+                                candidate, &fallbackSaveError))
+                        {
+                            std::cerr
+                                << "[GRAPHICS_SETTINGS] "
+                                   "fallback-save-failed="
+                                << fallbackSaveError << '\n';
                         }
                     }
                     userSettings(m_config) = userSettings(candidate);
@@ -1558,9 +1582,11 @@ namespace
                     }
                     m_userInterface->reportSettingsApplied(
                         true, userSettings(m_config),
-                        shadowFallback
-                            ? "settings.shadow_fallback"
-                            : std::string());
+                        postFallback
+                            ? "settings.post_fallback"
+                            : (shadowFallback
+                                   ? "settings.shadow_fallback"
+                                   : std::string()));
                     return;
                 }
                 case OgreUserInterfaceActionType::ApplyDifficulty:
@@ -2732,6 +2758,122 @@ namespace
             }
         }
 
+        void destroyPostProcessingResources() noexcept
+        {
+            if (m_postProcessingInstalled && m_window != nullptr &&
+                m_window->getNumViewports() > 0)
+            {
+                try
+                {
+                    Ogre::Viewport* viewport = m_window->getViewport(0);
+                    Ogre::CompositorManager::getSingleton()
+                        .setCompositorEnabled(
+                            viewport, "HelloMine3D/PostProcess", false);
+                    Ogre::CompositorManager::getSingleton()
+                        .removeCompositor(
+                            viewport, "HelloMine3D/PostProcess");
+                }
+                catch (...)
+                {
+                }
+            }
+            m_postProcessingInstalled = false;
+            m_postProcessingQuality = PostProcessingQuality::Off;
+        }
+
+        void syncPostProcessingParameters()
+        {
+            const bool fixtureEnabled = isTrueValue(
+                std::getenv("HELLOMINE3D_V10E_POST_FIXTURE"));
+            Ogre::GpuProgramParametersSharedPtr parameters =
+                materialPass("HelloMine3D/PostProcess")
+                    ->getFragmentProgramParameters();
+            parameters->setNamedConstant(
+                "fixtureMode", fixtureEnabled ? 1.f : 0.f);
+            std::cout << "[V10E_POST_FIXTURE] enabled="
+                      << (fixtureEnabled ? 1 : 0)
+                      << " bands=16 ranges=dark-full-bright\n";
+        }
+
+        bool configurePostProcessing(
+            PostProcessingQuality requestedQuality)
+        {
+            destroyPostProcessingResources();
+            if (requestedQuality == PostProcessingQuality::Off)
+            {
+                std::cout << "[V10E_POST] requested=off active=off "
+                             "fallback=0 reason=disabled passes=0\n";
+                return true;
+            }
+
+            const bool forcedFallback = isTrueValue(
+                std::getenv("HELLOMINE3D_V10E_POST_FALLBACK"));
+            Ogre::RenderSystem* renderSystem =
+                m_root != nullptr ? m_root->getRenderSystem() : nullptr;
+            const Ogre::RenderSystemCapabilities* capabilities =
+                renderSystem != nullptr
+                    ? renderSystem->getCapabilities()
+                    : nullptr;
+            const bool supported =
+                !forcedFallback && capabilities != nullptr &&
+                capabilities->hasCapability(
+                    Ogre::RSC_HWRENDER_TO_TEXTURE) &&
+                capabilities->hasCapability(Ogre::RSC_VERTEX_PROGRAM) &&
+                capabilities->hasCapability(Ogre::RSC_FRAGMENT_PROGRAM) &&
+                Ogre::GpuProgramManager::getSingleton()
+                    .isSyntaxSupported("glsl150") &&
+                m_window != nullptr && m_window->getNumViewports() > 0;
+            if (!supported)
+            {
+                std::cout << "[V10E_POST] requested=on active=off "
+                             "fallback=1 reason="
+                          << (forcedFallback
+                                  ? "forced"
+                                  : "unsupported-capability")
+                          << " passes=0\n";
+                return false;
+            }
+
+            try
+            {
+                Ogre::Viewport* viewport = m_window->getViewport(0);
+                Ogre::CompositorInstance* instance =
+                    Ogre::CompositorManager::getSingleton()
+                        .addCompositor(
+                            viewport, "HelloMine3D/PostProcess");
+                if (instance == nullptr)
+                {
+                    throw std::runtime_error(
+                        "compositor definition was not available");
+                }
+                m_postProcessingInstalled = true;
+                Ogre::CompositorManager::getSingleton()
+                    .setCompositorEnabled(
+                        viewport, "HelloMine3D/PostProcess", true);
+                m_postProcessingQuality = PostProcessingQuality::On;
+                std::cout << "[V10E_POST] requested=on active=on "
+                             "fallback=0 reason=supported passes=1\n";
+                return true;
+            }
+            catch (const std::exception& exception)
+            {
+                destroyPostProcessingResources();
+                std::cout << "[V10E_POST] requested=on active=off "
+                             "fallback=1 reason=setup-failed passes=0 "
+                             "detail="
+                          << exception.what() << '\n';
+                return false;
+            }
+            catch (...)
+            {
+                destroyPostProcessingResources();
+                std::cout << "[V10E_POST] requested=on active=off "
+                             "fallback=1 reason=setup-failed passes=0 "
+                             "detail=unknown\n";
+                return false;
+            }
+        }
+
         void selectAtmosphereMode()
         {
             const bool forcedFallback = isTrueValue(
@@ -3345,6 +3487,7 @@ namespace
             }
             m_renderCapture.reset();
             m_userInterface.reset();
+            destroyPostProcessingResources();
             m_blockOutline.reset();
             m_actorRenderer.reset();
 
@@ -3425,6 +3568,9 @@ namespace
         float m_directionalShadowStrength = 0.f;
         DirectionalShadowQuality m_directionalShadowQuality =
             DirectionalShadowQuality::Off;
+        PostProcessingQuality m_postProcessingQuality =
+            PostProcessingQuality::Off;
+        bool m_postProcessingInstalled = false;
         bool m_nativeCursorCaptured = false;
         int m_cursorHideAdjustments = 0;
         bool m_validationActorsSpawned = false;
@@ -3483,6 +3629,8 @@ int runOgreBootstrap(bool validateOnly,
         validateAtmosphereShaderContract(
             runtimeResourcePackResolver());
         validateDirectionalShadowShaderContract(
+            runtimeResourcePackResolver());
+        validatePostProcessingShaderContract(
             runtimeResourcePackResolver());
         BlockDatabase::get();
         runtimeRecipeRegistry().freezeFromResourceView(

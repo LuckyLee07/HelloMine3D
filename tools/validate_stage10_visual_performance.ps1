@@ -91,6 +91,22 @@ try {
         -Candidate $shadowInvalid -ExpectedExit 4 `
         -ExpectedStatus "INVALID"
 
+    $postMismatch = Join-Path $tempRoot "post-mismatch.summary.txt"
+    Copy-Item -LiteralPath $source -Destination $postMismatch
+    Add-SummaryValue -Path $postMismatch `
+        -Key "stage10_post_processing" -Value "on"
+    Invoke-Case -Name "post-processing-mismatch" `
+        -Candidate $postMismatch -ExpectedExit 3 `
+        -ExpectedStatus "INCOMPARABLE"
+
+    $postInvalid = Join-Path $tempRoot "post-invalid.summary.txt"
+    Copy-Item -LiteralPath $source -Destination $postInvalid
+    Add-SummaryValue -Path $postInvalid `
+        -Key "stage10_post_processing" -Value "ultra"
+    Invoke-Case -Name "post-processing-invalid" `
+        -Candidate $postInvalid -ExpectedExit 4 `
+        -ExpectedStatus "INVALID"
+
     $within = Join-Path $tempRoot "within.summary.txt"
     Copy-Item -LiteralPath $source -Destination $within
     Set-SummaryValue -Path $within -Key "last_mesh_build_avg_ms" `

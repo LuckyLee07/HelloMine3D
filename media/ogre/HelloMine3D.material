@@ -302,3 +302,31 @@ material HelloMine3D/DirectionalShadowCaster
         }
     }
 }
+
+material HelloMine3D/PostProcess
+{
+    technique
+    {
+        pass
+        {
+            lighting off
+            depth_check off
+            depth_write off
+            cull_hardware none
+
+            vertex_program_ref HelloMine3D/PostProcessVertex
+            {
+            }
+
+            fragment_program_ref HelloMine3D/PostProcessFragment
+            {
+            }
+
+            texture_unit sceneTexture
+            {
+                filtering bilinear
+                tex_address_mode clamp
+            }
+        }
+    }
+}

@@ -244,6 +244,14 @@ uniform float greenRedShift;
 uniform float cloudLayerEnabled;
 "@
         Expected = "missing interface declaration 'uniform vec3 fogSunwardColour;'"
+    },
+    [pscustomobject]@{
+        Name = "invalid-v10e-post-processing-interface"
+        LogicalPath = "media\ogre\HelloMine3DPostProcess.frag"
+        Content = @"
+uniform sampler2D sceneTexture;
+"@
+        Expected = "missing interface declaration 'uniform vec4 inverseTextureSize;'"
     }
 )
 

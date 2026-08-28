@@ -493,6 +493,11 @@ try {
     if ($shadowQuality -notin @("off", "medium", "high")) {
         throw "Invalid directionalshadowquality in runtime config: '$shadowQuality'"
     }
+    $postProcessingQuality = Read-GameConfigValue `
+        -Path $gameConfigPath -Key "postprocessingquality"
+    if ($postProcessingQuality -notin @("off", "on")) {
+        throw "Invalid postprocessingquality in runtime config: '$postProcessingQuality'"
+    }
     $manifestPath = Join-Path $RepoRoot "media\resource-manifest.txt"
     $manifestHash = (Get-FileHash `
         -LiteralPath $manifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -560,6 +565,7 @@ try {
         "comparison_save_state_sha256=$scenarioHash",
         "comparison_fixed_tick_count=$fixedTickCount",
         "stage10_shadow_quality=$shadowQuality",
+        "stage10_post_processing=$postProcessingQuality",
         "peak_private_bytes=$peakPrivateBytes",
         "peak_working_set_bytes=$peakWorkingSetBytes",
         "peak_handle_count=$peakHandleCount"

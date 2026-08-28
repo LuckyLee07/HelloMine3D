@@ -12,6 +12,17 @@ enum class DirectionalShadowQuality {
     High = 2
 };
 
+enum class PostProcessingQuality {
+    Off = 0,
+    On = 1
+};
+
+inline const char *postProcessingQualityToken(
+    PostProcessingQuality quality) noexcept
+{
+    return quality == PostProcessingQuality::On ? "on" : "off";
+}
+
 inline const char *directionalShadowQualityToken(
     DirectionalShadowQuality quality) noexcept
 {
@@ -34,6 +45,8 @@ struct UserSettings {
     int renderDistance = 8; // Set initial RD low to prevent long load times
     DirectionalShadowQuality directionalShadowQuality =
         DirectionalShadowQuality::Off;
+    PostProcessingQuality postProcessingQuality =
+        PostProcessingQuality::Off;
     int fov = 90;
     float mouseSensitivity = 0.05f;
     bool invertMouseY = false;

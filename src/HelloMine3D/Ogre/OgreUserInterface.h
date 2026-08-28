@@ -1,6 +1,6 @@
 #pragma once
 
-#include <OgreRenderQueueListener.h>
+#include <OgreRenderTargetListener.h>
 
 #include <cstddef>
 #include <functional>
@@ -62,7 +62,7 @@ struct OgreUserInterfaceValidation
     std::string message;
 };
 
-class OgreUserInterface final : public Ogre::RenderQueueListener
+class OgreUserInterface final : public Ogre::RenderTargetListener
 {
   public:
     OgreUserInterface(Ogre::RenderWindow &window,
@@ -99,7 +99,8 @@ class OgreUserInterface final : public Ogre::RenderQueueListener
                                std::string message);
     OgreUserInterfaceAction consumeAction();
 
-    void postRenderQueues() override;
+    void postViewportUpdate(
+        const Ogre::RenderTargetViewportEvent &event) override;
 
     static OgreUserInterfaceValidation validateConfiguration(
         const Player &player);

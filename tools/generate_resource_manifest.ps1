@@ -35,7 +35,9 @@ function Add-ManifestEntry {
 $blockDatabasePath = Join-Path $Root "src\HelloMine3D\World\Block\BlockDatabase.cpp"
 $programPath = Join-Path $Root "media\ogre\HelloMine3D.program"
 $materialPath = Join-Path $Root "media\ogre\HelloMine3D.material"
-foreach ($requiredInput in @($blockDatabasePath, $programPath, $materialPath)) {
+$compositorPath = Join-Path $Root "media\ogre\HelloMine3D.compositor"
+foreach ($requiredInput in @(
+    $blockDatabasePath, $programPath, $materialPath, $compositorPath)) {
     if (-not (Test-Path -LiteralPath $requiredInput -PathType Leaf)) {
         throw "Manifest input is missing: $requiredInput"
     }
@@ -43,6 +45,7 @@ foreach ($requiredInput in @($blockDatabasePath, $programPath, $materialPath)) {
 
 Add-ManifestEntry "resource-script" "media/ogre/HelloMine3D.program"
 Add-ManifestEntry "resource-script" "media/ogre/HelloMine3D.material"
+Add-ManifestEntry "resource-script" "media/ogre/HelloMine3D.compositor"
 Add-ManifestEntry "material-profile" `
     "media/materials/Base.terrain-material"
 Add-ManifestEntry "atlas-layout" `

@@ -152,6 +152,7 @@ namespace
             {"resource-script", "media/ogre/Test.material"},
             {"resource-script", "media/ogre/HelloMine3D.material"},
             {"resource-script", "media/ogre/HelloMine3D.program"},
+            {"resource-script", "media/ogre/HelloMine3D.compositor"},
             {"runtime-template", "bin/resource-packs.txt"},
             {"shader", "media/ogre/Test.vert"},
             {"shader", "media/ogre/HelloMine3DActor.frag"},
@@ -162,6 +163,8 @@ namespace
             {"shader", "media/ogre/HelloMine3DDirectionalShadowCaster.vert"},
             {"shader", "media/ogre/HelloMine3DFlora.vert"},
             {"shader", "media/ogre/HelloMine3DFloraShadow.vert"},
+            {"shader", "media/ogre/HelloMine3DPostProcess.frag"},
+            {"shader", "media/ogre/HelloMine3DPostProcess.vert"},
             {"shader", "media/ogre/HelloMine3DSkybox.frag"},
             {"shader", "media/ogre/HelloMine3DTerrain.frag"},
             {"shader", "media/ogre/HelloMine3DTerrain.vert"},
@@ -412,6 +415,91 @@ namespace
                       [&]
                       {
                           validateDirectionalShadowShaderContract(resolver);
+                      },
+                      "missing interface declaration"));
+        }
+    }
+
+    void writePostProcessingFixture(const fs::path &root)
+    {
+        writeFile(root / "media/ogre/HelloMine3D.compositor",
+            "compositor HelloMine3D/PostProcess\n"
+            "texture scene target_width target_height PF_A8R8G8B8\n"
+            "pass render_quad\n"
+            "material HelloMine3D/PostProcess\n"
+            "input 0 scene\n");
+        writeFile(root / "media/ogre/HelloMine3D.program",
+            "HelloMine3D/PostProcessVertex\n"
+            "source HelloMine3DPostProcess.vert\n"
+            "HelloMine3D/PostProcessFragment\n"
+            "source HelloMine3DPostProcess.frag\n"
+            "param_named sceneTexture int 0\n"
+            "param_named_auto inverseTextureSize inverse_texture_size 0\n"
+            "param_named bloomThreshold float 0.76\n"
+            "param_named bloomStrength float 0.055\n"
+            "param_named toneStrength float 0.10\n"
+            "param_named ditherStrength float 0.85\n"
+            "param_named fixtureMode float 0.0\n");
+        writeFile(root / "media/ogre/HelloMine3D.material",
+            "material HelloMine3D/PostProcess\n"
+            "vertex_program_ref HelloMine3D/PostProcessVertex\n"
+            "fragment_program_ref HelloMine3D/PostProcessFragment\n"
+            "texture_unit sceneTexture\n"
+            "filtering bilinear\n"
+            "tex_address_mode clamp\n");
+        writeFile(root / "media/ogre/HelloMine3DPostProcess.vert",
+            "in vec4 vertex;\n"
+            "in vec2 uv0;\n"
+            "out vec2 postUv;\n"
+            "gl_Position = vertex;\n");
+        writeFile(root / "media/ogre/HelloMine3DPostProcess.frag",
+            "uniform sampler2D sceneTexture;\n"
+            "uniform vec4 inverseTextureSize;\n"
+            "uniform float bloomThreshold;\n"
+            "uniform float bloomStrength;\n"
+            "uniform float toneStrength;\n"
+            "uniform float ditherStrength;\n"
+            "uniform float fixtureMode;\n"
+            "vec3 fixtureSignal(vec2 uv) {}\n"
+            "vec4 sampleSource(vec2 uv) {}\n"
+            "vec3 bloomSample(vec2 offset) {}\n"
+            "smoothContrast\n"
+            "gl_FragCoord.xy\n"
+            "ditherStrength / 255.0\n");
+    }
+
+    void casePostProcessingShaderContract()
+    {
+        {
+            const fs::path root = freshRoot("v10e-post-valid");
+            writePostProcessingFixture(root);
+            ResourcePackResolver resolver;
+            resolver.freeze(root.string(), requirements(), {});
+            bool passed = false;
+            try
+            {
+                validatePostProcessingShaderContract(resolver);
+                passed = true;
+            }
+            catch (...)
+            {
+            }
+            check("V10E/post-processing-interface-valid", passed);
+        }
+        {
+            const fs::path root = freshRoot("v10e-post-invalid-pack");
+            writePostProcessingFixture(root);
+            const fs::path pack = createPack(
+                root, "invalid-post", "Invalid Post", 1,
+                {{"media/ogre/HelloMine3DPostProcess.frag",
+                  "uniform sampler2D sceneTexture;\n"}});
+            ResourcePackResolver resolver;
+            resolver.freeze(root.string(), requirements(), {pack.string()});
+            check("V10E/reject-post-processing-interface-drift",
+                  throwsContaining(
+                      [&]
+                      {
+                          validatePostProcessingShaderContract(resolver);
                       },
                       "missing interface declaration"));
         }
@@ -1210,6 +1298,7 @@ int main()
     caseTerrainMaterialProfile();
     caseAtmosphereShaderContract();
     caseDirectionalShadowShaderContract();
+    casePostProcessingShaderContract();
     caseOptionalAudio();
     caseOptionalMusic();
     caseOptionalPresentationFont();

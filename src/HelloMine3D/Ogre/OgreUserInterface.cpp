@@ -14,6 +14,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <stdexcept>
 #include <string>
@@ -51,6 +52,12 @@ namespace
 #else
     constexpr const char* ImGuiGlslVersion = "#version 130";
 #endif
+
+    bool environmentFlagEnabled(const char* name)
+    {
+        const char* value = std::getenv(name);
+        return value != nullptr && std::string(value) == "1";
+    }
 
     ImGuiKey toImGuiKey(OIS::KeyCode key)
     {
@@ -220,11 +227,13 @@ class OgreUserInterface::Impl
         , world(activeWorld)
         , flow(&applicationFlow)
         , management(&worldManagement)
-         , appliedSettings(settings)
-         , fontPath(std::move(presentationFontPath))
-         , uiFeedback(std::move(feedback))
-         , crashReports(std::move(pendingCrashReports))
+        , appliedSettings(settings)
+        , fontPath(std::move(presentationFontPath))
+        , uiFeedback(std::move(feedback))
+        , crashReports(std::move(pendingCrashReports))
         , showDebugPanel(RuntimeDebugOptions::showDebugInfoAtStartup())
+        , settingsFixtureRequested(environmentFlagEnabled(
+              "HELLOMINE3D_V10E_SETTINGS_FIXTURE"))
         , iniPath(ResourcePaths::bin("imgui-ogre.ini"))
     {
         std::snprintf(createName.data(), createName.size(), "%s",
@@ -322,7 +331,7 @@ class OgreUserInterface::Impl
         return tr("crafting.commit.invalid");
     }
 
-    void initialize(Ogre::RenderQueueListener *listener)
+    void initialize(Ogre::RenderTargetListener *listener)
     {
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
@@ -388,16 +397,16 @@ class OgreUserInterface::Impl
         }
         atlasTextureId = static_cast<ImTextureID>(atlasGlId);
 
-        sceneManager->addRenderQueueListener(listener);
+        window->addListener(listener);
         listenerInstalled = true;
         initialized = true;
     }
 
-    void shutdown(Ogre::RenderQueueListener *listener)
+    void shutdown(Ogre::RenderTargetListener *listener)
     {
-        if (listenerInstalled && sceneManager != nullptr)
+        if (listenerInstalled && window != nullptr)
         {
-            sceneManager->removeRenderQueueListener(listener);
+            window->removeListener(listener);
             listenerInstalled = false;
         }
         if (!initialized)
@@ -495,6 +504,14 @@ class OgreUserInterface::Impl
         framePending = true;
         worldStats = stats;
         miningProgress = progress;
+        if (settingsFixtureRequested && !settingsFixtureOpened &&
+            flow->state() == GameApplicationState::Playing && flow->pause())
+        {
+            settingsSession.begin(appliedSettings);
+            settingsMessage.clear();
+            settingsApplyPending = false;
+            settingsFixtureOpened = true;
+        }
         switch (flow->state())
         {
             case GameApplicationState::MainMenu:
@@ -1297,6 +1314,22 @@ class OgreUserInterface::Impl
                     }
                 }
                 ImGui::EndCombo();
+            }
+            bool postProcessingEnabled =
+                draft.postProcessingQuality == PostProcessingQuality::On;
+            if (ImGui::Checkbox(
+                    label("settings.post_processing",
+                          "##PostProcessing").c_str(),
+                    &postProcessingEnabled))
+            {
+                draft.postProcessingQuality = postProcessingEnabled
+                    ? PostProcessingQuality::On
+                    : PostProcessingQuality::Off;
+            }
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("%s",
+                    tr("settings.post_processing_help").c_str());
             }
             ImGui::SliderInt(label("settings.fov", "##Fov").c_str(), &draft.fov, 45, 120);
             ImGui::SliderFloat(label("settings.mouse_sensitivity", "##MouseSensitivity").c_str(),
@@ -2868,6 +2901,8 @@ class OgreUserInterface::Impl
     WorldDebugStats worldStats;
     MiningProgressSnapshot miningProgress;
     bool showDebugPanel = false;
+    bool settingsFixtureRequested = false;
+    bool settingsFixtureOpened = false;
     bool showCredits = false;
     bool initialized = false;
     bool listenerInstalled = false;
@@ -2886,16 +2921,16 @@ OgreUserInterface::OgreUserInterface(Ogre::RenderWindow &window,
                                      World *world,
                                      GameApplicationFlow &applicationFlow,
                                      WorldManagementService &worldManagement,
-                                      const UserSettings &settings,
-                                      std::string presentationFontPath,
-                                      std::function<void()> uiFeedback,
-                                      std::vector<PendingCrashReport> crashReports)
+                                     const UserSettings &settings,
+                                     std::string presentationFontPath,
+                                     std::function<void()> uiFeedback,
+                                     std::vector<PendingCrashReport> crashReports)
     : m_impl(std::make_unique<Impl>(window, sceneManager, camera, player,
                                     world, applicationFlow,
-                                     worldManagement, settings,
-                                     std::move(presentationFontPath),
-                                     std::move(uiFeedback),
-                                     std::move(crashReports)))
+                                    worldManagement, settings,
+                                    std::move(presentationFontPath),
+                                    std::move(uiFeedback),
+                                    std::move(crashReports)))
 {
     m_impl->initialize(this);
 }
@@ -3052,16 +3087,15 @@ OgreUserInterfaceAction OgreUserInterface::consumeAction()
     return action;
 }
 
-void OgreUserInterface::postRenderQueues()
+void OgreUserInterface::postViewportUpdate(
+    const Ogre::RenderTargetViewportEvent &event)
 {
     if (!m_impl->framePending)
     {
         return;
     }
-    Ogre::Viewport* viewport = m_impl->sceneManager != nullptr
-        ? m_impl->sceneManager->getCurrentViewport()
-        : nullptr;
-    if (viewport == nullptr || viewport->getTarget() != m_impl->window)
+    if (event.source == nullptr ||
+        event.source->getTarget() != m_impl->window)
     {
         return;
     }

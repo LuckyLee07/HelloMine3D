@@ -154,3 +154,55 @@ void validateDirectionalShadowShaderContract(
         resolver, "media/ogre/HelloMine3DDirectionalShadowCaster.frag",
         {"gl_FragCoord.zzz", "out vec4 fragmentColour;"});
 }
+
+void validatePostProcessingShaderContract(
+    const ResourcePackResolver &resolver)
+{
+    requireTokens(
+        resolver, "media/ogre/HelloMine3D.compositor",
+        {"compositor HelloMine3D/PostProcess",
+         "texture scene target_width target_height PF_A8R8G8B8",
+         "pass render_quad",
+         "material HelloMine3D/PostProcess",
+         "input 0 scene"});
+    requireTokens(
+        resolver, "media/ogre/HelloMine3D.program",
+        {"HelloMine3D/PostProcessVertex",
+         "source HelloMine3DPostProcess.vert",
+         "HelloMine3D/PostProcessFragment",
+         "source HelloMine3DPostProcess.frag",
+         "param_named sceneTexture int 0",
+         "param_named_auto inverseTextureSize inverse_texture_size 0",
+         "param_named bloomThreshold float",
+         "param_named bloomStrength float",
+         "param_named toneStrength float",
+         "param_named ditherStrength float",
+         "param_named fixtureMode float"});
+    requireTokens(
+        resolver, "media/ogre/HelloMine3D.material",
+        {"material HelloMine3D/PostProcess",
+         "vertex_program_ref HelloMine3D/PostProcessVertex",
+         "fragment_program_ref HelloMine3D/PostProcessFragment",
+         "texture_unit sceneTexture",
+         "filtering bilinear",
+         "tex_address_mode clamp"});
+    requireTokens(
+        resolver, "media/ogre/HelloMine3DPostProcess.vert",
+        {"in vec4 vertex;", "in vec2 uv0;", "out vec2 postUv;",
+         "gl_Position = vertex;"});
+    requireTokens(
+        resolver, "media/ogre/HelloMine3DPostProcess.frag",
+        {"uniform sampler2D sceneTexture;",
+         "uniform vec4 inverseTextureSize;",
+         "uniform float bloomThreshold;",
+         "uniform float bloomStrength;",
+         "uniform float toneStrength;",
+         "uniform float ditherStrength;",
+         "uniform float fixtureMode;",
+         "vec3 fixtureSignal(vec2 uv)",
+         "vec4 sampleSource(vec2 uv)",
+         "vec3 bloomSample(vec2 offset)",
+         "smoothContrast",
+         "gl_FragCoord.xy",
+         "ditherStrength / 255.0"});
+}

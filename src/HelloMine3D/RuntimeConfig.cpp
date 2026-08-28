@@ -73,6 +73,24 @@ DirectionalShadowQuality readDirectionalShadowQuality(
     fail(path, key, "must be one of off, medium, or high");
 }
 
+PostProcessingQuality readPostProcessingQuality(
+    const std::string &path, const std::string &key,
+    std::istringstream &input)
+{
+    std::string value;
+    if (!(input >> value)) {
+        fail(path, key, "must contain off or on");
+    }
+    requireEnd(path, key, input);
+    if (value == "off") {
+        return PostProcessingQuality::Off;
+    }
+    if (value == "on") {
+        return PostProcessingQuality::On;
+    }
+    fail(path, key, "must be one of off or on");
+}
+
 void validateVolume(const char *name, float value)
 {
     if (!std::isfinite(value) || value < 0.f || value > 1.f) {
@@ -96,6 +114,7 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
     bool usesVersionThreeKey = false;
     bool usesVersionFourKey = false;
     bool usesVersionFiveKey = false;
+    bool usesVersionSixKey = false;
     std::set<std::string> seenKeys;
     std::string line;
     std::size_t lineNumber = 0;
@@ -122,6 +141,7 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
             if (version != LegacyRuntimeSettingsFormatVersion &&
                 version != AccessibilityRuntimeSettingsFormatVersion &&
                 version != LocaleRuntimeSettingsFormatVersion &&
+                version != MusicRuntimeSettingsFormatVersion &&
                 version != PreviousRuntimeSettingsFormatVersion &&
                 version != RuntimeSettingsFormatVersion) {
                 fail(path, key, "uses unsupported version " +
@@ -138,6 +158,11 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
             parsed.config.directionalShadowQuality =
                 readDirectionalShadowQuality(path, key, values);
             usesVersionFiveKey = true;
+        }
+        else if (key == "postprocessingquality") {
+            parsed.config.postProcessingQuality =
+                readPostProcessingQuality(path, key, values);
+            usesVersionSixKey = true;
         }
         else if (key == "fullscreen") {
             const int fullscreen = readInteger(path, key, values);
@@ -278,19 +303,31 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
     }
     if (usesVersionFourKey &&
         (!hasVersion || parsed.version <
-                            PreviousRuntimeSettingsFormatVersion)) {
+                            MusicRuntimeSettingsFormatVersion)) {
         fail(path, "settings_version",
              "older versions cannot contain version 4 settings");
     }
     if (usesVersionFiveKey &&
-        (!hasVersion || parsed.version < RuntimeSettingsFormatVersion)) {
+        (!hasVersion || parsed.version <
+                            DirectionalShadowRuntimeSettingsFormatVersion)) {
         fail(path, "settings_version",
              "older versions cannot contain version 5 settings");
     }
-    if (hasVersion && parsed.version == RuntimeSettingsFormatVersion &&
+    if (hasVersion && parsed.version >=
+                          DirectionalShadowRuntimeSettingsFormatVersion &&
         !usesVersionFiveKey) {
         fail(path, "directionalshadowquality",
              "is required by settings version 5");
+    }
+    if (usesVersionSixKey &&
+        (!hasVersion || parsed.version < RuntimeSettingsFormatVersion)) {
+        fail(path, "settings_version",
+             "older versions cannot contain version 6 settings");
+    }
+    if (hasVersion && parsed.version == RuntimeSettingsFormatVersion &&
+        !usesVersionSixKey) {
+        fail(path, "postprocessingquality",
+             "is required by settings version 6");
     }
     parsed.needsMigration =
         !hasVersion || parsed.version < RuntimeSettingsFormatVersion;
@@ -313,6 +350,9 @@ std::vector<char> serializeRuntimeConfig(const Config &config)
            << "directionalshadowquality "
            << directionalShadowQualityToken(
                   config.directionalShadowQuality)
+           << '\n'
+           << "postprocessingquality "
+           << postProcessingQualityToken(config.postProcessingQuality)
            << '\n'
            << "fullscreen " << (config.isFullscreen ? 1 : 0) << '\n'
            << "windowsize " << config.windowX << ' ' << config.windowY
@@ -361,6 +401,11 @@ void validateUserSettings(const UserSettings &settings)
             DirectionalShadowQuality::High) {
         throw std::runtime_error(
             "directional shadow quality must be off, medium, or high");
+    }
+    if (settings.postProcessingQuality != PostProcessingQuality::Off &&
+        settings.postProcessingQuality != PostProcessingQuality::On) {
+        throw std::runtime_error(
+            "post-processing quality must be off or on");
     }
     if (settings.windowX < 640 || settings.windowX > 7680 ||
         settings.windowY < 480 || settings.windowY > 4320) {
@@ -529,6 +574,9 @@ bool RuntimeSettingsSession::prepareApply(
         plan.directionalShadowQualityChanged =
             m_draft.directionalShadowQuality !=
             m_original.directionalShadowQuality;
+        plan.postProcessingQualityChanged =
+            m_draft.postProcessingQuality !=
+            m_original.postProcessingQuality;
         error.clear();
         return true;
     }

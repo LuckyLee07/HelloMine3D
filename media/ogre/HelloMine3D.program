@@ -273,3 +273,25 @@ fragment_program HelloMine3D/DirectionalShadowCasterFragment glsl
     source HelloMine3DDirectionalShadowCaster.frag
     syntax glsl150
 }
+
+vertex_program HelloMine3D/PostProcessVertex glsl
+{
+    source HelloMine3DPostProcess.vert
+    syntax glsl150
+}
+
+fragment_program HelloMine3D/PostProcessFragment glsl
+{
+    source HelloMine3DPostProcess.frag
+    syntax glsl150
+    default_params
+    {
+        param_named sceneTexture int 0
+        param_named_auto inverseTextureSize inverse_texture_size 0
+        param_named bloomThreshold float 0.76
+        param_named bloomStrength float 0.055
+        param_named toneStrength float 0.10
+        param_named ditherStrength float 0.85
+        param_named fixtureMode float 0.0
+    }
+}

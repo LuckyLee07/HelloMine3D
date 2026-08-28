@@ -126,6 +126,28 @@ try {
         Write-Host "[STAGE10_PERF] status=INCOMPARABLE"
         exit 3
     }
+    $baselinePostProcessing = if ($baselineSummary.ContainsKey(
+            "stage10_post_processing")) {
+        [string]$baselineSummary["stage10_post_processing"]
+    }
+    else { "off" }
+    $candidatePostProcessing = if ($candidateSummary.ContainsKey(
+            "stage10_post_processing")) {
+        [string]$candidateSummary["stage10_post_processing"]
+    }
+    else { "off" }
+    foreach ($entry in @(
+        @{ Label = "Baseline"; Value = $baselinePostProcessing },
+        @{ Label = "Candidate"; Value = $candidatePostProcessing })) {
+        if ($entry.Value -notin @("off", "on")) {
+            throw "$($entry.Label) summary has invalid stage10_post_processing='$($entry.Value)'."
+        }
+    }
+    if ($baselinePostProcessing -cne $candidatePostProcessing) {
+        Write-Host "[STAGE10_PERF] incomparable=stage10 post-processing differs baseline=$baselinePostProcessing candidate=$candidatePostProcessing"
+        Write-Host "[STAGE10_PERF] status=INCOMPARABLE"
+        exit 3
+    }
     $baselineManifest = Require-Text -Summary $baselineSummary `
         -Key "comparison_resource_manifest_sha256" -Label "Baseline"
     $candidateManifest = Require-Text -Summary $candidateSummary `
@@ -200,6 +222,7 @@ try {
         "comparison_scene_id=$scene",
         "threshold_percent=$($ThresholdPercent.ToString($invariant))",
         "stage10_shadow_quality=$candidateShadowQuality",
+        "stage10_post_processing=$candidatePostProcessing",
         "resource_manifest_bridge=$resourceManifestBridge",
         "baseline_resource_manifest_sha256=$baselineManifest",
         "candidate_resource_manifest_sha256=$candidateManifest"

@@ -6,8 +6,10 @@
 #include "Config.h"
 #include "World/Storage/StorageTransaction.h"
 
-constexpr int RuntimeSettingsFormatVersion = 5;
-constexpr int PreviousRuntimeSettingsFormatVersion = 4;
+constexpr int RuntimeSettingsFormatVersion = 6;
+constexpr int PreviousRuntimeSettingsFormatVersion = 5;
+constexpr int DirectionalShadowRuntimeSettingsFormatVersion = 5;
+constexpr int MusicRuntimeSettingsFormatVersion = 4;
 constexpr int LocaleRuntimeSettingsFormatVersion = 3;
 constexpr int AccessibilityRuntimeSettingsFormatVersion = 2;
 constexpr int LegacyRuntimeSettingsFormatVersion = 1;
@@ -17,6 +19,7 @@ struct RuntimeSettingsApplyPlan {
     bool restartRequired = false;
     bool renderDistanceChanged = false;
     bool directionalShadowQualityChanged = false;
+    bool postProcessingQualityChanged = false;
 };
 
 class RuntimeSettingsSession {

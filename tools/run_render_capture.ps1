@@ -1,5 +1,6 @@
 param(
     [string]$OutputDir = "",
+    [string]$RuntimeRoot = "",
     [string[]]$CaptureMs = @("2000"),
     [int]$Seconds = 12,
     [int]$StartupTimeoutMs = 15000,
@@ -25,6 +26,8 @@ param(
     [switch]$ShowCropFixture,
     [switch]$ShowVerticalSliceFixture,
     [switch]$ShowHudFixture,
+    [switch]$ShowV10EPostFixture,
+    [switch]$ShowV10ESettingsFixture,
     [ValidateSet("none", "cave", "canopy")]
     [string]$VertexLightingFixture = "none",
     [switch]$DisableVertexAo,
@@ -39,6 +42,10 @@ $ErrorActionPreference = "Stop"
 $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptRoot "..")).Path
 $BinDir = Join-Path $RepoRoot "bin"
+$RuntimeRootPath = if ([string]::IsNullOrWhiteSpace($RuntimeRoot)) {
+    $RepoRoot
+}
+else { (Resolve-Path -LiteralPath $RuntimeRoot).Path }
 $ExeName = "HelloMine3D.exe"
 $ExePath = Join-Path $BinDir $ExeName
 $RunId = "{0:yyyyMMddHHmmssfff}-{1}" -f (Get-Date), $PID
@@ -581,6 +588,7 @@ Remove-Item -LiteralPath $ProcessStderrPath -Force -ErrorAction SilentlyContinue
 Write-Host "[RENDER_CAPTURE] runId=$RunId"
 Write-Host "[RENDER_CAPTURE] exe=$ExePath"
 Write-Host "[RENDER_CAPTURE] outputDir=$OutputDir"
+Write-Host "[RENDER_CAPTURE] runtimeRoot=$RuntimeRootPath"
 Write-Host "[RENDER_CAPTURE] capturesMs=$($sortedCaptures -join ',') seconds=$Seconds prefix=$Prefix mode=$CaptureMode noActivate=true hidden=$($HiddenWindow.IsPresent.ToString().ToLowerInvariant())"
 Write-Host "[RENDER_CAPTURE] saveDir=$SaveDir"
 Write-Host "[RENDER_CAPTURE] window=$WindowX,$WindowY ${WindowWidth}x$WindowHeight noActivate=true"
@@ -612,7 +620,7 @@ if ($StopExisting) {
 }
 
 $envValues = @{
-    HELLOMINE3D_ROOT = $RepoRoot
+    HELLOMINE3D_ROOT = $RuntimeRootPath
     HELLOMINE3D_SAVE_DIR = $SaveDir
     HELLOMINE3D_RESOURCE_PACKS = $ResourcePacks
 }
@@ -651,6 +659,12 @@ if ($ShowVerticalSliceFixture) {
 }
 if ($ShowHudFixture) {
     $envValues["HELLOMINE3D_HUD_FIXTURE"] = "1"
+}
+if ($ShowV10EPostFixture) {
+    $envValues["HELLOMINE3D_V10E_POST_FIXTURE"] = "1"
+}
+if ($ShowV10ESettingsFixture) {
+    $envValues["HELLOMINE3D_V10E_SETTINGS_FIXTURE"] = "1"
 }
 if ($VertexLightingFixture -ne "none") {
     $envValues["HELLOMINE3D_VERTEX_LIGHTING_FIXTURE"] =

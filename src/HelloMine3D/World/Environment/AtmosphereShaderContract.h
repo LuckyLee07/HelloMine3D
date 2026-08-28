@@ -14,4 +14,10 @@ void validateAtmosphereShaderContract(
 void validateDirectionalShadowShaderContract(
     const ResourcePackResolver &resolver);
 
+/// Validates the V10E compositor, material, program and GLSL seam before the
+/// render window is created. Resource-pack drift therefore remains a normal
+/// startup error instead of becoming a late GPU binding failure.
+void validatePostProcessingShaderContract(
+    const ResourcePackResolver &resolver);
+
 #endif // ATMOSPHERE_SHADER_CONTRACT_H_INCLUDED
