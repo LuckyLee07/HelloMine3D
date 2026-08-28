@@ -6,6 +6,8 @@
 Stage 10 的 V10A-V10E 与 VISUAL-RC 已完成 Windows 工程和对应开发者视觉范围；
 V10B1/V10C/V10D/V10E 的 macOS Release shader/窗口证据、正式产品体验与 Physical Input v2
 保持 `Verify`。封板证据见 `docs/visual-release-candidate-report-2026-08-28.md`。
+VISUAL-RC 后评审已选择 Stage 11；当前只开放 P11A，后续 P11B-P11F 必须在前一批真实试玩
+通过后逐个开放。权威范围见 `docs/playability-experience-roadmap.md`。
 
 历史运行结果和逐项证据保存在 `docs/project-ledger-2026-08-17.md` 与
 `docs/runtime-validation.md`。
@@ -17,7 +19,9 @@ V10B1/V10C/V10D/V10E 的 macOS Release shader/窗口证据、正式产品体验�
 | 所有 C++ 改动 | 受影响目标能够编译；运行对应定向自动测试。 |
 | 世界、区块、实体或持久化 | 定向自动测试 + `HelloMine3DWorldRuntimeSmoke`。 |
 | 物品、容器、制作、工具或食物 | 状态守恒、容量边界、失败原子性、固定 tick 和保存/重载测试。 |
-| UI 或输入 | 自动焦点隔离测试；开发者进行一次交互冒烟。正式 Physical Input v2 记录可后移。 |
+| UI 或输入 | 动作仲裁、焦点隔离、映射/冲突、设置迁移自动测试；开发者交互冒烟。P11A 必须当批完成目标 Windows Physical Input v2，不能后移到 P11F。 |
+| 第一人称动作、命中/受击、粒子或镜头反馈 | 判定时刻与表现解耦测试、数量/持续时间上限、关闭回退、HUD/准星截图和真实 Release 动态观察；镜头效果必须可调或可关。 |
+| 目标、配方发现、探索奖励或资源经济 | 主线可达、输入输出守恒、重复奖励/一次性领取、保存重载和全部受影响迁移；用真实新世界试玩记录选择、困惑时段与计划变化。 |
 | 资源、配方、声音或 shader | 资源清单/解析验证；缺失和非法引用必须明确失败。 |
 | terrain atlas 或 HUD/手持图标 | `tools\validate_terrain_atlas.ps1`、确定性重建、Alpha/空 tile、block 分面、Material 坐标、资源包与隐藏固定截图。 |
 | 顶点格式、网格、光照或 AO | 确定性角落/边界夹具、MeshDirty、隐藏固定截图、既有 schema 3 顶点/索引/构建/驻留字段的补充比较和相关 Q1。仅改每顶点值时不得误报为顶点格式升级。 |
@@ -42,6 +46,7 @@ V10B1/V10C/V10D/V10E 的 macOS Release shader/窗口证据、正式产品体验�
 | V10B2 图集合同 | `tools\validate_terrain_atlas.ps1` | 37 个语义/双语名、Alpha 边界、分面、HUD/手持一致性与确定性输出 |
 | R3 自动预检 | `tools\validate_r3_automated_preflight.ps1 -Configuration Release -Build` | 控制器、交互、容器、战斗、D6 和后台窗口焦点的逻辑回归；结果不能替代真人输入 |
 | R3 v1 真人输入基线 | `docs\manual-input-acceptance-v1.md` 和 `tools\validate_manual_input_record.ps1 -RequirePass` | 只验证现有十二项键鼠/焦点记录；通过也不自动关闭当前 D4/D6/R3，后续先立 Physical Input v2。 |
+| Physical Input v2 | `docs\playability-experience-roadmap.md` 的 P11A/Physical Input v2；实现前另立可机器校验的 v2 记录合同 | 真实键鼠移动/视角、采挖/放置/使用/格挡、容器/制作、暂停、失焦/回焦和重启；按实际覆盖更新 D2/D4/D6/R3，自动事件注入只能作为预检。 |
 | 开发者视觉检查 | `docs\manual-product-experience-acceptance-v1.md` A 节、`tools\validate_developer_visual_record.ps1 -RequirePass` 和视觉路线截图矩阵 | 项目所有者或其明确授权的审阅者检查真实 Release 证据并记录身份、场景、PASS/FAIL 和一句理由；静态批次可用至少三张原尺寸 RuntimeReadback 图，动态批次必须用多帧/视频或连续窗口观察；自动化不自行判定，也不使用 R3 输入记录。 |
 | 正式产品体验 | `docs\manual-product-experience-acceptance-v1.md` B/C 节 | 视觉风格、双语可读性、音效/音乐听感；与 Physical Input v2 共享构建身份但分开判定。 |
 | 长时间 soak | `tools\run_world_soak.ps1`；正式双 profile 使用 `tools\run_release_candidate_soak.ps1` | 区块/实体生命周期、存档、后台加载 |
@@ -66,6 +71,8 @@ V10B1/V10C/V10D/V10E 的 macOS Release shader/窗口证据、正式产品体验�
 | Stage 9 单批完成 | 批次合同、定向测试、全部受影响旧版迁移、相关 Q1、必要的 60-120 秒 nominal/stress 和隐藏客户端。 |
 | BETA-RC | 全平台门禁、全迁移、物理输入/产品体验真实状态、H1-H3、Q1-Q3 正式双档长稳、许可证、截图、bundle 和干净包新哈希。 |
 | Stage 10 单批完成 | 批次合同、VS2017/v141 双配置受影响目标、shader/资源负例、固定 before/after RuntimeReadback、开发者视觉检查和相关 Q1；图形功能必须可关闭。修改 shader/顶点接口时当批补 macOS Release 真实窗口冒烟，否则跨平台状态保持 `Verify`。 |
+| Stage 11 单批完成 | 批次合同、受影响双配置/定向回归、版本迁移与保存恢复、相关 Q1/Q3，以及 10-30 分钟目标真人试玩；P11C 至少完整覆盖前 30 分钟。前一批没有真实退出结论时不得开放下一批。 |
+| PLAYABILITY-RC | 全门禁、全迁移、逐批试玩汇总、Physical Input v2 真实状态、适用产品体验、正式 Q1/Q3、长稳、干净包和新身份；记录里程碑耗时、误操作、死亡和困惑时段。 |
 
 ## 第 8 阶段批次门禁
 
@@ -115,9 +122,10 @@ V10B1/V10C/V10D/V10E 的 macOS Release shader/窗口证据、正式产品体验�
 | 音效、音乐、字体或本地化 | manifest，资源包，语言 key/fallback，字体/长文本，许可证，采样缓存/并发，句柄/线程生命周期，隐藏客户端和听感。 |
 | 构建、崩溃或打包 | H2/H3 受控崩溃、符号、隐私、可执行清单、干净包和新 SHA-256。 |
 
-Windows 自动化 EXE 一律隐藏或后台运行。只有必须由真人操作并观察的 R3，以及事先取得用户
-明确同意的 Stage 10 开发者视觉检查，才可以在安排好的验收窗口前台运行；`ShowWindowNoActivate`
-只是 best-effort，不能作为不会抢焦点的保证。不得用自动输入伪装真人证据。
+Windows 自动化 EXE 一律隐藏或后台运行。只有必须由真人操作并观察的 R3/Physical Input v2、
+Stage 11 目标试玩，以及事先取得用户明确同意的开发者视觉/产品体验检查，才可以在安排好的验收
+窗口前台运行；`ShowWindowNoActivate` 只是 best-effort，不能作为不会抢焦点的保证。不得用自动
+输入伪装真人证据，也不得在用户未安排的时段反复启动前台窗口。
 
 ## Stage 10 视觉门禁
 
@@ -135,3 +143,17 @@ Windows 自动化 EXE 一律隐藏或后台运行。只有必须由真人操作�
 Stage 10 的地形 shader、顶点数据、图集、云、阴影或后处理变化都必须保留一个明确的低画质
 回退路径。固定截图证明确定性和明显渲染缺陷；开发者视觉检查负责单批主观退出，正式产品体验
 负责封板判断，二者都不替代 Physical Input v2。
+
+## Stage 11 可玩性门禁
+
+| 批次 | 合入前最低工程证据 | 必须当批完成的真人证据 |
+| ---- | ------------------ | ---------------------- |
+| `P11A`（Planned） | 使用/放置/格挡单一消费所有者；鼠标绑定/冲突；若新增持久字段则 settings v7 与 v0-v6 迁移；灵敏度计算不依赖帧率/窗口尺寸；捕获、暂停、失焦/回焦状态机；VS2017/v141 双配置和受影响回归。 | Physical Input v2 全部适用项：移动、视角、采挖、放置、使用、格挡、容器、制作、暂停、失焦/回焦和重启；记录串键、跳视角、卡键、后台误触和准星/实际方向偏差。 |
+| `P11B`（Queued） | 动画不改变判定；裂纹/粒子/拾取数量与生命周期有界；关闭回退；音频并发；HUD/准星隔离和适用性能。 | 真实 Release 动态观察动作开始、命中、冷却、受击方向和拾取；记录不可读、过强或引起不适的反馈，验证可调/可关路径。 |
+| `P11C`（Queued） | 目标/配方状态确定、主线可达、保存重载、重复完成和旧版迁移。 | 全新世界至少 30 分钟：记录至少两项并行选择、关键里程碑、超过 60 秒的困惑时段、查配方次数和主动改计划时刻。 |
+| `P11D`（Queued） | 奖励一次性、经济守恒、能力边界、保存/迁移；若改地形，补 terrain 身份、旧区块边界与确定性。 | 每类正式结构实际完成一次；记录奖励是否改变后续能力或计划，普通矿物不能作为主要价值证明。 |
+| `P11E`（Queued） | 动画状态由玩法状态驱动；判定与渲染解耦；部件/实例/音频上限；保存恢复和相关性能。 | 不看名称辨识主要敌人、预警与危险窗口；完整走通 Waystone 独特阶段，记录误判、死亡原因和策略变化。 |
+| `P11F`（Queued） | 全门禁、全迁移、适用 Q1/Q3/长稳、资源许可、干净包和构建身份。 | 汇总而非补造 P11A-P11E 试玩证据；给出明确 `PASS`/`FAIL`/`Verify`，未完成平台或产品体验不得自动关闭。 |
+
+每份 Stage 11 真人记录至少包含 commit/构建身份、硬件、分辨率、输入设备、场景、里程碑耗时、
+误操作、死亡、困惑时段和结论。截图或自动日志只能支持结论，不能单独证明操作手感和可玩性。
