@@ -1,0 +1,18 @@
+# HelloMine3D developer visual record v1
+# V10D engineering commit: 3c47ccb0b4aa9f600c4d328167a0060447b8fbab
+# Release executable SHA-256 used by the final hidden RuntimeReadback captures:
+# 507D970D35D594F7D0EE85F1883225AF9371D5FF997FE367A4D8F9DB5299EA4F
+# The developer reviewer inspected all six tracked images at original size.
+record_version=1
+kind=developer_visual
+batch=V10D
+date=2026-08-28
+commit=3c47ccb0b4aa9f600c4d328167a0060447b8fbab
+configuration=Release
+gpu=NVIDIA GeForce GTX 1050 Ti
+driver=NVIDIA 472.12;OpenGL 4.6.0.0
+window=1280x720;fullscreen=0
+graphics=directional_shadow_v1;off_0;medium_512_64_48_bias_0.008;high_1024_96_72_bias_0.004;pcf_2x2;runtime_readback_hidden
+scenes=off_noon,off_dusk,medium_noon,medium_dusk,high_noon,high_dusk
+result=PASS
+reason=Six real Release images show clean short and long cast shadows, stable contact and distance fade, intact V10C Off output, and a complete HUD without acne, broad self-shadowing, peter-panning, penetration, banding, or shadow-RTT UI loss.

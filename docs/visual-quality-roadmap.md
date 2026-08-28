@@ -46,7 +46,7 @@
 | 3 | V10B2 原创材质资产 | P0 | L | Done | 世界、HUD 和手持物使用来源明确、像素密度与分面一致的原创材质。 |
 | 4 | V10B3 生态着色与确定性变体 | P1 | M | Done | 草、叶、水拥有受控生态 tint，自然地表重复感降低且不改变 terrain 身份。 |
 | 5 | V10C 定向大气与立体云 | P1 | M/L | Done（Windows；macOS Verify） | 日出/日落方向、远景雾、云层视差和云底明暗形成更有深度的天空。 |
-| 6 | V10D 可选方向阴影 | P1 | L | Planned | 玩家、实体、结构和植被在近景获得可配置、可关闭的太阳阴影。 |
+| 6 | V10D 可选方向阴影 | P1 | L | Done（Windows；macOS Verify） | 玩家、实体、结构和植被在近景获得可配置、可关闭的太阳阴影。 |
 | 7 | V10E 轻量后处理 | P2 | M/L | Planned | 在不改变像素风格的前提下统一亮部、暗部和色带，按能力安全降级。 |
 | 8 | VISUAL-RC 视觉集中封板 | P0 | M | Planned | 固定截图、性能、资源、许可证和干净包形成新的可比较视觉基线。 |
 
@@ -216,7 +216,8 @@ Q3 均通过。五张 1280x720 隐藏真实 Release 原图由授权审阅者逐�
 4.645%/4.340%，但单样本区块可见延迟增加 22.304%。项目所有者批准该 V10C 例外：绝对值
 49.636 ms 远低于 1000 ms 预算，复测与强制 FS2 A/B 不支持归因于新云 shader。例外不由后续
 批次继承。完整证据见 `docs/directional-atmosphere-contract-v1.md` 和
-`docs/developer-visual-record-v10c.txt`；当前进入 V10D，macOS 子状态保持 `Verify`。
+`docs/developer-visual-record-v10c.txt`；随后完成的 V10D 不继承该例外，macOS 子状态保持
+`Verify`。
 
 ## V10D：可选方向阴影
 
@@ -235,6 +236,17 @@ Q3 均通过。五张 1280x720 隐藏真实 Release 原图由授权审阅者逐�
 兼容，Medium/High 性能分别记录；开发者视觉检查和真实 macOS Release 编译/窗口启动通过。
 任何档位都不得修改世界或保存身份。
 
+工程结果（2026-08-28）：settings v5、v0-v4→Off、双语设置/回退、单张 float32 shadow map、
+独立 Off shader、2×2 PCF、距离淡出、能力回退和完整资源清理已经落地。Medium 冻结为
+512²/64 m/bias 0.008，High 为 1024²/96 m/bias 0.004；solid/actor 投射，terrain、glass/flora
+与 actor 接收，水保持 V10C 路径。双配置聚焦 21/21、资源包 75/75、Release 完整世界
+742/742、manifest 74 项、启动负例 14/14、Stage 10 档位合同 9/9 和强制回退均通过。
+六张最终 Release 原图由开发者逐图审阅为 `PASS`；Off/Medium/High 同场景各档性能保持 361 chunks、
+1833 sections，最终 frame P95/P99 均未超过 Off 参考，所有者的性能例外授权未实际消耗。
+合同与视觉记录见 `docs/directional-shadow-contract-v1.md`、
+`docs/developer-visual-record-v10d.txt`。Windows 状态为 `Done`，macOS 保持 `Verify`；当前进入
+V10E 评估。
+
 ## V10E：轻量后处理
 
 V10E 只在 V10A、V10B1-B3 与 V10C-V10D 稳定后评估。第一版允许有界 tone curve、色带抖动和
@@ -249,8 +261,8 @@ V10E 只在 V10A、V10B1-B3 与 V10C-V10D 稳定后评估。第一版允许有�
 | -------- | -------- | -------- | ---------------- |
 | 玩家/世界保存 | save v11 | 不变 | Stage 10 不新增世界或玩家持久字段；v1-v11 迁移夹具保持不变。 |
 | 地形生成 | terrain v3 | 不变 | 材质、tint 与坐标 tile 变体不改变方块、结构或旧世界生成身份。 |
-| 设置 | settings v4 | V10D 升 v5；V10E 预计升 v6 | v5 持久化 `Off/Medium/High` 阴影档，v0-v4 固定迁移为 `Off`；v6 持久化后处理开关，v0-v5 固定迁移为 `Off`。若决定一次升 v5，必须在 V10D 开始前同时冻结两个字段。未知版本/档位严格拒绝。 |
-| 本地化 | 双语各 352 key | V10D/V10E 增量 | 新图形设置、失败回退和帮助文本必须在 `en-US`/`zh-CN` 同批增加，严格 key 对齐；不预写虚假的最终数量。 |
+| 设置 | settings v5 | V10E 预计升 v6 | v5 已持久化 `Off/Medium/High` 阴影档，v0-v4 固定迁移为 `Off`；v6 持久化后处理开关，v0-v5 固定迁移为 `Off`。未知版本/档位严格拒绝。 |
+| 本地化 | 双语各 357 key | V10E 增量 | 新图形设置、失败回退和帮助文本必须在 `en-US`/`zh-CN` 同批增加，严格 key 对齐；不预写虚假的最终数量。 |
 | Q1 场景身份 | schema 3 | 核心 schema 不变，Stage 10 补充身份 | 不把新档位直接加入 schema 3 的必填 identity keys。补充报告记录 shadow/post 状态：`Off` 路径可对 BETA-RC 比较，Medium/High/On 只与同档新 baseline/repeat 比较；不同档位不可直接比较。若未来升 schema 4，必须另立旧基线桥接/重采计划。 |
 | 顶点/资源 | 32 字节 terrain vertex、当前 atlas/manifest | V10A stride 不变；V10B1/B2 只升级资源合同/清单 | 只有真实顶点布局变化才另立格式身份；资源缺失、越界、非法分格必须在 Ogre 构造前失败。 |
 
@@ -283,7 +295,7 @@ VISUAL-RC 不是默认的 1.0 定版，也不自动启动下一批玩法。视�
 
 - 不切换 Ogre GL3Plus，不新增 D3D/Vulkan/Metal 渲染后端。
 - 不改世界生成、save v11、terrain v3、目标、经济、战斗或胜利状态。
-- V10A-V10C 不改设置格式；V10D/V10E 只能按上表升级 settings，不得顺带修改其他用户配置。
+- V10A-V10C 不改设置格式；V10D 已按上表升到 settings v5，V10E 只能按上表升级，不得顺带修改其他用户配置。
 - 不直接迁入 Luanti 的 Lua、MapBlock、IrrlichtMt、ContentDB 或资源包运行时。
 - 不复制 Minecraft、Luanti、纹理包作者或其他游戏的源码与资产。
 - 不以 bloom、滤镜或高饱和度掩盖基础光照、材质和构图问题。

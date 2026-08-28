@@ -3,9 +3,9 @@
 本文把改动类型映射到最低必要验证。当前 Release Candidate 的 H2-H3、Q1-Q3 和干净包
 路径及 Stage 9 / BETA-RC 工程封板已集中完成，真实输入与产品体验仍需目标机器上的操作者记录；
 现有 R3 v1 只保留为十二项物理输入基线，不能单独关闭当前 D4/D6 或视觉/双语/听感验收。
-Stage 10 的 V10A/V10B1 已完成 Windows 工程范围；V10B2 工程与隐藏画面证据已完成，当前等待
-项目所有者自行启动前台 Release 关闭视觉 `Verify`。V10B1 的 macOS Release shader/窗口证据
-保持 `Verify`。详细退出条件见 `docs/visual-quality-roadmap.md`。
+Stage 10 的 V10A、V10B1-B3、V10C 与 V10D 已完成 Windows 工程和对应开发者视觉范围；
+V10B1/V10C/V10D 的 macOS Release shader/窗口证据保持 `Verify`。当前进入 V10E 评估，详细
+退出条件见 `docs/visual-quality-roadmap.md`。
 
 历史运行结果和逐项证据保存在 `docs/project-ledger-2026-08-17.md` 与
 `docs/runtime-validation.md`。
@@ -128,7 +128,7 @@ Windows 自动化 EXE 一律隐藏或后台运行。只有必须由真人操作�
 | `V10B2` | 原创 top/side/bottom 资产、生成脚本、来源/许可、manifest、透明边界和世界/HUD/手持一致性。 | 近景/中景截图、资源包、相关 Q1、干净包和开发者检查。 |
 | `V10B3`（Done） | 生态 tint 范围、坐标/seed/加载顺序确定性 tile 变体、greedy merge key 和 terrain v3 不变。 | 261 项图集、732 项 Release 世界、五张固定截图、相关 Q1、短 Q3 和 `developer-visual-record-v10b3.txt` 均通过。 |
 | `V10C`（Done；macOS Verify） | 定向雾共享参数、云层高度/厚度/速度/颜色边界、帧率无关移动、进入云层与关闭回退。 | 双配置聚焦 21/21、Release 世界 741/741、资源包 65/65、启动负例 14/14、十图多帧开发者视觉 PASS；相关 Q1 保留已批准的快速流送单样本延迟例外，macOS Release 冒烟待补。 |
-| `V10D` | settings v5、v0-v4→Off 迁移、双语 key、Stage 10 shadow 补充身份；Off/Medium/High、距离/纹理/bias/PCF 上限、能力不足回退和资源清理。 | 正午/黄昏各档截图和同档性能；Off 与 BETA/V10C 兼容；开发者检查和 macOS Release 冒烟。 |
+| `V10D`（Done；macOS Verify） | settings v5、v0-v4→Off、双语 key、Stage 10 shadow 补充身份；Off/Medium/High、距离/纹理/bias/PCF 上限、能力回退和资源清理。 | 双配置聚焦 21/21、资源包 75/75、Release 世界 742/742、74 项 manifest、14 类启动负例、9 项档位合同和强制回退通过；正午/黄昏六图开发者检查 PASS，最终同场景各档 frame P95/P99 无需例外，macOS Release 冒烟待补。 |
 | `V10E` | settings 预计 v6、v0-v5→Off 迁移、双语 key、Stage 10 post 补充身份；tone curve/抖动/轻 bloom 开关、HUD 排除、缩放和清理。 | 明暗阶梯、白天/夜晚/菜单截图、同档 Q1、开发者检查和 macOS Release 冒烟；未批准自动曝光、运动模糊、景深、SSAO、体积光。 |
 | `VISUAL-RC` | 适用全门禁、完整截图/开发者检查矩阵、资源/许可/Credits、正式相关 Q1、干净包和 bundle。 | 因 V10A/V10B3 改变网格输出/驻留，以最终身份正式重跑 Q3 双 1800 秒；完整 macOS Xcode 门禁；产品体验和 Physical Input v2 独立记录，不 push、不自动打标签。 |
 
