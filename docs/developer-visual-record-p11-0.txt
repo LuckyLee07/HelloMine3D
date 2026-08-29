@@ -1,0 +1,18 @@
+# HelloMine3D developer visual record v1
+# P11-0 fixture commit: 07f6905ea49eb2bffd3995a465100f2fd71afc26
+# Four final Release RuntimeReadback images and their SHA-256 values are frozen
+# in docs/world-light-source-contract-v1.md. The Codex reviewer inspected every
+# image at original 1280x720 size and measured the central-region luminance.
+record_version=1
+kind=developer_visual
+batch=P11-0
+date=2026-08-29
+commit=07f6905ea49eb2bffd3995a465100f2fd71afc26
+configuration=Release
+gpu=NVIDIA GeForce GTX 1050 Ti
+driver=NVIDIA 472.12;OpenGL 4.6.0.0
+window=1280x720;fullscreen=0
+graphics=world_light_v1;torch14;furnace13;metadata_projection;runtime_readback_hidden
+scenes=cave_before,cave_after,night_torch,furnace_lit
+result=PASS
+reason=Cave ROI luma rises 38.28 to 72.05; the night torch is readable, and the active furnace reaches 67.05 with centred falloff and intact HUD.

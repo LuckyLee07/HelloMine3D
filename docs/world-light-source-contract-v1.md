@@ -238,6 +238,30 @@ tick 投影为熄灭，但保留现有实现冻结的剩余燃烧时间。重新
 开发者视觉记录（`tools/validate_developer_visual_record.ps1`，`-RequirePass`）至少四张
 Release 原图：洞穴内放置火把前、放置后、夜晚地表火把照明、熔炉燃烧时的房间亮度。
 
+### P11-0 开发者视觉证据（2026-08-29）
+
+视觉夹具与严格记录校验由提交
+`07f6905ea49eb2bffd3995a465100f2fd71afc26` 固定。四次捕获均使用 VS2017/v141 Release、
+NVIDIA GeForce GTX 1050 Ti、驱动 472.12、OpenGL 4.6.0.0、1280x720 windowed、seed
+`20260807`、position `8 200 8`、rotation `20 0 0` 和隐藏且不激活的 RuntimeReadback；
+洞穴/熔炉使用 time `6000`，夜间地表使用 time `18000`。
+
+| 原图 | 场景 | SHA-256 |
+| ---- | ---- | ------- |
+| `docs/screenshots/validation-p11-0-cave-before.png` | 完全封闭石室，无发射源 | `F61DDE5C4334DF6ACBD037635A8EEE484447E43577CAAED57625BA5585A22CE2` |
+| `docs/screenshots/validation-p11-0-cave-after.png` | 同一石室，中心放置 level 14 火把 | `4F4F74640A54220D66630F424EB8BF41A1A9662CF8C33AD78F50E2FFDC75DFFF` |
+| `docs/screenshots/validation-p11-0-night-torch.png` | midnight 地表火把 | `79EAC02608DC4EDF8975E5CEAF3A0E92413996F7A01F56DE57F89A799E16DFF4` |
+| `docs/screenshots/validation-p11-0-furnace-lit.png` | 有效铁矿输入与剩余燃烧时间的 level 13 熔炉 | `AD948C1D73B28E7B1DE4C3E03D447CCE916944B5943A3D544C532B3794437843` |
+
+原尺寸审图结论为 `PASS`。固定中央 ROI 的平均亮度从无火把的 `38.28` 提升到有火把的
+`72.05`；活动熔炉为 `67.05`。两种发射源均以方块为中心连续衰减，矿石、地面、火把/熔炉
+轮廓和 HUD 保持可辨。画面顶部少量橙红三角片在光源前后位置不变，属于已有地形图集重复
+坐标采样伪色，未遮挡本批光照证据；该画面缺陷保留给后续视觉/材质批次处理，不在 P11-0
+内扩张渲染范围。
+
+结构化结论见 `docs/developer-visual-record-p11-0.txt`。该记录只关闭本合同的开发者视觉门禁；
+适用 Q1 与整批状态仍需分别通过，不能由截图代替。
+
 ## 退出条件
 
 1. 玩家能在取得煤矿石与原木后，不查阅文档、只通过 2x2 制作区做出火把。
