@@ -576,9 +576,30 @@ finally {
         Write-Host "[PERF_BASELINE] keepAlive pid=$($process.Id)"
     }
     elseif ($process -ne $null -and -not $process.HasExited) {
-        Stop-Process -Id $process.Id -Force
-        try { Wait-Process -Id $process.Id -Timeout 5 -ErrorAction SilentlyContinue } catch {}
-        Write-Host "[PERF_BASELINE] stopped pid=$($process.Id)"
+        # HELLO_PERF_CAPTURE_EXIT asks the client to leave immediately after
+        # publishing its summary. Give Ogre/GL a bounded chance to release
+        # the native context before falling back to a forced stop; otherwise
+        # the next baseline in the same matrix can inherit a stale GPU
+        # context and fail before the first frame.
+        try {
+            Wait-Process -Id $process.Id -Timeout 5 -ErrorAction Stop
+        }
+        catch {
+        }
+        $process.Refresh()
+        if (-not $process.HasExited) {
+            Stop-Process -Id $process.Id -Force
+            try {
+                Wait-Process -Id $process.Id -Timeout 5 `
+                    -ErrorAction SilentlyContinue
+            }
+            catch {
+            }
+            Write-Host "[PERF_BASELINE] forcedStop pid=$($process.Id)"
+        }
+        else {
+            Write-Host "[PERF_BASELINE] exited pid=$($process.Id)"
+        }
     }
 }
 
