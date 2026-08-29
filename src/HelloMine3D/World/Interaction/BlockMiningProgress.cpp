@@ -20,6 +20,14 @@ float MiningProgressSnapshot::normalized() const noexcept
     return std::clamp(elapsedSeconds / requiredSeconds, 0.0f, 1.0f);
 }
 
+int MiningProgressSnapshot::crackStage() const noexcept
+{
+    if (!active) {
+        return -1;
+    }
+    return std::clamp(static_cast<int>(normalized() * 10.f), 0, 9);
+}
+
 bool BlockMiningProgress::advance(
     const glm::ivec3 &target, BlockId blockId,
     Material::ID toolMaterialId, float requiredSeconds,

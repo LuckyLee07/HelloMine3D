@@ -1899,8 +1899,13 @@ namespace
                     m_sandbox != nullptr
                         ? m_sandbox->getMiningProgress()
                         : MiningProgressSnapshot();
+                const ActionFeedbackSnapshot actionFeedback =
+                    m_sandbox != nullptr
+                        ? m_sandbox->getActionFeedback()
+                        : ActionFeedbackSnapshot();
                 m_userInterface->beginFrame(event.timeSinceLastFrame,
-                                            m_frameWorldStats, progress);
+                                            m_frameWorldStats, progress,
+                                            actionFeedback);
             }
             m_updateEnd = std::chrono::steady_clock::now();
             return true;
@@ -2134,8 +2139,11 @@ namespace
             if (m_blockOutline != nullptr)
             {
                 const auto& selection = m_sandbox->getBlockSelection();
+                const MiningProgressSnapshot &progress =
+                    m_sandbox->getMiningProgress();
                 m_blockOutline->update(
-                    selection.has_value() ? &*selection : nullptr);
+                    selection.has_value() ? &*selection : nullptr,
+                    progress.crackStage());
             }
         }
 

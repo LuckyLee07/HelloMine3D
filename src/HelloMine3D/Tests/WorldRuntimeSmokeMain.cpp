@@ -49,6 +49,7 @@
 #include "../Gameplay/ObjectiveRegistry.h"
 #include "../Gameplay/VictoryFlow.h"
 #include "../Gameplay/WaystoneEncounter.h"
+#include "../Feedback/ActionFeedback.h"
 #include "../Item/Material.h"
 #include "../Item/CraftingSession.h"
 #include "../Item/ContainerInventory.h"
@@ -400,6 +401,8 @@ void caseRuntimeConfigOwnership()
                   GameplayMouseButton::Secondary &&
               generated.sprintMode == GameplayHoldMode::Hold &&
               generated.sneakMode == GameplayHoldMode::Hold &&
+              generated.feedbackIntensity ==
+                  GameplayFeedbackIntensity::Full &&
               !generated.worldSeed.has_value(),
           std::to_string(generated.renderDistance) + " " +
               std::to_string(generated.isFullscreen) + " " +
@@ -411,7 +414,7 @@ void caseRuntimeConfigOwnership()
         const std::string text((std::istreambuf_iterator<char>(input)),
                                std::istreambuf_iterator<char>());
         check("V10E/settings-file-is-versioned-with-post-processing",
-               text.find("settings_version 7\n") != std::string::npos &&
+               text.find("settings_version 8\n") != std::string::npos &&
                    text.find("directionalshadowquality off\n") !=
                        std::string::npos &&
                    text.find("postprocessingquality off\n") !=
@@ -426,6 +429,8 @@ void caseRuntimeConfigOwnership()
                    text.find("mouse_break_attack primary\n") !=
                        std::string::npos &&
                    text.find("mouse_guard secondary\n") !=
+                       std::string::npos &&
+                   text.find("feedbackintensity full\n") !=
                        std::string::npos,
               text);
     }
@@ -457,7 +462,7 @@ void caseRuntimeConfigOwnership()
                        DirectionalShadowQuality::Off &&
                    customised.postProcessingQuality ==
                        PostProcessingQuality::Off &&
-                   text.find("settings_version 7\n") == 0 &&
+                   text.find("settings_version 8\n") == 0 &&
                    text.find("directionalshadowquality off\n") !=
                        std::string::npos &&
                    text.find("postprocessingquality off\n") !=
@@ -494,7 +499,7 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::Off &&
                   versionOne.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 7\n") == 0,
+                  text.find("settings_version 8\n") == 0,
               text);
     }
 
@@ -521,7 +526,7 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::Off &&
                   versionTwo.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 7\n") == 0 &&
+                  text.find("settings_version 8\n") == 0 &&
                   text.find("locale en-US\n") != std::string::npos,
               text);
     }
@@ -548,7 +553,7 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::Off &&
                   versionThree.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 7\n") == 0 &&
+                  text.find("settings_version 8\n") == 0 &&
                   text.find("musicvolume 0.649") != std::string::npos,
               text);
     }
@@ -572,7 +577,7 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::Off &&
                   versionFour.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 7\n") == 0 &&
+                  text.find("settings_version 8\n") == 0 &&
                    text.find("directionalshadowquality off\n") !=
                        std::string::npos,
               text);
@@ -596,7 +601,7 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::High &&
                   versionFive.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 7\n") == 0 &&
+                  text.find("settings_version 8\n") == 0 &&
                   text.find("postprocessingquality off\n") !=
                       std::string::npos,
               text);
@@ -632,7 +637,39 @@ void caseRuntimeConfigOwnership()
                   versionSix.mouseBindings.get(
                       GameplayWorldAction::Guard) ==
                       GameplayMouseButton::Secondary &&
-                  text.find("settings_version 7\n") == 0,
+                  text.find("settings_version 8\n") == 0 &&
+                  versionSix.feedbackIntensity ==
+                      GameplayFeedbackIntensity::Full,
+              text);
+    }
+
+    const std::filesystem::path versionSevenPath =
+        directory / "version-seven-config.txt";
+    {
+        std::ofstream output(versionSevenPath,
+                             std::ios::binary | std::ios::trunc);
+        output << "settings_version 7\n"
+               << "directionalshadowquality off\n"
+               << "postprocessingquality off\n"
+               << "sprintmode toggle\n"
+               << "sneakmode hold\n"
+               << "mouse_break_attack primary\n"
+               << "mouse_use secondary\n"
+               << "mouse_place secondary\n"
+               << "mouse_guard secondary\n";
+    }
+    const Config versionSeven = loadRuntimeConfig(versionSevenPath.string());
+    {
+        std::ifstream input(versionSevenPath, std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(input)),
+                               std::istreambuf_iterator<char>());
+        check("P11B/version-seven-settings-migrate-feedback-full",
+              versionSeven.sprintMode == GameplayHoldMode::Toggle &&
+                  versionSeven.feedbackIntensity ==
+                      GameplayFeedbackIntensity::Full &&
+                  text.find("settings_version 8\n") == 0 &&
+                  text.find("feedbackintensity full\n") !=
+                      std::string::npos,
               text);
     }
 
@@ -699,6 +736,7 @@ void caseRuntimeConfigOwnership()
                                  GameplayMouseButton::Side1);
     persisted.sprintMode = GameplayHoldMode::Toggle;
     persisted.sneakMode = GameplayHoldMode::Toggle;
+    persisted.feedbackIntensity = GameplayFeedbackIntensity::Reduced;
     check("G4/settings-save-publishes-valid-candidate",
           saveRuntimeConfig(configPath.string(), persisted,
                             &settingsError),
@@ -720,7 +758,9 @@ void caseRuntimeConfigOwnership()
               reloaded.mouseBindings.get(GameplayWorldAction::Guard) ==
                   GameplayMouseButton::Side1 &&
               reloaded.sprintMode == GameplayHoldMode::Toggle &&
-              reloaded.sneakMode == GameplayHoldMode::Toggle);
+              reloaded.sneakMode == GameplayHoldMode::Toggle &&
+              reloaded.feedbackIntensity ==
+                  GameplayFeedbackIntensity::Reduced);
 
     Config rejected = reloaded;
     rejected.fov = 101;
@@ -855,6 +895,23 @@ void caseRuntimeConfigOwnership()
                   v7Prefix + "sprintmode hold\nsneakmode hold\n"
                   "mouse_break_attack primary\nmouse_use primary\n"
                   "mouse_place secondary\nmouse_guard secondary\n"));
+
+    const std::string v8Required =
+        "settings_version 8\n"
+        "directionalshadowquality off\n"
+        "postprocessingquality off\n"
+        "sprintmode hold\n"
+        "sneakmode hold\n" + v7MouseBindings;
+    check("P11B/invalid-v8-feedback-settings-are-rejected",
+          invalidSettingsRejected(
+              "old-version-feedback.txt",
+              v7Prefix + "sprintmode hold\nsneakmode hold\n" +
+                  v7MouseBindings + "feedbackintensity reduced\n") &&
+              invalidSettingsRejected(
+                  "missing-v8-feedback.txt", v8Required) &&
+              invalidSettingsRejected(
+                  "invalid-v8-feedback.txt",
+                  v8Required + "feedbackintensity strong\n"));
 }
 
 std::string readTextFile(const std::string &path)
@@ -923,7 +980,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 370 &&
+              registry.keys("en-US").size() == 374 &&
               registry.lookup("en-US", "material.torch.name") ==
                   "Torch" &&
               registry.lookup("zh-CN", "material.torch.name") ==
@@ -1665,6 +1722,107 @@ void caseP11ACoreInput()
               !BlockDatabase::get()
                    .getDefinition(BlockId::Stone)
                    .behavior->supportsUse());
+}
+
+void caseP11BActionFeedback()
+{
+    MiningProgressSnapshot mining;
+    check("P11B/inactive-mining-has-no-crack-stage",
+          mining.crackStage() == -1);
+    mining.active = true;
+    mining.requiredSeconds = 1.f;
+    mining.elapsedSeconds = 0.f;
+    const int stageZero = mining.crackStage();
+    mining.elapsedSeconds = 0.1f;
+    const int stageOne = mining.crackStage();
+    mining.elapsedSeconds = 0.99f;
+    const int stageNine = mining.crackStage();
+    mining.elapsedSeconds = 100.f;
+    check("P11B/mining-crack-stages-are-bounded-and-monotonic",
+          stageZero == 0 && stageOne == 1 && stageNine == 9 &&
+              mining.crackStage() == 9);
+
+    SandboxEventBus eventBus;
+    ActionFeedbackTimeline feedback;
+    feedback.attach(eventBus);
+    eventBus.publish(BlockBreakEvent({1, 2, 3}, BlockId::Stone));
+    ActionFeedbackSnapshot snapshot = feedback.snapshot();
+    check("P11B/block-break-feedback-matches-material-and-bounds-particles",
+          snapshot.kind == ActionFeedbackKind::BlockBreak &&
+              snapshot.particles.size() ==
+                  ActionFeedbackTimeline::FullBlockParticleCount &&
+              std::all_of(snapshot.particles.begin(),
+                          snapshot.particles.end(),
+                          [](const ActionFeedbackParticle &particle)
+                          {
+                              return particle.materialId ==
+                                  Material::ID::Stone;
+                          }));
+
+    for (int eventIndex = 0; eventIndex < 12; ++eventIndex)
+    {
+        eventBus.publish(BlockBreakEvent(
+            {eventIndex, 2, 3}, BlockId::Dirt));
+    }
+    snapshot = feedback.snapshot();
+    check("P11B/feedback-particle-cap-is-deterministic",
+          snapshot.particles.size() ==
+              ActionFeedbackTimeline::MaxParticles);
+    feedback.update(0.25f);
+    feedback.update(0.25f);
+    feedback.update(0.25f);
+    check("P11B/feedback-particles-expire-within-contract",
+          feedback.snapshot().particles.empty());
+
+    feedback.setIntensity(GameplayFeedbackIntensity::Reduced);
+    eventBus.publish(BlockBreakEvent({1, 2, 3}, BlockId::Stone));
+    snapshot = feedback.snapshot();
+    check("P11B/reduced-feedback-halves-decorative-density",
+          snapshot.particles.size() == 4 &&
+              snapshot.recoil > 0.f && snapshot.recoil < 0.7f);
+
+    feedback.setIntensity(GameplayFeedbackIntensity::Off);
+    feedback.submitAttackMiss();
+    snapshot = feedback.snapshot();
+    check("P11B/off-keeps-essential-state-without-discomfort-effects",
+          snapshot.kind == ActionFeedbackKind::AttackMiss &&
+              snapshot.particles.empty() && snapshot.recoil == 0.f &&
+              snapshot.hitStopSeconds == 0.f);
+
+    feedback.setIntensity(GameplayFeedbackIntensity::Full);
+    feedback.submitAttackMiss();
+    const ActionFeedbackKind missKind = feedback.snapshot().kind;
+    eventBus.publish(EntityDamageEvent(
+        42, DefaultPlayerActorId, 3.f, 7.f, {}));
+    const ActionFeedbackSnapshot hit = feedback.snapshot();
+    eventBus.publish(CombatGuardEvent(
+        DefaultPlayerActorId, 42, {}, CombatDirection::Front));
+    const ActionFeedbackSnapshot guard = feedback.snapshot();
+    eventBus.publish(EntityDamageEvent(
+        DefaultPlayerActorId, 42, 2.f, 8.f, {}));
+    const ActionFeedbackSnapshot hurt = feedback.snapshot();
+    check("P11B/miss-hit-guard-and-hurt-have-distinct-feedback-states",
+          missKind == ActionFeedbackKind::AttackMiss &&
+              hit.kind == ActionFeedbackKind::AttackHit &&
+              guard.kind == ActionFeedbackKind::Guard &&
+              hurt.kind == ActionFeedbackKind::PlayerHurt &&
+              hit.hitStopSeconds > 0.f &&
+              hit.hitStopSeconds <=
+                  ActionFeedbackTimeline::MaxHitStopSeconds);
+
+    eventBus.publish(ItemPickupEvent(
+        DefaultPlayerActorId, 91, Material::ID::IronIngot, 1, {}));
+    snapshot = feedback.snapshot();
+    check("P11B/item-pickup-feedback-is-bounded-and-material-matched",
+          snapshot.kind == ActionFeedbackKind::ItemPickup &&
+              snapshot.particles.size() == 3 &&
+              snapshot.particles.front().materialId ==
+                  Material::ID::IronIngot);
+
+    const float gainA = ActionFeedbackTimeline::audioGainVariant(77);
+    const float gainB = ActionFeedbackTimeline::audioGainVariant(77);
+    check("P11B/audio-microvariation-is-deterministic-and-bounded",
+          gainA == gainB && gainA >= 0.94f && gainA <= 1.06f);
 }
 
 void casePausedApplicationFlow()
@@ -12909,9 +13067,47 @@ void caseActors()
     check("S5.1/dead-actors-removed",
           world.getActorManager().findActor(mobId) == nullptr);
 
-    // S5.5 - item entity spawn and pickup.
+    // S5.5 / P11B - bounded attraction, lifetime and pickup feedback.
     events.reset();
     player.position = glm::vec3(8.5f, 100.f, 8.5f);
+    const ActorId attractedItemId = world.spawnItemEntity(
+        Material::ID::Dirt, 1, player.position + glm::vec3(2.5f, 0.f, 0.f));
+    auto *attractedItem = dynamic_cast<ItemEntity *>(
+        world.getActorManager().findActor(attractedItemId));
+    if (attractedItem != nullptr)
+    {
+        attractedItem->setPickupDelay(0.f);
+    }
+    world.tick(190);
+    attractedItem = dynamic_cast<ItemEntity *>(
+        world.getActorManager().findActor(attractedItemId));
+    check("P11B/item-attraction-is-bounded-and-points-toward-player",
+          attractedItem != nullptr && attractedItem->velocity.x < 0.f &&
+              glm::length(attractedItem->velocity) <=
+                  ItemEntity::MaxPickupAttractionSpeed + 0.0001f);
+    if (attractedItem != nullptr)
+    {
+        attractedItem->kill();
+    }
+    world.tick(191);
+
+    const ActorId expiringItemId = world.spawnItemEntity(
+        Material::ID::Dirt, 1, player.position + glm::vec3(4.f, 0.f, 0.f));
+    auto *expiringItem = dynamic_cast<ItemEntity *>(
+        world.getActorManager().findActor(expiringItemId));
+    if (expiringItem != nullptr)
+    {
+        ActorSaveState state = expiringItem->getSaveState();
+        state.wanderTime = ItemEntity::MaxLifetimeSeconds - 0.01f;
+        expiringItem->applySaveState(state);
+    }
+    world.tick(192);
+    check("P11B/item-lifetime-persists-and-expires-at-bounded-age",
+          world.getActorManager().findActor(expiringItemId) == nullptr &&
+              ItemEntity::MaxGroundBounces == 2 &&
+              ItemEntity::PickupAttractionRadius == 3.f);
+
+    events.reset();
     const ActorId itemId = world.spawnItemEntity(Material::ID::Stone, 3,
                                                  player.position);
     check("S5.5/item-entity-spawns", itemId != InvalidActorId);
@@ -13083,6 +13279,12 @@ int main()
             casePausedApplicationFlow();
             caseInteractionAndEvents();
         }
+        else if (focus != nullptr && std::string(focus) == "P11B") {
+            caseWorldOutcomeAndLocalizedText();
+            caseRuntimeConfigOwnership();
+            caseP11BActionFeedback();
+            caseActors();
+        }
         else if (focus != nullptr && std::string(focus) == "P11-0") {
             caseOreTextures();
             caseBlockTextureCoordinates();
@@ -13100,6 +13302,7 @@ int main()
         caseBlockTextureCoordinates();
         caseRuntimeConfigOwnership();
         caseP11ACoreInput();
+        caseP11BActionFeedback();
         casePausedApplicationFlow();
         caseAudioFeedback();
         caseStreamedMusic();

@@ -12,7 +12,7 @@
 创建和管理世界，采集资源，制作工作台与工具，获得成长反馈，暂停和调整设置，听到
 基础声音，并在保存、退出、恢复后继续游玩。BETA-RC 与 Stage 10/VISUAL-RC Windows 工程
 闭环后的产品方向评审已经决定暂不进入 1.0 缺陷封板，转入 Stage 11 可玩性与操作体验路线。
-P11-0 与 P11A 已完成工程范围，当前计划开发批次为 P11B 动作反馈；其余批次按固定顺序排队。
+P11-0、P11A 与 P11B 已完成工程范围，当前计划开发批次为 P11-1 建造材料与工具分化；其余批次按固定顺序排队。
 
 当前采用“先完成可开发工程、人工项后置”策略。编译、定向自动测试、数据守恒、存档兼容和当前
 环境可执行的自主验收必须当批执行；真人输入、主观短试玩、活动桌面 GPU、macOS 原生及正式产品
@@ -31,6 +31,7 @@ P11-0 与 P11A 已完成工程范围，当前计划开发批次为 P11B 动作�
 | `docs/playability-experience-roadmap.md` | Stage 11 的 P11-0/P11A-P11F/P11-1/P11-2 顺序、版本预案、Physical Input v2 和 PLAYABILITY-RC 门禁。 |
 | `docs/world-light-source-contract-v1.md` | P11-0 火把定义、图集与配方、metadata 驱动发射、局部重光照和末尾追加的身份约束。 |
 | `docs/core-input-feel-contract-v1.md` | P11A 动作仲裁、settings v7 鼠标绑定、hold/toggle、灵敏度、焦点门和延期边界。 |
+| `docs/action-feedback-contract-v1.md` | P11B 裂纹、粒子、动作/战斗 HUD、掉落物上限、settings v8 强度回退和延期边界。 |
 | `docs/vertex-lighting-contract-v1.md` | V10A 四角采样、AO/光照合成、对角线、greedy 重建和 mesh-dirty 边界。 |
 | `docs/terrain-material-profile-contract-v1.md` | V10B1 图集/tile/颜色参数、资源包覆盖、CPU/GPU 坐标兼容和启动失败边界。 |
 | `docs/directional-shadow-contract-v1.md` | V10D settings v5、方向阴影档位、回退、性能和开发者视觉证据。 |
@@ -53,7 +54,7 @@ P11-0 与 P11A 已完成工程范围，当前计划开发批次为 P11B 动作�
 | ---- | -------- |
 | 现有玩法 | 已有移动、方块放置/破坏、箱子、作物、自然生物、战斗、死亡重生、物品拾取和保存恢复。 |
 | 世界可靠性 | K1 世界目录、K2 事务保存、K3 有界备份与验证恢复、K4 世界管理和主菜单入口已经完成。 |
-| 玩法数据层 | G1-G6、N1-N6、N7A-N12C、BETA-RC 与 Stage 10/VISUAL-RC 均已完成 Windows 工程范围；Stage 11 的 P11-0/P11A 工程已完成，P11B 是下一开发批次。 |
+| 玩法数据层 | G1-G6、N1-N6、N7A-N12C、BETA-RC 与 Stage 10/VISUAL-RC 均已完成 Windows 工程范围；Stage 11 的 P11-0/P11A/P11B 工程已完成，P11-1 是下一开发批次。 |
 | 性能观测 | Q1 七类场景和 Q2 有界阶段计时已闭环；VISUAL-RC 六类 Windows 基线/复测和 Q3 双档正式长稳全部通过。 |
 | 崩溃诊断 | H1-H3 已闭环：本地 dump、脱敏 sidecar、混合栈离线符号、独立符号归档和下次启动提示均通过，默认不上传。 |
 | 跨平台 | macOS Debug/Release、真实窗口、31 项 Xcode 工程图和原生 TSan 门禁已有证据。 |
@@ -67,8 +68,8 @@ P11-0 与 P11A 已完成工程范围，当前计划开发批次为 P11B 动作�
 当前建立的 8 个视觉批次均已完成 Windows 工程范围，VISUAL-RC 为 `Done（Windows 工程）`；
 V10B1/V10C/V10D/V10E 的 macOS shader 子状态因当前无目标机器保持 `Verify`。
 R3 已做部分非正式真人自测；现有 v1 十二项记录尚未完成，而且其范围不足以单独关闭当前
-D4/D6 和 Stage 9/10 的全部人工体验。Stage 11 新增九个不回写历史统计的批次：P11-0/P11A 为
-`Engineering Done`，P11B 为 `Planned`，其余六批为 `Queued`。2026-08-28 的内容与视觉复核在原有六批之间插入了 P11-0、
+D4/D6 和 Stage 9/10 的全部人工体验。Stage 11 新增九个不回写历史统计的批次：P11-0/P11A/P11B 为
+`Engineering Done`，P11-1 为 `Planned`，其余五批为 `Queued`。2026-08-28 的内容与视觉复核在原有六批之间插入了 P11-0、
 P11-1 和 P11-2 三个内容密度批次，理由是原有批次的退出条件依赖世界里并不存在的内容。
 P11A 的 Physical Input v2 已定义但真实执行保持 Deferred，并与视觉/双语/听感验收分开；不能因
 工程完成而自动关闭 D2/D4/D6/R3。
@@ -79,9 +80,9 @@ P11A 的 Physical Input v2 已定义但真实执行保持 Deferred，并与视�
 | Stage 9 已完成 | 16 | FS1 首次进入正确性、FS2 天空/水面/颜色、FS3 体素美术/HUD、N7A 结局状态与文本键基础、N7B 路标胜利闭环、N8A 战斗可读性、N8B 远程敌人与投射物、N9A 确定性结构框架、N9B 遗迹/营地与生态战利品、N10 食物/冶炼/资源经济、N11A 难度档案、N11B 胜利后事件、N12A 本地化完成、N12B 正式采样音效、N12C 低密度音乐、BETA-RC 工程封板 |
 | Stage 10 已完成 | 8 | V10A 顶点平滑光照/AO、V10B1 材质/图集管线、V10B2 原创材质资产、V10B3 生态着色/确定性变体、V10C 定向大气/立体云、V10D 可选方向阴影、V10E 轻量后处理、VISUAL-RC Windows 工程封板 |
 | Stage 10 待开发 | 0 | 无；VISUAL-RC 后产品方向评审已完成 |
-| Stage 11 工程已完成 | 2 | P11-0 世界光源与洞穴照明、P11A 核心操作手感（人工/Q1 子项 Deferred） |
-| Stage 11 下一批 | 1 | P11B 动作反馈与游戏汁水（Planned） |
-| Stage 11 已排队 | 6 | P11-1 建造材料与工具分化、P11C 前 30 分钟、P11D 探索奖励、P11-2 地形轮廓与洞口、P11E 敌人表现、P11F PLAYABILITY-RC |
+| Stage 11 工程已完成 | 3 | P11-0 世界光源与洞穴照明、P11A 核心操作手感、P11B 动作反馈（人工/Q1/动态观感子项 Deferred） |
+| Stage 11 下一批 | 1 | P11-1 建造材料与工具分化（Planned） |
+| Stage 11 已排队 | 5 | P11C 前 30 分钟、P11D 探索奖励、P11-2 地形轮廓与洞口、P11E 敌人表现、P11F PLAYABILITY-RC |
 | 等待最终验收 | 4 | D2、D4、D6、R3 |
 
 ## Stage 10 视觉质量待办
@@ -117,8 +118,8 @@ Stage 11 的固定顺序为
 | ---- | ---- | ------ | -------- | -------- |
 | P11-0 世界光源与洞穴照明 | Engineering Done（Q1/真人 Deferred） | P0 | 火把、Rose 修正、metadata 熔炉发射和局部重光照已落地。 | 双配置、自动/视觉证据完成；活动桌面 Q1 与真人动态试玩后置。合同见 `docs/world-light-source-contract-v1.md`。 |
 | P11A 核心操作手感 | Engineering Done（Physical Input v2 Deferred） | P0 | 单一世界动作仲裁、鼠标重绑定、线性相对增量、焦点门、hold/toggle 与 settings v7 已落地。 | VS2017/v141 双配置、定向 88/88、资源包 80/80 和完整世界回归通过；真实键鼠/Alt+Tab/重启后置。合同见 `docs/core-input-feel-contract-v1.md`。 |
-| P11B 动作反馈与游戏汁水 | Planned | P0 | 手/工具动作、裂纹、粒子、命中/受击/冷却、拾取和音频微变体。 | 工程先关闭时序、上限、可调/可关、HUD 和低配回退；真人动态观察后置 Deferred。 |
-| P11-1 建造材料与工具分化 | Queued | P0 | 木板、圆石、门/活板门的最小建造集，`axe`/`shovel` 工具 class，清理孤儿方块资产。 | 玩家能造出可关闭的落脚点；工具选择产生可感知速度差；`BlockId`/`Material::ID` 末尾追加、旧存档零迁移；资源经济可达性与无环校验通过。 |
+| P11B 动作反馈与游戏汁水 | Engineering Done（真人动态观察 Deferred） | P0 | 十级裂纹、材质粒子、第一人称动作、命中/受击/冷却、拾取、音量微变体和 settings v8 强度回退已落地。 | VS2017/v141 双配置、定向 84/84、Release 完整世界 786/786 和资源包 80/80 通过；真人动态观察后置。合同见 `docs/action-feedback-contract-v1.md`。 |
+| P11-1 建造材料与工具分化 | Planned | P0 | 木板、圆石、门/活板门的最小建造集，`axe`/`shovel` 工具 class，清理孤儿方块资产。 | 玩家能造出可关闭的落脚点；工具选择产生可感知速度差；`BlockId`/`Material::ID` 末尾追加、旧存档零迁移；资源经济可达性与无环校验通过。 |
 | P11C 前 30 分钟重构 | Queued | P0 | 建造、成长、探索并行循环，至少两个可见可选目标和自然配方发现。 | 新世界前 30 分钟真人试玩没有长时间目标空白，并出现至少两项有意义的并行选择；首版不强推饥饿。 |
 | P11D 改变玩法的探索奖励 | Queued | P1 | 结构专属资源/蓝图、实用能力解锁和生态差异经济。 | 主要奖励改变玩家下一步计划或能力，不再以普通矿物和重复铁奖励为主。 |
 | P11-2 地形轮廓与洞口 | Queued | P1 | 山地生物群系与高度域重映射、天然洞口，形成 `terrain v4`；水文生成另行立项。 | 远景出现真实垂直落差；洞穴可从地表发现；旧世界保留创建时生成身份、不回填；按新地形身份重采 Q1 基线后比较，不放宽 Stage 10 已批准的护栏。 |

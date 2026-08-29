@@ -2,6 +2,7 @@
 #define AUDIORUNTIME_H_INCLUDED
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
@@ -128,6 +129,7 @@ class AudioRuntime {
 
   private:
     float categoryVolume(AudioCategory category) const noexcept;
+    float nextFeedbackGain() noexcept;
 
     AudioDefinitionRegistry m_definitions;
     AudioSampleBank m_samples;
@@ -140,6 +142,7 @@ class AudioRuntime {
     std::string m_degradedReason;
     std::function<void(std::string, std::string)> m_captionSink;
     float m_ambientElapsedSeconds = 0.f;
+    std::uint64_t m_feedbackVariantEpoch = 0;
     bool m_worldPaused = false;
     bool m_muted = false;
 };

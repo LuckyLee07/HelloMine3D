@@ -14,6 +14,7 @@ struct MiningProgressSnapshot
     float requiredSeconds = 0.0f;
 
     float normalized() const noexcept;
+    int crackStage() const noexcept;
 };
 
 /// Tracks one continuous hold-to-mine action.

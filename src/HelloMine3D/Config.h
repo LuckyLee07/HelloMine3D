@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 
+#include "Feedback/ActionFeedback.h"
 #include "GameplayInput.h"
 
 enum class DirectionalShadowQuality {
@@ -63,6 +64,8 @@ struct UserSettings {
     GameplayMouseBindings mouseBindings;
     GameplayHoldMode sprintMode = GameplayHoldMode::Hold;
     GameplayHoldMode sneakMode = GameplayHoldMode::Hold;
+    GameplayFeedbackIntensity feedbackIntensity =
+        GameplayFeedbackIntensity::Full;
 };
 
 /// Parameters used only when a world is created.

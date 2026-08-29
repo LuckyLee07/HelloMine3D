@@ -21,6 +21,7 @@ struct OgreActorRendererValidation
     std::size_t actorCount = 0;
     std::size_t mobCount = 0;
     std::size_t itemCount = 0;
+    std::size_t visibleItemCount = 0;
     std::string message;
 };
 
@@ -34,6 +35,8 @@ struct OgreProjectileRendererValidation
 class OgreActorRenderer
 {
   public:
+    static constexpr std::size_t MaxVisibleItems = 256;
+
     explicit OgreActorRenderer(Ogre::SceneManager& sceneManager);
     ~OgreActorRenderer();
 

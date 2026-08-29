@@ -359,7 +359,7 @@ bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
 bin\HelloMine3DMeshDirtyTests.exe         # mesh dirty planner
 bin\HelloMine3DSaveLoadSmoke.exe          # chunk serialization roundtrip
 bin\HelloMine3DEntityLifecycleSmoke.exe   # actor lifecycle
-bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor/audio/objective/visual-settings stack, 743 assertions
+bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor/audio/objective/visual-settings stack, 786 assertions
 bin\HelloMine3DSoak.exe                   # deterministic world stability schedule
 bin\HelloMine3DResourcePackSmoke.exe      # resource resolver and frozen view
 bin\HelloMine3DRecipeSmoke.exe            # strict startup recipe registry

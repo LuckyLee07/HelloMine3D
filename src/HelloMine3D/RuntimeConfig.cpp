@@ -104,6 +104,21 @@ GameplayHoldMode readGameplayHoldMode(
     return mode;
 }
 
+GameplayFeedbackIntensity readGameplayFeedbackIntensity(
+    const std::string &path, const std::string &key,
+    std::istringstream &input)
+{
+    std::string token;
+    GameplayFeedbackIntensity intensity =
+        GameplayFeedbackIntensity::Full;
+    if (!(input >> token) ||
+        !tryParseGameplayFeedbackIntensity(token, intensity)) {
+        fail(path, key, "must contain off, reduced, or full");
+    }
+    requireEnd(path, key, input);
+    return intensity;
+}
+
 void validateVolume(const char *name, float value)
 {
     if (!std::isfinite(value) || value < 0.f || value > 1.f) {
@@ -129,8 +144,10 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
     bool usesVersionFiveKey = false;
     bool usesVersionSixKey = false;
     bool usesVersionSevenKey = false;
+    bool usesVersionEightKey = false;
     bool hasSprintMode = false;
     bool hasSneakMode = false;
+    bool hasFeedbackIntensity = false;
     std::array<bool, GameplayWorldActionCount> hasMouseBinding{};
     std::set<std::string> seenKeys;
     std::string line;
@@ -160,6 +177,8 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
                 version != LocaleRuntimeSettingsFormatVersion &&
                 version != MusicRuntimeSettingsFormatVersion &&
                 version != DirectionalShadowRuntimeSettingsFormatVersion &&
+                version != PostProcessingRuntimeSettingsFormatVersion &&
+                version != InputRuntimeSettingsFormatVersion &&
                 version != PreviousRuntimeSettingsFormatVersion &&
                 version != RuntimeSettingsFormatVersion) {
                 fail(path, key, "uses unsupported version " +
@@ -274,6 +293,12 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
             usesVersionSevenKey = true;
             hasSneakMode = true;
         }
+        else if (key == "feedbackintensity") {
+            parsed.config.feedbackIntensity =
+                readGameplayFeedbackIntensity(path, key, values);
+            usesVersionEightKey = true;
+            hasFeedbackIntensity = true;
+        }
         else if (key == "seed") {
             std::string seedText;
             if (!(values >> seedText)) {
@@ -374,12 +399,12 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
     }
     if (usesVersionSixKey &&
         (!hasVersion || parsed.version <
-                            PreviousRuntimeSettingsFormatVersion)) {
+                            PostProcessingRuntimeSettingsFormatVersion)) {
         fail(path, "settings_version",
              "older versions cannot contain version 6 settings");
     }
     if (hasVersion && parsed.version >=
-                          PreviousRuntimeSettingsFormatVersion &&
+                          PostProcessingRuntimeSettingsFormatVersion &&
         !usesVersionSixKey) {
         fail(path, "postprocessingquality",
              "is required by settings version 6");
@@ -389,7 +414,7 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
         fail(path, "settings_version",
              "older versions cannot contain version 7 settings");
     }
-    if (hasVersion && parsed.version == RuntimeSettingsFormatVersion) {
+    if (hasVersion && parsed.version >= InputRuntimeSettingsFormatVersion) {
         if (!hasSprintMode) {
             fail(path, "sprintmode", "is required by settings version 7");
         }
@@ -405,6 +430,18 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
                      "is required by settings version 7");
             }
         }
+    }
+    if (usesVersionEightKey &&
+        (!hasVersion || parsed.version <
+                            FeedbackRuntimeSettingsFormatVersion)) {
+        fail(path, "settings_version",
+             "older versions cannot contain version 8 settings");
+    }
+    if (hasVersion && parsed.version >=
+                          FeedbackRuntimeSettingsFormatVersion &&
+        !hasFeedbackIntensity) {
+        fail(path, "feedbackintensity",
+             "is required by settings version 8");
     }
     parsed.needsMigration =
         !hasVersion || parsed.version < RuntimeSettingsFormatVersion;
@@ -449,6 +486,9 @@ std::vector<char> serializeRuntimeConfig(const Config &config)
            << "sprintmode " << gameplayHoldModeToken(config.sprintMode)
            << '\n'
            << "sneakmode " << gameplayHoldModeToken(config.sneakMode)
+           << '\n'
+           << "feedbackintensity "
+           << gameplayFeedbackIntensityToken(config.feedbackIntensity)
            << '\n';
     for (std::size_t actionIndex = 0;
          actionIndex < GameplayActionCount; ++actionIndex) {
@@ -542,6 +582,12 @@ void validateUserSettings(const UserSettings &settings)
     if (settings.sneakMode != GameplayHoldMode::Hold &&
         settings.sneakMode != GameplayHoldMode::Toggle) {
         throw std::runtime_error("sneak mode must be hold or toggle");
+    }
+    if (settings.feedbackIntensity != GameplayFeedbackIntensity::Off &&
+        settings.feedbackIntensity != GameplayFeedbackIntensity::Reduced &&
+        settings.feedbackIntensity != GameplayFeedbackIntensity::Full) {
+        throw std::runtime_error(
+            "feedback intensity must be off, reduced, or full");
     }
 }
 

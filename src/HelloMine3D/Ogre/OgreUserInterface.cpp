@@ -43,6 +43,7 @@
 #include "../World/Block/TerrainMaterialProfile.h"
 #include "../Item/SmeltingRegistry.h"
 #include "../World/Interaction/BlockMiningProgress.h"
+#include "../Feedback/ActionFeedback.h"
 #include "../World/Storage/WorldManagementService.h"
 
 namespace
@@ -436,7 +437,8 @@ class OgreUserInterface::Impl
     }
 
     void beginFrame(float deltaSeconds, const WorldDebugStats &stats,
-                    const MiningProgressSnapshot &progress)
+                    const MiningProgressSnapshot &progress,
+                    const ActionFeedbackSnapshot &feedback)
     {
         if (!initialized)
         {
@@ -514,6 +516,7 @@ class OgreUserInterface::Impl
         framePending = true;
         worldStats = stats;
         miningProgress = progress;
+        actionFeedback = feedback;
         if (settingsFixtureRequested && !settingsFixtureOpened &&
             flow->state() == GameApplicationState::Playing && flow->pause())
         {
@@ -1385,6 +1388,46 @@ class OgreUserInterface::Impl
                          draft.sprintMode);
             drawHoldMode("settings.sneak_mode", "##SneakMode",
                          draft.sneakMode);
+            const std::string feedbackPreview = tr(
+                draft.feedbackIntensity == GameplayFeedbackIntensity::Off
+                    ? "settings.feedback_off"
+                    : (draft.feedbackIntensity ==
+                               GameplayFeedbackIntensity::Reduced
+                           ? "settings.feedback_reduced"
+                           : "settings.feedback_full"),
+                gameplayFeedbackIntensityName(draft.feedbackIntensity));
+            if (ImGui::BeginCombo(
+                    label("settings.feedback_intensity",
+                          "##FeedbackIntensity").c_str(),
+                    feedbackPreview.c_str()))
+            {
+                for (GameplayFeedbackIntensity candidate : {
+                         GameplayFeedbackIntensity::Off,
+                         GameplayFeedbackIntensity::Reduced,
+                         GameplayFeedbackIntensity::Full})
+                {
+                    const bool selected =
+                        candidate == draft.feedbackIntensity;
+                    const char *candidateKey =
+                        candidate == GameplayFeedbackIntensity::Off
+                            ? "settings.feedback_off"
+                            : (candidate == GameplayFeedbackIntensity::Reduced
+                                   ? "settings.feedback_reduced"
+                                   : "settings.feedback_full");
+                    const std::string option = tr(
+                        candidateKey,
+                        gameplayFeedbackIntensityName(candidate));
+                    if (ImGui::Selectable(option.c_str(), selected))
+                    {
+                        draft.feedbackIntensity = candidate;
+                    }
+                    if (selected)
+                    {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
             const std::string languagePreview = draft.locale == "zh-CN"
                 ? tr("language.zh-cn") : tr("language.en-us");
             if (ImGui::BeginCombo(label("settings.language", "##Language").c_str(),
@@ -1675,12 +1718,29 @@ class OgreUserInterface::Impl
             return;
         }
 
-        const float feedbackKick = interactionFeedbackSeconds > 0.f
-            ? interactionFeedbackSeconds * 20.f : 0.f;
+        const float actionFade = std::clamp(
+            actionFeedback.secondsRemaining / 0.38f, 0.f, 1.f);
+        // Keep the held-item contact pose for the short presentation-only
+        // hit-stop window. Simulation and attack resolution have already
+        // advanced before this snapshot reaches the renderer.
+        const float feedbackPose = actionFeedback.hitStopSeconds > 0.f
+            ? 1.f
+            : actionFade;
+        const float feedbackKick =
+            (interactionFeedbackSeconds > 0.f
+                 ? interactionFeedbackSeconds * 20.f
+                 : 0.f) +
+            actionFeedback.recoil * feedbackPose * 18.f;
+        const float miningSwing = miningProgress.active
+            ? std::sin(hudElapsedSeconds * 12.f) *
+                  (0.08f + miningProgress.normalized() * 0.08f)
+            : 0.f;
         const float bob = std::sin(hudElapsedSeconds * 2.1f) * 2.5f -
                           feedbackKick;
         const float angle = -0.12f +
-                            std::sin(hudElapsedSeconds * 1.4f) * 0.025f;
+                            std::sin(hudElapsedSeconds * 1.4f) * 0.025f +
+                            miningSwing +
+                            actionFeedback.recoil * feedbackPose * 0.10f;
         const float half = 38.f;
         const ImVec2 center(io.DisplaySize.x - 77.f,
                             io.DisplaySize.y - 84.f + bob);
@@ -1853,6 +1913,94 @@ class OgreUserInterface::Impl
                 foreground->PathStroke(IM_COL32(245, 195, 58, 255),
                                        0, 3.f);
             }
+            const ItemStack &heldItem = player->getHeldItems();
+            int attackCooldownTotal = World::PlayerAttackCooldownTicks;
+            if (!heldItem.isEmpty())
+            {
+                const ToolDefinition *tool =
+                    runtimeToolRegistry().find(
+                        heldItem.getMaterial().id);
+                if (tool != nullptr)
+                {
+                    attackCooldownTotal = tool->attackCooldownTicks;
+                }
+            }
+            if (worldStats.attackCooldownTicksRemaining > 0 &&
+                attackCooldownTotal > 0)
+            {
+                constexpr float pi = 3.14159265358979323846f;
+                const float readiness = 1.f - std::clamp(
+                    static_cast<float>(
+                        worldStats.attackCooldownTicksRemaining) /
+                        static_cast<float>(attackCooldownTotal),
+                    0.f, 1.f);
+                foreground->AddCircle(center, 21.f,
+                                      IM_COL32(18, 22, 28, 190), 36, 2.f);
+                foreground->PathArcTo(
+                    center, 21.f, -pi * 0.5f,
+                    -pi * 0.5f + pi * 2.f * readiness, 36);
+                foreground->PathStroke(IM_COL32(104, 215, 255, 245),
+                                       0, 2.f);
+            }
+            for (const ActionFeedbackParticle &particle :
+                 actionFeedback.particles)
+            {
+                const ImVec2 particleCenter(
+                    center.x + particle.offsetX,
+                    center.y + particle.offsetY);
+                const float half = particle.size * 0.5f;
+                const ImVec2 minimum(particleCenter.x - half,
+                                     particleCenter.y - half);
+                const ImVec2 maximum(particleCenter.x + half,
+                                     particleCenter.y + half);
+                const ImU32 tint = IM_COL32(
+                    255, 255, 255,
+                    static_cast<int>(std::clamp(
+                        particle.alpha, 0.f, 1.f) * 255.f));
+                if (!drawMaterialIcon(foreground, particle.materialId,
+                                      minimum, maximum, tint))
+                {
+                    foreground->AddRectFilled(
+                        minimum, maximum, tint, 1.f);
+                }
+            }
+            if (actionFeedback.kind == ActionFeedbackKind::AttackMiss)
+            {
+                const float fade = std::clamp(
+                    actionFeedback.secondsRemaining / 0.18f, 0.f, 1.f);
+                foreground->AddCircle(
+                    center, 18.f + (1.f - fade) * 5.f,
+                    IM_COL32(190, 198, 210,
+                             static_cast<int>(fade * 210.f)),
+                    28, 2.f);
+            }
+            else if (actionFeedback.kind == ActionFeedbackKind::AttackHit ||
+                     actionFeedback.kind == ActionFeedbackKind::Guard)
+            {
+                const bool guarded =
+                    actionFeedback.kind == ActionFeedbackKind::Guard;
+                const ImU32 markerColour = guarded
+                    ? IM_COL32(80, 220, 235, 235)
+                    : IM_COL32(255, 78, 66, 240);
+                const float inner = 12.f;
+                const float outer = 19.f;
+                foreground->AddLine(
+                    ImVec2(center.x - outer, center.y - outer),
+                    ImVec2(center.x - inner, center.y - inner),
+                    markerColour, 3.f);
+                foreground->AddLine(
+                    ImVec2(center.x + outer, center.y - outer),
+                    ImVec2(center.x + inner, center.y - inner),
+                    markerColour, 3.f);
+                foreground->AddLine(
+                    ImVec2(center.x + outer, center.y + outer),
+                    ImVec2(center.x + inner, center.y + inner),
+                    markerColour, 3.f);
+                foreground->AddLine(
+                    ImVec2(center.x - outer, center.y + outer),
+                    ImVec2(center.x - inner, center.y + inner),
+                    markerColour, 3.f);
+            }
             if (interactionFeedbackSeconds > 0.f)
             {
                 const float fade = std::clamp(
@@ -1880,6 +2028,35 @@ class OgreUserInterface::Impl
                     ImVec2(center.x - inner, center.y + inner),
                     feedbackColour, 3.f);
             }
+        }
+
+        const float healthRatioForWarning =
+            worldStats.playerMaxHealth > 0.f
+                ? std::clamp(worldStats.playerHealth /
+                                 worldStats.playerMaxHealth,
+                             0.f, 1.f)
+                : 0.f;
+        if (healthRatioForWarning > 0.f &&
+            healthRatioForWarning <= 0.30f &&
+            appliedSettings.feedbackIntensity !=
+                GameplayFeedbackIntensity::Off)
+        {
+            const float intensity =
+                appliedSettings.feedbackIntensity ==
+                        GameplayFeedbackIntensity::Reduced
+                    ? 0.35f
+                    : 0.65f;
+            const float pulse = 0.75f +
+                std::sin(hudElapsedSeconds * 5.f) * 0.25f;
+            const ImU32 warning = IM_COL32(
+                220, 35, 28,
+                static_cast<int>(255.f * intensity * pulse));
+            ImDrawList *foreground = ImGui::GetForegroundDrawList();
+            foreground->AddRect(
+                ImVec2(3.f, 3.f),
+                ImVec2(io.DisplaySize.x - 3.f,
+                       io.DisplaySize.y - 3.f),
+                warning, 0.f, 0, 5.f);
         }
 
         if (miningProgress.active &&
@@ -2997,6 +3174,7 @@ class OgreUserInterface::Impl
     OgreUserInterfaceAction pendingAction;
     WorldDebugStats worldStats;
     MiningProgressSnapshot miningProgress;
+    ActionFeedbackSnapshot actionFeedback;
     bool showDebugPanel = false;
     bool settingsFixtureRequested = false;
     bool settingsFixtureOpened = false;
@@ -3039,9 +3217,11 @@ OgreUserInterface::~OgreUserInterface()
 
 void OgreUserInterface::beginFrame(
     float deltaSeconds, const WorldDebugStats &worldStats,
-    const MiningProgressSnapshot &miningProgress)
+    const MiningProgressSnapshot &miningProgress,
+    const ActionFeedbackSnapshot &actionFeedback)
 {
-    m_impl->beginFrame(deltaSeconds, worldStats, miningProgress);
+    m_impl->beginFrame(deltaSeconds, worldStats, miningProgress,
+                       actionFeedback);
 }
 
 void OgreUserInterface::keyEvent(const OIS::KeyEvent &event, bool pressed,

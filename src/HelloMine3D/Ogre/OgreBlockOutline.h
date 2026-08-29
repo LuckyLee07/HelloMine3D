@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 namespace Ogre
 {
     class ManualObject;
@@ -18,10 +20,15 @@ class OgreBlockOutline
     OgreBlockOutline(const OgreBlockOutline &) = delete;
     OgreBlockOutline &operator=(const OgreBlockOutline &) = delete;
 
-    void update(const BlockSelection *selection);
+    void update(const BlockSelection *selection, int crackStage = -1);
+    static std::size_t crackSegmentCount(int crackStage) noexcept;
 
   private:
+    void rebuildCracks(int crackStage);
+
     Ogre::SceneManager *m_sceneManager = nullptr;
     Ogre::ManualObject *m_object = nullptr;
+    Ogre::ManualObject *m_crackObject = nullptr;
     Ogre::SceneNode *m_node = nullptr;
+    int m_crackStage = -2;
 };

@@ -5,6 +5,9 @@
 #include "../Sandbox/Events/PlayerEvents.h"
 #include "../World/World.h"
 
+#include <algorithm>
+#include <cmath>
+
 ItemEntity::ItemEntity(ActorId id, Material::ID materialId, int amount,
                        const glm::vec3 &actorPosition)
     : Actor(id, "item", actorPosition, glm::vec3(0.25f, 0.25f, 0.25f))
@@ -24,10 +27,17 @@ void ItemEntity::tick(World &world, float dt)
         return;
     }
 
+    m_ageSeconds += std::max(0.f, dt);
+    if (m_ageSeconds >= MaxLifetimeSeconds) {
+        kill();
+        return;
+    }
+
     if (m_pickupDelay > 0.f) {
         m_pickupDelay -= dt;
     }
 
+    applyPickupAttraction(world, dt);
     updatePhysics(world, dt);
     tryPickup(world);
 }
@@ -39,6 +49,10 @@ ActorSaveState ItemEntity::getSaveState() const
     state.materialId = static_cast<int>(m_materialId);
     state.amount = m_amount;
     state.pickupDelay = m_pickupDelay;
+    // ActorSaveState::wanderTime is kind-specific and was previously zero for
+    // item actors. Reusing it preserves save v11 while making lifetime
+    // deterministic across save/reload.
+    state.wanderTime = m_ageSeconds;
     return state;
 }
 
@@ -48,6 +62,9 @@ void ItemEntity::applySaveState(const ActorSaveState &state)
     m_materialId = static_cast<Material::ID>(state.materialId);
     m_amount = state.amount;
     m_pickupDelay = state.pickupDelay;
+    m_ageSeconds = std::clamp(
+        state.wanderTime, 0.f, MaxLifetimeSeconds);
+    m_groundBounces = 0;
 }
 
 Material::ID ItemEntity::getMaterialId() const
@@ -70,6 +87,35 @@ void ItemEntity::setPickupDelay(float seconds)
     m_pickupDelay = seconds;
 }
 
+float ItemEntity::getAgeSeconds() const noexcept
+{
+    return m_ageSeconds;
+}
+
+void ItemEntity::applyPickupAttraction(World &world, float dt)
+{
+    if (m_pickupDelay > 0.f || dt <= 0.f) {
+        return;
+    }
+    Player *player = world.getPlayer();
+    if (player == nullptr) {
+        return;
+    }
+    const glm::vec3 destination =
+        player->position + glm::vec3(0.f, 0.65f, 0.f);
+    const glm::vec3 delta = destination - position;
+    const float distance = glm::length(delta);
+    if (!std::isfinite(distance) || distance <= m_pickupRadius ||
+        distance > PickupAttractionRadius) {
+        return;
+    }
+    velocity += delta / distance * (18.f * dt);
+    const float speed = glm::length(velocity);
+    if (std::isfinite(speed) && speed > MaxPickupAttractionSpeed) {
+        velocity *= MaxPickupAttractionSpeed / speed;
+    }
+}
+
 void ItemEntity::updatePhysics(World &world, float dt)
 {
     velocity.y -= 20.f * dt;
@@ -81,7 +127,13 @@ void ItemEntity::updatePhysics(World &world, float dt)
     auto block = world.getBlock(x, y, z);
     if (block != 0 && block.getData().isCollidable && velocity.y <= 0.f) {
         position.y = static_cast<float>(y) + 1.05f;
-        velocity.y = 0.f;
+        if (velocity.y < -1.f && m_groundBounces < MaxGroundBounces) {
+            velocity.y = -velocity.y * 0.24f;
+            ++m_groundBounces;
+        }
+        else {
+            velocity.y = 0.f;
+        }
         velocity.x *= 0.7f;
         velocity.z *= 0.7f;
     }

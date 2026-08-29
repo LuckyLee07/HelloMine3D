@@ -44,6 +44,7 @@ class SandboxRuntime : public NonCopyable {
     const std::optional<BlockSelection> &getBlockSelection() const;
     const std::optional<ActorSelection> &getActorSelection() const;
     const MiningProgressSnapshot &getMiningProgress() const noexcept;
+    ActionFeedbackSnapshot getActionFeedback() const;
     const std::optional<FoodUseResult> &getFoodUseResult() const noexcept;
     void cancelMiningProgress() noexcept;
 
@@ -53,19 +54,23 @@ class SandboxRuntime : public NonCopyable {
     void handlePlayerInteraction(World &world,
                                  const SandboxInputState &input,
                                  GameplayWorldAction action,
-                                 float deltaSeconds);
+                                 float deltaSeconds,
+                                 bool breakAttackPressed);
     void runFixedTicks(float deltaSeconds);
 
     Config m_config;
     Camera &m_camera;
     Player m_player;
     WorldManager m_worldManager;
+    ActionFeedbackTimeline m_actionFeedback;
+    World *m_feedbackWorld = nullptr;
     FixedTickScheduler m_tickScheduler;
     std::optional<BlockSelection> m_blockSelection;
     std::optional<ActorSelection> m_actorSelection;
     BlockMiningProgress m_miningProgress;
     std::optional<FoodUseResult> m_foodUseResult;
     float m_interactionCooldownSeconds = 0.0f;
+    bool m_breakAttackWasDown = false;
 };
 
 #endif // SANDBOXRUNTIME_H_INCLUDED

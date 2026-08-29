@@ -22,6 +22,11 @@ SandboxRuntime::SandboxRuntime(const Config &config, Camera &camera,
     BlockDatabase::get();
     m_camera.hookEntity(m_player);
     m_worldManager.loadWorld(WorldManager::MainWorldId);
+    m_feedbackWorld = m_worldManager.getActiveWorld();
+    if (m_feedbackWorld != nullptr) {
+        m_actionFeedback.attach(m_feedbackWorld->getEventBus());
+    }
+    m_actionFeedback.setIntensity(m_config.feedbackIntensity);
     m_player.resetInterpolation();
     m_camera.update();
 }
@@ -31,11 +36,22 @@ void SandboxRuntime::update(const SandboxInputState &input,
 {
     HELLOMINE3D_PROFILE_SCOPE("SandboxRuntime::update");
     m_foodUseResult.reset();
+    m_actionFeedback.update(deltaSeconds);
+    const bool breakAttackPressed =
+        acceptsPlayerInput && input.breakAttack && !m_breakAttackWasDown;
+    m_breakAttackWasDown = input.breakAttack;
     m_player.applyInput(acceptsPlayerInput
                             ? input.player
                             : PlayerInputState());
 
     World *worldBeforeTick = m_worldManager.getActiveWorld();
+    if (worldBeforeTick != m_feedbackWorld) {
+        m_actionFeedback.detach();
+        m_feedbackWorld = worldBeforeTick;
+        if (m_feedbackWorld != nullptr) {
+            m_actionFeedback.attach(m_feedbackWorld->getEventBus());
+        }
+    }
     if (worldBeforeTick != nullptr) {
         const GameplayWorldAction action = acceptsPlayerInput
             ? resolveWorldAction(*worldBeforeTick, input)
@@ -49,6 +65,13 @@ void SandboxRuntime::update(const SandboxInputState &input,
                     m_player.rotation);
 
     World *world = m_worldManager.getActiveWorld();
+    if (world != m_feedbackWorld) {
+        m_actionFeedback.detach();
+        m_feedbackWorld = world;
+        if (m_feedbackWorld != nullptr) {
+            m_actionFeedback.attach(m_feedbackWorld->getEventBus());
+        }
+    }
     if (world == nullptr) {
         m_blockSelection.reset();
         m_actorSelection.reset();
@@ -68,7 +91,8 @@ void SandboxRuntime::update(const SandboxInputState &input,
         0.0f, m_interactionCooldownSeconds -
                   std::max(0.0f, deltaSeconds));
     if (acceptsPlayerInput) {
-        handlePlayerInteraction(*world, input, worldAction, deltaSeconds);
+        handlePlayerInteraction(*world, input, worldAction, deltaSeconds,
+                                breakAttackPressed);
     }
     else {
         m_miningProgress.cancel();
@@ -83,6 +107,7 @@ void SandboxRuntime::applyUserSettings(
     const UserSettings &settings) noexcept
 {
     userSettings(m_config) = settings;
+    m_actionFeedback.setIntensity(settings.feedbackIntensity);
     m_camera.setFov(settings.fov);
     World *world = m_worldManager.getActiveWorld();
     if (world != nullptr) {
@@ -92,7 +117,14 @@ void SandboxRuntime::applyUserSettings(
 
 bool SandboxRuntime::closeWorld()
 {
+    World *previousWorld = m_worldManager.getActiveWorld();
+    m_actionFeedback.detach();
+    m_feedbackWorld = nullptr;
     if (!m_worldManager.closeAllWorlds()) {
+        m_feedbackWorld = previousWorld;
+        if (m_feedbackWorld != nullptr) {
+            m_actionFeedback.attach(m_feedbackWorld->getEventBus());
+        }
         return false;
     }
     m_blockSelection.reset();
@@ -143,6 +175,11 @@ const MiningProgressSnapshot &SandboxRuntime::getMiningProgress() const noexcept
     return m_miningProgress.snapshot();
 }
 
+ActionFeedbackSnapshot SandboxRuntime::getActionFeedback() const
+{
+    return m_actionFeedback.snapshot();
+}
+
 const std::optional<FoodUseResult> &
 SandboxRuntime::getFoodUseResult() const noexcept
 {
@@ -185,7 +222,8 @@ GameplayWorldAction SandboxRuntime::resolveWorldAction(
 
 void SandboxRuntime::handlePlayerInteraction(
     World &world, const SandboxInputState &input,
-    GameplayWorldAction action, float deltaSeconds)
+    GameplayWorldAction action, float deltaSeconds,
+    bool breakAttackPressed)
 {
     if (input.useHeldFood) {
         m_miningProgress.cancel();
@@ -202,11 +240,19 @@ void SandboxRuntime::handlePlayerInteraction(
     if (action == GameplayWorldAction::BreakAttack) {
         if (m_actorSelection.has_value()) {
             m_miningProgress.cancel();
-            world.tryAttackActor(m_actorSelection->actorId, true);
+            const CombatAttackResult result =
+                world.tryAttackActor(m_actorSelection->actorId, true);
+            if (breakAttackPressed && result != CombatAttackResult::Hit &&
+                result != CombatAttackResult::CoolingDown) {
+                m_actionFeedback.submitAttackMiss();
+            }
             return;
         }
         if (!m_blockSelection.has_value()) {
             m_miningProgress.cancel();
+            if (breakAttackPressed) {
+                m_actionFeedback.submitAttackMiss();
+            }
             return;
         }
         const BlockSelection &selection = *m_blockSelection;

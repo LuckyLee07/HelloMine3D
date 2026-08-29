@@ -184,6 +184,8 @@ OgreActorRendererValidation OgreActorRenderer::validateSnapshots(
     }
 
     validation.valid = true;
+    validation.visibleItemCount = std::min(
+        validation.itemCount, OgreActorRenderer::MaxVisibleItems);
     validation.message = "ok";
     return validation;
 }
@@ -248,8 +250,17 @@ void OgreActorRenderer::sync(
 
     std::unordered_set<ActorId> liveIds;
     liveIds.reserve(snapshots.size());
+    std::size_t visibleItems = 0;
     for (const ActorSnapshot& snapshot : snapshots)
     {
+        if (snapshot.type == "item")
+        {
+            if (visibleItems >= MaxVisibleItems)
+            {
+                continue;
+            }
+            ++visibleItems;
+        }
         liveIds.insert(snapshot.id);
         auto existing = m_visuals.find(snapshot.id);
         if (existing != m_visuals.end() &&
