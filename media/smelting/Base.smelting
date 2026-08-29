@@ -18,6 +18,12 @@ output hellomine:glass 1
 ticks 80
 end
 
+smelt hellomine:stone
+input hellomine:cobblestone
+output hellomine:stone 1
+ticks 80
+end
+
 fuel hellomine:coal_ore
 ticks 160
 end

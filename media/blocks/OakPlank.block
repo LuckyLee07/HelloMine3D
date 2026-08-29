@@ -1,8 +1,8 @@
 Name
-OakPlank
+Oak Planks
 
 Id
-11
+22
 
 TexAll
 5 1
@@ -17,4 +17,19 @@ ShaderType
 0
 
 Collidable
+1
+
+Light
+0
+
+Hardness
+0.6
+
+MiningClass
+axe
+
+RequiredToolTier
+0
+
+WrongToolDrops
 1

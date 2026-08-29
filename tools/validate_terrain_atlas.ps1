@@ -91,8 +91,8 @@ foreach ($line in $lines | Select-Object -Skip 1) {
          $semanticSet.Add($entry.Semantic) -and
          $coordinateSet.Add("$x,$y")) $trimmed
 }
-Test-Contract "layout-populated-count" ($entries.Count -eq 113) `
-    "expected=113 actual=$($entries.Count)"
+Test-Contract "layout-populated-count" ($entries.Count -eq 117) `
+    "expected=117 actual=$($entries.Count)"
 
 $requiredSemantics = @(
     'grass_top', 'grass_side', 'dirt', 'stone', 'oak_bark_side',
@@ -102,7 +102,8 @@ $requiredSemantics = @(
     'oak_planks', 'wheat_seeds', 'wheat', 'wooden_pickaxe',
     'stone_pickaxe', 'iron_ingot', 'iron_pickaxe', 'iron_sword', 'bread',
     'wooden_sword', 'stone_sword', 'raw_meat', 'cooked_meat',
-    'cactus_salad', 'trail_ration', 'plant_fiber', 'torch'
+    'cactus_salad', 'trail_ration', 'plant_fiber', 'torch',
+    'cobblestone', 'oak_door', 'wooden_axe', 'wooden_shovel'
 )
 Test-Contract "required-material-coverage" `
     (@($requiredSemantics | Where-Object {
@@ -265,7 +266,6 @@ $expectedBlocks = @{
     TallGrass = @{TexAll='11,0'}
     WheatCrop = @{TexAll='11,0'}
     DeadShrub = @{TexAll='12,0'}
-    OakSapling = @{TexAll='12,0'}
     CoalOre = @{TexAll='13,0'}
     IronOre = @{TexAll='14,0'}
     WaystoneCore = @{TexAll='15,0'}
@@ -276,6 +276,9 @@ $expectedBlocks = @{
     GlassBorderless = @{TexAll='4,1'}
     OakPlank = @{TexAll='5,1'}
     Torch = @{TexAll='6,1'}
+    Cobblestone = @{TexAll='7,1'}
+    OakDoorClosed = @{TexAll='8,1'}
+    OakDoorOpen = @{TexAll='8,1'}
 }
 foreach ($blockName in $expectedBlocks.Keys) {
     $actual = Read-BlockCoordinates $blockName
@@ -294,7 +297,8 @@ $semanticByMaterial = @(
     'wheat', 'workbench', 'wooden_pickaxe', 'stone_pickaxe', 'furnace',
     'iron_ingot', 'iron_pickaxe', 'iron_sword', 'bread', 'wooden_sword',
     'stone_sword', 'waystone_core', 'raw_meat', 'cooked_meat',
-    'cactus_salad', 'trail_ration', 'plant_fiber', 'torch'
+    'cactus_salad', 'trail_ration', 'plant_fiber', 'torch', 'oak_planks',
+    'cobblestone', 'oak_door', 'wooden_axe', 'wooden_shovel'
 )
 $materialSource = Get-Content -LiteralPath $materialSourcePath -Raw
 $iconsMatch = [regex]::Match(

@@ -89,8 +89,8 @@ function Read-AtlasLayout {
         $byCoordinate[$coordinate] = $entry
     }
 
-    if ($bySemantic.Count -ne 113) {
-        throw "Terrain atlas layout must define exactly 113 populated tiles; got $($bySemantic.Count)."
+    if ($bySemantic.Count -ne 117) {
+        throw "Terrain atlas layout must define exactly 117 populated tiles; got $($bySemantic.Count)."
     }
     return $bySemantic
 }
@@ -360,6 +360,120 @@ function Copy-EcologyTile {
     }
 }
 
+function Add-P11BuildingTile {
+    param(
+        [string]$Semantic,
+        [ValidateSet('cobblestone', 'oak_door', 'wooden_axe',
+                     'wooden_shovel')]
+        [string]$Kind
+    )
+
+    if (-not $layoutEntries.ContainsKey($Semantic)) {
+        throw "P11 building tile is missing from the layout: $Semantic"
+    }
+    if (-not $builtSemantics.Add($Semantic)) {
+        throw "Generated tile was emitted twice: $Semantic"
+    }
+    $entry = $layoutEntries[$Semantic]
+    $tile = New-Object Drawing.Bitmap 16, 16,
+        ([Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    try {
+        if ($Kind -in @('cobblestone', 'oak_door')) {
+            $sourceSemantic = if ($Kind -eq 'cobblestone') {
+                'stone'
+            }
+            else {
+                'oak_planks'
+            }
+            $sourceEntry = $layoutEntries[$sourceSemantic]
+            for ($y = 0; $y -lt 16; ++$y) {
+                for ($x = 0; $x -lt 16; ++$x) {
+                    $pixel = $atlas.GetPixel(
+                        [int]$sourceEntry.X * 16 + $x,
+                        [int]$sourceEntry.Y * 16 + $y)
+                    $colour = $pixel
+                    if ($Kind -eq 'cobblestone') {
+                        $band = [int][Math]::Floor($y / 5.0)
+                        $seam = @(@(5, 12), @(2, 9), @(6, 13), @(3, 10))[$band]
+                        $joint = $y -in @(4, 9, 14) -or
+                            ($x -in $seam -and $y % 5 -ne 4)
+                        if ($joint) {
+                            $colour = [Drawing.Color]::FromArgb(
+                                255,
+                                [Math]::Max(24, $pixel.R - 56),
+                                [Math]::Max(24, $pixel.G - 56),
+                                [Math]::Max(24, $pixel.B - 56))
+                        }
+                    }
+                    else {
+                        $frame = $x -in @(0, 1, 14, 15) -or
+                            $y -in @(0, 1, 7, 8, 14, 15) -or
+                            $x -in @(7, 8)
+                        if ($frame) {
+                            $colour = [Drawing.Color]::FromArgb(
+                                255, 76, 43, 18)
+                        }
+                        if ($x -in @(11, 12) -and $y -in @(9, 10)) {
+                            $colour = [Drawing.Color]::FromArgb(
+                                255, 218, 170, 55)
+                        }
+                    }
+                    $tile.SetPixel($x, $y, $colour)
+                }
+            }
+        }
+        else {
+            for ($y = 0; $y -lt 16; ++$y) {
+                for ($x = 0; $x -lt 16; ++$x) {
+                    $tile.SetPixel($x, $y, [Drawing.Color]::Transparent)
+                }
+            }
+            $dark = [Drawing.Color]::FromArgb(255, 73, 43, 20)
+            $wood = [Drawing.Color]::FromArgb(255, 166, 105, 43)
+            $light = [Drawing.Color]::FromArgb(255, 213, 151, 69)
+            if ($Kind -eq 'wooden_axe') {
+                for ($y = 5; $y -le 14; ++$y) {
+                    $x = 10 - [int][Math]::Floor(($y - 5) / 2.5)
+                    $tile.SetPixel($x, $y, $dark)
+                    $tile.SetPixel([Math]::Min(15, $x + 1), $y, $wood)
+                }
+                for ($y = 1; $y -le 6; ++$y) {
+                    $left = @(5, 3, 2, 2, 3, 5)[$y - 1]
+                    $right = @(9, 10, 10, 9, 8, 7)[$y - 1]
+                    for ($x = $left; $x -le $right; ++$x) {
+                        $edge = $x -eq $left -or $x -eq $right -or
+                            $y -eq 1
+                        $tile.SetPixel($x, $y,
+                            $(if ($edge) { $dark } else { $light }))
+                    }
+                }
+            }
+            else {
+                for ($y = 5; $y -le 14; ++$y) {
+                    $tile.SetPixel(7, $y, $dark)
+                    $tile.SetPixel(8, $y, $wood)
+                }
+                for ($y = 1; $y -le 5; ++$y) {
+                    $left = @(6, 5, 4, 4, 5)[$y - 1]
+                    $right = @(9, 10, 11, 11, 10)[$y - 1]
+                    for ($x = $left; $x -le $right; ++$x) {
+                        $edge = $x -eq $left -or $x -eq $right -or
+                            $y -eq 1
+                        $tile.SetPixel($x, $y,
+                            $(if ($edge) { $dark } else { $light }))
+                    }
+                }
+            }
+        }
+
+        $graphics.DrawImageUnscaled(
+            $tile, [int]$entry.X * 16, [int]$entry.Y * 16)
+    }
+    finally {
+        $tile.Dispose()
+    }
+}
+
 try {
     # V10B2 original material source. Opaque surface crops exclude the
     # presentation outline; flora and icons keep their transparent silhouette.
@@ -387,6 +501,8 @@ try {
     Copy-GeneratedTile glass_borderless material 392 169 63 75
     Copy-GeneratedTile oak_planks material 472 172 59 69
     Copy-GeneratedTile torch torch 496 64 279 1073 -KeepAspect
+    Add-P11BuildingTile cobblestone cobblestone
+    Add-P11BuildingTile oak_door oak_door
 
     Copy-GeneratedTile wheat_seeds material 98 305 39 38 -KeepAspect
     Copy-GeneratedTile wheat material 162 284 61 68 -KeepAspect
@@ -405,6 +521,8 @@ try {
     Copy-GeneratedTile cactus_salad economy 962 169 69 74 -KeepAspect
     Copy-GeneratedTile trail_ration economy 1042 175 65 68 -KeepAspect
     Copy-GeneratedTile plant_fiber economy 1116 176 74 71 -KeepAspect
+    Add-P11BuildingTile wooden_axe wooden_axe
+    Add-P11BuildingTile wooden_shovel wooden_shovel
 
     # V10B3 derives restrained world-only ecology colours and three small
     # orientation/brightness variants from the frozen V10B2 tiles. This stays

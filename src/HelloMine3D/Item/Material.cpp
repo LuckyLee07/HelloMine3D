@@ -40,6 +40,11 @@ namespace
         "hellomine:trail_ration",
         "hellomine:plant_fiber",
         "hellomine:torch",
+        "hellomine:oak_planks",
+        "hellomine:cobblestone",
+        "hellomine:oak_door",
+        "hellomine:wooden_axe",
+        "hellomine:wooden_shovel",
     }};
 
     constexpr std::array<Material::IconCoordinate, Material::ID::Count>
@@ -49,7 +54,8 @@ namespace
             {14, 0}, {3, 1}, {4, 1}, {0, 1}, {0, 2}, {1, 2},
             {1, 1}, {2, 2}, {3, 2}, {2, 1}, {4, 2}, {5, 2},
             {6, 2}, {7, 2}, {8, 2}, {9, 2}, {15, 0}, {10, 2},
-            {11, 2}, {12, 2}, {13, 2}, {14, 2}, {6, 1},
+            {11, 2}, {12, 2}, {13, 2}, {14, 2}, {6, 1}, {5, 1},
+            {7, 1}, {8, 1}, {15, 2}, {15, 3},
         }};
 }
 
@@ -107,6 +113,15 @@ const Material Material::TRAIL_RATION(ID::TrailRation, 99, false,
 const Material Material::PLANT_FIBER(ID::PlantFiber, 99, false,
                                      "Plant Fiber");
 const Material Material::TORCH(ID::Torch, 99, true, "Torch");
+const Material Material::OAK_PLANK_BLOCK(ID::OakPlank, 99, true,
+                                         "Oak Planks");
+const Material Material::COBBLESTONE_BLOCK(ID::Cobblestone, 99, true,
+                                           "Cobblestone");
+const Material Material::OAK_DOOR(ID::OakDoor, 99, true, "Oak Door");
+const Material Material::WOODEN_AXE(ID::WoodenAxe, 1, false,
+                                    "Wooden Axe", true);
+const Material Material::WOODEN_SHOVEL(ID::WoodenShovel, 1, false,
+                                       "Wooden Shovel", true);
 
 Material::Material(Material::ID id, int maxStack, bool isBlock,
                    std::string &&name, bool isTool, bool isFood)
@@ -185,6 +200,15 @@ BlockId Material::toBlockID() const
         case Torch:
             return BlockId::Torch;
 
+        case OakPlank:
+            return BlockId::OakPlank;
+
+        case Cobblestone:
+            return BlockId::Cobblestone;
+
+        case OakDoor:
+            return BlockId::OakDoorClosed;
+
         default:
             return BlockId::NUM_TYPES;
     }
@@ -252,6 +276,16 @@ const Material &Material::toMaterial(BlockId id)
 
         case BlockId::Torch:
             return TORCH;
+
+        case BlockId::OakPlank:
+            return OAK_PLANK_BLOCK;
+
+        case BlockId::Cobblestone:
+            return COBBLESTONE_BLOCK;
+
+        case BlockId::OakDoorClosed:
+        case BlockId::OakDoorOpen:
+            return OAK_DOOR;
 
         default:
             return NOTHING;
@@ -362,6 +396,21 @@ const Material &Material::toMaterial(Material::ID id)
 
         case Torch:
             return TORCH;
+
+        case OakPlank:
+            return OAK_PLANK_BLOCK;
+
+        case Cobblestone:
+            return COBBLESTONE_BLOCK;
+
+        case OakDoor:
+            return OAK_DOOR;
+
+        case WoodenAxe:
+            return WOODEN_AXE;
+
+        case WoodenShovel:
+            return WOODEN_SHOVEL;
 
         default:
             return NOTHING;

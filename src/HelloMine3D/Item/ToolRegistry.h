@@ -13,6 +13,8 @@ enum class MiningClass
 {
     None,
     Pickaxe,
+    Axe,
+    Shovel,
     Weapon
 };
 

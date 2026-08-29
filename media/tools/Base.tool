@@ -59,3 +59,23 @@ attack 5.0
 attack_cooldown 9
 attack_reach 3.5
 end
+
+tool hellomine:wooden_axe
+class axe
+tier 1
+speed 3.0
+durability 16
+attack 3.0
+attack_cooldown 11
+attack_reach 3.0
+end
+
+tool hellomine:wooden_shovel
+class shovel
+tier 1
+speed 4.0
+durability 16
+attack 2.0
+attack_cooldown 12
+attack_reach 3.0
+end

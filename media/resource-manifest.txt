@@ -16,6 +16,7 @@ block|media/blocks/Air.block
 block|media/blocks/Cactus.block
 block|media/blocks/Chest.block
 block|media/blocks/CoalOre.block
+block|media/blocks/Cobblestone.block
 block|media/blocks/DeadShrub.block
 block|media/blocks/Dirt.block
 block|media/blocks/Furnace.block
@@ -24,7 +25,10 @@ block|media/blocks/GlassBorderless.block
 block|media/blocks/Grass.block
 block|media/blocks/IronOre.block
 block|media/blocks/OakBark.block
+block|media/blocks/OakDoorClosed.block
+block|media/blocks/OakDoorOpen.block
 block|media/blocks/OakLeaf.block
+block|media/blocks/OakPlank.block
 block|media/blocks/Rose.block
 block|media/blocks/Sand.block
 block|media/blocks/Stone.block
@@ -74,6 +78,8 @@ shader|media/ogre/HelloMine3DTerrainShadow.vert
 shader|media/ogre/HelloMine3DWater.frag
 shader|media/ogre/HelloMine3DWater.vert
 shape|media/shapes/Cross.shape
+shape|media/shapes/OakDoorClosed.shape
+shape|media/shapes/OakDoorOpen.shape
 smelting|media/smelting/Base.smelting
 texture|media/textures/DefaultPack.png
 text|media/text/en-US.text

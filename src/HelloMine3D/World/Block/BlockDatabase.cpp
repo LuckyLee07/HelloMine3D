@@ -4,6 +4,7 @@
 #include "ChunkBlock.h"
 #include "../../Player/Player.h"
 #include "../../Item/SmeltingRegistry.h"
+#include "../../Sandbox/Events/BlockEvents.h"
 #include "../../Sandbox/Events/PlayerEvents.h"
 #include "../World.h"
 
@@ -36,6 +37,47 @@ class NoDropBlockBehavior final : public BlockBehavior {
                          const ChunkBlock &) const override
     {
         return Material::ID::Nothing;
+    }
+};
+
+class FixedDropBlockBehavior final : public BlockBehavior {
+  public:
+    explicit FixedDropBlockBehavior(Material::ID materialId)
+        : m_materialId(materialId)
+    {
+    }
+
+    Material::ID getDrop(const BlockDefinition &,
+                         const ChunkBlock &) const override
+    {
+        return m_materialId;
+    }
+
+  private:
+    Material::ID m_materialId;
+};
+
+class OakDoorBlockBehavior final : public BlockBehavior {
+  public:
+    bool supportsUse() const noexcept override { return true; }
+
+    Material::ID getDrop(const BlockDefinition &,
+                         const ChunkBlock &) const override
+    {
+        return Material::ID::OakDoor;
+    }
+
+    void onUse(World &world, Player &, const glm::ivec3 &position,
+               const ChunkBlock &block) const override
+    {
+        const auto previous = static_cast<BlockId>(block.id);
+        const BlockId next = previous == BlockId::OakDoorClosed
+            ? BlockId::OakDoorOpen
+            : BlockId::OakDoorClosed;
+        world.setBlock(position.x, position.y, position.z,
+                       ChunkBlock(next));
+        world.getEventBus().publish(
+            BlockChangedEvent(position, previous, next));
     }
 };
 
@@ -349,7 +391,9 @@ BlockDatabase::BlockDatabase()
     addBlock(BlockId::Air, "Air");
     addBlock(BlockId::Grass, "Grass");
     addBlock(BlockId::Dirt, "Dirt");
-    addBlock(BlockId::Stone, "Stone");
+    addBlock(BlockId::Stone, "Stone",
+             std::make_unique<FixedDropBlockBehavior>(
+                 Material::ID::Cobblestone));
     addBlock(BlockId::OakBark, "OakBark");
     addBlock(BlockId::OakLeaf, "OakLeaf");
     addBlock(BlockId::Sand, "Sand");
@@ -378,6 +422,12 @@ BlockDatabase::BlockDatabase()
     addBlock(BlockId::WaystoneCore, "WaystoneCore",
              std::make_unique<WaystoneBlockBehavior>());
     addBlock(BlockId::Torch, "Torch");
+    addBlock(BlockId::OakPlank, "OakPlank");
+    addBlock(BlockId::Cobblestone, "Cobblestone");
+    addBlock(BlockId::OakDoorClosed, "OakDoorClosed",
+             std::make_unique<OakDoorBlockBehavior>());
+    addBlock(BlockId::OakDoorOpen, "OakDoorOpen",
+             std::make_unique<OakDoorBlockBehavior>());
 }
 
 BlockDatabase &BlockDatabase::get()

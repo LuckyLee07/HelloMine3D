@@ -1,11 +1,11 @@
 Name
-Dirt
+Cobblestone
 
 Id
-2
+23
 
 TexAll
-2 0
+7 1
 
 Opaque
 1
@@ -23,13 +23,13 @@ Collidable
 1
 
 Hardness
-0.5
+1.5
 
 MiningClass
-shovel
+pickaxe
 
 RequiredToolTier
-0
+1
 
 WrongToolDrops
-1
+0

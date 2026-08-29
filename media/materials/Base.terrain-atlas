@@ -23,6 +23,8 @@ glass|3|1|translucent|000000|Framed glass|有框玻璃
 glass_borderless|4|1|translucent|000000|Borderless glass|无边框玻璃
 oak_planks|5|1|opaque|A27432|Oak planks|橡木木板
 torch|6|1|cutout|000000|Torch|火把
+cobblestone|7|1|opaque|646869|Cobblestone|圆石
+oak_door|8|1|opaque|8A5B25|Oak door|橡木门
 wheat_seeds|0|2|icon|000000|Wheat seeds|小麦种子
 wheat|1|2|icon|000000|Wheat|小麦
 wooden_pickaxe|2|2|icon|000000|Wooden pickaxe|木镐
@@ -38,6 +40,8 @@ cooked_meat|11|2|icon|000000|Cooked meat|熟肉
 cactus_salad|12|2|icon|000000|Cactus salad|仙人掌沙拉
 trail_ration|13|2|icon|000000|Trail ration|旅行口粮
 plant_fiber|14|2|icon|000000|Plant fiber|植物纤维
+wooden_axe|15|2|icon|000000|Wooden axe|木斧
+wooden_shovel|15|3|icon|000000|Wooden shovel|木铲
 
 # V10B3 world-only ecology rows. HUD and held items retain the base entries.
 grass_top_desert_v0|0|3|opaque|7D7A39|Desert grass top variant 0|沙漠草地顶部变体 0

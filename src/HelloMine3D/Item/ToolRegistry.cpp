@@ -437,6 +437,10 @@ const char *ToolRegistry::miningClassName(MiningClass value) noexcept
     switch (value) {
         case MiningClass::Pickaxe:
             return "pickaxe";
+        case MiningClass::Axe:
+            return "axe";
+        case MiningClass::Shovel:
+            return "shovel";
         case MiningClass::Weapon:
             return "weapon";
         default:
@@ -453,6 +457,14 @@ bool ToolRegistry::tryParseMiningClass(
     }
     if (text == "pickaxe") {
         value = MiningClass::Pickaxe;
+        return true;
+    }
+    if (text == "axe") {
+        value = MiningClass::Axe;
+        return true;
+    }
+    if (text == "shovel") {
+        value = MiningClass::Shovel;
         return true;
     }
     if (text == "weapon") {

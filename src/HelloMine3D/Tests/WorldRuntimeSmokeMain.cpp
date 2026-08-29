@@ -980,11 +980,15 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 374 &&
+              registry.keys("en-US").size() == 379 &&
               registry.lookup("en-US", "material.torch.name") ==
                   "Torch" &&
               registry.lookup("zh-CN", "material.torch.name") ==
                   "火把" &&
+              registry.lookup("en-US", "material.oak_door.name") ==
+                  "Oak Door" &&
+              registry.lookup("zh-CN", "material.wooden_shovel.name") ==
+                  "木铲" &&
               registry.lookup("en-US", "settings.music_volume") ==
                   "Music" &&
               registry.lookup("zh-CN", "settings.music_volume") !=
@@ -2159,6 +2163,14 @@ void caseOreTextures()
     check("P11-0/torch-tile-is-visible-cutout",
           visiblePixelCount(6, 1) > 8 &&
               visiblePixelCount(6, 1) < 128);
+    check("P11-1/building-and-tool-tiles-are-visible-and-distinct",
+          hashTile(7, 1) != stoneHash &&
+              hashTile(8, 1) != hashTile(5, 1) &&
+              visiblePixelCount(7, 1) == 256 &&
+              visiblePixelCount(8, 1) == 256 &&
+              visiblePixelCount(15, 2) > 12 &&
+              visiblePixelCount(15, 3) > 12 &&
+              hashTile(15, 2) != hashTile(15, 3));
 
     std::set<std::uint64_t> itemHashes;
     bool itemTilesPopulated = true;
@@ -4724,12 +4736,12 @@ void caseBlockBehaviorDispatch()
     check("C1/all-definitions-have-behavior",
           allDefinitionsHaveBehavior);
 
-    const ChunkBlock stone(BlockId::Stone);
-    const auto &stoneDefinition =
-        database.getDefinition(BlockId::Stone);
+    const ChunkBlock dirt(BlockId::Dirt);
+    const auto &dirtDefinition =
+        database.getDefinition(BlockId::Dirt);
     check("C1/default-behavior-preserves-drop",
-          stoneDefinition.behavior->getDrop(stoneDefinition, stone) ==
-              Material::ID::Stone);
+          dirtDefinition.behavior->getDrop(dirtDefinition, dirt) ==
+              Material::ID::Dirt);
 
     const ChunkBlock glass(BlockId::Glass);
     const auto &glassDefinition =
@@ -7993,6 +8005,24 @@ attack 5
 attack_cooldown 9
 attack_reach 3.5
 end
+tool hellomine:wooden_axe
+class axe
+tier 1
+speed 3
+durability 16
+attack 3
+attack_cooldown 11
+attack_reach 3
+end
+tool hellomine:wooden_shovel
+class shovel
+tier 1
+speed 4
+durability 16
+attack 2
+attack_cooldown 12
+attack_reach 3
+end
 )";
 }
 
@@ -8128,6 +8158,11 @@ end
 smelt hellomine:glass
 input hellomine:sand
 output hellomine:glass 1
+ticks 80
+end
+smelt hellomine:stone
+input hellomine:cobblestone
+output hellomine:stone 1
 ticks 80
 end
 fuel hellomine:coal_ore
@@ -8298,7 +8333,7 @@ void caseToolMiningProgression()
         world, player, glm::vec3(9.5f, 100.5f, 8.5f));
     check("G3/broken-tool-advances-to-occupied-slot",
           secondBreak && player.getHeldItems().getMaterial().id ==
-                             Material::ID::Stone &&
+                             Material::ID::Cobblestone &&
               player.getHeldItems().getNumInStack() == 2);
 
     world.setBlock(10, 100, 8, BlockId::IronOre);
@@ -8396,6 +8431,154 @@ void caseToolMiningProgression()
                   std::string::npos &&
               upgraded.find("objective_progress_count 0") !=
                   std::string::npos);
+}
+
+// ---------------------------------------------------------------------------
+// P11-1 - minimum building set, openable door and tool-class ownership
+// ---------------------------------------------------------------------------
+void caseP11MinimumBuildingAndTools()
+{
+    const auto &database = BlockDatabase::get();
+    const auto &closedDoor =
+        database.getDefinition(BlockId::OakDoorClosed);
+    const auto &openDoor = database.getDefinition(BlockId::OakDoorOpen);
+    check("P11-1/appended-identities-preserve-existing-save-values",
+          static_cast<int>(BlockId::Torch) == 21 &&
+              static_cast<int>(BlockId::OakPlank) == 22 &&
+              static_cast<int>(BlockId::Cobblestone) == 23 &&
+              static_cast<int>(BlockId::OakDoorClosed) == 24 &&
+              static_cast<int>(BlockId::OakDoorOpen) == 25 &&
+              static_cast<int>(Material::ID::Torch) == 34 &&
+              static_cast<int>(Material::ID::OakPlank) == 35 &&
+              static_cast<int>(Material::ID::WoodenShovel) == 39 &&
+              Material::toMaterial(BlockId::OakDoorOpen).id ==
+                  Material::ID::OakDoor &&
+              Material::OAK_DOOR.toBlockID() ==
+                  BlockId::OakDoorClosed);
+    check("P11-1/door-states-own-render-collision-and-use-contract",
+          closedDoor.collidable && !openDoor.collidable &&
+              closedDoor.render.shape.faces.size() == 2 &&
+              openDoor.render.shape.faces.size() == 2 &&
+              closedDoor.behavior->supportsUse() &&
+              openDoor.behavior->supportsUse());
+
+    ItemStack empty(Material::NOTHING, 0);
+    ItemStack axe(Material::WOODEN_AXE, 1);
+    ItemStack shovel(Material::WOODEN_SHOVEL, 1);
+    const BlockMiningEvaluation handOak =
+        BlockInteractionSystem::evaluateMining(BlockId::OakBark, empty);
+    const BlockMiningEvaluation axeOak =
+        BlockInteractionSystem::evaluateMining(BlockId::OakBark, axe);
+    const BlockMiningEvaluation shovelOak =
+        BlockInteractionSystem::evaluateMining(BlockId::OakBark, shovel);
+    const BlockMiningEvaluation axeDirt =
+        BlockInteractionSystem::evaluateMining(BlockId::Dirt, axe);
+    const BlockMiningEvaluation shovelDirt =
+        BlockInteractionSystem::evaluateMining(BlockId::Dirt, shovel);
+    check("P11-1/axe-and-shovel-accelerate-only-owned-materials",
+          axeOak.matchingClass && !shovelOak.matchingClass &&
+              axeOak.requiredSeconds < handOak.requiredSeconds &&
+              shovelOak.requiredSeconds == handOak.requiredSeconds &&
+              !axeDirt.matchingClass && shovelDirt.matchingClass &&
+              shovelDirt.requiredSeconds < axeDirt.requiredSeconds);
+
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+    const auto directory = freshSaveDirectory("p11_minimum_building");
+    Config config = makeConfig();
+    Camera camera(config);
+    const glm::ivec3 stonePosition{9, 100, 8};
+    const glm::ivec3 plankPosition{10, 100, 8};
+    const glm::ivec3 doorPosition{11, 100, 8};
+    bool saved = false;
+    {
+        Player player;
+        World world(camera, config, player, directory, false, 1);
+        world.setBlock(stonePosition.x, stonePosition.y, stonePosition.z,
+                       BlockId::Stone);
+        player.addItem(Material::WOODEN_PICKAXE, 1);
+        const bool stoneBroken = BlockInteractionSystem::breakBlock(
+            world, player, glm::vec3(stonePosition) + glm::vec3(0.5f));
+        check("P11-1/stone-harvest-produces-cobblestone-not-stone",
+              stoneBroken &&
+                  player.getInventoryCount(Material::ID::Cobblestone) == 1 &&
+                  player.getInventoryCount(Material::ID::Stone) == 0);
+
+        world.setBlock(plankPosition.x, plankPosition.y, plankPosition.z,
+                       BlockId::Air);
+        world.setBlock(doorPosition.x, doorPosition.y, doorPosition.z,
+                       BlockId::Air);
+        player.addItem(Material::OAK_PLANK_BLOCK, 1);
+        player.addItem(Material::OAK_DOOR, 1);
+        const auto selectMaterial = [&player](Material::ID materialId) {
+            for (int slot = 0; slot < player.getInventorySlotCount(); ++slot) {
+                if (player.getInventorySlot(slot).getMaterial().id ==
+                    materialId) {
+                    PlayerInputState input;
+                    input.hotbarSlot = slot;
+                    player.applyInput(input);
+                    return true;
+                }
+            }
+            return false;
+        };
+        const bool plankPlaced =
+            selectMaterial(Material::ID::OakPlank) &&
+            BlockInteractionSystem::placeBlock(
+                world, player,
+                glm::vec3(plankPosition) + glm::vec3(0.5f));
+        const bool doorPlaced =
+            selectMaterial(Material::ID::OakDoor) &&
+            BlockInteractionSystem::placeBlock(
+                world, player,
+                glm::vec3(doorPosition) + glm::vec3(0.5f));
+        check("P11-1/planks-and-closed-door-place-as-appended-blocks",
+              plankPlaced && doorPlaced &&
+                  static_cast<BlockId>(world.getBlock(
+                      plankPosition.x, plankPosition.y,
+                      plankPosition.z).id) == BlockId::OakPlank &&
+                  static_cast<BlockId>(world.getBlock(
+                      doorPosition.x, doorPosition.y,
+                      doorPosition.z).id) == BlockId::OakDoorClosed);
+
+        const bool opened = BlockInteractionSystem::useBlock(
+            world, player,
+            glm::vec3(doorPosition) + glm::vec3(0.5f));
+        check("P11-1/door-use-toggles-to-noncollidable-open-state",
+              opened && static_cast<BlockId>(world.getBlock(
+                  doorPosition.x, doorPosition.y,
+                  doorPosition.z).id) == BlockId::OakDoorOpen &&
+                  !database.getDefinition(BlockId::OakDoorOpen).collidable);
+
+        player.addItem(Material::WOODEN_AXE, 1);
+        player.addItem(Material::WOODEN_SHOVEL, 1);
+        saved = world.save();
+    }
+
+    Player restoredPlayer;
+    World restoredWorld(camera, config, restoredPlayer, directory, false, 1);
+    const bool restoredOpen = static_cast<BlockId>(restoredWorld.getBlock(
+        doorPosition.x, doorPosition.y, doorPosition.z).id) ==
+        BlockId::OakDoorOpen;
+    const bool closed = BlockInteractionSystem::useBlock(
+        restoredWorld, restoredPlayer,
+        glm::vec3(doorPosition) + glm::vec3(0.5f));
+    const bool reopened = BlockInteractionSystem::useBlock(
+        restoredWorld, restoredPlayer,
+        glm::vec3(doorPosition) + glm::vec3(0.5f));
+    const bool recovered = BlockInteractionSystem::breakBlock(
+        restoredWorld, restoredPlayer,
+        glm::vec3(doorPosition) + glm::vec3(0.5f));
+    check("P11-1/new-content-roundtrips-without-save-migration",
+          saved && restoredOpen && closed && reopened && recovered &&
+              restoredPlayer.getInventoryCount(Material::ID::OakDoor) == 1 &&
+              restoredPlayer.getInventoryCount(Material::ID::WoodenAxe) == 1 &&
+              restoredPlayer.getInventoryCount(
+                  Material::ID::WoodenShovel) == 1 &&
+              static_cast<BlockId>(restoredWorld.getBlock(
+                  plankPosition.x, plankPosition.y,
+                  plankPosition.z).id) == BlockId::OakPlank);
 }
 
 // ---------------------------------------------------------------------------
@@ -10915,9 +11098,9 @@ void casePlayableAlphaJourney()
                     world, player,
                     glm::vec3(position) + glm::vec3(0.5f));
         }
-        check("G6/wooden-pickaxe-gathers-stone-and-loses-durability",
+    check("G6/wooden-pickaxe-gathers-stone-and-loses-durability",
               gatheredStone &&
-                  countPlayer(player, Material::ID::Stone) ==
+                  countPlayer(player, Material::ID::Cobblestone) ==
                       AlphaJourney::RequiredStone &&
                   player.getInventorySlot(woodenSlot).getDurability() == 13 &&
                   world.getAlphaJourneySnapshot().step ==
@@ -10928,8 +11111,10 @@ void casePlayableAlphaJourney()
             glm::vec3(workbenchPosition) + glm::vec3(0.5f));
         const bool stonePickaxeCrafted = reopenedWorkbench && craft(
             player, CraftingSession::WorkbenchGridSize,
-            {{0, Material::ID::Stone}, {1, Material::ID::Stone},
-             {2, Material::ID::Stone}, {4, Material::ID::OakBark},
+            {{0, Material::ID::Cobblestone},
+             {1, Material::ID::Cobblestone},
+             {2, Material::ID::Cobblestone},
+             {4, Material::ID::OakBark},
              {7, Material::ID::OakBark}},
             Material::ID::StonePickaxe);
         player.closeCrafting();
@@ -12821,7 +13006,7 @@ void caseInteractionAndEvents()
     check("S3.5/break-adds-configured-drop",
           player.getSaveState().inventory.size() >= 2 &&
               player.getInventorySlot(1).getMaterial().id ==
-                  Material::ID::Stone &&
+                  Material::ID::Cobblestone &&
               player.getInventorySlot(1).getNumInStack() == 1,
           "stone=" + std::to_string(
               player.getInventorySlot(1).getNumInStack()));
@@ -12842,7 +13027,8 @@ void caseInteractionAndEvents()
         BlockInteractionSystem::placeBlock(world, player, target);
     check("S3.4/place-through-interaction-system", placed);
     check("S3.4/place-sets-block",
-          world.getBlock(8, y, 8).id == static_cast<Block_t>(BlockId::Stone));
+          world.getBlock(8, y, 8).id ==
+              static_cast<Block_t>(BlockId::Cobblestone));
     check("S3.4/place-consumes-item",
           player.getHeldItems().getNumInStack() == 0,
           "held x" + std::to_string(player.getHeldItems().getNumInStack()));
@@ -13293,6 +13479,11 @@ int main()
             caseLocalRelightAfterEdits();
             caseFurnaceProgression();
         }
+        else if (focus != nullptr && std::string(focus) == "P11-1") {
+            caseWorldOutcomeAndLocalizedText();
+            caseOreTextures();
+            caseP11MinimumBuildingAndTools();
+        }
         else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
@@ -13346,6 +13537,7 @@ int main()
         casePostVictoryEvents();
         caseWorkbenchCrafting();
         caseToolMiningProgression();
+        caseP11MinimumBuildingAndTools();
         caseNaturalMobPopulation();
         caseCombatAndRespawn();
         caseCombatDepth();

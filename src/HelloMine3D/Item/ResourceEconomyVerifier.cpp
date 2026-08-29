@@ -324,7 +324,7 @@ ResourceEconomyContract makeBaseResourceEconomyContract()
     contract.acquisitionSources = {
         {"terrain.grass", Material::ID::Grass, 1, 30},
         {"terrain.dirt", Material::ID::Dirt, 1, 20},
-        {"terrain.stone", Material::ID::Stone, 1, 40},
+        {"terrain.stone_drop", Material::ID::Cobblestone, 1, 40},
         {"forest.oak_bark", Material::ID::OakBark, 1, 30},
         {"forest.oak_leaf", Material::ID::OakLeaf, 1, 10},
         {"terrain.sand", Material::ID::Sand, 1, 20},
@@ -350,6 +350,9 @@ ResourceEconomyContract makeBaseResourceEconomyContract()
         Material::ID::RawMeat, Material::ID::CookedMeat,
         Material::ID::CactusSalad, Material::ID::TrailRation,
         Material::ID::PlantFiber, Material::ID::Torch,
+        Material::ID::OakPlank, Material::ID::Cobblestone,
+        Material::ID::OakDoor, Material::ID::WoodenAxe,
+        Material::ID::WoodenShovel,
     };
     contract.trackedNewMaterials = {
         Material::ID::RawMeat, Material::ID::CookedMeat,
@@ -363,6 +366,8 @@ ResourceEconomyContract makeBaseResourceEconomyContract()
         {"recovery.field_supply", Material::ID::Bread, 2},
         {"recovery.field_supply", Material::ID::CookedMeat, 2},
         {"recovery.expedition", Material::ID::TrailRation, 1},
+        {"building.safe_shelter", Material::ID::OakPlank, 16},
+        {"building.safe_shelter", Material::ID::OakDoor, 1},
     };
     return contract;
 }

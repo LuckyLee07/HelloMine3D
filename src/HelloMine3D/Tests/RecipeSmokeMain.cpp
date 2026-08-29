@@ -127,6 +127,24 @@ attack 5
 attack_cooldown 9
 attack_reach 3.5
 end
+tool hellomine:wooden_axe
+class axe
+tier 1
+speed 3
+durability 16
+attack 3
+attack_cooldown 11
+attack_reach 3
+end
+tool hellomine:wooden_shovel
+class shovel
+tier 1
+speed 4
+durability 16
+attack 2
+attack_cooldown 12
+attack_reach 3
+end
 )";
     }
 
@@ -295,8 +313,12 @@ end
         }
         check("G1/material-ids-roundtrip",
               roundTrip &&
-                  static_cast<int>(Material::ID::Torch) ==
-                      static_cast<int>(Material::ID::Count) - 1 &&
+                  static_cast<int>(Material::ID::Torch) == 34 &&
+                  static_cast<int>(Material::ID::OakPlank) == 35 &&
+                  static_cast<int>(Material::ID::Cobblestone) == 36 &&
+                  static_cast<int>(Material::ID::OakDoor) == 37 &&
+                  static_cast<int>(Material::ID::WoodenAxe) == 38 &&
+                  static_cast<int>(Material::ID::WoodenShovel) == 39 &&
                   Material::BREAD.isFood && !Material::BREAD.isTool &&
                   Material::COOKED_MEAT.isFood &&
                   Material::CACTUS_SALAD.isFood &&
@@ -314,8 +336,14 @@ end
                   Material::TORCH.toBlockID() == BlockId::Torch &&
                   Material::toMaterial(BlockId::Torch).id ==
                       Material::ID::Torch &&
-                  static_cast<int>(BlockId::Torch) ==
-                      static_cast<int>(BlockId::NUM_TYPES) - 1);
+                  Material::WOODEN_AXE.isTool &&
+                  Material::WOODEN_SHOVEL.isTool &&
+                  Material::OAK_DOOR.toBlockID() ==
+                      BlockId::OakDoorClosed &&
+                  Material::toMaterial(BlockId::OakDoorOpen).id ==
+                      Material::ID::OakDoor &&
+                  static_cast<int>(BlockId::Torch) == 21 &&
+                  static_cast<int>(BlockId::OakDoorOpen) == 25);
         Material::ID unchanged = Material::ID::Stone;
         check("G1/unknown-material-id-rejected",
               !Material::tryParseStringId("hellomine:not_registered",
@@ -1013,11 +1041,16 @@ end
             registry.find(Material::ID::WoodenSword);
         const ToolDefinition *stoneSword =
             registry.find(Material::ID::StoneSword);
+        const ToolDefinition *woodenAxe =
+            registry.find(Material::ID::WoodenAxe);
+        const ToolDefinition *woodenShovel =
+            registry.find(Material::ID::WoodenShovel);
         check("G3/tool-registry-freezes-complete-base-set",
-              registry.isFrozen() && registry.tools().size() == 6 &&
+              registry.isFrozen() && registry.tools().size() == 8 &&
                   wood != nullptr && stone != nullptr && iron != nullptr &&
                   sword != nullptr && woodenSword != nullptr &&
-                  stoneSword != nullptr);
+                  stoneSword != nullptr && woodenAxe != nullptr &&
+                  woodenShovel != nullptr);
         check("G3/tool-stats-are-data-driven",
               wood != nullptr && wood->miningClass == MiningClass::Pickaxe &&
                   wood->tier == 1 && wood->speedMultiplier == 2.0f &&
@@ -1037,7 +1070,11 @@ end
                   woodenSword->attackReach == 3.25f &&
                   stoneSword->attackDamage == 5.f &&
                   stoneSword->attackCooldownTicks == 9 &&
-                  stoneSword->attackReach == 3.5f);
+                  stoneSword->attackReach == 3.5f &&
+                  woodenAxe->miningClass == MiningClass::Axe &&
+                  woodenAxe->speedMultiplier == 3.f &&
+                  woodenShovel->miningClass == MiningClass::Shovel &&
+                  woodenShovel->speedMultiplier == 4.f);
         check("G3/tool-registry-is-startup-frozen",
               throwsContaining(
                   [&registry]
@@ -1659,10 +1696,17 @@ end
                   wood->outputCount == 1 && wood->ingredients.size() == 1 &&
                   wood->ingredients[0].materialId == Material::ID::OakBark &&
                   wood->ingredients[0].count == 3);
-        check("N4/stone-sword-recipe-uses-stone-and-handle",
+        check("N4/stone-sword-recipe-uses-cobblestone-and-handle",
               stone != nullptr &&
                   stone->outputMaterialId == Material::ID::StoneSword &&
-                  stone->outputCount == 1 && stone->ingredients.size() == 2);
+                  stone->outputCount == 1 && stone->ingredients.size() == 2 &&
+                  std::any_of(
+                      stone->ingredients.begin(), stone->ingredients.end(),
+                      [](const RecipeIngredient &ingredient) {
+                          return ingredient.materialId ==
+                                     Material::ID::Cobblestone &&
+                                 ingredient.count == 2;
+                      }));
     }
 
     void caseResourceEconomy()
@@ -1688,11 +1732,13 @@ end
             smelting.findRecipe(Material::ID::RawMeat);
         const SmeltingRecipeDefinition *glass =
             smelting.findRecipe(Material::ID::Sand);
+        const SmeltingRecipeDefinition *stone =
+            smelting.findRecipe(Material::ID::Cobblestone);
         const SmeltingFuelDefinition *fiberFuel =
             smelting.findFuel(Material::ID::PlantFiber);
         check("N10/base-content-counts-are-frozen",
-              recipes.recipes().size() == 20 &&
-                  smelting.recipes().size() == 3 &&
+              recipes.recipes().size() == 24 &&
+                  smelting.recipes().size() == 4 &&
                   smelting.fuels().size() == 2 &&
                   foods.foods().size() == 4);
         check("N10/new-smelting-paths-reuse-three-slot-contract",
@@ -1701,7 +1747,9 @@ end
                   meat->durationTicks == 60 && glass != nullptr &&
                   glass->outputMaterialId == Material::ID::Glass &&
                   glass->durationTicks == 80 && fiberFuel != nullptr &&
-                  fiberFuel->burnTicks == 40);
+                  fiberFuel->burnTicks == 40 && stone != nullptr &&
+                  stone->outputMaterialId == Material::ID::Stone &&
+                  stone->durationTicks == 80);
 
         const RecipeDefinition *fiber =
             recipes.find("hellomine:plant_fiber_from_tall_grass");
@@ -1717,6 +1765,14 @@ end
             recipes.find("hellomine:reinforced_furnace");
         const RecipeDefinition *torch =
             recipes.find("hellomine:torch");
+        const RecipeDefinition *planks =
+            recipes.find("hellomine:oak_planks");
+        const RecipeDefinition *door =
+            recipes.find("hellomine:oak_door");
+        const RecipeDefinition *axe =
+            recipes.find("hellomine:wooden_axe");
+        const RecipeDefinition *shovel =
+            recipes.find("hellomine:wooden_shovel");
         check("N10/ecology-crop-and-enemy-chains-have-useful-sinks",
               fiber != nullptr && salad != nullptr && ration != nullptr &&
                   fieldChest != nullptr && fieldWorkbench != nullptr &&
@@ -1742,6 +1798,28 @@ end
                           return ingredient.materialId ==
                                      Material::ID::OakBark &&
                                  ingredient.count == 1;
+                      }));
+        check("P11-1/minimum-building-and-tool-recipes-are-bounded",
+              planks != nullptr && planks->type == RecipeType::Shapeless &&
+                  planks->outputMaterialId == Material::ID::OakPlank &&
+                  planks->outputCount == 4 && door != nullptr &&
+                  door->width == 2 && door->height == 3 &&
+                  door->outputMaterialId == Material::ID::OakDoor &&
+                  axe != nullptr && axe->outputMaterialId ==
+                      Material::ID::WoodenAxe && shovel != nullptr &&
+                  shovel->outputMaterialId == Material::ID::WoodenShovel);
+
+        const RecipeDefinition *stonePickaxe =
+            recipes.find("hellomine:stone_pickaxe");
+        check("P11-1/cobblestone-loop-feeds-progression-without-cycle",
+              stone != nullptr && stonePickaxe != nullptr &&
+                  std::any_of(
+                      stonePickaxe->ingredients.begin(),
+                      stonePickaxe->ingredients.end(),
+                      [](const RecipeIngredient &ingredient) {
+                          return ingredient.materialId ==
+                                     Material::ID::Cobblestone &&
+                                 ingredient.count == 3;
                       }));
 
         Inventory torchInputs;
@@ -1893,7 +1971,7 @@ int main()
     caseEnemyRegistry();
     caseCombatRecipes();
     caseResourceEconomy();
-    constexpr int ExpectedChecks = 119;
+    constexpr int ExpectedChecks = 121;
     if (checks != ExpectedChecks) {
         ++failures;
         std::cout << "[RECIPE_TEST] FAIL G1/expected-check-count"

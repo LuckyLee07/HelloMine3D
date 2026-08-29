@@ -6,6 +6,32 @@ row hellomine:oak_bark hellomine:oak_bark
 output hellomine:workbench 1
 end
 
+recipe hellomine:oak_planks shapeless
+input hellomine:oak_bark 1
+output hellomine:oak_planks 4
+end
+
+recipe hellomine:oak_door shaped
+row hellomine:oak_planks hellomine:oak_planks
+row hellomine:oak_planks hellomine:oak_planks
+row hellomine:oak_planks hellomine:oak_planks
+output hellomine:oak_door 1
+end
+
+recipe hellomine:wooden_axe shaped
+row hellomine:oak_planks hellomine:oak_planks
+row hellomine:oak_planks hellomine:oak_bark
+row _ hellomine:oak_bark
+output hellomine:wooden_axe 1
+end
+
+recipe hellomine:wooden_shovel shaped
+row _ hellomine:oak_planks _
+row _ hellomine:oak_bark _
+row _ hellomine:oak_bark _
+output hellomine:wooden_shovel 1
+end
+
 recipe hellomine:chest shaped
 row hellomine:oak_bark hellomine:oak_bark hellomine:oak_bark
 row hellomine:oak_bark _ hellomine:oak_bark
@@ -21,7 +47,7 @@ output hellomine:wooden_pickaxe 1
 end
 
 recipe hellomine:stone_pickaxe shaped
-row hellomine:stone hellomine:stone hellomine:stone
+row hellomine:cobblestone hellomine:cobblestone hellomine:cobblestone
 row _ hellomine:oak_bark _
 row _ hellomine:oak_bark _
 output hellomine:stone_pickaxe 1
@@ -33,9 +59,9 @@ output hellomine:glass_borderless 1
 end
 
 recipe hellomine:furnace shaped
-row hellomine:stone hellomine:stone hellomine:stone
-row hellomine:stone _ hellomine:stone
-row hellomine:stone hellomine:stone hellomine:stone
+row hellomine:cobblestone hellomine:cobblestone hellomine:cobblestone
+row hellomine:cobblestone _ hellomine:cobblestone
+row hellomine:cobblestone hellomine:cobblestone hellomine:cobblestone
 output hellomine:furnace 1
 end
 
@@ -72,8 +98,8 @@ output hellomine:wooden_sword 1
 end
 
 recipe hellomine:stone_sword shaped
-row _ hellomine:stone _
-row _ hellomine:stone _
+row _ hellomine:cobblestone _
+row _ hellomine:cobblestone _
 row _ hellomine:oak_bark _
 output hellomine:stone_sword 1
 end
@@ -120,8 +146,8 @@ output hellomine:workbench 1
 end
 
 recipe hellomine:reinforced_furnace shaped
-row hellomine:stone hellomine:glass hellomine:stone
-row hellomine:stone _ hellomine:stone
-row hellomine:stone hellomine:glass hellomine:stone
+row hellomine:cobblestone hellomine:glass hellomine:cobblestone
+row hellomine:cobblestone _ hellomine:cobblestone
+row hellomine:cobblestone hellomine:glass hellomine:cobblestone
 output hellomine:furnace 1
 end

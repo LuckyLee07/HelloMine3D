@@ -57,9 +57,9 @@ required 3
 prerequisite alpha.craft_wooden_pickaxe
 visible 1
 optional 0
-title "Mine Stone"
-instruction "Use the Wooden Pickaxe to collect 3 Stone."
-feedback "Enough Stone collected"
+title "Mine Cobblestone"
+instruction "Use the Wooden Pickaxe to collect 3 Cobblestone."
+feedback "Enough Cobblestone collected"
 end
 
 objective alpha.craft_stone_pickaxe
@@ -70,7 +70,7 @@ prerequisite alpha.gather_stone
 visible 1
 optional 0
 title "Craft a Stone Pickaxe"
-instruction "Use 3 Stone and 2 Oak Bark at the Workbench."
+instruction "Use 3 Cobblestone and 2 Oak Bark at the Workbench."
 feedback "Stone Pickaxe crafted"
 end
 
@@ -140,7 +140,7 @@ prerequisite alpha.reopen_world
 visible 1
 optional 0
 title "Build a Furnace"
-instruction "Mine 8 Stone, then craft a Furnace at the Workbench."
+instruction "Mine 8 Cobblestone, then craft a Furnace at the Workbench."
 feedback "Furnace crafted"
 end
 
