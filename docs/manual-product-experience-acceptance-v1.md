@@ -8,8 +8,8 @@
 
 ## 与 R3 的边界
 
-- `docs/manual-input-acceptance-v1.md` 只保留十二项历史物理输入基线；未来 Physical Input v2
-  负责真实键鼠、窗口焦点、容器、战斗、死亡/重生、作物和保存重启。
+- `docs/manual-input-acceptance-v1.md` 只保留十二项历史物理输入基线；已定义的
+  `docs/physical-input-acceptance-v2.md` 负责真实键鼠、窗口焦点、容器、战斗、死亡/重生、作物和保存重启。
 - 本文不验证物理鼠标幅度、按键释放、窗口焦点恢复或原生关闭按钮，不能关闭 D2/D4/D6/R3。
 - 固定截图、自动布局测试和 dummy 音频本身只证明确定性/失败边界；必须由明确承担结果的审阅者
   逐项观察并填写 `PASS/FAIL/BLOCKED`，生成脚本不得自行判定。

@@ -393,6 +393,13 @@ void caseRuntimeConfigOwnership()
                   GameplayKey::W &&
               generated.inputBindings.get(GameplayAction::ConsumeFood) ==
                   GameplayKey::R &&
+              generated.mouseBindings.get(
+                  GameplayWorldAction::BreakAttack) ==
+                  GameplayMouseButton::Primary &&
+              generated.mouseBindings.get(GameplayWorldAction::Use) ==
+                  GameplayMouseButton::Secondary &&
+              generated.sprintMode == GameplayHoldMode::Hold &&
+              generated.sneakMode == GameplayHoldMode::Hold &&
               !generated.worldSeed.has_value(),
           std::to_string(generated.renderDistance) + " " +
               std::to_string(generated.isFullscreen) + " " +
@@ -404,7 +411,7 @@ void caseRuntimeConfigOwnership()
         const std::string text((std::istreambuf_iterator<char>(input)),
                                std::istreambuf_iterator<char>());
         check("V10E/settings-file-is-versioned-with-post-processing",
-               text.find("settings_version 6\n") != std::string::npos &&
+               text.find("settings_version 7\n") != std::string::npos &&
                    text.find("directionalshadowquality off\n") !=
                        std::string::npos &&
                    text.find("postprocessingquality off\n") !=
@@ -414,7 +421,12 @@ void caseRuntimeConfigOwnership()
                    text.find("musicvolume 0.649") != std::string::npos &&
                    text.find("uiscale 1") != std::string::npos &&
                    text.find("locale en-US") != std::string::npos &&
-                   text.find("key_consume_food r") != std::string::npos,
+                   text.find("key_consume_food r") != std::string::npos &&
+                   text.find("sprintmode hold\n") != std::string::npos &&
+                   text.find("mouse_break_attack primary\n") !=
+                       std::string::npos &&
+                   text.find("mouse_guard secondary\n") !=
+                       std::string::npos,
               text);
     }
 
@@ -445,7 +457,7 @@ void caseRuntimeConfigOwnership()
                        DirectionalShadowQuality::Off &&
                    customised.postProcessingQuality ==
                        PostProcessingQuality::Off &&
-                   text.find("settings_version 6\n") == 0 &&
+                   text.find("settings_version 7\n") == 0 &&
                    text.find("directionalshadowquality off\n") !=
                        std::string::npos &&
                    text.find("postprocessingquality off\n") !=
@@ -482,7 +494,7 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::Off &&
                   versionOne.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 6\n") == 0,
+                  text.find("settings_version 7\n") == 0,
               text);
     }
 
@@ -509,7 +521,7 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::Off &&
                   versionTwo.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 6\n") == 0 &&
+                  text.find("settings_version 7\n") == 0 &&
                   text.find("locale en-US\n") != std::string::npos,
               text);
     }
@@ -536,7 +548,7 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::Off &&
                   versionThree.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 6\n") == 0 &&
+                  text.find("settings_version 7\n") == 0 &&
                   text.find("musicvolume 0.649") != std::string::npos,
               text);
     }
@@ -560,7 +572,7 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::Off &&
                   versionFour.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 6\n") == 0 &&
+                  text.find("settings_version 7\n") == 0 &&
                    text.find("directionalshadowquality off\n") !=
                        std::string::npos,
               text);
@@ -584,9 +596,43 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::High &&
                   versionFive.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 6\n") == 0 &&
+                  text.find("settings_version 7\n") == 0 &&
                   text.find("postprocessingquality off\n") !=
                       std::string::npos,
+              text);
+    }
+
+    const std::filesystem::path versionSixPath =
+        directory / "version-six-config.txt";
+    {
+        std::ofstream output(versionSixPath,
+                             std::ios::binary | std::ios::trunc);
+        output << "settings_version 6\n"
+               << "directionalshadowquality medium\n"
+               << "postprocessingquality on\n"
+               << "key_consume_food q\n";
+    }
+    const Config versionSix = loadRuntimeConfig(versionSixPath.string());
+    {
+        std::ifstream input(versionSixPath, std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(input)),
+                               std::istreambuf_iterator<char>());
+        check("P11A/version-six-settings-migrate-input-defaults",
+              versionSix.directionalShadowQuality ==
+                      DirectionalShadowQuality::Medium &&
+                  versionSix.postProcessingQuality ==
+                      PostProcessingQuality::On &&
+                  versionSix.inputBindings.get(
+                      GameplayAction::ConsumeFood) == GameplayKey::Q &&
+                  versionSix.sprintMode == GameplayHoldMode::Hold &&
+                  versionSix.sneakMode == GameplayHoldMode::Hold &&
+                  versionSix.mouseBindings.get(
+                      GameplayWorldAction::BreakAttack) ==
+                      GameplayMouseButton::Primary &&
+                  versionSix.mouseBindings.get(
+                      GameplayWorldAction::Guard) ==
+                      GameplayMouseButton::Secondary &&
+                  text.find("settings_version 7\n") == 0,
               text);
     }
 
@@ -648,7 +694,11 @@ void caseRuntimeConfigOwnership()
     persisted.audioCaptions = false;
     persisted.showActionHints = false;
     persisted.inputBindings.set(GameplayAction::ConsumeFood,
-                                GameplayKey::Q);
+                                 GameplayKey::Q);
+    persisted.mouseBindings.set(GameplayWorldAction::Guard,
+                                 GameplayMouseButton::Side1);
+    persisted.sprintMode = GameplayHoldMode::Toggle;
+    persisted.sneakMode = GameplayHoldMode::Toggle;
     check("G4/settings-save-publishes-valid-candidate",
           saveRuntimeConfig(configPath.string(), persisted,
                             &settingsError),
@@ -666,7 +716,11 @@ void caseRuntimeConfigOwnership()
                   PostProcessingQuality::On &&
               !reloaded.audioCaptions && !reloaded.showActionHints &&
               reloaded.inputBindings.get(GameplayAction::ConsumeFood) ==
-                  GameplayKey::Q);
+                  GameplayKey::Q &&
+              reloaded.mouseBindings.get(GameplayWorldAction::Guard) ==
+                  GameplayMouseButton::Side1 &&
+              reloaded.sprintMode == GameplayHoldMode::Toggle &&
+              reloaded.sneakMode == GameplayHoldMode::Toggle);
 
     Config rejected = reloaded;
     rejected.fov = 101;
@@ -766,6 +820,41 @@ void caseRuntimeConfigOwnership()
               invalidSettingsRejected(
                   "invalid-v6-post.txt",
                   "settings_version 6\ndirectionalshadowquality off\npostprocessingquality ultra\n"));
+
+    const std::string v7Prefix =
+        "settings_version 7\n"
+        "directionalshadowquality off\n"
+        "postprocessingquality off\n";
+    const std::string v7MouseBindings =
+        "mouse_break_attack primary\n"
+        "mouse_use secondary\n"
+        "mouse_place secondary\n"
+        "mouse_guard secondary\n";
+    check("P11A/invalid-v7-input-settings-are-rejected",
+          invalidSettingsRejected(
+              "old-version-input-mode.txt",
+              "settings_version 6\ndirectionalshadowquality off\n"
+              "postprocessingquality off\nsprintmode hold\n") &&
+              invalidSettingsRejected(
+                  "missing-v7-mouse.txt",
+                  v7Prefix + "sprintmode hold\nsneakmode hold\n"
+                  "mouse_break_attack primary\n"
+                  "mouse_use secondary\nmouse_place secondary\n") &&
+              invalidSettingsRejected(
+                  "invalid-v7-mode.txt",
+                  v7Prefix + "sprintmode sticky\nsneakmode hold\n" +
+                      v7MouseBindings) &&
+              invalidSettingsRejected(
+                  "invalid-v7-mouse.txt",
+                  v7Prefix + "sprintmode hold\nsneakmode hold\n"
+                  "mouse_break_attack mouse9\n"
+                  "mouse_use secondary\nmouse_place secondary\n"
+                  "mouse_guard secondary\n") &&
+              invalidSettingsRejected(
+                  "conflicting-v7-mouse.txt",
+                  v7Prefix + "sprintmode hold\nsneakmode hold\n"
+                  "mouse_break_attack primary\nmouse_use primary\n"
+                  "mouse_place secondary\nmouse_guard secondary\n"));
 }
 
 std::string readTextFile(const std::string &path)
@@ -834,7 +923,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 361 &&
+              registry.keys("en-US").size() == 370 &&
               registry.lookup("en-US", "material.torch.name") ==
                   "Torch" &&
               registry.lookup("zh-CN", "material.torch.name") ==
@@ -1457,6 +1546,125 @@ void caseWaystoneVictoryLoop()
     }
     clearDeterministicEnv();
     setEnv("HELLOMINE3D_SEED", "");
+}
+
+void caseP11ACoreInput()
+{
+    GameplayMouseBindings bindings;
+    std::string bindingError;
+    check("P11A/default-mouse-context-sharing-is-valid",
+          validateGameplayMouseBindings(bindings, bindingError) &&
+              describeGameplayMouseBindingSharing(bindings).find(
+                  "Use, Place, Guard") != std::string::npos,
+          bindingError);
+    bindings.set(GameplayWorldAction::Use,
+                 GameplayMouseButton::Primary);
+    check("P11A/break-attack-mouse-conflict-is-rejected",
+          !validateGameplayMouseBindings(bindings, bindingError) &&
+              bindingError.find("Mouse primary") != std::string::npos,
+          bindingError);
+
+    GameplayWorldActionIntent intent;
+    intent.breakAttack = true;
+    intent.use = true;
+    intent.place = true;
+    intent.guard = true;
+    GameplayWorldActionContext context;
+    context.actorTarget = true;
+    context.guardAvailable = true;
+    context.usableBlockTarget = true;
+    context.placeableHeldItem = true;
+    check("P11A/world-action-arbiter-selects-one-owner",
+          resolveGameplayWorldAction(intent, context) ==
+              GameplayWorldAction::BreakAttack);
+    intent.breakAttack = false;
+    check("P11A/context-prefers-guard-over-use-and-place",
+          resolveGameplayWorldAction(intent, context) ==
+              GameplayWorldAction::Guard);
+    context.guardAvailable = false;
+    check("P11A/context-prefers-usable-block-over-place",
+          resolveGameplayWorldAction(intent, context) ==
+              GameplayWorldAction::Use);
+    context.usableBlockTarget = false;
+    check("P11A/context-falls-back-to-place",
+          resolveGameplayWorldAction(intent, context) ==
+              GameplayWorldAction::Place);
+
+    const GameplayLookDelta oneFrame = calculateGameplayLookDelta(
+        120.f, -48.f, 0.05f, false);
+    const GameplayLookDelta splitA = calculateGameplayLookDelta(
+        45.f, -20.f, 0.05f, false);
+    const GameplayLookDelta splitB = calculateGameplayLookDelta(
+        75.f, -28.f, 0.05f, false);
+    const GameplayLookDelta inverted = calculateGameplayLookDelta(
+        120.f, -48.f, 0.05f, true);
+    check("P11A/look-curve-is-frame-and-window-independent",
+          std::abs(oneFrame.yaw - (splitA.yaw + splitB.yaw)) <
+                  0.0001f &&
+              std::abs(oneFrame.pitch -
+                       (splitA.pitch + splitB.pitch)) < 0.0001f &&
+              std::abs(oneFrame.yaw - 6.f) < 0.0001f &&
+              std::abs(oneFrame.pitch + 2.4f) < 0.0001f);
+    check("P11A/invert-only-flips-pitch-sign",
+          std::abs(inverted.yaw - oneFrame.yaw) < 0.0001f &&
+              std::abs(inverted.pitch + oneFrame.pitch) < 0.0001f);
+
+    GameplayMovementModeTracker movement;
+    GameplayMovementModeState modes = movement.update(
+        true, true, true, GameplayHoldMode::Hold,
+        GameplayHoldMode::Hold);
+    check("P11A/hold-modes-follow-current-key-state",
+          modes.sprint && modes.sneak);
+    movement.reset();
+    modes = movement.update(true, true, false,
+                            GameplayHoldMode::Toggle,
+                            GameplayHoldMode::Toggle);
+    modes = movement.update(true, true, false,
+                            GameplayHoldMode::Toggle,
+                            GameplayHoldMode::Toggle);
+    check("P11A/toggle-mode-uses-press-edge-once",
+          modes.sprint && !modes.sneak);
+    movement.update(false, true, false, GameplayHoldMode::Toggle,
+                    GameplayHoldMode::Toggle);
+    modes = movement.update(true, true, false,
+                            GameplayHoldMode::Toggle,
+                            GameplayHoldMode::Toggle);
+    check("P11A/inactive-held-key-does-not-retoggle-on-resume",
+          !modes.sprint);
+    movement.update(true, false, false, GameplayHoldMode::Toggle,
+                    GameplayHoldMode::Toggle);
+    modes = movement.update(true, true, false,
+                            GameplayHoldMode::Toggle,
+                            GameplayHoldMode::Toggle);
+    check("P11A/toggle-rearms-after-release", modes.sprint);
+
+    GameplayFocusGate focus;
+    check("P11A/initial-focus-accepts-world-input",
+          focus.isFocused() && focus.allowsWorldButtons(false) &&
+              focus.acceptsLookSample());
+    focus.setFocused(false);
+    const bool backgroundButtons = focus.allowsWorldButtons(true);
+    const bool backgroundLook = focus.acceptsLookSample();
+    focus.setFocused(true);
+    const bool heldFocusClick = focus.allowsWorldButtons(true);
+    const bool firstLook = focus.acceptsLookSample();
+    const bool released = focus.allowsWorldButtons(false);
+    const bool nextLook = focus.acceptsLookSample();
+    check("P11A/focus-gate-blocks-background-and-held-focus-click",
+          !backgroundButtons && !backgroundLook && !heldFocusClick);
+    check("P11A/focus-gate-discards-one-look-and-rearms-on-release",
+          !firstLook && released && nextLook);
+
+    check("P11A/only-interactive-block-behaviors-support-use",
+          BlockDatabase::get()
+                  .getDefinition(BlockId::Chest)
+                  .behavior->supportsUse() &&
+              BlockDatabase::get()
+                  .getDefinition(BlockId::Workbench)
+                  .behavior->supportsUse() &&
+              !BlockDatabase::get()
+                   .getDefinition(BlockId::Stone)
+                   .behavior->supportsUse());
 }
 
 void casePausedApplicationFlow()
@@ -12494,6 +12702,7 @@ void caseInteractionAndEvents()
             usedBlock = useEvent.blockId;
         });
 
+    world.setBlock(8, y, 8, BlockId::Workbench);
     events.reset();
     const bool used =
         BlockInteractionSystem::useBlock(world, player, target);
@@ -12502,7 +12711,16 @@ void caseInteractionAndEvents()
           events.count(SandboxEventType::BlockUse) == 1);
     check("P5/use-event-identifies-target",
           usedPosition == glm::ivec3(8, y, 8) &&
-              usedBlock == BlockId::Stone);
+              usedBlock == BlockId::Workbench);
+    player.closeCrafting();
+
+    world.setBlock(8, y, 8, BlockId::Stone);
+    events.reset();
+    const bool usedPlainBlock =
+        BlockInteractionSystem::useBlock(world, player, target);
+    check("P11A/plain-block-does-not-consume-use",
+          !usedPlainBlock &&
+              events.count(SandboxEventType::BlockUse) == 0);
 
     events.reset();
     const bool usedAir = BlockInteractionSystem::useBlock(
@@ -12858,6 +13076,13 @@ int main()
         else if (focus != nullptr && std::string(focus) == "V10E") {
             caseRuntimeConfigOwnership();
         }
+        else if (focus != nullptr && std::string(focus) == "P11A") {
+            caseWorldOutcomeAndLocalizedText();
+            caseRuntimeConfigOwnership();
+            caseP11ACoreInput();
+            casePausedApplicationFlow();
+            caseInteractionAndEvents();
+        }
         else if (focus != nullptr && std::string(focus) == "P11-0") {
             caseOreTextures();
             caseBlockTextureCoordinates();
@@ -12874,6 +13099,7 @@ int main()
         caseWorldEnvironment();
         caseBlockTextureCoordinates();
         caseRuntimeConfigOwnership();
+        caseP11ACoreInput();
         casePausedApplicationFlow();
         caseAudioFeedback();
         caseStreamedMusic();

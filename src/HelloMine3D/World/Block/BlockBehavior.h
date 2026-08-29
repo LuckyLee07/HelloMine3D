@@ -36,6 +36,7 @@ class BlockBehavior {
     virtual void onBroken(World &world, Player &player,
                           const glm::ivec3 &position,
                           const ChunkBlock &brokenBlock) const;
+    virtual bool supportsUse() const noexcept;
     virtual void onUse(World &world, Player &player,
                        const glm::ivec3 &position,
                        const ChunkBlock &block) const;

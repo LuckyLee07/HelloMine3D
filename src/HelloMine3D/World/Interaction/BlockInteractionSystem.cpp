@@ -159,6 +159,9 @@ bool BlockInteractionSystem::useBlock(World &world, Player &player,
     }
 
     const auto &definition = BlockDatabase::get().getDefinition(blockId);
+    if (!definition.behavior->supportsUse()) {
+        return false;
+    }
     definition.behavior->onUse(world, player, {x, y, z}, block);
     world.getEventBus().publish(BlockUseEvent({x, y, z}, blockId));
     return true;

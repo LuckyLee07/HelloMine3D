@@ -60,6 +60,9 @@ struct UserSettings {
     bool audioCaptions = true;
     bool showActionHints = true;
     GameplayInputBindings inputBindings;
+    GameplayMouseBindings mouseBindings;
+    GameplayHoldMode sprintMode = GameplayHoldMode::Hold;
+    GameplayHoldMode sneakMode = GameplayHoldMode::Hold;
 };
 
 /// Parameters used only when a world is created.

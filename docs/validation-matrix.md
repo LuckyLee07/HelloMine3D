@@ -6,9 +6,9 @@
 Stage 10 的 V10A-V10E 与 VISUAL-RC 已完成 Windows 工程和对应开发者视觉范围；
 V10B1/V10C/V10D/V10E 的 macOS Release shader/窗口证据、正式产品体验与 Physical Input v2
 保持 `Verify`。封板证据见 `docs/visual-release-candidate-report-2026-08-28.md`。
-VISUAL-RC 后评审已选择 Stage 11；当前只开放 P11-0，后续八批必须在前一批真实试玩
-通过后逐个开放。权威范围见 `docs/playability-experience-roadmap.md`，当前批合同见
-`docs/world-light-source-contract-v1.md`。
+VISUAL-RC 后评审已选择 Stage 11；P11-0/P11A 工程已完成，P11B 为当前开放批次。工程按固定顺序
+逐个开放，真人/主观/活动桌面证据统一后置为 `Verify/Deferred`，但不得标成自动 PASS。权威范围见
+`docs/playability-experience-roadmap.md`，输入合同见 `docs/core-input-feel-contract-v1.md`。
 
 历史运行结果和逐项证据保存在 `docs/project-ledger-2026-08-17.md` 与
 `docs/runtime-validation.md`。
@@ -20,7 +20,7 @@ VISUAL-RC 后评审已选择 Stage 11；当前只开放 P11-0，后续八批必�
 | 所有 C++ 改动 | 受影响目标能够编译；运行对应定向自动测试。 |
 | 世界、区块、实体或持久化 | 定向自动测试 + `HelloMine3DWorldRuntimeSmoke`。 |
 | 物品、容器、制作、工具或食物 | 状态守恒、容量边界、失败原子性、固定 tick 和保存/重载测试。 |
-| UI 或输入 | 动作仲裁、焦点隔离、映射/冲突、设置迁移自动测试；开发者交互冒烟。P11A 必须当批完成目标 Windows Physical Input v2，不能后移到 P11F。 |
+| UI 或输入 | 动作仲裁、焦点隔离、映射/冲突、设置迁移自动测试；可用环境下的开发者交互冒烟。Physical Input v2 可登记 Deferred，不阻塞后续工程，但 P11F 必须保留真实未通过状态。 |
 | 第一人称动作、命中/受击、粒子或镜头反馈 | 判定时刻与表现解耦测试、数量/持续时间上限、关闭回退、HUD/准星截图和真实 Release 动态观察；镜头效果必须可调或可关。 |
 | 目标、配方发现、探索奖励或资源经济 | 主线可达、输入输出守恒、重复奖励/一次性领取、保存重载和全部受影响迁移；用真实新世界试玩记录选择、困惑时段与计划变化。 |
 | 资源、配方、声音或 shader | 资源清单/解析验证；缺失和非法引用必须明确失败。 |
@@ -46,8 +46,8 @@ VISUAL-RC 后评审已选择 Stage 11；当前只开放 P11-0，后续八批必�
 | 资产检查 | `bash scripts/check_assets.sh` | 资产和数据 |
 | V10B2 图集合同 | `tools\validate_terrain_atlas.ps1` | 37 个语义/双语名、Alpha 边界、分面、HUD/手持一致性与确定性输出 |
 | R3 自动预检 | `tools\validate_r3_automated_preflight.ps1 -Configuration Release -Build` | 控制器、交互、容器、战斗、D6 和后台窗口焦点的逻辑回归；结果不能替代真人输入 |
-| R3 v1 真人输入基线 | `docs\manual-input-acceptance-v1.md` 和 `tools\validate_manual_input_record.ps1 -RequirePass` | 只验证现有十二项键鼠/焦点记录；通过也不自动关闭当前 D4/D6/R3，后续先立 Physical Input v2。 |
-| Physical Input v2 | `docs\playability-experience-roadmap.md` 的 P11A/Physical Input v2；实现前另立可机器校验的 v2 记录合同 | 真实键鼠移动/视角、采挖/放置/使用/格挡、容器/制作、暂停、失焦/回焦和重启；按实际覆盖更新 D2/D4/D6/R3，自动事件注入只能作为预检。 |
+| R3 v1 真人输入基线 | `docs\manual-input-acceptance-v1.md` 和 `tools\validate_manual_input_record.ps1 -RequirePass` | 只验证现有十二项键鼠/焦点记录；通过也不自动关闭当前 D4/D6/R3，当前扩展范围由已定义的 Physical Input v2 承担。 |
+| Physical Input v2 | `docs\physical-input-acceptance-v2.md`、`docs\physical-input-record-v2.template.txt` 与 `tools\validate_physical_input_v2_record.ps1 -RequirePass` | 真实键鼠移动/视角、采挖/攻击/放置/使用/格挡、容器/制作、暂停、失焦/回焦、最小化、死亡重生和保存重启；按实际覆盖更新 D2/D4/D6/R3，自动事件注入只能作为预检。当前记录状态为 Deferred。 |
 | 开发者视觉检查 | `docs\manual-product-experience-acceptance-v1.md` A 节、`tools\validate_developer_visual_record.ps1 -RequirePass` 和视觉路线截图矩阵 | 项目所有者或其明确授权的审阅者检查真实 Release 证据并记录身份、场景、PASS/FAIL 和一句理由；静态批次可用至少三张原尺寸 RuntimeReadback 图，动态批次必须用多帧/视频或连续窗口观察；自动化不自行判定，也不使用 R3 输入记录。 |
 | 正式产品体验 | `docs\manual-product-experience-acceptance-v1.md` B/C 节 | 视觉风格、双语可读性、音效/音乐听感；与 Physical Input v2 共享构建身份但分开判定。 |
 | 长时间 soak | `tools\run_world_soak.ps1`；正式双 profile 使用 `tools\run_release_candidate_soak.ps1` | 区块/实体生命周期、存档、后台加载 |
@@ -72,7 +72,7 @@ VISUAL-RC 后评审已选择 Stage 11；当前只开放 P11-0，后续八批必�
 | Stage 9 单批完成 | 批次合同、定向测试、全部受影响旧版迁移、相关 Q1、必要的 60-120 秒 nominal/stress 和隐藏客户端。 |
 | BETA-RC | 全平台门禁、全迁移、物理输入/产品体验真实状态、H1-H3、Q1-Q3 正式双档长稳、许可证、截图、bundle 和干净包新哈希。 |
 | Stage 10 单批完成 | 批次合同、VS2017/v141 双配置受影响目标、shader/资源负例、固定 before/after RuntimeReadback、开发者视觉检查和相关 Q1；图形功能必须可关闭。修改 shader/顶点接口时当批补 macOS Release 真实窗口冒烟，否则跨平台状态保持 `Verify`。 |
-| Stage 11 单批完成 | 批次合同、受影响双配置/定向回归、版本迁移与保存恢复、相关 Q1/Q3，以及 10-30 分钟目标真人试玩；P11C 至少完整覆盖前 30 分钟。前一批没有真实退出结论时不得开放下一批。 |
+| Stage 11 单批工程完成 | 批次合同、受影响双配置/定向回归、版本迁移与保存恢复，以及当前环境可执行的相关 Q1/Q3。真人/主观项可保留 Deferred 后进入下一工程批；恢复验收时 P11C 至少完整覆盖前 30 分钟。 |
 | PLAYABILITY-RC | 全门禁、全迁移、逐批试玩汇总、Physical Input v2 真实状态、适用产品体验、正式 Q1/Q3、长稳、干净包和新身份；记录里程碑耗时、误操作、死亡和困惑时段。 |
 
 ## 第 8 阶段批次门禁
@@ -96,7 +96,7 @@ VISUAL-RC 后评审已选择 Stage 11；当前只开放 P11-0，后续八批必�
 
 | 批次 | 合入前最低证据 | 阶段结束补充证据 |
 | ---- | -------------- | ---------------- |
-| `RC0` | `Superseded`：bundle、文档一致性和自动工程基线已由 BETA-RC 覆盖，不再作为活跃批次。 | 真人输入归未来 Physical Input v2；R3 v1 十二项通过也不能自动关闭当前 D4/D6。 |
+| `RC0` | `Superseded`：bundle、文档一致性和自动工程基线已由 BETA-RC 覆盖，不再作为活跃批次。 | 真人输入归已定义但 Deferred 的 Physical Input v2；R3 v1 十二项通过也不能自动关闭当前 D4/D6。 |
 | `N7A` | 独立结局状态/奖励 epoch；不以目标耗尽推导胜利；预计 v8→v9 及全部旧版迁移；状态非法值、事务失败、备份恢复；中英文 key/fallback。 | 胜利前中后保存重开，世界列表只从持久状态标记；重复重入不重复发奖。 |
 | `N7B` | 激活/守卫状态机；复用现有敌人；actor/事件/驻留上限；死亡、暂停、卸载和遭遇中恢复；相关 Q1 和短时 soak。 | 干净新世界无 debug 注入完成胜利并继续 Playing；R3 终局路径。 |
 | `N8A` | 前摇/命中/击退/格挡；显式状态转换、目标失效、固定 tick 射线/寻路预算和调试快照。 | 多敌人压力、人工战斗可读性、内容规模 Q1 和阶段 Q3。 |
@@ -149,9 +149,9 @@ Stage 10 的地形 shader、顶点数据、图集、云、阴影或后处理变�
 
 | 批次 | 合入前最低工程证据 | 必须当批完成的真人证据 |
 | ---- | ------------------ | ---------------------- |
-| `P11-0`（Planned） | 火把/材料身份末尾追加；图集 113 与资源许可；2x2 配方守恒；`Rose` 修正；Furnace block entity→metadata 投影、旧 v11 活跃熔炉规范化、真正翻转时的单次局部重光照、暂停/卸载边界；保存/备份恢复；VS2017/v141 双配置、世界/配方/资源包回归和适用 Q1。 | Release 实际完成取得材料→2x2 制作→洞穴放置/破坏火把；观察夜间火把和熔炉点火/受阻/恢复/耗尽，确认暂停不灭、重载接边正确；提交合同要求的原图和 10-30 分钟目标试玩结论。 |
-| `P11A`（Queued） | 使用/放置/格挡单一消费所有者；鼠标绑定/冲突；若新增持久字段则 settings v7 与 v0-v6 迁移；灵敏度计算不依赖帧率/窗口尺寸；捕获、暂停、失焦/回焦状态机；VS2017/v141 双配置和受影响回归。 | Physical Input v2 全部适用项：移动、视角、采挖、放置、使用、格挡、容器、制作、暂停、失焦/回焦和重启；记录串键、跳视角、卡键、后台误触和准星/实际方向偏差。 |
-| `P11B`（Queued） | 动画不改变判定；裂纹/粒子/拾取数量与生命周期有界；关闭回退；音频并发；HUD/准星隔离和适用性能。 | 真实 Release 动态观察动作开始、命中、冷却、受击方向和拾取；记录不可读、过强或引起不适的反馈，验证可调/可关路径。 |
+| `P11-0`（Engineering Done；Q1/真人 Deferred） | 火把/材料身份末尾追加；图集 113 与资源许可；2x2 配方守恒；`Rose` 修正；Furnace block entity→metadata 投影、旧 v11 活跃熔炉规范化、真正翻转时的单次局部重光照、暂停/卸载边界；双配置和自动/视觉证据已通过。 | 活动桌面同身份 Q1 与取得材料→制作→洞穴/夜晚/熔炉动态试玩保持 Deferred。 |
+| `P11A`（Engineering Done；Physical Input v2 Deferred） | 使用/放置/格挡单一消费；四项鼠标绑定/冲突；settings v7 与 v0-v6 迁移；线性相对增量；焦点门；hold/toggle；双配置、定向 88/88、资源 80/80 和完整世界回归通过。 | Physical Input v2 的移动、视角、世界/UI 动作、暂停、Alt+Tab、最小化、回焦和重启保持 Deferred。 |
+| `P11B`（Planned） | 动画不改变判定；裂纹/粒子/拾取数量与生命周期有界；关闭回退；音频并发；HUD/准星隔离和适用性能。 | 真实 Release 动态观察后置 Deferred；工程批仍需自动证明上限、时序和关闭回退。 |
 | `P11-1`（Queued） | 新方块/材料只能末尾追加；门/活板门开关与保存状态；木板/圆石配方和掉落守恒；axe/shovel 类别、工具速度矩阵、孤儿资源清理、图集/双语/资源包和旧存档回归。 | 从新世界实际采集并造出可关闭落脚点；分别用正确/错误工具采集对应材料，记录耗时差异、配方发现和放置/开关可读性。 |
 | `P11C`（Queued） | 目标/配方状态确定、主线可达、保存重载、重复完成和旧版迁移。 | 全新世界至少 30 分钟：记录至少两项并行选择、关键里程碑、超过 60 秒的困惑时段、查配方次数和主动改计划时刻。 |
 | `P11D`（Queued） | 奖励一次性、经济守恒、能力边界、保存/迁移；若改地形，补 terrain 身份、旧区块边界与确定性。 | 每类正式结构实际完成一次；记录奖励是否改变后续能力或计划，普通矿物不能作为主要价值证明。 |

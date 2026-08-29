@@ -91,6 +91,19 @@ PostProcessingQuality readPostProcessingQuality(
     fail(path, key, "must be one of off or on");
 }
 
+GameplayHoldMode readGameplayHoldMode(
+    const std::string &path, const std::string &key,
+    std::istringstream &input)
+{
+    std::string token;
+    GameplayHoldMode mode = GameplayHoldMode::Hold;
+    if (!(input >> token) || !tryParseGameplayHoldMode(token, mode)) {
+        fail(path, key, "must contain hold or toggle");
+    }
+    requireEnd(path, key, input);
+    return mode;
+}
+
 void validateVolume(const char *name, float value)
 {
     if (!std::isfinite(value) || value < 0.f || value > 1.f) {
@@ -115,6 +128,10 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
     bool usesVersionFourKey = false;
     bool usesVersionFiveKey = false;
     bool usesVersionSixKey = false;
+    bool usesVersionSevenKey = false;
+    bool hasSprintMode = false;
+    bool hasSneakMode = false;
+    std::array<bool, GameplayWorldActionCount> hasMouseBinding{};
     std::set<std::string> seenKeys;
     std::string line;
     std::size_t lineNumber = 0;
@@ -142,6 +159,7 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
                 version != AccessibilityRuntimeSettingsFormatVersion &&
                 version != LocaleRuntimeSettingsFormatVersion &&
                 version != MusicRuntimeSettingsFormatVersion &&
+                version != DirectionalShadowRuntimeSettingsFormatVersion &&
                 version != PreviousRuntimeSettingsFormatVersion &&
                 version != RuntimeSettingsFormatVersion) {
                 fail(path, key, "uses unsupported version " +
@@ -244,6 +262,18 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
             parsed.config.showActionHints = enabled != 0;
             usesVersionTwoKey = true;
         }
+        else if (key == "sprintmode") {
+            parsed.config.sprintMode = readGameplayHoldMode(
+                path, key, values);
+            usesVersionSevenKey = true;
+            hasSprintMode = true;
+        }
+        else if (key == "sneakmode") {
+            parsed.config.sneakMode = readGameplayHoldMode(
+                path, key, values);
+            usesVersionSevenKey = true;
+            hasSneakMode = true;
+        }
         else if (key == "seed") {
             std::string seedText;
             if (!(values >> seedText)) {
@@ -262,7 +292,30 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
         else {
             bool bindingMatched = false;
             for (std::size_t actionIndex = 0;
-                 actionIndex < GameplayActionCount; ++actionIndex) {
+                 actionIndex < GameplayWorldActionCount; ++actionIndex) {
+                const auto action =
+                    static_cast<GameplayWorldAction>(actionIndex);
+                if (key != gameplayWorldActionConfigKey(action)) {
+                    continue;
+                }
+                std::string token;
+                GameplayMouseButton binding =
+                    GameplayMouseButton::Primary;
+                if (!(values >> token) ||
+                    !tryParseGameplayMouseButton(token, binding)) {
+                    fail(path, key,
+                         "contains an unknown mouse binding");
+                }
+                requireEnd(path, key, values);
+                parsed.config.mouseBindings.set(action, binding);
+                hasMouseBinding[actionIndex] = true;
+                bindingMatched = true;
+                usesVersionSevenKey = true;
+                break;
+            }
+            for (std::size_t actionIndex = 0;
+                 !bindingMatched && actionIndex < GameplayActionCount;
+                 ++actionIndex) {
                 const auto action =
                     static_cast<GameplayAction>(actionIndex);
                 if (key != gameplayActionConfigKey(action)) {
@@ -320,14 +373,38 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
              "is required by settings version 5");
     }
     if (usesVersionSixKey &&
-        (!hasVersion || parsed.version < RuntimeSettingsFormatVersion)) {
+        (!hasVersion || parsed.version <
+                            PreviousRuntimeSettingsFormatVersion)) {
         fail(path, "settings_version",
              "older versions cannot contain version 6 settings");
     }
-    if (hasVersion && parsed.version == RuntimeSettingsFormatVersion &&
+    if (hasVersion && parsed.version >=
+                          PreviousRuntimeSettingsFormatVersion &&
         !usesVersionSixKey) {
         fail(path, "postprocessingquality",
              "is required by settings version 6");
+    }
+    if (usesVersionSevenKey &&
+        (!hasVersion || parsed.version < InputRuntimeSettingsFormatVersion)) {
+        fail(path, "settings_version",
+             "older versions cannot contain version 7 settings");
+    }
+    if (hasVersion && parsed.version == RuntimeSettingsFormatVersion) {
+        if (!hasSprintMode) {
+            fail(path, "sprintmode", "is required by settings version 7");
+        }
+        if (!hasSneakMode) {
+            fail(path, "sneakmode", "is required by settings version 7");
+        }
+        for (std::size_t actionIndex = 0;
+             actionIndex < GameplayWorldActionCount; ++actionIndex) {
+            if (!hasMouseBinding[actionIndex]) {
+                const auto action =
+                    static_cast<GameplayWorldAction>(actionIndex);
+                fail(path, gameplayWorldActionConfigKey(action),
+                     "is required by settings version 7");
+            }
+        }
     }
     parsed.needsMigration =
         !hasVersion || parsed.version < RuntimeSettingsFormatVersion;
@@ -368,12 +445,25 @@ std::vector<char> serializeRuntimeConfig(const Config &config)
            << "uiscale " << config.uiScale << '\n'
            << "locale " << config.locale << '\n'
            << "audiocaptions " << (config.audioCaptions ? 1 : 0) << '\n'
-           << "actionhints " << (config.showActionHints ? 1 : 0) << '\n';
+           << "actionhints " << (config.showActionHints ? 1 : 0) << '\n'
+           << "sprintmode " << gameplayHoldModeToken(config.sprintMode)
+           << '\n'
+           << "sneakmode " << gameplayHoldModeToken(config.sneakMode)
+           << '\n';
     for (std::size_t actionIndex = 0;
          actionIndex < GameplayActionCount; ++actionIndex) {
         const auto action = static_cast<GameplayAction>(actionIndex);
         output << gameplayActionConfigKey(action) << ' '
-               << gameplayKeyToken(config.inputBindings.get(action)) << '\n';
+                << gameplayKeyToken(config.inputBindings.get(action)) << '\n';
+    }
+    for (std::size_t actionIndex = 0;
+         actionIndex < GameplayWorldActionCount; ++actionIndex) {
+        const auto action =
+            static_cast<GameplayWorldAction>(actionIndex);
+        output << gameplayWorldActionConfigKey(action) << ' '
+               << gameplayMouseButtonToken(
+                      config.mouseBindings.get(action))
+               << '\n';
     }
     output << "seed ";
     if (config.worldSeed.has_value()) {
@@ -439,6 +529,19 @@ void validateUserSettings(const UserSettings &settings)
                                        bindingError)) {
         throw std::runtime_error("invalid gameplay bindings: " +
                                  bindingError);
+    }
+    if (!validateGameplayMouseBindings(settings.mouseBindings,
+                                       bindingError)) {
+        throw std::runtime_error("invalid mouse bindings: " +
+                                 bindingError);
+    }
+    if (settings.sprintMode != GameplayHoldMode::Hold &&
+        settings.sprintMode != GameplayHoldMode::Toggle) {
+        throw std::runtime_error("sprint mode must be hold or toggle");
+    }
+    if (settings.sneakMode != GameplayHoldMode::Hold &&
+        settings.sneakMode != GameplayHoldMode::Toggle) {
+        throw std::runtime_error("sneak mode must be hold or toggle");
     }
 }
 

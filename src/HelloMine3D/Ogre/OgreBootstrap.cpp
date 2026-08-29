@@ -109,6 +109,18 @@ namespace
                    : OIS::KC_UNASSIGNED;
     }
 
+    OIS::MouseButtonID toOisMouseButton(
+        GameplayMouseButton button) noexcept
+    {
+        static constexpr OIS::MouseButtonID Buttons[] = {
+            OIS::MB_Left, OIS::MB_Right, OIS::MB_Middle,
+            OIS::MB_Button3, OIS::MB_Button4};
+        const std::size_t index = static_cast<std::size_t>(button);
+        return index < GameplayMouseButtonCount
+                   ? Buttons[index]
+                   : OIS::MB_Left;
+    }
+
     const char *foodUseResultKey(FoodUseResult result) noexcept
     {
         switch (result)
@@ -1859,6 +1871,7 @@ namespace
                 return false;
             }
 
+            syncInputFocus();
             updateNativeCursorCapture();
             if (!m_hiddenWindow)
             {
@@ -1982,6 +1995,18 @@ namespace
             updateRcPerformanceScenario(deltaSeconds);
             if (!m_applicationFlow.acceptsWorldSimulation())
             {
+                if (m_keyboard != nullptr)
+                {
+                    const GameplayInputBindings &bindings =
+                        m_config.inputBindings;
+                    m_movementModeTracker.update(
+                        false,
+                        m_keyboard->isKeyDown(toOisKey(bindings.get(
+                            GameplayAction::Sprint))),
+                        m_keyboard->isKeyDown(toOisKey(bindings.get(
+                            GameplayAction::Sneak))),
+                        m_config.sprintMode, m_config.sneakMode);
+                }
                 m_sandbox->cancelMiningProgress();
                 clearTransientInput();
                 return;
@@ -1995,12 +2020,23 @@ namespace
                 m_worldPlayer->hasOpenContainer() ||
                 (m_userInterface != nullptr &&
                  m_userInterface->wantsMouseInput());
+            const bool worldInputActive =
+                m_focusGate.isFocused() && !m_focusTransitionFrame &&
+                !keyboardCaptured && !mouseCaptured;
 
             SandboxInputState input;
-            if (!keyboardCaptured)
+            const GameplayInputBindings &bindings =
+                m_config.inputBindings;
+            const bool sprintDown = m_keyboard->isKeyDown(
+                toOisKey(bindings.get(GameplayAction::Sprint)));
+            const bool sneakDown = m_keyboard->isKeyDown(
+                toOisKey(bindings.get(GameplayAction::Sneak)));
+            const GameplayMovementModeState movementModes =
+                m_movementModeTracker.update(
+                    worldInputActive, sprintDown, sneakDown,
+                    m_config.sprintMode, m_config.sneakMode);
+            if (worldInputActive)
             {
-                const GameplayInputBindings &bindings =
-                    m_config.inputBindings;
                 input.player.moveForward = m_keyboard->isKeyDown(
                     toOisKey(bindings.get(GameplayAction::MoveForward)));
                 input.player.moveBackward = m_keyboard->isKeyDown(
@@ -2009,34 +2045,53 @@ namespace
                     toOisKey(bindings.get(GameplayAction::MoveLeft)));
                 input.player.moveRight = m_keyboard->isKeyDown(
                     toOisKey(bindings.get(GameplayAction::MoveRight)));
-                input.player.sprint = m_keyboard->isKeyDown(
-                    toOisKey(bindings.get(GameplayAction::Sprint)));
+                input.player.sprint = movementModes.sprint;
                 input.player.jump = m_keyboard->isKeyDown(
                     toOisKey(bindings.get(GameplayAction::Jump)));
-                input.player.descend = m_keyboard->isKeyDown(
-                    toOisKey(bindings.get(GameplayAction::Sneak)));
+                input.player.descend = movementModes.sneak;
                 input.player.toggleFlying = m_toggleFlying;
                 input.player.hotbarDelta = m_hotbarDelta;
                 input.player.hotbarSlot = m_hotbarSlot;
                 input.resetMeshes = m_resetMeshes;
                 input.useHeldFood = m_useHeldFood;
             }
-            if (!mouseCaptured && m_mouseLookEnabled)
+            const OIS::MouseState &mouseState = m_mouse->getMouseState();
+            bool anyMouseButtonDown = false;
+            for (std::size_t buttonIndex = 0;
+                 buttonIndex < GameplayMouseButtonCount; ++buttonIndex)
             {
-                const float verticalDirection =
-                    m_config.invertMouseY ? -1.f : 1.f;
-                input.player.lookDelta.x =
-                    m_pendingLookDelta.x * m_config.mouseSensitivity;
-                input.player.lookDelta.y =
-                    m_pendingLookDelta.y * m_config.mouseSensitivity *
-                    verticalDirection;
-                const OIS::MouseState &mouseState =
-                    m_mouse->getMouseState();
-                input.breakBlock =
-                    mouseState.buttonDown(OIS::MB_Left);
-                input.placeBlock =
-                    mouseState.buttonDown(OIS::MB_Right);
-                input.guardCombat = input.placeBlock;
+                anyMouseButtonDown = anyMouseButtonDown ||
+                    mouseState.buttonDown(toOisMouseButton(
+                        static_cast<GameplayMouseButton>(buttonIndex)));
+            }
+            const bool worldMouseButtonsAllowed =
+                worldInputActive &&
+                m_focusGate.allowsWorldButtons(anyMouseButtonDown);
+            if (worldInputActive && m_mouseLookEnabled &&
+                m_focusGate.acceptsLookSample())
+            {
+                const GameplayLookDelta look = calculateGameplayLookDelta(
+                    m_pendingLookDelta.x, m_pendingLookDelta.y,
+                    m_config.mouseSensitivity, m_config.invertMouseY);
+                input.player.lookDelta.x = look.yaw;
+                input.player.lookDelta.y = look.pitch;
+            }
+            if (worldMouseButtonsAllowed)
+            {
+                const GameplayMouseBindings &mouseBindings =
+                    m_config.mouseBindings;
+                input.breakAttack = mouseState.buttonDown(
+                    toOisMouseButton(mouseBindings.get(
+                        GameplayWorldAction::BreakAttack)));
+                input.useBlock = mouseState.buttonDown(
+                    toOisMouseButton(mouseBindings.get(
+                        GameplayWorldAction::Use)));
+                input.placeBlock = mouseState.buttonDown(
+                    toOisMouseButton(mouseBindings.get(
+                        GameplayWorldAction::Place)));
+                input.guardCombat = mouseState.buttonDown(
+                    toOisMouseButton(mouseBindings.get(
+                        GameplayWorldAction::Guard)));
             }
 
             const bool diagnosticsActive =
@@ -2051,7 +2106,7 @@ namespace
                 m_renderCapture->isEnabled();
             m_sandbox->update(input,
                               freezeValidationCapture ? 0.0f : deltaSeconds,
-                              !diagnosticsActive);
+                              !diagnosticsActive && worldInputActive);
             if (m_userInterface != nullptr &&
                 m_sandbox->getFoodUseResult().has_value())
             {
@@ -2072,6 +2127,7 @@ namespace
                 }
             }
             clearTransientInput();
+            m_focusTransitionFrame = false;
             syncRenderCamera();
             syncSectionMeshes();
             syncActorVisuals();
@@ -3312,6 +3368,10 @@ namespace
             {
                 m_userInterface->keyEvent(event, true, *m_keyboard);
             }
+            if (!m_focusGate.isFocused() || m_focusTransitionFrame)
+            {
+                return true;
+            }
             if (event.key == OIS::KC_ESCAPE)
             {
                 if (m_userInterface != nullptr &&
@@ -3426,6 +3486,10 @@ namespace
             {
                 m_userInterface->mouseMoved(event);
             }
+            if (!m_focusGate.isFocused() || m_focusTransitionFrame)
+            {
+                return true;
+            }
             if (m_userInterface == nullptr ||
                 (!m_userInterface->wantsMouseInput() &&
                  (m_worldPlayer == nullptr ||
@@ -3481,7 +3545,39 @@ namespace
 
         void windowFocusChange(Ogre::RenderWindow*) override
         {
+            syncInputFocus();
             updateNativeCursorCapture();
+        }
+
+        bool runtimeWindowFocused() const
+        {
+            if (m_hiddenWindow || m_window == nullptr)
+            {
+                return false;
+            }
+#if defined(_WIN32)
+            return m_nativeWindowHandle != 0 &&
+                   GetForegroundWindow() == reinterpret_cast<HWND>(
+                       m_nativeWindowHandle);
+#else
+            return m_window->isActive();
+#endif
+        }
+
+        void syncInputFocus()
+        {
+            const bool focused = runtimeWindowFocused();
+            if (focused == m_focusGate.isFocused())
+            {
+                return;
+            }
+            m_focusGate.setFocused(focused);
+            m_focusTransitionFrame = true;
+            clearTransientInput();
+            if (!focused)
+            {
+                releaseNativeCursorCapture();
+            }
         }
 
         void windowClosed(Ogre::RenderWindow* window) override
@@ -3725,6 +3821,9 @@ namespace
         std::chrono::steady_clock::time_point m_frameStart;
         std::chrono::steady_clock::time_point m_updateEnd;
         glm::vec2 m_pendingLookDelta{0.0f};
+        GameplayMovementModeTracker m_movementModeTracker;
+        GameplayFocusGate m_focusGate;
+        bool m_focusTransitionFrame = false;
         bool m_toggleFlying = false;
         bool m_resetMeshes = false;
         bool m_useHeldFood = false;

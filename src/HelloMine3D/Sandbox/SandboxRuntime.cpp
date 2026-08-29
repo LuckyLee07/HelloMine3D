@@ -37,9 +37,11 @@ void SandboxRuntime::update(const SandboxInputState &input,
 
     World *worldBeforeTick = m_worldManager.getActiveWorld();
     if (worldBeforeTick != nullptr) {
+        const GameplayWorldAction action = acceptsPlayerInput
+            ? resolveWorldAction(*worldBeforeTick, input)
+            : GameplayWorldAction::None;
         worldBeforeTick->setPlayerGuarding(
-            acceptsPlayerInput && input.guardCombat &&
-            m_actorSelection.has_value());
+            action == GameplayWorldAction::Guard);
     }
     runFixedTicks(deltaSeconds);
     m_camera.update(m_player.getInterpolatedPosition(
@@ -58,14 +60,15 @@ void SandboxRuntime::update(const SandboxInputState &input,
         *world, m_camera.position, m_player.rotation);
     m_blockSelection = std::move(target.block);
     m_actorSelection = std::move(target.actor);
-    world->setPlayerGuarding(
-        acceptsPlayerInput && input.guardCombat &&
-        m_actorSelection.has_value());
+    const GameplayWorldAction worldAction = acceptsPlayerInput
+        ? resolveWorldAction(*world, input)
+        : GameplayWorldAction::None;
+    world->setPlayerGuarding(worldAction == GameplayWorldAction::Guard);
     m_interactionCooldownSeconds = std::max(
         0.0f, m_interactionCooldownSeconds -
                   std::max(0.0f, deltaSeconds));
     if (acceptsPlayerInput) {
-        handlePlayerInteraction(*world, input, deltaSeconds);
+        handlePlayerInteraction(*world, input, worldAction, deltaSeconds);
     }
     else {
         m_miningProgress.cancel();
@@ -151,8 +154,38 @@ void SandboxRuntime::cancelMiningProgress() noexcept
     m_miningProgress.cancel();
 }
 
+GameplayWorldAction SandboxRuntime::resolveWorldAction(
+    World &world, const SandboxInputState &input)
+{
+    GameplayWorldActionIntent intent;
+    intent.breakAttack = input.breakAttack;
+    intent.use = input.useBlock;
+    intent.place = input.placeBlock;
+    intent.guard = input.guardCombat;
+    GameplayWorldActionContext context;
+    context.actorTarget = m_actorSelection.has_value();
+    context.guardAvailable = world.canPlayerGuard();
+    if (input.useBlock && m_blockSelection.has_value()) {
+        const glm::ivec3 &position = m_blockSelection->blockPosition;
+        const BlockId id = static_cast<BlockId>(
+            world.getBlock(position.x, position.y, position.z).id);
+        if (id != BlockId::Air && id != BlockId::Water &&
+            BlockDatabase::get().getDefinition(id).behavior->supportsUse()) {
+            context.usableBlockTarget = true;
+        }
+    }
+    if (input.placeBlock && m_blockSelection.has_value()) {
+        const ItemStack &held = m_player.getHeldItems();
+        if (!held.isEmpty() && held.getMaterial().isBlock) {
+            context.placeableHeldItem = true;
+        }
+    }
+    return resolveGameplayWorldAction(intent, context);
+}
+
 void SandboxRuntime::handlePlayerInteraction(
-    World &world, const SandboxInputState &input, float deltaSeconds)
+    World &world, const SandboxInputState &input,
+    GameplayWorldAction action, float deltaSeconds)
 {
     if (input.useHeldFood) {
         m_miningProgress.cancel();
@@ -160,13 +193,13 @@ void SandboxRuntime::handlePlayerInteraction(
         return;
     }
     if (m_interactionCooldownSeconds > 0.0f) {
-        if (!input.breakBlock) {
+        if (action != GameplayWorldAction::BreakAttack) {
             m_miningProgress.cancel();
         }
         return;
     }
 
-    if (input.breakBlock) {
+    if (action == GameplayWorldAction::BreakAttack) {
         if (m_actorSelection.has_value()) {
             m_miningProgress.cancel();
             world.tryAttackActor(m_actorSelection->actorId, true);
@@ -198,12 +231,8 @@ void SandboxRuntime::handlePlayerInteraction(
                 glm::vec3(selection.blockPosition), m_player);
         }
     }
-    else if (input.placeBlock) {
+    else if (action == GameplayWorldAction::Use) {
         m_miningProgress.cancel();
-        if (input.guardCombat && m_actorSelection.has_value() &&
-            world.isPlayerGuarding()) {
-            return;
-        }
         if (!m_blockSelection.has_value()) {
             return;
         }
@@ -212,15 +241,17 @@ void SandboxRuntime::handlePlayerInteraction(
         world.addEvent<PlayerDigEvent>(PlayerDigAction::Use,
                                        glm::vec3(selection.blockPosition),
                                        m_player);
-        const BlockId selectedBlock = static_cast<BlockId>(
-            world.getBlock(selection.blockPosition.x,
-                           selection.blockPosition.y,
-                           selection.blockPosition.z).id);
-        if (selectedBlock != BlockId::WaystoneCore) {
-            world.addEvent<PlayerDigEvent>(
-                PlayerDigAction::Place,
-                glm::vec3(selection.placementPosition), m_player);
+    }
+    else if (action == GameplayWorldAction::Place) {
+        m_miningProgress.cancel();
+        if (!m_blockSelection.has_value()) {
+            return;
         }
+        const BlockSelection &selection = *m_blockSelection;
+        m_interactionCooldownSeconds = 0.2f;
+        world.addEvent<PlayerDigEvent>(
+            PlayerDigAction::Place,
+            glm::vec3(selection.placementPosition), m_player);
     }
     else {
         m_miningProgress.cancel();

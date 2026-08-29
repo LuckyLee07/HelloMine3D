@@ -23,6 +23,8 @@ $stage10PerformanceVerifier = Join-Path $repoRoot `
     "tools\validate_stage10_visual_performance.ps1"
 $manualInputRecordVerifier = Join-Path $repoRoot `
     "tools\validate_manual_input_record.ps1"
+$physicalInputV2RecordVerifier = Join-Path $repoRoot `
+    "tools\validate_physical_input_v2_record.ps1"
 $developerVisualRecordVerifier = Join-Path $repoRoot `
     "tools\validate_developer_visual_record.ps1"
 $resourcePackVerifier = Join-Path $repoRoot `
@@ -149,6 +151,13 @@ try {
         & $manualInputRecordVerifier `
             -RecordPath (Join-Path $repoRoot `
                 "docs\manual-input-record-v1.template.txt") `
+            -AllowNotRun
+    }
+
+    Invoke-Checked "Physical Input v2 protocol schema" {
+        & $physicalInputV2RecordVerifier `
+            -RecordPath (Join-Path $repoRoot `
+                "docs\physical-input-record-v2.template.txt") `
             -AllowNotRun
     }
 

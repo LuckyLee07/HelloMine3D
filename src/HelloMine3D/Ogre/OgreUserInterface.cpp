@@ -287,6 +287,16 @@ class OgreUserInterface::Impl
         return tr("action." + suffix, gameplayActionName(action));
     }
 
+    std::string worldActionName(GameplayWorldAction action) const
+    {
+        const std::string configKey =
+            gameplayWorldActionConfigKey(action);
+        const std::string suffix = configKey.rfind("mouse_", 0) == 0
+            ? configKey.substr(6)
+            : configKey;
+        return tr("action." + suffix, gameplayWorldActionName(action));
+    }
+
     std::string objectiveText(const std::string& id, const char* field,
                               const std::string& fallback) const
     {
@@ -1336,6 +1346,45 @@ class OgreUserInterface::Impl
                                &draft.mouseSensitivity, 0.005f, 1.0f,
                                "%.3f", ImGuiSliderFlags_Logarithmic);
             ImGui::Checkbox(label("settings.invert_mouse_y", "##InvertMouseY").c_str(), &draft.invertMouseY);
+            const auto drawHoldMode = [&](const char *translationKey,
+                                          const char *widgetId,
+                                          GameplayHoldMode &mode)
+            {
+                const char *previewKey =
+                    mode == GameplayHoldMode::Toggle
+                        ? "settings.mode_toggle"
+                        : "settings.mode_hold";
+                if (ImGui::BeginCombo(
+                        label(translationKey, widgetId).c_str(),
+                        tr(previewKey, gameplayHoldModeName(mode)).c_str()))
+                {
+                    for (GameplayHoldMode candidate : {
+                             GameplayHoldMode::Hold,
+                             GameplayHoldMode::Toggle})
+                    {
+                        const bool selected = candidate == mode;
+                        const char *candidateKey =
+                            candidate == GameplayHoldMode::Toggle
+                                ? "settings.mode_toggle"
+                                : "settings.mode_hold";
+                        const std::string option = tr(
+                            candidateKey, gameplayHoldModeName(candidate));
+                        if (ImGui::Selectable(option.c_str(), selected))
+                        {
+                            mode = candidate;
+                        }
+                        if (selected)
+                        {
+                            ImGui::SetItemDefaultFocus();
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+            };
+            drawHoldMode("settings.sprint_mode", "##SprintMode",
+                         draft.sprintMode);
+            drawHoldMode("settings.sneak_mode", "##SneakMode",
+                         draft.sneakMode);
             const std::string languagePreview = draft.locale == "zh-CN"
                 ? tr("language.zh-cn") : tr("language.en-us");
             if (ImGui::BeginCombo(label("settings.language", "##Language").c_str(),
@@ -1397,6 +1446,49 @@ class OgreUserInterface::Impl
                     }
                     ImGui::EndCombo();
                 }
+            }
+            for (std::size_t actionIndex = 0;
+                 actionIndex < GameplayWorldActionCount; ++actionIndex)
+            {
+                const auto action =
+                    static_cast<GameplayWorldAction>(actionIndex);
+                const GameplayMouseButton current =
+                    draft.mouseBindings.get(action);
+                const std::string bindingLabel =
+                    worldActionName(action) + "##mouse-binding-" +
+                    std::to_string(actionIndex);
+                if (ImGui::BeginCombo(
+                        bindingLabel.c_str(),
+                        gameplayMouseButtonName(current)))
+                {
+                    for (std::size_t buttonIndex = 0;
+                         buttonIndex < GameplayMouseButtonCount;
+                         ++buttonIndex)
+                    {
+                        const auto button =
+                            static_cast<GameplayMouseButton>(buttonIndex);
+                        const bool selected = button == current;
+                        if (ImGui::Selectable(
+                                gameplayMouseButtonName(button), selected))
+                        {
+                            draft.mouseBindings.set(action, button);
+                        }
+                        if (selected)
+                        {
+                            ImGui::SetItemDefaultFocus();
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+            }
+            const std::string mouseSharing =
+                describeGameplayMouseBindingSharing(draft.mouseBindings);
+            if (!mouseSharing.empty())
+            {
+                ImGui::TextWrapped(
+                    "%s: %s",
+                    tr("settings.context_binding", "Context binding").c_str(),
+                    mouseSharing.c_str());
             }
             ImGui::TextWrapped("%s", tr("settings.apply_note").c_str());
             if (!settingsMessage.empty())
@@ -1983,7 +2075,12 @@ class OgreUserInterface::Impl
                             gameplayKeyName(appliedSettings.inputBindings.get(
                                  GameplayAction::ConsumeFood)),
                             tr("hint.eat").c_str());
-                ImGui::Text("RMB  %s", tr("hint.guard").c_str());
+                ImGui::Text(
+                    "%s  %s",
+                    gameplayMouseButtonName(
+                        appliedSettings.mouseBindings.get(
+                            GameplayWorldAction::Guard)),
+                    tr("hint.guard").c_str());
                 ImGui::Text("Esc  %s", tr("hint.pause").c_str());
             }
             ImGui::End();

@@ -19,7 +19,7 @@
 
 | 所有者 | 字段 | 设置页权限 |
 | ------ | ---- | ---------- |
-| `UserSettings` | 窗口宽高、全屏、视距、方向阴影档位、后处理开关、FOV、鼠标灵敏度、反转 Y、主/UI/效果/环境/音乐音量、UI 缩放、语言、声音字幕、操作提示和九项玩法键位 | 可编辑 |
+| `UserSettings` | 窗口宽高、全屏、视距、方向阴影档位、后处理开关、FOV、鼠标灵敏度、反转 Y、主/UI/效果/环境/音乐音量、UI 缩放、语言、声音字幕、操作提示、九项键盘玩法键位、四项鼠标世界动作绑定及冲刺/潜行模式 | 可编辑 |
 | `WorldCreationConfig` | 可选世界 seed | 不可见、不可编辑 |
 
 恢复默认值只重新创建 `UserSettings`。应用时以当前完整 `Config` 为基底替换用户设置，
@@ -39,10 +39,10 @@
 
 ## 文件格式
 
-`bin/config.txt` 使用严格文本格式，V10E 后当前版本为 6：
+`bin/config.txt` 使用严格文本格式；V10E 升至 v6，P11A 后当前版本为 7：
 
 ```text
-settings_version 6
+settings_version 7
 renderdistance 8
 directionalshadowquality off
 postprocessingquality off
@@ -60,6 +60,8 @@ uiscale 1
 locale en-US
 audiocaptions 1
 actionhints 1
+sprintmode hold
+sneakmode hold
 key_move_forward w
 key_move_backward s
 key_move_left a
@@ -69,21 +71,29 @@ key_sneak left_shift
 key_sprint left_control
 key_open_crafting e
 key_consume_food r
+mouse_break_attack primary
+mouse_use secondary
+mouse_place secondary
+mouse_guard secondary
 seed random
 ```
 
 - 空行和 `#` 后注释可忽略；重复字段、未知字段、尾随数据和非有限浮点数拒绝。
-- 无 `settings_version` 的旧文件按 legacy v0 读取；显式版本 1/2/3/4/5 仍按各自字段边界读取。
-  缺失字段使用默认值，成功校验后立即原子迁移到 v6；v0-v2 的 locale 固定迁移为 `en-US`，
+- 无 `settings_version` 的旧文件按 legacy v0 读取；显式版本 1/2/3/4/5/6 仍按各自字段边界读取。
+  缺失字段使用默认值，成功校验后立即原子迁移到 v7；v0-v2 的 locale 固定迁移为 `en-US`，
   v0-v3 的音乐音量固定迁移为默认 0.65。版本 1 混入版本 2 字段、v0-v2 混入 v3 `locale`，
   v0-v3 混入 v4 `musicvolume`、v0-v4 混入 v5 `directionalshadowquality`，或 v0-v5 混入 v6
-  `postprocessingquality` 都拒绝。
-- v0-v4 的方向阴影固定迁移为 `off`；v5-v6 只接受 `off`、`medium`、`high`，未知档位严格拒绝。
-- v0-v5 的后处理固定迁移为 `off`；v6 只接受 `off`、`on`，未知档位严格拒绝。
+  `postprocessingquality`，或 v0-v6 混入 v7 输入字段都拒绝。
+- v0-v4 的方向阴影固定迁移为 `off`；v5-v7 只接受 `off`、`medium`、`high`，未知档位严格拒绝。
+- v0-v5 的后处理固定迁移为 `off`；v6-v7 只接受 `off`、`on`，未知档位严格拒绝。
+- v0-v6 的冲刺/潜行模式固定迁移为 `hold`，鼠标动作固定迁移为主键采挖/攻击、副键共享
+  使用/放置/格挡。v7 六个新增字段全部必需；模式只接受 `hold|toggle`，鼠标只接受
+  `primary|secondary|middle|side1|side2`。
 - 未知版本明确拒绝，不尝试猜测或降级。
 - 视距范围为 1-32，窗口为 640×480 至 7680×4320，FOV 为 45-120，灵敏度为
   0.005-1.0，各音量为 0.0-1.0，UI 缩放为 0.75-1.75；locale 只接受 `en-US`/`zh-CN`；
-  九项玩法键位不得重复。
+  九项键盘玩法键位不得重复；采挖/攻击鼠标键不得与上下文动作重复，使用/放置/格挡允许按
+  P11A 合同共享并在设置页提示。
 
 ## 原子性与失败
 
@@ -95,13 +105,15 @@ seed random
 
 `HelloMine3DWorldRuntimeSmoke` 的 G4 用例覆盖：
 
-- 缺失文件生成 v6、默认关闭方向阴影/后处理、五类音量、语言、辅助选项和九项键位默认值；
-- legacy v0、版本 1/2/3/4/5 自动迁移，旧版本越界字段、未知阴影/后处理档位和未知版本拒绝；
-- 辅助选项与自定义键位往返，重复/未知键位和 UI 缩放越界拒绝；
+- 缺失文件生成 v7、默认关闭方向阴影/后处理、五类音量、语言、辅助选项、九项键盘键位、
+  四项鼠标动作和两项 hold 模式默认值；
+- legacy v0、版本 1/2/3/4/5/6 自动迁移，旧版本越界字段、未知阴影/后处理/输入档位和未知版本拒绝；
+- 辅助选项、自定义键鼠和 hold/toggle 往返，破坏性重复/未知绑定和 UI 缩放越界拒绝；
 - 草稿应用计划、取消、默认值、显示重启分类和非法范围；
 - 成功保存保留 seed，替换前故障保持上一份有效文件；
 - 逻辑相机 FOV 和世界视距即时更新；
 - 主菜单/暂停拒绝模拟推进，恢复后继续推进，非法重复暂停拒绝。
 
-Debug/Release 世界目标和隐藏客户端都必须通过。真实鼠标点击、Escape 手感、焦点切换与
-窗口重启后的显示模式仍由 R3 的目标 Windows Release 记录关闭。
+Debug/Release 世界目标和可运行的隐藏客户端都必须通过。真实鼠标点击、Escape 手感、焦点切换、
+实际鼠标距离与窗口重启后的恢复由 Physical Input v2 的目标 Windows Release 记录关闭；在真人
+记录延期时只标记 `Verify/Deferred`，不阻塞后续工程批次。

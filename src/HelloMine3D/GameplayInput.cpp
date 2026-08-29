@@ -25,6 +25,20 @@ constexpr std::array<const char *, GameplayKeyCount> KeyTokens{
     "w", "x", "y", "z", "space", "left_shift", "left_control",
     "up", "down", "left", "right"};
 
+constexpr std::array<const char *, GameplayWorldActionCount>
+    WorldActionNames{"Break / attack", "Use", "Place", "Guard"};
+
+constexpr std::array<const char *, GameplayWorldActionCount>
+    WorldActionConfigKeys{"mouse_break_attack", "mouse_use",
+                          "mouse_place", "mouse_guard"};
+
+constexpr std::array<const char *, GameplayMouseButtonCount>
+    MouseButtonNames{"Mouse primary", "Mouse secondary", "Mouse middle",
+                     "Mouse side 1", "Mouse side 2"};
+
+constexpr std::array<const char *, GameplayMouseButtonCount>
+    MouseButtonTokens{"primary", "secondary", "middle", "side1", "side2"};
+
 template <typename Enum>
 std::size_t indexOf(Enum value) noexcept
 {
@@ -44,6 +58,23 @@ void GameplayInputBindings::set(GameplayAction action,
     const std::size_t index = indexOf(action);
     if (index < keys.size()) {
         keys[index] = key;
+    }
+}
+
+GameplayMouseButton GameplayMouseBindings::get(
+    GameplayWorldAction action) const noexcept
+{
+    const std::size_t index = indexOf(action);
+    return index < buttons.size() ? buttons[index]
+                                  : GameplayMouseButton::Primary;
+}
+
+void GameplayMouseBindings::set(GameplayWorldAction action,
+                                GameplayMouseButton button) noexcept
+{
+    const std::size_t index = indexOf(action);
+    if (index < buttons.size()) {
+        buttons[index] = button;
     }
 }
 
@@ -106,5 +137,244 @@ bool validateGameplayInputBindings(const GameplayInputBindings &bindings,
         used[keyIndex] = true;
     }
     error.clear();
+    return true;
+}
+
+const char *gameplayWorldActionName(GameplayWorldAction action) noexcept
+{
+    const std::size_t index = indexOf(action);
+    return index < WorldActionNames.size() ? WorldActionNames[index]
+                                           : "Unknown world action";
+}
+
+const char *gameplayWorldActionConfigKey(
+    GameplayWorldAction action) noexcept
+{
+    const std::size_t index = indexOf(action);
+    return index < WorldActionConfigKeys.size()
+               ? WorldActionConfigKeys[index]
+               : "mouse_unknown";
+}
+
+const char *gameplayMouseButtonName(GameplayMouseButton button) noexcept
+{
+    const std::size_t index = indexOf(button);
+    return index < MouseButtonNames.size() ? MouseButtonNames[index]
+                                           : "Unknown mouse button";
+}
+
+const char *gameplayMouseButtonToken(GameplayMouseButton button) noexcept
+{
+    const std::size_t index = indexOf(button);
+    return index < MouseButtonTokens.size() ? MouseButtonTokens[index]
+                                            : "unknown";
+}
+
+bool tryParseGameplayMouseButton(const std::string &token,
+                                 GameplayMouseButton &button) noexcept
+{
+    const auto found = std::find_if(
+        MouseButtonTokens.begin(), MouseButtonTokens.end(),
+        [&token](const char *candidate) { return token == candidate; });
+    if (found == MouseButtonTokens.end()) {
+        return false;
+    }
+    button = static_cast<GameplayMouseButton>(
+        static_cast<std::size_t>(found - MouseButtonTokens.begin()));
+    return true;
+}
+
+const char *gameplayHoldModeName(GameplayHoldMode mode) noexcept
+{
+    return mode == GameplayHoldMode::Toggle ? "Toggle" : "Hold";
+}
+
+const char *gameplayHoldModeToken(GameplayHoldMode mode) noexcept
+{
+    return mode == GameplayHoldMode::Toggle ? "toggle" : "hold";
+}
+
+bool tryParseGameplayHoldMode(const std::string &token,
+                              GameplayHoldMode &mode) noexcept
+{
+    if (token == "hold") {
+        mode = GameplayHoldMode::Hold;
+        return true;
+    }
+    if (token == "toggle") {
+        mode = GameplayHoldMode::Toggle;
+        return true;
+    }
+    return false;
+}
+
+bool validateGameplayMouseBindings(const GameplayMouseBindings &bindings,
+                                   std::string &error) noexcept
+{
+    for (std::size_t index = 0; index < bindings.buttons.size(); ++index) {
+        if (indexOf(bindings.buttons[index]) >= GameplayMouseButtonCount) {
+            error = std::string(gameplayWorldActionName(
+                        static_cast<GameplayWorldAction>(index))) +
+                    " uses an unknown mouse button";
+            return false;
+        }
+    }
+
+    const GameplayMouseButton breakButton =
+        bindings.get(GameplayWorldAction::BreakAttack);
+    for (GameplayWorldAction action : {
+             GameplayWorldAction::Use,
+             GameplayWorldAction::Place,
+             GameplayWorldAction::Guard}) {
+        if (bindings.get(action) == breakButton) {
+            error = std::string("mouse button '") +
+                    gameplayMouseButtonName(breakButton) +
+                    "' cannot be shared by Break / attack and " +
+                    gameplayWorldActionName(action);
+            return false;
+        }
+    }
+    error.clear();
+    return true;
+}
+
+std::string describeGameplayMouseBindingSharing(
+    const GameplayMouseBindings &bindings)
+{
+    for (std::size_t buttonIndex = 0;
+         buttonIndex < GameplayMouseButtonCount; ++buttonIndex) {
+        const auto button = static_cast<GameplayMouseButton>(buttonIndex);
+        std::string actions;
+        int count = 0;
+        for (GameplayWorldAction action : {
+                 GameplayWorldAction::Use,
+                 GameplayWorldAction::Place,
+                 GameplayWorldAction::Guard}) {
+            if (bindings.get(action) != button) {
+                continue;
+            }
+            if (!actions.empty()) {
+                actions += ", ";
+            }
+            actions += gameplayWorldActionName(action);
+            ++count;
+        }
+        if (count > 1) {
+            return std::string(gameplayMouseButtonName(button)) +
+                   " is context-shared by " + actions;
+        }
+    }
+    return {};
+}
+
+GameplayLookDelta calculateGameplayLookDelta(
+    float rawX, float rawY, float sensitivity,
+    bool invertMouseY) noexcept
+{
+    GameplayLookDelta result;
+    result.yaw = rawX * sensitivity;
+    result.pitch = rawY * sensitivity * (invertMouseY ? -1.f : 1.f);
+    return result;
+}
+
+GameplayWorldAction resolveGameplayWorldAction(
+    const GameplayWorldActionIntent &intent,
+    const GameplayWorldActionContext &context) noexcept
+{
+    if (intent.breakAttack) {
+        return GameplayWorldAction::BreakAttack;
+    }
+    if (intent.guard && context.actorTarget && context.guardAvailable) {
+        return GameplayWorldAction::Guard;
+    }
+    if (intent.use && context.usableBlockTarget) {
+        return GameplayWorldAction::Use;
+    }
+    if (intent.place && context.placeableHeldItem) {
+        return GameplayWorldAction::Place;
+    }
+    return GameplayWorldAction::None;
+}
+
+GameplayMovementModeState GameplayMovementModeTracker::update(
+    bool active, bool sprintDown, bool sneakDown,
+    GameplayHoldMode sprintMode,
+    GameplayHoldMode sneakMode) noexcept
+{
+    GameplayMovementModeState state;
+    if (!active) {
+        m_sprintToggled = false;
+        m_sneakToggled = false;
+        m_previousSprintDown = sprintDown;
+        m_previousSneakDown = sneakDown;
+        return state;
+    }
+
+    if (sprintMode == GameplayHoldMode::Toggle && sprintDown &&
+        !m_previousSprintDown) {
+        m_sprintToggled = !m_sprintToggled;
+    }
+    if (sneakMode == GameplayHoldMode::Toggle && sneakDown &&
+        !m_previousSneakDown) {
+        m_sneakToggled = !m_sneakToggled;
+    }
+    state.sprint = sprintMode == GameplayHoldMode::Toggle
+                       ? m_sprintToggled
+                       : sprintDown;
+    state.sneak = sneakMode == GameplayHoldMode::Toggle
+                      ? m_sneakToggled
+                      : sneakDown;
+    m_previousSprintDown = sprintDown;
+    m_previousSneakDown = sneakDown;
+    return state;
+}
+
+void GameplayMovementModeTracker::reset() noexcept
+{
+    m_previousSprintDown = false;
+    m_previousSneakDown = false;
+    m_sprintToggled = false;
+    m_sneakToggled = false;
+}
+
+void GameplayFocusGate::setFocused(bool focused) noexcept
+{
+    if (focused == m_focused) {
+        return;
+    }
+    m_focused = focused;
+    m_suppressButtonsUntilRelease = true;
+    m_discardNextLookSample = true;
+}
+
+bool GameplayFocusGate::isFocused() const noexcept
+{
+    return m_focused;
+}
+
+bool GameplayFocusGate::allowsWorldButtons(bool anyButtonDown) noexcept
+{
+    if (!m_focused) {
+        return false;
+    }
+    if (!m_suppressButtonsUntilRelease) {
+        return true;
+    }
+    if (anyButtonDown) {
+        return false;
+    }
+    m_suppressButtonsUntilRelease = false;
+    return true;
+}
+
+bool GameplayFocusGate::acceptsLookSample() noexcept
+{
+    if (!m_focused) {
+        return false;
+    }
+    if (m_discardNextLookSample) {
+        m_discardNextLookSample = false;
+        return false;
+    }
     return true;
 }

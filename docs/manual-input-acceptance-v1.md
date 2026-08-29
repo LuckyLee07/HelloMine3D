@@ -19,8 +19,9 @@ the current D4, D6 or project-wide R3 `Verify` state:
 - they predate Stage 9 guard/ranged/difficulty paths and do not cover visual,
   bilingual-readability or listening acceptance.
 
-A future Physical Input v2 must add the missing player-input journeys before it
-can close D2/D4/D6/R3. Visual, bilingual-readability and listening evidence must
+Physical Input v2 is now defined by `docs/physical-input-acceptance-v2.md` and
+adds the missing player-input journeys required to close D2/D4/D6/R3. Its real
+run remains Deferred. Visual, bilingual-readability and listening evidence must
 use a separate product-experience checklist; it must not be appended to this
 physical-input schema. A v1 `PASS` therefore means only "all twelve v1 cases
 passed on the recorded identity".

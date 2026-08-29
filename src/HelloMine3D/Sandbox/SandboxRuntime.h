@@ -16,7 +16,8 @@
 
 struct SandboxInputState {
     PlayerInputState player;
-    bool breakBlock = false;
+    bool breakAttack = false;
+    bool useBlock = false;
     bool placeBlock = false;
     bool guardCombat = false;
     bool useHeldFood = false;
@@ -47,8 +48,11 @@ class SandboxRuntime : public NonCopyable {
     void cancelMiningProgress() noexcept;
 
   private:
+    GameplayWorldAction resolveWorldAction(
+        World &world, const SandboxInputState &input);
     void handlePlayerInteraction(World &world,
                                  const SandboxInputState &input,
+                                 GameplayWorldAction action,
                                  float deltaSeconds);
     void runFixedTicks(float deltaSeconds);
 

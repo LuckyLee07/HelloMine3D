@@ -2194,13 +2194,17 @@ bool World::playerHoldsGuardWeapon() const noexcept
     return tool != nullptr && tool->miningClass == MiningClass::Weapon;
 }
 
-bool World::isPlayerGuarding() const noexcept
+bool World::canPlayerGuard() const noexcept
 {
-    return m_playerGuardRequested && m_player != nullptr &&
-           m_playerActor.isAlive() &&
+    return m_player != nullptr && m_playerActor.isAlive() &&
            m_playerGuardRecoverTicksRemaining == 0 &&
            !m_player->hasOpenContainer() && !m_player->hasOpenCrafting() &&
            playerHoldsGuardWeapon();
+}
+
+bool World::isPlayerGuarding() const noexcept
+{
+    return m_playerGuardRequested && canPlayerGuard();
 }
 
 bool World::isCombatTargetAvailable(ActorId actorId) const noexcept

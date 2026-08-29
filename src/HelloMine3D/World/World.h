@@ -245,6 +245,7 @@ class World : public NonCopyable {
     bool attackActor(ActorId actorId, float amount);
     bool damagePlayer(float amount, ActorId sourceId = InvalidActorId);
     void setPlayerGuarding(bool requested) noexcept;
+    bool canPlayerGuard() const noexcept;
     bool isPlayerGuarding() const noexcept;
     bool isCombatTargetAvailable(ActorId actorId) const noexcept;
     bool tryConsumeCombatChaseStep() noexcept;

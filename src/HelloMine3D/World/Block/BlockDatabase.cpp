@@ -154,6 +154,8 @@ class WheatCropBlockBehavior final : public BlockBehavior {
 
 class ChestBlockBehavior final : public BlockBehavior {
   public:
+    bool supportsUse() const noexcept override { return true; }
+
     void onPlaced(World &world, Player &,
                   const glm::ivec3 &position, const ChunkBlock &,
                   const ChunkBlock &) const override
@@ -184,6 +186,8 @@ class ChestBlockBehavior final : public BlockBehavior {
 
 class WorkbenchBlockBehavior final : public BlockBehavior {
   public:
+    bool supportsUse() const noexcept override { return true; }
+
     void onBroken(World &, Player &player,
                   const glm::ivec3 &position,
                   const ChunkBlock &) const override
@@ -206,6 +210,8 @@ class WorkbenchBlockBehavior final : public BlockBehavior {
 
 class FurnaceBlockBehavior final : public BlockBehavior {
   public:
+    bool supportsUse() const noexcept override { return true; }
+
     int emission(const BlockDefinition &,
                  const ChunkBlock &block) const noexcept override
     {
@@ -253,6 +259,8 @@ class FurnaceBlockBehavior final : public BlockBehavior {
 
 class WaystoneBlockBehavior final : public BlockBehavior {
   public:
+    bool supportsUse() const noexcept override { return true; }
+
     void onPlaced(World &world, Player &,
                   const glm::ivec3 &position, const ChunkBlock &,
                   const ChunkBlock &) const override
