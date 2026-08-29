@@ -62,6 +62,7 @@ if (-not [System.IO.Path]::IsPathRooted($SaveDir)) {
 if (-not ("HelloMine3DPerfBaseline.NativeMethods" -as [type])) {
     Add-Type -TypeDefinition @"
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -99,6 +100,38 @@ namespace HelloMine3DPerfBaseline
 
         [DllImport("user32.dll")]
         public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
+
+        [DllImport("wtsapi32.dll", CharSet = CharSet.Unicode,
+            SetLastError = true)]
+        private static extern bool WTSQuerySessionInformation(
+            IntPtr server, int sessionId, int informationClass,
+            out IntPtr buffer, out int bytesReturned);
+
+        [DllImport("wtsapi32.dll")]
+        private static extern void WTSFreeMemory(IntPtr buffer);
+
+        public static int CurrentSessionConnectState()
+        {
+            // WTSConnectState is information class 8. Its first enum value,
+            // WTSActive (0), is the only state with an interactive desktop
+            // suitable for a hardware OpenGL performance capture.
+            IntPtr buffer;
+            int bytesReturned;
+            if (!WTSQuerySessionInformation(
+                    IntPtr.Zero, Process.GetCurrentProcess().SessionId, 8,
+                    out buffer, out bytesReturned))
+                return -1;
+            try
+            {
+                return bytesReturned >= sizeof(int)
+                    ? Marshal.ReadInt32(buffer)
+                    : -1;
+            }
+            finally
+            {
+                WTSFreeMemory(buffer);
+            }
+        }
 
         public static IntPtr FindWindowForProcess(int targetProcessId)
         {
@@ -308,6 +341,13 @@ function Show-WindowNoActivate {
 
 if (-not (Test-Path -LiteralPath $ExePath)) {
     throw "$ExeName not found: $ExePath"
+}
+
+$sessionConnectState =
+    [HelloMine3DPerfBaseline.NativeMethods]::CurrentSessionConnectState()
+if ($sessionConnectState -ne 0) {
+    $sessionId = [System.Diagnostics.Process]::GetCurrentProcess().SessionId
+    throw "Hardware performance capture requires an active Windows desktop; current session $sessionId has WTS connect state $sessionConnectState. Unlock or reconnect that session before retrying."
 }
 
 if ($WarmupMs -lt 0) {
