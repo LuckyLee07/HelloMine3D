@@ -30,7 +30,8 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 | `docs/game-development-roadmap.md` | Detailed G5/G6, post-Alpha gameplay and Release Candidate development order. |
 | `docs/visual-quality-roadmap.md` | Stage 10 vertex lighting/AO, split material pipeline/assets/tint batches, atmosphere/clouds, optional shadows, post-processing, version plan and visual-RC gates. |
 | `docs/visual-release-candidate-report-2026-08-28.md` | Final Windows Stage 10 visual, Q1/Q3, resource/licence, packaging and cross-platform evidence boundary. |
-| `docs/playability-experience-roadmap.md` | Authoritative Stage 11 input-feel, action-feedback, first-30-minute, exploration-reward, combat-presentation and PLAYABILITY-RC batch plan. |
+| `docs/playability-experience-roadmap.md` | Authoritative Stage 11 light-source, input-feel, action-feedback, building-material, first-30-minute, exploration-reward, terrain-silhouette, combat-presentation and PLAYABILITY-RC batch plan. |
+| `docs/world-light-source-contract-v1.md` | P11-0 torch definition, atlas/recipe ownership, metadata-driven emission, local relight and append-only identity constraints. |
 | `docs/vertex-lighting-contract-v1.md` | V10A corner sampling, AO/light composition, deterministic diagonals, reconstruction-safe greedy merging, and dirty propagation. |
 | `docs/world-catalogue-contract-v1.md`, `docs/storage-transaction-contract-v1.md`, `docs/world-backup-contract-v1.md`, `docs/world-management-contract-v1.md` | K1-K4 world identity, atomic publication, verified recovery and player-facing management contracts. |
 | `docs/runtime-settings-contract-v1.md` | G4 pause, settings draft, versioned persistence and live-apply contract. |
@@ -76,9 +77,14 @@ evidence, formal product experience and Physical Input v2 remain independent
 `Verify` evidence rather than automatic passes; see
 `docs/visual-release-candidate-report-2026-08-28.md`.
 The post-VISUAL-RC direction review has selected Stage 11 playability and input
-experience instead of entering `1.0-RC` immediately. Only `P11A` core input feel
-is currently planned; `P11B-P11F` remain ordered, evidence-gated queued batches.
-See `docs/playability-experience-roadmap.md` for the authoritative scope.
+experience instead of entering `1.0-RC` immediately. A follow-up content review on
+2026-08-28 inserted three content-density batches (`P11-0`, `P11-1`, `P11-2`)
+between the original six, because those batches' exit conditions depend on content
+the world does not yet contain: no craftable light source, too few building
+materials and a purely height-mapped terrain silhouette. Only `P11-0` world light
+is currently planned; the remaining eight are ordered, evidence-gated queued
+batches. See `docs/playability-experience-roadmap.md` for the authoritative scope
+and `docs/world-light-source-contract-v1.md` for the active batch contract.
 
 Stage 8 established the sustainable-play and reliable-release foundation. Its
 completed 16-item K/H/Q/G scope adds durable world management and recovery, local
