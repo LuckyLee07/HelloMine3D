@@ -1,6 +1,7 @@
 #include "ClassicOverWorldGenerator.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <functional>
 #include <iostream>
@@ -17,6 +18,16 @@
 
 namespace {
 constexpr int MaximumStructureRadius = 6;
+constexpr int MountainBiomeValue = -1000000;
+constexpr int MountainRockHeight = WATER_LEVEL + 36;
+
+int normalizeTerrainGenerationVersion(int generationVersion) noexcept
+{
+    return generationVersion >= LegacyTerrainGenerationVersion &&
+            generationVersion <= CurrentTerrainGenerationVersion
+        ? generationVersion
+        : CurrentTerrainGenerationVersion;
+}
 
 std::uint64_t mixStructureValue(std::uint64_t value)
 {
@@ -37,26 +48,65 @@ std::uint64_t structureHash(int seed, int worldX, int worldZ)
         static_cast<std::int64_t>(worldZ)) + 0x8cb92baa3f3d8dd7ull);
     return mixStructureValue(value ^ 0xd1b54a32d192ed03ull);
 }
+
+double smoothStep(double minimum, double maximum, double value) noexcept
+{
+    const double amount = std::max(
+        0.0, std::min(1.0, (value - minimum) / (maximum - minimum)));
+    return amount * amount * (3.0 - 2.0 * amount);
+}
+
+double valueNoiseLattice(int seed, int x, int z,
+                         std::uint64_t salt) noexcept
+{
+    std::uint64_t value = mixStructureValue(static_cast<std::uint64_t>(
+        static_cast<std::int64_t>(seed)) + salt);
+    value ^= mixStructureValue(static_cast<std::uint64_t>(
+        static_cast<std::int64_t>(x)) + 0x632be59bd9b4e019ull);
+    value ^= mixStructureValue(static_cast<std::uint64_t>(
+        static_cast<std::int64_t>(z)) + 0x8cb92baa3f3d8dd7ull);
+    constexpr double Unit = 1.0 / 9007199254740991.0;
+    return static_cast<double>(mixStructureValue(value) >> 11) *
+        Unit * 2.0 - 1.0;
+}
+
+double valueNoise2D(int seed, int worldX, int worldZ, double scale,
+                    std::uint64_t salt) noexcept
+{
+    const double x = static_cast<double>(worldX) / scale;
+    const double z = static_cast<double>(worldZ) / scale;
+    const int x0 = static_cast<int>(std::floor(x));
+    const int z0 = static_cast<int>(std::floor(z));
+    const int x1 = x0 + 1;
+    const int z1 = z0 + 1;
+    const double tx = smoothStep(0.0, 1.0, x - x0);
+    const double tz = smoothStep(0.0, 1.0, z - z0);
+    const double lower = valueNoiseLattice(seed, x0, z0, salt) +
+        (valueNoiseLattice(seed, x1, z0, salt) -
+         valueNoiseLattice(seed, x0, z0, salt)) * tx;
+    const double upper = valueNoiseLattice(seed, x0, z1, salt) +
+        (valueNoiseLattice(seed, x1, z1, salt) -
+         valueNoiseLattice(seed, x0, z1, salt)) * tx;
+    return lower + (upper - lower) * tz;
+}
 } // namespace
 
 ClassicOverWorldGenerator::ClassicOverWorldGenerator(
     int seed, int generationVersion, int explorationRewardVersion)
     : m_seed(seed)
-    , m_generationVersion(generationVersion)
+    , m_generationVersion(
+          normalizeTerrainGenerationVersion(generationVersion))
     , m_explorationRewardVersion(explorationRewardVersion)
     , m_random(seed)
     , m_biomeNoiseGen(seed * 2)
-    , m_caveGenerator(seed)
+    , m_caveGenerator(seed,
+                      normalizeTerrainGenerationVersion(generationVersion))
     , m_grassBiome(seed)
     , m_temperateForest(seed)
     , m_desertBiome(seed)
     , m_oceanBiome(seed)
     , m_lightForest(seed)
 {
-    if (m_generationVersion < LegacyTerrainGenerationVersion ||
-        m_generationVersion > CurrentTerrainGenerationVersion) {
-        m_generationVersion = CurrentTerrainGenerationVersion;
-    }
     if (!ExplorationRewards::validVersion(m_explorationRewardVersion)) {
         m_explorationRewardVersion = ExplorationRewards::CurrentVersion;
     }
@@ -103,6 +153,16 @@ void ClassicOverWorldGenerator::generateTerrainFor(Chunk &chunk)
 void ClassicOverWorldGenerator::applyCavePass()
 {
     m_caveGenerator.carve(*m_pChunk, m_heightMap);
+    if (m_generationVersion >= MountainTerrainGenerationVersion) {
+        m_caveGenerator.carveNaturalEntrances(
+            *m_pChunk,
+            [this](int worldX, int worldZ) {
+                return getSurfaceHeightAtWorld(worldX, worldZ);
+            },
+            [this](int worldX, int worldZ) {
+                return getBiomeAtWorld(worldX, worldZ);
+            });
+    }
 }
 
 int ClassicOverWorldGenerator::getMinimumSpawnHeight() const noexcept
@@ -128,6 +188,12 @@ int ClassicOverWorldGenerator::getGenerationVersion() const noexcept
 TerrainBiome ClassicOverWorldGenerator::getBiomeAtWorld(
     int worldX, int worldZ) const noexcept
 {
+    if (m_generationVersion >= MountainTerrainGenerationVersion &&
+        getMountainStrengthAtWorld(worldX, worldZ) >= 0.48 &&
+        getTerrainV4HeightAtWorld(worldX, worldZ) >=
+            WATER_LEVEL + 16) {
+        return TerrainBiome::Mountain;
+    }
     const int chunkX = WorldCoordinates::floorDiv(worldX, CHUNK_SIZE);
     const int chunkZ = WorldCoordinates::floorDiv(worldZ, CHUNK_SIZE);
     const int localX = WorldCoordinates::floorMod(worldX, CHUNK_SIZE);
@@ -140,6 +206,9 @@ TerrainBiome ClassicOverWorldGenerator::getBiomeAtWorld(
 int ClassicOverWorldGenerator::getSurfaceHeightAtWorld(
     int worldX, int worldZ) const noexcept
 {
+    if (m_generationVersion >= MountainTerrainGenerationVersion) {
+        return getTerrainV4HeightAtWorld(worldX, worldZ);
+    }
     const int chunkX = WorldCoordinates::floorDiv(worldX, CHUNK_SIZE);
     const int chunkZ = WorldCoordinates::floorDiv(worldZ, CHUNK_SIZE);
     const int localX = WorldCoordinates::floorMod(worldX, CHUNK_SIZE);
@@ -219,6 +288,17 @@ void ClassicOverWorldGenerator::getHeightIn(int xMin, int zMin, int xMax,
 
 void ClassicOverWorldGenerator::getHeightMap()
 {
+    if (m_generationVersion >= MountainTerrainGenerationVersion) {
+        const glm::ivec2 location = m_pChunk->getLocation();
+        for (int x = 0; x < CHUNK_SIZE; ++x) {
+            for (int z = 0; z < CHUNK_SIZE; ++z) {
+                m_heightMap.get(x, z) = getTerrainV4HeightAtWorld(
+                    location.x * CHUNK_SIZE + x,
+                    location.y * CHUNK_SIZE + z);
+            }
+        }
+        return;
+    }
     constexpr static auto HALF_CHUNK = CHUNK_SIZE / 2;
     constexpr static auto CHUNK = CHUNK_SIZE;
 
@@ -234,6 +314,14 @@ void ClassicOverWorldGenerator::getBiomeMap()
 
     for (int x = 0; x < CHUNK_SIZE + 1; x++)
         for (int z = 0; z < CHUNK_SIZE + 1; z++) {
+            const int worldX = location.x * CHUNK_SIZE + x;
+            const int worldZ = location.y * CHUNK_SIZE + z;
+            if (m_generationVersion >= MountainTerrainGenerationVersion &&
+                getBiomeAtWorld(worldX, worldZ) ==
+                    TerrainBiome::Mountain) {
+                m_biomeMap.get(x, z) = MountainBiomeValue;
+                continue;
+            }
             double h = m_biomeNoiseGen.getHeight(x, z, location.x + 10,
                                                  location.y + 10);
             m_biomeMap.get(x, z) = static_cast<int>(h);
@@ -248,6 +336,10 @@ void ClassicOverWorldGenerator::generateBaseTerrain(
             for (int z = 0; z < CHUNK_SIZE; z++) {
                 int height = m_heightMap.get(x, z);
                 auto &biome = getBiome(x, z);
+                const bool mountainRock =
+                    getBiomeKindForValue(m_biomeMap.get(x, z)) ==
+                        TerrainBiome::Mountain &&
+                    height >= MountainRockHeight;
 
                 if (y > height) {
                     if (y <= WATER_LEVEL) {
@@ -273,19 +365,23 @@ void ClassicOverWorldGenerator::generateBaseTerrain(
                             (void)m_random.intInRange(
                                 0, biome.getTreeFrequency());
                         }
-                        if (m_random.intInRange(0, biome.getPlantFrequency()) ==
-                            5) {
+                        if (!mountainRock &&
+                            m_random.intInRange(
+                                0, biome.getPlantFrequency()) == 5) {
                             plantPositions.push_back({x, y + 1, z});
                         }
                         m_pChunk->setBlock(
-                            x, y, z, getBiome(x, z).getTopBlock(m_random));
+                            x, y, z,
+                            mountainRock
+                                ? ChunkBlock(BlockId::Stone)
+                                : getBiome(x, z).getTopBlock(m_random));
                     }
                     else {
                         m_pChunk->setBlock(x, y, z,
                                            biome.getUnderWaterBlock(m_random));
                     }
                 }
-                else if (y > height - 3) {
+                else if (y > height - 3 && !mountainRock) {
                     m_pChunk->setBlock(x, y, z, BlockId::Dirt);
                 }
                 else {
@@ -374,6 +470,11 @@ void ClassicOverWorldGenerator::applyTreeDecorators()
             const int height = getHeightAt(
                 localX, localZ, sourceChunkX, sourceChunkZ);
             if (height < WATER_LEVEL + 4) {
+                continue;
+            }
+            if (m_generationVersion >= MountainTerrainGenerationVersion &&
+                getBiomeAtWorld(worldX, worldZ) ==
+                    TerrainBiome::Mountain) {
                 continue;
             }
 
@@ -578,6 +679,16 @@ void ClassicOverWorldGenerator::projectStructurePlan(
 int ClassicOverWorldGenerator::getHeightAt(int x, int z, int chunkX,
                                            int chunkZ) const
 {
+    if (m_generationVersion >= MountainTerrainGenerationVersion) {
+        return getTerrainV4HeightAtWorld(
+            chunkX * CHUNK_SIZE + x, chunkZ * CHUNK_SIZE + z);
+    }
+    return getLegacyHeightAt(x, z, chunkX, chunkZ);
+}
+
+int ClassicOverWorldGenerator::getLegacyHeightAt(
+    int x, int z, int chunkX, int chunkZ) const
+{
     const int xMin = x < CHUNK_SIZE / 2 ? 0 : CHUNK_SIZE / 2;
     const int zMin = z < CHUNK_SIZE / 2 ? 0 : CHUNK_SIZE / 2;
     const int xMax = xMin + CHUNK_SIZE / 2;
@@ -594,6 +705,38 @@ int ClassicOverWorldGenerator::getHeightAt(int x, int z, int chunkX,
         static_cast<float>(xMin), static_cast<float>(xMax),
         static_cast<float>(zMin), static_cast<float>(zMax),
         static_cast<float>(x), static_cast<float>(z)));
+}
+
+double ClassicOverWorldGenerator::getMountainStrengthAtWorld(
+    int worldX, int worldZ) const noexcept
+{
+    const double domain = valueNoise2D(
+        m_seed, worldX, worldZ, 480.0, 0x243f6a8885a308d3ull);
+    const double ridge = 1.0 - std::abs(valueNoise2D(
+        m_seed, worldX, worldZ, 150.0, 0x13198a2e03707344ull));
+    return smoothStep(0.12, 0.62, domain * 0.76 + ridge * 0.24);
+}
+
+int ClassicOverWorldGenerator::getTerrainV4HeightAtWorld(
+    int worldX, int worldZ) const noexcept
+{
+    const int chunkX = WorldCoordinates::floorDiv(worldX, CHUNK_SIZE);
+    const int chunkZ = WorldCoordinates::floorDiv(worldZ, CHUNK_SIZE);
+    const int localX = WorldCoordinates::floorMod(worldX, CHUNK_SIZE);
+    const int localZ = WorldCoordinates::floorMod(worldZ, CHUNK_SIZE);
+    const int legacyHeight = getLegacyHeightAt(
+        localX, localZ, chunkX, chunkZ);
+    const double strength = getMountainStrengthAtWorld(worldX, worldZ);
+    const double ridge = 1.0 - std::abs(valueNoise2D(
+        m_seed, worldX, worldZ, 92.0, 0xa4093822299f31d0ull));
+    const double detail = valueNoise2D(
+        m_seed, worldX, worldZ, 38.0, 0x082efa98ec4e6c89ull);
+    const double foundation = std::max(
+        0, WATER_LEVEL + 5 - legacyHeight) * strength;
+    const double relief = strength *
+        (18.0 + ridge * ridge * 58.0 + detail * 5.0);
+    return std::max(1, std::min(176, static_cast<int>(std::lround(
+        static_cast<double>(legacyHeight) + foundation + relief))));
 }
 
 const Biome &ClassicOverWorldGenerator::getBiome(int x, int z) const
@@ -623,6 +766,8 @@ ClassicOverWorldGenerator::getBiomeForValue(int biomeValue) const
             return m_temperateForest;
         case TerrainBiome::Desert:
             return m_desertBiome;
+        case TerrainBiome::Mountain:
+            return m_lightForest;
     }
     return m_grassBiome;
 }
@@ -630,6 +775,9 @@ ClassicOverWorldGenerator::getBiomeForValue(int biomeValue) const
 TerrainBiome ClassicOverWorldGenerator::getBiomeKindForValue(
     int biomeValue) noexcept
 {
+    if (biomeValue == MountainBiomeValue) {
+        return TerrainBiome::Mountain;
+    }
     if (biomeValue > 160) {
         return TerrainBiome::Ocean;
     }

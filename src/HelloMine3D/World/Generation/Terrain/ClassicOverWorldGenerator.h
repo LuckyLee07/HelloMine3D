@@ -80,6 +80,10 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
 
     void getHeightIn(int xMin, int zMin, int xMax, int zMax);
     int getHeightAt(int x, int z, int chunkX, int chunkZ) const;
+    int getLegacyHeightAt(int x, int z, int chunkX, int chunkZ) const;
+    int getTerrainV4HeightAtWorld(int worldX, int worldZ) const noexcept;
+    double getMountainStrengthAtWorld(int worldX,
+                                      int worldZ) const noexcept;
     void getHeightMap();
     void getBiomeMap();
 

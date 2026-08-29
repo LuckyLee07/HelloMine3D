@@ -35,7 +35,7 @@ HelloMine3D 已具备这些基础：
 | ---- | ---- |
 | 目标 Windows 更新门禁已恢复 | 2026-08-20 最终 PowerShell 门禁通过 46 项资源、36 个性能夹具、Debug/Release 0 错误全量重建、十三目标、491 项世界回归、隐藏客户端、124,513 字节后台受控 minidump 与 66 文件干净发行包。 |
 | 输入仍有平台型证据缺口 | OIS 到控制器的数据边界已自动验证，但真实 Windows 键鼠仍需人工验收；原生 arm64 Apple Clang ThreadSanitizer 已关闭后台加载器的 R4 证据缺口。现有 R3 v1 不足以单独关闭当前 D4/D6，后续需独立建立 Physical Input v2；视觉、双语和听感不并入 R3。 |
-| 下一产品阶段已选定 | 第 8 阶段、Stage 9/N7-N12、BETA-RC 与 Stage 10/VISUAL-RC Windows 工程均已完成；Stage 11 的 P11-0/P11A/P11B/P11-1/P11C/P11D 工程已完成，P11-2 是下一开发批次。真人输入/试玩统一后置为 Deferred，正式产品体验和 macOS 原生证据继续保持 Verify；多人、脚本化 mod、热更新和新渲染后端仍未立项。 |
+| 下一产品阶段已选定 | 第 8 阶段、Stage 9/N7-N12、BETA-RC 与 Stage 10/VISUAL-RC Windows 工程均已完成；Stage 11 的 P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2 工程已完成，P11E 是下一开发批次。真人输入/试玩统一后置为 Deferred，正式产品体验和 macOS 原生证据继续保持 Verify；多人、脚本化 mod、热更新和新渲染后端仍未立项。 |
 
 ## 迭代阶段
 
@@ -55,7 +55,7 @@ HelloMine3D 已具备这些基础：
 | 第 8 阶段 | 自动化闭环，待人工验收 | `K1-K4`、`G1-G6`、`N1-N6`、`H1-H3` 和 `Q1-Q3` 已完成；目标、成长、恢复、战斗掉落、生态探索、可访问体验、诊断、正式 Windows 预算和双档长稳均已串联；物理输入、视觉/双语和听感证据独立延期。 |
 | 第 9 阶段 | 工程完成，待 R3 | `N7-N12` 与 `BETA-RC` 不计入当前 77 项总账；BETA-RC 自动门禁、正式 Q1/Q3 和发行证据已封板，R3 真人项延期。 |
 | 第 10 阶段 | Done（Windows 工程；macOS/产品体验 Verify） | `V10A`、`V10B1-B3`、`V10C-V10E` 与 `VISUAL-RC` 不计入当前 77 项总账；最终 Windows 全门禁、Q1/Q3、视觉矩阵、资源许可和干净包已封板。V10B1/V10C/V10D/V10E 的 macOS shader 子状态及正式产品体验保持 Verify。 |
-| 第 11 阶段 | P11-0/P11A/P11B/P11-1/P11C/P11D Engineering Done；P11-2 Planned | 可玩性与操作体验路线不计入当前 77 项总账；可制造光源、核心输入、动作反馈、最小建造集、并行前 30 分钟和独特探索奖励工程已完成。后续工程按固定顺序推进，Physical Input v2、试玩和活动桌面证据统一保留 Deferred。 |
+| 第 11 阶段 | P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2 Engineering Done；P11E Planned | 可玩性与操作体验路线不计入当前 77 项总账；可制造光源、核心输入、动作反馈、最小建造集、并行前 30 分钟、独特探索奖励和 terrain v4 山地/洞口工程已完成。后续工程按固定顺序推进，Physical Input v2、试玩和活动桌面证据统一保留 Deferred。 |
 
 ### 第 0 阶段：稳定现有基础
 
@@ -470,8 +470,8 @@ Stage 10 的历史执行顺序为
 | 4 | P11-1 建造材料与工具（Engineering Done；真人 Deferred） | M/L | 木板、圆石、单方块门和 axe/shovel 的最小建造与工具选择已实现。 | 双配置与自动门禁通过；工具差异和建造动态观感后置。 |
 | 5 | P11C 前 30 分钟（Engineering Done；真人 30 分钟 Deferred） | M/L | 成长、建造、探索最多三项并行机会、独立进度和随材料展开的配方书已实现。 | 双配置、P11C 41/41、Release 世界 803/803、配方/资源回归通过；完整新世界 30 分钟试玩后置。 |
 | 6 | P11D 探索奖励（Engineering Done；真人 Deferred） | L | 遗迹罗盘、营地护符和既有路标核心形成独特能力结果。 | save v12/奖励 v1 与旧世界 v0 已冻结；双配置、定向和完整回归通过，真人逐结构体验后置。合同见 `exploration-reward-contract-v1.md`。 |
-| 7 | P11-2 地形轮廓与洞口（Planned） | L | 山地高度域、陡坡和可发现天然洞口，形成 terrain v4。 | 旧世界不回填；新旧边界与相关 Q1；湖泊/河流/瀑布不进入本批。 |
-| 8 | P11E 敌人表现（Queued） | L | 多部件体素轮廓、身份化掉落、关键动作和独特 Waystone 守护阶段。 | 掉落通过经济/存档边界；新敌人必须同时带来新决策和新奖励；表现不能反向改变判定。 |
+| 7 | P11-2 地形轮廓与洞口（Engineering Done；Q1/真人 Deferred） | L | terrain v4 已提供 Mountain 高度域、Stone 高峰和可发现天然洞口，v1-v3 输出冻结。 | 双配置、定向 9/9、Release 世界 820/820 与次级回归通过；活动桌面 Q1 和真人远景/通行性后置，湖泊/河流/瀑布未进入本批。合同见 `terrain-contours-cave-entrances-contract-v1.md`。 |
+| 8 | P11E 敌人表现（Planned） | L | 多部件体素轮廓、身份化掉落、关键动作和独特 Waystone 守护阶段。 | 掉落通过经济/存档边界；新敌人必须同时带来新决策和新奖励；表现不能反向改变判定。 |
 | 9 | P11F PLAYABILITY-RC（Queued） | M | 汇总逐批试玩、迁移、性能、恢复、包和延期证据。 | 固化构建/硬件、里程碑耗时、误操作、死亡与困惑时段；不自动 push 或打标签。 |
 
 执行顺序固定为 `P11-0 -> P11A -> P11B -> P11-1 -> P11C -> P11D -> P11-2 -> P11E -> P11F`。每批需要独立合同、
@@ -569,7 +569,7 @@ Windows-first 阶段延期，macOS 原生 `B3` 已于 2026-08-16 补齐并通过
 | M6 可持续游玩与可靠发布 | 自动化闭环，待人工验收 | K1-K4、G1-G6、N1-N6、H1-H3、Q1-Q3 已完成；nominal/stress 正式长稳双 PASS，剩余输入与产品体验分开记录。 |
 | M7 Beta 单机游戏闭环 | 工程完成，待人工验收 | 首次进入、视觉/HUD、胜利、战斗、探索结构、资源经济、难度/胜利后事件、双语、本地化音频与 BETA-RC 工程证据均已关闭；RC0 已被 BETA-RC 取代，Physical Input v2 与产品体验验收独立延期。 |
 | M8 视觉质量升级 | Windows 工程完成，macOS/产品体验 Verify | V10A 顶点光照/AO、V10B1-B3 材质/生态表现、V10C 大气云层、V10D 可选阴影、V10E 轻量后处理与 VISUAL-RC Windows 工程封板已完成；后续产品方向评审也已完成。 |
-| M9 可玩性与操作体验 | P11-0/P11A/P11B/P11-1/P11C/P11D Engineering Done；P11-2 Planned | 可制造光源、输入动作仲裁、动作反馈、最小建造集、并行机会、配方发现和独特探索奖励已完成；后续按工程顺序继续，真人/Q1/产品体验保留 Deferred 清单。 |
+| M9 可玩性与操作体验 | P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2 Engineering Done；P11E Planned | 可制造光源、输入动作仲裁、动作反馈、最小建造集、并行机会、配方发现、独特探索奖励和 terrain v4 山地/洞口已完成；后续按工程顺序继续，真人/Q1/产品体验保留 Deferred 清单。 |
 
 ## 与 MiniGame 参考文档的关系
 

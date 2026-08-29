@@ -2875,6 +2875,8 @@ const char *World::naturalMobTypeForBiome(TerrainBiome biome) noexcept
         case TerrainBiome::LightForest:
         case TerrainBiome::Ocean:
             return StalkerMobType;
+        case TerrainBiome::Mountain:
+            return BruteMobType;
     }
     return StalkerMobType;
 }

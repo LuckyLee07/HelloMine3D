@@ -8,12 +8,16 @@ enum class TerrainBiome {
     Grassland,
     LightForest,
     TemperateForest,
-    Ocean
+    Ocean,
+    Mountain
 };
 
 inline constexpr int LegacyTerrainGenerationVersion = 1;
 inline constexpr int WaystoneTerrainGenerationVersion = 2;
-inline constexpr int CurrentTerrainGenerationVersion = 3;
+inline constexpr int ExplorationSiteTerrainGenerationVersion = 3;
+inline constexpr int MountainTerrainGenerationVersion = 4;
+inline constexpr int CurrentTerrainGenerationVersion =
+    MountainTerrainGenerationVersion;
 
 class TerrainGenerator {
   public:

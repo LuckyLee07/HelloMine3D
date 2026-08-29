@@ -184,6 +184,22 @@ std::string freshSaveDirectory(const std::string &name)
     return root.string();
 }
 
+bool initializeTerrainIdentity(const std::string &directory,
+                               const std::string &worldId,
+                               int terrainGenerationVersion)
+{
+    WorldSaveData data;
+    data.worldId = worldId;
+    data.worldName = worldId;
+    data.seed = kValidationSeed;
+    data.createdUtc = LegacyWorldTimestampUtc;
+    data.lastPlayedUtc = LegacyWorldTimestampUtc;
+    data.lastBuildIdentity = "terrain-test";
+    data.terrainGenerationVersion = terrainGenerationVersion;
+    data.hasPlayerState = true;
+    return WorldSave(directory).save(data);
+}
+
 std::string vecToString(const glm::vec3 &value)
 {
     std::ostringstream out;
@@ -3762,7 +3778,9 @@ void caseTerrainAppearance()
               TerrainAppearance::ecologyRow(TerrainBiome::LightForest) == 5 &&
               TerrainAppearance::ecologyRow(
                   TerrainBiome::TemperateForest) == 6 &&
-              TerrainAppearance::ecologyRow(TerrainBiome::Ocean) == 7);
+              TerrainAppearance::ecologyRow(TerrainBiome::Ocean) == 7 &&
+              TerrainAppearance::ecologyRow(
+                  TerrainBiome::Mountain) == 6);
 
     const glm::ivec3 negativePosition{-193, 71, -257};
     const std::uint8_t negativeFirst =
@@ -3930,6 +3948,7 @@ void caseTerrainAppearance()
             case TerrainBiome::LightForest: return 2;
             case TerrainBiome::TemperateForest: return 3;
             case TerrainBiome::Ocean: return 4;
+            case TerrainBiome::Mountain: return -1;
         }
         return 1;
     };
@@ -3942,6 +3961,9 @@ void caseTerrainAppearance()
              x += CHUNK_SIZE) {
             const TerrainBiome biome = generator.getBiomeAtWorld(x, z);
             const int index = biomeIndex(biome);
+            if (index < 0) {
+                continue;
+            }
             if (foundBiomeProbe[index]) {
                 continue;
             }
@@ -8992,6 +9014,238 @@ void caseP11DExplorationRewards()
 }
 
 // ---------------------------------------------------------------------------
+// P11-2 - terrain-v4 mountain relief and discoverable natural cave mouths
+// ---------------------------------------------------------------------------
+void caseP11TerrainContoursAndEntrances()
+{
+    check("P11-2/terrain-version-contract-is-append-only",
+          LegacyTerrainGenerationVersion == 1 &&
+              WaystoneTerrainGenerationVersion == 2 &&
+              ExplorationSiteTerrainGenerationVersion == 3 &&
+              MountainTerrainGenerationVersion == 4 &&
+              CurrentTerrainGenerationVersion ==
+                  MountainTerrainGenerationVersion);
+
+    ClassicOverWorldGenerator terrainV3(
+        kValidationSeed, ExplorationSiteTerrainGenerationVersion);
+    ClassicOverWorldGenerator terrainV4(
+        kValidationSeed, MountainTerrainGenerationVersion);
+    ClassicOverWorldGenerator repeatedV4(
+        kValidationSeed, MountainTerrainGenerationVersion);
+    ClassicOverWorldGenerator otherSeedV4(
+        kValidationSeed + 1, MountainTerrainGenerationVersion);
+    check("P11-2/terrain-v3-height-and-biome-output-remains-frozen",
+          terrainV3.getSurfaceHeightAtWorld(18, 328) == 70 &&
+              terrainV3.getSurfaceHeightAtWorld(-128, -128) ==
+                  WATER_LEVEL - 1 &&
+              terrainV3.getBiomeAtWorld(18, 328) !=
+                  TerrainBiome::Mountain &&
+              terrainV3.getBiomeAtWorld(-128, -128) !=
+                  TerrainBiome::Mountain);
+
+    int minimumHeight = 10000;
+    int maximumHeight = -1;
+    int mountainSamples = 0;
+    int deterministicMismatches = 0;
+    int seedDifferences = 0;
+    for (int z = -2048; z <= 2048; z += 32) {
+        for (int x = -2048; x <= 2048; x += 32) {
+            const int height = terrainV4.getSurfaceHeightAtWorld(x, z);
+            minimumHeight = std::min(minimumHeight, height);
+            maximumHeight = std::max(maximumHeight, height);
+            mountainSamples += terrainV4.getBiomeAtWorld(x, z) ==
+                TerrainBiome::Mountain ? 1 : 0;
+            deterministicMismatches += height !=
+                repeatedV4.getSurfaceHeightAtWorld(x, z) ? 1 : 0;
+            seedDifferences += height !=
+                otherSeedV4.getSurfaceHeightAtWorld(x, z) ? 1 : 0;
+        }
+    }
+    check("P11-2/v4-adds-deterministic-mountain-relief",
+          deterministicMismatches == 0 && mountainSamples > 200 &&
+              maximumHeight >= WATER_LEVEL + 56 &&
+              maximumHeight - minimumHeight >= 64,
+          "range=" + std::to_string(minimumHeight) + ".." +
+              std::to_string(maximumHeight) + " mountain=" +
+              std::to_string(mountainSamples));
+    check("P11-2/v4-height-domain-remains-seed-sensitive",
+          seedDifferences > 1000,
+          "differences=" + std::to_string(seedDifferences));
+    check("P11-2/mountain-reuses-bounded-ecology-and-pressure",
+          TerrainAppearance::ecologyRow(TerrainBiome::Mountain) ==
+                  TerrainAppearance::ecologyRow(
+                      TerrainBiome::TemperateForest) &&
+              std::string(World::naturalMobTypeForBiome(
+                  TerrainBiome::Mountain)) == World::BruteMobType);
+
+    CaveGenerator caveV4(kValidationSeed,
+                         MountainTerrainGenerationVersion);
+    CaveGenerator repeatedCaveV4(kValidationSeed,
+                                 MountainTerrainGenerationVersion);
+    CaveGenerator caveV3(kValidationSeed,
+                         ExplorationSiteTerrainGenerationVersion);
+    const auto surfaceV4 = [&terrainV4](int x, int z) {
+        return terrainV4.getSurfaceHeightAtWorld(x, z);
+    };
+    const auto biomeV4 = [&terrainV4](int x, int z) {
+        return terrainV4.getBiomeAtWorld(x, z);
+    };
+    CaveGenerator::NaturalEntrance entrance;
+    for (int radius = 0; radius <= 32 && !entrance.valid; ++radius) {
+        for (int cellX = -radius; cellX <= radius && !entrance.valid;
+             ++cellX) {
+            for (int cellZ = -radius; cellZ <= radius; ++cellZ) {
+                if (radius > 0 && std::abs(cellX) != radius &&
+                    std::abs(cellZ) != radius) {
+                    continue;
+                }
+                entrance = caveV4.getNaturalEntranceForCell(
+                    cellX, cellZ, surfaceV4, biomeV4);
+                if (entrance.valid) {
+                    break;
+                }
+            }
+        }
+    }
+    const CaveGenerator::NaturalEntrance repeatedEntrance =
+        repeatedCaveV4.getNaturalEntranceForCell(
+            entrance.cellX, entrance.cellZ, surfaceV4, biomeV4);
+    const CaveGenerator::NaturalEntrance legacyEntrance =
+        caveV3.getNaturalEntranceForCell(
+            entrance.cellX, entrance.cellZ, surfaceV4, biomeV4);
+    const bool sameEntrance = entrance.valid && repeatedEntrance.valid &&
+        entrance.cellX == repeatedEntrance.cellX &&
+        entrance.cellZ == repeatedEntrance.cellZ &&
+        entrance.anchorX == repeatedEntrance.anchorX &&
+        entrance.anchorY == repeatedEntrance.anchorY &&
+        entrance.anchorZ == repeatedEntrance.anchorZ &&
+        entrance.directionX == repeatedEntrance.directionX &&
+        entrance.directionZ == repeatedEntrance.directionZ &&
+        entrance.endY == repeatedEntrance.endY;
+    check("P11-2/natural-entrance-plan-is-bounded-and-deterministic",
+          sameEntrance && !legacyEntrance.valid &&
+              biomeV4(entrance.anchorX, entrance.anchorZ) ==
+                  TerrainBiome::Mountain &&
+              entrance.anchorY >= WATER_LEVEL + 16 &&
+              entrance.anchorY - entrance.endY >= 18 &&
+              std::abs(entrance.directionX) +
+                      std::abs(entrance.directionZ) == 1,
+          "cell=" + std::to_string(entrance.cellX) + "," +
+              std::to_string(entrance.cellZ) + " anchor=" +
+              std::to_string(entrance.anchorX) + "," +
+              std::to_string(entrance.anchorY) + "," +
+              std::to_string(entrance.anchorZ));
+
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+    const auto sampleEntrance = [&](const std::string &name,
+                                    bool reverseLoad) {
+        Config config = makeConfig();
+        Camera camera(config);
+        Player player;
+        World world(camera, config, player, freshSaveDirectory(name),
+                    false, 0);
+        const int endX = entrance.anchorX + entrance.directionX *
+            CaveGenerator::EntranceTunnelLength;
+        const int endZ = entrance.anchorZ + entrance.directionZ *
+            CaveGenerator::EntranceTunnelLength;
+        const int minimumChunkX = World::floorDiv(
+            std::min(entrance.anchorX, endX) - 3, CHUNK_SIZE);
+        const int maximumChunkX = World::floorDiv(
+            std::max(entrance.anchorX, endX) + 3, CHUNK_SIZE);
+        const int minimumChunkZ = World::floorDiv(
+            std::min(entrance.anchorZ, endZ) - 3, CHUNK_SIZE);
+        const int maximumChunkZ = World::floorDiv(
+            std::max(entrance.anchorZ, endZ) + 3, CHUNK_SIZE);
+        std::vector<glm::ivec2> chunks;
+        for (int chunkX = minimumChunkX; chunkX <= maximumChunkX;
+             ++chunkX) {
+            for (int chunkZ = minimumChunkZ; chunkZ <= maximumChunkZ;
+                 ++chunkZ) {
+                chunks.push_back({chunkX, chunkZ});
+            }
+        }
+        if (reverseLoad) {
+            std::reverse(chunks.begin(), chunks.end());
+        }
+        for (const glm::ivec2 &chunk : chunks) {
+            world.getChunkManager().loadChunk(chunk.x, chunk.y);
+        }
+
+        std::vector<Block_t> sample;
+        for (int step = 0;
+             step <= CaveGenerator::EntranceTunnelLength; ++step) {
+            const int x = entrance.anchorX + entrance.directionX * step;
+            const int z = entrance.anchorZ + entrance.directionZ * step;
+            const int floorY = entrance.anchorY - step * 3 / 4;
+            sample.push_back(world.getBlock(x, floorY, z).id);
+            sample.push_back(world.getBlock(x, floorY + 1, z).id);
+            sample.push_back(world.getBlock(x, floorY + 2, z).id);
+        }
+        sample.push_back(world.getBlock(
+            entrance.anchorX, entrance.anchorY - 1,
+            entrance.anchorZ).id);
+        sample.push_back(world.getBlock(endX, entrance.endY, endZ).id);
+        return sample;
+    };
+    std::vector<Block_t> forward;
+    std::vector<Block_t> reverse;
+    if (entrance.valid) {
+        forward = sampleEntrance("p11_2_entrance_forward", false);
+        reverse = sampleEntrance("p11_2_entrance_reverse", true);
+    }
+    const bool tunnelOpen = forward.size() ==
+        (CaveGenerator::EntranceTunnelLength + 1) * 3 + 2 &&
+        std::all_of(forward.begin(), forward.end() - 2,
+                    [](Block_t block) {
+                        return block == static_cast<Block_t>(BlockId::Air);
+                    }) &&
+        forward[forward.size() - 2] !=
+            static_cast<Block_t>(BlockId::Air) &&
+        forward.back() == static_cast<Block_t>(BlockId::Air);
+    check("P11-2/generated-tunnel-opens-surface-and-underground-chamber",
+          tunnelOpen,
+          "samples=" + std::to_string(forward.size()));
+    check("P11-2/entrance-output-ignores-chunk-load-order",
+          !forward.empty() && forward == reverse);
+
+    WorldSaveData current;
+    current.worldId = "p11-2-terrain-v4";
+    current.worldName = "P11-2 Terrain V4";
+    current.seed = kValidationSeed;
+    current.createdUtc = LegacyWorldTimestampUtc;
+    current.lastPlayedUtc = LegacyWorldTimestampUtc;
+    current.lastBuildIdentity = "p11-2-test";
+    current.hasPlayerState = true;
+    WorldSave currentSave(freshSaveDirectory("p11_2_save_v4"));
+    WorldSaveData currentRoundTrip;
+    const bool currentSaved = currentSave.save(current) &&
+        currentSave.load(currentRoundTrip);
+    WorldSaveData preservedV3 = current;
+    preservedV3.worldId = "p11-2-terrain-v3";
+    preservedV3.worldName = "P11-2 Terrain V3";
+    preservedV3.terrainGenerationVersion =
+        ExplorationSiteTerrainGenerationVersion;
+    WorldSave v3Save(freshSaveDirectory("p11_2_save_v3"));
+    WorldSaveData v3RoundTrip;
+    const bool v3Saved = v3Save.save(preservedV3) &&
+        v3Save.load(v3RoundTrip);
+    check("P11-2/save-v12-preserves-created-terrain-identity",
+          currentSaved && v3Saved &&
+              currentRoundTrip.terrainGenerationVersion ==
+                  MountainTerrainGenerationVersion &&
+              v3RoundTrip.terrainGenerationVersion ==
+                  ExplorationSiteTerrainGenerationVersion &&
+              currentRoundTrip.version == WorldSaveFormatVersion &&
+              v3RoundTrip.version == WorldSaveFormatVersion);
+
+    setEnv("HELLOMINE3D_SEED", "");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "");
+}
+
+// ---------------------------------------------------------------------------
 // D3 - deterministic and bounded live-world mob population
 // ---------------------------------------------------------------------------
 void caseNaturalMobPopulation()
@@ -12039,6 +12293,9 @@ void caseTerrainStructures()
     setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
 
     const auto directory = freshSaveDirectory("terrain_structures");
+    const bool terrainV3Prepared = initializeTerrainIdentity(
+        directory, "terrain-structures-v3",
+        ExplorationSiteTerrainGenerationVersion);
     Config config = makeConfig();
     Camera camera(config);
 
@@ -12050,6 +12307,9 @@ void caseTerrainStructures()
     {
         Player player;
         World world(camera, config, player, directory, false, 1);
+        check("S6.2/terrain-v3-fixture-prepared", terrainV3Prepared &&
+                  world.collectDebugStats().terrainGenerationVersion ==
+                      ExplorationSiteTerrainGenerationVersion);
         loadChunkArea(world, kStructureCenterChunk, kStructureChunkRadius);
         before = sampleSurface(world, kStructureCenterChunk,
                                kStructureChunkRadius);
@@ -12067,8 +12327,10 @@ void caseTerrainStructures()
               "links=" +
                   std::to_string(before.crossChunkTreeLinks));
 
-        ClassicOverWorldGenerator forwardGenerator(kValidationSeed);
-        ClassicOverWorldGenerator reverseGenerator(kValidationSeed);
+        ClassicOverWorldGenerator forwardGenerator(
+            kValidationSeed, ExplorationSiteTerrainGenerationVersion);
+        ClassicOverWorldGenerator reverseGenerator(
+            kValidationSeed, ExplorationSiteTerrainGenerationVersion);
         Chunk forwardWest(world, {kStructureCenterChunk,
                                   kStructureCenterChunk});
         Chunk forwardEast(world, {kStructureCenterChunk + 1,
@@ -12331,7 +12593,9 @@ void caseEcologyAndExploration()
               std::string(World::naturalMobTypeForBiome(
                   TerrainBiome::TemperateForest)) == World::SpitterMobType &&
               std::string(World::naturalMobTypeForBiome(
-                  TerrainBiome::Ocean)) == World::StalkerMobType);
+                  TerrainBiome::Ocean)) == World::StalkerMobType &&
+              std::string(World::naturalMobTypeForBiome(
+                  TerrainBiome::Mountain)) == World::BruteMobType);
 
     const BlockDefinition &coreDefinition =
         BlockDatabase::get().getDefinition(BlockId::WaystoneCore);
@@ -12350,7 +12614,7 @@ void caseEcologyAndExploration()
     invalidGeneration.terrainGenerationVersion =
         CurrentTerrainGenerationVersion + 1;
     WorldSaveData preservedCurrent;
-    check("N9B/new-world-persists-terrain-v3-and-rejects-v4",
+    check("P11-2/new-world-persists-terrain-v4-and-rejects-v5",
           currentLoaded &&
               currentData.version == WorldSaveFormatVersion &&
               currentData.terrainGenerationVersion ==
@@ -12909,7 +13173,7 @@ void caseExplorationStructuresAndLoot()
 {
     check("N9B/terrain-v3-and-structure-type-contract",
           WaystoneTerrainGenerationVersion == 2 &&
-              CurrentTerrainGenerationVersion == 3 &&
+              ExplorationSiteTerrainGenerationVersion == 3 &&
               std::string(structureTypeName(StructureType::Ruin)) ==
                   "ruin" &&
               std::string(structureTypeName(
@@ -12919,17 +13183,18 @@ void caseExplorationStructuresAndLoot()
               DeterministicStructurePlanner::MaximumPlansPerChunk == 4);
 
     ClassicOverWorldGenerator currentGenerator(
-        kValidationSeed, CurrentTerrainGenerationVersion);
+        kValidationSeed, ExplorationSiteTerrainGenerationVersion);
     ClassicOverWorldGenerator repeatedGenerator(
-        kValidationSeed, CurrentTerrainGenerationVersion);
+        kValidationSeed, ExplorationSiteTerrainGenerationVersion);
     ClassicOverWorldGenerator otherSeedGenerator(
-        kValidationSeed + 1, CurrentTerrainGenerationVersion);
+        kValidationSeed + 1,
+        ExplorationSiteTerrainGenerationVersion);
     ClassicOverWorldGenerator v2Generator(
         kValidationSeed, WaystoneTerrainGenerationVersion);
     ClassicOverWorldGenerator legacyGenerator(
         kValidationSeed, LegacyTerrainGenerationVersion);
     const DeterministicStructurePlanner selector(
-        kValidationSeed, CurrentTerrainGenerationVersion,
+        kValidationSeed, ExplorationSiteTerrainGenerationVersion,
         [&currentGenerator](int x, int z) {
             return currentGenerator.getSurfaceHeightAtWorld(x, z);
         },
@@ -12970,10 +13235,12 @@ void caseExplorationStructuresAndLoot()
         currentGenerator, StructureType::RaiderCamp, true);
     const auto flatSurface = [](int, int) { return 70; };
     const DeterministicStructurePlanner negativeRuinPlanner(
-        kValidationSeed, CurrentTerrainGenerationVersion, flatSurface,
+        kValidationSeed, ExplorationSiteTerrainGenerationVersion,
+        flatSurface,
         [](int, int) { return TerrainBiome::LightForest; });
     const DeterministicStructurePlanner negativeCampPlanner(
-        kValidationSeed, CurrentTerrainGenerationVersion, flatSurface,
+        kValidationSeed, ExplorationSiteTerrainGenerationVersion,
+        flatSurface,
         [](int, int) { return TerrainBiome::Desert; });
     StructurePlanSnapshot negativeRuin;
     StructurePlanSnapshot negativeCamp;
@@ -13255,6 +13522,9 @@ void caseExplorationStructuresAndLoot()
 
     const auto persistenceDirectory =
         freshSaveDirectory("n9b_loot_persistence");
+    const bool persistenceIdentityPrepared = initializeTerrainIdentity(
+        persistenceDirectory, "n9b-loot-terrain-v3",
+        ExplorationSiteTerrainGenerationVersion);
     const glm::ivec3 damagedBlock{
         ruin.footprint.minimumX, ruin.anchor.y + 2,
         ruin.footprint.minimumZ};
@@ -13297,7 +13567,8 @@ void caseExplorationStructuresAndLoot()
         ChestContainer::close(player);
         world.setBlock(damagedBlock.x, damagedBlock.y, damagedBlock.z,
                        BlockId::Air);
-        emptiedAndSaved = transferred && empty && world.save();
+        emptiedAndSaved = persistenceIdentityPrepared && transferred &&
+            empty && world.save();
     }
 
     bool emptyAndDamageRestored = false;
@@ -13910,6 +14181,9 @@ int main()
             caseWorldOutcomeAndLocalizedText();
             caseP11DExplorationRewards();
         }
+        else if (focus != nullptr && std::string(focus) == "P11-2") {
+            caseP11TerrainContoursAndEntrances();
+        }
         else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
@@ -13966,6 +14240,7 @@ int main()
         caseP11MinimumBuildingAndTools();
         caseP11CFirstThirtyMinutes();
         caseP11DExplorationRewards();
+        caseP11TerrainContoursAndEntrances();
         caseNaturalMobPopulation();
         caseCombatAndRespawn();
         caseCombatDepth();
