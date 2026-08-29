@@ -17,6 +17,9 @@ constexpr BlockMetadata_t Growing = 1;
 constexpr BlockMetadata_t Ripening = 2;
 constexpr BlockMetadata_t Mature = 3;
 } // namespace WheatCrop
+namespace Furnace {
+constexpr BlockMetadata_t LitBit = 0x01;
+} // namespace Furnace
 } // namespace BlockMetadata
 
 struct ChunkBlock {

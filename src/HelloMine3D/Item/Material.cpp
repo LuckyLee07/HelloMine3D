@@ -39,6 +39,7 @@ namespace
         "hellomine:cactus_salad",
         "hellomine:trail_ration",
         "hellomine:plant_fiber",
+        "hellomine:torch",
     }};
 
     constexpr std::array<Material::IconCoordinate, Material::ID::Count>
@@ -48,7 +49,7 @@ namespace
             {14, 0}, {3, 1}, {4, 1}, {0, 1}, {0, 2}, {1, 2},
             {1, 1}, {2, 2}, {3, 2}, {2, 1}, {4, 2}, {5, 2},
             {6, 2}, {7, 2}, {8, 2}, {9, 2}, {15, 0}, {10, 2},
-            {11, 2}, {12, 2}, {13, 2}, {14, 2},
+            {11, 2}, {12, 2}, {13, 2}, {14, 2}, {6, 1},
         }};
 }
 
@@ -105,6 +106,7 @@ const Material Material::TRAIL_RATION(ID::TrailRation, 99, false,
                                       "Trail Ration", false, true);
 const Material Material::PLANT_FIBER(ID::PlantFiber, 99, false,
                                      "Plant Fiber");
+const Material Material::TORCH(ID::Torch, 99, true, "Torch");
 
 Material::Material(Material::ID id, int maxStack, bool isBlock,
                    std::string &&name, bool isTool, bool isFood)
@@ -180,6 +182,9 @@ BlockId Material::toBlockID() const
         case WaystoneCore:
             return BlockId::WaystoneCore;
 
+        case Torch:
+            return BlockId::Torch;
+
         default:
             return BlockId::NUM_TYPES;
     }
@@ -244,6 +249,9 @@ const Material &Material::toMaterial(BlockId id)
 
         case BlockId::WaystoneCore:
             return WAYSTONE_CORE;
+
+        case BlockId::Torch:
+            return TORCH;
 
         default:
             return NOTHING;
@@ -351,6 +359,9 @@ const Material &Material::toMaterial(Material::ID id)
 
         case PlantFiber:
             return PLANT_FIBER;
+
+        case Torch:
+            return TORCH;
 
         default:
             return NOTHING;

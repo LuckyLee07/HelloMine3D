@@ -10,6 +10,12 @@ BlockBehavior::getDrop(const BlockDefinition &definition,
     return definition.defaultDrop;
 }
 
+int BlockBehavior::emission(const BlockDefinition &definition,
+                            const ChunkBlock &) const noexcept
+{
+    return definition.light;
+}
+
 bool BlockBehavior::receivesRandomTicks(const BlockDefinition &,
                                         const ChunkBlock &) const noexcept
 {

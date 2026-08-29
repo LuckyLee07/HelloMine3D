@@ -29,6 +29,7 @@ block|media/blocks/Rose.block
 block|media/blocks/Sand.block
 block|media/blocks/Stone.block
 block|media/blocks/TallGrass.block
+block|media/blocks/Torch.block
 block|media/blocks/Water.block
 block|media/blocks/WaystoneCore.block
 block|media/blocks/WheatCrop.block

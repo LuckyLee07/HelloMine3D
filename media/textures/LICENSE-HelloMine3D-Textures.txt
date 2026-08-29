@@ -25,3 +25,4 @@ Covered project files:
 - docs/art-sources/hellomine3d-atlas-imagegen-source.png
 - docs/art-sources/hellomine3d-v10b2-materials-imagegen-source.png
 - docs/art-sources/hellomine3d-economy-icons-imagegen-source.png
+- docs/art-sources/hellomine3d-p11-0-torch-imagegen-source.png

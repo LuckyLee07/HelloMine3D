@@ -295,7 +295,7 @@ end
         }
         check("G1/material-ids-roundtrip",
               roundTrip &&
-                  static_cast<int>(Material::ID::PlantFiber) ==
+                  static_cast<int>(Material::ID::Torch) ==
                       static_cast<int>(Material::ID::Count) - 1 &&
                   Material::BREAD.isFood && !Material::BREAD.isTool &&
                   Material::COOKED_MEAT.isFood &&
@@ -310,7 +310,11 @@ end
                       BlockId::WaystoneCore &&
                   Material::toMaterial(BlockId::WaystoneCore).id ==
                       Material::ID::WaystoneCore &&
-                  static_cast<int>(BlockId::WaystoneCore) ==
+                  Material::TORCH.isBlock &&
+                  Material::TORCH.toBlockID() == BlockId::Torch &&
+                  Material::toMaterial(BlockId::Torch).id ==
+                      Material::ID::Torch &&
+                  static_cast<int>(BlockId::Torch) ==
                       static_cast<int>(BlockId::NUM_TYPES) - 1);
         Material::ID unchanged = Material::ID::Stone;
         check("G1/unknown-material-id-rejected",
@@ -1687,7 +1691,7 @@ end
         const SmeltingFuelDefinition *fiberFuel =
             smelting.findFuel(Material::ID::PlantFiber);
         check("N10/base-content-counts-are-frozen",
-              recipes.recipes().size() == 19 &&
+              recipes.recipes().size() == 20 &&
                   smelting.recipes().size() == 3 &&
                   smelting.fuels().size() == 2 &&
                   foods.foods().size() == 4);
@@ -1711,12 +1715,51 @@ end
             recipes.find("hellomine:field_workbench");
         const RecipeDefinition *reinforcedFurnace =
             recipes.find("hellomine:reinforced_furnace");
+        const RecipeDefinition *torch =
+            recipes.find("hellomine:torch");
         check("N10/ecology-crop-and-enemy-chains-have-useful-sinks",
               fiber != nullptr && salad != nullptr && ration != nullptr &&
                   fieldChest != nullptr && fieldWorkbench != nullptr &&
                   reinforcedFurnace != nullptr &&
                   ration->ingredients.size() == 4 &&
                   ration->outputMaterialId == Material::ID::TrailRation);
+        check("P11-0/torch-recipe-is-bounded-2x2-progression",
+              torch != nullptr && torch->type == RecipeType::Shaped &&
+                  torch->width == 1 && torch->height == 2 &&
+                  torch->outputMaterialId == Material::ID::Torch &&
+                  torch->outputCount == 4 &&
+                  torch->ingredients.size() == 2 &&
+                  std::any_of(
+                      torch->ingredients.begin(), torch->ingredients.end(),
+                      [](const RecipeIngredient &ingredient) {
+                          return ingredient.materialId ==
+                                     Material::ID::CoalOre &&
+                                 ingredient.count == 1;
+                      }) &&
+                  std::any_of(
+                      torch->ingredients.begin(), torch->ingredients.end(),
+                      [](const RecipeIngredient &ingredient) {
+                          return ingredient.materialId ==
+                                     Material::ID::OakBark &&
+                                 ingredient.count == 1;
+                      }));
+
+        Inventory torchInputs;
+        torchInputs.addItem(Material::COAL_ORE_BLOCK, 25);
+        torchInputs.addItem(Material::OAK_BARK_BLOCK, 25);
+        CraftingSession playerGrid(CraftingSession::PlayerGridSize);
+        const bool torchLoaded = torch != nullptr &&
+            playerGrid.loadRecipe(*torch);
+        const CraftingPreview torchPreview =
+            playerGrid.preview(recipes, torchInputs);
+        const CraftingCommitResult torchCommitted =
+            playerGrid.commit(recipes, torchInputs, torchPreview, 25);
+        check("P11-0/repeated-torch-craft-is-atomic-and-conservative",
+              torchLoaded && torchPreview.ready() &&
+                  torchCommitted.succeeded() &&
+                  torchInputs.count(Material::ID::CoalOre) == 0 &&
+                  torchInputs.count(Material::ID::OakBark) == 0 &&
+                  torchInputs.count(Material::ID::Torch) == 100);
 
         Inventory rationInputs;
         rationInputs.addItem(Material::BREAD, 1);
@@ -1850,7 +1893,7 @@ int main()
     caseEnemyRegistry();
     caseCombatRecipes();
     caseResourceEconomy();
-    constexpr int ExpectedChecks = 117;
+    constexpr int ExpectedChecks = 119;
     if (checks != ExpectedChecks) {
         ++failures;
         std::cout << "[RECIPE_TEST] FAIL G1/expected-check-count"

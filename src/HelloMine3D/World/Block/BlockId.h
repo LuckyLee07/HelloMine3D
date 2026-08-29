@@ -29,6 +29,7 @@ enum class BlockId : Block_t {
     Workbench = 18,
     Furnace = 19,
     WaystoneCore = 20,
+    Torch = 21,
 
     NUM_TYPES
 };

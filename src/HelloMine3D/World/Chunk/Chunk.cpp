@@ -5,6 +5,7 @@
 #include "../../Util/Random.h"
 #include "../Generation/Terrain/TerrainGenerator.h"
 #include "../Block/BlockDatabase.h"
+#include "../Block/BlockBehavior.h"
 #include "../World.h"
 
 #include <algorithm>
@@ -82,7 +83,9 @@ void Chunk::setBlock(int x, int y, int z, ChunkBlock block)
     }
 
     const int previousHighest = m_highestBlocks.get(x, z);
-    removeBlockEntity({x, y, z});
+    if (previousBlock.id != block.id) {
+        removeBlockEntity({x, y, z});
+    }
     section.setBlock(x, bY, z, block);
 
     if (block.getData().isOpaque && y > previousHighest) {
@@ -191,10 +194,12 @@ void Chunk::rebuildBlockLight()
                 section.setBlockLight(x, y % CHUNK_SIZE, z,
                                       MIN_LIGHT_LEVEL);
                 const ChunkBlock block = getBlock(x, y, z);
-                const int emission =
-                    BlockDatabase::get()
-                        .getDefinition(static_cast<BlockId>(block.id))
-                        .light;
+                const BlockDefinition &definition =
+                    BlockDatabase::get().getDefinition(
+                        static_cast<BlockId>(block.id));
+                const int emission = definition.behavior != nullptr
+                    ? definition.behavior->emission(definition, block)
+                    : definition.light;
                 if (emission > 0) {
                     section.setBlockLight(
                         x, y % CHUNK_SIZE, z,

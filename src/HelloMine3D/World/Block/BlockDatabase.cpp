@@ -206,6 +206,14 @@ class WorkbenchBlockBehavior final : public BlockBehavior {
 
 class FurnaceBlockBehavior final : public BlockBehavior {
   public:
+    int emission(const BlockDefinition &,
+                 const ChunkBlock &block) const noexcept override
+    {
+        return (block.metadata & BlockMetadata::Furnace::LitBit) != 0
+                   ? 13
+                   : 0;
+    }
+
     void onPlaced(World &world, Player &,
                   const glm::ivec3 &position, const ChunkBlock &,
                   const ChunkBlock &) const override
@@ -361,6 +369,7 @@ BlockDatabase::BlockDatabase()
              std::make_unique<FurnaceBlockBehavior>());
     addBlock(BlockId::WaystoneCore, "WaystoneCore",
              std::make_unique<WaystoneBlockBehavior>());
+    addBlock(BlockId::Torch, "Torch");
 }
 
 BlockDatabase &BlockDatabase::get()

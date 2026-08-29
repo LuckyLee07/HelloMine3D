@@ -834,7 +834,11 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 360 &&
+              registry.keys("en-US").size() == 361 &&
+              registry.lookup("en-US", "material.torch.name") ==
+                  "Torch" &&
+              registry.lookup("zh-CN", "material.torch.name") ==
+                  "火把" &&
               registry.lookup("en-US", "settings.music_volume") ==
                   "Music" &&
               registry.lookup("zh-CN", "settings.music_volume") !=
@@ -1773,10 +1777,12 @@ void caseOreTextures()
     const auto &chest = database.getDefinition(BlockId::Chest);
     const auto &workbench = database.getDefinition(BlockId::Workbench);
     const auto &furnace = database.getDefinition(BlockId::Furnace);
+    const auto &torch = database.getDefinition(BlockId::Torch);
     const bool interactiveCoordinates =
         chest.render.texTopCoord == glm::ivec2(0, 1) &&
         workbench.render.texTopCoord == glm::ivec2(1, 1) &&
-        furnace.render.texTopCoord == glm::ivec2(2, 1);
+        furnace.render.texTopCoord == glm::ivec2(2, 1) &&
+        torch.render.texTopCoord == glm::ivec2(6, 1);
     const std::set<std::uint64_t> interactiveHashes = {
         hashTile(0, 1), hashTile(1, 1), hashTile(2, 1)};
     check("FS3/interactive-blocks-use-dedicated-tiles",
@@ -1784,6 +1790,9 @@ void caseOreTextures()
               visiblePixelCount(0, 1) > 24 &&
               visiblePixelCount(1, 1) > 24 &&
               visiblePixelCount(2, 1) > 24);
+    check("P11-0/torch-tile-is-visible-cutout",
+          visiblePixelCount(6, 1) > 8 &&
+              visiblePixelCount(6, 1) < 128);
 
     std::set<std::uint64_t> itemHashes;
     bool itemTilesPopulated = true;
@@ -4812,19 +4821,20 @@ void caseBlockLightStorage()
     constexpr int targetX = 5;
     constexpr int z = 4;
 
-    check("L2/emissive-definition-is-data-driven",
-          BlockDatabase::get().getDefinition(BlockId::Rose).light == 14,
-          "light=" + std::to_string(
-                         BlockDatabase::get()
-                             .getDefinition(BlockId::Rose)
-                             .light));
+    check("P11-0/static-emissive-definitions-are-data-driven",
+          BlockDatabase::get().getDefinition(BlockId::Rose).light == 0 &&
+              BlockDatabase::get().getDefinition(BlockId::Torch).light == 14,
+          "rose/torch=" + std::to_string(
+              BlockDatabase::get().getDefinition(BlockId::Rose).light) +
+              "/" + std::to_string(
+              BlockDatabase::get().getDefinition(BlockId::Torch).light));
 
     {
         Player player;
         World world(camera, config, player, directory, false, 1);
         world.setBlock(sourceX, floorY, z, BlockId::Stone);
         world.setBlock(targetX, floorY, z, BlockId::Stone);
-        world.setBlock(sourceX, floorY + 1, z, BlockId::Rose);
+        world.setBlock(sourceX, floorY + 1, z, BlockId::Torch);
         world.setBlock(6, floorY + 1, z, BlockId::Stone);
         for (int x = 2; x <= 7; ++x) {
             world.setBlock(x, floorY + 3, z, BlockId::Stone);
@@ -4990,7 +5000,7 @@ void caseLocalRelightAfterEdits()
                 ? neighbourSection->getBlockRevision()
                 : 0;
 
-        world.setBlock(sourceX, sourceY, z, BlockId::Rose);
+        world.setBlock(sourceX, sourceY, z, BlockId::Torch);
         check("L3/emissive-edit-crosses-chunk-boundary",
               world.getBlockLight(sourceX, sourceY, z) == 14 &&
                   world.getBlockLight(neighbourX, sourceY, z) == 13,
@@ -5043,6 +5053,15 @@ void caseLocalRelightAfterEdits()
         check("L3/removing-roof-restores-sunlight",
               world.getSunlight(columnX, floorY + 1, columnZ) ==
                   MAX_LIGHT_LEVEL);
+
+        constexpr int sectionBoundaryY = 207;
+        world.setBlock(8, sectionBoundaryY + 1, 12, BlockId::Stone);
+        world.setBlock(8, sectionBoundaryY + 1, 12, BlockId::Air);
+        world.setBlock(8, sectionBoundaryY, 12, BlockId::Torch);
+        check("P11-0/emissive-edit-crosses-section-boundary",
+              world.getBlockLight(8, sectionBoundaryY, 12) == 14 &&
+                  world.getBlockLight(8, sectionBoundaryY + 1, 12) == 13);
+        world.setBlock(8, sectionBoundaryY, 12, BlockId::Air);
 
         world.save();
         world.getChunkManager().unloadChunk(0, 0);
@@ -5714,6 +5733,21 @@ void caseFurnaceProgression()
               furnace->state.burnTicksRemaining == 120 &&
               furnace->state.input.amount == 2 &&
               furnace->state.output.amount == 0);
+    const ChunkBlock activeFurnaceBlock = world.getBlock(
+        position.x, position.y, position.z);
+    check("P11-0/active-furnace-projects-lit-metadata-and-light",
+          (activeFurnaceBlock.metadata &
+               BlockMetadata::Furnace::LitBit) != 0 &&
+              world.getBlockLight(position.x, position.y, position.z) == 13);
+
+    world.setBlock(
+        position.x, position.y, position.z,
+        ChunkBlock(BlockId::Furnace,
+                   static_cast<BlockMetadata_t>(
+                       activeFurnaceBlock.metadata &
+                       ~BlockMetadata::Furnace::LitBit)));
+    check("P11-0/metadata-only-update-preserves-block-entity",
+          world.getBlockEntity(position).has_value());
 
     player.closeContainer();
     world.getChunkManager().unloadChunk(0, 0);
@@ -5725,6 +5759,12 @@ void caseFurnaceProgression()
     check("N2/unload-reload-resumes-exact-state-without-catchup",
           furnace && furnace->state.progressTicks == 40 &&
               furnace->state.burnTicksRemaining == 120);
+    const ChunkBlock normalizedFurnaceBlock = world.getBlock(
+        position.x, position.y, position.z);
+    check("P11-0/load-normalizes-active-v11-furnace-before-reconnect",
+          (normalizedFurnaceBlock.metadata &
+               BlockMetadata::Furnace::LitBit) != 0 &&
+              world.getBlockLight(position.x, position.y, position.z) == 13);
 
     for (int tick = 40; tick < 100; ++tick) {
         world.tick(tick);
@@ -5754,10 +5794,30 @@ void caseFurnaceProgression()
               furnace->state.burnTicksRemaining == 60 &&
               furnace->state.output.amount ==
                   Material::IRON_INGOT.maxStackSize);
+    check("P11-0/blocked-furnace-turns-off-without-burning-fuel",
+          (world.getBlock(position.x, position.y, position.z).metadata &
+               BlockMetadata::Furnace::LitBit) == 0 &&
+              world.getBlockLight(position.x, position.y, position.z) == 0);
 
     blocked.output.amount = 1;
     world.updateBlockEntity(position, FurnaceContainer::serialize(blocked));
-    for (int tick = 110; tick < 170; ++tick) {
+    world.tick(110);
+    check("P11-0/unblocked-furnace-relights-from-frozen-burn-time",
+          (world.getBlock(position.x, position.y, position.z).metadata &
+               BlockMetadata::Furnace::LitBit) != 0 &&
+              world.getBlockLight(position.x, position.y, position.z) == 13);
+    Chunk *furnaceChunk = world.getChunkManager().findChunk(0, 0);
+    ChunkSection *furnaceSection = furnaceChunk != nullptr
+        ? furnaceChunk->findSection(position.y / CHUNK_SIZE)
+        : nullptr;
+    const std::uint32_t litRevision = furnaceSection != nullptr
+        ? furnaceSection->getBlockRevision()
+        : 0;
+    world.tick(111);
+    check("P11-0/stable-lit-state-does-not-repeat-block-relight",
+          furnaceSection != nullptr &&
+              furnaceSection->getBlockRevision() == litRevision);
+    for (int tick = 112; tick < 170; ++tick) {
         world.tick(tick);
     }
     furnace = FurnaceContainer::view(
@@ -5766,6 +5826,10 @@ void caseFurnaceProgression()
           furnace && furnace->state.progressTicks == 60 &&
               furnace->state.burnTicksRemaining == 0 &&
               furnace->state.input.amount == 1);
+    check("P11-0/exhausted-furnace-turns-off",
+          (world.getBlock(position.x, position.y, position.z).metadata &
+               BlockMetadata::Furnace::LitBit) == 0 &&
+              world.getBlockLight(position.x, position.y, position.z) == 0);
 
     player.addItem(Material::COAL_ORE_BLOCK, 1);
     const int refillSlot = findSlot(Material::ID::CoalOre);
@@ -5782,6 +5846,10 @@ void caseFurnaceProgression()
               furnace->state.output.amount == 2 &&
               furnace->state.progressTicks == 0 &&
               events.count(SandboxEventType::SmeltCompleted) == 2);
+    check("P11-0/completed-empty-furnace-turns-off-with-burn-frozen",
+          furnace && furnace->state.burnTicksRemaining > 0 &&
+              (world.getBlock(position.x, position.y, position.z).metadata &
+               BlockMetadata::Furnace::LitBit) == 0);
     check("N2/output-take-is-capacity-checked-and-atomic",
           FurnaceContainer::transferToPlayer(
               world, player, FurnaceSlot::Output, 2,
@@ -12789,6 +12857,14 @@ int main()
         }
         else if (focus != nullptr && std::string(focus) == "V10E") {
             caseRuntimeConfigOwnership();
+        }
+        else if (focus != nullptr && std::string(focus) == "P11-0") {
+            caseOreTextures();
+            caseBlockTextureCoordinates();
+            caseBackgroundLoaderStress();
+            caseBlockLightStorage();
+            caseLocalRelightAfterEdits();
+            caseFurnaceProgression();
         }
         else {
         caseWorldOutcomeAndLocalizedText();

@@ -349,7 +349,7 @@ ResourceEconomyContract makeBaseResourceEconomyContract()
         Material::ID::GlassBorderless, Material::ID::WaystoneCore,
         Material::ID::RawMeat, Material::ID::CookedMeat,
         Material::ID::CactusSalad, Material::ID::TrailRation,
-        Material::ID::PlantFiber,
+        Material::ID::PlantFiber, Material::ID::Torch,
     };
     contract.trackedNewMaterials = {
         Material::ID::RawMeat, Material::ID::CookedMeat,

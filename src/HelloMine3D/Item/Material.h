@@ -55,6 +55,7 @@ struct Material : public NonCopyable {
         CactusSalad,
         TrailRation,
         PlantFiber,
+        Torch,
         Count
     };
 
@@ -65,7 +66,7 @@ struct Material : public NonCopyable {
         WORKBENCH_BLOCK, WOODEN_PICKAXE, STONE_PICKAXE, FURNACE_BLOCK,
         IRON_INGOT, IRON_PICKAXE, IRON_SWORD, BREAD, WOODEN_SWORD,
         STONE_SWORD, WAYSTONE_CORE, RAW_MEAT, COOKED_MEAT,
-        CACTUS_SALAD, TRAIL_RATION, PLANT_FIBER;
+        CACTUS_SALAD, TRAIL_RATION, PLANT_FIBER, TORCH;
 
     Material(Material::ID id, int maxStack, bool isBlock, std::string &&name,
              bool isTool = false, bool isFood = false);

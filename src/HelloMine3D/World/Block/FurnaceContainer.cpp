@@ -102,7 +102,40 @@ bool outputCanAccept(const FurnaceState &state,
            state.output.amount + recipe.outputAmount <=
                Material::toMaterial(recipe.outputMaterialId).maxStackSize;
 }
+
+bool synchronizeLighting(World &world, const glm::ivec3 &position,
+                         const FurnaceState &state,
+                         const SmeltingRegistry &registry)
+{
+    const ChunkBlock block = world.getBlock(
+        position.x, position.y, position.z);
+    if (static_cast<BlockId>(block.id) != BlockId::Furnace) {
+        return false;
+    }
+
+    const bool lit = FurnaceContainer::shouldEmitLight(state, registry);
+    const BlockMetadata_t desired = lit
+        ? static_cast<BlockMetadata_t>(
+              block.metadata | BlockMetadata::Furnace::LitBit)
+        : static_cast<BlockMetadata_t>(
+              block.metadata & ~BlockMetadata::Furnace::LitBit);
+    if (desired == block.metadata) {
+        return false;
+    }
+    world.setBlock(position.x, position.y, position.z,
+                   ChunkBlock(BlockId::Furnace, desired));
+    return true;
+}
 } // namespace
+
+bool FurnaceContainer::shouldEmitLight(
+    const FurnaceState &state, const SmeltingRegistry &registry)
+{
+    const auto *recipe = registry.findRecipe(state.input.materialId);
+    return recipe != nullptr && state.input.amount > 0 &&
+           outputCanAccept(state, *recipe) &&
+           state.burnTicksRemaining > 0;
+}
 
 std::string FurnaceContainer::serialize(const FurnaceState &state)
 {
@@ -345,40 +378,46 @@ int FurnaceContainer::tickLoaded(World &world,
         if (!furnace) continue;
         FurnaceState &state = furnace->state;
         const auto *recipe = registry.findRecipe(state.input.materialId);
-        if (recipe == nullptr || state.input.amount <= 0 ||
-            !outputCanAccept(state, *recipe)) {
+        const bool canProcess = recipe != nullptr && state.input.amount > 0 &&
+                                outputCanAccept(state, *recipe);
+        bool changed = false;
+        bool recipeCompleted = false;
+        if (canProcess && state.burnTicksRemaining <= 0) {
+            const auto *fuel = registry.findFuel(state.fuel.materialId);
+            if (fuel != nullptr && state.fuel.amount > 0) {
+                --state.fuel.amount;
+                clearIfEmpty(state.fuel);
+                state.burnTicksRemaining = fuel->burnTicks;
+                state.burnTicksTotal = fuel->burnTicks;
+                changed = true;
+            }
+        }
+        if (canProcess && state.burnTicksRemaining > 0) {
+            --state.burnTicksRemaining;
+            ++state.progressTicks;
+            changed = true;
+            if (state.progressTicks >= recipe->durationTicks) {
+                --state.input.amount;
+                clearIfEmpty(state.input);
+                if (state.output.amount == 0) {
+                    state.output.materialId = recipe->outputMaterialId;
+                }
+                state.output.amount += recipe->outputAmount;
+                state.progressTicks = 0;
+                recipeCompleted = true;
+            }
+            if (state.burnTicksRemaining == 0) {
+                state.burnTicksTotal = 0;
+            }
+        }
+
+        const bool persisted = !changed ||
+            world.updateBlockEntity(position, serialize(state));
+        if (!persisted) {
             continue;
         }
-        bool changed = false;
-        if (state.burnTicksRemaining <= 0) {
-            const auto *fuel = registry.findFuel(state.fuel.materialId);
-            if (fuel == nullptr || state.fuel.amount <= 0) continue;
-            --state.fuel.amount;
-            clearIfEmpty(state.fuel);
-            state.burnTicksRemaining = fuel->burnTicks;
-            state.burnTicksTotal = fuel->burnTicks;
-            changed = true;
-        }
-        --state.burnTicksRemaining;
-        ++state.progressTicks;
-        changed = true;
-        bool recipeCompleted = false;
-        if (state.progressTicks >= recipe->durationTicks) {
-            --state.input.amount;
-            clearIfEmpty(state.input);
-            if (state.output.amount == 0) {
-                state.output.materialId = recipe->outputMaterialId;
-            }
-            state.output.amount += recipe->outputAmount;
-            state.progressTicks = 0;
-            recipeCompleted = true;
-        }
-        if (state.burnTicksRemaining == 0) {
-            state.burnTicksTotal = 0;
-        }
-        if (changed &&
-            world.updateBlockEntity(position, serialize(state)) &&
-            recipeCompleted) {
+        synchronizeLighting(world, position, state, registry);
+        if (recipeCompleted) {
             ++completed;
             world.getEventBus().publish(SmeltCompletedEvent(
                 recipe->inputMaterialId, recipe->outputMaterialId,

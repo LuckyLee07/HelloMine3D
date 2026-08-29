@@ -22,6 +22,7 @@ furnace|2|1|opaque|464B4D|Furnace|熔炉
 glass|3|1|translucent|000000|Framed glass|有框玻璃
 glass_borderless|4|1|translucent|000000|Borderless glass|无边框玻璃
 oak_planks|5|1|opaque|A27432|Oak planks|橡木木板
+torch|6|1|cutout|000000|Torch|火把
 wheat_seeds|0|2|icon|000000|Wheat seeds|小麦种子
 wheat|1|2|icon|000000|Wheat|小麦
 wooden_pickaxe|2|2|icon|000000|Wooden pickaxe|木镐

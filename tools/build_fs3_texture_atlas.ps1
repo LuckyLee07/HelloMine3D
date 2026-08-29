@@ -3,6 +3,8 @@ param(
         "docs\art-sources\hellomine3d-v10b2-materials-imagegen-source.png",
     [string]$EconomySource =
         "docs\art-sources\hellomine3d-economy-icons-imagegen-source.png",
+    [string]$TorchSource =
+        "docs\art-sources\hellomine3d-p11-0-torch-imagegen-source.png",
     [string]$Layout = "media\materials\Base.terrain-atlas",
     [string]$Output = "media\textures\DefaultPack.png"
 )
@@ -87,8 +89,8 @@ function Read-AtlasLayout {
         $byCoordinate[$coordinate] = $entry
     }
 
-    if ($bySemantic.Count -ne 112) {
-        throw "Terrain atlas layout must define exactly 112 populated tiles; got $($bySemantic.Count)."
+    if ($bySemantic.Count -ne 113) {
+        throw "Terrain atlas layout must define exactly 113 populated tiles; got $($bySemantic.Count)."
     }
     return $bySemantic
 }
@@ -103,6 +105,7 @@ function Convert-HexColour {
 
 $sourcePath = Resolve-ProjectPath -Path $Source
 $economySourcePath = Resolve-ProjectPath -Path $EconomySource
+$torchSourcePath = Resolve-ProjectPath -Path $TorchSource
 $layoutPath = Resolve-ProjectPath -Path $Layout
 $outputPath = Resolve-ProjectPath -Path $Output -AllowMissing
 $outputDirectory = Split-Path -Parent $outputPath
@@ -113,6 +116,7 @@ Add-Type -AssemblyName System.Drawing
 $layoutEntries = Read-AtlasLayout -Path $layoutPath
 $sourceBitmap = [Drawing.Bitmap]::FromFile($sourcePath)
 $economyBitmap = [Drawing.Bitmap]::FromFile($economySourcePath)
+$torchBitmap = [Drawing.Bitmap]::FromFile($torchSourcePath)
 $atlas = New-Object Drawing.Bitmap 256, 256,
     ([Drawing.Imaging.PixelFormat]::Format32bppArgb)
 $graphics = [Drawing.Graphics]::FromImage($atlas)
@@ -131,7 +135,7 @@ $builtSemantics = New-Object 'System.Collections.Generic.HashSet[string]'
 function Copy-GeneratedTile {
     param(
         [string]$Semantic,
-        [ValidateSet('material', 'economy')][string]$SourceKind,
+        [ValidateSet('material', 'economy', 'torch')][string]$SourceKind,
         [int]$SourceX, [int]$SourceY,
         [int]$SourceWidth, [int]$SourceHeight,
         [switch]$KeepAspect
@@ -144,11 +148,10 @@ function Copy-GeneratedTile {
         throw "Generated tile was emitted twice: $Semantic"
     }
     $entry = $layoutEntries[$Semantic]
-    $sourceImage = if ($SourceKind -eq 'material') {
-        $sourceBitmap
-    }
-    else {
-        $economyBitmap
+    $sourceImage = switch ($SourceKind) {
+        'material' { $sourceBitmap }
+        'economy' { $economyBitmap }
+        'torch' { $torchBitmap }
     }
     if ($SourceX -lt 0 -or $SourceY -lt 0 -or
         $SourceWidth -le 0 -or $SourceHeight -le 0 -or
@@ -383,6 +386,7 @@ try {
     Copy-GeneratedTile glass material 316 169 63 75
     Copy-GeneratedTile glass_borderless material 392 169 63 75
     Copy-GeneratedTile oak_planks material 472 172 59 69
+    Copy-GeneratedTile torch torch 496 64 279 1073 -KeepAspect
 
     Copy-GeneratedTile wheat_seeds material 98 305 39 38 -KeepAspect
     Copy-GeneratedTile wheat material 162 284 61 68 -KeepAspect
@@ -460,11 +464,13 @@ finally {
     $atlas.Dispose()
     $sourceBitmap.Dispose()
     $economyBitmap.Dispose()
+    $torchBitmap.Dispose()
 }
 
 $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $outputPath).Hash
 Write-Host "[FS3_ATLAS] source=$sourcePath"
 Write-Host "[FS3_ATLAS] economy_source=$economySourcePath"
+Write-Host "[FS3_ATLAS] torch_source=$torchSourcePath"
 Write-Host "[FS3_ATLAS] layout=$layoutPath tiles=$($layoutEntries.Count)"
 Write-Host "[FS3_ATLAS] output=$outputPath size=256x256 tile=16 sha256=$hash"
 Write-Host "[FS3_ATLAS] status=PASS"

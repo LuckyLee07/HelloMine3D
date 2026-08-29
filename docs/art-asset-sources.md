@@ -34,7 +34,7 @@
   `precise-object-edit` 只修安全边距，一次 `background-extraction` 提取真实 Alpha。
 - 生成源 SHA-256：`177AFDB8247C5D8E3ED5888CD00B335BB605DB47E503E0BB77533D8D291623CD`
 - 最终图集 SHA-256：`82A592F3EA957B40D6EDE041EF92DD834A875C064AA847C33D5CFB53D82D933D`
-- 许可证 SHA-256：`1D91CDD12F1A0F66B802AE751B3364116A6C5366EE80C126EAF612463D428B1C`
+- 许可证 SHA-256：`3226F73709778571AA53F7683B9C959A8E985C50B54A87144E43DAB8855EB6DD`
 
 完整材质表现、提示词、分面、Alpha、资源包和固定截图合同见
 `docs/material-visual-contract-v1.md`。最终 atlas 不直接采用生成图：构建脚本裁去方块展示外框，
@@ -54,6 +54,24 @@
 `tools/build_fs3_texture_atlas.ps1` 现在从 V10B2 母版重建方块和既有物品单元，只从 N10 来源的
 固定包围框裁切五个经济图标到第三行 x=10..14。所有 item 使用最近邻、无平滑并在 14×14
 可视范围内居中；N10 的语义和坐标没有改变。
+
+## P11-0 原创火把资产
+
+- 最终运行时资源：`media/textures/DefaultPack.png` 的 `(6,1)` 单元
+- 可追溯生成源：`docs/art-sources/hellomine3d-p11-0-torch-imagegen-source.png`
+- 机器可读布局：`torch|6|1|cutout|000000|Torch|火把`
+- 确定性打包脚本：`tools/build_fs3_texture_atlas.ps1`
+- 随包许可证：`media/textures/LICENSE-HelloMine3D-Textures.txt`
+- 生成日期：2026-08-29
+- 生成方式：Codex 内置 OpenAI 图像生成工具，一次原创生成；没有使用第三方游戏贴图或商标。
+- 生成源 SHA-256：`9C2FD55DF0FBE0236F6AD5BF21DDAC82D271EE9A42507CEFCD46D77592226D19`
+- 最终图集 SHA-256：`FB6C4953AF8E8C6CE3DA44676595651266FECC5FDE0F0E1A32F068A1B697364B`
+
+提示词要求在真正透明的 1:1 画布上生成一个居中的正面像素火把：窄深棕木柄、暖色琥珀/橙黄
+火焰、硬边像素和清晰轮廓，适合交叉面方块与物品图标；四周留透明安全边距，不含地面、阴影、
+场景、边框、文字、徽标或水印。生成源为 1254×1254 RGBA；构建脚本使用固定包围框
+`496,64,279,1073`，以最近邻缩放到 14×14 可视区并用 Alpha 64 阈值固化 cutout，保证图集可
+逐字节重建。
 
 ## N12A 中文界面字体
 

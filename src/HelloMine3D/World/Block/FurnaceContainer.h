@@ -60,6 +60,8 @@ class FurnaceContainer
                              const SmeltingRegistry &registry);
     static int tickLoaded(World &world,
                           const SmeltingRegistry &registry);
+    static bool shouldEmitLight(const FurnaceState &state,
+                                const SmeltingRegistry &registry);
 
     static std::string serialize(const FurnaceState &state);
     static bool deserialize(const std::string &payload,

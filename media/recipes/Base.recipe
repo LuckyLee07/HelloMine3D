@@ -39,6 +39,12 @@ row hellomine:stone hellomine:stone hellomine:stone
 output hellomine:furnace 1
 end
 
+recipe hellomine:torch shaped
+row hellomine:coal_ore
+row hellomine:oak_bark
+output hellomine:torch 4
+end
+
 recipe hellomine:iron_pickaxe shaped
 row hellomine:iron_ingot hellomine:iron_ingot hellomine:iron_ingot
 row _ hellomine:oak_bark _

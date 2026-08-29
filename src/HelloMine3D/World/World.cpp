@@ -132,10 +132,12 @@ namespace
 
     LightLevel blockEmission(ChunkBlock block)
     {
-        const int value =
-            BlockDatabase::get()
-                .getDefinition(static_cast<BlockId>(block.id))
-                .light;
+        const BlockDefinition &definition =
+            BlockDatabase::get().getDefinition(
+                static_cast<BlockId>(block.id));
+        const int value = definition.behavior != nullptr
+            ? definition.behavior->emission(definition, block)
+            : definition.light;
         return clampLightLevel(static_cast<LightLevel>(value));
     }
 
@@ -764,6 +766,42 @@ void World::reconcileBlockLightAfterChunkLoad(int chunkX, int chunkZ)
     Chunk *chunk = m_chunkManager.findChunk(chunkX, chunkZ);
     if (chunk == nullptr || !chunk->hasLoaded()) {
         return;
+    }
+
+    if (runtimeSmeltingRegistry().isFrozen()) {
+        bool normalizedFurnace = false;
+        for (const BlockEntityRecord &record : chunk->getBlockEntities()) {
+            if (record.type != FurnaceContainer::BlockEntityType) {
+                continue;
+            }
+            FurnaceState state;
+            if (!FurnaceContainer::deserialize(
+                    record.payload, runtimeSmeltingRegistry(), state)) {
+                continue;
+            }
+            const ChunkBlock block = chunk->getBlock(
+                record.position.x, record.position.y, record.position.z);
+            if (static_cast<BlockId>(block.id) != BlockId::Furnace) {
+                continue;
+            }
+            const bool lit = FurnaceContainer::shouldEmitLight(
+                state, runtimeSmeltingRegistry());
+            const BlockMetadata_t desired = lit
+                ? static_cast<BlockMetadata_t>(
+                      block.metadata | BlockMetadata::Furnace::LitBit)
+                : static_cast<BlockMetadata_t>(
+                      block.metadata & ~BlockMetadata::Furnace::LitBit);
+            if (desired != block.metadata) {
+                chunk->setBlock(
+                    record.position.x, record.position.y,
+                    record.position.z,
+                    ChunkBlock(BlockId::Furnace, desired));
+                normalizedFurnace = true;
+            }
+        }
+        if (normalizedFurnace) {
+            chunk->rebuildBlockLight();
+        }
     }
 
     const int baseX = chunkX * CHUNK_SIZE;
