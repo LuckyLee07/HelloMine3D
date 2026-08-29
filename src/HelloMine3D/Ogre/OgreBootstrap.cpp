@@ -1023,9 +1023,9 @@ namespace
                         }
                         FurnaceState state;
                         state.input = {
-                            Material::ID::IronOre, 1, 0};
-                        state.burnTicksRemaining = 200;
-                        state.burnTicksTotal = 200;
+                            Material::ID::IronOre, 4, 0};
+                        state.burnTicksRemaining = 160;
+                        state.burnTicksTotal = 160;
                         if (!FurnaceContainer::shouldEmitLight(
                                 state, runtimeSmeltingRegistry()) ||
                             !m_world->updateBlockEntity(
