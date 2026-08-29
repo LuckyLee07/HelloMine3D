@@ -68,6 +68,7 @@
 #include "../World/Chunk/ChunkSection.h"
 #include "../World/Block/BlockDatabase.h"
 #include "../World/Block/ChestContainer.h"
+#include "../World/Block/FurnaceContainer.h"
 #include "../World/Block/TerrainMaterialProfile.h"
 #include "../World/Environment/AtmosphereShaderContract.h"
 #include "../World/World.h"
@@ -888,6 +889,172 @@ namespace
                 std::cout << "[V10D_SHADOW_FIXTURE] center="
                           << centerX << ',' << floorY << ',' << centerZ
                           << " floor=19x19 casters=4\n";
+            }
+
+            const char *p11LightFixtureValue = std::getenv(
+                "HELLOMINE3D_P11_LIGHT_FIXTURE");
+            if (p11LightFixtureValue != nullptr &&
+                p11LightFixtureValue[0] != '\0')
+            {
+                const std::string fixture(p11LightFixtureValue);
+                if (fixture != "cave_before" &&
+                    fixture != "cave_after" &&
+                    fixture != "night_torch" &&
+                    fixture != "furnace_lit")
+                {
+                    throw std::runtime_error(
+                        "Unknown P11 light fixture: " + fixture);
+                }
+
+                const float yaw = glm::radians(
+                    m_worldPlayer->rotation.y + 90.0f);
+                const glm::vec3 forward(-std::cos(yaw), 0.0f,
+                                        -std::sin(yaw));
+                const glm::vec3 right(-forward.z, 0.0f, forward.x);
+                const int baseX = World::toBlockCoord(
+                    m_worldPlayer->position.x);
+                const int baseZ = World::toBlockCoord(
+                    m_worldPlayer->position.z);
+                const int forwardX = static_cast<int>(
+                    std::lround(forward.x));
+                const int forwardZ = static_cast<int>(
+                    std::lround(forward.z));
+                const int rightX = static_cast<int>(
+                    std::lround(right.x));
+                const int rightZ = static_cast<int>(
+                    std::lround(right.z));
+                const int floorY = World::toBlockCoord(
+                    m_worldPlayer->position.y) - 2;
+                const auto blockPosition =
+                    [&](int forwardOffset, int rightOffset, int height)
+                    {
+                        return glm::ivec3{
+                            baseX + forwardX * forwardOffset +
+                                rightX * rightOffset,
+                            floorY + height,
+                            baseZ + forwardZ * forwardOffset +
+                                rightZ * rightOffset};
+                    };
+                const auto setFixtureBlock =
+                    [&](int forwardOffset, int rightOffset, int height,
+                        ChunkBlock block)
+                    {
+                        const glm::ivec3 position = blockPosition(
+                            forwardOffset, rightOffset, height);
+                        m_world->setBlock(position.x, position.y,
+                                          position.z, block);
+                    };
+
+                if (fixture == "night_torch")
+                {
+                    for (int forwardStep = -4; forwardStep <= 14;
+                         ++forwardStep)
+                    {
+                        for (int rightStep = -6; rightStep <= 6;
+                             ++rightStep)
+                        {
+                            setFixtureBlock(forwardStep, rightStep, 0,
+                                            BlockId::Grass);
+                        }
+                    }
+                    setFixtureBlock(7, 0, 1, BlockId::Torch);
+                }
+                else
+                {
+                    const int halfWidth =
+                        fixture == "furnace_lit" ? 5 : 4;
+                    for (int forwardStep = -3; forwardStep <= 12;
+                         ++forwardStep)
+                    {
+                        for (int rightStep = -halfWidth;
+                             rightStep <= halfWidth; ++rightStep)
+                        {
+                            setFixtureBlock(forwardStep, rightStep, 0,
+                                            BlockId::Stone);
+                            setFixtureBlock(forwardStep, rightStep, 6,
+                                            BlockId::Stone);
+                        }
+                        for (int height = 1; height < 6; ++height)
+                        {
+                            setFixtureBlock(forwardStep, -halfWidth,
+                                            height, BlockId::Stone);
+                            setFixtureBlock(forwardStep, halfWidth,
+                                            height, BlockId::Stone);
+                        }
+                    }
+                    for (int rightStep = -halfWidth;
+                         rightStep <= halfWidth; ++rightStep)
+                    {
+                        for (int height = 1; height < 6; ++height)
+                        {
+                            setFixtureBlock(-3, rightStep, height,
+                                            BlockId::Stone);
+                            setFixtureBlock(12, rightStep, height,
+                                            BlockId::Stone);
+                        }
+                    }
+
+                    if (fixture == "cave_before" ||
+                        fixture == "cave_after")
+                    {
+                        setFixtureBlock(8, -halfWidth, 2,
+                                        BlockId::CoalOre);
+                        setFixtureBlock(9, halfWidth, 2,
+                                        BlockId::IronOre);
+                        if (fixture == "cave_after")
+                        {
+                            setFixtureBlock(7, 0, 1,
+                                            BlockId::Torch);
+                        }
+                    }
+                    else
+                    {
+                        const glm::ivec3 furnacePosition =
+                            blockPosition(7, 0, 1);
+                        m_world->setBlock(
+                            furnacePosition.x, furnacePosition.y,
+                            furnacePosition.z, BlockId::Furnace);
+                        if (!FurnaceContainer::initialize(
+                                *m_world, furnacePosition))
+                        {
+                            throw std::runtime_error(
+                                "P11 light fixture failed to initialize "
+                                "the furnace.");
+                        }
+                        FurnaceState state;
+                        state.input = {
+                            Material::ID::IronOre, 1, 0};
+                        state.burnTicksRemaining = 200;
+                        state.burnTicksTotal = 200;
+                        if (!FurnaceContainer::shouldEmitLight(
+                                state, runtimeSmeltingRegistry()) ||
+                            !m_world->updateBlockEntity(
+                                furnacePosition,
+                                FurnaceContainer::serialize(state)))
+                        {
+                            throw std::runtime_error(
+                                "P11 light fixture failed to persist an "
+                                "active furnace.");
+                        }
+                        m_world->setBlock(
+                            furnacePosition.x, furnacePosition.y,
+                            furnacePosition.z,
+                            ChunkBlock(
+                                BlockId::Furnace,
+                                BlockMetadata::Furnace::LitBit));
+                        setFixtureBlock(9, -3, 1,
+                                        BlockId::IronOre);
+                        setFixtureBlock(9, 3, 1,
+                                        BlockId::CoalOre);
+                    }
+                }
+                std::cout << "[P11_LIGHT_FIXTURE] scene="
+                          << fixture << " floor_y=" << floorY
+                          << " source="
+                          << (fixture == "cave_before" ? "none" :
+                              fixture == "furnace_lit" ? "furnace13" :
+                              "torch14")
+                          << '\n';
             }
 
             if (isTrueValue(std::getenv(

@@ -62,7 +62,7 @@ if ($fields['record_version'] -ne '1') {
 if ($fields['kind'] -ne 'developer_visual') {
     throw "Developer visual kind must be developer_visual."
 }
-if ($fields['batch'] -notmatch '^V10(A|B1|B2|B3|C|D|E)$') {
+if ($fields['batch'] -notmatch '^(V10(A|B1|B2|B3|C|D|E)|P11-0)$') {
     throw "Developer visual batch is unsupported: $($fields['batch'])"
 }
 if ($fields['commit'] -notmatch '^[0-9a-fA-F]{40}$') {
@@ -85,6 +85,21 @@ if ($scenes.Count -eq 0 -or $scenes.Count -gt 16 -or
         $_ -notmatch '^[a-z0-9][a-z0-9_-]*$'
     }).Count -ne 0) {
     throw "Developer visual scenes must contain 1-16 canonical ids."
+}
+if ($fields['batch'] -eq 'P11-0') {
+    $requiredP11Scenes = @(
+        'cave_before', 'cave_after', 'night_torch', 'furnace_lit')
+    $missingP11Scenes = @($requiredP11Scenes | Where-Object {
+        $_ -notin $scenes
+    })
+    $unexpectedP11Scenes = @($scenes | Where-Object {
+        $_ -notin $requiredP11Scenes
+    })
+    if ($scenes.Count -ne $requiredP11Scenes.Count -or
+        $missingP11Scenes.Count -ne 0 -or
+        $unexpectedP11Scenes.Count -ne 0) {
+        throw "P11-0 developer visual record must contain exactly: $($requiredP11Scenes -join ',')."
+    }
 }
 
 $notRunFields = @('date', 'gpu', 'driver', 'window')

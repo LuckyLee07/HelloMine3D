@@ -28,6 +28,8 @@ param(
     [switch]$ShowHudFixture,
     [switch]$ShowV10EPostFixture,
     [switch]$ShowV10ESettingsFixture,
+    [ValidateSet("none", "cave_before", "cave_after", "night_torch", "furnace_lit")]
+    [string]$P11LightFixture = "none",
     [ValidateSet("none", "cave", "canopy")]
     [string]$VertexLightingFixture = "none",
     [switch]$DisableVertexAo,
@@ -604,6 +606,7 @@ if ($ShowCombatFixture) { Write-Host "[RENDER_CAPTURE] showCombatFixture=true" }
 if ($ShowCropFixture) { Write-Host "[RENDER_CAPTURE] showCropFixture=true" }
 if ($ShowVerticalSliceFixture) { Write-Host "[RENDER_CAPTURE] showVerticalSliceFixture=true" }
 if ($ShowHudFixture) { Write-Host "[RENDER_CAPTURE] showHudFixture=true" }
+if ($P11LightFixture -ne "none") { Write-Host "[RENDER_CAPTURE] p11LightFixture=$P11LightFixture" }
 if ($VertexLightingFixture -ne "none") { Write-Host "[RENDER_CAPTURE] vertexLightingFixture=$VertexLightingFixture" }
 if ($DisableVertexAo) { Write-Host "[RENDER_CAPTURE] disableVertexAo=true" }
 if (-not [string]::IsNullOrWhiteSpace($ResourcePacks)) { Write-Host "[RENDER_CAPTURE] resourcePacks=$ResourcePacks" }
@@ -665,6 +668,9 @@ if ($ShowV10EPostFixture) {
 }
 if ($ShowV10ESettingsFixture) {
     $envValues["HELLOMINE3D_V10E_SETTINGS_FIXTURE"] = "1"
+}
+if ($P11LightFixture -ne "none") {
+    $envValues["HELLOMINE3D_P11_LIGHT_FIXTURE"] = $P11LightFixture
 }
 if ($VertexLightingFixture -ne "none") {
     $envValues["HELLOMINE3D_VERTEX_LIGHTING_FIXTURE"] =
