@@ -415,7 +415,8 @@ World::World(const Camera &camera, const Config &config, Player &player,
     if (hasSave) {
         m_chunkManager.setTerrainIdentity(
             m_worldSaveData.seed,
-            m_worldSaveData.terrainGenerationVersion);
+            m_worldSaveData.terrainGenerationVersion,
+            m_worldSaveData.explorationRewardVersion);
         m_playerSpawnPoint = m_worldSaveData.spawnPoint;
         if (m_worldSaveData.hasPlayerState) {
             player.applySaveState(m_worldSaveData.playerState);
@@ -459,7 +460,8 @@ World::World(const Camera &camera, const Config &config, Player &player,
                                       424, 325322);
         m_chunkManager.setTerrainIdentity(
             m_worldSaveData.seed,
-            m_worldSaveData.terrainGenerationVersion);
+            m_worldSaveData.terrainGenerationVersion,
+            m_worldSaveData.explorationRewardVersion);
 
         if (hasForcedPlayerPosition) {
             m_playerSpawnPoint = forcedPlayerPosition;
@@ -1355,6 +1357,56 @@ int World::getAttackCooldownTicksRemaining() const noexcept
 glm::vec3 World::getPlayerSpawnPoint() const
 {
     return m_playerSpawnPoint;
+}
+
+ExplorationRewardSnapshot
+World::getExplorationRewardSnapshot() const noexcept
+{
+    ExplorationRewardSnapshot snapshot;
+    snapshot.version = m_worldSaveData.explorationRewardVersion;
+    snapshot.raiderWardCarried = playerCarriesRaiderWard();
+    snapshot.guardRecoverTicks = getPlayerGuardRecoverDurationTicks();
+    if (m_player == nullptr) {
+        return snapshot;
+    }
+
+    const ItemStack &held = m_player->getHeldItems();
+    snapshot.ancientCompassHeld = !held.isEmpty() &&
+        held.getMaterial().id == Material::ID::AncientCompass;
+    if (!snapshot.ancientCompassHeld) {
+        return snapshot;
+    }
+
+    const float dx = m_playerSpawnPoint.x - m_player->position.x;
+    const float dz = m_playerSpawnPoint.z - m_player->position.z;
+    snapshot.homeDistance = std::sqrt(dx * dx + dz * dz);
+    if (snapshot.homeDistance < 1.f) {
+        snapshot.homeDirection = "HERE";
+        return snapshot;
+    }
+
+    constexpr float DirectionThreshold = 0.41421356f;
+    const float normalizedX = dx / snapshot.homeDistance;
+    const float normalizedZ = dz / snapshot.homeDistance;
+    const char *vertical = normalizedZ < -DirectionThreshold
+        ? "N" : (normalizedZ > DirectionThreshold ? "S" : "");
+    const char *horizontal = normalizedX > DirectionThreshold
+        ? "E" : (normalizedX < -DirectionThreshold ? "W" : "");
+    snapshot.homeDirection = std::string(vertical) + horizontal;
+    return snapshot;
+}
+
+bool World::playerCarriesRaiderWard() const noexcept
+{
+    return m_player != nullptr &&
+        m_player->getInventoryCount(Material::ID::RaiderWard) > 0;
+}
+
+int World::getPlayerGuardRecoverDurationTicks() const noexcept
+{
+    return playerCarriesRaiderWard()
+        ? ExplorationRewards::RaiderWardGuardRecoverTicks
+        : PlayerGuardRecoverTicks;
 }
 
 AlphaJourneySnapshot World::getAlphaJourneySnapshot() const
@@ -2419,7 +2471,8 @@ MobMeleeAttackResult World::resolveMobMeleeAttack(
     const CombatDirection direction = directionFromPlayerTo(attacker.position);
     if (isPlayerGuarding() && canGuardSource(attacker.position)) {
         m_player->damageHeldTool();
-        m_playerGuardRecoverTicksRemaining = PlayerGuardRecoverTicks;
+        m_playerGuardRecoverTicksRemaining =
+            getPlayerGuardRecoverDurationTicks();
         recordPlayerCombatFeedback(PlayerCombatFeedbackKind::Guard,
                                    attacker.getId(), attacker.position);
         m_eventBus.publish(CombatGuardEvent(
@@ -2617,7 +2670,8 @@ CombatProjectileRemovalReason World::stepCombatProjectile(
             glm::normalize(projectile.velocity);
         if (isPlayerGuarding() && canGuardSource(incomingSource)) {
             m_player->damageHeldTool();
-            m_playerGuardRecoverTicksRemaining = PlayerGuardRecoverTicks;
+            m_playerGuardRecoverTicksRemaining =
+                getPlayerGuardRecoverDurationTicks();
             recordPlayerCombatFeedback(PlayerCombatFeedbackKind::Guard,
                                        projectile.ownerId,
                                        incomingSource);
@@ -3447,6 +3501,8 @@ WorldDebugStats World::collectDebugStats()
     stats.terrainSeed = m_chunkManager.getTerrainSeed();
     stats.terrainGenerationVersion =
         m_chunkManager.getTerrainGenerationVersion();
+    stats.explorationRewardVersion =
+        m_chunkManager.getExplorationRewardVersion();
     stats.difficultyProfileVersion = difficulty.profileVersion;
     stats.difficulty = difficulty.active;
     stats.difficultyChangePending = difficulty.changePending;

@@ -45,6 +45,8 @@ namespace
         "hellomine:oak_door",
         "hellomine:wooden_axe",
         "hellomine:wooden_shovel",
+        "hellomine:ancient_compass",
+        "hellomine:raider_ward",
     }};
 
     constexpr std::array<Material::IconCoordinate, Material::ID::Count>
@@ -55,7 +57,7 @@ namespace
             {1, 1}, {2, 2}, {3, 2}, {2, 1}, {4, 2}, {5, 2},
             {6, 2}, {7, 2}, {8, 2}, {9, 2}, {15, 0}, {10, 2},
             {11, 2}, {12, 2}, {13, 2}, {14, 2}, {6, 1}, {5, 1},
-            {7, 1}, {8, 1}, {15, 2}, {15, 3},
+            {7, 1}, {8, 1}, {15, 2}, {15, 3}, {9, 1}, {10, 1},
         }};
 }
 
@@ -122,6 +124,10 @@ const Material Material::WOODEN_AXE(ID::WoodenAxe, 1, false,
                                     "Wooden Axe", true);
 const Material Material::WOODEN_SHOVEL(ID::WoodenShovel, 1, false,
                                        "Wooden Shovel", true);
+const Material Material::ANCIENT_COMPASS(ID::AncientCompass, 1, false,
+                                         "Ancient Compass");
+const Material Material::RAIDER_WARD(ID::RaiderWard, 1, false,
+                                     "Raider Ward");
 
 Material::Material(Material::ID id, int maxStack, bool isBlock,
                    std::string &&name, bool isTool, bool isFood)
@@ -411,6 +417,12 @@ const Material &Material::toMaterial(Material::ID id)
 
         case WoodenShovel:
             return WOODEN_SHOVEL;
+
+        case AncientCompass:
+            return ANCIENT_COMPASS;
+
+        case RaiderWard:
+            return RAIDER_WARD;
 
         default:
             return NOTHING;

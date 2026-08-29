@@ -116,6 +116,10 @@ namespace
                     PostVictoryEvents::CurrentVersion;
                 data.completedPostVictoryEvents = 0;
             }
+            if (data.version < 12) {
+                data.explorationRewardVersion =
+                    ExplorationRewards::LegacyVersion;
+            }
             data.version = WorldSaveFormatVersion;
             data.worldId = entry.id;
             data.worldName = entry.displayName;

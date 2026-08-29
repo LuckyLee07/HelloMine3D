@@ -39,6 +39,8 @@ namespace
         int difficultyId = static_cast<int>(WorldDifficulty::Normal);
         int postVictoryEventVersion = PostVictoryEvents::CurrentVersion;
         int completedPostVictoryEvents = 0;
+        int explorationRewardVersion =
+            ExplorationRewards::CurrentVersion;
         std::string extra;
     };
 
@@ -163,6 +165,10 @@ namespace
                    << fixture.postVictoryEventVersion << '\n'
                    << "post_victory_completed_events "
                    << fixture.completedPostVictoryEvents << '\n';
+        }
+        if (fixture.version >= 12) {
+            output << "exploration_reward_version "
+                   << fixture.explorationRewardVersion << '\n';
         }
         output << fixture.extra;
     }

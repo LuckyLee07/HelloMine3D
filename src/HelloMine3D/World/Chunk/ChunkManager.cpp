@@ -21,7 +21,8 @@ ChunkManager::ChunkManager(World &world, std::string chunkRootDirectory)
                          : ChunkStorage(std::move(chunkRootDirectory)))
     , m_world(&world)
 {
-    setTerrainIdentity(m_terrainSeed, m_terrainGenerationVersion);
+    setTerrainIdentity(m_terrainSeed, m_terrainGenerationVersion,
+                       m_explorationRewardVersion);
 }
 
 Chunk &ChunkManager::getChunk(int x, int z)
@@ -292,17 +293,25 @@ int ChunkManager::getTerrainGenerationVersion() const noexcept
     return m_terrainGenerationVersion;
 }
 
-void ChunkManager::setTerrainSeed(int seed)
+int ChunkManager::getExplorationRewardVersion() const noexcept
 {
-    setTerrainIdentity(seed, m_terrainGenerationVersion);
+    return m_explorationRewardVersion;
 }
 
-void ChunkManager::setTerrainIdentity(int seed, int generationVersion)
+void ChunkManager::setTerrainSeed(int seed)
+{
+    setTerrainIdentity(seed, m_terrainGenerationVersion,
+                       m_explorationRewardVersion);
+}
+
+void ChunkManager::setTerrainIdentity(int seed, int generationVersion,
+                                      int explorationRewardVersion)
 {
     m_terrainSeed = seed;
     m_terrainGenerationVersion = generationVersion;
+    m_explorationRewardVersion = explorationRewardVersion;
     m_terrainGenerator = std::make_unique<ClassicOverWorldGenerator>(
-        seed, generationVersion);
+        seed, generationVersion, explorationRewardVersion);
 }
 
 void ChunkManager::unloadChunk(int x, int z)

@@ -22,6 +22,7 @@ namespace
         "actor",          "actor_count",       "alpha_journey_flags",
         "created_utc",    "difficulty_id",      "difficulty_profile_version",
         "generator",      "inventory_count",   "inventory_format",
+        "exploration_reward_version",
         "inventory_slot",
         "last_build",     "last_played_utc",   "player_attack_cooldown",
         "player_food_cooldown", "player_health", "player_held", "player_position",
@@ -38,6 +39,7 @@ namespace
 
     const std::set<std::string> CatalogueKeys = {
         "created_utc", "difficulty_id", "difficulty_profile_version",
+        "exploration_reward_version",
         "last_build", "last_played_utc", "post_victory_completed_events",
         "post_victory_event_version", "seed",
         "version", "world_id", "world_name", "world_outcome_phase",
@@ -280,6 +282,11 @@ namespace
         if (entry.saveFormatVersion < 11 && postVictoryFieldsPresent) {
             reject(metadataPath,
                    "post-victory fields require save format version 11");
+        }
+        if (entry.saveFormatVersion < 12 &&
+            fields.count("exploration_reward_version") != 0) {
+            reject(metadataPath,
+                   "exploration reward fields require save format version 12");
         }
 
         if (entry.saveFormatVersion < 3) {

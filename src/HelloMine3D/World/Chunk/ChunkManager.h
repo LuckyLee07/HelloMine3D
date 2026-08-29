@@ -9,6 +9,7 @@
 
 #include "../../Maths/Vector2XZ.h"
 #include "../Generation/Terrain/TerrainGenerator.h"
+#include "../../Gameplay/ExplorationRewards.h"
 #include "../Storage/ChunkStorage.h"
 #include "Chunk.h"
 #include "SectionMeshInput.h"
@@ -100,8 +101,10 @@ class ChunkManager {
     const TerrainGenerator &getTerrainGenerator() const noexcept;
     int getTerrainSeed() const noexcept;
     int getTerrainGenerationVersion() const noexcept;
+    int getExplorationRewardVersion() const noexcept;
     void setTerrainSeed(int seed);
-    void setTerrainIdentity(int seed, int generationVersion);
+    void setTerrainIdentity(int seed, int generationVersion,
+                            int explorationRewardVersion);
 
   private:
     ChunkMap m_chunks;
@@ -109,6 +112,8 @@ class ChunkManager {
     ChunkStorage m_chunkStorage;
     int m_terrainSeed = 0;
     int m_terrainGenerationVersion = CurrentTerrainGenerationVersion;
+    int m_explorationRewardVersion =
+        ExplorationRewards::CurrentVersion;
     std::size_t m_meshRebuildCount = 0;
     std::size_t m_saveTransactionCount = 0;
     double m_saveTotalMs = 0.0;

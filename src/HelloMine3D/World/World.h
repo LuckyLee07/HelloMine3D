@@ -87,6 +87,15 @@ struct PlayerCombatFeedbackSnapshot {
     int guardRecoverTicksRemaining = 0;
 };
 
+struct ExplorationRewardSnapshot {
+    int version = ExplorationRewards::LegacyVersion;
+    bool ancientCompassHeld = false;
+    bool raiderWardCarried = false;
+    float homeDistance = 0.f;
+    std::string homeDirection;
+    int guardRecoverTicks = 0;
+};
+
 struct WorldDebugStats {
     ChunkDebugStats chunks;
     TerrainBufferMetrics terrainBuffers;
@@ -110,6 +119,7 @@ struct WorldDebugStats {
     std::size_t randomTicksDispatched = 0;
     int terrainSeed = 0;
     int terrainGenerationVersion = 0;
+    int explorationRewardVersion = ExplorationRewards::LegacyVersion;
     int difficultyProfileVersion = CurrentDifficultyProfileVersion;
     WorldDifficulty difficulty = WorldDifficulty::Normal;
     bool difficultyChangePending = false;
@@ -265,6 +275,8 @@ class World : public NonCopyable {
     int getFoodCooldownTicksRemaining() const noexcept;
     int getAttackCooldownTicksRemaining() const noexcept;
     glm::vec3 getPlayerSpawnPoint() const;
+    ExplorationRewardSnapshot getExplorationRewardSnapshot() const noexcept;
+    int getPlayerGuardRecoverDurationTicks() const noexcept;
     AlphaJourneySnapshot getAlphaJourneySnapshot() const;
     ObjectiveSnapshot getObjectiveSnapshot() const;
     RecipeDiscoverySnapshot getRecipeDiscoverySnapshot() const;
@@ -383,6 +395,7 @@ class World : public NonCopyable {
     bool hasCombatLineOfSight(const MobActor &attacker,
                               const Entity &target);
     bool playerHoldsGuardWeapon() const noexcept;
+    bool playerCarriesRaiderWard() const noexcept;
     CombatDirection directionFromPlayerTo(
         const glm::vec3 &sourcePosition) const noexcept;
     bool canGuardSource(const glm::vec3 &sourcePosition) const noexcept;

@@ -8,6 +8,7 @@
 
 #include "../../WorldConstants.h"
 #include "../../WorldCoordinates.h"
+#include "../../../Gameplay/ExplorationRewards.h"
 
 namespace {
 // Signed halves of the frozen terrain-v2 salt. Naming the exact 32-bit values
@@ -182,12 +183,14 @@ bool StructureLootEntry::operator==(
 }
 
 StructureLootSnapshot
-structureLootForPlan(const StructurePlanSnapshot &plan)
+structureLootForPlan(const StructurePlanSnapshot &plan,
+                     int explorationRewardVersion)
 {
     StructureLootSnapshot loot;
     loot.key = plan.key;
     loot.chestPosition = plan.chestPosition;
     if (!plan.valid || !plan.hasChest ||
+        !ExplorationRewards::validVersion(explorationRewardVersion) ||
         (plan.key.type != StructureType::Ruin &&
          plan.key.type != StructureType::RaiderCamp)) {
         return loot;
@@ -206,8 +209,12 @@ structureLootForPlan(const StructurePlanSnapshot &plan)
 
     if (plan.key.type == StructureType::Ruin) {
         loot.entries = {
-            {Material::ID::IronIngot,
-             boundedLootAmount(loot.selectionHash, 0, 1, 2)},
+            {explorationRewardVersion >= ExplorationRewards::CurrentVersion
+                 ? Material::ID::AncientCompass
+                 : Material::ID::IronIngot,
+             explorationRewardVersion >= ExplorationRewards::CurrentVersion
+                 ? 1
+                 : boundedLootAmount(loot.selectionHash, 0, 1, 2)},
             {Material::ID::Glass,
              boundedLootAmount(loot.selectionHash, 13, 2, 5)},
             {Material::ID::WheatSeeds,
@@ -216,8 +223,12 @@ structureLootForPlan(const StructurePlanSnapshot &plan)
     }
     else {
         loot.entries = {
-            {Material::ID::Bread,
-             boundedLootAmount(loot.selectionHash, 0, 1, 3)},
+            {explorationRewardVersion >= ExplorationRewards::CurrentVersion
+                 ? Material::ID::RaiderWard
+                 : Material::ID::Bread,
+             explorationRewardVersion >= ExplorationRewards::CurrentVersion
+                 ? 1
+                 : boundedLootAmount(loot.selectionHash, 0, 1, 3)},
             {Material::ID::CoalOre,
              boundedLootAmount(loot.selectionHash, 17, 4, 8)},
             {Material::ID::IronOre,

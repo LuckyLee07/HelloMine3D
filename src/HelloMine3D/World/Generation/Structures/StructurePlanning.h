@@ -74,7 +74,8 @@ struct StructureLootSnapshot {
 };
 
 StructureLootSnapshot
-structureLootForPlan(const StructurePlanSnapshot &plan);
+structureLootForPlan(const StructurePlanSnapshot &plan,
+                     int explorationRewardVersion);
 
 class DeterministicStructurePlanner {
   public:

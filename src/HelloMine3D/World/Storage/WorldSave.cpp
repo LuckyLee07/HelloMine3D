@@ -206,6 +206,7 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
 
     WorldSaveData loaded;
     loaded.terrainGenerationVersion = LegacyTerrainGenerationVersion;
+    loaded.explorationRewardVersion = ExplorationRewards::LegacyVersion;
     loaded.objectiveState.definitionVersion = 0;
     std::unordered_set<std::string> singletonFields;
     bool inventoryCountSeen = false;
@@ -219,6 +220,7 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
     bool playerFoodCooldownSeen = false;
     bool playerAttackCooldownSeen = false;
     bool terrainGenerationVersionSeen = false;
+    bool explorationRewardVersionSeen = false;
     bool difficultyProfileVersionSeen = false;
     bool difficultySeen = false;
     bool postVictoryEventVersionSeen = false;
@@ -297,6 +299,14 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
                     "invalid or duplicate terrain_generation_version");
             }
             terrainGenerationVersionSeen = true;
+        }
+        else if (key == "exploration_reward_version") {
+            if (!claimSingleton(key) ||
+                !(input >> loaded.explorationRewardVersion)) {
+                return fail(
+                    "invalid or duplicate exploration_reward_version");
+            }
+            explorationRewardVersionSeen = true;
         }
         else if (key == "difficulty_profile_version") {
             if (!claimSingleton(key) ||
@@ -630,6 +640,13 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
         (loaded.version < 11 && postVictoryFieldsPresent)) {
         return fail("post-victory event state does not match save version");
     }
+    if ((loaded.version >= 12 &&
+         (!explorationRewardVersionSeen ||
+          !ExplorationRewards::validVersion(
+              loaded.explorationRewardVersion))) ||
+        (loaded.version < 12 && explorationRewardVersionSeen)) {
+        return fail("exploration reward state does not match save version");
+    }
 
     if (!finiteVec3(loaded.spawnPoint) ||
         !finiteVec3(loaded.playerState.position) ||
@@ -751,6 +768,8 @@ bool WorldSave::save(const WorldSaveData &data,
         !WorldCatalogue::isValidBuildIdentity(data.lastBuildIdentity) ||
         data.terrainGenerationVersion < LegacyTerrainGenerationVersion ||
         data.terrainGenerationVersion > CurrentTerrainGenerationVersion ||
+        !ExplorationRewards::validVersion(
+            data.explorationRewardVersion) ||
         !WorldCatalogue::isValidTimestamps(data.createdUtc,
                                            data.lastPlayedUtc)) {
         std::cerr << "Refusing to save invalid current world state: "
@@ -781,6 +800,8 @@ bool WorldSave::save(const WorldSaveData &data,
     output << "generator " << data.activeGenerator << '\n';
     output << "terrain_generation_version "
            << data.terrainGenerationVersion << '\n';
+    output << "exploration_reward_version "
+           << data.explorationRewardVersion << '\n';
     output << "difficulty_profile_version "
            << data.difficultyProfileVersion << '\n';
     output << "difficulty_id " << static_cast<int>(data.difficulty)

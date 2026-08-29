@@ -89,8 +89,8 @@ function Read-AtlasLayout {
         $byCoordinate[$coordinate] = $entry
     }
 
-    if ($bySemantic.Count -ne 117) {
-        throw "Terrain atlas layout must define exactly 117 populated tiles; got $($bySemantic.Count)."
+    if ($bySemantic.Count -ne 119) {
+        throw "Terrain atlas layout must define exactly 119 populated tiles; got $($bySemantic.Count)."
     }
     return $bySemantic
 }
@@ -364,7 +364,7 @@ function Add-P11BuildingTile {
     param(
         [string]$Semantic,
         [ValidateSet('cobblestone', 'oak_door', 'wooden_axe',
-                     'wooden_shovel')]
+                     'wooden_shovel', 'ancient_compass', 'raider_ward')]
         [string]$Kind
     )
 
@@ -419,6 +419,64 @@ function Add-P11BuildingTile {
                         }
                     }
                     $tile.SetPixel($x, $y, $colour)
+                }
+            }
+        }
+        elseif ($Kind -in @('ancient_compass', 'raider_ward')) {
+            for ($y = 0; $y -lt 16; ++$y) {
+                for ($x = 0; $x -lt 16; ++$x) {
+                    $tile.SetPixel($x, $y, [Drawing.Color]::Transparent)
+                }
+            }
+            if ($Kind -eq 'ancient_compass') {
+                $dark = [Drawing.Color]::FromArgb(255, 67, 46, 27)
+                $gold = [Drawing.Color]::FromArgb(255, 221, 175, 61)
+                $face = [Drawing.Color]::FromArgb(255, 225, 218, 178)
+                $north = [Drawing.Color]::FromArgb(255, 195, 54, 45)
+                $south = [Drawing.Color]::FromArgb(255, 45, 92, 126)
+                for ($y = 2; $y -le 13; ++$y) {
+                    for ($x = 2; $x -le 13; ++$x) {
+                        $dx = $x - 7.5
+                        $dy = $y - 7.5
+                        $radius = [Math]::Sqrt($dx * $dx + $dy * $dy)
+                        if ($radius -le 6.0) {
+                            $colour = if ($radius -ge 4.8) { $dark }
+                                elseif ($radius -ge 4.0) { $gold }
+                                else { $face }
+                            $tile.SetPixel($x, $y, $colour)
+                        }
+                    }
+                }
+                for ($step = 0; $step -le 4; ++$step) {
+                    $tile.SetPixel(7, 7 - $step, $north)
+                    $tile.SetPixel(8, 8 + $step, $south)
+                }
+                $tile.SetPixel(7, 7, $dark)
+                $tile.SetPixel(8, 8, $dark)
+            }
+            else {
+                $edge = [Drawing.Color]::FromArgb(255, 54, 27, 24)
+                $leather = [Drawing.Color]::FromArgb(255, 139, 57, 39)
+                $light = [Drawing.Color]::FromArgb(255, 218, 106, 58)
+                $rune = [Drawing.Color]::FromArgb(255, 88, 218, 222)
+                for ($y = 1; $y -le 14; ++$y) {
+                    $half = if ($y -le 7) { [int][Math]::Floor(($y - 1) / 2) }
+                        else { [int][Math]::Floor((14 - $y) / 2) }
+                    $left = 7 - $half
+                    $right = 8 + $half
+                    for ($x = $left; $x -le $right; ++$x) {
+                        $colour = if ($x -eq $left -or $x -eq $right) {
+                            $edge
+                        }
+                        elseif (($x + $y) % 4 -eq 0) { $light }
+                        else { $leather }
+                        $tile.SetPixel($x, $y, $colour)
+                    }
+                }
+                foreach ($point in @(@(7,5), @(8,5), @(6,6), @(9,6),
+                                     @(7,7), @(8,7), @(7,8), @(8,8),
+                                     @(6,9), @(9,9), @(7,10), @(8,10))) {
+                    $tile.SetPixel($point[0], $point[1], $rune)
                 }
             }
         }
@@ -503,6 +561,8 @@ try {
     Copy-GeneratedTile torch torch 496 64 279 1073 -KeepAspect
     Add-P11BuildingTile cobblestone cobblestone
     Add-P11BuildingTile oak_door oak_door
+    Add-P11BuildingTile ancient_compass ancient_compass
+    Add-P11BuildingTile raider_ward raider_ward
 
     Copy-GeneratedTile wheat_seeds material 98 305 39 38 -KeepAspect
     Copy-GeneratedTile wheat material 162 284 61 68 -KeepAspect

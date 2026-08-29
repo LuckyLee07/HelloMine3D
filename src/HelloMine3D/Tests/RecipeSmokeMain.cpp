@@ -319,6 +319,8 @@ end
                   static_cast<int>(Material::ID::OakDoor) == 37 &&
                   static_cast<int>(Material::ID::WoodenAxe) == 38 &&
                   static_cast<int>(Material::ID::WoodenShovel) == 39 &&
+                  static_cast<int>(Material::ID::AncientCompass) == 40 &&
+                  static_cast<int>(Material::ID::RaiderWard) == 41 &&
                   Material::BREAD.isFood && !Material::BREAD.isTool &&
                   Material::COOKED_MEAT.isFood &&
                   Material::CACTUS_SALAD.isFood &&

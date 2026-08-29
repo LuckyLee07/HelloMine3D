@@ -40,9 +40,10 @@ std::uint64_t structureHash(int seed, int worldX, int worldZ)
 } // namespace
 
 ClassicOverWorldGenerator::ClassicOverWorldGenerator(
-    int seed, int generationVersion)
+    int seed, int generationVersion, int explorationRewardVersion)
     : m_seed(seed)
     , m_generationVersion(generationVersion)
+    , m_explorationRewardVersion(explorationRewardVersion)
     , m_random(seed)
     , m_biomeNoiseGen(seed * 2)
     , m_caveGenerator(seed)
@@ -55,6 +56,9 @@ ClassicOverWorldGenerator::ClassicOverWorldGenerator(
     if (m_generationVersion < LegacyTerrainGenerationVersion ||
         m_generationVersion > CurrentTerrainGenerationVersion) {
         m_generationVersion = CurrentTerrainGenerationVersion;
+    }
+    if (!ExplorationRewards::validVersion(m_explorationRewardVersion)) {
+        m_explorationRewardVersion = ExplorationRewards::CurrentVersion;
     }
     setUpNoise();
 }
@@ -109,6 +113,11 @@ int ClassicOverWorldGenerator::getMinimumSpawnHeight() const noexcept
 int ClassicOverWorldGenerator::getSeed() const noexcept
 {
     return m_seed;
+}
+
+int ClassicOverWorldGenerator::getExplorationRewardVersion() const noexcept
+{
+    return m_explorationRewardVersion;
 }
 
 int ClassicOverWorldGenerator::getGenerationVersion() const noexcept
@@ -529,7 +538,8 @@ void ClassicOverWorldGenerator::projectStructurePlan(
     }
     builder.build(*m_pChunk);
 
-    const StructureLootSnapshot loot = structureLootForPlan(plan);
+    const StructureLootSnapshot loot = structureLootForPlan(
+        plan, m_explorationRewardVersion);
     if (!loot.valid) {
         return;
     }

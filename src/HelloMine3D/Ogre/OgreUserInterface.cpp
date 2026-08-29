@@ -2155,6 +2155,29 @@ class OgreUserInterface::Impl
                     ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.45f, 1.0f),
                                        "%s", feedback.c_str());
                 }
+                const ExplorationRewardSnapshot explorationReward =
+                    world->getExplorationRewardSnapshot();
+                if (explorationReward.ancientCompassHeld ||
+                    explorationReward.raiderWardCarried)
+                {
+                    ImGui::Separator();
+                    if (explorationReward.ancientCompassHeld)
+                    {
+                        const std::string direction =
+                            explorationReward.homeDirection == "HERE"
+                                ? tr("hud.compass_here")
+                                : explorationReward.homeDirection;
+                        ImGui::Text("%s: %s  %.0f m",
+                                    tr("hud.compass_home").c_str(),
+                                    direction.c_str(),
+                                    explorationReward.homeDistance);
+                    }
+                    if (explorationReward.raiderWardCarried)
+                    {
+                        ImGui::TextDisabled(
+                            "%s", tr("hud.raider_ward").c_str());
+                    }
+                }
                 const WorldOutcomeSnapshot outcome =
                     world->getWorldOutcomeSnapshot();
                 if (outcome.phase ==

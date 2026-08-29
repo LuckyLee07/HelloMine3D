@@ -980,7 +980,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 403 &&
+              registry.keys("en-US").size() == 408 &&
               registry.lookup("en-US", "material.torch.name") ==
                   "Torch" &&
               registry.lookup("zh-CN", "material.torch.name") ==
@@ -6842,12 +6842,14 @@ void caseDifficultyProfiles()
     std::string versionNine = removeField(
         removeField(
             removeField(
-                removeField(validText,
-                            "difficulty_profile_version "),
-                "difficulty_id "),
-            "post_victory_event_version "),
-        "post_victory_completed_events ");
-    const std::size_t versionPosition = versionNine.find("version 11");
+                removeField(
+                    removeField(validText,
+                                "difficulty_profile_version "),
+                    "difficulty_id "),
+                "post_victory_event_version "),
+            "post_victory_completed_events "),
+        "exploration_reward_version ");
+    const std::size_t versionPosition = versionNine.find("version 12");
     if (versionPosition != std::string::npos) {
         versionNine.replace(versionPosition, 10, "version 9");
     }
@@ -7110,7 +7112,8 @@ void casePostVictoryEvents()
     WorldSaveData malformed;
     std::string malformedError;
     check("N11B/v11-progress-roundtrips-and-malformed-state-rejects",
-          currentSaved && currentRoundTrip.version == 11 &&
+          currentSaved &&
+              currentRoundTrip.version == WorldSaveFormatVersion &&
               currentRoundTrip.postVictoryEventVersion == 1 &&
               currentRoundTrip.completedPostVictoryEvents == 0 &&
               !currentSave.save(invalidProgress) &&
@@ -7127,9 +7130,11 @@ void casePostVictoryEvents()
         migrationRoot / "n11b-v10-migration";
     std::filesystem::create_directories(migratedWorld);
     std::string versionTen = removeField(
-        removeField(validText, "post_victory_event_version "),
-        "post_victory_completed_events ");
-    const std::size_t versionPosition = versionTen.find("version 11");
+        removeField(
+            removeField(validText, "post_victory_event_version "),
+            "post_victory_completed_events "),
+        "exploration_reward_version ");
+    const std::size_t versionPosition = versionTen.find("version 12");
     if (versionPosition != std::string::npos) {
         versionTen.replace(versionPosition, 10, "version 10");
     }
@@ -7155,7 +7160,8 @@ void casePostVictoryEvents()
     const bool migratedLoaded = migrated.succeeded() &&
         WorldSave(migratedWorld.string()).load(migratedData);
     check("N11B/v1-v10-worlds-migrate-with-zero-completed-events",
-          migratedLoaded && migratedData.version == 11 &&
+          migratedLoaded &&
+              migratedData.version == WorldSaveFormatVersion &&
               migratedData.postVictoryEventVersion == 1 &&
               migratedData.completedPostVictoryEvents == 0 &&
               migratedData.worldOutcome.phase ==
@@ -8422,7 +8428,7 @@ void caseToolMiningProgression()
     check("N1/version-three-migrates-with-empty-objective-state",
           legacyLoaded && loadedLegacyVersion == 3 &&
               legacyData.alphaJourneyFlags == 0u && legacyUpgraded &&
-              upgraded.find("version 11") != std::string::npos &&
+              upgraded.find("version 12") != std::string::npos &&
               upgraded.find("alpha_journey_flags 0") !=
                   std::string::npos &&
               upgraded.find("objective_definition_version 3") !=
@@ -8451,6 +8457,8 @@ void caseP11MinimumBuildingAndTools()
               static_cast<int>(Material::ID::Torch) == 34 &&
               static_cast<int>(Material::ID::OakPlank) == 35 &&
               static_cast<int>(Material::ID::WoodenShovel) == 39 &&
+              static_cast<int>(Material::ID::AncientCompass) == 40 &&
+              static_cast<int>(Material::ID::RaiderWard) == 41 &&
               Material::toMaterial(BlockId::OakDoorOpen).id ==
                   Material::ID::OakDoor &&
               Material::OAK_DOOR.toBlockID() ==
@@ -8755,6 +8763,232 @@ void caseP11CFirstThirtyMinutes()
           foodsRemainRecoveryOnly &&
               migrationData.playerState.health == 20.f &&
               migrationData.playerState.foodCooldownTicks == 0);
+}
+
+// ---------------------------------------------------------------------------
+// P11D - structure-exclusive rewards that change later player decisions
+// ---------------------------------------------------------------------------
+void caseP11DExplorationRewards()
+{
+    StructurePlanSnapshot ruin;
+    ruin.valid = true;
+    ruin.hasChest = true;
+    ruin.key = {StructureType::Ruin, CurrentTerrainGenerationVersion, 2, 3};
+    ruin.chestPosition = {144, 72, 208};
+    ruin.selectionHash = 0x13579bdf2468ace0ull;
+    StructurePlanSnapshot camp = ruin;
+    camp.key.type = StructureType::RaiderCamp;
+    camp.key.cellX = 4;
+    camp.key.cellZ = -2;
+    camp.selectionHash = 0x2468ace013579bdfull;
+
+    const StructureLootSnapshot legacyRuin = structureLootForPlan(
+        ruin, ExplorationRewards::LegacyVersion);
+    const StructureLootSnapshot currentRuin = structureLootForPlan(
+        ruin, ExplorationRewards::CurrentVersion);
+    const StructureLootSnapshot legacyCamp = structureLootForPlan(
+        camp, ExplorationRewards::LegacyVersion);
+    const StructureLootSnapshot currentCamp = structureLootForPlan(
+        camp, ExplorationRewards::CurrentVersion);
+    check("P11D/reward-version-preserves-old-loot-and-adds-unique-results",
+          legacyRuin.valid && currentRuin.valid && legacyCamp.valid &&
+              currentCamp.valid && legacyRuin.entries.size() == 3 &&
+              currentRuin.entries.size() == 3 &&
+              legacyCamp.entries.size() == 3 &&
+              currentCamp.entries.size() == 3 &&
+              legacyRuin.entries[0].materialId == Material::ID::IronIngot &&
+              currentRuin.entries[0] == StructureLootEntry{
+                  Material::ID::AncientCompass, 1} &&
+              legacyCamp.entries[0].materialId == Material::ID::Bread &&
+              currentCamp.entries[0] == StructureLootEntry{
+                  Material::ID::RaiderWard, 1} &&
+              currentRuin.entries[1] == legacyRuin.entries[1] &&
+              currentRuin.entries[2] == legacyRuin.entries[2] &&
+              currentCamp.entries[1] == legacyCamp.entries[1] &&
+              currentCamp.entries[2] == legacyCamp.entries[2]);
+
+    ClassicOverWorldGenerator legacyGenerator(
+        20260830, CurrentTerrainGenerationVersion,
+        ExplorationRewards::LegacyVersion);
+    ClassicOverWorldGenerator currentGenerator(
+        20260830, CurrentTerrainGenerationVersion,
+        ExplorationRewards::CurrentVersion);
+    check("P11D/generator-carries-reward-identity-without-changing-terrain",
+          legacyGenerator.getGenerationVersion() ==
+                  CurrentTerrainGenerationVersion &&
+              currentGenerator.getGenerationVersion() ==
+                  CurrentTerrainGenerationVersion &&
+              legacyGenerator.getExplorationRewardVersion() ==
+                  ExplorationRewards::LegacyVersion &&
+              currentGenerator.getExplorationRewardVersion() ==
+                  ExplorationRewards::CurrentVersion);
+
+    const std::string saveDirectory =
+        freshSaveDirectory("p11d_reward_v12");
+    WorldSaveData current;
+    current.worldId = "p11d-reward-v12";
+    current.worldName = "P11D Reward V12";
+    current.seed = 20260830;
+    current.createdUtc = LegacyWorldTimestampUtc;
+    current.lastPlayedUtc = LegacyWorldTimestampUtc;
+    current.lastBuildIdentity = "p11d-test";
+    current.hasPlayerState = true;
+    current.playerState.inventory = {
+        {Material::ID::AncientCompass, 1, 0},
+        {Material::ID::RaiderWard, 1, 0}};
+    WorldSave currentSave(saveDirectory);
+    WorldSaveData currentRoundTrip;
+    const bool currentSaved = currentSave.save(current) &&
+        currentSave.load(currentRoundTrip);
+    check("P11D/save-v12-roundtrips-reward-version-and-items",
+          currentSaved && currentRoundTrip.version == 12 &&
+              currentRoundTrip.explorationRewardVersion ==
+                  ExplorationRewards::CurrentVersion &&
+              currentRoundTrip.playerState.inventory ==
+                  current.playerState.inventory);
+
+    const std::string currentText = readTextFile(currentSave.metadataPath());
+    const auto removeField = [](std::string text,
+                                const std::string &field) {
+        const std::size_t begin = text.find(field);
+        if (begin != std::string::npos) {
+            const std::size_t end = text.find('\n', begin);
+            text.erase(begin, end == std::string::npos
+                                  ? text.size() - begin : end - begin + 1);
+        }
+        return text;
+    };
+    const std::filesystem::path malformedRoot =
+        freshSaveDirectory("p11d_reward_malformed");
+    const std::filesystem::path missingPath = malformedRoot / "missing.meta";
+    const std::filesystem::path invalidPath = malformedRoot / "invalid.meta";
+    {
+        std::ofstream missing(missingPath,
+                              std::ios::binary | std::ios::trunc);
+        missing << removeField(currentText, "exploration_reward_version ");
+        std::string invalid = currentText;
+        const std::size_t position = invalid.find(
+            "exploration_reward_version 1");
+        if (position != std::string::npos) {
+            invalid.replace(position,
+                            std::string("exploration_reward_version 1").size(),
+                            "exploration_reward_version 2");
+        }
+        std::ofstream invalidFile(invalidPath,
+                                  std::ios::binary | std::ios::trunc);
+        invalidFile << invalid;
+    }
+    WorldSaveData malformed;
+    std::string malformedError;
+    check("P11D/current-save-requires-bounded-reward-version",
+          !WorldSave::loadFromPath(
+              missingPath.string(), malformed, &malformedError) &&
+              !WorldSave::loadFromPath(
+                  invalidPath.string(), malformed, &malformedError));
+
+    const std::filesystem::path migrationRoot =
+        freshSaveDirectory("p11d_reward_v11_migration");
+    const std::filesystem::path migratedWorld =
+        migrationRoot / "p11d-reward-v11";
+    std::filesystem::create_directories(migratedWorld);
+    std::string versionEleven = removeField(
+        currentText, "exploration_reward_version ");
+    const std::size_t versionPosition = versionEleven.find("version 12");
+    if (versionPosition != std::string::npos) {
+        versionEleven.replace(versionPosition, 10, "version 11");
+    }
+    const std::size_t idPosition = versionEleven.find(
+        "world_id p11d-reward-v12");
+    if (idPosition != std::string::npos) {
+        versionEleven.replace(
+            idPosition, std::string("world_id p11d-reward-v12").size(),
+            "world_id p11d-reward-v11");
+    }
+    {
+        std::ofstream legacy(migratedWorld / "world.meta",
+                             std::ios::binary | std::ios::trunc);
+        legacy << versionEleven;
+    }
+    WorldSaveData legacyLoaded;
+    const bool readLegacy =
+        WorldSave(migratedWorld.string()).load(legacyLoaded);
+    const WorldManagementService management(migrationRoot.string());
+    const WorldManagementResult migrated =
+        management.prepareWorldForOpen("p11d-reward-v11");
+    WorldSaveData migratedData;
+    const bool reopened = migrated.succeeded() &&
+        WorldSave(migratedWorld.string()).load(migratedData);
+    check("P11D/v11-worlds-migrate-with-legacy-loot-identity",
+          readLegacy && legacyLoaded.version == 11 &&
+              legacyLoaded.explorationRewardVersion ==
+                  ExplorationRewards::LegacyVersion && reopened &&
+              migratedData.version == WorldSaveFormatVersion &&
+              migratedData.explorationRewardVersion ==
+                  ExplorationRewards::LegacyVersion);
+
+    setEnv("HELLOMINE3D_SEED", "20260830");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8.5 100 8.5");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+    Config config = makeConfig();
+    Camera camera(config);
+    {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("p11d_compass"), false, 0);
+        player.position = world.getPlayerSpawnPoint() +
+            glm::vec3(10.f, 0.f, 10.f);
+        player.addItem(Material::ANCIENT_COMPASS, 1);
+        player.addItem(Material::RAIDER_WARD, 1);
+        const ExplorationRewardSnapshot snapshot =
+            world.getExplorationRewardSnapshot();
+        check("P11D/compass-points-home-and-ward-reduces-guard-recovery",
+              snapshot.version == ExplorationRewards::CurrentVersion &&
+                  snapshot.ancientCompassHeld &&
+                  snapshot.raiderWardCarried &&
+                  snapshot.homeDirection == "NW" &&
+                  std::abs(snapshot.homeDistance - 14.142136f) < 0.01f &&
+                  snapshot.guardRecoverTicks ==
+                      ExplorationRewards::RaiderWardGuardRecoverTicks &&
+                  world.getPlayerGuardRecoverDurationTicks() ==
+                      ExplorationRewards::RaiderWardGuardRecoverTicks);
+    }
+    {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("p11d_guard"), false, 1);
+        player.position = {8.5f, 100.f, 8.5f};
+        for (int x = 6; x <= 10; ++x) {
+            for (int z = 6; z <= 10; ++z) {
+                world.setBlock(x, 99, z, {BlockId::Stone});
+                world.setBlock(x, 100, z, {BlockId::Air});
+                world.setBlock(x, 101, z, {BlockId::Air});
+            }
+        }
+        player.addItem(Material::WOODEN_SWORD, 1);
+        player.addItem(Material::RAIDER_WARD, 1);
+        PlayerInputState input;
+        input.hotbarSlot = 0;
+        player.applyInput(input);
+        const ActorId mobId = world.spawnMob(
+            World::StalkerMobType,
+            player.position + glm::vec3(0.f, 0.f, -1.1f));
+        world.setPlayerGuarding(true);
+        for (int tick = 1; tick <= 7; ++tick) {
+            world.tick(tick);
+        }
+        const MobActor *mob = dynamic_cast<const MobActor *>(
+            world.getActorManager().findActor(mobId));
+        const WorldDebugStats stats = world.collectDebugStats();
+        check("P11D/ward-applies-to-real-melee-guard-path",
+              mob != nullptr && world.getPlayerHealth() == 20.f &&
+                  stats.combatFeedback.kind ==
+                      PlayerCombatFeedbackKind::Guard &&
+                  stats.combatFeedback.guardRecoverTicksRemaining ==
+                      ExplorationRewards::RaiderWardGuardRecoverTicks);
+    }
+    setEnv("HELLOMINE3D_SEED", "");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "");
 }
 
 // ---------------------------------------------------------------------------
@@ -12896,10 +13130,13 @@ void caseExplorationStructuresAndLoot()
           sameStructurePlan(ruin, threadedRuin) &&
               sameStructurePlan(camp, threadedCamp));
 
-    const StructureLootSnapshot ruinLoot = structureLootForPlan(ruin);
+    const StructureLootSnapshot ruinLoot = structureLootForPlan(
+        ruin, ExplorationRewards::CurrentVersion);
     const StructureLootSnapshot repeatedRuinLoot =
-        structureLootForPlan(repeatedRuin);
-    const StructureLootSnapshot campLoot = structureLootForPlan(camp);
+        structureLootForPlan(repeatedRuin,
+                             ExplorationRewards::CurrentVersion);
+    const StructureLootSnapshot campLoot = structureLootForPlan(
+        camp, ExplorationRewards::CurrentVersion);
     const auto validLoot = [](const StructureLootSnapshot &loot,
                               StructureType expectedType) {
         if (!loot.valid || loot.key.type != expectedType ||
@@ -12933,18 +13170,18 @@ void caseExplorationStructuresAndLoot()
               "," + std::to_string(campLoot.entries[1].amount) + "," +
               std::to_string(campLoot.entries[2].amount));
     check("N9B/loot-ranges-and-non-site-rejection-are-frozen",
-          ruinLoot.entries[0].materialId == Material::ID::IronIngot &&
-              ruinLoot.entries[0].amount >= 1 &&
-              ruinLoot.entries[0].amount <= 2 &&
+          ruinLoot.entries[0].materialId ==
+                  Material::ID::AncientCompass &&
+              ruinLoot.entries[0].amount == 1 &&
               ruinLoot.entries[1].materialId == Material::ID::Glass &&
               ruinLoot.entries[1].amount >= 2 &&
               ruinLoot.entries[1].amount <= 5 &&
               ruinLoot.entries[2].materialId == Material::ID::WheatSeeds &&
               ruinLoot.entries[2].amount >= 2 &&
               ruinLoot.entries[2].amount <= 6 &&
-              campLoot.entries[0].materialId == Material::ID::Bread &&
-              campLoot.entries[0].amount >= 1 &&
-              campLoot.entries[0].amount <= 3 &&
+              campLoot.entries[0].materialId ==
+                  Material::ID::RaiderWard &&
+              campLoot.entries[0].amount == 1 &&
               campLoot.entries[1].materialId == Material::ID::CoalOre &&
               campLoot.entries[1].amount >= 4 &&
               campLoot.entries[1].amount <= 8 &&
@@ -12953,7 +13190,8 @@ void caseExplorationStructuresAndLoot()
               campLoot.entries[2].amount <= 4 &&
               !structureLootForPlan(
                   v2Generator.getStructurePlanForCell(
-                      StructureType::Waystone, 0, 5)).valid);
+                      StructureType::Waystone, 0, 5),
+                  ExplorationRewards::CurrentVersion).valid);
     check("N9B/fixed-seed-structure-and-loot-snapshot",
           ruin.key.cellX == 3 && ruin.key.cellZ == 6 &&
               ruin.anchor == glm::ivec3(222, 70, 400) &&
@@ -12964,7 +13202,7 @@ void caseExplorationStructuresAndLoot()
               camp.key.cellX == 6 && camp.key.cellZ == 0 &&
               camp.anchor == glm::ivec3(436, 102, 37) &&
               camp.chestPosition == glm::ivec3(436, 104, 38) &&
-              campLoot.entries[0].amount == 3 &&
+              campLoot.entries[0].amount == 1 &&
               campLoot.entries[1].amount == 6 &&
               campLoot.entries[2].amount == 2);
 
@@ -13668,6 +13906,10 @@ int main()
             caseDataDrivenObjectives();
             caseP11CFirstThirtyMinutes();
         }
+        else if (focus != nullptr && std::string(focus) == "P11D") {
+            caseWorldOutcomeAndLocalizedText();
+            caseP11DExplorationRewards();
+        }
         else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
@@ -13723,6 +13965,7 @@ int main()
         caseToolMiningProgression();
         caseP11MinimumBuildingAndTools();
         caseP11CFirstThirtyMinutes();
+        caseP11DExplorationRewards();
         caseNaturalMobPopulation();
         caseCombatAndRespawn();
         caseCombatDepth();

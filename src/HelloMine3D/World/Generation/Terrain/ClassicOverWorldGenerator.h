@@ -10,6 +10,7 @@
 #include "../../WorldConstants.h"
 #include "CaveGenerator.h"
 #include "../Structures/StructurePlanning.h"
+#include "../../../Gameplay/ExplorationRewards.h"
 
 #include "../Biome/DesertBiome.h"
 #include "../Biome/GrasslandBiome.h"
@@ -38,7 +39,9 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
 
     explicit ClassicOverWorldGenerator(
         int seed = 0,
-        int generationVersion = CurrentTerrainGenerationVersion);
+        int generationVersion = CurrentTerrainGenerationVersion,
+        int explorationRewardVersion =
+            ExplorationRewards::CurrentVersion);
 
     void generateTerrainFor(Chunk &chunk) override;
     int getMinimumSpawnHeight() const noexcept override;
@@ -48,6 +51,7 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
     int getSurfaceHeightAtWorld(int worldX,
                                 int worldZ) const noexcept override;
     int getSeed() const noexcept;
+    int getExplorationRewardVersion() const noexcept;
     LandmarkPlacement getLandmarkForCell(int cellX, int cellZ) const;
     StructurePlanSnapshot getStructurePlanForCell(
         StructureType type, int cellX, int cellZ) const;
@@ -90,6 +94,8 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
 
     int m_seed = 0;
     int m_generationVersion = CurrentTerrainGenerationVersion;
+    int m_explorationRewardVersion =
+        ExplorationRewards::CurrentVersion;
     Random<std::minstd_rand> m_random;
 
     NoiseGenerator m_biomeNoiseGen;
