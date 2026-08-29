@@ -1371,6 +1371,19 @@ ObjectiveSnapshot World::getObjectiveSnapshot() const
                : ObjectiveSnapshot{};
 }
 
+RecipeDiscoverySnapshot World::getRecipeDiscoverySnapshot() const
+{
+    return m_alphaJourney != nullptr
+               ? m_alphaJourney->recipeDiscoverySnapshot()
+               : RecipeDiscoverySnapshot{};
+}
+
+bool World::isRecipeDiscovered(const std::string &recipeId) const noexcept
+{
+    return m_alphaJourney != nullptr &&
+           m_alphaJourney->isRecipeDiscovered(recipeId);
+}
+
 WorldOutcomeSnapshot World::getWorldOutcomeSnapshot() const noexcept
 {
     return m_victoryFlow != nullptr

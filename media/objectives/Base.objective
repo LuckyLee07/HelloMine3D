@@ -1,6 +1,6 @@
 # HelloMine3D objective registry v1
 
-version 2
+version 3
 
 objective alpha.gather_wood
 type break_block
@@ -130,6 +130,78 @@ optional 1
 title "Reach the Alpha start"
 instruction "Enter the fixed Alpha start area."
 feedback "Alpha start reached"
+end
+
+objective shelter.craft_planks
+type craft_item
+target hellomine:oak_planks
+required 1
+prerequisite alpha.gather_wood
+visible 1
+optional 0
+title "Shape building blocks"
+instruction "Turn Oak Bark into planks for a compact shelter."
+feedback "Plank building route opened"
+end
+
+objective shelter.place_planks
+type place_block
+target hellomine:oak_planks
+required 8
+prerequisite shelter.craft_planks
+visible 1
+optional 0
+title "Raise a small shelter"
+instruction "Place 8 Oak Planks to form walls or a roof."
+feedback "Shelter shell completed"
+end
+
+objective shelter.craft_door
+type craft_item
+target hellomine:oak_door
+required 1
+prerequisite shelter.place_planks
+visible 1
+optional 0
+title "Craft a door"
+instruction "Use 6 Oak Planks at the Workbench to craft a door."
+feedback "Door crafted"
+end
+
+objective shelter.place_door
+type place_block
+target hellomine:oak_door
+required 1
+prerequisite shelter.craft_door
+visible 1
+optional 0
+title "Finish the entrance"
+instruction "Place the Oak Door in your shelter entrance."
+feedback "Shelter entrance completed"
+end
+
+objective exploration.find_coal
+type obtain_item
+target hellomine:coal_ore
+required 1
+prerequisite alpha.gather_wood
+visible 1
+optional 0
+title "Follow the dark stone"
+instruction "Explore exposed rock and acquire 1 Coal Ore."
+feedback "Coal discovered"
+end
+
+objective exploration.craft_torches
+type craft_item
+target hellomine:torch
+required 1
+prerequisite exploration.find_coal
+visible 1
+optional 0
+title "Light the way"
+instruction "Craft Torches from Coal Ore and Oak Bark."
+feedback "Exploration lighting ready"
 end
 
 objective progression.craft_furnace

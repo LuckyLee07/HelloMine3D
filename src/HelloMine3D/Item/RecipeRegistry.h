@@ -68,3 +68,4 @@ class RecipeRegistry
 };
 
 RecipeRegistry &runtimeRecipeRegistry();
+void ensureRuntimeRecipeRegistry();

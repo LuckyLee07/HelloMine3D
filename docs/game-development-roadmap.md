@@ -25,7 +25,7 @@ HelloMine3D 已经越过“继续搭体素引擎底座”的阶段。区块流�
    大气/空间云层、V10D 可选方向阴影、V10E 轻量后处理和 VISUAL-RC 均已完成 Windows
    工程范围；macOS 原生与正式产品体验保持 Verify。
 6. VISUAL-RC 后产品方向评审已决定暂不进入 `1.0-RC`，转入 Stage 11 可玩性与操作体验；
-   内容与视觉复核随后插入 P11-0/P11-1/P11-2。P11-0/P11A 工程已完成，P11B 为当前计划批次，
+   内容与视觉复核随后插入 P11-0/P11-1/P11-2。P11-0/P11A/P11B/P11-1/P11C 工程已完成，P11D 为当前计划批次，
    真人/主观证据统一后置而不阻塞工程顺序。
 
 G5 已于 2026-08-17 闭环：七类音频定义、Windows `waveOut`/dummy 后端、业务事件、
@@ -89,7 +89,7 @@ Release Candidate 自动证据也已关闭；V10B2/V10B3 静态视觉和 V10C �
 | 11 | Stage 9 / Beta | P0/P1 | 增加首个胜利闭环、遭遇、探索地点、资源经济、难度、本地化和正式表现。 | 工程 `Done`：N7A-N12C 与 BETA-RC 已完成；RC0 已被 BETA-RC 取代，人工项独立延期。 |
 | 12 | Stage 10 视觉质量 | P0/P1/P2 | 提升方块接触层次、拆分材质管线/资产/tint、大气云层、可选阴影和轻量后处理。 | `Done（Windows 工程）`：V10A-V10E 与 VISUAL-RC 已封板；macOS shader/窗口与正式产品体验保持真实 Verify；报告见 `visual-release-candidate-report-2026-08-28.md`。 |
 | 13 | VISUAL-RC 后产品方向评审 | P0 | 明确进入 1.0 缺陷封板，还是启动一条有试玩证据的可玩性路线。 | `Done`：选择 Stage 11；强制饥饿、批量浅层内容和成就/统计不进入当前范围。 |
-| 14 | Stage 11 可玩性与操作体验 | P0/P1 | 补最小内容依赖，修好输入手感和动作反馈，重构前 30 分钟选择与探索奖励，再提升地形轮廓和敌人表现并封板。 | P11-0/P11A `Engineering Done`；P11B `Planned`；其余 `Queued`。真人项保留 Deferred，不阻塞工程批；权威合同见 `playability-experience-roadmap.md`。 |
+| 14 | Stage 11 可玩性与操作体验 | P0/P1 | 补最小内容依赖，修好输入手感和动作反馈，重构前 30 分钟选择与探索奖励，再提升地形轮廓和敌人表现并封板。 | P11-0/P11A/P11B/P11-1/P11C `Engineering Done`；P11D 起 `Queued`。真人项保留 Deferred，不阻塞工程批；权威合同见 `playability-experience-roadmap.md`。 |
 
 `N1-N6` 是 Alpha 之后已经完成的工作包，不回写拆分前的 77 项正式总账。Stage 9 的
 `N7A/N7B`、`N8A/N8B`、`N9A/N9B`、`N10`、`N11A/N11B` 与 `N12A/N12B/N12C` 已完成，
@@ -319,16 +319,16 @@ PLAYABILITY-RC 记录要求见
 | ---- | ---- | -------- | ---- |
 | 1 | P11-0 | 增加可制造火把、修正 Rose 发光并建立 metadata 驱动的熔炉发射与局部重光照。 | Engineering Done（Q1/真人 Deferred） |
 | 2 | P11A | 分离使用/放置/格挡，扩展鼠标与模式重绑定，统一灵敏度和窗口焦点/捕获恢复。 | Engineering Done（Physical Input v2 Deferred） |
-| 3 | P11B | 增加手/工具、裂纹、粒子、命中/受击/冷却、拾取和音频微变体反馈。 | Planned |
-| 4 | P11-1 | 补木板、圆石、门/活板门和 axe/shovel，形成最小建造与工具选择。 | Queued |
-| 5 | P11C | 把前 30 分钟改为建造、成长、探索并行选择，并改善配方发现。 | Queued |
+| 3 | P11B | 增加手/工具、裂纹、粒子、命中/受击/冷却、拾取和音频微变体反馈。 | Engineering Done（真人 Deferred） |
+| 4 | P11-1 | 补木板、圆石、单方块门和 axe/shovel，形成最小建造与工具选择。 | Engineering Done（真人 Deferred） |
+| 5 | P11C | 把前 30 分钟改为成长、建造、探索最多三项并行机会，并让配方随材料发现。 | Engineering Done（真人 30 分钟 Deferred） |
 | 6 | P11D | 让结构专属资源、蓝图或能力奖励真正改变之后的计划。 | Queued |
 | 7 | P11-2 | 用山地高度域和天然洞口形成 terrain v4；水文生成保持未排期。 | Queued |
 | 8 | P11E | 用多部件体素轮廓、身份化掉落、关键动作和独特守护阶段提升战斗层次。 | Queued |
 | 9 | P11F | 汇总逐批真人试玩、迁移、性能、保存恢复和发行证据，形成 PLAYABILITY-RC。 | Queued |
 
 顺序固定为 `P11-0 -> P11A -> P11B -> P11-1 -> P11C -> P11D -> P11-2 -> P11E -> P11F`。
-当前工程批次为 P11B；自动测试负责回归，真人记录负责证明操作和玩法是否实际改善。真人项可后置，
+当前工程批次为 P11D；自动测试负责回归，真人记录负责证明操作和玩法是否实际改善。真人项可后置，
 但 P11F 必须保持其真实未通过状态。首版不强推饥饿，也不在这条
 路线完成前抢做成就/统计或批量增加只有数值、换色差异的内容。
 

@@ -13,6 +13,22 @@ class Player;
 struct SandboxEvent;
 class SandboxEventBus;
 
+struct ObjectiveOpportunitySnapshot
+{
+    std::string id;
+    std::string track;
+    std::string title;
+    std::string instruction;
+    int progress = 0;
+    int required = 0;
+};
+
+struct RecipeDiscoverySnapshot
+{
+    std::vector<std::string> discoveredIds;
+    std::size_t totalRecipes = 0;
+};
+
 struct ObjectiveSnapshot
 {
     int definitionVersion = 0;
@@ -25,6 +41,7 @@ struct ObjectiveSnapshot
     std::string completionFeedbackId;
     std::vector<std::string> completedIds;
     std::vector<std::string> completedTitles;
+    std::vector<ObjectiveOpportunitySnapshot> opportunities;
     int progress = 0;
     int required = 0;
     std::size_t completedObjectives = 0;
@@ -35,6 +52,8 @@ struct ObjectiveSnapshot
 class ObjectiveSystem
 {
   public:
+    static constexpr std::size_t MaxVisibleOpportunities = 3;
+
     ObjectiveSystem(const ObjectiveRegistry& registry, Player& player,
                     SandboxEventBus& eventBus,
                     const ObjectiveSaveState& savedState,
@@ -51,6 +70,9 @@ class ObjectiveSystem
     std::uint32_t legacyAlphaFlags() const noexcept;
     bool isCompleted(const std::string& id) const noexcept;
     int progress(const std::string& id) const noexcept;
+    RecipeDiscoverySnapshot recipeDiscoverySnapshot() const;
+    bool isRecipeDiscovered(const std::string& recipeId) const noexcept;
+    static std::string recipeDiscoveryToken(const std::string& recipeId);
 
   private:
     bool prerequisiteSatisfied(const ObjectiveDefinition& definition) const;
@@ -58,6 +80,11 @@ class ObjectiveSystem
     void refreshStateObjectives();
     void addProgress(const ObjectiveDefinition& definition, int amount);
     void complete(const ObjectiveDefinition& definition);
+    void observeRecipeDiscovery(const SandboxEvent& event);
+    void unlockRecipesForMaterial(Material::ID materialId, bool announce);
+    void unlockRecipe(const std::string& recipeId, bool announce);
+    ObjectiveOpportunitySnapshot makeOpportunity(
+        const ObjectiveDefinition& definition) const;
     int inventoryCount(Material::ID materialId) const noexcept;
     const ObjectiveDefinition* currentDefinition() const noexcept;
 
@@ -70,6 +97,8 @@ class ObjectiveSystem
     std::unordered_map<std::string, int> m_progress;
     std::vector<std::string> m_unknownCompleted;
     std::vector<ObjectiveProgressState> m_unknownProgress;
+    std::unordered_set<std::string> m_discoveredRecipeIds;
+    bool m_recipeDiscoveryEnabled = false;
     std::string m_completionFeedback;
     std::string m_completionFeedbackId;
     float m_feedbackSeconds = 0.f;

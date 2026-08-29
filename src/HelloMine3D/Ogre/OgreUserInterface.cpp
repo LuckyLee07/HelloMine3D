@@ -2124,13 +2124,28 @@ class OgreUserInterface::Impl
                     ImGui::ProgressBar(ratio, ImVec2(260.0f, 10.0f),
                                        overlay.c_str());
                 }
-                if (!objective.nextTitle.empty() &&
+                if (objective.opportunities.size() > 1 &&
                     !objective.sessionComplete)
                 {
-                    const std::string nextTitle = objectiveText(
-                        objective.nextId, "title", objective.nextTitle);
-                    ImGui::TextDisabled("%s: %s", tr("hud.next").c_str(),
-                                        nextTitle.c_str());
+                    ImGui::Spacing();
+                    ImGui::TextDisabled("%s", tr("hud.opportunities").c_str());
+                    for (std::size_t index = 1;
+                         index < objective.opportunities.size(); ++index)
+                    {
+                        const ObjectiveOpportunitySnapshot &opportunity =
+                            objective.opportunities[index];
+                        const std::string track = tr(
+                            "objective.track." + opportunity.track);
+                        const std::string opportunityTitle = objectiveText(
+                            opportunity.id, "title", opportunity.title);
+                        const std::string opportunityInstruction =
+                            objectiveText(opportunity.id, "instruction",
+                                          opportunity.instruction);
+                        ImGui::TextDisabled("[%s] %s", track.c_str(),
+                                            opportunityTitle.c_str());
+                        ImGui::TextWrapped("  %s",
+                                           opportunityInstruction.c_str());
+                    }
                 }
                 if (!objective.completionFeedback.empty())
                 {
@@ -2712,12 +2727,32 @@ class OgreUserInterface::Impl
             if (ImGui::CollapsingHeader(tr("crafting.recipe_book").c_str(),
                                         ImGuiTreeNodeFlags_DefaultOpen))
             {
+                std::size_t eligibleRecipes = 0;
+                std::size_t learnedRecipes = 0;
+                for (const RecipeDefinition &recipe :
+                     runtimeRecipeRegistry().recipes())
+                {
+                    if (recipeFitsGrid(recipe, gridSize))
+                    {
+                        ++eligibleRecipes;
+                        if (world != nullptr &&
+                            world->isRecipeDiscovered(recipe.id))
+                        {
+                            ++learnedRecipes;
+                        }
+                    }
+                }
+                ImGui::Text("%s: %zu / %zu",
+                            tr("crafting.recipe_book_progress").c_str(),
+                            learnedRecipes, eligibleRecipes);
                 ImGui::BeginChild("##RecipeBook", ImVec2(0.0f, 135.0f),
                                   true);
                 for (const RecipeDefinition &recipe :
                      runtimeRecipeRegistry().recipes())
                 {
-                    if (!recipeFitsGrid(recipe, gridSize))
+                    if (!recipeFitsGrid(recipe, gridSize) ||
+                        world == nullptr ||
+                        !world->isRecipeDiscovered(recipe.id))
                     {
                         continue;
                     }
@@ -2741,6 +2776,11 @@ class OgreUserInterface::Impl
                         materialName(recipe.outputMaterialId);
                     ImGui::Text("%s x%d  <-  %s", outputName.c_str(),
                                 recipe.outputCount, ingredients.c_str());
+                }
+                if (learnedRecipes == 0)
+                {
+                    ImGui::TextWrapped(
+                        "%s", tr("crafting.recipe_book_hint").c_str());
                 }
                 ImGui::EndChild();
             }

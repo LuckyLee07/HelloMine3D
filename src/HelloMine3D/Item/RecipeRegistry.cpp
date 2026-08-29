@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "../Util/ResourcePackResolver.h"
+#include "../Util/ResourcePaths.h"
 
 namespace
 {
@@ -518,4 +519,29 @@ RecipeRegistry &runtimeRecipeRegistry()
 {
     static RecipeRegistry registry;
     return registry;
+}
+
+void ensureRuntimeRecipeRegistry()
+{
+    RecipeRegistry &registry = runtimeRecipeRegistry();
+    if (registry.isFrozen()) {
+        return;
+    }
+    const std::string path = ResourcePaths::media("recipes/Base.recipe");
+    std::ifstream input(path, std::ios::binary | std::ios::ate);
+    if (!input || input.tellg() <= 0 ||
+        static_cast<std::size_t>(input.tellg()) >
+            RecipeRegistry::MaxSourceBytes) {
+        throw std::runtime_error(
+            "Missing, empty or oversized base recipe resource '" + path +
+            "'.");
+    }
+    const std::streamsize size = input.tellg();
+    input.seekg(0, std::ios::beg);
+    std::string content(static_cast<std::size_t>(size), '\0');
+    if (!input.read(content.data(), size)) {
+        throw std::runtime_error(
+            "Unable to read base recipe resource '" + path + "'.");
+    }
+    registry.freeze({{"media/recipes/Base.recipe", std::move(content)}});
 }

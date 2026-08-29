@@ -70,6 +70,17 @@ ObjectiveSnapshot AlphaJourney::objectiveSnapshot() const
     return m_objectives.snapshot();
 }
 
+RecipeDiscoverySnapshot AlphaJourney::recipeDiscoverySnapshot() const
+{
+    return m_objectives.recipeDiscoverySnapshot();
+}
+
+bool AlphaJourney::isRecipeDiscovered(
+    const std::string& recipeId) const noexcept
+{
+    return m_objectives.isRecipeDiscovered(recipeId);
+}
+
 ObjectiveSaveState AlphaJourney::objectiveSaveState() const
 {
     return m_objectives.saveState();

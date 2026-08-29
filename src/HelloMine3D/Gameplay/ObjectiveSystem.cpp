@@ -2,10 +2,14 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <iomanip>
+#include <sstream>
 #include <stdexcept>
 #include <utility>
 
 #include "../Actor/ActorTypes.h"
+#include "../Item/RecipeRegistry.h"
 #include "../Player/Player.h"
 #include "../Sandbox/Events/BlockEvents.h"
 #include "../Sandbox/Events/CraftingEvents.h"
@@ -25,6 +29,17 @@ namespace
         const Material& material = Material::toMaterial(materialId);
         return material.isBlock && material.toBlockID() == blockId;
     }
+
+    std::string objectiveTrack(const std::string& id)
+    {
+        const std::size_t separator = id.find('.');
+        const std::string prefix = id.substr(0, separator);
+        if (prefix == "alpha" || prefix == "progression")
+        {
+            return "growth";
+        }
+        return prefix;
+    }
 }
 
 ObjectiveSystem::ObjectiveSystem(const ObjectiveRegistry& registry,
@@ -41,6 +56,27 @@ ObjectiveSystem::ObjectiveSystem(const ObjectiveRegistry& registry,
     {
         throw std::runtime_error(
             "Objective system requires a frozen registry.");
+    }
+    m_recipeDiscoveryEnabled = &registry == &runtimeObjectiveRegistry();
+    if (m_recipeDiscoveryEnabled)
+    {
+        ensureRuntimeRecipeRegistry();
+    }
+
+    std::unordered_map<std::string, std::string> recipeByToken;
+    if (m_recipeDiscoveryEnabled)
+    {
+        for (const RecipeDefinition& recipe :
+             runtimeRecipeRegistry().recipes())
+        {
+            const std::string token = recipeDiscoveryToken(recipe.id);
+            if (!recipeByToken.emplace(token, recipe.id).second)
+            {
+                throw std::runtime_error(
+                    "Recipe discovery token collision for '" + recipe.id +
+                    "'.");
+            }
+        }
     }
 
     std::vector<std::string> completed = savedState.completedIds;
@@ -60,6 +96,11 @@ ObjectiveSystem::ObjectiveSystem(const ObjectiveRegistry& registry,
         if (registry.find(id) != nullptr)
         {
             m_completed.emplace(id);
+        }
+        else if (m_recipeDiscoveryEnabled &&
+                 recipeByToken.find(id) != recipeByToken.end())
+        {
+            m_discoveredRecipeIds.emplace(recipeByToken.at(id));
         }
         else
         {
@@ -84,6 +125,26 @@ ObjectiveSystem::ObjectiveSystem(const ObjectiveRegistry& registry,
         else
         {
             m_unknownProgress.push_back(state);
+        }
+    }
+
+    if (m_recipeDiscoveryEnabled)
+    {
+        for (int slot = 0; slot < player.getInventorySlotCount(); ++slot)
+        {
+            const ItemStack& stack = player.getInventorySlot(slot);
+            if (!stack.isEmpty())
+            {
+                unlockRecipesForMaterial(stack.getMaterial().id, false);
+            }
+        }
+        for (const ObjectiveDefinition& definition : registry.definitions())
+        {
+            if (isCompleted(definition.id) &&
+                definition.targetMaterial != Material::ID::Nothing)
+            {
+                unlockRecipesForMaterial(definition.targetMaterial, false);
+            }
         }
     }
 
@@ -165,6 +226,20 @@ ObjectiveSnapshot ObjectiveSystem::snapshot() const
     result.completionFeedback = m_completionFeedback;
     result.completionFeedbackId = m_completionFeedbackId;
 
+    for (const ObjectiveDefinition& definition : m_registry->definitions())
+    {
+        if (result.opportunities.size() >= MaxVisibleOpportunities)
+        {
+            break;
+        }
+        if (definition.visible && !definition.optional &&
+            !isCompleted(definition.id) &&
+            prerequisiteSatisfied(definition))
+        {
+            result.opportunities.push_back(makeOpportunity(definition));
+        }
+    }
+
     const ObjectiveDefinition* current = currentDefinition();
     if (current == nullptr)
     {
@@ -175,31 +250,17 @@ ObjectiveSnapshot ObjectiveSystem::snapshot() const
         return result;
     }
 
-    result.currentId = current->id;
-    result.title = current->title;
-    result.instruction = current->instruction;
-    result.required = current->required;
-    result.progress = progress(current->id);
-    if (current->type == ObjectiveType::ObtainItem)
+    const ObjectiveOpportunitySnapshot& primary =
+        result.opportunities.front();
+    result.currentId = primary.id;
+    result.title = primary.title;
+    result.instruction = primary.instruction;
+    result.required = primary.required;
+    result.progress = primary.progress;
+    if (result.opportunities.size() > 1)
     {
-        result.progress = inventoryCount(current->targetMaterial);
-    }
-
-    bool afterCurrent = false;
-    for (const ObjectiveDefinition& definition : m_registry->definitions())
-    {
-        if (&definition == current)
-        {
-            afterCurrent = true;
-            continue;
-        }
-        if (afterCurrent && definition.visible && !definition.optional &&
-            !isCompleted(definition.id))
-        {
-            result.nextTitle = definition.title;
-            result.nextId = definition.id;
-            break;
-        }
+        result.nextId = result.opportunities[1].id;
+        result.nextTitle = result.opportunities[1].title;
     }
     return result;
 }
@@ -222,6 +283,10 @@ ObjectiveSaveState ObjectiveSystem::saveState() const
         }
     }
     std::vector<std::string> unknownCompleted = m_unknownCompleted;
+    for (const std::string& recipeId : m_discoveredRecipeIds)
+    {
+        unknownCompleted.push_back(recipeDiscoveryToken(recipeId));
+    }
     std::sort(unknownCompleted.begin(), unknownCompleted.end());
     state.completedIds.insert(state.completedIds.end(),
                               unknownCompleted.begin(),
@@ -264,6 +329,47 @@ int ObjectiveSystem::progress(const std::string& id) const noexcept
     return found == m_progress.end() ? 0 : found->second;
 }
 
+RecipeDiscoverySnapshot ObjectiveSystem::recipeDiscoverySnapshot() const
+{
+    RecipeDiscoverySnapshot result;
+    if (!m_recipeDiscoveryEnabled)
+    {
+        return result;
+    }
+    const RecipeRegistry& recipes = runtimeRecipeRegistry();
+    result.totalRecipes = recipes.recipes().size();
+    for (const RecipeDefinition& recipe : recipes.recipes())
+    {
+        if (isRecipeDiscovered(recipe.id))
+        {
+            result.discoveredIds.push_back(recipe.id);
+        }
+    }
+    return result;
+}
+
+bool ObjectiveSystem::isRecipeDiscovered(
+    const std::string& recipeId) const noexcept
+{
+    return m_discoveredRecipeIds.find(recipeId) !=
+           m_discoveredRecipeIds.end();
+}
+
+std::string ObjectiveSystem::recipeDiscoveryToken(
+    const std::string& recipeId)
+{
+    std::uint64_t hash = UINT64_C(14695981039346656037);
+    for (unsigned char character : recipeId)
+    {
+        hash ^= static_cast<std::uint64_t>(character);
+        hash *= UINT64_C(1099511628211);
+    }
+    std::ostringstream token;
+    token << "recipe." << std::hex << std::setfill('0')
+          << std::setw(16) << hash;
+    return token.str();
+}
+
 bool ObjectiveSystem::prerequisiteSatisfied(
     const ObjectiveDefinition& definition) const
 {
@@ -273,6 +379,7 @@ bool ObjectiveSystem::prerequisiteSatisfied(
 
 void ObjectiveSystem::consumeEvent(const SandboxEvent& event)
 {
+    observeRecipeDiscovery(event);
     for (const ObjectiveDefinition& definition : m_registry->definitions())
     {
         if (isCompleted(definition.id) ||
@@ -476,6 +583,80 @@ void ObjectiveSystem::complete(const ObjectiveDefinition& definition)
     }
 }
 
+void ObjectiveSystem::observeRecipeDiscovery(const SandboxEvent& event)
+{
+    if (!m_recipeDiscoveryEnabled)
+    {
+        return;
+    }
+    if (event.type == SandboxEventType::PlayerInventoryChanged)
+    {
+        const auto& changed =
+            static_cast<const PlayerInventoryChangedEvent&>(event);
+        if (changed.playerId == DefaultPlayerActorId &&
+            changed.amountDelta > 0)
+        {
+            unlockRecipesForMaterial(changed.materialId, true);
+        }
+    }
+    else if (event.type == SandboxEventType::CraftCompleted)
+    {
+        const auto& craft = static_cast<const CraftCompletedEvent&>(event);
+        if (craft.craftsCompleted > 0 && craft.outputAdded > 0)
+        {
+            unlockRecipe(craft.recipeId, true);
+            unlockRecipesForMaterial(craft.outputMaterialId, true);
+        }
+    }
+}
+
+void ObjectiveSystem::unlockRecipesForMaterial(Material::ID materialId,
+                                               bool announce)
+{
+    if (!m_recipeDiscoveryEnabled || materialId == Material::ID::Nothing)
+    {
+        return;
+    }
+    for (const RecipeDefinition& recipe : runtimeRecipeRegistry().recipes())
+    {
+        bool related = recipe.outputMaterialId == materialId;
+        for (const RecipeIngredient& ingredient : recipe.ingredients)
+        {
+            related = related || ingredient.materialId == materialId;
+        }
+        if (related)
+        {
+            unlockRecipe(recipe.id, announce);
+        }
+    }
+}
+
+void ObjectiveSystem::unlockRecipe(const std::string& recipeId,
+                                   bool announce)
+{
+    (void)announce;
+    if (!recipeId.empty() &&
+        runtimeRecipeRegistry().find(recipeId) != nullptr)
+    {
+        m_discoveredRecipeIds.emplace(recipeId);
+    }
+}
+
+ObjectiveOpportunitySnapshot ObjectiveSystem::makeOpportunity(
+    const ObjectiveDefinition& definition) const
+{
+    ObjectiveOpportunitySnapshot result;
+    result.id = definition.id;
+    result.track = objectiveTrack(definition.id);
+    result.title = definition.title;
+    result.instruction = definition.instruction;
+    result.progress = definition.type == ObjectiveType::ObtainItem
+                          ? inventoryCount(definition.targetMaterial)
+                          : progress(definition.id);
+    result.required = definition.required;
+    return result;
+}
+
 int ObjectiveSystem::inventoryCount(Material::ID materialId) const noexcept
 {
     if (m_player == nullptr || materialId == Material::ID::Nothing)
@@ -499,7 +680,7 @@ const ObjectiveDefinition* ObjectiveSystem::currentDefinition() const noexcept
     for (const ObjectiveDefinition& definition : m_registry->definitions())
     {
         if (definition.visible && !definition.optional &&
-            !isCompleted(definition.id))
+            !isCompleted(definition.id) && prerequisiteSatisfied(definition))
         {
             return &definition;
         }

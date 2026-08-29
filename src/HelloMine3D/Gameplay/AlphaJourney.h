@@ -68,6 +68,8 @@ class AlphaJourney
     void update(float deltaSeconds);
     AlphaJourneySnapshot snapshot() const;
     ObjectiveSnapshot objectiveSnapshot() const;
+    RecipeDiscoverySnapshot recipeDiscoverySnapshot() const;
+    bool isRecipeDiscovered(const std::string& recipeId) const noexcept;
     ObjectiveSaveState objectiveSaveState() const;
     std::uint32_t flags() const noexcept;
 

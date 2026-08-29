@@ -267,6 +267,8 @@ class World : public NonCopyable {
     glm::vec3 getPlayerSpawnPoint() const;
     AlphaJourneySnapshot getAlphaJourneySnapshot() const;
     ObjectiveSnapshot getObjectiveSnapshot() const;
+    RecipeDiscoverySnapshot getRecipeDiscoverySnapshot() const;
+    bool isRecipeDiscovered(const std::string &recipeId) const noexcept;
     WorldOutcomeSnapshot getWorldOutcomeSnapshot() const noexcept;
     DifficultyRuntimeSnapshot getDifficultySnapshot() const noexcept;
     DifficultyChangeResult requestDifficulty(

@@ -16,7 +16,8 @@ struct ObjectiveProgressState
 struct ObjectiveSaveState
 {
     static constexpr int LegacyDefinitionVersion = 1;
-    static constexpr int CurrentDefinitionVersion = 2;
+    static constexpr int PreviousDefinitionVersion = 2;
+    static constexpr int CurrentDefinitionVersion = 3;
 
     int definitionVersion = CurrentDefinitionVersion;
     std::vector<std::string> completedIds;

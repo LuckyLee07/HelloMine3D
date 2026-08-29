@@ -980,7 +980,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 379 &&
+              registry.keys("en-US").size() == 403 &&
               registry.lookup("en-US", "material.torch.name") ==
                   "Torch" &&
               registry.lookup("zh-CN", "material.torch.name") ==
@@ -1305,8 +1305,8 @@ void caseWaystoneVictoryLoop()
     const ObjectiveDefinition *claimObjective =
         finaleRegistry.find("finale.claim_reward");
     check("N7B/five-ordered-finale-objectives-are-data-driven",
-          finaleRegistry.definitionVersion() == 2 &&
-              finaleRegistry.definitions().size() == 28 &&
+          finaleRegistry.definitionVersion() == 3 &&
+              finaleRegistry.definitions().size() == 34 &&
               finaleRegistry.find("finale.prepare_ritual") != nullptr &&
               finaleRegistry.find("finale.activate_waystone") != nullptr &&
               finaleRegistry.find("finale.activate_waystone")->type ==
@@ -1347,7 +1347,7 @@ void caseWaystoneVictoryLoop()
     const ObjectiveSnapshot finaleComplete = finaleObjectives.snapshot();
     check("N7B/finale-objectives-filter-actors-and-remain-read-only-guidance",
           wrongActorIgnored && finaleComplete.sessionComplete &&
-              finaleComplete.completedObjectives == 27);
+              finaleComplete.completedObjectives == 33);
 
     setEnv("HELLOMINE3D_SEED", "20260825");
     setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
@@ -6483,7 +6483,7 @@ void caseFoodRecovery()
 
     const std::string objectiveSource =
         "# HelloMine3D objective registry v1\n"
-        "version 2\n"
+        "version 3\n"
         "objective n3.consume_bread\n"
         "type consume_item\n"
         "target hellomine:bread\n"
@@ -8425,7 +8425,7 @@ void caseToolMiningProgression()
               upgraded.find("version 11") != std::string::npos &&
               upgraded.find("alpha_journey_flags 0") !=
                   std::string::npos &&
-              upgraded.find("objective_definition_version 2") !=
+              upgraded.find("objective_definition_version 3") !=
                   std::string::npos &&
               upgraded.find("objective_completed_count 0") !=
                   std::string::npos &&
@@ -8579,6 +8579,182 @@ void caseP11MinimumBuildingAndTools()
               static_cast<BlockId>(restoredWorld.getBlock(
                   plankPosition.x, plankPosition.y,
                   plankPosition.z).id) == BlockId::OakPlank);
+}
+
+// ---------------------------------------------------------------------------
+// P11C - parallel first-session opportunities and earned recipe knowledge
+// ---------------------------------------------------------------------------
+void caseP11CFirstThirtyMinutes()
+{
+    ensureRuntimeObjectiveRegistry();
+    ensureRuntimeRecipeRegistry();
+    const ObjectiveRegistry &registry = runtimeObjectiveRegistry();
+    check("P11C/version-three-adds-bounded-parallel-opportunities",
+          registry.definitionVersion() ==
+                  ObjectiveSaveState::CurrentDefinitionVersion &&
+              registry.definitions().size() == 34 &&
+              ObjectiveSystem::MaxVisibleOpportunities == 3 &&
+              registry.find("shelter.craft_planks") != nullptr &&
+              registry.find("exploration.find_coal") != nullptr);
+
+    const auto hasOpportunity = [](const ObjectiveSnapshot &snapshot,
+                                   const std::string &id) {
+        return std::any_of(
+            snapshot.opportunities.begin(),
+            snapshot.opportunities.end(),
+            [&id](const ObjectiveOpportunitySnapshot &opportunity) {
+                return opportunity.id == id;
+            });
+    };
+    const auto hasRecipe = [](const RecipeDiscoverySnapshot &snapshot,
+                              const std::string &id) {
+        return std::find(snapshot.discoveredIds.begin(),
+                         snapshot.discoveredIds.end(), id) !=
+               snapshot.discoveredIds.end();
+    };
+
+    ObjectiveSaveState branchedState;
+    std::uint32_t branchedFlags = 0;
+    {
+        Player player;
+        SandboxEventBus eventBus;
+        ObjectiveSystem objectives(registry, player, eventBus, {}, 0u,
+                                   false);
+        const ObjectiveSnapshot initial = objectives.snapshot();
+        check("P11C/new-session-begins-with-one-clear-opportunity",
+              initial.currentId == "alpha.gather_wood" &&
+                  initial.opportunities.size() == 1 &&
+                  initial.totalObjectives == 33 &&
+                  objectives.recipeDiscoverySnapshot()
+                          .discoveredIds.empty());
+
+        const int added = player.addItem(Material::OAK_BARK_BLOCK, 11);
+        eventBus.publish(PlayerInventoryChangedEvent(
+            DefaultPlayerActorId, Material::ID::OakBark, added,
+            "p11c_first_material"));
+        for (int count = 0; count < 11; ++count)
+        {
+            eventBus.publish(
+                BlockBreakEvent({count, 0, 0}, BlockId::OakBark));
+        }
+        const ObjectiveSnapshot opened = objectives.snapshot();
+        check("P11C/wood-opens-growth-shelter-and-exploration",
+              opened.opportunities.size() == 3 &&
+                  hasOpportunity(opened, "alpha.craft_workbench") &&
+                  hasOpportunity(opened, "shelter.craft_planks") &&
+                  hasOpportunity(opened, "exploration.find_coal"));
+
+        const RecipeDiscoverySnapshot barkKnowledge =
+            objectives.recipeDiscoverySnapshot();
+        check("P11C/material-acquisition-reveals-related-recipes-only",
+              barkKnowledge.totalRecipes ==
+                      runtimeRecipeRegistry().recipes().size() &&
+                  hasRecipe(barkKnowledge, "hellomine:oak_planks") &&
+                  hasRecipe(barkKnowledge, "hellomine:workbench") &&
+                  !hasRecipe(barkKnowledge, "hellomine:bread"));
+
+        eventBus.publish(CraftCompletedEvent(
+            "hellomine:workbench", Material::ID::Workbench, 1, 1, {}));
+        eventBus.publish(CraftCompletedEvent(
+            "hellomine:oak_planks", Material::ID::OakPlank, 1, 4, {}));
+        for (int count = 0; count < 3; ++count)
+        {
+            eventBus.publish(
+                BlockPlaceEvent({count, 1, 0}, BlockId::OakPlank));
+        }
+        const ObjectiveSnapshot switched = objectives.snapshot();
+        check("P11C/branch-progress-survives-primary-opportunity-switching",
+              switched.currentId == "alpha.place_workbench" &&
+                  objectives.progress("shelter.place_planks") == 3 &&
+                  hasOpportunity(switched, "shelter.place_planks") &&
+                  hasOpportunity(switched, "exploration.find_coal"));
+
+        branchedState = objectives.saveState();
+        branchedFlags = objectives.legacyAlphaFlags();
+        const std::string plankToken =
+            ObjectiveSystem::recipeDiscoveryToken(
+                "hellomine:oak_planks");
+        check("P11C/discovery-token-is-canonical-bounded-and-persisted",
+              plankToken.size() == 23 &&
+                  ObjectiveState::isCanonicalId(plankToken) &&
+                  std::find(branchedState.completedIds.begin(),
+                            branchedState.completedIds.end(),
+                            plankToken) != branchedState.completedIds.end());
+    }
+
+    ObjectiveSaveState learnedState;
+    {
+        Player restoredPlayer;
+        SandboxEventBus restoredBus;
+        ObjectiveSystem restored(registry, restoredPlayer, restoredBus,
+                                 branchedState, branchedFlags, false);
+        const ObjectiveSnapshot restoredSnapshot = restored.snapshot();
+        const bool wheatAdded =
+            restoredPlayer.addItem(Material::WHEAT, 1) == 1;
+        restoredBus.publish(PlayerInventoryChangedEvent(
+            DefaultPlayerActorId, Material::ID::Wheat, 1,
+            "p11c_new_material"));
+        learnedState = restored.saveState();
+        check("P11C/branches-and-recipe-knowledge-restore-independently",
+              restoredSnapshot.currentId == "alpha.place_workbench" &&
+                  restored.progress("shelter.place_planks") == 3 &&
+                  restored.isRecipeDiscovered(
+                      "hellomine:oak_planks") &&
+                  !branchedState.completedIds.empty() && wheatAdded &&
+                  restored.isRecipeDiscovered("hellomine:bread"));
+    }
+
+    const auto saveDirectory =
+        freshSaveDirectory("p11c_objective_v2_migration");
+    WorldSaveData migrationData;
+    migrationData.worldId = "p11c-objective-v2";
+    migrationData.worldName = "P11C Objective V2";
+    migrationData.seed = kValidationSeed;
+    migrationData.createdUtc = LegacyWorldTimestampUtc;
+    migrationData.lastPlayedUtc = LegacyWorldTimestampUtc;
+    migrationData.lastBuildIdentity = "validation";
+    migrationData.alphaJourneyFlags = branchedFlags;
+    migrationData.objectiveState = learnedState;
+    WorldSave migrationSave(saveDirectory);
+    const bool currentSaved = migrationSave.save(migrationData);
+    std::string metadata = readTextFile(migrationSave.metadataPath());
+    const std::string currentField =
+        "objective_definition_version 3";
+    const std::size_t versionPosition = metadata.find(currentField);
+    bool downgraded = versionPosition != std::string::npos;
+    if (downgraded)
+    {
+        metadata.replace(versionPosition, currentField.size(),
+                         "objective_definition_version 2");
+        std::ofstream output(migrationSave.metadataPath(),
+                             std::ios::binary | std::ios::trunc);
+        output << metadata;
+        downgraded = output.good();
+    }
+    WorldSaveData migrated;
+    const bool migratedLoaded =
+        downgraded && migrationSave.load(migrated);
+    const std::string breadToken =
+        ObjectiveSystem::recipeDiscoveryToken("hellomine:bread");
+    check("P11C/version-two-state-migrates-with-discoveries-intact",
+          currentSaved && migratedLoaded &&
+              migrated.objectiveState.definitionVersion ==
+                  ObjectiveSaveState::CurrentDefinitionVersion &&
+              std::find(migrated.objectiveState.completedIds.begin(),
+                        migrated.objectiveState.completedIds.end(),
+                        breadToken) !=
+                  migrated.objectiveState.completedIds.end());
+
+    const bool foodsRemainRecoveryOnly = std::all_of(
+        runtimeFoodRegistry().foods().begin(),
+        runtimeFoodRegistry().foods().end(),
+        [](const FoodDefinition &food) {
+            return food.healthRestored > 0.f && food.cooldownTicks > 0;
+        });
+    check("P11C/food-remains-bounded-health-recovery-without-hunger",
+          foodsRemainRecoveryOnly &&
+              migrationData.playerState.health == 20.f &&
+              migrationData.playerState.foodCooldownTicks == 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -10570,7 +10746,7 @@ void casePlayableVerticalSlice()
 std::string validObjectiveTestDefinitions()
 {
     return R"(# HelloMine3D objective registry v1
-version 2
+version 3
 objective n1.break_dirt
 type break_block
 target hellomine:dirt
@@ -10681,8 +10857,8 @@ void caseDataDrivenObjectives()
             ? baseRegistry.find("alpha.reach_spawn_marker")
             : nullptr;
     check("N1/base-objective-registry-is-versioned-and-complete",
-          baseLoaded && baseRegistry.definitionVersion() == 2 &&
-              baseRegistry.definitions().size() == 28 &&
+          baseLoaded && baseRegistry.definitionVersion() == 3 &&
+              baseRegistry.definitions().size() == 34 &&
               baseRegistry.find("alpha.gather_wood") != nullptr &&
               baseRegistry.find("alpha.reopen_world") != nullptr &&
               baseRegistry.find("progression.smelt_iron") != nullptr &&
@@ -10840,7 +11016,8 @@ void caseDataDrivenObjectives()
     WorldSaveData loaded;
     const bool saved = save.save(validSave) && save.load(loaded);
     WorldSaveData invalidDefinition = validSave;
-    invalidDefinition.objectiveState.definitionVersion = 3;
+    invalidDefinition.objectiveState.definitionVersion =
+        ObjectiveSaveState::CurrentDefinitionVersion + 1;
     WorldSaveData duplicate = validSave;
     duplicate.objectiveState.completedIds.push_back("future.optional");
     WorldSaveData completedProgress = validSave;
@@ -10851,7 +11028,8 @@ void caseDataDrivenObjectives()
     WorldSaveData preserved;
     check("N1/current-version-preserves-objective-state",
           saved && loaded.version == WorldSaveFormatVersion &&
-              loaded.objectiveState.definitionVersion == 2 &&
+              loaded.objectiveState.definitionVersion ==
+                  ObjectiveSaveState::CurrentDefinitionVersion &&
               loaded.objectiveState.completedIds ==
                   validSave.objectiveState.completedIds &&
               loaded.objectiveState.progress.size() == 1);
@@ -10884,7 +11062,8 @@ void caseDataDrivenObjectives()
           migratedLoaded &&
               migratedData.version == WorldSaveFormatVersion &&
               migratedData.alphaJourneyFlags == 3u &&
-              migratedData.objectiveState.definitionVersion == 2 &&
+              migratedData.objectiveState.definitionVersion ==
+                  ObjectiveSaveState::CurrentDefinitionVersion &&
               migratedData.objectiveState.completedIds ==
                   ObjectiveState::completedFromLegacyFlags(3u) &&
               migratedData.objectiveState.progress.empty());
@@ -13484,6 +13663,11 @@ int main()
             caseOreTextures();
             caseP11MinimumBuildingAndTools();
         }
+        else if (focus != nullptr && std::string(focus) == "P11C") {
+            caseWorldOutcomeAndLocalizedText();
+            caseDataDrivenObjectives();
+            caseP11CFirstThirtyMinutes();
+        }
         else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
@@ -13538,6 +13722,7 @@ int main()
         caseWorkbenchCrafting();
         caseToolMiningProgression();
         caseP11MinimumBuildingAndTools();
+        caseP11CFirstThirtyMinutes();
         caseNaturalMobPopulation();
         caseCombatAndRespawn();
         caseCombatDepth();
