@@ -35,11 +35,13 @@ namespace
         {
             return ItemMaterial;
         }
-        if (snapshot.type == "hellomine:stalker")
+        if (snapshot.type == "hellomine:stalker" ||
+            snapshot.type == "hellomine:waystone_stalker")
         {
             return StalkerMaterial;
         }
-        if (snapshot.type == "hellomine:brute")
+        if (snapshot.type == "hellomine:brute" ||
+            snapshot.type == "hellomine:waystone_brute")
         {
             return BruteMaterial;
         }
@@ -146,6 +148,20 @@ OgreActorRendererValidation OgreActorRenderer::validateSnapshots(
                 snapshot.combatStateTicksTotal)
         {
             validation.message = "actor combat snapshot is invalid";
+            return validation;
+        }
+        if ((snapshot.deathPresentation &&
+             (snapshot.type == "item" || !snapshot.combatant ||
+              snapshot.deathPresentationTicksTotal !=
+                  EnemyPresentation::DeathPoseTicks ||
+              snapshot.deathPresentationTicksRemaining <= 0 ||
+              snapshot.deathPresentationTicksRemaining >
+                  snapshot.deathPresentationTicksTotal)) ||
+            (!snapshot.deathPresentation &&
+             (snapshot.deathPresentationTicksRemaining != 0 ||
+              snapshot.deathPresentationTicksTotal != 0)))
+        {
+            validation.message = "actor death presentation is invalid";
             return validation;
         }
         if (snapshot.combatant)
@@ -352,7 +368,17 @@ void OgreActorRenderer::setCastShadows(bool enabled) noexcept
     m_castShadows = enabled;
     for (auto& entry : m_visuals)
     {
-        entry.second.object->setCastShadows(enabled);
+        if (entry.second.object != nullptr)
+        {
+            entry.second.object->setCastShadows(enabled);
+        }
+        for (ActorPartVisual& part : entry.second.parts)
+        {
+            if (part.object != nullptr)
+            {
+                part.object->setCastShadows(enabled);
+            }
+        }
     }
     for (auto& entry : m_projectileVisuals)
     {
@@ -400,11 +426,32 @@ OgreActorRenderer::ActorVisual OgreActorRenderer::createVisual(
         "Actor_" + std::to_string(snapshot.id);
     ActorVisual visual;
     visual.type = snapshot.type;
-    visual.object = m_sceneManager->createManualObject(baseName + "_Mesh");
-    buildUnitCube(*visual.object, materialFor(snapshot), m_castShadows);
     visual.node = m_sceneManager->getRootSceneNode()->createChildSceneNode(
         baseName + "_Node");
-    visual.node->attachObject(visual.object);
+    if (snapshot.type == "item")
+    {
+        visual.object = m_sceneManager->createManualObject(
+            baseName + "_Mesh");
+        buildUnitCube(*visual.object, materialFor(snapshot), m_castShadows);
+        visual.node->attachObject(visual.object);
+        return visual;
+    }
+
+    const EnemyVisualProfile profile =
+        EnemyPresentation::profileForType(snapshot.type);
+    visual.parts.reserve(profile.partCount);
+    for (std::size_t index = 0; index < profile.partCount; ++index)
+    {
+        ActorPartVisual part;
+        part.definition = profile.parts[index];
+        part.object = m_sceneManager->createManualObject(
+            baseName + "_PartMesh_" + std::to_string(index));
+        buildUnitCube(*part.object, materialFor(snapshot), m_castShadows);
+        part.node = visual.node->createChildSceneNode(
+            baseName + "_PartNode_" + std::to_string(index));
+        part.node->attachObject(part.object);
+        visual.parts.push_back(part);
+    }
     return visual;
 }
 
@@ -414,36 +461,68 @@ void OgreActorRenderer::updateVisual(
 {
     visual.node->setVisible(
         !intersectsFirstPersonNearPlane(snapshot, cameraPosition));
-    visual.node->setPosition(snapshot.position.x, snapshot.position.y,
-                             snapshot.position.z);
-    float combatScale = 1.0f + snapshot.hitFeedback * 0.08f;
-    float telegraphProgress = 0.0f;
-    if (snapshot.combatant &&
-        snapshot.combatState == MobCombatState::Windup &&
-        snapshot.combatStateTicksTotal > 0)
+    if (snapshot.type == "item")
     {
-        telegraphProgress = 1.0f - std::clamp(
-            static_cast<float>(snapshot.combatStateTicksRemaining) /
-                static_cast<float>(snapshot.combatStateTicksTotal),
-            0.0f, 1.0f);
-        combatScale += telegraphProgress * 0.18f;
+        visual.node->setPosition(snapshot.position.x, snapshot.position.y,
+                                 snapshot.position.z);
+        visual.node->setScale(snapshot.dimensions.x * 2.0f,
+                              snapshot.dimensions.y * 2.0f,
+                              snapshot.dimensions.z * 2.0f);
+        const Ogre::Quaternion pitch(
+            Ogre::Degree(snapshot.rotation.x), Ogre::Vector3::UNIT_X);
+        const Ogre::Quaternion yaw(
+            Ogre::Degree(snapshot.rotation.y), Ogre::Vector3::UNIT_Y);
+        const Ogre::Quaternion roll(
+            Ogre::Degree(snapshot.rotation.z), Ogre::Vector3::UNIT_Z);
+        visual.node->setOrientation(yaw * pitch * roll);
+        return;
     }
-    else if (snapshot.combatant &&
-             snapshot.combatState == MobCombatState::Recover)
-    {
-        combatScale *= 0.94f;
-    }
-    visual.node->setScale(snapshot.dimensions.x * 2.0f * combatScale,
-                          snapshot.dimensions.y * 2.0f * combatScale,
-                          snapshot.dimensions.z * 2.0f * combatScale);
+
+    const EnemyVisualProfile profile =
+        EnemyPresentation::profileForType(snapshot.type);
+    const EnemyVisualPose pose =
+        EnemyPresentation::poseFor(snapshot, profile);
+    visual.node->setPosition(
+        snapshot.position.x,
+        snapshot.position.y + pose.rootYOffset *
+            snapshot.dimensions.y * 2.0f,
+        snapshot.position.z);
+    visual.node->setScale(
+        snapshot.dimensions.x * 2.0f * pose.rootScale,
+        snapshot.dimensions.y * 2.0f * pose.rootScale,
+        snapshot.dimensions.z * 2.0f * pose.rootScale);
     const Ogre::Quaternion pitch(
-        Ogre::Degree(snapshot.rotation.x - telegraphProgress * 12.0f),
+        Ogre::Degree(snapshot.rotation.x + pose.rootPitch),
         Ogre::Vector3::UNIT_X);
     const Ogre::Quaternion yaw(
         Ogre::Degree(snapshot.rotation.y), Ogre::Vector3::UNIT_Y);
     const Ogre::Quaternion roll(
-        Ogre::Degree(snapshot.rotation.z), Ogre::Vector3::UNIT_Z);
+        Ogre::Degree(snapshot.rotation.z + pose.rootRoll),
+        Ogre::Vector3::UNIT_Z);
     visual.node->setOrientation(yaw * pitch * roll);
+
+    const std::size_t count = std::min(
+        visual.parts.size(), profile.partCount);
+    for (std::size_t index = 0; index < count; ++index)
+    {
+        ActorPartVisual& part = visual.parts[index];
+        const EnemyVisualPartDefinition& definition =
+            profile.parts[index];
+        const glm::vec3 offset = definition.offset + pose.offsets[index];
+        part.node->setPosition(offset.x, offset.y, offset.z);
+        const float partScale = pose.scales[index];
+        part.node->setScale(definition.scale.x * partScale,
+                            definition.scale.y * partScale,
+                            definition.scale.z * partScale);
+        const glm::vec3 rotation = pose.rotations[index];
+        part.node->setOrientation(
+            Ogre::Quaternion(Ogre::Degree(rotation.y),
+                             Ogre::Vector3::UNIT_Y) *
+            Ogre::Quaternion(Ogre::Degree(rotation.x),
+                             Ogre::Vector3::UNIT_X) *
+            Ogre::Quaternion(Ogre::Degree(rotation.z),
+                             Ogre::Vector3::UNIT_Z));
+    }
 }
 
 void OgreActorRenderer::destroyVisual(ActorVisual& visual)
@@ -452,6 +531,24 @@ void OgreActorRenderer::destroyVisual(ActorVisual& visual)
     {
         return;
     }
+    for (ActorPartVisual& part : visual.parts)
+    {
+        if (part.object != nullptr)
+        {
+            if (part.object->isAttached())
+            {
+                part.object->detachFromParent();
+            }
+            m_sceneManager->destroyManualObject(part.object);
+            part.object = nullptr;
+        }
+        if (part.node != nullptr)
+        {
+            m_sceneManager->destroySceneNode(part.node);
+            part.node = nullptr;
+        }
+    }
+    visual.parts.clear();
     if (visual.object != nullptr)
     {
         if (visual.object->isAttached())

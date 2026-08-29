@@ -262,6 +262,12 @@ const char* WaystoneEncounter::feedbackKey(
         return "waystone.feedback.spawn_blocked";
     case WaystoneActionResult::Rejected:
         return "waystone.feedback.rejected";
+    case WaystoneActionResult::ResonancePulse:
+        return "waystone.feedback.resonance_pulse";
+    case WaystoneActionResult::ResonanceCharging:
+        return "waystone.feedback.resonance_charging";
+    case WaystoneActionResult::ResonanceNoTarget:
+        return "waystone.feedback.resonance_no_target";
     }
     return "waystone.feedback.rejected";
 }

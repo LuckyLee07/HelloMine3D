@@ -1451,6 +1451,26 @@ end
                   baseRegistry.find("hellomine:spitter") != nullptr &&
                   baseRegistry.find("hellomine:spitter")
                           ->combat.mode == EnemyCombatMode::Ranged);
+        bool dirtFreeIdentityLoot = baseLoaded;
+        for (const EnemyDefinition &definition : baseRegistry.enemies()) {
+            dirtFreeIdentityLoot = dirtFreeIdentityLoot &&
+                !definition.loot.empty() && std::none_of(
+                    definition.loot.begin(), definition.loot.end(),
+                    [](const EnemyLootDefinition &loot) {
+                        return loot.materialId == Material::ID::Dirt;
+                    });
+        }
+        const EnemyDefinition *waystoneStalker =
+            baseRegistry.find("hellomine:waystone_stalker");
+        const EnemyDefinition *waystoneBrute =
+            baseRegistry.find("hellomine:waystone_brute");
+        check("P11E/base-enemies-have-distinct-dirt-free-loot",
+              dirtFreeIdentityLoot && waystoneStalker != nullptr &&
+                  waystoneBrute != nullptr &&
+                  waystoneStalker->loot.front().materialId ==
+                      Material::ID::IronOre &&
+                  waystoneBrute->loot.front().materialId ==
+                      Material::ID::IronIngot);
         check("N4/enemy-registry-is-startup-frozen",
               throwsContaining(
                   [&registry]
@@ -1973,7 +1993,7 @@ int main()
     caseEnemyRegistry();
     caseCombatRecipes();
     caseResourceEconomy();
-    constexpr int ExpectedChecks = 121;
+    constexpr int ExpectedChecks = 122;
     if (checks != ExpectedChecks) {
         ++failures;
         std::cout << "[RECIPE_TEST] FAIL G1/expected-check-count"

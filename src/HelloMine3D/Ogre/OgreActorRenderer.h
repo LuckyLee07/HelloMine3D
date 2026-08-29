@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "../Actor/Actor.h"
+#include "../Actor/EnemyPresentation.h"
 
 namespace Ogre
 {
@@ -53,10 +54,18 @@ class OgreActorRenderer
         const std::vector<CombatProjectileSnapshot>& snapshots);
 
   private:
+    struct ActorPartVisual
+    {
+        Ogre::ManualObject* object = nullptr;
+        Ogre::SceneNode* node = nullptr;
+        EnemyVisualPartDefinition definition;
+    };
+
     struct ActorVisual
     {
         Ogre::ManualObject* object = nullptr;
         Ogre::SceneNode* node = nullptr;
+        std::vector<ActorPartVisual> parts;
         std::string type;
     };
 

@@ -42,7 +42,8 @@ enum class MobCombatTransitionReason
     ChaseBudgetExhausted,
     PathBlocked,
     HitInterrupted,
-    RecoveryComplete
+    RecoveryComplete,
+    ResonanceInterrupted
 };
 
 enum class MobMeleeAttackResult
@@ -182,6 +183,8 @@ inline const char *mobCombatTransitionReasonName(
             return "hit_interrupted";
         case MobCombatTransitionReason::RecoveryComplete:
             return "recovery_complete";
+        case MobCombatTransitionReason::ResonanceInterrupted:
+            return "resonance_interrupted";
     }
     return "unknown";
 }

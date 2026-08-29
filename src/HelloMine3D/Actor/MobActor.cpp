@@ -392,6 +392,25 @@ void MobActor::interruptByPlayerHit(World &world,
                                     float knockbackDistance,
                                     int recoverTicks)
 {
+    interruptBySource(world, sourcePosition, knockbackDistance,
+                      recoverTicks,
+                      MobCombatTransitionReason::HitInterrupted);
+}
+
+void MobActor::interruptByResonancePulse(
+    World &world, const glm::vec3 &sourcePosition,
+    float knockbackDistance, int recoverTicks)
+{
+    interruptBySource(world, sourcePosition, knockbackDistance,
+                      recoverTicks,
+                      MobCombatTransitionReason::ResonanceInterrupted);
+}
+
+void MobActor::interruptBySource(
+    World &world, const glm::vec3 &sourcePosition,
+    float knockbackDistance, int recoverTicks,
+    MobCombatTransitionReason reason)
+{
     if (!isAlive()) {
         return;
     }
@@ -413,8 +432,7 @@ void MobActor::interruptByPlayerHit(World &world,
     m_combatCooldownTicksRemaining = std::max(
         m_combatCooldownTicksRemaining, boundedRecover);
     transitionTo(MobCombatState::Recover,
-                 MobCombatTransitionReason::HitInterrupted,
-                 boundedRecover);
+                 reason, boundedRecover);
 }
 
 const std::vector<EnemyLootDefinition> &MobActor::getLootTable() const

@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "EnemyPresentation.h"
+
 ActorId ActorManager::allocateActorId()
 {
     return m_nextActorId++;
@@ -49,6 +51,20 @@ const Actor *ActorManager::findActor(ActorId id) const
 
 void ActorManager::tick(World &world, float dt)
 {
+    if (dt > 0.f) {
+        for (DeathPresentation &presentation : m_deathPresentations) {
+            --presentation.ticksRemaining;
+        }
+        m_deathPresentations.erase(
+            std::remove_if(
+                m_deathPresentations.begin(),
+                m_deathPresentations.end(),
+                [](const DeathPresentation &presentation) {
+                    return presentation.ticksRemaining <= 0;
+                }),
+            m_deathPresentations.end());
+    }
+
     for (auto &actor : m_actors) {
         if (actor && actor->isAlive()) {
             actor->tick(world, dt);
@@ -60,12 +76,33 @@ void ActorManager::tick(World &world, float dt)
 
 void ActorManager::removeDeadActors()
 {
-    m_actors.erase(
-        std::remove_if(m_actors.begin(), m_actors.end(),
-                       [](const std::unique_ptr<Actor> &actor) {
-                           return !actor || !actor->isAlive();
-                       }),
-        m_actors.end());
+    for (auto iterator = m_actors.begin(); iterator != m_actors.end();) {
+        if (*iterator && !(*iterator)->isAlive()) {
+            ActorSnapshot snapshot = (*iterator)->getSnapshot();
+            if (snapshot.combatant) {
+                if (m_deathPresentations.size() >=
+                    EnemyPresentation::MaximumDeathPoses) {
+                    m_deathPresentations.erase(
+                        m_deathPresentations.begin());
+                }
+                snapshot.deathPresentation = true;
+                snapshot.deathPresentationTicksRemaining =
+                    EnemyPresentation::DeathPoseTicks;
+                snapshot.deathPresentationTicksTotal =
+                    EnemyPresentation::DeathPoseTicks;
+                m_deathPresentations.push_back({
+                    std::move(snapshot),
+                    EnemyPresentation::DeathPoseTicks});
+            }
+            iterator = m_actors.erase(iterator);
+        }
+        else if (!*iterator) {
+            iterator = m_actors.erase(iterator);
+        }
+        else {
+            ++iterator;
+        }
+    }
 }
 
 std::size_t ActorManager::getActorCount() const
@@ -76,11 +113,17 @@ std::size_t ActorManager::getActorCount() const
 std::vector<ActorSnapshot> ActorManager::collectSnapshots() const
 {
     std::vector<ActorSnapshot> snapshots;
-    snapshots.reserve(m_actors.size());
+    snapshots.reserve(m_actors.size() + m_deathPresentations.size());
     for (const auto &actor : m_actors) {
         if (actor && actor->isAlive()) {
             snapshots.push_back(actor->getSnapshot());
         }
+    }
+    for (const DeathPresentation &presentation : m_deathPresentations) {
+        ActorSnapshot snapshot = presentation.snapshot;
+        snapshot.deathPresentationTicksRemaining =
+            presentation.ticksRemaining;
+        snapshots.push_back(std::move(snapshot));
     }
     return snapshots;
 }

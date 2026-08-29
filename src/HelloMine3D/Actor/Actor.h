@@ -49,6 +49,9 @@ struct ActorSnapshot {
     MobCombatTransitionReason combatTransitionReason =
         MobCombatTransitionReason::Spawned;
     float hitFeedback = 0.f;
+    bool deathPresentation = false;
+    int deathPresentationTicksRemaining = 0;
+    int deathPresentationTicksTotal = 0;
 };
 
 class Actor : public Entity {

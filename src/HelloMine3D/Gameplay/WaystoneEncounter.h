@@ -28,7 +28,10 @@ enum class WaystoneActionResult
     MissingMaterials,
     InventoryFull,
     SpawnBlocked,
-    Rejected
+    Rejected,
+    ResonancePulse,
+    ResonanceCharging,
+    ResonanceNoTarget
 };
 
 struct WaystoneEncounterState
@@ -51,6 +54,7 @@ struct WaystoneEncounterSnapshot
     int postVictoryEvent = 0;
     int postVictoryWave = 0;
     int postVictoryRemainingGuardians = 0;
+    int resonanceCooldownTicks = 0;
 };
 
 namespace WaystoneEncounter
@@ -68,6 +72,10 @@ namespace WaystoneEncounter
     inline constexpr std::size_t MaximumLoadedGuardians = 2;
     inline constexpr std::uint32_t RewardEpoch = 1;
     inline constexpr float InteractionReach = 6.5f;
+    inline constexpr float ResonanceRadius = 8.f;
+    inline constexpr float ResonanceKnockback = 1.25f;
+    inline constexpr int ResonanceRecoverTicks = 12;
+    inline constexpr int ResonanceCooldownTicks = 80;
 
     bool validState(const WaystoneEncounterState& state) noexcept;
     std::string serialize(const WaystoneEncounterState& state);

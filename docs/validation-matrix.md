@@ -6,7 +6,7 @@
 Stage 10 的 V10A-V10E 与 VISUAL-RC 已完成 Windows 工程和对应开发者视觉范围；
 V10B1/V10C/V10D/V10E 的 macOS Release shader/窗口证据、正式产品体验与 Physical Input v2
 保持 `Verify`。封板证据见 `docs/visual-release-candidate-report-2026-08-28.md`。
-VISUAL-RC 后评审已选择 Stage 11；P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2 工程已完成，P11E 为当前开放批次。工程按固定顺序
+VISUAL-RC 后评审已选择 Stage 11；P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/P11E 工程已完成，P11F 为当前开放批次。工程按固定顺序
 逐个开放，真人/主观/活动桌面证据统一后置为 `Verify/Deferred`，但不得标成自动 PASS。权威范围见
 `docs/playability-experience-roadmap.md`，输入合同见 `docs/core-input-feel-contract-v1.md`。
 
@@ -156,8 +156,8 @@ Stage 10 的地形 shader、顶点数据、图集、云、阴影或后处理变�
 | `P11C`（Engineering Done；真人 30 分钟 Deferred） | 目标 v3、最多三项并行机会、分支进度、配方发现 token、save v11 的 v1/v2 迁移、双语 403 key、双配置 41/41 和完整世界 803/803 已通过。 | 全新世界至少 30 分钟：记录至少两项并行选择、关键里程碑、超过 60 秒的困惑时段、查配方次数和主动改计划时刻，当前后置。 |
 | `P11D`（Engineering Done；真人 Deferred） | 奖励 v1/v0、save v12、末尾追加材料、遗迹/营地新旧战利品、罗盘方向距离、护符近战/投射物共用恢复入口、箱子持久化和迁移拒绝；Debug/Release 定向各 30/30，Release 世界 810/810、配方 121/121、资源包 80/80、目录 59/59、图集 278/278 已通过。 | 每类正式结构实际完成一次；记录奖励是否改变后续能力或计划，普通矿物不能作为主要价值证明，当前后置。 |
 | `P11-2`（Engineering Done；Q1/真人 Deferred） | terrain v4 末尾追加；Mountain 高度域 1..176、Stone 高峰、96×96 cell/24 格天然洞口；旧 v1-v3 输出冻结；区块加载顺序、save v12 v3/v4 身份和未知 v5 拒绝通过。Debug/Release 定向各 9/9、Release 世界 820/820、配方 121/121、资源包 80/80、目录 59/59；水文未进入本批。 | 活动桌面为 WTS state 4，fast-streaming/scaled-gameplay 新身份 Q1 与多个固定/随机 seed 的山地轮廓、洞口发现时间、通行性和远景/阴影效果保持 Deferred。 |
-| `P11E`（Planned） | 动画状态由玩法状态驱动；判定与渲染解耦；部件/实例/音频上限；身份化掉落的材料追加、经济守恒、目标链和保存恢复；相关性能。 | 不看名称辨识主要敌人、预警与危险窗口；比较各敌人掉落价值；完整走通 Waystone 独特阶段，记录误判、死亡原因和策略变化。 |
-| `P11F`（Queued） | 全门禁、全迁移、适用 Q1/Q3/长稳、资源许可、干净包和构建身份。 | 汇总而非补造前八批试玩证据；给出明确 `PASS`/`FAIL`/`Verify`，未完成平台或产品体验不得自动关闭。 |
+| `P11E`（Engineering Done；真人 Deferred） | 玩法状态驱动 6-7 部件轮廓；判定与渲染解耦；8 tick/32 项死亡表现上限；Dirt-free 身份掉落与 Plant Fiber Alpha 兼容；8 格/80 tick Waystone 共鸣；save v12 瞬态隔离。Debug/Release 定向各 35/35、Release 世界 832/832、配方 122/122、资源包 80/80、84 项 manifest 与客户端双配置通过。 | 不看名称辨识主要敌人、预警与危险窗口；比较各敌人掉落价值；完整走通 Waystone 共鸣，记录误判、死亡原因和策略变化，当前后置。 |
+| `P11F`（Planned） | 全门禁、全迁移、适用 Q1/Q3/长稳、资源许可、干净包和构建身份；当前环境不能执行的活动桌面/平台项登记真实状态。 | 汇总而非补造前八批试玩证据；给出明确 `PASS`/`FAIL`/`Verify/Deferred`，未完成平台或产品体验不得自动关闭。 |
 
 每份 Stage 11 真人记录至少包含 commit/构建身份、硬件、分辨率、输入设备、场景、里程碑耗时、
 误操作、死亡、困惑时段和结论。截图或自动日志只能支持结论，不能单独证明操作手感和可玩性。

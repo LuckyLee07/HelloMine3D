@@ -99,7 +99,7 @@ end
 
 objective alpha.collect_mob_loot
 type pickup_item
-target hellomine:dirt
+target hellomine:plant_fiber
 required 1
 prerequisite alpha.defeat_mob
 visible 1

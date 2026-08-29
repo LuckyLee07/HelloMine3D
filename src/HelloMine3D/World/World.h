@@ -439,6 +439,8 @@ class World : public NonCopyable {
     void abandonWaystoneEncounter();
     void removeWaystoneGuardians();
     void setWaystoneFeedback(WaystoneActionResult result);
+    WaystoneActionResult triggerWaystoneResonancePulse(
+        const glm::ivec3 &position);
 
     ChunkManager m_chunkManager;
     ActorManager m_actorManager;
@@ -453,6 +455,7 @@ class World : public NonCopyable {
     std::optional<glm::ivec3> m_waystoneAnchor;
     WaystoneEncounterState m_waystoneEncounterState;
     std::unordered_set<ActorId> m_waystoneGuardianIds;
+    int m_waystoneResonanceCooldownTicks = 0;
     std::string m_waystoneFeedbackKey;
     std::size_t m_worldSaveTransactionCount = 0;
     double m_worldSaveTotalMs = 0.0;

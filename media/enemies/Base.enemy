@@ -14,7 +14,7 @@ attack_recover_ticks 8
 attack_cooldown_ticks 20
 knockback 2.5
 natural 0
-loot hellomine:dirt 1 1
+loot hellomine:plant_fiber 1 1
 end
 
 enemy hellomine:stalker
@@ -31,7 +31,7 @@ attack_recover_ticks 7
 attack_cooldown_ticks 16
 knockback 2.0
 natural 1
-loot hellomine:dirt 1 1
+loot hellomine:plant_fiber 1 1
 loot hellomine:wheat 1 2
 loot hellomine:raw_meat 1 1
 end
@@ -50,7 +50,7 @@ attack_recover_ticks 12
 attack_cooldown_ticks 28
 knockback 4.0
 natural 1
-loot hellomine:dirt 1 1
+loot hellomine:plant_fiber 1 1
 loot hellomine:coal_ore 1 1
 loot hellomine:wheat 1 1
 loot hellomine:raw_meat 1 2
@@ -78,7 +78,7 @@ projectile_world_limit 24
 projectile_local_limit 8
 projectile_active_radius 32
 natural 1
-loot hellomine:dirt 1 1
+loot hellomine:plant_fiber 1 1
 loot hellomine:wheat_seeds 1 2
 end
 
@@ -96,7 +96,7 @@ attack_recover_ticks 7
 attack_cooldown_ticks 16
 knockback 2.0
 natural 0
-loot hellomine:dirt 1 1
+loot hellomine:iron_ore 1 1
 end
 
 enemy hellomine:waystone_brute
@@ -113,5 +113,5 @@ attack_recover_ticks 12
 attack_cooldown_ticks 28
 knockback 4.0
 natural 0
-loot hellomine:coal_ore 1 1
+loot hellomine:iron_ingot 1 1
 end

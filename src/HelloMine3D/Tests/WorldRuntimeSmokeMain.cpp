@@ -33,6 +33,7 @@
 #include <FreeImage.h>
 
 #include "../Actor/EnemyRegistry.h"
+#include "../Actor/EnemyPresentation.h"
 #include "../Actor/ItemEntity.h"
 #include "../Actor/LivingActor.h"
 #include "../Actor/MobActor.h"
@@ -996,7 +997,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 408 &&
+              registry.keys("en-US").size() == 411 &&
               registry.lookup("en-US", "material.torch.name") ==
                   "Torch" &&
               registry.lookup("zh-CN", "material.torch.name") ==
@@ -8071,7 +8072,7 @@ attack_recover_ticks 8
 attack_cooldown_ticks 20
 knockback 2.5
 natural 0
-loot hellomine:dirt 1 1
+loot hellomine:plant_fiber 1 1
 end
 enemy hellomine:stalker
 health 8
@@ -8087,7 +8088,7 @@ attack_recover_ticks 7
 attack_cooldown_ticks 16
 knockback 2
 natural 1
-loot hellomine:dirt 1 1
+loot hellomine:plant_fiber 1 1
 loot hellomine:wheat 1 2
 loot hellomine:raw_meat 1 1
 end
@@ -8105,7 +8106,7 @@ attack_recover_ticks 12
 attack_cooldown_ticks 28
 knockback 4
 natural 1
-loot hellomine:dirt 1 1
+loot hellomine:plant_fiber 1 1
 loot hellomine:coal_ore 1 1
 loot hellomine:wheat 1 1
 loot hellomine:raw_meat 1 2
@@ -8132,7 +8133,7 @@ projectile_world_limit 24
 projectile_local_limit 8
 projectile_active_radius 32
 natural 1
-loot hellomine:dirt 1 1
+loot hellomine:plant_fiber 1 1
 loot hellomine:wheat_seeds 1 2
 end
 enemy hellomine:waystone_stalker
@@ -8149,7 +8150,7 @@ attack_recover_ticks 7
 attack_cooldown_ticks 16
 knockback 2
 natural 0
-loot hellomine:dirt 1 1
+loot hellomine:iron_ore 1 1
 end
 enemy hellomine:waystone_brute
 health 16
@@ -8165,7 +8166,7 @@ attack_recover_ticks 12
 attack_cooldown_ticks 28
 knockback 4
 natural 0
-loot hellomine:coal_ore 1 1
+loot hellomine:iron_ingot 1 1
 end
 )";
 }
@@ -9246,6 +9247,357 @@ void caseP11TerrainContoursAndEntrances()
 }
 
 // ---------------------------------------------------------------------------
+// P11E - enemy silhouettes, combat poses, death presentation and resonance
+// ---------------------------------------------------------------------------
+void caseP11EEnemyPresentationAndResonance()
+{
+    const EnemyVisualProfile stalker =
+        EnemyPresentation::profileForType(World::StalkerMobType);
+    const EnemyVisualProfile brute =
+        EnemyPresentation::profileForType(World::BruteMobType);
+    const EnemyVisualProfile spitter =
+        EnemyPresentation::profileForType(World::SpitterMobType);
+    const EnemyVisualProfile guardian =
+        EnemyPresentation::profileForType(
+            WaystoneEncounter::StalkerType);
+    check("P11E/enemy-silhouettes-are-distinct-and-bounded",
+          stalker.archetype == EnemyVisualArchetype::Stalker &&
+              brute.archetype == EnemyVisualArchetype::Brute &&
+              spitter.archetype == EnemyVisualArchetype::Spitter &&
+              stalker.partCount == 6 && brute.partCount == 6 &&
+              spitter.partCount == 7 && guardian.partCount == 7 &&
+              guardian.waystoneGuardian &&
+              guardian.parts[guardian.partCount - 1].role ==
+                  EnemyVisualPartRole::Crest &&
+              EnemyVisualProfile::MaximumParts == 8);
+
+    const auto partIndex = [](const EnemyVisualProfile &profile,
+                              EnemyVisualPartRole role) {
+        for (std::size_t index = 0; index < profile.partCount; ++index) {
+            if (profile.parts[index].role == role) {
+                return index;
+            }
+        }
+        return profile.partCount;
+    };
+    ActorSnapshot poseSnapshot;
+    poseSnapshot.id = 7;
+    poseSnapshot.type = World::StalkerMobType;
+    poseSnapshot.position = {2.f, 3.f, 4.f};
+    poseSnapshot.dimensions = {0.3f, 0.75f, 0.3f};
+    poseSnapshot.combatant = true;
+    poseSnapshot.combatState = MobCombatState::Windup;
+    poseSnapshot.combatStateTicksRemaining = 3;
+    poseSnapshot.combatStateTicksTotal = 6;
+    const EnemyVisualPose windup =
+        EnemyPresentation::poseFor(poseSnapshot, stalker);
+    const std::size_t rightArm = partIndex(
+        stalker, EnemyVisualPartRole::RightArm);
+    poseSnapshot.combatState = MobCombatState::Recover;
+    const EnemyVisualPose recover =
+        EnemyPresentation::poseFor(poseSnapshot, stalker);
+    poseSnapshot.combatState = MobCombatState::Chase;
+    poseSnapshot.combatStateTicksRemaining = 0;
+    poseSnapshot.combatStateTicksTotal = 0;
+    const EnemyVisualPose chase =
+        EnemyPresentation::poseFor(poseSnapshot, stalker);
+    check("P11E/gameplay-state-drives-readable-combat-poses",
+          rightArm < stalker.partCount &&
+              windup.rotations[rightArm].x < -70.f &&
+              recover.rotations[rightArm].x > 0.f &&
+              std::abs(chase.rotations[rightArm].x) > 0.1f &&
+              windup.rootPitch < 0.f);
+
+    poseSnapshot.deathPresentation = true;
+    poseSnapshot.deathPresentationTicksRemaining = 4;
+    poseSnapshot.deathPresentationTicksTotal =
+        EnemyPresentation::DeathPoseTicks;
+    const EnemyVisualPose death =
+        EnemyPresentation::poseFor(poseSnapshot, stalker);
+    check("P11E/death-pose-is-bounded-and-presentation-only",
+          EnemyPresentation::DeathPoseTicks == 8 &&
+              EnemyPresentation::MaximumDeathPoses == 32 &&
+              std::abs(death.rootRoll) >= 40.f &&
+              death.rootYOffset < 0.f && death.rootScale > 0.7f &&
+              poseSnapshot.position == glm::vec3(2.f, 3.f, 4.f));
+
+    EnemyRegistry productionEnemies;
+    bool productionLoaded = false;
+    try {
+        productionEnemies.freeze({{
+            "media/enemies/Base.enemy",
+            readTextFile(ResourcePaths::media("enemies/Base.enemy"))}});
+        productionLoaded = true;
+    }
+    catch (const std::exception &) {
+    }
+    const auto identityLoot = [&productionEnemies](
+                                  const std::string &type,
+                                  Material::ID material) {
+        const EnemyDefinition *definition =
+            productionEnemies.find(type);
+        return definition != nullptr && std::any_of(
+            definition->loot.begin(), definition->loot.end(),
+            [material](const EnemyLootDefinition &loot) {
+                return loot.materialId == material;
+            });
+    };
+    bool dirtFree = productionLoaded;
+    for (const EnemyDefinition &definition : productionEnemies.enemies()) {
+        dirtFree = dirtFree && std::none_of(
+            definition.loot.begin(), definition.loot.end(),
+            [](const EnemyLootDefinition &loot) {
+                return loot.materialId == Material::ID::Dirt;
+            });
+    }
+    check("P11E/enemy-loot-identities-use-existing-materials",
+          productionLoaded && dirtFree &&
+              identityLoot("hellomine:natural_mob",
+                           Material::ID::PlantFiber) &&
+              identityLoot(World::StalkerMobType,
+                           Material::ID::Wheat) &&
+              identityLoot(World::BruteMobType,
+                           Material::ID::CoalOre) &&
+              identityLoot(World::SpitterMobType,
+                           Material::ID::WheatSeeds) &&
+              identityLoot(WaystoneEncounter::StalkerType,
+                           Material::ID::IronOre) &&
+              identityLoot(WaystoneEncounter::BruteType,
+                           Material::ID::IronIngot));
+
+    LocalizedTextRegistry resonanceText;
+    resonanceText.freeze({
+        {"en-US.text", readTextFile(
+             ResourcePaths::media("text/en-US.text"))},
+        {"zh-CN.text", readTextFile(
+             ResourcePaths::media("text/zh-CN.text"))}});
+    check("P11E/resonance-feedback-is-bilingual-and-semantic",
+          std::string(WaystoneEncounter::feedbackKey(
+              WaystoneActionResult::ResonancePulse)) ==
+                  "waystone.feedback.resonance_pulse" &&
+              resonanceText.hasKey(
+                  "en-US", "waystone.feedback.resonance_pulse") &&
+              resonanceText.hasKey(
+                  "zh-CN", "waystone.feedback.resonance_pulse") &&
+              resonanceText.hasKey(
+                  "en-US", "waystone.feedback.resonance_charging") &&
+              resonanceText.hasKey(
+                  "zh-CN", "waystone.feedback.resonance_no_target"));
+
+    setEnv("HELLOMINE3D_SEED", "20260830");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8.5 100 8.5");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+    Config config = makeConfig();
+    Camera camera(config);
+    {
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("p11e_death_pose"), false, 1);
+        const ActorId id = world.spawnMob(
+            World::StalkerMobType,
+            player.position + glm::vec3(1.f, 0.f, 0.f));
+        const bool killed = world.attackActor(id, 100.f);
+        world.tick(1);
+        const std::vector<ActorSnapshot> afterDeath =
+            world.collectActorSnapshots();
+        const auto deathSnapshot = std::find_if(
+            afterDeath.begin(), afterDeath.end(),
+            [id](const ActorSnapshot &snapshot) {
+                return snapshot.id == id &&
+                       snapshot.deathPresentation;
+            });
+        const std::vector<ActorSaveState> saveStates =
+            world.getActorManager().collectSaveStates();
+        const bool excludedFromSave = std::none_of(
+            saveStates.begin(), saveStates.end(),
+            [id](const ActorSaveState &state) {
+                return state.id == id;
+            });
+        check("P11E/dead-mob-becomes-transient-render-snapshot",
+              killed &&
+                  world.getActorManager().findActor(id) == nullptr &&
+                  deathSnapshot != afterDeath.end() &&
+                  deathSnapshot->deathPresentationTicksRemaining ==
+                      EnemyPresentation::DeathPoseTicks &&
+                  excludedFromSave);
+        for (int tick = 2;
+             tick <= EnemyPresentation::DeathPoseTicks + 1; ++tick) {
+            world.tick(tick);
+        }
+        const std::vector<ActorSnapshot> expired =
+            world.collectActorSnapshots();
+        check("P11E/death-presentation-expires-after-eight-ticks",
+              std::none_of(
+                  expired.begin(), expired.end(),
+                  [id](const ActorSnapshot &snapshot) {
+                      return snapshot.id == id;
+                  }));
+    }
+
+    const std::string resonanceDirectory =
+        freshSaveDirectory("p11e_waystone_resonance");
+    const glm::ivec3 core{9, 100, 8};
+    bool resonanceSaved = false;
+    {
+        Player player;
+        World world(camera, config, player, resonanceDirectory, false, 1);
+        for (int x = 1; x <= 15; ++x) {
+            for (int z = 1; z <= 15; ++z) {
+                world.setBlock(x, 99, z, BlockId::Stone);
+                world.setBlock(x, 100, z, BlockId::Air);
+                world.setBlock(x, 101, z, BlockId::Air);
+            }
+        }
+        world.setBlock(core.x, core.y, core.z, BlockId::WaystoneCore);
+        const bool ready = world.initializeWaystone(core) &&
+            player.addItem(Material::IRON_INGOT,
+                           WaystoneEncounter::ActivationIronIngots) ==
+                WaystoneEncounter::ActivationIronIngots &&
+            world.useWaystone(core, player, true) ==
+                WaystoneActionResult::Activated &&
+            world.useWaystone(core, player, true) ==
+                WaystoneActionResult::EncounterStarted;
+
+        int tick = 1;
+        std::vector<ActorId> windupIds;
+        while (ready && tick <= 80 && windupIds.empty()) {
+            world.tick(tick++);
+            for (const ActorSnapshot &snapshot :
+                 world.collectActorSnapshots()) {
+                if (snapshot.type == WaystoneEncounter::StalkerType &&
+                    snapshot.combatState == MobCombatState::Windup) {
+                    windupIds.push_back(snapshot.id);
+                }
+            }
+        }
+        const std::size_t actorCountBefore =
+            world.getActorManager().getActorCount();
+        const float healthBefore = world.getPlayerHealth();
+        const WaystoneActionResult pulsed =
+            world.useWaystone(core, player, true);
+        bool recovered = !windupIds.empty();
+        for (ActorId id : windupIds) {
+            const MobActor *mob = dynamic_cast<const MobActor *>(
+                world.getActorManager().findActor(id));
+            recovered = recovered && mob != nullptr &&
+                mob->getCombatState() == MobCombatState::Recover &&
+                mob->getLastCombatTransitionReason() ==
+                    MobCombatTransitionReason::ResonanceInterrupted;
+        }
+        check("P11E/waystone-pulse-interrupts-only-windup-guardians",
+              ready && pulsed == WaystoneActionResult::ResonancePulse &&
+                  recovered && world.getPlayerHealth() == healthBefore &&
+                  world.getActorManager().getActorCount() ==
+                      actorCountBefore &&
+                  world.getWaystoneEncounterSnapshot()
+                          .resonanceCooldownTicks ==
+                      WaystoneEncounter::ResonanceCooldownTicks &&
+                  world.consumeWaystoneFeedbackKey() ==
+                      "waystone.feedback.resonance_pulse");
+
+        const WaystoneActionResult charging =
+            world.useWaystone(core, player, true);
+        player.position = {40.f, 100.f, 40.f};
+        player.box.update(player.position);
+        for (int elapsed = 0; elapsed <
+             WaystoneEncounter::ResonanceCooldownTicks - 1; ++elapsed) {
+            world.tick(tick++);
+        }
+        const int oneTickRemaining =
+            world.getWaystoneEncounterSnapshot()
+                .resonanceCooldownTicks;
+        world.tick(tick++);
+        player.position = glm::vec3(core) + glm::vec3(0.5f);
+        player.box.update(player.position);
+        const WaystoneActionResult noTarget =
+            world.useWaystone(core, player, true);
+        check("P11E/resonance-cooldown-is-exact-and-no-target-is-free",
+              charging == WaystoneActionResult::ResonanceCharging &&
+                  oneTickRemaining == 1 &&
+                  noTarget == WaystoneActionResult::ResonanceNoTarget &&
+                  world.getWaystoneEncounterSnapshot()
+                          .resonanceCooldownTicks == 0 &&
+                  world.consumeWaystoneFeedbackKey() ==
+                      "waystone.feedback.resonance_no_target");
+
+        bool secondWindup = false;
+        for (int elapsed = 0; elapsed < 80 && !secondWindup; ++elapsed) {
+            world.tick(tick++);
+            for (const ActorSnapshot &snapshot :
+                 world.collectActorSnapshots()) {
+                if (snapshot.type == WaystoneEncounter::StalkerType &&
+                    snapshot.combatState == MobCombatState::Windup) {
+                    secondWindup = true;
+                    break;
+                }
+            }
+        }
+        const WaystoneActionResult secondPulse = secondWindup
+            ? world.useWaystone(core, player, true)
+            : WaystoneActionResult::ResonanceNoTarget;
+        resonanceSaved = world.save();
+        const std::string metadata = readTextFile(
+            WorldSave(resonanceDirectory).metadataPath());
+        check("P11E/resonance-and-combat-pose-stay-out-of-save-v12",
+              secondPulse == WaystoneActionResult::ResonancePulse &&
+                  resonanceSaved &&
+                  metadata.find("\nresonance_cooldown_ticks ") ==
+                      std::string::npos &&
+                  metadata.find("\ncombat_state ") ==
+                      std::string::npos);
+    }
+    {
+        Player player;
+        World world(camera, config, player, resonanceDirectory, false, 1);
+        bool resetCombatState = true;
+        for (const ActorSnapshot &snapshot :
+             world.collectActorSnapshots()) {
+            if (snapshot.type == WaystoneEncounter::StalkerType) {
+                resetCombatState = resetCombatState &&
+                    snapshot.combatState == MobCombatState::Idle;
+            }
+        }
+        check("P11E/reopen-resets-transient-resonance-and-combat-pose",
+              resonanceSaved && resetCombatState &&
+                  world.getWaystoneEncounterSnapshot()
+                          .resonanceCooldownTicks == 0);
+        ActorId guardianId = InvalidActorId;
+        glm::vec3 guardianPosition{0.f};
+        for (const ActorSnapshot &snapshot :
+             world.collectActorSnapshots()) {
+            if (!snapshot.deathPresentation &&
+                snapshot.type == WaystoneEncounter::StalkerType) {
+                guardianId = snapshot.id;
+                guardianPosition = snapshot.position;
+                break;
+            }
+        }
+        player.position = guardianPosition + glm::vec3(0.f, 0.f, 2.f);
+        player.box.update(player.position);
+        const bool killed = guardianId != InvalidActorId &&
+            world.attackActor(guardianId, 100.f);
+        world.tick(1);
+        const WaystoneEncounterSnapshot partial =
+            world.getWaystoneEncounterSnapshot();
+        const std::vector<ActorSnapshot> postKillSnapshots =
+            world.collectActorSnapshots();
+        const bool deathStillVisible = std::any_of(
+            postKillSnapshots.begin(), postKillSnapshots.end(),
+            [guardianId](const ActorSnapshot &snapshot) {
+                return snapshot.id == guardianId &&
+                       snapshot.deathPresentation;
+            });
+        check("P11E/death-presentation-never-counts-as-live-guardian",
+              killed && deathStillVisible && partial.wave == 1 &&
+                  partial.remainingGuardians == 1 &&
+                  partial.loadedGuardians == 1);
+    }
+    setEnv("HELLOMINE3D_SEED", "");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "");
+}
+
+// ---------------------------------------------------------------------------
 // D3 - deterministic and bounded live-world mob population
 // ---------------------------------------------------------------------------
 void caseNaturalMobPopulation()
@@ -9762,6 +10114,8 @@ void caseCombatDepth()
               stalker->getChaseSpeed() == 3.2f &&
               stalker->getContactDamage() == 1.f &&
               stalker->getLootTable().size() == 3 &&
+              stalker->getLootTable()[0].materialId ==
+                  Material::ID::PlantFiber &&
               stalker->getLootTable()[2].materialId ==
                   Material::ID::RawMeat);
 
@@ -9828,8 +10182,8 @@ void caseCombatDepth()
     const std::vector<ActorSaveState> stalkerDrops =
         world.getActorManager().collectSaveStates();
     int wheatAmount = 0;
-    int dirtAmount = 0;
     int rawMeatAmount = 0;
+    int plantFiberAmount = 0;
     int stalkerItemCount = 0;
     for (const ActorSaveState &state : stalkerDrops) {
         if (state.kind != ActorSaveKind::Item) {
@@ -9839,18 +10193,19 @@ void caseCombatDepth()
         if (state.materialId == static_cast<int>(Material::ID::Wheat)) {
             wheatAmount += state.amount;
         }
-        else if (state.materialId == static_cast<int>(Material::ID::Dirt)) {
-            dirtAmount += state.amount;
-        }
         else if (state.materialId ==
                  static_cast<int>(Material::ID::RawMeat)) {
             rawMeatAmount += state.amount;
+        }
+        else if (state.materialId ==
+                 static_cast<int>(Material::ID::PlantFiber)) {
+            plantFiberAmount += state.amount;
         }
     }
     check("N4/stalker-death-drops-bounded-recovery-loot",
           lethal == CombatAttackResult::Hit && stalker != nullptr &&
               !stalker->isAlive() && wheatAmount >= 1 && wheatAmount <= 2 &&
-              dirtAmount == 1 && rawMeatAmount == 1 &&
+              rawMeatAmount == 1 && plantFiberAmount == 1 &&
               stalkerItemCount == 3 &&
               player.getInventorySlot(swordSlot).getDurability() == 30);
     if (stalker != nullptr) {
@@ -9873,6 +10228,8 @@ void caseCombatDepth()
               brute->getChaseSpeed() == 1.6f &&
               brute->getContactDamage() == 4.f &&
               brute->getLootTable().size() == 4 &&
+              brute->getLootTable()[0].materialId ==
+                  Material::ID::PlantFiber &&
               brute->getLootTable()[3].materialId ==
                   Material::ID::RawMeat);
     const bool bruteKilled = world.attackActor(bruteId, 100.f);
@@ -11000,8 +11357,9 @@ void casePlayableVerticalSlice()
     };
 
     ActorId defeatedMobId = InvalidActorId;
+    Material::ID defeatedLootMaterial = Material::ID::Nothing;
     BlockMetadata_t cropStageBeforeSave = 0;
-    int dirtAfterPickup = 0;
+    int mobLootAfterPickup = 0;
     {
         Player player;
         World world(camera, config, player, directory, false, 1);
@@ -11091,6 +11449,12 @@ void casePlayableVerticalSlice()
             World::isNaturalMobType(naturalMob->type);
         if (foundNaturalMob) {
             defeatedMobId = naturalMob->id;
+            const auto *mob = dynamic_cast<const MobActor *>(
+                world.getActorManager().findActor(defeatedMobId));
+            if (mob != nullptr && !mob->getLootTable().empty()) {
+                defeatedLootMaterial =
+                    mob->getLootTable().front().materialId;
+            }
             player.position = naturalMob->position +
                 glm::vec3(0.f, 0.f, 2.f);
             player.box.update(player.position);
@@ -11135,11 +11499,11 @@ void casePlayableVerticalSlice()
             world.getActorManager().collectSaveStates();
         const auto loot = std::find_if(
             postCombat.begin(), postCombat.end(),
-            [](const ActorSaveState &state) {
+            [defeatedLootMaterial](const ActorSaveState &state) {
                 return state.kind == ActorSaveKind::Item &&
                        state.materialId ==
-                           static_cast<int>(Material::ID::Dirt) &&
-                       state.amount == 1;
+                           static_cast<int>(defeatedLootMaterial) &&
+                       state.amount > 0;
             });
         check("D6/natural-encounter-produces-combat-loot",
               foundNaturalMob && firstHit && lethalHit &&
@@ -11156,23 +11520,28 @@ void casePlayableVerticalSlice()
                                  remainingMob->getLastCombatTransitionReason())
                        : "gone"));
 
-        const int dirtBeforePickup =
-            countPlayer(player, Material::ID::Dirt);
+        const int expectedLootAmount =
+            loot != postCombat.end() ? loot->amount : 0;
+        const int mobLootBeforePickup =
+            countPlayer(player, defeatedLootMaterial);
         for (int pickupTick = 0; pickupTick < 11; ++pickupTick) {
             world.tick(++combatTick);
         }
-        dirtAfterPickup = countPlayer(player, Material::ID::Dirt);
+        mobLootAfterPickup =
+            countPlayer(player, defeatedLootMaterial);
         const std::vector<ActorSaveState> postPickup =
             world.getActorManager().collectSaveStates();
         const bool lootStillExists = std::any_of(
             postPickup.begin(), postPickup.end(),
-            [](const ActorSaveState &state) {
+            [defeatedLootMaterial](const ActorSaveState &state) {
                 return state.kind == ActorSaveKind::Item &&
                        state.materialId ==
-                           static_cast<int>(Material::ID::Dirt);
+                           static_cast<int>(defeatedLootMaterial);
             });
         check("D6/pick-up-defeated-mob-loot",
-              dirtAfterPickup == dirtBeforePickup + 1 &&
+              expectedLootAmount > 0 &&
+                  mobLootAfterPickup ==
+                      mobLootBeforePickup + expectedLootAmount &&
                   !lootStillExists &&
                   events.count(SandboxEventType::ItemPickup) >= 2);
 
@@ -11224,8 +11593,8 @@ void casePlayableVerticalSlice()
                   restoredCrop.metadata == cropStageBeforeSave && opened &&
                   restoredChest.has_value() &&
                   restoredChest->inventory.count(Material::ID::Wheat) == 1 &&
-                  countPlayer(restoredPlayer, Material::ID::Dirt) ==
-                      dirtAfterPickup &&
+                  countPlayer(restoredPlayer, defeatedLootMaterial) ==
+                      mobLootAfterPickup &&
                   !defeatedMobRestored);
         ChestContainer::close(restoredPlayer);
     }
@@ -11670,7 +12039,9 @@ void casePlayableAlphaJourney()
     std::uint32_t flagsBeforeRelaunch = 0;
     int stonePickaxeDurability = 0;
     int ironBeforeRelaunch = 0;
-    int dirtBeforeRelaunch = 0;
+    int mobLootBeforeRelaunch = 0;
+    int pickedMobLootAmount = 0;
+    Material::ID defeatedLootMaterial = Material::ID::Nothing;
     ActorId defeatedMobId = InvalidActorId;
     {
         Player player;
@@ -11830,6 +12201,12 @@ void casePlayableAlphaJourney()
             World::isNaturalMobType(naturalMob->type);
         if (foundNaturalMob) {
             defeatedMobId = naturalMob->id;
+            const auto *mob = dynamic_cast<const MobActor *>(
+                world.getActorManager().findActor(defeatedMobId));
+            if (mob != nullptr && !mob->getLootTable().empty()) {
+                defeatedLootMaterial =
+                    mob->getLootTable().front().materialId;
+            }
             player.position = naturalMob->position +
                 glm::vec3(0.f, 0.f, 2.f);
             player.box.update(player.position);
@@ -11887,18 +12264,22 @@ void casePlayableAlphaJourney()
                                  remainingMob->getLastCombatTransitionReason())
                        : "gone"));
 
-        const int dirtBeforePickup =
-            countPlayer(player, Material::ID::Dirt);
+        const int mobLootBeforePickup =
+            countPlayer(player, defeatedLootMaterial);
         for (int pickupTick = 0; pickupTick < 11; ++pickupTick) {
             world.tick(++combatTick);
         }
-        dirtBeforeRelaunch = countPlayer(player, Material::ID::Dirt);
+        mobLootBeforeRelaunch =
+            countPlayer(player, defeatedLootMaterial);
+        pickedMobLootAmount =
+            mobLootBeforeRelaunch - mobLootBeforePickup;
         check("G6/physical-mob-drop-is-picked-up",
-              dirtBeforeRelaunch == dirtBeforePickup + 1 &&
+              defeatedLootMaterial != Material::ID::Nothing &&
+                  pickedMobLootAmount > 0 &&
                   world.getAlphaJourneySnapshot().step ==
                       AlphaJourneyStep::ReopenWorld,
-              "dirt=" + std::to_string(dirtBeforePickup) + "->" +
-                  std::to_string(dirtBeforeRelaunch) + " step=" +
+              "loot=" + std::to_string(mobLootBeforePickup) + "->" +
+                  std::to_string(mobLootBeforeRelaunch) + " step=" +
                   std::to_string(static_cast<int>(
                       world.getAlphaJourneySnapshot().step)));
 
@@ -11913,9 +12294,10 @@ void casePlayableAlphaJourney()
         const int totalBeforeSave =
             countPlayer(player, Material::ID::WoodenPickaxe) +
             countPlayer(player, Material::ID::StonePickaxe) +
-            ironBeforeRelaunch + dirtBeforeRelaunch;
+            ironBeforeRelaunch + pickedMobLootAmount;
         check("G6/pre-save-state-conserves-tools-ore-and-loot",
-              totalBeforeSave == 4 && flagsBeforeRelaunch == 9u &&
+              totalBeforeSave == 3 + pickedMobLootAmount &&
+                  flagsBeforeRelaunch == 9u &&
                   world.getBlock(ironPosition.x, ironPosition.y,
                                  ironPosition.z).id == 0);
 
@@ -11961,8 +12343,8 @@ void casePlayableAlphaJourney()
                   stonePickaxeDurability &&
               countPlayer(restoredPlayer, Material::ID::IronOre) ==
                   ironBeforeRelaunch &&
-              countPlayer(restoredPlayer, Material::ID::Dirt) ==
-                  dirtBeforeRelaunch &&
+              countPlayer(restoredPlayer, defeatedLootMaterial) ==
+                  mobLootBeforeRelaunch &&
               static_cast<BlockId>(restoredWorld.getBlock(
                   workbenchPosition.x, workbenchPosition.y,
                   workbenchPosition.z).id) == BlockId::Workbench &&
@@ -14184,6 +14566,10 @@ int main()
         else if (focus != nullptr && std::string(focus) == "P11-2") {
             caseP11TerrainContoursAndEntrances();
         }
+        else if (focus != nullptr && std::string(focus) == "P11E") {
+            caseWorldOutcomeAndLocalizedText();
+            caseP11EEnemyPresentationAndResonance();
+        }
         else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
@@ -14241,6 +14627,7 @@ int main()
         caseP11CFirstThirtyMinutes();
         caseP11DExplorationRewards();
         caseP11TerrainContoursAndEntrances();
+        caseP11EEnemyPresentationAndResonance();
         caseNaturalMobPopulation();
         caseCombatAndRespawn();
         caseCombatDepth();

@@ -35,7 +35,14 @@ class ActorManager {
         const std::function<bool(const Actor &)> &predicate);
 
   private:
+    struct DeathPresentation
+    {
+        ActorSnapshot snapshot;
+        int ticksRemaining = 0;
+    };
+
     std::vector<std::unique_ptr<Actor>> m_actors;
+    std::vector<DeathPresentation> m_deathPresentations;
     ActorId m_nextActorId = DefaultPlayerActorId + 1;
 };
 

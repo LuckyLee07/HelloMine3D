@@ -40,6 +40,10 @@ class MobActor : public LivingActor {
                               const glm::vec3 &sourcePosition,
                               float knockbackDistance,
                               int recoverTicks);
+    void interruptByResonancePulse(World &world,
+                                   const glm::vec3 &sourcePosition,
+                                   float knockbackDistance,
+                                   int recoverTicks);
     const std::vector<EnemyLootDefinition> &getLootTable() const;
 
   private:
@@ -53,6 +57,11 @@ class MobActor : public LivingActor {
         MobMeleeAttackResult result) noexcept;
     static MobCombatTransitionReason reasonForAttackResult(
         MobRangedAttackResult result) noexcept;
+    void interruptBySource(World &world,
+                           const glm::vec3 &sourcePosition,
+                           float knockbackDistance,
+                           int recoverTicks,
+                           MobCombatTransitionReason reason);
 
     const Entity *m_chaseTarget = nullptr;
     ActorId m_chaseTargetId = InvalidActorId;

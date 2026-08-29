@@ -1141,6 +1141,8 @@ void World::tick(int worldTime)
         std::max(0, m_foodCooldownTicksRemaining - 1);
     m_attackCooldownTicksRemaining =
         std::max(0, m_attackCooldownTicksRemaining - 1);
+    m_waystoneResonanceCooldownTicks = std::max(
+        0, m_waystoneResonanceCooldownTicks - 1);
     m_actorManager.tick(*this, 1.f / 20.f);
     tickCombatProjectiles();
     reconcileWaystoneEncounter();
@@ -1518,6 +1520,8 @@ WaystoneEncounterSnapshot World::getWaystoneEncounterSnapshot() const
         m_waystoneEncounterState.postVictoryWave;
     result.postVictoryRemainingGuardians =
         m_waystoneEncounterState.postVictoryRemainingGuardians;
+    result.resonanceCooldownTicks =
+        m_waystoneResonanceCooldownTicks;
     if (m_waystoneAnchor.has_value()) {
         result.anchorKnown = true;
         result.anchor = *m_waystoneAnchor;
@@ -1672,11 +1676,11 @@ WaystoneActionResult World::useWaystone(const glm::ivec3 &position,
         return finish(WaystoneActionResult::EncounterStarted);
     }
     if (outcome.phase == WorldOutcomePhase::Encounter) {
-        return finish(
-            m_waystoneAnchor.has_value() &&
-                    sameBlockPosition(*m_waystoneAnchor, position)
-                ? WaystoneActionResult::EncounterInProgress
-                : WaystoneActionResult::Rejected);
+        if (!m_waystoneAnchor.has_value() ||
+            !sameBlockPosition(*m_waystoneAnchor, position)) {
+            return finish(WaystoneActionResult::Rejected);
+        }
+        return finish(triggerWaystoneResonancePulse(position));
     }
     if (outcome.phase == WorldOutcomePhase::Victorious) {
         return claimWaystoneReward(simulationRunning);
@@ -1826,7 +1830,7 @@ WaystoneActionResult World::usePostVictoryWaystone(
 
     m_waystoneEncounterState = state;
     if (state.postVictoryWave == 1 || state.postVictoryWave == 2) {
-        return finish(WaystoneActionResult::PostVictoryEventInProgress);
+        return finish(triggerWaystoneResonancePulse(position));
     }
     if (state.postVictoryWave == 3) {
         return claimPostVictoryReward(position, state);
@@ -1911,6 +1915,9 @@ bool World::findWaystoneSpawnPositions(
         }
         bool occupied = false;
         for (const ActorSnapshot &actor : actors) {
+            if (actor.deathPresentation) {
+                continue;
+            }
             if (glm::distance(actor.position, candidate) <= 1.5f) {
                 occupied = true;
                 break;
@@ -1958,6 +1965,41 @@ bool World::spawnWaystoneGuardians(int wave, int count)
     return true;
 }
 
+WaystoneActionResult World::triggerWaystoneResonancePulse(
+    const glm::ivec3 &position)
+{
+    if (m_waystoneResonanceCooldownTicks > 0) {
+        return WaystoneActionResult::ResonanceCharging;
+    }
+
+    const glm::vec3 coreCenter = glm::vec3(position) + glm::vec3(0.5f);
+    const float radiusSquared = WaystoneEncounter::ResonanceRadius *
+                                WaystoneEncounter::ResonanceRadius;
+    bool interrupted = false;
+    for (ActorId id : m_waystoneGuardianIds) {
+        MobActor *guardian = dynamic_cast<MobActor *>(
+            m_actorManager.findActor(id));
+        if (guardian == nullptr || !guardian->isAlive() ||
+            guardian->getCombatState() != MobCombatState::Windup) {
+            continue;
+        }
+        const glm::vec3 offset = guardian->position - coreCenter;
+        if (glm::dot(offset, offset) > radiusSquared) {
+            continue;
+        }
+        guardian->interruptByResonancePulse(
+            *this, coreCenter, WaystoneEncounter::ResonanceKnockback,
+            WaystoneEncounter::ResonanceRecoverTicks);
+        interrupted = true;
+    }
+    if (!interrupted) {
+        return WaystoneActionResult::ResonanceNoTarget;
+    }
+    m_waystoneResonanceCooldownTicks =
+        WaystoneEncounter::ResonanceCooldownTicks;
+    return WaystoneActionResult::ResonancePulse;
+}
+
 void World::removeWaystoneGuardians()
 {
     m_actorManager.removeActorsIf([](const Actor &actor) {
@@ -1965,6 +2007,7 @@ void World::removeWaystoneGuardians()
     });
     clearInvalidCombatProjectiles();
     m_waystoneGuardianIds.clear();
+    m_waystoneResonanceCooldownTicks = 0;
 }
 
 void World::abandonWaystoneEncounter()
@@ -2213,7 +2256,7 @@ void World::reconcileWaystoneEncounter()
     });
     std::vector<ActorId> loadedIds;
     for (const ActorSnapshot &actor : m_actorManager.collectSnapshots()) {
-        if (actor.type == expected) {
+        if (!actor.deathPresentation && actor.type == expected) {
             loadedIds.push_back(actor.id);
         }
     }
@@ -2928,7 +2971,8 @@ void World::runNaturalMobPopulation(int worldTime)
     std::size_t worldCount = 0;
     std::size_t localCount = 0;
     for (const ActorSnapshot &snapshot : initialSnapshots) {
-        if (!isNaturalMobType(snapshot.type)) {
+        if (snapshot.deathPresentation ||
+            !isNaturalMobType(snapshot.type)) {
             continue;
         }
         ++worldCount;
@@ -2972,7 +3016,8 @@ void World::runNaturalMobPopulation(int worldTime)
         bool occupied = false;
         for (const ActorSnapshot &snapshot :
              m_actorManager.collectSnapshots()) {
-            if (isNaturalMobType(snapshot.type) &&
+            if (!snapshot.deathPresentation &&
+                isNaturalMobType(snapshot.type) &&
                 glm::distance(snapshot.position, spawnPosition) <= 1.5f) {
                 occupied = true;
                 break;
@@ -3406,7 +3451,8 @@ WorldDebugStats World::collectDebugStats()
     stats.naturalMobCount = static_cast<std::size_t>(std::count_if(
         actorSnapshots.begin(), actorSnapshots.end(),
         [](const ActorSnapshot &snapshot) {
-            return World::isNaturalMobType(snapshot.type);
+            return !snapshot.deathPresentation &&
+                   World::isNaturalMobType(snapshot.type);
         }));
     const DifficultyRuntimeSnapshot difficulty = getDifficultySnapshot();
     stats.naturalMobWorldCap =
@@ -3443,7 +3489,7 @@ WorldDebugStats World::collectDebugStats()
         m_lastCombatProjectileRemovalReason;
     int observedPriority = -1;
     for (const ActorSnapshot &snapshot : actorSnapshots) {
-        if (!snapshot.combatant) {
+        if (snapshot.deathPresentation || !snapshot.combatant) {
             continue;
         }
         ++stats.combat.combatantCount;
@@ -3827,7 +3873,8 @@ void World::restoreActors(const std::vector<ActorSaveState> &states)
                 bool duplicateNaturalPosition = false;
                 for (const ActorSnapshot &snapshot :
                      m_actorManager.collectSnapshots()) {
-                    if (isNaturalMobType(snapshot.type) &&
+                    if (!snapshot.deathPresentation &&
+                        isNaturalMobType(snapshot.type) &&
                         glm::distance(snapshot.position, state.position) <=
                             1.5f) {
                         duplicateNaturalPosition = true;
