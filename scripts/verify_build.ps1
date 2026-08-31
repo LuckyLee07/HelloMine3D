@@ -174,49 +174,49 @@ try {
     Invoke-Checked "Manual input protocol schema" {
         & $manualInputRecordVerifier `
             -RecordPath (Join-Path $repoRoot `
-                "docs\manual-input-record-v1.template.txt") `
+                "docs\archive\manual-input-record-v1.template.txt") `
             -AllowNotRun
     }
 
     Invoke-Checked "Physical Input v2 protocol schema" {
         & $physicalInputV2RecordVerifier `
             -RecordPath (Join-Path $repoRoot `
-                "docs\physical-input-record-v2.template.txt") `
+                "docs\archive\physical-input-record-v2.template.txt") `
             -AllowNotRun
     }
 
     Invoke-Checked "Developer visual record schema" {
         & $developerVisualRecordVerifier `
             -RecordPath (Join-Path $repoRoot `
-                "docs\developer-visual-record-v10b2.txt") `
+                "docs\reports\developer-visual-record-v10b2.txt") `
             -RequirePass
     }
 
     Invoke-Checked "V10B3 developer visual record" {
         & $developerVisualRecordVerifier `
             -RecordPath (Join-Path $repoRoot `
-                "docs\developer-visual-record-v10b3.txt") `
+                "docs\reports\developer-visual-record-v10b3.txt") `
             -RequirePass
     }
 
     Invoke-Checked "V10C developer visual record" {
         & $developerVisualRecordVerifier `
             -RecordPath (Join-Path $repoRoot `
-                "docs\developer-visual-record-v10c.txt") `
+                "docs\reports\developer-visual-record-v10c.txt") `
             -RequirePass
     }
 
     Invoke-Checked "V10D developer visual record" {
         & $developerVisualRecordVerifier `
             -RecordPath (Join-Path $repoRoot `
-                "docs\developer-visual-record-v10d.txt") `
+                "docs\reports\developer-visual-record-v10d.txt") `
             -RequirePass
     }
 
     Invoke-Checked "V10E developer visual record" {
         & $developerVisualRecordVerifier `
             -RecordPath (Join-Path $repoRoot `
-                "docs\developer-visual-record-v10e.txt") `
+                "docs\reports\developer-visual-record-v10e.txt") `
             -RequirePass
     }
 

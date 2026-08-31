@@ -19,7 +19,7 @@ $backgroundVerifier = Join-Path $scriptRoot "validate_background_client.ps1"
 $manualRecordVerifier = Join-Path $scriptRoot `
     "validate_manual_input_record.ps1"
 $manualRecordTemplate = Join-Path $repoRoot `
-    "docs\manual-input-record-v1.template.txt"
+    "docs\archive\manual-input-record-v1.template.txt"
 
 if ([string]::IsNullOrWhiteSpace($WorldSmokePath)) {
     $WorldSmokePath = Join-Path $binRoot `

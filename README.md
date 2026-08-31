@@ -142,15 +142,15 @@ If you only read a few parts of this repository, read these.
 
 | # | Practice | Where |
 | --- | --- | --- |
-| 1 | **Transactional world saves.** A same-directory candidate is written, durably flushed, re-read through the *real* format reader, and only then atomically swapped in. One failed candidate is kept for diagnosis; a failed save can never destroy the last good one. | [`World/Storage/`](src/HelloMine3D/World/Storage/) · [contract](docs/storage-transaction-contract-v1.md) |
+| 1 | **Transactional world saves.** A same-directory candidate is written, durably flushed, re-read through the *real* format reader, and only then atomically swapped in. One failed candidate is kept for diagnosis; a failed save can never destroy the last good one. | [`World/Storage/`](src/HelloMine3D/World/Storage/) · [contract](docs/contracts/storage-transaction-contract-v1.md) |
 | 2 | **Twelve save versions, no orphans.** `save v1→v12`, `terrain v1–v4` and `settings v1→v8` all migrate deterministically, with fixtures for every old version. A world permanently keeps the terrain identity it was created with — new generation features never backfill existing chunks. | [`WorldSave.h`](src/HelloMine3D/World/Storage/WorldSave.h) · [`TerrainGenerator.h`](src/HelloMine3D/World/Generation/Terrain/TerrainGenerator.h) |
-| 3 | **Verified, bounded backups.** A strict manifest freezes every path, byte count and fingerprint; backup *and* restore candidates must pass the real readers before publication, and restore parks the previous primary in a `recovery.failed` directory instead of deleting it. | [`WorldBackup.cpp`](src/HelloMine3D/World/Storage/WorldBackup.cpp) · [contract](docs/world-backup-contract-v1.md) |
+| 3 | **Verified, bounded backups.** A strict manifest freezes every path, byte count and fingerprint; backup *and* restore candidates must pass the real readers before publication, and restore parks the previous primary in a `recovery.failed` directory instead of deleting it. | [`WorldBackup.cpp`](src/HelloMine3D/World/Storage/WorldBackup.cpp) · [contract](docs/contracts/world-backup-contract-v1.md) |
 | 4 | **Off-lock meshing with revision validation.** The world lock is held only long enough to copy an 18³ neighbourhood; the greedy/AO build then runs with no world access at all, and any result carrying a stale section revision is discarded rather than overwriting a newer edit. | [`SectionMeshInput.h`](src/HelloMine3D/World/Chunk/SectionMeshInput.h) · [`ChunkMeshBuilder.cpp`](src/HelloMine3D/World/Chunk/ChunkMeshBuilder.cpp) |
 | 5 | **Performance comparison that can say "incomparable".** Scene identity, schema, build configuration and final chunk residency are all part of the record; a mismatch yields `INCOMPARABLE` instead of a misleading pass, and thresholds only gate after a baseline has been explicitly approved. | [`compare_perf_baselines.ps1`](tools/compare_perf_baselines.ps1) · [`performance-contract-v1.json`](tools/performance-contract-v1.json) |
-| 6 | **Crash diagnostics with no telemetry.** A local minidump plus a versioned, sanitized sidecar; offline mixed-stack symbolization against a separately archived PDB; a next-launch prompt the player can simply ignore. Nothing is uploaded and no absolute developer paths leak. | [`Diagnostics/`](src/HelloMine3D/Diagnostics/) · [contract](docs/crash-diagnostics-contract-v1.md) |
+| 6 | **Crash diagnostics with no telemetry.** A local minidump plus a versioned, sanitized sidecar; offline mixed-stack symbolization against a separately archived PDB; a next-launch prompt the player can simply ignore. Nothing is uploaded and no absolute developer paths leak. | [`Diagnostics/`](src/HelloMine3D/Diagnostics/) · [contract](docs/contracts/crash-diagnostics-contract-v1.md) |
 | 7 | **Packages validated from an isolated root.** The distribution is checked from a directory with no access to the source or build tree, including negative cases for missing and stale resources — so "it works on my machine" cannot pass the gate. | [`package_windows_release.ps1`](tools/package_windows_release.ps1) · [`validate_startup_errors.ps1`](tools/validate_startup_errors.ps1) |
-| 8 | **One frozen contract per feature batch.** Roughly thirty `*-contract-v1.md` documents fix the data fields, defaults, migration path, failure semantics and exit conditions *before* implementation — then record the real measured numbers afterwards. | [`docs/`](docs/) |
-| 9 | **A ThreadSanitizer gate that proves itself first.** The script requires an isolated race probe to actually report and exit 66, then verifies native architecture and TSan runtime linkage and rejects suppressions, before the real loader-churn run is allowed to count. | [`verify_tsan.sh`](scripts/verify_tsan.sh) · [notes](docs/thread-sanitizer-validation.md) |
+| 8 | **One frozen contract per feature batch.** Forty-four contract documents fix the data fields, defaults, migration path, failure semantics and exit conditions *before* implementation — then record the real measured numbers afterwards. | [`contracts/`](docs/contracts/) |
+| 9 | **A ThreadSanitizer gate that proves itself first.** The script requires an isolated race probe to actually report and exit 66, then verifies native architecture and TSan runtime linkage and rejects suppressions, before the real loader-churn run is allowed to count. | [`verify_tsan.sh`](scripts/verify_tsan.sh) · [notes](docs/current/thread-sanitizer-validation.md) |
 | 10 | **Strict data-driven content with startup preflight.** Blocks, recipes, tools, foods, smelting, enemies, objectives, audio, music and both locales are parsed strictly from `media/`; a missing, duplicate or malformed entry fails before Ogre is even constructed. | [`media/`](media/) · [`StartupResourcePreflight.cpp`](src/HelloMine3D/Ogre/StartupResourcePreflight.cpp) |
 
 ---
@@ -182,10 +182,10 @@ baseline is currently `NOT_RUN`; human fun, physical-device feel and subjective 
 explicitly `NOT_CLAIMED`, rather than kept on an indefinite deferred list. No `1.0` tag has been
 created.
 
-See [`docs/todolist.md`](docs/todolist.md) for the authoritative current state, and
-[`docs/playability-release-candidate-report-2026-08-31.md`](docs/playability-release-candidate-report-2026-08-31.md)
+See [`docs/current/todolist.md`](docs/current/todolist.md) for the authoritative current state, and
+[`docs/reports/playability-release-candidate-report-2026-08-31.md`](docs/reports/playability-release-candidate-report-2026-08-31.md)
 for the frozen engineering evidence. The active acceptance boundary is
-[`docs/ai-assisted-gameplay-acceptance-v1.md`](docs/ai-assisted-gameplay-acceptance-v1.md).
+[`docs/current/ai-assisted-gameplay-acceptance-v1.md`](docs/current/ai-assisted-gameplay-acceptance-v1.md).
 
 ---
 
@@ -204,42 +204,13 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 
 | Document | Contents |
 | -------- | -------- |
-| `docs/todolist.md` | Authoritative current state, approved work and evidence status. Start here. |
-| `docs/Sandbox_Architecture_Lab_Roadmap_v1.md` | Proposed long-term Architecture Lab capability catalogue and playable-carrier constraints. |
-| `docs/ai-assisted-gameplay-acceptance-v1.md` | Active automation/AI/Computer Use acceptance boundary, scenarios and claim taxonomy. |
-| `docs/project-ledger-2026-08-17.md` | Frozen pre-split ledger with detailed evidence for completed milestones. |
-| `docs/validation-matrix.md` | Change-type to validation-command routing. |
-| `docs/iteration-report-template.md` | Reusable iteration and regression report template. |
-| `docs/architecture.md` | Current code boundaries and the mapping from the original project layout. |
-| `docs/sandbox-foundation-todolist.md` | Detailed record of the S0-S7 sandbox foundation milestones. |
-| `docs/ogre-migration-plan.md` | Plan for moving the render backend to Ogre 1.10 (milestones E0-E5). |
-| `docs/runtime-validation.md` | How runtime behaviour is validated, and what is not covered. |
-| `docs/iteration-plan.md` | Long-term iteration roadmap. |
-| `docs/game-development-roadmap.md` | Detailed G5/G6, post-Alpha gameplay and Release Candidate development order. |
-| `docs/visual-quality-roadmap.md` | Stage 10 vertex lighting/AO, split material pipeline/assets/tint batches, atmosphere/clouds, optional shadows, post-processing, version plan and visual-RC gates. |
-| `docs/visual-release-candidate-report-2026-08-28.md` | Final Windows Stage 10 visual, Q1/Q3, resource/licence, packaging and cross-platform evidence boundary. |
-| `docs/playability-experience-roadmap.md` | Authoritative Stage 11 light-source, input-feel, action-feedback, building-material, first-30-minute, exploration-reward, terrain-silhouette, combat-presentation and PLAYABILITY-RC batch plan. |
-| `docs/world-light-source-contract-v1.md` | P11-0 torch definition, atlas/recipe ownership, metadata-driven emission, local relight and append-only identity constraints. |
-| `docs/vertex-lighting-contract-v1.md` | V10A corner sampling, AO/light composition, deterministic diagonals, reconstruction-safe greedy merging, and dirty propagation. |
-| `docs/world-catalogue-contract-v1.md`, `docs/storage-transaction-contract-v1.md`, `docs/world-backup-contract-v1.md`, `docs/world-management-contract-v1.md` | K1-K4 world identity, atomic publication, verified recovery and player-facing management contracts. |
-| `docs/runtime-settings-contract-v1.md` | G4 pause, settings draft, versioned persistence and live-apply contract. |
-| `docs/audio-feedback-contract-v1.md` | G5 audio definitions, event ownership, playback, degradation and validation contract. |
-| `docs/streamed-music-contract-v1.md` | N12C single-channel streamed music resources, lifecycle, degradation and settings-v4 contract. |
-| `docs/playable-alpha-contract-v1.md` | G6 ten-step player journey, version-4 persistence and regression contract. |
-| `docs/alpha-development-checkpoint-v1.md` | Frozen post-G6 journey, migration, performance and crash-diagnostics development baseline. |
-| `docs/operation-performance-timing-contract-v1.md` | Q2 bounded startup, world-entry, save, backup and restore timing contract. |
-| `docs/crash-diagnostics-contract-v1.md` | H1 Windows local-minidump backend, trigger and validation contract. |
-| `docs/crash-sidecar-contract-v1.md` | H2 sanitized sidecar schema and exact-identity offline symbolization contract. |
-| `docs/thread-sanitizer-validation.md` | R4 native Clang ThreadSanitizer gate for the background loader. |
-| `docs/render-regression-smoke.md` | Non-intrusive render screenshot smoke. |
-| `docs/performance-baseline.md` | Non-intrusive frame timing and chunk counter baseline. |
-| `docs/difficulty-replay-contract-v1.md` | N11A versioned difficulty, migration, transactional apply and performance identity contract. |
-| `docs/manual-input-acceptance-v1.md` | Historical twelve-case physical keyboard/mouse baseline; a passing v1 record no longer closes the expanded D4/D6 or product-experience scope by itself. |
-| `docs/manual-product-experience-acceptance-v1.md` | Separate developer visual, formal visual/readability and listening acceptance contract; it does not replace physical-input evidence. |
-| `docs/resource-pack-contract.md` | Bounded read-only resource-pack contract and validation. |
-| `docs/windows-release-packaging.md` | Deterministic self-contained Windows distribution flow. |
-| `docs/chunk-streaming-regression.md` | Diagnosis and fix of the terrain streaming regression. |
-| `docs/minigame-reference.md` | Historical architecture study of an external MiniGame project; reference only, not a backlog. |
+| [`docs/README.md`](docs/README.md) | Documentation map, authority rules and reading paths. Start here. |
+| `docs/current/todolist.md` | Authoritative current state, approved work and evidence status. Start here. |
+| `docs/current/architecture-lab-roadmap-v1.md` | Proposed long-term Architecture Lab capability catalogue and playable-carrier constraints. |
+| `docs/current/ai-assisted-gameplay-acceptance-v1.md` | Active automation/AI/Computer Use acceptance boundary, scenarios and claim taxonomy. |
+| `docs/current/validation-matrix.md` | Change-type to validation-command routing. |
+| `docs/current/architecture.md` | Current code boundaries and the mapping from the original project layout. |
+| `docs/current/runtime-validation.md` | Existing runtime evidence and its coverage limits. |
 
 ## Origins
 
@@ -403,7 +374,7 @@ after every step succeeds and keeps per-step logs under `build/`.
 world target as a native ThreadSanitizer binary, and runs all 346 assertions
 including the concurrent V5 loader scenario. It rejects first-party sanitizer
 suppressions, missing TSan linkage, any sanitizer report or incomplete runtime
-summary. See `docs/thread-sanitizer-validation.md`.
+summary. See `docs/current/thread-sanitizer-validation.md`.
 
 ### Runtime Configuration And State
 
@@ -533,7 +504,7 @@ deterministic inventory and negative checks.
 On a disconnected build session, both crash/package commands accept `-SkipRealWindow`; this keeps
 the headless checks and explicitly defers every flow that requires an actual OpenGL window.
 
-See `docs/runtime-validation.md` for what each layer covers.
+See `docs/current/runtime-validation.md` for what each layer covers.
 
 ## The Challenge
 
