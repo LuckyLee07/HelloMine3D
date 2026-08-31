@@ -3,7 +3,7 @@
 
 > 文档状态：Proposed
 > 适用仓库：`LuckyLee07/HelloMine3D`
-> 规划定位：在现有 VISUAL-RC / Beta 工程基线之后，新开一条 **Architecture Lab Track**。
+> 规划定位：在现有 PLAYABILITY-RC / Stage 11 P11F 工程基线之后，新开一条 **Architecture Lab Track**。
 > 核心目标：把 HelloMine3D 从“可玩的 C++ Voxel Sandbox”演进为一套可教学、可验证、可展示的 **沙盒系统设计 + 大世界架构实验工程**。
 > 验收定位：自动化证明确定性和工程边界，AI/Computer Use 证明真实窗口中的功能可玩性；
 > 人类乐趣、审美和物理设备手感不冒充 PASS。
@@ -68,8 +68,8 @@ HelloMine3D 现有产品线已经完成大量玩法、存档、性能、诊断�
 ### 沙盒系统
 
 - 数据驱动 Block Behavior；
-- 通用 Machine Framework；
-- 通用 Dynamic Network Graph；
+- 由两个具体机器共同逼出的 Machine Runtime；
+- 由两个已批准具体网络共同逼出的 Dynamic Network Core；
 - Create-style Mechanical Network；
 - Belt / Transport；
 - Processing Machine Pipeline；
@@ -140,23 +140,21 @@ Architecture Lab 必须同时保持三层结果：
 
 当前 HelloMine3D 已经不是简单 Voxel Demo，它已有：
 
-- `World / ChunkManager / Chunk / ChunkSection`
-- Greedy Meshing
-- Chunk Mesh Dirty Queue
-- 后台加载
-- 固定 Tick
-- 确定性地形生成
-- Block Behavior
-- Block Entity
-- Event Bus
-- Actor
-- Crafting / Tool / Combat / Crop
-- World Storage Transaction
-- Backup / Restore
-- Diagnostics / Crash Dump
-- Runtime Performance Metrics
-- Ogre Rendering
-- ImGui Debug UI
+- `World / ChunkManager / Chunk / ChunkSection`、Greedy Meshing、Mesh Dirty Queue 和后台加载；
+- `SandboxRuntime / WorldManager / GameApplicationFlow / FixedTickScheduler / SandboxEventBus`；
+- 独立的 `Actor` 生命周期、保存状态和 immutable render snapshot；
+- Crafting、Tool、Combat、Crop、Objective、Victory、Exploration Reward 和 Action Feedback；
+- `AudioRuntime / MusicRuntime` 及真实/降级后端，语义化 Presentation、本地化、字幕和布局；
+- terrain v4、world save format v12、事务保存、验证备份与恢复；
+- Stage 10 的材质、生态着色、大气、阴影和轻量后处理表现；
+- Diagnostics、Crash Dump、Runtime Performance Metrics、Ogre Rendering 和 ImGui Debug UI；
+- PLAYABILITY-RC / Stage 11 P11F 的 Windows 自动工程基线，以及当前
+  `AI-01..AI-08=NOT_RUN`、人类主观体验 `NOT_CLAIMED` 的证据身份。
+
+本节只提供当前身份摘要，不复制完整实现账本。模块职责和依赖方向以
+`docs/current/architecture.md` 为准；工程、性能、发行包和 AI 身份以
+`docs/current/runtime-validation.md` 与
+`docs/reports/playability-release-candidate-report-2026-08-31.md` 为准。
 
 因此新路线 **不从重新造 Chunk 开始**。
 
@@ -275,13 +273,20 @@ private:
 | Track | 主题 | 核心成果 |
 |---|---|---|
 | A | Sandbox Foundation Refactor | World 职责拆分、Runtime 边界、教程基础设施 |
-| B | Large World Architecture | Streaming、Job、LOD、Spatial Activation |
-| C | Emergent Sandbox Systems | Machine、Mechanical、Transport、Storage、Auto Craft |
-| D | Large Scale Simulation | Simulation LOD、AI LOD、Reduced Simulation、综合 Demo |
+| B | Large World Architecture | Core：有界 Streaming；Extended：Render/Simulation Split、Far Terrain、LOD |
+| C | Emergent Sandbox Systems | Core：Machine + Mechanical；Extended：Transport、Storage、Auto Craft 与共享 Network Core |
+| D | Large Scale Simulation | Core：Tick Phase、Simulation Activation、Actor AI LOD；Extended：机器/网络降级与 Simulation Cell |
 
-推荐采用 **两周一个 Sprint** 的节奏；每个 Sprint 只关闭一个核心架构问题。
+每个获批批次只关闭一个主要架构问题；范围、估时和退出条件在进入当前任务账本时逐批确定，
+不预设固定 Sprint 周期。
 
-完整主线约 34 个 Sprint。可选内容不纳入核心关闭条件。
+完整能力目录约 34 个 Sprint，但不再把它表述成一条必须连续完成的“完整主线”。每个主要 Track
+分成两种范围：
+
+- **Core**：该 Track 的最小教学与工程闭环；仍须由当前任务账本逐批批准，不自动进入开发。
+- **Extended**：只有真实玩法、视距、规模或性能问题出现后才批准；不纳入 Core Exit。
+
+Extended 未触发时不进入任务账本，也不分配 `TODO`、`Deferred` 等任务状态。
 
 这 34 个 Sprint 是完整能力目录，不是自动获批的连续 backlog 或工期承诺。只有进入
 `docs/current/todolist.md` 的下一批才是当前开发任务；后续 Track 必须由前一阶段暴露出的真实玩法或
@@ -318,6 +323,8 @@ Sprint 再拆四份平行状态文档。
 
 记录：
 
+- 全部 first-party 顶层模块的清单、职责、权威/派生状态和依赖方向；至少覆盖容易遗漏的
+  `Audio/`、`Presentation/`、`Sandbox/`、`Actor/` 与 `Feedback/` 边界；
 - World 当前公开 API；
 - World 当前成员职责；
 - ChunkManager 职责；
@@ -327,7 +334,7 @@ Sprint 再拆四份平行状态文档。
 - 主要 Tick 链；
 - Render Snapshot 链；
 - 当前性能基线；
-- 当前自动化回归命令。
+- 当前自动化回归命令；
 - 当前 AI/Computer Use 场景、未声明范围和 `NOT_RUN/PASS` 证据身份。
 
 ### 验收
@@ -436,7 +443,7 @@ World
         ├── ChunkManager
         ├── ChunkUpdateQueue
         ├── MeshWorkPlanner
-        └── Residency bookkeeping
+        └── Loader coordination
 ```
 
 ### 重点
@@ -459,10 +466,13 @@ finishMeshJob
 
 ```text
 World/Chunk/ChunkRuntime.*
-World/Chunk/ChunkResidency.*
 ```
 
 或等价命名。
+
+A2 只迁移当前已经存在的队列、规划与 loader 协调行为，不新增 Chunk 生命周期状态，不提前创建
+`ChunkResidency` 状态机，也不改变 load / save / unload 的转换语义。三套正交状态及其非法转换由
+B1 负责。
 
 ### 验收
 
@@ -516,7 +526,7 @@ Fixed Tick
 ```text
 Tick Phase
 Tick Context
-Tick Metrics
+Raw Phase Timing
 ```
 
 例如：
@@ -532,7 +542,7 @@ struct WorldTickContext {
 ### 验收
 
 - Fixed Tick 顺序文档化；
-- 每个 phase 独立计时；
+- 每个 phase 有原始耗时观测；统一 Metrics / Budget 语义留给 A5；
 - Pause gate 仍正确；
 - Replay / deterministic tests 不变。
 
@@ -610,36 +620,40 @@ Diagnostic Event 不驱动 Gameplay。
 
 ---
 
-## A5 — System Registry & Tick Budget Foundation
+## A5 — Tick Phase Metrics & Budget Vocabulary
 
 ### 目标
 
-为后面机器、Network、AI 建统一系统调度骨架。
+在 A3 已有 phase 边界和原始计时上，冻结统一的 Metrics / Budget 词汇，但不提前冻结通用系统
+继承体系。
 
 ```cpp
-class ISandboxSystem {
-public:
-    virtual void fixedTick(SystemTickContext&) = 0;
+struct SimulationPhaseMetrics {
+    Duration elapsed;
+    std::size_t processed;
+    std::size_t deferred;
 };
 ```
 
-但不要过度 OOP。
-
-真正需要的是：
+第一阶段只需要：
 
 ```text
-System
-Priority
-Budget
+Phase
 Metrics
-Activation Policy
+Processed
+Deferred
+Budget Vocabulary
 ```
 
-### 第一批系统
+### 第一批可观察 Phase
 
-- BlockRandomTickSystem
-- ActorSimulationSystem
-- CombatSystem
+- Block Random Tick
+- Actor Simulation
+- Combat
+- Population
+
+`SimulationScheduler`、`ISandboxSystem` 或 Registry 都不是 A5 Core 交付物。只有 Machine、Network、
+AI、Transport 等至少三个真实系统出现共同调度、优先级或延迟问题后，才允许单独批准调度抽象。
 
 ### 验收
 
@@ -651,6 +665,10 @@ Simulation
   Actor          0.32 ms
   Combat         0.06 ms
 ```
+
+- 指标收集不改变既有 Tick 顺序；
+- `deferred` 当前可以恒为零，但语义必须冻结；
+- 不为尚未实现的系统预注册空槽位。
 
 ### 教程
 
@@ -664,19 +682,20 @@ Simulation
 
 建立以后每章教程统一格式。
 
-每一个 Milestone 必须包含：
+每一个 Milestone 在同一份教程文档的所属 Part 中维护以下逻辑小节，不创建七个物理文件：
 
 ```text
-01-problem.md
-02-naive-solution.md
-03-failure.md
-04-design.md
-05-implementation.md
-06-validation.md
-07-tradeoffs.md
+Problem
+Naive Solution
+Failure
+Design Evolution
+Implementation
+Validation
+Trade-offs
 ```
 
-实际仓库可压缩成单篇 Markdown，但逻辑必须保留。
+只有至少两个 Track 已完成且单文件超过可维护边界时，才允许按 Track 拆分；不得按 Sprint 或上述
+逻辑小节拆文件。
 
 统一章节模板：
 
@@ -1012,14 +1031,18 @@ Cancelled   81
 
 加载和模拟不是一回事。
 
+B6 只回答 Streaming / representation 层的空间需求：哪些 Chunk 数据需要 Resident、哪些 Mesh 需要
+构建、哪些 Render 表示需要保留。它可以发布 `SimulationInterest`，但不决定 Actor、Machine 或
+Network 在 Reduced 状态下具体怎样推进；后者属于 D2。
+
 定义多个 Spatial Ring：
 
 ```text
-Ring A — Full Simulation
-Ring B — Reduced Simulation
+Ring A — Resident + Near Render + High Simulation Interest
+Ring B — Resident + Near Render + Reduced Simulation Interest
 Ring C — Render Only
 Ring D — Far LOD
-Ring E — Unloaded
+Ring E — Outside Interest
 ```
 
 示例值仅作为可配置默认：
@@ -1042,14 +1065,16 @@ World/Streaming/SpatialInterest.*
 输出：
 
 ```cpp
-enum class ActivationLevel {
-    Full,
-    Reduced,
-    RenderOnly,
-    Far,
-    Dormant
+struct SpatialInterest {
+    bool requiresResidentData;
+    bool requiresNearRender;
+    bool requestsSimulation;
+    bool requiresFarRepresentation;
 };
 ```
+
+D2 可以消费 `requestsSimulation` 和距离/玩法上下文，决定 `Full / Reduced / Dormant`；B6 自己不
+定义这些模式的 Tick 语义。
 
 ### 教程
 
@@ -1057,7 +1082,7 @@ enum class ActivationLevel {
 
 ---
 
-## B7 — Render World vs Simulation World
+## B7 — Render World vs Simulation World（Extended，条件触发）
 
 这是整个教程的重要转折。
 
@@ -1106,7 +1131,7 @@ FarTerrainSnapshot
 
 ---
 
-## B8 — Far Terrain Data Model
+## B8 — Far Terrain Data Model（Extended，条件触发）
 
 参考 Distant Horizons 的“问题”，不要复制实现。
 
@@ -1157,7 +1182,7 @@ LOD4 16x16
 
 ---
 
-## B9 — Far Terrain Build Pipeline
+## B9 — Far Terrain Build Pipeline（Extended，条件触发）
 
 ```text
 Resident Chunk
@@ -1198,7 +1223,7 @@ Player Modified → 需要持久化 Dirty Summary
 
 ---
 
-## B10 — Large World Stress & Acceptance
+## B10 — Large World Stress & Acceptance（Core；Extended 获批时追加场景）
 
 建立固定测试：
 
@@ -1234,7 +1259,7 @@ Player Modified → 需要持久化 Dirty Summary
 - 保存不得丢失；
 - 30 分钟 stress 无 deadlock / crash。
 
-### Track B 完成 Demo
+### Track B-Core 完成 Demo
 
 **Infinite Trek Demo**
 
@@ -1242,9 +1267,18 @@ Player Modified → 需要持久化 Dirty Summary
 
 - 前方持续生成；
 - 后方稳定卸载；
-- 远方地形存在；
 - Frame time 没有周期性巨大尖峰；
+- Queue、取消、stale result、内存平台和 Chunk 状态可解释；
 - Debug UI 显示整个 Streaming Pipeline。
+
+### Track B-Extended 完成 Demo
+
+只有 B7-B9 因真实视距、内存或 GPU 瓶颈获批时，才追加：
+
+- 远方地形存在；
+- Full Chunk 与 Far Representation 切换稳定；
+- 地形修改后远景最终一致；
+- CPU / GPU 成本不随完整 Chunk 视距线性增长。
 
 ---
 
@@ -1253,6 +1287,26 @@ Player Modified → 需要持久化 Dirty Summary
 目标：
 
 > 从“写一个机器”提升到“设计一种能让玩家自己组合出复杂系统的玩法基础设施”。
+
+Track C-Core 只承诺 `C1-C5`：Capability、Machine Runtime、可玩的 Mechanical Network 及其拓扑
+调试。`C6-C11` 属于 Extended 候选；Storage、Transport、Processing、Reservation 和 Auto Craft
+只有在进入当前任务账本后才构成开发承诺。Shared Network Core 不是预定 Sprint，而是两个已批准
+具体网络出现可证明重复后的可选重构。
+
+### C-Core 与现有玩法的边界
+
+C-Core 是附加的可选自动化支线，不是既有主线的替代品，也不是现有胜利条件的前置要求：
+
+- 已冻结的目标、胜利、配方、冶炼、工具、掉落和探索奖励语义保持不变；
+- 可以新增机械方块及其配方，但默认只消耗现有正常可获得材料，不增加新的世界生成原料；
+- 新机械配方不得修改或重定价既有配方产出，也不得让玩家绕过既有成长门槛；
+- Mechanical Drill、Crusher 等新增采集或转换边必须进入扩展后的资源经济合同或独立机械经济
+  校验，证明来源/消耗、可达性、物料守恒和无正收益循环；
+- Mechanical power 是独立预算，不得伪装成免费物料来源；新增持久状态必须有显式版本和迁移边界；
+- Debug UI 只解释动力传播、拓扑和停止原因，不能代替玩家通过正常玩法获得、搭建和操作系统。
+
+如果获批 C1 时需要改变以上任一边界，必须先把相应玩法、经济与存档影响写入当前任务账本和
+批次合同；不得在实现过程中默默扩张 C-Core。
 
 ---
 
@@ -1272,9 +1326,10 @@ if (block == Gear)
 InventoryProvider
 MachineProcessor
 MechanicalPort
-ItemTransportPort
-StorageProvider
 ```
+
+`ItemTransportPort`、`StorageProvider` 等 Extended capability 只有对应具体系统获批后才允许加入，
+不在 C1 为未来需求预注册空接口。
 
 注意：
 
@@ -1287,9 +1342,9 @@ StorageProvider
 
 ---
 
-## C2 — Generic Machine Framework
+## C2 — Machine Runtime v0
 
-定义一个通用 Processing Machine：
+先从现有 Furnace-like Processor 和一个新获批的具体处理机器中提炼最小运行时：
 
 ```text
 Input
@@ -1330,7 +1385,8 @@ Crusher
 Furnace-like Processor
 ```
 
-重点不是内容，而是框架。
+重点是让真实输入、进度、输出和阻塞状态跑通。第一版不得为了未来机器预留未使用的继承层次；
+只有两个具体机器共同需要的状态和行为才能进入共享 `MachineRuntime`。
 
 ### 教程
 
@@ -1338,18 +1394,18 @@ Furnace-like Processor
 
 ---
 
-## C3 — Generic Dynamic Network Graph
+## C3 — Mechanical Topology Model v0
 
-这是沙盒系统主线核心。
+这是第一种真实网络的具体拓扑模型，不是 Generic Network Framework。
 
 数据结构：
 
 ```cpp
-NodeId
-NetworkId
-PortId
-Edge
-NetworkComponent
+MechanicalNodeId
+MechanicalNetworkId
+MechanicalPort
+MechanicalConnection
+MechanicalComponent
 ```
 
 拓扑变化：
@@ -1384,13 +1440,17 @@ Create New Components
 
 建议：
 
-- Network 规模中小时使用 BFS / DFS；
+- Mechanical Network 规模中小时使用 BFS / DFS；
 - topology dirty 后局部 rebuild；
 - 以后再做增量算法。
 
+本批禁止导出 `INetwork`、`GenericNode`、`DynamicNetworkCore` 等跨系统 API。Mechanical 类型先由
+Mechanical 模块自己拥有；第二种已批准网络出现后，再用真实 diff 判断哪些 Node、Edge、Component、
+Merge、Split、TopologyDirty 语义值得共享。
+
 ### 教程
 
-**Chapter 18：玩家建造行为就是动态图编辑**
+**Chapter 18：先让机械网络证明动态图问题**
 
 ---
 
@@ -1481,7 +1541,7 @@ network id
 
 ---
 
-## C6 — Item Transport / Belt
+## C6 — Item Transport / Belt（Extended，条件触发）
 
 不要让每个 Belt Item 都成为完整 Actor。
 
@@ -1525,7 +1585,7 @@ position += speed * dt
 
 ---
 
-## C7 — Processing Pipeline
+## C7 — Processing Pipeline（Extended，条件触发）
 
 组合：
 
@@ -1558,9 +1618,9 @@ Chest
 
 ---
 
-## C8 — AE2-style Storage Network
+## C8 — Storage Network v0（Extended，条件触发）
 
-基于同一 Dynamic Graph Framework，新建：
+独立建立第二种具体网络：
 
 ```text
 Storage Network
@@ -1615,13 +1675,19 @@ Indexed Amount == Sum(Provider Inventory)
 
 加入定期 Debug Verification。
 
+### Shared Network Core 提取门
+
+只有 Mechanical 与 Storage（或另一种真实网络）都已获批、实现并出现重复代码后，才允许另立
+重构批次提取 `DynamicNetworkCore`。提取前必须列出两边真实存在的共同不变量和不同失败边界；
+如果第二种网络没有获批，Shared Core 不进入任务账本。
+
 ### 教程
 
 **Chapter 23：Index 是性能优化，也是新的 Truth 风险**
 
 ---
 
-## C9 — Storage Reservation
+## C9 — Storage Reservation（Extended，条件触发）
 
 为了 Auto Craft，必须引入：
 
@@ -1647,7 +1713,7 @@ struct Reservation {
 
 ---
 
-## C10 — Auto Crafting DAG
+## C10 — Auto Crafting DAG（Extended，条件触发）
 
 Request：
 
@@ -1707,7 +1773,7 @@ Cancelled
 
 ---
 
-## C11 — Sandbox Factory Demo
+## C11 — Sandbox Factory Demo（Extended Capstone）
 
 最终 Demo：
 
@@ -1729,7 +1795,16 @@ Auto Craft
 
 玩家真正搭一个自动工厂。
 
-### Track C 完成条件
+### Track C-Core 完成条件
+
+- 玩家能通过正常玩法获得并放置一条动力链；
+- 挖断后网络正确分裂，接回后正确合并；
+- Chunk unload / return 后状态正确；
+- Save / Load 后 Mechanical 状态继续工作；
+- Debug UI 能解释 Network id、节点、连接和停止原因；
+- 没有为了未批准的 Storage / Transport / Auto Craft 提前创建通用框架。
+
+### Track C-Extended 完成条件
 
 - Network 拆/连正确；
 - Machine 与 Transport 解耦；
@@ -1747,9 +1822,16 @@ Auto Craft
 
 > 同一个世界里有越来越多机器、Network、Actor、Crop 后，不能依赖“所有对象每 Tick 更新”。
 
+Track D-Core 只承诺 D1、D2、D5：在现有固定 Tick 上建立可执行的 phase 调度、Simulation
+Activation 和 Actor AI LOD。D3、D4、D6-D8 属于 Extended，只有已实现对象规模证明逐对象模拟、
+持久化或调试成本成为真实问题时才批准。
+
 ---
 
 ## D1 — Simulation Phase Scheduler
+
+A5 只提供不改变行为的 phase 名称、计时和预算词汇；D1 才允许改变执行顺序、引入延迟队列、
+按预算 defer 工作。因此 A5 是 observability refactor，D1 是 runtime behavior change。
 
 固定 Tick：
 
@@ -1782,6 +1864,9 @@ Deferred
 ---
 
 ## D2 — Activation Level
+
+B6 决定 Chunk 数据与表现是否需要 Resident / Render / Far；D2 只决定已 Resident 空间内的模拟
+保真度，以及 Actor、Machine、Crop、Network 在 Full / Reduced / Dormant 下怎样推进。
 
 每个 Spatial Cell：
 
@@ -1818,7 +1903,7 @@ Dormant
 
 ---
 
-## D3 — Machine Reduced Simulation
+## D3 — Machine Reduced Simulation（Extended，条件触发）
 
 不要：
 
@@ -1860,7 +1945,7 @@ Energy
 
 ---
 
-## D4 — Network Reduced Simulation
+## D4 — Network Reduced Simulation（Extended，条件触发）
 
 近距离：
 
@@ -1939,7 +2024,7 @@ goal
 
 ---
 
-## D6 — World Simulation Cell
+## D6 — World Simulation Cell（Extended，条件触发）
 
 Chunk 是存储单位，不一定是 Simulation 调度单位。
 
@@ -1970,7 +2055,7 @@ Simulation Cell = NxN Chunks
 
 ---
 
-## D7 — Persistent Runtime State
+## D7 — Persistent Runtime State（Extended，条件触发）
 
 需要升级 Storage Contract。
 
@@ -2015,7 +2100,7 @@ Reservations / Job identity
 
 ---
 
-## D8 — Large Scale Debugger
+## D8 — Large Scale Debugger（Extended，条件触发）
 
 ImGui 新页：
 
@@ -2063,7 +2148,10 @@ Full / Reduced / Dormant Cell
 
 ---
 
-# 11. 最终 Capstone — Autonomous Outpost
+# 11. Extended Capstone — Autonomous Outpost
+
+本 Capstone 只有 B/C/D Extended 均因真实需求获批后才进入当前任务账本。它用于展示完整能力
+上限，不是 Architecture Lab Core 的默认退出条件。
 
 最终不是 Boss Fight，而是：
 
@@ -2187,16 +2275,50 @@ Dormant
 
 # 13. 教程章节总目录
 
-教程按 Track 维护，不按 34 个 Sprint 生成 34 份文件。默认只保留五章；每章使用“问题场景 →
-最简实现 → 为什么失败 → 架构演进 → 数据结构 → 验证 → 取舍”的统一结构：
+教程按 Track 维护，不按 34 个 Sprint 生成 34 份文件。默认只保留一份物理文档、五个 Part；
+每个 Part 下维护可独立定位的概念 Section。每个 Section 使用“问题场景 → 最简实现 → 为什么失败
+→ 架构演进 → 数据结构 → 验证 → 取舍”的统一结构：
 
 | 章节 | 覆盖内容 | 主要 Milestone |
 | ---- | -------- | -------------- |
-| 00 从可玩 Sandbox 到 Architecture Lab | 基线、Facade、事件、Tick、所有权和重构安全网。 | A0-A5 |
-| 01 有界 Chunk Streaming | Chunk 正交状态、Job Scheduler、优先级、取消、背压和指标。 | B1-B6；B7-B9 仅在真实需求触发时追加 |
-| 02 从机器到动态网络图 | Capability、通用机器、拓扑分裂/合并、跨区块和一种实际网络。 | C1-C3 + 首个获批网络 |
-| 03 大规模模拟预算 | Tick 相位、空间激活、Actor AI LOD、持久化与调试。 | D1、D2、D5；其余按对象规模触发 |
-| 04 可玩载体 Capstone | 完整 Demo、迁移、性能前后对比、失败复盘和总 Trade-off。 | 最终获批 Track |
+| 00 从可玩 Sandbox 到 Architecture Lab | God Object、authoritative/derived state、Command/Query/Event、fixed tick、ownership、重构安全网。 | A0-A5 |
+| 01 有界 Chunk Streaming | Residency/Mesh/Render 三态、Demand、Priority、Job、Cancellation、Revision、Backpressure、Activation。 | B1-B6；B7-B9 仅在真实需求触发时追加 |
+| 02 从具体机器到动态图 | Machine Runtime、Mechanical 拆分/合并、Topology Dirty、Debugger；第二种网络出现后再讲 Shared Core。 | C1-C5；C6-C11 与 Shared Core 按真实需求追加 |
+| 03 大规模模拟预算 | Tick Phase、Budget、Simulation Activation、Actor AI LOD；降级机器/网络和 Simulation Cell 条件追加。 | D1、D2、D5；D3、D4、D6-D8 按对象规模触发 |
+| 04 可玩载体与复盘 | 集成架构、失败复盘、性能前后对比、迁移和最终 Trade-off。 | 每个实际完成 Track 的 Core Demo；Extended Capstone 条件触发 |
+
+建议的首版 Section 目录如下；未实现或未批准的 Section 只保留在本路线图，不提前创建空教程正文：
+
+```text
+Part 00  0.1 God Object            0.2 Authoritative / Derived State
+         0.3 Command / Query / Event  0.4 Fixed Tick
+         0.5 Runtime Ownership     0.6 Refactor Safety Net
+
+Part 01  1.1 Data Residency        1.2 Mesh State
+         1.3 Render State          1.4 Streaming Demand
+         1.5 Priority              1.6 Async Job
+         1.7 Cancellation          1.8 Revision Token
+         1.9 Backpressure          1.10 Spatial Interest
+         1.11 Far Representation（Extended）
+
+Part 02  2.1 Capability            2.2 Machine Runtime
+         2.3 Mechanical Topology   2.4 Split / Merge
+         2.5 Topology Dirty        2.6 Mechanical Debugger
+         2.7 Second Concrete Network（Extended）
+         2.8 Extract Shared Core（Extended）
+         2.9 Transport（Extended） 2.10 Reservation / Auto Craft（Extended）
+
+Part 03  3.1 Tick Phase            3.2 Budget / Deferred Work
+         3.3 Simulation Activation 3.4 Actor AI LOD
+         3.5 Reduced Simulation（Extended）
+         3.6 Aggregate Simulation（Extended）
+         3.7 Persistent Runtime State（Extended）
+         3.8 Debuggability
+
+Part 04  4.1 Integrated Architecture  4.2 Failure Review
+         4.3 Performance Before / After  4.4 Save Migration
+         4.5 Final Trade-offs
+```
 
 现有 HelloMine3D 已实现内容只作为证据和失败复盘引用，不重新写一套百科。Far Terrain、完整
 机械/传输/存储/自动合成链等未批准能力，只能作为对应章节的候选小节，不能提前创建空文档。
@@ -2483,7 +2605,7 @@ World/
 │   ├── SimulationCell.*
 │   └── SimulationBudget.*
 ├── Network/
-│   ├── NetworkGraph.*
+│   ├── DynamicNetworkCore.*   # 仅在两个具体网络证明重复后提取
 │   ├── Mechanical/
 │   ├── Transport/
 │   └── Storage/
@@ -2616,65 +2738,105 @@ sandbox-architecture-v1
 
 ---
 
-# 24. 推荐 Sprint 顺序
+# 24. 推荐能力批准顺序
 
-## Semester A
+下面是依赖顺序，不是自动批准计划。任何一项只有进入 `docs/current/todolist.md` 后才成为开发任务。
+
+## Track A-Core
 
 ```text
-Sprint 01 A0 Baseline
-Sprint 02 A1 Responsibility Map
-Sprint 03 A2 Chunk Runtime
-Sprint 04 A3 Simulation Runtime
-Sprint 05 A4 Event / Command / Query
-Sprint 06 A5-A6 Budget + Tutorial Pipeline
+A0 Baseline
+ ↓
+A1 Responsibility Map
+ ↓
+A2 Chunk Runtime（只迁移现有行为）
+ ↓
+A3 Simulation Runtime
+ ↓
+A4 Event / Command / Query
+ ↓
+A5-A6 Phase Metrics + Tutorial Pipeline
 ```
 
-## Semester B
+## Track B-Core
 
 ```text
-Sprint 07 B1 Chunk State
-Sprint 08 B2 Demand Model
-Sprint 09 B3 Scheduler I
-Sprint 10 B3 Scheduler II
-Sprint 11 B4 Cancellation
-Sprint 12 B5 Backpressure
-Sprint 13 B6 Spatial Activation
-Sprint 14 B7 Render/Simulation Split
-Sprint 15 B8 Far Terrain Model
-Sprint 16 B9-B10 Far Render + Stress
+B1 Chunk State
+ ↓
+B2 Demand Model
+ ↓
+B3 Scheduler
+ ↓
+B4 Cancellation
+ ↓
+B5 Backpressure
+ ↓
+B6 Spatial Interest
+ ↓
+B10 Core Stress & Acceptance
 ```
 
-## Semester C
+## Track B-Extended（条件触发）
 
 ```text
-Sprint 17 C1 Capability
-Sprint 18 C2 Machine
-Sprint 19 C3 Network Graph I
-Sprint 20 C3 Network Graph II
-Sprint 21 C4 Mechanical
-Sprint 22 C5 Debug
-Sprint 23 C6 Belt
-Sprint 24 C7 Processing
-Sprint 25 C8-C9 Storage
-Sprint 26 C10-C11 Auto Craft + Demo
+B7 Render / Simulation Split
+ ↓
+B8 Far Terrain Model
+ ↓
+B9 Far Build Pipeline
+ ↓
+B10 Extended Stress
 ```
 
-## Semester D
+## Track C-Core
 
 ```text
-Sprint 27 D1 Tick Scheduler
-Sprint 28 D2 Activation
-Sprint 29 D3 Machine Reduced Simulation
-Sprint 30 D4 Network Reduced Simulation
-Sprint 31 D5 Actor AI LOD
-Sprint 32 D6 Simulation Cell
-Sprint 33 D7-D8 Persistence + Debugger
-Sprint 34 Capstone
+C1 Capability
+ ↓
+C2 Machine Runtime v0
+ ↓
+C3 Mechanical Topology v0
+ ↓
+C4 Playable Mechanical Network
+ ↓
+C5 Mechanical Debugger
+```
+
+## Track C-Extended（条件触发）
+
+```text
+C6 Transport / C7 Processing / C8 Second Concrete Network
+ ↓
+若出现真实重复，再批准 Extract Shared Network Core
+ ↓
+C9 Reservation / C10 Auto Craft / C11 Factory Demo
+```
+
+## Track D-Core
+
+```text
+D1 Phase Scheduler
+ ↓
+D2 Simulation Activation
+ ↓
+D5 Actor AI LOD
+```
+
+## Track D-Extended（条件触发）
+
+```text
+D3 Machine Reduced / D4 Network Aggregate
+ ↓
+D6 Simulation Cell
+ ↓
+D7 Persistent Runtime State / D8 Debugger
+ ↓
+Extended Capstone
 ```
 
 ---
 
-# 25. 每个 Semester 的退出标准
+# 25. 每个 Track 的退出标准
 
 ## A Exit
 
@@ -2682,21 +2844,35 @@ Sprint 34 Capstone
 
 并且既有主菜单→胜利→保存重开流程在干净 Release 包中仍可由 AI 正常完成。
 
-## B Exit
+## B-Core Exit
 
-> 玩家可以持续移动穿越世界，而 Streaming Queue、Worker、Mesh、LOD、Unload 都在明确预算下稳定工作。
+> 玩家可以持续移动穿越世界，而 Streaming Queue、Worker、Mesh 和 Unload 都在明确预算下稳定工作。
 
 AI 必须通过正常移动完成长距离流送场景；传送风暴只作为补充压力场景，不能替代真实移动。
 
-## C Exit
+## B-Extended Exit
 
-> 玩家可以搭建一个由动力、传输、机器和仓储组成的自动化工厂，而不是开发者写死一条脚本。
+> 只有 Far Terrain / LOD 获批时，才要求远方表示、切换一致性和非线性成本证明。
+
+## C-Core Exit
+
+> 玩家可以搭建、挖断并重连一条真实机械动力链，而不是运行开发者写死的图算法夹具。
 
 AI 必须实际放置、挖断、重连、卸载/返回并保存重开，证明网络分裂/合并和状态恢复可被正常玩法观察。
 
-## D Exit
+## C-Extended Exit
 
-> 玩家离开工厂后系统能够降级模拟；返回、保存、重开之后仍保持逻辑正确。
+> 只有 Transport、Storage、Auto Craft 获批时，才要求完整自动化工厂、索引守恒、预订和任务恢复。
+
+## D-Core Exit
+
+> 玩家离开有 Actor 活动的区域后，Simulation Activation 与 AI LOD 能够降级；返回和重开后状态正确。
+
+AI 必须从正常游戏入口完成离开、返回和重开流程；Debug Metrics 只解释结果，不负责制造结果。
+
+## D-Extended Exit
+
+> 只有 Machine / Network Extended 已存在并暴露规模问题时，才要求工厂降级模拟、聚合推进与 Simulation Cell。
 
 AI 必须从正常游戏入口完成离开、返回和重开流程；Debug Metrics 只解释结果，不负责制造结果。
 
@@ -2840,13 +3016,14 @@ Job Deferred
 
 ---
 
-# 28. 第一阶段立即执行清单
+# 28. 第一阶段逐项批准门
 
-新的 Architecture Lab 正式启动时，只做下面 6 件事：
+新的 Architecture Lab 正式启动时，不一次批准完整 Track A。首批依赖链如下，每项完成并关闭
+工程门禁后，下一项才有资格进入当前任务账本：
 
 ### 1
 
-冻结当前 VISUAL-RC 架构 / 性能基线。
+冻结当前 PLAYABILITY-RC / Stage 11 P11F 架构、功能、性能和 AI Playability 基线。
 
 ### 2
 
@@ -2854,19 +3031,19 @@ Job Deferred
 
 ### 3
 
-给现有 World Fixed Tick 做 phase timing。
+在 A1 责任图证明边界后，批准 A2：只提取现有 Chunk Update / Mesh Work / Loader coordination。
 
 ### 4
 
-把 Chunk Update / Mesh Work 调度提取成 ChunkRuntime。
+A2 关闭后，再决定是否批准 A3/A5 的 Simulation Runtime 与 phase metrics；不得在 A0 中顺手实现。
 
 ### 5
 
-定义 Chunk Residency / Mesh / Render 三套正交状态。
+B1 的 Chunk Residency / Mesh / Render 三套正交状态属于 Track B 行为变更，不是 Track A 重构内容。
 
 ### 6
 
-写出教程 Chapter 00：
+每个已批准批次同步更新同一份教程的 Part 00：
 
 > **为什么一个能玩的 Minecraft Clone 最终会需要沙盒架构。**
 
@@ -2878,7 +3055,7 @@ AE2
 Far Terrain
 ```
 
-等 A Track 结束之后再进入大世界和网络系统。
+等 A-Core 结束且真实问题触发后，再逐项批准大世界或网络系统；Extended 能力不自动排队。
 
 ---
 
@@ -2917,25 +3094,31 @@ HelloMine3D 接下来的真正主线可以浓缩成：
 ```text
 当前可玩的 Voxel Sandbox
         ↓
-World Runtime 重构
+Architecture Baseline / Responsibility Map
         ↓
-Streaming State Machine
+安全提取 ChunkRuntime 与 SimulationRuntime
         ↓
-Job Scheduler / Backpressure
+Bounded Streaming Core
         ↓
-Spatial Activation
+具体 Machine Runtime
         ↓
+具体 Mechanical Network
+        ↓
+Simulation Activation / Actor AI LOD
+```
+
+只有真实需求触发后，才从 Core 分叉进入：
+
+```text
 Far Terrain / LOD
+        或
+Transport / 第二种具体网络 / Storage / Auto Craft
         ↓
-Generic Network Graph
+发现真实重复后提取 Shared Network Core
         ↓
-Mechanical Automation
+Machine / Network Reduced Simulation
         ↓
-Storage / Auto Craft
-        ↓
-Simulation LOD
-        ↓
-Autonomous Outpost
+Extended Autonomous Outpost
 ```
 
 最终形成两根最清晰的技术支柱：
@@ -2947,14 +3130,14 @@ Autonomous Outpost
     │               │
 Large World     Sandbox Systems
     │               │
-Streaming       Dynamic Graph
-LOD             Machine
-Jobs            Automation
-Activation      Storage
+Streaming       Concrete Machine
+Jobs            Mechanical Network
+Backpressure    Emergent Shared Core
+Spatial Interest  Optional Automation
     │               │
     └───────┬───────┘
             │
-     Large Scale Simulation
+     Core / Extended Simulation
 ```
 
 这就是整套教程、项目迭代以及技术作品展示应该围绕的核心。

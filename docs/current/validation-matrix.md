@@ -46,8 +46,8 @@ PASS。新的 AI 场景尚未执行时只写 `NOT_RUN`，不写成永久 `Deferr
 | 资产检查 | `bash scripts/check_assets.sh` | 资产和数据 |
 | V10B2 图集合同 | `tools\validate_terrain_atlas.ps1` | 37 个语义/双语名、Alpha 边界、分面、HUD/手持一致性与确定性输出 |
 | R3 自动预检 | `tools\validate_r3_automated_preflight.ps1 -Configuration Release -Build` | 控制器、交互、容器、战斗、D6 和后台窗口焦点的逻辑回归；只是 AI 交互前置条件。 |
-| AI/Computer Use 功能验收 | `docs\current\ai-assisted-gameplay-acceptance-v1.md` 的 `AI-01..AI-08` | 从带哈希的干净 Release 包用正常 OS 输入执行；禁止 fixture、注入、传送、存档编辑和直接 Gameplay API。当前首份记录为 `NOT_RUN`。 |
-| AI 视觉/可读性验收 | 同规范的 `AI-07`，配合原尺寸截图、多帧/视频和可访问音频证据 | 可关闭截断、重叠、缺字、破面、闪烁、状态/轮廓可见性和 cue/字幕生命周期；不声明人类审美、听感或舒适度。 |
+| AI/Computer Use 功能验收 | `docs\current\ai-assisted-gameplay-acceptance-v1.md` 的 `AI-01..AI-08` | 从带哈希的干净 Release 包用正常 OS 输入执行；禁止 fixture、注入、传送、存档编辑和直接 Gameplay API。严格 `AI-06` 还要求仓库不可访问的 package-only 新任务。当前首份记录为 `NOT_RUN`。 |
+| AI 视觉/可读性验收 | 同规范的 `AI-07`，配合原尺寸截图、多帧/视频、连续窗口观察和可访问音频证据 | 可关闭截断、重叠、缺字、破面、闪烁、状态/轮廓可见性和 cue/字幕生命周期；正式证据来自带哈希干净包。`run_render_capture.ps1 -CaptureMs ...` 已支持多帧，但在直接证明发行包可执行文件身份前只作开发预检；不声明人类审美、听感或舒适度。 |
 | R3 v1 / Physical Input v2（历史） | `docs\archive\manual-input-acceptance-v1.md`、`docs\archive\physical-input-acceptance-v2.md` 及原校验器 | 历史物理合同 `SUPERSEDED` 为当前门槛，模板保持 `NOT_RUN`；未来自愿运行也必须遵守原物理语义。 |
 | 开发者视觉检查（历史/补充） | `docs\archive\manual-product-experience-acceptance-v1.md` A 节与既有 PASS 记录 | 已完成记录继续有效；后续可作为 `DEVELOPER_SELF_TEST` 补充 AI 视觉证据。 |
 | 长时间 soak | `tools\run_world_soak.ps1`；正式双 profile 使用 `tools\run_release_candidate_soak.ps1` | 区块/实体生命周期、存档、后台加载 |
@@ -157,7 +157,7 @@ Stage 11 的工程证据已经冻结。下表不重跑或改写这些 PASS，只
 | `P11A` | 单一动作仲裁、settings v7 迁移、线性相对增量、焦点门、hold/toggle、定向 88/88。 | `AI-01..AI-04` 移动、世界/UI、暂停、Alt+Tab、最小化、回焦和重启。 | 物理鼠标距离、键鼠舒适度。 |
 | `P11B` | 判定/表现解耦、数量/持续时间上限、关闭回退、音频并发和 HUD/准星隔离。 | `AI-05` 动态交互；`AI-07` 多帧/视频辨识。 | 人类打击感、眩晕和长期舒适度。 |
 | `P11-1` | 身份末尾追加、门保存、木板/圆石守恒、axe/shovel 矩阵、资源和旧存档回归。 | `AI-05` 采集、工具比较、建可关闭落脚点。 | 人类建造乐趣、主观速度感。 |
-| `P11C` | 目标 v3、三项并行机会、分支进度、配方发现、迁移、双语与完整世界回归。 | `AI-06` 无源码/路线图上下文的 30 分钟盲玩。 | 人类首次体验、留存和乐趣。 |
+| `P11C` | 目标 v3、三项并行机会、分支进度、配方发现、迁移、双语与完整世界回归。 | `AI-06` 在仓库不可访问的 package-only 新任务中完成 30 分钟盲玩；只有新工作目录但仍可读仓库时为 `BLOCKED`。 | 人类首次体验、留存和乐趣。 |
 | `P11D` | 奖励 v1/v0、save v12、三类能力、持久化和全部迁移/资源门禁。 | `AI-05` 逐结构取得并实际使用能力，记录后续可执行操作变化。 | 奖励吸引力和人类价值感。 |
 | `P11-2` | terrain v4、Mountain/洞口、v1-v3 冻结、保存身份、完整回归与正式 Q1。 | `AI-05` 寻找/通行；`AI-07` 轮廓/洞口可见性。 | 人类风景审美。 |
 | `P11E` | 多部件轮廓、关键姿态、死亡表现隔离、身份掉落、Waystone 共鸣和完整门禁。 | `AI-05` 战斗/共鸣；`AI-07` 无名称轮廓与状态可辨识。 | 人类危险感、掉落价值感和战斗乐趣。 |

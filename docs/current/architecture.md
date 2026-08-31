@@ -38,13 +38,15 @@ Structure roots are likewise selected from the seed and world block
 coordinates. A target chunk scans a six-block origin halo and projects only
 its own structure fragments, so trees and cacti can cross chunk boundaries
 without making generation depend on neighbouring chunk load order.
-World metadata version 5 retains player and live mob/item subtype state plus
-the version-3 immutable catalogue identity, timestamps and build identity. It
-keeps the version-4 ten-bit playable-Alpha compatibility mask and adds a
-versioned objective completion/progress state. The read-only catalogue still
-discovers version 1-4 metadata without renaming its directory. Versions 1-3
-migrate to an empty objective state; version 4 maps its Alpha bits to stable
-objective ids when the world is opened through the management boundary.
+World metadata version 12 is the current authoritative format. It preserves
+the immutable catalogue identity, timestamps and build identity together with
+generator and terrain identity, player and actor state, objective progress,
+world outcome, difficulty, exploration-reward version and bounded
+post-victory progress. Supported legacy formats are normalized through
+explicit versioned read paths before current `WorldSaveData` is exposed; the
+read-only catalogue does not rename a world's directory during discovery.
+World-format versioning remains independent from terrain and content
+subversions so migration of one concern does not silently reinterpret another.
 `World/Storage/StorageTransaction.*` is the common synchronous publication
 boundary for world metadata and binary chunks. It writes a same-directory
 candidate, durably flushes it, validates it through the real format reader and
@@ -69,6 +71,29 @@ callback. The first real behavior advances
 immature tall grass to its mature metadata state; unload and storage reload
 remove and rebuild the index without scanning unrelated blocks.
 
+`Sandbox/` is the renderer-independent application and orchestration boundary.
+`GameApplicationFlow` owns the legal main-menu, world-list, loading, playing and
+paused transitions. `SandboxRuntime` owns the player-facing fixed-tick loop and
+coordinates `Player`, `WorldManager`, selection, mining and action feedback;
+`WorldManager` owns the set of live `World` instances and the active-world
+transition. The typed `SandboxEventBus` distributes facts that have already
+happened. Sandbox may coordinate World, Player and Camera, but it does not own
+Ogre objects or reinterpret World persistence.
+
+`Actor/` owns runtime actor identity, lifetime, simulation state and the
+conversion to bounded `ActorSaveState` and immutable `ActorSnapshot` values.
+`ActorManager` is the owning collection used by World; concrete living, mob,
+player and item actors may query World while ticking and publish facts through
+the Sandbox event boundary. The Ogre layer consumes snapshots and never owns
+actor gameplay truth. `Entity/` remains the lower-level spatial data base and
+does not replace Actor lifetime ownership.
+
+`Feedback/` owns short, deterministic presentation timelines derived from
+committed gameplay events. `ActionFeedbackTimeline` can expose recoil, hit-stop
+and particle snapshots, but it cannot delay simulation or change block,
+combat, inventory or persistence outcomes. Sandbox updates this timeline and
+the Ogre shell only renders the resulting snapshot.
+
 `Gameplay/` owns the renderer-independent N1 objective registry and runtime.
 The strict current version-2 registry freezes before world construction and
 explicitly normalizes persisted version-1 progress. The runtime
@@ -90,6 +115,21 @@ bounded horizontal radius, and otherwise keep their deterministic wander path.
 Damage immunity belongs to `LivingActor`, advances on the fixed simulation
 tick, suppresses duplicate health/event changes, and resets when save state is
 restored rather than becoming persistent world data.
+
+`Audio/` owns immutable cue/music definitions, validated sample and stream
+data, bounded playback state and real/dummy backend interfaces. `AudioRuntime`
+subscribes to Sandbox facts and may emit presentation captions; `MusicRuntime`
+follows application activity, pause, mute and suspension. `OgreBootstrap`
+composes and updates these runtimes, but audio never owns gameplay state.
+Missing files, devices or backend failures degrade to bounded diagnostics and
+silence rather than preventing the world from running.
+
+`Presentation/` owns renderer-independent semantic text lookup, locale
+fallback, caption lifetime/priority and bounded layout/font probes. Gameplay
+and audio provide semantic ids and fallback facts; `OgreUserInterface`
+resolves and renders them. Presentation code does not mutate objectives,
+inventory, audio playback or world state, and translated text is never used as
+a gameplay identity.
 
 `Ogre/` is the runtime rendering layer. `ChunkSectionRenderable` owns Ogre GPU
 buffers for solid, water and flora meshes; `OgreActorRenderer` mirrors immutable

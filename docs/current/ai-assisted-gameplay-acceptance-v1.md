@@ -74,7 +74,7 @@ AI 的有效声明是“该代理在给定环境下能够理解并完成流程�
 
 ## 4. 黑盒运行规则
 
-用于关闭 `AI_INTERACTIVE` 的记录必须满足：
+用于关闭 `AI_INTERACTIVE`，以及为正式 `AI_VISUAL` 产生运行证据的记录必须满足：
 
 1. 从带 SHA-256 的干净 Windows Release 包启动，不从开发构建目录借用资源。
 2. 通过正常主菜单创建或打开世界，使用正常键鼠、UI 和游戏内动作。
@@ -83,11 +83,42 @@ AI 的有效声明是“该代理在给定环境下能够理解并完成流程�
 4. 执行后可以只读检查日志、存档摘要、截图和性能文件，不能用它们替代窗口内的实际步骤。
 5. 记录所有重试、超时、意外弹窗、焦点丢失和偏差；失败后重新运行不得删除第一次失败。
 6. 固定构建、窗口尺寸、图形设置、seed 和存档身份；对确定性比较使用相同身份。
-7. 盲玩/可理解性检查必须使用一个没有源码、测试名、精确配方路径和内部路线图上下文的新 AI
-   任务，只提供发行包、默认控制说明和高层目标。
-8. 实现者与验收者尽量使用不同任务上下文；无法隔离时必须在记录中写明上下文污染边界。
+7. 盲玩/可理解性检查必须使用独立的新 AI 任务；其初始工作目录为解包后的发行包根目录，
+   可访问文件系统范围不得包含仓库、源码、测试名、精确配方路径或内部路线图，只提供发行包、
+   默认控制说明和高层目标。
+8. 实现者与验收者必须使用不同任务上下文。记录需要列出工作目录、可访问根、初始提示和仓库
+   是否可访问；仅改变当前目录但仍能读取仓库不算隔离。无法保证 package-only 访问时，严格
+   `AI-06` 记录为 `BLOCKED`，可保留探索观察，但不得据此声明 blind PASS。
 
 脚本化 AI 运行验证功能正确性；盲玩 AI 运行只提供“AI 可理解性代理”证据。二者不能互相替代。
+
+### 4.1 AI-06 隔离合同
+
+`AI-06` 只有同时满足以下条件才能使用 `context_isolation=PACKAGE_ONLY`：
+
+- 独立任务只挂载或授权读取解包后的发行包和本次验收输出目录；
+- 仓库根、源码、测试、合同、路线图和既有攻略对验收任务不可访问；
+- 记录 package SHA-256、初始工作目录、全部可访问根、初始提示和提供的控制说明；
+- 验收过程中没有追加实现细节、配方答案、目标坐标或调试路径。
+
+只能做到“新任务”或“新工作目录”，但仓库仍可读取时，使用
+`context_isolation=PARTIAL`，严格 `AI-06 result=BLOCKED`。该次运行仍可作为非门禁观察附在记录中，
+但 `functional_playability` 和 AI 可理解性声明保持 `NOT_CLAIMED`。
+
+### 4.2 AI-07 动态与视听证据合同
+
+- UI、双语和布局使用未缩放的原尺寸窗口截图，并记录窗口、locale、UI scale、图形档位和时间点；
+- 闪烁、关键姿态、轮廓、粒子和状态切换必须由按时间排序的多帧序列、可访问视频或 Computer
+  Use 连续窗口观察关闭；单张静态图不能关闭动态项；
+- 每组多帧证据记录捕获时间、原始文件路径和哈希。`tools/run_render_capture.ps1 -CaptureMs ...`
+  已能生成多个时间点，可用于开发预检；在它能够直接针对带哈希的发行包可执行文件运行并证明
+  身份一致前，不能单独替代正式的干净包 AI-07 证据；
+- 首次正式 AI-07 可以直接由 OS 级 Computer Use 在干净包中连续观察并保存截图/视频，无需先
+  开发另一套抓帧工具；正式运行不得使用 fixture、validation override 或开发构建目录；
+- 声音 cue、字幕和暂停/静音生命周期需要可访问录音或 Computer Use 实际听取记录。只有日志、
+  dummy backend 或字幕存在时，不能把音频存在性写成 PASS；无法取得音频证据时相应子项为
+  `BLOCKED`；
+- AI-07 可以拆成视觉、本地化、动态和音频子记录；总 PASS 必须引用所有必需子记录和 artifacts。
 
 ## 5. 首批场景
 
@@ -163,6 +194,11 @@ locale=<en-US|zh-CN>
 seed=<world seed>
 save_identity=<world id>
 scenario=<AI-01..AI-08>
+working_directory=<absolute package root>
+accessible_roots=<package/output roots>
+repository_accessible=<true|false>
+context_isolation=<PACKAGE_ONLY|PARTIAL|NOT_APPLICABLE>
+initial_prompt=<verbatim prompt or artifact path>
 normal_input_only=true
 debug_or_fixture_used=false
 result=<PASS|FAIL|BLOCKED|NOT_RUN>
