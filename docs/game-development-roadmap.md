@@ -317,20 +317,21 @@ PLAYABILITY-RC 记录要求见
 
 | 顺序 | 批次 | 主要结果 | 状态 |
 | ---- | ---- | -------- | ---- |
-| 1 | P11-0 | 增加可制造火把、修正 Rose 发光并建立 metadata 驱动的熔炉发射与局部重光照。 | Engineering Done（Q1/真人 Deferred） |
+| 1 | P11-0 | 增加可制造火把、修正 Rose 发光并建立 metadata 驱动的熔炉发射与局部重光照。 | Engineering Done（真人 Deferred） |
 | 2 | P11A | 分离使用/放置/格挡，扩展鼠标与模式重绑定，统一灵敏度和窗口焦点/捕获恢复。 | Engineering Done（Physical Input v2 Deferred） |
 | 3 | P11B | 增加手/工具、裂纹、粒子、命中/受击/冷却、拾取和音频微变体反馈。 | Engineering Done（真人 Deferred） |
 | 4 | P11-1 | 补木板、圆石、单方块门和 axe/shovel，形成最小建造与工具选择。 | Engineering Done（真人 Deferred） |
 | 5 | P11C | 把前 30 分钟改为成长、建造、探索最多三项并行机会，并让配方随材料发现。 | Engineering Done（真人 30 分钟 Deferred） |
 | 6 | P11D | 让遗迹罗盘、营地护符和路标核心能力改变之后的计划。 | Engineering Done（真人 Deferred） |
-| 7 | P11-2 | 用山地高度域和天然洞口形成 terrain v4；水文生成保持未排期。 | Engineering Done（Q1/真人 Deferred） |
+| 7 | P11-2 | 用山地高度域和天然洞口形成 terrain v4；水文生成保持未排期。 | Engineering Done（真人 Deferred） |
 | 8 | P11E | 用 6-7 部件轮廓、身份化掉落、关键姿态和 Waystone 共鸣提升战斗层次。 | Engineering Done（真人 Deferred） |
-| 9 | P11F | 汇总自动门禁、迁移、性能、保存恢复、发行包和延期证据，形成 PLAYABILITY-RC。 | Planned |
+| 9 | P11F | 汇总自动门禁、迁移、性能、保存恢复、发行包和延期证据，形成 PLAYABILITY-RC。 | Engineering Done（真人/产品体验/macOS Deferred） |
 
 顺序固定为 `P11-0 -> P11A -> P11B -> P11-1 -> P11C -> P11D -> P11-2 -> P11E -> P11F`。
-当前工程批次为 P11F；自动测试负责回归，真人记录负责证明操作和玩法是否实际改善。真人项可后置，
-但 P11F 必须保持其真实未通过状态。首版不强推饥饿，也不在这条
-路线完成前抢做成就/统计或批量增加只有数值、换色差异的内容。
+九个 Windows 自动工程批次均已完成，封板证据见
+`docs/playability-release-candidate-report-2026-08-31.md`；当前没有后续已批准代码批次。自动测试负责回归，
+真人记录负责证明操作和玩法是否实际改善；未执行的真人/产品体验/macOS 子状态保持 Deferred/Verify。
+首版不强推饥饿，也不另行抢做成就/统计或批量增加只有数值、换色差异的内容。
 
 ## `F:\env1_trunk` 的使用边界
 

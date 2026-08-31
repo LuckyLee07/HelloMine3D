@@ -6,9 +6,10 @@
 Stage 10 的 V10A-V10E 与 VISUAL-RC 已完成 Windows 工程和对应开发者视觉范围；
 V10B1/V10C/V10D/V10E 的 macOS Release shader/窗口证据、正式产品体验与 Physical Input v2
 保持 `Verify`。封板证据见 `docs/visual-release-candidate-report-2026-08-28.md`。
-VISUAL-RC 后评审已选择 Stage 11；P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/P11E 工程已完成，P11F 为当前开放批次。工程按固定顺序
-逐个开放，真人/主观/活动桌面证据统一后置为 `Verify/Deferred`，但不得标成自动 PASS。权威范围见
-`docs/playability-experience-roadmap.md`，输入合同见 `docs/core-input-feel-contract-v1.md`。
+VISUAL-RC 后评审选择的 Stage 11 已完成 P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/P11E/P11F
+全部 Windows 自动工程批次。真人/主观/产品体验/macOS 证据统一后置为 `Verify/Deferred`，但不得标成自动
+PASS。权威范围见 `docs/playability-experience-roadmap.md`，封板证据见
+`docs/playability-release-candidate-report-2026-08-31.md`，输入合同见 `docs/core-input-feel-contract-v1.md`。
 
 历史运行结果和逐项证据保存在 `docs/project-ledger-2026-08-17.md` 与
 `docs/runtime-validation.md`。
@@ -20,7 +21,7 @@ VISUAL-RC 后评审已选择 Stage 11；P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/P1
 | 所有 C++ 改动 | 受影响目标能够编译；运行对应定向自动测试。 |
 | 世界、区块、实体或持久化 | 定向自动测试 + `HelloMine3DWorldRuntimeSmoke`。 |
 | 物品、容器、制作、工具或食物 | 状态守恒、容量边界、失败原子性、固定 tick 和保存/重载测试。 |
-| UI 或输入 | 动作仲裁、焦点隔离、映射/冲突、设置迁移自动测试；可用环境下的开发者交互冒烟。Physical Input v2 可登记 Deferred，不阻塞后续工程，但 P11F 必须保留真实未通过状态。 |
+| UI 或输入 | 动作仲裁、焦点隔离、映射/冲突、设置迁移自动测试；可用环境下的开发者交互冒烟。Physical Input v2 保持 Deferred，不阻塞自动工程封板，也不得随 P11F 工程完成而自动改成 PASS。 |
 | 第一人称动作、命中/受击、粒子或镜头反馈 | 判定时刻与表现解耦测试、数量/持续时间上限、关闭回退、HUD/准星截图和真实 Release 动态观察；镜头效果必须可调或可关。 |
 | 目标、配方发现、探索奖励或资源经济 | 主线可达、输入输出守恒、重复奖励/一次性领取、保存重载和全部受影响迁移；用真实新世界试玩记录选择、困惑时段与计划变化。 |
 | 资源、配方、声音或 shader | 资源清单/解析验证；缺失和非法引用必须明确失败。 |
@@ -33,8 +34,8 @@ VISUAL-RC 后评审已选择 Stage 11；P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/P1
 
 | 验证 | 命令或目标 | 适用改动 |
 | ---- | ---------- | -------- |
-| Windows 工程生成 | `vs2022.bat` | 构建系统或文件布局 |
-| Windows 全量门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify_build.ps1` | 里程碑封板、跨目标源码或链接变化 |
+| Windows 工程生成 | `tools\premake\premake5.exe --os=windows --file=premake/premake.lua vs2017` | 构建系统或文件布局；当前正式工具链是 VS2017/v141 |
+| Windows 全量门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify_build.ps1 -VisualStudioVersion 2017` | 里程碑封板、跨目标源码或链接变化；无活动桌面时显式加 `-SkipRealWindow` 并保留 `DEFERRED` |
 | Windows Debug 编译 | `MSBuild build\HelloMine3D.sln /p:Configuration=Debug /p:Platform=x64` | 所有 C++ 改动的主干检查 |
 | Windows Release 编译 | 同上，配置改为 `Release` | 里程碑和发行候选 |
 | macOS Xcode 门禁 | `bash scripts/verify_xcode.sh` | Xcode 图、macOS 平台或原生封板 |
@@ -149,15 +150,15 @@ Stage 10 的地形 shader、顶点数据、图集、云、阴影或后处理变�
 
 | 批次 | 合入前最低工程证据 | 必须当批完成的真人证据 |
 | ---- | ------------------ | ---------------------- |
-| `P11-0`（Engineering Done；Q1/真人 Deferred） | 火把/材料身份末尾追加；图集 113 与资源许可；2x2 配方守恒；`Rose` 修正；Furnace block entity→metadata 投影、旧 v11 活跃熔炉规范化、真正翻转时的单次局部重光照、暂停/卸载边界；双配置和自动/视觉证据已通过。 | 活动桌面同身份 Q1 与取得材料→制作→洞穴/夜晚/熔炉动态试玩保持 Deferred。 |
+| `P11-0`（Engineering Done；真人 Deferred） | 火把/材料身份末尾追加；图集 113 与资源许可；2x2 配方守恒；`Rose` 修正；Furnace block entity→metadata 投影、旧 v11 活跃熔炉规范化、真正翻转时的单次局部重光照、暂停/卸载边界；双配置、自动/视觉证据与 PLAYABILITY-RC 正式 Q1 已通过。 | 取得材料→制作→洞穴/夜晚/熔炉动态试玩保持真人 Deferred。 |
 | `P11A`（Engineering Done；Physical Input v2 Deferred） | 使用/放置/格挡单一消费；四项鼠标绑定/冲突；settings v7 与 v0-v6 迁移；线性相对增量；焦点门；hold/toggle；双配置、定向 88/88、资源 80/80 和完整世界回归通过。 | Physical Input v2 的移动、视角、世界/UI 动作、暂停、Alt+Tab、最小化、回焦和重启保持 Deferred。 |
 | `P11B`（Engineering Done；真人 Deferred） | 动画不改变判定；裂纹/粒子/拾取数量与生命周期有界；关闭回退；音频并发；HUD/准星隔离和适用性能均已自动验证。 | 真实 Release 动态观察后置 Deferred。 |
 | `P11-1`（Engineering Done；真人 Deferred） | 新方块/材料末尾追加、门开关与保存、木板/圆石守恒、axe/shovel 矩阵、孤儿清理、图集/双语/资源包和旧存档回归已通过。 | 从新世界实际采集并造出可关闭落脚点；分别用正确/错误工具采集对应材料，记录耗时差异、配方发现和放置/开关可读性，当前后置。 |
 | `P11C`（Engineering Done；真人 30 分钟 Deferred） | 目标 v3、最多三项并行机会、分支进度、配方发现 token、save v11 的 v1/v2 迁移、双语 403 key、双配置 41/41 和完整世界 803/803 已通过。 | 全新世界至少 30 分钟：记录至少两项并行选择、关键里程碑、超过 60 秒的困惑时段、查配方次数和主动改计划时刻，当前后置。 |
 | `P11D`（Engineering Done；真人 Deferred） | 奖励 v1/v0、save v12、末尾追加材料、遗迹/营地新旧战利品、罗盘方向距离、护符近战/投射物共用恢复入口、箱子持久化和迁移拒绝；Debug/Release 定向各 30/30，Release 世界 810/810、配方 121/121、资源包 80/80、目录 59/59、图集 278/278 已通过。 | 每类正式结构实际完成一次；记录奖励是否改变后续能力或计划，普通矿物不能作为主要价值证明，当前后置。 |
-| `P11-2`（Engineering Done；Q1/真人 Deferred） | terrain v4 末尾追加；Mountain 高度域 1..176、Stone 高峰、96×96 cell/24 格天然洞口；旧 v1-v3 输出冻结；区块加载顺序、save v12 v3/v4 身份和未知 v5 拒绝通过。Debug/Release 定向各 9/9、Release 世界 820/820、配方 121/121、资源包 80/80、目录 59/59；水文未进入本批。 | 活动桌面为 WTS state 4，fast-streaming/scaled-gameplay 新身份 Q1 与多个固定/随机 seed 的山地轮廓、洞口发现时间、通行性和远景/阴影效果保持 Deferred。 |
+| `P11-2`（Engineering Done；真人 Deferred） | terrain v4 末尾追加；Mountain 高度域 1..176、Stone 高峰、96×96 cell/24 格天然洞口；旧 v1-v3 输出冻结；区块加载顺序、save v12 v3/v4 身份和未知 v5 拒绝通过。Debug/Release 定向各 9/9、Release 世界 820/820、配方 121/121、资源包 80/80、目录 59/59，PLAYABILITY-RC fast-streaming/scaled-gameplay 正式 Q1 通过；水文未进入本批。 | 多个固定/随机 seed 的山地轮廓、洞口发现时间、通行性和远景/阴影效果保持真人 Deferred。 |
 | `P11E`（Engineering Done；真人 Deferred） | 玩法状态驱动 6-7 部件轮廓；判定与渲染解耦；8 tick/32 项死亡表现上限；Dirt-free 身份掉落与 Plant Fiber Alpha 兼容；8 格/80 tick Waystone 共鸣；save v12 瞬态隔离。Debug/Release 定向各 35/35、Release 世界 832/832、配方 122/122、资源包 80/80、84 项 manifest 与客户端双配置通过。 | 不看名称辨识主要敌人、预警与危险窗口；比较各敌人掉落价值；完整走通 Waystone 共鸣，记录误判、死亡原因和策略变化，当前后置。 |
-| `P11F`（Planned） | 全门禁、全迁移、适用 Q1/Q3/长稳、资源许可、干净包和构建身份；当前环境不能执行的活动桌面/平台项登记真实状态。 | 汇总而非补造前八批试玩证据；给出明确 `PASS`/`FAIL`/`Verify/Deferred`，未完成平台或产品体验不得自动关闭。 |
+| `P11F`（Engineering Done；真人/产品体验/macOS Deferred） | VS2017/v141 双配置、84 项资源、278 项图集、38 个性能夹具、11 项 Stage 10 补充合同、832/832 世界、80/80 资源包、122/122 配方、15/15 启动负例、六类正式 Q1、nominal/stress 各 1800 秒 Q3、136,615 字节 dump、离线符号与 104 项干净包均通过。 | 报告给出明确 `PASS（Windows 自动工程）` 与 `Verify/Deferred`；未补造真人试玩，Physical Input v2、产品体验和 macOS 未自动关闭。见 `docs/playability-release-candidate-report-2026-08-31.md`。 |
 
 每份 Stage 11 真人记录至少包含 commit/构建身份、硬件、分辨率、输入设备、场景、里程碑耗时、
 误操作、死亡、困惑时段和结论。截图或自动日志只能支持结论，不能单独证明操作手感和可玩性。

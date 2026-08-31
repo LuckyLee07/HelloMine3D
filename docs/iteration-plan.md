@@ -35,7 +35,7 @@ HelloMine3D 已具备这些基础：
 | ---- | ---- |
 | 目标 Windows 更新门禁已恢复 | 2026-08-20 最终 PowerShell 门禁通过 46 项资源、36 个性能夹具、Debug/Release 0 错误全量重建、十三目标、491 项世界回归、隐藏客户端、124,513 字节后台受控 minidump 与 66 文件干净发行包。 |
 | 输入仍有平台型证据缺口 | OIS 到控制器的数据边界已自动验证，但真实 Windows 键鼠仍需人工验收；原生 arm64 Apple Clang ThreadSanitizer 已关闭后台加载器的 R4 证据缺口。现有 R3 v1 不足以单独关闭当前 D4/D6，后续需独立建立 Physical Input v2；视觉、双语和听感不并入 R3。 |
-| 下一产品阶段已选定 | 第 8 阶段、Stage 9/N7-N12、BETA-RC 与 Stage 10/VISUAL-RC Windows 工程均已完成；Stage 11 的 P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/P11E 工程已完成，P11F 是下一开发批次。真人输入/试玩统一后置为 Deferred，正式产品体验和 macOS 原生证据继续保持 Verify；多人、脚本化 mod、热更新和新渲染后端仍未立项。 |
+| 当前产品阶段已封板 | 第 8 阶段、Stage 9/N7-N12、BETA-RC、Stage 10/VISUAL-RC 与 Stage 11/P11-0-P11F Windows 自动工程均已完成。真人输入/试玩统一后置为 Deferred，正式产品体验和 macOS 原生证据继续保持 Verify；当前没有剩余已批准代码批次，多人、脚本化 mod、热更新和新渲染后端仍未立项。 |
 
 ## 迭代阶段
 
@@ -55,7 +55,7 @@ HelloMine3D 已具备这些基础：
 | 第 8 阶段 | 自动化闭环，待人工验收 | `K1-K4`、`G1-G6`、`N1-N6`、`H1-H3` 和 `Q1-Q3` 已完成；目标、成长、恢复、战斗掉落、生态探索、可访问体验、诊断、正式 Windows 预算和双档长稳均已串联；物理输入、视觉/双语和听感证据独立延期。 |
 | 第 9 阶段 | 工程完成，待 R3 | `N7-N12` 与 `BETA-RC` 不计入当前 77 项总账；BETA-RC 自动门禁、正式 Q1/Q3 和发行证据已封板，R3 真人项延期。 |
 | 第 10 阶段 | Done（Windows 工程；macOS/产品体验 Verify） | `V10A`、`V10B1-B3`、`V10C-V10E` 与 `VISUAL-RC` 不计入当前 77 项总账；最终 Windows 全门禁、Q1/Q3、视觉矩阵、资源许可和干净包已封板。V10B1/V10C/V10D/V10E 的 macOS shader 子状态及正式产品体验保持 Verify。 |
-| 第 11 阶段 | P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/P11E Engineering Done；P11F Planned | 可玩性与操作体验路线不计入当前 77 项总账；可制造光源、核心输入、动作反馈、最小建造集、并行前 30 分钟、独特探索奖励、terrain v4 山地/洞口和敌人表现/路标共鸣工程已完成。P11F 先关闭可自动执行的集中门禁，Physical Input v2、试玩和活动桌面证据统一保留 Deferred。 |
+| 第 11 阶段 | P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/P11E/P11F Engineering Done | 可玩性与操作体验路线不计入当前 77 项总账；可制造光源、核心输入、动作反馈、最小建造集、并行前 30 分钟、独特探索奖励、terrain v4 山地/洞口、敌人表现/路标共鸣与 PLAYABILITY-RC 自动工程封板均已完成。Physical Input v2、真人试玩、正式产品体验和 macOS 证据保留 Deferred/Verify。 |
 
 ### 第 0 阶段：稳定现有基础
 
@@ -464,19 +464,19 @@ Stage 10 的历史执行顺序为
 
 | 顺序 | 批次 | 规模 | 核心结果 | 关键护栏 |
 | ---- | ---- | ---- | -------- | -------- |
-| 1 | P11-0 世界光源（Engineering Done；Q1/真人 Deferred） | M | 可制造火把、Rose 修正、metadata 熔炉发射和真正翻转时的局部重光照。 | 工程/视觉证据已完成；断开桌面 Q1 与真人动态记录后置。 |
+| 1 | P11-0 世界光源（Engineering Done；真人 Deferred） | M | 可制造火把、Rose 修正、metadata 熔炉发射和真正翻转时的局部重光照。 | 工程/视觉证据与 PLAYABILITY-RC 正式 Q1 已完成；真人动态记录后置。 |
 | 2 | P11A 核心操作手感（Engineering Done；Physical Input v2 Deferred） | M/L | 分离使用/放置/格挡，补鼠标重绑定和冲刺/潜行模式，统一灵敏度与焦点/捕获恢复。 | settings v7、v0-v6 迁移、双配置与自动回归完成；真实输入不冒充 PASS。 |
 | 3 | P11B 动作反馈（Engineering Done；真人 Deferred） | M | 手/工具、裂纹、粒子、命中/受击/冷却、拾取和音频微变体已实现。 | 自动时序、上限和关闭回退通过；真实动态舒适度后置。 |
 | 4 | P11-1 建造材料与工具（Engineering Done；真人 Deferred） | M/L | 木板、圆石、单方块门和 axe/shovel 的最小建造与工具选择已实现。 | 双配置与自动门禁通过；工具差异和建造动态观感后置。 |
 | 5 | P11C 前 30 分钟（Engineering Done；真人 30 分钟 Deferred） | M/L | 成长、建造、探索最多三项并行机会、独立进度和随材料展开的配方书已实现。 | 双配置、P11C 41/41、Release 世界 803/803、配方/资源回归通过；完整新世界 30 分钟试玩后置。 |
 | 6 | P11D 探索奖励（Engineering Done；真人 Deferred） | L | 遗迹罗盘、营地护符和既有路标核心形成独特能力结果。 | save v12/奖励 v1 与旧世界 v0 已冻结；双配置、定向和完整回归通过，真人逐结构体验后置。合同见 `exploration-reward-contract-v1.md`。 |
-| 7 | P11-2 地形轮廓与洞口（Engineering Done；Q1/真人 Deferred） | L | terrain v4 已提供 Mountain 高度域、Stone 高峰和可发现天然洞口，v1-v3 输出冻结。 | 双配置、定向 9/9、Release 世界 820/820 与次级回归通过；活动桌面 Q1 和真人远景/通行性后置，湖泊/河流/瀑布未进入本批。合同见 `terrain-contours-cave-entrances-contract-v1.md`。 |
+| 7 | P11-2 地形轮廓与洞口（Engineering Done；真人 Deferred） | L | terrain v4 已提供 Mountain 高度域、Stone 高峰和可发现天然洞口，v1-v3 输出冻结。 | 双配置、定向 9/9、Release 世界 820/820、次级回归与 PLAYABILITY-RC 正式 Q1 通过；真人远景/通行性后置，湖泊/河流/瀑布未进入本批。合同见 `terrain-contours-cave-entrances-contract-v1.md`。 |
 | 8 | P11E 敌人表现（Engineering Done；真人 Deferred） | L | 6-7 部件轮廓、玩法状态关键姿态、身份化掉落、死亡表现隔离和 Waystone 共鸣已实现。 | 双配置、定向各 35/35、Release 世界 832/832、配方 122/122、资源包 80/80、84 项 manifest 和客户端编译通过；真人动态辨识与守护战体验后置。合同见 `enemy-presentation-waystone-resonance-contract-v1.md`。 |
-| 9 | P11F PLAYABILITY-RC（Planned） | M | 汇总自动门禁、迁移、性能、恢复、包和延期证据。 | 先完成无需真人输入的全门禁、适用 Q1/Q3、长稳、资源许可与干净包；真人里程碑、误操作、死亡与困惑记录保持 Deferred；不自动 push 或打标签。 |
+| 9 | P11F PLAYABILITY-RC（Engineering Done；真人/产品体验/macOS Deferred） | M | 已汇总自动门禁、迁移、性能、恢复、包和延期证据。 | VS2017/v141 双配置、832/832 世界、六类正式 Q1、双档 1800 秒 Q3、崩溃/符号链路与 104 项干净包通过；真人里程碑、误操作、死亡与困惑记录保持 Deferred；未 push 或打标签。报告见 `playability-release-candidate-report-2026-08-31.md`。 |
 
 执行顺序固定为 `P11-0 -> P11A -> P11B -> P11-1 -> P11C -> P11D -> P11-2 -> P11E -> P11F`。每批需要独立合同、
-定向自动回归；真人试玩统一登记 Deferred，恢复时 P11C 至少覆盖完整前 30 分钟。P11F 汇总工程
-证据与延期清单，不得把未执行的真人体验写成 PASS。
+定向自动回归均已完成；真人试玩统一登记 Deferred，恢复时 P11C 至少覆盖完整前 30 分钟。P11F
+已汇总工程证据与延期清单，未把未执行的真人体验写成 PASS。当前没有下一项已批准代码批次。
 
 ## 不建议近期投入的方向
 
@@ -540,7 +540,7 @@ Windows-first 阶段延期，macOS 原生 `B3` 已于 2026-08-16 补齐并通过
 
 | 检查 | 命令/方式 |
 | ---- | --------- |
-| Windows 双配置完整门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify_build.ps1` |
+| Windows 双配置完整门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify_build.ps1 -VisualStudioVersion 2017`；无活动桌面时显式加 `-SkipRealWindow`，真实窗口相关结果记为 Deferred。 |
 | Linux/macOS Make 双配置门禁 | `bash scripts/verify_build.sh` |
 | macOS Xcode project | `bash scripts/verify_xcode.sh` 先验证 9 个合同/工程图夹具及实际 29 项工程清单，再构建 Debug/Release、执行十一项测试和客户端启动探针；陈旧/缺失工程、重复或多分组引用、手工目标顺序及第一方编译告警均会使门禁失败。 |
 | 资源检查 | `bash scripts/check_assets.sh`，资产引用缺失时返回非零。 |
@@ -549,7 +549,7 @@ Windows-first 阶段延期，macOS 原生 `B3` 已于 2026-08-16 补齐并通过
 | 长时间稳定性 | `tools/run_world_soak.ps1`；区块、演员、存档或后台线程变更按固定种子动作表运行。 |
 | 物理输入验收 | `docs/manual-input-acceptance-v1.md` 只保留十二项历史基线；`docs/physical-input-acceptance-v2.md` 已定义十三项当前合同，真实运行统一 Deferred。 |
 | 产品体验验收 | `docs/manual-product-experience-acceptance-v1.md`；视觉、双语可读性和听感独立记录，不并入物理输入。 |
-| 干净目录发布验收 | `tools/package_windows_release.ps1`；从隔离根目录完成 manifest 预检、validation-only、真实窗口和负向校验。 |
+| 干净目录发布验收 | `tools/package_windows_release.ps1`；从隔离根目录完成 manifest 预检、validation-only、真实窗口和负向校验；`-SkipRealWindow` 只关闭需要 OpenGL 窗口的路径并在摘要中保留 Deferred。 |
 | 存档故障与恢复（第 8 阶段） | K2 故障注入已证明发布失败不会覆盖最后有效存档；K3 已交付备份容量上限、损坏隔离、发布中断回滚和完整状态恢复 harness。 |
 | 本地崩溃诊断（第 8 阶段） | H1-H3 交付受控崩溃、sidecar、符号化和干净包探针；默认禁止上传并检查隐私/符号泄漏。 |
 | 扩展性能预算（第 8 阶段） | Q1-Q3 扩展采集和比较器；覆盖启动、世界进入、保存/恢复、区块可见延迟和内容规模。 |
@@ -569,7 +569,7 @@ Windows-first 阶段延期，macOS 原生 `B3` 已于 2026-08-16 补齐并通过
 | M6 可持续游玩与可靠发布 | 自动化闭环，待人工验收 | K1-K4、G1-G6、N1-N6、H1-H3、Q1-Q3 已完成；nominal/stress 正式长稳双 PASS，剩余输入与产品体验分开记录。 |
 | M7 Beta 单机游戏闭环 | 工程完成，待人工验收 | 首次进入、视觉/HUD、胜利、战斗、探索结构、资源经济、难度/胜利后事件、双语、本地化音频与 BETA-RC 工程证据均已关闭；RC0 已被 BETA-RC 取代，Physical Input v2 与产品体验验收独立延期。 |
 | M8 视觉质量升级 | Windows 工程完成，macOS/产品体验 Verify | V10A 顶点光照/AO、V10B1-B3 材质/生态表现、V10C 大气云层、V10D 可选阴影、V10E 轻量后处理与 VISUAL-RC Windows 工程封板已完成；后续产品方向评审也已完成。 |
-| M9 可玩性与操作体验 | P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/P11E Engineering Done；P11F Planned | 可制造光源、输入动作仲裁、动作反馈、最小建造集、并行机会、配方发现、独特探索奖励、terrain v4 山地/洞口和敌人表现/路标共鸣已完成；P11F 继续自动工程封板，真人/Q1/产品体验保留 Deferred 清单。 |
+| M9 可玩性与操作体验 | P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/P11E/P11F Engineering Done | 可制造光源、输入动作仲裁、动作反馈、最小建造集、并行机会、配方发现、独特探索奖励、terrain v4 山地/洞口、敌人表现/路标共鸣与 PLAYABILITY-RC 自动工程封板已完成；真人/Physical Input v2/产品体验/macOS 保留 Deferred/Verify 清单。 |
 
 ## 与 MiniGame 参考文档的关系
 

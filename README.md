@@ -260,13 +260,13 @@ On macOS you can use the HelloOgre3D-style shortcut:
 ./xcode.sh
 ```
 
-On Windows, run `vs2022.bat` from the repository root, then build `build/HelloMine3D.sln`. The
-generated project files are written to `build/`, and the executable still outputs to
-`bin/HelloMine3D.exe`.
+On Windows, the maintained default is Visual Studio 2017 with the v141 toolset. Generate the
+project directly with bundled Premake, then build `build/HelloMine3D.sln`. The generated project
+files are written to `build/`, and the executable still outputs to `bin/HelloMine3D.exe`.
 
 ```powershell
-vs2022.bat
-& "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" `
+tools\premake\premake5.exe --os=windows --file=premake/premake.lua vs2017
+& "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\MSBuild\15.0\Bin\MSBuild.exe" `
     build\HelloMine3D.sln /p:Configuration=Debug /p:Platform=x64 /m
 ```
 
@@ -279,7 +279,7 @@ synchronization changes:
 
 | Platform | Command | Required host tools |
 | -------- | ------- | ------------------- |
-| Windows | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify_build.ps1` | Visual Studio 2022 with **Desktop development with C++**; Premake is bundled in `tools/`. |
+| Windows | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify_build.ps1 -VisualStudioVersion 2017` | Visual Studio 2017 with **Desktop development with C++** and v141; Premake is bundled in `tools/`. Pass `-VisualStudioVersion 2022` only for an explicit v143 compatibility run. |
 | Linux | `bash scripts/verify_build.sh` | A C++17 compiler, GNU Make, Premake 5 and the OpenGL/X11 development packages. |
 | macOS / Make | `bash scripts/verify_build.sh` | Xcode command-line tools, GNU Make and Premake 5 (`brew install premake`). |
 | macOS / Xcode | `bash scripts/verify_xcode.sh` | A graphical macOS session, Xcode command-line tools, Premake 5 and x86_64 execution support. |
@@ -289,6 +289,9 @@ The ordinary build wrappers stop at the first failed generation, compilation
 or test step and print `[BUILD_VERIFY] status=PASS` only after both
 configurations pass. The Xcode and TSan gates have their own terminal PASS
 markers.
+When no interactive OpenGL desktop is attached, pass `-SkipRealWindow`; the gate still runs both
+headless configurations, validation-only startup, resources and packaging, while its summary
+records the graphical crash/window flows as `DEFERRED` instead of claiming a PASS.
 The macOS-native Xcode generator remains a separate validation path documented
 in the project task list. A Windows host can still validate the generated
 workspace contract without claiming a native build:
@@ -445,6 +448,8 @@ local dump below `bin/crash_diagnostics_validation/`. Generated soak/crash
 evidence, package directories and ZIPs stay under `bin/` and remain ignored.
 See the corresponding contracts above for their storage boundary,
 deterministic inventory and negative checks.
+On a disconnected build session, both crash/package commands accept `-SkipRealWindow`; this keeps
+the headless checks and explicitly defers every flow that requires an actual OpenGL window.
 
 See `docs/runtime-validation.md` for what each layer covers.
 

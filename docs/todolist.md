@@ -12,7 +12,8 @@
 创建和管理世界，采集资源，制作工作台与工具，获得成长反馈，暂停和调整设置，听到
 基础声音，并在保存、退出、恢复后继续游玩。BETA-RC 与 Stage 10/VISUAL-RC Windows 工程
 闭环后的产品方向评审已经决定暂不进入 1.0 缺陷封板，转入 Stage 11 可玩性与操作体验路线。
-P11-0、P11A、P11B、P11-1、P11C、P11D、P11-2 与 P11E 已完成工程范围，当前计划开发批次为 P11F PLAYABILITY-RC。
+P11-0、P11A、P11B、P11-1、P11C、P11D、P11-2、P11E 与 P11F 已完成 Windows 自动工程范围；
+当前没有剩余已批准的 Stage 11 代码开发批次。
 
 当前采用“先完成可开发工程、人工项后置”策略。编译、定向自动测试、数据守恒、存档兼容和当前
 环境可执行的自主验收必须当批执行；真人输入、主观短试玩、活动桌面 GPU、macOS 原生及正式产品
@@ -28,7 +29,7 @@ P11-0、P11A、P11B、P11-1、P11C、P11D、P11-2 与 P11E 已完成工程范围
 | `docs/game-development-roadmap.md` | G5/G6、Alpha 后内容批次与最终封板的详细开发计划。 |
 | `docs/beta-gameplay-roadmap.md` | Release Candidate 后 Stage 9 / Beta 的 N7-N12 预排批次、版本边界和回归合同。 |
 | `docs/visual-quality-roadmap.md` | BETA-RC 后 Stage 10 的 V10A、V10B1-B3、V10C-V10E、VISUAL-RC 视觉升级批次、版本预案与性能护栏。 |
-| `docs/playability-experience-roadmap.md` | Stage 11 的 P11-0/P11A-P11F/P11-1/P11-2 顺序、版本预案、Physical Input v2 和 PLAYABILITY-RC 门禁。 |
+| `docs/playability-experience-roadmap.md` | Stage 11 的 P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/P11E/P11F 顺序、版本预案、Physical Input v2 和 PLAYABILITY-RC 门禁。 |
 | `docs/world-light-source-contract-v1.md` | P11-0 火把定义、图集与配方、metadata 驱动发射、局部重光照和末尾追加的身份约束。 |
 | `docs/core-input-feel-contract-v1.md` | P11A 动作仲裁、settings v7 鼠标绑定、hold/toggle、灵敏度、焦点门和延期边界。 |
 | `docs/action-feedback-contract-v1.md` | P11B 裂纹、粒子、动作/战斗 HUD、掉落物上限、settings v8 强度回退和延期边界。 |
@@ -37,6 +38,7 @@ P11-0、P11A、P11B、P11-1、P11C、P11D、P11-2 与 P11E 已完成工程范围
 | `docs/exploration-reward-contract-v1.md` | P11D 遗迹罗盘、营地护符、路标能力、奖励版本迁移、自动证据和逐结构真人延期边界。 |
 | `docs/terrain-contours-cave-entrances-contract-v1.md` | P11-2 terrain v4、山地高度域、天然洞口、v1-v3 隔离、自动证据与 Q1/真人延期边界。 |
 | `docs/enemy-presentation-waystone-resonance-contract-v1.md` | P11E 多部件敌人轮廓、关键姿态、死亡表现隔离、身份掉落、Waystone 共鸣和真人延期边界。 |
+| `docs/playability-release-candidate-report-2026-08-31.md` | P11F 最终 Windows 门禁、正式 Q1/Q3、崩溃/符号、发行包和延期证据总表。 |
 | `docs/vertex-lighting-contract-v1.md` | V10A 四角采样、AO/光照合成、对角线、greedy 重建和 mesh-dirty 边界。 |
 | `docs/terrain-material-profile-contract-v1.md` | V10B1 图集/tile/颜色参数、资源包覆盖、CPU/GPU 坐标兼容和启动失败边界。 |
 | `docs/directional-shadow-contract-v1.md` | V10D settings v5、方向阴影档位、回退、性能和开发者视觉证据。 |
@@ -59,11 +61,11 @@ P11-0、P11A、P11B、P11-1、P11C、P11D、P11-2 与 P11E 已完成工程范围
 | ---- | -------- |
 | 现有玩法 | 已有移动、方块放置/破坏、箱子、作物、自然生物、战斗、死亡重生、物品拾取和保存恢复。 |
 | 世界可靠性 | K1 世界目录、K2 事务保存、K3 有界备份与验证恢复、K4 世界管理和主菜单入口已经完成。 |
-| 玩法数据层 | G1-G6、N1-N6、N7A-N12C、BETA-RC 与 Stage 10/VISUAL-RC 均已完成 Windows 工程范围；Stage 11 的 P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/P11E 工程已完成，P11F 是下一开发批次。 |
-| 性能观测 | Q1 七类场景和 Q2 有界阶段计时已闭环；VISUAL-RC 六类 Windows 基线/复测和 Q3 双档正式长稳全部通过。 |
+| 玩法数据层 | G1-G6、N1-N6、N7A-N12C、BETA-RC、Stage 10/VISUAL-RC 与 Stage 11/P11F 均已完成 Windows 自动工程范围；真人和 macOS 子状态独立保持 Verify/Deferred。 |
+| 性能观测 | Q1 七类场景和 Q2 有界阶段计时已闭环；PLAYABILITY-RC 六类 Windows baseline/repeat 与 Q3 双档正式长稳全部通过。 |
 | 崩溃诊断 | H1-H3 已闭环：本地 dump、脱敏 sidecar、混合栈离线符号、独立符号归档和下次启动提示均通过，默认不上传。 |
 | 跨平台 | macOS Debug/Release、真实窗口、31 项 Xcode 工程图和原生 TSan 门禁已有证据。 |
-| 当前 Windows 门禁 | 2026-08-28 VISUAL-RC 工程封板通过：77 项资源、261 项图集、38 个性能夹具、11 项 Stage 10 补充合同、VS2017/v141 双配置、743/743 世界、80/80 资源包、117/117 配方、15/15 启动负例、145,169 字节 dump 和 97 文件干净包均通过；六类正式 Q1 与 nominal/stress 各 1800 秒 Q3 全部 `PASS`。发行 ZIP SHA-256 为 `ACCB99B3F984D5FB8EF11279280406F8477ED625719F4801479DB6F7FE7A6005`；macOS 原生、正式产品体验和 Physical Input v2 保持 Verify。 |
+| 当前 Windows 门禁 | 2026-08-31 PLAYABILITY-RC 自动工程封板通过：84 项资源、278 项图集、38 个性能夹具、11 项 Stage 10 补充合同、VS2017/v141 双配置、832/832 世界、80/80 资源包、122/122 配方、15/15 启动负例、136,615 字节 dump 和 104 项干净包均通过；六类正式 Q1 与 nominal/stress 各 1800 秒 Q3 全部 `PASS`。发行 ZIP SHA-256 为 `422F97E87046D4B6D5FC4BB99C37886FF37C4461A152C1162FA66A972B12F459`；macOS 原生、逐批真人试玩、正式产品体验和 Physical Input v2 保持 Verify/Deferred。 |
 
 ## 进度摘要
 
@@ -73,8 +75,8 @@ P11-0、P11A、P11B、P11-1、P11C、P11D、P11-2 与 P11E 已完成工程范围
 当前建立的 8 个视觉批次均已完成 Windows 工程范围，VISUAL-RC 为 `Done（Windows 工程）`；
 V10B1/V10C/V10D/V10E 的 macOS shader 子状态因当前无目标机器保持 `Verify`。
 R3 已做部分非正式真人自测；现有 v1 十二项记录尚未完成，而且其范围不足以单独关闭当前
-D4/D6 和 Stage 9/10 的全部人工体验。Stage 11 新增九个不回写历史统计的批次：P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/P11E 为
-`Engineering Done`，P11F 为 `Planned`。2026-08-28 的内容与视觉复核在原有六批之间插入了 P11-0、
+D4/D6 和 Stage 9/10 的全部人工体验。Stage 11 新增九个不回写历史统计的批次：
+P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/P11E/P11F 均为 `Engineering Done`。2026-08-28 的内容与视觉复核在原有六批之间插入了 P11-0、
 P11-1 和 P11-2 三个内容密度批次，理由是原有批次的退出条件依赖世界里并不存在的内容。
 P11A 的 Physical Input v2 已定义但真实执行保持 Deferred，并与视觉/双语/听感验收分开；不能因
 工程完成而自动关闭 D2/D4/D6/R3。
@@ -85,8 +87,8 @@ P11A 的 Physical Input v2 已定义但真实执行保持 Deferred，并与视�
 | Stage 9 已完成 | 16 | FS1 首次进入正确性、FS2 天空/水面/颜色、FS3 体素美术/HUD、N7A 结局状态与文本键基础、N7B 路标胜利闭环、N8A 战斗可读性、N8B 远程敌人与投射物、N9A 确定性结构框架、N9B 遗迹/营地与生态战利品、N10 食物/冶炼/资源经济、N11A 难度档案、N11B 胜利后事件、N12A 本地化完成、N12B 正式采样音效、N12C 低密度音乐、BETA-RC 工程封板 |
 | Stage 10 已完成 | 8 | V10A 顶点平滑光照/AO、V10B1 材质/图集管线、V10B2 原创材质资产、V10B3 生态着色/确定性变体、V10C 定向大气/立体云、V10D 可选方向阴影、V10E 轻量后处理、VISUAL-RC Windows 工程封板 |
 | Stage 10 待开发 | 0 | 无；VISUAL-RC 后产品方向评审已完成 |
-| Stage 11 工程已完成 | 8 | P11-0 世界光源与洞穴照明、P11A 核心操作手感、P11B 动作反馈、P11-1 建造材料与工具分化、P11C 前 30 分钟重构、P11D 探索奖励、P11-2 地形轮廓与洞口、P11E 敌人表现与战斗层次（人工/Q1/动态观感子项 Deferred） |
-| Stage 11 下一批 | 1 | P11F PLAYABILITY-RC（Planned） |
+| Stage 11 工程已完成 | 9 | P11-0 世界光源与洞穴照明、P11A 核心操作手感、P11B 动作反馈、P11-1 建造材料与工具分化、P11C 前 30 分钟重构、P11D 探索奖励、P11-2 地形轮廓与洞口、P11E 敌人表现与战斗层次、P11F PLAYABILITY-RC（真人/产品体验/macOS 子项 Deferred） |
+| Stage 11 待开发 | 0 | 无；恢复真人验收或另立新的产品路线不属于当前已批准开发批次。 |
 | Stage 11 已排队 | 0 | 无 |
 | 等待最终验收 | 4 | D2、D4、D6、R3 |
 
@@ -121,15 +123,15 @@ Stage 11 的固定顺序为
 
 | 批次 | 状态 | 优先级 | 计划交付 | 退出边界 |
 | ---- | ---- | ------ | -------- | -------- |
-| P11-0 世界光源与洞穴照明 | Engineering Done（Q1/真人 Deferred） | P0 | 火把、Rose 修正、metadata 熔炉发射和局部重光照已落地。 | 双配置、自动/视觉证据完成；活动桌面 Q1 与真人动态试玩后置。合同见 `docs/world-light-source-contract-v1.md`。 |
+| P11-0 世界光源与洞穴照明 | Engineering Done（真人 Deferred） | P0 | 火把、Rose 修正、metadata 熔炉发射和局部重光照已落地。 | 双配置、自动/视觉证据与 PLAYABILITY-RC 正式 Q1 完成；真人动态试玩后置。合同见 `docs/world-light-source-contract-v1.md`。 |
 | P11A 核心操作手感 | Engineering Done（Physical Input v2 Deferred） | P0 | 单一世界动作仲裁、鼠标重绑定、线性相对增量、焦点门、hold/toggle 与 settings v7 已落地。 | VS2017/v141 双配置、定向 88/88、资源包 80/80 和完整世界回归通过；真实键鼠/Alt+Tab/重启后置。合同见 `docs/core-input-feel-contract-v1.md`。 |
 | P11B 动作反馈与游戏汁水 | Engineering Done（真人动态观察 Deferred） | P0 | 十级裂纹、材质粒子、第一人称动作、命中/受击/冷却、拾取、音量微变体和 settings v8 强度回退已落地。 | VS2017/v141 双配置、定向 84/84、Release 完整世界 786/786 和资源包 80/80 通过；真人动态观察后置。合同见 `docs/action-feedback-contract-v1.md`。 |
 | P11-1 建造材料与工具分化 | Engineering Done（真人动态观察 Deferred） | P0 | 木板、圆石、单方块可开关橡木门、`axe`/`shovel` 工具 class 和孤儿清理已落地。 | VS2017/v141 双配置、定向 39/39、配方 121/121、资源包 80/80、Release 完整世界 794/794、图集 274/274 和 84 项 manifest 通过；真人安全落脚点、速度差和门动态观感后置。合同见 `docs/minimum-building-tools-contract-v1.md`。 |
 | P11C 前 30 分钟重构 | Engineering Done（真人 30 分钟 Deferred） | P0 | 木材目标后最多同时显示成长、建造、探索三项机会；六项分支独立保存，配方书按实际材料发现。 | 双配置、定向 41/41、Release 世界 803/803、配方 121/121、资源包 80/80、双语 403 key 和客户端编译通过；完整 30 分钟试玩后置。合同见 `docs/first-thirty-minutes-contract-v1.md`。 |
 | P11D 改变玩法的探索奖励 | Engineering Done（真人逐结构体验 Deferred） | P1 | 遗迹罗盘、营地护符和既有路标核心提供三种独特能力结果；save v12/奖励 v1 保护旧世界身份。 | 双配置、定向 30/30、Release 世界 810/810、配方 121/121、资源包 80/80、目录 59/59、图集 278/278 通过；真人逐结构体验后置。合同见 `docs/exploration-reward-contract-v1.md`。 |
-| P11-2 地形轮廓与洞口 | Engineering Done（Q1/真人 Deferred） | P1 | terrain v4 已增加山地高度域、Stone 高峰与世界坐标天然洞口；水文未进入本批。 | VS2017/v141 双配置、定向 9/9、Release 世界 820/820、配方 121/121、资源包 80/80、目录 59/59 通过；v1-v3 身份冻结。断开桌面的 Q1 和真人远景/洞口体验后置。合同见 `docs/terrain-contours-cave-entrances-contract-v1.md`。 |
+| P11-2 地形轮廓与洞口 | Engineering Done（真人 Deferred） | P1 | terrain v4 已增加山地高度域、Stone 高峰与世界坐标天然洞口；水文未进入本批。 | VS2017/v141 双配置、定向 9/9、Release 世界 820/820、配方 121/121、资源包 80/80、目录 59/59 与 PLAYABILITY-RC 正式 Q1 通过；v1-v3 身份冻结。真人远景/洞口体验后置。合同见 `docs/terrain-contours-cave-entrances-contract-v1.md`。 |
 | P11E 敌人表现与战斗层次 | Engineering Done（真人动态观察 Deferred） | P1 | 6-7 部件轮廓、玩法状态关键姿态、8 tick 死亡表现、身份化掉落与 Waystone 共鸣已落地。 | VS2017/v141 双配置、定向各 35/35、Release 世界 832/832、配方 122/122、资源包 80/80、84 项 manifest 和客户端编译通过；真人辨识/掉落价值/守护战体验后置。合同见 `docs/enemy-presentation-waystone-resonance-contract-v1.md`。 |
-| P11F PLAYABILITY-RC | Planned | P0 | 汇总自动门禁、迁移、性能、保存恢复、干净包和延期证据。 | 先完成无需真人输入的全门禁、迁移、适用 Q1/Q3、长稳、资源许可与干净包；构建硬件、里程碑耗时、误操作、死亡、困惑和其他真人结论保持真实 Deferred。 |
+| P11F PLAYABILITY-RC | Engineering Done（真人/产品体验/macOS Deferred） | P0 | 已汇总自动门禁、迁移、正式 Q1/Q3、保存恢复、崩溃/符号、干净包和延期证据。 | VS2017/v141 双配置、832/832 世界、六类 Q1、双档 1800 秒 Q3、136,615 字节 dump 与 104 项包通过；真人里程碑、误操作、死亡、困惑、正式产品体验和 macOS 保持 Deferred。报告见 `docs/playability-release-candidate-report-2026-08-31.md`。 |
 
 ## 当前阻塞修复
 
@@ -240,7 +242,7 @@ N11B/N12C 均已
 已经闭环，BETA-RC 工程封板也已完成；R3 维持部分自测、其余延期。Stage 9 没有后续批次，
 当前 V10E 已由 Codex 基于六张真实 Release 原图完成视觉关闭；Off/On 最终性能均未超过护栏，
 因此未消耗性能例外。VISUAL-RC 随后使用隐藏且不抢焦点的客户端完成 Windows 工程封板；
-产品方向评审已选择 Stage 11，P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/P11E 工程已关闭，下一开发批次为 P11F；macOS 原生与正式产品体验保持 Verify。
+产品方向评审选择的 Stage 11 已完成 P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/P11E/P11F 全部 Windows 自动工程批次；当前无后续已批准代码批次，macOS 原生、逐批真人试玩与正式产品体验保持 Verify/Deferred。
 以上新增批次
 仍不回写拆分前 77 项历史总账。
 

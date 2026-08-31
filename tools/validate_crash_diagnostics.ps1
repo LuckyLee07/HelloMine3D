@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$ExePath = "",
-    [string]$OutputDir = ""
+    [string]$OutputDir = "",
+    [switch]$SkipRealWindow
 )
 
 $ErrorActionPreference = "Stop"
@@ -227,6 +228,29 @@ if (@(Get-Dumps $OrdinaryCrash).Count -ne 0) {
 }
 if (@(Get-Sidecars $OrdinaryCrash).Count -ne 0) {
     throw "Validation-only startup unexpectedly produced a sidecar."
+}
+
+if ($SkipRealWindow) {
+    $summary = @(
+        "status=PASS",
+        "configuration=Release",
+        "backend=windows-dbghelp",
+        "upload=disabled",
+        "ordinary_validation_dump_count=0",
+        "ordinary_window=DEFERRED",
+        "controlled_crash=DEFERRED",
+        "symbolization=DEFERRED",
+        "next_start_local_prompt=DEFERRED",
+        "deferred_reason=no-active-interactive-desktop"
+    )
+    [System.IO.File]::WriteAllText(
+        (Join-Path $OutputDir "crash-diagnostics-summary.txt"),
+        (($summary -join "`n") + "`n"),
+        (New-Object System.Text.UTF8Encoding($false)))
+    Write-Host (
+        "[CRASH_DIAGNOSTICS_VERIFY] status=PASS " +
+        "validation_only=PASS real_window=DEFERRED")
+    return
 }
 
 $null = Invoke-CrashClientCase `

@@ -36,9 +36,12 @@ The packager copies the distribution to an isolated clean root and verifies:
 - a clean packaged controlled crash writes one external local report, and the
   next packaged startup discovers exactly that report without networking.
 
-`-SkipRealWindow` keeps the deterministic clean-root, archive and negative
-checks while omitting the visible hardware window. The full Windows build gate
-uses that non-intrusive form; formal R5 acceptance runs the three-frame window.
+`-SkipRealWindow` keeps the deterministic clean-root, validation-only startup,
+archive and negative checks while omitting every path that requires a real
+OpenGL window: the ordinary three-frame run, controlled first-frame crash and
+next-start graphical prompt. The package summary records those fields as
+`DEFERRED`; it never turns the missing desktop into a PASS. Formal R5 acceptance
+runs without this switch and exercises all three flows.
 Generated directories, ZIP files and logs live below `bin/package_runs/` and
 remain ignored.
 

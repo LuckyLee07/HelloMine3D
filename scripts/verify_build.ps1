@@ -1,5 +1,9 @@
 [CmdletBinding()]
-param()
+param(
+    [ValidateSet("2017", "2022")]
+    [string]$VisualStudioVersion = "2017",
+    [switch]$SkipRealWindow
+)
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
@@ -89,11 +93,20 @@ function Invoke-HiddenExecutable {
 }
 
 function Find-MSBuild {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Version
+    )
+
     $vswhere = Join-Path ${env:ProgramFiles(x86)} `
         "Microsoft Visual Studio\Installer\vswhere.exe"
     if (Test-Path -LiteralPath $vswhere) {
-        $found = & $vswhere -latest -products * `
-            -requires Microsoft.Component.MSBuild `
+        $versionRange = if ($Version -eq "2017") {
+            "[15.0,16.0)"
+        }
+        else { "[17.0,18.0)" }
+        $found = & $vswhere -latest -version $versionRange `
+            -products * -requires Microsoft.Component.MSBuild `
             -find "MSBuild\**\Bin\MSBuild.exe" |
             Select-Object -First 1
         if ($found) {
@@ -101,28 +114,39 @@ function Find-MSBuild {
         }
     }
 
+    $programFilesRoot = if ($Version -eq "2017") {
+        ${env:ProgramFiles(x86)}
+    }
+    else { $env:ProgramFiles }
+    $msbuildRelative = if ($Version -eq "2017") {
+        "MSBuild\15.0\Bin\MSBuild.exe"
+    }
+    else { "MSBuild\Current\Bin\MSBuild.exe" }
     foreach ($edition in @("Community", "Professional", "Enterprise")) {
-        $candidate = Join-Path $env:ProgramFiles `
-            "Microsoft Visual Studio\2022\$edition\MSBuild\Current\Bin\MSBuild.exe"
+        $candidate = Join-Path $programFilesRoot `
+            "Microsoft Visual Studio\$Version\$edition\$msbuildRelative"
         if (Test-Path -LiteralPath $candidate) {
             return $candidate
         }
     }
 
-    $command = Get-Command MSBuild.exe -ErrorAction SilentlyContinue
-    if ($command) {
-        return $command.Source
-    }
-    throw "MSBuild was not found. Install Visual Studio 2022 with Desktop development with C++."
+    throw "MSBuild for Visual Studio $Version was not found. Install its Desktop development with C++ workload."
 }
 
 if (-not (Test-Path -LiteralPath $premake)) {
     throw "Bundled Premake executable not found: $premake"
 }
 
-$msbuild = Find-MSBuild
+$premakeAction = "vs$VisualStudioVersion"
+$expectedToolset = if ($VisualStudioVersion -eq "2017") {
+    "v141"
+}
+else { "v143" }
+$msbuild = Find-MSBuild -Version $VisualStudioVersion
 Push-Location $repoRoot
 try {
+    Write-Host "[BUILD_VERIFY] visual_studio=$VisualStudioVersion platform_toolset=$expectedToolset"
+    Write-Host "[BUILD_VERIFY] msbuild=$msbuild"
     Invoke-Checked "Resource manifest" {
         & $resourceManifestVerifier
     }
@@ -196,8 +220,8 @@ try {
             -RequirePass
     }
 
-    Invoke-Checked "Generate VS2022 projects" {
-        & $premake --os=windows --file=premake/premake.lua vs2022
+    Invoke-Checked "Generate VS$VisualStudioVersion projects" {
+        & $premake --os=windows --file=premake/premake.lua $premakeAction
     }
 
     $oisProject = Join-Path $repoRoot "build\External\ois\ois.vcxproj"
@@ -222,6 +246,11 @@ try {
         if ($projectText -notmatch 'WindowsCrashDiagnostics\.cpp' -or
             $projectText -notmatch '(?i)dbghelp\.lib') {
             throw "Generated project does not record the Windows DbgHelp backend: $projectPath"
+        }
+        if ($projectText -notmatch (
+                '<PlatformToolset>' + [regex]::Escape($expectedToolset) +
+                '</PlatformToolset>')) {
+            throw "Generated project does not use expected toolset $expectedToolset`: $projectPath"
         }
     }
     $portableCrashSources = @(
@@ -349,10 +378,15 @@ try {
     }
 
     Invoke-Checked "Release local crash diagnostics" {
-        & $crashDiagnosticsVerifier `
-            -ExePath (Join-Path $binDirectory "HelloMine3D.exe") `
-            -OutputDir (Join-Path $binDirectory `
-                "crash_diagnostics_validation")
+        $crashArguments = @{
+            ExePath = Join-Path $binDirectory "HelloMine3D.exe"
+            OutputDir = Join-Path $binDirectory `
+                "crash_diagnostics_validation"
+        }
+        if ($SkipRealWindow) {
+            $crashArguments.SkipRealWindow = $true
+        }
+        & $crashDiagnosticsVerifier @crashArguments
     }
 
     $expectedExecutables = @("HelloMine3D.exe") + $tests
@@ -366,11 +400,18 @@ try {
     Write-Host "[BUILD_VERIFY] executable inventory valid"
 
     Invoke-Checked "Release clean-root package" {
-        & $windowsPackager -IncludePack "example-stone" -SkipRealWindow
+        $packageArguments = @{
+            IncludePack = "example-stone"
+        }
+        if ($SkipRealWindow) {
+            $packageArguments.SkipRealWindow = $true
+        }
+        & $windowsPackager @packageArguments
     }
 }
 finally {
     Pop-Location
 }
 
-Write-Host "[BUILD_VERIFY] status=PASS"
+$realWindowStatus = if ($SkipRealWindow) { "DEFERRED" } else { "PASS" }
+Write-Host "[BUILD_VERIFY] status=PASS real_window=$realWindowStatus"

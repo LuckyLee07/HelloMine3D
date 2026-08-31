@@ -345,29 +345,35 @@ if (-not $SkipRealWindow) {
         "real-window-three-frames" $true
 }
 
-$h3CrashDirectory = Join-Path $OutputRoot "runtime-crashes\h3-local"
-$controlledPackageCrash = Invoke-PackagedClient `
-    -Root $ValidationRoot `
-    -ValidateOnly $false `
-    -Name "controlled-crash" `
-    -ExpectSuccess $false `
-    -ControlledCrash "after-first-frame" `
-    -CrashDirectory $h3CrashDirectory `
-    -ExpectedCrashArtifacts 1
-if (-not $controlledPackageCrash.Stdout.Contains(
-        "controlled_crash=after-first-frame active_world_saved=1")) {
-    throw "Packaged controlled crash did not publish the active world."
-}
-$postCrashPrompt = Invoke-PackagedClient `
-    -Root $ValidationRoot `
-    -ValidateOnly $false `
-    -Name "next-start-crash-prompt" `
-    -ExpectSuccess $true `
-    -CrashDirectory $h3CrashDirectory `
-    -ExpectedCrashArtifacts 1
-if (-not $postCrashPrompt.Stdout.Contains(
-        "[CRASH_REPORT] pending=1 ignored=0 invalid=0 upload=0")) {
-    throw "Packaged next startup did not expose the local crash prompt."
+$controlledCrashStatus = "DEFERRED"
+$nextStartPromptStatus = "DEFERRED"
+if (-not $SkipRealWindow) {
+    $h3CrashDirectory = Join-Path $OutputRoot "runtime-crashes\h3-local"
+    $controlledPackageCrash = Invoke-PackagedClient `
+        -Root $ValidationRoot `
+        -ValidateOnly $false `
+        -Name "controlled-crash" `
+        -ExpectSuccess $false `
+        -ControlledCrash "after-first-frame" `
+        -CrashDirectory $h3CrashDirectory `
+        -ExpectedCrashArtifacts 1
+    if (-not $controlledPackageCrash.Stdout.Contains(
+            "controlled_crash=after-first-frame active_world_saved=1")) {
+        throw "Packaged controlled crash did not publish the active world."
+    }
+    $controlledCrashStatus = "PASS"
+    $postCrashPrompt = Invoke-PackagedClient `
+        -Root $ValidationRoot `
+        -ValidateOnly $false `
+        -Name "next-start-crash-prompt" `
+        -ExpectSuccess $true `
+        -CrashDirectory $h3CrashDirectory `
+        -ExpectedCrashArtifacts 1
+    if (-not $postCrashPrompt.Stdout.Contains(
+            "[CRASH_REPORT] pending=1 ignored=0 invalid=0 upload=0")) {
+        throw "Packaged next startup did not expose the local crash prompt."
+    }
+    $nextStartPromptStatus = "PASS"
 }
 
 $missingRoot = Join-Path $OutputRoot "negative-missing"
@@ -437,12 +443,12 @@ $summaryLines = @(
     "resource_manifest_entries=$($baseEntries.Count)",
     "included_packs=$($enabledPackNames -join ',')",
     "validation_only=PASS",
-    "real_window=$(if ($SkipRealWindow) { 'SKIPPED' } else { 'PASS' })",
+    "real_window=$(if ($SkipRealWindow) { 'DEFERRED' } else { 'PASS' })",
     "missing_resource_negative=PASS",
     "stale_resource_negative=PASS",
     "ordinary_crash_dumps=0",
-    "controlled_package_crash=PASS",
-    "next_start_local_prompt=PASS"
+    "controlled_package_crash=$controlledCrashStatus",
+    "next_start_local_prompt=$nextStartPromptStatus"
 )
 $summaryPath = Join-Path $OutputRoot "package-summary.txt"
 [System.IO.File]::WriteAllText(

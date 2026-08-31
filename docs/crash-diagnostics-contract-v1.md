@@ -115,14 +115,21 @@ outside the package, then starts the client again and requires exactly one
 local pending-report prompt. The full Windows build gate invokes this harness
 only after the Release rebuild.
 
-Current Windows evidence is a 124,513-byte Release dump with a non-zero
+On a disconnected Windows session, `-SkipRealWindow` still verifies backend
+installation through validation-only startup and requires zero ordinary dumps,
+then writes `ordinary_window=DEFERRED`, `controlled_crash=DEFERRED`,
+`symbolization=DEFERRED` and `next_start_local_prompt=DEFERRED` to the summary.
+This mode is an engineering gate for headless work; it does not replace the
+full H1-H3 real-window evidence.
+
+Current PLAYABILITY-RC Windows evidence is a 136,615-byte Release dump with a non-zero
 controlled exit, successful save reopen, no pending candidate and no upload.
 The matching EXE/PDB resolves a bounded project stack including
 `CrashDiagnosticsPlatform::triggerControlledCrash`; when native `StackWalk64`
 cannot advance beyond the saved system context, the tool labels and uses its
 bounded saved-stack scan instead of claiming a native unwind. A wrong PDB
 returns exit code 3 and `symbol-identity-mismatch`. The separate seven-entry
-symbol ZIP hashes to
-`1e614f64e7ac2f8be55d39cf26aa817a14bb1e30fdc9237644cc044df01b2ca3`.
+symbol ZIP is 25,510,828 bytes and hashes to
+`B62C72F1CEF8B555E8615A90FC90594FE125A54E669C912E209047DFBC89E57B`.
 Debug/Release both pass 21/21 portable assertions. H2 and H3 are `Done`; upload
 remains hard-disabled and R3 human input remains a separate release gate.

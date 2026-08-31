@@ -78,7 +78,13 @@ sidecar 完全一致，再加载符号并解析探针地址。输出只包含源
 6. 崩溃前保存可以重开，没有 `.pending` 候选；
 7. 下次启动恰好发现一份本地报告，打开/复制/忽略均不联网。
 
-2026-08-20 的最终 RC 门禁生成 124,513 字节 dump，混合栈解析到
+无活动桌面时可显式传入 `-SkipRealWindow`：此时只把 validation-only 后端安装和零产物检查记为
+PASS；第 1 项中的三帧运行以及第 2、4、5、6、7 项依赖真实窗口的联动统一写为 `DEFERRED`，
+不能用 headless 结果冒充完整 H2/H3 动态验收。
+
+2026-08-31 的 PLAYABILITY-RC 门禁生成 136,615 字节 dump，混合栈解析到
 `CrashDiagnosticsPlatform::triggerControlledCrash`、
 `triggerControlledCrashIfRequested`、`OgreBootstrap::frameEnded` 等当前项目帧；错误 PDB
-返回退出码 3。七项符号归档和下次启动唯一 pending 报告均通过，H2/H3 状态为 `Done`。
+返回退出码 3。七项符号归档（SHA-256
+`B62C72F1CEF8B555E8615A90FC90594FE125A54E669C912E209047DFBC89E57B`）和下次启动唯一 pending
+报告均通过，H2/H3 状态为 `Done`。
