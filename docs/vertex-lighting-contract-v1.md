@@ -1,5 +1,9 @@
 # HelloMine3D Vertex Lighting Contract v1
 
+> Architecture Lab 迁移说明（2026-08-31）：本文冻结 V10A 工程、性能例外和开发者视觉证据；
+> 旧的真人产品体验边界现由 `AI-07` 与 `NOT_CLAIMED` 分类承接，详见
+> `docs/ai-assisted-gameplay-acceptance-v1.md`。
+
 本文冻结 Stage 10 `V10A` 的 CPU 顶点平滑光照、环境遮蔽、三角形划分和 greedy merge
 边界。该合同只描述可重新生成的 mesh 数据，不进入世界保存、地形生成、玩家设置或资源身份。
 

@@ -1,8 +1,12 @@
 # P11A 核心操作手感合同 v1
 
+> Architecture Lab 迁移说明（2026-08-31）：工程合同保持冻结；功能交互改由
+> `docs/ai-assisted-gameplay-acceptance-v1.md` 的 `AI-01` 至 `AI-04` 覆盖。Physical Input v2
+> 保留为历史物理合同且保持 `NOT_RUN`，物理设备手感为 `NOT_CLAIMED`。
+
 本文冻结 P11A 的工程边界、输入仲裁、settings v7 迁移和验收口径。目标是先消除
 “一个物理输入触发多个世界动作”、后台输入穿透、回焦跳变和切换模式卡住等确定性问题；
-真人对手感的判断仍由 Physical Input v2 记录，不由自动测试冒充。
+AI/Computer Use 可验证功能链路，但不冒充真人物理手感结论。
 
 ## 动作与所有权
 
@@ -60,8 +64,10 @@ mouse_guard secondary
 - `P11A` 定向世界冒烟覆盖动作单消费、UI 隔离、绑定冲突、hold/toggle、灵敏度、焦点状态机、
   v0-v7 迁移和非法配置；
 - 完整 WorldRuntimeSmoke、资源清单与双语 key 对齐回归；
-- 若当前活动桌面允许，可执行一次开发者窗口冒烟，但它不替代真人记录。
+- 在活动桌面上按 `AI-01` 至 `AI-04` 执行正常 OS 输入和窗口功能验收，并留存构建身份、步骤、
+  截图/录像和结果。
 
-Physical Input v2 的真实鼠标距离/手感、Alt+Tab、最小化、窗口内外点击、长按/点按以及重启后
-主观确认统一登记为 `Verify/Deferred`。这些项目不阻塞后续工程批次，但在补齐实名构建身份、
-设备、结果和备注前，P11A 只能标记为“Engineering Done”，D2/D4/D6/R3 不得整体改为 Done。
+鼠标视角、Alt+Tab、最小化、窗口内外点击、长按/点按以及重启后的可观察功能由 AI 场景关闭，
+当前为 `NOT_RUN`。真实设备距离、肌肉记忆和手感属于历史 Physical Input v2 的物理范围，保持
+`NOT_RUN/SUPERSEDED`；项目不声明其 PASS，并将人类物理手感记为 `NOT_CLAIMED`。P11A 当前为
+`Engineering Done / AI NOT_RUN`。

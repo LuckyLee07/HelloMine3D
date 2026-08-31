@@ -1,7 +1,10 @@
 # P11-2 地形轮廓与天然洞口合同 v1
 
-状态：`Engineering Done`。确定性、版本隔离、保存恢复、双配置构建和自动回归已关闭；活动桌面
-Q1、远景观感、阴影表现以及真人寻找/通行洞口保持 `Deferred`，不登记为自动 PASS。
+> Architecture Lab 迁移说明（2026-08-31）：工程合同保持冻结；远景轮廓、洞口可见性和实际
+> 通行映射到 `docs/ai-assisted-gameplay-acceptance-v1.md`。人类风景审美为 `NOT_CLAIMED`。
+
+状态：`Engineering Done`。确定性、版本隔离、保存恢复、双配置构建、自动回归和最终 Q1 已关闭；
+AI 远景/洞口交互与视觉场景为 `NOT_RUN`，不登记为自动 PASS。
 
 ## 目标与范围
 
@@ -64,15 +67,17 @@ P11-2 只改变新建世界的地形生成身份，使远景拥有可辨识的�
 - 主客户端 Debug/Release 均成功使用 VS2017 v141 工具链编译链接；仅存在既有 OGRE/FreeImage
   编码和宏重定义警告。
 
-## Deferred 验收
+## AI/Computer Use 验收边界
 
 当前 Windows 会话为断开状态（WTS connect state 4）。正式采集器因此拒绝生成硬件性能结论，
 而不是使用无效桌面伪造 fast-streaming/scaled-gameplay PASS。恢复活动桌面后需要：
 
 1. 在相同 terrain v4 身份下各采集 fast-streaming 与 scaled-gameplay baseline/repeat，再按既有
    Stage 10 阈值比较，不继承或新增性能例外。
-2. 在多个固定和随机 seed 中实际寻找山地与洞口，记录发现时间、是否可步行进入、是否存在卡死点。
+2. 按 `AI-05` 在多个固定和随机 seed 中实际寻找山地与洞口，记录发现时间、是否可步行进入、
+   是否存在卡死点。
 3. 观察远景轮廓、雾与方向阴影是否获得清晰层次，并检查水面、结构和旧 v1-v3 世界是否出现
    明显边界异常。
 
-这些项目统一在后续人工验收窗口或 P11F 汇总，不阻塞 P11E 工程开发，也不能在完成前写为 PASS。
+性能复采和 AI 场景当前均为 `NOT_RUN`，不能在执行前写为 PASS；人类风景审美为
+`NOT_CLAIMED`。

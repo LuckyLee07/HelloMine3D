@@ -6,6 +6,11 @@
 
 最后更新：2026-08-28。
 
+> 验收模型更新（2026-08-31）：Stage 10 工程和既有开发者视觉 PASS 记录保持冻结；原正式
+> 人工产品体验不再是当前 Architecture Lab 退出门槛。可观察视觉/双语/音频功能映射到
+> `docs/ai-assisted-gameplay-acceptance-v1.md` 的 `AI-07`，人类审美与舒适度为
+> `NOT_CLAIMED`；新的 macOS 运行仅在未来里程碑明确批准时进入范围。
+
 ## 当前结论
 
 现有 FS2/FS3 已完成程序化天空、独立水面、昼夜雾色、统一 16x16 图集、HUD、手持物和基础
@@ -285,21 +290,24 @@ post viewport 阶段绘制并排除在后处理外。双配置聚焦 22/22、资
    V10A 与 V10B3 已触及网格输出/驻留，VISUAL-RC 必须以最终身份重跑 nominal/stress 各
    1800 秒正式 Q3；Q3 不替代真实 Ogre 客户端的 GPU、画面或帧时间验收。
 4. 校验所有原创/第三方素材来源、许可证、Credits、manifest、干净发行包与新 SHA-256。
-5. 汇总每批开发者视觉检查，并独立安排正式产品体验验收与 Physical Input v2；二者未完成
-   时保持 `Verify`，不得由固定截图或 R3 v1 自动关闭。
-6. 生成并验证覆盖全部未 push 提交的 bundle；不因人工项延期创建 1.0 标签，也不 push。
+5. 汇总每批开发者视觉检查，并按 `AI-07` 运行正式画面、双语和音频可观察性检查；未执行时
+   保持 `NOT_RUN`，不得由固定截图或 R3 v1 自动关闭。Physical Input v2 为历史
+   `NOT_RUN/SUPERSEDED`，主观体验为 `NOT_CLAIMED`。
+6. 生成并验证覆盖全部未 push 提交的 bundle；是否创建版本标签由当前 Architecture Lab 里程碑
+   合同决定，默认不 push。
 
 2026-08-28 封板结果：Windows 全门禁、最终六类 Q1、nominal/stress 各 1800 秒 Q3、资源/许可/
 Credits、97 文件干净包、逐批开发者视觉矩阵与 239 项 Xcode 工程图静态检查均通过，报告见
 `docs/visual-release-candidate-report-2026-08-28.md`。VISUAL-RC 标记为 `Done（Windows 工程）`；
-真实 macOS `xcodebuild`/窗口冒烟、正式产品体验和 Physical Input v2 保持 `Verify`。
+AI 产品表现基线为 `NOT_RUN`，Physical Input v2 为历史 `NOT_RUN/SUPERSEDED`。真实 macOS
+`xcodebuild`/窗口冒烟仅在另行批准目标平台批次时执行，当前为 `NOT_RUN`。
 
 ## VISUAL-RC 后产品决策
 
 VISUAL-RC 不是默认的 1.0 定版，也不自动启动下一批玩法。视觉封板后必须建立一次独立产品
 方向评审，至少复核实际试玩记录、资源经济决策价值、敌人/结构/生态重复度和成就/统计需求：
 
-- 若当前主流程、人工体验和发行证据足以支持 1.0，则另立 `1.0-RC` 合同并只做缺陷修复；
+- 若当前主流程、AI/Computer Use 和发行证据足以支持 1.0，则另立 `1.0-RC` 合同并只做缺陷修复；
 - 若试玩暴露明确玩家问题，再从饥饿压力、更多结构/生态、敌人档案或成就/统计中选择一个
   最小批次立项；没有证据时保持 `Unscheduled`，不得把候选方向直接写成已承诺功能。
 

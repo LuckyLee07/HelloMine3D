@@ -1,5 +1,8 @@
 # 探索结构规划合同 v1
 
+> Architecture Lab 迁移说明（2026-08-31）：本合同冻结历史工程证据；文中 R3、真人和延期
+> 描述保留当时语境，当前退出模型见 `docs/ai-assisted-gameplay-acceptance-v1.md`。
+
 ## 范围与兼容边界
 
 本合同冻结 `N9A` 的确定性结构规划层。它复用既有

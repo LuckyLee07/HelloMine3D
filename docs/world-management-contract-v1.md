@@ -1,5 +1,8 @@
 # 世界管理合同 v1
 
+> Architecture Lab 迁移说明（2026-08-31）：本合同冻结历史工程证据；文中 R3、真人和延期
+> 描述保留当时语境，当前退出模型见 `docs/ai-assisted-gameplay-acceptance-v1.md`。
+
 本文固定 K4 的世界管理、恢复和应用状态边界。它建立在
 `world-catalogue-contract-v1.md`、`storage-transaction-contract-v1.md` 和
 `world-backup-contract-v1.md` 之上，不重新定义存档格式。

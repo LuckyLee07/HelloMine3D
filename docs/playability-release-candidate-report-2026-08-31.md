@@ -1,5 +1,10 @@
 # HelloMine3D PLAYABILITY-RC 工程封板报告
 
+> 历史报告说明：以下结论冻结 2026-08-31 封板当时的事实，不回写为 AI 或真人 PASS。
+> 同日后续确立的 Architecture Lab 验收模型见
+> `docs/ai-assisted-gameplay-acceptance-v1.md`；原 `Verify/Deferred` 人工项已被重新分类为
+> AI 场景 `NOT_RUN`、主观体验 `NOT_CLAIMED` 或历史合同 `SUPERSEDED`。
+
 日期：2026-08-31
 结论：`PASS（Windows 自动工程）`；`Verify/Deferred（真人试玩、Physical Input v2、正式产品体验、macOS 原生）`
 

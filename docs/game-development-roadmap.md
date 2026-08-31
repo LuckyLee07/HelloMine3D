@@ -4,6 +4,10 @@
 单机游戏”。它负责排开发顺序和阶段边界，不替代 `todolist.md` 的当前状态，也不替代
 `runtime-validation.md` 的证据记录。
 
+> 路线状态更新（2026-08-31）：本文的 Stage 8-11 游戏化路线已经完成，后续定位转为“真实
+> 可玩的游戏作为 Architecture Lab 载体”。文中旧的真人/Physical Input/Deferred 条款保留
+> 历史语境，当前退出模型统一以 `docs/ai-assisted-gameplay-acceptance-v1.md` 为准。
+
 规划基线：2026-08-28。参考范围包括 HelloMine3D 当前代码、现有合同文档，以及本机
 `F:\env1_trunk`。后者只用于核对成熟体素游戏会自然出现的系统和职责边界，不是源码、
 依赖或需求的直接来源。
@@ -17,16 +21,15 @@ HelloMine3D 已经越过“继续搭体素引擎底座”的阶段。区块流�
 
 1. 已完成声音反馈和一条无需调试注入的可玩 Alpha 流程。
 2. 已完成“明确目标 + 第二段成长 + 有用途的内容”，玩家能够完成铁级成长和路标探索。
-3. Release Candidate 自动门禁、崩溃产物、正式性能预算、长稳和发行包已经闭环；现有 R3 v1
-   物理输入基线、已定义但待真人执行的 Physical Input v2 与产品体验验收独立延期，不阻塞后续开发。
+3. Release Candidate 自动门禁、崩溃产物、正式性能预算、长稳和发行包已经闭环；原 R3 v1、
+   Physical Input v2 与人工产品体验合同保留为历史，当前功能/表现分别映射到 AI 交互/视觉。
 4. Stage 9 已完成路标胜利、遭遇纵深、探索地点、资源经济、难度/胜利后事件、双语本地化、
    正式采样音效、低密度流式音乐和 BETA-RC 工程封板。
 5. Stage 10 的 V10A 顶点平滑光照/AO、V10B1-B3 材质管线/原创资产/生态变体、V10C 定向
    大气/空间云层、V10D 可选方向阴影、V10E 轻量后处理和 VISUAL-RC 均已完成 Windows
-   工程范围；macOS 原生与正式产品体验保持 Verify。
-6. VISUAL-RC 后产品方向评审已决定暂不进入 `1.0-RC`，转入 Stage 11 可玩性与操作体验；
-   内容与视觉复核随后插入 P11-0/P11-1/P11-2。P11-0/P11A/P11B/P11-1/P11C 工程已完成，P11D 为当前计划批次，
-   真人/主观证据统一后置而不阻塞工程顺序。
+   工程范围；新的 macOS 运行按未来里程碑批准，AI 产品表现当前 `NOT_RUN`。
+6. VISUAL-RC 后进入 Stage 11 可玩性与操作体验；P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/
+   P11E/P11F 工程现已全部完成。下一候选路线为 Architecture Lab，不再存在 P11D 起的排队批次。
 
 G5 已于 2026-08-17 闭环：七类音频定义、Windows `waveOut`/dummy 后端、业务事件、
 UI/世界生命周期、分类音量、暂停/静音、资源清单和静默降级已经接通；资源包 23/23、
@@ -41,7 +44,7 @@ N5 又完成 terrain v1/v2 身份、五类生态查询、沙漠敌人压力、se
 可重映射键位、UI 缩放、操作提示和声音字幕，世界回归增长到 491 项。N1-N6 已全部完成，
 Release Candidate 自动证据也已关闭；V10B2/V10B3 静态视觉和 V10C 多帧视觉已由 Codex 基于
 真实 Release 原图完成，V10D 与 V10E 六图也已由 Codex 关闭；VISUAL-RC Windows 工程封板
-随后通过，R3 真人输入保持独立延期。
+随后通过；历史 R3 状态由当前 AI 验收规范重新分类。
 
 ## 排期原则
 
@@ -53,18 +56,18 @@ Release Candidate 自动证据也已关闭；V10B2/V10B3 静态视觉和 V10C �
 - `P1`：明显改善战斗、世界差异、反馈和可用性的能力。
 - `P2`：正式发行证据、长稳、内容扩容和高级体验。
 
-### 验收后置，但开发护栏不后置
+### 分层验收，游戏载体不断线
 
-正式验收可以放到玩法和 UI 稳定以后，但不能把所有验证一起取消。后续区分三层门禁：
+后续区分四层门禁：
 
 | 层级 | 每批是否执行 | 内容 |
 | ---- | ------------ | ---- |
 | 开发门禁 | 必须 | 受影响目标可编译、定向自动测试、失败语义、数据守恒、旧存档兼容和资源引用检查。 |
 | 里程碑门禁 | 每个大阶段结束执行 | Debug/Release 全流程夹具、隐藏客户端冒烟、固定种子旅程、保存退出和重开。 |
-| 正式产品验收 | 后置集中执行 | Physical Input v2、独立视觉/双语/听感检查、批准的性能预算、崩溃符号化、长稳、干净发行包和兼容性矩阵。 |
+| AI 功能门禁 | 每个 Track 结束执行 | 从干净 Release 包以 Computer Use 完成正常菜单、玩法 Demo、保存和重开。 |
+| 声明边界 | 每次记录 | AI 只声明功能可操作或可观察；人类乐趣、审美、舒适度和物理手感为 `NOT_CLAIMED`。 |
 
-这样可以避免 UI 仍在变化时反复录制人工证据，同时也不会把存档损坏或状态复制问题拖到
-最后才发现。
+这样既不会把存档损坏或状态复制问题拖到最后，也不会把隐藏自动化误写成真实窗口可玩性。
 
 ### 一个批次只解决一个玩家问题
 
@@ -85,11 +88,12 @@ Release Candidate 自动证据也已关闭；V10B2/V10B3 静态视觉和 V10C �
 | 7 | N4 战斗、敌人与掉落纵深 | P1 | 战斗有准备、风险、差异化敌人和可进入成长循环的奖励。 | `Done`：477 项世界回归和完整 Windows 双配置门禁通过；合同见 `combat-depth-contract-v1.md`。 |
 | 8 | N5 生态差异与探索目标 | P1 | 不同区域提供不同资源、危险和一个值得寻找的地标。 | `Done`：terrain v2 路标、生态敌人压力、v8 迁移和 487 项世界回归通过；合同见 `ecology-exploration-contract-v1.md`。 |
 | 9 | N6 产品体验完善 | P1 | HUD、目标、配方发现、键位与辅助选项统一，声音反馈和可访问提示形成一致体验。 | `Done`：491 项世界回归、95 项配方/产品体验断言及完整 Windows 门禁通过；合同见 `product-experience-contract-v1.md`。 |
-| 10 | Release Candidate 封板 | P0 | 形成可重复构建、诊断、测量、迁移和分发的本地单机发行候选。 | 自动化 `Done`；现有 R3 v1 不再宣称单独关闭 D4/D6，Physical Input v2 已定义并独立延期执行。 |
-| 11 | Stage 9 / Beta | P0/P1 | 增加首个胜利闭环、遭遇、探索地点、资源经济、难度、本地化和正式表现。 | 工程 `Done`：N7A-N12C 与 BETA-RC 已完成；RC0 已被 BETA-RC 取代，人工项独立延期。 |
-| 12 | Stage 10 视觉质量 | P0/P1/P2 | 提升方块接触层次、拆分材质管线/资产/tint、大气云层、可选阴影和轻量后处理。 | `Done（Windows 工程）`：V10A-V10E 与 VISUAL-RC 已封板；macOS shader/窗口与正式产品体验保持真实 Verify；报告见 `visual-release-candidate-report-2026-08-28.md`。 |
+| 10 | Release Candidate 封板 | P0 | 形成可重复构建、诊断、测量、迁移和分发的本地单机发行候选。 | 自动工程 `Done`；历史物理合同不再是当前退出门槛。 |
+| 11 | Stage 9 / Beta | P0/P1 | 增加首个胜利闭环、遭遇、探索地点、资源经济、难度、本地化和正式表现。 | 工程 `Done`：N7A-N12C 与 BETA-RC 已完成；RC0 已被取代。 |
+| 12 | Stage 10 视觉质量 | P0/P1/P2 | 提升方块接触层次、材质/资产/tint、大气云层、可选阴影和轻量后处理。 | `Done（Windows 工程）`；AI 产品表现 `NOT_RUN`，人类主观体验 `NOT_CLAIMED`。 |
 | 13 | VISUAL-RC 后产品方向评审 | P0 | 明确进入 1.0 缺陷封板，还是启动一条有试玩证据的可玩性路线。 | `Done`：选择 Stage 11；强制饥饿、批量浅层内容和成就/统计不进入当前范围。 |
-| 14 | Stage 11 可玩性与操作体验 | P0/P1 | 补最小内容依赖，修好输入手感和动作反馈，重构前 30 分钟选择与探索奖励，再提升地形轮廓和敌人表现并封板。 | P11-0/P11A/P11B/P11-1/P11C `Engineering Done`；P11D 起 `Queued`。真人项保留 Deferred，不阻塞工程批；权威合同见 `playability-experience-roadmap.md`。 |
+| 14 | Stage 11 可玩性与操作体验 | P0/P1 | 补最小内容依赖，修好输入和动作反馈，重构前 30 分钟与探索奖励，再提升地形和敌人表现。 | 九批全部 `Engineering Done`；`AI-01..AI-08` 当前 `NOT_RUN`。 |
+| 15 | Architecture Lab | 按批批准 | 以真实玩法需求驱动 World/Streaming/Network/Simulation 架构演进。 | `Proposed`；34 Sprint 只是能力目录，下一批必须进入 `todolist.md`，每个 Track 用干净包 `AI-08` 收口。 |
 
 `N1-N6` 是 Alpha 之后已经完成的工作包，不回写拆分前的 77 项正式总账。Stage 9 的
 `N7A/N7B`、`N8A/N8B`、`N9A/N9B`、`N10`、`N11A/N11B` 与 `N12A/N12B/N12C` 已完成，
@@ -254,8 +258,9 @@ Lua、活动和奖励系统。
 - 已增加配方书装填、目标历史和必要错误提示；UI 继续只消费模型快照并提交命令。
 - G5 程序化占位提示尚未伪装成正式资产；许可清晰的音效、流式低密度音乐和本地化统一进入
   Stage 9 的 N12，避免绕过音频生命周期、许可证和打包门禁。
-- R3 v1 十二项正式真人键鼠记录仍待执行，但通过后不再自动关闭当前 D4/D6；后续先建立
-  Physical Input v2，视觉、双语和听感使用独立产品体验检查表。
+- R3 v1 与 Physical Input v2 作为历史物理协议保持 `NOT_RUN/SUPERSEDED`；D2/D4/D6 的可观察
+  功能由 `AI-01..AI-04` 承接，视觉、双语和听感由 `AI-07` 承接，主观体验为
+  `NOT_CLAIMED`。
 
 ## Release Candidate 封板顺序
 
@@ -265,12 +270,12 @@ Lua、活动和奖励系统。
 2. H2-H3 已完成：脱敏 sidecar、匹配/错误符号、混合栈、独立符号归档和下次启动本地提示均通过；默认不联网、不上传。
 3. Q1/Q2 目标 Windows Release 预算已批准并通过；Q3 快速移动、内容规模、队列、内存和
    nominal/stress 各 1800 秒长稳也已双 PASS。
-4. 人工证据拆为 Physical Input v2 与独立产品体验检查；前者覆盖窗口焦点、暂停、容器、
-   制作、熔炉、战斗、死亡/重生和保存重启，后者覆盖视觉、双语可读性与听感。
+4. 当前交互证据拆为 `AI-01..AI-04` 的窗口/玩法功能与 `AI-07` 的视觉、双语和音频表现；
+   Physical Input v2 只保留历史物理语义。
 5. 最终 66 文件干净发行包已通过：不含 PDB、旧 dump、开发绝对路径和临时存档，普通退出
    不产生崩溃件，受控崩溃与下次启动提示均通过。
-6. 自动化的新世界、旧存档迁移和综合旅程已通过；R3 在干净 Release 包完成真人路径后，
-   封板期只修缺陷。
+6. 自动化的新世界、旧存档迁移和综合旅程已通过；AI 场景必须从干净 Release 包按正常玩家
+   路径执行，未运行保持 `NOT_RUN`，封板期只修缺陷。
 
 ## Stage 9 / Beta 后续路线
 
@@ -301,10 +306,10 @@ RC 自动化闭环后，下一阶段继续解决“为什么准备、为什么�
 N7A 已因新增持久结局状态把保存升级为 v9；N9 只在生成身份变化时引入 terrain v3，
 结构不另设独立版本；N11A/N12 只在真实载荷变化时决定后续格式编号。执行顺序和伸缩项边界
 以 `docs/beta-gameplay-roadmap.md` 为准。
-FS1-FS3 的权威兼容和验收边界见 `docs/first-session-visual-baseline-contract-v1.md`；人工输入
-与产品体验延后到可见系统稳定后执行，避免首屏与 HUD 改动造成重复验收。
-自动化 EXE 在 Windows 上保持隐藏或后台运行；Physical Input v2 和正式产品体验安排专门窗口
-前台执行。每批通过后
+FS1-FS3 的权威兼容和验收边界见 `docs/first-session-visual-baseline-contract-v1.md`；当前功能和
+可观察表现由 AI 场景在可见系统稳定后执行，避免首屏与 HUD 改动造成重复验收。
+自动化 EXE 在 Windows 上保持隐藏或后台运行；只有用户明确安排的 AI/Computer Use 或开发者
+自测进入前台。每批通过后
 形成一个本地中文提交，不混入 `tmp/` 或产物，默认不 push。
 
 ## Stage 11 可玩性与操作体验路线
@@ -317,20 +322,21 @@ PLAYABILITY-RC 记录要求见
 
 | 顺序 | 批次 | 主要结果 | 状态 |
 | ---- | ---- | -------- | ---- |
-| 1 | P11-0 | 增加可制造火把、修正 Rose 发光并建立 metadata 驱动的熔炉发射与局部重光照。 | Engineering Done（真人 Deferred） |
-| 2 | P11A | 分离使用/放置/格挡，扩展鼠标与模式重绑定，统一灵敏度和窗口焦点/捕获恢复。 | Engineering Done（Physical Input v2 Deferred） |
-| 3 | P11B | 增加手/工具、裂纹、粒子、命中/受击/冷却、拾取和音频微变体反馈。 | Engineering Done（真人 Deferred） |
-| 4 | P11-1 | 补木板、圆石、单方块门和 axe/shovel，形成最小建造与工具选择。 | Engineering Done（真人 Deferred） |
-| 5 | P11C | 把前 30 分钟改为成长、建造、探索最多三项并行机会，并让配方随材料发现。 | Engineering Done（真人 30 分钟 Deferred） |
-| 6 | P11D | 让遗迹罗盘、营地护符和路标核心能力改变之后的计划。 | Engineering Done（真人 Deferred） |
-| 7 | P11-2 | 用山地高度域和天然洞口形成 terrain v4；水文生成保持未排期。 | Engineering Done（真人 Deferred） |
-| 8 | P11E | 用 6-7 部件轮廓、身份化掉落、关键姿态和 Waystone 共鸣提升战斗层次。 | Engineering Done（真人 Deferred） |
-| 9 | P11F | 汇总自动门禁、迁移、性能、保存恢复、发行包和延期证据，形成 PLAYABILITY-RC。 | Engineering Done（真人/产品体验/macOS Deferred） |
+| 1 | P11-0 | 增加可制造火把、修正 Rose 发光并建立 metadata 驱动的熔炉发射与局部重光照。 | Engineering Done；`AI-05/AI-07 NOT_RUN` |
+| 2 | P11A | 分离使用/放置/格挡，扩展鼠标与模式重绑定，统一灵敏度和窗口焦点/捕获恢复。 | Engineering Done；`AI-01..AI-04 NOT_RUN`；物理手感 `NOT_CLAIMED` |
+| 3 | P11B | 增加手/工具、裂纹、粒子、命中/受击/冷却、拾取和音频微变体反馈。 | Engineering Done；`AI-05/AI-07 NOT_RUN` |
+| 4 | P11-1 | 补木板、圆石、单方块门和 axe/shovel，形成最小建造与工具选择。 | Engineering Done；`AI-05 NOT_RUN` |
+| 5 | P11C | 把前 30 分钟改为成长、建造、探索最多三项并行机会，并让配方随材料发现。 | Engineering Done；`AI-06 NOT_RUN`；人类留存/乐趣 `NOT_CLAIMED` |
+| 6 | P11D | 让遗迹罗盘、营地护符和路标核心能力改变之后的计划。 | Engineering Done；`AI-05 NOT_RUN`；主观价值 `NOT_CLAIMED` |
+| 7 | P11-2 | 用山地高度域和天然洞口形成 terrain v4；水文生成保持未排期。 | Engineering Done；`AI-05/AI-07 NOT_RUN` |
+| 8 | P11E | 用 6-7 部件轮廓、身份化掉落、关键姿态和 Waystone 共鸣提升战斗层次。 | Engineering Done；`AI-05/AI-07 NOT_RUN` |
+| 9 | P11F | 汇总自动门禁、迁移、性能、保存恢复和发行包，形成 PLAYABILITY-RC。 | Engineering Done；`AI-08 NOT_RUN` |
 
 顺序固定为 `P11-0 -> P11A -> P11B -> P11-1 -> P11C -> P11D -> P11-2 -> P11E -> P11F`。
 九个 Windows 自动工程批次均已完成，封板证据见
 `docs/playability-release-candidate-report-2026-08-31.md`；当前没有后续已批准代码批次。自动测试负责回归，
-真人记录负责证明操作和玩法是否实际改善；未执行的真人/产品体验/macOS 子状态保持 Deferred/Verify。
+AI/Computer Use 负责证明功能是否可从正常界面完成；AI 视觉负责可观察表现。未执行场景保持
+`NOT_RUN`，人类主观/物理体验保持 `NOT_CLAIMED`，新 macOS 范围由未来里程碑单独批准。
 首版不强推饥饿，也不另行抢做成就/统计或批量增加只有数值、换色差异的内容。
 
 ## `F:\env1_trunk` 的使用边界

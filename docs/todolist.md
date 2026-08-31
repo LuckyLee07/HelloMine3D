@@ -4,20 +4,22 @@
 已完成里程碑的逐项实现和验收证据已经冻结到
 `docs/project-ledger-2026-08-17.md`，不再挤占当前任务视图。
 
-最后更新：2026-08-30。
+最后更新：2026-08-31。
 
-## 产品目标
+## 项目目标
 
-把 HelloMine3D 从技术可靠的体素沙盒推进成一个更接近完整单机游戏的产品：玩家能够
-创建和管理世界，采集资源，制作工作台与工具，获得成长反馈，暂停和调整设置，听到
-基础声音，并在保存、退出、恢复后继续游玩。BETA-RC 与 Stage 10/VISUAL-RC Windows 工程
-闭环后的产品方向评审已经决定暂不进入 1.0 缺陷封板，转入 Stage 11 可玩性与操作体验路线。
-P11-0、P11A、P11B、P11-1、P11C、P11D、P11-2、P11E 与 P11F 已完成 Windows 自动工程范围；
-当前没有剩余已批准的 Stage 11 代码开发批次。
+HelloMine3D 的定位是 **以真实可玩的单机体素沙盒为载体的 C++ Architecture Lab**。玩法不是
+可以删除的包装：玩家/AI 必须能创建和管理世界，采集、制作、成长、战斗、探索、胜利，并在
+保存、退出和恢复后继续游玩；架构工作必须由这些真实需求触发并在游戏中可观察。
 
-当前采用“先完成可开发工程、人工项后置”策略。编译、定向自动测试、数据守恒、存档兼容和当前
-环境可执行的自主验收必须当批执行；真人输入、主观短试玩、活动桌面 GPU、macOS 原生及正式产品
-体验统一保持 `Verify/Deferred`，不阻塞下一工程批，也不冒充 PASS。
+BETA-RC、Stage 10/VISUAL-RC 和 Stage 11/P11F 已完成 Windows 自动工程范围；当前没有剩余
+Stage 11 代码批次。下一条候选路线是 `docs/Sandbox_Architecture_Lab_Roadmap_v1.md`，其 34 个
+Sprint 是能力目录而非自动获批 backlog；只有写入本文件的下一批才构成开发承诺。
+
+原“人工项后置”策略已由 `docs/ai-assisted-gameplay-acceptance-v1.md` 取代。自动化继续证明
+正确性、迁移、性能和发行边界；AI/Computer Use 在干净 Release 包中证明功能可玩性；人类
+乐趣、审美、舒适度和物理设备手感统一为 `NOT_CLAIMED`。尚未执行的 AI 场景写 `NOT_RUN`，
+不再维护一个实际上不会安排外部玩家的永久 `Deferred` 清单。
 
 ## 文档分工
 
@@ -29,15 +31,17 @@ P11-0、P11A、P11B、P11-1、P11C、P11D、P11-2、P11E 与 P11F 已完成 Wind
 | `docs/game-development-roadmap.md` | G5/G6、Alpha 后内容批次与最终封板的详细开发计划。 |
 | `docs/beta-gameplay-roadmap.md` | Release Candidate 后 Stage 9 / Beta 的 N7-N12 预排批次、版本边界和回归合同。 |
 | `docs/visual-quality-roadmap.md` | BETA-RC 后 Stage 10 的 V10A、V10B1-B3、V10C-V10E、VISUAL-RC 视觉升级批次、版本预案与性能护栏。 |
-| `docs/playability-experience-roadmap.md` | Stage 11 的 P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/P11E/P11F 顺序、版本预案、Physical Input v2 和 PLAYABILITY-RC 门禁。 |
+| `docs/playability-experience-roadmap.md` | Stage 11 的历史批次顺序、版本预案、Windows 工程证据和当前 AI 验收映射。 |
+| `docs/ai-assisted-gameplay-acceptance-v1.md` | 当前 AI/Computer Use、AI 视觉、开发者自测与 `NOT_CLAIMED` 的权威验收边界。 |
+| `docs/Sandbox_Architecture_Lab_Roadmap_v1.md` | Architecture Lab 长期能力目录、逐 Track 游戏载体约束和候选 Sprint。 |
 | `docs/world-light-source-contract-v1.md` | P11-0 火把定义、图集与配方、metadata 驱动发射、局部重光照和末尾追加的身份约束。 |
-| `docs/core-input-feel-contract-v1.md` | P11A 动作仲裁、settings v7 鼠标绑定、hold/toggle、灵敏度、焦点门和延期边界。 |
-| `docs/action-feedback-contract-v1.md` | P11B 裂纹、粒子、动作/战斗 HUD、掉落物上限、settings v8 强度回退和延期边界。 |
-| `docs/minimum-building-tools-contract-v1.md` | P11-1 木板/圆石/门、斧铲职责、身份追加、资源经济、存档兼容和延期边界。 |
-| `docs/first-thirty-minutes-contract-v1.md` | P11C 并行机会、配方发现、目标定义 v3、存档兼容、自动证据和 30 分钟真人延期边界。 |
-| `docs/exploration-reward-contract-v1.md` | P11D 遗迹罗盘、营地护符、路标能力、奖励版本迁移、自动证据和逐结构真人延期边界。 |
-| `docs/terrain-contours-cave-entrances-contract-v1.md` | P11-2 terrain v4、山地高度域、天然洞口、v1-v3 隔离、自动证据与 Q1/真人延期边界。 |
-| `docs/enemy-presentation-waystone-resonance-contract-v1.md` | P11E 多部件敌人轮廓、关键姿态、死亡表现隔离、身份掉落、Waystone 共鸣和真人延期边界。 |
+| `docs/core-input-feel-contract-v1.md` | P11A 动作仲裁、settings v7 鼠标绑定、hold/toggle、灵敏度、焦点门和 AI/物理声明边界。 |
+| `docs/action-feedback-contract-v1.md` | P11B 裂纹、粒子、动作/战斗 HUD、掉落物上限、settings v8 强度回退和 AI/主观声明边界。 |
+| `docs/minimum-building-tools-contract-v1.md` | P11-1 木板/圆石/门、斧铲职责、身份追加、资源经济、存档兼容和 AI/主观声明边界。 |
+| `docs/first-thirty-minutes-contract-v1.md` | P11C 并行机会、配方发现、目标定义 v3、存档兼容、自动证据和 AI 盲玩代理边界。 |
+| `docs/exploration-reward-contract-v1.md` | P11D 遗迹罗盘、营地护符、路标能力、奖励版本迁移、AI 能力验证与主观价值不声明边界。 |
+| `docs/terrain-contours-cave-entrances-contract-v1.md` | P11-2 terrain v4、山地高度域、天然洞口、v1-v3 隔离、自动证据与 AI 视觉/通行边界。 |
+| `docs/enemy-presentation-waystone-resonance-contract-v1.md` | P11E 多部件敌人轮廓、关键姿态、死亡表现隔离、身份掉落、Waystone 共鸣和 AI 战斗/视觉边界。 |
 | `docs/playability-release-candidate-report-2026-08-31.md` | P11F 最终 Windows 门禁、正式 Q1/Q3、崩溃/符号、发行包和延期证据总表。 |
 | `docs/vertex-lighting-contract-v1.md` | V10A 四角采样、AO/光照合成、对角线、greedy 重建和 mesh-dirty 边界。 |
 | `docs/terrain-material-profile-contract-v1.md` | V10B1 图集/tile/颜色参数、资源包覆盖、CPU/GPU 坐标兼容和启动失败边界。 |
@@ -45,15 +49,16 @@ P11-0、P11A、P11B、P11-1、P11C、P11D、P11-2、P11E 与 P11F 已完成 Wind
 | `docs/post-processing-contract-v1.md` | V10E settings v6、轻量后处理、能力回退、性能和开发者视觉证据。 |
 | `docs/visual-release-candidate-report-2026-08-28.md` | VISUAL-RC 最终 Windows 门禁、视觉矩阵、Q1/Q3、资源许可、发行包和跨平台边界。 |
 | `docs/validation-matrix.md` | 代码改动类型到验证命令的映射。 |
-| `docs/manual-product-experience-acceptance-v1.md` | 与 R3 分离的开发者视觉检查、正式视觉/双语可读性和听感验收合同。 |
+| `docs/manual-product-experience-acceptance-v1.md` | 历史人工产品体验合同；既有开发者视觉记录有效，当前退出边界已迁移到 AI 验收规范。 |
 | `docs/iteration-report-template.md` | 新迭代的统一回归记录模板。 |
 | `docs/runtime-validation.md` | 运行时覆盖范围、已有证据和限制。 |
 | `docs/minigame-reference.md` | 外部 MiniGame 的架构/反模式参考及 Stage 9 定向映射，不是当前任务来源。 |
 | `docs/alpha-development-checkpoint-v1.md` | G6 后冻结的旅程、迁移、性能和 H2 开发基线。 |
 
-状态含义：`Queued` 已预排但前序证据门尚未开放；`Planned` 是下一批准开发批次；`Todo`
-尚未开始；`Doing` 已有实现但未闭环；`Verify` 功能已实现、只差最终验收；`Done` 已实现并有
-足够证据。
+状态含义：`Queued` 已预排但尚未批准；`Planned` 是下一批准开发批次；`Todo` 尚未开始；
+`Doing` 已有实现但未闭环；`Engineering Done` 表示工程门禁通过但适用 AI 场景可能尚未执行；
+`Done` 表示当前声明范围已有足够证据。验收结果使用 `PASS/FAIL/BLOCKED/NOT_RUN`；不准备声明
+的人类主观或物理体验使用 `NOT_CLAIMED`，历史退出条件被替换时使用 `SUPERSEDED`。
 
 ## 当前基线
 
@@ -61,11 +66,11 @@ P11-0、P11A、P11B、P11-1、P11C、P11D、P11-2、P11E 与 P11F 已完成 Wind
 | ---- | -------- |
 | 现有玩法 | 已有移动、方块放置/破坏、箱子、作物、自然生物、战斗、死亡重生、物品拾取和保存恢复。 |
 | 世界可靠性 | K1 世界目录、K2 事务保存、K3 有界备份与验证恢复、K4 世界管理和主菜单入口已经完成。 |
-| 玩法数据层 | G1-G6、N1-N6、N7A-N12C、BETA-RC、Stage 10/VISUAL-RC 与 Stage 11/P11F 均已完成 Windows 自动工程范围；真人和 macOS 子状态独立保持 Verify/Deferred。 |
+| 玩法数据层 | G1-G6、N1-N6、N7A-N12C、BETA-RC、Stage 10/VISUAL-RC 与 Stage 11/P11F 均已完成 Windows 自动工程范围；首份 AI/Computer Use 可玩性记录为 `NOT_RUN`，人类主观体验为 `NOT_CLAIMED`。 |
 | 性能观测 | Q1 七类场景和 Q2 有界阶段计时已闭环；PLAYABILITY-RC 六类 Windows baseline/repeat 与 Q3 双档正式长稳全部通过。 |
 | 崩溃诊断 | H1-H3 已闭环：本地 dump、脱敏 sidecar、混合栈离线符号、独立符号归档和下次启动提示均通过，默认不上传。 |
 | 跨平台 | macOS Debug/Release、真实窗口、31 项 Xcode 工程图和原生 TSan 门禁已有证据。 |
-| 当前 Windows 门禁 | 2026-08-31 PLAYABILITY-RC 自动工程封板通过：84 项资源、278 项图集、38 个性能夹具、11 项 Stage 10 补充合同、VS2017/v141 双配置、832/832 世界、80/80 资源包、122/122 配方、15/15 启动负例、136,615 字节 dump 和 104 项干净包均通过；六类正式 Q1 与 nominal/stress 各 1800 秒 Q3 全部 `PASS`。发行 ZIP SHA-256 为 `422F97E87046D4B6D5FC4BB99C37886FF37C4461A152C1162FA66A972B12F459`；macOS 原生、逐批真人试玩、正式产品体验和 Physical Input v2 保持 Verify/Deferred。 |
+| 当前 Windows 门禁 | 2026-08-31 PLAYABILITY-RC 自动工程封板通过：84 项资源、278 项图集、38 个性能夹具、11 项 Stage 10 补充合同、VS2017/v141 双配置、832/832 世界、80/80 资源包、122/122 配方、15/15 启动负例、136,615 字节 dump 和 104 项干净包均通过；六类正式 Q1 与 nominal/stress 各 1800 秒 Q3 全部 `PASS`。发行 ZIP SHA-256 为 `422F97E87046D4B6D5FC4BB99C37886FF37C4461A152C1162FA66A972B12F459`；AI 场景 `AI-01..AI-08` 当前为 `NOT_RUN`。 |
 
 ## 进度摘要
 
@@ -73,13 +78,13 @@ P11-0、P11A、P11B、P11-1、P11C、P11D、P11-2、P11E 与 P11F 已完成 Wind
 批次不回写该统计：`FS1-FS3`、`N7A/N7B`、`N8A/N8B`、`N9A/N9B`、`N10`、`N11A/N11B`
 与 `N12A/N12B/N12C`、`BETA-RC` 工程封板当前为 `Done`。新增 Stage 10 不回写历史统计，
 当前建立的 8 个视觉批次均已完成 Windows 工程范围，VISUAL-RC 为 `Done（Windows 工程）`；
-V10B1/V10C/V10D/V10E 的 macOS shader 子状态因当前无目标机器保持 `Verify`。
-R3 已做部分非正式真人自测；现有 v1 十二项记录尚未完成，而且其范围不足以单独关闭当前
-D4/D6 和 Stage 9/10 的全部人工体验。Stage 11 新增九个不回写历史统计的批次：
+V10B1/V10C/V10D/V10E 的新 macOS shader 运行没有补做，当前为 `NOT_RUN`，且不是默认
+Architecture Lab 退出范围。R3 已做部分非正式开发者自测；现有 v1 十二项和 Physical Input v2
+保持历史 `NOT_RUN`，并已由 AI 验收规范取代为当前退出门槛。Stage 11 新增九个不回写历史统计的批次：
 P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/P11E/P11F 均为 `Engineering Done`。2026-08-28 的内容与视觉复核在原有六批之间插入了 P11-0、
 P11-1 和 P11-2 三个内容密度批次，理由是原有批次的退出条件依赖世界里并不存在的内容。
-P11A 的 Physical Input v2 已定义但真实执行保持 Deferred，并与视觉/双语/听感验收分开；不能因
-工程完成而自动关闭 D2/D4/D6/R3。
+P11A 的 Physical Input v2 已定义但不再默认安排物理操作者；D2/D4/D6 的功能关闭和新的
+`R3-AI-Functional` 由 AI 场景覆盖，未执行前保持 `NOT_RUN`。
 
 | 类型 | 数量 | 任务 |
 | ---- | ---- | ---- |
@@ -87,10 +92,11 @@ P11A 的 Physical Input v2 已定义但真实执行保持 Deferred，并与视�
 | Stage 9 已完成 | 16 | FS1 首次进入正确性、FS2 天空/水面/颜色、FS3 体素美术/HUD、N7A 结局状态与文本键基础、N7B 路标胜利闭环、N8A 战斗可读性、N8B 远程敌人与投射物、N9A 确定性结构框架、N9B 遗迹/营地与生态战利品、N10 食物/冶炼/资源经济、N11A 难度档案、N11B 胜利后事件、N12A 本地化完成、N12B 正式采样音效、N12C 低密度音乐、BETA-RC 工程封板 |
 | Stage 10 已完成 | 8 | V10A 顶点平滑光照/AO、V10B1 材质/图集管线、V10B2 原创材质资产、V10B3 生态着色/确定性变体、V10C 定向大气/立体云、V10D 可选方向阴影、V10E 轻量后处理、VISUAL-RC Windows 工程封板 |
 | Stage 10 待开发 | 0 | 无；VISUAL-RC 后产品方向评审已完成 |
-| Stage 11 工程已完成 | 9 | P11-0 世界光源与洞穴照明、P11A 核心操作手感、P11B 动作反馈、P11-1 建造材料与工具分化、P11C 前 30 分钟重构、P11D 探索奖励、P11-2 地形轮廓与洞口、P11E 敌人表现与战斗层次、P11F PLAYABILITY-RC（真人/产品体验/macOS 子项 Deferred） |
-| Stage 11 待开发 | 0 | 无；恢复真人验收或另立新的产品路线不属于当前已批准开发批次。 |
+| Stage 11 工程已完成 | 9 | P11-0 世界光源与洞穴照明、P11A 核心操作手感、P11B 动作反馈、P11-1 建造材料与工具分化、P11C 前 30 分钟重构、P11D 探索奖励、P11-2 地形轮廓与洞口、P11E 敌人表现与战斗层次、P11F PLAYABILITY-RC（AI 场景 `NOT_RUN`；人类主观体验 `NOT_CLAIMED`） |
+| Stage 11 待开发 | 0 | 无；Stage 11 已结束，后续候选方向为 Architecture Lab。 |
 | Stage 11 已排队 | 0 | 无 |
-| 等待最终验收 | 4 | D2、D4、D6、R3 |
+| AI 功能验收待运行 | 4 | D2=`AI-02`、D4=`AI-03`、D6=`AI-04`、R3-AI-Functional=`AI-01..AI-04`；均为 `NOT_RUN`。 |
+| 永久延期的真人项 | 0 | 原物理合同已 `SUPERSEDED` 为当前门槛；人类主观/物理体验直接记为 `NOT_CLAIMED`。 |
 
 ## Stage 10 视觉质量待办
 
@@ -101,13 +107,13 @@ Stage 10 只提升已有世界的表现，不改玩法、世界生成、save v11
 | 批次 | 状态 | 优先级 | 计划交付 | 退出边界 |
 | ---- | ---- | ------ | -------- | -------- |
 | V10A 顶点平滑光照与 AO | Done | P0 | 四角采样、透明规则、确定性对角线、greedy 重建保护和边角 dirty 传播已实现；solid 共面顶点复用、全局 repeat UV、18³ lazy 光照样本缓存、uniform-light 与非共享 pass 快路把 14-face 夹具从 56 压到 36 顶点。最终 VS2017/v141 双配置聚焦为 39/39、Release 完整世界为 716/716，保持 32 字节顶点布局；八场景 AO/no-AO 共 16 张截图和开发者窗口检查已通过。 | 项目所有者于 2026-08-27 批准 exact AO 性能例外：fast 旧核心预算通过；scaled P95 只超旧上限 0.045 ms。AO-disabled 诊断证明 +41.8% 索引主要来自 exact AO 内部明暗边界；后续批次未继承例外，最终身份已在 VISUAL-RC 重跑并通过 Q1/Q3。合同见 `docs/vertex-lighting-contract-v1.md`。 |
-| V10B1 材质与图集管线 | Done（macOS Verify） | P0 | v1 profile 参数化 atlas/tile/颜色，CPU/GPU 共用像素中心，三类 terrain pass 从冻结资源视图同步 uniform；保持 V10A AO、`shapedLight=0.24` 和合成顺序。 | 双配置资源包 54/54、V10B1 世界 4/4、Release 完整世界 718/718、12 类启动负例、65 项 manifest、默认静态前景 216,000 像素一致和 5 分钟 Release 检查通过；macOS Release shader 窗口仍为 `Verify`，合同见 `docs/terrain-material-profile-contract-v1.md`。 |
+| V10B1 材质与图集管线 | Done（Windows；macOS `NOT_RUN`） | P0 | v1 profile 参数化 atlas/tile/颜色，CPU/GPU 共用像素中心，三类 terrain pass 从冻结资源视图同步 uniform；保持 V10A AO、`shapedLight=0.24` 和合成顺序。 | 双配置资源包 54/54、V10B1 世界 4/4、Release 完整世界 718/718、12 类启动负例、65 项 manifest、默认静态前景 216,000 像素一致和 5 分钟 Release 检查通过；新的 macOS Release shader 窗口不在当前退出范围。 |
 | V10B2 原创材质资产 | Done | P0 | 37 个原创语义 tile、top/side/bottom、四类 Alpha、双语 layout、确定性生成与许可已落地；HUD/手持改用冻结 atlas profile。 | 自动合同 106/106、资源包 56/56、Release 世界 718/718、13 类启动负例、67 项 manifest、3 张隐藏固定图和 85 文件干净包通过；项目所有者授权 Codex 逐图完成静态视觉检查，记录为 PASS，合同见 `docs/material-visual-contract-v1.md`。 |
 | V10B3 生态着色与确定性变体 | Done | P1 | 五生态、五表面组、每组三变体以 4x4x4 坐标小块接入世界网格，变体进入 greedy key；UI/手持与非着色材质保持基础身份。 | terrain v3/save v11/32 字节顶点不变；261 项图集、732 项 Release 世界、相关 Q1、短 Q3 和五图开发者静态检查通过，合同见 `docs/ecology-appearance-contract-v1.md`。 |
-| V10C 定向大气与立体云 | Done（Windows；macOS Verify） | P1 | terrain/water/actor/sky 已共享定向雾；有界空间云层具备高度、厚度、绝对时间速度、云底/云顶和稳定层内处理。 | 双配置聚焦 21/21、Release 世界 741/741、资源包 65/65、14 类启动负例、相关 Q1 和十图多帧开发者检查通过；所有者批准单样本可见延迟例外，macOS 待补。合同见 `docs/directional-atmosphere-contract-v1.md`。 |
-| V10D 可选方向阴影 | Done（Windows；macOS Verify） | P1 | 单近景方向 shadow map 已提供 Off/Medium/High；settings v5、v0-v4→Off、双语 key、独立 Off shader、2×2 PCF、距离淡出、能力回退和资源清理已落地。 | 双配置聚焦 21/21、资源包 75/75、Release 世界 742/742、74 项 manifest、14 类启动负例、9 项档位合同、强制回退、同场景各档性能和六图开发者视觉 PASS；最终 frame P95/P99 无需性能例外，macOS 冒烟待补。合同见 `docs/directional-shadow-contract-v1.md`。 |
-| V10E 轻量后处理 | Done（Windows；macOS Verify） | P2 | settings v6、v0-v5→Off、可关闭 tone curve/确定性抖动/八采样极轻 bloom、HUD 排除、能力回退和 Stage 10 补充身份已落地。 | 双配置聚焦 22/22、资源包 80/80、Release 世界 743/743、77 项 manifest、15 类启动负例、11 项性能合同、真实支持/强制回退、同档三次中位数和六图开发者视觉检查通过；无需性能例外，macOS 冒烟待补。合同见 `docs/post-processing-contract-v1.md`。 |
-| VISUAL-RC 视觉集中封板 | Done（Windows 工程；macOS/产品体验 Verify） | P0 | 已固化逐批开发者检查、最终渲染身份、性能、许可证、干净包和 bundle 边界。 | Windows 全门禁、正式 Q1、nominal/stress 各 1800 秒 Q3、239 项 Xcode 工程图静态检查、资源/许可/Credits 和 97 文件干净包通过；macOS 原生及正式人工体验保持 Verify，不 push、不自动打标签。报告见 `docs/visual-release-candidate-report-2026-08-28.md`。 |
+| V10C 定向大气与立体云 | Done（Windows；macOS `NOT_RUN`） | P1 | terrain/water/actor/sky 已共享定向雾；有界空间云层具备高度、厚度、绝对时间速度、云底/云顶和稳定层内处理。 | 双配置聚焦 21/21、Release 世界 741/741、资源包 65/65、14 类启动负例、相关 Q1 和十图多帧开发者检查通过；所有者批准单样本可见延迟例外；新的 macOS 运行不在当前退出范围。 |
+| V10D 可选方向阴影 | Done（Windows；macOS `NOT_RUN`） | P1 | 单近景方向 shadow map 已提供 Off/Medium/High；settings v5、v0-v4→Off、双语 key、独立 Off shader、2×2 PCF、距离淡出、能力回退和资源清理已落地。 | 双配置聚焦 21/21、资源包 75/75、Release 世界 742/742、74 项 manifest、14 类启动负例、9 项档位合同、强制回退、同场景各档性能和六图开发者视觉 PASS；最终 frame P95/P99 无需性能例外。 |
+| V10E 轻量后处理 | Done（Windows；macOS `NOT_RUN`） | P2 | settings v6、v0-v5→Off、可关闭 tone curve/确定性抖动/八采样极轻 bloom、HUD 排除、能力回退和 Stage 10 补充身份已落地。 | 双配置聚焦 22/22、资源包 80/80、Release 世界 743/743、77 项 manifest、15 类启动负例、11 项性能合同、真实支持/强制回退、同档三次中位数和六图开发者视觉检查通过；无需性能例外。 |
+| VISUAL-RC 视觉集中封板 | Done（Windows 工程） | P0 | 已固化逐批开发者检查、最终渲染身份、性能、许可证、干净包和 bundle 边界。 | Windows 全门禁、正式 Q1、nominal/stress 各 1800 秒 Q3、239 项 Xcode 工程图静态检查、资源/许可/Credits 和 97 文件干净包通过；新 macOS 原生运行 `NOT_RUN`，AI 产品表现映射到 `AI-07`，人类主观体验 `NOT_CLAIMED`。报告见 `docs/visual-release-candidate-report-2026-08-28.md`。 |
 
 Stage 10 的历史开发顺序为
 `V10A -> V10B1 -> V10B2 -> V10B3 -> V10C -> V10D -> V10E -> VISUAL-RC`。每批实现、
@@ -118,20 +124,21 @@ Stage 10 不再追加渲染批次来掩盖玩法和操作问题。
 
 Stage 11 的固定顺序为
 `P11-0 -> P11A -> P11B -> P11-1 -> P11C -> P11D -> P11-2 -> P11E -> P11F`。工程批次在前一批
-代码、自动回归、双配置和可执行自主验收关闭后逐个开放；真人/主观项保留 Deferred 清单。
-权威范围、版本预案、试玩记录字段和非目标见 `docs/playability-experience-roadmap.md`。
+代码、自动回归、双配置和可执行自主验收关闭后逐个开放；其人工退出条件现已迁移为 AI 场景和
+明确的 `NOT_CLAIMED` 边界。权威范围、版本预案和非目标见
+`docs/playability-experience-roadmap.md`，当前验收模型见 `docs/ai-assisted-gameplay-acceptance-v1.md`。
 
 | 批次 | 状态 | 优先级 | 计划交付 | 退出边界 |
 | ---- | ---- | ------ | -------- | -------- |
-| P11-0 世界光源与洞穴照明 | Engineering Done（真人 Deferred） | P0 | 火把、Rose 修正、metadata 熔炉发射和局部重光照已落地。 | 双配置、自动/视觉证据与 PLAYABILITY-RC 正式 Q1 完成；真人动态试玩后置。合同见 `docs/world-light-source-contract-v1.md`。 |
-| P11A 核心操作手感 | Engineering Done（Physical Input v2 Deferred） | P0 | 单一世界动作仲裁、鼠标重绑定、线性相对增量、焦点门、hold/toggle 与 settings v7 已落地。 | VS2017/v141 双配置、定向 88/88、资源包 80/80 和完整世界回归通过；真实键鼠/Alt+Tab/重启后置。合同见 `docs/core-input-feel-contract-v1.md`。 |
-| P11B 动作反馈与游戏汁水 | Engineering Done（真人动态观察 Deferred） | P0 | 十级裂纹、材质粒子、第一人称动作、命中/受击/冷却、拾取、音量微变体和 settings v8 强度回退已落地。 | VS2017/v141 双配置、定向 84/84、Release 完整世界 786/786 和资源包 80/80 通过；真人动态观察后置。合同见 `docs/action-feedback-contract-v1.md`。 |
-| P11-1 建造材料与工具分化 | Engineering Done（真人动态观察 Deferred） | P0 | 木板、圆石、单方块可开关橡木门、`axe`/`shovel` 工具 class 和孤儿清理已落地。 | VS2017/v141 双配置、定向 39/39、配方 121/121、资源包 80/80、Release 完整世界 794/794、图集 274/274 和 84 项 manifest 通过；真人安全落脚点、速度差和门动态观感后置。合同见 `docs/minimum-building-tools-contract-v1.md`。 |
-| P11C 前 30 分钟重构 | Engineering Done（真人 30 分钟 Deferred） | P0 | 木材目标后最多同时显示成长、建造、探索三项机会；六项分支独立保存，配方书按实际材料发现。 | 双配置、定向 41/41、Release 世界 803/803、配方 121/121、资源包 80/80、双语 403 key 和客户端编译通过；完整 30 分钟试玩后置。合同见 `docs/first-thirty-minutes-contract-v1.md`。 |
-| P11D 改变玩法的探索奖励 | Engineering Done（真人逐结构体验 Deferred） | P1 | 遗迹罗盘、营地护符和既有路标核心提供三种独特能力结果；save v12/奖励 v1 保护旧世界身份。 | 双配置、定向 30/30、Release 世界 810/810、配方 121/121、资源包 80/80、目录 59/59、图集 278/278 通过；真人逐结构体验后置。合同见 `docs/exploration-reward-contract-v1.md`。 |
-| P11-2 地形轮廓与洞口 | Engineering Done（真人 Deferred） | P1 | terrain v4 已增加山地高度域、Stone 高峰与世界坐标天然洞口；水文未进入本批。 | VS2017/v141 双配置、定向 9/9、Release 世界 820/820、配方 121/121、资源包 80/80、目录 59/59 与 PLAYABILITY-RC 正式 Q1 通过；v1-v3 身份冻结。真人远景/洞口体验后置。合同见 `docs/terrain-contours-cave-entrances-contract-v1.md`。 |
-| P11E 敌人表现与战斗层次 | Engineering Done（真人动态观察 Deferred） | P1 | 6-7 部件轮廓、玩法状态关键姿态、8 tick 死亡表现、身份化掉落与 Waystone 共鸣已落地。 | VS2017/v141 双配置、定向各 35/35、Release 世界 832/832、配方 122/122、资源包 80/80、84 项 manifest 和客户端编译通过；真人辨识/掉落价值/守护战体验后置。合同见 `docs/enemy-presentation-waystone-resonance-contract-v1.md`。 |
-| P11F PLAYABILITY-RC | Engineering Done（真人/产品体验/macOS Deferred） | P0 | 已汇总自动门禁、迁移、正式 Q1/Q3、保存恢复、崩溃/符号、干净包和延期证据。 | VS2017/v141 双配置、832/832 世界、六类 Q1、双档 1800 秒 Q3、136,615 字节 dump 与 104 项包通过；真人里程碑、误操作、死亡、困惑、正式产品体验和 macOS 保持 Deferred。报告见 `docs/playability-release-candidate-report-2026-08-31.md`。 |
+| P11-0 世界光源与洞穴照明 | Engineering Done（AI `NOT_RUN`） | P0 | 火把、Rose 修正、metadata 熔炉发射和局部重光照已落地。 | 双配置、自动/视觉证据与正式 Q1 已完成；制作/放置/洞穴照明映射到 `AI-05/AI-07`。合同见 `docs/world-light-source-contract-v1.md`。 |
+| P11A 核心操作手感 | Engineering Done（AI `NOT_RUN`） | P0 | 单一世界动作仲裁、鼠标重绑定、线性相对增量、焦点门、hold/toggle 与 settings v7 已落地。 | 双配置、定向 88/88、资源包 80/80 和完整世界回归通过；功能交互映射到 `AI-01..AI-04`，物理手感 `NOT_CLAIMED`。合同见 `docs/core-input-feel-contract-v1.md`。 |
+| P11B 动作反馈与游戏汁水 | Engineering Done（AI `NOT_RUN`） | P0 | 十级裂纹、材质粒子、第一人称动作、命中/受击/冷却、拾取、音量微变体和 settings v8 强度回退已落地。 | 双配置、定向 84/84、Release 世界 786/786 和资源包 80/80 通过；动态可辨识映射到 `AI-05/AI-07`，人类打击感/舒适度 `NOT_CLAIMED`。 |
+| P11-1 建造材料与工具分化 | Engineering Done（AI `NOT_RUN`） | P0 | 木板、圆石、单方块可开关橡木门、`axe`/`shovel` 工具 class 和孤儿清理已落地。 | 双配置、定向 39/39、配方 121/121、资源包 80/80、Release 世界 794/794、图集 274/274 和 84 项 manifest 通过；真实建造映射到 `AI-05`。 |
+| P11C 前 30 分钟重构 | Engineering Done（AI `NOT_RUN`） | P0 | 木材目标后最多同时显示成长、建造、探索三项机会；六项分支独立保存，配方书按实际材料发现。 | 双配置、定向 41/41、Release 世界 803/803、配方 121/121、资源包 80/80、双语 403 key 和客户端编译通过；无上下文 30 分钟 AI 盲玩映射到 `AI-06`，人类留存/乐趣 `NOT_CLAIMED`。 |
+| P11D 改变玩法的探索奖励 | Engineering Done（AI `NOT_RUN`） | P1 | 遗迹罗盘、营地护符和既有路标核心提供三种独特能力结果；save v12/奖励 v1 保护旧世界身份。 | 双配置、定向 30/30、Release 世界 810/810、配方 121/121、资源包 80/80、目录 59/59、图集 278/278 通过；能力与后续操作变化映射到 `AI-05`，主观价值 `NOT_CLAIMED`。 |
+| P11-2 地形轮廓与洞口 | Engineering Done（AI `NOT_RUN`） | P1 | terrain v4 已增加山地高度域、Stone 高峰与世界坐标天然洞口；水文未进入本批。 | 双配置、定向 9/9、Release 世界 820/820、配方 121/121、资源包 80/80、目录 59/59 与正式 Q1 通过；远景/洞口通行映射到 `AI-05/AI-07`。 |
+| P11E 敌人表现与战斗层次 | Engineering Done（AI `NOT_RUN`） | P1 | 6-7 部件轮廓、玩法状态关键姿态、8 tick 死亡表现、身份化掉落与 Waystone 共鸣已落地。 | 双配置、定向各 35/35、Release 世界 832/832、配方 122/122、资源包 80/80、84 项 manifest 和客户端编译通过；战斗/共鸣/可辨识映射到 `AI-05/AI-07`，人类危险感和战斗乐趣 `NOT_CLAIMED`。 |
+| P11F PLAYABILITY-RC | Engineering Done（AI `NOT_RUN`） | P0 | 已汇总自动门禁、迁移、正式 Q1/Q3、保存恢复、崩溃/符号和干净包证据。 | VS2017/v141 双配置、832/832 世界、六类 Q1、双档 1800 秒 Q3、136,615 字节 dump 与 104 项包通过；历史报告保持原结论，当前完整载体验收映射到 `AI-08`。 |
 
 ## 当前阻塞修复
 
@@ -158,7 +165,7 @@ BLD-1 是保持主干可开发的构建修复，不代表要立即执行所有�
 | N3 | Done | P0 | 已让小麦和战斗损伤进入真实恢复循环，面包可主动恢复生命，第一版不引入持续饥饿压力。 | 严格食物定义、3 小麦面包配方、固定 tick 冷却、原子食用、死亡次 tick 重生、v6 生命/冷却存档及 v5 迁移、2 项目标均通过；463 项世界、76 项配方、26 项资源包与 44 项清单见 `food-recovery-contract-v1.md`。 | N2、D4、D5 |
 | N4 | Done | P1 | 已交付 Stalker/Brute、木/石/铁剑、固定 tick 近战、一次性有界掉落和三步战斗目标。 | v7 存档、成功命中才损耗、AABB 距离、接触伤害差异和掉落去重通过；477 项世界、92 项配方/敌人、27 项资源包和 45 项清单见 `combat-depth-contract-v1.md`。 | N3、D3-D4 |
 | N5 | Done | P1 | 已增加五类生态身份、沙漠敌人压力、seed 稳定的跨区块路标和两步探索目标。 | terrain v1/v2、v7→v8 迁移、加载顺序、单核心和性能身份通过；487 项世界、92 项配方/材料/敌人、27 项资源包和 46 项清单见 `ecology-exploration-contract-v1.md`。 | N4、Q1-Q2 |
-| N6 | Done | P1 | 已统一 UI 信息层级、配方/目标可读性、九项可重映射键位、UI 缩放、操作提示和声音字幕，并补齐食用失败提示。 | 设置 v2 迁移与冲突拒绝、音频字幕、目标历史和配方书装填通过；491 项世界、95 项配方、27 项资源包、46 项清单及 Debug/Release 完整门禁通过。物理输入和产品体验分别后置。 | N5、G4-G5 |
+| N6 | Done | P1 | 已统一 UI 信息层级、配方/目标可读性、九项可重映射键位、UI 缩放、操作提示和声音字幕，并补齐食用失败提示。 | 设置 v2 迁移与冲突拒绝、音频字幕、目标历史和配方书装填通过；491 项世界、95 项配方、27 项资源包、46 项清单及 Debug/Release 完整门禁通过。功能交互进入 AI 场景，物理/主观体验不声明。 | N5、G4-G5 |
 | FS1 | Done | P0 | 让真实新世界首次打开时确定性落在安全陆地，并能在附近取得首轮木材；世界创建默认提供随机建议种子。 | 双配置世界回归 532/532、目录 45/45 和隐藏 Release 客户端通过；seed 0 重开稳定，救援保留身份/掉落物且不移动已有进度玩家。 | K4、N5 |
 
 ## 可靠性和性能跟随项
@@ -174,34 +181,36 @@ BLD-1 是保持主干可开发的构建修复，不代表要立即执行所有�
 | Q2 | Done | P1 | 启动/目录/世界进入/保存/备份/恢复的有界阶段计时。 | 实际保存 `195.821/160.612 ms`、恢复 `53.861/58.516 ms`，两轮阶段/计数/预算全部通过。 |
 | Q3 | Done | P2 | 已完成快速移动、内容规模、队列、内存和长时间 soak。 | schedule v2 的 nominal/stress 各串行运行 1800 秒并双 PASS；峰值私有内存分别为 18,878,464/28,123,136 字节，稳定段增长 4,558,848/7,602,176 字节，峰值句柄均为 260 且稳定增长均为 0。 |
 
-## 等待最终验收
+## AI 功能验收基线
 
-以下功能已经实现，不需要现在中断玩法开发去集中补证据。
+这些功能的工程与自动证据已经完成；下一份真实窗口证据由具备 OS 级 Computer Use 的独立 AI
+任务执行。当前环境没有运行记录，因此统一保持 `NOT_RUN`，不写成 PASS，也不再等待外部玩家。
 
-| ID | 状态 | 剩余事项 |
-| -- | ---- | -------- |
-| D2 | Verify | 用真实键鼠确认箱子 UI 的打开、转移、Escape/关闭和焦点隔离。 |
-| D4 | Verify | 用真实鼠标确认目标选择、攻击、受伤、死亡和重生输入链路。 |
-| D6 | Verify | 用真实输入完成作物、箱子、战斗、保存和重启流程。 |
-| R3 | Verify（部分自测，延后） | 已非正式尝试第 1、8 项以及方块破坏/拾取路径；v1 十二项正式记录未完成。P11A 已建立可机器校验的 Physical Input v2 十三项合同，补齐 D4 的受伤/死亡/重生与 D6 的作物/保存/重启范围，但真实运行仍 Deferred，并与视觉/双语/听感产品验收分开。 |
+| ID | 工程状态 | AI 状态 | 场景与声明边界 |
+| -- | -------- | ------- | -------------- |
+| D2 | Engineering Done | `NOT_RUN` | `AI-02`：箱子打开、转移、按钮/Escape 关闭和焦点隔离。PASS 后可标 `Done（AI Functional）`。 |
+| D4 | Engineering Done | `NOT_RUN` | `AI-03`：目标选择、攻击、受伤、死亡和重生。PASS 后可标 `Done（AI Functional）`。 |
+| D6 | Engineering Done | `NOT_RUN` | `AI-04`：作物、箱子、战斗、拾取、保存、退出和重启恢复。 |
+| R3-AI-Functional | Engineering Done | `NOT_RUN` | `AI-01..AI-04`：正常 OS 输入和窗口功能。原 R3 v1/Physical Input v2 为历史 `SUPERSEDED` 门槛；既有部分自测保留，物理设备手感 `NOT_CLAIMED`。 |
 
 ## 推荐开发顺序
 
-后续先按下面的当前批次推进，再进入预排内容包。一个批次只有在“玩家路径、失败边界、持久化和定向测试”
-同时满足后才进入下一批；正式硬件与真人输入证据仍可集中封板。
+下表保留已完成产品路线的历史开发顺序。新的 Architecture Lab 批次只有在“游戏内真实需求、
+失败边界、持久化、定向测试和可观察 Demo”同时明确后才进入本文件；每个 Track 结束再集中执行
+干净包 `AI-08`，不能用 Debug UI 代替正常玩法。
 
 | 批次 | 主任务 | 本批交付 | 退出条件 |
 | ---- | ------ | -------- | -------- |
 | 0：恢复基线（Done） | `BLD-1`，跟随 `H1/Q1/Q2` | 修复 DbgHelp 链接传播；跑 Windows Debug/Release 完整门禁；保存一份不批准预算的 Release 性能参考快照。 | 主干恢复可编译；H1 已闭环；Q1 schema、Q2 计时和本地参考快照均通过。 |
-| 1：世界入口（Done） | `K4` | 世界管理命令层、主菜单世界列表、创建/打开/重命名、备份恢复和可恢复删除。 | 44 项定向断言通过；普通启动进入主菜单，自动化直进路径兼容；真人输入记录现归 Physical Input v2。 |
+| 1：世界入口（Done） | `K4` | 世界管理命令层、主菜单世界列表、创建/打开/重命名、备份恢复和可恢复删除。 | 44 项定向断言通过；普通启动进入主菜单，自动化直进路径兼容；窗口功能映射到 `AI-01`。 |
 | 2：制作闭环（Done） | `G2` | 纯制作预览、最大可制作数量、原子领取、玩家制作区、工作台 3x3 和 UI。 | Debug 定向门禁已通过；预览、材料、产物、容量、关闭、连点、方块生命周期和重载均守恒。 |
 | 3：工具成长（Done） | `G3` | 数据驱动工具表、渐进破坏、采集等级/速度/掉落、耐久和版本化保存。 | 手、木、石三级采集能力形成升级循环；旧存档迁移、工具恢复及双配置自动门禁均通过。 |
-| 4：产品外壳（Done） | `G4` | 暂停状态机、设置草稿、应用/取消/默认值和版本化用户配置。 | 暂停门、配置迁移、原子保存、即时 FOV/视距、重启生效边界和双配置自动门禁均通过；真人 UI 操作归 Physical Input v2，观感归独立产品体验合同。 |
+| 4：产品外壳（Done） | `G4` | 暂停状态机、设置草稿、应用/取消/默认值和版本化用户配置。 | 暂停门、配置迁移、原子保存、即时 FOV/视距、重启生效边界和双配置自动门禁均通过；UI/设置重启映射到 `AI-01`。 |
 | 5：反馈层（Done） | `G5` | 音频事件、2D/3D/listener/音量接口、Windows `waveOut` 与 dummy 后端、程序化基础提示。 | 七类提示与业务事件接线完成；403/23 项回归和双配置隐藏客户端通过，缺设备/定义不阻断游戏。 |
 | 6：可玩 Alpha（Done） | `G6` | 从干净启动串联世界创建、采集、工作台、工具升级、战斗、保存退出和继续游戏。 | 十步正常 API 旅程、跨系统数据守恒、v1-v3 迁移和 v4 重开恢复均通过。 |
 | 7：Alpha 开发检查点（Done） | `H2`、`Q1/Q2` 跟随 | 已冻结 G6 旅程和 v3 迁移样本，批准 Alpha 性能基线，建立脱敏 sidecar/离线符号工具骨架。 | 双配置 420/420 与 16/16、隐藏客户端、性能复测、匹配/错误符号均通过；证据见 `alpha-development-checkpoint-v1.md`。 |
 | 8：内容扩展（Done） | `N1-N6` | 已完成目标、成长、恢复、战斗掉落、生态探索、统一 UI、配方/目标可读性、键位辅助与声音反馈。 | N6 未改写已冻结的玩法、生成和存档语义；491/95/27 项定向断言及双配置完整门禁通过，合同见 `product-experience-contract-v1.md`。 |
-| 9：发行候选封板（人工项延后） | Physical Input v2、产品体验 | H2-H3、Q1-Q3 和最终 Windows 自动门禁已完成；R3 v1 只有部分非正式自测。 | v1 十二项不再自动关闭当前 D4/D6；未来分别完成扩展物理输入与视觉/双语/听感记录，不阻塞 Stage 10。 |
+| 9：发行候选封板（历史工程 Done） | R3/产品体验迁移 | H2-H3、Q1-Q3 和最终 Windows 自动门禁已完成；R3 v1 只有部分非正式自测。 | 历史物理/人工合同不再是 Architecture Lab 退出门槛；功能与可观察表现分别映射到 AI 交互/视觉场景。 |
 
 ## Stage 9 / Beta 预排批次
 
@@ -215,8 +224,8 @@ BLD-1 是保持主干可开发的构建修复，不代表要立即执行所有�
 | ---- | ---- | ------ | -------- | ------------- |
 | FS1 首次进入正确性 | Done | P0 | 确定性安全陆地出生、附近木材、随机建议种子和受限旧占位世界救援。 | 双配置 532/532、目录 45/45、真实隐藏客户端通过；不改 seed/terrain 身份，不移动有进度玩家。 |
 | FS2 天空、水面与颜色 | Done | P0 | 独立水面表现、风格化云层、雾色和整体颜色基线。 | 固定森林/海岸/昼夜隐藏截图、双配置 536/536、隐藏 Ogre 客户端及相关性能比较通过。 |
-| FS3 体素美术与 HUD | Done | P1 | 统一图集、快捷栏图标、手持物和基础交互反馈。 | 双配置 539/539、资源包 27/27、47 项清单、来源记录、隐藏 HUD/容器截图和焦点守卫通过；真人输入与观感已拆到各自人工合同，RC0 不再承担收口。 |
-| RC0 基线收口 | Superseded | P0 | bundle、文档一致性和自动基线已被 BETA-RC 工程封板覆盖。 | 不再作为活跃批次；剩余真人输入归 Physical Input v2，R3 v1 不自动关闭 D4/D6。 |
+| FS3 体素美术与 HUD | Done | P1 | 统一图集、快捷栏图标、手持物和基础交互反馈。 | 双配置 539/539、资源包 27/27、47 项清单、来源记录、隐藏 HUD/容器截图和焦点守卫通过；功能与视觉现映射到 AI 验收规范，RC0 不再承担收口。 |
+| RC0 基线收口 | Superseded | P0 | bundle、文档一致性和自动基线已被 BETA-RC 工程封板覆盖。 | 不再作为活跃批次；历史 R3/Physical Input 不再是当前退出门槛。 |
 | N7A 结局状态与文本键 | Done | P0 | 已交付独立持久结局状态、奖励 epoch、世界列表标记和语义化中英文 key 骨架。 | 保存 v9、v1-v8 迁移、恢复、回退和幂等通过；Debug/Release 560/560、目录 48/48、资源包 28/28、49 项清单及完整门禁通过。 |
 | N7B 路标激活与首个胜利闭环 | Done | P0 | 已交付 2 铁锭原子激活、2+1 固定守卫、3 铁锭一次性奖励、胜利覆盖层和 5 个终局目标。 | 双配置世界回归 580/580；阶段重开、死亡、重复事件、卸载、满背包和中途备份恢复通过；nominal/stress 各 5 秒通过；应用保持 Playing。 |
 | N8A 战斗可读性 | Done | P0 | 已交付攻击前摇/恢复、方向性受击、双方击退、受击打断和持剑右键格挡。 | enemy registry v2、四态 FSM、遮挡、目标失效、每 tick 预算与调试快照通过；双配置 596/596、配方/敌人 100/100、资源包 28/28，nominal/stress 各 5 秒零失败。 |
@@ -226,23 +235,23 @@ BLD-1 是保持主干可开发的构建修复，不代表要立即执行所有�
 | N10 食物、冶炼与资源经济 | Done | P1 | 已交付 4 种食物、3 类冶炼、2 类燃料、19 个精确配方及经济可达性校验。 | VS2017/v141 双配置 117/117 配方与 650/650 世界回归、完整门禁、同身份 Q1 和两组 60 秒 soak 通过；守恒、来源/消耗、无环、容量和保存预算见 `docs/resource-economy-contract-v1.md`。 |
 | N11A 难度档案 | Done | P1 | 已交付三档版本化难度；创建时选择，暂停菜单显式应用，下个 fixed tick 原子生效。 | 保存 v10、v1-v9→Normal、集中伤害/生成/掉落参数、metadata/Q1 身份和非法值拒绝通过；VS2017/v141 双配置 658/658 世界、53/53 目录，完整门禁、同身份 Q1 与两组 60 秒 soak 通过。合同见 `docs/difficulty-replay-contract-v1.md`。 |
 | N11B 胜利后事件 | Done | P2 | 已交付三次有界回响试炼：每次显式启动、两波固定守卫、一次性 2 铁锭奖励。 | 保存 v11、payload v2、死亡取消、中途恢复、三次封顶和替换核心防重置通过；双配置 666/666 世界、59/59 目录、完整门禁、同身份 Q1 与两组 60 秒 soak 通过。合同见 `docs/difficulty-replay-contract-v1.md`。 |
-| N12A 本地化完成 | Done | P1 | 已完成 `en-US`/`zh-CN`、341 个严格 key、Noto Sans SC、长文本布局、语义字幕、Credits 和许可。 | settings v3/v0-v2 迁移、双配置 675/675、32/32 资源包、51 项清单、完整门禁和同身份启动/进世界 Q1 通过；双语真人截图与可读性按独立产品体验合同延期，不标 PASS。 |
-| N12B 正式采样音效 | Done | P1 | 已交付 v3 schema、9 个正式 WAV、启动缓存、Windows/dummy 后端、并发上限、Credits 和许可清单。 | 双配置 681/681 世界、34/34 资源包、隐藏真实后端、61 项清单、性能和完整门禁通过；真人听感延期。 |
-| N12C 低密度音乐 | Done | P2 | 已交付单通道流式环境音乐及暂停、停止、淡入淡出、降级和清理。 | settings v4、1 条原创 20 秒曲目、352 个双语 key、64 项清单、双配置 699/699 世界与 38/38 资源包、真实 WaveOut、完整门禁和同身份 Q1 通过；真人听感按独立产品体验合同延期。 |
-| BETA-RC 集中封板 | Done（工程） | P0 | 全迁移、正式性能、双档长稳、崩溃符号和新干净包已经复核。 | 六类 Q1、两档 1800 秒 Q3、R3 自动预检和 bundle 校验完成；R3 v1 未正式签署，扩展物理输入与产品体验分别延后，因此不建本地标签、不 push。 |
+| N12A 本地化完成 | Done | P1 | 已完成 `en-US`/`zh-CN`、341 个严格 key、Noto Sans SC、长文本布局、语义字幕、Credits 和许可。 | settings v3/v0-v2 迁移、双配置 675/675、32/32 资源包、51 项清单、完整门禁和同身份启动/进世界 Q1 通过；双语可观察性进入 `AI-07`，人类阅读偏好 `NOT_CLAIMED`。 |
+| N12B 正式采样音效 | Done | P1 | 已交付 v3 schema、9 个正式 WAV、启动缓存、Windows/dummy 后端、并发上限、Credits 和许可清单。 | 双配置 681/681 世界、34/34 资源包、隐藏真实后端、61 项清单、性能和完整门禁通过；cue/字幕/生命周期进入 `AI-07`，人类听感 `NOT_CLAIMED`。 |
+| N12C 低密度音乐 | Done | P2 | 已交付单通道流式环境音乐及暂停、停止、淡入淡出、降级和清理。 | settings v4、1 条原创 20 秒曲目、352 个双语 key、64 项清单、双配置 699/699 世界与 38/38 资源包、真实 WaveOut、完整门禁和同身份 Q1 通过；过渡功能进入 `AI-07`，人类音乐偏好 `NOT_CLAIMED`。 |
+| BETA-RC 集中封板 | Done（工程） | P0 | 全迁移、正式性能、双档长稳、崩溃符号和新干净包已经复核。 | 六类 Q1、两档 1800 秒 Q3、R3 自动预检和 bundle 校验完成；历史 R3/产品体验状态由 AI 验收规范重新分类。 |
 
-当前开发顺序为 `FS1 -> FS2 -> FS3 -> N7A -> N7B -> N8A -> N8B -> N9A -> N9B -> N10 -> N11A ->
-N11B -> N12A -> N12B -> N12C -> BETA-RC`；RC0 已被 BETA-RC 取代，剩余人工项单独延后。
+历史开发顺序为 `FS1 -> FS2 -> FS3 -> N7A -> N7B -> N8A -> N8B -> N9A -> N9B -> N10 -> N11A ->
+N11B -> N12A -> N12B -> N12C -> BETA-RC`；RC0 已被 BETA-RC 取代，原人工项已迁移到 AI/Computer Use 和 `NOT_CLAIMED` 分类。
 N11B/N12C 均已
 纳入并完成，其余 P0/P1 基础批次未因伸缩边界删减。
 
 批次 2/3 的历史范围没有加入烹饪、材料组替换、修理或附魔；熔炉和铁级工具现已由 N2 独立
 交付。批次 5 不迁移 MiniGame 的 FMOD、直播 DSP 或平台资源层。Alpha 之后的目标系统和
 熔炉/铁级成长、食物恢复、战斗掉落、生态探索和产品体验已由 N1-N6 交付；RC0 自动化基线
-已经闭环，BETA-RC 工程封板也已完成；R3 维持部分自测、其余延期。Stage 9 没有后续批次，
+已经闭环，BETA-RC 工程封板也已完成；R3 的部分自测作为历史开发者证据保留，原物理合同不再是当前门槛。Stage 9 没有后续批次，
 当前 V10E 已由 Codex 基于六张真实 Release 原图完成视觉关闭；Off/On 最终性能均未超过护栏，
 因此未消耗性能例外。VISUAL-RC 随后使用隐藏且不抢焦点的客户端完成 Windows 工程封板；
-产品方向评审选择的 Stage 11 已完成 P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/P11E/P11F 全部 Windows 自动工程批次；当前无后续已批准代码批次，macOS 原生、逐批真人试玩与正式产品体验保持 Verify/Deferred。
+产品方向评审选择的 Stage 11 已完成 P11-0/P11A/P11B/P11-1/P11C/P11D/P11-2/P11E/P11F 全部 Windows 自动工程批次；当前无后续已批准代码批次，AI 场景保持 `NOT_RUN`，主观体验 `NOT_CLAIMED`，新的 macOS 原生范围按未来里程碑单独批准。
 以上新增批次
 仍不回写拆分前 77 项历史总账。
 

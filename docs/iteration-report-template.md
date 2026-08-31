@@ -20,7 +20,8 @@
 - [ ] 渲染截图（需要时）
 - [ ] 性能采集/比较（需要时）
 - [ ] 长时间 soak（封板或高风险改动）
-- [ ] R3 真人输入（正式封板）
+- [ ] AI/Computer Use 交互场景（适用时；记录 PASS/FAIL/BLOCKED/NOT_RUN）
+- [ ] AI 视觉/多帧/双语/音频功能检查（适用时）
 - [ ] 干净发行包（发布候选）
 
 改动前指标：
@@ -43,6 +44,11 @@
 
 验收证据：
 -
+
+声明边界：
+- functional_playability：
+- human_fun：NOT_CLAIMED
+- physical_input_feel：NOT_CLAIMED
 
 下一项建议：
 -

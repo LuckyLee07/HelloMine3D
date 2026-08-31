@@ -1,5 +1,8 @@
 # Alpha 开发检查点 v1
 
+> Architecture Lab 迁移说明（2026-08-31）：本文冻结 Alpha 当时的验收计划与工程证据；旧的
+> 真人/延期表述不再是当前待办，现行模型见 `docs/ai-assisted-gameplay-acceptance-v1.md`。
+
 本文冻结 G6 之后、N1 之前的开发基线。它不是 Release Candidate 封板：目标是让后续
 内容扩展拥有稳定的旅程、存档迁移、崩溃诊断和性能回归参照，而不是提前完成真人输入、
 长时间压力和最终发行包验收。

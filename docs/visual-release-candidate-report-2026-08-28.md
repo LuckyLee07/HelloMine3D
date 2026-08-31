@@ -1,5 +1,8 @@
 # HelloMine3D VISUAL-RC 工程封板报告
 
+> 历史报告说明：以下结论冻结 2026-08-28 的真实证据，不回写为后续 AI/真人 PASS。
+> Architecture Lab 的当前退出模型见 `docs/ai-assisted-gameplay-acceptance-v1.md`。
+
 日期：2026-08-28
 结论：`PASS（Windows 工程）`；`Verify（macOS 原生、正式产品体验、Physical Input v2）`
 

@@ -1,5 +1,9 @@
 # P11B 动作反馈与游戏汁水合同 v1
 
+> Architecture Lab 迁移说明（2026-08-31）：工程与既有自动证据保持冻结；动态可辨识性映射到
+> `docs/ai-assisted-gameplay-acceptance-v1.md` 的 AI 交互/视觉场景。人类打击感、眩晕与长期
+> 舒适度为 `NOT_CLAIMED`。
+
 本文冻结 P11B 的表现边界、资源上限、settings v8 迁移和验收口径。P11B 只把既有采挖、
 放置、近战、受伤与拾取结果表达得更清楚；它不改变命中判定、资源经济、敌人数量或掉落表。
 
@@ -49,6 +53,6 @@ settings v8 新增 `feedbackintensity off|reduced|full`，默认 `full`：
 
 2026-08-29 的 VS2017/v141 Debug/Release P11B 定向各为 84/84，Release 完整
 `WorldRuntimeSmoke` 为 786/786，`ResourcePackSmoke` 为 80/80，客户端双配置零错误编译。
-真人 Release 动态观察仍为 `Verify/Deferred`：应检查裂纹节奏、手部接触感、命中/格挡/未命中
-辨识、低生命遮挡、掉落物吸附和三档强度的舒适度。自动化不得把这些主观观察记为 PASS，也不
-阻塞 P11-1 的工程开发。
+Release 动态功能与可观察表现映射到 `AI-05` 和 `AI-07`，当前为 `NOT_RUN`：应检查裂纹节奏、
+手部接触关系、命中/格挡/未命中辨识、低生命遮挡、掉落物吸附和三档强度差异。人类打击感与
+舒适度为 `NOT_CLAIMED`；自动化和 AI 记录均不得把该主观结论写成 PASS。

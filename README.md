@@ -1,7 +1,193 @@
 # HelloMine3D
 
-HelloMine3D is a C++ Minecraft-style voxel sandbox derived from the original one-week challenge
-project.
+**A C++ voxel sandbox built as an architecture and engineering-practice laboratory.**
+
+It is a playable Minecraft-style single-player game — world creation, mining, crafting, tool
+progression, smelting, food, combat, exploration and a victory loop — but the point of the
+repository is *how* it is built: every persisted format is versioned and migrated, every feature
+batch is frozen in a written contract before code, and every change is gated by a reproducible
+Debug + Release verification run.
+
+Originally derived from [Hopson97/MineCraft-One-Week-Challenge](https://github.com/Hopson97/MineCraft-One-Week-Challenge);
+the render backend has since moved to Ogre 1.10 / GL3Plus, and the engine, gameplay,
+persistence, diagnostics and packaging layers have been rebuilt.
+
+![Coast at noon](docs/screenshots/validation-v10c-coast-noon.png)
+
+| | |
+| --- | --- |
+| **Source** | 284 files, ~72.7k lines of C++ |
+| **Automated checks** | 832 world-runtime · 122 recipe · 80 resource-pack · 15 startup-negative — in **both** Debug and Release |
+| **Test executables** | 13 |
+| **Persisted formats** | save `v12`, terrain `v4`, settings `v8` — every one migrates from `v1` |
+| **Performance gates** | 6 versioned scenes with baseline/repeat comparison, bounded stage timings, 2 × 1800 s soak |
+| **Distribution** | 104-file self-contained package, verified from an isolated root |
+| **Platforms** | Windows (VS2017 / v141, primary) · macOS (historical Xcode/native ThreadSanitizer evidence; new runtime scope is milestone-specific) |
+
+---
+
+## Screenshots
+
+**Per-vertex ambient occlusion** — four-corner neighbourhood sampling, deterministic triangle
+diagonals, and greedy merging that only joins faces whose AO gradient stays linearly
+reconstructible.
+
+| Without AO | With AO |
+| --- | --- |
+| ![Ruin corner without AO](docs/screenshots/validation-v10a-ruin-corner-no-ao.png) | ![Ruin corner with AO](docs/screenshots/validation-v10a-ruin-corner-ao.png) |
+
+**Block light** — a craftable torch feeds the same sky/block light composition the mesh builder
+already used, and a burning furnace emits light through metadata-driven emission with exactly
+one local relight per state flip.
+
+| Unlit cave | Torch placed |
+| --- | --- |
+| ![Cave before](docs/screenshots/validation-p11-0-cave-before.png) | ![Cave after](docs/screenshots/validation-p11-0-cave-after.png) |
+
+**Directional atmosphere** — terrain, water, actors and sky share one fog model that shifts with
+the sun direction, beneath an independent cloud layer with height, thickness and parallax.
+
+| Sunward dusk | Backlit dusk |
+| --- | --- |
+| ![Dusk sunward](docs/screenshots/validation-v10c-dusk-sunward.png) | ![Dusk backlit](docs/screenshots/validation-v10c-dusk-backlit.png) |
+
+**Ecology tinting** — biome-specific surface groups with deterministic per-coordinate tile
+variants, all resolved from a frozen atlas profile instead of hard-coded shader constants.
+
+| | |
+| --- | --- |
+| ![Desert](docs/screenshots/validation-v10b3-desert-noon.png) | ![Grassland](docs/screenshots/validation-v10b3-grassland-noon.png) |
+| ![Temperate forest](docs/screenshots/validation-v10b3-temperate-forest-noon.png) | ![Ocean](docs/screenshots/validation-v10b3-ocean-noon.png) |
+
+Every image above is a fixed-seed, fixed-position, fixed-world-time capture from a hidden
+Release client. The full matrices live in [`docs/screenshots/`](docs/screenshots/).
+
+---
+
+## Architecture at a glance
+
+Three rules shape the layout: **Ogre never owns gameplay truth**, **worker threads never touch
+authoritative world state**, and **persistence is the only writer of durable data**.
+
+```mermaid
+flowchart TB
+    subgraph shell["Client shell — Ogre 1.10 / GL3Plus"]
+        direction LR
+        boot["OgreBootstrap<br/>window · OIS input · frame loop"]
+        ui["OgreUserInterface<br/>ImGui HUD, menus, containers"]
+        rend["Renderables<br/>terrain · actors · outline · post"]
+    end
+
+    subgraph app["Application — Sandbox/"]
+        direction LR
+        flow["GameApplicationFlow<br/>WorldManager"]
+        tick["FixedTickScheduler<br/>20 Hz"]
+        bus["SandboxEventBus"]
+    end
+
+    subgraph sim["Simulation — World/"]
+        direction LR
+        world["World facade"]
+        chunks["Chunk runtime<br/>greedy mesh · vertex AO · sky/block light"]
+        gen["Generation<br/>biomes · caves · ores · structures"]
+    end
+
+    subgraph rules["Gameplay data — renderer-independent"]
+        direction LR
+        item["Item/<br/>recipes · tools · foods · smelting · economy"]
+        gameplay["Gameplay/<br/>objectives · victory · difficulty"]
+        actor["Actor/<br/>enemies · combat · projectiles · drops"]
+    end
+
+    subgraph store["Persistence — World/Storage/"]
+        direction LR
+        tx["StorageTransaction<br/>atomic publish"]
+        save["WorldSave v12<br/>Catalogue · Backup · Restore"]
+    end
+
+    shell -->|commands| app
+    app --> sim
+    sim --> rules
+    sim --> store
+    sim -.->|immutable snapshots| shell
+```
+
+The most load-bearing detail is how a chunk mesh is built without holding the world lock, and
+how a stale result is rejected instead of overwriting a newer edit:
+
+```mermaid
+sequenceDiagram
+    participant M as Main thread
+    participant W as Mesh worker
+    participant G as Ogre / GPU
+
+    M->>M: take world lock
+    M->>M: copy 18³ SectionMeshInput snapshot
+    M->>M: release lock, record section revision
+    M->>W: submit job (snapshot + revision)
+    W->>W: greedy merge + per-vertex AO + light
+    W-->>M: CPU mesh + originating revision
+    alt revision unchanged
+        M->>G: upload and swap buffers
+    else block edited meanwhile
+        M->>M: discard stale mesh, requeue section
+    end
+```
+
+---
+
+## Ten engineering practices worth a look
+
+If you only read a few parts of this repository, read these.
+
+| # | Practice | Where |
+| --- | --- | --- |
+| 1 | **Transactional world saves.** A same-directory candidate is written, durably flushed, re-read through the *real* format reader, and only then atomically swapped in. One failed candidate is kept for diagnosis; a failed save can never destroy the last good one. | [`World/Storage/`](src/HelloMine3D/World/Storage/) · [contract](docs/storage-transaction-contract-v1.md) |
+| 2 | **Twelve save versions, no orphans.** `save v1→v12`, `terrain v1–v4` and `settings v1→v8` all migrate deterministically, with fixtures for every old version. A world permanently keeps the terrain identity it was created with — new generation features never backfill existing chunks. | [`WorldSave.h`](src/HelloMine3D/World/Storage/WorldSave.h) · [`TerrainGenerator.h`](src/HelloMine3D/World/Generation/Terrain/TerrainGenerator.h) |
+| 3 | **Verified, bounded backups.** A strict manifest freezes every path, byte count and fingerprint; backup *and* restore candidates must pass the real readers before publication, and restore parks the previous primary in a `recovery.failed` directory instead of deleting it. | [`WorldBackup.cpp`](src/HelloMine3D/World/Storage/WorldBackup.cpp) · [contract](docs/world-backup-contract-v1.md) |
+| 4 | **Off-lock meshing with revision validation.** The world lock is held only long enough to copy an 18³ neighbourhood; the greedy/AO build then runs with no world access at all, and any result carrying a stale section revision is discarded rather than overwriting a newer edit. | [`SectionMeshInput.h`](src/HelloMine3D/World/Chunk/SectionMeshInput.h) · [`ChunkMeshBuilder.cpp`](src/HelloMine3D/World/Chunk/ChunkMeshBuilder.cpp) |
+| 5 | **Performance comparison that can say "incomparable".** Scene identity, schema, build configuration and final chunk residency are all part of the record; a mismatch yields `INCOMPARABLE` instead of a misleading pass, and thresholds only gate after a baseline has been explicitly approved. | [`compare_perf_baselines.ps1`](tools/compare_perf_baselines.ps1) · [`performance-contract-v1.json`](tools/performance-contract-v1.json) |
+| 6 | **Crash diagnostics with no telemetry.** A local minidump plus a versioned, sanitized sidecar; offline mixed-stack symbolization against a separately archived PDB; a next-launch prompt the player can simply ignore. Nothing is uploaded and no absolute developer paths leak. | [`Diagnostics/`](src/HelloMine3D/Diagnostics/) · [contract](docs/crash-diagnostics-contract-v1.md) |
+| 7 | **Packages validated from an isolated root.** The distribution is checked from a directory with no access to the source or build tree, including negative cases for missing and stale resources — so "it works on my machine" cannot pass the gate. | [`package_windows_release.ps1`](tools/package_windows_release.ps1) · [`validate_startup_errors.ps1`](tools/validate_startup_errors.ps1) |
+| 8 | **One frozen contract per feature batch.** Roughly thirty `*-contract-v1.md` documents fix the data fields, defaults, migration path, failure semantics and exit conditions *before* implementation — then record the real measured numbers afterwards. | [`docs/`](docs/) |
+| 9 | **A ThreadSanitizer gate that proves itself first.** The script requires an isolated race probe to actually report and exit 66, then verifies native architecture and TSan runtime linkage and rejects suppressions, before the real loader-churn run is allowed to count. | [`verify_tsan.sh`](scripts/verify_tsan.sh) · [notes](docs/thread-sanitizer-validation.md) |
+| 10 | **Strict data-driven content with startup preflight.** Blocks, recipes, tools, foods, smelting, enemies, objectives, audio, music and both locales are parsed strictly from `media/`; a missing, duplicate or malformed entry fails before Ogre is even constructed. | [`media/`](media/) · [`StartupResourcePreflight.cpp`](src/HelloMine3D/Ogre/StartupResourcePreflight.cpp) |
+
+---
+
+## What is in the game
+
+| Area | Content |
+| --- | --- |
+| **World** | Streamed chunks, 6 biomes, caves with natural surface entrances, a mountain height domain, deterministic ore/plant/tree decorators, 3 structure types (waystone, ruin, raider camp) |
+| **Progression** | 25 non-air block types, 24 recipes, 8 tools across pickaxe / weapon / axe / shovel classes, three tiers (wood → stone → iron), furnace smelting, 4 foods |
+| **Combat** | 6 enemy definitions with melee and ranged profiles, wind-up and recovery windows, directional knockback, blocking, bounded transient projectiles, identity-bearing drops |
+| **Structure** | 34 data-driven objectives with independent branch progress, a waystone victory loop, bounded post-victory trials, 3 difficulty profiles |
+| **Presentation** | Vertex AO, an original 16×16 atlas with ecology tinting, directional fog and a parallax cloud layer, optional directional shadows (Off / Medium / High), optional bounded post-processing |
+| **Product shell** | Main-menu world management with rename, backup-restore and recoverable delete; pause and versioned settings; remappable keys and mouse buttons; en-US / zh-CN at 411 keys each; sampled audio and streamed ambient music |
+
+---
+
+## Current status
+
+Stage 11 (`P11-0` … `P11F`) closed the Windows engineering scope on 2026-08-31. The full gate
+passes at `832/832` world assertions in both configurations, six formal performance scenes
+compare clean, both 1800-second soak profiles pass, and the 104-file package validates from an
+isolated root.
+
+This is a personal architecture-learning and showcase project, not a commercial product with an
+external playtest panel. The game remains the proof vehicle: observable workflows are validated
+by automation plus AI/Computer Use against a clean Release package. The first Computer Use
+baseline is currently `NOT_RUN`; human fun, physical-device feel and subjective preference are
+explicitly `NOT_CLAIMED`, rather than kept on an indefinite deferred list. No `1.0` tag has been
+created.
+
+See [`docs/todolist.md`](docs/todolist.md) for the authoritative current state, and
+[`docs/playability-release-candidate-report-2026-08-31.md`](docs/playability-release-candidate-report-2026-08-31.md)
+for the frozen engineering evidence. The active acceptance boundary is
+[`docs/ai-assisted-gameplay-acceptance-v1.md`](docs/ai-assisted-gameplay-acceptance-v1.md).
+
+---
 
 ## Project Layout
 
@@ -18,7 +204,9 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 
 | Document | Contents |
 | -------- | -------- |
-| `docs/todolist.md` | Compact current task list, product priority and active blockers. Start here. |
+| `docs/todolist.md` | Authoritative current state, approved work and evidence status. Start here. |
+| `docs/Sandbox_Architecture_Lab_Roadmap_v1.md` | Proposed long-term Architecture Lab capability catalogue and playable-carrier constraints. |
+| `docs/ai-assisted-gameplay-acceptance-v1.md` | Active automation/AI/Computer Use acceptance boundary, scenarios and claim taxonomy. |
 | `docs/project-ledger-2026-08-17.md` | Frozen pre-split ledger with detailed evidence for completed milestones. |
 | `docs/validation-matrix.md` | Change-type to validation-command routing. |
 | `docs/iteration-report-template.md` | Reusable iteration and regression report template. |
@@ -53,113 +241,7 @@ The project has been reorganized with the same broad shape as `HelloOgre3D`:
 | `docs/chunk-streaming-regression.md` | Diagnosis and fix of the terrain streaming regression. |
 | `docs/minigame-reference.md` | Historical architecture study of an external MiniGame project; reference only, not a backlog. |
 
-### Current Development Direction
-
-The selected 13-item Windows D/R/X implementation scope is complete. It now
-includes the playable crop/container/combat/persistence slice, a deterministic
-world soak, clean-root packaging and the bounded read-only resource-pack layer.
-Physical-input acceptance is intentionally deferred while the project
-prioritizes the player-facing gameplay loop. The existing R3 v1 protocol remains
-a useful twelve-case baseline, but D4/D6 now require a future Physical Input v2;
-visual, bilingual-readability and listening acceptance remain separate. K4 world entry, G2 crafting, G3 tool
-progression, G4 pause/settings, G5 audio feedback, the G6 playable Alpha journey
-and Stage 9 through N12C are complete. The BETA-RC engineering audit is also
-complete: the refreshed six-scene Q1 comparison and both 1,800-second Q3
-profiles pass, and the release evidence is frozen for bundling. R3 remains
-partially tested and explicitly deferred, so no local Beta tag has been made.
-Stage 10 `V10A-V10E` is complete for the Windows engineering scope: vertex
-lighting/AO, the material pipeline and original assets, ecology tint/variants,
-directional atmosphere/clouds, optional shadows and bounded post-processing all
-have passing developer visual records. `VISUAL-RC` is now complete for the
-Windows engineering scope: the final Q1/Q3, resource/licence, Xcode project-graph
-preflight and 97-file clean-package gates pass. Native macOS shader/window
-evidence, formal product experience and Physical Input v2 remain independent
-`Verify` evidence rather than automatic passes; see
-`docs/visual-release-candidate-report-2026-08-28.md`.
-The post-VISUAL-RC direction review has selected Stage 11 playability and input
-experience instead of entering `1.0-RC` immediately. A follow-up content review on
-2026-08-28 inserted three content-density batches (`P11-0`, `P11-1`, `P11-2`)
-between the original six, because those batches' exit conditions depend on content
-the world does not yet contain: no craftable light source, too few building
-materials and a purely height-mapped terrain silhouette. Only `P11-0` world light
-is currently planned; the remaining eight are ordered, evidence-gated queued
-batches. See `docs/playability-experience-roadmap.md` for the authoritative scope
-and `docs/world-light-source-contract-v1.md` for the active batch contract.
-
-Stage 8 established the sustainable-play and reliable-release foundation. Its
-completed 16-item K/H/Q/G scope adds durable world management and recovery, local
-symbolizable crash artifacts, startup/save/streaming/content-scale performance
-budgets, data-driven crafting and tools, pause/settings, basic audio feedback
-and a new clean-package vertical slice. See `docs/iteration-plan.md` for phase
-ordering and `docs/todolist.md` for the authoritative task contracts.
-K1-K4 are now complete: new worlds use version-3 identity metadata, file saves
-publish transactionally, and explicit successful saves create bounded verified
-backups with rollback-safe restore. Normal launches now open a main-menu world
-screen for create/open/rename/backup recovery/recoverable deletion, while test
-save-directory launches retain the direct path. The contracts are documented in
-`docs/world-catalogue-contract-v1.md`,
-`docs/storage-transaction-contract-v1.md` and
-`docs/world-backup-contract-v1.md`, plus
-`docs/world-management-contract-v1.md`.
-G2 adds a pure revisioned crafting session, atomic inventory exchange, player
-2x2 crafting and a placeable 3x3 workbench. Its 54 focused assertions and
-351-check world stack are documented in `docs/crafting-contract-v1.md`.
-G3 adds data-driven wooden/stone pickaxes, hold-to-mine progress, tiered drops,
-per-instance durability and backward-compatible inventory persistence. The
-current Debug/Release gates pass 64 focused recipe/tool checks, 365 world checks
-and 20 resource-pack checks; see `docs/tool-progression-contract-v1.md`.
-G4 turns pause into a simulation gate and adds a bounded settings draft with
-apply/cancel/default semantics. Version-1 settings are published atomically,
-legacy files migrate automatically, display changes are restart-marked, FOV,
-input, logical/visual FOV and render distance apply live, and world creation seed ownership is kept
-outside the settings page; see `docs/runtime-settings-contract-v1.md`.
-G5 adds a strict seven-cue audio definition, business-event routing, immediate
-category-volume updates, spatial attenuation, bounded voices, a Windows
-`waveOut` backend and a deterministic dummy fallback. Debug/Release world and
-resource checks pass 403/23, and both hidden client modes exit 0; see
-`docs/audio-feedback-contract-v1.md`.
-G6 adds a ten-step in-game journey from wood gathering through workbench and
-tool progression to iron, combat loot, save and reopen. Version-4 world
-metadata persists its bounded progress flags while versions 1-3 remain
-readable. The Debug/Release world stack passes 420 checks; see
-`docs/playable-alpha-contract-v1.md`.
-N1 replaces the one-off controller with a strict versioned objective registry,
-event-driven progress, a read-only current/next HUD snapshot and world metadata
-version 5. Versions 1-3 migrate empty, version 4 maps its ten flags to stable
-objective ids, and unknown canonical ids are preserved without driving UI.
-The world stack now passes 429 checks and the resource resolver passes 24; see
-`docs/objective-system-contract-v1.md`.
-Q2 now records bounded cumulative phases, totals, longest main-thread stalls
-and storage counters for startup, catalogue, world entry, save, backup and
-restore. Portable and real storage fixtures are green; closure still depends on
-Q1's approved target-Windows Release budgets.
-H1 now has a portable path/trigger contract and a Windows SDK DbgHelp backend
-installed before Ogre construction. The dedicated writer thread, one-shot
-handler and controlled post-save first-frame crash are implemented. The target
-Windows Release harness runs in a hidden background window, writes one non-empty
-local dump, reopens the published save and confirms that no pending save
-candidate remains; upload stays disabled.
-The Alpha checkpoint adds a strict path-free sidecar and an offline symbol
-probe with exact EXE/PDB GUID-age matching. The tracked Alpha performance scene
-has a conservative Windows hidden baseline plus a passing repeat; the other six
-Q1 release scenes and full arbitrary-dump stack symbolization remain open. See
-`docs/alpha-development-checkpoint-v1.md` and
-`docs/crash-sidecar-contract-v1.md`.
-
-The Windows build blocker is closed: every game-logic target that compiles the
-crash backend inherits `dbghelp.lib`. The full Debug/Release gate, thirteen
-targets, 346-check runtime stack, resource/startup diagnostics and clean package
-all pass. The Alpha journey, version-3 migration sample, first approved Alpha
-budget and H2 sidecar skeleton are now frozen. Remaining release-scene budgets,
-full symbolization and physical-input evidence stay in the later quality stage.
-
-Native macOS acceptance (B3) is complete on an Apple M1 Pro through the full
-Debug/Release Xcode gate. R4 is also complete: the native arm64 Apple Clang
-ThreadSanitizer gate runs the full 346-check world stack and its concurrent V5
-loader workload without a sanitizer report.
-Multiplayer, scriptable mods,
-resource hot reload and additional render backends are not part of the active
-scope.
+## Origins
 
 Original challenge video: https://www.youtube.com/watch?v=Xq3isov6mZ8
 

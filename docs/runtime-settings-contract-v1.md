@@ -117,6 +117,7 @@ seed random
 - 逻辑相机 FOV 和世界视距即时更新；
 - 主菜单/暂停拒绝模拟推进，恢复后继续推进，非法重复暂停拒绝。
 
-Debug/Release 世界目标和可运行的隐藏客户端都必须通过。真实鼠标点击、Escape 手感、焦点切换、
-实际鼠标距离与窗口重启后的恢复由 Physical Input v2 的目标 Windows Release 记录关闭；在真人
-记录延期时只标记 `Verify/Deferred`，不阻塞后续工程批次。
+Debug/Release 世界目标和可运行的隐藏客户端都必须通过。真实鼠标点击、Escape、焦点切换、
+相对视角增量与窗口重启恢复的可观察功能由 `AI-01` 至 `AI-04` 的目标 Windows Release 记录
+关闭，当前为 `NOT_RUN`。真实设备距离与手感属于历史 Physical Input v2，保持
+`NOT_RUN/SUPERSEDED`，人类物理体验为 `NOT_CLAIMED`。

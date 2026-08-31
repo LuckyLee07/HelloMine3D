@@ -132,4 +132,5 @@ Alpha 标记之后追加 4 项 `shelter.*` 和 2 项早期 `exploration.*`。完
 
 P11C 保持 save v11，v1/v2 目标状态归一到 v3，当前保存只发布 v3。Debug/Release 定向均为
 `41/41`，Release 完整世界为 `803/803`，配方/资源双配置为 `121/121`、`80/80`。完整 30 分钟
-真人试玩保持 Deferred；详细边界见 `first-thirty-minutes-contract-v1.md`（2026-08-30）。
+30 分钟无上下文 AI 盲玩当前为 `NOT_RUN`；结论只作为 AI 可理解性代理，人类首次体验/乐趣
+不声明。详细边界见 `first-thirty-minutes-contract-v1.md`（2026-08-31 迁移）。

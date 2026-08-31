@@ -1,5 +1,10 @@
 # R3 Physical Input Acceptance Protocol v1
 
+> Architecture Lab 状态（2026-08-31）：本协议保留为历史物理输入基线，案例、模板和
+> `-RequirePass` 语义不变；它不再是当前路线的退出门槛，也不得由 AI/Computer Use 冒充
+> 物理操作者填写 PASS。功能子集迁移到 `docs/ai-assisted-gameplay-acceptance-v1.md`，物理
+> 设备手感统一为 `NOT_CLAIMED`。
+
 This protocol records the original twelve-case validation gap between
 deterministic controller tests and the real Windows OIS keyboard/mouse path. It
 is deliberately physical: no
@@ -9,8 +14,8 @@ of the operator.
 ## Current status and scope limit
 
 Version 1 remains a valid historical input baseline and its validator continues
-to check the exact record schema. It is no longer sufficient by itself to close
-the current D4, D6 or project-wide R3 `Verify` state:
+to check the exact record schema. It did not by itself cover the former D4, D6
+or project-wide R3 acceptance scope because:
 
 - `case.attack_mob` observes attacking a mob, but does not require the player to
   take damage, die and respawn;
@@ -19,12 +24,11 @@ the current D4, D6 or project-wide R3 `Verify` state:
 - they predate Stage 9 guard/ranged/difficulty paths and do not cover visual,
   bilingual-readability or listening acceptance.
 
-Physical Input v2 is now defined by `docs/physical-input-acceptance-v2.md` and
-adds the missing player-input journeys required to close D2/D4/D6/R3. Its real
-run remains Deferred. Visual, bilingual-readability and listening evidence must
-use a separate product-experience checklist; it must not be appended to this
-physical-input schema. A v1 `PASS` therefore means only "all twelve v1 cases
-passed on the recorded identity".
+Physical Input v2 is defined by `docs/physical-input-acceptance-v2.md` and adds
+the missing historical player-input journeys. Neither physical protocol is
+scheduled as a current Architecture Lab closure gate. Visual, bilingual and
+listening evidence stays outside this schema. A future v1 `PASS` would still
+mean only "all twelve v1 cases passed on the recorded physical identity".
 
 ## Preconditions
 
