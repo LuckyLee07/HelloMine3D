@@ -33,6 +33,22 @@ struct WorldMeshSnapshot {
     std::vector<glm::ivec3> liveSections;
     std::vector<WorldSectionMeshVersion> liveSectionVersions;
     std::vector<WorldSectionMeshSnapshot> cpuReadySections;
+    std::size_t cpuReadyTotal = 0;
+    std::size_t cpuReadyDeferred = 0;
+};
+
+struct ChunkBackpressureDebugStats {
+    std::size_t deferredPlanJobs = 0;
+    std::size_t lastAuthoritativeCommits = 0;
+    std::size_t peakAuthoritativeCommits = 0;
+    std::size_t maxAuthoritativeCommitsPerPass = 0;
+    std::size_t lastCpuReadyTotal = 0;
+    std::size_t lastSectionUploadsOffered = 0;
+    std::size_t lastSectionUploadsDeferred = 0;
+    std::size_t maxSectionUploadsPerFrame = 0;
+    std::size_t lastUnloads = 0;
+    std::size_t maxUnloadsPerUpdate = 0;
+    bool unloadBacklog = false;
 };
 
 struct ChunkDemandTarget {
@@ -50,6 +66,10 @@ struct ChunkDemandTarget {
 /// ChunkManager remains the owner of authoritative Chunk and storage state.
 class ChunkRuntime final : public NonCopyable {
   public:
+    static constexpr std::size_t MaxAuthoritativeCommitsPerPass = 8;
+    static constexpr std::size_t MaxSectionUploadsPerFrame = 8;
+    static constexpr std::size_t MaxUnloadsPerUpdate = 8;
+
     ChunkRuntime(ChunkManager &chunkManager, std::mutex &worldMutex,
                  int renderDistance);
     ~ChunkRuntime();
@@ -81,6 +101,7 @@ class ChunkRuntime final : public NonCopyable {
         ChunkDemandReason reason = ChunkDemandReason::Preload);
     ChunkDemandDebugStats collectDemandDebugStats() const;
     WorldJobSchedulerDebugStats collectJobSchedulerDebugStats() const;
+    ChunkBackpressureDebugStats collectBackpressureDebugStats() const;
 
     static std::vector<VectorXZ>
     planMeshWork(const VectorXZ &center, int radius, int sectionY,
@@ -89,6 +110,9 @@ class ChunkRuntime final : public NonCopyable {
         const ChunkDemandSnapshot &snapshot, int sectionY,
         const ViewFrustum *frustum, const VectorXZ &movementOrigin,
         const VectorXZ &movementDirection);
+    static std::vector<glm::ivec3> planSectionMeshUploads(
+        const std::vector<glm::ivec3> &readySections,
+        const VectorXZ &origin, std::size_t budget);
 
   private:
     struct IVec3Hash {
@@ -123,6 +147,13 @@ class ChunkRuntime final : public NonCopyable {
     VectorXZ m_playerMovement{0, 0};
     bool m_playerDemandPublished = false;
     std::atomic<std::size_t> m_lastPlannedTargetCount{0};
+    std::atomic<std::size_t> m_deferredPlanJobCount{0};
+    std::atomic<std::size_t> m_lastAuthoritativeCommitCount{0};
+    std::atomic<std::size_t> m_peakAuthoritativeCommitCount{0};
+    std::atomic<std::size_t> m_lastCpuReadyTotal{0};
+    std::atomic<std::size_t> m_lastSectionUploadsOffered{0};
+    std::atomic<std::size_t> m_lastSectionUploadsDeferred{0};
+    std::atomic<std::size_t> m_lastUnloadCount{0};
     WorldJobScheduler m_jobScheduler;
     std::mutex m_worldJobCommitMutex;
 

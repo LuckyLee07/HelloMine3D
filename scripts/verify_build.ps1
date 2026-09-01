@@ -57,6 +57,8 @@ $worldJobSchedulerVerifier = Join-Path $repoRoot `
     "tools\validate_world_job_scheduler.ps1"
 $worldJobCancellationVerifier = Join-Path $repoRoot `
     "tools\validate_world_job_cancellation.ps1"
+$streamingBackpressureVerifier = Join-Path $repoRoot `
+    "tools\validate_streaming_backpressure.ps1"
 
 function Invoke-Checked {
     param(
@@ -205,6 +207,10 @@ try {
 
     Invoke-Checked "B4 World job cancellation" {
         & $worldJobCancellationVerifier -Root $repoRoot
+    }
+
+    Invoke-Checked "B5 Streaming backpressure" {
+        & $streamingBackpressureVerifier -Root $repoRoot
     }
 
     Invoke-Checked "Resource manifest" {

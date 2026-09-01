@@ -232,6 +232,44 @@ std::vector<ChunkDemandTarget> ChunkRuntime::planDemandWork(
     return result;
 }
 
+std::vector<glm::ivec3> ChunkRuntime::planSectionMeshUploads(
+    const std::vector<glm::ivec3> &readySections,
+    const VectorXZ &origin, std::size_t budget)
+{
+    std::vector<glm::ivec3> selected = readySections;
+    std::sort(selected.begin(), selected.end(),
+              [&origin](const glm::ivec3 &left,
+                        const glm::ivec3 &right) {
+                  const VectorXZ leftChunk{left.x, left.z};
+                  const VectorXZ rightChunk{right.x, right.z};
+                  const int leftSquared =
+                      chunkDistanceSquared(leftChunk, origin);
+                  const int rightSquared =
+                      chunkDistanceSquared(rightChunk, origin);
+                  if (leftSquared != rightSquared) {
+                      return leftSquared < rightSquared;
+                  }
+                  const int leftManhattan =
+                      chunkDistanceManhattan(leftChunk, origin);
+                  const int rightManhattan =
+                      chunkDistanceManhattan(rightChunk, origin);
+                  if (leftManhattan != rightManhattan) {
+                      return leftManhattan < rightManhattan;
+                  }
+                  if (left.x != right.x) {
+                      return left.x < right.x;
+                  }
+                  if (left.z != right.z) {
+                      return left.z < right.z;
+                  }
+                  return left.y < right.y;
+              });
+    if (selected.size() > budget) {
+        selected.resize(budget);
+    }
+    return selected;
+}
+
 void ChunkRuntime::setInitialLoadCenter(const glm::vec3 &position) noexcept
 {
     const VectorXZ center = WorldCoordinates::getChunkXZ(
@@ -346,13 +384,12 @@ int ChunkRuntime::getRenderDistance() const noexcept
 
 void ChunkRuntime::unloadDistantChunks(const Camera &camera)
 {
-    constexpr std::size_t MaxUnloadsPerUpdate = 8;
-
     const VectorXZ cameraChunk = WorldCoordinates::getChunkXZ(
         WorldCoordinates::toBlockCoord(camera.position.x),
         WorldCoordinates::toBlockCoord(camera.position.z));
     if (m_unloadScanValid && cameraChunk == m_lastUnloadScanChunk &&
         !m_unloadBacklog) {
+        m_lastUnloadCount.store(0);
         return;
     }
     m_lastUnloadScanChunk = cameraChunk;
@@ -371,13 +408,17 @@ void ChunkRuntime::unloadDistantChunks(const Camera &camera)
         if (minX > location.x || minZ > location.y || maxZ < location.y ||
             maxX < location.x) {
             chunksToUnload.push_back({location.x, location.y});
-            if (chunksToUnload.size() >= MaxUnloadsPerUpdate) {
+            if (chunksToUnload.size() > MaxUnloadsPerUpdate) {
                 break;
             }
         }
     }
 
-    m_unloadBacklog = chunksToUnload.size() >= MaxUnloadsPerUpdate;
+    m_unloadBacklog = chunksToUnload.size() > MaxUnloadsPerUpdate;
+    if (m_unloadBacklog) {
+        chunksToUnload.resize(MaxUnloadsPerUpdate);
+    }
+    m_lastUnloadCount.store(chunksToUnload.size());
     for (const VectorXZ &location : chunksToUnload) {
         m_chunkManager.unloadChunk(location.x, location.z);
     }
@@ -394,9 +435,15 @@ void ChunkRuntime::resetMeshes()
 
 WorldMeshSnapshot ChunkRuntime::collectSectionMeshSnapshot()
 {
+    VectorXZ uploadOrigin{0, 0};
+    {
+        std::lock_guard<std::mutex> demandLock(m_demandMutex);
+        uploadOrigin = m_playerDemandCoord;
+    }
     std::unique_lock<std::mutex> lock(m_worldMutex);
 
     WorldMeshSnapshot snapshot;
+    std::vector<glm::ivec3> readySections;
     for (auto &entry : m_chunkManager.getChunks()) {
         Chunk &chunk = entry.second;
         if (!chunk.hasLoaded()) {
@@ -418,14 +465,35 @@ WorldMeshSnapshot ChunkRuntime::collectSectionMeshSnapshot()
                 ChunkMeshState::CpuReady) {
                 continue;
             }
-
-            WorldSectionMeshSnapshot sectionSnapshot;
-            sectionSnapshot.location = section->getLocation();
-            sectionSnapshot.blockRevision = section->getBlockRevision();
-            sectionSnapshot.meshes = section->getMeshes();
-            snapshot.cpuReadySections.push_back(std::move(sectionSnapshot));
+            readySections.push_back(section->getLocation());
         }
     }
+
+    const std::vector<glm::ivec3> selected = planSectionMeshUploads(
+        readySections, uploadOrigin, MaxSectionUploadsPerFrame);
+    snapshot.cpuReadyTotal = readySections.size();
+    snapshot.cpuReadyDeferred =
+        readySections.size() - selected.size();
+    snapshot.cpuReadySections.reserve(selected.size());
+    for (const glm::ivec3 &location : selected) {
+        Chunk *chunk = m_chunkManager.findChunk(location.x, location.z);
+        ChunkSection *section =
+            chunk != nullptr && chunk->hasLoaded()
+                ? chunk->findSection(location.y)
+                : nullptr;
+        if (section == nullptr ||
+            section->getMeshState() != ChunkMeshState::CpuReady) {
+            continue;
+        }
+        WorldSectionMeshSnapshot sectionSnapshot;
+        sectionSnapshot.location = section->getLocation();
+        sectionSnapshot.blockRevision = section->getBlockRevision();
+        sectionSnapshot.meshes = section->getMeshes();
+        snapshot.cpuReadySections.push_back(std::move(sectionSnapshot));
+    }
+    m_lastCpuReadyTotal.store(snapshot.cpuReadyTotal);
+    m_lastSectionUploadsOffered.store(snapshot.cpuReadySections.size());
+    m_lastSectionUploadsDeferred.store(snapshot.cpuReadyDeferred);
     return snapshot;
 }
 
@@ -567,13 +635,39 @@ ChunkDemandDebugStats ChunkRuntime::collectDemandDebugStats() const
 WorldJobSchedulerDebugStats
 ChunkRuntime::collectJobSchedulerDebugStats() const
 {
-    return m_jobScheduler.debugStats();
+    WorldJobSchedulerDebugStats stats = m_jobScheduler.debugStats();
+    stats.deferredPlanJobs = m_deferredPlanJobCount.load();
+    return stats;
+}
+
+ChunkBackpressureDebugStats
+ChunkRuntime::collectBackpressureDebugStats() const
+{
+    ChunkBackpressureDebugStats stats;
+    stats.deferredPlanJobs = m_deferredPlanJobCount.load();
+    stats.lastAuthoritativeCommits =
+        m_lastAuthoritativeCommitCount.load();
+    stats.peakAuthoritativeCommits =
+        m_peakAuthoritativeCommitCount.load();
+    stats.maxAuthoritativeCommitsPerPass =
+        MaxAuthoritativeCommitsPerPass;
+    stats.lastCpuReadyTotal = m_lastCpuReadyTotal.load();
+    stats.lastSectionUploadsOffered =
+        m_lastSectionUploadsOffered.load();
+    stats.lastSectionUploadsDeferred =
+        m_lastSectionUploadsDeferred.load();
+    stats.maxSectionUploadsPerFrame = MaxSectionUploadsPerFrame;
+    stats.lastUnloads = m_lastUnloadCount.load();
+    stats.maxUnloadsPerUpdate = MaxUnloadsPerUpdate;
+    stats.unloadBacklog = m_unloadBacklog;
+    return stats;
 }
 
 void ChunkRuntime::invalidateWorldJobs()
 {
     std::lock_guard<std::mutex> commitLock(m_worldJobCommitMutex);
     m_jobScheduler.invalidateGeneration();
+    m_deferredPlanJobCount.store(0);
 }
 
 void ChunkRuntime::startLoader()
@@ -613,6 +707,8 @@ void ChunkRuntime::runLoader()
     int lastPriorityRevision = m_meshPriorityRevision.load();
     std::uint64_t lastDemandRevision = 0;
     bool queueValid = false;
+    std::vector<WorldJobRequest> activePlan;
+    std::size_t nextPlanIndex = 0;
 
     while (m_isRunning.load()) {
         ChunkDemandSnapshot demandSnapshot;
@@ -641,25 +737,68 @@ void ChunkRuntime::runLoader()
             const auto planned = planDemandWork(
                 demandSnapshot, prioritySnapshot.sectionY, frustum,
                 movementOrigin, movementDirection);
-            std::vector<WorldJobRequest> requests;
-            requests.reserve(planned.size());
+            activePlan.clear();
+            activePlan.reserve(planned.size());
             for (std::size_t index = 0; index < planned.size(); ++index) {
                 const ChunkDemandTarget &target = planned[index];
-                requests.push_back(WorldJobRequest{
+                activePlan.push_back(WorldJobRequest{
                     WorldJobType::ChunkLoadOrGenerate, target.coord,
                     target.priority, target.newestEpoch, index,
                     planGeneration});
             }
-            if (!m_jobScheduler.replacePending(requests,
+            const std::size_t initialCount = std::min(
+                activePlan.size(),
+                WorldJobScheduler::PendingHighWatermark);
+            const std::vector<WorldJobRequest> initialWindow(
+                activePlan.begin(), activePlan.begin() + initialCount);
+            if (!m_jobScheduler.replacePending(initialWindow,
                                                planGeneration)) {
                 queueValid = false;
+                activePlan.clear();
+                nextPlanIndex = 0;
+                m_deferredPlanJobCount.store(0);
                 continue;
             }
+            nextPlanIndex = initialCount;
+            m_deferredPlanJobCount.store(
+                activePlan.size() - nextPlanIndex);
             m_lastPlannedTargetCount.store(planned.size());
             lastRevision = currentRevision;
             lastDemandRevision = demandSnapshot.revision;
             lastPriorityRevision = currentPriorityRevision;
             queueValid = true;
+        }
+
+        if (queueValid && nextPlanIndex < activePlan.size()) {
+            WorldJobSchedulerDebugStats pressure =
+                m_jobScheduler.debugStats();
+            if (pressure.pendingJobs <=
+                WorldJobScheduler::PendingLowWatermark) {
+                while (nextPlanIndex < activePlan.size() &&
+                       pressure.pendingJobs <
+                           WorldJobScheduler::PendingHighWatermark) {
+                    const WorldJobAdmissionResult result =
+                        m_jobScheduler.admit(activePlan[nextPlanIndex]);
+                    if (result ==
+                        WorldJobAdmissionResult::StaleGeneration) {
+                        queueValid = false;
+                        activePlan.clear();
+                        nextPlanIndex = 0;
+                        m_deferredPlanJobCount.store(0);
+                        break;
+                    }
+                    if (result ==
+                        WorldJobAdmissionResult::RejectedAtCapacity) {
+                        break;
+                    }
+                    ++nextPlanIndex;
+                    pressure = m_jobScheduler.debugStats();
+                }
+                if (queueValid) {
+                    m_deferredPlanJobCount.store(
+                        activePlan.size() - nextPlanIndex);
+                }
+            }
         }
 
         if (m_jobScheduler.debugStats().pendingJobs == 0) {
@@ -671,6 +810,7 @@ void ChunkRuntime::runLoader()
         HELLOMINE3D_PROFILE_SCOPE("ChunkRuntime::runLoader pass");
         bool didWork = false;
         int processedTargets = 0;
+        std::size_t authoritativeCommits = 0;
         const auto passStart = std::chrono::steady_clock::now();
         while (m_isRunning.load() &&
                processedTargets < MaxTargetsPerPass) {
@@ -685,6 +825,7 @@ void ChunkRuntime::runLoader()
             bool publishFollowUp = false;
             WorldJobType followUpType = scheduledJob.type;
             double commitMilliseconds = 0.0;
+            bool authoritativeCommitAttempted = false;
 
             if (!m_jobScheduler.isCurrent(
                     scheduledJob.generation)) {
@@ -706,6 +847,7 @@ void ChunkRuntime::runLoader()
                 if (loadJob.valid &&
                     !m_jobScheduler.isCurrent(
                         scheduledJob.generation)) {
+                    authoritativeCommitAttempted = true;
                     std::unique_lock<std::mutex> lock(m_worldMutex);
                     std::lock_guard<std::mutex> commitLock(
                         m_worldJobCommitMutex);
@@ -720,6 +862,7 @@ void ChunkRuntime::runLoader()
                     bool commitAccepted = false;
                     const auto commitStart =
                         std::chrono::steady_clock::now();
+                    authoritativeCommitAttempted = true;
                     {
                         std::unique_lock<std::mutex> lock(m_worldMutex);
                         std::lock_guard<std::mutex> commitLock(
@@ -804,6 +947,7 @@ void ChunkRuntime::runLoader()
 
                     const auto commitStart =
                         std::chrono::steady_clock::now();
+                    authoritativeCommitAttempted = true;
                     {
                         std::unique_lock<std::mutex> lock(m_worldMutex);
                         std::lock_guard<std::mutex> commitLock(
@@ -828,6 +972,7 @@ void ChunkRuntime::runLoader()
                             .count();
                 }
                 else if (meshJob.valid) {
+                    authoritativeCommitAttempted = true;
                     std::unique_lock<std::mutex> lock(m_worldMutex);
                     std::lock_guard<std::mutex> commitLock(
                         m_worldJobCommitMutex);
@@ -872,22 +1017,40 @@ void ChunkRuntime::runLoader()
             m_jobScheduler.complete(
                 scheduledJob, outcome, workerMilliseconds,
                 commitMilliseconds);
+            authoritativeCommits +=
+                authoritativeCommitAttempted ? 1u : 0u;
 
             WorldJobCompletion completion;
             if (m_jobScheduler.popCompleted(completion) &&
                 publishFollowUp) {
-                m_jobScheduler.submit(WorldJobRequest{
+                const WorldJobAdmissionResult followUpAdmission =
+                    m_jobScheduler.admit(WorldJobRequest{
                     followUpType, completion.job.target,
                     completion.job.priority,
                     completion.job.demandEpoch,
                     completion.job.planOrder,
                     completion.job.generation});
+                if (followUpAdmission ==
+                    WorldJobAdmissionResult::StaleGeneration) {
+                    queueValid = false;
+                }
             }
 
+            if (authoritativeCommits >=
+                MaxAuthoritativeCommitsPerPass) {
+                break;
+            }
             if (std::chrono::steady_clock::now() - passStart >=
                 PassWorkBudget) {
                 break;
             }
+        }
+
+        m_lastAuthoritativeCommitCount.store(authoritativeCommits);
+        std::size_t peakCommits = m_peakAuthoritativeCommitCount.load();
+        while (peakCommits < authoritativeCommits &&
+               !m_peakAuthoritativeCommitCount.compare_exchange_weak(
+                   peakCommits, authoritativeCommits)) {
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(

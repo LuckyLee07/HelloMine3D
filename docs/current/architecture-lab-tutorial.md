@@ -1,7 +1,7 @@
 # HelloMine3D Architecture Lab Tutorial
 
 > Living tutorial status: Part 00 covers completed Track A and Part 01 covers
-> verified B1 through B4. Later Parts are added only with the first verified
+> implemented B1 through B5. Later Parts are added only with the first verified
 > batch of their owning Track; this file does not pre-create empty Sprint chapters.
 
 <!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-BEGIN -->
@@ -16,6 +16,7 @@ B1|01|1.1|docs/reports/architecture-lab-b1-chunk-residency-report-v1.md
 B2|01|1.2|docs/reports/architecture-lab-b2-streaming-demand-report-v1.md
 B3|01|1.3|docs/reports/architecture-lab-b3-world-job-scheduler-report-v1.md
 B4|01|1.4|docs/reports/architecture-lab-b4-world-job-cancellation-report-v1.md
+B5|01|1.5|docs/reports/architecture-lab-b5-streaming-backpressure-report-v1.md
 <!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-END -->
 
 ## Part 00 — From a playable clone to an architecture lab
@@ -820,8 +821,9 @@ it is not serialized and cannot mutate save v12 or B1 lifecycle ownership.
 
 `tools/validate_streaming_demand_model.ps1` freezes the four reasons, exact
 priorities/lifetimes, owners, publication sites, panel fields and twelve
-behavior identities. After B3 it admits only the typed job scheduler while
-continuing to reject B4-B9 concepts. It composes with AL-A1 through B1 in the
+behavior identities. The current composed gate admits the separately
+contracted B3-B5 extensions while continuing to reject B6-B9 concepts. It
+composes with AL-A1 through B1 in the
 full VS2017 gate.
 
 `HELLOMINE3D_WORLD_SMOKE_FOCUS=B2` passes 26 checks. They prove stable bounded
@@ -911,9 +913,9 @@ queue/worker/commit milliseconds.
 
 At B3 closeout, `tools/validate_world_job_scheduler.ps1` froze two types, three
 states, three outcomes, exact ordering, one worker, real pipeline calls,
-unchanged budgets, diagnostic fields, test identities and B4-B9 absence. The
-current composed gate admits only B4's separately contracted token and
-`Cancelled` outcome while continuing to reject B5-B9.
+unchanged budgets, diagnostic fields and test identities. The current composed
+gate admits B4's separately contracted token/`Cancelled` outcome and B5's
+admission/pressure extension while continuing to reject B6-B9.
 `HELLOMINE3D_WORLD_SMOKE_FOCUS=B3` passes 9 checks for duplicate rejection,
 ordering, lifecycle, invalid completion, pending replacement, timing/counters
 and actual execution of both job types by a live background World.
@@ -1022,7 +1024,9 @@ without adopting output or incrementing rebuild metrics.
 
 `tools/validate_world_job_cancellation.ps1` freezes token/outcome vocabulary,
 six invalidation call sites, detached ownership, random-tick isolation,
-linearized commit, mesh rollback, diagnostics and B5/B6 absence.
+linearized commit and mesh rollback. The current composed gate additionally
+recognizes B5's separately contracted admission/pressure vocabulary while
+continuing to reject B6 and later capabilities.
 `HELLOMINE3D_WORLD_SMOKE_FOCUS=B4` passes 10 checks for monotonic invalidation,
 stale admission, unchanged B3 ordering, exact metrics, candidate cancel/commit,
 mesh cancel, 300 concurrent replans/invalidations and a live World generation
@@ -1056,3 +1060,78 @@ Related evidence:
 - `docs/contracts/world-job-cancellation-contract-v1.md`
 - `docs/reports/architecture-lab-b4-world-job-cancellation-report-v1.md`
 - `tools/validate_world_job_cancellation.ps1`
+
+### 1.5 Why does a finite world plan still need backpressure?
+
+#### Problem
+
+A bounded render distance does not imply a small instantaneous work set. One
+default radius-eight demand expands to 289 Chunk targets, while the supported
+radius 32 expands to 4,225. Before B5, B3 could replace its pending vector with
+that complete plan, and the render thread could copy and upload every observed
+`CpuReady` section in one frame. Memory was finite, but queue latency and frame
+cost had no stable upper bound.
+
+#### Naive Solution
+
+The tempting answers are to raise throughput with more workers, truncate every
+plan at an arbitrary count, or drop whichever pending element happens to be at
+the end of a container. It is equally tempting to label the existing six
+millisecond loader pass a complete pressure policy, even though mesh upload and
+unload are separate consumers on the main thread.
+
+#### Failure
+
+More workers increase commit contention without defining what happens during
+overload. Blind truncation can permanently lose currently demanded targets,
+and container-order eviction breaks the deterministic B3 priority contract.
+The time budget limits one loader pass but does not bound pending jobs, the
+next frame's GPU uploads or the amount of deferred demand that still needs to
+enter the scheduler.
+
+#### Design Evolution
+
+B5 separates the current demand plan from admitted job state. The immutable
+B2-derived request vector keeps a monotonic cursor, initially admits the best
+96 requests, and refills from 48 toward 96. The scheduler has a hard pending
+cap of 128 and explicit `Normal/Elevated/Saturated` pressure. At capacity only
+a strictly better request under the existing B3 order may replace the one
+deterministic worst pending request; the single in-flight job is never shed.
+
+#### Implementation
+
+`WorldJobScheduler::admit` returns `Accepted`, `AcceptedAfterShedding`,
+`Duplicate`, `StaleGeneration` or `RejectedAtCapacity` and records copied
+pressure/admission/shedding metrics. `ChunkRuntime` owns the retained plan and
+cursor only on its loader stack, publishes follow-up work before refill and
+clears deferred state on B4 generation invalidation. The same boundary limits
+authoritative commit intervals per loader pass, CPU-ready offers per render
+frame and distant unloads per update to eight each.
+
+#### Validation
+
+`tools/validate_streaming_backpressure.ps1` freezes caps `128/128/128`,
+watermarks `96/48`, one loader, the three `8` consumer budgets, diagnostics and
+twelve B5 test identities while rejecting B6 and later vocabulary.
+`HELLOMINE3D_WORLD_SMOKE_FOCUS=B5` passes `12/12`; B4/B3/B2/B1 focused
+regressions pass `10/10`, `9/9`, `26/26` and `38/38`. The complete VS2017/v141
+Debug/Release gate passes `906/906` WorldRuntime twice, `80/80` Resource Pack,
+`122/122` Recipe, `15/15` startup negatives and two zero-failure short soaks.
+The 104-entry isolated package SHA-256 is
+`7D126B31B78F3A4E8F8C90A5D769028EC686C0D4F708D1F6B2E2979BD164050B`;
+the final result is `PASS real_window=DEFERRED`.
+
+#### Trade-offs
+
+The active plan vector duplicates request metadata but not job ids, states or
+completion records, so it is bounded derived demand rather than a hidden
+scheduler. Fixed watermarks make behavior teachable and deterministic but are
+not claimed to be universally optimal. B5 keeps one worker and accepts that a
+current target may wait for refill; it does not add adaptive timing, Spatial
+Interest, Far representation or a generic multi-system scheduler.
+
+Related evidence:
+
+- `docs/contracts/streaming-backpressure-contract-v1.md`
+- `docs/reports/architecture-lab-b5-streaming-backpressure-report-v1.md`
+- `tools/validate_streaming_backpressure.ps1`

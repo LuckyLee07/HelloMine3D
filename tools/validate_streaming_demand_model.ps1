@@ -48,12 +48,14 @@ try {
         "docs\contracts\streaming-demand-model-contract-v1.md"
     $b4ContractPath = Join-Path $Root `
         "docs\contracts\world-job-cancellation-contract-v1.md"
+    $b5ContractPath = Join-Path $Root `
+        "docs\contracts\streaming-backpressure-contract-v1.md"
 
     $paths = @(
         $demandHeaderPath, $demandSourcePath, $runtimeHeaderPath,
         $runtimeSourcePath, $worldHeaderPath, $worldSourcePath,
         $managerPath, $uiPath, $testPath, $contractPath,
-        $b4ContractPath)
+        $b4ContractPath, $b5ContractPath)
     foreach ($path in $paths) {
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
             throw "Required B2 artifact is missing: $path"
@@ -71,6 +73,7 @@ try {
     $tests = Get-Content -LiteralPath $testPath -Raw
     $contract = Get-Content -LiteralPath $contractPath -Raw
     $b4Contract = Get-Content -LiteralPath $b4ContractPath -Raw
+    $b5Contract = Get-Content -LiteralPath $b5ContractPath -Raw
 
     foreach ($token in @(
         "enum class ChunkDemandReason", "Player", "Camera",
@@ -155,8 +158,7 @@ try {
             "unimplemented demand reason"
     }
     foreach ($forbidden in @(
-        "CancellationToken", "Backpressure",
-        "SpatialInterest", "FarLOD", "FarTerrain")) {
+        "CancellationToken", "SpatialInterest", "FarLOD", "FarTerrain")) {
         Reject-Text ($demandHeader + $demandSource + $runtimeHeader +
                      $runtimeSource + $worldHeader + $worldSource) `
             $forbidden "unapproved post-B2 capability"
@@ -170,11 +172,32 @@ try {
     Require-Text $b4Contract `
         "Camera/frustum priority-only reordering does not invalidate" `
         "B2 priority-only compatibility boundary"
+    foreach ($token in @(
+        "std::vector<WorldJobRequest> activePlan",
+        "std::size_t nextPlanIndex = 0",
+        "WorldJobScheduler::PendingHighWatermark",
+        "WorldJobScheduler::PendingLowWatermark",
+        "activePlan.size() - nextPlanIndex")) {
+        Require-Text $runtimeSource $token `
+            "approved B5 demand-plan window extension"
+    }
+    $b5Implementation = $b5Contract.IndexOf(
+        "Status: Frozen for B5 implementation",
+        [StringComparison]::Ordinal) -ge 0
+    $b5GateReady = $b5Contract.IndexOf(
+        "Status: Frozen for B5 full-gate verification",
+        [StringComparison]::Ordinal) -ge 0
+    $b5Verified = $b5Contract.IndexOf(
+        "Status: Frozen after B5 verification",
+        [StringComparison]::Ordinal) -ge 0
+    if (-not ($b5Implementation -or $b5GateReady -or $b5Verified)) {
+        throw "B5 contract has no recognized frozen status."
+    }
 
     Write-Host (
         "[STREAMING_DEMAND_MODEL] status=PASS reasons=4 slots=4 " +
         "priorities=400/300/200/100 expiry=epoch merge=deduplicated " +
-        "post_b2=B3-B4")
+        "post_b2=B3-B5")
     exit 0
 }
 catch {

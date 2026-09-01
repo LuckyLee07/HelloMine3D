@@ -15,6 +15,7 @@
 - [architecture-lab-b2-streaming-demand-report-v1.md](architecture-lab-b2-streaming-demand-report-v1.md)
 - [architecture-lab-b3-world-job-scheduler-report-v1.md](architecture-lab-b3-world-job-scheduler-report-v1.md)
 - [architecture-lab-b4-world-job-cancellation-report-v1.md](architecture-lab-b4-world-job-cancellation-report-v1.md)
+- [architecture-lab-b5-streaming-backpressure-report-v1.md](architecture-lab-b5-streaming-backpressure-report-v1.md)
 - [alpha-development-checkpoint-v1.md](alpha-development-checkpoint-v1.md)
 - [beta-release-candidate-report-2026-08-26.md](beta-release-candidate-report-2026-08-26.md)
 - [visual-release-candidate-report-2026-08-28.md](visual-release-candidate-report-2026-08-28.md)

@@ -3053,6 +3053,8 @@ WorldDebugStats World::collectDebugStats()
     stats.chunks = m_chunkManager.collectDebugStats();
     stats.streamingDemand = m_chunkRuntime.collectDemandDebugStats();
     stats.worldJobs = m_chunkRuntime.collectJobSchedulerDebugStats();
+    stats.streamingBackpressure =
+        m_chunkRuntime.collectBackpressureDebugStats();
     stats.simulation = m_worldSimulation.snapshot();
     stats.chunks.saveTransactions += m_worldSaveTransactionCount;
     stats.chunks.saveTotalMs += m_worldSaveTotalMs;

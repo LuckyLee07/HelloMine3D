@@ -53,12 +53,14 @@ try {
         "Tests\WorldRuntimeSmokeMain.cpp"
     $contractPath = Join-Path $Root `
         "docs\contracts\world-job-cancellation-contract-v1.md"
+    $b5ContractPath = Join-Path $Root `
+        "docs\contracts\streaming-backpressure-contract-v1.md"
 
     $paths = @(
         $schedulerHeaderPath, $schedulerSourcePath, $runtimeHeaderPath,
         $runtimeSourcePath, $managerHeaderPath, $managerSourcePath,
         $lifecycleSourcePath, $chunkSourcePath, $storageSourcePath,
-        $uiPath, $testPath, $contractPath)
+        $uiPath, $testPath, $contractPath, $b5ContractPath)
     foreach ($path in $paths) {
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
             throw "Required B4 artifact is missing: $path"
@@ -77,6 +79,7 @@ try {
     $ui = Get-Content -LiteralPath $uiPath -Raw
     $tests = Get-Content -LiteralPath $testPath -Raw
     $contract = Get-Content -LiteralPath $contractPath -Raw
+    $b5Contract = Get-Content -LiteralPath $b5ContractPath -Raw
 
     foreach ($token in @(
         "struct WorldJobGenerationToken",
@@ -109,7 +112,7 @@ try {
         "void ChunkRuntime::invalidateWorldJobs()",
         "m_jobScheduler.invalidateGeneration()",
         "WorldJobGenerationToken planGeneration",
-        "m_jobScheduler.replacePending(requests,",
+        "m_jobScheduler.replacePending(",
         "m_jobScheduler.isCurrent(",
         "scheduledJob.generation",
         "WorldJobOutcome::Cancelled")) {
@@ -168,8 +171,7 @@ try {
     $scopedSources = $schedulerHeader + $schedulerSource +
         $runtimeHeader + $runtimeSource + $managerHeader + $managerSource
     foreach ($forbidden in @(
-        "Backpressure", "HighWatermark", "LowWatermark",
-        "AdmissionResult", "SpatialInterest", "FarLOD", "FarTerrain",
+        "SpatialInterest", "FarLOD", "FarTerrain",
         "ActiveMachineNetwork")) {
         Reject-Text $scopedSources $forbidden `
             "unapproved post-B4 capability"
@@ -192,11 +194,32 @@ try {
     }
     Require-Text $contract "save v12, terrain v4, settings v8" `
         "compatibility boundary"
+    foreach ($token in @(
+        "WorldJobAdmissionResult",
+        "WorldJobPressureLevel",
+        "MaxPendingJobs = 128",
+        "PendingHighWatermark = 96",
+        "PendingLowWatermark = 48")) {
+        Require-Text ($schedulerHeader + $schedulerSource) $token `
+            "approved B5 admission/pressure extension"
+    }
+    $b5Implementation = $b5Contract.IndexOf(
+        "Status: Frozen for B5 implementation",
+        [StringComparison]::Ordinal) -ge 0
+    $b5GateReady = $b5Contract.IndexOf(
+        "Status: Frozen for B5 full-gate verification",
+        [StringComparison]::Ordinal) -ge 0
+    $b5Verified = $b5Contract.IndexOf(
+        "Status: Frozen after B5 verification",
+        [StringComparison]::Ordinal) -ge 0
+    if (-not ($b5Implementation -or $b5GateReady -or $b5Verified)) {
+        throw "B5 contract has no recognized frozen status."
+    }
 
     Write-Host (
         "[WORLD_JOB_CANCELLATION] status=PASS token=uint64 " +
         "outcome=Cancelled load=detached commit=linearized " +
-        "invalidation_boundaries=$invalidationCalls post_b4=absent")
+        "invalidation_boundaries=$invalidationCalls post_b4=B5-only")
     exit 0
 }
 catch {

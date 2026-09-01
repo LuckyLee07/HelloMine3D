@@ -6736,6 +6736,309 @@ void caseWorldJobCancellation()
 }
 
 // ---------------------------------------------------------------------------
+// B5 - bounded admission, hysteresis and downstream streaming consumers
+// ---------------------------------------------------------------------------
+void caseStreamingBackpressure()
+{
+    const auto request = [](WorldJobType type, int index, int priority,
+                            std::size_t planOrder,
+                            WorldJobGenerationToken generation = {1}) {
+        WorldJobRequest result;
+        result.type = type;
+        result.target = {index, index % 7};
+        result.priority = priority;
+        result.demandEpoch = 9;
+        result.planOrder = planOrder;
+        result.generation = generation;
+        return result;
+    };
+
+    check("B5/backpressure-vocabulary-and-limits-are-frozen",
+          WorldJobScheduler::MaxPendingJobs == 128 &&
+              WorldJobScheduler::MaxPendingGenerationJobs == 128 &&
+              WorldJobScheduler::MaxPendingMeshJobs == 128 &&
+              WorldJobScheduler::PendingHighWatermark == 96 &&
+              WorldJobScheduler::PendingLowWatermark == 48 &&
+              ChunkRuntime::MaxAuthoritativeCommitsPerPass == 8 &&
+              ChunkRuntime::MaxSectionUploadsPerFrame == 8 &&
+              ChunkRuntime::MaxUnloadsPerUpdate == 8 &&
+              std::string(WorldJobScheduler::admissionName(
+                  WorldJobAdmissionResult::AcceptedAfterShedding)) ==
+                  "AcceptedAfterShedding" &&
+              std::string(WorldJobScheduler::pressureName(
+                  WorldJobPressureLevel::Saturated)) == "Saturated");
+
+    WorldJobScheduler normal;
+    bool normalAccepted = true;
+    for (int index = 0; index < 12; ++index) {
+        normalAccepted = normalAccepted &&
+            normal.admit(request(WorldJobType::ChunkLoadOrGenerate,
+                                 index, 300,
+                                 static_cast<std::size_t>(index))) ==
+                WorldJobAdmissionResult::Accepted;
+    }
+    const WorldJobSchedulerDebugStats normalStats = normal.debugStats();
+    check("B5/below-watermark-admission-is-normal",
+          normalAccepted && normalStats.pendingJobs == 12 &&
+              normalStats.pendingGenerationJobs == 12 &&
+              normalStats.pendingMeshJobs == 0 &&
+              normalStats.pressureLevel ==
+                  WorldJobPressureLevel::Normal &&
+              normalStats.acceptedAdmissions == 12);
+
+    const WorldJobAdmissionResult duplicate = normal.admit(
+        request(WorldJobType::ChunkLoadOrGenerate, 0, 300, 0));
+    const WorldJobGenerationToken stale =
+        normal.currentGenerationToken();
+    const WorldJobGenerationToken current = normal.invalidateGeneration();
+    const WorldJobAdmissionResult staleResult = normal.admit(
+        request(WorldJobType::ChunkLoadOrGenerate, 99, 400, 0,
+                stale));
+    check("B5/duplicate-and-stale-admission-stay-distinct",
+          duplicate == WorldJobAdmissionResult::Duplicate &&
+              staleResult == WorldJobAdmissionResult::StaleGeneration &&
+              current.value == stale.value + 1 &&
+              normal.debugStats().duplicateAdmissionRejections == 1 &&
+              normal.debugStats().staleSubmitRejections == 1);
+
+    WorldJobScheduler capacity;
+    for (int index = 0;
+         index < static_cast<int>(WorldJobScheduler::MaxPendingJobs);
+         ++index) {
+        capacity.admit(request(
+            WorldJobType::ChunkLoadOrGenerate, index, 300,
+            static_cast<std::size_t>(index)));
+    }
+    const WorldJobAdmissionResult lowRejected = capacity.admit(
+        request(WorldJobType::ChunkLoadOrGenerate, 1000, 100, 1000));
+    const WorldJobSchedulerDebugStats saturated = capacity.debugStats();
+    check("B5/hard-cap-rejects-lower-priority-work",
+          lowRejected ==
+                  WorldJobAdmissionResult::RejectedAtCapacity &&
+              saturated.pendingJobs ==
+                  WorldJobScheduler::MaxPendingJobs &&
+              saturated.peakPendingJobs ==
+                  WorldJobScheduler::MaxPendingJobs &&
+              saturated.pressureLevel ==
+                  WorldJobPressureLevel::Saturated &&
+              saturated.capacityAdmissionRejections == 1);
+
+    const WorldJobAdmissionResult highAccepted = capacity.admit(
+        request(WorldJobType::ChunkMeshBuild, 2000, 500, 0));
+    bool foundHigh = false;
+    bool foundWorst = false;
+    WorldJob scheduled;
+    while (capacity.takeNext(scheduled)) {
+        foundHigh = foundHigh || scheduled.target == VectorXZ{2000, 5};
+        foundWorst = foundWorst || scheduled.target == VectorXZ{127, 1};
+        capacity.complete(scheduled, WorldJobOutcome::NoWork, 0.0, 0.0);
+        WorldJobCompletion completion;
+        capacity.popCompleted(completion);
+    }
+    const WorldJobSchedulerDebugStats shedStats = capacity.debugStats();
+    check("B5/higher-priority-work-sheds-deterministic-worst",
+          highAccepted ==
+                  WorldJobAdmissionResult::AcceptedAfterShedding &&
+              foundHigh && !foundWorst &&
+              shedStats.shedPendingJobs == 1 &&
+              shedStats.shedGenerationJobs == 1 &&
+              shedStats.shedMeshJobs == 0);
+
+    WorldJobScheduler hysteresis;
+    for (int index = 0; index < 96; ++index) {
+        hysteresis.submit(request(
+            WorldJobType::ChunkLoadOrGenerate, index, 300,
+            static_cast<std::size_t>(index)));
+    }
+    const bool enteredElevated =
+        hysteresis.debugStats().pressureLevel ==
+        WorldJobPressureLevel::Elevated;
+    for (int index = 0; index < 47; ++index) {
+        hysteresis.takeNext(scheduled);
+        hysteresis.complete(scheduled, WorldJobOutcome::NoWork, 0.0, 0.0);
+        WorldJobCompletion completion;
+        hysteresis.popCompleted(completion);
+    }
+    const bool heldAboveLow =
+        hysteresis.debugStats().pendingJobs == 49 &&
+        hysteresis.debugStats().pressureLevel ==
+            WorldJobPressureLevel::Elevated;
+    hysteresis.takeNext(scheduled);
+    hysteresis.complete(scheduled, WorldJobOutcome::NoWork, 0.0, 0.0);
+    WorldJobCompletion lowCompletion;
+    hysteresis.popCompleted(lowCompletion);
+    const WorldJobSchedulerDebugStats leftElevated =
+        hysteresis.debugStats();
+    check("B5/high-low-watermark-hysteresis-is-exact",
+          enteredElevated && heldAboveLow &&
+              leftElevated.pendingJobs == 48 &&
+              leftElevated.pressureLevel ==
+                  WorldJobPressureLevel::Normal &&
+              leftElevated.pressureTransitions == 2);
+
+    WorldJobScheduler invalidated;
+    for (int index = 0; index < 128; ++index) {
+        invalidated.submit(request(
+            WorldJobType::ChunkLoadOrGenerate, index, 300,
+            static_cast<std::size_t>(index)));
+    }
+    WorldJob invalidatedInFlight;
+    const bool invalidatedStarted =
+        invalidated.takeNext(invalidatedInFlight);
+    invalidated.invalidateGeneration();
+    const WorldJobSchedulerDebugStats afterInvalidation =
+        invalidated.debugStats();
+    check("B5/invalidation-clears-pressure-and-preserves-inflight",
+          invalidatedStarted && afterInvalidation.pendingJobs == 0 &&
+              afterInvalidation.inFlightJobs == 1 &&
+              afterInvalidation.cancelledPendingJobs == 127 &&
+              afterInvalidation.pressureLevel ==
+                  WorldJobPressureLevel::Normal);
+
+    WorldJobScheduler windowed;
+    std::vector<WorldJobRequest> plan;
+    for (int index = 0; index < 180; ++index) {
+        plan.push_back(request(
+            WorldJobType::ChunkLoadOrGenerate, index, 300,
+            static_cast<std::size_t>(index)));
+    }
+    std::size_t cursor = WorldJobScheduler::PendingHighWatermark;
+    windowed.replacePending(
+        std::vector<WorldJobRequest>(
+            plan.begin(), plan.begin() + cursor),
+        windowed.currentGenerationToken());
+    std::vector<int> drainedPlanOrder;
+    std::size_t maxWindow = windowed.debugStats().pendingJobs;
+    while (drainedPlanOrder.size() < plan.size()) {
+        if (windowed.debugStats().pendingJobs <=
+            WorldJobScheduler::PendingLowWatermark) {
+            while (cursor < plan.size() &&
+                   windowed.debugStats().pendingJobs <
+                       WorldJobScheduler::PendingHighWatermark) {
+                if (!WorldJobScheduler::admissionAccepted(
+                        windowed.admit(plan[cursor]))) {
+                    break;
+                }
+                ++cursor;
+            }
+        }
+        if (!windowed.takeNext(scheduled)) {
+            break;
+        }
+        drainedPlanOrder.push_back(scheduled.target.x);
+        windowed.complete(scheduled, WorldJobOutcome::NoWork, 0.0, 0.0);
+        WorldJobCompletion completion;
+        windowed.popCompleted(completion);
+        maxWindow = std::max(maxWindow,
+                             windowed.debugStats().pendingJobs);
+    }
+    bool orderedPlan = drainedPlanOrder.size() == plan.size();
+    for (std::size_t index = 0; index < drainedPlanOrder.size(); ++index) {
+        orderedPlan = orderedPlan &&
+            drainedPlanOrder[index] == static_cast<int>(index);
+    }
+    check("B5/windowed-plan-refills-without-loss",
+          orderedPlan && cursor == plan.size() &&
+              maxWindow <= WorldJobScheduler::PendingHighWatermark);
+
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+    Config config = makeConfig();
+    config.renderDistance = 8;
+    Camera camera(config);
+    Player player;
+    const auto liveDirectory =
+        freshSaveDirectory("b5_live_backpressure");
+    World liveWorld(camera, config, player, liveDirectory, true, 0);
+    WorldDebugStats liveStats;
+    const auto liveDeadline = std::chrono::steady_clock::now() +
+                              std::chrono::seconds(15);
+    do {
+        liveWorld.update(camera);
+        liveStats = liveWorld.collectDebugStats();
+        if (liveStats.streamingDemand.lastPlannedTargets >
+                WorldJobScheduler::PendingHighWatermark &&
+            liveStats.worldJobs.deferredPlanJobs > 0 &&
+            liveStats.streamingBackpressure
+                    .peakAuthoritativeCommits > 0) {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    } while (std::chrono::steady_clock::now() < liveDeadline);
+    check("B5/live-plan-is-larger-than-bounded-job-window",
+          liveStats.streamingDemand.lastPlannedTargets >
+                  WorldJobScheduler::PendingHighWatermark &&
+              liveStats.worldJobs.pendingJobs <=
+                  WorldJobScheduler::MaxPendingJobs &&
+              liveStats.worldJobs.peakPendingJobs <=
+                  WorldJobScheduler::MaxPendingJobs &&
+              liveStats.worldJobs.deferredPlanJobs > 0);
+    check("B5/loader-pass-commit-budget-is-bounded",
+          liveStats.streamingBackpressure.peakAuthoritativeCommits > 0 &&
+              liveStats.streamingBackpressure.peakAuthoritativeCommits <=
+                  ChunkRuntime::MaxAuthoritativeCommitsPerPass &&
+              liveStats.streamingBackpressure
+                      .maxAuthoritativeCommitsPerPass == 8);
+
+    std::vector<glm::ivec3> readySections;
+    for (int index = 11; index >= 0; --index) {
+        readySections.push_back({index - 5, index % 3, (index % 5) - 2});
+    }
+    const auto uploadOrder = ChunkRuntime::planSectionMeshUploads(
+        readySections, {0, 0}, ChunkRuntime::MaxSectionUploadsPerFrame);
+    const auto uploadOrderAgain = ChunkRuntime::planSectionMeshUploads(
+        readySections, {0, 0}, ChunkRuntime::MaxSectionUploadsPerFrame);
+    bool uploadDistancesOrdered = uploadOrder.size() == 8 &&
+                                  uploadOrder == uploadOrderAgain;
+    int previousDistance = -1;
+    for (const glm::ivec3 &location : uploadOrder) {
+        const int distance = location.x * location.x +
+                             location.z * location.z;
+        uploadDistancesOrdered = uploadDistancesOrdered &&
+                                 distance >= previousDistance;
+        previousDistance = distance;
+    }
+    check("B5/upload-selection-is-deterministic-and-bounded",
+          uploadDistancesOrdered);
+
+    Config unloadConfig = makeConfig();
+    unloadConfig.renderDistance = 1;
+    Camera unloadCamera(unloadConfig);
+    Player unloadPlayer;
+    const auto unloadDirectory =
+        freshSaveDirectory("b5_unload_backpressure");
+    World unloadWorld(unloadCamera, unloadConfig, unloadPlayer,
+                      unloadDirectory, false, 0);
+    for (int index = 0; index < 10; ++index) {
+        unloadWorld.getChunkManager().loadChunk(50 + index, 50);
+    }
+    unloadWorld.update(unloadCamera);
+    const WorldDebugStats firstUnload = unloadWorld.collectDebugStats();
+    std::size_t firstRemaining = 0;
+    for (int index = 0; index < 10; ++index) {
+        firstRemaining += unloadWorld.getChunkManager().chunkLoadedAt(
+                              50 + index, 50)
+                              ? 1u : 0u;
+    }
+    unloadWorld.update(unloadCamera);
+    const WorldDebugStats secondUnload = unloadWorld.collectDebugStats();
+    std::size_t secondRemaining = 0;
+    for (int index = 0; index < 10; ++index) {
+        secondRemaining += unloadWorld.getChunkManager().chunkLoadedAt(
+                               50 + index, 50)
+                               ? 1u : 0u;
+    }
+    check("B5/unload-budget-and-backlog-are-truthful",
+          firstUnload.streamingBackpressure.lastUnloads == 8 &&
+              firstUnload.streamingBackpressure.unloadBacklog &&
+              firstRemaining == 2 &&
+              secondUnload.streamingBackpressure.lastUnloads == 2 &&
+              !secondUnload.streamingBackpressure.unloadBacklog &&
+              secondRemaining == 0);
+}
+
+// ---------------------------------------------------------------------------
 // B1 - data, CPU mesh and Ogre render residency are orthogonal lifecycles
 // ---------------------------------------------------------------------------
 void caseChunkResidencyStateMachine()
@@ -15850,6 +16153,9 @@ int main()
         else if (focus != nullptr && std::string(focus) == "B4") {
             caseWorldJobCancellation();
         }
+        else if (focus != nullptr && std::string(focus) == "B5") {
+            caseStreamingBackpressure();
+        }
         else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
@@ -15898,6 +16204,7 @@ int main()
         caseStreamingDemandModel();
         caseWorldJobScheduler();
         caseWorldJobCancellation();
+        caseStreamingBackpressure();
         caseChunkResidencyStateMachine();
         caseSectionMeshUploadSnapshot();
         caseUnloadPersistence();

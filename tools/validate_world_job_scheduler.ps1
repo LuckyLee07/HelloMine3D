@@ -52,12 +52,14 @@ try {
         "docs\contracts\world-job-scheduler-contract-v1.md"
     $b4ContractPath = Join-Path $Root `
         "docs\contracts\world-job-cancellation-contract-v1.md"
+    $b5ContractPath = Join-Path $Root `
+        "docs\contracts\streaming-backpressure-contract-v1.md"
 
     $paths = @(
         $schedulerHeaderPath, $schedulerSourcePath, $runtimeHeaderPath,
         $runtimeSourcePath, $managerHeaderPath, $managerSourcePath,
         $worldHeaderPath, $worldSourcePath, $uiPath, $testPath,
-        $contractPath, $b4ContractPath)
+        $contractPath, $b4ContractPath, $b5ContractPath)
     foreach ($path in $paths) {
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
             throw "Required B3 artifact is missing: $path"
@@ -76,6 +78,7 @@ try {
     $tests = Get-Content -LiteralPath $testPath -Raw
     $contract = Get-Content -LiteralPath $contractPath -Raw
     $b4Contract = Get-Content -LiteralPath $b4ContractPath -Raw
+    $b5Contract = Get-Content -LiteralPath $b5ContractPath -Raw
 
     foreach ($token in @(
         "enum class WorldJobType", "ChunkLoadOrGenerate",
@@ -106,7 +109,7 @@ try {
 
     foreach ($token in @(
         "WorldJobScheduler m_jobScheduler",
-        "m_jobScheduler.replacePending(requests,",
+        "m_jobScheduler.replacePending(",
         "m_jobScheduler.takeNext(scheduledJob)",
         "m_jobScheduler.complete(",
         "m_jobScheduler.popCompleted(completion)",
@@ -129,7 +132,7 @@ try {
     foreach ($budget in @(
         "std::chrono::milliseconds(6)", "MaxTargetsPerPass = 64",
         "ChunkLoadsPerTarget = 1", "MaxUnloadsPerUpdate = 8")) {
-        Require-Text ($runtimeSource + $managerSource) $budget `
+        Require-Text ($runtimeHeader + $runtimeSource + $managerSource) $budget `
             "frozen B3 runtime budget"
     }
 
@@ -162,8 +165,7 @@ try {
         $runtimeHeader + $runtimeSource + $managerHeader +
         $managerSource + $worldHeader + $worldSource
     foreach ($forbidden in @(
-        "CancellationToken", "Backpressure",
-        "HighWatermark", "LowWatermark", "SpatialInterest",
+        "CancellationToken", "SpatialInterest",
         "FarLOD", "FarTerrain", "ActiveMachineNetwork")) {
         Reject-Text $scopedSources $forbidden `
             "unapproved post-B3 capability"
@@ -196,11 +198,33 @@ try {
     if (-not ($b4Implementation -or $b4GateReady -or $b4Verified)) {
         throw "B4 contract has no recognized frozen status."
     }
+    foreach ($token in @(
+        "enum class WorldJobAdmissionResult",
+        "enum class WorldJobPressureLevel",
+        "WorldJobScheduler::admit(",
+        "MaxPendingJobs = 128",
+        "PendingHighWatermark = 96",
+        "PendingLowWatermark = 48")) {
+        Require-Text ($schedulerHeader + $schedulerSource) $token `
+            "approved B5 scheduler extension"
+    }
+    $b5Implementation = $b5Contract.IndexOf(
+        "Status: Frozen for B5 implementation",
+        [StringComparison]::Ordinal) -ge 0
+    $b5GateReady = $b5Contract.IndexOf(
+        "Status: Frozen for B5 full-gate verification",
+        [StringComparison]::Ordinal) -ge 0
+    $b5Verified = $b5Contract.IndexOf(
+        "Status: Frozen after B5 verification",
+        [StringComparison]::Ordinal) -ge 0
+    if (-not ($b5Implementation -or $b5GateReady -or $b5Verified)) {
+        throw "B5 contract has no recognized frozen status."
+    }
 
     Write-Host (
         "[WORLD_JOB_SCHEDULER] status=PASS types=2 states=3 " +
         "outcomes=4 workers=1 order=priority/plan/epoch/type/id " +
-        "post_b3=B4-only")
+        "post_b3=B4-B5")
     exit 0
 }
 catch {

@@ -102,6 +102,7 @@ struct WorldDebugStats {
     ChunkDebugStats chunks;
     ChunkDemandDebugStats streamingDemand;
     WorldJobSchedulerDebugStats worldJobs;
+    ChunkBackpressureDebugStats streamingBackpressure;
     TerrainBufferMetrics terrainBuffers;
     WorldSimulationSnapshot simulation;
     std::size_t actorCount = 0;

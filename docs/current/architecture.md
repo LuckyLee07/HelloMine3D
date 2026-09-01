@@ -1,7 +1,7 @@
 # HelloMine3D Current Architecture Baseline
 
 本文以 `AL-A0 — Latest Architecture Baseline` 的完整审计为起点，并随已完成的
-AL-A1/AL-A2/AL-A3/AL-A4/AL-A5/AL-A6/B1/B2/B3/B4 更新当前实现；它描述代码事实，而不是未来目标架构。
+AL-A1/AL-A2/AL-A3/AL-A4/AL-A5/AL-A6/B1/B2/B3/B4/B5 更新当前实现；它描述代码事实，而不是未来目标架构。
 审计起点为 Git commit `4930023fb2f3022daac9968c10a1a0b76e1ac392`；冻结的
 PLAYABILITY-RC 运行时代码身份仍是
 `320e293c2f1db7f46aba776ddccdcf94369f2d05`。A0 只更新文档，没有移动源码、改变 Gameplay、
@@ -90,8 +90,8 @@ Core / Entity / Physics / Maths / Util
 - Event handler 当前同步执行；AL-A4 已把请求 mutation 的 typed Command、已发生的 immutable Event
   与不提交 Gameplay 的 Query 分开。订阅者不得假设异步或跨线程投递。
 - `World` 仍是宽 facade/组合根；AL-A2 把现有 Chunk 派生工作与 loader 协调移入
-  `ChunkRuntime`，B1 又在不改变该边界的前提下加入三套正交生命周期，B2/B3/B4 分别加入
-  bounded demand、typed background work 与 generation cancellation，仍不改变 World facade。
+  `ChunkRuntime`，B1 又在不改变该边界的前提下加入三套正交生命周期，B2/B3/B4/B5 分别加入
+  bounded demand、typed background work、generation cancellation 与 streaming pressure control，仍不改变 World facade。
 - AL-A3 已把 `World::tick` 的现有调用顺序集中到具体 `WorldSimulation`；AL-A5 在同一 last-tick
   snapshot 上增加四条真实 processed/deferred/budget 观察。两者都不拥有玩法状态，也不是通用 scheduler。
 
@@ -230,7 +230,7 @@ Combat、Actor、World Mutation 与 EventBus 入口协作。AL-A2/AL-A3 都保�
 | Frame command/event queue | `m_events` | `PlayerDigEvent` 等延迟到 `World::update` 处理；区别于同步 typed event bus。 |
 | Random-tick work | random-tick deque/set/counters | World 仍负责 active random-tick section 调度；Chunk mesh update queue 已迁入 `ChunkRuntime`。 |
 | Population/difficulty | spawn counters、pending difficulty、application epoch | 自然生物预算和下个 fixed tick 的难度提交。 |
-| Chunk runtime coordination | `m_chunkRuntime` 内的 update deque/set、loader thread、demand model、`WorldJobScheduler`、revisions、unload scan、frustum priority snapshot | 一个后台 Chunk worker、typed load/mesh work、同步 mesh budget、预载/卸载和 Camera 派生需求；这些都是派生/协调状态。 |
+| Chunk runtime coordination | `m_chunkRuntime` 内的 update deque/set、loader thread、demand model、`WorldJobScheduler`、active plan cursor、revisions、pressure/consumer counters、unload scan、frustum priority snapshot | 一个后台 Chunk worker、typed load/mesh work、bounded admission/refill/commit/upload/unload、预载和 Camera 派生需求；这些都是派生/协调状态。 |
 | Shared Chunk lock | `m_mainMutex` | 仍由 World 拥有并先于 `ChunkRuntime` 构造；Runtime 只持 non-owning 引用，保护 loaded Chunk/section 权威状态。 |
 | Player combat runtime | spawn point、cooldowns、projectile vector/id/counters、guard/feedback/respawn state | 固定 tick 的当前战斗真值；projectile render snapshot 从这里派生。 |
 | Simulation orchestration | `m_worldSimulation` | 按冻结的 8 phase 顺序调用现有实现，并保存最近一次 tick 的非持久化原始耗时；不拥有 gameplay truth、pause state 或预算。 |
@@ -248,10 +248,12 @@ World (public facade / composition root)
 - deduplicated FIFO section update queue；
 - 每次 `World::update` 最多 2 个 section 的同步 mesh rebuild；
 - 单个 loader worker、完整 mesh target 规划、load center/frustum priority revision；
-- B2 四槽 demand model、B3 typed pending/in-flight/completed job scheduler，以及 B4 generation
-  token/linearized commit boundary；
-- 现有 preload、render-distance invalidation、每帧最多 8 个 distant unload 的协调；
-- CPU-ready mesh copied snapshot、所有 live section revision 与同 revision GPU acknowledgement。
+- B2 四槽 demand model、B3 typed pending/in-flight/completed job scheduler、B4 generation
+  token/linearized commit boundary，以及 B5 admission/pressure/window-refill policy；
+- 现有 preload、render-distance invalidation、每 update 最多 8 个 distant unload 与 truthful backlog；
+- 每帧至多 8 个、以 Player demand 原点确定性近优先的 CPU-ready mesh copied snapshot、所有 live
+  section revision 与同 revision GPU acknowledgement；
+- 每 loader pass 至多 8 个 authoritative commit interval，以及不持久化的 copied pressure diagnostics。
 
 这些对象是派生数据或工作协调，不拥有 block/light/save truth。`World` 的 78 项公开面保持 AL-A1
 hash 不变；`World::planChunkMeshWork` 也只转发到纯 `ChunkRuntime::planMeshWork`。
@@ -310,22 +312,30 @@ epoch、type、id。Semantic plan 失效清除旧 pending，in-flight 保留到�
 B4 的 generation/commit mutex 在线程持有共享 World mutex 时把最终 token 检查与 authoritative commit
 线性化。Detached candidate 关闭 live random-tick index 通知；成功提交后才一次性注册 active section、
 协调光照和发布 Chunk 事实。共享 terrain generator 的生成入口被串行化。Generation rejection 与 B1
-revision rejection 分别记为 `Cancelled` 和 `CommitRejected`。Scheduler 仍不拥有 Gameplay、Chunk、
-mesh 或 persistence truth，也没有 B5 pressure policy、B6 Spatial Interest、额外 worker 或未来系统空
-job type。
+revision rejection 分别记为 `Cancelled` 和 `CommitRejected`。
+
+B5 为 pending vector 冻结 shared/type `128/128/128` hard cap、`96/48` high/low watermarks 和
+`Normal/Elevated/Saturated` hysteresis。`Accepted/AcceptedAfterShedding/Duplicate/StaleGeneration/
+RejectedAtCapacity` 使 admission 结果显式；hard cap 处只允许新 job 按既有 B3 order 严格领先时替换
+一个确定性的最差 pending，永不淘汰 in-flight。`ChunkRuntime` 在 loader 栈中保留当前 generation 的
+immutable B2-derived request vector 与 monotonic cursor，先发布最高 96 项，pending 降到 48 后补到
+96；这份 vector 不携带 id/state，不是第二条 job queue，generation 失效即清空。
+
+Scheduler 和 active plan 都不拥有 Gameplay、Chunk、mesh 或 persistence truth。B5 没有加入 B6
+Spatial Interest、额外 worker、未来系统空 job type 或通用 Simulation Scheduler。
 
 ## 7. Thread Ownership
 
 | Thread | Created/owned by | May do | Commit/stop rule |
 | ------ | ---------------- | ------ | ---------------- |
-| Main/Ogre thread | `OgreBootstrap` frame loop | OS input、application flow、Sandbox fixed ticks、World mutation、同步 event handler、卸载/同步 mesh budget、snapshot 采集、GPU upload、UI/audio update。 | Gameplay truth 默认只在这里变更；frame end 记录性能。 |
-| Chunk loader worker | `World::startBackgroundLoader` delegates to `ChunkRuntime` | 消费 B3 typed job；锁内预留/snapshot，锁外 storage/generation/mesh build，再在线性化 generation boundary 内提交或取消。 | `World` 析构先使 generation 失效、停止并 join 后才保存；旧 generation 为 `Cancelled`，同代 revision 不匹配为 `CommitRejected`。当前只有一个 worker。 |
+| Main/Ogre thread | `OgreBootstrap` frame loop | OS input、application flow、Sandbox fixed ticks、World mutation、同步 event handler、每 update 至多 8 个卸载、同步 mesh budget、每帧至多 8 个 CPU-ready upload、UI/audio update。 | Gameplay truth 默认只在这里变更；未选择的 `CpuReady` 和 unload backlog 留到后续帧，frame end 记录性能。 |
+| Chunk loader worker | `World::startBackgroundLoader` delegates to `ChunkRuntime` | 消费 B3 typed job；B5 在 96/48 窗口内 refill；锁内预留/snapshot，锁外 storage/generation/mesh build，再在线性化 generation boundary 内提交或取消。 | 每 pass 至多 8 个 authoritative commit interval；`World` 析构先使 generation 失效、停止并 join 后才保存。旧 generation 为 `Cancelled`，同代 revision 不匹配为 `CommitRejected`。当前只有一个 worker。 |
 | Music stream worker | Windows `MusicRuntime` backend | 从已验证 WAV 分段读取、增益缩放、维护最多 3 个 WaveOut buffer。 | 主线程用 atomic/mutex/condition variable 控制；stop/reset 后 join；不读写 World。 |
 | Crash writer thread | `WindowsCrashDiagnostics` install | 预创建后等待 crash event，在异常路径写 dump/sidecar。 | 不参与普通 Gameplay；进程退出终止，普通路径无上传。 |
 
-除上述线程与测试专用线程外，当前没有额外 worker pool。B3/B4 scheduler 只协调既有 Chunk
-load/generate 与 CPU mesh work及其协作取消；它不是通用 Simulation Scheduler、主线程 completion
-dispatcher 或 B5 pressure controller。
+除上述线程与测试专用线程外，当前没有额外 worker pool。B3/B4/B5 scheduler 只协调既有 Chunk
+load/generate 与 CPU mesh work、协作取消及其 pressure admission；它不是通用 Simulation Scheduler、
+主线程 completion dispatcher 或 B6 Spatial Interest controller。
 
 ## 8. Persistence Ownership
 
@@ -405,10 +415,12 @@ Ogre::frameStarted
                  -> ChunkRuntime bounded distant unload
                  -> ChunkRuntime bounded synchronous dirty-section mesh rebuild
        [single ChunkRuntime worker]
-            -> B2 demand plan -> B3 typed pending jobs + B4 generation token
+            -> B2 demand plan -> B5 96/48 retained-plan window -> B3 typed pending jobs + B4 generation token
             -> ChunkLoadOrGenerate reserve under mutex / prepare detached / token commit-or-cancel
             -> ChunkMeshBuild snapshot under mutex / build off-lock / token + revision commit-or-cancel
+            -> at most 8 authoritative commit intervals per loader pass
        -> sync render camera / section meshes / actor visuals / outline
+            -> offer at most 8 nearest CpuReady sections; defer the remainder
   -> update AudioRuntime and MusicRuntime
   -> collect debug stats / UI frame
 Ogre::frameRenderingQueued
@@ -428,7 +440,8 @@ Authoritative World state
   -> ChunkRuntime worker builds CPU mesh from SectionMeshInput snapshot
   -> ChunkSection CpuReady + blockRevision
   -> World::collectSectionMeshSnapshot()
-       -> ChunkRuntime copies live revisions and CpuReady meshes under the shared World mutex
+       -> ChunkRuntime copies live revisions and at most 8 deterministically selected CpuReady meshes
+       -> records total/deferred ready counts; unselected sections remain CpuReady
   -> OgreBootstrap::syncSectionMeshes()
        -> NotResident/Stale -> UploadPending
        -> ChunkSectionRenderable GPU buffers
@@ -484,7 +497,7 @@ Design Evolution、Implementation、Validation 和 Trade-offs 七个非空逻辑
 Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先于编译执行。该验证保护文档身份，
 不证明文字质量，也不把 roadmap proposal 提升成实现事实。
 
-## 14. Current Conclusions Through B4
+## 14. Current Conclusions Through B5
 
 - 当前可玩的系统已经有清晰的 Renderer-to-Snapshot 边界和可验证持久化边界。
 - `World` 仍承担 facade、组合根和多套 Simulation 玩法状态；AL-A2/AL-A3/AL-A4/AL-A5 只关闭了四条由真实工作
@@ -493,8 +506,9 @@ Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先
   `ChunkRuntime` / `ChunkManager` 边界；B1 已加入 Data/Mesh/Render 三套正交状态机；B2 已加入
   四槽、可合并、可过期的 Player/Camera/Teleport/Preload Demand；B3 已用两种真实 typed job 和
   Pending/InFlight/Completed 生命周期替换 worker 私有坐标 deque；B4 又以 generation token、detached
-  candidate 和线性化提交阻止旧 plan 发布权威结果。当前仍没有背压、Spatial Interest、额外 worker
-  或未来系统空槽。
+  candidate 和线性化提交阻止旧 plan 发布权威结果；B5 以 128 hard cap、96/48 hysteresis、显式
+  admission/shedding、plan window refill 和 commit/upload/unload 8/8/8 预算关闭无界压力入口。当前仍
+  没有 Spatial Interest、额外 worker 或未来系统空槽。
 - fixed-tick 的 8 phase 顺序、context、last-tick 原始耗时及四条真实 work metrics 现在集中在
   `WorldSimulation`；玩法状态与旧实现仍由 World/Actor/Gameplay 所有，没有 `SimulationScheduler`、
   系统 Registry、时间预算或执行优先级。
@@ -502,5 +516,5 @@ Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先
   生产订阅者 effect/republish、8 层递归上限、per-publication membership 与 Diagnostic 隔离均已冻结。
 - Architecture Lab 教程现在按 Track/真实 Section 维护，并由 manifest、冻结证据和完整门禁阻止空 Part、
   丢失批次或未实现能力提前进入教程。
-- B5/B6/B10 和 D1 仍必须按任务账本范围逐批实施；B4 完成不构成 B7-B9、Track C/D 或 Extended
+- B6/B10 和 D1 仍必须按任务账本范围逐批实施；B5 完成不构成 B7-B9、Track C/D 或 Extended
   的自动启动权限。

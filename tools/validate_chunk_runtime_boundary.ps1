@@ -83,7 +83,8 @@ try {
         "std::chrono::milliseconds(6)", "MaxTargetsPerPass = 64",
         "ChunkLoadsPerTarget = 1", "ActiveSleepMs = 1",
         "IdleSleepMs = 10", "MaxUnloadsPerUpdate = 8")) {
-        Require-Text $runtimeSource $budget "frozen AL-A2 budget"
+        Require-Text ($runtimeHeader + $runtimeSource) $budget `
+            "frozen AL-A2 budget"
     }
 
     $loaderStart = $runtimeSource.IndexOf(

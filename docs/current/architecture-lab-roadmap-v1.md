@@ -1155,6 +1155,9 @@ living tutorial 的 `1.4` 解释为什么异步系统必须允许“白做”，
 
 ## B5 — Streaming Backpressure
 
+> 当前状态：`Done`。冻结合同：
+> `docs/contracts/streaming-backpressure-contract-v1.md`。
+
 ### 问题
 
 后台线程比主线程快：
@@ -1174,31 +1177,57 @@ Upload backlog
 Player outruns generation
 ```
 
-需要预算：
+代码审计后冻结的预算为：
 
 ```text
-MaxPendingGeneration
-MaxPendingMesh
-MaxCommitPerFrame
-MaxUploadPerFrame
-MaxUnloadPerFrame
+MaxPendingTotal / Generation / Mesh = 128 / 128 / 128
+PendingHighWatermark / LowWatermark = 96 / 48
+MaxAuthoritativeCommitsPerPass = 8
+MaxSectionUploadsPerFrame = 8
+MaxUnloadsPerUpdate = 8
 ```
 
 ### 原则
 
 > **吞吐量不是越大越好，稳定延迟比峰值吞吐更重要。**
 
+一次只把当前 B2 plan 的最高优先窗口放入 B3 scheduler，低水位再补到高水位；剩余项仍是当前
+demand plan，不是另一个隐藏 job queue。硬上限处只允许更高 B3 顺序的请求确定性替换最差 pending，
+in-flight 不参与 shedding。B4 generation 失效同时清除 pending 与 plan cursor。
+
+原提案中的 `MaxCommitPerFrame` 根据真实线程所有权修正为每 loader pass 最多 8 个 authoritative
+commit interval；B5 不为此制造主线程 completion dispatcher。CPU-ready mesh 每帧最多上传 8 个，
+按现有 Player demand 原点近优先；每 update 8 个 unload 的既有语义保持不变并补齐诊断。
+
 ### 验收
 
-Debug 显示：
+`HELLOMINE3D_WORLD_SMOKE_FOCUS=B5` 的 12 项定向证据必须覆盖 admission、hard cap、
+deterministic shedding、96/48 hysteresis、generation invalidation、oversized-plan refill、真实
+RD8 demand、commit/upload/unload 三个消费预算和 truthful backlog。开发者面板同时显示：
 
 ```text
-Demand     132
-Queued      42
-InFlight     4
-Ready        7
-Cancelled   81
+Jobs pending load/mesh/deferred-plan
+Backpressure state + pending/high/low/cap
+Admission accepted/shed/duplicate/cap
+Shedding total/load/mesh + transitions/saturation
+Streaming commits/uploads/unloads + caps/backlog
 ```
+
+### 当前实现记录（2026-09-02）
+
+`WorldJobScheduler` 已加入精确 admission result、128 shared/per-type cap、96/48 watermarks、
+三态 pressure 和以 B3 顺序替换最差 pending 的确定性 shedding；in-flight 不参与淘汰。`ChunkRuntime`
+只向 scheduler 发布当前 immutable demand plan 的 96 项窗口，在 pending 降到 48 时补到 96，并在 B4
+generation 失效时清空 plan cursor。Loader 每 pass 最多进入 8 个 authoritative commit interval；
+CPU-ready mesh 每帧按 Player demand 原点确定性选择至多 8 个；unload 每 update 仍至多 8 个并公开
+backlog。
+
+B5 静态 gate、12/12 定向运行，以及 B4/B3/B2/B1 的 10/10、9/9、26/26、38/38 回归均已通过。
+完整 VS2017/v141 Debug/Release 门禁均通过 `906/906` WorldRuntime、`80/80` 资源包、`122/122`
+配方、`15/15` 启动负例和两轮零失败短 soak；104 项隔离包 SHA-256 为
+`7D126B31B78F3A4E8F8C90A5D769028EC686C0D4F708D1F6B2E2979BD164050B`，最终状态为
+`PASS real_window=DEFERRED`。B6 Spatial Interest、B7-B9、额外 worker、通用 Scheduler 与未来
+job family 仍然缺席。
 
 ### 教程
 

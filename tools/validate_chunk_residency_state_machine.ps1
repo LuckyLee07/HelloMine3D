@@ -44,6 +44,8 @@ try {
         "World\Chunk\ChunkManager.cpp"
     $runtimeSourcePath = Join-Path $sourceRoot `
         "World\Chunk\ChunkRuntime.cpp"
+    $runtimeHeaderPath = Join-Path $sourceRoot `
+        "World\Chunk\ChunkRuntime.h"
     $ogrePath = Join-Path $sourceRoot "Ogre\OgreBootstrap.cpp"
     $uiPath = Join-Path $sourceRoot "Ogre\OgreUserInterface.cpp"
     $testPath = Join-Path $sourceRoot `
@@ -52,12 +54,15 @@ try {
         "docs\contracts\chunk-residency-state-machine-contract-v1.md"
     $b4ContractPath = Join-Path $Root `
         "docs\contracts\world-job-cancellation-contract-v1.md"
+    $b5ContractPath = Join-Path $Root `
+        "docs\contracts\streaming-backpressure-contract-v1.md"
 
     $paths = @(
         $lifecycleHeaderPath, $lifecycleSourcePath, $chunkHeaderPath,
         $chunkSourcePath, $sectionHeaderPath, $sectionSourcePath,
-        $managerSourcePath, $runtimeSourcePath, $ogrePath, $uiPath,
-        $testPath, $contractPath, $b4ContractPath)
+        $managerSourcePath, $runtimeHeaderPath, $runtimeSourcePath,
+        $ogrePath, $uiPath,
+        $testPath, $contractPath, $b4ContractPath, $b5ContractPath)
     foreach ($path in $paths) {
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
             throw "Required B1 artifact is missing: $path"
@@ -71,12 +76,14 @@ try {
     $sectionHeader = Get-Content -LiteralPath $sectionHeaderPath -Raw
     $sectionSource = Get-Content -LiteralPath $sectionSourcePath -Raw
     $managerSource = Get-Content -LiteralPath $managerSourcePath -Raw
+    $runtimeHeader = Get-Content -LiteralPath $runtimeHeaderPath -Raw
     $runtimeSource = Get-Content -LiteralPath $runtimeSourcePath -Raw
     $ogre = Get-Content -LiteralPath $ogrePath -Raw
     $ui = Get-Content -LiteralPath $uiPath -Raw
     $tests = Get-Content -LiteralPath $testPath -Raw
     $contract = Get-Content -LiteralPath $contractPath -Raw
     $b4Contract = Get-Content -LiteralPath $b4ContractPath -Raw
+    $b5Contract = Get-Content -LiteralPath $b5ContractPath -Raw
 
     foreach ($token in @(
         "enum class ChunkDataResidencyState", "Absent", "Requested",
@@ -166,8 +173,7 @@ try {
                  $runtimeSource) "ChunkSectionMeshState" `
         "legacy combined CPU/GPU mesh enum"
     foreach ($forbidden in @(
-        "CancellationToken", "ChunkBackpressure",
-        "SpatialInterest")) {
+        "CancellationToken", "SpatialInterest")) {
         Reject-Text ($lifecycleHeader + $lifecycleSource + $chunkHeader +
                      $chunkSource + $sectionHeader + $sectionSource +
                      $managerSource + $runtimeSource) $forbidden `
@@ -185,11 +191,30 @@ try {
     Require-Text $b4Contract `
         "only B4 extension to the B1 Data Residency graph." `
         "B4 residency scope boundary"
+    foreach ($token in @(
+        "struct ChunkBackpressureDebugStats",
+        "MaxUnloadsPerUpdate = 8",
+        "chunksToUnload.size() > MaxUnloadsPerUpdate")) {
+        Require-Text ($runtimeHeader + $runtimeSource + $b5Contract) $token `
+            "approved B5 bounded-consumer extension"
+    }
+    $b5Implementation = $b5Contract.IndexOf(
+        "Status: Frozen for B5 implementation",
+        [StringComparison]::Ordinal) -ge 0
+    $b5GateReady = $b5Contract.IndexOf(
+        "Status: Frozen for B5 full-gate verification",
+        [StringComparison]::Ordinal) -ge 0
+    $b5Verified = $b5Contract.IndexOf(
+        "Status: Frozen after B5 verification",
+        [StringComparison]::Ordinal) -ge 0
+    if (-not ($b5Implementation -or $b5GateReady -or $b5Verified)) {
+        throw "B5 contract has no recognized frozen status."
+    }
 
     Write-Host (
         "[CHUNK_RESIDENCY_STATE_MACHINE] status=PASS " +
         "data_states=7 mesh_states=5 render_states=4 " +
-        "owners=3 debug_families=3 post_b1=B2-B4")
+        "owners=3 debug_families=3 post_b1=B2-B5")
     exit 0
 }
 catch {

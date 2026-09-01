@@ -3195,6 +3195,26 @@ class OgreUserInterface::Impl
                 static_cast<unsigned long long>(
                     worldStats.worldJobs.completedResults));
             ImGui::Text(
+                "Jobs pending load/mesh/deferred-plan: %llu / %llu / %llu",
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.pendingGenerationJobs),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.pendingMeshJobs),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.deferredPlanJobs));
+            ImGui::Text(
+                "Backpressure %s pending/high/low/cap: %llu / %llu / %llu / %llu",
+                WorldJobScheduler::pressureName(
+                    worldStats.worldJobs.pressureLevel),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.pendingJobs),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.pendingHighWatermark),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.pendingLowWatermark),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.maxPendingJobs));
+            ImGui::Text(
                 "Jobs submitted/started/completed: %llu / %llu / %llu",
                 static_cast<unsigned long long>(
                     worldStats.worldJobs.submittedJobs),
@@ -3230,6 +3250,51 @@ class OgreUserInterface::Impl
                     worldStats.worldJobs.staleSubmitRejections),
                 static_cast<unsigned long long>(
                     worldStats.worldJobs.stalePlanRejections));
+            ImGui::Text(
+                "Job admission accepted/shed/duplicate/cap: %llu / %llu / %llu / %llu",
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.acceptedAdmissions),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.acceptedAfterSheddingJobs),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.duplicateAdmissionRejections),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.capacityAdmissionRejections));
+            ImGui::Text(
+                "Job shedding total/load/mesh transitions/saturation: %llu / %llu / %llu / %llu / %llu",
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.shedPendingJobs),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.shedGenerationJobs),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.shedMeshJobs),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.pressureTransitions),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.saturationEpisodes));
+            ImGui::Text(
+                "Streaming commits/uploads/unloads: %llu/%llu  %llu/%llu (+%llu)  %llu/%llu%s",
+                static_cast<unsigned long long>(
+                    worldStats.streamingBackpressure
+                        .lastAuthoritativeCommits),
+                static_cast<unsigned long long>(
+                    worldStats.streamingBackpressure
+                        .maxAuthoritativeCommitsPerPass),
+                static_cast<unsigned long long>(
+                    worldStats.streamingBackpressure
+                        .lastSectionUploadsOffered),
+                static_cast<unsigned long long>(
+                    worldStats.streamingBackpressure
+                        .maxSectionUploadsPerFrame),
+                static_cast<unsigned long long>(
+                    worldStats.streamingBackpressure
+                        .lastSectionUploadsDeferred),
+                static_cast<unsigned long long>(
+                    worldStats.streamingBackpressure.lastUnloads),
+                static_cast<unsigned long long>(
+                    worldStats.streamingBackpressure.maxUnloadsPerUpdate),
+                worldStats.streamingBackpressure.unloadBacklog
+                    ? " backlog" : "");
             ImGui::Text(
                 "Job ms queue/worker/commit: %.3f / %.3f / %.3f",
                 worldStats.worldJobs.lastQueueLatencyMilliseconds,

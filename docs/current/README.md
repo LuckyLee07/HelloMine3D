@@ -32,7 +32,8 @@
 `AL-A4` 已把旧 event-as-command 路径改为 typed command FIFO，并冻结不可变事实事件、订阅者
 effect/republish、有界递归、诊断隔离和查询非 mutation 边界。
 `AL-A5` 已为四个真实 Simulation phase 冻结 last-tick processed/deferred/budget 观察、scope/status
-词汇和开发者面板；`AL-A6` 已完成单一 living tutorial 流水线。Track B 的 B1-B4 已依次完成
-Chunk 三套状态、Streaming Demand、typed World Job Scheduler 和 generation cancellation；当前下一批为
-已批准的 `B5` Streaming Backpressure。后续批次仍须在 `todolist.md` 中写明真实需求、合同、可观察
+词汇和开发者面板；`AL-A6` 已完成单一 living tutorial 流水线。Track B 的 B1-B5 已依次完成
+Chunk 三套状态、Streaming Demand、typed World Job Scheduler、generation cancellation 和
+Streaming Backpressure；B5 完整门禁为 `906/906` WorldRuntime 与 104 项干净包，下一批为已批准的 `B6`
+Spatial Activation。后续批次仍须在 `todolist.md` 中写明真实需求、合同、可观察
 证据和范围边界，不能由长期路线自动授权。

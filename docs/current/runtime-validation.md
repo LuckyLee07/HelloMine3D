@@ -301,11 +301,12 @@ $env:HELLOMINE3D_WORLD_SMOKE_FOCUS = "B3"
 ```
 
 At B3 closeout the static gate froze exactly two real types, three states and three outcomes;
-the current composed gate permits B4's single `Cancelled` outcome and generation token while preserving
+the current composed gate permits B4's `Cancelled` outcome/generation token and B5's separately contracted
+admission/pressure vocabulary while preserving
 deterministic priority/plan/epoch/type/id order, one in-flight slot and one
 loader worker. It requires the real `ChunkRuntime`/`ChunkManager` calls,
-developer diagnostics and all nine B3 test identities while continuing to reject B5-B9
-pressure, Spatial Interest and far-representation concepts.
+developer diagnostics and all nine B3 test identities while continuing to reject B6-B9
+Spatial Interest and far-representation concepts.
 
 The focused runtime passes `9/9`. Pure checks cover duplicate pending-key
 rejection, ordering, `Pending -> InFlight -> Completed`, invalid completion,
@@ -340,9 +341,10 @@ $env:HELLOMINE3D_WORLD_SMOKE_FOCUS = "B4"
 The static gate freezes a non-zero uint64 generation token, one new
 `Cancelled` outcome, six semantic invalidation call sites, the World-mutex plus
 generation/commit linearization boundary, detached Chunk load protocol,
-random-tick isolation, exact mesh rollback and copied diagnostics. It also
-rejects B5 backpressure/watermarks/admission, B6 Spatial Interest and all far,
-machine or network job vocabulary.
+random-tick isolation, exact mesh rollback and copied diagnostics. The current
+composed gate permits B5's separately contracted pressure/admission extension
+while still rejecting B6 Spatial Interest and all far, machine or network job
+vocabulary.
 
 The focused runtime passes `10/10`. Pure scheduler checks cover monotonic
 invalidation, pending clear with in-flight preservation, stale/zero request
@@ -367,6 +369,45 @@ the 104-entry isolated ZIP is 17,053,910 bytes and hashes to
 The final result is `PASS real_window=DEFERRED`. AI scenarios remain `NOT_RUN`;
 human fun, aesthetics, comfort, retention and physical input feel remain
 `NOT_CLAIMED`.
+
+## B5 Streaming Backpressure Evidence
+
+B5 adds an eleventh static Architecture Lab gate and bounds both scheduler
+admission and the three existing consumers. The implementation-stage commands
+are:
+
+```powershell
+& .\tools\validate_streaming_backpressure.ps1 `
+  -Root (Get-Location).Path -Implementation
+$env:HELLOMINE3D_WORLD_SMOKE_FOCUS = "B5"
+& .\bin\HelloMine3DWorldRuntimeSmoke.exe
+```
+
+The static gate passes with pending caps `128/128/128`, watermarks `96/48`,
+loader commit/upload/unload limits `8/8/8`, exactly one loader declaration,
+copied diagnostics and all twelve B5 test identities. It also checks the
+retained plan/cursor refill implementation and rejects B6 Spatial Interest,
+Far representation, machine/network vocabulary and future simulation policy.
+
+The focused runtime passes `12/12`. Pure checks cover the exact vocabulary,
+normal admission, duplicate/stale distinction, hard-cap rejection,
+deterministic worst-pending shedding, pressure hysteresis, generation
+invalidation and a 180-request ordered drain/refill. Integration checks observe
+a live radius-eight plan larger than the 96-job window while pending/peak stay
+bounded, at most eight authoritative commits per loader pass, deterministic
+eight-section upload selection and an 8-then-2 truthful unload backlog. B4,
+B3, B2 and B1 focused regressions pass `10/10`, `9/9`, `26/26` and `38/38`.
+
+The complete `scripts\verify_build.ps1 -VisualStudioVersion 2017
+-SkipRealWindow` run passes in Debug and Release with `906/906` WorldRuntime,
+`80/80` Resource Pack, `122/122` Recipe, `15/15` startup negatives, both short
+soaks at zero failures and both validation-only clients. Debug/Release rebuilds
+finish at `2044/0` and `2023/0` warnings/errors. The Release executable SHA-256
+is `3377D89FF0E33D53142FA7F0F3405B8955A6B095C8E6FFEB29FB0AB74E6F1204`;
+the 104-entry isolated package SHA-256 is
+`7D126B31B78F3A4E8F8C90A5D769028EC686C0D4F708D1F6B2E2979BD164050B`.
+The result is `PASS real_window=DEFERRED` and B5 is `Done`. AI scenarios remain
+`NOT_RUN`; human subjective experience remains `NOT_CLAIMED`.
 
 ## World Runtime Smoke
 
@@ -644,6 +685,7 @@ the 2026-08-31 Architecture Lab policy, both physical protocols remain
 | B2 Streaming demand model | `tools\validate_streaming_demand_model.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=B2`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-b2-streaming-demand-report-v1.md` | Four bounded Player/Camera/TeleportDestination/Preload slots drive de-duplicated deterministic planning by reason, frustum, motion, age and distance. Focused runtime passes 26/26; the complete gate passes 875/875 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives and two zero-failure short soaks. The 104-entry package SHA-256 is `9955E51AD94C7E5600325329031432E16C1859F936FA880F68F65F3B80369503`. No B3-B9 capability is implemented; real-window is `DEFERRED`, AI acceptance is `NOT_RUN`, and human subjective experience remains `NOT_CLAIMED` (2026-09-01). |
 | B3 Generic World Job Scheduler | `tools\validate_world_job_scheduler.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=B3`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-b3-world-job-scheduler-report-v1.md` | Two real typed jobs use deterministic pending order, one in-flight slot, completed records and copied metrics while retaining one loader and B1 revision commit. Focused runtime passes 9/9, B2 passes 26/26 and B1 passes 38/38. The complete gate passes 884/884 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives and two zero-failure short soaks; the 104-entry package SHA-256 is `B983889B5553FF0DBFEAF6C14D2E349CC81AD1205C314CC39C0894C2D1CD9459`. Real-window is `DEFERRED`, AI acceptance remains `NOT_RUN` and human subjective experience remains `NOT_CLAIMED` (2026-09-01). |
 | B4 World Job Cancellation & Generation Token | `tools\validate_world_job_cancellation.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=B4`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-b4-world-job-cancellation-report-v1.md` | A copied uint64 generation token, cooperative `Cancelled` outcome, six invalidation boundaries, detached Chunk candidate and linearized commit prevent stale load/mesh publication while retaining one worker. Focused B4/B3/B2/B1 runs pass 10/10, 9/9, 26/26 and 38/38. The complete gate passes 894/894 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives and two zero-failure short soaks; the 104-entry package SHA-256 is `A9A7CC9AF528F3C725ACC13A62A69FB6D10718AD25F7F4796F5E47B70453C33A`. Real-window is `DEFERRED`, AI acceptance remains `NOT_RUN` and human subjective experience remains `NOT_CLAIMED` (2026-09-01). |
+| B5 Streaming Backpressure | `tools\validate_streaming_backpressure.ps1 -Implementation`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=B5`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-b5-streaming-backpressure-report-v1.md` | Caps 128/128/128, watermarks 96/48, explicit deterministic admission/shedding, retained-plan refill and commit/upload/unload limits 8/8/8 pass the static gate and 12/12 focused runtime checks. B4/B3/B2/B1 regressions pass 10/10, 9/9, 26/26 and 38/38. The complete gate passes 906/906 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives, both short soaks and both hidden clients; the 104-entry package SHA-256 is `7D126B31B78F3A4E8F8C90A5D769028EC686C0D4F708D1F6B2E2979BD164050B`. The result is `PASS real_window=DEFERRED`; AI acceptance remains `NOT_RUN` and human subjective experience remains `NOT_CLAIMED` (2026-09-02). |
 | AI-assisted gameplay baseline | `docs\current\ai-assisted-gameplay-acceptance-v1.md` | `AI-01..AI-08 result=NOT_RUN`; no OS-level Computer Use record has been produced in this documentation batch. |
 
 The current 2026-08-12 runs use an NVIDIA GTX 1050 Ti with OpenGL 4.6. The

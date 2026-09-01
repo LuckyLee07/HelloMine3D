@@ -3,7 +3,7 @@
 本文只回答：项目现在做到哪里、当前批准什么、下一候选是什么、什么会阻塞开发。详细历史、合同和
 封板证据分别进入 `docs/archive/`、`docs/contracts/` 和 `docs/reports/`。
 
-最后更新：2026-09-01。
+最后更新：2026-09-02。
 
 ## 项目目标
 
@@ -38,7 +38,7 @@ HelloMine3D 是 **以真实可玩的单机体素沙盒为载体的 C++ Architect
 | 可玩载体 | 创建世界 → 采集 → 制作 → 工具成长 → 冶炼/食物 → 战斗 → 探索 → 路标胜利 → 胜利后事件 → 保存重开已经贯通。 |
 | 玩法与视觉 | Stage 9、Stage 10/VISUAL-RC、Stage 11/P11F 已完成 Windows 自动工程范围；Stage 11 待开发代码批次为 0。 |
 | 世界可靠性 | 世界目录、事务保存、有界备份、验证恢复、世界管理和主菜单入口已经完成；当前 world save format 为 v12。 |
-| 自动门禁 | VS2017/v141 双配置、894/894 世界、80/80 资源包、122/122 配方、15/15 启动负例和 104 项干净包通过。 |
+| 自动门禁 | VS2017/v141 双配置、906/906 世界、80/80 资源包、122/122 配方、15/15 启动负例和 104 项干净包通过。 |
 | 性能与诊断 | 六类正式 Q1、nominal/stress 各 1800 秒 Q3、崩溃 dump、脱敏 sidecar、离线符号和独立符号归档已闭环。 |
 | AI/Computer Use | `AI-01..AI-08=NOT_RUN`；没有外部玩家依赖，具备 OS 级 Computer Use 时按当前验收规范执行。 |
 | 人类体验 | 乐趣、审美、舒适度和物理设备手感统一为 `NOT_CLAIMED`。 |
@@ -61,15 +61,17 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 | `B2` Streaming Demand Model | `Done` | Player、Camera、TeleportDestination、Preload 已统一为四槽、可合并、可过期的需求模型；26/26 聚焦用例与 AL-A1..B1 静态门禁通过。VS2017/v141 Debug/Release 完整门禁均为 875/875 WorldRuntime，104 项干净包 SHA-256 为 `9955E51AD94C7E5600325329031432E16C1859F936FA880F68F65F3B80369503`；未进入 B3-B9。详见 `docs/reports/architecture-lab-b2-streaming-demand-report-v1.md`。 |
 | `B3` Generic World Job Scheduler | `Done` | 两类真实后台工作已进入 typed scheduler；9/9 聚焦用例、B2 26/26 与 B1 38/38 回归通过。VS2017/v141 Debug/Release 完整门禁均为 884/884 WorldRuntime，104 项干净包 SHA-256 为 `B983889B5553FF0DBFEAF6C14D2E349CC81AD1205C314CC39C0894C2D1CD9459`。未进入 B4-B9，Gameplay、预算与 save v12 保持不变。详见 `docs/reports/architecture-lab-b3-world-job-scheduler-report-v1.md`。 |
 | `B4` Cancellation & Generation Token | `Done` | uint64 generation、`Cancelled` outcome、六类失效入口、detached load candidate、线性化提交和 mesh 回滚已实现；B4 10/10，B3/B2/B1 回归 9/9、26/26、38/38。VS2017/v141 Debug/Release 完整门禁均为 894/894 WorldRuntime，104 项干净包 SHA-256 为 `A9A7CC9AF528F3C725ACC13A62A69FB6D10718AD25F7F4796F5E47B70453C33A`。未进入 B5-B9，Gameplay、预算与 save v12 保持不变。详见 `docs/reports/architecture-lab-b4-world-job-cancellation-report-v1.md`。 |
+| `B5` Streaming Backpressure | `Done` | 两类真实 job 已受 128 hard cap、96/48 watermarks、显式 admission、确定性 shedding 和 plan-window refill 约束；loader commit、CPU-ready upload、unload 分别受 8/8/8 边界保护。B5 12/12 及 B4/B3/B2/B1 10/10、9/9、26/26、38/38 已通过；完整 VS2017/v141 Debug/Release 门禁均为 906/906 WorldRuntime，104 项干净包 SHA-256 为 `7D126B31B78F3A4E8F8C90A5D769028EC686C0D4F708D1F6B2E2979BD164050B`。详见 `docs/reports/architecture-lab-b5-streaming-backpressure-report-v1.md`。 |
 
 ## 下一候选
 
 | 批次 | 状态 | 目标 | 进入条件 | 退出边界 |
 | ---- | ---- | ---- | -------- | -------- |
-| `B5` Streaming Backpressure | `Planned` | 在真实 B3/B4 job 流上冻结 hard cap、watermark、admission 与 shedding，阻止生产/消费失衡累积。 | B4 完整门禁已通过；形成独立本地提交后，核对真实队列压力并冻结 B5 合同。 | 不提前实现 B6 Spatial Interest、B7-B9、worker pool 或通用 Simulation Scheduler。 |
+| `B6` Spatial Activation | `Planned` | 只回答 Chunk 数据、近景 mesh/render 与 simulation-interest 的空间请求；不定义 D2 simulation fidelity。 | B5 完整门禁通过并独立提交后，先审计真实调用和冻结合同。 | 不进入 B7-B9，不实现 Far representation，不改变 Gameplay/save v12。 |
+| `B10` Large World Stress & Acceptance | `Queued` | 在 B6 完成后，对 Track B Core 的 boundedness、determinism、压力和隔离发行包进行收口。 | B1-B6 全部独立完成；按真实实现冻结 Core 场景。 | Extended 场景只有另行批准才可加入；不借 B10 实现新架构能力。 |
 
-`B4` 已完成代码、聚焦验证和完整退出门禁；独立提交后自动进入 B5。B5-B6/B10 仍须严格按依赖
-逐批执行，B7-B9 和 Track C/D 未获批。
+`B5` 已完成完整门禁，独立提交后开始 B6；B10 仍在 B6 之后。B7-B9 和 Track C/D
+未获批，也不因本 Goal 自动进入实现。
 
 ## 当前阻塞
 
@@ -78,7 +80,7 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
   `Engineering Done`，但 Track 不得标记 `AI Playability PASS`。
 - 严格 `AI-06` 还要求 package-only 文件系统访问；仅切换工作目录但仓库仍可读取时记录
   `BLOCKED`，不能声明 blind PASS。
-- 当前没有已知实现阻塞；B4 独立提交后自动进入 B5。
+- 当前没有已知实现阻塞；B5 完整门禁已通过，下一实现批次为 B6。
 
 ## 待执行验收
 
