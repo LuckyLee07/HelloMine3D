@@ -57,15 +57,16 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 | `AL-A4` Event / Command / Query Boundary | `Done` | `IWorldCommand / addCommand` 已取代旧 event-as-command 路径；事实事件不可变并区分 Domain/Diagnostic，生产订阅者显式声明 effect/republish，有界递归、诊断隔离和订阅快照语义均有自动门禁。VS2017/v141 Debug/Release、846/846 世界与 104 项隔离包通过；没有进入 A5。详见 `docs/reports/architecture-lab-a4-event-command-query-report-v1.md`。 |
 | `AL-A5` Tick Phase Metrics & Budget Vocabulary | `Done` | Actor、Combat、Block Random Tick、Population 的 last-tick processed/deferred/budget scope/status 词汇和开发者面板已经冻结；VS2017/v141 Debug/Release、两轮 853/853 世界与 104 项隔离包通过，没有改变 phase 顺序、hard limit 或 Gameplay，也没有进入 A6/B1/D1。详见 `docs/reports/architecture-lab-a5-simulation-metrics-report-v1.md`。 |
 | `AL-A6` Architecture Lab Documentation Pipeline | `Done` | 单一 living tutorial 已按 Track/真实 Section 重组；manifest、七段非空结构、证据路径和无占位 Part 由新 validator 及四个负例保护。VS2017/v141 Debug/Release、两轮 853/853 世界与 104 项隔离包通过；运行时代码、Gameplay、save v12 与 AI/人类声明均未改变。详见 `docs/reports/architecture-lab-a6-documentation-pipeline-report-v1.md`。 |
+| `B1` Chunk Residency State Machine | `Done` | Data Residency、CPU Mesh 与 Ogre Render 已成为三套正交且有断言保护的状态机；38/38 聚焦用例覆盖光照失效、保存失败回滚、dirty eviction、stale build/upload、卸载持久化和直接结构生成/重载。VS2017/v141 Debug/Release 完整门禁均为 863/863 WorldRuntime，104 项干净包 SHA-256 为 `F76F5A1429C869FDA94FDD37BF34F8266866B5F665D1E550CA04F15CCD7ECF88`。没有进入 B2-B9，Gameplay、预算和 save v12 保持不变。详见 `docs/reports/architecture-lab-b1-chunk-residency-report-v1.md`。 |
 
 ## 下一候选
 
 | 批次 | 状态 | 目标 | 进入条件 | 退出边界 |
 | ---- | ---- | ---- | -------- | -------- |
-| `B1` Chunk Residency State Machine | `Queued` | 把 Data Residency、Mesh State、Render State 冻结为三套正交生命周期。 | AL-A6 已关闭；本 Goal 已由项目所有者单独批准 B1，A6 提交边界后按顺序开始。 | 不进入 B2 Demand、B3 Job Scheduler、B4 Cancellation、B5 Backpressure、B6 Spatial Interest 或 B7-B9 Extended。 |
+| `B2` Streaming Demand Model | `Queued` | 把 Player/Camera/Teleport/Preload 等真实加载来源统一为可合并、可过期的需求值。 | B1 已关闭；本 Goal 已由项目所有者单独批准 B2，B1 独立提交后开始。 | 不改变 B1 三态所有权，不提前实现 B3 Scheduler、B4 Cancellation、B5 Backpressure、B6 Spatial Interest 或 B7-B9 Extended。 |
 
-`AL-A6` 已关闭并在本次提交建立独立边界。B1 已在当前 Goal 中获得独立批准，是提交后的下一批；
-B2-B6/B10 也必须严格按依赖逐批执行，B7-B9 和 Track C/D 未获批。
+`B1` 已关闭并将在本批建立独立提交边界。B2 已在当前 Goal 中获得独立批准，是提交后的下一批；
+B3-B6/B10 仍须严格按依赖逐批执行，B7-B9 和 Track C/D 未获批。
 
 ## 当前阻塞
 
@@ -74,7 +75,7 @@ B2-B6/B10 也必须严格按依赖逐批执行，B7-B9 和 Track C/D 未获批�
   `Engineering Done`，但 Track 不得标记 `AI Playability PASS`。
 - 严格 `AI-06` 还要求 package-only 文件系统访问；仅切换工作目录但仓库仍可读取时记录
   `BLOCKED`，不能声明 blind PASS。
-- 当前没有已知实现阻塞；AL-A6 已关闭，B1 是下一批。
+- 当前没有已知实现阻塞；B1 已关闭，B2 是下一批。
 
 ## 待执行验收
 

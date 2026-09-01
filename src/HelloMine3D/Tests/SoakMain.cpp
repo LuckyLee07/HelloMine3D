@@ -453,9 +453,11 @@ int main(int argc, char **argv)
             if (tick % FixedTicksPerSecond == 0 || tick == totalTicks) {
                 const WorldDebugStats stats = world->collectDebugStats();
                 const std::size_t classifiedSections =
+                    stats.chunks.meshCleanSections +
                     stats.chunks.meshDirtySections +
-                    stats.chunks.cpuReadySections +
-                    stats.chunks.gpuBufferedSections;
+                    stats.chunks.meshQueuedSections +
+                    stats.chunks.meshBuildingSections +
+                    stats.chunks.cpuReadySections;
                 if (stats.chunks.loadedChunks > stats.chunks.existingChunks ||
                     classifiedSections != stats.chunks.sections) {
                     fail("chunk/section accounting invariant failed");

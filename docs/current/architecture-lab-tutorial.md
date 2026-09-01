@@ -1,8 +1,8 @@
 # HelloMine3D Architecture Lab Tutorial
 
-> Living tutorial status: Part 00 covers the completed Track A batches
-> AL-A0 through AL-A6. Later Parts are added only with the first verified batch
-> of their owning Track; this file does not pre-create empty Sprint chapters.
+> Living tutorial status: Part 00 covers completed Track A and Part 01 begins
+> Track B with verified B1. Later Parts are added only with the first verified
+> batch of their owning Track; this file does not pre-create empty Sprint chapters.
 
 <!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-BEGIN -->
 AL-A0|00|0.1|docs/reports/architecture-lab-baseline-v1.md
@@ -12,6 +12,7 @@ AL-A3|00|0.3|docs/reports/architecture-lab-a3-world-simulation-report-v1.md
 AL-A4|00|0.4|docs/reports/architecture-lab-a4-event-command-query-report-v1.md
 AL-A5|00|0.5|docs/reports/architecture-lab-a5-simulation-metrics-report-v1.md
 AL-A6|00|0.6|docs/contracts/architecture-lab-documentation-pipeline-contract-v1.md
+B1|01|1.1|docs/reports/architecture-lab-b1-chunk-residency-report-v1.md
 <!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-END -->
 
 ## Part 00 — From a playable clone to an architecture lab
@@ -665,3 +666,94 @@ Related evidence:
 - `docs/contracts/architecture-lab-documentation-pipeline-contract-v1.md`
 - `docs/reports/architecture-lab-a6-documentation-pipeline-report-v1.md`
 - `tools/validate_architecture_lab_documentation.ps1`
+
+## Part 01 — Bounded large-world streaming
+
+Track B starts from an existing playable stream: one loader worker generates or
+loads chunks, builds copied CPU meshes off-lock, and lets Ogre upload them. B1
+does not add more throughput policy. It first makes the lifecycle observable so
+later demand, scheduling, cancellation and backpressure work has exact states to
+operate on.
+
+### 1.1 Why are chunk data, CPU meshes and GPU residency separate states?
+
+#### Problem
+
+The old runtime exposed `Empty/Generating/Loaded` for Chunk data and combined
+CPU and GPU progress in `Dirty/CpuReady/GpuBuffered`. Ogre object existence was
+implicit in a map. That was sufficient for one worker, but could not answer
+whether a chunk was saving while its mesh was dirty, whether a CPU result was
+ready while no GPU object existed, or which owner could legally change a state.
+
+#### Naive Solution
+
+A tempting fix is one large enum containing combinations such as loaded,
+mesh-dirty, CPU-ready, GPU-buffered and saving. Another is to infer state from
+queues, dirty flags and Ogre map membership whenever a debug panel asks. Both
+avoid adding explicit transition code in the short term.
+
+#### Failure
+
+The combined enum grows as the cross-product of unrelated lifecycles and makes
+legal partial progress hard to represent. Inference is equally fragile: a
+failed save, an edit during off-lock build, or an unload during upload can leave
+the inspected containers describing different moments. Neither design gives a
+single owner a reviewable mutation boundary or a useful illegal-transition
+assertion.
+
+#### Design Evolution
+
+B1 freezes three orthogonal machines. `Chunk` owns seven Data Residency states,
+`ChunkSection` owns five CPU Mesh states, and Ogre owns four Render Residency
+states. Each family has an exhaustive `canTransition` function and a mutation
+helper that asserts before changing state. Shared diagnostics copy counts; they
+do not move ownership back into `World`.
+
+The design follows the real paths. Storage load and generation converge on
+`Resident`; save returns to its prior resident/eviction state; edits invalidate
+any derived mesh state; and Ogre validates an upload against a second immutable
+live-revision snapshot before treating the visual as resident.
+
+#### Implementation
+
+`World/Chunk/ChunkLifecycle.*` contains only the three vocabularies, stable
+names and transition matrices. `ChunkManager` brackets load, generate, save and
+unload calls with Data transitions. `ChunkRuntime` and `ChunkSection` reuse the
+existing FIFO and single worker for `Dirty -> Queued -> Building -> CpuReady ->
+Clean`. Ogre keeps a separate section-keyed Render map and destroys rejected or
+unloaded visuals before the next rendered frame.
+
+The existing 6 ms/64-target loader pass, one loader, two synchronous sections
+per frame and eight unloads per frame remain unchanged. Save v12, terrain v4,
+Gameplay and the 78-method World public surface are unchanged.
+
+#### Validation
+
+`tools/validate_chunk_residency_state_machine.ps1` checks exact vocabularies,
+owners, assertions, runtime orchestration, debug UI, test identities, removal
+of legacy combined enums and absence of post-B1 capabilities. It composes with
+the AL-A1 through AL-A6 gates in `scripts/verify_build.ps1`.
+
+The `HELLOMINE3D_WORLD_SMOKE_FOCUS=B1` path passes 38 checks: exhaustive legal
+edge counts and representative illegal edges, generated residence, separate
+statistics, the mesh flow, dirty save before absence, reload, injected save
+failure rollback, stale upload rejection, light-only mesh invalidation, unload
+persistence and direct deterministic structure generation/reload.
+
+#### Trade-offs
+
+The states add explicit transitions and debug fields without yet improving
+streaming throughput. Some states are deliberately short-lived, so a sampled
+panel may often show zero even though tests exercise the edge. `Absent` and
+`NotResident` are bounded to tracked coordinates/sections rather than pretending
+the infinite world is an enumerable set.
+
+Ogre takes a second copied snapshot after acknowledgement to keep the frozen
+World facade unchanged. B2 may add demand values, but it must consume these
+machines rather than merge them or reinterpret B1 as a scheduler.
+
+Related evidence:
+
+- `docs/contracts/chunk-residency-state-machine-contract-v1.md`
+- `docs/reports/architecture-lab-b1-chunk-residency-report-v1.md`
+- `tools/validate_chunk_residency_state_machine.ps1`

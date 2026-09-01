@@ -3164,13 +3164,44 @@ class OgreUserInterface::Impl
             ImGui::Text("Sections: %llu",
                         static_cast<unsigned long long>(
                             worldStats.chunks.sections));
-            ImGui::Text("Mesh dirty / CPU / GPU: %llu / %llu / %llu",
-                        static_cast<unsigned long long>(
-                            worldStats.chunks.meshDirtySections),
-                        static_cast<unsigned long long>(
-                            worldStats.chunks.cpuReadySections),
-                        static_cast<unsigned long long>(
-                            worldStats.chunks.gpuBufferedSections));
+            ImGui::Text(
+                "Data A/Rq/L/G/R/E/S: %llu / %llu / %llu / %llu / %llu / %llu / %llu",
+                static_cast<unsigned long long>(
+                    worldStats.chunks.dataAbsentChunks),
+                static_cast<unsigned long long>(
+                    worldStats.chunks.dataRequestedChunks),
+                static_cast<unsigned long long>(
+                    worldStats.chunks.dataLoadingChunks),
+                static_cast<unsigned long long>(
+                    worldStats.chunks.dataGeneratingChunks),
+                static_cast<unsigned long long>(
+                    worldStats.chunks.dataResidentChunks),
+                static_cast<unsigned long long>(
+                    worldStats.chunks.dataEvictRequestedChunks),
+                static_cast<unsigned long long>(
+                    worldStats.chunks.dataSavingChunks));
+            ImGui::Text(
+                "Mesh C/D/Q/B/CPU: %llu / %llu / %llu / %llu / %llu",
+                static_cast<unsigned long long>(
+                    worldStats.chunks.meshCleanSections),
+                static_cast<unsigned long long>(
+                    worldStats.chunks.meshDirtySections),
+                static_cast<unsigned long long>(
+                    worldStats.chunks.meshQueuedSections),
+                static_cast<unsigned long long>(
+                    worldStats.chunks.meshBuildingSections),
+                static_cast<unsigned long long>(
+                    worldStats.chunks.cpuReadySections));
+            ImGui::Text(
+                "Render N/U/G/S: %llu / %llu / %llu / %llu",
+                static_cast<unsigned long long>(
+                    worldStats.chunks.renderNotResidentSections),
+                static_cast<unsigned long long>(
+                    worldStats.chunks.renderUploadPendingSections),
+                static_cast<unsigned long long>(
+                    worldStats.chunks.gpuResidentSections),
+                static_cast<unsigned long long>(
+                    worldStats.chunks.renderStaleSections));
             ImGui::Text("Mesh rebuilds: %llu",
                         static_cast<unsigned long long>(
                             worldStats.chunks.meshRebuilds));

@@ -5,17 +5,12 @@
 #include "../../Util/NonCopyable.h"
 #include "../Block/BlockEntity.h"
 #include "ChunkSection.h"
+#include "ChunkLifecycle.h"
 #include <cstddef>
 #include <optional>
 #include <vector>
 
 class TerrainGenerator;
-
-enum class ChunkLoadState {
-    Empty,
-    Generating,
-    Loaded,
-};
 
 /// @brief A chunk, in other words, a large arrangement of blocks.
 class Chunk : public IChunk {
@@ -40,10 +35,11 @@ class Chunk : public IChunk {
     bool hasLoaded() const noexcept;
     bool hasGenerated() const noexcept;
     bool needsSave() const noexcept;
-    ChunkLoadState getLoadState() const noexcept;
+    ChunkDataResidencyState getDataResidencyState() const noexcept;
+    bool transitionDataResidency(ChunkDataResidencyState state) noexcept;
     void clearSaveDirty() noexcept;
     std::size_t getSectionCount() const noexcept;
-    std::size_t countSections(ChunkSectionMeshState state) const noexcept;
+    std::size_t countSections(ChunkMeshState state) const noexcept;
     void collectBlockData(std::vector<Block_t> &blockIds,
                           std::vector<BlockMetadata_t> &metadata) const;
     void loadBlockData(std::size_t sectionCount,
@@ -84,7 +80,8 @@ class Chunk : public IChunk {
 
     World *m_pWorld;
 
-    ChunkLoadState m_loadState = ChunkLoadState::Empty;
+    ChunkDataResidencyState m_dataResidencyState =
+        ChunkDataResidencyState::Absent;
     bool m_saveDirty = false;
 };
 

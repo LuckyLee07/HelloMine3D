@@ -230,6 +230,33 @@ subjective experience remains `NOT_CLAIMED`. This evidence proves
 documentation identity and maintenance structure; it does not prove prose
 quality, gameplay, Computer Use or human experience.
 
+## B1 Chunk Residency State Machine Evidence
+
+B1 adds a seventh static architecture gate while preserving the AL-A1 public
+surface and AL-A2 budgets:
+
+```powershell
+& .\tools\validate_chunk_residency_state_machine.ps1 `
+  -Root (Get-Location).Path
+$env:HELLOMINE3D_WORLD_SMOKE_FOCUS = "B1"
+& .\bin\HelloMine3DWorldRuntimeSmoke.exe
+```
+
+The static gate freezes 7 Data, 5 Mesh and 4 Render states, verifies three
+separate owners and mutation assertions, requires all state-family diagnostics
+and rejects legacy combined enums plus unapproved B2-B9 vocabulary. The focused
+runtime passes `38/38`: transition graphs/names, generated residence, separate
+counts, Mesh `Dirty -> Clean`, dirty eviction/save/reload, injected save-failure
+rollback, stale upload rejection, existing light-only invalidation and unload
+persistence, plus direct deterministic structure generation and reload.
+
+Ogre upload acceptance is checked through copied live-section revisions after
+the unchanged `void World::acknowledgeSectionMeshUploads` call. This keeps the
+78-method public surface hash unchanged while ensuring an unloaded or newer
+revision never reaches `GpuResident`. Full closeout evidence is frozen in
+`docs/reports/architecture-lab-b1-chunk-residency-report-v1.md`. AI scenarios
+remain `NOT_RUN` and human subjective experience remains `NOT_CLAIMED`.
+
 ## World Runtime Smoke
 
 `src/HelloMine3D/Tests/WorldRuntimeSmokeMain.cpp` links the whole game runtime
@@ -502,6 +529,7 @@ the 2026-08-31 Architecture Lab policy, both physical protocols remain
 | AL-A1 World responsibility map | `tools\validate_world_responsibility_map.ps1`; `scripts\verify_build.ps1 -VisualStudioVersion 2017`; `docs/contracts/world-responsibility-map-contract-v1.md` | The machine-checked map covers all 78 unique public `World` method names as 45 Queries, 31 Commands and 2 Runtime Ticks across nine responsibilities; normalized public-surface SHA-256 is `3C53F56C425F0395354C8A5CE966E96CDA8BC93D836699955E03BA965A664AD8`. The complete VS2017/v141 Debug/Release gate passes with 832/832 world, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives, a 147,777-byte controlled dump, symbol archive SHA-256 `4716391d29d2bc92c11258d1755d9aac3f86ccee962414a8b684dd3692ffeec3`, 104-entry package SHA-256 `00F7239139580FD71D5EF9518335CA7A193E5A184825C07630F3F96979713054` and real window PASS. No tracked Gameplay/runtime/resource input changed, so formal Q1/Q3 remain cited from the frozen runtime identity. `AI-01..AI-08=NOT_RUN`; human subjective experience remains `NOT_CLAIMED` (2026-09-01). |
 | AL-A5 Simulation phase metrics | `tools\validate_simulation_metrics_boundary.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=AL-A5`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-a5-simulation-metrics-report-v1.md` | Exactly four real phase metrics freeze copied elapsed/processed/deferred/budget scope/status without changing AL-A3 order or existing hard limits. Debug/Release focused runs pass 13/13; the complete gate passes 853/853 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives and two zero-failure short soaks. The 104-entry package SHA-256 is `4DA15FA1799804FB61710FA285DD0E6818BE1B42CE26AFA25E1F777DF3334009`. Real-window launch is `DEFERRED`, AI acceptance is `NOT_RUN`, and human subjective experience is `NOT_CLAIMED` (2026-09-01). |
 | AL-A6 Architecture Lab documentation pipeline | `tools\validate_architecture_lab_documentation.ps1 -SelfTest`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-a6-documentation-pipeline-report-v1.md` | The focused gate passes seven manifest rows, one implemented Part, six non-empty Sections and four negative fixtures. The complete VS2017/v141 gate passes 853/853 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives and two zero-failure short soaks. The 104-entry package SHA-256 is `0E387185600E957F8BC6ED4B46333817B0C12F0725322F9F939337455C245990`. Real-window launch is `DEFERRED`, AI acceptance is `NOT_RUN`, and human subjective experience is `NOT_CLAIMED` (2026-09-01). |
+| B1 Chunk residency state machine | `tools\validate_chunk_residency_state_machine.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=B1`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-b1-chunk-residency-report-v1.md` | Seven Data, five Mesh and four Ogre Render states are separately owned and assertion-guarded. Focused runtime passes 38/38, including light-only invalidation, save-failure rollback, dirty eviction, stale upload, unload persistence and direct deterministic structure generation/reload. The complete VS2017/v141 gate passes 863/863 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives, two zero-failure short soaks and a 104-entry package with SHA-256 `F76F5A1429C869FDA94FDD37BF34F8266866B5F665D1E550CA04F15CCD7ECF88`. World public API, AL-A2 budgets, Gameplay and save v12 stay unchanged. Real-window launch is `DEFERRED`, AI acceptance remains `NOT_RUN` and human subjective experience remains `NOT_CLAIMED` (2026-09-01). |
 | AI-assisted gameplay baseline | `docs\current\ai-assisted-gameplay-acceptance-v1.md` | `AI-01..AI-08 result=NOT_RUN`; no OS-level Computer Use record has been produced in this documentation batch. |
 
 The current 2026-08-12 runs use an NVIDIA GTX 1050 Ti with OpenGL 4.6. The

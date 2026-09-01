@@ -2990,8 +2990,11 @@ void caseBackgroundLoaderStress()
 
         const WorldDebugStats stats = world.collectDebugStats();
         const std::size_t classifiedSections =
-            stats.chunks.meshDirtySections + stats.chunks.cpuReadySections +
-            stats.chunks.gpuBufferedSections;
+            stats.chunks.meshCleanSections +
+            stats.chunks.meshDirtySections +
+            stats.chunks.meshQueuedSections +
+            stats.chunks.meshBuildingSections +
+            stats.chunks.cpuReadySections;
         statsConsistent =
             statsConsistent &&
             stats.chunks.loadedChunks <= stats.chunks.existingChunks &&
@@ -3554,11 +3557,16 @@ void caseMeshDirtyPropagation()
 
     bool fifoState = true;
     for (std::size_t index = 0; index < queueTargets.size(); ++index) {
-        const bool shouldRemainDirty =
+        const bool shouldRemainPending =
             index >= World::ChunkMeshRebuildBudgetPerUpdate;
+        const ChunkMeshState state = queueTargets[index].section != nullptr
+            ? queueTargets[index].section->getMeshState()
+            : ChunkMeshState::Clean;
+        const bool remainsPending = state == ChunkMeshState::Dirty ||
+                                    state == ChunkMeshState::Queued ||
+                                    state == ChunkMeshState::Building;
         fifoState = fifoState && queueTargets[index].section != nullptr &&
-                    queueTargets[index].section->isMeshDirty() ==
-                        shouldRemainDirty;
+                    remainsPending == shouldRemainPending;
     }
     check("M2/fifo-order-preserved", fifoState);
 
@@ -3572,7 +3580,10 @@ void caseMeshDirtyPropagation()
     bool allTargetsReady = true;
     for (const auto &entry : queueTargets) {
         allTargetsReady = allTargetsReady && entry.section != nullptr &&
-                          !entry.section->isMeshDirty();
+                          (entry.section->getMeshState() ==
+                               ChunkMeshState::CpuReady ||
+                           entry.section->getMeshState() ==
+                               ChunkMeshState::Clean);
     }
     check("M2/queue-drains-across-frames",
           drainedStats.queuedChunkUpdates == 0 && allTargetsReady &&
@@ -5802,7 +5813,10 @@ void caseLocalRelightAfterEdits()
         check("L3/light-only-section-revision-advances",
               neighbourSection != nullptr &&
                   neighbourSection->getBlockRevision() != revisionBefore &&
-                  neighbourSection->isMeshDirty());
+                  (neighbourSection->getMeshState() ==
+                       ChunkMeshState::Dirty ||
+                   neighbourSection->getMeshState() ==
+                       ChunkMeshState::Queued));
 
         const WorldDebugStats relightStats = world.collectDebugStats();
         check("L3/local-relight-queues-bounded-sections",
@@ -5947,7 +5961,7 @@ void caseEnclosedSectionSkip()
         chunks.beginMeshJob(0, 0, 0, sectionY, skippedJob);
     check("M6/background-job-skipped",
           skipped.meshSkipped && !skipped.meshBuilt && !skippedJob.valid &&
-              section->getMeshState() == ChunkSectionMeshState::CpuReady);
+              section->getMeshState() == ChunkMeshState::CpuReady);
     const ChunkDebugStats afterSkip = chunks.collectDebugStats();
     check("M6/skipped-build-not-counted",
           afterSkip.meshRebuilds == beforeSkip.meshRebuilds &&
@@ -5984,7 +5998,7 @@ void caseEnclosedSectionSkip()
     const bool synchronousBuildRan = section->makeMesh();
     check("M6/synchronous-build-skipped",
           !synchronousBuildRan &&
-              section->getMeshState() == ChunkSectionMeshState::CpuReady &&
+              section->getMeshState() == ChunkMeshState::CpuReady &&
               section->getMeshes().solidMesh.faces == 0);
 }
 
@@ -6056,6 +6070,164 @@ void caseFrustumMeshPriority()
 }
 
 // ---------------------------------------------------------------------------
+// B1 - data, CPU mesh and Ogre render residency are orthogonal lifecycles
+// ---------------------------------------------------------------------------
+void caseChunkResidencyStateMachine()
+{
+    const std::array<ChunkDataResidencyState,
+                     ChunkDataResidencyStateCount> dataStates{{
+        ChunkDataResidencyState::Absent,
+        ChunkDataResidencyState::Requested,
+        ChunkDataResidencyState::Loading,
+        ChunkDataResidencyState::Generating,
+        ChunkDataResidencyState::Resident,
+        ChunkDataResidencyState::EvictRequested,
+        ChunkDataResidencyState::Saving,
+    }};
+    std::size_t dataEdges = 0;
+    for (const auto from : dataStates) {
+        for (const auto to : dataStates) {
+            dataEdges += canTransition(from, to) ? 1u : 0u;
+        }
+    }
+    check("B1/data-state-vocabulary-and-graph",
+          dataEdges == 12 &&
+              std::string(chunkDataResidencyStateName(
+                  ChunkDataResidencyState::EvictRequested)) ==
+                  "EvictRequested" &&
+              canTransition(ChunkDataResidencyState::Loading,
+                            ChunkDataResidencyState::Generating) &&
+              canTransition(ChunkDataResidencyState::Loading,
+                            ChunkDataResidencyState::Resident) &&
+              !canTransition(ChunkDataResidencyState::Absent,
+                             ChunkDataResidencyState::Resident),
+          "legal_edges=" + std::to_string(dataEdges));
+
+    const std::array<ChunkMeshState, ChunkMeshStateCount> meshStates{{
+        ChunkMeshState::Clean,
+        ChunkMeshState::Dirty,
+        ChunkMeshState::Queued,
+        ChunkMeshState::Building,
+        ChunkMeshState::CpuReady,
+    }};
+    std::size_t meshEdges = 0;
+    for (const auto from : meshStates) {
+        for (const auto to : meshStates) {
+            meshEdges += canTransition(from, to) ? 1u : 0u;
+        }
+    }
+    check("B1/mesh-state-vocabulary-and-graph",
+          meshEdges == 8 &&
+              std::string(chunkMeshStateName(ChunkMeshState::CpuReady)) ==
+                  "CpuReady" &&
+              canTransition(ChunkMeshState::Dirty,
+                            ChunkMeshState::Queued) &&
+              !canTransition(ChunkMeshState::Clean,
+                             ChunkMeshState::CpuReady),
+          "legal_edges=" + std::to_string(meshEdges));
+
+    const std::array<ChunkRenderState, ChunkRenderStateCount> renderStates{{
+        ChunkRenderState::NotResident,
+        ChunkRenderState::UploadPending,
+        ChunkRenderState::GpuResident,
+        ChunkRenderState::Stale,
+    }};
+    std::size_t renderEdges = 0;
+    for (const auto from : renderStates) {
+        for (const auto to : renderStates) {
+            renderEdges += canTransition(from, to) ? 1u : 0u;
+        }
+    }
+    check("B1/render-state-vocabulary-and-graph",
+          renderEdges == 8 &&
+              std::string(chunkRenderStateName(
+                  ChunkRenderState::UploadPending)) == "UploadPending" &&
+              canTransition(ChunkRenderState::GpuResident,
+                            ChunkRenderState::Stale) &&
+              !canTransition(ChunkRenderState::NotResident,
+                             ChunkRenderState::GpuResident),
+          "legal_edges=" + std::to_string(renderEdges));
+
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    const auto directory = freshSaveDirectory("b1_residency");
+    World world(camera, config, player, directory, false, 1);
+    auto &chunks = world.getChunkManager();
+    Chunk *chunk = chunks.findChunk(0, 0);
+    check("B1/generated-chunk-is-resident",
+          chunk != nullptr &&
+              chunk->getDataResidencyState() ==
+                  ChunkDataResidencyState::Resident);
+
+    const WorldDebugStats residentStats = world.collectDebugStats();
+    check("B1/data-states-are-separately-counted",
+          residentStats.chunks.dataResidentChunks ==
+                  residentStats.chunks.existingChunks &&
+              residentStats.chunks.dataAbsentChunks == 0 &&
+              residentStats.chunks.dataSavingChunks == 0,
+          "resident=" +
+              std::to_string(residentStats.chunks.dataResidentChunks) +
+              " existing=" +
+              std::to_string(residentStats.chunks.existingChunks));
+
+    constexpr int sectionY = 0;
+    ChunkSection *section =
+        chunk != nullptr ? chunk->findSection(sectionY) : nullptr;
+    check("B1/mesh-section-is-available", section != nullptr);
+    if (section != nullptr) {
+        section->markMeshDirty();
+        section->markMeshQueued();
+        section->beginMeshBuild();
+        ChunkMeshCollection empty;
+        section->adoptMesh(empty);
+        world.acknowledgeSectionMeshUploads(
+            {{section->getLocation(), section->getBlockRevision()}});
+        check("B1/mesh-dirty-to-clean-flow",
+              section->getMeshState() == ChunkMeshState::Clean);
+    }
+
+    constexpr int persistedY = 100;
+    world.setBlock(8, persistedY, 8, BlockId::CoalOre);
+    chunks.unloadChunk(0, 0);
+    check("B1/dirty-eviction-reaches-absent-after-save",
+          chunks.findChunk(0, 0) == nullptr);
+    chunks.loadChunk(0, 0);
+    chunk = chunks.findChunk(0, 0);
+    check("B1/reload-restores-resident-data",
+          chunk != nullptr &&
+              chunk->getDataResidencyState() ==
+                  ChunkDataResidencyState::Resident &&
+              !chunk->needsSave() &&
+              world.getBlock(8, persistedY, 8).id ==
+                  static_cast<Block_t>(BlockId::CoalOre));
+
+    const auto failureDirectory =
+        freshSaveDirectory("b1_failed_eviction");
+    {
+        std::ofstream blocker(
+            std::filesystem::path(failureDirectory) / "chunks",
+            std::ios::binary | std::ios::trunc);
+        blocker << "not-a-directory";
+    }
+    Player failurePlayer;
+    World failureWorld(camera, config, failurePlayer, failureDirectory,
+                       false, 1);
+    auto &failureChunks = failureWorld.getChunkManager();
+    failureWorld.setBlock(8, persistedY, 8, BlockId::IronOre);
+    failureChunks.unloadChunk(0, 0);
+    Chunk *retained = failureChunks.findChunk(0, 0);
+    check("B1/failed-save-cancels-eviction",
+          retained != nullptr && retained->needsSave() &&
+              retained->getDataResidencyState() ==
+                  ChunkDataResidencyState::Resident);
+}
+
+// ---------------------------------------------------------------------------
 // E5 - the renderer consumes versioned CPU mesh snapshots without sharing
 // mutable section pointers with the background loader
 // ---------------------------------------------------------------------------
@@ -6104,7 +6276,7 @@ void caseSectionMeshUploadSnapshot()
     section->makeMesh();
     world.acknowledgeSectionMeshUploads({staleVersion});
     check("E5/stale-upload-not-acknowledged",
-          section->getMeshState() == ChunkSectionMeshState::CpuReady,
+          section->getMeshState() == ChunkMeshState::CpuReady,
           "revision=" + std::to_string(section->getBlockRevision()));
 
     WorldMeshSnapshot refreshed = world.collectSectionMeshSnapshot();
@@ -6118,7 +6290,7 @@ void caseSectionMeshUploadSnapshot()
     world.acknowledgeSectionMeshUploads(
         {{current.location, current.blockRevision}});
     check("E5/current-upload-acknowledged",
-          section->getMeshState() == ChunkSectionMeshState::GpuBuffered,
+          section->getMeshState() == ChunkMeshState::Clean,
           "revision=" + std::to_string(current.blockRevision));
 }
 
@@ -14979,6 +15151,13 @@ int main()
             caseWorldSimulationRuntime();
             caseSimulationPhaseMetrics();
         }
+        else if (focus != nullptr && std::string(focus) == "B1") {
+            caseLocalRelightAfterEdits();
+            caseChunkResidencyStateMachine();
+            caseSectionMeshUploadSnapshot();
+            caseUnloadPersistence();
+            caseTerrainStructures();
+        }
         else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
@@ -15024,6 +15203,7 @@ int main()
         caseLocalRelightAfterEdits();
         caseEnclosedSectionSkip();
         caseFrustumMeshPriority();
+        caseChunkResidencyStateMachine();
         caseSectionMeshUploadSnapshot();
         caseUnloadPersistence();
         caseBlockEntityLifecycle();

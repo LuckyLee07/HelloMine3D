@@ -1,5 +1,7 @@
 #include "Chunk.h"
 
+#include <cstdio>
+
 #include "../../Core/Camera.h"
 #include "../../Maths/NoiseGenerator.h"
 #include "../../Util/Random.h"
@@ -10,6 +12,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <deque>
 #include <string>
 #include <utility>
@@ -271,13 +274,16 @@ bool Chunk::outOfBound(int x, int y, int z) const noexcept
 
 bool Chunk::hasLoaded() const noexcept
 {
-    return m_loadState == ChunkLoadState::Loaded;
+    return m_dataResidencyState == ChunkDataResidencyState::Resident ||
+           m_dataResidencyState ==
+               ChunkDataResidencyState::EvictRequested ||
+           m_dataResidencyState == ChunkDataResidencyState::Saving;
 }
 
 bool Chunk::hasGenerated() const noexcept
 {
-    return m_loadState == ChunkLoadState::Generating ||
-           m_loadState == ChunkLoadState::Loaded;
+    return m_dataResidencyState == ChunkDataResidencyState::Generating ||
+           hasLoaded();
 }
 
 bool Chunk::needsSave() const noexcept
@@ -285,9 +291,27 @@ bool Chunk::needsSave() const noexcept
     return m_saveDirty;
 }
 
-ChunkLoadState Chunk::getLoadState() const noexcept
+ChunkDataResidencyState Chunk::getDataResidencyState() const noexcept
 {
-    return m_loadState;
+    return m_dataResidencyState;
+}
+
+bool Chunk::transitionDataResidency(
+    ChunkDataResidencyState state) noexcept
+{
+    const bool legal = canTransition(m_dataResidencyState, state);
+    if (!legal) {
+        std::fprintf(stderr,
+                     "Illegal Chunk data-residency transition: %s -> %s\n",
+                     chunkDataResidencyStateName(m_dataResidencyState),
+                     chunkDataResidencyStateName(state));
+    }
+    assert(legal && "illegal Chunk data-residency transition");
+    if (!legal) {
+        return false;
+    }
+    m_dataResidencyState = state;
+    return true;
 }
 
 void Chunk::clearSaveDirty() noexcept
@@ -300,7 +324,7 @@ std::size_t Chunk::getSectionCount() const noexcept
     return m_chunks.size();
 }
 
-std::size_t Chunk::countSections(ChunkSectionMeshState state) const noexcept
+std::size_t Chunk::countSections(ChunkMeshState state) const noexcept
 {
     std::size_t count = 0;
     for (const auto &section : m_chunks) {
@@ -343,12 +367,10 @@ void Chunk::loadBlockData(std::size_t sectionCount,
     m_chunks.clear();
     m_blockEntities.clear();
     m_highestBlocks.setAll(0);
-    m_loadState = ChunkLoadState::Generating;
     m_saveDirty = false;
 
     const auto expectedBlockCount = sectionCount * CHUNK_VOLUME;
     if (blockIds.size() < expectedBlockCount) {
-        m_loadState = ChunkLoadState::Empty;
         return;
     }
 
@@ -373,7 +395,7 @@ void Chunk::loadBlockData(std::size_t sectionCount,
         }
     }
 
-    m_loadState = ChunkLoadState::Loaded;
+    transitionDataResidency(ChunkDataResidencyState::Resident);
     rebuildSunlight();
     rebuildBlockLight();
     m_saveDirty = false;
@@ -481,11 +503,24 @@ void Chunk::load(TerrainGenerator &generator)
     if (hasLoaded())
         return;
 
-    m_loadState = ChunkLoadState::Generating;
+    // ChunkManager normally performs these request/load transitions.  Keep
+    // Chunk::load usable by deterministic generation tools and fixtures too,
+    // without bypassing the frozen residency graph.
+    if (m_dataResidencyState == ChunkDataResidencyState::Absent) {
+        transitionDataResidency(ChunkDataResidencyState::Requested);
+    }
+    if (m_dataResidencyState == ChunkDataResidencyState::Requested) {
+        transitionDataResidency(ChunkDataResidencyState::Loading);
+    }
+    if (m_dataResidencyState != ChunkDataResidencyState::Loading) {
+        return;
+    }
+
+    transitionDataResidency(ChunkDataResidencyState::Generating);
     generator.generateTerrainFor(*this);
     rebuildSunlight();
     rebuildBlockLight();
-    m_loadState = ChunkLoadState::Loaded;
+    transitionDataResidency(ChunkDataResidencyState::Resident);
     m_saveDirty = false;
 }
 

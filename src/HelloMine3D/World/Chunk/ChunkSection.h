@@ -10,6 +10,7 @@
 #include "../Light/LightLevel.h"
 #include "../WorldConstants.h"
 #include "ChunkMesh.h"
+#include "ChunkLifecycle.h"
 #include "IChunk.h"
 
 #include "../../Physics/AABB.h"
@@ -17,12 +18,6 @@
 
 class World;
 class SectionMeshInput;
-
-enum class ChunkSectionMeshState {
-    Dirty,
-    CpuReady,
-    GpuBuffered,
-};
 
 class ChunkSection : public IChunk {
     friend class Chunk;
@@ -62,16 +57,18 @@ class ChunkSection : public IChunk {
     glm::ivec3 getLocation() const;
 
     bool hasMesh() const;
-    bool hasBuffered() const;
     bool isMeshDirty() const;
-    ChunkSectionMeshState getMeshState() const;
+    ChunkMeshState getMeshState() const;
+    bool transitionMeshState(ChunkMeshState state) noexcept;
     void markMeshDirty();
+    void markMeshQueued();
+    void beginMeshBuild();
     void invalidateMeshInput();
 
     /// Builds a mesh when the section has visible layers. Returns false when
     /// a fully enclosed section was completed without running the builder.
     bool makeMesh();
-    void markGpuBuffered();
+    void markMeshClean();
 
     /// Snapshot the data a mesh build reads. Must be called under the world
     /// lock; the returned input can then be built without it.
@@ -122,7 +119,7 @@ class ChunkSection : public IChunk {
 
     World *m_pWorld;
 
-    ChunkSectionMeshState m_meshState = ChunkSectionMeshState::Dirty;
+    ChunkMeshState m_meshState = ChunkMeshState::Dirty;
     std::uint32_t m_blockRevision = 0;
 };
 

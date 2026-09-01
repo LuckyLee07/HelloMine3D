@@ -100,8 +100,10 @@ try {
         throw "Snapshot -> off-lock build -> revision commit order drifted."
     }
 
-    Reject-Text ($runtimeHeader + $runtimeSource) "ChunkResidency" `
-        "B1 residency state in AL-A2"
+    Reject-Text ($worldHeader + $worldSource) "m_dataResidencyState" `
+        "Chunk data-residency ownership leaked into World"
+    Reject-Text ($worldHeader + $worldSource) "m_meshState" `
+        "Chunk mesh-state ownership leaked into World"
 
     Write-Host (
         "[CHUNK_RUNTIME_BOUNDARY] status=PASS " +

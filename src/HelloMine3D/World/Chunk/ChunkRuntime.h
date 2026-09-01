@@ -29,6 +29,7 @@ struct WorldSectionMeshSnapshot : WorldSectionMeshVersion {
 
 struct WorldMeshSnapshot {
     std::vector<glm::ivec3> liveSections;
+    std::vector<WorldSectionMeshVersion> liveSectionVersions;
     std::vector<WorldSectionMeshSnapshot> cpuReadySections;
 };
 

@@ -49,6 +49,8 @@ $simulationMetricsBoundaryVerifier = Join-Path $repoRoot `
     "tools\validate_simulation_metrics_boundary.ps1"
 $architectureLabDocumentationVerifier = Join-Path $repoRoot `
     "tools\validate_architecture_lab_documentation.ps1"
+$chunkResidencyStateMachineVerifier = Join-Path $repoRoot `
+    "tools\validate_chunk_residency_state_machine.ps1"
 
 function Invoke-Checked {
     param(
@@ -181,6 +183,10 @@ try {
 
     Invoke-Checked "AL-A6 Architecture Lab documentation pipeline" {
         & $architectureLabDocumentationVerifier -Root $repoRoot -SelfTest
+    }
+
+    Invoke-Checked "B1 Chunk residency state machine" {
+        & $chunkResidencyStateMachineVerifier -Root $repoRoot
     }
 
     Invoke-Checked "Resource manifest" {

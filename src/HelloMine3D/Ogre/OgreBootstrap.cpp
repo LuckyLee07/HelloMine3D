@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -1554,12 +1555,20 @@ namespace
 
                     if (uploadToOgre)
                     {
-                        section->markGpuBuffered();
+                        section->markMeshClean();
+                        const std::string key =
+                            sectionKey(sectionLocation);
                         if (visual.node != nullptr)
                         {
                             m_sectionVisuals.emplace(
-                                sectionKey(sectionLocation),
-                                std::move(visual));
+                                key, std::move(visual));
+                            m_sectionRenderStates[key] =
+                                ChunkRenderState::GpuResident;
+                        }
+                        else
+                        {
+                            m_sectionRenderStates[key] =
+                                ChunkRenderState::NotResident;
                         }
                     }
                 }
@@ -1639,6 +1648,7 @@ namespace
                 destroySectionVisual(entry.second);
             }
             m_sectionVisuals.clear();
+            m_sectionRenderStates.clear();
             destroyDirectionalShadowResources();
             m_actorRenderer.reset();
             if (m_sceneManager != nullptr)
@@ -2187,11 +2197,14 @@ namespace
             liveSections.reserve(snapshot.liveSections.size());
             for (const glm::ivec3& location : snapshot.liveSections)
             {
-                liveSections.insert(sectionKey(location));
+                const std::string key = sectionKey(location);
+                liveSections.insert(key);
+                m_sectionRenderStates.emplace(
+                    key, ChunkRenderState::NotResident);
             }
 
-            for (auto it = m_sectionVisuals.begin();
-                 it != m_sectionVisuals.end();)
+            for (auto it = m_sectionRenderStates.begin();
+                 it != m_sectionRenderStates.end();)
             {
                 if (liveSections.find(it->first) != liveSections.end())
                 {
@@ -2199,8 +2212,18 @@ namespace
                     continue;
                 }
 
-                destroySectionVisual(it->second);
-                it = m_sectionVisuals.erase(it);
+                const auto visual = m_sectionVisuals.find(it->first);
+                if (visual != m_sectionVisuals.end())
+                {
+                    destroySectionVisual(visual->second);
+                    m_sectionVisuals.erase(visual);
+                }
+                if (it->second != ChunkRenderState::NotResident)
+                {
+                    transitionRenderState(it->first,
+                                          ChunkRenderState::NotResident);
+                }
+                it = m_sectionRenderStates.erase(it);
             }
 
             std::vector<WorldSectionMeshVersion> uploaded;
@@ -2208,6 +2231,24 @@ namespace
             for (const WorldSectionMeshSnapshot& section :
                  snapshot.cpuReadySections)
             {
+                const std::string key = sectionKey(section.location);
+                ChunkRenderState state = m_sectionRenderStates[key];
+                if (state == ChunkRenderState::GpuResident)
+                {
+                    transitionRenderState(key, ChunkRenderState::Stale);
+                    state = ChunkRenderState::Stale;
+                }
+                else if (state == ChunkRenderState::UploadPending)
+                {
+                    transitionRenderState(key, ChunkRenderState::Stale);
+                    state = ChunkRenderState::Stale;
+                }
+                if (state == ChunkRenderState::NotResident ||
+                    state == ChunkRenderState::Stale)
+                {
+                    transitionRenderState(
+                        key, ChunkRenderState::UploadPending);
+                }
                 uploadSectionVisual(section);
                 if (m_fastStreamingPending &&
                     section.location.x == m_fastStreamingTarget.x &&
@@ -2228,6 +2269,47 @@ namespace
                     {section.location, section.blockRevision});
             }
             m_world->acknowledgeSectionMeshUploads(uploaded);
+            const WorldMeshSnapshot acknowledged =
+                m_world->collectSectionMeshSnapshot();
+            std::unordered_map<std::string, std::uint32_t>
+                currentRevisions;
+            currentRevisions.reserve(
+                acknowledged.liveSectionVersions.size());
+            for (const WorldSectionMeshVersion& version :
+                 acknowledged.liveSectionVersions)
+            {
+                currentRevisions.emplace(
+                    sectionKey(version.location), version.blockRevision);
+            }
+            std::unordered_set<std::string> stillCpuReady;
+            stillCpuReady.reserve(
+                acknowledged.cpuReadySections.size());
+            for (const WorldSectionMeshSnapshot& section :
+                 acknowledged.cpuReadySections)
+            {
+                stillCpuReady.insert(sectionKey(section.location));
+            }
+            for (const WorldSectionMeshVersion& version : uploaded)
+            {
+                const std::string key = sectionKey(version.location);
+                const bool acceptedCurrent =
+                    currentRevisions.find(key) !=
+                        currentRevisions.end() &&
+                    currentRevisions[key] == version.blockRevision &&
+                    stillCpuReady.find(key) == stillCpuReady.end();
+                const bool hasVisual =
+                    m_sectionVisuals.find(key) != m_sectionVisuals.end();
+                if (!acceptedCurrent && hasVisual)
+                {
+                    auto visual = m_sectionVisuals.find(key);
+                    destroySectionVisual(visual->second);
+                    m_sectionVisuals.erase(visual);
+                }
+                transitionRenderState(
+                    key, acceptedCurrent && hasVisual
+                             ? ChunkRenderState::GpuResident
+                             : ChunkRenderState::NotResident);
+            }
         }
 
         void syncActorVisuals()
@@ -2426,7 +2508,7 @@ namespace
             m_fastStreamingPending = true;
         }
 
-        void uploadSectionVisual(
+        bool uploadSectionVisual(
             const WorldSectionMeshSnapshot& section)
         {
             const std::string key = sectionKey(section.location);
@@ -2505,7 +2587,28 @@ namespace
             if (visual.node != nullptr)
             {
                 m_sectionVisuals.emplace(key, std::move(visual));
+                return true;
             }
+            return false;
+        }
+
+        bool transitionRenderState(const std::string& key,
+                                   ChunkRenderState state)
+        {
+            const auto found = m_sectionRenderStates.find(key);
+            if (found == m_sectionRenderStates.end())
+            {
+                assert(false && "missing Ogre render-state owner");
+                return false;
+            }
+            const bool legal = canTransition(found->second, state);
+            assert(legal && "illegal Ogre render-state transition");
+            if (!legal)
+            {
+                return false;
+            }
+            found->second = state;
+            return true;
         }
 
         void destroySectionVisual(SectionVisual& visual)
@@ -2556,8 +2659,25 @@ namespace
             if (m_world != nullptr)
             {
                 stats = m_world->collectDebugStats();
-                stats.chunks.gpuBufferedSections =
-                    m_sectionVisuals.size();
+                for (const auto& state : m_sectionRenderStates)
+                {
+                    switch (state.second)
+                    {
+                    case ChunkRenderState::NotResident:
+                        ++stats.chunks.renderNotResidentSections;
+                        break;
+                    case ChunkRenderState::UploadPending:
+                        ++stats.chunks.renderUploadPendingSections;
+                        break;
+                    case ChunkRenderState::GpuResident:
+                        ++stats.chunks.gpuResidentSections;
+                        ++stats.chunks.gpuBufferedSections;
+                        break;
+                    case ChunkRenderState::Stale:
+                        ++stats.chunks.renderStaleSections;
+                        break;
+                    }
+                }
                 for (const auto& visualEntry : m_sectionVisuals)
                 {
                     for (const auto& renderable :
@@ -3767,6 +3887,7 @@ namespace
                 destroySectionVisual(entry.second);
             }
             m_sectionVisuals.clear();
+            m_sectionRenderStates.clear();
             destroyDirectionalShadowResources();
             if (m_audio != nullptr)
             {
@@ -3818,6 +3939,8 @@ namespace
         std::unique_ptr<SandboxRuntime> m_sandbox;
         World* m_world = nullptr;
         std::unordered_map<std::string, SectionVisual> m_sectionVisuals;
+        std::unordered_map<std::string, ChunkRenderState>
+            m_sectionRenderStates;
         bool m_listenersInstalled = false;
         bool m_shutdownRequested = false;
         bool m_runtimeStarted = false;

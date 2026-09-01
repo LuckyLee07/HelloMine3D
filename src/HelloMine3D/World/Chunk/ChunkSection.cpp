@@ -9,6 +9,7 @@
 #include "SectionMeshInput.h"
 
 #include <algorithm>
+#include <cassert>
 #include <fstream>
 #include <iostream>
 #include <thread>
@@ -140,31 +141,52 @@ glm::ivec3 ChunkSection::getLocation() const
 
 bool ChunkSection::hasMesh() const
 {
-    return m_meshState != ChunkSectionMeshState::Dirty;
-}
-
-bool ChunkSection::hasBuffered() const
-{
-    return m_meshState == ChunkSectionMeshState::GpuBuffered;
+    return m_meshState == ChunkMeshState::CpuReady ||
+           m_meshState == ChunkMeshState::Clean;
 }
 
 bool ChunkSection::isMeshDirty() const
 {
-    return m_meshState == ChunkSectionMeshState::Dirty;
+    return m_meshState == ChunkMeshState::Dirty;
 }
 
-ChunkSectionMeshState ChunkSection::getMeshState() const
+ChunkMeshState ChunkSection::getMeshState() const
 {
     return m_meshState;
 }
 
+bool ChunkSection::transitionMeshState(ChunkMeshState state) noexcept
+{
+    const bool legal = canTransition(m_meshState, state);
+    assert(legal && "illegal ChunkSection mesh transition");
+    if (!legal) {
+        return false;
+    }
+    m_meshState = state;
+    return true;
+}
+
 void ChunkSection::markMeshDirty()
 {
-    if (m_meshState != ChunkSectionMeshState::Dirty) {
-        deleteMeshes();
+    if (m_meshState == ChunkMeshState::Dirty) {
+        return;
     }
 
-    m_meshState = ChunkSectionMeshState::Dirty;
+    m_meshes.solidMesh.clearClientData();
+    m_meshes.transparentMesh.clearClientData();
+    m_meshes.waterMesh.clearClientData();
+    m_meshes.floraMesh.clearClientData();
+    transitionMeshState(ChunkMeshState::Dirty);
+}
+
+void ChunkSection::markMeshQueued()
+{
+    transitionMeshState(ChunkMeshState::Queued);
+}
+
+void ChunkSection::beginMeshBuild()
+{
+    transitionMeshState(ChunkMeshState::Building);
 }
 
 void ChunkSection::invalidateMeshInput()
@@ -184,6 +206,15 @@ bool ChunkSection::makeMesh()
     // Synchronous path, used by main-thread block edits. It still holds the
     // world lock for the whole build, which is fine for the handful of
     // sections a single edit touches. Streaming uses the split path below.
+    if (m_meshState == ChunkMeshState::CpuReady ||
+        m_meshState == ChunkMeshState::Clean) {
+        return false;
+    }
+    if (m_meshState == ChunkMeshState::Dirty) {
+        markMeshQueued();
+    }
+    beginMeshBuild();
+
     SectionMeshInput input;
     captureMeshInput(input);
 
@@ -195,7 +226,7 @@ bool ChunkSection::makeMesh()
     if (built) {
         ChunkMeshBuilder(input, m_meshes).buildMesh();
     }
-    m_meshState = ChunkSectionMeshState::CpuReady;
+    transitionMeshState(ChunkMeshState::CpuReady);
     return built;
 }
 
@@ -213,7 +244,7 @@ void ChunkSection::adoptMesh(ChunkMeshCollection &built)
     m_meshes.waterMesh.clearClientData();
     m_meshes.floraMesh.clearClientData();
     m_meshes.adoptClientData(built);
-    m_meshState = ChunkSectionMeshState::CpuReady;
+    transitionMeshState(ChunkMeshState::CpuReady);
 }
 
 std::uint32_t ChunkSection::getBlockRevision() const
@@ -245,13 +276,9 @@ bool ChunkSection::selectRandomTickBlock(std::size_t selection,
     return true;
 }
 
-void ChunkSection::markGpuBuffered()
+void ChunkSection::markMeshClean()
 {
-    if (!hasMesh()) {
-        return;
-    }
-
-    m_meshState = ChunkSectionMeshState::GpuBuffered;
+    transitionMeshState(ChunkMeshState::Clean);
 }
 
 const ChunkSection::Layer &ChunkSection::getLayer(int y) const
@@ -275,14 +302,7 @@ const ChunkSection::Layer &ChunkSection::getLayer(int y) const
 
 void ChunkSection::deleteMeshes()
 {
-    if (m_meshState != ChunkSectionMeshState::Dirty) {
-        m_meshes.solidMesh.clearClientData();
-        m_meshes.transparentMesh.clearClientData();
-        m_meshes.waterMesh.clearClientData();
-        m_meshes.floraMesh.clearClientData();
-    }
-
-    m_meshState = ChunkSectionMeshState::Dirty;
+    markMeshDirty();
 }
 
 ChunkSection &ChunkSection::getAdjacent(int dx, int dz)

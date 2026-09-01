@@ -122,6 +122,8 @@ ChunkMeshWorkResult ChunkManager::beginMeshJob(int x, int z, int maxChunkLoads,
         return result;
     }
 
+    section->markMeshQueued();
+    section->beginMeshBuild();
     job.chunkPosition = {x, z};
     job.sectionIndex = sectionIndex;
     job.blockRevision = section->getBlockRevision();
@@ -161,7 +163,7 @@ bool ChunkManager::finishMeshJob(const ChunkMeshJob &job,
     }
 
     if (section->getBlockRevision() != job.blockRevision ||
-        !section->isMeshDirty()) {
+        section->getMeshState() != ChunkMeshState::Building) {
         // A block edit or a synchronous rebuild landed while we were building,
         // so this result is stale. The section stays dirty and gets picked up
         // again on a later pass.
@@ -201,13 +203,41 @@ ChunkDebugStats ChunkManager::collectDebugStats() const
             ++stats.saveDirtyChunks;
         }
 
+        switch (chunk.getDataResidencyState()) {
+        case ChunkDataResidencyState::Absent:
+            ++stats.dataAbsentChunks;
+            break;
+        case ChunkDataResidencyState::Requested:
+            ++stats.dataRequestedChunks;
+            break;
+        case ChunkDataResidencyState::Loading:
+            ++stats.dataLoadingChunks;
+            break;
+        case ChunkDataResidencyState::Generating:
+            ++stats.dataGeneratingChunks;
+            break;
+        case ChunkDataResidencyState::Resident:
+            ++stats.dataResidentChunks;
+            break;
+        case ChunkDataResidencyState::EvictRequested:
+            ++stats.dataEvictRequestedChunks;
+            break;
+        case ChunkDataResidencyState::Saving:
+            ++stats.dataSavingChunks;
+            break;
+        }
+
         stats.sections += chunk.getSectionCount();
+        stats.meshCleanSections +=
+            chunk.countSections(ChunkMeshState::Clean);
         stats.meshDirtySections +=
-            chunk.countSections(ChunkSectionMeshState::Dirty);
+            chunk.countSections(ChunkMeshState::Dirty);
+        stats.meshQueuedSections +=
+            chunk.countSections(ChunkMeshState::Queued);
+        stats.meshBuildingSections +=
+            chunk.countSections(ChunkMeshState::Building);
         stats.cpuReadySections +=
-            chunk.countSections(ChunkSectionMeshState::CpuReady);
-        stats.gpuBufferedSections +=
-            chunk.countSections(ChunkSectionMeshState::GpuBuffered);
+            chunk.countSections(ChunkMeshState::CpuReady);
     }
     stats.saveTransactions = m_saveTransactionCount;
     stats.saveTotalMs = m_saveTotalMs;
@@ -255,6 +285,20 @@ void ChunkManager::loadChunk(int x, int z)
 {
     Chunk &chunk = getOrCreateChunk(x, z);
     if (chunk.hasLoaded()) {
+        return;
+    }
+
+    if (chunk.getDataResidencyState() ==
+        ChunkDataResidencyState::Absent) {
+        chunk.transitionDataResidency(
+            ChunkDataResidencyState::Requested);
+    }
+    if (chunk.getDataResidencyState() ==
+        ChunkDataResidencyState::Requested) {
+        chunk.transitionDataResidency(ChunkDataResidencyState::Loading);
+    }
+    if (chunk.getDataResidencyState() !=
+        ChunkDataResidencyState::Loading) {
         return;
     }
 
@@ -321,13 +365,22 @@ void ChunkManager::unloadChunk(int x, int z)
         return;
     }
 
+    if (chunk->getDataResidencyState() !=
+        ChunkDataResidencyState::Resident) {
+        return;
+    }
+    chunk->transitionDataResidency(
+        ChunkDataResidencyState::EvictRequested);
+
     const int height =
         static_cast<int>(chunk->getSectionCount()) * CHUNK_SIZE;
     if (!saveChunk(*chunk)) {
+        chunk->transitionDataResidency(ChunkDataResidencyState::Resident);
         return;
     }
     m_world->despawnNaturalMobsInChunk(x, z);
     m_world->removeRandomTickSectionsForChunk(x, z);
+    chunk->transitionDataResidency(ChunkDataResidencyState::Absent);
     m_chunks.erase({x, z});
     m_world->reconcileBlockLightAfterChunkUnload(x, z, height);
     m_world->getEventBus().publish(ChunkUnloadedEvent({x, z}));
@@ -339,6 +392,14 @@ bool ChunkManager::saveChunk(Chunk &chunk)
         return true;
     }
 
+    const ChunkDataResidencyState returnState =
+        chunk.getDataResidencyState();
+    if (returnState != ChunkDataResidencyState::Resident &&
+        returnState != ChunkDataResidencyState::EvictRequested) {
+        return false;
+    }
+    chunk.transitionDataResidency(ChunkDataResidencyState::Saving);
+
     StorageTransactionMetrics metrics;
     if (!m_chunkStorage.saveChunk(chunk, &metrics)) {
         runtimeOperationTimings().addStorageTransactionToLatest(
@@ -349,6 +410,7 @@ bool ChunkManager::saveChunk(Chunk &chunk)
             metrics.validationCompleteMilliseconds,
             metrics.replaceCompleteMilliseconds,
             metrics.totalMilliseconds, metrics.bytesWritten, true);
+        chunk.transitionDataResidency(returnState);
         return false;
     }
 
@@ -365,6 +427,7 @@ bool ChunkManager::saveChunk(Chunk &chunk)
     m_saveTotalMs += elapsed;
     m_saveMaxMs = std::max(m_saveMaxMs, elapsed);
     chunk.clearSaveDirty();
+    chunk.transitionDataResidency(returnState);
     const auto &location = chunk.getLocation();
     m_world->getEventBus().publish(
         ChunkSavedEvent({location.x, location.y}));

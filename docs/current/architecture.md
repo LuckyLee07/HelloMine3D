@@ -1,7 +1,7 @@
 # HelloMine3D Current Architecture Baseline
 
 本文以 `AL-A0 — Latest Architecture Baseline` 的完整审计为起点，并随已完成的
-AL-A1/AL-A2/AL-A3/AL-A4/AL-A5/AL-A6 更新当前实现；它描述代码事实，而不是未来目标架构。
+AL-A1/AL-A2/AL-A3/AL-A4/AL-A5/AL-A6/B1 更新当前实现；它描述代码事实，而不是未来目标架构。
 审计起点为 Git commit `4930023fb2f3022daac9968c10a1a0b76e1ac392`；冻结的
 PLAYABILITY-RC 运行时代码身份仍是
 `320e293c2f1db7f46aba776ddccdcf94369f2d05`。A0 只更新文档，没有移动源码、改变 Gameplay、
@@ -89,8 +89,8 @@ Core / Entity / Physics / Maths / Util
 - Sandbox 定义事件协议，但每个 `World` 实例实际拥有自己的 `SandboxEventBus`。
 - Event handler 当前同步执行；AL-A4 已把请求 mutation 的 typed Command、已发生的 immutable Event
   与不提交 Gameplay 的 Query 分开。订阅者不得假设异步或跨线程投递。
-- `World` 仍是宽 facade/组合根，但 AL-A2 已把现有 Chunk 派生工作与 loader 协调移入
-  `ChunkRuntime`；这不是 B1 Residency 状态机。
+- `World` 仍是宽 facade/组合根；AL-A2 把现有 Chunk 派生工作与 loader 协调移入
+  `ChunkRuntime`，B1 又在不改变该边界的前提下加入三套正交生命周期。
 - AL-A3 已把 `World::tick` 的现有调用顺序集中到具体 `WorldSimulation`；AL-A5 在同一 last-tick
   snapshot 上增加四条真实 processed/deferred/budget 观察。两者都不拥有玩法状态，也不是通用 scheduler。
 
@@ -248,7 +248,7 @@ World (public facade / composition root)
 - 每次 `World::update` 最多 2 个 section 的同步 mesh rebuild；
 - 单个 loader worker、完整 mesh target 规划、load center/frustum priority revision；
 - 现有 preload、render-distance invalidation、每帧最多 8 个 distant unload 的协调；
-- CPU-ready mesh copied snapshot 与同 revision GPU acknowledgement。
+- CPU-ready mesh copied snapshot、所有 live section revision 与同 revision GPU acknowledgement。
 
 这些对象是派生数据或工作协调，不拥有 block/light/save truth。`World` 的 78 项公开面保持 AL-A1
 hash 不变；`World::planChunkMeshWork` 也只转发到纯 `ChunkRuntime::planMeshWork`。
@@ -265,8 +265,18 @@ hash 不变；`World::planChunkMeshWork` 也只转发到纯 `ChunkRuntime::planM
 - 在 `finishMeshJob` 用 section block revision 拒绝 stale CPU mesh；
 - 汇总 Chunk、保存事务、mesh build、face/vertex 等 debug metrics。
 
-当前 Chunk 的 data residency、mesh state 和 Ogre render residency 尚未被 B1 拆成三套正式状态机。
-`ChunkSectionMeshState` 与 `hasLoaded/needsSave` 是现有局部状态，不能在 A0 报告成 B1 已实现。
+B1 在 `ChunkLifecycle.*` 冻结三套独立词汇和合法转换：
+
+- `Chunk` 拥有 Data Residency：`Absent -> Requested -> Loading ->
+  Generating/Resident`，以及 `Resident/EvictRequested/Saving` 的保存与驱逐闭环；
+- `ChunkSection` 拥有 CPU Mesh：`Clean/Dirty/Queued/Building/CpuReady`；编辑可把
+  任一有效派生状态重新置为 `Dirty`，stale off-lock result 不能离开 `Dirty`；
+- Ogre 以 section key 拥有 Render Residency：`NotResident/UploadPending/GpuResident/Stale`，
+  World 只发布 copied snapshot 和 revision acknowledgement，不拥有 GPU 状态。
+
+`ChunkManager` 在 load/generate/save/unload 真实调用周围推进 Data 状态；dirty eviction 的保存失败
+返回 `Resident` 且保留 dirty。`ChunkRuntime` 复用 AL-A2 的单 worker/FIFO，不创建第二套队列。
+开发者面板分别显示 7/5/4 状态计数；`Absent` 只统计仍被 manager 持有的显式对象，不虚构无限坐标。
 
 ## 7. Thread Ownership
 
@@ -376,11 +386,15 @@ Authoritative World state
   -> ChunkRuntime worker builds CPU mesh from SectionMeshInput snapshot
   -> ChunkSection CpuReady + blockRevision
   -> World::collectSectionMeshSnapshot()
-       -> ChunkRuntime copies under the shared World mutex
+       -> ChunkRuntime copies live revisions and CpuReady meshes under the shared World mutex
   -> OgreBootstrap::syncSectionMeshes()
-  -> ChunkSectionRenderable GPU buffers
+       -> NotResident/Stale -> UploadPending
+       -> ChunkSectionRenderable GPU buffers
   -> acknowledgeSectionMeshUploads(location, revision)
-  -> markGpuBuffered only when section is still CpuReady at same revision
+       -> ChunkSection CpuReady -> Clean only when revision is current
+  -> collect current live revisions/CpuReady snapshot
+       -> accepted visual becomes GpuResident
+       -> stale/unloaded visual is destroyed and becomes NotResident
 
 ActorManager / World projectile state
   -> collectActorSnapshots() / collectCombatProjectileSnapshots()
@@ -391,8 +405,8 @@ WorldDebugStats + Gameplay/Feedback snapshots
   -> OgreUserInterface / RuntimePerformanceCapture
 ```
 
-Snapshots are copied values and Ogre owns only their visual mirrors. A removed live section destroys its Ogre visual；
-stale CPU upload acknowledgement cannot promote a newer revision。Renderer reset/rebuild therefore does not mutate
+Snapshots are copied values and Ogre owns only their visual mirrors and Render state. A removed live section destroys its Ogre visual；
+stale CPU upload acknowledgement cannot promote a newer revision，且上传后会在进入下一帧前被销毁。Renderer reset/rebuild therefore does not mutate
 block、Actor、inventory、objective or persistence truth。
 
 ## 12. Frozen Version and Boundary Facts
@@ -428,13 +442,14 @@ Design Evolution、Implementation、Validation 和 Trade-offs 七个非空逻辑
 Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先于编译执行。该验证保护文档身份，
 不证明文字质量，也不把 roadmap proposal 提升成实现事实。
 
-## 14. Current Conclusions Through AL-A6
+## 14. Current Conclusions Through B1
 
 - 当前可玩的系统已经有清晰的 Renderer-to-Snapshot 边界和可验证持久化边界。
 - `World` 仍承担 facade、组合根和多套 Simulation 玩法状态；AL-A2/AL-A3/AL-A4/AL-A5 只关闭了四条由真实工作
   验证的内部边界，没有试图一次性拆完 God Object。
-- Chunk pipeline 的 snapshot/off-lock/revision-commit、FIFO、预算和 unload/save 语义现在集中在
-  `ChunkRuntime` / `ChunkManager` 边界；没有通用取消、背压或三态 Residency 合同。
+- Chunk pipeline 的 snapshot/off-lock/revision-commit、FIFO、预算和 unload/save 语义集中在
+  `ChunkRuntime` / `ChunkManager` 边界；B1 已加入 Data/Mesh/Render 三套正交状态机，但没有
+  通用 Demand、Job Scheduler、取消、背压或 Spatial Interest。
 - fixed-tick 的 8 phase 顺序、context、last-tick 原始耗时及四条真实 work metrics 现在集中在
   `WorldSimulation`；玩法状态与旧实现仍由 World/Actor/Gameplay 所有，没有 `SimulationScheduler`、
   系统 Registry、时间预算或执行优先级。
@@ -442,4 +457,4 @@ Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先
   生产订阅者 effect/republish、8 层递归上限、per-publication membership 与 Diagnostic 隔离均已冻结。
 - Architecture Lab 教程现在按 Track/真实 Section 维护，并由 manifest、冻结证据和完整门禁阻止空 Part、
   丢失批次或未实现能力提前进入教程。
-- B1 和 D1 仍必须按任务账本范围实施；A6 完成不构成 B7-B9、Track C/D 或 Extended 的自动启动权限。
+- B2 和 D1 仍必须按任务账本范围实施；B1 完成不构成 B7-B9、Track C/D 或 Extended 的自动启动权限。

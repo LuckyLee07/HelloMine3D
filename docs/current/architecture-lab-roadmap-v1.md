@@ -862,6 +862,25 @@ LoadedMeshDirtyCpuReadyGpuBufferedSaving...
 
 **Chapter 07：Chunk State Machine**
 
+### 当前实现记录（2026-09-01）
+
+`B1` 已按 `docs/contracts/chunk-residency-state-machine-contract-v1.md`
+关闭。当前实现把 Data Residency 的 7 个状态交给 `Chunk`，CPU Mesh 的
+5 个状态交给 `ChunkSection`，Render Residency 的 4 个状态交给 Ogre；
+三套 `canTransition` 和 mutation assertion 阻止非法边，开发者面板分别显示
+三族计数。dirty eviction 先保存，失败会恢复 `Resident` 并保留 dirty；
+off-lock mesh 和 Ogre upload 都必须通过 revision/current snapshot 才能提交。
+
+定向 `HELLOMINE3D_WORLD_SMOKE_FOCUS=B1` 为 `38/38`，同时覆盖光照失效、
+直接确定性生成与结构重载兼容路径；静态门禁
+`tools/validate_chunk_residency_state_machine.ps1` 已接入完整构建。既有
+6 ms/64 target、单 loader、每帧 2 section、每帧 8 unload 预算、78 项
+World 公开面、Gameplay 和 save v12 均未改变。完整 VS2017/v141 门禁为
+Debug/Release `863/863` WorldRuntime、104 项干净包，包 SHA-256 为
+`F76F5A1429C869FDA94FDD37BF34F8266866B5F665D1E550CA04F15CCD7ECF88`。
+完成 B1 不构成 B2 以后
+任一能力的自动批准；本 Goal 对 B2 的批准仍须在 B1 独立提交后才生效。
+
 ---
 
 ## B2 — Streaming Demand Model

@@ -265,8 +265,10 @@ WorldMeshSnapshot ChunkRuntime::collectSectionMeshSnapshot()
             }
 
             snapshot.liveSections.push_back(section->getLocation());
+            snapshot.liveSectionVersions.push_back(
+                {section->getLocation(), section->getBlockRevision()});
             if (section->getMeshState() !=
-                ChunkSectionMeshState::CpuReady) {
+                ChunkMeshState::CpuReady) {
                 continue;
             }
 
@@ -293,9 +295,9 @@ void ChunkRuntime::acknowledgeSectionMeshUploads(
 
         ChunkSection *section = chunk->findSection(version.location.y);
         if (section != nullptr &&
-            section->getMeshState() == ChunkSectionMeshState::CpuReady &&
+            section->getMeshState() == ChunkMeshState::CpuReady &&
             section->getBlockRevision() == version.blockRevision) {
-            section->markGpuBuffered();
+            section->markMeshClean();
         }
     }
 }
@@ -322,6 +324,7 @@ void ChunkRuntime::queueSectionUpdateLocked(const glm::ivec3 &key)
 
     section->invalidateMeshInput();
     if (m_queuedChunkUpdates.emplace(key).second) {
+        section->markMeshQueued();
         m_chunkUpdateQueue.push_back(key);
     }
 }
@@ -358,7 +361,12 @@ void ChunkRuntime::processChunkUpdates(std::size_t budget)
             chunk != nullptr && chunk->hasLoaded()
                 ? chunk->findSection(key.y)
                 : nullptr;
-        if (section != nullptr && section->isMeshDirty()) {
+        if (section != nullptr &&
+            (section->isMeshDirty() ||
+             section->getMeshState() == ChunkMeshState::Queued)) {
+            if (section->isMeshDirty()) {
+                section->markMeshQueued();
+            }
             const auto buildStart = std::chrono::steady_clock::now();
             const bool meshBuilt = section->makeMesh();
             const double buildMilliseconds =
