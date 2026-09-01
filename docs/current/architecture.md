@@ -1,6 +1,7 @@
 # HelloMine3D Current Architecture Baseline
 
-本文冻结 `AL-A0 — Latest Architecture Baseline` 审计到的当前实现，而不是描述未来目标架构。
+本文以 `AL-A0 — Latest Architecture Baseline` 的完整审计为起点，并随已完成的 AL-A1/AL-A2
+更新当前实现；它描述代码事实，而不是未来目标架构。
 审计起点为 Git commit `4930023fb2f3022daac9968c10a1a0b76e1ac392`；冻结的
 PLAYABILITY-RC 运行时代码身份仍是
 `320e293c2f1db7f46aba776ddccdcf94369f2d05`。A0 只更新文档，没有移动源码、改变 Gameplay、
@@ -67,7 +68,8 @@ SandboxRuntime
   -> ActionFeedbackTimeline
 
 World (composition root)
-  -> ChunkManager + ActorManager + PlayerActor + Gameplay runtimes
+  -> ChunkRuntime -> ChunkManager
+  -> ActorManager + PlayerActor + Gameplay runtimes
   -> SandboxEventBus + WorldSave + WorldBackup
 
 World <-> Actor
@@ -86,7 +88,8 @@ Core / Entity / Physics / Maths / Util
 - Sandbox 定义事件协议，但每个 `World` 实例实际拥有自己的 `SandboxEventBus`。
 - Event handler 当前同步执行；事件是“已发生事实”，但代码尚未形成 A4 的 Command/Query/Event
   强制分层。订阅者不得假设异步或跨线程投递。
-- `World` 仍是 God Object/Facade 混合体。AL-A1 可以基于本基线分类责任，但 A0 不新增 wrapper。
+- `World` 仍是宽 facade/组合根，但 AL-A2 已把现有 Chunk 派生工作与 loader 协调移入
+  `ChunkRuntime`；这不是 B1 Residency 状态机。
 
 ## 4. World Public API Surface
 
@@ -206,7 +209,8 @@ Core / Entity / Physics / Maths / Util
 
 当前调用关系把边界进一步钉死：`SandboxRuntime/WorldManager` 驱动 `tick/update` 和玩家命令，
 `OgreBootstrap` 消费 mesh/Actor/diagnostic snapshot 并确认 upload，Actor/Block/Interaction 代码通过
-Combat、Actor、World Mutation 与 EventBus 入口协作。旧调用在 A1 不迁移。
+Combat、Actor、World Mutation 与 EventBus 入口协作。AL-A2 保持这些调用者和 78 项公开面不变，
+只把 Streaming 方法的内部实现转发给 `ChunkRuntime`。
 
 该表解释了 AL-A1 的真实动机：查询、命令、模拟、流送、持久化、Actor、战斗、进度和诊断目前
 都暴露在一个 facade 中。A1 只冻结责任与新增入口规则，不改变旧调用者或兼容性。
@@ -215,17 +219,34 @@ Combat、Actor、World Mutation 与 EventBus 入口协作。旧调用在 A1 不�
 
 | Member group | Members | Current responsibility |
 | ------------ | ------- | ---------------------- |
-| Core composition | `m_chunkManager`, `m_actorManager`, `m_playerActor`, `m_eventBus`, `m_player` | 世界拥有 Chunk/Actor/Event 生命周期；SandboxRuntime 拥有 Player，World 保存 non-owning pointer 并维护战斗 Actor 镜像。 |
+| Core composition | `m_chunkManager`, `m_chunkRuntime`, `m_actorManager`, `m_playerActor`, `m_eventBus`, `m_player` | World 按值拥有 Chunk 权威存储、Chunk 派生工作协调、Actor/Event 生命周期；SandboxRuntime 拥有 Player，World 保存 non-owning pointer 并维护战斗 Actor 镜像。 |
 | Persistence | `m_worldSave`, `m_worldBackup`, `m_worldSaveData`, save counters/timings | 元数据读写、整世界备份、当前保存 payload 与可观察耗时。 |
 | Progression | `m_alphaJourney`, `m_victoryFlow`, Waystone anchor/state/guardian ids/cooldown/feedback | 目标兼容视图、结局、遭遇和胜利后状态。 |
 | Frame command/event queue | `m_events` | `PlayerDigEvent` 等延迟到 `World::update` 处理；区别于同步 typed event bus。 |
-| Mesh/random-tick work | chunk update deque/set、random-tick deque/set/counters | 主线程同步 mesh 重建预算与 active random-tick section 调度。 |
+| Random-tick work | random-tick deque/set/counters | World 仍负责 active random-tick section 调度；Chunk mesh update queue 已迁入 `ChunkRuntime`。 |
 | Population/difficulty | spawn counters、pending difficulty、application epoch | 自然生物预算和下个 fixed tick 的难度提交。 |
-| Loader ownership | `m_isRunning`, `m_chunkLoadThreads`, main/gen/priority mutexes | 一个后台 chunk loader 的生命周期和共享状态保护；`m_genMutex` 仍是当前成员。 |
-| Streaming demand snapshot | load center/revisions/distances、unload scan、frustum priority snapshot | 从 Camera 派生的当前加载中心、优先级 epoch 和有界卸载扫描状态。 |
+| Chunk runtime coordination | `m_chunkRuntime` 内的 update deque/set、loader thread、load center/revisions、unload scan、frustum priority snapshot | 一个后台 Chunk worker、同步 mesh budget、预载/卸载和 Camera 派生需求；这些都是派生/协调状态。 |
+| Shared Chunk lock | `m_mainMutex` | 仍由 World 拥有并先于 `ChunkRuntime` 构造；Runtime 只持 non-owning 引用，保护 loaded Chunk/section 权威状态。 |
 | Player combat runtime | spawn point、cooldowns、projectile vector/id/counters、guard/feedback/respawn state | 固定 tick 的当前战斗真值；projectile render snapshot 从这里派生。 |
 
-## 6. ChunkManager Boundary
+## 6. ChunkRuntime and ChunkManager Boundary
+
+```text
+World (public facade / composition root)
+  -> ChunkRuntime (derived work and coordination)
+       -> ChunkManager (authoritative Chunk/storage owner)
+```
+
+`ChunkRuntime` 持有 `ChunkManager` 和 `m_mainMutex` 的 non-owning 引用，并拥有：
+
+- deduplicated FIFO section update queue；
+- 每次 `World::update` 最多 2 个 section 的同步 mesh rebuild；
+- 单个 loader worker、完整 mesh target 规划、load center/frustum priority revision；
+- 现有 preload、render-distance invalidation、每帧最多 8 个 distant unload 的协调；
+- CPU-ready mesh copied snapshot 与同 revision GPU acknowledgement。
+
+这些对象是派生数据或工作协调，不拥有 block/light/save truth。`World` 的 78 项公开面保持 AL-A1
+hash 不变；`World::planChunkMeshWork` 也只转发到纯 `ChunkRuntime::planMeshWork`。
 
 `World` 按值拥有一个 `ChunkManager`；`ChunkManager` 保存 non-owning `World*` 以调用光照协调和发布
 事件。其当前职责为：
@@ -247,7 +268,7 @@ Combat、Actor、World Mutation 与 EventBus 入口协作。旧调用在 A1 不�
 | Thread | Created/owned by | May do | Commit/stop rule |
 | ------ | ---------------- | ------ | ---------------- |
 | Main/Ogre thread | `OgreBootstrap` frame loop | OS input、application flow、Sandbox fixed ticks、World mutation、同步 event handler、卸载/同步 mesh budget、snapshot 采集、GPU upload、UI/audio update。 | Gameplay truth 默认只在这里变更；frame end 记录性能。 |
-| Chunk loader worker | `World::startBackgroundLoader` / `m_chunkLoadThreads` | 本地规划队列；在 `m_mainMutex` 下 begin/load/snapshot，锁外构建 `SectionMeshInput`，再在锁下 finish。 | 由 `m_isRunning=false` 停止，World 析构 join；revision 不匹配的 mesh 不提交。当前只有一个 worker。 |
+| Chunk loader worker | `World::startBackgroundLoader` delegates to `ChunkRuntime` | Runtime 本地规划队列；在共享 World mutex 下 begin/load/snapshot，锁外构建 `SectionMeshInput`，再在锁下 finish。 | `World` 析构先调用 `ChunkRuntime::stopLoader`，停止并 join 后才保存；revision 不匹配的 mesh 不提交。当前只有一个 worker。 |
 | Music stream worker | Windows `MusicRuntime` backend | 从已验证 WAV 分段读取、增益缩放、维护最多 3 个 WaveOut buffer。 | 主线程用 atomic/mutex/condition variable 控制；stop/reset 后 join；不读写 World。 |
 | Crash writer thread | `WindowsCrashDiagnostics` install | 预创建后等待 crash event，在异常路径写 dump/sidecar。 | 不参与普通 Gameplay；进程退出终止，普通路径无上传。 |
 
@@ -320,10 +341,10 @@ Ogre::frameStarted
             -> selection + one resolved GameplayWorldAction
             -> queue dig/use/place or perform food/combat path
             -> World::update(Camera)
-                 -> publish load center/frustum snapshot
+                 -> ChunkRuntime publishes load center/frustum snapshot
                  -> handle queued IWorldEvent commands
-                 -> bounded distant unload
-                 -> bounded synchronous dirty-section mesh rebuild
+                 -> ChunkRuntime bounded distant unload
+                 -> ChunkRuntime bounded synchronous dirty-section mesh rebuild
        -> sync render camera / section meshes / actor visuals / outline
   -> update AudioRuntime and MusicRuntime
   -> collect debug stats / UI frame
@@ -338,9 +359,10 @@ Ogre::frameEnded -> capture + performance record + exit/crash gates
 
 ```text
 Authoritative World state
-  -> chunk worker builds CPU mesh from SectionMeshInput snapshot
+  -> ChunkRuntime worker builds CPU mesh from SectionMeshInput snapshot
   -> ChunkSection CpuReady + blockRevision
-  -> World::collectSectionMeshSnapshot() under m_mainMutex
+  -> World::collectSectionMeshSnapshot()
+       -> ChunkRuntime copies under the shared World mutex
   -> OgreBootstrap::syncSectionMeshes()
   -> ChunkSectionRenderable GPU buffers
   -> acknowledgeSectionMeshUploads(location, revision)
@@ -377,10 +399,11 @@ block、Actor、inventory、objective or persistence truth。
 这些版本属于不同兼容性域，不能用 world save v12 推断其他定义已迁移，也不能因重建派生数据而
 静默改写 terrain identity。任何后续 Architecture Lab 批次都必须在自己的合同中列出受影响域。
 
-## 13. A0 Conclusions
+## 13. Current Conclusions Through AL-A2
 
 - 当前可玩的系统已经有清晰的 Renderer-to-Snapshot 边界和可验证持久化边界。
-- 最大架构债是 `World` 同时承担 facade、组合根和多系统实现，而不是“缺少更多抽象类”。
-- 当前后台 Chunk pipeline 已具备 snapshot/off-lock/revision-commit 模式，但没有通用取消、背压或
-  三态 Residency 合同。
-- AL-A1 只有在单独批准后才能基于本表做 World Responsibility Map；AL-A2/B1 仍在更后的独立门。
+- `World` 仍承担 facade、组合根和多套 Simulation 玩法实现；AL-A2 只关闭了已被真实 Chunk 工作
+  验证的一条内部边界，没有试图一次性拆完 God Object。
+- Chunk pipeline 的 snapshot/off-lock/revision-commit、FIFO、预算和 unload/save 语义现在集中在
+  `ChunkRuntime` / `ChunkManager` 边界；没有通用取消、背压或三态 Residency 合同。
+- AL-A3 和 B1 都必须再次独立批准；A2 完成不构成自动启动权限。

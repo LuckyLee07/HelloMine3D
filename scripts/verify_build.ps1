@@ -39,6 +39,8 @@ $crashDiagnosticsVerifier = Join-Path $repoRoot `
     "tools\validate_crash_diagnostics.ps1"
 $worldResponsibilityMapVerifier = Join-Path $repoRoot `
     "tools\validate_world_responsibility_map.ps1"
+$chunkRuntimeBoundaryVerifier = Join-Path $repoRoot `
+    "tools\validate_chunk_runtime_boundary.ps1"
 
 function Invoke-Checked {
     param(
@@ -151,6 +153,10 @@ try {
     Write-Host "[BUILD_VERIFY] msbuild=$msbuild"
     Invoke-Checked "AL-A1 World responsibility map" {
         & $worldResponsibilityMapVerifier -Root $repoRoot
+    }
+
+    Invoke-Checked "AL-A2 Chunk runtime boundary" {
+        & $chunkRuntimeBoundaryVerifier -Root $repoRoot
     }
 
     Invoke-Checked "Resource manifest" {

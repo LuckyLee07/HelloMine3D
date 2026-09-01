@@ -25,6 +25,7 @@
 | [windows-release-packaging.md](windows-release-packaging.md) | Windows 隔离根发行包流程。 |
 | [iteration-report-template.md](iteration-report-template.md) | 新批次回归报告模板。 |
 
-`AL-A0` 已完成基线审计与文档冻结；`AL-A1` 已完成 `World` 责任地图和新增公开 API 门禁，
-没有迁移旧调用或开始 AL-A2。开始后续 Sprint 前，仍必须在 `todolist.md` 中写明独立批准、
-真实游戏需求、合同、可观察 Demo、自动门禁和对应 AI 场景；当前 `AL-A2` 只是 Queued 候选。
+`AL-A0` 已完成基线审计与文档冻结；`AL-A1` 已完成 `World` 责任地图和新增公开 API 门禁；
+`AL-A2` 已把既有 Chunk update/mesh/loader 协调迁入 `ChunkRuntime`，没有引入 Residency 状态机。
+开始后续 Sprint 前，仍必须在 `todolist.md` 中写明独立批准、真实游戏需求、合同、可观察 Demo、
+自动门禁和对应 AI 场景；当前下一候选是尚未批准的 `AL-A3`。

@@ -23,7 +23,6 @@
 #include "../Diagnostics/RuntimeProfiler.h"
 #include "../Diagnostics/OperationPerformanceTiming.h"
 #include "../Maths/Vector2XZ.h"
-#include "../Physics/AABB.h"
 #include "../Player/Player.h"
 #include "../Sandbox/Events/FoodEvents.h"
 #include "../Sandbox/Events/EntityEvents.h"
@@ -31,8 +30,6 @@
 #include "../Sandbox/Events/WaystoneEvents.h"
 #include "../Util/ResourcePaths.h"
 #include "../Util/Random.h"
-#include "Chunk/ChunkMeshBuilder.h"
-#include "Chunk/ChunkUpdatePlanner.h"
 #include "Block/BlockDatabase.h"
 #include "Block/FurnaceContainer.h"
 #include "../Item/FoodRegistry.h"
@@ -295,104 +292,23 @@ namespace
                    : "development";
     }
 
-    int chunkDistanceSquared(const VectorXZ &chunk, const VectorXZ &center)
-    {
-        const int dx = chunk.x - center.x;
-        const int dz = chunk.z - center.z;
-        return dx * dx + dz * dz;
-    }
-
-    int chunkDistanceManhattan(const VectorXZ &chunk, const VectorXZ &center)
-    {
-        return std::abs(chunk.x - center.x) + std::abs(chunk.z - center.z);
-    }
-
-    float angularDifference(float left, float right)
-    {
-        const float difference =
-            std::fmod(std::abs(left - right), 360.f);
-        return std::min(difference, 360.f - difference);
-    }
 }
 
 std::vector<VectorXZ>
 World::planChunkMeshWork(const VectorXZ &center, int radius, int sectionY,
                          const ViewFrustum *frustum)
 {
-    radius = std::max(0, radius);
-    sectionY = std::max(0, sectionY);
-
-    struct PrioritisedChunk {
-        VectorXZ position;
-        bool inFrustum = false;
-    };
-
-    std::vector<PrioritisedChunk> prioritised;
-    const int diameter = radius * 2 + 1;
-    prioritised.reserve(static_cast<std::size_t>(diameter * diameter));
-
-    for (int x = center.x - radius; x <= center.x + radius; ++x) {
-        for (int z = center.z - radius; z <= center.z + radius; ++z) {
-            bool inFrustum = false;
-            if (frustum != nullptr) {
-                AABB sectionBounds{
-                    glm::vec3(static_cast<float>(CHUNK_SIZE))};
-                sectionBounds.update(
-                    {static_cast<float>(x * CHUNK_SIZE),
-                     static_cast<float>(sectionY * CHUNK_SIZE),
-                     static_cast<float>(z * CHUNK_SIZE)});
-                inFrustum = frustum->isBoxInFrustum(sectionBounds);
-            }
-            prioritised.push_back({{x, z}, inFrustum});
-        }
-    }
-
-    std::sort(prioritised.begin(), prioritised.end(),
-              [&](const PrioritisedChunk &left,
-                  const PrioritisedChunk &right) {
-                  if (left.inFrustum != right.inFrustum) {
-                      return left.inFrustum;
-                  }
-
-                  const int leftDistance =
-                      chunkDistanceSquared(left.position, center);
-                  const int rightDistance =
-                      chunkDistanceSquared(right.position, center);
-                  if (leftDistance != rightDistance) {
-                      return leftDistance < rightDistance;
-                  }
-
-                  const int leftManhattan =
-                      chunkDistanceManhattan(left.position, center);
-                  const int rightManhattan =
-                      chunkDistanceManhattan(right.position, center);
-                  if (leftManhattan != rightManhattan) {
-                      return leftManhattan < rightManhattan;
-                  }
-
-                  if (left.position.x != right.position.x) {
-                      return left.position.x < right.position.x;
-                  }
-
-                  return left.position.z < right.position.z;
-              });
-
-    std::vector<VectorXZ> result;
-    result.reserve(prioritised.size());
-    for (const PrioritisedChunk &chunk : prioritised) {
-        result.push_back(chunk.position);
-    }
-    return result;
+    return ChunkRuntime::planMeshWork(center, radius, sectionY, frustum);
 }
 
 World::World(const Camera &camera, const Config &config, Player &player,
              std::string saveDirectory, bool startBackgroundLoader,
              int initialPreloadRadius)
     : m_chunkManager(*this, chunkDirectoryForSave(saveDirectory))
+    , m_chunkRuntime(m_chunkManager, m_mainMutex, config.renderDistance)
     , m_player(&player)
     , m_worldSave(resolveSaveDirectory(saveDirectory))
     , m_worldBackup(resolveSaveDirectory(saveDirectory))
-    , m_renderDistance(config.renderDistance)
 {
     (void)camera;
     player.attachEventBus(m_eventBus);
@@ -496,7 +412,8 @@ World::World(const Camera &camera, const Config &config, Player &player,
         m_worldSaveData.worldTime = static_cast<float>(forcedWorldTime);
     }
 
-    preloadChunksAround(player.position, initialPreloadRadius);
+    m_chunkRuntime.preloadAroundLocked(player.position,
+                                      initialPreloadRadius);
     if (hasSave) {
         restoreActors(m_worldSaveData.actors);
     }
@@ -534,12 +451,7 @@ World::World(const Camera &camera, const Config &config, Player &player,
             "Cannot persist the initialized player spawn point.");
     }
 
-    auto playerChunk = getChunkXZ(toBlockCoord(player.position.x),
-                                  toBlockCoord(player.position.z));
-    m_loadCenterX.store(playerChunk.x);
-    m_loadCenterSectionY.store(
-        std::max(0, toBlockCoord(player.position.y) / CHUNK_SIZE));
-    m_loadCenterZ.store(playerChunk.z);
+    m_chunkRuntime.setInitialLoadCenter(player.position);
 
     if (startBackgroundLoader) {
         this->startBackgroundLoader();
@@ -551,10 +463,7 @@ World::~World()
     if (m_player != nullptr) {
         m_player->detachEventBus(m_eventBus);
     }
-    m_isRunning = false;
-    for (auto &thread : m_chunkLoadThreads) {
-        thread.join();
-    }
+    m_chunkRuntime.stopLoader();
 
     std::unique_lock<std::mutex> lock(m_mainMutex);
     m_chunkManager.saveDirtyChunks();
@@ -827,7 +736,7 @@ void World::reconcileBlockLightAfterChunkLoad(int chunkX, int chunkZ)
     std::deque<glm::ivec3> pending(uniqueSeeds.begin(), uniqueSeeds.end());
     std::vector<glm::ivec3> changedPositions;
     propagateBlockLight(pending, changedPositions);
-    queueLightingUpdates(changedPositions);
+    m_chunkRuntime.queueLightingUpdatesLocked(changedPositions);
 }
 
 void World::reconcileBlockLightAfterChunkUnload(int chunkX, int chunkZ,
@@ -862,7 +771,7 @@ void World::reconcileBlockLightAfterChunkUnload(int chunkX, int chunkZ,
     }
 
     removeBlockLight(removalQueue, additionQueue, changedPositions);
-    queueLightingUpdates(changedPositions);
+    m_chunkRuntime.queueLightingUpdatesLocked(changedPositions);
 }
 
 void World::setBlock(int x, int y, int z, ChunkBlock block)
@@ -892,7 +801,7 @@ void World::setBlock(int x, int y, int z, ChunkBlock block)
         changedPositions.emplace_back(x, changedY, z);
     }
     relightBlockEdit({x, y, z}, previousBlockLight, changedPositions);
-    queueLightingUpdates(changedPositions);
+    m_chunkRuntime.queueLightingUpdatesLocked(changedPositions);
 }
 
 std::optional<BlockEntityRecord>
@@ -2860,7 +2769,7 @@ void World::respawnPlayer()
     m_player->velocity = glm::vec3(0.f);
     m_player->box.update(m_player->position);
     m_player->resetInterpolation();
-    preloadChunksAround(m_player->position);
+    m_chunkRuntime.preloadAroundLocked(m_player->position);
     m_playerActor.revive();
     m_playerActor.syncFromPlayer(*m_player);
     m_playerGuardRequested = false;
@@ -3091,319 +3000,53 @@ void World::applyPendingDifficulty() noexcept
 void World::update(const Camera &camera)
 {
     HELLOMINE3D_PROFILE_SCOPE("World::update");
-    setChunkLoadCenter(camera);
+    m_chunkRuntime.updateLoadCenter(camera);
 
     for (auto &event : m_events) {
         event->handle(*this);
     }
     m_events.clear();
 
-    unloadDistantChunks(camera);
-    updateChunks();
+    m_chunkRuntime.unloadDistantChunks(camera);
+    m_chunkRuntime.processChunkUpdates(
+        ChunkMeshRebuildBudgetPerUpdate);
 }
 
 WorldMeshSnapshot World::collectSectionMeshSnapshot()
 {
-    std::unique_lock<std::mutex> lock(m_mainMutex);
-
-    WorldMeshSnapshot snapshot;
-    for (auto &entry : m_chunkManager.getChunks()) {
-        Chunk &chunk = entry.second;
-        if (!chunk.hasLoaded()) {
-            continue;
-        }
-
-        for (std::size_t sectionIndex = 0;
-             sectionIndex < chunk.getSectionCount(); ++sectionIndex) {
-            ChunkSection *section =
-                chunk.findSection(static_cast<int>(sectionIndex));
-            if (section == nullptr) {
-                continue;
-            }
-
-            snapshot.liveSections.push_back(section->getLocation());
-            if (section->getMeshState() !=
-                ChunkSectionMeshState::CpuReady) {
-                continue;
-            }
-
-            WorldSectionMeshSnapshot sectionSnapshot;
-            sectionSnapshot.location = section->getLocation();
-            sectionSnapshot.blockRevision = section->getBlockRevision();
-            sectionSnapshot.meshes = section->getMeshes();
-            snapshot.cpuReadySections.push_back(
-                std::move(sectionSnapshot));
-        }
-    }
-    return snapshot;
+    return m_chunkRuntime.collectSectionMeshSnapshot();
 }
 
 void World::acknowledgeSectionMeshUploads(
     const std::vector<WorldSectionMeshVersion> &versions)
 {
-    std::unique_lock<std::mutex> lock(m_mainMutex);
-    for (const WorldSectionMeshVersion &version : versions) {
-        Chunk *chunk = m_chunkManager.findChunk(
-            version.location.x, version.location.z);
-        if (chunk == nullptr) {
-            continue;
-        }
-
-        ChunkSection *section = chunk->findSection(version.location.y);
-        if (section != nullptr &&
-            section->getMeshState() == ChunkSectionMeshState::CpuReady &&
-            section->getBlockRevision() == version.blockRevision) {
-            section->markGpuBuffered();
-        }
-    }
+    m_chunkRuntime.acknowledgeSectionMeshUploads(versions);
 }
 
 void World::startBackgroundLoader()
 {
-    if (!m_chunkLoadThreads.empty()) {
-        return;
-    }
-
-    m_chunkLoadThreads.emplace_back([this]() { loadChunks(); });
+    m_chunkRuntime.startLoader();
 }
 
 void World::setRenderDistance(int renderDistance) noexcept
 {
-    const int previous = m_renderDistance.exchange(renderDistance);
-    if (previous == renderDistance) {
-        return;
-    }
-    m_unloadScanValid = false;
-    m_unloadBacklog = true;
-    m_chunkLoadRevision.fetch_add(1);
+    m_chunkRuntime.setRenderDistance(renderDistance);
 }
 
 int World::getRenderDistance() const noexcept
 {
-    return m_renderDistance.load();
-}
-
-void World::unloadDistantChunks(const Camera &camera)
-{
-    constexpr std::size_t MaxUnloadsPerUpdate = 8;
-
-    const VectorXZ cameraChunk = getChunkXZ(
-        toBlockCoord(camera.position.x), toBlockCoord(camera.position.z));
-    if (m_unloadScanValid && cameraChunk == m_lastUnloadScanChunk &&
-        !m_unloadBacklog) {
-        return;
-    }
-    m_lastUnloadScanChunk = cameraChunk;
-    m_unloadScanValid = true;
-
-    std::unique_lock<std::mutex> lock(m_mainMutex);
-    const int renderDistance = m_renderDistance.load();
-    const int minX = cameraChunk.x - renderDistance;
-    const int minZ = cameraChunk.z - renderDistance;
-    const int maxX = cameraChunk.x + renderDistance;
-    const int maxZ = cameraChunk.z + renderDistance;
-
-    std::vector<VectorXZ> chunksToUnload;
-    for (const auto &entry : m_chunkManager.getChunks()) {
-        const glm::ivec2 location = entry.second.getLocation();
-        if (minX > location.x || minZ > location.y || maxZ < location.y ||
-            maxX < location.x) {
-            chunksToUnload.push_back({location.x, location.y});
-            if (chunksToUnload.size() >= MaxUnloadsPerUpdate) {
-                break;
-            }
-        }
-    }
-
-    m_unloadBacklog =
-        chunksToUnload.size() >= MaxUnloadsPerUpdate;
-    for (const VectorXZ &location : chunksToUnload) {
-        m_chunkManager.unloadChunk(location.x, location.z);
-    }
+    return m_chunkRuntime.getRenderDistance();
 }
 
 void World::resetChunkMeshes()
 {
-    std::unique_lock<std::mutex> lock(m_mainMutex);
-    m_chunkManager.deleteMeshes();
-    m_loadDistance.store(2);
-    m_chunkLoadRevision.fetch_add(1);
-}
-
-///@TODO
-/// Optimize for chunkPositionU usage :thinking:
-void World::loadChunks()
-{
-    HELLOMINE3D_PROFILE_THREAD("Chunk Loader");
-    // Each target is processed in three steps: snapshot the section's
-    // neighbourhood under the world lock, build the mesh without it, then
-    // install the result under the lock again. Only the two short lock
-    // sections contend with the render thread; the expensive build does not.
-    //
-    // Sleeping once per built mesh (the original behaviour) capped throughput
-    // at the OS timer granularity (~15.6 ms on Windows). The wall-clock pass
-    // budget replaces that: it bounds how long the worker runs before handing
-    // the CPU back, without tying throughput to the timer.
-    // Measured on this scene: raising the budget past 6 ms buys no extra mesh
-    // throughput but does widen the worst frame, so the remaining limit is
-    // elsewhere (chunk neighbourhood readiness), not here.
-    constexpr auto kPassWorkBudget = std::chrono::milliseconds(6);
-    constexpr int kMaxTargetsPerPass = 64;
-    constexpr int kChunkLoadsPerTarget = 1;
-    constexpr int kActiveSleepMs = 1;
-    constexpr int kIdleSleepMs = 10;
-
-    ChunkMeshJob job;
-    ChunkMeshCollection builtMeshes;
-
-    std::deque<VectorXZ> workQueue;
-    VectorXZ lastCenter{m_loadCenterX.load(), m_loadCenterZ.load()};
-    int lastRevision = m_chunkLoadRevision.load();
-    int lastPriorityRevision = m_meshPriorityRevision.load();
-    bool queueValid = false;
-
-    while (m_isRunning) {
-        VectorXZ loadCenter{m_loadCenterX.load(), m_loadCenterZ.load()};
-        const int currentRevision = m_chunkLoadRevision.load();
-        const int currentPriorityRevision = m_meshPriorityRevision.load();
-        if (!queueValid || !(loadCenter == lastCenter) ||
-            currentRevision != lastRevision ||
-            currentPriorityRevision != lastPriorityRevision) {
-            const int radius = std::max(1, m_renderDistance.load());
-            MeshPrioritySnapshot prioritySnapshot;
-            {
-                std::lock_guard<std::mutex> lock(m_meshPriorityMutex);
-                prioritySnapshot = m_meshPrioritySnapshot;
-            }
-            const ViewFrustum *frustum =
-                prioritySnapshot.valid ? &prioritySnapshot.frustum : nullptr;
-            const auto planned = planChunkMeshWork(
-                loadCenter, radius, prioritySnapshot.sectionY, frustum);
-            workQueue = std::deque<VectorXZ>(planned.begin(), planned.end());
-            lastCenter = loadCenter;
-            lastRevision = currentRevision;
-            lastPriorityRevision = currentPriorityRevision;
-            queueValid = true;
-        }
-
-        if (workQueue.empty()) {
-            std::this_thread::sleep_for(
-                std::chrono::milliseconds(kIdleSleepMs));
-            continue;
-        }
-
-        HELLOMINE3D_PROFILE_SCOPE("World::loadChunks pass");
-        bool didWork = false;
-        int processedTargets = 0;
-        const auto passStart = std::chrono::steady_clock::now();
-        while (m_isRunning && processedTargets < kMaxTargetsPerPass &&
-               !workQueue.empty()) {
-            const VectorXZ target = workQueue.front();
-            workQueue.pop_front();
-            ++processedTargets;
-
-            ChunkMeshWorkResult result;
-            {
-                std::unique_lock<std::mutex> lock(m_mainMutex);
-                result = m_chunkManager.beginMeshJob(
-                    target.x, target.z, kChunkLoadsPerTarget,
-                    m_loadCenterSectionY.load(), job);
-            }
-
-            if (job.valid) {
-                // No world access here: the builder reads only the snapshot.
-                // A rejected stale job is not adopted, so clear its temporary
-                // data before reusing the allocation for the next section.
-                builtMeshes.solidMesh.clearClientData();
-                builtMeshes.transparentMesh.clearClientData();
-                builtMeshes.waterMesh.clearClientData();
-                builtMeshes.floraMesh.clearClientData();
-                const auto buildStart = std::chrono::steady_clock::now();
-                ChunkMeshBuilder(job.input, builtMeshes).buildMesh();
-                const double buildMilliseconds =
-                    std::chrono::duration<double, std::milli>(
-                        std::chrono::steady_clock::now() - buildStart)
-                        .count();
-
-                std::unique_lock<std::mutex> lock(m_mainMutex);
-                m_chunkManager.finishMeshJob(job, builtMeshes,
-                                             buildMilliseconds);
-            }
-
-            didWork = didWork || result.loadedChunk || result.meshBuilt ||
-                      result.meshSkipped;
-            if (result.meshBuilt || result.meshSkipped) {
-                // This chunk still has dirty sections. Keep working on it
-                // instead of sending it to the back of a queue that is sorted
-                // by distance, otherwise the nearest chunks finish last.
-                workQueue.push_front(target);
-            }
-            else if (!result.neighborhoodReady) {
-                // Waiting on neighbour chunk loads; retry after the rest of
-                // the queue has had a turn.
-                workQueue.push_back(target);
-            }
-
-            if (std::chrono::steady_clock::now() - passStart >=
-                kPassWorkBudget) {
-                break;
-            }
-        }
-
-        // Measured: replacing this sleep with a bare yield drops Debug to
-        // 30 fps even with the build off-lock, because `std::mutex` is unfair
-        // and the snapshot still contends every target. Sleeping once per
-        // pass, not once per mesh, keeps both throughput and frame rate.
-        std::this_thread::sleep_for(std::chrono::milliseconds(
-            didWork ? kActiveSleepMs : kIdleSleepMs));
-    }
-}
-
-void World::setChunkLoadCenter(const Camera &camera)
-{
-    auto cameraChunk = getChunkXZ(toBlockCoord(camera.position.x),
-                                  toBlockCoord(camera.position.z));
-    const int sectionY =
-        std::max(0, toBlockCoord(camera.position.y) / CHUNK_SIZE);
-    m_loadCenterX.store(cameraChunk.x);
-    m_loadCenterSectionY.store(sectionY);
-    m_loadCenterZ.store(cameraChunk.z);
-    publishMeshPrioritySnapshot(camera, sectionY);
-}
-
-void World::publishMeshPrioritySnapshot(const Camera &camera, int sectionY)
-{
-    constexpr float kReorderAngleDegrees = 5.f;
-    const bool orientationChanged =
-        !m_meshPriorityPublished ||
-        angularDifference(camera.rotation.x,
-                          m_lastMeshPriorityRotation.x) >=
-            kReorderAngleDegrees ||
-        angularDifference(camera.rotation.y,
-                          m_lastMeshPriorityRotation.y) >=
-            kReorderAngleDegrees;
-    const bool sectionChanged =
-        sectionY != m_lastMeshPrioritySectionY;
-
-    {
-        std::lock_guard<std::mutex> lock(m_meshPriorityMutex);
-        m_meshPrioritySnapshot.frustum = camera.getFrustum();
-        m_meshPrioritySnapshot.sectionY = sectionY;
-        m_meshPrioritySnapshot.valid = true;
-    }
-
-    if (orientationChanged || sectionChanged) {
-        m_lastMeshPriorityRotation = camera.rotation;
-        m_lastMeshPrioritySectionY = sectionY;
-        m_meshPriorityPublished = true;
-        m_meshPriorityRevision.fetch_add(1);
-    }
+    m_chunkRuntime.resetMeshes();
 }
 
 void World::updateChunk(int blockX, int blockY, int blockZ)
 {
     std::unique_lock<std::mutex> lock(m_mainMutex);
-    queueChunkUpdate(blockX, blockY, blockZ);
+    m_chunkRuntime.queueBlockEditLocked(blockX, blockY, blockZ);
 }
 
 bool World::save()
@@ -3531,7 +3174,8 @@ WorldDebugStats World::collectDebugStats()
     stats.combatFeedback.guarding = isPlayerGuarding();
     stats.combatFeedback.guardRecoverTicksRemaining =
         m_playerGuardRecoverTicksRemaining;
-    stats.queuedChunkUpdates = m_chunkUpdateQueue.size();
+    stats.queuedChunkUpdates =
+        m_chunkRuntime.queuedChunkUpdateCountLocked();
     stats.randomTickSections = m_randomTickSections.size();
     for (const glm::ivec3 &sectionKey : m_randomTickSections) {
         const Chunk *chunk =
@@ -3602,7 +3246,7 @@ World::collectCombatProjectileSnapshots()
 void World::preloadAround(const glm::vec3 &position)
 {
     std::unique_lock<std::mutex> lock(m_mainMutex);
-    preloadChunksAround(position);
+    m_chunkRuntime.preloadAroundLocked(position);
 }
 
 ActorId World::spawnItemEntity(Material::ID materialId, int amount,
@@ -3625,48 +3269,6 @@ ActorId World::spawnMob(const std::string &type, const glm::vec3 &position)
         m_actorManager.allocateActorId(), type, position);
     mob->setChaseTarget(m_player);
     return m_actorManager.addActor(std::move(mob), *this);
-}
-
-void World::queueChunkUpdate(int blockX, int blockY, int blockZ)
-{
-    for (const auto &update :
-         ChunkUpdatePlanner::planForBlockEdit(blockX, blockY, blockZ)) {
-        queueSectionUpdate({update.x, update.y, update.z});
-    }
-}
-
-void World::queueSectionUpdate(const glm::ivec3 &key)
-{
-    Chunk *chunk = m_chunkManager.findChunk(key.x, key.z);
-    if (chunk == nullptr || !chunk->hasLoaded()) {
-        return;
-    }
-
-    ChunkSection *section = chunk->findSection(key.y);
-    if (section == nullptr) {
-        return;
-    }
-
-    section->invalidateMeshInput();
-    if (m_queuedChunkUpdates.emplace(key).second) {
-        m_chunkUpdateQueue.push_back(key);
-    }
-}
-
-void World::queueLightingUpdates(
-    const std::vector<glm::ivec3> &changedPositions)
-{
-    std::unordered_set<glm::ivec3, IVec3Hash> sectionUpdates;
-    for (const glm::ivec3 &position : changedPositions) {
-        for (const ChunkUpdateKey &update :
-             ChunkUpdatePlanner::planForBlockEdit(
-                 position.x, position.y, position.z)) {
-            sectionUpdates.emplace(update.x, update.y, update.z);
-        }
-    }
-    for (const glm::ivec3 &section : sectionUpdates) {
-        queueSectionUpdate(section);
-    }
 }
 
 ChunkManager &World::getChunkManager()
@@ -3735,50 +3337,6 @@ int World::floorDiv(int value, int divisor)
 int World::floorMod(int value, int divisor)
 {
     return WorldCoordinates::floorMod(value, divisor);
-}
-
-void World::updateChunks()
-{
-    HELLOMINE3D_PROFILE_SCOPE("World::updateChunks");
-    std::unique_lock<std::mutex> lock(m_mainMutex);
-    std::size_t processed = 0;
-    while (processed < ChunkMeshRebuildBudgetPerUpdate &&
-           !m_chunkUpdateQueue.empty()) {
-        const glm::ivec3 key = m_chunkUpdateQueue.front();
-        m_chunkUpdateQueue.pop_front();
-        m_queuedChunkUpdates.erase(key);
-        ++processed;
-
-        Chunk *chunk = m_chunkManager.findChunk(key.x, key.z);
-        ChunkSection *section =
-            chunk != nullptr && chunk->hasLoaded()
-                ? chunk->findSection(key.y)
-                : nullptr;
-        if (section != nullptr && section->isMeshDirty()) {
-            const auto buildStart = std::chrono::steady_clock::now();
-            const bool meshBuilt = section->makeMesh();
-            const double buildMilliseconds =
-                std::chrono::duration<double, std::milli>(
-                    std::chrono::steady_clock::now() - buildStart)
-                    .count();
-            if (meshBuilt) {
-                m_chunkManager.recordMeshRebuild(section->getMeshes(),
-                                                 buildMilliseconds);
-            }
-        }
-    }
-}
-
-void World::preloadChunksAround(const glm::vec3 &position, int radius)
-{
-    auto centerChunk = getChunkXZ(toBlockCoord(position.x),
-                                  toBlockCoord(position.z));
-    for (int x = centerChunk.x - radius; x <= centerChunk.x + radius; ++x) {
-        for (int z = centerChunk.z - radius; z <= centerChunk.z + radius;
-             ++z) {
-            m_chunkManager.loadChunk(x, z);
-        }
-    }
 }
 
 bool World::saveWorldState()
@@ -4074,7 +3632,7 @@ void World::setSpawnPoint()
     }
 
     m_playerSpawnPoint = selected;
-    preloadChunksAround(m_playerSpawnPoint);
+    m_chunkRuntime.preloadAroundLocked(m_playerSpawnPoint);
 
     std::cout << "Spawn found! Loaded candidates: " << loadedCandidates
               << " Nearby oak: " << (treeBacked ? "yes" : "fallback")

@@ -487,6 +487,13 @@ B1 负责。
 
 **Chapter 03：Derived Data 与 Authoritative Data**
 
+### 当前实现记录
+
+`AL-A2` 已于 2026-09-01 独立批准并按上述 Core 边界实现：现有 update queue、mesh planner、
+单 loader、preload/unload 和 mesh publication 已集中到 `ChunkRuntime`，`World` 公开面与
+save v12 保持不变。自动证据与实际取舍见
+`docs/reports/architecture-lab-a2-chunk-runtime-report-v1.md`；这项完成不自动批准 A3 或 B1。
+
 ---
 
 ## A3 — Simulation Runtime

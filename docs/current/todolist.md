@@ -52,15 +52,16 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 | ---- | ---- | -------- |
 | `AL-A0` Latest Architecture Baseline | `Done` | 架构、依赖、性能、验证与 AI 证据身份已冻结；VS2017/v141 Debug/Release 完整门禁和 real window 通过，没有受跟踪 Gameplay/runtime/resource/build input 改动。详见 `docs/reports/architecture-lab-baseline-v1.md`。 |
 | `AL-A1` World Responsibility Map | `Done` | 78 个公开方法已按 3 个 API concept / 9 个 responsibility 分类；public-surface hash 和集合一致性门禁已接入完整 Windows 验证，VS2017/v141 Debug/Release、832/832 世界、80/80 资源、122/122 配方、15/15 启动负例、104 项干净包与 real window 全部 PASS。没有迁移旧调用、增加 Facade wrapper 或开始 AL-A2。 |
+| `AL-A2` Chunk Runtime Boundary | `Done` | 既有 Chunk Update Queue、Mesh Work Planner、单 loader 及 preload/unload 协调已迁入 `ChunkRuntime`；World 公开面、共享锁、预算、save v12 与 unload 语义保持不变，没有引入 B1 Residency 状态机。VS2017/v141 Debug/Release 完整门禁、两轮 832/832 世界和 104 项干净包通过。详见 `docs/reports/architecture-lab-a2-chunk-runtime-report-v1.md`。 |
 
 ## 下一候选
 
 | 批次 | 状态 | 目标 | 进入条件 | 退出边界 |
 | ---- | ---- | ---- | -------- | -------- |
-| `AL-A2` Chunk Runtime Boundary | `Queued` | 只提取现有 Chunk Update / Mesh Work / Loader coordination，不引入新的 Residency 状态机。 | 获得项目所有者独立批准；不得由 AL-A1 完成自动启动。 | 当前只是未批准候选，不构成开发承诺。 |
+| `AL-A3` Simulation Runtime | `Queued` | 在不抢跑玩法迁移的前提下建立统一 Simulation 调度入口。 | AL-A2 完成、证据冻结后再次获得项目所有者独立批准。 | 当前只是未批准候选，不构成开发承诺。 |
 
-`AL-A1 World Responsibility Map` 已完成并回到所有者批准门。A2 只迁移现有 Chunk 调度行为，
-B1 才允许引入新的 Residency 状态机。
+`AL-A2 Chunk Runtime Boundary` 已完成。A2 只迁移现有 Chunk 调度行为，B1 才允许引入新的
+Residency 状态机；AL-A3 不会由本批自动启动，当前仍等待项目所有者独立批准。
 
 ## 当前阻塞
 
@@ -69,7 +70,7 @@ B1 才允许引入新的 Residency 状态机。
   `Engineering Done`，但 Track 不得标记 `AI Playability PASS`。
 - 严格 `AI-06` 还要求 package-only 文件系统访问；仅切换工作目录但仓库仍可读取时记录
   `BLOCKED`，不能声明 blind PASS。
-- AL-A1 已完成；AL-A2 尚未批准，当前没有开发中的 Architecture Lab 批次。
+- 当前没有已批准的开发批次；`AL-A3` 只是待批准候选。
 
 ## 待执行验收
 

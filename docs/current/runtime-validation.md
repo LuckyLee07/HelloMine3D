@@ -38,6 +38,47 @@ identified by SHA-256
 No OS-level Computer Use capability was available in this A0 task, so `AI-08`
 remains `NOT_RUN` and AL-A0 makes no `AI Playability PASS` declaration.
 
+## AL-A2 Chunk Runtime Boundary Evidence
+
+AL-A2 changes runtime ownership without changing the public World facade or
+save data. Two complementary gates close the boundary:
+
+```powershell
+& .\tools\validate_world_responsibility_map.ps1
+& .\tools\validate_chunk_runtime_boundary.ps1 -Root (Get-Location).Path
+```
+
+The first keeps the 78-method public surface and frozen hash unchanged. The
+second checks that the legacy queue/worker fields and implementations no longer
+live in `World`, the concrete budgets remain frozen, `ChunkRuntime` owns the
+coordination, and the source still orders `beginMeshJob -> off-lock build ->
+finishMeshJob` without introducing `ChunkResidency`.
+
+The real `HelloMine3DWorldRuntimeSmoke` supplies behavioral evidence:
+
+| Assertions | AL-A2 property |
+| ---------- | -------------- |
+| `S0.5/*` | Interior, Chunk-edge and section-edge edits dirty only required loaded sections. |
+| `M2/*` | Queue keys deduplicate, drain FIFO, preserve the two-section frame budget and do no work when empty. |
+| `V5/*` | One background loader remains safe during load-center churn and resumes mesh progress. |
+| `M6/*`, `M7/*` | Snapshot/off-lock work counts remain correct and frustum planning prioritizes without filtering. |
+| `E5/*` | Stale upload acknowledgement cannot promote a newer block revision. |
+| `S2.4/*` | Dirty data is saved before unload and survives reload without remaining dirty. |
+
+Full VS2017/v141 Debug/Release and clean-package results are frozen in
+`docs/reports/architecture-lab-a2-chunk-runtime-report-v1.md`. This automated
+evidence proves behavior preservation and ownership, not real-window play or
+human experience; `AI-01..AI-08` remain independently classified.
+
+The 2026-09-01 AL-A2 closeout ran
+`scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow` and passed
+both configurations: World runtime `832/832` twice, resource packs `80/80`,
+recipes `122/122`, startup negatives `15/15`, both short soaks and all remaining
+headless gates. The isolated package contains 104 entries and has SHA-256
+`D1320264A105671C711E1CEF90D9F18382DFA1FB8D59D806C1F72DF80E4802AD`.
+Because the run deliberately skipped a focus-stealing window, its real-window
+result is `DEFERRED`, not `PASS`; AI acceptance remains `NOT_RUN`.
+
 ## World Runtime Smoke
 
 `src/HelloMine3D/Tests/WorldRuntimeSmokeMain.cpp` links the whole game runtime

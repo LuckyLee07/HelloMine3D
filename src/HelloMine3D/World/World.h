@@ -1,7 +1,6 @@
 #ifndef WORLD_H_INCLUDED
 #define WORLD_H_INCLUDED
 
-#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
@@ -9,7 +8,6 @@
 #include <mutex>
 #include <optional>
 #include <string>
-#include <thread>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -23,6 +21,7 @@
 #include "../Util/NonCopyable.h"
 #include "Chunk/Chunk.h"
 #include "Chunk/ChunkManager.h"
+#include "Chunk/ChunkRuntime.h"
 #include "Environment/WorldEnvironment.h"
 #include "Storage/WorldSave.h"
 #include "Storage/WorldBackup.h"
@@ -162,20 +161,6 @@ enum class CombatAttackResult {
     TargetDead,
     OutOfReach,
     TargetRejected
-};
-
-struct WorldSectionMeshVersion {
-    glm::ivec3 location{0};
-    std::uint32_t blockRevision = 0;
-};
-
-struct WorldSectionMeshSnapshot : WorldSectionMeshVersion {
-    ChunkMeshCollection meshes;
-};
-
-struct WorldMeshSnapshot {
-    std::vector<glm::ivec3> liveSections;
-    std::vector<WorldSectionMeshSnapshot> cpuReadySections;
 };
 
 /// @brief Massive class designed to hold multiple chunks, the player, and most game aspects.
@@ -407,16 +392,6 @@ class World : public NonCopyable {
     bool findSafeNaturalMobPosition(int blockX, int blockZ,
                                     glm::vec3 &position);
     void despawnNaturalMobsInChunk(int chunkX, int chunkZ);
-    void loadChunks();
-    void unloadDistantChunks(const Camera &camera);
-    void setChunkLoadCenter(const Camera &camera);
-    void publishMeshPrioritySnapshot(const Camera &camera, int sectionY);
-    void queueChunkUpdate(int blockX, int blockY, int blockZ);
-    void queueSectionUpdate(const glm::ivec3 &key);
-    void queueLightingUpdates(
-        const std::vector<glm::ivec3> &changedPositions);
-    void updateChunks();
-    void preloadChunksAround(const glm::vec3 &position, int radius = 1);
     bool saveWorldState();
     void restoreActors(const std::vector<ActorSaveState> &states);
     void setSpawnPoint();
@@ -443,6 +418,8 @@ class World : public NonCopyable {
         const glm::ivec3 &position);
 
     ChunkManager m_chunkManager;
+    std::mutex m_mainMutex;
+    ChunkRuntime m_chunkRuntime;
     ActorManager m_actorManager;
     PlayerActor m_playerActor;
     SandboxEventBus m_eventBus;
@@ -462,8 +439,6 @@ class World : public NonCopyable {
     double m_worldSaveMaxMs = 0.0;
 
     std::vector<std::unique_ptr<IWorldEvent>> m_events;
-    std::deque<glm::ivec3> m_chunkUpdateQueue;
-    std::unordered_set<glm::ivec3, IVec3Hash> m_queuedChunkUpdates;
     std::deque<glm::ivec3> m_randomTickSectionQueue;
     std::unordered_set<glm::ivec3, IVec3Hash> m_randomTickSections;
     std::size_t m_randomTickSectionsProcessed = 0;
@@ -473,38 +448,6 @@ class World : public NonCopyable {
     std::size_t m_naturalMobsDespawned = 0;
     std::optional<WorldDifficulty> m_pendingDifficulty;
     unsigned long long m_difficultyApplicationEpoch = 0;
-
-    std::atomic<bool> m_isRunning{true};
-    std::vector<std::thread> m_chunkLoadThreads;
-
-    // Mutex classes invoked to protect data from shared threads
-
-    std::mutex m_mainMutex;
-    std::mutex m_genMutex;
-    std::mutex m_meshPriorityMutex;
-
-    struct MeshPrioritySnapshot {
-        ViewFrustum frustum;
-        int sectionY = 0;
-        bool valid = false;
-    };
-    MeshPrioritySnapshot m_meshPrioritySnapshot;
-
-    std::atomic<int> m_loadCenterX{0};
-    std::atomic<int> m_loadCenterSectionY{0};
-    std::atomic<int> m_loadCenterZ{0};
-    std::atomic<int> m_chunkLoadRevision{0};
-    std::atomic<int> m_meshPriorityRevision{0};
-    std::atomic<int> m_loadDistance{2};
-    std::atomic<int> m_renderDistance;
-
-    VectorXZ m_lastUnloadScanChunk{0, 0};
-    bool m_unloadScanValid = false;
-    bool m_unloadBacklog = false;
-
-    glm::vec3 m_lastMeshPriorityRotation{0.f};
-    int m_lastMeshPrioritySectionY = -1;
-    bool m_meshPriorityPublished = false;
 
     glm::vec3 m_playerSpawnPoint;
     int m_foodCooldownTicksRemaining = 0;

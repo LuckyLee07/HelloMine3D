@@ -6,6 +6,7 @@
 ## 基础设施、存储与验证
 
 - [world-responsibility-map-contract-v1.md](world-responsibility-map-contract-v1.md)
+- [chunk-runtime-boundary-contract-v1.md](chunk-runtime-boundary-contract-v1.md)
 - [recipe-contract.md](recipe-contract.md)
 - [resource-pack-contract.md](resource-pack-contract.md)
 - [crafting-contract-v1.md](crafting-contract-v1.md)
