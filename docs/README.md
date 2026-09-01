@@ -11,13 +11,13 @@
 3. [AI 辅助玩法验收](current/ai-assisted-gameplay-acceptance-v1.md)：自动化、Computer Use、
    AI 视觉和 `NOT_CLAIMED` 的权威边界。
 4. [验证矩阵](current/validation-matrix.md)：改动类型到构建、测试、性能和交互证据的路由。
-5. [当前代码架构](current/architecture.md)与[运行时证据](current/runtime-validation.md)：需要进入
-   实现或审计时阅读。
+5. [当前代码架构](current/architecture.md)、[Architecture Lab 教程](current/architecture-lab-tutorial.md)
+   与[运行时证据](current/runtime-validation.md)：需要进入实现、学习或审计时阅读。
 
 当前摘要：Stage 11 Windows 工程范围已经完成；`AI-01..AI-08` 尚未运行，状态为
 `NOT_RUN`；人类乐趣、审美、舒适度和物理设备手感为 `NOT_CLAIMED`。`AL-A0` 已完成当前
-架构/依赖/性能/验证身份冻结；`AL-A1` 是唯一下一候选但尚未批准。其余
-Core/Extended 能力目录都不是自动批准的 backlog。
+架构/依赖/性能/验证身份冻结；`AL-A1` 已完成 `World` 责任地图和新增 API 门禁。`AL-A2` 是
+唯一下一候选但尚未批准；其余 Core/Extended 能力目录都不是自动批准的 backlog。
 
 ## 目录分工
 

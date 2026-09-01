@@ -51,15 +51,16 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 | 批次 | 状态 | 当前结论 |
 | ---- | ---- | -------- |
 | `AL-A0` Latest Architecture Baseline | `Done` | 架构、依赖、性能、验证与 AI 证据身份已冻结；VS2017/v141 Debug/Release 完整门禁和 real window 通过，没有受跟踪 Gameplay/runtime/resource/build input 改动。详见 `docs/reports/architecture-lab-baseline-v1.md`。 |
+| `AL-A1` World Responsibility Map | `Done` | 78 个公开方法已按 3 个 API concept / 9 个 responsibility 分类；public-surface hash 和集合一致性门禁已接入完整 Windows 验证，VS2017/v141 Debug/Release、832/832 世界、80/80 资源、122/122 配方、15/15 启动负例、104 项干净包与 real window 全部 PASS。没有迁移旧调用、增加 Facade wrapper 或开始 AL-A2。 |
 
 ## 下一候选
 
 | 批次 | 状态 | 目标 | 进入条件 | 退出边界 |
 | ---- | ---- | ---- | -------- | -------- |
-| `AL-A1` World Responsibility Map | `Queued` | 在 A0 冻结的事实基线上分类 World API，建立 Query / Command / Runtime Tick 责任地图。 | 获得项目所有者独立批准；不得由 A0 完成自动启动。 | 当前只是未批准候选，不构成开发承诺。 |
+| `AL-A2` Chunk Runtime Boundary | `Queued` | 只提取现有 Chunk Update / Mesh Work / Loader coordination，不引入新的 Residency 状态机。 | 获得项目所有者独立批准；不得由 AL-A1 完成自动启动。 | 当前只是未批准候选，不构成开发承诺。 |
 
-`AL-A1 World Responsibility Map` 是当前唯一 Queued 候选，不是已批准任务；A0 已在此处停止并
-回到所有者批准门。后续 A2 只迁移现有 Chunk 调度行为，B1 才允许引入新的 Residency 状态机。
+`AL-A1 World Responsibility Map` 已完成并回到所有者批准门。A2 只迁移现有 Chunk 调度行为，
+B1 才允许引入新的 Residency 状态机。
 
 ## 当前阻塞
 
@@ -68,7 +69,7 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
   `Engineering Done`，但 Track 不得标记 `AI Playability PASS`。
 - 严格 `AI-06` 还要求 package-only 文件系统访问；仅切换工作目录但仓库仍可读取时记录
   `BLOCKED`，不能声明 blind PASS。
-- AL-A0 已完成；AL-A1 尚未批准，当前没有开发中的 Architecture Lab 批次。
+- AL-A1 已完成；AL-A2 尚未批准，当前没有开发中的 Architecture Lab 批次。
 
 ## 待执行验收
 

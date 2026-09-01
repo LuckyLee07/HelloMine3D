@@ -16,6 +16,7 @@
 | 文档 | 用途 |
 | ---- | ---- |
 | [architecture.md](architecture.md) | 当前源码模块、所有权和线程边界。 |
+| [architecture-lab-tutorial.md](architecture-lab-tutorial.md) | 已实现 Architecture Lab 批次的问题、失败方案、演进、验证与取舍；不预建空章节。 |
 | [validation-matrix.md](validation-matrix.md) | 改动触发的最低构建、测试、性能和交互证据。 |
 | [runtime-validation.md](runtime-validation.md) | 已有运行时证据及自动化无法覆盖的边界。 |
 | [performance-baseline.md](performance-baseline.md) | 性能场景、身份和比较入口。 |
@@ -24,6 +25,6 @@
 | [windows-release-packaging.md](windows-release-packaging.md) | Windows 隔离根发行包流程。 |
 | [iteration-report-template.md](iteration-report-template.md) | 新批次回归报告模板。 |
 
-`AL-A0` 已完成基线审计与文档冻结，没有 Gameplay 改动。开始任何新 Sprint 前，仍必须在
-`todolist.md` 中写明独立批准、真实游戏需求、合同、可观察 Demo、自动门禁和对应 AI 场景；
-`AL-A1` 当前只是 Queued 候选，不因 A0 完成而自动获批。
+`AL-A0` 已完成基线审计与文档冻结；`AL-A1` 已完成 `World` 责任地图和新增公开 API 门禁，
+没有迁移旧调用或开始 AL-A2。开始后续 Sprint 前，仍必须在 `todolist.md` 中写明独立批准、
+真实游戏需求、合同、可观察 Demo、自动门禁和对应 AI 场景；当前 `AL-A2` 只是 Queued 候选。

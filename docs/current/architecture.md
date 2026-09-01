@@ -105,8 +105,111 @@ Core / Entity / Physics / Maths / Util
 | Pure/static helpers | coordinate conversion、random-tick sampling、natural-mob mapping、mesh work planning。 |
 | Legacy queued action | `addEvent<T>` pushes `IWorldEvent` into a frame queue handled by `World::update`; it coexists with immediate `SandboxEventBus::publish`. |
 
+### 4.1 AL-A1 machine-checked responsibility map
+
+`AL-A1` 为每个公开方法分配两个正交标签：API concept 描述调用语义，responsibility 描述当前主要
+实现领域。重载只列一次；完整声明、重载、公开常量和签名由 public-surface hash 共同保护。
+
+<!-- AL-A1-WORLD-API-HASH sha256=3C53F56C425F0395354C8A5CE966E96CDA8BC93D836699955E03BA965A664AD8 -->
+<!-- AL-A1-WORLD-API-MAP-BEGIN -->
+| API | Concept | Responsibility | Current boundary |
+| --- | ------- | -------------- | ---------------- |
+| `~World` | `Command` | `World Mutation` | 终止 loader 并释放组合根。 |
+| `acknowledgeSectionMeshUploads` | `Command` | `Streaming` | 仅确认同 revision 的 GPU upload。 |
+| `addEvent` | `Command` | `World Mutation` | 把旧式 `IWorldEvent` 加入帧队列。 |
+| `attackActor` | `Command` | `Combat` | 两个旧重载共享同一责任。 |
+| `canOccupyCombatPosition` | `Query` | `Combat` | 战斗移动占位查询。 |
+| `canPlayerGuard` | `Query` | `Combat` | 防御资格查询。 |
+| `claimWaystoneReward` | `Command` | `Progression` | 提交一次性路标奖励。 |
+| `collectActorSnapshots` | `Query` | `Actor` | 发布不可变 Actor render 值。 |
+| `collectCombatProjectileSnapshots` | `Query` | `Combat` | 发布不可变 projectile render 值。 |
+| `collectDebugStats` | `Query` | `Diagnostics` | 聚合只读运行时指标。 |
+| `collectLoadedBlockEntityPositions` | `Query` | `World Query` | 查询已驻留 block entity。 |
+| `collectSectionMeshSnapshot` | `Query` | `Streaming` | 发布 CPU-ready mesh snapshot。 |
+| `consumeWaystoneFeedbackKey` | `Command` | `Progression` | 读取并清除一次性反馈。 |
+| `createBlockEntity` | `Command` | `World Mutation` | 创建权威 block entity。 |
+| `damagePlayer` | `Command` | `Combat` | 提交玩家伤害。 |
+| `floorDiv` | `Query` | `World Query` | 纯坐标 helper。 |
+| `floorMod` | `Query` | `World Query` | 纯坐标 helper。 |
+| `getActorManager` | `Query` | `Actor` | 旧 mutable escape hatch；不新增同类入口。 |
+| `getAlphaJourneySnapshot` | `Query` | `Progression` | 旧旅程兼容视图。 |
+| `getAttackCooldownTicksRemaining` | `Query` | `Combat` | 战斗冷却查询。 |
+| `getBlock` | `Query` | `World Query` | 方块查询；可能触发既有驻留读取路径。 |
+| `getBlockEntity` | `Query` | `World Query` | block entity 值查询。 |
+| `getBlockLight` | `Query` | `World Query` | 方块光查询。 |
+| `getBlockXZ` | `Query` | `World Query` | 纯坐标 helper。 |
+| `getChunkManager` | `Query` | `Streaming` | 旧 mutable escape hatch；A2 的迁移风险。 |
+| `getChunkXZ` | `Query` | `World Query` | 纯坐标 helper。 |
+| `getDifficultySnapshot` | `Query` | `Progression` | 难度权威状态快照。 |
+| `getEventBus` | `Query` | `World Query` | 旧 mutable subscription/publish escape hatch。 |
+| `getExplorationRewardSnapshot` | `Query` | `Progression` | 探索奖励能力快照。 |
+| `getFoodCooldownTicksRemaining` | `Query` | `Progression` | 食物恢复冷却查询。 |
+| `getObjectiveSnapshot` | `Query` | `Progression` | 当前目标只读快照。 |
+| `getPlayer` | `Query` | `Actor` | 旧 non-owning mutable Player escape hatch。 |
+| `getPlayerGuardRecoverDurationTicks` | `Query` | `Combat` | 防御恢复时长查询。 |
+| `getPlayerHealth` | `Query` | `Combat` | PlayerActor 生命查询。 |
+| `getPlayerMaxHealth` | `Query` | `Combat` | PlayerActor 最大生命查询。 |
+| `getPlayerSpawnPoint` | `Query` | `Actor` | 玩家世界内出生点查询。 |
+| `getPostVictoryEventSnapshot` | `Query` | `Progression` | 胜利后事件快照。 |
+| `getRecipeDiscoverySnapshot` | `Query` | `Progression` | 配方发现快照。 |
+| `getRenderDistance` | `Query` | `Streaming` | 当前流送/渲染半径查询。 |
+| `getSunlight` | `Query` | `World Query` | 天光查询。 |
+| `getWaystoneEncounterSnapshot` | `Query` | `Progression` | 路标遭遇快照。 |
+| `getWorldOutcomeSnapshot` | `Query` | `Progression` | 结局权威状态快照。 |
+| `getWorldTime` | `Query` | `World Query` | 当前世界时间查询。 |
+| `initializeWaystone` | `Command` | `Progression` | 初始化路标持久状态。 |
+| `isCombatTargetAvailable` | `Query` | `Combat` | 目标存活/可用性查询。 |
+| `isNaturalMobType` | `Query` | `Actor` | 纯敌人类型 helper。 |
+| `isPlayerGuarding` | `Query` | `Combat` | 当前防御状态查询。 |
+| `isRecipeDiscovered` | `Query` | `Progression` | 配方发现查询。 |
+| `launchMobProjectile` | `Command` | `Combat` | 创建有界 transient projectile。 |
+| `naturalMobSpawnOffset` | `Query` | `Actor` | 确定性自然生物采样 helper。 |
+| `naturalMobTypeForBiome` | `Query` | `Actor` | biome 到敌人类型的纯映射。 |
+| `onWaystoneBroken` | `Command` | `Progression` | 提交路标破坏后状态转换。 |
+| `planChunkMeshWork` | `Query` | `Streaming` | 纯 mesh work 排序 helper。 |
+| `preloadAround` | `Command` | `Streaming` | 同步预载指定位置周围区块。 |
+| `publishCombatWindup` | `Command` | `Combat` | 发布已提交的攻击前摇事实。 |
+| `randomTickBlockIndex` | `Query` | `Simulation` | 确定性 random-tick 采样 helper。 |
+| `removeBlockEntity` | `Command` | `World Mutation` | 移除并返回权威 block entity。 |
+| `requestDifficulty` | `Command` | `Progression` | 排队下个 fixed tick 的难度提交。 |
+| `resetChunkMeshes` | `Command` | `Streaming` | 使派生 mesh 失效并重建。 |
+| `resolveMobMeleeAttack` | `Command` | `Combat` | 提交近战命中/防御结果。 |
+| `save` | `Command` | `Persistence` | 发布 chunk、metadata 与备份事务。 |
+| `scaleDifficultyLootAmount` | `Query` | `Progression` | 纯难度掉落比例查询。 |
+| `setBlock` | `Command` | `World Mutation` | 提交方块、光照、mesh dirty 与事件。 |
+| `setPlayerGuarding` | `Command` | `Combat` | 提交当前防御请求。 |
+| `setRenderDistance` | `Command` | `Streaming` | 更新 bounded streaming demand 半径。 |
+| `spawnItemEntity` | `Command` | `Actor` | 创建权威掉落 Actor。 |
+| `spawnMob` | `Command` | `Actor` | 创建权威 Mob Actor。 |
+| `startBackgroundLoader` | `Command` | `Streaming` | 启动当前单 loader worker。 |
+| `tick` | `Runtime Tick` | `Simulation` | 20 Hz 权威 Gameplay tick。 |
+| `toBlockCoord` | `Query` | `World Query` | 纯坐标 helper。 |
+| `tryAttackActor` | `Command` | `Combat` | 带完整拒绝原因的玩家攻击提交。 |
+| `tryConsumeCombatChaseStep` | `Command` | `Combat` | 消耗当 tick 的有界 chase budget。 |
+| `update` | `Runtime Tick` | `Simulation` | 每帧命令、卸载与同步 mesh budget 编排。 |
+| `updateBlockEntity` | `Command` | `World Mutation` | 原子替换 block entity payload。 |
+| `updateChunk` | `Command` | `Streaming` | 把受影响 section 加入现有 mesh queue。 |
+| `useHeldFood` | `Command` | `Progression` | 提交库存消耗与生命恢复。 |
+| `useWaystone` | `Command` | `Progression` | 提交路标状态机动作。 |
+| `World` | `Command` | `World Mutation` | 创建/恢复 World 组合根并可启动 loader。 |
+<!-- AL-A1-WORLD-API-MAP-END -->
+
+概念规则：
+
+- `Query` 返回观察值，不允许提交新的 Gameplay 结果；既有 lazy residency/cache side effect 必须在
+  表中说明，不能借“查询”隐藏新的权威 mutation。
+- `Command` 可以提交状态，但必须保留现有拒绝、原子性、事件和保存语义。
+- `Runtime Tick` 只用于时间推进与有界工作编排；新增子系统不得再给 `World` 增加平行 tick 入口。
+- `getChunkManager/getActorManager/getEventBus/getPlayer` 是兼容性 escape hatch，不是新 API 的范例。
+- 任何 `World.h` public surface 变化必须同步更新本表及 hash，并通过
+  `tools/validate_world_responsibility_map.ps1`；该检查已进入完整 Windows 门禁。
+
+当前调用关系把边界进一步钉死：`SandboxRuntime/WorldManager` 驱动 `tick/update` 和玩家命令，
+`OgreBootstrap` 消费 mesh/Actor/diagnostic snapshot 并确认 upload，Actor/Block/Interaction 代码通过
+Combat、Actor、World Mutation 与 EventBus 入口协作。旧调用在 A1 不迁移。
+
 该表解释了 AL-A1 的真实动机：查询、命令、模拟、流送、持久化、Actor、战斗、进度和诊断目前
-都暴露在一个 facade 中。A0 不改变调用者或兼容性。
+都暴露在一个 facade 中。A1 只冻结责任与新增入口规则，不改变旧调用者或兼容性。
 
 ## 5. World Member Responsibility Map
 

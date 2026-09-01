@@ -37,6 +37,8 @@ $windowsPackager = Join-Path $repoRoot `
     "tools\package_windows_release.ps1"
 $crashDiagnosticsVerifier = Join-Path $repoRoot `
     "tools\validate_crash_diagnostics.ps1"
+$worldResponsibilityMapVerifier = Join-Path $repoRoot `
+    "tools\validate_world_responsibility_map.ps1"
 
 function Invoke-Checked {
     param(
@@ -147,6 +149,10 @@ Push-Location $repoRoot
 try {
     Write-Host "[BUILD_VERIFY] visual_studio=$VisualStudioVersion platform_toolset=$expectedToolset"
     Write-Host "[BUILD_VERIFY] msbuild=$msbuild"
+    Invoke-Checked "AL-A1 World responsibility map" {
+        & $worldResponsibilityMapVerifier -Root $repoRoot
+    }
+
     Invoke-Checked "Resource manifest" {
         & $resourceManifestVerifier
     }
