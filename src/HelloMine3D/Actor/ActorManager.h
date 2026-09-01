@@ -19,7 +19,7 @@ class ActorManager {
     Actor *findActor(ActorId id);
     const Actor *findActor(ActorId id) const;
 
-    void tick(World &world, float dt);
+    std::size_t tick(World &world, float dt);
     void removeDeadActors();
     std::size_t getActorCount() const;
     std::vector<ActorSnapshot> collectSnapshots() const;

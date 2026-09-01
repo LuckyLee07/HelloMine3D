@@ -3127,9 +3127,38 @@ class OgreUserInterface::Impl
                 worldStats.simulation.tickElapsedMilliseconds);
             for (const WorldSimulationPhaseTiming &phase :
                  worldStats.simulation.phases) {
-                ImGui::Text("  %s: %.3f ms",
-                            worldSimulationPhaseName(phase.phase),
-                            phase.elapsedMilliseconds);
+                const SimulationPhaseMetrics *metrics =
+                    findSimulationPhaseMetrics(worldStats.simulation,
+                                               phase.phase);
+                if (metrics == nullptr) {
+                    ImGui::Text("  %s: %.3f ms",
+                                worldSimulationPhaseName(phase.phase),
+                                phase.elapsedMilliseconds);
+                }
+                else if (metrics->budgetScope ==
+                         SimulationPhaseBudgetScope::Unbudgeted) {
+                    ImGui::Text(
+                        "  %s: %.3f ms | processed / deferred: %llu / %llu | %s",
+                        worldSimulationPhaseName(phase.phase),
+                        metrics->elapsedMilliseconds,
+                        static_cast<unsigned long long>(metrics->processed),
+                        static_cast<unsigned long long>(metrics->deferred),
+                        simulationPhaseBudgetStatusName(
+                            metrics->budgetStatus()));
+                }
+                else {
+                    ImGui::Text(
+                        "  %s: %.3f ms | processed / deferred: %llu / %llu | budget: %llu %s (%s)",
+                        worldSimulationPhaseName(phase.phase),
+                        metrics->elapsedMilliseconds,
+                        static_cast<unsigned long long>(metrics->processed),
+                        static_cast<unsigned long long>(metrics->deferred),
+                        static_cast<unsigned long long>(metrics->budget),
+                        simulationPhaseBudgetScopeName(
+                            metrics->budgetScope),
+                        simulationPhaseBudgetStatusName(
+                            metrics->budgetStatus()));
+                }
             }
             ImGui::Separator();
             ImGui::Text("Sections: %llu",

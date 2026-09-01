@@ -49,7 +49,7 @@ const Actor *ActorManager::findActor(ActorId id) const
     return nullptr;
 }
 
-void ActorManager::tick(World &world, float dt)
+std::size_t ActorManager::tick(World &world, float dt)
 {
     if (dt > 0.f) {
         for (DeathPresentation &presentation : m_deathPresentations) {
@@ -65,13 +65,16 @@ void ActorManager::tick(World &world, float dt)
             m_deathPresentations.end());
     }
 
+    std::size_t processed = 0;
     for (auto &actor : m_actors) {
         if (actor && actor->isAlive()) {
             actor->tick(world, dt);
+            ++processed;
         }
     }
 
     removeDeadActors();
+    return processed;
 }
 
 void ActorManager::removeDeadActors()

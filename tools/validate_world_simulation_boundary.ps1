@@ -137,8 +137,7 @@ try {
     }
 
     foreach ($forbidden in @(
-        "SimulationScheduler", "ISandboxSystem", "SimulationBudget",
-        "deferred")) {
+        "SimulationScheduler", "ISandboxSystem")) {
         Reject-Text ($simulationHeader + $simulationSource) $forbidden `
             "A5 abstraction in AL-A3"
     }

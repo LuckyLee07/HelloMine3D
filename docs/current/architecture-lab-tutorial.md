@@ -3,7 +3,8 @@
 > Living tutorial status: Part 00 covers the completed AL-A0 baseline and AL-A1
 > responsibility map; Part 01 covers the completed AL-A2 Chunk runtime boundary;
 > Part 02 covers the completed AL-A3 Simulation runtime boundary; Part 03
-> covers the completed AL-A4 Event / Command / Query boundary.
+> covers the completed AL-A4 Event / Command / Query boundary; Part 04 covers
+> the completed AL-A5 phase metrics and budget vocabulary.
 > Later Parts are added only after their
 > implementation batch is approved and verified; this file does not pre-create
 > empty Sprint chapters.
@@ -444,3 +445,121 @@ Related evidence:
 
 - `docs/contracts/event-command-query-boundary-contract-v1.md`
 - `tools/validate_event_command_query_boundary.ps1`
+
+## Part 04 — Timing alone does not explain bounded simulation work
+
+### 4.1 Problem Scenario
+
+AL-A3 made all eight fixed-tick phases visible, but each row only answered
+“how long did the last invocation take?” A `0.20 ms` random-tick phase could
+mean one section was processed, four sections reached the hard limit, or no
+eligible work existed. Timing alone cannot distinguish healthy cheap work from
+a queue whose admission limit is intentionally deferring items.
+
+The game already had real limits: 32 projectile steps per tick, four random-
+tick sections per tick, and a difficulty-dependent number of natural-spawn
+attempts per population cycle. Actor ticking had no admission limit. The
+architecture gap was vocabulary and observation, not the absence of a generic
+scheduler.
+
+### 4.2 Naive Solution
+
+A tempting response is to introduce `ISandboxSystem`, register every phase,
+assign every row a time budget and let one scheduler own priorities. Another
+shortcut is to append `processed=0, deferred=0` to all eight rows and promise
+to define them later.
+
+Both approaches manufacture architecture ahead of need. The generic scheduler
+would own behavior that the game has not asked to change. Empty rows would make
+“no metric contract exists” indistinguishable from “the system processed zero
+items”, and a millisecond threshold would turn one noisy last-tick sample into
+a false performance conclusion.
+
+### 4.3 Design Evolution
+
+AL-A5 keeps the eight AL-A3 timing rows and adds exactly four metric rows:
+
+```text
+Actor Simulation    elapsed + processed; unbudgeted
+Combat             elapsed + processed + deferred; 32 per tick
+Block Random Tick  elapsed + processed + deferred; 4 per tick
+Population         elapsed + processed; difficulty limit per cycle
+```
+
+`processed` means the phase actually invoked the defined work unit.
+`deferred` means an eligible retained item remains for later specifically
+because the existing hard admission limit stopped work. It is not failure,
+drop count, unused capacity or elapsed time.
+
+### 4.4 Data structure and status vocabulary
+
+```cpp
+struct SimulationPhaseMetrics {
+    WorldSimulationPhase phase;
+    double elapsedMilliseconds;
+    std::size_t processed;
+    std::size_t deferred;
+    std::size_t budget;
+    SimulationPhaseBudgetScope budgetScope;
+};
+```
+
+The four scopes/status terms are deliberately small. A phase is unbudgeted, is
+within its item limit, reaches the limit exactly, or leaves real work deferred.
+Budgeted phases must never report `processed > budget`. Population uses
+`PerPopulationCycle`, so a non-cycle tick publishes zero instead of repeating
+the previous cycle. No implicit accumulation is hidden in the snapshot.
+
+### 4.5 Runtime flow and ownership
+
+```text
+WorldSimulation::fixedTick
+  -> constructs a fresh last-tick snapshot
+  -> runs the unchanged AL-A3 phase sequence
+  -> existing phase code exposes actual work counts
+  -> the same RawPhaseTimer writes timing and matching metric elapsed
+  -> WorldDebugStats copies the completed snapshot
+  -> developer Simulation panel formats scope and derived status
+```
+
+ActorManager returns the number of live actors it actually invoked without
+changing its loop. Combat reads the already-reset projectile used/denied
+counters. Random Tick compares processed active sections with the remaining
+active rotation. Population takes a delta of the existing cumulative attempt
+counter and uses the current difficulty limit. None of these counters decides
+what runs.
+
+### 4.6 Validation
+
+The A5 static gate freezes the four identities, three scopes, four statuses,
+existing hard-limit constants, UI wiring and persistence exclusion:
+
+```powershell
+& .\tools\validate_simulation_metrics_boundary.ps1 `
+  -Root (Get-Location).Path
+```
+
+`HELLOMINE3D_WORLD_SMOKE_FOCUS=AL-A5` checks the A3 phase contract plus exact
+metric identities, total status mapping, shared elapsed values, real Actor,
+Combat and Random Tick limits, and a real Population cycle followed by a
+non-cycle reset. The complete WorldRuntime suite remains the proof that
+instrumentation did not change gameplay.
+
+### 4.7 Trade-offs
+
+This is a last-tick diagnostic view, so it intentionally cannot answer P95,
+trend or capacity-planning questions. The Population phase has a per-cycle
+limit but no retained queue; therefore its deferred count is correctly zero.
+Actor work is unbudgeted, which is an honest observation rather than a missing
+constant disguised as zero.
+
+If repeated evidence later shows scheduling pressure, D1 may change runtime
+behavior under a separate contract. A5 does not infer that need from one
+sample and does not create a scheduler that future systems would be forced to
+fit.
+
+Related evidence:
+
+- `docs/contracts/simulation-phase-metrics-contract-v1.md`
+- `docs/reports/architecture-lab-a5-simulation-metrics-report-v1.md`
+- `tools/validate_simulation_metrics_boundary.ps1`

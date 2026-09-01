@@ -438,6 +438,138 @@ void caseWorldSimulationRuntime()
 }
 
 // ---------------------------------------------------------------------------
+// AL-A5 - selected real phases expose last-tick work and budget vocabulary
+// ---------------------------------------------------------------------------
+void caseSimulationPhaseMetrics()
+{
+    const std::array<WorldSimulationPhase, SimulationMetricPhaseCount>
+        expectedPhases = {
+            WorldSimulationPhase::ActorSimulation,
+            WorldSimulationPhase::Combat,
+            WorldSimulationPhase::BlockRandomTick,
+            WorldSimulationPhase::Population};
+
+    SimulationPhaseMetrics vocabulary;
+    const bool unbudgeted =
+        vocabulary.budgetStatus() ==
+            SimulationPhaseBudgetStatus::Unbudgeted &&
+        std::string(simulationPhaseBudgetStatusName(
+            vocabulary.budgetStatus())) == "unbudgeted";
+    vocabulary.budgetScope = SimulationPhaseBudgetScope::PerTick;
+    vocabulary.budget = 4;
+    vocabulary.processed = 2;
+    const bool within = vocabulary.budgetStatus() ==
+                        SimulationPhaseBudgetStatus::WithinBudget;
+    vocabulary.processed = 4;
+    const bool atBudget = vocabulary.budgetStatus() ==
+                          SimulationPhaseBudgetStatus::AtBudget;
+    vocabulary.deferred = 1;
+    const bool deferred = vocabulary.budgetStatus() ==
+                          SimulationPhaseBudgetStatus::WorkDeferred;
+    check("AL-A5/budget-status-vocabulary-is-frozen",
+          unbudgeted && within && atBudget && deferred &&
+              std::string(simulationPhaseBudgetScopeName(
+                  SimulationPhaseBudgetScope::PerPopulationCycle)) ==
+                  "per-cycle");
+
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player,
+                freshSaveDirectory("al_a5_simulation_metrics"), false, 1);
+
+    const WorldSimulationSnapshot initial =
+        world.collectDebugStats().simulation;
+    bool identityOrdered = initial.metrics.size() == expectedPhases.size();
+    for (std::size_t index = 0; index < expectedPhases.size(); ++index) {
+        identityOrdered = identityOrdered &&
+            initial.metrics[index].phase == expectedPhases[index];
+    }
+    check("AL-A5/metric-identities-exclude-empty-system-slots",
+          identityOrdered && initial.metrics.size() == 4);
+
+    world.tick(4240);
+    const WorldSimulationSnapshot cycle =
+        world.collectDebugStats().simulation;
+    bool elapsedMatches = true;
+    for (const SimulationPhaseMetrics &metrics : cycle.metrics) {
+        const std::size_t phase = static_cast<std::size_t>(metrics.phase);
+        elapsedMatches = elapsedMatches &&
+            phase < cycle.phases.size() &&
+            metrics.elapsedMilliseconds ==
+                cycle.phases[phase].elapsedMilliseconds &&
+            std::isfinite(metrics.elapsedMilliseconds) &&
+            metrics.elapsedMilliseconds >= 0.0;
+    }
+    check("AL-A5/metric-elapsed-matches-a3-phase-timing",
+          elapsedMatches);
+
+    const SimulationPhaseMetrics *actor = findSimulationPhaseMetrics(
+        cycle, WorldSimulationPhase::ActorSimulation);
+    check("AL-A5/actor-work-is-unbudgeted-and-counted",
+          actor != nullptr && actor->processed >= 1 &&
+              actor->deferred == 0 && actor->budget == 0 &&
+              actor->budgetStatus() ==
+                  SimulationPhaseBudgetStatus::Unbudgeted);
+
+    const SimulationPhaseMetrics *combat = findSimulationPhaseMetrics(
+        cycle, WorldSimulationPhase::Combat);
+    check("AL-A5/combat-uses-existing-per-tick-budget",
+          combat != nullptr &&
+              combat->budgetScope ==
+                  SimulationPhaseBudgetScope::PerTick &&
+              combat->budget ==
+                  World::CombatProjectileStepBudgetPerTick &&
+              combat->processed <= combat->budget &&
+              (combat->deferred == 0 ||
+               combat->budgetStatus() ==
+                   SimulationPhaseBudgetStatus::WorkDeferred));
+
+    const SimulationPhaseMetrics *randomTick = findSimulationPhaseMetrics(
+        cycle, WorldSimulationPhase::BlockRandomTick);
+    check("AL-A5/random-tick-uses-existing-per-tick-budget",
+          randomTick != nullptr &&
+              randomTick->budgetScope ==
+                  SimulationPhaseBudgetScope::PerTick &&
+              randomTick->budget ==
+                  World::RandomTickSectionBudgetPerTick &&
+              randomTick->processed <= randomTick->budget &&
+              (randomTick->deferred == 0 ||
+               randomTick->budgetStatus() ==
+                   SimulationPhaseBudgetStatus::WorkDeferred));
+
+    const SimulationPhaseMetrics *population = findSimulationPhaseMetrics(
+        cycle, WorldSimulationPhase::Population);
+    const std::size_t cycleAttempts =
+        population != nullptr ? population->processed : 0;
+    const std::size_t cycleBudget =
+        population != nullptr ? population->budget : 0;
+    world.tick(4241);
+    const WorldSimulationSnapshot nextCycle =
+        world.collectDebugStats().simulation;
+    const SimulationPhaseMetrics *nextPopulation =
+        findSimulationPhaseMetrics(
+            nextCycle,
+            WorldSimulationPhase::Population);
+    check("AL-A5/population-is-per-cycle-and-resets-next-tick",
+          population != nullptr && cycleAttempts > 0 &&
+              cycleAttempts <= cycleBudget &&
+              population->deferred == 0 &&
+              population->budgetScope ==
+                  SimulationPhaseBudgetScope::PerPopulationCycle &&
+              nextPopulation != nullptr &&
+              nextPopulation->processed == 0 &&
+              nextPopulation->deferred == 0 &&
+              nextPopulation->budget == cycleBudget,
+          "cycle_attempts=" + std::to_string(cycleAttempts) +
+              " budget=" + std::to_string(cycleBudget));
+}
+
+// ---------------------------------------------------------------------------
 // E0 - block data and mesh UV generation do not require a graphics context
 // ---------------------------------------------------------------------------
 void caseBlockTextureCoordinates()
@@ -14843,12 +14975,17 @@ int main()
             caseInteractionAndEvents();
             caseDataDrivenObjectives();
         }
+        else if (focus != nullptr && std::string(focus) == "AL-A5") {
+            caseWorldSimulationRuntime();
+            caseSimulationPhaseMetrics();
+        }
         else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
         caseDebugPanelStartupOption();
         caseFixedTickScheduler();
         caseWorldSimulationRuntime();
+        caseSimulationPhaseMetrics();
         caseWorldEnvironment();
         caseBlockTextureCoordinates();
         caseRuntimeConfigOwnership();

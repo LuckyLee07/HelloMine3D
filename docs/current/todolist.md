@@ -38,7 +38,7 @@ HelloMine3D 是 **以真实可玩的单机体素沙盒为载体的 C++ Architect
 | 可玩载体 | 创建世界 → 采集 → 制作 → 工具成长 → 冶炼/食物 → 战斗 → 探索 → 路标胜利 → 胜利后事件 → 保存重开已经贯通。 |
 | 玩法与视觉 | Stage 9、Stage 10/VISUAL-RC、Stage 11/P11F 已完成 Windows 自动工程范围；Stage 11 待开发代码批次为 0。 |
 | 世界可靠性 | 世界目录、事务保存、有界备份、验证恢复、世界管理和主菜单入口已经完成；当前 world save format 为 v12。 |
-| 自动门禁 | VS2017/v141 双配置、846/846 世界、80/80 资源包、122/122 配方、15/15 启动负例和 104 项干净包通过。 |
+| 自动门禁 | VS2017/v141 双配置、853/853 世界、80/80 资源包、122/122 配方、15/15 启动负例和 104 项干净包通过。 |
 | 性能与诊断 | 六类正式 Q1、nominal/stress 各 1800 秒 Q3、崩溃 dump、脱敏 sidecar、离线符号和独立符号归档已闭环。 |
 | AI/Computer Use | `AI-01..AI-08=NOT_RUN`；没有外部玩家依赖，具备 OS 级 Computer Use 时按当前验收规范执行。 |
 | 人类体验 | 乐趣、审美、舒适度和物理设备手感统一为 `NOT_CLAIMED`。 |
@@ -55,15 +55,16 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 | `AL-A2` Chunk Runtime Boundary | `Done` | 既有 Chunk Update Queue、Mesh Work Planner、单 loader 及 preload/unload 协调已迁入 `ChunkRuntime`；World 公开面、共享锁、预算、save v12 与 unload 语义保持不变，没有引入 B1 Residency 状态机。VS2017/v141 Debug/Release 完整门禁、两轮 832/832 世界和 104 项干净包通过。详见 `docs/reports/architecture-lab-a2-chunk-runtime-report-v1.md`。 |
 | `AL-A3` Simulation Runtime | `Done` | 具体 `WorldSimulation` 已承接既有 20 Hz fixed-tick 编排；8 phase 顺序、context、最近一次 tick 原始耗时和 caller-owned pause 均有自动门禁，玩法所有权与 78 项 World 公开面不变，没有引入 A5 Scheduler/Metrics/Budget。VS2017/v141 Debug/Release、两轮 838/838 世界和 104 项隔离包通过。详见 `docs/reports/architecture-lab-a3-world-simulation-report-v1.md`。 |
 | `AL-A4` Event / Command / Query Boundary | `Done` | `IWorldCommand / addCommand` 已取代旧 event-as-command 路径；事实事件不可变并区分 Domain/Diagnostic，生产订阅者显式声明 effect/republish，有界递归、诊断隔离和订阅快照语义均有自动门禁。VS2017/v141 Debug/Release、846/846 世界与 104 项隔离包通过；没有进入 A5。详见 `docs/reports/architecture-lab-a4-event-command-query-report-v1.md`。 |
+| `AL-A5` Tick Phase Metrics & Budget Vocabulary | `Done` | Actor、Combat、Block Random Tick、Population 的 last-tick processed/deferred/budget scope/status 词汇和开发者面板已经冻结；VS2017/v141 Debug/Release、两轮 853/853 世界与 104 项隔离包通过，没有改变 phase 顺序、hard limit 或 Gameplay，也没有进入 A6/B1/D1。详见 `docs/reports/architecture-lab-a5-simulation-metrics-report-v1.md`。 |
 
 ## 下一候选
 
 | 批次 | 状态 | 目标 | 进入条件 | 退出边界 |
 | ---- | ---- | ---- | -------- | -------- |
-| `AL-A5` Tick Phase Metrics & Budget Vocabulary | `Queued` | 在 A3 原始 phase 计时上冻结统一 Metrics / Budget 词汇。 | AL-A4 已完成；仍须再次获得项目所有者独立批准。 | 当前只是未批准候选，不构成开发承诺。 |
+| `AL-A6` Architecture Lab Documentation Pipeline | `Queued` | 固化同一份教程的长期章节维护规则。 | AL-A5 完成、Track A 证据冻结后再次获得项目所有者独立批准。 | 当前只是未批准候选；现有教程已经可维护，不为 A6 预建空章节。 |
 
-`AL-A4 Event / Command / Query Boundary` 已完成并冻结证据。当前没有已批准的在途开发批次；
-`AL-A5` 只是唯一下一候选，只有项目所有者再次独立批准后才允许定义统一 Metrics / Budget。
+`AL-A5 Tick Phase Metrics & Budget Vocabulary` 已完成并冻结证据。当前没有已批准的在途开发批次；
+`AL-A6` 只是唯一下一候选，A6/B1/D1 都不会由 A5 自动启动。
 
 ## 当前阻塞
 
@@ -72,7 +73,7 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
   `Engineering Done`，但 Track 不得标记 `AI Playability PASS`。
 - 严格 `AI-06` 还要求 package-only 文件系统访问；仅切换工作目录但仓库仍可读取时记录
   `BLOCKED`，不能声明 blind PASS。
-- 当前没有已知实现阻塞，也没有已批准的在途批次。
+- 当前没有已知实现阻塞，也没有已批准的在途开发批次。
 
 ## 待执行验收
 

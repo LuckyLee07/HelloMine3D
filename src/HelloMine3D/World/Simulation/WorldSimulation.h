@@ -23,8 +23,27 @@ enum class WorldSimulationPhase : std::uint8_t {
 
 constexpr std::size_t WorldSimulationPhaseCount =
     static_cast<std::size_t>(WorldSimulationPhase::Count);
+constexpr std::size_t SimulationMetricPhaseCount = 4;
 
 const char *worldSimulationPhaseName(WorldSimulationPhase phase) noexcept;
+
+enum class SimulationPhaseBudgetScope : std::uint8_t {
+    Unbudgeted = 0,
+    PerTick,
+    PerPopulationCycle,
+};
+
+enum class SimulationPhaseBudgetStatus : std::uint8_t {
+    Unbudgeted = 0,
+    WithinBudget,
+    AtBudget,
+    WorkDeferred,
+};
+
+const char *simulationPhaseBudgetScopeName(
+    SimulationPhaseBudgetScope scope) noexcept;
+const char *simulationPhaseBudgetStatusName(
+    SimulationPhaseBudgetStatus status) noexcept;
 
 struct WorldTickContext {
     int tick = 0;
@@ -36,13 +55,30 @@ struct WorldSimulationPhaseTiming {
     double elapsedMilliseconds = 0.0;
 };
 
+struct SimulationPhaseMetrics {
+    WorldSimulationPhase phase = WorldSimulationPhase::ActorSimulation;
+    double elapsedMilliseconds = 0.0;
+    std::size_t processed = 0;
+    std::size_t deferred = 0;
+    std::size_t budget = 0;
+    SimulationPhaseBudgetScope budgetScope =
+        SimulationPhaseBudgetScope::Unbudgeted;
+
+    SimulationPhaseBudgetStatus budgetStatus() const noexcept;
+};
+
 struct WorldSimulationSnapshot {
     std::uint64_t completedTicks = 0;
     int lastTick = 0;
     float deltaSeconds = 1.f / 20.f;
     double tickElapsedMilliseconds = 0.0;
     std::array<WorldSimulationPhaseTiming, WorldSimulationPhaseCount> phases;
+    std::array<SimulationPhaseMetrics, SimulationMetricPhaseCount> metrics;
 };
+
+const SimulationPhaseMetrics *findSimulationPhaseMetrics(
+    const WorldSimulationSnapshot &snapshot,
+    WorldSimulationPhase phase) noexcept;
 
 /// Coordinates the existing fixed-tick phases without owning gameplay state.
 class WorldSimulation final : public NonCopyable {

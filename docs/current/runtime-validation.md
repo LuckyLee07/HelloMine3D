@@ -159,6 +159,48 @@ The Release executable is 8,760,832 bytes with SHA-256
 Real-window launch is `DEFERRED`, AI acceptance remains `NOT_RUN`, and human
 subjective experience remains `NOT_CLAIMED`.
 
+## AL-A5 Simulation Phase Metrics Evidence
+
+AL-A5 keeps the AL-A3 phase order and last-tick publication model. A fifth
+static architecture gate composes with A1-A4:
+
+```powershell
+& .\tools\validate_simulation_metrics_boundary.ps1 `
+  -Root (Get-Location).Path
+```
+
+The gate freezes exactly four metric identities: `ActorSimulation`, `Combat`,
+`BlockRandomTick` and `Population`. It checks elapsed/processed/deferred/budget,
+three budget scopes, four derived statuses, the developer Simulation panel,
+existing hard limits, persistence exclusion and the absence of speculative
+Scheduler/Registry/system slots.
+
+`HELLOMINE3D_WORLD_SMOKE_FOCUS=AL-A5` passes `13/13` in VS2017/v141 Debug and
+Release. Seven A5 assertions add the following evidence to the six A3 checks:
+
+| Assertions | AL-A5 property |
+| ---------- | -------------- |
+| `AL-A5/metric-identities-exclude-empty-system-slots` | Only four implemented work contracts appear, in frozen order. |
+| `AL-A5/budget-status-vocabulary-is-frozen` | Unbudgeted, WithinBudget, AtBudget and WorkDeferred have total, stable meanings. |
+| `AL-A5/metric-elapsed-matches-a3-phase-timing` | A metric and its A3 phase row share one elapsed sample. |
+| `AL-A5/actor-work-is-unbudgeted-and-counted` | PlayerActor plus invoked live actors are observed without inventing a limit. |
+| `AL-A5/combat-uses-existing-per-tick-budget` | Projectile processed/deferred values use the unchanged 32-step limit. |
+| `AL-A5/random-tick-uses-existing-per-tick-budget` | Active-section work uses the unchanged four-section limit. |
+| `AL-A5/population-is-per-cycle-and-resets-next-tick` | A real Normal cycle reports `16/16`, then a non-cycle tick resets processed/deferred to zero. |
+
+The metrics are copied diagnostics, not performance acceptance. AL-A5 defines
+no average, percentile, time threshold or new Q1/Q3 result. The complete
+VS2017/v141 Debug/Release gate passes with `853/853` WorldRuntime checks in
+both configurations, `80/80` resource-pack checks, `122/122` recipe checks,
+`15/15` startup negatives and two short soaks with zero failures. The isolated
+package contains 104 entries and has SHA-256
+`4DA15FA1799804FB61710FA285DD0E6818BE1B42CE26AFA25E1F777DF3334009`;
+the 8,762,880-byte Release executable has SHA-256
+`14416A52E882EBDE15A41FD8A251AF46D74EE0388A297BFD77596C8097296F2A`.
+Real-window launch is `DEFERRED`, AI acceptance remains `NOT_RUN`, and human
+subjective experience remains `NOT_CLAIMED`. Full closeout is recorded in
+`docs/reports/architecture-lab-a5-simulation-metrics-report-v1.md`.
+
 ## World Runtime Smoke
 
 `src/HelloMine3D/Tests/WorldRuntimeSmokeMain.cpp` links the whole game runtime
@@ -429,6 +471,7 @@ the 2026-08-31 Architecture Lab policy, both physical protocols remain
 | P11F PLAYABILITY-RC engineering audit | `scripts\verify_build.ps1 -VisualStudioVersion 2017`; `tools\capture_release_candidate_performance.ps1`; `tools\run_release_candidate_soak.ps1`; `tools\validate_crash_diagnostics.ps1`; `tools\package_windows_release.ps1`; `docs\reports\playability-release-candidate-report-2026-08-31.md` | Frozen runtime identity `320e293` passes the VS2017/v141 Debug/Release gate with 84 manifest entries, 278 atlas checks, 38 performance fixtures, 11 Stage 10 supplement checks, 832/832 world, 80/80 resource-pack, 122/122 recipe and 15/15 startup negatives. Six formal Q1 comparisons and both 1,800-second Q3 profiles pass; the controlled crash produces a 136,615-byte dump, and the 104-entry package SHA-256 is `422F97E87046D4B6D5FC4BB99C37886FF37C4461A152C1162FA66A972B12F459`. Windows engineering is Done; current AI scenarios are `NOT_RUN`, human subjective experience is `NOT_CLAIMED`, and the historical report is not rewritten (2026-08-31). |
 | AL-A0 latest architecture baseline | Source/API/ownership audit; `git diff --check`; changed-Markdown reference validation; World renderer-boundary probe; `scripts\verify_build.ps1 -VisualStudioVersion 2017`; `docs\reports\architecture-lab-baseline-v1.md` | No tracked Gameplay/runtime/resource/build-input change. Debug/Release rebuild and all gates pass with 832/832 world, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives and real window PASS. Formal Q1/Q3 are cited from unchanged runtime identity rather than rerun. The A0 rebuild creates a distinct local 104-entry verification package SHA-256 `0E18AAA9DC45C1663CBC5CAC6E83DB1995EA65DA47B16B546A2310C75979A6FB`; it does not replace the historical P11F package identity. `AI-01..AI-08=NOT_RUN`, human subjective experience remains `NOT_CLAIMED` (2026-09-01). |
 | AL-A1 World responsibility map | `tools\validate_world_responsibility_map.ps1`; `scripts\verify_build.ps1 -VisualStudioVersion 2017`; `docs/contracts/world-responsibility-map-contract-v1.md` | The machine-checked map covers all 78 unique public `World` method names as 45 Queries, 31 Commands and 2 Runtime Ticks across nine responsibilities; normalized public-surface SHA-256 is `3C53F56C425F0395354C8A5CE966E96CDA8BC93D836699955E03BA965A664AD8`. The complete VS2017/v141 Debug/Release gate passes with 832/832 world, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives, a 147,777-byte controlled dump, symbol archive SHA-256 `4716391d29d2bc92c11258d1755d9aac3f86ccee962414a8b684dd3692ffeec3`, 104-entry package SHA-256 `00F7239139580FD71D5EF9518335CA7A193E5A184825C07630F3F96979713054` and real window PASS. No tracked Gameplay/runtime/resource input changed, so formal Q1/Q3 remain cited from the frozen runtime identity. `AI-01..AI-08=NOT_RUN`; human subjective experience remains `NOT_CLAIMED` (2026-09-01). |
+| AL-A5 Simulation phase metrics | `tools\validate_simulation_metrics_boundary.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=AL-A5`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-a5-simulation-metrics-report-v1.md` | Exactly four real phase metrics freeze copied elapsed/processed/deferred/budget scope/status without changing AL-A3 order or existing hard limits. Debug/Release focused runs pass 13/13; the complete gate passes 853/853 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives and two zero-failure short soaks. The 104-entry package SHA-256 is `4DA15FA1799804FB61710FA285DD0E6818BE1B42CE26AFA25E1F777DF3334009`. Real-window launch is `DEFERRED`, AI acceptance is `NOT_RUN`, and human subjective experience is `NOT_CLAIMED` (2026-09-01). |
 | AI-assisted gameplay baseline | `docs\current\ai-assisted-gameplay-acceptance-v1.md` | `AI-01..AI-08 result=NOT_RUN`; no OS-level Computer Use record has been produced in this documentation batch. |
 
 The current 2026-08-12 runs use an NVIDIA GTX 1050 Ti with OpenGL 4.6. The

@@ -1,7 +1,7 @@
 # HelloMine3D Current Architecture Baseline
 
-本文以 `AL-A0 — Latest Architecture Baseline` 的完整审计为起点，并随已完成的 AL-A1/AL-A2/AL-A3/AL-A4
-更新当前实现；它描述代码事实，而不是未来目标架构。
+本文以 `AL-A0 — Latest Architecture Baseline` 的完整审计为起点，并随已完成的
+AL-A1/AL-A2/AL-A3/AL-A4/AL-A5 更新当前实现；它描述代码事实，而不是未来目标架构。
 审计起点为 Git commit `4930023fb2f3022daac9968c10a1a0b76e1ac392`；冻结的
 PLAYABILITY-RC 运行时代码身份仍是
 `320e293c2f1db7f46aba776ddccdcf94369f2d05`。A0 只更新文档，没有移动源码、改变 Gameplay、
@@ -91,8 +91,8 @@ Core / Entity / Physics / Maths / Util
   与不提交 Gameplay 的 Query 分开。订阅者不得假设异步或跨线程投递。
 - `World` 仍是宽 facade/组合根，但 AL-A2 已把现有 Chunk 派生工作与 loader 协调移入
   `ChunkRuntime`；这不是 B1 Residency 状态机。
-- AL-A3 已把 `World::tick` 的现有调用顺序集中到具体 `WorldSimulation`；它只拥有编排和最近一次
-  tick 的原始 phase timing，不拥有玩法状态，也不是 A5 的通用 scheduler/budget。
+- AL-A3 已把 `World::tick` 的现有调用顺序集中到具体 `WorldSimulation`；AL-A5 在同一 last-tick
+  snapshot 上增加四条真实 processed/deferred/budget 观察。两者都不拥有玩法状态，也不是通用 scheduler。
 
 ## 4. World Public API Surface
 
@@ -365,8 +365,9 @@ Ogre::frameEnded -> capture + performance record + exit/crash gates
 
 暂停或非 Playing 状态由 `GameApplicationFlow` 在进入 `SandboxRuntime::update` 之前阻止 simulation；
 `WorldSimulation` 不复制 pause 状态，渲染、UI 和必要的应用处理仍可继续。每个完成 tick 记录 8 项
-phase 与整 tick 的 `steady_clock` 原始毫秒值，通过 `WorldDebugStats` 的复制快照显示在开发者面板；
-这些值不持久化、不进入确定性比较，也还不是 A5 的平均值、预算、overrun 或 deferred-work 语义。
+phase 与整 tick 的 `steady_clock` 原始毫秒值，并为 Actor、Combat、Block Random Tick、Population
+发布四条 last-tick work metrics。`WorldDebugStats` 把 elapsed、processed、deferred、budget scope/status
+复制到开发者面板；这些值不持久化、不进入确定性比较，也不定义平均值、百分位或毫秒预算。
 
 ## 11. Render Snapshot Chain
 
@@ -412,15 +413,16 @@ block、Actor、inventory、objective or persistence truth。
 这些版本属于不同兼容性域，不能用 world save v12 推断其他定义已迁移，也不能因重建派生数据而
 静默改写 terrain identity。任何后续 Architecture Lab 批次都必须在自己的合同中列出受影响域。
 
-## 13. Current Conclusions Through AL-A4
+## 13. Current Conclusions Through AL-A5
 
 - 当前可玩的系统已经有清晰的 Renderer-to-Snapshot 边界和可验证持久化边界。
-- `World` 仍承担 facade、组合根和多套 Simulation 玩法状态；AL-A2/AL-A3/AL-A4 只关闭了三条由真实工作
+- `World` 仍承担 facade、组合根和多套 Simulation 玩法状态；AL-A2/AL-A3/AL-A4/AL-A5 只关闭了四条由真实工作
   验证的内部边界，没有试图一次性拆完 God Object。
 - Chunk pipeline 的 snapshot/off-lock/revision-commit、FIFO、预算和 unload/save 语义现在集中在
   `ChunkRuntime` / `ChunkManager` 边界；没有通用取消、背压或三态 Residency 合同。
-- fixed-tick 的 8 phase 顺序、context 和 last-tick 原始耗时现在集中在 `WorldSimulation`；玩法状态与
-  旧实现仍由 World/Actor/Gameplay 所有，没有 `SimulationScheduler`、系统 Registry 或统一预算。
+- fixed-tick 的 8 phase 顺序、context、last-tick 原始耗时及四条真实 work metrics 现在集中在
+  `WorldSimulation`；玩法状态与旧实现仍由 World/Actor/Gameplay 所有，没有 `SimulationScheduler`、
+  系统 Registry、时间预算或执行优先级。
 - 玩家 Break/Use/Place 请求现在只走 `IWorldCommand` FIFO；World-local EventBus 只同步分发不可变事实，
   生产订阅者 effect/republish、8 层递归上限、per-publication membership 与 Diagnostic 隔离均已冻结。
-- AL-A5 和 B1 仍必须再次独立批准；A4 完成不构成自动启动权限。
+- A6、B1 和 D1 仍必须再次独立批准；A5 完成不构成自动启动权限。

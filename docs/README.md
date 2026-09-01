@@ -18,7 +18,8 @@
 `NOT_RUN`；人类乐趣、审美、舒适度和物理设备手感为 `NOT_CLAIMED`。`AL-A0` 已完成当前
 架构/依赖/性能/验证身份冻结；`AL-A1` 已完成 `World` 责任地图和新增 API 门禁；`AL-A2` 已完成
 既有 Chunk runtime 协调提取；`AL-A3` 已完成 Simulation Runtime 编排与原始 phase timing。
-`AL-A4` 已完成 Event / Command / Query 边界与事实分发门禁；`AL-A5` 是唯一下一候选但尚未批准；其余 Core/Extended 能力目录
+`AL-A4` 已完成 Event / Command / Query 边界与事实分发门禁；`AL-A5` 已完成四条真实 phase
+metrics、预算词汇和开发者面板观察；下一候选 `AL-A6` 尚未批准，其余 Core/Extended 能力目录
 都不是自动批准的 backlog。
 
 ## 目录分工

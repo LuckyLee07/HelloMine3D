@@ -707,6 +707,20 @@ Simulation
 
 **Chapter 06：为什么大型沙盒不能让所有对象每帧 Tick**
 
+### 当前实现记录
+
+`AL-A5` 已于 2026-09-01 获得独立批准，并按 A3 的 last-tick snapshot 增加四条真实工作指标：
+Actor 记录 PlayerActor 加实际 tick 的 managed actor 数且保持 unbudgeted；Combat 复用既有 projectile
+step 32/tick；Block Random Tick 复用 section 4/tick 并记录仍在轮转队列中的 active section；
+Population 复用当前 difficulty 的 attempts/cycle，非周期 tick 明确归零。
+
+统一字段为 elapsed、processed、deferred、budget 和 scope；状态只从这些值派生为 Unbudgeted、
+WithinBudget、AtBudget 或 WorkDeferred。开发者 Simulation 面板显示这组复制值。本批没有平均值、
+百分位、毫秒预算、性能阈值、持久化、Scheduler/Registry、priority 或新工作队列，也没有为未来
+Machine/Network/AI/Transport 注册空槽。冻结合同见
+`docs/contracts/simulation-phase-metrics-contract-v1.md`，关闭证据见
+`docs/reports/architecture-lab-a5-simulation-metrics-report-v1.md`；完成 A5 不自动批准 A6/B1/D1。
+
 ---
 
 ## A6 — Architecture Lab Documentation Pipeline

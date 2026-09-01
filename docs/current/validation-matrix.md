@@ -31,7 +31,9 @@ PASS。新的 AI 场景尚未执行时只写 `NOT_RUN`，不写成永久 `Deferr
 | `AL-A0` 纯文档基线 | 逐项对照实际源码冻结模块/API/ownership/tick/snapshot；`git diff --check`、本地 Markdown 引用、World→Ogre 反向依赖检查和 VS2017 完整门禁。运行时代码/身份未变时引用既有正式 Q1/Q3，不重跑 1800 秒；无 OS Computer Use 时 `AI-08=NOT_RUN`。 |
 | `AL-A1` World 责任地图 | `tools\validate_world_responsibility_map.ps1` 必须覆盖全部公开方法、匹配 public-surface hash 且无 stale/重复行；随后运行 VS2017 完整门禁。没有运行时行为变化时引用既有正式 Q1/Q3，`AI-01..AI-08` 保持 `NOT_RUN`。 |
 | `AL-A2` Chunk Runtime 边界 | `tools\validate_chunk_runtime_boundary.ps1` + AL-A1 公开面门禁；VS2017/v141 Debug/Release 完整门禁；WorldRuntime 的 S0.5/M2/M6/M7/E5/S2.4 与 loader stress 必须通过。禁止新增 Residency 状态、改变 save/unload 转换或修改既有预算；AI 场景未执行时保持 `NOT_RUN`。 |
-| `AL-A3` Simulation Runtime 边界 | `tools\validate_world_simulation_boundary.ps1` + AL-A1/A2 边界门禁；`HELLOMINE3D_WORLD_SMOKE_FOCUS=AL-A3` 和完整 WorldRuntime；VS2017/v141 Debug/Release 完整门禁。必须保持 8 phase 顺序、20 Hz context、caller-owned pause 和确定性；禁止提前增加 Scheduler/Registry/Budget/deferred work。 |
+| `AL-A3` Simulation Runtime 边界 | `tools\validate_world_simulation_boundary.ps1` + AL-A1/A2 边界门禁；`HELLOMINE3D_WORLD_SMOKE_FOCUS=AL-A3` 和完整 WorldRuntime；VS2017/v141 Debug/Release 完整门禁。必须保持 8 phase 顺序、20 Hz context、caller-owned pause 和确定性；后续 A5 只能增加观察词汇，仍禁止 Scheduler/Registry 和执行行为变化。 |
+| `AL-A4` Event / Command / Query 边界 | `tools\validate_event_command_query_boundary.ps1` + AL-A1/A2/A3 边界门禁；`HELLOMINE3D_WORLD_SMOKE_FOCUS=AL-A4` 和完整 WorldRuntime；必须保持 typed command FIFO、immutable fact、订阅者 effect/republish、8 层递归、诊断隔离和查询非 mutation 语义。 |
+| `AL-A5` Tick Phase Metrics / Budget 词汇 | `tools\validate_simulation_metrics_boundary.ps1` + AL-A1..A4 边界门禁；`HELLOMINE3D_WORLD_SMOKE_FOCUS=AL-A5` 和完整 WorldRuntime；VS2017/v141 Debug/Release 完整门禁。只允许四个真实 metric phase 的 last-tick elapsed/processed/deferred/budget scope/status；不得改变 hard limit、phase 顺序、Gameplay 或引入 Scheduler/Registry/空系统槽。 |
 
 ## 完整验证路由
 
@@ -42,6 +44,8 @@ PASS。新的 AI 场景尚未执行时只写 `NOT_RUN`，不写成永久 `Deferr
 | World 公开 API 责任门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_world_responsibility_map.ps1` | `World.h` 公开声明或 `docs/current/architecture.md` 责任地图变化；完整 Windows 门禁也会自动运行 |
 | Chunk Runtime 边界门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_chunk_runtime_boundary.ps1` | `World` / `ChunkRuntime` / `ChunkManager` 的队列、worker、预算、mesh commit 或 unload 协调变化；完整 Windows 门禁也会自动运行 |
 | Simulation Runtime 边界门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_world_simulation_boundary.ps1` | `World::tick`、`WorldSimulation`、phase/context/raw timing、暂停入口或相关 debug snapshot 变化；完整 Windows 门禁也会自动运行 |
+| Event / Command / Query 边界门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_event_command_query_boundary.ps1` | command FIFO、EventBus、生产订阅者、查询或未来 Machine/Network 依赖变化；完整 Windows 门禁也会自动运行 |
+| Simulation Metrics 边界门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_simulation_metrics_boundary.ps1` | phase metric identity、processed/deferred/budget scope/status、Actor 计数、开发者 Simulation 面板或相关 snapshot 变化；完整 Windows 门禁也会自动运行 |
 | Windows Debug 编译 | `MSBuild build\HelloMine3D.sln /p:Configuration=Debug /p:Platform=x64` | 所有 C++ 改动的主干检查 |
 | Windows Release 编译 | 同上，配置改为 `Release` | 里程碑和发行候选 |
 | macOS Xcode 门禁 | `bash scripts/verify_xcode.sh` | Xcode 图、macOS 平台或原生封板 |

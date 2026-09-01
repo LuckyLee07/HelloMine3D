@@ -31,5 +31,7 @@
 8 phase 原始耗时观察，没有引入 A5 scheduler/budget。
 `AL-A4` 已把旧 event-as-command 路径改为 typed command FIFO，并冻结不可变事实事件、订阅者
 effect/republish、有界递归、诊断隔离和查询非 mutation 边界。
+`AL-A5` 已为四个真实 Simulation phase 冻结 last-tick processed/deferred/budget 观察、scope/status
+词汇和开发者面板；没有引入 scheduler、时间预算或行为变化。
 开始后续 Sprint 前，仍必须在 `todolist.md` 中写明独立批准、真实游戏需求、合同、可观察 Demo、
-自动门禁和对应 AI 场景；当前下一候选是尚未批准的 `AL-A5`。
+自动门禁和对应 AI 场景；下一候选 `AL-A6` 仍未获批，不会自动启动。
