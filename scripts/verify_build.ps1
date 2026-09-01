@@ -53,6 +53,8 @@ $chunkResidencyStateMachineVerifier = Join-Path $repoRoot `
     "tools\validate_chunk_residency_state_machine.ps1"
 $streamingDemandModelVerifier = Join-Path $repoRoot `
     "tools\validate_streaming_demand_model.ps1"
+$worldJobSchedulerVerifier = Join-Path $repoRoot `
+    "tools\validate_world_job_scheduler.ps1"
 
 function Invoke-Checked {
     param(
@@ -193,6 +195,10 @@ try {
 
     Invoke-Checked "B2 Streaming demand model" {
         & $streamingDemandModelVerifier -Root $repoRoot
+    }
+
+    Invoke-Checked "B3 World job scheduler" {
+        & $worldJobSchedulerVerifier -Root $repoRoot
     }
 
     Invoke-Checked "Resource manifest" {

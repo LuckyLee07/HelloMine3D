@@ -270,9 +270,10 @@ $env:HELLOMINE3D_WORLD_SMOKE_FOCUS = "B2"
 ```
 
 The static gate freezes four reason slots, priorities `400/300/200/100`, exact
-epoch expiry, de-duplicated planning, publication sites, copied diagnostics and
-absence of B3-B9 capabilities. It passes alongside AL-A1..B1; the public World
-map remains 78 methods with SHA-256
+epoch expiry, de-duplicated planning, publication sites and copied diagnostics.
+After B3 it admits the typed job scheduler while continuing to reject B4-B9
+capabilities. It passes alongside AL-A1..B1; the public World map remains 78
+methods with SHA-256
 `8B2CDDF30B70DA91D5EF4944D7E1397BC9434EB0E129B9313DA471143F653EC4`.
 
 The focused runtime passes `26/26`: twelve B2 checks cover stable bounded
@@ -285,6 +286,42 @@ negatives and two zero-failure short soaks. The 104-entry package SHA-256 is
 `9955E51AD94C7E5600325329031432E16C1859F936FA880F68F65F3B80369503`.
 AI scenarios remain `NOT_RUN`; human subjective experience remains
 `NOT_CLAIMED`.
+
+## B3 Generic World Job Scheduler Evidence
+
+B3 adds a ninth static architecture gate while preserving B1 lifecycle owners,
+B2 demand ordering and the AL-A2 one-worker budgets:
+
+```powershell
+& .\tools\validate_world_job_scheduler.ps1 `
+  -Root (Get-Location).Path
+$env:HELLOMINE3D_WORLD_SMOKE_FOCUS = "B3"
+& .\bin\HelloMine3DWorldRuntimeSmoke.exe
+```
+
+The static gate freezes exactly two real types, three states, three outcomes,
+deterministic priority/plan/epoch/type/id order, one in-flight slot and one
+loader worker. It requires the real `ChunkRuntime`/`ChunkManager` calls,
+developer diagnostics and all nine B3 test identities while rejecting B4-B9
+cancellation, pressure, Spatial Interest and far-representation concepts.
+
+The focused runtime passes `9/9`. Pure checks cover duplicate pending-key
+rejection, ordering, `Pending -> InFlight -> Completed`, invalid completion,
+pending replacement with in-flight preservation, completion values and copied
+metrics. A live background `World` check observes both
+`ChunkLoadOrGenerate` and `ChunkMeshBuild`; the existing B1 stale-revision
+assertion remains in the composed gate. B2 and B1 focused regressions pass
+`26/26` and `38/38` in the same VS2017/v141 Debug build.
+
+The complete `scripts\verify_build.ps1 -VisualStudioVersion 2017
+-SkipRealWindow` gate passes with Debug `2044 warnings / 0 errors`, Release
+`2023 warnings / 0 errors`, `884/884` WorldRuntime in both configurations,
+`80/80` resource-pack checks, `122/122` recipe checks, `15/15` startup
+negatives and two zero-failure short soaks. The clean 104-entry package
+SHA-256 is
+`B983889B5553FF0DBFEAF6C14D2E349CC81AD1205C314CC39C0894C2D1CD9459`;
+the final status is `PASS real_window=DEFERRED`. AI scenarios remain `NOT_RUN`;
+human subjective experience remains `NOT_CLAIMED`.
 
 ## World Runtime Smoke
 
@@ -560,6 +597,7 @@ the 2026-08-31 Architecture Lab policy, both physical protocols remain
 | AL-A6 Architecture Lab documentation pipeline | `tools\validate_architecture_lab_documentation.ps1 -SelfTest`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-a6-documentation-pipeline-report-v1.md` | The focused gate passes seven manifest rows, one implemented Part, six non-empty Sections and four negative fixtures. The complete VS2017/v141 gate passes 853/853 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives and two zero-failure short soaks. The 104-entry package SHA-256 is `0E387185600E957F8BC6ED4B46333817B0C12F0725322F9F939337455C245990`. Real-window launch is `DEFERRED`, AI acceptance is `NOT_RUN`, and human subjective experience is `NOT_CLAIMED` (2026-09-01). |
 | B1 Chunk residency state machine | `tools\validate_chunk_residency_state_machine.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=B1`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-b1-chunk-residency-report-v1.md` | Seven Data, five Mesh and four Ogre Render states are separately owned and assertion-guarded. Focused runtime passes 38/38, including light-only invalidation, save-failure rollback, dirty eviction, stale upload, unload persistence and direct deterministic structure generation/reload. The complete VS2017/v141 gate passes 863/863 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives, two zero-failure short soaks and a 104-entry package with SHA-256 `F76F5A1429C869FDA94FDD37BF34F8266866B5F665D1E550CA04F15CCD7ECF88`. World public API, AL-A2 budgets, Gameplay and save v12 stay unchanged. Real-window launch is `DEFERRED`, AI acceptance remains `NOT_RUN` and human subjective experience remains `NOT_CLAIMED` (2026-09-01). |
 | B2 Streaming demand model | `tools\validate_streaming_demand_model.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=B2`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-b2-streaming-demand-report-v1.md` | Four bounded Player/Camera/TeleportDestination/Preload slots drive de-duplicated deterministic planning by reason, frustum, motion, age and distance. Focused runtime passes 26/26; the complete gate passes 875/875 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives and two zero-failure short soaks. The 104-entry package SHA-256 is `9955E51AD94C7E5600325329031432E16C1859F936FA880F68F65F3B80369503`. No B3-B9 capability is implemented; real-window is `DEFERRED`, AI acceptance is `NOT_RUN`, and human subjective experience remains `NOT_CLAIMED` (2026-09-01). |
+| B3 Generic World Job Scheduler | `tools\validate_world_job_scheduler.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=B3`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-b3-world-job-scheduler-report-v1.md` | Two real typed jobs use deterministic pending order, one in-flight slot, completed records and copied metrics while retaining one loader and B1 revision commit. Focused runtime passes 9/9, B2 passes 26/26 and B1 passes 38/38. The complete gate passes 884/884 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives and two zero-failure short soaks; the 104-entry package SHA-256 is `B983889B5553FF0DBFEAF6C14D2E349CC81AD1205C314CC39C0894C2D1CD9459`. Real-window is `DEFERRED`, AI acceptance remains `NOT_RUN` and human subjective experience remains `NOT_CLAIMED` (2026-09-01). |
 | AI-assisted gameplay baseline | `docs\current\ai-assisted-gameplay-acceptance-v1.md` | `AI-01..AI-08 result=NOT_RUN`; no OS-level Computer Use record has been produced in this documentation batch. |
 
 The current 2026-08-12 runs use an NVIDIA GTX 1050 Ti with OpenGL 4.6. The

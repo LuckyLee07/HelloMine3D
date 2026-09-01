@@ -96,6 +96,7 @@
 #include "../World/Storage/WorldCatalogue.h"
 #include "../World/Storage/WorldManagementService.h"
 #include "../World/Storage/WorldSave.h"
+#include "../World/Streaming/WorldJobScheduler.h"
 #include "../World/World.h"
 
 namespace {
@@ -6233,6 +6234,196 @@ void caseStreamingDemandModel()
           preloaded.activeDemands == 3 &&
               preloaded.preloadDemands == 1 &&
               world.getChunkManager().chunkLoadedAt(40, 40));
+}
+
+// ---------------------------------------------------------------------------
+// B3 - typed, deterministic and observable scheduling of real world work
+// ---------------------------------------------------------------------------
+void caseWorldJobScheduler()
+{
+    check("B3/job-vocabulary-is-frozen",
+          std::string(WorldJobScheduler::typeName(
+              WorldJobType::ChunkLoadOrGenerate)) ==
+                  "ChunkLoadOrGenerate" &&
+              std::string(WorldJobScheduler::typeName(
+                  WorldJobType::ChunkMeshBuild)) == "ChunkMeshBuild" &&
+              std::string(WorldJobScheduler::stateName(
+                  WorldJobState::Pending)) == "Pending" &&
+              std::string(WorldJobScheduler::stateName(
+                  WorldJobState::InFlight)) == "InFlight" &&
+              std::string(WorldJobScheduler::stateName(
+                  WorldJobState::Completed)) == "Completed" &&
+              std::string(WorldJobScheduler::outcomeName(
+                  WorldJobOutcome::DidWork)) == "DidWork" &&
+              std::string(WorldJobScheduler::outcomeName(
+                  WorldJobOutcome::NoWork)) == "NoWork" &&
+              std::string(WorldJobScheduler::outcomeName(
+                  WorldJobOutcome::CommitRejected)) == "CommitRejected");
+
+    const auto request = [](WorldJobType type, VectorXZ target,
+                            int priority, std::uint64_t epoch,
+                            std::size_t planOrder) {
+        WorldJobRequest result;
+        result.type = type;
+        result.target = target;
+        result.priority = priority;
+        result.demandEpoch = epoch;
+        result.planOrder = planOrder;
+        return result;
+    };
+
+    WorldJobScheduler duplicateScheduler;
+    const WorldJobRequest duplicate = request(
+        WorldJobType::ChunkLoadOrGenerate, {1, 1}, 100, 1, 9);
+    const bool firstAccepted = duplicateScheduler.submit(duplicate);
+    const WorldJobSchedulerDebugStats beforeDuplicate =
+        duplicateScheduler.debugStats();
+    const bool duplicateRejected = !duplicateScheduler.submit(duplicate);
+    const WorldJobSchedulerDebugStats afterDuplicate =
+        duplicateScheduler.debugStats();
+    check("B3/duplicate-pending-key-is-rejected",
+          firstAccepted && duplicateRejected &&
+              beforeDuplicate.submittedJobs == 1 &&
+              afterDuplicate.submittedJobs == 1 &&
+              afterDuplicate.pendingJobs == 1);
+
+    WorldJobScheduler orderingScheduler;
+    const std::array<WorldJobRequest, 6> unordered{{
+        request(WorldJobType::ChunkLoadOrGenerate, {10, 0}, 100, 1, 0),
+        request(WorldJobType::ChunkLoadOrGenerate, {20, 0}, 400, 1, 6),
+        request(WorldJobType::ChunkMeshBuild, {30, 0}, 400, 5, 2),
+        request(WorldJobType::ChunkLoadOrGenerate, {30, 0}, 400, 5, 2),
+        request(WorldJobType::ChunkLoadOrGenerate, {40, 0}, 400, 4, 1),
+        request(WorldJobType::ChunkLoadOrGenerate, {50, 0}, 400, 7, 1),
+    }};
+    for (const WorldJobRequest &item : unordered) {
+        orderingScheduler.submit(item);
+    }
+    std::vector<std::pair<WorldJobType, VectorXZ>> ordered;
+    WorldJob scheduled;
+    while (orderingScheduler.takeNext(scheduled)) {
+        ordered.push_back({scheduled.type, scheduled.target});
+        orderingScheduler.complete(
+            scheduled, WorldJobOutcome::NoWork, 0.0, 0.0);
+        WorldJobCompletion drained;
+        orderingScheduler.popCompleted(drained);
+    }
+    check("B3/priority-plan-epoch-type-order-is-deterministic",
+          ordered.size() == unordered.size() &&
+              ordered[0].second == VectorXZ{50, 0} &&
+              ordered[1].second == VectorXZ{40, 0} &&
+              ordered[2].first == WorldJobType::ChunkLoadOrGenerate &&
+              ordered[2].second == VectorXZ{30, 0} &&
+              ordered[3].first == WorldJobType::ChunkMeshBuild &&
+              ordered[3].second == VectorXZ{30, 0} &&
+              ordered[4].second == VectorXZ{20, 0} &&
+              ordered[5].second == VectorXZ{10, 0});
+
+    WorldJobScheduler lifecycleScheduler;
+    lifecycleScheduler.submit(request(
+        WorldJobType::ChunkLoadOrGenerate, {0, 0}, 300, 3, 0));
+    lifecycleScheduler.submit(request(
+        WorldJobType::ChunkMeshBuild, {1, 0}, 200, 3, 1));
+    WorldJob active;
+    const bool started = lifecycleScheduler.takeNext(active);
+    const WorldJobSchedulerDebugStats inFlight =
+        lifecycleScheduler.debugStats();
+    WorldJob mismatched = active;
+    ++mismatched.id;
+    const bool mismatchedRejected = !lifecycleScheduler.complete(
+        mismatched, WorldJobOutcome::DidWork, 9.0, 9.0);
+    const std::vector<WorldJobRequest> replacement{
+        request(WorldJobType::ChunkMeshBuild, {2, 0}, 400, 4, 0)};
+    lifecycleScheduler.replacePending(replacement);
+    const WorldJobSchedulerDebugStats replaced =
+        lifecycleScheduler.debugStats();
+    check("B3/pending-to-inflight-and-invalid-completion",
+          started && active.id != 0 &&
+              active.state == WorldJobState::InFlight &&
+              inFlight.pendingJobs == 1 && inFlight.inFlightJobs == 1 &&
+              inFlight.startedJobs == 1 && mismatchedRejected &&
+              lifecycleScheduler.debugStats().completedJobs == 0);
+    check("B3/replace-pending-preserves-inflight",
+          replaced.pendingJobs == 1 && replaced.inFlightJobs == 1 &&
+              replaced.replacedPendingJobs == 1 &&
+              !lifecycleScheduler.takeNext(scheduled));
+
+    const bool completed = lifecycleScheduler.complete(
+        active, WorldJobOutcome::DidWork, 1.25, 0.5);
+    WorldJobCompletion firstCompletion;
+    const bool firstPopped =
+        lifecycleScheduler.popCompleted(firstCompletion);
+    WorldJob second;
+    const bool secondStarted = lifecycleScheduler.takeNext(second);
+    const bool secondCompleted = lifecycleScheduler.complete(
+        second, WorldJobOutcome::CommitRejected, -1.0, -2.0);
+    WorldJobCompletion secondCompletion;
+    const bool secondPopped =
+        lifecycleScheduler.popCompleted(secondCompletion);
+    const WorldJobSchedulerDebugStats finalStats =
+        lifecycleScheduler.debugStats();
+    check("B3/completion-records-state-outcome-and-timing",
+          completed && firstPopped && secondStarted && secondCompleted &&
+              secondPopped &&
+              firstCompletion.job.state == WorldJobState::Completed &&
+              firstCompletion.outcome == WorldJobOutcome::DidWork &&
+              std::abs(firstCompletion.workerMilliseconds - 1.25) < 0.001 &&
+              std::abs(firstCompletion.commitMilliseconds - 0.5) < 0.001 &&
+              secondCompletion.outcome ==
+                  WorldJobOutcome::CommitRejected &&
+              secondCompletion.workerMilliseconds == 0.0 &&
+              secondCompletion.commitMilliseconds == 0.0);
+    check("B3/debug-metrics-match-lifecycle",
+          finalStats.pendingJobs == 0 && finalStats.inFlightJobs == 0 &&
+              finalStats.completedResults == 0 &&
+              finalStats.submittedJobs == 3 &&
+              finalStats.startedJobs == 2 &&
+              finalStats.completedJobs == 2 &&
+              finalStats.didWorkJobs == 1 &&
+              finalStats.noWorkJobs == 0 &&
+              finalStats.commitRejectedJobs == 1 &&
+              finalStats.chunkLoadOrGenerateJobs == 1 &&
+              finalStats.chunkMeshBuildJobs == 1 &&
+              finalStats.lastQueueLatencyMilliseconds >= 0.0 &&
+              finalStats.lastWorkerMilliseconds == 0.0 &&
+              finalStats.lastCommitMilliseconds == 0.0);
+
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+    const auto directory = freshSaveDirectory("b3_world_job_pipeline");
+    Config config = makeConfig();
+    config.renderDistance = 1;
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, true, 0);
+    WorldJobSchedulerDebugStats runtimeStats;
+    const auto deadline = std::chrono::steady_clock::now() +
+                          std::chrono::seconds(15);
+    do {
+        world.update(camera);
+        runtimeStats = world.collectDebugStats().worldJobs;
+        if (runtimeStats.chunkLoadOrGenerateJobs > 0 &&
+            runtimeStats.chunkMeshBuildJobs > 0) {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    } while (std::chrono::steady_clock::now() < deadline);
+    check("B3/runtime-executes-both-real-job-types",
+          runtimeStats.chunkLoadOrGenerateJobs > 0 &&
+              runtimeStats.chunkMeshBuildJobs > 0,
+          "load=" +
+              std::to_string(runtimeStats.chunkLoadOrGenerateJobs) +
+              " mesh=" +
+              std::to_string(runtimeStats.chunkMeshBuildJobs));
+    check("B3/runtime-scheduler-counters-are-consistent",
+          runtimeStats.inFlightJobs <= 1 &&
+              runtimeStats.completedJobs ==
+                  runtimeStats.didWorkJobs + runtimeStats.noWorkJobs +
+                      runtimeStats.commitRejectedJobs &&
+              runtimeStats.completedJobs ==
+                  runtimeStats.chunkLoadOrGenerateJobs +
+                      runtimeStats.chunkMeshBuildJobs);
 }
 
 // ---------------------------------------------------------------------------
@@ -15342,6 +15533,9 @@ int main()
             caseStreamingDemandModel();
             caseWorldManager();
         }
+        else if (focus != nullptr && std::string(focus) == "B3") {
+            caseWorldJobScheduler();
+        }
         else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
@@ -15388,6 +15582,7 @@ int main()
         caseEnclosedSectionSkip();
         caseFrustumMeshPriority();
         caseStreamingDemandModel();
+        caseWorldJobScheduler();
         caseChunkResidencyStateMachine();
         caseSectionMeshUploadSnapshot();
         caseUnloadPersistence();

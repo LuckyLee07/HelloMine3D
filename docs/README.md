@@ -20,7 +20,8 @@
 既有 Chunk runtime 协调提取；`AL-A3` 已完成 Simulation Runtime 编排与原始 phase timing。
 `AL-A4` 已完成 Event / Command / Query 边界与事实分发门禁；`AL-A5` 已完成四条真实 phase
 metrics、预算词汇和开发者面板观察；`AL-A6` 已完成单一 living tutorial 流水线；`B1` 已冻结
-Chunk Data/Mesh/Render 三态，`B2` Streaming Demand 已通过完整门禁，下一候选为 `B3`。
+Chunk Data/Mesh/Render 三态，`B2` Streaming Demand 与 `B3` World Job Scheduler 已通过完整门禁，
+下一候选为 `B4` Cancellation & Generation Token。
 其余 Core/Extended 能力目录都不是自动批准的 backlog。
 
 ## 目录分工

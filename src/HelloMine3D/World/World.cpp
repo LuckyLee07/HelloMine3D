@@ -3052,6 +3052,7 @@ WorldDebugStats World::collectDebugStats()
     WorldDebugStats stats;
     stats.chunks = m_chunkManager.collectDebugStats();
     stats.streamingDemand = m_chunkRuntime.collectDemandDebugStats();
+    stats.worldJobs = m_chunkRuntime.collectJobSchedulerDebugStats();
     stats.simulation = m_worldSimulation.snapshot();
     stats.chunks.saveTransactions += m_worldSaveTransactionCount;
     stats.chunks.saveTotalMs += m_worldSaveTotalMs;

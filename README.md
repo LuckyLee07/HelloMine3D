@@ -17,7 +17,7 @@ persistence, diagnostics and packaging layers have been rebuilt.
 | | |
 | --- | --- |
 | **Source** | 284 files, ~72.7k lines of C++ |
-| **Automated checks** | 832 world-runtime · 122 recipe · 80 resource-pack · 15 startup-negative — in **both** Debug and Release |
+| **Automated checks** | 884 world-runtime · 122 recipe · 80 resource-pack · 15 startup-negative — in **both** Debug and Release |
 | **Test executables** | 13 |
 | **Persisted formats** | save `v12`, terrain `v4`, settings `v8` — every one migrates from `v1` |
 | **Performance gates** | 6 versioned scenes with baseline/repeat comparison, bounded stage timings, 2 × 1800 s soak |
@@ -171,9 +171,13 @@ If you only read a few parts of this repository, read these.
 ## Current status
 
 Stage 11 (`P11-0` … `P11F`) closed the Windows engineering scope on 2026-08-31. The full gate
-passes at `832/832` world assertions in both configurations, six formal performance scenes
+then passed at `832/832` world assertions in both configurations, six formal performance scenes
 compare clean, both 1800-second soak profiles pass, and the 104-file package validates from an
 isolated root.
+
+Architecture Lab batches AL-A0 through AL-A6 and Track B B1-B3 are now complete. The current
+B3 gate passes `884/884` world assertions in both configurations and a 104-entry clean package;
+B4 Cancellation & Generation Token is the next approved batch.
 
 This is a personal architecture-learning and showcase project, not a commercial product with an
 external playtest panel. The game remains the proof vehicle: observable workflows are validated
@@ -415,7 +419,7 @@ bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
 bin\HelloMine3DMeshDirtyTests.exe         # mesh dirty planner
 bin\HelloMine3DSaveLoadSmoke.exe          # chunk serialization roundtrip
 bin\HelloMine3DEntityLifecycleSmoke.exe   # actor lifecycle
-bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor/audio/objective/visual-settings stack, 786 assertions
+bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor/audio/objective/visual-settings stack, 884 assertions
 bin\HelloMine3DSoak.exe                   # deterministic world stability schedule
 bin\HelloMine3DResourcePackSmoke.exe      # resource resolver and frozen view
 bin\HelloMine3DRecipeSmoke.exe            # strict startup recipe registry

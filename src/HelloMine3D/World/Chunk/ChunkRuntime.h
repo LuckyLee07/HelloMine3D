@@ -16,6 +16,7 @@
 #include "../../Util/NonCopyable.h"
 #include "ChunkDemand.h"
 #include "ChunkManager.h"
+#include "../Streaming/WorldJobScheduler.h"
 
 class Camera;
 
@@ -79,6 +80,7 @@ class ChunkRuntime final : public NonCopyable {
         const glm::vec3 &position, int radius = 1,
         ChunkDemandReason reason = ChunkDemandReason::Preload);
     ChunkDemandDebugStats collectDemandDebugStats() const;
+    WorldJobSchedulerDebugStats collectJobSchedulerDebugStats() const;
 
     static std::vector<VectorXZ>
     planMeshWork(const VectorXZ &center, int radius, int sectionY,
@@ -120,6 +122,7 @@ class ChunkRuntime final : public NonCopyable {
     VectorXZ m_playerMovement{0, 0};
     bool m_playerDemandPublished = false;
     std::atomic<std::size_t> m_lastPlannedTargetCount{0};
+    WorldJobScheduler m_jobScheduler;
 
     std::atomic<int> m_demandSectionY{0};
     std::atomic<int> m_chunkLoadRevision{0};

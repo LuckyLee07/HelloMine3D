@@ -547,6 +547,12 @@ ChunkDemandDebugStats ChunkRuntime::collectDemandDebugStats() const
     return stats;
 }
 
+WorldJobSchedulerDebugStats
+ChunkRuntime::collectJobSchedulerDebugStats() const
+{
+    return m_jobScheduler.debugStats();
+}
+
 void ChunkRuntime::startLoader()
 {
     if (!m_chunkLoadThreads.empty()) {
@@ -579,9 +585,6 @@ void ChunkRuntime::runLoader()
     constexpr int ActiveSleepMs = 1;
     constexpr int IdleSleepMs = 10;
 
-    ChunkMeshJob job;
-    ChunkMeshCollection builtMeshes;
-    std::deque<VectorXZ> workQueue;
     int lastRevision = m_chunkLoadRevision.load();
     int lastPriorityRevision = m_meshPriorityRevision.load();
     std::uint64_t lastDemandRevision = 0;
@@ -612,10 +615,15 @@ void ChunkRuntime::runLoader()
             const auto planned = planDemandWork(
                 demandSnapshot, prioritySnapshot.sectionY, frustum,
                 movementOrigin, movementDirection);
-            workQueue.clear();
-            for (const ChunkDemandTarget &target : planned) {
-                workQueue.push_back(target.coord);
+            std::vector<WorldJobRequest> requests;
+            requests.reserve(planned.size());
+            for (std::size_t index = 0; index < planned.size(); ++index) {
+                const ChunkDemandTarget &target = planned[index];
+                requests.push_back(WorldJobRequest{
+                    WorldJobType::ChunkLoadOrGenerate, target.coord,
+                    target.priority, target.newestEpoch, index});
             }
+            m_jobScheduler.replacePending(requests);
             m_lastPlannedTargetCount.store(planned.size());
             lastRevision = currentRevision;
             lastDemandRevision = demandSnapshot.revision;
@@ -623,7 +631,7 @@ void ChunkRuntime::runLoader()
             queueValid = true;
         }
 
-        if (workQueue.empty()) {
+        if (m_jobScheduler.debugStats().pendingJobs == 0) {
             std::this_thread::sleep_for(
                 std::chrono::milliseconds(IdleSleepMs));
             continue;
@@ -634,43 +642,111 @@ void ChunkRuntime::runLoader()
         int processedTargets = 0;
         const auto passStart = std::chrono::steady_clock::now();
         while (m_isRunning.load() &&
-               processedTargets < MaxTargetsPerPass && !workQueue.empty()) {
-            const VectorXZ target = workQueue.front();
-            workQueue.pop_front();
+               processedTargets < MaxTargetsPerPass) {
+            WorldJob scheduledJob;
+            if (!m_jobScheduler.takeNext(scheduledJob)) {
+                break;
+            }
             ++processedTargets;
 
-            ChunkMeshWorkResult result;
-            {
-                std::unique_lock<std::mutex> lock(m_worldMutex);
-                result = m_chunkManager.beginMeshJob(
-                    target.x, target.z, ChunkLoadsPerTarget,
-                    m_demandSectionY.load(), job);
+            const auto workerStart = std::chrono::steady_clock::now();
+            WorldJobOutcome outcome = WorldJobOutcome::NoWork;
+            bool publishFollowUp = false;
+            WorldJobType followUpType = scheduledJob.type;
+            double commitMilliseconds = 0.0;
+
+            if (scheduledJob.type ==
+                WorldJobType::ChunkLoadOrGenerate) {
+                ChunkNeighborhoodWorkResult neighborhood;
+                {
+                    std::unique_lock<std::mutex> lock(m_worldMutex);
+                    neighborhood =
+                        m_chunkManager.prepareChunkNeighborhood(
+                            scheduledJob.target.x,
+                            scheduledJob.target.z,
+                            ChunkLoadsPerTarget);
+                }
+                didWork = didWork || neighborhood.loadedChunk;
+                outcome = neighborhood.loadedChunk
+                              ? WorldJobOutcome::DidWork
+                              : WorldJobOutcome::NoWork;
+                publishFollowUp = true;
+                followUpType = neighborhood.neighborhoodReady
+                                   ? WorldJobType::ChunkMeshBuild
+                                   : WorldJobType::ChunkLoadOrGenerate;
+            }
+            else {
+                ChunkMeshJob meshJob;
+                ChunkMeshCollection builtMeshes;
+                ChunkMeshWorkResult result;
+                {
+                    std::unique_lock<std::mutex> lock(m_worldMutex);
+                    result = m_chunkManager.beginMeshJob(
+                        scheduledJob.target.x,
+                        scheduledJob.target.z, 0,
+                        m_demandSectionY.load(), meshJob);
+                }
+
+                bool commitAccepted = false;
+                if (meshJob.valid) {
+                    const auto buildStart =
+                        std::chrono::steady_clock::now();
+                    ChunkMeshBuilder(meshJob.input, builtMeshes)
+                        .buildMesh();
+                    const double buildMilliseconds =
+                        std::chrono::duration<double, std::milli>(
+                            std::chrono::steady_clock::now() -
+                            buildStart)
+                            .count();
+
+                    const auto commitStart =
+                        std::chrono::steady_clock::now();
+                    {
+                        std::unique_lock<std::mutex> lock(m_worldMutex);
+                        commitAccepted = m_chunkManager.finishMeshJob(
+                            meshJob, builtMeshes, buildMilliseconds);
+                    }
+                    commitMilliseconds =
+                        std::chrono::duration<double, std::milli>(
+                            std::chrono::steady_clock::now() -
+                            commitStart)
+                            .count();
+                }
+
+                didWork = didWork || result.meshBuilt ||
+                          result.meshSkipped;
+                if (result.meshSkipped || commitAccepted) {
+                    outcome = WorldJobOutcome::DidWork;
+                }
+                else if (meshJob.valid) {
+                    outcome = WorldJobOutcome::CommitRejected;
+                }
+                publishFollowUp = result.meshBuilt ||
+                                  result.meshSkipped ||
+                                  !result.neighborhoodReady;
+                followUpType = result.neighborhoodReady
+                                   ? WorldJobType::ChunkMeshBuild
+                                   : WorldJobType::ChunkLoadOrGenerate;
             }
 
-            if (job.valid) {
-                builtMeshes.solidMesh.clearClientData();
-                builtMeshes.transparentMesh.clearClientData();
-                builtMeshes.waterMesh.clearClientData();
-                builtMeshes.floraMesh.clearClientData();
-                const auto buildStart = std::chrono::steady_clock::now();
-                ChunkMeshBuilder(job.input, builtMeshes).buildMesh();
-                const double buildMilliseconds =
-                    std::chrono::duration<double, std::milli>(
-                        std::chrono::steady_clock::now() - buildStart)
-                        .count();
+            const double totalWorkerMilliseconds =
+                std::chrono::duration<double, std::milli>(
+                    std::chrono::steady_clock::now() - workerStart)
+                    .count();
+            const double workerMilliseconds = std::max(
+                0.0, totalWorkerMilliseconds - commitMilliseconds);
+            m_jobScheduler.complete(
+                scheduledJob, outcome, workerMilliseconds,
+                commitMilliseconds);
 
-                std::unique_lock<std::mutex> lock(m_worldMutex);
-                m_chunkManager.finishMeshJob(job, builtMeshes,
-                                             buildMilliseconds);
-            }
-
-            didWork = didWork || result.loadedChunk || result.meshBuilt ||
-                      result.meshSkipped;
-            if (result.meshBuilt || result.meshSkipped) {
-                workQueue.push_front(target);
-            }
-            else if (!result.neighborhoodReady) {
-                workQueue.push_back(target);
+            WorldJobCompletion completion;
+            if (m_jobScheduler.popCompleted(completion) &&
+                publishFollowUp) {
+                m_jobScheduler.submit(WorldJobRequest{
+                    followUpType, completion.job.target,
+                    completion.job.priority,
+                    completion.job.demandEpoch,
+                    completion.job.planOrder});
             }
 
             if (std::chrono::steady_clock::now() - passStart >=

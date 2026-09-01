@@ -3187,6 +3187,39 @@ class OgreUserInterface::Impl
                 static_cast<unsigned long long>(
                     worldStats.streamingDemand.expiredDemands));
             ImGui::Text(
+                "Jobs pending/in-flight/results: %llu / %llu / %llu",
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.pendingJobs),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.inFlightJobs),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.completedResults));
+            ImGui::Text(
+                "Jobs submitted/started/completed: %llu / %llu / %llu",
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.submittedJobs),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.startedJobs),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.completedJobs));
+            ImGui::Text(
+                "Jobs load/mesh/work/none/reject: %llu / %llu / %llu / %llu / %llu",
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.chunkLoadOrGenerateJobs),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.chunkMeshBuildJobs),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.didWorkJobs),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.noWorkJobs),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.commitRejectedJobs));
+            ImGui::Text(
+                "Job ms queue/worker/commit: %.3f / %.3f / %.3f",
+                worldStats.worldJobs.lastQueueLatencyMilliseconds,
+                worldStats.worldJobs.lastWorkerMilliseconds,
+                worldStats.worldJobs.lastCommitMilliseconds);
+            ImGui::Text(
                 "Data A/Rq/L/G/R/E/S: %llu / %llu / %llu / %llu / %llu / %llu / %llu",
                 static_cast<unsigned long long>(
                     worldStats.chunks.dataAbsentChunks),

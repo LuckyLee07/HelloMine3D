@@ -67,13 +67,10 @@ ChunkMap &ChunkManager::getChunks()
     return m_chunks;
 }
 
-ChunkMeshWorkResult ChunkManager::beginMeshJob(int x, int z, int maxChunkLoads,
-                                               int preferredSectionY,
-                                               ChunkMeshJob &job)
+ChunkNeighborhoodWorkResult ChunkManager::prepareChunkNeighborhood(
+    int x, int z, int maxChunkLoads)
 {
-    job.valid = false;
-
-    ChunkMeshWorkResult result;
+    ChunkNeighborhoodWorkResult result;
     if (maxChunkLoads < 0) {
         maxChunkLoads = 0;
     }
@@ -105,6 +102,24 @@ ChunkMeshWorkResult ChunkManager::beginMeshJob(int x, int z, int maxChunkLoads,
                 return result;
             }
         }
+    }
+    return result;
+}
+
+ChunkMeshWorkResult ChunkManager::beginMeshJob(int x, int z, int maxChunkLoads,
+                                               int preferredSectionY,
+                                               ChunkMeshJob &job)
+{
+    job.valid = false;
+
+    const ChunkNeighborhoodWorkResult neighborhood =
+        prepareChunkNeighborhood(x, z, maxChunkLoads);
+    ChunkMeshWorkResult result;
+    result.loadedChunk = neighborhood.loadedChunk;
+    result.neighborhoodReady = neighborhood.neighborhoodReady;
+    result.chunksLoaded = neighborhood.chunksLoaded;
+    if (!result.neighborhoodReady) {
+        return result;
     }
 
     Chunk *chunk = findChunk(x, z);

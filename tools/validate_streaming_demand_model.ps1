@@ -151,8 +151,8 @@ try {
             "unimplemented demand reason"
     }
     foreach ($forbidden in @(
-        "WorldJob", "JobScheduler", "CancellationToken",
-        "Backpressure", "SpatialInterest", "FarLOD", "FarTerrain")) {
+        "CancellationToken", "GenerationToken", "Backpressure",
+        "SpatialInterest", "FarLOD", "FarTerrain")) {
         Reject-Text ($demandHeader + $demandSource + $runtimeHeader +
                      $runtimeSource + $worldHeader + $worldSource) `
             $forbidden "unapproved post-B2 capability"
@@ -165,7 +165,7 @@ try {
     Write-Host (
         "[STREAMING_DEMAND_MODEL] status=PASS reasons=4 slots=4 " +
         "priorities=400/300/200/100 expiry=epoch merge=deduplicated " +
-        "post_b2=absent")
+        "post_b2=B3-only")
     exit 0
 }
 catch {

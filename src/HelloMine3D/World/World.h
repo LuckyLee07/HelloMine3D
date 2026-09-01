@@ -101,6 +101,7 @@ struct ExplorationRewardSnapshot {
 struct WorldDebugStats {
     ChunkDebugStats chunks;
     ChunkDemandDebugStats streamingDemand;
+    WorldJobSchedulerDebugStats worldJobs;
     TerrainBufferMetrics terrainBuffers;
     WorldSimulationSnapshot simulation;
     std::size_t actorCount = 0;

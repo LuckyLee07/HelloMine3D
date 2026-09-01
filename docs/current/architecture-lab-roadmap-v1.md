@@ -963,63 +963,97 @@ Player/Camera，兼容 preload 路径同时记录 Preload，成功的同世界 t
 
 ## B3 — Generic World Job Scheduler
 
-### Job 类型
+### 当前真实 Job 类型
 
 ```text
-ChunkIOJob
-ChunkGenerationJob
-ChunkMeshJob
-FarLODJob
-Optional LightingJob
+ChunkLoadOrGenerate
+ChunkMeshBuild
 ```
 
-统一：
+当前 `ChunkManager` 的兼容路径在存储未命中时原子回退到确定性生成，因此 B3 不把
+IO/Generation 拆成两个虚构异步阶段。FarLOD、Lighting、Simulation、Actor、Machine 和 Network
+也不预注册空槽位。
+
+统一值：
 
 ```cpp
 struct WorldJob {
-    JobType type;
-    JobPriority priority;
-    CancellationToken token;
-    Revision expectedRevision;
+    uint64_t id;
+    WorldJobType type;
+    ChunkCoord target;
+    int priority;
+    uint64_t demandEpoch;
+    size_t planOrder;
+    WorldJobState state;
+    TimePoint enqueuedAt;
 };
 ```
 
-### Scheduler
+### Scheduler Core
 
-需要：
+本批只需要：
 
 ```text
-Pending Queue
-In-flight Limit
-Worker Count
+deterministic Pending Queue
+one InFlight slot / one existing worker
 Completed Queue
-Cancellation
-Backpressure
-Metrics
+typed outcome and timings
+pending-plan replacement
 ```
 
-### 禁止
+唯一合法生命周期是 `Pending -> InFlight -> Completed`。Pending 排序复用 B2 语义：priority
+降序、plan order 升序、demand epoch 降序、真实 type 顺序、job id 升序。同一
+`(type,target)` 最多一个 pending job。需求重规划只替换 pending，不停止 in-flight；取消和
+generation token 属于 B4，hard cap/watermark/admission/shedding 属于 B5。
+
+### 禁止与兼容边界
 
 ```text
 无限 push future
+第二个 worker 或主线程完成提交器
+为未来系统预注册空 Job type
+把 diagnostics 保存或用于 Gameplay 决策
 ```
+
+一个 worker、6 ms/64-job pass、每个 load/generate job 最多加载一个 Chunk、每帧两个同步
+section rebuild 和八个 unload 的预算保持不变。B1 revision 仍是 stale mesh commit 的唯一权威
+判定，World 78 项公开面、Gameplay 与 save v12 均不改变。
 
 ### 重要指标
 
 ```text
-queued
-inFlight
-cancelled
-completed
-staleDiscarded
-queueLatency
-workerTime
-commitTime
+pending / inFlight / completedResults
+submitted / started / completed
+didWork / noWork / commitRejected
+ChunkLoadOrGenerate / ChunkMeshBuild
+replacedPending
+queueLatency / workerTime / commitTime
 ```
 
-### 教程
+### 验收
 
-**Chapter 09：后台线程不是性能魔法**
+- 精确 vocabulary、排序、重复拒绝和状态转换由静态/行为门禁冻结；
+- pending replacement 不清除 in-flight；非法或重复完成不破坏状态；
+- 真实后台 World 必须执行两种 Job，并保留 B1 stale commit 拒绝；
+- B2 26/26、B1 38/38 和 AL-A1..AL-A6 门禁继续通过；
+- 完整 VS2017/v141 Debug/Release、短 soak 与 104 项隔离包通过；
+- B4-B9 词汇不得提前进入实现。
+
+### 当前实现记录（2026-09-01）
+
+`B3` 已按 `docs/contracts/world-job-scheduler-contract-v1.md` 完成实现和聚焦验证。
+`WorldJobScheduler` 拥有 typed pending/in-flight/completed 生命周期、monotonic id、B2
+priority/epoch/plan order、三类 outcome 和复制诊断。`ChunkRuntime` 把 B2 计划发布为
+`ChunkLoadOrGenerate`，通过 `ChunkManager::prepareChunkNeighborhood` 复用既有 3x3/单次一个
+Chunk 的加载行为，邻域 ready 后发布 `ChunkMeshBuild`；CPU mesh 继续锁内 snapshot、锁外构建、
+锁内 revision commit。
+
+定向 `HELLOMINE3D_WORLD_SMOKE_FOCUS=B3` 为 `9/9`，B2/B1 回归分别为 `26/26` 和
+`38/38`；静态门禁与 AL-A6 living tutorial manifest 已通过。VS2017/v141 Debug/Release
+完整门禁均为 `884/884` WorldRuntime，资源包 `80/80`、配方 `122/122`、启动负例 `15/15`、
+两项短 soak 零失败；104 项干净包 SHA-256 为
+`B983889B5553FF0DBFEAF6C14D2E349CC81AD1205C314CC39C0894C2D1CD9459`。最终状态为
+`PASS real_window=DEFERRED`，B3 为 `Done`；该结果不构成 B4-B9 的跨批实现许可。
 
 ---
 

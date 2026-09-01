@@ -67,6 +67,12 @@ struct ChunkMeshWorkResult {
     int meshesBuilt = 0;
 };
 
+struct ChunkNeighborhoodWorkResult {
+    bool loadedChunk = false;
+    bool neighborhoodReady = false;
+    int chunksLoaded = 0;
+};
+
 /// @brief One section mesh build, split so the expensive part runs off-lock.
 ///
 /// `beginMeshJob()` fills this while the world lock is held, the caller builds
@@ -95,6 +101,8 @@ class ChunkManager {
 
     /// Both halves must be called with the world lock held; the mesh build
     /// between them must not be.
+    ChunkNeighborhoodWorkResult prepareChunkNeighborhood(
+        int x, int z, int maxChunkLoads);
     ChunkMeshWorkResult beginMeshJob(int x, int z, int maxChunkLoads,
                                      int preferredSectionY, ChunkMeshJob &job);
     bool finishMeshJob(const ChunkMeshJob &job, ChunkMeshCollection &built,

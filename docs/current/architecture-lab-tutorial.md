@@ -14,6 +14,7 @@ AL-A5|00|0.5|docs/reports/architecture-lab-a5-simulation-metrics-report-v1.md
 AL-A6|00|0.6|docs/contracts/architecture-lab-documentation-pipeline-contract-v1.md
 B1|01|1.1|docs/reports/architecture-lab-b1-chunk-residency-report-v1.md
 B2|01|1.2|docs/reports/architecture-lab-b2-streaming-demand-report-v1.md
+B3|01|1.3|docs/reports/architecture-lab-b3-world-job-scheduler-report-v1.md
 <!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-END -->
 
 ## Part 00 — From a playable clone to an architecture lab
@@ -817,9 +818,10 @@ it is not serialized and cannot mutate save v12 or B1 lifecycle ownership.
 #### Validation
 
 `tools/validate_streaming_demand_model.ps1` freezes the four reasons, exact
-priorities/lifetimes, owners, publication sites, panel fields, twelve behavior
-identities and absence of B3-B9 concepts. It composes with AL-A1 through B1 in
-the full VS2017 gate.
+priorities/lifetimes, owners, publication sites, panel fields and twelve
+behavior identities. After B3 it admits only the typed job scheduler while
+continuing to reject B4-B9 concepts. It composes with AL-A1 through B1 in the
+full VS2017 gate.
 
 `HELLOMINE3D_WORLD_SMOKE_FOCUS=B2` passes 26 checks. They prove stable bounded
 refresh, reason replacement, overlap merge, teleport priority, forward-motion
@@ -831,8 +833,9 @@ scenario remains in the focused set to protect synchronous gameplay effects.
 
 Four slots intentionally describe only current implemented sources. Machine,
 Actor and debug-camera reasons are not reserved for hypothetical systems. A
-square radius remains coarser than a future spatial-interest volume, and the
-single loader still executes heterogeneous work without a generic scheduler.
+square radius remains coarser than a future spatial-interest volume. B3 now
+uses the resulting plan as typed work, but does not reinterpret the four-slot
+model as cancellation or queue-pressure policy.
 
 The priority values are fixed B2 policy rather than a claim of ideal feel. They
 make ordering deterministic and observable while leaving B3 job arbitration,
@@ -844,3 +847,98 @@ Related evidence:
 - `docs/contracts/streaming-demand-model-contract-v1.md`
 - `docs/reports/architecture-lab-b2-streaming-demand-report-v1.md`
 - `tools/validate_streaming_demand_model.ps1`
+
+### 1.3 Why should the loader schedule typed work instead of coordinates?
+
+#### Problem
+
+After B2, the loader had a deterministic list of demanded coordinates but its
+private deque still hid what work each coordinate represented. Loading or
+generating a 3x3 neighborhood and building one copied CPU mesh were selected by
+branches inside the loop, so queue latency, lifecycle and stale-commit outcome
+could not be observed as one coherent pipeline. B4 cancellation and B5 pressure
+control would have had no stable job boundary to target.
+
+#### Naive Solution
+
+The smallest-looking change is to add more booleans beside each queued
+coordinate or immediately create separate IO, generation, lighting, FarLOD and
+simulation jobs. Another tempting response is to add a worker pool and a
+cancellation token at the same time so the scheduler appears feature-complete
+on its first revision.
+
+#### Failure
+
+Coordinate flags still leave transitions implicit and make metrics infer
+meaning from whichever branch happened to run. Conversely, separate IO and
+generation jobs would be fictional today: `ChunkManager` deliberately performs
+storage load with deterministic generation fallback as one compatibility
+operation. A worker pool, cancellation and watermarks would also change
+concurrency and policy before B3 had established observable semantics.
+
+#### Design Evolution
+
+B3 models only the two work families the game actually executes:
+`ChunkLoadOrGenerate` and `ChunkMeshBuild`. Every job has a monotonic id, B2
+priority/epoch/plan order, target, enqueue time and exactly one legal lifecycle:
+`Pending -> InFlight -> Completed`. Pending order is priority, plan order,
+newest demand epoch, type and id. Replanning replaces only pending work and
+explicitly preserves the single in-flight job; that is not B4 cancellation.
+
+Completion freezes one of `DidWork`, `NoWork` or `CommitRejected` plus queue,
+worker and commit timings. The loader immediately drains the completion and
+publishes the next real step. This supplies a concrete boundary for later
+cancellation and pressure without pre-registering any later job family.
+
+#### Implementation
+
+`World/Streaming/WorldJobScheduler.*` owns the pending vector, one optional
+in-flight value, completion deque, ids and copied metrics under one mutex.
+`ChunkRuntime` converts B2 targets into load/generate jobs, executes them under
+the existing World mutex and follows a ready neighborhood with a mesh job.
+Mesh input is still copied under the lock, built off-lock and committed through
+the B1 revision check under the lock.
+
+`ChunkManager::prepareChunkNeighborhood` factors the existing bounded 3x3 load
+step out of `beginMeshJob`; it loads at most one Chunk per execution and does
+not move data ownership into the scheduler. The one worker, 6 ms/64-job pass,
+two synchronous section rebuilds and eight unloads per frame are unchanged.
+The developer panel copies queue counts, lifecycle/outcome/type totals and last
+queue/worker/commit milliseconds.
+
+#### Validation
+
+`tools/validate_world_job_scheduler.ps1` freezes the two types, three states,
+three outcomes, exact ordering, one worker, real pipeline calls, unchanged
+budgets, diagnostic fields, test identities and the absence of B4-B9 concepts.
+`HELLOMINE3D_WORLD_SMOKE_FOCUS=B3` passes 9 checks for duplicate rejection,
+ordering, lifecycle, invalid completion, pending replacement, timing/counters
+and actual execution of both job types by a live background World.
+
+B2 remains `26/26` and B1 remains `38/38` in the same VS2017/v141 Debug build.
+The complete VS2017/v141 gate passes `884/884` WorldRuntime in Debug and
+Release, `80/80` resource-pack checks, `122/122` recipe checks, `15/15` startup
+negatives and two zero-failure short soaks. The clean 104-entry package hashes
+to `B983889B5553FF0DBFEAF6C14D2E349CC81AD1205C314CC39C0894C2D1CD9459`.
+The report does not promote this headless result into AI gameplay.
+
+#### Trade-offs
+
+B3 intentionally keeps a single worker and a small sorted vector rather than
+claiming scalable parallel throughput. The completion queue is real but the
+current loader drains it immediately; no second main-thread mutation route is
+introduced. Replanning cannot stop in-flight work, and no hard cap, watermark,
+admission result or shedding policy exists until B4/B5 supplies a separate
+approved contract and evidence.
+
+Scheduler ids and timings are diagnostic derived state: they are not saved,
+compared for deterministic equality or used to change Gameplay. Load and
+generation remain one type until a real storage pipeline creates a meaningful
+phase boundary. FarLOD, lighting, simulation, Actor, machine and network slots
+remain absent instead of appearing as empty architecture demonstrations.
+
+Related evidence:
+
+- `docs/contracts/world-job-scheduler-contract-v1.md`
+- `docs/reports/architecture-lab-b3-world-job-scheduler-report-v1.md`
+- `tools/validate_world_job_scheduler.ps1`

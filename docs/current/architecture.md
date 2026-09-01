@@ -1,7 +1,7 @@
 # HelloMine3D Current Architecture Baseline
 
 本文以 `AL-A0 — Latest Architecture Baseline` 的完整审计为起点，并随已完成的
-AL-A1/AL-A2/AL-A3/AL-A4/AL-A5/AL-A6/B1/B2 更新当前实现；它描述代码事实，而不是未来目标架构。
+AL-A1/AL-A2/AL-A3/AL-A4/AL-A5/AL-A6/B1/B2/B3 更新当前实现；它描述代码事实，而不是未来目标架构。
 审计起点为 Git commit `4930023fb2f3022daac9968c10a1a0b76e1ac392`；冻结的
 PLAYABILITY-RC 运行时代码身份仍是
 `320e293c2f1db7f46aba776ddccdcf94369f2d05`。A0 只更新文档，没有移动源码、改变 Gameplay、
@@ -90,7 +90,8 @@ Core / Entity / Physics / Maths / Util
 - Event handler 当前同步执行；AL-A4 已把请求 mutation 的 typed Command、已发生的 immutable Event
   与不提交 Gameplay 的 Query 分开。订阅者不得假设异步或跨线程投递。
 - `World` 仍是宽 facade/组合根；AL-A2 把现有 Chunk 派生工作与 loader 协调移入
-  `ChunkRuntime`，B1 又在不改变该边界的前提下加入三套正交生命周期。
+  `ChunkRuntime`，B1 又在不改变该边界的前提下加入三套正交生命周期，B2/B3 分别加入
+  bounded demand 与 typed background work，仍不改变 World facade。
 - AL-A3 已把 `World::tick` 的现有调用顺序集中到具体 `WorldSimulation`；AL-A5 在同一 last-tick
   snapshot 上增加四条真实 processed/deferred/budget 观察。两者都不拥有玩法状态，也不是通用 scheduler。
 
@@ -229,7 +230,7 @@ Combat、Actor、World Mutation 与 EventBus 入口协作。AL-A2/AL-A3 都保�
 | Frame command/event queue | `m_events` | `PlayerDigEvent` 等延迟到 `World::update` 处理；区别于同步 typed event bus。 |
 | Random-tick work | random-tick deque/set/counters | World 仍负责 active random-tick section 调度；Chunk mesh update queue 已迁入 `ChunkRuntime`。 |
 | Population/difficulty | spawn counters、pending difficulty、application epoch | 自然生物预算和下个 fixed tick 的难度提交。 |
-| Chunk runtime coordination | `m_chunkRuntime` 内的 update deque/set、loader thread、load center/revisions、unload scan、frustum priority snapshot | 一个后台 Chunk worker、同步 mesh budget、预载/卸载和 Camera 派生需求；这些都是派生/协调状态。 |
+| Chunk runtime coordination | `m_chunkRuntime` 内的 update deque/set、loader thread、demand model、`WorldJobScheduler`、revisions、unload scan、frustum priority snapshot | 一个后台 Chunk worker、typed load/mesh work、同步 mesh budget、预载/卸载和 Camera 派生需求；这些都是派生/协调状态。 |
 | Shared Chunk lock | `m_mainMutex` | 仍由 World 拥有并先于 `ChunkRuntime` 构造；Runtime 只持 non-owning 引用，保护 loaded Chunk/section 权威状态。 |
 | Player combat runtime | spawn point、cooldowns、projectile vector/id/counters、guard/feedback/respawn state | 固定 tick 的当前战斗真值；projectile render snapshot 从这里派生。 |
 | Simulation orchestration | `m_worldSimulation` | 按冻结的 8 phase 顺序调用现有实现，并保存最近一次 tick 的非持久化原始耗时；不拥有 gameplay truth、pause state 或预算。 |
@@ -247,6 +248,7 @@ World (public facade / composition root)
 - deduplicated FIFO section update queue；
 - 每次 `World::update` 最多 2 个 section 的同步 mesh rebuild；
 - 单个 loader worker、完整 mesh target 规划、load center/frustum priority revision；
+- B2 四槽 demand model 和 B3 typed pending/in-flight/completed job scheduler；
 - 现有 preload、render-distance invalidation、每帧最多 8 个 distant unload 的协调；
 - CPU-ready mesh copied snapshot、所有 live section revision 与同 revision GPU acknowledgement。
 
@@ -275,7 +277,8 @@ B1 在 `ChunkLifecycle.*` 冻结三套独立词汇和合法转换：
   World 只发布 copied snapshot 和 revision acknowledgement，不拥有 GPU 状态。
 
 `ChunkManager` 在 load/generate/save/unload 真实调用周围推进 Data 状态；dirty eviction 的保存失败
-返回 `Resident` 且保留 dirty。`ChunkRuntime` 复用 AL-A2 的单 worker/FIFO，不创建第二套队列。
+返回 `Resident` 且保留 dirty。`ChunkRuntime` 保持 AL-A2 的单 worker；B3 只替换 worker 内部的隐式
+坐标 deque，不影响主线程 deduplicated section update FIFO。
 开发者面板分别显示 7/5/4 状态计数；`Absent` 只统计仍被 manager 持有的显式对象，不虚构无限坐标。
 
 B2 在不改变上述状态所有权的前提下，用 `ChunkDemandModel` 取代单个隐式 load center。模型由
@@ -287,19 +290,32 @@ Preload` 的坐标、priority、epoch、expiry 和 radius。每次 `World::updat
 Loader 在每轮规划时展开四个有界半径，合并重复坐标及 reason bits，并按 reason priority、frustum、
 最近 Player Chunk 移动方向、newest epoch、distance 和稳定坐标排序。Demand semantic revision 或
 camera/frustum revision 变化只替换尚未执行的 derived plan；它不是 B4 in-flight cancellation，也没有
-增加 queue、worker 或 job type。开发者快照公开 epoch/revision、active/reason/expired 数和最近
-de-duplicated plan size。
+增加 worker。开发者快照公开 epoch/revision、active/reason/expired 数和最近 de-duplicated plan size。
+
+B3 将该 plan 转换为两个且仅两个真实 job type：`ChunkLoadOrGenerate` 和 `ChunkMeshBuild`。前者保留
+`ChunkManager` 现有“storage load，未命中则确定性 generation fallback”的原子兼容边界；后者继续
+执行 `beginMeshJob -> off-lock ChunkMeshBuilder -> finishMeshJob`。`prepareChunkNeighborhood` 只是从
+`beginMeshJob` 提取每次最多一个 Chunk 的 3x3 邻域准备，不转移 Chunk/storage 所有权。
+
+`WorldJobScheduler` 由 `ChunkRuntime` 按值拥有，保存 deterministic pending vector、一个 optional
+in-flight job、completion deque、monotonic id 和 copied diagnostics。唯一状态流为
+`Pending -> InFlight -> Completed`；排序为 B2 priority、plan order、newest demand epoch、type、id。
+Demand revision 变化只 replace pending，明确保留 in-flight。Completion 记录
+`DidWork/NoWork/CommitRejected` 与 queue/worker/commit 时间并由当前 worker 立即 drain。它不拥有
+Gameplay、Chunk、mesh 或 persistence truth，也没有 B4 token/cancellation、B5 pressure policy、B6
+Spatial Interest、额外 worker 或未来系统空 job type。
 
 ## 7. Thread Ownership
 
 | Thread | Created/owned by | May do | Commit/stop rule |
 | ------ | ---------------- | ------ | ---------------- |
 | Main/Ogre thread | `OgreBootstrap` frame loop | OS input、application flow、Sandbox fixed ticks、World mutation、同步 event handler、卸载/同步 mesh budget、snapshot 采集、GPU upload、UI/audio update。 | Gameplay truth 默认只在这里变更；frame end 记录性能。 |
-| Chunk loader worker | `World::startBackgroundLoader` delegates to `ChunkRuntime` | Runtime 本地规划队列；在共享 World mutex 下 begin/load/snapshot，锁外构建 `SectionMeshInput`，再在锁下 finish。 | `World` 析构先调用 `ChunkRuntime::stopLoader`，停止并 join 后才保存；revision 不匹配的 mesh 不提交。当前只有一个 worker。 |
+| Chunk loader worker | `World::startBackgroundLoader` delegates to `ChunkRuntime` | 消费 B3 typed job；在共享 World mutex 下 load/generate 或 snapshot，锁外构建 `SectionMeshInput`，再在锁下 finish。 | `World` 析构先调用 `ChunkRuntime::stopLoader`，停止并 join 后才保存；revision 不匹配的 mesh 记为 `CommitRejected` 并重排真实后继。当前只有一个 worker。 |
 | Music stream worker | Windows `MusicRuntime` backend | 从已验证 WAV 分段读取、增益缩放、维护最多 3 个 WaveOut buffer。 | 主线程用 atomic/mutex/condition variable 控制；stop/reset 后 join；不读写 World。 |
 | Crash writer thread | `WindowsCrashDiagnostics` install | 预创建后等待 crash event，在异常路径写 dump/sidecar。 | 不参与普通 Gameplay；进程退出终止，普通路径无上传。 |
 
-除上述线程与测试专用线程外，当前没有通用 World Job Scheduler。后台 loader 不能被描述成 B3 已完成。
+除上述线程与测试专用线程外，当前没有额外 worker pool。B3 scheduler 只协调既有 Chunk
+load/generate 与 CPU mesh work；它不是通用 Simulation Scheduler 或主线程 completion dispatcher。
 
 ## 8. Persistence Ownership
 
@@ -378,6 +394,10 @@ Ogre::frameStarted
                  -> execute queued IWorldCommand requests
                  -> ChunkRuntime bounded distant unload
                  -> ChunkRuntime bounded synchronous dirty-section mesh rebuild
+       [single ChunkRuntime worker]
+            -> B2 demand plan -> B3 typed pending jobs
+            -> ChunkLoadOrGenerate under shared World mutex
+            -> ChunkMeshBuild snapshot under mutex / build off-lock / revision commit under mutex
        -> sync render camera / section meshes / actor visuals / outline
   -> update AudioRuntime and MusicRuntime
   -> collect debug stats / UI frame
@@ -454,15 +474,16 @@ Design Evolution、Implementation、Validation 和 Trade-offs 七个非空逻辑
 Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先于编译执行。该验证保护文档身份，
 不证明文字质量，也不把 roadmap proposal 提升成实现事实。
 
-## 14. Current Conclusions Through B2
+## 14. Current Conclusions Through B3
 
 - 当前可玩的系统已经有清晰的 Renderer-to-Snapshot 边界和可验证持久化边界。
 - `World` 仍承担 facade、组合根和多套 Simulation 玩法状态；AL-A2/AL-A3/AL-A4/AL-A5 只关闭了四条由真实工作
   验证的内部边界，没有试图一次性拆完 God Object。
 - Chunk pipeline 的 snapshot/off-lock/revision-commit、FIFO、预算和 unload/save 语义集中在
   `ChunkRuntime` / `ChunkManager` 边界；B1 已加入 Data/Mesh/Render 三套正交状态机；B2 已加入
-  四槽、可合并、可过期的 Player/Camera/Teleport/Preload Demand，但没有通用 Job Scheduler、
-  in-flight 取消、背压或 Spatial Interest。
+  四槽、可合并、可过期的 Player/Camera/Teleport/Preload Demand；B3 已用两种真实 typed job 和
+  Pending/InFlight/Completed 生命周期替换 worker 私有坐标 deque，但没有 in-flight 取消、背压、
+  Spatial Interest、额外 worker 或未来系统空槽。
 - fixed-tick 的 8 phase 顺序、context、last-tick 原始耗时及四条真实 work metrics 现在集中在
   `WorldSimulation`；玩法状态与旧实现仍由 World/Actor/Gameplay 所有，没有 `SimulationScheduler`、
   系统 Registry、时间预算或执行优先级。
@@ -470,4 +491,4 @@ Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先
   生产订阅者 effect/republish、8 层递归上限、per-publication membership 与 Diagnostic 隔离均已冻结。
 - Architecture Lab 教程现在按 Track/真实 Section 维护，并由 manifest、冻结证据和完整门禁阻止空 Part、
   丢失批次或未实现能力提前进入教程。
-- B3 和 D1 仍必须按任务账本范围实施；B2 完成不构成 B7-B9、Track C/D 或 Extended 的自动启动权限。
+- B4 和 D1 仍必须按任务账本范围实施；B3 完成不构成 B7-B9、Track C/D 或 Extended 的自动启动权限。

@@ -75,7 +75,8 @@ try {
 
     foreach ($owned in @(
         "m_chunkUpdateQueue", "m_queuedChunkUpdates", "m_chunkLoadThreads",
-        "m_meshPrioritySnapshot", "m_demandModel", "m_renderDistance")) {
+        "m_meshPrioritySnapshot", "m_demandModel", "m_jobScheduler",
+        "m_renderDistance")) {
         Require-Text $runtimeHeader $owned "ChunkRuntime-owned coordination"
     }
     foreach ($budget in @(
@@ -93,7 +94,7 @@ try {
     $loader = $runtimeSource.Substring($loaderStart)
     $begin = $loader.IndexOf("beginMeshJob(", [StringComparison]::Ordinal)
     $build = $loader.IndexOf(
-        "ChunkMeshBuilder(job.input, builtMeshes).buildMesh();",
+        "ChunkMeshBuilder(meshJob.input, builtMeshes)",
         [StringComparison]::Ordinal)
     $finish = $loader.IndexOf("finishMeshJob(", [StringComparison]::Ordinal)
     if ($begin -lt 0 -or $build -le $begin -or $finish -le $build) {
@@ -108,7 +109,8 @@ try {
     Write-Host (
         "[CHUNK_RUNTIME_BOUNDARY] status=PASS " +
         "world_queue_fields=0 runtime_queue_fields=2 loader_workers=1 " +
-        "streaming_input=demand-model mesh_protocol=begin-build-finish")
+        "streaming_input=demand-model jobs=typed-scheduler " +
+        "mesh_protocol=begin-build-finish")
     exit 0
 }
 catch {
