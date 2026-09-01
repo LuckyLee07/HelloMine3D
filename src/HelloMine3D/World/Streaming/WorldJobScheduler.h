@@ -2,6 +2,7 @@
 #define WORLDJOBSCHEDULER_H_INCLUDED
 
 #include <chrono>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
@@ -27,6 +28,11 @@ enum class WorldJobOutcome : std::uint8_t {
     DidWork,
     NoWork,
     CommitRejected,
+    Cancelled,
+};
+
+struct WorldJobGenerationToken {
+    std::uint64_t value = 0;
 };
 
 struct WorldJobRequest {
@@ -35,6 +41,7 @@ struct WorldJobRequest {
     int priority = 0;
     std::uint64_t demandEpoch = 0;
     std::size_t planOrder = 0;
+    WorldJobGenerationToken generation;
 };
 
 struct WorldJob : WorldJobRequest {
@@ -61,9 +68,15 @@ struct WorldJobSchedulerDebugStats {
     std::uint64_t didWorkJobs = 0;
     std::uint64_t noWorkJobs = 0;
     std::uint64_t commitRejectedJobs = 0;
+    std::uint64_t cancelledJobs = 0;
     std::uint64_t chunkLoadOrGenerateJobs = 0;
     std::uint64_t chunkMeshBuildJobs = 0;
     std::uint64_t replacedPendingJobs = 0;
+    std::uint64_t currentGeneration = 1;
+    std::uint64_t generationInvalidations = 0;
+    std::uint64_t cancelledPendingJobs = 0;
+    std::uint64_t staleSubmitRejections = 0;
+    std::uint64_t stalePlanRejections = 0;
     double lastQueueLatencyMilliseconds = 0.0;
     double lastWorkerMilliseconds = 0.0;
     double lastCommitMilliseconds = 0.0;
@@ -72,7 +85,11 @@ struct WorldJobSchedulerDebugStats {
 class WorldJobScheduler final : public NonCopyable {
   public:
     bool submit(const WorldJobRequest &request);
-    void replacePending(const std::vector<WorldJobRequest> &requests);
+    bool replacePending(const std::vector<WorldJobRequest> &requests,
+                        WorldJobGenerationToken generation);
+    WorldJobGenerationToken currentGenerationToken() const noexcept;
+    WorldJobGenerationToken invalidateGeneration();
+    bool isCurrent(WorldJobGenerationToken generation) const noexcept;
     bool takeNext(WorldJob &job);
     bool complete(const WorldJob &job, WorldJobOutcome outcome,
                   double workerMilliseconds, double commitMilliseconds);
@@ -94,6 +111,7 @@ class WorldJobScheduler final : public NonCopyable {
     std::optional<WorldJob> m_inFlight;
     std::deque<WorldJobCompletion> m_completed;
     std::uint64_t m_nextId = 1;
+    std::atomic<std::uint64_t> m_generation{1};
     WorldJobSchedulerDebugStats m_totals;
 };
 

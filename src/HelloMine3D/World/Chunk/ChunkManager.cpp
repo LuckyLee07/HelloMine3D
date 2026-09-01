@@ -106,6 +106,121 @@ ChunkNeighborhoodWorkResult ChunkManager::prepareChunkNeighborhood(
     return result;
 }
 
+ChunkNeighborhoodLoadJobResult
+ChunkManager::beginChunkNeighborhoodLoadJob(int x, int z,
+                                            int maxChunkLoads,
+                                            ChunkLoadJob &job)
+{
+    job = ChunkLoadJob{};
+    if (maxChunkLoads <= 0) {
+        return {};
+    }
+    for (int nx = -1; nx <= 1; ++nx) {
+        for (int nz = -1; nz <= 1; ++nz) {
+            const int chunkX = x + nx;
+            const int chunkZ = z + nz;
+            if (chunkLoadedAt(chunkX, chunkZ)) {
+                continue;
+            }
+
+            Chunk &reserved = getOrCreateChunk(chunkX, chunkZ);
+            if (reserved.getDataResidencyState() ==
+                ChunkDataResidencyState::Absent) {
+                reserved.transitionDataResidency(
+                    ChunkDataResidencyState::Requested);
+            }
+            if (reserved.getDataResidencyState() ==
+                ChunkDataResidencyState::Requested) {
+                reserved.transitionDataResidency(
+                    ChunkDataResidencyState::Loading);
+            }
+            if (reserved.getDataResidencyState() !=
+                ChunkDataResidencyState::Loading) {
+                return {};
+            }
+
+            job.chunkPosition = {chunkX, chunkZ};
+            job.candidate = std::make_unique<Chunk>(
+                *m_world, glm::ivec2(chunkX, chunkZ), false);
+            job.candidate->transitionDataResidency(
+                ChunkDataResidencyState::Requested);
+            job.candidate->transitionDataResidency(
+                ChunkDataResidencyState::Loading);
+            job.valid = true;
+            return {false, true};
+        }
+    }
+    return {true, false};
+}
+
+bool ChunkManager::prepareChunkLoadJob(ChunkLoadJob &job)
+{
+    if (!job.valid || job.candidate == nullptr || job.prepared) {
+        return false;
+    }
+
+    job.loadedFromStorage =
+        m_chunkStorage.loadChunk(*job.candidate, false);
+    if (!job.loadedFromStorage) {
+        std::lock_guard<std::mutex> generatorLock(
+            m_terrainGeneratorMutex);
+        job.candidate->load(*m_terrainGenerator);
+        job.generated = true;
+    }
+    job.prepared = job.candidate->hasLoaded();
+    return job.prepared;
+}
+
+bool ChunkManager::finishChunkLoadJob(ChunkLoadJob &job)
+{
+    if (!job.valid || !job.prepared || job.candidate == nullptr ||
+        !job.candidate->hasLoaded()) {
+        return false;
+    }
+
+    const VectorXZ key = job.chunkPosition;
+    auto reserved = m_chunks.find(key);
+    if (reserved == m_chunks.end() ||
+        reserved->second.getDataResidencyState() !=
+            ChunkDataResidencyState::Loading) {
+        return false;
+    }
+
+    m_world->removeRandomTickSectionsForChunk(key.x, key.z);
+    m_chunks.erase(reserved);
+    auto inserted = m_chunks.emplace(key, std::move(*job.candidate));
+    if (!inserted.second) {
+        return false;
+    }
+    inserted.first->second.enableWorldIndexUpdates();
+    job.candidate.reset();
+    job.valid = false;
+
+    if (job.generated) {
+        m_world->getEventBus().publish(ChunkGeneratedEvent(key));
+    }
+    m_world->reconcileBlockLightAfterChunkLoad(key.x, key.z);
+    m_world->getEventBus().publish(
+        ChunkLoadedEvent(key, job.loadedFromStorage));
+    return true;
+}
+
+bool ChunkManager::cancelChunkLoadJob(const ChunkLoadJob &job)
+{
+    if (!job.valid) {
+        return false;
+    }
+    Chunk *reserved = findChunk(job.chunkPosition.x,
+                                job.chunkPosition.z);
+    if (reserved == nullptr ||
+        reserved->getDataResidencyState() !=
+            ChunkDataResidencyState::Loading) {
+        return false;
+    }
+    return reserved->transitionDataResidency(
+        ChunkDataResidencyState::Absent);
+}
+
 ChunkMeshWorkResult ChunkManager::beginMeshJob(int x, int z, int maxChunkLoads,
                                                int preferredSectionY,
                                                ChunkMeshJob &job)
@@ -187,6 +302,24 @@ bool ChunkManager::finishMeshJob(const ChunkMeshJob &job,
 
     section->adoptMesh(built);
     recordMeshRebuild(section->getMeshes(), buildMilliseconds);
+    return true;
+}
+
+bool ChunkManager::cancelMeshJob(const ChunkMeshJob &job)
+{
+    if (!job.valid) {
+        return false;
+    }
+    Chunk *chunk = findChunk(job.chunkPosition.x, job.chunkPosition.z);
+    ChunkSection *section = chunk != nullptr
+                                ? chunk->findSection(job.sectionIndex)
+                                : nullptr;
+    if (section == nullptr ||
+        section->getMeshState() != ChunkMeshState::Building ||
+        section->getBlockRevision() != job.blockRevision) {
+        return false;
+    }
+    section->markMeshDirty();
     return true;
 }
 
@@ -320,6 +453,8 @@ void ChunkManager::loadChunk(int x, int z)
     const VectorXZ chunkPosition{x, z};
     const bool loadedFromStorage = m_chunkStorage.loadChunk(chunk);
     if (!loadedFromStorage) {
+        std::lock_guard<std::mutex> generatorLock(
+            m_terrainGeneratorMutex);
         chunk.load(*m_terrainGenerator);
         m_world->getEventBus().publish(ChunkGeneratedEvent(chunkPosition));
     }
@@ -366,6 +501,8 @@ void ChunkManager::setTerrainSeed(int seed)
 void ChunkManager::setTerrainIdentity(int seed, int generationVersion,
                                       int explorationRewardVersion)
 {
+    std::lock_guard<std::mutex> generatorLock(
+        m_terrainGeneratorMutex);
     m_terrainSeed = seed;
     m_terrainGenerationVersion = generationVersion;
     m_explorationRewardVersion = explorationRewardVersion;

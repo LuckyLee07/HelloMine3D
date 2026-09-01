@@ -50,12 +50,14 @@ try {
         "Tests\WorldRuntimeSmokeMain.cpp"
     $contractPath = Join-Path $Root `
         "docs\contracts\world-job-scheduler-contract-v1.md"
+    $b4ContractPath = Join-Path $Root `
+        "docs\contracts\world-job-cancellation-contract-v1.md"
 
     $paths = @(
         $schedulerHeaderPath, $schedulerSourcePath, $runtimeHeaderPath,
         $runtimeSourcePath, $managerHeaderPath, $managerSourcePath,
         $worldHeaderPath, $worldSourcePath, $uiPath, $testPath,
-        $contractPath)
+        $contractPath, $b4ContractPath)
     foreach ($path in $paths) {
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
             throw "Required B3 artifact is missing: $path"
@@ -73,12 +75,13 @@ try {
     $ui = Get-Content -LiteralPath $uiPath -Raw
     $tests = Get-Content -LiteralPath $testPath -Raw
     $contract = Get-Content -LiteralPath $contractPath -Raw
+    $b4Contract = Get-Content -LiteralPath $b4ContractPath -Raw
 
     foreach ($token in @(
         "enum class WorldJobType", "ChunkLoadOrGenerate",
         "ChunkMeshBuild", "enum class WorldJobState", "Pending",
         "InFlight", "Completed", "enum class WorldJobOutcome",
-        "DidWork", "NoWork", "CommitRejected",
+        "DidWork", "NoWork", "CommitRejected", "Cancelled",
         "std::uint64_t id", "std::uint64_t demandEpoch",
         "std::size_t planOrder", "enqueuedAt",
         "WorldJobSchedulerDebugStats")) {
@@ -87,7 +90,7 @@ try {
 
     foreach ($token in @(
         "bool WorldJobScheduler::submit(",
-        "void WorldJobScheduler::replacePending(",
+        "bool WorldJobScheduler::replacePending(",
         "bool WorldJobScheduler::takeNext(",
         "bool WorldJobScheduler::complete(",
         "bool WorldJobScheduler::popCompleted(",
@@ -103,14 +106,15 @@ try {
 
     foreach ($token in @(
         "WorldJobScheduler m_jobScheduler",
-        "m_jobScheduler.replacePending(requests)",
+        "m_jobScheduler.replacePending(requests,",
         "m_jobScheduler.takeNext(scheduledJob)",
         "m_jobScheduler.complete(",
         "m_jobScheduler.popCompleted(completion)",
         "WorldJobType::ChunkLoadOrGenerate",
         "WorldJobType::ChunkMeshBuild",
-        "prepareChunkNeighborhood(",
-        "scheduledJob.target.z, 0,",
+        "beginChunkNeighborhoodLoadJob(",
+        "prepareChunkLoadJob(",
+        "finishChunkLoadJob(",
         "finishMeshJob(")) {
         Require-Text ($runtimeHeader + $runtimeSource + $managerHeader +
                       $managerSource) $token "real Chunk pipeline integration"
@@ -134,7 +138,7 @@ try {
         "stats.worldJobs = m_chunkRuntime.collectJobSchedulerDebugStats()",
         "Jobs pending/in-flight/results",
         "Jobs submitted/started/completed",
-        "Jobs load/mesh/work/none/reject",
+        "Jobs load/mesh/work/none/reject/cancel",
         "Job ms queue/worker/commit")) {
         Require-Text ($worldHeader + $worldSource + $ui) $token `
             "developer scheduler diagnostics"
@@ -158,7 +162,7 @@ try {
         $runtimeHeader + $runtimeSource + $managerHeader +
         $managerSource + $worldHeader + $worldSource
     foreach ($forbidden in @(
-        "CancellationToken", "GenerationToken", "Backpressure",
+        "CancellationToken", "Backpressure",
         "HighWatermark", "LowWatermark", "SpatialInterest",
         "FarLOD", "FarTerrain", "ActiveMachineNetwork")) {
         Reject-Text $scopedSources $forbidden `
@@ -174,11 +178,29 @@ try {
     Require-Text $contract $expectedStatus "B3 contract status"
     Require-Text $contract "save/resource/settings/Gameplay/public-World-API" `
         "compatibility boundary"
+    foreach ($token in @(
+        "struct WorldJobGenerationToken", "WorldJobOutcome::Cancelled",
+        "currentGenerationToken()", "invalidateGeneration()")) {
+        Require-Text ($schedulerHeader + $schedulerSource) $token `
+            "approved B4 extension"
+    }
+    $b4Implementation = $b4Contract.IndexOf(
+        "Status: Frozen for B4 implementation",
+        [StringComparison]::Ordinal) -ge 0
+    $b4Verified = $b4Contract.IndexOf(
+        "Status: Frozen after B4 verification",
+        [StringComparison]::Ordinal) -ge 0
+    $b4GateReady = $b4Contract.IndexOf(
+        "Status: Frozen for B4 full-gate verification",
+        [StringComparison]::Ordinal) -ge 0
+    if (-not ($b4Implementation -or $b4GateReady -or $b4Verified)) {
+        throw "B4 contract has no recognized frozen status."
+    }
 
     Write-Host (
         "[WORLD_JOB_SCHEDULER] status=PASS types=2 states=3 " +
-        "outcomes=3 workers=1 order=priority/plan/epoch/type/id " +
-        "post_b3=absent")
+        "outcomes=4 workers=1 order=priority/plan/epoch/type/id " +
+        "post_b3=B4-only")
     exit 0
 }
 catch {

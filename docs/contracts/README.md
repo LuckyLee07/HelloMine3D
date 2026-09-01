@@ -14,6 +14,7 @@
 - [chunk-residency-state-machine-contract-v1.md](chunk-residency-state-machine-contract-v1.md)
 - [streaming-demand-model-contract-v1.md](streaming-demand-model-contract-v1.md)
 - [world-job-scheduler-contract-v1.md](world-job-scheduler-contract-v1.md)
+- [world-job-cancellation-contract-v1.md](world-job-cancellation-contract-v1.md)
 - [recipe-contract.md](recipe-contract.md)
 - [resource-pack-contract.md](resource-pack-contract.md)
 - [crafting-contract-v1.md](crafting-contract-v1.md)

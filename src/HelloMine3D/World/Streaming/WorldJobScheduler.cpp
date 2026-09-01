@@ -1,6 +1,8 @@
 #include "WorldJobScheduler.h"
 
 #include <algorithm>
+#include <limits>
+#include <stdexcept>
 
 namespace {
 
@@ -29,15 +31,58 @@ bool WorldJobScheduler::submit(const WorldJobRequest &request)
     return submitLocked(request);
 }
 
-void WorldJobScheduler::replacePending(
-    const std::vector<WorldJobRequest> &requests)
+bool WorldJobScheduler::replacePending(
+    const std::vector<WorldJobRequest> &requests,
+    WorldJobGenerationToken generation)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
+    if (!isCurrent(generation)) {
+        ++m_totals.stalePlanRejections;
+        return false;
+    }
+    const bool tokenMismatch = std::any_of(
+        requests.begin(), requests.end(),
+        [generation](const WorldJobRequest &request) {
+            return request.generation.value != generation.value;
+        });
+    if (tokenMismatch) {
+        ++m_totals.stalePlanRejections;
+        return false;
+    }
     m_totals.replacedPendingJobs += m_pending.size();
     m_pending.clear();
     for (const WorldJobRequest &request : requests) {
         submitLocked(request);
     }
+    return true;
+}
+
+WorldJobGenerationToken
+WorldJobScheduler::currentGenerationToken() const noexcept
+{
+    return {m_generation.load()};
+}
+
+WorldJobGenerationToken WorldJobScheduler::invalidateGeneration()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    const std::uint64_t current = m_generation.load();
+    if (current == std::numeric_limits<std::uint64_t>::max()) {
+        throw std::logic_error("World job generation overflow");
+    }
+    const WorldJobGenerationToken next{current + 1};
+    m_generation.store(next.value);
+    ++m_totals.generationInvalidations;
+    m_totals.cancelledPendingJobs += m_pending.size();
+    m_pending.clear();
+    return next;
+}
+
+bool WorldJobScheduler::isCurrent(
+    WorldJobGenerationToken generation) const noexcept
+{
+    return generation.value != 0 &&
+           generation.value == m_generation.load();
 }
 
 bool WorldJobScheduler::takeNext(WorldJob &job)
@@ -92,6 +137,9 @@ bool WorldJobScheduler::complete(const WorldJob &job,
     case WorldJobOutcome::CommitRejected:
         ++m_totals.commitRejectedJobs;
         break;
+    case WorldJobOutcome::Cancelled:
+        ++m_totals.cancelledJobs;
+        break;
     }
     switch (completed.type) {
     case WorldJobType::ChunkLoadOrGenerate:
@@ -123,6 +171,7 @@ WorldJobSchedulerDebugStats WorldJobScheduler::debugStats() const
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     WorldJobSchedulerDebugStats stats = m_totals;
+    stats.currentGeneration = m_generation.load();
     stats.pendingJobs = m_pending.size();
     stats.inFlightJobs = m_inFlight.has_value() ? 1u : 0u;
     stats.completedResults = m_completed.size();
@@ -163,12 +212,18 @@ const char *WorldJobScheduler::outcomeName(
         return "NoWork";
     case WorldJobOutcome::CommitRejected:
         return "CommitRejected";
+    case WorldJobOutcome::Cancelled:
+        return "Cancelled";
     }
     return "Unknown";
 }
 
 bool WorldJobScheduler::submitLocked(const WorldJobRequest &request)
 {
+    if (!isCurrent(request.generation)) {
+        ++m_totals.staleSubmitRejections;
+        return false;
+    }
     if (hasPendingKeyLocked(request)) {
         return false;
     }

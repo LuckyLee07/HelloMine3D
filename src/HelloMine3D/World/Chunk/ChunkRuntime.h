@@ -102,6 +102,7 @@ class ChunkRuntime final : public NonCopyable {
     };
 
     void queueSectionUpdateLocked(const glm::ivec3 &key);
+    void invalidateWorldJobs();
     void publishMeshPrioritySnapshot(const Camera &camera, int sectionY);
     void runLoader();
 
@@ -123,6 +124,7 @@ class ChunkRuntime final : public NonCopyable {
     bool m_playerDemandPublished = false;
     std::atomic<std::size_t> m_lastPlannedTargetCount{0};
     WorldJobScheduler m_jobScheduler;
+    std::mutex m_worldJobCommitMutex;
 
     std::atomic<int> m_demandSectionY{0};
     std::atomic<int> m_chunkLoadRevision{0};

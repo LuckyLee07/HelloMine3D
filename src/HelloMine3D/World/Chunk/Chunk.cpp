@@ -17,9 +17,11 @@
 #include <string>
 #include <utility>
 
-Chunk::Chunk(World &world, const glm::ivec2 &location)
+Chunk::Chunk(World &world, const glm::ivec2 &location,
+             bool updateWorldIndex)
     : m_location(location)
     , m_pWorld(&world)
+    , m_worldIndexUpdatesEnabled(updateWorldIndex)
 {
     m_highestBlocks.setAll(0);
 }
@@ -361,9 +363,14 @@ void Chunk::collectBlockData(std::vector<Block_t> &blockIds,
 
 void Chunk::loadBlockData(std::size_t sectionCount,
                           const std::vector<Block_t> &blockIds,
-                          const std::vector<BlockMetadata_t> &metadata)
+                          const std::vector<BlockMetadata_t> &metadata,
+                          bool updateWorldIndex)
 {
-    m_pWorld->removeRandomTickSectionsForChunk(m_location.x, m_location.y);
+    assert(updateWorldIndex || !m_worldIndexUpdatesEnabled);
+    if (updateWorldIndex) {
+        m_pWorld->removeRandomTickSectionsForChunk(m_location.x,
+                                                   m_location.y);
+    }
     m_chunks.clear();
     m_blockEntities.clear();
     m_highestBlocks.setAll(0);
@@ -524,6 +531,20 @@ void Chunk::load(TerrainGenerator &generator)
     m_saveDirty = false;
 }
 
+void Chunk::enableWorldIndexUpdates()
+{
+    if (m_worldIndexUpdatesEnabled) {
+        return;
+    }
+    m_worldIndexUpdatesEnabled = true;
+    for (ChunkSection &section : m_chunks) {
+        section.setWorldIndexUpdatesEnabled(true);
+        if (section.getRandomTickBlockCount() > 0) {
+            m_pWorld->updateRandomTickSection(section.getLocation(), true);
+        }
+    }
+}
+
 ChunkSection &Chunk::getSection(int index)
 {
     static ChunkSection errorSection({444, 444, 444}, *m_pWorld);
@@ -568,7 +589,7 @@ void Chunk::addSection()
 {
     int y = static_cast<int>(m_chunks.size());
     m_chunks.emplace_back(glm::ivec3(m_location.x, y, m_location.y),
-                          *m_pWorld);
+                          *m_pWorld, m_worldIndexUpdatesEnabled);
 }
 
 void Chunk::addSectionsBlockTarget(int blockY)

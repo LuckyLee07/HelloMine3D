@@ -18,7 +18,7 @@ ChunkStorage::ChunkStorage(std::string rootDirectory)
 {
 }
 
-bool ChunkStorage::loadChunk(Chunk &chunk) const
+bool ChunkStorage::loadChunk(Chunk &chunk, bool updateWorldIndex) const
 {
     const auto &location = chunk.getLocation();
     StoredChunkData data;
@@ -50,7 +50,8 @@ bool ChunkStorage::loadChunk(Chunk &chunk) const
         }
     }
 
-    chunk.loadBlockData(data.sectionCount, data.blockIds, data.metadata);
+    chunk.loadBlockData(data.sectionCount, data.blockIds, data.metadata,
+                        updateWorldIndex);
     if (!chunk.loadBlockEntities(std::move(data.blockEntities))) {
         return false;
     }

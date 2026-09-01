@@ -45,7 +45,8 @@ class ChunkSection : public IChunk {
     };
 
   public:
-    ChunkSection(const glm::ivec3 &position, World &world);
+    ChunkSection(const glm::ivec3 &position, World &world,
+                 bool updateWorldIndex = true);
 
     void setBlock(int x, int y, int z, ChunkBlock block) override;
     ChunkBlock getBlock(int x, int y, int z) const override;
@@ -102,6 +103,7 @@ class ChunkSection : public IChunk {
     }
 
   private:
+    void setWorldIndexUpdatesEnabled(bool enabled) noexcept;
     glm::ivec3 toWorldPosition(int x, int y, int z) const;
 
     static bool outOfBounds(int value);
@@ -118,6 +120,7 @@ class ChunkSection : public IChunk {
     glm::ivec3 m_location;
 
     World *m_pWorld;
+    bool m_worldIndexUpdatesEnabled = true;
 
     ChunkMeshState m_meshState = ChunkMeshState::Dirty;
     std::uint32_t m_blockRevision = 0;

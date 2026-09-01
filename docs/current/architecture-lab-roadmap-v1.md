@@ -1059,59 +1059,97 @@ Chunk 的加载行为，邻域 ready 后发布 `ChunkMeshBuild`；CPU mesh 继�
 
 ## B4 — Cancellation & Generation Token
 
-典型问题：
+### 真实问题与冻结范围
+
+玩家移动、传送、修改视距或重置 mesh 后，B3 已经开始的旧 load/generate 或 mesh build
+仍可能完成。若提交点只看 Chunk revision，旧 plan 的结果仍可能重新进入权威世界。B4 因此只扩展
+B3 已存在的两种 job，不增加 worker、未来 job type 或 pressure policy：
 
 ```text
-玩家在 A
-请求 Chunk X
-后台开始生成
-
-玩家迅速跑到 B
-Chunk X 已经不需要
-
-Job 仍然完成
-主线程又把 X 装回来
+ChunkLoadOrGenerate
+ChunkMeshBuild
 ```
 
-解决：
+每个 request/job 复制当前非零 `WorldJobGenerationToken`。Player/Camera 坐标或半径变化、
+Teleport/Preload 新增/替换/过期、render distance 变化、mesh reset 和 loader shutdown 使 generation
+单调前进并立即清除旧 pending。仅 camera/frustum priority 重排不使 in-flight 工作失效。
+
+### 协作取消与提交边界
 
 ```text
-Demand Epoch
-Job Token
-Chunk Revision
+Pending -> InFlight -> Completed(Cancelled)
+
+generation token  : plan 是否仍然需要该工作
+Chunk/mesh revision: 同一代内权威数据是否发生变化
 ```
 
-提交：
+取消允许昂贵工作“白做”，但在昂贵工作前、锁外工作后/权威提交前、发布 follow-up 前检查 token。
+`ChunkRuntime` 在共享 World mutex 内通过独立 generation/commit mutex 把最终 token 检查与权威提交
+线性化。旧 generation 记为 `Cancelled`；同 generation 的 B1 revision 失败仍记为
+`CommitRejected`。
 
-```cpp
-if (!token.valid())
-    discard();
+### Detached Chunk 与 mesh 回滚
 
-if (chunk.revision != expected)
-    discard();
+load/generate 拆为三个真实阶段：锁内以 `Requested -> Loading` 预留坐标；锁外从 storage hydration
+或确定性生成 detached candidate；锁内原子提交或丢弃。candidate 在发布前禁止修改 live World 的
+random-tick index，共享 terrain generator 的生成入口被串行化。成功提交后才注册 active random-tick
+section、协调光照并发布 generated/loaded 事实。
+
+取消预留只增加一条 B1 合法边 `Loading -> Absent`。取消 mesh 只把 revision 仍匹配的准确
+`Building` section 退回 `Dirty`，不得采用 CPU 输出、增加 rebuild 指标或进入 GPU upload。
+
+### 诊断
+
+```text
+current generation / generation invalidations
+cancelled pending / stale submit / stale plan
+completed Cancelled
 ```
+
+这些值是复制的派生诊断，不持久化，也不参与 Gameplay 或确定性比较。
 
 ### 验收
 
-建立 Stress：
+`tools/validate_world_job_cancellation.ps1` 必须锁定 token、取消 outcome、六类失效入口、
+detached commit、random-tick 隔离、mesh 回滚、开发者诊断和 B5/B6 缺席。定向运行必须覆盖：
 
 ```text
-高速直线移动
-高速折返
-随机 Teleport
-Render Distance 频繁修改
+旧 pending 清除 / in-flight 保留后取消
+stale/zero submit 与 stale plan 拒绝
+当前代 B3 排序不变
+取消 candidate 不发布，当前 candidate 只提交一次
+取消 mesh 回到 Dirty
+快速重规划与失效并发压力
+真实 World generation 前进且仍执行当前工作
 ```
 
 要求：
 
-- 没有 stale commit；
-- Queue 有界；
-- 内存最终回落；
-- 没有死锁。
+- B4 定向 10/10，B3/B2/B1 回归继续通过；
+- AL-A1..AL-A6 与 B1..B4 静态门禁继续通过；
+- VS2017/v141 Debug/Release 完整门禁和 104 项隔离包通过；
+- save v12、terrain v4、settings v8、Gameplay、一个 worker 和既有预算不变；
+- B5 hard cap/watermark/admission/shedding 与 B6 Spatial Interest 不得进入实现。
+
+### 当前实现记录（2026-09-01）
+
+B4 已按 `docs/contracts/world-job-cancellation-contract-v1.md` 完成实现和定向验证。
+`WorldJobScheduler` 现在从 generation 1 开始，拒绝零/旧 token，失效时清除旧 pending 并保留单一
+in-flight 记录直至其以 `Cancelled` 完成。`ChunkRuntime` 在 B2 semantic revision、视距、mesh reset
+和 shutdown 边界推进 generation，并在线性化提交区间内复核 token。
+
+`ChunkManager` 新增 detached load candidate 的 begin/prepare/finish/cancel 协议；candidate 的 storage
+hydration、terrain generation 与 random-tick index 在提交前和 live World 隔离。取消的 mesh 精确退回
+`Dirty`。定向 B4 为 `10/10`，B3/B2/B1 回归分别为 `9/9`、`26/26`、`38/38`。完整 VS2017/v141
+Debug/Release 门禁均通过 `894/894` WorldRuntime、`80/80` 资源包、`122/122` 配方、`15/15` 启动负例
+和两轮零失败短 soak；104 项隔离包 SHA-256 为
+`A9A7CC9AF528F3C725ACC13A62A69FB6D10718AD25F7F4796F5E47B70453C33A`，最终状态为
+`PASS real_window=DEFERRED`。B4 为 `Done`，该结果不授权 B5-B9 的跨批实现。
 
 ### 教程
 
-**Chapter 10：为什么异步系统必须允许“白做”**
+living tutorial 的 `1.4` 解释为什么异步系统必须允许“白做”，以及为什么“检查 token”只有和
+权威提交点线性化后才真正阻止 stale commit。
 
 ---
 

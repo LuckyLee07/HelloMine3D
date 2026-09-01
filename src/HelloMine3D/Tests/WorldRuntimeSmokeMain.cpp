@@ -6262,13 +6262,15 @@ void caseWorldJobScheduler()
 
     const auto request = [](WorldJobType type, VectorXZ target,
                             int priority, std::uint64_t epoch,
-                            std::size_t planOrder) {
+                            std::size_t planOrder,
+                            WorldJobGenerationToken generation = {1}) {
         WorldJobRequest result;
         result.type = type;
         result.target = target;
         result.priority = priority;
         result.demandEpoch = epoch;
         result.planOrder = planOrder;
+        result.generation = generation;
         return result;
     };
 
@@ -6334,7 +6336,8 @@ void caseWorldJobScheduler()
         mismatched, WorldJobOutcome::DidWork, 9.0, 9.0);
     const std::vector<WorldJobRequest> replacement{
         request(WorldJobType::ChunkMeshBuild, {2, 0}, 400, 4, 0)};
-    lifecycleScheduler.replacePending(replacement);
+    lifecycleScheduler.replacePending(
+        replacement, lifecycleScheduler.currentGenerationToken());
     const WorldJobSchedulerDebugStats replaced =
         lifecycleScheduler.debugStats();
     check("B3/pending-to-inflight-and-invalid-completion",
@@ -6420,10 +6423,316 @@ void caseWorldJobScheduler()
           runtimeStats.inFlightJobs <= 1 &&
               runtimeStats.completedJobs ==
                   runtimeStats.didWorkJobs + runtimeStats.noWorkJobs +
-                      runtimeStats.commitRejectedJobs &&
+                      runtimeStats.commitRejectedJobs +
+                      runtimeStats.cancelledJobs &&
               runtimeStats.completedJobs ==
                   runtimeStats.chunkLoadOrGenerateJobs +
                       runtimeStats.chunkMeshBuildJobs);
+}
+
+// ---------------------------------------------------------------------------
+// B4 - semantic plan changes cancel stale World work before commit
+// ---------------------------------------------------------------------------
+void caseWorldJobCancellation()
+{
+    const auto request = [](WorldJobType type, VectorXZ target,
+                            int priority, std::uint64_t epoch,
+                            std::size_t planOrder,
+                            WorldJobGenerationToken generation) {
+        WorldJobRequest result;
+        result.type = type;
+        result.target = target;
+        result.priority = priority;
+        result.demandEpoch = epoch;
+        result.planOrder = planOrder;
+        result.generation = generation;
+        return result;
+    };
+
+    WorldJobScheduler lifecycle;
+    const WorldJobGenerationToken generationOne =
+        lifecycle.currentGenerationToken();
+    const bool vocabulary =
+        generationOne.value == 1 &&
+        std::string(WorldJobScheduler::outcomeName(
+            WorldJobOutcome::Cancelled)) == "Cancelled";
+    check("B4/generation-token-and-cancel-vocabulary-is-frozen",
+          vocabulary);
+
+    lifecycle.submit(request(WorldJobType::ChunkLoadOrGenerate,
+                             {1, 0}, 300, 1, 0, generationOne));
+    lifecycle.submit(request(WorldJobType::ChunkMeshBuild,
+                             {2, 0}, 200, 1, 1, generationOne));
+    WorldJob staleInFlight;
+    const bool started = lifecycle.takeNext(staleInFlight);
+    const WorldJobGenerationToken generationTwo =
+        lifecycle.invalidateGeneration();
+    const WorldJobSchedulerDebugStats invalidated =
+        lifecycle.debugStats();
+    check("B4/invalidation-clears-pending-and-preserves-inflight",
+          started && generationTwo.value == generationOne.value + 1 &&
+              !lifecycle.isCurrent(generationOne) &&
+              lifecycle.isCurrent(generationTwo) &&
+              invalidated.pendingJobs == 0 &&
+              invalidated.inFlightJobs == 1 &&
+              invalidated.cancelledPendingJobs == 1 &&
+              invalidated.generationInvalidations == 1);
+
+    const WorldJobRequest staleRequest = request(
+        WorldJobType::ChunkLoadOrGenerate, {3, 0}, 400, 2, 0,
+        generationOne);
+    const WorldJobRequest zeroRequest = request(
+        WorldJobType::ChunkLoadOrGenerate, {4, 0}, 400, 2, 0,
+        WorldJobGenerationToken{});
+    const bool staleSubmitRejected = !lifecycle.submit(staleRequest);
+    const bool zeroSubmitRejected = !lifecycle.submit(zeroRequest);
+    const bool stalePlanRejected = !lifecycle.replacePending(
+        std::vector<WorldJobRequest>{staleRequest}, generationOne);
+    check("B4/stale-submit-and-plan-are-rejected",
+          staleSubmitRejected && zeroSubmitRejected &&
+              stalePlanRejected &&
+              lifecycle.debugStats().pendingJobs == 0 &&
+              lifecycle.debugStats().staleSubmitRejections == 2 &&
+              lifecycle.debugStats().stalePlanRejections == 1);
+
+    const std::vector<WorldJobRequest> currentPlan{
+        request(WorldJobType::ChunkMeshBuild, {8, 0}, 300, 4, 1,
+                generationTwo),
+        request(WorldJobType::ChunkLoadOrGenerate, {7, 0}, 400, 3, 2,
+                generationTwo),
+        request(WorldJobType::ChunkLoadOrGenerate, {6, 0}, 400, 5, 0,
+                generationTwo)};
+    const bool currentPlanAccepted =
+        lifecycle.replacePending(currentPlan, generationTwo);
+    check("B4/current-generation-keeps-b3-ordering",
+          currentPlanAccepted &&
+              lifecycle.debugStats().pendingJobs == currentPlan.size());
+
+    const bool cancelled = lifecycle.complete(
+        staleInFlight, WorldJobOutcome::Cancelled, 2.0, 0.0);
+    WorldJobCompletion cancelledCompletion;
+    const bool cancelledPopped =
+        lifecycle.popCompleted(cancelledCompletion);
+    WorldJob currentFirst;
+    const bool currentStarted = lifecycle.takeNext(currentFirst);
+    const bool currentOrder =
+        currentStarted && currentFirst.target == VectorXZ{6, 0};
+    if (currentStarted) {
+        lifecycle.complete(currentFirst, WorldJobOutcome::NoWork,
+                           0.0, 0.0);
+        WorldJobCompletion drained;
+        lifecycle.popCompleted(drained);
+    }
+    check("B4/cancelled-completion-and-metrics-are-exact",
+          cancelled && cancelledPopped && currentOrder &&
+              cancelledCompletion.outcome ==
+                  WorldJobOutcome::Cancelled &&
+              lifecycle.debugStats().cancelledJobs == 1 &&
+              lifecycle.debugStats().completedJobs == 2);
+
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+    const auto directory =
+        freshSaveDirectory("b4_detached_chunk_candidate");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World candidateWorld(camera, config, player, directory, false, 0);
+    ChunkManager &chunks = candidateWorld.getChunkManager();
+    EventRecorder events(candidateWorld.getEventBus());
+    events.reset();
+    const std::size_t randomTickSectionsBeforeCandidate =
+        candidateWorld.collectDebugStats().randomTickSections;
+
+    ChunkLoadJob cancelledLoad;
+    const ChunkNeighborhoodLoadJobResult cancelledBegin =
+        chunks.beginChunkNeighborhoodLoadJob(30, 30, 1,
+                                             cancelledLoad);
+    const bool cancelledPrepared =
+        chunks.prepareChunkLoadJob(cancelledLoad);
+    const std::size_t randomTickSectionsAfterDetachedPrepare =
+        candidateWorld.collectDebugStats().randomTickSections;
+    const VectorXZ cancelledPosition = cancelledLoad.chunkPosition;
+    const bool placeholderCancelled =
+        chunks.cancelChunkLoadJob(cancelledLoad);
+    const Chunk *cancelledChunk = chunks.findChunk(
+        cancelledPosition.x, cancelledPosition.z);
+    check("B4/cancelled-detached-load-publishes-nothing",
+          cancelledBegin.jobPrepared && cancelledPrepared &&
+              placeholderCancelled && cancelledChunk != nullptr &&
+              cancelledChunk->getDataResidencyState() ==
+                  ChunkDataResidencyState::Absent &&
+              !cancelledChunk->hasLoaded() &&
+              randomTickSectionsAfterDetachedPrepare ==
+                  randomTickSectionsBeforeCandidate &&
+              candidateWorld.collectDebugStats().randomTickSections ==
+                  randomTickSectionsBeforeCandidate &&
+              events.count(SandboxEventType::ChunkLoaded) == 0 &&
+              events.count(SandboxEventType::ChunkGenerated) == 0);
+
+    ChunkLoadJob committedLoad;
+    const ChunkNeighborhoodLoadJobResult committedBegin =
+        chunks.beginChunkNeighborhoodLoadJob(50, 50, 1,
+                                             committedLoad);
+    const bool committedPrepared =
+        chunks.prepareChunkLoadJob(committedLoad);
+    const VectorXZ committedPosition = committedLoad.chunkPosition;
+    const bool candidateCommitted =
+        chunks.finishChunkLoadJob(committedLoad);
+    const Chunk *committedChunk = chunks.findChunk(
+        committedPosition.x, committedPosition.z);
+    std::size_t committedRandomTickSections = 0;
+    if (committedChunk != nullptr) {
+        for (std::size_t sectionIndex = 0;
+             sectionIndex < committedChunk->getSectionCount();
+             ++sectionIndex) {
+            const ChunkSection *section = committedChunk->findSection(
+                static_cast<int>(sectionIndex));
+            committedRandomTickSections +=
+                section != nullptr &&
+                        section->getRandomTickBlockCount() > 0
+                    ? 1u
+                    : 0u;
+        }
+    }
+    const int loadEvents = events.count(SandboxEventType::ChunkLoaded);
+    const int generatedEvents =
+        events.count(SandboxEventType::ChunkGenerated);
+    check("B4/current-detached-load-commits-once",
+          committedBegin.jobPrepared && committedPrepared &&
+              candidateCommitted && committedChunk != nullptr &&
+              committedChunk->hasLoaded() && loadEvents == 1 &&
+              generatedEvents == 1 &&
+              candidateWorld.collectDebugStats().randomTickSections ==
+                  randomTickSectionsBeforeCandidate +
+                      committedRandomTickSections &&
+              !chunks.finishChunkLoadJob(committedLoad));
+
+    for (int x = committedPosition.x - 1;
+         x <= committedPosition.x + 1; ++x) {
+        for (int z = committedPosition.z - 1;
+             z <= committedPosition.z + 1; ++z) {
+            chunks.loadChunk(x, z);
+        }
+    }
+    Chunk *meshChunk = chunks.findChunk(committedPosition.x,
+                                        committedPosition.z);
+    const int dirtySection =
+        meshChunk != nullptr ? meshChunk->findDirtySection(-1) : -1;
+    ChunkMeshJob cancelledMesh;
+    const ChunkDebugStats beforeCancelledMesh =
+        chunks.collectDebugStats();
+    const ChunkMeshWorkResult meshBegin = chunks.beginMeshJob(
+        committedPosition.x, committedPosition.z, 0, dirtySection,
+        cancelledMesh);
+    const bool meshCancelled = chunks.cancelMeshJob(cancelledMesh);
+    ChunkSection *cancelledSection =
+        meshChunk != nullptr && dirtySection >= 0
+            ? meshChunk->findSection(dirtySection)
+            : nullptr;
+    const ChunkDebugStats afterCancelledMesh =
+        chunks.collectDebugStats();
+    check("B4/cancelled-mesh-returns-dirty-without-adoption",
+          meshBegin.meshBuilt && cancelledMesh.valid &&
+              meshCancelled && cancelledSection != nullptr &&
+              cancelledSection->getMeshState() ==
+                  ChunkMeshState::Dirty &&
+              afterCancelledMesh.meshRebuilds ==
+                  beforeCancelledMesh.meshRebuilds &&
+              afterCancelledMesh.meshBuildTotalMs ==
+                  beforeCancelledMesh.meshBuildTotalMs);
+
+    WorldJobScheduler stress;
+    std::atomic<bool> stressStart{false};
+    std::atomic<std::size_t> maxPending{0};
+    auto recordPending = [&maxPending](std::size_t pending) {
+        std::size_t observed = maxPending.load();
+        while (observed < pending &&
+               !maxPending.compare_exchange_weak(observed, pending)) {
+        }
+    };
+    std::thread producer([&]() {
+        while (!stressStart.load()) {
+            std::this_thread::yield();
+        }
+        for (int iteration = 0; iteration < 300; ++iteration) {
+            const WorldJobGenerationToken token =
+                stress.currentGenerationToken();
+            const int direction = iteration % 2 == 0 ? 1 : -1;
+            std::vector<WorldJobRequest> plan;
+            for (int index = 0; index < 8; ++index) {
+                plan.push_back(request(
+                    WorldJobType::ChunkLoadOrGenerate,
+                    {direction * (iteration + index), index},
+                    index == 0 ? 400 : 300,
+                    static_cast<std::uint64_t>(iteration + 1),
+                    static_cast<std::size_t>(index), token));
+            }
+            stress.replacePending(plan, token);
+            recordPending(stress.debugStats().pendingJobs);
+            WorldJob job;
+            if (stress.takeNext(job)) {
+                const WorldJobOutcome stressOutcome =
+                    stress.isCurrent(job.generation)
+                        ? WorldJobOutcome::NoWork
+                        : WorldJobOutcome::Cancelled;
+                stress.complete(job, stressOutcome, 0.0, 0.0);
+                WorldJobCompletion drained;
+                stress.popCompleted(drained);
+            }
+        }
+    });
+    std::thread invalidator([&]() {
+        while (!stressStart.load()) {
+            std::this_thread::yield();
+        }
+        for (int iteration = 0; iteration < 300; ++iteration) {
+            stress.invalidateGeneration();
+        }
+    });
+    stressStart.store(true);
+    producer.join();
+    invalidator.join();
+    stress.invalidateGeneration();
+    const WorldJobSchedulerDebugStats stressStats = stress.debugStats();
+    check("B4/rapid-replan-stress-is-bounded-and-deadlock-free",
+          stressStats.pendingJobs == 0 &&
+              stressStats.inFlightJobs == 0 &&
+              stressStats.completedResults == 0 &&
+              maxPending.load() <= 8 &&
+              stressStats.generationInvalidations == 301);
+
+    const auto liveDirectory =
+        freshSaveDirectory("b4_live_generation_advance");
+    Player livePlayer;
+    Camera liveCamera(config);
+    World liveWorld(liveCamera, config, livePlayer, liveDirectory,
+                    true, 0);
+    const WorldJobSchedulerDebugStats liveBefore =
+        liveWorld.collectDebugStats().worldJobs;
+    livePlayer.position.x += 64.f;
+    liveCamera.position = livePlayer.position;
+    liveWorld.update(liveCamera);
+    liveWorld.setRenderDistance(2);
+    WorldJobSchedulerDebugStats liveAfter;
+    const auto deadline = std::chrono::steady_clock::now() +
+                          std::chrono::seconds(15);
+    do {
+        liveWorld.update(liveCamera);
+        liveAfter = liveWorld.collectDebugStats().worldJobs;
+        if (liveAfter.chunkLoadOrGenerateJobs > 0 &&
+            liveAfter.currentGeneration > liveBefore.currentGeneration) {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    } while (std::chrono::steady_clock::now() < deadline);
+    check("B4/live-world-advances-generation-and-runs-current-work",
+          liveAfter.currentGeneration > liveBefore.currentGeneration &&
+              liveAfter.generationInvalidations >
+                  liveBefore.generationInvalidations &&
+              liveAfter.chunkLoadOrGenerateJobs > 0 &&
+              liveAfter.inFlightJobs <= 1);
 }
 
 // ---------------------------------------------------------------------------
@@ -6448,10 +6757,12 @@ void caseChunkResidencyStateMachine()
         }
     }
     check("B1/data-state-vocabulary-and-graph",
-          dataEdges == 12 &&
+          dataEdges == 13 &&
               std::string(chunkDataResidencyStateName(
                   ChunkDataResidencyState::EvictRequested)) ==
                   "EvictRequested" &&
+              canTransition(ChunkDataResidencyState::Loading,
+                            ChunkDataResidencyState::Absent) &&
               canTransition(ChunkDataResidencyState::Loading,
                             ChunkDataResidencyState::Generating) &&
               canTransition(ChunkDataResidencyState::Loading,
@@ -15536,6 +15847,9 @@ int main()
         else if (focus != nullptr && std::string(focus) == "B3") {
             caseWorldJobScheduler();
         }
+        else if (focus != nullptr && std::string(focus) == "B4") {
+            caseWorldJobCancellation();
+        }
         else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
@@ -15583,6 +15897,7 @@ int main()
         caseFrustumMeshPriority();
         caseStreamingDemandModel();
         caseWorldJobScheduler();
+        caseWorldJobCancellation();
         caseChunkResidencyStateMachine();
         caseSectionMeshUploadSnapshot();
         caseUnloadPersistence();

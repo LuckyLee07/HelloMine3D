@@ -16,7 +16,8 @@ class TerrainGenerator;
 class Chunk : public IChunk {
   public:
     Chunk() = default;
-    Chunk(World &world, const glm::ivec2 &location);
+    Chunk(World &world, const glm::ivec2 &location,
+          bool updateWorldIndex = true);
 
     /// Index of a section whose mesh needs rebuilding, searched outwards from
     /// `preferredSectionY`, or -1 when everything is up to date.
@@ -44,7 +45,8 @@ class Chunk : public IChunk {
                           std::vector<BlockMetadata_t> &metadata) const;
     void loadBlockData(std::size_t sectionCount,
                        const std::vector<Block_t> &blockIds,
-                       const std::vector<BlockMetadata_t> &metadata);
+                       const std::vector<BlockMetadata_t> &metadata,
+                       bool updateWorldIndex = true);
     const std::vector<BlockEntityRecord> &getBlockEntities() const;
     const BlockEntityRecord *findBlockEntity(const glm::ivec3 &position) const;
     bool createBlockEntity(BlockEntityRecord blockEntity);
@@ -53,6 +55,7 @@ class Chunk : public IChunk {
     removeBlockEntity(const glm::ivec3 &position);
     bool loadBlockEntities(std::vector<BlockEntityRecord> blockEntities);
     void load(TerrainGenerator &generator);
+    void enableWorldIndexUpdates();
 
     ChunkSection &getSection(int index);
     ChunkSection *findSection(int index);
@@ -79,6 +82,7 @@ class Chunk : public IChunk {
     glm::ivec2 m_location;
 
     World *m_pWorld;
+    bool m_worldIndexUpdatesEnabled = true;
 
     ChunkDataResidencyState m_dataResidencyState =
         ChunkDataResidencyState::Absent;

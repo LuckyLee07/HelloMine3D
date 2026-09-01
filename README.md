@@ -149,7 +149,7 @@ If you only read a few parts of this repository, read these.
 | 5 | **Performance comparison that can say "incomparable".** Scene identity, schema, build configuration and final chunk residency are all part of the record; a mismatch yields `INCOMPARABLE` instead of a misleading pass, and thresholds only gate after a baseline has been explicitly approved. | [`compare_perf_baselines.ps1`](tools/compare_perf_baselines.ps1) · [`performance-contract-v1.json`](tools/performance-contract-v1.json) |
 | 6 | **Crash diagnostics with no telemetry.** A local minidump plus a versioned, sanitized sidecar; offline mixed-stack symbolization against a separately archived PDB; a next-launch prompt the player can simply ignore. Nothing is uploaded and no absolute developer paths leak. | [`Diagnostics/`](src/HelloMine3D/Diagnostics/) · [contract](docs/contracts/crash-diagnostics-contract-v1.md) |
 | 7 | **Packages validated from an isolated root.** The distribution is checked from a directory with no access to the source or build tree, including negative cases for missing and stale resources — so "it works on my machine" cannot pass the gate. | [`package_windows_release.ps1`](tools/package_windows_release.ps1) · [`validate_startup_errors.ps1`](tools/validate_startup_errors.ps1) |
-| 8 | **One frozen contract per feature batch.** Forty-four contract documents fix the data fields, defaults, migration path, failure semantics and exit conditions *before* implementation — then record the real measured numbers afterwards. | [`contracts/`](docs/contracts/) |
+| 8 | **One frozen contract per feature batch.** Fifty-four contract documents fix the data fields, defaults, migration path, failure semantics and exit conditions *before* implementation — then record the real measured numbers afterwards. | [`contracts/`](docs/contracts/) |
 | 9 | **A ThreadSanitizer gate that proves itself first.** The script requires an isolated race probe to actually report and exit 66, then verifies native architecture and TSan runtime linkage and rejects suppressions, before the real loader-churn run is allowed to count. | [`verify_tsan.sh`](scripts/verify_tsan.sh) · [notes](docs/current/thread-sanitizer-validation.md) |
 | 10 | **Strict data-driven content with startup preflight.** Blocks, recipes, tools, foods, smelting, enemies, objectives, audio, music and both locales are parsed strictly from `media/`; a missing, duplicate or malformed entry fails before Ogre is even constructed. | [`media/`](media/) · [`StartupResourcePreflight.cpp`](src/HelloMine3D/Ogre/StartupResourcePreflight.cpp) |
 
@@ -175,9 +175,9 @@ then passed at `832/832` world assertions in both configurations, six formal per
 compare clean, both 1800-second soak profiles pass, and the 104-file package validates from an
 isolated root.
 
-Architecture Lab batches AL-A0 through AL-A6 and Track B B1-B3 are now complete. The current
-B3 gate passes `884/884` world assertions in both configurations and a 104-entry clean package;
-B4 Cancellation & Generation Token is the next approved batch.
+Architecture Lab batches AL-A0 through AL-A6 and Track B B1-B4 are now complete. The current
+B4 gate passes `894/894` world assertions in both configurations and a 104-entry clean package;
+B5 Streaming Backpressure is the next approved batch.
 
 This is a personal architecture-learning and showcase project, not a commercial product with an
 external playtest panel. The game remains the proof vehicle: observable workflows are validated
@@ -419,7 +419,7 @@ bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
 bin\HelloMine3DMeshDirtyTests.exe         # mesh dirty planner
 bin\HelloMine3DSaveLoadSmoke.exe          # chunk serialization roundtrip
 bin\HelloMine3DEntityLifecycleSmoke.exe   # actor lifecycle
-bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor/audio/objective/visual-settings stack, 884 assertions
+bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor/audio/objective/visual-settings stack, 894 assertions
 bin\HelloMine3DSoak.exe                   # deterministic world stability schedule
 bin\HelloMine3DResourcePackSmoke.exe      # resource resolver and frozen view
 bin\HelloMine3DRecipeSmoke.exe            # strict startup recipe registry

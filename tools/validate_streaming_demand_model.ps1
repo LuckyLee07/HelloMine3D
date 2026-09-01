@@ -46,11 +46,14 @@ try {
         "Tests\WorldRuntimeSmokeMain.cpp"
     $contractPath = Join-Path $Root `
         "docs\contracts\streaming-demand-model-contract-v1.md"
+    $b4ContractPath = Join-Path $Root `
+        "docs\contracts\world-job-cancellation-contract-v1.md"
 
     $paths = @(
         $demandHeaderPath, $demandSourcePath, $runtimeHeaderPath,
         $runtimeSourcePath, $worldHeaderPath, $worldSourcePath,
-        $managerPath, $uiPath, $testPath, $contractPath)
+        $managerPath, $uiPath, $testPath, $contractPath,
+        $b4ContractPath)
     foreach ($path in $paths) {
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
             throw "Required B2 artifact is missing: $path"
@@ -67,6 +70,7 @@ try {
     $ui = Get-Content -LiteralPath $uiPath -Raw
     $tests = Get-Content -LiteralPath $testPath -Raw
     $contract = Get-Content -LiteralPath $contractPath -Raw
+    $b4Contract = Get-Content -LiteralPath $b4ContractPath -Raw
 
     foreach ($token in @(
         "enum class ChunkDemandReason", "Player", "Camera",
@@ -151,7 +155,7 @@ try {
             "unimplemented demand reason"
     }
     foreach ($forbidden in @(
-        "CancellationToken", "GenerationToken", "Backpressure",
+        "CancellationToken", "Backpressure",
         "SpatialInterest", "FarLOD", "FarTerrain")) {
         Reject-Text ($demandHeader + $demandSource + $runtimeHeader +
                      $runtimeSource + $worldHeader + $worldSource) `
@@ -161,11 +165,16 @@ try {
     Require-Text $contract "Status: Frozen after B2 verification" `
         "frozen B2 contract"
     Require-Text $contract "save v12" "save compatibility boundary"
+    Require-Text $runtimeSource "WorldJobGenerationToken planGeneration" `
+        "B4 generation attached to a copied B2 plan"
+    Require-Text $b4Contract `
+        "Camera/frustum priority-only reordering does not invalidate" `
+        "B2 priority-only compatibility boundary"
 
     Write-Host (
         "[STREAMING_DEMAND_MODEL] status=PASS reasons=4 slots=4 " +
         "priorities=400/300/200/100 expiry=epoch merge=deduplicated " +
-        "post_b2=B3-only")
+        "post_b2=B3-B4")
     exit 0
 }
 catch {

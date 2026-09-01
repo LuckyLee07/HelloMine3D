@@ -10,7 +10,8 @@ bool canTransition(ChunkDataResidencyState from,
         return to == ChunkDataResidencyState::Loading;
     case ChunkDataResidencyState::Loading:
         return to == ChunkDataResidencyState::Generating ||
-               to == ChunkDataResidencyState::Resident;
+               to == ChunkDataResidencyState::Resident ||
+               to == ChunkDataResidencyState::Absent;
     case ChunkDataResidencyState::Generating:
         return to == ChunkDataResidencyState::Resident;
     case ChunkDataResidencyState::Resident:

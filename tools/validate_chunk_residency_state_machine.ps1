@@ -50,12 +50,14 @@ try {
         "Tests\WorldRuntimeSmokeMain.cpp"
     $contractPath = Join-Path $Root `
         "docs\contracts\chunk-residency-state-machine-contract-v1.md"
+    $b4ContractPath = Join-Path $Root `
+        "docs\contracts\world-job-cancellation-contract-v1.md"
 
     $paths = @(
         $lifecycleHeaderPath, $lifecycleSourcePath, $chunkHeaderPath,
         $chunkSourcePath, $sectionHeaderPath, $sectionSourcePath,
         $managerSourcePath, $runtimeSourcePath, $ogrePath, $uiPath,
-        $testPath, $contractPath)
+        $testPath, $contractPath, $b4ContractPath)
     foreach ($path in $paths) {
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
             throw "Required B1 artifact is missing: $path"
@@ -74,6 +76,7 @@ try {
     $ui = Get-Content -LiteralPath $uiPath -Raw
     $tests = Get-Content -LiteralPath $testPath -Raw
     $contract = Get-Content -LiteralPath $contractPath -Raw
+    $b4Contract = Get-Content -LiteralPath $b4ContractPath -Raw
 
     foreach ($token in @(
         "enum class ChunkDataResidencyState", "Absent", "Requested",
@@ -163,7 +166,7 @@ try {
                  $runtimeSource) "ChunkSectionMeshState" `
         "legacy combined CPU/GPU mesh enum"
     foreach ($forbidden in @(
-        "CancellationToken", "GenerationToken", "ChunkBackpressure",
+        "CancellationToken", "ChunkBackpressure",
         "SpatialInterest")) {
         Reject-Text ($lifecycleHeader + $lifecycleSource + $chunkHeader +
                      $chunkSource + $sectionHeader + $sectionSource +
@@ -174,11 +177,19 @@ try {
     Require-Text $contract "Status: Frozen after B1 verification" `
         "frozen B1 contract"
     Require-Text $contract "Save format v12" "save compatibility boundary"
+    Require-Text $lifecycleSource `
+        "to == ChunkDataResidencyState::Absent;" `
+        "B4 Loading-to-Absent cancellation edge"
+    Require-Text $tests "dataEdges == 13" `
+        "B1 graph extended by exactly one B4 edge"
+    Require-Text $b4Contract `
+        "only B4 extension to the B1 Data Residency graph." `
+        "B4 residency scope boundary"
 
     Write-Host (
         "[CHUNK_RESIDENCY_STATE_MACHINE] status=PASS " +
         "data_states=7 mesh_states=5 render_states=4 " +
-        "owners=3 debug_families=3 post_b1=B2-B3")
+        "owners=3 debug_families=3 post_b1=B2-B4")
     exit 0
 }
 catch {

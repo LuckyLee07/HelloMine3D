@@ -12,7 +12,7 @@ class ChunkStorage {
     ChunkStorage();
     explicit ChunkStorage(std::string rootDirectory);
 
-    bool loadChunk(Chunk &chunk) const;
+    bool loadChunk(Chunk &chunk, bool updateWorldIndex = true) const;
     bool saveChunk(const Chunk &chunk) const;
     bool saveChunk(const Chunk &chunk, StorageTransactionMetrics *metrics) const;
 

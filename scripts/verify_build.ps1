@@ -55,6 +55,8 @@ $streamingDemandModelVerifier = Join-Path $repoRoot `
     "tools\validate_streaming_demand_model.ps1"
 $worldJobSchedulerVerifier = Join-Path $repoRoot `
     "tools\validate_world_job_scheduler.ps1"
+$worldJobCancellationVerifier = Join-Path $repoRoot `
+    "tools\validate_world_job_cancellation.ps1"
 
 function Invoke-Checked {
     param(
@@ -199,6 +201,10 @@ try {
 
     Invoke-Checked "B3 World job scheduler" {
         & $worldJobSchedulerVerifier -Root $repoRoot
+    }
+
+    Invoke-Checked "B4 World job cancellation" {
+        & $worldJobCancellationVerifier -Root $repoRoot
     }
 
     Invoke-Checked "Resource manifest" {

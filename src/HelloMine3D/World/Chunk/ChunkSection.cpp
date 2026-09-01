@@ -14,10 +14,12 @@
 #include <iostream>
 #include <thread>
 
-ChunkSection::ChunkSection(const glm::ivec3 &location, World &world)
+ChunkSection::ChunkSection(const glm::ivec3 &location, World &world,
+                           bool updateWorldIndex)
     : m_aabb({CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE})
     , m_location(location)
     , m_pWorld(&world)
+    , m_worldIndexUpdatesEnabled(updateWorldIndex)
 {
     m_sunlight.fill(MAX_LIGHT_LEVEL);
     m_blockLight.fill(MIN_LIGHT_LEVEL);
@@ -65,9 +67,15 @@ void ChunkSection::setBlock(int x, int y, int z, ChunkBlock block)
     invalidateMeshInput();
 
     const bool sectionIsActive = !m_randomTickBlocks.empty();
-    if (sectionWasActive != sectionIsActive) {
+    if (m_worldIndexUpdatesEnabled &&
+        sectionWasActive != sectionIsActive) {
         m_pWorld->updateRandomTickSection(m_location, sectionIsActive);
     }
+}
+
+void ChunkSection::setWorldIndexUpdatesEnabled(bool enabled) noexcept
+{
+    m_worldIndexUpdatesEnabled = enabled;
 }
 
 ChunkBlock ChunkSection::getBlock(int x, int y, int z) const

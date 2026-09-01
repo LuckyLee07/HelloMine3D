@@ -1,7 +1,7 @@
 # HelloMine3D Architecture Lab Tutorial
 
 > Living tutorial status: Part 00 covers completed Track A and Part 01 covers
-> verified B1 and B2. Later Parts are added only with the first verified
+> verified B1 through B4. Later Parts are added only with the first verified
 > batch of their owning Track; this file does not pre-create empty Sprint chapters.
 
 <!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-BEGIN -->
@@ -15,6 +15,7 @@ AL-A6|00|0.6|docs/contracts/architecture-lab-documentation-pipeline-contract-v1.
 B1|01|1.1|docs/reports/architecture-lab-b1-chunk-residency-report-v1.md
 B2|01|1.2|docs/reports/architecture-lab-b2-streaming-demand-report-v1.md
 B3|01|1.3|docs/reports/architecture-lab-b3-world-job-scheduler-report-v1.md
+B4|01|1.4|docs/reports/architecture-lab-b4-world-job-cancellation-report-v1.md
 <!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-END -->
 
 ## Part 00 — From a playable clone to an architecture lab
@@ -908,9 +909,11 @@ queue/worker/commit milliseconds.
 
 #### Validation
 
-`tools/validate_world_job_scheduler.ps1` freezes the two types, three states,
-three outcomes, exact ordering, one worker, real pipeline calls, unchanged
-budgets, diagnostic fields, test identities and the absence of B4-B9 concepts.
+At B3 closeout, `tools/validate_world_job_scheduler.ps1` froze two types, three
+states, three outcomes, exact ordering, one worker, real pipeline calls,
+unchanged budgets, diagnostic fields, test identities and B4-B9 absence. The
+current composed gate admits only B4's separately contracted token and
+`Cancelled` outcome while continuing to reject B5-B9.
 `HELLOMINE3D_WORLD_SMOKE_FOCUS=B3` passes 9 checks for duplicate rejection,
 ordering, lifecycle, invalid completion, pending replacement, timing/counters
 and actual execution of both job types by a live background World.
@@ -928,8 +931,8 @@ B3 intentionally keeps a single worker and a small sorted vector rather than
 claiming scalable parallel throughput. The completion queue is real but the
 current loader drains it immediately; no second main-thread mutation route is
 introduced. Replanning cannot stop in-flight work, and no hard cap, watermark,
-admission result or shedding policy exists until B4/B5 supplies a separate
-approved contract and evidence.
+admission result or shedding policy exists; B4 later supplies cancellation,
+while B5 remains the separate pressure-control batch.
 
 Scheduler ids and timings are diagnostic derived state: they are not saved,
 compared for deterministic equality or used to change Gameplay. Load and
@@ -942,3 +945,114 @@ Related evidence:
 - `docs/contracts/world-job-scheduler-contract-v1.md`
 - `docs/reports/architecture-lab-b3-world-job-scheduler-report-v1.md`
 - `tools/validate_world_job_scheduler.ps1`
+
+### 1.4 Why must asynchronous work be allowed to finish and still be discarded?
+
+#### Problem
+
+A voxel streamer makes decisions from a moving view. While one worker reads or
+generates a Chunk, the player can cross a Chunk boundary, teleport, reduce the
+render distance or reset meshes. The CPU work may still finish successfully,
+but success no longer means its result belongs to the current plan. B1's mesh
+revision catches edits to the same authoritative section; it cannot say that a
+whole streaming plan has become obsolete.
+
+The danger is at publication. If an old job loads a distant Chunk or installs a
+CPU mesh after replanning, obsolete work becomes authoritative again. Clearing
+only the pending queue does not help because B3 deliberately preserves its one
+in-flight record.
+
+#### Naive Solution
+
+One response is to kill the worker or attempt to interrupt storage,
+generation and mesh construction at arbitrary instructions. Another is to
+check a boolean once before work begins. A third is to reuse the B2 demand
+epoch or B1 block revision as if either identity represented every kind of
+staleness.
+
+These approaches look immediate, especially with one worker, but they mix
+thread lifetime, scheduling intent and authoritative data identity. They also
+make the expensive algorithms responsible for understanding every caller's
+current plan.
+
+#### Failure
+
+Forced interruption cannot safely stop C++ code while it owns temporary
+containers or is inside a storage library. A check only at job start misses a
+plan change during the expensive portion. A check immediately before commit is
+still racy if invalidation can occur between that check and publication.
+
+Demand epoch orders demand samples but does not identify the scheduler plan
+that accepted a job. Block revision detects mutation within one Chunk section,
+not a camera move that makes an otherwise valid result unwanted. Conflating
+them either rejects useful work or accepts obsolete work.
+
+#### Design Evolution
+
+B4 adds a copied `WorldJobGenerationToken` beginning at 1. Semantic plan
+changes advance generation and clear obsolete pending jobs. The in-flight job
+is not forcibly interrupted: it may perform white work, but it must check its
+token before detached work, after detached work and before publishing a
+follow-up. A stale job still completes the B3 lifecycle with the new outcome
+`Cancelled`; cancellation is not a fourth state.
+
+The final token check and authoritative mutation run under the shared World
+mutex plus a generation/commit mutex. Invalidation uses the same commit mutex,
+so it is impossible to slip between validation and publication. Generation
+answers “is this plan current?” while B1 revision independently answers “is
+this same-generation data current?”.
+
+#### Implementation
+
+`WorldJobScheduler` owns the atomic uint64 generation, stale-request/plan
+rejection and cancellation counters. `ChunkRuntime` invalidates on Player or
+Camera semantic demand changes, Teleport/Preload lifecycle changes, render
+distance, mesh reset and loader shutdown; camera/frustum priority-only reorder
+does not cancel valid work.
+
+Load/generate now reserves one `Loading` placeholder under the World lock,
+hydrates or generates a detached candidate outside it, then commits or rolls
+back through `ChunkManager`. Candidate sections suppress live random-tick index
+notifications until commit, and mutable terrain generation is serialized.
+Cancellation uses exactly one new B1 edge, `Loading -> Absent`. Mesh
+cancellation returns the exact still-matching `Building` section to `Dirty`
+without adopting output or incrementing rebuild metrics.
+
+#### Validation
+
+`tools/validate_world_job_cancellation.ps1` freezes token/outcome vocabulary,
+six invalidation call sites, detached ownership, random-tick isolation,
+linearized commit, mesh rollback, diagnostics and B5/B6 absence.
+`HELLOMINE3D_WORLD_SMOKE_FOCUS=B4` passes 10 checks for monotonic invalidation,
+stale admission, unchanged B3 ordering, exact metrics, candidate cancel/commit,
+mesh cancel, 300 concurrent replans/invalidations and a live World generation
+advance.
+
+B3/B2/B1 focused regressions pass `9/9`, `26/26` and `38/38`. The complete
+VS2017/v141 Debug/Release gate passes `894/894` WorldRuntime twice, `80/80`
+resource-pack, `122/122` recipe, `15/15` startup negatives and two zero-failure
+short soaks. The 104-entry isolated ZIP hashes to
+`A9A7CC9AF528F3C725ACC13A62A69FB6D10718AD25F7F4796F5E47B70453C33A`;
+the final result is `PASS real_window=DEFERRED`. This headless evidence does not
+change `AI-01..AI-08=NOT_RUN` or human subjective `NOT_CLAIMED`.
+
+#### Trade-offs
+
+B4 accepts wasted CPU/IO rather than adding unsafe pre-emption inside terrain
+or storage code. It keeps one worker and does not promise a hard queue cap;
+replacement keeps the current finite B2 plan bounded, while explicit
+watermarks, admission and shedding belong to B5. The extra commit mutex is a
+small serialization point around validation and publication, not around the
+expensive detached work.
+
+A cancelled reservation remains as an explicit `Absent` Chunk object until
+normal manager cleanup rather than erasing arbitrary ownership mid-flight.
+Generation ids and counters remain derived diagnostics and are not saved.
+No future job family, Spatial Interest policy, worker pool or generic
+Simulation Scheduler is introduced.
+
+Related evidence:
+
+- `docs/contracts/world-job-cancellation-contract-v1.md`
+- `docs/reports/architecture-lab-b4-world-job-cancellation-report-v1.md`
+- `tools/validate_world_job_cancellation.ps1`

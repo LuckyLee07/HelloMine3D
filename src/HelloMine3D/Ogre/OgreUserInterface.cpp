@@ -3203,7 +3203,7 @@ class OgreUserInterface::Impl
                 static_cast<unsigned long long>(
                     worldStats.worldJobs.completedJobs));
             ImGui::Text(
-                "Jobs load/mesh/work/none/reject: %llu / %llu / %llu / %llu / %llu",
+                "Jobs load/mesh/work/none/reject/cancel: %llu / %llu / %llu / %llu / %llu / %llu",
                 static_cast<unsigned long long>(
                     worldStats.worldJobs.chunkLoadOrGenerateJobs),
                 static_cast<unsigned long long>(
@@ -3213,7 +3213,23 @@ class OgreUserInterface::Impl
                 static_cast<unsigned long long>(
                     worldStats.worldJobs.noWorkJobs),
                 static_cast<unsigned long long>(
-                    worldStats.worldJobs.commitRejectedJobs));
+                    worldStats.worldJobs.commitRejectedJobs),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.cancelledJobs));
+            ImGui::Text(
+                "Job generation/current invalidations: %llu / %llu",
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.currentGeneration),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.generationInvalidations));
+            ImGui::Text(
+                "Job cancellation pending/submit/plan: %llu / %llu / %llu",
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.cancelledPendingJobs),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.staleSubmitRejections),
+                static_cast<unsigned long long>(
+                    worldStats.worldJobs.stalePlanRejections));
             ImGui::Text(
                 "Job ms queue/worker/commit: %.3f / %.3f / %.3f",
                 worldStats.worldJobs.lastQueueLatencyMilliseconds,

@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 
@@ -73,6 +74,20 @@ struct ChunkNeighborhoodWorkResult {
     int chunksLoaded = 0;
 };
 
+struct ChunkLoadJob {
+    bool valid = false;
+    bool prepared = false;
+    bool loadedFromStorage = false;
+    bool generated = false;
+    VectorXZ chunkPosition{0, 0};
+    std::unique_ptr<Chunk> candidate;
+};
+
+struct ChunkNeighborhoodLoadJobResult {
+    bool neighborhoodReady = false;
+    bool jobPrepared = false;
+};
+
 /// @brief One section mesh build, split so the expensive part runs off-lock.
 ///
 /// `beginMeshJob()` fills this while the world lock is held, the caller builds
@@ -103,10 +118,16 @@ class ChunkManager {
     /// between them must not be.
     ChunkNeighborhoodWorkResult prepareChunkNeighborhood(
         int x, int z, int maxChunkLoads);
+    ChunkNeighborhoodLoadJobResult beginChunkNeighborhoodLoadJob(
+        int x, int z, int maxChunkLoads, ChunkLoadJob &job);
+    bool prepareChunkLoadJob(ChunkLoadJob &job);
+    bool finishChunkLoadJob(ChunkLoadJob &job);
+    bool cancelChunkLoadJob(const ChunkLoadJob &job);
     ChunkMeshWorkResult beginMeshJob(int x, int z, int maxChunkLoads,
                                      int preferredSectionY, ChunkMeshJob &job);
     bool finishMeshJob(const ChunkMeshJob &job, ChunkMeshCollection &built,
                        double buildMilliseconds);
+    bool cancelMeshJob(const ChunkMeshJob &job);
 
     bool chunkLoadedAt(int x, int z) const;
     bool chunkExistsAt(int x, int z) const;
@@ -132,6 +153,7 @@ class ChunkManager {
   private:
     ChunkMap m_chunks;
     std::unique_ptr<TerrainGenerator> m_terrainGenerator;
+    std::mutex m_terrainGeneratorMutex;
     ChunkStorage m_chunkStorage;
     int m_terrainSeed = 0;
     int m_terrainGenerationVersion = CurrentTerrainGenerationVersion;
