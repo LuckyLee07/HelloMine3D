@@ -758,6 +758,22 @@ Trade-offs
 10. Trade-off；
 11. Exercises。
 
+### 当前实现记录
+
+`AL-A6` 已于 2026-09-01 获得独立批准。实现保持一份
+`docs/current/architecture-lab-tutorial.md`，用 machine-readable manifest 把每个已完成批次映射到
+所属 Part、真实 Section 和冻结证据。所有实现 Section 统一保留 Problem、Naive Solution、Failure、
+Design Evolution、Implementation、Validation、Trade-offs 七个非空逻辑标题；数据结构、Runtime Flow、
+Debug、Benchmark 和 Exercises 只在有真实材料时嵌入，不制造空标题。
+
+`tools/validate_architecture_lab_documentation.ps1` 检查单文件、manifest/账本一致性、证据路径、Part /
+Section 存在性和非空逻辑结构，并使用四个负例证明 malformed manifest、missing evidence、empty section
+和 placeholder Part 会失败；该检查已接入完整 Windows 门禁。AL-A6 的 VS2017/v141 Debug/Release、
+两轮 853/853 WorldRuntime 和 104 项隔离包已通过，状态为 `Done`。冻结合同见
+`docs/contracts/architecture-lab-documentation-pipeline-contract-v1.md`，关闭证据见
+`docs/reports/architecture-lab-a6-documentation-pipeline-report-v1.md`。A6 不创建 B1 教程正文，也不
+批准 B7-B9、Track C/D 或任何 Extended 能力。
+
 ### Track A 完成定义
 
 当下面条件全部满足，A 才算完成：

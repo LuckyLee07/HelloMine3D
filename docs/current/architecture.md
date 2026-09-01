@@ -1,7 +1,7 @@
 # HelloMine3D Current Architecture Baseline
 
 本文以 `AL-A0 — Latest Architecture Baseline` 的完整审计为起点，并随已完成的
-AL-A1/AL-A2/AL-A3/AL-A4/AL-A5 更新当前实现；它描述代码事实，而不是未来目标架构。
+AL-A1/AL-A2/AL-A3/AL-A4/AL-A5/AL-A6 更新当前实现；它描述代码事实，而不是未来目标架构。
 审计起点为 Git commit `4930023fb2f3022daac9968c10a1a0b76e1ac392`；冻结的
 PLAYABILITY-RC 运行时代码身份仍是
 `320e293c2f1db7f46aba776ddccdcf94369f2d05`。A0 只更新文档，没有移动源码、改变 Gameplay、
@@ -413,7 +413,22 @@ block、Actor、inventory、objective or persistence truth。
 这些版本属于不同兼容性域，不能用 world save v12 推断其他定义已迁移，也不能因重建派生数据而
 静默改写 terrain identity。任何后续 Architecture Lab 批次都必须在自己的合同中列出受影响域。
 
-## 13. Current Conclusions Through AL-A5
+## 13. Architecture Documentation Ownership
+
+Architecture Lab 的当前事实仍分别由不同文档承担：`todolist.md` 是唯一任务账本，roadmap 是能力
+候选池，contract 冻结批次语义，report 冻结执行证据，tutorial 解释问题、失败方案、演进与取舍。
+这些身份不能互相替代。
+
+AL-A6 为唯一 living tutorial 增加 machine-readable manifest：每个已完成批次映射到所属 Part、
+真实 Section 和一个已存在的冻结证据路径。每个 Section 统一包含 Problem、Naive Solution、Failure、
+Design Evolution、Implementation、Validation 和 Trade-offs 七个非空逻辑标题。只有首个已验证批次
+出现后才创建对应 Track Part；未批准候选不获得占位正文。
+
+`tools/validate_architecture_lab_documentation.ps1` 检查 manifest 与当前账本的一致性、路径边界、
+Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先于编译执行。该验证保护文档身份，
+不证明文字质量，也不把 roadmap proposal 提升成实现事实。
+
+## 14. Current Conclusions Through AL-A6
 
 - 当前可玩的系统已经有清晰的 Renderer-to-Snapshot 边界和可验证持久化边界。
 - `World` 仍承担 facade、组合根和多套 Simulation 玩法状态；AL-A2/AL-A3/AL-A4/AL-A5 只关闭了四条由真实工作
@@ -425,4 +440,6 @@ block、Actor、inventory、objective or persistence truth。
   系统 Registry、时间预算或执行优先级。
 - 玩家 Break/Use/Place 请求现在只走 `IWorldCommand` FIFO；World-local EventBus 只同步分发不可变事实，
   生产订阅者 effect/republish、8 层递归上限、per-publication membership 与 Diagnostic 隔离均已冻结。
-- A6、B1 和 D1 仍必须再次独立批准；A5 完成不构成自动启动权限。
+- Architecture Lab 教程现在按 Track/真实 Section 维护，并由 manifest、冻结证据和完整门禁阻止空 Part、
+  丢失批次或未实现能力提前进入教程。
+- B1 和 D1 仍必须按任务账本范围实施；A6 完成不构成 B7-B9、Track C/D 或 Extended 的自动启动权限。

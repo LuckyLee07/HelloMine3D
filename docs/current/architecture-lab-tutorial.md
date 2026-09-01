@@ -1,13 +1,18 @@
 # HelloMine3D Architecture Lab Tutorial
 
-> Living tutorial status: Part 00 covers the completed AL-A0 baseline and AL-A1
-> responsibility map; Part 01 covers the completed AL-A2 Chunk runtime boundary;
-> Part 02 covers the completed AL-A3 Simulation runtime boundary; Part 03
-> covers the completed AL-A4 Event / Command / Query boundary; Part 04 covers
-> the completed AL-A5 phase metrics and budget vocabulary.
-> Later Parts are added only after their
-> implementation batch is approved and verified; this file does not pre-create
-> empty Sprint chapters.
+> Living tutorial status: Part 00 covers the completed Track A batches
+> AL-A0 through AL-A6. Later Parts are added only with the first verified batch
+> of their owning Track; this file does not pre-create empty Sprint chapters.
+
+<!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-BEGIN -->
+AL-A0|00|0.1|docs/reports/architecture-lab-baseline-v1.md
+AL-A1|00|0.1|docs/contracts/world-responsibility-map-contract-v1.md
+AL-A2|00|0.2|docs/reports/architecture-lab-a2-chunk-runtime-report-v1.md
+AL-A3|00|0.3|docs/reports/architecture-lab-a3-world-simulation-report-v1.md
+AL-A4|00|0.4|docs/reports/architecture-lab-a4-event-command-query-report-v1.md
+AL-A5|00|0.5|docs/reports/architecture-lab-a5-simulation-metrics-report-v1.md
+AL-A6|00|0.6|docs/contracts/architecture-lab-documentation-pipeline-contract-v1.md
+<!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-END -->
 
 ## Part 00 — From a playable clone to an architecture lab
 
@@ -122,9 +127,9 @@ Related evidence:
 - `docs/reports/architecture-lab-baseline-v1.md`
 - `tools/validate_world_responsibility_map.ps1`
 
-## Part 01 — Chunk is not just an array
+### 0.2 Chunk is not just an array
 
-### 1.1 Problem Scenario
+#### Problem
 
 A playable voxel world does more than index blocks. A camera move publishes
 streaming demand; edits invalidate exactly the affected sections; a bounded
@@ -139,14 +144,14 @@ worker threads, priority snapshot, load-center revisions and unload scan. The
 public facade therefore hid two different roles: authoritative world
 composition and derived Chunk work scheduling.
 
-### 1.2 Naive Solution
+#### Naive Solution
 
 One tempting split is to introduce a new `ChunkResidency` state machine and a
 generic job system while moving the code. Another is to give `ChunkRuntime` its
 own mutex and copy selected manager state into it. Both produce an attractive
 diagram quickly.
 
-### 1.3 Why that fails
+#### Failure
 
 Those changes would alter more than ownership:
 
@@ -162,7 +167,7 @@ Those changes would alter more than ownership:
 
 The safest boundary is therefore the smallest one already proved by gameplay.
 
-### 1.4 Design Evolution
+#### Design Evolution
 
 AL-A2 forms this ownership chain:
 
@@ -184,7 +189,7 @@ facade to update, preload, set render distance, collect meshes and acknowledge
 uploads; those methods now delegate. This preserves compatibility while making
 the internal responsibility independently reviewable.
 
-### 1.5 Derived data versus authoritative data
+##### Data structure: derived data versus authoritative data
 
 Block ids, metadata, light values, Chunk presence, save-dirty flags and world
 metadata remain authoritative. Meshes, work orders, queue keys, camera priority
@@ -205,12 +210,14 @@ This is the reusable pattern `Snapshot -> Worker -> Revision Validation ->
 Commit`. It is useful because it names the safety property without pretending
 that the project already has a universal job scheduler.
 
-### 1.6 Implementation and Validation
+#### Implementation
 
 `src/HelloMine3D/World/Chunk/ChunkRuntime.*` now contains the moved queue,
 planner, worker and mesh-publication code. The original constants remain: two
 synchronous section rebuilds per update, eight unloads per scan, a 6 ms/64
 target worker pass, one load per target, and 1 ms active / 10 ms idle sleeps.
+
+#### Validation
 
 The focused architecture gate checks that `World` no longer owns the legacy
 queue/worker fields, that the budgets stay present, and that
@@ -225,7 +232,7 @@ minimal section invalidation, M2 covers deduplication/FIFO/two-section budget,
 M6/M7 cover mesh work and priority, E5 rejects stale upload acknowledgement,
 and S2.4 proves save-before-unload round-trip.
 
-### 1.7 Trade-offs
+#### Trade-offs
 
 The shared mutex remains broad, and `ChunkManager` still calls back into
 `World` for light/event coordination. Those are recorded constraints, not
@@ -240,9 +247,9 @@ Related evidence:
 - `docs/reports/architecture-lab-a2-chunk-runtime-report-v1.md`
 - `tools/validate_chunk_runtime_boundary.ps1`
 
-## Part 02 — Fixed Tick is the simulation time spine
+### 0.3 Fixed Tick is the simulation time spine
 
-### 2.1 Problem Scenario
+#### Problem
 
 The playable game already advances many kinds of authoritative state at 20 Hz:
 pending difficulty, player and mob actors, combat projectiles, the Waystone
@@ -254,14 +261,14 @@ That makes two ordinary questions unnecessarily hard: which part of a tick is
 expensive, and where may a new simulation feature join without silently moving
 combat before actors or population before random ticks?
 
-### 2.2 Naive Solution
+#### Naive Solution
 
 A generic scheduler can appear to solve both problems at once: define an
 `ISandboxSystem`, register every system, attach priorities and budgets, then let
 the scheduler decide what runs. It also looks attractive to move all gameplay
 state into the new runtime while touching the call order.
 
-### 2.3 Why that fails
+#### Failure
 
 The current game has not demonstrated a shared scheduling problem across three
 independent systems. Introducing interfaces, registries, budgets and deferred
@@ -270,7 +277,7 @@ reordering calls would change cooldown, attack, furnace, objective and respawn
 semantics under the cover of a refactor. A second pause flag would create two
 sources of truth for whether simulation may advance.
 
-### 2.4 Design Evolution
+#### Design Evolution
 
 AL-A3 introduces one concrete coordinator and keeps the compatibility chain:
 
@@ -286,7 +293,7 @@ GameApplicationFlow pause gate
 Existing state and phase implementations stay where they are. This is an
 orchestration boundary, not an ownership transfer.
 
-### 2.5 Tick Context, phases and raw timing
+##### Data structure: Tick Context, phases and raw timing
 
 The context contains only the caller tick and the existing `1/20` second delta.
 The frozen order is:
@@ -303,11 +310,15 @@ phase. The values are developer observations. They are not saved, replayed or
 used to change behavior, and they do not yet define averages, budgets,
 overruns, priorities or deferred work.
 
-### 2.6 Implementation and Validation
+#### Implementation
 
 `src/HelloMine3D/World/Simulation/WorldSimulation.*` contains the coordinator.
 `World::collectDebugStats` copies its last snapshot, and the Ogre developer
-panel prints the whole tick plus all phase rows. The focused static gate is:
+panel prints the whole tick plus all phase rows.
+
+#### Validation
+
+The focused static gate is:
 
 ```powershell
 & .\tools\validate_world_simulation_boundary.ps1 -Root (Get-Location).Path
@@ -318,7 +329,7 @@ finite non-negative samples, caller-owned pause and exact single-tick resume.
 The full smoke keeps deterministic random ticks, Actor/combat/population,
 furnace, progression, save and replay-sensitive behavior under the same gate.
 
-### 2.7 Trade-offs
+#### Trade-offs
 
 `WorldSimulation` currently uses friendship to call private legacy
 implementations. That coupling is explicit and narrow, but it is not the final
@@ -334,9 +345,9 @@ Related evidence:
 - `docs/reports/architecture-lab-a3-world-simulation-report-v1.md`
 - `tools/validate_world_simulation_boundary.ps1`
 
-## Part 03 — An event system is not a global broadcast
+### 0.4 An event system is not a global broadcast
 
-### 3.1 Problem Scenario
+#### Problem
 
 The game already had two mechanisms called “event”. Input queued a
 `PlayerDigEvent` for `World::update`, even though Break, Use and Place were
@@ -349,7 +360,7 @@ handlers can modify objectives or Waystone state and can indirectly publish
 more events. With no declared effect or recursion rule, a convenient global
 broadcast can become an invisible command graph.
 
-### 3.2 Naive Solution
+#### Naive Solution
 
 One response is to make every operation an event and let subscribers decide
 what happens. Another is to ban every mutation and nested publication from
@@ -357,7 +368,7 @@ handlers. The first removes any visible authority for state change. The second
 cannot express the real Waystone flow, where handling a guardian death may
 spawn the next wave and therefore publish actor facts.
 
-### 3.3 Why that fails
+#### Failure
 
 An unbounded broadcast graph has several concrete failure modes:
 
@@ -371,7 +382,7 @@ An unbounded broadcast graph has several concrete failure modes:
 Conversely, a blanket prohibition would move legitimate domain reactions back
 into `World` and erase the architectural boundary the game actually needs.
 
-### 3.4 Design Evolution
+#### Design Evolution
 
 AL-A4 separates the vocabulary first:
 
@@ -393,7 +404,7 @@ is a bounded mutation that cannot republish. Waystone guardian death is a
 bounded mutation that may republish because spawning the next wave emits actor
 facts. Feedback and Audio are observers.
 
-### 3.5 Dispatch boundary and data structure
+#### Implementation
 
 The bus remains synchronous and World-local. A publication copies the matching
 subscription membership before invoking handlers. Subscription changes inside
@@ -410,7 +421,7 @@ Events carry immutable type/category identity and are delivered as const facts.
 A `Diagnostic` event skips and counts every `DomainMutation` subscription, so
 telemetry cannot drive authoritative state through this bus.
 
-### 3.6 Validation
+#### Validation
 
 The static gate checks that only the command vocabulary remains, every
 production subscriber declares its effect owner, recursion/snapshot guards are
@@ -428,7 +439,7 @@ unsubscribe-during-dispatch snapshot semantics and exception cleanup. It also
 runs the existing interaction and objective cases, because architecture only
 has value while Break, Place, Use and progression still work.
 
-### 3.7 Trade-offs
+#### Trade-offs
 
 Copying a small subscriber list on publish spends bounded allocation/copy work
 to obtain simple, deterministic membership semantics. The declarations cannot
@@ -446,9 +457,9 @@ Related evidence:
 - `docs/contracts/event-command-query-boundary-contract-v1.md`
 - `tools/validate_event_command_query_boundary.ps1`
 
-## Part 04 — Timing alone does not explain bounded simulation work
+### 0.5 Timing alone does not explain bounded simulation work
 
-### 4.1 Problem Scenario
+#### Problem
 
 AL-A3 made all eight fixed-tick phases visible, but each row only answered
 “how long did the last invocation take?” A `0.20 ms` random-tick phase could
@@ -462,12 +473,14 @@ attempts per population cycle. Actor ticking had no admission limit. The
 architecture gap was vocabulary and observation, not the absence of a generic
 scheduler.
 
-### 4.2 Naive Solution
+#### Naive Solution
 
 A tempting response is to introduce `ISandboxSystem`, register every phase,
 assign every row a time budget and let one scheduler own priorities. Another
 shortcut is to append `processed=0, deferred=0` to all eight rows and promise
 to define them later.
+
+#### Failure
 
 Both approaches manufacture architecture ahead of need. The generic scheduler
 would own behavior that the game has not asked to change. Empty rows would make
@@ -475,7 +488,7 @@ would own behavior that the game has not asked to change. Empty rows would make
 items”, and a millisecond threshold would turn one noisy last-tick sample into
 a false performance conclusion.
 
-### 4.3 Design Evolution
+#### Design Evolution
 
 AL-A5 keeps the eight AL-A3 timing rows and adds exactly four metric rows:
 
@@ -491,7 +504,9 @@ Population         elapsed + processed; difficulty limit per cycle
 because the existing hard admission limit stopped work. It is not failure,
 drop count, unused capacity or elapsed time.
 
-### 4.4 Data structure and status vocabulary
+#### Implementation
+
+##### Data structure and status vocabulary
 
 ```cpp
 struct SimulationPhaseMetrics {
@@ -510,7 +525,7 @@ Budgeted phases must never report `processed > budget`. Population uses
 `PerPopulationCycle`, so a non-cycle tick publishes zero instead of repeating
 the previous cycle. No implicit accumulation is hidden in the snapshot.
 
-### 4.5 Runtime flow and ownership
+##### Runtime flow and ownership
 
 ```text
 WorldSimulation::fixedTick
@@ -529,7 +544,7 @@ active rotation. Population takes a delta of the existing cumulative attempt
 counter and uses the current difficulty limit. None of these counters decides
 what runs.
 
-### 4.6 Validation
+#### Validation
 
 The A5 static gate freezes the four identities, three scopes, four statuses,
 existing hard-limit constants, UI wiring and persistence exclusion:
@@ -545,7 +560,7 @@ Combat and Random Tick limits, and a real Population cycle followed by a
 non-cycle reset. The complete WorldRuntime suite remains the proof that
 instrumentation did not change gameplay.
 
-### 4.7 Trade-offs
+#### Trade-offs
 
 This is a last-tick diagnostic view, so it intentionally cannot answer P95,
 trend or capacity-planning questions. The Population phase has a per-cycle
@@ -563,3 +578,90 @@ Related evidence:
 - `docs/contracts/simulation-phase-metrics-contract-v1.md`
 - `docs/reports/architecture-lab-a5-simulation-metrics-report-v1.md`
 - `tools/validate_simulation_metrics_boundary.ps1`
+
+### 0.6 Documentation is part of the refactor safety net
+
+#### Problem
+
+Track A accumulated a strong contract/report discipline, but the tutorial's
+physical structure still followed one Part per implementation batch. The
+roadmap instead defines Parts by Track and forbids empty chapters for future
+work. Without an executable boundary, a later batch could silently create a
+new file, omit its trade-offs, leave an empty template, or describe a proposed
+capability as though it already existed.
+
+#### Naive Solution
+
+The simplest response is a copied Markdown template and a reviewer checklist.
+Another tempting option is one tutorial file per Sprint, with separate files
+for Problem, Design, Validation and Trade-offs. Both make an individual change
+easy to start because no existing chapter needs to be understood first.
+
+#### Failure
+
+Copied templates do not prove that their headings contain evidence, and file
+proliferation separates one architectural decision from the failure and
+validation that justify it. Placeholder Parts also turn the capability map
+into an apparent backlog. Over time the tutorial can remain syntactically neat
+while drifting away from the task ledger, contracts and implemented code.
+
+#### Design Evolution
+
+AL-A6 keeps one living tutorial and adds a small machine-readable manifest.
+Each completed batch maps to an owning Part, a real section and one frozen
+evidence path. A Part exists only after its first verified batch; multiple
+batches may share a section when that produces the clearest explanation. The
+stable reading path is Problem, Naive Solution, Failure, Design Evolution,
+Implementation, Validation and Trade-offs.
+
+Optional material such as data structures, runtime flow, debug methods,
+benchmarks and exercises is nested under those headings only when it exists.
+This preserves the richer roadmap template without manufacturing empty prose.
+
+#### Implementation
+
+`tools/validate_architecture_lab_documentation.ps1` parses the manifest and
+cross-checks it against `docs/current/todolist.md`. Evidence paths must be
+repository-relative, remain inside the repository and resolve to real files.
+Every declared section must contain all seven non-empty logical headings, and
+every Part must own at least one implemented manifest row.
+
+The validator also requires one canonical tutorial file and the roadmap's
+one-file, no-empty-chapter and Capability-Map-not-Backlog rules. It runs before
+the build inside `scripts/verify_build.ps1`, so later code batches update their
+tutorial evidence as part of the same engineering gate.
+
+#### Validation
+
+The focused positive run validates all Track A manifest rows, the single Part
+and every implemented section. Its self-test additionally mutates isolated
+document strings to prove that malformed rows, missing evidence, an empty
+logical section and a placeholder Part all fail:
+
+```powershell
+& .\tools\validate_architecture_lab_documentation.ps1 `
+  -Root (Get-Location).Path -SelfTest
+```
+
+The complete VS2017/v141 gate then proves that the documentation check composes
+with the established Debug/Release, runtime, crash and clean-package pipeline.
+It does not turn a hidden client into Computer Use evidence.
+
+#### Trade-offs
+
+The manifest and fixed headings add maintenance to every completed batch.
+That cost is deliberate: architecture claims become reviewable alongside the
+code that created them. The validator checks structure and evidence identity,
+not writing quality or design wisdom, so human or AI review still decides
+whether an explanation is useful.
+
+One physical file may eventually become too large. Splitting remains possible
+after at least two Tracks are complete and a separately approved refactor can
+show a real navigation or validation problem; Sprint-by-Sprint fragmentation
+remains prohibited.
+
+Related evidence:
+
+- `docs/contracts/architecture-lab-documentation-pipeline-contract-v1.md`
+- `docs/reports/architecture-lab-a6-documentation-pipeline-report-v1.md`
+- `tools/validate_architecture_lab_documentation.ps1`

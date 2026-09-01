@@ -56,15 +56,16 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 | `AL-A3` Simulation Runtime | `Done` | 具体 `WorldSimulation` 已承接既有 20 Hz fixed-tick 编排；8 phase 顺序、context、最近一次 tick 原始耗时和 caller-owned pause 均有自动门禁，玩法所有权与 78 项 World 公开面不变，没有引入 A5 Scheduler/Metrics/Budget。VS2017/v141 Debug/Release、两轮 838/838 世界和 104 项隔离包通过。详见 `docs/reports/architecture-lab-a3-world-simulation-report-v1.md`。 |
 | `AL-A4` Event / Command / Query Boundary | `Done` | `IWorldCommand / addCommand` 已取代旧 event-as-command 路径；事实事件不可变并区分 Domain/Diagnostic，生产订阅者显式声明 effect/republish，有界递归、诊断隔离和订阅快照语义均有自动门禁。VS2017/v141 Debug/Release、846/846 世界与 104 项隔离包通过；没有进入 A5。详见 `docs/reports/architecture-lab-a4-event-command-query-report-v1.md`。 |
 | `AL-A5` Tick Phase Metrics & Budget Vocabulary | `Done` | Actor、Combat、Block Random Tick、Population 的 last-tick processed/deferred/budget scope/status 词汇和开发者面板已经冻结；VS2017/v141 Debug/Release、两轮 853/853 世界与 104 项隔离包通过，没有改变 phase 顺序、hard limit 或 Gameplay，也没有进入 A6/B1/D1。详见 `docs/reports/architecture-lab-a5-simulation-metrics-report-v1.md`。 |
+| `AL-A6` Architecture Lab Documentation Pipeline | `Done` | 单一 living tutorial 已按 Track/真实 Section 重组；manifest、七段非空结构、证据路径和无占位 Part 由新 validator 及四个负例保护。VS2017/v141 Debug/Release、两轮 853/853 世界与 104 项隔离包通过；运行时代码、Gameplay、save v12 与 AI/人类声明均未改变。详见 `docs/reports/architecture-lab-a6-documentation-pipeline-report-v1.md`。 |
 
 ## 下一候选
 
 | 批次 | 状态 | 目标 | 进入条件 | 退出边界 |
 | ---- | ---- | ---- | -------- | -------- |
-| `AL-A6` Architecture Lab Documentation Pipeline | `Queued` | 固化同一份教程的长期章节维护规则。 | AL-A5 完成、Track A 证据冻结后再次获得项目所有者独立批准。 | 当前只是未批准候选；现有教程已经可维护，不为 A6 预建空章节。 |
+| `B1` Chunk Residency State Machine | `Queued` | 把 Data Residency、Mesh State、Render State 冻结为三套正交生命周期。 | AL-A6 已关闭；本 Goal 已由项目所有者单独批准 B1，A6 提交边界后按顺序开始。 | 不进入 B2 Demand、B3 Job Scheduler、B4 Cancellation、B5 Backpressure、B6 Spatial Interest 或 B7-B9 Extended。 |
 
-`AL-A5 Tick Phase Metrics & Budget Vocabulary` 已完成并冻结证据。当前没有已批准的在途开发批次；
-`AL-A6` 只是唯一下一候选，A6/B1/D1 都不会由 A5 自动启动。
+`AL-A6` 已关闭并在本次提交建立独立边界。B1 已在当前 Goal 中获得独立批准，是提交后的下一批；
+B2-B6/B10 也必须严格按依赖逐批执行，B7-B9 和 Track C/D 未获批。
 
 ## 当前阻塞
 
@@ -73,7 +74,7 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
   `Engineering Done`，但 Track 不得标记 `AI Playability PASS`。
 - 严格 `AI-06` 还要求 package-only 文件系统访问；仅切换工作目录但仓库仍可读取时记录
   `BLOCKED`，不能声明 blind PASS。
-- 当前没有已知实现阻塞，也没有已批准的在途开发批次。
+- 当前没有已知实现阻塞；AL-A6 已关闭，B1 是下一批。
 
 ## 待执行验收
 

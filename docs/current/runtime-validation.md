@@ -201,6 +201,35 @@ Real-window launch is `DEFERRED`, AI acceptance remains `NOT_RUN`, and human
 subjective experience remains `NOT_CLAIMED`. Full closeout is recorded in
 `docs/reports/architecture-lab-a5-simulation-metrics-report-v1.md`.
 
+## AL-A6 Architecture Lab Documentation Pipeline Evidence
+
+AL-A6 adds a sixth static Architecture Lab gate without changing runtime code:
+
+```powershell
+& .\tools\validate_architecture_lab_documentation.ps1 `
+  -Root (Get-Location).Path -SelfTest
+```
+
+The positive path checks the single living tutorial, seven AL-A0..AL-A6
+manifest rows, one implemented Part, six real Sections, repository-bounded
+evidence paths, task-ledger completion states and seven non-empty logical
+headings per Section. Four isolated negative fixtures prove that a malformed
+manifest, missing evidence, empty logical section or placeholder Part fails.
+
+The validator runs from `scripts\verify_build.ps1` after the AL-A1..AL-A5
+architecture gates and before resource/build work. Its focused result is
+`batches=7 parts=1 sections=6 negative_fixtures=4 status=PASS`. The complete
+VS2017/v141 gate passes `853/853` WorldRuntime checks in both configurations,
+`80/80` resource-pack checks, `122/122` recipe checks, `15/15` startup
+negatives and two zero-failure short soaks. The 104-entry clean package has
+SHA-256 `0E387185600E957F8BC6ED4B46333817B0C12F0725322F9F939337455C245990`;
+the 8,762,880-byte Release executable has SHA-256
+`30F441A59FBF55AAEB6964BA8D43B08E008BA869EE4AB7392FD49CAC5D6741D2`.
+Real-window launch is `DEFERRED`, AI acceptance remains `NOT_RUN`, and human
+subjective experience remains `NOT_CLAIMED`. This evidence proves
+documentation identity and maintenance structure; it does not prove prose
+quality, gameplay, Computer Use or human experience.
+
 ## World Runtime Smoke
 
 `src/HelloMine3D/Tests/WorldRuntimeSmokeMain.cpp` links the whole game runtime
@@ -472,6 +501,7 @@ the 2026-08-31 Architecture Lab policy, both physical protocols remain
 | AL-A0 latest architecture baseline | Source/API/ownership audit; `git diff --check`; changed-Markdown reference validation; World renderer-boundary probe; `scripts\verify_build.ps1 -VisualStudioVersion 2017`; `docs\reports\architecture-lab-baseline-v1.md` | No tracked Gameplay/runtime/resource/build-input change. Debug/Release rebuild and all gates pass with 832/832 world, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives and real window PASS. Formal Q1/Q3 are cited from unchanged runtime identity rather than rerun. The A0 rebuild creates a distinct local 104-entry verification package SHA-256 `0E18AAA9DC45C1663CBC5CAC6E83DB1995EA65DA47B16B546A2310C75979A6FB`; it does not replace the historical P11F package identity. `AI-01..AI-08=NOT_RUN`, human subjective experience remains `NOT_CLAIMED` (2026-09-01). |
 | AL-A1 World responsibility map | `tools\validate_world_responsibility_map.ps1`; `scripts\verify_build.ps1 -VisualStudioVersion 2017`; `docs/contracts/world-responsibility-map-contract-v1.md` | The machine-checked map covers all 78 unique public `World` method names as 45 Queries, 31 Commands and 2 Runtime Ticks across nine responsibilities; normalized public-surface SHA-256 is `3C53F56C425F0395354C8A5CE966E96CDA8BC93D836699955E03BA965A664AD8`. The complete VS2017/v141 Debug/Release gate passes with 832/832 world, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives, a 147,777-byte controlled dump, symbol archive SHA-256 `4716391d29d2bc92c11258d1755d9aac3f86ccee962414a8b684dd3692ffeec3`, 104-entry package SHA-256 `00F7239139580FD71D5EF9518335CA7A193E5A184825C07630F3F96979713054` and real window PASS. No tracked Gameplay/runtime/resource input changed, so formal Q1/Q3 remain cited from the frozen runtime identity. `AI-01..AI-08=NOT_RUN`; human subjective experience remains `NOT_CLAIMED` (2026-09-01). |
 | AL-A5 Simulation phase metrics | `tools\validate_simulation_metrics_boundary.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=AL-A5`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-a5-simulation-metrics-report-v1.md` | Exactly four real phase metrics freeze copied elapsed/processed/deferred/budget scope/status without changing AL-A3 order or existing hard limits. Debug/Release focused runs pass 13/13; the complete gate passes 853/853 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives and two zero-failure short soaks. The 104-entry package SHA-256 is `4DA15FA1799804FB61710FA285DD0E6818BE1B42CE26AFA25E1F777DF3334009`. Real-window launch is `DEFERRED`, AI acceptance is `NOT_RUN`, and human subjective experience is `NOT_CLAIMED` (2026-09-01). |
+| AL-A6 Architecture Lab documentation pipeline | `tools\validate_architecture_lab_documentation.ps1 -SelfTest`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-a6-documentation-pipeline-report-v1.md` | The focused gate passes seven manifest rows, one implemented Part, six non-empty Sections and four negative fixtures. The complete VS2017/v141 gate passes 853/853 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives and two zero-failure short soaks. The 104-entry package SHA-256 is `0E387185600E957F8BC6ED4B46333817B0C12F0725322F9F939337455C245990`. Real-window launch is `DEFERRED`, AI acceptance is `NOT_RUN`, and human subjective experience is `NOT_CLAIMED` (2026-09-01). |
 | AI-assisted gameplay baseline | `docs\current\ai-assisted-gameplay-acceptance-v1.md` | `AI-01..AI-08 result=NOT_RUN`; no OS-level Computer Use record has been produced in this documentation batch. |
 
 The current 2026-08-12 runs use an NVIDIA GTX 1050 Ti with OpenGL 4.6. The

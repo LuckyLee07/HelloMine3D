@@ -47,6 +47,8 @@ $eventCommandQueryBoundaryVerifier = Join-Path $repoRoot `
     "tools\validate_event_command_query_boundary.ps1"
 $simulationMetricsBoundaryVerifier = Join-Path $repoRoot `
     "tools\validate_simulation_metrics_boundary.ps1"
+$architectureLabDocumentationVerifier = Join-Path $repoRoot `
+    "tools\validate_architecture_lab_documentation.ps1"
 
 function Invoke-Checked {
     param(
@@ -175,6 +177,10 @@ try {
 
     Invoke-Checked "AL-A5 Simulation metrics boundary" {
         & $simulationMetricsBoundaryVerifier -Root $repoRoot
+    }
+
+    Invoke-Checked "AL-A6 Architecture Lab documentation pipeline" {
+        & $architectureLabDocumentationVerifier -Root $repoRoot -SelfTest
     }
 
     Invoke-Checked "Resource manifest" {
