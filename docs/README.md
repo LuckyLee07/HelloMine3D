@@ -15,9 +15,9 @@
    实现或审计时阅读。
 
 当前摘要：Stage 11 Windows 工程范围已经完成；`AI-01..AI-08` 尚未运行，状态为
-`NOT_RUN`；人类乐趣、审美、舒适度和物理设备手感为 `NOT_CLAIMED`。当前没有已批准的
-Architecture Lab 代码批次，`AL-A0` 只是下一候选；其 Core/Extended 能力目录都不是自动批准的
-backlog。
+`NOT_RUN`；人类乐趣、审美、舒适度和物理设备手感为 `NOT_CLAIMED`。`AL-A0` 已完成当前
+架构/依赖/性能/验证身份冻结；`AL-A1` 是唯一下一候选但尚未批准。其余
+Core/Extended 能力目录都不是自动批准的 backlog。
 
 ## 目录分工
 

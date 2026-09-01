@@ -19,6 +19,25 @@ evidence type and must not be inferred from these automated passes.
 | Distribution smoke | `tools/package_windows_release.ps1` | Can the Release client start and fail correctly from an isolated self-contained root? |
 | AI interactive/visual acceptance | `docs/current/ai-assisted-gameplay-acceptance-v1.md` (`AI-01..AI-08`) | Can an AI use the clean Release package through normal OS input, and are the specified observable results present? Current result: `NOT_RUN`. |
 
+## AL-A0 Evidence Dimensions
+
+`AL-A0` freezes three orthogonal evidence dimensions. A result in one column
+must not be promoted into another:
+
+| Dimension | A0 state | What the state proves | What it does not prove |
+| --------- | -------- | --------------------- | ---------------------- |
+| Automated engineering | `PASS` for the frozen PLAYABILITY-RC evidence; the current A0 documentation-only rerun is recorded in `docs/reports/architecture-lab-baseline-v1.md` | VS2017/v141 build graph, deterministic tests, resource/format rules, Q1/Q3, crash/package boundaries and code-level architecture invariants. | Normal OS input, focus transitions, AI understanding, human fun or device feel. |
+| AI/Computer Use | `AI-01..AI-08=NOT_RUN` | Only that no conforming OS-level run has been recorded yet. | A hidden client, injected input, fixture, screenshot or headless smoke is not an AI PASS. |
+| Human/physical subjective scope | `NOT_CLAIMED` | The project intentionally makes no claim for human fun, aesthetics, retention, comfort, listening preference or physical-device feel. | `NOT_CLAIMED` is not a failure and is not a deferred engineering task. |
+
+The A0 audit started at documentation commit
+`4930023fb2f3022daac9968c10a1a0b76e1ac392`; the frozen runtime code identity is
+`320e293c2f1db7f46aba776ddccdcf94369f2d05`. The clean PLAYABILITY-RC ZIP is
+identified by SHA-256
+`422F97E87046D4B6D5FC4BB99C37886FF37C4461A152C1162FA66A972B12F459`.
+No OS-level Computer Use capability was available in this A0 task, so `AI-08`
+remains `NOT_RUN` and AL-A0 makes no `AI Playability PASS` declaration.
+
 ## World Runtime Smoke
 
 `src/HelloMine3D/Tests/WorldRuntimeSmokeMain.cpp` links the whole game runtime
@@ -287,6 +306,7 @@ the 2026-08-31 Architecture Lab policy, both physical protocols remain
 | P11E enemy presentation and Waystone resonance | `HelloMine3DWorldRuntimeSmoke` (`HELLOMINE3D_WORLD_SMOKE_FOCUS=P11E`); `HelloMine3DRecipeSmoke`; `HelloMine3DResourcePackSmoke`; `tools\validate_resource_manifest.ps1`; VS2017/v141 client builds; `docs/contracts/enemy-presentation-waystone-resonance-contract-v1.md` | 多部件轮廓、关键姿态、8-tick 死亡表现、身份掉落和 Waystone 共鸣已通过定向 35/35、Release 世界 832/832、配方 122/122、资源 80/80、84 项 manifest 与正式 Q1；`AI-05/AI-07=NOT_RUN`，人类危险感/价值感/战斗乐趣 `NOT_CLAIMED`。 |
 
 | P11F PLAYABILITY-RC engineering audit | `scripts\verify_build.ps1 -VisualStudioVersion 2017`; `tools\capture_release_candidate_performance.ps1`; `tools\run_release_candidate_soak.ps1`; `tools\validate_crash_diagnostics.ps1`; `tools\package_windows_release.ps1`; `docs\reports\playability-release-candidate-report-2026-08-31.md` | Frozen runtime identity `320e293` passes the VS2017/v141 Debug/Release gate with 84 manifest entries, 278 atlas checks, 38 performance fixtures, 11 Stage 10 supplement checks, 832/832 world, 80/80 resource-pack, 122/122 recipe and 15/15 startup negatives. Six formal Q1 comparisons and both 1,800-second Q3 profiles pass; the controlled crash produces a 136,615-byte dump, and the 104-entry package SHA-256 is `422F97E87046D4B6D5FC4BB99C37886FF37C4461A152C1162FA66A972B12F459`. Windows engineering is Done; current AI scenarios are `NOT_RUN`, human subjective experience is `NOT_CLAIMED`, and the historical report is not rewritten (2026-08-31). |
+| AL-A0 latest architecture baseline | Source/API/ownership audit; `git diff --check`; changed-Markdown reference validation; World renderer-boundary probe; `scripts\verify_build.ps1 -VisualStudioVersion 2017`; `docs\reports\architecture-lab-baseline-v1.md` | No tracked Gameplay/runtime/resource/build-input change. Debug/Release rebuild and all gates pass with 832/832 world, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives and real window PASS. Formal Q1/Q3 are cited from unchanged runtime identity rather than rerun. The A0 rebuild creates a distinct local 104-entry verification package SHA-256 `0E18AAA9DC45C1663CBC5CAC6E83DB1995EA65DA47B16B546A2310C75979A6FB`; it does not replace the historical P11F package identity. `AI-01..AI-08=NOT_RUN`, human subjective experience remains `NOT_CLAIMED` (2026-09-01). |
 | AI-assisted gameplay baseline | `docs\current\ai-assisted-gameplay-acceptance-v1.md` | `AI-01..AI-08 result=NOT_RUN`; no OS-level Computer Use record has been produced in this documentation batch. |
 
 The current 2026-08-12 runs use an NVIDIA GTX 1050 Ti with OpenGL 4.6. The

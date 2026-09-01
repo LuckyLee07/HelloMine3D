@@ -24,5 +24,6 @@
 | [windows-release-packaging.md](windows-release-packaging.md) | Windows 隔离根发行包流程。 |
 | [iteration-report-template.md](iteration-report-template.md) | 新批次回归报告模板。 |
 
-当前没有已批准的 Architecture Lab 代码批次。开始新 Sprint 前，必须先在 `todolist.md` 中写明
-真实游戏需求、合同、可观察 Demo、自动门禁和对应 AI 场景。
+`AL-A0` 已完成基线审计与文档冻结，没有 Gameplay 改动。开始任何新 Sprint 前，仍必须在
+`todolist.md` 中写明独立批准、真实游戏需求、合同、可观察 Demo、自动门禁和对应 AI 场景；
+`AL-A1` 当前只是 Queued 候选，不因 A0 完成而自动获批。

@@ -3,7 +3,7 @@
 本文只回答：项目现在做到哪里、当前批准什么、下一候选是什么、什么会阻塞开发。详细历史、合同和
 封板证据分别进入 `docs/archive/`、`docs/contracts/` 和 `docs/reports/`。
 
-最后更新：2026-08-31。
+最后更新：2026-09-01。
 
 ## 项目目标
 
@@ -50,16 +50,16 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 
 | 批次 | 状态 | 当前结论 |
 | ---- | ---- | -------- |
-| Architecture Lab 代码批次 | 无 | 尚未批准 AL-A0 或完整 Track A；不得据 roadmap 自动开始重构。 |
+| `AL-A0` Latest Architecture Baseline | `Done` | 架构、依赖、性能、验证与 AI 证据身份已冻结；VS2017/v141 Debug/Release 完整门禁和 real window 通过，没有受跟踪 Gameplay/runtime/resource/build input 改动。详见 `docs/reports/architecture-lab-baseline-v1.md`。 |
 
 ## 下一候选
 
 | 批次 | 状态 | 目标 | 进入条件 | 退出边界 |
 | ---- | ---- | ---- | -------- | -------- |
-| `AL-A0` Latest Architecture Baseline | `Queued` | 冻结 PLAYABILITY-RC / Stage 11 P11F 的架构、功能、性能和 AI Playability 身份。 | 项目所有者明确批准 AL-A0；不捎带 A1/A2 或行为变更。 | 更新 `architecture.md`、`runtime-validation.md`，新增一份合并基线报告，记录 `AI-08=PASS/NOT_RUN` 及声明范围；不改变 Gameplay。 |
+| `AL-A1` World Responsibility Map | `Queued` | 在 A0 冻结的事实基线上分类 World API，建立 Query / Command / Runtime Tick 责任地图。 | 获得项目所有者独立批准；不得由 A0 完成自动启动。 | 当前只是未批准候选，不构成开发承诺。 |
 
-`AL-A1 World Responsibility Map` 只是依赖预览，不是第二个 Queued 任务；只有 AL-A0 完成后才决定
-是否批准。后续 A2 只迁移现有 Chunk 调度行为，B1 才允许引入新的 Residency 状态机。
+`AL-A1 World Responsibility Map` 是当前唯一 Queued 候选，不是已批准任务；A0 已在此处停止并
+回到所有者批准门。后续 A2 只迁移现有 Chunk 调度行为，B1 才允许引入新的 Residency 状态机。
 
 ## 当前阻塞
 
@@ -68,7 +68,7 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
   `Engineering Done`，但 Track 不得标记 `AI Playability PASS`。
 - 严格 `AI-06` 还要求 package-only 文件系统访问；仅切换工作目录但仓库仍可读取时记录
   `BLOCKED`，不能声明 blind PASS。
-- Architecture Lab 当前唯一缺少的是“批准哪个批次”，不是技术故障。
+- AL-A0 已完成；AL-A1 尚未批准，当前没有开发中的 Architecture Lab 批次。
 
 ## 待执行验收
 
