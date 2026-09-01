@@ -1,7 +1,7 @@
 # HelloMine3D Current Architecture Baseline
 
 本文以 `AL-A0 — Latest Architecture Baseline` 的完整审计为起点，并随已完成的
-AL-A1/AL-A2/AL-A3/AL-A4/AL-A5/AL-A6/B1 更新当前实现；它描述代码事实，而不是未来目标架构。
+AL-A1/AL-A2/AL-A3/AL-A4/AL-A5/AL-A6/B1/B2 更新当前实现；它描述代码事实，而不是未来目标架构。
 审计起点为 Git commit `4930023fb2f3022daac9968c10a1a0b76e1ac392`；冻结的
 PLAYABILITY-RC 运行时代码身份仍是
 `320e293c2f1db7f46aba776ddccdcf94369f2d05`。A0 只更新文档，没有移动源码、改变 Gameplay、
@@ -278,6 +278,18 @@ B1 在 `ChunkLifecycle.*` 冻结三套独立词汇和合法转换：
 返回 `Resident` 且保留 dirty。`ChunkRuntime` 复用 AL-A2 的单 worker/FIFO，不创建第二套队列。
 开发者面板分别显示 7/5/4 状态计数；`Absent` 只统计仍被 manager 持有的显式对象，不虚构无限坐标。
 
+B2 在不改变上述状态所有权的前提下，用 `ChunkDemandModel` 取代单个隐式 load center。模型由
+`ChunkRuntime` 拥有，并以每个 reason 一个槽位保存 `Player / Camera / TeleportDestination /
+Preload` 的坐标、priority、epoch、expiry 和 radius。每次 `World::update` 推进一次 demand epoch 并
+刷新 Player/Camera；既有同步 preload 同时发布 Preload，成功的同世界 teleport 才通过私有 bridge
+发布 TeleportDestination。Demand 是不持久化的派生 runtime input，不进入 `ChunkManager` 或 B1 状态机。
+
+Loader 在每轮规划时展开四个有界半径，合并重复坐标及 reason bits，并按 reason priority、frustum、
+最近 Player Chunk 移动方向、newest epoch、distance 和稳定坐标排序。Demand semantic revision 或
+camera/frustum revision 变化只替换尚未执行的 derived plan；它不是 B4 in-flight cancellation，也没有
+增加 queue、worker 或 job type。开发者快照公开 epoch/revision、active/reason/expired 数和最近
+de-duplicated plan size。
+
 ## 7. Thread Ownership
 
 | Thread | Created/owned by | May do | Commit/stop rule |
@@ -362,7 +374,7 @@ Ogre::frameStarted
             -> selection + one resolved GameplayWorldAction
             -> queue dig/use/place or perform food/combat path
             -> World::update(Camera)
-                 -> ChunkRuntime publishes load center/frustum snapshot
+                 -> ChunkRuntime publishes Player/Camera demand + frustum snapshot
                  -> execute queued IWorldCommand requests
                  -> ChunkRuntime bounded distant unload
                  -> ChunkRuntime bounded synchronous dirty-section mesh rebuild
@@ -442,14 +454,15 @@ Design Evolution、Implementation、Validation 和 Trade-offs 七个非空逻辑
 Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先于编译执行。该验证保护文档身份，
 不证明文字质量，也不把 roadmap proposal 提升成实现事实。
 
-## 14. Current Conclusions Through B1
+## 14. Current Conclusions Through B2
 
 - 当前可玩的系统已经有清晰的 Renderer-to-Snapshot 边界和可验证持久化边界。
 - `World` 仍承担 facade、组合根和多套 Simulation 玩法状态；AL-A2/AL-A3/AL-A4/AL-A5 只关闭了四条由真实工作
   验证的内部边界，没有试图一次性拆完 God Object。
 - Chunk pipeline 的 snapshot/off-lock/revision-commit、FIFO、预算和 unload/save 语义集中在
-  `ChunkRuntime` / `ChunkManager` 边界；B1 已加入 Data/Mesh/Render 三套正交状态机，但没有
-  通用 Demand、Job Scheduler、取消、背压或 Spatial Interest。
+  `ChunkRuntime` / `ChunkManager` 边界；B1 已加入 Data/Mesh/Render 三套正交状态机；B2 已加入
+  四槽、可合并、可过期的 Player/Camera/Teleport/Preload Demand，但没有通用 Job Scheduler、
+  in-flight 取消、背压或 Spatial Interest。
 - fixed-tick 的 8 phase 顺序、context、last-tick 原始耗时及四条真实 work metrics 现在集中在
   `WorldSimulation`；玩法状态与旧实现仍由 World/Actor/Gameplay 所有，没有 `SimulationScheduler`、
   系统 Registry、时间预算或执行优先级。
@@ -457,4 +470,4 @@ Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先
   生产订阅者 effect/republish、8 层递归上限、per-publication membership 与 Diagnostic 隔离均已冻结。
 - Architecture Lab 教程现在按 Track/真实 Section 维护，并由 manifest、冻结证据和完整门禁阻止空 Part、
   丢失批次或未实现能力提前进入教程。
-- B2 和 D1 仍必须按任务账本范围实施；B1 完成不构成 B7-B9、Track C/D 或 Extended 的自动启动权限。
+- B3 和 D1 仍必须按任务账本范围实施；B2 完成不构成 B7-B9、Track C/D 或 Extended 的自动启动权限。

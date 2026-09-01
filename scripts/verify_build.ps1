@@ -51,6 +51,8 @@ $architectureLabDocumentationVerifier = Join-Path $repoRoot `
     "tools\validate_architecture_lab_documentation.ps1"
 $chunkResidencyStateMachineVerifier = Join-Path $repoRoot `
     "tools\validate_chunk_residency_state_machine.ps1"
+$streamingDemandModelVerifier = Join-Path $repoRoot `
+    "tools\validate_streaming_demand_model.ps1"
 
 function Invoke-Checked {
     param(
@@ -187,6 +189,10 @@ try {
 
     Invoke-Checked "B1 Chunk residency state machine" {
         & $chunkResidencyStateMachineVerifier -Root $repoRoot
+    }
+
+    Invoke-Checked "B2 Streaming demand model" {
+        & $streamingDemandModelVerifier -Root $repoRoot
     }
 
     Invoke-Checked "Resource manifest" {

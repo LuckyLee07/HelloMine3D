@@ -6070,6 +6070,172 @@ void caseFrustumMeshPriority()
 }
 
 // ---------------------------------------------------------------------------
+// B2 - real streaming sources become bounded, mergeable, expiring demand
+// ---------------------------------------------------------------------------
+void caseStreamingDemandModel()
+{
+    check("B2/reason-vocabulary-and-policy",
+          ChunkDemandReasonCount == 4 &&
+              std::string(ChunkDemandModel::reasonName(
+                  ChunkDemandReason::Player)) == "Player" &&
+              std::string(ChunkDemandModel::reasonName(
+                  ChunkDemandReason::Camera)) == "Camera" &&
+              std::string(ChunkDemandModel::reasonName(
+                  ChunkDemandReason::TeleportDestination)) ==
+                  "TeleportDestination" &&
+              std::string(ChunkDemandModel::reasonName(
+                  ChunkDemandReason::Preload)) == "Preload" &&
+              ChunkDemandModel::TeleportPriority >
+                  ChunkDemandModel::PlayerPriority &&
+              ChunkDemandModel::PlayerPriority >
+                  ChunkDemandModel::CameraPriority &&
+              ChunkDemandModel::CameraPriority >
+                  ChunkDemandModel::PreloadPriority);
+
+    ChunkDemandModel mergedModel;
+    mergedModel.refresh(ChunkDemandReason::Player, {0, 0}, 1);
+    const std::uint64_t stableRevision =
+        mergedModel.snapshot().revision;
+    mergedModel.refresh(ChunkDemandReason::Player, {0, 0}, 1);
+    mergedModel.refresh(ChunkDemandReason::Camera, {0, 0}, 1);
+    const ChunkDemandSnapshot overlapping = mergedModel.snapshot();
+    const ChunkDemandDebugStats overlappingStats =
+        mergedModel.debugStats();
+    check("B2/refresh-is-stable-and-bounded",
+          stableRevision == 1 && overlapping.revision == 2 &&
+              overlapping.demands.size() == 2 &&
+              overlappingStats.activeDemands == 2 &&
+              overlappingStats.playerDemands == 1 &&
+              overlappingStats.cameraDemands == 1);
+
+    const auto mergedTargets = ChunkRuntime::planDemandWork(
+        overlapping, 4, nullptr, {0, 0}, {0, 0});
+    const std::uint32_t playerCameraMask =
+        ChunkDemandModel::reasonBit(ChunkDemandReason::Player) |
+        ChunkDemandModel::reasonBit(ChunkDemandReason::Camera);
+    const auto mergedCenter = std::find_if(
+        mergedTargets.begin(), mergedTargets.end(),
+        [](const ChunkDemandTarget &target) {
+            return target.coord == VectorXZ{0, 0};
+        });
+    check("B2/overlap-merges-reason-bits",
+          mergedTargets.size() == 9 &&
+              mergedCenter != mergedTargets.end() &&
+              mergedCenter->reasonMask == playerCameraMask &&
+              mergedCenter->priority ==
+                  ChunkDemandModel::PlayerPriority);
+
+    mergedModel.refresh(ChunkDemandReason::Player, {10, 0}, 0);
+    const ChunkDemandSnapshot replaced = mergedModel.snapshot();
+    const auto replacedPlayer = std::find_if(
+        replaced.demands.begin(), replaced.demands.end(),
+        [](const ChunkDemand &demand) {
+            return demand.reason == ChunkDemandReason::Player;
+        });
+    check("B2/reason-replacement-removes-old-center",
+          replaced.demands.size() == 2 &&
+              replacedPlayer != replaced.demands.end() &&
+              replacedPlayer->coord == VectorXZ{10, 0});
+
+    ChunkDemandModel priorityModel;
+    priorityModel.refresh(ChunkDemandReason::Player, {0, 0}, 0);
+    priorityModel.refresh(ChunkDemandReason::TeleportDestination,
+                          {20, 0}, 0);
+    const auto priorityTargets = ChunkRuntime::planDemandWork(
+        priorityModel.snapshot(), 4, nullptr, {0, 0}, {1, 0});
+    check("B2/teleport-outprioritises-player",
+          priorityTargets.size() == 2 &&
+              priorityTargets.front().coord == VectorXZ{20, 0} &&
+              priorityTargets.front().priority ==
+                  ChunkDemandModel::TeleportPriority);
+
+    ChunkDemandModel motionModel;
+    motionModel.refresh(ChunkDemandReason::Player, {0, 0}, 2);
+    const auto motionTargets = ChunkRuntime::planDemandWork(
+        motionModel.snapshot(), 4, nullptr, {0, 0}, {0, 1});
+    const auto targetIndex = [](const auto &targets,
+                                const VectorXZ &coord) {
+        const auto found = std::find_if(
+            targets.begin(), targets.end(),
+            [&coord](const ChunkDemandTarget &target) {
+                return target.coord == coord;
+            });
+        return static_cast<std::size_t>(
+            std::distance(targets.begin(), found));
+    };
+    check("B2/player-motion-prioritises-forward",
+          targetIndex(motionTargets, {0, 1}) <
+              targetIndex(motionTargets, {0, -1}));
+
+    constexpr int viewRadius = 16;
+    const glm::vec3 eye{8.f, 72.f, 8.f};
+    const glm::mat4 projection =
+        glm::perspective(glm::radians(90.f), 16.f / 9.f, 0.1f, 2000.f);
+    ViewFrustum lookingNegativeZ;
+    lookingNegativeZ.update(
+        projection *
+        glm::lookAt(eye, eye + glm::vec3(0.f, 0.f, -1.f),
+                    glm::vec3(0.f, 1.f, 0.f)));
+    ViewFrustum lookingPositiveZ;
+    lookingPositiveZ.update(
+        projection *
+        glm::lookAt(eye, eye + glm::vec3(0.f, 0.f, 1.f),
+                    glm::vec3(0.f, 1.f, 0.f)));
+    ChunkDemandModel turnModel;
+    turnModel.refresh(ChunkDemandReason::Camera, {0, 0}, viewRadius);
+    const auto negativePlan = ChunkRuntime::planDemandWork(
+        turnModel.snapshot(), 4, &lookingNegativeZ, {0, 0}, {0, 0});
+    const auto positivePlan = ChunkRuntime::planDemandWork(
+        turnModel.snapshot(), 4, &lookingPositiveZ, {0, 0}, {0, 0});
+    check("B2/camera-turn-reorders-pending-plan",
+          targetIndex(negativePlan, {0, -12}) <
+                  targetIndex(negativePlan, {0, 12}) &&
+              targetIndex(positivePlan, {0, 12}) <
+                  targetIndex(positivePlan, {0, -12}));
+
+    ChunkDemandModel expiryModel;
+    expiryModel.refresh(ChunkDemandReason::TeleportDestination,
+                        {30, 30}, 1);
+    for (std::uint64_t epoch = 0;
+         epoch < ChunkDemandModel::TeleportLifetimeEpochs; ++epoch) {
+        expiryModel.advanceEpoch();
+    }
+    const bool activeThroughExpiry =
+        expiryModel.debugStats().teleportDemands == 1;
+    expiryModel.advanceEpoch();
+    const ChunkDemandDebugStats expired = expiryModel.debugStats();
+    check("B2/transient-demand-expires-exactly",
+          activeThroughExpiry && expired.teleportDemands == 0 &&
+              expired.activeDemands == 0 &&
+              expired.expiredDemands == 1);
+
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+    const auto directory = freshSaveDirectory("b2_demand_sources");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 1);
+    world.update(camera);
+    const ChunkDemandDebugStats published =
+        world.collectDebugStats().streamingDemand;
+    check("B2/world-publishes-player-camera-preload",
+          published.activeDemands == 3 &&
+              published.playerDemands == 1 &&
+              published.cameraDemands == 1 &&
+              published.preloadDemands == 1);
+
+    world.preloadAround({640.f, 90.f, 640.f});
+    const ChunkDemandDebugStats preloaded =
+        world.collectDebugStats().streamingDemand;
+    check("B2/preload-replaces-single-slot",
+          preloaded.activeDemands == 3 &&
+              preloaded.preloadDemands == 1 &&
+              world.getChunkManager().chunkLoadedAt(40, 40));
+}
+
+// ---------------------------------------------------------------------------
 // B1 - data, CPU mesh and Ogre render residency are orthogonal lifecycles
 // ---------------------------------------------------------------------------
 void caseChunkResidencyStateMachine()
@@ -15022,9 +15188,23 @@ void caseWorldManager()
         check("S1.4/teleport-preloads-destination",
               world.getChunkManager().chunkLoadedAt(20, 20),
               "chunk (20,20) loaded");
+        const ChunkDemandDebugStats teleportDemand =
+            world.collectDebugStats().streamingDemand;
+        check("B2/successful-teleport-elevates-destination",
+              teleportDemand.teleportDemands == 1 &&
+                  teleportDemand.activeDemands <=
+                      ChunkDemandReasonCount);
 
+        const std::uint64_t demandRevisionBeforeRejectedTeleport =
+            teleportDemand.revision;
         const bool crossWorld = manager.teleportPlayer(player, 7, destination);
         check("S1.4/cross-world-teleport-rejected", !crossWorld);
+        const ChunkDemandDebugStats rejectedTeleportDemand =
+            world.collectDebugStats().streamingDemand;
+        check("B2/rejected-teleport-does-not-mutate-demand",
+              rejectedTeleportDemand.revision ==
+                      demandRevisionBeforeRejectedTeleport &&
+                  rejectedTeleportDemand.teleportDemands == 1);
 
         const int timeBefore = manager.getWorldTime();
         for (int i = 0; i < 20; ++i) {
@@ -15158,6 +15338,10 @@ int main()
             caseUnloadPersistence();
             caseTerrainStructures();
         }
+        else if (focus != nullptr && std::string(focus) == "B2") {
+            caseStreamingDemandModel();
+            caseWorldManager();
+        }
         else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
@@ -15203,6 +15387,7 @@ int main()
         caseLocalRelightAfterEdits();
         caseEnclosedSectionSkip();
         caseFrustumMeshPriority();
+        caseStreamingDemandModel();
         caseChunkResidencyStateMachine();
         caseSectionMeshUploadSnapshot();
         caseUnloadPersistence();

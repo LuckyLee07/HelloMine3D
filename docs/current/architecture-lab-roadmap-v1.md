@@ -887,7 +887,7 @@ Debug/Release `863/863` WorldRuntime、104 项干净包，包 SHA-256 为
 
 当前加载中心只是 Streaming 的一种需求。
 
-未来需求来源可能包括：
+候选需求来源曾包括：
 
 ```text
 Player
@@ -898,6 +898,10 @@ Actor
 Preload
 Debug Camera
 ```
+
+当前 B2 Core 只实现已有真实来源 `Player / Camera / Teleport Destination /
+Preload`。Machine、Actor 和 Debug Camera 没有预注册；它们只有在对应系统获批
+并出现真实 streaming 需求后才能另立合同进入。
 
 定义：
 
@@ -933,6 +937,27 @@ reason
 ### 教程
 
 **Chapter 08：Streaming 的本质是 Demand Scheduling**
+
+### 当前实现记录（2026-09-01）
+
+`B2` 已按 `docs/contracts/streaming-demand-model-contract-v1.md` 完成实现与
+聚焦验证。`ChunkDemandModel` 以每个 reason 一个可替换槽位保存坐标、优先级、
+epoch、精确 expiry 和半径；Player/Camera/TeleportDestination/Preload 的优先级
+分别为 300/200/400/100，生命周期分别为 2/2/120/30 个 demand epoch。
+
+`ChunkRuntime` 把活跃半径展开并去重，按 reason、frustum、Player 移动方向、
+新旧、距离和稳定坐标建立计划，再交给既有单 loader。World update 发布
+Player/Camera，兼容 preload 路径同时记录 Preload，成功的同世界 teleport 才
+记录 TeleportDestination。开发者面板显示 epoch/revision、四类计数、expired
+总数和最近计划规模。
+
+定向 `HELLOMINE3D_WORLD_SMOKE_FOCUS=B2` 为 `26/26`；静态门禁已接入完整
+构建。78 项 World 公开面、B1 三态所有权、一个 loader 和现有 load/mesh/unload
+预算、Gameplay、save v12 均未改变。完整 VS2017/v141 门禁为 Debug/Release
+`875/875` WorldRuntime，104 项干净包 SHA-256 为
+`9955E51AD94C7E5600325329031432E16C1859F936FA880F68F65F3B80369503`；证据冻结在
+`docs/reports/architecture-lab-b2-streaming-demand-report-v1.md`。完成 B2
+不构成 B3 以后任一批的跨批实现许可。
 
 ---
 

@@ -38,7 +38,7 @@ HelloMine3D 是 **以真实可玩的单机体素沙盒为载体的 C++ Architect
 | 可玩载体 | 创建世界 → 采集 → 制作 → 工具成长 → 冶炼/食物 → 战斗 → 探索 → 路标胜利 → 胜利后事件 → 保存重开已经贯通。 |
 | 玩法与视觉 | Stage 9、Stage 10/VISUAL-RC、Stage 11/P11F 已完成 Windows 自动工程范围；Stage 11 待开发代码批次为 0。 |
 | 世界可靠性 | 世界目录、事务保存、有界备份、验证恢复、世界管理和主菜单入口已经完成；当前 world save format 为 v12。 |
-| 自动门禁 | VS2017/v141 双配置、853/853 世界、80/80 资源包、122/122 配方、15/15 启动负例和 104 项干净包通过。 |
+| 自动门禁 | VS2017/v141 双配置、875/875 世界、80/80 资源包、122/122 配方、15/15 启动负例和 104 项干净包通过。 |
 | 性能与诊断 | 六类正式 Q1、nominal/stress 各 1800 秒 Q3、崩溃 dump、脱敏 sidecar、离线符号和独立符号归档已闭环。 |
 | AI/Computer Use | `AI-01..AI-08=NOT_RUN`；没有外部玩家依赖，具备 OS 级 Computer Use 时按当前验收规范执行。 |
 | 人类体验 | 乐趣、审美、舒适度和物理设备手感统一为 `NOT_CLAIMED`。 |
@@ -58,15 +58,16 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 | `AL-A5` Tick Phase Metrics & Budget Vocabulary | `Done` | Actor、Combat、Block Random Tick、Population 的 last-tick processed/deferred/budget scope/status 词汇和开发者面板已经冻结；VS2017/v141 Debug/Release、两轮 853/853 世界与 104 项隔离包通过，没有改变 phase 顺序、hard limit 或 Gameplay，也没有进入 A6/B1/D1。详见 `docs/reports/architecture-lab-a5-simulation-metrics-report-v1.md`。 |
 | `AL-A6` Architecture Lab Documentation Pipeline | `Done` | 单一 living tutorial 已按 Track/真实 Section 重组；manifest、七段非空结构、证据路径和无占位 Part 由新 validator 及四个负例保护。VS2017/v141 Debug/Release、两轮 853/853 世界与 104 项隔离包通过；运行时代码、Gameplay、save v12 与 AI/人类声明均未改变。详见 `docs/reports/architecture-lab-a6-documentation-pipeline-report-v1.md`。 |
 | `B1` Chunk Residency State Machine | `Done` | Data Residency、CPU Mesh 与 Ogre Render 已成为三套正交且有断言保护的状态机；38/38 聚焦用例覆盖光照失效、保存失败回滚、dirty eviction、stale build/upload、卸载持久化和直接结构生成/重载。VS2017/v141 Debug/Release 完整门禁均为 863/863 WorldRuntime，104 项干净包 SHA-256 为 `F76F5A1429C869FDA94FDD37BF34F8266866B5F665D1E550CA04F15CCD7ECF88`。没有进入 B2-B9，Gameplay、预算和 save v12 保持不变。详见 `docs/reports/architecture-lab-b1-chunk-residency-report-v1.md`。 |
+| `B2` Streaming Demand Model | `Done` | Player、Camera、TeleportDestination、Preload 已统一为四槽、可合并、可过期的需求模型；26/26 聚焦用例与 AL-A1..B1 静态门禁通过。VS2017/v141 Debug/Release 完整门禁均为 875/875 WorldRuntime，104 项干净包 SHA-256 为 `9955E51AD94C7E5600325329031432E16C1859F936FA880F68F65F3B80369503`；未进入 B3-B9。详见 `docs/reports/architecture-lab-b2-streaming-demand-report-v1.md`。 |
 
 ## 下一候选
 
 | 批次 | 状态 | 目标 | 进入条件 | 退出边界 |
 | ---- | ---- | ---- | -------- | -------- |
-| `B2` Streaming Demand Model | `Queued` | 把 Player/Camera/Teleport/Preload 等真实加载来源统一为可合并、可过期的需求值。 | B1 已关闭；本 Goal 已由项目所有者单独批准 B2，B1 独立提交后开始。 | 不改变 B1 三态所有权，不提前实现 B3 Scheduler、B4 Cancellation、B5 Backpressure、B6 Spatial Interest 或 B7-B9 Extended。 |
+| `B3` Generic World Job Scheduler | `Queued` | 让现有 Chunk IO/Generation/Mesh 工作共享类型、优先级和提交边界，仍由真实 pipeline 驱动。 | B2 完整门禁和独立提交关闭后自动开始。 | 不提前实现 B4 Cancellation、B5 Backpressure、B6 Spatial Interest、B7-B9 或通用 Simulation Scheduler。 |
 
-`B1` 已关闭并将在本批建立独立提交边界。B2 已在当前 Goal 中获得独立批准，是提交后的下一批；
-B3-B6/B10 仍须严格按依赖逐批执行，B7-B9 和 Track C/D 未获批。
+`B2` 已完成实现与完整门禁，独立提交后关闭。B3 是提交后的下一批；B3-B6/B10
+仍须严格按依赖逐批执行，B7-B9 和 Track C/D 未获批。
 
 ## 当前阻塞
 
@@ -75,7 +76,7 @@ B3-B6/B10 仍须严格按依赖逐批执行，B7-B9 和 Track C/D 未获批。
   `Engineering Done`，但 Track 不得标记 `AI Playability PASS`。
 - 严格 `AI-06` 还要求 package-only 文件系统访问；仅切换工作目录但仓库仍可读取时记录
   `BLOCKED`，不能声明 blind PASS。
-- 当前没有已知实现阻塞；B1 已关闭，B2 是下一批。
+- 当前没有已知实现阻塞；B2 已关闭，B3 是下一批。
 
 ## 待执行验收
 

@@ -3165,6 +3165,28 @@ class OgreUserInterface::Impl
                         static_cast<unsigned long long>(
                             worldStats.chunks.sections));
             ImGui::Text(
+                "Demand epoch/revision/active/planned: %llu / %llu / %llu / %llu",
+                static_cast<unsigned long long>(
+                    worldStats.streamingDemand.epoch),
+                static_cast<unsigned long long>(
+                    worldStats.streamingDemand.revision),
+                static_cast<unsigned long long>(
+                    worldStats.streamingDemand.activeDemands),
+                static_cast<unsigned long long>(
+                    worldStats.streamingDemand.lastPlannedTargets));
+            ImGui::Text(
+                "Demand P/C/T/Pre expired: %llu / %llu / %llu / %llu / %llu",
+                static_cast<unsigned long long>(
+                    worldStats.streamingDemand.playerDemands),
+                static_cast<unsigned long long>(
+                    worldStats.streamingDemand.cameraDemands),
+                static_cast<unsigned long long>(
+                    worldStats.streamingDemand.teleportDemands),
+                static_cast<unsigned long long>(
+                    worldStats.streamingDemand.preloadDemands),
+                static_cast<unsigned long long>(
+                    worldStats.streamingDemand.expiredDemands));
+            ImGui::Text(
                 "Data A/Rq/L/G/R/E/S: %llu / %llu / %llu / %llu / %llu / %llu / %llu",
                 static_cast<unsigned long long>(
                     worldStats.chunks.dataAbsentChunks),

@@ -39,6 +39,7 @@
 class Camera;
 class Player;
 class MobActor;
+class WorldManager;
 
 struct Entity;
 
@@ -99,6 +100,7 @@ struct ExplorationRewardSnapshot {
 
 struct WorldDebugStats {
     ChunkDebugStats chunks;
+    ChunkDemandDebugStats streamingDemand;
     TerrainBufferMetrics terrainBuffers;
     WorldSimulationSnapshot simulation;
     std::size_t actorCount = 0;
@@ -172,6 +174,7 @@ class World : public NonCopyable {
     friend class ChunkSection;
     friend class ChunkManager;
     friend class WorldSimulation;
+    friend class WorldManager;
 
   public:
     static constexpr std::size_t ChunkMeshRebuildBudgetPerUpdate = 2;
@@ -399,6 +402,7 @@ class World : public NonCopyable {
     bool findSafeNaturalMobPosition(int blockX, int blockZ,
                                     glm::vec3 &position);
     void despawnNaturalMobsInChunk(int chunkX, int chunkZ);
+    void preloadAroundForTeleport(const glm::vec3 &position);
     bool saveWorldState();
     void restoreActors(const std::vector<ActorSaveState> &states);
     void setSpawnPoint();

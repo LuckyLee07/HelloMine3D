@@ -14,6 +14,7 @@
 #include "../../Maths/glm.h"
 #include "../../Maths/Vector2XZ.h"
 #include "../../Util/NonCopyable.h"
+#include "ChunkDemand.h"
 #include "ChunkManager.h"
 
 class Camera;
@@ -33,6 +34,17 @@ struct WorldMeshSnapshot {
     std::vector<WorldSectionMeshSnapshot> cpuReadySections;
 };
 
+struct ChunkDemandTarget {
+    VectorXZ coord{0, 0};
+    std::uint32_t reasonMask = 0;
+    int priority = 0;
+    std::uint64_t newestEpoch = 0;
+    int distanceSquared = 0;
+    int distanceManhattan = 0;
+    bool inFrustum = false;
+    int motionRank = 1;
+};
+
 /// Owns the existing derived Chunk work queues and loader coordination.
 /// ChunkManager remains the owner of authoritative Chunk and storage state.
 class ChunkRuntime final : public NonCopyable {
@@ -42,7 +54,8 @@ class ChunkRuntime final : public NonCopyable {
     ~ChunkRuntime();
 
     void setInitialLoadCenter(const glm::vec3 &position) noexcept;
-    void updateLoadCenter(const Camera &camera);
+    void updateLoadCenter(const glm::vec3 &playerPosition,
+                          const Camera &camera);
     void unloadDistantChunks(const Camera &camera);
 
     void setRenderDistance(int renderDistance) noexcept;
@@ -62,11 +75,18 @@ class ChunkRuntime final : public NonCopyable {
         const std::vector<glm::ivec3> &changedPositions);
     void processChunkUpdates(std::size_t budget);
     std::size_t queuedChunkUpdateCountLocked() const noexcept;
-    void preloadAroundLocked(const glm::vec3 &position, int radius = 1);
+    void preloadAroundLocked(
+        const glm::vec3 &position, int radius = 1,
+        ChunkDemandReason reason = ChunkDemandReason::Preload);
+    ChunkDemandDebugStats collectDemandDebugStats() const;
 
     static std::vector<VectorXZ>
     planMeshWork(const VectorXZ &center, int radius, int sectionY,
                  const ViewFrustum *frustum);
+    static std::vector<ChunkDemandTarget> planDemandWork(
+        const ChunkDemandSnapshot &snapshot, int sectionY,
+        const ViewFrustum *frustum, const VectorXZ &movementOrigin,
+        const VectorXZ &movementDirection);
 
   private:
     struct IVec3Hash {
@@ -94,9 +114,14 @@ class ChunkRuntime final : public NonCopyable {
     std::mutex m_meshPriorityMutex;
     MeshPrioritySnapshot m_meshPrioritySnapshot;
 
-    std::atomic<int> m_loadCenterX{0};
-    std::atomic<int> m_loadCenterSectionY{0};
-    std::atomic<int> m_loadCenterZ{0};
+    mutable std::mutex m_demandMutex;
+    ChunkDemandModel m_demandModel;
+    VectorXZ m_playerDemandCoord{0, 0};
+    VectorXZ m_playerMovement{0, 0};
+    bool m_playerDemandPublished = false;
+    std::atomic<std::size_t> m_lastPlannedTargetCount{0};
+
+    std::atomic<int> m_demandSectionY{0};
     std::atomic<int> m_chunkLoadRevision{0};
     std::atomic<int> m_meshPriorityRevision{0};
     std::atomic<int> m_loadDistance{2};

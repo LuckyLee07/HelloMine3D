@@ -1,7 +1,7 @@
 # HelloMine3D Architecture Lab Tutorial
 
-> Living tutorial status: Part 00 covers completed Track A and Part 01 begins
-> Track B with verified B1. Later Parts are added only with the first verified
+> Living tutorial status: Part 00 covers completed Track A and Part 01 covers
+> verified B1 and B2. Later Parts are added only with the first verified
 > batch of their owning Track; this file does not pre-create empty Sprint chapters.
 
 <!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-BEGIN -->
@@ -13,6 +13,7 @@ AL-A4|00|0.4|docs/reports/architecture-lab-a4-event-command-query-report-v1.md
 AL-A5|00|0.5|docs/reports/architecture-lab-a5-simulation-metrics-report-v1.md
 AL-A6|00|0.6|docs/contracts/architecture-lab-documentation-pipeline-contract-v1.md
 B1|01|1.1|docs/reports/architecture-lab-b1-chunk-residency-report-v1.md
+B2|01|1.2|docs/reports/architecture-lab-b2-streaming-demand-report-v1.md
 <!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-END -->
 
 ## Part 00 — From a playable clone to an architecture lab
@@ -757,3 +758,89 @@ Related evidence:
 - `docs/contracts/chunk-residency-state-machine-contract-v1.md`
 - `docs/reports/architecture-lab-b1-chunk-residency-report-v1.md`
 - `tools/validate_chunk_residency_state_machine.ps1`
+
+### 1.2 Why is streaming an expiring set of demands instead of one center?
+
+#### Problem
+
+The existing loader treated one Player-derived center as the whole definition
+of needed world data. Real gameplay already had more sources: the camera can
+look away from movement, teleport needs a destination immediately, and spawn,
+respawn or explicit preparation preload an area. With one mutable center these
+sources overwrite each other implicitly and leave no evidence of priority or
+lifetime.
+
+#### Naive Solution
+
+One option is to keep adding special cases around `m_loadCenterX/Z`: teleport
+can force a synchronous load, camera visibility can alter the distance score,
+and preload can temporarily move the center before restoring it. Another is to
+append every request to an unbounded priority queue and rely on duplicate
+filtering when the loader eventually reaches it.
+
+#### Failure
+
+Special cases make the last caller the hidden owner of streaming intent. A
+camera turn or old teleport can continue to influence pending work without a
+clear expiry rule. An append-only queue records history rather than current
+demand, grows under repeated refreshes and reaches B5 backpressure questions
+before the demand vocabulary itself is defined.
+
+#### Design Evolution
+
+B2 represents each implemented source as one replaceable slot containing a
+coordinate, reason, priority, epoch, expiry and radius. Player and Camera are
+short-lived and refreshed each World update; TeleportDestination and Preload
+live longer but expire exactly after their frozen epochs. Overlapping squares
+merge into one target carrying a reason-bit union, highest priority and newest
+epoch.
+
+The planner orders current targets by reason priority, frustum visibility,
+Player motion direction, recency, distance and stable coordinates. A semantic
+demand change or camera/frustum change discards the derived pending plan. This
+is replacement of not-yet-started planning data, not B4 cancellation of work
+already executing.
+
+#### Implementation
+
+`World/Chunk/ChunkDemand.*` owns the four-slot value model and stable policy.
+`ChunkRuntime` owns the model lock, motion sample and deterministic expansion /
+merge / sort operation, then feeds the unchanged single loader. `World::update`
+publishes Player and Camera; `preloadAround` records Preload while preserving
+its synchronous behavior; a private bridge lets `WorldManager` publish a
+TeleportDestination only after a same-world teleport is accepted.
+
+The one worker, 6 ms pass, 64-target pass, one load per target, two-section mesh
+budget and eight-Chunk unload budget remain unchanged. Demand is derived state:
+it is not serialized and cannot mutate save v12 or B1 lifecycle ownership.
+
+#### Validation
+
+`tools/validate_streaming_demand_model.ps1` freezes the four reasons, exact
+priorities/lifetimes, owners, publication sites, panel fields, twelve behavior
+identities and absence of B3-B9 concepts. It composes with AL-A1 through B1 in
+the full VS2017 gate.
+
+`HELLOMINE3D_WORLD_SMOKE_FOCUS=B2` passes 26 checks. They prove stable bounded
+refresh, reason replacement, overlap merge, teleport priority, forward-motion
+ordering, camera-turn replanning, exact expiry, World Player/Camera/Preload
+publication and accepted/rejected teleport behavior. The existing WorldManager
+scenario remains in the focused set to protect synchronous gameplay effects.
+
+#### Trade-offs
+
+Four slots intentionally describe only current implemented sources. Machine,
+Actor and debug-camera reasons are not reserved for hypothetical systems. A
+square radius remains coarser than a future spatial-interest volume, and the
+single loader still executes heterogeneous work without a generic scheduler.
+
+The priority values are fixed B2 policy rather than a claim of ideal feel. They
+make ordering deterministic and observable while leaving B3 job arbitration,
+B4 in-flight cancellation, B5 pressure control and B6 representation interest
+as separate problems with separate contracts.
+
+Related evidence:
+
+- `docs/contracts/streaming-demand-model-contract-v1.md`
+- `docs/reports/architecture-lab-b2-streaming-demand-report-v1.md`
+- `tools/validate_streaming_demand_model.ps1`

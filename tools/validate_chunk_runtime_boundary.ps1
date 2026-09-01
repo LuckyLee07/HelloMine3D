@@ -75,7 +75,7 @@ try {
 
     foreach ($owned in @(
         "m_chunkUpdateQueue", "m_queuedChunkUpdates", "m_chunkLoadThreads",
-        "m_meshPrioritySnapshot", "m_loadCenterX", "m_renderDistance")) {
+        "m_meshPrioritySnapshot", "m_demandModel", "m_renderDistance")) {
         Require-Text $runtimeHeader $owned "ChunkRuntime-owned coordination"
     }
     foreach ($budget in @(
@@ -108,7 +108,7 @@ try {
     Write-Host (
         "[CHUNK_RUNTIME_BOUNDARY] status=PASS " +
         "world_queue_fields=0 runtime_queue_fields=2 loader_workers=1 " +
-        "mesh_protocol=begin-build-finish")
+        "streaming_input=demand-model mesh_protocol=begin-build-finish")
     exit 0
 }
 catch {

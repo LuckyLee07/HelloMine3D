@@ -2965,7 +2965,9 @@ void World::applyPendingDifficulty() noexcept
 void World::update(const Camera &camera)
 {
     HELLOMINE3D_PROFILE_SCOPE("World::update");
-    m_chunkRuntime.updateLoadCenter(camera);
+    m_chunkRuntime.updateLoadCenter(
+        m_player != nullptr ? m_player->position : camera.position,
+        camera);
 
     for (auto &command : m_commands) {
         command->execute(*this);
@@ -3049,6 +3051,7 @@ WorldDebugStats World::collectDebugStats()
 
     WorldDebugStats stats;
     stats.chunks = m_chunkManager.collectDebugStats();
+    stats.streamingDemand = m_chunkRuntime.collectDemandDebugStats();
     stats.simulation = m_worldSimulation.snapshot();
     stats.chunks.saveTransactions += m_worldSaveTransactionCount;
     stats.chunks.saveTotalMs += m_worldSaveTotalMs;
@@ -3213,6 +3216,13 @@ void World::preloadAround(const glm::vec3 &position)
 {
     std::unique_lock<std::mutex> lock(m_mainMutex);
     m_chunkRuntime.preloadAroundLocked(position);
+}
+
+void World::preloadAroundForTeleport(const glm::vec3 &position)
+{
+    std::unique_lock<std::mutex> lock(m_mainMutex);
+    m_chunkRuntime.preloadAroundLocked(
+        position, 1, ChunkDemandReason::TeleportDestination);
 }
 
 ActorId World::spawnItemEntity(Material::ID materialId, int amount,

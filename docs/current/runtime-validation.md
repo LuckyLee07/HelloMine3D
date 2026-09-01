@@ -257,6 +257,35 @@ revision never reaches `GpuResident`. Full closeout evidence is frozen in
 `docs/reports/architecture-lab-b1-chunk-residency-report-v1.md`. AI scenarios
 remain `NOT_RUN` and human subjective experience remains `NOT_CLAIMED`.
 
+## B2 Streaming Demand Model Evidence
+
+B2 adds an eighth static architecture gate without changing the AL-A1 public
+surface, B1 state ownership or existing loader budgets:
+
+```powershell
+& .\tools\validate_streaming_demand_model.ps1 `
+  -Root (Get-Location).Path
+$env:HELLOMINE3D_WORLD_SMOKE_FOCUS = "B2"
+& .\bin\HelloMine3DWorldRuntimeSmoke.exe
+```
+
+The static gate freezes four reason slots, priorities `400/300/200/100`, exact
+epoch expiry, de-duplicated planning, publication sites, copied diagnostics and
+absence of B3-B9 capabilities. It passes alongside AL-A1..B1; the public World
+map remains 78 methods with SHA-256
+`8B2CDDF30B70DA91D5EF4944D7E1397BC9434EB0E129B9313DA471143F653EC4`.
+
+The focused runtime passes `26/26`: twelve B2 checks cover stable bounded
+refresh, overlap merge, per-reason replacement, teleport priority, forward
+motion, camera-turn replanning, exact expiry and integrated Player/Camera/
+Preload/Teleport publication; existing WorldManager checks remain in the same
+focus path. The complete VS2017/v141 gate passes `875/875` WorldRuntime in both
+configurations, `80/80` resource-pack, `122/122` recipe, `15/15` startup
+negatives and two zero-failure short soaks. The 104-entry package SHA-256 is
+`9955E51AD94C7E5600325329031432E16C1859F936FA880F68F65F3B80369503`.
+AI scenarios remain `NOT_RUN`; human subjective experience remains
+`NOT_CLAIMED`.
+
 ## World Runtime Smoke
 
 `src/HelloMine3D/Tests/WorldRuntimeSmokeMain.cpp` links the whole game runtime
@@ -530,6 +559,7 @@ the 2026-08-31 Architecture Lab policy, both physical protocols remain
 | AL-A5 Simulation phase metrics | `tools\validate_simulation_metrics_boundary.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=AL-A5`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-a5-simulation-metrics-report-v1.md` | Exactly four real phase metrics freeze copied elapsed/processed/deferred/budget scope/status without changing AL-A3 order or existing hard limits. Debug/Release focused runs pass 13/13; the complete gate passes 853/853 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives and two zero-failure short soaks. The 104-entry package SHA-256 is `4DA15FA1799804FB61710FA285DD0E6818BE1B42CE26AFA25E1F777DF3334009`. Real-window launch is `DEFERRED`, AI acceptance is `NOT_RUN`, and human subjective experience is `NOT_CLAIMED` (2026-09-01). |
 | AL-A6 Architecture Lab documentation pipeline | `tools\validate_architecture_lab_documentation.ps1 -SelfTest`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-a6-documentation-pipeline-report-v1.md` | The focused gate passes seven manifest rows, one implemented Part, six non-empty Sections and four negative fixtures. The complete VS2017/v141 gate passes 853/853 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives and two zero-failure short soaks. The 104-entry package SHA-256 is `0E387185600E957F8BC6ED4B46333817B0C12F0725322F9F939337455C245990`. Real-window launch is `DEFERRED`, AI acceptance is `NOT_RUN`, and human subjective experience is `NOT_CLAIMED` (2026-09-01). |
 | B1 Chunk residency state machine | `tools\validate_chunk_residency_state_machine.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=B1`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-b1-chunk-residency-report-v1.md` | Seven Data, five Mesh and four Ogre Render states are separately owned and assertion-guarded. Focused runtime passes 38/38, including light-only invalidation, save-failure rollback, dirty eviction, stale upload, unload persistence and direct deterministic structure generation/reload. The complete VS2017/v141 gate passes 863/863 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives, two zero-failure short soaks and a 104-entry package with SHA-256 `F76F5A1429C869FDA94FDD37BF34F8266866B5F665D1E550CA04F15CCD7ECF88`. World public API, AL-A2 budgets, Gameplay and save v12 stay unchanged. Real-window launch is `DEFERRED`, AI acceptance remains `NOT_RUN` and human subjective experience remains `NOT_CLAIMED` (2026-09-01). |
+| B2 Streaming demand model | `tools\validate_streaming_demand_model.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=B2`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-b2-streaming-demand-report-v1.md` | Four bounded Player/Camera/TeleportDestination/Preload slots drive de-duplicated deterministic planning by reason, frustum, motion, age and distance. Focused runtime passes 26/26; the complete gate passes 875/875 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives and two zero-failure short soaks. The 104-entry package SHA-256 is `9955E51AD94C7E5600325329031432E16C1859F936FA880F68F65F3B80369503`. No B3-B9 capability is implemented; real-window is `DEFERRED`, AI acceptance is `NOT_RUN`, and human subjective experience remains `NOT_CLAIMED` (2026-09-01). |
 | AI-assisted gameplay baseline | `docs\current\ai-assisted-gameplay-acceptance-v1.md` | `AI-01..AI-08 result=NOT_RUN`; no OS-level Computer Use record has been produced in this documentation batch. |
 
 The current 2026-08-12 runs use an NVIDIA GTX 1050 Ti with OpenGL 4.6. The

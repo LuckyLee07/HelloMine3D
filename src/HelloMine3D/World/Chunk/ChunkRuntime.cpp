@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <unordered_map>
 
 #include "../../Core/Camera.h"
 #include "../../Diagnostics/RuntimeProfiler.h"
@@ -129,27 +130,154 @@ ChunkRuntime::planMeshWork(const VectorXZ &center, int radius, int sectionY,
     return result;
 }
 
+std::vector<ChunkDemandTarget> ChunkRuntime::planDemandWork(
+    const ChunkDemandSnapshot &snapshot, int sectionY,
+    const ViewFrustum *frustum, const VectorXZ &movementOrigin,
+    const VectorXZ &movementDirection)
+{
+    sectionY = std::max(0, sectionY);
+    std::unordered_map<VectorXZ, ChunkDemandTarget> merged;
+    for (const ChunkDemand &demand : snapshot.demands) {
+        const int radius = std::max(0, demand.radius);
+        for (int x = demand.coord.x - radius;
+             x <= demand.coord.x + radius; ++x) {
+            for (int z = demand.coord.z - radius;
+                 z <= demand.coord.z + radius; ++z) {
+                const VectorXZ coord{x, z};
+                const int dx = coord.x - demand.coord.x;
+                const int dz = coord.z - demand.coord.z;
+                const int distanceSquared = dx * dx + dz * dz;
+                const int distanceManhattan =
+                    std::abs(dx) + std::abs(dz);
+
+                auto inserted = merged.emplace(
+                    coord,
+                    ChunkDemandTarget{
+                        coord, ChunkDemandModel::reasonBit(demand.reason),
+                        demand.priority, demand.epoch, distanceSquared,
+                        distanceManhattan, false, 1});
+                ChunkDemandTarget &target = inserted.first->second;
+                if (!inserted.second) {
+                    target.reasonMask |=
+                        ChunkDemandModel::reasonBit(demand.reason);
+                    target.priority =
+                        std::max(target.priority, demand.priority);
+                    target.newestEpoch =
+                        std::max(target.newestEpoch, demand.epoch);
+                    if (distanceSquared < target.distanceSquared ||
+                        (distanceSquared == target.distanceSquared &&
+                         distanceManhattan <
+                             target.distanceManhattan)) {
+                        target.distanceSquared = distanceSquared;
+                        target.distanceManhattan = distanceManhattan;
+                    }
+                }
+            }
+        }
+    }
+
+    std::vector<ChunkDemandTarget> result;
+    result.reserve(merged.size());
+    for (auto &entry : merged) {
+        ChunkDemandTarget &target = entry.second;
+        if (frustum != nullptr) {
+            AABB sectionBounds{
+                glm::vec3(static_cast<float>(CHUNK_SIZE))};
+            sectionBounds.update(
+                {static_cast<float>(target.coord.x * CHUNK_SIZE),
+                 static_cast<float>(sectionY * CHUNK_SIZE),
+                 static_cast<float>(target.coord.z * CHUNK_SIZE)});
+            target.inFrustum = frustum->isBoxInFrustum(sectionBounds);
+        }
+
+        const long long relativeX =
+            static_cast<long long>(target.coord.x - movementOrigin.x);
+        const long long relativeZ =
+            static_cast<long long>(target.coord.z - movementOrigin.z);
+        const long long motionDot =
+            relativeX * movementDirection.x +
+            relativeZ * movementDirection.z;
+        target.motionRank = motionDot > 0 ? 2 : motionDot < 0 ? 0 : 1;
+        result.push_back(target);
+    }
+
+    std::sort(result.begin(), result.end(),
+              [](const ChunkDemandTarget &left,
+                 const ChunkDemandTarget &right) {
+                  if (left.priority != right.priority) {
+                      return left.priority > right.priority;
+                  }
+                  if (left.inFrustum != right.inFrustum) {
+                      return left.inFrustum;
+                  }
+                  if (left.motionRank != right.motionRank) {
+                      return left.motionRank > right.motionRank;
+                  }
+                  if (left.newestEpoch != right.newestEpoch) {
+                      return left.newestEpoch > right.newestEpoch;
+                  }
+                  if (left.distanceSquared != right.distanceSquared) {
+                      return left.distanceSquared < right.distanceSquared;
+                  }
+                  if (left.distanceManhattan !=
+                      right.distanceManhattan) {
+                      return left.distanceManhattan <
+                             right.distanceManhattan;
+                  }
+                  if (left.coord.x != right.coord.x) {
+                      return left.coord.x < right.coord.x;
+                  }
+                  return left.coord.z < right.coord.z;
+              });
+    return result;
+}
+
 void ChunkRuntime::setInitialLoadCenter(const glm::vec3 &position) noexcept
 {
     const VectorXZ center = WorldCoordinates::getChunkXZ(
         WorldCoordinates::toBlockCoord(position.x),
         WorldCoordinates::toBlockCoord(position.z));
-    m_loadCenterX.store(center.x);
-    m_loadCenterSectionY.store(std::max(
+    {
+        std::lock_guard<std::mutex> lock(m_demandMutex);
+        m_demandModel.refresh(ChunkDemandReason::Player, center,
+                              std::max(1, m_renderDistance.load()));
+        m_playerDemandCoord = center;
+        m_playerMovement = {0, 0};
+        m_playerDemandPublished = true;
+    }
+    m_demandSectionY.store(std::max(
         0, WorldCoordinates::toBlockCoord(position.y) / CHUNK_SIZE));
-    m_loadCenterZ.store(center.z);
 }
 
-void ChunkRuntime::updateLoadCenter(const Camera &camera)
+void ChunkRuntime::updateLoadCenter(const glm::vec3 &playerPosition,
+                                    const Camera &camera)
 {
+    const VectorXZ playerChunk = WorldCoordinates::getChunkXZ(
+        WorldCoordinates::toBlockCoord(playerPosition.x),
+        WorldCoordinates::toBlockCoord(playerPosition.z));
     const VectorXZ cameraChunk = WorldCoordinates::getChunkXZ(
         WorldCoordinates::toBlockCoord(camera.position.x),
         WorldCoordinates::toBlockCoord(camera.position.z));
     const int sectionY = std::max(
         0, WorldCoordinates::toBlockCoord(camera.position.y) / CHUNK_SIZE);
-    m_loadCenterX.store(cameraChunk.x);
-    m_loadCenterSectionY.store(sectionY);
-    m_loadCenterZ.store(cameraChunk.z);
+    const int radius = std::max(1, m_renderDistance.load());
+    {
+        std::lock_guard<std::mutex> lock(m_demandMutex);
+        m_demandModel.advanceEpoch();
+        if (m_playerDemandPublished &&
+            !(playerChunk == m_playerDemandCoord)) {
+            m_playerMovement = {
+                playerChunk.x - m_playerDemandCoord.x,
+                playerChunk.z - m_playerDemandCoord.z};
+        }
+        m_playerDemandCoord = playerChunk;
+        m_playerDemandPublished = true;
+        m_demandModel.refresh(ChunkDemandReason::Player, playerChunk,
+                              radius);
+        m_demandModel.refresh(ChunkDemandReason::Camera, cameraChunk,
+                              radius);
+    }
+    m_demandSectionY.store(sectionY);
     publishMeshPrioritySnapshot(camera, sectionY);
 }
 
@@ -187,6 +315,13 @@ void ChunkRuntime::setRenderDistance(int renderDistance) noexcept
     const int previous = m_renderDistance.exchange(renderDistance);
     if (previous == renderDistance) {
         return;
+    }
+    {
+        std::lock_guard<std::mutex> lock(m_demandMutex);
+        m_demandModel.updateRadius(ChunkDemandReason::Player,
+                                   std::max(1, renderDistance));
+        m_demandModel.updateRadius(ChunkDemandReason::Camera,
+                                   std::max(1, renderDistance));
     }
     m_unloadScanValid = false;
     m_unloadBacklog = true;
@@ -386,17 +521,30 @@ std::size_t ChunkRuntime::queuedChunkUpdateCountLocked() const noexcept
     return m_chunkUpdateQueue.size();
 }
 
-void ChunkRuntime::preloadAroundLocked(const glm::vec3 &position, int radius)
+void ChunkRuntime::preloadAroundLocked(const glm::vec3 &position, int radius,
+                                       ChunkDemandReason reason)
 {
     const VectorXZ centerChunk = WorldCoordinates::getChunkXZ(
         WorldCoordinates::toBlockCoord(position.x),
         WorldCoordinates::toBlockCoord(position.z));
+    {
+        std::lock_guard<std::mutex> lock(m_demandMutex);
+        m_demandModel.refresh(reason, centerChunk, radius);
+    }
     for (int x = centerChunk.x - radius; x <= centerChunk.x + radius; ++x) {
         for (int z = centerChunk.z - radius; z <= centerChunk.z + radius;
              ++z) {
             m_chunkManager.loadChunk(x, z);
         }
     }
+}
+
+ChunkDemandDebugStats ChunkRuntime::collectDemandDebugStats() const
+{
+    std::lock_guard<std::mutex> lock(m_demandMutex);
+    ChunkDemandDebugStats stats = m_demandModel.debugStats();
+    stats.lastPlannedTargets = m_lastPlannedTargetCount.load();
+    return stats;
 }
 
 void ChunkRuntime::startLoader()
@@ -434,20 +582,26 @@ void ChunkRuntime::runLoader()
     ChunkMeshJob job;
     ChunkMeshCollection builtMeshes;
     std::deque<VectorXZ> workQueue;
-    VectorXZ lastCenter{m_loadCenterX.load(), m_loadCenterZ.load()};
     int lastRevision = m_chunkLoadRevision.load();
     int lastPriorityRevision = m_meshPriorityRevision.load();
+    std::uint64_t lastDemandRevision = 0;
     bool queueValid = false;
 
     while (m_isRunning.load()) {
-        const VectorXZ loadCenter{m_loadCenterX.load(),
-                                  m_loadCenterZ.load()};
+        ChunkDemandSnapshot demandSnapshot;
+        VectorXZ movementOrigin{0, 0};
+        VectorXZ movementDirection{0, 0};
+        {
+            std::lock_guard<std::mutex> lock(m_demandMutex);
+            demandSnapshot = m_demandModel.snapshot();
+            movementOrigin = m_playerDemandCoord;
+            movementDirection = m_playerMovement;
+        }
         const int currentRevision = m_chunkLoadRevision.load();
         const int currentPriorityRevision = m_meshPriorityRevision.load();
-        if (!queueValid || !(loadCenter == lastCenter) ||
-            currentRevision != lastRevision ||
+        if (!queueValid || currentRevision != lastRevision ||
+            demandSnapshot.revision != lastDemandRevision ||
             currentPriorityRevision != lastPriorityRevision) {
-            const int radius = std::max(1, m_renderDistance.load());
             MeshPrioritySnapshot prioritySnapshot;
             {
                 std::lock_guard<std::mutex> lock(m_meshPriorityMutex);
@@ -455,11 +609,16 @@ void ChunkRuntime::runLoader()
             }
             const ViewFrustum *frustum =
                 prioritySnapshot.valid ? &prioritySnapshot.frustum : nullptr;
-            const auto planned = planMeshWork(
-                loadCenter, radius, prioritySnapshot.sectionY, frustum);
-            workQueue = std::deque<VectorXZ>(planned.begin(), planned.end());
-            lastCenter = loadCenter;
+            const auto planned = planDemandWork(
+                demandSnapshot, prioritySnapshot.sectionY, frustum,
+                movementOrigin, movementDirection);
+            workQueue.clear();
+            for (const ChunkDemandTarget &target : planned) {
+                workQueue.push_back(target.coord);
+            }
+            m_lastPlannedTargetCount.store(planned.size());
             lastRevision = currentRevision;
+            lastDemandRevision = demandSnapshot.revision;
             lastPriorityRevision = currentPriorityRevision;
             queueValid = true;
         }
@@ -485,7 +644,7 @@ void ChunkRuntime::runLoader()
                 std::unique_lock<std::mutex> lock(m_worldMutex);
                 result = m_chunkManager.beginMeshJob(
                     target.x, target.z, ChunkLoadsPerTarget,
-                    m_loadCenterSectionY.load(), job);
+                    m_demandSectionY.load(), job);
             }
 
             if (job.valid) {
