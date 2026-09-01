@@ -7,6 +7,7 @@
 
 - [architecture-lab-baseline-v1.md](architecture-lab-baseline-v1.md)
 - [architecture-lab-a2-chunk-runtime-report-v1.md](architecture-lab-a2-chunk-runtime-report-v1.md)
+- [architecture-lab-a3-world-simulation-report-v1.md](architecture-lab-a3-world-simulation-report-v1.md)
 - [alpha-development-checkpoint-v1.md](alpha-development-checkpoint-v1.md)
 - [beta-release-candidate-report-2026-08-26.md](beta-release-candidate-report-2026-08-26.md)
 - [visual-release-candidate-report-2026-08-28.md](visual-release-candidate-report-2026-08-28.md)

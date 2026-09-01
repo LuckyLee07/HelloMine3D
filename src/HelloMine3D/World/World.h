@@ -23,6 +23,7 @@
 #include "Chunk/ChunkManager.h"
 #include "Chunk/ChunkRuntime.h"
 #include "Environment/WorldEnvironment.h"
+#include "Simulation/WorldSimulation.h"
 #include "Storage/WorldSave.h"
 #include "Storage/WorldBackup.h"
 
@@ -98,6 +99,7 @@ struct ExplorationRewardSnapshot {
 struct WorldDebugStats {
     ChunkDebugStats chunks;
     TerrainBufferMetrics terrainBuffers;
+    WorldSimulationSnapshot simulation;
     std::size_t actorCount = 0;
     std::size_t naturalMobCount = 0;
     std::size_t naturalMobWorldCap = 0;
@@ -168,6 +170,7 @@ class World : public NonCopyable {
     friend class Chunk;
     friend class ChunkSection;
     friend class ChunkManager;
+    friend class WorldSimulation;
 
   public:
     static constexpr std::size_t ChunkMeshRebuildBudgetPerUpdate = 2;
@@ -420,6 +423,7 @@ class World : public NonCopyable {
     ChunkManager m_chunkManager;
     std::mutex m_mainMutex;
     ChunkRuntime m_chunkRuntime;
+    WorldSimulation m_worldSimulation;
     ActorManager m_actorManager;
     PlayerActor m_playerActor;
     SandboxEventBus m_eventBus;

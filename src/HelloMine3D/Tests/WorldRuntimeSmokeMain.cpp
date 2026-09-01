@@ -345,6 +345,99 @@ void caseFixedTickScheduler()
 }
 
 // ---------------------------------------------------------------------------
+// AL-A3 - World fixed-tick orchestration has named, observable raw phases
+// ---------------------------------------------------------------------------
+void caseWorldSimulationRuntime()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player,
+                freshSaveDirectory("al_a3_world_simulation"), false, 1);
+
+    const WorldSimulationSnapshot initial =
+        world.collectDebugStats().simulation;
+    check("AL-A3/initial-snapshot-has-no-completed-tick",
+          initial.completedTicks == 0);
+
+    const std::array<const char *, WorldSimulationPhaseCount> expectedNames = {
+        "Tick Preparation", "Actor Simulation", "Combat", "Encounter",
+        "Block Random Tick", "Population", "Block Entity Simulation",
+        "Gameplay Runtime"};
+    bool identityOrdered = true;
+    for (std::size_t index = 0; index < expectedNames.size(); ++index) {
+        identityOrdered = identityOrdered &&
+            initial.phases[index].phase ==
+                static_cast<WorldSimulationPhase>(index) &&
+            std::string(worldSimulationPhaseName(
+                initial.phases[index].phase)) == expectedNames[index];
+    }
+    check("AL-A3/phase-identity-and-order-are-frozen", identityOrdered,
+          "phases=" + std::to_string(expectedNames.size()));
+
+    world.tick(4242);
+    const WorldSimulationSnapshot first =
+        world.collectDebugStats().simulation;
+    check("AL-A3/tick-context-is-propagated",
+          first.completedTicks == 1 && first.lastTick == 4242 &&
+              std::abs(first.deltaSeconds -
+                       WorldSimulation::FixedDeltaSeconds) < 0.000001f &&
+              world.getWorldTime() == 4242.f);
+
+    bool timingsValid = std::isfinite(first.tickElapsedMilliseconds) &&
+                        first.tickElapsedMilliseconds >= 0.0;
+    double phaseElapsed = 0.0;
+    for (std::size_t index = 0; index < first.phases.size(); ++index) {
+        const WorldSimulationPhaseTiming &phase = first.phases[index];
+        timingsValid = timingsValid &&
+            phase.phase == static_cast<WorldSimulationPhase>(index) &&
+            std::isfinite(phase.elapsedMilliseconds) &&
+            phase.elapsedMilliseconds >= 0.0;
+        phaseElapsed += phase.elapsedMilliseconds;
+    }
+    check("AL-A3/raw-last-tick-timings-are-observable",
+          timingsValid &&
+              first.tickElapsedMilliseconds + 0.001 >= phaseElapsed,
+          "total_ms=" + std::to_string(first.tickElapsedMilliseconds) +
+              " phase_ms=" + std::to_string(phaseElapsed));
+
+    GameApplicationFlow flow;
+    const bool playing = flow.showWorldList() &&
+                         flow.beginLoading("al-a3-pause") &&
+                         flow.completeLoading(true);
+    if (playing && flow.acceptsWorldSimulation()) {
+        world.tick(4243);
+    }
+    const std::uint64_t beforePause =
+        world.collectDebugStats().simulation.completedTicks;
+    const bool paused = flow.pause();
+    for (int frame = 0; frame < 10; ++frame) {
+        if (flow.acceptsWorldSimulation()) {
+            world.tick(5000 + frame);
+        }
+    }
+    const std::uint64_t afterPause =
+        world.collectDebugStats().simulation.completedTicks;
+    check("AL-A3/caller-owned-pause-gate-freezes-simulation",
+          playing && paused && beforePause == 2 &&
+              afterPause == beforePause);
+
+    const bool resumed = flow.resume();
+    if (resumed && flow.acceptsWorldSimulation()) {
+        world.tick(4244);
+    }
+    const WorldSimulationSnapshot resumedSnapshot =
+        world.collectDebugStats().simulation;
+    check("AL-A3/resume-advances-exactly-one-tick",
+          resumed && resumedSnapshot.completedTicks == 3 &&
+              resumedSnapshot.lastTick == 4244);
+}
+
+// ---------------------------------------------------------------------------
 // E0 - block data and mesh UV generation do not require a graphics context
 // ---------------------------------------------------------------------------
 void caseBlockTextureCoordinates()
@@ -14570,11 +14663,17 @@ int main()
             caseWorldOutcomeAndLocalizedText();
             caseP11EEnemyPresentationAndResonance();
         }
+        else if (focus != nullptr && std::string(focus) == "AL-A3") {
+            caseFixedTickScheduler();
+            casePausedApplicationFlow();
+            caseWorldSimulationRuntime();
+        }
         else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
         caseDebugPanelStartupOption();
         caseFixedTickScheduler();
+        caseWorldSimulationRuntime();
         caseWorldEnvironment();
         caseBlockTextureCoordinates();
         caseRuntimeConfigOwnership();

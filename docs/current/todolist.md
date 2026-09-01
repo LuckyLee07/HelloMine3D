@@ -38,7 +38,7 @@ HelloMine3D 是 **以真实可玩的单机体素沙盒为载体的 C++ Architect
 | 可玩载体 | 创建世界 → 采集 → 制作 → 工具成长 → 冶炼/食物 → 战斗 → 探索 → 路标胜利 → 胜利后事件 → 保存重开已经贯通。 |
 | 玩法与视觉 | Stage 9、Stage 10/VISUAL-RC、Stage 11/P11F 已完成 Windows 自动工程范围；Stage 11 待开发代码批次为 0。 |
 | 世界可靠性 | 世界目录、事务保存、有界备份、验证恢复、世界管理和主菜单入口已经完成；当前 world save format 为 v12。 |
-| 自动门禁 | VS2017/v141 双配置、832/832 世界、80/80 资源包、122/122 配方、15/15 启动负例和 104 项干净包通过。 |
+| 自动门禁 | VS2017/v141 双配置、838/838 世界、80/80 资源包、122/122 配方、15/15 启动负例和 104 项干净包通过。 |
 | 性能与诊断 | 六类正式 Q1、nominal/stress 各 1800 秒 Q3、崩溃 dump、脱敏 sidecar、离线符号和独立符号归档已闭环。 |
 | AI/Computer Use | `AI-01..AI-08=NOT_RUN`；没有外部玩家依赖，具备 OS 级 Computer Use 时按当前验收规范执行。 |
 | 人类体验 | 乐趣、审美、舒适度和物理设备手感统一为 `NOT_CLAIMED`。 |
@@ -53,15 +53,16 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 | `AL-A0` Latest Architecture Baseline | `Done` | 架构、依赖、性能、验证与 AI 证据身份已冻结；VS2017/v141 Debug/Release 完整门禁和 real window 通过，没有受跟踪 Gameplay/runtime/resource/build input 改动。详见 `docs/reports/architecture-lab-baseline-v1.md`。 |
 | `AL-A1` World Responsibility Map | `Done` | 78 个公开方法已按 3 个 API concept / 9 个 responsibility 分类；public-surface hash 和集合一致性门禁已接入完整 Windows 验证，VS2017/v141 Debug/Release、832/832 世界、80/80 资源、122/122 配方、15/15 启动负例、104 项干净包与 real window 全部 PASS。没有迁移旧调用、增加 Facade wrapper 或开始 AL-A2。 |
 | `AL-A2` Chunk Runtime Boundary | `Done` | 既有 Chunk Update Queue、Mesh Work Planner、单 loader 及 preload/unload 协调已迁入 `ChunkRuntime`；World 公开面、共享锁、预算、save v12 与 unload 语义保持不变，没有引入 B1 Residency 状态机。VS2017/v141 Debug/Release 完整门禁、两轮 832/832 世界和 104 项干净包通过。详见 `docs/reports/architecture-lab-a2-chunk-runtime-report-v1.md`。 |
+| `AL-A3` Simulation Runtime | `Done` | 具体 `WorldSimulation` 已承接既有 20 Hz fixed-tick 编排；8 phase 顺序、context、最近一次 tick 原始耗时和 caller-owned pause 均有自动门禁，玩法所有权与 78 项 World 公开面不变，没有引入 A5 Scheduler/Metrics/Budget。VS2017/v141 Debug/Release、两轮 838/838 世界和 104 项隔离包通过。详见 `docs/reports/architecture-lab-a3-world-simulation-report-v1.md`。 |
 
 ## 下一候选
 
 | 批次 | 状态 | 目标 | 进入条件 | 退出边界 |
 | ---- | ---- | ---- | -------- | -------- |
-| `AL-A3` Simulation Runtime | `Queued` | 在不抢跑玩法迁移的前提下建立统一 Simulation 调度入口。 | AL-A2 完成、证据冻结后再次获得项目所有者独立批准。 | 当前只是未批准候选，不构成开发承诺。 |
+| `AL-A4` Event / Command / Query Boundary | `Queued` | 冻结请求改变、已发生事实和状态查询的语义边界。 | AL-A3 完成、证据冻结后再次获得项目所有者独立批准。 | 当前只是未批准候选，不构成开发承诺。 |
 
-`AL-A2 Chunk Runtime Boundary` 已完成。A2 只迁移现有 Chunk 调度行为，B1 才允许引入新的
-Residency 状态机；AL-A3 不会由本批自动启动，当前仍等待项目所有者独立批准。
+`AL-A3 Simulation Runtime` 已完成并冻结证据。当前没有正在开发的已批准批次；A5 才允许定义统一
+Metrics / Budget，`AL-A4` 仍须项目所有者再次独立批准，不会由 A3 自动启动。
 
 ## 当前阻塞
 
@@ -70,7 +71,7 @@ Residency 状态机；AL-A3 不会由本批自动启动，当前仍等待项目�
   `Engineering Done`，但 Track 不得标记 `AI Playability PASS`。
 - 严格 `AI-06` 还要求 package-only 文件系统访问；仅切换工作目录但仓库仍可读取时记录
   `BLOCKED`，不能声明 blind PASS。
-- 当前没有已批准的开发批次；`AL-A3` 只是待批准候选。
+- 当前没有已知实现阻塞，也没有已批准的在途批次。
 
 ## 待执行验收
 

@@ -79,6 +79,40 @@ headless gates. The isolated package contains 104 entries and has SHA-256
 Because the run deliberately skipped a focus-stealing window, its real-window
 result is `DEFERRED`, not `PASS`; AI acceptance remains `NOT_RUN`.
 
+## AL-A3 Simulation Runtime Evidence
+
+AL-A3 preserves `World::tick(int)` as the public entry and delegates its prior
+fixed-tick body to one concrete `WorldSimulation`. Three static gates compose:
+
+```powershell
+& .\tools\validate_world_responsibility_map.ps1
+& .\tools\validate_chunk_runtime_boundary.ps1 -Root (Get-Location).Path
+& .\tools\validate_world_simulation_boundary.ps1 -Root (Get-Location).Path
+```
+
+The A1 gate keeps the 78-method public surface and hash unchanged. The A3 gate
+checks the eight frozen phases and source call order, single delegation, raw
+last-tick timing, caller-owned Ogre pause gate and absence of Scheduler,
+Registry, Budget or deferred-work abstractions.
+
+The `HELLOMINE3D_WORLD_SMOKE_FOCUS=AL-A3` path supplies behavioral evidence:
+
+| Assertions | AL-A3 property |
+| ---------- | -------------- |
+| `AL-A3/initial-snapshot-has-no-completed-tick` | Observation starts empty and cannot masquerade as a completed tick. |
+| `AL-A3/phase-identity-and-order-are-frozen` | Eight copied timing rows retain the contract order. |
+| `AL-A3/tick-context-is-propagated` | Caller tick and the existing 20 Hz delta reach the snapshot. |
+| `AL-A3/raw-last-tick-timings-are-observable` | Each phase and whole tick expose a usable raw sample. |
+| `AL-A3/caller-owned-pause-gate-freezes-simulation` | Rejected application flow emits no World tick. |
+| `AL-A3/resume-advances-exactly-one-tick` | Resume keeps the existing bounded scheduler behavior. |
+
+The ordinary Debug World runtime passes `838/838`, including all existing
+random-tick, Actor, combat, population, furnace, progression, save and
+determinism cases. Full VS2017/v141 Debug/Release and clean-package identity are
+frozen in `docs/reports/architecture-lab-a3-world-simulation-report-v1.md`.
+Raw timing is diagnostic only: this batch makes no new Q1/Q3 performance claim,
+and AI acceptance remains independently classified.
+
 ## World Runtime Smoke
 
 `src/HelloMine3D/Tests/WorldRuntimeSmokeMain.cpp` links the whole game runtime

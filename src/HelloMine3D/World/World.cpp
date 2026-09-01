@@ -306,6 +306,7 @@ World::World(const Camera &camera, const Config &config, Player &player,
              int initialPreloadRadius)
     : m_chunkManager(*this, chunkDirectoryForSave(saveDirectory))
     , m_chunkRuntime(m_chunkManager, m_mainMutex, config.renderDistance)
+    , m_worldSimulation(*this)
     , m_player(&player)
     , m_worldSave(resolveSaveDirectory(saveDirectory))
     , m_worldBackup(resolveSaveDirectory(saveDirectory))
@@ -1023,49 +1024,10 @@ void World::runRandomTicks(int worldTime)
 void World::tick(int worldTime)
 {
     HELLOMINE3D_PROFILE_SCOPE("World::tick");
-    applyPendingDifficulty();
-    m_worldSaveData.worldTime = static_cast<float>(worldTime);
-    m_combatRaycastsUsed = 0;
-    m_combatRaycastBudgetDenied = 0;
-    m_combatChaseStepsUsed = 0;
-    m_combatChaseStepBudgetDenied = 0;
-    m_combatProjectileStepsUsed = 0;
-    m_combatProjectileStepBudgetDenied = 0;
-    if (m_playerGuardRecoverTicksRemaining > 0) {
-        --m_playerGuardRecoverTicksRemaining;
-    }
-    if (m_playerCombatFeedback.ticksRemaining > 0) {
-        --m_playerCombatFeedback.ticksRemaining;
-        if (m_playerCombatFeedback.ticksRemaining == 0) {
-            m_playerCombatFeedback.kind = PlayerCombatFeedbackKind::None;
-            m_playerCombatFeedback.direction = CombatDirection::None;
-            m_playerCombatFeedback.sourceId = InvalidActorId;
-        }
-    }
-    if (m_player != nullptr) {
-        m_playerActor.syncFromPlayer(*m_player);
-    }
-    m_playerActor.tick(*this, 1.f / 20.f);
-    m_foodCooldownTicksRemaining =
-        std::max(0, m_foodCooldownTicksRemaining - 1);
-    m_attackCooldownTicksRemaining =
-        std::max(0, m_attackCooldownTicksRemaining - 1);
-    m_waystoneResonanceCooldownTicks = std::max(
-        0, m_waystoneResonanceCooldownTicks - 1);
-    m_actorManager.tick(*this, 1.f / 20.f);
-    tickCombatProjectiles();
-    reconcileWaystoneEncounter();
-    runRandomTicks(worldTime);
-    runNaturalMobPopulation(worldTime);
-    if (runtimeSmeltingRegistry().isFrozen()) {
-        FurnaceContainer::tickLoaded(*this, runtimeSmeltingRegistry());
-    }
-    if (m_alphaJourney != nullptr) {
-        m_alphaJourney->update(1.f / 20.f);
-    }
-    if (m_playerRespawnPending) {
-        respawnPlayer();
-    }
+    WorldTickContext context;
+    context.tick = worldTime;
+    context.deltaSeconds = WorldSimulation::FixedDeltaSeconds;
+    m_worldSimulation.fixedTick(context);
 }
 
 bool World::attackActor(ActorId actorId)
@@ -3084,6 +3046,7 @@ WorldDebugStats World::collectDebugStats()
 
     WorldDebugStats stats;
     stats.chunks = m_chunkManager.collectDebugStats();
+    stats.simulation = m_worldSimulation.snapshot();
     stats.chunks.saveTransactions += m_worldSaveTransactionCount;
     stats.chunks.saveTotalMs += m_worldSaveTotalMs;
     stats.chunks.saveMaxMs =

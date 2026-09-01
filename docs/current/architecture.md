@@ -1,6 +1,6 @@
 # HelloMine3D Current Architecture Baseline
 
-本文以 `AL-A0 — Latest Architecture Baseline` 的完整审计为起点，并随已完成的 AL-A1/AL-A2
+本文以 `AL-A0 — Latest Architecture Baseline` 的完整审计为起点，并随已完成的 AL-A1/AL-A2/AL-A3
 更新当前实现；它描述代码事实，而不是未来目标架构。
 审计起点为 Git commit `4930023fb2f3022daac9968c10a1a0b76e1ac392`；冻结的
 PLAYABILITY-RC 运行时代码身份仍是
@@ -69,6 +69,7 @@ SandboxRuntime
 
 World (composition root)
   -> ChunkRuntime -> ChunkManager
+  -> WorldSimulation -> existing World/Actor/Gameplay implementations
   -> ActorManager + PlayerActor + Gameplay runtimes
   -> SandboxEventBus + WorldSave + WorldBackup
 
@@ -90,6 +91,8 @@ Core / Entity / Physics / Maths / Util
   强制分层。订阅者不得假设异步或跨线程投递。
 - `World` 仍是宽 facade/组合根，但 AL-A2 已把现有 Chunk 派生工作与 loader 协调移入
   `ChunkRuntime`；这不是 B1 Residency 状态机。
+- AL-A3 已把 `World::tick` 的现有调用顺序集中到具体 `WorldSimulation`；它只拥有编排和最近一次
+  tick 的原始 phase timing，不拥有玩法状态，也不是 A5 的通用 scheduler/budget。
 
 ## 4. World Public API Surface
 
@@ -209,8 +212,9 @@ Core / Entity / Physics / Maths / Util
 
 当前调用关系把边界进一步钉死：`SandboxRuntime/WorldManager` 驱动 `tick/update` 和玩家命令，
 `OgreBootstrap` 消费 mesh/Actor/diagnostic snapshot 并确认 upload，Actor/Block/Interaction 代码通过
-Combat、Actor、World Mutation 与 EventBus 入口协作。AL-A2 保持这些调用者和 78 项公开面不变，
-只把 Streaming 方法的内部实现转发给 `ChunkRuntime`。
+Combat、Actor、World Mutation 与 EventBus 入口协作。AL-A2/AL-A3 都保持这些调用者和 78 项公开面
+不变：Streaming 方法内部转发给 `ChunkRuntime`，20 Hz `World::tick(int)` 内部转发给
+`WorldSimulation::fixedTick`。
 
 该表解释了 AL-A1 的真实动机：查询、命令、模拟、流送、持久化、Actor、战斗、进度和诊断目前
 都暴露在一个 facade 中。A1 只冻结责任与新增入口规则，不改变旧调用者或兼容性。
@@ -219,7 +223,7 @@ Combat、Actor、World Mutation 与 EventBus 入口协作。AL-A2 保持这些�
 
 | Member group | Members | Current responsibility |
 | ------------ | ------- | ---------------------- |
-| Core composition | `m_chunkManager`, `m_chunkRuntime`, `m_actorManager`, `m_playerActor`, `m_eventBus`, `m_player` | World 按值拥有 Chunk 权威存储、Chunk 派生工作协调、Actor/Event 生命周期；SandboxRuntime 拥有 Player，World 保存 non-owning pointer 并维护战斗 Actor 镜像。 |
+| Core composition | `m_chunkManager`, `m_chunkRuntime`, `m_worldSimulation`, `m_actorManager`, `m_playerActor`, `m_eventBus`, `m_player` | World 按值拥有 Chunk 权威存储、Chunk 派生工作协调、fixed-tick 编排和 Actor/Event 生命周期；SandboxRuntime 拥有 Player，World 保存 non-owning pointer 并维护战斗 Actor 镜像。 |
 | Persistence | `m_worldSave`, `m_worldBackup`, `m_worldSaveData`, save counters/timings | 元数据读写、整世界备份、当前保存 payload 与可观察耗时。 |
 | Progression | `m_alphaJourney`, `m_victoryFlow`, Waystone anchor/state/guardian ids/cooldown/feedback | 目标兼容视图、结局、遭遇和胜利后状态。 |
 | Frame command/event queue | `m_events` | `PlayerDigEvent` 等延迟到 `World::update` 处理；区别于同步 typed event bus。 |
@@ -228,6 +232,7 @@ Combat、Actor、World Mutation 与 EventBus 入口协作。AL-A2 保持这些�
 | Chunk runtime coordination | `m_chunkRuntime` 内的 update deque/set、loader thread、load center/revisions、unload scan、frustum priority snapshot | 一个后台 Chunk worker、同步 mesh budget、预载/卸载和 Camera 派生需求；这些都是派生/协调状态。 |
 | Shared Chunk lock | `m_mainMutex` | 仍由 World 拥有并先于 `ChunkRuntime` 构造；Runtime 只持 non-owning 引用，保护 loaded Chunk/section 权威状态。 |
 | Player combat runtime | spawn point、cooldowns、projectile vector/id/counters、guard/feedback/respawn state | 固定 tick 的当前战斗真值；projectile render snapshot 从这里派生。 |
+| Simulation orchestration | `m_worldSimulation` | 按冻结的 8 phase 顺序调用现有实现，并保存最近一次 tick 的非持久化原始耗时；不拥有 gameplay truth、pause state 或预算。 |
 
 ## 6. ChunkRuntime and ChunkManager Boundary
 
@@ -331,12 +336,15 @@ Ogre::frameStarted
                    -> WorldManager::tick
                         -> ++worldTime
                         -> World::tick(worldTime)
-                             -> apply pending difficulty
-                             -> player/actor tick
-                             -> projectiles + Waystone reconciliation
-                             -> random ticks + natural population
-                             -> loaded furnace tick
-                             -> AlphaJourney update + respawn
+                             -> WorldSimulation::fixedTick(context)
+                                  1. TickPreparation
+                                  2. ActorSimulation
+                                  3. Combat
+                                  4. Encounter
+                                  5. BlockRandomTick
+                                  6. Population
+                                  7. BlockEntitySimulation
+                                  8. GameplayRuntime
             -> update Camera from interpolated Player
             -> selection + one resolved GameplayWorldAction
             -> queue dig/use/place or perform food/combat path
@@ -352,8 +360,10 @@ Ogre::frameRenderingQueued
 Ogre::frameEnded -> capture + performance record + exit/crash gates
 ```
 
-暂停或非 Playing 状态由 `GameApplicationFlow` 阻止 Sandbox simulation；渲染、UI 和必要的应用处理
-仍可继续。fixed tick 顺序是当前 Gameplay contract，但尚未被 D1 拆成可预算 phase scheduler。
+暂停或非 Playing 状态由 `GameApplicationFlow` 在进入 `SandboxRuntime::update` 之前阻止 simulation；
+`WorldSimulation` 不复制 pause 状态，渲染、UI 和必要的应用处理仍可继续。每个完成 tick 记录 8 项
+phase 与整 tick 的 `steady_clock` 原始毫秒值，通过 `WorldDebugStats` 的复制快照显示在开发者面板；
+这些值不持久化、不进入确定性比较，也还不是 A5 的平均值、预算、overrun 或 deferred-work 语义。
 
 ## 11. Render Snapshot Chain
 
@@ -399,11 +409,13 @@ block、Actor、inventory、objective or persistence truth。
 这些版本属于不同兼容性域，不能用 world save v12 推断其他定义已迁移，也不能因重建派生数据而
 静默改写 terrain identity。任何后续 Architecture Lab 批次都必须在自己的合同中列出受影响域。
 
-## 13. Current Conclusions Through AL-A2
+## 13. Current Conclusions Through AL-A3
 
 - 当前可玩的系统已经有清晰的 Renderer-to-Snapshot 边界和可验证持久化边界。
-- `World` 仍承担 facade、组合根和多套 Simulation 玩法实现；AL-A2 只关闭了已被真实 Chunk 工作
-  验证的一条内部边界，没有试图一次性拆完 God Object。
+- `World` 仍承担 facade、组合根和多套 Simulation 玩法状态；AL-A2/AL-A3 只关闭了两条由真实工作
+  验证的内部边界，没有试图一次性拆完 God Object。
 - Chunk pipeline 的 snapshot/off-lock/revision-commit、FIFO、预算和 unload/save 语义现在集中在
   `ChunkRuntime` / `ChunkManager` 边界；没有通用取消、背压或三态 Residency 合同。
-- AL-A3 和 B1 都必须再次独立批准；A2 完成不构成自动启动权限。
+- fixed-tick 的 8 phase 顺序、context 和 last-tick 原始耗时现在集中在 `WorldSimulation`；玩法状态与
+  旧实现仍由 World/Actor/Gameplay 所有，没有 `SimulationScheduler`、系统 Registry 或统一预算。
+- AL-A4、AL-A5 和 B1 都必须再次独立批准；A3 完成不构成自动启动权限。

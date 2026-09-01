@@ -27,5 +27,7 @@
 
 `AL-A0` 已完成基线审计与文档冻结；`AL-A1` 已完成 `World` 责任地图和新增公开 API 门禁；
 `AL-A2` 已把既有 Chunk update/mesh/loader 协调迁入 `ChunkRuntime`，没有引入 Residency 状态机。
+`AL-A3` 已把现有 20 Hz fixed-tick 顺序集中到具体 `WorldSimulation`，并只增加最近一次 tick 的
+8 phase 原始耗时观察，没有引入 A5 scheduler/budget。
 开始后续 Sprint 前，仍必须在 `todolist.md` 中写明独立批准、真实游戏需求、合同、可观察 Demo、
-自动门禁和对应 AI 场景；当前下一候选是尚未批准的 `AL-A3`。
+自动门禁和对应 AI 场景；当前下一候选是尚未批准的 `AL-A4`。

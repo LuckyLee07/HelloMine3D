@@ -1,7 +1,8 @@
 # HelloMine3D Architecture Lab Tutorial
 
 > Living tutorial status: Part 00 covers the completed AL-A0 baseline and AL-A1
-> responsibility map; Part 01 covers the completed AL-A2 Chunk runtime boundary.
+> responsibility map; Part 01 covers the completed AL-A2 Chunk runtime boundary;
+> Part 02 covers the completed AL-A3 Simulation runtime boundary.
 > Later Parts are added only after their
 > implementation batch is approved and verified; this file does not pre-create
 > empty Sprint chapters.
@@ -236,3 +237,97 @@ Related evidence:
 - `docs/contracts/chunk-runtime-boundary-contract-v1.md`
 - `docs/reports/architecture-lab-a2-chunk-runtime-report-v1.md`
 - `tools/validate_chunk_runtime_boundary.ps1`
+
+## Part 02 — Fixed Tick is the simulation time spine
+
+### 2.1 Problem Scenario
+
+The playable game already advances many kinds of authoritative state at 20 Hz:
+pending difficulty, player and mob actors, combat projectiles, the Waystone
+encounter, random block ticks, population, furnaces, objectives and respawn.
+Before AL-A3, their order was encoded as one long body in `World::tick`. The
+order was real gameplay behavior, but it had no named observation boundary.
+
+That makes two ordinary questions unnecessarily hard: which part of a tick is
+expensive, and where may a new simulation feature join without silently moving
+combat before actors or population before random ticks?
+
+### 2.2 Naive Solution
+
+A generic scheduler can appear to solve both problems at once: define an
+`ISandboxSystem`, register every system, attach priorities and budgets, then let
+the scheduler decide what runs. It also looks attractive to move all gameplay
+state into the new runtime while touching the call order.
+
+### 2.3 Why that fails
+
+The current game has not demonstrated a shared scheduling problem across three
+independent systems. Introducing interfaces, registries, budgets and deferred
+work now would encode hypothetical needs. At the same time, moving ownership or
+reordering calls would change cooldown, attack, furnace, objective and respawn
+semantics under the cover of a refactor. A second pause flag would create two
+sources of truth for whether simulation may advance.
+
+### 2.4 Design Evolution
+
+AL-A3 introduces one concrete coordinator and keeps the compatibility chain:
+
+```text
+GameApplicationFlow pause gate
+  -> SandboxRuntime / FixedTickScheduler
+  -> WorldManager::tick
+  -> World::tick(int)
+  -> WorldSimulation::fixedTick(WorldTickContext)
+```
+
+`World` owns `WorldSimulation`; the runtime only keeps a non-owning `World&`.
+Existing state and phase implementations stay where they are. This is an
+orchestration boundary, not an ownership transfer.
+
+### 2.5 Tick Context, phases and raw timing
+
+The context contains only the caller tick and the existing `1/20` second delta.
+The frozen order is:
+
+```text
+TickPreparation -> ActorSimulation -> Combat -> Encounter
+  -> BlockRandomTick -> Population -> BlockEntitySimulation
+  -> GameplayRuntime
+```
+
+Every completed tick replaces one copied `WorldSimulationSnapshot`: completed
+count, tick, delta, whole-tick milliseconds and one `steady_clock` sample per
+phase. The values are developer observations. They are not saved, replayed or
+used to change behavior, and they do not yet define averages, budgets,
+overruns, priorities or deferred work.
+
+### 2.6 Implementation and Validation
+
+`src/HelloMine3D/World/Simulation/WorldSimulation.*` contains the coordinator.
+`World::collectDebugStats` copies its last snapshot, and the Ogre developer
+panel prints the whole tick plus all phase rows. The focused static gate is:
+
+```powershell
+& .\tools\validate_world_simulation_boundary.ps1 -Root (Get-Location).Path
+```
+
+The `AL-A3` WorldRuntime focus checks phase identity/order, context propagation,
+finite non-negative samples, caller-owned pause and exact single-tick resume.
+The full smoke keeps deterministic random ticks, Actor/combat/population,
+furnace, progression, save and replay-sensitive behavior under the same gate.
+
+### 2.7 Trade-offs
+
+`WorldSimulation` currently uses friendship to call private legacy
+implementations. That coupling is explicit and narrow, but it is not the final
+module boundary. Raw timers add observation overhead and one last-tick sample
+cannot support performance policy. Both limitations are preferable to
+inventing A5 before evidence exists. A4 may later clarify command/query/event
+semantics, and A5 may define metrics and budgets, but each requires separate
+approval and a frozen contract.
+
+Related evidence:
+
+- `docs/contracts/world-simulation-boundary-contract-v1.md`
+- `docs/reports/architecture-lab-a3-world-simulation-report-v1.md`
+- `tools/validate_world_simulation_boundary.ps1`

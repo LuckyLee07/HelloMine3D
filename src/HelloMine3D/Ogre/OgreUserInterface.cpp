@@ -3120,6 +3120,18 @@ class OgreUserInterface::Impl
                         static_cast<unsigned long long>(
                             worldStats.randomTicksDispatched));
             ImGui::Separator();
+            ImGui::Text(
+                "Simulation tick / dt / total ms: %d / %.3f / %.3f",
+                worldStats.simulation.lastTick,
+                worldStats.simulation.deltaSeconds,
+                worldStats.simulation.tickElapsedMilliseconds);
+            for (const WorldSimulationPhaseTiming &phase :
+                 worldStats.simulation.phases) {
+                ImGui::Text("  %s: %.3f ms",
+                            worldSimulationPhaseName(phase.phase),
+                            phase.elapsedMilliseconds);
+            }
+            ImGui::Separator();
             ImGui::Text("Sections: %llu",
                         static_cast<unsigned long long>(
                             worldStats.chunks.sections));

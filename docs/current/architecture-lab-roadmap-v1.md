@@ -557,6 +557,18 @@ struct WorldTickContext {
 
 **Chapter 04：Fixed Tick 是沙盒模拟的时间骨架**
 
+### 当前实现记录
+
+`AL-A3` 已于 2026-09-01 独立批准并按最小边界实现：`World::tick(int)` 保持唯一兼容入口，具体
+`WorldSimulation` 依次执行 `TickPreparation`、`ActorSimulation`、`Combat`、`Encounter`、
+`BlockRandomTick`、`Population`、`BlockEntitySimulation`、`GameplayRuntime`。`WorldTickContext`
+只携带调用者 tick 与既有 `1/20` 秒 delta；debug snapshot 只记录最近一次 tick 的原始 phase/总耗时。
+
+玩法状态仍归 World、Actor 与既有 Gameplay runtime 所有；暂停仍由 application-flow gate 控制。
+本批没有增加 `SimulationScheduler`、`ISandboxSystem`、Registry、`SimulationBudget` 或 deferred slot，
+统一 metrics/budget 仍属于需独立批准的 A5。自动证据与取舍见
+`docs/reports/architecture-lab-a3-world-simulation-report-v1.md`；完成 A3 不自动批准 A4/A5/D1。
+
 ---
 
 ## A4 — Event / Command / Query Boundary
