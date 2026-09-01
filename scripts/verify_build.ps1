@@ -43,6 +43,8 @@ $chunkRuntimeBoundaryVerifier = Join-Path $repoRoot `
     "tools\validate_chunk_runtime_boundary.ps1"
 $worldSimulationBoundaryVerifier = Join-Path $repoRoot `
     "tools\validate_world_simulation_boundary.ps1"
+$eventCommandQueryBoundaryVerifier = Join-Path $repoRoot `
+    "tools\validate_event_command_query_boundary.ps1"
 
 function Invoke-Checked {
     param(
@@ -163,6 +165,10 @@ try {
 
     Invoke-Checked "AL-A3 World simulation boundary" {
         & $worldSimulationBoundaryVerifier -Root $repoRoot
+    }
+
+    Invoke-Checked "AL-A4 Event command query boundary" {
+        & $eventCommandQueryBoundaryVerifier -Root $repoRoot
     }
 
     Invoke-Checked "Resource manifest" {

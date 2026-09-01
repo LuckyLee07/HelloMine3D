@@ -442,7 +442,10 @@ World::World(const Camera &camera, const Config &config, Player &player,
         SandboxEventType::EntityDeath,
         [this](const SandboxEvent &event) {
             handleWaystoneGuardianDeath(event);
-        });
+        },
+        SandboxEventSubscriptionOptions::domainMutation(
+            "World.WaystoneGuardianDeath",
+            SandboxEventRepublishPolicy::Bounded));
     reconcileWaystoneEncounter();
 
     // Restore retained actors and objectives before persisting the repaired
@@ -2964,10 +2967,10 @@ void World::update(const Camera &camera)
     HELLOMINE3D_PROFILE_SCOPE("World::update");
     m_chunkRuntime.updateLoadCenter(camera);
 
-    for (auto &event : m_events) {
-        event->handle(*this);
+    for (auto &command : m_commands) {
+        command->execute(*this);
     }
-    m_events.clear();
+    m_commands.clear();
 
     m_chunkRuntime.unloadDistantChunks(camera);
     m_chunkRuntime.processChunkUpdates(

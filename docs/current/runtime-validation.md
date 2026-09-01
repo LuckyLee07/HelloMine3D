@@ -113,6 +113,52 @@ frozen in `docs/reports/architecture-lab-a3-world-simulation-report-v1.md`.
 Raw timing is diagnostic only: this batch makes no new Q1/Q3 performance claim,
 and AI acceptance remains independently classified.
 
+## AL-A4 Event / Command / Query Boundary Evidence
+
+AL-A4 preserves the existing frame-owned interaction FIFO and synchronous,
+World-local fact delivery while making their meanings enforceable. Four static
+gates now compose:
+
+```powershell
+& .\tools\validate_world_responsibility_map.ps1
+& .\tools\validate_chunk_runtime_boundary.ps1 -Root (Get-Location).Path
+& .\tools\validate_world_simulation_boundary.ps1 -Root (Get-Location).Path
+& .\tools\validate_event_command_query_boundary.ps1 -Root (Get-Location).Path
+```
+
+The reviewed public surface remains 78 method names, now with `addCommand`
+classified as a Command and SHA-256
+`8B2CDDF30B70DA91D5EF4944D7E1397BC9434EB0E129B9313DA471143F653EC4`.
+The A4 gate rejects a second event-as-command vocabulary, undeclared production
+subscriber effects, missing recursion/diagnostic guards and future
+Network-to-Ogre or Machine-to-UI/Presentation dependency drift.
+
+The `HELLOMINE3D_WORLD_SMOKE_FOCUS=AL-A4` path passes `35/35`; eight new
+assertions provide the boundary evidence:
+
+| Assertions | AL-A4 property |
+| ---------- | -------------- |
+| `AL-A4/current-events-are-immutable-domain-facts` | Current facts expose immutable type/category identity. |
+| `AL-A4/observer-delivery-is-synchronous-and-declared` | Observer delivery remains immediate and explicitly classified. |
+| `AL-A4/observer-cannot-hide-nested-publication` | Observe-only handlers cannot turn notification into a hidden command chain. |
+| `AL-A4/declared-domain-reaction-may-publish-bounded-fact` | The documented Waystone-style domain reaction may publish a nested fact. |
+| `AL-A4/recursive-publication-has-hard-depth-limit` | Synchronous recursion stops at eight active dispatch frames. |
+| `AL-A4/diagnostic-event-cannot-drive-domain-mutation` | Diagnostic facts are rejected for mutation handlers. |
+| `AL-A4/subscription-membership-is-snapshotted-per-publication` | Handler-side membership changes affect later publications only. |
+| `AL-A4/handler-exception-restores-dispatch-boundary` | Exceptions propagate without corrupting depth/policy state. |
+
+The 2026-09-01 closeout ran
+`scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`. Debug and
+Release each pass the complete `846/846` World runtime stack; resource packs
+pass `80/80`, recipes `122/122`, startup negatives `15/15`, both short soaks
+and every remaining headless target. The isolated package contains 104 entries
+and has SHA-256
+`0E33793CD2F504662712C79184AACECF544C5548C39E496431D2ACACCE07FA77`.
+The Release executable is 8,760,832 bytes with SHA-256
+`AE184322BD709A0801C0602BFBBDB3A690D35113F4004BD5D450D6732F076E5F`.
+Real-window launch is `DEFERRED`, AI acceptance remains `NOT_RUN`, and human
+subjective experience remains `NOT_CLAIMED`.
+
 ## World Runtime Smoke
 
 `src/HelloMine3D/Tests/WorldRuntimeSmokeMain.cpp` links the whole game runtime

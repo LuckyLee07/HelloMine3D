@@ -107,3 +107,11 @@ Computer Use record is produced.
 AL-A2 may only be started after separate owner approval. Its previewed scope is
 limited to moving existing Chunk Update, Mesh Work and loader coordination;
 new residency/mesh/render state machines remain a Track B concern.
+
+## 8. AL-A4 reviewed migration note
+
+AL-A4 later renamed the misleading public `addEvent` command entry to
+`addCommand` without changing the 78-name / 45 Query / 31 Command / 2 Runtime
+Tick counts. The v1 identity above remains the historical AL-A1 evidence; the
+current machine-checked map records the reviewed A4 public-surface SHA-256
+`8B2CDDF30B70DA91D5EF4944D7E1397BC9434EB0E129B9313DA471143F653EC4`.

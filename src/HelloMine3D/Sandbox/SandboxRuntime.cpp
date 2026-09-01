@@ -7,7 +7,7 @@
 #include "../Diagnostics/RuntimePerformanceCapture.h"
 #include "../Diagnostics/RuntimeProfiler.h"
 #include "../World/Block/BlockDatabase.h"
-#include "../World/Event/PlayerDigEvent.h"
+#include "../World/Command/PlayerBlockInteractionCommand.h"
 #include "../World/Interaction/BlockInteractionSystem.h"
 
 SandboxRuntime::SandboxRuntime(const Config &config, Camera &camera,
@@ -272,8 +272,8 @@ void SandboxRuntime::handlePlayerInteraction(
                 held.getMaterial().id, evaluation.requiredSeconds,
                 deltaSeconds)) {
             m_interactionCooldownSeconds = 0.2f;
-            world.addEvent<PlayerDigEvent>(
-                PlayerDigAction::Break,
+            world.addCommand<PlayerBlockInteractionCommand>(
+                PlayerBlockInteractionAction::Break,
                 glm::vec3(selection.blockPosition), m_player);
         }
     }
@@ -284,9 +284,9 @@ void SandboxRuntime::handlePlayerInteraction(
         }
         const BlockSelection &selection = *m_blockSelection;
         m_interactionCooldownSeconds = 0.2f;
-        world.addEvent<PlayerDigEvent>(PlayerDigAction::Use,
-                                       glm::vec3(selection.blockPosition),
-                                       m_player);
+        world.addCommand<PlayerBlockInteractionCommand>(
+            PlayerBlockInteractionAction::Use,
+            glm::vec3(selection.blockPosition), m_player);
     }
     else if (action == GameplayWorldAction::Place) {
         m_miningProgress.cancel();
@@ -295,8 +295,8 @@ void SandboxRuntime::handlePlayerInteraction(
         }
         const BlockSelection &selection = *m_blockSelection;
         m_interactionCooldownSeconds = 0.2f;
-        world.addEvent<PlayerDigEvent>(
-            PlayerDigAction::Place,
+        world.addCommand<PlayerBlockInteractionCommand>(
+            PlayerBlockInteractionAction::Place,
             glm::vec3(selection.placementPosition), m_player);
     }
     else {

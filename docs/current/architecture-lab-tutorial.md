@@ -2,7 +2,8 @@
 
 > Living tutorial status: Part 00 covers the completed AL-A0 baseline and AL-A1
 > responsibility map; Part 01 covers the completed AL-A2 Chunk runtime boundary;
-> Part 02 covers the completed AL-A3 Simulation runtime boundary.
+> Part 02 covers the completed AL-A3 Simulation runtime boundary; Part 03
+> covers the completed AL-A4 Event / Command / Query boundary.
 > Later Parts are added only after their
 > implementation batch is approved and verified; this file does not pre-create
 > empty Sprint chapters.
@@ -331,3 +332,115 @@ Related evidence:
 - `docs/contracts/world-simulation-boundary-contract-v1.md`
 - `docs/reports/architecture-lab-a3-world-simulation-report-v1.md`
 - `tools/validate_world_simulation_boundary.ps1`
+
+## Part 03 — An event system is not a global broadcast
+
+### 3.1 Problem Scenario
+
+The game already had two mechanisms called “event”. Input queued a
+`PlayerDigEvent` for `World::update`, even though Break, Use and Place were
+requests that might be rejected. Separately, `SandboxEventBus` synchronously
+published facts such as `BlockBreakEvent`, `EntityDeathEvent` and
+`CraftCompletedEvent` after outcomes occurred.
+
+That naming collision hides causality. It also leaves a harder problem: event
+handlers can modify objectives or Waystone state and can indirectly publish
+more events. With no declared effect or recursion rule, a convenient global
+broadcast can become an invisible command graph.
+
+### 3.2 Naive Solution
+
+One response is to make every operation an event and let subscribers decide
+what happens. Another is to ban every mutation and nested publication from
+handlers. The first removes any visible authority for state change. The second
+cannot express the real Waystone flow, where handling a guardian death may
+spawn the next wave and therefore publish actor facts.
+
+### 3.3 Why that fails
+
+An unbounded broadcast graph has several concrete failure modes:
+
+- an observer can publish another fact and silently become a command;
+- `Event -> mutation -> Event` can recurse until stack exhaustion;
+- unsubscribing during vector iteration can invalidate the active traversal;
+- diagnostic telemetry can accidentally advance Gameplay;
+- Audio, UI, future Network and Machine code can become coupled through a bus
+  whose handlers have no documented effects.
+
+Conversely, a blanket prohibition would move legitimate domain reactions back
+into `World` and erase the architectural boundary the game actually needs.
+
+### 3.4 Design Evolution
+
+AL-A4 separates the vocabulary first:
+
+```text
+Player input -> IWorldCommand FIFO -> authoritative mutation
+             -> immutable Domain Event -> declared subscribers
+
+Query -> copied/read-only observation; no command or domain publication
+Diagnostic Event -> ObserveOnly subscribers only
+```
+
+`PlayerBlockInteractionCommand` replaces the misleading Dig Event name. The
+World FIFO remains ordered and frame-owned, so this is a semantic correction,
+not a second scheduler.
+
+Each subscription declares an owner, `ObserveOnly` or `DomainMutation`, and
+whether nested publication is `Forbidden` or `Bounded`. Objective progression
+is a bounded mutation that cannot republish. Waystone guardian death is a
+bounded mutation that may republish because spawning the next wave emits actor
+facts. Feedback and Audio are observers.
+
+### 3.5 Dispatch boundary and data structure
+
+The bus remains synchronous and World-local. A publication copies the matching
+subscription membership before invoking handlers. Subscription changes inside
+a handler therefore affect later or nested publications, never the active
+membership snapshot.
+
+Nested publication is accepted only from a handler that explicitly declares
+`Bounded`, with eight active dispatch frames as a hard cap. Observer republish
+and depth overflow return explicit rejection results and increment a debug
+snapshot; they are not converted into a hidden queue. RAII guards restore depth
+and active policy even when a handler throws.
+
+Events carry immutable type/category identity and are delivered as const facts.
+A `Diagnostic` event skips and counts every `DomainMutation` subscription, so
+telemetry cannot drive authoritative state through this bus.
+
+### 3.6 Validation
+
+The static gate checks that only the command vocabulary remains, every
+production subscriber declares its effect owner, recursion/snapshot guards are
+present, and future Network/Machine directories obey renderer/UI dependency
+rules when they appear:
+
+```powershell
+& .\tools\validate_event_command_query_boundary.ps1 `
+  -Root (Get-Location).Path
+```
+
+The `AL-A4` WorldRuntime focus exercises normal observer delivery, forbidden
+and allowed nested publication, the depth cap, diagnostic isolation,
+unsubscribe-during-dispatch snapshot semantics and exception cleanup. It also
+runs the existing interaction and objective cases, because architecture only
+has value while Break, Place, Use and progression still work.
+
+### 3.7 Trade-offs
+
+Copying a small subscriber list on publish spends bounded allocation/copy work
+to obtain simple, deterministic membership semantics. The declarations cannot
+prove that arbitrary C++ in an `ObserveOnly` handler never mutates external
+state; the static inventory and code review remain part of admission. The bus
+also does not yet queue work, persist events, provide replay, or define a
+generic Machine/Network protocol.
+
+Those omissions are deliberate. A4 solves the real command/fact ambiguity and
+recursive dispatch risk without starting A5 metrics, B-series jobs or C-series
+content ahead of approval.
+
+Related evidence:
+
+- `docs/contracts/event-command-query-boundary-contract-v1.md`
+- `tools/validate_event_command_query_boundary.ps1`

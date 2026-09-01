@@ -1939,6 +1939,169 @@ void caseP11BActionFeedback()
           gainA == gainB && gainA >= 0.94f && gainA <= 1.06f);
 }
 
+void caseEventCommandQueryBoundary()
+{
+    const BlockBreakEvent domainEvent({1, 2, 3}, BlockId::Stone);
+    check("AL-A4/current-events-are-immutable-domain-facts",
+          domainEvent.category == SandboxEventCategory::Domain &&
+              domainEvent.type == SandboxEventType::BlockBreak);
+
+    SandboxEventBus observerBus;
+    int observerCalls = 0;
+    observerBus.subscribe(
+        SandboxEventType::BlockBreak,
+        [&observerCalls](const SandboxEvent &) { ++observerCalls; },
+        SandboxEventSubscriptionOptions::observer("AL-A4.Observer"));
+    const SandboxEventDispatchResult observerResult =
+        observerBus.publish(domainEvent);
+    check("AL-A4/observer-delivery-is-synchronous-and-declared",
+          observerCalls == 1 && observerResult.publicationAccepted() &&
+              observerResult.deliveredHandlers == 1 &&
+              observerResult.rejectedHandlers == 0);
+
+    SandboxEventBus forbiddenBus;
+    int forbiddenNestedDeliveries = 0;
+    SandboxEventDispatchResult forbiddenNestedResult;
+    forbiddenBus.subscribe(
+        SandboxEventType::BlockPlace,
+        [&forbiddenNestedDeliveries](const SandboxEvent &) {
+            ++forbiddenNestedDeliveries;
+        });
+    forbiddenBus.subscribe(
+        SandboxEventType::BlockBreak,
+        [&forbiddenBus, &forbiddenNestedResult](const SandboxEvent &) {
+            forbiddenNestedResult = forbiddenBus.publish(
+                BlockPlaceEvent({2, 2, 3}, BlockId::Dirt));
+        },
+        SandboxEventSubscriptionOptions::observer("AL-A4.NoRepublish"));
+    forbiddenBus.publish(domainEvent);
+    check("AL-A4/observer-cannot-hide-nested-publication",
+          forbiddenNestedDeliveries == 0 &&
+              forbiddenNestedResult.rejection ==
+                  SandboxEventDispatchRejection::
+                      HandlerRepublishForbidden);
+
+    SandboxEventBus boundedBus;
+    int boundedNestedDeliveries = 0;
+    SandboxEventDispatchResult boundedNestedResult;
+    boundedBus.subscribe(
+        SandboxEventType::BlockPlace,
+        [&boundedNestedDeliveries](const SandboxEvent &) {
+            ++boundedNestedDeliveries;
+        });
+    boundedBus.subscribe(
+        SandboxEventType::BlockBreak,
+        [&boundedBus, &boundedNestedResult](const SandboxEvent &) {
+            boundedNestedResult = boundedBus.publish(
+                BlockPlaceEvent({2, 2, 3}, BlockId::Dirt));
+        },
+        SandboxEventSubscriptionOptions::domainMutation(
+            "AL-A4.BoundedReaction",
+            SandboxEventRepublishPolicy::Bounded));
+    boundedBus.publish(domainEvent);
+    check("AL-A4/declared-domain-reaction-may-publish-bounded-fact",
+          boundedNestedDeliveries == 1 &&
+              boundedNestedResult.publicationAccepted() &&
+              boundedNestedResult.deliveredHandlers == 1);
+
+    SandboxEventBus depthBus;
+    int recursiveDeliveries = 0;
+    SandboxEventDispatchResult depthLimitResult;
+    depthBus.subscribe(
+        SandboxEventType::BlockChanged,
+        [&depthBus, &recursiveDeliveries,
+         &depthLimitResult](const SandboxEvent &) {
+            ++recursiveDeliveries;
+            const SandboxEventDispatchResult nested = depthBus.publish(
+                SandboxEvent(SandboxEventType::BlockChanged));
+            if (!nested.publicationAccepted()) {
+                depthLimitResult = nested;
+            }
+        },
+        SandboxEventSubscriptionOptions::domainMutation(
+            "AL-A4.DepthProbe", SandboxEventRepublishPolicy::Bounded));
+    depthBus.publish(SandboxEvent(SandboxEventType::BlockChanged));
+    const SandboxEventBusDebugSnapshot depthSnapshot =
+        depthBus.debugSnapshot();
+    check("AL-A4/recursive-publication-has-hard-depth-limit",
+          recursiveDeliveries ==
+                  static_cast<int>(SandboxEventBus::MaxDispatchDepth) &&
+              depthLimitResult.rejection ==
+                  SandboxEventDispatchRejection::DepthLimit &&
+              depthSnapshot.maxObservedDispatchDepth ==
+                  SandboxEventBus::MaxDispatchDepth &&
+              depthSnapshot.currentDispatchDepth == 0 &&
+              depthSnapshot.rejectedPublications == 1);
+
+    SandboxEventBus diagnosticBus;
+    int diagnosticObservers = 0;
+    int diagnosticMutations = 0;
+    diagnosticBus.subscribe(
+        SandboxEventType::BlockBreak,
+        [&diagnosticObservers](const SandboxEvent &) {
+            ++diagnosticObservers;
+        },
+        SandboxEventSubscriptionOptions::observer(
+            "AL-A4.DiagnosticObserver"));
+    diagnosticBus.subscribe(
+        SandboxEventType::BlockBreak,
+        [&diagnosticMutations](const SandboxEvent &) {
+            ++diagnosticMutations;
+        },
+        SandboxEventSubscriptionOptions::domainMutation(
+            "AL-A4.DiagnosticMutation"));
+    const SandboxEvent diagnosticEvent(
+        SandboxEventType::BlockBreak, SandboxEventCategory::Diagnostic);
+    const SandboxEventDispatchResult diagnosticResult =
+        diagnosticBus.publish(diagnosticEvent);
+    check("AL-A4/diagnostic-event-cannot-drive-domain-mutation",
+          diagnosticObservers == 1 && diagnosticMutations == 0 &&
+              diagnosticResult.deliveredHandlers == 1 &&
+              diagnosticResult.rejectedHandlers == 1 &&
+              diagnosticBus.debugSnapshot()
+                      .rejectedDiagnosticHandlers == 1);
+
+    SandboxEventBus membershipBus;
+    int firstMembershipCalls = 0;
+    int secondMembershipCalls = 0;
+    SandboxEventBus::SubscriptionId secondMembershipId = 0;
+    membershipBus.subscribe(
+        SandboxEventType::BlockUse,
+        [&membershipBus, &secondMembershipId,
+         &firstMembershipCalls](const SandboxEvent &) {
+            ++firstMembershipCalls;
+            membershipBus.unsubscribe(secondMembershipId);
+        });
+    secondMembershipId = membershipBus.subscribe(
+        SandboxEventType::BlockUse,
+        [&secondMembershipCalls](const SandboxEvent &) {
+            ++secondMembershipCalls;
+        });
+    const SandboxEventDispatchResult firstMembershipResult =
+        membershipBus.publish(SandboxEvent(SandboxEventType::BlockUse));
+    const SandboxEventDispatchResult secondMembershipResult =
+        membershipBus.publish(SandboxEvent(SandboxEventType::BlockUse));
+    check("AL-A4/subscription-membership-is-snapshotted-per-publication",
+          firstMembershipCalls == 2 && secondMembershipCalls == 1 &&
+              firstMembershipResult.deliveredHandlers == 2 &&
+              secondMembershipResult.deliveredHandlers == 1);
+
+    SandboxEventBus exceptionBus;
+    exceptionBus.subscribe(
+        SandboxEventType::ChunkSaved,
+        [](const SandboxEvent &) { throw std::runtime_error("A4 probe"); });
+    bool exceptionPropagated = false;
+    try {
+        exceptionBus.publish(SandboxEvent(SandboxEventType::ChunkSaved));
+    }
+    catch (const std::runtime_error &) {
+        exceptionPropagated = true;
+    }
+    check("AL-A4/handler-exception-restores-dispatch-boundary",
+          exceptionPropagated &&
+              exceptionBus.debugSnapshot().currentDispatchDepth == 0);
+}
+
 void casePausedApplicationFlow()
 {
     GameApplicationFlow flow;
@@ -7823,13 +7986,21 @@ void caseAudioFeedback()
     Player crafter;
     SandboxEventBus craftingBus;
     int completedEvents = 0;
-    CraftCompletedEvent lastCompleted(
-        "", Material::ID::Nothing, 0, 0, glm::vec3(0.f));
+    std::string completedRecipeId;
+    Material::ID completedMaterialId = Material::ID::Nothing;
+    int completedCrafts = 0;
+    int completedOutput = 0;
     craftingBus.subscribe(
         SandboxEventType::CraftCompleted,
-        [&completedEvents, &lastCompleted](const SandboxEvent &event) {
+        [&completedEvents, &completedRecipeId, &completedMaterialId,
+         &completedCrafts, &completedOutput](const SandboxEvent &event) {
             ++completedEvents;
-            lastCompleted = static_cast<const CraftCompletedEvent &>(event);
+            const auto &completed =
+                static_cast<const CraftCompletedEvent &>(event);
+            completedRecipeId = completed.recipeId;
+            completedMaterialId = completed.outputMaterialId;
+            completedCrafts = completed.craftsCompleted;
+            completedOutput = completed.outputAdded;
         });
     crafter.attachEventBus(craftingBus);
     crafter.addItem(Material::OAK_BARK_BLOCK, 4);
@@ -7846,10 +8017,9 @@ void caseAudioFeedback()
     check("G5/successful-craft-publishes-one-domain-event",
           committed.succeeded() && !rejected.succeeded() &&
               completedEvents == 1 &&
-              lastCompleted.recipeId == "hellomine:workbench" &&
-              lastCompleted.outputMaterialId == Material::ID::Workbench &&
-              lastCompleted.craftsCompleted == 1 &&
-              lastCompleted.outputAdded == 1);
+              completedRecipeId == "hellomine:workbench" &&
+              completedMaterialId == Material::ID::Workbench &&
+              completedCrafts == 1 && completedOutput == 1);
     crafter.detachEventBus(craftingBus);
 }
 
@@ -14668,6 +14838,11 @@ int main()
             casePausedApplicationFlow();
             caseWorldSimulationRuntime();
         }
+        else if (focus != nullptr && std::string(focus) == "AL-A4") {
+            caseEventCommandQueryBoundary();
+            caseInteractionAndEvents();
+            caseDataDrivenObjectives();
+        }
         else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
@@ -14679,6 +14854,7 @@ int main()
         caseRuntimeConfigOwnership();
         caseP11ACoreInput();
         caseP11BActionFeedback();
+        caseEventCommandQueryBoundary();
         casePausedApplicationFlow();
         caseAudioFeedback();
         caseStreamedMusic();

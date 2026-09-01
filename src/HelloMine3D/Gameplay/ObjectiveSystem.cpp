@@ -177,7 +177,8 @@ ObjectiveSystem::ObjectiveSystem(const ObjectiveRegistry& registry,
             type, [this](const SandboxEvent& event)
             {
                 consumeEvent(event);
-            }));
+            }, SandboxEventSubscriptionOptions::domainMutation(
+                "ObjectiveSystem")));
     }
     refreshStateObjectives();
 }

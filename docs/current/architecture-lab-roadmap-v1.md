@@ -637,6 +637,20 @@ Diagnostic Event 不驱动 Gameplay。
 
 **Chapter 05：事件系统不是“全局广播”**
 
+### 当前实现记录
+
+`AL-A4` 已于 2026-09-01 获得独立批准，并按最小真实边界实现：原 `IWorldEvent / PlayerDigEvent /
+addEvent` 路径改名为 `IWorldCommand / PlayerBlockInteractionCommand / addCommand`，继续使用既有
+frame-owned FIFO，不引入第二套 scheduler。`SandboxEventBus` 保持 World-local 同步事实分发，但事件
+identity 现在不可变并区分 `Domain / Diagnostic`；生产订阅者必须声明 owner、
+`ObserveOnly / DomainMutation` 与 `Forbidden / Bounded` republish。
+
+Observer 嵌套发布、超过 8 层的同步递归都会返回可观察拒绝；每次 publish 固定入口 membership，
+诊断事件不会投递到领域修改 handler。Objective、Waystone、Feedback 与 Audio 的现有行为已逐项声明，
+没有增加 Machine、Network、UI/Ogre hook、持久化事件、通用调度或 A5 metrics/budget。冻结合同见
+`docs/contracts/event-command-query-boundary-contract-v1.md`，验证报告见
+`docs/reports/architecture-lab-a4-event-command-query-report-v1.md`；完成 A4 不自动批准 A5/B1/C1。
+
 ---
 
 ## A5 — Tick Phase Metrics & Budget Vocabulary

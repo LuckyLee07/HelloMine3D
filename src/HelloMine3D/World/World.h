@@ -8,6 +8,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <type_traits>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -27,7 +28,7 @@
 #include "Storage/WorldSave.h"
 #include "Storage/WorldBackup.h"
 
-#include "Event/IWorldEvent.h"
+#include "Command/IWorldCommand.h"
 
 #include "../Config.h"
 #include "../Diagnostics/TerrainBufferMetrics.h"
@@ -314,9 +315,12 @@ class World : public NonCopyable {
 
     // void collisionTest(Entity &entity);
 
-    template <typename T, typename... Args> void addEvent(Args &&... args)
+    template <typename T, typename... Args> void addCommand(Args &&... args)
     {
-        m_events.push_back(std::make_unique<T>(std::forward<Args>(args)...));
+        static_assert(std::is_base_of<IWorldCommand, T>::value,
+                      "World commands must implement IWorldCommand");
+        m_commands.push_back(
+            std::make_unique<T>(std::forward<Args>(args)...));
     }
 
   private:
@@ -442,7 +446,7 @@ class World : public NonCopyable {
     double m_worldSaveTotalMs = 0.0;
     double m_worldSaveMaxMs = 0.0;
 
-    std::vector<std::unique_ptr<IWorldEvent>> m_events;
+    std::vector<std::unique_ptr<IWorldCommand>> m_commands;
     std::deque<glm::ivec3> m_randomTickSectionQueue;
     std::unordered_set<glm::ivec3, IVec3Hash> m_randomTickSections;
     std::size_t m_randomTickSectionsProcessed = 0;

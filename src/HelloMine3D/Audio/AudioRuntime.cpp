@@ -415,45 +415,45 @@ void AudioRuntime::attach(SandboxEventBus &eventBus)
             const auto &block = static_cast<const BlockBreakEvent &>(event);
             submit({"block.break", true, blockCenter(block.position),
                     nextFeedbackGain()});
-        }));
+        }, SandboxEventSubscriptionOptions::observer("AudioRuntime")));
     m_subscriptions.push_back(eventBus.subscribe(
         SandboxEventType::BlockPlace, [this](const SandboxEvent &event) {
             const auto &block = static_cast<const BlockPlaceEvent &>(event);
             submit({"block.place", true, blockCenter(block.position),
                     nextFeedbackGain()});
-        }));
+        }, SandboxEventSubscriptionOptions::observer("AudioRuntime")));
     m_subscriptions.push_back(eventBus.subscribe(
         SandboxEventType::ItemPickup, [this](const SandboxEvent &event) {
             const auto &pickup = static_cast<const ItemPickupEvent &>(event);
             submit({"item.pickup", true, pickup.position,
                     nextFeedbackGain()});
-        }));
+        }, SandboxEventSubscriptionOptions::observer("AudioRuntime")));
     m_subscriptions.push_back(eventBus.subscribe(
         SandboxEventType::EntityDamage, [this](const SandboxEvent &event) {
             const auto &damage = static_cast<const EntityDamageEvent &>(event);
             submit({"combat.hit", true, damage.position,
                     nextFeedbackGain()});
-        }));
+        }, SandboxEventSubscriptionOptions::observer("AudioRuntime")));
     m_subscriptions.push_back(eventBus.subscribe(
         SandboxEventType::CombatWindup, [this](const SandboxEvent &event) {
             const auto &windup =
                 static_cast<const CombatWindupEvent &>(event);
             submit({"combat.windup", true, windup.position,
                     nextFeedbackGain()});
-        }));
+        }, SandboxEventSubscriptionOptions::observer("AudioRuntime")));
     m_subscriptions.push_back(eventBus.subscribe(
         SandboxEventType::CombatGuard, [this](const SandboxEvent &event) {
             const auto &guard = static_cast<const CombatGuardEvent &>(event);
             submit({"combat.guard", true, guard.position,
                     nextFeedbackGain()});
-        }));
+        }, SandboxEventSubscriptionOptions::observer("AudioRuntime")));
     m_subscriptions.push_back(eventBus.subscribe(
         SandboxEventType::CraftCompleted,
         [this](const SandboxEvent &event) {
             const auto &craft =
                 static_cast<const CraftCompletedEvent &>(event);
             submit({"craft.success", true, craft.position, 1.f});
-        }));
+        }, SandboxEventSubscriptionOptions::observer("AudioRuntime")));
 }
 
 void AudioRuntime::detach() noexcept

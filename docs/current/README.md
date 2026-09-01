@@ -7,7 +7,7 @@
 
 | 文档 | 用途 |
 | ---- | ---- |
-| [todolist.md](todolist.md) | 当前状态、唯一已批准下一批、阻塞项和 AI 验收状态。 |
+| [todolist.md](todolist.md) | 当前状态、已批准批次、唯一下一候选、阻塞项和 AI 验收状态。 |
 | [architecture-lab-roadmap-v1.md](architecture-lab-roadmap-v1.md) | Architecture Lab 长期能力目录和可玩载体硬约束。 |
 | [ai-assisted-gameplay-acceptance-v1.md](ai-assisted-gameplay-acceptance-v1.md) | `AI-01..AI-08`、Computer Use 黑盒规则与声明分类。 |
 
@@ -29,5 +29,7 @@
 `AL-A2` 已把既有 Chunk update/mesh/loader 协调迁入 `ChunkRuntime`，没有引入 Residency 状态机。
 `AL-A3` 已把现有 20 Hz fixed-tick 顺序集中到具体 `WorldSimulation`，并只增加最近一次 tick 的
 8 phase 原始耗时观察，没有引入 A5 scheduler/budget。
+`AL-A4` 已把旧 event-as-command 路径改为 typed command FIFO，并冻结不可变事实事件、订阅者
+effect/republish、有界递归、诊断隔离和查询非 mutation 边界。
 开始后续 Sprint 前，仍必须在 `todolist.md` 中写明独立批准、真实游戏需求、合同、可观察 Demo、
-自动门禁和对应 AI 场景；当前下一候选是尚未批准的 `AL-A4`。
+自动门禁和对应 AI 场景；当前下一候选是尚未批准的 `AL-A5`。

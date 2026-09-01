@@ -1,6 +1,6 @@
 # HelloMine3D Current Architecture Baseline
 
-本文以 `AL-A0 — Latest Architecture Baseline` 的完整审计为起点，并随已完成的 AL-A1/AL-A2/AL-A3
+本文以 `AL-A0 — Latest Architecture Baseline` 的完整审计为起点，并随已完成的 AL-A1/AL-A2/AL-A3/AL-A4
 更新当前实现；它描述代码事实，而不是未来目标架构。
 审计起点为 Git commit `4930023fb2f3022daac9968c10a1a0b76e1ac392`；冻结的
 PLAYABILITY-RC 运行时代码身份仍是
@@ -87,8 +87,8 @@ Core / Entity / Physics / Maths / Util
 - Ogre 可以调用 World facade 并消费 immutable-by-value snapshots；World 不回调 Ogre。
 - `World <-> Actor` 是当前真实双向协作：World 拥有 ActorManager，Actor tick 接收 `World&`。
 - Sandbox 定义事件协议，但每个 `World` 实例实际拥有自己的 `SandboxEventBus`。
-- Event handler 当前同步执行；事件是“已发生事实”，但代码尚未形成 A4 的 Command/Query/Event
-  强制分层。订阅者不得假设异步或跨线程投递。
+- Event handler 当前同步执行；AL-A4 已把请求 mutation 的 typed Command、已发生的 immutable Event
+  与不提交 Gameplay 的 Query 分开。订阅者不得假设异步或跨线程投递。
 - `World` 仍是宽 facade/组合根，但 AL-A2 已把现有 Chunk 派生工作与 loader 协调移入
   `ChunkRuntime`；这不是 B1 Residency 状态机。
 - AL-A3 已把 `World::tick` 的现有调用顺序集中到具体 `WorldSimulation`；它只拥有编排和最近一次
@@ -109,20 +109,20 @@ Core / Entity / Physics / Maths / Util
 | Progression | Alpha journey、objective、recipe discovery、outcome、difficulty、post-victory、Waystone state/action/feedback。 |
 | Owned component access | `getChunkManager`、`getActorManager`、`getEventBus`、`getPlayer`。 |
 | Pure/static helpers | coordinate conversion、random-tick sampling、natural-mob mapping、mesh work planning。 |
-| Legacy queued action | `addEvent<T>` pushes `IWorldEvent` into a frame queue handled by `World::update`; it coexists with immediate `SandboxEventBus::publish`. |
+| Command FIFO | `addCommand<T>` accepts an `IWorldCommand` and executes it from the frame-owned FIFO in `World::update`; completed mutations may synchronously publish immutable facts through `SandboxEventBus`. |
 
 ### 4.1 AL-A1 machine-checked responsibility map
 
 `AL-A1` 为每个公开方法分配两个正交标签：API concept 描述调用语义，responsibility 描述当前主要
 实现领域。重载只列一次；完整声明、重载、公开常量和签名由 public-surface hash 共同保护。
 
-<!-- AL-A1-WORLD-API-HASH sha256=3C53F56C425F0395354C8A5CE966E96CDA8BC93D836699955E03BA965A664AD8 -->
+<!-- AL-A1-WORLD-API-HASH sha256=8B2CDDF30B70DA91D5EF4944D7E1397BC9434EB0E129B9313DA471143F653EC4 -->
 <!-- AL-A1-WORLD-API-MAP-BEGIN -->
 | API | Concept | Responsibility | Current boundary |
 | --- | ------- | -------------- | ---------------- |
 | `~World` | `Command` | `World Mutation` | 终止 loader 并释放组合根。 |
 | `acknowledgeSectionMeshUploads` | `Command` | `Streaming` | 仅确认同 revision 的 GPU upload。 |
-| `addEvent` | `Command` | `World Mutation` | 把旧式 `IWorldEvent` 加入帧队列。 |
+| `addCommand` | `Command` | `World Mutation` | 把 typed `IWorldCommand` 加入 frame-owned FIFO；执行后才可发布已发生事实。 |
 | `attackActor` | `Command` | `Combat` | 两个旧重载共享同一责任。 |
 | `canOccupyCombatPosition` | `Query` | `Combat` | 战斗移动占位查询。 |
 | `canPlayerGuard` | `Query` | `Combat` | 防御资格查询。 |
@@ -308,16 +308,19 @@ WorldManager
 
 ## 9. Event Ownership
 
-存在两条不同路径：
+AL-A4 把原有两条路径明确分开：
 
-1. `World::addEvent<IWorldEvent>` 是帧内命令队列，目前主要承载 dig/use/place；
+1. `World::addCommand<IWorldCommand>` 是请求改变权威状态的帧内 FIFO，目前承载 Break/Use/Place；
    `World::update` 在主线程依次执行并清空。
-2. `SandboxEventBus::publish` 是同步领域事实分发。每个 World 拥有 bus；World、ChunkManager、
-   Actor、Item/interaction 发布事实，Objective/AlphaJourney、Feedback、Audio 和 Waystone handler
-   订阅。
+2. `SandboxEventBus::publish` 是同步事实分发。事件在 handler 眼中为 const，并显式携带
+   `Domain` 或 `Diagnostic` category；每个 World 仍拥有自己的 bus。
+3. World 的 45 项 Query 继续由 AL-A1 map 管理，不得提交 Gameplay、排队 Command 或发布领域事实。
 
-EventBus 不拥有事件历史或 Gameplay 状态，handler 在发布调用栈内执行。当前代码允许 handler 触发
-进一步操作，因此递归/隐式 mutation 仍需由 AL-A4 单独冻结规则；A0 只记录现状。
+订阅者必须声明 owner、`ObserveOnly / DomainMutation` effect 和 `Forbidden / Bounded` republish。
+Observer 的嵌套发布会被拒绝；显式允许的领域反应最多同时进入 8 层。每次 publish 固定入口时的
+订阅 membership，handler 内 subscribe/unsubscribe 只影响后续或嵌套 publish。`Diagnostic` 不会
+投递给 `DomainMutation` handler，因此诊断不能成为隐式 Gameplay command。EventBus 仍不拥有事件
+历史或 Gameplay state，也不把拒绝的嵌套发布转成隐藏队列。
 
 ## 10. Main Tick and Frame Chain
 
@@ -350,7 +353,7 @@ Ogre::frameStarted
             -> queue dig/use/place or perform food/combat path
             -> World::update(Camera)
                  -> ChunkRuntime publishes load center/frustum snapshot
-                 -> handle queued IWorldEvent commands
+                 -> execute queued IWorldCommand requests
                  -> ChunkRuntime bounded distant unload
                  -> ChunkRuntime bounded synchronous dirty-section mesh rebuild
        -> sync render camera / section meshes / actor visuals / outline
@@ -409,13 +412,15 @@ block、Actor、inventory、objective or persistence truth。
 这些版本属于不同兼容性域，不能用 world save v12 推断其他定义已迁移，也不能因重建派生数据而
 静默改写 terrain identity。任何后续 Architecture Lab 批次都必须在自己的合同中列出受影响域。
 
-## 13. Current Conclusions Through AL-A3
+## 13. Current Conclusions Through AL-A4
 
 - 当前可玩的系统已经有清晰的 Renderer-to-Snapshot 边界和可验证持久化边界。
-- `World` 仍承担 facade、组合根和多套 Simulation 玩法状态；AL-A2/AL-A3 只关闭了两条由真实工作
+- `World` 仍承担 facade、组合根和多套 Simulation 玩法状态；AL-A2/AL-A3/AL-A4 只关闭了三条由真实工作
   验证的内部边界，没有试图一次性拆完 God Object。
 - Chunk pipeline 的 snapshot/off-lock/revision-commit、FIFO、预算和 unload/save 语义现在集中在
   `ChunkRuntime` / `ChunkManager` 边界；没有通用取消、背压或三态 Residency 合同。
 - fixed-tick 的 8 phase 顺序、context 和 last-tick 原始耗时现在集中在 `WorldSimulation`；玩法状态与
   旧实现仍由 World/Actor/Gameplay 所有，没有 `SimulationScheduler`、系统 Registry 或统一预算。
-- AL-A4、AL-A5 和 B1 都必须再次独立批准；A3 完成不构成自动启动权限。
+- 玩家 Break/Use/Place 请求现在只走 `IWorldCommand` FIFO；World-local EventBus 只同步分发不可变事实，
+  生产订阅者 effect/republish、8 层递归上限、per-publication membership 与 Diagnostic 隔离均已冻结。
+- AL-A5 和 B1 仍必须再次独立批准；A4 完成不构成自动启动权限。

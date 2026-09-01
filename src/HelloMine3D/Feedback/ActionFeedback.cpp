@@ -42,7 +42,8 @@ void ActionFeedbackTimeline::attach(SandboxEventBus &eventBus)
             activate(ActionFeedbackKind::BlockBreak, 0.34f, 0.7f, 0.f);
             emit(Material::toMaterial(block.blockId).id,
                  FullBlockParticleCount);
-        }));
+        }, SandboxEventSubscriptionOptions::observer(
+            "ActionFeedbackTimeline")));
     m_subscriptions.push_back(eventBus.subscribe(
         SandboxEventType::BlockPlace, [this](const SandboxEvent &event)
         {
@@ -50,7 +51,8 @@ void ActionFeedbackTimeline::attach(SandboxEventBus &eventBus)
             activate(ActionFeedbackKind::BlockPlace, 0.28f, 0.45f, 0.f);
             emit(Material::toMaterial(block.blockId).id,
                  FullBlockParticleCount / 2);
-        }));
+        }, SandboxEventSubscriptionOptions::observer(
+            "ActionFeedbackTimeline")));
     m_subscriptions.push_back(eventBus.subscribe(
         SandboxEventType::EntityDamage, [this](const SandboxEvent &event)
         {
@@ -66,7 +68,8 @@ void ActionFeedbackTimeline::attach(SandboxEventBus &eventBus)
                 activate(ActionFeedbackKind::PlayerHurt, 0.38f, 0.6f,
                          MaxHitStopSeconds * 0.5f);
             }
-        }));
+        }, SandboxEventSubscriptionOptions::observer(
+            "ActionFeedbackTimeline")));
     m_subscriptions.push_back(eventBus.subscribe(
         SandboxEventType::CombatGuard, [this](const SandboxEvent &event)
         {
@@ -76,7 +79,8 @@ void ActionFeedbackTimeline::attach(SandboxEventBus &eventBus)
                 activate(ActionFeedbackKind::Guard, 0.32f, 0.8f,
                          MaxHitStopSeconds * 0.5f);
             }
-        }));
+        }, SandboxEventSubscriptionOptions::observer(
+            "ActionFeedbackTimeline")));
     m_subscriptions.push_back(eventBus.subscribe(
         SandboxEventType::ItemPickup, [this](const SandboxEvent &event)
         {
@@ -86,7 +90,8 @@ void ActionFeedbackTimeline::attach(SandboxEventBus &eventBus)
                 activate(ActionFeedbackKind::ItemPickup, 0.30f, 0.35f, 0.f);
                 emit(pickup.materialId, 3);
             }
-        }));
+        }, SandboxEventSubscriptionOptions::observer(
+            "ActionFeedbackTimeline")));
 }
 
 void ActionFeedbackTimeline::detach() noexcept
