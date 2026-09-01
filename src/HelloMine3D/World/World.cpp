@@ -3052,6 +3052,8 @@ WorldDebugStats World::collectDebugStats()
     WorldDebugStats stats;
     stats.chunks = m_chunkManager.collectDebugStats();
     stats.streamingDemand = m_chunkRuntime.collectDemandDebugStats();
+    stats.spatialInterest =
+        m_chunkRuntime.collectSpatialInterestDebugStats();
     stats.worldJobs = m_chunkRuntime.collectJobSchedulerDebugStats();
     stats.streamingBackpressure =
         m_chunkRuntime.collectBackpressureDebugStats();

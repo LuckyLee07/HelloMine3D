@@ -96,6 +96,7 @@
 #include "../World/Storage/WorldCatalogue.h"
 #include "../World/Storage/WorldManagementService.h"
 #include "../World/Storage/WorldSave.h"
+#include "../World/Streaming/SpatialInterest.h"
 #include "../World/Streaming/WorldJobScheduler.h"
 #include "../World/World.h"
 
@@ -7036,6 +7037,257 @@ void caseStreamingBackpressure()
               secondUnload.streamingBackpressure.lastUnloads == 2 &&
               !secondUnload.streamingBackpressure.unloadBacklog &&
               secondRemaining == 0);
+}
+
+// ---------------------------------------------------------------------------
+// B6 - real Resident Data, Near Representation and Simulation Interest rings
+// ---------------------------------------------------------------------------
+void caseSpatialActivation()
+{
+    const SpatialInterest residentOnly{true, false, false, 1u};
+    const SpatialInterest near{true, true, false, 1u};
+    const SpatialInterest simulation{true, true, true, 1u};
+    const SpatialInterest invalidNear{false, true, false, 0u};
+    const SpatialInterest invalidSimulation{true, false, true, 0u};
+    check("B6/vocabulary-and-hierarchy-are-frozen",
+          SpatialInterestClassCount == 4 &&
+              SpatialInterestModel::SimulationRequestRadiusChunks == 2 &&
+              SpatialInterestModel::isValid(residentOnly) &&
+              SpatialInterestModel::isValid(near) &&
+              SpatialInterestModel::isValid(simulation) &&
+              !SpatialInterestModel::isValid(invalidNear) &&
+              !SpatialInterestModel::isValid(invalidSimulation) &&
+              std::string(SpatialInterestModel::className(
+                  SpatialInterestClass::Outside)) == "Outside" &&
+              std::string(SpatialInterestModel::className(
+                  SpatialInterestClass::ResidentData)) == "ResidentData" &&
+              std::string(SpatialInterestModel::className(
+                  SpatialInterestClass::NearRepresentation)) ==
+                  "NearRepresentation" &&
+              std::string(SpatialInterestModel::className(
+                  SpatialInterestClass::SimulationRequested)) ==
+                  "SimulationRequested");
+
+    const SpatialInterestSnapshot empty = SpatialInterestModel::build({});
+    const SpatialInterest outside = SpatialInterestModel::interestAt(
+        empty, {123, -456});
+    check("B6/absent-coordinate-is-outside",
+          SpatialInterestModel::classify(outside) ==
+                  SpatialInterestClass::Outside &&
+              SpatialInterestModel::isValid(outside));
+
+    ChunkDemandModel playerModel;
+    playerModel.refresh(ChunkDemandReason::Player, {0, 0}, 4);
+    const SpatialInterestSnapshot playerSnapshot =
+        SpatialInterestModel::build(playerModel.snapshot());
+    const SpatialInterestDebugStats playerStats =
+        SpatialInterestModel::debugStats(playerSnapshot);
+    check("B6/player-produces-nested-simulation-and-near-rings",
+          playerStats.totalCells == 81 &&
+              playerStats.residentDataCells == 81 &&
+              playerStats.nearRepresentationCells == 81 &&
+              playerStats.simulationRequestedCells == 25 &&
+              SpatialInterestModel::classify(
+                  SpatialInterestModel::interestAt(
+                      playerSnapshot, {1, 1})) ==
+                  SpatialInterestClass::SimulationRequested &&
+              SpatialInterestModel::classify(
+                  SpatialInterestModel::interestAt(
+                      playerSnapshot, {3, 0})) ==
+                  SpatialInterestClass::NearRepresentation);
+
+    ChunkDemandModel cameraModel;
+    cameraModel.refresh(ChunkDemandReason::Camera, {7, -4}, 2);
+    const SpatialInterestSnapshot cameraSnapshot =
+        SpatialInterestModel::build(cameraModel.snapshot());
+    const SpatialInterestDebugStats cameraStats =
+        SpatialInterestModel::debugStats(cameraSnapshot);
+    check("B6/camera-produces-near-without-simulation",
+          cameraStats.totalCells == 25 &&
+              cameraStats.residentDataCells == 25 &&
+              cameraStats.nearRepresentationCells == 25 &&
+              cameraStats.simulationRequestedCells == 0 &&
+              SpatialInterestModel::classify(
+                  SpatialInterestModel::interestAt(
+                      cameraSnapshot, {7, -4})) ==
+                  SpatialInterestClass::NearRepresentation);
+
+    ChunkDemandModel transientModel;
+    transientModel.refresh(
+        ChunkDemandReason::TeleportDestination, {20, 20}, 1);
+    transientModel.refresh(ChunkDemandReason::Preload, {-20, -20}, 1);
+    const SpatialInterestSnapshot transientSnapshot =
+        SpatialInterestModel::build(transientModel.snapshot());
+    const SpatialInterest teleportInterest =
+        SpatialInterestModel::interestAt(transientSnapshot, {20, 20});
+    const SpatialInterest preloadInterest =
+        SpatialInterestModel::interestAt(transientSnapshot, {-20, -20});
+    check("B6/teleport-and-preload-are-resident-only",
+          SpatialInterestModel::classify(teleportInterest) ==
+                  SpatialInterestClass::ResidentData &&
+              SpatialInterestModel::classify(preloadInterest) ==
+                  SpatialInterestClass::ResidentData &&
+              teleportInterest.reasonMask ==
+                  ChunkDemandModel::reasonBit(
+                      ChunkDemandReason::TeleportDestination) &&
+              preloadInterest.reasonMask ==
+                  ChunkDemandModel::reasonBit(ChunkDemandReason::Preload));
+
+    ChunkDemandModel overlapModel;
+    overlapModel.refresh(ChunkDemandReason::Player, {0, 0}, 1);
+    overlapModel.refresh(ChunkDemandReason::Preload, {0, 0}, 0);
+    const SpatialInterestSnapshot overlapSnapshot =
+        SpatialInterestModel::build(overlapModel.snapshot());
+    const SpatialInterest overlap = SpatialInterestModel::interestAt(
+        overlapSnapshot, {0, 0});
+    check("B6/overlaps-merge-flags-and-reasons",
+          overlap.requiresResidentData &&
+              overlap.requiresNearRepresentation &&
+              overlap.requestsSimulation &&
+              overlap.reasonMask ==
+                  (ChunkDemandModel::reasonBit(ChunkDemandReason::Player) |
+                   ChunkDemandModel::reasonBit(ChunkDemandReason::Preload)));
+
+    const SpatialInterestSnapshot overlapAgain =
+        SpatialInterestModel::build(overlapModel.snapshot());
+    bool stableOrder = overlapSnapshot.demandRevision ==
+                           overlapAgain.demandRevision &&
+                       overlapSnapshot.cells.size() ==
+                           overlapAgain.cells.size();
+    for (std::size_t index = 0;
+         stableOrder && index < overlapSnapshot.cells.size(); ++index) {
+        const SpatialInterestCell &left = overlapSnapshot.cells[index];
+        const SpatialInterestCell &right = overlapAgain.cells[index];
+        stableOrder = left.coord == right.coord &&
+                      left.interest.reasonMask ==
+                          right.interest.reasonMask;
+        if (index > 0) {
+            const VectorXZ previous = overlapSnapshot.cells[index - 1].coord;
+            stableOrder = stableOrder &&
+                (previous.x < left.coord.x ||
+                 (previous.x == left.coord.x &&
+                  previous.z < left.coord.z));
+        }
+    }
+    check("B6/order-and-source-revision-are-stable", stableOrder);
+
+    ChunkDemandModel radiusModel;
+    radiusModel.refresh(ChunkDemandReason::Camera, {0, 0}, 3);
+    const SpatialInterestSnapshot radiusBefore =
+        SpatialInterestModel::build(radiusModel.snapshot());
+    radiusModel.updateRadius(ChunkDemandReason::Camera, 1);
+    const SpatialInterestSnapshot radiusAfter =
+        SpatialInterestModel::build(radiusModel.snapshot());
+    check("B6/radius-change-removes-obsolete-interest",
+          radiusAfter.demandRevision > radiusBefore.demandRevision &&
+              radiusBefore.cells.size() == 49 &&
+              radiusAfter.cells.size() == 9 &&
+              SpatialInterestModel::classify(
+                  SpatialInterestModel::interestAt(
+                      radiusAfter, {3, 0})) ==
+                  SpatialInterestClass::Outside);
+
+    check("B6/resident-only-stops-before-mesh-follow-up",
+          !ChunkRuntime::shouldPublishMeshFollowUp(residentOnly) &&
+              ChunkRuntime::shouldPublishMeshFollowUp(near) &&
+              ChunkRuntime::shouldPublishMeshFollowUp(simulation));
+
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+    Config meshConfig = makeConfig();
+    meshConfig.renderDistance = 1;
+    Camera meshCamera(meshConfig);
+    Player meshPlayer;
+    World meshWorld(meshCamera, meshConfig, meshPlayer,
+                    freshSaveDirectory("b6_mesh_visibility"), false, 0);
+    const glm::vec3 farPosition(1608.f, 90.f, 1608.f);
+    meshWorld.preloadAround(farPosition);
+    const WorldMeshSnapshot meshSnapshot =
+        meshWorld.collectSectionMeshSnapshot();
+    bool farSectionExposed = false;
+    for (const glm::ivec3 &location : meshSnapshot.liveSections) {
+        farSectionExposed = farSectionExposed ||
+            (location.x >= 99 && location.x <= 101 &&
+             location.z >= 99 && location.z <= 101);
+    }
+    std::size_t farChunksLoaded = 0;
+    for (int x = 99; x <= 101; ++x) {
+        for (int z = 99; z <= 101; ++z) {
+            farChunksLoaded +=
+                meshWorld.getChunkManager().chunkLoadedAt(x, z) ? 1u : 0u;
+        }
+    }
+    const SpatialInterestDebugStats meshInterest =
+        meshWorld.collectDebugStats().spatialInterest;
+    check("B6/mesh-snapshot-excludes-resident-only-data",
+          farChunksLoaded == 9 && !farSectionExposed &&
+              meshInterest.residentDataCells >
+                  meshInterest.nearRepresentationCells &&
+              meshInterest.nearRepresentationCells >=
+                  meshInterest.simulationRequestedCells);
+
+    Config unloadConfig = makeConfig();
+    unloadConfig.renderDistance = 1;
+    Camera unloadCamera(unloadConfig);
+    Player unloadPlayer;
+    World unloadWorld(unloadCamera, unloadConfig, unloadPlayer,
+                      freshSaveDirectory("b6_resident_unload"), false, 0);
+    unloadWorld.preloadAround(farPosition);
+    const auto countFarChunks = [&unloadWorld]() {
+        std::size_t count = 0;
+        for (int x = 99; x <= 101; ++x) {
+            for (int z = 99; z <= 101; ++z) {
+                count += unloadWorld.getChunkManager().chunkLoadedAt(x, z)
+                             ? 1u : 0u;
+            }
+        }
+        return count;
+    };
+    unloadWorld.update(unloadCamera);
+    const std::size_t protectedCount = countFarChunks();
+    for (std::uint64_t epoch = 1;
+         epoch <= ChunkDemandModel::PreloadLifetimeEpochs; ++epoch) {
+        unloadWorld.update(unloadCamera);
+    }
+    const WorldDebugStats firstExpired = unloadWorld.collectDebugStats();
+    const std::size_t firstExpiredCount = countFarChunks();
+    unloadWorld.update(unloadCamera);
+    const WorldDebugStats secondExpired = unloadWorld.collectDebugStats();
+    const std::size_t secondExpiredCount = countFarChunks();
+    check("B6/resident-interest-protects-then-bounded-unload-resumes",
+          protectedCount == 9 && firstExpiredCount == 1 &&
+              firstExpired.streamingBackpressure.lastUnloads == 8 &&
+              firstExpired.streamingBackpressure.unloadBacklog &&
+              secondExpiredCount == 0 &&
+              secondExpired.streamingBackpressure.lastUnloads == 1 &&
+              !secondExpired.streamingBackpressure.unloadBacklog);
+
+    Config simulationConfig = makeConfig();
+    simulationConfig.renderDistance = 1;
+    Camera simulationCamera(simulationConfig);
+    Player simulationPlayer;
+    World simulationWorld(
+        simulationCamera, simulationConfig, simulationPlayer,
+        freshSaveDirectory("b6_simulation_publication"), false, 0);
+    simulationWorld.preloadAround(farPosition);
+    const ActorId farMob = simulationWorld.spawnMob(
+        "validation_mob", farPosition);
+    simulationWorld.tick(4240);
+    const WorldDebugStats simulationStats =
+        simulationWorld.collectDebugStats();
+    const SimulationPhaseMetrics *actorMetrics =
+        findSimulationPhaseMetrics(
+            simulationStats.simulation,
+            WorldSimulationPhase::ActorSimulation);
+    check("B6/simulation-interest-is-publication-only",
+          farMob != InvalidActorId && actorMetrics != nullptr &&
+              actorMetrics->processed == simulationStats.actorCount + 1 &&
+              actorMetrics->deferred == 0 &&
+              actorMetrics->budget == 0 &&
+              simulationStats.spatialInterest.simulationRequestedCells > 0 &&
+              simulationStats.spatialInterest.residentDataCells >
+                  simulationStats.spatialInterest.nearRepresentationCells);
 }
 
 // ---------------------------------------------------------------------------
@@ -16156,6 +16408,9 @@ int main()
         else if (focus != nullptr && std::string(focus) == "B5") {
             caseStreamingBackpressure();
         }
+        else if (focus != nullptr && std::string(focus) == "B6") {
+            caseSpatialActivation();
+        }
         else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
@@ -16205,6 +16460,7 @@ int main()
         caseWorldJobScheduler();
         caseWorldJobCancellation();
         caseStreamingBackpressure();
+        caseSpatialActivation();
         caseChunkResidencyStateMachine();
         caseSectionMeshUploadSnapshot();
         caseUnloadPersistence();

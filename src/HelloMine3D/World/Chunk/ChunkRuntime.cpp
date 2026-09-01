@@ -282,6 +282,7 @@ void ChunkRuntime::setInitialLoadCenter(const glm::vec3 &position) noexcept
         m_playerDemandCoord = center;
         m_playerMovement = {0, 0};
         m_playerDemandPublished = true;
+        refreshSpatialInterestLocked();
         invalidateWorldJobs();
     }
     m_demandSectionY.store(std::max(
@@ -318,6 +319,7 @@ void ChunkRuntime::updateLoadCenter(const glm::vec3 &playerPosition,
         m_demandModel.refresh(ChunkDemandReason::Camera, cameraChunk,
                               radius);
         if (m_demandModel.snapshot().revision != previousRevision) {
+            refreshSpatialInterestLocked();
             invalidateWorldJobs();
         }
     }
@@ -369,6 +371,7 @@ void ChunkRuntime::setRenderDistance(int renderDistance) noexcept
         m_demandModel.updateRadius(ChunkDemandReason::Camera,
                                    std::max(1, renderDistance));
         if (m_demandModel.snapshot().revision != previousRevision) {
+            refreshSpatialInterestLocked();
             invalidateWorldJobs();
         }
     }
@@ -395,6 +398,12 @@ void ChunkRuntime::unloadDistantChunks(const Camera &camera)
     m_lastUnloadScanChunk = cameraChunk;
     m_unloadScanValid = true;
 
+    SpatialInterestSnapshot spatialInterest;
+    {
+        std::lock_guard<std::mutex> demandLock(m_demandMutex);
+        spatialInterest = m_spatialInterestSnapshot;
+    }
+
     std::unique_lock<std::mutex> lock(m_worldMutex);
     const int renderDistance = m_renderDistance.load();
     const int minX = cameraChunk.x - renderDistance;
@@ -405,6 +414,11 @@ void ChunkRuntime::unloadDistantChunks(const Camera &camera)
     std::vector<VectorXZ> chunksToUnload;
     for (const auto &entry : m_chunkManager.getChunks()) {
         const glm::ivec2 location = entry.second.getLocation();
+        const SpatialInterest interest = SpatialInterestModel::interestAt(
+            spatialInterest, {location.x, location.y});
+        if (interest.requiresResidentData) {
+            continue;
+        }
         if (minX > location.x || minZ > location.y || maxZ < location.y ||
             maxX < location.x) {
             chunksToUnload.push_back({location.x, location.y});
@@ -436,9 +450,11 @@ void ChunkRuntime::resetMeshes()
 WorldMeshSnapshot ChunkRuntime::collectSectionMeshSnapshot()
 {
     VectorXZ uploadOrigin{0, 0};
+    SpatialInterestSnapshot spatialInterest;
     {
         std::lock_guard<std::mutex> demandLock(m_demandMutex);
         uploadOrigin = m_playerDemandCoord;
+        spatialInterest = m_spatialInterestSnapshot;
     }
     std::unique_lock<std::mutex> lock(m_worldMutex);
 
@@ -447,6 +463,12 @@ WorldMeshSnapshot ChunkRuntime::collectSectionMeshSnapshot()
     for (auto &entry : m_chunkManager.getChunks()) {
         Chunk &chunk = entry.second;
         if (!chunk.hasLoaded()) {
+            continue;
+        }
+        const glm::ivec2 chunkLocation = chunk.getLocation();
+        const SpatialInterest interest = SpatialInterestModel::interestAt(
+            spatialInterest, {chunkLocation.x, chunkLocation.y});
+        if (!interest.requiresNearRepresentation) {
             continue;
         }
 
@@ -500,8 +522,18 @@ WorldMeshSnapshot ChunkRuntime::collectSectionMeshSnapshot()
 void ChunkRuntime::acknowledgeSectionMeshUploads(
     const std::vector<WorldSectionMeshVersion> &versions)
 {
+    SpatialInterestSnapshot spatialInterest;
+    {
+        std::lock_guard<std::mutex> demandLock(m_demandMutex);
+        spatialInterest = m_spatialInterestSnapshot;
+    }
     std::unique_lock<std::mutex> lock(m_worldMutex);
     for (const WorldSectionMeshVersion &version : versions) {
+        const SpatialInterest interest = SpatialInterestModel::interestAt(
+            spatialInterest, {version.location.x, version.location.z});
+        if (!interest.requiresNearRepresentation) {
+            continue;
+        }
         Chunk *chunk = m_chunkManager.findChunk(version.location.x,
                                                 version.location.z);
         if (chunk == nullptr) {
@@ -613,6 +645,7 @@ void ChunkRuntime::preloadAroundLocked(const glm::vec3 &position, int radius,
             m_demandModel.snapshot().revision;
         m_demandModel.refresh(reason, centerChunk, radius);
         if (m_demandModel.snapshot().revision != previousRevision) {
+            refreshSpatialInterestLocked();
             invalidateWorldJobs();
         }
     }
@@ -630,6 +663,13 @@ ChunkDemandDebugStats ChunkRuntime::collectDemandDebugStats() const
     ChunkDemandDebugStats stats = m_demandModel.debugStats();
     stats.lastPlannedTargets = m_lastPlannedTargetCount.load();
     return stats;
+}
+
+SpatialInterestDebugStats
+ChunkRuntime::collectSpatialInterestDebugStats() const
+{
+    std::lock_guard<std::mutex> lock(m_demandMutex);
+    return SpatialInterestModel::debugStats(m_spatialInterestSnapshot);
 }
 
 WorldJobSchedulerDebugStats
@@ -668,6 +708,14 @@ void ChunkRuntime::invalidateWorldJobs()
     std::lock_guard<std::mutex> commitLock(m_worldJobCommitMutex);
     m_jobScheduler.invalidateGeneration();
     m_deferredPlanJobCount.store(0);
+}
+
+void ChunkRuntime::refreshSpatialInterestLocked()
+{
+    m_spatialInterestSnapshot =
+        SpatialInterestModel::build(m_demandModel.snapshot());
+    m_unloadScanValid = false;
+    m_unloadBacklog = true;
 }
 
 void ChunkRuntime::startLoader()
@@ -712,12 +760,14 @@ void ChunkRuntime::runLoader()
 
     while (m_isRunning.load()) {
         ChunkDemandSnapshot demandSnapshot;
+        SpatialInterestSnapshot spatialInterestSnapshot;
         VectorXZ movementOrigin{0, 0};
         VectorXZ movementDirection{0, 0};
         WorldJobGenerationToken planGeneration;
         {
             std::lock_guard<std::mutex> lock(m_demandMutex);
             demandSnapshot = m_demandModel.snapshot();
+            spatialInterestSnapshot = m_spatialInterestSnapshot;
             movementOrigin = m_playerDemandCoord;
             movementDirection = m_playerMovement;
             planGeneration = m_jobScheduler.currentGenerationToken();
@@ -741,6 +791,12 @@ void ChunkRuntime::runLoader()
             activePlan.reserve(planned.size());
             for (std::size_t index = 0; index < planned.size(); ++index) {
                 const ChunkDemandTarget &target = planned[index];
+                const SpatialInterest interest =
+                    SpatialInterestModel::interestAt(
+                        spatialInterestSnapshot, target.coord);
+                if (!interest.requiresResidentData) {
+                    continue;
+                }
                 activePlan.push_back(WorldJobRequest{
                     WorldJobType::ChunkLoadOrGenerate, target.coord,
                     target.priority, target.newestEpoch, index,
@@ -826,85 +882,104 @@ void ChunkRuntime::runLoader()
             WorldJobType followUpType = scheduledJob.type;
             double commitMilliseconds = 0.0;
             bool authoritativeCommitAttempted = false;
+            const SpatialInterest scheduledInterest =
+                SpatialInterestModel::interestAt(
+                    spatialInterestSnapshot, scheduledJob.target);
 
             if (!m_jobScheduler.isCurrent(
                     scheduledJob.generation)) {
                 outcome = WorldJobOutcome::Cancelled;
             }
+            else if (!scheduledInterest.requiresResidentData) {
+                outcome = WorldJobOutcome::Cancelled;
+            }
             else if (scheduledJob.type ==
                 WorldJobType::ChunkLoadOrGenerate) {
-                ChunkLoadJob loadJob;
-                ChunkNeighborhoodLoadJobResult neighborhood;
-                {
+                if (!shouldPublishMeshFollowUp(scheduledInterest)) {
                     std::unique_lock<std::mutex> lock(m_worldMutex);
-                    neighborhood = m_chunkManager
-                        .beginChunkNeighborhoodLoadJob(
-                            scheduledJob.target.x,
-                            scheduledJob.target.z,
-                            ChunkLoadsPerTarget, loadJob);
+                    outcome = m_chunkManager.chunkLoadedAt(
+                                  scheduledJob.target.x,
+                                  scheduledJob.target.z)
+                                  ? WorldJobOutcome::NoWork
+                                  : WorldJobOutcome::CommitRejected;
                 }
-
-                if (loadJob.valid &&
-                    !m_jobScheduler.isCurrent(
-                        scheduledJob.generation)) {
-                    authoritativeCommitAttempted = true;
-                    std::unique_lock<std::mutex> lock(m_worldMutex);
-                    std::lock_guard<std::mutex> commitLock(
-                        m_worldJobCommitMutex);
-                    m_chunkManager.cancelChunkLoadJob(loadJob);
-                    outcome = WorldJobOutcome::Cancelled;
-                }
-                else if (loadJob.valid) {
-                    const bool prepared =
-                        m_chunkManager.prepareChunkLoadJob(loadJob);
-                    didWork = didWork || prepared;
-                    bool generationCurrent = false;
-                    bool commitAccepted = false;
-                    const auto commitStart =
-                        std::chrono::steady_clock::now();
-                    authoritativeCommitAttempted = true;
+                else {
+                    ChunkLoadJob loadJob;
+                    ChunkNeighborhoodLoadJobResult neighborhood;
                     {
+                        std::unique_lock<std::mutex> lock(m_worldMutex);
+                        neighborhood = m_chunkManager
+                            .beginChunkNeighborhoodLoadJob(
+                                scheduledJob.target.x,
+                                scheduledJob.target.z,
+                                ChunkLoadsPerTarget, loadJob);
+                    }
+
+                    if (loadJob.valid &&
+                        !m_jobScheduler.isCurrent(
+                            scheduledJob.generation)) {
+                        authoritativeCommitAttempted = true;
                         std::unique_lock<std::mutex> lock(m_worldMutex);
                         std::lock_guard<std::mutex> commitLock(
                             m_worldJobCommitMutex);
-                        generationCurrent = m_jobScheduler.isCurrent(
-                            scheduledJob.generation);
-                        if (generationCurrent && prepared) {
-                            commitAccepted =
-                                m_chunkManager.finishChunkLoadJob(loadJob);
-                        }
-                        else {
-                            m_chunkManager.cancelChunkLoadJob(loadJob);
-                        }
-                    }
-                    commitMilliseconds =
-                        std::chrono::duration<double, std::milli>(
-                            std::chrono::steady_clock::now() -
-                            commitStart)
-                            .count();
-                    if (!generationCurrent) {
+                        m_chunkManager.cancelChunkLoadJob(loadJob);
                         outcome = WorldJobOutcome::Cancelled;
                     }
-                    else if (commitAccepted) {
-                        outcome = WorldJobOutcome::DidWork;
-                        publishFollowUp = true;
-                        followUpType =
-                            WorldJobType::ChunkLoadOrGenerate;
+                    else if (loadJob.valid) {
+                        const bool prepared =
+                            m_chunkManager.prepareChunkLoadJob(loadJob);
+                        didWork = didWork || prepared;
+                        bool generationCurrent = false;
+                        bool commitAccepted = false;
+                        const auto commitStart =
+                            std::chrono::steady_clock::now();
+                        authoritativeCommitAttempted = true;
+                        {
+                            std::unique_lock<std::mutex> lock(m_worldMutex);
+                            std::lock_guard<std::mutex> commitLock(
+                                m_worldJobCommitMutex);
+                            generationCurrent = m_jobScheduler.isCurrent(
+                                scheduledJob.generation);
+                            if (generationCurrent && prepared) {
+                                commitAccepted =
+                                    m_chunkManager.finishChunkLoadJob(loadJob);
+                            }
+                            else {
+                                m_chunkManager.cancelChunkLoadJob(loadJob);
+                            }
+                        }
+                        commitMilliseconds =
+                            std::chrono::duration<double, std::milli>(
+                                std::chrono::steady_clock::now() -
+                                commitStart)
+                                .count();
+                        if (!generationCurrent) {
+                            outcome = WorldJobOutcome::Cancelled;
+                        }
+                        else if (commitAccepted) {
+                            outcome = WorldJobOutcome::DidWork;
+                            publishFollowUp = true;
+                            followUpType =
+                                WorldJobType::ChunkLoadOrGenerate;
+                        }
+                        else {
+                            outcome = WorldJobOutcome::CommitRejected;
+                            publishFollowUp = true;
+                            followUpType =
+                                WorldJobType::ChunkLoadOrGenerate;
+                        }
                     }
                     else {
-                        outcome = WorldJobOutcome::CommitRejected;
+                        outcome = WorldJobOutcome::NoWork;
                         publishFollowUp = true;
-                        followUpType =
-                            WorldJobType::ChunkLoadOrGenerate;
+                        followUpType = neighborhood.neighborhoodReady
+                                           ? WorldJobType::ChunkMeshBuild
+                                           : WorldJobType::ChunkLoadOrGenerate;
                     }
                 }
-                else {
-                    outcome = WorldJobOutcome::NoWork;
-                    publishFollowUp = true;
-                    followUpType = neighborhood.neighborhoodReady
-                                       ? WorldJobType::ChunkMeshBuild
-                                       : WorldJobType::ChunkLoadOrGenerate;
-                }
+            }
+            else if (!shouldPublishMeshFollowUp(scheduledInterest)) {
+                outcome = WorldJobOutcome::NoWork;
             }
             else {
                 ChunkMeshJob meshJob;

@@ -101,6 +101,7 @@ struct ExplorationRewardSnapshot {
 struct WorldDebugStats {
     ChunkDebugStats chunks;
     ChunkDemandDebugStats streamingDemand;
+    SpatialInterestDebugStats spatialInterest;
     WorldJobSchedulerDebugStats worldJobs;
     ChunkBackpressureDebugStats streamingBackpressure;
     TerrainBufferMetrics terrainBuffers;

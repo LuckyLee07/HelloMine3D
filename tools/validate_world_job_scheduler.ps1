@@ -165,7 +165,7 @@ try {
         $runtimeHeader + $runtimeSource + $managerHeader +
         $managerSource + $worldHeader + $worldSource
     foreach ($forbidden in @(
-        "CancellationToken", "SpatialInterest",
+        "CancellationToken",
         "FarLOD", "FarTerrain", "ActiveMachineNetwork")) {
         Reject-Text $scopedSources $forbidden `
             "unapproved post-B3 capability"
@@ -224,7 +224,7 @@ try {
     Write-Host (
         "[WORLD_JOB_SCHEDULER] status=PASS types=2 states=3 " +
         "outcomes=4 workers=1 order=priority/plan/epoch/type/id " +
-        "post_b3=B4-B5")
+        "post_b3=B4-B6")
     exit 0
 }
 catch {

@@ -173,7 +173,7 @@ try {
                  $runtimeSource) "ChunkSectionMeshState" `
         "legacy combined CPU/GPU mesh enum"
     foreach ($forbidden in @(
-        "CancellationToken", "SpatialInterest")) {
+        "CancellationToken", "FarTerrain")) {
         Reject-Text ($lifecycleHeader + $lifecycleSource + $chunkHeader +
                      $chunkSource + $sectionHeader + $sectionSource +
                      $managerSource + $runtimeSource) $forbidden `
@@ -214,7 +214,7 @@ try {
     Write-Host (
         "[CHUNK_RESIDENCY_STATE_MACHINE] status=PASS " +
         "data_states=7 mesh_states=5 render_states=4 " +
-        "owners=3 debug_families=3 post_b1=B2-B5")
+        "owners=3 debug_families=3 post_b1=B2-B6")
     exit 0
 }
 catch {

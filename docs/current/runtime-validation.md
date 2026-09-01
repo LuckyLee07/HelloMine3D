@@ -409,6 +409,44 @@ the 104-entry isolated package SHA-256 is
 The result is `PASS real_window=DEFERRED` and B5 is `Done`. AI scenarios remain
 `NOT_RUN`; human subjective experience remains `NOT_CLAIMED`.
 
+## B6 Spatial Activation Evidence
+
+B6 adds a twelfth static Architecture Lab gate and a twelve-check focused
+runtime case. The implementation-stage commands are:
+
+```powershell
+& .\tools\validate_spatial_activation.ps1 `
+  -Root (Get-Location).Path -Implementation
+$env:HELLOMINE3D_WORLD_SMOKE_FOCUS = "B6"
+& .\bin\HelloMine3DWorldRuntimeSmoke.exe
+```
+
+The static gate freezes four classifications, nested resident/near/simulation
+flags, a radius-two Player simulation request, deterministic B2 derivation,
+copied diagnostics, one loader and the unchanged B5 `8/8/8` consumer limits.
+It requires real plan/mesh/upload/unload consumers and rejects Far, B7-B9 and
+D2 fidelity vocabulary.
+
+The VS2017/v141 Debug focused runtime passes `12/12`. Pure checks cover exact
+vocabulary/hierarchy, absent coordinates, all four source policies, overlap
+merge, stable ordering/revision and radius shrink. Integration checks prove
+resident-only work stops before mesh follow-up, copied mesh publication hides
+resident-only loaded sections, active Resident interest prevents unload until
+expiry and then resumes with an 8-then-1 backlog, and a far Actor remains in the
+unchanged unbudgeted fixed-tick metric because Simulation Requested is only
+published.
+
+The complete `scripts\verify_build.ps1 -VisualStudioVersion 2017
+-SkipRealWindow` run passes in Debug and Release with `918/918` WorldRuntime,
+`80/80` Resource Pack, `122/122` Recipe, `15/15` startup negatives, both short
+soaks at zero failures and both validation-only clients. Debug/Release rebuilds
+finish at `2044/0` and `2023/0` warnings/errors. The Release executable SHA-256
+is `D86A532AA3673011A8CBF1993DB48EF613B9922911324D34836A7CF75FA476B6`;
+the 104-entry isolated package SHA-256 is
+`C8E260E00CF76C952150EBC3DC851A7EDE5E13FE63A58F98B77DC103723EFA3C`.
+The result is `PASS real_window=DEFERRED` and B6 is `Done`. AI scenarios remain
+`NOT_RUN`; human subjective experience remains `NOT_CLAIMED`.
+
 ## World Runtime Smoke
 
 `src/HelloMine3D/Tests/WorldRuntimeSmokeMain.cpp` links the whole game runtime
@@ -686,6 +724,7 @@ the 2026-08-31 Architecture Lab policy, both physical protocols remain
 | B3 Generic World Job Scheduler | `tools\validate_world_job_scheduler.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=B3`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-b3-world-job-scheduler-report-v1.md` | Two real typed jobs use deterministic pending order, one in-flight slot, completed records and copied metrics while retaining one loader and B1 revision commit. Focused runtime passes 9/9, B2 passes 26/26 and B1 passes 38/38. The complete gate passes 884/884 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives and two zero-failure short soaks; the 104-entry package SHA-256 is `B983889B5553FF0DBFEAF6C14D2E349CC81AD1205C314CC39C0894C2D1CD9459`. Real-window is `DEFERRED`, AI acceptance remains `NOT_RUN` and human subjective experience remains `NOT_CLAIMED` (2026-09-01). |
 | B4 World Job Cancellation & Generation Token | `tools\validate_world_job_cancellation.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=B4`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-b4-world-job-cancellation-report-v1.md` | A copied uint64 generation token, cooperative `Cancelled` outcome, six invalidation boundaries, detached Chunk candidate and linearized commit prevent stale load/mesh publication while retaining one worker. Focused B4/B3/B2/B1 runs pass 10/10, 9/9, 26/26 and 38/38. The complete gate passes 894/894 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives and two zero-failure short soaks; the 104-entry package SHA-256 is `A9A7CC9AF528F3C725ACC13A62A69FB6D10718AD25F7F4796F5E47B70453C33A`. Real-window is `DEFERRED`, AI acceptance remains `NOT_RUN` and human subjective experience remains `NOT_CLAIMED` (2026-09-01). |
 | B5 Streaming Backpressure | `tools\validate_streaming_backpressure.ps1 -Implementation`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=B5`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-b5-streaming-backpressure-report-v1.md` | Caps 128/128/128, watermarks 96/48, explicit deterministic admission/shedding, retained-plan refill and commit/upload/unload limits 8/8/8 pass the static gate and 12/12 focused runtime checks. B4/B3/B2/B1 regressions pass 10/10, 9/9, 26/26 and 38/38. The complete gate passes 906/906 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives, both short soaks and both hidden clients; the 104-entry package SHA-256 is `7D126B31B78F3A4E8F8C90A5D769028EC686C0D4F708D1F6B2E2979BD164050B`. The result is `PASS real_window=DEFERRED`; AI acceptance remains `NOT_RUN` and human subjective experience remains `NOT_CLAIMED` (2026-09-02). |
+| B6 Spatial Activation | `tools\validate_spatial_activation.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=B6`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-b6-spatial-activation-report-v1.md` | Four nested Outside/Resident/Near/Simulation classifications derive deterministically from B2 demand. Real plan/mesh/upload/unload consumers honor resident/near interest while simulation request remains publication-only. B6 focused runtime passes 12/12 and B5/B4/B3/B2/B1 regressions pass 12/12, 10/10, 9/9, 26/26 and 38/38. The complete gate passes 918/918 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives, both short soaks and both hidden clients; the 104-entry package SHA-256 is `C8E260E00CF76C952150EBC3DC851A7EDE5E13FE63A58F98B77DC103723EFA3C`. The result is `PASS real_window=DEFERRED`; AI acceptance remains `NOT_RUN` and human subjective experience remains `NOT_CLAIMED` (2026-09-02). |
 | AI-assisted gameplay baseline | `docs\current\ai-assisted-gameplay-acceptance-v1.md` | `AI-01..AI-08 result=NOT_RUN`; no OS-level Computer Use record has been produced in this documentation batch. |
 
 The current 2026-08-12 runs use an NVIDIA GTX 1050 Ti with OpenGL 4.6. The

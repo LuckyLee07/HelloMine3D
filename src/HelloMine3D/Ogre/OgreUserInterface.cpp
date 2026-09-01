@@ -3296,6 +3296,18 @@ class OgreUserInterface::Impl
                 worldStats.streamingBackpressure.unloadBacklog
                     ? " backlog" : "");
             ImGui::Text(
+                "Spatial interest R/N/S: %llu / %llu / %llu (total %llu, rev %llu)",
+                static_cast<unsigned long long>(
+                    worldStats.spatialInterest.residentDataCells),
+                static_cast<unsigned long long>(
+                    worldStats.spatialInterest.nearRepresentationCells),
+                static_cast<unsigned long long>(
+                    worldStats.spatialInterest.simulationRequestedCells),
+                static_cast<unsigned long long>(
+                    worldStats.spatialInterest.totalCells),
+                static_cast<unsigned long long>(
+                    worldStats.spatialInterest.demandRevision));
+            ImGui::Text(
                 "Job ms queue/worker/commit: %.3f / %.3f / %.3f",
                 worldStats.worldJobs.lastQueueLatencyMilliseconds,
                 worldStats.worldJobs.lastWorkerMilliseconds,

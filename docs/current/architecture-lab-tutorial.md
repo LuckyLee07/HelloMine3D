@@ -1,7 +1,7 @@
 # HelloMine3D Architecture Lab Tutorial
 
 > Living tutorial status: Part 00 covers completed Track A and Part 01 covers
-> implemented B1 through B5. Later Parts are added only with the first verified
+> implemented B1 through B6. Later Parts are added only with the first verified
 > batch of their owning Track; this file does not pre-create empty Sprint chapters.
 
 <!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-BEGIN -->
@@ -17,6 +17,7 @@ B2|01|1.2|docs/reports/architecture-lab-b2-streaming-demand-report-v1.md
 B3|01|1.3|docs/reports/architecture-lab-b3-world-job-scheduler-report-v1.md
 B4|01|1.4|docs/reports/architecture-lab-b4-world-job-cancellation-report-v1.md
 B5|01|1.5|docs/reports/architecture-lab-b5-streaming-backpressure-report-v1.md
+B6|01|1.6|docs/reports/architecture-lab-b6-spatial-activation-report-v1.md
 <!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-END -->
 
 ## Part 00 — From a playable clone to an architecture lab
@@ -1112,7 +1113,8 @@ frame and distant unloads per update to eight each.
 
 `tools/validate_streaming_backpressure.ps1` freezes caps `128/128/128`,
 watermarks `96/48`, one loader, the three `8` consumer budgets, diagnostics and
-twelve B5 test identities while rejecting B6 and later vocabulary.
+twelve B5 test identities while permitting only the separately contracted B6
+extension and continuing to reject B7 and later vocabulary.
 `HELLOMINE3D_WORLD_SMOKE_FOCUS=B5` passes `12/12`; B4/B3/B2/B1 focused
 regressions pass `10/10`, `9/9`, `26/26` and `38/38`. The complete VS2017/v141
 Debug/Release gate passes `906/906` WorldRuntime twice, `80/80` Resource Pack,
@@ -1135,3 +1137,90 @@ Related evidence:
 - `docs/contracts/streaming-backpressure-contract-v1.md`
 - `docs/reports/architecture-lab-b5-streaming-backpressure-report-v1.md`
 - `tools/validate_streaming_backpressure.ps1`
+
+### 1.6 Why does loaded data not imply a visible or simulated region?
+
+#### Problem
+
+B2 can explain why a Chunk is wanted, but B3-B5 previously sent every merged
+target through the same load-to-mesh pipeline. A short-lived preload needed
+block data for a safe query yet also caused CPU mesh work and renderer-visible
+sections. Conversely, the existing camera-distance unload rule could evict a
+Chunk that a teleport or preload demand still required. “Loaded” was carrying
+data, representation and future simulation meanings at once.
+
+#### Naive Solution
+
+One shortcut is to add a single `active` flag to `Chunk`. Another is to invent
+Near/Far/Full/Reduced/Dormant lifecycle states immediately and let rendering,
+streaming and Actor code all switch on them. Both approaches look compact
+because one enum appears to answer every question.
+
+#### Failure
+
+A combined state creates illegal coupling. A Chunk may need resident block data
+without a mesh, while CPU-ready mesh and GPU residency already have independent
+B1 lifecycles. Far rendering has no current consumer, and changing Actor or
+random-tick fidelity would be a D-series gameplay decision. Folding those
+concerns together would either do unnecessary work or silently change gameplay
+before a real policy and evidence boundary exists.
+
+#### Design Evolution
+
+B6 derives three independent booleans from the immutable B2 demand snapshot:
+
+```text
+SimulationRequested => NearRepresentation => ResidentData
+```
+
+Player and Camera demands request resident data and near representation.
+Player additionally publishes simulation interest within Chebyshev radius two.
+TeleportDestination and Preload request resident data only. Overlaps merge with
+logical OR and preserve the B2 reason mask; absent coordinates are `Outside`.
+
+#### Implementation
+
+`World/Streaming/SpatialInterest.*` builds one sorted cell per coordinate and
+carries the source demand revision. `ChunkRuntime` refreshes the copied snapshot
+only after semantic demand changes. Planning admits resident cells, resident-
+only work stops before mesh follow-up, copied mesh snapshots and upload
+acknowledgement require current Near interest, and unload protects current
+Resident interest before applying the unchanged B5 eight-Chunk budget.
+
+The developer panel reports total, Resident, Near and Simulation Requested
+counts. Simulation interest is observation only: no Actor, combat, crop,
+furnace, random-tick, population or objective code consumes it.
+
+#### Validation
+
+```powershell
+& .\tools\validate_spatial_activation.ps1 `
+  -Root (Get-Location).Path -Implementation
+$env:HELLOMINE3D_WORLD_SMOKE_FOCUS = "B6"
+& .\bin\HelloMine3DWorldRuntimeSmoke.exe
+```
+
+The focused gate covers exact vocabulary and hierarchy, all four source
+policies, deterministic merging/order/revision, radius shrink, resident-only
+mesh suppression, copied-render filtering, resident protection with bounded
+expiry unload, and unchanged fixed-tick Actor metrics. It also retains one
+loader and the B5 `8/8/8` consumer budgets while rejecting Far and D2 fidelity
+vocabulary. The focused run passes `12/12`; the complete VS2017/v141 Debug and
+Release gate passes `918/918` twice, and the 104-entry isolated package SHA-256
+is `C8E260E00CF76C952150EBC3DC851A7EDE5E13FE63A58F98B77DC103723EFA3C`.
+
+#### Trade-offs
+
+The snapshot expands bounded demand radii into a sorted coordinate vector, so
+semantic demand changes pay allocation and sort cost in exchange for immutable,
+deterministic reads. Preload and teleport remain synchronous legacy data loads;
+B6 narrows their downstream work but does not redesign that API. Near currently
+matches the full Player/Camera demand radius, and Simulation Requested has no
+consumer. These are explicit first policies, not claims that Far rendering or
+simulation LOD has already been implemented.
+
+Related evidence:
+
+- `docs/contracts/spatial-activation-contract-v1.md`
+- `docs/reports/architecture-lab-b6-spatial-activation-report-v1.md`
+- `tools/validate_spatial_activation.ps1`

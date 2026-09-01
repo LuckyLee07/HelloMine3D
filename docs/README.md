@@ -21,8 +21,8 @@
 `AL-A4` 已完成 Event / Command / Query 边界与事实分发门禁；`AL-A5` 已完成四条真实 phase
 metrics、预算词汇和开发者面板观察；`AL-A6` 已完成单一 living tutorial 流水线；`B1` 已冻结
 Chunk Data/Mesh/Render 三态，`B2` Streaming Demand、`B3` World Job Scheduler、`B4` Generation
-Cancellation 与 `B5` Streaming Backpressure 已通过完整门禁；下一批为已批准的 `B6` Spatial
-Activation。
+Cancellation、`B5` Streaming Backpressure 与 `B6` Spatial Activation 已通过完整门禁；下一候选
+为 `B10` Large World Stress & Acceptance。
 其余 Core/Extended 能力目录都不是自动批准的 backlog。
 
 ## 目录分工

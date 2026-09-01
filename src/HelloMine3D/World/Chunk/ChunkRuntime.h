@@ -16,6 +16,7 @@
 #include "../../Util/NonCopyable.h"
 #include "ChunkDemand.h"
 #include "ChunkManager.h"
+#include "../Streaming/SpatialInterest.h"
 #include "../Streaming/WorldJobScheduler.h"
 
 class Camera;
@@ -100,6 +101,7 @@ class ChunkRuntime final : public NonCopyable {
         const glm::vec3 &position, int radius = 1,
         ChunkDemandReason reason = ChunkDemandReason::Preload);
     ChunkDemandDebugStats collectDemandDebugStats() const;
+    SpatialInterestDebugStats collectSpatialInterestDebugStats() const;
     WorldJobSchedulerDebugStats collectJobSchedulerDebugStats() const;
     ChunkBackpressureDebugStats collectBackpressureDebugStats() const;
 
@@ -113,6 +115,12 @@ class ChunkRuntime final : public NonCopyable {
     static std::vector<glm::ivec3> planSectionMeshUploads(
         const std::vector<glm::ivec3> &readySections,
         const VectorXZ &origin, std::size_t budget);
+    static bool shouldPublishMeshFollowUp(
+        const SpatialInterest &interest) noexcept
+    {
+        return interest.requiresResidentData &&
+               interest.requiresNearRepresentation;
+    }
 
   private:
     struct IVec3Hash {
@@ -127,6 +135,7 @@ class ChunkRuntime final : public NonCopyable {
 
     void queueSectionUpdateLocked(const glm::ivec3 &key);
     void invalidateWorldJobs();
+    void refreshSpatialInterestLocked();
     void publishMeshPrioritySnapshot(const Camera &camera, int sectionY);
     void runLoader();
 
@@ -143,6 +152,7 @@ class ChunkRuntime final : public NonCopyable {
 
     mutable std::mutex m_demandMutex;
     ChunkDemandModel m_demandModel;
+    SpatialInterestSnapshot m_spatialInterestSnapshot;
     VectorXZ m_playerDemandCoord{0, 0};
     VectorXZ m_playerMovement{0, 0};
     bool m_playerDemandPublished = false;

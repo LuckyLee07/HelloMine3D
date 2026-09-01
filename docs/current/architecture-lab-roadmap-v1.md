@@ -1237,32 +1237,36 @@ job family 仍然缺席。
 
 ## B6 — Spatial Activation
 
+> 当前状态：`Done`。冻结合同：
+> `docs/contracts/spatial-activation-contract-v1.md`。
+
 加载和模拟不是一回事。
 
 B6 只回答 Streaming / representation 层的空间需求：哪些 Chunk 数据需要 Resident、哪些 Mesh 需要
 构建、哪些 Render 表示需要保留。它可以发布 `SimulationInterest`，但不决定 Actor、Machine 或
 Network 在 Reduced 状态下具体怎样推进；后者属于 D2。
 
-定义多个 Spatial Ring：
+基于当前真实 Demand 定义三个 Spatial Ring：
 
 ```text
-Ring A — Resident + Near Render + High Simulation Interest
-Ring B — Resident + Near Render + Reduced Simulation Interest
-Ring C — Render Only
-Ring D — Far LOD
-Ring E — Outside Interest
+SimulationRequested — Resident + Near Representation + Simulation Request
+NearRepresentation  — Resident + Near Representation
+ResidentData        — Resident only
+Outside             — no current demand
 ```
 
-示例值仅作为可配置默认：
+当前第一版策略冻结为：
 
 ```text
-0-8 chunks      Full
-9-20            Reduced
-21-64           Render / LOD
-65+             Far representation
+Player 0-2 chunks              SimulationRequested
+Player/Camera render distance  NearRepresentation
+TeleportDestination/Preload    ResidentData
+No current demand              Outside
 ```
 
-真实数值由性能测试决定。
+这里的 Simulation Requested 只是供 D2 以后消费的空间请求，不定义 Full/Reduced/Dormant；当前
+Actor、Machine、Crop、Furnace、Random Tick 等模拟行为完全不变。B6 Core 不包含 Far 字段、Far 数据
+或 LOD，B7-B9 仍须由真实需求另行批准。
 
 ### 新模块
 
@@ -1275,18 +1279,35 @@ World/Streaming/SpatialInterest.*
 ```cpp
 struct SpatialInterest {
     bool requiresResidentData;
-    bool requiresNearRender;
+    bool requiresNearRepresentation;
     bool requestsSimulation;
-    bool requiresFarRepresentation;
+    std::uint32_t reasonMask;
 };
 ```
 
 D2 可以消费 `requestsSimulation` 和距离/玩法上下文，决定 `Full / Reduced / Dormant`；B6 自己不
 定义这些模式的 Tick 语义。
 
+### 当前实现记录（2026-09-02）
+
+`SpatialInterestModel` 已从 immutable B2 snapshot 生成按 x/z 排序的去重 cell；Player/Camera
+请求 Resident + Near，Player 的 Chebyshev 2 Chunk 邻域额外发布 Simulation Requested，Teleport
+Destination/Preload 只请求 Resident。重叠来源按 OR 合并并保留 reason mask，需求语义 revision
+改变时由 `ChunkRuntime` 一次重建 copied snapshot。
+
+真实消费者已经接入：plan 只接收 Resident cell；resident-only job 不进入 mesh follow-up；renderer
+copied snapshot 与同 revision upload acknowledgement 都复核 Near；unload 先保护 Resident，再沿用 B5
+每 update 8 个的上限。开发者面板显示 R/N/S/total/revision。`requestsSimulation` 没有进入任何 tick
+路径。B6 静态 gate、VS2017/v141 聚焦运行 `12/12` 以及 B5/B4/B3/B2/B1 回归
+`12/12`、`10/10`、`9/9`、`26/26`、`38/38` 通过。完整 Debug/Release 门禁均为 `918/918`
+WorldRuntime、`80/80` 资源包、`122/122` 配方、`15/15` 启动负例和零失败短 soak；104 项隔离包
+SHA-256 为 `C8E260E00CF76C952150EBC3DC851A7EDE5E13FE63A58F98B77DC103723EFA3C`，最终结果为
+`PASS real_window=DEFERRED`。
+
 ### 教程
 
-**Chapter 12：Loaded 不等于 Active**
+living tutorial 的 `1.6` 解释 Loaded、Near representation 和 Simulation request 为什么不能合并成
+一条 Chunk 状态，以及 resident-only preload 如何停止不必要的 mesh/render 工作。
 
 ---
 

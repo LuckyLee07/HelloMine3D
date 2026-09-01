@@ -170,8 +170,8 @@ try {
     $scopedSources = $schedulerHeader + $schedulerSource +
         $runtimeHeader + $runtimeSource + $worldHeader + $worldSource
     foreach ($forbidden in @(
-        "SpatialInterest", "requiresResidentData", "FarLOD",
-        "FarTerrain", "ActiveMachineNetwork", "SimulationInterest")) {
+        "requiresFarRepresentation", "FarLOD",
+        "FarTerrain", "ActiveMachineNetwork", "SimulationFidelity")) {
         Reject-Text $scopedSources $forbidden `
             "unapproved post-B5 capability"
     }
@@ -197,7 +197,7 @@ try {
     Write-Host (
         "[STREAMING_BACKPRESSURE] status=PASS caps=128/128/128 " +
         "watermarks=96/48 commits=8 uploads=8 unloads=8 " +
-        "workers=$workerStarts post_b5=absent")
+        "workers=$workerStarts post_b5=B6-only")
     exit 0
 }
 catch {

@@ -171,7 +171,7 @@ try {
     $scopedSources = $schedulerHeader + $schedulerSource +
         $runtimeHeader + $runtimeSource + $managerHeader + $managerSource
     foreach ($forbidden in @(
-        "SpatialInterest", "FarLOD", "FarTerrain",
+        "FarLOD", "FarTerrain",
         "ActiveMachineNetwork")) {
         Reject-Text $scopedSources $forbidden `
             "unapproved post-B4 capability"
@@ -219,7 +219,7 @@ try {
     Write-Host (
         "[WORLD_JOB_CANCELLATION] status=PASS token=uint64 " +
         "outcome=Cancelled load=detached commit=linearized " +
-        "invalidation_boundaries=$invalidationCalls post_b4=B5-only")
+        "invalidation_boundaries=$invalidationCalls post_b4=B5-B6")
     exit 0
 }
 catch {
