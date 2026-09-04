@@ -51,6 +51,15 @@ const Actor *ActorManager::findActor(ActorId id) const
 
 std::size_t ActorManager::tick(World &world, float dt)
 {
+    prepareBudgetedTick(dt);
+    const std::size_t processed =
+        tickBudgetedRange(world, dt, 0, m_actors.size());
+    completeBudgetedTick();
+    return processed;
+}
+
+void ActorManager::prepareBudgetedTick(float dt)
+{
     if (dt > 0.f) {
         for (DeathPresentation &presentation : m_deathPresentations) {
             --presentation.ticksRemaining;
@@ -65,16 +74,45 @@ std::size_t ActorManager::tick(World &world, float dt)
             m_deathPresentations.end());
     }
 
+    // Actors killed by a later phase in the previous fixed tick must not
+    // consume admission in the next round-robin plan.
+    removeDeadActors();
+}
+
+std::size_t ActorManager::getLiveActorCount() const
+{
+    return static_cast<std::size_t>(std::count_if(
+        m_actors.begin(), m_actors.end(),
+        [](const std::unique_ptr<Actor> &actor) {
+            return actor && actor->isAlive();
+        }));
+}
+
+std::size_t ActorManager::tickBudgetedRange(
+    World &world, float dt, std::size_t firstIndex, std::size_t count)
+{
+    const std::size_t actorCount = m_actors.size();
+    if (actorCount == 0 || count == 0) {
+        return 0;
+    }
+
     std::size_t processed = 0;
-    for (auto &actor : m_actors) {
+    const std::size_t boundedCount = std::min(count, actorCount);
+    for (std::size_t offset = 0; offset < boundedCount; ++offset) {
+        std::unique_ptr<Actor> &actor =
+            m_actors[(firstIndex + offset) % actorCount];
         if (actor && actor->isAlive()) {
             actor->tick(world, dt);
             ++processed;
         }
     }
 
-    removeDeadActors();
     return processed;
+}
+
+void ActorManager::completeBudgetedTick()
+{
+    removeDeadActors();
 }
 
 void ActorManager::removeDeadActors()

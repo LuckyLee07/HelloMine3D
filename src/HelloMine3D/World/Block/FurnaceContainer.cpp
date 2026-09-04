@@ -370,6 +370,56 @@ int FurnaceContainer::spillContents(World &world,
     return spawned;
 }
 
+bool FurnaceContainer::tickOne(World &world,
+                               const glm::ivec3 &position,
+                               const SmeltingRegistry &registry)
+{
+    if (!registry.isFrozen()) return false;
+    auto furnace = readFurnace(world, position, registry);
+    if (!furnace) return false;
+    FurnaceState &state = furnace->state;
+    const auto *recipe = registry.findRecipe(state.input.materialId);
+    const MachineProcessDefinition process = recipe != nullptr
+        ? processDefinition(*recipe)
+        : MachineProcessDefinition{};
+    const MachineProcessDefinition *matched =
+        recipe != nullptr ? &process : nullptr;
+    bool changed = false;
+    MachineState observed = MachineRuntime::inspect(
+        state.input, state.output, state.progressTicks,
+        state.burnTicksRemaining, matched);
+    if (observed.status == MachineStatus::NoPower) {
+        const auto *fuel = registry.findFuel(state.fuel.materialId);
+        if (fuel != nullptr && state.fuel.amount > 0) {
+            --state.fuel.amount;
+            clearIfEmpty(state.fuel);
+            state.burnTicksRemaining = fuel->burnTicks;
+            state.burnTicksTotal = fuel->burnTicks;
+            changed = true;
+        }
+    }
+    const MachineTickResult tick = MachineRuntime::tick(
+        state.input, state.output, state.progressTicks,
+        state.burnTicksRemaining, matched);
+    changed = changed || tick.changed;
+    if (tick.changed && state.burnTicksRemaining == 0) {
+        state.burnTicksTotal = 0;
+    }
+
+    const bool persisted = !changed ||
+        world.updateBlockEntity(position, serialize(state));
+    if (!persisted) {
+        return false;
+    }
+    synchronizeLighting(world, position, state, registry);
+    if (tick.completed && recipe != nullptr) {
+        world.getEventBus().publish(SmeltCompletedEvent(
+            recipe->inputMaterialId, recipe->outputMaterialId,
+            recipe->outputAmount, position));
+    }
+    return tick.completed;
+}
+
 int FurnaceContainer::tickLoaded(World &world,
                                  const SmeltingRegistry &registry)
 {
@@ -377,49 +427,7 @@ int FurnaceContainer::tickLoaded(World &world,
     int completed = 0;
     for (const glm::ivec3 &position :
          world.collectLoadedBlockEntityPositions(BlockEntityType)) {
-        auto furnace = readFurnace(world, position, registry);
-        if (!furnace) continue;
-        FurnaceState &state = furnace->state;
-        const auto *recipe = registry.findRecipe(state.input.materialId);
-        const MachineProcessDefinition process = recipe != nullptr
-            ? processDefinition(*recipe)
-            : MachineProcessDefinition{};
-        const MachineProcessDefinition *matched =
-            recipe != nullptr ? &process : nullptr;
-        bool changed = false;
-        MachineState observed = MachineRuntime::inspect(
-            state.input, state.output, state.progressTicks,
-            state.burnTicksRemaining, matched);
-        if (observed.status == MachineStatus::NoPower) {
-            const auto *fuel = registry.findFuel(state.fuel.materialId);
-            if (fuel != nullptr && state.fuel.amount > 0) {
-                --state.fuel.amount;
-                clearIfEmpty(state.fuel);
-                state.burnTicksRemaining = fuel->burnTicks;
-                state.burnTicksTotal = fuel->burnTicks;
-                changed = true;
-            }
-        }
-        const MachineTickResult tick = MachineRuntime::tick(
-            state.input, state.output, state.progressTicks,
-            state.burnTicksRemaining, matched);
-        changed = changed || tick.changed;
-        if (tick.changed && state.burnTicksRemaining == 0) {
-            state.burnTicksTotal = 0;
-        }
-
-        const bool persisted = !changed ||
-            world.updateBlockEntity(position, serialize(state));
-        if (!persisted) {
-            continue;
-        }
-        synchronizeLighting(world, position, state, registry);
-        if (tick.completed && recipe != nullptr) {
-            ++completed;
-            world.getEventBus().publish(SmeltCompletedEvent(
-                recipe->inputMaterialId, recipe->outputMaterialId,
-                recipe->outputAmount, position));
-        }
+        completed += tickOne(world, position, registry) ? 1 : 0;
     }
     return completed;
 }

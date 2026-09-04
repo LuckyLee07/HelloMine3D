@@ -20,6 +20,12 @@ class ActorManager {
     const Actor *findActor(ActorId id) const;
 
     std::size_t tick(World &world, float dt);
+    void prepareBudgetedTick(float dt);
+    std::size_t getLiveActorCount() const;
+    std::size_t tickBudgetedRange(World &world, float dt,
+                                  std::size_t firstIndex,
+                                  std::size_t count);
+    void completeBudgetedTick();
     void removeDeadActors();
     std::size_t getActorCount() const;
     std::vector<ActorSnapshot> collectSnapshots() const;

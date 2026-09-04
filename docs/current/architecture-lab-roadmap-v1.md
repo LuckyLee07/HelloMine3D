@@ -2143,36 +2143,50 @@ Activation 和 Actor AI LOD。D3、D4、D6-D8 属于 Extended，只有已实现�
 
 ## D1 — Simulation Phase Scheduler
 
-A5 只提供不改变行为的 phase 名称、计时和预算词汇；D1 才允许改变执行顺序、引入延迟队列、
-按预算 defer 工作。因此 A5 是 observability refactor，D1 是 runtime behavior change。
+> 当前状态：`Done`。项目所有者于 2026-09-04 单独批准 D1；冻结
+> 边界见 `docs/contracts/simulation-phase-scheduler-v0-contract-v1.md`。本批只调度 Managed Actors、
+> Random-Tick Sections 和 Furnace/Crusher Block Entities 三条已存在 workload，不包含或自动批准
+> D2-D8、C4-C11、Network tick、通用 Registry/接口或墙钟预算。
 
-固定 Tick：
-
-```text
-1 Input Commit
-2 World Commands
-3 Block Simulation
-4 Machine
-5 Network
-6 Actor AI
-7 Combat
-8 Population
-9 Post Simulation Events
-10 Snapshot
-```
-
-每一 phase：
+A5 只提供不改变行为的 phase 名称、计时和预算词汇；D1 才让真实 workload 在超过 item budget 时
+defer。进入审计证明了三个问题：ActorManager 原来全量 tick；Random Tick 的四 Section admission
+藏在 World 内；Furnace/Crusher 分别全量扫描 loaded block entity。D1 因此演进现有
+`WorldSimulation`，但保留 AL-A3 的 8 个 phase barrier：
 
 ```text
-Budget
-Used
-Skipped
-Deferred
+TickPreparation -> ActorSimulation -> Combat -> Encounter
+ -> BlockRandomTick -> Population -> BlockEntitySimulation -> GameplayRuntime
 ```
+
+只有三个真实 workload 进入调度：
+
+```text
+ManagedActors       budget 64 / tick, ActorManager insertion-order round robin
+RandomTickSections  existing budget 4 / tick, World FIFO retains order ownership
+BlockEntities       budget 32 / tick, Furnace-before-Crusher then X/Y/Z round robin
+```
+
+预算按 item 计数而非毫秒；稳定 eligible set 的 service window 是 `ceil(N / B)`。PlayerActor、玩家
+cooldown、Combat、Encounter、Population 与 Gameplay Runtime 仍是 mandatory。低于预算时 Actor
+插入顺序和每个对象的单 tick 结果不变；Block Entity 把旧 unordered-Chunk 遍历明确收敛为上述
+canonical 顺序，以支持可复现的 round-robin。高于预算时每次服务只推进原有 `1/20 s`，不乘 `dt`、不积累 time debt。scheduler
+cursor、plan 和 metrics 都不持久化，save v12 不变。
+
+复制诊断记录 `eligible / admitted / deferred / budget / firstIndex / serviceWindowTicks`。不存在
+Network workload，因为 C3 topology 当前没有 per-tick 行为；也不会为未来系统预留空槽。
+
+### D1 实施记录（2026-09-04）
+
+静态边界、Debug 聚焦 `24/24` 与 AL-A5/B6/C2/C3 兼容回归均通过。完整 VS2017/v141 Debug/Release
+门禁均为 WorldRuntime `991/991`、Recipe `126/126`、Resource Pack `80/80`、启动负例 `15/15`，
+短 soak 与隐藏客户端通过；105 项隔离包 SHA-256 为
+`0B34CD34265ED1A4F88FD5833975FD328FB026FCD6B13A0FAFE9710859F1B2F6`，最终结果为
+`PASS real_window=DEFERRED`。AI 验收仍为 `NOT_RUN`，人类主观体验仍为 `NOT_CLAIMED`。
+D2 只是下一候选，尚未获批。
 
 ### 教程
 
-**Chapter 26：Tick 顺序就是 Gameplay Contract**
+**Part 03 / 3.1：Tick 顺序就是 Gameplay Contract**
 
 ---
 

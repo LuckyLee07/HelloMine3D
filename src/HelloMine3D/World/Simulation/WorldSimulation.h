@@ -6,6 +6,7 @@
 #include <cstdint>
 
 #include "../../Util/NonCopyable.h"
+#include "SimulationPhaseScheduler.h"
 
 class World;
 
@@ -23,7 +24,7 @@ enum class WorldSimulationPhase : std::uint8_t {
 
 constexpr std::size_t WorldSimulationPhaseCount =
     static_cast<std::size_t>(WorldSimulationPhase::Count);
-constexpr std::size_t SimulationMetricPhaseCount = 4;
+constexpr std::size_t SimulationMetricPhaseCount = 5;
 
 const char *worldSimulationPhaseName(WorldSimulationPhase phase) noexcept;
 
@@ -61,6 +62,9 @@ struct SimulationPhaseMetrics {
     std::size_t processed = 0;
     std::size_t deferred = 0;
     std::size_t budget = 0;
+    std::size_t eligible = 0;
+    std::size_t serviceWindowTicks = 0;
+    bool schedulerManaged = false;
     SimulationPhaseBudgetScope budgetScope =
         SimulationPhaseBudgetScope::Unbudgeted;
 
@@ -74,6 +78,8 @@ struct WorldSimulationSnapshot {
     double tickElapsedMilliseconds = 0.0;
     std::array<WorldSimulationPhaseTiming, WorldSimulationPhaseCount> phases;
     std::array<SimulationPhaseMetrics, SimulationMetricPhaseCount> metrics;
+    std::array<SimulationWorkPlan, SimulationScheduledWorkloadCount>
+        scheduledWorkloads;
 };
 
 const SimulationPhaseMetrics *findSimulationPhaseMetrics(
@@ -92,6 +98,7 @@ class WorldSimulation final : public NonCopyable {
 
   private:
     World &m_world;
+    SimulationPhaseScheduler m_scheduler;
     WorldSimulationSnapshot m_snapshot;
 };
 

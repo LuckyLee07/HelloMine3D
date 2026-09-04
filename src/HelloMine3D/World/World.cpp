@@ -1009,7 +1009,7 @@ void World::removeRandomTickSectionsForChunk(int chunkX, int chunkZ)
     }
 }
 
-void World::runRandomTicks(int worldTime)
+void World::runRandomTicks(int worldTime, std::size_t sectionBudget)
 {
     struct RandomTickCandidate {
         glm::ivec3 position{0};
@@ -1022,7 +1022,7 @@ void World::runRandomTicks(int worldTime)
         m_randomTickSectionsProcessed = 0;
         const std::size_t sectionsAtStart = m_randomTickSectionQueue.size();
         const std::size_t budget = std::min(
-            RandomTickSectionBudgetPerTick, sectionsAtStart);
+            sectionBudget, sectionsAtStart);
         candidates.reserve(budget);
 
         for (std::size_t index = 0; index < budget; ++index) {

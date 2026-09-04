@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <vector>
 
 #include "../../Diagnostics/RuntimeProfiler.h"
 #include "../../Item/SmeltingRegistry.h"
@@ -26,9 +27,74 @@ namespace
         }
     }
 
+    std::size_t workloadIndex(
+        SimulationScheduledWorkload workload) noexcept
+    {
+        return static_cast<std::size_t>(workload);
+    }
+
+    enum class ScheduledBlockEntityKind
+    {
+        Furnace = 0,
+        Crusher
+    };
+
+    struct ScheduledBlockEntity
+    {
+        ScheduledBlockEntityKind kind =
+            ScheduledBlockEntityKind::Furnace;
+        glm::ivec3 position{0};
+    };
+
+    bool scheduledBlockEntityLess(const ScheduledBlockEntity &left,
+                                  const ScheduledBlockEntity &right)
+    {
+        if (left.kind != right.kind) {
+            return left.kind < right.kind;
+        }
+        if (left.position.x != right.position.x) {
+            return left.position.x < right.position.x;
+        }
+        if (left.position.y != right.position.y) {
+            return left.position.y < right.position.y;
+        }
+        return left.position.z < right.position.z;
+    }
+
+    std::vector<ScheduledBlockEntity> collectScheduledBlockEntities(
+        World &world)
+    {
+        std::vector<ScheduledBlockEntity> work;
+        if (runtimeSmeltingRegistry().isFrozen()) {
+            const std::vector<glm::ivec3> furnaces =
+                world.collectLoadedBlockEntityPositions(
+                    FurnaceContainer::BlockEntityType);
+            work.reserve(furnaces.size());
+            for (const glm::ivec3 &position : furnaces) {
+                work.push_back(
+                    {ScheduledBlockEntityKind::Furnace, position});
+            }
+        }
+        const std::vector<glm::ivec3> crushers =
+            world.collectLoadedBlockEntityPositions(
+                CrusherContainer::BlockEntityType);
+        work.reserve(work.size() + crushers.size());
+        for (const glm::ivec3 &position : crushers) {
+            work.push_back(
+                {ScheduledBlockEntityKind::Crusher, position});
+        }
+        std::sort(work.begin(), work.end(), scheduledBlockEntityLess);
+        return work;
+    }
+
     void initializeMetricIdentity(WorldSimulationSnapshot &snapshot) noexcept
     {
         snapshot.metrics[0].phase = WorldSimulationPhase::ActorSimulation;
+        snapshot.metrics[0].budget =
+            SimulationPhaseScheduler::ManagedActorBudgetPerTick + 1;
+        snapshot.metrics[0].budgetScope =
+            SimulationPhaseBudgetScope::PerTick;
+        snapshot.metrics[0].schedulerManaged = true;
         snapshot.metrics[1].phase = WorldSimulationPhase::Combat;
         snapshot.metrics[1].budget =
             World::CombatProjectileStepBudgetPerTick;
@@ -42,6 +108,24 @@ namespace
         snapshot.metrics[3].phase = WorldSimulationPhase::Population;
         snapshot.metrics[3].budgetScope =
             SimulationPhaseBudgetScope::PerPopulationCycle;
+        snapshot.metrics[4].phase =
+            WorldSimulationPhase::BlockEntitySimulation;
+        snapshot.metrics[4].budget =
+            SimulationPhaseScheduler::BlockEntityBudgetPerTick;
+        snapshot.metrics[4].budgetScope =
+            SimulationPhaseBudgetScope::PerTick;
+        snapshot.metrics[4].schedulerManaged = true;
+    }
+
+    void initializeScheduledWorkloadIdentity(
+        WorldSimulationSnapshot &snapshot) noexcept
+    {
+        snapshot.scheduledWorkloads[0].workload =
+            SimulationScheduledWorkload::ManagedActors;
+        snapshot.scheduledWorkloads[1].workload =
+            SimulationScheduledWorkload::RandomTickSections;
+        snapshot.scheduledWorkloads[2].workload =
+            SimulationScheduledWorkload::BlockEntities;
     }
 
     SimulationPhaseMetrics *findMutablePhaseMetrics(
@@ -172,6 +256,7 @@ WorldSimulation::WorldSimulation(World &world)
 {
     initializePhaseIdentity(m_snapshot);
     initializeMetricIdentity(m_snapshot);
+    initializeScheduledWorkloadIdentity(m_snapshot);
 }
 
 void WorldSimulation::fixedTick(const WorldTickContext &context)
@@ -181,6 +266,7 @@ void WorldSimulation::fixedTick(const WorldTickContext &context)
     WorldSimulationSnapshot next;
     initializePhaseIdentity(next);
     initializeMetricIdentity(next);
+    initializeScheduledWorkloadIdentity(next);
     next.completedTicks = m_snapshot.completedTicks + 1;
     next.lastTick = context.tick;
     next.deltaSeconds = context.deltaSeconds;
@@ -226,11 +312,24 @@ void WorldSimulation::fixedTick(const WorldTickContext &context)
             0, m_world.m_attackCooldownTicksRemaining - 1);
         m_world.m_waystoneResonanceCooldownTicks = std::max(
             0, m_world.m_waystoneResonanceCooldownTicks - 1);
+        m_world.m_actorManager.prepareBudgetedTick(context.deltaSeconds);
+        const std::size_t managedActorsEligible =
+            m_world.m_actorManager.getLiveActorCount();
+        const SimulationWorkPlan actorPlan =
+            m_scheduler.planManagedActors(managedActorsEligible);
+        next.scheduledWorkloads[workloadIndex(
+            SimulationScheduledWorkload::ManagedActors)] = actorPlan;
         const std::size_t managedActorsProcessed =
-            m_world.m_actorManager.tick(m_world, context.deltaSeconds);
+            m_world.m_actorManager.tickBudgetedRange(
+                m_world, context.deltaSeconds, actorPlan.firstIndex,
+                actorPlan.admitted);
+        m_world.m_actorManager.completeBudgetedTick();
         SimulationPhaseMetrics *metrics = findMutablePhaseMetrics(
             next, WorldSimulationPhase::ActorSimulation);
         metrics->processed = managedActorsProcessed + 1;
+        metrics->eligible = managedActorsEligible + 1;
+        metrics->deferred = actorPlan.deferred;
+        metrics->serviceWindowTicks = actorPlan.serviceWindowTicks;
     }
 
     {
@@ -242,6 +341,7 @@ void WorldSimulation::fixedTick(const WorldTickContext &context)
         metrics->processed = m_world.m_combatProjectileStepsUsed;
         metrics->deferred =
             m_world.m_combatProjectileStepBudgetDenied;
+        metrics->eligible = metrics->processed + metrics->deferred;
     }
 
     {
@@ -253,18 +353,28 @@ void WorldSimulation::fixedTick(const WorldTickContext &context)
     {
         HELLOMINE3D_PROFILE_SCOPE("Simulation::BlockRandomTick");
         RawPhaseTimer timing(next, WorldSimulationPhase::BlockRandomTick);
-        m_world.runRandomTicks(context.tick);
+        std::size_t randomTickSectionsEligible = 0;
+        {
+            std::unique_lock<std::mutex> lock(m_world.m_mainMutex);
+            randomTickSectionsEligible =
+                m_world.m_randomTickSectionQueue.size();
+        }
+        const SimulationWorkPlan randomTickPlan =
+            m_scheduler.planRandomTickSections(
+                randomTickSectionsEligible,
+                World::RandomTickSectionBudgetPerTick);
+        next.scheduledWorkloads[workloadIndex(
+            SimulationScheduledWorkload::RandomTickSections)] =
+                randomTickPlan;
+        m_world.runRandomTicks(context.tick, randomTickPlan.admitted);
         SimulationPhaseMetrics *metrics = findMutablePhaseMetrics(
             next, WorldSimulationPhase::BlockRandomTick);
         metrics->processed = m_world.m_randomTickSectionsProcessed;
-        {
-            std::unique_lock<std::mutex> lock(m_world.m_mainMutex);
-            metrics->deferred = m_world.m_randomTickSections.size() >
-                                        metrics->processed
-                                    ? m_world.m_randomTickSections.size() -
-                                          metrics->processed
-                                    : 0;
-        }
+        metrics->eligible = randomTickPlan.eligible;
+        metrics->deferred = randomTickPlan.deferred;
+        metrics->serviceWindowTicks =
+            randomTickPlan.serviceWindowTicks;
+        metrics->schedulerManaged = true;
     }
 
     {
@@ -279,17 +389,41 @@ void WorldSimulation::fixedTick(const WorldTickContext &context)
         m_world.runNaturalMobPopulation(context.tick);
         metrics->processed = m_world.m_naturalMobSpawnAttempts -
                              attemptsBefore;
+        metrics->eligible = metrics->processed;
     }
 
     {
         HELLOMINE3D_PROFILE_SCOPE("Simulation::BlockEntitySimulation");
         RawPhaseTimer timing(next,
                              WorldSimulationPhase::BlockEntitySimulation);
-        if (runtimeSmeltingRegistry().isFrozen()) {
-            FurnaceContainer::tickLoaded(m_world,
-                                         runtimeSmeltingRegistry());
+        const std::vector<ScheduledBlockEntity> work =
+            collectScheduledBlockEntities(m_world);
+        const SimulationWorkPlan blockEntityPlan =
+            m_scheduler.planBlockEntities(work.size());
+        next.scheduledWorkloads[workloadIndex(
+            SimulationScheduledWorkload::BlockEntities)] =
+                blockEntityPlan;
+        std::size_t processed = 0;
+        for (std::size_t offset = 0;
+             offset < blockEntityPlan.admitted; ++offset) {
+            const ScheduledBlockEntity &item = work[
+                (blockEntityPlan.firstIndex + offset) % work.size()];
+            if (item.kind == ScheduledBlockEntityKind::Furnace) {
+                FurnaceContainer::tickOne(
+                    m_world, item.position, runtimeSmeltingRegistry());
+            }
+            else {
+                CrusherContainer::tickOne(m_world, item.position);
+            }
+            ++processed;
         }
-        CrusherContainer::tickLoaded(m_world);
+        SimulationPhaseMetrics *metrics = findMutablePhaseMetrics(
+            next, WorldSimulationPhase::BlockEntitySimulation);
+        metrics->processed = processed;
+        metrics->eligible = blockEntityPlan.eligible;
+        metrics->deferred = blockEntityPlan.deferred;
+        metrics->serviceWindowTicks =
+            blockEntityPlan.serviceWindowTicks;
     }
 
     {

@@ -1,7 +1,7 @@
 # HelloMine3D Current Architecture Baseline
 
 本文以 `AL-A0 — Latest Architecture Baseline` 的完整审计为起点，并随已完成的
-AL-A1/AL-A2/AL-A3/AL-A4/AL-A5/AL-A6/B1/B2/B3/B4/B5/B6/B10/C1/C2/C3 更新当前实现；它描述代码事实，而不是未来目标架构。
+AL-A1/AL-A2/AL-A3/AL-A4/AL-A5/AL-A6/B1/B2/B3/B4/B5/B6/B10/C1/C2/C3/D1 更新当前实现；它描述代码事实，而不是未来目标架构。
 审计起点为 Git commit `4930023fb2f3022daac9968c10a1a0b76e1ac392`；冻结的
 PLAYABILITY-RC 运行时代码身份仍是
 `320e293c2f1db7f46aba776ddccdcf94369f2d05`。A0 只更新文档，没有移动源码、改变 Gameplay、
@@ -34,7 +34,7 @@ Premake 从共享的 `src/HelloMine3D` 与资源边界生成 `build/` 下工程�
 
 | Module | Size at A0 | Responsibility | Authoritative state / derived state | Main dependency direction |
 | ------ | ---------- | -------------- | --------------------------- | ------------------------- |
-| `World/` | 102 files / 17,666 lines | 区块、方块、生成、光照、交互、区块网格 CPU 数据、世界模拟和持久化组合根。 | 方块/区块、block entity、世界元数据、World 内 Actor/战斗/进度实例为权威；光照、mesh、debug snapshot 为可重建或派生。 | 依赖 Actor、Gameplay、Item、Player、Sandbox Events、Diagnostics、Maths、Physics、Util；不得依赖 Ogre。 |
+| `World/` | 102 files / 17,666 lines (A0) | 区块、方块、生成、光照、交互、区块网格 CPU 数据、世界模拟、D1 三 workload item-budget admission 和持久化组合根。 | 方块/区块、block entity、世界元数据、World 内 Actor/战斗/进度实例为权威；光照、mesh、scheduler plan/debug snapshot 为可重建或派生。 | 依赖 Actor、Gameplay、Item、Player、Sandbox Events、Diagnostics、Maths、Physics、Util；不得依赖 Ogre。 |
 | `Sandbox/` | 17 / 1,183 | 应用状态、固定 tick 编排、世界集合/活动世界、输入到 World action 的协调、类型化事件协议。 | `GameApplicationFlow`、活动 world id 和调度器累积时间为运行时编排状态；事件是已发生事实，不是持久化真值。 | 依赖 World、Player、Core/Camera、Feedback、Item、Diagnostics；不依赖 Ogre。 |
 | `Actor/` | 21 / 2,348 | Actor id、生命周期、Living/Mob/Player/Item actor 行为、存档值和不可变渲染快照。 | `ActorManager` 拥有的 Actor 实例为权威；`ActorSnapshot` 与 `ActorSaveState` 是发布/序列化值。 | 由 World 拥有；Actor tick 可回调 World 并发布 Sandbox 事件；依赖 Item、Player、Entity、Maths。 |
 | `Feedback/` | 2 / 361 | 从已提交领域事件生成有界 recoil、hit-stop、粒子等表现时间线。 | 全部为派生表现状态；不得改变战斗、方块、库存或存档结果。 | 订阅 Sandbox EventBus；由 Sandbox 更新，Ogre 只消费 snapshot。 |
@@ -71,7 +71,7 @@ SandboxRuntime
 
 World (composition root)
   -> ChunkRuntime -> ChunkManager
-  -> WorldSimulation -> existing World/Actor/Gameplay implementations
+  -> WorldSimulation -> D1 concrete phase admission -> existing World/Actor/Gameplay implementations
   -> MechanicalTopology (derived loaded-Crusher connectivity)
   -> ActorManager + PlayerActor + Gameplay runtimes
   -> SandboxEventBus + WorldSave + WorldBackup
@@ -98,7 +98,9 @@ Core / Entity / Physics / Maths / Util
   spatial interest；B10 用同一生产路径完成长稳收口并修正被压力场景暴露的卸载饥饿，仍不改变
   World facade。
 - AL-A3 已把 `World::tick` 的现有调用顺序集中到具体 `WorldSimulation`；AL-A5 在同一 last-tick
-  snapshot 上增加四条真实 processed/deferred/budget 观察。两者都不拥有玩法状态，也不是通用 scheduler。
+  snapshot 上增加四条历史 processed/deferred/budget 观察。D1 经独立批准后为 Managed Actors、
+  Random-Tick Sections、Furnace/Crusher Block Entities 三条真实 workload 加入 64/4/32 item admission
+  与稳定集合 service window，并追加 Block Entity metric；它仍不拥有玩法状态，也不是通用 Registry。
 - C1 把 Chest/Furnace 的能力声明附着到既有 `BlockDefinition`；C2 以可玩的 Crusher 成为第二个
   Processor 后，把真实声明扩展为 Chest/Furnace/Crusher，并从 Furnace/Crusher 提炼 Ogre-free、
   persistence-free 的 `MachineRuntime` 五态与单 tick 转换。`BlockCapabilityAccess` 只复制观察值并把
@@ -155,6 +157,28 @@ payload semantics, while Crusher owns crank admission and Crusher payload v1.
 `MechanicalPort` 只由 Crusher 声明。它再次核对 live block/entity identity，再读取 World 锁内的
 copied topology snapshot；缺失、错配、损坏或已卸载状态 fail closed。C3 的 network id 是 component
 中 X/Y/Z 字典序最小位置，未序列化；每台 Crusher 仍独立手摇，连接不影响 C2 processing。
+
+### 3.2 D1 concrete phase-admission path
+
+```text
+WorldSimulation::fixedTick
+  -> mandatory PlayerActor / cooldown work
+  -> planManagedActors(live managed actors, 64)
+       -> ActorManager::tickBudgetedRange(firstIndex, admitted)
+  -> planRandomTickSections(active FIFO sections, existing 4)
+       -> World::runRandomTicks(tick, admitted); World keeps FIFO order
+  -> collect loaded Furnace + Crusher work
+       -> sort Furnace before Crusher, then X/Y/Z
+       -> planBlockEntities(work.size, 32)
+       -> concrete Furnace/Crusher tickOne adapters
+  -> publish copied plans + five phase metrics
+```
+
+`SimulationPhaseScheduler` 只拥有 Actor 与 Block Entity 的 transient next index，并为三条真实
+workload 计算 item admission。稳定集合的服务窗口为 `ceil(eligible / budget)`；集合变化时索引先对
+新长度取模，不缓存 Actor、Chunk 或 block-entity pointer。PlayerActor 与其余 phase barrier 不进入
+可延期集合。服务一次只推进原来的一个 20 Hz step；延期状态不做 wall-clock catch-up，也不写入
+save v12。C3 topology 没有 tick 行为，因此不存在伪造的 Network workload。
 
 ## 4. World Public API Surface
 
@@ -496,12 +520,15 @@ Ogre::frameStarted
                              -> WorldSimulation::fixedTick(context)
                                   1. TickPreparation
                                   2. ActorSimulation
+                                     -> mandatory PlayerActor/cooldowns
+                                     -> up to 64 managed actors, rotating cursor
                                   3. Combat
                                   4. Encounter
                                   5. BlockRandomTick
+                                     -> up to existing 4 FIFO sections
                                   6. Population
                                   7. BlockEntitySimulation
-                                     -> Furnace/Crusher concrete owner
+                                     -> up to 32 Furnace/Crusher items, rotating cursor
                                      -> MachineRuntime one fixed transition
                                   8. GameplayRuntime
             -> update Camera from interpolated Player
@@ -527,9 +554,10 @@ Ogre::frameEnded -> capture + performance record + exit/crash gates
 
 暂停或非 Playing 状态由 `GameApplicationFlow` 在进入 `SandboxRuntime::update` 之前阻止 simulation；
 `WorldSimulation` 不复制 pause 状态，渲染、UI 和必要的应用处理仍可继续。每个完成 tick 记录 8 项
-phase 与整 tick 的 `steady_clock` 原始毫秒值，并为 Actor、Combat、Block Random Tick、Population
-发布四条 last-tick work metrics。`WorldDebugStats` 把 elapsed、processed、deferred、budget scope/status
-复制到开发者面板；这些值不持久化、不进入确定性比较，也不定义平均值、百分位或毫秒预算。
+phase 与整 tick 的 `steady_clock` 原始毫秒值，并为 Actor、Combat、Block Random Tick、Population、
+Block Entity 发布五条 last-tick work metrics。D1 另复制恰好三条 workload plan：eligible、admitted、
+deferred、item budget、first index 和稳定集合 service window。`WorldDebugStats` 只把这些值复制到
+开发者面板；它们不持久化、不进入确定性比较，也不以 wall-clock 反向决定 Gameplay。
 
 ## 11. Render Snapshot Chain
 
@@ -597,7 +625,7 @@ Design Evolution、Implementation、Validation 和 Trade-offs 七个非空逻辑
 Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先于编译执行。该验证保护文档身份，
 不证明文字质量，也不把 roadmap proposal 提升成实现事实。
 
-## 14. Current Conclusions Through C3
+## 14. Current Conclusions Through D1
 
 - 当前可玩的系统已经有清晰的 Renderer-to-Snapshot 边界和可验证持久化边界。
 - `World` 仍承担 facade、组合根和多套 Simulation 玩法状态；AL-A2/AL-A3/AL-A4/AL-A5 只关闭了四条由真实工作
@@ -611,9 +639,10 @@ Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先
   又把 Resident、Near Representation 与 Simulation Requested 从同一 demand 中正交派生，并让真实
   plan/mesh/render/unload consumer 遵守它；B10 以五阶段长稳验证关闭 Track B Core，并修复取消墓碑抢占
   unload budget 的饥饿问题。当前仍没有 Far representation、额外 worker、D2 fidelity 或未来系统空槽。
-- fixed-tick 的 8 phase 顺序、context、last-tick 原始耗时及四条真实 work metrics 现在集中在
-  `WorldSimulation`；玩法状态与旧实现仍由 World/Actor/Gameplay 所有，没有 `SimulationScheduler`、
-  系统 Registry、时间预算或执行优先级。
+- fixed-tick 的 8 phase 顺序与 mandatory barrier 不变；D1 在 `WorldSimulation` 内组合一个具体
+  `SimulationPhaseScheduler`，只对 Managed Actors、Random-Tick Sections、Furnace/Crusher Block
+  Entities 做 64/4/32 item admission。Actor/Block Entity 使用轮转索引，Random Tick 保留 World FIFO；
+  稳定集合在 `ceil(N/B)` tick 内获得服务。没有墙钟预算、通用系统 Registry、持久化 cursor 或 D2 LOD。
 - 玩家 Break/Use/Place 请求现在只走 `IWorldCommand` FIFO；World-local EventBus 只同步分发不可变事实，
   生产订阅者 effect/republish、8 层递归上限、per-publication membership 与 Diagnostic 隔离均已冻结。
 - Architecture Lab 教程现在按 Track/真实 Section 维护，并由 manifest、冻结证据和完整门禁阻止空 Part、
@@ -626,5 +655,5 @@ Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先
 - C3 只把当前已加载且通过严格 payload 校验的 Crusher 投影成六面相邻图。component id 取 X/Y/Z
   字典序最小节点；canonical edge、同步 BFS merge/split、Chunk replace/remove 与 copied snapshot
   都是派生状态，不写入 save v12，也不改变每台 Crusher 独立手摇的 C2 行为。
-- C3 完成不构成 B7-B9、C4-C11、Track D、动力传播、通用网络或 Extended 的自动启动权限；后续
-  只有进入任务账本并单独获批的具名批次才可实施。
+- C3 本身没有授权 Track D；D1 是之后单独获批的具名批次。D1 又不构成 B7-B9、C4-C11、D2-D8、
+  动力传播、通用网络或 Extended 的自动启动权限。

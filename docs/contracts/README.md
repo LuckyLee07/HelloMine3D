@@ -21,6 +21,7 @@
 - [block-capability-model-contract-v1.md](block-capability-model-contract-v1.md)
 - [machine-runtime-v0-contract-v1.md](machine-runtime-v0-contract-v1.md)
 - [mechanical-topology-model-v0-contract-v1.md](mechanical-topology-model-v0-contract-v1.md)
+- [simulation-phase-scheduler-v0-contract-v1.md](simulation-phase-scheduler-v0-contract-v1.md)
 - [recipe-contract.md](recipe-contract.md)
 - [resource-pack-contract.md](resource-pack-contract.md)
 - [crafting-contract-v1.md](crafting-contract-v1.md)

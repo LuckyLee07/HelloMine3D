@@ -330,31 +330,34 @@ int CrusherContainer::spillContents(World &world,
     return spawned;
 }
 
+bool CrusherContainer::tickOne(World &world,
+                               const glm::ivec3 &position)
+{
+    const MachineProcessDefinition &recipe = handCrusherProcessDefinition();
+    auto crusher = readCrusher(world, position);
+    if (!crusher) {
+        return false;
+    }
+    CrusherState &state = crusher->state;
+    const MachineProcessDefinition *matched =
+        state.input.amount > 0 &&
+                state.input.materialId == recipe.inputMaterialId
+            ? &recipe
+            : nullptr;
+    const MachineTickResult result = MachineRuntime::tick(
+        state.input, state.output, state.progressTicks,
+        state.crankTicksRemaining, matched);
+    const bool persisted = !result.changed ||
+        world.updateBlockEntity(position, serialize(state));
+    return persisted && result.completed;
+}
+
 int CrusherContainer::tickLoaded(World &world)
 {
     int completed = 0;
-    const MachineProcessDefinition &recipe = handCrusherProcessDefinition();
     for (const glm::ivec3 &position :
          world.collectLoadedBlockEntityPositions(BlockEntityType)) {
-        auto crusher = readCrusher(world, position);
-        if (!crusher) {
-            continue;
-        }
-        CrusherState &state = crusher->state;
-        const MachineProcessDefinition *matched =
-            state.input.amount > 0 &&
-                    state.input.materialId == recipe.inputMaterialId
-                ? &recipe
-                : nullptr;
-        const MachineTickResult result = MachineRuntime::tick(
-            state.input, state.output, state.progressTicks,
-            state.crankTicksRemaining, matched);
-        if (!result.changed ||
-            world.updateBlockEntity(position, serialize(state))) {
-            if (result.completed) {
-                ++completed;
-            }
-        }
+        completed += tickOne(world, position) ? 1 : 0;
     }
     return completed;
 }

@@ -58,6 +58,8 @@ class FurnaceContainer
                                  const SmeltingRegistry &registry);
     static int spillContents(World &world, const glm::ivec3 &position,
                              const SmeltingRegistry &registry);
+    static bool tickOne(World &world, const glm::ivec3 &position,
+                        const SmeltingRegistry &registry);
     static int tickLoaded(World &world,
                           const SmeltingRegistry &registry);
     static bool shouldEmitLight(const FurnaceState &state,

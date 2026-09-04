@@ -103,8 +103,8 @@ try {
         "Furnace Runtime adapter"
     Require-Text $text.CrusherSource "MachineRuntime::tick(" `
         "Crusher Runtime adapter"
-    Require-Text $text.Simulation "CrusherContainer::tickLoaded(m_world);" `
-        "BlockEntitySimulation Crusher tick"
+    Require-Text $text.Simulation "CrusherContainer::tickOne(m_world," `
+        "D1-budgeted BlockEntitySimulation Crusher tick"
 
     foreach ($token in @(
             "BlockId::Crusher", "CrusherContainer::BlockEntityType",

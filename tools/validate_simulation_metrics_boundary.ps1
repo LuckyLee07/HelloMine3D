@@ -75,12 +75,15 @@ try {
     $tests = Get-Content -LiteralPath $testPath -Raw
 
     foreach ($token in @(
-        "SimulationMetricPhaseCount = 4",
+        "SimulationMetricPhaseCount = 5",
         "struct SimulationPhaseMetrics",
         "double elapsedMilliseconds",
         "std::size_t processed",
         "std::size_t deferred",
         "std::size_t budget",
+        "std::size_t eligible",
+        "std::size_t serviceWindowTicks",
+        "bool schedulerManaged",
         "SimulationPhaseBudgetScope budgetScope",
         "Unbudgeted", "PerTick", "PerPopulationCycle",
         "WithinBudget", "AtBudget", "WorkDeferred",
@@ -93,25 +96,28 @@ try {
         "snapshot.metrics[0].phase = WorldSimulationPhase::ActorSimulation;",
         "snapshot.metrics[1].phase = WorldSimulationPhase::Combat;",
         "snapshot.metrics[2].phase = WorldSimulationPhase::BlockRandomTick;",
-        "snapshot.metrics[3].phase = WorldSimulationPhase::Population;") `
-        "four concrete metric identities"
+        "snapshot.metrics[3].phase = WorldSimulationPhase::Population;",
+        "snapshot.metrics[4].phase =") `
+        "four retained plus one D1 concrete metric identity"
 
     $metricIdentityCount = [regex]::Matches(
         $source,
         'snapshot\.metrics\[[0-9]+\]\.phase\s*=\s*WorldSimulationPhase::' `
     ).Count
-    if ($metricIdentityCount -ne 4) {
-        throw "Metric identity slots must remain exactly four; found $metricIdentityCount."
+    if ($metricIdentityCount -ne 5) {
+        throw "Metric identity slots must remain exactly five after D1; found $metricIdentityCount."
     }
 
     foreach ($token in @(
-        "managedActorsProcessed + 1",
+        "metrics->processed = managedActorsProcessed + 1",
+        "metrics->deferred = actorPlan.deferred",
         "m_combatProjectileStepsUsed",
         "m_combatProjectileStepBudgetDenied",
         "m_randomTickSectionsProcessed",
-        "m_randomTickSections.size()",
+        "randomTickPlan.deferred",
         "m_naturalMobSpawnAttempts -",
-        "naturalSpawnAttemptsPerCycle")) {
+        "naturalSpawnAttemptsPerCycle",
+        "metrics->deferred = blockEntityPlan.deferred")) {
         Require-Text $source $token "real phase work source"
     }
     Require-Text $actorHeader "std::size_t tick(World &world, float dt);" `
@@ -133,7 +139,7 @@ try {
     }
 
     foreach ($forbidden in @(
-        "SimulationScheduler", "ISandboxSystem",
+        "ISandboxSystem", "SimulationSystemRegistry",
         "MachineSimulation", "NetworkSimulation",
         "TransportSimulation", "AISimulation")) {
         Reject-Text ($header + $source) $forbidden `
@@ -152,7 +158,7 @@ try {
         "AL-A5/metric-identities-exclude-empty-system-slots",
         "AL-A5/budget-status-vocabulary-is-frozen",
         "AL-A5/metric-elapsed-matches-a3-phase-timing",
-        "AL-A5/actor-work-is-unbudgeted-and-counted",
+        "D1/actor-work-retains-a5-count-and-adds-scheduler-budget",
         "AL-A5/combat-uses-existing-per-tick-budget",
         "AL-A5/random-tick-uses-existing-per-tick-budget",
         "AL-A5/population-is-per-cycle-and-resets-next-tick")) {
@@ -160,9 +166,9 @@ try {
     }
 
     Write-Host (
-        "[SIMULATION_METRICS_BOUNDARY] status=PASS metric_phases=4 " +
+        "[SIMULATION_METRICS_BOUNDARY] status=PASS metric_phases=5 " +
         "budget_scopes=3 budget_statuses=4 persistence=excluded " +
-        "scheduler=absent")
+        "downstream_d1=composed")
     exit 0
 }
 catch {

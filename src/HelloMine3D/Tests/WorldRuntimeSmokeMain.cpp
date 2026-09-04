@@ -454,7 +454,8 @@ void caseSimulationPhaseMetrics()
             WorldSimulationPhase::ActorSimulation,
             WorldSimulationPhase::Combat,
             WorldSimulationPhase::BlockRandomTick,
-            WorldSimulationPhase::Population};
+            WorldSimulationPhase::Population,
+            WorldSimulationPhase::BlockEntitySimulation};
 
     SimulationPhaseMetrics vocabulary;
     const bool unbudgeted =
@@ -497,7 +498,7 @@ void caseSimulationPhaseMetrics()
             initial.metrics[index].phase == expectedPhases[index];
     }
     check("AL-A5/metric-identities-exclude-empty-system-slots",
-          identityOrdered && initial.metrics.size() == 4);
+          identityOrdered && initial.metrics.size() == 5);
 
     world.tick(4240);
     const WorldSimulationSnapshot cycle =
@@ -517,11 +518,14 @@ void caseSimulationPhaseMetrics()
 
     const SimulationPhaseMetrics *actor = findSimulationPhaseMetrics(
         cycle, WorldSimulationPhase::ActorSimulation);
-    check("AL-A5/actor-work-is-unbudgeted-and-counted",
+    check("D1/actor-work-retains-a5-count-and-adds-scheduler-budget",
           actor != nullptr && actor->processed >= 1 &&
-              actor->deferred == 0 && actor->budget == 0 &&
+              actor->deferred == 0 &&
+              actor->budget ==
+                  SimulationPhaseScheduler::ManagedActorBudgetPerTick + 1 &&
+              actor->schedulerManaged &&
               actor->budgetStatus() ==
-                  SimulationPhaseBudgetStatus::Unbudgeted);
+                  SimulationPhaseBudgetStatus::WithinBudget);
 
     const SimulationPhaseMetrics *combat = findSimulationPhaseMetrics(
         cycle, WorldSimulationPhase::Combat);
@@ -574,6 +578,192 @@ void caseSimulationPhaseMetrics()
               nextPopulation->budget == cycleBudget,
           "cycle_attempts=" + std::to_string(cycleAttempts) +
               " budget=" + std::to_string(cycleBudget));
+
+    const SimulationPhaseMetrics *blockEntities =
+        findSimulationPhaseMetrics(
+            cycle, WorldSimulationPhase::BlockEntitySimulation);
+    check("D1/block-entity-phase-adds-only-real-scheduled-metric",
+          blockEntities != nullptr && blockEntities->schedulerManaged &&
+              blockEntities->budget ==
+                  SimulationPhaseScheduler::BlockEntityBudgetPerTick &&
+              blockEntities->budgetScope ==
+                  SimulationPhaseBudgetScope::PerTick);
+}
+
+// ---------------------------------------------------------------------------
+// D1 - three real fixed-tick workloads use deterministic item budgets
+// ---------------------------------------------------------------------------
+void caseSimulationPhaseSchedulerD1()
+{
+    SimulationPhaseScheduler scheduler;
+    const SimulationWorkPlan actorFirst =
+        scheduler.planManagedActors(66);
+    const SimulationWorkPlan actorSecond =
+        scheduler.planManagedActors(66);
+    const SimulationWorkPlan randomTicks =
+        scheduler.planRandomTickSections(9, 4);
+    const SimulationWorkPlan blockEntities =
+        scheduler.planBlockEntities(34);
+
+    check("D1-SCHEDULER/exactly-three-real-workload-identities",
+          SimulationScheduledWorkloadCount == 3 &&
+              std::string(simulationScheduledWorkloadName(
+                  SimulationScheduledWorkload::ManagedActors)) ==
+                  "Managed Actors" &&
+              std::string(simulationScheduledWorkloadName(
+                  SimulationScheduledWorkload::RandomTickSections)) ==
+                  "Random-Tick Sections" &&
+              std::string(simulationScheduledWorkloadName(
+                  SimulationScheduledWorkload::BlockEntities)) ==
+                  "Block Entities");
+    check("D1-SCHEDULER/actor-round-robin-is-bounded-and-deterministic",
+          actorFirst.eligible == 66 && actorFirst.admitted == 64 &&
+              actorFirst.deferred == 2 && actorFirst.firstIndex == 0 &&
+              actorFirst.serviceWindowTicks == 2 &&
+              actorSecond.firstIndex == 64 &&
+              actorSecond.admitted == 64);
+    check("D1-SCHEDULER/existing-random-tick-fifo-owns-order",
+          randomTicks.eligible == 9 && randomTicks.admitted == 4 &&
+              randomTicks.deferred == 5 && randomTicks.firstIndex == 0 &&
+              randomTicks.serviceWindowTicks == 3);
+    check("D1-SCHEDULER/block-entity-round-robin-is-bounded",
+          blockEntities.eligible == 34 && blockEntities.admitted == 32 &&
+              blockEntities.deferred == 2 &&
+              blockEntities.firstIndex == 0 &&
+              blockEntities.serviceWindowTicks == 2);
+
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player,
+                freshSaveDirectory("d1_simulation_scheduler"), false, 1);
+
+    std::vector<ActorId> itemIds;
+    for (std::size_t index = 0;
+         index < SimulationPhaseScheduler::ManagedActorBudgetPerTick + 2;
+         ++index) {
+        itemIds.push_back(world.spawnItemEntity(
+            Material::ID::Dirt, 1,
+            glm::vec3(8.f, 180.f, 8.f), glm::vec3(0.f)));
+    }
+
+    std::vector<glm::ivec3> crusherPositions;
+    CrusherState poweredCrusher;
+    poweredCrusher.input = {Material::ID::Cobblestone, 1, 0};
+    poweredCrusher.crankTicksRemaining =
+        CrusherContainer::MaxCrankTicks;
+    for (std::size_t index = 0;
+         index < SimulationPhaseScheduler::BlockEntityBudgetPerTick + 2;
+         ++index) {
+        const glm::ivec3 position{
+            8, 100 + static_cast<int>(index), 8};
+        world.setBlock(position.x, position.y, position.z,
+                       BlockId::Crusher);
+        if (CrusherContainer::initialize(world, position)) {
+            world.updateBlockEntity(
+                position, CrusherContainer::serialize(poweredCrusher));
+        }
+        crusherPositions.push_back(position);
+    }
+
+    world.tick(1);
+    const WorldSimulationSnapshot first =
+        world.collectDebugStats().simulation;
+    const ItemEntity *firstItem = dynamic_cast<const ItemEntity *>(
+        world.getActorManager().findActor(itemIds.front()));
+    const ItemEntity *lastItem = dynamic_cast<const ItemEntity *>(
+        world.getActorManager().findActor(itemIds.back()));
+    CrusherState firstCrusher;
+    CrusherState lastCrusher;
+    const auto firstCrusherRecord =
+        world.getBlockEntity(crusherPositions.front());
+    const auto lastCrusherRecord =
+        world.getBlockEntity(crusherPositions.back());
+    const bool firstCrusherParsed = firstCrusherRecord &&
+        CrusherContainer::deserialize(firstCrusherRecord->payload,
+                                      firstCrusher);
+    const bool lastCrusherParsed = lastCrusherRecord &&
+        CrusherContainer::deserialize(lastCrusherRecord->payload,
+                                      lastCrusher);
+
+    const SimulationWorkPlan &firstActorPlan =
+        first.scheduledWorkloads[static_cast<std::size_t>(
+            SimulationScheduledWorkload::ManagedActors)];
+    const SimulationWorkPlan &firstRandomPlan =
+        first.scheduledWorkloads[static_cast<std::size_t>(
+            SimulationScheduledWorkload::RandomTickSections)];
+    const SimulationWorkPlan &firstBlockEntityPlan =
+        first.scheduledWorkloads[static_cast<std::size_t>(
+            SimulationScheduledWorkload::BlockEntities)];
+    check("D1-SCHEDULER/runtime-publishes-three-copied-plans",
+          firstActorPlan.workload ==
+                  SimulationScheduledWorkload::ManagedActors &&
+              firstRandomPlan.workload ==
+                  SimulationScheduledWorkload::RandomTickSections &&
+              firstBlockEntityPlan.workload ==
+                  SimulationScheduledWorkload::BlockEntities &&
+              firstActorPlan.eligible == itemIds.size() &&
+              firstBlockEntityPlan.eligible == crusherPositions.size());
+    check("D1-SCHEDULER/actor-overload-defers-without-dropping",
+          firstItem != nullptr && lastItem != nullptr &&
+              std::abs(firstItem->getAgeSeconds() -
+                       WorldSimulation::FixedDeltaSeconds) < 0.000001f &&
+              std::abs(lastItem->getAgeSeconds()) < 0.000001f &&
+              firstActorPlan.admitted ==
+                  SimulationPhaseScheduler::ManagedActorBudgetPerTick &&
+              firstActorPlan.deferred == 2);
+    check("D1-SCHEDULER/block-entity-overload-defers-in-stable-order",
+          firstCrusherParsed && lastCrusherParsed &&
+              firstCrusher.progressTicks == 1 &&
+              lastCrusher.progressTicks == 0 &&
+              firstBlockEntityPlan.admitted ==
+                  SimulationPhaseScheduler::BlockEntityBudgetPerTick &&
+              firstBlockEntityPlan.deferred == 2);
+
+    world.tick(2);
+    const WorldSimulationSnapshot second =
+        world.collectDebugStats().simulation;
+    firstItem = dynamic_cast<const ItemEntity *>(
+        world.getActorManager().findActor(itemIds.front()));
+    lastItem = dynamic_cast<const ItemEntity *>(
+        world.getActorManager().findActor(itemIds.back()));
+    const auto servicedCrusherRecord =
+        world.getBlockEntity(crusherPositions.back());
+    CrusherState servicedCrusher;
+    const bool servicedCrusherParsed = servicedCrusherRecord &&
+        CrusherContainer::deserialize(servicedCrusherRecord->payload,
+                                      servicedCrusher);
+    const SimulationWorkPlan &secondActorPlan =
+        second.scheduledWorkloads[static_cast<std::size_t>(
+            SimulationScheduledWorkload::ManagedActors)];
+    const SimulationWorkPlan &secondBlockEntityPlan =
+        second.scheduledWorkloads[static_cast<std::size_t>(
+            SimulationScheduledWorkload::BlockEntities)];
+    check("D1-SCHEDULER/deferred-actors-are-serviced-next-window",
+          firstItem != nullptr && lastItem != nullptr &&
+              std::abs(lastItem->getAgeSeconds() -
+                       WorldSimulation::FixedDeltaSeconds) < 0.000001f &&
+              secondActorPlan.firstIndex ==
+                  SimulationPhaseScheduler::ManagedActorBudgetPerTick &&
+              secondActorPlan.serviceWindowTicks == 2);
+    check("D1-SCHEDULER/deferred-block-entities-are-serviced-next-window",
+          servicedCrusherParsed && servicedCrusher.progressTicks == 1 &&
+              secondBlockEntityPlan.firstIndex ==
+                  SimulationPhaseScheduler::BlockEntityBudgetPerTick &&
+              secondBlockEntityPlan.serviceWindowTicks == 2);
+    const SimulationPhaseMetrics *secondActorMetrics =
+        findSimulationPhaseMetrics(
+            second, WorldSimulationPhase::ActorSimulation);
+    check("D1-SCHEDULER/player-and-phase-barriers-remain-mandatory",
+          second.completedTicks == 2 && second.lastTick == 2 &&
+              secondActorMetrics != nullptr &&
+              secondActorMetrics->processed ==
+                  SimulationPhaseScheduler::ManagedActorBudgetPerTick + 1 &&
+              WorldSaveFormatVersion == 12);
 }
 
 // ---------------------------------------------------------------------------
@@ -7363,7 +7553,9 @@ void caseSpatialActivation()
           farMob != InvalidActorId && actorMetrics != nullptr &&
               actorMetrics->processed == simulationStats.actorCount + 1 &&
               actorMetrics->deferred == 0 &&
-              actorMetrics->budget == 0 &&
+              actorMetrics->budget ==
+                  SimulationPhaseScheduler::ManagedActorBudgetPerTick + 1 &&
+              actorMetrics->schedulerManaged &&
               simulationStats.spatialInterest.simulationRequestedCells > 0 &&
               simulationStats.spatialInterest.residentDataCells >
                   simulationStats.spatialInterest.nearRepresentationCells);
@@ -17214,6 +17406,12 @@ int main()
             caseMachineRuntimeC2();
             caseMechanicalTopologyC3();
         }
+        else if (focus != nullptr &&
+                 std::string(focus) == "D1-SCHEDULER") {
+            caseWorldSimulationRuntime();
+            caseSimulationPhaseMetrics();
+            caseSimulationPhaseSchedulerD1();
+        }
         else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
@@ -17221,6 +17419,7 @@ int main()
         caseFixedTickScheduler();
         caseWorldSimulationRuntime();
         caseSimulationPhaseMetrics();
+        caseSimulationPhaseSchedulerD1();
         caseWorldEnvironment();
         caseBlockTextureCoordinates();
         caseRuntimeConfigOwnership();

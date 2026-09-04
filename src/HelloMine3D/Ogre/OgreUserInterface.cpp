@@ -3187,6 +3187,19 @@ class OgreUserInterface::Impl
                 worldStats.simulation.lastTick,
                 worldStats.simulation.deltaSeconds,
                 worldStats.simulation.tickElapsedMilliseconds);
+            for (const SimulationWorkPlan &plan :
+                 worldStats.simulation.scheduledWorkloads) {
+                ImGui::Text(
+                    "  Scheduler %s: admitted / deferred / eligible: %llu / %llu / %llu | budget: %llu | first: %llu | service window: %llu ticks",
+                    simulationScheduledWorkloadName(plan.workload),
+                    static_cast<unsigned long long>(plan.admitted),
+                    static_cast<unsigned long long>(plan.deferred),
+                    static_cast<unsigned long long>(plan.eligible),
+                    static_cast<unsigned long long>(plan.budget),
+                    static_cast<unsigned long long>(plan.firstIndex),
+                    static_cast<unsigned long long>(
+                        plan.serviceWindowTicks));
+            }
             for (const WorldSimulationPhaseTiming &phase :
                  worldStats.simulation.phases) {
                 const SimulationPhaseMetrics *metrics =
@@ -3210,16 +3223,20 @@ class OgreUserInterface::Impl
                 }
                 else {
                     ImGui::Text(
-                        "  %s: %.3f ms | processed / deferred: %llu / %llu | budget: %llu %s (%s)",
+                        "  %s: %.3f ms | processed / deferred / eligible: %llu / %llu / %llu | budget: %llu %s (%s) | window: %llu%s",
                         worldSimulationPhaseName(phase.phase),
                         metrics->elapsedMilliseconds,
                         static_cast<unsigned long long>(metrics->processed),
                         static_cast<unsigned long long>(metrics->deferred),
+                        static_cast<unsigned long long>(metrics->eligible),
                         static_cast<unsigned long long>(metrics->budget),
                         simulationPhaseBudgetScopeName(
                             metrics->budgetScope),
                         simulationPhaseBudgetStatusName(
-                            metrics->budgetStatus()));
+                            metrics->budgetStatus()),
+                        static_cast<unsigned long long>(
+                            metrics->serviceWindowTicks),
+                        metrics->schedulerManaged ? " scheduled" : "");
                 }
             }
             ImGui::Separator();

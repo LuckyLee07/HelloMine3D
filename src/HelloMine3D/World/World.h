@@ -385,7 +385,7 @@ class World : public NonCopyable {
     void removeMechanicalChunkUnlocked(const VectorXZ &chunkPosition);
     void updateRandomTickSection(const glm::ivec3 &section, bool active);
     void removeRandomTickSectionsForChunk(int chunkX, int chunkZ);
-    void runRandomTicks(int worldTime);
+    void runRandomTicks(int worldTime, std::size_t sectionBudget);
     void runNaturalMobPopulation(int worldTime);
     void applyPendingDifficulty() noexcept;
     void respawnPlayer();

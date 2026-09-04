@@ -107,12 +107,17 @@ try {
     Require-OrderedText $simulationSource @(
         "m_world.applyPendingDifficulty();",
         "m_world.m_playerActor.tick(",
-        "m_world.m_actorManager.tick(",
+        "m_world.m_actorManager.prepareBudgetedTick(",
+        "m_scheduler.planManagedActors(",
+        "m_world.m_actorManager.tickBudgetedRange(",
         "m_world.tickCombatProjectiles();",
         "m_world.reconcileWaystoneEncounter();",
-        "m_world.runRandomTicks(context.tick);",
+        "m_scheduler.planRandomTickSections(",
+        "m_world.runRandomTicks(context.tick, randomTickPlan.admitted);",
         "m_world.runNaturalMobPopulation(context.tick);",
-        "FurnaceContainer::tickLoaded(",
+        "m_scheduler.planBlockEntities(",
+        "FurnaceContainer::tickOne(",
+        "CrusherContainer::tickOne(",
         "m_world.m_alphaJourney->update(",
         "m_world.respawnPlayer();") "fixed-tick phase call"
 
@@ -137,9 +142,9 @@ try {
     }
 
     foreach ($forbidden in @(
-        "SimulationScheduler", "ISandboxSystem")) {
+        "ISandboxSystem", "SimulationSystemRegistry")) {
         Reject-Text ($simulationHeader + $simulationSource) $forbidden `
-            "A5 abstraction in AL-A3"
+            "generic post-AL-A3 abstraction"
     }
 
     foreach ($testId in @(
@@ -155,7 +160,7 @@ try {
     Write-Host (
         "[WORLD_SIMULATION_BOUNDARY] status=PASS phases=8 " +
         "tick_entry=delegated raw_timing=last-tick " +
-        "pause_gate=caller-owned")
+        "pause_gate=caller-owned downstream_d1=composed")
     exit 0
 }
 catch {

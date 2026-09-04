@@ -53,6 +53,7 @@ class CrusherContainer
     static bool supplyManualPower(World &world, Player &player,
                                   const glm::ivec3 &position);
     static int spillContents(World &world, const glm::ivec3 &position);
+    static bool tickOne(World &world, const glm::ivec3 &position);
     static int tickLoaded(World &world);
 
     static std::string serialize(const CrusherState &state);

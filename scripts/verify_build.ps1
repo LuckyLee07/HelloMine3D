@@ -69,6 +69,8 @@ $machineRuntimeVerifier = Join-Path $repoRoot `
     "tools\validate_machine_runtime.ps1"
 $mechanicalTopologyVerifier = Join-Path $repoRoot `
     "tools\validate_mechanical_topology.ps1"
+$simulationPhaseSchedulerVerifier = Join-Path $repoRoot `
+    "tools\validate_simulation_phase_scheduler.ps1"
 
 function Invoke-Checked {
     param(
@@ -241,6 +243,10 @@ try {
 
     Invoke-Checked "C3 Mechanical Topology Model v0" {
         & $mechanicalTopologyVerifier -Root $repoRoot
+    }
+
+    Invoke-Checked "D1 Simulation Phase Scheduler v0" {
+        & $simulationPhaseSchedulerVerifier -Root $repoRoot
     }
 
     Invoke-Checked "Resource manifest" {

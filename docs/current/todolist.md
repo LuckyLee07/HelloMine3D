@@ -38,7 +38,7 @@ HelloMine3D 是 **以真实可玩的单机体素沙盒为载体的 C++ Architect
 | 可玩载体 | 创建世界 → 采集 → 制作 → 工具成长 → 冶炼/食物 → 战斗 → 探索 → 路标胜利 → 胜利后事件 → 保存重开已经贯通。 |
 | 玩法与视觉 | Stage 9、Stage 10/VISUAL-RC、Stage 11/P11F 已完成 Windows 自动工程范围；Stage 11 待开发代码批次为 0。 |
 | 世界可靠性 | 世界目录、事务保存、有界备份、验证恢复、世界管理和主菜单入口已经完成；当前 world save format 为 v12。 |
-| 自动门禁 | VS2017/v141 双配置、980/980 世界、80/80 资源包、126/126 配方、15/15 启动负例和 105 项干净包通过。 |
+| 自动门禁 | VS2017/v141 双配置、991/991 世界、80/80 资源包、126/126 配方、15/15 启动负例和 105 项干净包通过。 |
 | 性能与诊断 | 六类正式 Q1、nominal/stress 各 1800 秒 Q3、崩溃 dump、脱敏 sidecar、离线符号和独立符号归档已闭环。 |
 | AI/Computer Use | `AI-01..AI-08=NOT_RUN`；没有外部玩家依赖，具备 OS 级 Computer Use 时按当前验收规范执行。 |
 | 人类体验 | 乐趣、审美、舒适度和物理设备手感统一为 `NOT_CLAIMED`。 |
@@ -67,16 +67,17 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 | `C1` Block Capability Model | `Done` | 现有 Chest/Furnace 已通过 `BlockDefinition` 声明 `InventoryProvider`，Furnace 另声明 `MachineProcessor`；Ogre 容器 UI 改为能力发现/访问，17/17 聚焦用例与静态门禁通过。VS2017/v141 Debug/Release 完整门禁均为 937/937 WorldRuntime，104 项隔离包 SHA-256 为 `1618ACD7995FE5181169B0B46A5D4F479F63FA1CCB8B533B358ED694A3846EB6`。未预建 Registry、MechanicalPort、C2 Machine Runtime 或 C3 网络。详见 `docs/reports/architecture-lab-c1-block-capability-report-v1.md`。 |
 | `C2` Machine Runtime v0 | `Done` | 可制作、放置、Use、保存重开的手摇 Crusher 已成为第二个真实 Processor；共享 Runtime 只提炼 Furnace/Crusher 已共同证明的五态、配方匹配、输出容量、动力、单 tick 与原子完成语义。C2 聚焦 51/51、完整 VS2017/v141 Debug/Release WorldRuntime 963/963、Recipe 126/126、Resource Pack 80/80 和 15/15 启动负例均通过；105 项隔离包 SHA-256 为 `B4D73704A93B4377EB26336592448B4E31439387BA6198B49C59704517775739`。save v12、terrain v4、settings v8、8 工具和 34 目标不变；未进入 C3+、MechanicalPort、网络或自动物流。详见 `docs/reports/architecture-lab-c2-machine-runtime-report-v1.md`。 |
 | `C3` Mechanical Topology Model v0 | `Done` | C2 Crusher 是唯一真实节点；六面相邻、确定性最小位置 component id、canonical edge、同步 BFS merge/split、Chunk unload/reload 和 save/reopen 派生重建已完成，正常容器 UI 与 Debug 面板均可观察。聚焦 Debug 68/68；完整 VS2017/v141 Debug/Release 均为 WorldRuntime 980/980、Recipe 126/126、Resource Pack 80/80 和启动负例 15/15；105 项隔离包 SHA-256 为 `8CC3ED1FC37A0F115D57C3C56349BE3278AA4B35D9DAD33975D9B45B3D46776F`。save v12 不变，未进入 C4 动力传播或通用网络。详见 `docs/reports/architecture-lab-c3-mechanical-topology-report-v1.md`。 |
+| `D1` Simulation Phase Scheduler v0 | `Done` | 已证明 Managed Actors、Random-Tick Sections、Furnace/Crusher Block Entities 三条真实 workload 的共同 admission 问题，并实现确定性 64/4/32 item budget、稳定集合 round-robin/FIFO service window 和 copied diagnostics。VS2017 Debug 聚焦 24/24，AL-A5 14/14、B6 12/12、C2 51/51、C3 68/68 回归通过；完整 Debug/Release 门禁均为 WorldRuntime 991/991、Recipe 126/126、Resource Pack 80/80、启动负例 15/15，105 项隔离包 SHA-256 为 `0B34CD34265ED1A4F88FD5833975FD328FB026FCD6B13A0FAFE9710859F1B2F6`。save v12、20 Hz、8 phase barrier 不变；未进入 D2+。详见 `docs/reports/architecture-lab-d1-simulation-phase-scheduler-report-v1.md`。 |
 
 ## 下一候选
 
 | 批次 | 状态 | 目标 | 进入条件 | 退出边界 |
 | ---- | ---- | ---- | -------- | -------- |
-| `D1` Tick Phase & Budget Runtime | `Candidate / not approved` | 只有当前四条真实 phase metrics 出现共同调度问题时，才评估 runtime 行为改变。 | 至少三个真实系统出现共同优先级/延迟问题并另行批准。 | 不由 A5 vocabulary、B10、C2 或 C3 自动授权。 |
+| `D2` Simulation Activation | `Candidate / not approved` | 在已 Resident 空间内区分 Full / Reduced / Dormant 模拟保真度。 | D1 完整门禁通过，且至少一个真实远距离 Actor/Machine workload 证明仅靠 item budget 仍不足。 | 不由 B6 spatial interest 或 D1 自动授权；不得提前开始 D3-D8。 |
 
 `B10` 已完成正式压力/确定性、组成式完整门禁和 Q1 收口；`C1-C3` 也已依次通过完整门禁。
-当前没有已批准但未完成的开发批次；B7-B9、C4-C11、Track D 和 Extended 仍未获批，也不因
-C3 完成自动进入实现。
+项目所有者已单独批准并完成 D1；当前没有已批准但未完成的开发批次。B7-B9、C4-C11、D2-D8
+与 Extended 仍未获批，也不因 D1 完成自动进入实现。
 
 ## 当前阻塞
 
@@ -85,7 +86,7 @@ C3 完成自动进入实现。
   `Engineering Done`，但 Track 不得标记 `AI Playability PASS`。
 - 严格 `AI-06` 还要求 package-only 文件系统访问；仅切换工作目录但仓库仍可读取时记录
   `BLOCKED`，不能声明 blind PASS。
-- 当前没有已知实现阻塞，也没有正在执行的开发批次。
+- 当前没有正在执行的开发批次；D2 只是候选，需另行批准。
 
 ## 待执行验收
 

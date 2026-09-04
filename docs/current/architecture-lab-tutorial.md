@@ -1,8 +1,8 @@
 # HelloMine3D Architecture Lab Tutorial
 
 > Living tutorial status: Part 00 covers completed Track A, Part 01 covers
-> implemented B1 through B10 Core, and Part 02 covers C1 through C3. Later Parts
-> are added only with the first verified batch of their owning Track; this file
+> implemented B1 through B10 Core, Part 02 covers C1 through C3, and Part 03
+> starts with D1. Later Sections are added only with a verified batch; this file
 > does not pre-create empty Sprint chapters.
 
 <!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-BEGIN -->
@@ -23,6 +23,7 @@ B10|01|1.7|docs/reports/architecture-lab-b10-large-world-stress-report-v1.md
 C1|02|2.1|docs/reports/architecture-lab-c1-block-capability-report-v1.md
 C2|02|2.2|docs/reports/architecture-lab-c2-machine-runtime-report-v1.md
 C3|02|2.3|docs/reports/architecture-lab-c3-mechanical-topology-report-v1.md
+D1|03|3.1|docs/reports/architecture-lab-d1-simulation-phase-scheduler-report-v1.md
 <!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-END -->
 
 ## Part 00 — From a playable clone to an architecture lab
@@ -1580,3 +1581,140 @@ Related evidence:
 - `docs/contracts/mechanical-topology-model-v0-contract-v1.md`
 - `docs/reports/architecture-lab-c3-mechanical-topology-report-v1.md`
 - `tools/validate_mechanical_topology.ps1`
+
+## Part 03 — Scaling simulation without deleting the game
+
+D1 begins Track D only after the playable world supplies several independently
+implemented kinds of recurring work. The aim is not to invent a second engine
+inside the project. It is to give existing Actor, block and machine behavior a
+bounded, explainable fixed-tick admission rule while keeping the game carrier
+observable and save-compatible.
+
+### 3.1 Why is tick order a Gameplay contract?
+
+#### Problem
+
+The fixed 20 Hz loop had already become explicit in AL-A3, but three real
+workloads had different local scaling behavior. ActorManager invoked every live
+managed Actor. Furnace and Crusher each traversed all loaded instances. Random
+Tick had a four-Section queue limit hidden inside World. As dropped items,
+enemies, crops and player-built machines grow, “run all objects” lets content
+size directly determine one tick's work and gives no common explanation for
+what waited.
+
+At the same time, not every phase may be deferred. PlayerActor state,
+cooldowns, combat resolution and application-flow barriers define visible
+Gameplay order. A scheduler that treats them as ordinary work items could make
+input, damage or respawn timing depend on unrelated machine load.
+
+#### Naive Solution
+
+One tempting implementation assigns every phase a millisecond quota and stops
+when `steady_clock` crosses it. Another registers hypothetical Machine,
+Network, Transport and AI systems behind a common virtual interface before
+those systems have real scheduling needs. A third simply caps each vector from
+index zero every tick.
+
+These options look general and compact. They also appear to provide priority,
+performance protection and a place for future features without first proving
+which current work can safely wait.
+
+#### Failure
+
+A wall-clock quota makes the admitted set depend on hardware, debugger load and
+OS scheduling, so the same seed and input can produce different simulation
+results. Future-system slots confuse “no workload exists” with “zero work ran”.
+Always starting at index zero starves tail elements indefinitely. Finally,
+putting PlayerActor or combat barriers into a shared deferrable pool changes
+the game even at normal scale and makes a machine spike visible as input lag.
+
+The existing Random Tick queue also demonstrates why one scheduler must not
+steal domain ordering blindly: that workload already owns a deterministic FIFO
+rotation tied to seed/tick selection. Admission and item order are related but
+not identical responsibilities.
+
+#### Design Evolution
+
+D1 keeps all eight AL-A3 phases and names only three schedulable workloads:
+
+```text
+ManagedActors       64/tick  -> insertion-order rotating index
+RandomTickSections   4/tick  -> existing World FIFO rotation
+BlockEntities       32/tick  -> Furnace, Crusher, X/Y/Z rotating index
+```
+
+Budgets count items. A stable eligible set of size `N` and budget `B` has a
+service window `ceil(N/B)`. PlayerActor and cooldowns run before managed Actor
+admission; Combat, Encounter, Population and Gameplay Runtime remain mandatory
+phase calls. C3 contributes no Network row because topology currently has no
+per-tick behavior.
+
+Below the limit, Actor insertion order and each object's one-tick result remain
+exact. Block Entities intentionally replace the old unordered-Chunk traversal
+with the canonical order above so round-robin service is reproducible. Above
+the limit, an admitted object performs one normal `1/20 s` step and a deferred
+object performs none. No multiplied `dt` or time debt tries to disguise
+overload as deterministic catch-up.
+
+#### Implementation
+
+`SimulationPhaseScheduler` is a concrete value owned by `WorldSimulation`. It
+exposes three named planning methods rather than a Registry. Each copied plan
+contains workload, eligible, admitted, deferred, budget, first index and
+service-window ticks. Only Actor and Block Entity plans need transient rotating
+indices; Random Tick keeps order in its established World deque.
+
+ActorManager separates per-tick presentation cleanup, a budgeted range
+invocation and dead-actor cleanup. The Block Entity phase collects real loaded
+Furnace/Crusher positions, sorts them deterministically, applies the plan and
+calls one-item adapters that preserve each container's C2 ownership. Plans keep
+no Actor, Chunk or block-entity pointer across ticks.
+
+The last-tick snapshot contains exactly three plans. A5 phase metrics append a
+real Block Entity row and copy eligible, service-window and scheduler-managed
+fields. The developer panel shows both plan-level admission and phase-level
+elapsed/processed values; wall time stays diagnostic only.
+
+#### Validation
+
+The static boundary command is:
+
+```powershell
+& .\tools\validate_simulation_phase_scheduler.ps1 `
+  -Root (Get-Location).Path
+```
+
+`HELLOMINE3D_WORLD_SMOKE_FOCUS=D1-SCHEDULER` runs the real World path. Its
+overload fixture creates 66 Item Actors and 34 powered Crushers: the final two
+of each set remain unchanged after tick one, then advance exactly once during
+tick two. Pure plan checks freeze the 64/4/32 budgets, starting indices and
+service-window math. Retained A3/A5 checks prove the 20 Hz context, eight phase
+identities and copied metric semantics.
+
+The full VS2017/v141 Debug/Release gate passes WorldRuntime `991/991` twice,
+Recipe/economy `126/126`, Resource Pack `80/80`, startup negatives `15/15`,
+both short soaks and hidden clients. The 105-entry clean package hashes to
+`0B34CD34265ED1A4F88FD5833975FD328FB026FCD6B13A0FAFE9710859F1B2F6`.
+These headless results are engineering evidence; AI gameplay remains `NOT_RUN`
+and human subjective experience remains `NOT_CLAIMED`.
+
+#### Trade-offs
+
+An index cursor is intentionally smaller than per-identity age tracking. It
+guarantees finite service for a stable set; when the set changes, the cursor is
+reduced into the new deterministic list but does not preserve a perfect wait
+age for every identity. Scheduler cursors are not saved, so reopen may choose a
+different first eligible object while preserving all authoritative states.
+
+Under overload, deferred Actors and machines advance more slowly because D1
+does not catch up elapsed time. That is an explicit bounded-work degradation,
+not D2 fidelity or offline simulation. D2 would need separate evidence that
+distance-based Full/Reduced/Dormant behavior is necessary and safe. D1 also
+does not authorize a generic interface merely because three concrete planning
+methods now share arithmetic.
+
+Related evidence:
+
+- `docs/contracts/simulation-phase-scheduler-v0-contract-v1.md`
+- `docs/reports/architecture-lab-d1-simulation-phase-scheduler-report-v1.md`
+- `tools/validate_simulation_phase_scheduler.ps1`
