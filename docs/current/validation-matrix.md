@@ -35,6 +35,7 @@ PASS。新的 AI 场景尚未执行时只写 `NOT_RUN`，不写成永久 `Deferr
 | `AL-A4` Event / Command / Query 边界 | `tools\validate_event_command_query_boundary.ps1` + AL-A1/A2/A3 边界门禁；`HELLOMINE3D_WORLD_SMOKE_FOCUS=AL-A4` 和完整 WorldRuntime；必须保持 typed command FIFO、immutable fact、订阅者 effect/republish、8 层递归、诊断隔离和查询非 mutation 语义。 |
 | `AL-A5` Tick Phase Metrics / Budget 词汇 | `tools\validate_simulation_metrics_boundary.ps1` + AL-A1..A4 边界门禁；`HELLOMINE3D_WORLD_SMOKE_FOCUS=AL-A5` 和完整 WorldRuntime；VS2017/v141 Debug/Release 完整门禁。只允许四个真实 metric phase 的 last-tick elapsed/processed/deferred/budget scope/status；不得改变 hard limit、phase 顺序、Gameplay 或引入 Scheduler/Registry/空系统槽。 |
 | Track B Core（B1-B6/B10） | 逐批静态 gate 与聚焦 WorldRuntime；B10 额外运行 `HELLOMINE3D_WORLD_SMOKE_FOCUS=B10`、正式 schedule-v3 1800 秒五阶段压力、同 seed 双确定性探针、未放宽 Q1 fast-streaming 和完整 VS2017/v141/隔离包门禁。Lifecycle 资格必须在 8 项 unload budget 前过滤，取消 reservation 不得保留无界 `Absent` 墓碑。 |
+| `C1` Block Capability Model | `tools\validate_block_capability_model.ps1` + `HELLOMINE3D_WORLD_SMOKE_FOCUS=C1-CAP` + 完整 WorldRuntime/VS2017 双配置门禁。只允许 Chest/Furnace 的 `InventoryProvider` 与 Furnace 的 `MachineProcessor`；UI 必须经能力访问，错配/损坏/陈旧句柄失败关闭；禁止 Registry、MechanicalPort、C2/C3 和 Extended 预注册。 |
 
 ## 完整验证路由
 
@@ -47,6 +48,7 @@ PASS。新的 AI 场景尚未执行时只写 `NOT_RUN`，不写成永久 `Deferr
 | Simulation Runtime 边界门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_world_simulation_boundary.ps1` | `World::tick`、`WorldSimulation`、phase/context/raw timing、暂停入口或相关 debug snapshot 变化；完整 Windows 门禁也会自动运行 |
 | Event / Command / Query 边界门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_event_command_query_boundary.ps1` | command FIFO、EventBus、生产订阅者、查询或未来 Machine/Network 依赖变化；完整 Windows 门禁也会自动运行 |
 | Simulation Metrics 边界门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_simulation_metrics_boundary.ps1` | phase metric identity、processed/deferred/budget scope/status、Actor 计数、开发者 Simulation 面板或相关 snapshot 变化；完整 Windows 门禁也会自动运行 |
+| Block Capability 边界门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_block_capability_model.ps1` | BlockDefinition capability 声明、Chest/Furnace 访问适配、容器 UI 分派或未来 C2/C3/Extended 边界；完整 Windows 门禁也会自动运行 |
 | Windows Debug 编译 | `MSBuild build\HelloMine3D.sln /p:Configuration=Debug /p:Platform=x64` | 所有 C++ 改动的主干检查 |
 | Windows Release 编译 | 同上，配置改为 `Release` | 里程碑和发行候选 |
 | macOS Xcode 门禁 | `bash scripts/verify_xcode.sh` | Xcode 图、macOS 平台或原生封板 |

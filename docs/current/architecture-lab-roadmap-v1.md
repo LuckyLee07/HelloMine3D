@@ -1590,6 +1590,21 @@ MechanicalPort
 
 **Chapter 16：数据驱动之后，下一步是 Capability**
 
+### 当前实现记录（2026-09-04）
+
+C1 已单独获批并通过完整门禁。真实压力不是尚不存在的机械节点，而是现有
+Ogre 容器 UI 依次探测 Furnace/Chest 并直接调用两套具体实现。`BlockDefinition` 因此只声明两个
+有真实提供者的能力：Chest/Furnace 的 `InventoryProvider`，以及 Furnace 的
+`MachineProcessor`。`BlockCapabilityAccess` 返回不缓存权威状态的值句柄，UI 已改用该协议；
+Chest/Furnace 仍拥有 payload、传输和冶炼规则。
+
+`MechanicalPort` 因没有 C1 内的具体机械节点而明确延后到 C3；没有创建 Capability Registry、
+C2 Machine Runtime、C3 拓扑或 Extended capability。17/17 聚焦用例、Debug/Release 双配置
+937/937 WorldRuntime 与静态边界门禁已通过；104 项隔离包 SHA-256 为
+`1618ACD7995FE5181169B0B46A5D4F479F63FA1CCB8B533B358ED694A3846EB6`。冻结合同见
+`docs/contracts/block-capability-model-contract-v1.md`，执行记录见
+`docs/reports/architecture-lab-c1-block-capability-report-v1.md`。完成 C1 不自动批准 C2-C11。
+
 ---
 
 ## C2 — Machine Runtime v0

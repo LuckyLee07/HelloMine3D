@@ -447,6 +447,37 @@ the 104-entry isolated package SHA-256 is
 The result is `PASS real_window=DEFERRED` and B6 is `Done`. AI scenarios remain
 `NOT_RUN`; human subjective experience remains `NOT_CLAIMED`.
 
+## C1 Block Capability Model Evidence
+
+C1 adds the first Track C static gate and one focused headless path without
+changing World public surface or save data:
+
+```powershell
+& .\tools\validate_block_capability_model.ps1 -Root (Get-Location).Path
+$env:HELLOMINE3D_WORLD_SMOKE_FOCUS = "C1-CAP"
+& .\bin\HelloMine3DWorldRuntimeSmoke.exe
+```
+
+The static gate freezes exactly two concrete capabilities and two provider
+blocks, requires the Ogre container UI to consume the access protocol, and
+rejects a second Capability Registry, `MechanicalPort`, Machine Runtime,
+mechanical topology and Extended transport/storage vocabulary.
+
+The VS2017/v141 Debug and Release focus passes `17/17` in each configuration. It covers Chest inventory-only and
+Furnace inventory-plus-processor declarations, general/dedicated slot roles,
+existing transfer rules, copied progress state, ordinary/missing/mismatched/
+malformed block-entity negatives, stale-handle rejection and save/reopen
+derivation from existing v12 state. The complete VS2017/v141 gate passes
+WorldRuntime `937/937` in both Debug and Release, resource pack `80/80`,
+recipe/economy `122/122`, startup-error negatives `15/15`, both short soaks,
+both hidden clients and executable inventory. The 104-entry isolated package
+SHA-256 is `1618ACD7995FE5181169B0B46A5D4F479F63FA1CCB8B533B358ED694A3846EB6`;
+the result is `PASS real_window=DEFERRED` and C1 is `Done`.
+
+The batch changes no recipe, tool, objective, resource-economy, victory,
+terrain v4, settings v8 or save v12 identity. `AI-01..AI-08=NOT_RUN`; human
+subjective experience remains `NOT_CLAIMED`.
+
 ## World Runtime Smoke
 
 `src/HelloMine3D/Tests/WorldRuntimeSmokeMain.cpp` links the whole game runtime
@@ -726,6 +757,7 @@ the 2026-08-31 Architecture Lab policy, both physical protocols remain
 | B5 Streaming Backpressure | `tools\validate_streaming_backpressure.ps1 -Implementation`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=B5`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-b5-streaming-backpressure-report-v1.md` | Caps 128/128/128, watermarks 96/48, explicit deterministic admission/shedding, retained-plan refill and commit/upload/unload limits 8/8/8 pass the static gate and 12/12 focused runtime checks. B4/B3/B2/B1 regressions pass 10/10, 9/9, 26/26 and 38/38. The complete gate passes 906/906 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives, both short soaks and both hidden clients; the 104-entry package SHA-256 is `7D126B31B78F3A4E8F8C90A5D769028EC686C0D4F708D1F6B2E2979BD164050B`. The result is `PASS real_window=DEFERRED`; AI acceptance remains `NOT_RUN` and human subjective experience remains `NOT_CLAIMED` (2026-09-02). |
 | B6 Spatial Activation | `tools\validate_spatial_activation.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=B6`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-b6-spatial-activation-report-v1.md` | Four nested Outside/Resident/Near/Simulation classifications derive deterministically from B2 demand. Real plan/mesh/upload/unload consumers honor resident/near interest while simulation request remains publication-only. B6 focused runtime passes 12/12 and B5/B4/B3/B2/B1 regressions pass 12/12, 10/10, 9/9, 26/26 and 38/38. The complete gate passes 918/918 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives, both short soaks and both hidden clients; the 104-entry package SHA-256 is `C8E260E00CF76C952150EBC3DC851A7EDE5E13FE63A58F98B77DC103723EFA3C`. The result is `PASS real_window=DEFERRED`; AI acceptance remains `NOT_RUN` and human subjective experience remains `NOT_CLAIMED` (2026-09-02). |
 | B10 Large World Stress & Acceptance | `tools\run_large_world_stress_acceptance.ps1 -Formal`; `tools\validate_large_world_stress_acceptance.ps1 -Evidence`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; final Q1 | Schedule v3 completes 1,800 seconds/36,000 ticks with zero failures, ten persistence checks, maximum 216 Chunks, pending 95, consumers 8/8/8 and maximum/final retained `Absent=0`. Peak private memory is 137,551,872 bytes and both deterministic probes match. Debug/Release each pass 920/920 WorldRuntime; all six Q1 pairs pass; the 104-entry package SHA-256 is `E13203F8E18382A4D13ABA22DFB975DDB189B2858F74DAAE340CE5A4A8F34B14`. Thresholds and shutdown grace are unchanged, no performance exception is used, `real_window=DEFERRED`, AI acceptance remains `NOT_RUN`, and human subjective experience remains `NOT_CLAIMED` (2026-09-04). |
+| C1 Block Capability Model | `tools\validate_block_capability_model.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=C1-CAP`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-c1-block-capability-report-v1.md` | Chest/Furnace declare `InventoryProvider`, Furnace also declares `MachineProcessor`, and the Ogre container UI consumes value handles rather than probing concrete containers. Focused runtime passes 17/17; malformed, mismatched and stale access fails closed. The complete gate passes 937/937 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives, both short soaks and both hidden clients. The Release executable is 8,815,616 bytes with SHA-256 `8CB7FF4C2BEB700AF88082D58F53C7848EFA43E0BA03FBAA4F69C35D1875CC12`; the 104-entry package SHA-256 is `1618ACD7995FE5181169B0B46A5D4F479F63FA1CCB8B533B358ED694A3846EB6`. The result is `PASS real_window=DEFERRED`; no Registry, MechanicalPort, C2/C3 or Extended work entered scope, AI acceptance remains `NOT_RUN`, and human subjective experience remains `NOT_CLAIMED` (2026-09-04). |
 | AI-assisted gameplay baseline | `docs\current\ai-assisted-gameplay-acceptance-v1.md` | `AI-01..AI-08 result=NOT_RUN`; no OS-level Computer Use record has been produced in this documentation batch. |
 
 The current 2026-08-12 runs use an NVIDIA GTX 1050 Ti with OpenGL 4.6. The

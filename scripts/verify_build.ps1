@@ -63,6 +63,8 @@ $spatialActivationVerifier = Join-Path $repoRoot `
     "tools\validate_spatial_activation.ps1"
 $largeWorldStressVerifier = Join-Path $repoRoot `
     "tools\validate_large_world_stress_acceptance.ps1"
+$blockCapabilityModelVerifier = Join-Path $repoRoot `
+    "tools\validate_block_capability_model.ps1"
 
 function Invoke-Checked {
     param(
@@ -223,6 +225,10 @@ try {
 
     Invoke-Checked "B10 Large world stress acceptance" {
         & $largeWorldStressVerifier -Root $repoRoot
+    }
+
+    Invoke-Checked "C1 Block capability model" {
+        & $blockCapabilityModelVerifier -Root $repoRoot
     }
 
     Invoke-Checked "Resource manifest" {

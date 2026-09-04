@@ -18,6 +18,7 @@
 - [architecture-lab-b5-streaming-backpressure-report-v1.md](architecture-lab-b5-streaming-backpressure-report-v1.md)
 - [architecture-lab-b6-spatial-activation-report-v1.md](architecture-lab-b6-spatial-activation-report-v1.md)
 - [architecture-lab-b10-large-world-stress-report-v1.md](architecture-lab-b10-large-world-stress-report-v1.md)
+- [architecture-lab-c1-block-capability-report-v1.md](architecture-lab-c1-block-capability-report-v1.md)
 - [alpha-development-checkpoint-v1.md](alpha-development-checkpoint-v1.md)
 - [beta-release-candidate-report-2026-08-26.md](beta-release-candidate-report-2026-08-26.md)
 - [visual-release-candidate-report-2026-08-28.md](visual-release-candidate-report-2026-08-28.md)

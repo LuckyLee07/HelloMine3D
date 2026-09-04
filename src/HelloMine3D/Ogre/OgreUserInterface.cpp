@@ -38,8 +38,7 @@
 #include "../Sandbox/GameApplicationFlow.h"
 #include "../Util/ResourcePaths.h"
 #include "../World/World.h"
-#include "../World/Block/ChestContainer.h"
-#include "../World/Block/FurnaceContainer.h"
+#include "../World/Block/BlockCapability.h"
 #include "../World/Block/TerrainMaterialProfile.h"
 #include "../Item/SmeltingRegistry.h"
 #include "../World/Interaction/BlockMiningProgress.h"
@@ -2495,143 +2494,143 @@ class OgreUserInterface::Impl
             return;
         }
 
-        if (runtimeSmeltingRegistry().isFrozen())
+        const BlockCapabilities capabilities = BlockCapabilityAccess::query(
+            *world, *player->getOpenContainer());
+        if (!capabilities.inventoryProvider)
         {
-            std::optional<FurnaceContainerView> furnace =
-                FurnaceContainer::view(*world, *player,
-                                       runtimeSmeltingRegistry());
-            if (furnace)
+            player->closeContainer();
+            return;
+        }
+        const InventoryProvider &provider =
+            *capabilities.inventoryProvider;
+        std::optional<InventoryProviderView> inventory =
+            provider.view(*world, runtimeSmeltingRegistry());
+        if (!inventory)
+        {
+            player->closeContainer();
+            return;
+        }
+
+        std::optional<MachineProcessorView> processor;
+        if (capabilities.machineProcessor &&
+            runtimeSmeltingRegistry().isFrozen())
+        {
+            processor = capabilities.machineProcessor->view(
+                *world, runtimeSmeltingRegistry());
+        }
+        if (processor)
+        {
+            const ImGuiIO &io = ImGui::GetIO();
+            ImGui::SetNextWindowPos(
+                ImVec2(io.DisplaySize.x * 0.5f,
+                       io.DisplaySize.y * 0.46f),
+                ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+            ImGui::SetNextWindowSize(
+                ImVec2(620.0f, 390.0f), ImGuiCond_Always);
+            ImGui::SetNextWindowBgAlpha(0.96f);
+            bool open = true;
+            const ImGuiWindowFlags flags =
+                ImGuiWindowFlags_NoCollapse |
+                ImGuiWindowFlags_NoSavedSettings |
+                ImGuiWindowFlags_NoResize;
+            const std::string furnaceTitle =
+                label("furnace.title", "##Furnace");
+            if (ImGui::Begin(furnaceTitle.c_str(), &open, flags))
             {
-                const ImGuiIO &io = ImGui::GetIO();
-                ImGui::SetNextWindowPos(
-                    ImVec2(io.DisplaySize.x * 0.5f,
-                           io.DisplaySize.y * 0.46f),
-                    ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-                ImGui::SetNextWindowSize(
-                    ImVec2(620.0f, 390.0f), ImGuiCond_Always);
-                ImGui::SetNextWindowBgAlpha(0.96f);
-                bool open = true;
-                const ImGuiWindowFlags flags =
-                    ImGuiWindowFlags_NoCollapse |
-                    ImGuiWindowFlags_NoSavedSettings |
-                    ImGuiWindowFlags_NoResize;
-                const std::string furnaceTitle =
-                    label("furnace.title", "##Furnace");
-                if (ImGui::Begin(furnaceTitle.c_str(), &open, flags))
+                const std::string slotNames[] = {
+                    tr("furnace.input"), tr("furnace.fuel"),
+                    tr("furnace.output")};
+                for (int index = 0; index < inventory->slotCount; ++index)
                 {
-                    const FurnaceSlot furnaceSlots[] = {
-                        FurnaceSlot::Input, FurnaceSlot::Fuel,
-                        FurnaceSlot::Output};
-                    const std::string slotNames[] = {
-                        tr("furnace.input"), tr("furnace.fuel"),
-                        tr("furnace.output")};
-                    const InventorySlotState stacks[] = {
-                        furnace->state.input, furnace->state.fuel,
-                        furnace->state.output};
-                    for (int index = 0; index < 3; ++index)
+                    if (index > 0) ImGui::SameLine();
+                    const InventorySlotState &stack =
+                        inventory->slots[index].state;
+                    const Material &material =
+                        Material::toMaterial(stack.materialId);
+                    const std::string label =
+                        slotNames[index] + "\n" +
+                        (stack.amount > 0
+                             ? materialName(material.id)
+                             : tr("common.empty")) +
+                        " x" + std::to_string(stack.amount) +
+                        "##furnace" + std::to_string(index);
+                    if (ImGui::Button(label.c_str(),
+                                      ImVec2(190.0f, 58.0f)) &&
+                        stack.amount > 0 &&
+                        provider.transferToPlayer(
+                            *world, *player, index, stack.amount,
+                            runtimeSmeltingRegistry()))
                     {
-                        if (index > 0) ImGui::SameLine();
-                        const Material &material =
-                            Material::toMaterial(stacks[index].materialId);
-                        const std::string label =
-                            slotNames[index] + "\n" +
-                            (stacks[index].amount > 0
-                                 ? materialName(material.id)
-                                 : tr("common.empty")) +
-                            " x" + std::to_string(stacks[index].amount) +
-                            "##furnace" + std::to_string(index);
-                        if (ImGui::Button(label.c_str(),
-                                          ImVec2(190.0f, 58.0f)) &&
-                            stacks[index].amount > 0 &&
-                            FurnaceContainer::transferToPlayer(
-                                *world, *player, furnaceSlots[index],
-                                stacks[index].amount,
+                        playUiFeedback();
+                    }
+                }
+                const float smeltProgress =
+                    processor->recipeDurationTicks > 0
+                        ? static_cast<float>(processor->progressTicks) /
+                              static_cast<float>(
+                                  processor->recipeDurationTicks)
+                        : 0.f;
+                const float fuelProgress =
+                    processor->burnTicksTotal > 0
+                        ? static_cast<float>(
+                              processor->burnTicksRemaining) /
+                              static_cast<float>(processor->burnTicksTotal)
+                        : 0.f;
+                ImGui::TextUnformatted(tr("furnace.progress").c_str());
+                ImGui::ProgressBar(smeltProgress, ImVec2(-1.0f, 0.0f));
+                ImGui::TextUnformatted(
+                    tr("furnace.fuel_remaining").c_str());
+                ImGui::ProgressBar(fuelProgress, ImVec2(-1.0f, 0.0f));
+                ImGui::Separator();
+                ImGui::TextWrapped("%s",
+                    tr("furnace.inventory_hint").c_str());
+                for (int playerSlot = 0;
+                     playerSlot < player->getInventorySlotCount();
+                     ++playerSlot)
+                {
+                    if (playerSlot > 0) ImGui::SameLine();
+                    const ItemStack &stack =
+                        player->getInventorySlot(playerSlot);
+                    const std::string label =
+                        (stack.isEmpty()
+                             ? tr("common.empty")
+                             : materialName(stack.getMaterial().id)) +
+                        " x" + std::to_string(stack.getNumInStack()) +
+                        "##furnaceplayer" + std::to_string(playerSlot);
+                    if (ImGui::Button(label.c_str(),
+                                      ImVec2(112.0f, 50.0f)) &&
+                        !stack.isEmpty())
+                    {
+                        int target = 2;
+                        if (runtimeSmeltingRegistry().findRecipe(
+                                stack.getMaterial().id) != nullptr)
+                        {
+                            target = 0;
+                        }
+                        else if (runtimeSmeltingRegistry().findFuel(
+                                     stack.getMaterial().id) != nullptr)
+                        {
+                            target = 1;
+                        }
+                        if (target != 2 && provider.transferFromPlayer(
+                                *world, *player, target, playerSlot,
+                                stack.getNumInStack(),
                                 runtimeSmeltingRegistry()))
                         {
                             playUiFeedback();
                         }
                     }
-                    const float smeltProgress =
-                        furnace->recipeDurationTicks > 0
-                            ? static_cast<float>(
-                                  furnace->state.progressTicks) /
-                                  static_cast<float>(
-                                      furnace->recipeDurationTicks)
-                            : 0.f;
-                    const float fuelProgress =
-                        furnace->state.burnTicksTotal > 0
-                            ? static_cast<float>(
-                                  furnace->state.burnTicksRemaining) /
-                                  static_cast<float>(
-                                      furnace->state.burnTicksTotal)
-                            : 0.f;
-                    ImGui::TextUnformatted(tr("furnace.progress").c_str());
-                    ImGui::ProgressBar(smeltProgress,
-                                       ImVec2(-1.0f, 0.0f));
-                    ImGui::TextUnformatted(
-                        tr("furnace.fuel_remaining").c_str());
-                    ImGui::ProgressBar(fuelProgress,
-                                       ImVec2(-1.0f, 0.0f));
-                    ImGui::Separator();
-                    ImGui::TextWrapped("%s",
-                        tr("furnace.inventory_hint").c_str());
-                    for (int playerSlot = 0;
-                         playerSlot < player->getInventorySlotCount();
-                         ++playerSlot)
-                    {
-                        if (playerSlot > 0) ImGui::SameLine();
-                        const ItemStack &stack =
-                            player->getInventorySlot(playerSlot);
-                        const std::string label =
-                            (stack.isEmpty()
-                                 ? tr("common.empty")
-                                 : materialName(stack.getMaterial().id)) +
-                            " x" +
-                            std::to_string(stack.getNumInStack()) +
-                            "##furnaceplayer" +
-                            std::to_string(playerSlot);
-                        if (ImGui::Button(label.c_str(),
-                                          ImVec2(112.0f, 50.0f)) &&
-                            !stack.isEmpty())
-                        {
-                            FurnaceSlot target = FurnaceSlot::Output;
-                            if (runtimeSmeltingRegistry().findRecipe(
-                                    stack.getMaterial().id) != nullptr)
-                            {
-                                target = FurnaceSlot::Input;
-                            }
-                            else if (runtimeSmeltingRegistry().findFuel(
-                                         stack.getMaterial().id) != nullptr)
-                            {
-                                target = FurnaceSlot::Fuel;
-                            }
-                            if (target != FurnaceSlot::Output &&
-                                FurnaceContainer::transferFromPlayer(
-                                    *world, *player, target, playerSlot,
-                                    stack.getNumInStack(),
-                                    runtimeSmeltingRegistry()))
-                            {
-                                playUiFeedback();
-                            }
-                        }
-                    }
-                    if (ImGui::Button(label("common.close", "##CloseFurnace").c_str(), ImVec2(100.0f, 32.0f)))
-                    {
-                        open = false;
-                        playUiFeedback();
-                    }
                 }
-                ImGui::End();
-                if (!open) player->closeContainer();
-                return;
+                if (ImGui::Button(
+                        label("common.close", "##CloseFurnace").c_str(),
+                        ImVec2(100.0f, 32.0f)))
+                {
+                    open = false;
+                    playUiFeedback();
+                }
             }
-        }
-
-        std::optional<ChestContainerView> chest =
-            ChestContainer::view(*world, *player);
-        if (!chest)
-        {
-            player->closeContainer();
+            ImGui::End();
+            if (!open) player->closeContainer();
             return;
         }
 
@@ -2649,14 +2648,13 @@ class OgreUserInterface::Impl
         if (ImGui::Begin(chestTitle.c_str(), &open, flags))
         {
             ImGui::TextWrapped("%s", tr("chest.slots_hint").c_str());
-            for (int slot = 0; slot < chest->inventory.getSlotCount(); ++slot)
+            for (int slot = 0; slot < inventory->slotCount; ++slot)
             {
                 if (slot > 0 && slot % 3 != 0)
                 {
                     ImGui::SameLine();
                 }
-                const InventorySlotState stack =
-                    chest->inventory.getSlot(slot);
+                const InventorySlotState stack = inventory->slots[slot].state;
                 const Material &material =
                     Material::toMaterial(stack.materialId);
                 const std::string label =
@@ -2667,8 +2665,9 @@ class OgreUserInterface::Impl
                 if (ImGui::Button(label.c_str(), ImVec2(170.0f, 54.0f)) &&
                     stack.amount > 0)
                 {
-                    if (ChestContainer::transferToPlayer(
-                            *world, *player, slot, stack.amount))
+                    if (provider.transferToPlayer(
+                            *world, *player, slot, stack.amount,
+                            runtimeSmeltingRegistry()))
                     {
                         playUiFeedback();
                     }
@@ -2692,9 +2691,10 @@ class OgreUserInterface::Impl
                 if (ImGui::Button(label.c_str(), ImVec2(102.0f, 50.0f)) &&
                     !stack.isEmpty())
                 {
-                    if (ChestContainer::transferFromPlayer(
-                            *world, *player, slot,
-                            stack.getNumInStack()))
+                    if (provider.transferFromPlayer(
+                            *world, *player, InventoryProvider::AutomaticSlot,
+                            slot, stack.getNumInStack(),
+                            runtimeSmeltingRegistry()))
                     {
                         playUiFeedback();
                     }

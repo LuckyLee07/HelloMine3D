@@ -5,6 +5,7 @@
 
 #include "../../Item/Material.h"
 #include "BlockData.h"
+#include "BlockCapability.h"
 #include "BlockId.h"
 
 class BlockBehavior;
@@ -33,6 +34,7 @@ struct BlockDefinition {
     int light = 0;
     Material::ID defaultDrop = Material::ID::Nothing;
     const BlockBehavior *behavior = nullptr;
+    BlockCapabilityDefinition capabilities;
     BlockRenderInfo render;
 };
 

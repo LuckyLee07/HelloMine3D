@@ -33,7 +33,8 @@ class BlockDatabase : public Singleton {
   private:
     BlockDatabase();
     void addBlock(BlockId id, const std::string &fileName,
-                  std::unique_ptr<BlockBehavior> behavior = nullptr);
+                  std::unique_ptr<BlockBehavior> behavior = nullptr,
+                  BlockCapabilityDefinition capabilities = {});
 
     std::array<std::unique_ptr<BlockType>, (unsigned)BlockId::NUM_TYPES>
         m_blocks;

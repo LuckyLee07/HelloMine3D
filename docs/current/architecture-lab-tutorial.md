@@ -19,6 +19,7 @@ B4|01|1.4|docs/reports/architecture-lab-b4-world-job-cancellation-report-v1.md
 B5|01|1.5|docs/reports/architecture-lab-b5-streaming-backpressure-report-v1.md
 B6|01|1.6|docs/reports/architecture-lab-b6-spatial-activation-report-v1.md
 B10|01|1.7|docs/reports/architecture-lab-b10-large-world-stress-report-v1.md
+C1|02|2.1|docs/reports/architecture-lab-c1-block-capability-report-v1.md
 <!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-END -->
 
 ## Part 00 — From a playable clone to an architecture lab
@@ -1336,3 +1337,72 @@ Related evidence:
 - `docs/contracts/large-world-stress-acceptance-contract-v1.md`
 - `docs/reports/architecture-lab-b10-large-world-stress-report-v1.md`
 - `tools/validate_large_world_stress_acceptance.ps1`
+
+## Part 02 — Capabilities driven by playable blocks
+
+### 2.1 Why is a capability useful before a machine framework exists?
+
+#### Problem
+
+Chest and Furnace are already real, persisted gameplay blocks, but the Ogre
+container UI identified them by trying the Furnace view first and the Chest
+view second. That makes each new inventory-like block another concrete probe
+and duplicates the decision about what can be observed or transferred.
+
+#### Naive Solution
+
+One tempting response is to keep adding `if block == type` branches. The other
+is to build a complete capability Registry, machine hierarchy and mechanical
+port vocabulary now so every imagined future block has a place to register.
+Both choices are locally easy: the first postpones a boundary, while the second
+looks architecturally comprehensive.
+
+#### Failure
+
+Concrete UI probes make Presentation depend on every storage implementation
+and allow their ordering to determine behavior. A future-first Registry fails
+differently: there is no approved mechanical node, transport system or second
+processor whose behavior could validate those abstractions. Empty interfaces
+would encode guesses and falsely imply that C2/C3 had begun.
+
+#### Design Evolution
+
+C1 uses the existing `BlockDatabase` as the only definition authority.
+`BlockDefinition` declares only capabilities with concrete providers:
+Chest/Furnace expose `InventoryProvider`, while Furnace also exposes
+`MachineProcessor`. Discovery additionally requires the loaded block and its
+persisted block-entity type to agree.
+
+#### Implementation
+
+`BlockCapabilityAccess` returns small value handles. Inventory views copy nine
+general Chest slots or the Furnace input/fuel/output roles; commands delegate
+to the existing container implementations. Processor views copy progress and
+fuel values. Handles cache neither payload nor inventory and revalidate on
+each use, so replacement or corruption fails closed. Ogre UI consumes these
+handles and no longer includes the concrete Chest/Furnace classes.
+
+#### Validation
+
+`HELLOMINE3D_WORLD_SMOKE_FOCUS=C1-CAP` passes `17/17` in Debug and Release: both declarations,
+slot/access rules, progress, missing/mismatched/malformed records, stale
+handles and save/reopen are covered. The static gate requires the real UI
+consumer and rejects Registry, MechanicalPort, Machine Runtime and network/
+Extended vocabulary. The complete VS2017/v141 gate passes WorldRuntime
+`937/937` in both Debug and Release; its 104-entry isolated package hashes to
+`1618ACD7995FE5181169B0B46A5D4F479F63FA1CCB8B533B358ED694A3846EB6`.
+
+#### Trade-offs
+
+The adapters still delegate to two concrete containers; this is intentional
+because they remain the proven owners of serialization and gameplay rules.
+The processor view exposes only current Furnace observation, not a shared tick
+runtime or status machine. `MechanicalPort` is deferred until a separately
+approved C3 node supplies real connection semantics. C1 therefore removes the
+current UI coupling without spending design budget on unimplemented systems.
+
+Related evidence:
+
+- `docs/contracts/block-capability-model-contract-v1.md`
+- `docs/reports/architecture-lab-c1-block-capability-report-v1.md`
+- `tools/validate_block_capability_model.ps1`

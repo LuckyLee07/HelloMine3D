@@ -77,6 +77,7 @@
 #include "../Sandbox/WorldManager.h"
 #include "../Util/ResourcePaths.h"
 #include "../World/Block/BlockBehavior.h"
+#include "../World/Block/BlockCapability.h"
 #include "../World/Block/ChestContainer.h"
 #include "../World/Block/FurnaceContainer.h"
 #include "../World/Block/BlockDatabase.h"
@@ -8139,6 +8140,227 @@ void caseFurnaceProgression()
               !FurnaceContainer::deserialize(
                   "v1|3,1|12,1|0,0|0|0|0",
                   runtimeSmeltingRegistry(), parsed));
+}
+
+// ---------------------------------------------------------------------------
+// AL-C1 - concrete block capability discovery and access adapters
+// ---------------------------------------------------------------------------
+void caseBlockCapabilityModel()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
+    const auto directory = freshSaveDirectory("block_capability_model");
+    Config config = makeConfig();
+    Camera camera(config);
+    const glm::ivec3 chestPosition{8, 100, 8};
+    const glm::ivec3 furnacePosition{9, 100, 8};
+    const glm::ivec3 ordinaryPosition{10, 100, 8};
+    const glm::ivec3 missingRecordPosition{11, 100, 8};
+    const glm::ivec3 persistedPosition{12, 100, 8};
+
+    {
+        Player player;
+        World world(camera, config, player, directory, false, 1);
+
+        world.setBlock(chestPosition.x, chestPosition.y, chestPosition.z,
+                       BlockId::Chest);
+        check("C1-CAP/chest-initializes-existing-provider",
+              ChestContainer::initialize(world, chestPosition));
+        const BlockCapabilities chest =
+            BlockCapabilityAccess::query(world, chestPosition);
+        check("C1-CAP/chest-declares-inventory-only",
+              chest.inventoryProvider.has_value() &&
+                  !chest.machineProcessor.has_value() &&
+                  chest.inventoryProvider->kind() ==
+                      InventoryProviderKind::Chest);
+        const auto chestView = chest.inventoryProvider->view(
+            world, runtimeSmeltingRegistry());
+        bool chestSlotsAreGeneral = chestView.has_value() &&
+                                    chestView->slotCount == 9 &&
+                                    chestView->automaticInsertion;
+        if (chestSlotsAreGeneral) {
+            for (int slot = 0; slot < chestView->slotCount; ++slot) {
+                chestSlotsAreGeneral =
+                    chestSlotsAreGeneral &&
+                    chestView->slots[slot].role ==
+                        InventorySlotRole::General &&
+                    chestView->slots[slot].insertable &&
+                    chestView->slots[slot].extractable;
+            }
+        }
+        check("C1-CAP/chest-exposes-nine-general-slots",
+              chestSlotsAreGeneral);
+
+        player.addItem(Material::STONE_BLOCK, 12);
+        const bool chestOpened =
+            ChestContainer::open(world, player, chestPosition);
+        const bool chestStored = chest.inventoryProvider->transferFromPlayer(
+            world, player, InventoryProvider::AutomaticSlot, 0, 12,
+            runtimeSmeltingRegistry());
+        const auto storedChest = chest.inventoryProvider->view(
+            world, runtimeSmeltingRegistry());
+        const bool chestTaken = chest.inventoryProvider->transferToPlayer(
+            world, player, 0, 4, runtimeSmeltingRegistry());
+        check("C1-CAP/chest-access-preserves-existing-transfer-rules",
+              chestOpened && chestStored && storedChest &&
+                  storedChest->slots[0].state.amount == 12 && chestTaken);
+        check("C1-CAP/chest-requires-automatic-insert-target",
+              !chest.inventoryProvider->transferFromPlayer(
+                  world, player, 0, 0, 1, runtimeSmeltingRegistry()));
+        player.closeContainer();
+
+        world.setBlock(furnacePosition.x, furnacePosition.y,
+                       furnacePosition.z, BlockId::Furnace);
+        check("C1-CAP/furnace-initializes-existing-provider",
+              FurnaceContainer::initialize(world, furnacePosition));
+        const BlockCapabilities furnace =
+            BlockCapabilityAccess::query(world, furnacePosition);
+        check("C1-CAP/furnace-declares-inventory-and-processor",
+              furnace.inventoryProvider.has_value() &&
+                  furnace.machineProcessor.has_value() &&
+                  furnace.inventoryProvider->kind() ==
+                      InventoryProviderKind::Furnace &&
+                  furnace.machineProcessor->kind() ==
+                      MachineProcessorKind::Furnace);
+        const auto furnaceView = furnace.inventoryProvider->view(
+            world, runtimeSmeltingRegistry());
+        check("C1-CAP/furnace-exposes-role-preserving-slots",
+              furnaceView && furnaceView->slotCount == 3 &&
+                  !furnaceView->automaticInsertion &&
+                  furnaceView->slots[0].role == InventorySlotRole::Input &&
+                  furnaceView->slots[1].role == InventorySlotRole::Fuel &&
+                  furnaceView->slots[2].role == InventorySlotRole::Output &&
+                  !furnaceView->slots[2].insertable &&
+                  furnaceView->slots[2].extractable);
+
+        player.addItem(Material::IRON_ORE_BLOCK, 2);
+        player.addItem(Material::COAL_ORE_BLOCK, 1);
+        auto findSlot = [&player](Material::ID materialId) {
+            for (int slot = 0; slot < player.getInventorySlotCount(); ++slot) {
+                if (player.getInventorySlot(slot).getMaterial().id ==
+                    materialId) {
+                    return slot;
+                }
+            }
+            return -1;
+        };
+        const int ironSlot = findSlot(Material::ID::IronOre);
+        const int coalSlot = findSlot(Material::ID::CoalOre);
+        const bool furnaceOpened = FurnaceContainer::open(
+            world, player, furnacePosition, runtimeSmeltingRegistry());
+        const bool outputRejected =
+            !furnace.inventoryProvider->transferFromPlayer(
+                world, player, 2, ironSlot, 1,
+                runtimeSmeltingRegistry());
+        const bool inputStored =
+            furnace.inventoryProvider->transferFromPlayer(
+                world, player, 0, ironSlot, 2,
+                runtimeSmeltingRegistry());
+        const bool fuelStored =
+            furnace.inventoryProvider->transferFromPlayer(
+                world, player, 1, coalSlot, 1,
+                runtimeSmeltingRegistry());
+        check("C1-CAP/furnace-access-preserves-dedicated-slot-rules",
+              furnaceOpened && ironSlot >= 0 && coalSlot >= 0 &&
+                  outputRejected && inputStored && fuelStored);
+        world.tick(0);
+        const auto processor = furnace.machineProcessor->view(
+            world, runtimeSmeltingRegistry());
+        check("C1-CAP/processor-exposes-copied-progress-state",
+              processor && processor->progressTicks == 1 &&
+                  processor->recipeDurationTicks > 0 &&
+                  processor->burnTicksRemaining > 0 &&
+                  processor->burnTicksTotal > 0);
+        player.closeContainer();
+
+        world.setBlock(ordinaryPosition.x, ordinaryPosition.y,
+                       ordinaryPosition.z, BlockId::Stone);
+        world.createBlockEntity(ordinaryPosition,
+                                ChestContainer::BlockEntityType,
+                                ContainerInventory(9).serialize());
+        const BlockCapabilities ordinary =
+            BlockCapabilityAccess::query(world, ordinaryPosition);
+        check("C1-CAP/ordinary-block-rejects-attached-record",
+              !ordinary.inventoryProvider && !ordinary.machineProcessor);
+
+        world.setBlock(missingRecordPosition.x, missingRecordPosition.y,
+                       missingRecordPosition.z, BlockId::Chest);
+        const BlockCapabilities missing =
+            BlockCapabilityAccess::query(world, missingRecordPosition);
+        check("C1-CAP/missing-record-exposes-no-capability",
+              !missing.inventoryProvider && !missing.machineProcessor);
+
+        world.setBlock(missingRecordPosition.x, missingRecordPosition.y,
+                       missingRecordPosition.z, BlockId::Furnace);
+        world.createBlockEntity(missingRecordPosition,
+                                ChestContainer::BlockEntityType,
+                                ContainerInventory(9).serialize());
+        const BlockCapabilities mismatched =
+            BlockCapabilityAccess::query(world, missingRecordPosition);
+        check("C1-CAP/mismatched-record-exposes-no-capability",
+              !mismatched.inventoryProvider &&
+                  !mismatched.machineProcessor);
+
+        world.setBlock(missingRecordPosition.x, missingRecordPosition.y,
+                       missingRecordPosition.z, BlockId::Chest);
+        world.createBlockEntity(missingRecordPosition,
+                                ChestContainer::BlockEntityType,
+                                "malformed");
+        const BlockCapabilities malformed =
+            BlockCapabilityAccess::query(world, missingRecordPosition);
+        check("C1-CAP/malformed-provider-fails-access-closed",
+              malformed.inventoryProvider &&
+                  !malformed.inventoryProvider->view(
+                      world, runtimeSmeltingRegistry()));
+
+        player.openContainer(chestPosition);
+        world.setBlock(chestPosition.x, chestPosition.y, chestPosition.z,
+                       BlockId::Air);
+        check("C1-CAP/stale-provider-handle-fails-closed",
+              !chest.inventoryProvider->view(
+                  world, runtimeSmeltingRegistry()) &&
+                  !chest.inventoryProvider->transferToPlayer(
+                      world, player, 0, 1,
+                      runtimeSmeltingRegistry()));
+        player.closeContainer();
+
+        world.setBlock(persistedPosition.x, persistedPosition.y,
+                       persistedPosition.z, BlockId::Chest);
+        const bool persistedInitialized =
+            ChestContainer::initialize(world, persistedPosition);
+        const bool persistedOpened =
+            ChestContainer::open(world, player, persistedPosition);
+        player.addItem(Material::DIRT_BLOCK, 7);
+        const int dirtSlot = findSlot(Material::ID::Dirt);
+        const BlockCapabilities persisted =
+            BlockCapabilityAccess::query(world, persistedPosition);
+        const bool persistedStored = persisted.inventoryProvider &&
+            persisted.inventoryProvider->transferFromPlayer(
+                world, player, InventoryProvider::AutomaticSlot,
+                dirtSlot, 7, runtimeSmeltingRegistry());
+        player.closeContainer();
+        check("C1-CAP/save-keeps-existing-payload-format",
+              persistedInitialized && persistedOpened && persistedStored &&
+                  world.save());
+    }
+
+    {
+        Player restoredPlayer;
+        World restoredWorld(camera, config, restoredPlayer,
+                            directory, false, 1);
+        const BlockCapabilities restored =
+            BlockCapabilityAccess::query(restoredWorld, persistedPosition);
+        const auto restoredView = restored.inventoryProvider
+            ? restored.inventoryProvider->view(
+                  restoredWorld, runtimeSmeltingRegistry())
+            : std::optional<InventoryProviderView>{};
+        check("C1-CAP/save-reopen-derives-capability-from-v12-state",
+              restored.inventoryProvider.has_value() && restoredView &&
+                  restoredView->slotCount == 9 &&
+                  restoredView->slots[0].state.materialId ==
+                      Material::ID::Dirt &&
+                  restoredView->slots[0].state.amount == 7);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -16488,6 +16710,9 @@ int main()
         else if (focus != nullptr && std::string(focus) == "B10") {
             caseLargeWorldStressRegression();
         }
+        else if (focus != nullptr && std::string(focus) == "C1-CAP") {
+            caseBlockCapabilityModel();
+        }
         else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
@@ -16545,6 +16770,7 @@ int main()
         caseBlockEntityLifecycle();
         caseChestContainer();
         caseFurnaceProgression();
+        caseBlockCapabilityModel();
         caseFoodRecovery();
         caseExpandedResourceEconomy();
         caseDifficultyProfiles();

@@ -411,14 +411,20 @@ BlockDatabase::BlockDatabase()
     addBlock(BlockId::GlassBorderless, "GlassBorderless",
              std::make_unique<NoDropBlockBehavior>());
     addBlock(BlockId::Chest, "Chest",
-             std::make_unique<ChestBlockBehavior>());
+             std::make_unique<ChestBlockBehavior>(),
+             {ChestContainer::BlockEntityType,
+              InventoryProviderKind::Chest,
+              MachineProcessorKind::None});
     addBlock(BlockId::WheatCrop, "WheatCrop",
              std::make_unique<WheatCropBlockBehavior>(
                  BlockMetadata::WheatCrop::Mature));
     addBlock(BlockId::Workbench, "Workbench",
              std::make_unique<WorkbenchBlockBehavior>());
     addBlock(BlockId::Furnace, "Furnace",
-             std::make_unique<FurnaceBlockBehavior>());
+             std::make_unique<FurnaceBlockBehavior>(),
+             {FurnaceContainer::BlockEntityType,
+              InventoryProviderKind::Furnace,
+              MachineProcessorKind::Furnace});
     addBlock(BlockId::WaystoneCore, "WaystoneCore",
              std::make_unique<WaystoneBlockBehavior>());
     addBlock(BlockId::Torch, "Torch");
@@ -452,7 +458,8 @@ const BlockDefinition &BlockDatabase::getDefinition(BlockId id) const
 }
 
 void BlockDatabase::addBlock(BlockId id, const std::string &fileName,
-                             std::unique_ptr<BlockBehavior> behavior)
+                             std::unique_ptr<BlockBehavior> behavior,
+                             BlockCapabilityDefinition capabilities)
 {
     auto block = std::make_unique<DefaultBlock>(fileName);
     const auto &data = block->getData().getBlockData();
@@ -471,6 +478,7 @@ void BlockDatabase::addBlock(BlockId id, const std::string &fileName,
     }
     BlockDefinition definition = makeDefinition(fileName, *block);
     definition.behavior = behavior.get();
+    definition.capabilities = capabilities;
     m_definitions[(int)id] = std::move(definition);
     m_behaviors[(int)id] = std::move(behavior);
     m_blocks[(int)id] = std::move(block);

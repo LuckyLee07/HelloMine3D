@@ -16,8 +16,8 @@ persistence, diagnostics and packaging layers have been rebuilt.
 
 | | |
 | --- | --- |
-| **Source** | 284 files, ~72.7k lines of C++ |
-| **Automated checks** | 920 world-runtime · 122 recipe · 80 resource-pack · 15 startup-negative — in **both** Debug and Release |
+| **Source** | 298 files, ~72.7k lines of C++ |
+| **Automated checks** | 937 world-runtime · 122 recipe · 80 resource-pack · 15 startup-negative — Debug and Release complete |
 | **Test executables** | 13 |
 | **Persisted formats** | save `v12`, terrain `v4`, settings `v8` — every one migrates from `v1` |
 | **Performance gates** | 6 versioned scenes with baseline/repeat comparison, bounded stage timings, 2 × 1800 s soak |
@@ -177,8 +177,11 @@ isolated root.
 
 Architecture Lab batches AL-A0 through AL-A6 and Track B Core B1-B6/B10 are complete. The B10
 gate passes `920/920` world assertions in both configurations, a 1,800-second five-phase stress
-run with zero failures, all six final Q1 comparisons, and a 104-entry clean package. No further
-batch is currently approved; B7-B9, Track C/D and Extended capabilities remain candidates only.
+run with zero failures, all six final Q1 comparisons, and a 104-entry clean package. C1 is also
+complete: Chest/Furnace expose a minimal capability access boundary, both Debug and Release pass
+`937/937`, and its 104-entry isolated package hashes to
+`1618ACD7995FE5181169B0B46A5D4F479F63FA1CCB8B533B358ED694A3846EB6`. B7-B9, C2-C11,
+Track D and Extended capabilities remain unapproved candidates.
 
 This is a personal architecture-learning and showcase project, not a commercial product with an
 external playtest panel. The game remains the proof vehicle: observable workflows are validated
@@ -420,7 +423,7 @@ bin\HelloMine3DCoordinateTests.exe        # coordinate conversion
 bin\HelloMine3DMeshDirtyTests.exe         # mesh dirty planner
 bin\HelloMine3DSaveLoadSmoke.exe          # chunk serialization roundtrip
 bin\HelloMine3DEntityLifecycleSmoke.exe   # actor lifecycle
-bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor/audio/objective/visual-settings stack, 906 assertions
+bin\HelloMine3DWorldRuntimeSmoke.exe      # full world/actor/audio/objective/visual-settings stack, 937 assertions
 bin\HelloMine3DSoak.exe                   # deterministic world stability schedule
 bin\HelloMine3DResourcePackSmoke.exe      # resource resolver and frozen view
 bin\HelloMine3DRecipeSmoke.exe            # strict startup recipe registry

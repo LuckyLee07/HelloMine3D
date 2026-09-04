@@ -1,7 +1,7 @@
 # HelloMine3D Current Architecture Baseline
 
 本文以 `AL-A0 — Latest Architecture Baseline` 的完整审计为起点，并随已完成的
-AL-A1/AL-A2/AL-A3/AL-A4/AL-A5/AL-A6/B1/B2/B3/B4/B5/B6/B10 更新当前实现；它描述代码事实，而不是未来目标架构。
+AL-A1/AL-A2/AL-A3/AL-A4/AL-A5/AL-A6/B1/B2/B3/B4/B5/B6/B10/C1 更新当前实现；它描述代码事实，而不是未来目标架构。
 审计起点为 Git commit `4930023fb2f3022daac9968c10a1a0b76e1ac392`；冻结的
 PLAYABILITY-RC 运行时代码身份仍是
 `320e293c2f1db7f46aba776ddccdcf94369f2d05`。A0 只更新文档，没有移动源码、改变 Gameplay、
@@ -96,6 +96,31 @@ Core / Entity / Physics / Maths / Util
   World facade。
 - AL-A3 已把 `World::tick` 的现有调用顺序集中到具体 `WorldSimulation`；AL-A5 在同一 last-tick
   snapshot 上增加四条真实 processed/deferred/budget 观察。两者都不拥有玩法状态，也不是通用 scheduler。
+- C1 把 Chest/Furnace 的能力声明附着到既有 `BlockDefinition`；Ogre 容器 UI 通过 Ogre-free
+  `BlockCapabilityAccess` 取得 `InventoryProvider` / `MachineProcessor` 值句柄。句柄只复制观察值并把
+  命令委托给既有容器规则，不拥有库存、冶炼 tick 或 payload；当前没有第二套 Capability Registry。
+
+### 3.1 C1 Block capability access path
+
+```text
+BlockDatabase -> BlockDefinition.capabilities
+                         |
+loaded block + matching block-entity record
+                         v
+               BlockCapabilityAccess
+                  /              \
+       InventoryProvider     MachineProcessor
+          Chest/Furnace          Furnace only
+                  \              /
+                   Ogre container UI
+```
+
+Chest exposes nine general insert/extract slots with automatic insertion.
+Furnace exposes input/fuel/output roles plus copied progress and fuel values;
+output remains extract-only. Each handle rechecks current identity and existing
+payload validation before use, so block replacement, a mismatched record or a
+malformed payload fails closed. `MechanicalPort` is absent until a concrete C3
+mechanical node is separately approved.
 
 ## 4. World Public API Surface
 
@@ -530,7 +555,7 @@ Design Evolution、Implementation、Validation 和 Trade-offs 七个非空逻辑
 Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先于编译执行。该验证保护文档身份，
 不证明文字质量，也不把 roadmap proposal 提升成实现事实。
 
-## 14. Current Conclusions Through B10
+## 14. Current Conclusions Through C1
 
 - 当前可玩的系统已经有清晰的 Renderer-to-Snapshot 边界和可验证持久化边界。
 - `World` 仍承担 facade、组合根和多套 Simulation 玩法状态；AL-A2/AL-A3/AL-A4/AL-A5 只关闭了四条由真实工作
@@ -551,5 +576,8 @@ Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先
   生产订阅者 effect/republish、8 层递归上限、per-publication membership 与 Diagnostic 隔离均已冻结。
 - Architecture Lab 教程现在按 Track/真实 Section 维护，并由 manifest、冻结证据和完整门禁阻止空 Part、
   丢失批次或未实现能力提前进入教程。
-- B10 完成不构成 B7-B9、Track C/D 或 Extended 的自动启动权限；后续只有进入任务账本并单独获批
+- C1 已由 Chest/Furnace 的真实 UI 重复驱动：能力声明留在既有 BlockDefinition，访问句柄不缓存权威
+  状态，具体序列化、传输和冶炼规则仍由现有容器拥有。没有 Capability Registry、MechanicalPort、
+  Machine Runtime 或网络拓扑。
+- C1 完成不构成 B7-B9、C2-C11、Track D 或 Extended 的自动启动权限；后续只有进入任务账本并单独获批
   的具名批次才可实施。

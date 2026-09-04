@@ -64,16 +64,17 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 | `B5` Streaming Backpressure | `Done` | 两类真实 job 已受 128 hard cap、96/48 watermarks、显式 admission、确定性 shedding 和 plan-window refill 约束；loader commit、CPU-ready upload、unload 分别受 8/8/8 边界保护。B5 12/12 及 B4/B3/B2/B1 10/10、9/9、26/26、38/38 已通过；完整 VS2017/v141 Debug/Release 门禁均为 906/906 WorldRuntime，104 项干净包 SHA-256 为 `7D126B31B78F3A4E8F8C90A5D769028EC686C0D4F708D1F6B2E2979BD164050B`。详见 `docs/reports/architecture-lab-b5-streaming-backpressure-report-v1.md`。 |
 | `B6` Spatial Activation | `Done` | Resident Data、Near Representation、Simulation Requested 三层兴趣已接入真实 plan/load→mesh→render/unload 路径，simulation request 只发布不消费。B6 12/12、B5/B4/B3/B2/B1 回归 12/12、10/10、9/9、26/26、38/38；完整 VS2017/v141 Debug/Release 门禁均为 918/918，104 项隔离包 SHA-256 为 `C8E260E00CF76C952150EBC3DC851A7EDE5E13FE63A58F98B77DC103723EFA3C`。详见 `docs/reports/architecture-lab-b6-spatial-activation-report-v1.md`。 |
 | `B10` Large World Stress & Acceptance | `Done` | 最终 schedule v3 Release Core 已完成 1800 秒/36000 ticks、五阶段、10 次保存重开和双确定性探针：最大区块 216、最大 pending 95、消费者 8/8/8、最大/最终 `Absent=0`，峰值 private 137551872 bytes，wall 1824.453 秒且未超时。两次失败均保留并修复，未放宽阈值或使用性能例外。组成式 VS2017/v141 Debug/Release 门禁均为 920/920；最终 Q1 六组比较 PASS；104 项隔离包 SHA-256 为 `E13203F8E18382A4D13ABA22DFB975DDB189B2858F74DAAE340CE5A4A8F34B14`。详见 `docs/reports/architecture-lab-b10-large-world-stress-report-v1.md`。 |
+| `C1` Block Capability Model | `Done` | 现有 Chest/Furnace 已通过 `BlockDefinition` 声明 `InventoryProvider`，Furnace 另声明 `MachineProcessor`；Ogre 容器 UI 改为能力发现/访问，17/17 聚焦用例与静态门禁通过。VS2017/v141 Debug/Release 完整门禁均为 937/937 WorldRuntime，104 项隔离包 SHA-256 为 `1618ACD7995FE5181169B0B46A5D4F479F63FA1CCB8B533B358ED694A3846EB6`。未预建 Registry、MechanicalPort、C2 Machine Runtime 或 C3 网络。详见 `docs/reports/architecture-lab-c1-block-capability-report-v1.md`。 |
 
 ## 下一候选
 
 | 批次 | 状态 | 目标 | 进入条件 | 退出边界 |
 | ---- | ---- | ---- | -------- | -------- |
-| `C1` Block Capability Model | `Candidate / not approved` | 仅在下一轮明确批准后，以真实机械玩法需求冻结轻量 Capability 边界。 | B10 完成且具体玩法需求进入任务账本。 | 不预建 Registry；不自动启动 C2-C5。 |
 | `D1` Tick Phase & Budget Runtime | `Candidate / not approved` | 只有当前四条真实 phase metrics 出现共同调度问题时，才评估 runtime 行为改变。 | 至少三个真实系统出现共同优先级/延迟问题并另行批准。 | 不由 A5 vocabulary 或 B10 自动授权。 |
 
-`B10` 已完成正式压力/确定性、组成式完整门禁和 Q1 收口。当前没有自动获批的开发批次；
-B7-B9、Track C/D 和 Extended 仍未获批，也不因本 Goal 自动进入实现。
+`B10` 已完成正式压力/确定性、组成式完整门禁和 Q1 收口，`C1` 也已通过完整门禁。
+当前没有已批准但未完成的开发批次；B7-B9、C2-C11、Track D 和 Extended 仍未获批，
+也不因本 Goal 自动进入实现。
 
 ## 当前阻塞
 
