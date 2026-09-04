@@ -1609,6 +1609,11 @@ C2 Machine Runtime、C3 拓扑或 Extended capability。17/17 聚焦用例、Deb
 
 ## C2 — Machine Runtime v0
 
+> 当前状态：`Done`。项目所有者于 2026-09-04 单独批准“手摇破碎机”方案；实现与冻结证据见
+> `docs/contracts/machine-runtime-v0-contract-v1.md` 和
+> `docs/reports/architecture-lab-c2-machine-runtime-report-v1.md`。本完成状态不包含或自动批准
+> C3-C11、Track D、`MechanicalPort`、网络、自动物流/存储/合成或 Extended 能力。
+
 先从现有 Furnace-like Processor 和一个新获批的具体处理机器中提炼最小运行时：
 
 ```text
@@ -1656,6 +1661,28 @@ Furnace-like Processor
 ### 教程
 
 **Chapter 17：Machine 应该 Tick 自己吗？**
+
+### 当前批准实现边界（2026-09-04）
+
+C2 以可正常制作、放置、Use、保存重开的 Crusher 作为第二个真实 Processor。工作台配方只追加
+第 25 条：5 Cobblestone + 2 OakPlank + 1 IronIngot；唯一加工定义为
+`hellomine:crush_cobblestone`，输入 1 Cobblestone、输出 1 Sand、耗时 40 fixed ticks。
+一次正常 Use 注入 20 tick 手摇动力，最多缓存 40 tick，因此单个产物需要两次真实手摇输入。
+
+共享 `MachineRuntime` 只拥有 Furnace 与 Crusher 已共同证明的 recipe match、输出容量、动力、
+单 tick 进度和原子完成语义；燃料/光照/既有事件仍由 Furnace 拥有，手摇准入和双槽 payload
+仍由 Crusher 拥有。状态固定为 `Idle / MissingInput / BlockedOutput / NoPower / Running`，由当前
+权威槽位、配方和动力派生，不写入 payload。save v12、terrain v4、settings v8、既有 24 配方、
+8 工具、34 目标及胜利语义保持不变。
+
+### 完成证据（2026-09-04）
+
+C2 聚焦路径在 VS2017/v141 Debug 与 Release 均通过 `51/51`，完整门禁在两种配置均通过
+WorldRuntime `963/963`、Recipe `126/126`、Resource Pack `80/80`、启动负例 `15/15`、短 soak、
+隐藏验证客户端与可执行文件清单。Release 可执行文件为 8,832,000 bytes，SHA-256 为
+`EB9FC163047A967F5022BD5839F431BA94FD80C02CD6759FE3A72D24B1744DB9`；105 项隔离包 SHA-256
+为 `B4D73704A93B4377EB26336592448B4E31439387BA6198B49C59704517775739`。最终结果为
+`PASS real_window=DEFERRED`；AI 场景保持 `NOT_RUN`，人类主观体验保持 `NOT_CLAIMED`。
 
 ---
 

@@ -17,6 +17,7 @@ block|media/blocks/Cactus.block
 block|media/blocks/Chest.block
 block|media/blocks/CoalOre.block
 block|media/blocks/Cobblestone.block
+block|media/blocks/Crusher.block
 block|media/blocks/DeadShrub.block
 block|media/blocks/Dirt.block
 block|media/blocks/Furnace.block

@@ -23,8 +23,10 @@ metrics、预算词汇和开发者面板观察；`AL-A6` 已完成单一 living 
 Chunk Data/Mesh/Render 三态，`B2` Streaming Demand、`B3` World Job Scheduler、`B4` Generation
 Cancellation、`B5` Streaming Backpressure 与 `B6` Spatial Activation 已通过完整门禁；`B10`
 Large World Stress & Acceptance 已通过正式 Core 压力/确定性验收、双配置 `920/920` 组成式门禁
-与最终 Q1。`C1` 已完成 Chest/Furnace 最小 Capability，并通过 `17/17` 聚焦、Debug/Release
-双配置 `937/937` 世界验证与 104 项隔离包门禁；C2-C11 未获批。
+与最终 Q1。`C1` 已完成 Chest/Furnace 最小 Capability；`C2` 又加入可正常制作、放置、Use、
+保存重开的手摇 Crusher，并从 Furnace/Crusher 提炼最小 Machine Runtime。C2 聚焦 `51/51`、
+Debug/Release 双配置 `963/963` 世界验证、`126/126` 配方/经济验证和 105 项隔离包门禁均通过；
+C3-C11 未获批。
 其余 Core/Extended 能力目录都不是自动批准的 backlog。
 
 ## 目录分工

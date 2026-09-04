@@ -1,7 +1,7 @@
 # HelloMine3D Current Architecture Baseline
 
 本文以 `AL-A0 — Latest Architecture Baseline` 的完整审计为起点，并随已完成的
-AL-A1/AL-A2/AL-A3/AL-A4/AL-A5/AL-A6/B1/B2/B3/B4/B5/B6/B10/C1 更新当前实现；它描述代码事实，而不是未来目标架构。
+AL-A1/AL-A2/AL-A3/AL-A4/AL-A5/AL-A6/B1/B2/B3/B4/B5/B6/B10/C1/C2 更新当前实现；它描述代码事实，而不是未来目标架构。
 审计起点为 Git commit `4930023fb2f3022daac9968c10a1a0b76e1ac392`；冻结的
 PLAYABILITY-RC 运行时代码身份仍是
 `320e293c2f1db7f46aba776ddccdcf94369f2d05`。A0 只更新文档，没有移动源码、改变 Gameplay、
@@ -43,7 +43,7 @@ Premake 从共享的 `src/HelloMine3D` 与资源边界生成 `build/` 下工程�
 | `Ogre/` | 17 / 8,940 | Ogre/GL3Plus/OIS 启动、窗口/焦点/输入、GPU terrain/actor/UI、音频组合、截图和帧序。 | GPU buffer、scene node、UI、selection outline、capture 为派生；绝不拥有 Gameplay truth。 | 向内依赖 Sandbox、World snapshots、Actor/Audio/Presentation/Diagnostics/Item/Gameplay 等；第一方模拟层不得反向依赖 Ogre。 |
 | `Diagnostics/` | 16 / 2,581 | 性能采集、Q2 操作阶段、Tracy 边界、崩溃 dump/sidecar/inbox 和 terrain buffer metrics。 | 指标和崩溃产物是观察/诊断记录，不驱动 Gameplay。 | 可被 World/Sandbox/Ogre 使用；Windows 异常与 DbgHelp 只留在平台实现。 |
 | `Player/` | 4 / 557 | 玩家运动、碰撞、输入应用、库存访问、容器/制作 UI ownership 和保存值。 | `Player` 拥有当前运动、旋转、库存与 UI 打开状态；战斗生命由 World 的 `PlayerActor` 镜像/覆盖后存盘。 | 依赖 Entity、Item、World 查询、Sandbox Events；由 SandboxRuntime 拥有。 |
-| `Item/` | 21 / 3,866 | Material/ItemStack、库存/容器、配方/制作、工具、食物、冶炼和资源经济校验。 | 冻结注册表与 Inventory/Container 内容为各自域的权威值；预览和统计为派生。 | 主要依赖 Util，少数交互边界依赖 World；被 Player/World/Gameplay/UI 消费。 |
+| `Item/` | 21 / 3,866 | Material/ItemStack、库存/容器、配方/制作、工具、食物、冶炼、C2 machine process 定义和资源经济校验。 | 冻结注册表与 Inventory/Container 内容为各自域的权威值；预览、process observation 和统计为派生。 | 主要依赖 Util，少数交互边界依赖 World；被 Player/World/Gameplay/UI 消费。 |
 | `Physics/` | 1 / 45 | AABB 数据和碰撞辅助边界。 | 无独立生命周期所有权；AABB 是 Entity/Player/Actor 的空间值。 | 依赖 Maths；被 Entity/World 使用。 |
 | `Entity/` | 1 / 32 | 最低层 position/velocity/rotation/AABB 数据基类。 | 不拥有对象生命周期；派生实例由 Player 或 ActorManager 拥有。 | 依赖 Maths/Physics；被 Player、Actor、Camera 使用。 |
 | `Core/` | 2 / 79 | 当前只有逻辑 Camera：跟随目标、矩阵和 frustum。 | Camera 是从玩家/配置推导的视图状态，不是世界真值。 | 依赖 Config、Entity、Maths；被 Sandbox、World streaming priority 和 Ogre 使用。 |
@@ -96,11 +96,13 @@ Core / Entity / Physics / Maths / Util
   World facade。
 - AL-A3 已把 `World::tick` 的现有调用顺序集中到具体 `WorldSimulation`；AL-A5 在同一 last-tick
   snapshot 上增加四条真实 processed/deferred/budget 观察。两者都不拥有玩法状态，也不是通用 scheduler。
-- C1 把 Chest/Furnace 的能力声明附着到既有 `BlockDefinition`；Ogre 容器 UI 通过 Ogre-free
-  `BlockCapabilityAccess` 取得 `InventoryProvider` / `MachineProcessor` 值句柄。句柄只复制观察值并把
-  命令委托给既有容器规则，不拥有库存、冶炼 tick 或 payload；当前没有第二套 Capability Registry。
+- C1 把 Chest/Furnace 的能力声明附着到既有 `BlockDefinition`；C2 以可玩的 Crusher 成为第二个
+  Processor 后，把真实声明扩展为 Chest/Furnace/Crusher，并从 Furnace/Crusher 提炼 Ogre-free、
+  persistence-free 的 `MachineRuntime` 五态与单 tick 转换。`BlockCapabilityAccess` 只复制观察值并把
+  命令委托给具体容器；库存、燃料/手摇动力、payload 和完成副作用仍归具体 owner，当前没有第二套
+  Capability/recipe Registry。
 
-### 3.1 C1 Block capability access path
+### 3.1 C1/C2 capability access and machine transition path
 
 ```text
 BlockDatabase -> BlockDefinition.capabilities
@@ -110,17 +112,34 @@ loaded block + matching block-entity record
                BlockCapabilityAccess
                   /              \
        InventoryProvider     MachineProcessor
-          Chest/Furnace          Furnace only
+      Chest/Furnace/Crusher    Furnace/Crusher
                   \              /
                    Ogre container UI
+
+WorldSimulation::BlockEntitySimulation
+          |                         |
+          v                         v
+  FurnaceContainer           CrusherContainer
+  fuel/light/event owner     crank/two-slot owner
+          \                         /
+           +----> MachineRuntime <+
+             pure five-state transition
 ```
 
 Chest exposes nine general insert/extract slots with automatic insertion.
-Furnace exposes input/fuel/output roles plus copied progress and fuel values;
-output remains extract-only. Each handle rechecks current identity and existing
-payload validation before use, so block replacement, a mismatched record or a
-malformed payload fails closed. `MechanicalPort` is absent until a concrete C3
-mechanical node is separately approved.
+Furnace exposes input/fuel/output roles; Crusher exposes insert/extract input,
+extract-only output and a bounded manual-crank command. Processor views copy
+derived status, recipe, progress and power values. Each handle rechecks current
+identity and existing payload validation before use, so block replacement, a
+mismatched record or a malformed payload fails closed.
+
+`MachineRuntime` matches a concrete copied recipe, checks output capacity and
+power, then advances at most one fixed tick or completes atomically. Its states
+are `Idle / MissingInput / BlockedOutput / NoPower / Running`; no state or
+recipe id is persisted. Furnace owns its existing fuel, lighting, event and v1
+payload semantics, while Crusher owns crank admission and Crusher payload v1.
+`MechanicalPort` remains absent until a concrete C3 mechanical node is
+separately approved.
 
 ## 4. World Public API Surface
 
@@ -418,6 +437,8 @@ WorldManager
 - `StorageTransaction` 负责同目录 candidate、flush、真实 reader 校验和原子替换；失败 candidate 不
   成为权威。
 - Chunk 只有成功发布后才清 save-dirty；unload 保存失败则取消卸载。
+- Chunk block-entity v2 已能保存经过具体 owner 验证的 type/payload；C2 因此直接保存 Crusher payload v1
+  的输入、输出、进度和剩余手摇动力，不改变 world save v12，也没有 offline catch-up。
 - `WorldBackup` 在 metadata/chunk 发布之后创建有界且可验证的整世界快照。
 - 可稳定重建的 sunlight、block light、mesh、render nodes、storage/diagnostic caches 不作为独立
   Gameplay truth 保存。
@@ -463,6 +484,8 @@ Ogre::frameStarted
                                   5. BlockRandomTick
                                   6. Population
                                   7. BlockEntitySimulation
+                                     -> Furnace/Crusher concrete owner
+                                     -> MachineRuntime one fixed transition
                                   8. GameplayRuntime
             -> update Camera from interpolated Player
             -> selection + one resolved GameplayWorldAction
@@ -539,6 +562,8 @@ block、Actor、inventory、objective or persistence truth。
 
 这些版本属于不同兼容性域，不能用 world save v12 推断其他定义已迁移，也不能因重建派生数据而
 静默改写 terrain identity。任何后续 Architecture Lab 批次都必须在自己的合同中列出受影响域。
+C2 的 `ResourceEconomyContract` schema v2 只是 code-owned 验证输入，用来把 machine process 加入
+可达性、守恒和无环证明；它不是磁盘存档格式，也没有改变上述持久化 identity。
 
 ## 13. Architecture Documentation Ownership
 
@@ -555,7 +580,7 @@ Design Evolution、Implementation、Validation 和 Trade-offs 七个非空逻辑
 Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先于编译执行。该验证保护文档身份，
 不证明文字质量，也不把 roadmap proposal 提升成实现事实。
 
-## 14. Current Conclusions Through C1
+## 14. Current Conclusions Through C2
 
 - 当前可玩的系统已经有清晰的 Renderer-to-Snapshot 边界和可验证持久化边界。
 - `World` 仍承担 facade、组合根和多套 Simulation 玩法状态；AL-A2/AL-A3/AL-A4/AL-A5 只关闭了四条由真实工作
@@ -576,8 +601,10 @@ Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先
   生产订阅者 effect/republish、8 层递归上限、per-publication membership 与 Diagnostic 隔离均已冻结。
 - Architecture Lab 教程现在按 Track/真实 Section 维护，并由 manifest、冻结证据和完整门禁阻止空 Part、
   丢失批次或未实现能力提前进入教程。
-- C1 已由 Chest/Furnace 的真实 UI 重复驱动：能力声明留在既有 BlockDefinition，访问句柄不缓存权威
-  状态，具体序列化、传输和冶炼规则仍由现有容器拥有。没有 Capability Registry、MechanicalPort、
-  Machine Runtime 或网络拓扑。
-- C1 完成不构成 B7-B9、C2-C11、Track D 或 Extended 的自动启动权限；后续只有进入任务账本并单独获批
-  的具名批次才可实施。
+- C1 的能力访问已由 Chest/Furnace/Crusher 三个真实 provider 使用；值句柄不缓存权威状态，具体
+  序列化、槽位传输和副作用仍由容器拥有。C2 只在 Furnace/Crusher 两个真实 Processor 之间共享
+  recipe/output/power/progress 的纯状态转换，没有 Capability/recipe Registry 或继承层次。
+- Crusher 是正常可制作、放置、Use、卸载与保存重开的玩法块；其 20-tick pulse、40-tick cap 和
+  `Cobblestone -> Sand` 单一 process 为 Machine Runtime 提供真实压力，同时不进入 34 目标和胜利链。
+- C2 完成不构成 B7-B9、C3-C11、Track D、`MechanicalPort`、网络或 Extended 的自动启动权限；后续
+  只有进入任务账本并单独获批的具名批次才可实施。

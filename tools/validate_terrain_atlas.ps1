@@ -91,8 +91,8 @@ foreach ($line in $lines | Select-Object -Skip 1) {
          $semanticSet.Add($entry.Semantic) -and
          $coordinateSet.Add("$x,$y")) $trimmed
 }
-Test-Contract "layout-populated-count" ($entries.Count -eq 119) `
-    "expected=119 actual=$($entries.Count)"
+Test-Contract "layout-populated-count" ($entries.Count -eq 120) `
+    "expected=120 actual=$($entries.Count)"
 
 $requiredSemantics = @(
     'grass_top', 'grass_side', 'dirt', 'stone', 'oak_bark_side',
@@ -104,7 +104,7 @@ $requiredSemantics = @(
     'wooden_sword', 'stone_sword', 'raw_meat', 'cooked_meat',
     'cactus_salad', 'trail_ration', 'plant_fiber', 'torch',
     'cobblestone', 'oak_door', 'wooden_axe', 'wooden_shovel',
-    'ancient_compass', 'raider_ward'
+    'ancient_compass', 'raider_ward', 'crusher'
 )
 Test-Contract "required-material-coverage" `
     (@($requiredSemantics | Where-Object {
@@ -280,6 +280,7 @@ $expectedBlocks = @{
     Cobblestone = @{TexAll='7,1'}
     OakDoorClosed = @{TexAll='8,1'}
     OakDoorOpen = @{TexAll='8,1'}
+    Crusher = @{TexAll='11,1'}
 }
 foreach ($blockName in $expectedBlocks.Keys) {
     $actual = Read-BlockCoordinates $blockName
@@ -300,7 +301,7 @@ $semanticByMaterial = @(
     'stone_sword', 'waystone_core', 'raw_meat', 'cooked_meat',
     'cactus_salad', 'trail_ration', 'plant_fiber', 'torch', 'oak_planks',
     'cobblestone', 'oak_door', 'wooden_axe', 'wooden_shovel',
-    'ancient_compass', 'raider_ward'
+    'ancient_compass', 'raider_ward', 'crusher'
 )
 $materialSource = Get-Content -LiteralPath $materialSourcePath -Raw
 $iconsMatch = [regex]::Match(

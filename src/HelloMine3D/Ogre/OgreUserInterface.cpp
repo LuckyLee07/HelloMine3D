@@ -2520,26 +2520,31 @@ class OgreUserInterface::Impl
         }
         if (processor)
         {
+            const bool isCrusher = capabilities.machineProcessor->kind() ==
+                MachineProcessorKind::Crusher;
+            const std::string machineKey = isCrusher
+                ? "crusher"
+                : "furnace";
+            const std::string widgetKey = isCrusher
+                ? "crusher"
+                : "furnace";
             const ImGuiIO &io = ImGui::GetIO();
             ImGui::SetNextWindowPos(
                 ImVec2(io.DisplaySize.x * 0.5f,
                        io.DisplaySize.y * 0.46f),
                 ImGuiCond_Always, ImVec2(0.5f, 0.5f));
             ImGui::SetNextWindowSize(
-                ImVec2(620.0f, 390.0f), ImGuiCond_Always);
+                ImVec2(620.0f, 430.0f), ImGuiCond_Always);
             ImGui::SetNextWindowBgAlpha(0.96f);
             bool open = true;
             const ImGuiWindowFlags flags =
                 ImGuiWindowFlags_NoCollapse |
                 ImGuiWindowFlags_NoSavedSettings |
                 ImGuiWindowFlags_NoResize;
-            const std::string furnaceTitle =
-                label("furnace.title", "##Furnace");
-            if (ImGui::Begin(furnaceTitle.c_str(), &open, flags))
+            const std::string machineTitle =
+                label(machineKey + ".title", "##Machine");
+            if (ImGui::Begin(machineTitle.c_str(), &open, flags))
             {
-                const std::string slotNames[] = {
-                    tr("furnace.input"), tr("furnace.fuel"),
-                    tr("furnace.output")};
                 for (int index = 0; index < inventory->slotCount; ++index)
                 {
                     if (index > 0) ImGui::SameLine();
@@ -2547,13 +2552,21 @@ class OgreUserInterface::Impl
                         inventory->slots[index].state;
                     const Material &material =
                         Material::toMaterial(stack.materialId);
+                    const InventorySlotRole role =
+                        inventory->slots[index].role;
+                    const std::string slotName = role == InventorySlotRole::Fuel
+                        ? tr("furnace.fuel")
+                        : tr(machineKey +
+                             (role == InventorySlotRole::Output
+                                  ? ".output"
+                                  : ".input"));
                     const std::string label =
-                        slotNames[index] + "\n" +
+                        slotName + "\n" +
                         (stack.amount > 0
                              ? materialName(material.id)
                              : tr("common.empty")) +
                         " x" + std::to_string(stack.amount) +
-                        "##furnace" + std::to_string(index);
+                        "##" + widgetKey + std::to_string(index);
                     if (ImGui::Button(label.c_str(),
                                       ImVec2(190.0f, 58.0f)) &&
                         stack.amount > 0 &&
@@ -2564,26 +2577,45 @@ class OgreUserInterface::Impl
                         playUiFeedback();
                     }
                 }
-                const float smeltProgress =
+                const float machineProgress =
                     processor->recipeDurationTicks > 0
                         ? static_cast<float>(processor->progressTicks) /
                               static_cast<float>(
                                   processor->recipeDurationTicks)
                         : 0.f;
-                const float fuelProgress =
-                    processor->burnTicksTotal > 0
+                const float powerProgress =
+                    processor->powerTicksTotal > 0
                         ? static_cast<float>(
-                              processor->burnTicksRemaining) /
-                              static_cast<float>(processor->burnTicksTotal)
+                              processor->powerTicksRemaining) /
+                              static_cast<float>(processor->powerTicksTotal)
                         : 0.f;
-                ImGui::TextUnformatted(tr("furnace.progress").c_str());
-                ImGui::ProgressBar(smeltProgress, ImVec2(-1.0f, 0.0f));
                 ImGui::TextUnformatted(
-                    tr("furnace.fuel_remaining").c_str());
-                ImGui::ProgressBar(fuelProgress, ImVec2(-1.0f, 0.0f));
+                    tr(isCrusher ? "crusher.progress"
+                                 : "furnace.progress").c_str());
+                ImGui::ProgressBar(machineProgress, ImVec2(-1.0f, 0.0f));
+                ImGui::TextUnformatted(
+                    tr(isCrusher ? "crusher.power_remaining"
+                                 : "furnace.fuel_remaining").c_str());
+                ImGui::ProgressBar(powerProgress, ImVec2(-1.0f, 0.0f));
+                const std::string statusText =
+                    tr(std::string("machine.status.") +
+                       machineStatusName(processor->status));
+                ImGui::Text("%s: %s", tr("machine.status").c_str(),
+                            statusText.c_str());
+                if (processor->manualPowerSupported &&
+                    ImGui::Button(
+                        label("crusher.crank", "##CrusherCrank").c_str(),
+                        ImVec2(210.0f, 32.0f)))
+                {
+                    if (capabilities.machineProcessor->supplyManualPower(
+                            *world, *player))
+                    {
+                        playUiFeedback();
+                    }
+                }
                 ImGui::Separator();
                 ImGui::TextWrapped("%s",
-                    tr("furnace.inventory_hint").c_str());
+                    tr(machineKey + ".inventory_hint").c_str());
                 for (int playerSlot = 0;
                      playerSlot < player->getInventorySlotCount();
                      ++playerSlot)
@@ -2596,23 +2628,31 @@ class OgreUserInterface::Impl
                              ? tr("common.empty")
                              : materialName(stack.getMaterial().id)) +
                         " x" + std::to_string(stack.getNumInStack()) +
-                        "##furnaceplayer" + std::to_string(playerSlot);
+                        "##" + widgetKey + "player" +
+                        std::to_string(playerSlot);
                     if (ImGui::Button(label.c_str(),
                                       ImVec2(112.0f, 50.0f)) &&
                         !stack.isEmpty())
                     {
-                        int target = 2;
-                        if (runtimeSmeltingRegistry().findRecipe(
+                        int target = -1;
+                        if (isCrusher && stack.getMaterial().id ==
+                                             Material::ID::Cobblestone)
+                        {
+                            target = 0;
+                        }
+                        else if (!isCrusher &&
+                            runtimeSmeltingRegistry().findRecipe(
                                 stack.getMaterial().id) != nullptr)
                         {
                             target = 0;
                         }
-                        else if (runtimeSmeltingRegistry().findFuel(
+                        else if (!isCrusher &&
+                            runtimeSmeltingRegistry().findFuel(
                                      stack.getMaterial().id) != nullptr)
                         {
                             target = 1;
                         }
-                        if (target != 2 && provider.transferFromPlayer(
+                        if (target >= 0 && provider.transferFromPlayer(
                                 *world, *player, target, playerSlot,
                                 stack.getNumInStack(),
                                 runtimeSmeltingRegistry()))
@@ -2622,7 +2662,9 @@ class OgreUserInterface::Impl
                     }
                 }
                 if (ImGui::Button(
-                        label("common.close", "##CloseFurnace").c_str(),
+                        label("common.close", isCrusher
+                            ? "##CloseCrusher"
+                            : "##CloseFurnace").c_str(),
                         ImVec2(100.0f, 32.0f)))
                 {
                     open = false;

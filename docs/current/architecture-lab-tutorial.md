@@ -1,8 +1,9 @@
 # HelloMine3D Architecture Lab Tutorial
 
-> Living tutorial status: Part 00 covers completed Track A and Part 01 covers
-> implemented B1 through B10 Core. Later Parts are added only with the first verified
-> batch of their owning Track; this file does not pre-create empty Sprint chapters.
+> Living tutorial status: Part 00 covers completed Track A, Part 01 covers
+> implemented B1 through B10 Core, and Part 02 covers C1 through C2. Later Parts
+> are added only with the first verified batch of their owning Track; this file
+> does not pre-create empty Sprint chapters.
 
 <!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-BEGIN -->
 AL-A0|00|0.1|docs/reports/architecture-lab-baseline-v1.md
@@ -20,6 +21,7 @@ B5|01|1.5|docs/reports/architecture-lab-b5-streaming-backpressure-report-v1.md
 B6|01|1.6|docs/reports/architecture-lab-b6-spatial-activation-report-v1.md
 B10|01|1.7|docs/reports/architecture-lab-b10-large-world-stress-report-v1.md
 C1|02|2.1|docs/reports/architecture-lab-c1-block-capability-report-v1.md
+C2|02|2.2|docs/reports/architecture-lab-c2-machine-runtime-report-v1.md
 <!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-END -->
 
 ## Part 00 — From a playable clone to an architecture lab
@@ -1406,3 +1408,92 @@ Related evidence:
 - `docs/contracts/block-capability-model-contract-v1.md`
 - `docs/reports/architecture-lab-c1-block-capability-report-v1.md`
 - `tools/validate_block_capability_model.ps1`
+
+### 2.2 Why does a machine runtime need a second playable processor?
+
+#### Problem
+
+After C1, Furnace was the only real timed processor. It already combined recipe
+matching, output admission, fuel, progress, completion, lighting, events and
+persistence. A shared runtime extracted from that single example could not
+distinguish universal machine behavior from Furnace-specific behavior.
+
+The architecture question therefore required a gameplay addition: a second
+processor with a meaningfully different power source but the same core timed
+transformation. Without that pressure, “Machine Runtime” would be a renamed
+Furnace implementation or a speculative framework.
+
+#### Naive Solution
+
+One option is to leave Furnace intact and copy it for every new machine. The
+other is to begin with a base class, registry, generic recipe catalogue,
+mechanical ports and future transport hooks. Copying preserves local clarity
+but duplicates ordering and failure semantics; the comprehensive framework
+looks reusable before any second behavior has tested its assumptions.
+
+#### Failure
+
+A copied Crusher can drift on output capacity, progress preservation or atomic
+completion. A future-first framework fails in the opposite direction: it must
+invent extension points for networks, power transmission and automatic
+insertion that C2 does not contain. It also tends to steal fuel, lighting,
+payload and side-effect ownership from concrete machines, making save
+compatibility and failure attribution harder.
+
+#### Design Evolution
+
+C2 adds a normal Hand-Cranked Crusher. It is crafted at the workbench, placed as
+a real block, opened and cranked through normal Use/UI commands, and persisted
+through the existing chunk block-entity boundary. One Cobblestone becomes one
+Sand after 40 fixed ticks; a Use supplies 20 ticks of power with a 40-tick cap.
+
+Only the overlap proven by Furnace and Crusher moves into `MachineRuntime`:
+recipe match, output capacity, power availability, one progress tick and atomic
+completion. The five derived states are `Idle`, `MissingInput`, `BlockedOutput`,
+`NoPower` and `Running`. Concrete containers remain the owners of slots, power,
+payload and completion side effects.
+
+#### Implementation
+
+`MachineProcessDefinition` supplies the one code-owned Crusher transformation.
+`MachineRuntime` is a pure, Ogre-free, persistence-free transition helper used
+by both `FurnaceContainer` and `CrusherContainer` during the existing
+`BlockEntitySimulation` phase. Furnace retains fuel, light, event and payload-v1
+semantics; Crusher owns crank admission and its strict two-slot payload v1.
+
+C1 capability access expands to the third real provider. Crusher inventory and
+processor handles expose copied slots, status, recipe, progress and power, plus
+a bounded crank command. The generic Ogre UI consumes those values without
+including concrete container classes, while every command revalidates the live
+block and block-entity identity.
+
+#### Validation
+
+`HELLOMINE3D_WORLD_SMOKE_FOCUS=C2-MACHINE` passes `51/51` in Debug and Release:
+25 Furnace compatibility checks and 26 C2 checks cover all five states, normal
+craft/place/Use flow, slot/crank bounds, exact completion, conservation, break
+spill, invalid access, unload/reload and save/reopen. Recipe/economy passes
+`126/126`; the static gate freezes two processors and rejects Registry,
+`MechanicalPort`, Network and C3+ vocabulary.
+
+The complete VS2017/v141 gate passes WorldRuntime `963/963` in both Debug and
+Release, Resource Pack `80/80`, Recipe `126/126`, startup negatives `15/15`,
+both short soaks and hidden clients. The 105-entry isolated package hashes to
+`B4D73704A93B4377EB26336592448B4E31439387BA6198B49C59704517775739`.
+Real-window gameplay remains `NOT_RUN`; human subjective experience remains
+`NOT_CLAIMED`.
+
+#### Trade-offs
+
+The single Crusher process stays code-owned and there is no runtime Registry:
+one definition does not prove a safe extension model. `MachineRuntime` accepts
+concrete copied state instead of owning entities or serialization, so adapters
+remain explicit and small at the cost of some per-container plumbing. Manual
+power is deliberately local; C2 gains a playable architectural proof without
+pre-committing C3 topology, ports or automatic logistics.
+
+Related evidence:
+
+- `docs/contracts/machine-runtime-v0-contract-v1.md`
+- `docs/reports/architecture-lab-c2-machine-runtime-report-v1.md`
+- `tools/validate_machine_runtime.ps1`

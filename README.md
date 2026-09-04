@@ -16,12 +16,12 @@ persistence, diagnostics and packaging layers have been rebuilt.
 
 | | |
 | --- | --- |
-| **Source** | 298 files, ~72.7k lines of C++ |
-| **Automated checks** | 937 world-runtime · 122 recipe · 80 resource-pack · 15 startup-negative — Debug and Release complete |
+| **Source** | 304 files, ~73.8k lines of C++ |
+| **Automated checks** | 963 world-runtime · 126 recipe · 80 resource-pack · 15 startup-negative — Debug and Release complete |
 | **Test executables** | 13 |
 | **Persisted formats** | save `v12`, terrain `v4`, settings `v8` — every one migrates from `v1` |
 | **Performance gates** | 6 versioned scenes with baseline/repeat comparison, bounded stage timings, 2 × 1800 s soak |
-| **Distribution** | 104-file self-contained package, verified from an isolated root |
+| **Distribution** | 105-file self-contained package, verified from an isolated root |
 | **Platforms** | Windows (VS2017 / v141, primary) · macOS (historical Xcode/native ThreadSanitizer evidence; new runtime scope is milestone-specific) |
 
 ---
@@ -89,6 +89,7 @@ flowchart TB
         direction LR
         world["World facade"]
         chunks["Chunk runtime<br/>greedy mesh · vertex AO · sky/block light"]
+        machines["Machine runtime<br/>Furnace · hand-cranked Crusher"]
         gen["Generation<br/>biomes · caves · ores · structures"]
     end
 
@@ -107,6 +108,7 @@ flowchart TB
 
     shell -->|commands| app
     app --> sim
+    world --> machines
     sim --> rules
     sim --> store
     sim -.->|immutable snapshots| shell
@@ -149,7 +151,7 @@ If you only read a few parts of this repository, read these.
 | 5 | **Performance comparison that can say "incomparable".** Scene identity, schema, build configuration and final chunk residency are all part of the record; a mismatch yields `INCOMPARABLE` instead of a misleading pass, and thresholds only gate after a baseline has been explicitly approved. | [`compare_perf_baselines.ps1`](tools/compare_perf_baselines.ps1) · [`performance-contract-v1.json`](tools/performance-contract-v1.json) |
 | 6 | **Crash diagnostics with no telemetry.** A local minidump plus a versioned, sanitized sidecar; offline mixed-stack symbolization against a separately archived PDB; a next-launch prompt the player can simply ignore. Nothing is uploaded and no absolute developer paths leak. | [`Diagnostics/`](src/HelloMine3D/Diagnostics/) · [contract](docs/contracts/crash-diagnostics-contract-v1.md) |
 | 7 | **Packages validated from an isolated root.** The distribution is checked from a directory with no access to the source or build tree, including negative cases for missing and stale resources — so "it works on my machine" cannot pass the gate. | [`package_windows_release.ps1`](tools/package_windows_release.ps1) · [`validate_startup_errors.ps1`](tools/validate_startup_errors.ps1) |
-| 8 | **One frozen contract per feature batch.** Fifty-five contract documents fix the data fields, defaults, migration path, failure semantics and exit conditions *before* implementation — then record the real measured numbers afterwards. | [`contracts/`](docs/contracts/) |
+| 8 | **One frozen contract per feature batch.** Fifty-nine contract documents fix the data fields, defaults, migration path, failure semantics and exit conditions *before* implementation — then record the real measured numbers afterwards. | [`contracts/`](docs/contracts/) |
 | 9 | **A ThreadSanitizer gate that proves itself first.** The script requires an isolated race probe to actually report and exit 66, then verifies native architecture and TSan runtime linkage and rejects suppressions, before the real loader-churn run is allowed to count. | [`verify_tsan.sh`](scripts/verify_tsan.sh) · [notes](docs/current/thread-sanitizer-validation.md) |
 | 10 | **Strict data-driven content with startup preflight.** Blocks, recipes, tools, foods, smelting, enemies, objectives, audio, music and both locales are parsed strictly from `media/`; a missing, duplicate or malformed entry fails before Ogre is even constructed. | [`media/`](media/) · [`StartupResourcePreflight.cpp`](src/HelloMine3D/Ogre/StartupResourcePreflight.cpp) |
 
@@ -160,11 +162,11 @@ If you only read a few parts of this repository, read these.
 | Area | Content |
 | --- | --- |
 | **World** | Streamed chunks, 6 biomes, caves with natural surface entrances, a mountain height domain, deterministic ore/plant/tree decorators, 3 structure types (waystone, ruin, raider camp) |
-| **Progression** | 25 non-air block types, 24 recipes, 8 tools across pickaxe / weapon / axe / shovel classes, three tiers (wood → stone → iron), furnace smelting, 4 foods |
+| **Progression** | 26 non-air block types, 25 recipes, 8 tools across pickaxe / weapon / axe / shovel classes, three tiers (wood → stone → iron), furnace smelting, a craftable hand-cranked Crusher, 4 foods |
 | **Combat** | 6 enemy definitions with melee and ranged profiles, wind-up and recovery windows, directional knockback, blocking, bounded transient projectiles, identity-bearing drops |
 | **Structure** | 34 data-driven objectives with independent branch progress, a waystone victory loop, bounded post-victory trials, 3 difficulty profiles |
 | **Presentation** | Vertex AO, an original 16×16 atlas with ecology tinting, directional fog and a parallax cloud layer, optional directional shadows (Off / Medium / High), optional bounded post-processing |
-| **Product shell** | Main-menu world management with rename, backup-restore and recoverable delete; pause and versioned settings; remappable keys and mouse buttons; en-US / zh-CN at 411 keys each; sampled audio and streamed ambient music |
+| **Product shell** | Main-menu world management with rename, backup-restore and recoverable delete; pause and versioned settings; remappable keys and mouse buttons; en-US / zh-CN at 425 keys each; sampled audio and streamed ambient music |
 
 ---
 
@@ -177,10 +179,12 @@ isolated root.
 
 Architecture Lab batches AL-A0 through AL-A6 and Track B Core B1-B6/B10 are complete. The B10
 gate passes `920/920` world assertions in both configurations, a 1,800-second five-phase stress
-run with zero failures, all six final Q1 comparisons, and a 104-entry clean package. C1 is also
-complete: Chest/Furnace expose a minimal capability access boundary, both Debug and Release pass
-`937/937`, and its 104-entry isolated package hashes to
-`1618ACD7995FE5181169B0B46A5D4F479F63FA1CCB8B533B358ED694A3846EB6`. B7-B9, C2-C11,
+run with zero failures, all six final Q1 comparisons, and a 104-entry clean package. C1 and C2 are
+also complete: Chest/Furnace/Crusher expose capability access, while Furnace and the playable
+hand-cranked Crusher share only the machine transition their real behavior proves. The C2 gate
+passes `963/963` world assertions and `126/126` recipe/economy checks in Debug and Release; its
+105-entry isolated package hashes to
+`B4D73704A93B4377EB26336592448B4E31439387BA6198B49C59704517775739`. B7-B9, C3-C11,
 Track D and Extended capabilities remain unapproved candidates.
 
 This is a personal architecture-learning and showcase project, not a commercial product with an

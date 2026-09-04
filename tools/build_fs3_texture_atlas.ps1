@@ -89,8 +89,8 @@ function Read-AtlasLayout {
         $byCoordinate[$coordinate] = $entry
     }
 
-    if ($bySemantic.Count -ne 119) {
-        throw "Terrain atlas layout must define exactly 119 populated tiles; got $($bySemantic.Count)."
+    if ($bySemantic.Count -ne 120) {
+        throw "Terrain atlas layout must define exactly 120 populated tiles; got $($bySemantic.Count)."
     }
     return $bySemantic
 }
@@ -363,7 +363,7 @@ function Copy-EcologyTile {
 function Add-P11BuildingTile {
     param(
         [string]$Semantic,
-        [ValidateSet('cobblestone', 'oak_door', 'wooden_axe',
+        [ValidateSet('cobblestone', 'oak_door', 'crusher', 'wooden_axe',
                      'wooden_shovel', 'ancient_compass', 'raider_ward')]
         [string]$Kind
     )
@@ -378,13 +378,14 @@ function Add-P11BuildingTile {
     $tile = New-Object Drawing.Bitmap 16, 16,
         ([Drawing.Imaging.PixelFormat]::Format32bppArgb)
     try {
-        if ($Kind -in @('cobblestone', 'oak_door')) {
+        if ($Kind -in @('cobblestone', 'oak_door', 'crusher')) {
             $sourceSemantic = if ($Kind -eq 'cobblestone') {
                 'stone'
             }
-            else {
+            elseif ($Kind -eq 'oak_door') {
                 'oak_planks'
             }
+            else { 'furnace' }
             $sourceEntry = $layoutEntries[$sourceSemantic]
             for ($y = 0; $y -lt 16; ++$y) {
                 for ($x = 0; $x -lt 16; ++$x) {
@@ -405,7 +406,7 @@ function Add-P11BuildingTile {
                                 [Math]::Max(24, $pixel.B - 56))
                         }
                     }
-                    else {
+                    elseif ($Kind -eq 'oak_door') {
                         $frame = $x -in @(0, 1, 14, 15) -or
                             $y -in @(0, 1, 7, 8, 14, 15) -or
                             $x -in @(7, 8)
@@ -416,6 +417,36 @@ function Add-P11BuildingTile {
                         if ($x -in @(11, 12) -and $y -in @(9, 10)) {
                             $colour = [Drawing.Color]::FromArgb(
                                 255, 218, 170, 55)
+                        }
+                    }
+                    else {
+                        $frame = $x -in @(0, 1, 14, 15) -or
+                            $y -in @(0, 1, 14, 15)
+                        if ($frame) {
+                            $colour = [Drawing.Color]::FromArgb(
+                                255, 48, 43, 39)
+                        }
+                        $dx = $x - 7.0
+                        $dy = $y - 8.0
+                        $radius = [Math]::Sqrt($dx * $dx + $dy * $dy)
+                        if ($radius -ge 3.2 -and $radius -le 5.4) {
+                            $colour = [Drawing.Color]::FromArgb(
+                                255, 132, 138, 137)
+                        }
+                        if (($x -in @(6, 7, 8)) -and
+                            ($y -in @(6, 7, 8, 9, 10))) {
+                            $colour = [Drawing.Color]::FromArgb(
+                                255, 73, 77, 77)
+                        }
+                        if (($x -in @(10, 11, 12, 13)) -and
+                            ($y -in @(3, 4))) {
+                            $colour = [Drawing.Color]::FromArgb(
+                                255, 188, 128, 45)
+                        }
+                        if (($x -in @(12, 13)) -and
+                            ($y -in @(4, 5, 6))) {
+                            $colour = [Drawing.Color]::FromArgb(
+                                255, 92, 61, 28)
                         }
                     }
                     $tile.SetPixel($x, $y, $colour)
@@ -563,6 +594,7 @@ try {
     Add-P11BuildingTile oak_door oak_door
     Add-P11BuildingTile ancient_compass ancient_compass
     Add-P11BuildingTile raider_ward raider_ward
+    Add-P11BuildingTile crusher crusher
 
     Copy-GeneratedTile wheat_seeds material 98 305 39 38 -KeepAspect
     Copy-GeneratedTile wheat material 162 284 61 68 -KeepAspect

@@ -52,6 +52,7 @@
 #include "../Gameplay/WaystoneEncounter.h"
 #include "../Feedback/ActionFeedback.h"
 #include "../Item/Material.h"
+#include "../Item/MachineProcessDefinition.h"
 #include "../Item/CraftingSession.h"
 #include "../Item/ContainerInventory.h"
 #include "../Item/FoodRegistry.h"
@@ -79,6 +80,7 @@
 #include "../World/Block/BlockBehavior.h"
 #include "../World/Block/BlockCapability.h"
 #include "../World/Block/ChestContainer.h"
+#include "../World/Block/CrusherContainer.h"
 #include "../World/Block/FurnaceContainer.h"
 #include "../World/Block/BlockDatabase.h"
 #include "../World/Block/BlockTextureCoordinates.h"
@@ -99,6 +101,7 @@
 #include "../World/Storage/WorldSave.h"
 #include "../World/Streaming/SpatialInterest.h"
 #include "../World/Streaming/WorldJobScheduler.h"
+#include "../World/Simulation/MachineRuntime.h"
 #include "../World/World.h"
 
 namespace {
@@ -1225,7 +1228,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 411 &&
+              registry.keys("en-US").size() == 425 &&
               registry.lookup("en-US", "material.torch.name") ==
                   "Torch" &&
               registry.lookup("zh-CN", "material.torch.name") ==
@@ -7930,6 +7933,7 @@ void caseFurnaceProgression()
               "Duplicate or excessive smelting recipe"));
 
     setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
     const auto directory = freshSaveDirectory("furnace_progression");
     Config config = makeConfig();
     Camera camera(config);
@@ -8143,6 +8147,280 @@ void caseFurnaceProgression()
 }
 
 // ---------------------------------------------------------------------------
+// C2 - two concrete processors sharing the minimal Machine Runtime v0
+// ---------------------------------------------------------------------------
+void caseMachineRuntimeC2()
+{
+    const MachineProcessDefinition &recipe =
+        handCrusherProcessDefinition();
+    InventorySlotState empty;
+    InventorySlotState cobble{Material::ID::Cobblestone, 1, 0};
+    InventorySlotState blocked{Material::ID::Dirt, 1, 0};
+
+    check("C2-MACHINE/idle-is-empty-and-unpowered",
+          MachineRuntime::inspect(empty, empty, 0, 0, &recipe).status ==
+              MachineStatus::Idle);
+    check("C2-MACHINE/stored-power-without-input-is-missing-input",
+          MachineRuntime::inspect(empty, empty, 0, 20, &recipe).status ==
+              MachineStatus::MissingInput);
+    check("C2-MACHINE/ready-input-without-power-is-no-power",
+          MachineRuntime::inspect(cobble, empty, 0, 0, &recipe).status ==
+              MachineStatus::NoPower);
+    check("C2-MACHINE/output-block-precedes-power-state",
+          MachineRuntime::inspect(cobble, blocked, 0, 0, &recipe).status ==
+              MachineStatus::BlockedOutput);
+    check("C2-MACHINE/ready-powered-state-is-running",
+          MachineRuntime::inspect(cobble, empty, 0, 1, &recipe).status ==
+              MachineStatus::Running);
+
+    InventorySlotState tickingInput{Material::ID::Cobblestone, 2, 0};
+    InventorySlotState tickingOutput;
+    int progress = 0;
+    int power = 1;
+    const MachineTickResult oneTick = MachineRuntime::tick(
+        tickingInput, tickingOutput, progress, power, &recipe);
+    check("C2-MACHINE/runtime-applies-at-most-one-fixed-tick",
+          oneTick.changed && !oneTick.completed && progress == 1 &&
+              power == 0 && tickingInput.amount == 2 &&
+              tickingOutput.amount == 0);
+    progress = recipe.durationTicks - 1;
+    power = 1;
+    const MachineTickResult completed = MachineRuntime::tick(
+        tickingInput, tickingOutput, progress, power, &recipe);
+    check("C2-MACHINE/runtime-completion-is-atomic-and-conservative",
+          completed.changed && completed.completed && progress == 0 &&
+              power == 0 && tickingInput.amount == 1 &&
+              tickingOutput.materialId == Material::ID::Sand &&
+              tickingOutput.amount == 1);
+    const InventorySlotState beforeBlockedInput = tickingInput;
+    const InventorySlotState beforeBlockedOutput = blocked;
+    progress = 7;
+    power = 13;
+    const MachineTickResult paused = MachineRuntime::tick(
+        tickingInput, blocked, progress, power, &recipe);
+    check("C2-MACHINE/blocked-runtime-preserves-progress-power-and-items",
+          !paused.changed && !paused.completed && progress == 7 &&
+              power == 13 && tickingInput.materialId ==
+                                  beforeBlockedInput.materialId &&
+              tickingInput.amount == beforeBlockedInput.amount &&
+              blocked.materialId == beforeBlockedOutput.materialId &&
+              blocked.amount == beforeBlockedOutput.amount);
+
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
+    const auto directory = freshSaveDirectory("c2_machine_runtime");
+    Config config = makeConfig();
+    Camera camera(config);
+    const glm::ivec3 position{8, 100, 8};
+
+    {
+        Player player;
+        World world(camera, config, player, directory, false, 1);
+        player.addItem(Material::CRUSHER_BLOCK, 1);
+        const bool placed = BlockInteractionSystem::placeBlock(
+            world, player, glm::vec3(position));
+        const auto placedRecord = world.getBlockEntity(position);
+        check("C2-MACHINE/normal-placement-creates-versioned-crusher",
+              placed && placedRecord &&
+                  placedRecord->type == CrusherContainer::BlockEntityType &&
+                  placedRecord->payload == "v1|0,0|0,0|0|0");
+
+        const bool used = BlockInteractionSystem::useBlock(
+            world, player, glm::vec3(position));
+        auto crusher = CrusherContainer::view(world, player);
+        check("C2-MACHINE/normal-use-opens-and-supplies-one-crank-pulse",
+              used && player.hasOpenContainer() && crusher &&
+                  crusher->state.crankTicksRemaining ==
+                      CrusherContainer::CrankPulseTicks &&
+                  crusher->machine.status == MachineStatus::MissingInput);
+
+        const BlockCapabilities capabilities =
+            BlockCapabilityAccess::query(world, position);
+        const auto inventory = capabilities.inventoryProvider
+            ? capabilities.inventoryProvider->view(
+                  world, runtimeSmeltingRegistry())
+            : std::optional<InventoryProviderView>{};
+        const auto processor = capabilities.machineProcessor
+            ? capabilities.machineProcessor->view(
+                  world, runtimeSmeltingRegistry())
+            : std::optional<MachineProcessorView>{};
+        check("C2-MACHINE/crusher-declares-two-real-capabilities",
+              capabilities.inventoryProvider &&
+                  capabilities.machineProcessor && inventory && processor &&
+                  capabilities.inventoryProvider->kind() ==
+                      InventoryProviderKind::Crusher &&
+                  capabilities.machineProcessor->kind() ==
+                      MachineProcessorKind::Crusher &&
+                  inventory->slotCount == 2 &&
+                  inventory->slots[0].role == InventorySlotRole::Input &&
+                  inventory->slots[0].insertable &&
+                  inventory->slots[1].role == InventorySlotRole::Output &&
+                  !inventory->slots[1].insertable &&
+                  processor->manualPowerSupported);
+
+        const bool secondPulse =
+            capabilities.machineProcessor->supplyManualPower(world, player);
+        const bool rejectedAtCap =
+            !capabilities.machineProcessor->supplyManualPower(world, player);
+        crusher = CrusherContainer::view(world, player);
+        check("C2-MACHINE/manual-power-is-bounded-at-forty-ticks",
+              secondPulse && rejectedAtCap && crusher &&
+                  crusher->state.crankTicksRemaining ==
+                      CrusherContainer::MaxCrankTicks);
+        crusher->state.crankTicksRemaining =
+            CrusherContainer::CrankPulseTicks;
+        world.updateBlockEntity(
+            position, CrusherContainer::serialize(crusher->state));
+
+        player.addItem(Material::DIRT_BLOCK, 1);
+        player.addItem(Material::COBBLESTONE_BLOCK, 2);
+        auto findSlot = [&player](Material::ID materialId) {
+            for (int index = 0; index < player.getInventorySlotCount();
+                 ++index) {
+                if (player.getInventorySlot(index).getMaterial().id ==
+                    materialId) {
+                    return index;
+                }
+            }
+            return -1;
+        };
+        const int dirtSlot = findSlot(Material::ID::Dirt);
+        const int cobbleSlot = findSlot(Material::ID::Cobblestone);
+        check("C2-MACHINE/slot-admission-rejects-wrong-and-output-input",
+              dirtSlot >= 0 && cobbleSlot >= 0 &&
+                  !capabilities.inventoryProvider->transferFromPlayer(
+                      world, player, 0, dirtSlot, 1,
+                      runtimeSmeltingRegistry()) &&
+                  !capabilities.inventoryProvider->transferFromPlayer(
+                      world, player, 1, cobbleSlot, 1,
+                      runtimeSmeltingRegistry()));
+        check("C2-MACHINE/cobblestone-enters-through-capability",
+              capabilities.inventoryProvider->transferFromPlayer(
+                  world, player, 0, cobbleSlot, 2,
+                  runtimeSmeltingRegistry()));
+
+        for (int tick = 0; tick < 20; ++tick) {
+            world.tick(tick);
+        }
+        crusher = CrusherContainer::view(world, player);
+        check("C2-MACHINE/one-pulse-pauses-at-no-power-with-partial-progress",
+              crusher && crusher->state.input.amount == 2 &&
+                  crusher->state.output.amount == 0 &&
+                  crusher->state.progressTicks == 20 &&
+                  crusher->state.crankTicksRemaining == 0 &&
+                  crusher->machine.status == MachineStatus::NoPower);
+        const bool resumed =
+            capabilities.machineProcessor->supplyManualPower(world, player);
+        for (int tick = 20; tick < 40; ++tick) {
+            world.tick(tick);
+        }
+        crusher = CrusherContainer::view(world, player);
+        check("C2-MACHINE/two-pulses-complete-one-cobble-to-sand",
+              resumed && crusher && crusher->state.input.amount == 1 &&
+                  crusher->state.output.materialId == Material::ID::Sand &&
+                  crusher->state.output.amount == 1 &&
+                  crusher->state.progressTicks == 0 &&
+                  crusher->state.crankTicksRemaining == 0 &&
+                  crusher->machine.status == MachineStatus::NoPower);
+
+        check("C2-MACHINE/output-transfer-is-capacity-checked",
+              capabilities.inventoryProvider->transferToPlayer(
+                  world, player, 1, 1, runtimeSmeltingRegistry()) &&
+                  findSlot(Material::ID::Sand) >= 0);
+
+        CrusherState partial;
+        partial.input = {Material::ID::Cobblestone, 2, 0};
+        partial.output = {Material::ID::Sand, 3, 0};
+        partial.progressTicks = 7;
+        partial.crankTicksRemaining = 13;
+        check("C2-MACHINE/strict-v1-payload-accepts-bounded-partial-state",
+              world.updateBlockEntity(
+                  position, CrusherContainer::serialize(partial)));
+        player.closeContainer();
+        world.getChunkManager().unloadChunk(0, 0);
+        world.getChunkManager().loadChunk(0, 0);
+        const bool reopened = CrusherContainer::open(world, player, position);
+        crusher = CrusherContainer::view(world, player);
+        check("C2-MACHINE/unload-reload-preserves-exact-state-no-catchup",
+              reopened && crusher && crusher->state.progressTicks == 7 &&
+                  crusher->state.crankTicksRemaining == 13 &&
+                  crusher->state.input.amount == 2 &&
+                  crusher->state.output.amount == 3);
+        check("C2-MACHINE/save-v12-persists-crusher-without-migration",
+              world.save());
+    }
+
+    {
+        Player player;
+        World world(camera, config, player, directory, false, 1);
+        const bool opened = CrusherContainer::open(world, player, position);
+        auto crusher = CrusherContainer::view(world, player);
+        check("C2-MACHINE/save-reopen-restores-v1-crusher-payload",
+              opened && crusher && crusher->state.progressTicks == 7 &&
+                  crusher->state.crankTicksRemaining == 13 &&
+                  crusher->state.input.amount == 2 &&
+                  crusher->state.output.amount == 3);
+
+        CrusherState blockedState = crusher->state;
+        blockedState.output.amount = Material::SAND_BLOCK.maxStackSize;
+        world.updateBlockEntity(
+            position, CrusherContainer::serialize(blockedState));
+        world.tick(40);
+        crusher = CrusherContainer::view(world, player);
+        check("C2-MACHINE/blocked-output-pauses-progress-and-crank-power",
+              crusher &&
+                  crusher->machine.status == MachineStatus::BlockedOutput &&
+                  crusher->state.progressTicks == 7 &&
+                  crusher->state.crankTicksRemaining == 13);
+
+        CrusherState missing;
+        missing.crankTicksRemaining = 20;
+        world.updateBlockEntity(position, CrusherContainer::serialize(missing));
+        crusher = CrusherContainer::view(world, player);
+        check("C2-MACHINE/missing-input-is-observable-with-stored-power",
+              crusher &&
+                  crusher->machine.status == MachineStatus::MissingInput &&
+                  crusher->machine.recipeId.empty());
+
+        CrusherState malformed;
+        check("C2-MACHINE/payload-rejects-version-material-and-timer-errors",
+              !CrusherContainer::deserialize(
+                  "v2|0,0|0,0|0|0", malformed) &&
+                  !CrusherContainer::deserialize(
+                      "v1|3,1|0,0|0|0", malformed) &&
+                  !CrusherContainer::deserialize(
+                      "v1|36,1|6,1|40|0", malformed) &&
+                  !CrusherContainer::deserialize(
+                      "v1|36,1|6,1|0|41", malformed));
+
+        const BlockCapabilities liveCapabilities =
+            BlockCapabilityAccess::query(world, position);
+        const MachineProcessor stale = *liveCapabilities.machineProcessor;
+        world.setBlock(position.x, position.y, position.z, BlockId::Stone);
+        check("C2-MACHINE/stale-processor-handle-fails-closed",
+              !stale.view(world, runtimeSmeltingRegistry()) &&
+                  !stale.supplyManualPower(world, player));
+
+        world.setBlock(position.x, position.y, position.z, BlockId::Crusher);
+        world.removeBlockEntity(position);
+        CrusherContainer::initialize(world, position);
+        CrusherState spill;
+        spill.input = {Material::ID::Cobblestone, 2, 0};
+        spill.output = {Material::ID::Sand, 3, 0};
+        world.updateBlockEntity(position, CrusherContainer::serialize(spill));
+        player.closeContainer();
+        const std::size_t actorsBefore =
+            world.getActorManager().getActorCount();
+        const bool broken = BlockInteractionSystem::breakBlock(
+            world, player, glm::vec3(position));
+        check("C2-MACHINE/break-spills-both-slots-and-removes-entity",
+              broken && !world.getBlockEntity(position) &&
+                  world.getActorManager().getActorCount() ==
+                      actorsBefore + 2);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // AL-C1 - concrete block capability discovery and access adapters
 // ---------------------------------------------------------------------------
 void caseBlockCapabilityModel()
@@ -8269,8 +8547,8 @@ void caseBlockCapabilityModel()
         check("C1-CAP/processor-exposes-copied-progress-state",
               processor && processor->progressTicks == 1 &&
                   processor->recipeDurationTicks > 0 &&
-                  processor->burnTicksRemaining > 0 &&
-                  processor->burnTicksTotal > 0);
+                  processor->powerTicksRemaining > 0 &&
+                  processor->powerTicksTotal > 0);
         player.closeContainer();
 
         world.setBlock(ordinaryPosition.x, ordinaryPosition.y,
@@ -10568,10 +10846,15 @@ void caseP11MinimumBuildingAndTools()
               static_cast<int>(Material::ID::WoodenShovel) == 39 &&
               static_cast<int>(Material::ID::AncientCompass) == 40 &&
               static_cast<int>(Material::ID::RaiderWard) == 41 &&
+              static_cast<int>(Material::ID::Crusher) == 42 &&
               Material::toMaterial(BlockId::OakDoorOpen).id ==
                   Material::ID::OakDoor &&
+              Material::toMaterial(BlockId::Crusher).id ==
+                  Material::ID::Crusher &&
+              Material::CRUSHER_BLOCK.toBlockID() == BlockId::Crusher &&
               Material::OAK_DOOR.toBlockID() ==
-                  BlockId::OakDoorClosed);
+                  BlockId::OakDoorClosed &&
+              static_cast<int>(BlockId::Crusher) == 26);
     check("P11-1/door-states-own-render-collision-and-use-contract",
           closedDoor.collidable && !openDoor.collidable &&
               closedDoor.render.shape.faces.size() == 2 &&
@@ -16713,6 +16996,10 @@ int main()
         else if (focus != nullptr && std::string(focus) == "C1-CAP") {
             caseBlockCapabilityModel();
         }
+        else if (focus != nullptr && std::string(focus) == "C2-MACHINE") {
+            caseFurnaceProgression();
+            caseMachineRuntimeC2();
+        }
         else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
@@ -16771,6 +17058,7 @@ int main()
         caseChestContainer();
         caseFurnaceProgression();
         caseBlockCapabilityModel();
+        caseMachineRuntimeC2();
         caseFoodRecovery();
         caseExpandedResourceEconomy();
         caseDifficultyProfiles();

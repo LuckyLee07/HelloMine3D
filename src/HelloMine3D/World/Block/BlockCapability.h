@@ -3,9 +3,11 @@
 
 #include <array>
 #include <optional>
+#include <string>
 
 #include "../../Item/Inventory.h"
 #include "../../Maths/glm.h"
+#include "../Simulation/MachineRuntime.h"
 
 class Player;
 class SmeltingRegistry;
@@ -15,13 +17,15 @@ enum class InventoryProviderKind
 {
     None,
     Chest,
-    Furnace
+    Furnace,
+    Crusher
 };
 
 enum class MachineProcessorKind
 {
     None,
-    Furnace
+    Furnace,
+    Crusher
 };
 
 struct BlockCapabilityDefinition
@@ -60,10 +64,13 @@ struct InventoryProviderView
 struct MachineProcessorView
 {
     glm::ivec3 position{0};
+    MachineStatus status = MachineStatus::Idle;
+    std::string recipeId;
     int progressTicks = 0;
     int recipeDurationTicks = 0;
-    int burnTicksRemaining = 0;
-    int burnTicksTotal = 0;
+    int powerTicksRemaining = 0;
+    int powerTicksTotal = 0;
+    bool manualPowerSupported = false;
 };
 
 class InventoryProvider
@@ -100,6 +107,7 @@ class MachineProcessor
   public:
     std::optional<MachineProcessorView>
     view(World &world, const SmeltingRegistry &smelting) const;
+    bool supplyManualPower(World &world, Player &player) const;
 
     const glm::ivec3 &position() const noexcept { return m_position; }
     MachineProcessorKind kind() const noexcept { return m_kind; }

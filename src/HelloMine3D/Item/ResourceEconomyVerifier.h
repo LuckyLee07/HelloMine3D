@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "Material.h"
+#include "MachineProcessDefinition.h"
 
 class FoodRegistry;
 class RecipeRegistry;
@@ -24,17 +25,19 @@ struct ResourceGoalRequirement
     int amount = 0;
 };
 
-/// Versioned, code-owned N10 economy inputs. Recipe, smelting and food
-/// definitions remain authoritative for transformations and recovery values.
+/// Versioned, code-owned economy inputs. Recipe, smelting and food definitions
+/// remain authoritative for their transformations and recovery values; C2
+/// adds only its concrete machine process definitions.
 struct ResourceEconomyContract
 {
-    int version = 1;
+    int version = 2;
     int craftingTicks = 1;
     int playerInventorySlots = 5;
     std::vector<ResourceAcquisitionSource> acquisitionSources;
     std::vector<Material::ID> requiredMaterials;
     std::vector<Material::ID> trackedNewMaterials;
     std::vector<ResourceGoalRequirement> goalRequirements;
+    std::vector<MachineProcessDefinition> machineProcesses;
 };
 
 struct ResourceEconomyMetric

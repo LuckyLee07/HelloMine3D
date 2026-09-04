@@ -478,6 +478,45 @@ The batch changes no recipe, tool, objective, resource-economy, victory,
 terrain v4, settings v8 or save v12 identity. `AI-01..AI-08=NOT_RUN`; human
 subjective experience remains `NOT_CLAIMED`.
 
+## C2 Machine Runtime v0 Evidence
+
+C2 adds the second Track C static gate and a focused two-processor path:
+
+```powershell
+& .\tools\validate_machine_runtime.ps1 -Root (Get-Location).Path
+$env:HELLOMINE3D_WORLD_SMOKE_FOCUS = "C2-MACHINE"
+& .\bin\HelloMine3DWorldRuntimeSmoke.exe
+```
+
+The static gate freezes Furnace plus Crusher as exactly two concrete
+processors, five derived statuses, one code-owned Crusher process, 40-tick
+crank cap and save v12. It requires the common Runtime call sites and rejects
+Capability/recipe Registry, `MechanicalPort`, topology, Network, transport and
+C3+ vocabulary.
+
+VS2017/v141 Debug and Release both pass the focused `51/51`: 25 Furnace checks
+retain fuel, light, event, timing and payload-v1 behavior, while 26 C2 checks
+cover pure state precedence, normal Crusher craft/place/Use/capability flow,
+slot and crank bounds, exact 40-tick atomic completion, conservation, break
+spill, malformed/stale/mismatched access, unload/reload and save/reopen. Recipe
+and resource-economy validation passes `126/126`; terrain atlas passes
+`281/281`, both locales contain 425 keys and the resource manifest contains 85
+entries.
+
+The complete VS2017/v141 gate passes WorldRuntime `963/963` in Debug and
+Release, Resource Pack `80/80`, Recipe `126/126`, startup-error negatives
+`15/15`, both short soaks, both hidden clients, crash diagnostics and executable
+inventory. The Release executable is 8,832,000 bytes with SHA-256
+`EB9FC163047A967F5022BD5839F431BA94FD80C02CD6759FE3A72D24B1744DB9`.
+The 105-entry isolated package SHA-256 is
+`B4D73704A93B4377EB26336592448B4E31439387BA6198B49C59704517775739`;
+the result is `PASS real_window=DEFERRED` and C2 is `Done`.
+
+World save remains v12, terrain v4 and settings v8 remain unchanged, and
+Furnace payload v1 stays compatible. C2 adds no objective/victory requirement,
+network or automatic logistics. `AI-01..AI-08=NOT_RUN`; human subjective
+experience remains `NOT_CLAIMED`.
+
 ## World Runtime Smoke
 
 `src/HelloMine3D/Tests/WorldRuntimeSmokeMain.cpp` links the whole game runtime
@@ -758,6 +797,7 @@ the 2026-08-31 Architecture Lab policy, both physical protocols remain
 | B6 Spatial Activation | `tools\validate_spatial_activation.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=B6`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-b6-spatial-activation-report-v1.md` | Four nested Outside/Resident/Near/Simulation classifications derive deterministically from B2 demand. Real plan/mesh/upload/unload consumers honor resident/near interest while simulation request remains publication-only. B6 focused runtime passes 12/12 and B5/B4/B3/B2/B1 regressions pass 12/12, 10/10, 9/9, 26/26 and 38/38. The complete gate passes 918/918 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives, both short soaks and both hidden clients; the 104-entry package SHA-256 is `C8E260E00CF76C952150EBC3DC851A7EDE5E13FE63A58F98B77DC103723EFA3C`. The result is `PASS real_window=DEFERRED`; AI acceptance remains `NOT_RUN` and human subjective experience remains `NOT_CLAIMED` (2026-09-02). |
 | B10 Large World Stress & Acceptance | `tools\run_large_world_stress_acceptance.ps1 -Formal`; `tools\validate_large_world_stress_acceptance.ps1 -Evidence`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; final Q1 | Schedule v3 completes 1,800 seconds/36,000 ticks with zero failures, ten persistence checks, maximum 216 Chunks, pending 95, consumers 8/8/8 and maximum/final retained `Absent=0`. Peak private memory is 137,551,872 bytes and both deterministic probes match. Debug/Release each pass 920/920 WorldRuntime; all six Q1 pairs pass; the 104-entry package SHA-256 is `E13203F8E18382A4D13ABA22DFB975DDB189B2858F74DAAE340CE5A4A8F34B14`. Thresholds and shutdown grace are unchanged, no performance exception is used, `real_window=DEFERRED`, AI acceptance remains `NOT_RUN`, and human subjective experience remains `NOT_CLAIMED` (2026-09-04). |
 | C1 Block Capability Model | `tools\validate_block_capability_model.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=C1-CAP`; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-c1-block-capability-report-v1.md` | Chest/Furnace declare `InventoryProvider`, Furnace also declares `MachineProcessor`, and the Ogre container UI consumes value handles rather than probing concrete containers. Focused runtime passes 17/17; malformed, mismatched and stale access fails closed. The complete gate passes 937/937 WorldRuntime twice, 80/80 resource-pack, 122/122 recipe, 15/15 startup negatives, both short soaks and both hidden clients. The Release executable is 8,815,616 bytes with SHA-256 `8CB7FF4C2BEB700AF88082D58F53C7848EFA43E0BA03FBAA4F69C35D1875CC12`; the 104-entry package SHA-256 is `1618ACD7995FE5181169B0B46A5D4F479F63FA1CCB8B533B358ED694A3846EB6`. The result is `PASS real_window=DEFERRED`; no Registry, MechanicalPort, C2/C3 or Extended work entered scope, AI acceptance remains `NOT_RUN`, and human subjective experience remains `NOT_CLAIMED` (2026-09-04). |
+| C2 Machine Runtime v0 | `tools\validate_machine_runtime.ps1`; `HELLOMINE3D_WORLD_SMOKE_FOCUS=C2-MACHINE`; Recipe/Resource Pack/terrain atlas; `scripts\verify_build.ps1 -VisualStudioVersion 2017 -SkipRealWindow`; `docs/reports/architecture-lab-c2-machine-runtime-report-v1.md` | A craftable/placeable/saveable Hand-Cranked Crusher supplies the second real processor and shares only recipe/output/power/progress transition semantics with Furnace. Focused runtime passes 51/51; Recipe/economy passes 126/126. The complete gate passes 963/963 WorldRuntime twice, 80/80 Resource Pack, 126/126 Recipe, 15/15 startup negatives, both short soaks and both hidden clients. The Release executable is 8,832,000 bytes with SHA-256 `EB9FC163047A967F5022BD5839F431BA94FD80C02CD6759FE3A72D24B1744DB9`; the 105-entry package SHA-256 is `B4D73704A93B4377EB26336592448B4E31439387BA6198B49C59704517775739`. The result is `PASS real_window=DEFERRED`; no Registry, MechanicalPort, C3+ or automatic logistics entered scope, AI acceptance remains `NOT_RUN`, and human subjective experience remains `NOT_CLAIMED` (2026-09-04). |
 | AI-assisted gameplay baseline | `docs\current\ai-assisted-gameplay-acceptance-v1.md` | `AI-01..AI-08 result=NOT_RUN`; no OS-level Computer Use record has been produced in this documentation batch. |
 
 The current 2026-08-12 runs use an NVIDIA GTX 1050 Ti with OpenGL 4.6. The

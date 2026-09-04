@@ -97,7 +97,7 @@ try {
     foreach ($forbidden in @(
             "BlockCapabilityRegistry", "CapabilityRegistry",
             "MechanicalPort", "ItemTransportPort", "StorageProvider",
-            "MachineRuntime", "MechanicalNode", "MechanicalNetwork")) {
+            "MechanicalNode", "MechanicalNetwork")) {
         Reject-Text ($header + $source + $definition + $database + $ui) `
             $forbidden "unapproved C2/C3/Extended abstraction"
     }
@@ -135,8 +135,8 @@ try {
     }
 
     Write-Host (
-        "[BLOCK_CAPABILITY_MODEL] status=PASS providers=2 " +
-        "capabilities=2 focused_cases=17 registry=absent " +
+        "[BLOCK_CAPABILITY_MODEL] status=PASS c1_providers=2 " +
+        "c1_capabilities=2 focused_cases=17 registry=absent " +
         "mechanical_port=absent")
     exit 0
 }

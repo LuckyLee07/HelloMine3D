@@ -34,6 +34,7 @@ enum class BlockId : Block_t {
     Cobblestone = 23,
     OakDoorClosed = 24,
     OakDoorOpen = 25,
+    Crusher = 26,
 
     NUM_TYPES
 };

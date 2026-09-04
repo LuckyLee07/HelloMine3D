@@ -424,6 +424,8 @@ project "HelloMine3DRecipeSmoke"
         source_dir .. "/Tests/RecipeSmokeMain.cpp",
         source_dir .. "/Item/Material.h",
         source_dir .. "/Item/Material.cpp",
+        source_dir .. "/Item/MachineProcessDefinition.h",
+        source_dir .. "/Item/MachineProcessDefinition.cpp",
         source_dir .. "/Item/ItemStack.h",
         source_dir .. "/Item/ItemStack.cpp",
         source_dir .. "/Item/Inventory.h",

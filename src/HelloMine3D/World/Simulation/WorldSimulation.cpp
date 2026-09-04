@@ -6,6 +6,7 @@
 #include "../../Diagnostics/RuntimeProfiler.h"
 #include "../../Item/SmeltingRegistry.h"
 #include "../Block/FurnaceContainer.h"
+#include "../Block/CrusherContainer.h"
 #include "../World.h"
 
 namespace
@@ -288,6 +289,7 @@ void WorldSimulation::fixedTick(const WorldTickContext &context)
             FurnaceContainer::tickLoaded(m_world,
                                          runtimeSmeltingRegistry());
         }
+        CrusherContainer::tickLoaded(m_world);
     }
 
     {

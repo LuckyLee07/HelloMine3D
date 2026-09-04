@@ -1,0 +1,35 @@
+Name
+Hand-Cranked Crusher
+
+Id
+26
+
+TexAll
+11 1
+
+Hardness
+2.5
+
+MiningClass
+pickaxe
+
+RequiredToolTier
+1
+
+WrongToolDrops
+0
+
+Opaque
+1
+
+Collidable
+1
+
+Light
+0
+
+MeshType
+0
+
+ShaderType
+0

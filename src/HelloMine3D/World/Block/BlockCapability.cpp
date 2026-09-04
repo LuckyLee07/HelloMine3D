@@ -2,9 +2,11 @@
 
 #include "BlockDatabase.h"
 #include "ChestContainer.h"
+#include "CrusherContainer.h"
 #include "FurnaceContainer.h"
 #include "../World.h"
 #include "../../Item/ContainerInventory.h"
+#include "../../Item/MachineProcessDefinition.h"
 #include "../../Item/SmeltingRegistry.h"
 #include "../../Player/Player.h"
 
@@ -114,6 +116,17 @@ std::optional<InventoryProviderView> InventoryProvider::view(
         return result;
     }
 
+    if (m_kind == InventoryProviderKind::Crusher) {
+        CrusherState state;
+        if (!CrusherContainer::deserialize(record->payload, state)) {
+            return std::nullopt;
+        }
+        result.slotCount = 2;
+        result.slots[0] = {state.input, InventorySlotRole::Input, true, true};
+        result.slots[1] = {state.output, InventorySlotRole::Output, false, true};
+        return result;
+    }
+
     return std::nullopt;
 }
 
@@ -139,6 +152,15 @@ bool InventoryProvider::transferFromPlayer(
             world, player, static_cast<FurnaceSlot>(providerSlot),
             playerSlot, amount, smelting);
     }
+    if (m_kind == InventoryProviderKind::Crusher) {
+        if (providerSlot < static_cast<int>(CrusherSlot::Input) ||
+            providerSlot > static_cast<int>(CrusherSlot::Output)) {
+            return false;
+        }
+        return CrusherContainer::transferFromPlayer(
+            world, player, static_cast<CrusherSlot>(providerSlot),
+            playerSlot, amount);
+    }
     return false;
 }
 
@@ -160,29 +182,92 @@ bool InventoryProvider::transferToPlayer(
             world, player, static_cast<FurnaceSlot>(providerSlot), amount,
             smelting);
     }
+    if (m_kind == InventoryProviderKind::Crusher &&
+        providerSlot >= static_cast<int>(CrusherSlot::Input) &&
+        providerSlot <= static_cast<int>(CrusherSlot::Output)) {
+        return CrusherContainer::transferToPlayer(
+            world, player, static_cast<CrusherSlot>(providerSlot), amount);
+    }
     return false;
 }
 
 std::optional<MachineProcessorView> MachineProcessor::view(
     World &world, const SmeltingRegistry &smelting) const
 {
-    if (m_kind != MachineProcessorKind::Furnace ||
-        !matchesCurrentProcessor(world, m_position, m_kind)) {
+    if (!matchesCurrentProcessor(world, m_position, m_kind)) {
         return std::nullopt;
     }
     const std::optional<BlockEntityRecord> record =
         world.getBlockEntity(m_position);
-    FurnaceState state;
-    if (!record || !FurnaceContainer::deserialize(
-                       record->payload, smelting, state)) {
+    if (!record) {
         return std::nullopt;
     }
-    const SmeltingRecipeDefinition *recipe =
-        smelting.findRecipe(state.input.materialId);
-    return MachineProcessorView{
-        m_position,
-        state.progressTicks,
-        recipe != nullptr ? recipe->durationTicks : 0,
-        state.burnTicksRemaining,
-        state.burnTicksTotal};
+
+    if (m_kind == MachineProcessorKind::Furnace) {
+        FurnaceState state;
+        if (!FurnaceContainer::deserialize(
+                record->payload, smelting, state)) {
+            return std::nullopt;
+        }
+        const SmeltingRecipeDefinition *recipe =
+            smelting.findRecipe(state.input.materialId);
+        MachineProcessDefinition process;
+        const MachineProcessDefinition *matched = nullptr;
+        if (recipe != nullptr) {
+            process = {recipe->id, recipe->inputMaterialId, 1,
+                       recipe->outputMaterialId, recipe->outputAmount,
+                       recipe->durationTicks};
+            matched = &process;
+        }
+        const MachineState machine = MachineRuntime::inspect(
+            state.input, state.output, state.progressTicks,
+            state.burnTicksRemaining, matched);
+        return MachineProcessorView{
+            m_position,
+            machine.status,
+            machine.recipeId,
+            state.progressTicks,
+            recipe != nullptr ? recipe->durationTicks : 0,
+            state.burnTicksRemaining,
+            state.burnTicksTotal,
+            false};
+    }
+
+    if (m_kind == MachineProcessorKind::Crusher) {
+        CrusherState state;
+        if (!CrusherContainer::deserialize(record->payload, state)) {
+            return std::nullopt;
+        }
+        const MachineProcessDefinition &recipe =
+            handCrusherProcessDefinition();
+        const MachineProcessDefinition *matched =
+            state.input.amount > 0 &&
+                    state.input.materialId == recipe.inputMaterialId
+                ? &recipe
+                : nullptr;
+        const MachineState machine = MachineRuntime::inspect(
+            state.input, state.output, state.progressTicks,
+            state.crankTicksRemaining, matched);
+        return MachineProcessorView{
+            m_position,
+            machine.status,
+            machine.recipeId,
+            state.progressTicks,
+            recipe.durationTicks,
+            state.crankTicksRemaining,
+            CrusherContainer::MaxCrankTicks,
+            true};
+    }
+
+    return std::nullopt;
+}
+
+bool MachineProcessor::supplyManualPower(
+    World &world, Player &player) const
+{
+    return m_kind == MachineProcessorKind::Crusher &&
+           isOpenBy(player, m_position) &&
+           matchesCurrentProcessor(world, m_position, m_kind) &&
+           CrusherContainer::supplyManualPower(
+               world, player, m_position);
 }

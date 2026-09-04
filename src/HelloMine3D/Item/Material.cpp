@@ -47,6 +47,7 @@ namespace
         "hellomine:wooden_shovel",
         "hellomine:ancient_compass",
         "hellomine:raider_ward",
+        "hellomine:crusher",
     }};
 
     constexpr std::array<Material::IconCoordinate, Material::ID::Count>
@@ -58,6 +59,7 @@ namespace
             {6, 2}, {7, 2}, {8, 2}, {9, 2}, {15, 0}, {10, 2},
             {11, 2}, {12, 2}, {13, 2}, {14, 2}, {6, 1}, {5, 1},
             {7, 1}, {8, 1}, {15, 2}, {15, 3}, {9, 1}, {10, 1},
+            {11, 1},
         }};
 }
 
@@ -128,6 +130,8 @@ const Material Material::ANCIENT_COMPASS(ID::AncientCompass, 1, false,
                                          "Ancient Compass");
 const Material Material::RAIDER_WARD(ID::RaiderWard, 1, false,
                                      "Raider Ward");
+const Material Material::CRUSHER_BLOCK(ID::Crusher, 99, true,
+                                       "Hand-Cranked Crusher");
 
 Material::Material(Material::ID id, int maxStack, bool isBlock,
                    std::string &&name, bool isTool, bool isFood)
@@ -215,6 +219,9 @@ BlockId Material::toBlockID() const
         case OakDoor:
             return BlockId::OakDoorClosed;
 
+        case Crusher:
+            return BlockId::Crusher;
+
         default:
             return BlockId::NUM_TYPES;
     }
@@ -292,6 +299,9 @@ const Material &Material::toMaterial(BlockId id)
         case BlockId::OakDoorClosed:
         case BlockId::OakDoorOpen:
             return OAK_DOOR;
+
+        case BlockId::Crusher:
+            return CRUSHER_BLOCK;
 
         default:
             return NOTHING;
@@ -423,6 +433,9 @@ const Material &Material::toMaterial(Material::ID id)
 
         case RaiderWard:
             return RAIDER_WARD;
+
+        case Crusher:
+            return CRUSHER_BLOCK;
 
         default:
             return NOTHING;

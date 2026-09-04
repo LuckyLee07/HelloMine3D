@@ -151,3 +151,10 @@ row hellomine:cobblestone _ hellomine:cobblestone
 row hellomine:cobblestone hellomine:glass hellomine:cobblestone
 output hellomine:furnace 1
 end
+
+recipe hellomine:crusher shaped
+row hellomine:cobblestone hellomine:iron_ingot hellomine:cobblestone
+row hellomine:oak_planks _ hellomine:oak_planks
+row hellomine:cobblestone hellomine:cobblestone hellomine:cobblestone
+output hellomine:crusher 1
+end

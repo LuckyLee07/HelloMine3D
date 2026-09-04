@@ -8,12 +8,14 @@
 #include <sstream>
 
 #include "../../Item/SmeltingRegistry.h"
+#include "../../Item/MachineProcessDefinition.h"
 #include "../../Player/Player.h"
 #include "../../Sandbox/Events/PlayerEvents.h"
 #include "../../Sandbox/Events/SmeltingEvents.h"
 #include "../World.h"
 #include "BlockEntity.h"
 #include "BlockId.h"
+#include "../Simulation/MachineRuntime.h"
 
 namespace
 {
@@ -91,16 +93,12 @@ readFurnace(World &world, const glm::ivec3 &position,
         position, state, recipe != nullptr ? recipe->durationTicks : 0};
 }
 
-bool outputCanAccept(const FurnaceState &state,
-                     const SmeltingRecipeDefinition &recipe)
+MachineProcessDefinition processDefinition(
+    const SmeltingRecipeDefinition &recipe)
 {
-    if (state.output.amount == 0) {
-        return recipe.outputAmount <=
-               Material::toMaterial(recipe.outputMaterialId).maxStackSize;
-    }
-    return state.output.materialId == recipe.outputMaterialId &&
-           state.output.amount + recipe.outputAmount <=
-               Material::toMaterial(recipe.outputMaterialId).maxStackSize;
+    return {recipe.id, recipe.inputMaterialId, 1,
+            recipe.outputMaterialId, recipe.outputAmount,
+            recipe.durationTicks};
 }
 
 bool synchronizeLighting(World &world, const glm::ivec3 &position,
@@ -132,9 +130,14 @@ bool FurnaceContainer::shouldEmitLight(
     const FurnaceState &state, const SmeltingRegistry &registry)
 {
     const auto *recipe = registry.findRecipe(state.input.materialId);
-    return recipe != nullptr && state.input.amount > 0 &&
-           outputCanAccept(state, *recipe) &&
-           state.burnTicksRemaining > 0;
+    if (recipe == nullptr) {
+        return false;
+    }
+    const MachineProcessDefinition process = processDefinition(*recipe);
+    return MachineRuntime::inspect(
+               state.input, state.output, state.progressTicks,
+               state.burnTicksRemaining, &process).status ==
+           MachineStatus::Running;
 }
 
 std::string FurnaceContainer::serialize(const FurnaceState &state)
@@ -378,11 +381,16 @@ int FurnaceContainer::tickLoaded(World &world,
         if (!furnace) continue;
         FurnaceState &state = furnace->state;
         const auto *recipe = registry.findRecipe(state.input.materialId);
-        const bool canProcess = recipe != nullptr && state.input.amount > 0 &&
-                                outputCanAccept(state, *recipe);
+        const MachineProcessDefinition process = recipe != nullptr
+            ? processDefinition(*recipe)
+            : MachineProcessDefinition{};
+        const MachineProcessDefinition *matched =
+            recipe != nullptr ? &process : nullptr;
         bool changed = false;
-        bool recipeCompleted = false;
-        if (canProcess && state.burnTicksRemaining <= 0) {
+        MachineState observed = MachineRuntime::inspect(
+            state.input, state.output, state.progressTicks,
+            state.burnTicksRemaining, matched);
+        if (observed.status == MachineStatus::NoPower) {
             const auto *fuel = registry.findFuel(state.fuel.materialId);
             if (fuel != nullptr && state.fuel.amount > 0) {
                 --state.fuel.amount;
@@ -392,23 +400,12 @@ int FurnaceContainer::tickLoaded(World &world,
                 changed = true;
             }
         }
-        if (canProcess && state.burnTicksRemaining > 0) {
-            --state.burnTicksRemaining;
-            ++state.progressTicks;
-            changed = true;
-            if (state.progressTicks >= recipe->durationTicks) {
-                --state.input.amount;
-                clearIfEmpty(state.input);
-                if (state.output.amount == 0) {
-                    state.output.materialId = recipe->outputMaterialId;
-                }
-                state.output.amount += recipe->outputAmount;
-                state.progressTicks = 0;
-                recipeCompleted = true;
-            }
-            if (state.burnTicksRemaining == 0) {
-                state.burnTicksTotal = 0;
-            }
+        const MachineTickResult tick = MachineRuntime::tick(
+            state.input, state.output, state.progressTicks,
+            state.burnTicksRemaining, matched);
+        changed = changed || tick.changed;
+        if (tick.changed && state.burnTicksRemaining == 0) {
+            state.burnTicksTotal = 0;
         }
 
         const bool persisted = !changed ||
@@ -417,7 +414,7 @@ int FurnaceContainer::tickLoaded(World &world,
             continue;
         }
         synchronizeLighting(world, position, state, registry);
-        if (recipeCompleted) {
+        if (tick.completed && recipe != nullptr) {
             ++completed;
             world.getEventBus().publish(SmeltCompletedEvent(
                 recipe->inputMaterialId, recipe->outputMaterialId,

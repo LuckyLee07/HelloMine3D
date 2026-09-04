@@ -1,5 +1,6 @@
 #include "BlockDatabase.h"
 #include "ChestContainer.h"
+#include "CrusherContainer.h"
 #include "FurnaceContainer.h"
 #include "ChunkBlock.h"
 #include "../../Player/Player.h"
@@ -299,6 +300,40 @@ class FurnaceBlockBehavior final : public BlockBehavior {
     }
 };
 
+class CrusherBlockBehavior final : public BlockBehavior {
+  public:
+    bool supportsUse() const noexcept override { return true; }
+
+    void onPlaced(World &world, Player &,
+                  const glm::ivec3 &position, const ChunkBlock &,
+                  const ChunkBlock &) const override
+    {
+        CrusherContainer::initialize(world, position);
+    }
+
+    void onBroken(World &world, Player &player,
+                  const glm::ivec3 &position,
+                  const ChunkBlock &) const override
+    {
+        CrusherContainer::spillContents(world, position);
+        if (player.getOpenContainer() &&
+            player.getOpenContainer()->x == position.x &&
+            player.getOpenContainer()->y == position.y &&
+            player.getOpenContainer()->z == position.z) {
+            CrusherContainer::close(player);
+        }
+    }
+
+    void onUse(World &world, Player &player,
+               const glm::ivec3 &position,
+               const ChunkBlock &) const override
+    {
+        if (CrusherContainer::open(world, player, position)) {
+            CrusherContainer::supplyManualPower(world, player, position);
+        }
+    }
+};
+
 class WaystoneBlockBehavior final : public BlockBehavior {
   public:
     bool supportsUse() const noexcept override { return true; }
@@ -434,6 +469,11 @@ BlockDatabase::BlockDatabase()
              std::make_unique<OakDoorBlockBehavior>());
     addBlock(BlockId::OakDoorOpen, "OakDoorOpen",
              std::make_unique<OakDoorBlockBehavior>());
+    addBlock(BlockId::Crusher, "Crusher",
+             std::make_unique<CrusherBlockBehavior>(),
+             {CrusherContainer::BlockEntityType,
+              InventoryProviderKind::Crusher,
+              MachineProcessorKind::Crusher});
 }
 
 BlockDatabase &BlockDatabase::get()

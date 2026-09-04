@@ -65,16 +65,18 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 | `B6` Spatial Activation | `Done` | Resident Data、Near Representation、Simulation Requested 三层兴趣已接入真实 plan/load→mesh→render/unload 路径，simulation request 只发布不消费。B6 12/12、B5/B4/B3/B2/B1 回归 12/12、10/10、9/9、26/26、38/38；完整 VS2017/v141 Debug/Release 门禁均为 918/918，104 项隔离包 SHA-256 为 `C8E260E00CF76C952150EBC3DC851A7EDE5E13FE63A58F98B77DC103723EFA3C`。详见 `docs/reports/architecture-lab-b6-spatial-activation-report-v1.md`。 |
 | `B10` Large World Stress & Acceptance | `Done` | 最终 schedule v3 Release Core 已完成 1800 秒/36000 ticks、五阶段、10 次保存重开和双确定性探针：最大区块 216、最大 pending 95、消费者 8/8/8、最大/最终 `Absent=0`，峰值 private 137551872 bytes，wall 1824.453 秒且未超时。两次失败均保留并修复，未放宽阈值或使用性能例外。组成式 VS2017/v141 Debug/Release 门禁均为 920/920；最终 Q1 六组比较 PASS；104 项隔离包 SHA-256 为 `E13203F8E18382A4D13ABA22DFB975DDB189B2858F74DAAE340CE5A4A8F34B14`。详见 `docs/reports/architecture-lab-b10-large-world-stress-report-v1.md`。 |
 | `C1` Block Capability Model | `Done` | 现有 Chest/Furnace 已通过 `BlockDefinition` 声明 `InventoryProvider`，Furnace 另声明 `MachineProcessor`；Ogre 容器 UI 改为能力发现/访问，17/17 聚焦用例与静态门禁通过。VS2017/v141 Debug/Release 完整门禁均为 937/937 WorldRuntime，104 项隔离包 SHA-256 为 `1618ACD7995FE5181169B0B46A5D4F479F63FA1CCB8B533B358ED694A3846EB6`。未预建 Registry、MechanicalPort、C2 Machine Runtime 或 C3 网络。详见 `docs/reports/architecture-lab-c1-block-capability-report-v1.md`。 |
+| `C2` Machine Runtime v0 | `Done` | 可制作、放置、Use、保存重开的手摇 Crusher 已成为第二个真实 Processor；共享 Runtime 只提炼 Furnace/Crusher 已共同证明的五态、配方匹配、输出容量、动力、单 tick 与原子完成语义。C2 聚焦 51/51、完整 VS2017/v141 Debug/Release WorldRuntime 963/963、Recipe 126/126、Resource Pack 80/80 和 15/15 启动负例均通过；105 项隔离包 SHA-256 为 `B4D73704A93B4377EB26336592448B4E31439387BA6198B49C59704517775739`。save v12、terrain v4、settings v8、8 工具和 34 目标不变；未进入 C3+、MechanicalPort、网络或自动物流。详见 `docs/reports/architecture-lab-c2-machine-runtime-report-v1.md`。 |
 
 ## 下一候选
 
 | 批次 | 状态 | 目标 | 进入条件 | 退出边界 |
 | ---- | ---- | ---- | -------- | -------- |
-| `D1` Tick Phase & Budget Runtime | `Candidate / not approved` | 只有当前四条真实 phase metrics 出现共同调度问题时，才评估 runtime 行为改变。 | 至少三个真实系统出现共同优先级/延迟问题并另行批准。 | 不由 A5 vocabulary 或 B10 自动授权。 |
+| `C3` Mechanical Topology Model v0 | `Candidate / not approved` | 只有 C2 的可玩 Crusher 与 Furnace Runtime 完整收口后，才评估第一种真实机械网络。 | C2 Done，且新批次另行批准。 | 只允许具体 Mechanical 拓扑；不自动批准 Generic Network、物流、存储或 C4+。 |
+| `D1` Tick Phase & Budget Runtime | `Candidate / not approved` | 只有当前四条真实 phase metrics 出现共同调度问题时，才评估 runtime 行为改变。 | 至少三个真实系统出现共同优先级/延迟问题并另行批准。 | 不由 A5 vocabulary、B10 或 C2 自动授权。 |
 
 `B10` 已完成正式压力/确定性、组成式完整门禁和 Q1 收口，`C1` 也已通过完整门禁。
-当前没有已批准但未完成的开发批次；B7-B9、C2-C11、Track D 和 Extended 仍未获批，
-也不因本 Goal 自动进入实现。
+当前没有已批准但未完成的开发批次；B7-B9、C3-C11、Track D 和 Extended 仍未获批，
+也不因 C2 完成自动进入实现。
 
 ## 当前阻塞
 

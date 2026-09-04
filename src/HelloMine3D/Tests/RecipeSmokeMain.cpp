@@ -1,6 +1,7 @@
 #include "../Item/RecipeRegistry.h"
 #include "../Item/CraftingSession.h"
 #include "../Item/FoodRegistry.h"
+#include "../Item/MachineProcessDefinition.h"
 #include "../Item/ResourceEconomyVerifier.h"
 #include "../Item/SmeltingRegistry.h"
 #include "../Item/ToolRegistry.h"
@@ -321,6 +322,7 @@ end
                   static_cast<int>(Material::ID::WoodenShovel) == 39 &&
                   static_cast<int>(Material::ID::AncientCompass) == 40 &&
                   static_cast<int>(Material::ID::RaiderWard) == 41 &&
+                  static_cast<int>(Material::ID::Crusher) == 42 &&
                   Material::BREAD.isFood && !Material::BREAD.isTool &&
                   Material::COOKED_MEAT.isFood &&
                   Material::CACTUS_SALAD.isFood &&
@@ -344,8 +346,13 @@ end
                       BlockId::OakDoorClosed &&
                   Material::toMaterial(BlockId::OakDoorOpen).id ==
                       Material::ID::OakDoor &&
+                  Material::CRUSHER_BLOCK.isBlock &&
+                  Material::CRUSHER_BLOCK.toBlockID() == BlockId::Crusher &&
+                  Material::toMaterial(BlockId::Crusher).id ==
+                      Material::ID::Crusher &&
                   static_cast<int>(BlockId::Torch) == 21 &&
-                  static_cast<int>(BlockId::OakDoorOpen) == 25);
+                  static_cast<int>(BlockId::OakDoorOpen) == 25 &&
+                  static_cast<int>(BlockId::Crusher) == 26);
         Material::ID unchanged = Material::ID::Stone;
         check("G1/unknown-material-id-rejected",
               !Material::tryParseStringId("hellomine:not_registered",
@@ -1759,7 +1766,7 @@ end
         const SmeltingFuelDefinition *fiberFuel =
             smelting.findFuel(Material::ID::PlantFiber);
         check("N10/base-content-counts-are-frozen",
-              recipes.recipes().size() == 24 &&
+              recipes.recipes().size() == 25 &&
                   smelting.recipes().size() == 4 &&
                   smelting.fuels().size() == 2 &&
                   foods.foods().size() == 4);
@@ -1795,12 +1802,28 @@ end
             recipes.find("hellomine:wooden_axe");
         const RecipeDefinition *shovel =
             recipes.find("hellomine:wooden_shovel");
+        const RecipeDefinition *crusher =
+            recipes.find("hellomine:crusher");
         check("N10/ecology-crop-and-enemy-chains-have-useful-sinks",
               fiber != nullptr && salad != nullptr && ration != nullptr &&
                   fieldChest != nullptr && fieldWorkbench != nullptr &&
                   reinforcedFurnace != nullptr &&
                   ration->ingredients.size() == 4 &&
                   ration->outputMaterialId == Material::ID::TrailRation);
+        check("C2-MACHINE/crusher-is-a-normal-iron-stage-workbench-recipe",
+              crusher != nullptr && crusher->type == RecipeType::Shaped &&
+                  crusher->width == 3 && crusher->height == 3 &&
+                  crusher->outputMaterialId == Material::ID::Crusher &&
+                  crusher->outputCount == 1 &&
+                  std::count(crusher->shapedCells.begin(),
+                             crusher->shapedCells.end(),
+                             Material::ID::Cobblestone) == 5 &&
+                  std::count(crusher->shapedCells.begin(),
+                             crusher->shapedCells.end(),
+                             Material::ID::OakPlank) == 2 &&
+                  std::count(crusher->shapedCells.begin(),
+                             crusher->shapedCells.end(),
+                             Material::ID::IronIngot) == 1);
         check("P11-0/torch-recipe-is-bounded-2x2-progression",
               torch != nullptr && torch->type == RecipeType::Shaped &&
                   torch->width == 1 && torch->height == 2 &&
@@ -1885,6 +1908,22 @@ end
         const ResourceEconomyReport report =
             ResourceEconomyVerifier::verify(
                 contract, recipes, smelting, foods);
+        const MachineProcessDefinition &crusherProcess =
+            handCrusherProcessDefinition();
+        check("C2-MACHINE/economy-v2-freezes-one-concrete-machine-process",
+              contract.version == 2 &&
+                  contract.machineProcesses.size() == 1 &&
+                  contract.machineProcesses[0].id == crusherProcess.id &&
+                  crusherProcess.inputMaterialId ==
+                      Material::ID::Cobblestone &&
+                  crusherProcess.inputAmount == 1 &&
+                  crusherProcess.outputMaterialId == Material::ID::Sand &&
+                  crusherProcess.outputAmount == 1 &&
+                  crusherProcess.durationTicks == 40 &&
+                  std::find(contract.requiredMaterials.begin(),
+                            contract.requiredMaterials.end(),
+                            Material::ID::Crusher) !=
+                      contract.requiredMaterials.end());
         check("N10/clean-world-mainline-is-reachable",
               report.allRequiredReachable && report.issues.empty());
         check("N10/new-materials-have-source-and-sink",
@@ -1971,6 +2010,27 @@ end
                 cycleContract, cyclicRecipes, smelting, foods);
         check("N10/net-positive-material-cycle-is-rejected",
               !cycle.transformationGraphAcyclic && !cycle.passed());
+
+        ResourceEconomyContract invalidMachine = contract;
+        invalidMachine.machineProcesses[0].durationTicks = 0;
+        const ResourceEconomyReport invalidMachineReport =
+            ResourceEconomyVerifier::verify(
+                invalidMachine, recipes, smelting, foods);
+        check("C2-MACHINE/invalid-machine-process-fails-economy-closed",
+              !invalidMachineReport.passed() &&
+                  !invalidMachineReport.issues.empty());
+
+        ResourceEconomyContract machineCycle = contract;
+        machineCycle.machineProcesses.push_back({
+            "hellomine:test_sand_to_cobblestone",
+            Material::ID::Sand, 1,
+            Material::ID::Cobblestone, 1, 1});
+        const ResourceEconomyReport machineCycleReport =
+            ResourceEconomyVerifier::verify(
+                machineCycle, recipes, smelting, foods);
+        check("C2-MACHINE/machine-transformation-cycle-is-rejected",
+              !machineCycleReport.transformationGraphAcyclic &&
+                  !machineCycleReport.passed());
     }
 }
 
@@ -1993,7 +2053,7 @@ int main()
     caseEnemyRegistry();
     caseCombatRecipes();
     caseResourceEconomy();
-    constexpr int ExpectedChecks = 122;
+    constexpr int ExpectedChecks = 126;
     if (checks != ExpectedChecks) {
         ++failures;
         std::cout << "[RECIPE_TEST] FAIL G1/expected-check-count"

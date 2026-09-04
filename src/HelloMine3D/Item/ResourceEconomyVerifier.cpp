@@ -106,7 +106,7 @@ ResourceEconomyReport ResourceEconomyVerifier::verify(
     const FoodRegistry &foods)
 {
     ResourceEconomyReport report;
-    if (contract.version != 1 || contract.craftingTicks <= 0 ||
+    if (contract.version != 2 || contract.craftingTicks <= 0 ||
         contract.playerInventorySlots <= 0 || !recipes.isFrozen() ||
         !smelting.isFrozen() || !foods.isFrozen()) {
         report.issues.push_back(
@@ -147,6 +147,21 @@ ResourceEconomyReport ResourceEconomyVerifier::verify(
         produced.insert(recipe.outputMaterialId);
         consumed.insert(recipe.inputMaterialId);
         addEdge(graph, recipe.inputMaterialId, recipe.outputMaterialId);
+    }
+    std::set<std::string> machineProcessIds;
+    for (const MachineProcessDefinition &process :
+         contract.machineProcesses) {
+        if (process.id.empty() || !validMaterial(process.inputMaterialId) ||
+            !validMaterial(process.outputMaterialId) ||
+            process.inputAmount <= 0 || process.outputAmount <= 0 ||
+            process.durationTicks <= 0 ||
+            !machineProcessIds.insert(process.id).second) {
+            report.issues.push_back("invalid or duplicate machine process");
+            continue;
+        }
+        produced.insert(process.outputMaterialId);
+        consumed.insert(process.inputMaterialId);
+        addEdge(graph, process.inputMaterialId, process.outputMaterialId);
     }
     for (const SmeltingFuelDefinition &fuel : smelting.fuels()) {
         consumed.insert(fuel.materialId);
@@ -229,6 +244,29 @@ ResourceEconomyReport ResourceEconomyVerifier::verify(
                     outputCost = candidate;
                     changed = true;
                 }
+            }
+        }
+        for (const MachineProcessDefinition &process :
+             contract.machineProcesses) {
+            if (process.inputAmount <= 0 || process.outputAmount <= 0 ||
+                process.durationTicks <= 0 ||
+                !validMaterial(process.inputMaterialId) ||
+                !validMaterial(process.outputMaterialId)) {
+                continue;
+            }
+            const double inputCost =
+                costs[static_cast<std::size_t>(process.inputMaterialId)];
+            if (!std::isfinite(inputCost)) {
+                continue;
+            }
+            const double candidate =
+                (inputCost * process.inputAmount + process.durationTicks) /
+                process.outputAmount;
+            double &outputCost =
+                costs[static_cast<std::size_t>(process.outputMaterialId)];
+            if (candidate + 0.000001 < outputCost) {
+                outputCost = candidate;
+                changed = true;
             }
         }
         if (!changed) {
@@ -353,6 +391,7 @@ ResourceEconomyContract makeBaseResourceEconomyContract()
         Material::ID::OakPlank, Material::ID::Cobblestone,
         Material::ID::OakDoor, Material::ID::WoodenAxe,
         Material::ID::WoodenShovel,
+        Material::ID::Crusher,
     };
     contract.trackedNewMaterials = {
         Material::ID::RawMeat, Material::ID::CookedMeat,
@@ -369,5 +408,6 @@ ResourceEconomyContract makeBaseResourceEconomyContract()
         {"building.safe_shelter", Material::ID::OakPlank, 16},
         {"building.safe_shelter", Material::ID::OakDoor, 1},
     };
+    contract.machineProcesses = {handCrusherProcessDefinition()};
     return contract;
 }

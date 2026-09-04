@@ -19,6 +19,7 @@
 - [spatial-activation-contract-v1.md](spatial-activation-contract-v1.md)
 - [large-world-stress-acceptance-contract-v1.md](large-world-stress-acceptance-contract-v1.md)
 - [block-capability-model-contract-v1.md](block-capability-model-contract-v1.md)
+- [machine-runtime-v0-contract-v1.md](machine-runtime-v0-contract-v1.md)
 - [recipe-contract.md](recipe-contract.md)
 - [resource-pack-contract.md](resource-pack-contract.md)
 - [crafting-contract-v1.md](crafting-contract-v1.md)

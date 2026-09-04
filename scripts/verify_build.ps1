@@ -65,6 +65,8 @@ $largeWorldStressVerifier = Join-Path $repoRoot `
     "tools\validate_large_world_stress_acceptance.ps1"
 $blockCapabilityModelVerifier = Join-Path $repoRoot `
     "tools\validate_block_capability_model.ps1"
+$machineRuntimeVerifier = Join-Path $repoRoot `
+    "tools\validate_machine_runtime.ps1"
 
 function Invoke-Checked {
     param(
@@ -229,6 +231,10 @@ try {
 
     Invoke-Checked "C1 Block capability model" {
         & $blockCapabilityModelVerifier -Root $repoRoot
+    }
+
+    Invoke-Checked "C2 Machine Runtime v0" {
+        & $machineRuntimeVerifier -Root $repoRoot
     }
 
     Invoke-Checked "Resource manifest" {
