@@ -59,6 +59,7 @@
 #include "../Item/RecipeRegistry.h"
 #include "../Item/SmeltingRegistry.h"
 #include "../Item/ToolRegistry.h"
+#include "../Mechanical/MechanicalTopology.h"
 #include "../Player/Player.h"
 #include "../Presentation/LocalizedTextRegistry.h"
 #include "../Presentation/LocalizedPresentation.h"
@@ -1228,7 +1229,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 425 &&
+              registry.keys("en-US").size() == 428 &&
               registry.lookup("en-US", "material.torch.name") ==
                   "Torch" &&
               registry.lookup("zh-CN", "material.torch.name") ==
@@ -8418,6 +8419,213 @@ void caseMachineRuntimeC2()
                   world.getActorManager().getActorCount() ==
                       actorsBefore + 2);
     }
+}
+
+// ---------------------------------------------------------------------------
+// C3 - one concrete, Crusher-only dynamic topology
+// ---------------------------------------------------------------------------
+void caseMechanicalTopologyC3()
+{
+    const MechanicalNodeId origin{0, 0, 0};
+    const MechanicalNodeId negative{-1, 0, 0};
+    check("C3-TOPOLOGY/node-and-network-identities-are-deterministic",
+          negative < origin && origin != negative &&
+              mechanicalNetworkIdString({negative}) == "-1:0:0");
+
+    MechanicalTopology topology;
+    check("C3-TOPOLOGY/empty-model-has-no-derived-state",
+          topology.debugSnapshot().nodes == 0 &&
+              topology.debugSnapshot().components == 0 &&
+              !topology.nodeSnapshot(origin));
+
+    const VectorXZ chunkZero{0, 0};
+    const VectorXZ chunkOne{1, 0};
+    topology.setNode(chunkZero, origin, true);
+    const auto isolated = topology.nodeSnapshot(origin);
+    check("C3-TOPOLOGY/isolated-node-forms-anchor-component",
+          isolated && isolated->networkId.anchor == origin &&
+              isolated->nodeCount == 1 &&
+              isolated->connectionCount == 0 &&
+              isolated->connectedFaceMask == 0);
+
+    const MechanicalNodeId east{1, 0, 0};
+    const MechanicalNodeId up{0, 1, 0};
+    const MechanicalNodeId south{0, 0, 1};
+    topology.replaceChunkNodes(chunkZero, {origin, east, up, south});
+    const auto axes = topology.nodeSnapshot(origin);
+    check("C3-TOPOLOGY/six-face-adjacency-counts-canonical-edges-once",
+          axes && axes->nodeCount == 4 &&
+              axes->connectionCount == 3 &&
+              axes->connectedFaceMask ==
+                  ((1u << static_cast<unsigned>(MechanicalFace::PositiveX)) |
+                   (1u << static_cast<unsigned>(MechanicalFace::PositiveY)) |
+                   (1u << static_cast<unsigned>(MechanicalFace::PositiveZ))));
+
+    const MechanicalNodeId left{14, 100, 8};
+    const MechanicalNodeId middle{15, 100, 8};
+    const MechanicalNodeId right{16, 100, 8};
+    topology.replaceChunkNodes(chunkZero, {left, middle});
+    topology.replaceChunkNodes(chunkOne, {right});
+    const auto merged = topology.nodeSnapshot(right);
+    check("C3-TOPOLOGY/cross-chunk-chain-merges-with-lowest-anchor",
+          merged && merged->networkId.anchor == left &&
+              merged->nodeCount == 3 && merged->connectionCount == 2);
+    topology.setNode(chunkZero, middle, false);
+    const auto splitLeft = topology.nodeSnapshot(left);
+    const auto splitRight = topology.nodeSnapshot(right);
+    check("C3-TOPOLOGY/removing-bridge-splits-components",
+          splitLeft && splitRight && splitLeft->nodeCount == 1 &&
+              splitRight->nodeCount == 1 &&
+              splitLeft->networkId.anchor == left &&
+              splitRight->networkId.anchor == right);
+    topology.setNode(chunkZero, middle, true);
+    const std::uint64_t reconnectRevision =
+        topology.debugSnapshot().revision;
+    const bool duplicateChanged = topology.setNode(chunkZero, middle, true);
+    check("C3-TOPOLOGY/reconnect-merges-and-duplicate-is-no-op",
+          topology.nodeSnapshot(middle)->nodeCount == 3 &&
+              !duplicateChanged &&
+              topology.debugSnapshot().revision == reconnectRevision);
+    topology.removeChunk(chunkOne);
+    const bool removedAcrossBoundary = !topology.nodeSnapshot(right) &&
+        topology.nodeSnapshot(middle)->nodeCount == 2;
+    topology.replaceChunkNodes(chunkOne, {right});
+    check("C3-TOPOLOGY/chunk-removal-and-replacement-rebuilds-boundary",
+          removedAcrossBoundary && topology.nodeSnapshot(right) &&
+              topology.nodeSnapshot(right)->nodeCount == 3);
+
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
+    const auto directory = freshSaveDirectory("c3_mechanical_topology");
+    Config config = makeConfig();
+    Camera camera(config);
+    const glm::ivec3 leftPosition{14, 100, 8};
+    const glm::ivec3 middlePosition{15, 100, 8};
+    const glm::ivec3 rightPosition{16, 100, 8};
+
+    {
+        Player player;
+        World world(camera, config, player, directory, false, 1);
+        world.setBlock(leftPosition.x, leftPosition.y, leftPosition.z,
+                       BlockId::Air);
+        world.setBlock(middlePosition.x, middlePosition.y, middlePosition.z,
+                       BlockId::Air);
+        world.setBlock(rightPosition.x, rightPosition.y, rightPosition.z,
+                       BlockId::Air);
+        // Keep one normally held Crusher for the reconnect action. Breaking a
+        // tier-one machine without a pickaxe intentionally yields no drop.
+        player.addItem(Material::CRUSHER_BLOCK, 4);
+        const bool placedLeft = BlockInteractionSystem::placeBlock(
+            world, player, glm::vec3(leftPosition));
+        const bool placedMiddle = BlockInteractionSystem::placeBlock(
+            world, player, glm::vec3(middlePosition));
+        const bool placedRight = BlockInteractionSystem::placeBlock(
+            world, player, glm::vec3(rightPosition));
+        const BlockCapabilities rightCapabilities =
+            BlockCapabilityAccess::query(world, rightPosition);
+        const auto rightView = rightCapabilities.mechanicalPort
+            ? rightCapabilities.mechanicalPort->view(world)
+            : std::optional<MechanicalNodeSnapshot>{};
+        check("C3-TOPOLOGY/normal-placement-exposes-crusher-port-and-merge",
+              placedLeft && placedMiddle && placedRight && rightView &&
+                  rightCapabilities.mechanicalPort->kind() ==
+                      MechanicalPortKind::CrusherAllFaces &&
+                  rightView->networkId.anchor ==
+                      MechanicalNodeId{14, 100, 8} &&
+                  rightView->nodeCount == 3 &&
+                  rightView->connectionCount == 2);
+        check("C3-TOPOLOGY/non-crusher-blocks-declare-no-mechanical-port",
+              !BlockCapabilityAccess::query(
+                   world, glm::ivec3{13, 100, 8}).mechanicalPort);
+
+        const MechanicalPort staleMiddle =
+            *BlockCapabilityAccess::query(world, middlePosition)
+                 .mechanicalPort;
+        const bool brokeMiddle = BlockInteractionSystem::breakBlock(
+            world, player, glm::vec3(middlePosition));
+        const auto afterBreakLeft =
+            world.getMechanicalNodeSnapshot(leftPosition);
+        const auto afterBreakRight =
+            world.getMechanicalNodeSnapshot(rightPosition);
+        check("C3-TOPOLOGY/normal-break-splits-and-stale-port-fails-closed",
+              brokeMiddle && afterBreakLeft && afterBreakRight &&
+                  afterBreakLeft->nodeCount == 1 &&
+                  afterBreakRight->nodeCount == 1 &&
+                  !staleMiddle.view(world));
+
+        const bool replacedMiddle = BlockInteractionSystem::placeBlock(
+            world, player, glm::vec3(middlePosition));
+        const auto afterReplace =
+            world.getMechanicalNodeSnapshot(middlePosition);
+        check("C3-TOPOLOGY/normal-replacement-rejoins-components",
+              replacedMiddle && afterReplace &&
+                  afterReplace->networkId.anchor ==
+                      MechanicalNodeId{14, 100, 8} &&
+                  afterReplace->nodeCount == 3 &&
+                  afterReplace->connectionCount == 2);
+
+        const auto rightRecord = world.getBlockEntity(rightPosition);
+        const bool malformedWritten = rightRecord &&
+            world.updateBlockEntity(rightPosition, "malformed");
+        const auto malformedPort =
+            BlockCapabilityAccess::query(world, rightPosition).mechanicalPort;
+        const bool malformedRejected = malformedPort &&
+            !malformedPort->view(world) &&
+            !world.getMechanicalNodeSnapshot(rightPosition);
+        CrusherState repairedState;
+        const bool repaired = world.updateBlockEntity(
+            rightPosition, CrusherContainer::serialize(repairedState));
+        check("C3-TOPOLOGY/malformed-payload-removes-node-until-repaired",
+              malformedWritten && malformedRejected && repaired &&
+                  world.getMechanicalNodeSnapshot(rightPosition) &&
+                  world.getMechanicalNodeSnapshot(rightPosition)
+                          ->nodeCount == 3);
+
+        const bool unloaded = world.getChunkManager().unloadChunk(1, 0);
+        const auto whileUnloaded =
+            world.getMechanicalNodeSnapshot(middlePosition);
+        const bool boundaryRemoved = unloaded && whileUnloaded &&
+            whileUnloaded->nodeCount == 2 &&
+            whileUnloaded->connectionCount == 1 &&
+            !world.getMechanicalNodeSnapshot(rightPosition);
+        world.getChunkManager().loadChunk(1, 0);
+        const auto afterReload =
+            world.getMechanicalNodeSnapshot(rightPosition);
+        check("C3-TOPOLOGY/chunk-unload-reload-removes-and-restores-edge",
+              boundaryRemoved && afterReload &&
+                  afterReload->networkId.anchor ==
+                      MechanicalNodeId{14, 100, 8} &&
+                  afterReload->nodeCount == 3 &&
+                  afterReload->connectionCount == 2);
+
+        const WorldDebugStats stats = world.collectDebugStats();
+        check("C3-TOPOLOGY/debug-snapshot-explains-derived-graph",
+              stats.mechanicalTopology.nodes == 3 &&
+                  stats.mechanicalTopology.connections == 2 &&
+                  stats.mechanicalTopology.components == 1 &&
+                  stats.mechanicalTopology.revision > 0 &&
+                  stats.mechanicalTopology.rebuildCount > 0 &&
+                  stats.mechanicalTopology.lastVisitedNodes == 3 &&
+                  !stats.mechanicalTopology.dirty);
+        check("C3-TOPOLOGY/save-v12-persists-only-authoritative-crushers",
+              world.save());
+    }
+
+    {
+        Player player;
+        World world(camera, config, player, directory, false, 1);
+        const auto restored =
+            world.getMechanicalNodeSnapshot(rightPosition);
+        check("C3-TOPOLOGY/save-reopen-rebuilds-identical-component",
+              restored && restored->networkId.anchor ==
+                              MechanicalNodeId{14, 100, 8} &&
+                  restored->nodeCount == 3 &&
+                  restored->connectionCount == 2 &&
+                  world.collectDebugStats().mechanicalTopology.nodes == 3);
+    }
+
+    setEnv("HELLOMINE3D_SEED", "");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "");
 }
 
 // ---------------------------------------------------------------------------
@@ -17000,6 +17208,12 @@ int main()
             caseFurnaceProgression();
             caseMachineRuntimeC2();
         }
+        else if (focus != nullptr &&
+                 std::string(focus) == "C3-TOPOLOGY") {
+            caseFurnaceProgression();
+            caseMachineRuntimeC2();
+            caseMechanicalTopologyC3();
+        }
         else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
@@ -17059,6 +17273,7 @@ int main()
         caseFurnaceProgression();
         caseBlockCapabilityModel();
         caseMachineRuntimeC2();
+        caseMechanicalTopologyC3();
         caseFoodRecovery();
         caseExpandedResourceEconomy();
         caseDifficultyProfiles();

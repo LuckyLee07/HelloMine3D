@@ -176,8 +176,7 @@ try {
         $text.CapabilityHeader + $text.CapabilitySource + $text.Database +
         $text.Simulation + $text.Ui
     foreach ($forbidden in @(
-            "MachineRegistry", "CapabilityRegistry", "MechanicalPort",
-            "MechanicalNode", "MechanicalNetwork", "ItemTransportPort",
+            "MachineRegistry", "CapabilityRegistry", "ItemTransportPort",
             "StorageProvider", "SharedNetworkCore")) {
         Reject-Text $production $forbidden "unapproved C3+/Extended abstraction"
     }
@@ -199,7 +198,7 @@ try {
     Write-Host (
         "[MACHINE_RUNTIME] status=PASS processors=2 statuses=5 " +
         "crusher_processes=1 crank_cap=40 save=12 registry=absent " +
-        "mechanical_port=absent")
+        "mechanical_port=downstream_c3")
     exit 0
 }
 catch {

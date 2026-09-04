@@ -31,6 +31,7 @@
 #include "../Util/ResourcePaths.h"
 #include "../Util/Random.h"
 #include "Block/BlockDatabase.h"
+#include "Block/CrusherContainer.h"
 #include "Block/FurnaceContainer.h"
 #include "../Item/FoodRegistry.h"
 #include "../Item/SmeltingRegistry.h"
@@ -800,6 +801,7 @@ void World::setBlock(int x, int y, int z, ChunkBlock block)
     const LightLevel previousBlockLight =
         chunk->getBlockLight(bp.x, y, bp.z);
     chunk->setBlock(bp.x, y, bp.z, block);
+    refreshMechanicalNodeUnlocked({x, y, z});
     std::vector<glm::ivec3> changedPositions{{x, y, z}};
     for (int changedY : chunk->rebuildSunlightColumn(bp.x, bp.z)) {
         changedPositions.emplace_back(x, changedY, z);
@@ -843,8 +845,10 @@ bool World::createBlockEntity(const glm::ivec3 &position,
         return false;
     }
 
-    return chunk->createBlockEntity(
+    const bool created = chunk->createBlockEntity(
         {{local.x, position.y, local.z}, type, std::move(payload)});
+    refreshMechanicalNodeUnlocked(position);
+    return created;
 }
 
 bool World::updateBlockEntity(const glm::ivec3 &position,
@@ -854,9 +858,12 @@ bool World::updateBlockEntity(const glm::ivec3 &position,
     const VectorXZ local = getBlockXZ(position.x, position.z);
     const VectorXZ chunkPosition = getChunkXZ(position.x, position.z);
     Chunk *chunk = m_chunkManager.findChunk(chunkPosition.x, chunkPosition.z);
-    return chunk != nullptr && chunk->hasLoaded() &&
-           chunk->updateBlockEntity({local.x, position.y, local.z},
-                                    std::move(payload));
+    const bool updated = chunk != nullptr && chunk->hasLoaded() &&
+                         chunk->updateBlockEntity(
+                             {local.x, position.y, local.z},
+                             std::move(payload));
+    refreshMechanicalNodeUnlocked(position);
+    return updated;
 }
 
 std::optional<BlockEntityRecord>
@@ -875,7 +882,72 @@ World::removeBlockEntity(const glm::ivec3 &position)
     if (removed) {
         removed->position = position;
     }
+    refreshMechanicalNodeUnlocked(position);
     return removed;
+}
+
+std::optional<MechanicalNodeSnapshot>
+World::getMechanicalNodeSnapshot(const glm::ivec3 &position)
+{
+    std::lock_guard<std::mutex> lock(m_mainMutex);
+    return m_mechanicalTopology.nodeSnapshot(
+        {position.x, position.y, position.z});
+}
+
+void World::refreshMechanicalNodeUnlocked(const glm::ivec3 &position)
+{
+    const VectorXZ local = getBlockXZ(position.x, position.z);
+    const VectorXZ chunkPosition = getChunkXZ(position.x, position.z);
+    const Chunk *chunk =
+        m_chunkManager.findChunk(chunkPosition.x, chunkPosition.z);
+    bool validCrusher = false;
+    if (chunk != nullptr && chunk->hasLoaded() &&
+        static_cast<BlockId>(chunk->getBlock(
+            local.x, position.y, local.z).id) == BlockId::Crusher) {
+        const BlockEntityRecord *record = chunk->findBlockEntity(
+            {local.x, position.y, local.z});
+        CrusherState state;
+        validCrusher = record != nullptr &&
+                       record->type == CrusherContainer::BlockEntityType &&
+                       CrusherContainer::deserialize(record->payload, state);
+    }
+    m_mechanicalTopology.setNode(
+        chunkPosition, {position.x, position.y, position.z}, validCrusher);
+}
+
+void World::synchronizeMechanicalChunkUnlocked(
+    const VectorXZ &chunkPosition)
+{
+    std::vector<MechanicalNodeId> nodes;
+    const Chunk *chunk =
+        m_chunkManager.findChunk(chunkPosition.x, chunkPosition.z);
+    if (chunk != nullptr && chunk->hasLoaded()) {
+        for (const BlockEntityRecord &record : chunk->getBlockEntities()) {
+            if (record.type != CrusherContainer::BlockEntityType) {
+                continue;
+            }
+            const glm::ivec3 worldPosition{
+                chunkPosition.x * CHUNK_SIZE + record.position.x,
+                record.position.y,
+                chunkPosition.z * CHUNK_SIZE + record.position.z};
+            if (static_cast<BlockId>(chunk->getBlock(
+                    record.position.x, record.position.y,
+                    record.position.z).id) != BlockId::Crusher) {
+                continue;
+            }
+            CrusherState state;
+            if (CrusherContainer::deserialize(record.payload, state)) {
+                nodes.push_back({worldPosition.x, worldPosition.y,
+                                 worldPosition.z});
+            }
+        }
+    }
+    m_mechanicalTopology.replaceChunkNodes(chunkPosition, nodes);
+}
+
+void World::removeMechanicalChunkUnlocked(const VectorXZ &chunkPosition)
+{
+    m_mechanicalTopology.removeChunk(chunkPosition);
 }
 
 std::vector<glm::ivec3> World::collectLoadedBlockEntityPositions(
@@ -3058,6 +3130,7 @@ WorldDebugStats World::collectDebugStats()
     stats.streamingBackpressure =
         m_chunkRuntime.collectBackpressureDebugStats();
     stats.simulation = m_worldSimulation.snapshot();
+    stats.mechanicalTopology = m_mechanicalTopology.debugSnapshot();
     stats.chunks.saveTransactions += m_worldSaveTransactionCount;
     stats.chunks.saveTotalMs += m_worldSaveTotalMs;
     stats.chunks.saveMaxMs =

@@ -7,6 +7,7 @@
 
 #include "../../Item/Inventory.h"
 #include "../../Maths/glm.h"
+#include "../../Mechanical/MechanicalTopology.h"
 #include "../Simulation/MachineRuntime.h"
 
 class Player;
@@ -33,6 +34,7 @@ struct BlockCapabilityDefinition
     const char *blockEntityType = nullptr;
     InventoryProviderKind inventoryProvider = InventoryProviderKind::None;
     MachineProcessorKind machineProcessor = MachineProcessorKind::None;
+    MechanicalPortKind mechanicalPort = MechanicalPortKind::None;
 };
 
 enum class InventorySlotRole
@@ -128,6 +130,7 @@ struct BlockCapabilities
 {
     std::optional<InventoryProvider> inventoryProvider;
     std::optional<MachineProcessor> machineProcessor;
+    std::optional<MechanicalPort> mechanicalPort;
 };
 
 class BlockCapabilityAccess

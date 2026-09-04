@@ -1,7 +1,7 @@
 # HelloMine3D Architecture Lab Tutorial
 
 > Living tutorial status: Part 00 covers completed Track A, Part 01 covers
-> implemented B1 through B10 Core, and Part 02 covers C1 through C2. Later Parts
+> implemented B1 through B10 Core, and Part 02 covers C1 through C3. Later Parts
 > are added only with the first verified batch of their owning Track; this file
 > does not pre-create empty Sprint chapters.
 
@@ -22,6 +22,7 @@ B6|01|1.6|docs/reports/architecture-lab-b6-spatial-activation-report-v1.md
 B10|01|1.7|docs/reports/architecture-lab-b10-large-world-stress-report-v1.md
 C1|02|2.1|docs/reports/architecture-lab-c1-block-capability-report-v1.md
 C2|02|2.2|docs/reports/architecture-lab-c2-machine-runtime-report-v1.md
+C3|02|2.3|docs/reports/architecture-lab-c3-mechanical-topology-report-v1.md
 <!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-END -->
 
 ## Part 00 — From a playable clone to an architecture lab
@@ -1497,3 +1498,85 @@ Related evidence:
 - `docs/contracts/machine-runtime-v0-contract-v1.md`
 - `docs/reports/architecture-lab-c2-machine-runtime-report-v1.md`
 - `tools/validate_machine_runtime.ps1`
+
+### 2.3 Why should topology exist before power propagation?
+
+#### Problem
+
+C2 supplies a real spatial machine, but every Crusher is still isolated. The
+next architecture problem is not RPM or torque: it is maintaining a dynamic
+graph while blocks are placed, removed, unloaded, reloaded and reconstructed
+from a save. A connection model must also be observable through normal play or
+it becomes an invisible engine exercise.
+
+#### Naive Solution
+
+Union-Find makes component merges cheap, so it is tempting to use it as the
+whole model and add power values immediately. Another tempting design is a
+generic `INetwork` core with registration hooks for future mechanical, item and
+storage graphs.
+
+#### Failure
+
+Union-Find does not explain a split after the middle block is removed. Adding
+power at the same time mixes connectivity defects with simulation semantics.
+A generic network has only one real consumer in C3, so its shared vocabulary
+would be speculative and its persistence boundary impossible to justify from
+gameplay.
+
+#### Design Evolution
+
+C3 treats loaded, strictly valid Crushers as the only nodes. Six block faces
+define possible ports, each adjacent pair becomes one canonical edge, and a
+deterministic breadth-first rebuild derives components after a real change.
+The network id is the X/Y/Z-ordered minimum node position, which is stable while
+that anchor remains in the component and needs no counter or persisted id.
+
+The graph is explicitly derived from World truth. Successful Chunk load
+replaces one Chunk's node set; successful unload removes it after persistence
+succeeds. Block or block-entity mutation reconciles the affected position.
+Malformed, mismatched, stale and unloaded state fails closed.
+
+#### Implementation
+
+`MechanicalTopology` owns concrete node, port, connection and component types,
+plus copied node/debug snapshots. It runs under the existing World mutex and
+has no worker, event subscriber or serialized state. A duplicate observation is
+a no-op; an actual change performs the bounded full rebuild chosen for v0.
+
+Crusher alone declares `MechanicalPort`. Capability access revalidates the live
+block/entity before returning its copied topology view. The normal Crusher
+container displays network id, node count and connection count, while the debug
+panel exposes total nodes, edges, components, revision and rebuild cost.
+
+#### Validation
+
+`HELLOMINE3D_WORLD_SMOKE_FOCUS=C3-TOPOLOGY` passes `68/68`: 51 retained C2
+checks plus 17 C3 checks cover deterministic identity, all-axis adjacency,
+canonical edges, merge/split/reconnect, no-op revision, Chunk replace/remove,
+normal place/break, capability failure boundaries, unload/reload and save/reopen.
+The static gate freezes the Crusher-only graph, six faces, World/Chunk hooks,
+normal UI labels and save-v12 non-persistence:
+
+```powershell
+& .\tools\validate_mechanical_topology.ps1 -Root (Get-Location).Path
+```
+
+The complete VS2017/v141 result and isolated package identity are recorded in
+the C3 report; AI gameplay remains `NOT_RUN` and human subjective experience is
+`NOT_CLAIMED`.
+
+#### Trade-offs
+
+A full deterministic rebuild is less scalable than an incremental split/merge
+algorithm, but the graph is bounded by loaded Crushers and every transition is
+easy to audit. Synchronous ownership avoids a second lock and stale publication
+protocol. Ports do not rotate, topology does not transfer power, and every
+Crusher still needs its own hand crank. C4 may add mechanical simulation only
+after separate approval; a generic network still requires a second real graph.
+
+Related evidence:
+
+- `docs/contracts/mechanical-topology-model-v0-contract-v1.md`
+- `docs/reports/architecture-lab-c3-mechanical-topology-report-v1.md`
+- `tools/validate_mechanical_topology.ps1`

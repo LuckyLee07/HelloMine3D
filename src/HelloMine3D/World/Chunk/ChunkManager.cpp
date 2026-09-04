@@ -200,6 +200,7 @@ bool ChunkManager::finishChunkLoadJob(ChunkLoadJob &job)
         m_world->getEventBus().publish(ChunkGeneratedEvent(key));
     }
     m_world->reconcileBlockLightAfterChunkLoad(key.x, key.z);
+    m_world->synchronizeMechanicalChunkUnlocked(key);
     m_world->getEventBus().publish(
         ChunkLoadedEvent(key, job.loadedFromStorage));
     return true;
@@ -469,6 +470,7 @@ void ChunkManager::loadChunk(int x, int z)
     }
 
     m_world->reconcileBlockLightAfterChunkLoad(x, z);
+    m_world->synchronizeMechanicalChunkUnlocked(chunkPosition);
 
     m_world->getEventBus().publish(
         ChunkLoadedEvent(chunkPosition, loadedFromStorage));
@@ -543,6 +545,7 @@ bool ChunkManager::unloadChunk(int x, int z)
     m_world->removeRandomTickSectionsForChunk(x, z);
     chunk->transitionDataResidency(ChunkDataResidencyState::Absent);
     m_chunks.erase({x, z});
+    m_world->removeMechanicalChunkUnlocked({x, z});
     m_world->reconcileBlockLightAfterChunkUnload(x, z, height);
     m_world->getEventBus().publish(ChunkUnloadedEvent({x, z}));
     return true;

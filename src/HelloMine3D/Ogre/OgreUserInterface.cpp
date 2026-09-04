@@ -2522,6 +2522,11 @@ class OgreUserInterface::Impl
         {
             const bool isCrusher = capabilities.machineProcessor->kind() ==
                 MachineProcessorKind::Crusher;
+            std::optional<MechanicalNodeSnapshot> mechanicalNode;
+            if (isCrusher && capabilities.mechanicalPort)
+            {
+                mechanicalNode = capabilities.mechanicalPort->view(*world);
+            }
             const std::string machineKey = isCrusher
                 ? "crusher"
                 : "furnace";
@@ -2602,6 +2607,21 @@ class OgreUserInterface::Impl
                        machineStatusName(processor->status));
                 ImGui::Text("%s: %s", tr("machine.status").c_str(),
                             statusText.c_str());
+                if (mechanicalNode)
+                {
+                    ImGui::Text("%s: %s",
+                        tr("crusher.network_id").c_str(),
+                        mechanicalNetworkIdString(
+                            mechanicalNode->networkId).c_str());
+                    ImGui::Text("%s: %llu",
+                        tr("crusher.network_nodes").c_str(),
+                        static_cast<unsigned long long>(
+                            mechanicalNode->nodeCount));
+                    ImGui::Text("%s: %llu",
+                        tr("crusher.network_connections").c_str(),
+                        static_cast<unsigned long long>(
+                            mechanicalNode->connectionCount));
+                }
                 if (processor->manualPowerSupported &&
                     ImGui::Button(
                         label("crusher.crank", "##CrusherCrank").c_str(),
@@ -3349,6 +3369,21 @@ class OgreUserInterface::Impl
                     worldStats.spatialInterest.totalCells),
                 static_cast<unsigned long long>(
                     worldStats.spatialInterest.demandRevision));
+            ImGui::Text(
+                "Mechanical nodes/edges/components: %llu / %llu / %llu (rev %llu, rebuild %llu, visited %llu%s)",
+                static_cast<unsigned long long>(
+                    worldStats.mechanicalTopology.nodes),
+                static_cast<unsigned long long>(
+                    worldStats.mechanicalTopology.connections),
+                static_cast<unsigned long long>(
+                    worldStats.mechanicalTopology.components),
+                static_cast<unsigned long long>(
+                    worldStats.mechanicalTopology.revision),
+                static_cast<unsigned long long>(
+                    worldStats.mechanicalTopology.rebuildCount),
+                static_cast<unsigned long long>(
+                    worldStats.mechanicalTopology.lastVisitedNodes),
+                worldStats.mechanicalTopology.dirty ? ", dirty" : "");
             ImGui::Text(
                 "Job ms queue/worker/commit: %.3f / %.3f / %.3f",
                 worldStats.worldJobs.lastQueueLatencyMilliseconds,

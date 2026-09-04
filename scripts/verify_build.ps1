@@ -67,6 +67,8 @@ $blockCapabilityModelVerifier = Join-Path $repoRoot `
     "tools\validate_block_capability_model.ps1"
 $machineRuntimeVerifier = Join-Path $repoRoot `
     "tools\validate_machine_runtime.ps1"
+$mechanicalTopologyVerifier = Join-Path $repoRoot `
+    "tools\validate_mechanical_topology.ps1"
 
 function Invoke-Checked {
     param(
@@ -235,6 +237,10 @@ try {
 
     Invoke-Checked "C2 Machine Runtime v0" {
         & $machineRuntimeVerifier -Root $repoRoot
+    }
+
+    Invoke-Checked "C3 Mechanical Topology Model v0" {
+        & $mechanicalTopologyVerifier -Root $repoRoot
     }
 
     Invoke-Checked "Resource manifest" {

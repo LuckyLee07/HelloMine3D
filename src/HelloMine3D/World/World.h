@@ -16,6 +16,7 @@
 #include "../Actor/ActorManager.h"
 #include "../Actor/PlayerActor.h"
 #include "../Item/Material.h"
+#include "../Mechanical/MechanicalTopology.h"
 #include "../Maths/Frustum.h"
 #include "../Maths/glm.h"
 #include "../Sandbox/Events/SandboxEventBus.h"
@@ -106,6 +107,7 @@ struct WorldDebugStats {
     ChunkBackpressureDebugStats streamingBackpressure;
     TerrainBufferMetrics terrainBuffers;
     WorldSimulationSnapshot simulation;
+    MechanicalTopologyDebugSnapshot mechanicalTopology;
     std::size_t actorCount = 0;
     std::size_t naturalMobCount = 0;
     std::size_t naturalMobWorldCap = 0;
@@ -224,6 +226,8 @@ class World : public NonCopyable {
     removeBlockEntity(const glm::ivec3 &position);
     std::vector<glm::ivec3> collectLoadedBlockEntityPositions(
         const std::string &type);
+    std::optional<MechanicalNodeSnapshot>
+    getMechanicalNodeSnapshot(const glm::ivec3 &position);
 
     void tick(int worldTime);
     void update(const Camera &camera);
@@ -376,6 +380,9 @@ class World : public NonCopyable {
     void reconcileBlockLightAfterChunkLoad(int chunkX, int chunkZ);
     void reconcileBlockLightAfterChunkUnload(int chunkX, int chunkZ,
                                              int height);
+    void refreshMechanicalNodeUnlocked(const glm::ivec3 &position);
+    void synchronizeMechanicalChunkUnlocked(const VectorXZ &chunkPosition);
+    void removeMechanicalChunkUnlocked(const VectorXZ &chunkPosition);
     void updateRandomTickSection(const glm::ivec3 &section, bool active);
     void removeRandomTickSectionsForChunk(int chunkX, int chunkZ);
     void runRandomTicks(int worldTime);
@@ -431,6 +438,7 @@ class World : public NonCopyable {
     WaystoneActionResult triggerWaystoneResonancePulse(
         const glm::ivec3 &position);
 
+    MechanicalTopology m_mechanicalTopology;
     ChunkManager m_chunkManager;
     std::mutex m_mainMutex;
     ChunkRuntime m_chunkRuntime;

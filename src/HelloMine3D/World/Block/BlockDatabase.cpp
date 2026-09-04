@@ -473,7 +473,8 @@ BlockDatabase::BlockDatabase()
              std::make_unique<CrusherBlockBehavior>(),
              {CrusherContainer::BlockEntityType,
               InventoryProviderKind::Crusher,
-              MachineProcessorKind::Crusher});
+              MachineProcessorKind::Crusher,
+              MechanicalPortKind::CrusherAllFaces});
 }
 
 BlockDatabase &BlockDatabase::get()

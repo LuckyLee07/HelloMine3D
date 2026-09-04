@@ -1688,6 +1688,11 @@ WorldRuntime `963/963`、Recipe `126/126`、Resource Pack `80/80`、启动负例
 
 ## C3 — Mechanical Topology Model v0
 
+> 当前状态：`Done`。项目所有者于 2026-09-04 批准继续首个 C3 候选；冻结边界见
+> `docs/contracts/mechanical-topology-model-v0-contract-v1.md`。本批只以 C2 Crusher 证明六面相邻、
+> merge/split、Chunk unload/reload、save/reopen 派生重建与正常容器 UI 观察，不包含或自动批准
+> C4-C11、动力传播、通用网络或 Track D。
+
 这是第一种真实网络的具体拓扑模型，不是 Generic Network Framework。
 
 数据结构：
@@ -1743,6 +1748,22 @@ Merge、Split、TopologyDirty 语义值得共享。
 ### 教程
 
 **Chapter 18：先让机械网络证明动态图问题**
+
+### C3 实施记录（2026-09-04）
+
+C2 Crusher 已成为唯一真实 Mechanical node。当前加载且通过严格 Crusher payload 校验的节点按六面
+相邻连接；X/Y/Z 字典序最小节点是稳定 component id，正轴枚举保证 edge 只计一次。正常 block/entity
+mutation、成功 Chunk load/unload 和 save/reopen 都从权威世界状态同步或重建派生图；无 topology 数据
+进入 save v12。Crusher 容器显示 network id、node count 和 connection count，开发者面板显示图规模、
+revision、rebuild count、visited nodes 与 dirty。
+
+聚焦 Debug 路径通过 `68/68`（保留 C2 51 项 + C3 17 项）；正式 VS2017/v141 Debug/Release 完整门禁
+均通过 WorldRuntime `980/980`、Recipe `126/126`、Resource Pack `80/80` 和启动负例 `15/15`，两轮短
+soak、隐藏客户端、崩溃诊断及 105 项隔离包也通过。Release 可执行文件 SHA-256 为
+`61F771F24DC46C830C488E7DEFAD0C234B2035C449172A80F2B41F7537244054`，隔离包 SHA-256 为
+`8CC3ED1FC37A0F115D57C3C56349BE3278AA4B35D9DAD33975D9B45B3D46776F`。最终结果是
+`PASS real_window=DEFERRED`；AI 场景保持 `NOT_RUN`，人类主观体验保持 `NOT_CLAIMED`。C4 及其他
+候选没有因此自动获批。
 
 ---
 

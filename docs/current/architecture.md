@@ -1,7 +1,7 @@
 # HelloMine3D Current Architecture Baseline
 
 本文以 `AL-A0 — Latest Architecture Baseline` 的完整审计为起点，并随已完成的
-AL-A1/AL-A2/AL-A3/AL-A4/AL-A5/AL-A6/B1/B2/B3/B4/B5/B6/B10/C1/C2 更新当前实现；它描述代码事实，而不是未来目标架构。
+AL-A1/AL-A2/AL-A3/AL-A4/AL-A5/AL-A6/B1/B2/B3/B4/B5/B6/B10/C1/C2/C3 更新当前实现；它描述代码事实，而不是未来目标架构。
 审计起点为 Git commit `4930023fb2f3022daac9968c10a1a0b76e1ac392`；冻结的
 PLAYABILITY-RC 运行时代码身份仍是
 `320e293c2f1db7f46aba776ddccdcf94369f2d05`。A0 只更新文档，没有移动源码、改变 Gameplay、
@@ -28,8 +28,9 @@ Premake 从共享的 `src/HelloMine3D` 与资源边界生成 `build/` 下工程�
 
 ## 2. First-party Top-level Module Inventory
 
-下表覆盖审计时 `src/HelloMine3D/` 的全部 17 个顶层目录，以及 5 个根级配置/输入源文件。
-“权威/派生”描述运行时所有权，不表示每个模块只能包含一种数据。
+下表覆盖当前 `src/HelloMine3D/` 的全部 18 个顶层目录，以及 5 个根级配置/输入源文件。既有行的
+`Size at A0` 保留审计快照；C3 新增模块标记其引入时规模。“权威/派生”描述运行时所有权，
+不表示每个模块只能包含一种数据。
 
 | Module | Size at A0 | Responsibility | Authoritative state / derived state | Main dependency direction |
 | ------ | ---------- | -------------- | --------------------------- | ------------------------- |
@@ -44,6 +45,7 @@ Premake 从共享的 `src/HelloMine3D` 与资源边界生成 `build/` 下工程�
 | `Diagnostics/` | 16 / 2,581 | 性能采集、Q2 操作阶段、Tracy 边界、崩溃 dump/sidecar/inbox 和 terrain buffer metrics。 | 指标和崩溃产物是观察/诊断记录，不驱动 Gameplay。 | 可被 World/Sandbox/Ogre 使用；Windows 异常与 DbgHelp 只留在平台实现。 |
 | `Player/` | 4 / 557 | 玩家运动、碰撞、输入应用、库存访问、容器/制作 UI ownership 和保存值。 | `Player` 拥有当前运动、旋转、库存与 UI 打开状态；战斗生命由 World 的 `PlayerActor` 镜像/覆盖后存盘。 | 依赖 Entity、Item、World 查询、Sandbox Events；由 SandboxRuntime 拥有。 |
 | `Item/` | 21 / 3,866 | Material/ItemStack、库存/容器、配方/制作、工具、食物、冶炼、C2 machine process 定义和资源经济校验。 | 冻结注册表与 Inventory/Container 内容为各自域的权威值；预览、process observation 和统计为派生。 | 主要依赖 Util，少数交互边界依赖 World；被 Player/World/Gameplay/UI 消费。 |
+| `Mechanical/` | 2 / 305 (C3) | C2 Crusher 的六面相邻节点、连接、component、merge/split 和 copied topology snapshot。 | 当前已加载 Crusher 方块/严格 payload 是权威输入；network id、component、edge 与统计全部可重建且不持久化。 | 只依赖 Maths 值；由 World 在既有锁内同步，Block capability/UI 只消费 copied snapshot；不依赖 Ogre、Storage 或 C4 power。 |
 | `Physics/` | 1 / 45 | AABB 数据和碰撞辅助边界。 | 无独立生命周期所有权；AABB 是 Entity/Player/Actor 的空间值。 | 依赖 Maths；被 Entity/World 使用。 |
 | `Entity/` | 1 / 32 | 最低层 position/velocity/rotation/AABB 数据基类。 | 不拥有对象生命周期；派生实例由 Player 或 ActorManager 拥有。 | 依赖 Maths/Physics；被 Player、Actor、Camera 使用。 |
 | `Core/` | 2 / 79 | 当前只有逻辑 Camera：跟随目标、矩阵和 frustum。 | Camera 是从玩家/配置推导的视图状态，不是世界真值。 | 依赖 Config、Entity、Maths；被 Sandbox、World streaming priority 和 Ogre 使用。 |
@@ -70,6 +72,7 @@ SandboxRuntime
 World (composition root)
   -> ChunkRuntime -> ChunkManager
   -> WorldSimulation -> existing World/Actor/Gameplay implementations
+  -> MechanicalTopology (derived loaded-Crusher connectivity)
   -> ActorManager + PlayerActor + Gameplay runtimes
   -> SandboxEventBus + WorldSave + WorldBackup
 
@@ -100,9 +103,10 @@ Core / Entity / Physics / Maths / Util
   Processor 后，把真实声明扩展为 Chest/Furnace/Crusher，并从 Furnace/Crusher 提炼 Ogre-free、
   persistence-free 的 `MachineRuntime` 五态与单 tick 转换。`BlockCapabilityAccess` 只复制观察值并把
   命令委托给具体容器；库存、燃料/手摇动力、payload 和完成副作用仍归具体 owner，当前没有第二套
-  Capability/recipe Registry。
+  Capability/recipe Registry。C3 又只为真实 Crusher 声明六面 `MechanicalPort`，并从当前已加载
+  block/entity truth 同步派生具体 topology；它不持久化 component id，也不传播动力。
 
-### 3.1 C1/C2 capability access and machine transition path
+### 3.1 C1/C2/C3 capability, machine and topology path
 
 ```text
 BlockDatabase -> BlockDefinition.capabilities
@@ -111,10 +115,11 @@ loaded block + matching block-entity record
                          v
                BlockCapabilityAccess
                   /              \
-       InventoryProvider     MachineProcessor
+       InventoryProvider     MachineProcessor       MechanicalPort
       Chest/Furnace/Crusher    Furnace/Crusher
                   \              /
-                   Ogre container UI
+                  \              |                 /
+                   +------- Ogre container UI -----+
 
 WorldSimulation::BlockEntitySimulation
           |                         |
@@ -124,6 +129,15 @@ WorldSimulation::BlockEntitySimulation
           \                         /
            +----> MachineRuntime <+
              pure five-state transition
+
+World block/entity mutation + successful Chunk load/unload
+                         |
+                         v
+                MechanicalTopology
+          six-face BFS merge/split rebuild
+                         |
+                         v
+            copied node/component snapshot
 ```
 
 Chest exposes nine general insert/extract slots with automatic insertion.
@@ -138,8 +152,9 @@ power, then advances at most one fixed tick or completes atomically. Its states
 are `Idle / MissingInput / BlockedOutput / NoPower / Running`; no state or
 recipe id is persisted. Furnace owns its existing fuel, lighting, event and v1
 payload semantics, while Crusher owns crank admission and Crusher payload v1.
-`MechanicalPort` remains absent until a concrete C3 mechanical node is
-separately approved.
+`MechanicalPort` 只由 Crusher 声明。它再次核对 live block/entity identity，再读取 World 锁内的
+copied topology snapshot；缺失、错配、损坏或已卸载状态 fail closed。C3 的 network id 是 component
+中 X/Y/Z 字典序最小位置，未序列化；每台 Crusher 仍独立手摇，连接不影响 C2 processing。
 
 ## 4. World Public API Surface
 
@@ -148,7 +163,7 @@ separately approved.
 | Group | Current public surface |
 | ----- | ---------------------- |
 | 生命周期 | constructor/destructor；构造时加载/创建存档、预载、恢复 Actor/进度并可启动 loader。 |
-| Block query/mutation | `getBlock`、`getSunlight`、`getBlockLight`、`setBlock`；block entity 的 get/create/update/remove/list。 |
+| Block query/mutation | `getBlock`、`getSunlight`、`getBlockLight`、`setBlock`；block entity 的 get/create/update/remove/list；`getMechanicalNodeSnapshot` 返回派生连接快照。 |
 | Tick/streaming/mesh | `tick`、`update`、render distance get/set、`resetChunkMeshes`、`updateChunk`、`preloadAround`、`startBackgroundLoader`。 |
 | Persistence/observation | `save`、`getWorldTime`、`collectDebugStats`、`collectSectionMeshSnapshot`、mesh upload acknowledgement。 |
 | Actor/combat | spawn item/mob、attack/damage/guard、combat budget/query、melee/projectile resolve、Actor/projectile snapshots。 |
@@ -163,7 +178,7 @@ separately approved.
 `AL-A1` 为每个公开方法分配两个正交标签：API concept 描述调用语义，responsibility 描述当前主要
 实现领域。重载只列一次；完整声明、重载、公开常量和签名由 public-surface hash 共同保护。
 
-<!-- AL-A1-WORLD-API-HASH sha256=8B2CDDF30B70DA91D5EF4944D7E1397BC9434EB0E129B9313DA471143F653EC4 -->
+<!-- AL-A1-WORLD-API-HASH sha256=D6D45DAC48E25A0FE19DFF375C8A7E4AAFFC96B06CD23A41E530482FBFB89B54 -->
 <!-- AL-A1-WORLD-API-MAP-BEGIN -->
 | API | Concept | Responsibility | Current boundary |
 | --- | ------- | -------------- | ---------------- |
@@ -197,6 +212,7 @@ separately approved.
 | `getEventBus` | `Query` | `World Query` | 旧 mutable subscription/publish escape hatch。 |
 | `getExplorationRewardSnapshot` | `Query` | `Progression` | 探索奖励能力快照。 |
 | `getFoodCooldownTicksRemaining` | `Query` | `Progression` | 食物恢复冷却查询。 |
+| `getMechanicalNodeSnapshot` | `Query` | `World Query` | 返回指定已加载 Crusher 的派生机械 component 值快照。 |
 | `getObjectiveSnapshot` | `Query` | `Progression` | 当前目标只读快照。 |
 | `getPlayer` | `Query` | `Actor` | 旧 non-owning mutable Player escape hatch。 |
 | `getPlayerGuardRecoverDurationTicks` | `Query` | `Combat` | 防御恢复时长查询。 |
@@ -259,9 +275,9 @@ separately approved.
 
 当前调用关系把边界进一步钉死：`SandboxRuntime/WorldManager` 驱动 `tick/update` 和玩家命令，
 `OgreBootstrap` 消费 mesh/Actor/diagnostic snapshot 并确认 upload，Actor/Block/Interaction 代码通过
-Combat、Actor、World Mutation 与 EventBus 入口协作。AL-A2/AL-A3 都保持这些调用者和 78 项公开面
-不变：Streaming 方法内部转发给 `ChunkRuntime`，20 Hz `World::tick(int)` 内部转发给
-`WorldSimulation::fixedTick`。
+Combat、Actor、World Mutation 与 EventBus 入口协作。AL-A2/AL-A3 都保持当时的 78 项公开面不变；
+C3 为正常 capability 观察新增 `getMechanicalNodeSnapshot`，当前为 79 项：Streaming 方法内部转发给
+`ChunkRuntime`，20 Hz `World::tick(int)` 内部转发给 `WorldSimulation::fixedTick`。
 
 该表解释了 AL-A1 的真实动机：查询、命令、模拟、流送、持久化、Actor、战斗、进度和诊断目前
 都暴露在一个 facade 中。A1 只冻结责任与新增入口规则，不改变旧调用者或兼容性。
@@ -270,7 +286,7 @@ Combat、Actor、World Mutation 与 EventBus 入口协作。AL-A2/AL-A3 都保�
 
 | Member group | Members | Current responsibility |
 | ------------ | ------- | ---------------------- |
-| Core composition | `m_chunkManager`, `m_chunkRuntime`, `m_worldSimulation`, `m_actorManager`, `m_playerActor`, `m_eventBus`, `m_player` | World 按值拥有 Chunk 权威存储、Chunk 派生工作协调、fixed-tick 编排和 Actor/Event 生命周期；SandboxRuntime 拥有 Player，World 保存 non-owning pointer 并维护战斗 Actor 镜像。 |
+| Core composition | `m_mechanicalTopology`, `m_chunkManager`, `m_chunkRuntime`, `m_worldSimulation`, `m_actorManager`, `m_playerActor`, `m_eventBus`, `m_player` | World 按值拥有 Chunk 权威存储、C3 派生机械连通性、Chunk 派生工作协调、fixed-tick 编排和 Actor/Event 生命周期；SandboxRuntime 拥有 Player，World 保存 non-owning pointer 并维护战斗 Actor 镜像。 |
 | Persistence | `m_worldSave`, `m_worldBackup`, `m_worldSaveData`, save counters/timings | 元数据读写、整世界备份、当前保存 payload 与可观察耗时。 |
 | Progression | `m_alphaJourney`, `m_victoryFlow`, Waystone anchor/state/guardian ids/cooldown/feedback | 目标兼容视图、结局、遭遇和胜利后状态。 |
 | Frame command/event queue | `m_events` | `PlayerDigEvent` 等延迟到 `World::update` 处理；区别于同步 typed event bus。 |
@@ -302,8 +318,9 @@ World (public facade / composition root)
   section revision 与同 revision GPU acknowledgement；
 - 每 loader pass 至多 8 个 authoritative commit interval，以及不持久化的 copied pressure diagnostics。
 
-这些对象是派生数据或工作协调，不拥有 block/light/save truth。`World` 的 78 项公开面保持 AL-A1
-hash 不变；`World::planChunkMeshWork` 也只转发到纯 `ChunkRuntime::planMeshWork`。
+这些对象是派生数据或工作协调，不拥有 block/light/save truth。AL-A2 至 B10 保持当时的 78 项公开面；
+C3 为 copied topology observation 增至 79 项并同步更新 machine-checked hash；
+`World::planChunkMeshWork` 仍只转发到纯 `ChunkRuntime::planMeshWork`。
 
 `World` 按值拥有一个 `ChunkManager`；`ChunkManager` 保存 non-owning `World*` 以调用光照协调和发布
 事件。其当前职责为：
@@ -580,7 +597,7 @@ Design Evolution、Implementation、Validation 和 Trade-offs 七个非空逻辑
 Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先于编译执行。该验证保护文档身份，
 不证明文字质量，也不把 roadmap proposal 提升成实现事实。
 
-## 14. Current Conclusions Through C2
+## 14. Current Conclusions Through C3
 
 - 当前可玩的系统已经有清晰的 Renderer-to-Snapshot 边界和可验证持久化边界。
 - `World` 仍承担 facade、组合根和多套 Simulation 玩法状态；AL-A2/AL-A3/AL-A4/AL-A5 只关闭了四条由真实工作
@@ -606,5 +623,8 @@ Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先
   recipe/output/power/progress 的纯状态转换，没有 Capability/recipe Registry 或继承层次。
 - Crusher 是正常可制作、放置、Use、卸载与保存重开的玩法块；其 20-tick pulse、40-tick cap 和
   `Cobblestone -> Sand` 单一 process 为 Machine Runtime 提供真实压力，同时不进入 34 目标和胜利链。
-- C2 完成不构成 B7-B9、C3-C11、Track D、`MechanicalPort`、网络或 Extended 的自动启动权限；后续
+- C3 只把当前已加载且通过严格 payload 校验的 Crusher 投影成六面相邻图。component id 取 X/Y/Z
+  字典序最小节点；canonical edge、同步 BFS merge/split、Chunk replace/remove 与 copied snapshot
+  都是派生状态，不写入 save v12，也不改变每台 Crusher 独立手摇的 C2 行为。
+- C3 完成不构成 B7-B9、C4-C11、Track D、动力传播、通用网络或 Extended 的自动启动权限；后续
   只有进入任务账本并单独获批的具名批次才可实施。

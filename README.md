@@ -16,8 +16,8 @@ persistence, diagnostics and packaging layers have been rebuilt.
 
 | | |
 | --- | --- |
-| **Source** | 304 files, ~73.8k lines of C++ |
-| **Automated checks** | 963 world-runtime · 126 recipe · 80 resource-pack · 15 startup-negative — Debug and Release complete |
+| **Source** | 306 files, ~74.5k lines of C++ |
+| **Automated checks** | 980 world-runtime · 126 recipe · 80 resource-pack · 15 startup-negative — Debug and Release complete |
 | **Test executables** | 13 |
 | **Persisted formats** | save `v12`, terrain `v4`, settings `v8` — every one migrates from `v1` |
 | **Performance gates** | 6 versioned scenes with baseline/repeat comparison, bounded stage timings, 2 × 1800 s soak |
@@ -179,12 +179,13 @@ isolated root.
 
 Architecture Lab batches AL-A0 through AL-A6 and Track B Core B1-B6/B10 are complete. The B10
 gate passes `920/920` world assertions in both configurations, a 1,800-second five-phase stress
-run with zero failures, all six final Q1 comparisons, and a 104-entry clean package. C1 and C2 are
-also complete: Chest/Furnace/Crusher expose capability access, while Furnace and the playable
-hand-cranked Crusher share only the machine transition their real behavior proves. The C2 gate
-passes `963/963` world assertions and `126/126` recipe/economy checks in Debug and Release; its
-105-entry isolated package hashes to
-`B4D73704A93B4377EB26336592448B4E31439387BA6198B49C59704517775739`. B7-B9, C3-C11,
+run with zero failures, all six final Q1 comparisons, and a 104-entry clean package. Track C now
+completes C1-C3: Chest/Furnace/Crusher expose capability access, Furnace and the playable
+hand-cranked Crusher share only proven machine transitions, and loaded valid Crushers form a
+deterministic six-face topology with observable merge/split and load/reopen reconstruction. The C3
+gate passes `980/980` world assertions and `126/126` recipe/economy checks in Debug and Release;
+its 105-entry isolated package hashes to
+`8CC3ED1FC37A0F115D57C3C56349BE3278AA4B35D9DAD33975D9B45B3D46776F`. B7-B9, C4-C11,
 Track D and Extended capabilities remain unapproved candidates.
 
 This is a personal architecture-learning and showcase project, not a commercial product with an

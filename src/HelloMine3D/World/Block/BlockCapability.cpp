@@ -42,6 +42,16 @@ bool matchesCurrentProcessor(World &world, const glm::ivec3 &position,
     return current.machineProcessor.has_value() &&
            current.machineProcessor->kind() == kind;
 }
+
+bool matchesCurrentMechanicalPort(World &world,
+                                  const glm::ivec3 &position,
+                                  MechanicalPortKind kind)
+{
+    const BlockCapabilities current =
+        BlockCapabilityAccess::query(world, position);
+    return current.mechanicalPort.has_value() &&
+           current.mechanicalPort->kind() == kind;
+}
 } // namespace
 
 BlockCapabilities BlockCapabilityAccess::query(
@@ -71,7 +81,21 @@ BlockCapabilities BlockCapabilityAccess::query(
         result.machineProcessor =
             MachineProcessor(position, declared.machineProcessor);
     }
+    if (declared.mechanicalPort != MechanicalPortKind::None) {
+        result.mechanicalPort =
+            MechanicalPort(position, declared.mechanicalPort);
+    }
     return result;
+}
+
+std::optional<MechanicalNodeSnapshot>
+MechanicalPort::view(World &world) const
+{
+    if (m_kind != MechanicalPortKind::CrusherAllFaces ||
+        !matchesCurrentMechanicalPort(world, m_position, m_kind)) {
+        return std::nullopt;
+    }
+    return world.getMechanicalNodeSnapshot(m_position);
 }
 
 std::optional<InventoryProviderView> InventoryProvider::view(

@@ -36,5 +36,7 @@ effect/republish、有界递归、诊断隔离和查询非 mutation 边界。
 Chunk 三套状态、Streaming Demand、typed World Job Scheduler、generation cancellation 和
 Streaming Backpressure；B6 Spatial Activation 已通过 `12/12` 聚焦验证和双配置 `918/918` 完整门禁。
 B10 Large World Stress & Acceptance 已通过 1800 秒/36000 ticks 正式 Core、双确定性探针、双配置
-`920/920` 组成式门禁和最终 Q1；当前没有自动获批的下一批。后续批次仍须在 `todolist.md` 中写明真实需求、合同、可观察
-证据和范围边界，不能由长期路线自动授权。
+`920/920` 组成式门禁和最终 Q1。Track C 的 C1-C3 已依次完成 Capability、Machine Runtime 与
+Crusher-only Mechanical Topology；C3 聚焦 `68/68`、双配置完整门禁 `980/980`，当前没有已批准但
+未完成的开发批次。后续批次仍须在 `todolist.md` 中写明真实需求、合同、可观察证据和范围边界，
+不能由长期路线自动授权。
