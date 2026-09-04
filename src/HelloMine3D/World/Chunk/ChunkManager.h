@@ -136,7 +136,7 @@ class ChunkManager {
                            double buildMilliseconds) noexcept;
 
     void loadChunk(int x, int z);
-    void unloadChunk(int x, int z);
+    bool unloadChunk(int x, int z);
     bool saveChunk(Chunk &chunk);
     bool saveDirtyChunks();
 

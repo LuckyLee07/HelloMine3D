@@ -461,6 +461,16 @@ the remainder of a 30-second capture so final residency is comparable. Q1 and
 Q2 are therefore `Done`; future candidates compare against these tracked
 limits rather than regenerating or relaxing them.
 
+The B10 closeout recaptures the affected fast-streaming client plus save and
+backup operations after the final Release build. All six tracked pairs still
+compare `PASS`. At `rc-ring-12-chunks-v2`, frame P95 is `4.796/4.508 ms`,
+Chunk-visible P95 is `204.013/192.133 ms`, queue peak is `5/5`, and peak private
+bytes are `266620928/272883712`. Save total/stall is `121.275/135.304 ms` and
+backup restore total is `52.128/53.393 ms`. The unchanged limits and the
+2026-09-04 PASS manifest remain under
+`docs/baselines/release-candidate-windows-hidden-v1/`; no performance exception
+was used.
+
 Q2 now supplies the first four scene families' operation-side phase values.
 `OperationPerformanceTiming` uses the same `HELLO_PERF_CAPTURE` switch as the
 frame collector, retains at most 32 records and appends the newest complete

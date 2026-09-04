@@ -34,6 +34,7 @@ effect/republish、有界递归、诊断隔离和查询非 mutation 边界。
 `AL-A5` 已为四个真实 Simulation phase 冻结 last-tick processed/deferred/budget 观察、scope/status
 词汇和开发者面板；`AL-A6` 已完成单一 living tutorial 流水线。Track B 的 B1-B5 已依次完成
 Chunk 三套状态、Streaming Demand、typed World Job Scheduler、generation cancellation 和
-Streaming Backpressure；B6 Spatial Activation 已通过 `12/12` 聚焦验证和双配置 `918/918` 完整门禁，
-下一候选为 B10 Large World Stress & Acceptance。后续批次仍须在 `todolist.md` 中写明真实需求、合同、可观察
+Streaming Backpressure；B6 Spatial Activation 已通过 `12/12` 聚焦验证和双配置 `918/918` 完整门禁。
+B10 Large World Stress & Acceptance 已通过 1800 秒/36000 ticks 正式 Core、双确定性探针、双配置
+`920/920` 组成式门禁和最终 Q1；当前没有自动获批的下一批。后续批次仍须在 `todolist.md` 中写明真实需求、合同、可观察
 证据和范围边界，不能由长期路线自动授权。

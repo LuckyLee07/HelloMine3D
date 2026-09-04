@@ -2494,16 +2494,19 @@ namespace
             m_fastStreamingTarget = {
                 m_fastStreamingOrigin.x + offset.x,
                 m_fastStreamingOrigin.z + offset.z};
-            m_worldPlayer->position = {
+            const glm::vec3 destination{
                 static_cast<float>(m_fastStreamingTarget.x * CHUNK_SIZE +
                                    CHUNK_SIZE / 2),
                 m_worldPlayer->position.y,
                 static_cast<float>(m_fastStreamingTarget.z * CHUNK_SIZE +
                                    CHUNK_SIZE / 2)};
-            m_worldPlayer->velocity = glm::vec3(0.f);
-            m_worldPlayer->box.update(m_worldPlayer->position);
+            if (!m_sandbox->getWorldManager().teleportPlayer(
+                    *m_worldPlayer, destination))
+            {
+                throw std::runtime_error(
+                    "RC fast-streaming teleport was rejected");
+            }
             m_logicCamera->update();
-            m_world->preloadAround(m_worldPlayer->position);
             m_fastStreamingStarted = std::chrono::steady_clock::now();
             m_fastStreamingPending = true;
         }

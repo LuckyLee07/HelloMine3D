@@ -51,11 +51,11 @@ void SectionMeshInput::capture(
     }
 
     for (int neighbour = 0; neighbour < 4; ++neighbour) {
-        ChunkSection &adjacent = section.getAdjacent(
+        const ChunkSection *adjacent = section.findAdjacent(
             kNeighbourOffsetX[neighbour], kNeighbourOffsetZ[neighbour]);
         for (int y = 0; y < CHUNK_SIZE; ++y) {
             m_neighbourLayerAllSolid[neighbour][y] =
-                adjacent.getLayer(y).isAllSolid();
+                adjacent != nullptr && adjacent->getLayer(y).isAllSolid();
         }
     }
 }

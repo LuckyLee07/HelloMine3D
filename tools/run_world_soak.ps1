@@ -5,7 +5,7 @@ param(
     [int]$Seed = 20260813,
     [int]$SampleIntervalSeconds = 5,
     [int]$ShutdownGraceSeconds = 180,
-    [ValidateSet("legacy", "nominal", "stress")]
+    [ValidateSet("legacy", "nominal", "stress", "track-b-core")]
     [string]$Profile = "legacy",
     [switch]$Formal
 )
@@ -21,7 +21,7 @@ if ($DurationSeconds -lt 1 -or $DurationSeconds -gt 86400) {
     throw "DurationSeconds must be between 1 and 86400."
 }
 if ($Formal -and $DurationSeconds -lt 1800) {
-    throw "A formal R2 run must last at least 1800 seconds."
+    throw "A formal R2/B10 run must last at least 1800 seconds."
 }
 if ($SampleIntervalSeconds -lt 1 -or $SampleIntervalSeconds -gt 60) {
     throw "SampleIntervalSeconds must be between 1 and 60."
@@ -95,7 +95,16 @@ $started = Get-Date
 $samples = @()
 $timedOut = $false
 Write-Host "[WORLD_SOAK] started pid=$($process.Id) durationSeconds=$DurationSeconds formal=$($Formal.IsPresent)"
-Write-Host "[WORLD_SOAK] outputDir=$OutputDir seed=$Seed profile=$Profile scheduleVersion=$(if ($Profile -eq 'legacy') { 1 } else { 2 })"
+$scheduleVersion = if ($Profile -eq "legacy") {
+    1
+}
+elseif ($Profile -eq "track-b-core") {
+    3
+}
+else {
+    2
+}
+Write-Host "[WORLD_SOAK] outputDir=$OutputDir seed=$Seed profile=$Profile scheduleVersion=$scheduleVersion"
 
 while (-not $process.HasExited) {
     try {
@@ -182,6 +191,39 @@ if ($Formal -and
     [int]$worldValues["duration_completed_seconds"] -lt 1800) {
     $failures += "formal_duration_below_1800_seconds"
 }
+if ($Profile -eq "track-b-core") {
+    if ($worldValues["schedule_version"] -ne "3" -or
+        $worldValues["track_b_core"] -ne "true") {
+        $failures += "track_b_core_identity_missing"
+    }
+    foreach ($phase in @(
+            "lw1_straight_run", "lw2_teleport_storm",
+            "lw3_turnaround", "lw4_render_distance_churn",
+            "lw5_edit_and_leave")) {
+        if (-not $worldValues.ContainsKey("${phase}_ticks") -or
+            [int]$worldValues["${phase}_ticks"] -lt 1 -or
+            -not $worldValues.ContainsKey("${phase}_movements") -or
+            [int]$worldValues["${phase}_movements"] -lt 1) {
+            $failures += "track_b_core_phase_missing_$phase"
+        }
+    }
+    if ([int]$worldValues["track_b_render_distance_changes"] -lt 1) {
+        $failures += "track_b_render_distance_churn_missing"
+    }
+    if ([int]$worldValues["track_b_persistence_checks"] -lt 1) {
+        $failures += "track_b_persistence_check_missing"
+    }
+    if ([int]$worldValues["track_b_max_pending_jobs"] -gt 128 -or
+        [int]$worldValues["track_b_max_pending_generation_jobs"] -gt 128 -or
+        [int]$worldValues["track_b_max_pending_mesh_jobs"] -gt 128 -or
+        [int]$worldValues["track_b_max_in_flight_jobs"] -gt 1 -or
+        [int]$worldValues["track_b_max_completed_results"] -gt 1 -or
+        [int]$worldValues["track_b_max_authoritative_commits"] -gt 8 -or
+        [int]$worldValues["track_b_max_section_uploads"] -gt 8 -or
+        [int]$worldValues["track_b_max_unloads"] -gt 8) {
+        $failures += "track_b_core_bound_exceeded"
+    }
+}
 if ($peakPrivate -gt 2GB) {
     $failures += "private_bytes_exceeded_2GiB"
 }
@@ -201,7 +243,7 @@ $summaryLines = @(
     "formal=$($Formal.IsPresent.ToString().ToLowerInvariant())",
     "seed=$Seed",
     "profile=$Profile",
-    "schedule_version=$(if ($Profile -eq 'legacy') { 1 } else { 2 })",
+    "schedule_version=$scheduleVersion",
     "duration_requested_seconds=$DurationSeconds",
     "wall_duration_seconds=$elapsedSeconds",
     "sample_interval_seconds=$SampleIntervalSeconds",

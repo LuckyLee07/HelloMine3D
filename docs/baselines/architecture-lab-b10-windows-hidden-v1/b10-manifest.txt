@@ -1,0 +1,13 @@
+contract=large-world-stress-acceptance-contract-v1
+captured_utc=2026-09-04T05:59:44Z
+formal=true
+build_configuration=Release
+seed=20260902
+duration_seconds=1800
+probe_duration_seconds=10
+schedule_version=3
+phases=LW1,LW2,LW3,LW4,LW5
+real_window=DEFERRED
+ai_acceptance=NOT_RUN
+human_subjective=NOT_CLAIMED
+status=PASS

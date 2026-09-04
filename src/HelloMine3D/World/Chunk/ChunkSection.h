@@ -88,7 +88,7 @@ class ChunkSection : public IChunk {
                                ChunkBlock &block) const;
 
     const Layer &getLayer(int y) const;
-    ChunkSection &getAdjacent(int dx, int dz);
+    const ChunkSection *findAdjacent(int dx, int dz) const;
 
     const ChunkMeshCollection &getMeshes() const
     {

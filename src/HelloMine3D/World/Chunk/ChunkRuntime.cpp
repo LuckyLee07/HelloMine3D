@@ -413,6 +413,14 @@ void ChunkRuntime::unloadDistantChunks(const Camera &camera)
 
     std::vector<VectorXZ> chunksToUnload;
     for (const auto &entry : m_chunkManager.getChunks()) {
+        // Only Resident data is eligible for the Resident ->
+        // EvictRequested -> Absent path. Loading/Generating reservations must
+        // not consume one of the bounded unload slots and starve eligible
+        // Chunks behind them in the map iteration order.
+        if (entry.second.getDataResidencyState() !=
+            ChunkDataResidencyState::Resident) {
+            continue;
+        }
         const glm::ivec2 location = entry.second.getLocation();
         const SpatialInterest interest = SpatialInterestModel::interestAt(
             spatialInterest, {location.x, location.y});
@@ -432,10 +440,14 @@ void ChunkRuntime::unloadDistantChunks(const Camera &camera)
     if (m_unloadBacklog) {
         chunksToUnload.resize(MaxUnloadsPerUpdate);
     }
-    m_lastUnloadCount.store(chunksToUnload.size());
+    std::size_t unloaded = 0;
     for (const VectorXZ &location : chunksToUnload) {
-        m_chunkManager.unloadChunk(location.x, location.z);
+        unloaded += m_chunkManager.unloadChunk(location.x, location.z)
+                          ? 1u
+                          : 0u;
     }
+    m_unloadBacklog = m_unloadBacklog || unloaded < chunksToUnload.size();
+    m_lastUnloadCount.store(unloaded);
 }
 
 void ChunkRuntime::resetMeshes()

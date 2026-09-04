@@ -34,6 +34,7 @@ PASS。新的 AI 场景尚未执行时只写 `NOT_RUN`，不写成永久 `Deferr
 | `AL-A3` Simulation Runtime 边界 | `tools\validate_world_simulation_boundary.ps1` + AL-A1/A2 边界门禁；`HELLOMINE3D_WORLD_SMOKE_FOCUS=AL-A3` 和完整 WorldRuntime；VS2017/v141 Debug/Release 完整门禁。必须保持 8 phase 顺序、20 Hz context、caller-owned pause 和确定性；后续 A5 只能增加观察词汇，仍禁止 Scheduler/Registry 和执行行为变化。 |
 | `AL-A4` Event / Command / Query 边界 | `tools\validate_event_command_query_boundary.ps1` + AL-A1/A2/A3 边界门禁；`HELLOMINE3D_WORLD_SMOKE_FOCUS=AL-A4` 和完整 WorldRuntime；必须保持 typed command FIFO、immutable fact、订阅者 effect/republish、8 层递归、诊断隔离和查询非 mutation 语义。 |
 | `AL-A5` Tick Phase Metrics / Budget 词汇 | `tools\validate_simulation_metrics_boundary.ps1` + AL-A1..A4 边界门禁；`HELLOMINE3D_WORLD_SMOKE_FOCUS=AL-A5` 和完整 WorldRuntime；VS2017/v141 Debug/Release 完整门禁。只允许四个真实 metric phase 的 last-tick elapsed/processed/deferred/budget scope/status；不得改变 hard limit、phase 顺序、Gameplay 或引入 Scheduler/Registry/空系统槽。 |
+| Track B Core（B1-B6/B10） | 逐批静态 gate 与聚焦 WorldRuntime；B10 额外运行 `HELLOMINE3D_WORLD_SMOKE_FOCUS=B10`、正式 schedule-v3 1800 秒五阶段压力、同 seed 双确定性探针、未放宽 Q1 fast-streaming 和完整 VS2017/v141/隔离包门禁。Lifecycle 资格必须在 8 项 unload budget 前过滤，取消 reservation 不得保留无界 `Absent` 墓碑。 |
 
 ## 完整验证路由
 
@@ -62,6 +63,7 @@ PASS。新的 AI 场景尚未执行时只写 `NOT_RUN`，不写成永久 `Deferr
 | R3 v1 / Physical Input v2（历史） | `docs\archive\manual-input-acceptance-v1.md`、`docs\archive\physical-input-acceptance-v2.md` 及原校验器 | 历史物理合同 `SUPERSEDED` 为当前门槛，模板保持 `NOT_RUN`；未来自愿运行也必须遵守原物理语义。 |
 | 开发者视觉检查（历史/补充） | `docs\archive\manual-product-experience-acceptance-v1.md` A 节与既有 PASS 记录 | 已完成记录继续有效；后续可作为 `DEVELOPER_SELF_TEST` 补充 AI 视觉证据。 |
 | 长时间 soak | `tools\run_world_soak.ps1`；正式双 profile 使用 `tools\run_release_candidate_soak.ps1` | 区块/实体生命周期、存档、后台加载 |
+| B10 Track B Core 长稳 | `tools\run_large_world_stress_acceptance.ps1 -Formal` + `tools\validate_large_world_stress_acceptance.ps1 -Evidence` | B1-B6 的 demand/job/cancellation/backpressure/spatial-interest 组合变化；精确 36,000 fixed ticks、LW1-LW5、进程/世界界限与确定性摘要 |
 | 资源包 | `tools\validate_resource_packs.ps1` | manifest、资源解析、启动预检 |
 | 干净发行包 | `tools\package_windows_release.ps1` | 发行包、manifest、资源解析 |
 | 世界目录 | `HelloMine3DWorldCatalogueSmoke` | 世界发现、名称、id、目录 |

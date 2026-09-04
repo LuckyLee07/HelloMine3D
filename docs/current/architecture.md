@@ -1,7 +1,7 @@
 # HelloMine3D Current Architecture Baseline
 
 本文以 `AL-A0 — Latest Architecture Baseline` 的完整审计为起点，并随已完成的
-AL-A1/AL-A2/AL-A3/AL-A4/AL-A5/AL-A6/B1/B2/B3/B4/B5/B6 更新当前实现；它描述代码事实，而不是未来目标架构。
+AL-A1/AL-A2/AL-A3/AL-A4/AL-A5/AL-A6/B1/B2/B3/B4/B5/B6/B10 更新当前实现；它描述代码事实，而不是未来目标架构。
 审计起点为 Git commit `4930023fb2f3022daac9968c10a1a0b76e1ac392`；冻结的
 PLAYABILITY-RC 运行时代码身份仍是
 `320e293c2f1db7f46aba776ddccdcf94369f2d05`。A0 只更新文档，没有移动源码、改变 Gameplay、
@@ -92,7 +92,8 @@ Core / Entity / Physics / Maths / Util
 - `World` 仍是宽 facade/组合根；AL-A2 把现有 Chunk 派生工作与 loader 协调移入
   `ChunkRuntime`，B1 又在不改变该边界的前提下加入三套正交生命周期，B2/B3/B4/B5/B6 分别加入
   bounded demand、typed background work、generation cancellation、streaming pressure control 与
-  spatial interest，仍不改变 World facade。
+  spatial interest；B10 用同一生产路径完成长稳收口并修正被压力场景暴露的卸载饥饿，仍不改变
+  World facade。
 - AL-A3 已把 `World::tick` 的现有调用顺序集中到具体 `WorldSimulation`；AL-A5 在同一 last-tick
   snapshot 上增加四条真实 processed/deferred/budget 观察。两者都不拥有玩法状态，也不是通用 scheduler。
 
@@ -252,7 +253,7 @@ World (public facade / composition root)
 - B2 四槽 demand model、B3 typed pending/in-flight/completed job scheduler、B4 generation
   token/linearized commit boundary、B5 admission/pressure/window-refill policy，以及 B6 copied
   spatial-interest snapshot；
-- 现有 preload、render-distance invalidation、每 update 最多 8 个 distant unload 与 truthful backlog；
+- 现有 preload、render-distance invalidation、每 update 最多 8 个成功 distant unload 与 truthful backlog；
 - 每帧至多 8 个、以 Player demand 原点确定性近优先的 CPU-ready mesh copied snapshot、所有 live
   section revision 与同 revision GPU acknowledgement；
 - 每 loader pass 至多 8 个 authoritative commit interval，以及不持久化的 copied pressure diagnostics。
@@ -270,6 +271,7 @@ hash 不变；`World::planChunkMeshWork` 也只转发到纯 `ChunkRuntime::planM
 - 发布 generated/loaded/saved/unloaded 事实；
 - 提供 `beginMeshJob -> off-lock build -> finishMeshJob` 和 B4 detached
   `begin/prepare/finish/cancel ChunkLoadJob` 边界；
+- cancelled detached reservation 转成语义 `Absent` 后立即从 manager map 擦除，不保留无界坐标墓碑；
 - 在 `finishMeshJob` 用 section block revision 拒绝 stale CPU mesh；
 - 汇总 Chunk、保存事务、mesh build、face/vertex 等 debug metrics。
 
@@ -286,7 +288,8 @@ B1 在 `ChunkLifecycle.*` 冻结三套独立词汇和合法转换：
 `ChunkManager` 在 load/generate/save/unload 真实调用周围推进 Data 状态；dirty eviction 的保存失败
 返回 `Resident` 且保留 dirty。`ChunkRuntime` 保持 AL-A2 的单 worker；B3 只替换 worker 内部的隐式
 坐标 deque，不影响主线程 deduplicated section update FIFO。
-开发者面板分别显示 7/5/4 状态计数；`Absent` 只统计仍被 manager 持有的显式对象，不虚构无限坐标。
+开发者面板分别显示 7/5/4 状态计数；`Absent` 是转换语义而非常驻 manager 对象，不虚构或保留
+无限坐标集合。
 
 B2 在不改变上述状态所有权的前提下，用 `ChunkDemandModel` 取代单个隐式 load center。模型由
 `ChunkRuntime` 拥有，并以每个 reason 一个槽位保存 `Player / Camera / TeleportDestination /
@@ -337,6 +340,21 @@ reconciliation 移除。Distant unload 先保护 Resident interest，再执行 B
 Requested 只进入 copied diagnostics，当前 Actor/combat/crop/furnace/random tick/population/Gameplay
 路径均不消费。B6 没有 Far 字段、额外 worker、未来系统空 job type、D2 fidelity 或通用 Simulation
 Scheduler。
+
+B10 不增加新的运行时层。它用 `HelloMine3DSoak` schedule v3 在同一 Release 进程和存档根上依次
+驱动直线长途、远距传送、折返、视距变化、编辑离开与保存重开，并持续消费真实 `World::update`、
+loader、mesh snapshot/acknowledgement 和 persistence 路径。首次 30 分钟运行暴露一个组合缺陷：B4
+取消将 reservation 留作 `Absent` map tombstone，而 B5 unload 在验证 Data Residency 之前先截取八个
+坐标；稳定的哈希迭代顺序可让不可卸载 tombstone/Loading entry 永久占满预算，使 Resident Chunk
+饥饿。当前边界在取消后擦除 tombstone，并在预算选择前过滤 `Resident`；`lastUnloads` 只计成功移除，
+失败的 eligible removal 保持 backlog。修复仍复用 B1 状态机、B5 八项预算和同步 dirty save 语义。
+同一长跑还让 `ChunkSection` 的同步 mesh-neighbour Query 改为 `findAdjacent`：缺席邻区按非全实心
+边界读取，而不再通过 `getOrCreateChunk` 产生 `Absent` 条目。读取派生 mesh input 因此不扩大权威
+Chunk map。第二次正式尝试证明 `Absent=0` 且最大仅 223 个 Chunk，但又暴露 LW5 将 300 秒短测的
+十次保存重开按五秒 cadence 放大为六十次，导致备份复制主导墙钟。schedule v3 因此把 LW5
+持久化覆盖冻结为十次，不改变 180 秒 shutdown grace 或任何 runtime/Q3 阈值。最终 Release Core
+通过 1800 秒/36000 ticks：最大 216 个 Chunk、最大 pending 95、consumer 8/8/8、最大/最终
+`Absent=0`，峰值 private 137551872 bytes；双确定性探针一致。
 
 ## 7. Thread Ownership
 
@@ -512,7 +530,7 @@ Design Evolution、Implementation、Validation 和 Trade-offs 七个非空逻辑
 Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先于编译执行。该验证保护文档身份，
 不证明文字质量，也不把 roadmap proposal 提升成实现事实。
 
-## 14. Current Conclusions Through B6
+## 14. Current Conclusions Through B10
 
 - 当前可玩的系统已经有清晰的 Renderer-to-Snapshot 边界和可验证持久化边界。
 - `World` 仍承担 facade、组合根和多套 Simulation 玩法状态；AL-A2/AL-A3/AL-A4/AL-A5 只关闭了四条由真实工作
@@ -524,8 +542,8 @@ Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先
   candidate 和线性化提交阻止旧 plan 发布权威结果；B5 以 128 hard cap、96/48 hysteresis、显式
   admission/shedding、plan window refill 和 commit/upload/unload 8/8/8 预算关闭无界压力入口；B6
   又把 Resident、Near Representation 与 Simulation Requested 从同一 demand 中正交派生，并让真实
-  plan/mesh/render/unload consumer 遵守它。当前仍没有 Far representation、额外 worker、D2 fidelity
-  或未来系统空槽。
+  plan/mesh/render/unload consumer 遵守它；B10 以五阶段长稳验证关闭 Track B Core，并修复取消墓碑抢占
+  unload budget 的饥饿问题。当前仍没有 Far representation、额外 worker、D2 fidelity 或未来系统空槽。
 - fixed-tick 的 8 phase 顺序、context、last-tick 原始耗时及四条真实 work metrics 现在集中在
   `WorldSimulation`；玩法状态与旧实现仍由 World/Actor/Gameplay 所有，没有 `SimulationScheduler`、
   系统 Registry、时间预算或执行优先级。
@@ -533,5 +551,5 @@ Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先
   生产订阅者 effect/republish、8 层递归上限、per-publication membership 与 Diagnostic 隔离均已冻结。
 - Architecture Lab 教程现在按 Track/真实 Section 维护，并由 manifest、冻结证据和完整门禁阻止空 Part、
   丢失批次或未实现能力提前进入教程。
-- B10 和 D1 仍必须按任务账本范围逐批实施；B6 完成不构成 B7-B9、Track C/D 或 Extended
-  的自动启动权限。
+- B10 完成不构成 B7-B9、Track C/D 或 Extended 的自动启动权限；后续只有进入任务账本并单独获批
+  的具名批次才可实施。

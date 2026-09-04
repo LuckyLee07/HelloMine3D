@@ -6561,10 +6561,7 @@ void caseWorldJobCancellation()
         cancelledPosition.x, cancelledPosition.z);
     check("B4/cancelled-detached-load-publishes-nothing",
           cancelledBegin.jobPrepared && cancelledPrepared &&
-              placeholderCancelled && cancelledChunk != nullptr &&
-              cancelledChunk->getDataResidencyState() ==
-                  ChunkDataResidencyState::Absent &&
-              !cancelledChunk->hasLoaded() &&
+              placeholderCancelled && cancelledChunk == nullptr &&
               randomTickSectionsAfterDetachedPrepare ==
                   randomTickSectionsBeforeCandidate &&
               candidateWorld.collectDebugStats().randomTickSections ==
@@ -7037,6 +7034,83 @@ void caseStreamingBackpressure()
               secondUnload.streamingBackpressure.lastUnloads == 2 &&
               !secondUnload.streamingBackpressure.unloadBacklog &&
               secondRemaining == 0);
+
+}
+
+// ---------------------------------------------------------------------------
+// B10 - long-run mixed-state unload progress regression
+// ---------------------------------------------------------------------------
+void caseLargeWorldStressRegression()
+{
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+    Config mixedUnloadConfig = makeConfig();
+    mixedUnloadConfig.renderDistance = 1;
+    Camera mixedUnloadCamera(mixedUnloadConfig);
+    Player mixedUnloadPlayer;
+    World mixedUnloadWorld(
+        mixedUnloadCamera, mixedUnloadConfig, mixedUnloadPlayer,
+        freshSaveDirectory("b10_mixed_state_unload"), false, 0);
+    ChunkManager &mixedChunks = mixedUnloadWorld.getChunkManager();
+    std::vector<ChunkLoadJob> loadingReservations;
+    for (int index = 0; index < 32; ++index) {
+        ChunkLoadJob job;
+        mixedChunks.beginChunkNeighborhoodLoadJob(
+            200 + index * 4, 200, 1, job);
+        if (job.valid) {
+            loadingReservations.push_back(std::move(job));
+        }
+    }
+    for (int index = 0; index < 10; ++index) {
+        mixedChunks.loadChunk(400 + index, 400);
+    }
+    mixedUnloadWorld.update(mixedUnloadCamera);
+    const WorldDebugStats mixedFirst = mixedUnloadWorld.collectDebugStats();
+    mixedUnloadWorld.update(mixedUnloadCamera);
+    const WorldDebugStats mixedSecond = mixedUnloadWorld.collectDebugStats();
+    std::size_t mixedResidentRemaining = 0;
+    for (int index = 0; index < 10; ++index) {
+        mixedResidentRemaining += mixedChunks.chunkLoadedAt(400 + index, 400)
+                                      ? 1u
+                                      : 0u;
+    }
+    check("B10/ineligible-reservations-cannot-starve-unload-budget",
+          loadingReservations.size() == 32 &&
+              mixedFirst.streamingBackpressure.lastUnloads == 8 &&
+              mixedFirst.streamingBackpressure.unloadBacklog &&
+              mixedSecond.streamingBackpressure.lastUnloads == 2 &&
+              !mixedSecond.streamingBackpressure.unloadBacklog &&
+              mixedResidentRemaining == 0);
+    for (const ChunkLoadJob &job : loadingReservations) {
+        mixedChunks.cancelChunkLoadJob(job);
+    }
+
+    Config meshBoundaryConfig = makeConfig();
+    Camera meshBoundaryCamera(meshBoundaryConfig);
+    Player meshBoundaryPlayer;
+    World meshBoundaryWorld(
+        meshBoundaryCamera, meshBoundaryConfig, meshBoundaryPlayer,
+        freshSaveDirectory("b10_mesh_boundary_read"), false, 0);
+    ChunkManager &meshBoundaryChunks =
+        meshBoundaryWorld.getChunkManager();
+    meshBoundaryChunks.loadChunk(600, 600);
+    Chunk *centerChunk = meshBoundaryChunks.findChunk(600, 600);
+    ChunkSection *centerSection =
+        centerChunk != nullptr ? centerChunk->findSection(0) : nullptr;
+    const std::size_t entriesBeforeCapture =
+        meshBoundaryChunks.getChunks().size();
+    SectionMeshInput boundaryInput;
+    if (centerSection != nullptr) {
+        centerSection->captureMeshInput(boundaryInput);
+    }
+    check("B10/mesh-neighbour-read-does-not-create-absent-chunks",
+          centerSection != nullptr &&
+              meshBoundaryChunks.getChunks().size() == entriesBeforeCapture &&
+              !meshBoundaryChunks.chunkExistsAt(599, 600) &&
+              !meshBoundaryChunks.chunkExistsAt(601, 600) &&
+              !meshBoundaryChunks.chunkExistsAt(600, 599) &&
+              !meshBoundaryChunks.chunkExistsAt(600, 601));
 }
 
 // ---------------------------------------------------------------------------
@@ -16411,6 +16485,9 @@ int main()
         else if (focus != nullptr && std::string(focus) == "B6") {
             caseSpatialActivation();
         }
+        else if (focus != nullptr && std::string(focus) == "B10") {
+            caseLargeWorldStressRegression();
+        }
         else {
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
@@ -16461,6 +16538,7 @@ int main()
         caseWorldJobCancellation();
         caseStreamingBackpressure();
         caseSpatialActivation();
+        caseLargeWorldStressRegression();
         caseChunkResidencyStateMachine();
         caseSectionMeshUploadSnapshot();
         caseUnloadPersistence();

@@ -1,7 +1,7 @@
 # HelloMine3D Architecture Lab Tutorial
 
 > Living tutorial status: Part 00 covers completed Track A and Part 01 covers
-> implemented B1 through B6. Later Parts are added only with the first verified
+> implemented B1 through B10 Core. Later Parts are added only with the first verified
 > batch of their owning Track; this file does not pre-create empty Sprint chapters.
 
 <!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-BEGIN -->
@@ -18,6 +18,7 @@ B3|01|1.3|docs/reports/architecture-lab-b3-world-job-scheduler-report-v1.md
 B4|01|1.4|docs/reports/architecture-lab-b4-world-job-cancellation-report-v1.md
 B5|01|1.5|docs/reports/architecture-lab-b5-streaming-backpressure-report-v1.md
 B6|01|1.6|docs/reports/architecture-lab-b6-spatial-activation-report-v1.md
+B10|01|1.7|docs/reports/architecture-lab-b10-large-world-stress-report-v1.md
 <!-- ARCHITECTURE-LAB-TUTORIAL-MANIFEST-END -->
 
 ## Part 00 — From a playable clone to an architecture lab
@@ -1224,3 +1225,114 @@ Related evidence:
 - `docs/contracts/spatial-activation-contract-v1.md`
 - `docs/reports/architecture-lab-b6-spatial-activation-report-v1.md`
 - `tools/validate_spatial_activation.ps1`
+
+### 1.7 Why can a bounded unload loop still retain an unbounded world?
+
+#### Problem
+
+B1-B6 made every visible queue and consumer finite, but local unit scenarios
+only loaded homogeneous Resident Chunks. A real long journey interleaves
+Resident data with Loading reservations, cancelled generation and save work.
+The important question is therefore not merely whether a loop has a numeric
+limit, but whether eligible work can make progress when other lifecycle states
+share the same authoritative container.
+
+#### Naive Solution
+
+A tempting acceptance test runs a few seconds, checks that pending jobs never
+exceed 128, and treats the eight-item unload limit as sufficient proof of
+bounded residency. Another shortcut raises the allowed Chunk or memory ceiling
+when a long run exceeds it. Both approaches preserve green dashboards without
+testing whether the intended consumer actually completes useful work.
+
+#### Failure
+
+The first formal schedule-v3 run exposed a cross-batch composition defect.
+Cancelled detached loads transitioned their manager reservation to semantic
+`Absent` but retained that coordinate in the map. The unload scan then selected
+the first eight distant entries before checking whether `unloadChunk` could
+legally move them from `Resident` to `EvictRequested`. A stable group of
+Loading/Absent entries could consume every slot forever, while `lastUnloads`
+reported attempts as progress. Resident Chunks accumulated behind them, making
+the final save and backup dominate shutdown. A follow-up diagnostic also found
+that synchronous mesh-neighbour reads called `getOrCreateChunk`, so an infinite
+trek could retain harmless-looking but unbounded Absent edge coordinates even
+after Resident eviction recovered.
+
+#### Design Evolution
+
+B10 keeps the B1 state machine and B5 limit, but aligns admission to the
+consumer with its real eligibility. A cancelled reservation reaches `Absent`
+and is erased because Absent is a semantic state, not retained world data. The
+unload scan filters for `Resident` before spending a slot, and its diagnostic
+count records completed removals. A failed eligible removal keeps backlog set
+so a later update retries without claiming false progress.
+
+#### Implementation
+
+`ChunkManager::cancelChunkLoadJob` now removes its detached placeholder after
+the guarded `Loading -> Absent` transition. `ChunkManager::unloadChunk` returns
+whether eviction, dirty save, erase, light reconciliation and event publication
+completed. `ChunkRuntime::unloadDistantChunks` protects B6 Resident interest,
+filters the Data Residency state, admits at most eight candidates and derives
+`lastUnloads`/backlog from actual outcomes. No second queue, worker or cleanup
+path was introduced.
+
+`ChunkSection::findAdjacent` makes mesh-neighbour inspection explicitly
+non-creating. `SectionMeshInput` treats a missing neighbour as not fully solid,
+matching its existing out-of-range air sampling without inserting an
+authoritative Chunk. This keeps a derived snapshot Query from changing the
+manager's coordinate set.
+
+`HelloMine3DSoak --profile track-b-core` adds one deterministic five-phase
+schedule over the real World, loader, mesh snapshot acknowledgement and save
+root. LW1 travels forward, LW2 jumps to far destinations, LW3 reverses demand,
+LW4 churns render distance, and LW5 edits, leaves, saves and reopens. The formal
+run is exactly 1,800 seconds/36,000 fixed ticks; two short isolated probes
+compare only deterministic schedule and persistence fields.
+
+#### Validation
+
+The mixed-state runtime regression creates 32 Loading reservations beside ten
+distant Resident Chunks and proves that two updates complete the existing 8+2
+unload budget rather than starving behind ineligible entries. A second focused
+case captures mesh input beside four missing neighbours and proves the Chunk map
+does not grow. The B10 static gate freezes the schedule, lifecycle repair,
+production teleport fixture, thresholds and truthful evidence classifications.
+The first failed formal run and its 8960-entry/2.46-GB symptom remain in the B10
+report. After the two production repairs, a second attempt retained zero Absent
+entries and at most 223 Chunks, but exposed a harness error: a five-second LW5
+persistence cadence expanded ten developer checks into sixty full
+save/reopen/backup-copy cycles and exhausted the unchanged shutdown grace. B10
+now freezes ten LW5 checks by count instead of multiplying them with duration.
+A 300-second diagnostic then passed with 172 maximum Chunks, 58,544,128 peak
+private bytes and ten persistence checks. The final unrelaxed formal run passes
+1,800 seconds/36,000 ticks with maximum 216 Chunks, zero retained Absent
+entries, 137,551,872 peak private bytes and ten persistence checks; both
+determinism probes match. The complete VS2017/v141 Debug/Release gate then
+passes `920/920` WorldRuntime in both configurations and produces a 104-entry
+isolated package with SHA-256
+`E13203F8E18382A4D13ABA22DFB975DDB189B2858F74DAAE340CE5A4A8F34B14`.
+The final Q1 six-scene comparison also passes without a threshold change or
+performance exception; fast-streaming Chunk-visible P95 is
+`204.013/192.133 ms` at the unchanged `rc-ring-12-chunks-v2` identity.
+
+#### Trade-offs
+
+Eviction remains synchronous because dirty-save ordering is an existing B1
+compatibility promise; B10 does not turn persistence into another job family.
+Ten whole save/reopen checks are a coverage budget rather than a runtime
+performance threshold: fixing the check count prevents the test harness from
+silently changing the workload by six times when only its observation duration
+changes. The formal 180-second shutdown grace remains unchanged.
+The 1,024-Chunk and two-GiB ceilings are safety bounds rather than target steady
+state, and deterministic probes deliberately exclude wall-time, memory and
+asynchronous queue-depth equality. The headless schedule proves engineering
+boundedness and recoverability, not human fun, visual quality or physical input
+feel, and it does not authorize B7-B9, Track C or Track D.
+
+Related evidence:
+
+- `docs/contracts/large-world-stress-acceptance-contract-v1.md`
+- `docs/reports/architecture-lab-b10-large-world-stress-report-v1.md`
+- `tools/validate_large_world_stress_acceptance.ps1`

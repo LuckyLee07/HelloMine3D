@@ -9,6 +9,7 @@ $comparator = Join-Path $scriptRoot `
     "compare_stage10_visual_performance.ps1"
 $source = Join-Path $repoRoot `
     "docs\baselines\release-candidate-windows-hidden-v1\q1-fast-streaming-v1.baseline.summary.txt"
+$invariant = [System.Globalization.CultureInfo]::InvariantCulture
 $tempRoot = Join-Path ([IO.Path]::GetTempPath()) `
     ("HelloMine3D-stage10-perf-" + [Guid]::NewGuid().ToString("N"))
 $script:caseCount = 0
@@ -36,9 +37,22 @@ function Remove-SummaryKey {
     Set-Content -LiteralPath $Path -Encoding utf8 -Value $lines
 }
 
-function Add-SummaryValue {
-    param([string]$Path, [string]$Key, [string]$Value)
-    Add-Content -LiteralPath $Path -Encoding utf8 -Value "$Key=$Value"
+function Get-SummaryNumber {
+    param([string]$Path, [string]$Key)
+    $prefix = "$Key="
+    $values = @(Get-Content -LiteralPath $Path -Encoding utf8 |
+        Where-Object { $_.StartsWith($prefix) })
+    if ($values.Count -ne 1) {
+        throw "Fixture must contain exactly one '$Key'."
+    }
+    $value = 0.0
+    if (-not [double]::TryParse(
+            $values[0].Substring($prefix.Length),
+            [System.Globalization.NumberStyles]::Float,
+            $invariant, [ref]$value)) {
+        throw "Fixture has invalid numeric '$Key'."
+    }
+    return $value
 }
 
 function Invoke-Case {
@@ -77,7 +91,7 @@ try {
 
     $shadowMismatch = Join-Path $tempRoot "shadow-mismatch.summary.txt"
     Copy-Item -LiteralPath $source -Destination $shadowMismatch
-    Add-SummaryValue -Path $shadowMismatch `
+    Set-SummaryValue -Path $shadowMismatch `
         -Key "stage10_shadow_quality" -Value "medium"
     Invoke-Case -Name "shadow-quality-mismatch" `
         -Candidate $shadowMismatch -ExpectedExit 3 `
@@ -85,7 +99,7 @@ try {
 
     $shadowInvalid = Join-Path $tempRoot "shadow-invalid.summary.txt"
     Copy-Item -LiteralPath $source -Destination $shadowInvalid
-    Add-SummaryValue -Path $shadowInvalid `
+    Set-SummaryValue -Path $shadowInvalid `
         -Key "stage10_shadow_quality" -Value "ultra"
     Invoke-Case -Name "shadow-quality-invalid" `
         -Candidate $shadowInvalid -ExpectedExit 4 `
@@ -93,7 +107,7 @@ try {
 
     $postMismatch = Join-Path $tempRoot "post-mismatch.summary.txt"
     Copy-Item -LiteralPath $source -Destination $postMismatch
-    Add-SummaryValue -Path $postMismatch `
+    Set-SummaryValue -Path $postMismatch `
         -Key "stage10_post_processing" -Value "on"
     Invoke-Case -Name "post-processing-mismatch" `
         -Candidate $postMismatch -ExpectedExit 3 `
@@ -101,7 +115,7 @@ try {
 
     $postInvalid = Join-Path $tempRoot "post-invalid.summary.txt"
     Copy-Item -LiteralPath $source -Destination $postInvalid
-    Add-SummaryValue -Path $postInvalid `
+    Set-SummaryValue -Path $postInvalid `
         -Key "stage10_post_processing" -Value "ultra"
     Invoke-Case -Name "post-processing-invalid" `
         -Candidate $postInvalid -ExpectedExit 4 `
@@ -109,15 +123,17 @@ try {
 
     $within = Join-Path $tempRoot "within.summary.txt"
     Copy-Item -LiteralPath $source -Destination $within
+    $meshAverage = Get-SummaryNumber -Path $source `
+        -Key "last_mesh_build_avg_ms"
     Set-SummaryValue -Path $within -Key "last_mesh_build_avg_ms" `
-        -Value "0.589"
+        -Value (($meshAverage * 1.05).ToString("F6", $invariant))
     Invoke-Case -Name "within-ten-percent" -Candidate $within `
         -ExpectedExit 0 -ExpectedStatus "PASS"
 
     $review = Join-Path $tempRoot "review.summary.txt"
     Copy-Item -LiteralPath $source -Destination $review
     Set-SummaryValue -Path $review -Key "last_mesh_build_avg_ms" `
-        -Value "0.610"
+        -Value (($meshAverage * 1.11).ToString("F6", $invariant))
     Invoke-Case -Name "above-ten-percent" -Candidate $review `
         -ExpectedExit 2 -ExpectedStatus "REVIEW_REQUIRED"
 

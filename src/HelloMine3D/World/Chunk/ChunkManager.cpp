@@ -210,15 +210,24 @@ bool ChunkManager::cancelChunkLoadJob(const ChunkLoadJob &job)
     if (!job.valid) {
         return false;
     }
-    Chunk *reserved = findChunk(job.chunkPosition.x,
-                                job.chunkPosition.z);
-    if (reserved == nullptr ||
-        reserved->getDataResidencyState() !=
+    const auto key = VectorXZ{job.chunkPosition.x, job.chunkPosition.z};
+    auto reserved = m_chunks.find(key);
+    if (reserved == m_chunks.end() ||
+        reserved->second.getDataResidencyState() !=
             ChunkDataResidencyState::Loading) {
         return false;
     }
-    return reserved->transitionDataResidency(
-        ChunkDataResidencyState::Absent);
+    if (!reserved->second.transitionDataResidency(
+            ChunkDataResidencyState::Absent)) {
+        return false;
+    }
+
+    // Absent is a semantic state, not a retained coordinate. Keeping a
+    // cancelled reservation in the authoritative map creates an unbounded
+    // tombstone set during repeated direction changes and can starve the
+    // bounded distant-unload scan.
+    m_chunks.erase(reserved);
+    return true;
 }
 
 ChunkMeshWorkResult ChunkManager::beginMeshJob(int x, int z, int maxChunkLoads,
@@ -510,16 +519,16 @@ void ChunkManager::setTerrainIdentity(int seed, int generationVersion,
         seed, generationVersion, explorationRewardVersion);
 }
 
-void ChunkManager::unloadChunk(int x, int z)
+bool ChunkManager::unloadChunk(int x, int z)
 {
     Chunk *chunk = findChunk(x, z);
     if (chunk == nullptr) {
-        return;
+        return false;
     }
 
     if (chunk->getDataResidencyState() !=
         ChunkDataResidencyState::Resident) {
-        return;
+        return false;
     }
     chunk->transitionDataResidency(
         ChunkDataResidencyState::EvictRequested);
@@ -528,7 +537,7 @@ void ChunkManager::unloadChunk(int x, int z)
         static_cast<int>(chunk->getSectionCount()) * CHUNK_SIZE;
     if (!saveChunk(*chunk)) {
         chunk->transitionDataResidency(ChunkDataResidencyState::Resident);
-        return;
+        return false;
     }
     m_world->despawnNaturalMobsInChunk(x, z);
     m_world->removeRandomTickSectionsForChunk(x, z);
@@ -536,6 +545,7 @@ void ChunkManager::unloadChunk(int x, int z)
     m_chunks.erase({x, z});
     m_world->reconcileBlockLightAfterChunkUnload(x, z, height);
     m_world->getEventBus().publish(ChunkUnloadedEvent({x, z}));
+    return true;
 }
 
 bool ChunkManager::saveChunk(Chunk &chunk)

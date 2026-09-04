@@ -1,0 +1,9 @@
+status=PASS
+schema_version=1
+seed=20260902
+probe_duration_seconds=10
+compared_keys=25
+schedule_digest=066d55e9a8806872
+persistence_digest=21d218bd7ddaa211
+async_metrics_compared=false
+reason=wall_time_memory_and_queue_depth_are_os_schedule_dependent

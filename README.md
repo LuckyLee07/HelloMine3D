@@ -17,7 +17,7 @@ persistence, diagnostics and packaging layers have been rebuilt.
 | | |
 | --- | --- |
 | **Source** | 284 files, ~72.7k lines of C++ |
-| **Automated checks** | 884 world-runtime · 122 recipe · 80 resource-pack · 15 startup-negative — in **both** Debug and Release |
+| **Automated checks** | 920 world-runtime · 122 recipe · 80 resource-pack · 15 startup-negative — in **both** Debug and Release |
 | **Test executables** | 13 |
 | **Persisted formats** | save `v12`, terrain `v4`, settings `v8` — every one migrates from `v1` |
 | **Performance gates** | 6 versioned scenes with baseline/repeat comparison, bounded stage timings, 2 × 1800 s soak |
@@ -175,9 +175,10 @@ then passed at `832/832` world assertions in both configurations, six formal per
 compare clean, both 1800-second soak profiles pass, and the 104-file package validates from an
 isolated root.
 
-Architecture Lab batches AL-A0 through AL-A6 and Track B B1-B5 are now complete. The current
-B5 gate passes `906/906` world assertions in both configurations and a 104-entry clean package;
-B6 Spatial Activation is the next approved batch.
+Architecture Lab batches AL-A0 through AL-A6 and Track B Core B1-B6/B10 are complete. The B10
+gate passes `920/920` world assertions in both configurations, a 1,800-second five-phase stress
+run with zero failures, all six final Q1 comparisons, and a 104-entry clean package. No further
+batch is currently approved; B7-B9, Track C/D and Extended capabilities remain candidates only.
 
 This is a personal architecture-learning and showcase project, not a commercial product with an
 external playtest panel. The game remains the proof vehicle: observable workflows are validated

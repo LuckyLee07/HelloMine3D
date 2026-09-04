@@ -1454,6 +1454,14 @@ Player Modified → 需要持久化 Dirty Summary
 
 ## B10 — Large World Stress & Acceptance（Core；Extended 获批时追加场景）
 
+> 当前状态：`Done`；正式 B10 Core acceptance、组成式完整门禁与最终 Q1 均已通过。冻结合同：
+> `docs/contracts/large-world-stress-acceptance-contract-v1.md`。
+
+B10 只增加 schedule v3 headless 压力驱动、证据汇总和 gate，不增加新的 runtime 能力。
+正式 Core 运行在同一 Release 进程/存档根中执行 1,800 秒：LW1 固定 600 秒，LW2-LW5
+各 300 秒。两次短 Release 探针只比较确定性动作/持久化摘要，不把异步队列深度或 wall time
+冒充确定性输出。
+
 建立固定测试：
 
 ### LW1 Straight Run
@@ -1474,7 +1482,20 @@ Player Modified → 需要持久化 Dirty Summary
 
 ### LW5 Edit & Leave
 
-修改 Chunk → 立即离开 → 保存 → 重开。
+修改 Chunk → 立即离开 → 保存 → 重开；300 秒正式 LW5 共执行十次完整持久化检查。
+
+最终 schedule v3 Release Core 已完成 1800 秒/36000 ticks，最大 216 个 Chunk、最大 pending 95、
+consumer `8/8/8`、最大/最终 `Absent=0`，峰值 private 137551872 bytes，wall 1824.453 秒且未超时；
+双 10 秒探针的 schedule/persistence digest 分别一致为 `066d55e9a8806872` / `21d218bd7ddaa211`。
+正式长跑暴露并修复了取消墓碑/卸载资格顺序、mesh-neighbour Query 创建缺席 Chunk，以及 LW5
+将短测十次持久化检查错误放大为六十次的问题。两次失败摘要均保留，所有 runtime/Q3 阈值和
+180 秒 shutdown grace 未放宽，也未使用性能例外。完整证据见
+`docs/reports/architecture-lab-b10-large-world-stress-report-v1.md`。
+
+最终 VS2017/v141 Debug/Release 组成式门禁均通过 `920/920` WorldRuntime，104 项隔离包
+SHA-256 为 `E13203F8E18382A4D13ABA22DFB975DDB189B2858F74DAAE340CE5A4A8F34B14`。
+Q1 六组比较全部 PASS；`rc-ring-12-chunks-v2` 的 Chunk-visible P95 为
+`204.013/192.133 ms`，没有改变阈值或启用性能例外。
 
 ### 关键指标
 

@@ -599,7 +599,7 @@ try {
         "comparison_storage_class=$StorageClass",
         "comparison_render_distance=$renderDistance",
         "comparison_cache_regime=$CacheRegime",
-        "comparison_movement_path=rc-ring-12-chunks-v1",
+        "comparison_movement_path=rc-ring-12-chunks-v2",
         "comparison_movement_speed=teleport-after-visible-plus-2s",
         "comparison_population_fixture=rc-8-mobs-16-items-64-crops-8-chests-v1",
         "comparison_save_state_sha256=$scenarioHash",

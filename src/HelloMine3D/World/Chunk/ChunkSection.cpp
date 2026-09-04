@@ -313,14 +313,15 @@ void ChunkSection::deleteMeshes()
     markMeshDirty();
 }
 
-ChunkSection &ChunkSection::getAdjacent(int dx, int dz)
+const ChunkSection *ChunkSection::findAdjacent(int dx, int dz) const
 {
-    int newX = m_location.x + dx;
-    int newZ = m_location.z + dz;
+    const int newX = m_location.x + dx;
+    const int newZ = m_location.z + dz;
 
-    return m_pWorld->getChunkManager()
-        .getChunk(newX, newZ)
-        .getSection(m_location.y);
+    const Chunk *chunk = m_pWorld->getChunkManager().findChunk(newX, newZ);
+    return chunk != nullptr && chunk->hasLoaded()
+               ? chunk->findSection(m_location.y)
+               : nullptr;
 }
 
 bool ChunkSection::outOfBounds(int value)
