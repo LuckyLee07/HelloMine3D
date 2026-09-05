@@ -198,8 +198,9 @@ authorizes D2 investigation and implementation only if its real-workload entry c
 is established. The current Goal validates the corresponding macOS scope first,
 with new Windows-specific validation postponed by the owner. See the
 [execution record](docs/reports/todolist-goal-execution-2026-09-05.md).
-The Goal's macOS Debug/Release gmake regression and startup-negative checks now
-pass. A Cocoa input fix keeps the native cursor free in menus and captures it
+The Goal's macOS Debug/Release gmake and Xcode regression gates now pass.
+Xcode Release uses O3 without fast-math to preserve resource reachability checks.
+Startup-negative checks also pass. A Cocoa input fix keeps the native cursor free in menus and captures it
 only during focused gameplay; actual menu, crafting and pause clicks were
 rechecked. Independent AI acceptance remains open.
 

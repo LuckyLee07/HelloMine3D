@@ -45,3 +45,5 @@
 
 结构化性能原始结果位于 `docs/baselines/`，图片位于 `docs/screenshots/`，图像来源位于
 `docs/art-sources/`。
+
+- [TODOLIST Goal completion audit — 2026-09-05](todolist-goal-completion-audit-2026-09-05.md): current proof and unresolved acceptance conditions; not a completion claim.

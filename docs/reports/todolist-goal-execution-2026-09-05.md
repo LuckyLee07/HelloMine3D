@@ -24,7 +24,7 @@ Status: In progress. This report does not close the Goal or claim AI PASS.
 | Freeze starting state and discover validation environment | Done | Starting identity and later macOS-first scope steering recorded |
 | Audit D2 entry against real distant Actor/Machine workload | Done (investigation only) | Debug + two Release probes; retain Candidate with reasons, no activation implementation |
 | Fix current-document inconsistencies | Doing | README, ledger, architecture/tutorial and validation routes updated; final check after validation |
-| Execute relevant automated checks | Doing | Path-identity assertion fixed; post-cursor gmake Debug/Release 13 suites PASS; Xcode gate in progress |
+| Execute relevant automated checks | Doing | Path-identity assertion fixed; post-cursor gmake Debug/Release 13 suites PASS; Xcode double-configuration gate PASS |
 | AI-01..AI-05, AI-07, AI-08 | NOT_RUN | Hashed clean macOS Release package, OS input, normal gameplay; no fixtures |
 | AI-06 | NOT_RUN | Independent fresh executor with package-only filesystem access and 30-minute record |
 | New macOS gameplay/visual acceptance | Doing | Explicitly authorized by subsequent owner steering; independent macOS evidence |
@@ -123,12 +123,11 @@ Windows 991/991 results remain historical evidence, not a new execution.
 
 ## Resume point
 
-Current gmake Debug/Release automation and startup negatives have passed after
-cursor repair. Poll Xcode session 70054 and short-soak session 31410 before any
-restart; logs are in `build/goal-20260905/`. Inspect the latest sections below
-for package hashes. Independent acceptance permission remains unanswered;
-strict AI-06 additionally needs package-only filesystem access. Windows is
-postponed by the owner; required unexecuted macOS acceptance prevents completion.
+Gmake and repaired Xcode Debug/Release gates have passed; no build remains
+running. Xcode Release startup negatives also passed 15/15. Finalize the new package
+identity after committing the verified configuration batch. Independent acceptance
+permission remains pending, and strict AI-06 still needs package-only readable
+roots. Windows is postponed; required macOS acceptance prevents Goal completion.
 
 ## macOS menu cursor repair (implemented; focused regression passed)
 
@@ -204,3 +203,73 @@ postponed by the owner; required unexecuted macOS acceptance prevents completion
 - A current read-only search found the starting bundle absent from the repository,
   Workspace and /private/tmp. Do not claim its current preservation or recreate an
   artifact under its identity. The original bundle import commit is unchanged.
+
+### Post-commit verification update
+
+- Local baseline commit: `ea7a85d9d8ec0dcec524f8cad436ddb363e34cbd`.
+  No push or tag. The committed source matches the source used by the recorded
+  post-cursor gmake checks; earlier package metadata retains its original
+  starting commit + tracked-diff identity rather than being rewritten.
+- Release short soak completed: nominal 120 seconds PASS, stress 120 seconds
+  PASS. Commands, executable and source hashes are in
+  `build/goal-20260905/macos-release-short-soak/identity.json`; per-profile logs
+  and generated summaries remain alongside it. Not a full 1800-second Q3 run.
+- Clean package preflight from `/private/tmp`, using only the external package's
+  Resources root, fixed documented seed 20260809 and position 3038/66/1922,
+  `HELLOMINE3D_VALIDATE_ONLY=1`, exited 0. Log:
+  `build/goal-20260905/macos-clean-package-preflight.log`. This validates packaged
+  resources/renderer startup, not normal gameplay or source-access isolation.
+- Current-document link audit passes 98 relative links, missing=0, evidence
+  `build/goal-20260905/current-document-links.json` tied to ea7a85d.
+- Xcode session 70054 remains live; at this update it is running Debug world
+  runtime tests. Continue observing that handle/log; do not start a duplicate.
+  Short-soak and package-preflight sessions have finished successfully.
+
+## Xcode Release floating-point configuration repair (new batch)
+
+- The authorized Xcode run completed Debug automation and probes, then failed
+  the existing first-party warning gate in Release_HelloMine3D_build.log:
+  ResourceEconomyVerifier.cpp infinity sentinel is incompatible with generated
+  `-ffast-math`. No warning filter or expectation was relaxed.
+- Generator inspection showed workspace `optimize "Full"` maps Xcode Release to
+  `-ffast-math`. `floatingpoint "Strict"` did not remove that generated flag in
+  the installed generator; that trial was not retained. The selected repair
+  overrides only Xcode Release to `optimize "Speed"`: generated optimization
+  level remains 3 while fast-math is absent. VS and gmake options are untouched.
+- Existing RecipeSmoke tests include missing acquisition sources and unreachable
+  required-material rejection; those retain their original expectations and
+  exercise the infinity/isfinite behavior under the repaired Release settings.
+- Full unmodified acceptance route restarted after the terminal failure:
+  `bash scripts/verify_xcode.sh`, log
+  `build/goal-20260905/macos-xcode-verification-float-fix.log`. It is in progress,
+  not PASS. This batch will be committed only after applicable verification.
+- The source patch from initial commit to ea7a85d matches the short-soak source
+  hash exactly (`00b0bac996b3da83333a80990bd61e6639e52c0f826249a130892905741be47f`),
+  saved as `build/goal-20260905/ea7a85d-source.patch` for regression comparison.
+
+### Xcode floating-point repair verification — PASS
+
+- `bash scripts/verify_xcode.sh` completed with exit 0 and terminal PASS.
+  Original unchanged checks passed for both Debug and Release: all 13 test
+  executables (World 991, Recipe 126, Resources 80, Catalogue 59, transaction
+  16, backup 19, timing 12, crash diagnostics 21), renderer validation and
+  window probes, surface contact y=66, startup/world-entry timing fields.
+- Both configurations passed `N10/missing-source-dead-chain-is-rejected`.
+  No infinity/isfinite logic, expected outcome or warning gate was changed.
+- Build/individual test/probe logs:
+  `build/xcode-validation-20260905102920`; aggregate log:
+  `build/goal-20260905/macos-xcode-verification-float-fix.log`.
+  The Xcode graph validator also passed all 31 projects and nine self-tests.
+- Verified build identity in `build/goal-20260905/xcode-verified-build-identity.json`:
+  Xcode Release x86_64 on macOS 15.7.3 arm64 host; executable SHA-256
+  `aeb8a2b0f6c46f1ba69363de63d681ea6e1832e02bcf95e96b77aec81a6a0a8b`.
+  Premake diff SHA-256:
+  `f1ceb5715a9d0699093deb08ee8b7a8be0415f4600eee92ff4c5c03a4d8283b7`.
+- This closes the Xcode engineering gate only. Scripted fixed-position probes
+  do not close independent normal-input AI scenarios or real audio.
+
+- Xcode Release startup-negative follow-up completed all 15 original fixtures
+  with exit 0: `python3 tools/validate_startup_errors_macos.py --output
+  build/goal-20260905/macos-xcode-release-startup`. Aggregate:
+  `build/goal-20260905/macos-xcode-release-startup.log`. Each case preserves
+  stderr/report evidence; this is macOS stderr-only behavior, not MessageBoxW.

@@ -85,7 +85,8 @@ B7-B9、C4-C11、D3-D8 与 Extended 不在此次 Goal 范围。
 
 本次 Goal 仍在执行。所有者随后明确授权以 macOS 完成可对应的测试、干净包与窗口验收，
 Windows 专属验证后置，不再作为本次 Goal 的必需退出项；已有 Windows 历史证据不改写。
-macOS gmake Debug/Release 的 13 套回归与 15 类启动负例已通过；主菜单鼠标误捕获已修复，
+macOS gmake 与 Xcode Debug/Release 的 13 套回归已通过；两种 Release 构建的 15 类启动负例也已通过。
+Xcode Release 已去除会破坏 infinity/isfinite 校验的 fast-math。主菜单鼠标误捕获已修复，
 并通过菜单、合成及暂停界面的实际点击复查。独立 AI 验收尚未关闭；进度、命令和环境限制见
 [执行记录](../reports/todolist-goal-execution-2026-09-05.md)。候选池不会随本次更新自动扩张。
 

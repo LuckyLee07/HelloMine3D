@@ -103,6 +103,11 @@ workspace(project_name)
         optimize "Full"
         defines { "NDEBUG" }
 
+    -- Xcode's Full optimization otherwise enables fast-math, which invalidates
+    -- the economy verifier's infinity/isfinite reachability sentinels.
+    filter { "action:xcode4", "configurations:Release" }
+        optimize "Speed"
+
     filter "system:windows"
         systemversion "10.0.22621.0"
         characterset "MBCS"
