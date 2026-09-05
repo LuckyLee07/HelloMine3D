@@ -23,8 +23,8 @@ Status: In progress. This report does not close the Goal or claim AI PASS.
 | --- | --- | --- |
 | Freeze starting state and discover validation environment | Done | Starting identity and later macOS-first scope steering recorded |
 | Audit D2 entry against real distant Actor/Machine workload | Done (investigation only) | Debug + two Release probes; retain Candidate with reasons, no activation implementation |
-| Fix current-document inconsistencies | Doing | README, ledger, architecture/tutorial and validation routes updated; final check after validation |
-| Execute relevant automated checks | Doing | Path-identity assertion fixed; post-cursor gmake Debug/Release 13 suites PASS; Xcode double-configuration gate PASS |
+| Fix current-document inconsistencies | Done for current evidence | README, ledger, architecture/tutorial and validation routes updated; final check after validation |
+| Execute relevant automated checks | Done (current engineering scope) | Path-identity assertion fixed; post-cursor gmake Debug/Release 13 suites PASS; Xcode double-configuration gate PASS |
 | AI-01..AI-05, AI-07, AI-08 | NOT_RUN | Hashed clean macOS Release package, OS input, normal gameplay; no fixtures |
 | AI-06 | NOT_RUN | Independent fresh executor with package-only filesystem access and 30-minute record |
 | New macOS gameplay/visual acceptance | Doing | Explicitly authorized by subsequent owner steering; independent macOS evidence |
@@ -123,11 +123,13 @@ Windows 991/991 results remain historical evidence, not a new execution.
 
 ## Resume point
 
-Gmake and repaired Xcode Debug/Release gates have passed; no build remains
-running. Xcode Release startup negatives also passed 15/15. Finalize the new package
-identity after committing the verified configuration batch. Independent acceptance
-permission remains pending, and strict AI-06 still needs package-only readable
-roots. Windows is postponed; required macOS acceptance prevents Goal completion.
+All started builds/tests have completed. Current code baseline is 6916867;
+final Xcode package and archive identity are below. Engineering checks have
+passed. No unchanged build should be restarted. Remaining formal acceptance
+needs the independent executor authorization requested in this task; AI-06
+additionally needs package-only readable roots and AI-07 audio needs a real
+supported audible backend/evidence. Windows remains postponed. The Goal is
+not complete; do not relabel these gaps as PASS.
 
 ## macOS menu cursor repair (implemented; focused regression passed)
 
@@ -273,3 +275,29 @@ roots. Windows is postponed; required macOS acceptance prevents Goal completion.
   build/goal-20260905/macos-xcode-release-startup`. Aggregate:
   `build/goal-20260905/macos-xcode-release-startup.log`. Each case preserves
   stderr/report evidence; this is macOS stderr-only behavior, not MessageBoxW.
+
+## Verified local delivery — Xcode package
+
+- Configuration repair committed locally as
+  `69168670698ab67e7d345bf5e28cd9eeb099c80e`; initial repair/investigation batch
+  remains `ea7a85d9d8ec0dcec524f8cad436ddb363e34cbd`.
+- `python3 tools/package_macos_release.py --configuration Release --output
+  /private/tmp/HelloMine3D-6916867.app` created a clean external package from
+  the verified Xcode Release executable. At packaging, the tracked diff was
+  empty. Source commit, executable and resource hashes are in build-identity.json.
+- Archive: `build/goal-20260905/HelloMine3D-macOS-6916867.zip`, SHA-256
+  `4b0548e57895d4e1cbc185881055e5c494e6a4fbb7dfb2ece7899df10c108d66`.
+  Explicit-file ZIP read-back passed all 106 inventory hashes and exact archive
+  membership (107 files including inventory). Evidence:
+  `build/goal-20260905/xcode-6916867-archive-check.json`.
+- Actual CUA window supplement on this package: main menu → Single Player →
+  empty Worlds list → Back to Main Menu → Quit. Normal input worked, the app
+  exited normally, no fixture or validation override was used. Window 1280x748,
+  English defaults. No world created. CUA screenshots/actions remain in this
+  task transcript. Same implementer context: **not formal AI-01 or AI-06 PASS**.
+- Completion audit is in
+  [todolist-goal-completion-audit-2026-09-05.md](todolist-goal-completion-audit-2026-09-05.md).
+  All useful non-dependent engineering work is now complete. Independent
+  executor permission was requested again during this continuation and remains
+  unanswered. Do not interpret elapsed time as consent. Remaining isolation and
+  audio requirements are documented; no same-condition retry is planned.

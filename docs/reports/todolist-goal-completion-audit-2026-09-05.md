@@ -3,7 +3,8 @@
 Status: **Not complete**. Engineering evidence and formal gameplay acceptance
 are assessed separately. This audit does not change the frozen scope.
 
-Baseline commit: `ea7a85d9d8ec0dcec524f8cad436ddb363e34cbd`.
+Baseline commits: `ea7a85d9d8ec0dcec524f8cad436ddb363e34cbd` (runtime fixes)
+and `69168670698ab67e7d345bf5e28cd9eeb099c80e` (verified Xcode configuration).
 Scope origin: `81d945dcf7a4bdbd6d98a1652b2776fca37665fa`.
 Full commands, failures and artifact paths are in the
 [execution record](todolist-goal-execution-2026-09-05.md).
