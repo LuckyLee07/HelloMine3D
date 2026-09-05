@@ -3,7 +3,7 @@
 本文只回答：项目现在做到哪里、当前批准什么、下一候选是什么、什么会阻塞开发。详细历史、合同和
 封板证据分别进入 `docs/archive/`、`docs/contracts/` 和 `docs/reports/`。
 
-最后更新：2026-09-04。
+最后更新：2026-09-05。
 
 ## 项目目标
 
@@ -76,8 +76,18 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 | `D2` Simulation Activation | `Candidate / not approved` | 在已 Resident 空间内区分 Full / Reduced / Dormant 模拟保真度。 | D1 完整门禁通过，且至少一个真实远距离 Actor/Machine workload 证明仅靠 item budget 仍不足。 | 不由 B6 spatial interest 或 D1 自动授权；不得提前开始 D3-D8。 |
 
 `B10` 已完成正式压力/确定性、组成式完整门禁和 Q1 收口；`C1-C3` 也已依次通过完整门禁。
-项目所有者已单独批准并完成 D1；当前没有已批准但未完成的开发批次。B7-B9、C4-C11、D2-D8
-与 Extended 仍未获批，也不因 D1 完成自动进入实现。
+项目所有者已单独批准并完成 D1。2026-09-05 又批准本次 TODOLIST Goal：调查 D2 进入条件、
+补充待执行验收并修正文档一致性；若真实 workload 证明 D1 budget 不足，可直接实施 D2。
+当前调查观察到 32 台远处空闲 Furnace 会使近处 Crusher 在 20 ticks 内推进 19 步，符合 D1
+已有超载合同；尚未建立正常玩法或正式性能不可接受的证据，故本次保留 D2 Candidate，未开始
+运行时实现。详见 [D2 进入调查](../reports/simulation-activation-entry-investigation-2026-09-05.md)。
+B7-B9、C4-C11、D3-D8 与 Extended 不在此次 Goal 范围。
+
+本次 Goal 仍在执行。所有者随后明确授权以 macOS 完成可对应的测试、干净包与窗口验收，
+Windows 专属验证后置，不再作为本次 Goal 的必需退出项；已有 Windows 历史证据不改写。
+macOS gmake Debug/Release 的 13 套回归与 15 类启动负例已通过；主菜单鼠标误捕获已修复，
+并通过菜单、合成及暂停界面的实际点击复查。独立 AI 验收尚未关闭；进度、命令和环境限制见
+[执行记录](../reports/todolist-goal-execution-2026-09-05.md)。候选池不会随本次更新自动扩张。
 
 ## 当前阻塞
 
@@ -86,9 +96,16 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
   `Engineering Done`，但 Track 不得标记 `AI Playability PASS`。
 - 严格 `AI-06` 还要求 package-only 文件系统访问；仅切换工作目录但仓库仍可读取时记录
   `BLOCKED`，不能声明 blind PASS。
-- 当前没有正在执行的开发批次；D2 只是候选，需另行批准。
+- 本次 Goal 以 macOS 为当前验收平台；Windows 11 虚拟机正在执行用户自己的编译，按所有者
+  后续指示后置 Windows 验证，不干扰编译。macOS PASS 不替代历史或新的 VS2017/v141 PASS。
+- D2 进入调查已给出保留候选的决定；后续若出现新证据，再按本次条件式授权评估，不能从
+  `Candidate` 直接推导 `Done`。
 
 ## 待执行验收
+
+本次 Goal 的所有者授权 macOS 平台对应执行下列功能场景。表内原 Windows 场景定义保留作为
+后续 Windows 路由；新增证据使用 `platform=macOS` 独立记录，不合并为跨平台 PASS。
+AI-06 的独立 package-only 访问要求及音频实际证据要求继续有效。
 
 | 范围 | 状态 | 关闭方式 |
 | ---- | ---- | -------- |
@@ -97,7 +114,7 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 | `AI-06` AI 盲玩 30 分钟 | `NOT_RUN` | 在仓库不可访问的 package-only 新任务中执行；只声明 AI 可理解性，不外推人类留存或乐趣。 |
 | `AI-07` 视觉/本地化/音频 | `NOT_RUN` | 从带哈希干净包使用真实窗口、多帧/连续观察和可访问录音检查；现有 render capture 多帧能力只作开发预检。 |
 | `AI-08` 完整可玩载体 | `NOT_RUN` | 每个实际完成 Track 结束时，从主菜单运行到胜利、保存重开和该 Track 的正常玩法 Demo。 |
-| 新 macOS 视觉/玩法运行 | `NOT_RUN` | 只有后续批次明确纳入退出范围时执行。 |
+| 新 macOS 视觉/玩法运行 | `Doing` | 已由本次 Goal 后续指示纳入范围；从当前源码构建的带哈希干净 Release 包按对应 AI 场景执行。 |
 
 历史 R3 v1 / Physical Input v2 门槛保持 `SUPERSEDED`；开发者既有部分自测继续作为历史证据，
 不改写成 AI 或真人 PASS。

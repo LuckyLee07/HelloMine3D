@@ -29,6 +29,8 @@
 
 ## 调查与来源
 
+- [todolist-goal-execution-2026-09-05.md](todolist-goal-execution-2026-09-05.md)
+- [simulation-activation-entry-investigation-2026-09-05.md](simulation-activation-entry-investigation-2026-09-05.md)
 - [chunk-streaming-regression.md](chunk-streaming-regression.md)
 - [art-asset-sources.md](art-asset-sources.md)
 

@@ -37,6 +37,9 @@ Chunk 三套状态、Streaming Demand、typed World Job Scheduler、generation c
 Streaming Backpressure；B6 Spatial Activation 已通过 `12/12` 聚焦验证和双配置 `918/918` 完整门禁。
 B10 Large World Stress & Acceptance 已通过 1800 秒/36000 ticks 正式 Core、双确定性探针、双配置
 `920/920` 组成式门禁和最终 Q1。Track C 的 C1-C3 已依次完成 Capability、Machine Runtime 与
-Crusher-only Mechanical Topology；C3 聚焦 `68/68`、双配置完整门禁 `980/980`，当前没有已批准但
-未完成的开发批次。后续批次仍须在 `todolist.md` 中写明真实需求、合同、可观察证据和范围边界，
-不能由长期路线自动授权。
+Crusher-only Mechanical Topology；C3 聚焦 `68/68`、双配置完整门禁 `980/980`。其后 D1 完成
+三条真实 workload 的 64/4/32 item-budget scheduler，记录的 Windows 双配置完整门禁为
+`991/991`，105 项隔离包通过；当批跳过真实窗口，不能推导 AI PASS。
+2026-09-05 Goal 正在调查 D2 进入条件、补充待执行验收和修正文档一致性；实现授权以真实
+远距离 workload 证明 D1 budget 不足为条件，范围不自动扩展到后续候选。
+详见 [执行记录](../reports/todolist-goal-execution-2026-09-05.md)。

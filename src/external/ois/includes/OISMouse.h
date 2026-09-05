@@ -133,6 +133,10 @@ namespace OIS
 		*/
 		virtual void setEventCallback(MouseListener* mouseListener) { mListener = mouseListener; }
 
+		// HelloMine3D extension: Cocoa capture follows application gameplay state.
+		// Other backends retain their existing application-managed policy.
+		virtual void setCursorCaptured(bool) {}
+
 		/** @remarks Returns currently set callback.. or 0 */
 		MouseListener* getEventCallback() const { return mListener; }
 

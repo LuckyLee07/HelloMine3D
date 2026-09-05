@@ -111,12 +111,12 @@ run_binary() {
     ) 2>&1 | tee "$log"
 
     if [ "$name" = "HelloMine3DWorldRuntimeSmoke" ] &&
-       ! grep -F "[VALIDATION] checks=560 failures=0" "$log" >/dev/null; then
+       ! grep -F "[VALIDATION] checks=991 failures=0" "$log" >/dev/null; then
         echo "[XCODE_VERIFY] World runtime summary is missing or failed." >&2
         exit 1
     fi
     if [ "$name" = "HelloMine3DWorldCatalogueSmoke" ] &&
-       ! grep -F "[WORLD_CATALOGUE_TEST] checks=30 failures=0" \
+       ! grep -F "[WORLD_CATALOGUE_TEST] checks=59 failures=0" \
            "$log" >/dev/null; then
         echo "[XCODE_VERIFY] World catalogue summary is missing or failed." >&2
         exit 1
@@ -140,7 +140,7 @@ run_binary() {
         exit 1
     fi
     if [ "$name" = "HelloMine3DCrashDiagnosticsSmoke" ] &&
-       ! grep -F "[CRASH_DIAGNOSTICS_TEST] checks=12 failures=0" \
+       ! grep -F "[CRASH_DIAGNOSTICS_TEST] checks=21 failures=0" \
            "$log" >/dev/null; then
         echo "[XCODE_VERIFY] Crash diagnostics summary is missing or failed." >&2
         exit 1

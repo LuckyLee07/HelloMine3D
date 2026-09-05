@@ -3807,6 +3807,12 @@ namespace
 
         void updateNativeCursorCapture()
         {
+#if defined(__APPLE__)
+            if (m_mouse != nullptr)
+            {
+                m_mouse->setCursorCaptured(shouldCaptureNativeCursor());
+            }
+#endif
 #if defined(_WIN32)
             const bool shouldCapture = shouldCaptureNativeCursor();
             if (shouldCapture == m_nativeCursorCaptured)
@@ -3832,6 +3838,12 @@ namespace
 
         void releaseNativeCursorCapture()
         {
+#if defined(__APPLE__)
+            if (m_mouse != nullptr)
+            {
+                m_mouse->setCursorCaptured(false);
+            }
+#endif
 #if defined(_WIN32)
             if (!m_nativeCursorCaptured && m_cursorHideAdjustments == 0)
             {
@@ -3971,8 +3983,10 @@ namespace
         PostProcessingQuality m_postProcessingQuality =
             PostProcessingQuality::Off;
         bool m_postProcessingInstalled = false;
+#if defined(_WIN32)
         bool m_nativeCursorCaptured = false;
         int m_cursorHideAdjustments = 0;
+#endif
         bool m_validationActorsSpawned = false;
         bool m_oreFixturePlaced = false;
         bool m_containerFixturePlaced = false;

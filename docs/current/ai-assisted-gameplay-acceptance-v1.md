@@ -4,6 +4,15 @@
 
 最后更新：2026-08-31
 
+### 2026-09-05 Goal 平台授权补充
+
+项目所有者明确授权本次 TODOLIST Goal 先完成 macOS 能对应执行的自动测试、干净 Release 包
+和真实窗口功能验收，Windows 专属验证后置。本次新增证据可以使用 macOS 干净包，必须明确
+记录平台、架构、构建和包哈希；原文中的 Windows 包要求在本次 macOS 对应场景中替换为
+macOS 包要求，其余正常输入、动态/音频证据、独立上下文及 AI-06 package-only 隔离要求不变。
+macOS PASS 只关闭本次 macOS 范围，不关闭未执行的 Windows 场景或 VS2017/v141 门禁。
+执行状态见 [Goal 记录](../reports/todolist-goal-execution-2026-09-05.md)，不修改历史报告。
+
 ## 1. 定位
 
 HelloMine3D 是个人架构学习与工程展示项目，不以招募外部玩家、商业发行或收集真人体验样本为

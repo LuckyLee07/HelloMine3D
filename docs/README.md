@@ -29,7 +29,10 @@ Large World Stress & Acceptance 已通过正式 Core 压力/确定性验收、�
 `68/68`，Debug/Release 双配置 `980/980` 世界验证、`126/126` 配方/经济验证和 105 项隔离包门禁
 均通过。`D1` 已获单独批准并完成三条真实 fixed-tick workload 的 64/4/32 item-budget scheduler；
 聚焦 `24/24`、Debug/Release 双配置 `991/991` 世界验证和 105 项隔离包门禁均通过，隔离包
-SHA-256 为 `0B34CD34265ED1A4F88FD5833975FD328FB026FCD6B13A0FAFE9710859F1B2F6`。D2-D8 与 C4-C11 未获批。
+SHA-256 为 `0B34CD34265ED1A4F88FD5833975FD328FB026FCD6B13A0FAFE9710859F1B2F6`。
+2026-09-05 Goal 已获批调查 D2、补充验收及修正文档；当前进入证据不足，D2 实现仍保持候选，
+C4-C11、D3-D8 不在范围。所有者已指定本次先完成 macOS 对应验证，Windows 专属验证后置。
+详见 [执行记录](reports/todolist-goal-execution-2026-09-05.md)。
 其余 Core/Extended 能力目录都不是自动批准的 backlog。
 
 ## 目录分工

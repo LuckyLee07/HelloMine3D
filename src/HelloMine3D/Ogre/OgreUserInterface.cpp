@@ -228,13 +228,13 @@ class OgreUserInterface::Impl
         , flow(&applicationFlow)
         , management(&worldManagement)
         , appliedSettings(settings)
-        , fontPath(std::move(presentationFontPath))
         , uiFeedback(std::move(feedback))
         , crashReports(std::move(pendingCrashReports))
         , showDebugPanel(RuntimeDebugOptions::showDebugInfoAtStartup())
         , settingsFixtureRequested(environmentFlagEnabled(
               "HELLOMINE3D_V10E_SETTINGS_FIXTURE"))
         , iniPath(ResourcePaths::bin("imgui-ogre.ini"))
+        , fontPath(std::move(presentationFontPath))
     {
         std::snprintf(createName.data(), createName.size(), "%s",
                       LocalizedPresentation::text(

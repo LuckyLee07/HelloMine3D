@@ -160,6 +160,10 @@ copied topology snapshot；缺失、错配、损坏或已卸载状态 fail close
 
 ### 3.2 D1 concrete phase-admission path
 
+2026-09-05 Goal 的 D2 进入调查未改变此运行时边界：0/8/32 台远处空闲 Furnace 与近处 Crusher
+探针只观察到 D1 已定义的超载轮转，尚未建立进入 Full/Reduced/Dormant 的充分依据。
+结果与限制见 [进入调查](../reports/simulation-activation-entry-investigation-2026-09-05.md)。
+
 ```text
 WorldSimulation::fixedTick
   -> mandatory PlayerActor / cooldown work

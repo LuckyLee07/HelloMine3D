@@ -1216,7 +1216,7 @@ namespace
 
     void caseOptionalMusic()
     {
-        for (const std::string logicalPath : {
+        for (const std::string &logicalPath : {
                  std::string("media/music/Base.music"),
                  std::string("media/music/tracks/quiet-horizons.wav")})
         {

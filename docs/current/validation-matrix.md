@@ -13,6 +13,11 @@ PASS。新的 AI 场景尚未执行时只写 `NOT_RUN`，不写成永久 `Deferr
 历史运行结果和逐项证据保存在 `docs/archive/project-ledger-2026-08-17.md` 与
 `docs/current/runtime-validation.md`。
 
+2026-09-05 TODOLIST Goal 经所有者明确调整：本批先执行 macOS 对应构建、自动测试、干净包和
+真实窗口场景，Windows 专属验证后置；以下 Windows 路由保留，但不再阻塞本次 macOS 交付。
+必须区分 gmake/Apple clang、Xcode、x86_64/arm64 和 Windows 证据，不能互相冒充。
+AI 平台对应规则见 [当前验收规范](ai-assisted-gameplay-acceptance-v1.md)。
+
 ## 日常开发最低门槛
 
 | 改动 | 最低必要验证 |
@@ -38,6 +43,7 @@ PASS。新的 AI 场景尚未执行时只写 `NOT_RUN`，不写成永久 `Deferr
 | `C1` Block Capability Model | `tools\validate_block_capability_model.ps1` + `HELLOMINE3D_WORLD_SMOKE_FOCUS=C1-CAP` + 完整 WorldRuntime/VS2017 双配置门禁。保留 Chest/Furnace/Crusher 的既有 provider、UI 能力访问和错配/损坏/陈旧句柄失败关闭；C3 只允许 Crusher 增加具体 `MechanicalPort`，仍禁止 Registry 与 Extended 预注册。 |
 | `C2` Machine Runtime v0 | `tools\validate_machine_runtime.ps1` + `HELLOMINE3D_WORLD_SMOKE_FOCUS=C2-MACHINE` + Recipe/Resource Pack/terrain atlas + 完整 WorldRuntime/VS2017 双配置门禁。必须保留五态优先级、Furnace 兼容、Crusher 正常 craft/place/Use/crank、槽位/动力/原子完成、break spill、malformed/stale/mismatch、unload/reload、save/reopen 和 economy v2；C3 拓扑不得改变独立手摇或引入动力传播。 |
 | `C3` Mechanical Topology Model v0 | `tools\validate_mechanical_topology.ps1` + `HELLOMINE3D_WORLD_SMOKE_FOCUS=C3-TOPOLOGY` + 完整 WorldRuntime/VS2017 双配置门禁。必须覆盖 Crusher-only 六面端口、确定性 component id/canonical edge、merge/split/no-op、正常 place/break、malformed/stale、Chunk unload/reload、save/reopen 派生重建、正常 UI 与 Debug 观察；禁止持久化 topology、C4 power、通用网络、物流和 C4+。 |
+| `D1` Simulation Phase Scheduler v0 | `tools\validate_simulation_phase_scheduler.ps1` + `HELLOMINE3D_WORLD_SMOKE_FOCUS=D1-SCHEDULER` + AL-A5/B6/C2/C3 聚焦回归 + 完整 WorldRuntime/VS2017 双配置门禁。保留三类真实 workload、64/4/32 item budget、稳定集合 round-robin/FIFO、单步无 catch-up、mandatory Player/8 phase barrier、copied diagnostics 和 save v12；D2 进入调查不等于已实现 activation。 |
 
 ## 完整验证路由
 
@@ -53,9 +59,13 @@ PASS。新的 AI 场景尚未执行时只写 `NOT_RUN`，不写成永久 `Deferr
 | Block Capability 边界门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_block_capability_model.ps1` | BlockDefinition capability 声明、Chest/Furnace 访问适配、容器 UI 分派或未来 C2/C3/Extended 边界；完整 Windows 门禁也会自动运行 |
 | Machine Runtime 边界门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_machine_runtime.ps1` | MachineRuntime、Furnace/Crusher adapter、processor capability、Crusher payload/recipe/crank、资源经济 schema 或 C3/网络越界；完整 Windows 门禁也会自动运行 |
 | Mechanical Topology 边界门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_mechanical_topology.ps1` | C3 Crusher 节点/端口、确定性连通分量、World/Chunk 同步、能力/UI 观察、save 非持久化或 C4/通用网络越界；完整 Windows 门禁也会自动运行 |
+| Simulation Phase Scheduler 门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_simulation_phase_scheduler.ps1` | D1 admission、Actor adapter、Furnace/Crusher 单项执行、调度 snapshot 或 UI；完整 Windows 门禁自动运行 |
 | Windows Debug 编译 | `MSBuild build\HelloMine3D.sln /p:Configuration=Debug /p:Platform=x64` | 所有 C++ 改动的主干检查 |
 | Windows Release 编译 | 同上，配置改为 `Release` | 里程碑和发行候选 |
 | macOS Xcode 门禁 | `bash scripts/verify_xcode.sh` | Xcode 图、macOS 平台或原生封板 |
+| macOS gmake 双配置门禁 | `MAKEFLAGS='-j2 -B' bash scripts/verify_build.sh` | 本次 Goal 从头编译客户端/依赖和 13 个测试目标；分别运行 Debug/Release，生成 x86_64 macOS 证据，不冒充 Xcode/arm64/Windows |
+| macOS 启动负例 | `python3 tools/validate_startup_errors_macos.py --output <new-output-dir>` | 与 Windows 共用 10 个缺失和 5 个非法 fixture 定义，要求非零退出、准确资源诊断和 `ui=stderr-only` 报告；Windows MessageBoxW 范围后置 |
+| macOS 干净包 | `python3 tools/package_macos_release.py --output <new-app-path>` | 调用者先构建 Release；复制 manifest 资源和 notices、检查动态依赖、记录构建/可执行文件/资源哈希；不会覆盖已有输出，正常窗口验收需另行执行 |
 | 十三个 headless 目标 | `scripts\verify_build.ps1` 中列出的测试/Smoke/Soak | 全量里程碑回归 |
 | 世界运行冒烟 | `bin\HelloMine3DWorldRuntimeSmoke.exe` | 区块、存档、交互、事件、实体、地形 |
 | 渲染截图 | `tools\run_render_capture.ps1` | renderer、shader、texture、mesh、HUD |

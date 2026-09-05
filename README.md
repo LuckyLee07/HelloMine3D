@@ -16,8 +16,8 @@ persistence, diagnostics and packaging layers have been rebuilt.
 
 | | |
 | --- | --- |
-| **Source** | 306 files, ~74.5k lines of C++ |
-| **Automated checks** | 980 world-runtime · 126 recipe · 80 resource-pack · 15 startup-negative — Debug and Release complete |
+| **Source** | 308 files, ~81.5k lines of C++ (including test sources) |
+| **Automated checks** | 991 world-runtime · 126 recipe · 80 resource-pack · 15 startup-negative — recorded Windows D1 Debug and Release gate |
 | **Test executables** | 13 |
 | **Persisted formats** | save `v12`, terrain `v4`, settings `v8` — every one migrates from `v1` |
 | **Performance gates** | 6 versioned scenes with baseline/repeat comparison, bounded stage timings, 2 × 1800 s soak |
@@ -151,7 +151,7 @@ If you only read a few parts of this repository, read these.
 | 5 | **Performance comparison that can say "incomparable".** Scene identity, schema, build configuration and final chunk residency are all part of the record; a mismatch yields `INCOMPARABLE` instead of a misleading pass, and thresholds only gate after a baseline has been explicitly approved. | [`compare_perf_baselines.ps1`](tools/compare_perf_baselines.ps1) · [`performance-contract-v1.json`](tools/performance-contract-v1.json) |
 | 6 | **Crash diagnostics with no telemetry.** A local minidump plus a versioned, sanitized sidecar; offline mixed-stack symbolization against a separately archived PDB; a next-launch prompt the player can simply ignore. Nothing is uploaded and no absolute developer paths leak. | [`Diagnostics/`](src/HelloMine3D/Diagnostics/) · [contract](docs/contracts/crash-diagnostics-contract-v1.md) |
 | 7 | **Packages validated from an isolated root.** The distribution is checked from a directory with no access to the source or build tree, including negative cases for missing and stale resources — so "it works on my machine" cannot pass the gate. | [`package_windows_release.ps1`](tools/package_windows_release.ps1) · [`validate_startup_errors.ps1`](tools/validate_startup_errors.ps1) |
-| 8 | **One frozen contract per feature batch.** Fifty-nine contract documents fix the data fields, defaults, migration path, failure semantics and exit conditions *before* implementation — then record the real measured numbers afterwards. | [`contracts/`](docs/contracts/) |
+| 8 | **One frozen contract per feature batch.** Contract documents fix the data fields, defaults, migration path, failure semantics and exit conditions *before* implementation — then record the real measured numbers afterwards. | [`contracts/`](docs/contracts/) |
 | 9 | **A ThreadSanitizer gate that proves itself first.** The script requires an isolated race probe to actually report and exit 66, then verifies native architecture and TSan runtime linkage and rejects suppressions, before the real loader-churn run is allowed to count. | [`verify_tsan.sh`](scripts/verify_tsan.sh) · [notes](docs/current/thread-sanitizer-validation.md) |
 | 10 | **Strict data-driven content with startup preflight.** Blocks, recipes, tools, foods, smelting, enemies, objectives, audio, music and both locales are parsed strictly from `media/`; a missing, duplicate or malformed entry fails before Ogre is even constructed. | [`media/`](media/) · [`StartupResourcePreflight.cpp`](src/HelloMine3D/Ogre/StartupResourcePreflight.cpp) |
 
@@ -166,7 +166,7 @@ If you only read a few parts of this repository, read these.
 | **Combat** | 6 enemy definitions with melee and ranged profiles, wind-up and recovery windows, directional knockback, blocking, bounded transient projectiles, identity-bearing drops |
 | **Structure** | 34 data-driven objectives with independent branch progress, a waystone victory loop, bounded post-victory trials, 3 difficulty profiles |
 | **Presentation** | Vertex AO, an original 16×16 atlas with ecology tinting, directional fog and a parallax cloud layer, optional directional shadows (Off / Medium / High), optional bounded post-processing |
-| **Product shell** | Main-menu world management with rename, backup-restore and recoverable delete; pause and versioned settings; remappable keys and mouse buttons; en-US / zh-CN at 425 keys each; sampled audio and streamed ambient music |
+| **Product shell** | Main-menu world management with rename, backup-restore and recoverable delete; pause and versioned settings; remappable keys and mouse buttons; en-US / zh-CN at 428 keys each; sampled audio and streamed ambient music |
 
 ---
 
@@ -185,8 +185,23 @@ hand-cranked Crusher share only proven machine transitions, and loaded valid Cru
 deterministic six-face topology with observable merge/split and load/reopen reconstruction. The C3
 gate passes `980/980` world assertions and `126/126` recipe/economy checks in Debug and Release;
 its 105-entry isolated package hashes to
-`8CC3ED1FC37A0F115D57C3C56349BE3278AA4B35D9DAD33975D9B45B3D46776F`. B7-B9, C4-C11,
-Track D and Extended capabilities remain unapproved candidates.
+`8CC3ED1FC37A0F115D57C3C56349BE3278AA4B35D9DAD33975D9B45B3D46776F`.
+
+D1 now completes the concrete Simulation Phase Scheduler: managed Actors, random-tick
+Sections and Furnace/Crusher updates use deterministic 64/4/32 item budgets with copied
+diagnostics. The recorded Windows Debug/Release gate passes `991/991` world assertions;
+the 105-entry isolated package hashes to
+`0B34CD34265ED1A4F88FD5833975FD328FB026FCD6B13A0FAFE9710859F1B2F6`.
+That gate used `-SkipRealWindow`; it does not establish real-window or AI gameplay PASS.
+B7-B9, C4-C11, D2-D8 and Extended capabilities remain candidates; the current Goal
+authorizes D2 investigation and implementation only if its real-workload entry condition
+is established. The current Goal validates the corresponding macOS scope first,
+with new Windows-specific validation postponed by the owner. See the
+[execution record](docs/reports/todolist-goal-execution-2026-09-05.md).
+The Goal's macOS Debug/Release gmake regression and startup-negative checks now
+pass. A Cocoa input fix keeps the native cursor free in menus and captures it
+only during focused gameplay; actual menu, crafting and pause clicks were
+rechecked. Independent AI acceptance remains open.
 
 This is a personal architecture-learning and showcase project, not a commercial product with an
 external playtest panel. The game remains the proof vehicle: observable workflows are validated

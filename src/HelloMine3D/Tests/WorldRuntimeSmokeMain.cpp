@@ -767,6 +767,80 @@ void caseSimulationPhaseSchedulerD1()
 }
 
 // ---------------------------------------------------------------------------
+// Diagnostic-only entry probe. This is automated workload evidence, not AI
+// gameplay acceptance and not a declaration that D2 has been implemented.
+void caseSimulationActivationEntryProbe()
+{
+    for (int distantCount : {0, 8, 32}) {
+        setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+        setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+        setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+        Config config = makeConfig();
+        Camera camera(config);
+        Player player;
+        World world(camera, config, player,
+                    freshSaveDirectory("d2_entry_" +
+                                       std::to_string(distantCount)),
+                    false, 1);
+        if (distantCount > 0) {
+            world.preloadAround({-72.f, 90.f, 8.f});
+        }
+        bool initialized = true;
+        for (int index = 0; index < distantCount; ++index) {
+            const glm::ivec3 position{-72 + index % 8, 90,
+                                       8 + index / 8};
+            world.setBlock(position.x, position.y, position.z,
+                           BlockId::Furnace);
+            initialized = FurnaceContainer::initialize(world, position) &&
+                          initialized;
+        }
+        const glm::ivec3 nearPosition{8, 90, 10};
+        world.setBlock(nearPosition.x, nearPosition.y, nearPosition.z,
+                       BlockId::Crusher);
+        initialized = CrusherContainer::initialize(world, nearPosition) &&
+                      initialized;
+        CrusherState powered;
+        powered.input = {Material::ID::Cobblestone, 1, 0};
+        powered.crankTicksRemaining = CrusherContainer::MaxCrankTicks;
+        world.updateBlockEntity(nearPosition,
+                                CrusherContainer::serialize(powered));
+        check("D2-ENTRY/valid-real-machine-fixture-" +
+                  std::to_string(distantCount), initialized);
+
+        std::size_t deferredTicks = 0;
+        int firstProgress = -1;
+        double totalPhaseMs = 0.0;
+        CrusherState current;
+        for (int tick = 1; tick <= 20; ++tick) {
+            world.tick(tick);
+            const auto record = world.getBlockEntity(nearPosition);
+            if (!record || !CrusherContainer::deserialize(
+                    record->payload, current)) {
+                throw std::runtime_error("D2 entry near machine lost");
+            }
+            if (tick == 1) {
+                firstProgress = current.progressTicks;
+            }
+            const WorldSimulationSnapshot snapshot =
+                world.collectDebugStats().simulation;
+            const auto &plan = snapshot.scheduledWorkloads[
+                static_cast<std::size_t>(
+                    SimulationScheduledWorkload::BlockEntities)];
+            deferredTicks += plan.deferred > 0 ? 1 : 0;
+            const auto *metrics = findSimulationPhaseMetrics(
+                snapshot, WorldSimulationPhase::BlockEntitySimulation);
+            totalPhaseMs += metrics->elapsedMilliseconds;
+        }
+        std::cout << "[D2_ENTRY] distant_idle_furnaces=" << distantCount
+                  << " distance_blocks=73..80 near_crushers=1 ticks=20"
+                  << " near_first_progress=" << firstProgress
+                  << " near_final_progress=" << current.progressTicks
+                  << " near_power_remaining=" << current.crankTicksRemaining
+                  << " deferred_ticks=" << deferredTicks
+                  << " machine_phase_total_ms=" << totalPhaseMs << '\n';
+    }
+}
+
 // E0 - block data and mesh UV generation do not require a graphics context
 // ---------------------------------------------------------------------------
 void caseBlockTextureCoordinates()
@@ -9964,7 +10038,7 @@ void casePostVictoryEvents()
         WorldSave(runtimeDirectory).save(runtimeSave);
     const glm::ivec3 core{9, 100, 8};
     const Config config = makeConfig();
-    const auto prepareArena = [&core](World &world,
+    const auto prepareArena = [](World &world,
                                       const glm::ivec3 &anchor) {
         for (int x = 1; x <= 15; ++x) {
             for (int z = 1; z <= 15; ++z) {
@@ -16438,7 +16512,7 @@ void caseExplorationStructuresAndLoot()
 
     const int siteCellSize =
         DeterministicStructurePlanner::SiteCellChunks * CHUNK_SIZE;
-    const auto insideOwnedCell = [siteCellSize](
+    const auto insideOwnedCell = [](
         const StructurePlanSnapshot &plan) {
         const int minimumX = plan.key.cellX * siteCellSize +
             DeterministicStructurePlanner::SiteEdgeInset;
@@ -17411,6 +17485,10 @@ int main()
             caseWorldSimulationRuntime();
             caseSimulationPhaseMetrics();
             caseSimulationPhaseSchedulerD1();
+        }
+        else if (focus != nullptr &&
+                 std::string(focus) == "D2-ENTRY") {
+            caseSimulationActivationEntryProbe();
         }
         else {
         caseWorldOutcomeAndLocalizedText();

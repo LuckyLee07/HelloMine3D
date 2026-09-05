@@ -2192,6 +2192,11 @@ D2 只是下一候选，尚未获批。
 
 ## D2 — Activation Level
 
+2026-09-05：本次 Goal 获批调查进入条件，并在真实 workload 证明 D1 budget 不足时实施。
+当前有界机器探针未建立超出 D1 已接受超载语义的正常玩法或性能失败，故本次保留 Candidate；
+以下仍是候选设计，不是当前运行时。详见
+[进入调查](../reports/simulation-activation-entry-investigation-2026-09-05.md)。
+
 B6 决定 Chunk 数据与表现是否需要 Resident / Render / Far；D2 只决定已 Resident 空间内的模拟
 保真度，以及 Actor、Machine、Crop、Network 在 Full / Reduced / Dormant 下怎样推进。
 

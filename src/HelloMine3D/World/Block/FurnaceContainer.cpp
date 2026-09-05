@@ -43,14 +43,6 @@ InventorySlotState &slot(FurnaceState &state, FurnaceSlot target)
     return state.output;
 }
 
-const InventorySlotState &slot(const FurnaceState &state,
-                               FurnaceSlot target)
-{
-    if (target == FurnaceSlot::Input) return state.input;
-    if (target == FurnaceSlot::Fuel) return state.fuel;
-    return state.output;
-}
-
 bool validStack(const InventorySlotState &stack)
 {
     if (stack.amount == 0) {

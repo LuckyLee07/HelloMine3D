@@ -710,10 +710,21 @@ int main()
             "K4/rename-and-open-preserve-id-and-directory",
             renamed.succeeded() && opened.succeeded() &&
                 renamed.worldId == first.worldId &&
-                fs::path(renamed.directoryPath) == firstDirectory &&
+                opened.worldId == first.worldId &&
+                // macOS temp roots may use /var while enumeration returns
+                // canonical /private/var. Check the real directory identity.
+                fs::equivalent(renamed.directoryPath, firstDirectory) &&
+                fs::equivalent(opened.directoryPath, firstDirectory) &&
                 renamedEntry != afterRename.worlds.end() &&
                 renamedEntry->displayName == "Renamed World" &&
-                fs::path(renamedEntry->directoryPath) == firstDirectory);
+                fs::equivalent(renamedEntry->directoryPath, firstDirectory),
+            "created=" + first.directoryPath +
+                " renamed=" + renamed.directoryPath +
+                " rename_status=" + worldManagementStatusName(renamed.status) +
+                " open_status=" + worldManagementStatusName(opened.status) +
+                " listed=" + (renamedEntry != afterRename.worlds.end()
+                    ? renamedEntry->directoryPath + ":" + renamedEntry->displayName
+                    : "missing"));
         suite.check(
             "K4/path-traversal-command-is-rejected",
             service.deleteWorld("../outside").status ==

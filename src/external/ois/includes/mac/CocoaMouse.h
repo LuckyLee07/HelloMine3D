@@ -48,6 +48,8 @@ namespace OIS
 
 		/** @copydoc Object::capture */
 		virtual void capture();
+		// HelloMine3D extension: opt-in relative input; menus use the OS cursor.
+		virtual void setCursorCaptured(bool captured);
 
 		/** @copydoc Object::queryInterface */
 		virtual Interface* queryInterface(Interface::IType type) { return 0; }
@@ -67,10 +69,14 @@ namespace OIS
 	MouseState mTempState;
 	bool mNeedsToRegainFocus;
 	bool mMouseWarped;
+	bool mCursorCaptured;
 }
 
 - (void)setOISMouseObj:(CocoaMouse*)obj;
 - (void)capture;
+- (void)releaseCursor:(NSNotification*)notification;
+- (void)setCursorCaptured:(BOOL)captured;
+- (void)updateAbsolutePosition:(NSEvent*)event;
 
 @end
 

@@ -1713,6 +1713,15 @@ distance-based Full/Reduced/Dormant behavior is necessary and safe. D1 also
 does not authorize a generic interface merely because three concrete planning
 methods now share arithmetic.
 
+The 2026-09-05 entry investigation makes that distinction concrete. Eight
+distant empty Furnaces plus one nearby Crusher do not defer work; 32 empty
+Furnaces plus that Crusher advance it 19 times over 20 fixed ticks, within the
+existing two-tick service window. This records a distance-insensitive trade-off,
+not a completed activation policy or a demonstrated normal-play failure.
+See `docs/reports/simulation-activation-entry-investigation-2026-09-05.md` for
+the reproducible fixture, the rejected first run and the decision to retain
+D2 as a candidate. No new implemented tutorial Section is added for D2.
+
 Related evidence:
 
 - `docs/contracts/simulation-phase-scheduler-v0-contract-v1.md`

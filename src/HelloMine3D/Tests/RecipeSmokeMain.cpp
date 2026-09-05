@@ -255,33 +255,6 @@ end
 )";
     }
 
-    std::string validSmelting()
-    {
-        return R"(# HelloMine3D smelting registry v1
-smelt hellomine:iron_ingot
-input hellomine:iron_ore
-output hellomine:iron_ingot 1
-ticks 100
-end
-smelt hellomine:cooked_meat
-input hellomine:raw_meat
-output hellomine:cooked_meat 1
-ticks 60
-end
-smelt hellomine:glass
-input hellomine:sand
-output hellomine:glass 1
-ticks 80
-end
-fuel hellomine:coal_ore
-ticks 160
-end
-fuel hellomine:plant_fiber
-ticks 40
-end
-)";
-    }
-
     std::string oneRecipe(const std::string &body)
     {
         return "# HelloMine3D recipe registry v1\n" + body;
