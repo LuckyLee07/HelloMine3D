@@ -1,0 +1,42 @@
+version 12
+world_id world-9e31230f102f8c7cd05fb496dbe6edac
+world_name "Layout Base"
+seed 1213457900
+created_utc 1788589459
+last_played_utc 1788589592
+last_build development
+spawn 216.5 71 72.5
+world_time 347
+generator ClassicOverWorld
+terrain_generation_version 4
+exploration_reward_version 1
+difficulty_profile_version 1
+difficulty_id 1
+post_victory_event_version 1
+post_victory_completed_events 0
+alpha_journey_flags 0
+world_outcome_phase 0
+world_outcome_reward_epoch 0
+world_outcome_claimed_epoch 0
+objective_definition_version 3
+objective_completed_count 0
+objective_progress_count 0
+player_present 1
+player_position 216.5 71 72.5
+player_rotation 0 0 0
+player_held 0
+player_health 8
+player_food_cooldown 0
+player_attack_cooldown 0
+inventory_format 2
+inventory_count 5
+inventory_slot 0 0 0
+inventory_slot 0 0 0
+inventory_slot 0 0 0
+inventory_slot 0 0 0
+inventory_slot 0 0 0
+actor_count 4
+actor 1 2 hellomine:stalker 228.213776 65 78.3568878 0 -63.4349518 0 0 0 0 1 8 0 0 0 0 1.60000002 33 1
+actor 1 3 hellomine:stalker 215.16394 72 72.3972244 0 94.3987808 0 0 0 0 1 8 0 0 0 0 1.60000002 33 1
+actor 1 4 hellomine:stalker 192.419052 73 64.7474899 0 0 0 0 0 0 1 8 0 0 0 16.3500366 1.60000002 33 1
+actor 1 5 hellomine:stalker 236.419052 67 76.7474518 0 0 0 0 0 0 1 8 0 0 0 16.3500366 1.60000002 33 1

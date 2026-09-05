@@ -1,0 +1,9 @@
+{
+  "archive": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/goal-20260905/HelloMine3D-macOS-layout-candidate.zip",
+  "archive_sha256": "b2bb8ff42086c439a3648367abee92c305357e75206b1938fae7a48ab4989929",
+  "executable_sha256": "4bece0fc19a03a8268bfd3808d237a15244f3a0184646691aceb9568eb9e25f2",
+  "source_file": "src/HelloMine3D/Ogre/OgreUserInterface.cpp",
+  "source_sha256": "7d48c14ed6f4b231743cc08e996eb38b020a6d89964b2c6bbe717f90fa6f9816",
+  "gate": "build/xcode-validation-20260905141759",
+  "gate_result": "PASS"
+}

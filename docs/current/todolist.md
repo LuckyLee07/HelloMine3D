@@ -85,7 +85,9 @@ B7-B9、C4-C11、D3-D8 与 Extended 不在此次 Goal 范围。
 
 本次 Goal 仍在执行。所有者随后明确授权以 macOS 完成可对应的测试、干净包与窗口验收，
 Windows 专属验证后置，不再作为本次 Goal 的必需退出项；已有 Windows 历史证据不改写。
-macOS gmake 与 Xcode Debug/Release 的 13 套回归已通过；两种 Release 构建的 15 类启动负例也已通过。
+当前布局修复已通过 macOS Xcode Debug/Release 的 13 套回归及客户端探针
+（`build/xcode-validation-20260905143633`）。此前修订的 gmake 双配置回归、
+gmake/Xcode Release 启动负例各 15 类通过，保留原版本证据，不视作本轮重新执行。
 Xcode Release 已去除会破坏 infinity/isfinite 校验的 fast-math。主菜单鼠标误捕获已修复，
 并通过菜单、合成及暂停界面的实际点击复查。独立 AI 验收尚未关闭；进度、命令和环境限制见
 [执行记录](../reports/todolist-goal-execution-2026-09-05.md)。候选池不会随本次更新自动扩张。
@@ -111,12 +113,12 @@ AI-06 的独立 package-only 访问要求及音频实际证据要求继续有效
 | 范围 | 状态 | 关闭方式 |
 | ---- | ---- | -------- |
 | `AI-01` 基础窗口功能 | `BLOCKED（macOS 部分通过）` | 独立验收已验证菜单、建档/读档、暂停及语言持久化；移动/视角/按住键受工具限制。快捷键缺陷已修复并通过独立复测，见 `../reports/ai01-macos-6916867-evidence/report.md`。 |
-| `AI-02..AI-04` 容器/战斗/旅程 | `NOT_RUN` | 在 Windows Release 干净包中以正常 OS 输入执行菜单、容器、战斗、保存和重启。 |
+| `AI-02..AI-04` 容器/战斗/旅程 | `NOT_RUN` | 本次在 macOS Release 干净包中以正常 OS 输入执行菜单、容器、战斗、保存和重启；Windows 路由后置。 |
 | `AI-05` Stage 11 scripted | `NOT_RUN` | 制作/放置火把、建造、工具职责、探索奖励、洞口、战斗和 Waystone 共鸣。 |
 | `AI-06` AI 盲玩 30 分钟 | `BLOCKED（隔离环境）` | 当前工具仍允许读取仓库，尚不满足 package-only；须在仓库不可访问的新任务中执行，只声明 AI 可理解性，不外推人类留存或乐趣。 |
-| `AI-07` 视觉/本地化/音频 | `NOT_RUN` | 从带哈希干净包使用真实窗口、多帧/连续观察和可访问录音检查；现有 render capture 多帧能力只作开发预检。 |
+| `AI-07` 视觉/本地化/音频 | `BLOCKED（部分视觉通过）` | 创建表单/目标HUD双语三档复验通过，十位seed列双语大字号及低档复验通过；完整动态/音频及可持久化截图证据仍缺失。见本次执行记录，不声明整体AI-07 PASS。 |
 | `AI-08` 完整可玩载体 | `NOT_RUN` | 每个实际完成 Track 结束时，从主菜单运行到胜利、保存重开和该 Track 的正常玩法 Demo。 |
-| 新 macOS 视觉/玩法运行 | `Doing` | 已由本次 Goal 后续指示纳入范围；从当前源码构建的带哈希干净 Release 包按对应 AI 场景执行。 |
+| 新 macOS 视觉/玩法运行 | `BLOCKED（部分通过）` | 已由本次 Goal 后续指示纳入范围；从当前源码构建的带哈希干净 Release 包按对应 AI 场景执行。 |
 
 历史 R3 v1 / Physical Input v2 门槛保持 `SUPERSEDED`；开发者既有部分自测继续作为历史证据，
 不改写成 AI 或真人 PASS。

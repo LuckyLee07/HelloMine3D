@@ -198,15 +198,19 @@ authorizes D2 investigation and implementation only if its real-workload entry c
 is established. The current Goal validates the corresponding macOS scope first,
 with new Windows-specific validation postponed by the owner. See the
 [execution record](docs/reports/todolist-goal-execution-2026-09-05.md).
-The Goal's macOS Debug/Release gmake and Xcode regression gates now pass.
+The latest native input and UI layout changes pass the macOS Xcode Debug/Release gate.
+Earlier gmake Debug/Release results remain recorded for their original code revisions.
 Xcode Release uses O3 without fast-math to preserve resource reachability checks.
-Startup-negative checks also pass. A Cocoa input fix keeps the native cursor free in menus and captures it
+Earlier startup-negative checks passed at their recorded revisions. A Cocoa input fix keeps the native cursor free in menus and captures it
 only during focused gameplay; actual menu, crafting and pause clicks were
 rechecked. Independent AI-01 has partial successful menu/save/load/settings results;
 movement, look and held-key checks remain blocked by current Computer Use capabilities.
 Native focus now clears keyboard, mouse and UI state; automated regressions pass,
 while independent minimize/restore acceptance remains blocked by native reactivation
 that the available window controls could not establish.
+Normal-window scale checks also verified the repaired world-creation form,
+objective progress text and ten-digit seed column. Full visual/audio acceptance
+remains open; the execution record separates these bounded results.
 
 This is a personal architecture-learning and showcase project, not a commercial product with an
 external playtest panel. The game remains the proof vehicle: observable workflows are validated

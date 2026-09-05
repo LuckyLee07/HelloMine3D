@@ -25,12 +25,13 @@ Status: In progress. This report does not close the Goal or claim AI PASS.
 | Audit D2 entry against real distant Actor/Machine workload | Done (investigation only) | Debug + two Release probes; retain Candidate with reasons, no activation implementation |
 | Fix current-document inconsistencies | Done for current evidence | README, ledger, architecture/tutorial and validation routes updated; final check after validation |
 | Execute relevant automated checks | Done (current engineering scope) | Path-identity assertion fixed; post-cursor gmake Debug/Release 13 suites PASS; Xcode double-configuration gate PASS |
-| AI-01 | BLOCKED overall / focus follow-up Doing | Independent menu/save/load/settings steps and shortcut repair pass; movement/look/held-key checks tool-blocked. New focus package is being retested. |
-| AI-02..AI-05, AI-07, AI-08 | NOT_RUN | Hashed clean macOS Release package, OS input, normal gameplay; no fixtures |
+| AI-01 | BLOCKED overall | Independent menu/save/load/settings steps and shortcut repair pass; focus follow-up completed with native restore/switching unresolved; movement/look/held-key checks tool-blocked. |
+| AI-02..AI-05, AI-08 | NOT_RUN | Hashed clean macOS Release package, OS input, normal gameplay; no fixtures |
+| AI-07 | BLOCKED overall; bounded layout repairs PASS | Six combinations passed form/HUD follow-up; en/zh1.75 and zh0.75 seed-row follow-up passed with actual Play. Full visual/dynamic/audio and persistent screenshot evidence remain open. |
 | AI-06 | BLOCKED | Actual package-only filesystem access unavailable; fresh subagent alone remains PARTIAL and cannot supply blind PASS. |
-| New macOS gameplay/visual acceptance | Doing | Explicitly authorized by subsequent owner steering; independent macOS evidence |
+| New macOS gameplay/visual acceptance | BLOCKED (partial results retained) | Explicitly authorized by subsequent owner steering; independent macOS evidence |
 | Windows-specific verification | Postponed by owner | Not a required exit item of this macOS Goal; do not claim Windows PASS |
-| Final delivery | Todo | Review diff, document evidence and blockers; local commits may be created, no push/release/tag |
+| Final delivery | Done for available engineering scope | Code/evidence are committed together locally; clean delivery identity is recorded under build/goal-20260905/layout-delivery.json. Formal acceptance gaps remain; no push/release/tag. |
 
 ## Environment and evidence boundaries
 
@@ -124,17 +125,21 @@ Windows 991/991 results remain historical evidence, not a new execution.
 
 ## Resume point
 
-Keyboard batch is committed as fb8f275. Combined keyboard/mouse/UI focus repair
-has passed full Xcode Debug/Release and focused automated checks. Independent
-normal-window follow-up is finished and BLOCKED overall: basic text, mouse
-create/play and native close observed; minimize loses focus, but exposed Raise
-could not establish native reactivation. Preserve this limit in the local
-engineering commit; do not claim focus acceptance or Goal completion.
-Evidence: `macos-focus-20260905-evidence/focus-retest.md`. GUI is free and the
-candidate was normally closed. Next run accessible AI-07 menu/locale/scale
-observations from a fresh normal launch of the same hashed package, avoiding
-known external-app/restore tool blockers. AI-06 needs package-only roots; real
-audio needs a supported backend/evidence. Windows remains postponed.
+All three discovered layout defects have completed implementation, final Xcode
+Debug/Release gate `build/xcode-validation-20260905143633` and bounded independent
+normal-window follow-up. Evidence directories retain original failures, six
+form/HUD combinations, and final en/zh1.75 plus zh0.75 seed-column checks with
+actual Play. Final tested Mach-O SHA is
+`c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424`.
+This local layout batch commits code and evidence together. Clean repackaging
+identity/commit is in `build/goal-20260905/layout-delivery.json`; repackaging the
+same binary is not a new GUI run. Both examiners have released GUI and finished.
+No further independent engineering task remains in the frozen scope without a
+new failure or capability change. D2 stays Candidate after evidenced non-entry.
+Restore/switching, sustained/relative input, strict AI-06 filesystem isolation,
+persistent screenshots and real audio still prevent full formal acceptance.
+Windows is postponed. Do not repeatedly rerun unchanged blockers or mark Goal
+Done. Resume on the minimum capability conditions in the completion audit.
 
 ## macOS menu cursor repair (implemented; focused regression passed)
 
@@ -524,3 +529,153 @@ audio needs a supported backend/evidence. Windows remains postponed.
   Final current-document audit corrected two stale aggregate AI NOT_RUN claims
   in the roadmap and validation matrix. Frozen candidate's 11 source/test file
   hashes still match; `git diff --check` passes.
+
+## Clean focus delivery and AI-07 menu subset
+
+- Focus engineering batch committed locally as
+  `ffe0684c21ff7aaa9e16ba5a6fea2cb3e5085f66`; no push/release/tag.
+- Clean working tree repackaged with source ffe0684 and empty tracked-diff SHA
+  `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+  ZIP `build/goal-20260905/HelloMine3D-macOS-ffe0684.zip` SHA-256
+  `bea8cc3cde598ca675aa496515dff4ebcebcbb1d9c287442dbf4595a1fc1d450`;
+  executable remains `bf07e9b3ff9a39e1b8a0aca375e94a75ead8eade4d1239c11c0204fe8077cbcd`.
+  This maps the tested runtime to a clean local commit; no new binary execution
+  result is invented by repackaging. Identity: `ai07-macos-ffe0684-evidence/`.
+- Independent AI-07 menu/locale/scale subset is running from that clean package.
+  Six combinations: en-US/zh-CN × 0.75/1.00/1.75, ordinary menu/world/settings/
+  credits/pause/crafting/objective views where reachable. No world fixtures,
+  position changes, file edits or unsupported audio/dynamic/full-matrix claims.
+
+### AI-07 discovered layout regressions
+
+- Independent original clean ffe0684 package: en-US 1.00 and 0.75 normal
+  reachable panels pass the observed checks. At 1280x720/en-US/1.75 the Worlds
+  creation row clips Create at the right edge and shows only part of the seed.
+  Existing-world row seed and Play/Delete remain complete; do not alter them
+  based on hypothetical overflow.
+- At 1.75 in both languages the Journey HUD progress overlay (0/11) is
+  vertically clipped by its bar. Pause objective text remains complete.
+- Repair in OgreUserInterface: create form uses two stretch columns with labels
+  above controls; seed field receives its column width and Create has its own
+  cell. The objective progress bar uses current frame height to fit scaled text.
+  No controls are removed and scale limits are unchanged. The first form change
+  compiled Debug/Release; combined HUD/form change still needs the final gate
+  and independent retest. Original candidate is immutable; remaining Chinese
+  combinations are still being examined before the new package is frozen.
+
+- Original zh-CN 1.75: Create label fits (shorter text), but seed editor is still
+  truncated. Existing-world seed and Enter/Delete fit. Menu/settings/credits/
+  pause/empty crafting text and return paths pass observed checks; Credits and
+  crafting scroll to their bottom. HUD progress digits clip in both languages.
+  Chinese 1.00/0.75 checks remain in progress before original-package close.
+
+- Combined form/HUD Debug and Release client compilation completed successfully,
+  with no compiler warnings in the two `layout-combined-*-build.log` files.
+  Independent code review found no blocking behavior/ID regression: business
+  values/call remain the same; bar ratio/text are unchanged. Required new-package
+  checks include actual name/seed/difficulty editing + Create result, high-scale
+  English/Chinese HUD readability and no adjacent overlap, plus low-scale checks.
+
+- Owner explicitly authorized all project permissions and autonomous progress;
+  continue local edits, checks and batch commits without repeated authorization.
+  Required sandbox escalations remain tool-enforced; no current approval rejection.
+- Original zh-CN 1.00 Journey progress digits are also visibly clipped; the
+  earlier coarse panel observation does not supersede this specific FAIL.
+
+- Original six-combination observation finished, including zh-CN 0.75 with
+  readable small progress digits. Normal Quit is confirmed by OGRE Shutdown
+  at 14:17:22 local time. Examiner released GUI before full layout Xcode gate.
+- Final layout gate command: `bash scripts/verify_xcode.sh`, macOS15.7.3,
+  Xcode/Apple Clang x86_64 Debug and Release, source ffe0684 plus the recorded
+  OgreUserInterface layout diff. Aggregate log `build/goal-20260905/
+  macos-xcode-layout-final.log`; result still pending.
+
+- Original AI-07 report, application log and final UI settings are retained in
+  `ai07-macos-ffe0684-evidence/` with SHA-256 manifest. Final matrix supersedes
+  preliminary broad panel wording: en-US1.00 HUD is UNCONFIRMED; zh-CN1.00
+  and both 1.75 HUD samples fail. Screenshot evidence is genuine inline CUA
+  output; persistent image-file/hash evidence remains unavailable, not invented.
+
+### Final layout gate and frozen follow-up
+
+- `bash scripts/verify_xcode.sh` exited 0: Debug/Release 13 suites, graph,
+  performance contracts and client validate/window probes PASS. Current logs:
+  `build/xcode-validation-20260905141759`; retained aggregate
+  `ai07-macos-layout-evidence/xcode-gate.log`.
+- Package command: `python3 tools/package_macos_release.py --configuration
+  Release --output /private/tmp/HelloMine3D-Layout-20260905.app`, then
+  `ditto -c -k --keepParent` into the immutable layout candidate ZIP.
+  ZIP SHA `b2bb8ff42086c439a3648367abee92c305357e75206b1938fae7a48ab4989929`;
+  Mach-O SHA `4bece0fc19a03a8268bfd3808d237a15244f3a0184646691aceb9568eb9e25f2`.
+  Source identity/hash and build metadata retained in
+  `ai07-macos-layout-evidence/`.
+- Examiner now owns GUI for six-combination form/HUD follow-up and real
+  name/seed/nondefault-difficulty creation. Old package/report preserved.
+  This is bounded repair acceptance, not full AI-07 completion.
+
+- Layout candidate follow-up confirms en-US1.00 and1.75 creation form/HUD
+  repairs. Real ten-digit generated seed1213457900 exposed a third defect:
+  at en-US1.75 the existing-world seed overlaps/clips against difficulty.
+  Earlier nine-digit seed observation remains valid but did not cover this case.
+- Follow-up repair removes the seed column's fixed150px initial width, letting
+  ImGui size that fixed column from its actual content. Other columns/business
+  actions unchanged. Current candidate remains immutable and examiner finishes
+  its matrix before a new build/package follows. No final PASS/commit yet.
+
+- First layout ZIP read-back: all106 declared file hashes match, but exact
+  membership FAIL because `ditto` added130 AppleDouble metadata entries.
+  Candidate is preserved unchanged; this does not invalidate observed binary
+  behavior, but it is not the final distribution. Next package will use explicit
+  file-only ZIP creation (as prior clean delivery), then verify exact membership.
+  Original failure: `ai07-macos-layout-evidence/archive-check.json`.
+
+- Candidate1 business follow-up: normal en-US1.75 input created Layout Check
+  with seed1234567890 and visible nondefault Casual difficulty; pause after
+  entry explicitly displayed Difficulty: Casual. HUD progress is complete.
+  This verifies the changed form path; existing-row clipping remains separate.
+
+- First layout candidate finished all six form/HUD combinations successfully.
+  Independent en-US1.75 existing-row ten-digit seed remains FAIL; zh-CN1.75
+  seed is readable but tight against difficulty. App exited normally and GUI
+  was returned before final seed-width Xcode gate started.
+  Gate command `bash scripts/verify_xcode.sh`, aggregate
+  `build/goal-20260905/macos-xcode-layout-seed-final.log`; pending result.
+
+### Seed-column final gate and follow-up
+
+- Final `bash scripts/verify_xcode.sh` exited0, all Debug/Release13 suites
+  and client probes PASS: `build/xcode-validation-20260905143633`. Aggregate
+  retained in `ai07-macos-layout-seed-evidence/xcode-gate.log`.
+- New external package `/private/tmp/HelloMine3D-Layout-Seed-20260905.app`
+  was archived with Python ZipFile explicit regular-file traversal. Read-back
+  checked every declared SHA and exact member set:106 entries,107 total files
+  PASS. No AppleDouble entries. Old failed archive remains unchanged.
+- ZIP SHA `a006b55c253aff4d31c5b78a0fe9be9eaea928d22c48cc407c742e0e4985bf61`;
+  executable SHA `c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424`.
+  Source hash/identity: `ai07-macos-layout-seed-evidence/package-identity.json`.
+- Independent follow-up now checks only en/zh1.75 and a low-scale existing
+  world row, normal ten-digit seed creation and actual Play; no need to rerun
+  unchanged panels. Final repair acceptance remains pending.
+
+- Final independent seed-column follow-up completed PASS: en-US1.75,
+  zh-CN1.75 and zh-CN0.75 each observed stable two-frame complete ten-digit
+  seed, visible gap before difficulty, readable name and intact Play/Delete.
+  Actual high-scale Play → rendered world → Esc succeeded; HUD digits remained
+  complete. Normal menu Quit returned App quit with no pending tool call.
+  GUI is released; examiner is retaining final report/log/settings.
+- This closes the three discovered layout defects within bounded normal-window
+  checks. It does not close full AI-07 or other missing formal scenarios.
+
+- Final report/log/settings/metadata retained with SHA manifest in
+  `ai07-macos-layout-seed-evidence/`. Independent documentation review confirms
+  bounded repair PASS is distinguished from overall AI-07 BLOCKED and Goal
+  not complete. Prior gmake/startup-negative/soak results retain their revisions.
+- Local batch includes these three UI repairs, the original and both follow-up
+  evidence sets, and current-document synchronization. No remote publication.
+  Final clean package is produced after committing, with the same tested binary;
+  its identity is recorded outside the commit to avoid recursive commit/hash data.
+
+- Final staged whitespace audit reports trailing spaces only in raw captured
+  `.log` artifacts (182 lines). These are preserved byte-for-byte to keep
+  recorded hashes valid; no log normalization or git whitespace rule change.
+  Source, documentation, JSON, settings and metadata whitespace checks pass.

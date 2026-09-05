@@ -847,50 +847,64 @@ class OgreUserInterface::Impl
             ImGui::Separator();
 
             ImGui::TextUnformatted(tr("world.create_title").c_str());
-            ImGui::SetNextItemWidth(280.0f);
-            ImGui::InputText(label("world.name", "##create-name").c_str(),
-                             createName.data(),
-                             createName.size());
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(140.0f);
-            ImGui::InputInt(label("world.seed", "##create-seed").c_str(),
-                            &createSeed);
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(135.0f);
-            const std::string createDifficultyName = difficultyName(
-                static_cast<WorldDifficulty>(createDifficulty));
-            if (ImGui::BeginCombo(
-                    label("world.difficulty", "##create-difficulty").c_str(),
-                    createDifficultyName.c_str()))
+            // Labels occupy their own lines so font scaling cannot push the
+            // Create action outside the panel or consume the seed editor width.
+            if (ImGui::BeginTable("WorldCreateForm", 2,
+                    ImGuiTableFlags_SizingStretchProp |
+                    ImGuiTableFlags_NoSavedSettings))
             {
-                for (int value = 0;
-                     value < static_cast<int>(WorldDifficulty::Count);
-                     ++value)
+                ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 1.2f);
+                ImGui::TableSetupColumn("Seed", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::TextUnformatted(tr("world.name").c_str());
+                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                ImGui::InputText("##create-name", createName.data(), createName.size());
+                ImGui::TableSetColumnIndex(1);
+                ImGui::TextUnformatted(tr("world.seed").c_str());
+                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                ImGui::InputInt("##create-seed", &createSeed);
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::TextUnformatted(tr("world.difficulty").c_str());
+                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                const std::string createDifficultyName = difficultyName(
+                    static_cast<WorldDifficulty>(createDifficulty));
+                if (ImGui::BeginCombo(
+                        "##create-difficulty",
+                        createDifficultyName.c_str()))
                 {
-                    const auto difficulty =
-                        static_cast<WorldDifficulty>(value);
-                    const bool selected = value == createDifficulty;
-                    const std::string option = difficultyName(difficulty);
-                    if (ImGui::Selectable(option.c_str(), selected))
+                    for (int value = 0;
+                         value < static_cast<int>(WorldDifficulty::Count);
+                         ++value)
                     {
-                        createDifficulty = value;
+                        const auto difficulty =
+                            static_cast<WorldDifficulty>(value);
+                        const bool selected = value == createDifficulty;
+                        const std::string option = difficultyName(difficulty);
+                        if (ImGui::Selectable(option.c_str(), selected))
+                        {
+                            createDifficulty = value;
+                        }
+                        if (selected) ImGui::SetItemDefaultFocus();
                     }
-                    if (selected) ImGui::SetItemDefaultFocus();
+                    ImGui::EndCombo();
                 }
-                ImGui::EndCombo();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button(label("common.create", "##WorldCreate").c_str()))
-            {
-                const WorldManagementResult result =
-                    management->createWorld(
-                        createName.data(), createSeed,
-                        static_cast<WorldDifficulty>(createDifficulty));
-                reportResult(result);
-                if (result.succeeded())
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Dummy(ImVec2(0.0f, ImGui::GetTextLineHeight()));
+                if (ImGui::Button(label("common.create", "##WorldCreate").c_str()))
                 {
-                    createSeed = WorldManagementService::suggestWorldSeed();
+                    const WorldManagementResult result =
+                        management->createWorld(
+                            createName.data(), createSeed,
+                            static_cast<WorldDifficulty>(createDifficulty));
+                    reportResult(result);
+                    if (result.succeeded())
+                    {
+                        createSeed = WorldManagementService::suggestWorldSeed();
+                    }
                 }
+                ImGui::EndTable();
             }
 
             ImGui::Separator();
@@ -907,7 +921,7 @@ class OgreUserInterface::Impl
                     ImGuiTableColumnFlags_WidthStretch, 1.0f);
                 ImGui::TableSetupColumn(
                     tr("world.seed").c_str(),
-                    ImGuiTableColumnFlags_WidthFixed, 150.0f);
+                    ImGuiTableColumnFlags_WidthFixed);
                 ImGui::TableSetupColumn(
                     tr("world.difficulty").c_str(),
                     ImGuiTableColumnFlags_WidthFixed, 110.0f);
@@ -2120,8 +2134,9 @@ class OgreUserInterface::Impl
                         std::to_string(std::min(objective.progress,
                                                 objective.required)) +
                         " / " + std::to_string(objective.required);
-                    ImGui::ProgressBar(ratio, ImVec2(260.0f, 10.0f),
-                                       overlay.c_str());
+                    ImGui::ProgressBar(
+                        ratio, ImVec2(260.0f, ImGui::GetFrameHeight()),
+                        overlay.c_str());
                 }
                 if (objective.opportunities.size() > 1 &&
                     !objective.sessionComplete)
