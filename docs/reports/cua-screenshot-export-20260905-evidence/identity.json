@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "byte_length": 271352,
+  "crc32": "25b19723",
+  "sha256": "777a5e099a1b5bc2b20ce3855684f0a685ac68c8b681205c2c874cc45f4b1e1a",
+  "source": "CUA getScreenshot Uint8Array, base64 via normal TextEdit paste/save, strict decode",
+  "image": "docs/reports/cua-screenshot-export-20260905-evidence/normal-window-cached.jpg",
+  "gameplay_acceptance": "NOT_CLAIMED; cached scene actions are not attributable to executor",
+  "scope": "Proves screenshot persistence capability only; no prior screenshots reconstructed"
+}

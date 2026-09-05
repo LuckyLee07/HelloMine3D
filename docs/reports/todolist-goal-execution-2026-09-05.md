@@ -27,7 +27,7 @@ Status: In progress. This report does not close the Goal or claim AI PASS.
 | Execute relevant automated checks | Done (current engineering scope) | Path-identity assertion fixed; post-cursor gmake Debug/Release 13 suites PASS; Xcode double-configuration gate PASS |
 | AI-01 | BLOCKED overall | Independent menu/save/load/settings steps and shortcut repair pass; focus follow-up completed with native restore/switching unresolved; movement/look/held-key checks tool-blocked. |
 | AI-02..AI-05, AI-08 | NOT_RUN | Hashed clean macOS Release package, OS input, normal gameplay; no fixtures |
-| AI-07 | BLOCKED overall; bounded layout repairs PASS | Six combinations passed form/HUD follow-up; en/zh1.75 and zh0.75 seed-row follow-up passed with actual Play. Full visual/dynamic/audio and persistent screenshot evidence remain open. |
+| AI-07 | BLOCKED overall; bounded layout repairs PASS | Six combinations passed form/HUD follow-up; en/zh1.75 and zh0.75 seed-row follow-up passed with actual Play. Full visual/dynamic/audio evidence remains open; screenshot persistence is now proven, full scenario image coverage still missing. |
 | AI-06 | BLOCKED | Actual package-only filesystem access unavailable; fresh subagent alone remains PARTIAL and cannot supply blind PASS. |
 | New macOS gameplay/visual acceptance | BLOCKED (partial results retained) | Explicitly authorized by subsequent owner steering; independent macOS evidence |
 | Windows-specific verification | Postponed by owner | Not a required exit item of this macOS Goal; do not claim Windows PASS |
@@ -125,21 +125,22 @@ Windows 991/991 results remain historical evidence, not a new execution.
 
 ## Resume point
 
-All three discovered layout defects have completed implementation, final Xcode
-Debug/Release gate `build/xcode-validation-20260905143633` and bounded independent
-normal-window follow-up. Evidence directories retain original failures, six
-form/HUD combinations, and final en/zh1.75 plus zh0.75 seed-column checks with
-actual Play. Final tested Mach-O SHA is
-`c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424`.
-This local layout batch commits code and evidence together. Clean repackaging
-identity/commit is in `build/goal-20260905/layout-delivery.json`; repackaging the
-same binary is not a new GUI run. Both examiners have released GUI and finished.
-No further independent engineering task remains in the frozen scope without a
-new failure or capability change. D2 stays Candidate after evidenced non-entry.
-Restore/switching, sustained/relative input, strict AI-06 filesystem isolation,
-persistent screenshots and real audio still prevent full formal acceptance.
-Windows is postponed. Do not repeatedly rerun unchanged blockers or mark Goal
-Done. Resume on the minimum capability conditions in the completion audit.
+Latest code batch is local commit0e0c569, with final Xcode Debug/Release gate
+20260905143633 and bounded independent three-layout-defect acceptance. The
+clean code-delivery package/identity remains in build/goal-20260905/layout-delivery.json.
+No runtime source has changed since that batch.
+A resumed investigation proved CUA screenshot persistence using returned raw
+bytes → base64 → normal TextEdit paste/save → strict file decoding and hash
+verification. See [export evidence](cua-screenshot-export-20260905-evidence/report.md).
+The retained scene is an export probe, not attributable gameplay acceptance.
+Prior missing-file observations remain historical; do not backfill their PASS.
+Next available work is new attributable scenario capture with persisted images,
+after resolving whether the user is currently operating the game window. The
+async occupancy question remains unanswered; no gameplay input was sent during
+export. Both previous examiners are idle; current CUA handles are resumedGame
+and screenshotEditor (the editor has no remaining document/window).
+D2 stays Candidate. Sustained/relative input, native restore, strict AI-06 roots
+and real audio still prevent overall completion. Windows remains postponed.
 
 ## macOS menu cursor repair (implemented; focused regression passed)
 
@@ -679,3 +680,13 @@ Done. Resume on the minimum capability conditions in the completion audit.
   `.log` artifacts (182 lines). These are preserved byte-for-byte to keep
   recorded hashes valid; no log normalization or git whitespace rule change.
   Source, documentation, JSON, settings and metadata whitespace checks pass.
+
+## Resumed screenshot persistence investigation
+
+- User asked to continue after the prior Goal block. Fresh capability audit
+  found documented raw screenshot byte access; normal-editor export succeeded.
+  Byte length and CRC32 matched before/after, SHA256 recorded, saved JPEG
+  visually opened. No runtime changes or repeated build tests were needed.
+- Corrected the current claim that screenshot persistence was unavailable.
+  Full scenario coverage remains missing and the cached scene is not used to
+  certify gameplay. See the linked export report for exact operations/limits.
