@@ -25,9 +25,9 @@ Status: In progress. This report does not close the Goal or claim AI PASS.
 | Audit D2 entry against real distant Actor/Machine workload | Done (investigation only) | Debug + two Release probes; retain Candidate with reasons, no activation implementation |
 | Fix current-document inconsistencies | Done for current evidence | README, ledger, architecture/tutorial and validation routes updated; final check after validation |
 | Execute relevant automated checks | Done (current engineering scope) | Path-identity assertion fixed; post-cursor gmake Debug/Release 13 suites PASS; Xcode double-configuration gate PASS |
-| AI-01 | Doing | Owner-authorized fresh-context macOS acceptance subagent running; report pending |
+| AI-01 | BLOCKED overall / focus follow-up Doing | Independent menu/save/load/settings steps and shortcut repair pass; movement/look/held-key checks tool-blocked. New focus package is being retested. |
 | AI-02..AI-05, AI-07, AI-08 | NOT_RUN | Hashed clean macOS Release package, OS input, normal gameplay; no fixtures |
-| AI-06 | NOT_RUN | Independent fresh executor with package-only filesystem access and 30-minute record |
+| AI-06 | BLOCKED | Actual package-only filesystem access unavailable; fresh subagent alone remains PARTIAL and cannot supply blind PASS. |
 | New macOS gameplay/visual acceptance | Doing | Explicitly authorized by subsequent owner steering; independent macOS evidence |
 | Windows-specific verification | Postponed by owner | Not a required exit item of this macOS Goal; do not claim Windows PASS |
 | Final delivery | Todo | Review diff, document evidence and blockers; local commits may be created, no push/release/tag |
@@ -124,16 +124,17 @@ Windows 991/991 results remain historical evidence, not a new execution.
 
 ## Resume point
 
-Keyboard batch is ready for local commit: 10 synthetic checks, full Xcode
-Debug/Release gate, and independent normal-window candidate2 retest all pass.
-See `ai01-macos-6916867-evidence/keyboard2-retest.md`; overall AI-01 remains
-BLOCKED for movement/look/held-key tool limitations. Both windows are closed.
-Next apply reviewed `/private/tmp/hm3d-focus-draft/focus.patch`, run full macOS
-regression, freeze another package and independently test native focus changes.
-The draft's 24-check focus test fails 8 checks against the preceding baseline
-and passes all 24 with the draft; those are synthetic, not GUI acceptance.
-AI-06 still needs package-only readable roots; real audio requires a supported
-backend/evidence. No overall completion claim.
+Keyboard batch is committed as fb8f275. Combined keyboard/mouse/UI focus repair
+has passed full Xcode Debug/Release and focused automated checks. Independent
+normal-window follow-up is finished and BLOCKED overall: basic text, mouse
+create/play and native close observed; minimize loses focus, but exposed Raise
+could not establish native reactivation. Preserve this limit in the local
+engineering commit; do not claim focus acceptance or Goal completion.
+Evidence: `macos-focus-20260905-evidence/focus-retest.md`. GUI is free and the
+candidate was normally closed. Next run accessible AI-07 menu/locale/scale
+observations from a fresh normal launch of the same hashed package, avoiding
+known external-app/restore tool blockers. AI-06 needs package-only roots; real
+audio needs a supported backend/evidence. Windows remains postponed.
 
 ## macOS menu cursor repair (implemented; focused regression passed)
 
@@ -401,3 +402,125 @@ backend/evidence. No overall completion claim.
   close the blocked AI-01 overall scenario.
 - Keyboard batch document checks: 46 local links resolve; `git diff --check`
   passes. No Windows gate, physical held-key or audio PASS is inferred.
+
+## macOS native input focus repair
+
+- Preceding verified keyboard batch committed locally as `fb8f275`.
+- Read-only audit found render-active state is kept alive in the background and
+  is not a native key-window predicate. OIS also kept held keys/modifiers when
+  focus loss prevented receipt of key-up. `clearTransientInput()` did not clear
+  OIS or buffered UI key state; simply fixing the focus predicate was insufficient.
+- Applied native WINDOW_FOCUSED query (key window AND active app), shared it
+  with cursor policy, and added macOS-only transition diagnostics. CocoaKeyboard
+  now observes window/app loss, cancels stale queued input, clears polling and
+  modifier state, and delivers releases to buffered clients. Events from inactive
+  or foreign windows are excluded. Duplicate notifications preserve pending releases.
+- New non-visible Cocoa focus test contains the existing 10 shortcut/text checks
+  plus 14 focus checks. Same test against pre-focus source fails 8 focus checks:
+  `macos-focus-20260905-evidence/focus-baseline-test.log`. Temporary draft passes
+  all 24 and preserves all 10 original keyboard assertions. This is automated
+  evidence using synthetic focus getters/notifications, not OS acceptance.
+- Full applied-source Xcode gate running:
+  `build/goal-20260905/macos-xcode-focus-verification.log`. After it passes, rerun
+  both targeted tests against the newly built archive, package, and independently
+  observe real native focus loss/return and menu/text/cursor behavior.
+
+- Applied-source initial focus full gate PASS:
+  `build/xcode-validation-20260905125632` (both configurations, all 13 suites,
+  client probes). The two targeted tests also pass against the rebuilt Debug
+  archive; copied logs are under `macos-focus-20260905-evidence/`.
+- Targeted command per test: `clang++ -arch x86_64 -std=c++17
+  -mmacosx-version-min=26.2 -fblocks -I src/external/ois/includes
+  tools/tests/<test>.mm build/External/ois/lib/x64/Debug/libois.a
+  -framework Cocoa -framework IOKit -framework ForceFeedback -framework Carbon
+  -o /private/tmp/<test>`, then run. Tests are `cocoa_keyboard_test` and
+  `cocoa_keyboard_focus_test`; AppKit XPC diagnostics did not prevent completion.
+- Post-gate diagnostic-only follow-up routes native focus transitions into the
+  existing MineOgre.log instead of uncaptured stdout, to corroborate subsequent
+  normal-window observations. A final rebuild remains necessary.
+
+- Mouse follow-up reproduced the same focus-loss gap: left/right/middle device
+  and buffered-client buttons remained down without mouseUp. GameplayFocusGate
+  correctly blocked background actions but could not re-arm with stale buttons.
+  Focus loss now clears device buttons/deltas and notifies buffered releases;
+  ordinary menu capture changes retain button semantics. Background capture
+  performs the same reset as a fallback.
+- UI focus handling cancels queued/held input before AddFocusEvent(false), so
+  synthetic releases cannot activate a previously pressed widget, including
+  loss/return within a single frame. Calls are scoped to native macOS focus
+  transitions. No Windows behavior is claimed tested by this change.
+- Final combined gate is running in
+  `build/goal-20260905/macos-xcode-native-input-focus-final.log`.
+
+- Final mouse regression has 27 checks (9 per left/right/middle button), including
+  duplicate notifications, ordinary capture changes, fresh clicks and inactive
+  capture fallback. Baseline fails 15; repaired archive passes all 27. Logs:
+  `macos-focus-20260905-evidence/mouse-baseline-test.log` and `mouse-applied-test.log`.
+- Four pure ImGui dependency-semantic checks pass: control release can activate,
+  focus-loss release does not, same-frame clear/loss/release/gain does not, and
+  subsequent normal click works. `imgui-focus-semantics-applied.log` records this
+  design check; it does not pretend to exercise the renderer/UI production wiring.
+- Mouse command uses the same Cocoa compile/link flags as keyboard plus
+  `-I src/HelloMine3D`, `tools/tests/cocoa_mouse_focus_test.mm` and
+  `src/HelloMine3D/GameplayInput.cpp`. ImGui command uses
+  `tools/tests/imgui_focus_semantics_test.cpp`, `-I src/external/imgui` and
+  `build/External/imgui/lib/x64/Debug/libimgui.a`. Both run non-visible, x86_64
+  Debug archives, on the recorded macOS host.
+
+- Final combined Xcode gate PASS (Debug + Release, all 13 suites and client
+  probes): `build/xcode-validation-20260905130430`. Source is fb8f275 plus
+  the focus batch; package build identity and exact source hashes are retained
+  under `macos-focus-20260905-evidence/`.
+- Frozen focus ZIP SHA-256:
+  `a51fd9bcc374b3f05de8bcef93703c3f122dd0e721dca324537d1271846b95bd`;
+  Mach-O SHA-256:
+  `bf07e9b3ff9a39e1b8a0aca375e94a75ead8eade4d1239c11c0204fe8077cbcd`.
+  Independent examiner now has exclusive GUI ownership for focus/minimize/menu
+  retest; ordinary Calculator is explicitly permitted only as the focus-switch
+  target. No held-key physical-input PASS is requested or inferred.
+
+- Added reproducible Cocoa regression runner `scripts/verify_cocoa_input.sh`.
+  Current Release archives pass via exact command
+  `HELLOMINE3D_INPUT_TEST_MIN_MACOS=26.2 bash scripts/verify_cocoa_input.sh Release`;
+  logs: `build/cocoa-input-20260905130936-Release`, durable aggregate
+  `macos-focus-20260905-evidence/release-input-regression.log`. It covers keyboard
+  10, keyboard/focus 24 (including those same 10), mouse 27 and ImGui semantics 4.
+  The minimum target matches these Xcode archives; x86_64 on arm64/Rosetta is
+  explicit. The runner neither displays windows nor closes OS acceptance.
+
+- Focus GUI examiner was interrupted once after an external-app tool call hung:
+  `cua.getApp('com.apple.calculator')` reported aborted after 688.7 seconds.
+  Its preceding actual game screenshot showed correct `Focusax` text replacement.
+  Calculator-to-game switching, minimize and world entry had not yet occurred;
+  no outcomes are inferred from the delay. Parent read-only game log contained
+  native focus transitions at 13:09:16 and 13:09:45, diagnostic evidence only.
+- Examiner is restoring its control session once using reset/getState without
+  relaunching the game. External-app switching remains BLOCKED; continue the
+  independent existing-window checks if recovery succeeds. No repeated app
+  launch or permission re-request; this was a tool delay, not an approval denial.
+
+- Control-session recovery succeeded: reset/getState returned in 7.6 seconds;
+  bundle-ID selection was ambiguous across old packages, so the examiner bound
+  the running candidate by its exact returned path without relaunching it.
+- Native minimize produced `[INPUT_FOCUS] focused=0` at 13:25:04/frame 98715.
+  Subsequent AX Raise/title click did not produce a logged return to focus=1.
+  Name replacement no longer responded, while mouse Create created Focusax
+  (seed 1808602498). This is preserved as an observed input failure with product
+  cause undetermined: CUA could not establish restored native activation.
+- The exposed AX tree/API has no readable/settable minimized-state attribute or
+  explicit unminimize action. Do not invent a private API or treat AX focus and
+  a window screenshot as proof of global native activation. Restore and external
+  switching remain BLOCKED; examiner is finishing one bounded Play/Esc check
+  and native close. The remaining non-switching visual cases can use a subsequent
+  normal launch; no whole AI-01 PASS is inferred.
+
+- Independent focus follow-up completed: BLOCKED overall, with successful basic
+  text, mouse Create/Play and normal native close. Created Focusax, seed
+  1808602498, id `world-9e31230cde3c648b7c54ec7ae3a39778`. Restored text and Esc
+  were unresponsive without a logged native focus=1; cause remains unassigned
+  to product. `focus-retest.md` and `focus-ogre.log` are retained with hashes.
+- This local focus batch preserves completed engineering work and unresolved
+  real-window acceptance explicitly. It is not labelled fully accepted or Done.
+  Final current-document audit corrected two stale aggregate AI NOT_RUN claims
+  in the roadmap and validation matrix. Frozen candidate's 11 source/test file
+  hashes still match; `git diff --check` passes.

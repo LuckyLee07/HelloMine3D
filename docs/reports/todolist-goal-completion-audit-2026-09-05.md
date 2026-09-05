@@ -12,7 +12,7 @@ Full commands, failures and artifact paths are in the
 | Owner requirement | Current proof / gap | Assessment |
 | --- | --- | --- |
 | Freeze starting TODO, commit, workspace, dependencies and exits | Starting TODO copy/hash and work ledger recorded before implementation; no applicable AGENTS.md found | Proven |
-| Complete remaining approved implementation without replaying finished batches | Existing completed batches retained; macOS menu-input defect repaired; catalogue path-identity regression repaired | Implemented changes pass focused/current gmake regression; formal gameplay remains open |
+| Complete remaining approved implementation without replaying finished batches | Existing completed batches retained; macOS menu cursor and shortcut defects repaired; catalogue path-identity regression repaired; native focus engineering regression passes; independent restore/switching remains tool-blocked | Implemented changes pass focused/current gmake regression; formal gameplay remains open |
 | Investigate real D2 Simulation Activation entry, implement only if justified | Debug and repeated Release real Furnace/Crusher workload probes; bounded D1 delay, no unacceptable activation-specific boundary established | Evidence supports retaining Candidate; no D2 implementation or Done claim |
 | Stay within initial scope | B7-B9, C4-C11, D3-D8 and Extended remain excluded | No expansion |
 | Preserve main gameplay and save compatibility | World 991, recipe 126, storage 16, backup 19, catalogue 59 and other current suites pass in both gmake configurations; ordinary Debug save/menu/reload observed | Automated compatibility proven within those suites; full normal mainline-to-victory unverified |
@@ -24,7 +24,7 @@ Full commands, failures and artifact paths are in the
 | AI-07 visual/localization/dynamic/audio matrix | Supplemental screenshots/continuous menu observations only; full matrix not run; macOS audio/music factories select dummy backend | Visual matrix NOT_RUN; real audio subcase BLOCKED, captions/logs cannot substitute |
 | Documentation matches code/evidence | Current docs linked to execution/investigation; 98 local links verified; original historical reports unchanged | Current results recorded with limits; final updates follow remaining verification |
 | Retain existing edits and bundle | No pre-existing tracked edits at start; no task action deleted bundle; subsequent search could not find original file | Current bundle location unverified; no claim that it is still present |
-| Local submissions only | ea7a85d created locally; no push, release or tag | Proven for this task's actions |
+| Local submissions only | ea7a85d, 6916867, f0e63d2 and fb8f275 created locally; no push, release or tag | Proven for this task's actions |
 | Mark Goal complete only after all required acceptance passes | Independent normal-play, package-only blind and real-audio evidence absent | Completion condition not met |
 
 ## Minimum conditions for remaining formal acceptance

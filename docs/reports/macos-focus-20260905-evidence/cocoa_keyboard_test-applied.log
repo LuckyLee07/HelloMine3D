@@ -1,0 +1,14 @@
+2026-09-05 12:58:27.730 cocoa_keyboard_test[96726:65007732] Error received in message reply handler: Connection invalid
+2026-09-05 12:58:27.730 cocoa_keyboard_test[96726:65007791] Connection Invalid error for service com.apple.hiservices-xpcservice.
+2026-09-05 12:58:27.736 cocoa_keyboard_test[96726:65007732] +[NSXPCSharedListener endpointForReply:withListenerName:replyErrorCode:]: an error occurred while attempting to obtain endpoint for listener 'ClientCallsAuxiliary': Connection invalid
+[COCOA_KEYBOARD] PASS quick-command-chord-retains-event-time-state
+[COCOA_KEYBOARD] PASS released-command-not-held-after-capture
+[COCOA_KEYBOARD] PASS combined-modifier-transition
+[COCOA_KEYBOARD] PASS held-modifiers-retained-until-queued-release
+[COCOA_KEYBOARD] PASS combined-release-clears-state
+[COCOA_KEYBOARD] PASS control-chord-does-not-insert-text
+[COCOA_KEYBOARD] PASS command-chord-does-not-insert-text
+[COCOA_KEYBOARD] PASS empty-text-retains-physical-key
+[COCOA_KEYBOARD] PASS native-translated-text-preserved
+[COCOA_KEYBOARD] PASS long-text-without-fixed-buffer
+[COCOA_KEYBOARD] failures=0

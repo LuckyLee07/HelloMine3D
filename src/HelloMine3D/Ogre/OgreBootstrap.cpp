@@ -3690,6 +3690,10 @@ namespace
             return m_nativeWindowHandle != 0 &&
                    GetForegroundWindow() == reinterpret_cast<HWND>(
                        m_nativeWindowHandle);
+#elif defined(__APPLE__)
+            bool focused = false;
+            m_window->getCustomAttribute("WINDOW_FOCUSED", &focused);
+            return focused;
 #else
             return m_window->isActive();
 #endif
@@ -3702,6 +3706,15 @@ namespace
             {
                 return;
             }
+#if defined(__APPLE__)
+            if (m_userInterface != nullptr)
+            {
+                m_userInterface->focusChanged(focused);
+            }
+            Ogre::LogManager::getSingleton().logMessage(
+                std::string("[INPUT_FOCUS] focused=") + (focused ? "1" : "0") +
+                " frame=" + std::to_string(m_frameCount));
+#endif
             m_focusGate.setFocused(focused);
             m_focusTransitionFrame = true;
             clearTransientInput();
@@ -3771,12 +3784,7 @@ namespace
             {
                 return false;
             }
-#if defined(_WIN32)
-            return GetForegroundWindow() == reinterpret_cast<HWND>(
-                m_nativeWindowHandle);
-#else
-            return m_window->isActive();
-#endif
+            return runtimeWindowFocused();
         }
 
         void refreshNativeCursorClip()

@@ -1,0 +1,5 @@
+[IMGUI_FOCUS_SEMANTICS] PASS control-release-without-focus-activates
+[IMGUI_FOCUS_SEMANTICS] PASS focus-loss-release-does-not-activate
+[IMGUI_FOCUS_SEMANTICS] PASS clear-fast-loss-gain-release-does-not-activate
+[IMGUI_FOCUS_SEMANTICS] PASS normal-click-after-fast-loss-gain-works
+[IMGUI_FOCUS_SEMANTICS] failures=0

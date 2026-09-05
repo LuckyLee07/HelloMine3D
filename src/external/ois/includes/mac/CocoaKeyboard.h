@@ -108,6 +108,8 @@ typedef std::list<OIS::CocoaKeyStackEvent> eventStack;
 	char KeyBuffer[256];
 	// HelloMine3D: preserve event-time state during buffered dispatch.
 	char DispatchedKeyBuffer[256];
+	// Releases survive repeated focus notifications until the next capture.
+	char FocusReleasePending[256];
 	bool dispatchingEvents;
 	NSUInteger prevModMask;
 
@@ -119,6 +121,10 @@ typedef std::list<OIS::CocoaKeyStackEvent> eventStack;
 - (void)setOISKeyboardObj:(CocoaKeyboard*)obj;
 - (void)populateKeyConversion;
 - (void)capture;
+- (bool)hasInputFocus;
+- (bool)acceptsKeyboardEvent:(NSEvent*)event;
+- (void)resetForFocusLoss;
+- (void)inputFocusLost:(NSNotification*)notification;
 - (void)injectEvent:(KeyCode)kc eventTime:(unsigned int)time eventType:(MacEventType)type;
 - (void)injectEvent:(KeyCode)kc eventTime:(unsigned int)time eventType:(MacEventType)type eventText:(unsigned int)txt;
 - (void)copyKeyStates:(char[256])keys;

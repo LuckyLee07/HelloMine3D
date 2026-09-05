@@ -135,6 +135,22 @@ void CocoaMouse::capture()
 - (void)releaseCursor:(NSNotification*)notification
 {
 	[self setCursorCaptured:NO];
+	// Losing focus can prevent native mouseUp delivery. Clear device state and
+	// release buffered clients too; ordinary menu capture changes do neither.
+	mTempState.clear();
+	MouseState* state = oisMouseObj->getMouseStatePtr();
+	const unsigned int heldButtons = static_cast<unsigned int>(state->buttons);
+	state->buttons = 0;
+	state->X.rel = state->Y.rel = state->Z.rel = 0;
+	if(oisMouseObj->buffered() && oisMouseObj->getEventCallback())
+	{
+		for(unsigned int button = 0; button < 8; ++button)
+		{
+			if(heldButtons & (1u << button))
+				oisMouseObj->getEventCallback()->mouseReleased(
+					MouseEvent(oisMouseObj, *state), static_cast<MouseButtonID>(button));
+		}
+	}
 }
 
 - (void)setCursorCaptured:(BOOL)captured
@@ -178,7 +194,10 @@ void CocoaMouse::capture()
 - (void)capture
 {
 	if(![[self window] isKeyWindow] || ![NSApp isActive])
-		[self setCursorCaptured:NO];
+	{
+		[self releaseCursor:nil];
+		return;
+	}
 	MouseState* state = oisMouseObj->getMouseStatePtr();
 	state->X.rel	  = 0;
 	state->Y.rel	  = 0;

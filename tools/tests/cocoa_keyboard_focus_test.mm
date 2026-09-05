@@ -36,7 +36,9 @@ struct Snapshot { OIS::KeyCode key; bool pressed, command, control, shift; unsig
 struct Listener : OIS::KeyListener {
     OIS::Keyboard* keyboard;
     std::vector<Snapshot> events;
+    bool clientHeld[256] = {};
     bool record(const OIS::KeyEvent& e, bool pressed) {
+        clientHeld[e.key] = pressed;
         events.push_back({e.key, pressed, keyboard->isKeyDown(OIS::KC_LWIN),
             keyboard->isKeyDown(OIS::KC_LCONTROL), keyboard->isKeyDown(OIS::KC_LSHIFT), e.text});
         return true;
@@ -117,6 +119,81 @@ int main() { @autoreleasepool {
         check([characters length]==0 ? "empty-text-retains-physical-key" :
             ([characters length]==1 ? "native-translated-text-preserved" : "long-text-without-fixed-buffer"),correct);
     }
+    auto loseFocus=[&]() {
+        window.syntheticKey=NO; syntheticAppActive=false;
+        auto* notifications=[NSNotificationCenter defaultCenter];
+        [notifications postNotificationName:NSWindowDidResignKeyNotification object:window];
+        [notifications postNotificationName:NSApplicationDidResignActiveNotification object:NSApp];
+    };
+    auto gainFocus=[&]() { syntheticAppActive=true; window.syntheticKey=YES; };
+    auto released=[&](OIS::KeyCode key) {
+        for(auto& e:listener.events) if(e.key==key && !e.pressed) return true;
+        return false;
+    };
+    listener.events.clear();
+    [responder flagsChanged:event(NSEventTypeFlagsChanged,NSEventModifierFlagControl|NSEventModifierFlagShift,59)];
+    [responder keyDown:event(NSEventTypeKeyDown,0,13)]; // W-down, intentionally no up
+    keyboard->capture();
+    check("setup-held-key-and-modifiers",keyboard->isKeyDown(OIS::KC_W)&&keyboard->isKeyDown(OIS::KC_LCONTROL));
+    check("setup-client-tracks-held-key-and-modifiers",listener.clientHeld[OIS::KC_W]&&listener.clientHeld[OIS::KC_LCONTROL]&&listener.clientHeld[OIS::KC_LSHIFT]);
+    listener.events.clear();
+    loseFocus();
+    check("notification-immediately-clears-poll-state",!keyboard->isKeyDown(OIS::KC_W)&&!keyboard->isKeyDown(OIS::KC_LCONTROL)&&!keyboard->isKeyDown(OIS::KC_LSHIFT));
+    check("notification-clears-ois-modifier-mask",!keyboard->isModifierDown(OIS::Keyboard::Ctrl)&&!keyboard->isModifierDown(OIS::Keyboard::Shift));
+    keyboard->capture(); // Must still deliver releases while inactive.
+    check("duplicate-loss-preserves-client-releases",released(OIS::KC_W)&&released(OIS::KC_LCONTROL)&&released(OIS::KC_LSHIFT));
+    bool clientAllReleased=true;
+    for(bool down:listener.clientHeld) clientAllReleased &= !down;
+    check("buffered-client-key-state-released",clientAllReleased);
+    bool releaseModifiersClear=true;
+    for(auto& e:listener.events) releaseModifiersClear &= !e.command&&!e.control&&!e.shift;
+    check("release-callbacks-see-cleared-modifiers",releaseModifiersClear);
+    listener.events.clear();
+    keyboard->capture();
+    check("release-not-repeated-every-background-frame",listener.events.empty());
+    gainFocus(); keyboard->capture();
+    check("refocus-without-up-does-not-stick",!keyboard->isKeyDown(OIS::KC_W)&&listener.events.empty());
+
+    // Lose and regain focus entirely between captures: stale down/text must cancel.
+    [responder keyDown:event(NSEventTypeKeyDown,0,0)];
+    loseFocus(); gainFocus();
+    listener.events.clear(); keyboard->capture();
+    bool staleDown=false;
+    for(auto& e:listener.events) staleDown |= e.pressed;
+    check("pending-down-canceled-across-fast-refocus",!staleDown&&!keyboard->isKeyDown(OIS::KC_A));
+
+    loseFocus(); listener.events.clear();
+    [responder keyDown:event(NSEventTypeKeyDown,0,13)];
+    [responder flagsChanged:event(NSEventTypeFlagsChanged,NSEventModifierFlagControl,59)];
+    gainFocus(); keyboard->capture();
+    check("background-events-cannot-refill-buffer",listener.events.empty()&&!keyboard->isKeyDown(OIS::KC_W)&&!keyboard->isKeyDown(OIS::KC_LCONTROL));
+
+    NSWindow* other=[[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,50,50)
+        styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
+    listener.events.clear();
+    NSEvent* foreign=[NSEvent keyEventWithType:NSEventTypeKeyDown location:NSZeroPoint
+        modifierFlags:0 timestamp:3 windowNumber:[other windowNumber] context:nil
+        characters:@"w" charactersIgnoringModifiers:@"w" isARepeat:NO keyCode:13];
+    [responder keyDown:addressedEvent(foreign,other)]; keyboard->capture();
+    check("foreign-window-event-rejected",listener.events.empty()&&!keyboard->isKeyDown(OIS::KC_W));
+    [responder keyDown:event(NSEventTypeKeyDown,0,13)]; keyboard->capture();
+    [[NSNotificationCenter defaultCenter] postNotificationName:NSWindowDidResignKeyNotification object:other];
+    check("foreign-window-loss-does-not-reset-own-input",keyboard->isKeyDown(OIS::KC_W));
+    [responder keyUp:event(NSEventTypeKeyUp,0,13)]; keyboard->capture();
+    [other close];
+
+    // Modifier history must restart cleanly after losing an entire chord.
+    [responder flagsChanged:event(NSEventTypeFlagsChanged,NSEventModifierFlagControl,59)];
+    keyboard->capture(); loseFocus(); gainFocus(); keyboard->capture();
+    listener.events.clear();
+    [responder flagsChanged:event(NSEventTypeFlagsChanged,NSEventModifierFlagControl,59)];
+    [responder keyDown:event(NSEventTypeKeyDown,NSEventModifierFlagControl,0)];
+    [responder keyUp:event(NSEventTypeKeyUp,NSEventModifierFlagControl,0)];
+    [responder flagsChanged:event(NSEventTypeFlagsChanged,0,59)];
+    keyboard->capture();
+    bool freshChord=false;
+    for(auto& e:listener.events) if(e.key==OIS::KC_A&&e.pressed) freshChord=e.control&&e.text==0;
+    check("fresh-chord-after-reset-retains-event-time-modifier",freshChord&&!keyboard->isKeyDown(OIS::KC_LCONTROL));
     manager->destroyInputObject(keyboard); OIS::InputManager::destroyInputSystem(manager);
     [window close];
     std::cout << "[COCOA_KEYBOARD] failures=" << failures << '\n';

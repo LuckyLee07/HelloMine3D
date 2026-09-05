@@ -3601,6 +3601,20 @@ void OgreUserInterface::beginFrame(
                        actionFeedback);
 }
 
+void OgreUserInterface::focusChanged(bool focused)
+{
+    ImGuiIO &io = ImGui::GetIO();
+    if (!focused)
+    {
+        // Cancel the interaction even when focus returns before the next frame.
+        // A backend release after focus loss must not activate a pressed widget.
+        io.ClearEventsQueue();
+        io.ClearInputKeys();
+        io.ClearInputMouse();
+    }
+    io.AddFocusEvent(focused);
+}
+
 void OgreUserInterface::keyEvent(const OIS::KeyEvent &event, bool pressed,
                                  const OIS::Keyboard &keyboard)
 {

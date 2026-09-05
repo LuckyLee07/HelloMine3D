@@ -649,6 +649,12 @@ namespace Ogre {
 			*static_cast<CocoaContext**>(pData) = mContext;
 			return;
 		} 
+		else if( name == "WINDOW_FOCUSED" )
+		{
+			*static_cast<bool*>(pData) = mWindow != nil &&
+				[mWindow isKeyWindow] && [NSApp isActive];
+			return;
+		}
 		else if( name == "WINDOW" ) 
 		{
 			*(void**)(pData) = mWindow;

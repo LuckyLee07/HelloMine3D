@@ -149,7 +149,9 @@ Architecture Lab 必须同时保持三层结果：
 - Stage 10 的材质、生态着色、大气、阴影和轻量后处理表现；
 - Diagnostics、Crash Dump、Runtime Performance Metrics、Ogre Rendering 和 ImGui Debug UI；
 - PLAYABILITY-RC / Stage 11 P11F 的 Windows 自动工程基线，以及当前
-  `AI-01..AI-08=NOT_RUN`、人类主观体验 `NOT_CLAIMED` 的证据身份。
+  macOS `AI-01=BLOCKED（部分通过）`、`AI-06=BLOCKED（隔离环境）`，
+  其余正式场景尚未完成；人类主观体验 `NOT_CLAIMED`。当前进展见
+  [Goal 执行记录](../reports/todolist-goal-execution-2026-09-05.md)。
 
 本节只提供当前身份摘要，不复制完整实现账本。模块职责和依赖方向以
 `docs/current/architecture.md` 为准；工程、性能、发行包和 AI 身份以

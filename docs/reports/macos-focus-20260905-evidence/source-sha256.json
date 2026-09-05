@@ -1,0 +1,13 @@
+{
+  "src/Engine/ogre3d_glsupport/src/OSX/OgreOSXCocoaWindow.mm": "7484315866722412c34990cd8e1ff0b7cdb17afd02ad1c2ab1d135ecc4c8412e",
+  "src/HelloMine3D/Ogre/OgreBootstrap.cpp": "c9f683a73203a59c4c032f0f9240613f983e23cdc8eb29cff4f05885de36d1ed",
+  "src/HelloMine3D/Ogre/OgreUserInterface.cpp": "c618e9ff86d55c880e833e09436b6bf8ec432dacc0e85bafb41936ae36d74939",
+  "src/HelloMine3D/Ogre/OgreUserInterface.h": "74d2cc101aaa3247f8ae02a83f9de8b56ecd5a47006ffcd39fb1bcfb740eef51",
+  "src/external/ois/includes/mac/CocoaKeyboard.h": "7abe25597f14ec598bdb805ed2df3823a8e38c8042b86e75d3e7a3c8ada9b97e",
+  "src/external/ois/src/mac/CocoaKeyboard.mm": "a0f9b70e70be64b344cdb0d9432bacd65d6eaea271d6ef7848e09c754183f19e",
+  "src/external/ois/src/mac/CocoaMouse.mm": "e80ec52ba06d4e7db392472baa3f8918b8dee4414aa9c697e16d2ad6305ca23a",
+  "tools/tests/cocoa_keyboard_test.mm": "95040033aaea95e29a813f117be206ee94704b7a6b47c3c15ef79e93458d5c36",
+  "tools/tests/cocoa_keyboard_focus_test.mm": "e95b26c95461c5f8f4488833ba2ba3799be94ec684c432fe59ab6e052e8aa1a9",
+  "tools/tests/cocoa_mouse_focus_test.mm": "c0fe8fc326c287da1c2b27dc562aeb4751df3780d03f8d203e81c5151cccf926",
+  "tools/tests/imgui_focus_semantics_test.cpp": "7ae65efa3e5aabf463c5cff6ba3b0f1d278d669081b06fde694f9757dc176c79"
+}

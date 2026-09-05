@@ -1,0 +1,28 @@
+2026-09-05 12:54:46.919 focus_baseline_test[95857:64996901] Error received in message reply handler: Connection invalid
+2026-09-05 12:54:46.919 focus_baseline_test[95857:64996932] Connection Invalid error for service com.apple.hiservices-xpcservice.
+2026-09-05 12:54:46.925 focus_baseline_test[95857:64996901] +[NSXPCSharedListener endpointForReply:withListenerName:replyErrorCode:]: an error occurred while attempting to obtain endpoint for listener 'ClientCallsAuxiliary': Connection invalid
+[COCOA_KEYBOARD] PASS quick-command-chord-retains-event-time-state
+[COCOA_KEYBOARD] PASS released-command-not-held-after-capture
+[COCOA_KEYBOARD] PASS combined-modifier-transition
+[COCOA_KEYBOARD] PASS held-modifiers-retained-until-queued-release
+[COCOA_KEYBOARD] PASS combined-release-clears-state
+[COCOA_KEYBOARD] PASS control-chord-does-not-insert-text
+[COCOA_KEYBOARD] PASS command-chord-does-not-insert-text
+[COCOA_KEYBOARD] PASS empty-text-retains-physical-key
+[COCOA_KEYBOARD] PASS native-translated-text-preserved
+[COCOA_KEYBOARD] PASS long-text-without-fixed-buffer
+[COCOA_KEYBOARD] PASS setup-held-key-and-modifiers
+[COCOA_KEYBOARD] PASS setup-client-tracks-held-key-and-modifiers
+[COCOA_KEYBOARD] FAIL notification-immediately-clears-poll-state
+[COCOA_KEYBOARD] FAIL notification-clears-ois-modifier-mask
+[COCOA_KEYBOARD] FAIL duplicate-loss-preserves-client-releases
+[COCOA_KEYBOARD] FAIL buffered-client-key-state-released
+[COCOA_KEYBOARD] PASS release-callbacks-see-cleared-modifiers
+[COCOA_KEYBOARD] PASS release-not-repeated-every-background-frame
+[COCOA_KEYBOARD] FAIL refocus-without-up-does-not-stick
+[COCOA_KEYBOARD] FAIL pending-down-canceled-across-fast-refocus
+[COCOA_KEYBOARD] FAIL background-events-cannot-refill-buffer
+[COCOA_KEYBOARD] FAIL foreign-window-event-rejected
+[COCOA_KEYBOARD] PASS foreign-window-loss-does-not-reset-own-input
+[COCOA_KEYBOARD] PASS fresh-chord-after-reset-retains-event-time-modifier
+[COCOA_KEYBOARD] failures=8

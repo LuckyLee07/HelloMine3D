@@ -1,0 +1,28 @@
+2026-09-05 12:58:29.236 cocoa_keyboard_focus_test[96771:65008046] Connection Invalid error for service com.apple.hiservices-xpcservice.
+2026-09-05 12:58:29.236 cocoa_keyboard_focus_test[96771:65007982] Error received in message reply handler: Connection invalid
+2026-09-05 12:58:29.242 cocoa_keyboard_focus_test[96771:65007982] +[NSXPCSharedListener endpointForReply:withListenerName:replyErrorCode:]: an error occurred while attempting to obtain endpoint for listener 'ClientCallsAuxiliary': Connection invalid
+[COCOA_KEYBOARD] PASS quick-command-chord-retains-event-time-state
+[COCOA_KEYBOARD] PASS released-command-not-held-after-capture
+[COCOA_KEYBOARD] PASS combined-modifier-transition
+[COCOA_KEYBOARD] PASS held-modifiers-retained-until-queued-release
+[COCOA_KEYBOARD] PASS combined-release-clears-state
+[COCOA_KEYBOARD] PASS control-chord-does-not-insert-text
+[COCOA_KEYBOARD] PASS command-chord-does-not-insert-text
+[COCOA_KEYBOARD] PASS empty-text-retains-physical-key
+[COCOA_KEYBOARD] PASS native-translated-text-preserved
+[COCOA_KEYBOARD] PASS long-text-without-fixed-buffer
+[COCOA_KEYBOARD] PASS setup-held-key-and-modifiers
+[COCOA_KEYBOARD] PASS setup-client-tracks-held-key-and-modifiers
+[COCOA_KEYBOARD] PASS notification-immediately-clears-poll-state
+[COCOA_KEYBOARD] PASS notification-clears-ois-modifier-mask
+[COCOA_KEYBOARD] PASS duplicate-loss-preserves-client-releases
+[COCOA_KEYBOARD] PASS buffered-client-key-state-released
+[COCOA_KEYBOARD] PASS release-callbacks-see-cleared-modifiers
+[COCOA_KEYBOARD] PASS release-not-repeated-every-background-frame
+[COCOA_KEYBOARD] PASS refocus-without-up-does-not-stick
+[COCOA_KEYBOARD] PASS pending-down-canceled-across-fast-refocus
+[COCOA_KEYBOARD] PASS background-events-cannot-refill-buffer
+[COCOA_KEYBOARD] PASS foreign-window-event-rejected
+[COCOA_KEYBOARD] PASS foreign-window-loss-does-not-reset-own-input
+[COCOA_KEYBOARD] PASS fresh-chord-after-reset-retains-event-time-modifier
+[COCOA_KEYBOARD] failures=0

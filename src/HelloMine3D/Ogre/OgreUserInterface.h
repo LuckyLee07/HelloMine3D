@@ -83,6 +83,7 @@ class OgreUserInterface final : public Ogre::RenderTargetListener
     void beginFrame(float deltaSeconds, const WorldDebugStats &worldStats,
                     const MiningProgressSnapshot &miningProgress,
                     const ActionFeedbackSnapshot &actionFeedback);
+    void focusChanged(bool focused);
     void keyEvent(const OIS::KeyEvent &event, bool pressed,
                   const OIS::Keyboard &keyboard);
     void mouseMoved(const OIS::MouseEvent &event);

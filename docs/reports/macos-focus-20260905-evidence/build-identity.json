@@ -1,0 +1,25 @@
+{
+  "platform": "macOS",
+  "configuration": "Release",
+  "source_commit": "fb8f2751961f71184a04b77c93723d039ce76581",
+  "tracked_diff_sha256": "afdd76f25168097ce2e8dcf079bbad9dc6f807bd99b6207464721de4e66d0ab1",
+  "executable_sha256": "bf07e9b3ff9a39e1b8a0aca375e94a75ead8eade4d1239c11c0204fe8077cbcd",
+  "file_identity": "/Users/lizi/Desktop/Workspace/HelloMine3D/bin/HelloMine3D: Mach-O 64-bit executable x86_64",
+  "linkage": [
+    "\t/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa (compatibility version 1.0.0, current version 24.0.0)",
+    "\t/System/Library/Frameworks/Carbon.framework/Versions/A/Carbon (compatibility version 2.0.0, current version 170.0.0)",
+    "\t/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit (compatibility version 1.0.0, current version 275.0.0)",
+    "\t/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation (compatibility version 300.0.0, current version 4201.0.0)",
+    "\t/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit (compatibility version 45.0.0, current version 2685.30.107)",
+    "\t/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 4201.0.0)",
+    "\t/System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL (compatibility version 1.0.0, current version 1.0.0)",
+    "\t/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 2000.67.0)",
+    "\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)",
+    "\t/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics (compatibility version 64.0.0, current version 1965.2.3)",
+    "\t/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)"
+  ],
+  "resource_manifest_sha256": "3328baa5771fc997a71c8ea544e2278624ab0441e013daf477951da2b42b538d",
+  "source_tree_required": false,
+  "acceptance": "NOT_RUN",
+  "signed_or_notarized": false
+}

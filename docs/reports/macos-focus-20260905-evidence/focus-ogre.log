@@ -1,0 +1,272 @@
+13:09:15: Creating resource group General
+13:09:15: Creating resource group Internal
+13:09:15: Creating resource group Autodetect
+13:09:15: SceneManagerFactory for type 'DefaultSceneManager' registered.
+13:09:15: Registering ResourceManager for type Material
+13:09:15: Registering ResourceManager for type Mesh
+13:09:15: Registering ResourceManager for type Skeleton
+13:09:15: MovableObjectFactory for type 'ParticleSystem' registered.
+13:09:15: ArchiveFactory for archive type FileSystem registered.
+13:09:15: ArchiveFactory for archive type Zip registered.
+13:09:15: ArchiveFactory for archive type EmbeddedZip registered.
+13:09:15: DDS codec registering
+13:09:15: FreeImage version: 3.15.4
+13:09:15: This program uses FreeImage, a free, open source image library supporting all common bitmap formats. See http://freeimage.sourceforge.net for details
+13:09:15: Supported formats: bmp,ico,jpg,jif,jpeg,jpe,jng,koa,iff,lbm,mng,pbm,pbm,pcd,pcx,pgm,pgm,png,ppm,ppm,ras,tga,targa,tif,tiff,wap,wbmp,wbm,psd,cut,xbm,xpm,gif,hdr,g3,sgi,exr,j2k,j2c,jp2,pfm,pct,pict,pic,3fr,arw,bay,bmq,cap,cine,cr2,crw,cs1,dc2,dcr,drf,dsc,dng,erf,fff,ia,iiq,k25,kc2,kdc,mdc,mef,mos,mrw,nef,nrw,orf,pef,ptx,pxn,qtk,raf,raw,rdc,rw2,rwl,rwz,sr2,srf,srw,sti
+13:09:15: Registering ResourceManager for type HighLevelGpuProgram
+13:09:15: Registering ResourceManager for type Compositor
+13:09:15: MovableObjectFactory for type 'Entity' registered.
+13:09:15: MovableObjectFactory for type 'Light' registered.
+13:09:15: MovableObjectFactory for type 'BillboardSet' registered.
+13:09:15: MovableObjectFactory for type 'ManualObject' registered.
+13:09:15: MovableObjectFactory for type 'BillboardChain' registered.
+13:09:15: MovableObjectFactory for type 'RibbonTrail' registered.
+13:09:15: *-*-* OGRE Initialising
+13:09:15: *-*-* Version 1.10.0git (Xalafu)
+13:09:15: Installing plugin: GL 3+ RenderSystem
+13:09:15: OpenGL 3+ Rendering Subsystem created.
+13:09:15: Plugin successfully installed
+13:09:15: Added resource location '/private/tmp/hm3d-independent-ai01-6916867/focus-retest/HelloMine3D-Focus-Candidate-20260905.app/Contents/Resources/media/ogre' of type 'FileSystem' to resource group 'General' with recursive option
+13:09:15: Added resource location '/private/tmp/hm3d-independent-ai01-6916867/focus-retest/HelloMine3D-Focus-Candidate-20260905.app/Contents/Resources/media/textures' of type 'FileSystem' to resource group 'General' with recursive option
+13:09:15: CPU Identifier & Features
+13:09:15: -------------------------
+13:09:15:  *   CPU ID: GenuineIntel: VirtualApple @ 2.50GHz
+13:09:15:  *          SSE: yes
+13:09:15:  *         SSE2: yes
+13:09:15:  *         SSE3: yes
+13:09:15:  *        SSE41: yes
+13:09:15:  *        SSE42: yes
+13:09:15:  *          MMX: yes
+13:09:15:  *       MMXEXT: yes
+13:09:15:  *        3DNOW: no
+13:09:15:  *     3DNOWEXT: no
+13:09:15:  *         CMOV: yes
+13:09:15:  *          TSC: yes
+13:09:15:  *INVARIANT TSC: yes
+13:09:15:  *          FPU: yes
+13:09:15:  *          PRO: yes
+13:09:15:  *           HT: no
+13:09:15: -------------------------
+13:09:15: ********************************************
+***  Starting Mac OS X OpenGL Subsystem  ***
+********************************************
+13:09:15: GL3PlusRenderSystem::_createRenderWindow "HelloMine3D", 1280x720 windowed  miscParams: FSAA=0 contentScalingFactor=2 contextProfile=1 gamma=No hidden=No macAPI=cocoa title=HelloMine3D vsync=Yes 
+13:09:15: Creating a Cocoa Compatible Render System
+13:09:15: Cocoa: Window created 1280 x 720 with backing store size 2560 x 1440 using content scaling factor 2.0
+13:09:15: GL_VERSION = 4.1.0.0
+13:09:15: GL_VENDOR = Apple
+13:09:15: GL_RENDERER = Apple M1 Pro
+13:09:15: GL_EXTENSIONS = 
+13:09:15: GL_ARB_blend_func_extended
+13:09:15: GL_ARB_draw_buffers_blend
+13:09:15: GL_ARB_draw_indirect
+13:09:15: GL_ARB_ES2_compatibility
+13:09:15: GL_ARB_explicit_attrib_location
+13:09:15: GL_ARB_gpu_shader_fp64
+13:09:15: GL_ARB_gpu_shader5
+13:09:15: GL_ARB_instanced_arrays
+13:09:15: GL_ARB_internalformat_query
+13:09:15: GL_ARB_occlusion_query2
+13:09:15: GL_ARB_sample_shading
+13:09:15: GL_ARB_sampler_objects
+13:09:15: GL_ARB_separate_shader_objects
+13:09:15: GL_ARB_shader_bit_encoding
+13:09:15: GL_ARB_shader_subroutine
+13:09:15: GL_ARB_shading_language_include
+13:09:15: GL_ARB_tessellation_shader
+13:09:15: GL_ARB_texture_buffer_object_rgb32
+13:09:15: GL_ARB_texture_cube_map_array
+13:09:15: GL_ARB_texture_gather
+13:09:15: GL_ARB_texture_query_lod
+13:09:15: GL_ARB_texture_rgb10_a2ui
+13:09:15: GL_ARB_texture_storage
+13:09:15: GL_ARB_texture_swizzle
+13:09:15: GL_ARB_timer_query
+13:09:15: GL_ARB_transform_feedback2
+13:09:15: GL_ARB_transform_feedback3
+13:09:15: GL_ARB_vertex_attrib_64bit
+13:09:15: GL_ARB_vertex_type_2_10_10_10_rev
+13:09:15: GL_ARB_viewport_array
+13:09:15: GL_EXT_debug_label
+13:09:15: GL_EXT_debug_marker
+13:09:15: GL_EXT_framebuffer_multisample_blit_scaled
+13:09:15: GL_EXT_texture_compression_s3tc
+13:09:15: GL_EXT_texture_filter_anisotropic
+13:09:15: GL_EXT_texture_sRGB_decode
+13:09:15: GL_APPLE_client_storage
+13:09:15: GL_APPLE_container_object_shareable
+13:09:15: GL_APPLE_flush_render
+13:09:15: GL_APPLE_rgb_422
+13:09:15: GL_APPLE_row_bytes
+13:09:15: GL_APPLE_texture_range
+13:09:15: GL_NV_texture_barrier
+13:09:15: **************************************
+13:09:15: ***   OpenGL 3+ Renderer Started   ***
+13:09:15: **************************************
+13:09:15: Registering ResourceManager for type GpuProgram
+13:09:15: GL3+: Using FBOs for rendering to textures
+13:09:15: FBO PF_UNKNOWN depth/stencil support: D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_L8 depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_L16 depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_BYTE_LA depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R5G6B5 depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_A4R4G4B4 depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_A1R5G5B5 depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R8G8B8 depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_B8G8R8 depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_A8R8G8B8 depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_A8B8G8R8 depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_B8G8R8A8 depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_A2R10G10B10 depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_A2B10G10R10 depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_FLOAT16_RGB depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_FLOAT16_RGBA depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_FLOAT32_RGB depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_FLOAT32_RGBA depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_X8R8G8B8 depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_X8B8G8R8 depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R8G8B8A8 depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_DEPTH depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_SHORT_RGBA depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R3G3B2 depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_FLOAT16_R depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_FLOAT32_R depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_SHORT_GR depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_FLOAT16_GR depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_FLOAT32_GR depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_SHORT_RGB depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R11G11B10_FLOAT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R8_UINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R8G8_UINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R8G8B8_UINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R8G8B8A8_UINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R16_UINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R16G16_UINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R16G16B16_UINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R16G16B16A16_UINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R32_UINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R32G32_UINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R32G32B32_UINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R32G32B32A32_UINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R8_SINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R8G8_SINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R8G8B8_SINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R8G8B8A8_SINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R16_SINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R16G16_SINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R16G16B16_SINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R16G16B16A16_SINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R32_SINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R32G32_SINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R32G32B32_SINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: FBO PF_R32G32B32A32_SINT depth/stencil support: D0S0 D0S1 D0S4 D0S8 D0S16 D16S0 D16S1 D16S4 D16S8 D16S16 D24S0 D24S1 D24S4 D24S8 D24S16 D32S0 D32S1 D32S4 D32S8 D32S16 D32S0 D32S1 D32S4 D32S8 D32S16 Packed-D24S8 Packed-D32S8 
+13:09:15: [GL] : Valid FBO targets PF_UNKNOWN PF_L8 PF_L16 PF_BYTE_LA PF_R5G6B5 PF_A4R4G4B4 PF_A1R5G5B5 PF_R8G8B8 PF_B8G8R8 PF_A8R8G8B8 PF_A8B8G8R8 PF_B8G8R8A8 PF_A2R10G10B10 PF_A2B10G10R10 PF_FLOAT16_RGB PF_FLOAT16_RGBA PF_FLOAT32_RGB PF_FLOAT32_RGBA PF_X8R8G8B8 PF_X8B8G8R8 PF_R8G8B8A8 PF_DEPTH PF_SHORT_RGBA PF_R3G3B2 PF_FLOAT16_R PF_FLOAT32_R PF_SHORT_GR PF_FLOAT16_GR PF_FLOAT32_GR PF_SHORT_RGB PF_R11G11B10_FLOAT PF_R8_UINT PF_R8G8_UINT PF_R8G8B8_UINT PF_R8G8B8A8_UINT PF_R16_UINT PF_R16G16_UINT PF_R16G16B16_UINT PF_R16G16B16A16_UINT PF_R32_UINT PF_R32G32_UINT PF_R32G32B32_UINT PF_R32G32B32A32_UINT PF_R8_SINT PF_R8G8_SINT PF_R8G8B8_SINT PF_R8G8B8A8_SINT PF_R16_SINT PF_R16G16_SINT PF_R16G16B16_SINT PF_R16G16B16A16_SINT PF_R32_SINT PF_R32G32_SINT PF_R32G32B32_SINT PF_R32G32B32A32_SINT 
+13:09:15: RenderSystem capabilities
+13:09:15: -------------------------
+13:09:15: RenderSystem Name: OpenGL 3+ Rendering Subsystem
+13:09:15: GPU Vendor: apple
+13:09:15: Device Name: Apple M1 Pro
+13:09:15: Driver Version: 4.1.0.0
+13:09:15:  * Fixed function pipeline: no
+13:09:15:  * Anisotropic texture filtering: yes
+13:09:15:  * Cube mapping: yes
+13:09:15:  * Hardware stencil buffer: yes
+13:09:15:    - Stencil depth: 8
+13:09:15:    - Two sided stencil support: yes
+13:09:15:    - Wrap stencil values: yes
+13:09:15:  * 32-bit index buffers: yes
+13:09:15:  * Vertex programs: yes
+13:09:15:  * Number of floating-point constants for vertex programs: 4096
+13:09:15:  * Number of integer constants for vertex programs: 4096
+13:09:15:  * Number of boolean constants for vertex programs: 4096
+13:09:15:  * Fragment programs: yes
+13:09:15:  * Number of floating-point constants for fragment programs: 4096
+13:09:15:  * Number of integer constants for fragment programs: 4096
+13:09:15:  * Number of boolean constants for fragment programs: 4096
+13:09:15:  * Geometry programs: yes
+13:09:15:  * Number of floating-point constants for geometry programs: 4096
+13:09:15:  * Number of integer constants for geometry programs: 4096
+13:09:15:  * Number of boolean constants for geometry programs: 4096
+13:09:15:  * Tessellation Hull programs: yes
+13:09:15:  * Number of floating-point constants for tessellation hull programs: 4096
+13:09:15:  * Number of integer constants for tessellation hull programs: 4096
+13:09:15:  * Number of boolean constants for tessellation hull programs: 4096
+13:09:15:  * Tessellation Domain programs: yes
+13:09:15:  * Number of floating-point constants for tessellation domain programs: 4096
+13:09:15:  * Number of integer constants for tessellation domain programs: 4096
+13:09:15:  * Number of boolean constants for tessellation domain programs: 4096
+13:09:15:  * Compute programs: no
+13:09:15:  * Number of floating-point constants for compute programs: 0
+13:09:15:  * Number of integer constants for compute programs: 0
+13:09:15:  * Number of boolean constants for compute programs: 0
+13:09:15:  * Supported Shader Profiles: glsl glsl130 glsl140 glsl150 glsl330 glsl400 glsl410
+13:09:15:  * Texture Compression: yes
+13:09:15:    - DXT: yes
+13:09:15:    - VTC: no
+13:09:15:    - PVRTC: no
+13:09:15:    - ATC: no
+13:09:15:    - ETC1: no
+13:09:15:    - ETC2: no
+13:09:15:    - BC4/BC5: yes
+13:09:15:    - BC6H/BC7: no
+13:09:15:  * Hardware Occlusion Query: yes
+13:09:15:  * User clip planes: yes
+13:09:15:  * VET_UBYTE4 vertex element type: yes
+13:09:15:  * Infinite far plane projection: yes
+13:09:15:  * Hardware render-to-texture: yes
+13:09:15:  * Floating point textures: yes
+13:09:15:  * Non-power-of-two textures: yes
+13:09:15:  * 1d textures: yes
+13:09:15:  * Volume textures: yes
+13:09:15:  * Multiple Render Targets: 8
+13:09:15:    - With different bit depths: yes
+13:09:15:  * Point Sprites: yes
+13:09:15:  * Hardware Gamma: yes
+13:09:15:  * Extended point parameters: yes
+13:09:15:  * Max Point Size: 64
+13:09:15:  * Vertex texture fetch: yes
+13:09:15:  * Number of world matrices: 0
+13:09:15:  * Number of texture units: 16
+13:09:15:  * Stencil buffer depth: 8
+13:09:15:  * Number of vertex blend matrices: 0
+13:09:15:    - Max vertex textures: 16
+13:09:15:    - Vertex textures shared: yes
+13:09:15:  * Render to Vertex Buffer : yes
+13:09:15:  * Hardware Atomic Counters: no
+13:09:15:  * PBuffer support: no
+13:09:15:  * Vertex Array Objects: yes
+13:09:15:  * Separate shader objects: no
+13:09:15: Registering ResourceManager for type Texture
+13:09:15: DefaultWorkQueue('Root') initialising on thread main.
+13:09:15: Particle Renderer Type 'billboard' registered
+13:09:15: Parsing scripts for resource group Autodetect
+13:09:15: Finished parsing scripts for resource group Autodetect
+13:09:15: Creating resources for group Autodetect
+13:09:15: All done
+13:09:15: Parsing scripts for resource group General
+13:09:15: Parsing script HelloMine3D.program
+13:09:15: Parsing script HelloMine3D.material
+13:09:15: Parsing script HelloMine3D.compositor
+13:09:15: Finished parsing scripts for resource group General
+13:09:15: Creating resources for group General
+13:09:15: All done
+13:09:15: Parsing scripts for resource group Internal
+13:09:15: Finished parsing scripts for resource group Internal
+13:09:15: Creating resources for group Internal
+13:09:15: All done
+13:09:15: Texture: DefaultPack.png: Loading 1 faces(PF_A8R8G8B8,256x256x1) with 8 hardware generated mipmaps from Image. Internal format is PF_A8R8G8B8,256x256x1.
+13:09:16: [INPUT_FOCUS] focused=0 frame=0
+13:09:45: [INPUT_FOCUS] focused=1 frame=2823
+13:25:04: [INPUT_FOCUS] focused=0 frame=98715
+13:30:25: DefaultWorkQueue('Root') shutting down on thread main.
+13:30:25: *-*-* OGRE Shutdown
+13:30:25: Unregistering ResourceManager for type Compositor
+13:30:25: Unregistering ResourceManager for type Skeleton
+13:30:25: Unregistering ResourceManager for type Mesh
+13:30:25: Unregistering ResourceManager for type HighLevelGpuProgram
+13:30:25: Unregistering ResourceManager for type GpuProgram
+13:30:25: Unregistering ResourceManager for type Texture
+13:30:25: ********************************************
+***  Stopping Mac OS X OpenGL Subsystem  ***
+********************************************
+13:30:25: Unregistering ResourceManager for type Material

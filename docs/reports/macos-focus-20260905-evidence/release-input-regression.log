@@ -1,0 +1,76 @@
+2026-09-05 13:09:38.360 cocoa_keyboard_test[558:65055668] Error received in message reply handler: Connection invalid
+2026-09-05 13:09:38.360 cocoa_keyboard_test[558:65055706] Connection Invalid error for service com.apple.hiservices-xpcservice.
+2026-09-05 13:09:38.368 cocoa_keyboard_test[558:65055668] +[NSXPCSharedListener endpointForReply:withListenerName:replyErrorCode:]: an error occurred while attempting to obtain endpoint for listener 'ClientCallsAuxiliary': Connection invalid
+[COCOA_KEYBOARD] PASS quick-command-chord-retains-event-time-state
+[COCOA_KEYBOARD] PASS released-command-not-held-after-capture
+[COCOA_KEYBOARD] PASS combined-modifier-transition
+[COCOA_KEYBOARD] PASS held-modifiers-retained-until-queued-release
+[COCOA_KEYBOARD] PASS combined-release-clears-state
+[COCOA_KEYBOARD] PASS control-chord-does-not-insert-text
+[COCOA_KEYBOARD] PASS command-chord-does-not-insert-text
+[COCOA_KEYBOARD] PASS empty-text-retains-physical-key
+[COCOA_KEYBOARD] PASS native-translated-text-preserved
+[COCOA_KEYBOARD] PASS long-text-without-fixed-buffer
+[COCOA_KEYBOARD] failures=0
+2026-09-05 13:09:39.818 cocoa_keyboard_focus_test[566:65055751] Connection Invalid error for service com.apple.hiservices-xpcservice.
+2026-09-05 13:09:39.818 cocoa_keyboard_focus_test[566:65055743] Error received in message reply handler: Connection invalid
+2026-09-05 13:09:39.823 cocoa_keyboard_focus_test[566:65055743] +[NSXPCSharedListener endpointForReply:withListenerName:replyErrorCode:]: an error occurred while attempting to obtain endpoint for listener 'ClientCallsAuxiliary': Connection invalid
+[COCOA_KEYBOARD] PASS quick-command-chord-retains-event-time-state
+[COCOA_KEYBOARD] PASS released-command-not-held-after-capture
+[COCOA_KEYBOARD] PASS combined-modifier-transition
+[COCOA_KEYBOARD] PASS held-modifiers-retained-until-queued-release
+[COCOA_KEYBOARD] PASS combined-release-clears-state
+[COCOA_KEYBOARD] PASS control-chord-does-not-insert-text
+[COCOA_KEYBOARD] PASS command-chord-does-not-insert-text
+[COCOA_KEYBOARD] PASS empty-text-retains-physical-key
+[COCOA_KEYBOARD] PASS native-translated-text-preserved
+[COCOA_KEYBOARD] PASS long-text-without-fixed-buffer
+[COCOA_KEYBOARD] PASS setup-held-key-and-modifiers
+[COCOA_KEYBOARD] PASS setup-client-tracks-held-key-and-modifiers
+[COCOA_KEYBOARD] PASS notification-immediately-clears-poll-state
+[COCOA_KEYBOARD] PASS notification-clears-ois-modifier-mask
+[COCOA_KEYBOARD] PASS duplicate-loss-preserves-client-releases
+[COCOA_KEYBOARD] PASS buffered-client-key-state-released
+[COCOA_KEYBOARD] PASS release-callbacks-see-cleared-modifiers
+[COCOA_KEYBOARD] PASS release-not-repeated-every-background-frame
+[COCOA_KEYBOARD] PASS refocus-without-up-does-not-stick
+[COCOA_KEYBOARD] PASS pending-down-canceled-across-fast-refocus
+[COCOA_KEYBOARD] PASS background-events-cannot-refill-buffer
+[COCOA_KEYBOARD] PASS foreign-window-event-rejected
+[COCOA_KEYBOARD] PASS foreign-window-loss-does-not-reset-own-input
+[COCOA_KEYBOARD] PASS fresh-chord-after-reset-retains-event-time-modifier
+[COCOA_KEYBOARD] failures=0
+[COCOA_MOUSE_FOCUS] PASS setup-poll-and-client-held button=0
+[COCOA_MOUSE_FOCUS] PASS menu-capture-policy-does-not-clear-held button=0
+[COCOA_MOUSE_FOCUS] PASS gate-blocks-world-in-background button=0
+[COCOA_MOUSE_FOCUS] PASS loss-clears-poll-button button=0
+[COCOA_MOUSE_FOCUS] PASS loss-releases-client-button button=0
+[COCOA_MOUSE_FOCUS] PASS duplicate-loss-emits-one-release button=0
+[COCOA_MOUSE_FOCUS] PASS refocus-rearms-gate-with-no-physical-button button=0
+[COCOA_MOUSE_FOCUS] PASS fresh-click-still-reaches-client button=0
+[COCOA_MOUSE_FOCUS] PASS inactive-capture-clears-without-notification button=0
+[COCOA_MOUSE_FOCUS] PASS setup-poll-and-client-held button=1
+[COCOA_MOUSE_FOCUS] PASS menu-capture-policy-does-not-clear-held button=1
+[COCOA_MOUSE_FOCUS] PASS gate-blocks-world-in-background button=1
+[COCOA_MOUSE_FOCUS] PASS loss-clears-poll-button button=1
+[COCOA_MOUSE_FOCUS] PASS loss-releases-client-button button=1
+[COCOA_MOUSE_FOCUS] PASS duplicate-loss-emits-one-release button=1
+[COCOA_MOUSE_FOCUS] PASS refocus-rearms-gate-with-no-physical-button button=1
+[COCOA_MOUSE_FOCUS] PASS fresh-click-still-reaches-client button=1
+[COCOA_MOUSE_FOCUS] PASS inactive-capture-clears-without-notification button=1
+[COCOA_MOUSE_FOCUS] PASS setup-poll-and-client-held button=2
+[COCOA_MOUSE_FOCUS] PASS menu-capture-policy-does-not-clear-held button=2
+[COCOA_MOUSE_FOCUS] PASS gate-blocks-world-in-background button=2
+[COCOA_MOUSE_FOCUS] PASS loss-clears-poll-button button=2
+[COCOA_MOUSE_FOCUS] PASS loss-releases-client-button button=2
+[COCOA_MOUSE_FOCUS] PASS duplicate-loss-emits-one-release button=2
+[COCOA_MOUSE_FOCUS] PASS refocus-rearms-gate-with-no-physical-button button=2
+[COCOA_MOUSE_FOCUS] PASS fresh-click-still-reaches-client button=2
+[COCOA_MOUSE_FOCUS] PASS inactive-capture-clears-without-notification button=2
+[COCOA_MOUSE_FOCUS] failures=0
+[IMGUI_FOCUS_SEMANTICS] PASS control-release-without-focus-activates
+[IMGUI_FOCUS_SEMANTICS] PASS focus-loss-release-does-not-activate
+[IMGUI_FOCUS_SEMANTICS] PASS clear-fast-loss-gain-release-does-not-activate
+[IMGUI_FOCUS_SEMANTICS] PASS normal-click-after-fast-loss-gain-works
+[IMGUI_FOCUS_SEMANTICS] failures=0
+[COCOA_INPUT] status=PASS configuration=Release logs=/Users/lizi/Desktop/Workspace/HelloMine3D/build/cocoa-input-20260905130936-Release

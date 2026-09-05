@@ -24,7 +24,7 @@ following restrictions:
     3. This notice may not be removed or altered from any source distribution. 
  */
 
-// Modified by HelloMine3D: aggregate modifier flags and buffered event-time state.
+// Modified by HelloMine3D: modifier event timing and native focus isolation.
 #include "mac/CocoaKeyboard.h"
 #include "mac/CocoaInputManager.h"
 #include "mac/CocoaHelpers.h"
@@ -150,15 +150,22 @@ void CocoaKeyboard::copyKeyStates(char keys[256]) const
 		[self populateKeyConversion];
 		memset(&KeyBuffer, 0, 256);
 		memset(&DispatchedKeyBuffer, 0, 256);
+		memset(&FocusReleasePending, 0, 256);
 		dispatchingEvents = false;
 		prevModMask = 0;
+
+		NSNotificationCenter* notifications = [NSNotificationCenter defaultCenter];
+		[notifications addObserver:self selector:@selector(inputFocusLost:)
+			name:NSWindowDidResignKeyNotification object:nil];
+		[notifications addObserver:self selector:@selector(inputFocusLost:)
+			name:NSApplicationDidResignActiveNotification object:nil];
 
 		// Fallback path: if this responder is not firstResponder, still mirror key events.
 		__unsafe_unretained CocoaKeyboardView* weakSelf = self;
 		localEventMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:(NSEventMaskKeyDown | NSEventMaskKeyUp | NSEventMaskFlagsChanged)
 																 handler:^NSEvent* _Nullable(NSEvent* _Nonnull event) {
 			CocoaKeyboardView* strongSelf = weakSelf;
-			if(!strongSelf)
+			if(!strongSelf || ![strongSelf acceptsKeyboardEvent:event])
 				return event;
 
 			NSWindow* w = [event window];
@@ -180,6 +187,7 @@ void CocoaKeyboard::copyKeyStates(char keys[256]) const
 
 - (void)dealloc
 {
+	[[NSNotificationCenter defaultCenter] removeObserver:self];
 	if(localEventMonitor)
 	{
 		[NSEvent removeMonitor:localEventMonitor];
@@ -203,15 +211,63 @@ void CocoaKeyboard::copyKeyStates(char keys[256]) const
 	oisKeyboardObj = obj;
 }
 
+- (bool)hasInputFocus
+{
+	return [self window] != nil && [[self window] isKeyWindow] && [NSApp isActive];
+}
+
+- (bool)acceptsKeyboardEvent:(NSEvent*)event
+{
+	return [self hasInputFocus] && [event window] == [self window];
+}
+
+- (void)inputFocusLost:(NSNotification*)notification
+{
+	if([[notification name] isEqualToString:NSApplicationDidResignActiveNotification] ||
+	   [notification object] == [self window])
+		[self resetForFocusLoss];
+}
+
+- (void)resetForFocusLoss
+{
+	// No stale down/text events may replay after refocus. Notify buffered clients
+	// of releases too, so their own key state (e.g. ImGui) cannot remain held.
+	for(unsigned int key = 0; key < 256; ++key)
+		FocusReleasePending[key] |= KeyBuffer[key] || DispatchedKeyBuffer[key];
+	memset(KeyBuffer, 0, sizeof(KeyBuffer));
+	memset(DispatchedKeyBuffer, 0, sizeof(DispatchedKeyBuffer));
+	pendingEvents.clear();
+	prevModMask = 0;
+	if(oisKeyboardObj)
+		oisKeyboardObj->_getModifiers() = 0;
+}
+
 - (void)capture
 {
+	if(![self hasInputFocus])
+		[self resetForFocusLoss];
+
 	// If not buffered just return, we update the unbuffered automatically
 	if(!oisKeyboardObj->buffered() || !oisKeyboardObj->getEventCallback())
 	{
 		memcpy(DispatchedKeyBuffer, KeyBuffer, 256);
 		pendingEvents.clear();
+		memset(FocusReleasePending, 0, sizeof(FocusReleasePending));
 		return;
 	}
+
+	// Flush focus releases before any newly focused input. Clear each pending
+	// bit before calling out so duplicate loss notifications remain harmless.
+	dispatchingEvents = true;
+	for(unsigned int key = 0; key < 256; ++key)
+	{
+		if(!FocusReleasePending[key])
+			continue;
+		FocusReleasePending[key] = 0;
+		oisKeyboardObj->getEventCallback()->keyReleased(
+			KeyEvent(oisKeyboardObj, static_cast<KeyCode>(key), 0));
+	}
+	dispatchingEvents = false;
 
 	// Run through our event stack
 	eventStack::iterator cur_it;
@@ -394,6 +450,8 @@ void CocoaKeyboard::copyKeyStates(char keys[256]) const
 #pragma mark Key Event overrides
 - (void)keyDown:(NSEvent*)theEvent
 {
+	if(![self acceptsKeyboardEvent:theEvent])
+		return;
 	unsigned short virtualKey = [theEvent keyCode];
 	unsigned int time		  = (unsigned int)[theEvent timestamp];
 	KeyCode kc				  = keyConversion[virtualKey];
@@ -423,6 +481,8 @@ void CocoaKeyboard::copyKeyStates(char keys[256]) const
 
 - (void)keyUp:(NSEvent*)theEvent
 {
+	if(![self acceptsKeyboardEvent:theEvent])
+		return;
 	unsigned short virtualKey = [theEvent keyCode];
 
 	KeyCode kc = keyConversion[virtualKey];
@@ -431,6 +491,8 @@ void CocoaKeyboard::copyKeyStates(char keys[256]) const
 
 - (void)flagsChanged:(NSEvent*)theEvent
 {
+	if(![self acceptsKeyboardEvent:theEvent])
+		return;
 	// Device-dependent low bits and simultaneous transitions must not prevent
 	// recognition of the aggregate Cocoa modifier flags.
 	const NSUInteger mods = [theEvent modifierFlags] & NSEventModifierFlagDeviceIndependentFlagsMask;
