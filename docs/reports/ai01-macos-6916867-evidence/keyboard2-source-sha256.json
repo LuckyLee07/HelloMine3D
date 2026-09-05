@@ -1,0 +1,5 @@
+{
+  "src/external/ois/includes/mac/CocoaKeyboard.h": "e47884ae664ddc3f0210f938dc3d709035a07afe25e13ece9f3e3a0b8c0dcd6a",
+  "src/external/ois/src/mac/CocoaKeyboard.mm": "23459bf4614f46c4a9602812479700bc678f02e80d5c4ceebc2b1518bead07d3",
+  "tools/tests/cocoa_keyboard_test.mm": "89ba32bf15f72595caec16324d22730ed64fdc6d833b621d7907efcecb88a4bf"
+}

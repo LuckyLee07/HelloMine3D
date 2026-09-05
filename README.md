@@ -202,12 +202,13 @@ The Goal's macOS Debug/Release gmake and Xcode regression gates now pass.
 Xcode Release uses O3 without fast-math to preserve resource reachability checks.
 Startup-negative checks also pass. A Cocoa input fix keeps the native cursor free in menus and captures it
 only during focused gameplay; actual menu, crafting and pause clicks were
-rechecked. Independent AI acceptance remains open.
+rechecked. Independent AI-01 has partial successful menu/save/load/settings results;
+movement, look and held-key checks remain blocked by current Computer Use capabilities.
 
 This is a personal architecture-learning and showcase project, not a commercial product with an
 external playtest panel. The game remains the proof vehicle: observable workflows are validated
-by automation plus AI/Computer Use against a clean Release package. The first Computer Use
-baseline is currently `NOT_RUN`; human fun, physical-device feel and subjective preference are
+by automation plus AI/Computer Use against a clean Release package. The macOS Computer Use
+baseline is partially executed and overall `BLOCKED`; human fun, physical-device feel and subjective preference are
 explicitly `NOT_CLAIMED`, rather than kept on an indefinite deferred list. No `1.0` tag has been
 created.
 

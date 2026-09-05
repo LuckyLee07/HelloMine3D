@@ -74,7 +74,7 @@ AI 平台对应规则见 [当前验收规范](ai-assisted-gameplay-acceptance-v1
 | 资产检查 | `bash scripts/check_assets.sh` | 资产和数据 |
 | V10B2 图集合同 | `tools\validate_terrain_atlas.ps1` | 37 个语义/双语名、Alpha 边界、分面、HUD/手持一致性与确定性输出 |
 | R3 自动预检 | `tools\validate_r3_automated_preflight.ps1 -Configuration Release -Build` | 控制器、交互、容器、战斗、D6 和后台窗口焦点的逻辑回归；只是 AI 交互前置条件。 |
-| AI/Computer Use 功能验收 | `docs\current\ai-assisted-gameplay-acceptance-v1.md` 的 `AI-01..AI-08` | 从带哈希的干净 Release 包用正常 OS 输入执行；禁止 fixture、注入、传送、存档编辑和直接 Gameplay API。严格 `AI-06` 还要求仓库不可访问的 package-only 新任务。当前首份记录为 `NOT_RUN`。 |
+| AI/Computer Use 功能验收 | `docs\current\ai-assisted-gameplay-acceptance-v1.md` 的 `AI-01..AI-08` | 从带哈希的干净 Release 包用正常 OS 输入执行；禁止 fixture、注入、传送、存档编辑和直接 Gameplay API。严格 `AI-06` 还要求仓库不可访问的 package-only 新任务。Windows 首份记录为 `NOT_RUN`；本次 macOS AI-01 为部分通过、总项 `BLOCKED`，见 Goal 记录。 |
 | AI 视觉/可读性验收 | 同规范的 `AI-07`，配合原尺寸截图、多帧/视频、连续窗口观察和可访问音频证据 | 可关闭截断、重叠、缺字、破面、闪烁、状态/轮廓可见性和 cue/字幕生命周期；正式证据来自带哈希干净包。`run_render_capture.ps1 -CaptureMs ...` 已支持多帧，但在直接证明发行包可执行文件身份前只作开发预检；不声明人类审美、听感或舒适度。 |
 | R3 v1 / Physical Input v2（历史） | `docs\archive\manual-input-acceptance-v1.md`、`docs\archive\physical-input-acceptance-v2.md` 及原校验器 | 历史物理合同 `SUPERSEDED` 为当前门槛，模板保持 `NOT_RUN`；未来自愿运行也必须遵守原物理语义。 |
 | 开发者视觉检查（历史/补充） | `docs\archive\manual-product-experience-acceptance-v1.md` A 节与既有 PASS 记录 | 已完成记录继续有效；后续可作为 `DEVELOPER_SELF_TEST` 补充 AI 视觉证据。 |

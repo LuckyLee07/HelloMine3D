@@ -25,7 +25,8 @@ Status: In progress. This report does not close the Goal or claim AI PASS.
 | Audit D2 entry against real distant Actor/Machine workload | Done (investigation only) | Debug + two Release probes; retain Candidate with reasons, no activation implementation |
 | Fix current-document inconsistencies | Done for current evidence | README, ledger, architecture/tutorial and validation routes updated; final check after validation |
 | Execute relevant automated checks | Done (current engineering scope) | Path-identity assertion fixed; post-cursor gmake Debug/Release 13 suites PASS; Xcode double-configuration gate PASS |
-| AI-01..AI-05, AI-07, AI-08 | NOT_RUN | Hashed clean macOS Release package, OS input, normal gameplay; no fixtures |
+| AI-01 | Doing | Owner-authorized fresh-context macOS acceptance subagent running; report pending |
+| AI-02..AI-05, AI-07, AI-08 | NOT_RUN | Hashed clean macOS Release package, OS input, normal gameplay; no fixtures |
 | AI-06 | NOT_RUN | Independent fresh executor with package-only filesystem access and 30-minute record |
 | New macOS gameplay/visual acceptance | Doing | Explicitly authorized by subsequent owner steering; independent macOS evidence |
 | Windows-specific verification | Postponed by owner | Not a required exit item of this macOS Goal; do not claim Windows PASS |
@@ -123,13 +124,16 @@ Windows 991/991 results remain historical evidence, not a new execution.
 
 ## Resume point
 
-All started builds/tests have completed. Current code baseline is 6916867;
-final Xcode package and archive identity are below. Engineering checks have
-passed. No unchanged build should be restarted. Remaining formal acceptance
-needs the independent executor authorization requested in this task; AI-06
-additionally needs package-only readable roots and AI-07 audio needs a real
-supported audible backend/evidence. Windows remains postponed. The Goal is
-not complete; do not relabel these gaps as PASS.
+Keyboard batch is ready for local commit: 10 synthetic checks, full Xcode
+Debug/Release gate, and independent normal-window candidate2 retest all pass.
+See `ai01-macos-6916867-evidence/keyboard2-retest.md`; overall AI-01 remains
+BLOCKED for movement/look/held-key tool limitations. Both windows are closed.
+Next apply reviewed `/private/tmp/hm3d-focus-draft/focus.patch`, run full macOS
+regression, freeze another package and independently test native focus changes.
+The draft's 24-check focus test fails 8 checks against the preceding baseline
+and passes all 24 with the draft; those are synthetic, not GUI acceptance.
+AI-06 still needs package-only readable roots; real audio requires a supported
+backend/evidence. No overall completion claim.
 
 ## macOS menu cursor repair (implemented; focused regression passed)
 
@@ -301,3 +305,99 @@ not complete; do not relabel these gaps as PASS.
   executor permission was requested again during this continuation and remains
   unanswered. Do not interpret elapsed time as consent. Remaining isolation and
   audio requirements are documented; no same-condition retry is planned.
+
+## Owner-authorized independent acceptance resumed
+
+- Owner replied “好的，允许” to the pending independent acceptance request.
+  This authorizes a separate acceptance subagent; it does not waive package-only
+  isolation, audio evidence, or any original completion condition.
+- Fresh-context subagent `macos_ai01_acceptance` is assigned only AI-01
+  client-shell using normal OS input. It owns the test GUI exclusively while
+  the parent updates records. No implementation history was forked.
+- Clean archive was hash-verified and extracted with executable modes restored
+  to `/private/tmp/hm3d-independent-ai01-6916867`; original package.zip is copied
+  there, and output belongs in its `evidence` directory. Current package/source
+  identity remains 6916867 and the recorded SHA-256 above.
+- The subagent was instructed not to read repository/source/tests. Actual tool
+  roots still permit repository access, so `repository_accessible=true` and
+  `context_isolation=PARTIAL` must be recorded. This is eligible for independent
+  scripted AI-01 evidence, not strict AI-06 blind PASS.
+- AI-01 is now Doing, pending actual per-step results. AI-02..AI-08 are not
+  silently advanced. The prior repeated-blocker audit is reset by new owner
+  authorization and useful resumed work. Isolation/audio gaps remain open.
+
+## Independent AI-01 finding: macOS modifier chords
+
+- Owner subsequently authorized all project permissions; implementation,
+  validation, independent acceptance and necessary permission requests proceed
+  autonomously. This does not change acceptance truth or the earlier no-push/
+  no-release/no-tag constraint.
+- Independent examiner successfully reached Worlds and created AI01-6916867,
+  seed 1547913298, Normal, then entered terrain and paused via Escape. It
+  reported both Cmd+A and Ctrl+A inserting `a` instead of selecting text.
+- The examiner's original getApp call returned after 4378.3700 seconds. Record
+  this as CUA wall-clock delay with undetermined cause, not proven game startup
+  latency. The same call eventually returned a valid window; no restart was
+  inferred from observation timeouts.
+- Synthetic non-visible Cocoa regression in `tools/tests/cocoa_keyboard_test.mm`
+  reproduced three failures against the original OIS library: quick command
+  chord event state, combined modifier transitions, and held modifier state
+  before queued release. Two release-state checks already passed. Raw log:
+  `build/goal-20260905/cocoa-keyboard-before.log`.
+- Repair masks Cocoa device-dependent modifier bits, handles each aggregate
+  transition, corrects OIS modifier bit updates, and preserves dispatched key
+  state separately from the final physical snapshot while callbacks execute.
+  The same five checks now pass: `cocoa-keyboard-after.log`. This synthetic
+  diagnostic is not substituted for actual GUI acceptance.
+- Diagnostic command: `clang++ -std=c++17 -arch x86_64 -I src/external/ois/includes
+  tools/tests/cocoa_keyboard_test.mm build/External/ois/lib/x64/Release/libois.a
+  -framework Cocoa -framework Carbon -framework IOKit
+  -o /private/tmp/hm3d-cocoa-keyboard-test`, then run that executable. Initial
+  linkage against the Xcode library reported deployment-target warnings;
+  the repaired OIS-only gmake rebuild and rerun completed with zero failures.
+- Full Xcode Debug/Release gate is running for this source change; log:
+  `build/goal-20260905/macos-xcode-keyboard-verification.log`.
+  Independent examiner continues the original immutable package for other
+  AI-01 steps. A new package will be provided for focused real-input retest
+  after engineering checks; no mid-run replacement of its original package.
+
+### Independent AI-01 result and keyboard follow-up
+
+- Original 6916867 package AI-01 is BLOCKED overall. Menu, create/save/load,
+  pause/resume, language persistence and normal close were observed successfully.
+  Movement/look, verified Cmd+Tab and held-key checks could not be established
+  with the available CUA operations. Repository access remains possible, so
+  context isolation is PARTIAL and this is not AI-06 evidence.
+- Durable examiner evidence: `ai01-macos-6916867-evidence/report.md` and
+  `sha256.json`. The original report's failures are preserved.
+- First keyboard candidate passed two independent Cmd+A replacement/release
+  rounds, but Ctrl+A still inserted `a`; see `keyboard-retest.md`. Candidate
+  archive SHA-256: `201f4c7ba6c5eb2d67b3f6c3f370727b0c9618221f554d0d2e4c0105a791f3fc`.
+  Its full Xcode gate passed at `build/xcode-validation-20260905122918`.
+- A second focused regression reproduced printable text on both shortcut chords
+  (`cocoa-keyboard-text-before.log`, 2 failures). The repair retains physical key
+  events while suppressing Control/Command text, uses native translated text,
+  and removes unsafe fixed-size/empty-string access. Ten synthetic checks now
+  pass (`cocoa-keyboard-text-after.log`), including empty/native/long text.
+- Current source identity: f0e63d2 plus uncommitted Cocoa keyboard repair;
+  full Debug/Release Xcode rerun is recorded in
+  `build/goal-20260905/macos-xcode-keyboard-text-verification.log`.
+  Next: independently retest the new immutable package, then commit this batch.
+- A separate read-only focus audit found that render-active state does not
+  reliably represent macOS key-window/application focus. Address after the
+  keyboard candidate is frozen; it must not alter that candidate mid-acceptance.
+
+- Second keyboard candidate full Xcode Debug/Release gate: PASS, all 13 suites
+  and client probes, `build/xcode-validation-20260905124507`. Candidate ZIP
+  SHA-256 `61de89b1ce26da6f873f4ee708953393f9af4f66978ce8bee5b7f4de05ecd877`,
+  executable `419b401bbdcf6e3d5520276ce224701b69d23ab49178930e600882a3e3d31158`.
+  Build identity retained in `ai01-macos-6916867-evidence/keyboard2-build-identity.json`.
+  Normal-window independent retest is running against this immutable package.
+
+- Independent second-candidate retest: PASS for two Cmd+A replacement/release
+  rounds, two Ctrl+A no-extra-text rounds, ordinary input, Shift uppercase and
+  Backspace. Normal menu Quit succeeded. Full record and hashes are retained in
+  `ai01-macos-6916867-evidence/keyboard2-retest.md`; this bounded fix does not
+  close the blocked AI-01 overall scenario.
+- Keyboard batch document checks: 46 local links resolve; `git diff --check`
+  passes. No Windows gate, physical held-key or audio PASS is inferred.

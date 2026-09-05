@@ -40,7 +40,7 @@ HelloMine3D 是 **以真实可玩的单机体素沙盒为载体的 C++ Architect
 | 世界可靠性 | 世界目录、事务保存、有界备份、验证恢复、世界管理和主菜单入口已经完成；当前 world save format 为 v12。 |
 | 自动门禁 | VS2017/v141 双配置、991/991 世界、80/80 资源包、126/126 配方、15/15 启动负例和 105 项干净包通过。 |
 | 性能与诊断 | 六类正式 Q1、nominal/stress 各 1800 秒 Q3、崩溃 dump、脱敏 sidecar、离线符号和独立符号归档已闭环。 |
-| AI/Computer Use | `AI-01..AI-08=NOT_RUN`；没有外部玩家依赖，具备 OS 级 Computer Use 时按当前验收规范执行。 |
+| AI/Computer Use | `AI-01=BLOCKED（部分通过）`，其余场景未完整执行；正常输入、隔离和音频限制见 Goal 报告。 |
 | 人类体验 | 乐趣、审美、舒适度和物理设备手感统一为 `NOT_CLAIMED`。 |
 
 PLAYABILITY-RC 发行 ZIP SHA-256：
@@ -110,7 +110,8 @@ AI-06 的独立 package-only 访问要求及音频实际证据要求继续有效
 
 | 范围 | 状态 | 关闭方式 |
 | ---- | ---- | -------- |
-| `AI-01..AI-04` 基础窗口功能 | `NOT_RUN` | 在 Windows Release 干净包中以正常 OS 输入执行菜单、容器、战斗、保存和重启。 |
+| `AI-01` 基础窗口功能 | `BLOCKED（macOS 部分通过）` | 独立验收已验证菜单、建档/读档、暂停及语言持久化；移动/视角/按住键受工具限制。快捷键缺陷已修复并通过独立复测，见 `../reports/ai01-macos-6916867-evidence/report.md`。 |
+| `AI-02..AI-04` 容器/战斗/旅程 | `NOT_RUN` | 在 Windows Release 干净包中以正常 OS 输入执行菜单、容器、战斗、保存和重启。 |
 | `AI-05` Stage 11 scripted | `NOT_RUN` | 制作/放置火把、建造、工具职责、探索奖励、洞口、战斗和 Waystone 共鸣。 |
 | `AI-06` AI 盲玩 30 分钟 | `NOT_RUN` | 在仓库不可访问的 package-only 新任务中执行；只声明 AI 可理解性，不外推人类留存或乐趣。 |
 | `AI-07` 视觉/本地化/音频 | `NOT_RUN` | 从带哈希干净包使用真实窗口、多帧/连续观察和可访问录音检查；现有 render capture 多帧能力只作开发预检。 |

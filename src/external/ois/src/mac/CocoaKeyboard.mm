@@ -24,6 +24,7 @@ following restrictions:
     3. This notice may not be removed or altered from any source distribution. 
  */
 
+// Modified by HelloMine3D: aggregate modifier flags and buffered event-time state.
 #include "mac/CocoaKeyboard.h"
 #include "mac/CocoaInputManager.h"
 #include "mac/CocoaHelpers.h"
@@ -148,6 +149,8 @@ void CocoaKeyboard::copyKeyStates(char keys[256]) const
 	if(self) {
 		[self populateKeyConversion];
 		memset(&KeyBuffer, 0, 256);
+		memset(&DispatchedKeyBuffer, 0, 256);
+		dispatchingEvents = false;
 		prevModMask = 0;
 
 		// Fallback path: if this responder is not firstResponder, still mirror key events.
@@ -203,20 +206,28 @@ void CocoaKeyboard::copyKeyStates(char keys[256]) const
 - (void)capture
 {
 	// If not buffered just return, we update the unbuffered automatically
-	if(!oisKeyboardObj->buffered() && !oisKeyboardObj->getEventCallback())
+	if(!oisKeyboardObj->buffered() || !oisKeyboardObj->getEventCallback())
+	{
+		memcpy(DispatchedKeyBuffer, KeyBuffer, 256);
+		pendingEvents.clear();
 		return;
+	}
 
 	// Run through our event stack
 	eventStack::iterator cur_it;
 
+	dispatchingEvents = true;
 	for(cur_it = pendingEvents.begin(); cur_it != pendingEvents.end(); cur_it++)
 	{
+		DispatchedKeyBuffer[(*cur_it).event().key] = ((*cur_it).type() != MAC_KEYUP);
 		if((*cur_it).type() == MAC_KEYDOWN || (*cur_it).type() == MAC_KEYREPEAT)
 			oisKeyboardObj->getEventCallback()->keyPressed((*cur_it).event());
 		else if((*cur_it).type() == MAC_KEYUP)
 			oisKeyboardObj->getEventCallback()->keyReleased((*cur_it).event());
 	}
 
+	dispatchingEvents = false;
+	memcpy(DispatchedKeyBuffer, KeyBuffer, 256);
 	pendingEvents.clear();
 }
 
@@ -227,12 +238,12 @@ void CocoaKeyboard::copyKeyStates(char keys[256]) const
 
 - (bool)isKeyDown:(KeyCode)key
 {
-	return KeyBuffer[key];
+	return (dispatchingEvents ? DispatchedKeyBuffer : KeyBuffer)[key];
 }
 
 - (void)copyKeyStates:(char[256])keys
 {
-	memcpy(keys, KeyBuffer, 256);
+	memcpy(keys, dispatchingEvents ? DispatchedKeyBuffer : KeyBuffer, 256);
 }
 
 - (void)populateKeyConversion
@@ -387,34 +398,26 @@ void CocoaKeyboard::copyKeyStates(char keys[256]) const
 	unsigned int time		  = (unsigned int)[theEvent timestamp];
 	KeyCode kc				  = keyConversion[virtualKey];
 
-	// Record what kind of text we should pass the KeyEvent
-	unichar text[10];
-	char macChar;
-	if(oisKeyboardObj->getTextTranslation() == OIS::Keyboard::Unicode)
+	// Shortcut chords still produce physical key events, but no printable text.
+	// Cocoa's native characters preserve ordinary Shift/Option text translation.
+	NSString* characters = [theEvent characters];
+	const bool shortcut = ([theEvent modifierFlags] &
+		(NSEventModifierFlagControl | NSEventModifierFlagCommand)) != 0;
+	const NSUInteger length = [characters length];
+	if(shortcut || length == 0 || oisKeyboardObj->getTextTranslation() == OIS::Keyboard::Off)
 	{
-		// Get string size
-		NSUInteger stringsize = [[theEvent charactersIgnoringModifiers] length];
-		[[theEvent charactersIgnoringModifiers] getCharacters:text range:NSMakeRange(0, stringsize)];
-		//     NSLog(@"Characters: %ls", text);
-		//     std::cout << "String length: " << stringsize << std::endl;
-
-		if(stringsize > 0)
-		{
-			// For each unicode char, send an event
-			for(unsigned int i = 0; i < stringsize; i++)
-			{
-				[self injectEvent:kc eventTime:time eventType:MAC_KEYDOWN eventText:(unsigned int)text[i]];
-			}
-		}
+		[self injectEvent:kc eventTime:time eventType:MAC_KEYDOWN];
 	}
-	else if(oisKeyboardObj->getTextTranslation() == OIS::Keyboard::Ascii)
+	else if(oisKeyboardObj->getTextTranslation() == OIS::Keyboard::Unicode)
 	{
-		macChar = [[theEvent charactersIgnoringModifiers] characterAtIndex:0];
-		[self injectEvent:kc eventTime:time eventType:MAC_KEYDOWN eventText:(unsigned int)macChar];
+		for(NSUInteger i = 0; i < length; ++i)
+			[self injectEvent:kc eventTime:time eventType:MAC_KEYDOWN
+				eventText:(unsigned int)[characters characterAtIndex:i]];
 	}
 	else
 	{
-		[self injectEvent:kc eventTime:time eventType:MAC_KEYDOWN];
+		[self injectEvent:kc eventTime:time eventType:MAC_KEYDOWN
+			eventText:(unsigned int)(unsigned char)[characters characterAtIndex:0]];
 	}
 }
 
@@ -428,67 +431,32 @@ void CocoaKeyboard::copyKeyStates(char keys[256]) const
 
 - (void)flagsChanged:(NSEvent*)theEvent
 {
-	NSUInteger mods = [theEvent modifierFlags];
-
-	// Find the changed bit
-	NSUInteger change	 = prevModMask ^ mods;
-	MacEventType newstate = ((change & prevModMask) > 0) ? MAC_KEYUP : MAC_KEYDOWN;
-	unsigned int time	 = (unsigned int)[theEvent timestamp];
-
-	//cout << "preMask: " << hex << prevModMask << endl;
-	//cout << "ModMask: " << hex << mods << endl;
-	//cout << "Change:  " << hex << (change & prevModMask) << endl << endl;
-
-	switch(change)
+	// Device-dependent low bits and simultaneous transitions must not prevent
+	// recognition of the aggregate Cocoa modifier flags.
+	const NSUInteger mods = [theEvent modifierFlags] & NSEventModifierFlagDeviceIndependentFlagsMask;
+	const NSUInteger change = prevModMask ^ mods;
+	const unsigned int time = (unsigned int)[theEvent timestamp];
+	struct ModifierBinding { NSUInteger mask; KeyCode key; unsigned int oisMask; };
+	const ModifierBinding bindings[] = {
+		{NSEventModifierFlagShift, KC_LSHIFT, OIS::Keyboard::Shift},
+		{NSEventModifierFlagOption, KC_LMENU, OIS::Keyboard::Alt},
+		{NSEventModifierFlagControl, KC_LCONTROL, OIS::Keyboard::Ctrl},
+		{NSEventModifierFlagCommand, KC_LWIN, 0},
+		{NSEventModifierFlagFunction, KC_APPS, 0},
+		{NSEventModifierFlagCapsLock, KC_CAPITAL, OIS::Keyboard::CapsLock},
+		{NSEventModifierFlagNumericPad, KC_NUMLOCK, OIS::Keyboard::NumLock}
+	};
+	for(const ModifierBinding& binding : bindings)
 	{
-        case(NSEventModifierFlagShift): // shift
-			oisKeyboardObj->_getModifiers() &= (newstate == MAC_KEYDOWN) ? OIS::Keyboard::Shift : ~OIS::Keyboard::Shift;
-			[self injectEvent:KC_LSHIFT eventTime:time eventType:newstate];
-			break;
-
-        case(NSEventModifierFlagOption): // option (alt)
-			oisKeyboardObj->_getModifiers() &= (newstate == MAC_KEYDOWN) ? OIS::Keyboard::Alt : -OIS::Keyboard::Alt;
-			[self injectEvent:KC_LMENU eventTime:time eventType:newstate];
-			break;
-
-        case(NSEventModifierFlagControl): // Ctrl
-			oisKeyboardObj->_getModifiers() &= (newstate == MAC_KEYDOWN) ? OIS::Keyboard::Ctrl : -OIS::Keyboard::Ctrl;
-			[self injectEvent:KC_LCONTROL eventTime:time eventType:newstate];
-			break;
-
-        case(NSEventModifierFlagCommand): // apple
-			[self injectEvent:KC_LWIN eventTime:time eventType:newstate];
-			break;
-
-        case(NSEventModifierFlagFunction): // fn key
-			[self injectEvent:KC_APPS eventTime:time eventType:newstate];
-			break;
-
-        case(NSEventModifierFlagCapsLock): // caps lock
-            if(newstate == MAC_KEYDOWN)
-            {
-                if (oisKeyboardObj->_getModifiers()  & OIS::Keyboard::CapsLock)
-                    oisKeyboardObj->_getModifiers()  &= ~OIS::Keyboard::CapsLock;
-                else
-                    oisKeyboardObj->_getModifiers()  |= OIS::Keyboard::CapsLock;
-            }
-			[self injectEvent:KC_CAPITAL eventTime:time eventType:newstate];
-			break;
-        case(NSEventModifierFlagNumericPad): // num lock (rare on apple keyboards? I have no clue.)
-            if(newstate == MAC_KEYDOWN)
-            {
-                if (oisKeyboardObj->_getModifiers()  & OIS::Keyboard::NumLock)
-                    oisKeyboardObj->_getModifiers()  &= ~OIS::Keyboard::NumLock;
-                else
-                    oisKeyboardObj->_getModifiers()  |= OIS::Keyboard::NumLock;
-            }
-            [self injectEvent:KC_NUMLOCK eventTime:time eventType:newstate];
-            break;
+		if(!(change & binding.mask))
+			continue;
+		const bool down = (mods & binding.mask) != 0;
+		if(down)
+			oisKeyboardObj->_getModifiers() |= binding.oisMask;
+		else
+			oisKeyboardObj->_getModifiers() &= ~binding.oisMask;
+		[self injectEvent:binding.key eventTime:time eventType:down ? MAC_KEYDOWN : MAC_KEYUP];
 	}
-
-	if([theEvent keyCode] == NSClearLineFunctionKey) // numlock
-		[self injectEvent:KC_NUMLOCK eventTime:time eventType:newstate];
-
 	prevModMask = mods;
 }
 

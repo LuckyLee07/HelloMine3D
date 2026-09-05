@@ -106,6 +106,9 @@ typedef std::list<OIS::CocoaKeyStackEvent> eventStack;
 	id localEventMonitor;
 
 	char KeyBuffer[256];
+	// HelloMine3D: preserve event-time state during buffered dispatch.
+	char DispatchedKeyBuffer[256];
+	bool dispatchingEvents;
 	NSUInteger prevModMask;
 
 	// buffered events, fifo stack

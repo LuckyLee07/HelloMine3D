@@ -1,0 +1,8 @@
+2026-09-05 12:25:41.879 hm3d-cocoa-keyboard-test[90233:64888247] Error received in message reply handler: Connection invalid
+2026-09-05 12:25:41.879 hm3d-cocoa-keyboard-test[90233:64888272] Connection Invalid error for service com.apple.hiservices-xpcservice.
+[COCOA_KEYBOARD] FAIL quick-command-chord-retains-event-time-state
+[COCOA_KEYBOARD] PASS released-command-not-held-after-capture
+[COCOA_KEYBOARD] FAIL combined-modifier-transition
+[COCOA_KEYBOARD] FAIL held-modifiers-retained-until-queued-release
+[COCOA_KEYBOARD] PASS combined-release-clears-state
+[COCOA_KEYBOARD] failures=3

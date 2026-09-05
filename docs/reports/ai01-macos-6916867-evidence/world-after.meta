@@ -1,0 +1,42 @@
+version 12
+world_id world-9e31230dc21d00bc4c1582cf3a140b77
+world_name "AI01-6916867"
+seed 1547913298
+created_utc 1788582177
+last_played_utc 1788582779
+last_build development
+spawn 152.5 127 264.5
+world_time 3890
+generator ClassicOverWorld
+terrain_generation_version 4
+exploration_reward_version 1
+difficulty_profile_version 1
+difficulty_id 1
+post_victory_event_version 1
+post_victory_completed_events 0
+alpha_journey_flags 0
+world_outcome_phase 0
+world_outcome_reward_epoch 0
+world_outcome_claimed_epoch 0
+objective_definition_version 3
+objective_completed_count 0
+objective_progress_count 0
+player_present 1
+player_position 152.5 127 264.5
+player_rotation 0 0 0
+player_held 0
+player_health 20
+player_food_cooldown 0
+player_attack_cooldown 0
+inventory_format 2
+inventory_count 5
+inventory_slot 0 0 0
+inventory_slot 0 0 0
+inventory_slot 0 0 0
+inventory_slot 0 0 0
+inventory_slot 0 0 0
+actor_count 4
+actor 1 2 hellomine:stalker 167.604111 118 274.298309 0 0 0 0 0 0 1 8 0 0 0 193.507202 1.60000002 33 1
+actor 1 3 hellomine:brute 138.051422 116 269.399811 0 0 0 0 0 0 1 16 0 0 0 193.507202 0.800000012 33 1
+actor 1 4 hellomine:brute 143.051422 139 248.399155 0 0 0 0 0 0 1 16 0 0 0 193.507202 0.800000012 33 1
+actor 1 5 hellomine:stalker 148.604111 108 287.298309 0 0 0 0 0 0 1 8 0 0 0 193.507202 1.60000002 33 1
