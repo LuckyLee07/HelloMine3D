@@ -136,8 +136,12 @@ observed working in that context. Game remains running at its main menu.
 Auxiliary TextEdit auto-launch binding initially failed. Parent then normally
 launched TextEdit through Finder, after which independent binding succeeded
 in33.6803s. All three recovery JPEGs are now retained with length/CRC/SHA checks
-and parent visual inspection. The same independent agent/handles now execute
-the six en/zh×0.75/1.00/1.75 UI combinations, saving captures in small batches. See window-control-recovery-20260906-evidence/.
+and parent visual inspection. The same independent agent verified package identity and prepared the UI
+matrix form, but its approval reviewer rejected world creation twice because
+that history-free recovery context lacked direct visibility of the owner Goal
+authorization. No world was created. Six combinations remain NOT_RUN; see
+ai07-ui-matrix-20260906-evidence/. A concrete visible acceptance-task prompt
+is prepared, pending explicit owner authorization to create that new task. See window-control-recovery-20260906-evidence/.
 Continue through this working context rather than retrying the old examiner.
 Selected desktop logs show old unknown-conversation approval routing errors
 and an automatic service respawn; attribution between service recovery and
