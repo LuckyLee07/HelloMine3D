@@ -291,7 +291,7 @@ private:
 Extended 未触发时不进入任务账本，也不分配 `TODO`、`Deferred` 等任务状态。
 
 这 34 个 Sprint 是完整能力目录，不是自动获批的连续 backlog 或工期承诺。只有进入
-`docs/current/todolist.md` 的下一批才是当前开发任务；后续 Track 必须由前一阶段暴露出的真实玩法或
+`docs/current/todolist.md` 的“当前批准批次”才是当前开发承诺；“下一候选”不构成授权。后续 Track 必须由前一阶段暴露出的真实玩法或
 规模问题触发，不能为了展示抽象而自动启动。
 
 ---

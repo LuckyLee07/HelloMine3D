@@ -2,6 +2,11 @@
 
 **A C++ voxel sandbox built as an architecture and engineering-practice laboratory.**
 
+For AI-assisted changes, start with [AGENTS.md](AGENTS.md). Load the
+[execution workflow](docs/current/agent-workflow.md) or repository
+`hellomine3d-validation` skill when the task needs them; current scope remains in
+[TODOLIST](docs/current/todolist.md).
+
 It is a playable Minecraft-style single-player game — world creation, mining, crafting, tool
 progression, smelting, food, combat, exploration and a victory loop — but the point of the
 repository is *how* it is built: every persisted format is versioned and migrated, every feature
@@ -391,16 +396,18 @@ tools\premake\premake5.exe --os=windows --file=premake/premake.lua vs2017
 
 ### One-Command Build Verification
 
-Use the platform wrapper below for clean project generation, Debug/Release
-rebuilds and the thirteen headless targets expected before a change is
-committed. The dedicated TSan row is additionally required after loader or
-synchronization changes:
+Use the platform wrapper below when the applicable contract or
+[validation matrix](docs/current/validation-matrix.md) requires the full gate:
+project generation, Debug/Release builds and thirteen headless targets.
+For routine changes, run the affected checks; documentation-only changes do not
+require a game rebuild. The dedicated TSan row is additionally required after
+loader or synchronization changes:
 
 | Platform | Command | Required host tools |
 | -------- | ------- | ------------------- |
 | Windows | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify_build.ps1 -VisualStudioVersion 2017` | Visual Studio 2017 with **Desktop development with C++** and v141; Premake is bundled in `tools/`. Pass `-VisualStudioVersion 2022` only for an explicit v143 compatibility run. |
 | Linux | `bash scripts/verify_build.sh` | A C++17 compiler, GNU Make, Premake 5 and the OpenGL/X11 development packages. |
-| macOS / Make | `bash scripts/verify_build.sh` | Xcode command-line tools, GNU Make and Premake 5 (`brew install premake`). |
+| macOS / Make | `MAKEFLAGS='-j2 -B' bash scripts/verify_build.sh` | Xcode command-line tools, GNU Make and Premake 5 (`brew install premake`). The clean gate forces rebuilding because Debug/Release share `bin/` outputs. |
 | macOS / Xcode | `bash scripts/verify_xcode.sh` | A graphical macOS session, Xcode command-line tools, Premake 5 and x86_64 execution support. |
 | macOS / TSan | `bash scripts/verify_tsan.sh` | Native 64-bit macOS, Xcode/Apple Clang and Premake 5. |
 

@@ -20,6 +20,10 @@ AI 平台对应规则见 [当前验收规范](ai-assisted-gameplay-acceptance-v1
 
 ## 日常开发最低门槛
 
+按实际改动匹配下表，完成对应合同的必需检查。检查通过后，只有新改动、失败或未解决疑点
+才重复或扩大验证；不把完整里程碑门禁应用到每次文字提交。执行/恢复方法见
+[AI 工作流](agent-workflow.md)，它不替代本矩阵的验收要求。
+
 | 改动 | 最低必要验证 |
 | ---- | ------------ |
 | 所有 C++ 改动 | 受影响目标能够编译；运行对应定向自动测试。 |
@@ -63,7 +67,7 @@ AI 平台对应规则见 [当前验收规范](ai-assisted-gameplay-acceptance-v1
 | Windows Debug 编译 | `MSBuild build\HelloMine3D.sln /p:Configuration=Debug /p:Platform=x64` | 所有 C++ 改动的主干检查 |
 | Windows Release 编译 | 同上，配置改为 `Release` | 里程碑和发行候选 |
 | macOS Xcode 门禁 | `bash scripts/verify_xcode.sh` | Xcode 图、macOS 平台或原生封板 |
-| macOS gmake 双配置门禁 | `MAKEFLAGS='-j2 -B' bash scripts/verify_build.sh` | 本次 Goal 从头编译客户端/依赖和 13 个测试目标；分别运行 Debug/Release，生成 x86_64 macOS 证据，不冒充 Xcode/arm64/Windows |
+| macOS gmake 双配置门禁 | `MAKEFLAGS='-j2 -B' bash scripts/verify_build.sh` | 从头编译客户端/依赖和 13 个测试目标，运行 Debug/Release。两配置共用 `bin/` 输出，正式干净门禁保留强制重编译，避免旧配置产物混用；不为普通文字提交触发此门禁。生成 x86_64 macOS 证据，不冒充 Xcode/arm64/Windows。 |
 | macOS 启动负例 | `python3 tools/validate_startup_errors_macos.py --output <new-output-dir>` | 与 Windows 共用 10 个缺失和 5 个非法 fixture 定义，要求非零退出、准确资源诊断和 `ui=stderr-only` 报告；Windows MessageBoxW 范围后置 |
 | macOS 干净包 | `python3 tools/package_macos_release.py --output <new-app-path>` | 调用者先构建 Release；复制 manifest 资源和 notices、检查动态依赖、记录构建/可执行文件/资源哈希；不会覆盖已有输出，正常窗口验收需另行执行 |
 | 十三个 headless 目标 | `scripts\verify_build.ps1` 中列出的测试/Smoke/Soak | 全量里程碑回归 |

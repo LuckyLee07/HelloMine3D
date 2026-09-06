@@ -1,0 +1,81 @@
+{
+  "utc": "2026-09-06T06:29:36.244210+00:00",
+  "platform": "macOS-15.7.3-arm64-arm-64bit",
+  "configuration": "documentation and skill structure only",
+  "source_commit": "9a367967937ec086c969de4735b37bdb463c93ac",
+  "working_tree": "instruction/document edits under review",
+  "result": "PASS",
+  "local_links_checked": 65,
+  "files": {
+    "AGENTS.md": {
+      "bytes": 2209,
+      "sha256": "2697c5cdfa209fdb83ad43e18c78f396957b92cdadd5bae25fe7b98672aa8169"
+    },
+    ".agents/skills/hellomine3d-validation/SKILL.md": {
+      "bytes": 2375,
+      "sha256": "f42970b3433569707cf0c2b3aa52ec04f9cf836811e3ee7a8667aa7f68f024d1"
+    },
+    "docs/current/agent-workflow.md": {
+      "bytes": 5249,
+      "sha256": "ce0aac1e76182fd6b49aafa14823e589b0abaf00ea4e519221fa39ada98ae659"
+    },
+    "docs/reports/astra-agent-workflow-audit-2026-09-06.md": {
+      "bytes": 5951,
+      "sha256": "3b89f25a7f6222bbae497601efb6acf004d9a425923f3f75262aef0dbfa8b07f"
+    },
+    "README.md": {
+      "bytes": 35828,
+      "sha256": "da1d963a988c5ef562e7072961e0e4e58dd2ae9f6113066f7e9be9484db89f04"
+    },
+    "docs/current/validation-matrix.md": {
+      "bytes": 32363,
+      "sha256": "c87a75521ef467b62afd242959fa6ab4ba328a5739ecedef959691a003362912"
+    },
+    "docs/current/ai-assisted-gameplay-acceptance-v1.md": {
+      "bytes": 14386,
+      "sha256": "6d384cae58357f8be0ef14980a9a785414863f9b7725f2b047c26f9cd7c867c2"
+    },
+    "docs/current/architecture-lab-roadmap-v1.md": {
+      "bytes": 87748,
+      "sha256": "50ac8042da94e44cb39ae82a36d137065e802d606b9ce2b1532dfeff9e3736a0"
+    }
+  },
+  "commands": [
+    {
+      "command": [
+        "python3",
+        "/Users/lizi/.codex/skills/.system/skill-creator/scripts/quick_validate.py",
+        ".agents/skills/hellomine3d-validation"
+      ],
+      "exit_code": 0,
+      "stdout": "Skill is valid!\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python3",
+        "tools/macos_window_evidence.py",
+        "--help"
+      ],
+      "exit_code": 0,
+      "stdout": "usage: macos_window_evidence.py [-h] --app APP --output OUTPUT [--launch]\n                                [--window-id WINDOW_ID] --configuration\n                                {Debug,Release} [--note NOTE]\n                                [--wait-seconds WAIT_SECONDS]\n\nLaunch an isolated macOS app and capture its actual visible window. Uses\nLaunchServices and screencapture; never injects gameplay or captures the whole\ndesktop as a fallback. Requires macOS desktop Screen Recording access.\n\noptions:\n  -h, --help            show this help message and exit\n  --app APP\n  --output OUTPUT       New PNG file; existing output/evidence is never\n                        overwritten\n  --launch              Open the app normally if it is not already running\n  --window-id WINDOW_ID\n                        Select one of this exact app's windows when several\n                        exist\n  --configuration {Debug,Release}\n                        Actual build configuration, supplied by the examiner\n  --note NOTE           Examiner's scene/settings description, not inferred\n                        verification\n  --wait-seconds WAIT_SECONDS\n",
+      "stderr": ""
+    }
+  ],
+  "limitations": [
+    "Static routing review, no model A/B evaluation",
+    "No game runtime changes or new gameplay PASS",
+    "Host skill discovery not yet observed in a new session"
+  ],
+  "report_update": "Added validation summary and evidence link after checks; report hash refreshed."
+}
