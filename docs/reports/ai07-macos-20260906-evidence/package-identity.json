@@ -1,0 +1,12 @@
+{
+  "source_commit": "31023c6d0a517d2718d51edc0f7aba695f1aa5e1",
+  "archive": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/goal-20260905/HelloMine3D-AI07-20260906.zip",
+  "archive_sha256": "8df716f542a5da7ce07f5d4176855cfff115a06fc5044f1334230588c5410a0d",
+  "executable_sha256": "c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424",
+  "bundle_id": "local.hellomine3d.ai07.20260906",
+  "metadata_change": "Unique QA bundle identifier only; regenerated exact file inventory. Runtime binary unchanged from0e0c569.",
+  "inventory_count": 106,
+  "file_count": 107,
+  "archive_check": "PASS",
+  "created_at": "2026-09-06T03:06:19.337678+00:00"
+}

@@ -125,22 +125,22 @@ Windows 991/991 results remain historical evidence, not a new execution.
 
 ## Resume point
 
-Latest code batch is local commit0e0c569, with final Xcode Debug/Release gate
-20260905143633 and bounded independent three-layout-defect acceptance. The
-clean code-delivery package/identity remains in build/goal-20260905/layout-delivery.json.
-No runtime source has changed since that batch.
-A resumed investigation proved CUA screenshot persistence using returned raw
-bytes → base64 → normal TextEdit paste/save → strict file decoding and hash
-verification. See [export evidence](cua-screenshot-export-20260905-evidence/report.md).
-The retained scene is an export probe, not attributable gameplay acceptance.
-Prior missing-file observations remain historical; do not backfill their PASS.
-Next available work is new attributable scenario capture with persisted images,
-after resolving whether the user is currently operating the game window. The
-async occupancy question remains unanswered; no gameplay input was sent during
-export. Both previous examiners are idle; current CUA handles are resumedGame
-and screenshotEditor (the editor has no remaining document/window).
-D2 stays Candidate. Sustained/relative input, native restore, strict AI-06 roots
-and real audio still prevent overall completion. Windows remains postponed.
+Code remains0e0c569 with verified Xcode gate20260905143633; documentation and
+screenshot export capability were committed in31023c6. On2026-09-06 a fresh
+independent UI screenshot acceptance run is executing from an immutable package
+with unique bundle ID `local.hellomine3d.ai07.20260906`. Runtime Mach-O remains
+c0446b47..., archive8df716f5..., exact106inventory/107files verified. Identity is
+in `ai07-macos-20260906-evidence/package-identity.json`.
+Examiner `macos_ai01_acceptance` exclusively owns GUI, using
+/private/tmp/hm3d-ai07-20260906 and the documented raw-byte/TextEdit export path.
+It will retain en/zh ×0.75/1.00/1.75 Worlds/HUD and representative other panels.
+The prior speculative occupancy question is no longer an execution gate;
+existing authorization covers this work. The original app/save is preserved by
+the separate package/app identity. Only an observed conflict warrants adjustment.
+Await first exported image batch, then final report and normal exit. Preserve all
+old missing-image limitations; new files apply only to this run. D2 remains
+Candidate; sustained/relative input, native restore, strict AI-06 roots and
+real audio remain unverified. Full Goal completion is not claimed.
 
 ## macOS menu cursor repair (implemented; focused regression passed)
 
@@ -690,3 +690,78 @@ and real audio still prevent overall completion. Windows remains postponed.
 - Corrected the current claim that screenshot persistence was unavailable.
   Full scenario coverage remains missing and the cached scene is not used to
   certify gameplay. See the linked export report for exact operations/limits.
+
+## 2026-09-06 persisted-image acceptance continuation
+
+- Corrected execution policy: speculative user window occupancy must not keep
+  blocking already authorized QA. Prepared separate QA app identity and data
+  directory instead; no input, close or save edits sent to the original app.
+- Package built from existing verified Release binary, source31023c6 (docs only
+  after code0e0c569). Changed only Info.plist bundle ID for independent app
+  routing, rebuilt file inventory, made explicit-file ZIP and checked every
+  SHA/exact membership: PASS106/107. No build/test rerun for unchanged code.
+- Independent examiner now collects fresh attributable image evidence, with
+  initial small export proof before completing six combinations.
+
+- Actual startup-tool interruption: examiner's exact-path CUA getApp call
+  ran629.2 seconds before explicit parent abort. Only unzip/permissions/hash
+  checks completed; no new game window, cached screenshots or editor export.
+  Parent read-only process check found no HelloMine3D process and package had
+  no startup log. This is an unresolved tool-startup failure, not game PASS or
+  evidence of a client crash. Examiner now performs a single read-only getState
+  recovery before deciding the next launch action; no duplicate game launched.
+
+- Read-only getState recovery succeeded in39.0s. One controlled exact-path
+  getApp retry again produced no process/log; explicitly interrupted at180.2s.
+  Launch script syntax, executable permissions and frozen Mach-O hash check
+  pass. No new handle/image was returned. Examiner now tries normal Finder
+  opening once; automatic getApp launch is not repeatedly retried.
+
+- Examiner's Finder binding was interrupted after234.9s without a handle or
+  Finder action. A reset recovery is in progress. Parent-context comparison
+  succeeded: getState returned in0.44s; getApp(com.apple.finder) returned the
+  Desktop AX tree in104.35s. No parent Finder click or gameplay action occurred.
+  This demonstrates slow native-tool response rather than a confirmed global
+  outage or project permission rejection. GUI ownership returned to the
+  independent examiner; Goal remains active, with no speculative occupancy
+  approval gate. These observations do not establish any AI-07 scenario PASS.
+
+- Reset examiner context returned getState in5.43s, but Finder getApp was
+  explicitly interrupted at531.7s with no handle/action. User then explicitly
+  requested script-based launch. Packaged launcher under sandbox exited1 with
+  OpenGL3unsupported; exact same launcher under approved desktop permissions
+  initialized GL/resources and remained running in exec session21412. This
+  changes the next action to binding an existing game window, without another
+  launch. Both startup logs and command/version/config metadata are retained
+  in ai07-macos-20260906-evidence/script-launch.json. No gameplay PASS is
+  inferred from successful renderer initialization.
+
+- Direct desktop exec sustained process55328, but independent getState did
+  not list its app identity and getApp(HelloMine3D) returned Invalid app in3.16s.
+  Parent terminated only that fresh pre-game test process (session exit143),
+  then used standard macOS open -n on the same .app under the owner's script
+  launch authorization. Command exit0, new process55574 and11:40:18 resource
+  initialization log confirmed. Existing-app binding is now being verified;
+  startup alone still does not close independent window acceptance.
+
+- Parent read-only CUA discovery after standard open returned in5.16s and
+  explicitly listed HelloMine3D-AI07-20260906, bundleID
+  local.hellomine3d.ai07.20260906, isRunning=true. Standard LaunchServices
+  startup resolves the app-registration gap observed after direct exec.
+  Independent binding/content capture still requires its own returned state.
+
+- Independent discovery now confirmed the correct QA app, but bundleID
+  binding was explicitly interrupted after202.0s without AX/handle. Parent
+  comparison of the same bundleID finally returned the HelloMine3D standard
+  window AX after921.8874s despite a10000ms requested timeout. No gameplay
+  input or new screenshot was obtained. Thus app startup/registration/window
+  presence are observed, but native tool latency prevents practical fresh
+  independent acceptance at present. Full examiner chronology is preserved
+  in ai07-macos-20260906-evidence/independent-tool-recovery.md.
+
+- After the parent binding completed, screenshot from the existing handle
+  returned in6.4578s and visibly showed the normal main menu with Single
+  Player/Credits/Quit. Image remains inline/cached, not a persisted formal
+  artifact. This new evidence suggests initial binding is the slow step;
+  examiner is making one final existing-app binding attempt allowing the
+  observed15-minute scale, then reusing the handle. No duplicate launch.

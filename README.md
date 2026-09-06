@@ -350,6 +350,21 @@ On macOS you can use the HelloOgre3D-style shortcut:
 ./xcode.sh
 ```
 
+For a packaged macOS `.app`, launch the extracted app through the normal desktop
+session (replace the example path with your package):
+
+```sh
+open "/path/to/HelloMine3D.app"
+```
+
+This registers the application with macOS so window tools can identify it. In the
+2026-09-06 QA run, directly executing the embedded launcher initialized the game
+but did not expose its app identity to Computer Use; `open` restored discovery.
+The sandboxed launch failed OpenGL initialization while the same binary started
+with the Apple M1 Pro OpenGL4.1 renderer under desktop permissions. See the
+[launch evidence](docs/reports/ai07-macos-20260906-evidence/script-launch.json).
+Window interaction and gameplay acceptance remain separate checks.
+
 On Windows, the maintained default is Visual Studio 2017 with the v141 toolset. Generate the
 project directly with bundled Premake, then build `build/HelloMine3D.sln`. The generated project
 files are written to `build/`, and the executable still outputs to `bin/HelloMine3D.exe`.

@@ -1,0 +1,65 @@
+11:37:31: Creating resource group General
+11:37:31: Creating resource group Internal
+11:37:31: Creating resource group Autodetect
+11:37:31: SceneManagerFactory for type 'DefaultSceneManager' registered.
+11:37:31: Registering ResourceManager for type Material
+11:37:31: Registering ResourceManager for type Mesh
+11:37:31: Registering ResourceManager for type Skeleton
+11:37:31: MovableObjectFactory for type 'ParticleSystem' registered.
+11:37:31: ArchiveFactory for archive type FileSystem registered.
+11:37:31: ArchiveFactory for archive type Zip registered.
+11:37:31: ArchiveFactory for archive type EmbeddedZip registered.
+11:37:31: DDS codec registering
+11:37:31: FreeImage version: 3.15.4
+11:37:31: This program uses FreeImage, a free, open source image library supporting all common bitmap formats. See http://freeimage.sourceforge.net for details
+11:37:31: Supported formats: bmp,ico,jpg,jif,jpeg,jpe,jng,koa,iff,lbm,mng,pbm,pbm,pcd,pcx,pgm,pgm,png,ppm,ppm,ras,tga,targa,tif,tiff,wap,wbmp,wbm,psd,cut,xbm,xpm,gif,hdr,g3,sgi,exr,j2k,j2c,jp2,pfm,pct,pict,pic,3fr,arw,bay,bmq,cap,cine,cr2,crw,cs1,dc2,dcr,drf,dsc,dng,erf,fff,ia,iiq,k25,kc2,kdc,mdc,mef,mos,mrw,nef,nrw,orf,pef,ptx,pxn,qtk,raf,raw,rdc,rw2,rwl,rwz,sr2,srf,srw,sti
+11:37:31: Registering ResourceManager for type HighLevelGpuProgram
+11:37:31: Registering ResourceManager for type Compositor
+11:37:31: MovableObjectFactory for type 'Entity' registered.
+11:37:31: MovableObjectFactory for type 'Light' registered.
+11:37:31: MovableObjectFactory for type 'BillboardSet' registered.
+11:37:31: MovableObjectFactory for type 'ManualObject' registered.
+11:37:31: MovableObjectFactory for type 'BillboardChain' registered.
+11:37:31: MovableObjectFactory for type 'RibbonTrail' registered.
+11:37:31: *-*-* OGRE Initialising
+11:37:31: *-*-* Version 1.10.0git (Xalafu)
+11:37:31: Installing plugin: GL 3+ RenderSystem
+11:37:31: OpenGL 3+ Rendering Subsystem created.
+11:37:31: Plugin successfully installed
+11:37:31: Added resource location '/private/tmp/hm3d-ai07-20260906/fresh/HelloMine3D-AI07-20260906.app/Contents/Resources/media/ogre' of type 'FileSystem' to resource group 'General' with recursive option
+11:37:31: Added resource location '/private/tmp/hm3d-ai07-20260906/fresh/HelloMine3D-AI07-20260906.app/Contents/Resources/media/textures' of type 'FileSystem' to resource group 'General' with recursive option
+11:37:31: CPU Identifier & Features
+11:37:31: -------------------------
+11:37:31:  *   CPU ID: GenuineIntel: VirtualApple @ 2.50GHz
+11:37:31:  *          SSE: yes
+11:37:31:  *         SSE2: yes
+11:37:31:  *         SSE3: yes
+11:37:31:  *        SSE41: yes
+11:37:31:  *        SSE42: yes
+11:37:31:  *          MMX: yes
+11:37:31:  *       MMXEXT: yes
+11:37:31:  *        3DNOW: no
+11:37:31:  *     3DNOWEXT: no
+11:37:31:  *         CMOV: yes
+11:37:31:  *          TSC: yes
+11:37:31:  *INVARIANT TSC: yes
+11:37:31:  *          FPU: yes
+11:37:31:  *          PRO: yes
+11:37:31:  *           HT: no
+11:37:31: -------------------------
+11:37:31: ********************************************
+***  Starting Mac OS X OpenGL Subsystem  ***
+********************************************
+11:37:31: GL3PlusRenderSystem::_createRenderWindow "HelloMine3D", 1280x720 windowed  miscParams: FSAA=0 contentScalingFactor=0 contextProfile=1 gamma=No hidden=No macAPI=cocoa title=HelloMine3D vsync=Yes 
+11:37:31: Creating a Cocoa Compatible Render System
+11:37:31: Cocoa: Window created 1280 x 720 with backing store size 1280 x 720 using content scaling factor 1.0
+11:37:31: OGRE EXCEPTION(3:RenderingAPIException): OpenGL 3.0 is not supported in GL3PlusRenderSystem::initialiseContext at /Users/lizi/Desktop/Workspace/HelloMine3D/src/Engine/ogre3d_gl3plus/src/OgreGL3PlusRenderSystem.cpp (line 2175)
+11:37:31: *-*-* OGRE Shutdown
+11:37:31: Unregistering ResourceManager for type Compositor
+11:37:31: Unregistering ResourceManager for type Skeleton
+11:37:31: Unregistering ResourceManager for type Mesh
+11:37:31: Unregistering ResourceManager for type HighLevelGpuProgram
+11:37:31: ********************************************
+***  Stopping Mac OS X OpenGL Subsystem  ***
+********************************************
+11:37:31: Unregistering ResourceManager for type Material

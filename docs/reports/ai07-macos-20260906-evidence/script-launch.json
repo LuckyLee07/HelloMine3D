@@ -1,0 +1,51 @@
+{
+  "observed_at_utc": "2026-09-06T03:38:33.483911+00:00",
+  "command": "'/private/tmp/hm3d-ai07-20260906/fresh/HelloMine3D-AI07-20260906.app/Contents/MacOS/HelloMine3D'",
+  "configuration": "Release x86_64 Rosetta; normal window 1280x720; no gameplay overrides",
+  "sandbox_attempt": {
+    "session": 48910,
+    "exit_code": 1,
+    "result": "OpenGL 3.0 is not supported; no gameplay acceptance"
+  },
+  "desktop_attempt": {
+    "session": 21412,
+    "result": "Process live; GL and resources initialized; window/input acceptance pending",
+    "pid": 55328,
+    "terminal_exit_code": 143,
+    "termination": "Parent SIGTERM after CUA name binding returned Invalid app; no gameplay entered"
+  },
+  "runtime_binary_sha256": "c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424",
+  "source_commit": "31023c6d0a517d2718d51edc0f7aba695f1aa5e1",
+  "files": {
+    "script-launch-sandbox-MineOgre.log": "dfa78ec1d56e1b232ba245b47cbd420d81a6344c7d4e449a81b61656a8c9d584",
+    "script-launch-desktop-startup-MineOgre.log": "6937d7d3cdad8d9fcb796b2007f7823eb5123a69e3c1a57e305c9db20e35311a",
+    "script-open-startup-MineOgre.log": "831293139733b5da444b315d8233be6ab3b097abc3603155f98daf4a351a8b77"
+  },
+  "launchservices_attempt": {
+    "command": "open -n '/private/tmp/hm3d-ai07-20260906/fresh/HelloMine3D-AI07-20260906.app'",
+    "exit_code": 0,
+    "pid": 55574,
+    "result": "Process and new11:40:18 startup resource log confirmed; independent window binding pending",
+    "discovery": {
+      "tool": "cua.getState",
+      "duration_seconds": 5.1625,
+      "app_id": "local.hellomine3d.ai07.20260906",
+      "display_name": "HelloMine3D-AI07-20260906",
+      "is_running": true,
+      "limitation": "App registration only; no window content or gameplay acceptance"
+    },
+    "parent_window_binding": {
+      "api": "cua.getApp('local.hellomine3d.ai07.20260906')",
+      "requested_timeout_ms": 10000,
+      "actual_duration_seconds": 921.8874,
+      "result": "HelloMine3D standard window AX returned, close/fullscreen/minimize controls; no game input or screenshot",
+      "independent_binding": "Interrupted after202.0s without handle; no independent window PASS"
+    },
+    "parent_screenshot": {
+      "duration_seconds": 6.4578,
+      "result": "Normal HelloMine3D main menu visibly rendered with Single Player, Credits and Quit",
+      "artifact": "Inline CUA tool image only; bytes cached in parent JS variable liveQaDiagnosticShot, not yet exported",
+      "assessment": "Diagnostic observation by implementer; no independent AI-07 PASS"
+    }
+  }
+}
