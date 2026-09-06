@@ -97,7 +97,7 @@ Xcode Release 已去除会破坏 infinity/isfinite 校验的 fast-math。主菜�
 - 工程开发没有已知主干阻塞。
 - 独立窗口绑定和截图保存已恢复，不再作为当前阻塞。工具脚本及真实截图证据见
   [脚本窗口报告](../reports/macos-script-window-20260906-evidence/report.md)。独立新六组合验收
-  当前受子任务授权上下文拒绝影响，详见 [拒绝记录](../reports/ai07-ui-matrix-20260906-evidence/independent-report.md)；
+  曾受子任务授权上下文拒绝影响，所有者现已明确批准新独立验收任务，实际执行结果待回收。历史原因见 [拒绝记录](../reports/ai07-ui-matrix-20260906-evidence/independent-report.md)；
   不把该拒绝泛化为整个桌面权限不可用，也不通过其他工具重试被拒绝的创建操作。
 - 当前任务环境若没有 OS 级 Computer Use，AI 场景保持 `NOT_RUN`；这不阻塞独立 Sprint 的
   `Engineering Done`，但 Track 不得标记 `AI Playability PASS`。

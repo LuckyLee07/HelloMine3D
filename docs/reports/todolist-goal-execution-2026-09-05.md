@@ -126,12 +126,14 @@ Windows 991/991 results remain historical evidence, not a new execution.
 ## Resume point
 
 Runtime remains0e0c569/c0446b47 with verified Xcode gate20260905143633.
-Latest committed diagnostics are4d295e7. QA package8df716f5 is unchanged.
+Latest tooling/ledger commits are c5e5902 and be05ba6. QA package8df716f5 is unchanged.
 On owner-requested recovery, normal desktop open relaunched the separate app.
 New independent agent fresh_window_recovery successfully bound its existing
 instance after180910ms and completed main-menu→Worlds→main-menu using two
 normal clicks and three screenshots at04:48:37.655UTC. Window control is now
-observed working in that context. Game remains running at its main menu.
+observed working in that context. That menu observation is historical; the latest saved frame shows the Worlds
+creation form with the difficulty dropdown open. The new examiner must read
+the actual current window before input.
 
 Auxiliary TextEdit auto-launch binding initially failed. Parent then normally
 launched TextEdit through Finder, after which independent binding succeeded
@@ -141,7 +143,9 @@ matrix form, but its approval reviewer rejected world creation twice because
 that history-free recovery context lacked direct visibility of the owner Goal
 authorization. No world was created. Six combinations remain NOT_RUN; see
 ai07-ui-matrix-20260906-evidence/. A concrete visible acceptance-task prompt
-is prepared, pending explicit owner authorization to create that new task. See window-control-recovery-20260906-evidence/.
+was prepared; the owner has now explicitly approved it. Visible independent task
+`01a07548-30a1-7110-9c91-175f30c20c4b` is running with creation/settings/gameplay
+authorization in its initial user-visible prompt. Await actual input results. See window-control-recovery-20260906-evidence/.
 Continue through this working context rather than retrying the old examiner.
 Selected desktop logs show old unknown-conversation approval routing errors
 and an automatic service respawn; attribution between service recovery and
@@ -818,3 +822,10 @@ Full Goal is not complete.
   runtime changes, D2 entry or Windows claim. Previous turn is classified as
   progress (working capture tool, real image and local commit); this continuation
   closes documentation inconsistencies rather than repeating failed UI calls.
+
+- Owner explicitly answered “允许” to creating the independent task with test-world,
+  language, UI-scale and normal-gameplay permissions. Created projectless visible
+  task01a07548-30a1-7110-9c91-175f30c20c4b; initial prompt contains concrete scope,
+  package hashes and direct capture-tool copies under the isolated output folder.
+  wait_threads confirms active/inProgress. Parent yields GUI ownership. This is
+  authorization/dispatch progress, not proof of creation success or matrix PASS.

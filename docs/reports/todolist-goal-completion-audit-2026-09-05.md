@@ -57,7 +57,7 @@ The current independent six-combination run is stopped at the
 The reviewer did not accept parent-forwarded original authorization in the
 history-free recovery context. This is distinct from macOS screen-recording
 access and from successful native menu clicks. No denied creation or settings
-change was retried using the new script. A pending request for an explicitly
-scoped independent task has not been answered; an automatic Goal continuation
-is not that answer. Remaining gameplay, isolation and audio gaps still prevent
+change was retried using the new script. The owner subsequently explicitly approved the scoped independent task.
+Visible task `01a07548-30a1-7110-9c91-175f30c20c4b` is now running with that scope
+in its initial prompt; the actual creation/settings results remain pending. Remaining gameplay, isolation and audio gaps still prevent
 Goal completion.
