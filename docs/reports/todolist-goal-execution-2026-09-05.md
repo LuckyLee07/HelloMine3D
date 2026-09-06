@@ -133,9 +133,11 @@ instance after180910ms and completed main-menu→Worlds→main-menu using two
 normal clicks and three screenshots at04:48:37.655UTC. Window control is now
 observed working in that context. Game remains running at its main menu.
 
-The agent retains the last-known game handle and screenshot bytes; auxiliary
-TextEdit binding was interrupted after325.9s without a save. Image export is
-still incomplete; game menu control recovery remains observed. See window-control-recovery-20260906-evidence/.
+Auxiliary TextEdit auto-launch binding initially failed. Parent then normally
+launched TextEdit through Finder, after which independent binding succeeded
+in33.6803s. All three recovery JPEGs are now retained with length/CRC/SHA checks
+and parent visual inspection. The same independent agent/handles now execute
+the six en/zh×0.75/1.00/1.75 UI combinations, saving captures in small batches. See window-control-recovery-20260906-evidence/.
 Continue through this working context rather than retrying the old examiner.
 Selected desktop logs show old unknown-conversation approval routing errors
 and an automatic service respawn; attribution between service recovery and

@@ -1,0 +1,32 @@
+[
+  {
+    "name": "main",
+    "path": "/private/tmp/hm3d-ai07-20260906/window-recovery-main.jpg",
+    "bytes": 60040,
+    "crc32": "80e2f0e5",
+    "sha256": "900c5d8f42d60ac670387aed2d3bc2d0ee8e29b67b2020d1aab15e1091fc8202",
+    "format": "jpg",
+    "verified": true,
+    "retained_path": "window-recovery-main.jpg"
+  },
+  {
+    "name": "worlds",
+    "path": "/private/tmp/hm3d-ai07-20260906/window-recovery-worlds.jpg",
+    "bytes": 82014,
+    "crc32": "b9f891f4",
+    "sha256": "9d27bdbf7cd77f7d9a5dfd0fa4b300d24515d4d8422ca9289488e5b19409b9e8",
+    "format": "jpg",
+    "verified": true,
+    "retained_path": "window-recovery-worlds.jpg"
+  },
+  {
+    "name": "returned-main",
+    "path": "/private/tmp/hm3d-ai07-20260906/window-recovery-returned-main.jpg",
+    "bytes": 63711,
+    "crc32": "61b3a2b2",
+    "sha256": "12b13faedf610c6e217329a350398b71f3b5967a63ef1640557ef360a2821308",
+    "format": "jpg",
+    "verified": true,
+    "retained_path": "window-recovery-returned-main.jpg"
+  }
+]

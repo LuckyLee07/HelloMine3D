@@ -2,7 +2,9 @@
 
 Status: window control recovery PASS in a new independent context. Actual
 main-menu→Worlds→main-menu round-trip and screenshots succeeded at04:48:37.655UTC.
-This is not complete AI-07 or AI-06 acceptance. Image export is incomplete: TextEdit binding was interrupted after325.9s.
+This is not complete AI-07 or AI-06 acceptance. Image export subsequently completed through normal Finder launch and TextEdit
+save. All three original JPEG files passed byte-count/CRC32/SHA256 checks and
+were visually opened by the parent.
 
 The owner explicitly confirmed no concurrent window operation and asked for
 recovery. No occupancy confirmation or project permission request is needed.
@@ -40,9 +42,30 @@ Neither source proves this specific routing defect's cause.
 
 Independent menu verification is retained in independent-report.md. No world
 was created/entered and no setting changed. Reuse this working context/handle
-for subsequent bounded UI acceptance; the three captured images
-remain cached. A separate TextEdit binding did not return and was interrupted
-after325.9s, before paste/save. This does not invalidate the completed game
-menu round-trip, but no persisted screenshot artifact is claimed. Do not reset
-the working CUA session or repeat the same editor binding without a changed path. Full gameplay/AI-06 isolation
-and real-audio gaps remain separate; missing historical images stay missing.
+for subsequent bounded UI acceptance. Initially the three captured images
+remained cached: TextEdit binding did not return and was interrupted after325.9s
+before paste/save. The changed launch path below subsequently completed export.
+Full gameplay/AI-06 isolation and real-audio gaps remain separate; missing
+historical images stay missing.
+
+## Normal Finder launch follow-up
+
+Parent reused its existing Finder CUA handle: getAXState→super+shift+g→
+setValue /System/Applications/TextEdit.app→Return. Fresh AX showed TextEdit
+selected. super+o opened the selected app; read-only process inspection confirmed
+TextEdit PID61991. No exec/AppleScript application launch or private UI API was
+used for this editor. Independent examiner then bound the already running
+editor and continued the unchanged-byte export. This was a changed launch path,
+not another automatic-launch retry.
+
+The already running editor bound in33.6803s. Independent examiner pasted the
+previously encoded three captures into a new plain-text TextEdit document and
+normally saved window-recovery-captures.json.txt outside the repository. Strict
+base64 decode produced unchanged JPEG bytes (60040/82014/63711 bytes), with all
+recorded CRC32 values matching. Original images and captures.metadata.json are
+retained here. Parent opened all three and confirmed main-menu/Worlds/main-menu
+content. The saved editor document was normally closed; both handles retained.
+The preceding failed automatic editor binding remains part of the chronology.
+
+New independent six-combination en/zh UI-scale validation is now delegated to
+the same working context. These three recovery images do not cover that matrix.
