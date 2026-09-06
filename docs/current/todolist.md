@@ -55,8 +55,8 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 
 | 批次 | 状态 | 当前结论 |
 | ---- | ---- | -------- |
-| `T0` Terrain Baseline | `Doing` | 冻结种子、四象限/轴线/区块边界采样与旧版兼容快照；采集当前画面和性能，先冻结口径再实现 T1。 |
-| `T1` Terrain Foundation v5 | `Todo` | 新版全有符号坐标基础地貌与连续平原/丘陵/山麓/山脊/谷地；保留 terrain v1–v4，必须完成当前平台验证、窗口证据和本地提交。 |
+| `T0` Terrain Baseline | `Done` | 8 seed、1852224 点、128 区块兼容快照、三场景原图、三轮静态/流送性能及实现前冻结门槛已本地提交 `6dbf7eb`；详见执行报告。 |
+| `T1` Terrain Foundation v5 | `Doing` | 已接入独立全坐标采样路径；首候选因局部坡差超标 FAIL，保留证据后调整谷地过渡。尚未完成完整回归、窗口与性能验收，不声明完成。 |
 | `AL-A0` Latest Architecture Baseline | `Done` | 架构、依赖、性能、验证与 AI 证据身份已冻结；VS2017/v141 Debug/Release 完整门禁和 real window 通过，没有受跟踪 Gameplay/runtime/resource/build input 改动。详见 `docs/reports/architecture-lab-baseline-v1.md`。 |
 | `AL-A1` World Responsibility Map | `Done` | 78 个公开方法已按 3 个 API concept / 9 个 responsibility 分类；public-surface hash 和集合一致性门禁已接入完整 Windows 验证，VS2017/v141 Debug/Release、832/832 世界、80/80 资源、122/122 配方、15/15 启动负例、104 项干净包与 real window 全部 PASS。没有迁移旧调用、增加 Facade wrapper 或开始 AL-A2。 |
 | `AL-A2` Chunk Runtime Boundary | `Done` | 既有 Chunk Update Queue、Mesh Work Planner、单 loader 及 preload/unload 协调已迁入 `ChunkRuntime`；World 公开面、共享锁、预算、save v12 与 unload 语义保持不变，没有引入 B1 Residency 状态机。VS2017/v141 Debug/Release 完整门禁、两轮 832/832 世界和 104 项干净包通过。详见 `docs/reports/architecture-lab-a2-chunk-runtime-report-v1.md`。 |

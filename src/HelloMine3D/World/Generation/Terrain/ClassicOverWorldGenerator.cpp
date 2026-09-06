@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <functional>
 #include <iostream>
+#include <limits>
+#include <stdexcept>
 
 #include "../../../Maths/GeneralMaths.h"
 #include "../../../Util/Random.h"
@@ -20,6 +22,19 @@ namespace {
 constexpr int MaximumStructureRadius = 6;
 constexpr int MountainBiomeValue = -1000000;
 constexpr int MountainRockHeight = WATER_LEVEL + 36;
+
+int biomeMapValue(TerrainBiome biome) noexcept
+{
+    switch (biome) {
+        case TerrainBiome::Ocean: return 161;
+        case TerrainBiome::Grassland: return 151;
+        case TerrainBiome::LightForest: return 131;
+        case TerrainBiome::TemperateForest: return 121;
+        case TerrainBiome::Mountain: return MountainBiomeValue;
+        case TerrainBiome::Desert: return 100;
+    }
+    return 151;
+}
 
 int normalizeTerrainGenerationVersion(int generationVersion) noexcept
 {
@@ -98,7 +113,9 @@ ClassicOverWorldGenerator::ClassicOverWorldGenerator(
           normalizeTerrainGenerationVersion(generationVersion))
     , m_explorationRewardVersion(explorationRewardVersion)
     , m_random(seed)
-    , m_biomeNoiseGen(seed * 2)
+    , m_biomeNoiseGen(normalizeTerrainGenerationVersion(generationVersion) >=
+                      FoundationTerrainGenerationVersion ? 0 : seed * 2)
+    , m_foundation(seed)
     , m_caveGenerator(seed,
                       normalizeTerrainGenerationVersion(generationVersion))
     , m_grassBiome(seed)
@@ -132,8 +149,22 @@ void ClassicOverWorldGenerator::generateTerrainFor(Chunk &chunk)
     m_pChunk = &chunk;
 
     auto location = chunk.getLocation();
-    m_random.setSeed(m_seed ^ (location.x * 73428767) ^
-                     (location.y * 91227153));
+    if (m_generationVersion >= FoundationTerrainGenerationVersion) {
+        // Keep structure/cave halos and their integer cell arithmetic inside
+        // int world coordinates. Pure point sampling supports the full int range.
+        constexpr int MaximumChunk =
+            (std::numeric_limits<int>::max() - 1024) / CHUNK_SIZE;
+        if (location.x < -MaximumChunk || location.x > MaximumChunk ||
+            location.y < -MaximumChunk || location.y > MaximumChunk) {
+            throw std::out_of_range("terrain v5 chunk exceeds safe coordinate halo");
+        }
+        m_random.setSeed(TerrainFoundation::chunkSeed(
+            m_seed, location.x, location.y, 0x9216d5d98979fb1bull));
+    }
+    else {
+        m_random.setSeed(m_seed ^ (location.x * 73428767) ^
+                         (location.y * 91227153));
+    }
 
     getBiomeMap();
     getHeightMap();
@@ -188,6 +219,9 @@ int ClassicOverWorldGenerator::getGenerationVersion() const noexcept
 TerrainBiome ClassicOverWorldGenerator::getBiomeAtWorld(
     int worldX, int worldZ) const noexcept
 {
+    if (m_generationVersion >= FoundationTerrainGenerationVersion) {
+        return m_foundation.sample(worldX, worldZ).biome;
+    }
     if (m_generationVersion >= MountainTerrainGenerationVersion &&
         getMountainStrengthAtWorld(worldX, worldZ) >= 0.48 &&
         getTerrainV4HeightAtWorld(worldX, worldZ) >=
@@ -206,6 +240,9 @@ TerrainBiome ClassicOverWorldGenerator::getBiomeAtWorld(
 int ClassicOverWorldGenerator::getSurfaceHeightAtWorld(
     int worldX, int worldZ) const noexcept
 {
+    if (m_generationVersion >= FoundationTerrainGenerationVersion) {
+        return m_foundation.sample(worldX, worldZ).height;
+    }
     if (m_generationVersion >= MountainTerrainGenerationVersion) {
         return getTerrainV4HeightAtWorld(worldX, worldZ);
     }
@@ -288,6 +325,9 @@ void ClassicOverWorldGenerator::getHeightIn(int xMin, int zMin, int xMax,
 
 void ClassicOverWorldGenerator::getHeightMap()
 {
+    if (m_generationVersion >= FoundationTerrainGenerationVersion) {
+        return; // Both v5 maps are populated together in getBiomeMap.
+    }
     if (m_generationVersion >= MountainTerrainGenerationVersion) {
         const glm::ivec2 location = m_pChunk->getLocation();
         for (int x = 0; x < CHUNK_SIZE; ++x) {
@@ -311,6 +351,20 @@ void ClassicOverWorldGenerator::getHeightMap()
 void ClassicOverWorldGenerator::getBiomeMap()
 {
     auto location = m_pChunk->getLocation();
+
+    if (m_generationVersion >= FoundationTerrainGenerationVersion) {
+        for (int x = 0; x <= CHUNK_SIZE; ++x) {
+            for (int z = 0; z <= CHUNK_SIZE; ++z) {
+                const auto column = m_foundation.sample(
+                    location.x * CHUNK_SIZE + x, location.y * CHUNK_SIZE + z);
+                m_biomeMap.get(x, z) = biomeMapValue(column.biome);
+                if (x < CHUNK_SIZE && z < CHUNK_SIZE) {
+                    m_heightMap.get(x, z) = column.height;
+                }
+            }
+        }
+        return;
+    }
 
     for (int x = 0; x < CHUNK_SIZE + 1; x++)
         for (int z = 0; z < CHUNK_SIZE + 1; z++) {
@@ -394,8 +448,11 @@ void ClassicOverWorldGenerator::applyOreDecorators()
 {
     auto location = m_pChunk->getLocation();
     Random<std::minstd_rand> oreRandom(
-        m_seed ^ (location.x * 13371337) ^ (location.y * 265443576) ^
-        0x5a5a);
+        m_generationVersion >= FoundationTerrainGenerationVersion
+            ? TerrainFoundation::chunkSeed(
+                  m_seed, location.x, location.y, 0xd1310ba698dfb5acull)
+            : m_seed ^ (location.x * 13371337) ^ (location.y * 265443576) ^
+                  0x5a5a);
 
     auto runOrePass = [&](BlockId oreBlock, int attempts, int minY, int maxY,
                           int minSize, int maxSize) {
@@ -679,6 +736,10 @@ void ClassicOverWorldGenerator::projectStructurePlan(
 int ClassicOverWorldGenerator::getHeightAt(int x, int z, int chunkX,
                                            int chunkZ) const
 {
+    if (m_generationVersion >= FoundationTerrainGenerationVersion) {
+        return m_foundation.sample(chunkX * CHUNK_SIZE + x,
+                                   chunkZ * CHUNK_SIZE + z).height;
+    }
     if (m_generationVersion >= MountainTerrainGenerationVersion) {
         return getTerrainV4HeightAtWorld(
             chunkX * CHUNK_SIZE + x, chunkZ * CHUNK_SIZE + z);
@@ -747,6 +808,10 @@ const Biome &ClassicOverWorldGenerator::getBiome(int x, int z) const
 const Biome &ClassicOverWorldGenerator::getBiomeAt(
     int x, int z, int chunkX, int chunkZ) const
 {
+    if (m_generationVersion >= FoundationTerrainGenerationVersion) {
+        return getBiomeForValue(biomeMapValue(m_foundation.sample(
+            chunkX * CHUNK_SIZE + x, chunkZ * CHUNK_SIZE + z).biome));
+    }
     const int biomeValue = static_cast<int>(m_biomeNoiseGen.getHeight(
         x, z, chunkX + 10, chunkZ + 10));
     return getBiomeForValue(biomeValue);

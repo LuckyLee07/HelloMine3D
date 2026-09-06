@@ -1,0 +1,11 @@
+[VALIDATION] PASS P11-2/terrain-version-contract-is-append-only
+[VALIDATION] PASS P11-2/terrain-v3-height-and-biome-output-remains-frozen
+[VALIDATION] PASS P11-2/v4-adds-deterministic-mountain-relief :: range=22..176 mountain=4829
+[VALIDATION] PASS P11-2/v4-height-domain-remains-seed-sensitive :: differences=13240
+[VALIDATION] PASS P11-2/mountain-reuses-bounded-ecology-and-pressure
+[VALIDATION] PASS P11-2/natural-entrance-plan-is-bounded-and-deterministic :: cell=-3,3 anchor=-227,105,368
+[VALIDATION] PASS P11-2/generated-tunnel-opens-surface-and-underground-chamber :: samples=77
+[VALIDATION] PASS P11-2/entrance-output-ignores-chunk-load-order
+[VALIDATION] PASS P11-2/save-v12-preserves-created-terrain-identity
+[VALIDATION] checks=9 failures=0
+[VALIDATION] status=PASS

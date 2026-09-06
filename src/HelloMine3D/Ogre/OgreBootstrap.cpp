@@ -841,6 +841,15 @@ namespace
                                   BlockId::TallGrass);
                 m_world->setBlock(centerX + 3, centerY + 1, centerZ + 1,
                                   BlockId::Rose);
+                if (!uploadToOgre)
+                {
+                    // The validation-only mesh contract covers every render
+                    // pass, even when the current terrain seed is dry land.
+                    m_world->setBlock(centerX, centerY + 5, centerZ + 2,
+                                      BlockId::Water);
+                    m_world->setBlock(centerX, centerY + 6, centerZ + 2,
+                                      BlockId::Air);
+                }
             }
 
             if (isTrueValue(std::getenv(

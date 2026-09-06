@@ -2,6 +2,7 @@
 #define CLASSICOVERWORLDGENERATOR_H_INCLUDED
 
 #include "TerrainGenerator.h"
+#include "TerrainFoundation.h"
 
 #include "../../../Util/Array2D.h"
 #include "../../../Util/Random.h"
@@ -103,6 +104,7 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
     Random<std::minstd_rand> m_random;
 
     NoiseGenerator m_biomeNoiseGen;
+    TerrainFoundation m_foundation;
     CaveGenerator m_caveGenerator;
 
     GrasslandBiome m_grassBiome;

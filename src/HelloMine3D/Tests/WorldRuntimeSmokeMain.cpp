@@ -11862,6 +11862,157 @@ void caseP11DExplorationRewards()
 // ---------------------------------------------------------------------------
 // P11-2 - terrain-v4 mountain relief and discoverable natural cave mouths
 // ---------------------------------------------------------------------------
+void caseTerrainFoundationV5()
+{
+    check("T1/default-is-new-append-only-version",
+          CurrentTerrainGenerationVersion == 5 && FoundationTerrainGenerationVersion == 5);
+    bool domain = true;
+    bool seedSensitive = false;
+    const std::array<int, 9> coordinates{{std::numeric_limits<int>::min(),
+        -2147483000, -161, -1, 0, 1, 161, 2147483000,
+        std::numeric_limits<int>::max()}};
+    for (const int seed : {std::numeric_limits<int>::min(), -1, 0, 42,
+                           std::numeric_limits<int>::max()}) {
+        ClassicOverWorldGenerator a(seed, 5), b(seed, 5), other(seed == 42 ? 43 : 42, 5);
+        for (const int x : coordinates) for (const int z : coordinates) {
+            const int h = a.getSurfaceHeightAtWorld(x, z);
+            domain = domain && h >= 1 && h <= 176 &&
+                h == b.getSurfaceHeightAtWorld(x, z) &&
+                a.getBiomeAtWorld(x, z) == b.getBiomeAtWorld(x, z);
+            seedSensitive = seedSensitive || h != other.getSurfaceHeightAtWorld(x, z);
+        }
+    }
+    check("T1/full-signed-sampling-domain-is-safe-and-repeatable", domain && seedSensitive);
+    setEnv("HELLOMINE3D_SEED", "20260807");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, freshSaveDirectory("t1_detached"), false, 0);
+    const std::array<glm::ivec2, 6> locations{{{2,2},{-3,2},{2,-3},{-3,-3},{-1,0},{0,-1}}};
+    bool ordered = true;
+    bool concurrent = true;
+    for (int seed : TerrainSurvey::Seeds) {
+        ClassicOverWorldGenerator forward(seed, 5), reverse(seed, 5);
+        std::array<std::uint64_t, 6> hashes{};
+        for (std::size_t i = 0; i < locations.size(); ++i) {
+            Chunk chunk(world, locations[i], false);
+            forward.generateTerrainFor(chunk);
+            hashes[i] = TerrainSurvey::blockHash(chunk);
+        }
+        for (std::size_t i = locations.size(); i-- > 0;) {
+            Chunk chunk(world, locations[i], false);
+            reverse.generateTerrainFor(chunk);
+            ordered = ordered && hashes[i] == TerrainSurvey::blockHash(chunk);
+        }
+        ClassicOverWorldGenerator left(seed, 5), right(seed, 5);
+        Chunk first(world, locations[0], false), second(world, locations[1], false);
+        std::thread a([&] { left.generateTerrainFor(first); });
+        std::thread b([&] { right.generateTerrainFor(second); });
+        a.join(); b.join();
+        concurrent = concurrent && hashes[0] == TerrainSurvey::blockHash(first) &&
+            hashes[1] == TerrainSurvey::blockHash(second);
+    }
+    check("T1/eight-seeds-positive-negative-reverse-load-order", ordered);
+    check("T1/eight-seeds-independent-concurrent-generators", concurrent);
+    bool rejected = false;
+    try {
+        Chunk unsafe(world, {std::numeric_limits<int>::max(), 0}, false);
+        ClassicOverWorldGenerator generator(42, 5);
+        generator.generateTerrainFor(unsafe);
+    } catch (const std::out_of_range &) { rejected = true; }
+    check("T1/reject-unsafe-chunk-before-coordinate-expansion", rejected);
+
+    const std::string directory = freshSaveDirectory("t1_modified_persistence");
+    bool saved = false;
+    {
+        Player owner;
+        World created(camera, config, owner, directory, false, 0);
+        created.getChunkManager().loadChunk(-1, -1);
+        created.setBlock(-2, 180, -2, BlockId::OakBark);
+        saved = created.save();
+        created.getChunkManager().unloadChunk(-1, -1);
+        created.getChunkManager().loadChunk(-1, -1);
+        saved = saved && created.getBlock(-2, 180, -2).id == static_cast<int>(BlockId::OakBark);
+    }
+    {
+        Player owner;
+        World reopened(camera, config, owner, directory, false, 0);
+        reopened.getChunkManager().loadChunk(-1, -1);
+        WorldSaveData data;
+        check("T1/saved-edit-survives-unload-and-world-reopen",
+              saved && reopened.getBlock(-2, 180, -2).id == static_cast<int>(BlockId::OakBark) &&
+              WorldSave(directory).load(data) && data.terrainGenerationVersion == 5 &&
+              data.seed == 20260807);
+    }
+    bool invalid = true;
+    for (const int version : {0, 6}) {
+        WorldSaveData identity;
+        const bool loaded = WorldSave(directory).load(identity);
+        identity.terrainGenerationVersion = version;
+        WorldSaveData preserved;
+        invalid = invalid && loaded && !WorldSave(directory).save(identity) &&
+            WorldSave(directory).load(preserved) && preserved.terrainGenerationVersion == 5;
+    }
+    check("T1/reject-unknown-terrain-versions", invalid);
+    clearDeterministicEnv();
+    for (const int seed : TerrainSurvey::Seeds) {
+        setEnv("HELLOMINE3D_SEED", std::to_string(seed));
+        Player spawned;
+        World habitat(camera, config, spawned,
+            freshSaveDirectory("t1_spawn_" + std::to_string(seed)), false, 0);
+        const int x = static_cast<int>(std::floor(spawned.position.x));
+        const int z = static_cast<int>(std::floor(spawned.position.z));
+        const int groundY = static_cast<int>(spawned.position.y) - 2;
+        const auto ground = habitat.getBlock(x, groundY, z);
+        const bool safe = ground != BlockId::Air && ground != BlockId::Water &&
+            habitat.getBlock(x, groundY + 1, z) == BlockId::Air &&
+            habitat.getBlock(x, groundY + 2, z) == BlockId::Air;
+        ClassicOverWorldGenerator generator(seed, 5);
+        std::array<int, 4> resources{};
+        const auto origin = World::getChunkXZ(x, z);
+        int resourceRadius = 0;
+        for (int radius = 0; radius <= 16; ++radius) {
+          if (std::all_of(resources.begin(), resources.end(), [](int n) { return n > 0; })) break;
+          resourceRadius = radius;
+          for (int dx = -radius; dx <= radius; ++dx) for (int dz = -radius; dz <= radius; ++dz) {
+            if (std::max(std::abs(dx), std::abs(dz)) != radius) continue;
+            Chunk chunk(habitat, {origin.x + dx, origin.z + dz}, false);
+            generator.generateTerrainFor(chunk);
+            for (int lx = 0; lx < CHUNK_SIZE; ++lx)
+                for (int lz = 0; lz < CHUNK_SIZE; ++lz)
+                    for (int y = 0; y < 192; ++y) {
+                        const auto block = chunk.getBlock(lx, y, lz);
+                        resources[0] += block.id == static_cast<int>(BlockId::OakBark);
+                        resources[1] += block.id == static_cast<int>(BlockId::TallGrass);
+                        resources[2] += block.id == static_cast<int>(BlockId::CoalOre);
+                        resources[3] += block.id == static_cast<int>(BlockId::IronOre);
+                    }
+        }
+        }
+        check("T1/seed-" + std::to_string(seed) + "-actual-spawn-and-nearby-resources",
+            safe && std::all_of(resources.begin(), resources.end(), [](int n) { return n > 0; }),
+            "spawn=" + vecToString(spawned.position) + " resourceChunkRadius=" +
+            std::to_string(resourceRadius) + " wood/grass/coal/iron=" +
+            std::to_string(resources[0]) + "/" + std::to_string(resources[1]) + "/" +
+            std::to_string(resources[2]) + "/" + std::to_string(resources[3]));
+        std::array<bool, 3> structures{};
+        for (int cz = -16; cz <= 16; ++cz) for (int cx = -16; cx <= 16; ++cx) {
+            for (const auto type : {StructureType::Waystone, StructureType::Ruin, StructureType::RaiderCamp}) {
+                const auto index = static_cast<std::size_t>(type);
+                if (!structures[index]) {
+                    const auto plan = generator.getStructurePlanForCell(type, cx, cz);
+                    structures[index] = plan.valid && plan.footprint.valid();
+                }
+            }
+        }
+        check("T1/seed-" + std::to_string(seed) + "-all-structure-types-have-valid-candidates",
+            std::all_of(structures.begin(), structures.end(), [](bool value) { return value; }));
+    }
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", "");
+}
+
 void caseP11TerrainContoursAndEntrances()
 {
     check("P11-2/terrain-version-contract-is-append-only",
@@ -11869,7 +12020,7 @@ void caseP11TerrainContoursAndEntrances()
               WaystoneTerrainGenerationVersion == 2 &&
               ExplorationSiteTerrainGenerationVersion == 3 &&
               MountainTerrainGenerationVersion == 4 &&
-              CurrentTerrainGenerationVersion ==
+              CurrentTerrainGenerationVersion >=
                   MountainTerrainGenerationVersion);
 
     ClassicOverWorldGenerator terrainV3(
@@ -11990,7 +12141,12 @@ void caseP11TerrainContoursAndEntrances()
         Config config = makeConfig();
         Camera camera(config);
         Player player;
-        World world(camera, config, player, freshSaveDirectory(name),
+        const auto directory = freshSaveDirectory(name);
+        if (!initializeTerrainIdentity(directory, name,
+                                       MountainTerrainGenerationVersion)) {
+            throw std::runtime_error("Unable to initialize frozen v4 entrance fixture");
+        }
+        World world(camera, config, player, directory,
                     false, 0);
         const int endX = entrance.anchorX + entrance.directionX *
             CaveGenerator::EntranceTunnelLength;
@@ -12059,6 +12215,7 @@ void caseP11TerrainContoursAndEntrances()
     WorldSaveData current;
     current.worldId = "p11-2-terrain-v4";
     current.worldName = "P11-2 Terrain V4";
+    current.terrainGenerationVersion = MountainTerrainGenerationVersion;
     current.seed = kValidationSeed;
     current.createdUtc = LegacyWorldTimestampUtc;
     current.lastPlayedUtc = LegacyWorldTimestampUtc;
@@ -15841,7 +15998,7 @@ void caseEcologyAndExploration()
     invalidGeneration.terrainGenerationVersion =
         CurrentTerrainGenerationVersion + 1;
     WorldSaveData preservedCurrent;
-    check("P11-2/new-world-persists-terrain-v4-and-rejects-v5",
+    check("T1/new-world-persists-current-terrain-and-rejects-future-version",
           currentLoaded &&
               currentData.version == WorldSaveFormatVersion &&
               currentData.terrainGenerationVersion ==
@@ -17046,7 +17203,11 @@ void caseChunkEvents()
               std::to_string(events.count(SandboxEventType::ChunkGenerated)));
 
     events.reset();
-    world.setBlock(640, 100, 640, BlockId::Stone);
+    // Terrain versions may already place Stone here. Always make a real edit
+    // so the assertion measures dirty-chunk persistence rather than a no-op.
+    const auto previous = world.getBlock(640, 100, 640);
+    world.setBlock(640, 100, 640,
+                   previous == BlockId::Stone ? BlockId::Air : BlockId::Stone);
     world.save();
     check("S4.3/chunk-save-event",
           events.count(SandboxEventType::ChunkSaved) > 0,
@@ -17383,6 +17544,9 @@ int main()
             check("T0/survey-complete", count == 463056,
                   "samples=" + std::to_string(count));
         }
+        else if (focus != nullptr && std::string(focus) == "T1") {
+            caseTerrainFoundationV5();
+        }
         else if (focus != nullptr && std::string(focus) == "V10A") {
             caseGreedyMeshing();
             caseVertexLighting();
@@ -17580,6 +17744,7 @@ int main()
         caseP11MinimumBuildingAndTools();
         caseP11CFirstThirtyMinutes();
         caseP11DExplorationRewards();
+        caseTerrainFoundationV5();
         caseP11TerrainContoursAndEntrances();
         caseP11EEnemyPresentationAndResonance();
         caseNaturalMobPopulation();

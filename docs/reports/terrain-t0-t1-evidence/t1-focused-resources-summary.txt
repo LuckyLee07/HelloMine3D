@@ -1,0 +1,25 @@
+[VALIDATION] PASS T1/default-is-new-append-only-version
+[VALIDATION] PASS T1/full-signed-sampling-domain-is-safe-and-repeatable
+[VALIDATION] PASS T1/eight-seeds-positive-negative-reverse-load-order
+[VALIDATION] PASS T1/eight-seeds-independent-concurrent-generators
+[VALIDATION] PASS T1/reject-unsafe-chunk-before-coordinate-expansion
+[VALIDATION] PASS T1/saved-edit-survives-unload-and-world-reopen
+[VALIDATION] PASS T1/reject-unknown-terrain-versions
+[VALIDATION] FAIL T1/seed-0-actual-spawn-and-nearby-resources :: spawn=-135.5 88 168.5 wood/grass/coal/iron=113/0/1201/557
+[VALIDATION] PASS T1/seed-0-all-structure-types-have-valid-candidates
+[VALIDATION] FAIL T1/seed-1-actual-spawn-and-nearby-resources :: spawn=280.5 68 280.5 wood/grass/coal/iron=254/0/929/627
+[VALIDATION] PASS T1/seed-1-all-structure-types-have-valid-candidates
+[VALIDATION] FAIL T1/seed-42-actual-spawn-and-nearby-resources :: spawn=136.5 107 -119.5 wood/grass/coal/iron=246/0/1539/645
+[VALIDATION] PASS T1/seed-42-all-structure-types-have-valid-candidates
+[VALIDATION] FAIL T1/seed-424-actual-spawn-and-nearby-resources :: spawn=8.5 94 8.5 wood/grass/coal/iron=564/0/1329/588
+[VALIDATION] PASS T1/seed-424-all-structure-types-have-valid-candidates
+[VALIDATION] FAIL T1/seed-20260807-actual-spawn-and-nearby-resources :: spawn=-391.5 73 -391.5 wood/grass/coal/iron=367/0/1080/586
+[VALIDATION] PASS T1/seed-20260807-all-structure-types-have-valid-candidates
+[VALIDATION] FAIL T1/seed-20260809-actual-spawn-and-nearby-resources :: spawn=88.5 67 104.5 wood/grass/coal/iron=0/0/900/595
+[VALIDATION] PASS T1/seed-20260809-all-structure-types-have-valid-candidates
+[VALIDATION] FAIL T1/seed-8675309-actual-spawn-and-nearby-resources :: spawn=8.5 82 8.5 wood/grass/coal/iron=555/0/1015/620
+[VALIDATION] PASS T1/seed-8675309-all-structure-types-have-valid-candidates
+[VALIDATION] FAIL T1/seed-325322-actual-spawn-and-nearby-resources :: spawn=-119.5 67 -119.5 wood/grass/coal/iron=0/0/799/588
+[VALIDATION] PASS T1/seed-325322-all-structure-types-have-valid-candidates
+[VALIDATION] checks=23 failures=8
+[VALIDATION] status=FAIL

@@ -111,7 +111,7 @@ run_binary() {
     ) 2>&1 | tee "$log"
 
     if [ "$name" = "HelloMine3DWorldRuntimeSmoke" ] &&
-       ! grep -F "[VALIDATION] checks=991 failures=0" "$log" >/dev/null; then
+       ! grep -F "[VALIDATION] checks=1014 failures=0" "$log" >/dev/null; then
         echo "[XCODE_VERIFY] World runtime summary is missing or failed." >&2
         exit 1
     fi
@@ -157,7 +157,7 @@ run_client_probe() {
         "HELLOMINE3D_ROOT=$ROOT_DIR"
         "HELLOMINE3D_SAVE_DIR=$save_dir"
         "HELLOMINE3D_SEED=20260809"
-        "HELLOMINE3D_PLAYER_POSITION=3038 66 1922"
+        "HELLOMINE3D_PLAYER_POSITION=88.5 67 104.5"
         "HELLOMINE3D_PLAYER_ROTATION=0 0 0"
     )
 

@@ -200,3 +200,11 @@ Stage 11 的工程证据已经冻结。下表不重跑或改写这些 PASS，只
 AI 记录至少包含 commit、包哈希、执行器/Computer Use 环境、OS/GPU、窗口/图形/语言、seed、
 存档身份、重试/超时/意外弹窗、证据路径和声明边界。截图或日志只能支持窗口内的实际步骤；
 物理设备手感和人类可玩性不得由 AI 记录推导。
+
+## T0/T1 地形基础（2026-09-06）
+
+本次以 macOS 为必需平台，Windows 专属验证后置。`T0-SURVEY` 生产采样与
+`tools/validate_terrain_foundation.py` 检查冻结的统计及 v1–v4 输出；`T1` 聚焦覆盖全 signed int
+采样、8 seed 加载顺序/独立并发、出生支撑/资源距离/结构候选及保存修改重开。
+完整 Xcode Debug/Release 门禁、干净包三场景固定画面、steady/streaming 三轮成本和正常输入
+步行另列，不能用 headless 或固定诊断替代。具体阈值见 [v5 合同](../contracts/terrain-foundation-v5-contract-v1.md)。

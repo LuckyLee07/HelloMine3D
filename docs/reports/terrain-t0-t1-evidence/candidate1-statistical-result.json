@@ -1,0 +1,9 @@
+{
+  "result": "FAIL",
+  "errors": [
+    "0/boundaries: adjacent height step",
+    "1/boundaries: adjacent height step",
+    "42/boundaries: adjacent height step",
+    "8675309/boundaries: adjacent height step"
+  ]
+}

@@ -354,7 +354,10 @@ C3 为 copied topology observation 增至 79 项并同步更新 machine-checked 
 事件。其当前职责为：
 
 - 拥有 `unordered_map<VectorXZ, Chunk>`、`TerrainGenerator` 与 `ChunkStorage`；
-- 按 seed / terrain v4 / exploration reward v1 冻结生成身份；
+- 按 seed / terrain v5 / exploration reward v1 冻结生成身份；
+- 新世界 terrain v5 通过纯 `TerrainFoundation` 采样连续高度和生态，floor lattice 与 uint64 hash
+  覆盖 signed world 坐标；完整区块生成在装饰 halo 运算前拒绝越界。v1–v4 分支及存档身份保留，
+  已保存区块不重生成。输出冻结与证据以 [v5 合同](../contracts/terrain-foundation-v5-contract-v1.md) 为准；
 - 查询、创建、加载、生成、保存和卸载 Chunk；
 - 在卸载前同步保存 dirty Chunk，失败时保留 resident Chunk；
 - 发布 generated/loaded/saved/unloaded 事实；
@@ -478,7 +481,7 @@ WorldManager
 
 - `WorldSaveData` 是内存中的当前 metadata payload，写出前由 World 收集 Player、Actor、目标、结局、
   难度、terrain identity 和其他版本化状态。
-- world save format 当前为 v12；terrain generation 为独立 v4；settings 是独立 v8。
+- world save format 当前为 v12；terrain generation 为独立 v5；settings 是独立 v8。
 - `StorageTransaction` 负责同目录 candidate、flush、真实 reader 校验和原子替换；失败 candidate 不
   成为权威。
 - Chunk 只有成功发布后才清 save-dirty；unload 保存失败则取消卸载。
@@ -599,7 +602,7 @@ block、Actor、inventory、objective or persistence truth。
 | Identity | A0 value |
 | -------- | -------- |
 | world save format | v12 |
-| terrain generation | v4 |
+| terrain generation | v5 |
 | runtime settings | v8 |
 | objective definitions | v3 |
 | enemy definitions | v3 |

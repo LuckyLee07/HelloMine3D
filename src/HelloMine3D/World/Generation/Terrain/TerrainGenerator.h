@@ -16,8 +16,9 @@ inline constexpr int LegacyTerrainGenerationVersion = 1;
 inline constexpr int WaystoneTerrainGenerationVersion = 2;
 inline constexpr int ExplorationSiteTerrainGenerationVersion = 3;
 inline constexpr int MountainTerrainGenerationVersion = 4;
+inline constexpr int FoundationTerrainGenerationVersion = 5;
 inline constexpr int CurrentTerrainGenerationVersion =
-    MountainTerrainGenerationVersion;
+    FoundationTerrainGenerationVersion;
 
 class TerrainGenerator {
   public:
