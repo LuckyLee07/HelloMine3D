@@ -1,7 +1,9 @@
 # 2026-09-06 AI-07 evidence scope
 
-Status: IN PROGRESS. This run adds attributable persisted images; it does not
-redefine full AI-07 around UI-only coverage.
+Status: NOT_RUN for independent screenshot scenarios; native binding BLOCKED.
+No independent images were captured. Package identity and running-app discovery
+passed; parent diagnostics remain supplemental. This does not redefine full
+AI-07 around UI-only coverage.
 
 Authoritative current contract:
 `docs/current/ai-assisted-gameplay-acceptance-v1.md`, section4.2 and AI-07 row.

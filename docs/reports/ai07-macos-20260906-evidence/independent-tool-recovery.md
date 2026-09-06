@@ -1,6 +1,6 @@
 # AI-07 persistent-image UI/localization acceptance
 
-Status: IN PROGRESS — GUI binding recovery pending. No gameplay/UI combination has yet been observed in this run; no screenshots captured or exported.
+Status: FINAL — 本次独立截图运行未执行（工具绑定失败 / BLOCKED）。Discovery of the running QA app PASS only; no window, gameplay or visual acceptance PASS. No independent screenshots captured or exported.
 
 Initial prompt: parent /root delegated 2026-09-06 persistent-image normal-window UI/localization acceptance, six en-US/zh-CN ×0.75/1/1.75 combinations, Worlds and paused HUD images per combination plus representative menus; first two-image export proof before remainder. Later explicitly authorized parent script-launch of isolated fresh app after repeated CUA binding delays. No overall AI-07 or AI-06 PASS is asserted.
 
@@ -29,3 +29,18 @@ These delays are tool call wall-clock measurements, not game launch latency or p
 
 10. Parent terminated direct-exec instance and used explicitly user-authorized standard desktop open -n on the exact fresh .app. This agent's next getState returned4.922s and positively listed HelloMine3D-AI07-20260906 /local.hellomine3d.ai07.20260906 /isRunning=true.
 11. Binding that observed bundleID with cua.getApp('local.hellomine3d.ai07.20260906') was interrupted after202.0s without a handle/AX result. Exact call-start ISO was not recorded. Target process state is not inferred from this interruption. No GUI input or screenshot has occurred. Parent requested all GUI calls stop for a main-context read-only comparison; this agent complied, with no outstanding call.
+
+12. Final authorized single binding attempt: parent-facing start UTC2026-09-06 04:00:50; cua.getApp('local.hellomine3d.ai07.20260906') was explicitly interrupted by parent after1169.5s (about19min29.5s), without returning a handle/AX. JS stored a start ISO before awaiting, but no completion timestamp was returned; no precise end timestamp is claimed. Parent's separate context had previously succeeded at binding in921.8874s; this does not establish this agent's binding success. No repeated launch or concurrent independent input occurred.
+13. Parent used its own existing handle for supplemental InputProbe20260906 world/menu/drag diagnostics and reported return to main menu. These are parent observations, not independent acceptance by this agent. Final instruction was to stop all GUI attempts and finalize this report. This agent complied. The application remains running; no app-exit claim is made. No call is outstanding after the explicit interruption.
+
+Final scope results:
+
+- Release ZIP/Mach-O identity verification: PASS.
+- CUA discovery of running QA app after standard desktop launch: PASS.
+- Independent existing-app binding: BLOCKED; no handle returned.
+- Six locale/scale combinations, Worlds/paused HUD/representative panels: NOT_RUN in this run.
+- Screenshot bytes, metadata, two-image editor export, decoded-image CRC/SHA validation: NOT_RUN; zero independent captures/files.
+- Independent drag/view probe: NOT_RUN. Parent diagnostic is not counted.
+- Normal exit: NOT_RUN; app still running in parent-reported main menu. GUI control returned to parent.
+
+No source was read, no saves/configs were edited, no fixture or gameplay API was used, and no AI-06 isolation/full AI-07 PASS is asserted. Existing historical acceptance records belong to their own runs; they do not substitute for the missing persistent-image evidence here.

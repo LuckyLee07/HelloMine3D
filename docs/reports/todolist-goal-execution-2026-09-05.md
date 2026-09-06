@@ -125,22 +125,25 @@ Windows 991/991 results remain historical evidence, not a new execution.
 
 ## Resume point
 
-Code remains0e0c569 with verified Xcode gate20260905143633; documentation and
-screenshot export capability were committed in31023c6. On2026-09-06 a fresh
-independent UI screenshot acceptance run is executing from an immutable package
-with unique bundle ID `local.hellomine3d.ai07.20260906`. Runtime Mach-O remains
-c0446b47..., archive8df716f5..., exact106inventory/107files verified. Identity is
-in `ai07-macos-20260906-evidence/package-identity.json`.
-Examiner `macos_ai01_acceptance` exclusively owns GUI, using
-/private/tmp/hm3d-ai07-20260906 and the documented raw-byte/TextEdit export path.
-It will retain en/zh ×0.75/1.00/1.75 Worlds/HUD and representative other panels.
-The prior speculative occupancy question is no longer an execution gate;
-existing authorization covers this work. The original app/save is preserved by
-the separate package/app identity. Only an observed conflict warrants adjustment.
-Await first exported image batch, then final report and normal exit. Preserve all
-old missing-image limitations; new files apply only to this run. D2 remains
-Candidate; sustained/relative input, native restore, strict AI-06 roots and
-real audio remain unverified. Full Goal completion is not claimed.
+Runtime remains0e0c569/c0446b47 with verified Xcode gate20260905143633.
+Startup diagnostics/docs committed710b971; subsequent normal-input diagnostics
+and final independent tool failure are retained in
+`ai07-macos-20260906-evidence/`. QA package identity8df716f5 remains unchanged.
+Normal desktop `open` starts/registers the app, and parent existing-handle
+menu/create/play/pause/save/quit diagnostics worked. Do not treat getApp latency
+as game launch latency or a project permission denial.
+
+Independent examiner's final getApp begun04:00:50UTC was interrupted after
+1169.5s without a handle. No independent captures or scenario inputs completed
+in this run. Examiner is idle with no outstanding GUI call. Parent normally
+quit the QA app after saving its InputProbe20260906 world. No duplicate launch
+or further same-condition binding retry is scheduled.
+
+Resume independent image scenarios when native binding in the independent
+context can return usable handles; use normal desktop open to launch the
+separate QA package. D2 remains Candidate. Sustained/relative input, native
+restore, strict AI-06 package-only roots and real audio remain unverified.
+Speculative window occupancy is not an approval gate. Full Goal is not complete.
 
 ## macOS menu cursor repair (implemented; focused regression passed)
 
@@ -765,3 +768,20 @@ real audio remain unverified. Full Goal completion is not claimed.
   artifact. This new evidence suggests initial binding is the slow step;
   examiner is making one final existing-app binding attempt allowing the
   observed15-minute scale, then reusing the handle. No duplicate launch.
+
+- While the examiner's final binding remained in flight, parent used its
+  existing handle for a supplemental normal-input diagnostic, then released
+  GUI ownership. SinglePlayer, named Casual world1234567890, Play, Escape and
+  Save and Main Menu visibly completed. Documented drag(640,390→790,390)
+  showed no terrain-landmark/view change, so relative input remains unproven.
+  This implementer observation cannot replace independent acceptance; frames
+  are inline/cached only. Exact capture start times and byte counts are in
+  ai07-macos-20260906-evidence/parent-input-diagnostic.json.
+
+- Last independent existing-app binding begun04:00:50UTC was explicitly
+  interrupted by parent after1169.5s with no handle returned, as confirmed
+  by the examiner tool result. No further retry is
+  scheduled. Parent then refreshed its existing AX handle and clicked the
+  already observed main-menu Quit; CUA returned App quit. The separately
+  created InputProbe world was saved before quit, and the original user app
+  was not targeted. Independent persisted-image scenarios remain NOT_RUN.

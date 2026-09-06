@@ -1,0 +1,29 @@
+{
+  "executor": "root implementer; supplemental diagnostic only",
+  "package_sha256": "8df716f542a5da7ce07f5d4176855cfff115a06fc5044f1334230588c5410a0d",
+  "world": "InputProbe20260906",
+  "seed": 1234567890,
+  "difficulty": "Casual",
+  "input": "Normal CUA click, super+a, typeText, drag, Escape; no injected gameplay state",
+  "steps": [
+    "SinglePlayer",
+    "Create named world using1234567890/Casual",
+    "Play",
+    "drag([640,390],[790,390])",
+    "Escape",
+    "Save and Main Menu"
+  ],
+  "observation": "Menu/create/play/pause/save-return visibly completed. Drag before/after terrain landmarks unchanged; relative camera capability not established.",
+  "before": {
+    "capture_started_at": "2026-09-06T04:11:51.610Z",
+    "bytes": 223460
+  },
+  "after": {
+    "capture_started_at": "2026-09-06T04:12:17.038Z",
+    "bytes": 245244
+  },
+  "images": "Inline CUA images and cached bytes only, not exported; not formal persisted evidence",
+  "independent_acceptance": "NOT_CLAIMED",
+  "tool_recovery": "First click reported Computer Use inactive; existing handle getAXState refreshed state and next click worked. No new getApp binding needed.",
+  "exit": "After saved return to main menu, parent clicked Quit; CUA returned App quit."
+}
