@@ -1,0 +1,99 @@
+{
+  "started_at_utc": "2026-09-06T05:30:00.742260+00:00",
+  "platform": "macOS-15.7.3-arm64-arm-64bit",
+  "host_architecture": "arm64",
+  "app": "/private/tmp/hm3d-ai07-20260906/fresh/HelloMine3D-AI07-20260906.app",
+  "bundle_id": "local.hellomine3d.ai07.20260906",
+  "configuration": "Release",
+  "examiner_note": "Script window capture diagnostic; no gameplay input or world creation",
+  "executable_sha256": "c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424",
+  "capture_method": "macOS screencapture of an exact app-owned visible window",
+  "query_source_sha256": "a3bee1cd5485c65aedd3c4b80d63c54a67f6d86a1109284e9e9d0113910d1318",
+  "commands": [
+    [
+      "/Users/lizi/Desktop/Workspace/HelloMine3D/build/macos-window-evidence/query-a3bee1cd5485c65a",
+      "local.hellomine3d.ai07.20260906",
+      "/private/tmp/hm3d-ai07-20260906/fresh/HelloMine3D-AI07-20260906.app"
+    ],
+    [
+      "/usr/sbin/screencapture",
+      "-x",
+      "-o",
+      "-t",
+      "png",
+      "-l",
+      "26168",
+      "/private/tmp/hm3d-script-evidence-20260906/worlds-desktop.png"
+    ]
+  ],
+  "result": "CAPTURED",
+  "gameplay_acceptance": "NOT_CLAIMED",
+  "package_build_identity": {
+    "platform": "macOS",
+    "configuration": "Release",
+    "source_commit": "31023c6d0a517d2718d51edc0f7aba695f1aa5e1",
+    "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "executable_sha256": "c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424",
+    "file_identity": "/Users/lizi/Desktop/Workspace/HelloMine3D/bin/HelloMine3D: Mach-O 64-bit executable x86_64",
+    "linkage": [
+      "\t/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa (compatibility version 1.0.0, current version 24.0.0)",
+      "\t/System/Library/Frameworks/Carbon.framework/Versions/A/Carbon (compatibility version 2.0.0, current version 170.0.0)",
+      "\t/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit (compatibility version 1.0.0, current version 275.0.0)",
+      "\t/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation (compatibility version 300.0.0, current version 4201.0.0)",
+      "\t/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit (compatibility version 45.0.0, current version 2685.30.107)",
+      "\t/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 4201.0.0)",
+      "\t/System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL (compatibility version 1.0.0, current version 1.0.0)",
+      "\t/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 2000.67.0)",
+      "\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)",
+      "\t/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics (compatibility version 64.0.0, current version 1965.2.3)",
+      "\t/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)"
+    ],
+    "resource_manifest_sha256": "3328baa5771fc997a71c8ea544e2278624ab0441e013daf477951da2b42b538d",
+    "source_tree_required": false,
+    "acceptance": "NOT_RUN",
+    "signed_or_notarized": false
+  },
+  "query_executable_sha256": "afa9f9b931d2d378fea32bb26a7f5cbe278aeae4f754e281165f22a8ab3732c2",
+  "window_query": {
+    "pids": [
+      62510
+    ],
+    "windows": [
+      {
+        "bounds": {
+          "Height": 748,
+          "Width": 1280,
+          "X": 224,
+          "Y": 99
+        },
+        "id": 26168,
+        "owner": "HelloMine3D-AI07-20260906",
+        "pid": 62510,
+        "title": "HelloMine3D"
+      }
+    ]
+  },
+  "window": {
+    "bounds": {
+      "Height": 748,
+      "Width": 1280,
+      "X": 224,
+      "Y": 99
+    },
+    "id": 26168,
+    "owner": "HelloMine3D-AI07-20260906",
+    "pid": 62510,
+    "title": "HelloMine3D"
+  },
+  "capture_started_at_utc": "2026-09-06T05:30:00.821517+00:00",
+  "capture_finished_at_utc": "2026-09-06T05:30:00.982462+00:00",
+  "image": "/private/tmp/hm3d-script-evidence-20260906/worlds-desktop.png",
+  "image_pixels": [
+    2560,
+    1496
+  ],
+  "image_bytes": 580718,
+  "image_sha256": "d0f740a3490e10a1fd32661c536027de99147dc39f939d2e33f7eb14fa9aef8c",
+  "visual_review": "PENDING",
+  "finished_at_utc": "2026-09-06T05:30:00.982973+00:00"
+}

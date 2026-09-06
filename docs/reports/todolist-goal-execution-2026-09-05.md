@@ -802,3 +802,10 @@ Full Goal is not complete.
   and completed with no further game action. Six UI combinations remain
   NOT_RUN. The pending visible-task authorization has received no user reply;
   automatic Goal continuation is not treated as that reply.
+
+- User requested direct script launching/screenshots to eliminate Finder/TextEdit
+  export overhead. Added exact-app macOS window evidence helper and README usage.
+  Desktop capture succeeded in ~0.24s and was visually reviewed; all attempts,
+  including Swift SDK mismatch and sandbox LaunchServices failure, are retained
+  in macos-script-window-20260906-evidence/. No gameplay action or runtime change;
+  independent creation approval and remaining formal acceptance are unchanged.

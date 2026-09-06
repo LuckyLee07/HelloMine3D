@@ -1,0 +1,53 @@
+{
+  "started_at_utc": "2026-09-06T05:28:47.145297+00:00",
+  "platform": "macOS-15.7.3-arm64-arm-64bit",
+  "host_architecture": "arm64",
+  "app": "/private/tmp/hm3d-ai07-20260906/fresh/HelloMine3D-AI07-20260906.app",
+  "bundle_id": "local.hellomine3d.ai07.20260906",
+  "configuration": "Release",
+  "examiner_note": "Script window capture diagnostic; no gameplay input or world creation",
+  "executable_sha256": "c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424",
+  "capture_method": "macOS screencapture of an exact app-owned visible window",
+  "query_source_sha256": "3b5ed91a7e1c55f05575485a1bec7f2c3bc5ba65f01ba2e62af378783f185fa2",
+  "commands": [
+    [
+      "/usr/bin/xcrun",
+      "swiftc",
+      "-module-cache-path",
+      "/Users/lizi/Desktop/Workspace/HelloMine3D/build/macos-window-evidence/module-cache",
+      "/Users/lizi/Desktop/Workspace/HelloMine3D/tools/macos_window_query.swift",
+      "-o",
+      "/Users/lizi/Desktop/Workspace/HelloMine3D/build/macos-window-evidence/query-3b5ed91a7e1c55f0"
+    ]
+  ],
+  "result": "FAIL",
+  "gameplay_acceptance": "NOT_CLAIMED",
+  "package_build_identity": {
+    "platform": "macOS",
+    "configuration": "Release",
+    "source_commit": "31023c6d0a517d2718d51edc0f7aba695f1aa5e1",
+    "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "executable_sha256": "c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424",
+    "file_identity": "/Users/lizi/Desktop/Workspace/HelloMine3D/bin/HelloMine3D: Mach-O 64-bit executable x86_64",
+    "linkage": [
+      "\t/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa (compatibility version 1.0.0, current version 24.0.0)",
+      "\t/System/Library/Frameworks/Carbon.framework/Versions/A/Carbon (compatibility version 2.0.0, current version 170.0.0)",
+      "\t/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit (compatibility version 1.0.0, current version 275.0.0)",
+      "\t/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation (compatibility version 300.0.0, current version 4201.0.0)",
+      "\t/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit (compatibility version 45.0.0, current version 2685.30.107)",
+      "\t/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 4201.0.0)",
+      "\t/System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL (compatibility version 1.0.0, current version 1.0.0)",
+      "\t/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 2000.67.0)",
+      "\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)",
+      "\t/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics (compatibility version 64.0.0, current version 1965.2.3)",
+      "\t/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)"
+    ],
+    "resource_manifest_sha256": "3328baa5771fc997a71c8ea544e2278624ab0441e013daf477951da2b42b538d",
+    "source_tree_required": false,
+    "acceptance": "NOT_RUN",
+    "signed_or_notarized": false
+  },
+  "error": "Command '['/usr/bin/xcrun', 'swiftc', '-module-cache-path', '/Users/lizi/Desktop/Workspace/HelloMine3D/build/macos-window-evidence/module-cache', '/Users/lizi/Desktop/Workspace/HelloMine3D/tools/macos_window_query.swift', '-o', '/Users/lizi/Desktop/Workspace/HelloMine3D/build/macos-window-evidence/query-3b5ed91a7e1c55f0']' returned non-zero exit status 1.",
+  "stderr": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/lib/swift/Swift.swiftmodule/arm64e-apple-macos.swiftinterface:18009:85: error: cannot suppress '~Copyable' on generic parameter 'Wrapped' defined in outer scope\n18007 | #endif\n18008 | #if compiler(>=5.3) && $NonescapableTypes\n18009 | extension Swift.Optional : Swift.Escapable where Wrapped : Swift.Escapable, Wrapped : ~Copyable {\n      |                                                                                     `- error: cannot suppress '~Copyable' on generic parameter 'Wrapped' defined in outer scope\n18010 | }\n18011 | #endif\n\n/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/lib/swift/Swift.swiftmodule/arm64e-apple-macos.swiftinterface:18005:83: error: cannot suppress '~Escapable' on generic parameter 'Wrapped' defined in outer scope\n18003 | #endif\n18004 | #if compiler(>=5.3) && $NonescapableTypes\n18005 | extension Swift.Optional : Swift.Copyable where Wrapped : Swift.Copyable, Wrapped : ~Escapable {\n      |                                                                                   `- error: cannot suppress '~Escapable' on generic parameter 'Wrapped' defined in outer scope\n18006 | }\n18007 | #endif\n\n/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/lib/swift/Swift.swiftmodule/arm64e-apple-macos.swiftinterface:20281:81: error: cannot suppress '~Escapable' on generic parameter 'Success' defined in outer scope\n20279 | #endif\n20280 | #if compiler(>=5.3) && $NonescapableTypes\n20281 | extension Swift.Result : Swift.Copyable where Success : Swift.Copyable, Success : ~Escapable {\n      |                                                                                 `- error: cannot suppress '~Escapable' on generic parameter 'Success' defined in outer scope\n20282 | }\n20283 | #endif\n\n/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/lib/swift/Swift.swiftmodule/arm64e-apple-macos.swiftinterface:13364:35: error: values in generic types are only available in macOS 99.99.0 or newer\n13362 | #else\n13363 | @available(macOS 26.0, iOS 26.0, watchOS 26.0, tvOS 26.0, visionOS 26.0, *)\n13364 | @frozen public struct InlineArray<let count : Swift.Int, Element> : ~Swift.Copyable where Element : ~Copyable {\n      |                                   `- error: values in generic types are only available in macOS 99.99.0 or newer\n13365 |   @usableFromInline\n13366 |   internal let _storage: Builtin.FixedArray<count, Element>\n\n/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/lib/swift/Swift.swiftmodule/arm64e-apple-macos.swiftinterface:20285:83: error: cannot suppress '~Copyable' on generic parameter 'Success' defined in outer scope\n20283 | #endif\n20284 | #if compiler(>=5.3) && $NonescapableTypes\n20285 | extension Swift.Result : Swift.Escapable where Success : Swift.Escapable, Success : ~Copyable {\n      |                                                                                   `- error: cannot suppress '~Copyable' on generic parameter 'Success' defined in outer scope\n20286 | }\n20287 | #endif\n\n/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/lib/swift/Swift.swiftmodule/arm64e-apple-macos.swiftinterface:1:1: error: failed to build module 'Swift'; this SDK is not supported by the compiler (the SDK is built with 'Apple Swift version 6.2 effective-5.10 (swiftlang-6.2.3.3.2 clang-1700.6.3.2)', while this compiler is 'Apple Swift version 6.1.2 effective-5.10 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)'). Please select a toolchain which matches the SDK.\n    1 | // swift-interface-format-version: 1.0\n      | `- error: failed to build module 'Swift'; this SDK is not supported by the compiler (the SDK is built with 'Apple Swift version 6.2 effective-5.10 (swiftlang-6.2.3.3.2 clang-1700.6.3.2)', while this compiler is 'Apple Swift version 6.1.2 effective-5.10 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)'). Please select a toolchain which matches the SDK.\n    2 | // swift-compiler-version: Apple Swift version 6.2 effective-5.10 (swiftlang-6.2.3.3.2 clang-1700.6.3.2)\n    3 | // swift-module-flags: -target arm64e-apple-macosx26.2 -target-variant arm64e-apple-ios26.2-macabi -enable-objc-interop -enable-library-evolution -module-link-name swiftCore -parse-stdlib -swift-version 5 -O -library-level api -enforce-exclusivity=unchecked -target-min-inlining-version min -enable-experimental-concise-pound-file -disable-objc-attr-requires-foundation-module -enable-experimental-feature NoncopyableGenerics2 -enable-experimental-feature SuppressedAssociatedTypes -enable-experimental-feature SE427NoInferenceOnExtension -enable-experimental-feature NonescapableTypes -enable-experimental-feature LifetimeDependence -enable-experimental-feature InoutLifetimeDependence -enable-experimental-feature LifetimeDependenceMutableAccessors -enable-experimental-feature MemberImportVisibility -enable-experimental-feature TypedThrows -enable-experimental-feature Macros -enable-experimental-feature FreestandingMacros -enable-experimental-feature BitwiseCopyable -enable-experimental-feature Extern -enable-experimental-feature AllowUnsafeAttribute -enable-experimental-feature ValueGenerics -enable-experimental-feature AddressableParameters -enable-experimental-feature AddressableTypes -user-module-version 6.2.3.3.2 -module-name Swift\n",
+  "finished_at_utc": "2026-09-06T05:28:54.522967+00:00"
+}

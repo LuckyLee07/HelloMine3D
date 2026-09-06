@@ -365,6 +365,20 @@ with the Apple M1 Pro OpenGL4.1 renderer under desktop permissions. See the
 [launch evidence](docs/reports/ai07-macos-20260906-evidence/script-launch.json).
 Window interaction and gameplay acceptance remain separate checks.
 
+To launch if needed and save an actual game-window PNG with timestamp, package
+identity and SHA256 evidence, use a desktop terminal:
+
+```sh
+python3 tools/macos_window_evidence.py --app "/path/to/HelloMine3D.app" \
+  --configuration Release --launch --output /tmp/hm3d-evidence/frame-001.png
+```
+
+Use a new output name for each capture. Requires Python3, Xcode command-line
+Clang and desktop screen-recording access. Existing app instances are reused;
+multiple matching windows require `--window-id`. The tool fails rather than
+capturing the whole desktop. `CAPTURED` confirms image output, not gameplay
+acceptance. See [verified script evidence](docs/reports/macos-script-window-20260906-evidence/report.md).
+
 On Windows, the maintained default is Visual Studio 2017 with the v141 toolset. Generate the
 project directly with bundled Premake, then build `build/HelloMine3D.sln`. The generated project
 files are written to `build/`, and the executable still outputs to `bin/HelloMine3D.exe`.
