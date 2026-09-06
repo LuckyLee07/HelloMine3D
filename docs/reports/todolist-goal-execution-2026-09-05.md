@@ -809,3 +809,12 @@ Full Goal is not complete.
   including Swift SDK mismatch and sandbox LaunchServices failure, are retained
   in macos-script-window-20260906-evidence/. No gameplay action or runtime change;
   independent creation approval and remaining formal acceptance are unchanged.
+
+- Continuation after c5e5902: re-read authoritative TODO/completion audit against
+  committed recovery/capture evidence. Corrected stale independent-binding and
+  editor-export descriptions in the current ledger and completion audit. Kept
+  the world-creation approval rejection separate from native input capability,
+  package-only isolation and unavailable audible backend. No new gameplay PASS,
+  runtime changes, D2 entry or Windows claim. Previous turn is classified as
+  progress (working capture tool, real image and local commit); this continuation
+  closes documentation inconsistencies rather than repeating failed UI calls.

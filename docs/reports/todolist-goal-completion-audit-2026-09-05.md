@@ -17,14 +17,14 @@ Full commands, failures and artifact paths are in the
 | Stay within initial scope | B7-B9, C4-C11, D3-D8 and Extended remain excluded | No expansion |
 | Preserve main gameplay and save compatibility | World 991, recipe 126, storage 16, backup 19, catalogue 59 and other suites pass in latest layout Xcode Debug/Release gate 20260905143633; earlier gmake and ordinary Debug save/menu/reload observations retain their recorded revisions | Automated compatibility proven within those suites; full normal mainline-to-victory unverified |
 | Execute necessary platform automation | Earlier gmake Debug/Release 13 suites and startup negatives 15 pass at their recorded revisions; latest layout code passes Xcode Debug/Release 13 suites and probes; input repair has its recorded focused regressions | Engineering gates passed; Windows explicitly postponed |
-| Isolated distribution | Current separate QA ZIP8df716f5 at source31023c6 retains runtime0e0c569/c0446b47 and passes106inventory/107exact files; desktop script/open startup reached resource initialization on2026-09-06; sandbox GL failure and prior first-layout AppleDouble failure retained | Package integrity and desktop renderer initialization proven; current independent window binding pending; not proof of blind executor isolation |
+| Isolated distribution | Current separate QA ZIP8df716f5 at source31023c6 retains runtime0e0c569/c0446b47 and passes106inventory/107exact files; desktop script/open startup reached resource initialization on2026-09-06; sandbox GL failure and prior first-layout AppleDouble failure retained | Package integrity and desktop renderer initialization proven; independent menu/Worlds/menu window control recovered with persisted images; direct exact-window script capture verified; not proof of blind executor isolation |
 | Performance / pressure appropriate to changes | D2 diagnostics and nominal/stress 120 seconds each passed at the initial ea7a85d source snapshot; latest layout gate reran comparison-contract checks, not those soak profiles | Short regression only; no new formal six-scene Q1 or 1800-second Q3 claim |
 | AI-01..AI-05 and AI-08 | Implementer observed menu, create/play/save/reopen, crafting and pause input in actual windows; independent AI-01 report recorded; movement/look/held-key checks blocked by tool capability; remaining scenarios not run | AI-01 BLOCKED overall; other formal scenarios NOT_RUN; supplemental observations cannot close them |
 | AI-06 package-only blind 30 minutes | Current executor read source; available task filesystem permits repository reads; no package-only executor provisioned | BLOCKED by isolation; no blind or AI-understandability PASS |
-| AI-07 visual/localization/dynamic/audio matrix | Six language/scale combinations passed form/HUD repair follow-up; ten-digit seed column passed en/zh1.75 and zh0.75 stable-frame follow-up with actual Play; full matrix image coverage remains missing; raw CUA screenshot export through a normal editor is now proven; macOS audio/music factories select dummy backend | Bounded repairs PASS; overall AI-07 BLOCKED, remaining visual matrix NOT_RUN; real audio BLOCKED, captions/logs cannot substitute |
-| Documentation matches code/evidence | Current docs linked to execution/investigation; 98 local links verified; original historical reports unchanged | Current results recorded with limits; layout repair acceptance is bounded and does not close formal scenarios |
+| AI-07 visual/localization/dynamic/audio matrix | Six language/scale combinations passed form/HUD repair follow-up; ten-digit seed column passed en/zh1.75 and zh0.75 stable-frame follow-up with actual Play; full matrix image coverage remains missing; independent menu/Worlds/menu images persisted; direct macOS script capture now replaces editor export; new six-combination execution stopped at an explicit world-creation approval rejection; macOS audio/music factories select dummy backend | Bounded repairs PASS; overall AI-07 BLOCKED, remaining visual matrix NOT_RUN; real audio BLOCKED, captions/logs cannot substitute |
+| Documentation matches code/evidence | Current docs linked to execution/investigation; 98 local links verified; original historical reports unchanged | Current results recorded with limits; 2026-09-06 recovery and script evidence supersede the old binding/export blockers; layout repair acceptance is bounded and does not close formal scenarios |
 | Retain existing edits and bundle | No pre-existing tracked edits at start; no task action deleted bundle; subsequent search could not find original file | Current bundle location unverified; no claim that it is still present |
-| Local submissions only | Batches ea7a85d,6916867,f0e63d2,fb8f275,ffe0684,0e0c569 and31023c6 are local; new2026-09-06 startup evidence is being recorded; no push, release or tag | Proven for this task's actions |
+| Local submissions only | Runtime batches through0e0c569, evidence batches through46c1c24 and script batch c5e5902 are local; 2026-09-06 startup/recovery/capture evidence is committed; no push, release or tag | Proven for this task's actions |
 | Mark Goal complete only after all required acceptance passes | Independent normal-play, package-only blind and real-audio evidence absent | Completion condition not met |
 
 ## Minimum conditions for remaining formal acceptance
@@ -44,6 +44,20 @@ Full commands, failures and artifact paths are in the
 Windows was postponed by the owner. These macOS acceptance gaps remain explicit
 and are not converted into Windows PASS, formal AI PASS, or overall Goal Done.
 
-Screenshot persistence is no longer a tool-capability blocker: see
-[export probe](cua-screenshot-export-20260905-evidence/report.md). It proves
-unchanged byte export only; formal scenario image coverage still needs execution.
+Screenshot persistence and initial independent window binding are no longer
+blockers. See [independent recovery](window-control-recovery-20260906-evidence/report.md)
+and [direct script capture](macos-script-window-20260906-evidence/report.md).
+The script reused the live exact-package window and captured a visually reviewed
+2560×1496 PNG in about0.24seconds. It performs no gameplay inputs. The historical
+[editor export probe](cua-screenshot-export-20260905-evidence/report.md) remains
+valid evidence, but that cumbersome workflow is no longer needed.
+
+The current independent six-combination run is stopped at the
+[world-creation approval rejection](ai07-ui-matrix-20260906-evidence/independent-report.md).
+The reviewer did not accept parent-forwarded original authorization in the
+history-free recovery context. This is distinct from macOS screen-recording
+access and from successful native menu clicks. No denied creation or settings
+change was retried using the new script. A pending request for an explicitly
+scoped independent task has not been answered; an automatic Goal continuation
+is not that answer. Remaining gameplay, isolation and audio gaps still prevent
+Goal completion.
