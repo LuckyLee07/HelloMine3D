@@ -126,24 +126,26 @@ Windows 991/991 results remain historical evidence, not a new execution.
 ## Resume point
 
 Runtime remains0e0c569/c0446b47 with verified Xcode gate20260905143633.
-Startup diagnostics/docs committed710b971; subsequent normal-input diagnostics
-and final independent tool failure are retained in
-`ai07-macos-20260906-evidence/`. QA package identity8df716f5 remains unchanged.
-Normal desktop `open` starts/registers the app, and parent existing-handle
-menu/create/play/pause/save/quit diagnostics worked. Do not treat getApp latency
-as game launch latency or a project permission denial.
+Latest committed diagnostics are4d295e7. QA package8df716f5 is unchanged.
+On owner-requested recovery, normal desktop open relaunched the separate app.
+New independent agent fresh_window_recovery successfully bound its existing
+instance after180910ms and completed main-menu→Worlds→main-menu using two
+normal clicks and three screenshots at04:48:37.655UTC. Window control is now
+observed working in that context. Game remains running at its main menu.
 
-Independent examiner's final getApp begun04:00:50UTC was interrupted after
-1169.5s without a handle. No independent captures or scenario inputs completed
-in this run. Examiner is idle with no outstanding GUI call. Parent normally
-quit the QA app after saving its InputProbe20260906 world. No duplicate launch
-or further same-condition binding retry is scheduled.
+The agent retains the last-known game handle and screenshot bytes; auxiliary
+TextEdit binding was interrupted after325.9s without a save. Image export is
+still incomplete; game menu control recovery remains observed. See window-control-recovery-20260906-evidence/.
+Continue through this working context rather than retrying the old examiner.
+Selected desktop logs show old unknown-conversation approval routing errors
+and an automatic service respawn; attribution between service recovery and
+fresh context is unresolved. No security/approval settings were changed.
 
-Resume independent image scenarios when native binding in the independent
-context can return usable handles; use normal desktop open to launch the
-separate QA package. D2 remains Candidate. Sustained/relative input, native
-restore, strict AI-06 package-only roots and real audio remain unverified.
-Speculative window occupancy is not an approval gate. Full Goal is not complete.
+Previous failed independent image runs remain NOT_RUN; successful menu control
+is not full AI-07. D2 remains Candidate. Sustained/relative input, native restore,
+strict AI-06 package-only roots and actual audio evidence remain outstanding.
+Owner confirmed no concurrent window use; occupancy is not an approval gate.
+Full Goal is not complete.
 
 ## macOS menu cursor repair (implemented; focused regression passed)
 

@@ -1,0 +1,116 @@
+{
+  "observed_at": "2026-09-06T04:43:02.742824+00:00",
+  "scope": "Only old examiner approval routing errors and service respawn entries; unrelated logs not copied",
+  "entries": [
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 628,
+      "text": "2026-09-06T03:18:57.525Z error [electron-message-handler] Received automatic approval review for unknown conversation conversationId=01a06f86-5bba-7ea0-88ea-6ae031e2a985 rendererWebContentsId=1 rendererWindowAppearance=primary rendererWindowFocused=false rendererWindowId=1 rendererWindowVisible=true targetItemId=mcp_elicitation:cua_repl:2"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 635,
+      "text": "2026-09-06T03:19:36.288Z error [electron-message-handler] Received automatic approval review for unknown conversation conversationId=01a06f86-5bba-7ea0-88ea-6ae031e2a985 rendererWebContentsId=1 rendererWindowAppearance=primary rendererWindowFocused=false rendererWindowId=1 rendererWindowVisible=true targetItemId=mcp_elicitation:cua_repl:2"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 655,
+      "text": "2026-09-06T03:19:54.308Z error [electron-message-handler] Received automatic approval review for unknown conversation conversationId=01a06f86-5bba-7ea0-88ea-6ae031e2a985 rendererWebContentsId=1 rendererWindowAppearance=primary rendererWindowFocused=false rendererWindowId=1 rendererWindowVisible=true targetItemId=mcp_elicitation:cua_repl:3"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 657,
+      "text": "2026-09-06T03:19:59.026Z error [electron-message-handler] Received automatic approval review for unknown conversation conversationId=01a06f86-5bba-7ea0-88ea-6ae031e2a985 rendererWebContentsId=1 rendererWindowAppearance=primary rendererWindowFocused=false rendererWindowId=1 rendererWindowVisible=true targetItemId=mcp_elicitation:cua_repl:3"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 777,
+      "text": "2026-09-06T03:23:27.434Z error [electron-message-handler] Received automatic approval review for unknown conversation conversationId=01a06f86-5bba-7ea0-88ea-6ae031e2a985 rendererWebContentsId=1 rendererWindowAppearance=primary rendererWindowFocused=false rendererWindowId=1 rendererWindowVisible=true targetItemId=mcp_elicitation:cua_repl:5"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 778,
+      "text": "2026-09-06T03:23:37.835Z error [electron-message-handler] Received automatic approval review for unknown conversation conversationId=01a06f86-5bba-7ea0-88ea-6ae031e2a985 rendererWebContentsId=1 rendererWindowAppearance=primary rendererWindowFocused=false rendererWindowId=1 rendererWindowVisible=true targetItemId=mcp_elicitation:cua_repl:5"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 841,
+      "text": "2026-09-06T03:27:57.752Z error [electron-message-handler] Received automatic approval review for unknown conversation conversationId=01a06f86-5bba-7ea0-88ea-6ae031e2a985 rendererWebContentsId=1 rendererWindowAppearance=primary rendererWindowFocused=false rendererWindowId=1 rendererWindowVisible=true targetItemId=mcp_elicitation:cua_repl:7"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 843,
+      "text": "2026-09-06T03:28:02.669Z error [electron-message-handler] Received automatic approval review for unknown conversation conversationId=01a06f86-5bba-7ea0-88ea-6ae031e2a985 rendererWebContentsId=1 rendererWindowAppearance=primary rendererWindowFocused=false rendererWindowId=1 rendererWindowVisible=true targetItemId=mcp_elicitation:cua_repl:7"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 854,
+      "text": "2026-09-06T03:28:10.906Z error [electron-message-handler] Received automatic approval review for unknown conversation conversationId=01a06f86-5bba-7ea0-88ea-6ae031e2a985 rendererWebContentsId=1 rendererWindowAppearance=primary rendererWindowFocused=false rendererWindowId=1 rendererWindowVisible=true targetItemId=mcp_elicitation:cua_repl:8"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 858,
+      "text": "2026-09-06T03:28:15.097Z error [electron-message-handler] Received automatic approval review for unknown conversation conversationId=01a06f86-5bba-7ea0-88ea-6ae031e2a985 rendererWebContentsId=1 rendererWindowAppearance=primary rendererWindowFocused=false rendererWindowId=1 rendererWindowVisible=true targetItemId=mcp_elicitation:cua_repl:8"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 1201,
+      "text": "2026-09-06T03:38:33.030Z error [electron-message-handler] Received automatic approval review for unknown conversation conversationId=01a06f86-5bba-7ea0-88ea-6ae031e2a985 rendererWebContentsId=1 rendererWindowAppearance=primary rendererWindowFocused=false rendererWindowId=1 rendererWindowVisible=true targetItemId=mcp_elicitation:cua_repl:10"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 1204,
+      "text": "2026-09-06T03:38:37.156Z error [electron-message-handler] Received automatic approval review for unknown conversation conversationId=01a06f86-5bba-7ea0-88ea-6ae031e2a985 rendererWebContentsId=1 rendererWindowAppearance=primary rendererWindowFocused=false rendererWindowId=1 rendererWindowVisible=true targetItemId=mcp_elicitation:cua_repl:10"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 1232,
+      "text": "2026-09-06T03:39:06.298Z error [electron-message-handler] Received automatic approval review for unknown conversation conversationId=01a06f86-5bba-7ea0-88ea-6ae031e2a985 rendererWebContentsId=1 rendererWindowAppearance=primary rendererWindowFocused=false rendererWindowId=1 rendererWindowVisible=true targetItemId=mcp_elicitation:cua_repl:11"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 1233,
+      "text": "2026-09-06T03:39:09.407Z error [electron-message-handler] Received automatic approval review for unknown conversation conversationId=01a06f86-5bba-7ea0-88ea-6ae031e2a985 rendererWebContentsId=1 rendererWindowAppearance=primary rendererWindowFocused=false rendererWindowId=1 rendererWindowVisible=true targetItemId=mcp_elicitation:cua_repl:11"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 1280,
+      "text": "2026-09-06T03:40:34.652Z error [electron-message-handler] Received automatic approval review for unknown conversation conversationId=01a06f86-5bba-7ea0-88ea-6ae031e2a985 rendererWebContentsId=1 rendererWindowAppearance=primary rendererWindowFocused=false rendererWindowId=1 rendererWindowVisible=true targetItemId=mcp_elicitation:cua_repl:12"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 1281,
+      "text": "2026-09-06T03:40:39.407Z error [electron-message-handler] Received automatic approval review for unknown conversation conversationId=01a06f86-5bba-7ea0-88ea-6ae031e2a985 rendererWebContentsId=1 rendererWindowAppearance=primary rendererWindowFocused=false rendererWindowId=1 rendererWindowVisible=true targetItemId=mcp_elicitation:cua_repl:12"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 1297,
+      "text": "2026-09-06T03:40:48.178Z error [electron-message-handler] Received automatic approval review for unknown conversation conversationId=01a06f86-5bba-7ea0-88ea-6ae031e2a985 rendererWebContentsId=1 rendererWindowAppearance=primary rendererWindowFocused=false rendererWindowId=1 rendererWindowVisible=true targetItemId=mcp_elicitation:cua_repl:13"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 1299,
+      "text": "2026-09-06T03:40:51.823Z error [electron-message-handler] Received automatic approval review for unknown conversation conversationId=01a06f86-5bba-7ea0-88ea-6ae031e2a985 rendererWebContentsId=1 rendererWindowAppearance=primary rendererWindowFocused=false rendererWindowId=1 rendererWindowVisible=true targetItemId=mcp_elicitation:cua_repl:13"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 1591,
+      "text": "2026-09-06T04:01:07.978Z error [electron-message-handler] Received automatic approval review for unknown conversation conversationId=01a06f86-5bba-7ea0-88ea-6ae031e2a985 rendererWebContentsId=1 rendererWindowAppearance=primary rendererWindowFocused=true rendererWindowId=1 rendererWindowVisible=true targetItemId=mcp_elicitation:cua_repl:15"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 1593,
+      "text": "2026-09-06T04:01:14.154Z error [electron-message-handler] Received automatic approval review for unknown conversation conversationId=01a06f86-5bba-7ea0-88ea-6ae031e2a985 rendererWebContentsId=1 rendererWindowAppearance=primary rendererWindowFocused=true rendererWindowId=1 rendererWindowVisible=true targetItemId=mcp_elicitation:cua_repl:15"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 1959,
+      "text": "2026-09-06T04:40:26.169Z info [managed-computer-use-service] Replacing stale managed service processIdentifier=51088 reason=process-exited"
+    },
+    {
+      "file": "codex-desktop-27e1271a-0fe4-4528-a4f8-6f19d0556fce-50975-t0-i1-030316-0.log",
+      "line": 1960,
+      "text": "2026-09-06T04:40:26.170Z info [managed-computer-use-service] Managed service available isRespawn=true processIdentifier=60038"
+    }
+  ]
+}
