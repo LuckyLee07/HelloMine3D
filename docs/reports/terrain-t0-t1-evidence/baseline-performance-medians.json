@@ -1,0 +1,58 @@
+{
+  "steady": {
+    "runs": [
+      {
+        "frame_p95_ms": 13.949,
+        "frame_p99_ms": 15.679,
+        "update_p95_ms": 3.822,
+        "render_p95_ms": 11.182
+      },
+      {
+        "frame_p95_ms": 10.782,
+        "frame_p99_ms": 13.075,
+        "update_p95_ms": 4.631,
+        "render_p95_ms": 7.006
+      },
+      {
+        "frame_p95_ms": 10.261,
+        "frame_p99_ms": 12.307,
+        "update_p95_ms": 3.689,
+        "render_p95_ms": 6.88
+      }
+    ],
+    "median": {
+      "frame_p95_ms": 10.782,
+      "frame_p99_ms": 13.075,
+      "update_p95_ms": 3.822,
+      "render_p95_ms": 7.006
+    }
+  },
+  "streaming": {
+    "runs": [
+      {
+        "frame_p95_ms": 14.41,
+        "frame_p99_ms": 16.186,
+        "update_p95_ms": 10.732,
+        "render_p95_ms": 11.874
+      },
+      {
+        "frame_p95_ms": 14.576,
+        "frame_p99_ms": 16.69,
+        "update_p95_ms": 11.164,
+        "render_p95_ms": 12.254
+      },
+      {
+        "frame_p95_ms": 14.871,
+        "frame_p99_ms": 17.81,
+        "update_p95_ms": 10.977,
+        "render_p95_ms": 12.048
+      }
+    ],
+    "median": {
+      "frame_p95_ms": 14.576,
+      "frame_p99_ms": 16.69,
+      "update_p95_ms": 10.977,
+      "render_p95_ms": 12.048
+    }
+  }
+}

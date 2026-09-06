@@ -48,8 +48,15 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 
 ## 当前批准批次
 
+2026-09-06 新增所有者授权：`T0/T1` 地形基线与基础地貌改善 Goal。以 macOS 完成实现、
+必要回归、干净包、固定条件画面对照和正常步行验收，并本地提交；Windows 专属验证后置。
+范围和退出条件见 [T0/T1 合同](../contracts/terrain-foundation-v5-contract-v1.md)，
+进度见 [执行报告](../reports/terrain-t0-t1-execution-2026-09-06.md)。不扩展到 D2/T2+ 或新渲染系统。
+
 | 批次 | 状态 | 当前结论 |
 | ---- | ---- | -------- |
+| `T0` Terrain Baseline | `Doing` | 冻结种子、四象限/轴线/区块边界采样与旧版兼容快照；采集当前画面和性能，先冻结口径再实现 T1。 |
+| `T1` Terrain Foundation v5 | `Todo` | 新版全有符号坐标基础地貌与连续平原/丘陵/山麓/山脊/谷地；保留 terrain v1–v4，必须完成当前平台验证、窗口证据和本地提交。 |
 | `AL-A0` Latest Architecture Baseline | `Done` | 架构、依赖、性能、验证与 AI 证据身份已冻结；VS2017/v141 Debug/Release 完整门禁和 real window 通过，没有受跟踪 Gameplay/runtime/resource/build input 改动。详见 `docs/reports/architecture-lab-baseline-v1.md`。 |
 | `AL-A1` World Responsibility Map | `Done` | 78 个公开方法已按 3 个 API concept / 9 个 responsibility 分类；public-surface hash 和集合一致性门禁已接入完整 Windows 验证，VS2017/v141 Debug/Release、832/832 世界、80/80 资源、122/122 配方、15/15 启动负例、104 项干净包与 real window 全部 PASS。没有迁移旧调用、增加 Facade wrapper 或开始 AL-A2。 |
 | `AL-A2` Chunk Runtime Boundary | `Done` | 既有 Chunk Update Queue、Mesh Work Planner、单 loader 及 preload/unload 协调已迁入 `ChunkRuntime`；World 公开面、共享锁、预算、save v12 与 unload 语义保持不变，没有引入 B1 Residency 状态机。VS2017/v141 Debug/Release 完整门禁、两轮 832/832 世界和 104 项干净包通过。详见 `docs/reports/architecture-lab-a2-chunk-runtime-report-v1.md`。 |
@@ -70,6 +77,11 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 | `D1` Simulation Phase Scheduler v0 | `Done` | 已证明 Managed Actors、Random-Tick Sections、Furnace/Crusher Block Entities 三条真实 workload 的共同 admission 问题，并实现确定性 64/4/32 item budget、稳定集合 round-robin/FIFO service window 和 copied diagnostics。VS2017 Debug 聚焦 24/24，AL-A5 14/14、B6 12/12、C2 51/51、C3 68/68 回归通过；完整 Debug/Release 门禁均为 WorldRuntime 991/991、Recipe 126/126、Resource Pack 80/80、启动负例 15/15，105 项隔离包 SHA-256 为 `0B34CD34265ED1A4F88FD5833975FD328FB026FCD6B13A0FAFE9710859F1B2F6`。save v12、20 Hz、8 phase barrier 不变；未进入 D2+。详见 `docs/reports/architecture-lab-d1-simulation-phase-scheduler-report-v1.md`。 |
 
 ## 下一候选
+
+2026-09-06 所有者要求的地形/游戏画面文档分析已完成，见
+[HelloMine3D / MiniGame 对照复核与改善方案](../reports/terrain-visual-minigame-comparison-2026-09-06.md)。
+该报告修订了负坐标基础地貌、水系、植被、洞口、材质与三维山体建议，并列出实施依赖和验收方式。
+其中 T0/T1 已由后续 Goal 明确授权并纳入上表；T2+ 和渲染候选仍未批准，不改变下表 D2 状态。
 
 | 批次 | 状态 | 目标 | 进入条件 | 退出边界 |
 | ---- | ---- | ---- | -------- | -------- |

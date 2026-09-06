@@ -32,6 +32,8 @@
 
 #include <FreeImage.h>
 
+#include "TerrainSurvey.h"
+
 #include "../Actor/EnemyRegistry.h"
 #include "../Actor/EnemyPresentation.h"
 #include "../Actor/ItemEntity.h"
@@ -17363,7 +17365,25 @@ int main()
             {{"runtime.food", validFoodDefinitions()}});
 
         const char *focus = std::getenv("HELLOMINE3D_WORLD_SMOKE_FOCUS");
-        if (focus != nullptr && std::string(focus) == "V10A") {
+        if (focus != nullptr && std::string(focus) == "T0-SURVEY") {
+            const char *output = std::getenv("HELLOMINE3D_TERRAIN_SURVEY_DIR");
+            const char *version = std::getenv("HELLOMINE3D_TERRAIN_SURVEY_VERSION");
+            if (output == nullptr || version == nullptr) {
+                throw std::runtime_error("T0-SURVEY requires output directory and version");
+            }
+            setEnv("HELLOMINE3D_SEED", "0");
+            setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+            Config config = makeConfig();
+            Camera camera(config);
+            Player player;
+            World world(camera, config, player,
+                        freshSaveDirectory("t0_survey"), false, 0);
+            const std::size_t count = TerrainSurvey::write(
+                world, output, std::stoi(version));
+            check("T0/survey-complete", count == 463056,
+                  "samples=" + std::to_string(count));
+        }
+        else if (focus != nullptr && std::string(focus) == "V10A") {
             caseGreedyMeshing();
             caseVertexLighting();
             caseSunlightStorage();

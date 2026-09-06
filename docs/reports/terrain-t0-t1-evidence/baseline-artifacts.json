@@ -1,0 +1,26 @@
+{
+  "build/terrain-t0-t1-20260906/baseline-v1/samples.csv": {
+    "bytes": 14444215,
+    "sha256": "7d8697ef110b6c7abebd134173772765d118af026cd22c2d6da712e36743da01"
+  },
+  "build/terrain-t0-t1-20260906/baseline-v2/samples.csv": {
+    "bytes": 14444215,
+    "sha256": "51814ab79fab30fa8b7cad0d7dfe5e48d2605cb2540227d5c37d50d63e31d555"
+  },
+  "build/terrain-t0-t1-20260906/baseline-v3/samples.csv": {
+    "bytes": 14444215,
+    "sha256": "0f08bd3c97b4aebe89138d90664f37ecff6feebfdb0114b32f7feca3c2893c3a"
+  },
+  "build/terrain-t0-t1-20260906/baseline-v4/samples.csv": {
+    "bytes": 14602644,
+    "sha256": "d403429111240351548d22d5256017b79c4f746a9d7db2427fefb7e42b70f1bf"
+  },
+  "bin/HelloMine3DWorldRuntimeSmoke": {
+    "bytes": 7098744,
+    "sha256": "af62d349f9b0bbfa495906b9e970626989e3d266c11aa3a969b9e201ff255bcf"
+  },
+  "build/terrain-t0-t1-20260906/HelloMine3D-T0-v4.app/Contents/Resources/bin/HelloMine3D": {
+    "bytes": 13532488,
+    "sha256": "c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424"
+  }
+}

@@ -1,0 +1,1699 @@
+{
+  "schema": 1,
+  "version": 4,
+  "seeds": {
+    "0": {
+      "surface_fingerprint": "e8c4ff80a5717fdd1af86113252e5df8161fb06a5119627ef6c634f62b5f68c7",
+      "macro": {
+        "samples": 16641,
+        "height_min": 22,
+        "height_max": 176,
+        "height_mean": 80.11477675620455,
+        "height_stddev": 24.13563467219631,
+        "height_unique": 148,
+        "height_63_fraction": 0.35232257676822304,
+        "cap_176_fraction": 0.0007812030527011598,
+        "water_fraction": 0.431704825431164,
+        "slope_max": 4,
+        "slope_p95": 1,
+        "slope_p99": 2,
+        "step_at_most_one_fraction": 0.9640646595757466,
+        "biomes": {
+          "0": 8772,
+          "1": 688,
+          "2": 993,
+          "3": 303,
+          "4": 1429,
+          "5": 4456
+        }
+      },
+      "quadrants": {
+        "++": {
+          "samples": 4096,
+          "height_min": 22,
+          "height_max": 176,
+          "height_mean": 83.49658203125,
+          "height_stddev": 29.936945259035525,
+          "height_unique": 148,
+          "height_63_fraction": 0.0126953125,
+          "cap_176_fraction": 0.001953125,
+          "water_fraction": 0.327880859375,
+          "slope_max": 4,
+          "slope_p95": 2,
+          "slope_p99": 3,
+          "step_at_most_one_fraction": 0.94189453125,
+          "biomes": {
+            "0": 362,
+            "1": 607,
+            "2": 924,
+            "3": 272,
+            "4": 1286,
+            "5": 645
+          }
+        },
+        "-+": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 147,
+          "height_mean": 80.50927734375,
+          "height_stddev": 23.18351784929097,
+          "height_unique": 85,
+          "height_63_fraction": 0.460693359375,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.460693359375,
+          "slope_max": 4,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.966796875,
+          "biomes": {
+            "0": 2690,
+            "1": 18,
+            "2": 9,
+            "3": 5,
+            "5": 1374
+          }
+        },
+        "+-": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 147,
+          "height_mean": 79.349853515625,
+          "height_stddev": 20.960142024554123,
+          "height_unique": 85,
+          "height_63_fraction": 0.421630859375,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.421630859375,
+          "slope_max": 3,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.971435546875,
+          "biomes": {
+            "0": 2601,
+            "1": 46,
+            "2": 46,
+            "3": 20,
+            "4": 122,
+            "5": 1261
+          }
+        },
+        "--": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 148,
+          "height_mean": 76.592529296875,
+          "height_stddev": 20.038713333924907,
+          "height_unique": 84,
+          "height_63_fraction": 0.518798828125,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.518798828125,
+          "slope_max": 3,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.976318359375,
+          "biomes": {
+            "0": 3006,
+            "5": 1090
+          }
+        }
+      },
+      "local": {
+        "samples": 16641,
+        "height_min": 56,
+        "height_max": 65,
+        "height_mean": 62.17793401838832,
+        "height_stddev": 1.6412545706880668,
+        "height_unique": 10,
+        "height_63_fraction": 0.7315065200408629,
+        "cap_176_fraction": 0.0,
+        "water_fraction": 0.9945916711736074,
+        "slope_max": 1,
+        "slope_p95": 1,
+        "slope_p99": 1,
+        "step_at_most_one_fraction": 1.0,
+        "biomes": {
+          "0": 16641
+        }
+      },
+      "boundaries": {
+        "samples": 24600,
+        "height_min": 48,
+        "height_max": 143,
+        "height_mean": 70.95894308943089,
+        "height_stddev": 18.836133901264205,
+        "height_unique": 96,
+        "height_63_fraction": 0.6760569105691057,
+        "cap_176_fraction": 0.0,
+        "water_fraction": 0.7580894308943089,
+        "slope_max": 7,
+        "slope_p95": 1,
+        "slope_p99": 2,
+        "step_at_most_one_fraction": 0.9820325203252033,
+        "biomes": {
+          "0": 20096,
+          "1": 1090,
+          "2": 534,
+          "5": 2880
+        }
+      },
+      "macro_cap_component_samples": 6,
+      "local_cap_component_blocks": 0
+    },
+    "1": {
+      "surface_fingerprint": "9612926ddb71e7e4da010b50f67a890c87c541e73674266ddfcf6bef90678688",
+      "macro": {
+        "samples": 16641,
+        "height_min": 22,
+        "height_max": 176,
+        "height_mean": 80.89652064178836,
+        "height_stddev": 26.653209837624967,
+        "height_unique": 155,
+        "height_63_fraction": 0.3793642209001863,
+        "cap_176_fraction": 0.00516795865633075,
+        "water_fraction": 0.43939667087314466,
+        "slope_max": 5,
+        "slope_p95": 1,
+        "slope_p99": 2,
+        "step_at_most_one_fraction": 0.9611201249924884,
+        "biomes": {
+          "0": 9122,
+          "1": 260,
+          "2": 445,
+          "3": 90,
+          "4": 1788,
+          "5": 4936
+        }
+      },
+      "quadrants": {
+        "++": {
+          "samples": 4096,
+          "height_min": 22,
+          "height_max": 176,
+          "height_mean": 96.855224609375,
+          "height_stddev": 37.594403140735515,
+          "height_unique": 154,
+          "height_63_fraction": 0.00927734375,
+          "cap_176_fraction": 0.02099609375,
+          "water_fraction": 0.244384765625,
+          "slope_max": 5,
+          "slope_p95": 2,
+          "slope_p99": 3,
+          "step_at_most_one_fraction": 0.904541015625,
+          "biomes": {
+            "0": 5,
+            "1": 254,
+            "2": 445,
+            "3": 90,
+            "4": 1318,
+            "5": 1984
+          }
+        },
+        "-+": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 145,
+          "height_mean": 74.04443359375,
+          "height_stddev": 16.339521389854003,
+          "height_unique": 80,
+          "height_63_fraction": 0.477783203125,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.477783203125,
+          "slope_max": 3,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.9853515625,
+          "biomes": {
+            "0": 3049,
+            "1": 3,
+            "4": 220,
+            "5": 824
+          }
+        },
+        "+-": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 148,
+          "height_mean": 77.970703125,
+          "height_stddev": 21.07467009986432,
+          "height_unique": 85,
+          "height_63_fraction": 0.492431640625,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.492431640625,
+          "slope_max": 3,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.9736328125,
+          "biomes": {
+            "0": 2774,
+            "4": 167,
+            "5": 1155
+          }
+        },
+        "--": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 148,
+          "height_mean": 74.684326171875,
+          "height_stddev": 19.232596852085834,
+          "height_unique": 85,
+          "height_63_fraction": 0.5439453125,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.5439453125,
+          "slope_max": 3,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.97998046875,
+          "biomes": {
+            "0": 3214,
+            "1": 3,
+            "4": 7,
+            "5": 872
+          }
+        }
+      },
+      "local": {
+        "samples": 16641,
+        "height_min": 89,
+        "height_max": 150,
+        "height_mean": 115.04326663061114,
+        "height_stddev": 11.706326902126403,
+        "height_unique": 62,
+        "height_63_fraction": 0.0,
+        "cap_176_fraction": 0.0,
+        "water_fraction": 0.0,
+        "slope_max": 3,
+        "slope_p95": 2,
+        "slope_p99": 3,
+        "step_at_most_one_fraction": 0.7926206357790998,
+        "biomes": {
+          "5": 16641
+        }
+      },
+      "boundaries": {
+        "samples": 24600,
+        "height_min": 44,
+        "height_max": 148,
+        "height_mean": 93.01012195121952,
+        "height_stddev": 27.364057548426242,
+        "height_unique": 105,
+        "height_63_fraction": 0.22329268292682927,
+        "cap_176_fraction": 0.0,
+        "water_fraction": 0.2651219512195122,
+        "slope_max": 4,
+        "slope_p95": 1,
+        "slope_p99": 2,
+        "step_at_most_one_fraction": 0.9541056910569106,
+        "biomes": {
+          "0": 5196,
+          "1": 142,
+          "4": 5065,
+          "5": 14197
+        }
+      },
+      "macro_cap_component_samples": 25,
+      "local_cap_component_blocks": 0
+    },
+    "42": {
+      "surface_fingerprint": "d53b97025fd02008820e7bd13793786570f868ae823110af8ac72b9ac41df450",
+      "macro": {
+        "samples": 16641,
+        "height_min": 9,
+        "height_max": 176,
+        "height_mean": 82.85932335797128,
+        "height_stddev": 26.387662571973284,
+        "height_unique": 155,
+        "height_63_fraction": 0.32654287602908477,
+        "cap_176_fraction": 0.005348236283877171,
+        "water_fraction": 0.3828495883660838,
+        "slope_max": 4,
+        "slope_p95": 1,
+        "slope_p99": 2,
+        "step_at_most_one_fraction": 0.9569136470164052,
+        "biomes": {
+          "0": 8090,
+          "1": 643,
+          "2": 1237,
+          "3": 343,
+          "4": 1151,
+          "5": 5177
+        }
+      },
+      "quadrants": {
+        "++": {
+          "samples": 4096,
+          "height_min": 9,
+          "height_max": 176,
+          "height_mean": 94.359130859375,
+          "height_stddev": 34.984988125858635,
+          "height_unique": 154,
+          "height_63_fraction": 0.00927734375,
+          "cap_176_fraction": 0.01953125,
+          "water_fraction": 0.225341796875,
+          "slope_max": 4,
+          "slope_p95": 2,
+          "slope_p99": 3,
+          "step_at_most_one_fraction": 0.91064453125,
+          "biomes": {
+            "0": 12,
+            "1": 594,
+            "2": 1156,
+            "3": 332,
+            "4": 743,
+            "5": 1259
+          }
+        },
+        "-+": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 148,
+          "height_mean": 83.97509765625,
+          "height_stddev": 22.261361762693802,
+          "height_unique": 86,
+          "height_63_fraction": 0.28076171875,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.28076171875,
+          "slope_max": 3,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.961669921875,
+          "biomes": {
+            "0": 2237,
+            "1": 21,
+            "2": 21,
+            "4": 85,
+            "5": 1732
+          }
+        },
+        "+-": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 146,
+          "height_mean": 71.25439453125,
+          "height_stddev": 17.248506225648065,
+          "height_unique": 84,
+          "height_63_fraction": 0.69482421875,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.69482421875,
+          "slope_max": 3,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.986572265625,
+          "biomes": {
+            "0": 3164,
+            "1": 19,
+            "2": 42,
+            "3": 8,
+            "4": 226,
+            "5": 637
+          }
+        },
+        "--": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 147,
+          "height_mean": 82.00390625,
+          "height_stddev": 21.60550476854709,
+          "height_unique": 85,
+          "height_63_fraction": 0.32080078125,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.32080078125,
+          "slope_max": 3,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.96875,
+          "biomes": {
+            "0": 2594,
+            "4": 25,
+            "5": 1477
+          }
+        }
+      },
+      "local": {
+        "samples": 16641,
+        "height_min": 23,
+        "height_max": 79,
+        "height_mean": 59.559040923021456,
+        "height_stddev": 8.163715438586875,
+        "height_unique": 57,
+        "height_63_fraction": 0.7030226548885283,
+        "cap_176_fraction": 0.0,
+        "water_fraction": 0.9559521663361576,
+        "slope_max": 8,
+        "slope_p95": 2,
+        "slope_p99": 4,
+        "step_at_most_one_fraction": 0.9188750676041103,
+        "biomes": {
+          "1": 78,
+          "4": 16563
+        }
+      },
+      "boundaries": {
+        "samples": 24600,
+        "height_min": 23,
+        "height_max": 176,
+        "height_mean": 73.4889837398374,
+        "height_stddev": 26.216488492662673,
+        "height_unique": 154,
+        "height_63_fraction": 0.5320731707317073,
+        "cap_176_fraction": 0.00426829268292683,
+        "water_fraction": 0.683089430894309,
+        "slope_max": 15,
+        "slope_p95": 1,
+        "slope_p99": 3,
+        "step_at_most_one_fraction": 0.9607317073170731,
+        "biomes": {
+          "0": 6788,
+          "4": 12135,
+          "5": 5677
+        }
+      },
+      "macro_cap_component_samples": 18,
+      "local_cap_component_blocks": 0
+    },
+    "424": {
+      "surface_fingerprint": "01eaa593adbfebe601a6a671669c0436520aa2af3bfd15f57e500a8ccbbb03b8",
+      "macro": {
+        "samples": 16641,
+        "height_min": 22,
+        "height_max": 176,
+        "height_mean": 79.37389579953128,
+        "height_stddev": 24.38767774536701,
+        "height_unique": 153,
+        "height_63_fraction": 0.4124151192836969,
+        "cap_176_fraction": 0.0018628688179796887,
+        "water_fraction": 0.4649960939847365,
+        "slope_max": 5,
+        "slope_p95": 1,
+        "slope_p99": 2,
+        "step_at_most_one_fraction": 0.9629829938104681,
+        "biomes": {
+          "0": 9677,
+          "1": 681,
+          "2": 1343,
+          "3": 531,
+          "4": 676,
+          "5": 3733
+        }
+      },
+      "quadrants": {
+        "++": {
+          "samples": 4096,
+          "height_min": 22,
+          "height_max": 176,
+          "height_mean": 92.529296875,
+          "height_stddev": 32.138420122076866,
+          "height_unique": 153,
+          "height_63_fraction": 0.00927734375,
+          "cap_176_fraction": 0.007080078125,
+          "water_fraction": 0.216064453125,
+          "slope_max": 5,
+          "slope_p95": 2,
+          "slope_p99": 3,
+          "step_at_most_one_fraction": 0.922607421875,
+          "biomes": {
+            "0": 431,
+            "1": 567,
+            "2": 1155,
+            "3": 471,
+            "4": 576,
+            "5": 896
+          }
+        },
+        "-+": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 148,
+          "height_mean": 74.31884765625,
+          "height_stddev": 18.57141242904276,
+          "height_unique": 85,
+          "height_63_fraction": 0.5322265625,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.5322265625,
+          "slope_max": 3,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.979248046875,
+          "biomes": {
+            "0": 3061,
+            "1": 52,
+            "2": 69,
+            "3": 10,
+            "4": 45,
+            "5": 859
+          }
+        },
+        "+-": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 149,
+          "height_mean": 78.589111328125,
+          "height_stddev": 21.740240460145554,
+          "height_unique": 86,
+          "height_63_fraction": 0.5048828125,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.5048828125,
+          "slope_max": 3,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.968505859375,
+          "biomes": {
+            "0": 2633,
+            "1": 46,
+            "2": 88,
+            "3": 43,
+            "4": 41,
+            "5": 1245
+          }
+        },
+        "--": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 145,
+          "height_mean": 71.811767578125,
+          "height_stddev": 16.313651426098023,
+          "height_unique": 82,
+          "height_63_fraction": 0.6201171875,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.6201171875,
+          "slope_max": 4,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.98193359375,
+          "biomes": {
+            "0": 3431,
+            "5": 665
+          }
+        }
+      },
+      "local": {
+        "samples": 16641,
+        "height_min": 28,
+        "height_max": 71,
+        "height_mean": 59.556997776575926,
+        "height_stddev": 7.382776547915561,
+        "height_unique": 44,
+        "height_63_fraction": 0.7002583979328165,
+        "cap_176_fraction": 0.0,
+        "water_fraction": 0.9615407727900968,
+        "slope_max": 7,
+        "slope_p95": 1,
+        "slope_p99": 4,
+        "step_at_most_one_fraction": 0.9544498527732709,
+        "biomes": {
+          "0": 16641
+        }
+      },
+      "boundaries": {
+        "samples": 24600,
+        "height_min": 28,
+        "height_max": 148,
+        "height_mean": 77.68792682926829,
+        "height_stddev": 18.815165581640912,
+        "height_unique": 121,
+        "height_63_fraction": 0.19170731707317074,
+        "cap_176_fraction": 0.0,
+        "water_fraction": 0.24394308943089432,
+        "slope_max": 7,
+        "slope_p95": 1,
+        "slope_p99": 2,
+        "step_at_most_one_fraction": 0.9639430894308944,
+        "biomes": {
+          "0": 17811,
+          "1": 678,
+          "2": 1273,
+          "3": 679,
+          "5": 4159
+        }
+      },
+      "macro_cap_component_samples": 7,
+      "local_cap_component_blocks": 0
+    },
+    "325322": {
+      "surface_fingerprint": "bcc184ae32d580904d4762577683f81d64c18b07342affb1248da1327c8c3890",
+      "macro": {
+        "samples": 16641,
+        "height_min": 23,
+        "height_max": 176,
+        "height_mean": 86.92368247100535,
+        "height_stddev": 27.064091723128627,
+        "height_unique": 153,
+        "height_63_fraction": 0.3019049335977405,
+        "cap_176_fraction": 0.002163331530557058,
+        "water_fraction": 0.3533441499909861,
+        "slope_max": 5,
+        "slope_p95": 2,
+        "slope_p99": 2,
+        "step_at_most_one_fraction": 0.9417703263025059,
+        "biomes": {
+          "0": 7260,
+          "1": 486,
+          "2": 929,
+          "3": 316,
+          "4": 947,
+          "5": 6703
+        }
+      },
+      "quadrants": {
+        "++": {
+          "samples": 4096,
+          "height_min": 23,
+          "height_max": 176,
+          "height_mean": 94.801025390625,
+          "height_stddev": 32.795713100597446,
+          "height_unique": 153,
+          "height_63_fraction": 0.00830078125,
+          "cap_176_fraction": 0.0087890625,
+          "water_fraction": 0.214599609375,
+          "slope_max": 5,
+          "slope_p95": 2,
+          "slope_p99": 3,
+          "step_at_most_one_fraction": 0.90380859375,
+          "biomes": {
+            "0": 345,
+            "1": 391,
+            "2": 688,
+            "3": 247,
+            "4": 917,
+            "5": 1508
+          }
+        },
+        "-+": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 148,
+          "height_mean": 89.2841796875,
+          "height_stddev": 24.781551537236574,
+          "height_unique": 86,
+          "height_63_fraction": 0.2802734375,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.2802734375,
+          "slope_max": 3,
+          "slope_p95": 2,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.944091796875,
+          "biomes": {
+            "0": 1907,
+            "1": 20,
+            "2": 28,
+            "3": 22,
+            "5": 2119
+          }
+        },
+        "+-": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 146,
+          "height_mean": 74.526611328125,
+          "height_stddev": 19.38776733680197,
+          "height_unique": 84,
+          "height_63_fraction": 0.59326171875,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.59326171875,
+          "slope_max": 3,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.977294921875,
+          "biomes": {
+            "0": 2935,
+            "1": 48,
+            "2": 187,
+            "3": 37,
+            "4": 18,
+            "5": 871
+          }
+        },
+        "--": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 148,
+          "height_mean": 88.757568359375,
+          "height_stddev": 25.22293309376903,
+          "height_unique": 86,
+          "height_63_fraction": 0.330078125,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.330078125,
+          "slope_max": 4,
+          "slope_p95": 2,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.941650390625,
+          "biomes": {
+            "0": 1986,
+            "3": 1,
+            "5": 2109
+          }
+        }
+      },
+      "local": {
+        "samples": 16641,
+        "height_min": 87,
+        "height_max": 145,
+        "height_mean": 112.23886785649901,
+        "height_stddev": 13.844313422412737,
+        "height_unique": 59,
+        "height_63_fraction": 0.0,
+        "cap_176_fraction": 0.0,
+        "water_fraction": 0.0,
+        "slope_max": 3,
+        "slope_p95": 2,
+        "slope_p99": 3,
+        "step_at_most_one_fraction": 0.8741061234300823,
+        "biomes": {
+          "5": 16641
+        }
+      },
+      "boundaries": {
+        "samples": 24600,
+        "height_min": 56,
+        "height_max": 176,
+        "height_mean": 95.03373983739837,
+        "height_stddev": 27.09286648675073,
+        "height_unique": 118,
+        "height_63_fraction": 0.27552845528455283,
+        "cap_176_fraction": 0.0015040650406504066,
+        "water_fraction": 0.27634146341463417,
+        "slope_max": 10,
+        "slope_p95": 2,
+        "slope_p99": 3,
+        "step_at_most_one_fraction": 0.9286178861788618,
+        "biomes": {
+          "0": 7731,
+          "1": 1143,
+          "2": 719,
+          "3": 69,
+          "4": 969,
+          "5": 13969
+        }
+      },
+      "macro_cap_component_samples": 10,
+      "local_cap_component_blocks": 0
+    },
+    "8675309": {
+      "surface_fingerprint": "3165732ab943ad3ff9be4973cb517b546a567029ad264f137e4d48bc2a5807dd",
+      "macro": {
+        "samples": 16641,
+        "height_min": 12,
+        "height_max": 176,
+        "height_mean": 77.10203713719127,
+        "height_stddev": 22.953933090970573,
+        "height_unique": 155,
+        "height_63_fraction": 0.4595877651583439,
+        "cap_176_fraction": 0.000721110510185686,
+        "water_fraction": 0.5228051198846223,
+        "slope_max": 4,
+        "slope_p95": 1,
+        "slope_p99": 2,
+        "step_at_most_one_fraction": 0.9713959497626344,
+        "biomes": {
+          "0": 9366,
+          "1": 675,
+          "2": 1720,
+          "3": 640,
+          "4": 1057,
+          "5": 3183
+        }
+      },
+      "quadrants": {
+        "++": {
+          "samples": 4096,
+          "height_min": 18,
+          "height_max": 176,
+          "height_mean": 84.498291015625,
+          "height_stddev": 27.779896568010695,
+          "height_unique": 152,
+          "height_63_fraction": 0.010009765625,
+          "cap_176_fraction": 0.001953125,
+          "water_fraction": 0.262451171875,
+          "slope_max": 4,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.9521484375,
+          "biomes": {
+            "0": 42,
+            "1": 581,
+            "2": 1453,
+            "3": 556,
+            "4": 984,
+            "5": 480
+          }
+        },
+        "-+": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 147,
+          "height_mean": 75.052734375,
+          "height_stddev": 20.898848473616756,
+          "height_unique": 85,
+          "height_63_fraction": 0.61279296875,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.61279296875,
+          "slope_max": 4,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.977783203125,
+          "biomes": {
+            "0": 3039,
+            "1": 48,
+            "2": 59,
+            "3": 28,
+            "5": 922
+          }
+        },
+        "+-": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 146,
+          "height_mean": 76.928466796875,
+          "height_stddev": 21.671373917081855,
+          "height_unique": 84,
+          "height_63_fraction": 0.536865234375,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.536865234375,
+          "slope_max": 3,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.968994140625,
+          "biomes": {
+            "0": 2764,
+            "1": 26,
+            "2": 156,
+            "3": 37,
+            "4": 44,
+            "5": 1069
+          }
+        },
+        "--": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 148,
+          "height_mean": 71.25341796875,
+          "height_stddev": 17.295604290414794,
+          "height_unique": 85,
+          "height_63_fraction": 0.6904296875,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.6904296875,
+          "slope_max": 3,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.986083984375,
+          "biomes": {
+            "0": 3424,
+            "1": 2,
+            "2": 1,
+            "4": 22,
+            "5": 647
+          }
+        }
+      },
+      "local": {
+        "samples": 16641,
+        "height_min": 12,
+        "height_max": 64,
+        "height_mean": 55.018808965807345,
+        "height_stddev": 13.264707821016286,
+        "height_unique": 53,
+        "height_63_fraction": 0.665945556156481,
+        "cap_176_fraction": 0.0,
+        "water_fraction": 0.9774652965566973,
+        "slope_max": 10,
+        "slope_p95": 2,
+        "slope_p99": 7,
+        "step_at_most_one_fraction": 0.9388858842617631,
+        "biomes": {
+          "1": 6988,
+          "2": 5431,
+          "4": 4222
+        }
+      },
+      "boundaries": {
+        "samples": 24600,
+        "height_min": 12,
+        "height_max": 148,
+        "height_mean": 72.72260162601626,
+        "height_stddev": 20.758658721861803,
+        "height_unique": 137,
+        "height_63_fraction": 0.4197560975609756,
+        "cap_176_fraction": 0.0,
+        "water_fraction": 0.4998780487804878,
+        "slope_max": 9,
+        "slope_p95": 1,
+        "slope_p99": 2,
+        "step_at_most_one_fraction": 0.9656504065040651,
+        "biomes": {
+          "0": 7667,
+          "1": 2664,
+          "2": 6381,
+          "3": 2721,
+          "4": 1924,
+          "5": 3243
+        }
+      },
+      "macro_cap_component_samples": 4,
+      "local_cap_component_blocks": 0
+    },
+    "20260807": {
+      "surface_fingerprint": "0ec2414bcf979a0397762832b5dd745ba79c2a29a900cb3116d7127717bc3c33",
+      "macro": {
+        "samples": 16641,
+        "height_min": 22,
+        "height_max": 176,
+        "height_mean": 79.78138333032871,
+        "height_stddev": 24.859239173447353,
+        "height_unique": 153,
+        "height_63_fraction": 0.3901207860104561,
+        "cap_176_fraction": 0.0010215732227630552,
+        "water_fraction": 0.46812090619554114,
+        "slope_max": 5,
+        "slope_p95": 1,
+        "slope_p99": 2,
+        "step_at_most_one_fraction": 0.9594375338020552,
+        "biomes": {
+          "0": 8895,
+          "1": 394,
+          "2": 710,
+          "3": 221,
+          "4": 1592,
+          "5": 4829
+        }
+      },
+      "quadrants": {
+        "++": {
+          "samples": 4096,
+          "height_min": 22,
+          "height_max": 176,
+          "height_mean": 86.261474609375,
+          "height_stddev": 33.00248185762742,
+          "height_unique": 152,
+          "height_63_fraction": 0.01171875,
+          "cap_176_fraction": 0.004150390625,
+          "water_fraction": 0.324462890625,
+          "slope_max": 5,
+          "slope_p95": 2,
+          "slope_p99": 3,
+          "step_at_most_one_fraction": 0.919921875,
+          "biomes": {
+            "0": 212,
+            "1": 325,
+            "2": 623,
+            "3": 189,
+            "4": 1544,
+            "5": 1203
+          }
+        },
+        "-+": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 147,
+          "height_mean": 82.6689453125,
+          "height_stddev": 23.644002205504133,
+          "height_unique": 85,
+          "height_63_fraction": 0.443359375,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.443359375,
+          "slope_max": 3,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.95947265625,
+          "biomes": {
+            "0": 2474,
+            "1": 6,
+            "2": 2,
+            "5": 1614
+          }
+        },
+        "+-": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 147,
+          "height_mean": 75.5029296875,
+          "height_stddev": 18.862190169209704,
+          "height_unique": 85,
+          "height_63_fraction": 0.55908203125,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.55908203125,
+          "slope_max": 3,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.97998046875,
+          "biomes": {
+            "0": 2861,
+            "1": 45,
+            "2": 68,
+            "3": 27,
+            "4": 42,
+            "5": 1053
+          }
+        },
+        "--": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 147,
+          "height_mean": 73.791748046875,
+          "height_stddev": 18.178647444760422,
+          "height_unique": 84,
+          "height_63_fraction": 0.55810546875,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.55810546875,
+          "slope_max": 3,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.97900390625,
+          "biomes": {
+            "0": 3244,
+            "5": 852
+          }
+        }
+      },
+      "local": {
+        "samples": 16641,
+        "height_min": 23,
+        "height_max": 63,
+        "height_mean": 56.4120545640286,
+        "height_stddev": 10.943198483284307,
+        "height_unique": 41,
+        "height_63_fraction": 0.6884802595997837,
+        "cap_176_fraction": 0.0,
+        "water_fraction": 1.0,
+        "slope_max": 8,
+        "slope_p95": 2,
+        "slope_p99": 5,
+        "step_at_most_one_fraction": 0.94609698936362,
+        "biomes": {
+          "0": 16641
+        }
+      },
+      "boundaries": {
+        "samples": 24600,
+        "height_min": 23,
+        "height_max": 153,
+        "height_mean": 73.97337398373983,
+        "height_stddev": 21.296796926954556,
+        "height_unique": 131,
+        "height_63_fraction": 0.4376422764227642,
+        "cap_176_fraction": 0.0,
+        "water_fraction": 0.5134552845528455,
+        "slope_max": 8,
+        "slope_p95": 1,
+        "slope_p99": 2,
+        "step_at_most_one_fraction": 0.9792682926829268,
+        "biomes": {
+          "0": 19877,
+          "1": 663,
+          "5": 4060
+        }
+      },
+      "macro_cap_component_samples": 3,
+      "local_cap_component_blocks": 0
+    },
+    "20260809": {
+      "surface_fingerprint": "105c3b10e45675357a5cc69ebaba1517e4b667d34c29a59296309240708b87cc",
+      "macro": {
+        "samples": 16641,
+        "height_min": 13,
+        "height_max": 176,
+        "height_mean": 84.90968090859924,
+        "height_stddev": 27.52185953497369,
+        "height_unique": 156,
+        "height_63_fraction": 0.3322516675680548,
+        "cap_176_fraction": 0.007932215612042546,
+        "water_fraction": 0.36974941409771045,
+        "slope_max": 5,
+        "slope_p95": 1,
+        "slope_p99": 2,
+        "step_at_most_one_fraction": 0.9546902229433327,
+        "biomes": {
+          "0": 8493,
+          "1": 656,
+          "2": 975,
+          "3": 376,
+          "4": 665,
+          "5": 5476
+        }
+      },
+      "quadrants": {
+        "++": {
+          "samples": 4096,
+          "height_min": 13,
+          "height_max": 176,
+          "height_mean": 102.8330078125,
+          "height_stddev": 34.86049827773284,
+          "height_unique": 154,
+          "height_63_fraction": 0.00927734375,
+          "cap_176_fraction": 0.0322265625,
+          "water_fraction": 0.156982421875,
+          "slope_max": 5,
+          "slope_p95": 2,
+          "slope_p99": 3,
+          "step_at_most_one_fraction": 0.895263671875,
+          "biomes": {
+            "0": 102,
+            "1": 525,
+            "2": 781,
+            "3": 281,
+            "4": 660,
+            "5": 1747
+          }
+        },
+        "-+": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 147,
+          "height_mean": 75.472412109375,
+          "height_stddev": 21.152654343682045,
+          "height_unique": 85,
+          "height_63_fraction": 0.623046875,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.623046875,
+          "slope_max": 3,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.979248046875,
+          "biomes": {
+            "0": 2967,
+            "1": 53,
+            "2": 62,
+            "3": 36,
+            "5": 978
+          }
+        },
+        "+-": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 148,
+          "height_mean": 82.40234375,
+          "height_stddev": 22.528296754594784,
+          "height_unique": 86,
+          "height_63_fraction": 0.378173828125,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.378173828125,
+          "slope_max": 3,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.9716796875,
+          "biomes": {
+            "0": 2345,
+            "1": 57,
+            "2": 96,
+            "3": 40,
+            "5": 1558
+          }
+        },
+        "--": {
+          "samples": 4096,
+          "height_min": 63,
+          "height_max": 147,
+          "height_mean": 78.7265625,
+          "height_stddev": 20.29070796177018,
+          "height_unique": 85,
+          "height_63_fraction": 0.331298828125,
+          "cap_176_fraction": 0.0,
+          "water_fraction": 0.331298828125,
+          "slope_max": 3,
+          "slope_p95": 1,
+          "slope_p99": 2,
+          "step_at_most_one_fraction": 0.975341796875,
+          "biomes": {
+            "0": 2998,
+            "4": 2,
+            "5": 1096
+          }
+        }
+      },
+      "local": {
+        "samples": 16641,
+        "height_min": 88,
+        "height_max": 141,
+        "height_mean": 113.42142900066102,
+        "height_stddev": 13.830486105622438,
+        "height_unique": 54,
+        "height_63_fraction": 0.0,
+        "cap_176_fraction": 0.0,
+        "water_fraction": 0.0,
+        "slope_max": 3,
+        "slope_p95": 2,
+        "slope_p99": 2,
+        "step_at_most_one_fraction": 0.7593293672255274,
+        "biomes": {
+          "5": 16641
+        }
+      },
+      "boundaries": {
+        "samples": 24600,
+        "height_min": 16,
+        "height_max": 141,
+        "height_mean": 82.33,
+        "height_stddev": 22.139466525839786,
+        "height_unique": 126,
+        "height_63_fraction": 0.2451219512195122,
+        "cap_176_fraction": 0.0,
+        "water_fraction": 0.2890243902439024,
+        "slope_max": 12,
+        "slope_p95": 2,
+        "slope_p99": 2,
+        "step_at_most_one_fraction": 0.9345528455284553,
+        "biomes": {
+          "0": 8165,
+          "1": 1313,
+          "2": 2874,
+          "3": 2319,
+          "4": 389,
+          "5": 9540
+        }
+      },
+      "macro_cap_component_samples": 40,
+      "local_cap_component_blocks": 0
+    }
+  },
+  "protocol": {
+    "macro_extent": 2048,
+    "macro_step": 32,
+    "local_extent": 64,
+    "boundary_extent": 512
+  },
+  "sample_csv_sha256": "d403429111240351548d22d5256017b79c4f746a9d7db2427fefb7e42b70f1bf",
+  "aggregate": {
+    "samples": 133128,
+    "height_min": 9,
+    "height_max": 176,
+    "height_mean": 81.4951625503275,
+    "height_stddev": 25.716632618457194,
+    "height_unique": 161,
+    "height_63_fraction": 0.3693137431644733,
+    "cap_176_fraction": 0.003124812210804639,
+    "water_fraction": 0.4291208461029986,
+    "slope_max": 5,
+    "slope_p95": 1,
+    "slope_p99": 2,
+    "step_at_most_one_fraction": 0.9590469322757046,
+    "biomes": {
+      "0": 69675,
+      "1": 4483,
+      "2": 8352,
+      "3": 2820,
+      "4": 9305,
+      "5": 38493
+    }
+  },
+  "chunks": [
+    {
+      "seed": 0,
+      "version": 4,
+      "chunk_x": 2,
+      "chunk_z": 2,
+      "block_hash": 11166074549228203998,
+      "coal": 37,
+      "iron": 20,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 0,
+      "version": 4,
+      "chunk_x": -3,
+      "chunk_z": 2,
+      "block_hash": 8315925611321957478,
+      "coal": 42,
+      "iron": 16,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 0,
+      "version": 4,
+      "chunk_x": 2,
+      "chunk_z": -3,
+      "block_hash": 10100585344505026793,
+      "coal": 33,
+      "iron": 22,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 0,
+      "version": 4,
+      "chunk_x": -3,
+      "chunk_z": -3,
+      "block_hash": 1007457772866468120,
+      "coal": 42,
+      "iron": 11,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 1,
+      "version": 4,
+      "chunk_x": 2,
+      "chunk_z": 2,
+      "block_hash": 3826180331162419843,
+      "coal": 70,
+      "iron": 25,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 1,
+      "version": 4,
+      "chunk_x": -3,
+      "chunk_z": 2,
+      "block_hash": 1559365843686599553,
+      "coal": 51,
+      "iron": 32,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 1,
+      "version": 4,
+      "chunk_x": 2,
+      "chunk_z": -3,
+      "block_hash": 12640161784991628295,
+      "coal": 61,
+      "iron": 27,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 1,
+      "version": 4,
+      "chunk_x": -3,
+      "chunk_z": -3,
+      "block_hash": 16590785676432767002,
+      "coal": 65,
+      "iron": 24,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 42,
+      "version": 4,
+      "chunk_x": 2,
+      "chunk_z": 2,
+      "block_hash": 15152135197381523930,
+      "coal": 8,
+      "iron": 18,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 42,
+      "version": 4,
+      "chunk_x": -3,
+      "chunk_z": 2,
+      "block_hash": 1647374864060359212,
+      "coal": 47,
+      "iron": 23,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 42,
+      "version": 4,
+      "chunk_x": 2,
+      "chunk_z": -3,
+      "block_hash": 17507358702826397194,
+      "coal": 31,
+      "iron": 22,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 42,
+      "version": 4,
+      "chunk_x": -3,
+      "chunk_z": -3,
+      "block_hash": 8894787946866885380,
+      "coal": 19,
+      "iron": 21,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 424,
+      "version": 4,
+      "chunk_x": 2,
+      "chunk_z": 2,
+      "block_hash": 8107503598379073843,
+      "coal": 21,
+      "iron": 27,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 424,
+      "version": 4,
+      "chunk_x": -3,
+      "chunk_z": 2,
+      "block_hash": 1644912284564995251,
+      "coal": 52,
+      "iron": 23,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 424,
+      "version": 4,
+      "chunk_x": 2,
+      "chunk_z": -3,
+      "block_hash": 16117624941718654268,
+      "coal": 35,
+      "iron": 21,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 424,
+      "version": 4,
+      "chunk_x": -3,
+      "chunk_z": -3,
+      "block_hash": 7525017763605027423,
+      "coal": 25,
+      "iron": 15,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 20260807,
+      "version": 4,
+      "chunk_x": 2,
+      "chunk_z": 2,
+      "block_hash": 374311550771446222,
+      "coal": 34,
+      "iron": 6,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 20260807,
+      "version": 4,
+      "chunk_x": -3,
+      "chunk_z": 2,
+      "block_hash": 8452468785428759639,
+      "coal": 17,
+      "iron": 17,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 20260807,
+      "version": 4,
+      "chunk_x": 2,
+      "chunk_z": -3,
+      "block_hash": 6644120344749165841,
+      "coal": 43,
+      "iron": 16,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 20260807,
+      "version": 4,
+      "chunk_x": -3,
+      "chunk_z": -3,
+      "block_hash": 18037733119285155383,
+      "coal": 31,
+      "iron": 21,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 20260809,
+      "version": 4,
+      "chunk_x": 2,
+      "chunk_z": 2,
+      "block_hash": 3005037995534691828,
+      "coal": 51,
+      "iron": 27,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 20260809,
+      "version": 4,
+      "chunk_x": -3,
+      "chunk_z": 2,
+      "block_hash": 9394572533461167592,
+      "coal": 50,
+      "iron": 17,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 20260809,
+      "version": 4,
+      "chunk_x": 2,
+      "chunk_z": -3,
+      "block_hash": 7127772121918082873,
+      "coal": 55,
+      "iron": 26,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 20260809,
+      "version": 4,
+      "chunk_x": -3,
+      "chunk_z": -3,
+      "block_hash": 1449372375844264795,
+      "coal": 56,
+      "iron": 25,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 8675309,
+      "version": 4,
+      "chunk_x": 2,
+      "chunk_z": 2,
+      "block_hash": 15288422957852710967,
+      "coal": 20,
+      "iron": 9,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 8675309,
+      "version": 4,
+      "chunk_x": -3,
+      "chunk_z": 2,
+      "block_hash": 5166116982751355374,
+      "coal": 36,
+      "iron": 36,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 8675309,
+      "version": 4,
+      "chunk_x": 2,
+      "chunk_z": -3,
+      "block_hash": 4553169638870350575,
+      "coal": 29,
+      "iron": 11,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 8675309,
+      "version": 4,
+      "chunk_x": -3,
+      "chunk_z": -3,
+      "block_hash": 1014883196762415953,
+      "coal": 41,
+      "iron": 24,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 325322,
+      "version": 4,
+      "chunk_x": 2,
+      "chunk_z": 2,
+      "block_hash": 16945734177480733468,
+      "coal": 67,
+      "iron": 27,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 325322,
+      "version": 4,
+      "chunk_x": -3,
+      "chunk_z": 2,
+      "block_hash": 7204715590433982461,
+      "coal": 60,
+      "iron": 22,
+      "wood": 0,
+      "plants": 0
+    },
+    {
+      "seed": 325322,
+      "version": 4,
+      "chunk_x": 2,
+      "chunk_z": -3,
+      "block_hash": 14103286664757807668,
+      "coal": 58,
+      "iron": 20,
+      "wood": 0,
+      "plants": 1
+    },
+    {
+      "seed": 325322,
+      "version": 4,
+      "chunk_x": -3,
+      "chunk_z": -3,
+      "block_hash": 10169273859337789884,
+      "coal": 67,
+      "iron": 25,
+      "wood": 0,
+      "plants": 0
+    }
+  ],
+  "timings": [
+    {
+      "seed": 0.0,
+      "version": 4.0,
+      "survey_ms": 346.809416,
+      "generation_ms": 16.1755
+    },
+    {
+      "seed": 1.0,
+      "version": 4.0,
+      "survey_ms": 363.962458,
+      "generation_ms": 25.837334
+    },
+    {
+      "seed": 42.0,
+      "version": 4.0,
+      "survey_ms": 335.80325,
+      "generation_ms": 15.744792
+    },
+    {
+      "seed": 424.0,
+      "version": 4.0,
+      "survey_ms": 340.896875,
+      "generation_ms": 16.212416
+    },
+    {
+      "seed": 20260807.0,
+      "version": 4.0,
+      "survey_ms": 354.062417,
+      "generation_ms": 16.146958
+    },
+    {
+      "seed": 20260809.0,
+      "version": 4.0,
+      "survey_ms": 369.232541,
+      "generation_ms": 26.747292
+    },
+    {
+      "seed": 8675309.0,
+      "version": 4.0,
+      "survey_ms": 360.449833,
+      "generation_ms": 15.806458
+    },
+    {
+      "seed": 325322.0,
+      "version": 4.0,
+      "survey_ms": 486.325167,
+      "generation_ms": 41.497709
+    }
+  ]
+}

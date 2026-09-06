@@ -363,7 +363,8 @@ project(project_name)
 project "HelloMine3DWorldRuntimeSmoke"
     configure_game_logic_target()
     files(project_source_patterns())
-    files { source_dir .. "/Tests/WorldRuntimeSmokeMain.cpp" }
+    files { source_dir .. "/Tests/WorldRuntimeSmokeMain.cpp",
+            source_dir .. "/Tests/TerrainSurvey.h" }
     links {
         "freeimage",
         "libjpeg",

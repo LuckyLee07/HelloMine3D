@@ -1,0 +1,9 @@
+{
+  "generation_ms_32_chunks": [
+    174.16845899999998,
+    156.695083,
+    153.183207
+  ],
+  "median_ms": 156.695083,
+  "protocol": "8 seeds x 4 chunks, only generator duration; excludes CSV and hashing"
+}
