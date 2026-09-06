@@ -1,0 +1,14 @@
+[
+  {
+    "utc": "2026-09-06T05:13:51.335Z",
+    "action": "click Single Player",
+    "point": [
+      640,
+      311
+    ]
+  },
+  {
+    "utc": "2026-09-06T05:14:10.556Z",
+    "action": "Name click 410,197; super+a; typeText AI07Fresh20260906; Seed click 817,199; super+a; typeText 1234567890; Difficulty click 659,247"
+  }
+]

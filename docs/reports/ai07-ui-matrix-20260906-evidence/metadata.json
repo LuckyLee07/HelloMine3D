@@ -1,0 +1,25 @@
+[
+  {
+    "name": "creation-approval-blocked",
+    "lang": "en-US",
+    "scale": null,
+    "scene": "Worlds create form before approved creation",
+    "startUTC": "2026-09-06T05:14:55.389Z",
+    "endUTC": "2026-09-06T05:14:55.910Z",
+    "windowPixels": [
+      1280,
+      748
+    ],
+    "contentPixels": [
+      1280,
+      720
+    ],
+    "bytes": 77694,
+    "crc32": "746f0fa2",
+    "path": "/private/tmp/hm3d-ai07-20260906/ui-matrix/images/creation-approval-blocked.jpg",
+    "sha256": "7f2cc3278d08bad1dc329b9e3140e27542379ac1b31dcead0706209d77a06942",
+    "format": "JPEG",
+    "verified": true,
+    "retained_path": "images/creation-approval-blocked.jpg"
+  }
+]

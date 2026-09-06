@@ -793,3 +793,12 @@ Full Goal is not complete.
   already observed main-menu Quit; CUA returned App quit. The separately
   created InputProbe world was saved before quit, and the original user app
   was not targeted. Independent persisted-image scenarios remain NOT_RUN.
+
+- The creation-review failure screenshot is now persisted unchanged (77694
+  bytes, CRC32 746f0fa2, SHA2567f2cc327...). Parent verified all hashes and
+  visually opened the image showing the still-open difficulty dropdown with
+  Normal selected. Exact capture times and input sequence are retained in
+  ai07-ui-matrix-20260906-evidence/. Examiner closed its saved editor document
+  and completed with no further game action. Six UI combinations remain
+  NOT_RUN. The pending visible-task authorization has received no user reply;
+  automatic Goal continuation is not treated as that reply.
