@@ -9,11 +9,12 @@ from analyze_terrain_survey import analyze
 
 ROOT = Path(__file__).resolve().parents[1]
 GOLDEN = ROOT / 'tools/fixtures/terrain/t0-v1-v4.json'
+FOUNDATION_GOLDEN = ROOT / 'tools/fixtures/terrain/t1-v5.json'
 
 
-def legacy_errors(summaries, golden):
+def identity_errors(summaries, golden, versions):
     errors = []
-    for version in range(1, 5):
+    for version in versions:
         actual = summaries[str(version)]
         expected = golden['versions'][str(version)]
         hashes = {k: s['surface_fingerprint'] for k, s in actual['seeds'].items()}
@@ -22,6 +23,10 @@ def legacy_errors(summaries, golden):
         if actual['chunks'] != expected['chunks']:
             errors.append(f'v{version}: generated block/metadata/entity drift')
     return errors
+
+
+def legacy_errors(summaries, golden):
+    return identity_errors(summaries, golden, range(1, 5))
 
 
 def foundation_errors(data, baseline):
@@ -74,6 +79,16 @@ def self_test():
     broken = copy.deepcopy(summaries)
     broken['1']['seeds']['0']['surface_fingerprint'] = '0' * 64
     assert legacy_errors(broken, fixture) == ['v1: surface output drift']
+    foundation = json.loads(FOUNDATION_GOLDEN.read_text())
+    frozen = foundation['versions']['5']
+    current = {'5': {'version': 5, 'seeds': {
+        seed: {'surface_fingerprint': digest}
+        for seed, digest in frozen['surface_fingerprints'].items()},
+        'chunks': copy.deepcopy(frozen['chunks'])}}
+    assert not identity_errors(current, foundation, (5,))
+    current['5']['chunks'][0]['block_hash'] ^= 1
+    assert identity_errors(current, foundation, (5,)) == [
+        'v5: generated block/metadata/entity drift']
     baseline = json.loads((ROOT / 'docs/reports/terrain-t0-t1-evidence/baseline-v4-summary.json').read_text())
     errors = foundation_errors(baseline, baseline)
     assert 'expected terrain v5' in errors
@@ -97,9 +112,11 @@ def main():
         summaries = {str(v): analyze(args.survey_root / f'v{v}') for v in range(1, 6)}
         baseline = json.loads((ROOT / 'docs/reports/terrain-t0-t1-evidence/baseline-v4-summary.json').read_text())
         errors = legacy_errors(summaries, json.loads(GOLDEN.read_text()))
+        errors += identity_errors(summaries,
+                                  json.loads(FOUNDATION_GOLDEN.read_text()), (5,))
         errors += foundation_errors(summaries['5'], baseline)
         result = {'schema': 1, 'result': 'FAIL' if errors else 'PASS', 'errors': errors,
-                  'scope': 'statistical gates and v1-v4 generated snapshots; not gameplay'}
+                  'scope': 'statistical gates and v1-v5 generated snapshots; not gameplay'}
         (args.survey_root / 'validation.json').write_text(json.dumps(result, indent=2) + '\n')
         print(json.dumps(result, indent=2))
         return bool(errors)

@@ -1,0 +1,103 @@
+{
+  "started_at_utc": "2026-09-06T08:26:01.089929+00:00",
+  "platform": "macOS-15.7.3-arm64-arm-64bit",
+  "host_architecture": "arm64",
+  "app": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/HelloMine3D-T0-v4.app",
+  "bundle_id": "local.hellomine3d.macos-goal",
+  "configuration": "Release",
+  "examiner_note": "Casual seed 20260807 normal spawn faces ocean sandy shore unlike v5 forest slope; paused",
+  "executable_sha256": "c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424",
+  "capture_method": "macOS screencapture of an exact app-owned visible window",
+  "query_source_sha256": "a447a196be34e2e9e4b5390bceabf671711de90e13cb33465c71171ff292a6eb",
+  "commands": [
+    [
+      "/Users/lizi/Desktop/Workspace/HelloMine3D/build/macos-window-evidence/query-a447a196be34e2e9",
+      "local.hellomine3d.macos-goal",
+      "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/HelloMine3D-T0-v4.app"
+    ],
+    [
+      "/usr/sbin/screencapture",
+      "-x",
+      "-o",
+      "-t",
+      "png",
+      "-l",
+      "27533",
+      "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/normal-acceptance/t0-03-start.png"
+    ]
+  ],
+  "result": "CAPTURED",
+  "gameplay_acceptance": "NOT_CLAIMED",
+  "package_build_identity": {
+    "platform": "macOS",
+    "configuration": "Release",
+    "source_commit": "bb83a7d43ea62446e2839516ad6396b1b3b50ac7",
+    "tracked_diff_sha256": "3da8c9c4173a626905d9534927f2e28e37a88152d3ccda25eaa9dc9676cf92ac",
+    "executable_sha256": "c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424",
+    "file_identity": "/Users/lizi/Desktop/Workspace/HelloMine3D/bin/HelloMine3D: Mach-O 64-bit executable x86_64",
+    "linkage": [
+      "\t/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa (compatibility version 1.0.0, current version 24.0.0)",
+      "\t/System/Library/Frameworks/Carbon.framework/Versions/A/Carbon (compatibility version 2.0.0, current version 170.0.0)",
+      "\t/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit (compatibility version 1.0.0, current version 275.0.0)",
+      "\t/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation (compatibility version 300.0.0, current version 4201.0.0)",
+      "\t/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit (compatibility version 45.0.0, current version 2685.30.107)",
+      "\t/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 4201.0.0)",
+      "\t/System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL (compatibility version 1.0.0, current version 1.0.0)",
+      "\t/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 2000.67.0)",
+      "\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)",
+      "\t/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics (compatibility version 64.0.0, current version 1965.2.3)",
+      "\t/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)"
+    ],
+    "resource_manifest_sha256": "3328baa5771fc997a71c8ea544e2278624ab0441e013daf477951da2b42b538d",
+    "source_tree_required": false,
+    "acceptance": "NOT_RUN",
+    "signed_or_notarized": false
+  },
+  "query_executable_sha256": "0b7d35afbd52bab5aa50e89fccb0805c884521ed19fcb2a5af5cc6a10e33bea1",
+  "window_query": {
+    "pids": [
+      91623
+    ],
+    "windows": [
+      {
+        "bounds": {
+          "Height": 748,
+          "Width": 1280,
+          "X": 224,
+          "Y": 101
+        },
+        "executable": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/HelloMine3D-T0-v4.app/Contents/Resources/bin/HelloMine3D",
+        "id": 27533,
+        "matched_by": "executable_path",
+        "owner": "HelloMine3D-T0-v4",
+        "pid": 91623,
+        "title": "HelloMine3D"
+      }
+    ]
+  },
+  "window": {
+    "bounds": {
+      "Height": 748,
+      "Width": 1280,
+      "X": 224,
+      "Y": 101
+    },
+    "executable": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/HelloMine3D-T0-v4.app/Contents/Resources/bin/HelloMine3D",
+    "id": 27533,
+    "matched_by": "executable_path",
+    "owner": "HelloMine3D-T0-v4",
+    "pid": 91623,
+    "title": "HelloMine3D"
+  },
+  "capture_started_at_utc": "2026-09-06T08:26:01.167441+00:00",
+  "capture_finished_at_utc": "2026-09-06T08:26:01.328353+00:00",
+  "image": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/normal-acceptance/t0-03-start.png",
+  "image_pixels": [
+    2560,
+    1496
+  ],
+  "image_bytes": 1728812,
+  "image_sha256": "e2ec17d16bd581fb544a0a43bd81311c046707e8ad341848ed98bd56228ad5c5",
+  "visual_review": "PENDING",
+  "finished_at_utc": "2026-09-06T08:26:01.329579+00:00"
+}

@@ -1,0 +1,54 @@
+{
+  "source_commit": "850dd85969dce85fc8c533c451cda6ade12dd7b6",
+  "binary_sha256": "994e435dca2be29e8097cae03d204d978781e45b08cdaa77068967ca99736f77",
+  "binary": "/Users/lizi/Desktop/Workspace/HelloMine3D/bin/HelloMine3DWorldRuntimeSmoke",
+  "configuration": "Release",
+  "platform": "macOS x86_64",
+  "runs": [
+    {
+      "version": 1,
+      "exit_code": 0,
+      "environment": {
+        "HELLOMINE3D_WORLD_SMOKE_FOCUS": "T0-SURVEY",
+        "HELLOMINE3D_TERRAIN_SURVEY_VERSION": "1",
+        "HELLOMINE3D_TERRAIN_SURVEY_DIR": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/qualified-survey/v1"
+      }
+    },
+    {
+      "version": 2,
+      "exit_code": 0,
+      "environment": {
+        "HELLOMINE3D_WORLD_SMOKE_FOCUS": "T0-SURVEY",
+        "HELLOMINE3D_TERRAIN_SURVEY_VERSION": "2",
+        "HELLOMINE3D_TERRAIN_SURVEY_DIR": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/qualified-survey/v2"
+      }
+    },
+    {
+      "version": 3,
+      "exit_code": 0,
+      "environment": {
+        "HELLOMINE3D_WORLD_SMOKE_FOCUS": "T0-SURVEY",
+        "HELLOMINE3D_TERRAIN_SURVEY_VERSION": "3",
+        "HELLOMINE3D_TERRAIN_SURVEY_DIR": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/qualified-survey/v3"
+      }
+    },
+    {
+      "version": 4,
+      "exit_code": 0,
+      "environment": {
+        "HELLOMINE3D_WORLD_SMOKE_FOCUS": "T0-SURVEY",
+        "HELLOMINE3D_TERRAIN_SURVEY_VERSION": "4",
+        "HELLOMINE3D_TERRAIN_SURVEY_DIR": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/qualified-survey/v4"
+      }
+    },
+    {
+      "version": 5,
+      "exit_code": 0,
+      "environment": {
+        "HELLOMINE3D_WORLD_SMOKE_FOCUS": "T0-SURVEY",
+        "HELLOMINE3D_TERRAIN_SURVEY_VERSION": "5",
+        "HELLOMINE3D_TERRAIN_SURVEY_DIR": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/qualified-survey/v5"
+      }
+    }
+  ]
+}

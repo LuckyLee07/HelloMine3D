@@ -21,13 +21,19 @@ persistence, diagnostics and packaging layers have been rebuilt.
 
 | | |
 | --- | --- |
-| **Source** | 308 files, ~81.5k lines of C++ (including test sources) |
+| **Source** | 311 files, ~82.0k lines of C++ (including test sources) |
 | **Automated checks** | 991 world-runtime · 126 recipe · 80 resource-pack · 15 startup-negative — recorded Windows D1 Debug and Release gate |
 | **Test executables** | 13 |
-| **Persisted formats** | save `v12`, terrain `v4`, settings `v8` — every one migrates from `v1` |
+| **Persisted formats** | save `v12`, terrain `v5`, settings `v8` — legacy terrain identities and saved edits are preserved |
 | **Performance gates** | 6 versioned scenes with baseline/repeat comparison, bounded stage timings, 2 × 1800 s soak |
 | **Distribution** | 105-file self-contained package, verified from an isolated root |
 | **Platforms** | Windows (VS2017 / v141, primary) · macOS (historical Xcode/native ThreadSanitizer evidence; new runtime scope is milestone-specific) |
+
+The 2026-09-06 T0/T1 terrain run adds macOS Debug/Release evidence with `1014/1014`
+world-runtime checks, a 106-file clean Release package, and fixed terrain/performance
+comparisons. Normal-input acceptance is tracked separately in the
+[T0/T1 report](docs/reports/terrain-t0-t1-execution-2026-09-06.md); the Windows counts
+above remain the recorded D1 results.
 
 ---
 

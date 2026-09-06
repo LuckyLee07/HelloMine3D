@@ -18,6 +18,10 @@ SCENES = {
     'mountain': ('1024 140 1024', '0 0 0'),
     'steady': ('256 90 256', '0 0 0'),
     'streaming': ('256 90 256', '0 0 0'),
+    # Supplemental v5 landform views. These do not replace the frozen T0
+    # comparison locations or contribute to their performance measurements.
+    'ridge-foot': ('-480 121 -480', '0 0 0'),
+    'ridge-crest': ('-480 161 -640', '0 90 0'),
 }
 
 

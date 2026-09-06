@@ -43,3 +43,7 @@ Crusher-only Mechanical Topology；C3 聚焦 `68/68`、双配置完整门禁 `98
 2026-09-05 Goal 正在调查 D2 进入条件、补充待执行验收和修正文档一致性；实现授权以真实
 远距离 workload 证明 D1 budget 不足为条件，范围不自动扩展到后续候选。
 详见 [执行记录](../reports/todolist-goal-execution-2026-09-05.md)。
+
+2026-09-06 T0/T1 地形 Goal 已完成 v5 实现、旧版指纹兼容、macOS 双配置 1014 项世界检查及
+固定画面/性能采集；独立正常创建/保存重开已记录，持续步行/采集受阻，T1 Goal 未完成；不推导完整 AI-01..AI-08 结论。
+详见 [T0/T1 执行报告](../reports/terrain-t0-t1-execution-2026-09-06.md)。

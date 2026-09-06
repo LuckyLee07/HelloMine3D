@@ -1,0 +1,118 @@
+{
+  "qualified-survey/frozen-output-validation.log": {
+    "sha256": "ff0ba42c37ef597005915a34360a97d66c7ba6cb17a82b55b419d1ce893173f9",
+    "bytes": 166
+  },
+  "qualified-survey/identity.json": {
+    "sha256": "5e7a977aec07e4a10a5e250ab2f5bfa98588a1c1a198a7b1065796b9dca1db05",
+    "bytes": 1949
+  },
+  "qualified-survey/v1/chunks.csv": {
+    "sha256": "d1a625a6f6e1cf68461725ffbed0372a9d14c7d4e1b795990c4cc7fc66b29613",
+    "bytes": 1429
+  },
+  "qualified-survey/v1/samples.csv": {
+    "sha256": "7d8697ef110b6c7abebd134173772765d118af026cd22c2d6da712e36743da01",
+    "bytes": 14444215
+  },
+  "qualified-survey/v1/summary.json": {
+    "sha256": "1f3adfd5f1f8e1d309970adb2b2566d0fb10526cade8ae54d56b925ad95d2f8a",
+    "bytes": 42238
+  },
+  "qualified-survey/v1/timings.csv": {
+    "sha256": "b0a5e99eb1a26b45215b42f1c6118b50a0b5a86cae5c629ac2374b07aa1677e1",
+    "bytes": 258
+  },
+  "qualified-survey/v1.log": {
+    "sha256": "f17a3dcba6493599016283fc48b1ba76056af8d1ac71ae218159580aac76385a",
+    "bytes": 263
+  },
+  "qualified-survey/v2/chunks.csv": {
+    "sha256": "e73a09376540cbca90c2311fbc7500ea86180f9afefbafce2fd904ac82026483",
+    "bytes": 1429
+  },
+  "qualified-survey/v2/samples.csv": {
+    "sha256": "51814ab79fab30fa8b7cad0d7dfe5e48d2605cb2540227d5c37d50d63e31d555",
+    "bytes": 14444215
+  },
+  "qualified-survey/v2/summary.json": {
+    "sha256": "82ab5c92bcf7306541864fb550a9305a45a40d1ca3a13dd5dde5122204c15a56",
+    "bytes": 42242
+  },
+  "qualified-survey/v2/timings.csv": {
+    "sha256": "4257a70b9cd4c4ff09870bf7466759e2c3d3e454d3b4ebad516ba881d10b7f5f",
+    "bytes": 262
+  },
+  "qualified-survey/v2.log": {
+    "sha256": "f17a3dcba6493599016283fc48b1ba76056af8d1ac71ae218159580aac76385a",
+    "bytes": 263
+  },
+  "qualified-survey/v3/chunks.csv": {
+    "sha256": "9da4c2ca353239056b19e94c7bdd90c1ef4e8bb62774248e44b9183a20f8d361",
+    "bytes": 1429
+  },
+  "qualified-survey/v3/samples.csv": {
+    "sha256": "0f08bd3c97b4aebe89138d90664f37ecff6feebfdb0114b32f7feca3c2893c3a",
+    "bytes": 14444215
+  },
+  "qualified-survey/v3/summary.json": {
+    "sha256": "6c24fbf780eb9139d98a3c684c12c85d3dee502ada18f3167586093820a8ff69",
+    "bytes": 42240
+  },
+  "qualified-survey/v3/timings.csv": {
+    "sha256": "901c6311d41447f4caf2b0db724c330a6002d2a27d4a8bb2f11f6697561e5ee4",
+    "bytes": 260
+  },
+  "qualified-survey/v3.log": {
+    "sha256": "f17a3dcba6493599016283fc48b1ba76056af8d1ac71ae218159580aac76385a",
+    "bytes": 263
+  },
+  "qualified-survey/v4/chunks.csv": {
+    "sha256": "e3b207721774c6798cb28e5821e13c6a7a5785e6a9d31c6b0d5227b0a49995b9",
+    "bytes": 1430
+  },
+  "qualified-survey/v4/samples.csv": {
+    "sha256": "d403429111240351548d22d5256017b79c4f746a9d7db2427fefb7e42b70f1bf",
+    "bytes": 14602644
+  },
+  "qualified-survey/v4/summary.json": {
+    "sha256": "4491c4ce19f57db0e255ca3ee8e64cfeff6c8235de2b561465d1fcbdfb1b024c",
+    "bytes": 44631
+  },
+  "qualified-survey/v4/timings.csv": {
+    "sha256": "6c1f09e25027c6e318b47e698d8b6802200c6a22aa3aec74b6b5b25fef0f850d",
+    "bytes": 260
+  },
+  "qualified-survey/v4.log": {
+    "sha256": "f17a3dcba6493599016283fc48b1ba76056af8d1ac71ae218159580aac76385a",
+    "bytes": 263
+  },
+  "qualified-survey/v5/chunks.csv": {
+    "sha256": "abcf235f4685537ef455302844a7f0eed950ac5f74b3a4f4594b7317fd10494e",
+    "bytes": 1441
+  },
+  "qualified-survey/v5/samples.csv": {
+    "sha256": "3c90bb987b919e17110a6d33a9e084845682a7b136d7cc3a3a880ec6f78f16ba",
+    "bytes": 14486599
+  },
+  "qualified-survey/v5/summary.json": {
+    "sha256": "d46ff46144ac6f5bd00f2babfc23baa3d2dd4f2be1a099aafbd64e20a579e7f4",
+    "bytes": 45169
+  },
+  "qualified-survey/v5/timings.csv": {
+    "sha256": "0ab56c81ce608992425c59b538ff72f5d64f34e98257b2d7504c785457f0860c",
+    "bytes": 259
+  },
+  "qualified-survey/v5.log": {
+    "sha256": "f17a3dcba6493599016283fc48b1ba76056af8d1ac71ae218159580aac76385a",
+    "bytes": 263
+  },
+  "qualified-survey/validation.json": {
+    "sha256": "d69df4190ad9d968169f7f864fb5893db7e89f890882f64d7d438c273aa6f0ca",
+    "bytes": 130
+  },
+  "qualified-survey/validation.log": {
+    "sha256": "eb499ed22c1f56cc1b00360b6f8036017a224ba08bd28f064004cceb2204c335",
+    "bytes": 130
+  }
+}

@@ -5,13 +5,24 @@
     153.183207
   ],
   "v5_generation_ms": [
+    93.15354199999999,
+    91.27304000000001,
+    94.45370700000001
+  ],
+  "baseline_median_ms": 156.695083,
+  "v5_median_ms": 93.15354199999999,
+  "ratio": 0.5944892476300612,
+  "gate_ratio_max": 1.5,
+  "result": "PASS",
+  "earlier_v5_generation_ms": [
     94.42166800000001,
     93.463417,
     92.57037200000002
   ],
-  "baseline_median_ms": 156.695083,
-  "v5_median_ms": 93.463417,
-  "ratio": 0.5964668144692198,
-  "gate_ratio_max": 1.5,
-  "result": "PASS"
+  "v5_binary_sha256": "994e435dca2be29e8097cae03d204d978781e45b08cdaa77068967ca99736f77",
+  "v5_run_directories": [
+    "qualified-survey/v5",
+    "qualified-v5-r2",
+    "qualified-v5-r3"
+  ]
 }

@@ -1,0 +1,71 @@
+[
+  {
+    "package": "T1-v5",
+    "path": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/HelloMine3D-T1-v5.app/Contents/Resources/bin/saves/world-9e31237560c43cd4fd5b990c0b411bf7/world.meta",
+    "sha256": "8f5f825d0109cea2bf0af53babe8bbf5273a1fe434b0bb4394c68eb4b89f5544",
+    "summary": [
+      "version 12",
+      "world_id world-9e31237560c43cd4fd5b990c0b411bf7",
+      "world_name \"T1 Normal 20260807\"",
+      "seed 20260807",
+      "spawn -391.5 73 -391.5",
+      "world_time 449",
+      "terrain_generation_version 5",
+      "difficulty_id 1",
+      "player_position -408.700012 73 -391.700012",
+      "player_rotation 0 0 0",
+      "player_health 2",
+      "inventory_slot 0 0 0",
+      "inventory_slot 0 0 0",
+      "inventory_slot 0 0 0",
+      "inventory_slot 0 0 0",
+      "inventory_slot 0 0 0"
+    ]
+  },
+  {
+    "package": "T1-v5",
+    "path": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/HelloMine3D-T1-v5.app/Contents/Resources/bin/saves/world-3c68a9bed2ba4787c4f03218a57a0bcc/world.meta",
+    "sha256": "167eac6887165f8617fe95baa189fc3d5400f8f838e250e689cffefa5c73d986",
+    "summary": [
+      "version 12",
+      "world_id world-3c68a9bed2ba4787c4f03218a57a0bcc",
+      "world_name \"T1 Casual 20260807\"",
+      "seed 20260807",
+      "spawn -391.5 73 -391.5",
+      "world_time 369",
+      "terrain_generation_version 5",
+      "difficulty_id 0",
+      "player_position -391.5 73 -391.5",
+      "player_rotation 0 0 0",
+      "player_health 8",
+      "inventory_slot 0 0 0",
+      "inventory_slot 0 0 0",
+      "inventory_slot 0 0 0",
+      "inventory_slot 0 0 0",
+      "inventory_slot 0 0 0"
+    ]
+  },
+  {
+    "package": "T0-v4",
+    "path": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/HelloMine3D-T0-v4.app/Contents/Resources/bin/saves/world-9e312375428a5fb4addfaf63727d0c4b/world.meta",
+    "sha256": "8bd9e2bda6b74451cc338e63efc645607c1d846673a1d561e6e31b3feb87f12a",
+    "summary": [
+      "version 12",
+      "world_id world-9e312375428a5fb4addfaf63727d0c4b",
+      "world_name \"T0 Casual 20260807\"",
+      "seed 20260807",
+      "spawn 168.5 71 264.5",
+      "world_time 135",
+      "terrain_generation_version 4",
+      "difficulty_id 0",
+      "player_position 168.5 71 264.5",
+      "player_rotation 0 0 0",
+      "player_health 20",
+      "inventory_slot 0 0 0",
+      "inventory_slot 0 0 0",
+      "inventory_slot 0 0 0",
+      "inventory_slot 0 0 0",
+      "inventory_slot 0 0 0"
+    ]
+  }
+]

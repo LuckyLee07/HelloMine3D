@@ -1,0 +1,262 @@
+[
+  {
+    "result": "CAPTURED",
+    "image": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/normal-acceptance/t0-01-menu.png",
+    "image_sha256": "1d9b947009c37805482afcbb776bcafd61fcdd6e6eb2893bc7d84b9e3007ff4b",
+    "image_pixels": [
+      2560,
+      1496
+    ],
+    "capture_started_at_utc": "2026-09-06T08:24:12.713230+00:00",
+    "executable_sha256": "c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424",
+    "error": null,
+    "window": {
+      "bounds": {
+        "Height": 748,
+        "Width": 1280,
+        "X": 224,
+        "Y": 101
+      },
+      "executable": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/HelloMine3D-T0-v4.app/Contents/Resources/bin/HelloMine3D",
+      "id": 27533,
+      "matched_by": "executable_path",
+      "owner": "HelloMine3D-T0-v4",
+      "pid": 91623,
+      "title": "HelloMine3D"
+    },
+    "record": "t0-01-menu.json"
+  },
+  {
+    "result": "CAPTURED",
+    "image": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/normal-acceptance/t0-02-created.png",
+    "image_sha256": "5b7eab9b5e394880d8bd2c7d59389d30a29fb962bbbdf7213fd05e621da345b9",
+    "image_pixels": [
+      2560,
+      1496
+    ],
+    "capture_started_at_utc": "2026-09-06T08:25:31.646036+00:00",
+    "executable_sha256": "c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424",
+    "error": null,
+    "window": {
+      "bounds": {
+        "Height": 748,
+        "Width": 1280,
+        "X": 224,
+        "Y": 101
+      },
+      "executable": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/HelloMine3D-T0-v4.app/Contents/Resources/bin/HelloMine3D",
+      "id": 27533,
+      "matched_by": "executable_path",
+      "owner": "HelloMine3D-T0-v4",
+      "pid": 91623,
+      "title": "HelloMine3D"
+    },
+    "record": "t0-02-created.json"
+  },
+  {
+    "result": "CAPTURED",
+    "image": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/normal-acceptance/t0-03-start.png",
+    "image_sha256": "e2ec17d16bd581fb544a0a43bd81311c046707e8ad341848ed98bd56228ad5c5",
+    "image_pixels": [
+      2560,
+      1496
+    ],
+    "capture_started_at_utc": "2026-09-06T08:26:01.167441+00:00",
+    "executable_sha256": "c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424",
+    "error": null,
+    "window": {
+      "bounds": {
+        "Height": 748,
+        "Width": 1280,
+        "X": 224,
+        "Y": 101
+      },
+      "executable": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/HelloMine3D-T0-v4.app/Contents/Resources/bin/HelloMine3D",
+      "id": 27533,
+      "matched_by": "executable_path",
+      "owner": "HelloMine3D-T0-v4",
+      "pid": 91623,
+      "title": "HelloMine3D"
+    },
+    "record": "t0-03-start.json"
+  },
+  {
+    "result": "CAPTURED",
+    "image": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/normal-acceptance/t0-04-after-input.png",
+    "image_sha256": "859c0e869c96bb017e52fc9f901d70b742eb05413693a8dc67be089502b4ca6e",
+    "image_pixels": [
+      2560,
+      1496
+    ],
+    "capture_started_at_utc": "2026-09-06T08:26:41.084576+00:00",
+    "executable_sha256": "c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424",
+    "error": null,
+    "window": {
+      "bounds": {
+        "Height": 748,
+        "Width": 1280,
+        "X": 224,
+        "Y": 101
+      },
+      "executable": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/HelloMine3D-T0-v4.app/Contents/Resources/bin/HelloMine3D",
+      "id": 27533,
+      "matched_by": "executable_path",
+      "owner": "HelloMine3D-T0-v4",
+      "pid": 91623,
+      "title": "HelloMine3D"
+    },
+    "record": "t0-04-after-input.json"
+  },
+  {
+    "result": "CAPTURED",
+    "image": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/normal-acceptance/t0-05-reopened.png",
+    "image_sha256": "be0f195f28fd090bb6e52f866acacb95ec2a2b247a2413b34347ee9b6dd97c5a",
+    "image_pixels": [
+      2560,
+      1496
+    ],
+    "capture_started_at_utc": "2026-09-06T08:28:05.057893+00:00",
+    "executable_sha256": "c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424",
+    "error": null,
+    "window": {
+      "bounds": {
+        "Height": 748,
+        "Width": 1280,
+        "X": 224,
+        "Y": 101
+      },
+      "executable": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/HelloMine3D-T0-v4.app/Contents/Resources/bin/HelloMine3D",
+      "id": 27533,
+      "matched_by": "executable_path",
+      "owner": "HelloMine3D-T0-v4",
+      "pid": 91623,
+      "title": "HelloMine3D"
+    },
+    "record": "t0-05-reopened.json"
+  },
+  {
+    "result": "FAIL",
+    "image": null,
+    "image_sha256": null,
+    "image_pixels": null,
+    "capture_started_at_utc": null,
+    "executable_sha256": "221f50c5aa4669ea8a54ab8fa8f121bede39d58b2fa967307bd1224d119997c7",
+    "error": "Expected exactly one visible window of this app; use --window-id if needed. No desktop fallback.",
+    "window": null,
+    "record": "t1-01-menu.json"
+  },
+  {
+    "result": "FAIL",
+    "image": null,
+    "image_sha256": null,
+    "image_pixels": null,
+    "capture_started_at_utc": null,
+    "executable_sha256": "221f50c5aa4669ea8a54ab8fa8f121bede39d58b2fa967307bd1224d119997c7",
+    "error": "Expected exactly one visible window of this app; use --window-id if needed. No desktop fallback.",
+    "window": null,
+    "record": "t1-02-create.json"
+  },
+  {
+    "result": "FAIL",
+    "image": null,
+    "image_sha256": null,
+    "image_pixels": null,
+    "capture_started_at_utc": null,
+    "executable_sha256": "221f50c5aa4669ea8a54ab8fa8f121bede39d58b2fa967307bd1224d119997c7",
+    "error": "Expected exactly one visible window of this app; use --window-id if needed. No desktop fallback.",
+    "window": null,
+    "record": "t1-03-casual-start.json"
+  },
+  {
+    "result": "FAIL",
+    "image": null,
+    "image_sha256": null,
+    "image_pixels": null,
+    "capture_started_at_utc": null,
+    "executable_sha256": "221f50c5aa4669ea8a54ab8fa8f121bede39d58b2fa967307bd1224d119997c7",
+    "error": "Expected exactly one visible window of this app; use --window-id if needed. No desktop fallback.",
+    "window": null,
+    "record": "t1-04-after-w16-space.json"
+  },
+  {
+    "result": "CAPTURED",
+    "image": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/normal-acceptance/t1-05-after-d25.png",
+    "image_sha256": "8d2d69a6a1d5ed46b77e2c8d5d0082241916982f954f0b22e5d4cff4765f3b28",
+    "image_pixels": [
+      2560,
+      1496
+    ],
+    "capture_started_at_utc": "2026-09-06T08:22:19.743605+00:00",
+    "executable_sha256": "221f50c5aa4669ea8a54ab8fa8f121bede39d58b2fa967307bd1224d119997c7",
+    "error": null,
+    "window": {
+      "bounds": {
+        "Height": 748,
+        "Width": 1280,
+        "X": 224,
+        "Y": 101
+      },
+      "executable": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/HelloMine3D-T1-v5.app/Contents/Resources/bin/HelloMine3D",
+      "id": 27406,
+      "matched_by": "executable_path",
+      "owner": "HelloMine3D-T1-v5",
+      "pid": 90498,
+      "title": "HelloMine3D"
+    },
+    "record": "t1-05-after-d25.json"
+  },
+  {
+    "result": "CAPTURED",
+    "image": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/normal-acceptance/t1-06-before-save.png",
+    "image_sha256": "19b5dad384c38f9f6bce3d0531ecc6b54aa6d282ebf74cf08c58b5c6bae28363",
+    "image_pixels": [
+      2560,
+      1496
+    ],
+    "capture_started_at_utc": "2026-09-06T08:22:50.637833+00:00",
+    "executable_sha256": "221f50c5aa4669ea8a54ab8fa8f121bede39d58b2fa967307bd1224d119997c7",
+    "error": null,
+    "window": {
+      "bounds": {
+        "Height": 748,
+        "Width": 1280,
+        "X": 224,
+        "Y": 101
+      },
+      "executable": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/HelloMine3D-T1-v5.app/Contents/Resources/bin/HelloMine3D",
+      "id": 27406,
+      "matched_by": "executable_path",
+      "owner": "HelloMine3D-T1-v5",
+      "pid": 90498,
+      "title": "HelloMine3D"
+    },
+    "record": "t1-06-before-save.json"
+  },
+  {
+    "result": "CAPTURED",
+    "image": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/normal-acceptance/t1-07-reopened.png",
+    "image_sha256": "1bd77327705adda76b38c7979018f8c8f8fc6aa9f583e723705455d104841fd7",
+    "image_pixels": [
+      2560,
+      1496
+    ],
+    "capture_started_at_utc": "2026-09-06T08:23:42.099979+00:00",
+    "executable_sha256": "221f50c5aa4669ea8a54ab8fa8f121bede39d58b2fa967307bd1224d119997c7",
+    "error": null,
+    "window": {
+      "bounds": {
+        "Height": 748,
+        "Width": 1280,
+        "X": 224,
+        "Y": 101
+      },
+      "executable": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/HelloMine3D-T1-v5.app/Contents/Resources/bin/HelloMine3D",
+      "id": 27406,
+      "matched_by": "executable_path",
+      "owner": "HelloMine3D-T1-v5",
+      "pid": 90498,
+      "title": "HelloMine3D"
+    },
+    "record": "t1-07-reopened.json"
+  }
+]

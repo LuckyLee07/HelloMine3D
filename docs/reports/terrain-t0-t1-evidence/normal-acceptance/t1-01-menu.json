@@ -1,0 +1,53 @@
+{
+  "started_at_utc": "2026-09-06T08:15:53.418225+00:00",
+  "platform": "macOS-15.7.3-arm64-arm-64bit",
+  "host_architecture": "arm64",
+  "app": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/HelloMine3D-T1-v5.app",
+  "bundle_id": "local.hellomine3d.macos-goal",
+  "configuration": "Release",
+  "examiner_note": "Independent normal acceptance initial menu; no gameplay overrides",
+  "executable_sha256": "221f50c5aa4669ea8a54ab8fa8f121bede39d58b2fa967307bd1224d119997c7",
+  "capture_method": "macOS screencapture of an exact app-owned visible window",
+  "query_source_sha256": "a3bee1cd5485c65aedd3c4b80d63c54a67f6d86a1109284e9e9d0113910d1318",
+  "commands": [
+    [
+      "/Users/lizi/Desktop/Workspace/HelloMine3D/build/macos-window-evidence/query-a3bee1cd5485c65a",
+      "local.hellomine3d.macos-goal",
+      "/Users/lizi/Desktop/Workspace/HelloMine3D/build/terrain-t0-t1-20260906/HelloMine3D-T1-v5.app"
+    ]
+  ],
+  "result": "FAIL",
+  "gameplay_acceptance": "NOT_CLAIMED",
+  "package_build_identity": {
+    "platform": "macOS",
+    "configuration": "Release",
+    "source_commit": "850dd85969dce85fc8c533c451cda6ade12dd7b6",
+    "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "executable_sha256": "221f50c5aa4669ea8a54ab8fa8f121bede39d58b2fa967307bd1224d119997c7",
+    "file_identity": "/Users/lizi/Desktop/Workspace/HelloMine3D/bin/HelloMine3D: Mach-O 64-bit executable x86_64",
+    "linkage": [
+      "\t/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa (compatibility version 1.0.0, current version 24.0.0)",
+      "\t/System/Library/Frameworks/Carbon.framework/Versions/A/Carbon (compatibility version 2.0.0, current version 170.0.0)",
+      "\t/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit (compatibility version 1.0.0, current version 275.0.0)",
+      "\t/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation (compatibility version 300.0.0, current version 4201.0.0)",
+      "\t/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit (compatibility version 45.0.0, current version 2685.30.107)",
+      "\t/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 4201.0.0)",
+      "\t/System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL (compatibility version 1.0.0, current version 1.0.0)",
+      "\t/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 2000.67.0)",
+      "\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)",
+      "\t/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics (compatibility version 64.0.0, current version 1965.2.3)",
+      "\t/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)"
+    ],
+    "resource_manifest_sha256": "3328baa5771fc997a71c8ea544e2278624ab0441e013daf477951da2b42b538d",
+    "source_tree_required": false,
+    "acceptance": "NOT_RUN",
+    "signed_or_notarized": false
+  },
+  "query_executable_sha256": "afa9f9b931d2d378fea32bb26a7f5cbe278aeae4f754e281165f22a8ab3732c2",
+  "window_query": {
+    "pids": [],
+    "windows": []
+  },
+  "error": "Expected exactly one visible window of this app; use --window-id if needed. No desktop fallback.",
+  "finished_at_utc": "2026-09-06T08:16:08.497194+00:00"
+}

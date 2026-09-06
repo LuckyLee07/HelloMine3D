@@ -1,0 +1,294 @@
+{
+  "schema": 1,
+  "result": "PASS",
+  "errors": [],
+  "scope": "fixed developer diagnostics; update includes upload and other main-thread work",
+  "scenes": {
+    "steady": {
+      "baseline": {
+        "runs": [
+          {
+            "frame_p95_ms": 13.949,
+            "frame_p99_ms": 15.679,
+            "update_p95_ms": 3.822,
+            "render_p95_ms": 11.182,
+            "measured_frames": 3515,
+            "mesh_rebuilds_during_capture": 770,
+            "mesh_cumulative_delta_ms": 1003.1400000000001,
+            "mesh_delta_per_frame_p95_ms": 2.8199999999999363,
+            "resident_buffer_max_bytes": 44239288,
+            "cpu_ready_p95": 6,
+            "cpu_ready_max": 9,
+            "last_mesh_dirty_sections": 447,
+            "last_gpu_buffered_sections": 1470,
+            "capture_directory": "build/terrain-t0-t1-20260906/baseline-steady",
+            "package_sha256": "c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424",
+            "position": "256 90 256"
+          },
+          {
+            "frame_p95_ms": 10.782,
+            "frame_p99_ms": 13.075,
+            "update_p95_ms": 4.631,
+            "render_p95_ms": 7.006,
+            "measured_frames": 3890,
+            "mesh_rebuilds_during_capture": 789,
+            "mesh_cumulative_delta_ms": 1113.9799999999998,
+            "mesh_delta_per_frame_p95_ms": 2.9099999999998545,
+            "resident_buffer_max_bytes": 44239376,
+            "cpu_ready_p95": 6,
+            "cpu_ready_max": 7,
+            "last_mesh_dirty_sections": 447,
+            "last_gpu_buffered_sections": 1470,
+            "capture_directory": "build/terrain-t0-t1-20260906/baseline-steady-r2",
+            "package_sha256": "c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424",
+            "position": "256 90 256"
+          },
+          {
+            "frame_p95_ms": 10.261,
+            "frame_p99_ms": 12.307,
+            "update_p95_ms": 3.689,
+            "render_p95_ms": 6.88,
+            "measured_frames": 3922,
+            "mesh_rebuilds_during_capture": 403,
+            "mesh_cumulative_delta_ms": 503.04999999999995,
+            "mesh_delta_per_frame_p95_ms": 0,
+            "resident_buffer_max_bytes": 44239288,
+            "cpu_ready_p95": 6,
+            "cpu_ready_max": 8,
+            "last_mesh_dirty_sections": 447,
+            "last_gpu_buffered_sections": 1470,
+            "capture_directory": "build/terrain-t0-t1-20260906/baseline-steady-r3",
+            "package_sha256": "c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424",
+            "position": "256 90 256"
+          }
+        ],
+        "median": {
+          "frame_p95_ms": 10.782,
+          "frame_p99_ms": 13.075,
+          "update_p95_ms": 3.822,
+          "render_p95_ms": 7.006,
+          "resident_buffer_max_bytes": 44239288,
+          "cpu_ready_p95": 6,
+          "mesh_cumulative_delta_ms": 1003.1400000000001,
+          "mesh_rebuilds_during_capture": 770
+        }
+      },
+      "v5": {
+        "runs": [
+          {
+            "frame_p95_ms": 13.003,
+            "frame_p99_ms": 13.766,
+            "update_p95_ms": 2.333,
+            "render_p95_ms": 11.156,
+            "measured_frames": 3594,
+            "mesh_rebuilds_during_capture": 0,
+            "mesh_cumulative_delta_ms": 0,
+            "mesh_delta_per_frame_p95_ms": 0,
+            "resident_buffer_max_bytes": 28447200,
+            "cpu_ready_p95": 0,
+            "cpu_ready_max": 0,
+            "last_mesh_dirty_sections": 364,
+            "last_gpu_buffered_sections": 1243,
+            "capture_directory": "build/terrain-t0-t1-20260906/v5-steady",
+            "package_sha256": "221f50c5aa4669ea8a54ab8fa8f121bede39d58b2fa967307bd1224d119997c7",
+            "position": "256 90 256"
+          },
+          {
+            "frame_p95_ms": 12.704,
+            "frame_p99_ms": 13.555,
+            "update_p95_ms": 2.537,
+            "render_p95_ms": 10.875,
+            "measured_frames": 3650,
+            "mesh_rebuilds_during_capture": 0,
+            "mesh_cumulative_delta_ms": 0,
+            "mesh_delta_per_frame_p95_ms": 0,
+            "resident_buffer_max_bytes": 28447200,
+            "cpu_ready_p95": 0,
+            "cpu_ready_max": 0,
+            "last_mesh_dirty_sections": 364,
+            "last_gpu_buffered_sections": 1243,
+            "capture_directory": "build/terrain-t0-t1-20260906/v5-steady-r2",
+            "package_sha256": "221f50c5aa4669ea8a54ab8fa8f121bede39d58b2fa967307bd1224d119997c7",
+            "position": "256 90 256"
+          },
+          {
+            "frame_p95_ms": 12.684,
+            "frame_p99_ms": 13.474,
+            "update_p95_ms": 2.42,
+            "render_p95_ms": 10.956,
+            "measured_frames": 3666,
+            "mesh_rebuilds_during_capture": 0,
+            "mesh_cumulative_delta_ms": 0,
+            "mesh_delta_per_frame_p95_ms": 0,
+            "resident_buffer_max_bytes": 28447200,
+            "cpu_ready_p95": 0,
+            "cpu_ready_max": 0,
+            "last_mesh_dirty_sections": 364,
+            "last_gpu_buffered_sections": 1243,
+            "capture_directory": "build/terrain-t0-t1-20260906/v5-steady-r3",
+            "package_sha256": "221f50c5aa4669ea8a54ab8fa8f121bede39d58b2fa967307bd1224d119997c7",
+            "position": "256 90 256"
+          }
+        ],
+        "median": {
+          "frame_p95_ms": 12.704,
+          "frame_p99_ms": 13.555,
+          "update_p95_ms": 2.42,
+          "render_p95_ms": 10.956,
+          "resident_buffer_max_bytes": 28447200,
+          "cpu_ready_p95": 0,
+          "mesh_cumulative_delta_ms": 0,
+          "mesh_rebuilds_during_capture": 0
+        }
+      },
+      "limits": {
+        "frame_p95_ms": 14.9384,
+        "frame_p99_ms": 17.689999999999998,
+        "update_p95_ms": 5.2775
+      }
+    },
+    "streaming": {
+      "baseline": {
+        "runs": [
+          {
+            "frame_p95_ms": 14.41,
+            "frame_p99_ms": 16.186,
+            "update_p95_ms": 10.732,
+            "render_p95_ms": 11.874,
+            "measured_frames": 3448,
+            "mesh_rebuilds_during_capture": 2481,
+            "mesh_cumulative_delta_ms": 3282.7400000000002,
+            "mesh_delta_per_frame_p95_ms": 5.610000000000127,
+            "resident_buffer_max_bytes": 40154248,
+            "cpu_ready_p95": 15,
+            "cpu_ready_max": 27,
+            "last_mesh_dirty_sections": 392,
+            "last_gpu_buffered_sections": 1430,
+            "capture_directory": "build/terrain-t0-t1-20260906/baseline-streaming",
+            "package_sha256": "c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424",
+            "position": "256 90 256"
+          },
+          {
+            "frame_p95_ms": 14.576,
+            "frame_p99_ms": 16.69,
+            "update_p95_ms": 11.164,
+            "render_p95_ms": 12.254,
+            "measured_frames": 3561,
+            "mesh_rebuilds_during_capture": 2781,
+            "mesh_cumulative_delta_ms": 2698.9,
+            "mesh_delta_per_frame_p95_ms": 4.9099999999998545,
+            "resident_buffer_max_bytes": 40154248,
+            "cpu_ready_p95": 15,
+            "cpu_ready_max": 18,
+            "last_mesh_dirty_sections": 392,
+            "last_gpu_buffered_sections": 1430,
+            "capture_directory": "build/terrain-t0-t1-20260906/baseline-streaming-r2",
+            "package_sha256": "c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424",
+            "position": "256 90 256"
+          },
+          {
+            "frame_p95_ms": 14.871,
+            "frame_p99_ms": 17.81,
+            "update_p95_ms": 10.977,
+            "render_p95_ms": 12.048,
+            "measured_frames": 3680,
+            "mesh_rebuilds_during_capture": 2427,
+            "mesh_cumulative_delta_ms": 2900.06,
+            "mesh_delta_per_frame_p95_ms": 5.25,
+            "resident_buffer_max_bytes": 40154248,
+            "cpu_ready_p95": 15,
+            "cpu_ready_max": 19,
+            "last_mesh_dirty_sections": 392,
+            "last_gpu_buffered_sections": 1430,
+            "capture_directory": "build/terrain-t0-t1-20260906/baseline-streaming-r3",
+            "package_sha256": "c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424",
+            "position": "256 90 256"
+          }
+        ],
+        "median": {
+          "frame_p95_ms": 14.576,
+          "frame_p99_ms": 16.69,
+          "update_p95_ms": 10.977,
+          "render_p95_ms": 12.048,
+          "resident_buffer_max_bytes": 40154248,
+          "cpu_ready_p95": 15,
+          "mesh_cumulative_delta_ms": 2900.06,
+          "mesh_rebuilds_during_capture": 2481
+        }
+      },
+      "v5": {
+        "runs": [
+          {
+            "frame_p95_ms": 13.894,
+            "frame_p99_ms": 16.187,
+            "update_p95_ms": 10.748,
+            "render_p95_ms": 11.502,
+            "measured_frames": 3571,
+            "mesh_rebuilds_during_capture": 2839,
+            "mesh_cumulative_delta_ms": 2676.03,
+            "mesh_delta_per_frame_p95_ms": 4.809999999999945,
+            "resident_buffer_max_bytes": 28495848,
+            "cpu_ready_p95": 3,
+            "cpu_ready_max": 9,
+            "last_mesh_dirty_sections": 371,
+            "last_gpu_buffered_sections": 1285,
+            "capture_directory": "build/terrain-t0-t1-20260906/v5-streaming",
+            "package_sha256": "221f50c5aa4669ea8a54ab8fa8f121bede39d58b2fa967307bd1224d119997c7",
+            "position": "256 90 256"
+          },
+          {
+            "frame_p95_ms": 13.71,
+            "frame_p99_ms": 15.591,
+            "update_p95_ms": 10.333,
+            "render_p95_ms": 11.525,
+            "measured_frames": 3592,
+            "mesh_rebuilds_during_capture": 2802,
+            "mesh_cumulative_delta_ms": 2782.65,
+            "mesh_delta_per_frame_p95_ms": 4.839999999999918,
+            "resident_buffer_max_bytes": 28495848,
+            "cpu_ready_p95": 3,
+            "cpu_ready_max": 9,
+            "last_mesh_dirty_sections": 371,
+            "last_gpu_buffered_sections": 1285,
+            "capture_directory": "build/terrain-t0-t1-20260906/v5-streaming-r2",
+            "package_sha256": "221f50c5aa4669ea8a54ab8fa8f121bede39d58b2fa967307bd1224d119997c7",
+            "position": "256 90 256"
+          },
+          {
+            "frame_p95_ms": 12.475,
+            "frame_p99_ms": 13.642,
+            "update_p95_ms": 4.738,
+            "render_p95_ms": 10.474,
+            "measured_frames": 4805,
+            "mesh_rebuilds_during_capture": 2791,
+            "mesh_cumulative_delta_ms": 2841.0300000000007,
+            "mesh_delta_per_frame_p95_ms": 3.6399999999998727,
+            "resident_buffer_max_bytes": 28495848,
+            "cpu_ready_p95": 2,
+            "cpu_ready_max": 5,
+            "last_mesh_dirty_sections": 371,
+            "last_gpu_buffered_sections": 1285,
+            "capture_directory": "build/terrain-t0-t1-20260906/v5-streaming-r3",
+            "package_sha256": "221f50c5aa4669ea8a54ab8fa8f121bede39d58b2fa967307bd1224d119997c7",
+            "position": "256 90 256"
+          }
+        ],
+        "median": {
+          "frame_p95_ms": 13.71,
+          "frame_p99_ms": 15.591,
+          "update_p95_ms": 10.333,
+          "render_p95_ms": 11.502,
+          "resident_buffer_max_bytes": 28495848,
+          "cpu_ready_p95": 3,
+          "mesh_cumulative_delta_ms": 2782.65,
+          "mesh_rebuilds_during_capture": 2802
+        }
+      },
+      "limits": {
+        "frame_p95_ms": 19.4912,
+        "frame_p99_ms": 22.028000000000002,
+        "update_p95_ms": 14.221250000000001
+      }
+    }
+  }
+}

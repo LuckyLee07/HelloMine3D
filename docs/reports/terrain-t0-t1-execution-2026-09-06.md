@@ -1,104 +1,184 @@
-# T0/T1 地形 Goal 执行报告
+# T0/T1 地形基线与新版基础地貌
 
-## 范围与身份
+日期：2026-09-06。当前状态：T0 Done；T1 实现、兼容、macOS 门禁与固定诊断 PASS，必要正常输入验收 BLOCKED，Goal 未完成。
+合同：[terrain-foundation-v5-contract-v1](../contracts/terrain-foundation-v5-contract-v1.md)。
 
-用户授权 T0 地形基线和 T1 新版基础地貌，含实现、macOS 验证、干净包、窗口对照、正常步行、
-文档和本地提交。合同：[terrain-foundation-v5-contract-v1](../contracts/terrain-foundation-v5-contract-v1.md)。
-起始 commit `bb83a7d`；起始改动为当前账本中的对照报告入口与未跟踪的
-`terrain-visual-minigame-comparison-2026-09-06.md`，均为本会话上一阶段成果，保留并纳入交付。
-MiniGame 只读参考；Windows 验证后置；无推送、发布或标签授权。
+## 结果与边界
 
-## 进度
+terrain v5 追加了独立的连续高度/生态采样路径，使用 floor lattice、固定 uint64 hash/salt 和有界
+坐标运算。新世界默认 v5；显式 v1–v4 保留原输出，已保存区块继续读取玩家修改。
+宽尺度陆块、丘陵、山域、山脊和谷地连续组合后才分配生态，避免生态阈值直接制造高度断层。
+148 以上使用连续软压缩，最后保留 1..176 安全界限；本批保持既有坡面岩土覆盖、树木、矿物
+次数/高度、洞穴与结构投影职责。未扩展到水系、森林重做、3D 山体、D2 或新渲染系统。
 
-- T0：基线采样、兼容夹具、三场景画面与三轮客户端性能已完成；量化阈值在 T1 实现前冻结。
-- T1：Doing。T0 与冻结合同已提交 `6dbf7eb` 后开始生产生成器实现。
-- 已读取 AGENTS、TODOLIST、对照报告、验证技能、相关架构、v4 合同和验证矩阵。
-- macOS x86_64 Release 原客户端构建成功。首次 sandbox 构建因 Xcode module cache 写入失败
-  （exit 65），保留 `baseline-client-build.log`；正常缓存权限重试成功，日志
-  `build/terrain-t0-t1-20260906/baseline-client-build-retry.log`。没有调整生产代码或编译参数。
-- 原版隔离包：`build/terrain-t0-t1-20260906/HelloMine3D-T0-v4.app`，106 文件；可执行 SHA256
-  `c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424`。
+| 固定生产采样指标 | v4 基线 | v5 | 冻结门槛结果 |
+| --- | ---: | ---: | --- |
+| 宏观高度范围 | 9..176 | 37..165 | PASS |
+| 高度 63 占比 | 36.9314% | 1.6270% | PASS（每 seed/象限另验） |
+| 高度 176 截顶占比 | 0.3125% | 0 | PASS |
+| 宏观一格坡差 P99 | 2 | 1 | PASS |
+| 宏观一格坡差 ≤1 占比 | 95.9047% | 99.6958% | PASS |
+| 加密局部/边界最大坡差 | 15 | 2 | PASS（上限 3） |
+| 规划地表低于水位占比 | 42.9121% | 20.9220% | 描述性指标 |
 
-## T0 结果
+v5 的 32 个 seed/象限组合全部包含六种既有生态；最小高度标准差 14.8085，最少 97 种高度，
+高度 63 最大占比 2.7832%。这些结果覆盖预先固定的样本，不声称证明了所有 seed 的所有坐标。
+[基线统计](terrain-t0-t1-evidence/baseline-v4-summary.json)、
+[新版统计](terrain-t0-t1-evidence/v5-summary.json)、
+[统计与旧版兼容结果](terrain-t0-t1-evidence/v5-compatibility-statistical-result.json)。
 
-`T0-SURVEY` 为真实 WorldRuntimeSmoke 中的离线入口，不接入客户端。8 seed 每版本采样
-463056 点、32 个实际生成区块；v1–v4 共 1852224 点和 128 个区块。四次运行均 PASS。
-输出在 `build/terrain-t0-t1-20260906/baseline-v1` 到 `baseline-v4`，可通过同协议重现。
-兼容夹具：[v1–v4 fingerprints](../../tools/fixtures/terrain/t0-v1-v4.json)。
+[原版高度图](terrain-t0-t1-evidence/baseline-v4-height-maps.png) /
+[新版高度图](terrain-t0-t1-evidence/v5-height-maps.png)。
 
-v4 汇总：宏观 133128 点，高度 9..176；高度 63 占 36.9314%，截顶占 0.3125%；宏观
-坡差 P99=2，加密边界最大坡差 15。负域基础地貌退化是本批主问题。
-[详细统计](terrain-t0-t1-evidence/baseline-v4-summary.json)、
-[高度图](terrain-t0-t1-evidence/baseline-v4-height-maps.png)、
-[原始产物 hash](terrain-t0-t1-evidence/baseline-artifacts.json)。
+## 版本、存档与资源验证
 
-原版固定诊断画面已检查：
-[林地](terrain-t0-t1-evidence/baseline-forest.png)、
-[负坐标浅水平面](terrain-t0-t1-evidence/baseline-negative.png)、
-[山地](terrain-t0-t1-evidence/baseline-mountain.png)。三场景均使用原包的生产地形，5s/10s
-readback 原图保留在 build；它们启用了强制位置，类型为 DEVELOPER_DIAGNOSTIC，不算 AI 玩法。
-另以正常菜单创建 `T0 Baseline 20260807`、Play、暂停、Save and Quit；对应窗口原图与 JSON
-在 `baseline-menu.*`、`baseline-normal-paused.*`。未将这个简短流程声明为完整步行验收。
+- 当前 Release 二进制重新采样显式 v1–v4：32 份 surface SHA256、128 份实际区块
+  block/metadata/entity hash 与 T0 全部相同。不是复制原始 CSV 充当重跑。
+- T1 聚焦 23/23 PASS：signed int 极值/种子采样、8 seed 四象限正逆生成、独立生成器并发、
+  危险区块坐标在 halo 展开前拒绝、v5 玩家改块卸载/重开保留、无效 v0/v6 存档身份拒绝且旧文件保留。
+- 8 seed 均通过实际出生支撑、两格净空和干燥检查；真实生成区块中找到木材/高草/煤/铁。
+  搜索到全部四类资源的 chunk 半径分别为 0、1、0、0、0、5、0、3（按合同 seed 顺序）。
+  seed 20260809/325322 使用安全陆地回退，不能称为出生区块内就有木材。
+- 每 seed 均发现有效路标、遗迹和营地计划候选；这证明候选生成，正常步行和结构接近另列。
+- P11-2 的 v4 地貌/洞口/身份回归 9/9 PASS；旧版 fixture 显式固定 v4，新版另验。
+- 纯 TerrainFoundation 的 INT_MIN/INT_MAX 采样和 chunk hash 另通过 clang UBSan。
 
-独占本任务构建/采样工作期间采集 steady/streaming 各 3 次，暖机 5s、测量 30s：
+[聚焦摘要](terrain-t0-t1-evidence/t1-focused-resources-r2-summary.txt)、
+[完整 Release 摘要](terrain-t0-t1-evidence/t1-full-release-r2-summary.txt)、
+[旧版洞口回归](terrain-t0-t1-evidence/t1-p11-2-summary.txt)。
 
-| 场景 | frame P95 中位数 | frame P99 中位数 | update P95 中位数 |
-| --- | --- | --- | --- |
-| steady | 10.782 ms | 13.075 ms | 3.822 ms |
-| fast-streaming | 14.576 ms | 16.690 ms | 10.977 ms |
+## macOS 构建与包
 
-[三轮明细](terrain-t0-t1-evidence/baseline-performance-medians.json)。CPU mesh 与上传相关
-buffer/backlog 可由原始 frames.csv 复核；没有独立 upload timer，不将 update 冒充上传耗时。
-分析器和验证器自测均 PASS；验证器能拒绝区块漂移、地表漂移、负域平台、过大坡差和缺生态。
+`bash scripts/verify_xcode.sh`：Debug/Release 各 13 个测试目标，WorldRuntime 各 1014/1014；
+31 个生成工程图检查、客户端 validate 与 120 帧实际窗口探针全部 PASS，站立保存 Y=67。
+没有首方编译警告。当前日志目录 `build/xcode-validation-20260906155049`，
+[日志指纹与门禁摘要](terrain-t0-t1-evidence/macos-gate.json)。
 
-## 验证状态
+起始 commit `bb83a7d`；已有 TODOLIST 对照入口和地形对照报告均保留。
+本地提交：`6dbf7eb` 冻结 T0 与合同；`850dd85` 实现 v5 并通过上述门禁。
+没有推送、发布或标签操作。
 
-T0 基线统计/旧版快照/固定画面/客户端性能：PASS（开发者诊断范围）。
-T1 统计门禁与初步确定性/存档检查：PASS；完整回归、新版图形/步行与性能仍待执行。
-Windows：本次后置，不改写历史证据。人类审美与乐趣：NOT_CLAIMED。
+| 干净包 | 可执行 SHA256 |
+| --- | --- |
+| `build/terrain-t0-t1-20260906/HelloMine3D-T0-v4.app` | `c0446b47bbdcf4b4e2ef69248e4d466288db1a10700c821e37ca2fb2e6480424` |
+| `build/terrain-t0-t1-20260906/HelloMine3D-T1-v5.app` | `221f50c5aa4669ea8a54ab8fa8f121bede39d58b2fa967307bd1224d119997c7` |
 
-## T1 候选记录
+v5 包在 `850dd85` 干净工作区打包，独立携带资源，macOS x86_64 Release；
+[包身份](terrain-t0-t1-evidence/v5-package-identity.json)。性能采集前两包配置文件和资源 manifest 一致。
 
-candidate1：已构建 Release 并采样。宏观高度 37..164，高度 63 占 1.5399%，截顶为 0，
-六生态占比均超过 1%，单格坡差 ≤1 占 98.6367%。32 区块单轮生成 92.247 ms；这个单轮
-结果不能替代合同要求的三轮性能中位数。
-**统计门禁 FAIL**：seed 0/1/42/8675309 的加密边界坡差为 5/4/5/4，超过冻结上限 3。
-原候选代码、采样和结果保留在 `build/terrain-t0-t1-20260906/candidate1`；
-[失败条目](terrain-t0-t1-evidence/candidate1-statistical-result.json)。
-candidate2 将谷地噪声尺度由 260 拓宽到 400、过渡上界从 0.22 拓宽到 0.45；不调整门槛。
+## 固定画面对照
 
-candidate2：统计门禁 PASS，宏观高度 37..165，高度 63 占 1.6270%，截顶为 0，
-单格坡差 ≤1 占 99.6958%，宏观坡差 P99=1；加密局部与边界最大坡差均 ≤3。
-原始与派生证据在 `build/terrain-t0-t1-20260906/candidate2/v5`。
-初步 T1 聚焦 7 项 PASS：全 signed int 采样、8 seed 正逆和独立并发、越界 chunk 拒绝、
-保存修改卸载及重开、未知存档版本拒绝。纯基础采样另通过 clang UBSan 的 INT 极值检查。
+每包均 seed 20260807、初始 world time 6000、rotation `0 0 0`，同窗口/档位/视距；
+三位置均未调整 Y。每场景 5s/10s 原始 readback 已采集并检查，场景名沿用 T0，不能据名称
+推断新版该位置仍是相同生态。以下链接为 10s 原图；5s 图与元数据保留在原始输出目录。
 
-资源检查首轮 FAIL（23 checks / 8 failures），保留 `t1-focused-resources.log`。
-定位到测试以完整 ChunkBlock 比较 TallGrass，漏计带 Mature metadata 的高草；修正为 ID 计数。
-同时首次 5×5 区块观察显示 seed 20260809/325322 的实际安全出生使用无树回退；后续测量
-从出生点逐圈搜索资源的实际距离（最大 16 chunk），不把出生点附近有资源视为已证明可步行。
+| 固定机位 | v4 原图 | v5 原图与实际变化 |
+| --- | --- | --- |
+| forest `(256,90,256)` | [林地海岸](terrain-t0-t1-evidence/baseline-forest.png) | [海床](terrain-t0-t1-evidence/v5-forest.png)：规划高度 55，重力后机位在水下 |
+| negative `(-256,70,-256)` | [浅水平面](terrain-t0-t1-evidence/baseline-negative.png) | [海床缓坡](terrain-t0-t1-evidence/v5-negative.png)：规划高度 47 |
+| mountain `(1024,140,1024)` | [岩石地形](terrain-t0-t1-evidence/baseline-mountain.png) | [缓坡林地](terrain-t0-t1-evidence/v5-mountain.png)：规划高度 75 |
 
-资源/出生/结构聚焦复跑 23/23 PASS；木材/高草/煤/铁在出生点最远 5 chunk 半径内找到
-（seed 20260809 为 5，325322 为 3，其余为 0..1）。这是存在性和实际生成证据，步行单列。
-完整 Release 首轮 1014 项中 1 FAIL：S4.3 固定位置在 v5 已为 Stone，测试重复写 Stone 没有
-产生 dirty/save 事件；改为依据当前块执行真实变化，保留事件断言。复跑 1014/1014 PASS。
-P11-2 的 v4 地貌/洞口/身份专用回归 9/9 PASS。
-当前二进制重新采样 v1–v5，旧 32 surface SHA / 128 chunk hash 全部一致，v5 冻结统计全部 PASS。
-32 区块 headless 三轮中位数 v4 156.695 ms，v5 93.463 ms，比例 0.5965，满足 ≤1.5 门槛；
-此结果不代表帧时间。客户端双配置门禁正在执行。
+另补充新版负域 [山麓](terrain-t0-t1-evidence/v5-ridge-foot.png) 与
+[山脊](terrain-t0-t1-evidence/v5-ridge-crest.png)：seed 相同，XZ 分别 `(-480,-480)` / `(-480,-640)`，
+规划高度 119 / 159。它们保留原三场景，不参与固定性能中位数。
+岩石材质仍较单一，山顶也有整数高度形成的宽平段；本批没有将这些观察改称材质或审美改善。
 
-macOS 完整门禁首轮：Debug 13 个工程测试（含 WorldRuntime 1014/1014）通过；客户端
-validate probe FAIL，water sections/vertices/indices 为 0。新 v5 出生夹具位于干燥陆地，旧
-probe 仅显式摆放 glass/flora，水体依赖自然地形。现将水体加入 `!uploadToOgre` 的已有验证
-夹具，保留原水体 mesh 非零断言，不修改正常玩法。失败目录
-`build/xcode-validation-20260906154546`。窗口站立场景改用同 seed 的实际 v5 安全出生
-`88.5 67 104.5`，Y 仍要求 65..67；与基线固定画面对照协议无关。
+[客户端原始图像/逐帧数据指纹](terrain-t0-t1-evidence/v5-client-artifacts.json)。
 
-macOS 复跑完整门禁 PASS：Debug/Release 各 13 个测试目标，WorldRuntime 各 1014/1014，
-31 个生成工程图检查、客户端 validate 与 120 帧窗口探针全部通过，站立保存 Y=67。
-日志目录 `build/xcode-validation-20260906155049`；首轮失败未删除。
+以上均是 **DEVELOPER_DIAGNOSTIC**，有强制起点；不替代正常玩法或证明沿途可步行。
+
+## 性能成本
+
+每种客户端场景暖机 5s、采集 30s，共三轮，比较中位数；未调整合同门槛。
+
+| 场景/指标 | v4 | v5 | v5 允许上限 |
+| --- | ---: | ---: | ---: |
+| steady frame P95 | 10.782 ms | 12.704 ms | 14.938 ms |
+| steady frame P99 | 13.075 ms | 13.555 ms | 17.690 ms |
+| steady update P95 | 3.822 ms | 2.420 ms | 5.278 ms |
+| streaming frame P95 | 14.576 ms | 13.710 ms | 19.491 ms |
+| streaming frame P99 | 16.690 ms | 15.591 ms | 22.028 ms |
+| streaming update P95 | 10.977 ms | 10.333 ms | 14.221 ms |
+
+客户端门禁 PASS。steady P95 增加 17.8%，streaming P95 下降 5.9%；不能概括为帧时间全面改善。
+同机位的生态和可见几何变化也是本次成本的一部分。steady 常驻 terrain buffer 峰值中位数
+44.24 MB→28.45 MB，streaming 40.15 MB→28.50 MB；CPU-ready P95 中位数分别 6→0、15→3。
+steady v5 的可见 mesh 构建在暖机内完成；测量段新增 rebuild 为 0，v4 为 770。
+streaming 测量段 rebuild 中位数 2481→2802，累计 mesh 成本差值 2900.06→2782.65 ms。
+
+update 包括上传和其他主线程工作；当前没有独立 upload timer，不将其称为纯上传耗时。
+原始 frames.csv、累计 mesh 差值、buffer 和 backlog 均保留；没有新增硬预算例外。
+[三轮完整比较](terrain-t0-t1-evidence/client-performance-comparison.json)。
+
+独占本任务构建/图形工作期间的 32 区块 headless 三轮中位数：v4 156.695 ms，v5 93.154 ms，
+比例 0.5945，满足 ≤1.5 门槛。它不包含 CSV 采样/I/O，也不代表客户端帧时间。
+[原始耗时与二进制身份](terrain-t0-t1-evidence/headless-comparison.json)。
+
+## 正常输入验收：部分 PASS，路线 BLOCKED
+
+[独立验收报告](terrain-t0-t1-evidence/normal-acceptance/report.md)、
+[操作与失败记录](terrain-t0-t1-evidence/normal-acceptance/operations.md)、
+[只读存档摘要](terrain-t0-t1-evidence/normal-acceptance/save-summary.json)。
+
+两版正常菜单创建同 seed 世界、保存退出、菜单重开、静止位置/健康值保留及最终正常退出 PASS。
+新版正常出生为密林草土阶梯坡，旧版为海岸沙滩；这是各版本自然出生范围对照，出生坐标不同。
+
+**受控往返步行、跳跃坡面通行、正常采集 BLOCKED；结构进入和采集修改重开 NOT_RUN。**
+公开 CUA App API 只有瞬时 `pressKey`，无持续按下/松开接口；W/D/S/A 多次短按未产生可重复的
+受控位移，`w+space` 明确报 `keyPressIncludedMultipleNonModifierKeys`。两版 Casual 世界保存
+位置均仍等于出生点。首次 v5 Normal 有约 17.2 格位移，但同时受到攻击，不能排除击退影响。
+
+Normal 受伤至 HP2；另建 Casual 世界重试，新版保存重开保留 HP8，旧版 HP20。库存均空，
+不声称正常取得了资源或完成了可达路线。失败属于目前采集/输入路径的证据限制，不能直接
+推断为游戏碰撞 FAIL。需要可持续输入的公开接口或一次真实人工正常输入补证。
+
+实现者与验收者上下文分开，仓库仍可访问，`context_isolation=PARTIAL`；不声明 PACKAGE_ONLY、
+strict AI-06 blind PASS 或整体 functional_playability。全部游戏已正常退出。
+
+## 失败与修正记录
+
+| 运行 | 原因与处理 | 保留证据 |
+| --- | --- | --- |
+| T0 首次构建 exit 65 | sandbox 无法写 Xcode module cache；正常缓存权限重试成功，未改编译参数 | `baseline-client-build.log` / `baseline-client-build-retry.log` |
+| candidate1 统计 FAIL | seed 0/1/42/8675309 加密边界坡差 5/4/5/4；拓宽谷地尺度/过渡，门槛仍为 3 | [失败条目](terrain-t0-t1-evidence/candidate1-statistical-result.json)，原候选源码/CSV 在 `candidate1/` |
+| 首轮资源检查 8 FAIL | 完整 ChunkBlock 比较漏计 Mature 高草 metadata；修正为 ID 计数，并量测安全出生周围真实资源距离 | [失败摘要](terrain-t0-t1-evidence/t1-focused-resources-summary.txt) |
+| 完整 Release 1 FAIL | S4.3 在已有 Stone 上重复写 Stone，没有 dirty 事件；改为保证一次真实修改，保留保存事件断言 | [失败摘要](terrain-t0-t1-evidence/t1-full-release-summary.txt) |
+| 正常窗口前四次截图 FAIL | CUA 启动的进程未匹配旧 bundle 注册查询；补充内核解析的精确 executable 路径匹配，再使用正常桌面访问权限，后续原图成功；旧包负例查询仍为空 | [完整失败索引](terrain-t0-t1-evidence/normal-acceptance/capture-index.json) |
+| 首轮 macOS client validate FAIL | 新地形为干燥陆地，旧 fixture 依赖天然水；仅在 validation-only mesh 夹具显式加水，保留水体 mesh 非零门槛 | `build/xcode-validation-20260906154546/` |
+
+candidate2 及以后没有修改生产地貌输出。所有失败保留，未删除测试或事后放宽统计/性能阈值。
+
+## 重现与证据索引
+
+大产物根：`build/terrain-t0-t1-20260906/`。T0 原始 CSV 为 `baseline-v1/`..`baseline-v4/`；
+当前带源码/二进制身份的重跑为 `qualified-survey/v1/`..`v5/`；
+[当前采样身份](terrain-t0-t1-evidence/qualified-survey-identity.json)、
+[当前原始文件指纹](terrain-t0-t1-evidence/v5-qualified-artifacts.json)、
+[T0 原始文件指纹](terrain-t0-t1-evidence/baseline-artifacts.json)。
+
+```sh
+# 在仓库根执行；OUT 必须是不存在的新目录，避免覆盖历史证据。
+HELLOMINE3D_WORLD_SMOKE_FOCUS=T0-SURVEY \
+HELLOMINE3D_TERRAIN_SURVEY_VERSION=5 \
+HELLOMINE3D_TERRAIN_SURVEY_DIR="$PWD/OUT/v5" ./bin/HelloMine3DWorldRuntimeSmoke
+python3 tools/analyze_terrain_survey.py OUT/v5 --plot
+# 同样分别运行 v1..v4 后：
+python3 tools/validate_terrain_foundation.py --survey-root OUT
+HELLOMINE3D_WORLD_SMOKE_FOCUS=T1 ./bin/HelloMine3DWorldRuntimeSmoke
+bash scripts/verify_xcode.sh
+python3 tools/compare_terrain_performance.py build/terrain-t0-t1-20260906 \
+  --output /tmp/terrain-performance-comparison.json
+```
+
+固定窗口复现入口为 `tools/capture_terrain_macos.py --app APP --output NEW_DIR --scene SCENE`；
+合法场景与起点直接定义于工具中。分析器/统计验证器自测 PASS，能拒绝旧区块漂移、地表漂移、
+平台、过大坡差和缺生态。性能比较读取实际 capture/summary/frames，拒绝错误版本、seed、配置或时长。
+
+Windows 专属构建与运行按用户授权后置；人类审美、趣味性与长期舒适度为 NOT_CLAIMED。
 
 ## 恢复区
 
-下一步：完成 8 seed 出生/资源/结构检查、旧版本重新采样兼容、完整 macOS 门禁；之后
-构建新干净包，固定场景与性能对照、正常窗口步行/保存重开。原版包和失败证据继续保留。
+工程实现与全部自动/固定诊断证据已交付；必需正常步行/采集/结构路线仍受阻，T1 与 Goal 未完成。
+v5 输出已建立候选指纹检查，但待必要正常验收后才正式冻结。用户已获知工具限制，并被询问
+是否愿意手动补证；没有将等待或缺少答复视为通过。后续只补动态缺项，除非新改动/失败需要，
+不重复已通过的完整构建与采样。

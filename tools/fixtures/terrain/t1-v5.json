@@ -1,0 +1,373 @@
+{
+  "schema": 1,
+  "source_commit": "850dd85969dce85fc8c533c451cda6ade12dd7b6",
+  "evidence": "macOS x86_64 Release production generator; T1 candidate output snapshot pending normal-input acceptance",
+  "versions": {
+    "5": {
+      "surface_fingerprints": {
+        "0": "acb311a2956e690deee9cc56cd03b18fee6e949b746bb9a5c7aa24a4d28bab0f",
+        "1": "1945e998bc8e0f2fc4ab6e9268b20a4d7124ace2da79628c680cb16eebb64467",
+        "42": "e09d88e6a524dcb543845d43f29aedce587ac3820f21240d9807db694b607887",
+        "424": "540a8dae31681ed36deabf70999994cbbf5d34b27142e04d1ac93b6c4e5534ff",
+        "325322": "c47defa7e183b9a0002fe46b9c9bedbd192a4a7325b70c32d59a60bf18642b71",
+        "8675309": "cef0715aec73bb5e4ebdf6cbc28a87e12bfed9cba931c91ea55990b20342e0f2",
+        "20260807": "1b3986505506bc70cf8e8fb83469dcc5edb9e180892e150d77517e0bba4d32b7",
+        "20260809": "d1fbe5eb49a4f6a82452ae28cd74b540374ed8aabea01f8030aa1e3a76f918f5"
+      },
+      "chunks": [
+        {
+          "seed": 0,
+          "version": 5,
+          "chunk_x": 2,
+          "chunk_z": 2,
+          "block_hash": 11496609311750556779,
+          "coal": 70,
+          "iron": 25,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 0,
+          "version": 5,
+          "chunk_x": -3,
+          "chunk_z": 2,
+          "block_hash": 14818961141384696703,
+          "coal": 59,
+          "iron": 21,
+          "wood": 0,
+          "plants": 2
+        },
+        {
+          "seed": 0,
+          "version": 5,
+          "chunk_x": 2,
+          "chunk_z": -3,
+          "block_hash": 15308014551371333770,
+          "coal": 69,
+          "iron": 26,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 0,
+          "version": 5,
+          "chunk_x": -3,
+          "chunk_z": -3,
+          "block_hash": 9018490261065414399,
+          "coal": 66,
+          "iron": 32,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 1,
+          "version": 5,
+          "chunk_x": 2,
+          "chunk_z": 2,
+          "block_hash": 16097441968465162522,
+          "coal": 19,
+          "iron": 24,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 1,
+          "version": 5,
+          "chunk_x": -3,
+          "chunk_z": 2,
+          "block_hash": 278361024714014546,
+          "coal": 21,
+          "iron": 14,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 1,
+          "version": 5,
+          "chunk_x": 2,
+          "chunk_z": -3,
+          "block_hash": 7041103314283225398,
+          "coal": 23,
+          "iron": 22,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 1,
+          "version": 5,
+          "chunk_x": -3,
+          "chunk_z": -3,
+          "block_hash": 7739898326253761629,
+          "coal": 44,
+          "iron": 26,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 42,
+          "version": 5,
+          "chunk_x": 2,
+          "chunk_z": 2,
+          "block_hash": 4268512248463155960,
+          "coal": 62,
+          "iron": 25,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 42,
+          "version": 5,
+          "chunk_x": -3,
+          "chunk_z": 2,
+          "block_hash": 11124430903036593455,
+          "coal": 59,
+          "iron": 21,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 42,
+          "version": 5,
+          "chunk_x": 2,
+          "chunk_z": -3,
+          "block_hash": 16229275230911575520,
+          "coal": 56,
+          "iron": 33,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 42,
+          "version": 5,
+          "chunk_x": -3,
+          "chunk_z": -3,
+          "block_hash": 6479534621746495161,
+          "coal": 65,
+          "iron": 26,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 424,
+          "version": 5,
+          "chunk_x": 2,
+          "chunk_z": 2,
+          "block_hash": 15408309619982628364,
+          "coal": 54,
+          "iron": 18,
+          "wood": 26,
+          "plants": 2
+        },
+        {
+          "seed": 424,
+          "version": 5,
+          "chunk_x": -3,
+          "chunk_z": 2,
+          "block_hash": 4525845113842580123,
+          "coal": 52,
+          "iron": 19,
+          "wood": 9,
+          "plants": 5
+        },
+        {
+          "seed": 424,
+          "version": 5,
+          "chunk_x": 2,
+          "chunk_z": -3,
+          "block_hash": 6182830716005506490,
+          "coal": 57,
+          "iron": 30,
+          "wood": 4,
+          "plants": 0
+        },
+        {
+          "seed": 424,
+          "version": 5,
+          "chunk_x": -3,
+          "chunk_z": -3,
+          "block_hash": 16463859431055865171,
+          "coal": 75,
+          "iron": 21,
+          "wood": 11,
+          "plants": 1
+        },
+        {
+          "seed": 20260807,
+          "version": 5,
+          "chunk_x": 2,
+          "chunk_z": 2,
+          "block_hash": 7657314277591381641,
+          "coal": 45,
+          "iron": 18,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 20260807,
+          "version": 5,
+          "chunk_x": -3,
+          "chunk_z": 2,
+          "block_hash": 6980471953464714274,
+          "coal": 18,
+          "iron": 16,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 20260807,
+          "version": 5,
+          "chunk_x": 2,
+          "chunk_z": -3,
+          "block_hash": 7882456864700346698,
+          "coal": 37,
+          "iron": 20,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 20260807,
+          "version": 5,
+          "chunk_x": -3,
+          "chunk_z": -3,
+          "block_hash": 12753697380142254669,
+          "coal": 28,
+          "iron": 12,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 20260809,
+          "version": 5,
+          "chunk_x": 2,
+          "chunk_z": 2,
+          "block_hash": 6931539949625489311,
+          "coal": 43,
+          "iron": 19,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 20260809,
+          "version": 5,
+          "chunk_x": -3,
+          "chunk_z": 2,
+          "block_hash": 16794272530004684243,
+          "coal": 39,
+          "iron": 11,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 20260809,
+          "version": 5,
+          "chunk_x": 2,
+          "chunk_z": -3,
+          "block_hash": 12151182345367980762,
+          "coal": 28,
+          "iron": 22,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 20260809,
+          "version": 5,
+          "chunk_x": -3,
+          "chunk_z": -3,
+          "block_hash": 15368053229752036470,
+          "coal": 32,
+          "iron": 28,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 8675309,
+          "version": 5,
+          "chunk_x": 2,
+          "chunk_z": 2,
+          "block_hash": 14040811018655509734,
+          "coal": 36,
+          "iron": 18,
+          "wood": 46,
+          "plants": 2
+        },
+        {
+          "seed": 8675309,
+          "version": 5,
+          "chunk_x": -3,
+          "chunk_z": 2,
+          "block_hash": 10583956273926772884,
+          "coal": 41,
+          "iron": 25,
+          "wood": 26,
+          "plants": 2
+        },
+        {
+          "seed": 8675309,
+          "version": 5,
+          "chunk_x": 2,
+          "chunk_z": -3,
+          "block_hash": 2508994556860629480,
+          "coal": 59,
+          "iron": 24,
+          "wood": 7,
+          "plants": 2
+        },
+        {
+          "seed": 8675309,
+          "version": 5,
+          "chunk_x": -3,
+          "chunk_z": -3,
+          "block_hash": 9286502418002485513,
+          "coal": 48,
+          "iron": 20,
+          "wood": 20,
+          "plants": 3
+        },
+        {
+          "seed": 325322,
+          "version": 5,
+          "chunk_x": 2,
+          "chunk_z": 2,
+          "block_hash": 3732960876664113612,
+          "coal": 31,
+          "iron": 15,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 325322,
+          "version": 5,
+          "chunk_x": -3,
+          "chunk_z": 2,
+          "block_hash": 7667221883686595465,
+          "coal": 32,
+          "iron": 22,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 325322,
+          "version": 5,
+          "chunk_x": 2,
+          "chunk_z": -3,
+          "block_hash": 14005232844232467434,
+          "coal": 31,
+          "iron": 20,
+          "wood": 0,
+          "plants": 0
+        },
+        {
+          "seed": 325322,
+          "version": 5,
+          "chunk_x": -3,
+          "chunk_z": -3,
+          "block_hash": 7311322909360822237,
+          "coal": 30,
+          "iron": 30,
+          "wood": 0,
+          "plants": 0
+        }
+      ]
+    }
+  }
+}
