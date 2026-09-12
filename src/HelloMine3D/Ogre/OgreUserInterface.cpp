@@ -29,6 +29,7 @@
 #include "../Item/CraftingSession.h"
 #include "../Item/RecipeRegistry.h"
 #include "../Item/ToolRegistry.h"
+#include "../Item/FoodRegistry.h"
 #include "../Player/Player.h"
 #include "../Presentation/LocalizedTextRegistry.h"
 #include "../Presentation/LocalizedPresentation.h"
@@ -47,6 +48,98 @@
 
 namespace
 {
+    const ImVec4 WarmText(0.957f, 0.933f, 0.863f, 1.f);
+    const ImVec4 WarmMuted(0.68f, 0.74f, 0.68f, 1.f);
+    const ImVec4 WarmAccent(0.871f, 0.714f, 0.431f, 1.f);
+
+    void applyWarmWildernessStyle()
+    {
+        ImGui::StyleColorsDark();
+        ImGuiStyle& style = ImGui::GetStyle();
+        style.WindowPadding = ImVec2(12.f, 10.f);
+        style.FramePadding = ImVec2(8.f, 5.f);
+        style.ItemSpacing = ImVec2(8.f, 6.f);
+        style.WindowRounding = 8.f;
+        style.ChildRounding = 5.f;
+        style.FrameRounding = 4.f;
+        style.PopupRounding = 6.f;
+        style.ScrollbarRounding = 4.f;
+        style.GrabRounding = 4.f;
+        style.WindowBorderSize = 0.f;
+        style.FrameBorderSize = 0.f;
+        auto* colours = style.Colors;
+        colours[ImGuiCol_Text] = WarmText;
+        colours[ImGuiCol_TextDisabled] = WarmMuted;
+        colours[ImGuiCol_WindowBg] = ImVec4(0.095f, 0.14f, 0.115f, 0.97f);
+        colours[ImGuiCol_ChildBg] = ImVec4(0.10f, 0.145f, 0.12f, 0.94f);
+        colours[ImGuiCol_PopupBg] = ImVec4(0.115f, 0.165f, 0.135f, 0.99f);
+        colours[ImGuiCol_Border] = ImVec4(0.34f, 0.42f, 0.35f, 0.70f);
+        colours[ImGuiCol_FrameBg] = ImVec4(0.19f, 0.25f, 0.20f, 1.f);
+        colours[ImGuiCol_FrameBgHovered] = ImVec4(0.28f, 0.34f, 0.26f, 1.f);
+        colours[ImGuiCol_FrameBgActive] = ImVec4(0.34f, 0.39f, 0.28f, 1.f);
+        colours[ImGuiCol_TitleBg] = ImVec4(0.11f, 0.17f, 0.13f, 1.f);
+        colours[ImGuiCol_TitleBgActive] = ImVec4(0.19f, 0.27f, 0.20f, 1.f);
+        colours[ImGuiCol_Button] = ImVec4(0.22f, 0.30f, 0.23f, 1.f);
+        colours[ImGuiCol_ButtonHovered] = ImVec4(0.33f, 0.41f, 0.29f, 1.f);
+        colours[ImGuiCol_ButtonActive] = ImVec4(0.40f, 0.45f, 0.30f, 1.f);
+        colours[ImGuiCol_Header] = ImVec4(0.28f, 0.36f, 0.25f, 1.f);
+        colours[ImGuiCol_HeaderHovered] = ImVec4(0.36f, 0.43f, 0.28f, 1.f);
+        colours[ImGuiCol_HeaderActive] = ImVec4(0.44f, 0.48f, 0.30f, 1.f);
+        colours[ImGuiCol_CheckMark] = WarmAccent;
+        colours[ImGuiCol_SliderGrab] = WarmAccent;
+        colours[ImGuiCol_SliderGrabActive] = ImVec4(0.97f, 0.83f, 0.56f, 1.f);
+        colours[ImGuiCol_Separator] = ImVec4(0.33f, 0.41f, 0.34f, 0.65f);
+        colours[ImGuiCol_SeparatorHovered] = WarmAccent;
+        colours[ImGuiCol_SeparatorActive] = WarmAccent;
+        colours[ImGuiCol_ResizeGrip] = ImVec4(0.68f, 0.73f, 0.56f, 0.25f);
+        colours[ImGuiCol_ResizeGripHovered] = WarmAccent;
+        colours[ImGuiCol_ResizeGripActive] = WarmAccent;
+        colours[ImGuiCol_PlotHistogram] = ImVec4(0.60f, 0.72f, 0.44f, 1.f);
+        colours[ImGuiCol_TextSelectedBg] = ImVec4(0.67f, 0.56f, 0.32f, 0.50f);
+        colours[ImGuiCol_NavCursor] = WarmAccent;
+    }
+
+    bool stackButton(const std::string& label, ImVec2 size)
+    {
+        const std::size_t idOffset = label.find("##");
+        const std::string visible = label.substr(0, idOffset);
+        const std::size_t countOffset = visible.rfind(" x");
+        std::string name = visible.substr(0, countOffset);
+        const std::string count = countOffset == std::string::npos
+            ? "" : "\n" + visible.substr(countOffset + 1);
+        const float available = size.x - ImGui::GetStyle().FramePadding.x * 2.f;
+        bool shortened = false;
+        while (!name.empty() && ImGui::CalcTextSize(
+                   (name + (shortened ? "…" : "")).c_str()).x > available)
+        {
+            // Remove a complete UTF-8 codepoint, preserving Chinese labels.
+            std::size_t last = name.size() - 1;
+            while (last > 0 && (static_cast<unsigned char>(name[last]) & 0xc0) == 0x80)
+                --last;
+            name.erase(last);
+            shortened = true;
+        }
+        const std::string displayed = name + (shortened ? "…" : "") + count +
+            (idOffset == std::string::npos ? "" : label.substr(idOffset));
+        size.y = std::max(size.y, ImGui::GetTextLineHeight() *
+            (count.empty() ? 1.f : 2.f) + ImGui::GetStyle().FramePadding.y * 2.f);
+        const bool clicked = ImGui::Button(displayed.c_str(), size);
+        if (shortened && ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", visible.c_str());
+        return clicked;
+    }
+
+    void pushPrimaryButtonStyle()
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, WarmAccent);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
+                             ImVec4(0.96f, 0.81f, 0.53f, 1.f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive,
+                             ImVec4(0.76f, 0.60f, 0.34f, 1.f));
+        ImGui::PushStyleColor(ImGuiCol_Text,
+                             ImVec4(0.12f, 0.17f, 0.13f, 1.f));
+    }
+
 #if defined(__APPLE__)
     constexpr const char* ImGuiGlslVersion = "#version 150";
 #else
@@ -365,8 +458,10 @@ class OgreUserInterface::Impl
                 glyphBuilder.AddText(translated.c_str());
             }
             glyphBuilder.BuildRanges(&presentationGlyphRanges);
+            ImFontConfig fontConfig;
+            fontConfig.RasterizerMultiply = 1.10f;
             if (io.Fonts->AddFontFromFileTTF(
-                    fontPath.c_str(), 17.0f, nullptr,
+                    fontPath.c_str(), 18.0f, &fontConfig,
                     presentationGlyphRanges.Data) ==
                 nullptr)
             {
@@ -382,7 +477,7 @@ class OgreUserInterface::Impl
         {
             io.Fonts->AddFontDefault();
         }
-        ImGui::StyleColorsDark();
+        applyWarmWildernessStyle();
 
         if (!ImGui_ImplOpenGL3_Init(ImGuiGlslVersion))
         {
@@ -406,6 +501,29 @@ class OgreUserInterface::Impl
                 "Ogre ImGui failed to resolve the gameplay atlas GL ID.");
         }
         atlasTextureId = static_cast<ImTextureID>(atlasGlId);
+
+        try
+        {
+            menuTexture = Ogre::TextureManager::getSingleton().load(
+                "WarmWildernessMenu.png",
+                Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+                Ogre::TEX_TYPE_2D, 0);
+            unsigned int menuGlId = 0;
+            menuTexture->getCustomAttribute("GLID", &menuGlId);
+            if (menuGlId == 0)
+            {
+                throw std::runtime_error("Menu background has no GL texture ID.");
+            }
+            menuTextureId = static_cast<ImTextureID>(menuGlId);
+        }
+        catch (...)
+        {
+            ImGui_ImplOpenGL3_Shutdown();
+            ImGui::DestroyContext();
+            atlasTexture.setNull();
+            menuTexture.setNull();
+            throw;
+        }
 
         window->addListener(listener);
         listenerInstalled = true;
@@ -432,6 +550,8 @@ class OgreUserInterface::Impl
         ImGui::DestroyContext();
         atlasTextureId = ImTextureID_Invalid;
         atlasTexture.setNull();
+        menuTextureId = ImTextureID_Invalid;
+        menuTexture.setNull();
         initialized = false;
     }
 
@@ -471,6 +591,11 @@ class OgreUserInterface::Impl
         interactionFeedbackSeconds = std::max(
             0.f, interactionFeedbackSeconds -
                      std::max(0.f, deltaSeconds));
+        if (flow->state() == GameApplicationState::Playing)
+        {
+            objectiveHintSeconds = std::max(
+                0.f, objectiveHintSeconds - std::max(0.f, deltaSeconds));
+        }
         if (flow->state() == GameApplicationState::Playing &&
             previousPlayerHealth > 0.f && stats.playerHealth <= 0.f)
         {
@@ -516,6 +641,12 @@ class OgreUserInterface::Impl
         worldStats = stats;
         miningProgress = progress;
         actionFeedback = feedback;
+        if (flow->state() == GameApplicationState::MainMenu ||
+            flow->state() == GameApplicationState::WorldList ||
+            flow->state() == GameApplicationState::Loading)
+        {
+            drawMenuBackdrop();
+        }
         if (settingsFixtureRequested && !settingsFixtureOpened &&
             flow->state() == GameApplicationState::Playing && flow->pause())
         {
@@ -643,27 +774,71 @@ class OgreUserInterface::Impl
         ImGui::EndPopup();
     }
 
+    void drawMenuBackdrop()
+    {
+        if (menuTextureId == ImTextureID_Invalid || menuTexture.isNull())
+        {
+            return;
+        }
+        const ImVec2 display = ImGui::GetIO().DisplaySize;
+        const float viewAspect = display.x / std::max(1.f, display.y);
+        const float imageAspect = static_cast<float>(menuTexture->getWidth()) /
+                                  static_cast<float>(menuTexture->getHeight());
+        ImVec2 uvMin(0.f, 0.f);
+        ImVec2 uvMax(1.f, 1.f);
+        if (viewAspect < imageAspect)
+        {
+            uvMin.x = (1.f - viewAspect / imageAspect) * 0.5f;
+            uvMax.x = 1.f - uvMin.x;
+        }
+        else
+        {
+            uvMin.y = (1.f - imageAspect / viewAspect) * 0.5f;
+            uvMax.y = 1.f - uvMin.y;
+        }
+        ImDrawList* background = ImGui::GetBackgroundDrawList();
+        background->AddImage(ImTextureRef(menuTextureId), ImVec2(0.f, 0.f),
+                             display, uvMin, uvMax);
+        background->AddRectFilledMultiColor(
+            ImVec2(0.f, 0.f), display,
+            IM_COL32(14, 25, 19, 222), IM_COL32(14, 25, 19, 28),
+            IM_COL32(14, 25, 19, 65), IM_COL32(14, 25, 19, 242));
+    }
+
     void drawMainMenu()
     {
         const ImGuiIO &io = ImGui::GetIO();
+        const float scale = appliedSettings.uiScale;
+        const PresentationWindowLayout layout = fitPresentationWindow(
+            io.DisplaySize.x, io.DisplaySize.y, 350.f, 354.f, scale);
+        const float left = std::min(io.DisplaySize.x * 0.08f,
+                                   io.DisplaySize.x - layout.width - 15.f);
         ImGui::SetNextWindowPos(
-            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.45f),
-            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowSize(ImVec2(420.0f, 340.0f), ImGuiCond_Always);
+            ImVec2(std::max(15.f, left), io.DisplaySize.y * 0.5f),
+            ImGuiCond_Always, ImVec2(0.f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height), ImGuiCond_Always);
+        ImGui::SetNextWindowBgAlpha(0.f);
         const ImGuiWindowFlags flags =
             ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize |
             ImGuiWindowFlags_NoSavedSettings;
         if (ImGui::Begin("##MainMenu", nullptr, flags))
         {
-            ImGui::SetCursorPosY(38.0f);
+            ImGui::Dummy(ImVec2(0.f, 12.f * scale));
             const std::string appTitle = tr("app.title", "HelloMine3D");
-            const float titleWidth = ImGui::CalcTextSize(appTitle.c_str()).x;
-            ImGui::SetCursorPosX((420.0f - titleWidth) * 0.5f);
+            const float titleScale = std::min(
+                1.95f, ImGui::GetContentRegionAvail().x /
+                           std::max(1.f, ImGui::CalcTextSize(appTitle.c_str()).x));
+            ImGui::SetWindowFontScale(titleScale);
             ImGui::TextUnformatted(appTitle.c_str());
-            ImGui::SetCursorPos(ImVec2(90.0f, 105.0f));
+            ImGui::SetWindowFontScale(1.f);
+            ImGui::PushStyleColor(ImGuiCol_Text, WarmMuted);
+            ImGui::TextWrapped("%s", tr("main.tagline").c_str());
+            ImGui::PopStyleColor();
+            ImGui::Dummy(ImVec2(0.f, 28.f * scale));
+            pushPrimaryButtonStyle();
             if (ImGui::Button(
                     label("main.single_player", "##SinglePlayer").c_str(),
-                    ImVec2(240.0f, 48.0f)))
+                    ImVec2(-1.f, 48.f * scale)))
             {
                 if (flow->showWorldList())
                 {
@@ -671,16 +846,16 @@ class OgreUserInterface::Impl
                     playUiFeedback();
                 }
             }
-            ImGui::SetCursorPos(ImVec2(90.0f, 170.0f));
+            ImGui::PopStyleColor(4);
+            ImGui::Dummy(ImVec2(0.f, 4.f * scale));
             if (ImGui::Button(label("main.credits", "##Credits").c_str(),
-                              ImVec2(240.0f, 42.0f)))
+                              ImVec2(-1.f, 42.f * scale)))
             {
                 showCredits = true;
                 playUiFeedback();
             }
-            ImGui::SetCursorPos(ImVec2(90.0f, 225.0f));
             if (ImGui::Button(label("common.quit", "##Quit").c_str(),
-                              ImVec2(240.0f, 42.0f)))
+                              ImVec2(-1.f, 42.f * scale)))
             {
                 pendingAction.type = OgreUserInterfaceActionType::Quit;
                 playUiFeedback();
@@ -824,7 +999,9 @@ class OgreUserInterface::Impl
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowSize(ImVec2(820.0f, 620.0f), ImGuiCond_Always);
+        const PresentationWindowLayout layout = fitPresentationWindow(
+            io.DisplaySize.x, io.DisplaySize.y, 820.0f, 620.0f, appliedSettings.uiScale);
+        ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height), ImGuiCond_Always);
         const ImGuiWindowFlags flags =
             ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
             ImGuiWindowFlags_NoSavedSettings;
@@ -1139,10 +1316,13 @@ class OgreUserInterface::Impl
     void drawPauseMenu()
     {
         const ImGuiIO &io = ImGui::GetIO();
+        const PresentationWindowLayout layout = fitPresentationWindow(
+            io.DisplaySize.x, io.DisplaySize.y, 460.f, 570.f,
+            appliedSettings.uiScale);
         ImGui::SetNextWindowPos(
-            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.45f),
+            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowSize(ImVec2(460.0f, 570.0f), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height), ImGuiCond_Always);
         const std::string pauseTitle = label("pause.title", "##PauseMenu");
         if (ImGui::Begin(pauseTitle.c_str(), nullptr,
                          ImGuiWindowFlags_NoCollapse |
@@ -1167,6 +1347,19 @@ class OgreUserInterface::Impl
                                         objective.instruction);
                 ImGui::TextUnformatted(objectiveTitle.c_str());
                 ImGui::TextWrapped("%s", objectiveInstruction.c_str());
+                if (objective.opportunities.size() > 1 &&
+                    ImGui::CollapsingHeader(tr("hud.opportunities").c_str()))
+                {
+                    for (std::size_t index = 1;
+                         index < objective.opportunities.size(); ++index)
+                    {
+                        const auto& opportunity = objective.opportunities[index];
+                        ImGui::TextWrapped("%s", objectiveText(
+                            opportunity.id, "title", opportunity.title).c_str());
+                        ImGui::TextWrapped("%s", objectiveText(
+                            opportunity.id, "instruction", opportunity.instruction).c_str());
+                    }
+                }
                 if (!objective.completedTitles.empty() &&
                     ImGui::CollapsingHeader(
                         tr("pause.completed_objectives").c_str()))
@@ -1242,7 +1435,11 @@ class OgreUserInterface::Impl
                     tr("pause.difficulty_pending").c_str());
                 ImGui::Separator();
             }
-            if (ImGui::Button(label("pause.resume", "##Resume").c_str(), ImVec2(-1.0f, 38.0f)))
+            pushPrimaryButtonStyle();
+            const bool resumePressed = ImGui::Button(
+                label("pause.resume", "##Resume").c_str(), ImVec2(-1.0f, 38.0f));
+            ImGui::PopStyleColor(4);
+            if (resumePressed)
             {
                 if (flow->resume())
                 {
@@ -1280,10 +1477,11 @@ class OgreUserInterface::Impl
     {
         const ImGuiIO &io = ImGui::GetIO();
         ImGui::SetNextWindowPos(
-            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.48f),
+            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-        const float height = std::min(680.0f, io.DisplaySize.y - 30.0f);
-        ImGui::SetNextWindowSize(ImVec2(620.0f, height), ImGuiCond_Always);
+        const PresentationWindowLayout layout = fitPresentationWindow(
+            io.DisplaySize.x, io.DisplaySize.y, 620.0f, 680.0f, appliedSettings.uiScale);
+        ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height), ImGuiCond_Always);
         const std::string settingsTitle =
             label("settings.title", "##PausedSettings");
         if (ImGui::Begin(settingsTitle.c_str(), nullptr,
@@ -1357,6 +1555,22 @@ class OgreUserInterface::Impl
                 ImGui::SetTooltip("%s",
                     tr("settings.post_processing_help").c_str());
             }
+            const char *visualPreview = draft.visualDetail == VisualDetail::Standard
+                ? "settings.visual_standard" : "settings.visual_compatibility";
+            if (ImGui::BeginCombo(label("settings.visual_detail", "##VisualDetail").c_str(),
+                                  tr(visualPreview).c_str()))
+            {
+                for (const auto detail : {VisualDetail::Standard, VisualDetail::Compatibility})
+                {
+                    const char *key = detail == VisualDetail::Standard
+                        ? "settings.visual_standard" : "settings.visual_compatibility";
+                    if (ImGui::Selectable(tr(key).c_str(), draft.visualDetail == detail))
+                        draft.visualDetail = detail;
+                }
+                ImGui::EndCombo();
+            }
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("%s", tr("settings.visual_detail_help").c_str());
             ImGui::SliderInt(label("settings.fov", "##Fov").c_str(), &draft.fov, 45, 120);
             ImGui::SliderFloat(label("settings.mouse_sensitivity", "##MouseSensitivity").c_str(),
                                &draft.mouseSensitivity, 0.005f, 1.0f,
@@ -1786,7 +2000,8 @@ class OgreUserInterface::Impl
     void drawHotbarSlot(const InventorySlotState &slot,
                         std::size_t index, bool selected)
     {
-        constexpr float slotSize = 56.f;
+        const float scale = appliedSettings.uiScale;
+        const float slotSize = 52.f * scale;
         ImGui::PushID(static_cast<int>(index));
         ImGui::InvisibleButton("##hotbar_slot", ImVec2(slotSize, slotSize));
         const ImVec2 minimum = ImGui::GetItemRectMin();
@@ -1794,23 +2009,23 @@ class OgreUserInterface::Impl
         ImDrawList *drawList = ImGui::GetWindowDrawList();
         drawList->AddRectFilled(
             minimum, maximum,
-            selected ? IM_COL32(83, 68, 30, 238)
-                     : IM_COL32(24, 29, 38, 228),
-            3.f);
+            selected ? IM_COL32(73, 77, 49, 245)
+                     : IM_COL32(35, 48, 39, 240),
+            5.f);
         drawList->AddRect(
             minimum, maximum,
-            selected ? IM_COL32(241, 196, 54, 255)
-                     : IM_COL32(96, 108, 126, 210),
-            3.f, 0, selected ? 3.f : 1.f);
+            selected ? IM_COL32(222, 182, 110, 255)
+                     : IM_COL32(94, 112, 91, 135),
+            5.f, 0, selected ? 2.f : 1.f);
 
         const std::string key = std::to_string(index + 1);
-        drawList->AddText(ImVec2(minimum.x + 4.f, minimum.y + 3.f),
-                          IM_COL32(225, 230, 238, 230), key.c_str());
+        drawList->AddText(ImVec2(minimum.x + 5.f * scale, minimum.y + 2.f * scale),
+                          IM_COL32(183, 195, 173, 235), key.c_str());
         if (slot.amount > 0)
         {
             drawMaterialIcon(drawList, slot.materialId,
-                             ImVec2(minimum.x + 12.f, minimum.y + 8.f),
-                             ImVec2(maximum.x - 8.f, maximum.y - 12.f));
+                             ImVec2(minimum.x + 12.f * scale, minimum.y + 8.f * scale),
+                             ImVec2(maximum.x - 7.f * scale, maximum.y - 11.f * scale));
             const ToolDefinition *tool =
                 runtimeToolRegistry().find(slot.materialId);
             if (tool != nullptr && tool->maxDurability > 0)
@@ -1819,17 +2034,17 @@ class OgreUserInterface::Impl
                     static_cast<float>(slot.durability) /
                         static_cast<float>(tool->maxDurability),
                     0.f, 1.f);
-                const ImVec2 barMin(minimum.x + 5.f, maximum.y - 7.f);
-                const ImVec2 barMax(maximum.x - 5.f, maximum.y - 4.f);
+                const ImVec2 barMin(minimum.x + 5.f * scale, maximum.y - 7.f * scale);
+                const ImVec2 barMax(maximum.x - 5.f * scale, maximum.y - 4.f * scale);
                 drawList->AddRectFilled(barMin, barMax,
-                                        IM_COL32(10, 12, 16, 230));
+                                        IM_COL32(20, 30, 23, 230));
                 drawList->AddRectFilled(
                     barMin,
                     ImVec2(barMin.x + (barMax.x - barMin.x) * durability,
                            barMax.y),
                     durability > 0.35f
-                        ? IM_COL32(72, 208, 88, 255)
-                        : IM_COL32(230, 76, 56, 255));
+                        ? IM_COL32(156, 184, 115, 255)
+                        : IM_COL32(209, 122, 94, 255));
             }
             else
             {
@@ -1837,18 +2052,18 @@ class OgreUserInterface::Impl
                 const ImVec2 amountSize = ImGui::CalcTextSize(amount.c_str());
                 drawList->AddText(
                     ImVec2(maximum.x - amountSize.x - 4.f,
-                           maximum.y - amountSize.y - 3.f),
-                    IM_COL32(255, 255, 255, 255), amount.c_str());
+                           maximum.y - amountSize.y - 3.f * scale),
+                    IM_COL32(244, 238, 220, 255), amount.c_str());
             }
         }
         else
         {
-            const char *emptyMark = "-";
+            const char *emptyMark = ".";
             const ImVec2 markSize = ImGui::CalcTextSize(emptyMark);
             drawList->AddText(
                 ImVec2((minimum.x + maximum.x - markSize.x) * 0.5f,
                        (minimum.y + maximum.y - markSize.y) * 0.5f),
-                IM_COL32(120, 130, 145, 180), emptyMark);
+                IM_COL32(123, 141, 119, 150), emptyMark);
         }
         ImGui::PopID();
     }
@@ -1860,6 +2075,18 @@ class OgreUserInterface::Impl
             return;
         }
         const ImGuiIO &io = ImGui::GetIO();
+        if (player->hasOpenContainer() || player->hasOpenCrafting())
+        {
+            drawHudNotifications(io.DisplaySize.y - 8.f);
+            return;
+        }
+        const PlayerSaveState state = player->getSaveState();
+        const bool hasHeldStack = state.heldItem >= 0 &&
+            state.heldItem < static_cast<int>(state.inventory.size()) &&
+            state.inventory[static_cast<std::size_t>(state.heldItem)].amount > 0;
+        const Material::ID heldMaterial = hasHeldStack
+            ? state.inventory[static_cast<std::size_t>(state.heldItem)].materialId
+            : Material::ID::Nothing;
         const ImVec2 center(io.DisplaySize.x * 0.5f,
                             io.DisplaySize.y * 0.5f);
 
@@ -1870,38 +2097,44 @@ class OgreUserInterface::Impl
             ImGuiWindowFlags_NoInputs |
             ImGuiWindowFlags_NoFocusOnAppearing |
             ImGuiWindowFlags_NoNav;
-        ImGui::SetNextWindowPos(ImVec2(18.0f, 18.0f), ImGuiCond_Always);
-        ImGui::SetNextWindowBgAlpha(0.76f);
-        if (ImGui::Begin("##FramePerformance", nullptr, performanceFlags))
+        // The compact player HUD and F1 diagnostics share the same explicit
+        // visibility state. A hidden panel must not reserve objective space.
+        performanceOverlayBottom = 8.f;
+        if (showDebugPanel)
         {
-            const ImVec4 fpsColour = displayedFramesPerSecond >= 55.f
-                ? ImVec4(0.42f, 0.92f, 0.46f, 1.f)
-                : (displayedFramesPerSecond >= 30.f
-                    ? ImVec4(1.f, 0.78f, 0.28f, 1.f)
-                    : ImVec4(1.f, 0.35f, 0.30f, 1.f));
-            ImGui::TextColored(fpsColour, "FPS  %.1f",
-                               displayedFramesPerSecond);
-            ImGui::Text("%s  %.2f ms", tr("hud.frame").c_str(),
-                        displayedFrameMs);
+            ImGui::SetNextWindowPos(ImVec2(18.0f, 18.0f), ImGuiCond_Always);
+            ImGui::SetNextWindowBgAlpha(0.92f);
+            if (ImGui::Begin("##FramePerformance", nullptr, performanceFlags))
+            {
+              const ImVec4 fpsColour = displayedFramesPerSecond >= 55.f
+                  ? ImVec4(0.42f, 0.92f, 0.46f, 1.f)
+                  : (displayedFramesPerSecond >= 30.f
+                      ? ImVec4(1.f, 0.78f, 0.28f, 1.f)
+                      : ImVec4(1.f, 0.35f, 0.30f, 1.f));
+              ImGui::TextColored(fpsColour, "FPS  %.1f",
+                                 displayedFramesPerSecond);
+              ImGui::Text("%s  %.2f ms", tr("hud.frame").c_str(),
+                          displayedFrameMs);
 #if defined(_DEBUG)
-            ImGui::TextDisabled("Debug | %s %.2f ms",
-                                tr("hud.debug_peak").c_str(),
-                                displayedPeakFrameMs);
+              ImGui::TextDisabled("Debug | %s %.2f ms",
+                                  tr("hud.debug_peak").c_str(),
+                                  displayedPeakFrameMs);
 #else
-            ImGui::TextDisabled("Release | %s %.2f ms",
-                                tr("hud.debug_peak").c_str(),
-                                displayedPeakFrameMs);
+              ImGui::TextDisabled("Release | %s %.2f ms",
+                                  tr("hud.debug_peak").c_str(),
+                                  displayedPeakFrameMs);
 #endif
-            ImGui::TextDisabled(
-                "Stream Q %llu | Mesh dirty %llu",
-                static_cast<unsigned long long>(
-                    worldStats.queuedChunkUpdates),
-                static_cast<unsigned long long>(
-                    worldStats.chunks.meshDirtySections));
-            performanceOverlayBottom =
-                ImGui::GetWindowPos().y + ImGui::GetWindowSize().y;
+              ImGui::TextDisabled(
+                  "Stream Q %llu | Mesh dirty %llu",
+                  static_cast<unsigned long long>(
+                      worldStats.queuedChunkUpdates),
+                  static_cast<unsigned long long>(
+                      worldStats.chunks.meshDirtySections));
+              performanceOverlayBottom =
+                  ImGui::GetWindowPos().y + ImGui::GetWindowSize().y;
+            }
+            ImGui::End();
         }
-        ImGui::End();
 
         if (!player->hasOpenContainer() && !player->hasOpenCrafting())
         {
@@ -2096,10 +2329,18 @@ class OgreUserInterface::Impl
         {
             const ObjectiveSnapshot objective =
                 world->getObjectiveSnapshot();
+            if (displayedObjectiveId != objective.currentId)
+            {
+                displayedObjectiveId = objective.currentId;
+                objectiveHintSeconds = 12.f;
+            }
+            const float objectiveWidth = std::min(
+                300.f * appliedSettings.uiScale, io.DisplaySize.x - 36.f);
             ImGui::SetNextWindowPos(ImVec2(18.0f,
                                           performanceOverlayBottom + 10.f),
                                     ImGuiCond_Always);
-            ImGui::SetNextWindowBgAlpha(0.76f);
+            ImGui::SetNextWindowSize(ImVec2(objectiveWidth, 0.f), ImGuiCond_Always);
+            ImGui::SetNextWindowBgAlpha(0.86f);
             if (ImGui::Begin(
                     "##Objectives", nullptr,
                     ImGuiWindowFlags_NoDecoration |
@@ -2109,10 +2350,9 @@ class OgreUserInterface::Impl
                         ImGuiWindowFlags_NoFocusOnAppearing |
                         ImGuiWindowFlags_NoNav))
             {
-                ImGui::Text("%s  %zu / %zu", tr("hud.journey").c_str(),
-                            objective.completedObjectives,
-                            objective.totalObjectives);
-                ImGui::Separator();
+                ImGui::TextDisabled("%s  %zu / %zu", tr("hud.journey").c_str(),
+                                    objective.completedObjectives,
+                                    objective.totalObjectives);
                 const std::string currentTitle = objective.sessionComplete
                     ? tr("objective.complete.title")
                     : objectiveText(objective.currentId, "title",
@@ -2122,8 +2362,16 @@ class OgreUserInterface::Impl
                         ? tr("objective.complete.instruction")
                         : objectiveText(objective.currentId, "instruction",
                                         objective.instruction);
-                ImGui::TextUnformatted(currentTitle.c_str());
-                ImGui::TextWrapped("%s", currentInstruction.c_str());
+                ImGui::TextWrapped("%s", currentTitle.c_str());
+                if (appliedSettings.showActionHints &&
+                    (objectiveHintSeconds > 0.f || showDebugPanel))
+                {
+                    ImGui::TextWrapped("%s", currentInstruction.c_str());
+                }
+                else
+                {
+                    ImGui::TextDisabled("%s", tr("hud.journey_details").c_str());
+                }
                 if (objective.required > 1)
                 {
                     const float ratio = std::clamp(
@@ -2134,12 +2382,11 @@ class OgreUserInterface::Impl
                         std::to_string(std::min(objective.progress,
                                                 objective.required)) +
                         " / " + std::to_string(objective.required);
-                    ImGui::ProgressBar(
-                        ratio, ImVec2(260.0f, ImGui::GetFrameHeight()),
-                        overlay.c_str());
+                    ImGui::TextDisabled("%s", overlay.c_str());
+                    ImGui::ProgressBar(ratio, ImVec2(-1.f, 4.f), "");
                 }
                 if (objective.opportunities.size() > 1 &&
-                    !objective.sessionComplete)
+                    !objective.sessionComplete && showDebugPanel)
                 {
                     ImGui::Spacing();
                     ImGui::TextDisabled("%s", tr("hud.opportunities").c_str());
@@ -2294,62 +2541,33 @@ class OgreUserInterface::Impl
                 ImVec2(io.DisplaySize.x - 18.0f, 18.0f),
                 ImGuiCond_Always, ImVec2(1.0f, 0.0f));
             ImGui::SetNextWindowBgAlpha(0.66f);
+            ImGui::SetNextWindowSize(
+                ImVec2(std::min(260.f * appliedSettings.uiScale,
+                               io.DisplaySize.x * 0.38f), 0.f), ImGuiCond_Always);
             if (ImGui::Begin("##ActionHints", nullptr, overlayFlags))
             {
                 ImGui::Text("%s  %s",
                             gameplayKeyName(appliedSettings.inputBindings.get(
                                 GameplayAction::OpenCrafting)),
                             tr("hint.crafting").c_str());
-                ImGui::Text("%s  %s",
-                            gameplayKeyName(appliedSettings.inputBindings.get(
-                                 GameplayAction::ConsumeFood)),
-                            tr("hint.eat").c_str());
-                ImGui::Text(
-                    "%s  %s",
-                    gameplayMouseButtonName(
-                        appliedSettings.mouseBindings.get(
-                            GameplayWorldAction::Guard)),
-                    tr("hint.guard").c_str());
+                if (runtimeFoodRegistry().find(heldMaterial) != nullptr &&
+                    worldStats.playerHealth < worldStats.playerMaxHealth)
+                {
+                    ImGui::TextWrapped("%s  %s",
+                        gameplayKeyName(appliedSettings.inputBindings.get(
+                            GameplayAction::ConsumeFood)), tr("hint.eat").c_str());
+                }
+                const ToolDefinition* heldTool = runtimeToolRegistry().find(heldMaterial);
+                if (heldTool != nullptr && heldTool->miningClass == MiningClass::Weapon)
+                {
+                    ImGui::TextWrapped("%s  %s",
+                        gameplayMouseButtonName(appliedSettings.mouseBindings.get(
+                            GameplayWorldAction::Guard)), tr("hint.guard").c_str());
+                }
                 ImGui::Text("Esc  %s", tr("hint.pause").c_str());
             }
             ImGui::End();
         }
-        const PresentationCaptionSnapshot caption =
-            captionTimeline.snapshot();
-        if (caption.visible())
-        {
-            ImGui::SetNextWindowPos(
-                ImVec2(io.DisplaySize.x * 0.5f,
-                       io.DisplaySize.y - 105.0f),
-                ImGuiCond_Always, ImVec2(0.5f, 1.0f));
-            ImGui::SetNextWindowBgAlpha(0.82f);
-            if (ImGui::Begin("##AudioCaption", nullptr, overlayFlags))
-            {
-                const std::string localizedCaption =
-                    LocalizedPresentation::audioCaption(
-                        appliedSettings.locale, caption.cueId,
-                        caption.fallback);
-                ImGui::Text("[%s] %s", tr("caption.prefix").c_str(),
-                            localizedCaption.c_str());
-            }
-            ImGui::End();
-        }
-        if (statusMessageSeconds > 0.f && !statusMessage.empty() &&
-            flow->state() == GameApplicationState::Playing)
-        {
-            ImGui::SetNextWindowPos(
-                ImVec2(io.DisplaySize.x * 0.5f,
-                       io.DisplaySize.y - 132.0f),
-                ImGuiCond_Always, ImVec2(0.5f, 1.0f));
-            ImGui::SetNextWindowBgAlpha(0.82f);
-            if (ImGui::Begin("##StatusToast", nullptr, overlayFlags))
-            {
-                ImGui::TextUnformatted(statusMessage.c_str());
-            }
-            ImGui::End();
-        }
-
-        const PlayerSaveState state = player->getSaveState();
         drawHeldMaterial(state, io);
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y - 18.0f),
@@ -2363,6 +2581,9 @@ class OgreUserInterface::Impl
             ImGuiWindowFlags_NoFocusOnAppearing |
             ImGuiWindowFlags_NoNav;
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(7.0f, 7.0f));
+        float notificationBottom = io.DisplaySize.y - 180.0f * appliedSettings.uiScale;
+        ImGui::SetNextWindowSize(ImVec2(5.0f * 52.0f * appliedSettings.uiScale +
+            4.0f * ImGui::GetStyle().ItemSpacing.x + 14.0f, 0.0f));
         if (ImGui::Begin("##OgrePlayerHud", nullptr, flags))
         {
             const float healthRatio =
@@ -2374,7 +2595,10 @@ class OgreUserInterface::Impl
             ImGui::Text("%s %.0f / %.0f", tr("hud.health").c_str(),
                         std::ceil(worldStats.playerHealth),
                         std::ceil(worldStats.playerMaxHealth));
-            ImGui::ProgressBar(healthRatio, ImVec2(-1.0f, 8.0f), "");
+            ImGui::PushStyleColor(ImGuiCol_PlotHistogram, healthRatio > 0.3f ?
+                ImVec4(0.48f, 0.65f, 0.43f, 1.0f) : ImVec4(0.83f, 0.39f, 0.30f, 1.0f));
+            ImGui::ProgressBar(healthRatio, ImVec2(-1.0f, 6.0f), "");
+            ImGui::PopStyleColor();
             if (worldStats.foodCooldownTicksRemaining > 0)
             {
                 ImGui::Text("%s: %.1fs", tr("hud.food_cooldown").c_str(),
@@ -2411,7 +2635,7 @@ class OgreUserInterface::Impl
                     ImGui::SetCursorPosX(
                         ImGui::GetCursorPosX() +
                         std::max(0.f, (available - width) * 0.5f));
-                    ImGui::TextColored(ImVec4(0.96f, 0.82f, 0.34f, 1.f),
+                    ImGui::TextColored(WarmAccent,
                                        "%s", heldName.c_str());
                 }
             }
@@ -2427,8 +2651,58 @@ class OgreUserInterface::Impl
                     static_cast<int>(index) == state.heldItem);
             }
         }
+        notificationBottom = ImGui::GetWindowPos().y - 8.0f;
         ImGui::End();
         ImGui::PopStyleVar();
+        drawHudNotifications(notificationBottom);
+    }
+
+    void drawHudNotifications(float notificationBottom)
+    {
+        const ImGuiIO& io = ImGui::GetIO();
+        const ImGuiWindowFlags overlayFlags =
+            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
+            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs |
+            ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
+        const PresentationCaptionSnapshot caption =
+            captionTimeline.snapshot();
+        if (caption.visible())
+        {
+            ImGui::SetNextWindowPos(
+                ImVec2(io.DisplaySize.x * 0.5f,
+                       notificationBottom),
+                ImGuiCond_Always, ImVec2(0.5f, 1.0f));
+            ImGui::SetNextWindowBgAlpha(0.82f);
+            if (ImGui::Begin("##AudioCaption", nullptr, overlayFlags))
+            {
+                const std::string localizedCaption =
+                    LocalizedPresentation::audioCaption(
+                        appliedSettings.locale, caption.cueId,
+                        caption.fallback);
+                ImGui::Text("[%s] %s", tr("caption.prefix").c_str(),
+                            localizedCaption.c_str());
+            }
+            notificationBottom = ImGui::GetWindowPos().y - 6.0f;
+            ImGui::End();
+        }
+        if (statusMessageSeconds > 0.f && !statusMessage.empty() &&
+            flow->state() == GameApplicationState::Playing)
+        {
+            ImGui::SetNextWindowPos(
+                ImVec2(io.DisplaySize.x * 0.5f,
+                       notificationBottom),
+                ImGuiCond_Always, ImVec2(0.5f, 1.0f));
+            ImGui::SetNextWindowBgAlpha(0.82f);
+            if (ImGui::Begin("##StatusToast", nullptr, overlayFlags))
+            {
+                ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + std::min(520.0f * appliedSettings.uiScale, io.DisplaySize.x - 48.0f));
+                ImGui::TextWrapped("%s", statusMessage.c_str());
+                ImGui::PopTextWrapPos();
+            }
+            notificationBottom = ImGui::GetWindowPos().y - 6.0f;
+            ImGui::End();
+        }
+
     }
 
     bool victoryOverlayVisible() const
@@ -2551,7 +2825,7 @@ class OgreUserInterface::Impl
             const ImGuiIO &io = ImGui::GetIO();
             ImGui::SetNextWindowPos(
                 ImVec2(io.DisplaySize.x * 0.5f,
-                       io.DisplaySize.y * 0.46f),
+                       (io.DisplaySize.y - 80.f) * 0.5f),
                 ImGuiCond_Always, ImVec2(0.5f, 0.5f));
             ImGui::SetNextWindowSize(
                 ImVec2(620.0f, 430.0f), ImGuiCond_Always);
@@ -2713,9 +2987,11 @@ class OgreUserInterface::Impl
 
         const ImGuiIO &io = ImGui::GetIO();
         ImGui::SetNextWindowPos(
-            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.46f),
+            ImVec2(io.DisplaySize.x * 0.5f, (io.DisplaySize.y - 80.f) * 0.5f),
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowSize(ImVec2(560.0f, 390.0f), ImGuiCond_Always);
+        const PresentationWindowLayout layout = fitPresentationWindow(
+            io.DisplaySize.x, io.DisplaySize.y - 80.f, 560.0f, 390.0f, appliedSettings.uiScale);
+        ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height), ImGuiCond_Always);
         ImGui::SetNextWindowBgAlpha(0.96f);
         bool open = true;
         const ImGuiWindowFlags flags =
@@ -2739,7 +3015,7 @@ class OgreUserInterface::Impl
                                       : tr("common.empty")) + " x" +
                     std::to_string(stack.amount) + "##chest" +
                     std::to_string(slot);
-                if (ImGui::Button(label.c_str(), ImVec2(170.0f, 54.0f)) &&
+                if (stackButton(label, ImVec2(170.0f, 54.0f)) &&
                     stack.amount > 0)
                 {
                     if (provider.transferToPlayer(
@@ -2765,7 +3041,7 @@ class OgreUserInterface::Impl
                                      : materialName(stack.getMaterial().id)) +
                     " x" + std::to_string(stack.getNumInStack()) +
                     "##player" + std::to_string(slot);
-                if (ImGui::Button(label.c_str(), ImVec2(102.0f, 50.0f)) &&
+                if (stackButton(label, ImVec2(102.0f, 50.0f)) &&
                     !stack.isEmpty())
                 {
                     if (provider.transferFromPlayer(
@@ -2809,9 +3085,11 @@ class OgreUserInterface::Impl
 
         const ImGuiIO &io = ImGui::GetIO();
         ImGui::SetNextWindowPos(
-            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.48f),
+            ImVec2(io.DisplaySize.x * 0.5f, (io.DisplaySize.y - 80.f) * 0.5f),
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowSize(ImVec2(820.0f, 660.0f), ImGuiCond_Always);
+        const PresentationWindowLayout layout = fitPresentationWindow(
+            io.DisplaySize.x, io.DisplaySize.y - 80.f, 820.0f, 660.0f, appliedSettings.uiScale);
+        ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height), ImGuiCond_Always);
         bool open = true;
         const std::string title =
             gridSize == CraftingSession::WorkbenchGridSize
@@ -2903,7 +3181,7 @@ class OgreUserInterface::Impl
                                      : tr("common.empty")) + " x" +
                     std::to_string(slot.amount) + "##craft-source-" +
                     std::to_string(index);
-                if (ImGui::Button(label.c_str(), ImVec2(122.0f, 46.0f)) &&
+                if (stackButton(label, ImVec2(122.0f, 46.0f)) &&
                     slot.amount > 0)
                 {
                     selectedCraftingMaterial = slot.materialId;
@@ -2935,7 +3213,7 @@ class OgreUserInterface::Impl
                     (cell.amount > 0 ? materialName(material.id)
                                      : tr("common.empty")) +
                     "##craft-cell-" + std::to_string(index);
-                if (ImGui::Button(label.c_str(), ImVec2(145.0f, 52.0f)) &&
+                if (stackButton(label, ImVec2(145.0f, 52.0f)) &&
                     selectedCraftingMaterial != Material::ID::Nothing)
                 {
                     craftingSession->setCell(
@@ -3551,6 +3829,8 @@ class OgreUserInterface::Impl
     float displayedFrameMs = 0.f;
     float displayedPeakFrameMs = 0.f;
     float performanceOverlayBottom = 90.f;
+    std::string displayedObjectiveId;
+    float objectiveHintSeconds = 12.f;
     std::size_t performanceSampleFrames = 0;
     std::uint32_t dismissedVictoryEpoch = 0;
     std::array<char, 81> createName{};
@@ -3576,6 +3856,8 @@ class OgreUserInterface::Impl
     bool framePending = false;
     Ogre::TexturePtr atlasTexture;
     ImTextureID atlasTextureId = ImTextureID_Invalid;
+    Ogre::TexturePtr menuTexture;
+    ImTextureID menuTextureId = ImTextureID_Invalid;
     std::string iniPath;
     std::string fontPath;
     std::string fontDiagnostic;
