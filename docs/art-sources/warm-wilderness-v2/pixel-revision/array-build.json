@@ -1,0 +1,1400 @@
+{
+  "format_version": 1,
+  "edge": 64,
+  "layers": 256,
+  "mips": 7,
+  "payload_bytes": 5592064,
+  "sha256": "65d59cc57c385e6565da75b625dc3be4e428f63a80049f7e4fa8c6633b01be12",
+  "sources": {
+    "grass-top-a": "b1b39fa1c14073bb94fc9c5f9e6ac3e25190b6556155c34bc97974394dd6a2c3",
+    "grass-top-b": "5ebd6fa00b22e8d4a109e4173ed7435b8a2c914dde89a1d785015b7d3aeba201",
+    "grass-top-c": "9383d6b5ef3bb85eb53142c61650cf75ceb5658eb554a1d0fb55d418d1947db2",
+    "grass-side-a": "ca65e11daf0ff480299b98c498b4387feb6e6f0ab3421109633bf39d1a671095",
+    "grass-side-b": "295648c65e0523b7f8f50c711ee47f73cee9f5a73c5b6051d8f4896a2be2602a",
+    "dirt-a": "3014a8dbf7543c1d54b91e81106761100908b4c7ae1f6e2c315302c4897315bd",
+    "dirt-b": "02550975daf11b913b11e1f97ed8307d854f765da9b85c3bd53f8a189585e4dc",
+    "stone-a": "6fead3f76d82c518cebaf86df50fdea0132931c7934e28f523d332a7ad9b43eb",
+    "stone-b": "df4e1ded6694f6d029fa9d70d4e725a5e09fcfc95470fb8d94adaed5af3bc953",
+    "bark-a": "d35039fea2eac25778122434616d04e1afd0035636fc1257a141638bf54787a9",
+    "bark-b": "4683c3e45dd576a23455b3a84b79a57e302394c8dee83e35d6e4da1ec811b8cd",
+    "bark-top": "78551d1439615fc7d0a070ac2c0ee0ef02e132671ac4b5ab0b873bd60a5e5fd5",
+    "leaves-a": "7910b31a4d28ccc7d549f81ddcc92e94f2457791000680bf3c86db8128875a9c",
+    "leaves-b": "6a030722cf7a3a681829bf4abc14f622680471bfbb5f1ced83755cb4faf60745",
+    "leaves-c": "9680558626d47d01a3ce859c20e25ba0870b6db78b2eaeef7a76b92856726824",
+    "sand-a": "a9c28e3f474126750b16db73ae43d079ec8164e744bad19bcef1ea3190ef3c53",
+    "sand-b": "dcb266a3e9baacc797f758cd7bb0e0d4bce64f9e286bd883411e9661d2ecefaa",
+    "tallgrass-a": "a2ed3208858007ce48c9ac2f5a36b5c9c20269cfebd326a41a3dbb3d7836ece6",
+    "tallgrass-b": "e6799ee040cbf4b520f83a441451f1b0e98eaf1b1e72a4b90fe404538f01ba46"
+  },
+  "masters128": {
+    "grass-top-a": "d544e2b9cdfa782eeb0f7ef3a2273de970d5a63d01091cd859ef12c041e53488",
+    "grass-top-b": "3afeea90c283d685ef94e19c9eb67b69face27d3307332c9fa41751bbb9efa0c",
+    "grass-top-c": "178b57bdbf7f45a2c2863c26f3f16a8b6742e6d2e539ce6b1920261e3934836e",
+    "grass-side-a": "f6f2c488a69782339a85bdf220837abc44871513f103c906f8fb1bcf225aaebf",
+    "grass-side-b": "cf5d3260663f589125e1d5525248e22e4c73e1646110ce7ab982b8023d00e426",
+    "dirt-a": "c0e17a690f328ef9aefc1aa3cc39c96961223ad48cdec48db0abc1d65ff1d475",
+    "dirt-b": "8b412183e64fb000fc31069a9e3bb044076a50b9280c195fbc4470caebeb0521",
+    "stone-a": "5c712631c1422eaedfb5dbe35303a6775a5901bf84e07d2277a0f9d7c6bd77e4",
+    "stone-b": "39078f1b88428a4c518c8e30d248c5ca1564f2feb7353dff7457f415f51b810e",
+    "bark-a": "1d5515de45101ada3b7f2eb4fba31aa907191a3d39bf021fdd78d2455a62dca4",
+    "bark-b": "54c6533d3e64946a6b0180efc9adca3a06c9499c6f19ea4f30198d39338f2803",
+    "bark-top": "6ceabf426f08bc656fce783750a8b4108e1f35a3c00940059e95a4e0cb9777cc",
+    "leaves-a": "7711871e8aa862d49df8774bc11de4ef915bb3fae2f49b255485fbb579b49f9c",
+    "leaves-b": "e89f4c8571d73b438e5ad7cddc51d148716f5ecb9e7b6743a46e8a107250b0f7",
+    "leaves-c": "c6a7e42a7f122d0084aa3b60e7f51daee5dda0a4104efbd8671c0e9cc9e1789f",
+    "sand-a": "7c5c08df863842f59ad658e60b5df288252955409897658dbde9fd9a73aeec50",
+    "sand-b": "e88bcb061f6b4091ae9a985f80f9735352a722b5b6c54a076125d3274df53a47",
+    "tallgrass-a": "ce643f020d3c13ff1b32a1ff85fce1aac8c6f8caa400aa3875ab465511fce957",
+    "tallgrass-b": "a87e950b81c7b00a519375f78ef585d967dbf7d0823d6246745d3f2c1a4ec63c"
+  },
+  "active_slots": 120,
+  "empty_slots": 136,
+  "semantics": [
+    {
+      "semantic": "grass_top",
+      "layer": 0,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "grass-top-a"
+      ]
+    },
+    {
+      "semantic": "grass_side",
+      "layer": 1,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "grass-side-a"
+      ]
+    },
+    {
+      "semantic": "dirt",
+      "layer": 2,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "dirt-a",
+        "dirt-b"
+      ]
+    },
+    {
+      "semantic": "stone",
+      "layer": 3,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "stone-a",
+        "stone-b"
+      ]
+    },
+    {
+      "semantic": "oak_bark_side",
+      "layer": 4,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "bark-a",
+        "bark-b"
+      ]
+    },
+    {
+      "semantic": "oak_bark_top",
+      "layer": 5,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "bark-top"
+      ]
+    },
+    {
+      "semantic": "oak_leaves",
+      "layer": 6,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / oak_leaves"
+      ]
+    },
+    {
+      "semantic": "sand",
+      "layer": 7,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "sand-a",
+        "sand-b"
+      ]
+    },
+    {
+      "semantic": "water",
+      "layer": 8,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water"
+      ]
+    },
+    {
+      "semantic": "cactus",
+      "layer": 9,
+      "alpha": "opaque",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / cactus"
+      ]
+    },
+    {
+      "semantic": "rose",
+      "layer": 10,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / rose"
+      ]
+    },
+    {
+      "semantic": "tall_grass",
+      "layer": 11,
+      "alpha": "cutout",
+      "provenance": "authored",
+      "sources": [
+        "tallgrass-a"
+      ]
+    },
+    {
+      "semantic": "dead_shrub",
+      "layer": 12,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / dead_shrub"
+      ]
+    },
+    {
+      "semantic": "coal_ore",
+      "layer": 13,
+      "alpha": "opaque",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / coal_ore"
+      ]
+    },
+    {
+      "semantic": "iron_ore",
+      "layer": 14,
+      "alpha": "opaque",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / iron_ore"
+      ]
+    },
+    {
+      "semantic": "waystone_core",
+      "layer": 15,
+      "alpha": "opaque",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / waystone_core"
+      ]
+    },
+    {
+      "semantic": "chest",
+      "layer": 16,
+      "alpha": "opaque",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / chest"
+      ]
+    },
+    {
+      "semantic": "workbench",
+      "layer": 17,
+      "alpha": "opaque",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / workbench"
+      ]
+    },
+    {
+      "semantic": "furnace",
+      "layer": 18,
+      "alpha": "opaque",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / furnace"
+      ]
+    },
+    {
+      "semantic": "glass",
+      "layer": 19,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / glass"
+      ]
+    },
+    {
+      "semantic": "glass_borderless",
+      "layer": 20,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / glass_borderless"
+      ]
+    },
+    {
+      "semantic": "oak_planks",
+      "layer": 21,
+      "alpha": "opaque",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / oak_planks"
+      ]
+    },
+    {
+      "semantic": "torch",
+      "layer": 22,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / torch"
+      ]
+    },
+    {
+      "semantic": "cobblestone",
+      "layer": 23,
+      "alpha": "opaque",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / cobblestone"
+      ]
+    },
+    {
+      "semantic": "oak_door",
+      "layer": 24,
+      "alpha": "opaque",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / oak_door"
+      ]
+    },
+    {
+      "semantic": "ancient_compass",
+      "layer": 25,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / ancient_compass"
+      ]
+    },
+    {
+      "semantic": "raider_ward",
+      "layer": 26,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / raider_ward"
+      ]
+    },
+    {
+      "semantic": "crusher",
+      "layer": 27,
+      "alpha": "opaque",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / crusher"
+      ]
+    },
+    {
+      "semantic": "wheat_seeds",
+      "layer": 32,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / wheat_seeds"
+      ]
+    },
+    {
+      "semantic": "wheat",
+      "layer": 33,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / wheat"
+      ]
+    },
+    {
+      "semantic": "wooden_pickaxe",
+      "layer": 34,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / wooden_pickaxe"
+      ]
+    },
+    {
+      "semantic": "stone_pickaxe",
+      "layer": 35,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / stone_pickaxe"
+      ]
+    },
+    {
+      "semantic": "iron_ingot",
+      "layer": 36,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / iron_ingot"
+      ]
+    },
+    {
+      "semantic": "iron_pickaxe",
+      "layer": 37,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / iron_pickaxe"
+      ]
+    },
+    {
+      "semantic": "iron_sword",
+      "layer": 38,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / iron_sword"
+      ]
+    },
+    {
+      "semantic": "bread",
+      "layer": 39,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / bread"
+      ]
+    },
+    {
+      "semantic": "wooden_sword",
+      "layer": 40,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / wooden_sword"
+      ]
+    },
+    {
+      "semantic": "stone_sword",
+      "layer": 41,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / stone_sword"
+      ]
+    },
+    {
+      "semantic": "raw_meat",
+      "layer": 42,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / raw_meat"
+      ]
+    },
+    {
+      "semantic": "cooked_meat",
+      "layer": 43,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / cooked_meat"
+      ]
+    },
+    {
+      "semantic": "cactus_salad",
+      "layer": 44,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / cactus_salad"
+      ]
+    },
+    {
+      "semantic": "trail_ration",
+      "layer": 45,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / trail_ration"
+      ]
+    },
+    {
+      "semantic": "plant_fiber",
+      "layer": 46,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / plant_fiber"
+      ]
+    },
+    {
+      "semantic": "wooden_axe",
+      "layer": 47,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / wooden_axe"
+      ]
+    },
+    {
+      "semantic": "wooden_shovel",
+      "layer": 63,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / wooden_shovel"
+      ]
+    },
+    {
+      "semantic": "grass_top_desert_v0",
+      "layer": 48,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-top-a"
+      ]
+    },
+    {
+      "semantic": "grass_top_desert_v1",
+      "layer": 49,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-top-b"
+      ]
+    },
+    {
+      "semantic": "grass_top_desert_v2",
+      "layer": 50,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-top-c"
+      ]
+    },
+    {
+      "semantic": "grass_side_desert_v0",
+      "layer": 51,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-side-a"
+      ]
+    },
+    {
+      "semantic": "grass_side_desert_v1",
+      "layer": 52,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-side-b"
+      ]
+    },
+    {
+      "semantic": "grass_side_desert_v2",
+      "layer": 53,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-side-a"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_desert_v0",
+      "layer": 54,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / oak_leaves_desert_v0"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_desert_v1",
+      "layer": 55,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / oak_leaves_desert_v1"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_desert_v2",
+      "layer": 56,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / oak_leaves_desert_v2"
+      ]
+    },
+    {
+      "semantic": "water_desert_v0",
+      "layer": 57,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_desert_v0"
+      ]
+    },
+    {
+      "semantic": "water_desert_v1",
+      "layer": 58,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_desert_v1"
+      ]
+    },
+    {
+      "semantic": "water_desert_v2",
+      "layer": 59,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_desert_v2"
+      ]
+    },
+    {
+      "semantic": "tall_grass_desert_v0",
+      "layer": 60,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "tallgrass-a"
+      ]
+    },
+    {
+      "semantic": "tall_grass_desert_v1",
+      "layer": 61,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "tallgrass-b"
+      ]
+    },
+    {
+      "semantic": "tall_grass_desert_v2",
+      "layer": 62,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "tallgrass-a"
+      ]
+    },
+    {
+      "semantic": "grass_top_grassland_v0",
+      "layer": 64,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-top-a"
+      ]
+    },
+    {
+      "semantic": "grass_top_grassland_v1",
+      "layer": 65,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-top-b"
+      ]
+    },
+    {
+      "semantic": "grass_top_grassland_v2",
+      "layer": 66,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-top-c"
+      ]
+    },
+    {
+      "semantic": "grass_side_grassland_v0",
+      "layer": 67,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-side-a"
+      ]
+    },
+    {
+      "semantic": "grass_side_grassland_v1",
+      "layer": 68,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-side-b"
+      ]
+    },
+    {
+      "semantic": "grass_side_grassland_v2",
+      "layer": 69,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-side-a"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_grassland_v0",
+      "layer": 70,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / oak_leaves_grassland_v0"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_grassland_v1",
+      "layer": 71,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / oak_leaves_grassland_v1"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_grassland_v2",
+      "layer": 72,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / oak_leaves_grassland_v2"
+      ]
+    },
+    {
+      "semantic": "water_grassland_v0",
+      "layer": 73,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_grassland_v0"
+      ]
+    },
+    {
+      "semantic": "water_grassland_v1",
+      "layer": 74,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_grassland_v1"
+      ]
+    },
+    {
+      "semantic": "water_grassland_v2",
+      "layer": 75,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_grassland_v2"
+      ]
+    },
+    {
+      "semantic": "tall_grass_grassland_v0",
+      "layer": 76,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "tallgrass-a"
+      ]
+    },
+    {
+      "semantic": "tall_grass_grassland_v1",
+      "layer": 77,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "tallgrass-b"
+      ]
+    },
+    {
+      "semantic": "tall_grass_grassland_v2",
+      "layer": 78,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "tallgrass-a"
+      ]
+    },
+    {
+      "semantic": "grass_top_light_forest_v0",
+      "layer": 80,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-top-a"
+      ]
+    },
+    {
+      "semantic": "grass_top_light_forest_v1",
+      "layer": 81,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-top-b"
+      ]
+    },
+    {
+      "semantic": "grass_top_light_forest_v2",
+      "layer": 82,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-top-c"
+      ]
+    },
+    {
+      "semantic": "grass_side_light_forest_v0",
+      "layer": 83,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-side-a"
+      ]
+    },
+    {
+      "semantic": "grass_side_light_forest_v1",
+      "layer": 84,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-side-b"
+      ]
+    },
+    {
+      "semantic": "grass_side_light_forest_v2",
+      "layer": 85,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-side-a"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_light_forest_v0",
+      "layer": 86,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / oak_leaves_light_forest_v0"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_light_forest_v1",
+      "layer": 87,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / oak_leaves_light_forest_v1"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_light_forest_v2",
+      "layer": 88,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / oak_leaves_light_forest_v2"
+      ]
+    },
+    {
+      "semantic": "water_light_forest_v0",
+      "layer": 89,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_light_forest_v0"
+      ]
+    },
+    {
+      "semantic": "water_light_forest_v1",
+      "layer": 90,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_light_forest_v1"
+      ]
+    },
+    {
+      "semantic": "water_light_forest_v2",
+      "layer": 91,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_light_forest_v2"
+      ]
+    },
+    {
+      "semantic": "tall_grass_light_forest_v0",
+      "layer": 92,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "tallgrass-a"
+      ]
+    },
+    {
+      "semantic": "tall_grass_light_forest_v1",
+      "layer": 93,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "tallgrass-b"
+      ]
+    },
+    {
+      "semantic": "tall_grass_light_forest_v2",
+      "layer": 94,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "tallgrass-a"
+      ]
+    },
+    {
+      "semantic": "grass_top_temperate_forest_v0",
+      "layer": 96,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-top-a"
+      ]
+    },
+    {
+      "semantic": "grass_top_temperate_forest_v1",
+      "layer": 97,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-top-b"
+      ]
+    },
+    {
+      "semantic": "grass_top_temperate_forest_v2",
+      "layer": 98,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-top-c"
+      ]
+    },
+    {
+      "semantic": "grass_side_temperate_forest_v0",
+      "layer": 99,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-side-a"
+      ]
+    },
+    {
+      "semantic": "grass_side_temperate_forest_v1",
+      "layer": 100,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-side-b"
+      ]
+    },
+    {
+      "semantic": "grass_side_temperate_forest_v2",
+      "layer": 101,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-side-a"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_temperate_forest_v0",
+      "layer": 102,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / oak_leaves_temperate_forest_v0"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_temperate_forest_v1",
+      "layer": 103,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / oak_leaves_temperate_forest_v1"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_temperate_forest_v2",
+      "layer": 104,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / oak_leaves_temperate_forest_v2"
+      ]
+    },
+    {
+      "semantic": "water_temperate_forest_v0",
+      "layer": 105,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_temperate_forest_v0"
+      ]
+    },
+    {
+      "semantic": "water_temperate_forest_v1",
+      "layer": 106,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_temperate_forest_v1"
+      ]
+    },
+    {
+      "semantic": "water_temperate_forest_v2",
+      "layer": 107,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_temperate_forest_v2"
+      ]
+    },
+    {
+      "semantic": "tall_grass_temperate_forest_v0",
+      "layer": 108,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "tallgrass-a"
+      ]
+    },
+    {
+      "semantic": "tall_grass_temperate_forest_v1",
+      "layer": 109,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "tallgrass-b"
+      ]
+    },
+    {
+      "semantic": "tall_grass_temperate_forest_v2",
+      "layer": 110,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "tallgrass-a"
+      ]
+    },
+    {
+      "semantic": "grass_top_ocean_v0",
+      "layer": 112,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-top-a"
+      ]
+    },
+    {
+      "semantic": "grass_top_ocean_v1",
+      "layer": 113,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-top-b"
+      ]
+    },
+    {
+      "semantic": "grass_top_ocean_v2",
+      "layer": 114,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-top-c"
+      ]
+    },
+    {
+      "semantic": "grass_side_ocean_v0",
+      "layer": 115,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-side-a"
+      ]
+    },
+    {
+      "semantic": "grass_side_ocean_v1",
+      "layer": 116,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-side-b"
+      ]
+    },
+    {
+      "semantic": "grass_side_ocean_v2",
+      "layer": 117,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "grass-side-a"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_ocean_v0",
+      "layer": 118,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / oak_leaves_ocean_v0"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_ocean_v1",
+      "layer": 119,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / oak_leaves_ocean_v1"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_ocean_v2",
+      "layer": 120,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / oak_leaves_ocean_v2"
+      ]
+    },
+    {
+      "semantic": "water_ocean_v0",
+      "layer": 121,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_ocean_v0"
+      ]
+    },
+    {
+      "semantic": "water_ocean_v1",
+      "layer": 122,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_ocean_v1"
+      ]
+    },
+    {
+      "semantic": "water_ocean_v2",
+      "layer": 123,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_ocean_v2"
+      ]
+    },
+    {
+      "semantic": "tall_grass_ocean_v0",
+      "layer": 124,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "tallgrass-a"
+      ]
+    },
+    {
+      "semantic": "tall_grass_ocean_v1",
+      "layer": 125,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "tallgrass-b"
+      ]
+    },
+    {
+      "semantic": "tall_grass_ocean_v2",
+      "layer": 126,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "tallgrass-a"
+      ]
+    }
+  ],
+  "alpha_coverage": [
+    {
+      "6": 0.890625,
+      "10": 0.30859375,
+      "11": 0.412353515625,
+      "12": 0.30859375,
+      "22": 0.12890625,
+      "54": 0.890625,
+      "55": 0.890625,
+      "56": 0.890625,
+      "60": 0.412353515625,
+      "61": 0.4658203125,
+      "62": 0.412353515625,
+      "70": 0.890625,
+      "71": 0.890625,
+      "72": 0.890625,
+      "76": 0.412353515625,
+      "77": 0.4658203125,
+      "78": 0.412353515625,
+      "86": 0.890625,
+      "87": 0.890625,
+      "88": 0.890625,
+      "92": 0.412353515625,
+      "93": 0.4658203125,
+      "94": 0.412353515625,
+      "102": 0.890625,
+      "103": 0.890625,
+      "104": 0.890625,
+      "108": 0.412353515625,
+      "109": 0.4658203125,
+      "110": 0.412353515625,
+      "118": 0.890625,
+      "119": 0.890625,
+      "120": 0.890625,
+      "124": 0.412353515625,
+      "125": 0.4658203125,
+      "126": 0.412353515625
+    },
+    {
+      "6": 0.890625,
+      "10": 0.30859375,
+      "11": 0.412109375,
+      "12": 0.30859375,
+      "22": 0.12890625,
+      "54": 0.890625,
+      "55": 0.890625,
+      "56": 0.890625,
+      "60": 0.412109375,
+      "61": 0.4677734375,
+      "62": 0.412109375,
+      "70": 0.890625,
+      "71": 0.890625,
+      "72": 0.890625,
+      "76": 0.412109375,
+      "77": 0.4677734375,
+      "78": 0.412109375,
+      "86": 0.890625,
+      "87": 0.890625,
+      "88": 0.890625,
+      "92": 0.412109375,
+      "93": 0.4677734375,
+      "94": 0.412109375,
+      "102": 0.890625,
+      "103": 0.890625,
+      "104": 0.890625,
+      "108": 0.412109375,
+      "109": 0.4677734375,
+      "110": 0.412109375,
+      "118": 0.890625,
+      "119": 0.890625,
+      "120": 0.890625,
+      "124": 0.412109375,
+      "125": 0.4677734375,
+      "126": 0.412109375
+    },
+    {
+      "6": 0.890625,
+      "10": 0.30859375,
+      "11": 0.4140625,
+      "12": 0.30859375,
+      "22": 0.12890625,
+      "54": 0.890625,
+      "55": 0.890625,
+      "56": 0.890625,
+      "60": 0.4140625,
+      "61": 0.46484375,
+      "62": 0.4140625,
+      "70": 0.890625,
+      "71": 0.890625,
+      "72": 0.890625,
+      "76": 0.4140625,
+      "77": 0.46484375,
+      "78": 0.4140625,
+      "86": 0.890625,
+      "87": 0.890625,
+      "88": 0.890625,
+      "92": 0.4140625,
+      "93": 0.46484375,
+      "94": 0.4140625,
+      "102": 0.890625,
+      "103": 0.890625,
+      "104": 0.890625,
+      "108": 0.4140625,
+      "109": 0.46484375,
+      "110": 0.4140625,
+      "118": 0.890625,
+      "119": 0.890625,
+      "120": 0.890625,
+      "124": 0.4140625,
+      "125": 0.46484375,
+      "126": 0.4140625
+    },
+    {
+      "6": 0.890625,
+      "10": 0.375,
+      "11": 0.40625,
+      "12": 0.328125,
+      "22": 0.1875,
+      "54": 0.890625,
+      "55": 0.890625,
+      "56": 0.890625,
+      "60": 0.40625,
+      "61": 0.46875,
+      "62": 0.40625,
+      "70": 0.890625,
+      "71": 0.890625,
+      "72": 0.890625,
+      "76": 0.40625,
+      "77": 0.46875,
+      "78": 0.40625,
+      "86": 0.890625,
+      "87": 0.890625,
+      "88": 0.890625,
+      "92": 0.40625,
+      "93": 0.46875,
+      "94": 0.40625,
+      "102": 0.890625,
+      "103": 0.890625,
+      "104": 0.890625,
+      "108": 0.40625,
+      "109": 0.46875,
+      "110": 0.40625,
+      "118": 0.890625,
+      "119": 0.890625,
+      "120": 0.890625,
+      "124": 0.40625,
+      "125": 0.46875,
+      "126": 0.40625
+    },
+    {
+      "6": 0.9375,
+      "10": 0.3125,
+      "11": 0.4375,
+      "12": 0.375,
+      "22": 0.125,
+      "54": 0.9375,
+      "55": 0.9375,
+      "56": 0.9375,
+      "60": 0.4375,
+      "61": 0.4375,
+      "62": 0.4375,
+      "70": 0.9375,
+      "71": 0.9375,
+      "72": 0.9375,
+      "76": 0.4375,
+      "77": 0.4375,
+      "78": 0.4375,
+      "86": 0.9375,
+      "87": 0.9375,
+      "88": 0.9375,
+      "92": 0.4375,
+      "93": 0.4375,
+      "94": 0.4375,
+      "102": 0.9375,
+      "103": 0.9375,
+      "104": 0.9375,
+      "108": 0.4375,
+      "109": 0.4375,
+      "110": 0.4375,
+      "118": 0.9375,
+      "119": 0.9375,
+      "120": 0.9375,
+      "124": 0.4375,
+      "125": 0.4375,
+      "126": 0.4375
+    },
+    {
+      "6": 1.0,
+      "10": 0.5,
+      "11": 0.5,
+      "12": 0.25,
+      "22": 0.25,
+      "54": 1.0,
+      "55": 1.0,
+      "56": 1.0,
+      "60": 0.5,
+      "61": 0.5,
+      "62": 0.5,
+      "70": 1.0,
+      "71": 1.0,
+      "72": 1.0,
+      "76": 0.5,
+      "77": 0.5,
+      "78": 0.5,
+      "86": 1.0,
+      "87": 1.0,
+      "88": 1.0,
+      "92": 0.5,
+      "93": 0.5,
+      "94": 0.5,
+      "102": 1.0,
+      "103": 1.0,
+      "104": 1.0,
+      "108": 0.5,
+      "109": 0.5,
+      "110": 0.5,
+      "118": 1.0,
+      "119": 1.0,
+      "120": 1.0,
+      "124": 0.5,
+      "125": 0.5,
+      "126": 0.5
+    },
+    {
+      "6": 1.0,
+      "10": 0.0,
+      "11": 0.0,
+      "12": 0.0,
+      "22": 0.0,
+      "54": 1.0,
+      "55": 1.0,
+      "56": 1.0,
+      "60": 0.0,
+      "61": 0.0,
+      "62": 0.0,
+      "70": 1.0,
+      "71": 1.0,
+      "72": 1.0,
+      "76": 0.0,
+      "77": 0.0,
+      "78": 0.0,
+      "86": 1.0,
+      "87": 1.0,
+      "88": 1.0,
+      "92": 0.0,
+      "93": 0.0,
+      "94": 0.0,
+      "102": 1.0,
+      "103": 1.0,
+      "104": 1.0,
+      "108": 0.0,
+      "109": 0.0,
+      "110": 0.0,
+      "118": 1.0,
+      "119": 1.0,
+      "120": 1.0,
+      "124": 0.0,
+      "125": 0.0,
+      "126": 0.0
+    }
+  ],
+  "colour_space": "sRGB RGBA8, premultiplied linear-light offline filtering"
+}

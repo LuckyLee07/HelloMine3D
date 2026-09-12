@@ -1,0 +1,138 @@
+{
+  "schema": 1,
+  "assets": [
+    {
+      "name": "leaves-a",
+      "source_image": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-f5040b4d-83be-448b-a4f0-30d01476c6e1.png",
+      "prompt": "Use case: stylized-concept. Asset type: one original game foliage cutout texture, LEAF CLUSTER A, for HelloMine3D Warm Wilderness. Create a square, flat orthographic cluster of roughly 35 small oak-like leaves, layered into an irregular loose rounded diamond, covering around 70 percent of the square. The cluster must have actual transparent RGBA background outside the leaves AND small transparent gaps between leaf groups. Not a picture of a tree, not a branch illustration, not an atlas. It will be mapped on small crossed planes in a voxel forest and downsampled to 128 and 64 pixels. Hand-painted natural voxel art, crisp readable simplified individual leaves, broad low-contrast local shading, fine leaf details without noise. Muted moss/olive green around #738957, light tips #9CA976 and deep green #4E6744. No black shadows, no yellow filter, no baked directional lighting, no perspective, no vignette. Leaves reach irregularly toward the edges without making a solid square border; silhouette remains irregular with narrow gaps. No background color, no checkerboard drawn into the image, no ground, no pot, no trunk, no text, no watermark. This must be a usable isolated transparent texture asset on a genuinely transparent background.",
+      "output": "leaves-a.png",
+      "generator": "Codex built-in image_gen"
+    },
+    {
+      "name": "grass-top-a",
+      "source_image": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-5d72deb5-1471-4109-ab0c-d68d6d4e22e8.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original seamless square albedo texture for a natural warm voxel game's grass TOP face. Full-bleed flat orthographic view straight down, no perspective or horizon, no objects or text. Hand-painted refined natural game texture, readable at 128x128 and 64x64: tiny overlapping short grass blades in many directions, organized into broad restrained moss/olive green patches. Base palette around #879967, highlights #A0AE7A, dark accents #667B50. Moderate saturation, soft local contrast, no yellow filter. Not a photograph, not a flat colored swatch, not coarse 16-pixel art. No directional shadows, no vignette, no gradient across the tile, no border, no large stones, no flowers, no soil gaps. Tile seamlessly on all four edges; consistent overall density and lightness. Square output, entirely opaque. Variant A: medium density short spring grass; loosely interwoven blades with a few curled small leaves.",
+      "output": "grass-top-a.png",
+      "generator": "Codex built-in image_gen"
+    },
+    {
+      "name": "grass-top-b",
+      "source_image": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-f20cb663-34a6-4ce3-9737-af7bb853f71c.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original seamless square albedo texture for a natural warm voxel game's grass TOP face. Full-bleed flat orthographic view straight down, no perspective or horizon, no objects or text. Hand-painted refined natural game texture, readable at 128x128 and 64x64: tiny overlapping short grass blades in many directions, organized into broad restrained moss/olive green patches. Base palette around #879967, highlights #A0AE7A, dark accents #667B50. Moderate saturation, soft local contrast, no yellow filter. Not a photograph, not a flat colored swatch, not coarse 16-pixel art. No directional shadows, no vignette, no gradient across the tile, no border, no large stones, no flowers, no soil gaps. Tile seamlessly on all four edges; consistent overall density and lightness. Square output, entirely opaque. Variant B: slightly more compact grass mat, groups of delicate rounded grass tips, softly varied broad patches; clearly a new painted pattern.",
+      "output": "grass-top-b.png",
+      "generator": "Codex built-in image_gen"
+    },
+    {
+      "name": "grass-top-c",
+      "source_image": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-23d76c62-0ca3-4e12-91b8-04e5cb75a201.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original seamless square albedo texture for a natural warm voxel game's grass TOP face. Full-bleed flat orthographic view straight down, no perspective or horizon, no objects or text. Hand-painted refined natural game texture, readable at 128x128 and 64x64: tiny overlapping short grass blades in many directions, organized into broad restrained moss/olive green patches. Base palette around #879967, highlights #A0AE7A, dark accents #667B50. Moderate saturation, soft local contrast, no yellow filter. Not a photograph, not a flat colored swatch, not coarse 16-pixel art. No directional shadows, no vignette, no gradient across the tile, no border, no large stones, no flowers, no soil gaps. Tile seamlessly on all four edges; consistent overall density and lightness. Square output, entirely opaque. Variant C: slightly airier short meadow grass, thinner blades angled irregularly, scattered subtle clover-like tips; no bare ground.",
+      "output": "grass-top-c.png",
+      "generator": "Codex built-in image_gen"
+    },
+    {
+      "name": "leaves-b",
+      "source_image": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-338aab3b-66a2-458c-8045-21116804c89f.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent foliage cutout texture for HelloMine3D Warm Wilderness, a natural warm voxel game. Flat orthographic painted game art, no perspective, subtle local volume, crisp simplified leaves, readable after downsampling to 128 and 64 pixels. Muted moss/olive green #738957, lighter tips #9CA976, deep accents #4E6744. NO text, watermark, pot, ground, trunk, vignette, colored background or drawn checkerboard. Genuinely transparent RGBA outside the plant AND in all gaps. Square output. A loose rounded cluster of about 40 small pointed oval leaves in overlapping groups. Irregular silhouette reaches near all four edges with scattered transparent notches. Around 75 percent coverage. A leaf cluster for a crossed-plane tree canopy, not a whole tree or an isolated branch. No stems extending away from the leaf mass. Soft broad shade among groups, no directional cast shadow.",
+      "output": "leaves-b.png",
+      "generator": "Codex built-in image_gen"
+    },
+    {
+      "name": "leaves-c",
+      "source_image": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-4523d467-5aba-4cba-96d0-ffd630753329.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent foliage cutout texture for HelloMine3D Warm Wilderness, a natural warm voxel game. Flat orthographic painted game art, no perspective, subtle local volume, crisp simplified leaves, readable after downsampling to 128 and 64 pixels. Muted moss/olive green #738957, lighter tips #9CA976, deep accents #4E6744. NO text, watermark, pot, ground, trunk, vignette, colored background or drawn checkerboard. Genuinely transparent RGBA outside the plant AND in all gaps. Square output. A slightly airy asymmetric rounded cluster of about 40 small three-lobed oak leaves, with small transparent gaps and irregular narrow lobes around the silhouette. Around 70 percent coverage. A leaf cluster for crossed-plane tree canopy, not a whole tree or a tall branch. No stems extending away from the mass. Soft broad shade among groups, no directional cast shadow.",
+      "output": "leaves-c.png",
+      "generator": "Codex built-in image_gen"
+    },
+    {
+      "name": "tallgrass-a",
+      "source_image": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-ed2045ed-c224-4dae-96dd-8a427cd45762.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent foliage cutout texture for HelloMine3D Warm Wilderness, a natural warm voxel game. Flat orthographic painted game art, no perspective, subtle local volume, crisp simplified leaves, readable after downsampling to 128 and 64 pixels. Muted moss/olive green #738957, lighter tips #9CA976, deep accents #4E6744. NO text, watermark, pot, ground, trunk, vignette, colored background or drawn checkerboard. Genuinely transparent RGBA outside the plant AND in all gaps. Square output. One front-facing tuft of meadow grass for a crossed-plane billboard: many thin flat tapering grass blades of different heights, naturally bent and fanning out, rooted together at bottom center. Fills about 85 percent of image height and 80 percent width. Dense base tapering downward to the bottom edge, airy irregular top and sides, transparent gaps between blades. No seed heads or flowers.",
+      "output": "tallgrass-a.png",
+      "generator": "Codex built-in image_gen"
+    },
+    {
+      "name": "tallgrass-b",
+      "source_image": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-af5ebaa6-fae1-4c44-a5a0-e2cafcdeff05.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent foliage cutout texture for HelloMine3D Warm Wilderness, a natural warm voxel game. Flat orthographic painted game art, no perspective, subtle local volume, crisp simplified leaves, readable after downsampling to 128 and 64 pixels. Muted moss/olive green #738957, lighter tips #9CA976, deep accents #4E6744. NO text, watermark, pot, ground, trunk, vignette, colored background or drawn checkerboard. Genuinely transparent RGBA outside the plant AND in all gaps. Square output. One front-facing tuft of meadow grass for a crossed-plane billboard: slightly shorter broad grass blades with a few delicate seed heads, multiple small clumps connected at bottom center. Fills about 85 percent of image height and 85 percent width. Dense base tapered to bottom edge, visibly different irregular top shape, transparent gaps between blades. No flowers.",
+      "output": "tallgrass-b.png",
+      "generator": "Codex built-in image_gen"
+    },
+    {
+      "name": "dirt-a",
+      "source_image": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-0d3aaced-e73a-427a-a4fb-ce0072bb7e69.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original seamless square albedo surface texture for HelloMine3D Warm Wilderness, a refined natural voxel game. Completely flat orthographic surface, full bleed on every edge, entirely opaque. It must tile seamlessly horizontally and vertically. Hand-painted game art with crisp simplified forms and fine readable texture, intended for 128x128 source and 64x64 runtime. Broad restrained color variation plus small details, not coarse pixel blocks and not a photograph. No directional light, no cast shadow, no perspective, no horizon, no vignette, no borders, no text, no watermark, no other materials. Warm brown earth #80634C with fine compact soil granules, subtle clods around #977A5B, and a few tiny low-contrast stone grains. Natural irregular varied pattern, not tiled bricks. No vegetation or exposed roots.",
+      "output": "dirt-a.png",
+      "generator": "Codex built-in image_gen"
+    },
+    {
+      "name": "dirt-b",
+      "source_image": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-05e914d9-1a35-4f73-bcbb-a66b685140fe.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original seamless square albedo surface texture for HelloMine3D Warm Wilderness, a refined natural voxel game. Completely flat orthographic surface, full bleed on every edge, entirely opaque. It must tile seamlessly horizontally and vertically. Hand-painted game art with crisp simplified forms and fine readable texture, intended for 128x128 source and 64x64 runtime. Broad restrained color variation plus small details, not coarse pixel blocks and not a photograph. No directional light, no cast shadow, no perspective, no horizon, no vignette, no borders, no text, no watermark, no other materials. Warm brown earth #80634C with slightly firmer rounded small clods, scattered tiny darker earth chips #69523E and subtle #947658 highlights. A different natural pattern from the usual compact soil. No vegetation or exposed roots.",
+      "output": "dirt-b.png",
+      "generator": "Codex built-in image_gen"
+    },
+    {
+      "name": "stone-a",
+      "source_image": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-bd041b12-1731-4dc5-b684-c0543f41fec0.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original seamless square albedo surface texture for HelloMine3D Warm Wilderness, a refined natural voxel game. Completely flat orthographic surface, full bleed on every edge, entirely opaque. It must tile seamlessly horizontally and vertically. Hand-painted game art with crisp simplified forms and fine readable texture, intended for 128x128 source and 64x64 runtime. Broad restrained color variation plus small details, not coarse pixel blocks and not a photograph. No directional light, no cast shadow, no perspective, no horizon, no vignette, no borders, no text, no watermark, no other materials. Weathered neutral warm-gray rock #92938A, broad smooth uneven mineral patches, a few shallow fine irregular cracks and subtle grains. Highlights #ABA99E and darks #787D76, modest contrast. Solid geological rock surface, no stacked stones, no paving and no large repeated diagonal cracks.",
+      "output": "stone-a.png",
+      "generator": "Codex built-in image_gen"
+    },
+    {
+      "name": "stone-b",
+      "source_image": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-abcc1474-ed06-4cd5-b061-49c4cab49b58.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original seamless square albedo surface texture for HelloMine3D Warm Wilderness, a refined natural voxel game. Completely flat orthographic surface, full bleed on every edge, entirely opaque. It must tile seamlessly horizontally and vertically. Hand-painted game art with crisp simplified forms and fine readable texture, intended for 128x128 source and 64x64 runtime. Broad restrained color variation plus small details, not coarse pixel blocks and not a photograph. No directional light, no cast shadow, no perspective, no horizon, no vignette, no borders, no text, no watermark, no other materials. Neutral warm-gray rock #92938A, smoother sediment-like mineral variation and scattered fine chips, very restrained shallow irregular fractures. Highlights #A7A79B and darks #7A8078. Slightly different painted texture while matching the same rock family. No stripes, no stacked stones or paving.",
+      "output": "stone-b.png",
+      "generator": "Codex built-in image_gen"
+    },
+    {
+      "name": "bark-a",
+      "source_image": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-7d7b08da-5953-4199-b38a-637894efafd7.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original square albedo texture for HelloMine3D Warm Wilderness, a refined natural warm voxel game. Full-bleed, flat orthographic painted surface, entirely opaque. Crisp simplified hand-painted detail, readable when downsampled to 128 and 64 pixels, modest saturation and local contrast. No perspective, no rendered cube, no cast shadows, no directional lighting, no vignette, no border, no text or watermark. Seamless oak bark SIDE surface. Warm gray-brown #78664E, lighter #968064, darker #60553F. Vertical irregular fine bark ridges, a few short subtle splits and small varied plates; avoid black deep cracks or long straight stripes. Seamless all edges. No knots, green moss, leaves or cut ends.",
+      "output": "bark-a.png",
+      "generator": "Codex built-in image_gen"
+    },
+    {
+      "name": "bark-b",
+      "source_image": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-273db137-e7e8-43d3-9f77-a7683c404dd4.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original square albedo texture for HelloMine3D Warm Wilderness, a refined natural warm voxel game. Full-bleed, flat orthographic painted surface, entirely opaque. Crisp simplified hand-painted detail, readable when downsampled to 128 and 64 pixels, modest saturation and local contrast. No perspective, no rendered cube, no cast shadows, no directional lighting, no vignette, no border, no text or watermark. Seamless oak bark SIDE surface. Warm gray-brown #78664E with restrained #918069 highlights and #625640 dark accents. Slightly broader interlocking vertical bark flakes and a few small shallow knots; clearly varied organic pattern. Seamless all edges. No leaves, green moss, cut ends or black cracks.",
+      "output": "bark-b.png",
+      "generator": "Codex built-in image_gen"
+    },
+    {
+      "name": "bark-top",
+      "source_image": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-9183eb67-ee11-446a-bf25-0b3fb2a2e9d5.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original square albedo texture for HelloMine3D Warm Wilderness, a refined natural warm voxel game. Full-bleed, flat orthographic painted surface, entirely opaque. Crisp simplified hand-painted detail, readable when downsampled to 128 and 64 pixels, modest saturation and local contrast. No perspective, no rendered cube, no cast shadows, no directional lighting, no vignette, no border, no text or watermark. A square wooden log END-GRAIN texture filling the entire frame edge to edge, without any round outer log boundary or surrounding background. Warm muted tan #A28B65, restrained wood rings #847354. One subtly off-center ring pattern with irregular growth rings and a few tiny hairline radial marks. Painted and understated, no high-contrast bullseye. This covers the square top face of a voxel log; all corners must contain wood grain.",
+      "output": "bark-top.png",
+      "generator": "Codex built-in image_gen"
+    },
+    {
+      "name": "sand-a",
+      "source_image": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-a51689d3-0d09-4118-ae4f-6c3bd4d1b73f.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original square albedo texture for HelloMine3D Warm Wilderness, a refined natural warm voxel game. Full-bleed, flat orthographic painted surface, entirely opaque. Crisp simplified hand-painted detail, readable when downsampled to 128 and 64 pixels, modest saturation and local contrast. No perspective, no rendered cube, no cast shadows, no directional lighting, no vignette, no border, no text or watermark. Seamless fine dry sand surface, pale warm muted beige #C7B98E with subtle #D3C69E highlights and #B6A981 shadows, tiny restrained grains and barely visible broad ripples. Not yellow or gold, not a beach scene, no pebbles, shells, footprints or plants. Seamless all four edges, no directional lighting.",
+      "output": "sand-a.png",
+      "generator": "Codex built-in image_gen"
+    },
+    {
+      "name": "sand-b",
+      "source_image": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-1dad6ff7-8bd0-4a9b-8397-2d274a24d264.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original square albedo texture for HelloMine3D Warm Wilderness, a refined natural warm voxel game. Flat orthographic hand-painted surface, entirely opaque and full bleed to the edges. Crisp simplified fine details designed for 128x128 source and 64x64 runtime, restrained local contrast. No perspective, rendered cube, cast shadows, directional lighting, vignette, borders, text or watermark. Seamless pale warm beige sand #C7B98E, slightly compact finer grain than ordinary dry sand. Very subtle small mottling #D2C49C and #B9AD8B, a few barely visible light grains. Seamless horizontally and vertically. No yellow/gold tint, footprints, shells, stones, vegetation, ocean, or horizon.",
+      "output": "sand-b.png",
+      "generator": "Codex built-in image_gen"
+    },
+    {
+      "name": "grass-side-a",
+      "source_image": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-3ab304b8-90fc-482b-82a5-ca980986ebff.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original square albedo texture for HelloMine3D Warm Wilderness, a refined natural warm voxel game. Flat orthographic hand-painted surface, entirely opaque and full bleed to the edges. Crisp simplified fine details designed for 128x128 source and 64x64 runtime, restrained local contrast. No perspective, rendered cube, cast shadows, directional lighting, vignette, borders, text or watermark. SIDE face of a grass-topped soil voxel block. The upper 18 percent of the square is an uninterrupted dense olive/moss grass band (#879967, #A0AE7A), with uneven short blades and a ragged fringe descending slightly into the soil. The remaining 82 percent is warm brown soil (#80634C) with tiny clods and subtle fine grains. The TOP EDGE must be grass all the way across; no sky or background. LEFT and RIGHT edges tile seamlessly. Soil fills the bottom and both lower corners. No large roots, stones, flowers, shadows or depth perspective. Not a landscape, a flat game texture.",
+      "output": "grass-side-a.png",
+      "generator": "Codex built-in image_gen"
+    },
+    {
+      "name": "grass-side-b",
+      "source_image": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-c3a25f63-0411-4d22-9c55-edabce9ed0bb.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original square albedo texture for HelloMine3D Warm Wilderness, a refined natural warm voxel game. Flat orthographic hand-painted surface, entirely opaque and full bleed to the edges. Crisp simplified fine details designed for 128x128 source and 64x64 runtime, restrained local contrast. No perspective, rendered cube, cast shadows, directional lighting, vignette, borders, text or watermark. SIDE face of a grass-topped soil voxel block. An uninterrupted olive/moss green short grass band (#879967, #A0AE7A) fills the upper 20 percent, with small rounded grass tips and irregular fine hanging roots into brown soil. Remaining 80 percent warm brown earth #80634C, restrained clods and fine grains. TOP EDGE completely grass; BOTTOM EDGE completely soil. LEFT and RIGHT edges tile seamlessly. Modest dark accents, no black cavities, sky, large roots, rocks, flowers or perspective. Not a landscape, a flat game texture.",
+      "output": "grass-side-b.png",
+      "generator": "Codex built-in image_gen"
+    }
+  ]
+}

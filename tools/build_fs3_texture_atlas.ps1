@@ -6,12 +6,27 @@ param(
     [string]$TorchSource =
         "docs\art-sources\hellomine3d-p11-0-torch-imagegen-source.png",
     [string]$Layout = "media\materials\Base.terrain-atlas",
-    [string]$Output = "media\textures\DefaultPack.png"
+    [string]$Output = "media\textures\DefaultPack.png",
+    [switch]$Legacy
 )
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+if (-not $Legacy) {
+    foreach ($legacyParameter in @('Source', 'EconomySource', 'TorchSource')) {
+        if ($PSBoundParameters.ContainsKey($legacyParameter)) {
+            throw "-$legacyParameter belongs to the historical builder; use -Legacy explicitly."
+        }
+    }
+    $python = if (Get-Command python3 -ErrorAction SilentlyContinue) { "python3" } else { "python" }
+    $warmLayout = if ([IO.Path]::IsPathRooted($Layout)) { $Layout } else { Join-Path $repoRoot $Layout }
+    $warmOutput = if ([IO.Path]::IsPathRooted($Output)) { $Output } else { Join-Path $repoRoot $Output }
+    & $python (Join-Path $PSScriptRoot "build_warm_texture_atlas.py") --layout $warmLayout --output $warmOutput
+    if ($LASTEXITCODE -ne 0) { throw "Warm Wilderness atlas build failed" }
+    return
+}
+
 
 function Resolve-ProjectPath {
     param([string]$Path, [switch]$AllowMissing)

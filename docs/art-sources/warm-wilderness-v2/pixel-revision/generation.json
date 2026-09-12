@@ -1,0 +1,119 @@
+{
+  "direction": "Retain crisp voxel forms and refined pixel detail, per user feedback 2026-09-12",
+  "assets": [
+    {
+      "name": "grass-top-a",
+      "prompt": "Use case: stylized-concept. Asset: one original seamless square 64x64 game tile for a classic voxel game, shown enlarged with crisp pixel-art edges. The user wants the clear blocky character of the older voxel game with more refined detail. Top-down grass-block TOP texture, fully opaque and full bleed. Create a deliberately designed PIXEL ART surface, using a limited natural green palette: medium moss grass greens, small olive highlights and subdued cooler dark greens. 32-pixel-scale irregular connected colour clusters with a little 64-pixel fine detail, all forms constructed from small square steps. Balanced medium-scale patches and sparse short grass flecks, easy to read from a distance. Maintain visible pixels and decisive colour shapes. Seamless on every edge. No soft painted gradients, no realistic grass blades, no tiny repetitive woven pattern, no noise, no ground shadows, no perspective, no cube rendering, no border, text, gridlines or watermark.",
+      "source": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-d150ecd7-cc20-4043-a0c7-19778ff3b9a0.png",
+      "output": "grass-top-a.png"
+    },
+    {
+      "name": "leaves-a",
+      "prompt": "Use case: stylized-concept. Asset: one original 64x64 PIXEL ART oak foliage-cluster texture for the outside shell of a full-volume voxel tree crown, enlarged with crisp square edges. A rich dense mass of small blocky oak leaf groups, recognizable classic voxel game style with tasteful extra detail. Compact bushy leaf mass occupying about 85 percent of the square, almost solid leafy coverage in the middle, irregular stepped pixel silhouette reaching near every edge. Only a few small transparent holes. Clear medium-size connected light and dark leaf clusters, restrained forest greens and moss highlights, darker interior mass. Pixel shapes constructed on a 32-pixel logical grid with sparse 64-pixel details. Actual transparent background outside the irregular leaf cluster and in the small holes; preserve alpha. No huge individual leaves, no photorealistic or smooth painted foliage, no isolated bouquet, no stems extending outside, no flowers, no checkerboard background, no soft edges, glow, black outline, text, border, frame, watermark or multiple tiles.",
+      "source": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-10f744e4-5d1d-47b5-a779-9a54bb5345ae.png",
+      "output": "leaves-a.png"
+    },
+    {
+      "name": "grass-top-b",
+      "prompt": "Use case: stylized-concept. Asset: one original seamless square 64x64 game tile for a classic voxel game, shown enlarged with crisp pixel-art edges. The user wants the clear blocky character of the older voxel game with more refined detail. Top-down grass-block TOP texture, fully opaque and full bleed. Create a deliberately designed PIXEL ART surface, using a limited natural green palette: medium moss grass greens, small olive highlights and subdued cooler dark greens. 32-pixel-scale irregular connected colour clusters with a little 64-pixel fine detail, all forms constructed from small square steps. Balanced medium-scale patches and sparse short grass flecks, easy to read from a distance. Maintain visible pixels and decisive colour shapes. Seamless on every edge. No soft painted gradients, no realistic grass blades, no tiny repetitive woven pattern, no noise, no ground shadows, no perspective, no cube rendering, no border, text, gridlines or watermark. Make this a distinct second grass pattern, with broader calm mid-green patches and scattered shorter light-green clusters.",
+      "source": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-3eac1965-cba3-48f7-9941-0f6b2e9091f0.png",
+      "output": "grass-top-b.png"
+    },
+    {
+      "name": "grass-top-c",
+      "prompt": "Use case: stylized-concept. Asset: one original seamless square 64x64 game tile for a classic voxel game, shown enlarged with crisp pixel-art edges. The user wants the clear blocky character of the older voxel game with more refined detail. Top-down grass-block TOP texture, fully opaque and full bleed. Create a deliberately designed PIXEL ART surface, using a limited natural green palette: medium moss grass greens, small olive highlights and subdued cooler dark greens. 32-pixel-scale irregular connected colour clusters with a little 64-pixel fine detail, all forms constructed from small square steps. Balanced medium-scale patches and sparse short grass flecks, easy to read from a distance. Maintain visible pixels and decisive colour shapes. Seamless on every edge. No soft painted gradients, no realistic grass blades, no tiny repetitive woven pattern, no noise, no ground shadows, no perspective, no cube rendering, no border, text, gridlines or watermark. Make this a distinct third grass pattern, with small diagonal stepped grass clusters separated by calm medium-green areas, matching the same palette.",
+      "source": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-ee264fca-5899-4922-903b-384256b2b855.png",
+      "output": "grass-top-c.png"
+    },
+    {
+      "name": "grass-side-a",
+      "prompt": "Use case: stylized-concept. Make ONE original square 64x64 PIXEL ART tile for a refined classic voxel game, enlarged with clearly visible crisp square pixels. Fully opaque full-bleed flat texture, seamless at every edge. Deliberately composed 16-to-32-pixel-scale connected colour clusters with tasteful finer 64-pixel details. Restrained palette, clean decisive forms, medium local contrast. No blurred painting, no realistic tiny surface noise, no antialiasing, no perspective, no rendered cube, no light cast from one side, no frame, gridlines, text or watermark.  Grass block SIDE: top 20 percent is an irregular stepped moss-green grass fringe, lower 80 percent warm earthy brown dirt. A few pixel-shaped grass roots extend downward from the fringe; warm brown dirt has chunky subtle clods and sparse gray-brown pebble pixels. Clear traditional voxel block side, no vertical stripes.",
+      "source": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-ac4e2eef-6f48-4fcf-9ac5-0975db06aa62.png",
+      "output": "grass-side-a.png"
+    },
+    {
+      "name": "grass-side-b",
+      "prompt": "Use case: stylized-concept. Make ONE original square 64x64 PIXEL ART tile for a refined classic voxel game, enlarged with clearly visible crisp square pixels. Fully opaque full-bleed flat texture, seamless at every edge. Deliberately composed 16-to-32-pixel-scale connected colour clusters with tasteful finer 64-pixel details. Restrained palette, clean decisive forms, medium local contrast. No blurred painting, no realistic tiny surface noise, no antialiasing, no perspective, no rendered cube, no light cast from one side, no frame, gridlines, text or watermark.  Grass block SIDE variant: top 20 percent is a different irregular stepped moss-green turf fringe, lower 80 percent warm earthy brown dirt. A few pixel-shaped roots descend, with natural small brown clod clusters. Traditional voxel block edge, no smooth leaf blades or vertical stripes. Match muted earthy brown and moss grass greens.",
+      "source": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-a21f455e-6169-46a7-9d8d-80c25de522a1.png",
+      "output": "grass-side-b.png"
+    },
+    {
+      "name": "bark-a",
+      "prompt": "Use case: stylized-concept. Make ONE original square 64x64 PIXEL ART tile for a refined classic voxel game, enlarged with clearly visible crisp square pixels. Fully opaque full-bleed flat texture, seamless at every edge. Deliberately composed 16-to-32-pixel-scale connected colour clusters with tasteful finer 64-pixel details. Restrained palette, clean decisive forms, medium local contrast. No blurred painting, no realistic tiny surface noise, no antialiasing, no perspective, no rendered cube, no light cast from one side, no frame, gridlines, text or watermark.  Oak tree BARK SIDE. Warm dark brown bark in interlocking blocky vertical plates with restrained lighter tan-brown pixels and narrow darker creases. Clearly defined pixel clusters, irregular short ridges, recognizable sturdy voxel tree bark. Keep contrast readable but avoid long black stripes.",
+      "source": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-8d926fbb-62e9-4036-a145-545ac5a9f20d.png",
+      "output": "bark-a.png"
+    },
+    {
+      "name": "bark-b",
+      "prompt": "Use case: stylized-concept. Make ONE original square 64x64 PIXEL ART tile for a refined classic voxel game, enlarged with clearly visible crisp square pixels. Fully opaque full-bleed flat texture, seamless at every edge. Deliberately composed 16-to-32-pixel-scale connected colour clusters with tasteful finer 64-pixel details. Restrained palette, clean decisive forms, medium local contrast. No blurred painting, no realistic tiny surface noise, no antialiasing, no perspective, no rendered cube, no light cast from one side, no frame, gridlines, text or watermark.  Oak tree BARK SIDE variation. Warm dark brown blocky bark flakes, a few shorter chunky vertical fissures and subtle tan-brown highlights. Refined voxel texture, not realistic planks. Some broader dark brown plates and small lighter ridges, organic but decisive square pixel shapes.",
+      "source": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-aec65905-0266-47c1-9afb-3830d4e3ada9.png",
+      "output": "bark-b.png"
+    },
+    {
+      "name": "dirt-a",
+      "prompt": "Use case: stylized-concept. Make ONE original square 64x64 PIXEL ART tile for a refined classic voxel game, enlarged with clearly visible crisp square pixels. Fully opaque full-bleed flat texture, seamless at every edge. Deliberately composed 16-to-32-pixel-scale connected colour clusters with tasteful finer 64-pixel details. Restrained palette, clean decisive forms, medium local contrast. No blurred painting, no realistic tiny surface noise, no antialiasing, no perspective, no rendered cube, no light cast from one side, no frame, gridlines, text or watermark.  Warm earthy brown DIRT. Chunky irregular connected dark and medium brown soil clusters with a few small gray-brown pebbles. Classic voxel soil with cleaner controlled pattern and subtle fine highlights. No grass or roots. Modest contrast.",
+      "source": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-5ef22fc4-e15f-40e0-a54a-21f8f16504e1.png",
+      "output": "dirt-a.png"
+    },
+    {
+      "name": "dirt-b",
+      "prompt": "Use case: stylized-concept. Make ONE original square 64x64 PIXEL ART tile for a refined classic voxel game, enlarged with clearly visible crisp square pixels. Fully opaque full-bleed flat texture, seamless at every edge. Deliberately composed 16-to-32-pixel-scale connected colour clusters with tasteful finer 64-pixel details. Restrained palette, clean decisive forms, medium local contrast. No blurred painting, no realistic tiny surface noise, no antialiasing, no perspective, no rendered cube, no light cast from one side, no frame, gridlines, text or watermark.  Warm earthy brown DIRT variation, slightly firmer blocky clods, a few muted tiny stone chips. Use organized connected square pixel clusters of medium and dark brown, with sparse lighter highlights. Coherent classic voxel soil. No stripes, grass or roots.",
+      "source": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-ac311d74-c9b5-45b2-a5cd-51639ea0b61a.png",
+      "output": "dirt-b.png"
+    },
+    {
+      "name": "stone-a",
+      "prompt": "Use case: stylized-concept. Make ONE original square 64x64 PIXEL ART tile for a refined classic voxel game, enlarged with clearly visible crisp square pixels. Fully opaque full-bleed flat texture, seamless at every edge. Deliberately composed 16-to-32-pixel-scale connected colour clusters with tasteful finer 64-pixel details. Restrained palette, clean decisive forms, medium local contrast. No blurred painting, no realistic tiny surface noise, no antialiasing, no perspective, no rendered cube, no light cast from one side, no frame, gridlines, text or watermark.  Natural STONE. Medium neutral warm-gray rock with broad irregular connected gray pixel clusters, a few angular subtle darker seams, and small light-gray chips. Recognizable classic voxel stone, strong material readability, no pebble mosaic or paving.",
+      "source": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-da04cd4b-c0b2-4780-88f9-629537061cb1.png",
+      "output": "stone-a.png"
+    },
+    {
+      "name": "stone-b",
+      "prompt": "Use case: stylized-concept. Make ONE original square 64x64 PIXEL ART tile for a refined classic voxel game, enlarged with clearly visible crisp square pixels. Fully opaque full-bleed flat texture, seamless at every edge. Deliberately composed 16-to-32-pixel-scale connected colour clusters with tasteful finer 64-pixel details. Restrained palette, clean decisive forms, medium local contrast. No blurred painting, no realistic tiny surface noise, no antialiasing, no perspective, no rendered cube, no light cast from one side, no frame, gridlines, text or watermark.  Natural STONE variation. Medium neutral gray rock with different broad blocky mineral shapes, some restrained stepped dark-gray cracks and sparse light-gray pixels. Calm mid-gray base. No bricks, noisy gravel, stripes, perspective or stacked rocks.",
+      "source": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-c6d33d84-74fc-4df4-b8d7-b1a9e0f2ab88.png",
+      "output": "stone-b.png"
+    },
+    {
+      "name": "bark-top",
+      "prompt": "Use case: stylized-concept. Make ONE original square 64x64 PIXEL ART tile for a refined classic voxel game, enlarged with clearly visible crisp square pixels. Fully opaque full-bleed flat texture, seamless at every edge. Deliberately composed 16-to-32-pixel-scale connected colour clusters with tasteful finer 64-pixel details. Restrained palette, clean decisive forms, medium local contrast. No blurred painting, no realistic tiny surface noise, no antialiasing, no perspective, no rendered cube, no light cast from one side, no frame, gridlines, text or watermark.  OAK LOG END GRAIN. Square wood cut surface fully filling all four corners. Chunky stepped irregular wood rings in tan and medium brown around a subtly off-centre centre, with 2 short dark pixel cracks. Readable classic voxel log top, no round outer boundary, no background and no very bright bullseye.",
+      "source": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-9b072aec-3bea-41ac-ae39-1416ea1628ff.png",
+      "output": "bark-top.png"
+    },
+    {
+      "name": "tallgrass-a",
+      "prompt": "Use case: stylized-concept. One original 64x64 PIXEL ART tall grass tuft sprite, shown enlarged with crisp blocky stepped edges. Classic voxel game style with cleaner 32-to-64 pixel detail. A compact bushy tuft of six short broad angular green grass leaves rising from a narrow base, moss green with a few bright green stepped highlights and deeper green pixels. Full tuft nearly fills the square, lower leaves fan sideways, asymmetric tips. Actual transparent background and alpha, no ground shadow or roots outside the tuft. No realistic thin grass blades, blurred gradients, soft edges, glow, black outlines, checkerboard, border, text or extra objects.",
+      "source": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-15b171ab-3992-437b-9261-ff1d4f998647.png",
+      "output": "tallgrass-a.png"
+    },
+    {
+      "name": "leaves-b",
+      "prompt": "Use case: stylized-concept. Asset: one original 64x64 PIXEL ART oak foliage-cluster texture for the outside shell of a full-volume voxel tree crown, enlarged with crisp square edges. A rich dense mass of small blocky oak leaf groups, recognizable classic voxel game style with tasteful extra detail. Compact bushy leaf mass occupying about 85 percent of the square, almost solid leafy coverage in the middle, irregular stepped pixel silhouette reaching near every edge. Only a few small transparent holes. Clear medium-size connected light and dark leaf clusters, restrained forest greens and moss highlights, darker interior mass. Pixel shapes constructed on a 32-pixel logical grid with sparse 64-pixel details. Actual transparent background outside the irregular leaf cluster and in the small holes; preserve alpha. No huge individual leaves, no photorealistic or smooth painted foliage, no isolated bouquet, no stems extending outside, no flowers, no checkerboard background, no soft edges, glow, black outline, text, border, frame, watermark or multiple tiles. Make this a distinct matching second leaf pattern: broad blocky leaf clumps with fewer small holes and irregular asymmetric stepped outer edges. Avoid radial flower shapes.",
+      "source": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-9e7fc71b-101a-4b76-96f0-a25d3e931903.png",
+      "output": "leaves-b.png"
+    },
+    {
+      "name": "leaves-c",
+      "prompt": "Use case: stylized-concept. Asset: one original 64x64 PIXEL ART oak foliage-cluster texture for the outside shell of a full-volume voxel tree crown, enlarged with crisp square edges. A rich dense mass of small blocky oak leaf groups, recognizable classic voxel game style with tasteful extra detail. Compact bushy leaf mass occupying about 85 percent of the square, almost solid leafy coverage in the middle, irregular stepped pixel silhouette reaching near every edge. Only a few small transparent holes. Clear medium-size connected light and dark leaf clusters, restrained forest greens and moss highlights, darker interior mass. Pixel shapes constructed on a 32-pixel logical grid with sparse 64-pixel details. Actual transparent background outside the irregular leaf cluster and in the small holes; preserve alpha. No huge individual leaves, no photorealistic or smooth painted foliage, no isolated bouquet, no stems extending outside, no flowers, no checkerboard background, no soft edges, glow, black outline, text, border, frame, watermark or multiple tiles. Make this a distinct matching third leaf pattern: interlocking pixel leaf groups, a few lighter upper clusters, deep green interiors, dense middle with a different irregular stepped silhouette. Avoid radial flower shapes.",
+      "source": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-7ae672a4-3895-4324-9808-d941bc579959.png",
+      "output": "leaves-c.png"
+    },
+    {
+      "name": "sand-a",
+      "prompt": "Use case: stylized-concept. Make ONE original square 64x64 PIXEL ART tile for a refined classic voxel game, enlarged with clearly visible crisp square pixels. Fully opaque full-bleed flat texture, seamless at every edge. Deliberately composed 16-to-32-pixel-scale connected colour clusters with tasteful finer 64-pixel details. Restrained palette, clean decisive forms, medium local contrast. No blurred painting, no realistic tiny surface noise, no antialiasing, no perspective, no rendered cube, no light cast from one side, no frame, gridlines, text or watermark.  SAND. Pale warm muted beige with subtle cream and slightly darker tan stepped pixel clusters. Quiet broad undulations and a few sparse small grains. Refined classic voxel beach sand; low contrast but clearly visible crisp pixels. No plants or stones.",
+      "source": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-1ad6ab78-03d3-4177-8d54-91bfa268ca60.png",
+      "output": "sand-a.png"
+    },
+    {
+      "name": "sand-b",
+      "prompt": "Use case: stylized-concept. Make ONE original square 64x64 PIXEL ART tile for a refined classic voxel game, enlarged with clearly visible crisp square pixels. Fully opaque full-bleed flat texture, seamless at every edge. Deliberately composed 16-to-32-pixel-scale connected colour clusters with tasteful finer 64-pixel details. Restrained palette, clean decisive forms, medium local contrast. No blurred painting, no realistic tiny surface noise, no antialiasing, no perspective, no rendered cube, no light cast from one side, no frame, gridlines, text or watermark.  SAND variation. Pale warm muted beige, a different natural arrangement of restrained cream and tan pixel clusters. A few small stepped marks and gently varied flat patches, low contrast without smooth gradients. No plants, stones, stripes or waves.",
+      "source": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-73bb7f32-a447-4c0c-9f26-bee61339b1c8.png",
+      "output": "sand-b.png"
+    },
+    {
+      "name": "tallgrass-b",
+      "prompt": "Use case: stylized-concept. One original 64x64 PIXEL ART grass tuft sprite, shown enlarged with crisp blocky stepped edges. Classic voxel game style with cleaner 32-to-64 pixel detail. Distinct second variant: five to seven chunky angular green grass leaves, a little taller centre and broader shorter side shoots, lower part dense. Medium moss greens, sparse light-green square highlights and deep green pixels at base. Actual transparent alpha background. Entire isolated tuft nearly fills square. No realistic thin blades, blur, soft shadow, glows, outlines, flowers, checkerboard, text, frame or other objects.",
+      "source": "/Users/lizi/.codex/generated_images/01a08bc6-ab7b-74a3-96be-206ec8bec2f9/exec-ca7094ad-bf97-4b7e-979f-a1aa1f3acd6b.png",
+      "output": "tallgrass-b.png"
+    }
+  ]
+}

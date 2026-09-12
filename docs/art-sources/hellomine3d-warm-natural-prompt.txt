@@ -1,0 +1,15 @@
+Use case: stylized-concept.
+Asset type: production 2D pixel texture source sheet for HelloMine3D, a warm natural cubic voxel game.
+Generate one exactly 2:1 landscape image, ideally 2048x1024. An EXACT regular grid of FOUR columns and TWO rows, each cell an equal square. Eight square flat surface textures. Cells touch edge to edge, no margins, padding, gutters, labels, outlines or gaps. Whole image is only the eight swatches. Strict orthographic 2D texture-map artwork, never 3D cubes or illustrated objects.
+Each square must depict a coherent 16 by 16 logical pixel grid, scaled up with sharp nearest-neighbor block edges. Limited 5-7 color palette per swatch, broad 2-4 pixel clusters, NO gritty random single-pixel noise. Low-contrast flat albedo; no baked directional shadow, lighting gradient, bevel, border, glossy highlight or ambient occlusion. Opposite edges must tile naturally.
+TOP ROW, LEFT TO RIGHT:
+1. Grass top A: subdued sage/olive meadow green #8A9B62 dominant, #7C8E58 shadows, #99A974 highlights. Quiet softly clustered colors. No blades drawn as long stripes, no lines or grid outlines.
+2. Grass top B: same exact palette and average brightness as A, independently arranged soft organic color clusters for a nonrepetitive variant. NOT different biome or brightness.
+3. Grass top C: same palette and average brightness, another different natural cluster pattern. All grass cells top-down lawn surface, no dirt edges.
+4. Earth/dirt: muted warm brown #84684F dominant, low-contrast broad earthy patches #785D48 and #95765B, sparse tiny stones, no black dots.
+BOTTOM ROW, LEFT TO RIGHT:
+5. Natural stone: neutral warm grey #96988E dominant, low-contrast broad irregular stone color areas #878C83 and #A4A69A, at most two short restrained hairline cracks, seamless natural rock, no cobblestone bricks.
+6. Oak bark SIDE: warm taupe brown #87694E dominant, a few broad broken vertical bark ridges #70583F and #9A7C5D, lines low-contrast, no black outlines, straight flat bark plane.
+7. Oak log END GRAIN: warm pale wood #AC916B, one softly irregular off-center set of square-pixel concentric growth rings #917652. Grain reaches all cell edges, no round trunk outline, no background.
+8. Oak leaves: full-cell small overlapping angular leaf CLUSTERS, gentle moss green #688452 dominant with #5A7448 shadow and #7E965D light. Broad clear angular clusters, only a few small fully transparent gaps inside the texture. Tile edges densely leafy so it reads as a block volume. Leaf pixels must be opaque or fully transparent. No semitransparency, checkerboard, black background, isolated sprig or large empty borders.
+All seven other cells are fully opaque square surfaces. Absolutely no text, watermark, symbols, world scene, texture-ball renders, grass sides, UI or showcase background. Original project artwork.

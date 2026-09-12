@@ -26,3 +26,20 @@ Covered project files:
 - docs/art-sources/hellomine3d-v10b2-materials-imagegen-source.png
 - docs/art-sources/hellomine3d-economy-icons-imagegen-source.png
 - docs/art-sources/hellomine3d-p11-0-torch-imagegen-source.png
+- docs/art-sources/hellomine3d-pre-warm-atlas.png
+- docs/art-sources/hellomine3d-warm-natural-source.png
+- media/textures/WarmWildernessMenu.png
+- media/textures/WarmWilderness64.hmt
+- docs/art-sources/warm-wilderness-v2/*.png
+- docs/art-sources/warm-wilderness-v2/masters128/*.png
+- docs/art-sources/warm-wilderness-v2/pixel-revision/*.png
+- docs/art-sources/warm-wilderness-v2/pixel-revision/masters128/*.png
+
+The Warm Wilderness natural texture source and menu background were generated
+for this project with the built-in OpenAI image generation tool in September
+2026. The pre-warm atlas is an unchanged archival build of the sources above.
+The 19 Warm Wilderness v2 source textures were generated individually with
+the same tool. Their prompts, source hashes, derived 128-pixel masters and
+per-semantic provenance are retained in docs/art-sources/warm-wilderness-v2/.
+The pixel-revision directory records the replacement set requested after the
+first visual review. The earlier natural set is retained as rejected artwork.
