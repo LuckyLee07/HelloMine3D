@@ -13,3 +13,16 @@ __pycache__/
 /MineOgre.log
 /tools/tracy-viewer/tracy-profiler.exe
 /tmp/*
+
+# 验收截图、对照图和录像只保留本地；报告、数据与哈希仍纳入版本管理。
+/docs/reports/**/*.png
+/docs/reports/**/*.jpg
+/docs/reports/**/*.jpeg
+/docs/reports/**/*.webp
+/docs/reports/**/*.gif
+/docs/reports/**/*.mp4
+/docs/reports/**/*.mov
+/docs/reports/**/*.m4v
+/docs/reports/**/*.webm
+# 美术设计源图继续跟踪；新的设计源文件放在 docs/art-sources/。
+!/docs/reports/visual-direction-warm-wilderness-2026-09-10/forest-concept.png
