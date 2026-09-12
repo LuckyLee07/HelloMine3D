@@ -1,4 +1,5 @@
 #include "TerrainMaterialProfile.h"
+#include "TerrainTextureArray.h"
 
 #include "../../Util/ResourcePackResolver.h"
 
@@ -194,15 +195,23 @@ TerrainMaterialParameters loadTerrainMaterialParameters(
     {
         header.pop_back();
     }
-    if (header != ProfileHeader)
+    const bool versionTwo = header ==
+        "# HelloMine3D terrain material parameters v2";
+    if (header != ProfileHeader && !versionTwo)
     {
         fail(parameterPath, "unsupported or missing header");
     }
 
-    static const std::set<std::string> keys = {
+    std::set<std::string> keys = {
         "atlas_texture", "atlas_pixels", "tile_pixels", "tiles_per_row",
         "colour_saturation", "green_suppression", "green_red_shift",
         "tone_gamma"};
+    if (versionTwo)
+    {
+        keys.insert("array_texture");
+        keys.insert("array_layer_pixels");
+        keys.insert("leaf_geometry");
+    }
     std::map<std::string, std::string> values;
     std::string line;
     std::size_t lineNumber = 1;
@@ -250,6 +259,19 @@ TerrainMaterialParameters loadTerrainMaterialParameters(
     }
 
     TerrainMaterialParameters result;
+    result.formatVersion = versionTwo ? 2 : 1;
+    if (versionTwo)
+    {
+        result.arrayTexture = values["array_texture"];
+        result.arrayLayerPixels = parseInteger(
+            parameterPath, "array_layer_pixels", values["array_layer_pixels"]);
+        if (result.arrayTexture != TerrainMaterialParameters::DefaultArrayLogicalPath ||
+            result.arrayLayerPixels != 64 || values["leaf_geometry"] != "cube")
+            fail(parameterPath, "v2 requires the 64-pixel array and classic cube geometry");
+        const auto array = TerrainTextureArray::load(resolveResource(result.arrayTexture));
+        if (array.edge != static_cast<unsigned>(result.arrayLayerPixels))
+            fail(parameterPath, "array edge disagrees with profile");
+    }
     result.atlasTexture = values["atlas_texture"];
     if (result.atlasTexture !=
         TerrainMaterialParameters::DefaultAtlasLogicalPath)
@@ -353,7 +375,50 @@ void RuntimeTerrainMaterialProfile::freezeFromResourceView(
             return resolver.resolve(logicalPath);
         });
     m_parameters = std::move(parsed);
+    // A v1 pack that replaces the atlas or shader must still affect the world.
+    // A coherent v2 pack explicitly owns both its profile and array. A partial
+    // legacy override selects the complete legacy path, never a mixed sampler.
+    const auto owner = [&resolver](const std::string &path)
+    {
+        for (const auto &resource : resolver.effectiveResources())
+            if (resource.logicalPath == path) return resource.packName;
+        return std::string();
+    };
+    const auto arrayOwner = owner(TerrainMaterialParameters::DefaultArrayLogicalPath);
+    for (const char *path : {TerrainMaterialParameters::DefaultAtlasLogicalPath,
+                            TerrainMaterialParameters::TerrainShaderLogicalPath,
+                            "media/ogre/HelloMine3DTerrainShadow.frag",
+                            "media/ogre/HelloMine3D.program",
+                            "media/ogre/HelloMine3D.material"})
+        if (!owner(path).empty() && owner(path) != arrayOwner)
+            m_legacyOverride = true;
+    if (!arrayOwner.empty() &&
+        owner(TerrainMaterialParameters::LogicalPath) != arrayOwner)
+        m_legacyOverride = true;
     m_frozen = true;
+}
+
+void RuntimeTerrainMaterialProfile::freezeRenderingMode(
+    bool requestStandard, bool arrayCapable)
+{
+    if (!m_frozen || m_renderingFrozen)
+        throw std::runtime_error("Terrain rendering mode must be frozen exactly once after resources.");
+    m_textureArray = requestStandard && arrayCapable &&
+        m_parameters.formatVersion == 2 && !m_legacyOverride;
+    m_renderingReason = !requestStandard ? "user-compatibility" :
+        m_parameters.formatVersion != 2 || m_legacyOverride ? "legacy-resource-profile" :
+        !arrayCapable ? "unsupported-array-capability" : "standard-64";
+    m_renderingFrozen = true;
+}
+
+bool RuntimeTerrainMaterialProfile::usesTextureArray() const noexcept
+{
+    return m_textureArray;
+}
+
+const std::string &RuntimeTerrainMaterialProfile::renderingModeReason() const noexcept
+{
+    return m_renderingReason;
 }
 
 bool RuntimeTerrainMaterialProfile::isFrozen() const noexcept

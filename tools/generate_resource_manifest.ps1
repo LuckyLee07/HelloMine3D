@@ -48,6 +48,10 @@ Add-ManifestEntry "resource-script" "media/ogre/HelloMine3D.material"
 Add-ManifestEntry "resource-script" "media/ogre/HelloMine3D.compositor"
 Add-ManifestEntry "material-profile" `
     "media/materials/Base.terrain-material"
+$profileSource = Get-Content -LiteralPath (Join-Path $Root "media/materials/Base.terrain-material") -Raw
+foreach ($match in [regex]::Matches($profileSource, '(?m)^array_texture=(\S+)\s*$')) {
+    Add-ManifestEntry "texture" $match.Groups[1].Value
+}
 Add-ManifestEntry "atlas-layout" `
     "media/materials/Base.terrain-atlas"
 Add-ManifestEntry "font" "media/fonts/rs.ttf"

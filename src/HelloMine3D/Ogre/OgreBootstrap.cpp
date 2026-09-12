@@ -21,6 +21,7 @@
 #include <Ogre.h>
 #include <OgreCompositorManager.h>
 #include <OgreGL3PlusPlugin.h>
+#include <OgreGL3PlusPrerequisites.h>
 #include <OgreWindowEventUtilities.h>
 
 #include <algorithm>
@@ -71,6 +72,7 @@
 #include "../World/Block/ChestContainer.h"
 #include "../World/Block/FurnaceContainer.h"
 #include "../World/Block/TerrainMaterialProfile.h"
+#include "../World/Block/TerrainTextureArray.h"
 #include "../World/Environment/AtmosphereShaderContract.h"
 #include "../World/World.h"
 #include "../World/Storage/WorldManagementService.h"
@@ -81,6 +83,30 @@ namespace
     constexpr const char* LogFileName = "MineOgre.log";
     constexpr const char* WindowTitle = "HelloMine3D";
     constexpr const char* SkyboxMaterial = "HelloMine3D/Skybox";
+
+    class TerrainArrayLoader final : public Ogre::ManualResourceLoader
+    {
+      public:
+        explicit TerrainArrayLoader(TerrainTextureArray payload)
+            : data(std::move(payload)) {}
+
+        void loadResource(Ogre::Resource *resource) override
+        {
+            auto &texture = *static_cast<Ogre::Texture *>(resource);
+            texture.createInternalResources();
+            std::size_t offset = 0;
+            for (unsigned mip = 0; mip < data.mipCount; ++mip)
+            {
+                const unsigned edge = data.edge >> mip;
+                Ogre::PixelBox pixels(edge, edge, data.layers, Ogre::PF_BYTE_RGBA,
+                                      data.rgba.data() + offset);
+                texture.getBuffer(0, mip)->blitFromMemory(pixels);
+                offset += std::size_t(edge) * edge * data.layers * 4u;
+            }
+        }
+
+        TerrainTextureArray data;
+    };
 
     bool isTrueValue(const char* value)
     {
@@ -720,6 +746,7 @@ namespace
 
             Ogre::ResourceGroupManager::getSingleton()
                 .initialiseAllResourceGroups();
+            configureTerrainAppearance();
             selectAtmosphereMode();
             syncTerrainMaterialParameters();
             m_sceneManager->setAmbientLight(
@@ -2801,8 +2828,10 @@ namespace
                 Ogre::Pass* pass = materialPass(receiver.material);
                 pass->setVertexProgram(
                     enabled ? receiver.shadowVertex : receiver.vertex);
-                pass->setFragmentProgram(
-                    enabled ? receiver.shadowFragment : receiver.fragment);
+                const bool terrain = std::string(receiver.fragment) == "HelloMine3D/TerrainFragment";
+                pass->setFragmentProgram(terrain && runtimeTerrainMaterialProfile().usesTextureArray()
+                    ? (enabled ? "HelloMine3D/TerrainShadowArrayFragment" : "HelloMine3D/TerrainArrayFragment")
+                    : (enabled ? receiver.shadowFragment : receiver.fragment));
                 if (enabled)
                 {
                     ensureDirectionalShadowReceiver(receiver.material);
@@ -3267,6 +3296,69 @@ namespace
                       << " reason=" << reason << '\n';
         }
 
+        void configureTerrainAppearance()
+        {
+            GLint maxLayers = 0, maxEdge = 0;
+            glGetIntegerv(GL_MAX_ARRAY_TEXTURE_LAYERS, &maxLayers);
+            glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxEdge);
+            const bool capable = maxLayers >= 256 && maxEdge >= 64 &&
+                m_root->getRenderSystem()->getCapabilities()->hasCapability(Ogre::RSC_TEXTURE_3D) &&
+                !isTrueValue(std::getenv("HELLOMINE3D_FORCE_LEGACY_TERRAIN"));
+            auto &profile = runtimeTerrainMaterialProfile();
+            profile.freezeRenderingMode(m_config.visualDetail == VisualDetail::Standard, capable);
+            if (profile.usesTextureArray())
+            {
+                m_terrainArrayLoader = std::make_unique<TerrainArrayLoader>(
+                    TerrainTextureArray::load(runtimeResourcePackResolver().resolve(
+                        profile.parameters().arrayTexture)));
+                const auto &data = m_terrainArrayLoader->data;
+                m_terrainArray = Ogre::TextureManager::getSingleton().createManual(
+                    "HelloMine3D/TerrainArray64", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+                    Ogre::TEX_TYPE_2D_ARRAY, data.edge, data.edge, data.layers,
+                    static_cast<int>(data.mipCount - 1), Ogre::PF_BYTE_RGBA,
+                    Ogre::TU_STATIC_WRITE_ONLY, m_terrainArrayLoader.get(), false);
+                if (m_terrainArray.isNull())
+                    throw std::runtime_error("Failed to allocate supported terrain texture array.");
+                m_terrainArray->load();
+                for (const char *name : {"HelloMine3D/TerrainArrayFragment",
+                                        "HelloMine3D/TerrainShadowArrayFragment"})
+                {
+                    auto program = Ogre::HighLevelGpuProgramManager::getSingleton().getByName(name);
+                    if (program.isNull())
+                        throw std::runtime_error(std::string("Missing standard terrain shader: ") + name);
+                    program->load();
+                    if (!program->isSupported() || program->hasCompileError())
+                        throw std::runtime_error(std::string("Invalid standard terrain shader: ") + name);
+                }
+                for (const char *name : {"HelloMine3D/Terrain", "HelloMine3D/Transparent",
+                                        "HelloMine3D/Flora"})
+                {
+                    auto material = Ogre::MaterialManager::getSingleton().getByName(name);
+                    if (material.isNull() || material->getNumTechniques() == 0)
+                        throw std::runtime_error(std::string("Missing terrain material: ") + name);
+                    auto *pass = material->getTechnique(0)->getPass(0);
+                    pass->setFragmentProgram("HelloMine3D/TerrainArrayFragment");
+                    auto *unit = pass->getTextureUnitState(0);
+                    unit->setTexture(m_terrainArray);
+                    unit->setTextureAddressingMode(Ogre::TextureUnitState::TAM_WRAP);
+                    // Keep the authored pixel edges while blending only
+                    // between independent mip levels in the distance.
+                    unit->setTextureFiltering(Ogre::FT_MIN, Ogre::FO_POINT);
+                    unit->setTextureFiltering(Ogre::FT_MAG, Ogre::FO_POINT);
+                    unit->setTextureFiltering(Ogre::FT_MIP, Ogre::FO_LINEAR);
+                }
+                std::cout << "[TERRAIN_ARRAY] edge=" << data.edge
+                          << " layers=" << data.layers << " mips=" << data.mipCount
+                          << " rgba_bytes=" << data.rgba.size()
+                          << " retained_cpu_bytes=" << data.rgba.size()
+                          << " legacy_atlas_bytes=262144 reloadable=1\n";
+            }
+            std::cout << "[TERRAIN_APPEARANCE] standard=" << profile.usesTextureArray()
+                      << " leaf_geometry=cube"
+                      << " reason=" << profile.renderingModeReason()
+                      << " max_array_layers=" << maxLayers << '\n';
+        }
+
         void syncTerrainMaterialParameters()
         {
             const TerrainMaterialParameters &profile =
@@ -3279,12 +3371,16 @@ namespace
                 Ogre::GpuProgramParametersSharedPtr parameters =
                     materialPass(materialName)
                         ->getFragmentProgramParameters();
-                parameters->setNamedConstant(
-                    "atlasPixels",
-                    static_cast<float>(profile.atlasPixels));
-                parameters->setNamedConstant(
-                    "tilePixels",
-                    static_cast<float>(profile.tilePixels));
+                if (!runtimeTerrainMaterialProfile().usesTextureArray())
+                {
+                    parameters->setNamedConstant("atlasPixels", static_cast<float>(profile.atlasPixels));
+                    parameters->setNamedConstant("tilePixels", static_cast<float>(profile.tilePixels));
+                }
+                else
+                {
+                    const bool cutout = std::string(materialName) != "HelloMine3D/Transparent";
+                    parameters->setNamedConstant("alphaCutoff", cutout ? 0.5f : 0.01f);
+                }
                 parameters->setNamedConstant(
                     "tilesPerRow",
                     static_cast<float>(profile.tilesPerRow));
@@ -3385,6 +3481,11 @@ namespace
                     "fogSunwardColour", fogSunwardColour);
                 parameters->setNamedConstant(
                     "sunDirection", sunDirection);
+                parameters->setNamedConstant("sunColour", Ogre::Vector3(
+                    state.sunColour.r, state.sunColour.g, state.sunColour.b));
+                parameters->setNamedConstant("sunIntensity", state.sunIntensity);
+                parameters->setNamedConstant("surfaceLightingStrength",
+                    m_v10cAtmosphereEnabled ? 1.0f : 0.0f);
                 parameters->setNamedConstant(
                     "fogDirectionalStrength", directionalStrength);
                 parameters->setNamedConstant(
@@ -3939,11 +4040,15 @@ namespace
             m_camera = nullptr;
             m_sceneManager = nullptr;
             m_window = nullptr;
+            m_terrainArray.setNull();
             m_root.reset();
+            m_terrainArrayLoader.reset();
             m_gl3PlusPlugin.reset();
         }
 
         std::unique_ptr<Ogre::Root> m_root;
+        std::unique_ptr<TerrainArrayLoader> m_terrainArrayLoader;
+        Ogre::TexturePtr m_terrainArray;
         Config m_config;
         std::unique_ptr<Ogre::GL3PlusPlugin> m_gl3PlusPlugin;
         Ogre::RenderWindow* m_window = nullptr;

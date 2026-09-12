@@ -145,6 +145,7 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
     bool usesVersionSixKey = false;
     bool usesVersionSevenKey = false;
     bool usesVersionEightKey = false;
+    bool hasVisualDetail = false;
     bool hasSprintMode = false;
     bool hasSneakMode = false;
     bool hasFeedbackIntensity = false;
@@ -200,6 +201,17 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
             parsed.config.postProcessingQuality =
                 readPostProcessingQuality(path, key, values);
             usesVersionSixKey = true;
+        }
+        else if (key == "visualdetail") {
+            std::string token;
+            if (!(values >> token) ||
+                (token != "standard" && token != "compatibility")) {
+                fail(path, key, "must be standard or compatibility");
+            }
+            requireEnd(path, key, values);
+            parsed.config.visualDetail = token == "standard"
+                ? VisualDetail::Standard : VisualDetail::Compatibility;
+            hasVisualDetail = true;
         }
         else if (key == "fullscreen") {
             const int fullscreen = readInteger(path, key, values);
@@ -443,6 +455,14 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
         fail(path, "feedbackintensity",
              "is required by settings version 8");
     }
+    if (hasVisualDetail && (!hasVersion || parsed.version <
+                            VisualDetailRuntimeSettingsFormatVersion)) {
+        fail(path, "settings_version", "older versions cannot contain version 9 settings");
+    }
+    if (hasVersion && parsed.version >= VisualDetailRuntimeSettingsFormatVersion &&
+        !hasVisualDetail) {
+        fail(path, "visualdetail", "is required by settings version 9");
+    }
     parsed.needsMigration =
         !hasVersion || parsed.version < RuntimeSettingsFormatVersion;
     try {
@@ -461,6 +481,7 @@ std::vector<char> serializeRuntimeConfig(const Config &config)
     output << std::setprecision(9)
            << "settings_version " << RuntimeSettingsFormatVersion << '\n'
            << "renderdistance " << config.renderDistance << '\n'
+           << "visualdetail " << visualDetailToken(config.visualDetail) << '\n'
            << "directionalshadowquality "
            << directionalShadowQualityToken(
                   config.directionalShadowQuality)
@@ -531,6 +552,10 @@ void validateUserSettings(const UserSettings &settings)
             DirectionalShadowQuality::High) {
         throw std::runtime_error(
             "directional shadow quality must be off, medium, or high");
+    }
+    if (settings.visualDetail != VisualDetail::Standard &&
+        settings.visualDetail != VisualDetail::Compatibility) {
+        throw std::runtime_error("visual detail must be standard or compatibility");
     }
     if (settings.postProcessingQuality != PostProcessingQuality::Off &&
         settings.postProcessingQuality != PostProcessingQuality::On) {
@@ -717,7 +742,8 @@ bool RuntimeSettingsSession::prepareApply(
         plan.restartRequired =
             m_draft.windowX != m_original.windowX ||
             m_draft.windowY != m_original.windowY ||
-            m_draft.isFullscreen != m_original.isFullscreen;
+            m_draft.isFullscreen != m_original.isFullscreen ||
+            m_draft.visualDetail != m_original.visualDetail;
         plan.renderDistanceChanged =
             m_draft.renderDistance != m_original.renderDistance;
         plan.directionalShadowQualityChanged =

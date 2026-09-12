@@ -409,6 +409,7 @@ project "HelloMine3DResourcePackSmoke"
         source_dir .. "/Ogre/StartupResourcePreflight.cpp",
         source_dir .. "/World/Block/TerrainMaterialProfile.h",
         source_dir .. "/World/Block/TerrainMaterialProfile.cpp",
+        source_dir .. "/World/Block/TerrainTextureArray.h",
         source_dir .. "/World/Environment/AtmosphereShaderContract.h",
         source_dir .. "/World/Environment/AtmosphereShaderContract.cpp"
     }

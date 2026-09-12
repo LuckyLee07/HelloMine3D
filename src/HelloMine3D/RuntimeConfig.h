@@ -6,8 +6,9 @@
 #include "Config.h"
 #include "World/Storage/StorageTransaction.h"
 
-constexpr int RuntimeSettingsFormatVersion = 8;
-constexpr int PreviousRuntimeSettingsFormatVersion = 7;
+constexpr int RuntimeSettingsFormatVersion = 9;
+constexpr int PreviousRuntimeSettingsFormatVersion = 8;
+constexpr int VisualDetailRuntimeSettingsFormatVersion = 9;
 constexpr int FeedbackRuntimeSettingsFormatVersion = 8;
 constexpr int InputRuntimeSettingsFormatVersion = 7;
 constexpr int PostProcessingRuntimeSettingsFormatVersion = 6;

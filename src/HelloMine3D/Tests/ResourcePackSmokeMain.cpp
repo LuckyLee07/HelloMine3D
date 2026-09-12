@@ -1,6 +1,8 @@
 #include "../Util/ResourcePackResolver.h"
+#include "../Util/ResourcePaths.h"
 #include "../Ogre/StartupResourcePreflight.h"
 #include "../World/Block/TerrainMaterialProfile.h"
+#include "../World/Block/TerrainTextureArray.h"
 #include "../World/Block/BlockTextureCoordinates.h"
 #include "../World/Environment/AtmosphereShaderContract.h"
 
@@ -173,6 +175,7 @@ namespace
             {"shader", "media/ogre/HelloMine3DWater.frag"},
             {"shape", "media/shapes/Cross.shape"},
             {"texture", "media/textures/DefaultPack.png"},
+            {"texture", "media/textures/WarmWilderness64.hmt"},
         };
         return value;
     }
@@ -246,6 +249,7 @@ namespace
     void writeAtmosphereFixture(const fs::path &root)
     {
         writeFile(root / "media/ogre/HelloMine3D.program",
+            "param_named surfaceLightingStrength float\n"
             "param_named fogSunwardColour float3\n"
             "param_named fogDirectionalStrength float\n"
             "param_named cloudLayerEnabled float\n"
@@ -278,6 +282,9 @@ namespace
         writeFile(root / "media/ogre/HelloMine3DTerrain.frag",
             terrainShaderInterface() +
             "in vec3 terrainWorldPosition;\n"
+            "uniform vec3 sunColour;\n"
+            "uniform float sunIntensity;\n"
+            "uniform float surfaceLightingStrength;\n"
             "uniform vec3 fogSunwardColour;\n"
             "uniform vec3 sunDirection;\n"
             "uniform float fogDirectionalStrength;\n"
@@ -359,6 +366,9 @@ namespace
             "uniform mat4 shadowWorldViewProj;\n");
         writeFile(root / "media/ogre/HelloMine3DTerrainShadow.frag",
             "in vec4 terrainShadowPosition;\n"
+            "uniform vec3 sunColour;\n"
+            "uniform float sunIntensity;\n"
+            "uniform float surfaceLightingStrength;\n"
             "uniform sampler2D directionalShadowMap;\n"
             "uniform float directionalShadowBias;\n"
             "float directionalShadowVisibility() {}\n"
@@ -417,6 +427,39 @@ namespace
                           validateDirectionalShadowShaderContract(resolver);
                       },
                       "missing interface declaration"));
+        }
+    }
+
+    void caseWarmSurfaceShaderContract()
+    {
+        for (const bool shadow : {false, true})
+        {
+            for (const char* declaration : {
+                     "uniform vec3 sunColour;",
+                     "uniform float sunIntensity;",
+                     "uniform float surfaceLightingStrength;"})
+            {
+                const fs::path root = freshRoot("warm-missing-interface");
+                if (shadow) writeDirectionalShadowFixture(root);
+                else writeAtmosphereFixture(root);
+                const std::string path = shadow
+                    ? "media/ogre/HelloMine3DTerrainShadow.frag"
+                    : "media/ogre/HelloMine3DTerrain.frag";
+                std::ifstream input(root / path);
+                std::string source((std::istreambuf_iterator<char>(input)),
+                                   std::istreambuf_iterator<char>());
+                const std::size_t offset = source.find(declaration);
+                source.erase(offset, std::string(declaration).size());
+                const fs::path pack = createPack(root, "stale-warm", "Stale", 1,
+                    {{path, source}});
+                ResourcePackResolver resolver;
+                resolver.freeze(root.string(), requirements(), {pack.string()});
+                check("Warm/reject-missing-" + path + "/" + declaration,
+                    throwsContaining([&] {
+                        if (shadow) validateDirectionalShadowShaderContract(resolver);
+                        else validateAtmosphereShaderContract(resolver);
+                    }, declaration));
+            }
         }
     }
 
@@ -1254,6 +1297,92 @@ namespace
         }
     }
 
+    void caseTerrainArray()
+    {
+        const fs::path root = freshRoot("wv2-array");
+        std::ifstream file(ResourcePaths::media("textures/WarmWilderness64.hmt"), std::ios::binary);
+        const std::string valid((std::istreambuf_iterator<char>(file)), {});
+        const auto path = root / TerrainMaterialParameters::DefaultArrayLogicalPath;
+        writeFile(path, valid);
+        try
+        {
+            const auto data = TerrainTextureArray::load(path.string());
+            check("WV2/array-full-chain-bounded", data.edge == 64 && data.layers == 256 &&
+                data.mipCount == 7 && data.rgba.size() == 5592064);
+        }
+        catch (const std::exception &error)
+        {
+            check("WV2/array-full-chain-bounded", false, error.what());
+            return;
+        }
+        const auto rejected = [&](const char *name, std::string bytes, const char *message)
+        {
+            writeFile(path, bytes);
+            check(name, throwsContaining([&] { TerrainTextureArray::load(path.string()); }, message));
+        };
+        std::string corrupt = valid;
+        corrupt.back() ^= 1;
+        rejected("WV2/reject-array-corrupt-payload", corrupt, "checksum");
+        rejected("WV2/reject-array-truncated", valid.substr(0, valid.size()-1), "payload size");
+        rejected("WV2/reject-array-trailing", valid + "x", "payload size");
+        rejected("WV2/reject-array-short-header", valid.substr(0, 20), "file size");
+        for (const auto offset : {0u, 8u, 12u, 16u, 20u, 24u})
+        {
+            corrupt = valid;
+            corrupt[offset] ^= 1;
+            rejected(("WV2/reject-array-header-" + std::to_string(offset)).c_str(), corrupt, "Invalid terrain texture array");
+        }
+        writeFile(path, valid);
+        std::string v2 = terrainProfile();
+        v2.replace(v2.find("v1"), 2, "v2");
+        v2 += "array_texture=media/textures/WarmWilderness64.hmt\n"
+              "array_layer_pixels=64\nleaf_geometry=cube\n";
+        const auto parsed = loadTerrainFixture(root, v2);
+        check("WV2/v2-profile-selects-array", parsed.formatVersion == 2 &&
+            parsed.arrayTexture == TerrainMaterialParameters::DefaultArrayLogicalPath &&
+            parsed.arrayLayerPixels == 64);
+        ResourcePackResolver resolver;
+        resolver.freeze(root.string(), requirements(), {});
+        RuntimeTerrainMaterialProfile standard;
+        standard.freezeFromResourceView(resolver);
+        standard.freezeRenderingMode(true, true);
+        check("WV2/standard-mode-is-immutable", standard.usesTextureArray() &&
+            throwsContaining(
+                [&] { standard.freezeRenderingMode(false, true); }, "exactly once"));
+        RuntimeTerrainMaterialProfile fallback;
+        fallback.freezeFromResourceView(resolver);
+        fallback.freezeRenderingMode(true, false);
+        check("WV2/unsupported-array-keeps-complete-compatibility", !fallback.usesTextureArray() &&
+            fallback.renderingModeReason() == "unsupported-array-capability");
+        RuntimeTerrainMaterialProfile userChoice;
+        userChoice.freezeFromResourceView(resolver);
+        userChoice.freezeRenderingMode(false, true);
+        check("WV2/user-compatibility-keeps-complete-profile", !userChoice.usesTextureArray() &&
+            userChoice.renderingModeReason() == "user-compatibility");
+        const auto oldPack = createPack(root, "old-atlas", "Old Atlas", 1,
+            {{TerrainMaterialParameters::DefaultAtlasLogicalPath, pngHeader(256, 256)}});
+        ResourcePackResolver legacyResolver;
+        legacyResolver.freeze(root.string(), requirements(), {oldPack.string()});
+        RuntimeTerrainMaterialProfile legacy;
+        legacy.freezeFromResourceView(legacyResolver);
+        legacy.freezeRenderingMode(true, true);
+        check("WV2/legacy-atlas-override-is-honoured", !legacy.usesTextureArray() &&
+            legacy.renderingModeReason() == "legacy-resource-profile");
+        const auto newPack = createPack(root, "new-array", "New Array", 1,
+            {{TerrainMaterialParameters::DefaultArrayLogicalPath, valid},
+             {TerrainMaterialParameters::LogicalPath, v2}});
+        ResourcePackResolver newResolver;
+        newResolver.freeze(root.string(), requirements(), {newPack.string()});
+        RuntimeTerrainMaterialProfile newer;
+        newer.freezeFromResourceView(newResolver);
+        newer.freezeRenderingMode(true, true);
+        check("WV2/coherent-array-pack-keeps-standard", newer.usesTextureArray());
+        writeFile(path, corrupt);
+        check("WV2/bad-array-cannot-become-capability-fallback", throwsContaining(
+            [&] { RuntimeTerrainMaterialProfile broken; broken.freezeFromResourceView(resolver); },
+            "Invalid terrain texture array"));
+    }
+
     void caseFrozenManifest()
     {
         const fs::path root = freshRoot("manifest");
@@ -1296,8 +1425,10 @@ int main()
     caseEveryAllowedClass();
     caseInvalidPacks();
     caseTerrainMaterialProfile();
+    caseTerrainArray();
     caseAtmosphereShaderContract();
     caseDirectionalShadowShaderContract();
+    caseWarmSurfaceShaderContract();
     casePostProcessingShaderContract();
     caseOptionalAudio();
     caseOptionalMusic();

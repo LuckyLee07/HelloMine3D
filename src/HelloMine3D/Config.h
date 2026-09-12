@@ -18,6 +18,13 @@ enum class PostProcessingQuality {
     On = 1
 };
 
+enum class VisualDetail { Standard = 0, Compatibility = 1 };
+
+inline const char *visualDetailToken(VisualDetail detail) noexcept
+{
+    return detail == VisualDetail::Standard ? "standard" : "compatibility";
+}
+
 inline const char *postProcessingQualityToken(
     PostProcessingQuality quality) noexcept
 {
@@ -40,6 +47,7 @@ inline const char *directionalShadowQualityToken(
 
 /// Settings owned by the player and safe to change without recreating a world.
 struct UserSettings {
+    VisualDetail visualDetail = VisualDetail::Standard;
     int windowX = 1280;
     int windowY = 720;
     bool isFullscreen = false;

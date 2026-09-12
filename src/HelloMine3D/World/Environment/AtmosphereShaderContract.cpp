@@ -44,7 +44,8 @@ void validateAtmosphereShaderContract(
 {
     requireTokens(
         resolver, "media/ogre/HelloMine3D.program",
-        {"param_named fogSunwardColour float3",
+        {"param_named surfaceLightingStrength float",
+         "param_named fogSunwardColour float3",
          "param_named fogDirectionalStrength float",
          "param_named cloudLayerEnabled float",
          "param_named cloudBaseHeight float",
@@ -79,6 +80,9 @@ void validateAtmosphereShaderContract(
     requireTokens(
         resolver, "media/ogre/HelloMine3DTerrain.frag",
         {"in vec3 terrainWorldPosition;",
+         "uniform vec3 sunColour;",
+         "uniform float sunIntensity;",
+         "uniform float surfaceLightingStrength;",
          "uniform vec3 fogSunwardColour;",
          "uniform vec3 sunDirection;",
          "uniform float fogDirectionalStrength;",
@@ -130,6 +134,9 @@ void validateDirectionalShadowShaderContract(
     requireTokens(
         resolver, "media/ogre/HelloMine3DTerrainShadow.frag",
         {"in vec4 terrainShadowPosition;",
+         "uniform vec3 sunColour;",
+         "uniform float sunIntensity;",
+         "uniform float surfaceLightingStrength;",
          "uniform sampler2D directionalShadowMap;",
          "uniform float directionalShadowBias;",
          "float directionalShadowVisibility()",

@@ -862,7 +862,9 @@ void caseBlockTextureCoordinates()
               std::abs(last[2] - 0.939453125f) < epsilon &&
               std::abs(last[5] - 0.939453125f) < epsilon);
     check("V10B1/default-terrain-material-profile-is-compatible",
-          TerrainMaterialParameters::ContractVersion == 1 &&
+          TerrainMaterialParameters::ContractVersion == 2 &&
+              defaults.formatVersion == 1 &&
+              !runtimeTerrainMaterialProfile().usesTextureArray() &&
               defaults.atlasPixels == 256 &&
               defaults.tilePixels == 16 &&
               defaults.tilesPerRow == 16 &&
@@ -929,7 +931,7 @@ void caseRuntimeConfigOwnership()
         const std::string text((std::istreambuf_iterator<char>(input)),
                                std::istreambuf_iterator<char>());
         check("V10E/settings-file-is-versioned-with-post-processing",
-               text.find("settings_version 8\n") != std::string::npos &&
+               text.find("settings_version 9\n") != std::string::npos &&
                    text.find("directionalshadowquality off\n") !=
                        std::string::npos &&
                    text.find("postprocessingquality off\n") !=
@@ -977,7 +979,7 @@ void caseRuntimeConfigOwnership()
                        DirectionalShadowQuality::Off &&
                    customised.postProcessingQuality ==
                        PostProcessingQuality::Off &&
-                   text.find("settings_version 8\n") == 0 &&
+                   text.find("settings_version 9\n") == 0 &&
                    text.find("directionalshadowquality off\n") !=
                        std::string::npos &&
                    text.find("postprocessingquality off\n") !=
@@ -1014,7 +1016,7 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::Off &&
                   versionOne.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 8\n") == 0,
+                  text.find("settings_version 9\n") == 0,
               text);
     }
 
@@ -1041,7 +1043,7 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::Off &&
                   versionTwo.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 8\n") == 0 &&
+                  text.find("settings_version 9\n") == 0 &&
                   text.find("locale en-US\n") != std::string::npos,
               text);
     }
@@ -1068,7 +1070,7 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::Off &&
                   versionThree.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 8\n") == 0 &&
+                  text.find("settings_version 9\n") == 0 &&
                   text.find("musicvolume 0.649") != std::string::npos,
               text);
     }
@@ -1092,7 +1094,7 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::Off &&
                   versionFour.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 8\n") == 0 &&
+                  text.find("settings_version 9\n") == 0 &&
                    text.find("directionalshadowquality off\n") !=
                        std::string::npos,
               text);
@@ -1116,7 +1118,7 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::High &&
                   versionFive.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 8\n") == 0 &&
+                  text.find("settings_version 9\n") == 0 &&
                   text.find("postprocessingquality off\n") !=
                       std::string::npos,
               text);
@@ -1152,7 +1154,7 @@ void caseRuntimeConfigOwnership()
                   versionSix.mouseBindings.get(
                       GameplayWorldAction::Guard) ==
                       GameplayMouseButton::Secondary &&
-                  text.find("settings_version 8\n") == 0 &&
+                  text.find("settings_version 9\n") == 0 &&
                   versionSix.feedbackIntensity ==
                       GameplayFeedbackIntensity::Full,
               text);
@@ -1182,7 +1184,7 @@ void caseRuntimeConfigOwnership()
               versionSeven.sprintMode == GameplayHoldMode::Toggle &&
                   versionSeven.feedbackIntensity ==
                       GameplayFeedbackIntensity::Full &&
-                  text.find("settings_version 8\n") == 0 &&
+                  text.find("settings_version 9\n") == 0 &&
                   text.find("feedbackintensity full\n") !=
                       std::string::npos,
               text);
@@ -1411,6 +1413,36 @@ void caseRuntimeConfigOwnership()
                   "mouse_break_attack primary\nmouse_use primary\n"
                   "mouse_place secondary\nmouse_guard secondary\n"));
 
+    {
+        const std::string source = "settings_version 8\n"
+            "directionalshadowquality high\npostprocessingquality on\n"
+            "sprintmode toggle\nsneakmode hold\n" + v7MouseBindings +
+            "feedbackintensity reduced\nlocale zh-CN\nuiscale 1.25\n";
+        std::ofstream output(configPath, std::ios::binary | std::ios::trunc);
+        output << source;
+        output.close();
+        const Config migrated = loadRuntimeConfig(configPath.string());
+        check("WV2/v8-preferences-migrate-to-standard",
+            migrated.visualDetail == VisualDetail::Standard &&
+            migrated.directionalShadowQuality == DirectionalShadowQuality::High &&
+            migrated.postProcessingQuality == PostProcessingQuality::On &&
+            migrated.locale == "zh-CN" && migrated.uiScale == 1.25f &&
+            migrated.sprintMode == GameplayHoldMode::Toggle &&
+            migrated.feedbackIntensity == GameplayFeedbackIntensity::Reduced);
+        Config compatibility = migrated;
+        compatibility.visualDetail = VisualDetail::Compatibility;
+        std::string error;
+        const bool saved = saveRuntimeConfig(configPath.string(), compatibility, &error);
+        check("WV2/compatibility-setting-round-trips", saved &&
+            loadRuntimeConfig(configPath.string()).visualDetail == VisualDetail::Compatibility, error);
+        RuntimeSettingsSession session;
+        session.begin(migrated);
+        session.draft().visualDetail = VisualDetail::Compatibility;
+        RuntimeSettingsApplyPlan plan;
+        check("WV2/visual-detail-change-requires-restart", session.prepareApply(plan, error) &&
+            plan.restartRequired && !plan.directionalShadowQualityChanged && !plan.postProcessingQualityChanged);
+    }
+
     const std::string v8Required =
         "settings_version 8\n"
         "directionalshadowquality off\n"
@@ -1427,6 +1459,15 @@ void caseRuntimeConfigOwnership()
               invalidSettingsRejected(
                   "invalid-v8-feedback.txt",
                   v8Required + "feedbackintensity strong\n"));
+    const std::string v9Required = "settings_version 9\n" +
+        v8Required.substr(v8Required.find('\n') + 1) + "feedbackintensity full\n";
+    check("WV2/invalid-v9-visual-settings-are-rejected",
+        invalidSettingsRejected("missing-v9-visual.txt", v9Required) &&
+        invalidSettingsRejected("unknown-v9-visual.txt", v9Required + "visualdetail ultra\n") &&
+        invalidSettingsRejected("duplicate-v9-visual.txt", v9Required +
+            "visualdetail standard\nvisualdetail compatibility\n") &&
+        invalidSettingsRejected("old-v8-visual.txt", v8Required +
+            "feedbackintensity full\nvisualdetail standard\n"));
 }
 
 std::string readTextFile(const std::string &path)
@@ -1495,7 +1536,15 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 428 &&
+              registry.keys("en-US").size() == 434 &&
+              registry.lookup("en-US", "settings.visual_standard") ==
+                  "Standard — refined pixel textures" &&
+              registry.lookup("zh-CN", "settings.visual_standard") ==
+                  "标准 · 精细方块材质" &&
+              registry.lookup("en-US", "main.tagline") ==
+                  "Gather. Build. Find your own way." &&
+              registry.lookup("zh-CN", "hud.journey_details") ==
+                  "Esc · 查看旅程" &&
               registry.lookup("en-US", "material.torch.name") ==
                   "Torch" &&
               registry.lookup("zh-CN", "material.torch.name") ==
@@ -17546,6 +17595,11 @@ int main()
         }
         else if (focus != nullptr && std::string(focus) == "T1") {
             caseTerrainFoundationV5();
+        }
+        else if (focus != nullptr && std::string(focus) == "WV2") {
+            caseBlockTextureCoordinates();
+            caseRuntimeConfigOwnership();
+            caseMeshDirtyPropagation();
         }
         else if (focus != nullptr && std::string(focus) == "V10A") {
             caseGreedyMeshing();
