@@ -214,9 +214,31 @@ namespace Ogre {
 
         logObjectInfo( getCombinedName() + String(" GLSL link result : "), mGLProgramHandle );
 
-        if(glIsProgram(mGLProgramHandle))
+        if(mLinked)
         {
+            // Link initializes every sampler to unit zero. Validate with the
+            // declared defaults, otherwise mixed sampler2D/sampler2DArray
+            // programs fail validation before Ogre has bound their parameters.
+            GLint previousProgram = 0;
+            OGRE_CHECK_GL_ERROR(glGetIntegerv(GL_CURRENT_PROGRAM, &previousProgram));
+            OGRE_CHECK_GL_ERROR(glUseProgram(mGLProgramHandle));
+            for (GLSLShader* shader : {mVertexShader, mHullShader, mDomainShader,
+                                       mGeometryShader, mFragmentShader, mComputeShader})
+            {
+                if (!shader) continue;
+                const auto defaults = shader->getDefaultParameters();
+                for (const auto& entry : shader->getConstantDefinitions().map)
+                {
+                    const auto& definition = entry.second;
+                    if (!definition.isSampler()) continue;
+                    const GLint location = glGetUniformLocation(mGLProgramHandle, entry.first.c_str());
+                    if (location >= 0)
+                        OGRE_CHECK_GL_ERROR(glUniform1iv(location, static_cast<GLsizei>(definition.arraySize),
+                            defaults->getIntPointer(definition.physicalIndex)));
+                }
+            }
             OGRE_CHECK_GL_ERROR(glValidateProgram(mGLProgramHandle));
+            OGRE_CHECK_GL_ERROR(glUseProgram(static_cast<GLuint>(previousProgram)));
         }
         logObjectInfo( getCombinedName() + String(" GLSL validation result : "), mGLProgramHandle );
 
