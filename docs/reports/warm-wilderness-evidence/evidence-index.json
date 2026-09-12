@@ -1,0 +1,134 @@
+[
+  {
+    "file": "Debug_HelloMine3DMeshDirtyTests_run.log",
+    "sha256": "6ba44f25d19de1142d4cc6cd5a1f61cc3038f33b22fc99e00d47fb8030a2622b"
+  },
+  {
+    "file": "Debug_HelloMine3DResourcePackSmoke_run.log",
+    "sha256": "bb567526a57bb92d5e48eee97731a8a5d1e2378d59548744e1d556feb28761d9"
+  },
+  {
+    "file": "Debug_HelloMine3DWorldRuntimeSmoke_run-r2.log",
+    "sha256": "335e1a634637d0d66b2afbc29f9905e081ab696341e999fafc251b84d18c14fe"
+  },
+  {
+    "file": "Debug_ui-r3-build.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "file": "Release_HelloMine3DMeshDirtyTests_run-r2.log",
+    "sha256": "6ba44f25d19de1142d4cc6cd5a1f61cc3038f33b22fc99e00d47fb8030a2622b"
+  },
+  {
+    "file": "Release_HelloMine3DResourcePackSmoke_run-r2.log",
+    "sha256": "bb567526a57bb92d5e48eee97731a8a5d1e2378d59548744e1d556feb28761d9"
+  },
+  {
+    "file": "Release_HelloMine3DWorldRuntimeSmoke_run-r2.log",
+    "sha256": "e57566f1e7a8805685e2fafcfa523c413a347221d3c37e1c0c522098923210f4"
+  },
+  {
+    "file": "Release_ui-r3-build.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "file": "assets-validation.log",
+    "sha256": "0bd68a7acf51ccec477616ee08f5e342474d20b46346237244d0cdc2d1c77c9b"
+  },
+  {
+    "file": "atlas-validation.log",
+    "sha256": "638efa204275e027282012f2dcd87fc9bcbcc076cf3a567ff8d34b5cf4dc18d0"
+  },
+  {
+    "file": "container-after.json",
+    "sha256": "810af2c096077b204595b229798c2ce991b5b318fd57ca63455ef68da8bc4923"
+  },
+  {
+    "file": "container-after.png",
+    "sha256": "3ba2449cfa2c1c73b608d22fa08f2c1cbf0c87a9c199406a29975ca0556e8899"
+  },
+  {
+    "file": "crafting-after.json",
+    "sha256": "cf79dad0b69213fce364d911c6d1e281303daf082e6b0b23f44e199bc1bdf527"
+  },
+  {
+    "file": "crafting-after.png",
+    "sha256": "38225a46e148196f4da0403772a6145b576fca372f12549969fa0fb7370236e3"
+  },
+  {
+    "file": "crafting-scroll-en-125.json",
+    "sha256": "5f54147a6830e26516f89ab72ae28010e4f53cefa55cccb93cc8f2063cc07993"
+  },
+  {
+    "file": "crafting-scroll-en-125.png",
+    "sha256": "b6e85834528fa42799b2e53ac6cf6534ce03280b28fb46b96cb507d8ba5550ee"
+  },
+  {
+    "file": "forest-after.json",
+    "sha256": "7172ce6e38333818bd210c40116f597d0ca9843e4f86b701738f726737d5eb0f"
+  },
+  {
+    "file": "forest-after.png",
+    "sha256": "09aa430f7ab4b16a6f3bcddccb187c1a78816cec0955de4b21367544f6754ade"
+  },
+  {
+    "file": "forest-before.json",
+    "sha256": "b827a31d6a59034ef317cdb06fc4c74a7d929e171ae1b626cbe8553bbea4172d"
+  },
+  {
+    "file": "forest-before.png",
+    "sha256": "1db5d6d202bcc683fe49617212cfaa19866eacf9e3f4a480d8a08f5547cd1642"
+  },
+  {
+    "file": "menu-after.json",
+    "sha256": "e27055c1086c45d91b7027fb8bac0ca88481fdc7ac75d18c558cdae588d236e4"
+  },
+  {
+    "file": "menu-after.png",
+    "sha256": "6b2b46e5faded1ed21b6b44b5ce15eda241023be89376b3511990340283a01d7"
+  },
+  {
+    "file": "night-after.json",
+    "sha256": "3803779e5d316265076e7301e42c749dbfe7f8097f9aee9de355bc78833ee96a"
+  },
+  {
+    "file": "night-after.png",
+    "sha256": "a9a441ed3880e823edafc98f5855ca9371b2adcd763269866f43ebb24126464c"
+  },
+  {
+    "file": "paused-en-125.json",
+    "sha256": "a0c5c2a7f5c063d32fb02f8da8ccf950dd959dd2b64ff4410a82304377006c1b"
+  },
+  {
+    "file": "paused-en-125.png",
+    "sha256": "e8a2164d6bb53752d0b211ffaaf7a63b18454d931da57d4fb23768a904ce93ca"
+  },
+  {
+    "file": "paused-zh-085.json",
+    "sha256": "73b42b9f1a9fea63f3a64fabf0444add8a9099539e7652b3eda62692152c9bbd"
+  },
+  {
+    "file": "paused-zh-085.png",
+    "sha256": "3f2c2183e0c8794a19183b60a79219791ad6e32d708d691374fb9f8c0c03b6b2"
+  },
+  {
+    "file": "perf-comparison-check.log",
+    "sha256": "f8698d4361751cfb8c9af524dfaffadf1dbd16a0bdcebc06195b03e558561c95"
+  },
+  {
+    "file": "performance-comparison.json",
+    "sha256": "c44ffe86b6fc4ae75280b7325d915300ebe56c58f1a6a4f5300b9c5a1ebdb4c2"
+  },
+  {
+    "file": "ridge-after.json",
+    "sha256": "e4eeacd91fdad648524d5c984ec725d373e99f95d359215d276a4d62229d532a"
+  },
+  {
+    "file": "ridge-after.png",
+    "sha256": "e12c69ea03f5f98ed4e1904f9543b9efc2017421d0d9fbe8f429a84f243c059b"
+  },
+  {
+    "file": "ui-layout-review.json",
+    "sha256": "34abdae14553ec866fd3564286294efe5393a39e8135ca2867be2d20b9985415"
+  }
+]

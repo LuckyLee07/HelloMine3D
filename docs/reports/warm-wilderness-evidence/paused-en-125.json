@@ -1,0 +1,117 @@
+{
+  "started_at_utc": "2026-09-12T05:37:36.958037+00:00",
+  "platform": "macOS-15.7.3-arm64-arm-64bit",
+  "host_architecture": "arm64",
+  "app": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/warm-visual-20260912/normal-ui/Runtime.app",
+  "bundle_id": "local.hellomine3d.macos-goal",
+  "configuration": "Release",
+  "examiner_note": "Normal create/play, pause, language setting applied via CUA; en-US 1.25",
+  "executable_sha256": "42b867b3c062f305f6543e791c7cd2d1fd36c2ede64ac0afce067941771d018c",
+  "capture_method": "macOS screencapture of an exact app-owned visible window",
+  "query_source_sha256": "a447a196be34e2e9e4b5390bceabf671711de90e13cb33465c71171ff292a6eb",
+  "commands": [
+    [
+      "/Users/lizi/Desktop/Workspace/HelloMine3D/build/macos-window-evidence/query-a447a196be34e2e9",
+      "local.hellomine3d.macos-goal",
+      "/Users/lizi/Desktop/Workspace/HelloMine3D/build/warm-visual-20260912/normal-ui/Runtime.app"
+    ],
+    [
+      "/usr/sbin/screencapture",
+      "-x",
+      "-o",
+      "-t",
+      "png",
+      "-l",
+      "2480",
+      "/Users/lizi/Desktop/Workspace/HelloMine3D/build/warm-visual-20260912/normal-ui/paused-en-125.png"
+    ]
+  ],
+  "result": "CAPTURED",
+  "gameplay_acceptance": "NOT_CLAIMED",
+  "package_build_identity": {
+    "platform": "macOS",
+    "configuration": "Release",
+    "source_commit": "a18ba590e94cbf69973fc7c8f233adaf5193a124",
+    "tracked_diff_sha256": "49568bf34ddcc3627c70e097c668e5550b89b8dabe445fd275516539e93e0c1a",
+    "executable_sha256": "42b867b3c062f305f6543e791c7cd2d1fd36c2ede64ac0afce067941771d018c",
+    "file_identity": "/Users/lizi/Desktop/Workspace/HelloMine3D/bin/HelloMine3D: Mach-O 64-bit executable x86_64",
+    "linkage": [
+      "\t/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa (compatibility version 1.0.0, current version 24.0.0)",
+      "\t/System/Library/Frameworks/Carbon.framework/Versions/A/Carbon (compatibility version 2.0.0, current version 170.0.0)",
+      "\t/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit (compatibility version 1.0.0, current version 275.0.0)",
+      "\t/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation (compatibility version 300.0.0, current version 4201.0.0)",
+      "\t/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit (compatibility version 45.0.0, current version 2685.30.107)",
+      "\t/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 4201.0.0)",
+      "\t/System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL (compatibility version 1.0.0, current version 1.0.0)",
+      "\t/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 2000.67.0)",
+      "\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)",
+      "\t/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics (compatibility version 64.0.0, current version 1965.2.3)",
+      "\t/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)"
+    ],
+    "resource_manifest_sha256": "ef0881e2d9ee43497ac91bd3045c19207bf5ca5cfa04269140419213b0d34103",
+    "source_tree_required": false,
+    "acceptance": "NOT_RUN",
+    "signed_or_notarized": false
+  },
+  "query_executable_sha256": "0b7d35afbd52bab5aa50e89fccb0805c884521ed19fcb2a5af5cc6a10e33bea1",
+  "window_query": {
+    "pids": [
+      54713
+    ],
+    "windows": [
+      {
+        "bounds": {
+          "Height": 20,
+          "Width": 52,
+          "X": 328,
+          "Y": 86
+        },
+        "executable": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/warm-visual-20260912/normal-ui/Runtime.app/Contents/Resources/bin/HelloMine3D",
+        "id": 2605,
+        "matched_by": "executable_path",
+        "owner": "Runtime",
+        "pid": 54713,
+        "title": "Window"
+      },
+      {
+        "bounds": {
+          "Height": 748,
+          "Width": 1280,
+          "X": 320,
+          "Y": 82
+        },
+        "executable": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/warm-visual-20260912/normal-ui/Runtime.app/Contents/Resources/bin/HelloMine3D",
+        "id": 2480,
+        "matched_by": "executable_path",
+        "owner": "Runtime",
+        "pid": 54713,
+        "title": "HelloMine3D"
+      }
+    ]
+  },
+  "window": {
+    "bounds": {
+      "Height": 748,
+      "Width": 1280,
+      "X": 320,
+      "Y": 82
+    },
+    "executable": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/warm-visual-20260912/normal-ui/Runtime.app/Contents/Resources/bin/HelloMine3D",
+    "id": 2480,
+    "matched_by": "executable_path",
+    "owner": "Runtime",
+    "pid": 54713,
+    "title": "HelloMine3D"
+  },
+  "capture_started_at_utc": "2026-09-12T05:37:37.045129+00:00",
+  "capture_finished_at_utc": "2026-09-12T05:37:37.199086+00:00",
+  "image": "/Users/lizi/Desktop/Workspace/HelloMine3D/build/warm-visual-20260912/normal-ui/paused-en-125.png",
+  "image_pixels": [
+    2560,
+    1496
+  ],
+  "image_bytes": 1082587,
+  "image_sha256": "e8a2164d6bb53752d0b211ffaaf7a63b18454d931da57d4fb23768a904ce93ca",
+  "visual_review": "PENDING",
+  "finished_at_utc": "2026-09-12T05:37:37.199886+00:00"
+}

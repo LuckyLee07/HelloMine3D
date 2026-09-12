@@ -1,0 +1,44 @@
+{
+  "observed_at": "2026-09-12",
+  "scope": "Miniw-Client only; Metal prototype excluded by user",
+  "app": "/Users/lizi/Desktop/Workspace/MiniGame/build/MiniwClientMac-bridge-make/MiniwMac.app",
+  "executable_sha256": "7f0824438723ddf877454ba0dda954ea5813301518af114b2286f225562f3a18",
+  "source_head": "c10273d",
+  "source_dirty": true,
+  "initial_runtime": "/private/tmp/miniw-visual-reference-20260912-a",
+  "initial_arguments": [
+    "--miniw-runtime-root",
+    "/private/tmp/miniw-visual-reference-20260912-a",
+    "--miniw-dev-seed-worlds",
+    "--miniw-dev-direct-game",
+    "--miniw-dev-world-id",
+    "9999800"
+  ],
+  "initial_capture": {
+    "pid": 57231,
+    "window_id": 2774,
+    "logical_window_with_title": [
+      1280,
+      748
+    ],
+    "physical_window_with_title": [
+      2560,
+      1496
+    ]
+  },
+  "observed_settings": {
+    "view_distance": "far",
+    "tree_shape": "round",
+    "realtime_shadows": "off",
+    "water_reflection": "off",
+    "fog": "off",
+    "fps_limit": "on"
+  },
+  "claims": "Rendered reference scene and source feasibility assessment. No performance parity, full gameplay or square-tree visual acceptance claimed.",
+  "reload_issue": "Tree-shape reload returned to loading/home and then a new process 58965 used default Application Support/MiniwMac runtime. After Continue, UI stalled; log: Save preflight rejected world 9999800: invalid player filename. Normal quit requested, no forced termination. No source changes performed.",
+  "images": {
+    "miniw-settings.png": "73f912159ab0e0c9529b4ff1e995c62c5b862adf7ff80203758dcdbe288c06ae",
+    "reload-failure.png": "a35212e9274725d0a2a50687f1dee30dfe81612c294ff9b432ee1b67ebcf6305",
+    "miniw-overview.png": "d816e79a0aca40589298c0892c4ddcda42824847d229abd3f67b2931469468a9"
+  }
+}

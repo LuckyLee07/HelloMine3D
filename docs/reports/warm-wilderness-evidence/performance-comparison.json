@@ -1,0 +1,483 @@
+{
+  "guardrail": "median of 3, P95 and P99 <= 110% of baseline in each quality",
+  "status": "PASS",
+  "rows": [
+    {
+      "quality": "off",
+      "frame_metrics": {
+        "frame_p95_ms": {
+          "baseline_runs": [
+            11.955,
+            11.807,
+            11.942
+          ],
+          "candidate_runs": [
+            11.7,
+            12.037,
+            11.889
+          ],
+          "baseline_median": 11.942,
+          "candidate_median": 11.889,
+          "ratio": 0.9955618824317534,
+          "pass": true
+        },
+        "frame_p99_ms": {
+          "baseline_runs": [
+            12.838,
+            12.627,
+            12.515
+          ],
+          "candidate_runs": [
+            12.224,
+            12.775,
+            12.278
+          ],
+          "baseline_median": 12.627,
+          "candidate_median": 12.278,
+          "ratio": 0.9723608141284549,
+          "pass": true
+        }
+      },
+      "geometry_metrics": {
+        "last_existing_chunks": {
+          "baseline_runs": [
+            361.0,
+            361.0,
+            361.0
+          ],
+          "candidate_runs": [
+            361.0,
+            361.0,
+            361.0
+          ],
+          "baseline_median": 361.0,
+          "candidate_median": 361.0,
+          "ratio": 1.0
+        },
+        "last_loaded_chunks": {
+          "baseline_runs": [
+            361.0,
+            361.0,
+            361.0
+          ],
+          "candidate_runs": [
+            361.0,
+            361.0,
+            361.0
+          ],
+          "baseline_median": 361.0,
+          "candidate_median": 361.0,
+          "ratio": 1.0
+        },
+        "last_solid_faces": {
+          "baseline_runs": [
+            289168.0,
+            288611.0,
+            288608.0
+          ],
+          "candidate_runs": [
+            288588.0,
+            288644.0,
+            288630.0
+          ],
+          "baseline_median": 288611.0,
+          "candidate_median": 288630.0,
+          "ratio": 1.0000658325566247
+        },
+        "last_resident_terrain_vertices": {
+          "baseline_runs": [
+            919689.0,
+            919689.0,
+            919689.0
+          ],
+          "candidate_runs": [
+            919642.0,
+            919689.0,
+            919689.0
+          ],
+          "baseline_median": 919689.0,
+          "candidate_median": 919689.0,
+          "ratio": 1.0
+        },
+        "last_resident_terrain_indices": {
+          "baseline_runs": [
+            1825464.0,
+            1825464.0,
+            1825464.0
+          ],
+          "candidate_runs": [
+            1825374.0,
+            1825464.0,
+            1825464.0
+          ],
+          "baseline_median": 1825464.0,
+          "candidate_median": 1825464.0,
+          "ratio": 1.0
+        },
+        "last_resident_terrain_buffer_bytes": {
+          "baseline_runs": [
+            36731904.0,
+            36731904.0,
+            36731904.0
+          ],
+          "candidate_runs": [
+            36730040.0,
+            36731904.0,
+            36731904.0
+          ],
+          "baseline_median": 36731904.0,
+          "candidate_median": 36731904.0,
+          "ratio": 1.0
+        },
+        "last_mesh_build_avg_ms": {
+          "baseline_runs": [
+            0.966,
+            0.951,
+            0.94
+          ],
+          "candidate_runs": [
+            0.946,
+            0.947,
+            0.948
+          ],
+          "baseline_median": 0.951,
+          "candidate_median": 0.947,
+          "ratio": 0.9957939011566772
+        },
+        "last_queued_chunk_updates": {
+          "baseline_runs": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "candidate_runs": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "baseline_median": 0.0,
+          "candidate_median": 0.0,
+          "ratio": null
+        }
+      }
+    },
+    {
+      "quality": "medium",
+      "frame_metrics": {
+        "frame_p95_ms": {
+          "baseline_runs": [
+            10.414,
+            10.537,
+            10.57
+          ],
+          "candidate_runs": [
+            10.481,
+            10.577,
+            9.668
+          ],
+          "baseline_median": 10.537,
+          "candidate_median": 10.481,
+          "ratio": 0.9946853943247603,
+          "pass": true
+        },
+        "frame_p99_ms": {
+          "baseline_runs": [
+            13.85,
+            12.311,
+            15.216
+          ],
+          "candidate_runs": [
+            11.202,
+            11.197,
+            10.724
+          ],
+          "baseline_median": 13.85,
+          "candidate_median": 11.197,
+          "ratio": 0.8084476534296029,
+          "pass": true
+        }
+      },
+      "geometry_metrics": {
+        "last_existing_chunks": {
+          "baseline_runs": [
+            361.0,
+            361.0,
+            361.0
+          ],
+          "candidate_runs": [
+            361.0,
+            361.0,
+            361.0
+          ],
+          "baseline_median": 361.0,
+          "candidate_median": 361.0,
+          "ratio": 1.0
+        },
+        "last_loaded_chunks": {
+          "baseline_runs": [
+            361.0,
+            361.0,
+            361.0
+          ],
+          "candidate_runs": [
+            361.0,
+            361.0,
+            361.0
+          ],
+          "baseline_median": 361.0,
+          "candidate_median": 361.0,
+          "ratio": 1.0
+        },
+        "last_solid_faces": {
+          "baseline_runs": [
+            288630.0,
+            288645.0,
+            288631.0
+          ],
+          "candidate_runs": [
+            288265.0,
+            288459.0,
+            288633.0
+          ],
+          "baseline_median": 288631.0,
+          "candidate_median": 288459.0,
+          "ratio": 0.9994040834144634
+        },
+        "last_resident_terrain_vertices": {
+          "baseline_runs": [
+            919636.0,
+            919689.0,
+            919689.0
+          ],
+          "candidate_runs": [
+            919615.0,
+            919689.0,
+            919689.0
+          ],
+          "baseline_median": 919689.0,
+          "candidate_median": 919689.0,
+          "ratio": 1.0
+        },
+        "last_resident_terrain_indices": {
+          "baseline_runs": [
+            1825356.0,
+            1825464.0,
+            1825464.0
+          ],
+          "candidate_runs": [
+            1825320.0,
+            1825464.0,
+            1825464.0
+          ],
+          "baseline_median": 1825464.0,
+          "candidate_median": 1825464.0,
+          "ratio": 1.0
+        },
+        "last_resident_terrain_buffer_bytes": {
+          "baseline_runs": [
+            36729776.0,
+            36731904.0,
+            36731904.0
+          ],
+          "candidate_runs": [
+            36728960.0,
+            36731904.0,
+            36731904.0
+          ],
+          "baseline_median": 36731904.0,
+          "candidate_median": 36731904.0,
+          "ratio": 1.0
+        },
+        "last_mesh_build_avg_ms": {
+          "baseline_runs": [
+            0.957,
+            0.95,
+            0.94
+          ],
+          "candidate_runs": [
+            0.942,
+            0.945,
+            0.949
+          ],
+          "baseline_median": 0.95,
+          "candidate_median": 0.945,
+          "ratio": 0.9947368421052631
+        },
+        "last_queued_chunk_updates": {
+          "baseline_runs": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "candidate_runs": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "baseline_median": 0.0,
+          "candidate_median": 0.0,
+          "ratio": null
+        }
+      }
+    },
+    {
+      "quality": "high",
+      "frame_metrics": {
+        "frame_p95_ms": {
+          "baseline_runs": [
+            14.14,
+            9.657,
+            10.558
+          ],
+          "candidate_runs": [
+            23.116,
+            10.121,
+            9.791
+          ],
+          "baseline_median": 10.558,
+          "candidate_median": 10.121,
+          "ratio": 0.9586095851487024,
+          "pass": true
+        },
+        "frame_p99_ms": {
+          "baseline_runs": [
+            23.498,
+            14.786,
+            23.019
+          ],
+          "candidate_runs": [
+            23.683,
+            23.424,
+            21.076
+          ],
+          "baseline_median": 23.019,
+          "candidate_median": 23.424,
+          "ratio": 1.017594161344976,
+          "pass": true
+        }
+      },
+      "geometry_metrics": {
+        "last_existing_chunks": {
+          "baseline_runs": [
+            361.0,
+            361.0,
+            361.0
+          ],
+          "candidate_runs": [
+            361.0,
+            361.0,
+            361.0
+          ],
+          "baseline_median": 361.0,
+          "candidate_median": 361.0,
+          "ratio": 1.0
+        },
+        "last_loaded_chunks": {
+          "baseline_runs": [
+            361.0,
+            361.0,
+            361.0
+          ],
+          "candidate_runs": [
+            361.0,
+            361.0,
+            361.0
+          ],
+          "baseline_median": 361.0,
+          "candidate_median": 361.0,
+          "ratio": 1.0
+        },
+        "last_solid_faces": {
+          "baseline_runs": [
+            288602.0,
+            288631.0,
+            288630.0
+          ],
+          "candidate_runs": [
+            288607.0,
+            288610.0,
+            288986.0
+          ],
+          "baseline_median": 288630.0,
+          "candidate_median": 288610.0,
+          "ratio": 0.9999307071337006
+        },
+        "last_resident_terrain_vertices": {
+          "baseline_runs": [
+            919642.0,
+            919689.0,
+            919689.0
+          ],
+          "candidate_runs": [
+            919636.0,
+            919642.0,
+            919689.0
+          ],
+          "baseline_median": 919689.0,
+          "candidate_median": 919642.0,
+          "ratio": 0.9999488957680259
+        },
+        "last_resident_terrain_indices": {
+          "baseline_runs": [
+            1825374.0,
+            1825464.0,
+            1825464.0
+          ],
+          "candidate_runs": [
+            1825356.0,
+            1825374.0,
+            1825464.0
+          ],
+          "baseline_median": 1825464.0,
+          "candidate_median": 1825374.0,
+          "ratio": 0.9999506974665071
+        },
+        "last_resident_terrain_buffer_bytes": {
+          "baseline_runs": [
+            36730040.0,
+            36731904.0,
+            36731904.0
+          ],
+          "candidate_runs": [
+            36729776.0,
+            36730040.0,
+            36731904.0
+          ],
+          "baseline_median": 36731904.0,
+          "candidate_median": 36730040.0,
+          "ratio": 0.9999492539237824
+        },
+        "last_mesh_build_avg_ms": {
+          "baseline_runs": [
+            0.949,
+            0.944,
+            0.954
+          ],
+          "candidate_runs": [
+            0.951,
+            0.945,
+            0.952
+          ],
+          "baseline_median": 0.949,
+          "candidate_median": 0.951,
+          "ratio": 1.0021074815595363
+        },
+        "last_queued_chunk_updates": {
+          "baseline_runs": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "candidate_runs": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "baseline_median": 0.0,
+          "candidate_median": 0.0,
+          "ratio": null
+        }
+      }
+    }
+  ]
+}

@@ -55,6 +55,16 @@ GPU 10/10、资源 105/105、实机动态序列与定向性能通过，见[修�
 位置/法线误差归零；岸边与水下实机、资源/相关回归及定向性能对照完成。首组流送性能异常
 与全部复测保留，见[修复记录](../reports/water-seam-fix-2026-09-12.md)。这项局部修复不扩展水系或改变存档。
 
+2026-09-12 后续授权：开始暖野 v2 首轮 `WV2-00..03`，交付高清自然材质、单元格内叶簇与
+可正常游玩的林地样板 M1。用户再次反馈后已撤回新树冠，当前候选恢复旧立方叶/叶贴图、保留其他材质升级；整体仍 `Doing`，见 [首轮合同](../contracts/warm-wilderness-m1-contract-v2.md)
+与 [实施记录](../reports/warm-wilderness-m1-implementation-2026-09-12.md)。
+`WV2-04..08` 仍为后续候选；本轮不改生成规则、save v12 或 D2。
+
+2026-09-12 新增授权：实施“暖野”第一版视觉改造，包括自然材质、HUD/菜单、地形光色及 macOS
+实机与必要工程验证。保持地形和存档语义；不扩展树形、水系或 D2。见
+[视觉合同](../contracts/warm-wilderness-visual-contract-v1.md) 与
+[实施记录](../reports/warm-wilderness-implementation-2026-09-12.md)，当前 `Engineering Done`：材质/光色/UI、macOS 双配置回归、三档性能和正常界面自测完成；不替代独立玩法与人类审美验收。
+
 2026-09-06 新增所有者授权：`T0/T1` 地形基线与基础地貌改善 Goal。以 macOS 完成实现、
 必要回归、干净包、固定条件画面对照和正常步行验收，并本地提交；Windows 专属验证后置。
 范围和退出条件见 [T0/T1 合同](../contracts/terrain-foundation-v5-contract-v1.md)，
@@ -84,6 +94,14 @@ GPU 10/10、资源 105/105、实机动态序列与定向性能通过，见[修�
 | `D1` Simulation Phase Scheduler v0 | `Done` | 已证明 Managed Actors、Random-Tick Sections、Furnace/Crusher Block Entities 三条真实 workload 的共同 admission 问题，并实现确定性 64/4/32 item budget、稳定集合 round-robin/FIFO service window 和 copied diagnostics。VS2017 Debug 聚焦 24/24，AL-A5 14/14、B6 12/12、C2 51/51、C3 68/68 回归通过；完整 Debug/Release 门禁均为 WorldRuntime 991/991、Recipe 126/126、Resource Pack 80/80、启动负例 15/15，105 项隔离包 SHA-256 为 `0B34CD34265ED1A4F88FD5833975FD328FB026FCD6B13A0FAFE9710859F1B2F6`。save v12、20 Hz、8 phase barrier 不变；未进入 D2+。详见 `docs/reports/architecture-lab-d1-simulation-phase-scheduler-report-v1.md`。 |
 
 ## 下一候选
+
+2026-09-12 所有者要求的视觉升级方案已完成，见
+[暖野视觉升级实施方案 v2](visual-upgrade-plan-v2.md)，依据
+[暖野 v1 实施结果](../reports/warm-wilderness-implementation-2026-09-12.md) 与
+[Miniw-Client 实机分析](../reports/minigame-visual-feasibility-2026-09-12.md)。
+方案列出 `WV2-00..08` 的资源规格、文件触点、兼容策略、性能预算和验收；建议首先实施
+`WV2-00..03` 的高清材质/叶簇林地样板，现已由后续用户指令授权并纳入上方当前批准批次。
+`WV2-04..08` 仍为 `Planned / NOT_RUN`；不改变 T1 未完成状态、D2 候选条件或 T2+ 范围。
 
 2026-09-06 所有者要求的地形/游戏画面文档分析已完成，见
 [HelloMine3D / MiniGame 对照复核与改善方案](../reports/terrain-visual-minigame-comparison-2026-09-06.md)。

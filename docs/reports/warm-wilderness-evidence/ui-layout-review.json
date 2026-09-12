@@ -1,0 +1,150 @@
+{
+  "examiner": "implementer",
+  "normal_input": false,
+  "cases": [
+    {
+      "capture": "r3-ui-en-US-0.85-container/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-en-US-0.85-crafting/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-en-US-0.85-hud/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-en-US-0.85-menu/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-en-US-1.0-container/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-en-US-1.0-crafting/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-en-US-1.0-hud/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-en-US-1.0-menu/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-en-US-1.25-container/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-en-US-1.25-crafting/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-en-US-1.25-hud/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-en-US-1.25-menu/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-zh-CN-0.85-container/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-zh-CN-0.85-crafting/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-zh-CN-0.85-hud/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-zh-CN-0.85-menu/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-zh-CN-1.0-container/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-zh-CN-1.0-crafting/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-zh-CN-1.0-hud/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-zh-CN-1.0-menu/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-zh-CN-1.25-container/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-zh-CN-1.25-crafting/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-zh-CN-1.25-hud/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    },
+    {
+      "capture": "r3-ui-zh-CN-1.25-menu/capture.json",
+      "reviewed_frame": "frames/capture_05000ms.png",
+      "visual_review": "PASS",
+      "scope": "initial layout, glyphs, item counts, caption separation; scrolling/actions checked separately"
+    }
+  ]
+}

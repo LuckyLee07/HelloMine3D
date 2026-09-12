@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "edge": 64,
+  "mips": 7,
+  "active_slots": 120,
+  "empty_slots": 136,
+  "array_pixel_bytes": 5592064,
+  "retained_legacy_atlas_bytes": 262144,
+  "alpha_layers": 16,
+  "source_images": 19,
+  "sha256": "65d59cc57c385e6565da75b625dc3be4e428f63a80049f7e4fa8c6633b01be12"
+}

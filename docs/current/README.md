@@ -9,6 +9,7 @@
 | ---- | ---- |
 | [todolist.md](todolist.md) | 当前状态、已批准批次、唯一下一候选、阻塞项和 AI 验收状态。 |
 | [architecture-lab-roadmap-v1.md](architecture-lab-roadmap-v1.md) | Architecture Lab 长期能力目录和可玩载体硬约束。 |
+| [visual-upgrade-plan-v2.md](visual-upgrade-plan-v2.md) | 暖野 v2 视觉实施方案；首轮 00–03 材质/叶簇林地样板已获授权，后续树形、水岸、实体和 UI 仍为候选。 |
 | [ai-assisted-gameplay-acceptance-v1.md](ai-assisted-gameplay-acceptance-v1.md) | `AI-01..AI-08`、Computer Use 黑盒规则与声明分类。 |
 
 ## 实现与验证

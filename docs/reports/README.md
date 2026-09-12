@@ -29,6 +29,8 @@
 
 ## 调查与来源
 
+- [minigame-visual-feasibility-2026-09-12.md](minigame-visual-feasibility-2026-09-12.md)：Miniw-Client 实机参照、可行性与观察限制；后续路线见[暖野 v2 方案](../current/visual-upgrade-plan-v2.md)。
+- [visual-direction-warm-wilderness-2026-09-10.md](visual-direction-warm-wilderness-2026-09-10.md)：暖野美术方向与概念图。
 - [todolist-goal-execution-2026-09-05.md](todolist-goal-execution-2026-09-05.md)
 - [simulation-activation-entry-investigation-2026-09-05.md](simulation-activation-entry-investigation-2026-09-05.md)
 - [chunk-streaming-regression.md](chunk-streaming-regression.md)
@@ -38,6 +40,8 @@
 
 - [flora-wind-fix-2026-09-12.md](flora-wind-fix-2026-09-12.md)：花草每秒动画重置、根部漂移修复，连续风场与动态视频/GPU/性能证据。
 - [water-seam-fix-2026-09-12.md](water-seam-fix-2026-09-12.md)：水波局部坐标导致的区块接缝、GPU 边界回归及岸边/水下实机对照。
+- [warm-wilderness-implementation-2026-09-12.md](warm-wilderness-implementation-2026-09-12.md)：暖野 v1 实现、macOS 包、自动检查、性能与正常界面自测。
+- [warm-wilderness-m1-implementation-2026-09-12.md](warm-wilderness-m1-implementation-2026-09-12.md)：M1 高清材质、经典树冠恢复、分批提交与尚未完成的验收。
 - `developer-visual-record-v10b2.txt`
 - `developer-visual-record-v10b3.txt`
 - `developer-visual-record-v10c.txt`
