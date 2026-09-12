@@ -1,7 +1,7 @@
 #include "OgreBootstrap.h"
 #include "OgreActorRenderer.h"
 #include "ChunkSectionRenderable.h"
-#include "OgreBlockOutline.h"
+#include "OgreBlockFeedback.h"
 #include "OgreRenderCapture.h"
 #include "OgreUserInterface.h"
 #include "StartupErrorReporter.h"
@@ -772,8 +772,8 @@ namespace
             m_actorRenderer->setCastShadows(
                 m_directionalShadowQuality !=
                 DirectionalShadowQuality::Off);
-            m_blockOutline =
-                std::make_unique<OgreBlockOutline>(*m_sceneManager);
+            m_blockFeedback =
+                std::make_unique<OgreBlockFeedback>(*m_sceneManager);
             TerrainBuildSummary terrain;
             if (!initialSaveDirectory.empty())
             {
@@ -837,6 +837,44 @@ namespace
             if (m_audio != nullptr)
             {
                 m_audio->attach(m_world->getEventBus());
+            }
+
+            // Explicit developer capture only: set a small stage, then feed
+            // holds/releases through SandboxRuntime's actual mining path.
+            const char *feedbackCapture = std::getenv("HELLOMINE3D_BLOCK_FEEDBACK_CAPTURE");
+            if (uploadToOgre && feedbackCapture != nullptr && feedbackCapture[0] != '\0')
+            {
+                if (!isTrueValue(std::getenv("HELLO_RENDER_CAPTURE")) &&
+                    !RuntimePerformanceCapture::isEnabled())
+                    throw std::runtime_error("Block feedback fixture requires an enabled diagnostic capture.");
+                const std::string mode(feedbackCapture);
+                BlockId id = BlockId::Stone;
+                if (mode == "flower") id = BlockId::Rose;
+                else if (mode == "grass") id = BlockId::TallGrass;
+                else if (mode == "crop") id = BlockId::WheatCrop;
+                else if (mode == "door") id = BlockId::OakDoorOpen;
+                else if (mode != "stone") throw std::runtime_error("Unknown block feedback capture: " + mode);
+                const glm::ivec3 target(World::toBlockCoord(m_worldPlayer->position.x),
+                    World::toBlockCoord(m_worldPlayer->position.y),
+                    World::toBlockCoord(m_worldPlayer->position.z) - 3);
+                for (int x = -4; x <= 4; ++x)
+                for (int z = -4; z <= 5; ++z)
+                {
+                    m_world->setBlock(target.x+x, target.y-1, target.z+z, BlockId::Grass);
+                    for (int y=0; y<=4; ++y)
+                        m_world->setBlock(target.x+x, target.y+y, target.z+z, BlockId::Air);
+                }
+                m_world->setBlock(target.x, target.y, target.z, ChunkBlock(id, 0));
+                m_worldPlayer->position = glm::vec3(target) + glm::vec3(0.5f,1.01f,3.8f);
+                m_worldPlayer->rotation = {19.f,0.f,0.f};
+                m_worldPlayer->resetInterpolation();
+                m_logicCamera->update();
+                m_blockFeedbackCapture = true;
+                m_blockFeedbackCaptureTarget = target;
+                m_blockFeedbackCaptureId = id;
+                m_blockFeedbackCaptureSeconds = 0.f;
+                std::cout << "[BLOCK_FEEDBACK_CAPTURE] diagnostic=1 mode=" << mode
+                          << " target=" << target.x << ',' << target.y << ',' << target.z << '\n';
             }
 
             if (!uploadToOgre ||
@@ -1675,9 +1713,9 @@ namespace
             {
                 m_userInterface->setWorldContext(nullptr, nullptr);
             }
-            if (m_blockOutline != nullptr)
+            if (m_blockFeedback != nullptr)
             {
-                m_blockOutline->update(nullptr);
+                m_blockFeedback->clear();
             }
             for (auto &entry : m_sectionVisuals)
             {
@@ -1696,6 +1734,7 @@ namespace
             m_world = nullptr;
             m_worldPlayer = nullptr;
             m_logicCamera.reset();
+            m_blockFeedbackCapture = false;
             if (m_camera != nullptr)
             {
                 m_camera->setPosition(0.0f, 1.0f, 5.0f);
@@ -2059,6 +2098,7 @@ namespace
                         m_config.sprintMode, m_config.sneakMode);
                 }
                 m_sandbox->cancelMiningProgress();
+                if (m_blockFeedback != nullptr) m_blockFeedback->hideSelection();
                 clearTransientInput();
                 return;
             }
@@ -2155,9 +2195,20 @@ namespace
                  m_cropFixturePlaced || m_verticalSliceFixturePlaced) &&
                 m_renderCapture != nullptr &&
                 m_renderCapture->isEnabled();
+            if (m_blockFeedbackCapture && diagnosticsActive)
+            {
+                m_blockFeedbackCaptureSeconds += std::clamp(deltaSeconds, 0.f, 0.25f);
+                const float seconds = m_blockFeedbackCaptureSeconds;
+                const auto &target = m_blockFeedbackCaptureTarget;
+                input = {};
+                input.breakAttack = ((seconds >= 2.f && seconds < 2.55f) ||
+                                     (seconds >= 3.5f && seconds < 5.1f)) &&
+                    m_world->getBlock(target.x,target.y,target.z).id ==
+                        static_cast<Block_t>(m_blockFeedbackCaptureId);
+            }
             m_sandbox->update(input,
                               freezeValidationCapture ? 0.0f : deltaSeconds,
-                              !diagnosticsActive && worldInputActive);
+                              m_blockFeedbackCapture || (!diagnosticsActive && worldInputActive));
             if (m_userInterface != nullptr &&
                 m_sandbox->getFoodUseResult().has_value())
             {
@@ -2182,14 +2233,22 @@ namespace
             syncRenderCamera();
             syncSectionMeshes();
             syncActorVisuals();
-            if (m_blockOutline != nullptr)
+            if (m_blockFeedback != nullptr)
             {
                 const auto& selection = m_sandbox->getBlockSelection();
                 const MiningProgressSnapshot &progress =
                     m_sandbox->getMiningProgress();
-                m_blockOutline->update(
-                    selection.has_value() ? &*selection : nullptr,
-                    progress.crackStage());
+                m_blockFeedback->update(*m_world,
+                    selection && (worldInputActive || diagnosticsActive) ? &*selection : nullptr,
+                    progress, m_sandbox->getActionFeedback(), *m_camera);
+                if (m_blockFeedbackCapture && progress.crackStage() != m_blockFeedbackCaptureLastStage)
+                {
+                    m_blockFeedbackCaptureLastStage = progress.crackStage();
+                    std::cout << "[BLOCK_FEEDBACK_CAPTURE] seconds=" << m_blockFeedbackCaptureSeconds
+                              << " stage=" << progress.crackStage()
+                              << " particles=" << m_sandbox->getActionFeedback().particles.size()
+                              << " selected=" << (selection ? static_cast<int>(selection->blockId) : -1) << '\n';
+                }
             }
         }
 
@@ -3397,6 +3456,7 @@ namespace
 
         void syncEnvironment(const WorldEnvironmentState& state)
         {
+            if (m_blockFeedback != nullptr) m_blockFeedback->setEnvironment(state);
             if (m_sceneManager == nullptr)
             {
                 return;
@@ -4012,7 +4072,7 @@ namespace
             m_renderCapture.reset();
             m_userInterface.reset();
             destroyPostProcessingResources();
-            m_blockOutline.reset();
+            m_blockFeedback.reset();
             m_actorRenderer.reset();
 
             for (auto &entry : m_sectionVisuals)
@@ -4069,7 +4129,12 @@ namespace
         std::string m_musicDefinitionError;
         GameApplicationFlow m_applicationFlow;
         std::unique_ptr<WorldManagementService> m_worldManagement;
-        std::unique_ptr<OgreBlockOutline> m_blockOutline;
+        std::unique_ptr<OgreBlockFeedback> m_blockFeedback;
+        bool m_blockFeedbackCapture = false;
+        glm::ivec3 m_blockFeedbackCaptureTarget{0};
+        BlockId m_blockFeedbackCaptureId = BlockId::Air;
+        float m_blockFeedbackCaptureSeconds = 0.f;
+        int m_blockFeedbackCaptureLastStage = -2;
         std::unique_ptr<OgreActorRenderer> m_actorRenderer;
         Player* m_worldPlayer = nullptr;
         std::unique_ptr<::Camera> m_logicCamera;

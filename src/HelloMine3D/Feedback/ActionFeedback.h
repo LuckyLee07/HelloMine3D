@@ -8,6 +8,9 @@
 #include "../Actor/CombatTypes.h"
 #include "../Item/Material.h"
 #include "../Sandbox/Events/SandboxEventBus.h"
+#include "../World/Interaction/BlockMiningProgress.h"
+
+struct BlockSelection;
 
 enum class GameplayFeedbackIntensity
 {
@@ -35,6 +38,13 @@ struct ActionFeedbackParticle
     float offsetY = 0.f;
     float size = 0.f;
     float alpha = 0.f;
+    // Block fragments live in the world; pickup sparkles remain in the HUD.
+    bool worldSpace = false;
+    BlockId blockId = BlockId::Air;
+    glm::ivec3 blockPosition{0};
+    glm::vec3 worldPosition{0.f};
+    float rotation = 0.f;
+    glm::vec2 textureOffset{0.f};
 };
 
 struct ActionFeedbackSnapshot
@@ -54,7 +64,8 @@ class ActionFeedbackTimeline
 {
   public:
     static constexpr std::size_t MaxParticles = 48;
-    static constexpr std::size_t FullBlockParticleCount = 8;
+    static constexpr std::size_t FullBlockParticleCount = 16;
+    static constexpr float MiningParticleIntervalSeconds = 0.12f;
     static constexpr float MaxParticleLifetimeSeconds = 0.55f;
     static constexpr float MaxHitStopSeconds = 0.045f;
 
@@ -66,6 +77,8 @@ class ActionFeedbackTimeline
     GameplayFeedbackIntensity intensity() const noexcept;
     void update(float deltaSeconds) noexcept;
     void submitAttackMiss() noexcept;
+    void observeMining(const BlockSelection *selection,
+                       const MiningProgressSnapshot &progress) noexcept;
     ActionFeedbackSnapshot snapshot() const;
 
     static float audioGainVariant(std::uint64_t epoch) noexcept;
@@ -81,11 +94,23 @@ class ActionFeedbackTimeline
         float age = 0.f;
         float lifetime = 0.f;
         float size = 0.f;
+        bool worldSpace = false;
+        BlockId blockId = BlockId::Air;
+        glm::ivec3 blockPosition{0};
+        glm::vec3 origin{0.f};
+        glm::vec3 velocity{0.f};
+        float rotation = 0.f;
+        float angularVelocity = 0.f;
+        glm::vec2 textureOffset{0.f};
     };
 
     void activate(ActionFeedbackKind kind, float duration,
                   float recoil, float hitStopSeconds) noexcept;
     void emit(Material::ID materialId, std::size_t count) noexcept;
+    void emitBlock(BlockId blockId, const glm::ivec3 &blockPosition,
+                   std::size_t count, const glm::vec3 &origin,
+                   const glm::vec3 &normal, bool mining) noexcept;
+    std::size_t reserveParticles(std::size_t count) noexcept;
 
     SandboxEventBus *m_eventBus = nullptr;
     std::vector<SandboxEventBus::SubscriptionId> m_subscriptions;
@@ -97,6 +122,9 @@ class ActionFeedbackTimeline
     float m_secondsRemaining = 0.f;
     float m_recoil = 0.f;
     float m_hitStopSeconds = 0.f;
+    std::uint64_t m_particleEpoch = 0;
+    MiningProgressSnapshot m_lastMining;
+    int m_lastMiningBucket = -1;
 };
 
 const char *gameplayFeedbackIntensityName(

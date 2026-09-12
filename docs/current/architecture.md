@@ -37,11 +37,11 @@ Premake 从共享的 `src/HelloMine3D` 与资源边界生成 `build/` 下工程�
 | `World/` | 102 files / 17,666 lines (A0) | 区块、方块、生成、光照、交互、区块网格 CPU 数据、世界模拟、D1 三 workload item-budget admission 和持久化组合根。 | 方块/区块、block entity、世界元数据、World 内 Actor/战斗/进度实例为权威；光照、mesh、scheduler plan/debug snapshot 为可重建或派生。 | 依赖 Actor、Gameplay、Item、Player、Sandbox Events、Diagnostics、Maths、Physics、Util；不得依赖 Ogre。 |
 | `Sandbox/` | 17 / 1,183 | 应用状态、固定 tick 编排、世界集合/活动世界、输入到 World action 的协调、类型化事件协议。 | `GameApplicationFlow`、活动 world id 和调度器累积时间为运行时编排状态；事件是已发生事实，不是持久化真值。 | 依赖 World、Player、Core/Camera、Feedback、Item、Diagnostics；不依赖 Ogre。 |
 | `Actor/` | 21 / 2,348 | Actor id、生命周期、Living/Mob/Player/Item actor 行为、存档值和不可变渲染快照。 | `ActorManager` 拥有的 Actor 实例为权威；`ActorSnapshot` 与 `ActorSaveState` 是发布/序列化值。 | 由 World 拥有；Actor tick 可回调 World 并发布 Sandbox 事件；依赖 Item、Player、Entity、Maths。 |
-| `Feedback/` | 2 / 361 | 从已提交领域事件生成有界 recoil、hit-stop、粒子等表现时间线。 | 全部为派生表现状态；不得改变战斗、方块、库存或存档结果。 | 订阅 Sandbox EventBus；由 Sandbox 更新，Ogre 只消费 snapshot。 |
+| `Feedback/` | 2 / 361 | 从已提交领域事件和开采进度生成有界 recoil、hit-stop、粒子等表现时间线；提供注册模型的表面几何。 | 全部为派生表现状态；不得改变战斗、方块、库存或存档结果。 | 订阅 Sandbox EventBus；由 Sandbox 更新，Ogre 消费 snapshot 和表面几何。 |
 | `Gameplay/` | 15 / 2,340 | 目标、Alpha Journey 兼容视图、胜利、Waystone 遭遇、难度、探索奖励和胜利后事件语义。 | 注册表冻结定义和 World 所持运行时实例/保存 payload 为权威；HUD/progress snapshot 为派生。目标 definition 当前为 v3。 | 依赖 Actor、Item、Player、Sandbox Events、Maths/Util；具体实例由 World 组合。 |
 | `Audio/` | 12 / 2,626 | cue/music 定义、样本缓存、流式音乐状态、真实/静默后端和音频统计。 | 定义与播放状态只对音频域权威，不是 Gameplay 真值；caption/cue 输出为派生。 | 订阅 Sandbox facts；使用 Maths/Util；由 Ogre shell 组合和逐帧更新。 |
 | `Presentation/` | 8 / 812 | 语义文本、locale fallback、caption 生命周期/优先级和布局探针。 | catalogue 是显示语义来源；渲染文本和布局为派生，翻译字符串不得充当玩法 identity。 | 依赖 Item/Util；Ogre UI 消费，不反向修改 Gameplay。 |
-| `Ogre/` | 17 / 8,940 | Ogre/GL3Plus/OIS 启动、窗口/焦点/输入、GPU terrain/actor/UI、音频组合、截图和帧序。 | GPU buffer、scene node、UI、selection outline、capture 为派生；绝不拥有 Gameplay truth。 | 向内依赖 Sandbox、World snapshots、Actor/Audio/Presentation/Diagnostics/Item/Gameplay 等；第一方模拟层不得反向依赖 Ogre。 |
+| `Ogre/` | 17 / 8,940 | Ogre/GL3Plus/OIS 启动、窗口/焦点/输入、GPU terrain/actor/UI、音频组合、截图和帧序。 | GPU buffer、scene node、UI、方块表面反馈、capture 为派生；绝不拥有 Gameplay truth。 | 向内依赖 Sandbox、World snapshots、Actor/Audio/Presentation/Diagnostics/Item/Gameplay 等；第一方模拟层不得反向依赖 Ogre。 |
 | `Diagnostics/` | 16 / 2,581 | 性能采集、Q2 操作阶段、Tracy 边界、崩溃 dump/sidecar/inbox 和 terrain buffer metrics。 | 指标和崩溃产物是观察/诊断记录，不驱动 Gameplay。 | 可被 World/Sandbox/Ogre 使用；Windows 异常与 DbgHelp 只留在平台实现。 |
 | `Player/` | 4 / 557 | 玩家运动、碰撞、输入应用、库存访问、容器/制作 UI ownership 和保存值。 | `Player` 拥有当前运动、旋转、库存与 UI 打开状态；战斗生命由 World 的 `PlayerActor` 镜像/覆盖后存盘。 | 依赖 Entity、Item、World 查询、Sandbox Events；由 SandboxRuntime 拥有。 |
 | `Item/` | 21 / 3,866 | Material/ItemStack、库存/容器、配方/制作、工具、食物、冶炼、C2 machine process 定义和资源经济校验。 | 冻结注册表与 Inventory/Container 内容为各自域的权威值；预览、process observation 和统计为派生。 | 主要依赖 Util，少数交互边界依赖 World；被 Player/World/Gameplay/UI 消费。 |
@@ -551,7 +551,7 @@ Ogre::frameStarted
             -> ChunkLoadOrGenerate reserve under mutex / prepare detached / token commit-or-cancel
             -> ChunkMeshBuild snapshot under mutex / build off-lock / token + revision commit-or-cancel
             -> at most 8 authoritative commit intervals per loader pass
-       -> sync render camera / section meshes / actor visuals / outline
+       -> sync render camera / section meshes / actor visuals / block surface feedback
             -> offer at most 8 nearest CpuReady sections; defer the remainder
   -> update AudioRuntime and MusicRuntime
   -> collect debug stats / UI frame
@@ -591,11 +591,19 @@ ActorManager / World projectile state
 
 WorldDebugStats + Gameplay/Feedback snapshots
   -> OgreUserInterface / RuntimePerformanceCapture
+
+BlockSelection + MiningProgressSnapshot + ActionFeedbackSnapshot
+  -> OgreBlockFeedback: registered model surface highlight / cracks / world fragments
 ```
 
 Snapshots are copied values and Ogre owns only their visual mirrors and Render state. A removed live section destroys its Ogre visual；
 stale CPU upload acknowledgement cannot promote a newer revision，且上传后会在进入下一帧前被销毁。Renderer reset/rebuild therefore does not mutate
 block、Actor、inventory、objective or persistence truth。
+
+方块表面反馈复用实际模型、metadata 高度、生态 tile、透明遮罩与 Flora 风摆，高亮和十阶段裂纹
+由 Ogre 持有；目标改变或取消时更新派生表现。开采碎屑观察真实进度，破坏/放置碎屑只订阅
+已提交事实，使用世界坐标和解析重力轨迹；拾取图标仍在 HUD。两者共用 48 粒子上限与
+0.55 秒生命周期，不进入世界 fixed tick 或存档。详见[表现补充合同](../contracts/block-feedback-contract-v2.md)。
 
 暖野 M1 在用户再次评价树冠后撤回叶簇原型，网格生成、剔除、上传与阴影回到既有立方叶路径，
 树叶沿用暖野 v1 贴图；不保留额外叶网格层。标准材质 profile v2 在方块注册前解析冻结，

@@ -20,6 +20,7 @@ namespace
         double maxDeltaMs = 250.0;
         std::string outputDirectory;
         std::string prefix = "capture";
+        std::string format = "png";
         std::vector<int> captureMs;
     };
 
@@ -110,6 +111,8 @@ namespace
         {
             options.prefix = prefix;
         }
+        const char *format = std::getenv("HELLO_RENDER_CAPTURE_FORMAT");
+        if (format != nullptr && format[0] != '\0') options.format = format;
         return options;
     }
 
@@ -132,6 +135,11 @@ namespace
         if (options.captureMs.empty())
         {
             validation.message = "capture time list is empty";
+            return validation;
+        }
+        if (options.format != "png" && options.format != "bmp")
+        {
+            validation.message = "capture format must be png or bmp";
             return validation;
         }
         validation.valid = true;
@@ -203,13 +211,14 @@ class OgreRenderCapture::Impl
             const int targetMs = options.captureMs[nextIndex];
             std::ostringstream filename;
             filename << options.prefix << '_' << std::setw(5)
-                     << std::setfill('0') << targetMs << "ms.png";
+                     << std::setfill('0') << targetMs << "ms." << options.format;
             const std::filesystem::path path =
                 std::filesystem::path(options.outputDirectory) /
                 filename.str();
             window->writeContentsToFile(path.string());
             std::cout << "[OgreRenderCapture] captured path="
-                      << path.string() << '\n';
+                      << path.string() << " target_ms=" << targetMs
+                      << " actual_ms=" << elapsedMs << '\n';
             ++nextIndex;
         }
     }

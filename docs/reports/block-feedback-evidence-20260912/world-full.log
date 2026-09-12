@@ -1,0 +1,1838 @@
+[VALIDATION] world runtime smoke starting
+[VALIDATION] PASS N7A/outcome-starts-unstarted
+[VALIDATION] PASS N7A/outcome-rejects-skipped-transition
+[VALIDATION] PASS N7A/activation-and-encounter-are-idempotent
+[VALIDATION] PASS N7A/abandoned-encounter-can-resume
+[VALIDATION] PASS N7A/victory-requires-nonzero-reward-epoch
+[VALIDATION] PASS N7A/victory-snapshot-is-authoritative
+[VALIDATION] PASS N7A/reward-claim-is-epoch-bound-and-idempotent
+[VALIDATION] PASS N7A/invalid-restored-outcome-is-rejected
+[VALIDATION] PASS N7A/locales-freeze-with-identical-semantic-keys
+[VALIDATION] PASS N7A/localized-victory-text-resolves
+[VALIDATION] PASS N12A/semantic-ids-localize-without-changing-identity
+[VALIDATION] PASS N12A/all-material-objective-and-caption-ids-have-text
+[VALIDATION] PASS N12A/production-catalogues-require-key-parity
+[VALIDATION] PASS N7A/text-fallbacks-are-bounded-and-diagnosed
+[VALIDATION] PASS N7A/invalid-text-source-does-not-partially-freeze
+[VALIDATION] PASS N12A/invalid-utf8-and-oversized-text-are-rejected
+[VALIDATION] PASS N12A/font-probe-accepts-bundle-and-bounds-missing-fallback
+[VALIDATION] PASS N12A/credits-and-font-license-assets-are-present
+[VALIDATION] PASS N12A/extreme-ui-scale-layout-remains-on-screen
+[VALIDATION] PASS N12A/caption-duration-refresh-priority-and-expiry-are-bounded
+[VALIDATION] PASS N7A/current-outcome-round-trips
+Refusing to save invalid current world state: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/n7a_outcome_current/world.meta
+[VALIDATION] PASS N7A/invalid-outcome-preserves-last-good-save
+[VALIDATION] PASS N7A/v8-migrates-to-unstarted-current-outcome
+[VALIDATION] PASS N7B/waystone-payload-is-strict-and-versioned :: waystone payload has a duplicate field
+[VALIDATION] PASS N7B/ritual-consumption-is-revision-guarded-and-atomic
+[VALIDATION] PASS N7B/five-ordered-finale-objectives-are-data-driven
+[VALIDATION] PASS N7B/finale-objectives-filter-actors-and-remain-read-only-guidance
+Seed: 0
+Seed: 20260825
+[VALIDATION] PASS N7B/normal-use-activation-conserves-materials
+[VALIDATION] PASS N7B/activated-stage-saves-before-encounter
+Seed: 0
+Seed: 20260825
+[VALIDATION] PASS N7B/activated-stage-reopens-and-starts-bounded-first-wave
+[VALIDATION] PASS N7B/player-death-abandons-encounter-without-losing-activation
+[VALIDATION] PASS N7B/death-reset-can-restart-the-same-finite-encounter
+[VALIDATION] PASS N7B/half-wave-death-updates-persisted-remaining-count
+Seed: 0
+Seed: 20260825
+[VALIDATION] PASS N7B/half-wave-reopen-reconciles-without-duplicate-spawn
+[VALIDATION] PASS N7B/duplicate-death-event-cannot-skip-the-final-wave
+[VALIDATION] PASS N7B/core-chunk-unload-freezes-and-reloads-the-pending-wave
+[VALIDATION] PASS N7B/final-guardian-normal-death-resolves-authoritative-victory
+[VALIDATION] PASS N7B/full-inventory-keeps-victory-reward-pending
+[VALIDATION] PASS N7B/reward-claim-is-capacity-checked-and-one-time
+[VALIDATION] PASS N7B/victory-keeps-the-world-playing-as-a-sandbox
+Seed: 0
+Seed: 20260825
+[VALIDATION] PASS N7B/reward-claimed-stage-reopens-without-guardians
+[VALIDATION] PASS N7B/mid-encounter-backup-is-valid-and-restorable
+Seed: 0
+Seed: 20260825
+[VALIDATION] PASS N7B/backup-restore-reconciles-persisted-wave-and-actors
+[VALIDATION] PASS V3/debug-option-false-values
+[VALIDATION] PASS V3/debug-option-true-values
+[VALIDATION] PASS V3/debug-option-env-on
+[VALIDATION] PASS V3/debug-option-env-off
+[VALIDATION] PASS V1/fixed-tick-scheduler-20hz :: ticks=200 over 10 seconds
+[VALIDATION] PASS V1/fixed-tick-catchup-bounded :: capped=5 next=1
+[VALIDATION] PASS V1/fixed-tick-interpolation-alpha
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS AL-A3/initial-snapshot-has-no-completed-tick
+[VALIDATION] PASS AL-A3/phase-identity-and-order-are-frozen :: phases=8
+[VALIDATION] PASS AL-A3/tick-context-is-propagated
+[VALIDATION] PASS AL-A3/raw-last-tick-timings-are-observable :: total_ms=0.005875 phase_ms=0.005082
+[VALIDATION] PASS AL-A3/caller-owned-pause-gate-freezes-simulation
+[VALIDATION] PASS AL-A3/resume-advances-exactly-one-tick
+[VALIDATION] PASS AL-A5/budget-status-vocabulary-is-frozen
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS AL-A5/metric-identities-exclude-empty-system-slots
+[VALIDATION] PASS AL-A5/metric-elapsed-matches-a3-phase-timing
+[VALIDATION] PASS D1/actor-work-retains-a5-count-and-adds-scheduler-budget
+[VALIDATION] PASS AL-A5/combat-uses-existing-per-tick-budget
+[VALIDATION] PASS AL-A5/random-tick-uses-existing-per-tick-budget
+[VALIDATION] PASS AL-A5/population-is-per-cycle-and-resets-next-tick :: cycle_attempts=16 budget=16
+[VALIDATION] PASS D1/block-entity-phase-adds-only-real-scheduled-metric
+[VALIDATION] PASS D1-SCHEDULER/exactly-three-real-workload-identities
+[VALIDATION] PASS D1-SCHEDULER/actor-round-robin-is-bounded-and-deterministic
+[VALIDATION] PASS D1-SCHEDULER/existing-random-tick-fifo-owns-order
+[VALIDATION] PASS D1-SCHEDULER/block-entity-round-robin-is-bounded
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS D1-SCHEDULER/runtime-publishes-three-copied-plans
+[VALIDATION] PASS D1-SCHEDULER/actor-overload-defers-without-dropping
+[VALIDATION] PASS D1-SCHEDULER/block-entity-overload-defers-in-stable-order
+[VALIDATION] PASS D1-SCHEDULER/deferred-actors-are-serviced-next-window
+[VALIDATION] PASS D1-SCHEDULER/deferred-block-entities-are-serviced-next-window
+[VALIDATION] PASS D1-SCHEDULER/player-and-phase-barriers-remain-mandatory
+[VALIDATION] PASS W1/cycle-anchor-phases
+[VALIDATION] PASS W1/cycle-wraps-both-directions
+[VALIDATION] PASS W1/daylight-is-bounded-and-darker-at-night
+[VALIDATION] PASS W1/night-fog-is-denser
+[VALIDATION] PASS W1/sky-and-fog-values-change-with-cycle
+[VALIDATION] PASS W1/sky-horizon-matches-fog
+[VALIDATION] PASS W1/celestial-cycle-drives-sun-moon-and-stars
+[VALIDATION] PASS W1/dawn-and-dusk-light-are-continuous
+[VALIDATION] PASS FS2/cloud-palette-and-coverage-are-bounded
+[VALIDATION] PASS FS2/cloud-state-wraps-with-world-time
+[VALIDATION] PASS FS2/water-palette-has-day-night-and-depth-contrast
+[VALIDATION] PASS FS2/water-state-wraps-with-world-time
+[VALIDATION] PASS V10C/directional-fog-is-warmer-toward-low-sun :: sunward/backlit red=0.697422/0.430155
+[VALIDATION] PASS V10C/directional-fog-fades-away-from-horizon
+[VALIDATION] PASS V10C/directional-fog-palette-is-bounded
+[VALIDATION] PASS V10C/cloud-layer-contract-is-bounded
+[VALIDATION] PASS V10C/cloud-layer-state-wraps-with-world-time
+[VALIDATION] PASS V10C/cloud-ray-covers-below-and-above-views
+[VALIDATION] PASS V10C/cloud-ray-is-stable-inside-layer
+[VALIDATION] PASS V10C/cloud-ray-rejects-away-facing-view
+[VALIDATION] PASS V10C/cloud-motion-is-frame-rate-independent
+[VALIDATION] PASS E0/texture-coordinates-first-tile
+[VALIDATION] PASS E0/texture-coordinates-last-tile
+[VALIDATION] PASS V10B1/default-terrain-material-profile-is-compatible
+[VALIDATION] PASS V10B1/scaled-atlas-pixel-centres-are-parameterized
+[VALIDATION] PASS A3/missing-config-regenerated :: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/runtime_config/config.txt
+[VALIDATION] PASS A3/generated-config-uses-documented-defaults :: 8 0 1280x720 90
+[VALIDATION] PASS V10E/settings-file-is-versioned-with-post-processing :: settings_version 9
+renderdistance 8
+visualdetail standard
+directionalshadowquality off
+postprocessingquality off
+fullscreen 0
+windowsize 1280 720
+fov 90
+mousesensitivity 0.0500000007
+invertmousey 0
+mastervolume 1
+uivolume 1
+effectsvolume 1
+ambientvolume 1
+musicvolume 0.649999976
+uiscale 1
+locale en-US
+audiocaptions 1
+actionhints 1
+sprintmode hold
+sneakmode hold
+feedbackintensity full
+key_move_forward w
+key_move_backward s
+key_move_left a
+key_move_right d
+key_jump space
+key_sneak left_shift
+key_sprint left_control
+key_open_crafting e
+key_consume_food r
+mouse_break_attack primary
+mouse_use secondary
+mouse_place secondary
+mouse_guard secondary
+seed random
+
+[VALIDATION] PASS A3/user-config-overrides-defaults
+[VALIDATION] PASS V10E/legacy-settings-migrated-atomically :: settings_version 9
+renderdistance 3
+visualdetail standard
+directionalshadowquality off
+postprocessingquality off
+fullscreen 1
+windowsize 1024 768
+fov 100
+mousesensitivity 0.119999997
+invertmousey 1
+mastervolume 1
+uivolume 1
+effectsvolume 1
+ambientvolume 1
+musicvolume 0.649999976
+uiscale 1
+locale en-US
+audiocaptions 1
+actionhints 1
+sprintmode hold
+sneakmode hold
+feedbackintensity full
+key_move_forward w
+key_move_backward s
+key_move_left a
+key_move_right d
+key_jump space
+key_sneak left_shift
+key_sprint left_control
+key_open_crafting e
+key_consume_food r
+mouse_break_attack primary
+mouse_use secondary
+mouse_place secondary
+mouse_guard secondary
+seed random
+
+[VALIDATION] PASS N12A/version-one-settings-migrate-with-presentation-defaults :: settings_version 9
+renderdistance 6
+visualdetail standard
+directionalshadowquality off
+postprocessingquality off
+fullscreen 0
+windowsize 1280 720
+fov 95
+mousesensitivity 0.0500000007
+invertmousey 0
+mastervolume 1
+uivolume 1
+effectsvolume 1
+ambientvolume 1
+musicvolume 0.649999976
+uiscale 1
+locale en-US
+audiocaptions 1
+actionhints 1
+sprintmode hold
+sneakmode hold
+feedbackintensity full
+key_move_forward w
+key_move_backward s
+key_move_left a
+key_move_right d
+key_jump space
+key_sneak left_shift
+key_sprint left_control
+key_open_crafting e
+key_consume_food r
+mouse_break_attack primary
+mouse_use secondary
+mouse_place secondary
+mouse_guard secondary
+seed random
+
+[VALIDATION] PASS N12A/version-two-settings-migrate-with-locale-default :: settings_version 9
+renderdistance 8
+visualdetail standard
+directionalshadowquality off
+postprocessingquality off
+fullscreen 0
+windowsize 1280 720
+fov 90
+mousesensitivity 0.0500000007
+invertmousey 0
+mastervolume 1
+uivolume 1
+effectsvolume 1
+ambientvolume 1
+musicvolume 0.649999976
+uiscale 1.25
+locale en-US
+audiocaptions 0
+actionhints 1
+sprintmode hold
+sneakmode hold
+feedbackintensity full
+key_move_forward w
+key_move_backward s
+key_move_left a
+key_move_right d
+key_jump space
+key_sneak left_shift
+key_sprint left_control
+key_open_crafting e
+key_consume_food r
+mouse_break_attack primary
+mouse_use secondary
+mouse_place secondary
+mouse_guard secondary
+seed random
+
+[VALIDATION] PASS N12C/version-three-settings-migrate-with-music-default :: settings_version 9
+renderdistance 8
+visualdetail standard
+directionalshadowquality off
+postprocessingquality off
+fullscreen 0
+windowsize 1280 720
+fov 90
+mousesensitivity 0.0500000007
+invertmousey 0
+mastervolume 1
+uivolume 1
+effectsvolume 1
+ambientvolume 0.400000006
+musicvolume 0.649999976
+uiscale 1
+locale zh-CN
+audiocaptions 1
+actionhints 1
+sprintmode hold
+sneakmode hold
+feedbackintensity full
+key_move_forward w
+key_move_backward s
+key_move_left a
+key_move_right d
+key_jump space
+key_sneak left_shift
+key_sprint left_control
+key_open_crafting e
+key_consume_food r
+mouse_break_attack primary
+mouse_use secondary
+mouse_place secondary
+mouse_guard secondary
+seed random
+
+[VALIDATION] PASS V10D/version-four-settings-migrate-shadows-off :: settings_version 9
+renderdistance 8
+visualdetail standard
+directionalshadowquality off
+postprocessingquality off
+fullscreen 0
+windowsize 1280 720
+fov 90
+mousesensitivity 0.0500000007
+invertmousey 0
+mastervolume 1
+uivolume 1
+effectsvolume 1
+ambientvolume 1
+musicvolume 0.400000006
+uiscale 1
+locale en-US
+audiocaptions 1
+actionhints 1
+sprintmode hold
+sneakmode hold
+feedbackintensity full
+key_move_forward w
+key_move_backward s
+key_move_left a
+key_move_right d
+key_jump space
+key_sneak left_shift
+key_sprint left_control
+key_open_crafting e
+key_consume_food r
+mouse_break_attack primary
+mouse_use secondary
+mouse_place secondary
+mouse_guard secondary
+seed random
+
+[VALIDATION] PASS V10E/version-five-settings-migrate-post-processing-off :: settings_version 9
+renderdistance 8
+visualdetail standard
+directionalshadowquality high
+postprocessingquality off
+fullscreen 0
+windowsize 1280 720
+fov 90
+mousesensitivity 0.0500000007
+invertmousey 0
+mastervolume 1
+uivolume 1
+effectsvolume 1
+ambientvolume 1
+musicvolume 0.649999976
+uiscale 1
+locale en-US
+audiocaptions 1
+actionhints 1
+sprintmode hold
+sneakmode hold
+feedbackintensity full
+key_move_forward w
+key_move_backward s
+key_move_left a
+key_move_right d
+key_jump space
+key_sneak left_shift
+key_sprint left_control
+key_open_crafting e
+key_consume_food r
+mouse_break_attack primary
+mouse_use secondary
+mouse_place secondary
+mouse_guard secondary
+seed random
+
+[VALIDATION] PASS P11A/version-six-settings-migrate-input-defaults :: settings_version 9
+renderdistance 8
+visualdetail standard
+directionalshadowquality medium
+postprocessingquality on
+fullscreen 0
+windowsize 1280 720
+fov 90
+mousesensitivity 0.0500000007
+invertmousey 0
+mastervolume 1
+uivolume 1
+effectsvolume 1
+ambientvolume 1
+musicvolume 0.649999976
+uiscale 1
+locale en-US
+audiocaptions 1
+actionhints 1
+sprintmode hold
+sneakmode hold
+feedbackintensity full
+key_move_forward w
+key_move_backward s
+key_move_left a
+key_move_right d
+key_jump space
+key_sneak left_shift
+key_sprint left_control
+key_open_crafting e
+key_consume_food q
+mouse_break_attack primary
+mouse_use secondary
+mouse_place secondary
+mouse_guard secondary
+seed random
+
+[VALIDATION] PASS P11B/version-seven-settings-migrate-feedback-full :: settings_version 9
+renderdistance 8
+visualdetail standard
+directionalshadowquality off
+postprocessingquality off
+fullscreen 0
+windowsize 1280 720
+fov 90
+mousesensitivity 0.0500000007
+invertmousey 0
+mastervolume 1
+uivolume 1
+effectsvolume 1
+ambientvolume 1
+musicvolume 0.649999976
+uiscale 1
+locale en-US
+audiocaptions 1
+actionhints 1
+sprintmode toggle
+sneakmode hold
+feedbackintensity full
+key_move_forward w
+key_move_backward s
+key_move_left a
+key_move_right d
+key_jump space
+key_sneak left_shift
+key_sprint left_control
+key_open_crafting e
+key_consume_food r
+mouse_break_attack primary
+mouse_use secondary
+mouse_place secondary
+mouse_guard secondary
+seed random
+
+[VALIDATION] PASS G4/settings-draft-prepares-valid-apply
+[VALIDATION] PASS G4/settings-cancel-restores-snapshot
+[VALIDATION] PASS G4/display-change-requires-restart
+[VALIDATION] PASS G4/settings-defaults-are-bounded
+[VALIDATION] PASS G4/settings-reject-out-of-range-draft :: FOV must be between 45 and 120 degrees
+[VALIDATION] PASS G4/settings-save-publishes-valid-candidate
+[VALIDATION] PASS G4/settings-save-preserves-world-creation-seed
+[VALIDATION] PASS G4/settings-atomic-failure-is-reported :: injected fault at before-replace
+[VALIDATION] PASS G4/settings-atomic-failure-keeps-previous-file
+[VALIDATION] PASS G4/live-fov-refreshes-logic-camera
+[VALIDATION] PASS G4/unknown-settings-version-rejected
+[VALIDATION] PASS N6/invalid-accessibility-and-bindings-are-rejected
+[VALIDATION] PASS P11A/invalid-v7-input-settings-are-rejected
+[VALIDATION] PASS WV2/v8-preferences-migrate-to-standard
+[VALIDATION] PASS WV2/compatibility-setting-round-trips
+[VALIDATION] PASS WV2/visual-detail-change-requires-restart
+[VALIDATION] PASS P11B/invalid-v8-feedback-settings-are-rejected
+[VALIDATION] PASS WV2/invalid-v9-visual-settings-are-rejected
+[VALIDATION] PASS P11A/default-mouse-context-sharing-is-valid
+[VALIDATION] PASS P11A/break-attack-mouse-conflict-is-rejected :: mouse button 'Mouse primary' cannot be shared by Break / attack and Use
+[VALIDATION] PASS P11A/world-action-arbiter-selects-one-owner
+[VALIDATION] PASS P11A/context-prefers-guard-over-use-and-place
+[VALIDATION] PASS P11A/context-prefers-usable-block-over-place
+[VALIDATION] PASS P11A/context-falls-back-to-place
+[VALIDATION] PASS P11A/look-curve-is-frame-and-window-independent
+[VALIDATION] PASS P11A/invert-only-flips-pitch-sign
+[VALIDATION] PASS P11A/hold-modes-follow-current-key-state
+[VALIDATION] PASS P11A/toggle-mode-uses-press-edge-once
+[VALIDATION] PASS P11A/inactive-held-key-does-not-retoggle-on-resume
+[VALIDATION] PASS P11A/toggle-rearms-after-release
+[VALIDATION] PASS P11A/initial-focus-accepts-world-input
+[VALIDATION] PASS P11A/focus-gate-blocks-background-and-held-focus-click
+[VALIDATION] PASS P11A/focus-gate-discards-one-look-and-rearms-on-release
+[VALIDATION] PASS P11A/only-interactive-block-behaviors-support-use
+[VALIDATION] PASS P11B/inactive-mining-has-no-crack-stage
+[VALIDATION] PASS P11B/mining-crack-stages-are-bounded-and-monotonic
+[VALIDATION] PASS P11B/block-break-feedback-matches-material-and-bounds-particles
+[VALIDATION] PASS P11B/feedback-particle-cap-is-deterministic
+[VALIDATION] PASS P11B/feedback-particles-expire-within-contract
+[VALIDATION] PASS P11B/reduced-feedback-halves-decorative-density
+[VALIDATION] PASS P11B/off-keeps-essential-state-without-discomfort-effects
+[VALIDATION] PASS P11B/miss-hit-guard-and-hurt-have-distinct-feedback-states
+[VALIDATION] PASS P11B/item-pickup-feedback-is-bounded-and-material-matched
+[VALIDATION] PASS P11B/audio-microvariation-is-deterministic-and-bounded
+[VALIDATION] PASS P11B/fragments-start-at-the-broken-block-and-preserve-block-identity
+[VALIDATION] PASS P11B/world-fragment-trajectories-are-frame-rate-independent
+[VALIDATION] PASS P11B/fragments-fade-and-rotate-during-flight
+[VALIDATION] PASS P11B/world-fragments-accelerate-downward
+[VALIDATION] PASS P11B/mining-contact-emits-at-hit-face-without-a-gameplay-event
+[VALIDATION] PASS P11B/stalled-mining-does-not-catch-up-particle-bursts
+[VALIDATION] PASS P11B/cancelled-mining-emits-no-more-fragments
+[VALIDATION] PASS P11B/off-suppresses-both-contact-and-completion-fragments
+[VALIDATION] PASS P11B/switching-world-clears-old-fragments-and-feedback-state
+[VALIDATION] PASS P11B/flower-highlight-uses-the-cross-model-not-a-cube
+[VALIDATION] PASS P11B/crop-highlight-follows-growth-metadata
+[VALIDATION] PASS P11B/open-door-highlight-follows-the-registered-shape
+[VALIDATION] PASS P11B/plant-highlight-uses-the-world-ecology-alpha-tile
+[VALIDATION] PASS P11B/cube-highlight-keeps-top-side-bottom-material-mapping
+[VALIDATION] PASS AL-A4/current-events-are-immutable-domain-facts
+[VALIDATION] PASS AL-A4/observer-delivery-is-synchronous-and-declared
+[VALIDATION] PASS AL-A4/observer-cannot-hide-nested-publication
+[VALIDATION] PASS AL-A4/declared-domain-reaction-may-publish-bounded-fact
+[VALIDATION] PASS AL-A4/recursive-publication-has-hard-depth-limit
+[VALIDATION] PASS AL-A4/diagnostic-event-cannot-drive-domain-mutation
+[VALIDATION] PASS AL-A4/subscription-membership-is-snapshotted-per-publication
+[VALIDATION] PASS AL-A4/handler-exception-restores-dispatch-boundary
+[VALIDATION] PASS G4/main-menu-does-not-advance-simulation
+[VALIDATION] PASS G4/application-enters-playing
+[VALIDATION] PASS G4/pause-transition-is-stateful
+[VALIDATION] PASS G4/paused-frames-freeze-simulation :: 1
+[VALIDATION] PASS G4/invalid-double-pause-rejected
+[VALIDATION] PASS G4/resume-restores-simulation
+[VALIDATION] PASS G4/resumed-frame-advances-simulation :: 2
+[VALIDATION] PASS G5/base-audio-definitions-freeze-complete-cue-set
+[VALIDATION] PASS G5/audio-definitions-carry-category-and-spatial-mode
+[VALIDATION] PASS G5/duplicate-audio-cue-is-rejected
+[VALIDATION] PASS N6/audio-caption-is-required-and-bounded
+[VALIDATION] PASS N12B/audio-sample-path-is-strictly-validated
+[VALIDATION] PASS N12B/audio-caption-key-is-cue-derived
+[VALIDATION] PASS G5/missing-required-audio-cue-is-rejected
+[VALIDATION] PASS G5/missing-audio-resource-freezes-empty-view
+[VALIDATION] PASS G5/missing-audio-resource-selects-silent-dummy
+[VALIDATION] PASS N12B/bundled-pcm16-samples-freeze-into-bounded-cache
+[VALIDATION] PASS N12B/sample-cache-deduplicates-shared-logical-paths
+[VALIDATION] PASS N12B/malformed-wave-selects-bounded-silent-degradation
+[VALIDATION] PASS N12B/non-mono-or-non-pcm16-wave-is-rejected
+[VALIDATION] PASS N12B/missing-sample-is-silent-and-nonfatal
+[VALIDATION] PASS G5/domain-events-route-once-to-five-audio-cues
+[VALIDATION] PASS G5/per-cue-concurrency-is-bounded
+[VALIDATION] PASS N8A/windup-and-guard-events-route-once-to-audio
+[VALIDATION] PASS G5/pause-suppresses-world-audio-but-keeps-ui
+[VALIDATION] PASS G5/category-volume-is-applied-independently
+[VALIDATION] PASS N6/captions-remain-observable-when-volume-is-zero
+[VALIDATION] PASS N6/disabled-audio-captions-do-not-reach-the-sink
+[VALIDATION] PASS G5/mute-and-device-suspend-are-nonfatal
+[VALIDATION] PASS G5/missing-cue-is-diagnosed-without-backend-call
+[VALIDATION] PASS G5/detach-removes-all-domain-subscriptions
+[VALIDATION] PASS G5/ambient-cadence-is-bounded-and-pause-aware
+[VALIDATION] PASS G5/successful-craft-publishes-one-domain-event
+[VALIDATION] PASS N12C/base-music-definition-freezes-one-low-density-track
+[VALIDATION] PASS N12C/music-stream-header-is-strict-and-bounded
+[VALIDATION] PASS N12C/duplicate-or-wrong-track-identity-is-rejected
+[VALIDATION] PASS N12C/music-stream-path-traversal-is-rejected
+[VALIDATION] PASS N12C/music-gain-duration-and-fades-are-bounded
+[VALIDATION] PASS N12C/music-gap-order-is-bounded
+[VALIDATION] PASS N12C/world-entry-delay-and-fade-in-are-deterministic
+[VALIDATION] PASS N12C/streaming-does-not-preload-the-whole-track
+[VALIDATION] PASS N12C/pause-fades-and-holds-stream-progress
+[VALIDATION] PASS N12C/device-suspend-and-resume-are-nonfatal
+[VALIDATION] PASS N12C/mute-fades-to-a-bounded-stop
+[VALIDATION] PASS N12C/explicit-shutdown-leaves-no-stream-worker
+[VALIDATION] PASS N12C/completion-enters-a-low-density-replay-gap
+[VALIDATION] PASS N12C/zero-music-volume-stops-without-restart
+[VALIDATION] PASS N12C/missing-music-is-silent-and-nonfatal
+[VALIDATION] PASS N12C/malformed-stream-selects-silent-degradation
+[VALIDATION] PASS N12C/declared-and-stream-duration-must-match
+[VALIDATION] PASS A2/missing-key-identifies-file-and-key :: Invalid block file '/Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/block_data_diagnostics/MissingShader.block': key 'ShaderType' is missing.
+[VALIDATION] PASS A2/bad-enum-identifies-file-and-key :: Invalid block file '/Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/block_data_diagnostics/BadEnum.block': key 'MeshType' has invalid enum value 9.
+[VALIDATION] PASS A2/bad-atlas-identifies-file-and-key :: Invalid block file '/Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/block_data_diagnostics/BadAtlas.block': key 'TexAll' has an atlas coordinate outside [0, 15].
+[VALIDATION] PASS A2/bad-light-identifies-file-and-key :: Invalid block file '/Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/block_data_diagnostics/BadLight.block': key 'Light' is outside [0, 15].
+[VALIDATION] PASS A2/duplicate-id-identifies-file-and-key :: Invalid block file '/Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/block_data_diagnostics/DuplicateTwo.block': key 'Id' duplicates value 3 first declared in '/Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/block_data_diagnostics/DuplicateOne.block'.
+[VALIDATION] PASS P4/ore-texture-coordinates
+[VALIDATION] PASS P4/atlas-loads :: /Users/lizi/Desktop/Workspace/HelloMine3D/media/textures/DefaultPack.png format=13 size=256x256
+[VALIDATION] PASS P4/coal-texture-distinct
+[VALIDATION] PASS P4/iron-texture-distinct
+[VALIDATION] PASS FS3/material-icon-map-covers-catalogue
+[VALIDATION] PASS FS3/interactive-blocks-use-dedicated-tiles
+[VALIDATION] PASS P11-0/torch-tile-is-visible-cutout
+[VALIDATION] PASS P11-1/building-and-tool-tiles-are-visible-and-distinct
+[VALIDATION] PASS FS3/item-icons-are-populated-and-distinct :: visible=1 unique=15
+[VALIDATION] PASS A4/config-seed-loaded :: 20260811
+Seed: 0
+Seed: 20260811
+Seed: 0
+Seed: 20260811
+[VALIDATION] PASS G4/live-render-distance-updates-world
+[VALIDATION] PASS A4/new-world-uses-config-seed :: 20260811/20260811
+[VALIDATION] PASS A4/config-seed-reproduces-terrain :: mismatches=0 over 2299 samples
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS P3/selection-hits-solid
+[VALIDATION] PASS P3/selection-placement-adjacent
+[VALIDATION] PASS P3/selection-skips-water
+[VALIDATION] PASS P3/selection-respects-range
+[VALIDATION] PASS P3/selection-misses-with-only-water
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS V2/fly-toggle
+[VALIDATION] PASS V2/hotbar-selection :: selected=3
+[VALIDATION] PASS V2/look-input :: -0.5 1 0
+[VALIDATION] PASS V2/movement-input :: 8 200 8 -> 8.0014 200.08 7.92001
+[VALIDATION] PASS V2/jump-input :: 8 200 8 -> 8.0014 200.08 7.92001
+[VALIDATION] PASS V2/fly-toggle-off
+[VALIDATION] PASS V2/sneak-is-held
+[VALIDATION] PASS V2/sneak-releases
+[VALIDATION] PASS V2/repeated-frame-sampling-is-idempotent :: 20 220 19.92 / 20 220 19.92
+[VALIDATION] PASS V2/player-position-interpolates-between-ticks :: 20 220 19.96
+[VALIDATION] PASS V2/diagonal-speed-is-normalized :: 0.080000 / 0.079999
+[VALIDATION] PASS V2/sprint-applies-to-strafe
+[VALIDATION] PASS R3A/focus-neutral-input-stops-held-movement
+[VALIDATION] PASS R3A/opposed-direction-state-is-neutral
+[VALIDATION] PASS R3A/mouse-look-delta-is-frame-local
+[VALIDATION] PASS R3A/hotbar-wheel-wraps-both-directions
+[VALIDATION] PASS R3A/flight-rise-descend-uses-held-state
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS V2/high-speed-fall-stops-on-floor :: 8.5 102 8.5
+[VALIDATION] PASS V2/resting-contact-remains-grounded :: 8.5 102 8.5
+[VALIDATION] PASS V2/jump-after-resting-contact :: 8.5 102.4 8.5
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS V4/generated-height-matches-scan :: cached=47 scanned=47
+[VALIDATION] PASS V4/break-highest-updates-height :: cached=46 scanned=46
+[VALIDATION] PASS V4/place-above-updates-height :: cached=52 scanned=52
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS V5/load-center-churn-completes :: iterations=240
+[VALIDATION] PASS V5/concurrent-block-reads-valid
+[VALIDATION] PASS V5/background-loader-makes-progress :: chunks=10 mesh_rebuilds=5 -> 6
+Seed: 0
+Seed: 20260807
+Searching for spawn...
+Spawn found! Loaded candidates: 3 Nearby oak: yes Time Taken: 0.0775101 seconds
+[VALIDATION] PASS S0.6/spawn-preload-3x3 :: loaded 9/9 around chunk (-25,-25)
+[VALIDATION] PASS S0.6/spawn-above-terrain :: spawn -391.5 73 -391.5
+[VALIDATION] PASS S0.6/spawn-on-solid-ground :: block under spawn id=1
+[VALIDATION] PASS S0.6/spawn-has-two-block-clearance
+[VALIDATION] PASS FS1/world-seed-suggestions-are-nonzero :: 539341774,211676924
+[VALIDATION] PASS FS1/world-seed-suggestions-refresh :: 539341774 -> 211676924
+[VALIDATION] PASS FS1/seed_zero_a/managed-world-starts-uninitialized
+Seed: 0
+Seed: 0
+Searching for spawn...
+Spawn found! Loaded candidates: 1 Nearby oak: yes Time Taken: 0.0699202 seconds
+[VALIDATION] PASS FS1/seed_zero_a/spawn-replaces-placeholder :: -135.5 88 168.5
+[VALIDATION] PASS FS1/seed_zero_a/player-starts-at-spawn :: -135.5 88 168.5
+[VALIDATION] PASS FS1/seed_zero_a/spawn-has-solid-floor :: block=1
+[VALIDATION] PASS FS1/seed_zero_a/spawn-has-two-block-clearance
+[VALIDATION] PASS FS1/seed_zero_a/spawn-is-not-ocean
+[VALIDATION] PASS FS1/seed_zero_a/spawn-neighborhood-has-oak :: spawn=-135.5 88 168.5
+[VALIDATION] PASS FS1/seed_zero_a/initialized-world-saves
+[VALIDATION] PASS FS1/seed_zero_a/first-entry-is-persisted
+Seed: 0
+Seed: 0
+[VALIDATION] PASS FS1/seed_zero_a/reopen-keeps-spawn :: -135.5 88 168.5
+[VALIDATION] PASS FS1/seed_zero_b/managed-world-starts-uninitialized
+Seed: 0
+Seed: 0
+Searching for spawn...
+Spawn found! Loaded candidates: 1 Nearby oak: yes Time Taken: 0.0677443 seconds
+[VALIDATION] PASS FS1/seed_zero_b/spawn-replaces-placeholder :: -135.5 88 168.5
+[VALIDATION] PASS FS1/seed_zero_b/player-starts-at-spawn :: -135.5 88 168.5
+[VALIDATION] PASS FS1/seed_zero_b/spawn-has-solid-floor :: block=1
+[VALIDATION] PASS FS1/seed_zero_b/spawn-has-two-block-clearance
+[VALIDATION] PASS FS1/seed_zero_b/spawn-is-not-ocean
+[VALIDATION] PASS FS1/seed_zero_b/spawn-neighborhood-has-oak :: spawn=-135.5 88 168.5
+[VALIDATION] PASS FS1/seed_zero_b/initialized-world-saves
+[VALIDATION] PASS FS1/seed_zero_b/first-entry-is-persisted
+Seed: 0
+Seed: 0
+[VALIDATION] PASS FS1/seed_zero_b/reopen-keeps-spawn :: -135.5 88 168.5
+[VALIDATION] PASS FS1/seed-zero-spawn-is-deterministic :: -135.5 88 168.5 / -135.5 88 168.5
+[VALIDATION] PASS FS1/fixed_seed/managed-world-starts-uninitialized
+Seed: 0
+Seed: 20260807
+Searching for spawn...
+Spawn found! Loaded candidates: 3 Nearby oak: yes Time Taken: 0.0747896 seconds
+[VALIDATION] PASS FS1/fixed_seed/spawn-replaces-placeholder :: -391.5 73 -391.5
+[VALIDATION] PASS FS1/fixed_seed/player-starts-at-spawn :: -391.5 73 -391.5
+[VALIDATION] PASS FS1/fixed_seed/spawn-has-solid-floor :: block=1
+[VALIDATION] PASS FS1/fixed_seed/spawn-has-two-block-clearance
+[VALIDATION] PASS FS1/fixed_seed/spawn-is-not-ocean
+[VALIDATION] PASS FS1/fixed_seed/spawn-neighborhood-has-oak :: spawn=-391.5 73 -391.5
+[VALIDATION] PASS FS1/fixed_seed/initialized-world-saves
+[VALIDATION] PASS FS1/fixed_seed/first-entry-is-persisted
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS FS1/fixed_seed/reopen-keeps-spawn :: -391.5 73 -391.5
+[VALIDATION] PASS FS1/placeholder-rescue-fixture-saves
+Seed: 0
+Seed: 0
+Repairing unstarted placeholder world at seed 0
+Searching for spawn...
+Spawn found! Loaded candidates: 1 Nearby oak: yes Time Taken: 0.0748857 seconds
+[VALIDATION] PASS FS1/short-empty-placeholder-is-rescued :: 296.5 82 40.5
+[VALIDATION] PASS FS1/rescue-preserves-world-identity
+[VALIDATION] PASS FS1/rescue-removes-placeholder-natural-actors
+[VALIDATION] PASS FS1/rescue-preserves-non-natural-actors
+[VALIDATION] PASS FS1/progressed-placeholder-fixture-saves
+Seed: 0
+Seed: 0
+[VALIDATION] PASS FS1/progressed-world-is-not-relocated :: 1.5 66 0.5
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS S0.1/negative-chunk-mapping :: chunk (-3,-3) local (8,8)
+[VALIDATION] PASS S0.1/negative-setblock-targets-chunk
+[VALIDATION] PASS S0.1/negative-getblock-roundtrip
+[VALIDATION] PASS S0.1/cross-zero-chunk-split :: chunk(0,0)local(0,0) ok=1 chunk(-1,-1)local(15,15) ok=1
+[VALIDATION] PASS S0.1/cross-zero-readback
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS S0.2/getblock-does-not-create-chunk :: existing chunks 9 -> 9
+[VALIDATION] PASS S0.2/unloaded-getblock-returns-air
+[VALIDATION] PASS S0.2/setblock-does-not-create-chunk :: existing chunks 9 -> 9
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS S0.5/sections-available
+[VALIDATION] PASS S0.5/interior-edit-marks-owner
+[VALIDATION] PASS S0.5/interior-edit-skips-neighbor
+[VALIDATION] PASS S0.5/chunk-boundary-marks-owner
+[VALIDATION] PASS S0.5/chunk-boundary-marks-neighbor
+[VALIDATION] PASS S0.5/section-boundary-marks-owner
+[VALIDATION] PASS S0.5/section-boundary-marks-below
+[VALIDATION] PASS S0.4/debug-stats-report-state :: chunks=9 sections=49 dirty=48
+[VALIDATION] PASS S0.4/debug-stats-report-seed :: seed=20260807
+[VALIDATION] PASS M2/queue-deduplicates-sections :: queued=5
+[VALIDATION] PASS M2/frame-rebuild-budget :: rebuilt=2 remaining=3
+[VALIDATION] PASS M2/fifo-order-preserved
+[VALIDATION] PASS M2/queue-drains-across-frames :: updates=3 rebuilt=5
+[VALIDATION] PASS M2/empty-queue-does-no-work
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS S2.4/chunk-marked-save-dirty :: save dirty chunks=1
+[VALIDATION] PASS P2/actors-created-before-save
+[VALIDATION] PASS S2.1/world-save-succeeds
+[VALIDATION] PASS K3/world-save-publishes-validated-backup
+[VALIDATION] PASS K2/world-stats-expose-save-total-and-maximum :: transactions=3 total_ms=0.995333 max_ms=0.407125
+[VALIDATION] PASS Q2/real-world-save-emits-complete-operation-timings :: save_files=2 save_chunks=1 save_bytes=58443
+[VALIDATION] PASS Q2/real-world-save-summary-matches-q1-schema
+[VALIDATION] PASS Q2/disabled-timing-preserves-save-and-retains-no-records
+[VALIDATION] PASS S2.1/world-meta-readable
+[VALIDATION] PASS S2.1/world-meta-has-seed :: meta seed=20260807
+[VALIDATION] PASS P2/world-meta-stores-actors :: version=12 actors=2
+[VALIDATION] PASS K1/version-three-world-identity :: id=world-e371c0d2e577310978063c2a0dec8d9d name=persistence build=development
+Refusing to save invalid current world state: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/persistence/world.meta
+[VALIDATION] PASS K1/quoted-display-name-roundtrip :: name=Persistence Fixture
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS S2.5/chunk-edit-survives-relaunch :: read back ids 3/12/6
+[VALIDATION] PASS S2.6/player-position-restored :: 12.5 101 13.5
+[VALIDATION] PASS S2.6/player-rotation-restored :: 15 45 0
+[VALIDATION] PASS S2.6/player-inventory-restored :: held Stone Block x7
+[VALIDATION] PASS G3/tool-durability-survives-save-and-reload
+[VALIDATION] PASS P2/actors-restored-after-relaunch :: actors=2
+[VALIDATION] PASS P2/mob-state-restored
+[VALIDATION] PASS P2/item-state-restored
+[VALIDATION] PASS P2/restored-ids-advance-sequence :: next=4
+[VALIDATION] PASS S6.1/seed-restored-from-save :: seed 20260807 -> 20260807
+[VALIDATION] PASS K1/world-id-stable-after-reload :: world-e371c0d2e577310978063c2a0dec8d9d -> world-e371c0d2e577310978063c2a0dec8d9d
+[VALIDATION] PASS S1.3/spawn-point-stable :: 8 90 8 -> 8 90 8
+[VALIDATION] PASS P2/version-one-save-remains-readable
+Seed: 0
+Seed: 123
+Searching for spawn...
+Spawn found! Loaded candidates: 2 Nearby oak: yes Time Taken: 0.096064 seconds
+[VALIDATION] PASS P2/version-one-save-upgrades
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS M3/section-available
+[VALIDATION] PASS M1/rebuild-count-recorded
+[VALIDATION] PASS M1/build-time-recorded
+[VALIDATION] PASS M1/face-counts-recorded
+[VALIDATION] PASS M1/vertex-counts-recorded
+[VALIDATION] PASS M1/four-vertices-per-face
+[VALIDATION] PASS M3/halo-matches-world :: mismatches=0 (border 0) over 5832 cells
+[VALIDATION] PASS M3/block-revision-advances :: revision 256 -> 258
+[VALIDATION] PASS M3/edit-visible-in-new-snapshot :: block id=12
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS M4/high-air-section-available
+[VALIDATION] PASS M4/flat-cuboid-reconstruction-safe-greedy :: faces=14 vertices=36 unshared=56 naive_faces=160
+[VALIDATION] PASS M4/global-repeat-preserves-atlas-tile :: repeat_range=4.000000/12.000000
+[VALIDATION] PASS M4/material-boundary-preserved :: faces=20
+[VALIDATION] PASS M4/water-topology-remains-separate :: faces=10
+[VALIDATION] PASS M4/flora-topology-remains-separate :: faces=4
+[VALIDATION] PASS V10B3/appearance-contract-version-and-layout
+[VALIDATION] PASS V10B3/negative-coordinate-variant-is-deterministic :: variant=2
+[VALIDATION] PASS V10B3/four-block-appearance-patch-is-stable :: variant=0
+[VALIDATION] PASS V10B3/all-three-coordinate-variants-are-reachable :: variants=3
+[VALIDATION] PASS V10B3/terrain-seed-participates-in-variant
+[VALIDATION] PASS V10B3/five-biomes-select-bounded-ecology-rows :: rows=5
+[VALIDATION] PASS V10B3/non-target-and-ui-base-identities-stay-stable
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS V10B3/adjacent-different-variant-fixture-found :: x=3
+[VALIDATION] PASS V10B3/appearance-fixture-section-available
+[VALIDATION] PASS V10B3/five-stable-biome-capture-probes-found :: desert=-2048,83,-2048;grassland=736,83,-2048;light_forest=-1936,84,-2048;temperate_forest=-1904,81,-2048;ocean=-1744,72,-2048
+[VALIDATION] PASS V10B3/snapshot-freezes-biome-halo-and-seed :: biome_mismatches=0 seed=20260807
+[VALIDATION] PASS V10B3/rebuild-order-keeps-byte-identical-appearance
+[VALIDATION] PASS V10B3/greedy-key-preserves-adjacent-variants :: top_faces=2 tile_columns=2
+[VALIDATION] PASS V10B3/vertex-and-terrain-identities-unchanged
+[VALIDATION] PASS V10A/vertex-lighting-contract-is-derived-version-one
+[VALIDATION] PASS V10A/diagonal-and-single-side-each-occlude-once
+[VALIDATION] PASS V10A/two-sides-force-closed-corner
+[VALIDATION] PASS V10A/ao-disabled-keeps-smooth-light-only
+[VALIDATION] PASS V10A/lower-error-diagonal-is-selected
+[VALIDATION] PASS V10A/diagonal-tie-keeps-fixed-zero-two-split
+[VALIDATION] PASS V10A/quad-interpolation-is-deterministic
+[VALIDATION] PASS V10A/four-light-values-use-existing-vertex-stream
+[VALIDATION] PASS V10A/flipped-diagonal-emits-stable-indices
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS V10A/fixture-section-available
+[VALIDATION] PASS V10A/isolated-top-has-four-clear-corners
+[VALIDATION] PASS V10A/transparent-neighbours-do-not-occlude-ao
+[VALIDATION] PASS V10A/l-shaped-opaque-neighbours-darken-one-corner
+[VALIDATION] PASS V10A/builder-ao-override-removes-contact-darkening
+[VALIDATION] PASS V10A/cross-section-fixture-available
+[VALIDATION] PASS V10A/rebuild-order-is-byte-deterministic
+[VALIDATION] PASS V10A/cross-section-shared-vertex-matches :: west/east=0.880000/0.880000
+[VALIDATION] PASS W4/terrain-buffer-strides :: vertex/index=32/4
+[VALIDATION] PASS W4/resident-buffer-estimate :: vertex/index/total=320/48/368
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS L4/section-available
+[VALIDATION] PASS L4/definitions-select-transparent-rules
+[VALIDATION] PASS L4/glass-material-roundtrip
+[VALIDATION] PASS L4/same-glass-culls-shared-face :: transparent=10
+[VALIDATION] PASS L4/glass-variants-cull-shared-face :: transparent=10
+[VALIDATION] PASS L4/opaque-glass-interface-has-one-face :: solid=6 transparent=5
+[VALIDATION] PASS L4/leaves-use-static-cutout-pass :: solid=10
+[VALIDATION] PASS L4/flora-does-not-occlude-leaf-face :: solid=6 flora=2
+[VALIDATION] PASS L4/water-keeps-own-transparent-pass :: water=10
+[VALIDATION] PASS L4/cross-chunk-glass-culls-shared-face :: west=5 east=5
+[VALIDATION] PASS C1/all-definitions-have-behavior
+[VALIDATION] PASS C1/default-behavior-preserves-drop
+[VALIDATION] PASS C1/special-behavior-overrides-drop
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS C1/interaction-dispatches-special-drop
+[VALIDATION] PASS C2/same-id-metadata-selects-drop
+[VALIDATION] PASS C2/natural-tall-grass-is-mature
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS C2/immature-break-has-no-drop
+[VALIDATION] PASS C2/mature-break-drops-tall-grass
+[VALIDATION] PASS C7/metadata-selects-random-tick
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS C7/indexes-only-tickable-sections :: sections=5 blocks=5
+[VALIDATION] PASS C7/section-budget-is-bounded :: grown=4 processed=4
+[VALIDATION] PASS C7/round-robin-drains-remaining-section :: active=0 dispatched=5
+[VALIDATION] PASS C7/unload-removes-section-index
+[VALIDATION] PASS C7/reload-restores-section-index :: sections=1 blocks=1
+[VALIDATION] PASS C3/flora-definitions-use-resource-shape
+[VALIDATION] PASS C3/cross-shape-loads-resource-vertices
+[VALIDATION] PASS C3/new-resource-shape-needs-no-builder-change
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS C3/resource-shape-builds-flora-mesh
+[VALIDATION] PASS L1/light-level-conversion-bounded
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS L1/high-section-available
+[VALIDATION] PASS L1/open-column-has-full-sunlight :: level=15
+[VALIDATION] PASS L1/roofed-column-has-no-direct-sunlight :: below/above=0/15
+[VALIDATION] PASS L1/snapshot-halo-carries-sunlight :: mismatches=0 over 5832 cells
+[VALIDATION] PASS L1/mesh-distinguishes-surface-and-cave :: bright/dark=1.000000/0.787500
+[VALIDATION] PASS L1/greedy-splits-light-boundary :: top_faces=2
+[VALIDATION] PASS L1/sunlight-fixture-saves
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS L1/load-rebuilds-derived-sunlight :: surface/cave=15/0
+[VALIDATION] PASS P11-0/static-emissive-definitions-are-data-driven :: rose/torch=0/14
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS L2/source-and-distance-falloff :: source/one/two=14/13/12
+[VALIDATION] PASS L2/opaque-block-stops-light :: level=0
+[VALIDATION] PASS L2/snapshot-halo-carries-block-light :: mismatches=0 over 5832 cells
+[VALIDATION] PASS L2/combined-light-prefers-strongest-source
+[VALIDATION] PASS L2/emissive-block-lights-nearby-mesh
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS L2/load-rebuilds-derived-block-light :: source/one=14/13
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS L3/emissive-edit-crosses-chunk-boundary :: source/neighbour=14/13
+[VALIDATION] PASS L3/light-only-section-revision-advances
+[VALIDATION] PASS L3/local-relight-queues-bounded-sections :: queued=4 sections=61
+[VALIDATION] PASS L3/opaque-edit-removes-block-light :: level=0
+[VALIDATION] PASS L3/removing-opaque-block-restores-light :: level=13
+[VALIDATION] PASS L3/opaque-edit-updates-one-sunlight-column
+[VALIDATION] PASS L3/removing-roof-restores-sunlight
+[VALIDATION] PASS P11-0/emissive-edit-crosses-section-boundary
+[VALIDATION] PASS L3/unloading-source-removes-cross-chunk-light :: level=0
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS L3/load-reconciles-cross-chunk-block-light :: source/neighbour=14/13
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS M6/enclosed-section-available
+[VALIDATION] PASS M6/enclosed-snapshot-skips-build
+[VALIDATION] PASS M6/enclosed-builder-emits-nothing
+[VALIDATION] PASS M6/background-job-skipped
+[VALIDATION] PASS M6/skipped-build-not-counted
+[VALIDATION] PASS M6/opening-invalidates-enclosure
+[VALIDATION] PASS M6/opening-builds-visible-face :: faces=1
+[VALIDATION] PASS M6/real-build-counted-once
+[VALIDATION] PASS M6/synchronous-build-skipped
+[VALIDATION] PASS M7/all-view-distance-targets-retained :: targets=1089
+[VALIDATION] PASS M7/forward-terrain-prioritised :: front=164 rear=691
+[VALIDATION] PASS M7/turning-reorders-priority :: front=164 rear=691
+[VALIDATION] PASS M7/missing-snapshot-falls-back-to-distance
+[VALIDATION] PASS B2/reason-vocabulary-and-policy
+[VALIDATION] PASS B2/refresh-is-stable-and-bounded
+[VALIDATION] PASS B2/overlap-merges-reason-bits
+[VALIDATION] PASS B2/reason-replacement-removes-old-center
+[VALIDATION] PASS B2/teleport-outprioritises-player
+[VALIDATION] PASS B2/player-motion-prioritises-forward
+[VALIDATION] PASS B2/camera-turn-reorders-pending-plan
+[VALIDATION] PASS B2/transient-demand-expires-exactly
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS B2/world-publishes-player-camera-preload
+[VALIDATION] PASS B2/preload-replaces-single-slot
+[VALIDATION] PASS B3/job-vocabulary-is-frozen
+[VALIDATION] PASS B3/duplicate-pending-key-is-rejected
+[VALIDATION] PASS B3/priority-plan-epoch-type-order-is-deterministic
+[VALIDATION] PASS B3/pending-to-inflight-and-invalid-completion
+[VALIDATION] PASS B3/replace-pending-preserves-inflight
+[VALIDATION] PASS B3/completion-records-state-outcome-and-timing
+[VALIDATION] PASS B3/debug-metrics-match-lifecycle
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS B3/runtime-executes-both-real-job-types :: load=10 mesh=6
+[VALIDATION] PASS B3/runtime-scheduler-counters-are-consistent
+[VALIDATION] PASS B4/generation-token-and-cancel-vocabulary-is-frozen
+[VALIDATION] PASS B4/invalidation-clears-pending-and-preserves-inflight
+[VALIDATION] PASS B4/stale-submit-and-plan-are-rejected
+[VALIDATION] PASS B4/current-generation-keeps-b3-ordering
+[VALIDATION] PASS B4/cancelled-completion-and-metrics-are-exact
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS B4/cancelled-detached-load-publishes-nothing
+[VALIDATION] PASS B4/current-detached-load-commits-once
+[VALIDATION] PASS B4/cancelled-mesh-returns-dirty-without-adoption
+[VALIDATION] PASS B4/rapid-replan-stress-is-bounded-and-deadlock-free
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS B4/live-world-advances-generation-and-runs-current-work
+[VALIDATION] PASS B5/backpressure-vocabulary-and-limits-are-frozen
+[VALIDATION] PASS B5/below-watermark-admission-is-normal
+[VALIDATION] PASS B5/duplicate-and-stale-admission-stay-distinct
+[VALIDATION] PASS B5/hard-cap-rejects-lower-priority-work
+[VALIDATION] PASS B5/higher-priority-work-sheds-deterministic-worst
+[VALIDATION] PASS B5/high-low-watermark-hysteresis-is-exact
+[VALIDATION] PASS B5/invalidation-clears-pressure-and-preserves-inflight
+[VALIDATION] PASS B5/windowed-plan-refills-without-loss
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS B5/live-plan-is-larger-than-bounded-job-window
+[VALIDATION] PASS B5/loader-pass-commit-budget-is-bounded
+[VALIDATION] PASS B5/upload-selection-is-deterministic-and-bounded
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS B5/unload-budget-and-backlog-are-truthful
+[VALIDATION] PASS B6/vocabulary-and-hierarchy-are-frozen
+[VALIDATION] PASS B6/absent-coordinate-is-outside
+[VALIDATION] PASS B6/player-produces-nested-simulation-and-near-rings
+[VALIDATION] PASS B6/camera-produces-near-without-simulation
+[VALIDATION] PASS B6/teleport-and-preload-are-resident-only
+[VALIDATION] PASS B6/overlaps-merge-flags-and-reasons
+[VALIDATION] PASS B6/order-and-source-revision-are-stable
+[VALIDATION] PASS B6/radius-change-removes-obsolete-interest
+[VALIDATION] PASS B6/resident-only-stops-before-mesh-follow-up
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS B6/mesh-snapshot-excludes-resident-only-data
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS B6/resident-interest-protects-then-bounded-unload-resumes
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS B6/simulation-interest-is-publication-only
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS B10/ineligible-reservations-cannot-starve-unload-budget
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS B10/mesh-neighbour-read-does-not-create-absent-chunks
+[VALIDATION] PASS B1/data-state-vocabulary-and-graph :: legal_edges=13
+[VALIDATION] PASS B1/mesh-state-vocabulary-and-graph :: legal_edges=8
+[VALIDATION] PASS B1/render-state-vocabulary-and-graph :: legal_edges=8
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS B1/generated-chunk-is-resident
+[VALIDATION] PASS B1/data-states-are-separately-counted :: resident=9 existing=9
+[VALIDATION] PASS B1/mesh-section-is-available
+[VALIDATION] PASS B1/mesh-dirty-to-clean-flow
+[VALIDATION] PASS B1/dirty-eviction-reaches-absent-after-save
+[VALIDATION] PASS B1/reload-restores-resident-data
+Seed: 0
+Seed: 20260807
+Unable to open chunk file: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/b1_failed_eviction/chunks/chunk_-1_-1.hmcchunk
+Unable to open chunk file: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/b1_failed_eviction/chunks/chunk_-1_0.hmcchunk
+Unable to open chunk file: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/b1_failed_eviction/chunks/chunk_-1_1.hmcchunk
+Unable to open chunk file: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/b1_failed_eviction/chunks/chunk_0_-1.hmcchunk
+Unable to open chunk file: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/b1_failed_eviction/chunks/chunk_0_0.hmcchunk
+Unable to open chunk file: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/b1_failed_eviction/chunks/chunk_0_1.hmcchunk
+Unable to open chunk file: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/b1_failed_eviction/chunks/chunk_1_-1.hmcchunk
+Unable to open chunk file: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/b1_failed_eviction/chunks/chunk_1_0.hmcchunk
+Unable to open chunk file: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/b1_failed_eviction/chunks/chunk_1_1.hmcchunk
+Unable to publish chunk save file: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/b1_failed_eviction/chunks/chunk_0_0.hmcchunk (cannot open sibling pending candidate)
+[VALIDATION] PASS B1/failed-save-cancels-eviction
+Unable to publish chunk save file: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/b1_failed_eviction/chunks/chunk_0_0.hmcchunk (cannot open sibling pending candidate)
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS E5/mesh-snapshot-section-available
+[VALIDATION] PASS E5/cpu-ready-snapshot-produced :: ready=1 live=45
+[VALIDATION] PASS E5/stale-upload-not-acknowledged :: revision=258
+[VALIDATION] PASS E5/current-upload-acknowledged :: revision=258
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS S2.4/edit-marks-chunk-dirty
+[VALIDATION] PASS S2.4/chunk-dropped-on-unload
+[VALIDATION] PASS S2.4/edit-survives-unload-reload :: block id=12
+[VALIDATION] PASS S2.4/reloaded-chunk-is-clean
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS D1/create-owned-record
+[VALIDATION] PASS D1/reject-duplicate-position
+[VALIDATION] PASS D1/find-world-position
+[VALIDATION] PASS D1/update-owned-record
+[VALIDATION] PASS D1/reject-invalid-type
+[VALIDATION] PASS D1/reject-duplicate-load
+[VALIDATION] PASS D1/reject-invalid-position-load
+[VALIDATION] PASS D1/rejected-load-is-atomic
+[VALIDATION] PASS D1/unload-reload-preserves-state
+[VALIDATION] PASS D1/block-change-removes-state
+[VALIDATION] PASS D1/remove-missing-is-safe
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS D2/place-initializes-chest
+[VALIDATION] PASS D2/use-opens-container
+[VALIDATION] PASS D2/store-preserves-total :: player=60 chest=60
+[VALIDATION] PASS D2/take-preserves-total
+[VALIDATION] PASS G3/container-rejects-durability-bearing-tools
+[VALIDATION] PASS D2/transfers-publish-inventory-events
+[VALIDATION] PASS D2/capacity-is-bounded
+[VALIDATION] PASS D2/rejects-invalid-payload
+[VALIDATION] PASS D2/prepare-persisted-contents
+[VALIDATION] PASS D2/save-reload-preserves-contents
+[VALIDATION] PASS D2/open-ui-blocks-world-actions
+[VALIDATION] PASS R3A/container-close-clears-ui-capture
+[VALIDATION] PASS D2/break-spills-contents
+[VALIDATION] PASS D2/break-removes-container-state
+[VALIDATION] PASS N2/smelting-registry-freezes-bounded-base-definitions
+[VALIDATION] PASS N2/smelting-registry-freezes-once
+[VALIDATION] PASS N2/smelting-registry-rejects-header-and-missing-fields
+[VALIDATION] PASS N2/smelting-registry-rejects-duplicate-input
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N2/furnace-place-creates-versioned-block-entity
+[VALIDATION] PASS N2/dedicated-slots-reject-wrong-items-and-output-insert
+[VALIDATION] PASS N2/input-and-fuel-transfer-are-independent
+[VALIDATION] PASS N2/fixed-tick-advances-progress-and-fuel-exactly
+[VALIDATION] PASS P11-0/active-furnace-projects-lit-metadata-and-light
+[VALIDATION] PASS P11-0/metadata-only-update-preserves-block-entity
+[VALIDATION] PASS N2/unload-reload-resumes-exact-state-without-catchup
+[VALIDATION] PASS P11-0/load-normalizes-active-v11-furnace-before-reconnect
+[VALIDATION] PASS N2/completion-consumes-input-and-publishes-domain-event
+[VALIDATION] PASS N2/full-output-state-can-be-persisted
+[VALIDATION] PASS N2/full-output-pauses-both-progress-and-fuel
+[VALIDATION] PASS P11-0/blocked-furnace-turns-off-without-burning-fuel
+[VALIDATION] PASS P11-0/unblocked-furnace-relights-from-frozen-burn-time
+[VALIDATION] PASS P11-0/stable-lit-state-does-not-repeat-block-relight
+[VALIDATION] PASS N2/fuel-exhaustion-preserves-partial-progress
+[VALIDATION] PASS P11-0/exhausted-furnace-turns-off
+[VALIDATION] PASS N2/refuel-resumes-partial-recipe
+[VALIDATION] PASS P11-0/completed-empty-furnace-turns-off-with-burn-frozen
+[VALIDATION] PASS N2/output-take-is-capacity-checked-and-atomic
+[VALIDATION] PASS N2/breaking-furnace-spills-three-dedicated-slots
+[VALIDATION] PASS N2/furnace-payload-rejects-invalid-version-and-materials
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS C1-CAP/chest-initializes-existing-provider
+[VALIDATION] PASS C1-CAP/chest-declares-inventory-only
+[VALIDATION] PASS C1-CAP/chest-exposes-nine-general-slots
+[VALIDATION] PASS C1-CAP/chest-access-preserves-existing-transfer-rules
+[VALIDATION] PASS C1-CAP/chest-requires-automatic-insert-target
+[VALIDATION] PASS C1-CAP/furnace-initializes-existing-provider
+[VALIDATION] PASS C1-CAP/furnace-declares-inventory-and-processor
+[VALIDATION] PASS C1-CAP/furnace-exposes-role-preserving-slots
+[VALIDATION] PASS C1-CAP/furnace-access-preserves-dedicated-slot-rules
+[VALIDATION] PASS C1-CAP/processor-exposes-copied-progress-state
+[VALIDATION] PASS C1-CAP/ordinary-block-rejects-attached-record
+[VALIDATION] PASS C1-CAP/missing-record-exposes-no-capability
+[VALIDATION] PASS C1-CAP/mismatched-record-exposes-no-capability
+[VALIDATION] PASS C1-CAP/malformed-provider-fails-access-closed
+[VALIDATION] PASS C1-CAP/stale-provider-handle-fails-closed
+[VALIDATION] PASS C1-CAP/save-keeps-existing-payload-format
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS C1-CAP/save-reopen-derives-capability-from-v12-state
+[VALIDATION] PASS C2-MACHINE/idle-is-empty-and-unpowered
+[VALIDATION] PASS C2-MACHINE/stored-power-without-input-is-missing-input
+[VALIDATION] PASS C2-MACHINE/ready-input-without-power-is-no-power
+[VALIDATION] PASS C2-MACHINE/output-block-precedes-power-state
+[VALIDATION] PASS C2-MACHINE/ready-powered-state-is-running
+[VALIDATION] PASS C2-MACHINE/runtime-applies-at-most-one-fixed-tick
+[VALIDATION] PASS C2-MACHINE/runtime-completion-is-atomic-and-conservative
+[VALIDATION] PASS C2-MACHINE/blocked-runtime-preserves-progress-power-and-items
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS C2-MACHINE/normal-placement-creates-versioned-crusher
+[VALIDATION] PASS C2-MACHINE/normal-use-opens-and-supplies-one-crank-pulse
+[VALIDATION] PASS C2-MACHINE/crusher-declares-two-real-capabilities
+[VALIDATION] PASS C2-MACHINE/manual-power-is-bounded-at-forty-ticks
+[VALIDATION] PASS C2-MACHINE/slot-admission-rejects-wrong-and-output-input
+[VALIDATION] PASS C2-MACHINE/cobblestone-enters-through-capability
+[VALIDATION] PASS C2-MACHINE/one-pulse-pauses-at-no-power-with-partial-progress
+[VALIDATION] PASS C2-MACHINE/two-pulses-complete-one-cobble-to-sand
+[VALIDATION] PASS C2-MACHINE/output-transfer-is-capacity-checked
+[VALIDATION] PASS C2-MACHINE/strict-v1-payload-accepts-bounded-partial-state
+[VALIDATION] PASS C2-MACHINE/unload-reload-preserves-exact-state-no-catchup
+[VALIDATION] PASS C2-MACHINE/save-v12-persists-crusher-without-migration
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS C2-MACHINE/save-reopen-restores-v1-crusher-payload
+[VALIDATION] PASS C2-MACHINE/blocked-output-pauses-progress-and-crank-power
+[VALIDATION] PASS C2-MACHINE/missing-input-is-observable-with-stored-power
+[VALIDATION] PASS C2-MACHINE/payload-rejects-version-material-and-timer-errors
+[VALIDATION] PASS C2-MACHINE/stale-processor-handle-fails-closed
+[VALIDATION] PASS C2-MACHINE/break-spills-both-slots-and-removes-entity
+[VALIDATION] PASS C3-TOPOLOGY/node-and-network-identities-are-deterministic
+[VALIDATION] PASS C3-TOPOLOGY/empty-model-has-no-derived-state
+[VALIDATION] PASS C3-TOPOLOGY/isolated-node-forms-anchor-component
+[VALIDATION] PASS C3-TOPOLOGY/six-face-adjacency-counts-canonical-edges-once
+[VALIDATION] PASS C3-TOPOLOGY/cross-chunk-chain-merges-with-lowest-anchor
+[VALIDATION] PASS C3-TOPOLOGY/removing-bridge-splits-components
+[VALIDATION] PASS C3-TOPOLOGY/reconnect-merges-and-duplicate-is-no-op
+[VALIDATION] PASS C3-TOPOLOGY/chunk-removal-and-replacement-rebuilds-boundary
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS C3-TOPOLOGY/normal-placement-exposes-crusher-port-and-merge
+[VALIDATION] PASS C3-TOPOLOGY/non-crusher-blocks-declare-no-mechanical-port
+[VALIDATION] PASS C3-TOPOLOGY/normal-break-splits-and-stale-port-fails-closed
+[VALIDATION] PASS C3-TOPOLOGY/normal-replacement-rejoins-components
+[VALIDATION] PASS C3-TOPOLOGY/malformed-payload-removes-node-until-repaired
+[VALIDATION] PASS C3-TOPOLOGY/chunk-unload-reload-removes-and-restores-edge
+[VALIDATION] PASS C3-TOPOLOGY/debug-snapshot-explains-derived-graph
+[VALIDATION] PASS C3-TOPOLOGY/save-v12-persists-only-authoritative-crushers
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS C3-TOPOLOGY/save-reopen-rebuilds-identical-component
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N3/full-health-rejects-without-consuming
+[VALIDATION] PASS N3/pause-and-ui-busy-reject-before-inventory-change
+[VALIDATION] PASS N3/success-consumes-once-heals-and-publishes-once
+[VALIDATION] PASS N3/cooldown-is-exact-and-rejected-uses-are-atomic
+[VALIDATION] PASS N3/recovery-clamps-to-max-health
+[VALIDATION] PASS N3/full-health-remains-non-consuming-after-cooldown
+[VALIDATION] PASS N3/dead-player-cannot-eat-and-zero-health-is-saveable
+[VALIDATION] PASS N3/pending-death-respawns-on-next-fixed-tick
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N3/prepare-damaged-cooldown-save-state
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N3/health-cooldown-and-inventory-resume-after-reload :: exact=1 health=20.000000 cooldown=20 bread=0 result=0
+[VALIDATION] PASS N3/current-recovery-state-roundtrips
+Unable to publish world save file: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/food_recovery_save_validation/world.meta (candidate validation failed: world state contains a non-finite or empty field)
+Unable to publish world save file: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/food_recovery_save_validation/world.meta (candidate validation failed: world state contains a non-finite or empty field)
+[VALIDATION] PASS N3/invalid-recovery-state-preserves-last-good-save
+[VALIDATION] PASS N3/version-five-objectives-survive-recovery-migration
+[VALIDATION] PASS N3/consume-objective-requires-food-target
+[VALIDATION] PASS N3/failed-or-wrong-food-event-does-not-advance-objective
+[VALIDATION] PASS N3/successful-food-event-completes-objective-once
+Seed: 0
+Seed: 20260807
+Seed: 0
+Seed: 20260807
+Seed: 0
+Seed: 20260807
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N10/four-food-runtime-outcomes-are-distinct-and-exact
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N10/raw-meat-smelts-with-bounded-plant-fiber-fuel
+[VALIDATION] PASS N10/sand-smelts-to-glass-with-exact-fixed-tick-cost
+[VALIDATION] PASS N10/new-material-ids-roundtrip-in-current-save
+[VALIDATION] PASS N10/inventory-save-size-and-time-stay-bounded :: slots=5 units=495 baseline_bytes=765 expanded_bytes=858 baseline_us=629 expanded_us=330
+[VALIDATION] PASS N11A/three-stable-versioned-profiles-are-centralized
+[VALIDATION] PASS N11A/create-command-and-catalogue-preserve-difficulty
+[VALIDATION] PASS N11A/difficulty-never-changes-seed-or-terrain-identity
+Refusing to save invalid current world state: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/n11a_current_save/world.meta
+Refusing to save invalid current world state: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/n11a_current_save/world.meta
+[VALIDATION] PASS N11A/v10-roundtrip-and-invalid-save-preserve-last-good-state
+[VALIDATION] PASS N11A/v10-missing-and-duplicate-difficulty-fields-reject
+[VALIDATION] PASS N11A/v1-v9-worlds-migrate-to-normal-v1-profile
+Seed: 0
+Seed: 20260807
+Seed: 0
+Seed: 20260807
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N11A/three-difficulties-produce-monotonic-runtime-pressure :: damage_out=4.800000/4.000000/3.600000 damage_in=3.000000/4.000000/5.000000
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N11A/pause-command-applies-once-at-next-fixed-tick-and-persists
+[VALIDATION] PASS N11B/three-events-use-a-versioned-bounded-schedule
+Refusing to save invalid current world state: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/n11b_current_save/world.meta
+[VALIDATION] PASS N11B/v11-progress-roundtrips-and-malformed-state-rejects
+[VALIDATION] PASS N11B/v1-v10-worlds-migrate-with-zero-completed-events
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N11B/death-restarts-current-event-without-consuming-progress
+[VALIDATION] PASS N11B/reward-is-once-only-and-next-event-is-explicit
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N11B/mid-event-reopen-restores-exactly-one-guardian
+[VALIDATION] PASS N11B/three-events-finish-with-bounded-actors-and-rewards
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N11B/breaking-or-replacing-core-cannot-reset-rewards
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS G2/workbench-material-places-appended-block-id
+[VALIDATION] PASS G2/workbench-use-opens-three-by-three-session
+[VALIDATION] PASS G2/crafting-focus-blocks-world-actions
+[VALIDATION] PASS G2/closed-workbench-can-be-broken-and-recovered
+[VALIDATION] PASS G2/player-crafting-is-two-by-two-and-not-persisted
+[VALIDATION] PASS G3/matching-tools-accelerate-mining-by-tier
+[VALIDATION] PASS G3/required-tier-gates-drops-not-breaking
+[VALIDATION] PASS G3/partial-hold-does-not-break
+[VALIDATION] PASS G3/target-change-resets-progress
+[VALIDATION] PASS G3/tool-change-resets-and-clamps-frame-progress
+[VALIDATION] PASS G3/cancel-clears-mining-progress
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS G3/successful-break-consumes-one-durability
+[VALIDATION] PASS G3/broken-tool-advances-to-occupied-slot
+[VALIDATION] PASS G3/wrong-tool-breaks-without-forbidden-drop
+[VALIDATION] PASS G3/stone-pickaxe-harvests-iron-and-loses-durability
+Unable to publish world save file: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/tool_save_contract/world.meta (candidate validation failed: inventory slot contains invalid material state)
+[VALIDATION] PASS G3/save-validates-and-preserves-exact-durability
+[VALIDATION] PASS G3/legacy-inventory-migrates-to-durability-format
+[VALIDATION] PASS N1/version-three-migrates-with-empty-objective-state
+[VALIDATION] PASS P11-1/appended-identities-preserve-existing-save-values
+[VALIDATION] PASS P11-1/door-states-own-render-collision-and-use-contract
+[VALIDATION] PASS P11-1/axe-and-shovel-accelerate-only-owned-materials
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS P11-1/stone-harvest-produces-cobblestone-not-stone
+[VALIDATION] PASS P11-1/planks-and-closed-door-place-as-appended-blocks
+[VALIDATION] PASS P11-1/door-use-toggles-to-noncollidable-open-state
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS P11-1/new-content-roundtrips-without-save-migration
+[VALIDATION] PASS P11C/version-three-adds-bounded-parallel-opportunities
+[VALIDATION] PASS P11C/new-session-begins-with-one-clear-opportunity
+[VALIDATION] PASS P11C/wood-opens-growth-shelter-and-exploration
+[VALIDATION] PASS P11C/material-acquisition-reveals-related-recipes-only
+[VALIDATION] PASS P11C/branch-progress-survives-primary-opportunity-switching
+[VALIDATION] PASS P11C/discovery-token-is-canonical-bounded-and-persisted
+[VALIDATION] PASS P11C/branches-and-recipe-knowledge-restore-independently
+[VALIDATION] PASS P11C/version-two-state-migrates-with-discoveries-intact
+[VALIDATION] PASS P11C/food-remains-bounded-health-recovery-without-hunger
+[VALIDATION] PASS P11D/reward-version-preserves-old-loot-and-adds-unique-results
+Seed: 20260830
+Seed: 20260830
+[VALIDATION] PASS P11D/generator-carries-reward-identity-without-changing-terrain
+[VALIDATION] PASS P11D/save-v12-roundtrips-reward-version-and-items
+[VALIDATION] PASS P11D/current-save-requires-bounded-reward-version
+[VALIDATION] PASS P11D/v11-worlds-migrate-with-legacy-loot-identity
+Seed: 0
+Seed: 20260830
+[VALIDATION] PASS P11D/compass-points-home-and-ward-reduces-guard-recovery
+Seed: 0
+Seed: 20260830
+[VALIDATION] PASS P11D/ward-applies-to-real-melee-guard-path
+[VALIDATION] PASS T1/default-is-new-append-only-version
+Seed: -2147483648
+Seed: -2147483648
+Seed: 42
+Seed: -1
+Seed: -1
+Seed: 42
+Seed: 0
+Seed: 0
+Seed: 42
+Seed: 42
+Seed: 42
+Seed: 43
+Seed: 2147483647
+Seed: 2147483647
+Seed: 42
+[VALIDATION] PASS T1/full-signed-sampling-domain-is-safe-and-repeatable
+Seed: 0
+Seed: 20260807
+Seed: 0
+Seed: 0
+Seed: 0
+Seed: 0
+Seed: 1
+Seed: 1
+Seed: 1
+Seed: 1
+Seed: 42
+Seed: 42
+Seed: 42
+Seed: 42
+Seed: 424
+Seed: 424
+Seed: 424
+Seed: 424
+Seed: 20260807
+Seed: 20260807
+Seed: 20260807
+Seed: 20260807
+Seed: 20260809
+Seed: 20260809
+Seed: 20260809
+Seed: 20260809
+Seed: 8675309
+Seed: 8675309
+Seed: 8675309
+Seed: 8675309
+Seed: 325322
+Seed: 325322
+Seed: 325322
+Seed: 325322
+[VALIDATION] PASS T1/eight-seeds-positive-negative-reverse-load-order
+[VALIDATION] PASS T1/eight-seeds-independent-concurrent-generators
+Seed: 42
+[VALIDATION] PASS T1/reject-unsafe-chunk-before-coordinate-expansion
+Seed: 0
+Seed: 20260807
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS T1/saved-edit-survives-unload-and-world-reopen
+Refusing to save invalid current world state: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/t1_modified_persistence/world.meta
+Refusing to save invalid current world state: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/t1_modified_persistence/world.meta
+[VALIDATION] PASS T1/reject-unknown-terrain-versions
+Seed: 0
+Seed: 0
+Searching for spawn...
+Spawn found! Loaded candidates: 1 Nearby oak: yes Time Taken: 0.0692248 seconds
+Seed: 0
+[VALIDATION] PASS T1/seed-0-actual-spawn-and-nearby-resources :: spawn=-135.5 88 168.5 resourceChunkRadius=0 wood/grass/coal/iron=12/3/47/21
+[VALIDATION] PASS T1/seed-0-all-structure-types-have-valid-candidates
+Seed: 0
+Seed: 1
+Searching for spawn...
+Spawn found! Loaded candidates: 1 Nearby oak: yes Time Taken: 0.0590303 seconds
+Seed: 1
+[VALIDATION] PASS T1/seed-1-actual-spawn-and-nearby-resources :: spawn=280.5 68 280.5 resourceChunkRadius=1 wood/grass/coal/iron=119/10/324/206
+[VALIDATION] PASS T1/seed-1-all-structure-types-have-valid-candidates
+Seed: 0
+Seed: 42
+Searching for spawn...
+Spawn found! Loaded candidates: 1 Nearby oak: yes Time Taken: 0.0843198 seconds
+Seed: 42
+[VALIDATION] PASS T1/seed-42-actual-spawn-and-nearby-resources :: spawn=136.5 107 -119.5 resourceChunkRadius=0 wood/grass/coal/iron=16/2/62/27
+[VALIDATION] PASS T1/seed-42-all-structure-types-have-valid-candidates
+Seed: 0
+Seed: 424
+Searching for spawn...
+Spawn found! Loaded candidates: 1 Nearby oak: yes Time Taken: 0.0772522 seconds
+Seed: 424
+[VALIDATION] PASS T1/seed-424-actual-spawn-and-nearby-resources :: spawn=8.5 94 8.5 resourceChunkRadius=0 wood/grass/coal/iron=20/3/53/26
+[VALIDATION] PASS T1/seed-424-all-structure-types-have-valid-candidates
+Seed: 0
+Seed: 20260807
+Searching for spawn...
+Spawn found! Loaded candidates: 3 Nearby oak: yes Time Taken: 0.0778888 seconds
+Seed: 20260807
+[VALIDATION] PASS T1/seed-20260807-actual-spawn-and-nearby-resources :: spawn=-391.5 73 -391.5 resourceChunkRadius=0 wood/grass/coal/iron=14/3/28/22
+[VALIDATION] PASS T1/seed-20260807-all-structure-types-have-valid-candidates
+Seed: 0
+Seed: 20260809
+Searching for spawn...
+Spawn search did not find nearby oak; using bounded safe-land fallback.
+Spawn found! Loaded candidates: 1 Nearby oak: fallback Time Taken: 0.493633 seconds
+Seed: 20260809
+[VALIDATION] PASS T1/seed-20260809-actual-spawn-and-nearby-resources :: spawn=88.5 67 104.5 resourceChunkRadius=5 wood/grass/coal/iron=56/2/4390/2870
+[VALIDATION] PASS T1/seed-20260809-all-structure-types-have-valid-candidates
+Seed: 0
+Seed: 8675309
+Searching for spawn...
+Spawn found! Loaded candidates: 1 Nearby oak: yes Time Taken: 0.0671811 seconds
+Seed: 8675309
+[VALIDATION] PASS T1/seed-8675309-actual-spawn-and-nearby-resources :: spawn=8.5 82 8.5 resourceChunkRadius=0 wood/grass/coal/iron=24/2/27/25
+[VALIDATION] PASS T1/seed-8675309-all-structure-types-have-valid-candidates
+Seed: 0
+Seed: 325322
+Searching for spawn...
+Spawn search did not find nearby oak; using bounded safe-land fallback.
+Spawn found! Loaded candidates: 1 Nearby oak: fallback Time Taken: 0.491717 seconds
+Seed: 325322
+[VALIDATION] PASS T1/seed-325322-actual-spawn-and-nearby-resources :: spawn=-119.5 67 -119.5 resourceChunkRadius=3 wood/grass/coal/iron=10/37/1750/1172
+[VALIDATION] PASS T1/seed-325322-all-structure-types-have-valid-candidates
+[VALIDATION] PASS P11-2/terrain-version-contract-is-append-only
+Seed: 20260807
+Seed: 20260807
+Seed: 20260807
+Seed: 20260808
+[VALIDATION] PASS P11-2/terrain-v3-height-and-biome-output-remains-frozen
+[VALIDATION] PASS P11-2/v4-adds-deterministic-mountain-relief :: range=22..176 mountain=4829
+[VALIDATION] PASS P11-2/v4-height-domain-remains-seed-sensitive :: differences=13240
+[VALIDATION] PASS P11-2/mountain-reuses-bounded-ecology-and-pressure
+[VALIDATION] PASS P11-2/natural-entrance-plan-is-bounded-and-deterministic :: cell=-3,3 anchor=-227,105,368
+Seed: 0
+Seed: 20260807
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS P11-2/generated-tunnel-opens-surface-and-underground-chamber :: samples=77
+[VALIDATION] PASS P11-2/entrance-output-ignores-chunk-load-order
+[VALIDATION] PASS P11-2/save-v12-preserves-created-terrain-identity
+[VALIDATION] PASS P11E/enemy-silhouettes-are-distinct-and-bounded
+[VALIDATION] PASS P11E/gameplay-state-drives-readable-combat-poses
+[VALIDATION] PASS P11E/death-pose-is-bounded-and-presentation-only
+[VALIDATION] PASS P11E/enemy-loot-identities-use-existing-materials
+[VALIDATION] PASS P11E/resonance-feedback-is-bilingual-and-semantic
+Seed: 0
+Seed: 20260830
+[VALIDATION] PASS P11E/dead-mob-becomes-transient-render-snapshot
+[VALIDATION] PASS P11E/death-presentation-expires-after-eight-ticks
+Seed: 0
+Seed: 20260830
+[VALIDATION] PASS P11E/waystone-pulse-interrupts-only-windup-guardians
+[VALIDATION] PASS P11E/resonance-cooldown-is-exact-and-no-target-is-free
+[VALIDATION] PASS P11E/resonance-and-combat-pose-stay-out-of-save-v12
+Seed: 0
+Seed: 20260830
+[VALIDATION] PASS P11E/reopen-resets-transient-resonance-and-combat-pose
+[VALIDATION] PASS P11E/death-presentation-never-counts-as-live-guardian
+[VALIDATION] PASS D3/deterministic-candidates
+[VALIDATION] PASS D3/candidates-respect-spawn-ring
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS D3/live-world-spawns-mobs :: natural mobs=4
+[VALIDATION] PASS D3/safe-ground-and-headroom
+[VALIDATION] PASS D3/local-cap-enforced
+[VALIDATION] PASS D3/world-cap-enforced :: natural mobs=12
+[VALIDATION] PASS D3/chunk-unload-despawns-owned-mobs
+[VALIDATION] PASS D3/chunk-reload-does-not-duplicate-mobs
+[VALIDATION] PASS D3/debug-stats-expose-population
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS D3/save-has-live-natural-mobs :: natural mobs=4
+[VALIDATION] PASS D3/duplicate-save-fixture-written
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS D3/reload-restores-natural-mobs :: saved=4 restored=4
+[VALIDATION] PASS D3/reload-rejects-spatial-duplicates
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS D4/actor-occludes-farther-block
+[VALIDATION] PASS D4/block-occludes-farther-actor
+[VALIDATION] PASS D4/player-attack-uses-living-damage
+[VALIDATION] PASS D4/repeat-attack-is-suppressed
+[VALIDATION] PASS D4/mob-death-event-order
+[VALIDATION] PASS D4/lethal-hit-spawns-loot
+[VALIDATION] PASS D4/dead-target-rejects-attacks
+[VALIDATION] PASS N2/iron-sword-applies-data-driven-damage-and-durability
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS D4/mob-contact-damages-player
+[VALIDATION] PASS D4/contact-damage-is-rate-limited
+[VALIDATION] PASS D4/contact-damage-resumes-after-cooldown
+[VALIDATION] PASS D4/player-death-event-order
+[VALIDATION] PASS D4/respawn-returns-to-saved-spawn
+[VALIDATION] PASS D4/death-retains-inventory-and-closes-ui
+[VALIDATION] PASS D4/health-is-exposed-to-hud
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N4/stalker-definition-is-applied-to-live-actor
+[VALIDATION] PASS N4/rejected-attacks-are-atomic
+[VALIDATION] PASS N4/wooden-sword-hit-uses-data-and-durability-on-success
+[VALIDATION] PASS N4/attack-cooldown-is-exact-fixed-tick-state
+[VALIDATION] PASS N4/target-rejection-does-not-consume-cooldown-or-durability
+[VALIDATION] PASS N4/stalker-death-drops-bounded-recovery-loot
+[VALIDATION] PASS N4/death-loot-is-emitted-exactly-once
+[VALIDATION] PASS N4/brute-definition-is-slower-heavier-and-stronger
+[VALIDATION] PASS N4/brute-death-drops-bounded-progression-loot
+[VALIDATION] PASS N8B/all-combat-archetypes-are-natural-population-types
+Seed: 0
+Seed: 20260807
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N4/contact-damage-distinguishes-stalker-and-brute
+Seed: 0
+Seed: 20260807
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N4/attack-cooldown-and-weapon-durability-resume-after-reload
+Unable to publish world save file: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/combat_cooldown_persistence/world.meta (candidate validation failed: world state contains a non-finite or empty field)
+[VALIDATION] PASS N4/invalid-attack-cooldown-preserves-last-good-save
+[VALIDATION] PASS N4/version-six-migrates-with-recovery-and-objectives-intact
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N8A/melee-enters-explicit-windup-with-one-telegraph
+[VALIDATION] PASS N8A/windup-never-damages-or-republishes-warning-early
+[VALIDATION] PASS N8A/windup-resolves-once-into-hit-recover-and-knockback
+[VALIDATION] PASS N8A/recover-is-fixed-tick-and-cooldown-prevents-duplicate-hit
+Seed: 0
+Seed: 20260807
+Seed: 0
+Seed: 20260807
+Seed: 0
+Seed: 20260807
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N8A/damage-feedback-classifies-four-view-relative-directions
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N8A/front-weapon-guard-is-atomic-readable-and-damages-tool-once
+[VALIDATION] PASS N8A/guard-recovery-prevents-permanent-hold-blocking
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N8A/rear-attacks-bypass-front-only-guard
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N8A/melee-line-of-sight-rejects-occluded-contact
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N8A/committed-windup-resolves-target-escape-without-damage
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N8A/player-hit-interrupts-windup-with-stagger-and-feedback
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N8A/chase-work-is-capped-and-reported-per-fixed-tick
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N8A/melee-rays-are-capped-and-budget-exhaustion-is-explicit
+Seed: 0
+Seed: 20260807
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N8A/reload-clears-transient-fsm-and-never-resolves-stale-hit
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N8A/missing-target-fails-safe-to-idle
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N8B/ranged-enemy-telegraphs-explicit-windup-once
+[VALIDATION] PASS N8B/ranged-windup-never-launches-or-damages-early
+[VALIDATION] PASS N8B/windup-launches-one-owned-transient-projectile
+[VALIDATION] PASS N8B/projectile-hits-once-with-damage-knockback-and-direction
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N8B/projectile-collision-stops-at-solid-wall
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N8B/front-guard-consumes-projectile-and-durability-once
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N8B/local-capacity-and-step-budget-are-hard-bounded
+[VALIDATION] PASS N8B/owner-death-clears-all-owned-projectiles-immediately
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N8B/ranged-launch-rejects-occlusion-escape-and-missing-target
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N8B/projectile-max-distance-expires-without-ghost-hit
+[VALIDATION] PASS N8B/leaving-active-area-clears-projectile-on-next-tick
+[VALIDATION] PASS N8B/projectile-lifetime-is-an-independent-hard-bound
+Seed: 0
+Seed: 20260807
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N8B/projectiles-are-never-serialized-or-restored
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N8B/chunk-unload-clears-projectile-and-natural-owner
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N8B/player-death-respawn-clears-every-live-projectile
+[VALIDATION] PASS D5/crop-definition-and-materials-registered
+[VALIDATION] PASS D5/metadata-controls-visible-growth
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS D5/mature-grass-provides-seed
+[VALIDATION] PASS D5/planting-rejects-invalid-support
+[VALIDATION] PASS D5/seed-plants-on-dirt
+[VALIDATION] PASS D5/random-tick-advances-one-stage
+[VALIDATION] PASS D5/immature-crop-returns-seed-only
+[VALIDATION] PASS D5/bounded-random-ticks-reach-maturity
+[VALIDATION] PASS D5/mature-harvest-yields-wheat-and-seed
+[VALIDATION] PASS D5/harvest-seed-replants-crop
+[VALIDATION] PASS D5/unloaded-crop-does-not-tick
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS D5/crop-stage-save-succeeds
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS D5/save-reload-preserves-crop-stage
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS D6/gather-and-plant-through-gameplay
+[VALIDATION] PASS D6/grow-and-harvest-through-random-ticks
+[VALIDATION] PASS D6/store-harvest-through-container
+[VALIDATION] PASS D6/natural-encounter-produces-combat-loot :: found=1 first=1 reached=1 lethal=1 state=Chase/recovery_complete
+[VALIDATION] PASS D6/pick-up-defeated-mob-loot
+[VALIDATION] PASS D6/replant-after-combat-without-state-injection
+[VALIDATION] PASS D6/gameplay-events-cover-complete-loop
+[VALIDATION] PASS D6/save-complete-loop
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS D6/relaunch-preserves-loop-state
+[VALIDATION] PASS N1/base-objective-registry-is-versioned-and-complete
+[VALIDATION] PASS N1/objective-registry-rejects-invalid-contracts
+[VALIDATION] PASS N1/objective-query-is-read-only-and-starts-first-goal
+[VALIDATION] PASS N1/event-progress-is-filtered-and-persisted
+[VALIDATION] PASS N1/all-objective-event-types-advance-in-order
+[VALIDATION] PASS N1/reopen-completes-session-without-item-reward
+[VALIDATION] PASS N1/current-version-preserves-objective-state
+Refusing to save invalid current world state: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/objective_v5_contract/world.meta
+Refusing to save invalid current world state: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/objective_v5_contract/world.meta
+Refusing to save invalid current world state: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/objective_v5_contract/world.meta
+Refusing to save invalid current world state: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/objective_v5_contract/world.meta
+[VALIDATION] PASS N1/invalid-objective-state-preserves-last-good-save
+[VALIDATION] PASS N1/version-four-flags-migrate-to-current-objectives
+[VALIDATION] PASS G6/main-menu-service-creates-and-opens-alpha-world
+Seed: 0
+Seed: 20260807
+Searching for spawn...
+Spawn found! Loaded candidates: 3 Nearby oak: yes Time Taken: 0.0779594 seconds
+[VALIDATION] PASS G6/clean-world-starts-with-minimal-wood-guidance
+[VALIDATION] PASS G6/gather-eleven-wood-through-break-path
+[VALIDATION] PASS G6/craft-workbench-through-player-grid
+[VALIDATION] PASS G6/place-workbench-through-world-interaction
+[VALIDATION] PASS G6/craft-wooden-pickaxe-at-placed-workbench
+[VALIDATION] PASS G6/wooden-pickaxe-gathers-stone-and-loses-durability
+[VALIDATION] PASS G6/craft-stone-pickaxe-through-progression-recipe
+[VALIDATION] PASS G6/stone-pickaxe-unlocks-iron-drop
+[VALIDATION] PASS G6/natural-mob-is-defeated-through-combat-rules :: found=1 first=1 reached=1 lethal=1 state=Chase/recovery_complete
+[VALIDATION] PASS G6/physical-mob-drop-is-picked-up :: loot=0->1 step=9
+[VALIDATION] PASS G6/pre-save-state-conserves-tools-ore-and-loot
+[VALIDATION] PASS G6/save-publishes-version-five-objective-progress
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS G6/reopen-completes-journey-and-restores-conserved-state
+Refusing to save invalid current world state: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/playable_alpha_catalogue/world-53820f57695246f8a1264836e09ce1b6/world.meta
+[VALIDATION] PASS G6/invalid-journey-bits-preserve-last-good-save
+Seed: 0
+Seed: 237172
+Searching for spawn...
+Spawn found! Loaded candidates: 1 Nearby oak: yes Time Taken: 0.0656245 seconds
+[VALIDATION] PASS G6/random-seed-world-starts-with-valid-journey
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS S2.2/chunk-file-path-deterministic :: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/chunk_format/chunks/chunk_0_0.hmcchunk
+Seed: 0
+Seed: 20260807
+Invalid chunk file magic: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/chunk_format/chunks/chunk_0_0.hmcchunk
+[VALIDATION] PASS S2.3/corrupt-chunk-rejected :: block id=0
+Seed: 0
+Seed: 20260807
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS S6.1/same-seed-same-terrain :: sampled 175104 blocks
+[VALIDATION] PASS S6.4/ore-decorator-produces-ore :: coal=219 iron=181
+[VALIDATION] PASS S6.4/ore-layout-deterministic :: coal 219/219 iron 181/181
+[VALIDATION] PASS C4/cave-pass-produces-underground-air :: air=3861
+[VALIDATION] PASS C4/cave-layout-deterministic :: air 3861/3861
+[VALIDATION] PASS C4/surface-buffer-remains-solid :: shallow air 0/0
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS S6.2/terrain-v3-fixture-prepared
+[VALIDATION] PASS S6.2/decorators-produce-trees :: tree blocks=2724 over 49 chunks
+[VALIDATION] PASS S6.2/decorators-produce-plants :: plant blocks=120
+[VALIDATION] PASS S6.3/biome-surface-variety :: distinct surface block ids: 1 2 3 4 5 6 8 9 10 11
+[VALIDATION] PASS C5/structures-cross-chunk-boundaries :: links=134
+Seed: 20260807
+Seed: 20260807
+[VALIDATION] PASS C5/structure-output-ignores-load-order :: west/east blocks=20480/20480
+[VALIDATION] PASS S6.5/all-sampled-chunks-dirty :: save dirty chunks=49/49
+[VALIDATION] PASS S6.5/save-before-reload
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS S6.5/structures-survive-reload :: trees 2724 -> 2724, plants 120 -> 120, links 134 -> 134
+[VALIDATION] PASS S6.5/surface-composition-stable :: 1 2 3 4 5 6 8 9 10 11 -> 1 2 3 4 5 6 8 9 10 11
+Seed: 0
+Seed: 20260807
+Seed: 20260807
+Seed: 20260807
+Seed: 20260808
+[VALIDATION] PASS N5/landmark-anchor-is-seed-stable-and-seed-sensitive :: anchor=18,70,328
+[VALIDATION] PASS N5/landmark-output-ignores-chunk-load-order :: chunks=1
+[VALIDATION] PASS N5/new-generation-adds-one-bounded-waystone-core :: cores=1
+[VALIDATION] PASS N5/legacy-generation-does-not-backfill-landmarks :: legacy cores=0
+[VALIDATION] PASS N5/five-biome-identities-are-queryable
+[VALIDATION] PASS N5/biomes-select-readable-enemy-pressure
+[VALIDATION] PASS N5/waystone-core-is-a-tier-three-placeable-trophy
+Refusing to save invalid current world state: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/n5_ecology/world.meta
+[VALIDATION] PASS T1/new-world-persists-current-terrain-and-rejects-future-version
+[VALIDATION] PASS N5/v7-world-migrates-with-legacy-generation-identity
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N5/migrated-world-keeps-old-unexplored-chunk-output
+[VALIDATION] PASS N9A/structure-type-and-cap-contract
+Seed: 20260807
+Seed: 20260808
+Seed: 20260807
+[VALIDATION] PASS N9A/terrain-v2-waystone-plan-keeps-frozen-identity :: anchor=18,70,328
+[VALIDATION] PASS N9A/plan-is-seed-stable-and-seed-sensitive
+[VALIDATION] PASS N9A/legacy-and-unknown-structure-plans-are-rejected
+[VALIDATION] PASS N9A/negative-cell-ownership-uses-floor-coordinates :: anchor=-68,-141
+[VALIDATION] PASS N9A/footprint-and-plan-size-are-bounded
+[VALIDATION] PASS N9A/adjacent-cells-respect-minimum-anchor-spacing
+[VALIDATION] PASS N9A/planning-does-not-consume-global-rand
+[VALIDATION] PASS N9A/chunk-plan-query-is-repeatable-and-capped :: plans=1
+[VALIDATION] PASS N9A/chunk-query-returns-only-owned-overlaps
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N9A/plan-query-does-not-load-neighbor-chunks :: chunks=9->9
+[VALIDATION] PASS N9A/higher-priority-horizontal-overlap-wins
+[VALIDATION] PASS N9A/equal-priority-overlap-has-stable-key-tiebreak
+[VALIDATION] PASS N9A/thread-scheduling-does-not-change-plan
+[VALIDATION] PASS N9A/cross-chunk-plan-is-discoverable-and-bounded :: chunks=2
+[VALIDATION] PASS N9A/cross-chunk-projection-ignores-load-order :: chunks=2, cores=1
+[VALIDATION] PASS N9B/terrain-v3-and-structure-type-contract
+Seed: 20260807
+Seed: 20260807
+Seed: 20260808
+Seed: 20260807
+Seed: 20260807
+[VALIDATION] PASS N9B/cell-selector-covers-three-types-and-keeps-one-plan
+[VALIDATION] PASS N9B/ruin-and-camp-are-discoverable-in-eligible-biomes :: ruin cell=3,6 anchor=222,70,400; camp cell=6,0 anchor=436,102,37
+[VALIDATION] PASS N9B/site-footprints-priorities-and-write-budgets-are-frozen
+[VALIDATION] PASS N9B/site-ownership-is-bounded :: negative ruin=-1,-1 camp=-1,-2
+[VALIDATION] PASS N9B/site-plans-are-seed-stable-and-seed-sensitive
+[VALIDATION] PASS N9B/terrain-v1-v2-never-plan-new-sites
+[VALIDATION] PASS N9B/cross-chunk-queries-are-complete-and-capped
+[VALIDATION] PASS N9B/thread-scheduling-does-not-change-sites
+[VALIDATION] PASS N9B/type-specific-loot-snapshots-are-valid-and-stable :: ruin=1,4,4; camp=1,6,2
+[VALIDATION] PASS N9B/loot-ranges-and-non-site-rejection-are-frozen
+[VALIDATION] PASS N9B/fixed-seed-structure-and-loot-snapshot
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N9B/ruin-and-camp-projection-ignore-load-order
+[VALIDATION] PASS N9B/each-site-projects-one-chest-with-exact-loot
+[VALIDATION] PASS N9B/terrain-v2-output-does-not-backfill-site-chests
+Seed: 0
+Seed: 20260807
+Seed: 0
+Seed: 20260807
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N9B/empty-loot-and-structure-damage-survive-reload
+[VALIDATION] PASS N9B/player-deposit-survives-without-loot-reinitialization
+Seed: 0
+Seed: 20260807
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS N9B/existing-terrain-v2-world-never-upgrades-or-backfills
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS S3.4/break-through-interaction-system
+[VALIDATION] PASS S3.4/break-clears-block
+[VALIDATION] PASS S3.5/break-adds-configured-drop :: stone=1
+[VALIDATION] PASS S4.2/break-publishes-events :: break=1 changed=1
+[VALIDATION] PASS S4.5/break-publishes-inventory-event
+[VALIDATION] PASS S3.4/place-through-interaction-system
+[VALIDATION] PASS S3.4/place-sets-block
+[VALIDATION] PASS S3.4/place-consumes-item :: held x0
+[VALIDATION] PASS S4.2/place-publishes-events
+[VALIDATION] PASS P5/use-through-interaction-system
+[VALIDATION] PASS P5/use-publishes-event
+[VALIDATION] PASS P5/use-event-identifies-target
+[VALIDATION] PASS P11A/plain-block-does-not-consume-use
+[VALIDATION] PASS P5/use-air-is-noop
+[VALIDATION] PASS S3.4/break-air-is-noop
+[VALIDATION] PASS S3.3/block-metadata-roundtrip :: id=3 metadata=5
+[VALIDATION] PASS S3.1/block-definition-populated :: stringId=hellomine:stone
+[VALIDATION] PASS S3.1/liquid-definition-flagged
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS S4.3/chunk-load-events :: loaded=9 generated=9
+[VALIDATION] PASS S4.3/chunk-save-event :: saved=1
+[VALIDATION] PASS S4.3/chunk-unload-event
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS S5.6/mob-spawns
+[VALIDATION] PASS S5.1/actor-count-tracked :: count=1
+[VALIDATION] PASS S4.4/entity-spawn-event
+[VALIDATION] PASS P1/mob-render-snapshot
+[VALIDATION] PASS S5.2/mob-is-living-actor
+[VALIDATION] PASS C6/mob-chases-nearby-player :: distance 4.000000 -> 3.880000
+[VALIDATION] PASS S5.6/mob-wanders-on-tick :: moved 1.139663
+[VALIDATION] PASS P1/mob-render-transform-updates
+[VALIDATION] PASS S5.2/mob-takes-damage :: health=5.000000
+[VALIDATION] PASS S4.4/entity-damage-event
+[VALIDATION] PASS C6/damage-immunity-rejects-repeat :: health=5.000000 events=1
+[VALIDATION] PASS C6/damage-immunity-expires :: remaining=0.500000
+[VALIDATION] PASS S5.2/mob-dies
+[VALIDATION] PASS S4.4/entity-death-event
+[VALIDATION] PASS P1/dead-mob-is-not-rendered
+[VALIDATION] PASS S5.1/dead-actors-removed
+[VALIDATION] PASS P11B/item-attraction-is-bounded-and-points-toward-player
+[VALIDATION] PASS P11B/item-lifetime-persists-and-expires-at-bounded-age
+[VALIDATION] PASS S5.5/item-entity-spawns
+[VALIDATION] PASS P1/item-render-snapshot
+[VALIDATION] PASS S5.5/item-entity-found
+[VALIDATION] PASS S5.5/item-entity-picked-up :: held 0 -> 3
+[VALIDATION] PASS S4.4/item-pickup-event
+[VALIDATION] PASS S4.5/pickup-publishes-inventory-event
+[VALIDATION] PASS P1/picked-item-is-not-rendered
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS W1/world-time-automation-override
+[VALIDATION] PASS W1/world-stats-expose-environment
+[VALIDATION] PASS S1.2/active-world-is-created-world
+[VALIDATION] PASS S1.2/active-world-id
+[VALIDATION] PASS S1.4/same-world-teleport
+[VALIDATION] PASS S1.4/teleport-moves-player :: 320.5 100 320.5
+[VALIDATION] PASS S4.5/teleport-publishes-event
+[VALIDATION] PASS S1.4/teleport-preloads-destination :: chunk (20,20) loaded
+[VALIDATION] PASS B2/successful-teleport-elevates-destination
+[VALIDATION] PASS S1.4/cross-world-teleport-rejected
+[VALIDATION] PASS B2/rejected-teleport-does-not-mutate-demand
+[VALIDATION] PASS S1.5/fixed-tick-advances-world-time :: time 18000 -> 18020
+[VALIDATION] PASS S1.2/save-world
+[VALIDATION] PASS S1.2/save-unknown-world-fails
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS S1.2/load-world
+[VALIDATION] PASS S1.2/load-world-activates
+[VALIDATION] checks=1032 failures=0
+[VALIDATION] status=PASS

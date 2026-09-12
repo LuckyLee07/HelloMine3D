@@ -1,4 +1,4 @@
-// Encode an ordered PNG readback sequence using macOS system frameworks.
+// Encode an ordered PNG or BMP readback sequence using macOS system frameworks.
 // Use a matching Xcode compiler and SDK (without changing xcode-select).
 // DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc \
 //   -module-cache-path /tmp/hm3d-swift-cache tools/encode_render_sequence_macos.swift -o /tmp/encode-render-sequence
@@ -20,7 +20,7 @@ guard CommandLine.arguments.count == 4,
 }
 let files = try FileManager.default.contentsOfDirectory(
     at: URL(fileURLWithPath: CommandLine.arguments[1]),
-    includingPropertiesForKeys: nil).filter { $0.pathExtension == "png" }
+    includingPropertiesForKeys: nil).filter { ["png", "bmp"].contains($0.pathExtension.lowercased()) }
     .sorted { $0.lastPathComponent < $1.lastPathComponent }
 let output = URL(fileURLWithPath: CommandLine.arguments[2])
 guard !files.isEmpty, !FileManager.default.fileExists(atPath: output.path) else {

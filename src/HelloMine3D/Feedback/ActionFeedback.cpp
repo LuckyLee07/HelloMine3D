@@ -7,6 +7,7 @@
 #include "../Actor/ActorTypes.h"
 #include "../Sandbox/Events/BlockEvents.h"
 #include "../Sandbox/Events/EntityEvents.h"
+#include "../World/Interaction/BlockSelection.h"
 
 namespace
 {
@@ -40,8 +41,8 @@ void ActionFeedbackTimeline::attach(SandboxEventBus &eventBus)
         {
             const auto &block = static_cast<const BlockBreakEvent &>(event);
             activate(ActionFeedbackKind::BlockBreak, 0.34f, 0.7f, 0.f);
-            emit(Material::toMaterial(block.blockId).id,
-                 FullBlockParticleCount);
+            emitBlock(block.blockId, block.position, FullBlockParticleCount,
+                      glm::vec3(block.position) + glm::vec3(0.5f), {}, false);
         }, SandboxEventSubscriptionOptions::observer(
             "ActionFeedbackTimeline")));
     m_subscriptions.push_back(eventBus.subscribe(
@@ -49,8 +50,8 @@ void ActionFeedbackTimeline::attach(SandboxEventBus &eventBus)
         {
             const auto &block = static_cast<const BlockPlaceEvent &>(event);
             activate(ActionFeedbackKind::BlockPlace, 0.28f, 0.45f, 0.f);
-            emit(Material::toMaterial(block.blockId).id,
-                 FullBlockParticleCount / 2);
+            emitBlock(block.blockId, block.position, FullBlockParticleCount / 2,
+                      glm::vec3(block.position) + glm::vec3(0.5f), {}, false);
         }, SandboxEventSubscriptionOptions::observer(
             "ActionFeedbackTimeline")));
     m_subscriptions.push_back(eventBus.subscribe(
@@ -105,6 +106,11 @@ void ActionFeedbackTimeline::detach() noexcept
     }
     m_subscriptions.clear();
     m_eventBus = nullptr;
+    m_particles.clear();
+    m_lastMining = {};
+    m_lastMiningBucket = -1;
+    m_kind = ActionFeedbackKind::None;
+    m_secondsRemaining = m_recoil = m_hitStopSeconds = 0.f;
 }
 
 void ActionFeedbackTimeline::setIntensity(
@@ -137,9 +143,12 @@ void ActionFeedbackTimeline::update(float deltaSeconds) noexcept
     for (ParticleState &particle : m_particles)
     {
         particle.age += elapsed;
-        particle.velocityY += 90.f * elapsed;
-        particle.offsetX += particle.velocityX * elapsed;
-        particle.offsetY += particle.velocityY * elapsed;
+        if (!particle.worldSpace)
+        {
+            particle.velocityY += 90.f * elapsed;
+            particle.offsetX += particle.velocityX * elapsed;
+            particle.offsetY += particle.velocityY * elapsed;
+        }
     }
     m_particles.erase(
         std::remove_if(m_particles.begin(), m_particles.end(),
@@ -160,6 +169,41 @@ void ActionFeedbackTimeline::submitAttackMiss() noexcept
     activate(ActionFeedbackKind::AttackMiss, 0.18f, 0.5f, 0.f);
 }
 
+void ActionFeedbackTimeline::observeMining(
+    const BlockSelection *selection,
+    const MiningProgressSnapshot &progress) noexcept
+{
+    if (selection == nullptr || !progress.active ||
+        selection->blockPosition != progress.target ||
+        selection->blockId != progress.blockId)
+    {
+        m_lastMining = {};
+        m_lastMiningBucket = -1;
+        return;
+    }
+    if (!m_lastMining.active || m_lastMining.target != progress.target ||
+        m_lastMining.blockId != progress.blockId ||
+        m_lastMining.toolMaterialId != progress.toolMaterialId ||
+        progress.elapsedSeconds < m_lastMining.elapsedSeconds)
+    {
+        m_lastMiningBucket = -1;
+    }
+    const int bucket = static_cast<int>(
+        progress.elapsedSeconds / MiningParticleIntervalSeconds);
+    m_lastMining = progress;
+    if (bucket == m_lastMiningBucket)
+    {
+        return;
+    }
+    m_lastMiningBucket = bucket;
+    // At most one small emission per observed frame; no catch-up burst.
+    glm::vec3 normal(selection->placementPosition - selection->blockPosition);
+    const float length = glm::length(normal);
+    normal = length > 0.f ? normal / length : glm::vec3(0.f, 1.f, 0.f);
+    emitBlock(progress.blockId, progress.target, 2,
+              selection->hitPoint + normal * 0.035f, normal, true);
+}
+
 ActionFeedbackSnapshot ActionFeedbackTimeline::snapshot() const
 {
     ActionFeedbackSnapshot result;
@@ -175,9 +219,20 @@ ActionFeedbackSnapshot ActionFeedbackTimeline::snapshot() const
         const float lifetime = std::max(0.001f, particle.lifetime);
         const float alpha = std::clamp(
             1.f - particle.age / lifetime, 0.f, 1.f);
-        result.particles.push_back({
-            particle.materialId, particle.offsetX, particle.offsetY,
-            particle.size, alpha});
+        ActionFeedbackParticle visual;
+        visual.materialId = particle.materialId;
+        visual.offsetX = particle.offsetX;
+        visual.offsetY = particle.offsetY;
+        visual.size = particle.size;
+        visual.alpha = alpha;
+        visual.worldSpace = particle.worldSpace;
+        visual.blockId = particle.blockId;
+        visual.blockPosition = particle.blockPosition;
+        visual.worldPosition = particle.origin + particle.velocity * particle.age +
+            glm::vec3(0.f, -4.9f * particle.age * particle.age, 0.f);
+        visual.rotation = particle.rotation + particle.angularVelocity * particle.age;
+        visual.textureOffset = particle.textureOffset;
+        result.particles.push_back(visual);
     }
     return result;
 }
@@ -204,20 +259,11 @@ void ActionFeedbackTimeline::activate(ActionFeedbackKind kind,
 void ActionFeedbackTimeline::emit(Material::ID materialId,
                                   std::size_t count) noexcept
 {
-    if (m_intensity == GameplayFeedbackIntensity::Off ||
-        materialId == Material::ID::Nothing)
+    if (materialId == Material::ID::Nothing)
     {
         return;
     }
-    if (m_intensity == GameplayFeedbackIntensity::Reduced)
-    {
-        count = (count + 1) / 2;
-    }
-    count = std::min(count, MaxParticles);
-    while (m_particles.size() + count > MaxParticles)
-    {
-        m_particles.erase(m_particles.begin());
-    }
+    count = reserveParticles(count);
     for (std::size_t index = 0; index < count; ++index)
     {
         const std::uint64_t seed =
@@ -238,6 +284,68 @@ void ActionFeedbackTimeline::emit(Material::ID materialId,
         particle.lifetime = std::min(
             particle.lifetime, MaxParticleLifetimeSeconds);
         particle.size = 5.f + static_cast<float>((seed >> 32u) % 5u);
+        m_particles.push_back(particle);
+    }
+}
+
+std::size_t ActionFeedbackTimeline::reserveParticles(std::size_t count) noexcept
+{
+    if (m_intensity == GameplayFeedbackIntensity::Off)
+    {
+        return 0;
+    }
+    if (m_intensity == GameplayFeedbackIntensity::Reduced)
+    {
+        count = (count + 1) / 2;
+    }
+    count = std::min(count, MaxParticles);
+    while (m_particles.size() + count > MaxParticles)
+    {
+        m_particles.erase(m_particles.begin());
+    }
+    return count;
+}
+
+void ActionFeedbackTimeline::emitBlock(
+    BlockId blockId, const glm::ivec3 &blockPosition, std::size_t count,
+    const glm::vec3 &origin, const glm::vec3 &normal, bool mining) noexcept
+{
+    count = reserveParticles(count);
+    ++m_particleEpoch;
+    std::uint32_t random = static_cast<std::uint32_t>(m_particleEpoch) * 747796405u +
+        static_cast<std::uint32_t>(blockPosition.x) * 2891336453u +
+        static_cast<std::uint32_t>(blockPosition.y) * 277803737u +
+        static_cast<std::uint32_t>(blockPosition.z) * 1597334677u;
+    const auto sample = [&random]()
+    {
+        random = random * 1664525u + 1013904223u;
+        return static_cast<float>(random >> 8u) / 16777216.f;
+    };
+    for (std::size_t index = 0; index < count; ++index)
+    {
+        ParticleState particle;
+        particle.materialId = Material::toMaterial(blockId).id;
+        particle.worldSpace = true;
+        particle.blockId = blockId;
+        particle.blockPosition = blockPosition;
+        const float spread = mining ? 0.055f : 0.65f;
+        particle.origin = origin + glm::vec3{
+            sample() - 0.5f, sample() - 0.5f, sample() - 0.5f} * spread;
+        particle.velocity = glm::vec3{
+            (sample() - 0.5f) * 2.5f, 0.9f + sample() * 1.9f,
+            (sample() - 0.5f) * 2.5f};
+        if (mining)
+        {
+            particle.velocity *= 0.45f;
+            particle.velocity += normal * 0.65f;
+        }
+        particle.lifetime = mining ? 0.22f + sample() * 0.10f
+                                   : 0.38f + sample() * 0.16f;
+        particle.size = mining ? 0.025f + sample() * 0.025f
+                               : 0.045f + sample() * 0.055f;
+        particle.rotation = sample() * 6.2831853f;
+        particle.angularVelocity = (sample() - 0.5f) * 12.f;
+        particle.textureOffset = glm::vec2{sample(), sample()} * 0.75f;
         m_particles.push_back(particle);
     }
 }

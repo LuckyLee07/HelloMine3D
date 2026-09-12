@@ -97,6 +97,9 @@ void SandboxRuntime::update(const SandboxInputState &input,
     else {
         m_miningProgress.cancel();
     }
+    m_actionFeedback.observeMining(
+        m_blockSelection ? &*m_blockSelection : nullptr,
+        m_miningProgress.snapshot());
     if (input.resetMeshes) {
         world->resetChunkMeshes();
     }

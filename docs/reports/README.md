@@ -42,6 +42,7 @@
 
 ## 开发者视觉记录
 
+- [block-feedback-2026-09-12.md](block-feedback-2026-09-12.md)：模型表面选中高亮、渐进裂纹、世界碎屑及本地包/视频/回归证据。
 - [flora-wind-fix-2026-09-12.md](flora-wind-fix-2026-09-12.md)：花草每秒动画重置、根部漂移修复，连续风场与动态视频/GPU/性能证据。
 - [water-seam-fix-2026-09-12.md](water-seam-fix-2026-09-12.md)：水波局部坐标导致的区块接缝、GPU 边界回归及岸边/水下实机对照。
 - [warm-wilderness-implementation-2026-09-12.md](warm-wilderness-implementation-2026-09-12.md)：暖野 v1 实现、macOS 包、自动检查、性能与正常界面自测。

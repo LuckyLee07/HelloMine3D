@@ -53,6 +53,7 @@
 #include "../Gameplay/VictoryFlow.h"
 #include "../Gameplay/WaystoneEncounter.h"
 #include "../Feedback/ActionFeedback.h"
+#include "../Feedback/BlockSurfaceGeometry.h"
 #include "../Item/Material.h"
 #include "../Item/MachineProcessDefinition.h"
 #include "../Item/CraftingSession.h"
@@ -2346,7 +2347,7 @@ void caseP11BActionFeedback()
     eventBus.publish(BlockBreakEvent({1, 2, 3}, BlockId::Stone));
     snapshot = feedback.snapshot();
     check("P11B/reduced-feedback-halves-decorative-density",
-          snapshot.particles.size() == 4 &&
+          snapshot.particles.size() == ActionFeedbackTimeline::FullBlockParticleCount / 2 &&
               snapshot.recoil > 0.f && snapshot.recoil < 0.7f);
 
     feedback.setIntensity(GameplayFeedbackIntensity::Off);
@@ -2385,12 +2386,129 @@ void caseP11BActionFeedback()
           snapshot.kind == ActionFeedbackKind::ItemPickup &&
               snapshot.particles.size() == 3 &&
               snapshot.particles.front().materialId ==
-                  Material::ID::IronIngot);
+                  Material::ID::IronIngot &&
+              !snapshot.particles.front().worldSpace);
 
     const float gainA = ActionFeedbackTimeline::audioGainVariant(77);
     const float gainB = ActionFeedbackTimeline::audioGainVariant(77);
     check("P11B/audio-microvariation-is-deterministic-and-bounded",
           gainA == gainB && gainA >= 0.94f && gainA <= 1.06f);
+
+    feedback.detach();
+    feedback.attach(eventBus);
+    const glm::ivec3 brokenPosition(-17, 64, 31);
+    eventBus.publish(BlockBreakEvent(brokenPosition, BlockId::Grass));
+    const auto initial = feedback.snapshot();
+    check("P11B/fragments-start-at-the-broken-block-and-preserve-block-identity",
+        std::all_of(initial.particles.begin(), initial.particles.end(), [&](const auto &p)
+        {
+            const glm::vec3 local = p.worldPosition - glm::vec3(brokenPosition);
+            return p.worldSpace && p.blockId == BlockId::Grass &&
+                p.blockPosition == brokenPosition && local.x >= 0.f && local.x <= 1.f &&
+                local.y >= 0.f && local.y <= 1.f && local.z >= 0.f && local.z <= 1.f &&
+                p.size > 0.f && p.size <= 0.1f;
+        }));
+    SandboxEventBus otherBus;
+    ActionFeedbackTimeline otherFeedback;
+    otherFeedback.attach(otherBus);
+    otherBus.publish(BlockBreakEvent(brokenPosition, BlockId::Grass));
+    SandboxEventBus singleBus;
+    ActionFeedbackTimeline singleStep;
+    singleStep.attach(singleBus);
+    singleBus.publish(BlockBreakEvent(brokenPosition, BlockId::Grass));
+    singleStep.update(0.2f);
+    otherFeedback.update(0.1f);
+    const auto oneTenth = otherFeedback.snapshot();
+    otherFeedback.update(0.1f);
+    const auto twoSteps = otherFeedback.snapshot();
+    const auto oneStep = singleStep.snapshot();
+    bool sameTrajectories = oneStep.particles.size() == twoSteps.particles.size();
+    for (std::size_t i = 0; i < oneStep.particles.size() && sameTrajectories; ++i)
+        sameTrajectories = glm::length(oneStep.particles[i].worldPosition -
+                                       twoSteps.particles[i].worldPosition) < 0.00001f;
+    check("P11B/world-fragment-trajectories-are-frame-rate-independent", sameTrajectories);
+    check("P11B/fragments-fade-and-rotate-during-flight",
+        twoSteps.particles.front().alpha < oneTenth.particles.front().alpha &&
+        twoSteps.particles.front().rotation != oneTenth.particles.front().rotation);
+    otherFeedback.update(0.1f);
+    const auto threeSteps = otherFeedback.snapshot();
+    check("P11B/world-fragments-accelerate-downward",
+        threeSteps.particles.front().worldPosition.y - twoSteps.particles.front().worldPosition.y <
+        twoSteps.particles.front().worldPosition.y - oneTenth.particles.front().worldPosition.y);
+
+    feedback.detach();
+    feedback.attach(eventBus);
+    BlockSelection selected{{1, 2, 3}, {1, 2, 4}, {1.5f, 2.5f, 3.99f}, BlockId::Stone};
+    MiningProgressSnapshot held;
+    held.active = true;
+    held.target = selected.blockPosition;
+    held.blockId = selected.blockId;
+    held.requiredSeconds = 10.f;
+    held.elapsedSeconds = 0.01f;
+    feedback.observeMining(&selected, held);
+    const auto contact = feedback.snapshot();
+    feedback.observeMining(&selected, held);
+    check("P11B/mining-contact-emits-at-hit-face-without-a-gameplay-event",
+        contact.kind == ActionFeedbackKind::None && contact.particles.size() == 2 &&
+        contact.particles.front().worldSpace && contact.particles.front().worldPosition.z > 3.9f &&
+        feedback.snapshot().particles.size() == 2);
+    held.elapsedSeconds = 1.f;
+    feedback.observeMining(&selected, held);
+    check("P11B/stalled-mining-does-not-catch-up-particle-bursts",
+          feedback.snapshot().particles.size() == 4);
+    feedback.observeMining(nullptr, held);
+    feedback.update(0.25f);
+    feedback.update(0.25f);
+    check("P11B/cancelled-mining-emits-no-more-fragments", feedback.snapshot().particles.empty());
+    feedback.setIntensity(GameplayFeedbackIntensity::Off);
+    feedback.observeMining(&selected, held);
+    eventBus.publish(BlockBreakEvent(selected.blockPosition, selected.blockId));
+    check("P11B/off-suppresses-both-contact-and-completion-fragments",
+          feedback.snapshot().particles.empty());
+    feedback.setIntensity(GameplayFeedbackIntensity::Full);
+    eventBus.publish(BlockBreakEvent(selected.blockPosition, selected.blockId));
+    feedback.attach(otherBus);
+    check("P11B/switching-world-clears-old-fragments-and-feedback-state",
+        feedback.snapshot().particles.empty() && feedback.snapshot().kind == ActionFeedbackKind::None);
+
+    const glm::ivec3 surfacePosition(-17, 64, 31);
+    const auto surfaceFor = [&](BlockId id, BlockMetadata_t metadata)
+    {
+        return blockSurfaceGeometry(BlockDatabase::get().getDefinition(id),
+            ChunkBlock(id, metadata), surfacePosition, TerrainBiome::LightForest, kValidationSeed);
+    };
+    const auto flower = surfaceFor(BlockId::Rose, 0);
+    const auto &flowerShape = BlockDatabase::get().getDefinition(BlockId::Rose).render.shape;
+    check("P11B/flower-highlight-uses-the-cross-model-not-a-cube",
+        flower.size() == 2 && flower[0].positions == flowerShape.faces[0] &&
+        flower[1].positions == flowerShape.faces[1]);
+    const auto height = [](const std::vector<BlockSurfaceFace> &faces)
+    {
+        float maximum = 0.f;
+        for (const auto &face : faces)
+            for (std::size_t y = 1; y < face.positions.size(); y += 3)
+                maximum = std::max(maximum, face.positions[y]);
+        return maximum;
+    };
+    const auto seedling = surfaceFor(BlockId::WheatCrop, BlockMetadata::WheatCrop::Planted);
+    const auto mature = surfaceFor(BlockId::WheatCrop, BlockMetadata::WheatCrop::Mature);
+    check("P11B/crop-highlight-follows-growth-metadata",
+          seedling.size() == 2 && mature.size() == 2 && height(seedling) < height(mature) &&
+          height(mature) <= 1.f);
+    const auto door = surfaceFor(BlockId::OakDoorOpen, 0);
+    const auto &doorShape = BlockDatabase::get().getDefinition(BlockId::OakDoorOpen).render.shape;
+    check("P11B/open-door-highlight-follows-the-registered-shape",
+          door.size() == doorShape.faces.size() && door.front().positions == doorShape.faces.front());
+    const auto grass = surfaceFor(BlockId::TallGrass, 0);
+    const auto expectedTile = TerrainAppearance::select(BlockId::TallGrass, TerrainFaceKind::Resource,
+        BlockDatabase::get().getDefinition(BlockId::TallGrass).render.texTopCoord,
+        TerrainBiome::LightForest, kValidationSeed, surfacePosition).coordinates;
+    check("P11B/plant-highlight-uses-the-world-ecology-alpha-tile",
+          grass.size() == 2 && grass.front().tile == expectedTile);
+    const auto cube = surfaceFor(BlockId::Grass, 0);
+    check("P11B/cube-highlight-keeps-top-side-bottom-material-mapping",
+          cube.size() == 6 && cube[4].tile != cube[5].tile && cube[0].tile != cube[4].tile);
+    feedback.detach();
 }
 
 void caseEventCommandQueryBoundary()

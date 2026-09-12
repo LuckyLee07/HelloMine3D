@@ -1,0 +1,51 @@
+{
+  "result": "PASS",
+  "scope": "Matched classic-crown natural selected-surface sample, no active mining; not full Q1.",
+  "metrics": {
+    "frame_p50_ms": {
+      "before": 9.118,
+      "after": 8.772,
+      "ratio": 0.9620530818161878
+    },
+    "frame_p95_ms": {
+      "before": 11.847,
+      "after": 11.855,
+      "ratio": 1.0006752764412932
+    },
+    "frame_p99_ms": {
+      "before": 12.751,
+      "after": 12.161,
+      "ratio": 0.953729119284762
+    },
+    "frame_max_ms": {
+      "before": 21.962,
+      "after": 27.899,
+      "ratio": 1.2703305709862491
+    },
+    "render_p95_ms": {
+      "before": 9.793,
+      "after": 9.8,
+      "ratio": 1.0007147962830594
+    },
+    "update_p95_ms": {
+      "before": 2.453,
+      "after": 2.517,
+      "ratio": 1.0260905014268242
+    },
+    "last_resident_terrain_vertices": {
+      "before": 877960.0,
+      "after": 877960.0,
+      "ratio": 1.0
+    },
+    "last_resident_terrain_indices": {
+      "before": 1783410.0,
+      "after": 1783410.0,
+      "ratio": 1.0
+    },
+    "last_resident_terrain_buffer_bytes": {
+      "before": 35228360.0,
+      "after": 35228360.0,
+      "ratio": 1.0
+    }
+  }
+}

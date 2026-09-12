@@ -1,0 +1,432 @@
+[VALIDATION] world runtime smoke starting
+[VALIDATION] PASS N7A/outcome-starts-unstarted
+[VALIDATION] PASS N7A/outcome-rejects-skipped-transition
+[VALIDATION] PASS N7A/activation-and-encounter-are-idempotent
+[VALIDATION] PASS N7A/abandoned-encounter-can-resume
+[VALIDATION] PASS N7A/victory-requires-nonzero-reward-epoch
+[VALIDATION] PASS N7A/victory-snapshot-is-authoritative
+[VALIDATION] PASS N7A/reward-claim-is-epoch-bound-and-idempotent
+[VALIDATION] PASS N7A/invalid-restored-outcome-is-rejected
+[VALIDATION] PASS N7A/locales-freeze-with-identical-semantic-keys
+[VALIDATION] PASS N7A/localized-victory-text-resolves
+[VALIDATION] PASS N12A/semantic-ids-localize-without-changing-identity
+[VALIDATION] PASS N12A/all-material-objective-and-caption-ids-have-text
+[VALIDATION] PASS N12A/production-catalogues-require-key-parity
+[VALIDATION] PASS N7A/text-fallbacks-are-bounded-and-diagnosed
+[VALIDATION] PASS N7A/invalid-text-source-does-not-partially-freeze
+[VALIDATION] PASS N12A/invalid-utf8-and-oversized-text-are-rejected
+[VALIDATION] PASS N12A/font-probe-accepts-bundle-and-bounds-missing-fallback
+[VALIDATION] PASS N12A/credits-and-font-license-assets-are-present
+[VALIDATION] PASS N12A/extreme-ui-scale-layout-remains-on-screen
+[VALIDATION] PASS N12A/caption-duration-refresh-priority-and-expiry-are-bounded
+[VALIDATION] PASS N7A/current-outcome-round-trips
+Refusing to save invalid current world state: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/n7a_outcome_current/world.meta
+[VALIDATION] PASS N7A/invalid-outcome-preserves-last-good-save
+[VALIDATION] PASS N7A/v8-migrates-to-unstarted-current-outcome
+[VALIDATION] PASS A3/missing-config-regenerated :: /Users/lizi/Desktop/Workspace/HelloMine3D/bin/validation_runs/runtime_config/config.txt
+[VALIDATION] PASS A3/generated-config-uses-documented-defaults :: 8 0 1280x720 90
+[VALIDATION] PASS V10E/settings-file-is-versioned-with-post-processing :: settings_version 9
+renderdistance 8
+visualdetail standard
+directionalshadowquality off
+postprocessingquality off
+fullscreen 0
+windowsize 1280 720
+fov 90
+mousesensitivity 0.0500000007
+invertmousey 0
+mastervolume 1
+uivolume 1
+effectsvolume 1
+ambientvolume 1
+musicvolume 0.649999976
+uiscale 1
+locale en-US
+audiocaptions 1
+actionhints 1
+sprintmode hold
+sneakmode hold
+feedbackintensity full
+key_move_forward w
+key_move_backward s
+key_move_left a
+key_move_right d
+key_jump space
+key_sneak left_shift
+key_sprint left_control
+key_open_crafting e
+key_consume_food r
+mouse_break_attack primary
+mouse_use secondary
+mouse_place secondary
+mouse_guard secondary
+seed random
+
+[VALIDATION] PASS A3/user-config-overrides-defaults
+[VALIDATION] PASS V10E/legacy-settings-migrated-atomically :: settings_version 9
+renderdistance 3
+visualdetail standard
+directionalshadowquality off
+postprocessingquality off
+fullscreen 1
+windowsize 1024 768
+fov 100
+mousesensitivity 0.119999997
+invertmousey 1
+mastervolume 1
+uivolume 1
+effectsvolume 1
+ambientvolume 1
+musicvolume 0.649999976
+uiscale 1
+locale en-US
+audiocaptions 1
+actionhints 1
+sprintmode hold
+sneakmode hold
+feedbackintensity full
+key_move_forward w
+key_move_backward s
+key_move_left a
+key_move_right d
+key_jump space
+key_sneak left_shift
+key_sprint left_control
+key_open_crafting e
+key_consume_food r
+mouse_break_attack primary
+mouse_use secondary
+mouse_place secondary
+mouse_guard secondary
+seed random
+
+[VALIDATION] PASS N12A/version-one-settings-migrate-with-presentation-defaults :: settings_version 9
+renderdistance 6
+visualdetail standard
+directionalshadowquality off
+postprocessingquality off
+fullscreen 0
+windowsize 1280 720
+fov 95
+mousesensitivity 0.0500000007
+invertmousey 0
+mastervolume 1
+uivolume 1
+effectsvolume 1
+ambientvolume 1
+musicvolume 0.649999976
+uiscale 1
+locale en-US
+audiocaptions 1
+actionhints 1
+sprintmode hold
+sneakmode hold
+feedbackintensity full
+key_move_forward w
+key_move_backward s
+key_move_left a
+key_move_right d
+key_jump space
+key_sneak left_shift
+key_sprint left_control
+key_open_crafting e
+key_consume_food r
+mouse_break_attack primary
+mouse_use secondary
+mouse_place secondary
+mouse_guard secondary
+seed random
+
+[VALIDATION] PASS N12A/version-two-settings-migrate-with-locale-default :: settings_version 9
+renderdistance 8
+visualdetail standard
+directionalshadowquality off
+postprocessingquality off
+fullscreen 0
+windowsize 1280 720
+fov 90
+mousesensitivity 0.0500000007
+invertmousey 0
+mastervolume 1
+uivolume 1
+effectsvolume 1
+ambientvolume 1
+musicvolume 0.649999976
+uiscale 1.25
+locale en-US
+audiocaptions 0
+actionhints 1
+sprintmode hold
+sneakmode hold
+feedbackintensity full
+key_move_forward w
+key_move_backward s
+key_move_left a
+key_move_right d
+key_jump space
+key_sneak left_shift
+key_sprint left_control
+key_open_crafting e
+key_consume_food r
+mouse_break_attack primary
+mouse_use secondary
+mouse_place secondary
+mouse_guard secondary
+seed random
+
+[VALIDATION] PASS N12C/version-three-settings-migrate-with-music-default :: settings_version 9
+renderdistance 8
+visualdetail standard
+directionalshadowquality off
+postprocessingquality off
+fullscreen 0
+windowsize 1280 720
+fov 90
+mousesensitivity 0.0500000007
+invertmousey 0
+mastervolume 1
+uivolume 1
+effectsvolume 1
+ambientvolume 0.400000006
+musicvolume 0.649999976
+uiscale 1
+locale zh-CN
+audiocaptions 1
+actionhints 1
+sprintmode hold
+sneakmode hold
+feedbackintensity full
+key_move_forward w
+key_move_backward s
+key_move_left a
+key_move_right d
+key_jump space
+key_sneak left_shift
+key_sprint left_control
+key_open_crafting e
+key_consume_food r
+mouse_break_attack primary
+mouse_use secondary
+mouse_place secondary
+mouse_guard secondary
+seed random
+
+[VALIDATION] PASS V10D/version-four-settings-migrate-shadows-off :: settings_version 9
+renderdistance 8
+visualdetail standard
+directionalshadowquality off
+postprocessingquality off
+fullscreen 0
+windowsize 1280 720
+fov 90
+mousesensitivity 0.0500000007
+invertmousey 0
+mastervolume 1
+uivolume 1
+effectsvolume 1
+ambientvolume 1
+musicvolume 0.400000006
+uiscale 1
+locale en-US
+audiocaptions 1
+actionhints 1
+sprintmode hold
+sneakmode hold
+feedbackintensity full
+key_move_forward w
+key_move_backward s
+key_move_left a
+key_move_right d
+key_jump space
+key_sneak left_shift
+key_sprint left_control
+key_open_crafting e
+key_consume_food r
+mouse_break_attack primary
+mouse_use secondary
+mouse_place secondary
+mouse_guard secondary
+seed random
+
+[VALIDATION] PASS V10E/version-five-settings-migrate-post-processing-off :: settings_version 9
+renderdistance 8
+visualdetail standard
+directionalshadowquality high
+postprocessingquality off
+fullscreen 0
+windowsize 1280 720
+fov 90
+mousesensitivity 0.0500000007
+invertmousey 0
+mastervolume 1
+uivolume 1
+effectsvolume 1
+ambientvolume 1
+musicvolume 0.649999976
+uiscale 1
+locale en-US
+audiocaptions 1
+actionhints 1
+sprintmode hold
+sneakmode hold
+feedbackintensity full
+key_move_forward w
+key_move_backward s
+key_move_left a
+key_move_right d
+key_jump space
+key_sneak left_shift
+key_sprint left_control
+key_open_crafting e
+key_consume_food r
+mouse_break_attack primary
+mouse_use secondary
+mouse_place secondary
+mouse_guard secondary
+seed random
+
+[VALIDATION] PASS P11A/version-six-settings-migrate-input-defaults :: settings_version 9
+renderdistance 8
+visualdetail standard
+directionalshadowquality medium
+postprocessingquality on
+fullscreen 0
+windowsize 1280 720
+fov 90
+mousesensitivity 0.0500000007
+invertmousey 0
+mastervolume 1
+uivolume 1
+effectsvolume 1
+ambientvolume 1
+musicvolume 0.649999976
+uiscale 1
+locale en-US
+audiocaptions 1
+actionhints 1
+sprintmode hold
+sneakmode hold
+feedbackintensity full
+key_move_forward w
+key_move_backward s
+key_move_left a
+key_move_right d
+key_jump space
+key_sneak left_shift
+key_sprint left_control
+key_open_crafting e
+key_consume_food q
+mouse_break_attack primary
+mouse_use secondary
+mouse_place secondary
+mouse_guard secondary
+seed random
+
+[VALIDATION] PASS P11B/version-seven-settings-migrate-feedback-full :: settings_version 9
+renderdistance 8
+visualdetail standard
+directionalshadowquality off
+postprocessingquality off
+fullscreen 0
+windowsize 1280 720
+fov 90
+mousesensitivity 0.0500000007
+invertmousey 0
+mastervolume 1
+uivolume 1
+effectsvolume 1
+ambientvolume 1
+musicvolume 0.649999976
+uiscale 1
+locale en-US
+audiocaptions 1
+actionhints 1
+sprintmode toggle
+sneakmode hold
+feedbackintensity full
+key_move_forward w
+key_move_backward s
+key_move_left a
+key_move_right d
+key_jump space
+key_sneak left_shift
+key_sprint left_control
+key_open_crafting e
+key_consume_food r
+mouse_break_attack primary
+mouse_use secondary
+mouse_place secondary
+mouse_guard secondary
+seed random
+
+[VALIDATION] PASS G4/settings-draft-prepares-valid-apply
+[VALIDATION] PASS G4/settings-cancel-restores-snapshot
+[VALIDATION] PASS G4/display-change-requires-restart
+[VALIDATION] PASS G4/settings-defaults-are-bounded
+[VALIDATION] PASS G4/settings-reject-out-of-range-draft :: FOV must be between 45 and 120 degrees
+[VALIDATION] PASS G4/settings-save-publishes-valid-candidate
+[VALIDATION] PASS G4/settings-save-preserves-world-creation-seed
+[VALIDATION] PASS G4/settings-atomic-failure-is-reported :: injected fault at before-replace
+[VALIDATION] PASS G4/settings-atomic-failure-keeps-previous-file
+[VALIDATION] PASS G4/live-fov-refreshes-logic-camera
+[VALIDATION] PASS G4/unknown-settings-version-rejected
+[VALIDATION] PASS N6/invalid-accessibility-and-bindings-are-rejected
+[VALIDATION] PASS P11A/invalid-v7-input-settings-are-rejected
+[VALIDATION] PASS WV2/v8-preferences-migrate-to-standard
+[VALIDATION] PASS WV2/compatibility-setting-round-trips
+[VALIDATION] PASS WV2/visual-detail-change-requires-restart
+[VALIDATION] PASS P11B/invalid-v8-feedback-settings-are-rejected
+[VALIDATION] PASS WV2/invalid-v9-visual-settings-are-rejected
+[VALIDATION] PASS P11B/inactive-mining-has-no-crack-stage
+[VALIDATION] PASS P11B/mining-crack-stages-are-bounded-and-monotonic
+[VALIDATION] PASS P11B/block-break-feedback-matches-material-and-bounds-particles
+[VALIDATION] PASS P11B/feedback-particle-cap-is-deterministic
+[VALIDATION] PASS P11B/feedback-particles-expire-within-contract
+[VALIDATION] PASS P11B/reduced-feedback-halves-decorative-density
+[VALIDATION] PASS P11B/off-keeps-essential-state-without-discomfort-effects
+[VALIDATION] PASS P11B/miss-hit-guard-and-hurt-have-distinct-feedback-states
+[VALIDATION] PASS P11B/item-pickup-feedback-is-bounded-and-material-matched
+[VALIDATION] PASS P11B/audio-microvariation-is-deterministic-and-bounded
+[VALIDATION] PASS P11B/fragments-start-at-the-broken-block-and-preserve-block-identity
+[VALIDATION] PASS P11B/world-fragment-trajectories-are-frame-rate-independent
+[VALIDATION] PASS P11B/fragments-fade-and-rotate-during-flight
+[VALIDATION] PASS P11B/world-fragments-accelerate-downward
+[VALIDATION] PASS P11B/mining-contact-emits-at-hit-face-without-a-gameplay-event
+[VALIDATION] PASS P11B/stalled-mining-does-not-catch-up-particle-bursts
+[VALIDATION] PASS P11B/cancelled-mining-emits-no-more-fragments
+[VALIDATION] PASS P11B/off-suppresses-both-contact-and-completion-fragments
+[VALIDATION] PASS P11B/switching-world-clears-old-fragments-and-feedback-state
+[VALIDATION] PASS P11B/flower-highlight-uses-the-cross-model-not-a-cube
+[VALIDATION] PASS P11B/crop-highlight-follows-growth-metadata
+[VALIDATION] PASS P11B/open-door-highlight-follows-the-registered-shape
+[VALIDATION] PASS P11B/plant-highlight-uses-the-world-ecology-alpha-tile
+[VALIDATION] PASS P11B/cube-highlight-keeps-top-side-bottom-material-mapping
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS S5.6/mob-spawns
+[VALIDATION] PASS S5.1/actor-count-tracked :: count=1
+[VALIDATION] PASS S4.4/entity-spawn-event
+[VALIDATION] PASS P1/mob-render-snapshot
+[VALIDATION] PASS S5.2/mob-is-living-actor
+[VALIDATION] PASS C6/mob-chases-nearby-player :: distance 4.000000 -> 3.880000
+[VALIDATION] PASS S5.6/mob-wanders-on-tick :: moved 1.139663
+[VALIDATION] PASS P1/mob-render-transform-updates
+[VALIDATION] PASS S5.2/mob-takes-damage :: health=5.000000
+[VALIDATION] PASS S4.4/entity-damage-event
+[VALIDATION] PASS C6/damage-immunity-rejects-repeat :: health=5.000000 events=1
+[VALIDATION] PASS C6/damage-immunity-expires :: remaining=0.500000
+[VALIDATION] PASS S5.2/mob-dies
+[VALIDATION] PASS S4.4/entity-death-event
+[VALIDATION] PASS P1/dead-mob-is-not-rendered
+[VALIDATION] PASS S5.1/dead-actors-removed
+[VALIDATION] PASS P11B/item-attraction-is-bounded-and-points-toward-player
+[VALIDATION] PASS P11B/item-lifetime-persists-and-expires-at-bounded-age
+[VALIDATION] PASS S5.5/item-entity-spawns
+[VALIDATION] PASS P1/item-render-snapshot
+[VALIDATION] PASS S5.5/item-entity-found
+[VALIDATION] PASS S5.5/item-entity-picked-up :: held 0 -> 3
+[VALIDATION] PASS S4.4/item-pickup-event
+[VALIDATION] PASS S4.5/pickup-publishes-inventory-event
+[VALIDATION] PASS P1/picked-item-is-not-rendered
+[VALIDATION] checks=102 failures=0
+[VALIDATION] status=PASS

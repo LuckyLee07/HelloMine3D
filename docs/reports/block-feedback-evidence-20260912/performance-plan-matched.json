@@ -1,0 +1,29 @@
+{
+  "scope": "Natural selected surface; no mining burst. Active particle bounds are tested separately.",
+  "baseline": "build/warm-v2-m1-20260912/HelloMine3D-M1-Classic-Crown.app",
+  "candidate": "build/block-feedback-20260912/HelloMine3D-Block-Feedback-Preview2.app",
+  "same_seed": 20260807,
+  "position": [
+    1056.5,
+    106,
+    928.5
+  ],
+  "rotation": [
+    40,
+    0,
+    0
+  ],
+  "world_time": 6000,
+  "resolution": [
+    2560,
+    1440
+  ],
+  "renderdistance": 8,
+  "detail": "standard",
+  "shadows": "off",
+  "warmup_seconds": 5,
+  "sample_seconds": 30,
+  "readback": false,
+  "acceptance": "frame_p95_ms and render_p95_ms <= baseline * 1.10; otherwise investigate and retain initial runs",
+  "baseline_verification": "All common runtime media bytes match candidate except resource manifest, program and material declarations changed by this task."
+}

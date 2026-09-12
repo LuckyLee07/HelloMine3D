@@ -2191,6 +2191,10 @@ class OgreUserInterface::Impl
             for (const ActionFeedbackParticle &particle :
                  actionFeedback.particles)
             {
+                if (particle.worldSpace)
+                {
+                    continue;
+                }
                 const ImVec2 particleCenter(
                     center.x + particle.offsetX,
                     center.y + particle.offsetY);

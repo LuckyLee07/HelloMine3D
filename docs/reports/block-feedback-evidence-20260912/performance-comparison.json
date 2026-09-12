@@ -1,0 +1,52 @@
+{
+  "result": "INCOMPARABLE",
+  "scope": "One paired natural selected-surface sample; no active mining burst and not full Q1.",
+  "metrics": {
+    "frame_p50_ms": {
+      "before": 8.723,
+      "after": 8.543,
+      "ratio": 0.9793648973976841
+    },
+    "frame_p95_ms": {
+      "before": 11.884,
+      "after": 11.755,
+      "ratio": 0.9891450690003366
+    },
+    "frame_p99_ms": {
+      "before": 12.181,
+      "after": 12.859,
+      "ratio": 1.0556604548066661
+    },
+    "frame_max_ms": {
+      "before": 28.566,
+      "after": 35.168,
+      "ratio": 1.2311139116432122
+    },
+    "render_p95_ms": {
+      "before": 9.822,
+      "after": 9.646,
+      "ratio": 0.982081042557524
+    },
+    "update_p95_ms": {
+      "before": 2.403,
+      "after": 2.519,
+      "ratio": 1.0482729920932168
+    },
+    "last_resident_terrain_vertices": {
+      "before": 1014371,
+      "after": 877991,
+      "ratio": 0.8655521500516083
+    },
+    "last_resident_terrain_indices": {
+      "before": 1988040,
+      "after": 1783476,
+      "ratio": 0.897102673990463
+    },
+    "last_resident_terrain_buffer_bytes": {
+      "before": 40412032,
+      "after": 35229616,
+      "ratio": 0.8717605687335891
+    }
+  },
+  "reason": "Baseline package still used the superseded crown/material profile: resident geometry differs by 13.4%. Threshold arithmetic alone is not a valid acceptance result."
+}

@@ -1,0 +1,11 @@
+[XCODE_GRAPH_VERIFY] case=valid expected=PASS status=PASS
+[XCODE_GRAPH_VERIFY] case=workspace-inventory expected=INVALID status=PASS
+[XCODE_GRAPH_VERIFY] case=duplicate-project-ref expected=INVALID status=PASS
+[XCODE_GRAPH_VERIFY] case=duplicate-group-child expected=INVALID status=PASS
+[XCODE_GRAPH_VERIFY] case=multiple-group-membership expected=INVALID status=PASS
+[XCODE_GRAPH_VERIFY] case=missing-file-reference expected=INVALID status=PASS
+[XCODE_GRAPH_VERIFY] case=contract-count expected=INVALID status=PASS
+[XCODE_GRAPH_VERIFY] case=contract-traversal expected=INVALID status=PASS
+[XCODE_GRAPH_VERIFY] case=unexpected-project expected=INVALID status=PASS
+[XCODE_GRAPH_VERIFY] status=PASS cases=9
+[XCODE_GRAPH] status=PASS projects=31 groups=388 memberships=2998 project_refs=54
