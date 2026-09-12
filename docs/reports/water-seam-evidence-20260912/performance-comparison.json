@@ -1,0 +1,86 @@
+{
+  "static": {
+    "frame_p95_ms": {
+      "before": 11.964,
+      "after": 12.551,
+      "ratio": 1.049063858241391
+    },
+    "frame_p99_ms": {
+      "before": 16.516,
+      "after": 15.945,
+      "ratio": 0.9654274642770648
+    },
+    "frame_max_ms": {
+      "before": 311.885,
+      "after": 322.093,
+      "ratio": 1.0327300126649246
+    },
+    "last_water_faces": {
+      "before": 29433.0,
+      "after": 29433.0,
+      "ratio": 1.0
+    },
+    "last_water_vertices": {
+      "before": 117732.0,
+      "after": 117732.0,
+      "ratio": 1.0
+    },
+    "last_resident_terrain_vertices": {
+      "before": 644756.0,
+      "after": 644756.0,
+      "ratio": 1.0
+    },
+    "last_resident_terrain_indices": {
+      "before": 1319142.0,
+      "after": 1319142.0,
+      "ratio": 1.0
+    },
+    "last_resident_terrain_buffer_bytes": {
+      "before": 25908760.0,
+      "after": 25908760.0,
+      "ratio": 1.0
+    }
+  },
+  "streaming": {
+    "frame_p95_ms": {
+      "before": 12.893,
+      "after": 16.08,
+      "ratio": 1.2471883968044672
+    },
+    "frame_p99_ms": {
+      "before": 16.296,
+      "after": 22.748,
+      "ratio": 1.395925380461463
+    },
+    "frame_max_ms": {
+      "before": 283.235,
+      "after": 287.922,
+      "ratio": 1.016548096103942
+    },
+    "last_water_faces": {
+      "before": 59320.0,
+      "after": 55262.0,
+      "ratio": 0.9315913688469319
+    },
+    "last_water_vertices": {
+      "before": 237280.0,
+      "after": 221048.0,
+      "ratio": 0.9315913688469319
+    },
+    "last_resident_terrain_vertices": {
+      "before": 867412.0,
+      "after": 867412.0,
+      "ratio": 1.0
+    },
+    "last_resident_terrain_indices": {
+      "before": 1712166.0,
+      "after": 1712166.0,
+      "ratio": 1.0
+    },
+    "last_resident_terrain_buffer_bytes": {
+      "before": 34605848.0,
+      "after": 34605848.0,
+      "ratio": 1.0
+    }
+  }
+}

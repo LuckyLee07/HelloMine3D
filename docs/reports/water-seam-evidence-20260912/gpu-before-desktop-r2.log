@@ -1,0 +1,3 @@
+renderer=Apple M1 Pro
+pairs=210 max_position_delta=0.0989227 max_normal_delta=0.0494372
+[WATER_SHADER] FAIL Adjacent chunk water vertices disagree

@@ -18,8 +18,13 @@ uniform float globalTime;
 void main()
 {
     vec4 animatedVertex = vertex;
-    float phaseA = globalTime * 0.78 + vertex.x * 0.66 + vertex.z * 0.21;
-    float phaseB = globalTime * 0.53 + vertex.z * 0.82 - vertex.x * 0.17;
+    // GPU vertices are section-local. Shared edges must sample the same
+    // world-space wave or adjacent sections separate as they animate.
+    vec4 baseWorldPosition = world * vertex;
+    float phaseA = globalTime * 0.78 + baseWorldPosition.x * 0.66 +
+                   baseWorldPosition.z * 0.21;
+    float phaseB = globalTime * 0.53 + baseWorldPosition.z * 0.82 -
+                   baseWorldPosition.x * 0.17;
     animatedVertex.y += sin(phaseA) * 0.035;
     animatedVertex.y += cos(phaseB) * 0.025;
     animatedVertex.y -= 0.10;

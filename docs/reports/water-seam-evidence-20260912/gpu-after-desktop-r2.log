@@ -1,0 +1,3 @@
+renderer=Apple M1 Pro
+pairs=210 max_position_delta=0 max_normal_delta=0
+[WATER_SHADER] PASS

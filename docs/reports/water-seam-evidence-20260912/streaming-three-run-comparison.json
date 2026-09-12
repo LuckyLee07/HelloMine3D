@@ -1,0 +1,90 @@
+{
+  "samples": {
+    "before": [
+      {
+        "frame_p95_ms": 12.893,
+        "frame_p99_ms": 16.296,
+        "frame_max_ms": 283.235,
+        "last_resident_terrain_vertices": 867412.0,
+        "last_resident_terrain_indices": 1712166.0,
+        "last_resident_terrain_buffer_bytes": 34605848.0
+      },
+      {
+        "frame_p95_ms": 12.992,
+        "frame_p99_ms": 15.429,
+        "frame_max_ms": 294.033,
+        "last_resident_terrain_vertices": 867372.0,
+        "last_resident_terrain_indices": 1712106.0,
+        "last_resident_terrain_buffer_bytes": 34604328.0
+      },
+      {
+        "frame_p95_ms": 12.711,
+        "frame_p99_ms": 16.949,
+        "frame_max_ms": 332.09,
+        "last_resident_terrain_vertices": 867372.0,
+        "last_resident_terrain_indices": 1712106.0,
+        "last_resident_terrain_buffer_bytes": 34604328.0
+      }
+    ],
+    "after": [
+      {
+        "frame_p95_ms": 16.08,
+        "frame_p99_ms": 22.748,
+        "frame_max_ms": 287.922,
+        "last_resident_terrain_vertices": 867412.0,
+        "last_resident_terrain_indices": 1712166.0,
+        "last_resident_terrain_buffer_bytes": 34605848.0
+      },
+      {
+        "frame_p95_ms": 13.133,
+        "frame_p99_ms": 15.165,
+        "frame_max_ms": 298.435,
+        "last_resident_terrain_vertices": 867372.0,
+        "last_resident_terrain_indices": 1712106.0,
+        "last_resident_terrain_buffer_bytes": 34604328.0
+      },
+      {
+        "frame_p95_ms": 7.359,
+        "frame_p99_ms": 10.297,
+        "frame_max_ms": 295.295,
+        "last_resident_terrain_vertices": 867372.0,
+        "last_resident_terrain_indices": 1712106.0,
+        "last_resident_terrain_buffer_bytes": 34604328.0
+      }
+    ]
+  },
+  "median": {
+    "frame_p95_ms": {
+      "before": 12.893,
+      "after": 13.133,
+      "ratio": 1.0186147521911113
+    },
+    "frame_p99_ms": {
+      "before": 16.296,
+      "after": 15.165,
+      "ratio": 0.9305964653902798
+    },
+    "frame_max_ms": {
+      "before": 294.033,
+      "after": 295.295,
+      "ratio": 1.0042920352477442
+    },
+    "last_resident_terrain_vertices": {
+      "before": 867372.0,
+      "after": 867372.0,
+      "ratio": 1.0
+    },
+    "last_resident_terrain_indices": {
+      "before": 1712106.0,
+      "after": 1712106.0,
+      "ratio": 1.0
+    },
+    "last_resident_terrain_buffer_bytes": {
+      "before": 34604328.0,
+      "after": 34604328.0,
+      "ratio": 1.0
+    }
+  },
+  "threshold": 1.1,
+  "result": "PASS"
+}

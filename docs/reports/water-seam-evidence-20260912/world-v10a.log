@@ -1,0 +1,54 @@
+[VALIDATION] world runtime smoke starting
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS M4/high-air-section-available
+[VALIDATION] PASS M4/flat-cuboid-reconstruction-safe-greedy :: faces=14 vertices=36 unshared=56 naive_faces=160
+[VALIDATION] PASS M4/global-repeat-preserves-atlas-tile :: repeat_range=4.000000/12.000000
+[VALIDATION] PASS M4/material-boundary-preserved :: faces=20
+[VALIDATION] PASS M4/water-topology-remains-separate :: faces=10
+[VALIDATION] PASS M4/flora-topology-remains-separate :: faces=4
+[VALIDATION] PASS V10A/vertex-lighting-contract-is-derived-version-one
+[VALIDATION] PASS V10A/diagonal-and-single-side-each-occlude-once
+[VALIDATION] PASS V10A/two-sides-force-closed-corner
+[VALIDATION] PASS V10A/ao-disabled-keeps-smooth-light-only
+[VALIDATION] PASS V10A/lower-error-diagonal-is-selected
+[VALIDATION] PASS V10A/diagonal-tie-keeps-fixed-zero-two-split
+[VALIDATION] PASS V10A/quad-interpolation-is-deterministic
+[VALIDATION] PASS V10A/four-light-values-use-existing-vertex-stream
+[VALIDATION] PASS V10A/flipped-diagonal-emits-stable-indices
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS V10A/fixture-section-available
+[VALIDATION] PASS V10A/isolated-top-has-four-clear-corners
+[VALIDATION] PASS V10A/transparent-neighbours-do-not-occlude-ao
+[VALIDATION] PASS V10A/l-shaped-opaque-neighbours-darken-one-corner
+[VALIDATION] PASS V10A/builder-ao-override-removes-contact-darkening
+[VALIDATION] PASS V10A/cross-section-fixture-available
+[VALIDATION] PASS V10A/rebuild-order-is-byte-deterministic
+[VALIDATION] PASS V10A/cross-section-shared-vertex-matches :: west/east=0.880000/0.880000
+[VALIDATION] PASS L1/light-level-conversion-bounded
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS L1/high-section-available
+[VALIDATION] PASS L1/open-column-has-full-sunlight :: level=15
+[VALIDATION] PASS L1/roofed-column-has-no-direct-sunlight :: below/above=0/15
+[VALIDATION] PASS L1/snapshot-halo-carries-sunlight :: mismatches=0 over 5832 cells
+[VALIDATION] PASS L1/mesh-distinguishes-surface-and-cave :: bright/dark=1.000000/0.787500
+[VALIDATION] PASS L1/greedy-splits-light-boundary :: top_faces=2
+[VALIDATION] PASS L1/sunlight-fixture-saves
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS L1/load-rebuilds-derived-sunlight :: surface/cave=15/0
+[VALIDATION] PASS P11-0/static-emissive-definitions-are-data-driven :: rose/torch=0/14
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS L2/source-and-distance-falloff :: source/one/two=14/13/12
+[VALIDATION] PASS L2/opaque-block-stops-light :: level=0
+[VALIDATION] PASS L2/snapshot-halo-carries-block-light :: mismatches=0 over 5832 cells
+[VALIDATION] PASS L2/combined-light-prefers-strongest-source
+[VALIDATION] PASS L2/emissive-block-lights-nearby-mesh
+Seed: 0
+Seed: 20260807
+[VALIDATION] PASS L2/load-rebuilds-derived-block-light :: source/one=14/13
+[VALIDATION] checks=39 failures=0
+[VALIDATION] status=PASS

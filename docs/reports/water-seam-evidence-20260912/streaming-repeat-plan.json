@@ -1,0 +1,15 @@
+{
+  "reason": "First streaming pair exceeded the 10% frame threshold; retain it and add exactly two pairs with alternating launch order. Compare medians of all three samples per version.",
+  "orders": [
+    [
+      "after",
+      "before"
+    ],
+    [
+      "before",
+      "after"
+    ]
+  ],
+  "threshold": 1.1,
+  "created_unix": 1789196146.2910311
+}
