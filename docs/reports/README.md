@@ -36,6 +36,7 @@
 
 ## 开发者视觉记录
 
+- [flora-wind-fix-2026-09-12.md](flora-wind-fix-2026-09-12.md)：花草每秒动画重置、根部漂移修复，连续风场与动态视频/GPU/性能证据。
 - [water-seam-fix-2026-09-12.md](water-seam-fix-2026-09-12.md)：水波局部坐标导致的区块接缝、GPU 边界回归及岸边/水下实机对照。
 - `developer-visual-record-v10b2.txt`
 - `developer-visual-record-v10b3.txt`

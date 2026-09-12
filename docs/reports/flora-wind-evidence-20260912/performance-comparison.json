@@ -1,0 +1,32 @@
+{
+  "frame_p95_ms": {
+    "before": 10.808,
+    "after": 10.873,
+    "ratio": 1.0060140636565507
+  },
+  "frame_p99_ms": {
+    "before": 14.713,
+    "after": 11.8,
+    "ratio": 0.8020118262760825
+  },
+  "frame_max_ms": {
+    "before": 27.281,
+    "after": 34.191,
+    "ratio": 1.2532898354165904
+  },
+  "last_resident_terrain_vertices": {
+    "before": 1014369.0,
+    "after": 1014390.0,
+    "ratio": 1.0000207025254124
+  },
+  "last_resident_terrain_indices": {
+    "before": 1988016.0,
+    "after": 1988046.0,
+    "ratio": 1.0000150904218075
+  },
+  "last_resident_terrain_buffer_bytes": {
+    "before": 40411872.0,
+    "after": 40412664.0,
+    "ratio": 1.0000195982012414
+  }
+}

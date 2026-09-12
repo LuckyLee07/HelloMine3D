@@ -1,0 +1,12 @@
+renderer=Apple M1 Pro
+[FLORA_SHADER] FAIL continuous-time-bindings value=1
+[FLORA_SHADER] FAIL anchored-roots value=0.0666666
+[FLORA_SHADER] FAIL proportional-young-crop-bend value=0.0650811
+[FLORA_SHADER] PASS bounded-tip-displacement value=0.0666664
+[FLORA_SHADER] FAIL continuous-second-boundaries value=0.0772541
+[FLORA_SHADER] FAIL smooth-120hz-motion value=0.0773251
+[FLORA_SHADER] FAIL not-a-one-second-loop value=4.76837e-07
+[FLORA_SHADER] FAIL spatial-motion-variation value=0.00224209
+[FLORA_SHADER] FAIL section-independent-wind value=0.128162
+[FLORA_SHADER] PASS shadow-receiver-motion-matches value=0
+timeline_samples=961 checks=10 failures=8

@@ -161,7 +161,7 @@ vertex_program HelloMine3D/FloraVertex glsl
         param_named_auto worldViewProj worldviewproj_matrix
         param_named_auto worldView worldview_matrix
         param_named_auto world world_matrix
-        param_named_auto globalTime time_0_x 1.0
+        param_named_auto globalTime time 1.0
     }
 }
 
@@ -175,7 +175,7 @@ vertex_program HelloMine3D/FloraShadowVertex glsl
         param_named_auto worldView worldview_matrix
         param_named_auto world world_matrix
         param_named_auto shadowWorldViewProj texture_worldviewproj_matrix 0
-        param_named_auto globalTime time_0_x 1.0
+        param_named_auto globalTime time 1.0
     }
 }
 

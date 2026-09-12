@@ -18,13 +18,36 @@ uniform mat4 world;
 uniform mat4 shadowWorldViewProj;
 uniform float globalTime;
 
+vec2 floraWind(vec2 position, float time)
+{
+    // A smooth world-space field keeps nearby plants related without
+    // repeating the same motion in every section. Gusts modulate the sway.
+    float broadPhase = dot(position, vec2(0.041, 0.027));
+    float gust = 0.5 + 0.5 * sin(time * 0.37 - broadPhase);
+    float strength = mix(0.025, 0.085, gust * gust);
+    float drift = 0.45 * sin(time * 0.23 - broadPhase);
+    float sway = 0.65 * sin(time * 1.10 +
+                           dot(position, vec2(0.18, 0.13)) + drift) +
+                 0.35 * sin(time * 1.73 +
+                            dot(position, vec2(-0.31, 0.21)));
+    float crossSway = 0.25 * sin(time * 0.83 +
+                                dot(position, vec2(0.23, -0.19)) + 0.7);
+    return strength * (vec2(0.88, 0.48) * sway +
+                       vec2(-0.48, 0.88) * crossSway);
+}
+
 void main()
 {
     vec4 animatedVertex = vertex;
-    animatedVertex.x +=
-        sin((globalTime + vertex.z + vertex.y) * 1.8) / 15.0;
-    animatedVertex.z -=
-        cos((globalTime + vertex.x + vertex.y) * 1.8) / 15.0;
+    vec3 baseWorldPosition = (world * vertex).xyz;
+    // Cross shapes use repeat V=1 at their roots and V=0 at their tips.
+    // Scale by physical height as well so young crops do not bend as far.
+    float tipWeight = clamp(1.0 - uv1.y, 0.0, 1.0);
+    float heightAboveRoot = baseWorldPosition.y -
+        floor(baseWorldPosition.y - tipWeight * 0.001);
+    float bendWeight = tipWeight * tipWeight * heightAboveRoot;
+    animatedVertex.xz += floraWind(baseWorldPosition.xz, globalTime) *
+                          bendWeight;
 
     gl_Position = worldViewProj * animatedVertex;
     terrainTileUv = uv0;

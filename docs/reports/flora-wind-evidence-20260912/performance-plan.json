@@ -1,0 +1,13 @@
+{
+  "kind": "focused-static-grassland",
+  "warmup_seconds": 5,
+  "sample_seconds": 30,
+  "window_requested": "1280x720",
+  "readback": false,
+  "threshold": 1.1,
+  "order": [
+    "before",
+    "after"
+  ],
+  "created_unix": 1789199653.886254
+}

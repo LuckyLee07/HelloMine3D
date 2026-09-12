@@ -1,0 +1,13 @@
+{
+  "tools": {
+    "HelloMine3DResourcePackSmoke": {
+      "sha256": "ecc9e934cc737b4bcf80fd298404790af6bd3d206724352c2767a7af6c1652f8",
+      "file": "bin/HelloMine3DResourcePackSmoke: Mach-O 64-bit executable x86_64"
+    },
+    "HelloMine3DMeshDirtyTests": {
+      "sha256": "7dbf4b08f4e4265db51e1a8e1b82f799c1bf214af50fac64b5355a14afbc0f35",
+      "file": "bin/HelloMine3DMeshDirtyTests: Mach-O 64-bit executable x86_64"
+    }
+  },
+  "gpu_probe": "build/flora-wind-20260912/validate-flora-shader: Mach-O 64-bit executable arm64"
+}

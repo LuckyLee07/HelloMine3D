@@ -1,0 +1,9 @@
+{
+  "commit": "c34cd32371e2588a2894498f9bdad85fc36b5b60",
+  "shader_inputs": {
+    "HelloMine3D.program": "5daeb925ba847dbcf562655f09f56829c5d980ca9395c348fc7eeabbe1b3c179",
+    "HelloMine3DFlora.vert": "84801172daa46d8e00917c9ade29db4beb79776b327ae8da06479dea9f9c582a",
+    "HelloMine3DFloraShadow.vert": "bf15e9b19dc09e5122699bced451640c00edd97241462492ab671deaf9b84445"
+  },
+  "base_app": "build/warm-v2-m1-20260912/HelloMine3D-M1-pixel-final.app"
+}
