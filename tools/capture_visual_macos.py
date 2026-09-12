@@ -8,6 +8,7 @@ The supplied package and its user settings/saves are never modified.
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import platform
 import shutil
@@ -66,6 +67,7 @@ def main():
     parser.add_argument("--visual-detail", choices=("standard", "compatibility"))
     parser.add_argument("--performance", action="store_true")
     parser.add_argument("--streaming", action="store_true")
+    parser.add_argument("--launch-method", choices=("open", "direct"), default="open")
     args = parser.parse_args()
     if platform.system() != "Darwin":
         parser.error("macOS required")
@@ -149,20 +151,31 @@ seed random
         })
     if args.streaming:
         environment["HELLOMINE3D_RC_PERF_PROFILE"] = "fast-streaming"
-    command = ["/usr/bin/open", "-n", "-W", "--stdout", str(output / "client.log"),
-               "--stderr", str(output / "client-stderr.log")]
-    for key, value in environment.items():
-        command.extend(["--env", f"{key}={value}"])
-    command.append(str(clone))
+    if args.launch_method == "open":
+        command = ["/usr/bin/open", "-n", "-W", "--stdout", str(output / "client.log"),
+                   "--stderr", str(output / "client-stderr.log")]
+        for key, value in environment.items():
+            command.extend(["--env", f"{key}={value}"])
+        command.append(str(clone))
+    else:
+        command = [str(clone / "Contents/MacOS/HelloMine3D")]
     record = {"schema": 1, "evidence_type": "DEVELOPER_DIAGNOSTIC", "normal_input": False,
               "source_app": str(app), "package_identity": identity,
               "scene": args.scene, "settings": settings, "environment": environment,
               "platform": platform.platform(), "host_architecture": platform.machine(),
-              "command": command, "started_unix": time.time(), "result": "RUNNING"}
+              "command": command, "launch_method": args.launch_method,
+              "started_unix": time.time(), "result": "RUNNING"}
     record_path = output / "capture.json"
     record_path.write_text(json.dumps(record, indent=2) + "\n")
     try:
-        subprocess.run(command, check=True, timeout=100)
+        if args.launch_method == "open":
+            subprocess.run(command, check=True, timeout=100)
+        else:
+            with (output / "client.log").open("w") as stdout, \
+                    (output / "client-stderr.log").open("w") as stderr:
+                subprocess.run(command, check=True, timeout=100,
+                               env={**os.environ, **environment},
+                               stdout=stdout, stderr=stderr)
         frames = sorted((output / "frames").glob("*.png"))
         if len(frames) != 2:
             raise RuntimeError(f"Expected 2 captured frames, got {len(frames)}")

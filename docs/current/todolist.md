@@ -54,14 +54,18 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 
 2026-09-12 花草摆动生硬问题已修复：连续时间、缓慢阵风和根部固定接入普通/阴影路径，
 GPU 10/10、资源 105/105、实机动态序列与定向性能通过，见[修复记录](../reports/flora-wind-fix-2026-09-12.md)。
+后续按用户反馈将连续摆速提高约两倍、增强弱风摆幅；GPU 对齐检查和 Off/High 动态复查通过，见同记录的后续调整。
 
 2026-09-12 用户截图中的水面区块接缝修复已完成：波浪改用世界坐标，210 对 GPU 边界采样
 位置/法线误差归零；岸边与水下实机、资源/相关回归及定向性能对照完成。首组流送性能异常
 与全部复测保留，见[修复记录](../reports/water-seam-fix-2026-09-12.md)。这项局部修复不扩展水系或改变存档。
 
 2026-09-12 后续授权：开始暖野 v2 首轮 `WV2-00..03`，交付高清自然材质、单元格内叶簇与
-可正常游玩的林地样板 M1。用户再次反馈后已撤回新树冠，当前候选恢复旧立方叶/叶贴图、保留其他材质升级；整体仍 `Doing`，见 [首轮合同](../contracts/warm-wilderness-m1-contract-v2.md)
-与 [实施记录](../reports/warm-wilderness-m1-implementation-2026-09-12.md)。
+可正常游玩的林地样板 M1。用户再次反馈后已撤回新树冠，当前候选恢复旧立方叶/叶贴图、保留其他材质升级；整体仍 `Doing`。补验后 macOS 双配置工程门禁通过，
+旧候选包林地 High 帧 P95 为 v1 的 1.215 倍；当前包完整复测该档通过，但密林 Medium
+P95 为 1.156 倍，仍超过 1.10 性能护栏。正常移动/采集仍缺可靠输入证据。
+见 [首轮合同](../contracts/warm-wilderness-m1-contract-v2.md)、[实施记录](../reports/warm-wilderness-m1-implementation-2026-09-12.md)
+与 [M1/T1 补验](../reports/m1-t1-acceptance-continuation-2026-09-12.md)。
 `WV2-04..08` 仍为后续候选；本轮不改生成规则、save v12 或 D2。
 
 2026-09-12 新增授权：实施“暖野”第一版视觉改造，包括自然材质、HUD/菜单、地形光色及 macOS
@@ -77,7 +81,7 @@ GPU 10/10、资源 105/105、实机动态序列与定向性能通过，见[修�
 | 批次 | 状态 | 当前结论 |
 | ---- | ---- | -------- |
 | `T0` Terrain Baseline | `Done` | 8 seed、1852224 点、128 区块兼容快照、三场景原图、三轮静态/流送性能及实现前冻结门槛已本地提交 `6dbf7eb`；详见执行报告。 |
-| `T1` Terrain Foundation v5 | `Doing` | 实现已提交 `850dd85`；v1–v4 指纹兼容、v5 统计与 23 项聚焦、macOS 双配置 1014 项世界回归、干净包固定画面及三轮性能通过。独立正常创建/保存重开通过；持续步行、采集与结构路线因 CUA 输入能力受阻，T1/Goal 未完成，详见报告。 |
+| `T1` Terrain Foundation v5 | `Doing` | 实现已提交 `850dd85`；v1–v4 指纹兼容、v5 统计与 23 项聚焦、当批 macOS 双配置 1014 项世界回归、干净包固定画面及三轮性能通过。独立正常创建/保存重开通过；当前包再测世界与设置仍可操作，但持续步行、采集与结构路线因 CUA 输入能力受阻，T1/Goal 未完成，详见报告及 [补验](../reports/m1-t1-acceptance-continuation-2026-09-12.md)。 |
 | `AL-A0` Latest Architecture Baseline | `Done` | 架构、依赖、性能、验证与 AI 证据身份已冻结；VS2017/v141 Debug/Release 完整门禁和 real window 通过，没有受跟踪 Gameplay/runtime/resource/build input 改动。详见 `docs/reports/architecture-lab-baseline-v1.md`。 |
 | `AL-A1` World Responsibility Map | `Done` | 78 个公开方法已按 3 个 API concept / 9 个 responsibility 分类；public-surface hash 和集合一致性门禁已接入完整 Windows 验证，VS2017/v141 Debug/Release、832/832 世界、80/80 资源、122/122 配方、15/15 启动负例、104 项干净包与 real window 全部 PASS。没有迁移旧调用、增加 Facade wrapper 或开始 AL-A2。 |
 | `AL-A2` Chunk Runtime Boundary | `Done` | 既有 Chunk Update Queue、Mesh Work Planner、单 loader 及 preload/unload 协调已迁入 `ChunkRuntime`；World 公开面、共享锁、预算、save v12 与 unload 语义保持不变，没有引入 B1 Residency 状态机。VS2017/v141 Debug/Release 完整门禁、两轮 832/832 世界和 104 项干净包通过。详见 `docs/reports/architecture-lab-a2-chunk-runtime-report-v1.md`。 |
