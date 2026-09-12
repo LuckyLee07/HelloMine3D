@@ -1,0 +1,162 @@
+{
+  "source_head": "1f2800c9d69bdee7cab0d51bd4adfd2b6dd6c43c",
+  "changes": {
+    "main_sway_period_seconds": [
+      5.711986636363636,
+      2.855993318181818
+    ],
+    "quiet_wind_strength": [
+      0.025,
+      0.055
+    ],
+    "peak_wind_strength": [
+      0.085,
+      0.085
+    ]
+  },
+  "shader_sha256": {
+    "HelloMine3DFlora.vert": "6024784b003f6092a7d0ce801229a0582da6f4d1b2244f1cb49f76ee18cbaf96",
+    "HelloMine3DFloraShadow.vert": "fe8c6bf7408e9ad4e7422f4aba4d84418eee057cea9afcef7e0f2d91aa9038c3"
+  },
+  "gpu_validation": {
+    "motion": "10/10 PASS",
+    "selection_alignment": "12/12 PASS",
+    "resource_pack": "105/105 PASS"
+  },
+  "capture_records": {
+    "before": {
+      "frames": 80,
+      "capture_json_sha256": "52cd07dd0c7666d2534cc0ace9608707c8c331719efc300a10bf4c317884d18e",
+      "max_capture_delay_ms": 9,
+      "shader_identity": {
+        "platform": "macOS",
+        "configuration": "Release",
+        "source_commit": "2a1b8211691d3bc52112d2cc3c88014000531c40",
+        "tracked_diff_sha256": "84a959976c68611f56388615f244aea273bd2173064895c1e9ae1dce34725ccb",
+        "executable_sha256": "f1a3621830709fb0efb22dda92d9f018f77ddc5f9b8ebf37c67ba68939190c3e",
+        "file_identity": "/Users/lizi/Desktop/Workspace/HelloMine3D/bin/HelloMine3D: Mach-O 64-bit executable x86_64",
+        "linkage": [
+          "\t/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa (compatibility version 1.0.0, current version 24.0.0)",
+          "\t/System/Library/Frameworks/Carbon.framework/Versions/A/Carbon (compatibility version 2.0.0, current version 170.0.0)",
+          "\t/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit (compatibility version 1.0.0, current version 275.0.0)",
+          "\t/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation (compatibility version 300.0.0, current version 4201.0.0)",
+          "\t/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit (compatibility version 45.0.0, current version 2685.30.107)",
+          "\t/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 4201.0.0)",
+          "\t/System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL (compatibility version 1.0.0, current version 1.0.0)",
+          "\t/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 2000.67.0)",
+          "\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)",
+          "\t/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics (compatibility version 64.0.0, current version 1965.2.3)",
+          "\t/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)"
+        ],
+        "resource_manifest_sha256": "37e3d0f80a335165cd7d4576893acebaf659e290429d6a328bd7dd403442bbb4",
+        "source_tree_required": false,
+        "acceptance": "NOT_RUN",
+        "signed_or_notarized": false
+      },
+      "shadow_status": [
+        "[V10D_SHADOW] requested=off active=off fallback=0 reason=disabled texture=0 distance=0 pcf=0"
+      ]
+    },
+    "after": {
+      "frames": 80,
+      "capture_json_sha256": "9da607c32231a8c04c17c58292bd173ba231109a7acb5da023df5b0c144bf804",
+      "max_capture_delay_ms": 5,
+      "shader_identity": {
+        "platform": "macOS",
+        "configuration": "Release",
+        "source_commit": "2a1b8211691d3bc52112d2cc3c88014000531c40",
+        "tracked_diff_sha256": "84a959976c68611f56388615f244aea273bd2173064895c1e9ae1dce34725ccb",
+        "executable_sha256": "f1a3621830709fb0efb22dda92d9f018f77ddc5f9b8ebf37c67ba68939190c3e",
+        "file_identity": "/Users/lizi/Desktop/Workspace/HelloMine3D/bin/HelloMine3D: Mach-O 64-bit executable x86_64",
+        "linkage": [
+          "\t/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa (compatibility version 1.0.0, current version 24.0.0)",
+          "\t/System/Library/Frameworks/Carbon.framework/Versions/A/Carbon (compatibility version 2.0.0, current version 170.0.0)",
+          "\t/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit (compatibility version 1.0.0, current version 275.0.0)",
+          "\t/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation (compatibility version 300.0.0, current version 4201.0.0)",
+          "\t/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit (compatibility version 45.0.0, current version 2685.30.107)",
+          "\t/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 4201.0.0)",
+          "\t/System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL (compatibility version 1.0.0, current version 1.0.0)",
+          "\t/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 2000.67.0)",
+          "\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)",
+          "\t/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics (compatibility version 64.0.0, current version 1965.2.3)",
+          "\t/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)"
+        ],
+        "resource_manifest_sha256": "37e3d0f80a335165cd7d4576893acebaf659e290429d6a328bd7dd403442bbb4",
+        "source_tree_required": false,
+        "acceptance": "NOT_RUN",
+        "signed_or_notarized": false,
+        "resource_patch": {
+          "source_commit": "1f2800c9d69bdee7cab0d51bd4adfd2b6dd6c43c",
+          "base_package": "build/block-feedback-20260912/HelloMine3D-Block-Feedback.app",
+          "description": "Double flora sway frequency and raise quiet-wind amplitude; executable unchanged.",
+          "files": {
+            "media/ogre/HelloMine3DFlora.vert": {
+              "before": "19cf28b99dae52e036b9aeb253caf2e1cffa0f62a344c4b15d3934d1dee559ce",
+              "after": "6024784b003f6092a7d0ce801229a0582da6f4d1b2244f1cb49f76ee18cbaf96"
+            },
+            "media/ogre/HelloMine3DFloraShadow.vert": {
+              "before": "33214f40c0d6ef78478ebee822efab5b0476826e8203385e9f091a47ca39b52d",
+              "after": "fe8c6bf7408e9ad4e7422f4aba4d84418eee057cea9afcef7e0f2d91aa9038c3"
+            }
+          }
+        }
+      },
+      "shadow_status": [
+        "[V10D_SHADOW] requested=off active=off fallback=0 reason=disabled texture=0 distance=0 pcf=0"
+      ]
+    },
+    "after-high": {
+      "frames": 80,
+      "capture_json_sha256": "ef7e7bb4553c686873c7f44922e79e6d51f229fd3512cb26039aa75030e50319",
+      "max_capture_delay_ms": 23,
+      "shader_identity": {
+        "platform": "macOS",
+        "configuration": "Release",
+        "source_commit": "2a1b8211691d3bc52112d2cc3c88014000531c40",
+        "tracked_diff_sha256": "84a959976c68611f56388615f244aea273bd2173064895c1e9ae1dce34725ccb",
+        "executable_sha256": "f1a3621830709fb0efb22dda92d9f018f77ddc5f9b8ebf37c67ba68939190c3e",
+        "file_identity": "/Users/lizi/Desktop/Workspace/HelloMine3D/bin/HelloMine3D: Mach-O 64-bit executable x86_64",
+        "linkage": [
+          "\t/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa (compatibility version 1.0.0, current version 24.0.0)",
+          "\t/System/Library/Frameworks/Carbon.framework/Versions/A/Carbon (compatibility version 2.0.0, current version 170.0.0)",
+          "\t/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit (compatibility version 1.0.0, current version 275.0.0)",
+          "\t/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation (compatibility version 300.0.0, current version 4201.0.0)",
+          "\t/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit (compatibility version 45.0.0, current version 2685.30.107)",
+          "\t/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 4201.0.0)",
+          "\t/System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL (compatibility version 1.0.0, current version 1.0.0)",
+          "\t/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 2000.67.0)",
+          "\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)",
+          "\t/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics (compatibility version 64.0.0, current version 1965.2.3)",
+          "\t/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)"
+        ],
+        "resource_manifest_sha256": "37e3d0f80a335165cd7d4576893acebaf659e290429d6a328bd7dd403442bbb4",
+        "source_tree_required": false,
+        "acceptance": "NOT_RUN",
+        "signed_or_notarized": false,
+        "resource_patch": {
+          "source_commit": "1f2800c9d69bdee7cab0d51bd4adfd2b6dd6c43c",
+          "base_package": "build/block-feedback-20260912/HelloMine3D-Block-Feedback.app",
+          "description": "Double flora sway frequency and raise quiet-wind amplitude; executable unchanged.",
+          "files": {
+            "media/ogre/HelloMine3DFlora.vert": {
+              "before": "19cf28b99dae52e036b9aeb253caf2e1cffa0f62a344c4b15d3934d1dee559ce",
+              "after": "6024784b003f6092a7d0ce801229a0582da6f4d1b2244f1cb49f76ee18cbaf96"
+            },
+            "media/ogre/HelloMine3DFloraShadow.vert": {
+              "before": "33214f40c0d6ef78478ebee822efab5b0476826e8203385e9f091a47ca39b52d",
+              "after": "fe8c6bf7408e9ad4e7422f4aba4d84418eee057cea9afcef7e0f2d91aa9038c3"
+            }
+          }
+        }
+      },
+      "shadow_status": [
+        "[V10D_SHADOW] requested=high active=high fallback=0 reason=supported texture=1024 distance=96 pcf=2x2 bias=0.004"
+      ]
+    }
+  },
+  "preview": {
+    "path": "build/flora-wind-tuning-20260912/faster-wind.mp4",
+    "sha256": "15e8ff3e9bd8bcb3fe94e7ab0a4d589451f328a40e4b28a266d893b967da8e77"
+  },
+  "scope": "Shader constant tuning. Production GPU shaders and verified Release package; no new C++ build or full performance claim. Existing unrelated workspace changes preserved."
+}

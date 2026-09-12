@@ -39,6 +39,8 @@ def main():
     parser.add_argument("--app", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--shadow", choices=("off", "high"), default="off")
+    parser.add_argument("--format", choices=("png", "bmp"), default="png",
+                        help="BMP reduces synchronous encoding overhead for clients that support it")
     parser.add_argument("--performance", action="store_true")
     args = parser.parse_args()
     if platform.system() != "Darwin":
@@ -99,6 +101,7 @@ seed random
         environment.update({
             "HELLO_PERF_CAPTURE": "0", "HELLO_RENDER_CAPTURE": "1",
             "HELLO_RENDER_CAPTURE_DIR": str(output / "frames"),
+            "HELLO_RENDER_CAPTURE_FORMAT": args.format,
             "HELLO_RENDER_CAPTURE_MS": ",".join(map(str, captures)),
             "HELLO_RENDER_CAPTURE_MAX_DELTA_MS": "5000",
             "HELLO_RENDER_CAPTURE_EXIT": "1",
@@ -120,7 +123,7 @@ seed random
         if args.performance:
             artifacts = [output / "performance/frames.csv", output / "performance/summary.txt"]
         else:
-            artifacts = sorted((output / "frames").glob("*.png"))
+            artifacts = sorted((output / "frames").glob(f"*.{args.format}"))
             if len(artifacts) != len(captures):
                 raise RuntimeError(f"Expected {len(captures)} frames; got {len(artifacts)}")
         for path in artifacts:

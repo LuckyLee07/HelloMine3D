@@ -23,14 +23,15 @@ vec2 floraWind(vec2 position, float time)
     // A smooth world-space field keeps nearby plants related without
     // repeating the same motion in every section. Gusts modulate the sway.
     float broadPhase = dot(position, vec2(0.041, 0.027));
-    float gust = 0.5 + 0.5 * sin(time * 0.37 - broadPhase);
-    float strength = mix(0.025, 0.085, gust * gust);
-    float drift = 0.45 * sin(time * 0.23 - broadPhase);
-    float sway = 0.65 * sin(time * 1.10 +
+    float gust = 0.5 + 0.5 * sin(time * 0.55 - broadPhase);
+    // Keep quiet wind visible, with a readable ~2.9 second primary sway.
+    float strength = mix(0.055, 0.085, gust * gust);
+    float drift = 0.45 * sin(time * 0.35 - broadPhase);
+    float sway = 0.65 * sin(time * 2.20 +
                            dot(position, vec2(0.18, 0.13)) + drift) +
-                 0.35 * sin(time * 1.73 +
+                 0.35 * sin(time * 3.46 +
                             dot(position, vec2(-0.31, 0.21)));
-    float crossSway = 0.25 * sin(time * 0.83 +
+    float crossSway = 0.25 * sin(time * 1.66 +
                                 dot(position, vec2(0.23, -0.19)) + 0.7);
     return strength * (vec2(0.88, 0.48) * sway +
                        vec2(-0.48, 0.88) * crossSway);
