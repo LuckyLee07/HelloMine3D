@@ -8,9 +8,7 @@
 > 可玩的游戏作为 Architecture Lab 载体”。文中旧的真人/Physical Input/Deferred 条款保留
 > 历史语境，当前退出模型统一以 `docs/current/ai-assisted-gameplay-acceptance-v1.md` 为准。
 
-规划基线：2026-08-28。参考范围包括 HelloMine3D 当前代码、现有合同文档，以及本机
-`F:\env1_trunk`。后者只用于核对成熟体素游戏会自然出现的系统和职责边界，不是源码、
-依赖或需求的直接来源。
+规划基线：2026-08-28。设计依据为 HelloMine3D 当前代码、现有合同文档与正常玩法需求。
 
 ## 当前判断
 
@@ -175,8 +173,8 @@ sidecar 能用匹配 PDB 解析项目帧，并明确拒绝错误 PDB。
 状态：`Done`。定义、运行时、HUD、版本 5 存档和迁移语义固定在
 `objective-system-contract-v1.md`。
 
-实现一个小型、数据驱动、事件消费型的 `Objective` 边界，而不是复制 MiniGame 的账号、
-Lua、活动和奖励系统。
+实现一个小型、数据驱动、事件消费型的 `Objective` 边界，不引入账号、
+Lua、活动和在线奖励系统。
 
 - 第一版支持取得物品、制作物品、放置/破坏方块、击败敌人、拾取物品、到达位置和重开
   世界八类目标。
@@ -338,26 +336,6 @@ PLAYABILITY-RC 记录要求见
 AI/Computer Use 负责证明功能是否可从正常界面完成；AI 视觉负责可观察表现。未执行场景保持
 `NOT_RUN`，人类主观/物理体验保持 `NOT_CLAIMED`，新 macOS 范围由未来里程碑单独批准。
 首版不强推饥饿，也不另行抢做成就/统计或批量增加只有数值、换色差异的内容。
-
-## `F:\env1_trunk` 的使用边界
-
-| 当前批次 | 可参考位置 | 只借鉴什么 | 明确不带入什么 |
-| -------- | ---------- | ---------- | -------------- |
-| G5 | `client\miniEngine\OgreMain\sound\OgreSoundSystem.*` | 2D/3D、listener、分类音量、pause/mute、dummy 接口边界。 | FMOD、直播 DSP、全局 Singleton 和平台资源层。 |
-| N1 | `sandboxPlay\player\PlayerTaskManager.*`、`CoreCommonDef.h` | 事件驱动的目标类型、进度和完成状态。 | 账号成就、云同步、Lua 剧情、活动和付费奖励。 |
-| N2 | `sandboxCore\blocks\FurnaceContainer.*`、`container_world.h` | 输入/燃料/输出、运行状态和容器生命周期。 | 硬编码全局 slot index、多级炉体和巨型容器继承树。 |
-| N3/N4 | actor 属性、AI hunger/eat、武器和掉落相关边界 | 状态上限、冷却、行为与表现分离。 | 巨型 `PlayerControl`、`GameMode` 和集中式 manager 堆叠。 |
-| N5 | `terrgen\Ecosystem.*`、`EcosysUnit_*` | seed 稳定的生态组合和 decorator 职责。 | 上百个专用类、云世界配置和加载顺序依赖。 |
-| N6 | `bin_externel\res\ui\mobile` 的 View/Model/Ctrl 分层 | 展示、状态和命令分离。 | XML/Lua 全套运行时、商城、活动和在线入口。 |
-| N7 | `PlayerTaskManager.*`、`GameMode.*`、GameStage 文档 | 事件/结果/恢复边界和一次性奖励风险。 | Task/GameMode 巨类、脚本/网络/背包/UI 混合和独立 Victory 阶段。 |
-| N8 | `14-ai-system.md`、`AIProjectileAttack.*`、`ClientActorProjectile.*` | 显式状态、目标失效、投射物生命周期、容量和调试快照。 | 行为树/Lua、Boss 巨类、可保存投射物和巨型 ActorManager。 |
-| N9 | `EcosysUnit_Dungeons.*`、`BonusChest.*`、`ShipWrecks.*` | footprint、跨区块投影、固定 seed 和初始箱子边界。 | `std::rand`、同步邻区块加载、通用 VOX 导入和结构 Manager。 |
-| N10 | `CraftMgr.*`、`FurnaceContainer.*` | 制作/燃料/输入/输出和容器生命周期测试面。 | 材料组模糊替换、硬编码槽位、十二槽/温度/品质炉体。 |
-| N11 | `GameMode.*` 和零散 difficulty 调用仅作反例 | 统一参数身份、默认值和回归维度。 | 散落倍率、GameMode 分支、无限任务和在线重玩系统。 |
-| N12 | `StringDefCsv` 调用链、`OgreSoundSystem.*` | 文本 fallback、受控音频句柄、pause/stop、dummy 和设备失败。 | 数字文本 ID、XML/Lua、FMOD、多音乐通道和实时 DSP。 |
-
-如需查实现，先阅读 `docs/archive/minigame-reference.md` 已标出的定向入口；不要在当前仓库添加
-对 `F:\env1_trunk` 的构建、运行或资源依赖。
 
 ## 暂不进入近期计划
 

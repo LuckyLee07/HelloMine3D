@@ -154,7 +154,7 @@ M7 已实现安全版本：主线程发布视锥副本，worker 在视距 16 的
 ### R3 空 section 已跳过（M6）
 
 M6 复用每层 opaque 计数识别六面封闭 section，后台和同步路径都不再运行空 mesh
-构建；边界打开后会立即恢复正常建模。参见 `docs/archive/minigame-reference.md` 第 7 条。
+构建；边界打开后会立即恢复正常建模。
 
 ### R4 基准的 vsync 状态会漂移
 

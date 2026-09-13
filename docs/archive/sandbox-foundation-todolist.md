@@ -1,7 +1,7 @@
 # Sandbox Foundation TODO List
 
-本文档用于规划 HelloMine3D 复刻 `F:\env1_trunk` 沙盒基础能力的工作。目标不是直接搬运
-MiniGame 的完整 `sandboxCore`，而是在当前项目已有的 `World / Chunk / Block / Mesh / Player`
+本文档用于规划 HelloMine3D 沙盒基础能力的工作。目标是在当前项目已有的
+`World / Chunk / Block / Mesh / Player`
 基础上，逐步补齐一个可保存、可扩展、可承载冒险玩法的轻量沙盒内核。
 
 > 本文档是 S0-S7 沙盒基础里程碑的**详细记录**。跨阶段的执行清单和后续 backlog 见
@@ -30,19 +30,7 @@ MiniGame 的完整 `sandboxCore`，而是在当前项目已有的 `World / Chunk
 - 复杂 UI、任务链、Boss、完整冒险结算。
 - 复杂物理引擎替换。
 
-## Reference Points
-
-MiniGame 可参考的方向：
-
-- `F:\env1_trunk\client\miniSandbox\sandboxCore\worldData\WorldManager.*`
-- `F:\env1_trunk\client\miniSandbox\sandboxCore\worldData\world.*`
-- `F:\env1_trunk\client\miniSandbox\sandboxCore\worldData\world_types.h`
-- `F:\env1_trunk\client\miniSandbox\sandboxCore\blocks\`
-- `F:\env1_trunk\client\miniSandbox\sandboxCore\actors\`
-- `F:\env1_trunk\client\miniSandbox\sandboxCore\terrgen\`
-- `F:\env1_trunk\client\miniSandbox\sandboxCore\worldMesh\`
-
-当前项目现有基础：
+## 当前项目现有基础
 
 - `src/HelloMine3D/Application.cpp`
 - `src/HelloMine3D/World/World.*`
@@ -215,4 +203,4 @@ in `docs/current/todolist.md` without carrying a foundation validation gap.
   Premake and no longer contains a nested CMake cache.
 - Prefer simple synchronous save/load first; add async IO only after correctness is proven.
 - Prefer C++ events and JSON/TOML-style data first; add Lua only after the native extension points are stable.
-- Avoid copying MiniGame subsystem complexity directly. Use it as an architectural reference, not as a code migration source.
+- Keep subsystem boundaries proportional to this project's needs; do not migrate third-party code.

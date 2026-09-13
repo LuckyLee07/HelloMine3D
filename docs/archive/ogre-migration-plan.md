@@ -10,8 +10,8 @@
 | 理由 | 说明 |
 | ---- | ---- |
 | 与 HelloOgre3D 对齐 | 两个项目共用同一套 premake 布局和引擎，工程定义可直接复用。 |
-| 参考项目的熟悉度 | 长期在 `F:\env1_trunk` 上工作，其体素实现（`sandboxCore/worldMesh`）可以直接对照借鉴。对个人项目而言，"看得懂的参考实现"比技术纯度更能决定推进速度。 |
-| 体素方案已被验证 | `env1_trunk` 是 Ogre 上的商业体素客户端，证明"Ogre 当渲染底座 + 自写区块 Renderable"这条路走得通。 |
+| 本项目现有基础 | 已有区块网格与渲染分层，可逐步迁入 Ogre Renderable。 |
+| 体素方案可验证 | 迁移后的实际客户端、回归截图与帧时数据可以直接验证这条路径。 |
 | 顺带获得能力 | 天空盒、粒子、模型/骨骼动画、场景剔除等从零写很贵的东西，Ogre 自带。 |
 
 ### 已知代价（决策时已接受）
@@ -23,19 +23,7 @@
 | 顶点管线隔一层 | greedy meshing 和顶点压缩要透过 `HardwareVertexBuffer` 做。 |
 | 玩法进度暂停 | 迁移期间没有可玩性产出。 |
 
-### 一个必须澄清的事实
-
-`F:\env1_trunk\client\miniEngine` 与 HelloOgre3D 的 Ogre **不是同一个 Ogre 的不同版本**，而是同源的两个分支：
-
-| | env1_trunk `miniEngine/OgreMain` | HelloOgre3D `Engine/ogre3d` |
-| --- | --- | --- |
-| 文件数 | 270 | 502 |
-| 命名空间 | `MINIW` | `Ogre` |
-| 版本宏 | 已剥除 | 1.10.0 "Xalafu" |
-| 游戏耦合 | FairyGUI、`IWORLD_REALTIME_SHADOW`、`MINI_NEW_UI`、`IWORLD_FUNC` 直接写在 `OgrePrerequisites.h` | 无 |
-
-结论：**概念和架构可以对照参考，代码不能共用**。`MINIW::SceneNode` 与 `Ogre::SceneNode` 在编译器眼里没有关系。
-本方案采用 HelloOgre3D 的原版 Ogre 1.10，不采用 env1_trunk 的 fork。
+本方案采用 HelloOgre3D 已使用的 Ogre 1.10，保持引擎来源与构建路径一致。
 
 ## 事实基线
 
@@ -121,7 +109,7 @@ location 2: float inCardinalLight
 2. 渲染表现不回退：`tools/run_render_capture.ps1` 截图仍显示正确地形、水面、植被。
 3. 性能不明显回退：`frame_p95_ms` 与迁移前基线可比。
 4. 现有 5 个测试目标继续通过。
-5. 概念结构与 `env1_trunk` 对齐，便于对照参考。
+5. 保持本项目世界、渲染与资源边界清晰。
 
 ### 非目标
 
@@ -132,7 +120,7 @@ location 2: float inCardinalLight
 | 引入 Recast/Detour、OpenSteer | 寻路与群体 AI 不在近期规划。 |
 | 引入 FairyGUI | UI 方案未定，不提前绑定。 |
 | 使用 D3D9 后端 | 已过时，且与 macOS 目标冲突。 |
-| 复用 env1_trunk 的引擎代码 | 命名空间与 API 已分叉，无法共用。 |
+| 迁入额外引擎分支 | 维持单一 Ogre 1.10 构建与 API 边界。 |
 
 ## 最小依赖子集
 
@@ -167,7 +155,7 @@ location 2: float inCardinalLight
 即 `ChunkSectionRenderable`。
 
 理由：`Ogre::ManualObject` 每次重建开销大，而本项目 13 秒内有 449 次 mesh 重建；
-`StaticGeometry` 不适用于动态几何。env1_trunk 的 `sandboxCore/worldMesh` 正是这个做法，可直接对照。
+`StaticGeometry` 不适用于动态几何；自定义 Renderable 可按 section 增量替换缓冲。
 
 ### D2 剔除交给 Ogre
 
@@ -289,8 +277,6 @@ VS2022 Debug/Release 全量构建与五个测试目标全部通过，运行时 s
 | 每 section 设 AABB，剔除交给 Ogre（D2） | 视锥外不绘制 |
 | 卸载判定移出渲染路径（D2） | 主锁不再在渲染循环内长时间持有 |
 
-**参考实现：`F:\env1_trunk\client\miniSandbox\sandboxCore\worldMesh`。**
-
 验证：render capture 显示正确地形；perf baseline 与迁移前基线对比，重点看
 `frame_p95_ms`、`render_p95_ms`、`last_gpu_buffered_sections`。
 
@@ -409,6 +395,5 @@ E1–E5 Ogre 迁移
 
 | 日期 | 决策 | 备注 |
 | ---- | ---- | ---- |
-| 2026-08-07 | 采用 HelloOgre3D 的 Ogre 1.10 作为渲染底座 | 已评估替代方案（保留 SFML+GL 并只对齐概念边界），因参考项目熟悉度优势选择迁移 |
-| 2026-08-07 | 不采用 env1_trunk 的 `MINIW` fork | 命名空间与 API 已分叉，无法共用代码 |
+| 2026-08-07 | 采用 HelloOgre3D 的 Ogre 1.10 作为渲染底座 | 已评估保留 SFML+GL 的替代方案，并选择统一工程与渲染接口 |
 | 2026-08-07 | 迁移排在光照工作之前 | 避免同一批代码改两次 |

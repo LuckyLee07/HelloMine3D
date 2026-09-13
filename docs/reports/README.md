@@ -33,7 +33,6 @@
 
 ## 调查与来源
 
-- [minigame-visual-feasibility-2026-09-12.md](minigame-visual-feasibility-2026-09-12.md)：Miniw-Client 实机参照、可行性与观察限制；后续路线见[暖野 v2 方案](../current/visual-upgrade-plan-v2.md)。
 - [visual-direction-warm-wilderness-2026-09-10.md](visual-direction-warm-wilderness-2026-09-10.md)：暖野美术方向与概念图。
 - [todolist-goal-execution-2026-09-05.md](todolist-goal-execution-2026-09-05.md)
 - [simulation-activation-entry-investigation-2026-09-05.md](simulation-activation-entry-investigation-2026-09-05.md)

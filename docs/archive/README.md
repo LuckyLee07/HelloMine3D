@@ -25,9 +25,5 @@
 这些协议的 schema 和历史记录含义保持有效，但已经 `SUPERSEDED` 为当前 Architecture Lab
 门槛；AI/Computer Use 不得冒充物理操作者填写 PASS。
 
-## 外部参考
-
-- [minigame-reference.md](minigame-reference.md)：外部 MiniGame 架构研究，不是 backlog。
-
 从历史文档恢复任务时，必须先在 `docs/current/todolist.md` 建立新的批准批次，不能直接把旧的
 Queued、Verify 或 Deferred 状态重新解释成当前承诺。

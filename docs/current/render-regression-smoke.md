@@ -116,7 +116,7 @@ Pass condition:
 
 ## Last Hardware-Backed Run (Pre-E5)
 
-Last verified command output:
+Last verified command output (workspace path normalized):
 
 ```text
 [RENDER_CAPTURE] runId=20260807190230074-46036
@@ -124,9 +124,9 @@ Last verified command output:
 [RENDER_CAPTURE] seed=296595
 [RENDER_CAPTURE] playerPosition=2766 102 2905
 [RENDER_CAPTURE] playerRotation=20 118.4 0
-[RENDER_CAPTURE] captured E:\Workspace\MineCraft3D\bin\render_capture_20260807190230074-46036\new_04000ms.png
-[RENDER_CAPTURE] captured E:\Workspace\MineCraft3D\bin\render_capture_20260807190230074-46036\new_06000ms.png
-[RENDER_CAPTURE] status=PASS outputDir=E:\Workspace\MineCraft3D\bin\render_capture_20260807190230074-46036
+[RENDER_CAPTURE] captured <workspace>\bin\render_capture_20260807190230074-46036\new_04000ms.png
+[RENDER_CAPTURE] captured <workspace>\bin\render_capture_20260807190230074-46036\new_06000ms.png
+[RENDER_CAPTURE] status=PASS outputDir=<workspace>\bin\render_capture_20260807190230074-46036
 ```
 
 Verified images:
@@ -179,8 +179,8 @@ accepted by the script and independently decoded by ffmpeg (46,343-49,604
 bytes). Final summary: `[RENDER_CAPTURE_HARDWARE] runs=10 status=PASS`.
 
 Earlier verified run, kept for comparison:
-`bin/render_capture_20260707173412631-53208` (recorded while the repository
-still lived at `E:\Workspace\MineCraft`).
+`bin/render_capture_20260707173412631-53208` (recorded before the repository
+was moved to its current location).
 
 ## L1 Sunlight Hardware Capture
 

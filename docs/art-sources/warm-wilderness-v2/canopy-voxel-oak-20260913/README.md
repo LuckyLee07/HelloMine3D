@@ -4,8 +4,8 @@
 bitmaps generated for HelloMine3D with OpenAI image generation on 2026-09-13.
 The user-provided HelloMine3D cover screenshot guided the leafy green palette,
 small square clusters, and sunlight contrast. The requested shape direction
-was the familiar cubic oak canopy in Minecraft; no Minecraft texture or other
-game asset was used as input or copied into these images.
+was a full, layered cubic oak canopy. No third-party game asset was used as
+input or copied into these images.
 
 These RGB originals use near-black pixels as cutout markers. The deterministic
 array builder converts them into hard Alpha before downsampling, at maximum

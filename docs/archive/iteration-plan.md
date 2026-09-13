@@ -1,7 +1,6 @@
 # HelloMine3D Iteration Plan
 
-本文档保留 HelloMine3D 的长期架构方向和历史阶段划分。规划基于项目源码，
-以及 `docs/archive/minigame-reference.md` 中对 MiniGame 项目的参考分析。可执行任务和
+本文档保留 HelloMine3D 的长期架构方向和历史阶段划分。规划基于项目源码与玩法需求。可执行任务和
 当前状态以 `docs/current/todolist.md` 为准；已完成任务的详细历史证据保存在
 `docs/archive/project-ledger-2026-08-17.md`。本文件中的远期候选只有在被加入当前清单后
 才成为迭代承诺。
@@ -16,7 +15,7 @@
 1. 保持主干可编译和数据安全，在此基础上优先完成玩家可感知的玩法闭环。
 2. 先把区块、资源、方块数据模型做稳，再做光照、存档、mod 和多人。
 3. 保持 Windows/macOS 兼容作为长期约束，不引入会破坏跨平台边界的实现。
-4. 从 MiniGame 借鉴架构方向，不直接照搬它的旧引擎、旧构建和重型 SDK。
+4. 按本项目需求划分架构边界，不迁入第三方引擎、构建系统和重型 SDK。
 
 ## 当前项目状态
 
@@ -140,7 +139,7 @@ HelloMine3D 已具备这些基础：
 | P0 | `ChunkBlock` 增加 metadata | 用于朝向、水位、生长阶段、开关等状态。 | 存储模型支持同一 block id 的不同状态。 |
 | P0 | 拆分方块定义层 | 引入 `BlockDefinition`、`BlockRenderInfo`、`BlockShape` 等概念。 | 渲染、碰撞、基础属性不再全部挤在 `BlockDataHolder`。 |
 | P1 | 引入轻量 `BlockBehavior` | 放置、破坏、tick、邻居变化、掉落等行为集中扩展。 | 新增一种特殊方块不需要到处写 `switch`。 |
-| P1 | 方块形状资源化 | 从 MiniGame 的 `blockgeom.xml` 借鉴，但使用适合本项目的轻量格式。 | 非 cube 方块不再必须写死在 mesh builder 中。 |
+| P1 | 方块形状资源化 | 使用适合本项目的轻量资源格式。 | 非 cube 方块不再必须写死在 mesh builder 中。 |
 | P2 | random tick 支持（已完成，C7） | 植物生长、流体、火等只处理需要 tick 的 section。 | 去重轮转队列每次最多处理四个活跃 section，每个 section 均匀采样三个体素，不扫描整张世界。 |
 
 建议拆分后的模型：
@@ -252,8 +251,8 @@ HelloMine3D 已具备这些基础：
 
 ### 第 8 阶段执行路线
 
-批次顺序由玩家价值和依赖决定，不以 MiniGame 的目录或系统规模决定。MiniGame 只在
-对应批次已经开始后提供设计复核，不能自动带入在线、脚本、商城、FMOD 或完整编辑器。
+批次顺序由玩家价值和依赖决定，不以其他项目的目录或系统规模决定；
+在线、脚本、商城、FMOD 或完整编辑器不自动进入本项目范围。
 
 | 批次 | 主任务 | 交付范围 | 跟随护栏 | 退出条件 |
 | ---- | ------ | -------- | -------- | -------- |
@@ -302,7 +301,7 @@ HelloMine3D 已具备这些基础：
    已有存档。关闭界面时所有暂存材料必须确定地退回或落地。
 4. UI 只展示会话快照并提交命令，不能直接增删库存。重点验证连点、满背包、关闭、
    方块被破坏、保存中断和重载。
-5. MiniGame 的可制作数量和产物容量可作为复核；材料组替换、烹饪和自动化制作延期，
+5. 复核最大可制作数量和产物容量；材料组替换、烹饪和自动化制作延期，
    不扩张 G1 当前精确材料合同。
 
 #### 批次 3：G3 工具成长拆分
@@ -311,7 +310,7 @@ HelloMine3D 已具备这些基础：
 `tool-progression-contract-v1.md`；正式持续按键与暂停焦点归 Physical Input v2，HUD 观感归独立产品体验合同。
 
 1. 先定义轻量 `ToolDefinition` 和方块采集属性，只保留工具类别、等级、速度、耐久、
-   方块硬度、最低等级和掉落规则；不复制 MiniGame 的大型 `BlockMaterial` 接口。
+   方块硬度、最低等级和掉落规则；避免引入不必要的大型行为接口。
 2. 将立即破坏改为可取消的破坏进度；目标变化、距离失效、打开 UI 或暂停都会取消，
    只有完成事件能产出掉落并消耗一次耐久。
 3. 工具作为不可堆叠的物品实例保存耐久。先设计旧存档迁移和非法值拒绝，再升级库存、
@@ -330,7 +329,7 @@ HelloMine3D 已具备这些基础：
    默认设置”，也不允许设置页改变已存在世界的身份。
 3. 设置页编辑草稿；应用时按能力立即更新或标记重启，取消恢复快照。视距、FOV、输入、
    窗口和音量都必须有范围、默认值、未知版本策略与原子写入。
-4. MiniGame 配置只用于核对字段覆盖率；其空的 `loadSettings/saveSettings` 不能作为
+4. 配置字段覆盖率由本项目设置合同核对；空的 `loadSettings/saveSettings` 不能作为
    持久化范例。
 
 #### 批次 5：G5 音频反馈拆分
@@ -344,13 +343,13 @@ HelloMine3D 已具备这些基础：
    先完成一次依赖体积、许可证、Windows/macOS 和无设备行为的后端决策检查。
 3. 每个动作只允许一个成功事件；输入、库存变化和世界变化不能各自重复播放。声音缺失
    由资产检查报告，设备不可用则切到 dummy，不能阻止世界加载或保存。
-4. 可参考 MiniGame `OgreSoundSystem` 的接口边界，不迁移 FMOD、直播 DSP、平台资源层
-   或其全局 Singleton 生命周期。
+4. 音频接口按本项目的播放、暂停、音量和静默降级需求定义，不迁移直播 DSP、平台资源层
+   或全局 Singleton 生命周期。
 
 #### 批次 6-7：集成与 Alpha 检查点顺序
 
 1. G6 先用一张固定种子世界和一条正常玩家路径打通垂直切片，再补随机世界冒烟；最低
-   目标提示仅说明下一步行动，不引入 MiniGame 的 Lua 新手引导、活动或商城系统。
+   目标提示仅说明下一步行动，不引入 Lua 新手引导、活动或商城系统。
 2. G6 冻结后执行 Alpha 开发检查点：固定旅程和迁移样本，批准一份 Q1/Q2 Alpha 性能
    基线，并建立 H2 脱敏 sidecar 与离线符号工具骨架。此时不反复录制仍会被后续 UI
    改动推翻的 R3 证据。
@@ -393,7 +392,7 @@ HelloMine3D 已具备这些基础：
 
 G6 代表“完整游戏骨架可玩”，并不等于内容完成。其后的 `N1-N6` 六个工作包已经按依赖
 全部交付，但没有回写拆分前 77 项正式总账。详细历史批次、退出条件、验证分层以及
-`F:\env1_trunk` 的参考边界见 `docs/archive/game-development-roadmap.md`；新的 Stage 9 预排见
+新的 Stage 9 预排见
 `docs/archive/beta-gameplay-roadmap.md`。
 
 | 预排工作包 | 目标 | 进入条件 |
@@ -492,7 +491,7 @@ Stage 10 的历史执行顺序为
 | 资源热更新、在线下载包和可执行 mod | `X1-X3` 只做冻结的只读覆盖层；运行时失效、网络信任和执行权限是独立系统。 |
 | D3D/Vulkan 后端 | 当前目标是 Windows/macOS 兼容，Ogre GL3Plus 足够支撑近期开发。 |
 | 完整编辑器 | 先做资源校验和 block atlas 工具，避免工具链复杂度过早膨胀。 |
-| 大规模引入 MiniGame 代码 | MiniGame 历史依赖重，适合参考架构，不适合迁移源码。 |
+| 大规模引入第三方代码 | 会增加许可、维护与平台兼容风险，应按本项目需求独立实现。 |
 
 ## 历史推荐执行顺序
 
@@ -575,26 +574,3 @@ Windows-first 阶段延期，macOS 原生 `B3` 已于 2026-08-16 补齐并通过
 | M7 Beta 单机游戏闭环 | 工程 Done | BETA-RC 工程证据已关闭；功能/表现分别映射到 AI 交互和视觉。 |
 | M8 视觉质量升级 | Windows 工程 Done | VISUAL-RC 已完成；AI 产品表现 `NOT_RUN`，人类主观体验 `NOT_CLAIMED`。 |
 | M9 可玩性与操作体验 | Engineering Done；AI `NOT_RUN` | Stage 11 自动工程已封板；当前映射 `AI-01..AI-08`，不再保留永久真人延期清单。 |
-
-## 与 MiniGame 参考文档的关系
-
-`docs/archive/minigame-reference.md` 负责回答“MiniGame 有哪些架构点值得参考”。本文档负责回答
-“HelloMine3D 接下来按什么顺序做”。两者的关系如下：
-
-| MiniGame 参考点 | 本项目落地阶段 |
-| --------------- | -------------- |
-| package/mount 资源层 | `W3` 已完成 manifest；第 7 阶段由 `X1-X3` 落地只读目录包和冻结的有效资源视图。 |
-| block id + metadata | 第 3 阶段落地。 |
-| BlockLight 4+4 bit | 第 4 阶段落地。 |
-| lazy section/dirty flags | 第 0-2 阶段逐步落地。 |
-| 18x18x18 halo cache | 第 2 阶段落地。 |
-| greedy/pane meshing | 第 2 阶段落地。 |
-| ecosystem/decorator | 第 4 阶段落地。 |
-| UI XML/Lua MVC | `D2` 继续使用本项目的 Ogre/ImGui 边界；暂不引入 Lua，只参考状态和视图分离。 |
-| Task/GameMode/胜负阶段 | N7 只用作防耦合参考；结局状态独立于目标耗尽、UI、脚本和应用阶段。 |
-| AI/投射物 | N8 只提取显式状态、生命周期、容量和调试信息；不引入行为树、Lua、Boss 巨类或可保存投射物。 |
-| EcosysUnit 结构 | N9 继续使用本项目 cell hash/`StructureBuilder`；拒绝 `std::rand`、同步邻区块加载和结构 Manager。 |
-| Craft/Furnace | N10 保持精确配方和三槽熔炉；新增经济可达性/循环校验，不复制材料组与复杂炉体。 |
-| StringDefCsv/OgreSound | N7A/N12 使用语义化文本 key、采样音效和单通道音乐；不复制数字 ID、Lua、FMOD 或多通道 DSP。 |
-| ObjectEditor/UIEditor | 暂不做完整编辑器，先做资源校验工具。 |
-| RakNet/多人 | 第 6 阶段以后单独设计。 |

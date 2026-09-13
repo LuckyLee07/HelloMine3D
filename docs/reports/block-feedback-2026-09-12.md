@@ -1,7 +1,7 @@
 # 方块选中高亮与破坏表现
 
-2026-09-12 用户要求：花草选中改为贴合模型的高亮，替换黄框及黄色线段裂纹，加入破坏粒子，
-参考本地 MiniGame。实现已进入正常 Sandbox/Ogre 路径，保留命中、硬度、工具、掉落和 save v12。
+2026-09-12 用户要求：花草选中改为贴合模型的高亮，替换黄框及黄色线段裂纹，加入破坏粒子。
+实现已进入正常 Sandbox/Ogre 路径，保留命中、硬度、工具、掉落和 save v12。
 范围见[补充合同](../contracts/block-feedback-contract-v2.md)。
 
 ## 实现
@@ -16,10 +16,6 @@
   开采每 0.12 秒最多一组 2 个，不追补卡顿期间的发射；轨迹由年龄解析计算。
 - 新渲染器最多两个 draw call，选择网格仅在目标/metadata 改变时重建，不改地形顶点格式。
   标准数组纹理与兼容图集均有对应 shader。
-
-参考了 `/Users/lizi/Desktop/Workspace/MiniGame/Miniw-Client/iworld/DecalBlock.cpp` 的实际模型
-decal / 十阶段纹理选择、`worlddata/EffectDestroyBlock.cpp` 的方块材质碎片，以及
-`player/DigState.cpp` 的进度分段。使用其组织思路；未复制 MiniGame 贴图或引擎代码。
 
 ## 验证结果
 

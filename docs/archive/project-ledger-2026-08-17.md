@@ -21,7 +21,6 @@ project. It answered "what is done, what is next, and how is it verified".
 | `docs/archive/iteration-plan.md` | Long-term architectural direction and phase ordering. |
 | `docs/current/runtime-validation.md` | How runtime behaviour is validated and what is not covered. |
 | `docs/contracts/world-catalogue-contract-v1.md`, `docs/contracts/storage-transaction-contract-v1.md`, `docs/contracts/world-backup-contract-v1.md`, `docs/contracts/world-management-contract-v1.md` | K1-K4 world identity, publication, recovery and player-facing management contracts. |
-| `docs/archive/minigame-reference.md` | Which MiniGame architecture points are worth borrowing. |
 
 Status legend:
 
@@ -327,7 +326,6 @@ R5 evidence. See `docs/contracts/product-experience-contract-v1.md` and
 | Lua / UGC scripting | First exercise the C++ extension points through D1-D5 and the bounded X resource layer. Script ownership, sandboxing and debugging require a separate design. |
 | Resource hot reload, downloaded packs or executable mods | X is deliberately a frozen read-only override layer. Runtime invalidation, network trust and executable extension points are separate systems. |
 | D3D / Vulkan backend | Ogre GL3Plus covers the Windows/macOS target (see Milestone E). |
-| Large-scale MiniGame code migration | Use it as an architectural reference, not a source. Its engine is a renamed `MINIW` fork whose API has diverged; code cannot be shared. |
 
 ## Recommended Order
 

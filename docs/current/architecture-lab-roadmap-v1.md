@@ -35,7 +35,7 @@ HelloMine3D 现有产品线已经完成大量玩法、存档、性能、诊断�
 但每项架构必须由真实游戏需求触发，并通过正常菜单、输入、世界状态和保存重开在游戏里被使用。
 权威验收边界见 `docs/current/ai-assisted-gameplay-acceptance-v1.md`。
 
-不是重点展示“做了多少 Minecraft 功能”，而是展示：
+重点展示体素沙盒的系统设计与运行证据：
 
 - World / Chunk / Section 如何组织；
 - 无限世界如何 Streaming；
@@ -70,10 +70,10 @@ HelloMine3D 现有产品线已经完成大量玩法、存档、性能、诊断�
 - 数据驱动 Block Behavior；
 - 由两个具体机器共同逼出的 Machine Runtime；
 - 由两个已批准具体网络共同逼出的 Dynamic Network Core；
-- Create-style Mechanical Network；
+- Mechanical Power Network；
 - Belt / Transport；
 - Processing Machine Pipeline；
-- AE2-style Storage Network；
+- Storage Network；
 - Auto Crafting Dependency DAG。
 
 ### 大规模模拟
@@ -119,10 +119,9 @@ Architecture Lab 必须同时保持三层结果：
 
 本路线默认不把以下内容作为主线目标：
 
-- 完整复刻 Minecraft；
-- 完整复刻 Create / AE2 / Mekanism 等 Mod；
-- 直接翻译任何 Mod 的 Java 源码；
-- 引入第三方 Mod 原始模型、贴图和音频；
+- 完整复刻其他游戏或扩展包；
+- 直接翻译第三方源码；
+- 引入第三方原始模型、贴图和音频；
 - MMO / 大型多人服务器；
 - UE World Partition 级别编辑器工作流；
 - 完整物理破坏；
@@ -349,7 +348,7 @@ Sprint 再拆四份平行状态文档。
 
 ### 教程
 
-**Chapter 00：从 Minecraft Clone 到 Sandbox Architecture**
+**Chapter 00：从可玩原型到 Sandbox Architecture**
 
 核心问题：
 
@@ -1364,7 +1363,7 @@ FarTerrainSnapshot
 
 ## B8 — Far Terrain Data Model（Extended，条件触发）
 
-参考 Distant Horizons 的“问题”，不要复制实现。
+从本项目远景区块的内存和渲染成本出发定义问题。
 
 需要解决：
 
@@ -1769,7 +1768,7 @@ soak、隐藏客户端、崩溃诊断及 105 项隔离包也通过。Release 可
 
 ---
 
-## C4 — Create-style Mechanical Network
+## C4 — Mechanical Power Network
 
 Node：
 
@@ -1823,7 +1822,7 @@ Consumer
 
 ### 教程
 
-**Chapter 19：Create 教给我们的不是齿轮，而是 Gameplay Graph**
+**Chapter 19：机械网络作为 Gameplay Graph**
 
 ---
 
@@ -2957,31 +2956,29 @@ Gameplay/
 
 ---
 
-# 20. Mod Case Study 使用方式
+# 20. 系统案例研究使用方式
 
-只在首个相关 Track 实际批准后新增一份合并研究：
+只在首个相关 Track 实际批准后新增一份本项目系统案例研究：
 
 ```text
 docs/reports/architecture-lab-case-studies.md
 ```
 
-Create、AE2、Distant Horizons、Mekanism 和 Ars Nouveau 分别作为其中的二级章节，不按 Mod
-拆成五份文件。
+按机械动力、仓储网络、远景数据与自动化等本项目实际需求组织二级章节。
 
 统一模板：
 
-1. Mod 要解决什么问题；
-2. 它受 Minecraft API 哪些约束；
-3. 哪些是 Minecraft 特有；
-4. 哪些是通用架构思想；
-5. HelloMine3D 的需求是什么；
-6. HelloMine3D 独立设计；
-7. Benchmark；
-8. Trade-off。
+1. 玩家遇到什么问题；
+2. 本项目现有系统有哪些约束；
+3. 哪些行为属于具体玩法需求；
+4. 哪些架构原则可复用；
+5. HelloMine3D 的需求与独立设计；
+6. Benchmark；
+7. Trade-off。
 
 原则：
 
-> **Concept Port，不做 Code Port。**
+> 先证明本项目需求，再决定系统边界。
 
 ---
 
@@ -3217,7 +3214,7 @@ AI 必须从正常游戏入口完成离开、返回和重开流程；Debug Metri
 完成后，HelloMine3D 的核心卖点不应再是：
 
 ```text
-Minecraft clone written in C++
+Voxel game written in C++
 ```
 
 而应变成：
@@ -3379,13 +3376,13 @@ B1 的 Chunk Residency / Mesh / Render 三套正交状态属于 Track B 行为�
 
 每个已批准批次同步更新同一份教程的 Part 00：
 
-> **为什么一个能玩的 Minecraft Clone 最终会需要沙盒架构。**
+> **为什么一个可玩的体素游戏最终会需要沙盒架构。**
 
 暂时不要开始：
 
 ```text
-Create
-AE2
+Mechanical Power Network
+Storage Network
 Far Terrain
 ```
 
