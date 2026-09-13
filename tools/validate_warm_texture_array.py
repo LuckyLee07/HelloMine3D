@@ -7,7 +7,7 @@ from pathlib import Path
 import struct
 
 import numpy as np
-from build_warm_texture_array import ART, ROOT, NAMES, fnv64
+from build_warm_texture_array import ART, ROOT, NAMES, fnv64, source_path
 from build_warm_texture_atlas import layout
 
 
@@ -24,12 +24,23 @@ def validate(path, report_path):
     active = {y // 16 * 16 + x // 16 for x, y, _ in entries.values()}
     assert len(active) == 120 and len(set(range(256)) - active) == 136
     assert len(report['semantics']) == 120
+    leaf_records = [r for r in report['semantics'] if r['semantic'].startswith('oak_leaves')]
+    assert len(leaf_records) == 16
+    assert all(r['provenance'] in ('authored', 'derived') and
+               all(source.startswith('voxel-oak-') for source in r['sources'])
+               for r in leaf_records), 'Standard leaf layers must use voxel-oak sources'
+    assert {source for r in leaf_records for source in r['sources']} == \
+        {'voxel-oak-a-rgb', 'voxel-oak-b-rgb'}
+    assert report['leaf_cutout_thresholds'] == {
+        'voxel-oak-a-rgb': 16, 'voxel-oak-b-rgb': 12}
+    assert report['leaf_visible_rgb_floor'] == [26, 47, 21]
+    assert report['leaf_colour_gain'] == [1.14, 1.18, 1.10]
     for record in report['semantics']:
         x, y, alpha = entries[record['semantic']]
         assert record['layer'] == y // 16 * 16 + x // 16 and record['alpha'] == alpha
         assert record['provenance'] in ('authored', 'derived', 'retained') and record['sources']
     for name in NAMES:
-        assert hashlib.sha256((ART / (name + '.png')).read_bytes()).hexdigest() == report['sources'][name]
+        assert hashlib.sha256(source_path(name).read_bytes()).hexdigest() == report['sources'][name]
         assert hashlib.sha256((ART / 'masters128' / (name + '.png')).read_bytes()).hexdigest() == report['masters128'][name]
     authored_cutout = [r['layer'] for r in report['semantics'] if r['alpha'] == 'cutout' and r['provenance'] != 'retained']
     offset, coverage = 36, {}
@@ -54,6 +65,7 @@ def validate(path, report_path):
     return dict(status='PASS', edge=edge, mips=mips, active_slots=len(active),
                 empty_slots=256-len(active), array_pixel_bytes=length,
                 retained_legacy_atlas_bytes=262144, alpha_layers=len(authored_cutout),
+                voxel_oak_leaf_layers=len(leaf_records),
                 source_images=len(NAMES), sha256=report['sha256'])
 
 

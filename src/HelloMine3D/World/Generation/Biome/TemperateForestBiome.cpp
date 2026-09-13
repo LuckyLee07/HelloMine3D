@@ -1,6 +1,7 @@
 #include "TemperateForestBiome.h"
 
 #include "../Structures/TreeGenerator.h"
+#include "../Terrain/TerrainGenerator.h"
 
 namespace
 {
@@ -32,9 +33,14 @@ ChunkBlock TemperateForestBiome::getUnderWaterBlock(Rand &rand) const
 }
 
 void TemperateForestBiome::makeTree(Rand &rand, Chunk &chunk, int x, int y,
-                                    int z) const
+                                    int z, int generationVersion) const
 {
-    makeOakTree(chunk, rand, x, y, z);
+    if (generationVersion >= VoxelOakTerrainGenerationVersion) {
+        makeVoxelOakTree(chunk, rand, x, y, z);
+    }
+    else {
+        makeOakTree(chunk, rand, x, y, z);
+    }
 }
 
 ChunkBlock TemperateForestBiome::getPlant(Rand &rand) const

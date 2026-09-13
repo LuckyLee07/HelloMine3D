@@ -3,6 +3,8 @@
 #include "../../Chunk/Chunk.h"
 #include "StructureBuilder.h"
 
+#include <cstdint>
+
 constexpr BlockId CACTUS = BlockId::Cactus;
 
 namespace {
@@ -72,6 +74,51 @@ void makeOakTree(Chunk &chunk, Random<std::minstd_rand> &rand, int x, int y,
     }
 
     builder.makeColumn(x, z, y, h, BlockId::OakBark);
+    builder.build(chunk);
+}
+
+void makeVoxelOakTree(Chunk &chunk, Random<std::minstd_rand> &rand, int x,
+                      int y, int z)
+{
+    StructureBuilder builder;
+    const int height = rand.intInRange(4, 7);
+    const std::uint32_t origin =
+        static_cast<std::uint32_t>(x) * 0x9e3779b9u ^
+        static_cast<std::uint32_t>(z) * 0x85ebca6bu;
+
+    // Two broad layers and a narrower top keep the canopy cubic. Sparse edge
+    // cells break long straight lines without lowering the crown into a bush.
+    for (int layer = 0; layer < 3; ++layer) {
+        const int radius = layer < 2 ? 2 : 1;
+        const int leafY = y + height - 1 + layer;
+        for (int dz = -radius; dz <= radius; ++dz) {
+            for (int dx = -radius; dx <= radius; ++dx) {
+                const bool edgeX = dx == -radius || dx == radius;
+                const bool edgeZ = dz == -radius || dz == radius;
+                if (!edgeX && !edgeZ) {
+                    builder.addBlock(x + dx, leafY, z + dz,
+                                     BlockId::OakLeaf);
+                    continue;
+                }
+                std::uint32_t cell = origin ^
+                    (static_cast<std::uint32_t>(dx + 2) * 0xc2b2ae35u) ^
+                    (static_cast<std::uint32_t>(dz + 2) * 0x27d4eb2fu) ^
+                    (static_cast<std::uint32_t>(layer) * 0x165667b1u);
+                cell ^= cell >> 16;
+                cell *= 0x7feb352du;
+                cell ^= cell >> 15;
+                const bool place = edgeX && edgeZ
+                    ? (cell & (layer == 2 ? 1u : 3u)) == 0u
+                    : (cell & 3u) != 0u;
+                if (place) {
+                    builder.addBlock(x + dx, leafY, z + dz,
+                                     BlockId::OakLeaf);
+                }
+            }
+        }
+    }
+
+    builder.makeColumn(x, z, y, height, BlockId::OakBark);
     builder.build(chunk);
 }
 

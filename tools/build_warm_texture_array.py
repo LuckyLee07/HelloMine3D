@@ -18,9 +18,14 @@ from build_warm_texture_atlas import layout
 
 ROOT = Path(__file__).resolve().parents[1]
 ART = ROOT / 'docs/art-sources/warm-wilderness-v2/pixel-revision'
+LEAF_ART = ROOT / 'docs/art-sources/warm-wilderness-v2/canopy-voxel-oak-20260913'
 NAMES = ('grass-top-a grass-top-b grass-top-c grass-side-a grass-side-b '
          'dirt-a dirt-b stone-a stone-b bark-a bark-b bark-top '
-         'leaves-a leaves-b leaves-c sand-a sand-b tallgrass-a tallgrass-b').split()
+         'sand-a sand-b tallgrass-a tallgrass-b voxel-oak-a-rgb voxel-oak-b-rgb').split()
+
+
+def source_path(name):
+    return (LEAF_ART if name.startswith('voxel-oak-') else ART) / (name + '.png')
 
 
 def srgb_to_linear(rgb):
@@ -89,28 +94,46 @@ def build(edge=64):
     entries = layout(ROOT / 'media/materials/Base.terrain-atlas')
     masters = {}
     source_hashes = {}
+    leaf_cutout_thresholds = {'voxel-oak-a-rgb': 16, 'voxel-oak-b-rgb': 12}
+    leaf_visible_rgb_floor = [26, 47, 21]
+    leaf_colour_gain = [1.14, 1.18, 1.10]
     master_hashes = {}
     master_dir = ART / 'masters128'
     master_dir.mkdir(exist_ok=True)
     for name in NAMES:
-        path = ART / (name + '.png')
+        path = source_path(name)
         source_hashes[name] = hashlib.sha256(path.read_bytes()).hexdigest()
         src = np.asarray(Image.open(path).convert('RGBA'), dtype=np.float32) / 255
-        if name.startswith(('leaves', 'tallgrass')):
+        if name in leaf_cutout_thresholds:
+            # The original bitmap is RGB. Pure near-black cells are authored
+            # gaps; derive a hard pixel cutout before linear-light filtering.
+            src[:, :, 3] = (np.max(src[:, :, :3], axis=2) >=
+                            leaf_cutout_thresholds[name] / 255).astype(np.float32)
+            # Near-black cells just above the cutout threshold otherwise bake
+            # as opaque black specks and make the whole crown look dirty.
+            src[:, :, :3] = np.maximum(
+                src[:, :, :3], np.array(leaf_visible_rgb_floor) / 255)
+        if name.startswith(('voxel-oak-', 'tallgrass')):
             src[:, :, 3] = np.where(src[:, :, 3] < .05, 0, src[:, :, 3])
-        coverage = float(np.mean(src[:, :, 3] >= .5)) if name.startswith(('leaves', 'tallgrass')) else None
+        coverage = float(np.mean(src[:, :, 3] >= .5)) if name.startswith(('voxel-oak-', 'tallgrass')) else None
         master = resize(src, 128, coverage)
-        Image.frombytes('RGBA', (128, 128), bytes_rgba(master)).save(master_dir / (name + '.png'))
-        master_hashes[name] = hashlib.sha256((master_dir / (name + '.png')).read_bytes()).hexdigest()
+        master_path = master_dir / (name + '.png')
+        # Preserve an existing PNG's bytes when its pixels match the freshly
+        # calculated master; Pillow metadata may differ across releases.
+        master_bytes = bytes_rgba(master)
+        if not master_path.exists() or Image.open(master_path).convert('RGBA').tobytes() != master_bytes:
+            Image.frombytes('RGBA', (128, 128), master_bytes).save(master_path)
+        master_hashes[name] = hashlib.sha256(master_path.read_bytes()).hexdigest()
         masters[name] = master
     old = Image.open(ROOT / 'media/textures/DefaultPack.png').convert('RGBA')
-    # User review restored the complete classic crown: oak leaf layers
-    # deliberately follow the retained v1 branch below, including biome variants.
+    # The compatibility atlas remains classic; only standard array leaf layers
+    # use this voxel-oak material candidate.
     direct = {'grass_top': ['grass-top-a', 'grass-top-b', 'grass-top-c'],
               'grass_side': ['grass-side-a', 'grass-side-b', 'grass-side-a'],
               'dirt': ['dirt-a', 'dirt-b'], 'stone': ['stone-a', 'stone-b'],
               'oak_bark_side': ['bark-a', 'bark-b'], 'oak_bark_top': ['bark-top'],
-              'sand': ['sand-a', 'sand-b'], 'tall_grass': ['tallgrass-a', 'tallgrass-b', 'tallgrass-a']}
+              'sand': ['sand-a', 'sand-b'], 'tall_grass': ['tallgrass-a', 'tallgrass-b', 'tallgrass-a'],
+              'oak_leaves': ['voxel-oak-a-rgb', 'voxel-oak-b-rgb', 'voxel-oak-a-rgb']}
     tints = dict(zip(('desert', 'grassland', 'light_forest', 'temperate_forest', 'ocean'),
                     ((1.12, .92, .77), (1.02, 1.02, .95), (.96, 1.01, .96),
                      (.91, .96, .94), (.92, .99, 1.04))))
@@ -136,7 +159,7 @@ def build(edge=64):
             else:
                 used = [names[variant % len(names)]]
                 rgba = masters[used[0]].copy()
-                if variant == 2 and base in ('grass_side', 'tall_grass'):
+                if variant == 2 and base in ('grass_side', 'tall_grass', 'oak_leaves'):
                     rgba = rgba[:, ::-1].copy()
             if biome:
                 tint = np.array(tints[biome], dtype=np.float32)
@@ -144,6 +167,9 @@ def build(edge=64):
                     rgba[:26, :, :3] *= tint
                 else:
                     rgba[:, :, :3] *= tint
+            if base == 'oak_leaves':
+                rgba[:, :, :3] *= np.array(leaf_colour_gain,
+                                           dtype=np.float32)
             provenance = 'authored' if len(used) == 1 and not biome else 'derived'
         else:
             rgba = np.asarray(old.crop((x, y, x + 16, y + 16)).resize((128, 128), Image.Resampling.NEAREST), dtype=np.float32) / 255
@@ -165,6 +191,9 @@ def build(edge=64):
     header = struct.pack('<8sIIIIIQ', b'HMTARRAY', 1, edge, 256, mips, len(payload), fnv64(payload))
     report = dict(format_version=1, edge=edge, layers=256, mips=mips, payload_bytes=len(payload),
                   sha256=hashlib.sha256(header + payload).hexdigest(), sources=source_hashes,
+                  leaf_cutout_thresholds=leaf_cutout_thresholds,
+                  leaf_visible_rgb_floor=leaf_visible_rgb_floor,
+                  leaf_colour_gain=leaf_colour_gain,
                   masters128=master_hashes,
                   active_slots=len(records), empty_slots=256-len(records), semantics=records,
                   alpha_coverage=coverage_records, colour_space='sRGB RGBA8, premultiplied linear-light offline filtering')

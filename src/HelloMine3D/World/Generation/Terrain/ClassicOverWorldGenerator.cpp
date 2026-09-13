@@ -265,7 +265,8 @@ StructurePlanSnapshot ClassicOverWorldGenerator::getStructurePlanForCell(
     StructureType type, int cellX, int cellZ) const
 {
     const DeterministicStructurePlanner planner(
-        m_seed, m_generationVersion,
+        m_seed, std::min(m_generationVersion,
+                         FoundationTerrainGenerationVersion),
         [this](int worldX, int worldZ) {
             return getSurfaceHeightAtWorld(worldX, worldZ);
         },
@@ -280,7 +281,8 @@ ClassicOverWorldGenerator::getStructurePlansForChunk(
     int chunkX, int chunkZ) const
 {
     const DeterministicStructurePlanner planner(
-        m_seed, m_generationVersion,
+        m_seed, std::min(m_generationVersion,
+                         FoundationTerrainGenerationVersion),
         [this](int worldX, int worldZ) {
             return getSurfaceHeightAtWorld(worldX, worldZ);
         },
@@ -546,7 +548,7 @@ void ClassicOverWorldGenerator::applyTreeDecorators()
             Random<std::minstd_rand> structureRandom(
                 static_cast<int>((hash ^ (hash >> 32)) & 0x7fffffffull));
             biome.makeTree(structureRandom, *m_pChunk, worldX,
-                           height + 1, worldZ);
+                           height + 1, worldZ, m_generationVersion);
         }
     }
 }

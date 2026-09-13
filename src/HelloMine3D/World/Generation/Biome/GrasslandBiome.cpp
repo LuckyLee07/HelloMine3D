@@ -1,6 +1,7 @@
 #include "GrasslandBiome.h"
 
 #include "../Structures/TreeGenerator.h"
+#include "../Terrain/TerrainGenerator.h"
 
 namespace
 {
@@ -38,9 +39,14 @@ ChunkBlock GrasslandBiome::getBeachBlock(Rand &rand) const
 }
 
 void GrasslandBiome::makeTree(Rand &rand, Chunk &chunk, int x, int y,
-                              int z) const
+                              int z, int generationVersion) const
 {
-    makeOakTree(chunk, rand, x, y, z);
+    if (generationVersion >= VoxelOakTerrainGenerationVersion) {
+        makeVoxelOakTree(chunk, rand, x, y, z);
+    }
+    else {
+        makeOakTree(chunk, rand, x, y, z);
+    }
 }
 
 ChunkBlock GrasslandBiome::getPlant(Rand &rand) const

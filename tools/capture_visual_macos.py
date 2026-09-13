@@ -54,6 +54,8 @@ def main():
     parser.add_argument("--app", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--scene", choices=SCENES, default="forest")
+    parser.add_argument("--position", help="Override diagnostic world spawn as 'x y z'")
+    parser.add_argument("--rotation", help="Override diagnostic camera rotation as 'x y z'")
     parser.add_argument("--time", type=int, default=6000)
     parser.add_argument("--shadow", choices=("off", "medium", "high"), default="off")
     parser.add_argument("--post", choices=("off", "on"), default="off")
@@ -75,6 +77,8 @@ def main():
         parser.error("--time must be in [0, 24000)")
     if args.scene == "menu" and (args.performance or args.hud_fixture or args.streaming or args.panel):
         parser.error("menu capture cannot run gameplay fixtures/performance")
+    if args.scene == "menu" and (args.position or args.rotation):
+        parser.error("menu capture has no world position or rotation")
     if args.streaming and not args.performance:
         parser.error("--streaming requires --performance")
     app = args.app.resolve(strict=True)
@@ -128,6 +132,15 @@ seed random
         environment["HELLOMINE3D_FORCE_LEGACY_TERRAIN"] = "1"
     if args.scene != "menu":
         position, rotation = SCENES[args.scene]
+        position = args.position or position
+        rotation = args.rotation or rotation
+        for value in (position, rotation):
+            try:
+                if len(value.split()) != 3:
+                    raise ValueError
+                [float(part) for part in value.split()]
+            except ValueError:
+                parser.error("position and rotation must each contain three numbers")
         environment.update({
             "HELLOMINE3D_SAVE_DIR": str(output / "save"),
             "HELLOMINE3D_SEED": "20260807",

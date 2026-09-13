@@ -97,6 +97,7 @@
 #include "../World/Environment/WorldEnvironment.h"
 #include "../World/Light/VertexLighting.h"
 #include "../World/Generation/Biome/TemperateForestBiome.h"
+#include "../World/Generation/Structures/TreeGenerator.h"
 #include "../World/Generation/Structures/StructurePlanning.h"
 #include "../World/Generation/Terrain/ClassicOverWorldGenerator.h"
 #include "../World/Storage/ChunkStorage.h"
@@ -12027,12 +12028,114 @@ void caseP11DExplorationRewards()
 }
 
 // ---------------------------------------------------------------------------
+// R1 - versioned cubic oak crown; existing worlds keep their tree layout
+// ---------------------------------------------------------------------------
+bool sameStructurePlan(const StructurePlanSnapshot &left,
+                       const StructurePlanSnapshot &right);
+
+void caseVoxelOakCanopy()
+{
+    check("R1/crown-version-is-append-only",
+          FoundationTerrainGenerationVersion == 5 &&
+              VoxelOakTerrainGenerationVersion == 6 &&
+              CurrentTerrainGenerationVersion ==
+                  VoxelOakTerrainGenerationVersion);
+
+    setEnv("HELLOMINE3D_SEED", "20260807");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player,
+                freshSaveDirectory("r1_voxel_canopy"), false, 0);
+    Chunk legacy(world, {0, 0}, false);
+    Chunk current(world, {0, 0}, false);
+    const TemperateForestBiome forest(20260807);
+    Rand oldRandom(12937), newRandom(12937), heightRandom(12937);
+    const int height = heightRandom.intInRange(4, 7);
+    constexpr int x = 8, y = 80, z = 8;
+    forest.makeTree(oldRandom, legacy, x, y, z,
+                    FoundationTerrainGenerationVersion);
+    forest.makeTree(newRandom, current, x, y, z,
+                    VoxelOakTerrainGenerationVersion);
+
+    bool sameTrunk = true;
+    bool legacyLayer = true;
+    for (int level = 0; level < height; ++level) {
+        sameTrunk = sameTrunk &&
+            legacy.getBlock(x, y + level, z) == BlockId::OakBark &&
+            current.getBlock(x, y + level, z) == BlockId::OakBark;
+    }
+    for (int dx = -2; dx <= 2; ++dx) {
+        for (int dz = -2; dz <= 2; ++dz) {
+            const bool oldSquare = dx < 2 && dz < 2;
+            legacyLayer = legacyLayer &&
+                (legacy.getBlock(x + dx, y + height, z + dz) ==
+                    BlockId::OakLeaf) == oldSquare;
+        }
+    }
+    check("R1/v5-oak-trunk-and-frozen-four-by-four-layer",
+          sameTrunk && legacyLayer &&
+              legacy.getBlock(x + 2, y + height - 2, z) ==
+                  BlockId::Air);
+
+    int oldLeaves = 0, newLeaves = 0;
+    bool bounded = true;
+    for (int dy = height - 2; dy <= height + 1; ++dy) {
+        for (int dx = -3; dx <= 3; ++dx) {
+            for (int dz = -3; dz <= 3; ++dz) {
+                const bool oldLeaf = legacy.getBlock(
+                    x + dx, y + dy, z + dz) == BlockId::OakLeaf;
+                const bool newLeaf = current.getBlock(
+                    x + dx, y + dy, z + dz) == BlockId::OakLeaf;
+                oldLeaves += oldLeaf ? 1 : 0;
+                newLeaves += newLeaf ? 1 : 0;
+                bounded = bounded &&
+                    (!newLeaf || (std::abs(dx) <= 2 &&
+                                  std::abs(dz) <= 2));
+            }
+        }
+    }
+    check("R1/v6-cubic-crown-is-stepped-and-bounded",
+          bounded && newLeaves > oldLeaves &&
+              current.getBlock(x + 2, y + height - 2, z) ==
+                  BlockId::Air &&
+              current.getBlock(x + 1, y + height - 1, z) ==
+                  BlockId::OakLeaf &&
+              current.getBlock(x + 2, y + height + 1, z) ==
+                  BlockId::Air &&
+              current.getBlock(x, y + height + 1, z) ==
+                  BlockId::OakLeaf,
+          "old/new leaf cells=" + std::to_string(oldLeaves) + "/" +
+              std::to_string(newLeaves));
+
+    ClassicOverWorldGenerator version5(20260807,
+                                       FoundationTerrainGenerationVersion);
+    ClassicOverWorldGenerator version6(20260807,
+                                       VoxelOakTerrainGenerationVersion);
+    const auto v5Plan = version5.getStructurePlanForCell(
+        StructureType::Waystone, 0, 5);
+    const auto v6Plan = version6.getStructurePlanForCell(
+        StructureType::Waystone, 0, 5);
+    check("R1/v6-keeps-v5-non-tree-structure-plan",
+          sameStructurePlan(v5Plan, v6Plan) &&
+              version5.getSurfaceHeightAtWorld(42, 113) ==
+                  version6.getSurfaceHeightAtWorld(42, 113) &&
+              version5.getBiomeAtWorld(42, 113) ==
+                  version6.getBiomeAtWorld(42, 113));
+    setEnv("HELLOMINE3D_SEED", "");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "");
+}
+
+// ---------------------------------------------------------------------------
 // P11-2 - terrain-v4 mountain relief and discoverable natural cave mouths
 // ---------------------------------------------------------------------------
 void caseTerrainFoundationV5()
 {
-    check("T1/default-is-new-append-only-version",
-          CurrentTerrainGenerationVersion == 5 && FoundationTerrainGenerationVersion == 5);
+    check("T1/foundation-version-remains-append-only",
+          FoundationTerrainGenerationVersion == 5 &&
+              CurrentTerrainGenerationVersion ==
+                  VoxelOakTerrainGenerationVersion);
     bool domain = true;
     bool seedSensitive = false;
     const std::array<int, 9> coordinates{{std::numeric_limits<int>::min(),
@@ -12091,6 +12194,9 @@ void caseTerrainFoundationV5()
     check("T1/reject-unsafe-chunk-before-coordinate-expansion", rejected);
 
     const std::string directory = freshSaveDirectory("t1_modified_persistence");
+    const bool v5Prepared = initializeTerrainIdentity(
+        directory, "t1-modified-persistence-v5",
+        FoundationTerrainGenerationVersion);
     bool saved = false;
     {
         Player owner;
@@ -12108,12 +12214,13 @@ void caseTerrainFoundationV5()
         reopened.getChunkManager().loadChunk(-1, -1);
         WorldSaveData data;
         check("T1/saved-edit-survives-unload-and-world-reopen",
-              saved && reopened.getBlock(-2, 180, -2).id == static_cast<int>(BlockId::OakBark) &&
+              v5Prepared && saved &&
+              reopened.getBlock(-2, 180, -2).id == static_cast<int>(BlockId::OakBark) &&
               WorldSave(directory).load(data) && data.terrainGenerationVersion == 5 &&
               data.seed == 20260807);
     }
     bool invalid = true;
-    for (const int version : {0, 6}) {
+    for (const int version : {0, CurrentTerrainGenerationVersion + 1}) {
         WorldSaveData identity;
         const bool loaded = WorldSave(directory).load(identity);
         identity.terrainGenerationVersion = version;
@@ -17714,6 +17821,9 @@ int main()
         else if (focus != nullptr && std::string(focus) == "T1") {
             caseTerrainFoundationV5();
         }
+        else if (focus != nullptr && std::string(focus) == "R1_CANOPY") {
+            caseVoxelOakCanopy();
+        }
         else if (focus != nullptr && std::string(focus) == "WV2") {
             caseBlockTextureCoordinates();
             caseRuntimeConfigOwnership();
@@ -17916,6 +18026,7 @@ int main()
         caseP11MinimumBuildingAndTools();
         caseP11CFirstThirtyMinutes();
         caseP11DExplorationRewards();
+        caseVoxelOakCanopy();
         caseTerrainFoundationV5();
         caseP11TerrainContoursAndEntrances();
         caseP11EEnemyPresentationAndResonance();

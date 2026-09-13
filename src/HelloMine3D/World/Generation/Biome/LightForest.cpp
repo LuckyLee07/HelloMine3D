@@ -1,6 +1,7 @@
 #include "LightForest.h"
 
 #include "../Structures/TreeGenerator.h"
+#include "../Terrain/TerrainGenerator.h"
 
 namespace
 {
@@ -32,9 +33,15 @@ ChunkBlock LightForest::getUnderWaterBlock(Rand &rand) const
     return rand.intInRange(0, 10) > 9 ? BlockId::Sand : BlockId::Dirt;
 }
 
-void LightForest::makeTree(Rand &rand, Chunk &chunk, int x, int y, int z) const
+void LightForest::makeTree(Rand &rand, Chunk &chunk, int x, int y, int z,
+                           int generationVersion) const
 {
-    makeOakTree(chunk, rand, x, y, z);
+    if (generationVersion >= VoxelOakTerrainGenerationVersion) {
+        makeVoxelOakTree(chunk, rand, x, y, z);
+    }
+    else {
+        makeOakTree(chunk, rand, x, y, z);
+    }
 }
 
 ChunkBlock LightForest::getPlant(Rand &rand) const

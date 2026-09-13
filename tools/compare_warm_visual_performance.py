@@ -7,7 +7,7 @@ from pathlib import Path
 import statistics
 
 
-def read_run(path):
+def read_run(path, expected_version=5):
     record = json.loads((path / 'capture.json').read_text())
     if record['result'] != 'CAPTURED':
         raise ValueError(f'Incomplete capture: {path}')
@@ -15,7 +15,8 @@ def read_run(path):
                    (path / 'performance/summary.txt').read_text().splitlines())
     for key, expected in {'build_configuration': 'Release', 'warmup_ms': '5000.000',
                           'duration_ms': '30000.000', 'terrain_seed': '20260807',
-                          'terrain_generation_version': '5', 'terrain_vertex_stride_bytes': '32',
+                          'terrain_generation_version': str(expected_version),
+                          'terrain_vertex_stride_bytes': '32',
                           'terrain_index_stride_bytes': '4', 'startup_success': '1', 'entry_success': '1'}.items():
         if summary[key] != expected:
             raise ValueError(f'{path}: {key}={summary[key]} expected={expected}')
@@ -28,16 +29,22 @@ def read_run(path):
     return record, summary
 
 
-def compare(root, candidate, dense=False):
+def compare(root, candidate, dense=False, baseline_version=5,
+            candidate_version=5):
     rows = []
     passed = True
     for quality in ('off', 'medium', 'high'):
         baseline_runs, candidate_runs = [], []
         for run in range(1, 4):
-            old_record, old = read_run(root / f'baseline-perf-{quality}-r{run}')
-            new_record, new = read_run(root / f'{candidate}-perf-{quality}-r{run}')
+            old_record, old = read_run(
+                root / f'baseline-perf-{quality}-r{run}', baseline_version)
+            new_record, new = read_run(
+                root / f'{candidate}-perf-{quality}-r{run}', candidate_version)
             if old_record['settings'] != new_record['settings'] or old_record['scene'] != new_record['scene']:
                 raise ValueError('Scene/settings mismatch')
+            if 'x86_64' not in old_record['package_identity']['file_identity'] or \
+               'x86_64' not in new_record['package_identity']['file_identity']:
+                raise ValueError('Performance runs must use matching x86_64 binaries')
             for key in ('HELLOMINE3D_SEED', 'HELLOMINE3D_PLAYER_POSITION',
                         'HELLOMINE3D_PLAYER_ROTATION', 'HELLOMINE3D_WORLD_TIME', 'HELLOMINE3D_HUD_FIXTURE'):
                 if old_record['environment'].get(key) != new_record['environment'].get(key):
@@ -79,8 +86,11 @@ if __name__ == '__main__':
     parser.add_argument('--candidate', default='candidate-r3')
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--dense', action='store_true')
+    parser.add_argument('--baseline-version', type=int, default=5)
+    parser.add_argument('--candidate-version', type=int, default=5)
     args = parser.parse_args()
-    result = compare(args.root, args.candidate, args.dense)
+    result = compare(args.root, args.candidate, args.dense,
+                     args.baseline_version, args.candidate_version)
     args.output.write_text(json.dumps(result, indent=2) + '\n')
     for row in result['rows']:
         print(row['quality'], ' '.join(f'{key}={value["ratio"]:.3f}x' for key, value in row['frame_metrics'].items()))

@@ -11,7 +11,8 @@ class GrasslandBiome : public Biome {
     ChunkBlock getPlant(Rand &rand) const override;
     ChunkBlock getTopBlock(Rand &rand) const override;
     ChunkBlock getUnderWaterBlock(Rand &rand) const override;
-    void makeTree(Rand &rand, Chunk &chunk, int x, int y, int z) const override;
+    void makeTree(Rand &rand, Chunk &chunk, int x, int y, int z,
+                  int generationVersion) const override;
 
 };
 

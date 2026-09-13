@@ -1,6 +1,7 @@
 #include "OceanBiome.h"
 
 #include "../Structures/TreeGenerator.h"
+#include "../Terrain/TerrainGenerator.h"
 
 namespace
 {
@@ -33,10 +34,18 @@ ChunkBlock OceanBiome::getUnderWaterBlock(Rand &rand) const
     return getDefinition().underWaterBlock;
 }
 
-void OceanBiome::makeTree(Rand &rand, Chunk &chunk, int x, int y, int z) const
+void OceanBiome::makeTree(Rand &rand, Chunk &chunk, int x, int y, int z,
+                          int generationVersion) const
 {
-    rand.intInRange(0, 5) < 3 ? makePalmTree(chunk, rand, x, y, z)
-                              : makeOakTree(chunk, rand, x, y, z);
+    if (rand.intInRange(0, 5) < 3) {
+        makePalmTree(chunk, rand, x, y, z);
+    }
+    else if (generationVersion >= VoxelOakTerrainGenerationVersion) {
+        makeVoxelOakTree(chunk, rand, x, y, z);
+    }
+    else {
+        makeOakTree(chunk, rand, x, y, z);
+    }
 }
 
 ChunkBlock OceanBiome::getPlant(Rand &rand) const

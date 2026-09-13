@@ -32,8 +32,10 @@ ChunkBlock DesertBiome::getUnderWaterBlock(Rand &rand) const
     return getDefinition().underWaterBlock;
 }
 
-void DesertBiome::makeTree(Rand &rand, Chunk &chunk, int x, int y, int z) const
+void DesertBiome::makeTree(Rand &rand, Chunk &chunk, int x, int y, int z,
+                           int generationVersion) const
 {
+    (void)generationVersion;
     if (y < WATER_LEVEL + 15) {
         if (rand.intInRange(0, 100) > 75) {
             makePalmTree(chunk, rand, x, y, z);
