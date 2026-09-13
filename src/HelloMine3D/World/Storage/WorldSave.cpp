@@ -64,12 +64,33 @@ bool createDirectory(const std::string &path)
 
 void writeVec3(std::ostream &stream, const glm::vec3 &value)
 {
-    stream << value.x << ' ' << value.y << ' ' << value.z;
+    const auto stable = [](float component) {
+        // Damped item velocities can reach subnormal float values. libc++
+        // rejects those decimals when the candidate is read back through a
+        // float stream, so store physically negligible components as zero.
+        return std::fpclassify(component) == FP_SUBNORMAL ? 0.f : component;
+    };
+    stream << stable(value.x) << ' ' << stable(value.y) << ' '
+           << stable(value.z);
 }
 
 bool readVec3(std::istream &stream, glm::vec3 &value)
 {
-    return static_cast<bool>(stream >> value.x >> value.y >> value.z);
+    // Parse old candidate files through double first: some standard library
+    // float extractors set failbit for a representable subnormal float.
+    double x = 0.0;
+    double y = 0.0;
+    double z = 0.0;
+    if (!(stream >> x >> y >> z) || !std::isfinite(x) || !std::isfinite(y) ||
+        !std::isfinite(z) ||
+        std::abs(x) > std::numeric_limits<float>::max() ||
+        std::abs(y) > std::numeric_limits<float>::max() ||
+        std::abs(z) > std::numeric_limits<float>::max()) {
+        return false;
+    }
+    value = glm::vec3(static_cast<float>(x), static_cast<float>(y),
+                      static_cast<float>(z));
+    return true;
 }
 
 bool readWorldName(std::istream &stream, std::string &value)

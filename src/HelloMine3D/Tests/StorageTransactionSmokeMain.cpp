@@ -4,13 +4,16 @@
 #include "../World/Storage/WorldSave.h"
 #include "../World/WorldConstants.h"
 
+#include <algorithm>
 #include <array>
 #include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -180,8 +183,57 @@ namespace
         StorageFaultPoint::BeforeReplace};
 }
 
-int main()
+int main(int argc, char **argv)
 {
+    if (argc == 3 && std::string(argv[1]) == "--probe-world-save") {
+        WorldSaveData data;
+        std::string error;
+        const bool loaded = WorldSave::loadFromPath(argv[2], data, &error);
+        std::cout << "[STORAGE_TRANSACTION_PROBE] status="
+                  << (loaded ? "PASS" : "FAIL")
+                  << " error=" << error << '\n';
+        if (loaded) {
+            std::cout << "[STORAGE_TRANSACTION_PROBE] world_id="
+                      << data.worldId << " terrain_version="
+                      << data.terrainGenerationVersion
+                      << " objectives="
+                      << data.objectiveState.completedIds.size()
+                      << " actors=" << data.actors.size() << '\n';
+            const fs::path chunks = fs::path(argv[2]).parent_path() / "chunks";
+            std::size_t chunkCount = 0;
+            std::size_t workbenchCount = 0;
+            if (fs::is_directory(chunks)) {
+                for (const fs::directory_entry &entry :
+                     fs::directory_iterator(chunks)) {
+                    int x = 0;
+                    int z = 0;
+                    if (!entry.is_regular_file() ||
+                        std::sscanf(entry.path().filename().string().c_str(),
+                                    "chunk_%d_%d.hmcchunk", &x, &z) != 2) {
+                        continue;
+                    }
+                    StoredChunkData chunk;
+                    std::string chunkError;
+                    if (!ChunkStorageData::loadChunkFile(
+                            entry.path().string(), x, z, chunk,
+                            &chunkError)) {
+                        std::cout << "[STORAGE_TRANSACTION_PROBE] chunk_fail="
+                                  << entry.path() << " error=" << chunkError
+                                  << '\n';
+                        return EXIT_FAILURE;
+                    }
+                    ++chunkCount;
+                    workbenchCount += static_cast<std::size_t>(
+                        std::count(chunk.blockIds.begin(),
+                                   chunk.blockIds.end(),
+                                   static_cast<Block_t>(BlockId::Workbench)));
+                }
+            }
+            std::cout << "[STORAGE_TRANSACTION_PROBE] chunks=" << chunkCount
+                      << " workbenches=" << workbenchCount << '\n';
+        }
+        return loaded ? EXIT_SUCCESS : EXIT_FAILURE;
+    }
     TestSuite suite;
 
     {
@@ -230,6 +282,41 @@ int main()
                     storage.metadataPath())),
             "bytes=" + std::to_string(metrics.bytesWritten) +
                 " total_ms=" + std::to_string(metrics.totalMilliseconds));
+
+        WorldSaveData tinyVelocity = makeWorld(43, "Tiny Velocity World");
+        tinyVelocity.actors.front().velocity = {
+            -std::numeric_limits<float>::denorm_min(), 0.f,
+            std::numeric_limits<float>::denorm_min()};
+        WorldSaveData tinyLoaded;
+        const bool tinySaved = storage.save(tinyVelocity);
+        suite.check(
+            "K2/world-subnormal-item-velocity-save",
+            tinySaved && storage.load(tinyLoaded) &&
+                worldMatches(tinyLoaded, 43, "Tiny Velocity World") &&
+                tinyLoaded.actors.front().velocity == glm::vec3(0.f));
+
+        const std::string actorPrefix =
+            "actor 2 17 hellomine:transaction_item 9 72 10 0 0 0 ";
+        std::string legacy = readFile(storage.metadataPath());
+        const std::size_t actorBegin = legacy.find(actorPrefix);
+        if (actorBegin != std::string::npos) {
+            const std::size_t velocityBegin = actorBegin + actorPrefix.size();
+            legacy.replace(velocityBegin, std::string("0 0 0").size(),
+                           "-1.40129846e-45 0 1.40129846e-45");
+        }
+        const fs::path legacyPath = root.path() / "subnormal-candidate.meta";
+        writeFile(legacyPath, legacy);
+        WorldSaveData legacyLoaded;
+        std::string legacyError;
+        suite.check(
+            "K2/world-subnormal-candidate-load",
+            actorBegin != std::string::npos &&
+                WorldSave::loadFromPath(legacyPath.string(), legacyLoaded,
+                                        &legacyError) &&
+                worldMatches(legacyLoaded, 43, "Tiny Velocity World") &&
+                legacyLoaded.actors.front().velocity.x < 0.f &&
+                legacyLoaded.actors.front().velocity.z > 0.f,
+            legacyError);
     }
 
     {
