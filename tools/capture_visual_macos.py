@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Repeatable visual/performance diagnostics in a disposable macOS package.
+"""Repeatable visual/performance diagnostics in a macOS package.
 
 This uses forced viewpoints and optionally a HUD fixture. It is developer
 diagnostic evidence, never normal-input or independent gameplay acceptance.
-The supplied package and its user settings/saves are never modified.
+By default the supplied package is copied before use. --reuse-app runs the
+same supplied package for every capture and updates its diagnostic config;
+freeze and hash that package only after the final capture.
 """
 import argparse
 import hashlib
@@ -33,8 +35,9 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def clone_verified_package(source, destination):
+def verified_package_entries(source):
     inventory = source / "Contents/Resources/distribution-sha256.txt"
+    entries = []
     for entry in inventory.read_text().splitlines():
         expected, relative = entry.split("  ", 1)
         path = Path(relative)
@@ -43,6 +46,13 @@ def clone_verified_package(source, destination):
         original = source / path
         if digest(original) != expected:
             raise ValueError(f"Package input changed: {relative}")
+        entries.append((path, original))
+    return inventory, entries
+
+
+def clone_verified_package(source, destination):
+    inventory, entries = verified_package_entries(source)
+    for path, original in entries:
         target = destination / path
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(original, target)
@@ -53,6 +63,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--save-template", type=Path,
+                        help="Copy an existing diagnostic world into this run's new save directory")
     parser.add_argument("--scene", choices=SCENES, default="forest")
     parser.add_argument("--position", help="Override diagnostic world spawn as 'x y z'")
     parser.add_argument("--rotation", help="Override diagnostic camera rotation as 'x y z'")
@@ -70,6 +82,8 @@ def main():
     parser.add_argument("--performance", action="store_true")
     parser.add_argument("--streaming", action="store_true")
     parser.add_argument("--launch-method", choices=("open", "direct"), default="open")
+    parser.add_argument("--reuse-app", action="store_true",
+                        help="Run the supplied stable app in place; its diagnostic config is updated")
     args = parser.parse_args()
     if platform.system() != "Darwin":
         parser.error("macOS required")
@@ -79,6 +93,8 @@ def main():
         parser.error("menu capture cannot run gameplay fixtures/performance")
     if args.scene == "menu" and (args.position or args.rotation):
         parser.error("menu capture has no world position or rotation")
+    if args.scene == "menu" and args.save_template:
+        parser.error("menu capture cannot load a world template")
     if args.streaming and not args.performance:
         parser.error("--streaming requires --performance")
     app = args.app.resolve(strict=True)
@@ -86,9 +102,18 @@ def main():
     if output.exists():
         parser.error("Output must be new; failed attempts are retained")
     output.mkdir(parents=True)
-    clone = output / "Runtime.app"
-    clone_verified_package(app, clone)
-    root = clone / "Contents/Resources"
+    template = args.save_template.resolve(strict=True) if args.save_template else None
+    template_meta_sha256 = None
+    if template:
+        template_meta_sha256 = digest(template / "world.meta")
+        shutil.copytree(template, output / "save")
+    if args.reuse_app:
+        verified_package_entries(app)
+        runtime_app = app
+    else:
+        runtime_app = output / "Runtime.app"
+        clone_verified_package(app, runtime_app)
+    root = runtime_app / "Contents/Resources"
     identity = json.loads((root / "build-identity.json").read_text())
     if digest(root / "bin/HelloMine3D") != identity["executable_sha256"]:
         raise ValueError("Executable identity mismatch")
@@ -169,11 +194,15 @@ seed random
                    "--stderr", str(output / "client-stderr.log")]
         for key, value in environment.items():
             command.extend(["--env", f"{key}={value}"])
-        command.append(str(clone))
+        command.append(str(runtime_app))
     else:
-        command = [str(clone / "Contents/MacOS/HelloMine3D")]
+        command = [str(runtime_app / "Contents/MacOS/HelloMine3D")]
     record = {"schema": 1, "evidence_type": "DEVELOPER_DIAGNOSTIC", "normal_input": False,
-              "source_app": str(app), "package_identity": identity,
+              "source_app": str(app), "runtime_app": str(runtime_app),
+              "package_mode": "REUSE_STABLE_APP" if args.reuse_app else "VERIFIED_COPY",
+              "save_template": str(template) if template else None,
+              "save_template_meta_sha256": template_meta_sha256,
+              "package_identity": identity,
               "scene": args.scene, "settings": settings, "environment": environment,
               "platform": platform.platform(), "host_architecture": platform.machine(),
               "command": command, "launch_method": args.launch_method,

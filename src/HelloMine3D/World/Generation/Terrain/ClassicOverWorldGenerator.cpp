@@ -22,6 +22,7 @@ namespace {
 constexpr int MaximumStructureRadius = 6;
 constexpr int MountainBiomeValue = -1000000;
 constexpr int MountainRockHeight = WATER_LEVEL + 36;
+constexpr int ForestTreeCellSize = 5;
 
 int biomeMapValue(TerrainBiome biome) noexcept
 {
@@ -502,6 +503,54 @@ void ClassicOverWorldGenerator::applyPlantDecorators(
         auto block = getBiome(x, z).getPlant(m_random);
         m_pChunk->setBlock(x, plant.y, z, block);
     }
+
+    if (m_generationVersion < ForestEcologyTerrainGenerationVersion) {
+        return;
+    }
+
+    // Keep the original plant stream intact, then add small world-space
+    // undergrowth patches in forests. No neighbour Chunk is read or written.
+    const glm::ivec2 chunk = m_pChunk->getLocation();
+    for (int x = 0; x < CHUNK_SIZE; ++x) {
+        for (int z = 0; z < CHUNK_SIZE; ++z) {
+            const TerrainBiome kind =
+                getBiomeKindForValue(m_biomeMap.get(x, z));
+            if (kind != TerrainBiome::LightForest &&
+                kind != TerrainBiome::TemperateForest) {
+                continue;
+            }
+            const int height = m_heightMap.get(x, z);
+            if (height < WATER_LEVEL + 4 || height + 1 >= 256 ||
+                m_pChunk->getBlock(x, height + 1, z) != BlockId::Air) {
+                continue;
+            }
+            const BlockId ground = static_cast<BlockId>(
+                m_pChunk->getBlock(x, height, z).id);
+            if (ground != BlockId::Grass && ground != BlockId::Dirt) {
+                continue;
+            }
+
+            const int worldX = chunk.x * CHUNK_SIZE + x;
+            const int worldZ = chunk.y * CHUNK_SIZE + z;
+            const double patch = valueNoise2D(
+                m_seed, worldX, worldZ, 52.0,
+                0x50e16a6b7a27d60aull);
+            const double chance = 0.001 + 0.009 *
+                smoothStep(-0.42, 0.38, patch);
+            const std::uint64_t hash = mixStructureValue(
+                structureHash(m_seed, worldX, worldZ) ^
+                0xe7037ed1a0b428dbull);
+            const double roll = static_cast<double>(hash >> 11) *
+                (1.0 / 9007199254740991.0);
+            if (roll >= chance) {
+                continue;
+            }
+            Random<std::minstd_rand> plantRandom(
+                static_cast<int>((hash ^ (hash >> 32)) & 0x7fffffffull));
+            m_pChunk->setBlock(x, height + 1, z,
+                               getBiome(x, z).getPlant(plantRandom));
+        }
+    }
 }
 
 void ClassicOverWorldGenerator::applyTreeDecorators()
@@ -531,17 +580,53 @@ void ClassicOverWorldGenerator::applyTreeDecorators()
             if (height < WATER_LEVEL + 4) {
                 continue;
             }
+            const TerrainBiome kind =
+                m_generationVersion >= MountainTerrainGenerationVersion
+                    ? getBiomeAtWorld(worldX, worldZ)
+                    : TerrainBiome::Grassland;
             if (m_generationVersion >= MountainTerrainGenerationVersion &&
-                getBiomeAtWorld(worldX, worldZ) ==
-                    TerrainBiome::Mountain) {
+                kind == TerrainBiome::Mountain) {
                 continue;
             }
 
             const int frequency = biome.getTreeFrequency();
             const std::uint64_t hash =
                 structureHash(m_seed, worldX, worldZ);
-            if (frequency < 5 ||
-                hash % static_cast<std::uint64_t>(frequency + 1) != 5) {
+            if (m_generationVersion >= ForestEcologyTerrainGenerationVersion &&
+                (kind == TerrainBiome::LightForest ||
+                 kind == TerrainBiome::TemperateForest)) {
+                // One jittered anchor per five-block cell bounds density and
+                // preserves a world-space plan across Chunk borders.
+                const int cellX = WorldCoordinates::floorDiv(
+                    worldX, ForestTreeCellSize);
+                const int cellZ = WorldCoordinates::floorDiv(
+                    worldZ, ForestTreeCellSize);
+                const std::uint64_t cellHash =
+                    structureHash(m_seed, cellX, cellZ);
+                const int anchorX = cellX * ForestTreeCellSize + 1 +
+                    static_cast<int>((cellHash >> 9) % 3ull);
+                const int anchorZ = cellZ * ForestTreeCellSize + 1 +
+                    static_cast<int>((cellHash >> 21) % 3ull);
+                if (worldX != anchorX || worldZ != anchorZ) {
+                    continue;
+                }
+                const double patch = valueNoise2D(
+                    m_seed, worldX, worldZ, 84.0,
+                    0x82efa98ec4e6c897ull);
+                const double density = smoothStep(-0.45, 0.35, patch);
+                const double chance = kind == TerrainBiome::LightForest
+                    ? 0.12 + 0.42 * density
+                    : 0.38 + 0.27 * density;
+                const double roll = static_cast<double>(
+                    mixStructureValue(cellHash ^
+                        0xa4093822299f31d0ull) >> 11) *
+                    (1.0 / 9007199254740991.0);
+                if (roll >= chance) {
+                    continue;
+                }
+            }
+            else if (frequency < 5 ||
+                     hash % static_cast<std::uint64_t>(frequency + 1) != 5) {
                 continue;
             }
 

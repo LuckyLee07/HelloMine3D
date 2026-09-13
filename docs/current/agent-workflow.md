@@ -50,6 +50,12 @@
 ## macOS 窗口验收
 
 优先复用已验证的工具。游戏包可用 `open /path/to/HelloMine3D.app` 正常启动；
+同一批次的窗口视觉/性能迭代复用项目内同一个已验证的 `.app` 路径和身份，不为每次
+截图另建、另启动 `Runtime.app`。`tools/capture_visual_macos.py --reuse-app` 直接使用该包，
+各次证据仍写入不同输出目录；此模式会更新包内的诊断 `config.txt`，最后一次运行后
+再冻结包和哈希。可执行文件或清单资源变化时，先关闭客户端，再用
+`tools/package_macos_release.py --refresh-existing --output <同一个工作包.app>`
+原位刷新并重校验；不要为每次迭代另建待启动的应用包。已验收或签名包不可原位刷新。
 读取实际窗口后通过公开 Computer Use 输入接口操作。截图工具已可直接保存目标窗口及身份：
 
 ```sh

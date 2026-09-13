@@ -12038,7 +12038,7 @@ void caseVoxelOakCanopy()
     check("R1/crown-version-is-append-only",
           FoundationTerrainGenerationVersion == 5 &&
               VoxelOakTerrainGenerationVersion == 6 &&
-              CurrentTerrainGenerationVersion ==
+              CurrentTerrainGenerationVersion >=
                   VoxelOakTerrainGenerationVersion);
 
     setEnv("HELLOMINE3D_SEED", "20260807");
@@ -12127,6 +12127,191 @@ void caseVoxelOakCanopy()
     setEnv("HELLOMINE3D_PLAYER_POSITION", "");
 }
 
+void caseForestEcologyV7()
+{
+    check("E1/terrain-version-appends-v7",
+          VoxelOakTerrainGenerationVersion == 6 &&
+              ForestEcologyTerrainGenerationVersion == 7 &&
+              CurrentTerrainGenerationVersion ==
+                  ForestEcologyTerrainGenerationVersion);
+
+    setEnv("HELLOMINE3D_SEED", "20260807");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player,
+                freshSaveDirectory("e1_forest_v7"), false, 0);
+
+    const std::array<glm::ivec2, 6> locations{{
+        {2, 2}, {-3, 2}, {2, -3}, {-3, -3}, {-1, 0}, {0, -1}}};
+    bool stableLoadOrder = true;
+    bool changedForest = false;
+    bool buriedTerrainStable = true;
+    bool structureStable = true;
+    for (const int seed : TerrainSurvey::Seeds) {
+        ClassicOverWorldGenerator oldVersion(
+            seed, VoxelOakTerrainGenerationVersion);
+        ClassicOverWorldGenerator forward(
+            seed, ForestEcologyTerrainGenerationVersion);
+        ClassicOverWorldGenerator reverse(
+            seed, ForestEcologyTerrainGenerationVersion);
+        std::array<std::uint64_t, locations.size()> hashes{};
+        for (std::size_t i = 0; i < locations.size(); ++i) {
+            const auto location = locations[i];
+            Chunk oldChunk(world, location, false);
+            Chunk newChunk(world, location, false);
+            oldVersion.generateTerrainFor(oldChunk);
+            forward.generateTerrainFor(newChunk);
+            hashes[i] = TerrainSurvey::blockHash(newChunk);
+            changedForest = changedForest ||
+                TerrainSurvey::blockHash(oldChunk) != hashes[i];
+            for (int x = 0; x < CHUNK_SIZE; ++x) {
+                for (int z = 0; z < CHUNK_SIZE; ++z) {
+                    const int worldX = location.x * CHUNK_SIZE + x;
+                    const int worldZ = location.y * CHUNK_SIZE + z;
+                    const int height = oldVersion.getSurfaceHeightAtWorld(
+                        worldX, worldZ);
+                    buriedTerrainStable = buriedTerrainStable &&
+                        height == forward.getSurfaceHeightAtWorld(
+                            worldX, worldZ) &&
+                        oldVersion.getBiomeAtWorld(worldX, worldZ) ==
+                            forward.getBiomeAtWorld(worldX, worldZ);
+                    for (int y = 0; y < height - 10; ++y) {
+                        buriedTerrainStable = buriedTerrainStable &&
+                            oldChunk.getBlock(x, y, z) ==
+                                newChunk.getBlock(x, y, z);
+                    }
+                }
+            }
+        }
+        for (std::size_t i = locations.size(); i-- > 0;) {
+            Chunk chunk(world, locations[i], false);
+            reverse.generateTerrainFor(chunk);
+            stableLoadOrder = stableLoadOrder &&
+                hashes[i] == TerrainSurvey::blockHash(chunk);
+        }
+        for (const StructureType type : {
+                 StructureType::Waystone, StructureType::Ruin,
+                 StructureType::RaiderCamp}) {
+            for (const glm::ivec2 cell : {
+                     glm::ivec2(0, 5), glm::ivec2(-4, -3)}) {
+                structureStable = structureStable && sameStructurePlan(
+                    oldVersion.getStructurePlanForCell(type, cell.x, cell.y),
+                    forward.getStructurePlanForCell(type, cell.x, cell.y));
+            }
+        }
+    }
+    check("E1/eight-seeds-six-chunks-reverse-load-order",
+          stableLoadOrder);
+    check("E1/v7-changes-visible-vegetation-only",
+          changedForest && buriedTerrainStable);
+    check("E1/v7-keeps-v6-height-biome-and-site-plans",
+          structureStable && buriedTerrainStable);
+
+    // Count actual generated stems and ground cover in the two established
+    // R1 camera regions. These are product metrics, not a reimplementation
+    // of the candidate rule.
+    for (const glm::ivec2 center : {
+             glm::ivec2(64, 64), glm::ivec2(58, 58)}) {
+        ClassicOverWorldGenerator oldVersion(
+            20260807, VoxelOakTerrainGenerationVersion);
+        ClassicOverWorldGenerator newVersion(
+            20260807, ForestEcologyTerrainGenerationVersion);
+        std::array<int, 2> stems{{0, 0}};
+        std::array<int, 2> plants{{0, 0}};
+        std::array<int, 2> forestColumns{{0, 0}};
+        int minimumChunkStems = std::numeric_limits<int>::max();
+        int maximumChunkStems = 0;
+        for (int dz = -1; dz <= 1; ++dz) {
+            for (int dx = -1; dx <= 1; ++dx) {
+                const glm::ivec2 location(center.x + dx, center.y + dz);
+                Chunk oldChunk(world, location, false);
+                Chunk newChunk(world, location, false);
+                oldVersion.generateTerrainFor(oldChunk);
+                newVersion.generateTerrainFor(newChunk);
+                int chunkStems = 0;
+                for (int x = 0; x < CHUNK_SIZE; ++x) {
+                    for (int z = 0; z < CHUNK_SIZE; ++z) {
+                        const int worldX = location.x * CHUNK_SIZE + x;
+                        const int worldZ = location.y * CHUNK_SIZE + z;
+                        const TerrainBiome kind = newVersion.getBiomeAtWorld(
+                            worldX, worldZ);
+                        const int height = newVersion.getSurfaceHeightAtWorld(
+                            worldX, worldZ);
+                        if (height < WATER_LEVEL + 4 ||
+                            (kind != TerrainBiome::LightForest &&
+                             kind != TerrainBiome::TemperateForest)) {
+                            continue;
+                        }
+                        for (int index = 0; index < 2; ++index) {
+                            const Chunk &chunk = index == 0
+                                ? oldChunk : newChunk;
+                            const BlockId block = static_cast<BlockId>(
+                                chunk.getBlock(x, height + 1, z).id);
+                            forestColumns[index]++;
+                            stems[index] += block == BlockId::OakBark;
+                            plants[index] += block == BlockId::TallGrass ||
+                                             block == BlockId::Rose;
+                            if (index == 1) {
+                                chunkStems += block == BlockId::OakBark;
+                            }
+                        }
+                    }
+                }
+                minimumChunkStems = std::min(minimumChunkStems,
+                                             chunkStems);
+                maximumChunkStems = std::max(maximumChunkStems,
+                                             chunkStems);
+            }
+        }
+        std::cout << "[E1_SURVEY] chunk=" << center.x << ',' << center.y
+                  << " forest_columns=" << forestColumns[1]
+                  << " stems_v6/v7=" << stems[0] << '/' << stems[1]
+                  << " plants_v6/v7=" << plants[0] << '/' << plants[1]
+                  << " local_stem_range=" << minimumChunkStems << '-'
+                  << maximumChunkStems << '\n';
+        check("E1/forest-region-has-grouped-stems-" +
+                  std::to_string(center.x),
+              forestColumns[1] > 0 && stems[1] > 0 &&
+                  maximumChunkStems > minimumChunkStems);
+    }
+
+    bool persistedVersions = true;
+    for (const int version : {
+             VoxelOakTerrainGenerationVersion,
+             ForestEcologyTerrainGenerationVersion}) {
+        const std::string directory = freshSaveDirectory(
+            "e1_terrain_version_" + std::to_string(version));
+        persistedVersions = persistedVersions && initializeTerrainIdentity(
+            directory, "e1-terrain-" + std::to_string(version), version);
+        {
+            Player owner;
+            World created(camera, config, owner, directory, false, 0);
+            created.getChunkManager().loadChunk(0, 0);
+            created.setBlock(8, 190, 8, BlockId::OakBark);
+            persistedVersions = persistedVersions && created.save();
+        }
+        WorldSaveData identity;
+        persistedVersions = persistedVersions &&
+            WorldSave(directory).load(identity) &&
+            identity.terrainGenerationVersion == version;
+        {
+            Player owner;
+            World reopened(camera, config, owner, directory, false, 0);
+            reopened.getChunkManager().loadChunk(0, 0);
+            persistedVersions = persistedVersions &&
+                reopened.getChunkManager().getTerrainGenerationVersion() ==
+                    version &&
+                reopened.getBlock(8, 190, 8) == BlockId::OakBark;
+        }
+    }
+    check("E1/v6-v7-save-reopen-keeps-generation-and-player-edit",
+          persistedVersions);
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", "");
+}
+
 // ---------------------------------------------------------------------------
 // P11-2 - terrain-v4 mountain relief and discoverable natural cave mouths
 // ---------------------------------------------------------------------------
@@ -12134,7 +12319,7 @@ void caseTerrainFoundationV5()
 {
     check("T1/foundation-version-remains-append-only",
           FoundationTerrainGenerationVersion == 5 &&
-              CurrentTerrainGenerationVersion ==
+              CurrentTerrainGenerationVersion >=
                   VoxelOakTerrainGenerationVersion);
     bool domain = true;
     bool seedSensitive = false;
@@ -17824,6 +18009,9 @@ int main()
         else if (focus != nullptr && std::string(focus) == "R1_CANOPY") {
             caseVoxelOakCanopy();
         }
+        else if (focus != nullptr && std::string(focus) == "E1_FOREST") {
+            caseForestEcologyV7();
+        }
         else if (focus != nullptr && std::string(focus) == "WV2") {
             caseBlockTextureCoordinates();
             caseRuntimeConfigOwnership();
@@ -18027,6 +18215,7 @@ int main()
         caseP11CFirstThirtyMinutes();
         caseP11DExplorationRewards();
         caseVoxelOakCanopy();
+        caseForestEcologyV7();
         caseTerrainFoundationV5();
         caseP11TerrainContoursAndEntrances();
         caseP11EEnemyPresentationAndResonance();
