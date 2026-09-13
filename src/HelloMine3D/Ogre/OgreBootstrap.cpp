@@ -2156,7 +2156,7 @@ namespace
                         static_cast<GameplayMouseButton>(buttonIndex)));
             }
             const bool worldMouseButtonsAllowed =
-                worldInputActive &&
+                worldInputActive && m_mouseLookEnabled &&
                 m_focusGate.allowsWorldButtons(anyMouseButtonDown);
             if (worldInputActive && m_mouseLookEnabled &&
                 m_focusGate.acceptsLookSample())
@@ -3665,6 +3665,14 @@ namespace
 
         bool keyPressed(const OIS::KeyEvent& event) override
         {
+            bool firstCursorTogglePress = false;
+            if (event.key == OIS::KC_GRAVE || event.key == OIS::KC_L)
+            {
+                bool &held = event.key == OIS::KC_GRAVE
+                    ? m_graveKeyHeld : m_lKeyHeld;
+                firstCursorTogglePress = !held;
+                held = true;
+            }
             if (m_userInterface != nullptr)
             {
                 m_userInterface->keyEvent(event, true, *m_keyboard);
@@ -3673,6 +3681,15 @@ namespace
             {
                 return true;
             }
+#if defined(__APPLE__)
+            // Cocoa can forward Command-key events to OIS. Do not let a
+            // system shortcut also trigger gameplay actions such as hotbar 4.
+            if (m_keyboard->isKeyDown(OIS::KC_LWIN) ||
+                m_keyboard->isKeyDown(OIS::KC_RWIN))
+            {
+                return true;
+            }
+#endif
             if (event.key == OIS::KC_ESCAPE)
             {
                 if (m_userInterface != nullptr &&
@@ -3745,8 +3762,16 @@ namespace
                 case OIS::KC_F:
                     m_toggleFlying = true;
                     break;
+                case OIS::KC_GRAVE:
                 case OIS::KC_L:
-                    m_mouseLookEnabled = !m_mouseLookEnabled;
+                    if (firstCursorTogglePress &&
+                        m_applicationFlow.state() ==
+                        GameApplicationState::Playing)
+                    {
+                        m_mouseLookEnabled = !m_mouseLookEnabled;
+                        m_pendingLookDelta = glm::vec2(0.0f);
+                        updateNativeCursorCapture();
+                    }
                     break;
                 case OIS::KC_C:
                     m_resetMeshes = true;
@@ -3774,6 +3799,14 @@ namespace
 
         bool keyReleased(const OIS::KeyEvent& event) override
         {
+            if (event.key == OIS::KC_GRAVE)
+            {
+                m_graveKeyHeld = false;
+            }
+            if (event.key == OIS::KC_L)
+            {
+                m_lKeyHeld = false;
+            }
             if (m_userInterface != nullptr)
             {
                 m_userInterface->keyEvent(event, false, *m_keyboard);
@@ -3887,6 +3920,8 @@ namespace
 #endif
             m_focusGate.setFocused(focused);
             m_focusTransitionFrame = true;
+            m_graveKeyHeld = false;
+            m_lKeyHeld = false;
             clearTransientInput();
             if (!focused)
             {
@@ -4161,6 +4196,8 @@ namespace
         bool m_resetMeshes = false;
         bool m_useHeldFood = false;
         bool m_mouseLookEnabled = true;
+        bool m_graveKeyHeld = false;
+        bool m_lKeyHeld = false;
         bool m_hiddenWindow = false;
         bool m_v10cAtmosphereEnabled = true;
         bool m_directionalShadowDiagnosticsEmitted = false;
