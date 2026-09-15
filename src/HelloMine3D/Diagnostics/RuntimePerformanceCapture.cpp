@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -699,6 +700,50 @@ bool shouldCloseWindow()
     const CaptureState &captureState = state();
     return captureState.enabled && captureState.exitWhenComplete &&
            captureState.complete;
+}
+
+bool isComplete()
+{
+    initialize();
+    const CaptureState &captureState = state();
+    return captureState.enabled && captureState.complete;
+}
+
+void startDiagnosticSegment(const std::string &outputDirectory,
+                            double warmupMs, double durationMs)
+{
+    initialize();
+    CaptureState &captureState = state();
+    if (!captureState.enabled || !captureState.complete ||
+        outputDirectory.empty() || warmupMs <= 0.0 || durationMs <= 0.0)
+    {
+        throw std::runtime_error("Invalid diagnostic performance segment");
+    }
+    const std::string directory = normalizeDirectory(outputDirectory);
+    if (!ensureDirectoryRecursive(directory) ||
+        std::ifstream(directory + "/frames.csv").good() ||
+        std::ifstream(directory + "/summary.txt").good())
+    {
+        throw std::runtime_error("Diagnostic segment output is not new");
+    }
+    writeSummary();
+    captureState.frames.close();
+    captureState = CaptureState{};
+    captureState.initialized = true;
+    captureState.enabled = true;
+    captureState.outputDir = directory;
+    captureState.warmupMs = warmupMs;
+    captureState.durationMs = durationMs;
+    captureState.frames.open(buildPath(captureState, "frames.csv"),
+                             std::ios::out | std::ios::trunc);
+    if (!captureState.frames)
+    {
+        throw std::runtime_error("Cannot open diagnostic frames.csv");
+    }
+    writeCsvHeader(captureState.frames);
+    std::cout << "[PerfCapture] segment dir=" << captureState.outputDir
+              << " warmupMs=" << warmupMs
+              << " durationMs=" << durationMs << "\n";
 }
 
 void shutdown()

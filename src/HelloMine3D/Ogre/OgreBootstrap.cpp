@@ -42,6 +42,12 @@
 #include <unordered_set>
 #include <vector>
 
+#if defined(_WIN32)
+#include <process.h>
+#else
+#include <unistd.h>
+#endif
+
 #include "../Config.h"
 #include "../Actor/EnemyRegistry.h"
 #include "../Audio/AudioDefinitionRegistry.h"
@@ -117,6 +123,112 @@ namespace
         const std::string text(value);
         return text != "0" && text != "false" && text != "FALSE" &&
                text != "False" && text != "off" && text != "OFF";
+    }
+
+    void setDiagnosticEnvironment(const char* name, const std::string& value)
+    {
+#if defined(_WIN32)
+        if (_putenv_s(name, value.c_str()) != 0)
+#else
+        if (setenv(name, value.c_str(), 1) != 0)
+#endif
+        {
+            throw std::runtime_error(std::string("Cannot set diagnostic ") + name);
+        }
+    }
+
+    struct E2BatchPhase
+    {
+        std::string name;
+        int terrainVersion = 0;
+        std::string scene;
+        std::string position;
+        std::string rotation;
+        bool streaming = false;
+        std::string saveDirectory;
+        std::string outputDirectory;
+        double warmupMs = 0.0;
+        double durationMs = 0.0;
+    };
+
+    std::vector<E2BatchPhase> readE2BatchManifest(const std::string& path)
+    {
+        std::ifstream input(path);
+        std::string line;
+        if (!input || !std::getline(input, line) || line != "E2_BATCH_V1")
+        {
+            throw std::runtime_error("Invalid E2 batch manifest header");
+        }
+        std::vector<E2BatchPhase> phases;
+        std::unordered_set<std::string> names;
+        while (std::getline(input, line))
+        {
+            if (line.empty())
+            {
+                continue;
+            }
+            std::vector<std::string> fields;
+            std::size_t start = 0;
+            for (;;)
+            {
+                const std::size_t end = line.find('\t', start);
+                fields.push_back(line.substr(start, end - start));
+                if (end == std::string::npos)
+                {
+                    break;
+                }
+                start = end + 1;
+            }
+            if (fields.size() != 10)
+            {
+                throw std::runtime_error("E2 batch phase requires ten fields");
+            }
+            E2BatchPhase phase;
+            phase.name = fields[0];
+            phase.terrainVersion = std::stoi(fields[1]);
+            phase.scene = fields[2];
+            phase.position = fields[3];
+            phase.rotation = fields[4];
+            phase.streaming = fields[5] == "1";
+            phase.saveDirectory = fields[6];
+            phase.outputDirectory = fields[7];
+            phase.warmupMs = std::stod(fields[8]);
+            phase.durationMs = std::stod(fields[9]);
+            if (phase.name.empty() || !names.insert(phase.name).second ||
+                (phase.terrainVersion != 7 && phase.terrainVersion != 8) ||
+                (phase.scene != "forest" && phase.scene != "shore") ||
+                (fields[5] != "0" && fields[5] != "1") ||
+                phase.saveDirectory.empty() || phase.outputDirectory.empty() ||
+                !std::isfinite(phase.warmupMs) ||
+                !std::isfinite(phase.durationMs) ||
+                phase.warmupMs <= 0.0 || phase.durationMs <= 0.0)
+            {
+                throw std::runtime_error("Invalid E2 batch phase values");
+            }
+            for (const std::string* coordinates :
+                 {&phase.position, &phase.rotation})
+            {
+                std::istringstream values(*coordinates);
+                double x = 0.0, y = 0.0, z = 0.0;
+                std::string trailing;
+                if (!(values >> x >> y >> z) || (values >> trailing) ||
+                    !std::isfinite(x) || !std::isfinite(y) ||
+                    !std::isfinite(z))
+                {
+                    throw std::runtime_error("Invalid E2 batch coordinates");
+                }
+            }
+            phases.push_back(std::move(phase));
+            if (phases.size() > 48)
+            {
+                throw std::runtime_error("E2 batch phase limit exceeded");
+            }
+        }
+        if (phases.empty())
+        {
+            throw std::runtime_error("E2 batch manifest is empty");
+        }
+        return phases;
     }
 
     OIS::KeyCode toOisKey(GameplayKey key) noexcept
@@ -489,6 +601,8 @@ namespace
                 });
             }
 
+            configureE2BatchCapture();
+
             m_root->addFrameListener(this);
             Ogre::WindowEventUtilities::addWindowEventListener(m_window, this);
             m_listenersInstalled = true;
@@ -501,6 +615,146 @@ namespace
         }
 
       private:
+        void logE2BatchEvent(const char* event)
+        {
+            if (!m_e2BatchEvents || m_e2BatchIndex >= m_e2BatchPhases.size())
+            {
+                return;
+            }
+            const auto milliseconds =
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::system_clock::now().time_since_epoch())
+                    .count();
+            const E2BatchPhase& phase = m_e2BatchPhases[m_e2BatchIndex];
+            m_e2BatchEvents << phase.name << '\t' << m_e2BatchIndex
+                            << '\t' << event << '\t' << milliseconds
+                            << '\t'
+#if defined(_WIN32)
+                            << _getpid()
+#else
+                            << getpid()
+#endif
+                            << '\t' << phase.terrainVersion << '\t'
+                            << phase.scene << '\n' << std::flush;
+        }
+
+        void configureE2BatchCapture()
+        {
+            const char* manifest =
+                std::getenv("HELLOMINE3D_E2_BATCH_MANIFEST");
+            if (manifest == nullptr || manifest[0] == '\0')
+            {
+                return;
+            }
+            m_e2BatchPhases = readE2BatchManifest(manifest);
+            const E2BatchPhase& first = m_e2BatchPhases.front();
+            const char* save = std::getenv("HELLOMINE3D_SAVE_DIR");
+            const char* performance = std::getenv("HELLO_PERF_CAPTURE_DIR");
+            const char* frames = std::getenv("HELLO_RENDER_CAPTURE_DIR");
+            const char* events = std::getenv("HELLOMINE3D_E2_BATCH_EVENTS");
+            const char* position =
+                std::getenv("HELLOMINE3D_PLAYER_POSITION");
+            const char* rotation =
+                std::getenv("HELLOMINE3D_PLAYER_ROTATION");
+            const char* seed = std::getenv("HELLOMINE3D_SEED");
+            const char* worldTime = std::getenv("HELLOMINE3D_WORLD_TIME");
+            const char* profile =
+                std::getenv("HELLOMINE3D_RC_PERF_PROFILE");
+            if (m_world == nullptr || m_renderCapture == nullptr ||
+                !m_renderCapture->isEnabled() ||
+                !RuntimePerformanceCapture::isEnabled() ||
+                save == nullptr || first.saveDirectory != save ||
+                performance == nullptr ||
+                first.outputDirectory + "/performance" != performance ||
+                frames == nullptr ||
+                first.outputDirectory + "/frames" != frames ||
+                position == nullptr || first.position != position ||
+                rotation == nullptr || first.rotation != rotation ||
+                seed == nullptr || std::string(seed) != "20260807" ||
+                worldTime == nullptr || std::string(worldTime) != "6000" ||
+                profile == nullptr ||
+                std::string(profile) !=
+                    (first.streaming ? "fast-streaming" : "") ||
+                events == nullptr || events[0] == '\0' ||
+                std::ifstream(events).good() ||
+                isTrueValue(std::getenv("HELLO_PERF_CAPTURE_EXIT")) ||
+                isTrueValue(std::getenv("HELLO_RENDER_CAPTURE_EXIT")))
+            {
+                throw std::runtime_error("E2 batch launch configuration differs");
+            }
+            m_e2BatchEvents.open(events, std::ios::out | std::ios::trunc);
+            if (!m_e2BatchEvents)
+            {
+                throw std::runtime_error("Cannot open E2 batch events");
+            }
+            m_e2BatchEvents
+                << "run\tindex\tevent\tunix_ms\tpid\tversion\tscene\n";
+            m_e2BatchEnabled = true;
+            logE2BatchEvent("started");
+            std::cout << "[E2_BATCH] phases=" << m_e2BatchPhases.size()
+                      << " manifest=" << manifest << '\n';
+        }
+
+        void advanceE2BatchCapture()
+        {
+            const E2BatchPhase& current = m_e2BatchPhases[m_e2BatchIndex];
+            if (m_renderCapture == nullptr ||
+                !m_renderCapture->isComplete() ||
+                m_frameWorldStats.terrainSeed != 20260807 ||
+                m_frameWorldStats.terrainGenerationVersion !=
+                    current.terrainVersion)
+            {
+                throw std::runtime_error("E2 batch phase evidence differs");
+            }
+            logE2BatchEvent("completed");
+            if (!clearActiveWorld())
+            {
+                throw std::runtime_error("E2 batch world save failed");
+            }
+            if (++m_e2BatchIndex == m_e2BatchPhases.size())
+            {
+                m_shutdownRequested = true;
+                return;
+            }
+
+            const E2BatchPhase& next = m_e2BatchPhases[m_e2BatchIndex];
+            setDiagnosticEnvironment("HELLOMINE3D_SAVE_DIR",
+                                     next.saveDirectory);
+            setDiagnosticEnvironment("HELLOMINE3D_SEED", "20260807");
+            setDiagnosticEnvironment("HELLOMINE3D_PLAYER_POSITION",
+                                     next.position);
+            setDiagnosticEnvironment("HELLOMINE3D_PLAYER_ROTATION",
+                                     next.rotation);
+            setDiagnosticEnvironment("HELLOMINE3D_WORLD_TIME", "6000");
+            setDiagnosticEnvironment("HELLOMINE3D_RC_PERF_PROFILE",
+                                     next.streaming ? "fast-streaming" : "");
+            setDiagnosticEnvironment("HELLO_RENDER_CAPTURE_DIR",
+                                     next.outputDirectory + "/frames");
+            setDiagnosticEnvironment("HELLO_PERF_CAPTURE_DIR",
+                                     next.outputDirectory + "/performance");
+
+            m_fastStreamingEnabled = false;
+            m_fastStreamingPending = false;
+            m_fastStreamingMoveIndex = 0;
+            m_rcPerformanceElapsedSeconds = 0.f;
+            m_nextFastStreamingMoveSeconds = 4.f;
+            buildTerrain(true, next.saveDirectory);
+            if (!configureDirectionalShadows(
+                    m_config.directionalShadowQuality))
+            {
+                throw std::runtime_error("E2 batch shadow setup failed");
+            }
+            syncActorVisuals();
+            m_userInterface->setWorldContext(m_worldPlayer, m_world);
+            RuntimePerformanceCapture::startDiagnosticSegment(
+                next.outputDirectory + "/performance",
+                next.warmupMs, next.durationMs);
+            m_renderCapture =
+                std::make_unique<OgreRenderCapture>(*m_window);
+            m_e2BatchEntryPending = true;
+            logE2BatchEvent("started");
+        }
+
         void loadGameConfig()
         {
             m_config = loadRuntimeConfig(
@@ -1956,6 +2210,16 @@ namespace
                 return false;
             }
 
+            if (m_e2BatchEnabled &&
+                RuntimePerformanceCapture::isComplete())
+            {
+                advanceE2BatchCapture();
+                if (m_shutdownRequested)
+                {
+                    return false;
+                }
+            }
+
             syncInputFocus();
             updateNativeCursorCapture();
             if (!m_hiddenWindow)
@@ -2032,6 +2296,13 @@ namespace
 
             RuntimePerformanceCapture::recordFrame(timings,
                                                     m_frameWorldStats);
+
+            if (m_e2BatchEntryPending)
+            {
+                runtimeOperationTimings().completeLatestActive(
+                    RuntimeOperationKind::WorldEntry, true);
+                m_e2BatchEntryPending = false;
+            }
 
             if (m_frameCount == 1)
             {
@@ -4225,6 +4496,11 @@ namespace
         float m_rcPerformanceElapsedSeconds = 0.f;
         float m_nextFastStreamingMoveSeconds = 4.f;
         std::size_t m_fastStreamingMoveIndex = 0;
+        std::vector<E2BatchPhase> m_e2BatchPhases;
+        std::ofstream m_e2BatchEvents;
+        std::size_t m_e2BatchIndex = 0;
+        bool m_e2BatchEnabled = false;
+        bool m_e2BatchEntryPending = false;
         int m_hotbarDelta = 0;
         int m_hotbarSlot = -1;
     };

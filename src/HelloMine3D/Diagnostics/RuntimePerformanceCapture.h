@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <string>
 
 #include "../World/World.h"
 
@@ -29,5 +30,8 @@ namespace RuntimePerformanceCapture
     void recordFrame(const FrameTimings &timings,
                      const WorldDebugStats &worldStats);
     bool shouldCloseWindow();
+    bool isComplete();
+    void startDiagnosticSegment(const std::string &outputDirectory,
+                                double warmupMs, double durationMs);
     void shutdown();
 } // namespace RuntimePerformanceCapture

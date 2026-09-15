@@ -117,7 +117,7 @@ run_binary() {
         exit 1
     fi
     if [ "$name" = "HelloMine3DWorldCatalogueSmoke" ] &&
-       ! grep -F "[WORLD_CATALOGUE_TEST] checks=59 failures=0" \
+       ! grep -F "[WORLD_CATALOGUE_TEST] checks=60 failures=0" \
            "$log" >/dev/null; then
         echo "[XCODE_VERIFY] World catalogue summary is missing or failed." >&2
         exit 1

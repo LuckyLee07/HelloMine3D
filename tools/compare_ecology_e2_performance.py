@@ -54,14 +54,24 @@ def read_run(path, version, scene, streaming, position):
     summary_path = path / 'performance/summary.txt'
     summary = dict(line.split('=', 1) for line in summary_path.read_text().splitlines()
                    if '=' in line)
+    one_process = record.get('launch_method') == 'ONE_PROCESS_BATCH'
+    if one_process and (not isinstance(record.get('batch_phase'), int) or
+                        not record.get('batch_pid') or
+                        not record.get('batch_manifest')):
+        raise ValueError(f'{path}: one-process phase identity is incomplete')
     for key, expected in {'build_configuration': 'Release',
                           'terrain_generation_version': str(version),
                           'terrain_seed': '20260807',
                           'warmup_ms': '5000.000',
                           'duration_ms': '30000.000',
-                          'startup_success': '1', 'entry_success': '1'}.items():
+                          'entry_success': '1'}.items():
         if summary.get(key) != expected:
             raise ValueError(f'{path}: {key}={summary.get(key)} expected={expected}')
+    # In a batch the process starts once. Its startup operation can age out of
+    # later segment summaries; each segment must still show a successful entry.
+    if (not one_process or record['batch_phase'] == 0) and \
+            summary.get('startup_success') != '1':
+        raise ValueError(f'{path}: startup_success differs')
     frames_path = path / 'performance/frames.csv'
     with frames_path.open(newline='') as stream:
         frames = list(csv.DictReader(stream))
@@ -80,6 +90,10 @@ def read_run(path, version, scene, streaming, position):
             raise ValueError(f'{path}: {key} differs from original frames')
     return {'path': str(path), 'version': version,
             'started_unix': record['started_unix'],
+            'launch_method': record.get('launch_method'),
+            'batch_phase': record.get('batch_phase'),
+            'batch_pid': record.get('batch_pid'),
+            'batch_manifest': record.get('batch_manifest'),
             'executable_sha256': record['package_identity']['executable_sha256'],
             'runtime_app': record['runtime_app'], 'settings': record['settings'],
             'summary_sha256': digest(summary_path), 'frames_sha256': digest(frames_path),
@@ -132,14 +146,22 @@ def compare(root, round_order=ROUND_ORDER):
     identities = {run['executable_sha256'] for run in all_runs}
     packages = {run['runtime_app'] for run in all_runs}
     settings = {run['settings'] for run in all_runs}
+    methods = {run['launch_method'] for run in all_runs}
+    batch_ok = True
+    if 'ONE_PROCESS_BATCH' in methods:
+        batch_ok = (methods == {'ONE_PROCESS_BATCH'} and
+                    len({run['batch_pid'] for run in all_runs}) == 1 and
+                    len({run['batch_manifest'] for run in all_runs}) == 1 and
+                    [run['batch_phase'] for run in all_runs] == list(range(24)))
     all_groups = [groups[name]['status'] == 'PASS' for name, *_ in GROUPS]
     order_ok = all(right['started_unix'] > left['started_unix']
                    for left, right in zip(all_runs, all_runs[1:]))
-    identity_ok = len(identities) == len(packages) == len(settings) == 1
+    identity_ok = len(identities) == len(packages) == len(settings) == 1 and batch_ok
     return {'schema': 1, 'source': 'E2_RELEASE_CLIENT_CAPTURE',
             'guardrail': 'three-run median v8/v7 P95 and P99 <= 1.10 per group',
             'round_order': round_order,
             'identity_status': 'PASS' if identity_ok else 'FAIL',
+            'batch_status': 'PASS' if batch_ok else 'FAIL',
             'order_status': 'PASS' if order_ok else 'FAIL',
             'executable_sha256': sorted(identities),
             'runtime_app': sorted(packages),

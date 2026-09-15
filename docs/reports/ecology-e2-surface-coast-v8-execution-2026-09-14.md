@@ -1,6 +1,6 @@
 # E2 terrain v8 地表、岸线与生态边缘执行报告
 
-状态：`Doing / 候选 21 小地图追加验证中 / 允许实现检查点提交`。本报告随 E2 验证继续更新；只有用户明确确认“E2 验收通过”且最终包核对完成后才能改为 `Done`。本轮不实施 E3，也不收口 R1/M1、R2/T1。
+状态：`Doing / 候选 23 可自动验证结束，性能仍 FAIL，人工玩法延期`。只有用户明确确认“E2 验收通过”且完成版提交核对完成后才能改为 `Done`。2026-09-16 用户已调整开发顺序，允许保留 E2 未完成状态而进入下一批开发；见文末记录。
 
 ## 身份与冻结基线
 
@@ -13,7 +13,7 @@
 
 v8 增加一个纯 seed/世界 XZ 地表规划：在原 v7 基底之上按距低水位的局部剖面形成不等宽缓坡与干岸，并用低频轮廓安排沙、土、草及浅水底石/沙。区块高度/生态图、公开高度查询、树木/草花、洞口与地点规划通过同一 v8 列结果；地点投影后再清理失去适宜地面的装饰。旧 v1–v7 仍调用原采样；不读取邻区块，不变更存档格式、方块 ID、区块生命周期、网格或渲染，也不引入水 shader、真实水深和河网。候选 17 减少 v8 岸边高度探针的无用生态噪声计算，并在树木规划时复用本区块已算出的列；候选 20 保持近水缓坡幅度与干岸宽度，把离岸缓坡收束范围从 64..96 格缩至 32..64 格，避免远处缓坡产生大量额外可见面。最终二进制重新验证了生产输出。
 
-## 当前工程证据
+## 候选 20 历史工程证据（小地图和产品界面追加前）
 
 | 项目 | 当前状态 | 证据与界限 |
 | --- | --- | --- |
@@ -72,6 +72,87 @@ CSV 由当前验证器复核九项 PASS。该本地提交是实现检查点，�
 真实 Release 记录验证了解析（3285 帧，P95 9.926 ms、P99 16.338 ms）。
 候选 17 的 8 seed 生成区块计时中位数约 10.9 ms，候选 16 为 11.7 ms；
 运行环境和样本量不足以把这组差异当作窗口性能结论。
+
+## 候选 23：一次启动完成多段验收（2026-09-16）
+
+用户指出验收期间反复启动客户端，应在一次启动中做多次检查。该要求已固定在
+[E2 合同补充](../contracts/ecology-surface-coast-v8-e2-contract-v1.md)。批量诊断仅由
+`HELLOMINE3D_E2_BATCH_MANIFEST` 启用：同一 Release `.app`/PID 逐段载入独立的
+v7/v8 测量存档，每段保存世界、5 秒预热、30 秒逐帧 CSV、两张原图和起止事件。
+正常中文菜单玩法仍另验。改动起点为干净 HEAD
+`b729184ededaecb096348bdec474111deaa9a8ce`；旧逐启动脚本在用户要求后停止，
+已完成的 20 段和第 21 段中断原件保存在
+`build/ecology-e2-20260914/window-performance-candidate22-final/`，其中林地流送
+P95 初算 FAIL，不拼接到新采集。两段试跑在
+`window-batch-candidate23-pilot/` 使用一个 PID 完成 v7/v8 林地常驻、独立原图、
+逐帧和 `world.meta`，仅验证方法，不作为最终性能。
+
+最终 Xcode Release 可执行文件 SHA-256 为
+`d41e615aeea8250c9790ffa7585925b807a109ce18a0e1be62a693a50b9714e6`。
+`candidate-23-batch-verify-build-gmake.log` 与
+`candidate-23-batch-verify-xcode.log` 的 Debug/Release 全目标、资源、存档及客户端
+窗口探针 PASS。最终生产调查 `candidate-23-final/validation.json` 全项 PASS：v1–v7
+冻结采样/区块指纹一致；v8 共 463056 条生产采样，高度 37..165、最大相邻坡度 3；
+96 条岸线剖面中 90 条连续干岸/浅滩，干岸 P10/P90 为 3/16 格，32 个岸区块干沙
+比例 58.97%，9 个林缘区块保持 v7，9 个干岸区块发生变化。
+
+正式 `window-batch-candidate23-final/` 用**一次客户端启动**完成 24 段性能和 12 段
+画面，`batch-status.json` 为 `CAPTURED`，72 条起止事件均为 PID `12512`，无相位
+缺失。六组未编辑 v7/v8 原图及逐图 SHA-256 见
+`visual/comparison-manifest.json` 和 `visual/comparison.html`。逐帧比较
+`performance/comparison.json` 的身份、顺序和批量 PID 门禁 PASS；四组的 P95/P99
+三轮中位数 v8/v7 分别为：林地常驻 `0.988/0.990 PASS`，林地快速流送
+`1.024 PASS / 1.391 FAIL`，岸边常驻 `1.000/1.020 PASS`，岸边快速流送
+`0.992/1.052 PASS`。林地流送超标轮次的渲染 P99 约 20 ms，低波动轮次约 13 ms；
+更新耗时相近，v8 可见面较少，原因尚未证实。首轮 FAIL 和所有原始 `frames.csv`
+保持不变；按开工前冻结的反序进行 `window-batch-candidate23-recheck/` 24 段独立复核，
+`batch-status.json` 为 `CAPTURED`，48 条事件均为同一 PID `13353`，无相位缺失。
+反序 `performance/comparison.json` 身份/顺序门禁 PASS；林地常驻 P95/P99
+`1.001/0.988 PASS`、林地快速流送 `0.991 PASS / 1.305 FAIL`、岸边常驻
+`0.997/1.005 PASS`、岸边快速流送 `1.014/0.994 PASS`。两套顺序均未满足
+林地流送 P99 原门槛；不删除首轮失败、不拼成一次 PASS。E2 仍为 `Doing`，
+未经用户明确调整验收或完成修复复验，不认定完成版。
+
+批量模式中进程只启动一次，因此后续相位的 `summary.txt` 可没有
+`startup_success`；每段必须有 `entry_success=1`、正确 seed/terrain version、完整帧数
+和存档元数据，第一段仍必须有 `startup_success=1`。比较工具保留旧逐启动模式的每段
+startup 门槛，同时新增同 PID 和 0..23 相位顺序核对；候选 20 旧式记录复核 PASS，
+故意篡改一段 PID 的负例被判 `batch_status=FAIL`。原始摘要未补写或编辑。
+
+因两轮林地流送均 FAIL，候选 24 曾一次启动采六段针对性图形侧录
+`window-batch-candidate24-graphics-diagnostic/`，每段保留原始 `graphics.csv` 与
+`frames.csv`、12 条同 PID `14238` 事件。Ogre 当前窗口统计却在真实世界有约 77 万
+可见面时始终只报 `1 batch / 2 triangles`，v7/v8 全部如此，接口数据明显无效；
+`candidate-24-graphics-diagnostic-note.json` 及临时源码快照保留，侧录实现已撤回，
+其 gmake Release 二进制 SHA-256 `dd6ebbdb9a03362e1bab95bb9b71b9c2b77fd528ba954af54cad4d67a481234d`
+不替代候选 23 的 Xcode 正式证据。候选 24 六段 P99 波动方向也变化，只作定位失败
+与窗口波动风险，不当作新正式 PASS。撤回侧录后重新运行 Xcode Debug/Release
+完整门禁 PASS，Release SHA-256 逐字节恢复为上述 `d41e615a…`，同一项目工作
+`.app` 在关闭后原位刷新；正式与反序失败证据保持同二进制身份。
+
+候选 23 当前正常玩法 `BLOCKED`：Computer Use 在读取 app inventory 时报告 Mac
+已锁定且无法自动解锁，见本地 `normal-play-candidate23-final/cua-observations.md`；
+已请求用户解锁。候选 20 与此前产品界面候选的中文菜单建档/保存重开观察保留为历史，
+不替代候选 23 的正常步行、采集、保存重开或独立窗口视频。当前 FAIL 版的干净
+Release 游戏包、独立证据包、逐文件 SHA-256 清单及第二道独立审计已保存在
+`build/ecology-e2-20260914/review-status-candidate23.json` 与
+`review-delivery-candidate23.json`；实际包哈希以本地这两份收据为准，包内没有
+诊断存档或游戏工作客户端。旧封装尝试和全部失败原件保留。没有用户明确验收确认，
+不做 E2 完成版提交。
+
+## 候选 23 验证后开发顺序调整（2026-09-16）
+
+用户明确要求本轮验证完后跳过需要人工操作的验收，并允许 E2 尚未全部通过时开展
+E3 或 R1/R2。当前自动证据已结束：双配置 gmake/Xcode、资源/存档、旧版生产指纹、
+v8 生产统计、同进程 24 段正式性能＋24 段反序复核及 12 段固定画面均已取得。
+林地流送 P99 `1.391×` 与 `1.305×` 是两次正式 `FAIL`，其余窗口指标 `PASS`。
+正常玩法记录中的锁屏 `BLOCKED` 是历史尝试结果；按用户最新顺序，该最终版步行、
+采集、保存重开验收现在列为**延期 / NOT_RUN**，不换算为 `PASS`。
+
+此变更只解除“未通过 E2 不能开工下一批”的流程约束；不放宽 1.10 性能门槛、
+不删除原始逐帧、也不宣布 E2 完成。原游戏包和独立证据包仍为调整前已封存的
+候选 23 快照，`review-delivery-candidate23.json` 的包哈希及文件清单原样保留。
+E2 性能问题和最终版正常玩法在后续收口账本中继续跟踪。
 
 ## 保留的失败及修复记录
 
