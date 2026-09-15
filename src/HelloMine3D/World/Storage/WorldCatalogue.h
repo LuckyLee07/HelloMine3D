@@ -10,6 +10,7 @@
 #include "../../Gameplay/WorldOutcomeState.h"
 #include "../../Gameplay/DifficultyProfile.h"
 #include "../../Gameplay/PostVictoryEvents.h"
+#include "../Generation/Terrain/TerrainGenerator.h"
 
 inline constexpr std::int64_t LegacyWorldTimestampUtc = 946684800;
 
@@ -20,6 +21,7 @@ struct WorldCatalogueEntry {
     std::string directoryPath;
     std::string lastBuildIdentity;
     int seed = 0;
+    int terrainGenerationVersion = 0;
     int saveFormatVersion = 0;
     std::int64_t createdUtc = 0;
     std::int64_t lastPlayedUtc = 0;

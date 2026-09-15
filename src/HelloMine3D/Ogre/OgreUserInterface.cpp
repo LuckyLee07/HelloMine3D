@@ -55,6 +55,84 @@ namespace
     const ImVec4 WarmMuted(0.68f, 0.74f, 0.68f, 1.f);
     const ImVec4 WarmAccent(0.871f, 0.714f, 0.431f, 1.f);
 
+    constexpr int MinimapClipSegments = 96;
+
+    void fillCircularMinimapCell(
+        ImDrawList* draw, const ImVec2& cellMin, const ImVec2& cellMax,
+        const ImVec2& center, float radius,
+        const std::array<ImVec2, MinimapClipSegments>& circle,
+        ImU32 colour)
+    {
+        const float nearestX = std::clamp(center.x, cellMin.x, cellMax.x);
+        const float nearestY = std::clamp(center.y, cellMin.y, cellMax.y);
+        const float nearestDx = nearestX - center.x;
+        const float nearestDy = nearestY - center.y;
+        if (nearestDx * nearestDx + nearestDy * nearestDy >=
+            radius * radius)
+            return;
+
+        const float farthestDx = std::max(
+            std::abs(cellMin.x - center.x), std::abs(cellMax.x - center.x));
+        const float farthestDy = std::max(
+            std::abs(cellMin.y - center.y), std::abs(cellMax.y - center.y));
+        if (farthestDx * farthestDx + farthestDy * farthestDy <
+            (radius - 0.1f) * (radius - 0.1f))
+        {
+            draw->AddRectFilled(cellMin, cellMax, colour);
+            return;
+        }
+
+        // Only perimeter cells need geometry clipping. Keep the map's square
+        // pixels intact in the middle while the circular silhouette gets an
+        // anti-aliased convex boundary instead of cell-centre stair steps.
+        std::array<ImVec2, MinimapClipSegments + 4> points{};
+        std::array<ImVec2, MinimapClipSegments + 4> scratch{};
+        points[0] = cellMin;
+        points[1] = ImVec2(cellMax.x, cellMin.y);
+        points[2] = cellMax;
+        points[3] = ImVec2(cellMin.x, cellMax.y);
+        ImVec2* input = points.data();
+        ImVec2* output = scratch.data();
+        int count = 4;
+        for (int edgeIndex = 0;
+             edgeIndex < MinimapClipSegments && count >= 3; ++edgeIndex)
+        {
+            const ImVec2& start = circle[edgeIndex];
+            const ImVec2& end =
+                circle[(edgeIndex + 1) % MinimapClipSegments];
+            const float edgeX = end.x - start.x;
+            const float edgeY = end.y - start.y;
+            auto side = [&](const ImVec2& point) {
+                return edgeX * (point.y - start.y) -
+                       edgeY * (point.x - start.x);
+            };
+            int outputCount = 0;
+            ImVec2 previous = input[count - 1];
+            float previousSide = side(previous);
+            for (int index = 0; index < count; ++index)
+            {
+                const ImVec2 current = input[index];
+                const float currentSide = side(current);
+                if ((previousSide >= 0.f) != (currentSide >= 0.f))
+                {
+                    const float t = previousSide /
+                        (previousSide - currentSide);
+                    output[outputCount++] = ImVec2(
+                        previous.x + (current.x - previous.x) * t,
+                        previous.y + (current.y - previous.y) * t);
+                }
+                if (currentSide >= 0.f)
+                    output[outputCount++] = current;
+                previous = current;
+                previousSide = currentSide;
+            }
+            std::swap(input, output);
+            count = outputCount;
+        }
+        if (count >= 3)
+            draw->AddConvexPolyFilled(input, count, colour);
+    }
+
     void applyWarmWildernessStyle()
     {
         ImGui::StyleColorsDark();
@@ -374,6 +452,47 @@ class OgreUserInterface::Impl
         return tr("difficulty.normal", "Normal");
     }
 
+    std::string keyName(GameplayKey key) const
+    {
+        return tr("input.key." + std::string(gameplayKeyToken(key)),
+                  gameplayKeyName(key));
+    }
+
+    std::string mouseButtonName(GameplayMouseButton button) const
+    {
+        return tr("input.mouse." +
+                      std::string(gameplayMouseButtonToken(button)),
+                  gameplayMouseButtonName(button));
+    }
+
+    std::string sharedMouseBinding(
+        const GameplayMouseBindings& bindings) const
+    {
+        for (std::size_t buttonIndex = 0;
+             buttonIndex < GameplayMouseButtonCount; ++buttonIndex)
+        {
+            const auto button =
+                static_cast<GameplayMouseButton>(buttonIndex);
+            std::string actions;
+            int count = 0;
+            for (GameplayWorldAction action : {
+                     GameplayWorldAction::Use,
+                     GameplayWorldAction::Place,
+                     GameplayWorldAction::Guard})
+            {
+                if (bindings.get(action) != button)
+                    continue;
+                if (!actions.empty())
+                    actions += tr("input.action_separator", ", ");
+                actions += worldActionName(action);
+                ++count;
+            }
+            if (count > 1)
+                return mouseButtonName(button) + ": " + actions;
+        }
+        return {};
+    }
+
     std::string actionName(GameplayAction action) const
     {
         const std::string configKey = gameplayActionConfigKey(action);
@@ -680,7 +799,9 @@ class OgreUserInterface::Impl
                 }
                 break;
             case GameApplicationState::Paused:
-                drawHud();
+                ImGui::GetBackgroundDrawList()->AddRectFilled(
+                    ImVec2(0.f, 0.f), ImGui::GetIO().DisplaySize,
+                    IM_COL32(8, 14, 11, 84));
                 if (settingsSession.isOpen())
                 {
                     drawSettingsMenu();
@@ -689,6 +810,7 @@ class OgreUserInterface::Impl
                 {
                     drawPauseMenu();
                 }
+                drawHudNotifications(ImGui::GetIO().DisplaySize.y - 8.f);
                 break;
         }
         drawCrashReportPrompt();
@@ -966,9 +1088,13 @@ class OgreUserInterface::Impl
         }
     }
 
-    void reportResult(const WorldManagementResult &result)
+    void reportResult(const WorldManagementResult &result,
+                      const char* successKey)
     {
-        statusMessage = result.message;
+        statusMessage = result.succeeded()
+            ? tr(successKey, result.message)
+            : tr("world.operation_failed", "World operation failed") +
+                  ": " + result.message;
         if (result.succeeded())
         {
             worldsDirty = true;
@@ -999,11 +1125,24 @@ class OgreUserInterface::Impl
             refreshCatalogue();
         }
         const ImGuiIO &io = ImGui::GetIO();
+        const float catalogueHeight = std::min(620.0f,
+            (435.0f + (!selectedWorldId.empty()
+                ? 42.0f + 24.0f * std::min<std::size_t>(backups.size(), 4)
+                : 0.0f) + (!deletedWorlds.empty()
+                ? 24.0f * std::min<std::size_t>(deletedWorlds.size(), 3)
+                : 0.0f) + (!statusMessage.empty() ? 32.0f : 0.0f) +
+                140.0f * std::max(0.0f, appliedSettings.uiScale - 1.0f)));
+        const PresentationWindowLayout maximumLayout = fitPresentationWindow(
+            io.DisplaySize.x, io.DisplaySize.y, 820.0f, 620.0f,
+            appliedSettings.uiScale);
+        const float top = std::max(18.0f,
+            (io.DisplaySize.y - maximumLayout.height) * 0.5f);
         ImGui::SetNextWindowPos(
-            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
-            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+            ImVec2(io.DisplaySize.x * 0.5f, top),
+            ImGuiCond_Always, ImVec2(0.5f, 0.0f));
         const PresentationWindowLayout layout = fitPresentationWindow(
-            io.DisplaySize.x, io.DisplaySize.y, 820.0f, 620.0f, appliedSettings.uiScale);
+            io.DisplaySize.x, io.DisplaySize.y, 820.0f,
+            catalogueHeight, appliedSettings.uiScale);
         ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height), ImGuiCond_Always);
         const ImGuiWindowFlags flags =
             ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
@@ -1027,6 +1166,9 @@ class OgreUserInterface::Impl
             ImGui::Separator();
 
             ImGui::TextUnformatted(tr("world.create_title").c_str());
+            ImGui::SameLine();
+            ImGui::TextDisabled("%s v%d", tr("world.terrain").c_str(),
+                                CurrentTerrainGenerationVersion);
             // Labels occupy their own lines so font scaling cannot push the
             // Create action outside the panel or consume the seed editor width.
             if (ImGui::BeginTable("WorldCreateForm", 2,
@@ -1078,7 +1220,7 @@ class OgreUserInterface::Impl
                         management->createWorld(
                             createName.data(), createSeed,
                             static_cast<WorldDifficulty>(createDifficulty));
-                    reportResult(result);
+                    reportResult(result, "world.feedback.created");
                     if (result.succeeded())
                     {
                         createSeed = WorldManagementService::suggestWorldSeed();
@@ -1090,11 +1232,16 @@ class OgreUserInterface::Impl
             ImGui::Separator();
             ImGui::Text("%s (%llu)", tr("world.active").c_str(),
                         static_cast<unsigned long long>(worlds.size()));
-            ImGui::BeginChild("WorldList", ImVec2(0.0f, 185.0f), true);
+            const float activeListHeight = std::min(185.0f,
+                std::max(58.0f, 18.0f +
+                    worlds.size() * ImGui::GetTextLineHeightWithSpacing()));
+            ImGui::BeginChild("WorldList", ImVec2(0.0f, activeListHeight), true);
+            if (worlds.empty())
+                ImGui::TextDisabled("%s", tr("world.none").c_str());
             const ImGuiTableFlags worldTableFlags =
                 ImGuiTableFlags_SizingStretchProp |
                 ImGuiTableFlags_NoSavedSettings;
-            if (ImGui::BeginTable("ActiveWorlds", 4, worldTableFlags))
+            if (ImGui::BeginTable("ActiveWorlds", 5, worldTableFlags))
             {
                 ImGui::TableSetupColumn(
                     tr("world.world").c_str(),
@@ -1102,6 +1249,9 @@ class OgreUserInterface::Impl
                 ImGui::TableSetupColumn(
                     tr("world.seed").c_str(),
                     ImGuiTableColumnFlags_WidthFixed);
+                ImGui::TableSetupColumn(
+                    tr("world.terrain").c_str(),
+                    ImGuiTableColumnFlags_WidthFixed, 68.0f);
                 ImGui::TableSetupColumn(
                     tr("world.difficulty").c_str(),
                     ImGuiTableColumnFlags_WidthFixed, 110.0f);
@@ -1128,6 +1278,13 @@ class OgreUserInterface::Impl
                     ImGui::Text("%s %d", tr("world.seed").c_str(),
                                 entry.seed);
                     ImGui::TableSetColumnIndex(2);
+                    if (entry.terrainGenerationVersion > 0)
+                        ImGui::Text("v%d",
+                                    entry.terrainGenerationVersion);
+                    else
+                        ImGui::TextDisabled("%s",
+                            tr("world.terrain_unknown").c_str());
+                    ImGui::TableSetColumnIndex(3);
                     ImGui::TextUnformatted(
                         difficultyName(entry.difficulty).c_str());
                     if (entry.completedPostVictoryEvents > 0)
@@ -1137,7 +1294,7 @@ class OgreUserInterface::Impl
                             entry.completedPostVictoryEvents,
                             PostVictoryEvents::MaximumEvents);
                     }
-                    ImGui::TableSetColumnIndex(3);
+                    ImGui::TableSetColumnIndex(4);
                     if (ImGui::SmallButton(label("common.play", "##Play").c_str()))
                     {
                         pendingAction.type =
@@ -1167,7 +1324,8 @@ class OgreUserInterface::Impl
                 if (ImGui::Button(label("common.rename", "##Rename").c_str()))
                 {
                     reportResult(management->renameWorld(
-                        selectedWorldId, renameName.data()));
+                        selectedWorldId, renameName.data()),
+                        "world.feedback.renamed");
                 }
                 ImGui::SameLine();
                 ImGui::Text("%s: %llu", tr("world.backups").c_str(),
@@ -1193,27 +1351,33 @@ class OgreUserInterface::Impl
             ImGui::Text("%s (%llu)", tr("world.recoverable").c_str(),
                         static_cast<unsigned long long>(
                             deletedWorlds.size()));
-            ImGui::BeginChild("DeletedWorldList", ImVec2(0.0f, 105.0f),
-                              true);
-            for (const DeletedWorldInfo &entry : deletedWorlds)
+            if (!deletedWorlds.empty())
             {
-                ImGui::PushID(entry.recoveryId.c_str());
-                ImGui::TextUnformatted(entry.world.displayName.c_str());
-                ImGui::SameLine(400.0f);
-                if (ImGui::SmallButton(label("common.restore", "##RestoreWorld").c_str()))
+                const float deletedListHeight = std::min(105.0f,
+                    18.0f + deletedWorlds.size() *
+                    ImGui::GetTextLineHeightWithSpacing());
+                ImGui::BeginChild("DeletedWorldList",
+                                  ImVec2(0.0f, deletedListHeight), true);
+                for (const DeletedWorldInfo &entry : deletedWorlds)
                 {
-                    reportResult(management->restoreDeletedWorld(
-                        entry.world.id));
+                    ImGui::PushID(entry.recoveryId.c_str());
+                    ImGui::TextUnformatted(entry.world.displayName.c_str());
+                    ImGui::SameLine(400.0f);
+                    if (ImGui::SmallButton(label("common.restore", "##RestoreWorld").c_str()))
+                    {
+                        reportResult(management->restoreDeletedWorld(
+                            entry.world.id), "world.feedback.restored");
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton(label("world.delete_permanently", "##DeletePermanent").c_str()))
+                    {
+                        pendingPermanentDeleteWorldId = entry.world.id;
+                        openPermanentDeletePopup = true;
+                    }
+                    ImGui::PopID();
                 }
-                ImGui::SameLine();
-                if (ImGui::SmallButton(label("world.delete_permanently", "##DeletePermanent").c_str()))
-                {
-                    pendingPermanentDeleteWorldId = entry.world.id;
-                    openPermanentDeletePopup = true;
-                }
-                ImGui::PopID();
+                ImGui::EndChild();
             }
-            ImGui::EndChild();
             if (!statusMessage.empty())
             {
                 ImGui::TextWrapped("%s", statusMessage.c_str());
@@ -1242,7 +1406,7 @@ class OgreUserInterface::Impl
                 if (ImGui::Button(label("common.delete", "##ConfirmDelete").c_str(), ImVec2(120.0f, 0.0f)))
                 {
                     reportResult(management->deleteWorld(
-                        pendingDeleteWorldId));
+                        pendingDeleteWorldId), "world.feedback.recoverable");
                     selectedWorldId.clear();
                     ImGui::CloseCurrentPopup();
                 }
@@ -1262,7 +1426,8 @@ class OgreUserInterface::Impl
                                   ImVec2(170.0f, 0.0f)))
                 {
                     reportResult(management->permanentlyDeleteWorld(
-                        pendingPermanentDeleteWorldId));
+                        pendingPermanentDeleteWorldId),
+                        "world.feedback.permanently_deleted");
                     ImGui::CloseCurrentPopup();
                 }
                 ImGui::SameLine();
@@ -1281,7 +1446,8 @@ class OgreUserInterface::Impl
                 if (ImGui::Button(label("common.restore", "##ConfirmBackup").c_str(), ImVec2(120.0f, 0.0f)))
                 {
                     reportResult(management->restoreBackup(
-                        selectedWorldId, pendingBackupId));
+                        selectedWorldId, pendingBackupId),
+                        "world.feedback.backup_restored");
                     ImGui::CloseCurrentPopup();
                 }
                 ImGui::SameLine();
@@ -1319,8 +1485,13 @@ class OgreUserInterface::Impl
     void drawPauseMenu()
     {
         const ImGuiIO &io = ImGui::GetIO();
+        const float pauseHeight = world != nullptr &&
+            !world->getObjectiveSnapshot().completedTitles.empty()
+            ? 570.f : 470.f;
         const PresentationWindowLayout layout = fitPresentationWindow(
-            io.DisplaySize.x, io.DisplaySize.y, 460.f, 570.f,
+            io.DisplaySize.x, io.DisplaySize.y, 460.f,
+            pauseHeight + 280.f *
+                std::max(0.0f, appliedSettings.uiScale - 1.0f),
             appliedSettings.uiScale);
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
@@ -1701,14 +1872,15 @@ class OgreUserInterface::Impl
                     actionName(action) +
                     "##binding-" + std::to_string(actionIndex);
                 if (ImGui::BeginCombo(bindingLabel.c_str(),
-                                      gameplayKeyName(current)))
+                                      keyName(current).c_str()))
                 {
                     for (std::size_t keyIndex = 0;
                          keyIndex < GameplayKeyCount; ++keyIndex)
                     {
                         const auto key = static_cast<GameplayKey>(keyIndex);
                         const bool selected = key == current;
-                        if (ImGui::Selectable(gameplayKeyName(key), selected))
+                        const std::string option = keyName(key);
+                        if (ImGui::Selectable(option.c_str(), selected))
                         {
                             draft.inputBindings.set(action, key);
                         }
@@ -1732,7 +1904,7 @@ class OgreUserInterface::Impl
                     std::to_string(actionIndex);
                 if (ImGui::BeginCombo(
                         bindingLabel.c_str(),
-                        gameplayMouseButtonName(current)))
+                        mouseButtonName(current).c_str()))
                 {
                     for (std::size_t buttonIndex = 0;
                          buttonIndex < GameplayMouseButtonCount;
@@ -1741,8 +1913,8 @@ class OgreUserInterface::Impl
                         const auto button =
                             static_cast<GameplayMouseButton>(buttonIndex);
                         const bool selected = button == current;
-                        if (ImGui::Selectable(
-                                gameplayMouseButtonName(button), selected))
+                        const std::string option = mouseButtonName(button);
+                        if (ImGui::Selectable(option.c_str(), selected))
                         {
                             draft.mouseBindings.set(action, button);
                         }
@@ -1755,7 +1927,7 @@ class OgreUserInterface::Impl
                 }
             }
             const std::string mouseSharing =
-                describeGameplayMouseBindingSharing(draft.mouseBindings);
+                sharedMouseBinding(draft.mouseBindings);
             if (!mouseSharing.empty())
             {
                 ImGui::TextWrapped(
@@ -2206,31 +2378,33 @@ class OgreUserInterface::Impl
             const float radius = mapDiameter * 0.5f;
             const float cellSize = mapDiameter /
                 static_cast<float>(MinimapCellCount);
+            std::array<ImVec2, MinimapClipSegments> circle{};
+            for (int index = 0; index < MinimapClipSegments; ++index)
+            {
+                constexpr float TwoPi = 6.28318530718f;
+                const float angle = TwoPi * static_cast<float>(index) /
+                    static_cast<float>(MinimapClipSegments);
+                circle[index] = ImVec2(
+                    mapCenter.x + radius * std::cos(angle),
+                    mapCenter.y + radius * std::sin(angle));
+            }
             draw->AddCircleFilled(mapCenter, radius,
-                                  IM_COL32(17, 28, 25, 255), 96);
+                                  IM_COL32(17, 28, 25, 255),
+                                  MinimapClipSegments);
             for (int mapZ = 0; mapZ < MinimapCellCount; ++mapZ)
             {
                 for (int mapX = 0; mapX < MinimapCellCount; ++mapX)
                 {
                     const float x0 = mapMin.x + mapX * cellSize;
                     const float y0 = mapMin.y + mapZ * cellSize;
-                    const ImVec2 cellCenter(x0 + cellSize * 0.5f,
-                                            y0 + cellSize * 0.5f);
-                    const float dx = cellCenter.x - mapCenter.x;
-                    const float dy = cellCenter.y - mapCenter.y;
-                    if (dx * dx + dy * dy >
-                        (radius - cellSize * 0.3f) *
-                            (radius - cellSize * 0.3f))
-                    {
-                        continue;
-                    }
                     const MinimapCell& cell = minimapCells[
                         static_cast<std::size_t>(
                             mapZ * MinimapCellCount + mapX)];
-                    draw->AddRectFilled(
+                    fillCircularMinimapCell(draw,
                         ImVec2(x0, y0),
                         ImVec2(x0 + cellSize + 0.6f,
                                y0 + cellSize + 0.6f),
+                        mapCenter, radius, circle,
                         minimapCellColour(cell));
                 }
             }
@@ -2266,7 +2440,8 @@ class OgreUserInterface::Impl
                 }
             }
             draw->AddCircle(mapCenter, radius,
-                            IM_COL32(221, 204, 151, 230), 96, 2.f);
+                            IM_COL32(221, 204, 151, 230),
+                            MinimapClipSegments, 2.f);
             const std::string north = tr("hud.minimap_north", "N");
             const ImVec2 northSize = ImGui::CalcTextSize(north.c_str());
             draw->AddCircleFilled(
@@ -2795,35 +2970,51 @@ class OgreUserInterface::Impl
             flow->state() == GameApplicationState::Playing &&
             !player->hasOpenContainer() && !player->hasOpenCrafting())
         {
+            const std::string craftingHint =
+                keyName(appliedSettings.inputBindings.get(
+                    GameplayAction::OpenCrafting)) + "  " +
+                tr("hint.crafting");
+            const std::string pauseHint = "Esc  " + tr("hint.pause");
+            const bool showEatHint =
+                runtimeFoodRegistry().find(heldMaterial) != nullptr &&
+                worldStats.playerHealth < worldStats.playerMaxHealth;
+            const std::string eatHint = showEatHint
+                ? keyName(appliedSettings.inputBindings.get(
+                      GameplayAction::ConsumeFood)) + "  " + tr("hint.eat")
+                : "";
+            const ToolDefinition* heldTool =
+                runtimeToolRegistry().find(heldMaterial);
+            const bool showGuardHint = heldTool != nullptr &&
+                heldTool->miningClass == MiningClass::Weapon;
+            const std::string guardHint = showGuardHint
+                ? mouseButtonName(appliedSettings.mouseBindings.get(
+                      GameplayWorldAction::Guard)) + "  " + tr("hint.guard")
+                : "";
+            const float desiredWidth = std::max({
+                minimapOverlayBottom - 18.f,
+                ImGui::CalcTextSize(craftingHint.c_str()).x + 24.f,
+                ImGui::CalcTextSize(pauseHint.c_str()).x + 24.f,
+                ImGui::CalcTextSize(eatHint.c_str()).x + 24.f,
+                ImGui::CalcTextSize(guardHint.c_str()).x + 24.f});
+            const float hintWidth = std::min(
+                desiredWidth,
+                std::min(260.f * appliedSettings.uiScale,
+                         io.DisplaySize.x * 0.38f));
             ImGui::SetNextWindowPos(
                 ImVec2(io.DisplaySize.x - 18.0f,
                        minimapOverlayBottom + 10.f),
                 ImGuiCond_Always, ImVec2(1.0f, 0.0f));
             ImGui::SetNextWindowBgAlpha(0.66f);
-            ImGui::SetNextWindowSize(
-                ImVec2(std::min(260.f * appliedSettings.uiScale,
-                               io.DisplaySize.x * 0.38f), 0.f), ImGuiCond_Always);
+            ImGui::SetNextWindowSize(ImVec2(hintWidth, 0.f),
+                                     ImGuiCond_Always);
             if (ImGui::Begin("##ActionHints", nullptr, overlayFlags))
             {
-                ImGui::Text("%s  %s",
-                            gameplayKeyName(appliedSettings.inputBindings.get(
-                                GameplayAction::OpenCrafting)),
-                            tr("hint.crafting").c_str());
-                if (runtimeFoodRegistry().find(heldMaterial) != nullptr &&
-                    worldStats.playerHealth < worldStats.playerMaxHealth)
-                {
-                    ImGui::TextWrapped("%s  %s",
-                        gameplayKeyName(appliedSettings.inputBindings.get(
-                            GameplayAction::ConsumeFood)), tr("hint.eat").c_str());
-                }
-                const ToolDefinition* heldTool = runtimeToolRegistry().find(heldMaterial);
-                if (heldTool != nullptr && heldTool->miningClass == MiningClass::Weapon)
-                {
-                    ImGui::TextWrapped("%s  %s",
-                        gameplayMouseButtonName(appliedSettings.mouseBindings.get(
-                            GameplayWorldAction::Guard)), tr("hint.guard").c_str());
-                }
-                ImGui::Text("Esc  %s", tr("hint.pause").c_str());
+                ImGui::TextUnformatted(craftingHint.c_str());
+                if (showEatHint)
+                    ImGui::TextWrapped("%s", eatHint.c_str());
+                if (showGuardHint)
+                    ImGui::TextWrapped("%s", guardHint.c_str());
+                ImGui::TextUnformatted(pauseHint.c_str());
             }
             ImGui::End();
         }
@@ -3341,13 +3532,30 @@ class OgreUserInterface::Impl
             selectedCraftingMaterial = Material::ID::Nothing;
             craftingMessage.clear();
         }
+        std::size_t eligibleRecipes = 0;
+        std::size_t learnedRecipes = 0;
+        for (const RecipeDefinition &recipe :
+             runtimeRecipeRegistry().recipes())
+        {
+            if (recipeFitsGrid(recipe, gridSize))
+            {
+                ++eligibleRecipes;
+                if (world != nullptr && world->isRecipeDiscovered(recipe.id))
+                    ++learnedRecipes;
+            }
+        }
 
         const ImGuiIO &io = ImGui::GetIO();
         ImGui::SetNextWindowPos(
-            ImVec2(io.DisplaySize.x * 0.5f, (io.DisplaySize.y - 80.f) * 0.5f),
+            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
         const PresentationWindowLayout layout = fitPresentationWindow(
-            io.DisplaySize.x, io.DisplaySize.y - 80.f, 820.0f, 660.0f, appliedSettings.uiScale);
+            io.DisplaySize.x, io.DisplaySize.y,
+            learnedRecipes == 0 ? 700.0f : 820.0f,
+            (learnedRecipes == 0 ? 575.0f : 660.0f) +
+                250.0f * std::max(0.0f,
+                    appliedSettings.uiScale - 1.0f),
+            appliedSettings.uiScale);
         ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height), ImGuiCond_Always);
         bool open = true;
         const std::string title =
@@ -3364,62 +3572,51 @@ class OgreUserInterface::Impl
             if (ImGui::CollapsingHeader(tr("crafting.recipe_book").c_str(),
                                         ImGuiTreeNodeFlags_DefaultOpen))
             {
-                std::size_t eligibleRecipes = 0;
-                std::size_t learnedRecipes = 0;
-                for (const RecipeDefinition &recipe :
-                     runtimeRecipeRegistry().recipes())
-                {
-                    if (recipeFitsGrid(recipe, gridSize))
-                    {
-                        ++eligibleRecipes;
-                        if (world != nullptr &&
-                            world->isRecipeDiscovered(recipe.id))
-                        {
-                            ++learnedRecipes;
-                        }
-                    }
-                }
                 ImGui::Text("%s: %zu / %zu",
                             tr("crafting.recipe_book_progress").c_str(),
                             learnedRecipes, eligibleRecipes);
-                ImGui::BeginChild("##RecipeBook", ImVec2(0.0f, 135.0f),
-                                  true);
-                for (const RecipeDefinition &recipe :
-                     runtimeRecipeRegistry().recipes())
-                {
-                    if (!recipeFitsGrid(recipe, gridSize) ||
-                        world == nullptr ||
-                        !world->isRecipeDiscovered(recipe.id))
-                    {
-                        continue;
-                    }
-                    const std::string button =
-                        tr("crafting.load") + "##recipe-" + recipe.id;
-                    if (ImGui::SmallButton(button.c_str()))
-                    {
-                        if (craftingSession->loadRecipe(recipe))
-                        {
-                            craftingMessage =
-                                materialName(recipe.outputMaterialId) + ": " +
-                                tr("crafting.loaded");
-                            playUiFeedback();
-                        }
-                    }
-                    ImGui::SameLine();
-                    const std::string ingredients =
-                        recipeIngredientSummary(recipe,
-                                                appliedSettings.locale);
-                    const std::string outputName =
-                        materialName(recipe.outputMaterialId);
-                    ImGui::Text("%s x%d  <-  %s", outputName.c_str(),
-                                recipe.outputCount, ingredients.c_str());
-                }
                 if (learnedRecipes == 0)
                 {
-                    ImGui::TextWrapped(
-                        "%s", tr("crafting.recipe_book_hint").c_str());
+                    ImGui::TextDisabled("%s",
+                        tr("crafting.recipe_book_hint").c_str());
                 }
-                ImGui::EndChild();
+                else
+                {
+                    ImGui::BeginChild("##RecipeBook",
+                                      ImVec2(0.0f, 135.0f), true);
+                    for (const RecipeDefinition &recipe :
+                         runtimeRecipeRegistry().recipes())
+                    {
+                        if (!recipeFitsGrid(recipe, gridSize) ||
+                            world == nullptr ||
+                            !world->isRecipeDiscovered(recipe.id))
+                        {
+                            continue;
+                        }
+                        const std::string button =
+                            tr("crafting.load") + "##recipe-" + recipe.id;
+                        if (ImGui::SmallButton(button.c_str()))
+                        {
+                            if (craftingSession->loadRecipe(recipe))
+                            {
+                                craftingMessage =
+                                    materialName(recipe.outputMaterialId) +
+                                    ": " + tr("crafting.loaded");
+                                playUiFeedback();
+                            }
+                        }
+                        ImGui::SameLine();
+                        const std::string ingredients =
+                            recipeIngredientSummary(recipe,
+                                                    appliedSettings.locale);
+                        const std::string outputName =
+                            materialName(recipe.outputMaterialId);
+                        ImGui::Text("%s x%d  <-  %s", outputName.c_str(),
+                                    recipe.outputCount,
+                                    ingredients.c_str());
+                    }
+                    ImGui::EndChild();
+                }
             }
             ImGui::Separator();
 
@@ -3440,11 +3637,12 @@ class OgreUserInterface::Impl
                                      : tr("common.empty")) + " x" +
                     std::to_string(slot.amount) + "##craft-source-" +
                     std::to_string(index);
-                if (stackButton(label, ImVec2(122.0f, 46.0f)) &&
-                    slot.amount > 0)
+                ImGui::BeginDisabled(slot.amount <= 0);
+                if (stackButton(label, ImVec2(122.0f, 46.0f)))
                 {
                     selectedCraftingMaterial = slot.materialId;
                 }
+                ImGui::EndDisabled();
             }
             ImGui::Text("%s: %s", tr("crafting.selected").c_str(),
                         materialName(selectedCraftingMaterial).c_str());
@@ -4281,12 +4479,16 @@ void OgreUserInterface::setWorldContext(Player *player,
     m_impl->dismissedVictoryEpoch = 0;
     m_impl->previousPlayerHealth = -1.f;
     m_impl->difficultyDraftInitialized = false;
+    m_impl->displayedObjectiveId.clear();
+    m_impl->objectiveHintSeconds = 12.f;
     m_impl->minimapGenerator.reset();
     m_impl->minimapCenterX = std::numeric_limits<int>::min();
     m_impl->minimapCenterZ = std::numeric_limits<int>::min();
     m_impl->minimapValid = false;
     if (world != nullptr)
     {
+        m_impl->statusMessage.clear();
+        m_impl->statusMessageSeconds = 0.f;
         const DifficultyRuntimeSnapshot snapshot =
             world->getDifficultySnapshot();
         m_impl->pauseDifficulty = static_cast<int>(

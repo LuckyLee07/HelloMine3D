@@ -42,6 +42,7 @@ namespace
         "exploration_reward_version",
         "last_build", "last_played_utc", "post_victory_completed_events",
         "post_victory_event_version", "seed",
+        "terrain_generation_version",
         "version", "world_id", "world_name", "world_outcome_phase",
         "world_outcome_reward_epoch", "world_outcome_claimed_epoch"};
 
@@ -260,6 +261,24 @@ namespace
                    "field 'world_name' is not a valid display name");
         }
         entry.seed = parseInteger<int>(metadataPath, "seed", fields["seed"]);
+        const auto terrainVersion =
+            fields.find("terrain_generation_version");
+        if (terrainVersion != fields.end()) {
+            entry.terrainGenerationVersion = parseInteger<int>(
+                metadataPath, "terrain_generation_version",
+                terrainVersion->second);
+            if (entry.terrainGenerationVersion <
+                    LegacyTerrainGenerationVersion ||
+                entry.terrainGenerationVersion >
+                    CurrentTerrainGenerationVersion) {
+                reject(metadataPath,
+                       "terrain generation version is unsupported");
+            }
+        }
+        else if (entry.saveFormatVersion < 8) {
+            entry.terrainGenerationVersion =
+                LegacyTerrainGenerationVersion;
+        }
 
         const bool worldOutcomeFieldsPresent =
             fields.count("world_outcome_phase") != 0 ||

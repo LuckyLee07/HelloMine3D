@@ -394,12 +394,14 @@ int main()
                     entries.size() == 2 && entries[0].id == "legacy-one" &&
                         entries[0].directoryName == "unmodified-v1-folder" &&
                         entries[0].legacyMetadata &&
+                        entries[0].terrainGenerationVersion == 1 &&
                         entries[0].createdUtc == LegacyWorldTimestampUtc &&
                         entries[0].lastBuildIdentity == "legacy-v1");
         suite.check("K1/version-two-discovered-without-rename",
                     entries.size() == 2 && entries[1].id == "legacy-two" &&
                         entries[1].directoryName == "unmodified-v2-folder" &&
                         entries[1].legacyMetadata &&
+                        entries[1].terrainGenerationVersion == 1 &&
                         entries[1].lastPlayedUtc == LegacyWorldTimestampUtc &&
                         entries[1].lastBuildIdentity == "legacy-v2");
     }
@@ -694,6 +696,14 @@ int main()
                 first.worldId != second.worldId &&
                 first.directoryPath != second.directoryPath &&
                 created.succeeded() && created.worlds.size() == 2);
+        suite.check(
+            "K4/catalogue-shows-saved-terrain-generation-version",
+            created.succeeded() && created.worlds.size() == 2 &&
+                std::all_of(created.worlds.begin(), created.worlds.end(),
+                    [](const WorldCatalogueEntry& entry) {
+                        return entry.terrainGenerationVersion ==
+                            CurrentTerrainGenerationVersion;
+                    }));
 
         const fs::path firstDirectory(first.directoryPath);
         const WorldManagementResult renamed =

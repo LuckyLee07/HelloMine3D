@@ -1538,7 +1538,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 434 &&
+              registry.keys("en-US").size() == 457 &&
               registry.lookup("en-US", "settings.visual_standard") ==
                   "Standard — refined pixel textures" &&
               registry.lookup("zh-CN", "settings.visual_standard") ==
