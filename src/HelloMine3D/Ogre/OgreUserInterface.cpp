@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -43,6 +44,8 @@
 #include "../World/Block/TerrainMaterialProfile.h"
 #include "../Item/SmeltingRegistry.h"
 #include "../World/Interaction/BlockMiningProgress.h"
+#include "../World/Generation/Terrain/ClassicOverWorldGenerator.h"
+#include "../World/WorldConstants.h"
 #include "../Feedback/ActionFeedback.h"
 #include "../World/Storage/WorldManagementService.h"
 
@@ -2068,6 +2071,256 @@ class OgreUserInterface::Impl
         ImGui::PopID();
     }
 
+    struct MinimapCell
+    {
+        int height = 0;
+        TerrainBiome biome = TerrainBiome::Grassland;
+    };
+
+    static constexpr int MinimapCellCount = 33;
+    static constexpr int MinimapCellStep = 4;
+
+    static ImU32 minimapCellColour(const MinimapCell& cell)
+    {
+        if (cell.height < WATER_LEVEL)
+        {
+            const int depth = std::clamp(WATER_LEVEL - cell.height, 0, 18);
+            return IM_COL32(44 - depth / 2, 112 - depth,
+                            151 - depth, 255);
+        }
+
+        const float elevation = std::clamp(
+            static_cast<float>(cell.height - WATER_LEVEL) / 96.f,
+            0.f, 1.f);
+        const int lift = static_cast<int>(elevation * 32.f);
+        switch (cell.biome)
+        {
+            case TerrainBiome::Ocean:
+            case TerrainBiome::Desert:
+                return IM_COL32(208 + lift / 3, 186 + lift / 4,
+                                116 + lift / 5, 255);
+            case TerrainBiome::Grassland:
+                return IM_COL32(91 + lift / 3, 143 + lift / 2,
+                                68 + lift / 4, 255);
+            case TerrainBiome::LightForest:
+                return IM_COL32(65 + lift / 4, 119 + lift / 3,
+                                59 + lift / 5, 255);
+            case TerrainBiome::TemperateForest:
+                return IM_COL32(44 + lift / 5, 92 + lift / 3,
+                                48 + lift / 5, 255);
+            case TerrainBiome::Mountain:
+                return IM_COL32(119 + lift / 2, 126 + lift / 2,
+                                121 + lift / 2, 255);
+        }
+        return IM_COL32(92, 132, 72, 255);
+    }
+
+    void refreshMinimap(const PlayerSaveState& state)
+    {
+        if (worldStats.terrainGenerationVersion <
+            LegacyTerrainGenerationVersion)
+        {
+            minimapValid = false;
+            return;
+        }
+        const int centerX = static_cast<int>(std::lround(
+            state.position.x / static_cast<float>(MinimapCellStep))) *
+            MinimapCellStep;
+        const int centerZ = static_cast<int>(std::lround(
+            state.position.z / static_cast<float>(MinimapCellStep))) *
+            MinimapCellStep;
+        const bool identityChanged =
+            minimapSeed != worldStats.terrainSeed ||
+            minimapGenerationVersion != worldStats.terrainGenerationVersion;
+        if (minimapValid && !identityChanged &&
+            minimapCenterX == centerX && minimapCenterZ == centerZ)
+        {
+            return;
+        }
+
+        if (identityChanged || minimapGenerator == nullptr)
+        {
+            minimapSeed = worldStats.terrainSeed;
+            minimapGenerationVersion = worldStats.terrainGenerationVersion;
+            minimapGenerator =
+                std::make_unique<ClassicOverWorldGenerator>(
+                    minimapSeed, minimapGenerationVersion);
+        }
+
+        constexpr int half = MinimapCellCount / 2;
+        for (int mapZ = 0; mapZ < MinimapCellCount; ++mapZ)
+        {
+            for (int mapX = 0; mapX < MinimapCellCount; ++mapX)
+            {
+                const int worldX = centerX +
+                    (mapX - half) * MinimapCellStep;
+                const int worldZ = centerZ +
+                    (mapZ - half) * MinimapCellStep;
+                MinimapCell& cell = minimapCells[
+                    static_cast<std::size_t>(
+                        mapZ * MinimapCellCount + mapX)];
+                cell.height = minimapGenerator->getSurfaceHeightAtWorld(
+                    worldX, worldZ);
+                cell.biome = minimapGenerator->getBiomeAtWorld(
+                    worldX, worldZ);
+            }
+        }
+        minimapCenterX = centerX;
+        minimapCenterZ = centerZ;
+        minimapValid = true;
+    }
+
+    void drawMinimap(const PlayerSaveState& state, const ImGuiIO& io)
+    {
+        refreshMinimap(state);
+        minimapOverlayBottom = 18.f;
+        if (!minimapValid || camera == nullptr)
+        {
+            return;
+        }
+
+        const float mapDiameter = std::min(
+            std::clamp(132.f * appliedSettings.uiScale, 112.f, 160.f),
+            std::max(88.f, io.DisplaySize.y * 0.26f));
+        const ImVec2 windowSize(mapDiameter, mapDiameter);
+        ImGui::SetNextWindowPos(
+            ImVec2(io.DisplaySize.x - 18.f, 18.f), ImGuiCond_Always,
+            ImVec2(1.f, 0.f));
+        ImGui::SetNextWindowSize(windowSize, ImGuiCond_Always);
+        ImGui::SetNextWindowBgAlpha(0.f);
+        const ImGuiWindowFlags flags =
+            ImGuiWindowFlags_NoDecoration |
+            ImGuiWindowFlags_NoBackground |
+            ImGuiWindowFlags_NoSavedSettings |
+            ImGuiWindowFlags_NoInputs |
+            ImGuiWindowFlags_NoFocusOnAppearing |
+            ImGuiWindowFlags_NoNav;
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,
+                            ImVec2(0.f, 0.f));
+        if (ImGui::Begin("##Minimap", nullptr, flags))
+        {
+            ImDrawList* draw = ImGui::GetWindowDrawList();
+            const ImVec2 mapMin = ImGui::GetCursorScreenPos();
+            const ImVec2 mapCenter(mapMin.x + mapDiameter * 0.5f,
+                                   mapMin.y + mapDiameter * 0.5f);
+            const float radius = mapDiameter * 0.5f;
+            const float cellSize = mapDiameter /
+                static_cast<float>(MinimapCellCount);
+            draw->AddCircleFilled(mapCenter, radius,
+                                  IM_COL32(17, 28, 25, 255), 96);
+            for (int mapZ = 0; mapZ < MinimapCellCount; ++mapZ)
+            {
+                for (int mapX = 0; mapX < MinimapCellCount; ++mapX)
+                {
+                    const float x0 = mapMin.x + mapX * cellSize;
+                    const float y0 = mapMin.y + mapZ * cellSize;
+                    const ImVec2 cellCenter(x0 + cellSize * 0.5f,
+                                            y0 + cellSize * 0.5f);
+                    const float dx = cellCenter.x - mapCenter.x;
+                    const float dy = cellCenter.y - mapCenter.y;
+                    if (dx * dx + dy * dy >
+                        (radius - cellSize * 0.3f) *
+                            (radius - cellSize * 0.3f))
+                    {
+                        continue;
+                    }
+                    const MinimapCell& cell = minimapCells[
+                        static_cast<std::size_t>(
+                            mapZ * MinimapCellCount + mapX)];
+                    draw->AddRectFilled(
+                        ImVec2(x0, y0),
+                        ImVec2(x0 + cellSize + 0.6f,
+                               y0 + cellSize + 0.6f),
+                        minimapCellColour(cell));
+                }
+            }
+
+            constexpr int half = MinimapCellCount / 2;
+            for (int index = 0; index < MinimapCellCount; ++index)
+            {
+                const int worldX = minimapCenterX +
+                    (index - half) * MinimapCellStep;
+                const int worldZ = minimapCenterZ +
+                    (index - half) * MinimapCellStep;
+                if (worldX % CHUNK_SIZE == 0)
+                {
+                    const float x = mapMin.x +
+                        (static_cast<float>(index) + 0.5f) * cellSize;
+                    const float dx = x - mapCenter.x;
+                    const float extent = std::sqrt(std::max(
+                        0.f, radius * radius - dx * dx));
+                    draw->AddLine(ImVec2(x, mapCenter.y - extent),
+                                  ImVec2(x, mapCenter.y + extent),
+                                  IM_COL32(236, 238, 220, 34), 1.f);
+                }
+                if (worldZ % CHUNK_SIZE == 0)
+                {
+                    const float y = mapMin.y +
+                        (static_cast<float>(index) + 0.5f) * cellSize;
+                    const float dy = y - mapCenter.y;
+                    const float extent = std::sqrt(std::max(
+                        0.f, radius * radius - dy * dy));
+                    draw->AddLine(ImVec2(mapCenter.x - extent, y),
+                                  ImVec2(mapCenter.x + extent, y),
+                                  IM_COL32(236, 238, 220, 34), 1.f);
+                }
+            }
+            draw->AddCircle(mapCenter, radius,
+                            IM_COL32(221, 204, 151, 230), 96, 2.f);
+            const std::string north = tr("hud.minimap_north", "N");
+            const ImVec2 northSize = ImGui::CalcTextSize(north.c_str());
+            draw->AddCircleFilled(
+                ImVec2(mapCenter.x, mapMin.y + 11.f), 9.f,
+                IM_COL32(25, 39, 32, 235), 24);
+            draw->AddText(ImVec2(mapCenter.x - northSize.x * 0.5f,
+                                 mapMin.y + 11.f - northSize.y * 0.5f),
+                          IM_COL32(244, 219, 151, 255), north.c_str());
+
+            const float playerDx =
+                (state.position.x - static_cast<float>(minimapCenterX)) /
+                static_cast<float>(MinimapCellStep) * cellSize;
+            const float playerDy =
+                (state.position.z - static_cast<float>(minimapCenterZ)) /
+                static_cast<float>(MinimapCellStep) * cellSize;
+            const ImVec2 marker(mapCenter.x + playerDx,
+                                mapCenter.y + playerDy);
+            const Ogre::Vector3 direction = camera->getDirection();
+            float forwardX = direction.x;
+            float forwardY = direction.z;
+            const float directionLength = std::sqrt(
+                forwardX * forwardX + forwardY * forwardY);
+            if (directionLength > 0.0001f)
+            {
+                forwardX /= directionLength;
+                forwardY /= directionLength;
+            }
+            else
+            {
+                forwardX = 0.f;
+                forwardY = -1.f;
+            }
+            const float markerLength = 10.f;
+            const float markerWidth = 5.f;
+            const ImVec2 tip(marker.x + forwardX * markerLength,
+                             marker.y + forwardY * markerLength);
+            const ImVec2 left(
+                marker.x - forwardX * 5.f - forwardY * markerWidth,
+                marker.y - forwardY * 5.f + forwardX * markerWidth);
+            const ImVec2 right(
+                marker.x - forwardX * 5.f + forwardY * markerWidth,
+                marker.y - forwardY * 5.f - forwardX * markerWidth);
+            draw->AddCircleFilled(marker, 7.f,
+                                  IM_COL32(19, 29, 25, 220), 24);
+            draw->AddTriangleFilled(tip, left, right,
+                                    IM_COL32(255, 224, 133, 255));
+
+            minimapOverlayBottom =
+                ImGui::GetWindowPos().y + ImGui::GetWindowSize().y;
+        }
+        ImGui::End();
+        ImGui::PopStyleVar();
+    }
+
     void drawHud()
     {
         if (player == nullptr)
@@ -2081,6 +2334,7 @@ class OgreUserInterface::Impl
             return;
         }
         const PlayerSaveState state = player->getSaveState();
+        drawMinimap(state, io);
         const bool hasHeldStack = state.heldItem >= 0 &&
             state.heldItem < static_cast<int>(state.inventory.size()) &&
             state.inventory[static_cast<std::size_t>(state.heldItem)].amount > 0;
@@ -2542,7 +2796,8 @@ class OgreUserInterface::Impl
             !player->hasOpenContainer() && !player->hasOpenCrafting())
         {
             ImGui::SetNextWindowPos(
-                ImVec2(io.DisplaySize.x - 18.0f, 18.0f),
+                ImVec2(io.DisplaySize.x - 18.0f,
+                       minimapOverlayBottom + 10.f),
                 ImGuiCond_Always, ImVec2(1.0f, 0.0f));
             ImGui::SetNextWindowBgAlpha(0.66f);
             ImGui::SetNextWindowSize(
@@ -3852,6 +4107,15 @@ class OgreUserInterface::Impl
     MiningProgressSnapshot miningProgress;
     ActionFeedbackSnapshot actionFeedback;
     bool showDebugPanel = false;
+    std::array<MinimapCell,
+               MinimapCellCount * MinimapCellCount> minimapCells{};
+    std::unique_ptr<ClassicOverWorldGenerator> minimapGenerator;
+    int minimapSeed = 0;
+    int minimapGenerationVersion = 0;
+    int minimapCenterX = std::numeric_limits<int>::min();
+    int minimapCenterZ = std::numeric_limits<int>::min();
+    float minimapOverlayBottom = 18.f;
+    bool minimapValid = false;
     bool settingsFixtureRequested = false;
     bool settingsFixtureOpened = false;
     bool showCredits = false;
@@ -4017,6 +4281,10 @@ void OgreUserInterface::setWorldContext(Player *player,
     m_impl->dismissedVictoryEpoch = 0;
     m_impl->previousPlayerHealth = -1.f;
     m_impl->difficultyDraftInitialized = false;
+    m_impl->minimapGenerator.reset();
+    m_impl->minimapCenterX = std::numeric_limits<int>::min();
+    m_impl->minimapCenterZ = std::numeric_limits<int>::min();
+    m_impl->minimapValid = false;
     if (world != nullptr)
     {
         const DifficultyRuntimeSnapshot snapshot =
