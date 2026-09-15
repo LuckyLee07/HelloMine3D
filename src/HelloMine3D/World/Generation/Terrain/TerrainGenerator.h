@@ -19,8 +19,9 @@ inline constexpr int MountainTerrainGenerationVersion = 4;
 inline constexpr int FoundationTerrainGenerationVersion = 5;
 inline constexpr int VoxelOakTerrainGenerationVersion = 6;
 inline constexpr int ForestEcologyTerrainGenerationVersion = 7;
+inline constexpr int SurfaceCoastTerrainGenerationVersion = 8;
 inline constexpr int CurrentTerrainGenerationVersion =
-    ForestEcologyTerrainGenerationVersion;
+    SurfaceCoastTerrainGenerationVersion;
 
 class TerrainGenerator {
   public:

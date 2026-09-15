@@ -77,6 +77,7 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
     void applyPlantDecorators(const std::vector<BlockPosition> &positions);
     void applyTreeDecorators();
     void applyLandmarkDecorators();
+    void sanitizeSurfaceDecoratorsV8();
     void projectStructurePlan(const StructurePlanSnapshot &plan);
 
     void getHeightIn(int xMin, int zMin, int xMax, int zMax);
@@ -96,6 +97,7 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
 
     Array2D<int, CHUNK_SIZE> m_heightMap;
     Array2D<int, CHUNK_SIZE + 1> m_biomeMap;
+    Array2D<TerrainFoundation::Surface, CHUNK_SIZE> m_surfaceMap;
 
     int m_seed = 0;
     int m_generationVersion = CurrentTerrainGenerationVersion;

@@ -209,3 +209,17 @@ AI 记录至少包含 commit、包哈希、执行器/Computer Use 环境、OS/GP
 采样、8 seed 加载顺序/独立并发、出生支撑/资源距离/结构候选及保存修改重开。
 完整 Xcode Debug/Release 门禁、干净包三场景固定画面、steady/streaming 三轮成本和正常输入
 步行另列，不能用 headless 或固定诊断替代。具体阈值见 [v5 合同](../contracts/terrain-foundation-v5-contract-v1.md)。
+
+E2 terrain v8 按 [E2 合同](../contracts/ecology-surface-coast-v8-e2-contract-v1.md)
+单独验收：v1–v7 生产采样与区块指纹、`E2_SURFACE` 聚焦和完整 WorldRuntime、
+`E2-SCENES`/`E2-COASTS` 生产原始 CSV 与 `tools/validate_ecology_e2.py` 汇总、
+Debug/Release 双配置与资源/存档回归。窗口性能必须在同一 E2 Release `.app` 用
+v7/v8 林地和岸边常驻/快速流送各三轮，预热 5 秒记录 30 秒，以
+`tools/compare_ecology_e2_performance.py` 汇总原始逐帧记录，P95/P99
+三轮中位数比值均不超过 1.10；保留原始逐帧和失败。固定原图及中文菜单正常玩法
+分别交付；桌面锁定或输入不可用时按项标 `BLOCKED`，不得以自动化替代。
+
+2026-09-15 用户为 E2 验收追加右上角小地图。最低检查增加：v1–v8 使用当前世界身份的
+生产地形规划且不加载邻区块；切换 seed/版本清缓存；中文 1280×720 下纯圆形地图的北向、
+玩家方向和约 128 米范围可辨，且无方形底板、坐标栏、版本栏，操作提示不重叠。小地图加入后须重新生成最终二进制、
+固定原图、24 次同包性能和两个带哈希验收包；候选 20 只作为追加前历史证据。

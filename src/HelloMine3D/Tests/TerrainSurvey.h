@@ -4,6 +4,7 @@
 // Offline evidence over production generation. Never called by the client.
 #include "../World/Generation/Terrain/ClassicOverWorldGenerator.h"
 #include "../World/Chunk/Chunk.h"
+#include "../World/WorldCoordinates.h"
 
 #include <array>
 #include <chrono>
@@ -11,6 +12,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <set>
 #include <stdexcept>
 
 namespace TerrainSurvey {
@@ -127,6 +129,163 @@ inline std::size_t write(World &world, const std::filesystem::path &directory,
                 << ',' << generationMs << '\n';
     }
     return count;
+}
+
+// Exact v7/v8 camera-neighbourhood evidence from the production generator.
+// Keep raw columns and blocks so later aggregations can be independently audited.
+inline std::size_t writeE2Scenes(World &world,
+                                 const std::filesystem::path &directory,
+                                 int version)
+{
+    if (version < LegacyTerrainGenerationVersion ||
+        version > CurrentTerrainGenerationVersion ||
+        std::filesystem::exists(directory)) {
+        throw std::runtime_error("E2 scenes require supported version and new directory");
+    }
+    std::filesystem::create_directories(directory);
+    std::ofstream profiles(directory / "profiles.csv");
+    std::ofstream surfaces(directory / "surfaces.csv");
+    std::ofstream chunks(directory / "chunks.csv");
+    profiles.exceptions(std::ios::failbit | std::ios::badbit);
+    surfaces.exceptions(std::ios::failbit | std::ios::badbit);
+    chunks.exceptions(std::ios::failbit | std::ios::badbit);
+    profiles << "scene,seed,version,x,z,height,biome\n";
+    surfaces << "scene,seed,version,x,z,height,biome,top,above,water_at_64\n";
+    chunks << "scene,seed,version,chunk_x,chunk_z,block_hash\n";
+    constexpr int seed = 20260807;
+    ClassicOverWorldGenerator generator(seed, version);
+    std::size_t count = 0;
+    const auto line = [&](const char *name, int x0, int z0,
+                          int dx, int dz, int length) {
+        for (int index = 0; index < length; ++index) {
+            const int x = x0 + dx * index;
+            const int z = z0 + dz * index;
+            profiles << name << ',' << seed << ',' << version << ','
+                     << x << ',' << z << ','
+                     << generator.getSurfaceHeightAtWorld(x, z) << ','
+                     << static_cast<int>(generator.getBiomeAtWorld(x, z)) << '\n';
+            ++count;
+        }
+    };
+    line("dry_cross", 0, 400, 0, 1, 225);
+    line("grass_shore", 128, 576, 0, 1, 225);
+    line("dry_along", -128, 512, 1, 0, 257);
+    line("forest_edge", 896, 1024, 1, 0, 257);
+    line("grass_sand", 64, 544, 1, 0, 129);
+
+    const struct Scene { const char *name; int chunkX; int chunkZ; } scenes[] = {
+        {"dry_shore", 0, 32}, {"shallow", 0, 30},
+        {"grass_shore", 8, 42},
+        {"forest_edge", 64, 64}, {"grass_sand", 7, 34}};
+    std::set<std::pair<int, int>> emitted;
+    for (const Scene &scene : scenes) {
+        for (int offsetX = -1; offsetX <= 1; ++offsetX) {
+            for (int offsetZ = -1; offsetZ <= 1; ++offsetZ) {
+                const int chunkX = scene.chunkX + offsetX;
+                const int chunkZ = scene.chunkZ + offsetZ;
+                if (!emitted.emplace(chunkX, chunkZ).second) { continue; }
+                Chunk chunk(world, {chunkX, chunkZ}, false);
+                generator.generateTerrainFor(chunk);
+                chunks << scene.name << ',' << seed << ',' << version << ','
+                       << chunkX << ',' << chunkZ << ',' << blockHash(chunk) << '\n';
+                for (int localX = 0; localX < CHUNK_SIZE; ++localX) {
+                    for (int localZ = 0; localZ < CHUNK_SIZE; ++localZ) {
+                        const int x = chunkX * CHUNK_SIZE + localX;
+                        const int z = chunkZ * CHUNK_SIZE + localZ;
+                        const int height = generator.getSurfaceHeightAtWorld(x, z);
+                        surfaces << scene.name << ',' << seed << ',' << version
+                                 << ',' << x << ',' << z << ',' << height << ','
+                                 << static_cast<int>(generator.getBiomeAtWorld(x, z))
+                                 << ',' << static_cast<int>(chunk.getBlock(localX, height, localZ).id)
+                                 << ',' << static_cast<int>(chunk.getBlock(localX, height + 1, localZ).id)
+                                 << ',' << static_cast<int>(chunk.getBlock(localX, 64, localZ).id)
+                                 << '\n';
+                    }
+                }
+            }
+        }
+    }
+    return count;
+}
+
+inline std::size_t writeE2Coasts(World &world,
+                                 const std::filesystem::path &directory,
+                                 int version)
+{
+    if (version < LegacyTerrainGenerationVersion ||
+        version > CurrentTerrainGenerationVersion ||
+        std::filesystem::exists(directory)) {
+        throw std::runtime_error("E2 coasts require supported version and new directory");
+    }
+    std::filesystem::create_directories(directory);
+    std::ofstream transects(directory / "transects.csv");
+    std::ofstream blocks(directory / "blocks.csv");
+    transects.exceptions(std::ios::failbit | std::ios::badbit);
+    blocks.exceptions(std::ios::failbit | std::ios::badbit);
+    transects << "seed,version,transect,z,land_x,direction,offset,x,height,biome,planned_surface\n";
+    blocks << "seed,version,chunk_x,chunk_z,block_hash,x,z,height,biome,top,above\n";
+    std::size_t total = 0;
+    for (const int seed : Seeds) {
+        ClassicOverWorldGenerator generator(seed, version);
+        TerrainFoundation foundation(seed);
+        int found = 0;
+        for (int z = -1280; z <= 1280 && found < 12; z += 64) {
+            int preceding = generator.getSurfaceHeightAtWorld(-1280, z);
+            for (int x = -1279; x <= 1280; ++x) {
+                const int height = generator.getSurfaceHeightAtWorld(x, z);
+                const bool crossing = (preceding < 64 && height >= 64) ||
+                    (preceding >= 64 && height < 64);
+                preceding = height;
+                if (!crossing) { continue; }
+                const int direction = height >= 64 ? 1 : -1;
+                const int landX = height >= 64 ? x : x - 1;
+                for (int offset = -32; offset <= 32; ++offset) {
+                    const int sampleX = landX + direction * offset;
+                    const int sampleHeight = generator.getSurfaceHeightAtWorld(
+                        sampleX, z);
+                    const auto plan = version >= SurfaceCoastTerrainGenerationVersion
+                        ? foundation.sampleV8(sampleX, z)
+                        : foundation.sample(sampleX, z);
+                    transects << seed << ',' << version << ',' << found << ','
+                              << z << ',' << landX << ',' << direction << ','
+                              << offset << ',' << sampleX << ',' << sampleHeight
+                              << ',' << static_cast<int>(generator.getBiomeAtWorld(
+                                  sampleX, z)) << ','
+                              << static_cast<int>(plan.surface) << '\n';
+                }
+                if (found < 4) {
+                    const glm::ivec2 location(
+                        WorldCoordinates::floorDiv(landX, CHUNK_SIZE),
+                        WorldCoordinates::floorDiv(z, CHUNK_SIZE));
+                    Chunk chunk(world, location, false);
+                    generator.generateTerrainFor(chunk);
+                    const auto fingerprint = blockHash(chunk);
+                    for (int localX = 0; localX < CHUNK_SIZE; ++localX) {
+                        for (int localZ = 0; localZ < CHUNK_SIZE; ++localZ) {
+                            const int worldX = location.x * CHUNK_SIZE + localX;
+                            const int worldZ = location.y * CHUNK_SIZE + localZ;
+                            const int y = generator.getSurfaceHeightAtWorld(
+                                worldX, worldZ);
+                            blocks << seed << ',' << version << ','
+                                   << location.x << ',' << location.y << ','
+                                   << fingerprint << ',' << worldX << ','
+                                   << worldZ << ',' << y << ','
+                                   << static_cast<int>(generator.getBiomeAtWorld(
+                                       worldX, worldZ)) << ','
+                                   << static_cast<int>(chunk.getBlock(
+                                       localX, y, localZ).id) << ','
+                                   << static_cast<int>(chunk.getBlock(
+                                       localX, y + 1, localZ).id) << '\n';
+                        }
+                    }
+                }
+                ++found;
+                ++total;
+                break; // one independently spaced shoreline per row
+            }
+        }
+    }
+    return total;
 }
 } // namespace TerrainSurvey
 

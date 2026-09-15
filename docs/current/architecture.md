@@ -354,10 +354,13 @@ C3 为 copied topology observation 增至 79 项并同步更新 machine-checked 
 事件。其当前职责为：
 
 - 拥有 `unordered_map<VectorXZ, Chunk>`、`TerrainGenerator` 与 `ChunkStorage`；
-- 按 seed / terrain v5 / exploration reward v1 冻结生成身份；
-- 新世界 terrain v5 通过纯 `TerrainFoundation` 采样连续高度和生态，floor lattice 与 uint64 hash
-  覆盖 signed world 坐标；完整区块生成在装饰 halo 运算前拒绝越界。v1–v4 分支及存档身份保留，
-  已保存区块不重生成。输出冻结与证据以 [v5 合同](../contracts/terrain-foundation-v5-contract-v1.md) 为准；
+- 按 seed / terrain generation version / exploration reward version 冻结生成身份；
+- terrain v5 的纯 `TerrainFoundation::sample` 以 floor lattice 和 uint64 hash 覆盖 signed world
+  坐标；v6 橡树、v7 森林覆盖层和 v8 `sampleV8` 地表/岸线依次版本化接入。v8 的近岸探针只查询
+  同一纯规划的世界坐标，不加载邻 Chunk；区块高度/生态、公开查询和放置规则消费同一列结果。
+  完整区块生成在装饰 halo 运算前拒绝越界。v1–v7 旧路径及存档身份保留，已保存区块不重生成；
+  v5 基线见 [v5 合同](../contracts/terrain-foundation-v5-contract-v1.md)，当前 E2 门槛见
+  [v8 合同](../contracts/ecology-surface-coast-v8-e2-contract-v1.md)；
 - 查询、创建、加载、生成、保存和卸载 Chunk；
 - 在卸载前同步保存 dirty Chunk，失败时保留 resident Chunk；
 - 发布 generated/loaded/saved/unloaded 事实；
@@ -604,6 +607,11 @@ block、Actor、inventory、objective or persistence truth。
 由 Ogre 持有；目标改变或取消时更新派生表现。开采碎屑观察真实进度，破坏/放置碎屑只订阅
 已提交事实，使用世界坐标和解析重力轨迹；拾取图标仍在 HUD。两者共用 48 粒子上限与
 0.55 秒生命周期，不进入世界 fixed tick 或存档。详见[表现补充合同](../contracts/block-feedback-contract-v2.md)。
+
+E2 验收用圆形小地图也属于 Ogre 派生表现。它用存档 seed、terrain generation version 和玩家位置
+调用对应版本的纯地形规划，缓存北向固定的地表色块并绘制玩家方向；不读取 World 区块、
+不触发同步加载，也不把地图缓存写回区块、玩家或存档。地图只表达规划地表和定位关系，
+不承诺显示玩家改块、Actor、树木或实时探索状态。
 
 暖野 M1 在用户再次评价树冠后撤回叶簇原型，网格生成、剔除、上传与阴影回到既有立方叶路径，
 树叶沿用暖野 v1 贴图；不保留额外叶网格层。标准材质 profile v2 在方块注册前解析冻结，
