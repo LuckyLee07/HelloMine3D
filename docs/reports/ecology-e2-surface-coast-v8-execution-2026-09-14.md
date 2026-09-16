@@ -318,6 +318,29 @@ SHA-256 `12f7ba9e01157d65c0222ed8a559cb5e7657f3b785fbc374d6e2c294262f4e6d`。
 并在批次/逐段收据里分别记录 wrapper 与 application command。该改动不启动游戏、
 不改变包身份或计时门槛，也仍不能解锁已锁定的登录会话。
 
+## 正式复核的世界夹具身份纠正（2026-09-16）
+
+解锁后，正式候选 23 二进制 `d41e615a…` 先完成一轮正序和一轮反序同包采集。正序目录
+`candidate23-official-performance-20260916-r2/` 有 24 份 CSV、48 张原图，批次收据
+SHA-256 `9b914c95a7bf2763a96945c019be581a6081f2f654a59b494229cf43e8af61b8`；
+原比较中林地常驻 P95 `2.436×`、岸边流送 P99 `1.180×` 为 `FAIL`。反序目录
+`candidate23-official-performance-reverse-20260916-r1/` 同样完整，批次收据 SHA-256
+`aa90330a38a43fdccd694c3e48d8a32a9f297fafcd06b022c119f59cb036d66c`，原比较四组均
+未超过 1.10。两轮表面上互相矛盾，不能择取其中一轮作为结论。
+
+继续核对存档身份后定位到协议缺陷：冻结 v7 模板是 `difficulty_id=0`、`actor_count=0`；旧工具
+只给 v7 复制模板，v8 建空目录并由游戏按 `difficulty_id=1` 初始化。实际 summary 因此始终是
+v7 休闲、v8 普通，结束时 Actor 数也常见 v7 为 3、v8 为 4 或 5。它混入了难度和自然生成
+Actor 差异，既不能证明 terrain v8 退化，也不能证明 terrain v8 通过。上述正序、反序、诊断和
+更早候选原件都不删除，但从正式 terrain-only 性能门槛降为“世界夹具身份不一致”的协议失败证据。
+
+采集器现改为每个 v7/v8 相位都复制同一冻结模板，只改唯一 `world_id` 与
+`terrain_generation_version`，并统一 `difficulty_id=1`、初始 `actor_count=0`；模板 SHA、初始
+元数据 SHA 和字段写入批次/相位收据。比较器同时要求 summary 为普通难度并核对夹具收据，旧
+正序数据已被新规则明确拒绝。临时夹具自测确认两版元数据只有世界 ID 与 terrain version 不同，
+24 段正反序计划均未改变。正式游戏包和二进制不刷新；下一步在新目录用同一候选 23 `.app`
+完整重跑已冻结正序及反序。
+
 ## 保留的失败及修复记录
 
 - v7 窗口首启因锁屏超时，原始失败见 `baseline/visual-v7-dry-shore/`。未以无窗口截图替代。

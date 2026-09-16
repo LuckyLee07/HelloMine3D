@@ -62,6 +62,7 @@ def read_run(path, version, scene, streaming, position):
     for key, expected in {'build_configuration': 'Release',
                           'terrain_generation_version': str(version),
                           'terrain_seed': '20260807',
+                          'difficulty_id': '1',
                           'warmup_ms': '5000.000',
                           'duration_ms': '30000.000',
                           'entry_success': '1'}.items():
@@ -96,6 +97,7 @@ def read_run(path, version, scene, streaming, position):
             'batch_manifest': record.get('batch_manifest'),
             'executable_sha256': record['package_identity']['executable_sha256'],
             'runtime_app': record['runtime_app'], 'settings': record['settings'],
+            'world_fixture': record.get('world_fixture'),
             'summary_sha256': digest(summary_path), 'frames_sha256': digest(frames_path),
             'frame_count': len(frames),
             'frame_p95_ms': float(summary['frame_p95_ms']),
@@ -147,6 +149,7 @@ def compare(root, round_order=ROUND_ORDER):
     packages = {run['runtime_app'] for run in all_runs}
     settings = {run['settings'] for run in all_runs}
     methods = {run['launch_method'] for run in all_runs}
+    fixtures = [run['world_fixture'] for run in all_runs]
     batch_ok = True
     if 'ONE_PROCESS_BATCH' in methods:
         batch_ok = (methods == {'ONE_PROCESS_BATCH'} and
@@ -156,12 +159,20 @@ def compare(root, round_order=ROUND_ORDER):
     all_groups = [groups[name]['status'] == 'PASS' for name, *_ in GROUPS]
     order_ok = all(right['started_unix'] > left['started_unix']
                    for left, right in zip(all_runs, all_runs[1:]))
-    identity_ok = len(identities) == len(packages) == len(settings) == 1 and batch_ok
+    fixture_ok = all(
+        fixture and fixture.get('difficulty_id') == 1 and
+        fixture.get('initial_actor_count') == 0 and
+        fixture.get('terrain_generation_version') == run['version']
+        for fixture, run in zip(fixtures, all_runs)) and len({
+            fixture['template_sha256'] for fixture in fixtures}) == 1
+    identity_ok = (len(identities) == len(packages) == len(settings) == 1 and
+                   batch_ok and fixture_ok)
     return {'schema': 1, 'source': 'E2_RELEASE_CLIENT_CAPTURE',
             'guardrail': 'three-run median v8/v7 P95 and P99 <= 1.10 per group',
             'round_order': round_order,
             'identity_status': 'PASS' if identity_ok else 'FAIL',
             'batch_status': 'PASS' if batch_ok else 'FAIL',
+            'world_fixture_status': 'PASS' if fixture_ok else 'FAIL',
             'order_status': 'PASS' if order_ok else 'FAIL',
             'executable_sha256': sorted(identities),
             'runtime_app': sorted(packages),

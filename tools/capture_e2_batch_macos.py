@@ -79,6 +79,44 @@ def keep_awake(command):
     return ['/usr/bin/caffeinate', '-dimsu', *command]
 
 
+def prepare_world_save(template, destination, phase):
+    shutil.copytree(template, destination)
+    metadata = destination / 'world.meta'
+    lines = metadata.read_text().splitlines()
+    replacements = {
+        'world_id': 'world-' + hashlib.sha256(
+            phase.name.encode('utf-8')).hexdigest()[:32],
+        'terrain_generation_version': str(phase.version),
+        'difficulty_id': '1',
+    }
+    replaced = set()
+    output = []
+    for line in lines:
+        key = line.split(' ', 1)[0]
+        if key in replacements:
+            if key in replaced:
+                raise ValueError(f'E2 template repeats {key}')
+            output.append(f'{key} {replacements[key]}')
+            replaced.add(key)
+        elif key == 'actor':
+            raise ValueError('E2 template contains actor state')
+        else:
+            output.append(line)
+    actor_counts = [line for line in output if line.startswith('actor_count ')]
+    if (replaced != set(replacements) or
+            actor_counts != ['actor_count 0']):
+        raise ValueError('E2 template identity or actor baseline differs')
+    metadata.write_text('\n'.join(output) + '\n')
+    return {
+        'template_sha256': digest(template / 'world.meta'),
+        'world_meta_sha256': digest(metadata),
+        'world_id': replacements['world_id'],
+        'terrain_generation_version': phase.version,
+        'difficulty_id': 1,
+        'initial_actor_count': 0,
+    }
+
+
 def phases_for(mode, reverse):
     phases = []
     if mode in ('pilot', 'performance', 'all'):
@@ -173,15 +211,14 @@ def main():
     output.mkdir(parents=True)
     (resources / 'bin/config.txt').write_text(SETTINGS)
     paths = {}
+    world_fixtures = {}
     manifest_lines = ['E2_BATCH_V1']
     for phase in phases:
         directory = output / phase.kind / phase.name
         directory.mkdir(parents=True)
         save = directory / 'save'
-        if phase.version == 7:
-            shutil.copytree(V7_TEMPLATE, save)
-        else:
-            save.mkdir()
+        world_fixtures[phase.name] = prepare_world_save(
+            V7_TEMPLATE, save, phase)
         paths[phase.name] = directory
         manifest_lines.append('\t'.join((
             phase.name, str(phase.version), phase.scene, phase.position,
@@ -231,6 +268,13 @@ def main():
               'source_app': str(app), 'package_identity': identity,
               'manifest_sha256': digest(manifest),
               'render_phase_diagnostics': args.render_phase_diagnostics,
+              'world_fixture': {
+                  'template': str(V7_TEMPLATE),
+                  'template_sha256': digest(V7_TEMPLATE / 'world.meta'),
+                  'difficulty_id': 1,
+                  'initial_actor_count': 0,
+                  'identity_rule': 'SAME_TEMPLATE_TERRAIN_VERSION_AND_WORLD_ID_ONLY',
+              },
               'phase_count': len(phases), 'command': command,
               'application_command': launch_command,
               'idle_prevention': 'CAFFEINATE_BATCH_LIFETIME',
@@ -286,6 +330,7 @@ def main():
             'batch_pid': started['pid'] if started else None,
             'batch_manifest': str(manifest), 'package_identity': identity,
             'scene': phase.scene, 'settings': SETTINGS,
+            'world_fixture': world_fixtures[phase.name],
             'environment': record_env, 'command': command,
             'application_command': launch_command,
             'idle_prevention': 'CAFFEINATE_BATCH_LIFETIME',
@@ -316,6 +361,7 @@ def main():
                 summary.get('terrain_generation_version') !=
                     str(phase.version) or
                 summary.get('terrain_seed') != '20260807' or
+                summary.get('difficulty_id') != '1' or
                 summary.get('warmup_ms') != f'{phase.warmup_ms:.3f}' or
                 summary.get('duration_ms') != f'{phase.duration_ms:.3f}'):
                 raise ValueError('Phase summary identity or duration differs')
