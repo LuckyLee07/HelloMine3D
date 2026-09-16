@@ -75,6 +75,10 @@ def digest(path):
     return h.hexdigest()
 
 
+def keep_awake(command):
+    return ['/usr/bin/caffeinate', '-dimsu', *command]
+
+
 def phases_for(mode, reverse):
     phases = []
     if mode in ('pilot', 'performance', 'all'):
@@ -213,18 +217,23 @@ def main():
     }
     if args.render_phase_diagnostics:
         environment['HELLOMINE3D_E2_RENDER_PHASES'] = '1'
-    command = ['/usr/bin/open', '-n', '-W', '--stdout',
-               str(output / 'client.log'), '--stderr',
-               str(output / 'client-stderr.log')]
+    launch_command = ['/usr/bin/open', '-n', '-W', '--stdout',
+                      str(output / 'client.log'), '--stderr',
+                      str(output / 'client-stderr.log')]
     for key, value in environment.items():
-        command.extend(('--env', f'{key}={value}'))
-    command.append(str(app))
+        launch_command.extend(('--env', f'{key}={value}'))
+    launch_command.append(str(app))
+    # Keep the unlocked graphical session awake for the lifetime of the one
+    # process batch.  This cannot unlock an already locked login session.
+    command = keep_awake(launch_command)
     status = {'schema': 1, 'evidence_type': 'E2_ONE_PROCESS_BATCH',
               'mode': args.mode, 'reverse_order': args.reverse_order,
               'source_app': str(app), 'package_identity': identity,
               'manifest_sha256': digest(manifest),
               'render_phase_diagnostics': args.render_phase_diagnostics,
               'phase_count': len(phases), 'command': command,
+              'application_command': launch_command,
+              'idle_prevention': 'CAFFEINATE_BATCH_LIFETIME',
               'started_unix': time.time(), 'result': 'RUNNING'}
     status_path = output / 'batch-status.json'
     status_path.write_text(json.dumps(status, indent=2) + '\n')
@@ -278,6 +287,8 @@ def main():
             'batch_manifest': str(manifest), 'package_identity': identity,
             'scene': phase.scene, 'settings': SETTINGS,
             'environment': record_env, 'command': command,
+            'application_command': launch_command,
+            'idle_prevention': 'CAFFEINATE_BATCH_LIFETIME',
             'started_unix': (int(started['unix_ms']) / 1000
                              if started else None),
             'finished_unix': (int(completed['unix_ms']) / 1000
