@@ -154,6 +154,118 @@ v8 生产统计、同进程 24 段正式性能＋24 段反序复核及 12 段固
 候选 23 快照，`review-delivery-candidate23.json` 的包哈希及文件清单原样保留。
 E2 性能问题和最终版正常玩法在后续收口账本中继续跟踪。
 
+## 候选 23 林地流送尾帧复查（2026-09-16 后续）
+
+基于同一 Release 二进制已封存的正序与反序 `forest-streaming` 共 12 段
+原始 `frames.csv`，只读工具 `tools/analyze_ecology_e2_tail.py` 保存逐段 CSV/Summary
+SHA-256、超 20 ms 帧按五秒分布和渲染侧高帧分类。新分析原件位于
+`build/ecology-e2-20260914/candidate23-tail-analysis/analysis.json`，SHA-256
+`e03da1cccb51176b6d93ad1ee510ddafffcd04e155cbcecdf018a416ead73526`；原正式与
+反序比较 JSON 分别为 `1e6c6edd986dfe21ad4c3a8268379c64ae80ffa24716ab8d3bd8e804cff9b27f`
+和 `ebb3945578245e744da926dacef6ded33c00f500c96416497b7b8f0cf88aabcd`。
+
+12 秒以后，正序有 217 帧、反序有 99 帧的 `render_ms≥15`，这些帧相对前一帧
+均无区块加载数、GPU-buffered section 数、驻留地形缓冲字节、可见面分类、网格构建
+累计量变化。高帧的更新耗时中位数约 2.36..2.61 ms，渲染耗时中位数约
+20.38..20.94 ms；高尾帧并不随同步区块生成、网格上传或驻留增长发生。
+v7 也出现这类稳定场景尖峰：正序 r1 有 91 帧，反序 r3 有 31 帧；v8 在两组
+比较的更多轮次出现，仍使原 P99 规则两次 `FAIL`。这缩小了下一次定位范围，
+但 CPU CSV 无法把 Ogre 绘制、GPU 等待、present 或 OS 调度分开；不能据此
+把失败归咎于系统、把 v8 认定无责或改判 `PASS`。
+
+后续若继续修复 E2 性能，应在同一个项目客户端补图形帧阶段计时或有效的 GPU
+侧采样，针对这些稳定场景孤立尖峰定位，然后以原冻结顺序重新跑正式三轮与
+反序复核。此前 Ogre batch/triangle 接口的明显无效数据不能作为原因证据。
+Mac 锁屏与用户延期人工玩法的决定仍保持；没有新验收通过确认，不做 E2 完成版提交。
+
+同一轮还从已提交的 `699eacf` 建立隔离源码工作树
+`codex/e2-present-diagnostics`，保护主工作区未提交的 E3。项目自带 Ogre 源码确认：
+`frameRenderingQueued` 位于 render target 更新与最终缓冲交换之间；据此准备仅在
+显式 E2 批量诊断下启用的 `render_draw_ms`、`render_post_draw_ms`、
+`render_ended_ms` 逐帧侧录，后绘制段包含缓冲交换及 LOD 事件，不冒称纯 GPU 时间。
+macOS Debug/Release 两个受影响源文件对象编译 `PASS`，批量采集器参数/CSV
+一致性核对就绪；先前**没有链接、创建或启动第二个游戏客户端**，实际图形侧录
+`NOT_RUN`。最初隔离代码补丁保存在
+`build/ecology-e2-20260914/candidate23-tail-analysis/e2-render-phase-diagnostics.patch`，
+SHA-256 `d8a3288dd95ff18bf22ee90b8781686c8bc4dd1cd0c93f32ca7bff2b25368478`。
+候选 23 原包、两轮性能 FAIL 与人工延期状态均不变；只有图形会话可用且原项目
+E2 工作客户端关闭后，才能原位刷新并用一次启动的 pilot 核对这项新侧录。
+
+隔离分支随后完整链接 E2 Release **可执行文件**：首次因缺少第三方静态库
+`FAIL`，原始 `build/e2-render-phase-client-release-build.log` 保留；从未改的主工程
+同 commit 第三方源码引用 17 个既有 Release 静态库，逐项 SHA-256 冻结并在链接后
+17/17 重核 `PASS`。第二次完整链接 `PASS`，隔离工作树
+`bin/HelloMine3D` SHA-256
+`843eb603e1c4b100ab30c9c153d705b4488704e81f8269aec2962ae593ea4f60`。
+批量工具五个合成 CSV 自检 `PASS`，包括拒绝 `NaN`、负值、三段求和错误和不足
+100 帧；自检 JSON SHA-256
+`6a1689fe637baaf722651c9a1f948275e5a394912c7d212c3da8c7da35857ed9`。
+修订源码补丁见
+`build/ecology-e2-20260914/candidate23-tail-analysis/e2-render-phase-diagnostics-r2.patch`，
+SHA-256 `5fc9a6d9b47806e496f7238aec6017e10735446dc61ee3cc01cdea8079a18879`。
+工作 `.app`、封存验收包均未刷新或启动；合成 CSV 不作为真实性能证据，
+E2 林地 P99 仍 `FAIL`，动态图形 Pilot 仍 `NOT_RUN`。
+隔离诊断构建原件已另存项目内
+`build/ecology-e2-20260914/candidate23-tail-analysis/diagnostic-release-20260916/`：
+二进制、初次失败及重试日志、17 库哈希清单/重核、五份合成 CSV 与工具自检共
+11 个文件逐项 SHA-256 复核 `PASS`，`receipt.json` SHA-256 为
+`0c3c20c671978792ad18169612ddac8b5bed3b5706a985b0a1b1bc292671d5c0`。
+原 E2 工作 `.app` 可执行文件重核仍为封存的
+`d41e615aeea8250c9790ffa7585925b807a109ce18a0e1be62a693a50b9714e6`。
+此目录是**未做动态图形复测的诊断构建**，不是新 E2 游戏验收包。
+
+再次对 12 段候选 23 原始林地流送 `frames.csv` 做只读变量复查，
+`tools/analyze_ecology_e2_tail_signals.py` 逐段核对源 SHA-256 后生成
+`build/ecology-e2-20260914/candidate23-tail-analysis/signals.json`，SHA-256
+`98bfd8d9458682f346b537daa295d0f2abb6a487b89757c74b795a83ec8d284e`。
+12 秒后、场景驻留指标不变的高渲染帧正序 217、反序 99；这些帧没有
+演员数、天空亮度、雾、GUI 或截图计时变化；独立 `display_ms` 栏恒为 0，
+不能用它排除缓冲交换／present。固定 tick 是否推进的
+比例与对照帧接近，不能把尖峰归为某个 tick。六对林地流送的稳定段中，
+v8 实心面数和地形驻留字节均**低于** v7，常态 `render_ms` 中位数约
+5.9..6.2 ms；v8 常驻演员 4，v7 为 3，仍是不能排除的场景差异。
+这些 CPU/世界统计缩小下一次图形侧录的关注点，但不证明 GPU 或系统根因，
+更不改变 P99 `FAIL` 与原 1.10 门槛。
+
+## 唯一工作客户端原位刷新为 E2 侧录版（2026-09-16）
+
+图形会话仍锁定，未启动游戏。系统权限下的进程检查只返回 `PID` 表头，
+没有 HelloMine3D 进程；现有工作 `.app` 的 109 项分发清单全部通过哈希验证，
+`acceptance=NOT_RUN` 且未签名。刷新前把该客户端保存为**非 `.app` 工作副本**的
+`candidate23-tail-analysis/pre-render-phase-work-client-20260916.tar`，
+348 个 tar 成员，SHA-256
+`a539ae856f1d0b8c6dfc3ca3d016e702fda7f5a77a4df11dfad0e6eff380b2ad`。
+随后从隔离的 v8 源码工作树调用现有 `package_macos_release.py --refresh-existing`，
+只原位刷新项目内唯一的 `HelloMine3D-E2-Prototype.app`；刷新后的 109 项清单
+仍 PASS，二进制 SHA-256 与 metadata 的 `executable_sha256` 字段均为
+`843eb603e1c4b100ab30c9c153d705b4488704e81f8269aec2962ae593ea4f60`，
+源码起点 `699eacf`、terrain 当前版本仍为 8。主工程批量采集器已同步
+`--render-phase-diagnostics`，与隔离版工具 SHA-256 同为
+`7537104f5f83f37fc5b1c503db6843532d74fd862977641a5dbaf460d717dd56`。
+刷新与回滚身份见
+`candidate23-tail-analysis/work-client-refresh-20260916.json`，SHA-256
+`e73ba235e97040fc27989ab236bc321a1e1cd633fc8d564fdcd4b971fda44116`。
+主工程采集器的静态集成预检 `PASS`：v7 存档模板存在、两段 Pilot 调度存在、
+工作包 metadata/二进制匹配、有效 CSV 接受且 `NaN` CSV 拒绝；
+`candidate23-tail-analysis/main-capture-tool-preflight-20260916.json` SHA-256
+`4797d5d16d18d10cf40407761c467762841b363a3ef8a8baa4b724df6ce3bff8`。
+静态预检不声称图形 Pilot 已运行。
+
+刷新的是**工作客户端**，不是候选 23 的正式验收包。正式游戏 ZIP 与独立证据
+ZIP 在刷新后重核 SHA-256 仍分别为
+`ff2ba216060064ca0332bd89efda90ead913837fecab0f0ed388d65687cebb22`、
+`293b1406286920fe3cff5031fbc9aa752b0e20dfa67a1949c23a8e089e0b3a1f`。
+动态图形 Pilot `NOT_RUN`、原林地 P99 `FAIL`、人工正常玩法依用户要求延期；诊断版工作客户端
+不得当作新验收游戏包，也不能用刷新动作改判 P99。
+
+E2 阶段侧录源码随后也同步到主工作区的 `RuntimePerformanceCapture` 与
+`OgreBootstrap`，与主工程批量采集器保持一致；本机 gmake Debug/Release 客户端
+增量构建均 `PASS`，原始日志留在
+`build/ecology-e2-20260914/checkpoint-validation-20260916/`，SHA-256 分别为
+`8d5f13e3014d7a5b9fb59b1c32d958c114cf0c414b673c2620850f02f6654f26` 与
+`0c41c67f6e9dfe7dd4548afbb1738117c4429a8e41187ba15970f20dc405b9d4`。
+这是诊断实现检查点，不能代替锁屏下未运行的图形 Pilot、正式 P99 复核或用户验收。
+
 ## 保留的失败及修复记录
 
 - v7 窗口首启因锁屏超时，原始失败见 `baseline/visual-v7-dry-shore/`。未以无窗口截图替代。

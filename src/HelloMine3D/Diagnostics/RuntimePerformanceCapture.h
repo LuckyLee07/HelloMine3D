@@ -13,6 +13,10 @@ namespace RuntimePerformanceCapture
         double eventMs = 0.0;
         double updateMs = 0.0;
         double renderMs = 0.0;
+        double renderDrawMs = 0.0;
+        double renderPostDrawMs = 0.0;
+        double renderEndedMs = 0.0;
+        bool renderPhaseValid = false;
         double debugGuiMs = 0.0;
         double renderCaptureMs = 0.0;
         double displayMs = 0.0;

@@ -2,8 +2,10 @@
 """Capture E2's independent phases inside one reused macOS game process."""
 
 import argparse
+import csv
 import hashlib
 import json
+import math
 import platform
 import shutil
 import subprocess
@@ -113,6 +115,31 @@ def parse_events(path):
     return events
 
 
+def verify_render_phase_frames(path):
+    with path.open(newline='') as stream:
+        frame_rows = csv.DictReader(stream)
+        required = {'render_ms', 'render_draw_ms',
+                    'render_post_draw_ms', 'render_ended_ms',
+                    'render_phase_valid'}
+        if not required.issubset(set(frame_rows.fieldnames or [])):
+            raise ValueError('Render phase CSV columns are missing')
+        phase_frames = 0
+        for frame in frame_rows:
+            phase_frames += 1
+            parts = (float(frame['render_draw_ms']),
+                     float(frame['render_post_draw_ms']),
+                     float(frame['render_ended_ms']))
+            total = float(frame['render_ms'])
+            if (frame['render_phase_valid'] != '1' or
+                not all(math.isfinite(value) and value >= 0
+                        for value in (total, *parts)) or
+                abs(total - sum(parts)) > 0.02):
+                raise ValueError('Render phase timing differs')
+        if phase_frames < 100:
+            raise ValueError('Render phase frames are incomplete')
+    return phase_frames
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--app', type=Path, required=True)
@@ -120,6 +147,8 @@ def main():
     parser.add_argument('--mode', choices=('pilot', 'performance',
                                             'visual', 'all'), required=True)
     parser.add_argument('--reverse-order', action='store_true')
+    parser.add_argument('--render-phase-diagnostics', action='store_true',
+                        help='Capture Ogre draw and post-draw frame spans')
     args = parser.parse_args()
     if platform.system() != 'Darwin':
         parser.error('macOS is required')
@@ -181,6 +210,8 @@ def main():
         'HELLOMINE3D_E2_BATCH_MANIFEST': str(manifest),
         'HELLOMINE3D_E2_BATCH_EVENTS': str(output / 'batch-events.tsv'),
     }
+    if args.render_phase_diagnostics:
+        environment['HELLOMINE3D_E2_RENDER_PHASES'] = '1'
     command = ['/usr/bin/open', '-n', '-W', '--stdout',
                str(output / 'client.log'), '--stderr',
                str(output / 'client-stderr.log')]
@@ -191,6 +222,7 @@ def main():
               'mode': args.mode, 'reverse_order': args.reverse_order,
               'source_app': str(app), 'package_identity': identity,
               'manifest_sha256': digest(manifest),
+              'render_phase_diagnostics': args.render_phase_diagnostics,
               'phase_count': len(phases), 'command': command,
               'started_unix': time.time(), 'result': 'RUNNING'}
     status_path = output / 'batch-status.json'
@@ -275,6 +307,9 @@ def main():
                 summary.get('warmup_ms') != f'{phase.warmup_ms:.3f}' or
                 summary.get('duration_ms') != f'{phase.duration_ms:.3f}'):
                 raise ValueError('Phase summary identity or duration differs')
+            if args.render_phase_diagnostics:
+                record['render_phase_frames'] = verify_render_phase_frames(
+                    artifacts[3])
             record['artifacts'] = {
                 str(path.relative_to(directory)): digest(path)
                 for path in artifacts}
