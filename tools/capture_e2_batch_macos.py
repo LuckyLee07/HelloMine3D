@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Capture E2/E3 ecology phases inside one reused macOS game process."""
+"""Capture E2/E3/E4 ecology phases inside one reused macOS game process."""
 
 import argparse
 import csv
@@ -39,6 +39,14 @@ E3_VISUALS = (
 E3_GROUPS = (
     ('meadow-steady', 'meadow', '1536 120 800', False),
     ('meadow-streaming', 'meadow', '1536 120 800', True),
+)
+E4_VISUALS = (
+    ('relief_positive', 'relief', '1152 150 64', '0 0 0'),
+    ('relief_negative', 'relief', '-960 180 -1088', '0 0 0'),
+)
+E4_GROUPS = (
+    ('relief-steady', 'relief', '1152 150 64', False),
+    ('relief-streaming', 'relief', '1152 150 64', True),
 )
 SETTINGS = """settings_version 8
 renderdistance 8
@@ -126,7 +134,10 @@ def prepare_world_save(template, destination, phase):
 
 
 def phases_for(mode, reverse, profile='e2'):
-    if profile == 'e3':
+    if profile == 'e4':
+        groups, visuals = E4_GROUPS, E4_VISUALS
+        baseline, candidate = 9, 10
+    elif profile == 'e3':
         groups, visuals = E3_GROUPS, E3_VISUALS
         baseline, candidate = 8, 9
     else:
@@ -204,7 +215,7 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--mode', choices=('pilot', 'performance',
                                             'visual', 'all'), required=True)
-    parser.add_argument('--profile', choices=('e2', 'e3'), default='e2',
+    parser.add_argument('--profile', choices=('e2', 'e3', 'e4'), default='e2',
                         help='Frozen ecology phase set; defaults to E2')
     parser.add_argument('--reverse-order', action='store_true')
     parser.add_argument('--render-phase-diagnostics', action='store_true',
