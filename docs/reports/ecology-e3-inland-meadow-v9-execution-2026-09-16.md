@@ -1,6 +1,6 @@
 # E3 terrain v9 内陆林缘与草甸开窗执行记录
 
-状态：`Doing / 首批生成实现与自动验证完成，窗口与人工体验延期`。实际起始 HEAD
+状态：`Engineering Done / 自动与窗口证据 PASS，正常玩法按用户要求延期`。实际起始 HEAD
 `699eacf491955da9eff297d55bbaff1a13b85ef7`，起步工作区干净。E2 同进程批量验收
 代码及真实性能 FAIL 已另做本地**检查点**提交，不是 E2 完成版。E3 合同和 v8 冻结身份见
 [E3 合同](../contracts/ecology-inland-meadow-v9-e3-contract-v1.md)、
@@ -27,7 +27,8 @@
 | 世界完整回归 | `PASS` | 新天然草地树根回归纳入完整运行后，gmake Debug/Release `HelloMine3DWorldRuntimeSmoke` 均 `1091/1091`，见 `e3-grassland-final-world-full-{debug,release}.log`；SHA-256 分别为 `cc1b0d6ea3756f6ed1cc074dd3f07be023bdb4eb57e6f6503af132b490e8794e`、`294587c32a4f192f48a8a8e53b71eed1908c79be99c6af830063c93d15cc3c5f`。 |
 | 客户端双配置编译 | `PASS` | gmake Debug/Release `HelloMine3D`，见 `client-build-*.log`。 |
 | 世界目录与事务存档 | `PASS` | gmake Release `WorldCatalogueSmoke` 60/60、`StorageTransactionSmoke` 18/18，见 `catalogue-release.log` 与 `storage-release.log`。 |
-| 窗口性能与 v8/v9 正常画面 | `NOT_RUN` | 当前 Mac 锁定，未反复创建或启动临时客户端；E2 的林地流送 P99 两轮 FAIL 仍需单独处理。 |
+| 窗口性能 | `PASS` | 同一 Release 工作客户端、同一 PID 的 12 段：草甸常驻 P95/P99 为 `1.006×/1.014×`，快速流送为 `0.995×/0.979×`，均低于冻结的 `1.10`；身份、世界夹具和顺序均 PASS。比较 SHA-256 `7e0a59822e7c611cc8b039a317b76bdbbd639b2ebaf7764d14b51cdbfc3c6a77`。 |
+| v8/v9 固定画面 | `PASS` | seed `20260807` 正负坐标各两版、5 秒与 10 秒共 8 张原图：v9 分别形成完整开阔草甸和沿坡可步行林缘，未见高度接缝、等宽直带或逐格噪点。视觉判定 SHA-256 `de742c078e99c90ddcc0b8558ede8001bb9591a05fe7eb6c72459b86cc56b6fb`。 |
 | 中文菜单步行、采集与重开 | `NOT_RUN / 用户要求延期` | 未把固定机位或自动存档测试冒充正常玩法。 |
 
 全部原始路径均位于 `build/ecology-e3-20260916/`；`validate_ecology_e3.py` 只聚合 C++
@@ -43,6 +44,25 @@
 “窗口证据冻结补充”。批量工具以 `--profile e3` 复用既有同进程生命周期，E2 默认 phase
 集合和比较规则不变；运行时只把显式诊断 manifest 的允许版本扩至 9、场景标签扩至 meadow。
 计划一次启动完成 12 段性能与 4 段原图，不用分散启动的 Pilot 冒充正式证据。
+
+## Release 窗口结果
+
+正式工作客户端由干净提交 `e8a686f9d41278efba36924894bb2cac938dab0c` 原位刷新，109 项
+分发清单 `PASS`；最终 Release 二进制 SHA-256 为
+`7c306b27eeec8ca6b7ed245860fa671fef4a740d3e71675184b4f4eea202062c`。批次
+`window-batch-release-r2/` 在唯一 PID `47901` 内按冻结顺序写出 32 个开始/完成事件，
+16/16 phase 均 `CAPTURED`。批次状态和事件 SHA-256 分别为
+`fa74609009c46c0b4e2d6f74598f66d48e3606d5ddc02773eeea00d93c478fdc`、
+`cb3fbcea02d1fb49b8237c5ce74b73e747554d181e8e58cc534bd1d3c78907fc`。
+
+三轮中位数比较的身份、夹具、顺序和两组性能全部 `PASS`：草甸常驻 P95/P99
+`1.006×/1.014×`，快速流送 `0.995×/0.979×`。正坐标原图中 v8 的真实树冠碰撞让玩家
+停在冠层，而 v9 在同一强制起点落到高度未改变的草甸地面；没有补偿相机或裁图。负坐标
+两版都在近地视角，清楚显示密林转为沿坡展开的连续草甸。两组 v9 均保留远近树线，形成
+可读的林缘；动态敌人警告和血量变化留在原图，不影响地形结论。窗口汇总 SHA-256
+`8fc406aa32ed18829a6260c55622cad39c4cc61cef7dd1a213bedd9a863fc79b`；136 个文件的完整性
+收据自检 `PASS`，SHA-256
+`937b28c682b9d74cba1d3929ff1cdb4ea491de1fba08fa0a3cb109bf83f23b43`。
 
 ## 保留的失败与剩余风险
 
@@ -67,11 +87,17 @@
   `a6f4cbec5ff1f27a87b0c6fbe3e086379a8ebc3f8812e5e5ffac46353b558068`，
   保留初次 FAIL、Debug/Release 三份原始表及修正后的独立校验。没有因为误判改
   地形或营地规则，也没有放宽 16 区块、12 区块变化、高度与树根门槛。
-- 32 个常规固定生成区块以非目标生态为主，只有一块指纹变化；定向 16 个区块
-  证明开窗内真实方块有变化，但这些样本偏向开窗内部，林缘形态仍需窗口画面和
-  同机位 v8/v9 对比判断审美质量。E2 林地流送 P99
-  `1.391×/1.305× FAIL` 尚未定位，E3 不能宣称解决该问题，也不能以自动测试
-  代替实机性能。
+- 首次窗口批次 `window-batch-release-r1/` 的同一 PID 完整跑完 16 段，但 summary 报
+  `build_configuration=Debug`，与正式 Release 身份不符，整批 16 项均判 `FAIL`。原因是
+  Debug/Release 共用输出路径，较新的 Debug 可执行文件让普通 Release 增量构建没有重新链接。
+  失败二进制、批次状态、事件和 identity 已用收据封存，SHA-256
+  `775f6c092c1ed52426087d12b5cc29e1918b880f3604f8ba24ce891c16aa6e8f`；删除共享输出后强制
+  Release 链接，并在刷新前用二进制字符串和 109 项清单双重确认。失败批次没有改写成 PASS。
+- 32 个常规固定生成区块以非目标生态为主，只有一块指纹变化；定向 16 个区块和两处窗口
+  机位补足了开窗内域与可见林缘证据，但还不是对全部 seed 的人工审美抽查。正坐标 v8/v9
+  最终相机高度因真实树冠碰撞不同，负坐标对照承担近地同构图判断。E2 匹配夹具的反序岸边
+  流送 P99 `1.134× FAIL` 仍独立挂账，E3 的 v8/v9 草甸性能 PASS 不关闭该问题。
 
-本批不标记 E3 完成版，不推送、发布或打标签。按用户最新顺序，E2 缺项和本批
-动态验收不阻塞可执行的后续开发；未取得的结果继续留在任务账本。
+本批达到 `Engineering Done`，不冒充用户人工验收通过，不推送、发布或打标签。按用户最新
+顺序，正常中文菜单步行、采集与重开继续标记 `NOT_RUN / 用户延期`；E2 缺项和这项人工观察
+不阻塞可执行的后续开发。
