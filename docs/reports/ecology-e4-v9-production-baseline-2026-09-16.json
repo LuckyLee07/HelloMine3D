@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "batch": "E4 terrain v10 inland relief",
+  "frozen_at": "2026-09-16",
+  "source_commit": "9fea99bac2f262a53105987ae145e09714a45c13",
+  "source": "build/ecology-e3-20260916/production-debug-final/v9",
+  "copy": "build/ecology-e4-20260916/baseline/v9",
+  "identity": {
+    "samples.csv": "1329b469658ca0fba8c4ce322cfb04f2d7e3126d8d0dbb39eb8e63cd67ba9e5e",
+    "chunks.csv": "eadd6a880c991b2e31c4d67faa8017c3d53c034391951824d37c67ea770ea939",
+    "timings.csv": "8c544c64b34ba509b229ba5455ff515a436bf288f08d966eea010ae0ef277376",
+    "summary.json": "ab0bde56c74fd6e7f86a9e5fbf20983349a659a17ff79f9d5143cbecf7ff2428",
+    "height-maps.png": "8770029e93d840fec208779ff051f665f3bb9ed327d17e72b7e7f41c0744050d"
+  },
+  "production_protocol": {
+    "seeds": [0, 1, 42, 424, 325322, 8675309, 20260807, 20260809],
+    "sample_rows": 463056,
+    "macro_rows": 133128,
+    "generated_chunks": 32
+  },
+  "v9_macro": {
+    "height_min": 37,
+    "height_max": 165,
+    "height_mean": 80.28307343308695,
+    "height_stddev": 21.014011084793843,
+    "height_unique": 129,
+    "slope_max": 3,
+    "slope_p99": 1,
+    "water_fraction": 0.2089417703263025
+  },
+  "v10_eligible_old_height_81_to_134_non_mountain_description": {
+    "note": "描述性冻结只用于说明当前内陆层次；v10 实际资格不按生态标签裁切。",
+    "rows": 34348,
+    "fraction_of_macro": 0.2580073312901869,
+    "height_mean": 89.05726679864912,
+    "height_stddev": 6.944145636281208,
+    "height_unique": 50
+  }
+}
