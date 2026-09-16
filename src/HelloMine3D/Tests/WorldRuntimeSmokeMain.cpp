@@ -12634,7 +12634,7 @@ void caseInlandMeadowV9()
     check("E3/terrain-version-appends-v9",
           SurfaceCoastTerrainGenerationVersion == 8 &&
           InlandMeadowTerrainGenerationVersion == 9 &&
-          CurrentTerrainGenerationVersion == InlandMeadowTerrainGenerationVersion);
+          CurrentTerrainGenerationVersion >= InlandMeadowTerrainGenerationVersion);
 
     std::size_t forestColumns = 0;
     std::size_t clearingColumns = 0;
@@ -12645,8 +12645,8 @@ void caseInlandMeadowV9()
         TerrainFoundation plan(seed);
         ClassicOverWorldGenerator generator(
             seed, InlandMeadowTerrainGenerationVersion);
-        for (int z = -512; z <= 512; z += 8) {
-            for (int x = -512; x <= 512; x += 8) {
+        for (int z = -2048; z <= 2048; z += 32) {
+            for (int x = -2048; x <= 2048; x += 32) {
                 const auto oldColumn = plan.sampleV8(x, z);
                 const auto newColumn = plan.sampleV9(x, z);
                 unchangedColumns = unchangedColumns &&
@@ -12708,6 +12708,8 @@ void caseInlandMeadowV9()
     Camera camera(config);
     Player player;
     const std::string directory = freshSaveDirectory("e3_v9_reopen");
+    const bool v9Fixture = initializeTerrainIdentity(
+        directory, "e3-v9-reopen", InlandMeadowTerrainGenerationVersion);
     bool persisted = false;
     bool orderedChunks = true;
     bool suitableDecorators = true;
@@ -12763,7 +12765,8 @@ void caseInlandMeadowV9()
         }
         created.getChunkManager().loadChunk(0, 32);
         created.setBlock(8, 190, 520, BlockId::OakBark);
-        persisted = created.getChunkManager().getTerrainGenerationVersion() ==
+        persisted = v9Fixture &&
+            created.getChunkManager().getTerrainGenerationVersion() ==
             InlandMeadowTerrainGenerationVersion &&
             created.save();
     }
@@ -12791,11 +12794,16 @@ void caseInlandMeadowV9()
     glm::ivec2 naturalOakXZ(0, 0);
     std::size_t naturalGrasslandColumns = 0;
     std::size_t naturalGrasslandGrassColumns = 0;
+    bool sampleFixture = false;
     {
         setEnv("HELLOMINE3D_SEED", "0");
         Player owner;
-        World sampleWorld(camera, config, owner,
-            freshSaveDirectory("e3_natural_grassland_oak"), false, 0);
+        const std::string sampleDirectory =
+            freshSaveDirectory("e3_natural_grassland_oak");
+        sampleFixture = initializeTerrainIdentity(
+            sampleDirectory, "e3-natural-grassland-oak",
+            InlandMeadowTerrainGenerationVersion);
+        World sampleWorld(camera, config, owner, sampleDirectory, false, 0);
         TerrainFoundation v8Plan(0);
         ClassicOverWorldGenerator v8(0, SurfaceCoastTerrainGenerationVersion);
         ClassicOverWorldGenerator v9(0, InlandMeadowTerrainGenerationVersion);
@@ -12836,7 +12844,8 @@ void caseInlandMeadowV9()
         }
     }
     check("E3/v8-natural-grassland-oak-preserved-in-v9",
-          naturalGrasslandOakFound && naturalGrasslandOakPreserved,
+          sampleFixture && naturalGrasslandOakFound &&
+              naturalGrasslandOakPreserved,
           "found=" + std::to_string(naturalGrasslandOakFound) +
           " natural=" + std::to_string(naturalGrasslandColumns) +
           " natural-grass=" +
@@ -12847,14 +12856,18 @@ void caseInlandMeadowV9()
     for (const int seed : TerrainSurvey::Seeds) {
         setEnv("HELLOMINE3D_SEED", std::to_string(seed));
         Player spawned;
-        World habitat(camera, config, spawned,
-            freshSaveDirectory("e3_spawn_" + std::to_string(seed)), false, 0);
+        const std::string habitatDirectory = freshSaveDirectory(
+            "e3_spawn_" + std::to_string(seed));
+        const bool habitatFixture = initializeTerrainIdentity(
+            habitatDirectory, "e3-spawn-" + std::to_string(seed),
+            InlandMeadowTerrainGenerationVersion, seed, false);
+        World habitat(camera, config, spawned, habitatDirectory, false, 0);
         const int spawnX = static_cast<int>(std::floor(spawned.position.x));
         const int spawnZ = static_cast<int>(std::floor(spawned.position.z));
         const int groundY = static_cast<int>(spawned.position.y) - 2;
         const BlockId ground = static_cast<BlockId>(
             habitat.getBlock(spawnX, groundY, spawnZ).id);
-        const bool safeSpawn = ground != BlockId::Air &&
+        const bool safeSpawn = habitatFixture && ground != BlockId::Air &&
             ground != BlockId::Water &&
             habitat.getBlock(spawnX, groundY + 1, spawnZ) == BlockId::Air &&
             habitat.getBlock(spawnX, groundY + 2, spawnZ) == BlockId::Air &&
@@ -12957,6 +12970,194 @@ void caseInlandMeadowV9()
               std::all_of(sites.begin(), sites.end(),
                           [](bool value) { return value; }));
     }
+    setEnv("HELLOMINE3D_SEED", "");
+}
+
+void caseInlandReliefV10()
+{
+    check("E4/terrain-version-appends-v10",
+          InlandMeadowTerrainGenerationVersion == 9 &&
+          InlandReliefTerrainGenerationVersion == 10 &&
+          CurrentTerrainGenerationVersion ==
+              InlandReliefTerrainGenerationVersion);
+
+    std::size_t eligible = 0;
+    std::size_t changed = 0;
+    std::size_t lifted = 0;
+    std::size_t lowered = 0;
+    std::uint64_t absoluteDelta = 0;
+    bool frozenColumnsStable = true;
+    bool labelsStable = true;
+    bool queryAgreement = true;
+    bool boundedRelief = true;
+    bool walkableSlope = true;
+    int seedsWithFourChangedQuadrants = 0;
+    for (const int seed : TerrainSurvey::Seeds) {
+        TerrainFoundation plan(seed);
+        ClassicOverWorldGenerator generator(
+            seed, InlandReliefTerrainGenerationVersion);
+        std::array<bool, 4> changedQuadrant{};
+        for (int z = -2048; z <= 2048; z += 32) {
+            for (int x = -2048; x <= 2048; x += 32) {
+                const auto oldColumn = plan.sampleV9(x, z);
+                const auto newColumn = plan.sampleV10(x, z);
+                const int delta = newColumn.height - oldColumn.height;
+                labelsStable = labelsStable &&
+                    oldColumn.biome == newColumn.biome &&
+                    oldColumn.surface == newColumn.surface;
+                queryAgreement = queryAgreement &&
+                    generator.getSurfaceHeightAtWorld(x, z) ==
+                        newColumn.height &&
+                    generator.getBiomeAtWorld(x, z) == newColumn.biome;
+                boundedRelief = boundedRelief &&
+                    newColumn.height >= 1 && newColumn.height <= 176 &&
+                    std::abs(delta) <= 8;
+                walkableSlope = walkableSlope &&
+                    std::abs(plan.sampleV10(x + 1, z).height -
+                             newColumn.height) <= 3 &&
+                    std::abs(plan.sampleV10(x, z + 1).height -
+                             newColumn.height) <= 3;
+                if (oldColumn.height <= 80 || oldColumn.height >= 135) {
+                    frozenColumnsStable = frozenColumnsStable && delta == 0;
+                    continue;
+                }
+                ++eligible;
+                if (delta == 0) { continue; }
+                ++changed;
+                lifted += delta > 0 ? 1 : 0;
+                lowered += delta < 0 ? 1 : 0;
+                absoluteDelta += static_cast<std::uint64_t>(std::abs(delta));
+            }
+        }
+        for (std::size_t quadrant = 0;
+             quadrant < changedQuadrant.size(); ++quadrant) {
+            const bool negativeX = (quadrant & 2u) != 0;
+            const bool negativeZ = (quadrant & 1u) != 0;
+            const int minimumX = negativeX ? -8192 : 0;
+            const int maximumX = negativeX ? -1 : 8192;
+            const int minimumZ = negativeZ ? -8192 : 0;
+            const int maximumZ = negativeZ ? -1 : 8192;
+            for (int z = minimumZ;
+                 z <= maximumZ && !changedQuadrant[quadrant]; z += 128) {
+                for (int x = minimumX;
+                     x <= maximumX && !changedQuadrant[quadrant]; x += 128) {
+                    int changedRun = 0;
+                    for (int offset = 0; offset < 16; ++offset) {
+                        const auto oldColumn = plan.sampleV9(x + offset, z);
+                        const auto newColumn = plan.sampleV10(x + offset, z);
+                        changedRun += oldColumn.height > 80 &&
+                            oldColumn.height < 135 &&
+                            oldColumn.height != newColumn.height ? 1 : 0;
+                    }
+                    changedQuadrant[quadrant] = changedRun >= 12;
+                }
+            }
+        }
+        seedsWithFourChangedQuadrants += std::all_of(
+            changedQuadrant.begin(), changedQuadrant.end(),
+            [](bool value) { return value; }) ? 1 : 0;
+    }
+    const double changedRatio = eligible == 0 ? 0.0 :
+        static_cast<double>(changed) / static_cast<double>(eligible);
+    const double meanAbsoluteDelta = eligible == 0 ? 0.0 :
+        static_cast<double>(absoluteDelta) / static_cast<double>(eligible);
+    const double liftedRatio = eligible == 0 ? 0.0 :
+        static_cast<double>(lifted) / static_cast<double>(eligible);
+    const double loweredRatio = eligible == 0 ? 0.0 :
+        static_cast<double>(lowered) / static_cast<double>(eligible);
+    check("E4/v9-labels-and-frozen-height-bands-stable",
+          labelsStable && frozenColumnsStable);
+    check("E4/generation-queries-share-v10-columns", queryAgreement);
+    check("E4/relief-is-bounded-and-walkable",
+          boundedRelief && walkableSlope);
+    check("E4/inland-relief-coverage-and-balance",
+          changedRatio >= 0.45 && changedRatio <= 0.90 &&
+          meanAbsoluteDelta >= 2.0 && meanAbsoluteDelta <= 5.5 &&
+          liftedRatio >= 0.15 && loweredRatio >= 0.15 &&
+          seedsWithFourChangedQuadrants ==
+              static_cast<int>(TerrainSurvey::Seeds.size()),
+          "eligible=" + std::to_string(eligible) +
+          " changed=" + std::to_string(changed) +
+          " ratio=" + std::to_string(changedRatio) +
+          " mean-abs=" + std::to_string(meanAbsoluteDelta) +
+          " lifted/lowered=" + std::to_string(liftedRatio) + "/" +
+              std::to_string(loweredRatio) +
+          " four-quadrants=" +
+              std::to_string(seedsWithFourChangedQuadrants));
+
+    setEnv("HELLOMINE3D_SEED", "20260807");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    const std::string directory = freshSaveDirectory("e4_v10_reopen");
+    bool orderedChunks = true;
+    bool suitableDecorators = true;
+    bool persisted = false;
+    {
+        World created(camera, config, player, directory, false, 0);
+        const std::array<glm::ivec2, 6> locations{{
+            {0, 32}, {-1, 0}, {64, 64}, {-8, -3}, {3, -4}, {-56, -50}}};
+        for (const int seed : TerrainSurvey::Seeds) {
+            ClassicOverWorldGenerator forward(
+                seed, InlandReliefTerrainGenerationVersion);
+            ClassicOverWorldGenerator reverse(
+                seed, InlandReliefTerrainGenerationVersion);
+            std::array<std::uint64_t, locations.size()> hashes{};
+            for (std::size_t index = 0; index < locations.size(); ++index) {
+                const glm::ivec2 location = locations[index];
+                Chunk chunk(created, location, false);
+                forward.generateTerrainFor(chunk);
+                hashes[index] = TerrainSurvey::blockHash(chunk);
+                for (int x = 0; x < CHUNK_SIZE; ++x) {
+                    for (int z = 0; z < CHUNK_SIZE; ++z) {
+                        const int worldX = location.x * CHUNK_SIZE + x;
+                        const int worldZ = location.y * CHUNK_SIZE + z;
+                        const int height = forward.getSurfaceHeightAtWorld(
+                            worldX, worldZ);
+                        const BlockId ground = static_cast<BlockId>(
+                            chunk.getBlock(x, height, z).id);
+                        const BlockId above = static_cast<BlockId>(
+                            chunk.getBlock(x, height + 1, z).id);
+                        suitableDecorators = suitableDecorators &&
+                            ((above != BlockId::TallGrass &&
+                              above != BlockId::Rose) ||
+                             ground == BlockId::Grass) &&
+                            (above != BlockId::DeadShrub ||
+                             ground == BlockId::Sand) &&
+                            !(above == BlockId::OakBark &&
+                              (ground == BlockId::Air ||
+                               ground == BlockId::Water));
+                    }
+                }
+            }
+            for (std::size_t index = locations.size(); index-- > 0;) {
+                Chunk chunk(created, locations[index], false);
+                reverse.generateTerrainFor(chunk);
+                orderedChunks = orderedChunks &&
+                    hashes[index] == TerrainSurvey::blockHash(chunk);
+            }
+        }
+        created.getChunkManager().loadChunk(0, 32);
+        created.setBlock(8, 190, 520, BlockId::OakBark);
+        persisted =
+            created.getChunkManager().getTerrainGenerationVersion() ==
+                InlandReliefTerrainGenerationVersion &&
+            created.save();
+    }
+    {
+        Player owner;
+        World reopened(camera, config, owner, directory, false, 0);
+        reopened.getChunkManager().loadChunk(0, 32);
+        persisted = persisted &&
+            reopened.getChunkManager().getTerrainGenerationVersion() ==
+                InlandReliefTerrainGenerationVersion &&
+            reopened.getBlock(8, 190, 520) == BlockId::OakBark;
+    }
+    check("E4/eight-seeds-reverse-chunk-order", orderedChunks);
+    check("E4/decorators-use-v10-ground", suitableDecorators);
+    check("E4/v10-new-world-edit-and-reopen", persisted);
+    clearDeterministicEnv();
     setEnv("HELLOMINE3D_SEED", "");
 }
 
@@ -18720,6 +18921,9 @@ int main()
         else if (focus != nullptr && std::string(focus) == "E3_MEADOW") {
             caseInlandMeadowV9();
         }
+        else if (focus != nullptr && std::string(focus) == "E4_RELIEF") {
+            caseInlandReliefV10();
+        }
         else if (focus != nullptr && std::string(focus) == "WV2") {
             caseBlockTextureCoordinates();
             caseRuntimeConfigOwnership();
@@ -18926,6 +19130,7 @@ int main()
         caseForestEcologyV7();
         caseSurfaceCoastV8();
         caseInlandMeadowV9();
+        caseInlandReliefV10();
         caseTerrainFoundationV5();
         caseP11TerrainContoursAndEntrances();
         caseP11EEnemyPresentationAndResonance();

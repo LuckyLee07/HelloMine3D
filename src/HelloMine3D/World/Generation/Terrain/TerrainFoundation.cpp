@@ -270,6 +270,41 @@ TerrainFoundation::Column TerrainFoundation::sampleV9(
     return column;
 }
 
+TerrainFoundation::Column TerrainFoundation::sampleV10(
+    int worldX, int worldZ) const noexcept
+{
+    Column column = sampleV9(worldX, worldZ);
+    const int oldHeight = column.height;
+    if (oldHeight <= 80 || oldHeight >= 135) {
+        return column;
+    }
+
+    // Broad world-space fields add readable inland swells, shallow basins and
+    // shoulders without changing v9 ecology or surface materials. The height
+    // band fades over many old contour levels so the untouched coast and high
+    // ridge cannot acquire a one-column lip at the version boundary.
+    const double x = static_cast<double>(worldX);
+    const double z = static_cast<double>(worldZ);
+    const double broad = noise(
+        x, z, 540.0, 0x7f4a7c159e3779b9ull) * 8.0;
+    const double ridge = 1.0 - std::abs(noise(
+        x, z, 280.0, 0x94d049bb133111ebull));
+    const double shoulder =
+        (smooth(0.28, 0.88, ridge) - 0.45) * 3.0;
+    const double basinField = noise(
+        x, z, 360.0, 0xd1b54a32d192ed03ull);
+    const double basin = -smooth(0.38, 0.82, -basinField);
+    const double band = smooth(80.0, 92.0,
+                               static_cast<double>(oldHeight)) *
+        (1.0 - smooth(108.0, 135.0,
+                      static_cast<double>(oldHeight)));
+    double relief = std::max(-8.0, std::min(
+        8.0, (broad + shoulder + basin) * band));
+    column.height = std::max(1, std::min(
+        176, oldHeight + static_cast<int>(std::lround(relief))));
+    return column;
+}
+
 int TerrainFoundation::chunkSeed(int seed, int chunkX, int chunkZ,
                                  std::uint64_t salt) noexcept
 {

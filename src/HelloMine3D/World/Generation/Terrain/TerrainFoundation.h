@@ -4,8 +4,9 @@
 #include "TerrainGenerator.h"
 #include <cstdint>
 
-// Terrain-v5 planning surface. Pure, bounded work over signed world coordinates;
-// no chunk ownership, random stream, world mutation or resident-data dependency.
+// Versioned terrain planning surface. Pure, bounded work over signed world
+// coordinates; no chunk ownership, random stream, world mutation or resident
+// data dependency.
 class TerrainFoundation {
   public:
     enum class Surface {
@@ -26,6 +27,7 @@ class TerrainFoundation {
     Column sample(int worldX, int worldZ) const noexcept;
     Column sampleV8(int worldX, int worldZ) const noexcept;
     Column sampleV9(int worldX, int worldZ) const noexcept;
+    Column sampleV10(int worldX, int worldZ) const noexcept;
 
     static int chunkSeed(int seed, int chunkX, int chunkZ,
                          std::uint64_t salt) noexcept;
