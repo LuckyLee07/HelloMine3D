@@ -244,6 +244,32 @@ TerrainFoundation::Column TerrainFoundation::sampleV8(
     return column;
 }
 
+TerrainFoundation::Column TerrainFoundation::sampleV9(
+    int worldX, int worldZ) const noexcept
+{
+    Column column = sampleV8(worldX, worldZ);
+    if (column.height <= 80 || column.height >= 135 ||
+        (column.biome != TerrainBiome::LightForest &&
+         column.biome != TerrainBiome::TemperateForest)) {
+        return column;
+    }
+
+    // Continuous world-space contours open occasional walkable meadows in the
+    // inland forest. The old v8 shore and all terrain heights stay untouched.
+    const double x = static_cast<double>(worldX);
+    const double z = static_cast<double>(worldZ);
+    const double clearing =
+        noise(x, z, 132.0, 0xe43d17bc92f6a805ull) +
+        noise(x, z, 55.0, 0x4c91eac7096b32dfull) * 0.18;
+    const double threshold = column.biome == TerrainBiome::LightForest
+        ? 0.42 : 0.54;
+    if (clearing > threshold) {
+        column.biome = TerrainBiome::Grassland;
+        column.surface = Surface::Grass;
+    }
+    return column;
+}
+
 int TerrainFoundation::chunkSeed(int seed, int chunkX, int chunkZ,
                                  std::uint64_t salt) noexcept
 {

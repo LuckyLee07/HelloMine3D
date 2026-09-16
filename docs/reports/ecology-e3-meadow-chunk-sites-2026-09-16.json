@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "batch": "E3_M9_TARGETED_PRODUCTION_CHUNKS",
+  "selection_source": "PRODUCTION_CPP_T0_SURVEY_MACRO_SAMPLES",
+  "v8_samples_sha256": "71b46545c2aec8027279df9e615edbd403c73ceadd4e8488d919c99d4133b97a",
+  "v9_samples_sha256": "1329b469658ca0fba8c4ce322cfb04f2d7e3126d8d0dbb39eb8e63cd67ba9e5e",
+  "selection_rule": "For each frozen seed choose one x,z>128 and one x,z<-128 macro sample where v8 is LightForest/TemperateForest at height 81..134 and v9 is Grassland at the same height; maximize the count of converted samples in its 3x3 macro neighbourhood, then prefer the smaller |x|+|z|. Coordinates were frozen before generating these target chunks.",
+  "exit_checks_frozen_before_target_generation": {
+    "sites": 16,
+    "changed_generated_chunk_hashes_min": 12,
+    "every_site_has_converted_columns": true,
+    "v8_v9_height_changes": 0,
+    "v9_converted_ground_non_grass": 0,
+    "v9_converted_trunk_roots": 0,
+    "debug_release_raw_chunk_tables_identical": true
+  },
+  "sites": [
+    {"seed": 0, "sign": "positive", "x": 224, "z": 1184, "chunk_x": 14, "chunk_z": 74, "macro_neighbour_score": 9},
+    {"seed": 0, "sign": "negative", "x": -1984, "z": -352, "chunk_x": -124, "chunk_z": -22, "macro_neighbour_score": 6},
+    {"seed": 1, "sign": "positive", "x": 1056, "z": 928, "chunk_x": 66, "chunk_z": 58, "macro_neighbour_score": 9},
+    {"seed": 1, "sign": "negative", "x": -512, "z": -1184, "chunk_x": -32, "chunk_z": -74, "macro_neighbour_score": 9},
+    {"seed": 42, "sign": "positive", "x": 1664, "z": 800, "chunk_x": 104, "chunk_z": 50, "macro_neighbour_score": 9},
+    {"seed": 42, "sign": "negative", "x": -384, "z": -800, "chunk_x": -24, "chunk_z": -50, "macro_neighbour_score": 9},
+    {"seed": 424, "sign": "positive", "x": 288, "z": 928, "chunk_x": 18, "chunk_z": 58, "macro_neighbour_score": 9},
+    {"seed": 424, "sign": "negative", "x": -256, "z": -256, "chunk_x": -16, "chunk_z": -16, "macro_neighbour_score": 9},
+    {"seed": 20260807, "sign": "positive", "x": 1536, "z": 800, "chunk_x": 96, "chunk_z": 50, "macro_neighbour_score": 9},
+    {"seed": 20260807, "sign": "negative", "x": -896, "z": -800, "chunk_x": -56, "chunk_z": -50, "macro_neighbour_score": 8},
+    {"seed": 20260809, "sign": "positive", "x": 512, "z": 256, "chunk_x": 32, "chunk_z": 16, "macro_neighbour_score": 9},
+    {"seed": 20260809, "sign": "negative", "x": -480, "z": -1184, "chunk_x": -30, "chunk_z": -74, "macro_neighbour_score": 9},
+    {"seed": 8675309, "sign": "positive", "x": 160, "z": 512, "chunk_x": 10, "chunk_z": 32, "macro_neighbour_score": 9},
+    {"seed": 8675309, "sign": "negative", "x": -1856, "z": -992, "chunk_x": -116, "chunk_z": -62, "macro_neighbour_score": 3},
+    {"seed": 325322, "sign": "positive", "x": 1216, "z": 448, "chunk_x": 76, "chunk_z": 28, "macro_neighbour_score": 9},
+    {"seed": 325322, "sign": "negative", "x": -1120, "z": -640, "chunk_x": -70, "chunk_z": -40, "macro_neighbour_score": 9}
+  ]
+}

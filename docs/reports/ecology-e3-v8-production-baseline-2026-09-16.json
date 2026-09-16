@@ -1,0 +1,47 @@
+{
+  "source": "E2_CANDIDATE23_PRODUCTION_GENERATOR",
+  "files": {
+    "v8_survey_samples": {
+      "path": "build/ecology-e2-20260914/candidate-23-final/v8-survey/samples.csv",
+      "sha256": "71b46545c2aec8027279df9e615edbd403c73ceadd4e8488d919c99d4133b97a",
+      "bytes": 14487583
+    },
+    "v8_survey_chunks": {
+      "path": "build/ecology-e2-20260914/candidate-23-final/v8-survey/chunks.csv",
+      "sha256": "69054fd975693228067efa4ce7994e43be427a0f9e6c987f20b57131a004d70d",
+      "bytes": 1439
+    },
+    "v8_scene_surfaces": {
+      "path": "build/ecology-e2-20260914/candidate-23-final/v8-scenes/surfaces.csv",
+      "sha256": "9ff60c5a1f57d221319455185e749e5fe8bd2d852dd00e367836c7d5f9a4e0cc",
+      "bytes": 439031
+    },
+    "v8_scene_profiles": {
+      "path": "build/ecology-e2-20260914/candidate-23-final/v8-scenes/profiles.csv",
+      "sha256": "33fb7851bc5e1be3aef46b8f48796ce790cdd6fd5891fd27285b4d4f1a729b85",
+      "bytes": 38125
+    }
+  },
+  "inland_samples": {
+    "rows": 65508,
+    "biomes": {
+      "1": 16644,
+      "2": 36753,
+      "3": 12111
+    },
+    "seeds": {
+      "0": 5022,
+      "1": 3156,
+      "20260807": 2704,
+      "20260809": 6635,
+      "325322": 3887,
+      "42": 9805,
+      "424": 28558,
+      "8675309": 5741
+    },
+    "heights": {
+      "min": 81,
+      "max": 134
+    }
+  }
+}

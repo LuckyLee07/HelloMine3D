@@ -356,11 +356,13 @@ C3 为 copied topology observation 增至 79 项并同步更新 machine-checked 
 - 拥有 `unordered_map<VectorXZ, Chunk>`、`TerrainGenerator` 与 `ChunkStorage`；
 - 按 seed / terrain generation version / exploration reward version 冻结生成身份；
 - terrain v5 的纯 `TerrainFoundation::sample` 以 floor lattice 和 uint64 hash 覆盖 signed world
-  坐标；v6 橡树、v7 森林覆盖层和 v8 `sampleV8` 地表/岸线依次版本化接入。v8 的近岸探针只查询
-  同一纯规划的世界坐标，不加载邻 Chunk；区块高度/生态、公开查询和放置规则消费同一列结果。
-  完整区块生成在装饰 halo 运算前拒绝越界。v1–v7 旧路径及存档身份保留，已保存区块不重生成；
+  坐标；v6 橡树、v7 森林覆盖层、v8 `sampleV8` 地表/岸线及 v9 `sampleV9` 内陆草甸开窗依次
+  版本化接入。v8 的近岸探针和 v9 的低频草甸轮廓只查询同一纯规划的世界坐标，不加载邻
+  Chunk；区块高度/生态、公开查询和放置规则消费同一列结果。完整区块生成在装饰 halo 运算
+  前拒绝越界。v1–v8 旧路径及存档身份保留，已保存区块不重生成；
   v5 基线见 [v5 合同](../contracts/terrain-foundation-v5-contract-v1.md)，当前 E2 门槛见
-  [v8 合同](../contracts/ecology-surface-coast-v8-e2-contract-v1.md)；
+  [v8 合同](../contracts/ecology-surface-coast-v8-e2-contract-v1.md)，v9 首批范围见
+  [E3 合同](../contracts/ecology-inland-meadow-v9-e3-contract-v1.md)；
 - 查询、创建、加载、生成、保存和卸载 Chunk；
 - 在卸载前同步保存 dirty Chunk，失败时保留 resident Chunk；
 - 发布 generated/loaded/saved/unloaded 事实；
@@ -484,7 +486,7 @@ WorldManager
 
 - `WorldSaveData` 是内存中的当前 metadata payload，写出前由 World 收集 Player、Actor、目标、结局、
   难度、terrain identity 和其他版本化状态。
-- world save format 当前为 v12；terrain generation 为独立 v5；settings 是独立 v9（包含重启生效的标准/兼容世界画面选择，读取 v0–v8 并保留偏好）。
+- world save format 当前为 v12；新世界 terrain generation 为独立 v9，旧 v1–v8 身份保留；settings 是独立 v9（包含重启生效的标准/兼容世界画面选择，读取 v0–v8 并保留偏好）。
 - `StorageTransaction` 负责同目录 candidate、flush、真实 reader 校验和原子替换；失败 candidate 不
   成为权威。
 - Chunk 只有成功发布后才清 save-dirty；unload 保存失败则取消卸载。

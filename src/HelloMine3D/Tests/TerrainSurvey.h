@@ -6,6 +6,7 @@
 #include "../World/Chunk/Chunk.h"
 #include "../World/WorldCoordinates.h"
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -286,6 +287,174 @@ inline std::size_t writeE2Coasts(World &world,
         }
     }
     return total;
+}
+
+// Fixed sites selected from paired v8/v9 production macro CSV before any of
+// these generated chunks were inspected. The matching provenance and exit
+// checks live in docs/reports/ecology-e3-meadow-chunk-sites-2026-09-16.json.
+struct MeadowChunkSite {
+    int seed;
+    int chunkX;
+    int chunkZ;
+    const char *sign;
+};
+
+inline constexpr std::array<MeadowChunkSite, 16> MeadowChunkSites{{
+    {0, 14, 74, "positive"}, {0, -124, -22, "negative"},
+    {1, 66, 58, "positive"}, {1, -32, -74, "negative"},
+    {42, 104, 50, "positive"}, {42, -24, -50, "negative"},
+    {424, 18, 58, "positive"}, {424, -16, -16, "negative"},
+    {20260807, 96, 50, "positive"}, {20260807, -56, -50, "negative"},
+    {20260809, 32, 16, "positive"}, {20260809, -30, -74, "negative"},
+    {8675309, 10, 32, "positive"}, {8675309, -116, -62, "negative"},
+    {325322, 76, 28, "positive"}, {325322, -70, -40, "negative"}
+}};
+
+inline std::size_t writeE3MeadowChunks(
+    World &world, const std::filesystem::path &directory)
+{
+    if (CurrentTerrainGenerationVersion < InlandMeadowTerrainGenerationVersion ||
+        std::filesystem::exists(directory)) {
+        throw std::runtime_error(
+            "E3 meadow chunk survey requires terrain v9 and a new directory");
+    }
+    std::filesystem::create_directories(directory);
+    std::ofstream sites(directory / "sites.csv");
+    std::ofstream columns(directory / "columns.csv");
+    std::ofstream plans(directory / "plans.csv");
+    sites.exceptions(std::ios::failbit | std::ios::badbit);
+    columns.exceptions(std::ios::failbit | std::ios::badbit);
+    plans.exceptions(std::ios::failbit | std::ios::badbit);
+    sites << "site,seed,sign,chunk_x,chunk_z,sample_x,sample_z,"
+             "v8_block_hash,v9_block_hash,v8_forest_columns,"
+             "converted_columns,height_changes,v9_converted_ground_non_grass,"
+             "v9_converted_non_grass_outside_camp,"
+             "v9_converted_camp_dirt,v9_converted_trunk_roots,"
+             "v8_tree_roots,v9_tree_roots\n";
+    columns << "site,seed,sign,chunk_x,chunk_z,x,z,v8_height,v9_height,"
+               "v8_biome,v9_biome,v8_surface,v9_surface,v8_top,v9_top,"
+               "v8_above,v9_above,converted,v9_raider_camp_cover\n";
+    plans << "site,seed,version,type,anchor_x,anchor_y,anchor_z,"
+             "minimum_x,maximum_x,minimum_y,maximum_y,"
+             "minimum_z,maximum_z\n";
+    for (std::size_t index = 0; index < MeadowChunkSites.size(); ++index) {
+        const auto site = MeadowChunkSites[index];
+        const glm::ivec2 location(site.chunkX, site.chunkZ);
+        ClassicOverWorldGenerator oldGenerator(
+            site.seed, SurfaceCoastTerrainGenerationVersion);
+        ClassicOverWorldGenerator newGenerator(
+            site.seed, InlandMeadowTerrainGenerationVersion);
+        TerrainFoundation foundation(site.seed);
+        Chunk oldChunk(world, location, false);
+        Chunk newChunk(world, location, false);
+        oldGenerator.generateTerrainFor(oldChunk);
+        newGenerator.generateTerrainFor(newChunk);
+        const auto oldPlans = oldGenerator.getStructurePlansForChunk(
+            site.chunkX, site.chunkZ);
+        const auto newPlans = newGenerator.getStructurePlansForChunk(
+            site.chunkX, site.chunkZ);
+        const auto emitPlans = [&](int version,
+                                   const std::vector<StructurePlanSnapshot> &items) {
+            for (const auto &plan : items) {
+                if (!plan.valid) { continue; }
+                plans << index << ',' << site.seed << ',' << version << ','
+                      << static_cast<int>(plan.key.type) << ','
+                      << plan.anchor.x << ',' << plan.anchor.y << ','
+                      << plan.anchor.z << ','
+                      << plan.footprint.minimumX << ','
+                      << plan.footprint.maximumX << ','
+                      << plan.footprint.minimumY << ','
+                      << plan.footprint.maximumY << ','
+                      << plan.footprint.minimumZ << ','
+                      << plan.footprint.maximumZ << '\n';
+            }
+        };
+        emitPlans(SurfaceCoastTerrainGenerationVersion, oldPlans);
+        emitPlans(InlandMeadowTerrainGenerationVersion, newPlans);
+        std::size_t forestColumns = 0;
+        std::size_t convertedColumns = 0;
+        std::size_t heightChanges = 0;
+        std::size_t nonGrassGround = 0;
+        std::size_t nonGrassOutsideCamp = 0;
+        std::size_t campDirt = 0;
+        std::size_t convertedTrunkRoots = 0;
+        std::size_t oldTreeRoots = 0;
+        std::size_t newTreeRoots = 0;
+        for (int x = 0; x < CHUNK_SIZE; ++x) {
+            for (int z = 0; z < CHUNK_SIZE; ++z) {
+                const int worldX = site.chunkX * CHUNK_SIZE + x;
+                const int worldZ = site.chunkZ * CHUNK_SIZE + z;
+                const auto oldColumn = foundation.sampleV8(worldX, worldZ);
+                const auto newColumn = foundation.sampleV9(worldX, worldZ);
+                const bool oldForest = oldColumn.height > 80 &&
+                    oldColumn.height < 135 &&
+                    (oldColumn.biome == TerrainBiome::LightForest ||
+                     oldColumn.biome == TerrainBiome::TemperateForest);
+                const bool converted = oldForest &&
+                    newColumn.biome == TerrainBiome::Grassland &&
+                    newColumn.surface == TerrainFoundation::Surface::Grass;
+                const bool campCover = std::any_of(
+                    newPlans.begin(), newPlans.end(),
+                    [&](const StructurePlanSnapshot &plan) {
+                        return plan.valid &&
+                            plan.key.type == StructureType::RaiderCamp &&
+                            worldX >= plan.anchor.x -
+                                DeterministicStructurePlanner::CampRadiusX &&
+                            worldX <= plan.anchor.x +
+                                DeterministicStructurePlanner::CampRadiusX &&
+                            worldZ >= plan.anchor.z -
+                                DeterministicStructurePlanner::CampRadiusZ &&
+                            worldZ <= plan.anchor.z +
+                                DeterministicStructurePlanner::CampRadiusZ;
+                    });
+                forestColumns += oldForest ? 1 : 0;
+                convertedColumns += converted ? 1 : 0;
+                heightChanges += oldColumn.height != newColumn.height ? 1 : 0;
+                const auto oldTop = oldChunk.getBlock(x, oldColumn.height, z);
+                const auto newTop = newChunk.getBlock(x, newColumn.height, z);
+                const auto oldAbove = oldChunk.getBlock(
+                    x, oldColumn.height + 1, z);
+                const auto newAbove = newChunk.getBlock(
+                    x, newColumn.height + 1, z);
+                oldTreeRoots += oldAbove == BlockId::OakBark ? 1 : 0;
+                newTreeRoots += newAbove == BlockId::OakBark ? 1 : 0;
+                if (converted) {
+                    nonGrassGround += newTop != BlockId::Grass ? 1 : 0;
+                    nonGrassOutsideCamp +=
+                        newTop != BlockId::Grass && !campCover ? 1 : 0;
+                    campDirt +=
+                        newTop == BlockId::Dirt && campCover ? 1 : 0;
+                    convertedTrunkRoots +=
+                        newAbove == BlockId::OakBark ? 1 : 0;
+                }
+                columns << index << ',' << site.seed << ',' << site.sign
+                        << ',' << site.chunkX << ',' << site.chunkZ << ','
+                        << worldX << ',' << worldZ << ','
+                        << oldColumn.height << ',' << newColumn.height << ','
+                        << static_cast<int>(oldColumn.biome) << ','
+                        << static_cast<int>(newColumn.biome) << ','
+                        << static_cast<int>(oldColumn.surface) << ','
+                        << static_cast<int>(newColumn.surface) << ','
+                        << static_cast<int>(oldTop.id) << ','
+                        << static_cast<int>(newTop.id) << ','
+                        << static_cast<int>(oldAbove.id) << ','
+                        << static_cast<int>(newAbove.id) << ','
+                        << (converted ? 1 : 0) << ','
+                        << (campCover ? 1 : 0) << '\n';
+            }
+        }
+        sites << index << ',' << site.seed << ',' << site.sign << ','
+              << site.chunkX << ',' << site.chunkZ << ','
+              << site.chunkX * CHUNK_SIZE << ','
+              << site.chunkZ * CHUNK_SIZE << ','
+              << blockHash(oldChunk) << ',' << blockHash(newChunk) << ','
+              << forestColumns << ',' << convertedColumns << ','
+              << heightChanges << ',' << nonGrassGround << ','
+              << nonGrassOutsideCamp << ',' << campDirt << ','
+              << convertedTrunkRoots << ',' << oldTreeRoots << ','
+              << newTreeRoots << '\n';
+    }
+    return MeadowChunkSites.size();
 }
 } // namespace TerrainSurvey
 

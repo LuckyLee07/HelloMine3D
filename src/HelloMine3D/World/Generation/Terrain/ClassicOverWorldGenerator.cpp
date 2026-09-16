@@ -242,13 +242,23 @@ int ClassicOverWorldGenerator::getGenerationVersion() const noexcept
     return m_generationVersion;
 }
 
+TerrainFoundation::Column ClassicOverWorldGenerator::sampleFoundationForVersion(
+    int worldX, int worldZ) const noexcept
+{
+    if (m_generationVersion >= InlandMeadowTerrainGenerationVersion) {
+        return m_foundation.sampleV9(worldX, worldZ);
+    }
+    if (m_generationVersion >= SurfaceCoastTerrainGenerationVersion) {
+        return m_foundation.sampleV8(worldX, worldZ);
+    }
+    return m_foundation.sample(worldX, worldZ);
+}
+
 TerrainBiome ClassicOverWorldGenerator::getBiomeAtWorld(
     int worldX, int worldZ) const noexcept
 {
     if (m_generationVersion >= FoundationTerrainGenerationVersion) {
-        return m_generationVersion >= SurfaceCoastTerrainGenerationVersion
-            ? m_foundation.sampleV8(worldX, worldZ).biome
-            : m_foundation.sample(worldX, worldZ).biome;
+        return sampleFoundationForVersion(worldX, worldZ).biome;
     }
     if (m_generationVersion >= MountainTerrainGenerationVersion &&
         getMountainStrengthAtWorld(worldX, worldZ) >= 0.48 &&
@@ -269,9 +279,7 @@ int ClassicOverWorldGenerator::getSurfaceHeightAtWorld(
     int worldX, int worldZ) const noexcept
 {
     if (m_generationVersion >= FoundationTerrainGenerationVersion) {
-        return m_generationVersion >= SurfaceCoastTerrainGenerationVersion
-            ? m_foundation.sampleV8(worldX, worldZ).height
-            : m_foundation.sample(worldX, worldZ).height;
+        return sampleFoundationForVersion(worldX, worldZ).height;
     }
     if (m_generationVersion >= MountainTerrainGenerationVersion) {
         return getTerrainV4HeightAtWorld(worldX, worldZ);
@@ -388,13 +396,9 @@ void ClassicOverWorldGenerator::getBiomeMap()
         for (int x = 0; x <= CHUNK_SIZE; ++x) {
             for (int z = 0; z <= CHUNK_SIZE; ++z) {
                 const auto column =
-                    m_generationVersion >= SurfaceCoastTerrainGenerationVersion
-                        ? m_foundation.sampleV8(
-                              location.x * CHUNK_SIZE + x,
-                              location.y * CHUNK_SIZE + z)
-                        : m_foundation.sample(
-                              location.x * CHUNK_SIZE + x,
-                              location.y * CHUNK_SIZE + z);
+                    sampleFoundationForVersion(
+                        location.x * CHUNK_SIZE + x,
+                        location.y * CHUNK_SIZE + z);
                 m_biomeMap.get(x, z) = biomeMapValue(column.biome);
                 if (x < CHUNK_SIZE && z < CHUNK_SIZE) {
                     m_heightMap.get(x, z) = column.height;
@@ -661,7 +665,7 @@ void ClassicOverWorldGenerator::applyTreeDecorators()
                     v8Column.surface = m_surfaceMap.get(localX, localZ);
                 }
                 else {
-                    v8Column = m_foundation.sampleV8(worldX, worldZ);
+                    v8Column = sampleFoundationForVersion(worldX, worldZ);
                 }
             }
             const Biome &biome = m_generationVersion >=
@@ -691,6 +695,13 @@ void ClassicOverWorldGenerator::applyTreeDecorators()
                  (kind != TerrainBiome::Desert &&
                   (v8Column.surface == TerrainFoundation::Surface::Sand ||
                    v8Column.surface == TerrainFoundation::Surface::Stone)))) {
+                continue;
+            }
+            if (m_generationVersion >= InlandMeadowTerrainGenerationVersion &&
+                height > 80 && kind == TerrainBiome::Grassland &&
+                v8Column.surface == TerrainFoundation::Surface::Grass) {
+                // A v9 inland clearing is open ground; existing natural
+                // Grassland/shore columns are unaffected.
                 continue;
             }
             if (m_generationVersion >= MountainTerrainGenerationVersion &&
@@ -933,11 +944,8 @@ int ClassicOverWorldGenerator::getHeightAt(int x, int z, int chunkX,
                                            int chunkZ) const
 {
     if (m_generationVersion >= FoundationTerrainGenerationVersion) {
-        return m_generationVersion >= SurfaceCoastTerrainGenerationVersion
-            ? m_foundation.sampleV8(chunkX * CHUNK_SIZE + x,
-                                    chunkZ * CHUNK_SIZE + z).height
-            : m_foundation.sample(chunkX * CHUNK_SIZE + x,
-                                  chunkZ * CHUNK_SIZE + z).height;
+        return sampleFoundationForVersion(chunkX * CHUNK_SIZE + x,
+                                          chunkZ * CHUNK_SIZE + z).height;
     }
     if (m_generationVersion >= MountainTerrainGenerationVersion) {
         return getTerrainV4HeightAtWorld(
@@ -1009,11 +1017,8 @@ const Biome &ClassicOverWorldGenerator::getBiomeAt(
 {
     if (m_generationVersion >= FoundationTerrainGenerationVersion) {
         return getBiomeForValue(biomeMapValue(
-            (m_generationVersion >= SurfaceCoastTerrainGenerationVersion
-                 ? m_foundation.sampleV8(chunkX * CHUNK_SIZE + x,
-                                         chunkZ * CHUNK_SIZE + z)
-                 : m_foundation.sample(chunkX * CHUNK_SIZE + x,
-                                       chunkZ * CHUNK_SIZE + z)).biome));
+            sampleFoundationForVersion(chunkX * CHUNK_SIZE + x,
+                                       chunkZ * CHUNK_SIZE + z).biome));
     }
     const int biomeValue = static_cast<int>(m_biomeNoiseGen.getHeight(
         x, z, chunkX + 10, chunkZ + 10));

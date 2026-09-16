@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "batch": "E3_M9_TARGETED_PRODUCTION_CHUNKS",
+  "original_frozen_sites_sha256": "96da2ca90a48970af728cddd12fc6073fd4dd12a4d2be0bca64092505353efe4",
+  "original_exit_check": "v9_converted_ground_non_grass == 0",
+  "original_result": "FAIL",
+  "original_debug_sites_sha256": "b63e6fcfea1676d1fb6121b1871784885db4123bf3a72e5f4fdf2995e1ca12e9",
+  "original_debug_columns_sha256": "d483064f36caece1a837b04978db59039f455e7ce19f6885946f1d0382e683e3",
+  "original_non_grass_columns": 52,
+  "production_explanation": "All 52 final Dirt top blocks are inside two valid terrain-v9 RaiderCamp ground projections. Planned v9 surface remains Grass; the existing RaiderCamp contract intentionally projects Dirt support and floor. No off-camp converted top differs from Grass.",
+  "v9_raider_camp_plans": [
+    {"site": 0, "seed": 0, "anchor_x": 226, "anchor_y": 97, "anchor_z": 1203, "covered_final_dirt_columns": 8},
+    {"site": 6, "seed": 424, "anchor_x": 295, "anchor_y": 86, "anchor_z": 927, "covered_final_dirt_columns": 44}
+  ],
+  "corrected_scope": "Compare planned meadow Surface::Grass and final Grass only outside the production RaiderCamp ground footprint; keep the raw 52 legal Dirt overrides visible and require unexplained non-Grass == 0.",
+  "new_required_checks": {
+    "planned_meadow_surface_non_grass": 0,
+    "final_meadow_non_grass_outside_raider_camp": 0,
+    "all_non_grass_inside_camp_is_dirt": true,
+    "raw_non_grass_and_camp_dirt_counts_match": true
+  },
+  "unchanged_frozen_checks": {
+    "sites": 16,
+    "changed_generated_chunk_hashes_min": 12,
+    "every_site_has_converted_columns": true,
+    "v8_v9_height_changes": 0,
+    "v9_converted_trunk_roots": 0,
+    "debug_release_raw_chunk_tables_identical": true
+  },
+  "production_debug_r2_sha256": {
+    "sites_csv": "a056a5c2a605c978ddf9f695b764dceccb412d7b22e69c4063d6381117c360ae",
+    "columns_csv": "317226790740294b4ba4ef4f195609a75fed762f4a8b908a25bb069d012d1268",
+    "plans_csv": "f31cb68b231122c294cb188bc5e19b376dddaeabef59e361b04391c79d3aa699"
+  },
+  "conclusion_limit": "This adjudication corrects a test predicate after preserving its failure. It does not replace missing v8/v9 window imagery or resolve E2 P99 performance FAIL."
+}
