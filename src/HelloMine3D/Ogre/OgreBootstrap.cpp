@@ -195,8 +195,9 @@ namespace
             phase.warmupMs = std::stod(fields[8]);
             phase.durationMs = std::stod(fields[9]);
             if (phase.name.empty() || !names.insert(phase.name).second ||
-                (phase.terrainVersion != 7 && phase.terrainVersion != 8) ||
-                (phase.scene != "forest" && phase.scene != "shore") ||
+                phase.terrainVersion < 7 || phase.terrainVersion > 9 ||
+                (phase.scene != "forest" && phase.scene != "shore" &&
+                 phase.scene != "meadow") ||
                 (fields[5] != "0" && fields[5] != "1") ||
                 phase.saveDirectory.empty() || phase.outputDirectory.empty() ||
                 !std::isfinite(phase.warmupMs) ||

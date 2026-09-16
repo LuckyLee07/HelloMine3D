@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Capture E2's independent phases inside one reused macOS game process."""
+"""Capture E2/E3 ecology phases inside one reused macOS game process."""
 
 import argparse
 import csv
@@ -31,6 +31,14 @@ GROUPS = (
     ('forest-streaming', 'forest', '1024 140 1024', True),
     ('shore-steady', 'shore', '0 82 512', False),
     ('shore-streaming', 'shore', '0 82 512', True),
+)
+E3_VISUALS = (
+    ('meadow_positive', 'meadow', '1536 120 800', '0 0 0'),
+    ('meadow_negative', 'meadow', '-896 124 -800', '0 0 0'),
+)
+E3_GROUPS = (
+    ('meadow-steady', 'meadow', '1536 120 800', False),
+    ('meadow-streaming', 'meadow', '1536 120 800', True),
 )
 SETTINGS = """settings_version 8
 renderdistance 8
@@ -117,12 +125,19 @@ def prepare_world_save(template, destination, phase):
     }
 
 
-def phases_for(mode, reverse):
+def phases_for(mode, reverse, profile='e2'):
+    if profile == 'e3':
+        groups, visuals = E3_GROUPS, E3_VISUALS
+        baseline, candidate = 8, 9
+    else:
+        groups, visuals = GROUPS, VISUALS
+        baseline, candidate = 7, 8
     phases = []
     if mode in ('pilot', 'performance', 'all'):
-        for group, scene, position, streaming in GROUPS:
+        for group, scene, position, streaming in groups:
             for round_number in range(1, 4):
-                order = (7, 8) if round_number != 2 else (8, 7)
+                order = ((baseline, candidate) if round_number != 2
+                         else (candidate, baseline))
                 if reverse:
                     order = tuple(reversed(order))
                 for version in order:
@@ -132,10 +147,10 @@ def phases_for(mode, reverse):
                         'performance', 5000, 30000))
         if mode == 'pilot':
             phases = [phase for phase in phases
-                      if phase.name.startswith('forest-streaming-r1-')]
+                      if phase.name.startswith(groups[0][0] + '-r1-')]
     if mode in ('visual', 'all'):
-        for name, scene, position, rotation in VISUALS:
-            for version in (7, 8):
+        for name, scene, position, rotation in visuals:
+            for version in (baseline, candidate):
                 phases.append(Phase(f'{name}-v{version}', version,
                                     scene, position, rotation, False,
                                     'visual', 1, 10500))
@@ -189,6 +204,8 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--mode', choices=('pilot', 'performance',
                                             'visual', 'all'), required=True)
+    parser.add_argument('--profile', choices=('e2', 'e3'), default='e2',
+                        help='Frozen ecology phase set; defaults to E2')
     parser.add_argument('--reverse-order', action='store_true')
     parser.add_argument('--render-phase-diagnostics', action='store_true',
                         help='Capture Ogre draw and post-draw frame spans')
@@ -207,7 +224,7 @@ def main():
     identity = json.loads((resources / 'build-identity.json').read_text())
     if digest(resources / 'bin/HelloMine3D') != identity['executable_sha256']:
         raise ValueError('Reused client binary identity differs')
-    phases = phases_for(args.mode, args.reverse_order)
+    phases = phases_for(args.mode, args.reverse_order, args.profile)
     output.mkdir(parents=True)
     (resources / 'bin/config.txt').write_text(SETTINGS)
     paths = {}
@@ -263,7 +280,9 @@ def main():
     # Keep the unlocked graphical session awake for the lifetime of the one
     # process batch.  This cannot unlock an already locked login session.
     command = keep_awake(launch_command)
-    status = {'schema': 1, 'evidence_type': 'E2_ONE_PROCESS_BATCH',
+    status = {'schema': 1,
+              'evidence_type': args.profile.upper() + '_ONE_PROCESS_BATCH',
+              'profile': args.profile,
               'mode': args.mode, 'reverse_order': args.reverse_order,
               'source_app': str(app), 'package_identity': identity,
               'manifest_sha256': digest(manifest),
@@ -386,11 +405,11 @@ def main():
     status['failures'] = failures
     status['result'] = 'FAIL' if failures else 'CAPTURED'
     status_path.write_text(json.dumps(status, indent=2) + '\n')
-    print(f'[E2_BATCH] phases={len(phases)} pid={status["batch_pid"]} '
+    print(f'[{args.profile.upper()}_BATCH] phases={len(phases)} pid={status["batch_pid"]} '
           f'result={status["result"]} output={output}')
     if failures:
         for failure in failures:
-            print(f'[E2_BATCH] failure={failure}')
+            print(f'[{args.profile.upper()}_BATCH] failure={failure}')
         raise SystemExit(1)
 
 
