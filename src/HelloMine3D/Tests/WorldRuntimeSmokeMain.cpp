@@ -12978,7 +12978,7 @@ void caseInlandReliefV10()
     check("E4/terrain-version-appends-v10",
           InlandMeadowTerrainGenerationVersion == 9 &&
           InlandReliefTerrainGenerationVersion == 10 &&
-          CurrentTerrainGenerationVersion ==
+          CurrentTerrainGenerationVersion >=
               InlandReliefTerrainGenerationVersion);
 
     std::size_t eligible = 0;
@@ -13091,6 +13091,8 @@ void caseInlandReliefV10()
     Camera camera(config);
     Player player;
     const std::string directory = freshSaveDirectory("e4_v10_reopen");
+    const bool v10Fixture = initializeTerrainIdentity(
+        directory, "e4-v10-reopen", InlandReliefTerrainGenerationVersion);
     bool orderedChunks = true;
     bool suitableDecorators = true;
     bool persisted = false;
@@ -13140,7 +13142,7 @@ void caseInlandReliefV10()
         }
         created.getChunkManager().loadChunk(0, 32);
         created.setBlock(8, 190, 520, BlockId::OakBark);
-        persisted =
+        persisted = v10Fixture &&
             created.getChunkManager().getTerrainGenerationVersion() ==
                 InlandReliefTerrainGenerationVersion &&
             created.save();
@@ -13157,6 +13159,390 @@ void caseInlandReliefV10()
     check("E4/eight-seeds-reverse-chunk-order", orderedChunks);
     check("E4/decorators-use-v10-ground", suitableDecorators);
     check("E4/v10-new-world-edit-and-reopen", persisted);
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", "");
+}
+
+void caseInlandWaterV11()
+{
+    check("E5/terrain-version-appends-v11",
+          InlandReliefTerrainGenerationVersion == 10 &&
+          InlandWaterTerrainGenerationVersion == 11 &&
+          CurrentTerrainGenerationVersion >=
+              InlandWaterTerrainGenerationVersion);
+
+    std::size_t macroTotal = 0;
+    std::size_t eligible = 0;
+    std::size_t changed = 0;
+    std::size_t addedWater = 0;
+    bool labelsAndFrozenBandsStable = true;
+    bool onlyLoweredWithinLimit = true;
+    bool unchangedSurfacesStable = true;
+    bool queryAgreement = true;
+    bool walkableSlope = true;
+    std::array<glm::ivec2, TerrainSurvey::Seeds.size()> waterSites{};
+    std::array<bool, TerrainSurvey::Seeds.size()> foundWater{};
+    int seedsWithPositiveAndNegativeRuns = 0;
+    for (std::size_t seedIndex = 0;
+         seedIndex < TerrainSurvey::Seeds.size(); ++seedIndex) {
+        const int seed = TerrainSurvey::Seeds[seedIndex];
+        TerrainFoundation plan(seed);
+        ClassicOverWorldGenerator generator(
+            seed, InlandWaterTerrainGenerationVersion);
+        for (int z = -2048; z <= 2048; z += 32) {
+            for (int x = -2048; x <= 2048; x += 32) {
+                const auto oldColumn = plan.sampleV10(x, z);
+                const auto newColumn = plan.sampleV11(x, z);
+                const int delta = newColumn.height - oldColumn.height;
+                ++macroTotal;
+                labelsAndFrozenBandsStable =
+                    labelsAndFrozenBandsStable &&
+                    oldColumn.biome == newColumn.biome &&
+                    ((oldColumn.height >= 64 && oldColumn.height <= 95) ||
+                     delta == 0);
+                onlyLoweredWithinLimit = onlyLoweredWithinLimit &&
+                    delta <= 0 && delta >= -36 &&
+                    newColumn.height >= 1 && newColumn.height <= 176;
+                unchangedSurfacesStable = unchangedSurfacesStable &&
+                    (delta != 0 || oldColumn.surface == newColumn.surface);
+                queryAgreement = queryAgreement &&
+                    generator.getSurfaceHeightAtWorld(x, z) ==
+                        newColumn.height &&
+                    generator.getBiomeAtWorld(x, z) == newColumn.biome;
+                walkableSlope = walkableSlope &&
+                    std::abs(plan.sampleV11(x + 1, z).height -
+                             newColumn.height) <= 3 &&
+                    std::abs(plan.sampleV11(x, z + 1).height -
+                             newColumn.height) <= 3;
+                if (oldColumn.height < 64 || oldColumn.height > 95) {
+                    continue;
+                }
+                ++eligible;
+                changed += delta != 0 ? 1 : 0;
+                if (oldColumn.height >= WATER_LEVEL &&
+                    newColumn.height < WATER_LEVEL) {
+                    ++addedWater;
+                }
+                if (!foundWater[seedIndex] &&
+                    oldColumn.height >= WATER_LEVEL &&
+                    newColumn.height <= WATER_LEVEL - 2 &&
+                    newColumn.height >= WATER_LEVEL - 5) {
+                    foundWater[seedIndex] = true;
+                    waterSites[seedIndex] = {x, z};
+                }
+            }
+        }
+
+        const auto hasRun = [&plan](bool positive) {
+            const int first = positive ? 1 : -2048;
+            const int last = positive ? 2048 : -1;
+            for (int fixed = first; fixed <= last; fixed += 64) {
+                int horizontal = 0;
+                int vertical = 0;
+                for (int varying = first; varying <= last; ++varying) {
+                    const auto oldHorizontal = plan.sampleV10(varying, fixed);
+                    const auto newHorizontal = plan.sampleV11(varying, fixed);
+                    horizontal = newHorizontal.height < oldHorizontal.height
+                        ? horizontal + 1 : 0;
+                    const auto oldVertical = plan.sampleV10(fixed, varying);
+                    const auto newVertical = plan.sampleV11(fixed, varying);
+                    vertical = newVertical.height < oldVertical.height
+                        ? vertical + 1 : 0;
+                    if (horizontal >= 48 || vertical >= 48) { return true; }
+                }
+            }
+            return false;
+        };
+        seedsWithPositiveAndNegativeRuns +=
+            hasRun(true) && hasRun(false) ? 1 : 0;
+    }
+    const double changedRatio = eligible == 0 ? 0.0 :
+        static_cast<double>(changed) / static_cast<double>(eligible);
+    const double addedWaterRatio = macroTotal == 0 ? 0.0 :
+        static_cast<double>(addedWater) / static_cast<double>(macroTotal);
+    check("E5/v10-labels-frozen-bands-and-surfaces-stable",
+          labelsAndFrozenBandsStable && unchangedSurfacesStable);
+    check("E5/v11-only-lowers-bounded-lowland-with-walkable-slopes",
+          onlyLoweredWithinLimit && walkableSlope);
+    check("E5/generation-queries-share-v11-columns", queryAgreement);
+    check("E5/macro-valley-and-water-coverage",
+          changedRatio >= 0.03 && changedRatio <= 0.22 &&
+          addedWaterRatio >= 0.004 && addedWaterRatio <= 0.05,
+          "eligible=" + std::to_string(eligible) +
+          " changed=" + std::to_string(changed) +
+          " changed-ratio=" + std::to_string(changedRatio) +
+          " added-water=" + std::to_string(addedWater) +
+          " water-ratio=" + std::to_string(addedWaterRatio));
+    check("E5/eight-seeds-have-signed-48-block-valley-runs",
+          seedsWithPositiveAndNegativeRuns ==
+              static_cast<int>(TerrainSurvey::Seeds.size()),
+          "seeds=" + std::to_string(seedsWithPositiveAndNegativeRuns));
+    check("E5/at-least-six-seeds-have-two-to-five-deep-water-plan",
+          std::count(foundWater.begin(), foundWater.end(), true) >= 6);
+
+    setEnv("HELLOMINE3D_SEED", "20260807");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    const std::string directory = freshSaveDirectory("e5_v11_reopen");
+    const bool v11Fixture = initializeTerrainIdentity(
+        directory, "e5-v11-reopen", InlandWaterTerrainGenerationVersion);
+    bool orderedChunks = true;
+    bool actualWaterAndGround = true;
+    bool suitableDecorators = true;
+    bool persisted = false;
+    {
+        World created(camera, config, player, directory, false, 0);
+        for (std::size_t seedIndex = 0;
+             seedIndex < TerrainSurvey::Seeds.size(); ++seedIndex) {
+            if (!foundWater[seedIndex]) { continue; }
+            const int seed = TerrainSurvey::Seeds[seedIndex];
+            const glm::ivec2 block = waterSites[seedIndex];
+            const VectorXZ chunk = World::getChunkXZ(block.x, block.y);
+            const glm::ivec2 location(chunk.x, chunk.z);
+            const glm::ivec2 neighbour(location.x + 1, location.y);
+            ClassicOverWorldGenerator forward(
+                seed, InlandWaterTerrainGenerationVersion);
+            ClassicOverWorldGenerator reverse(
+                seed, InlandWaterTerrainGenerationVersion);
+            Chunk water(created, location, false);
+            Chunk other(created, neighbour, false);
+            forward.generateTerrainFor(water);
+            forward.generateTerrainFor(other);
+            const auto waterHash = TerrainSurvey::blockHash(water);
+            const auto otherHash = TerrainSurvey::blockHash(other);
+            Chunk reverseOther(created, neighbour, false);
+            Chunk reverseWater(created, location, false);
+            reverse.generateTerrainFor(reverseOther);
+            reverse.generateTerrainFor(reverseWater);
+            orderedChunks = orderedChunks &&
+                waterHash == TerrainSurvey::blockHash(reverseWater) &&
+                otherHash == TerrainSurvey::blockHash(reverseOther);
+
+            TerrainFoundation plan(seed);
+            const auto column = plan.sampleV11(block.x, block.y);
+            const int localX = World::floorMod(block.x, CHUNK_SIZE);
+            const int localZ = World::floorMod(block.y, CHUNK_SIZE);
+            const BlockId ground = static_cast<BlockId>(
+                water.getBlock(localX, column.height, localZ).id);
+            actualWaterAndGround = actualWaterAndGround &&
+                (ground == BlockId::Sand || ground == BlockId::Stone) &&
+                WATER_LEVEL - column.height >= 2 &&
+                WATER_LEVEL - column.height <= 5;
+            for (int y = column.height + 1; y <= WATER_LEVEL; ++y) {
+                actualWaterAndGround = actualWaterAndGround &&
+                    water.getBlock(localX, y, localZ) == BlockId::Water;
+            }
+            for (int x = 0; x < CHUNK_SIZE; ++x) {
+                for (int z = 0; z < CHUNK_SIZE; ++z) {
+                    const int worldX = location.x * CHUNK_SIZE + x;
+                    const int worldZ = location.y * CHUNK_SIZE + z;
+                    const auto planned = plan.sampleV11(worldX, worldZ);
+                    const BlockId top = static_cast<BlockId>(
+                        water.getBlock(x, planned.height, z).id);
+                    const BlockId above = static_cast<BlockId>(
+                        water.getBlock(x, planned.height + 1, z).id);
+                    suitableDecorators = suitableDecorators &&
+                        ((above != BlockId::TallGrass &&
+                          above != BlockId::Rose) ||
+                         top == BlockId::Grass) &&
+                        !(planned.height < WATER_LEVEL &&
+                          (above == BlockId::OakBark ||
+                           above == BlockId::TallGrass ||
+                           above == BlockId::Rose));
+                }
+            }
+        }
+        created.getChunkManager().loadChunk(0, 32);
+        created.setBlock(8, 190, 520, BlockId::OakBark);
+        persisted = v11Fixture &&
+            created.getChunkManager().getTerrainGenerationVersion() ==
+                InlandWaterTerrainGenerationVersion &&
+            created.save();
+    }
+    {
+        Player owner;
+        World reopened(camera, config, owner, directory, false, 0);
+        reopened.getChunkManager().loadChunk(0, 32);
+        persisted = persisted &&
+            reopened.getChunkManager().getTerrainGenerationVersion() ==
+                InlandWaterTerrainGenerationVersion &&
+            reopened.getBlock(8, 190, 520) == BlockId::OakBark;
+    }
+    check("E5/eight-seeds-reverse-chunk-order", orderedChunks);
+    check("E5/generated-water-bed-and-decorators", actualWaterAndGround &&
+          suitableDecorators);
+    check("E5/v11-new-world-edit-and-reopen", persisted);
+
+    ClassicOverWorldGenerator caveSurface(
+        20260807, InlandWaterTerrainGenerationVersion);
+    CaveGenerator cavePlan(20260807, InlandWaterTerrainGenerationVersion);
+    const auto surfaceAt = [&caveSurface](int x, int z) {
+        return caveSurface.getSurfaceHeightAtWorld(x, z);
+    };
+    const auto biomeAt = [&caveSurface](int x, int z) {
+        return caveSurface.getBiomeAtWorld(x, z);
+    };
+    CaveGenerator::NaturalEntrance entrance;
+    for (int radius = 0; radius <= 32 && !entrance.valid; ++radius) {
+        for (int cellX = -radius; cellX <= radius && !entrance.valid; ++cellX) {
+            for (int cellZ = -radius; cellZ <= radius; ++cellZ) {
+                if (radius > 0 && std::abs(cellX) != radius &&
+                    std::abs(cellZ) != radius) {
+                    continue;
+                }
+                entrance = cavePlan.getNaturalEntranceForCell(
+                    cellX, cellZ, surfaceAt, biomeAt);
+                if (entrance.valid) { break; }
+            }
+        }
+    }
+    const auto repeatedEntrance = cavePlan.getNaturalEntranceForCell(
+        entrance.cellX, entrance.cellZ, surfaceAt, biomeAt);
+    check("E5/v11-cave-mouth-consumes-planned-surface",
+          entrance.valid && repeatedEntrance.valid &&
+          entrance.anchorX == repeatedEntrance.anchorX &&
+          entrance.anchorY == repeatedEntrance.anchorY &&
+          entrance.anchorZ == repeatedEntrance.anchorZ &&
+          entrance.anchorY == surfaceAt(entrance.anchorX, entrance.anchorZ));
+
+    clearDeterministicEnv();
+    for (const int seed : TerrainSurvey::Seeds) {
+        setEnv("HELLOMINE3D_SEED", std::to_string(seed));
+        Player spawned;
+        const std::string habitatDirectory = freshSaveDirectory(
+            "e5_spawn_" + std::to_string(seed));
+        const bool identityReady = initializeTerrainIdentity(
+            habitatDirectory, "e5-spawn-" + std::to_string(seed),
+            InlandWaterTerrainGenerationVersion, seed, false);
+        World habitat(camera, config, spawned, habitatDirectory, false, 0);
+        const int spawnX = static_cast<int>(std::floor(spawned.position.x));
+        const int spawnZ = static_cast<int>(std::floor(spawned.position.z));
+        const int groundY = static_cast<int>(spawned.position.y) - 2;
+        const BlockId ground = static_cast<BlockId>(
+            habitat.getBlock(spawnX, groundY, spawnZ).id);
+        const bool safeSpawn = identityReady && ground != BlockId::Air &&
+            ground != BlockId::Water &&
+            habitat.getBlock(spawnX, groundY + 1, spawnZ) == BlockId::Air &&
+            habitat.getBlock(spawnX, groundY + 2, spawnZ) == BlockId::Air &&
+            habitat.getChunkManager().getTerrainGenerationVersion() ==
+                InlandWaterTerrainGenerationVersion;
+
+        ClassicOverWorldGenerator generator(
+            seed, InlandWaterTerrainGenerationVersion);
+        std::array<bool, 6> resources{};
+        int foundRadius = 0;
+        const auto origin = World::getChunkXZ(spawnX, spawnZ);
+        for (int radius = 0; radius <= 16; ++radius) {
+            if (std::all_of(resources.begin(), resources.end(),
+                            [](bool value) { return value; })) {
+                break;
+            }
+            foundRadius = radius;
+            for (int dx = -radius; dx <= radius; ++dx) {
+                for (int dz = -radius; dz <= radius; ++dz) {
+                    if (std::max(std::abs(dx), std::abs(dz)) != radius) {
+                        continue;
+                    }
+                    Chunk chunk(habitat, {origin.x + dx, origin.z + dz}, false);
+                    generator.generateTerrainFor(chunk);
+                    for (int x = 0; x < CHUNK_SIZE; ++x) {
+                        for (int z = 0; z < CHUNK_SIZE; ++z) {
+                            const int surfaceY =
+                                generator.getSurfaceHeightAtWorld(
+                                    (origin.x + dx) * CHUNK_SIZE + x,
+                                    (origin.z + dz) * CHUNK_SIZE + z);
+                            for (int y = 0; y <= 176; ++y) {
+                                const BlockId block = static_cast<BlockId>(
+                                    chunk.getBlock(x, y, z).id);
+                                resources[0] = resources[0] ||
+                                    block == BlockId::OakBark;
+                                resources[1] = resources[1] ||
+                                    block == BlockId::Stone;
+                                resources[2] = resources[2] ||
+                                    block == BlockId::CoalOre;
+                                resources[3] = resources[3] ||
+                                    block == BlockId::IronOre;
+                                resources[4] = resources[4] ||
+                                    (block == BlockId::Sand && y == surfaceY &&
+                                     surfaceY >= WATER_LEVEL);
+                                resources[5] = resources[5] ||
+                                    block == BlockId::TallGrass;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        check("E5/seed-" + std::to_string(seed) +
+                  "-spawn-and-basic-resources",
+              safeSpawn &&
+              std::all_of(resources.begin(), resources.end(),
+                          [](bool value) { return value; }),
+              "spawn=" + vecToString(spawned.position) +
+              " radius=" + std::to_string(foundRadius) +
+              " wood/stone/coal/iron/sand/grass=" +
+              std::to_string(resources[0]) + '/' +
+              std::to_string(resources[1]) + '/' +
+              std::to_string(resources[2]) + '/' +
+              std::to_string(resources[3]) + '/' +
+              std::to_string(resources[4]) + '/' +
+              std::to_string(resources[5]));
+
+        std::array<bool, 3> sites{};
+        ClassicOverWorldGenerator repeated(
+            seed, InlandWaterTerrainGenerationVersion);
+        for (int cellZ = -16; cellZ <= 16; ++cellZ) {
+            for (int cellX = -16; cellX <= 16; ++cellX) {
+                for (const StructureType type : {
+                         StructureType::Waystone, StructureType::Ruin,
+                         StructureType::RaiderCamp}) {
+                    const std::size_t index = static_cast<std::size_t>(type);
+                    if (sites[index]) { continue; }
+                    const auto site = generator.getStructurePlanForCell(
+                        type, cellX, cellZ);
+                    if (!site.valid || !site.footprint.valid() ||
+                        generator.getSurfaceHeightAtWorld(
+                            site.anchor.x, site.anchor.z) < WATER_LEVEL ||
+                        !sameStructurePlan(site,
+                            repeated.getStructurePlanForCell(
+                                type, cellX, cellZ))) {
+                        continue;
+                    }
+                    for (const glm::ivec2 direction : {
+                             glm::ivec2(1, 0), glm::ivec2(-1, 0),
+                             glm::ivec2(0, 1), glm::ivec2(0, -1)}) {
+                        bool approach = true;
+                        int lastHeight = generator.getSurfaceHeightAtWorld(
+                            site.anchor.x, site.anchor.z);
+                        for (int step = 1; step <= 8; ++step) {
+                            const int height =
+                                generator.getSurfaceHeightAtWorld(
+                                    site.anchor.x + direction.x * step,
+                                    site.anchor.z + direction.y * step);
+                            approach = approach && height >= WATER_LEVEL &&
+                                std::abs(height - lastHeight) <= 3;
+                            lastHeight = height;
+                        }
+                        sites[index] = sites[index] || approach;
+                    }
+                }
+                if (std::all_of(sites.begin(), sites.end(),
+                                [](bool value) { return value; })) {
+                    break;
+                }
+            }
+            if (std::all_of(sites.begin(), sites.end(),
+                            [](bool value) { return value; })) {
+                break;
+            }
+        }
+        check("E5/seed-" + std::to_string(seed) +
+                  "-three-sites-deterministic-dry-approach",
+              std::all_of(sites.begin(), sites.end(),
+                          [](bool value) { return value; }));
+    }
     clearDeterministicEnv();
     setEnv("HELLOMINE3D_SEED", "");
 }
@@ -18924,6 +19310,9 @@ int main()
         else if (focus != nullptr && std::string(focus) == "E4_RELIEF") {
             caseInlandReliefV10();
         }
+        else if (focus != nullptr && std::string(focus) == "E5_WATER") {
+            caseInlandWaterV11();
+        }
         else if (focus != nullptr && std::string(focus) == "WV2") {
             caseBlockTextureCoordinates();
             caseRuntimeConfigOwnership();
@@ -19131,6 +19520,7 @@ int main()
         caseSurfaceCoastV8();
         caseInlandMeadowV9();
         caseInlandReliefV10();
+        caseInlandWaterV11();
         caseTerrainFoundationV5();
         caseP11TerrainContoursAndEntrances();
         caseP11EEnemyPresentationAndResonance();

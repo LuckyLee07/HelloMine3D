@@ -305,6 +305,60 @@ TerrainFoundation::Column TerrainFoundation::sampleV10(
     return column;
 }
 
+TerrainFoundation::Column TerrainFoundation::sampleV11(
+    int worldX, int worldZ) const noexcept
+{
+    Column column = sampleV10(worldX, worldZ);
+    const int oldHeight = column.height;
+    if (oldHeight < 64 || oldHeight > 95) {
+        return column;
+    }
+
+    // A continuous zero contour supplies the stream centreline. A second,
+    // shorter field bends the line while a third varies its width; all three
+    // are pure world-coordinate samples, so the same corridor crosses Chunk
+    // borders without neighbour reads. A shallow cut leaves actual water in
+    // the lowest reaches and becomes a dry valley higher up. Keeping the cut
+    // small also preserves the walkable slope budget of the v10 parent.
+    const double x = static_cast<double>(worldX);
+    const double z = static_cast<double>(worldZ);
+    const double centreDistance = std::abs(
+        noise(x, z, 1600.0, 0x6a09e667f3bcc909ull) +
+        noise(x, z, 700.0, 0xbb67ae8584caa73bull) * 0.08);
+    const double widthField = noise(
+        x, z, 900.0, 0x3c6ef372fe94f82bull);
+    const double innerWidth = 0.022 + widthField * 0.006;
+    const double outerWidth = innerWidth + 0.18;
+    const double corridor = 1.0 - smooth(
+        innerWidth, outerWidth, centreDistance);
+    int drop = static_cast<int>(std::lround(corridor * 3.0));
+    // Taper the final two contour levels before the frozen highland band.
+    // This avoids a cut/uncut step where a dry valley reaches height 96.
+    drop = std::min(drop, std::max(0, (96 - oldHeight + 1) / 2));
+    column.height = oldHeight - drop;
+    if (column.height == oldHeight) {
+        return column;
+    }
+
+    // Existing water filling supplies the actual 2..5-block water column.
+    // Keep the parent biome identity, but give the altered bed and bank an
+    // explicit material so vegetation and tree placement can reject it.
+    if (column.height < 64) {
+        const double bedMaterial = noise(
+            x, z, 96.0, 0x510e527fade682d1ull);
+        column.surface = bedMaterial > 0.32
+            ? Surface::Stone : Surface::Sand;
+    }
+    else if (column.height <= 65) {
+        column.surface = Surface::Sand;
+    }
+    else if (column.height <= 68) {
+        column.surface = column.biome == TerrainBiome::Desert
+            ? Surface::Sand : Surface::Dirt;
+    }
+    return column;
+}
+
 int TerrainFoundation::chunkSeed(int seed, int chunkX, int chunkZ,
                                  std::uint64_t salt) noexcept
 {
