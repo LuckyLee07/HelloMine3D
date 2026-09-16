@@ -266,6 +266,14 @@ Release `.app` 已从干净提交 `846e4f5` 原位刷新，在同一 PID 内完�
 `cf6bf74150be95abb71d050fc2a7abe38aa7d576f7bc3040d309cdd2e5a7d984`。中文正常玩法按用户
 指令延期；E2 的性能 FAIL 与 E3 延期玩法继续独立记录，不声明用户已验收 E4。
 
+2026-09-17 用户继续授权后续开发，E5 已冻结为 terrain v11「内陆河谷与溪流水系」。本批
+复用现有水方块和全局水面，只在 v10 原干地高度 `64..95` 内生成稀疏连续的低地溪流、缓岸
+和干河谷；不加入新方块、River 生态、水流模拟、动态水位、完整河网拓扑、侵蚀、桥梁或
+渲染改造。实际起始 commit、v10 生产基线和修改前量化门槛见
+[E5 合同](../contracts/ecology-inland-water-v11-e5-contract-v1.md)与
+[冻结清单](../reports/ecology-e5-v10-production-baseline-2026-09-17.json)。当前状态为
+`Doing / 基线与合同已冻结，尚未修改生成参数`。
+
 2026-09-12 新增授权：实施“暖野”第一版视觉改造，包括自然材质、HUD/菜单、地形光色及 macOS
 实机与必要工程验证。保持地形和存档语义；不扩展树形、水系或 D2。见
 [视觉合同](../contracts/warm-wilderness-visual-contract-v1.md) 与

@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "batch": "E5 terrain v11 inland valleys and streams",
+  "frozen_at": "2026-09-17",
+  "frozen_from_head": "7b2432d42fed432b1e10a06193070c38b322601e",
+  "source_generation_commit": "4dff96c",
+  "source": "build/ecology-e4-20260916/production-debug-candidate6/v10",
+  "copy": "build/ecology-e5-20260917/baseline/v10",
+  "identity": {
+    "chunks.csv": "c030cd69bd0429be85d1836b82d69bf36bc343efc413503c19c481a9f61b3e05",
+    "height-maps.png": "bbdd757eec029133d58d2924112e809797068ad465403bb1724f99c7799511de",
+    "samples.csv": "cb6cce97393378764e28019bca016010685377d98ed40add69cf1cb07b5a071b",
+    "summary.json": "6983143e767209ae4ac5cf7f97a3bc7d7c6530560b7a7f74f373703a56e4e161",
+    "timings.csv": "35603a43c178ef0cb0ef76dd2dfc0412d94b8a1f654e03ee0467df920ddb596c"
+  },
+  "production_protocol": {
+    "seeds": [
+      0,
+      1,
+      42,
+      424,
+      325322,
+      8675309,
+      20260807,
+      20260809
+    ],
+    "sample_rows": 463056,
+    "macro_rows": 133128,
+    "generated_chunks": 32
+  },
+  "v10_macro": {
+    "height_min": 37,
+    "height_max": 165,
+    "height_mean": 80.34553963103178,
+    "height_stddev": 21.159890236155487,
+    "height_unique": 129,
+    "slope_max": 3,
+    "water_fraction": 0.2089417703263025,
+    "dry_land_fraction": 0.7910582296736975,
+    "eligible_lowland_64_to_95_rows": 80298,
+    "eligible_lowland_64_to_95_fraction": 0.6031638723634397
+  }
+}
