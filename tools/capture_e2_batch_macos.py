@@ -89,7 +89,8 @@ def phases_for(mode, reverse):
                         scene, position, '0 0 0', streaming,
                         'performance', 5000, 30000))
         if mode == 'pilot':
-            phases = phases[:2]
+            phases = [phase for phase in phases
+                      if phase.name.startswith('forest-streaming-r1-')]
     if mode in ('visual', 'all'):
         for name, scene, position, rotation in VISUALS:
             for version in (7, 8):
