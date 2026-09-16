@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "batch": "E6 terrain v12 vegetation mosaic",
+  "frozen_at": "2026-09-17",
+  "start_commit": "3e732a1e62b5e03d7b3e1ba0d1eb1a86091f9b33",
+  "source_version": 11,
+  "survey": {
+    "focus": "E6-VEGETATION-SURVEY",
+    "directory": "build/ecology-e6-20260917/baseline/v11",
+    "repeat_directory": "build/ecology-e6-20260917/baseline/v11-repeat",
+    "independent_exports_byte_equal": true,
+    "sites": 16,
+    "chunks": 144,
+    "columns": 36864,
+    "sites_csv_sha256": "b58f38302011eb696fc22fa4377c59c62da9926f4b30419646713adeb2343c24",
+    "chunks_csv_sha256": "83932860a3ce96317fe1cdcd05c93f61a6c1f9c924cff83f6d307c4c0c93b95f",
+    "columns_csv_sha256": "81e1d29a0971bc5f7c3a060ec0ed160d00902fd0eb9398649306ffb4bb65eaed"
+  },
+  "production_totals": {
+    "forest_columns": 28145,
+    "dry_columns": 36062,
+    "tree_roots": 425,
+    "oak_bark_blocks": 2376,
+    "oak_leaf_blocks": 17610,
+    "tall_grass": 580,
+    "roses": 171,
+    "dead_shrubs": 0,
+    "cacti": 0,
+    "chunks_with_tree_roots": 120,
+    "chunks_without_tree_roots": 24,
+    "chunk_tree_root_range": [0, 10],
+    "site_tree_root_range": [7, 52],
+    "observed_trunk_height_range": [1, 7]
+  },
+  "per_seed_two_site_totals": {
+    "0": {"tree_roots": 74, "ground_cover": 81, "forest_columns": 3892},
+    "1": {"tree_roots": 73, "ground_cover": 77, "forest_columns": 3571},
+    "42": {"tree_roots": 39, "ground_cover": 104, "forest_columns": 2684},
+    "424": {"tree_roots": 33, "ground_cover": 79, "forest_columns": 2958},
+    "20260807": {"tree_roots": 53, "ground_cover": 83, "forest_columns": 3967},
+    "20260809": {"tree_roots": 56, "ground_cover": 73, "forest_columns": 4608},
+    "8675309": {"tree_roots": 46, "ground_cover": 135, "forest_columns": 3342},
+    "325322": {"tree_roots": 51, "ground_cover": 119, "forest_columns": 3123}
+  },
+  "fixed_sites": [
+    [0, 14, 32, "positive"], [0, -16, -8, "negative"],
+    [1, 8, 28, "positive"], [1, -30, -18, "negative"],
+    [42, 8, 44, "positive"], [42, -8, -12, "negative"],
+    [424, 10, 8, "positive"], [424, -12, -12, "negative"],
+    [20260807, 10, 34, "positive"], [20260807, -8, -28, "negative"],
+    [20260809, 8, 16, "positive"], [20260809, -20, -8, "negative"],
+    [8675309, 28, 8, "positive"], [8675309, -8, -32, "negative"],
+    [325322, 68, 14, "positive"], [325322, -32, -8, "negative"]
+  ],
+  "notes": [
+    "The survey executes the production C++ generator and records raw block output; Python only aggregates CSV.",
+    "Observed trunk height 1 can occur where later production projection truncates a root; direct v12 shape tests use unobstructed chunks.",
+    "No generation parameter had changed when this baseline was exported."
+  ]
+}

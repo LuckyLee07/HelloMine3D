@@ -13,6 +13,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <limits>
 #include <set>
 #include <stdexcept>
 
@@ -455,6 +456,154 @@ inline std::size_t writeE3MeadowChunks(
               << newTreeRoots << '\n';
     }
     return MeadowChunkSites.size();
+}
+
+// Fixed v11 forest regions selected from the frozen E5 macro survey before
+// terrain v12 changes any decorator rule. Each site exports a 3x3 production
+// Chunk neighbourhood so density, gaps, roots and ground cover remain
+// auditable without reimplementing generation in a script.
+struct VegetationChunkSite {
+    int seed;
+    int chunkX;
+    int chunkZ;
+    const char *sign;
+};
+
+inline constexpr std::array<VegetationChunkSite, 16>
+VegetationChunkSites{{
+    {0, 14, 32, "positive"}, {0, -16, -8, "negative"},
+    {1, 8, 28, "positive"}, {1, -30, -18, "negative"},
+    {42, 8, 44, "positive"}, {42, -8, -12, "negative"},
+    {424, 10, 8, "positive"}, {424, -12, -12, "negative"},
+    {20260807, 10, 34, "positive"},
+    {20260807, -8, -28, "negative"},
+    {20260809, 8, 16, "positive"},
+    {20260809, -20, -8, "negative"},
+    {8675309, 28, 8, "positive"},
+    {8675309, -8, -32, "negative"},
+    {325322, 68, 14, "positive"},
+    {325322, -32, -8, "negative"}
+}};
+
+inline std::size_t writeE6VegetationChunks(
+    World &world, const std::filesystem::path &directory, int version)
+{
+    if (version < ForestEcologyTerrainGenerationVersion ||
+        version > CurrentTerrainGenerationVersion ||
+        std::filesystem::exists(directory)) {
+        throw std::runtime_error(
+            "E6 vegetation survey requires a supported forest version and new directory");
+    }
+    std::filesystem::create_directories(directory);
+    std::ofstream sites(directory / "sites.csv");
+    std::ofstream chunks(directory / "chunks.csv");
+    std::ofstream columns(directory / "columns.csv");
+    sites.exceptions(std::ios::failbit | std::ios::badbit);
+    chunks.exceptions(std::ios::failbit | std::ios::badbit);
+    columns.exceptions(std::ios::failbit | std::ios::badbit);
+    sites << "site,seed,sign,version,center_chunk_x,center_chunk_z,"
+             "forest_columns,dry_columns,tree_roots,bark,leaves,tall_grass,"
+             "roses,dead_shrubs,cacti,min_trunk,max_trunk,unique_trunk_heights\n";
+    chunks << "site,seed,sign,version,chunk_x,chunk_z,block_hash,"
+              "forest_columns,dry_columns,tree_roots,bark,leaves,tall_grass,"
+              "roses,dead_shrubs,cacti,min_trunk,max_trunk\n";
+    columns << "site,seed,sign,version,chunk_x,chunk_z,x,z,height,biome,"
+               "top,above,trunk_height\n";
+
+    std::size_t generated = 0;
+    for (std::size_t siteIndex = 0;
+         siteIndex < VegetationChunkSites.size(); ++siteIndex) {
+        const auto site = VegetationChunkSites[siteIndex];
+        ClassicOverWorldGenerator generator(site.seed, version);
+        std::array<std::size_t, 9> totals{};
+        int siteMinTrunk = std::numeric_limits<int>::max();
+        int siteMaxTrunk = 0;
+        std::set<int> siteTrunkHeights;
+        for (int offsetZ = -1; offsetZ <= 1; ++offsetZ) {
+            for (int offsetX = -1; offsetX <= 1; ++offsetX) {
+                const int chunkX = site.chunkX + offsetX;
+                const int chunkZ = site.chunkZ + offsetZ;
+                Chunk chunk(world, {chunkX, chunkZ}, false);
+                generator.generateTerrainFor(chunk);
+                std::array<std::size_t, 9> counts{};
+                int minTrunk = std::numeric_limits<int>::max();
+                int maxTrunk = 0;
+                for (int x = 0; x < CHUNK_SIZE; ++x) {
+                    for (int z = 0; z < CHUNK_SIZE; ++z) {
+                        const int worldX = chunkX * CHUNK_SIZE + x;
+                        const int worldZ = chunkZ * CHUNK_SIZE + z;
+                        const int height = generator.getSurfaceHeightAtWorld(
+                            worldX, worldZ);
+                        const TerrainBiome biome = generator.getBiomeAtWorld(
+                            worldX, worldZ);
+                        const ChunkBlock top = chunk.getBlock(x, height, z);
+                        const ChunkBlock above = height + 1 < 256
+                            ? chunk.getBlock(x, height + 1, z)
+                            : ChunkBlock(BlockId::Air);
+                        const bool forest =
+                            biome == TerrainBiome::LightForest ||
+                            biome == TerrainBiome::TemperateForest;
+                        counts[0] += forest ? 1 : 0;
+                        counts[1] += height >= 64 &&
+                            top != BlockId::Air && top != BlockId::Water
+                                ? 1 : 0;
+                        int trunkHeight = 0;
+                        if (above == BlockId::OakBark) {
+                            for (int y = height + 1;
+                                 y < 256 && y <= height + 16 &&
+                                 chunk.getBlock(x, y, z) == BlockId::OakBark;
+                                 ++y) {
+                                ++trunkHeight;
+                            }
+                            ++counts[2];
+                            minTrunk = std::min(minTrunk, trunkHeight);
+                            maxTrunk = std::max(maxTrunk, trunkHeight);
+                            siteTrunkHeights.insert(trunkHeight);
+                        }
+                        for (int y = 0; y < 256; ++y) {
+                            const BlockId id = static_cast<BlockId>(
+                                chunk.getBlock(x, y, z).id);
+                            counts[3] += id == BlockId::OakBark ? 1 : 0;
+                            counts[4] += id == BlockId::OakLeaf ? 1 : 0;
+                            counts[5] += id == BlockId::TallGrass ? 1 : 0;
+                            counts[6] += id == BlockId::Rose ? 1 : 0;
+                            counts[7] += id == BlockId::DeadShrub ? 1 : 0;
+                            counts[8] += id == BlockId::Cactus ? 1 : 0;
+                        }
+                        columns << siteIndex << ',' << site.seed << ','
+                                << site.sign << ',' << version << ','
+                                << chunkX << ',' << chunkZ << ','
+                                << worldX << ',' << worldZ << ','
+                                << height << ',' << static_cast<int>(biome)
+                                << ',' << static_cast<int>(top.id) << ','
+                                << static_cast<int>(above.id) << ','
+                                << trunkHeight << '\n';
+                    }
+                }
+                for (std::size_t index = 0; index < counts.size(); ++index) {
+                    totals[index] += counts[index];
+                }
+                if (counts[2] > 0) {
+                    siteMinTrunk = std::min(siteMinTrunk, minTrunk);
+                    siteMaxTrunk = std::max(siteMaxTrunk, maxTrunk);
+                }
+                chunks << siteIndex << ',' << site.seed << ',' << site.sign
+                       << ',' << version << ',' << chunkX << ',' << chunkZ
+                       << ',' << blockHash(chunk);
+                for (const auto count : counts) { chunks << ',' << count; }
+                chunks << ',' << (counts[2] > 0 ? minTrunk : 0)
+                       << ',' << maxTrunk << '\n';
+                ++generated;
+            }
+        }
+        sites << siteIndex << ',' << site.seed << ',' << site.sign << ','
+              << version << ',' << site.chunkX << ',' << site.chunkZ;
+        for (const auto total : totals) { sites << ',' << total; }
+        sites << ',' << (totals[2] > 0 ? siteMinTrunk : 0)
+              << ',' << siteMaxTrunk << ',' << siteTrunkHeights.size()
+              << '\n';
+    }
+    return generated;
 }
 } // namespace TerrainSurvey
 

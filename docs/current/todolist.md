@@ -290,6 +290,15 @@ Release `.app` 已从干净提交 `846e4f5` 原位刷新，在同一 PID 内完�
 Mac 锁定，因此 v10/v11 固定画面、三轮窗口性能及中文正常玩法为 `NOT_RUN`，不声明 E5
 整体验收完成。详见 [E5 执行记录](../reports/ecology-e5-inland-water-v11-execution-2026-09-17.md)。
 
+2026-09-17 用户在 E5 分批提交后继续授权后续开发，E6 已冻结为 terrain v12「林地层次与
+植被斑块」。本批只重组新世界的树木轮廓、林地疏密和地被斑块，不改变 v11 高度、生态、
+地表材料、水系、洞口、矿物、地点、方块 ID、存档格式或渲染。状态为
+`Doing / 合同与 v11 生产基线已冻结，尚未修改装饰规则`：起始 commit `3e732a1`；16 个固定
+正负坐标林区的 144 个真实区块、36,864 个地表列已由生产 C++ 生成器独立导出两次，三个 CSV
+逐字节一致。v11 基线含 425 个树根、17,610 个叶块和 751 个地被；范围与修改前退出条件见
+[E6 合同](../contracts/ecology-vegetation-mosaic-v12-e6-contract-v1.md)及
+[冻结清单](../reports/ecology-e6-v11-vegetation-baseline-2026-09-17.json)。
+
 2026-09-12 新增授权：实施“暖野”第一版视觉改造，包括自然材质、HUD/菜单、地形光色及 macOS
 实机与必要工程验证。保持地形和存档语义；不扩展树形、水系或 D2。见
 [视觉合同](../contracts/warm-wilderness-visual-contract-v1.md) 与

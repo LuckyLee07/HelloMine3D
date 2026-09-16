@@ -19294,6 +19294,27 @@ int main()
             check("E3/targeted-production-chunk-survey-complete", count == 16,
                   "sites=" + std::to_string(count));
         }
+        else if (focus != nullptr &&
+                 std::string(focus) == "E6-VEGETATION-SURVEY") {
+            const char *output = std::getenv("HELLOMINE3D_TERRAIN_SURVEY_DIR");
+            const char *version = std::getenv("HELLOMINE3D_TERRAIN_SURVEY_VERSION");
+            if (output == nullptr || version == nullptr) {
+                throw std::runtime_error(
+                    "E6-VEGETATION-SURVEY requires output directory and version");
+            }
+            setEnv("HELLOMINE3D_SEED", "0");
+            setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+            Config config = makeConfig();
+            Camera camera(config);
+            Player player;
+            World world(camera, config, player,
+                        freshSaveDirectory("e6_vegetation_survey"), false, 0);
+            const std::size_t count = TerrainSurvey::writeE6VegetationChunks(
+                world, output, std::stoi(version));
+            check("E6/targeted-production-vegetation-survey-complete",
+                  count == 144,
+                  "chunks=" + std::to_string(count));
+        }
         else if (focus != nullptr && std::string(focus) == "T1") {
             caseTerrainFoundationV5();
         }

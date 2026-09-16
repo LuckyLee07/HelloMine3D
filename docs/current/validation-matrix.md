@@ -267,3 +267,10 @@ WorldBackup、SaveLoad、ResourcePack 回归。聚焦范围至少覆盖八 seed 
 要求必然命中稀疏水道。正式窗口仍使用唯一工作 `.app`，固定 v10/v11 同 seed/XZ/朝向/时间
 画面并各做三轮常驻和快速流送。图形会话锁定时如实记为 `NOT_RUN`，自动证据只能关闭工程
 范围，不能代替正常中文菜单步行、采集和保存重开。
+
+E6 terrain v12 按 [E6 合同](../contracts/ecology-vegetation-mosaic-v12-e6-contract-v1.md)
+验证：`E6-VEGETATION-SURVEY` 从 16 个固定林区导出 144 个生产区块与逐列原始 CSV，修改前
+独立导出两次并逐字节核对；实现后用 `E6_VEGETATION` 聚焦覆盖纯规划、三种树形、树冠边界、
+地被地面、反序加载、v9 草甸、v11 水系、资源地点和 v12 保存重开。另须运行 v1–v12
+`T0-SURVEY`、Debug/Release 完整 WorldRuntime 及受影响的存档/资源回归。窗口与性能复用唯一
+工作 `.app` 并一次启动采集；图形会话不可用时按用户授权延期，不改写为 PASS。
