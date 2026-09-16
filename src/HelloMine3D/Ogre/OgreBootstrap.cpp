@@ -582,7 +582,7 @@ namespace
                 m_world, m_applicationFlow, *m_worldManagement,
                 userSettings(m_config),
                 runtimeResourcePackResolver().resolve(
-                    "media/fonts/NotoSansSC-VF.ttf"),
+                    "media/fonts/HelloMineUI-Medium.ttf"),
                 [this]() {
                     if (m_audio != nullptr)
                     {

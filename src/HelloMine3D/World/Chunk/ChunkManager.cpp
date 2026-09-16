@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <stdexcept>
 #include <utility>
 
 #include "../../Sandbox/Events/ChunkEvents.h"
@@ -60,6 +61,39 @@ const Chunk *ChunkManager::findChunk(int x, int z) const
     }
 
     return &found->second;
+}
+
+std::vector<SurfaceMapSample> ChunkManager::collectSurfaceMapSamples(
+    const std::vector<VectorXZ>& positions) const
+{
+    if (positions.size() > 256)
+        throw std::invalid_argument("Surface map batch exceeds 256 columns");
+    std::unique_lock<std::mutex> lock(m_world->m_mainMutex, std::try_to_lock);
+    if (!lock.owns_lock())
+        return {};
+    std::vector<SurfaceMapSample> samples(positions.size());
+    for (std::size_t i = 0; i < positions.size(); ++i) {
+        const auto cp = World::getChunkXZ(positions[i].x, positions[i].z);
+        const Chunk* chunk = findChunk(cp.x, cp.z);
+        if (chunk == nullptr || !chunk->hasLoaded())
+            continue;
+        const auto bp = World::getBlockXZ(positions[i].x, positions[i].z);
+        SurfaceMapSample& sample = samples[i];
+        sample.known = true;
+        for (int y = static_cast<int>(chunk->getSectionCount()) * CHUNK_SIZE - 1;
+             y >= 0; --y) {
+            const BlockId id = static_cast<BlockId>(chunk->getBlock(bp.x, y, bp.z).id);
+            // Small cutouts do not obscure the ground in a topographic map.
+            if (id == BlockId::Air || id == BlockId::TallGrass ||
+                id == BlockId::Rose || id == BlockId::DeadShrub ||
+                id == BlockId::WheatCrop || id == BlockId::Torch)
+                continue;
+            sample.height = y;
+            sample.material = id;
+            break;
+        }
+    }
+    return samples;
 }
 
 ChunkMap &ChunkManager::getChunks()

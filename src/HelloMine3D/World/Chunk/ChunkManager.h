@@ -19,6 +19,13 @@ class World;
 
 using ChunkMap = std::unordered_map<VectorXZ, Chunk>;
 
+// Copied surface observations for a map, never a request to load/generate data.
+struct SurfaceMapSample {
+    bool known = false;
+    int height = 0;
+    BlockId material = BlockId::Air;
+};
+
 struct ChunkDebugStats {
     std::size_t existingChunks = 0;
     std::size_t loadedChunks = 0;
@@ -112,6 +119,10 @@ class ChunkManager {
     Chunk &getOrCreateChunk(int x, int z);
     Chunk *findChunk(int x, int z);
     const Chunk *findChunk(int x, int z) const;
+    // At most 256 columns; an empty result means the world lock was busy.
+    // Returned samples contain no Chunk pointers and remain valid after eviction.
+    std::vector<SurfaceMapSample> collectSurfaceMapSamples(
+        const std::vector<VectorXZ>& positions) const;
     ChunkMap &getChunks();
 
     /// Both halves must be called with the world lock held; the mesh build

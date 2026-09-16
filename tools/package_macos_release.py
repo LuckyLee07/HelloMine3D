@@ -29,10 +29,12 @@ def main():
                         help="Refresh a verified, unaccepted workbench app in place")
     parser.add_argument("--configuration", choices=("Debug", "Release"),
                         default="Release", help="Configuration actually built by caller")
+    parser.add_argument("--binary", type=Path,
+                        help="Explicit client output for an isolated concurrent build")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     output = args.output.absolute()
-    binary = root / "bin/HelloMine3D"
+    binary = args.binary.resolve(strict=True) if args.binary else root / "bin/HelloMine3D"
     if sys.platform != "darwin" or output.suffix != ".app":
         parser.error("Run on macOS and choose a .app output path")
     if args.refresh_existing != output.exists():
@@ -114,6 +116,14 @@ exec ./HelloMine3D "$@"
                        "CFBundleVersion": "1",
                        "NSHighResolutionCapable": True}, stream)
     managed_paths.add((contents / "Info.plist").relative_to(output))
+    # git diff excludes new files; include their identities in a source receipt.
+    source_entries = []
+    for source in sorted((root / "src/HelloMine3D").rglob("*")):
+        if source.is_file() and source.suffix in (".h", ".cpp", ".m", ".mm"):
+            source_entries.append(f"{digest(source)}  {source.relative_to(root).as_posix()}")
+    source_receipt = package / "source-tree-sha256.txt"
+    source_receipt.write_text("\n".join(source_entries) + "\n")
+    managed_paths.add(source_receipt.relative_to(output))
     metadata = {
         "platform": "macOS", "configuration": args.configuration,
         "source_commit": subprocess.check_output(
@@ -123,6 +133,8 @@ exec ./HelloMine3D "$@"
         "executable_sha256": digest(binary), "file_identity": identity.strip(),
         "linkage": linkage.splitlines()[1:],
         "resource_manifest_sha256": digest(manifest),
+        "source_file_count": len(source_entries),
+        "source_manifest_sha256": digest(source_receipt),
         "source_tree_required": False,
         "acceptance": "NOT_RUN", "signed_or_notarized": False,
     }

@@ -123,6 +123,21 @@ Pixels render(GLuint base, GLuint overlay, int stage, int tileX, bool occluded =
     require(glGetError()==GL_NO_ERROR,"OpenGL draw/readback failure");
     return pixels;
 }
+Pixels renderGround(GLuint shader, float enabled, float offset, int tile = 0)
+{
+    glDisable(GL_BLEND); glDepthMask(GL_TRUE);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    setup(shader);
+    value(shader, "surfaceLightingStrength", enabled);
+    glUniform1i(glGetUniformLocation(shader, "directionalShadowMap"), 1);
+    const float world[]{1,0,0,0, 0,1,0,0, 0,0,1,0, offset,0,offset,1};
+    glUniformMatrix4fv(glGetUniformLocation(shader,"world"),1,GL_FALSE,world);
+    quad(shader, tile, 0);
+    Pixels pixels(Edge * Edge * 4);
+    glReadPixels(0,0,Edge,Edge,GL_RGBA,GL_UNSIGNED_BYTE,pixels.data());
+    require(glGetError() == GL_NO_ERROR, "Ground shader draw failed");
+    return pixels;
+}
 void png(const std::filesystem::path &path, const Pixels &pixels)
 {
     Pixels flipped(pixels.size());
@@ -213,11 +228,22 @@ int main(int argc,char **argv)
             const std::string mode = array?"array":"atlas";
             auto tex = texture(root,array);
             auto base = program(root,"HelloMine3DTerrain.vert","HelloMine3DTerrain.frag",array);
+            auto shadow = program(root,"HelloMine3DTerrainShadow.vert","HelloMine3DTerrainShadow.frag",array);
             auto surface = program(root,"HelloMine3DTerrain.vert","HelloMine3DBlockFeedback.frag",array);
             auto floraBase = program(root,"HelloMine3DFlora.vert","HelloMine3DTerrain.frag",array);
             auto flora = program(root,"HelloMine3DFlora.vert","HelloMine3DBlockFeedback.frag",array);
             auto particle = program(root,"HelloMine3DBlockParticle.vert","HelloMine3DBlockParticle.frag",array);
             check(mode+"-production-programs-link",true);
+            const auto originalGround = renderGround(base, 0.f, -16.f);
+            const auto quietGround = renderGround(base, 1.f, -16.f);
+            check(mode+"-ground-palette-affects-grass", originalGround != quietGround);
+            check(mode+"-ground-shadow-off-matches-standard", quietGround == renderGround(shadow, 1.f, -16.f));
+            check(mode+"-ground-palette-preserves-stone", renderGround(base, 0.f, 0.f, 3) == renderGround(base, 1.f, 0.f, 3));
+            check(mode+"-ground-palette-world-space-variation", quietGround != renderGround(base, 1.f, 32.f));
+            png(output/(mode+"-ground-before.png"),originalGround);
+            png(output/(mode+"-ground-after.png"),quietGround);
+            value(base,"surfaceLightingStrength",0);
+            glDeleteProgram(shadow);
             auto plain = render(base,0,-1,3), highlight = render(base,surface,-1,3);
             check(mode+"-solid-surface-highlights",plain!=highlight);
             png(output/(mode+"-highlight.png"),highlight);

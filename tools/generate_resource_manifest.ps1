@@ -56,6 +56,7 @@ Add-ManifestEntry "atlas-layout" `
     "media/materials/Base.terrain-atlas"
 Add-ManifestEntry "font" "media/fonts/rs.ttf"
 Add-ManifestEntry "presentation-font" "media/fonts/NotoSansSC-VF.ttf"
+Add-ManifestEntry "presentation-font" "media/fonts/HelloMineUI-Medium.ttf"
 Add-ManifestEntry "license" "media/fonts/NotoSansSC-OFL.txt"
 Add-ManifestEntry "runtime-template" "bin/Mine.cfg"
 Add-ManifestEntry "runtime-template" "bin/MineResources.cfg"

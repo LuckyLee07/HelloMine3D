@@ -104,6 +104,37 @@ vec3 directionalFogColour(vec3 viewDirection)
     return mix(fogColour, fogSunwardColour, amount);
 }
 
+// Low-frequency world-space colour breaks up the tiled ground without
+// changing geometry, block identity, light propagation or saved worlds.
+float groundNoise(vec2 position)
+{
+    vec2 cell = floor(position);
+    vec2 f = fract(position);
+    f = f * f * (3.0 - 2.0 * f);
+    vec4 corners = vec4(dot(cell, vec2(127.1, 311.7)),
+        dot(cell + vec2(1.0, 0.0), vec2(127.1, 311.7)),
+        dot(cell + vec2(0.0, 1.0), vec2(127.1, 311.7)),
+        dot(cell + vec2(1.0, 1.0), vec2(127.1, 311.7)));
+    vec4 values = fract(sin(corners) * 43758.5453);
+    return mix(mix(values.x, values.y, f.x), mix(values.z, values.w, f.x), f.y);
+}
+
+vec3 groundPalette(vec3 colour, vec2 tile)
+{
+    bool grassTop = (tile.y == 0.0 && tile.x == 0.0) ||
+        (tile.y >= 3.0 && tile.y <= 7.0 && tile.x <= 2.0);
+    if (!grassTop || surfaceLightingStrength < 0.5) return colour;
+    float large = groundNoise(terrainWorldPosition.xz * 0.022);
+    float local = groundNoise(terrainWorldPosition.xz * 0.085 + vec2(17.3, -9.1));
+    float patch = large * 0.72 + local * 0.28;
+    float brightness = dot(colour, vec3(0.2126, 0.7152, 0.0722));
+    // Compress fine texel contrast; broad patches remain legible on slopes.
+    float quiet = mix(brightness, 0.43, 0.22);
+    vec3 sage = quiet * vec3(0.89, 1.06, 0.78);
+    return mix(colour, sage, 0.40) * mix(vec3(0.85, 0.93, 0.91),
+                                      vec3(1.04, 1.01, 0.89), patch);
+}
+
 void main()
 {
     // Evaluate derivatives before alpha discard, including cutout/flora quads.
@@ -138,6 +169,7 @@ void main()
     balancedColour.r += greenExcess * greenRedShift;
     balancedColour = pow(
         max(balancedColour, vec3(0.0)), vec3(toneGamma));
+    balancedColour = groundPalette(balancedColour, tileIndex);
     float shapedLight = mix(0.24, 1.0, clamp(terrainLight, 0.0, 1.0));
     float environmentExposure = mix(
         0.34, 1.0, clamp(environmentLight, 0.0, 1.0));

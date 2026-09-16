@@ -19201,6 +19201,8 @@ void caseWorldManager()
 
 } // namespace
 
+#include "SurfaceMapSmokeCases.h"
+
 int main()
 {
     struct FreeImageScope {
@@ -19312,6 +19314,9 @@ int main()
         }
         else if (focus != nullptr && std::string(focus) == "E5_WATER") {
             caseInlandWaterV11();
+        }
+        else if (focus != nullptr && std::string(focus) == "SURFACE_MAP") {
+            caseSurfaceMapObservations();
         }
         else if (focus != nullptr && std::string(focus) == "WV2") {
             caseBlockTextureCoordinates();
@@ -19446,6 +19451,7 @@ int main()
             caseSimulationActivationEntryProbe();
         }
         else {
+        caseSurfaceMapObservations();
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
         caseDebugPanelStartupOption();

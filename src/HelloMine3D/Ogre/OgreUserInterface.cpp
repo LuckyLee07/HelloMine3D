@@ -44,7 +44,6 @@
 #include "../World/Block/TerrainMaterialProfile.h"
 #include "../Item/SmeltingRegistry.h"
 #include "../World/Interaction/BlockMiningProgress.h"
-#include "../World/Generation/Terrain/ClassicOverWorldGenerator.h"
 #include "../World/WorldConstants.h"
 #include "../Feedback/ActionFeedback.h"
 #include "../World/Storage/WorldManagementService.h"
@@ -52,7 +51,7 @@
 namespace
 {
     const ImVec4 WarmText(0.957f, 0.933f, 0.863f, 1.f);
-    const ImVec4 WarmMuted(0.68f, 0.74f, 0.68f, 1.f);
+    const ImVec4 WarmMuted(0.68f, 0.74f, 0.77f, 1.f);
     const ImVec4 WarmAccent(0.871f, 0.714f, 0.431f, 1.f);
 
     constexpr int MinimapClipSegments = 96;
@@ -140,36 +139,36 @@ namespace
         style.WindowPadding = ImVec2(12.f, 10.f);
         style.FramePadding = ImVec2(8.f, 5.f);
         style.ItemSpacing = ImVec2(8.f, 6.f);
-        style.WindowRounding = 8.f;
+        style.WindowRounding = 6.f;
         style.ChildRounding = 5.f;
         style.FrameRounding = 4.f;
         style.PopupRounding = 6.f;
         style.ScrollbarRounding = 4.f;
         style.GrabRounding = 4.f;
-        style.WindowBorderSize = 0.f;
+        style.WindowBorderSize = 1.f;
         style.FrameBorderSize = 0.f;
         auto* colours = style.Colors;
         colours[ImGuiCol_Text] = WarmText;
         colours[ImGuiCol_TextDisabled] = WarmMuted;
-        colours[ImGuiCol_WindowBg] = ImVec4(0.095f, 0.14f, 0.115f, 0.97f);
-        colours[ImGuiCol_ChildBg] = ImVec4(0.10f, 0.145f, 0.12f, 0.94f);
-        colours[ImGuiCol_PopupBg] = ImVec4(0.115f, 0.165f, 0.135f, 0.99f);
-        colours[ImGuiCol_Border] = ImVec4(0.34f, 0.42f, 0.35f, 0.70f);
-        colours[ImGuiCol_FrameBg] = ImVec4(0.19f, 0.25f, 0.20f, 1.f);
-        colours[ImGuiCol_FrameBgHovered] = ImVec4(0.28f, 0.34f, 0.26f, 1.f);
-        colours[ImGuiCol_FrameBgActive] = ImVec4(0.34f, 0.39f, 0.28f, 1.f);
-        colours[ImGuiCol_TitleBg] = ImVec4(0.11f, 0.17f, 0.13f, 1.f);
-        colours[ImGuiCol_TitleBgActive] = ImVec4(0.19f, 0.27f, 0.20f, 1.f);
-        colours[ImGuiCol_Button] = ImVec4(0.22f, 0.30f, 0.23f, 1.f);
-        colours[ImGuiCol_ButtonHovered] = ImVec4(0.33f, 0.41f, 0.29f, 1.f);
-        colours[ImGuiCol_ButtonActive] = ImVec4(0.40f, 0.45f, 0.30f, 1.f);
-        colours[ImGuiCol_Header] = ImVec4(0.28f, 0.36f, 0.25f, 1.f);
-        colours[ImGuiCol_HeaderHovered] = ImVec4(0.36f, 0.43f, 0.28f, 1.f);
-        colours[ImGuiCol_HeaderActive] = ImVec4(0.44f, 0.48f, 0.30f, 1.f);
+        colours[ImGuiCol_WindowBg] = ImVec4(0.065f, 0.090f, 0.115f, 0.97f);
+        colours[ImGuiCol_ChildBg] = ImVec4(0.080f, 0.110f, 0.140f, 0.94f);
+        colours[ImGuiCol_PopupBg] = ImVec4(0.075f, 0.105f, 0.135f, 0.99f);
+        colours[ImGuiCol_Border] = ImVec4(0.35f, 0.43f, 0.48f, 0.45f);
+        colours[ImGuiCol_FrameBg] = ImVec4(0.135f, 0.180f, 0.215f, 1.f);
+        colours[ImGuiCol_FrameBgHovered] = ImVec4(0.21f, 0.29f, 0.33f, 1.f);
+        colours[ImGuiCol_FrameBgActive] = ImVec4(0.26f, 0.35f, 0.39f, 1.f);
+        colours[ImGuiCol_TitleBg] = ImVec4(0.08f, 0.12f, 0.15f, 1.f);
+        colours[ImGuiCol_TitleBgActive] = ImVec4(0.12f, 0.18f, 0.22f, 1.f);
+        colours[ImGuiCol_Button] = ImVec4(0.17f, 0.24f, 0.28f, 1.f);
+        colours[ImGuiCol_ButtonHovered] = ImVec4(0.25f, 0.34f, 0.39f, 1.f);
+        colours[ImGuiCol_ButtonActive] = ImVec4(0.31f, 0.40f, 0.44f, 1.f);
+        colours[ImGuiCol_Header] = ImVec4(0.18f, 0.27f, 0.30f, 1.f);
+        colours[ImGuiCol_HeaderHovered] = ImVec4(0.24f, 0.34f, 0.38f, 1.f);
+        colours[ImGuiCol_HeaderActive] = ImVec4(0.29f, 0.40f, 0.43f, 1.f);
         colours[ImGuiCol_CheckMark] = WarmAccent;
         colours[ImGuiCol_SliderGrab] = WarmAccent;
         colours[ImGuiCol_SliderGrabActive] = ImVec4(0.97f, 0.83f, 0.56f, 1.f);
-        colours[ImGuiCol_Separator] = ImVec4(0.33f, 0.41f, 0.34f, 0.65f);
+        colours[ImGuiCol_Separator] = ImVec4(0.34f, 0.44f, 0.50f, 0.45f);
         colours[ImGuiCol_SeparatorHovered] = WarmAccent;
         colours[ImGuiCol_SeparatorActive] = WarmAccent;
         colours[ImGuiCol_ResizeGrip] = ImVec4(0.68f, 0.73f, 0.56f, 0.25f);
@@ -178,36 +177,6 @@ namespace
         colours[ImGuiCol_PlotHistogram] = ImVec4(0.60f, 0.72f, 0.44f, 1.f);
         colours[ImGuiCol_TextSelectedBg] = ImVec4(0.67f, 0.56f, 0.32f, 0.50f);
         colours[ImGuiCol_NavCursor] = WarmAccent;
-    }
-
-    bool stackButton(const std::string& label, ImVec2 size)
-    {
-        const std::size_t idOffset = label.find("##");
-        const std::string visible = label.substr(0, idOffset);
-        const std::size_t countOffset = visible.rfind(" x");
-        std::string name = visible.substr(0, countOffset);
-        const std::string count = countOffset == std::string::npos
-            ? "" : "\n" + visible.substr(countOffset + 1);
-        const float available = size.x - ImGui::GetStyle().FramePadding.x * 2.f;
-        bool shortened = false;
-        while (!name.empty() && ImGui::CalcTextSize(
-                   (name + (shortened ? "…" : "")).c_str()).x > available)
-        {
-            // Remove a complete UTF-8 codepoint, preserving Chinese labels.
-            std::size_t last = name.size() - 1;
-            while (last > 0 && (static_cast<unsigned char>(name[last]) & 0xc0) == 0x80)
-                --last;
-            name.erase(last);
-            shortened = true;
-        }
-        const std::string displayed = name + (shortened ? "…" : "") + count +
-            (idOffset == std::string::npos ? "" : label.substr(idOffset));
-        size.y = std::max(size.y, ImGui::GetTextLineHeight() *
-            (count.empty() ? 1.f : 2.f) + ImGui::GetStyle().FramePadding.y * 2.f);
-        const bool clicked = ImGui::Button(displayed.c_str(), size);
-        if (shortened && ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s", visible.c_str());
-        return clicked;
     }
 
     void pushPrimaryButtonStyle()
@@ -583,7 +552,7 @@ class OgreUserInterface::Impl
             ImFontConfig fontConfig;
             fontConfig.RasterizerMultiply = 1.10f;
             if (io.Fonts->AddFontFromFileTTF(
-                    fontPath.c_str(), 18.0f, &fontConfig,
+                    fontPath.c_str(), 20.0f, &fontConfig,
                     presentationGlyphRanges.Data) ==
                 nullptr)
             {
@@ -2172,11 +2141,88 @@ class OgreUserInterface::Impl
             ImVec2(uvMin.x, uvMax.y), IM_COL32_WHITE);
     }
 
+    void drawKeyHint(const std::string& hint)
+    {
+        const auto separator = hint.find("  ");
+        if (separator == std::string::npos) { ImGui::TextUnformatted(hint.c_str()); return; }
+        const std::string key = hint.substr(0, separator);
+        const std::string action = hint.substr(separator + 2);
+        const float scale = appliedSettings.uiScale;
+        const ImVec2 position = ImGui::GetCursorScreenPos();
+        const float height = ImGui::GetTextLineHeight() + 6.f * scale;
+        const float width = ImGui::CalcTextSize(key.c_str()).x + 12.f * scale;
+        auto* draw = ImGui::GetWindowDrawList();
+        draw->AddRectFilled(position, ImVec2(position.x + width, position.y + height),
+                            IM_COL32(46, 61, 70, 255), 3.f);
+        draw->AddRect(position, ImVec2(position.x + width, position.y + height),
+                      IM_COL32(119, 139, 147, 170), 3.f);
+        draw->AddText(ImVec2(position.x + 6.f * scale, position.y + 3.f * scale),
+                       IM_COL32(238, 211, 161, 255), key.c_str());
+        draw->AddText(ImVec2(position.x + width + 8.f * scale, position.y + 3.f * scale),
+                       IM_COL32(226, 233, 225, 255), action.c_str());
+        ImGui::Dummy(ImVec2(0.f, height));
+    }
+
+    bool drawInventoryCard(Material::ID materialId, int amount, const std::string& id,
+                           ImVec2 size, bool selected = false)
+    {
+        const float scale = appliedSettings.uiScale;
+        size.y = std::max(size.y, 54.f * scale);
+        ImGui::PushID(id.c_str());
+        const bool clicked = ImGui::Button("##item_card", size);
+        ImGui::PopID();
+        const bool hovered = ImGui::IsItemHovered() || ImGui::IsItemFocused();
+        const ImVec2 minimum = ImGui::GetItemRectMin();
+        const ImVec2 maximum = ImGui::GetItemRectMax();
+        ImDrawList* draw = ImGui::GetWindowDrawList();
+        draw->AddRectFilled(minimum, maximum,
+            selected ? IM_COL32(60, 71, 67, 255) : hovered
+                ? IM_COL32(53, 73, 84, 255) : IM_COL32(29, 43, 54, 255), 4.f);
+        draw->AddRect(minimum, maximum, selected
+            ? IM_COL32(231, 196, 128, 255) : IM_COL32(95, 119, 132, 110), 4.f);
+        if (amount <= 0)
+        {
+            const std::string empty = tr("common.empty");
+            const ImVec2 textSize = ImGui::CalcTextSize(empty.c_str());
+            draw->AddText(ImVec2(minimum.x + (size.x - textSize.x) * 0.5f,
+                                minimum.y + (size.y - textSize.y) * 0.5f),
+                           IM_COL32(134, 153, 164, 255), empty.c_str());
+            return clicked;
+        }
+        const float iconSize = std::min(32.f * scale, size.x * 0.32f);
+        drawMaterialIcon(draw, materialId,
+            ImVec2(minimum.x + 7.f * scale, minimum.y + (size.y - iconSize) * 0.5f),
+            ImVec2(minimum.x + 7.f * scale + iconSize,
+                   minimum.y + (size.y + iconSize) * 0.5f));
+        const std::string fullName = materialName(materialId);
+        std::string name = fullName;
+        const float textX = minimum.x + iconSize + 13.f * scale;
+        const float available = maximum.x - textX - 6.f * scale;
+        bool shortened = false;
+        while (!name.empty() && ImGui::CalcTextSize(
+                   (name + (shortened ? "…" : "")).c_str()).x > available)
+        {
+            std::size_t last = name.size() - 1;
+            while (last > 0 && (static_cast<unsigned char>(name[last]) & 0xc0) == 0x80)
+                --last;
+            name.erase(last);
+            shortened = true;
+        }
+        if (shortened) name += "…";
+        draw->AddText(ImVec2(textX, minimum.y + 6.f * scale),
+                       IM_COL32(242, 237, 222, 255), name.c_str());
+        const std::string quantity = "x" + std::to_string(amount);
+        draw->AddText(ImVec2(textX, maximum.y - ImGui::GetTextLineHeight() - 5.f * scale),
+                       IM_COL32(181, 199, 197, 255), quantity.c_str());
+        if (hovered && shortened) ImGui::SetTooltip("%s", fullName.c_str());
+        return clicked;
+    }
+
     void drawHotbarSlot(const InventorySlotState &slot,
                         std::size_t index, bool selected)
     {
         const float scale = appliedSettings.uiScale;
-        const float slotSize = 52.f * scale;
+        const float slotSize = 56.f * scale;
         ImGui::PushID(static_cast<int>(index));
         ImGui::InvisibleButton("##hotbar_slot", ImVec2(slotSize, slotSize));
         const ImVec2 minimum = ImGui::GetItemRectMin();
@@ -2184,18 +2230,22 @@ class OgreUserInterface::Impl
         ImDrawList *drawList = ImGui::GetWindowDrawList();
         drawList->AddRectFilled(
             minimum, maximum,
-            selected ? IM_COL32(73, 77, 49, 245)
-                     : IM_COL32(35, 48, 39, 240),
+            selected ? IM_COL32(58, 66, 65, 248)
+                     : IM_COL32(19, 29, 38, 232),
             5.f);
         drawList->AddRect(
             minimum, maximum,
-            selected ? IM_COL32(222, 182, 110, 255)
-                     : IM_COL32(94, 112, 91, 135),
-            5.f, 0, selected ? 2.f : 1.f);
+            selected ? IM_COL32(244, 211, 145, 255)
+                     : IM_COL32(122, 143, 151, 145),
+            4.f, 0, selected ? 1.5f : 1.f);
+        if (selected)
+            drawList->AddRectFilled(ImVec2(minimum.x + 12.f * scale, maximum.y - 2.f * scale),
+                ImVec2(maximum.x - 12.f * scale, maximum.y + 1.f * scale),
+                IM_COL32(248, 212, 144, 255), 1.f);
 
         const std::string key = std::to_string(index + 1);
         drawList->AddText(ImVec2(minimum.x + 5.f * scale, minimum.y + 2.f * scale),
-                          IM_COL32(183, 195, 173, 235), key.c_str());
+                          IM_COL32(202, 211, 209, 255), key.c_str());
         if (slot.amount > 0)
         {
             drawMaterialIcon(drawList, slot.materialId,
@@ -2233,7 +2283,7 @@ class OgreUserInterface::Impl
         }
         else
         {
-            const char *emptyMark = ".";
+            const char *emptyMark = "";
             const ImVec2 markSize = ImGui::CalcTextSize(emptyMark);
             drawList->AddText(
                 ImVec2((minimum.x + maximum.x - markSize.x) * 0.5f,
@@ -2243,103 +2293,92 @@ class OgreUserInterface::Impl
         ImGui::PopID();
     }
 
-    struct MinimapCell
+    using MinimapCell = SurfaceMapSample;
+    static constexpr int MinimapCellCount = 65;
+    static constexpr int MinimapCellStep = 2;
+
+    ImU32 minimapCellColour(int x, int z) const
     {
-        int height = 0;
-        TerrainBiome biome = TerrainBiome::Grassland;
-    };
-
-    static constexpr int MinimapCellCount = 33;
-    static constexpr int MinimapCellStep = 4;
-
-    static ImU32 minimapCellColour(const MinimapCell& cell)
-    {
-        if (cell.height < WATER_LEVEL)
+        const auto& cell = minimapCells[z * MinimapCellCount + x];
+        if (!cell.known) return IM_COL32(30, 39, 45, 255);
+        ImVec4 colour;
+        switch (cell.material)
         {
-            const int depth = std::clamp(WATER_LEVEL - cell.height, 0, 18);
-            return IM_COL32(44 - depth / 2, 112 - depth,
-                            151 - depth, 255);
+            case BlockId::Grass: colour = ImVec4(126, 150, 86, 255); break;
+            case BlockId::OakLeaf: colour = ImVec4(49, 91, 63, 255); break;
+            case BlockId::Water: colour = ImVec4(58, 133, 158, 255); break;
+            case BlockId::Sand: colour = ImVec4(204, 186, 132, 255); break;
+            case BlockId::Dirt: colour = ImVec4(132, 106, 79, 255); break;
+            case BlockId::OakBark: colour = ImVec4(104, 82, 58, 255); break;
+            case BlockId::OakPlank:
+            case BlockId::Chest:
+            case BlockId::Workbench:
+            case BlockId::OakDoorClosed:
+            case BlockId::OakDoorOpen: colour = ImVec4(189, 147, 93, 255); break;
+            case BlockId::WaystoneCore: colour = ImVec4(116, 195, 210, 255); break;
+            case BlockId::Cactus: colour = ImVec4(77, 117, 75, 255); break;
+            case BlockId::Air: colour = ImVec4(37, 43, 46, 255); break;
+            default: colour = ImVec4(157, 157, 145, 255); break;
         }
-
-        const float elevation = std::clamp(
-            static_cast<float>(cell.height - WATER_LEVEL) / 96.f,
-            0.f, 1.f);
-        const int lift = static_cast<int>(elevation * 32.f);
-        switch (cell.biome)
-        {
-            case TerrainBiome::Ocean:
-            case TerrainBiome::Desert:
-                return IM_COL32(208 + lift / 3, 186 + lift / 4,
-                                116 + lift / 5, 255);
-            case TerrainBiome::Grassland:
-                return IM_COL32(91 + lift / 3, 143 + lift / 2,
-                                68 + lift / 4, 255);
-            case TerrainBiome::LightForest:
-                return IM_COL32(65 + lift / 4, 119 + lift / 3,
-                                59 + lift / 5, 255);
-            case TerrainBiome::TemperateForest:
-                return IM_COL32(44 + lift / 5, 92 + lift / 3,
-                                48 + lift / 5, 255);
-            case TerrainBiome::Mountain:
-                return IM_COL32(119 + lift / 2, 126 + lift / 2,
-                                121 + lift / 2, 255);
-        }
-        return IM_COL32(92, 132, 72, 255);
+        const auto& west = minimapCells[z * MinimapCellCount + std::max(0, x - 1)];
+        const auto& north = minimapCells[std::max(0, z - 1) * MinimapCellCount + x];
+        const int slope = (west.known ? west.height - cell.height : 0) +
+                          (north.known ? north.height - cell.height : 0);
+        const float shade = std::clamp(1.f - slope * 0.055f, 0.72f, 1.18f);
+        return IM_COL32(static_cast<int>(colour.x * shade),
+                        static_cast<int>(colour.y * shade),
+                        static_cast<int>(colour.z * shade), 255);
     }
 
     void refreshMinimap(const PlayerSaveState& state)
     {
-        if (worldStats.terrainGenerationVersion <
-            LegacyTerrainGenerationVersion)
-        {
-            minimapValid = false;
-            return;
-        }
-        const int centerX = static_cast<int>(std::lround(
-            state.position.x / static_cast<float>(MinimapCellStep))) *
-            MinimapCellStep;
-        const int centerZ = static_cast<int>(std::lround(
-            state.position.z / static_cast<float>(MinimapCellStep))) *
-            MinimapCellStep;
-        const bool identityChanged =
-            minimapSeed != worldStats.terrainSeed ||
+        if (world == nullptr) { minimapValid = false; return; }
+        const int centerX = World::floorDiv(World::toBlockCoord(state.position.x),
+                                           MinimapCellStep) * MinimapCellStep;
+        const int centerZ = World::floorDiv(World::toBlockCoord(state.position.z),
+                                           MinimapCellStep) * MinimapCellStep;
+        const bool identityChanged = minimapSeed != worldStats.terrainSeed ||
             minimapGenerationVersion != worldStats.terrainGenerationVersion;
-        if (minimapValid && !identityChanged &&
-            minimapCenterX == centerX && minimapCenterZ == centerZ)
+        if (!minimapValid || identityChanged ||
+            minimapCenterX != centerX || minimapCenterZ != centerZ)
         {
-            return;
-        }
-
-        if (identityChanged || minimapGenerator == nullptr)
-        {
+            const auto old = minimapCells;
+            minimapCells.fill({});
+            // Retain only samples at the exact same world coordinates.
+            if (minimapValid && !identityChanged)
+            {
+                const int dx = (centerX - minimapCenterX) / MinimapCellStep;
+                const int dz = (centerZ - minimapCenterZ) / MinimapCellStep;
+                for (int z = 0; z < MinimapCellCount; ++z)
+                for (int x = 0; x < MinimapCellCount; ++x)
+                    if (x + dx >= 0 && x + dx < MinimapCellCount &&
+                        z + dz >= 0 && z + dz < MinimapCellCount)
+                        minimapCells[z * MinimapCellCount + x] =
+                            old[(z + dz) * MinimapCellCount + x + dx];
+            }
+            minimapCenterX = centerX;
+            minimapCenterZ = centerZ;
             minimapSeed = worldStats.terrainSeed;
             minimapGenerationVersion = worldStats.terrainGenerationVersion;
-            minimapGenerator =
-                std::make_unique<ClassicOverWorldGenerator>(
-                    minimapSeed, minimapGenerationVersion);
+            minimapValid = true;
         }
-
-        constexpr int half = MinimapCellCount / 2;
-        for (int mapZ = 0; mapZ < MinimapCellCount; ++mapZ)
-        {
-            for (int mapX = 0; mapX < MinimapCellCount; ++mapX)
-            {
-                const int worldX = centerX +
-                    (mapX - half) * MinimapCellStep;
-                const int worldZ = centerZ +
-                    (mapZ - half) * MinimapCellStep;
-                MinimapCell& cell = minimapCells[
-                    static_cast<std::size_t>(
-                        mapZ * MinimapCellCount + mapX)];
-                cell.height = minimapGenerator->getSurfaceHeightAtWorld(
-                    worldX, worldZ);
-                cell.biome = minimapGenerator->getBiomeAtWorld(
-                    worldX, worldZ);
-            }
-        }
-        minimapCenterX = centerX;
-        minimapCenterZ = centerZ;
-        minimapValid = true;
+        if (hudElapsedSeconds < minimapNextRefresh) return;
+        minimapNextRefresh = hudElapsedSeconds + 1.f / 30.f;
+        constexpr int rowsPerRefresh = 3;
+        std::vector<VectorXZ> positions;
+        positions.reserve(MinimapCellCount * rowsPerRefresh);
+        for (int row = 0; row < rowsPerRefresh; ++row)
+        for (int x = 0; x < MinimapCellCount; ++x)
+            positions.push_back({centerX + (x - MinimapCellCount / 2) * MinimapCellStep,
+                centerZ + ((minimapRefreshRow + row) % MinimapCellCount -
+                           MinimapCellCount / 2) * MinimapCellStep});
+        const auto samples = world->getChunkManager().collectSurfaceMapSamples(positions);
+        if (samples.empty()) return; // Lock contention defers observation only.
+        for (int row = 0; row < rowsPerRefresh; ++row)
+        for (int x = 0; x < MinimapCellCount; ++x)
+            minimapCells[((minimapRefreshRow + row) % MinimapCellCount) *
+                         MinimapCellCount + x] = samples[row * MinimapCellCount + x];
+        minimapRefreshRow = (minimapRefreshRow + rowsPerRefresh) % MinimapCellCount;
     }
 
     void drawMinimap(const PlayerSaveState& state, const ImGuiIO& io)
@@ -2352,9 +2391,9 @@ class OgreUserInterface::Impl
         }
 
         const float mapDiameter = std::min(
-            std::clamp(132.f * appliedSettings.uiScale, 112.f, 160.f),
+            std::clamp(146.f * appliedSettings.uiScale, 118.f, 174.f),
             std::max(88.f, io.DisplaySize.y * 0.26f));
-        const ImVec2 windowSize(mapDiameter, mapDiameter);
+        const ImVec2 windowSize(mapDiameter, mapDiameter + 22.f * appliedSettings.uiScale);
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x - 18.f, 18.f), ImGuiCond_Always,
             ImVec2(1.f, 0.f));
@@ -2375,7 +2414,7 @@ class OgreUserInterface::Impl
             const ImVec2 mapMin = ImGui::GetCursorScreenPos();
             const ImVec2 mapCenter(mapMin.x + mapDiameter * 0.5f,
                                    mapMin.y + mapDiameter * 0.5f);
-            const float radius = mapDiameter * 0.5f;
+            const float radius = mapDiameter * 0.5f - 4.f;
             const float cellSize = mapDiameter /
                 static_cast<float>(MinimapCellCount);
             std::array<ImVec2, MinimapClipSegments> circle{};
@@ -2397,15 +2436,12 @@ class OgreUserInterface::Impl
                 {
                     const float x0 = mapMin.x + mapX * cellSize;
                     const float y0 = mapMin.y + mapZ * cellSize;
-                    const MinimapCell& cell = minimapCells[
-                        static_cast<std::size_t>(
-                            mapZ * MinimapCellCount + mapX)];
                     fillCircularMinimapCell(draw,
                         ImVec2(x0, y0),
                         ImVec2(x0 + cellSize + 0.6f,
                                y0 + cellSize + 0.6f),
                         mapCenter, radius, circle,
-                        minimapCellColour(cell));
+                        minimapCellColour(mapX, mapZ));
                 }
             }
 
@@ -2416,7 +2452,7 @@ class OgreUserInterface::Impl
                     (index - half) * MinimapCellStep;
                 const int worldZ = minimapCenterZ +
                     (index - half) * MinimapCellStep;
-                if (worldX % CHUNK_SIZE == 0)
+                if (showDebugPanel && worldX % CHUNK_SIZE == 0)
                 {
                     const float x = mapMin.x +
                         (static_cast<float>(index) + 0.5f) * cellSize;
@@ -2427,7 +2463,7 @@ class OgreUserInterface::Impl
                                   ImVec2(x, mapCenter.y + extent),
                                   IM_COL32(236, 238, 220, 34), 1.f);
                 }
-                if (worldZ % CHUNK_SIZE == 0)
+                if (showDebugPanel && worldZ % CHUNK_SIZE == 0)
                 {
                     const float y = mapMin.y +
                         (static_cast<float>(index) + 0.5f) * cellSize;
@@ -2489,6 +2525,16 @@ class OgreUserInterface::Impl
             draw->AddTriangleFilled(tip, left, right,
                                     IM_COL32(255, 224, 133, 255));
 
+            draw->AddCircle(mapCenter, radius + 2.f, IM_COL32(19, 26, 34, 240),
+                            MinimapClipSegments, 3.f);
+            const float scaleLength = mapDiameter * 32.f /
+                                      (MinimapCellCount * MinimapCellStep);
+            const ImVec2 scaleStart(mapMin.x + 8.f, mapMin.y + mapDiameter + 8.f);
+            draw->AddLine(scaleStart, ImVec2(scaleStart.x + scaleLength, scaleStart.y),
+                          IM_COL32(243, 232, 201, 255), 2.f);
+            draw->AddText(ImVec2(scaleStart.x + scaleLength + 6.f,
+                                scaleStart.y - ImGui::GetFontSize() * 0.5f),
+                          IM_COL32(243, 232, 201, 255), "32 m");
             minimapOverlayBottom =
                 ImGui::GetWindowPos().y + ImGui::GetWindowSize().y;
         }
@@ -2768,12 +2814,12 @@ class OgreUserInterface::Impl
                 objectiveHintSeconds = 12.f;
             }
             const float objectiveWidth = std::min(
-                300.f * appliedSettings.uiScale, io.DisplaySize.x - 36.f);
+                310.f * appliedSettings.uiScale, io.DisplaySize.x - 36.f);
             ImGui::SetNextWindowPos(ImVec2(18.0f,
                                           performanceOverlayBottom + 10.f),
                                     ImGuiCond_Always);
             ImGui::SetNextWindowSize(ImVec2(objectiveWidth, 0.f), ImGuiCond_Always);
-            ImGui::SetNextWindowBgAlpha(0.86f);
+            ImGui::SetNextWindowBgAlpha(0.93f);
             if (ImGui::Begin(
                     "##Objectives", nullptr,
                     ImGuiWindowFlags_NoDecoration |
@@ -2783,7 +2829,7 @@ class OgreUserInterface::Impl
                         ImGuiWindowFlags_NoFocusOnAppearing |
                         ImGuiWindowFlags_NoNav))
             {
-                ImGui::TextDisabled("%s  %zu / %zu", tr("hud.journey").c_str(),
+                ImGui::TextColored(WarmMuted, "%s  %zu / %zu", tr("hud.journey").c_str(),
                                     objective.completedObjectives,
                                     objective.totalObjectives);
                 const std::string currentTitle = objective.sessionComplete
@@ -2795,7 +2841,13 @@ class OgreUserInterface::Impl
                         ? tr("objective.complete.instruction")
                         : objectiveText(objective.currentId, "instruction",
                                         objective.instruction);
+                ImGui::Spacing();
+                ImGui::SetWindowFontScale(1.2f);
+                ImGui::PushStyleColor(ImGuiCol_Text, WarmAccent);
                 ImGui::TextWrapped("%s", currentTitle.c_str());
+                ImGui::PopStyleColor();
+                ImGui::SetWindowFontScale(1.f);
+                ImGui::Spacing();
                 if (appliedSettings.showActionHints &&
                     (objectiveHintSeconds > 0.f || showDebugPanel))
                 {
@@ -2815,8 +2867,14 @@ class OgreUserInterface::Impl
                         std::to_string(std::min(objective.progress,
                                                 objective.required)) +
                         " / " + std::to_string(objective.required);
-                    ImGui::TextDisabled("%s", overlay.c_str());
-                    ImGui::ProgressBar(ratio, ImVec2(-1.f, 4.f), "");
+                    ImGui::Spacing();
+                    const float countWidth = ImGui::CalcTextSize(overlay.c_str()).x;
+                    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, WarmAccent);
+                    ImGui::ProgressBar(ratio, ImVec2(std::max(40.f,
+                        ImGui::GetContentRegionAvail().x - countWidth - 14.f), 7.f), "");
+                    ImGui::PopStyleColor();
+                    ImGui::SameLine();
+                    ImGui::TextUnformatted(overlay.c_str());
                 }
                 if (objective.opportunities.size() > 1 &&
                     !objective.sessionComplete && showDebugPanel)
@@ -2991,7 +3049,7 @@ class OgreUserInterface::Impl
                       GameplayWorldAction::Guard)) + "  " + tr("hint.guard")
                 : "";
             const float desiredWidth = std::max({
-                minimapOverlayBottom - 18.f,
+                146.f * appliedSettings.uiScale,
                 ImGui::CalcTextSize(craftingHint.c_str()).x + 24.f,
                 ImGui::CalcTextSize(pauseHint.c_str()).x + 24.f,
                 ImGui::CalcTextSize(eatHint.c_str()).x + 24.f,
@@ -3004,17 +3062,17 @@ class OgreUserInterface::Impl
                 ImVec2(io.DisplaySize.x - 18.0f,
                        minimapOverlayBottom + 10.f),
                 ImGuiCond_Always, ImVec2(1.0f, 0.0f));
-            ImGui::SetNextWindowBgAlpha(0.66f);
+            ImGui::SetNextWindowBgAlpha(0.90f);
             ImGui::SetNextWindowSize(ImVec2(hintWidth, 0.f),
                                      ImGuiCond_Always);
             if (ImGui::Begin("##ActionHints", nullptr, overlayFlags))
             {
-                ImGui::TextUnformatted(craftingHint.c_str());
+                drawKeyHint(craftingHint);
                 if (showEatHint)
-                    ImGui::TextWrapped("%s", eatHint.c_str());
+                    drawKeyHint(eatHint);
                 if (showGuardHint)
-                    ImGui::TextWrapped("%s", guardHint.c_str());
-                ImGui::TextUnformatted(pauseHint.c_str());
+                    drawKeyHint(guardHint);
+                drawKeyHint(pauseHint);
             }
             ImGui::End();
         }
@@ -3022,9 +3080,9 @@ class OgreUserInterface::Impl
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y - 18.0f),
             ImGuiCond_Always, ImVec2(0.5f, 1.0f));
-        ImGui::SetNextWindowBgAlpha(0.72f);
+        ImGui::SetNextWindowBgAlpha(0.f);
         const ImGuiWindowFlags flags =
-            ImGuiWindowFlags_NoDecoration |
+            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground |
             ImGuiWindowFlags_AlwaysAutoResize |
             ImGuiWindowFlags_NoSavedSettings |
             ImGuiWindowFlags_NoInputs |
@@ -3032,7 +3090,7 @@ class OgreUserInterface::Impl
             ImGuiWindowFlags_NoNav;
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(7.0f, 7.0f));
         float notificationBottom = io.DisplaySize.y - 180.0f * appliedSettings.uiScale;
-        ImGui::SetNextWindowSize(ImVec2(5.0f * 52.0f * appliedSettings.uiScale +
+        ImGui::SetNextWindowSize(ImVec2(5.0f * 56.0f * appliedSettings.uiScale +
             4.0f * ImGui::GetStyle().ItemSpacing.x + 14.0f, 0.0f));
         if (ImGui::Begin("##OgrePlayerHud", nullptr, flags))
         {
@@ -3042,13 +3100,37 @@ class OgreUserInterface::Impl
                                      worldStats.playerMaxHealth,
                                  0.f, 1.f)
                     : 0.f;
-            ImGui::Text("%s %.0f / %.0f", tr("hud.health").c_str(),
-                        std::ceil(worldStats.playerHealth),
-                        std::ceil(worldStats.playerMaxHealth));
-            ImGui::PushStyleColor(ImGuiCol_PlotHistogram, healthRatio > 0.3f ?
-                ImVec4(0.48f, 0.65f, 0.43f, 1.0f) : ImVec4(0.83f, 0.39f, 0.30f, 1.0f));
-            ImGui::ProgressBar(healthRatio, ImVec2(-1.0f, 6.0f), "");
-            ImGui::PopStyleColor();
+            const float scale = appliedSettings.uiScale;
+            ImDrawList* hudDraw = ImGui::GetWindowDrawList();
+            const ImVec2 healthMin = ImGui::GetCursorScreenPos();
+            const float healthWidth = ImGui::GetContentRegionAvail().x;
+            hudDraw->AddRectFilled(ImVec2(healthMin.x - 1.f, healthMin.y - 4.f),
+                ImVec2(healthMin.x + healthWidth + 1.f, healthMin.y + 35.f * scale),
+                IM_COL32(17, 26, 34, 236), 5.f);
+            const ImU32 healthColour = healthRatio > 0.3f
+                ? IM_COL32(132, 204, 173, 255) : IM_COL32(243, 126, 106, 255);
+            const std::string health = tr("hud.health");
+            char healthValue[48];
+            std::snprintf(healthValue, sizeof(healthValue), "%.0f / %.0f",
+                          std::ceil(worldStats.playerHealth), std::ceil(worldStats.playerMaxHealth));
+            hudDraw->AddText(ImVec2(healthMin.x + 8.f, healthMin.y),
+                             IM_COL32(232, 237, 228, 255), health.c_str());
+            hudDraw->AddText(ImVec2(healthMin.x + healthWidth - 8.f -
+                                   ImGui::CalcTextSize(healthValue).x, healthMin.y),
+                             healthColour, healthValue);
+            const float segmentWidth = (healthWidth - 16.f - 9.f * 3.f) / 10.f;
+            for (int segment = 0; segment < 10; ++segment)
+            {
+                const ImVec2 start(healthMin.x + 8.f + segment * (segmentWidth + 3.f),
+                                   healthMin.y + 25.f * scale);
+                const ImVec2 end(start.x + segmentWidth, start.y + 5.f * scale);
+                hudDraw->AddRectFilled(start, end, IM_COL32(60, 76, 80, 255), 1.f);
+                const float filled = std::clamp(healthRatio * 10.f - segment, 0.f, 1.f);
+                if (filled > 0.f)
+                    hudDraw->AddRectFilled(start, ImVec2(start.x + segmentWidth * filled, end.y),
+                                           healthColour, 1.f);
+            }
+            ImGui::Dummy(ImVec2(healthWidth, 38.f * scale));
             if (worldStats.foodCooldownTicksRemaining > 0)
             {
                 ImGui::Text("%s: %.1fs", tr("hud.food_cooldown").c_str(),
@@ -3085,9 +3167,15 @@ class OgreUserInterface::Impl
                     ImGui::SetCursorPosX(
                         ImGui::GetCursorPosX() +
                         std::max(0.f, (available - width) * 0.5f));
-                    ImGui::TextColored(WarmAccent,
-                                       "%s", heldName.c_str());
+                    const ImVec2 namePosition = ImGui::GetCursorScreenPos();
+                    ImGui::GetWindowDrawList()->AddRectFilled(
+                        ImVec2(namePosition.x - 8.f, namePosition.y - 2.f),
+                        ImVec2(namePosition.x + width + 8.f,
+                               namePosition.y + ImGui::GetTextLineHeight() + 2.f),
+                        IM_COL32(18, 27, 34, 230), 4.f);
+                    ImGui::TextColored(WarmAccent, "%s", heldName.c_str());
                 }
+                else ImGui::Dummy(ImVec2(0.f, ImGui::GetTextLineHeight()));
             }
             for (std::size_t index = 0; index < state.inventory.size(); ++index)
             {
@@ -3465,7 +3553,8 @@ class OgreUserInterface::Impl
                                       : tr("common.empty")) + " x" +
                     std::to_string(stack.amount) + "##chest" +
                     std::to_string(slot);
-                if (stackButton(label, ImVec2(170.0f, 54.0f)) &&
+                if (drawInventoryCard(stack.materialId, stack.amount, label,
+                    ImVec2((layout.width - 24.f - 2.f * ImGui::GetStyle().ItemSpacing.x) / 3.f, 54.f)) &&
                     stack.amount > 0)
                 {
                     if (provider.transferToPlayer(
@@ -3491,7 +3580,8 @@ class OgreUserInterface::Impl
                                      : materialName(stack.getMaterial().id)) +
                     " x" + std::to_string(stack.getNumInStack()) +
                     "##player" + std::to_string(slot);
-                if (stackButton(label, ImVec2(102.0f, 50.0f)) &&
+                if (drawInventoryCard(stack.getMaterial().id, stack.getNumInStack(), label,
+                    ImVec2((layout.width - 24.f - 4.f * ImGui::GetStyle().ItemSpacing.x) / 5.f, 54.f)) &&
                     !stack.isEmpty())
                 {
                     if (provider.transferFromPlayer(
@@ -3638,7 +3728,9 @@ class OgreUserInterface::Impl
                     std::to_string(slot.amount) + "##craft-source-" +
                     std::to_string(index);
                 ImGui::BeginDisabled(slot.amount <= 0);
-                if (stackButton(label, ImVec2(122.0f, 46.0f)))
+                if (drawInventoryCard(slot.materialId, slot.amount, label,
+                    ImVec2((layout.width - 24.f - 4.f * ImGui::GetStyle().ItemSpacing.x) / 5.f, 56.f),
+                    slot.materialId == selectedCraftingMaterial && slot.amount > 0))
                 {
                     selectedCraftingMaterial = slot.materialId;
                 }
@@ -3670,7 +3762,8 @@ class OgreUserInterface::Impl
                     (cell.amount > 0 ? materialName(material.id)
                                      : tr("common.empty")) +
                     "##craft-cell-" + std::to_string(index);
-                if (stackButton(label, ImVec2(145.0f, 52.0f)) &&
+                if (drawInventoryCard(cell.materialId, cell.amount, label,
+                    ImVec2(155.f * appliedSettings.uiScale, 56.f)) &&
                     selectedCraftingMaterial != Material::ID::Nothing)
                 {
                     craftingSession->setCell(
@@ -3691,8 +3784,6 @@ class OgreUserInterface::Impl
             ImGui::Separator();
             if (!preview.recipeId.empty())
             {
-                ImGui::Text("%s: %s", tr("crafting.recipe").c_str(),
-                            preview.recipeId.c_str());
                 ImGui::Text("%s: %s x%d | %s: %d",
                             tr("crafting.output").c_str(),
                             materialName(preview.outputMaterialId).c_str(),
@@ -4307,7 +4398,8 @@ class OgreUserInterface::Impl
     bool showDebugPanel = false;
     std::array<MinimapCell,
                MinimapCellCount * MinimapCellCount> minimapCells{};
-    std::unique_ptr<ClassicOverWorldGenerator> minimapGenerator;
+    int minimapRefreshRow = 0;
+    float minimapNextRefresh = 0.f;
     int minimapSeed = 0;
     int minimapGenerationVersion = 0;
     int minimapCenterX = std::numeric_limits<int>::min();
@@ -4481,7 +4573,8 @@ void OgreUserInterface::setWorldContext(Player *player,
     m_impl->difficultyDraftInitialized = false;
     m_impl->displayedObjectiveId.clear();
     m_impl->objectiveHintSeconds = 12.f;
-    m_impl->minimapGenerator.reset();
+    m_impl->minimapRefreshRow = 0;
+    m_impl->minimapNextRefresh = 0.f;
     m_impl->minimapCenterX = std::numeric_limits<int>::min();
     m_impl->minimapCenterZ = std::numeric_limits<int>::min();
     m_impl->minimapValid = false;
