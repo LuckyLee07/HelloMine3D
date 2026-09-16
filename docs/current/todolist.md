@@ -279,7 +279,16 @@ Release `.app` 已从干净提交 `846e4f5` 原位刷新，在同一 PID 内完�
 渲染改造。实际起始 commit、v10 生产基线和修改前量化门槛见
 [E5 合同](../contracts/ecology-inland-water-v11-e5-contract-v1.md)与
 [冻结清单](../reports/ecology-e5-v10-production-baseline-2026-09-17.json)。当前状态为
-`Doing / 基线与合同已冻结，尚未修改生成参数`。
+`Engineering Done / 自动验证 PASS，窗口与性能因锁屏延期`：terrain v11 实现提交
+`db22168`；v1–v10 的 20 份生产样本/区块文件逐字节不变，v11 在 80,298 个合格低地宏观
+样本中改变 19.233%，新增水列占全部宏观样本 0.4049%，最大落差与相邻坡差均为 3。
+八 seed 正负坐标均有 48 格连续河谷，八 seed 均生成 2–3 格实际水深；出生、六类基础资源、
+洞口、三类地点、反序生成和保存重开均 PASS。Debug/Release 完整 WorldRuntime 各
+`1136/1136 PASS`，相关存档/资源回归通过。唯一视觉工作客户端已在原路径合入 E5，干净源码
+提交 `fcb7e2d` 对应的 Release 二进制 SHA-256 为
+`d78fbb8bf417aa27ad81d9df7f9d61d3e3301d4ee354746cff4e7e67e9a816e5`。Computer Use 仍报告
+Mac 锁定，因此 v10/v11 固定画面、三轮窗口性能及中文正常玩法为 `NOT_RUN`，不声明 E5
+整体验收完成。详见 [E5 执行记录](../reports/ecology-e5-inland-water-v11-execution-2026-09-17.md)。
 
 2026-09-12 新增授权：实施“暖野”第一版视觉改造，包括自然材质、HUD/菜单、地形光色及 macOS
 实机与必要工程验证。保持地形和存档语义；不扩展树形、水系或 D2。见

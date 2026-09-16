@@ -252,3 +252,18 @@ E2 v7/v8 性能相位必须从同一冻结存档模板复制，除唯一 `world_
 窗口性能及可见画面对照必须另记
 真实同客户端数据；锁屏下的中文菜单步行/采集/重开按用户顺序延期为 `NOT_RUN`，不能写
 `PASS`。E3 开工不关闭 E2，也不放宽 E2 的 1.10 门槛。
+
+E4 terrain v10 按 [E4 合同](../contracts/ecology-inland-relief-v10-e4-contract-v1.md)
+验证：`E4_RELIEF` 聚焦、完整 WorldRuntime、由生产进程导出的 v1–v10 `T0-SURVEY`、
+`tools/validate_ecology_e4.py` 汇总、Debug/Release 构建和相关存档/资源回归。窗口检查复用
+同一个工作 `.app`，在一次启动中完成固定山麓画面和常驻/快速流送采样；版本夹具必须显式
+创建 v10 世界，不能用“当前版本”代替冻结身份。
+
+E5 terrain v11 按 [E5 合同](../contracts/ecology-inland-water-v11-e5-contract-v1.md)
+验证：`E5_WATER` 聚焦、完整 WorldRuntime、v1–v11 生产 `T0-SURVEY` 与
+`tools/validate_ecology_e5.py` 汇总、Debug/Release 构建及 WorldCatalogue、StorageTransaction、
+WorldBackup、SaveLoad、ResourcePack 回归。聚焦范围至少覆盖八 seed 正负坐标的连续河谷、
+实际水深、生成方块、反序加载、出生资源、洞口、三类地点及 v11 保存重开；通用固定区块不
+要求必然命中稀疏水道。正式窗口仍使用唯一工作 `.app`，固定 v10/v11 同 seed/XZ/朝向/时间
+画面并各做三轮常驻和快速流送。图形会话锁定时如实记为 `NOT_RUN`，自动证据只能关闭工程
+范围，不能代替正常中文菜单步行、采集和保存重开。

@@ -356,13 +356,16 @@ C3 为 copied topology observation 增至 79 项并同步更新 machine-checked 
 - 拥有 `unordered_map<VectorXZ, Chunk>`、`TerrainGenerator` 与 `ChunkStorage`；
 - 按 seed / terrain generation version / exploration reward version 冻结生成身份；
 - terrain v5 的纯 `TerrainFoundation::sample` 以 floor lattice 和 uint64 hash 覆盖 signed world
-  坐标；v6 橡树、v7 森林覆盖层、v8 `sampleV8` 地表/岸线及 v9 `sampleV9` 内陆草甸开窗依次
-  版本化接入。v8 的近岸探针和 v9 的低频草甸轮廓只查询同一纯规划的世界坐标，不加载邻
-  Chunk；区块高度/生态、公开查询和放置规则消费同一列结果。完整区块生成在装饰 halo 运算
-  前拒绝越界。v1–v8 旧路径及存档身份保留，已保存区块不重生成；
+  坐标；v6 橡树、v7 森林覆盖层、v8 `sampleV8` 地表/岸线、v9 `sampleV9` 内陆草甸开窗、
+  v10 `sampleV10` 内陆起伏及 v11 `sampleV11` 内陆浅切水系依次版本化接入。v8 的近岸探针、
+  v9/v10 的低频内陆轮廓和 v11 的连续河谷只查询同一纯规划的世界坐标，不加载邻 Chunk；
+  区块高度/生态、公开查询和放置规则消费同一列结果。完整区块生成在装饰 halo 运算前拒绝
+  越界。v1–v10 旧路径及存档身份保留，已保存区块不重生成；
   v5 基线见 [v5 合同](../contracts/terrain-foundation-v5-contract-v1.md)，当前 E2 门槛见
   [v8 合同](../contracts/ecology-surface-coast-v8-e2-contract-v1.md)，v9 首批范围见
-  [E3 合同](../contracts/ecology-inland-meadow-v9-e3-contract-v1.md)；
+  [E3 合同](../contracts/ecology-inland-meadow-v9-e3-contract-v1.md)，v10/v11 范围分别见
+  [E4 合同](../contracts/ecology-inland-relief-v10-e4-contract-v1.md)和
+  [E5 合同](../contracts/ecology-inland-water-v11-e5-contract-v1.md)；
 - 查询、创建、加载、生成、保存和卸载 Chunk；
 - 在卸载前同步保存 dirty Chunk，失败时保留 resident Chunk；
 - 发布 generated/loaded/saved/unloaded 事实；
