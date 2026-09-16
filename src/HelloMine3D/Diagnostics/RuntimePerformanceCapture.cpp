@@ -161,7 +161,9 @@ namespace
     {
         output
             << "frame_index,measured_elapsed_ms,dt_ms,event_ms,update_ms,"
-               "render_ms,debug_gui_ms,render_capture_ms,display_ms,frame_ms,"
+               "render_ms,render_draw_ms,render_post_draw_ms,render_ended_ms,"
+               "render_phase_valid,debug_gui_ms,render_capture_ms,"
+               "display_ms,frame_ms,"
                "existing_chunks,loaded_chunks,save_dirty_chunks,"
                "save_transactions,save_total_ms,save_max_ms,sections,"
                "mesh_dirty_sections,cpu_ready_sections,gpu_buffered_sections,"
@@ -628,7 +630,11 @@ void recordFrame(const FrameTimings &timings,
     captureState.frames << captureState.frameIndex++ << ","
                         << measuredElapsedMs << "," << timings.deltaMs << ","
                         << timings.eventMs << "," << timings.updateMs << ","
-                        << timings.renderMs << "," << timings.debugGuiMs
+                        << timings.renderMs << "," << timings.renderDrawMs
+                        << "," << timings.renderPostDrawMs << ","
+                        << timings.renderEndedMs << ","
+                        << (timings.renderPhaseValid ? 1 : 0) << ","
+                        << timings.debugGuiMs
                         << "," << timings.renderCaptureMs << ","
                         << timings.displayMs << "," << timings.frameMs << ","
                         << worldStats.chunks.existingChunks << ","

@@ -154,6 +154,62 @@ v8 生产统计、同进程 24 段正式性能＋24 段反序复核及 12 段固
 候选 23 快照，`review-delivery-candidate23.json` 的包哈希及文件清单原样保留。
 E2 性能问题和最终版正常玩法在后续收口账本中继续跟踪。
 
+## 候选 23 林地流送尾帧复查（2026-09-16 后续）
+
+基于同一 Release 二进制已封存的正序与反序 `forest-streaming` 共 12 段
+原始 `frames.csv`，只读工具 `tools/analyze_ecology_e2_tail.py` 保存逐段 CSV/Summary
+SHA-256、超 20 ms 帧按五秒分布和渲染侧高帧分类。新分析原件位于
+`build/ecology-e2-20260914/candidate23-tail-analysis/analysis.json` 与
+[独立尾帧清单](ecology-e2-forest-tail-analysis-2026-09-16.json)，SHA-256
+`e03da1cccb51176b6d93ad1ee510ddafffcd04e155cbcecdf018a416ead73526`；原正式与
+反序比较 JSON 分别为 `1e6c6edd986dfe21ad4c3a8268379c64ae80ffa24716ab8d3bd8e804cff9b27f`
+和 `ebb3945578245e744da926dacef6ded33c00f500c96416497b7b8f0cf88aabcd`。
+
+12 秒以后，正序有 217 帧、反序有 99 帧的 `render_ms≥15`，这些帧相对前一帧
+均无区块加载数、GPU-buffered section 数、驻留地形缓冲字节、可见面分类、网格构建
+累计量变化。高帧的更新耗时中位数约 2.36..2.61 ms，渲染耗时中位数约
+20.38..20.94 ms；高尾帧并不随同步区块生成、网格上传或驻留增长发生。
+v7 也出现这类稳定场景尖峰：正序 r1 有 91 帧，反序 r3 有 31 帧；v8 在两组
+比较的更多轮次出现，仍使原 P99 规则两次 `FAIL`。这缩小了下一次定位范围，
+但 CPU CSV 无法把 Ogre 绘制、GPU 等待、present 或 OS 调度分开；不能据此
+把失败归咎于系统、把 v8 认定无责或改判 `PASS`。
+
+后续若继续修复 E2 性能，应在同一个项目客户端补图形帧阶段计时或有效的 GPU
+侧采样，针对这些稳定场景孤立尖峰定位，然后以原冻结顺序重新跑正式三轮与
+反序复核。此前 Ogre batch/triangle 接口的明显无效数据不能作为原因证据。
+Mac 锁屏与用户延期人工玩法的决定仍保持；没有新验收通过确认，不做 E2 完成版提交。
+
+## 隔离的 E2 绘制／交换阶段侧录准备（2026-09-16）
+
+在 `codex/e2-present-diagnostics` 源码工作树从检查点 `699eacf` 单独准备，未触碰
+主工作区未提交的 E3 代码，也未创建第二个 `.app`。项目内 Ogre
+`Root::_updateAllRenderTargets(FrameEvent&)` 在场景 render target 更新后调用
+`frameRenderingQueued`，随后执行 `_swapAllRenderTargetBuffers` 和 LOD 事件；
+`frameEnded` 在其后调用。因此仅由 E2 批量模式及
+`HELLOMINE3D_E2_RENDER_PHASES=1` 启用的帧 CSV 新增 `render_draw_ms`、
+`render_post_draw_ms`、`render_ended_ms` 与 `render_phase_valid`，可以把现有
+`render_ms` 拆成回调前绘制、回调后交换/LOD、帧结束诊断三段。`render_post_draw_ms`
+**不是纯 GPU 时间**，这项 CPU 边界不能把 GPU、驱动与系统呈现等待进一步分开。
+批量采集器增加 `--render-phase-diagnostics`，对每段真实 CSV 核对有效字段及
+三段求和；调试开关不影响正常菜单模式。
+
+gmake 生成工程后，macOS Debug/Release 的两个受影响 C++ 源文件对象均编译
+`PASS`。隔离 Release 完整客户端初次链接因缺少第三方静态库 `FAIL`，原日志
+`build/e2-render-phase-client-release-build.log` 保留；引用主工程同 commit、
+源码未改的 17 个 Release 静态库，库哈希冻结于
+`build/e2-render-phase-release-library-links.json`，链接后重核 17/17 `PASS`。
+第二次链接 `PASS`，隔离二进制 `bin/HelloMine3D` SHA-256 为
+`843eb603e1c4b100ab30c9c153d705b4488704e81f8269aec2962ae593ea4f60`。
+没有创建或启动第二个 `.app`，原项目工作客户端和封存候选 23 包均未改动。
+采集器静态检查及五个合成 CSV 工具自检 `PASS`：有效 100 帧接受，`NaN`、
+负值、三段求和不符和少于 100 帧均拒绝；自检 JSON SHA-256 为
+`6a1689fe637baaf722651c9a1f948275e5a394912c7d212c3da8c7da35857ed9`。
+合成工具数据不当作游戏性能证据。动态图形会话侧录目前 `NOT_RUN`；已有
+候选 23 封存游戏/证据包身份及两轮性能 `FAIL` 不变。下一次仅在原项目 E2
+工作客户端关闭后原位刷新诊断二进制，先以一次启动的小批 pilot 验证相位字段，
+再依原冻结顺序做正式采集。试跑失败原件保留，诊断不能替代中文菜单正常玩法或
+把已封存 FAIL 改为 PASS。
+
 ## 保留的失败及修复记录
 
 - v7 窗口首启因锁屏超时，原始失败见 `baseline/visual-v7-dry-shore/`。未以无窗口截图替代。

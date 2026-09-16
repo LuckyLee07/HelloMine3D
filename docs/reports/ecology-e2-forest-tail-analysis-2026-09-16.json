@@ -1,0 +1,517 @@
+{
+  "schema": 1,
+  "source": "E2_RELEASE_CLIENT_RAW_FRAMES",
+  "status": "FAIL_UNRESOLVED",
+  "scope": "forest-streaming 12 phases; 30-second raw client captures",
+  "classification": "High render frames also occur after loaded chunks, mesh totals, visible face counts and resident buffer size stop changing. The CSV cannot separate GPU work, present waits or OS scheduling.",
+  "groups": {
+    "final": {
+      "comparison_sha256": "1e6c6edd986dfe21ad4c3a8268379c64ae80ffa24716ab8d3bd8e804cff9b27f",
+      "comparison_status": "FAIL",
+      "frame_p95_ratio": 1.0239230991616073,
+      "frame_p99_ratio": 1.3910314442633833,
+      "phases": [
+        {
+          "phase": "build/ecology-e2-20260914/window-batch-candidate23-final/performance/forest-streaming-r1-v7",
+          "frames_sha256": "480c83694766909a2a72058603dcb96e424417be1c4b7ef11baed8f6292e526f",
+          "summary_sha256": "16a925ed92ef4a659e78c8471617b740bd67cf3d83a98bc70264d6c11942c57c",
+          "frames": 3154,
+          "frame_p95_ms": 14.933,
+          "frame_p99_ms": 23.501,
+          "update_p99_ms": 13.749,
+          "render_p99_ms": 20.899,
+          "frame_over_20_by_five_seconds": [
+            3,
+            11,
+            3,
+            21,
+            36,
+            34
+          ],
+          "render_over_15_by_five_seconds": [
+            1,
+            4,
+            0,
+            21,
+            36,
+            34
+          ],
+          "render_over_15_after_12s_with_unchanged_scene": 91,
+          "render_over_15_after_12s_with_changed_scene": 0,
+          "unchanged_scene_field_names": [
+            "loaded_chunks",
+            "gpu_buffered_sections",
+            "resident_terrain_buffer_bytes",
+            "solid_faces",
+            "transparent_faces",
+            "water_faces",
+            "flora_faces",
+            "mesh_rebuilds",
+            "mesh_build_total_ms"
+          ],
+          "unchanged_scene_hot_update_median_ms": 2.40646,
+          "unchanged_scene_hot_render_median_ms": 20.6923
+        },
+        {
+          "phase": "build/ecology-e2-20260914/window-batch-candidate23-final/performance/forest-streaming-r1-v8",
+          "frames_sha256": "8291c7f1f69a96c44b39061daa86e9376f82ba2c5359285ead2b24a30ebdb171",
+          "summary_sha256": "f4c74c0673b1b1092a32dc580fbb43fb554c91e849cccba743532535f0bbc4e9",
+          "frames": 3093,
+          "frame_p95_ms": 14.974,
+          "frame_p99_ms": 23.497,
+          "update_p99_ms": 13.697,
+          "render_p99_ms": 20.875,
+          "frame_over_20_by_five_seconds": [
+            5,
+            10,
+            19,
+            23,
+            27,
+            19
+          ],
+          "render_over_15_by_five_seconds": [
+            1,
+            5,
+            18,
+            23,
+            27,
+            19
+          ],
+          "render_over_15_after_12s_with_unchanged_scene": 81,
+          "render_over_15_after_12s_with_changed_scene": 0,
+          "unchanged_scene_field_names": [
+            "loaded_chunks",
+            "gpu_buffered_sections",
+            "resident_terrain_buffer_bytes",
+            "solid_faces",
+            "transparent_faces",
+            "water_faces",
+            "flora_faces",
+            "mesh_rebuilds",
+            "mesh_build_total_ms"
+          ],
+          "unchanged_scene_hot_update_median_ms": 2.46625,
+          "unchanged_scene_hot_render_median_ms": 20.7368
+        },
+        {
+          "phase": "build/ecology-e2-20260914/window-batch-candidate23-final/performance/forest-streaming-r2-v7",
+          "frames_sha256": "4a210af0c70d5153d0b1d121474b44bc7733add3bf1a76ac9d88afea46d12251",
+          "summary_sha256": "419e3c4661c92ce151499c7fbb0b3dc5ab2cab2e69facf19ecf2057228cae294",
+          "frames": 3372,
+          "frame_p95_ms": 13.836,
+          "frame_p99_ms": 16.569,
+          "update_p99_ms": 13.768,
+          "render_p99_ms": 13.135,
+          "frame_over_20_by_five_seconds": [
+            3,
+            13,
+            4,
+            1,
+            0,
+            4
+          ],
+          "render_over_15_by_five_seconds": [
+            2,
+            3,
+            0,
+            1,
+            0,
+            4
+          ],
+          "render_over_15_after_12s_with_unchanged_scene": 5,
+          "render_over_15_after_12s_with_changed_scene": 0,
+          "unchanged_scene_field_names": [
+            "loaded_chunks",
+            "gpu_buffered_sections",
+            "resident_terrain_buffer_bytes",
+            "solid_faces",
+            "transparent_faces",
+            "water_faces",
+            "flora_faces",
+            "mesh_rebuilds",
+            "mesh_build_total_ms"
+          ],
+          "unchanged_scene_hot_update_median_ms": 2.61362,
+          "unchanged_scene_hot_render_median_ms": 20.936
+        },
+        {
+          "phase": "build/ecology-e2-20260914/window-batch-candidate23-final/performance/forest-streaming-r2-v8",
+          "frames_sha256": "e85262d3d4f6bc325284838119ccaa41de28b630094d85dd9cfa19efd5ebcc70",
+          "summary_sha256": "64bbe7f1d09bdb4eb7ceb476fe0bdc13a0582921160b4284f6fb0595fd6af96d",
+          "frames": 3258,
+          "frame_p95_ms": 14.167,
+          "frame_p99_ms": 23.048,
+          "update_p99_ms": 13.52,
+          "render_p99_ms": 20.072,
+          "frame_over_20_by_five_seconds": [
+            4,
+            7,
+            19,
+            12,
+            1,
+            2
+          ],
+          "render_over_15_by_five_seconds": [
+            1,
+            1,
+            18,
+            12,
+            1,
+            2
+          ],
+          "render_over_15_after_12s_with_unchanged_scene": 27,
+          "render_over_15_after_12s_with_changed_scene": 0,
+          "unchanged_scene_field_names": [
+            "loaded_chunks",
+            "gpu_buffered_sections",
+            "resident_terrain_buffer_bytes",
+            "solid_faces",
+            "transparent_faces",
+            "water_faces",
+            "flora_faces",
+            "mesh_rebuilds",
+            "mesh_build_total_ms"
+          ],
+          "unchanged_scene_hot_update_median_ms": 2.36321,
+          "unchanged_scene_hot_render_median_ms": 20.8039
+        },
+        {
+          "phase": "build/ecology-e2-20260914/window-batch-candidate23-final/performance/forest-streaming-r3-v7",
+          "frames_sha256": "e106559b4781b3b1684b6d2da84e4d690b361c7ea5a3c49093cd7008e0667534",
+          "summary_sha256": "0d62d1a03a067d60e24d35e879018b4831add0193fe148941b225f9c15f3c86a",
+          "frames": 3375,
+          "frame_p95_ms": 13.704,
+          "frame_p99_ms": 16.274,
+          "update_p99_ms": 13.592,
+          "render_p99_ms": 13.183,
+          "frame_over_20_by_five_seconds": [
+            3,
+            9,
+            4,
+            0,
+            4,
+            2
+          ],
+          "render_over_15_by_five_seconds": [
+            1,
+            2,
+            1,
+            0,
+            4,
+            2
+          ],
+          "render_over_15_after_12s_with_unchanged_scene": 7,
+          "render_over_15_after_12s_with_changed_scene": 0,
+          "unchanged_scene_field_names": [
+            "loaded_chunks",
+            "gpu_buffered_sections",
+            "resident_terrain_buffer_bytes",
+            "solid_faces",
+            "transparent_faces",
+            "water_faces",
+            "flora_faces",
+            "mesh_rebuilds",
+            "mesh_build_total_ms"
+          ],
+          "unchanged_scene_hot_update_median_ms": 2.39717,
+          "unchanged_scene_hot_render_median_ms": 20.5291
+        },
+        {
+          "phase": "build/ecology-e2-20260914/window-batch-candidate23-final/performance/forest-streaming-r3-v8",
+          "frames_sha256": "5dd7560bb0f9981ef90961dfefd148bdf24ae638bdc0688ae3a04d9fbe53a7eb",
+          "summary_sha256": "54e680683feafe7c0f416063c0396fb3df3018559a30b03aa80f94b275f2d544",
+          "frames": 3362,
+          "frame_p95_ms": 13.786,
+          "frame_p99_ms": 16.325,
+          "update_p99_ms": 13.035,
+          "render_p99_ms": 13.516,
+          "frame_over_20_by_five_seconds": [
+            4,
+            9,
+            3,
+            0,
+            1,
+            4
+          ],
+          "render_over_15_by_five_seconds": [
+            2,
+            6,
+            1,
+            0,
+            1,
+            4
+          ],
+          "render_over_15_after_12s_with_unchanged_scene": 6,
+          "render_over_15_after_12s_with_changed_scene": 0,
+          "unchanged_scene_field_names": [
+            "loaded_chunks",
+            "gpu_buffered_sections",
+            "resident_terrain_buffer_bytes",
+            "solid_faces",
+            "transparent_faces",
+            "water_faces",
+            "flora_faces",
+            "mesh_rebuilds",
+            "mesh_build_total_ms"
+          ],
+          "unchanged_scene_hot_update_median_ms": 2.37446,
+          "unchanged_scene_hot_render_median_ms": 20.37645
+        }
+      ]
+    },
+    "recheck": {
+      "comparison_sha256": "ebb3945578245e744da926dacef6ded33c00f500c96416497b7b8f0cf88aabcd",
+      "comparison_status": "FAIL",
+      "frame_p95_ratio": 0.9906956770684227,
+      "frame_p99_ratio": 1.3049163478558785,
+      "phases": [
+        {
+          "phase": "build/ecology-e2-20260914/window-batch-candidate23-recheck/performance/forest-streaming-r1-v7",
+          "frames_sha256": "24e5b70a269c809322d1ff3d73d9f338266a2b3b8d547344c01a2fd4f5e3cceb",
+          "summary_sha256": "1050a3ae5007579cc4be4b1429cfce1c7cdf1352c689e180eb17cd986938ff25",
+          "frames": 3340,
+          "frame_p95_ms": 14.055,
+          "frame_p99_ms": 16.42,
+          "update_p99_ms": 13.705,
+          "render_p99_ms": 12.774,
+          "frame_over_20_by_five_seconds": [
+            3,
+            13,
+            2,
+            0,
+            1,
+            6
+          ],
+          "render_over_15_by_five_seconds": [
+            3,
+            3,
+            0,
+            0,
+            1,
+            6
+          ],
+          "render_over_15_after_12s_with_unchanged_scene": 7,
+          "render_over_15_after_12s_with_changed_scene": 0,
+          "unchanged_scene_field_names": [
+            "loaded_chunks",
+            "gpu_buffered_sections",
+            "resident_terrain_buffer_bytes",
+            "solid_faces",
+            "transparent_faces",
+            "water_faces",
+            "flora_faces",
+            "mesh_rebuilds",
+            "mesh_build_total_ms"
+          ],
+          "unchanged_scene_hot_update_median_ms": 2.47283,
+          "unchanged_scene_hot_render_median_ms": 20.504
+        },
+        {
+          "phase": "build/ecology-e2-20260914/window-batch-candidate23-recheck/performance/forest-streaming-r1-v8",
+          "frames_sha256": "f6114b3de4c2f8dec8d5e1e8dba0dc24a52ef06f43edcf5c5e55c4451b64da3a",
+          "summary_sha256": "01996c4e5fee440aaaf0651da45a24d93d8a944f823efee441bbc061c3e2194c",
+          "frames": 3337,
+          "frame_p95_ms": 13.842,
+          "frame_p99_ms": 22.853,
+          "update_p99_ms": 13.497,
+          "render_p99_ms": 13.975,
+          "frame_over_20_by_five_seconds": [
+            3,
+            11,
+            3,
+            7,
+            6,
+            9
+          ],
+          "render_over_15_by_five_seconds": [
+            3,
+            3,
+            1,
+            7,
+            6,
+            9
+          ],
+          "render_over_15_after_12s_with_unchanged_scene": 23,
+          "render_over_15_after_12s_with_changed_scene": 0,
+          "unchanged_scene_field_names": [
+            "loaded_chunks",
+            "gpu_buffered_sections",
+            "resident_terrain_buffer_bytes",
+            "solid_faces",
+            "transparent_faces",
+            "water_faces",
+            "flora_faces",
+            "mesh_rebuilds",
+            "mesh_build_total_ms"
+          ],
+          "unchanged_scene_hot_update_median_ms": 2.49554,
+          "unchanged_scene_hot_render_median_ms": 20.7051
+        },
+        {
+          "phase": "build/ecology-e2-20260914/window-batch-candidate23-recheck/performance/forest-streaming-r2-v7",
+          "frames_sha256": "6a8ca17d8b16ee9fd52e1c1556479e769958e16ef0f77c3cecd4197a30a983a0",
+          "summary_sha256": "ec8d4cd01aa485ae913ec7aa98c0057f9dc5b78ce90f063952bd434df5bb1b4f",
+          "frames": 3346,
+          "frame_p95_ms": 13.94,
+          "frame_p99_ms": 17.513,
+          "update_p99_ms": 13.309,
+          "render_p99_ms": 13.474,
+          "frame_over_20_by_five_seconds": [
+            5,
+            8,
+            8,
+            4,
+            2,
+            1
+          ],
+          "render_over_15_by_five_seconds": [
+            2,
+            4,
+            5,
+            4,
+            2,
+            1
+          ],
+          "render_over_15_after_12s_with_unchanged_scene": 12,
+          "render_over_15_after_12s_with_changed_scene": 0,
+          "unchanged_scene_field_names": [
+            "loaded_chunks",
+            "gpu_buffered_sections",
+            "resident_terrain_buffer_bytes",
+            "solid_faces",
+            "transparent_faces",
+            "water_faces",
+            "flora_faces",
+            "mesh_rebuilds",
+            "mesh_build_total_ms"
+          ],
+          "unchanged_scene_hot_update_median_ms": 2.496625,
+          "unchanged_scene_hot_render_median_ms": 20.76575
+        },
+        {
+          "phase": "build/ecology-e2-20260914/window-batch-candidate23-recheck/performance/forest-streaming-r2-v8",
+          "frames_sha256": "54f51b875c20a9204b7d423309bd6c63e9201de31abe05609421c3d3b73495b9",
+          "summary_sha256": "e31f84cc036c4ad0cba478aa50d034bbb4012b2060b5de17f665db9ea5d42446",
+          "frames": 3328,
+          "frame_p95_ms": 14.019,
+          "frame_p99_ms": 22.929,
+          "update_p99_ms": 13.891,
+          "render_p99_ms": 14.012,
+          "frame_over_20_by_five_seconds": [
+            4,
+            12,
+            5,
+            7,
+            8,
+            5
+          ],
+          "render_over_15_by_five_seconds": [
+            2,
+            2,
+            1,
+            7,
+            8,
+            5
+          ],
+          "render_over_15_after_12s_with_unchanged_scene": 21,
+          "render_over_15_after_12s_with_changed_scene": 0,
+          "unchanged_scene_field_names": [
+            "loaded_chunks",
+            "gpu_buffered_sections",
+            "resident_terrain_buffer_bytes",
+            "solid_faces",
+            "transparent_faces",
+            "water_faces",
+            "flora_faces",
+            "mesh_rebuilds",
+            "mesh_build_total_ms"
+          ],
+          "unchanged_scene_hot_update_median_ms": 2.52804,
+          "unchanged_scene_hot_render_median_ms": 20.6483
+        },
+        {
+          "phase": "build/ecology-e2-20260914/window-batch-candidate23-recheck/performance/forest-streaming-r3-v7",
+          "frames_sha256": "a6278a957fab210bff00e697b033577268ded36f7a35bbf38c8990a7a3d19657",
+          "summary_sha256": "4b3524187f86f44fddf5d2d88a600dfae111a35554146f7be0f6c9bc440c2ef5",
+          "frames": 3308,
+          "frame_p95_ms": 13.972,
+          "frame_p99_ms": 23.002,
+          "update_p99_ms": 13.536,
+          "render_p99_ms": 20.19,
+          "frame_over_20_by_five_seconds": [
+            3,
+            9,
+            8,
+            10,
+            12,
+            5
+          ],
+          "render_over_15_by_five_seconds": [
+            1,
+            1,
+            6,
+            10,
+            12,
+            5
+          ],
+          "render_over_15_after_12s_with_unchanged_scene": 31,
+          "render_over_15_after_12s_with_changed_scene": 0,
+          "unchanged_scene_field_names": [
+            "loaded_chunks",
+            "gpu_buffered_sections",
+            "resident_terrain_buffer_bytes",
+            "solid_faces",
+            "transparent_faces",
+            "water_faces",
+            "flora_faces",
+            "mesh_rebuilds",
+            "mesh_build_total_ms"
+          ],
+          "unchanged_scene_hot_update_median_ms": 2.46229,
+          "unchanged_scene_hot_render_median_ms": 20.6118
+        },
+        {
+          "phase": "build/ecology-e2-20260914/window-batch-candidate23-recheck/performance/forest-streaming-r3-v8",
+          "frames_sha256": "a50e78d337ed170cffde58db1495acc2e58b9ceb2f700d55f5b0347e64efdbb1",
+          "summary_sha256": "053e4c8c59affae47a3e9ecd7bee9560aa58bb0cfd317528de683138923ed4c4",
+          "frames": 3365,
+          "frame_p95_ms": 13.774,
+          "frame_p99_ms": 16.419,
+          "update_p99_ms": 13.999,
+          "render_p99_ms": 13.187,
+          "frame_over_20_by_five_seconds": [
+            4,
+            15,
+            3,
+            1,
+            1,
+            3
+          ],
+          "render_over_15_by_five_seconds": [
+            3,
+            4,
+            0,
+            1,
+            1,
+            3
+          ],
+          "render_over_15_after_12s_with_unchanged_scene": 5,
+          "render_over_15_after_12s_with_changed_scene": 0,
+          "unchanged_scene_field_names": [
+            "loaded_chunks",
+            "gpu_buffered_sections",
+            "resident_terrain_buffer_bytes",
+            "solid_faces",
+            "transparent_faces",
+            "water_faces",
+            "flora_faces",
+            "mesh_rebuilds",
+            "mesh_build_total_ms"
+          ],
+          "unchanged_scene_hot_update_median_ms": 2.47721,
+          "unchanged_scene_hot_render_median_ms": 20.5885
+        }
+      ]
+    }
+  }
+}

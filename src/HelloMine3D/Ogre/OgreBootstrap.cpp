@@ -690,6 +690,8 @@ namespace
             m_e2BatchEvents
                 << "run\tindex\tevent\tunix_ms\tpid\tversion\tscene\n";
             m_e2BatchEnabled = true;
+            m_renderPhaseDiagnostics = isTrueValue(
+                std::getenv("HELLOMINE3D_E2_RENDER_PHASES"));
             logE2BatchEvent("started");
             std::cout << "[E2_BATCH] phases=" << m_e2BatchPhases.size()
                       << " manifest=" << manifest << '\n';
@@ -2203,6 +2205,11 @@ namespace
                 "Frame Delta (ms)",
                 static_cast<double>(event.timeSinceLastFrame) * 1000.0);
             m_frameStart = std::chrono::steady_clock::now();
+            if (m_renderPhaseDiagnostics)
+            {
+                m_sceneRenderEnd = {};
+                m_swapEnd = {};
+            }
             Ogre::WindowEventUtilities::messagePump();
             if (m_shutdownRequested || m_window == nullptr ||
                 m_window->isClosed())
@@ -2263,6 +2270,12 @@ namespace
         bool frameRenderingQueued(const Ogre::FrameEvent&) override
         {
             HELLOMINE3D_PROFILE_SCOPE("Ogre::frameRenderingQueued");
+            if (m_renderPhaseDiagnostics)
+            {
+                // Ogre fires this callback after _updateAllRenderTargets and
+                // immediately before _swapAllRenderTargetBuffers.
+                m_sceneRenderEnd = std::chrono::steady_clock::now();
+            }
             ++m_frameCount;
             return true;
         }
@@ -2270,6 +2283,12 @@ namespace
         bool frameEnded(const Ogre::FrameEvent& event) override
         {
             HELLOMINE3D_PROFILE_SCOPE("Ogre::frameEnded");
+            if (m_renderPhaseDiagnostics)
+            {
+                // Ogre's final buffer swap and LOD event processing completed
+                // before frameEnded.
+                m_swapEnd = std::chrono::steady_clock::now();
+            }
             if (m_renderCapture != nullptr)
             {
                 m_renderCapture->update(event.timeSinceLastFrame);
@@ -2292,6 +2311,22 @@ namespace
                 std::chrono::duration<double, std::milli>(
                     frameEnd - m_updateEnd)
                     .count();
+            if (m_renderPhaseDiagnostics &&
+                m_sceneRenderEnd >= m_updateEnd &&
+                m_swapEnd >= m_sceneRenderEnd &&
+                frameEnd >= m_swapEnd)
+            {
+                timings.renderDrawMs =
+                    std::chrono::duration<double, std::milli>(
+                        m_sceneRenderEnd - m_updateEnd).count();
+                timings.renderPostDrawMs =
+                    std::chrono::duration<double, std::milli>(
+                        m_swapEnd - m_sceneRenderEnd).count();
+                timings.renderEndedMs =
+                    std::chrono::duration<double, std::milli>(
+                        frameEnd - m_swapEnd).count();
+                timings.renderPhaseValid = true;
+            }
             timings.frameMs = frameMs;
 
             RuntimePerformanceCapture::recordFrame(timings,
@@ -4459,6 +4494,9 @@ namespace
         WorldDebugStats m_frameWorldStats;
         std::chrono::steady_clock::time_point m_frameStart;
         std::chrono::steady_clock::time_point m_updateEnd;
+        std::chrono::steady_clock::time_point m_sceneRenderEnd;
+        std::chrono::steady_clock::time_point m_swapEnd;
+        bool m_renderPhaseDiagnostics = false;
         glm::vec2 m_pendingLookDelta{0.0f};
         GameplayMovementModeTracker m_movementModeTracker;
         GameplayFocusGate m_focusGate;
