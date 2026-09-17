@@ -357,15 +357,19 @@ C3 为 copied topology observation 增至 79 项并同步更新 machine-checked 
 - 按 seed / terrain generation version / exploration reward version 冻结生成身份；
 - terrain v5 的纯 `TerrainFoundation::sample` 以 floor lattice 和 uint64 hash 覆盖 signed world
   坐标；v6 橡树、v7 森林覆盖层、v8 `sampleV8` 地表/岸线、v9 `sampleV9` 内陆草甸开窗、
-  v10 `sampleV10` 内陆起伏及 v11 `sampleV11` 内陆浅切水系依次版本化接入。v8 的近岸探针、
-  v9/v10 的低频内陆轮廓和 v11 的连续河谷只查询同一纯规划的世界坐标，不加载邻 Chunk；
-  区块高度/生态、公开查询和放置规则消费同一列结果。完整区块生成在装饰 halo 运算前拒绝
-  越界。v1–v10 旧路径及存档身份保留，已保存区块不重生成；
+  v10 `sampleV10` 内陆起伏、v11 `sampleV11` 内陆浅切水系及 v12
+  `TerrainEcologyPlanner` 林地层次依次版本化接入。v12 纯规划只消费 seed、带符号世界坐标和
+  v11 规划列，为现有橡树选择 Standard/Tall/Broad 三种有界连通轮廓，并以低频场规划树木疏密
+  与地被斑块；最大树冠水平半径为 3，总高小于 12，且保留至少 3 格可见树干。v8 的近岸探针、
+  v9/v10 的低频内陆轮廓、v11 的连续河谷和 v12 的生态规划都只查询纯规划世界坐标，不加载
+  邻 Chunk；区块高度/生态、公开查询和放置规则消费同一列结果。完整区块生成在装饰 halo
+  运算前拒绝越界。v1–v11 旧路径及存档身份保留，已保存区块不重生成；
   v5 基线见 [v5 合同](../contracts/terrain-foundation-v5-contract-v1.md)，当前 E2 门槛见
   [v8 合同](../contracts/ecology-surface-coast-v8-e2-contract-v1.md)，v9 首批范围见
   [E3 合同](../contracts/ecology-inland-meadow-v9-e3-contract-v1.md)，v10/v11 范围分别见
   [E4 合同](../contracts/ecology-inland-relief-v10-e4-contract-v1.md)和
-  [E5 合同](../contracts/ecology-inland-water-v11-e5-contract-v1.md)；
+  [E5 合同](../contracts/ecology-inland-water-v11-e5-contract-v1.md)，v12 范围见
+  [E6 合同](../contracts/ecology-vegetation-mosaic-v12-e6-contract-v1.md)；
 - 查询、创建、加载、生成、保存和卸载 Chunk；
 - 在卸载前同步保存 dirty Chunk，失败时保留 resident Chunk；
 - 发布 generated/loaded/saved/unloaded 事实；
@@ -489,7 +493,7 @@ WorldManager
 
 - `WorldSaveData` 是内存中的当前 metadata payload，写出前由 World 收集 Player、Actor、目标、结局、
   难度、terrain identity 和其他版本化状态。
-- world save format 当前为 v12；新世界 terrain generation 为独立 v9，旧 v1–v8 身份保留；settings 是独立 v9（包含重启生效的标准/兼容世界画面选择，读取 v0–v8 并保留偏好）。
+- world save format 当前为 v12；新世界 terrain generation 为独立 v12，旧 v1–v11 身份保留；settings 是独立 v9（包含重启生效的标准/兼容世界画面选择，读取 v0–v8 并保留偏好）。
 - `StorageTransaction` 负责同目录 candidate、flush、真实 reader 校验和原子替换；失败 candidate 不
   成为权威。
 - Chunk 只有成功发布后才清 save-dirty；unload 保存失败则取消卸载。

@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "batch": "E6 terrain v12 vegetation mosaic",
+  "status": "engineering_done_automated_pass_window_pending",
+  "start_commit": "3e732a1e62b5e03d7b3e1ba0d1eb1a86091f9b33",
+  "baseline_commit": "bf1963e",
+  "implementation_commit": "7be7d2c",
+  "fixture_commit": "cf521b8",
+  "production_survey": {
+    "sites": 16,
+    "chunks": 144,
+    "columns": 36864,
+    "tree_roots": 527,
+    "oak_bark_blocks": 3221,
+    "oak_leaf_blocks": 24706,
+    "ground_cover": 1044,
+    "tree_mosaic_sites": 15,
+    "ground_cover_mosaic_sites": 12,
+    "sites_csv_sha256": "994a85fdf23b33ec33bdad9c41a11b30da9f916070f016a47579c399cd2e81f3",
+    "chunks_csv_sha256": "f8a68722c6c4f0d0bdab99b39a89aa1b4b049d7bb5e10272e2ae47514c4fc973",
+    "columns_csv_sha256": "7c887be2afddf0340eb5b74e7d14f0fcffd151251c5a42831220b582df5602b2",
+    "independent_repeat_byte_equal": true
+  },
+  "t0_survey": {
+    "samples": 463056,
+    "samples_csv_sha256": "71cbed0c608239c6f0a963dbfc93031a7a4069d8785223cea3ae175a93e8c603",
+    "chunks_csv_sha256": "88bfe05972dae737797a7e805f4a0661e8679726b664b6845fe69e60f36bd740"
+  },
+  "compatibility": {
+    "versions": "v1-v11",
+    "files_byte_equal": 22,
+    "legacy_summary_sha256": "1a08d07929ee2a1e94f96d85f8065b8e7beca4f43efb6c61abb8365814ac0265"
+  },
+  "validation": {
+    "focused_debug": "13/13 PASS",
+    "focused_release": "13/13 PASS",
+    "world_runtime_debug": "1149/1149 PASS",
+    "world_runtime_release": "1149/1149 PASS",
+    "window": "NOT_RUN",
+    "performance": "NOT_RUN",
+    "normal_play": "NOT_RUN"
+  }
+}

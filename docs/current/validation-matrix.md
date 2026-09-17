@@ -274,3 +274,11 @@ E6 terrain v12 按 [E6 合同](../contracts/ecology-vegetation-mosaic-v12-e6-con
 地被地面、反序加载、v9 草甸、v11 水系、资源地点和 v12 保存重开。另须运行 v1–v12
 `T0-SURVEY`、Debug/Release 完整 WorldRuntime 及受影响的存档/资源回归。窗口与性能复用唯一
 工作 `.app` 并一次启动采集；图形会话不可用时按用户授权延期，不改写为 PASS。
+
+2026-09-17 自动阶段结果：v12 独立生产调查两次逐字节相同，固定样本为 527 个树根、
+24,706 个叶块和 1,044 个地被；树群疏密 15/16 林区、地被斑块 12/16 林区满足门槛，三种
+树形在八 seed 均出现。v1–v11 共 22 份 `samples.csv`/`chunks.csv` 与 E5 冻结输出逐字节相同；
+Debug/Release 聚焦各 `13/13 PASS`，完整 WorldRuntime 各 `1149/1149 PASS`，相关目录、事务、
+备份、保存载入和资源包回归通过。Release 完整回归首轮暴露两个依赖出生加载范围的小地图
+夹具随机失败，失败日志保留；夹具改用确定的远端区块后双配置通过。完整哈希和待做窗口项见
+[E6 执行记录](../reports/ecology-e6-vegetation-v12-execution-2026-09-17.md)。
