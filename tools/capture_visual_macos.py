@@ -80,6 +80,8 @@ def main():
     parser.add_argument("--panel", choices=("crafting", "container", "settings"))
     parser.add_argument("--width", type=int, default=1280)
     parser.add_argument("--height", type=int, default=720)
+    parser.add_argument("--pixel-ratio", type=int, choices=(1, 2), default=1,
+                        help="Expected framebuffer pixels per window point; use 2 on Retina")
     parser.add_argument("--atmosphere-fallback", action="store_true")
     parser.add_argument("--terrain-fallback", action="store_true")
     parser.add_argument("--visual-detail", choices=("standard", "compatibility"))
@@ -220,6 +222,8 @@ seed random
               "save_template_meta_sha256": template_meta_sha256,
               "package_identity": identity,
               "scene": args.scene, "settings": settings, "environment": environment,
+              "window_size_points": [args.width, args.height],
+              "expected_pixel_ratio": args.pixel_ratio,
               "platform": platform.platform(), "host_architecture": platform.machine(),
               "command": command, "launch_method": args.launch_method,
               "started_unix": time.time(), "result": "RUNNING"}
@@ -237,12 +241,20 @@ seed random
         frames = sorted((output / "frames").glob("*.png"))
         if len(frames) != 2:
             raise RuntimeError(f"Expected 2 captured frames, got {len(frames)}")
-        # PNG IHDR dimensions prove the actual client size, not just requested config.
+        # Window points and framebuffer pixels differ on Retina displays. Require
+        # an explicit ratio so an unexpected resolution still fails the capture.
         import struct
+        record["frame_sizes_pixels"] = {}
+        expected_size = (args.width * args.pixel_ratio, args.height * args.pixel_ratio)
         for frame in frames:
-            width, height = struct.unpack(">II", frame.read_bytes()[16:24])
-            if (width, height) != (args.width, args.height):
-                raise RuntimeError(f"Actual frame is {width}x{height}, expected {args.width}x{args.height}")
+            data = frame.read_bytes()
+            if len(data) < 24 or data[:8] != b"\x89PNG\r\n\x1a\n" or data[12:16] != b"IHDR":
+                raise RuntimeError(f"Invalid PNG header: {frame.name}")
+            width, height = struct.unpack(">II", data[16:24])
+            record["frame_sizes_pixels"][frame.name] = [width, height]
+            if (width, height) != expected_size:
+                raise RuntimeError(f"Actual frame is {width}x{height}, expected "
+                                   f"{expected_size[0]}x{expected_size[1]} at pixel ratio {args.pixel_ratio}")
         artifacts = frames
         if args.performance:
             artifacts += [output / "performance/summary.txt", output / "performance/frames.csv"]
