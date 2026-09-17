@@ -96,15 +96,25 @@
 
 - `round2-final-ui-matrix-r1/` 完成中英文、0.85/1.0/1.25、HUD/制作/容器/设置的 24 项 900×600 采集，已逐图检查。发现 0.85 容器关闭按钮下沿被裁切，以及 1.25 小窗口完整格挡提示接近/覆盖生命区；分别提高容器最小高度、在空间不足时使用短格挡动作名称。
 - 两处修正后 Debug/Release 客户端构建通过；当前 r3 可执行文件为 `80fc7208b7054cced2d8878d2d85a6ba5e3b1d1244887f04e7bc42c86e2ce751`。`round2-candidate-consistency-r3.json` 确认 321 源文件与主工作区一致，相对 r2 仅 `OgreUserInterface.cpp` 变化。性能矩阵使用 1280×720、字号 1.0、关闭容器，不触发这两处小窗口路径；性能证据仍保留原 r2 身份，不能改标成 r3 实测。
-- 解锁后桌面恢复 Retina 2×，首次补验 PNG 实际 1800×1200，而旧采集工具将 900×600 窗口点误当成像素，故 `round2-compact-layout-recheck-r1/` 如实保留 FAIL。中文 HUD 原图已复核，格挡提示与生命区分离；其余三项仍待补采。采集工具增加显式像素比，继续要求实际像素严格匹配，旧失败不覆盖。
+- 解锁后桌面恢复 Retina 2×，首次补验 PNG 实际 1800×1200，而旧采集工具将 900×600 窗口点误当成像素，故 `round2-compact-layout-recheck-r1/` 如实保留 FAIL。采集工具增加显式像素比后，r2 四项补采全部通过严格 1800×1200 尺寸检查（工具提交 `ac1e941`），旧失败不覆盖。逐图发现英文 `Guard` 仍被拆词，已继续修正提示栏的键帽/间隔/面板边距宽度计算；该 r2 英文图保留为视觉 FAIL。
 - Reduced 首次工具序列 `round2-hand-motion-reduced-r1/` 中有一段看似停住，不能判定连续动作通过。相同候选重采 `round2-hand-motion-reduced-r2/` 60 帧，3.7/4.6 秒实际剑刃姿态不同；灰色剑刃像素方向代理跨度约 12.5°。重采不解释首次现象，正常 Full/Reduced/Off 连续开采仍待验证。Full/Off r2 的静态/运动差别已实际检查，诊断不替代正常制作与装备。
+
+### 小窗口修正最终补验
+
+新增键帽宽度修正后，Debug/Release 构建通过：`round2-hint-width-release-r2.log`、`round2-hint-width-debug-r1.log`。Release r4 SHA-256 为 `4c284054803c1895f8f7d8c58e4e4cc68de4393f5b33d547c2c08bc942a25f05`，`round2-candidate-consistency-r4.json` 核对 321 个源码文件与主工作区相同，相对性能 r2 仍只有 UI 文件变化。r4 未重跑 72 次性能；保留 r2 性能身份与 UI 局部变更边界。
+
+`round2-compact-layout-recheck-r3/` 完成 4/4 采集并逐图复核：中英文 1.25 HUD 的三个提示行清晰、英文 Guard 不拆词、提示栏与生命区分离；中英文 0.85 容器的关闭按钮完整可见。均为 900×600 窗口点、1800×1200 实际像素；原图哈希和判断在 `visual-review.json`。这是静态局部布局 PASS，不代替制作/容器交互或滚动验收。
+
+CUA 主会话同样无法连接正在运行的 r3。停止该进程以刷新包的请求被自动审批拒绝，原因为可能丢失未保存状态；没有终止或覆盖它。改用 `round2-compact-layout-recheck-r3/Diagnostic.app`（bundle `local.hellomine3d.visual-layout-check`）生成和验证 r4，运行使用单独诊断存档，最后恢复正常配置。原工作包、进程和已有存档保持。此临时隔离包是针对无法安全原位刷新的替代检查，不宣称原工作窗口已经运行 r4。
+
+补审 `round2-landscape-comparison-r1/` 草甸和山脚四张 10 秒原图：各对 seed、terrain v12、最终位置/朝向/tick 一致；可见工具体积、地图区域文字和云层变化，地形轮廓保持。草甸前景近身敌人遮挡保留，不作正常战斗验收；记录见目录内 `visual-review.json`。
 
 ### 当前恢复入口
 
-- 唯一可运行工作路径为 `HelloMine3D-Visual-Upgrade.app`，bundle id `local.hellomine3d.visual-upgrade`，当前 r3 哈希见上。冻结 r2/r3 目录不是额外运行的 .app。原位刷新先校验旧 managed hashes，保留用户存档和配置；第一方构建仍在隔离检出，主工作区第三方库未改写。
+- 原工作路径 `HelloMine3D-Visual-Upgrade.app`、bundle id `local.hellomine3d.visual-upgrade` 仍运行 r3，哈希见上；新 r4 布局已在上方单独诊断包完成验证。冻结 r2/r3 目录不是额外运行的 .app。原位刷新先校验旧 managed hashes，保留用户存档和配置；第一方构建仍在隔离检出，主工作区第三方库未改写。
 - 用户已明确 Mac 解锁。独立验收上下文 `normal_play_validation` 已接手正常输入；其 `getApp` 用路径/名称却解析旧 id `local.hellomine3d.macos-goal`，新 id 返回 `Invalid app`，重置后相同。只读系统核查确认实际进程、LaunchServices 和可见窗口均属于新 id 的准确工作包，故当前是 CUA 连接不一致，不继续沿用锁屏结论。没有以其他机制注入玩法输入。
 - 验收记录在 `normal-input-round2-r1/`；截至当前尚未成功输入。正常采集、制作、战斗、设置应用、保存重开以及原地改块/移动/换世界的小地图仍未完成，Goal 保持进行中。
-- 后续先完成小窗口补验并单独提交对应修正；同步本轮文档；恢复 CUA 可用入口后由独立验收者完成正常输入，不因自动/GPU/静态诊断通过关闭该项。
+- 本轮代码、工具和文档已按批次提交；小窗口局部补验通过。后续恢复 CUA 可用入口后，由独立验收者在源码身份匹配的最新包完成正常输入；待原客户端安全退出后再原位更新，不能强制停止或覆盖活动二进制。
 
 
 ## 实际改动

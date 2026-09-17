@@ -3178,16 +3178,24 @@ class OgreUserInterface::Impl
                 runtimeToolRegistry().find(heldMaterial);
             const bool showGuardHint = heldTool != nullptr &&
                 heldTool->miningClass == MiningClass::Weapon;
+            const float hintSpace = io.DisplaySize.y - 180.f * appliedSettings.uiScale -
+                (minimapOverlayBottom + 10.f);
+            const bool compactHints = hintSpace < 170.f * appliedSettings.uiScale;
             const std::string guardHint = showGuardHint
                 ? mouseButtonName(appliedSettings.mouseBindings.get(
-                      GameplayWorldAction::Guard)) + "  " + tr("hint.guard")
+                      GameplayWorldAction::Guard)) + "  " +
+                    tr(compactHints ? "action.guard" : "hint.guard")
                 : "";
+            // Include the keycap, key/action gap and panel insets in addition
+            // to the label text, so short actions do not wrap mid-word.
+            const float hintPadding = 20.f * appliedSettings.uiScale +
+                2.f * ImGui::GetStyle().WindowPadding.x;
             const float desiredWidth = std::max({
                 146.f * appliedSettings.uiScale,
-                ImGui::CalcTextSize(craftingHint.c_str()).x + 24.f,
-                ImGui::CalcTextSize(pauseHint.c_str()).x + 24.f,
-                ImGui::CalcTextSize(eatHint.c_str()).x + 24.f,
-                ImGui::CalcTextSize(guardHint.c_str()).x + 24.f});
+                ImGui::CalcTextSize(craftingHint.c_str()).x + hintPadding,
+                ImGui::CalcTextSize(pauseHint.c_str()).x + hintPadding,
+                ImGui::CalcTextSize(eatHint.c_str()).x + hintPadding,
+                ImGui::CalcTextSize(guardHint.c_str()).x + hintPadding});
             const float hintWidth = std::min(
                 desiredWidth,
                 std::min(260.f * appliedSettings.uiScale,
@@ -3678,7 +3686,7 @@ class OgreUserInterface::Impl
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
         const PresentationWindowLayout layout = fitPresentationWindow(
             io.DisplaySize.x, io.DisplaySize.y - 80.f, 620.0f,
-            440.0f * appliedSettings.uiScale, appliedSettings.uiScale);
+            440.0f * std::max(1.f, appliedSettings.uiScale), appliedSettings.uiScale);
         ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height), ImGuiCond_Always);
         ImGui::SetNextWindowBgAlpha(0.96f);
         bool open = true;
