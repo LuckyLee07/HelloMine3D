@@ -93,11 +93,13 @@ void validateAtmosphereShaderContract(
          "vec3 directionalFogColour"});
     requireTokens(
         resolver, "media/ogre/HelloMine3DWater.vert",
-        {"out vec2 waterSurfaceData;", "uniform float waterDetailStrength;"});
+        {"out vec2 waterSurfaceData;", "out vec2 waterSurfaceDrift;",
+         "uniform float waterDetailStrength;"});
     requireTokens(
         resolver, "media/ogre/HelloMine3DWater.frag",
         {"uniform vec3 fogSunwardColour;",
          "in vec2 waterSurfaceData;",
+         "in vec2 waterSurfaceDrift;",
          "uniform float waterDetailStrength;",
          "uniform float globalTime;",
          "uniform float fogDirectionalStrength;",

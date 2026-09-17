@@ -50,12 +50,13 @@ void caseWaterDepthPresentation()
     SectionMeshInput eastInput;
     eastChunk->findSection(1)->captureMeshInput(eastInput);
     ChunkMeshBuilder(eastInput, eastMeshes).buildMesh();
-    const auto attributesAt = [](const Mesh& mesh, float x, float y, float z) {
+    const auto attributesAt = [](const Mesh& mesh, float x, float y, float z, bool drift = false) {
         std::vector<std::pair<float, float>> values;
+        const auto& coordinates = drift ? mesh.textureCoords : mesh.textureRepeatCoords;
         for (std::size_t i = 0; i < mesh.vertexPositions.size() / 3; ++i)
             if (mesh.vertexPositions[i * 3] == x && mesh.vertexPositions[i * 3 + 1] == y &&
                 mesh.vertexPositions[i * 3 + 2] == z)
-                values.emplace_back(mesh.textureRepeatCoords[i * 2], mesh.textureRepeatCoords[i * 2 + 1]);
+                values.emplace_back(coordinates[i * 2], coordinates[i * 2 + 1]);
         return values;
     };
     const float seamX = (west + 1) * CHUNK_SIZE;
@@ -96,5 +97,44 @@ void caseWaterDepthPresentation()
     world.setBlock(west * CHUNK_SIZE + 8, 14, north * CHUNK_SIZE + 8, BlockId::Stone);
     check("WATER_DEPTH/no-op-edit-does-not-invalidate", section->getBlockRevision() == plateau);
     check("WATER_DEPTH/bounded-query-keeps-chunk-count", manager.getChunks().size() == count);
+
+    const auto driftWest = attributesAt(westMeshes.waterMesh.getClientMesh(), seamX, 19, seamZ, true);
+    const auto driftEast = attributesAt(eastMeshes.waterMesh.getClientMesh(), seamX, 19, seamZ, true);
+    const auto matchesDrift = [](const auto& values, float x, float z) {
+        return !values.empty() && std::all_of(values.begin(), values.end(), [&](const auto& value) {
+            return std::abs(value.first - x) < .00001f && std::abs(value.second - z) < .00001f;
+        });
+    };
+    check("WATER_DEPTH/open-water-drift-seam-agrees",
+        matchesDrift(driftWest, .8f, .6f) && matchesDrift(driftEast, .8f, .6f));
+    const auto lowerDrift = attributesAt(lowerMeshes.waterMesh.getClientMesh(),
+        west * CHUNK_SIZE, 16, north * CHUNK_SIZE + 8, true);
+    const auto upperDrift = attributesAt(westMeshes.waterMesh.getClientMesh(),
+        west * CHUNK_SIZE, 16, north * CHUNK_SIZE + 8, true);
+    check("WATER_DEPTH/vertical-drift-seam-agrees", !lowerDrift.empty() && !upperDrift.empty() &&
+        std::all_of(lowerDrift.begin(), lowerDrift.end(), [&](const auto& value) { return value == upperDrift.front(); }) &&
+        std::all_of(upperDrift.begin(), upperDrift.end(), [&](const auto& value) { return value == lowerDrift.front(); }));
+    for (int x = -1; x <= 0; ++x)
+        world.setBlock(static_cast<int>(seamX) + x, 18, static_cast<int>(seamZ) - 1, BlockId::Sand);
+    SectionMeshInput bankWest, bankEast;
+    section->captureMeshInput(bankWest);
+    eastChunk->findSection(1)->captureMeshInput(bankEast);
+    ChunkMeshCollection bankWestMeshes, bankEastMeshes;
+    ChunkMeshBuilder(bankWest, bankWestMeshes).buildMesh();
+    ChunkMeshBuilder(bankEast, bankEastMeshes).buildMesh();
+    const auto alongBankWest = attributesAt(bankWestMeshes.waterMesh.getClientMesh(), seamX, 19, seamZ, true);
+    const auto alongBankEast = attributesAt(bankEastMeshes.waterMesh.getClientMesh(), seamX, 19, seamZ, true);
+    check("WATER_DEPTH/drift-bends-along-real-bank",
+        matchesDrift(alongBankWest, .4f, 0.f) && matchesDrift(alongBankEast, .4f, 0.f));
+    check("WATER_DEPTH/bank-edit-preserves-old-snapshot", matchesDrift(driftWest, .8f, .6f));
+    const auto& bankMesh = bankWestMeshes.waterMesh.getClientMesh();
+    bool boundedDrift = true;
+    for (std::size_t i = 0; i < bankMesh.textureCoords.size(); i += 2) {
+        const float x = bankMesh.textureCoords[i], z = bankMesh.textureCoords[i + 1];
+        boundedDrift = boundedDrift && std::isfinite(x) && std::isfinite(z) && x*x + z*z <= 1.00001f;
+    }
+    check("WATER_DEPTH/drift-bounded-and-no-extra-stream", boundedDrift &&
+        bankMesh.textureCoords.size() == bankMesh.textureRepeatCoords.size() &&
+        manager.getChunks().size() == count);
 }
 }

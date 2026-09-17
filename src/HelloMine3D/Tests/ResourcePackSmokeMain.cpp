@@ -295,9 +295,10 @@ namespace
             "uniform vec3 cameraPosition;\n"
             "vec3 directionalFogColour() {}\n");
         writeFile(root / "media/ogre/HelloMine3DWater.vert",
-            "out vec2 waterSurfaceData;\nuniform float waterDetailStrength;\n");
+            "out vec2 waterSurfaceData;\nout vec2 waterSurfaceDrift;\nuniform float waterDetailStrength;\n");
         writeFile(root / "media/ogre/HelloMine3DWater.frag",
             "in vec2 waterSurfaceData;\n"
+            "in vec2 waterSurfaceDrift;\n"
             "uniform float waterDetailStrength;\n"
             "uniform float globalTime;\n"
             "uniform vec3 fogSunwardColour;\n"
@@ -352,6 +353,22 @@ namespace
                           validateAtmosphereShaderContract(resolver);
                       },
                       "missing interface declaration"));
+        }
+        for (const auto& shader : {std::pair<const char*, const char*>{"HelloMine3DWater.vert", "out"},
+                                   {"HelloMine3DWater.frag", "in"}})
+        {
+            const fs::path root = freshRoot(std::string("water-drift-interface-") + shader.first);
+            writeAtmosphereFixture(root);
+            const std::string logical = std::string("media/ogre/") + shader.first;
+            std::ifstream input(root / logical);
+            std::string source((std::istreambuf_iterator<char>(input)), {});
+            const std::string declaration = std::string(shader.second) + " vec2 waterSurfaceDrift;";
+            source.erase(source.find(declaration), declaration.size());
+            const auto pack = createPack(root, "missing-drift", "Missing water drift", 1, {{logical, source}});
+            ResourcePackResolver resolver;
+            resolver.freeze(root.string(), requirements(), {pack.string()});
+            check(std::string("VISUAL_INTERFACE/reject-missing-water-drift-") + shader.first,
+                throwsContaining([&] { validateAtmosphereShaderContract(resolver); }, declaration));
         }
         for (const char* shader : {"HelloMine3DWater.vert", "HelloMine3DWater.frag",
                                   "HelloMine3DActor.vert", "HelloMine3DActor.frag"})

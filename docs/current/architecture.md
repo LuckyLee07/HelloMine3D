@@ -629,7 +629,8 @@ block、Actor、inventory、objective or persistence truth。
 [视觉升级方案](visual-upgrade-plan-2026-09-17.md)。
 
 第二轮水面使用 `SectionMeshInput` 的有界驻留水深快照（最多 8 格），以现有 repeat UV 携带角点深度/岸线，
-不增加顶点 stride；岸床编辑通过既有 dirty planner 失效上方关联段。相机每帧最多观察两个驻留方块，
+以水材质闲置 atlas UV 携带顺岸风驱漂移；四个共享角点样本给出水覆盖和岸线切向，不追加查询或顶点 stride。
+双相位细纹仅改变水面颜色，不代表 E5 等高水体的水文流向。岸床编辑通过既有 dirty planner 失效上方关联段。相机每帧最多观察两个驻留方块，
 在水面下 0.25 m 带内平滑增加水下雾和轻微曝光衰减；空气和关闭大气表现保持原环境，
 见[水面合同](../contracts/visual-water-depth-v1.md)。
 `ActorSnapshot` 复制物品材质、数量、年龄；Ogre/UI 共用有界纯几何缓存，工具按 Alpha 轮廓挤出厚度、

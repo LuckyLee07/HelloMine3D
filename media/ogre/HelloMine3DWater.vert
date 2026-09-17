@@ -10,6 +10,7 @@ out vec3 waterWorldNormal;
 out float waterLight;
 out float waterDistance;
 out vec2 waterSurfaceData;
+out vec2 waterSurfaceDrift;
 
 uniform mat4 worldViewProj;
 uniform mat4 worldView;
@@ -45,4 +46,5 @@ void main()
     waterLight = uv2;
     waterDistance = length((worldView * animatedVertex).xyz);
     waterSurfaceData = uv1;
+    waterSurfaceDrift = uv0;
 }

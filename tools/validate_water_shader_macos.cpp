@@ -44,7 +44,9 @@ out vec3 waterWorldNormal;
 out float waterLight;
 out float waterDistance;
 out vec2 waterSurfaceData;
+out vec2 waterSurfaceDrift;
 uniform vec2 depthAndShore;
+uniform vec2 diagnosticDrift;
 uniform float diagnosticDistance;
 void main() {
     vec2 position = gl_VertexID == 0 ? vec2(-1,-1) :
@@ -55,6 +57,7 @@ void main() {
     waterLight = 1;
     waterDistance = diagnosticDistance;
     waterSurfaceData = depthAndShore;
+    waterSurfaceDrift = diagnosticDrift;
 })GLSL";
     const GLuint program = glCreateProgram();
     for (const auto& entry : {std::pair<GLenum, const std::string*>{GL_VERTEX_SHADER, &vertex},
@@ -101,11 +104,27 @@ void main() {
     require(deep == sample(80, 12, 0, 0), "Depth does not saturate at the sampling bound");
     const auto shoreA = sample(1, 12, .4f, 0), shoreB = sample(1, 12, .4f, 1);
     require(shoreA != shoreB, "Shore ripple does not animate");
+    const GLint driftUniform = glGetUniformLocation(program, "diagnosticDrift");
+    require(driftUniform >= 0, "Missing surface drift input");
+    require(sample(1, 12, 0, 0) == sample(1, 12, 0, 4), "Zero drift still moves surface streaks");
+    glUniform2f(driftUniform, .8f, .6f);
+    const auto driftStart = sample(1, 12, 0, 0);
+    bool driftMoves = false;
+    for (int tick = 1; tick <= 40; ++tick)
+        driftMoves = driftMoves || sample(1, 12, 0, tick * .15f) != driftStart;
+    require(driftMoves, "Actual surface drift does not animate");
+    for (float boundary : {0.5f / .15f, 1.f / .15f, 1200.f}) {
+        const auto a = sample(1, 12, 0, boundary - .0002f);
+        const auto b = sample(1, 12, 0, boundary + .0002f);
+        for (std::size_t component = 0; component < a.size(); ++component)
+            require(std::abs(int(a[component]) - int(b[component])) <= 1,
+                    "Surface drift jumps at its phase boundary");
+    }
     scalar("waterDetailStrength", 0);
     require(sample(1, 12, .4f, 0) == sample(1, 12, .4f, 1), "Fallback shoreline still animates");
     vector("cameraPosition", 0, -1, 0);
     require(sample(1, 12, 0, 0)[3] >= 225, "Underwater surface loses opacity");
-    std::cout << "[WATER_SHADER] PASS depth-absorption distance-invariance depth-bound shore-motion fallback underwater\n";
+    std::cout << "[WATER_SHADER] PASS depth-absorption distance-invariance depth-bound shore-motion drift-motion drift-continuity fallback underwater\n";
     glDeleteProgram(program);
 }
 }

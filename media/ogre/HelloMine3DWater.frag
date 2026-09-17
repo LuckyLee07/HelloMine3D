@@ -5,6 +5,7 @@ in vec3 waterWorldNormal;
 in float waterLight;
 in float waterDistance;
 in vec2 waterSurfaceData;
+in vec2 waterSurfaceDrift;
 
 out vec4 fragmentColour;
 
@@ -49,6 +50,12 @@ vec3 directionalFogColour(vec3 viewDirection)
     return mix(fogColour, fogSunwardColour, amount);
 }
 
+float surfaceStreak(vec2 position)
+{
+    return sin(position.x * 3.1 + sin(position.y * 1.7)) *
+           sin(position.y * 4.3 - position.x * 0.8);
+}
+
 void main()
 {
     vec3 normal = normalize(waterWorldNormal);
@@ -74,6 +81,17 @@ void main()
         shore * (1.0 - shore) * waterDetailStrength;
     colour *= 1.0 - shore * 0.08 * waterDetailStrength;
     colour += mix(waterShallowColour, vec3(0.73, 0.85, 0.81), 0.65) * ripple * 0.38;
+
+    // Two overlapping advection phases reset only at zero weight. Their
+    // bounded offsets avoid long-session stretching or a visible time seam.
+    float driftPhase = fract(globalTime * 0.15);
+    float driftBlend = 1.0 - abs(driftPhase * 2.0 - 1.0);
+    vec2 drift = waterSurfaceDrift * 1.8;
+    float driftA = surfaceStreak(waterWorldPosition.xz - drift * driftPhase);
+    float driftB = surfaceStreak(waterWorldPosition.xz - drift * fract(driftPhase + 0.5));
+    float streak = mix(driftB, driftA, driftBlend);
+    colour *= 1.0 + streak * 0.035 * waterDetailStrength *
+        clamp(length(waterSurfaceDrift), 0.0, 1.0);
 
     vec3 halfDirection = normalize(viewDirection + normalize(sunDirection));
     float sunSparkle = pow(max(dot(normal, halfDirection), 0.0), 96.0) *

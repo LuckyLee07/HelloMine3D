@@ -785,24 +785,43 @@ void ChunkMeshBuilder::tryAddFaceToMesh(
 
         if (block == BlockId::Water) {
             std::array<float, 8> waterData{};
+            std::array<float, 8> waterDrift{};
             for (int corner = 0; corner < 4; ++corner) {
                 const int cx = blockPosition.x + static_cast<int>(blockFace[corner * 3]);
                 const int cz = blockPosition.z + static_cast<int>(blockFace[corner * 3 + 2]);
                 const int y = blockPosition.y +
                     static_cast<int>(blockFace[corner * 3 + 1]) - 1;
+                glm::vec2 bankGradient(0.f);
+                float waterCoverage = 0.f;
                 for (int dz = -1; dz <= 0; ++dz) {
                     for (int dx = -1; dx <= 0; ++dx) {
                         waterData[corner * 2] +=
                             m_pInput->getWaterDepth(cx + dx, y, cz + dz) * 0.25f;
                         const auto neighbour = m_pInput->getBlock(cx + dx, y, cz + dz);
+                        if (neighbour == BlockId::Water) waterCoverage += 0.25f;
                         if (neighbour != BlockId::Air && neighbour != BlockId::Water &&
                             !BlockDatabase::get().getDefinition(
-                                static_cast<BlockId>(neighbour.id)).transparent)
+                                static_cast<BlockId>(neighbour.id)).transparent) {
                             waterData[corner * 2 + 1] += 0.25f;
+                            bankGradient += glm::vec2(dx == 0 ? .5f : -.5f,
+                                                      dz == 0 ? .5f : -.5f);
+                        }
                     }
                 }
+                // Wind-driven surface drift bends along the actual resident
+                // bank. E5 has level water, so this is not a river discharge
+                // model. The same four columns define both sides of a seam.
+                glm::vec2 drift(.8f, .6f);
+                const float gradientSquared = glm::dot(bankGradient, bankGradient);
+                if (gradientSquared > 0.f)
+                    drift -= bankGradient * glm::dot(drift, bankGradient) / gradientSquared;
+                drift *= waterCoverage;
+                waterDrift[corner * 2] = drift.x;
+                waterDrift[corner * 2 + 1] = drift.y;
             }
-            addVertexLitFace(*m_pActiveMesh, face, blockFace, texCoords,
+            // Water does not sample the atlas; uv0 carries surface drift while
+            // uv1 retains depth/shore, with no extra vertices or vertex stride.
+            addVertexLitFace(*m_pActiveMesh, face, blockFace, waterDrift,
                 blockPosition, calculateVertexLighting(face, blockPosition),
                 1.f, 1.f, &waterData, false);
             return;
