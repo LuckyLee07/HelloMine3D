@@ -1,7 +1,111 @@
 # 视觉升级执行记录 2026-09-17
 
-状态：**已实现并完成本轮自动回归；实机视觉、交互与性能验收待图形会话恢复，整体仍 Doing**。
+状态：**综合视觉 Goal 进行中；阶段 1–6 的主要代码与诊断已分批提交，第 7 阶段性能 12/12 组通过；正常输入尚未收口**。
 用户已授权体验、制定方案并直接实施，随后要求离开电脑期间自主推进，不要求其在线申请权限；见[升级方案](../current/visual-upgrade-plan-2026-09-17.md)。
+
+## 综合 Goal 本轮进展（后续记录优先于下方历史恢复说明）
+
+无预算限制的七阶段 Goal 持续执行，范围见[完整目标](../current/visual-upgrade-goal-prompt-2026-09-17.md)。
+第一阶段不是完成条件。已核对 E6 terrain v12 提交及同窗口批量验证；原 E6 的 ARM64 包冻结在
+`integrated-e6-arm64-31345fc6/`。本轮使用 `round2-checkout/`（起点 dc5c4bb，另包含后续 OgreBootstrap
+诊断修复与字体 manifest 排序）独立构建 x86_64 Debug/Release；从未改写主工作区第三方静态库。
+后续 E2 文档/证据提交保留（9e7f64d）。本轮已分为三个本地提交：打包修复 `bc18429`、世界/水体表现 `75aac13`、物品/UI/导航/敌人表现 `a3f25bb`；均未推送。
+
+### 实现及实际检查
+
+- **阶段 1 / HUD 与窗口**：进度计数与细条同行，三列状态区域固定占位；图标与立体手持物改用 nearest
+  sampler，字体仍使用 linear。长按键提示换行。箱子、机器和背包卡片按实际内容宽度排布；制作采用紧凑
+  方形网格与独立滚动区，结果/提交按钮固定可见。设置长标签与长选项分行。窗口化模式正确应用非显示器
+  全屏模式列表中的尺寸，实际 900×600 原图已取得。
+- **阶段 2 / E6 与材质**：整合 terrain v12。草顶/草边/高草/叶/花茎共享世界坐标低频色场，收敛细纹理反差，
+  花、土、木、石协调饱和度；不改纹理文件或 Alpha。atlas/array、普通/阴影 shader 同步。
+- **阶段 3 / 水深与岸线**：有界 8 格驻留水柱快照，角点共享真实深度/实体岸线；水床编辑使受影响上方水段
+  失效重建，深度控制吸收与透明度，岸边克制涟漪、连续时间与关闭回退。复用水面 repeat UV，stride 不变。
+  [数据合同](../contracts/visual-water-depth-v1.md)。当前湿润色带在水面岸缘；没有伪造河流方向或声称已完成陆地湿润带。
+- **阶段 4 / 工具与掉落物**：方块使用真实三分面，工具按图集 Alpha 挤出轮廓厚度；共享有界缓存。
+  第一人称包含移动/待机/开采/接触/回收姿态，复用命中事实与反馈强度。掉落物复制真实材质/数量/年龄，
+  渲染实体几何并轻微转动/起伏；库存、碰撞与保存语义不变。[表现合同](../contracts/visual-item-volume-v1.md)。
+- **阶段 5 / 天空与远景**：两层云密度由取最大值改为混合，减少叠满天空的云片，收窄边缘过渡并提亮云底。
+  日间雾密度由 0.0015 调为 0.0019，夜间仍 0.006。GPU 昼夜运动/连续性/平移视差、原 legacy 回退全部通过。
+  昼/夜/暮色、High+post 与关闭回退的 5/10 秒实际客户端诊断图已取得；随后已逐图复核近地树根、墙角、台阶与林下昼夜。
+- **阶段 6 / 导航与辨识**：设置增加 64/128/256 m 三档；仍 65×65 采样、30 Hz 每次 195 列，切档丢弃不匹配缓存。
+  显示六类当前区域名称。只记录实际使用过的容器、工作台和激活路标，单次世界访问记忆最多 32 个，圆图最多 8 个，
+  避开玩家箭头、圆边及相邻图标；换世界清空，不查询未知结构，不显示敌人。设置 v1–v9 迁移至 v10 默认 128 m。
+  地标记忆当前仅本次探索，设置说明中明确；不是跨存档探索数据库。敌人新增面向眼眉、躯干/四肢明暗及蓄力眼色，
+  复用已有剪影和真实状态 tick。路标仅青色内芯保持夜间色彩，石框仍接受阴影/AO。
+- **阶段 7 / 最终整合**：正式同机三轮性能 r2 已完成 72 次、12/12 组通过；完整正常输入玩法尚未完成。下方旧 v10 对照不能当作当前 v12 证据。
+
+### 已完成的本轮自动证据
+
+产物均在 `build/visual-upgrade-20260917/`；每个目录/日志保持原始身份。
+
+| 检查 | 已确认结果 | 路径 |
+| --- | --- | --- |
+| 前四阶段完整 WorldRuntime | Debug/Release 各 1170/1170 PASS | `world-full-round2-{release-r2,debug-r1}.log` |
+| 前四阶段资源 | 两配置各 108/108 PASS | `resources-round2-{release,debug}.log` |
+| 水深/物品几何聚焦 | 水深 13/13、物品 8/8 PASS；完整回归再覆盖 | `round2-checkout` 测试及上述全量日志 |
+| MeshDirty | PASS | `meshdirty-round2-release.log` |
+| 水面生产 GPU | PASS：210 对边界零偏差、深度/视距独立、岸缘/水下/关闭检查 | `water-depth-gpu-r1.log` |
+| 地形/材质/反馈 GPU | 96/96 PASS（含新路标内芯、两套纹理及两条 pass） | `waystone-palette-gpu-r1.log` |
+| 天空生产 GPU | 10/10 PASS | `sky-gpu-r1.log` |
+| 敌人生产 GPU | 18/18 PASS（含夜间眼部亮度） | `actor-gpu-r3.log` |
+| 导航/设置/本地化聚焦 | 65/65 PASS | `navigation-release-r1.log` |
+| 环境聚焦 | 24/24 PASS，两配置（水下介质新增 3 项） | `round2-underwater-focus-{release,debug}.log` |
+| 阶段 6 完整 WorldRuntime | Debug/Release 各 1182/1182 PASS | `world-full-round2-stage6-{release,debug}-r1.log` |
+| 天空/UI 诊断矩阵 | 13/13 启动和采集成功，人工逐图检查后继续修正制作布局 | `round2-sky-ui-matrix-r2/` |
+| 地图/UI 诊断矩阵 | 9/9 采集成功；三档地图、双语制作/设置、900×600 原图 | `round2-navigation-matrix-r1/` |
+
+诊断图统一 `DEVELOPER_DIAGNOSTIC / normal_input=false`，静态姿态不证明真实连续战斗。
+初次 UI 矩阵的 settings 参数未匹配现有 `HELLOMINE3D_V10E_SETTINGS_FIXTURE`；compact 请求当时实际仍为
+1280×720。已修正入口及生产窗口尺寸，并让采集工具验证 PNG IHDR 尺寸。两类旧图只保留为未覆盖证据。
+新窗口尺寸代码初次插在窗口创建前导致空指针启动失败；`round2-sky-ui-matrix-r1/` 与重试目录保留，
+实际改到创建成功后，两配置重建和随后 13 组启动已通过。
+敌人整合首图因 terrain loop 错设 actor shader 参数被 Ogre 明确拒绝，`round2-actor-matrix-r1/` 保留；
+已修正为仅在 actor loop 设置参数，随后 8 项敌人/UI 整机采集成功；夜间眼部增加有界亮度下限后又完成近地场景复核。
+
+### 近地与动态补充（本轮最新）
+
+- `round2-near-scenes-r1/` 的 13 组与 `round2-near-scenes-r2/` 的 6 组诊断均成功采集。已逐图检查林下昼夜、High 阴影树根、台阶、草甸、浅滩、路标内芯、遗迹和敌人眼色。营地前两次机位因自然下落位于土台下；`round2-camp-north-r1/` 改用北侧实际坡地后已看到木围栏、入口和内部顶棚的完整轮廓。
+- 首次“水下”坐标在沙层内，保留为不合适机位；第二次真实水下暴露远处水底像空气一样清晰。补入相机介质雾后，`round2-underwater-fixed-r1/` 显示水下视距和颜色衰减。只读取最多两个驻留块，新增 3 项环境测试，两配置 24/24 PASS，Debug/Release 客户端重建 PASS。
+- 15 项 macOS 启动负例全部通过：`round2-startup-negatives-r1/`；最后敌人 shader 改动后资源再次两配置 110/110 PASS。
+- `round2-hand-motion-{full,off}-r1/` 各 60 原始帧已取得，但旧开采夹具使用空库存，不证明手持工具动作；补入既有 HUD 库存夹具后，`round2-hand-motion-{full,off}-r2/` 各 60 帧和 6 秒视频采集成功，`round2-hand-motion-reduced-r1/` 追加 60 帧 Reduced 档，确认 Full 有挥动姿态变化、Off 保持静态。此处使用石剑进行开采诊断；不是正常工具制作/装备验收。系统编码器普通沙箱报告不可用，按授权图形执行环境编码成功，失败文件保留。
+- 最新冻结候选 `round2-final-candidate-r2/`：Release x86_64 SHA-256 `5b39ddd5844969c8f3abba6c35bda7ab396d0456ed89b548c5f8b1267c1a6204`（r1 原件保留），321 个第一方源码文件。该目录不是另一个运行 .app；正式性能始终复用同一工作客户端。
+
+性能 r1 已完成森林 Off 常驻三轮，P95/P99 中位数为 `0.985×/0.994×`；随后在代码复查发现容器/工作台记忆钩子位于被面板跳过的地图绘制函数中。已将钩子移到 HUD 提前返回前。旧 r1 在已验证归属的流送候选进程处主动终止，采集记录明确 `SIGTERM / FAIL`，runner 已恢复候选；旧静态 PASS 不作为新候选最终结论。修复后以同一基线/条件重新执行 r2。
+
+### 本轮正式性能与小窗口补验
+
+`run_round2_performance_r2.py` 完成 72/72 次：森林/水岸 × Off/Medium/High（High+post）× 常驻/快速流送 × 三轮 × 两版本，A/B、B/A、A/B 顺序，每次预热 5 秒、采集 30 秒。基线为同架构 v12 `round2-stage1-reference/`（Release SHA-256 `d3975ba24edcf19ad23f4f239de4149e43641b4d4bfdf9b5aca85f4ad0b2e142`），候选为 r2 `5b39ddd5844969c8f3abba6c35bda7ab396d0456ed89b548c5f8b1267c1a6204`。基线已包含第二轮阶段 1，不能解释为相对最初用户截图的总增量，也不替代历史 E2 结果。
+
+| 场景/画质/运动 | P95 三轮中位数比值 | P99 三轮中位数比值 | 结果 |
+| --- | --- | --- | --- |
+| forest-off-steady | 0.9837× | 0.9934× | PASS |
+| forest-off-streaming | 1.0005× | 0.9696× | PASS |
+| forest-medium-steady | 1.0149× | 1.0043× | PASS |
+| forest-medium-streaming | 1.0216× | 1.0093× | PASS |
+| forest-high-steady | 1.0272× | 1.0269× | PASS |
+| forest-high-streaming | 1.0129× | 0.9877× | PASS |
+| shore-off-steady | 1.0209× | 0.9966× | PASS |
+| shore-off-streaming | 1.0139× | 1.0096× | PASS |
+| shore-medium-steady | 0.9965× | 1.0362× | PASS |
+| shore-medium-streaming | 0.9820× | 1.0169× | PASS |
+| shore-high-steady | 1.0173× | 1.0309× | PASS |
+| shore-high-streaming | 1.0045× | 1.0005× | PASS |
+
+`round2-performance-r2/audit.json` 从原始 CSV 重算分位数，复核全部采集包、源码、机位与 1280×720 原图，PASS；12 组最大 P95/P99 为 1.0273×/1.0363×（上取四位），门槛保持 1.10。最初审计对最终 tick 要求完全相等，在一组发现 6699/6700 差别，失败日志 `round2-performance-audit-r2.log` 保留。全部从 tick 6000 启动、CSV 从 6100 开始，30 秒墙钟结束落在 20 Hz tick 边界；审计显式接受该单 tick 差异后 `round2-performance-audit-r3.log` 通过，未删轮次或改变性能门槛。敌人继续运行，全部自然受伤和状态差异保留。上述为诊断运动，不是正常输入玩法。
+
+- `round2-final-ui-matrix-r1/` 完成中英文、0.85/1.0/1.25、HUD/制作/容器/设置的 24 项 900×600 采集，已逐图检查。发现 0.85 容器关闭按钮下沿被裁切，以及 1.25 小窗口完整格挡提示接近/覆盖生命区；分别提高容器最小高度、在空间不足时使用短格挡动作名称。
+- 两处修正后 Debug/Release 客户端构建通过；当前 r3 可执行文件为 `80fc7208b7054cced2d8878d2d85a6ba5e3b1d1244887f04e7bc42c86e2ce751`。`round2-candidate-consistency-r3.json` 确认 321 源文件与主工作区一致，相对 r2 仅 `OgreUserInterface.cpp` 变化。性能矩阵使用 1280×720、字号 1.0、关闭容器，不触发这两处小窗口路径；性能证据仍保留原 r2 身份，不能改标成 r3 实测。
+- 解锁后桌面恢复 Retina 2×，首次补验 PNG 实际 1800×1200，而旧采集工具将 900×600 窗口点误当成像素，故 `round2-compact-layout-recheck-r1/` 如实保留 FAIL。中文 HUD 原图已复核，格挡提示与生命区分离；其余三项仍待补采。采集工具增加显式像素比，继续要求实际像素严格匹配，旧失败不覆盖。
+- Reduced 首次工具序列 `round2-hand-motion-reduced-r1/` 中有一段看似停住，不能判定连续动作通过。相同候选重采 `round2-hand-motion-reduced-r2/` 60 帧，3.7/4.6 秒实际剑刃姿态不同；灰色剑刃像素方向代理跨度约 12.5°。重采不解释首次现象，正常 Full/Reduced/Off 连续开采仍待验证。Full/Off r2 的静态/运动差别已实际检查，诊断不替代正常制作与装备。
+
+### 当前恢复入口
+
+- 唯一可运行工作路径为 `HelloMine3D-Visual-Upgrade.app`，bundle id `local.hellomine3d.visual-upgrade`，当前 r3 哈希见上。冻结 r2/r3 目录不是额外运行的 .app。原位刷新先校验旧 managed hashes，保留用户存档和配置；第一方构建仍在隔离检出，主工作区第三方库未改写。
+- 用户已明确 Mac 解锁。独立验收上下文 `normal_play_validation` 已接手正常输入；其 `getApp` 用路径/名称却解析旧 id `local.hellomine3d.macos-goal`，新 id 返回 `Invalid app`，重置后相同。只读系统核查确认实际进程、LaunchServices 和可见窗口均属于新 id 的准确工作包，故当前是 CUA 连接不一致，不继续沿用锁屏结论。没有以其他机制注入玩法输入。
+- 验收记录在 `normal-input-round2-r1/`；截至当前尚未成功输入。正常采集、制作、战斗、设置应用、保存重开以及原地改块/移动/换世界的小地图仍未完成，Goal 保持进行中。
+- 后续先完成小窗口补验并单独提交对应修正；同步本轮文档；恢复 CUA 可用入口后由独立验收者完成正常输入，不因自动/GPU/静态诊断通过关闭该项。
+
 
 ## 实际改动
 
@@ -33,7 +137,7 @@
 | 花草 GPU 回归 | **10/10 PASS** | `flora-gpu-r2.log`，Apple M1 Pro 离屏 OpenGL，961 时间样本，根部固定、连续性、阴影运动一致。 |
 | 地形/反馈 GPU | **20/20 PASS** | `ground-gpu.log`；实际生产 GLSL 与图集，验证草地改色、世界坐标变化、阴影关闭一致、石材不受影响及原有十阶段裂纹/遮罩/遮挡。 |
 | 干净工作包 | **111 文件逐项哈希 PASS** | `package-final.log`；包内 `distribution-sha256.txt`、`build-identity.json`、314 个第一方源文件的 `source-tree-sha256.txt`。 |
-| 升级后真实窗口/双语多字号/操作 | **BLOCKED：电脑锁屏** | CUA 明确返回会话锁定。尚无升级后完整游戏窗口图，不能由字体样张、离屏小块材质图代替。 |
+| 升级后真实窗口/双语多字号/操作 | **PARTIAL；完整验收待续** | 排除锁屏后发现 manifest 排序导致启动失败，修复后 CUA 已观察主菜单、建档、世界 HUD/真实地图、制作、暂停。多字号、操作全场景与包窗口身份存证未完成；专用截图查询仍无匹配窗口。 |
 | 同条件三轮窗口性能 | **NOT_RUN / 基线启动未完成** | `baseline-perf-off-r1/`、`baseline-perf-off-r1-r2/`、`baseline-hidden-r1/` 保留失败。没有新的 P95/P99 PASS，也不覆盖 E2 的 1.134× 失败。 |
 
 汇总哈希见 `evidence-summary.json`。`font-specimen.png` 仅为同文本的真实字体字重样张；
@@ -47,12 +151,16 @@
 `candidate-package-789c0d52/`，原版本副本为 `baseline-package/`；两者都没有被后续刷新覆盖。
 
 复用客户端 `build/visual-upgrade-20260917/HelloMine3D-Visual-Upgrade.app` 随后在同一路径原位
-合入 E5 提交 `db22168`，当前可执行文件 SHA-256 为
+合入 E5 提交 `db22168`，当时可执行文件 SHA-256 为
 `d78fbb8bf417aa27ad81d9df7f9d61d3e3301d4ee354746cff4e7e67e9a816e5`。该身份只说明当前可运行
 整合包，不追溯替换上面的视觉批次冻结证据。
 该整合包的 111 个分发文件另经逐项哈希核验并冻结在 `integrated-package-d78fbb8b/`，
 以便对比完成后恢复当前版本。视觉源码已由并行整合工作纳入本地提交 `fcb7e2d`；
 此提交不代表窗口验收完成。
+
+后续启动诊断暂将同一工作 `.app` 刷新为隔离 terrain v10 的 `789c0d52…` 二进制，
+并纳入已排序的字体清单；见 `package-manifest-fix.log`。当前不得把此工作包称作最新 E5/E6
+整合版本，整合冻结副本保留。最终仍须生成与当前源码对应的整合客户端。
 
 隔离证据包由隔离检出的代码和资源生成，未覆盖其他任务的工作客户端或主工作区 bin。
 这两个目录是供复核/恢复的包内容副本，不额外启动新应用。后续继续复用唯一视觉工作 `.app`。
@@ -65,6 +173,8 @@
 - 离屏 GPU 首次在沙箱内无法取得 core pixel format；经正常自动审核使用图形上下文后，花草及地形/反馈检查均通过。这是图形 API 自动检查，不是绕过锁屏或模拟输入。
 - 首版地图测试夹具直接将 Absent 切到 Resident，产生 7 项失败；按既有 Requested→Loading→Resident 生命周期建立夹具后 10 项通过，没有修改生产生命周期或放宽要求。
 - 物品卡初次编译将 Material::ID 写成 int，类型检查报错；恢复强类型签名后两配置通过。
+- 桌面恢复后直接执行工作包启动入口，日志 `launch-diagnosis-r1.log` 明确报 manifest 第 52 行不满足唯一且有序要求：新增 HelloMine UI 字体被排在 Noto 字体之后。修正实际清单，并给 Python 打包器增加有序、唯一及路径校验；生产 89 条清单通过，倒序和重复负例均被拒绝。此前资源测试和包哈希 PASS 没有证明可启动，保留原记录。
+- 修复后 `launch-manifest-fixed.log` 进入 Ogre/GL；CUA 已取得正常世界 HUD，地图可辨树冠、空地、沙岸和水面，并发现任务进度数字换行问题。`round2-paused-before.json` 专用窗口采集仍未匹配，故 CUA 会话观察不冒充已完成的本地包身份截图。
 
 ## 恢复操作
 
@@ -81,7 +191,9 @@
 - 体验前客户端：build/ecology-e2-20260914/HelloMine3D-E2-Prototype.app，实际菜单显示新世界 terrain v10。当前视觉工作包改用上方独立固定路径，避免与 E5 争用。
 - 正常输入已执行：主菜单→世界列表→新建 Visual Review 0917（seed 20260807）→进入→打开制作。未动用户已有世界。实际发现正文细弱、目标层级弱、制作以文字按钮为主、地图没有树冠。
 - 字体根因：media/fonts/NotoSansSC-VF.ttf 的 wght 轴 min/default/max 为 100/100/900，现有 stb 字体入口未选字重。
-- 下一步：图形会话恢复后，完成升级后的实机布局、地图与场景检查及同条件性能，按发现继续迭代。
+- 下一步：修复任务进度行和状态区布局，核对运行进程与窗口身份，完成后续实机/性能；用户已要求按第二轮分析继续，并要求整理可直接使用的 [Goal 提示词](../current/visual-upgrade-goal-prompt-2026-09-17.md)。
 - 自动续跑：已创建本任务 heartbeat「继续 HelloMine3D 视觉升级验收」（automation id `hellomine3d`），每 30 分钟检查并继续。锁屏无变化时保持安静，不反复启动；全部验收完成或用户取消后暂停。恢复时先核对自动任务状态，避免重复创建。
 - 窗口由本任务操作。截图与录像保留本地 build/visual-upgrade-20260917，不提交 Git。
-- 权限状态：初期 CUA 正常，随后电脑锁屏；离屏 GPU 和工程验证已完成，真实窗口仍待恢复。没有待用户在线批准的问题，也没有自动审批拒绝后绕过限制。
+- 直接启动诊断 session 72178 / PID 77661 已通过独占本轮日志的文件句柄确认并结束；后续先核对是否还有其他任务的实例，不复用旧 PID，也不同时启动重复客户端。
+- 权限状态：初期 CUA 正常，随后电脑锁屏；09:17 左右再次分析时应用清单已可读，锁屏条件有变化，但读取客户端仍超时。正常 open 返回 0，精确窗口检查仍无 PID/窗口（`review-round2-menu-r1.json`）；原因尚未定位，不能据此认定游戏已启动。没有待用户在线批准的问题，也没有自动审批拒绝后绕过限制。
+- 用户追加要求分析后续提升方向，见[下一轮分析](visual-next-pass-analysis-2026-09-17.md)。此记录区分当前缺陷、E6 在建和候选项，没有重复改写并行 E6。
