@@ -339,18 +339,31 @@ r9 候选二进制为 `c7182b4fc56ec27f2ab76fe053d7312103cb138a4925ac22f678a6a95
 `3a73058` 的 r7 视觉加同一份入口修复；对照包与 r7 的源码清单差异严格限制为 `OgreBootstrap.cpp`。
 324/323 个源码及共同原生窗口/依赖身份分开留存于 `drop-performance-packages-r9.json` 和冻结记录。
 
-`drop-performance-r9-r1/` 正在执行 r7 → r8 掉落物变化的专项对照：固定五个掉落物和四个敌人姿态，
+`drop-performance-r9-r1/` 已采集 r7 → r8 掉落物变化的 24 次专项对照：固定五个掉落物和四个敌人姿态，
 Off/High+post × 静止/快速流送 × 三轮 × 两版，共 24 次、四组；同为实际 1280×720、隐藏、静音、
 不读回截图。三轮顺序 A/B、B/A、A/B，预热 5 秒后采集 30 秒，P95/P99 门槛仍为 1.10。
 这是掉落物变化的增量检查，不替代最终整体性能或正常玩法；快速流送仍是四次跨区块传送。
-独立审计 `audit_drop_performance_r9_r1.py` 已准备，等原 runner 正常结束并恢复配置后再执行。
+独立审计保留 `audit-r1.json` 的首个时长失败；`audit-r2.json` 完成全部数据和身份核对，
+结果为 `evidence_integrity=PASS`、`timing_protocol=FAIL`、`performance_status=NOT_CLAIMED_PROTOCOL_FAIL`。
+虽然四组原始 P95/P99 中位数比值均不超过 1.10，但 High 静态 r2 基线的最后一帧渲染约 25.279 秒，
+实测结束于 48.032 秒、累计 456 tick；High 静态 r3 候选最后一帧渲染约 925.423 秒，
+结束于 926.865 秒、累计 29 tick。两者不满足等时长模拟协议，不能用百分位汇总覆盖停顿。
+Off 静态 r3 候选还在第 2900 帧记录 `dt_ms=1.84467e+19`（该帧耗时 5.7895 ms），
+其计时异常另列待查；不把这些现象归因于掉落物或操作系统，根因尚无证据。
+所有 24 次原件保留，不删异常、不调整门槛、不以挑选重采取得 PASS。
+
+原 exec handle 16079 已失效，工具没有返回其最终退出码；进程核查确认 runner 与专用客户端均已退出，
+因此退出码记 `UNAVAILABLE`。审计独立核对全部 CSV、固定协议、324/323 份源码、各 111 项包文件、
+原生窗口与依赖身份；确认专用包已恢复 r9，正常配置 SHA-256 为
+`21a5024dcd2566664f1c5ed450a733434f333fa0ef7bd771850b9138b5b0f3ff`。下一步定位长停顿与 delta 异常，
+之后补齐受影响的完整三轮对照；原 r7 完整矩阵保持独立，不把本轮失败改记为完成。
 
 ### 当前恢复入口
 
 - 水面工程批次已本地提交 `864c86e`；前六个本地提交保留，均未推送。每个可独立验证的小批次及时提交，整合性能/玩法待办继续单独跟踪。
 - 原工作路径 `HelloMine3D-Visual-Upgrade.app`、bundle id `local.hellomine3d.visual-upgrade` 保留 r3。此前自动审批拒绝终止其进程，理由为可能丢失未保存状态；本轮未停止、刷新或覆盖该运行包。
-- 专用工作路径 `round2-compact-layout-recheck-r3/Diagnostic.app`，bundle id `local.hellomine3d.visual-layout-check`，当前由 r9 专项性能 runner 在冻结的两版间切换，使用诊断配置；结束后必须核对恢复 r9 候选和正常配置，不能把上一轮恢复状态当作当前状态。A/B 正常存档保持原状，原生窗口修复保持不变。
-- 前台 runner 已停止。r7 完整矩阵与掉落物图片采集均已结束；当前 r9 专项性能采集仍在运行。活跃 handle 见本地 `goal-recovery-r7.json`，继续等待原进程，不启动重复 runner。历史 Reduced 停摆仍未决。r2 为 1280×720 实际像素，r5 前台为 2560×1440；两者均不得改标为当前后台结果。
+- 专用工作路径 `round2-compact-layout-recheck-r3/Diagnostic.app`，bundle id `local.hellomine3d.visual-layout-check`，r9 专项性能 runner 已退出；独立审计确认已恢复 r9 候选和正常配置。A/B 正常存档保持原状，原生窗口修复保持不变。
+- 前台 runner 已停止。r7 完整矩阵与掉落物图片采集均已结束；r9 专项 24 次已结束但时长协议失败，不声明性能通过；当前没有活跃客户端采集。恢复状态见本地 `goal-recovery-r7.json`。历史 Reduced 停摆仍未决。r2 为 1280×720 实际像素，r5 前台为 2560×1440；两者均不得改标为当前后台结果。
 - 正常菜单、设置、保存/重开已有 r4 证据，持续移动/采集等输入仍缺可用路径；按用户约定不启动前台/CUA，继续不依赖它的工作。首次 Reduced 静止现象尚未解释，不以重采掩盖。Goal 已恢复，尚未完成。
 - 用户要求沿用中文提交形式，最近 12 条英文提交已仅重写说明和相应父提交 ID；各提交文件树、顺序、作者与日期保持一致。旧证据 SHA 保留，可通过 `refs/rewrites/visual-message-style-20260917` 追溯；新旧映射在本地 `commit-message-style-rewrite-r1.json`。
 
