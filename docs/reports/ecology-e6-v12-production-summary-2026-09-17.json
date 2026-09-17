@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "batch": "E6 terrain v12 vegetation mosaic",
-  "status": "engineering_done_automated_pass_window_pending",
+  "status": "engineering_done_automated_and_window_pass_normal_play_not_run",
   "start_commit": "3e732a1e62b5e03d7b3e1ba0d1eb1a86091f9b33",
   "baseline_commit": "bf1963e",
   "implementation_commit": "7be7d2c",
@@ -36,8 +36,29 @@
     "focused_release": "13/13 PASS",
     "world_runtime_debug": "1149/1149 PASS",
     "world_runtime_release": "1149/1149 PASS",
-    "window": "NOT_RUN",
-    "performance": "NOT_RUN",
-    "normal_play": "NOT_RUN"
+    "window": "28/28 CAPTURED",
+    "performance": "PASS",
+    "normal_play": "NOT_RUN_GRAPHICAL_SESSION_LOCKED"
+  },
+  "window_evidence": {
+    "package_source_commit": "cd6304ad8f4c2dec843c2e3eb3fb68c8192acee2",
+    "package_tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "executable_sha256": "31345fc6633c738bf17e6f48610923eb7daeb7d6ba292a6c83fdb1d374a58aa2",
+    "pid": 82431,
+    "phases": 28,
+    "events": 56,
+    "performance_comparison_sha256": "c02123d9cf4f377f944f7d598afa2bfcff444fd8278d26c4e687e7812fbeb1f1",
+    "batch_status_sha256": "9019c6f004ce20a2c608c91a7420242acba91198af3298047b15d766e48d3dd1",
+    "batch_events_sha256": "4930f61f10a6615bf8fac2673f1bd4650e4a7b4594f77360c792face2324cfe7",
+    "p95_p99_ratios": {
+      "forest_positive_steady": [1.042, 1.059],
+      "forest_positive_streaming": [1.017, 1.029],
+      "forest_edge_negative_steady": [0.986, 1.018],
+      "forest_edge_negative_streaming": [1.001, 1.015]
+    },
+    "comparison_images_sha256": {
+      "forest_positive": "25e9ec53054f95179e68e56d48647b34da9eac968687f69b35336c72147589d8",
+      "forest_edge_negative": "7869e5add003bdc75ccc4317cb21ea5d8a1ea85a2815a6ce8dc11c0f7d50d1d8"
+    }
   }
 }
