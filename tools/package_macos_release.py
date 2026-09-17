@@ -154,6 +154,10 @@ exec ./HelloMine3D "$@"
         "tracked_diff_sha256": hashlib.sha256(subprocess.check_output(
             ["git", "diff", "HEAD", "--"], cwd=root)).hexdigest(),
         "executable_sha256": digest(binary), "file_identity": identity.strip(),
+        "capabilities": {
+            "hidden_window_no_activate_v1":
+                b"Cocoa: non-activating window policy v1 hidden=" in binary.read_bytes()
+        },
         "linkage": linkage.splitlines()[1:],
         "resource_manifest_sha256": digest(manifest),
         "source_file_count": len(source_entries),

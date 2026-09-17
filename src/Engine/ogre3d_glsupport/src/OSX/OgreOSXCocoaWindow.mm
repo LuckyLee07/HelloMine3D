@@ -108,7 +108,7 @@ namespace Ogre {
     }
 
     CocoaWindow::CocoaWindow() : mWindow(nil), mView(nil), mGLContext(nil), mGLPixelFormat(nil), mWindowOriginPt(NSZeroPoint),
-        mWindowDelegate(NULL), mActive(false), mClosed(false), mVSync(true), mHasResized(false), mIsExternal(false), mWindowTitle(""),
+        mWindowDelegate(NULL), mActive(false), mClosed(false), mHidden(false), mNoActivate(false), mVSync(true), mHasResized(false), mIsExternal(false), mWindowTitle(""),
         mUseNSView(true), mContentScalingFactor(1.0)
     {
         // Set vsync by default to save battery and reduce tearing
@@ -180,6 +180,7 @@ namespace Ogre {
         NameValuePairList::const_iterator opt;
 		
         mIsFullScreen = fullScreen;
+        mNoActivate = false;
 
 		if(miscParams)
 		{
@@ -198,6 +199,10 @@ namespace Ogre {
 			opt = miscParams->find("hidden");
 			if (opt != miscParams->end())
 				hidden = StringConverter::parseBool(opt->second);
+
+            opt = miscParams->find("noActivate");
+            if (opt != miscParams->end())
+                mNoActivate = StringConverter::parseBool(opt->second);
 
 			opt = miscParams->find("depthBuffer");
 			if(opt != miscParams->end())
@@ -407,6 +412,10 @@ namespace Ogre {
         << " with backing store size " << mWidth << " x " << mHeight
         << " using content scaling factor " << std::fixed << std::setprecision(1) << getViewPointToPixelScale();
         LogManager::getSingleton().logMessage(ss.str());
+        LogManager::getSingleton().logMessage(
+            String("Cocoa: non-activating window policy v1 hidden=") +
+            StringConverter::toString(mHidden) + " noActivate=" +
+            StringConverter::toString(mNoActivate));
     }
 
     unsigned int CocoaWindow::getWidth() const
@@ -483,6 +492,8 @@ namespace Ogre {
         {
             if (hidden)
                 [mWindow orderOut:nil];
+            else if (mNoActivate)
+                [mWindow orderBack:nil];
             else
                 [mWindow makeKeyAndOrderFront:nil];
         }
@@ -714,11 +725,16 @@ namespace Ogre {
 //        rs->clearFrameBuffer(FBT_COLOUR);
 
         // Show window
-        if(mWindow)
+        if(mWindow && !mHidden)
         {
-            [mWindow orderFrontRegardless];
-            [mWindow makeKeyAndOrderFront:nil];
-            [mWindow makeMainWindow];
+            if (mNoActivate)
+                [mWindow orderBack:nil];
+            else
+            {
+                [mWindow orderFrontRegardless];
+                [mWindow makeKeyAndOrderFront:nil];
+                [mWindow makeMainWindow];
+            }
         }
 
         // Add our window to the window event listener class
@@ -807,9 +823,14 @@ namespace Ogre {
             [mGLContext update];
             
             // Even though OgreCocoaView doesn't accept first responder, it will get passed onto the next in the chain
-            [mWindow makeFirstResponder:mView];
-            [mWindow orderFrontRegardless];
-            [NSApp activateIgnoringOtherApps:YES];
+            // Hidden/background diagnostics must not activate the application,
+            // including during creation and later resize/fullscreen updates.
+            if (!mHidden && !mNoActivate)
+            {
+                [mWindow makeFirstResponder:mView];
+                [mWindow orderFrontRegardless];
+                [NSApp activateIgnoringOtherApps:YES];
+            }
         }
     }
 

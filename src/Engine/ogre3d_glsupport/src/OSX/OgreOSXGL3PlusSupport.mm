@@ -342,8 +342,23 @@ RenderWindow* OSXGL3PlusSupport::newWindow( const String &name, unsigned int wid
 {
 	// Create the window, if Cocoa return a Cocoa window
     LogManager::getSingleton().logMessage("Creating a Cocoa Compatible Render System");
+    // Explicit windows (including hidden diagnostics) skip createWindow's
+    // auto-window options. Supply the renderer profile before Cocoa reads it,
+    // and preserve the same backing scale/quality defaults as normal windows.
+    NameValuePairList windowOptions = miscParams ? *miscParams : NameValuePairList();
+    windowOptions.emplace("contextProfile", StringConverter::toString(int(mContextProfile)));
+    const std::pair<const char*, const char*> defaults[] = {
+        {"Content Scaling Factor", "contentScalingFactor"},
+        {"VSync", "vsync"}, {"FSAA", "FSAA"}, {"sRGB Gamma Conversion", "gamma"}
+    };
+    for (const auto& entry : defaults)
+    {
+        const auto option = mOptions.find(entry.first);
+        if (option != mOptions.end())
+            windowOptions.emplace(entry.second, option->second.currentValue);
+    }
     CocoaWindow *window = OGRE_NEW CocoaWindow();
-    window->create(name, width, height, fullScreen, miscParams);
+    window->create(name, width, height, fullScreen, &windowOptions);
 
     return window;
 }

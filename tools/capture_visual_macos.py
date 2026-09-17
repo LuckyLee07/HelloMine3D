@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Repeatable visual/performance diagnostics in a macOS package.
 
-This uses forced viewpoints and optionally a HUD fixture. It is developer
+This defaults to a hidden, non-activating client; --foreground explicitly opts
+into a visible window. This uses forced viewpoints and optionally a HUD fixture. It is developer
 diagnostic evidence, never normal-input or independent gameplay acceptance.
 By default the supplied package is copied before use. --reuse-app runs the
 same supplied package for every capture and updates its diagnostic config;
@@ -88,6 +89,8 @@ def main():
     parser.add_argument("--performance", action="store_true")
     parser.add_argument("--streaming", action="store_true")
     parser.add_argument("--launch-method", choices=("open", "direct"), default="open")
+    parser.add_argument("--foreground", action="store_true",
+                        help="Explicitly show/activate the client; default is hidden background capture")
     parser.add_argument("--reuse-app", action="store_true",
                         help="Run the supplied stable app in place; its diagnostic config is updated")
     args = parser.parse_args()
@@ -106,6 +109,11 @@ def main():
     if args.streaming and not args.performance:
         parser.error("--streaming requires --performance")
     app = args.app.resolve(strict=True)
+    source_identity = json.loads(
+        (app / "Contents/Resources/build-identity.json").read_text())
+    if not args.foreground and not source_identity.get("capabilities", {}).get(
+            "hidden_window_no_activate_v1", False):
+        parser.error("Package lacks verified hidden-window support; rebuild/repackage it. No app launched.")
     output = args.output.absolute()
     if output.exists():
         parser.error("Output must be new; failed attempts are retained")
@@ -159,6 +167,7 @@ seed random
     (root / "bin/config.txt").write_text(settings)
     environment = {
         "HELLOMINE3D_ROOT": str(root),
+        "HELLOMINE3D_WINDOW_HIDDEN": "0" if args.foreground else "1",
         "HELLOMINE3D_CATALOGUE_DIR": str(output / "catalogue"),
         "HELLOMINE3D_SHOW_DEBUG_INFO": "1" if args.debug else "0",
         "HELLO_RENDER_CAPTURE": "1",
@@ -210,6 +219,8 @@ seed random
     if args.launch_method == "open":
         command = ["/usr/bin/open", "-n", "-W", "--stdout", str(output / "client.log"),
                    "--stderr", str(output / "client-stderr.log")]
+        if not args.foreground:
+            command.extend(["-g", "-j"])
         for key, value in environment.items():
             command.extend(["--env", f"{key}={value}"])
         command.append(str(runtime_app))
@@ -223,6 +234,7 @@ seed random
               "package_identity": identity,
               "scene": args.scene, "settings": settings, "environment": environment,
               "window_size_points": [args.width, args.height],
+              "window_mode": "foreground" if args.foreground else "hidden",
               "expected_pixel_ratio": args.pixel_ratio,
               "platform": platform.platform(), "host_architecture": platform.machine(),
               "command": command, "launch_method": args.launch_method,

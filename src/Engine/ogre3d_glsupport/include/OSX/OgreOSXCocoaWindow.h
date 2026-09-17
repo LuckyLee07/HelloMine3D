@@ -58,6 +58,7 @@ namespace Ogre {
         bool mActive;
         bool mClosed;
         bool mHidden;
+        bool mNoActivate;
         bool mVSync;
         bool mHasResized;
         bool mIsExternal;
@@ -122,4 +123,3 @@ namespace Ogre {
 }
 
 #endif
-

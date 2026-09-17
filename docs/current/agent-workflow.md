@@ -49,7 +49,14 @@
 
 ## macOS 窗口验收
 
-优先复用已验证的工具。游戏包可用 `open /path/to/HelloMine3D.app` 正常启动；
+自动视觉/性能诊断默认不打断用户：`tools/capture_visual_macos.py` 使用隐藏、不激活窗口，
+并在启动前要求包具有 `hidden_window_no_activate_v1` 能力；旧包先重建，不能悄悄回退前台。
+`--foreground` 是显式前台选项，只在符合用户当前窗口使用约定时使用。后台结果单独记录，
+不替代正常输入验收，也不与前台性能混算。本次视觉 Goal 已停止自动前台/CUA 操作。
+需要核对隐藏启动时，可用 `tools/validate_background_launch_macos.mm` 只读观察目标进程、
+前台应用与可见窗口；轮询不能排除采样间隔内的瞬时事件，仍需检查原生窗口激活路径。
+
+优先复用已验证的工具。获准进行正常窗口验收时，游戏包可用 `open /path/to/HelloMine3D.app` 启动；
 同一批次的窗口视觉/性能迭代复用项目内同一个已验证的 `.app` 路径和身份，不为每次
 截图另建、另启动 `Runtime.app`。`tools/capture_visual_macos.py --reuse-app` 直接使用该包，
 各次证据仍写入不同输出目录；此模式会更新包内的诊断 `config.txt`，最后一次运行后
