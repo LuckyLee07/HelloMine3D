@@ -95,6 +95,7 @@
 #include "../World/Chunk/ChunkMeshBuilder.h"
 #include "../World/Chunk/SectionMeshInput.h"
 #include "../World/Environment/WorldEnvironment.h"
+#include "../World/Generation/Ecology/TerrainEcologyPlanner.h"
 #include "../World/Light/VertexLighting.h"
 #include "../World/Generation/Biome/TemperateForestBiome.h"
 #include "../World/Generation/Structures/TreeGenerator.h"
@@ -13547,6 +13548,457 @@ void caseInlandWaterV11()
     setEnv("HELLOMINE3D_SEED", "");
 }
 
+void caseVegetationMosaicV12()
+{
+    check("E6/terrain-version-appends-v12",
+          InlandWaterTerrainGenerationVersion == 11 &&
+              VegetationMosaicTerrainGenerationVersion == 12 &&
+              CurrentTerrainGenerationVersion >=
+                  VegetationMosaicTerrainGenerationVersion);
+
+    bool publicTerrainStable = true;
+    bool plannerRepeatable = true;
+    bool plannerRejectsUnsuitableColumns = true;
+    const std::array<int, 9> coordinates{{
+        -2048, -161, -17, -16, -1, 0, 1, 16, 2048}};
+    for (const int seed : TerrainSurvey::Seeds) {
+        ClassicOverWorldGenerator oldVersion(
+            seed, InlandWaterTerrainGenerationVersion);
+        ClassicOverWorldGenerator newVersion(
+            seed, VegetationMosaicTerrainGenerationVersion);
+        TerrainFoundation foundation(seed);
+        TerrainEcologyPlanner first(seed), second(seed);
+        for (const int x : coordinates) {
+            for (const int z : coordinates) {
+                publicTerrainStable = publicTerrainStable &&
+                    oldVersion.getSurfaceHeightAtWorld(x, z) ==
+                        newVersion.getSurfaceHeightAtWorld(x, z) &&
+                    oldVersion.getBiomeAtWorld(x, z) ==
+                        newVersion.getBiomeAtWorld(x, z);
+                const auto column = foundation.sampleV11(x, z);
+                const auto treeA = first.planTree(x, z, column);
+                const auto treeB = second.planTree(x, z, column);
+                const auto coverA = first.planGroundCover(x, z, column);
+                const auto coverB = second.planGroundCover(x, z, column);
+                plannerRepeatable = plannerRepeatable &&
+                    treeA.place == treeB.place &&
+                    treeA.shape == treeB.shape &&
+                    treeA.randomSeed == treeB.randomSeed &&
+                    treeA.density == treeB.density &&
+                    coverA.cover == coverB.cover &&
+                    coverA.density == coverB.density;
+            }
+        }
+
+        TerrainFoundation::Column unsuitable;
+        unsuitable.height = 80;
+        unsuitable.biome = TerrainBiome::Ocean;
+        unsuitable.surface = TerrainFoundation::Surface::Grass;
+        plannerRejectsUnsuitableColumns = plannerRejectsUnsuitableColumns &&
+            !first.planTree(8, 8, unsuitable).place &&
+            first.planGroundCover(8, 8, unsuitable).cover ==
+                EcologyGroundCover::None;
+        unsuitable.biome = TerrainBiome::TemperateForest;
+        unsuitable.surface = TerrainFoundation::Surface::Sand;
+        plannerRejectsUnsuitableColumns = plannerRejectsUnsuitableColumns &&
+            !first.planTree(8, 8, unsuitable).place &&
+            first.planGroundCover(8, 8, unsuitable).cover ==
+                EcologyGroundCover::None;
+        unsuitable.surface = TerrainFoundation::Surface::Grass;
+        unsuitable.height = 63;
+        plannerRejectsUnsuitableColumns = plannerRejectsUnsuitableColumns &&
+            !first.planTree(8, 8, unsuitable).place &&
+            first.planGroundCover(8, 8, unsuitable).cover ==
+                EcologyGroundCover::None;
+    }
+    check("E6/v12-keeps-v11-height-and-biome", publicTerrainStable);
+    check("E6/pure-planner-is-signed-repeatable-and-bounded",
+          plannerRepeatable && plannerRejectsUnsuitableColumns);
+
+    setEnv("HELLOMINE3D_SEED", "20260807");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player,
+                freshSaveDirectory("e6_vegetation_v12"), false, 0);
+
+    std::array<std::uint64_t, 3> shapeHashes{};
+    bool shapesBoundedConnected = true;
+    for (std::size_t shapeIndex = 0; shapeIndex < shapeHashes.size();
+         ++shapeIndex) {
+        Chunk chunk(world, {0, 0}, false);
+        Rand random(17413);
+        const auto shape = static_cast<EcologyTreeShape>(shapeIndex);
+        makeEcologyOakTree(chunk, random, 8, 80, 8, shape);
+        shapeHashes[shapeIndex] = TerrainSurvey::blockHash(chunk);
+
+        std::set<int> treeCells;
+        int highestY = 80;
+        bool firstThreeTrunk = true;
+        bool horizontalBounded = true;
+        for (int x = 0; x < CHUNK_SIZE; ++x) {
+            for (int z = 0; z < CHUNK_SIZE; ++z) {
+                for (int y = 80; y < 96; ++y) {
+                    const BlockId id = static_cast<BlockId>(
+                        chunk.getBlock(x, y, z).id);
+                    if (id != BlockId::OakBark &&
+                        id != BlockId::OakLeaf) {
+                        continue;
+                    }
+                    treeCells.insert(x | (z << 8) | (y << 16));
+                    highestY = std::max(highestY, y);
+                    horizontalBounded = horizontalBounded &&
+                        std::abs(x - 8) <= 3 && std::abs(z - 8) <= 3;
+                }
+            }
+        }
+        for (int y = 80; y <= 82; ++y) {
+            firstThreeTrunk = firstThreeTrunk &&
+                chunk.getBlock(8, y, 8) == BlockId::OakBark;
+        }
+
+        std::set<int> visited;
+        std::vector<std::array<int, 3>> pending{{{8, 80, 8}}};
+        while (!pending.empty()) {
+            const auto cell = pending.back();
+            pending.pop_back();
+            const int key = cell[0] | (cell[2] << 8) | (cell[1] << 16);
+            if (treeCells.count(key) == 0 || !visited.insert(key).second) {
+                continue;
+            }
+            for (const auto direction : {
+                     std::array<int, 3>{{1, 0, 0}},
+                     std::array<int, 3>{{-1, 0, 0}},
+                     std::array<int, 3>{{0, 1, 0}},
+                     std::array<int, 3>{{0, -1, 0}},
+                     std::array<int, 3>{{0, 0, 1}},
+                     std::array<int, 3>{{0, 0, -1}}}) {
+                pending.push_back({{
+                    cell[0] + direction[0], cell[1] + direction[1],
+                    cell[2] + direction[2]}});
+            }
+        }
+        shapesBoundedConnected = shapesBoundedConnected &&
+            firstThreeTrunk && horizontalBounded &&
+            highestY - 80 < 12 && visited.size() == treeCells.size() &&
+            !treeCells.empty();
+    }
+    check("E6/three-oak-shapes-are-distinct-bounded-and-connected",
+          shapesBoundedConnected && shapeHashes[0] != shapeHashes[1] &&
+              shapeHashes[0] != shapeHashes[2] &&
+              shapeHashes[1] != shapeHashes[2]);
+
+    std::array<int, TerrainSurvey::Seeds.size()> rootsPerSeed{};
+    std::array<std::array<int, 3>, TerrainSurvey::Seeds.size()>
+        shapesPerSeed{};
+    int totalRoots = 0;
+    int totalGroundCover = 0;
+    int sitesWithTreeMosaic = 0;
+    int sitesWithCoverMosaic = 0;
+    bool reverseOrderStable = true;
+    bool decoratorsSuitable = true;
+    bool buriedTerrainStable = true;
+    for (std::size_t siteIndex = 0;
+         siteIndex < TerrainSurvey::VegetationChunkSites.size();
+         ++siteIndex) {
+        const auto site = TerrainSurvey::VegetationChunkSites[siteIndex];
+        const auto seedIt = std::find(TerrainSurvey::Seeds.begin(),
+                                      TerrainSurvey::Seeds.end(), site.seed);
+        const std::size_t seedIndex = static_cast<std::size_t>(
+            std::distance(TerrainSurvey::Seeds.begin(), seedIt));
+        ClassicOverWorldGenerator oldVersion(
+            site.seed, InlandWaterTerrainGenerationVersion);
+        ClassicOverWorldGenerator forward(
+            site.seed, VegetationMosaicTerrainGenerationVersion);
+        ClassicOverWorldGenerator reverse(
+            site.seed, VegetationMosaicTerrainGenerationVersion);
+        TerrainFoundation foundation(site.seed);
+        TerrainEcologyPlanner planner(site.seed);
+        std::array<std::uint64_t, 9> hashes{};
+        int minimumRoots = std::numeric_limits<int>::max();
+        int maximumRoots = 0;
+        int minimumCover = std::numeric_limits<int>::max();
+        int maximumCover = 0;
+        std::size_t chunkIndex = 0;
+        for (int offsetZ = -1; offsetZ <= 1; ++offsetZ) {
+            for (int offsetX = -1; offsetX <= 1; ++offsetX) {
+                const glm::ivec2 location(
+                    site.chunkX + offsetX, site.chunkZ + offsetZ);
+                Chunk oldChunk(world, location, false);
+                Chunk chunk(world, location, false);
+                oldVersion.generateTerrainFor(oldChunk);
+                forward.generateTerrainFor(chunk);
+                hashes[chunkIndex++] = TerrainSurvey::blockHash(chunk);
+                int chunkRoots = 0;
+                int chunkCover = 0;
+                for (int x = 0; x < CHUNK_SIZE; ++x) {
+                    for (int z = 0; z < CHUNK_SIZE; ++z) {
+                        const int worldX = location.x * CHUNK_SIZE + x;
+                        const int worldZ = location.y * CHUNK_SIZE + z;
+                        const auto column = foundation.sampleV11(
+                            worldX, worldZ);
+                        const BlockId top = static_cast<BlockId>(
+                            chunk.getBlock(x, column.height, z).id);
+                        const BlockId above = static_cast<BlockId>(
+                            chunk.getBlock(x, column.height + 1, z).id);
+                        const bool root = above == BlockId::OakBark;
+                        const bool grassCover =
+                            above == BlockId::TallGrass ||
+                            above == BlockId::Rose;
+                        const bool sandCover = above == BlockId::DeadShrub;
+                        const bool cover = grassCover || sandCover;
+                        chunkRoots += root ? 1 : 0;
+                        chunkCover += cover ? 1 : 0;
+                        const bool forest =
+                            column.biome == TerrainBiome::LightForest ||
+                            column.biome == TerrainBiome::TemperateForest;
+                        if (root && forest) {
+                            const auto tree = planner.planTree(
+                                worldX, worldZ, column);
+                            decoratorsSuitable = decoratorsSuitable &&
+                                tree.place && column.height >= WATER_LEVEL + 4;
+                            if (tree.place) {
+                                shapesPerSeed[seedIndex][
+                                    static_cast<std::size_t>(tree.shape)]++;
+                            }
+                        }
+                        decoratorsSuitable = decoratorsSuitable &&
+                            (!root || column.height >= WATER_LEVEL + 4) &&
+                            (!grassCover || top == BlockId::Grass) &&
+                            (!sandCover || top == BlockId::Sand) &&
+                            !(column.height < WATER_LEVEL && (root || cover));
+                        for (int y = 0; y < column.height - 12; ++y) {
+                            buriedTerrainStable = buriedTerrainStable &&
+                                oldChunk.getBlock(x, y, z) ==
+                                    chunk.getBlock(x, y, z);
+                        }
+                    }
+                }
+                totalRoots += chunkRoots;
+                totalGroundCover += chunkCover;
+                rootsPerSeed[seedIndex] += chunkRoots;
+                minimumRoots = std::min(minimumRoots, chunkRoots);
+                maximumRoots = std::max(maximumRoots, chunkRoots);
+                minimumCover = std::min(minimumCover, chunkCover);
+                maximumCover = std::max(maximumCover, chunkCover);
+            }
+        }
+        sitesWithTreeMosaic += minimumRoots <= 1 && maximumRoots >= 4 ? 1 : 0;
+        sitesWithCoverMosaic += minimumCover <= 3 && maximumCover >= 10 ? 1 : 0;
+
+        chunkIndex = hashes.size();
+        for (int offsetZ = 1; offsetZ >= -1; --offsetZ) {
+            for (int offsetX = 1; offsetX >= -1; --offsetX) {
+                const glm::ivec2 location(
+                    site.chunkX + offsetX, site.chunkZ + offsetZ);
+                Chunk chunk(world, location, false);
+                reverse.generateTerrainFor(chunk);
+                reverseOrderStable = reverseOrderStable &&
+                    hashes[--chunkIndex] == TerrainSurvey::blockHash(chunk);
+            }
+        }
+    }
+    const bool everySeedHasResourcesAndShapes =
+        std::all_of(rootsPerSeed.begin(), rootsPerSeed.end(),
+                    [](int roots) { return roots >= 20; }) &&
+        std::all_of(shapesPerSeed.begin(), shapesPerSeed.end(),
+                    [](const std::array<int, 3> &seen) {
+                        return std::all_of(seen.begin(), seen.end(),
+                                           [](int count) { return count > 0; });
+                    });
+    std::ostringstream treeDetail;
+    treeDetail << "roots=" << totalRoots
+               << " mosaic-sites=" << sitesWithTreeMosaic;
+    for (std::size_t seedIndex = 0;
+         seedIndex < TerrainSurvey::Seeds.size(); ++seedIndex) {
+        treeDetail << " seed" << TerrainSurvey::Seeds[seedIndex] << '='
+                   << rootsPerSeed[seedIndex] << "["
+                   << shapesPerSeed[seedIndex][0] << '/'
+                   << shapesPerSeed[seedIndex][1] << '/'
+                   << shapesPerSeed[seedIndex][2] << ']';
+    }
+    check("E6/fixed-forest-tree-density-and-shape-contract",
+          totalRoots >= 298 && totalRoots <= 552 &&
+              sitesWithTreeMosaic >= 12 &&
+              everySeedHasResourcesAndShapes,
+          treeDetail.str());
+    check("E6/fixed-forest-ground-cover-patches",
+          totalGroundCover >= 900 && totalGroundCover <= 2200 &&
+              sitesWithCoverMosaic >= 12,
+          "cover=" + std::to_string(totalGroundCover) +
+              " mosaic-sites=" + std::to_string(sitesWithCoverMosaic));
+    check("E6/decorators-use-v11-ground-without-buried-drift",
+          decoratorsSuitable && buriedTerrainStable);
+    check("E6/fixed-forest-reverse-generation-order", reverseOrderStable);
+
+    bool structurePlansStable = true;
+    for (const int seed : TerrainSurvey::Seeds) {
+        ClassicOverWorldGenerator oldVersion(
+            seed, InlandWaterTerrainGenerationVersion);
+        ClassicOverWorldGenerator newVersion(
+            seed, VegetationMosaicTerrainGenerationVersion);
+        for (const StructureType type : {
+                 StructureType::Waystone, StructureType::Ruin,
+                 StructureType::RaiderCamp}) {
+            for (const glm::ivec2 cell : {
+                     glm::ivec2(0, 5), glm::ivec2(-4, -3),
+                     glm::ivec2(8, 8)}) {
+                structurePlansStable = structurePlansStable &&
+                    sameStructurePlan(
+                        oldVersion.getStructurePlanForCell(
+                            type, cell.x, cell.y),
+                        newVersion.getStructurePlanForCell(
+                            type, cell.x, cell.y));
+            }
+        }
+    }
+    check("E6/v12-keeps-v11-site-plans", structurePlansStable);
+
+    bool eightSeedSpawnsSafe = true;
+    bool eightSeedCavesStable = true;
+    bool eightSeedSitesReachable = true;
+    clearDeterministicEnv();
+    for (const int seed : TerrainSurvey::Seeds) {
+        setEnv("HELLOMINE3D_SEED", std::to_string(seed));
+        Player spawned;
+        const std::string spawnDirectory = freshSaveDirectory(
+            "e6_spawn_" + std::to_string(seed));
+        const bool spawnIdentity = initializeTerrainIdentity(
+            spawnDirectory, "e6-spawn-" + std::to_string(seed),
+            VegetationMosaicTerrainGenerationVersion, seed, false);
+        World habitat(camera, config, spawned, spawnDirectory, false, 0);
+        const int spawnX = static_cast<int>(std::floor(spawned.position.x));
+        const int spawnZ = static_cast<int>(std::floor(spawned.position.z));
+        const int groundY = static_cast<int>(spawned.position.y) - 2;
+        const BlockId ground = static_cast<BlockId>(
+            habitat.getBlock(spawnX, groundY, spawnZ).id);
+        eightSeedSpawnsSafe = eightSeedSpawnsSafe && spawnIdentity &&
+            ground != BlockId::Air && ground != BlockId::Water &&
+            habitat.getBlock(spawnX, groundY + 1, spawnZ) == BlockId::Air &&
+            habitat.getBlock(spawnX, groundY + 2, spawnZ) == BlockId::Air &&
+            habitat.getChunkManager().getTerrainGenerationVersion() ==
+                VegetationMosaicTerrainGenerationVersion;
+
+        ClassicOverWorldGenerator oldVersion(
+            seed, InlandWaterTerrainGenerationVersion);
+        ClassicOverWorldGenerator newVersion(
+            seed, VegetationMosaicTerrainGenerationVersion);
+        CaveGenerator oldCave(seed, InlandWaterTerrainGenerationVersion);
+        CaveGenerator newCave(seed, VegetationMosaicTerrainGenerationVersion);
+        const auto oldSurface = [&oldVersion](int x, int z) {
+            return oldVersion.getSurfaceHeightAtWorld(x, z);
+        };
+        const auto oldBiome = [&oldVersion](int x, int z) {
+            return oldVersion.getBiomeAtWorld(x, z);
+        };
+        const auto newSurface = [&newVersion](int x, int z) {
+            return newVersion.getSurfaceHeightAtWorld(x, z);
+        };
+        const auto newBiome = [&newVersion](int x, int z) {
+            return newVersion.getBiomeAtWorld(x, z);
+        };
+        CaveGenerator::NaturalEntrance oldEntrance;
+        for (int radius = 0; radius <= 32 && !oldEntrance.valid; ++radius) {
+            for (int cellX = -radius;
+                 cellX <= radius && !oldEntrance.valid; ++cellX) {
+                for (int cellZ = -radius; cellZ <= radius; ++cellZ) {
+                    if (radius > 0 && std::abs(cellX) != radius &&
+                        std::abs(cellZ) != radius) {
+                        continue;
+                    }
+                    oldEntrance = oldCave.getNaturalEntranceForCell(
+                        cellX, cellZ, oldSurface, oldBiome);
+                    if (oldEntrance.valid) { break; }
+                }
+            }
+        }
+        const auto newEntrance = newCave.getNaturalEntranceForCell(
+            oldEntrance.cellX, oldEntrance.cellZ, newSurface, newBiome);
+        eightSeedCavesStable = eightSeedCavesStable &&
+            oldEntrance.valid && newEntrance.valid &&
+            oldEntrance.anchorX == newEntrance.anchorX &&
+            oldEntrance.anchorY == newEntrance.anchorY &&
+            oldEntrance.anchorZ == newEntrance.anchorZ &&
+            oldEntrance.directionX == newEntrance.directionX &&
+            oldEntrance.directionZ == newEntrance.directionZ &&
+            oldEntrance.endY == newEntrance.endY;
+
+        std::array<bool, 3> reachableSites{};
+        for (int cellZ = -16; cellZ <= 16; ++cellZ) {
+            for (int cellX = -16; cellX <= 16; ++cellX) {
+                for (const StructureType type : {
+                         StructureType::Waystone, StructureType::Ruin,
+                         StructureType::RaiderCamp}) {
+                    const std::size_t index = static_cast<std::size_t>(type);
+                    if (reachableSites[index]) { continue; }
+                    const auto oldSite = oldVersion.getStructurePlanForCell(
+                        type, cellX, cellZ);
+                    const auto newSite = newVersion.getStructurePlanForCell(
+                        type, cellX, cellZ);
+                    if (!newSite.valid || !newSite.footprint.valid() ||
+                        !sameStructurePlan(oldSite, newSite) ||
+                        newSurface(newSite.anchor.x, newSite.anchor.z) <
+                            WATER_LEVEL) {
+                        continue;
+                    }
+                    for (const glm::ivec2 direction : {
+                             glm::ivec2(1, 0), glm::ivec2(-1, 0),
+                             glm::ivec2(0, 1), glm::ivec2(0, -1)}) {
+                        bool approach = true;
+                        int lastHeight = newSurface(
+                            newSite.anchor.x, newSite.anchor.z);
+                        for (int step = 1; step <= 8; ++step) {
+                            const int height = newSurface(
+                                newSite.anchor.x + direction.x * step,
+                                newSite.anchor.z + direction.y * step);
+                            approach = approach && height >= WATER_LEVEL &&
+                                std::abs(height - lastHeight) <= 3;
+                            lastHeight = height;
+                        }
+                        reachableSites[index] =
+                            reachableSites[index] || approach;
+                    }
+                }
+            }
+        }
+        eightSeedSitesReachable = eightSeedSitesReachable &&
+            std::all_of(reachableSites.begin(), reachableSites.end(),
+                        [](bool value) { return value; });
+    }
+    check("E6/eight-seed-v12-spawns-are-safe", eightSeedSpawnsSafe);
+    check("E6/eight-seed-v12-caves-match-v11", eightSeedCavesStable);
+    check("E6/eight-seed-three-sites-have-dry-approaches",
+          eightSeedSitesReachable);
+
+    const std::string directory = freshSaveDirectory("e6_v12_reopen");
+    const bool identityReady = initializeTerrainIdentity(
+        directory, "e6-v12-reopen",
+        VegetationMosaicTerrainGenerationVersion);
+    bool persisted = false;
+    {
+        Player owner;
+        World created(camera, config, owner, directory, false, 0);
+        created.getChunkManager().loadChunk(0, 32);
+        created.setBlock(8, 190, 520, BlockId::OakBark);
+        persisted = identityReady &&
+            created.getChunkManager().getTerrainGenerationVersion() ==
+                VegetationMosaicTerrainGenerationVersion && created.save();
+    }
+    {
+        Player owner;
+        World reopened(camera, config, owner, directory, false, 0);
+        reopened.getChunkManager().loadChunk(0, 32);
+        persisted = persisted &&
+            reopened.getChunkManager().getTerrainGenerationVersion() ==
+                VegetationMosaicTerrainGenerationVersion &&
+            reopened.getBlock(8, 190, 520) == BlockId::OakBark;
+    }
+    check("E6/v12-new-world-edit-and-reopen", persisted);
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", "");
+}
+
 // ---------------------------------------------------------------------------
 // P11-2 - terrain-v4 mountain relief and discoverable natural cave mouths
 // ---------------------------------------------------------------------------
@@ -19336,6 +19788,10 @@ int main()
         else if (focus != nullptr && std::string(focus) == "E5_WATER") {
             caseInlandWaterV11();
         }
+        else if (focus != nullptr &&
+                 std::string(focus) == "E6_VEGETATION") {
+            caseVegetationMosaicV12();
+        }
         else if (focus != nullptr && std::string(focus) == "SURFACE_MAP") {
             caseSurfaceMapObservations();
         }
@@ -19548,6 +20004,7 @@ int main()
         caseInlandMeadowV9();
         caseInlandReliefV10();
         caseInlandWaterV11();
+        caseVegetationMosaicV12();
         caseTerrainFoundationV5();
         caseP11TerrainContoursAndEntrances();
         caseP11EEnemyPresentationAndResonance();

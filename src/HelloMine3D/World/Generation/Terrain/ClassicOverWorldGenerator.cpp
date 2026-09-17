@@ -17,6 +17,7 @@
 
 #include "../Structures/TreeGenerator.h"
 #include "../Structures/StructureBuilder.h"
+#include "../Ecology/TerrainEcologyPlanner.h"
 
 namespace {
 constexpr int MaximumStructureRadius = 6;
@@ -579,6 +580,7 @@ void ClassicOverWorldGenerator::placeOreVein(Random<std::minstd_rand> &random,
 void ClassicOverWorldGenerator::applyPlantDecorators(
     const std::vector<BlockPosition> &positions)
 {
+    const TerrainEcologyPlanner ecologyPlanner(m_seed);
     for (auto &plant : positions) {
         const int x = plant.x;
         const int z = plant.z;
@@ -617,6 +619,26 @@ void ClassicOverWorldGenerator::applyPlantDecorators(
 
             const int worldX = chunk.x * CHUNK_SIZE + x;
             const int worldZ = chunk.y * CHUNK_SIZE + z;
+            if (m_generationVersion >=
+                VegetationMosaicTerrainGenerationVersion) {
+                TerrainFoundation::Column column;
+                column.height = height;
+                column.biome = kind;
+                column.surface = m_surfaceMap.get(x, z);
+                const EcologyGroundCoverPlan plan =
+                    ecologyPlanner.planGroundCover(worldX, worldZ, column);
+                if (plan.cover == EcologyGroundCover::TallGrass) {
+                    m_pChunk->setBlock(
+                        x, height + 1, z,
+                        ChunkBlock(BlockId::TallGrass,
+                            BlockMetadata::TallGrass::Mature));
+                }
+                else if (plan.cover == EcologyGroundCover::Rose) {
+                    m_pChunk->setBlock(x, height + 1, z, BlockId::Rose);
+                }
+                continue;
+            }
+
             const double patch = valueNoise2D(
                 m_seed, worldX, worldZ, 52.0,
                 0x50e16a6b7a27d60aull);
@@ -640,6 +662,7 @@ void ClassicOverWorldGenerator::applyPlantDecorators(
 
 void ClassicOverWorldGenerator::applyTreeDecorators()
 {
+    const TerrainEcologyPlanner ecologyPlanner(m_seed);
     const glm::ivec2 target = m_pChunk->getLocation();
     const int minimumX = target.x * CHUNK_SIZE - MaximumStructureRadius;
     const int maximumX = (target.x + 1) * CHUNK_SIZE - 1 +
@@ -718,7 +741,19 @@ void ClassicOverWorldGenerator::applyTreeDecorators()
             const int frequency = biome.getTreeFrequency();
             const std::uint64_t hash =
                 structureHash(m_seed, worldX, worldZ);
-            if (m_generationVersion >= ForestEcologyTerrainGenerationVersion &&
+            EcologyTreePlan ecologyPlan;
+            if (m_generationVersion >=
+                    VegetationMosaicTerrainGenerationVersion &&
+                (kind == TerrainBiome::LightForest ||
+                 kind == TerrainBiome::TemperateForest)) {
+                ecologyPlan = ecologyPlanner.planTree(
+                    worldX, worldZ, v8Column);
+                if (!ecologyPlan.place) {
+                    continue;
+                }
+            }
+            else if (m_generationVersion >=
+                         ForestEcologyTerrainGenerationVersion &&
                 (kind == TerrainBiome::LightForest ||
                  kind == TerrainBiome::TemperateForest)) {
                 // One jittered anchor per five-block cell bounds density and
@@ -757,9 +792,22 @@ void ClassicOverWorldGenerator::applyTreeDecorators()
             }
 
             Random<std::minstd_rand> structureRandom(
-                static_cast<int>((hash ^ (hash >> 32)) & 0x7fffffffull));
-            biome.makeTree(structureRandom, *m_pChunk, worldX,
-                           height + 1, worldZ, m_generationVersion);
+                m_generationVersion >= VegetationMosaicTerrainGenerationVersion &&
+                        ecologyPlan.place
+                    ? ecologyPlan.randomSeed
+                    : static_cast<int>((hash ^ (hash >> 32)) &
+                                       0x7fffffffull));
+            if (m_generationVersion >=
+                    VegetationMosaicTerrainGenerationVersion &&
+                ecologyPlan.place) {
+                makeEcologyOakTree(*m_pChunk, structureRandom, worldX,
+                                   height + 1, worldZ,
+                                   ecologyPlan.shape);
+            }
+            else {
+                biome.makeTree(structureRandom, *m_pChunk, worldX,
+                               height + 1, worldZ, m_generationVersion);
+            }
         }
     }
 }

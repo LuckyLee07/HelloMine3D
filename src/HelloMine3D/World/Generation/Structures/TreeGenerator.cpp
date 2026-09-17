@@ -1,13 +1,30 @@
 #include "TreeGenerator.h"
 
 #include "../../Chunk/Chunk.h"
+#include "../Ecology/TerrainEcologyPlanner.h"
 #include "StructureBuilder.h"
 
 #include <cstdint>
+#include <cstdlib>
 
 constexpr BlockId CACTUS = BlockId::Cactus;
 
 namespace {
+void addCanopyLayer(StructureBuilder &builder, int centerX, int y,
+                    int centerZ, int radius, bool trimCorners)
+{
+    for (int dz = -radius; dz <= radius; ++dz) {
+        for (int dx = -radius; dx <= radius; ++dx) {
+            if (trimCorners && std::abs(dx) == radius &&
+                std::abs(dz) == radius) {
+                continue;
+            }
+            builder.addBlock(centerX + dx, y, centerZ + dz,
+                             BlockId::OakLeaf);
+        }
+    }
+}
+
 void makeCactus1(Chunk &chunk, Random<std::minstd_rand> &rand, int x, int y,
                  int z)
 {
@@ -119,6 +136,38 @@ void makeVoxelOakTree(Chunk &chunk, Random<std::minstd_rand> &rand, int x,
     }
 
     builder.makeColumn(x, z, y, height, BlockId::OakBark);
+    builder.build(chunk);
+}
+
+void makeEcologyOakTree(Chunk &chunk, Random<std::minstd_rand> &rand, int x,
+                        int y, int z, EcologyTreeShape shape)
+{
+    if (shape == EcologyTreeShape::Standard) {
+        makeVoxelOakTree(chunk, rand, x, y, z);
+        return;
+    }
+
+    StructureBuilder builder;
+    if (shape == EcologyTreeShape::Tall) {
+        const int height = rand.intInRange(7, 9);
+        addCanopyLayer(builder, x, y + height - 2, z, 1, false);
+        addCanopyLayer(builder, x, y + height - 1, z, 2, true);
+        addCanopyLayer(builder, x, y + height, z, 2, true);
+        addCanopyLayer(builder, x, y + height + 1, z, 1, true);
+        builder.makeColumn(x, z, y, height, BlockId::OakBark);
+    }
+    else {
+        const int height = rand.intInRange(4, 5);
+        const int offsetX = rand.intInRange(-1, 1);
+        const int offsetZ = offsetX == 0 ? rand.intInRange(-1, 1) : 0;
+        addCanopyLayer(builder, x, y + height - 2, z, 1, true);
+        addCanopyLayer(builder, x, y + height - 1, z, 2, true);
+        addCanopyLayer(builder, x + offsetX, y + height, z + offsetZ,
+                       2, true);
+        addCanopyLayer(builder, x + offsetX, y + height + 1,
+                       z + offsetZ, 1, true);
+        builder.makeColumn(x, z, y, height, BlockId::OakBark);
+    }
     builder.build(chunk);
 }
 
