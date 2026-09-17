@@ -44,7 +44,9 @@ void validateAtmosphereShaderContract(
 {
     requireTokens(
         resolver, "media/ogre/HelloMine3D.program",
-        {"param_named surfaceLightingStrength float",
+        {"param_named_auto actorPartData custom 1",
+         "param_named actorSurfaceStrength float",
+         "param_named surfaceLightingStrength float",
          "param_named waterDetailStrength float",
          "param_named fogSunwardColour float3",
          "param_named fogDirectionalStrength float",
@@ -102,10 +104,13 @@ void validateAtmosphereShaderContract(
          "vec3 directionalFogColour"});
     requireTokens(
         resolver, "media/ogre/HelloMine3DActor.vert",
-        {"out vec3 actorWorldPosition;", "uniform mat4 world;"});
+        {"out vec3 actorWorldPosition;", "out vec3 actorLocalPosition;", "uniform mat4 world;"});
     requireTokens(
         resolver, "media/ogre/HelloMine3DActor.frag",
         {"in vec3 actorWorldPosition;",
+         "in vec3 actorLocalPosition;",
+         "uniform vec4 actorPartData;",
+         "uniform float actorSurfaceStrength;",
          "uniform vec3 fogSunwardColour;",
          "uniform vec3 sunDirection;",
          "uniform float fogDirectionalStrength;",
@@ -151,11 +156,14 @@ void validateDirectionalShadowShaderContract(
          "litSamples / 4.0"});
     requireTokens(
         resolver, "media/ogre/HelloMine3DActorShadow.vert",
-        {"out vec4 actorShadowPosition;",
+        {"out vec4 actorShadowPosition;", "out vec3 actorLocalPosition;",
          "uniform mat4 shadowWorldViewProj;"});
     requireTokens(
         resolver, "media/ogre/HelloMine3DActorShadow.frag",
         {"in vec4 actorShadowPosition;",
+         "in vec3 actorLocalPosition;",
+         "uniform vec4 actorPartData;",
+         "uniform float actorSurfaceStrength;",
          "uniform sampler2D directionalShadowMap;",
          "float directionalShadowVisibility()",
          "projected.z = projected.z * 0.5 + 0.5;",

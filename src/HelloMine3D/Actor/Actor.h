@@ -40,6 +40,10 @@ struct ActorSnapshot {
     glm::vec3 position{0.f};
     glm::vec3 rotation{0.f};
     glm::vec3 dimensions{0.f};
+    // Copied item presentation facts; inventory and lifetime remain on ItemEntity.
+    int itemMaterialId = 0;
+    int itemAmount = 0;
+    float itemAgeSeconds = 0.f;
     bool combatant = false;
     EnemyCombatMode combatMode = EnemyCombatMode::Melee;
     MobCombatState combatState = MobCombatState::Idle;

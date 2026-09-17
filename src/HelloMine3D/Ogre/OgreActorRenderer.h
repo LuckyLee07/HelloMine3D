@@ -42,7 +42,7 @@ class OgreActorRenderer
     ~OgreActorRenderer();
 
     void sync(const std::vector<ActorSnapshot>& snapshots,
-              const glm::vec3& cameraPosition);
+              const glm::vec3& cameraPosition, float animationStrength = 1.f);
     void syncProjectiles(
         const std::vector<CombatProjectileSnapshot>& snapshots);
     void setCastShadows(bool enabled) noexcept;
@@ -67,6 +67,7 @@ class OgreActorRenderer
         Ogre::SceneNode* node = nullptr;
         std::vector<ActorPartVisual> parts;
         std::string type;
+        int itemMaterialId = 0;
     };
 
     ActorVisual createVisual(const ActorSnapshot& snapshot);
@@ -83,6 +84,7 @@ class OgreActorRenderer
     std::unordered_map<CombatProjectileId, ActorVisual>
         m_projectileVisuals;
     bool m_castShadows = false;
+    float m_animationStrength = 1.f;
 };
 
 #endif // OGREACTORRENDERER_H_INCLUDED

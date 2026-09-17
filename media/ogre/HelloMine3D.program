@@ -283,6 +283,8 @@ fragment_program HelloMine3D/ActorFragment glsl
     syntax glsl150
     default_params
     {
+        param_named_auto actorPartData custom 1
+        param_named actorSurfaceStrength float 1.0
         param_named environmentLight float 1.0
         param_named fogColour float3 0.58 0.75 0.92
         param_named fogSunwardColour float3 0.78 0.70 0.59
@@ -312,6 +314,8 @@ fragment_program HelloMine3D/ActorShadowFragment glsl
     syntax glsl150
     default_params
     {
+        param_named_auto actorPartData custom 1
+        param_named actorSurfaceStrength float 1.0
         param_named environmentLight float 1.0
         param_named directionalShadowMap int 0
         param_named directionalShadowEnabled float 1.0

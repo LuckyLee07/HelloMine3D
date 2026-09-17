@@ -65,6 +65,7 @@ struct UserSettings {
     float ambientVolume = 1.0f;
     float musicVolume = 0.65f;
     float uiScale = 1.0f;
+    int minimapRange = 128; // Visible diameter, in metres: 64 / 128 / 256.
     std::string locale = "en-US";
     bool audioCaptions = true;
     bool showActionHints = true;

@@ -56,6 +56,15 @@ ActorSaveState ItemEntity::getSaveState() const
     return state;
 }
 
+ActorSnapshot ItemEntity::getSnapshot() const
+{
+    ActorSnapshot snapshot = Actor::getSnapshot();
+    snapshot.itemMaterialId = static_cast<int>(m_materialId);
+    snapshot.itemAmount = m_amount;
+    snapshot.itemAgeSeconds = m_ageSeconds;
+    return snapshot;
+}
+
 void ItemEntity::applySaveState(const ActorSaveState &state)
 {
     Actor::applySaveState(state);

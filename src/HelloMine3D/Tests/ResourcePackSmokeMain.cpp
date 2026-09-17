@@ -250,6 +250,8 @@ namespace
     void writeAtmosphereFixture(const fs::path &root)
     {
         writeFile(root / "media/ogre/HelloMine3D.program",
+            "param_named_auto actorPartData custom 1\n"
+            "param_named actorSurfaceStrength float\n"
             "param_named waterDetailStrength float\n"
             "param_named surfaceLightingStrength float\n"
             "param_named fogSunwardColour float3\n"
@@ -302,9 +304,12 @@ namespace
             "uniform float fogDirectionalStrength;\n"
             "vec3 directionalFogColour() {}\n");
         writeFile(root / "media/ogre/HelloMine3DActor.vert",
-            "out vec3 actorWorldPosition;\nuniform mat4 world;\n");
+            "out vec3 actorWorldPosition;\nout vec3 actorLocalPosition;\nuniform mat4 world;\n");
         writeFile(root / "media/ogre/HelloMine3DActor.frag",
             "in vec3 actorWorldPosition;\n"
+            "in vec3 actorLocalPosition;\n"
+            "uniform vec4 actorPartData;\n"
+            "uniform float actorSurfaceStrength;\n"
             "uniform vec3 fogSunwardColour;\n"
             "uniform vec3 sunDirection;\n"
             "uniform float fogDirectionalStrength;\n"
@@ -348,7 +353,8 @@ namespace
                       },
                       "missing interface declaration"));
         }
-        for (const char* shader : {"HelloMine3DWater.vert", "HelloMine3DWater.frag"})
+        for (const char* shader : {"HelloMine3DWater.vert", "HelloMine3DWater.frag",
+                                  "HelloMine3DActor.vert", "HelloMine3DActor.frag"})
         {
             const fs::path root = freshRoot(std::string("visual-interface-stale-") + shader);
             writeAtmosphereFixture(root);
@@ -395,9 +401,13 @@ namespace
             "litSamples / 4.0\n");
         writeFile(root / "media/ogre/HelloMine3DActorShadow.vert",
             "out vec4 actorShadowPosition;\n"
+            "out vec3 actorLocalPosition;\n"
             "uniform mat4 shadowWorldViewProj;\n");
         writeFile(root / "media/ogre/HelloMine3DActorShadow.frag",
             "in vec4 actorShadowPosition;\n"
+            "in vec3 actorLocalPosition;\n"
+            "uniform vec4 actorPartData;\n"
+            "uniform float actorSurfaceStrength;\n"
             "uniform sampler2D directionalShadowMap;\n"
             "float directionalShadowVisibility() {}\n"
             "projected.z = projected.z * 0.5 + 0.5;\n"

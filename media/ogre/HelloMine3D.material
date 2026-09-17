@@ -144,7 +144,7 @@ material HelloMine3D/ActorMob
 
             fragment_program_ref HelloMine3D/ActorFragment
             {
-                param_named actorTint float4 0.24 0.78 0.30 1.0
+                param_named actorTint float4 0.32 0.48 0.26 1.0
             }
         }
     }
@@ -166,7 +166,7 @@ material HelloMine3D/ActorStalker
 
             fragment_program_ref HelloMine3D/ActorFragment
             {
-                param_named actorTint float4 0.18 0.72 0.82 1.0
+                param_named actorTint float4 0.25 0.47 0.51 1.0
             }
         }
     }
@@ -188,7 +188,7 @@ material HelloMine3D/ActorBrute
 
             fragment_program_ref HelloMine3D/ActorFragment
             {
-                param_named actorTint float4 0.82 0.24 0.18 1.0
+                param_named actorTint float4 0.55 0.32 0.24 1.0
             }
         }
     }
@@ -232,7 +232,7 @@ material HelloMine3D/ActorSpitter
 
             fragment_program_ref HelloMine3D/ActorFragment
             {
-                param_named actorTint float4 0.68 0.28 0.88 1.0
+                param_named actorTint float4 0.39 0.33 0.50 1.0
             }
         }
     }

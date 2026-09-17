@@ -936,7 +936,7 @@ void caseRuntimeConfigOwnership()
         const std::string text((std::istreambuf_iterator<char>(input)),
                                std::istreambuf_iterator<char>());
         check("V10E/settings-file-is-versioned-with-post-processing",
-               text.find("settings_version 9\n") != std::string::npos &&
+               text.find("settings_version 10\n") != std::string::npos &&
                    text.find("directionalshadowquality off\n") !=
                        std::string::npos &&
                    text.find("postprocessingquality off\n") !=
@@ -984,7 +984,7 @@ void caseRuntimeConfigOwnership()
                        DirectionalShadowQuality::Off &&
                    customised.postProcessingQuality ==
                        PostProcessingQuality::Off &&
-                   text.find("settings_version 9\n") == 0 &&
+                   text.find("settings_version 10\n") == 0 &&
                    text.find("directionalshadowquality off\n") !=
                        std::string::npos &&
                    text.find("postprocessingquality off\n") !=
@@ -1021,7 +1021,7 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::Off &&
                   versionOne.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 9\n") == 0,
+                  text.find("settings_version 10\n") == 0,
               text);
     }
 
@@ -1048,7 +1048,7 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::Off &&
                   versionTwo.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 9\n") == 0 &&
+                  text.find("settings_version 10\n") == 0 &&
                   text.find("locale en-US\n") != std::string::npos,
               text);
     }
@@ -1075,7 +1075,7 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::Off &&
                   versionThree.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 9\n") == 0 &&
+                  text.find("settings_version 10\n") == 0 &&
                   text.find("musicvolume 0.649") != std::string::npos,
               text);
     }
@@ -1099,7 +1099,7 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::Off &&
                   versionFour.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 9\n") == 0 &&
+                  text.find("settings_version 10\n") == 0 &&
                    text.find("directionalshadowquality off\n") !=
                        std::string::npos,
               text);
@@ -1123,7 +1123,7 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::High &&
                   versionFive.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 9\n") == 0 &&
+                  text.find("settings_version 10\n") == 0 &&
                   text.find("postprocessingquality off\n") !=
                       std::string::npos,
               text);
@@ -1159,7 +1159,7 @@ void caseRuntimeConfigOwnership()
                   versionSix.mouseBindings.get(
                       GameplayWorldAction::Guard) ==
                       GameplayMouseButton::Secondary &&
-                  text.find("settings_version 9\n") == 0 &&
+                  text.find("settings_version 10\n") == 0 &&
                   versionSix.feedbackIntensity ==
                       GameplayFeedbackIntensity::Full,
               text);
@@ -1189,7 +1189,7 @@ void caseRuntimeConfigOwnership()
               versionSeven.sprintMode == GameplayHoldMode::Toggle &&
                   versionSeven.feedbackIntensity ==
                       GameplayFeedbackIntensity::Full &&
-                  text.find("settings_version 9\n") == 0 &&
+                  text.find("settings_version 10\n") == 0 &&
                   text.find("feedbackintensity full\n") !=
                       std::string::npos,
               text);
@@ -1466,6 +1466,37 @@ void caseRuntimeConfigOwnership()
                   v8Required + "feedbackintensity strong\n"));
     const std::string v9Required = "settings_version 9\n" +
         v8Required.substr(v8Required.find('\n') + 1) + "feedbackintensity full\n";
+    {
+        std::ofstream output(configPath, std::ios::binary | std::ios::trunc);
+        output << v9Required << "visualdetail compatibility\nlocale zh-CN\nuiscale 1.25\n";
+        output.close();
+        Config migrated = loadRuntimeConfig(configPath.string());
+        check("NAVIGATION/v9-migrates-with-map-default-and-preferences", migrated.minimapRange == 128 &&
+            migrated.locale == "zh-CN" && migrated.uiScale == 1.25f &&
+            migrated.visualDetail == VisualDetail::Compatibility);
+        bool rangesPersist = true;
+        for (int range : {64,128,256}) {
+            migrated.minimapRange = range;
+            rangesPersist &= saveRuntimeConfig(configPath.string(), migrated) &&
+                loadRuntimeConfig(configPath.string()).minimapRange == range;
+        }
+        check("NAVIGATION/map-range-round-trips", rangesPersist);
+        RuntimeSettingsSession session;
+        session.begin(migrated);
+        session.draft().minimapRange = 64;
+        RuntimeSettingsApplyPlan plan; std::string error;
+        check("NAVIGATION/zoom-applies-without-renderer-restart", session.prepareApply(plan,error) &&
+            !plan.restartRequired && !plan.renderDistanceChanged && plan.settings.minimapRange == 64);
+        session.cancel();
+        check("NAVIGATION/cancel-retains-original-zoom", !session.isOpen() && migrated.minimapRange == 256);
+    }
+    const std::string v10Required = "settings_version 10\n" +
+        v9Required.substr(v9Required.find('\n') + 1) + "visualdetail standard\n";
+    check("NAVIGATION/invalid-or-missing-range-rejected",
+        invalidSettingsRejected("missing-v10-map.txt", v10Required) &&
+        invalidSettingsRejected("invalid-v10-map.txt", v10Required + "minimaprange 0\n") &&
+        invalidSettingsRejected("unbounded-v10-map.txt", v10Required + "minimaprange 99999\n") &&
+        invalidSettingsRejected("old-v9-map.txt", v9Required + "visualdetail standard\nminimaprange 64\n"));
     check("WV2/invalid-v9-visual-settings-are-rejected",
         invalidSettingsRejected("missing-v9-visual.txt", v9Required) &&
         invalidSettingsRejected("unknown-v9-visual.txt", v9Required + "visualdetail ultra\n") &&
@@ -1541,7 +1572,13 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 457 &&
+              registry.keys("en-US").size() == 468 &&
+              registry.lookup("en-US", "hud.status_food") == "Food" &&
+              registry.lookup("zh-CN", "hud.status_food") == "进食" &&
+              registry.lookup("en-US", "hud.status_attack") == "Attack" &&
+              registry.lookup("zh-CN", "hud.status_attack") == "攻击" &&
+              registry.lookup("en-US", "hud.status_guard") == "Guard" &&
+              registry.lookup("zh-CN", "hud.status_guard") == "格挡" &&
               registry.lookup("en-US", "settings.visual_standard") ==
                   "Standard — refined pixel textures" &&
               registry.lookup("zh-CN", "settings.visual_standard") ==
@@ -19676,6 +19713,8 @@ void caseWorldManager()
 
 #include "SurfaceMapSmokeCases.h"
 #include "WaterDepthSmokeCases.h"
+#include "ItemVisualSmokeCases.h"
+#include "MinimapNavigationSmokeCases.h"
 
 int main()
 {
@@ -19820,6 +19859,14 @@ int main()
         else if (focus != nullptr && std::string(focus) == "WATER_DEPTH") {
             caseWaterDepthPresentation();
         }
+        else if (focus != nullptr && std::string(focus) == "NAVIGATION") {
+            caseMinimapNavigation();
+            caseRuntimeConfigOwnership();
+            caseWorldOutcomeAndLocalizedText();
+        }
+        else if (focus != nullptr && std::string(focus) == "ITEM_VISUAL") {
+            caseItemVisualPresentation();
+        }
         else if (focus != nullptr && std::string(focus) == "WV2") {
             caseBlockTextureCoordinates();
             caseRuntimeConfigOwnership();
@@ -19955,6 +20002,8 @@ int main()
         else {
         caseSurfaceMapObservations();
         caseWaterDepthPresentation();
+        caseItemVisualPresentation();
+        caseMinimapNavigation();
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
         caseDebugPanelStartupOption();

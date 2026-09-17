@@ -73,9 +73,13 @@ def main():
     parser.add_argument("--post", choices=("off", "on"), default="off")
     parser.add_argument("--locale", choices=("en-US", "zh-CN"), default="zh-CN")
     parser.add_argument("--ui-scale", type=float, choices=(0.85, 1.0, 1.25), default=1.0)
+    parser.add_argument("--minimap-range", type=int, choices=(64, 128, 256))
+    parser.add_argument("--actor-visual", choices=("idle", "windup", "recover"))
     parser.add_argument("--hud-fixture", action="store_true")
     parser.add_argument("--debug", action="store_true")
-    parser.add_argument("--panel", choices=("crafting", "container"))
+    parser.add_argument("--panel", choices=("crafting", "container", "settings"))
+    parser.add_argument("--width", type=int, default=1280)
+    parser.add_argument("--height", type=int, default=720)
     parser.add_argument("--atmosphere-fallback", action="store_true")
     parser.add_argument("--terrain-fallback", action="store_true")
     parser.add_argument("--visual-detail", choices=("standard", "compatibility"))
@@ -89,7 +93,9 @@ def main():
         parser.error("macOS required")
     if not 0 <= args.time < 24000:
         parser.error("--time must be in [0, 24000)")
-    if args.scene == "menu" and (args.performance or args.hud_fixture or args.streaming or args.panel):
+    if not 640 <= args.width <= 3840 or not 480 <= args.height <= 2160:
+        parser.error("Window size must be within 640..3840 by 480..2160")
+    if args.scene == "menu" and (args.performance or args.hud_fixture or args.streaming or args.panel or args.actor_visual):
         parser.error("menu capture cannot run gameplay fixtures/performance")
     if args.scene == "menu" and (args.position or args.rotation):
         parser.error("menu capture has no world position or rotation")
@@ -124,7 +130,7 @@ renderdistance 8
 directionalshadowquality {args.shadow}
 postprocessingquality {args.post}
 fullscreen 0
-windowsize 1280 720
+windowsize {args.width} {args.height}
 fov 90
 uiscale {args.ui_scale}
 locale {args.locale}
@@ -142,6 +148,12 @@ seed random
     if args.visual_detail:
         settings = settings.replace("settings_version 8", "settings_version 9")
         settings += f"visualdetail {args.visual_detail}\n"
+    if args.minimap_range:
+        settings = settings.replace("settings_version 8", "settings_version 10").replace(
+            "settings_version 9", "settings_version 10")
+        if not args.visual_detail:
+            settings += "visualdetail standard\n"
+        settings += f"minimaprange {args.minimap_range}\n"
     (root / "bin/config.txt").write_text(settings)
     environment = {
         "HELLOMINE3D_ROOT": str(root),
@@ -173,8 +185,12 @@ seed random
             "HELLOMINE3D_PLAYER_ROTATION": rotation,
             "HELLOMINE3D_WORLD_TIME": str(args.time),
         })
+    if args.actor_visual:
+        environment["HELLOMINE3D_ACTOR_VISUAL_CAPTURE"] = args.actor_visual
     if args.panel:
-        environment["HELLOMINE3D_" + args.panel.upper() + "_FIXTURE"] = "1"
+        key = "HELLOMINE3D_V10E_SETTINGS_FIXTURE" if args.panel == "settings" else (
+            "HELLOMINE3D_" + args.panel.upper() + "_FIXTURE")
+        environment[key] = "1"
     if args.atmosphere_fallback:
         environment["HELLOMINE3D_V10C_FALLBACK"] = "1"
     if args.hud_fixture:
@@ -221,6 +237,12 @@ seed random
         frames = sorted((output / "frames").glob("*.png"))
         if len(frames) != 2:
             raise RuntimeError(f"Expected 2 captured frames, got {len(frames)}")
+        # PNG IHDR dimensions prove the actual client size, not just requested config.
+        import struct
+        for frame in frames:
+            width, height = struct.unpack(">II", frame.read_bytes()[16:24])
+            if (width, height) != (args.width, args.height):
+                raise RuntimeError(f"Actual frame is {width}x{height}, expected {args.width}x{args.height}")
         artifacts = frames
         if args.performance:
             artifacts += [output / "performance/summary.txt", output / "performance/frames.csv"]

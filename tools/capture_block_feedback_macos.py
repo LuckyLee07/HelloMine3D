@@ -7,12 +7,13 @@ Performance mode uses an unchanged natural viewpoint without readback/fixtures.
 """
 import argparse
 import json
+import os
 from pathlib import Path
 import platform
 import subprocess
 import time
 
-from capture_visual_macos import clone_verified_package, digest
+from capture_visual_macos import clone_verified_package, digest, verified_package_entries
 
 
 def main():
@@ -24,6 +25,10 @@ def main():
     parser.add_argument("--shadow", choices=("off", "high"), default="off")
     parser.add_argument("--detail", choices=("standard", "compatibility"), default="standard")
     parser.add_argument("--performance", action="store_true")
+    parser.add_argument("--reuse-app", action="store_true")
+    parser.add_argument("--launch-method", choices=("open", "direct"), default="open")
+    parser.add_argument("--hud-fixture", action="store_true",
+                        help="Include the existing held-item/inventory fixture in motion diagnostics")
     args = parser.parse_args()
     if platform.system() != "Darwin":
         parser.error("macOS required")
@@ -32,8 +37,11 @@ def main():
         parser.error("Output must be new; failures are retained")
     output.mkdir(parents=True)
     app = args.app.resolve(strict=True)
-    clone = output / "Runtime.app"
-    clone_verified_package(app, clone)
+    clone = app if args.reuse_app else output / "Runtime.app"
+    if args.reuse_app:
+        verified_package_entries(app)
+    else:
+        clone_verified_package(app, clone)
     root = clone / "Contents/Resources"
     identity = json.loads((root / "build-identity.json").read_text())
     assert digest(root / "bin/HelloMine3D") == identity["executable_sha256"]
@@ -69,6 +77,8 @@ seed random
         "HELLOMINE3D_WORLD_TIME": "6000",
         "HELLOMINE3D_SHOW_DEBUG_INFO": "0",
     }
+    if args.hud_fixture:
+        environment["HELLOMINE3D_HUD_FIXTURE"] = "1"
     frames = list(range(1000, 7000, 100))
     if args.performance:
         environment.update({
@@ -93,15 +103,26 @@ seed random
     for key, value in environment.items():
         command.extend(["--env", f"{key}={value}"])
     command.append(str(clone))
+    if args.launch_method == "direct":
+        command = [str(clone / "Contents/MacOS/HelloMine3D")]
     record = {"evidence_type": "DEVELOPER_DIAGNOSTIC", "normal_input": False,
               "source_app": str(app), "package_identity": identity,
+              "runtime_app": str(clone), "launch_method": args.launch_method,
+              "package_mode": "REUSE_STABLE_APP" if args.reuse_app else "VERIFIED_COPY",
               "settings": settings, "environment": environment,
               "platform": platform.platform(), "command": command,
               "started_unix": time.time(), "result": "RUNNING"}
     record_path = output / "capture.json"
     record_path.write_text(json.dumps(record, indent=2) + "\n")
     try:
-        subprocess.run(command, check=True, timeout=100)
+        if args.launch_method == "direct":
+            clean_environment = {key: value for key, value in os.environ.items()
+                                 if not key.startswith(("HELLOMINE3D_", "HELLO_PERF_", "HELLO_RENDER_"))}
+            with (output / "client.log").open('w') as log, (output / "client-stderr.log").open('w') as errors:
+                subprocess.run(command, cwd=root / "bin", env={**clean_environment, **environment},
+                               stdout=log, stderr=errors, check=True, timeout=100)
+        else:
+            subprocess.run(command, check=True, timeout=100)
         if args.performance:
             artifacts = [output / "performance/frames.csv", output / "performance/summary.txt"]
         else:

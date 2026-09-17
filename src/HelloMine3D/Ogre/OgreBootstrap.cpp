@@ -960,6 +960,15 @@ namespace
 
         void createWindowAndScene(const std::string &initialSaveDirectory)
         {
+            if (const char* fixture = std::getenv("HELLOMINE3D_ACTOR_VISUAL_CAPTURE")) {
+                m_actorVisualCapture = fixture;
+                if (!isTrueValue(std::getenv("HELLO_RENDER_CAPTURE")) ||
+                    (m_actorVisualCapture != "idle" && m_actorVisualCapture != "windup" &&
+                     m_actorVisualCapture != "recover"))
+                    throw std::runtime_error("Actor visual fixture requires diagnostic capture and a valid pose.");
+                std::cout << "[ACTOR_VISUAL_CAPTURE] pose=" << m_actorVisualCapture
+                    << " evidence=developer-diagnostic normal_input=0\n";
+            }
             const bool hiddenWindow = isTrueValue(
                 std::getenv("HELLOMINE3D_WINDOW_HIDDEN"));
             m_hiddenWindow = hiddenWindow;
@@ -983,6 +992,12 @@ namespace
             {
                 throw std::runtime_error("Ogre failed to create a window.");
             }
+            // Windowed sizes need not be monitor video modes. Apply the saved
+            // dimensions even when Ogre's fullscreen mode list omits them.
+            if (!m_config.isFullscreen &&
+                (m_window->getWidth() != static_cast<unsigned int>(m_config.windowX) ||
+                 m_window->getHeight() != static_cast<unsigned int>(m_config.windowY)))
+                m_window->resize(m_config.windowX, m_config.windowY);
             runtimeOperationTimings().markLatestActive(
                 RuntimeOperationKind::Startup);
 
@@ -2202,6 +2217,8 @@ namespace
 
         bool frameStarted(const Ogre::FrameEvent& event) override
         {
+            if (!m_actorVisualCapture.empty())
+                m_actorVisualCaptureSeconds += std::clamp(event.timeSinceLastFrame, 0.f, .25f);
             HELLOMINE3D_PROFILE_FRAME();
             HELLOMINE3D_PROFILE_SCOPE("Ogre::frameStarted");
             HELLOMINE3D_PROFILE_PLOT(
@@ -2724,8 +2741,53 @@ namespace
             {
                 return;
             }
-            m_actorRenderer->sync(m_world->collectActorSnapshots(),
-                                  m_logicCamera->position);
+            auto snapshots = m_world->collectActorSnapshots();
+            if (!m_actorVisualCapture.empty())
+            {
+                // Fixed presentation gallery; no actors/items enter the World or save.
+                snapshots.clear();
+                const Ogre::Vector3 view = m_camera->getDirection();
+                glm::vec3 forward(view.x, 0.f, view.z);
+                if (glm::length(forward) < .001f) forward = {0,0,-1};
+                forward = glm::normalize(forward);
+                const glm::vec3 right(-forward.z, 0.f, forward.x);
+                const Ogre::Vector3 cameraPosition = m_camera->getPosition();
+                const glm::vec3 origin(cameraPosition.x, cameraPosition.y, cameraPosition.z);
+                const char* types[]{"hellomine:stalker", "hellomine:brute", "hellomine:spitter",
+                                    "hellomine:waystone_stalker"};
+                for (int index=0; index<4; ++index) {
+                    ActorSnapshot sample;
+                    sample.id = 900001 + index;
+                    sample.type = types[index];
+                    sample.position = origin + forward * 4.6f + right * ((index - 1.5f) * 1.5f);
+                    sample.position.y -= .3f;
+                    sample.rotation.y = glm::degrees(std::atan2(forward.x, forward.z));
+                    sample.dimensions = index == 1 ? glm::vec3(.55f,1.05f,.55f) : glm::vec3(.4f,.9f,.4f);
+                    sample.combatant = true;
+                    sample.combatMode = index == 2 ? EnemyCombatMode::Ranged : EnemyCombatMode::Melee;
+                    sample.combatState = m_actorVisualCapture == "windup" ? MobCombatState::Windup :
+                        m_actorVisualCapture == "recover" ? MobCombatState::Recover : MobCombatState::Idle;
+                    sample.combatStateTicksTotal = 20;
+                    sample.combatStateTicksRemaining = 3;
+                    snapshots.push_back(sample);
+                }
+                const Material::ID materials[]{Material::Stone, Material::OakBark,
+                    Material::StoneSword, Material::IronIngot, Material::Bread};
+                for (int index=0; index<5; ++index) {
+                    ActorSnapshot sample;
+                    sample.id = 900011 + index; sample.type = "item";
+                    sample.position = origin + forward * 3.5f + right * ((index - 2.f) * .65f);
+                    sample.position.y -= 1.3f;
+                    sample.dimensions = glm::vec3(.18f);
+                    sample.itemMaterialId = materials[index]; sample.itemAmount = 1;
+                    sample.itemAgeSeconds = m_actorVisualCaptureSeconds;
+                    snapshots.push_back(sample);
+                }
+            }
+            m_actorRenderer->sync(snapshots,
+                m_logicCamera->position,
+                m_config.feedbackIntensity == GameplayFeedbackIntensity::Off ? 0.f :
+                m_config.feedbackIntensity == GameplayFeedbackIntensity::Reduced ? .35f : 1.f);
             m_actorRenderer->syncProjectiles(
                 m_world->collectCombatProjectileSnapshots());
         }
@@ -3915,6 +3977,8 @@ namespace
                 Ogre::GpuProgramParametersSharedPtr parameters =
                     materialPass(materialName)
                         ->getFragmentProgramParameters();
+                parameters->setNamedConstant("actorSurfaceStrength",
+                    m_v10cAtmosphereEnabled ? 1.f : 0.f);
                 parameters->setNamedConstant(
                     "environmentLight", state.daylight);
                 parameters->setNamedConstant("fogColour", fogVector);
@@ -4496,6 +4560,8 @@ namespace
         glm::ivec3 m_blockFeedbackCaptureTarget{0};
         BlockId m_blockFeedbackCaptureId = BlockId::Air;
         float m_blockFeedbackCaptureSeconds = 0.f;
+        std::string m_actorVisualCapture;
+        float m_actorVisualCaptureSeconds = 0.f;
         int m_blockFeedbackCaptureLastStage = -2;
         std::unique_ptr<OgreActorRenderer> m_actorRenderer;
         Player* m_worldPlayer = nullptr;

@@ -1,4 +1,5 @@
 #include "OgreActorRenderer.h"
+#include "OgreItemGeometry.h"
 
 #include <Ogre.h>
 
@@ -91,6 +92,7 @@ namespace
             object.index(index);
         }
         object.end();
+        object.getSection(0)->setCustomParameter(1, Ogre::Vector4::ZERO);
         object.setCastShadows(castShadows);
         object.setRenderQueueGroup(Ogre::RENDER_QUEUE_MAIN);
     }
@@ -191,6 +193,12 @@ OgreActorRendererValidation OgreActorRenderer::validateSnapshots(
         ++validation.actorCount;
         if (snapshot.type == "item")
         {
+            if (snapshot.itemMaterialId < Material::Nothing || snapshot.itemMaterialId >= Material::Count ||
+                snapshot.itemAmount < 0 || !std::isfinite(snapshot.itemAgeSeconds) || snapshot.itemAgeSeconds < 0.f)
+            {
+                validation.message = "item presentation snapshot is invalid";
+                return validation;
+            }
             ++validation.itemCount;
         }
         else
@@ -249,8 +257,9 @@ OgreActorRenderer::validateProjectileSnapshots(
 
 void OgreActorRenderer::sync(
     const std::vector<ActorSnapshot>& snapshots,
-    const glm::vec3& cameraPosition)
+    const glm::vec3& cameraPosition, float animationStrength)
 {
+    m_animationStrength = std::clamp(animationStrength, 0.f, 1.f);
     if (m_sceneManager == nullptr)
     {
         return;
@@ -280,7 +289,8 @@ void OgreActorRenderer::sync(
         liveIds.insert(snapshot.id);
         auto existing = m_visuals.find(snapshot.id);
         if (existing != m_visuals.end() &&
-            existing->second.type != snapshot.type)
+            (existing->second.type != snapshot.type ||
+             (snapshot.type == "item" && existing->second.itemMaterialId != snapshot.itemMaterialId)))
         {
             destroyVisual(existing->second);
             m_visuals.erase(existing);
@@ -432,7 +442,31 @@ OgreActorRenderer::ActorVisual OgreActorRenderer::createVisual(
     {
         visual.object = m_sceneManager->createManualObject(
             baseName + "_Mesh");
-        buildUnitCube(*visual.object, materialFor(snapshot), m_castShadows);
+        visual.itemMaterialId = snapshot.itemMaterialId;
+        const auto id = static_cast<Material::ID>(snapshot.itemMaterialId);
+        const auto& geometry = itemVisualGeometry(id);
+        if (geometry.empty()) {
+            buildUnitCube(*visual.object, ItemMaterial, m_castShadows);
+        }
+        else {
+            visual.object->begin(id == Material::Glass || id == Material::GlassBorderless
+                ? "HelloMine3D/Transparent" : "HelloMine3D/Terrain",
+                Ogre::RenderOperation::OT_TRIANGLE_LIST);
+            Ogre::uint32 index = 0;
+            for (const auto& face : geometry) {
+                for (int corner = 0; corner < 4; ++corner) {
+                    const auto& position = face.positions[corner];
+                    visual.object->position(position.x, position.y, position.z);
+                    visual.object->textureCoord(face.tile.x / 16.f, face.tile.y / 16.f);
+                    visual.object->textureCoord(face.uv[corner].x, face.uv[corner].y);
+                    visual.object->textureCoord(.72f + .28f * std::max(face.normal.y, 0.f));
+                }
+                visual.object->quad(index, index + 1, index + 2, index + 3);
+                index += 4;
+            }
+            visual.object->end();
+            visual.object->setCastShadows(m_castShadows);
+        }
         visual.node->attachObject(visual.object);
         return visual;
     }
@@ -463,7 +497,11 @@ void OgreActorRenderer::updateVisual(
         !intersectsFirstPersonNearPlane(snapshot, cameraPosition));
     if (snapshot.type == "item")
     {
-        visual.node->setPosition(snapshot.position.x, snapshot.position.y,
+        const float phase = snapshot.itemAgeSeconds * 2.f +
+            static_cast<float>(snapshot.id % 17);
+        visual.node->setPosition(snapshot.position.x,
+                                 snapshot.position.y + .22f +
+                                     std::sin(phase) * .025f * m_animationStrength,
                                  snapshot.position.z);
         visual.node->setScale(snapshot.dimensions.x * 2.0f,
                               snapshot.dimensions.y * 2.0f,
@@ -471,7 +509,8 @@ void OgreActorRenderer::updateVisual(
         const Ogre::Quaternion pitch(
             Ogre::Degree(snapshot.rotation.x), Ogre::Vector3::UNIT_X);
         const Ogre::Quaternion yaw(
-            Ogre::Degree(snapshot.rotation.y), Ogre::Vector3::UNIT_Y);
+            Ogre::Degree(snapshot.rotation.y + snapshot.itemAgeSeconds * 35.f * m_animationStrength),
+            Ogre::Vector3::UNIT_Y);
         const Ogre::Quaternion roll(
             Ogre::Degree(snapshot.rotation.z), Ogre::Vector3::UNIT_Z);
         visual.node->setOrientation(yaw * pitch * roll);
@@ -508,6 +547,13 @@ void OgreActorRenderer::updateVisual(
         ActorPartVisual& part = visual.parts[index];
         const EnemyVisualPartDefinition& definition =
             profile.parts[index];
+        const float windup = snapshot.combatState == MobCombatState::Windup &&
+            snapshot.combatStateTicksTotal > 0 ? 1.f - std::clamp(
+                static_cast<float>(snapshot.combatStateTicksRemaining) /
+                    snapshot.combatStateTicksTotal, 0.f, 1.f) : 0.f;
+        part.object->getSection(0)->setCustomParameter(1, Ogre::Vector4(
+            static_cast<float>(definition.role) + 1.f,
+            profile.waystoneGuardian ? 1.f : 0.f, windup, 0.f));
         const glm::vec3 offset = definition.offset + pose.offsets[index];
         part.node->setPosition(offset.x, offset.y, offset.z);
         const float partScale = pose.scales[index];

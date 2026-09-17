@@ -4,6 +4,7 @@ in vec4 vertex;
 
 out float actorDistance;
 out vec3 actorWorldPosition;
+out vec3 actorLocalPosition;
 out vec4 actorShadowPosition;
 
 uniform mat4 worldViewProj;
@@ -15,6 +16,7 @@ void main()
 {
     gl_Position = worldViewProj * vertex;
     actorDistance = length((worldView * vertex).xyz);
+    actorLocalPosition = vertex.xyz;
     actorWorldPosition = (world * vertex).xyz;
     actorShadowPosition = shadowWorldViewProj * vertex;
 }

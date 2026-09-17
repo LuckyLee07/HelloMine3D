@@ -146,6 +146,7 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
     bool usesVersionSevenKey = false;
     bool usesVersionEightKey = false;
     bool hasVisualDetail = false;
+    bool hasMinimapRange = false;
     bool hasSprintMode = false;
     bool hasSneakMode = false;
     bool hasFeedbackIntensity = false;
@@ -180,6 +181,7 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
                 version != DirectionalShadowRuntimeSettingsFormatVersion &&
                 version != PostProcessingRuntimeSettingsFormatVersion &&
                 version != InputRuntimeSettingsFormatVersion &&
+                version != FeedbackRuntimeSettingsFormatVersion &&
                 version != PreviousRuntimeSettingsFormatVersion &&
                 version != RuntimeSettingsFormatVersion) {
                 fail(path, key, "uses unsupported version " +
@@ -262,6 +264,11 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
             parsed.config.musicVolume = readFloat(path, key, values);
             requireEnd(path, key, values);
             usesVersionFourKey = true;
+        }
+        else if (key == "minimaprange") {
+            parsed.config.minimapRange = readInteger(path, key, values);
+            requireEnd(path, key, values);
+            hasMinimapRange = true;
         }
         else if (key == "uiscale") {
             parsed.config.uiScale = readFloat(path, key, values);
@@ -463,6 +470,14 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
         !hasVisualDetail) {
         fail(path, "visualdetail", "is required by settings version 9");
     }
+    if (hasMinimapRange && (!hasVersion || parsed.version <
+                            NavigationRuntimeSettingsFormatVersion)) {
+        fail(path, "settings_version", "older versions cannot contain version 10 settings");
+    }
+    if (hasVersion && parsed.version >= NavigationRuntimeSettingsFormatVersion &&
+        !hasMinimapRange) {
+        fail(path, "minimaprange", "is required by settings version 10");
+    }
     parsed.needsMigration =
         !hasVersion || parsed.version < RuntimeSettingsFormatVersion;
     try {
@@ -500,6 +515,7 @@ std::vector<char> serializeRuntimeConfig(const Config &config)
            << "effectsvolume " << config.effectsVolume << '\n'
            << "ambientvolume " << config.ambientVolume << '\n'
            << "musicvolume " << config.musicVolume << '\n'
+           << "minimaprange " << config.minimapRange << '\n'
            << "uiscale " << config.uiScale << '\n'
            << "locale " << config.locale << '\n'
            << "audiocaptions " << (config.audioCaptions ? 1 : 0) << '\n'
@@ -541,6 +557,10 @@ std::vector<char> serializeRuntimeConfig(const Config &config)
 
 void validateUserSettings(const UserSettings &settings)
 {
+    if (settings.minimapRange != 64 && settings.minimapRange != 128 &&
+        settings.minimapRange != 256) {
+        throw std::runtime_error("minimap range must be 64, 128, or 256 metres");
+    }
     if (settings.renderDistance < 1 || settings.renderDistance > 32) {
         throw std::runtime_error("render distance must be between 1 and 32");
     }

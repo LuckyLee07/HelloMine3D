@@ -16,6 +16,7 @@ class ItemEntity : public Actor {
 
     void tick(World &world, float dt) override;
     ActorSaveState getSaveState() const override;
+    ActorSnapshot getSnapshot() const override;
     void applySaveState(const ActorSaveState &state) override;
 
     Material::ID getMaterialId() const;
