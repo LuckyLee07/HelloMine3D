@@ -612,6 +612,10 @@ Snapshots are copied values and Ogre owns only their visual mirrors and Render s
 stale CPU upload acknowledgement cannot promote a newer revision，且上传后会在进入下一帧前被销毁。Renderer reset/rebuild therefore does not mutate
 block、Actor、inventory、objective or persistence truth。
 
+POSIX Ogre `Timer` 的经过时间使用 `std::chrono::steady_clock`，毫秒/微秒 API 和各实例 reset 语义不变；
+避免系统墙钟校正经 Root 的无符号差值形成巨大帧增量。CPU 时间 API 保持原行为，世界仍按既有 fixed tick
+推进，存档时间戳不受此修改影响。真实长帧由诊断原样记录，不以截断帧耗时掩盖渲染停顿。
+
 方块表面反馈复用实际模型、metadata 高度、生态 tile、透明遮罩与 Flora 风摆，高亮和十阶段裂纹
 由 Ogre 持有；目标改变或取消时更新派生表现。开采碎屑观察真实进度，破坏/放置碎屑只订阅
 已提交事实，使用世界坐标和解析重力轨迹；拾取图标仍在 HUD。两者共用 48 粒子上限与

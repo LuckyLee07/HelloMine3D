@@ -386,11 +386,40 @@ r9 的巨大 delta 追查发现当前 Ogre POSIX Timer 使用可回拨的 `getti
 回拨会溢出为巨大帧增量。这是下一批应验证修复的明确代码风险，尚未证明它就是本次主机异常的触发原因，
 也不能由此解释 25/925 秒的真实渲染停顿。下一步独立复现计时边界，修复后补齐相应性能验证。
 
+### POSIX 经过时间单调性修复（r11）
+
+实际 Ogre Timer 源码的隔离故障注入已证实缺陷：墙钟回拨 1 ms 后，毫秒值从 20 退到 19，
+Root 使用的无符号差值变为 `18446744073709551615`。它可以解释巨大 delta 的形成机制，
+但没有本次主机墙钟跳变记录，因此不宣称 r9 异常触发原因或 25/925 秒真实渲染停顿已经确定。
+
+`OgrePOSIXTimerImp.h/.cpp` 改用 `std::chrono::steady_clock` 保存起点与计算经过时间，
+不改变单位、reset、CPU 计时、fixed tick、存档和墙钟时间戳。测试仅在单独编译的 Timer 对象中把
+`gettimeofday` 重定向到假时钟，不调整操作系统时间或注入运行中的游戏。
+新入口 `bash scripts/verify_posix_timer.sh Debug|Release` 包含回拨、跨起点、向前跳一小时、
+墙钟停住但真实经过时间继续、10,000 次读取、实例 reset、单位和 CPU API 检查。
+旧源码两配置各 8 项失败，修复后两配置各 **10/10 PASS**；失败日志完整保存在 `timer-r11/before-*`。
+
+使用顶层 gmake 的 `HelloMine3D` 依赖图重建 Debug/Release Ogre 核心与受影响客户端，两个配置均通过。
+324 份第一方源码与 r10 相同，r10 世界回归覆盖未改内容，不重复用无 Ogre 的 WorldRuntime 证明计时器。
+Release 17 份依赖库只有 `libogre3d.a` 改变；原生窗口三份源码保持不变。
+
+`timer-r11/runtime-preflight-r1.json` 的真实隐藏客户端各采集 30 秒（预热 5 秒、无截图读回）：
+Debug 1312 帧 / 600 tick、最大 delta 53 ms；Release 3734 帧 / 601 tick、最大 delta 13 ms，
+两次均未出现巨大增量，结束时长分别 30014.6/30004.5 ms。20 ms 间隔的进程/窗口观察累计识别
+2138 个客户端样本，前台与可见窗口样本均为 0；不排除短于观察间隔的瞬态。
+这两次仅为计时集成检查，不宣称已完成三轮性能对照或正常玩法。
+
+独立文件核对见 `timer-r11/verification-r1.json`，新 Release SHA-256 为
+`c006bece67c99b9ca9aafb0cc87015dc9a150f6c01da987843ad30229b5984c1`，冻结包为
+`timer-r11/frozen-release/`。专用工作包现为 r11，正常配置恢复且 SHA-256 未变。
+下一步继续定位真实渲染停顿，并以同一单调时钟修复重新构建对照双方，再补掉落物、岸面及最终性能范围。
+macOS Apple clang/gmake x86_64 为实际平台；其他 POSIX 平台未运行，Windows Timer 未修改。
+
 ### 当前恢复入口
 
 - 水面工程批次已本地提交 `864c86e`；前六个本地提交保留，均未推送。每个可独立验证的小批次及时提交，整合性能/玩法待办继续单独跟踪。
 - 原工作路径 `HelloMine3D-Visual-Upgrade.app`、bundle id `local.hellomine3d.visual-upgrade` 保留 r3。此前自动审批拒绝终止其进程，理由为可能丢失未保存状态；本轮未停止、刷新或覆盖该运行包。
-- 专用工作路径 `round2-compact-layout-recheck-r3/Diagnostic.app`，bundle id `local.hellomine3d.visual-layout-check`，r10 岸面画面采集已结束，已核对 r10 候选和正常配置。A/B 正常存档保持原状，原生窗口修复保持不变。
+- 专用工作路径 `round2-compact-layout-recheck-r3/Diagnostic.app`，bundle id `local.hellomine3d.visual-layout-check`，r11 计时集成检查已结束，已核对 r11 候选和正常配置。A/B 正常存档保持原状，原生窗口修复保持不变。
 - 前台 runner 已停止。r7 完整矩阵与掉落物图片采集均已结束；r9 专项 24 次已结束但时长协议失败，不声明性能通过；当前没有活跃客户端采集。恢复状态见本地 `goal-recovery-r7.json`。历史 Reduced 停摆仍未决。r2 为 1280×720 实际像素，r5 前台为 2560×1440；两者均不得改标为当前后台结果。
 - 正常菜单、设置、保存/重开已有 r4 证据，持续移动/采集等输入仍缺可用路径；按用户约定不启动前台/CUA，继续不依赖它的工作。首次 Reduced 静止现象尚未解释，不以重采掩盖。Goal 已恢复，尚未完成。
 - 用户要求沿用中文提交形式，最近 12 条英文提交已仅重写说明和相应父提交 ID；各提交文件树、顺序、作者与日期保持一致。旧证据 SHA 保留，可通过 `refs/rewrites/visual-message-style-20260917` 追溯；新旧映射在本地 `commit-message-style-rewrite-r1.json`。

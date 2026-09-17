@@ -38,6 +38,7 @@ AI 平台对应规则见 [当前验收规范](ai-assisted-gameplay-acceptance-v1
 | 顶点格式、网格、光照或 AO | 确定性角落/边界夹具、MeshDirty、隐藏固定截图、既有 schema 3 顶点/索引/构建/驻留字段的补充比较和相关 Q1。仅改每顶点值时不得误报为顶点格式升级。 |
 | 雾、天空、云、阴影或后处理 | shader 正反例、关闭回退、固定昼夜截图、窗口缩放/切世界清理、各图形档性能和 AI/开发者视觉检查；动态项必须用多帧、视频或连续窗口。 |
 | 构建图或平台代码 | 当前批准平台的工程生成和受影响目标编译；macOS 只有被当批列入范围时才要求新原生证据。 |
+| POSIX 渲染计时 | `bash scripts/verify_posix_timer.sh Debug` / `Release` 以实际 Timer 源码隔离注入墙钟回拨、前跳和暂停；不改系统时间。重建受影响 Ogre 依赖及客户端，再核查隐藏客户端的真实帧增量、模拟 tick 和正常配置恢复；短采样不代替三轮性能门槛。 |
 | `AL-A0` 纯文档基线 | 逐项对照实际源码冻结模块/API/ownership/tick/snapshot；`git diff --check`、本地 Markdown 引用、World→Ogre 反向依赖检查和 VS2017 完整门禁。运行时代码/身份未变时引用既有正式 Q1/Q3，不重跑 1800 秒；无 OS Computer Use 时 `AI-08=NOT_RUN`。 |
 | `AL-A1` World 责任地图 | `tools\validate_world_responsibility_map.ps1` 必须覆盖全部公开方法、匹配 public-surface hash 且无 stale/重复行；随后运行 VS2017 完整门禁。没有运行时行为变化时引用既有正式 Q1/Q3，`AI-01..AI-08` 保持 `NOT_RUN`。 |
 | `AL-A2` Chunk Runtime 边界 | `tools\validate_chunk_runtime_boundary.ps1` + AL-A1 公开面门禁；VS2017/v141 Debug/Release 完整门禁；WorldRuntime 的 S0.5/M2/M6/M7/E5/S2.4 与 loader stress 必须通过。禁止新增 Residency 状态、改变 save/unload 转换或修改既有预算；AI 场景未执行时保持 `NOT_RUN`。 |

@@ -29,9 +29,8 @@ THE SOFTWARE.
 
 namespace Ogre {
 
-// better: use clock_gettime( CLOCK_MONOTONIC, &ts ) as gettimeofday might drift
-// for instance in case of leap days, travel across TZ etc.
-// even better: let std::chrono::steady_clock handle this cross platform
+// Frame events subtract unsigned elapsed times. Wall-clock corrections must
+// never move this timer backwards or inject a spurious frame-length jump.
 //--------------------------------------------------------------------------------//
 Timer::Timer()
 {
@@ -47,23 +46,23 @@ Timer::~Timer()
 void Timer::reset()
 {
     zeroClock = clock();
-    gettimeofday(&start, NULL);
+    start = std::chrono::steady_clock::now();
 }
 
 //--------------------------------------------------------------------------------//
 unsigned long Timer::getMilliseconds()
 {
-    struct timeval now;
-    gettimeofday(&now, NULL);
-    return (now.tv_sec-start.tv_sec)*1000+(now.tv_usec-start.tv_usec)/1000;
+    return static_cast<unsigned long>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - start).count());
 }
 
 //--------------------------------------------------------------------------------//
 unsigned long Timer::getMicroseconds()
 {
-    struct timeval now;
-    gettimeofday(&now, NULL);
-    return (now.tv_sec-start.tv_sec)*1000000+(now.tv_usec-start.tv_usec);
+    return static_cast<unsigned long>(
+        std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now() - start).count());
 }
 
 //-- Common Across All Timers ----------------------------------------------------//
