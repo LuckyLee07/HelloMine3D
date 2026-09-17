@@ -1,5 +1,6 @@
 #include "OgreActorRenderer.h"
 #include "OgreItemGeometry.h"
+#include "../Presentation/ItemVisualPose.h"
 
 #include <Ogre.h>
 
@@ -449,6 +450,7 @@ OgreActorRenderer::ActorVisual OgreActorRenderer::createVisual(
             buildUnitCube(*visual.object, ItemMaterial, m_castShadows);
         }
         else {
+            visual.itemIcon = !itemVisualUsesCube(id);
             visual.object->begin(id == Material::Glass || id == Material::GlassBorderless
                 ? "HelloMine3D/Transparent" : "HelloMine3D/Terrain",
                 Ogre::RenderOperation::OT_TRIANGLE_LIST);
@@ -497,23 +499,15 @@ void OgreActorRenderer::updateVisual(
         !intersectsFirstPersonNearPlane(snapshot, cameraPosition));
     if (snapshot.type == "item")
     {
-        const float phase = snapshot.itemAgeSeconds * 2.f +
-            static_cast<float>(snapshot.id % 17);
-        visual.node->setPosition(snapshot.position.x,
-                                 snapshot.position.y + .22f +
-                                     std::sin(phase) * .025f * m_animationStrength,
-                                 snapshot.position.z);
+        const auto pose = ItemVisualPose::drop(snapshot.position, snapshot.rotation,
+            cameraPosition, snapshot.itemAgeSeconds, snapshot.id, visual.itemIcon,
+            m_animationStrength);
+        visual.node->setPosition(pose.position.x, pose.position.y, pose.position.z);
         visual.node->setScale(snapshot.dimensions.x * 2.0f,
                               snapshot.dimensions.y * 2.0f,
                               snapshot.dimensions.z * 2.0f);
-        const Ogre::Quaternion pitch(
-            Ogre::Degree(snapshot.rotation.x), Ogre::Vector3::UNIT_X);
-        const Ogre::Quaternion yaw(
-            Ogre::Degree(snapshot.rotation.y + snapshot.itemAgeSeconds * 35.f * m_animationStrength),
-            Ogre::Vector3::UNIT_Y);
-        const Ogre::Quaternion roll(
-            Ogre::Degree(snapshot.rotation.z), Ogre::Vector3::UNIT_Z);
-        visual.node->setOrientation(yaw * pitch * roll);
+        visual.node->setOrientation(Ogre::Quaternion(pose.orientation.w,
+            pose.orientation.x, pose.orientation.y, pose.orientation.z));
         return;
     }
 

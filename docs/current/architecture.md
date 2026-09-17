@@ -634,7 +634,8 @@ block、Actor、inventory、objective or persistence truth。
 在水面下 0.25 m 带内平滑增加水下雾和轻微曝光衰减；空气和关闭大气表现保持原环境，
 见[水面合同](../contracts/visual-water-depth-v1.md)。
 `ActorSnapshot` 复制物品材质、数量、年龄；Ogre/UI 共用有界纯几何缓存，工具按 Alpha 轮廓挤出厚度、
-方块使用实际材质分面，见[物品表现合同](../contracts/visual-item-volume-v1.md)。敌人 shader 接收局部坐标与
+方块使用实际材质分面。掉落方块保留旋转，薄图标模型通过纯 `ItemVisualPose` 朝向观察者并有界摆动，
+避免转到侧面丢失轮廓；不改变 Actor、拾取或保存数据，见[物品表现合同](../contracts/visual-item-volume-v1.md)。敌人 shader 接收局部坐标与
 每部件 custom 参数（角色/守卫/蓄力比例），只表达已有姿态；不增加 AI、判定、掉落或持久化状态。
 
 暖野 M1 在用户再次评价树冠后撤回叶簇原型，网格生成、剔除、上传与阴影回到既有立方叶路径，

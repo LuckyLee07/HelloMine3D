@@ -68,6 +68,7 @@ class OgreActorRenderer
         std::vector<ActorPartVisual> parts;
         std::string type;
         int itemMaterialId = 0;
+        bool itemIcon = false;
     };
 
     ActorVisual createVisual(const ActorSnapshot& snapshot);

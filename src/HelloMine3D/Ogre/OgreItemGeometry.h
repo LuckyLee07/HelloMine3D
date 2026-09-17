@@ -10,6 +10,14 @@
 #include "../World/Block/BlockDatabase.h"
 #include "../World/Block/BlockDefinition.h"
 
+inline bool itemVisualUsesCube(Material::ID id)
+{
+    if (id <= Material::Nothing || id >= Material::Count) return false;
+    const auto& material = Material::toMaterial(id);
+    return material.isBlock && BlockDatabase::get().getDefinition(
+        material.toBlockID()).render.meshType == BlockMeshType::Cube;
+}
+
 // One bounded, resource-pack-aware CPU cache shared by hand and world drops.
 // No Ogre resources survive in the cache after the source alpha has been read.
 inline const ItemVisualGeometry::Mesh& itemVisualGeometry(Material::ID id)
@@ -44,10 +52,9 @@ inline const ItemVisualGeometry::Mesh& itemVisualGeometry(Material::ID id)
         const auto& material = Material::toMaterial(id);
         const auto icon = Material::iconCoordinate(id);
         if (!icon.available()) return empty;
-        if (material.isBlock) {
+        if (itemVisualUsesCube(id)) {
             const auto& render = BlockDatabase::get().getDefinition(material.toBlockID()).render;
-            if (render.meshType == BlockMeshType::Cube)
-                cache.meshes[id] = ItemVisualGeometry::cube(render.texTopCoord, render.texSideCoord, render.texBottomCoord);
+            cache.meshes[id] = ItemVisualGeometry::cube(render.texTopCoord, render.texSideCoord, render.texBottomCoord);
         }
         if (cache.meshes[id].empty())
             cache.meshes[id] = ItemVisualGeometry::extrudedIcon({icon.x, icon.y}, cache.masks[id]);
