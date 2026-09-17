@@ -11,13 +11,21 @@ void caseSurfaceMapObservations()
                 freshSaveDirectory("surface_map"), false, 0);
     auto& manager = world.getChunkManager();
     const auto initialCount = manager.getChunks().size();
-    const std::vector<VectorXZ> coordinates{{-1, -1}, {0, 0}, {90000, -90000}};
+    constexpr int fixtureChunkX = -90000;
+    constexpr int fixtureChunkZ = -90000;
+    const VectorXZ fixtureBlock{
+        fixtureChunkX * CHUNK_SIZE + CHUNK_SIZE - 1,
+        fixtureChunkZ * CHUNK_SIZE + CHUNK_SIZE - 1};
+    const std::vector<VectorXZ> coordinates{
+        fixtureBlock,
+        {80000 * CHUNK_SIZE + 8, 80000 * CHUNK_SIZE + 8},
+        {90000 * CHUNK_SIZE + 8, -90000 * CHUNK_SIZE + 8}};
     const auto unknown = manager.collectSurfaceMapSamples(coordinates);
     check("MAP/unknown-does-not-load-or-create", unknown.size() == 3 &&
           !unknown[0].known && !unknown[1].known && !unknown[2].known &&
           manager.getChunks().size() == initialCount);
 
-    auto& negative = manager.getOrCreateChunk(-1, -1);
+    auto& negative = manager.getOrCreateChunk(fixtureChunkX, fixtureChunkZ);
     negative.transitionDataResidency(ChunkDataResidencyState::Requested);
     negative.transitionDataResidency(ChunkDataResidencyState::Loading);
     std::vector<Block_t> ids(CHUNK_VOLUME * 3, 0);
@@ -48,7 +56,7 @@ void caseSurfaceMapObservations()
     negative.clearSaveDirty();
     manager.collectSurfaceMapSamples(coordinates);
     check("MAP/read-does-not-dirty-chunk", !negative.needsSave());
-    std::vector<VectorXZ> fullBatch(256, {-1, -1});
+    std::vector<VectorXZ> fullBatch(256, fixtureBlock);
     const auto full = manager.collectSurfaceMapSamples(fullBatch);
     check("MAP/bounded-full-batch", full.size() == 256 &&
           full.front().material == BlockId::Water && full.back().material == BlockId::Water);
@@ -56,7 +64,7 @@ void caseSurfaceMapObservations()
     try { manager.collectSurfaceMapSamples(std::vector<VectorXZ>(257)); }
     catch (const std::invalid_argument&) { rejected = true; }
     check("MAP/oversized-batch-rejected", rejected);
-    manager.unloadChunk(-1, -1);
+    manager.unloadChunk(fixtureChunkX, fixtureChunkZ);
     const auto evicted = manager.collectSurfaceMapSamples(coordinates);
     check("MAP/eviction-becomes-unknown-without-reload", !evicted[0].known &&
           manager.getChunks().size() == initialCount);
