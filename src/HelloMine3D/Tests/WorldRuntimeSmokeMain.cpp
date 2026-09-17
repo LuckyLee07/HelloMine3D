@@ -19715,6 +19715,7 @@ void caseWorldManager()
 #include "WaterDepthSmokeCases.h"
 #include "ItemVisualSmokeCases.h"
 #include "MinimapNavigationSmokeCases.h"
+#include "PresentationClockSmokeCases.h"
 
 int main()
 {
@@ -19867,6 +19868,9 @@ int main()
         else if (focus != nullptr && std::string(focus) == "ITEM_VISUAL") {
             caseItemVisualPresentation();
         }
+        else if (focus != nullptr && std::string(focus) == "PRESENTATION_CLOCK") {
+            casePresentationClock();
+        }
         else if (focus != nullptr && std::string(focus) == "WV2") {
             caseBlockTextureCoordinates();
             caseRuntimeConfigOwnership();
@@ -20004,6 +20008,7 @@ int main()
         caseWaterDepthPresentation();
         caseItemVisualPresentation();
         caseMinimapNavigation();
+        casePresentationClock();
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
         caseDebugPanelStartupOption();

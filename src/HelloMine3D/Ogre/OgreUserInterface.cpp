@@ -37,6 +37,7 @@
 #include "../Presentation/LocalizedPresentation.h"
 #include "../Presentation/PresentationCaption.h"
 #include "../Presentation/PresentationLayout.h"
+#include "../Presentation/PresentationClock.h"
 #include "../Presentation/MinimapNavigation.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/GameApplicationFlow.h"
@@ -699,7 +700,7 @@ class OgreUserInterface::Impl
         {
             previousPlayerHealth = stats.playerHealth;
         }
-        hudElapsedSeconds += std::max(0.f, deltaSeconds);
+        hudElapsedSeconds = advancePresentationClock(hudElapsedSeconds, deltaSeconds);
         const float frameSeconds = std::max(0.f, deltaSeconds);
         if (frameSeconds > 0.f)
         {
@@ -2122,7 +2123,7 @@ class OgreUserInterface::Impl
             value = std::clamp(value, 0.f, 1.f);
             return value * value * (3.f - 2.f * value);
         };
-        const float cycle = std::fmod(hudElapsedSeconds * 2.7f, 1.f);
+        const float cycle = static_cast<float>(std::fmod(hudElapsedSeconds * 2.7, 1.0));
         const float miningSwing = !miningProgress.active ? 0.f :
             cycle < .2f ? -.15f * ease(cycle / .2f) :
             cycle < .45f ? -.15f + 1.15f * ease((cycle - .2f) / .25f) :
@@ -2436,7 +2437,7 @@ class OgreUserInterface::Impl
             minimapValid = true;
         }
         if (hudElapsedSeconds < minimapNextRefresh) return;
-        minimapNextRefresh = hudElapsedSeconds + 1.f / 30.f;
+        minimapNextRefresh = hudElapsedSeconds + 1.0 / 30.0;
         constexpr int rowsPerRefresh = 3;
         std::vector<VectorXZ> positions;
         positions.reserve(MinimapCellCount * rowsPerRefresh);
@@ -4546,7 +4547,7 @@ class OgreUserInterface::Impl
     float previousPlayerHealth = -1.f;
     float interactionFeedbackSeconds = 0.f;
     ImVec4 interactionFeedbackColour = ImVec4(1.f, 1.f, 1.f, 1.f);
-    float hudElapsedSeconds = 0.f;
+    double hudElapsedSeconds = 0.0;
     float heldMovement = 0.f;
     float performanceSampleSeconds = 0.f;
     float performanceSamplePeakMs = 0.f;
@@ -4579,7 +4580,7 @@ class OgreUserInterface::Impl
     TerrainBiome minimapBiome = TerrainBiome::Grassland;
     MinimapNavigation::Memory navigationMemory;
     int minimapRefreshRow = 0;
-    float minimapNextRefresh = 0.f;
+    double minimapNextRefresh = 0.0;
     int minimapSeed = 0;
     int minimapGenerationVersion = 0;
     int minimapCenterX = std::numeric_limits<int>::min();
