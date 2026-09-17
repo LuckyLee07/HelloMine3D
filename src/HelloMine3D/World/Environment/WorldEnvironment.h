@@ -43,6 +43,9 @@ class WorldEnvironment {
     static constexpr int TicksPerDay = 24000;
 
     static WorldEnvironmentState evaluate(float worldTime);
+    // Presentation-only medium; the world clock and water palette stay intact.
+    static WorldEnvironmentState forCameraMedium(
+        const WorldEnvironmentState &air, float immersion);
     static glm::vec3 directionalFogColour(
         const WorldEnvironmentState &state,
         const glm::vec3 &viewDirection);

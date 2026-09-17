@@ -5359,6 +5359,27 @@ void caseWorldEnvironment()
               glm::length(negative.waterDeepColour -
                           midnight.waterDeepColour) < epsilon);
 
+    const auto dryView = WorldEnvironment::forCameraMedium(noon, -1.f);
+    const auto submergedView = WorldEnvironment::forCameraMedium(noon, 1.f);
+    const auto waterlineView = WorldEnvironment::forCameraMedium(noon, .5f);
+    const auto nightWaterView = WorldEnvironment::forCameraMedium(midnight, 2.f);
+    check("V10C/camera-air-medium-retains-original-state",
+          dryView.fogDensity == noon.fogDensity && dryView.daylight == noon.daylight &&
+              dryView.fogColour == noon.fogColour && dryView.fogSunwardColour == noon.fogSunwardColour);
+    check("V10C/submerged-camera-has-bounded-water-visibility",
+          std::abs(submergedView.fogDensity - .065f) < epsilon &&
+              submergedView.fogDirectionalStrength == 0.f &&
+              submergedView.fogColour.b > submergedView.fogColour.r &&
+              submergedView.daylight < noon.daylight &&
+              submergedView.waterDeepColour == noon.waterDeepColour &&
+              submergedView.sunDirection == noon.sunDirection && submergedView.cycle == noon.cycle);
+    check("V10C/waterline-transition-is-bounded-and-night-remains-distinct",
+          waterlineView.fogDensity > noon.fogDensity &&
+              waterlineView.fogDensity < submergedView.fogDensity &&
+              colourIsBounded(nightWaterView.fogColour) &&
+              nightWaterView.fogDensity == submergedView.fogDensity &&
+              glm::length(nightWaterView.fogColour) < glm::length(submergedView.fogColour));
+
     const glm::vec3 duskSunwardFog =
         WorldEnvironment::directionalFogColour(
             dusk, dusk.sunDirection);
@@ -19654,6 +19675,7 @@ void caseWorldManager()
 } // namespace
 
 #include "SurfaceMapSmokeCases.h"
+#include "WaterDepthSmokeCases.h"
 
 int main()
 {
@@ -19795,6 +19817,9 @@ int main()
         else if (focus != nullptr && std::string(focus) == "SURFACE_MAP") {
             caseSurfaceMapObservations();
         }
+        else if (focus != nullptr && std::string(focus) == "WATER_DEPTH") {
+            caseWaterDepthPresentation();
+        }
         else if (focus != nullptr && std::string(focus) == "WV2") {
             caseBlockTextureCoordinates();
             caseRuntimeConfigOwnership();
@@ -19929,6 +19954,7 @@ int main()
         }
         else {
         caseSurfaceMapObservations();
+        caseWaterDepthPresentation();
         caseWorldOutcomeAndLocalizedText();
         caseWaystoneVictoryLoop();
         caseDebugPanelStartupOption();

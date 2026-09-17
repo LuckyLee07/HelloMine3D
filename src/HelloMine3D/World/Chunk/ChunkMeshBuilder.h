@@ -65,7 +65,8 @@ class ChunkMeshBuilder {
                           float textureRepeatWidth = 1.f,
                           float textureRepeatHeight = 1.f,
                           const std::array<float, 8> *textureRepeatCoords =
-                              nullptr);
+                              nullptr,
+                          bool shareRepeatVertices = true);
 
     void setActiveMesh(ChunkBlock block);
 

@@ -72,20 +72,53 @@ float groundNoise(vec2 position)
     return mix(mix(values.x, values.y, f.x), mix(values.z, values.w, f.x), f.y);
 }
 
-vec3 groundPalette(vec3 colour, vec2 tile)
+vec3 naturalPalette(vec3 colour, vec2 tile)
 {
+    if (surfaceLightingStrength < 0.5) return colour;
+    bool ecology = tile.y >= 3.0 && tile.y <= 7.0;
     bool grassTop = (tile.y == 0.0 && tile.x == 0.0) ||
-        (tile.y >= 3.0 && tile.y <= 7.0 && tile.x <= 2.0);
-    if (!grassTop || surfaceLightingStrength < 0.5) return colour;
-    float large = groundNoise(terrainWorldPosition.xz * 0.022);
-    float local = groundNoise(terrainWorldPosition.xz * 0.085 + vec2(17.3, -9.1));
-    float patch = large * 0.72 + local * 0.28;
-    float brightness = dot(colour, vec3(0.2126, 0.7152, 0.0722));
-    // Compress fine texel contrast; broad patches remain legible on slopes.
-    float quiet = mix(brightness, 0.43, 0.22);
-    vec3 sage = quiet * vec3(0.89, 1.06, 0.78);
-    return mix(colour, sage, 0.40) * mix(vec3(0.85, 0.93, 0.91),
-                                      vec3(1.04, 1.01, 0.89), patch);
+        (ecology && tile.x <= 2.0);
+    bool grassSide = (tile.y == 0.0 && tile.x == 1.0) ||
+        (ecology && tile.x >= 3.0 && tile.x <= 5.0);
+    bool leaves = (tile.y == 0.0 && tile.x == 6.0) ||
+        (ecology && tile.x >= 6.0 && tile.x <= 8.0);
+    bool tallGrass = (tile.y == 0.0 && tile.x == 11.0) ||
+        (ecology && tile.x >= 12.0 && tile.x <= 14.0);
+    bool flower = tile.y == 0.0 && tile.x == 10.0;
+    bool greenFringe = grassSide && colour.g > colour.r * 1.03;
+    bool flowerStem = flower && colour.g > colour.r;
+    float luminance = dot(colour, vec3(0.2126, 0.7152, 0.0722));
+    if (grassTop || greenFringe || leaves || tallGrass || flowerStem)
+    {
+        // Ground and foliage share the same broad field across chunk edges.
+        // Preserve biome hues and cutout alpha; only compress fine contrast.
+        float large = groundNoise(terrainWorldPosition.xz * 0.022);
+        float local = groundNoise(terrainWorldPosition.xz * 0.085 + vec2(17.3, -9.1));
+        float patch = large * 0.72 + local * 0.28;
+        float quiet = mix(luminance, leaves ? 0.37 : 0.43, leaves ? 0.18 : 0.22);
+        vec3 sage = quiet * vec3(0.89, 1.06, 0.78);
+        float blend = leaves ? 0.32 : (tallGrass || flowerStem ? 0.48 : 0.40);
+        return mix(colour, sage, blend) * mix(vec3(0.85, 0.93, 0.91),
+                                             vec3(1.04, 1.01, 0.89), patch);
+    }
+    if (flower)
+    {
+        // Petals remain a local accent instead of a saturated red beacon.
+        return mix(colour, luminance * vec3(1.70, 0.65, 0.58), 0.28);
+    }
+    bool earth = grassSide || (tile.y == 0.0 && tile.x == 2.0);
+    bool wood = (tile.y == 0.0 && (tile.x == 4.0 || tile.x == 5.0)) ||
+        (tile.y == 1.0 && tile.x == 5.0);
+    bool stone = (tile.y == 0.0 && tile.x == 3.0) ||
+        (tile.y == 1.0 && tile.x == 7.0);
+    if (earth || wood)
+    {
+        vec3 quiet = mix(colour, vec3(luminance), 0.10);
+        return mix(quiet, vec3(0.36, 0.29, 0.21), earth ? 0.07 : 0.04);
+    }
+    if (stone)
+        return mix(colour, vec3(luminance), 0.12) * vec3(1.025, 1.01, 0.975);
+    return colour;
 }
 
 void main()
@@ -122,7 +155,7 @@ void main()
     balancedColour.r += greenExcess * greenRedShift;
     balancedColour = pow(
         max(balancedColour, vec3(0.0)), vec3(toneGamma));
-    balancedColour = groundPalette(balancedColour, tileIndex);
+    balancedColour = naturalPalette(balancedColour, tileIndex);
     float shapedLight = mix(0.24, 1.0, clamp(terrainLight, 0.0, 1.0));
     float environmentExposure = mix(
         0.34, 1.0, clamp(environmentLight, 0.0, 1.0));
@@ -135,6 +168,12 @@ void main()
     litColour *= mix(vec3(1.0), lightTint,
         clamp(sunIntensity * surfaceLightingStrength, 0.0, 1.0));
     litColour += fogColour * (1.0 - environmentLight) * 0.035;
+    // The existing luminous Waystone core keeps its turquoise in moonlight.
+    // Only its cyan inset emits; the masonry frame still receives AO/shadow.
+    if (surfaceLightingStrength > 0.5 && tileIndex == vec2(15.0, 0.0)) {
+        float core = clamp((texel.b - texel.r) * 2.0, 0.0, 1.0);
+        litColour = max(litColour, texel.rgb * core * 0.74);
+    }
     float fogVisibility = clamp(
         exp(-terrainDistance * terrainDistance * fogDensity * fogDensity),
         0.0, 1.0);

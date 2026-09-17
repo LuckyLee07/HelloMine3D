@@ -808,6 +808,7 @@ void World::setBlock(int x, int y, int z, ChunkBlock block)
     }
     relightBlockEdit({x, y, z}, previousBlockLight, changedPositions);
     m_chunkRuntime.queueLightingUpdatesLocked(changedPositions);
+    m_chunkRuntime.queueWaterDepthUpdatesLocked(x, y, z);
 }
 
 std::optional<BlockEntityRecord>

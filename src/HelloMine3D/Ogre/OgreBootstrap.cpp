@@ -3763,8 +3763,21 @@ namespace
             }
         }
 
-        void syncEnvironment(const WorldEnvironmentState& state)
+        void syncEnvironment(const WorldEnvironmentState& air)
         {
+            float immersion = 0.f;
+            if (m_v10cAtmosphereEnabled && m_world != nullptr && m_camera != nullptr)
+            {
+                const Ogre::Vector3 eye = m_camera->getDerivedPosition();
+                const int x = World::toBlockCoord(eye.x);
+                const int y = World::toBlockCoord(eye.y);
+                const int z = World::toBlockCoord(eye.z);
+                // getBlock only observes resident chunks, never loads/generates.
+                if (m_world->getBlock(x, y, z) == BlockId::Water)
+                    immersion = m_world->getBlock(x, y + 1, z) == BlockId::Water
+                        ? 1.f : std::clamp((y + 1.f - eye.y - .05f) / .25f, 0.f, 1.f);
+            }
+            const WorldEnvironmentState state = WorldEnvironment::forCameraMedium(air, immersion);
             if (m_blockFeedback != nullptr) m_blockFeedback->setEnvironment(state);
             if (m_sceneManager == nullptr)
             {
@@ -3886,6 +3899,11 @@ namespace
                 "waterShallowColour", waterShallowColour);
             waterParameters->setNamedConstant(
                 "waterDeepColour", waterDeepColour);
+            waterParameters->setNamedConstant("waterDetailStrength",
+                m_v10cAtmosphereEnabled ? 1.f : 0.f);
+            materialPass("HelloMine3D/Water")->getVertexProgramParameters()
+                ->setNamedConstant("waterDetailStrength",
+                    m_v10cAtmosphereEnabled ? 1.f : 0.f);
 
             const char* actorMaterials[] = {
                 "HelloMine3D/ActorMob", "HelloMine3D/ActorStalker",

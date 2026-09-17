@@ -151,11 +151,13 @@ void sampleBoundedCloudLayer(vec3 direction, out float mask,
                     max(cloudHorizontalScale, 1.0);
     float firstDensity = cloudNoise(firstUv);
     float secondDensity = cloudNoise(secondUv + vec2(0.31, -0.17));
-    float density = max(firstDensity, secondDensity * 0.94);
-    float threshold = mix(0.70, 0.46, cloudCoverage);
-    float body = smoothstep(threshold - 0.12,
-                            threshold + 0.12, density);
-    float edge = smoothstep(threshold, threshold + 0.13, density);
+    // Blend two slab samples instead of taking their union: disconnected
+    // cloud groups retain clear sky between them, without extra noise octaves.
+    float density = mix(firstDensity, secondDensity, 0.32);
+    float threshold = mix(0.70, 0.48, cloudCoverage);
+    float body = smoothstep(threshold - 0.06,
+                            threshold + 0.14, density);
+    float edge = smoothstep(threshold, threshold + 0.085, density);
     float distanceFade = 1.0 - smoothstep(
         cloudMaxDistance * 0.72, cloudMaxDistance,
         cameraInside ? 0.0 : nearDistance);
@@ -169,7 +171,7 @@ void sampleBoundedCloudLayer(vec3 direction, out float mask,
 
     float topLighting = cameraPosition.y > top
         ? 0.88
-        : (cameraPosition.y < bottom ? 0.24 : 0.48);
+        : (cameraPosition.y < bottom ? 0.35 : 0.48);
     float lightAmount = clamp(
         topLighting + body * 0.34 - opticalDepth * 0.035,
         0.12, 1.0);

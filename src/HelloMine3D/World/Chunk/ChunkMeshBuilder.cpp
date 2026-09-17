@@ -663,7 +663,7 @@ void ChunkMeshBuilder::addVertexLitFace(
     const glm::ivec3 &blockPosition,
     const VertexLightingQuad &lighting, float textureRepeatWidth,
     float textureRepeatHeight,
-    const std::array<float, 8> *textureRepeatCoords)
+    const std::array<float, 8> *textureRepeatCoords, bool shareRepeatVertices)
 {
     std::array<float, 4> light{};
     bool flipDiagonal = lighting.flipDiagonal;
@@ -693,10 +693,14 @@ void ChunkMeshBuilder::addVertexLitFace(
             break;
     }
 
-    if (textureRepeatCoords != nullptr) {
+    if (textureRepeatCoords != nullptr && shareRepeatVertices) {
         mesh.addSharedFace(blockFace, textureCoords,
                            m_pInput->getLocation(), blockPosition, light,
                            flipDiagonal, *textureRepeatCoords);
+    }
+    else if (textureRepeatCoords != nullptr) {
+        mesh.addFace(blockFace, textureCoords, m_pInput->getLocation(),
+                     blockPosition, light, flipDiagonal, *textureRepeatCoords);
     }
     else {
         mesh.addFace(blockFace, textureCoords, m_pInput->getLocation(),
@@ -778,6 +782,31 @@ void ChunkMeshBuilder::tryAddFaceToMesh(
         const auto texCoords =
             BlockTextureCoordinates::get(appearance.coordinates.x,
                                          appearance.coordinates.y);
+
+        if (block == BlockId::Water) {
+            std::array<float, 8> waterData{};
+            for (int corner = 0; corner < 4; ++corner) {
+                const int cx = blockPosition.x + static_cast<int>(blockFace[corner * 3]);
+                const int cz = blockPosition.z + static_cast<int>(blockFace[corner * 3 + 2]);
+                const int y = blockPosition.y +
+                    static_cast<int>(blockFace[corner * 3 + 1]) - 1;
+                for (int dz = -1; dz <= 0; ++dz) {
+                    for (int dx = -1; dx <= 0; ++dx) {
+                        waterData[corner * 2] +=
+                            m_pInput->getWaterDepth(cx + dx, y, cz + dz) * 0.25f;
+                        const auto neighbour = m_pInput->getBlock(cx + dx, y, cz + dz);
+                        if (neighbour != BlockId::Air && neighbour != BlockId::Water &&
+                            !BlockDatabase::get().getDefinition(
+                                static_cast<BlockId>(neighbour.id)).transparent)
+                            waterData[corner * 2 + 1] += 0.25f;
+                    }
+                }
+            }
+            addVertexLitFace(*m_pActiveMesh, face, blockFace, texCoords,
+                blockPosition, calculateVertexLighting(face, blockPosition),
+                1.f, 1.f, &waterData, false);
+            return;
+        }
 
         addVertexLitFace(*m_pActiveMesh, face, blockFace, texCoords,
                          blockPosition,

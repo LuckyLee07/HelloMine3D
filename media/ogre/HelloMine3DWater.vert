@@ -9,11 +9,13 @@ out vec3 waterWorldPosition;
 out vec3 waterWorldNormal;
 out float waterLight;
 out float waterDistance;
+out vec2 waterSurfaceData;
 
 uniform mat4 worldViewProj;
 uniform mat4 worldView;
 uniform mat4 world;
 uniform float globalTime;
+uniform float waterDetailStrength;
 
 void main()
 {
@@ -25,15 +27,16 @@ void main()
                    baseWorldPosition.z * 0.21;
     float phaseB = globalTime * 0.53 + baseWorldPosition.z * 0.82 -
                    baseWorldPosition.x * 0.17;
-    animatedVertex.y += sin(phaseA) * 0.035;
-    animatedVertex.y += cos(phaseB) * 0.025;
+    animatedVertex.y += sin(phaseA) * 0.035 * waterDetailStrength;
+    animatedVertex.y += cos(phaseB) * 0.025 * waterDetailStrength;
     animatedVertex.y -= 0.10;
 
     float slopeX = cos(phaseA) * 0.035 * 0.66 +
                    sin(phaseB) * 0.025 * 0.17;
     float slopeZ = cos(phaseA) * 0.035 * 0.21 -
                    sin(phaseB) * 0.025 * 0.82;
-    vec3 localNormal = normalize(vec3(-slopeX, 1.0, -slopeZ));
+    vec3 localNormal = normalize(vec3(-slopeX * waterDetailStrength, 1.0,
+                                     -slopeZ * waterDetailStrength));
     vec4 worldPosition = world * animatedVertex;
 
     gl_Position = worldViewProj * animatedVertex;
@@ -41,4 +44,5 @@ void main()
     waterWorldNormal = normalize(mat3(world) * localNormal);
     waterLight = uv2;
     waterDistance = length((worldView * animatedVertex).xyz);
+    waterSurfaceData = uv1;
 }

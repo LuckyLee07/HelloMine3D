@@ -26,6 +26,9 @@ class SectionMeshInput {
   public:
     static constexpr int Size = CHUNK_SIZE + 2;
     static constexpr int Volume = Size * Size * Size;
+    // Water absorption is saturated beyond this depth. Sampling remains local
+    // to resident data, including at most one section below this snapshot.
+    static constexpr int MaxWaterDepth = 8;
 
     /// Must be called while the world lock is held.
     void capture(ChunkSection &section,
@@ -39,6 +42,7 @@ class SectionMeshInput {
     LightLevel getCombinedLight(int x, int y, int z) const;
     TerrainBiome getBiome(int x, int z) const;
     int getTerrainSeed() const noexcept;
+    float getWaterDepth(int x, int y, int z) const;
 
     /// Valid for y in [0, CHUNK_SIZE).
     bool shouldMakeLayer(int y) const;
@@ -54,6 +58,7 @@ class SectionMeshInput {
     std::array<ChunkBlock, Volume> m_blocks{};
     std::array<LightLevel, Volume> m_sunlight{};
     std::array<LightLevel, Volume> m_blockLight{};
+    std::array<std::uint8_t, Volume> m_waterDepth{};
     std::array<TerrainBiome, Size * Size> m_biomes{};
 
     /// Own layers for y in [-1, CHUNK_SIZE], stored at y + 1.

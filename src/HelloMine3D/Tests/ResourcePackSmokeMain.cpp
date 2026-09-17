@@ -173,6 +173,7 @@ namespace
             {"shader", "media/ogre/HelloMine3DTerrainShadow.frag"},
             {"shader", "media/ogre/HelloMine3DTerrainShadow.vert"},
             {"shader", "media/ogre/HelloMine3DWater.frag"},
+            {"shader", "media/ogre/HelloMine3DWater.vert"},
             {"shape", "media/shapes/Cross.shape"},
             {"texture", "media/textures/DefaultPack.png"},
             {"texture", "media/textures/WarmWilderness64.hmt"},
@@ -249,6 +250,7 @@ namespace
     void writeAtmosphereFixture(const fs::path &root)
     {
         writeFile(root / "media/ogre/HelloMine3D.program",
+            "param_named waterDetailStrength float\n"
             "param_named surfaceLightingStrength float\n"
             "param_named fogSunwardColour float3\n"
             "param_named fogDirectionalStrength float\n"
@@ -290,7 +292,12 @@ namespace
             "uniform float fogDirectionalStrength;\n"
             "uniform vec3 cameraPosition;\n"
             "vec3 directionalFogColour() {}\n");
+        writeFile(root / "media/ogre/HelloMine3DWater.vert",
+            "out vec2 waterSurfaceData;\nuniform float waterDetailStrength;\n");
         writeFile(root / "media/ogre/HelloMine3DWater.frag",
+            "in vec2 waterSurfaceData;\n"
+            "uniform float waterDetailStrength;\n"
+            "uniform float globalTime;\n"
             "uniform vec3 fogSunwardColour;\n"
             "uniform float fogDirectionalStrength;\n"
             "vec3 directionalFogColour() {}\n");
@@ -340,6 +347,18 @@ namespace
                           validateAtmosphereShaderContract(resolver);
                       },
                       "missing interface declaration"));
+        }
+        for (const char* shader : {"HelloMine3DWater.vert", "HelloMine3DWater.frag"})
+        {
+            const fs::path root = freshRoot(std::string("visual-interface-stale-") + shader);
+            writeAtmosphereFixture(root);
+            const auto pack = createPack(root, "stale-water", "Stale water", 1,
+                {{std::string("media/ogre/") + shader, "uniform float fogDirectionalStrength;\n"}});
+            ResourcePackResolver resolver;
+            resolver.freeze(root.string(), requirements(), {pack.string()});
+            check(std::string("VISUAL_INTERFACE/reject-stale-") + shader,
+                throwsContaining([&] { validateAtmosphereShaderContract(resolver); },
+                                 "missing interface declaration"));
         }
     }
 

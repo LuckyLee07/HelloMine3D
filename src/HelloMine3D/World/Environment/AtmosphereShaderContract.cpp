@@ -45,6 +45,7 @@ void validateAtmosphereShaderContract(
     requireTokens(
         resolver, "media/ogre/HelloMine3D.program",
         {"param_named surfaceLightingStrength float",
+         "param_named waterDetailStrength float",
          "param_named fogSunwardColour float3",
          "param_named fogDirectionalStrength float",
          "param_named cloudLayerEnabled float",
@@ -89,8 +90,14 @@ void validateAtmosphereShaderContract(
          "uniform vec3 cameraPosition;",
          "vec3 directionalFogColour"});
     requireTokens(
+        resolver, "media/ogre/HelloMine3DWater.vert",
+        {"out vec2 waterSurfaceData;", "uniform float waterDetailStrength;"});
+    requireTokens(
         resolver, "media/ogre/HelloMine3DWater.frag",
         {"uniform vec3 fogSunwardColour;",
+         "in vec2 waterSurfaceData;",
+         "uniform float waterDetailStrength;",
+         "uniform float globalTime;",
          "uniform float fogDirectionalStrength;",
          "vec3 directionalFogColour"});
     requireTokens(

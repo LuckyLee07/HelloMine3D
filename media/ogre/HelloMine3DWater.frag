@@ -4,6 +4,7 @@ in vec3 waterWorldPosition;
 in vec3 waterWorldNormal;
 in float waterLight;
 in float waterDistance;
+in vec2 waterSurfaceData;
 
 out vec4 fragmentColour;
 
@@ -20,6 +21,8 @@ uniform float sunIntensity;
 uniform vec3 waterShallowColour;
 uniform vec3 waterDeepColour;
 uniform vec3 cameraPosition;
+uniform float globalTime;
+uniform float waterDetailStrength;
 
 vec3 directionalFogColour(vec3 viewDirection)
 {
@@ -53,16 +56,24 @@ void main()
     float facing = clamp(dot(normal, viewDirection), 0.0, 1.0);
     float fresnel = 0.08 + 0.82 * pow(1.0 - facing, 3.2);
 
-    float distanceDepth = smoothstep(12.0, 150.0, waterDistance);
-    float angleDepth = 1.0 - clamp(normal.y, 0.0, 1.0);
-    float depthAmount = clamp(0.18 + distanceDepth * 0.58 +
-                              angleDepth * 0.24, 0.0, 1.0);
+    // Snapshot metres of actual water below this surface. Distance is reserved
+    // for atmospheric fog, so an unchanged pool keeps its depth as we move.
+    float depth = clamp(waterSurfaceData.x, 0.0, 8.0);
+    float depthAmount = 1.0 - exp(-depth * 0.32);
     vec3 bodyColour = mix(waterShallowColour, waterDeepColour, depthAmount);
 
     float skyAmount = clamp(normal.y * 0.72 + (1.0 - facing) * 0.28,
                             0.0, 1.0);
     vec3 reflectedSky = mix(skyHorizonColour, skyZenithColour, skyAmount);
     vec3 colour = mix(bodyColour, reflectedSky, fresnel * 0.72);
+
+    float shore = smoothstep(0.04, 0.62, waterSurfaceData.y);
+    float ripplePhase = shore * 22.0 - globalTime * 2.4 +
+        dot(waterWorldPosition.xz, vec2(0.12, 0.08));
+    float ripple = pow(max(sin(ripplePhase), 0.0), 12.0) *
+        shore * (1.0 - shore) * waterDetailStrength;
+    colour *= 1.0 - shore * 0.08 * waterDetailStrength;
+    colour += mix(waterShallowColour, vec3(0.73, 0.85, 0.81), 0.65) * ripple * 0.38;
 
     vec3 halfDirection = normalize(viewDirection + normalize(sunDirection));
     float sunSparkle = pow(max(dot(normal, halfDirection), 0.0), 96.0) *
@@ -84,6 +95,7 @@ void main()
     vec3 localFogColour = directionalFogColour(
         waterWorldPosition - cameraPosition);
     colour = mix(localFogColour, colour, fogVisibility);
-    float alpha = cameraBelowSurface ? 0.94 : mix(0.72, 0.90, fresnel);
+    float alpha = cameraBelowSurface ? 0.90 :
+        clamp(mix(0.36, 0.84, depthAmount) + fresnel * 0.12, 0.36, 0.94);
     fragmentColour = vec4(clamp(colour, 0.0, 1.0), alpha);
 }

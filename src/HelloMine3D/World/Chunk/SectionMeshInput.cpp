@@ -46,6 +46,25 @@ void SectionMeshInput::capture(
         }
     }
 
+    for (int z = -1; z <= CHUNK_SIZE; ++z) {
+        for (int x = -1; x <= CHUNK_SIZE; ++x) {
+            int depth = 0;
+            if (getBlock(x, -1, z) == BlockId::Water) {
+                // getBlock only reads existing chunks while this capture owns
+                // the world lock; it never creates or loads a neighbour.
+                for (int y = -2; y >= -MaxWaterDepth; --y) {
+                    if (section.getBlock(x, y, z) != BlockId::Water) break;
+                    ++depth;
+                }
+            }
+            for (int y = -1; y <= CHUNK_SIZE; ++y) {
+                depth = getBlock(x, y, z) == BlockId::Water
+                    ? std::min(depth + 1, MaxWaterDepth) : 0;
+                m_waterDepth[index(x, y, z)] = static_cast<std::uint8_t>(depth);
+            }
+        }
+    }
+
     for (int y = -1; y <= CHUNK_SIZE; ++y) {
         m_ownLayerAllSolid[y + 1] = section.getLayer(y).isAllSolid();
     }
@@ -96,6 +115,13 @@ TerrainBiome SectionMeshInput::getBiome(int x, int z) const
 int SectionMeshInput::getTerrainSeed() const noexcept
 {
     return m_terrainSeed;
+}
+
+float SectionMeshInput::getWaterDepth(int x, int y, int z) const
+{
+    if (x < -1 || x > CHUNK_SIZE || y < -1 || y > CHUNK_SIZE ||
+        z < -1 || z > CHUNK_SIZE) return 0.f;
+    return static_cast<float>(m_waterDepth[index(x, y, z)]);
 }
 
 ChunkBlock SectionMeshInput::getBlock(int x, int y, int z) const

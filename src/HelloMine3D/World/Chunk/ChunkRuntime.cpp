@@ -569,6 +569,23 @@ void ChunkRuntime::queueBlockEditLocked(int blockX, int blockY, int blockZ)
     }
 }
 
+void ChunkRuntime::queueWaterDepthUpdatesLocked(int blockX, int blockY, int blockZ)
+{
+    const auto key = WorldCoordinates::getChunkXZ(blockX, blockZ);
+    const auto local = WorldCoordinates::getBlockXZ(blockX, blockZ);
+    const Chunk* chunk = m_chunkManager.findChunk(key.x, key.z);
+    if (chunk == nullptr || !chunk->hasLoaded()) return;
+    std::unordered_set<glm::ivec3, IVec3Hash> updates;
+    for (int dy = 1; dy <= SectionMeshInput::MaxWaterDepth; ++dy) {
+        if (chunk->getBlock(local.x, blockY + dy, local.z) != BlockId::Water)
+            break;
+        for (const ChunkUpdateKey& update : ChunkUpdatePlanner::planForBlockEdit(
+                 blockX, blockY + dy, blockZ))
+            updates.emplace(update.x, update.y, update.z);
+    }
+    for (const auto& update : updates) queueSectionUpdateLocked(update);
+}
+
 void ChunkRuntime::queueSectionUpdateLocked(const glm::ivec3 &key)
 {
     Chunk *chunk = m_chunkManager.findChunk(key.x, key.z);

@@ -11,6 +11,7 @@
 #include <array>
 #include <cmath>
 #include <fstream>
+#include <filesystem>
 #include <iostream>
 #include <iterator>
 #include <stdexcept>
@@ -31,6 +32,82 @@ void require(bool condition, const std::string &message)
         throw std::runtime_error(message);
     }
 }
+
+void checkDepthFragment(const std::filesystem::path& directory)
+{
+    std::ifstream input(directory / "HelloMine3DWater.frag");
+    require(input.good(), "Cannot read water fragment shader");
+    const std::string fragment{std::istreambuf_iterator<char>(input), {}};
+    const std::string vertex = R"GLSL(#version 150
+out vec3 waterWorldPosition;
+out vec3 waterWorldNormal;
+out float waterLight;
+out float waterDistance;
+out vec2 waterSurfaceData;
+uniform vec2 depthAndShore;
+uniform float diagnosticDistance;
+void main() {
+    vec2 position = gl_VertexID == 0 ? vec2(-1,-1) :
+        (gl_VertexID == 1 ? vec2(3,-1) : vec2(-1,3));
+    gl_Position = vec4(position, 0, 1);
+    waterWorldPosition = vec3(0);
+    waterWorldNormal = vec3(0,1,0);
+    waterLight = 1;
+    waterDistance = diagnosticDistance;
+    waterSurfaceData = depthAndShore;
+})GLSL";
+    const GLuint program = glCreateProgram();
+    for (const auto& entry : {std::pair<GLenum, const std::string*>{GL_VERTEX_SHADER, &vertex},
+                             {GL_FRAGMENT_SHADER, &fragment}}) {
+        const GLuint shader = glCreateShader(entry.first);
+        const char* source = entry.second->c_str();
+        glShaderSource(shader, 1, &source, nullptr);
+        glCompileShader(shader);
+        GLint ok = 0; char log[4096]{};
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &ok);
+        glGetShaderInfoLog(shader, sizeof(log), nullptr, log);
+        require(ok, std::string("Depth fragment compile: ") + log);
+        glAttachShader(program, shader); glDeleteShader(shader);
+    }
+    glLinkProgram(program);
+    GLint ok = 0; glGetProgramiv(program, GL_LINK_STATUS, &ok);
+    require(ok, "Depth fragment link failed");
+    glUseProgram(program);
+    const auto scalar = [&](const char* name, float value) {
+        glUniform1f(glGetUniformLocation(program, name), value);
+    };
+    const auto vector = [&](const char* name, float x, float y, float z) {
+        glUniform3f(glGetUniformLocation(program, name), x, y, z);
+    };
+    scalar("environmentLight", 1); scalar("waterDetailStrength", 1);
+    vector("waterShallowColour", .15f, .5f, .6f);
+    vector("waterDeepColour", .02f, .1f, .18f);
+    vector("sunDirection", 0, 1, 0); vector("cameraPosition", 0, 10, 0);
+    glDisable(GL_RASTERIZER_DISCARD); glDisable(GL_BLEND);
+    glViewport(0, 0, 1, 1);
+    const auto sample = [&](float depth, float distance, float shore, float time) {
+        glUniform2f(glGetUniformLocation(program, "depthAndShore"), depth, shore);
+        scalar("diagnosticDistance", distance); scalar("globalTime", time);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        std::array<unsigned char, 4> pixel{};
+        glReadPixels(0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel.data());
+        require(glGetError() == GL_NO_ERROR, "Depth fragment draw failed");
+        return pixel;
+    };
+    const auto shallow = sample(1, 12, 0, 0), deep = sample(8, 12, 0, 0);
+    require(shallow[1] > deep[1] && shallow[2] > deep[2] && shallow[3] < deep[3],
+        "Water depth does not increase colour absorption and opacity");
+    require(shallow == sample(1, 150, 0, 0), "Depth incorrectly depends on camera distance");
+    require(deep == sample(80, 12, 0, 0), "Depth does not saturate at the sampling bound");
+    const auto shoreA = sample(1, 12, .4f, 0), shoreB = sample(1, 12, .4f, 1);
+    require(shoreA != shoreB, "Shore ripple does not animate");
+    scalar("waterDetailStrength", 0);
+    require(sample(1, 12, .4f, 0) == sample(1, 12, .4f, 1), "Fallback shoreline still animates");
+    vector("cameraPosition", 0, -1, 0);
+    require(sample(1, 12, 0, 0)[3] >= 225, "Underwater surface loses opacity");
+    std::cout << "[WATER_SHADER] PASS depth-absorption distance-invariance depth-bound shore-motion fallback underwater\n";
+    glDeleteProgram(program);
+}
 }
 
 int main(int argc, char **argv)
@@ -40,6 +117,17 @@ int main(int argc, char **argv)
         std::ifstream input(argv[1]);
         require(input.good(), "Cannot read water vertex shader");
         const std::string source{std::istreambuf_iterator<char>(input), {}};
+        const auto directory = std::filesystem::path(argv[1]).parent_path();
+        std::ifstream declarationsInput(directory / "HelloMine3D.program");
+        const std::string declarations{std::istreambuf_iterator<char>(declarationsInput), {}};
+        for (const char* name : {"WaterVertex", "WaterFragment"}) {
+            const auto start = declarations.find(std::string("program HelloMine3D/") + name + " glsl");
+            require(start != std::string::npos, "Missing water program declaration");
+            const auto end = declarations.find("\n}", start);
+            const auto block = declarations.substr(start, end - start);
+            require(block.find("param_named_auto globalTime time 1.0") != std::string::npos &&
+                    block.find("time_0_x") == std::string::npos, "Water animation time resets");
+        }
 
         const CGLPixelFormatAttribute attributes[] = {
             kCGLPFAOpenGLProfile,
@@ -78,6 +166,9 @@ int main(int argc, char **argv)
         glGetProgramInfoLog(program, sizeof(log), nullptr, log);
         require(ok == GL_TRUE, std::string("Shader link failed: ") + log);
         glUseProgram(program);
+        const GLint detail = glGetUniformLocation(program, "waterDetailStrength");
+        require(detail >= 0, "Missing water detail fallback");
+        glUniform1f(detail, 1.f);
 
         // A CGL context has no default drawable. Draw calls still require a
         // complete framebuffer even when rasterization is discarded.
@@ -167,6 +258,16 @@ int main(int argc, char **argv)
         std::cout << "pairs=" << pairs
                   << " max_position_delta=" << maxPositionDelta
                   << " max_normal_delta=" << maxNormalDelta << '\n';
+        glUniform1f(globalTime, 0.9999f);
+        const auto before = sample(translation(0,48,0), 4,16,4);
+        glUniform1f(globalTime, 1.0001f);
+        const auto after = sample(translation(0,48,0), 4,16,4);
+        require(std::abs(before[1] - after[1]) < .0001f, "Water jumps at a second boundary");
+        glUniform1f(detail, 0.f);
+        const auto fallback = sample(translation(0,48,0), 4,16,4);
+        require(std::abs(fallback[1] - 63.9f) < .00001f && fallback[4] == 1.f,
+                "Water fallback is not level");
+        checkDepthFragment(directory);
         glDeleteBuffers(1, &buffer);
         glDeleteVertexArrays(1, &vao);
         glDeleteRenderbuffers(1, &colour);

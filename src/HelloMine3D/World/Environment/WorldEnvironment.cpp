@@ -40,7 +40,7 @@ WorldEnvironmentState WorldEnvironment::evaluate(float worldTime)
         1.f - smoothStep(0.f, 0.38f, std::abs(sunHeight));
 
     state.daylight = 0.18f + 0.82f * dayAmount;
-    state.fogDensity = 0.006f + (0.0015f - 0.006f) * dayAmount;
+    state.fogDensity = 0.006f + (0.0019f - 0.006f) * dayAmount;
 
     const glm::vec3 dayFog(0.56f, 0.70f, 0.80f);
     const glm::vec3 nightFog(0.025f, 0.040f, 0.085f);
@@ -112,6 +112,20 @@ WorldEnvironmentState WorldEnvironment::evaluate(float worldTime)
         mix(nightWaterDeep, dayWaterDeep, dayAmount),
         twilightWaterDeep, twilightAmount * 0.18f);
     return state;
+}
+
+WorldEnvironmentState WorldEnvironment::forCameraMedium(
+    const WorldEnvironmentState &air, float immersion)
+{
+    const float amount = std::clamp(immersion, 0.f, 1.f);
+    WorldEnvironmentState view = air;
+    const glm::vec3 waterFog = mix(air.waterDeepColour, air.waterShallowColour, 0.28f);
+    view.fogColour = mix(air.fogColour, waterFog, amount);
+    view.fogSunwardColour = mix(air.fogSunwardColour, waterFog, amount);
+    view.fogDensity += (0.065f - view.fogDensity) * amount;
+    view.fogDirectionalStrength *= 1.f - amount;
+    view.daylight *= 1.f - amount * 0.18f;
+    return view;
 }
 
 glm::vec3 WorldEnvironment::directionalFogColour(

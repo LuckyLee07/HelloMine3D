@@ -123,16 +123,18 @@ Pixels render(GLuint base, GLuint overlay, int stage, int tileX, bool occluded =
     require(glGetError()==GL_NO_ERROR,"OpenGL draw/readback failure");
     return pixels;
 }
-Pixels renderGround(GLuint shader, float enabled, float offset, int tile = 0)
+Pixels renderGround(GLuint shader, float enabled, float offset, int tile = 0,
+                    int tileY = 0, float daylight = 1.f)
 {
     glDisable(GL_BLEND); glDepthMask(GL_TRUE);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     setup(shader);
     value(shader, "surfaceLightingStrength", enabled);
+    value(shader, "environmentLight", daylight);
     glUniform1i(glGetUniformLocation(shader, "directionalShadowMap"), 1);
     const float world[]{1,0,0,0, 0,1,0,0, 0,0,1,0, offset,0,offset,1};
     glUniformMatrix4fv(glGetUniformLocation(shader,"world"),1,GL_FALSE,world);
-    quad(shader, tile, 0);
+    quad(shader, tile, tileY);
     Pixels pixels(Edge * Edge * 4);
     glReadPixels(0,0,Edge,Edge,GL_RGBA,GL_UNSIGNED_BYTE,pixels.data());
     require(glGetError() == GL_NO_ERROR, "Ground shader draw failed");
@@ -238,10 +240,41 @@ int main(int argc,char **argv)
             const auto quietGround = renderGround(base, 1.f, -16.f);
             check(mode+"-ground-palette-affects-grass", originalGround != quietGround);
             check(mode+"-ground-shadow-off-matches-standard", quietGround == renderGround(shadow, 1.f, -16.f));
-            check(mode+"-ground-palette-preserves-stone", renderGround(base, 0.f, 0.f, 3) == renderGround(base, 1.f, 0.f, 3));
+            check(mode+"-natural-palette-preserves-machinery", renderGround(base, 0.f, 0.f, 2, 1) == renderGround(base, 1.f, 0.f, 2, 1));
             check(mode+"-ground-palette-world-space-variation", quietGround != renderGround(base, 1.f, 32.f));
             png(output/(mode+"-ground-before.png"),originalGround);
             png(output/(mode+"-ground-after.png"),quietGround);
+            for (int tile : {1, 2, 3, 4, 5, 6, 10, 11})
+            {
+                const auto before = renderGround(base, 0.f, -16.f, tile);
+                const auto after = renderGround(base, 1.f, -16.f, tile);
+                bool sameSilhouette = true;
+                for (std::size_t p = 3; p < after.size(); p += 4)
+                    sameSilhouette &= before[p] == after[p];
+                const std::string name = mode + "-natural-" + std::to_string(tile);
+                check(name + "-palette-and-alpha", before != after && sameSilhouette);
+                check(name + "-shadow-off-agrees", after == renderGround(shadow, 1.f, -16.f, tile));
+                png(output/(name + "-before.png"), before);
+                png(output/(name + "-after.png"), after);
+            }
+            for (int row = 3; row <= 7; ++row)
+                for (int column : {0, 3, 6, 12})
+                    check(mode + "-ecology-" + std::to_string(row) + "-" + std::to_string(column),
+                        renderGround(base, 1.f, -16.f, column, row) ==
+                        renderGround(shadow, 1.f, -16.f, column, row));
+            const auto coreBefore = renderGround(base, 0.f, 0.f, 15, 0, .18f);
+            const auto coreAfter = renderGround(base, 1.f, 0.f, 15, 0, .18f);
+            int brighterCore = 0, retainedFrame = 0;
+            bool coreAlpha = true;
+            for (std::size_t p=0;p<coreAfter.size();p+=4) {
+                brighterCore += coreAfter[p+2] > coreBefore[p+2] + 10;
+                retainedFrame += std::equal(coreBefore.begin()+p, coreBefore.begin()+p+3, coreAfter.begin()+p);
+                coreAlpha &= coreBefore[p+3] == coreAfter[p+3];
+            }
+            check(mode+"-waystone-inset-readable-at-night", brighterCore > 100 && retainedFrame > 100 && coreAlpha);
+            check(mode+"-waystone-shadow-off-agrees", coreAfter == renderGround(shadow, 1.f, 0.f, 15, 0, .18f));
+            png(output/(mode+"-waystone-night.png"), coreAfter);
+            glUseProgram(base);
             value(base,"surfaceLightingStrength",0);
             glDeleteProgram(shadow);
             auto plain = render(base,0,-1,3), highlight = render(base,surface,-1,3);

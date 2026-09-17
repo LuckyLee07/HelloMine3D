@@ -86,7 +86,8 @@ vertex_program HelloMine3D/WaterVertex glsl
         param_named_auto worldViewProj worldviewproj_matrix
         param_named_auto worldView worldview_matrix
         param_named_auto world world_matrix
-        param_named_auto globalTime time_0_x 1.0
+        param_named_auto globalTime time 1.0
+        param_named waterDetailStrength float 1.0
     }
 }
 
@@ -142,6 +143,8 @@ fragment_program HelloMine3D/WaterFragment glsl
     syntax glsl150
     default_params
     {
+        param_named_auto globalTime time 1.0
+        param_named waterDetailStrength float 1.0
         param_named environmentLight float 1.0
         param_named fogColour float3 0.56 0.70 0.80
         param_named fogSunwardColour float3 0.78 0.70 0.59

@@ -93,6 +93,7 @@ class ChunkRuntime final : public NonCopyable {
 
     /// The caller must hold the shared world mutex for all Locked methods.
     void queueBlockEditLocked(int blockX, int blockY, int blockZ);
+    void queueWaterDepthUpdatesLocked(int blockX, int blockY, int blockZ);
     void queueLightingUpdatesLocked(
         const std::vector<glm::ivec3> &changedPositions);
     void processChunkUpdates(std::size_t budget);
