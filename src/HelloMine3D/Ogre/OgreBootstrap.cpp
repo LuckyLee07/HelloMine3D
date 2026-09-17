@@ -80,6 +80,7 @@
 #include "../World/Block/TerrainMaterialProfile.h"
 #include "../World/Block/TerrainTextureArray.h"
 #include "../World/Environment/AtmosphereShaderContract.h"
+#include "../World/Generation/Terrain/TerrainGenerator.h"
 #include "../World/World.h"
 #include "../World/Storage/WorldManagementService.h"
 
@@ -195,7 +196,8 @@ namespace
             phase.warmupMs = std::stod(fields[8]);
             phase.durationMs = std::stod(fields[9]);
             if (phase.name.empty() || !names.insert(phase.name).second ||
-                phase.terrainVersion < 7 || phase.terrainVersion > 10 ||
+                phase.terrainVersion < ForestEcologyTerrainGenerationVersion ||
+                phase.terrainVersion > CurrentTerrainGenerationVersion ||
                 (phase.scene != "forest" && phase.scene != "shore" &&
                  phase.scene != "meadow" && phase.scene != "relief") ||
                 (fields[5] != "0" && fields[5] != "1") ||

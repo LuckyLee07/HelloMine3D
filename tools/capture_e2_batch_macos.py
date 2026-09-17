@@ -48,6 +48,16 @@ E4_GROUPS = (
     ('relief-steady', 'relief', '1152 150 64', False),
     ('relief-streaming', 'relief', '1152 150 64', True),
 )
+E6_VISUALS = (
+    ('forest_positive', 'forest', '168 108 552', '0 0 0'),
+    ('forest_edge_negative', 'forest', '-120 115 -440', '0 0 0'),
+)
+E6_GROUPS = (
+    ('forest-positive-steady', 'forest', '168 108 552', False),
+    ('forest-positive-streaming', 'forest', '168 108 552', True),
+    ('forest-edge-negative-steady', 'forest', '-120 115 -440', False),
+    ('forest-edge-negative-streaming', 'forest', '-120 115 -440', True),
+)
 SETTINGS = """settings_version 8
 renderdistance 8
 directionalshadowquality high
@@ -134,7 +144,10 @@ def prepare_world_save(template, destination, phase):
 
 
 def phases_for(mode, reverse, profile='e2'):
-    if profile == 'e4':
+    if profile == 'e6':
+        groups, visuals = E6_GROUPS, E6_VISUALS
+        baseline, candidate = 11, 12
+    elif profile == 'e4':
         groups, visuals = E4_GROUPS, E4_VISUALS
         baseline, candidate = 9, 10
     elif profile == 'e3':
@@ -215,7 +228,7 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--mode', choices=('pilot', 'performance',
                                             'visual', 'all'), required=True)
-    parser.add_argument('--profile', choices=('e2', 'e3', 'e4'), default='e2',
+    parser.add_argument('--profile', choices=('e2', 'e3', 'e4', 'e6'), default='e2',
                         help='Frozen ecology phase set; defaults to E2')
     parser.add_argument('--reverse-order', action='store_true')
     parser.add_argument('--render-phase-diagnostics', action='store_true',
