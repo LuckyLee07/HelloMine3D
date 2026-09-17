@@ -3816,12 +3816,22 @@ class OgreUserInterface::Impl
                              ImGuiWindowFlags_NoResize |
                              ImGuiWindowFlags_NoSavedSettings))
         {
-            // Keep the result and commit controls visible while translated content
-            // and large-font inventories scroll within their own region.
+            // Recipes and materials may scroll without moving the complete input
+            // grid or the result controls out of view.
             ImGui::BeginChild("##CraftingContent", ImVec2(0.f,
                 -100.f * appliedSettings.uiScale), false);
             ImGui::TextWrapped("%s", tr("crafting.choose_hint").c_str());
             ImGui::TextWrapped("%s", tr("crafting.grid_hint").c_str());
+            const ImGuiStyle &craftingStyle = ImGui::GetStyle();
+            const float preferredCellWidth = 46.f * appliedSettings.uiScale;
+            const std::string gridTitle = std::to_string(gridSize) + "x" +
+                std::to_string(gridSize) + " " + tr("crafting.input_grid");
+            const float gridPanelWidth = std::max(
+                gridSize * preferredCellWidth + (gridSize - 1) * craftingStyle.ItemSpacing.x,
+                ImGui::CalcTextSize(gridTitle.c_str()).x) + 2.f * craftingStyle.WindowPadding.x;
+            const float materialsWidth = std::max(180.f,
+                ImGui::GetContentRegionAvail().x - gridPanelWidth - craftingStyle.ItemSpacing.x);
+            ImGui::BeginChild("##CraftingMaterials", ImVec2(materialsWidth, 0.f), false);
             if (ImGui::CollapsingHeader(tr("crafting.recipe_book").c_str()))
             {
                 ImGui::Text("%s: %zu / %zu",
@@ -3875,10 +3885,11 @@ class OgreUserInterface::Impl
             const PlayerSaveState state = player->getSaveState();
             ImGui::TextUnformatted(tr("crafting.inventory").c_str());
             const float craftingInventoryWidth = ImGui::GetContentRegionAvail().x;
+            const int inventoryColumns = craftingInventoryWidth >= 420.f * appliedSettings.uiScale ? 3 : 2;
             for (std::size_t index = 0; index < state.inventory.size();
                  ++index)
             {
-                if (index > 0)
+                if (index % inventoryColumns != 0)
                 {
                     ImGui::SameLine();
                 }
@@ -3892,7 +3903,8 @@ class OgreUserInterface::Impl
                     std::to_string(index);
                 ImGui::BeginDisabled(slot.amount <= 0);
                 if (drawInventoryCard(slot.materialId, slot.amount, label,
-                    ImVec2((craftingInventoryWidth - 4.f * ImGui::GetStyle().ItemSpacing.x) / 5.f, 56.f),
+                    ImVec2((craftingInventoryWidth - (inventoryColumns - 1) * craftingStyle.ItemSpacing.x) /
+                               inventoryColumns, 56.f),
                     slot.materialId == selectedCraftingMaterial && slot.amount > 0))
                 {
                     selectedCraftingMaterial = slot.materialId;
@@ -3907,12 +3919,15 @@ class OgreUserInterface::Impl
                 selectedCraftingMaterial = Material::ID::Nothing;
             }
 
-            ImGui::Separator();
-            ImGui::Text("%dx%d %s", gridSize, gridSize,
-                        tr("crafting.input_grid").c_str());
-            const float craftingCellWidth = std::min(46.f * appliedSettings.uiScale,
-                (ImGui::GetContentRegionAvail().x -
-                 (gridSize - 1) * ImGui::GetStyle().ItemSpacing.x) / gridSize);
+            ImGui::EndChild();
+            ImGui::SameLine();
+            ImGui::BeginChild("##CraftingGrid", ImVec2(0.f, 0.f), false);
+            ImGui::TextUnformatted(gridTitle.c_str());
+            const ImVec2 gridSpace = ImGui::GetContentRegionAvail();
+            const float craftingCellWidth = std::max(24.f, std::min({preferredCellWidth,
+                (gridSpace.x - (gridSize - 1) * craftingStyle.ItemSpacing.x) / gridSize,
+                (gridSpace.y - ImGui::GetFrameHeightWithSpacing() -
+                 gridSize * craftingStyle.ItemSpacing.y) / gridSize}));
             for (int index = 0; index < craftingSession->cellCount();
                  ++index)
             {
@@ -3955,6 +3970,7 @@ class OgreUserInterface::Impl
                 craftingSession->clear();
             }
 
+            ImGui::EndChild();
             ImGui::EndChild();
             const CraftingPreview preview = player->previewCrafting(
                 *craftingSession, runtimeRecipeRegistry());
