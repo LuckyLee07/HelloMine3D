@@ -21,6 +21,22 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def resource_manifest_entries(path):
+    lines = path.read_text().splitlines()
+    if not lines or lines[0] != "# HelloMine3D resource manifest v1":
+        raise ValueError(f"Invalid resource manifest header: {path}")
+    entries = [line for line in lines if line.strip() and not line.startswith("#")]
+    if entries != sorted(set(entries)):
+        raise ValueError("Resource manifest entries must be unique and sorted")
+    for entry in entries:
+        category, separator, relative = entry.partition("|")
+        resource = Path(relative)
+        if (not separator or not re.fullmatch(r"[a-z][a-z-]*", category)
+                or not relative or resource.is_absolute() or ".." in resource.parts):
+            raise ValueError(f"Invalid resource manifest line: {entry}")
+    return entries
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True,
@@ -31,6 +47,8 @@ def main():
                         default="Release", help="Configuration actually built by caller")
     parser.add_argument("--binary", type=Path,
                         help="Explicit client output for an isolated concurrent build")
+    parser.add_argument("--bundle-id",
+                        help="Stable project bundle identity; retained on subsequent refreshes")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     output = args.output.absolute()
@@ -40,6 +58,9 @@ def main():
     if args.refresh_existing != output.exists():
         parser.error("Use --refresh-existing only with an existing workbench .app")
     old_paths = set()
+    bundle_id = args.bundle_id or "local.hellomine3d.macos-goal"
+    if not re.fullmatch(r"local\.hellomine3d\.[a-z0-9-]+", bundle_id):
+        parser.error("Bundle id must be a local.hellomine3d project identity")
     if args.refresh_existing:
         inventory = output / "Contents/Resources/distribution-sha256.txt"
         metadata = json.loads((output / "Contents/Resources/build-identity.json").read_text())
@@ -47,8 +68,11 @@ def main():
             parser.error("Only an unaccepted, unsigned workbench package may be refreshed")
         with (output / "Contents/Info.plist").open("rb") as stream:
             info = plistlib.load(stream)
-        if info.get("CFBundleIdentifier") != "local.hellomine3d.macos-goal":
+        previous_bundle = metadata.get("bundle_id", "local.hellomine3d.macos-goal")
+        if info.get("CFBundleIdentifier") != previous_bundle:
             parser.error("Existing package has a different bundle identity")
+        if not args.bundle_id:
+            bundle_id = previous_bundle
         for entry in inventory.read_text().splitlines():
             expected, relative = entry.split("  ", 1)
             path = Path(relative)
@@ -70,9 +94,7 @@ def main():
     package = contents / "Resources"
     files = {}
     manifest = root / "media/resource-manifest.txt"
-    for line in manifest.read_text().splitlines():
-        if not line.strip() or line.startswith("#"):
-            continue
+    for line in resource_manifest_entries(manifest):
         _, separator, relative = line.partition("|")
         path = Path(relative)
         if not separator or path.is_absolute() or ".." in path.parts:
@@ -110,8 +132,8 @@ exec ./HelloMine3D "$@"
     managed_paths.add(launcher.relative_to(output))
     with (contents / "Info.plist").open("wb") as stream:
         plistlib.dump({"CFBundleExecutable": "HelloMine3D",
-                       "CFBundleIdentifier": "local.hellomine3d.macos-goal",
-                       "CFBundleName": "HelloMine3D macOS Goal",
+                       "CFBundleIdentifier": bundle_id,
+                       "CFBundleName": output.stem,
                        "CFBundlePackageType": "APPL",
                        "CFBundleVersion": "1",
                        "NSHighResolutionCapable": True}, stream)
@@ -126,6 +148,7 @@ exec ./HelloMine3D "$@"
     managed_paths.add(source_receipt.relative_to(output))
     metadata = {
         "platform": "macOS", "configuration": args.configuration,
+        "bundle_id": bundle_id,
         "source_commit": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=root, text=True).strip(),
         "tracked_diff_sha256": hashlib.sha256(subprocess.check_output(
