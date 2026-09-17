@@ -420,6 +420,25 @@ SHA-256 `6fd10394d740646d6971de313df85de4382fb22ff0c1b4a38b507c394de5f84b`。
 首次误预建输出目录导致的拒绝日志也保留。该反证继续支持不在 E2 生成层引入未测得收益的
 优化，正式岸边流送 `1.134× FAIL` 不改判。
 
+## 候选 23 后续证据增量包（2026-09-17）
+
+候选 23 原证据 ZIP 封存在匹配世界夹具复核之前，不能单独代表后续性能结论。为避免重打
+约 1 GB 已逐文件核验的基础包，新增独立后续证据包
+`HelloMine3D-E2-terrain-v8-candidate23-late-review-evidence.zip`，SHA-256
+`fedbcab270d2d987fd1c9fffb61152968893d25a786919ad6d0b5c2953317981`。它完整包含匹配
+夹具正序/反序 396 个文件、岸边流送负载判定、候选 24 汇总与时序、候选 25 三轮 A/B、
+合同和最新执行/审计报告，并在 `reference.json` 中绑定：
+
+- 游戏包 SHA-256 `ff2ba216060064ca0332bd89efda90ead913837fecab0f0ed388d65687cebb22`；
+- 基础证据包 SHA-256 `293b1406286920fe3cff5031fbc9aa752b0e20dfa67a1949c23a8e089e0b3a1f`；
+- 正式客户端二进制 SHA-256 `d41e615aeea8250c9790ffa7585925b807a109ce18a0e1be62a693a50b9714e6`。
+
+ZIP 解压校验通过，438 个清单文件逐项复算为 `438/438 PASS`；包内清单 SHA-256
+`caa5b946ab83bff770393f171f80791aeaf334e48ea4ad1de07a018134f2f45c`，外部收据为
+`build/ecology-e2-20260914/review-delivery-candidate23-late-evidence.json`。包状态明确为
+`FAIL_UNCHANGED_NORMAL_PLAY_BLOCKED / NOT_ACCEPTED`，不冒充完成版。最终结论冻结后仍需
+合并基础包、增量包和新增玩法证据，或在最终交付收据中将基础包与增量包定义为一组完整证据。
+
 ## 保留的失败及修复记录
 
 - v7 窗口首启因锁屏超时，原始失败见 `baseline/visual-v7-dry-shore/`。未以无窗口截图替代。
