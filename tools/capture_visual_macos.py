@@ -7,6 +7,7 @@ diagnostic evidence, never normal-input or independent gameplay acceptance.
 By default the supplied package is copied before use. --reuse-app runs the
 same supplied package for every capture and updates its diagnostic config;
 freeze and hash that package only after the final capture.
+Performance mode disables render readback; run visual captures separately.
 """
 import argparse
 import hashlib
@@ -14,6 +15,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import subprocess
 import time
@@ -34,6 +36,17 @@ SCENES = {
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def performance_framebuffer(client_log, width, height, pixel_ratio):
+    """Check actual Cocoa backing dimensions without a timed GPU readback."""
+    sizes = re.findall(r"Cocoa: Window created (\d+) x (\d+) with backing store size (\d+) x (\d+)", client_log)
+    expected = (width, height, width * pixel_ratio, height * pixel_ratio)
+    if len(sizes) != 1 or tuple(map(int, sizes[0])) != expected:
+        raise RuntimeError(f"Expected one Cocoa window with dimensions {expected}; got {sizes}")
+    if "[OgreRenderCapture] enabled" in client_log or "[OgreRenderCapture] captured" in client_log:
+        raise RuntimeError("Render readback was active during the performance run")
+    return list(expected[2:])
 
 
 def verified_package_entries(source):
@@ -170,7 +183,7 @@ seed random
         "HELLOMINE3D_WINDOW_HIDDEN": "0" if args.foreground else "1",
         "HELLOMINE3D_CATALOGUE_DIR": str(output / "catalogue"),
         "HELLOMINE3D_SHOW_DEBUG_INFO": "1" if args.debug else "0",
-        "HELLO_RENDER_CAPTURE": "1",
+        "HELLO_RENDER_CAPTURE": "0" if args.performance else "1",
         "HELLO_RENDER_CAPTURE_DIR": str(output / "frames"),
         "HELLO_RENDER_CAPTURE_MS": "5000,10000",
         "HELLO_RENDER_CAPTURE_MAX_DELTA_MS": "5000",
@@ -235,6 +248,7 @@ seed random
               "scene": args.scene, "settings": settings, "environment": environment,
               "window_size_points": [args.width, args.height],
               "window_mode": "foreground" if args.foreground else "hidden",
+              "render_readback": not args.performance,
               "expected_pixel_ratio": args.pixel_ratio,
               "platform": platform.platform(), "host_architecture": platform.machine(),
               "command": command, "launch_method": args.launch_method,
@@ -251,8 +265,9 @@ seed random
                                env={**os.environ, **environment},
                                stdout=stdout, stderr=stderr)
         frames = sorted((output / "frames").glob("*.png"))
-        if len(frames) != 2:
-            raise RuntimeError(f"Expected 2 captured frames, got {len(frames)}")
+        expected_frames = 0 if args.performance else 2
+        if len(frames) != expected_frames:
+            raise RuntimeError(f"Expected {expected_frames} captured frames, got {len(frames)}")
         # Window points and framebuffer pixels differ on Retina displays. Require
         # an explicit ratio so an unexpected resolution still fails the capture.
         import struct
@@ -269,6 +284,9 @@ seed random
                                    f"{expected_size[0]}x{expected_size[1]} at pixel ratio {args.pixel_ratio}")
         artifacts = frames
         if args.performance:
+            record["framebuffer_size_pixels"] = performance_framebuffer(
+                (output / "client.log").read_text(), args.width, args.height, args.pixel_ratio)
+            record["framebuffer_evidence"] = "Cocoa native window creation log"
             artifacts += [output / "performance/summary.txt", output / "performance/frames.csv"]
         for path in artifacts:
             if not path.is_file() or not path.stat().st_size:
