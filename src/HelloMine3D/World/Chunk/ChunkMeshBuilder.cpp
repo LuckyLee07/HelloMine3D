@@ -374,6 +374,9 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
                 cell.textureCoords = appearance.coordinates;
                 cell.appearanceKey = appearance.mergeKey;
                 cell.lighting = calculateVertexLighting(face, position);
+                if (m_pInput->containsWater()) {
+                    applyShoreTint(face, position, cell.lighting);
+                }
             }
         }
 
@@ -532,6 +535,60 @@ void ChunkMeshBuilder::addGreedyFace(CubeFace face,
     addVertexLitFace(m_pMeshes->solidMesh, face, vertices, atlasCoords,
                      blockPosition, lighting, static_cast<float>(width),
                      static_cast<float>(height), &repeatCoords);
+}
+
+float ChunkMeshBuilder::shoreTintAt(const glm::ivec3 &corner) const
+{
+    const int index = corner.x + ShoreCornerSize *
+        (corner.z + ShoreCornerSize * corner.y);
+    auto &sample = m_shoreSamples[index];
+    if (sample == 0) {
+        int wetColumns = 0;
+        for (int z = -1; z <= 0; ++z) {
+            for (int x = -1; x <= 0; ++x) {
+                if (m_pInput->getBlock(corner.x + x, corner.y - 1,
+                                       corner.z + z) == BlockId::Water ||
+                    m_pInput->getBlock(corner.x + x, corner.y,
+                                       corner.z + z) == BlockId::Water) {
+                    ++wetColumns;
+                }
+            }
+        }
+        sample = static_cast<std::uint8_t>(std::min(wetColumns, 2) + 1);
+    }
+    return 1.f - .09f * static_cast<float>(sample - 1);
+}
+
+void ChunkMeshBuilder::applyShoreTint(
+    CubeFace face, const glm::ivec3 &blockPosition,
+    VertexLightingQuad &lighting) const
+{
+    glm::ivec3 origin = blockPosition;
+    glm::ivec3 u{0}, v{0};
+    switch (face) {
+        case CubeFace::Bottom:
+        case CubeFace::Top:
+            origin.y += face == CubeFace::Top ? 1 : 0;
+            u.x = 1; v.z = 1;
+            break;
+        case CubeFace::Left:
+        case CubeFace::Right:
+            origin.x += face == CubeFace::Right ? 1 : 0;
+            u.z = 1; v.y = 1;
+            break;
+        case CubeFace::Front:
+        case CubeFace::Back:
+            origin.z += face == CubeFace::Front ? 1 : 0;
+            u.x = 1; v.y = 1;
+            break;
+    }
+    const std::array<glm::ivec3, 4> corners{
+        origin, origin + u, origin + u + v, origin + v};
+    for (std::size_t i = 0; i < corners.size(); ++i) {
+        // Only the derived mesh shade changes. Stored sunlight, block light
+        // and AO remain untouched; existing greedy checks retain this gradient.
+        lighting.corners[i].finalLight *= shoreTintAt(corners[i]);
+    }
 }
 
 VertexLightingQuad ChunkMeshBuilder::calculateVertexLighting(

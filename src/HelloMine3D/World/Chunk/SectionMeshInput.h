@@ -43,6 +43,7 @@ class SectionMeshInput {
     TerrainBiome getBiome(int x, int z) const;
     int getTerrainSeed() const noexcept;
     float getWaterDepth(int x, int y, int z) const;
+    bool containsWater() const noexcept { return m_containsWater; }
 
     /// Valid for y in [0, CHUNK_SIZE).
     bool shouldMakeLayer(int y) const;
@@ -69,6 +70,7 @@ class SectionMeshInput {
 
     glm::ivec3 m_location{};
     int m_terrainSeed = 0;
+    bool m_containsWater = false;
 };
 
 #endif // SECTIONMESHINPUT_H_INCLUDED

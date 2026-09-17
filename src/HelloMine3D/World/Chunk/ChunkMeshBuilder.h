@@ -53,6 +53,9 @@ class ChunkMeshBuilder {
 
     VertexLightingQuad calculateVertexLighting(
         CubeFace face, const glm::ivec3 &blockPosition) const;
+    void applyShoreTint(CubeFace face, const glm::ivec3 &blockPosition,
+                        VertexLightingQuad &lighting) const;
+    float shoreTintAt(const glm::ivec3 &corner) const;
     void sampleVertexLighting(const glm::ivec3 &position,
                               LightLevel &light,
                               bool &occludes) const;
@@ -109,6 +112,11 @@ class ChunkMeshBuilder {
         VertexSampleSize * VertexSampleSize * VertexSampleSize;
     mutable std::array<CachedVertexSample, VertexSampleCount>
         m_vertexSamples{};
+    // Zero means uncomputed; otherwise the value is wet-column count + 1.
+    // A section has 17^3 corners, each reading at most eight copied blocks.
+    static constexpr int ShoreCornerSize = CHUNK_SIZE + 1;
+    mutable std::array<std::uint8_t,
+        ShoreCornerSize * ShoreCornerSize * ShoreCornerSize> m_shoreSamples{};
 };
 
 #endif // CHUNKMESHBUILDER_H_INCLUDED

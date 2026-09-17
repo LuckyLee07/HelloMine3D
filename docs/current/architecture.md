@@ -633,6 +633,9 @@ block、Actor、inventory、objective or persistence truth。
 双相位细纹仅改变水面颜色，不代表 E5 等高水体的水文流向。岸床编辑通过既有 dirty planner 失效上方关联段。相机每帧最多观察两个驻留方块，
 在水面下 0.25 m 带内平滑增加水下雾和轻微曝光衰减；空气和关闭大气表现保持原环境，
 见[水面合同](../contracts/visual-water-depth-v1.md)。
+陆地岸面复用同一快照：含水时按共享角点的相邻水覆盖，给不透明立方体派生网格增加最多 18% 的静态明暗衰减，
+以一格插值过渡回干燥外观；每个 builder 的 17³ 字节缓存最多读取每角点八格快照，无额外 World 查询。
+无水快照跳过，greedy 合并保留最终明暗梯度，不修改真实光照、顶点格式、透明/植物/水材质或存档。
 `ActorSnapshot` 复制物品材质、数量、年龄；Ogre/UI 共用有界纯几何缓存，工具按 Alpha 轮廓挤出厚度、
 方块使用实际材质分面。掉落方块保留旋转，薄图标模型通过纯 `ItemVisualPose` 朝向观察者并有界摆动，
 避免转到侧面丢失轮廓；不改变 Actor、拾取或保存数据，见[物品表现合同](../contracts/visual-item-volume-v1.md)。敌人 shader 接收局部坐标与

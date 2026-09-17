@@ -22,6 +22,7 @@ void SectionMeshInput::capture(
 {
     m_location = section.getLocation();
     m_terrainSeed = terrainSeed;
+    m_containsWater = false;
 
     for (int z = -1; z <= CHUNK_SIZE; ++z) {
         for (int x = -1; x <= CHUNK_SIZE; ++x) {
@@ -38,6 +39,8 @@ void SectionMeshInput::capture(
         for (int z = -1; z <= CHUNK_SIZE; ++z) {
             for (int x = -1; x <= CHUNK_SIZE; ++x) {
                 m_blocks[index(x, y, z)] = section.getBlock(x, y, z);
+                m_containsWater = m_containsWater ||
+                    m_blocks[index(x, y, z)] == BlockId::Water;
                 m_sunlight[index(x, y, z)] =
                     section.getSunlight(x, y, z);
                 m_blockLight[index(x, y, z)] =

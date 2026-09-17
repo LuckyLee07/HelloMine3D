@@ -2,8 +2,138 @@
 
 // Included after the WorldRuntime shared fixture helpers.
 namespace {
+// Read the actual triangle interpolation so a test also observes greedy merges.
+float shoreMeshShade(const ChunkMesh& source, const glm::vec3& point,
+                     int normalAxis, float normalSign)
+{
+    const auto& mesh = source.getClientMesh();
+    const auto& lights = source.getLight();
+    const int u = (normalAxis + 1) % 3, v = (normalAxis + 2) % 3;
+    for (std::size_t i = 0; i < mesh.indices.size(); i += 3) {
+        glm::vec3 p[3];
+        for (int j = 0; j < 3; ++j) {
+            const auto index = mesh.indices[i + j] * 3;
+            p[j] = {mesh.vertexPositions[index], mesh.vertexPositions[index + 1],
+                    mesh.vertexPositions[index + 2]};
+        }
+        if (p[0][normalAxis] != point[normalAxis] ||
+            p[1][normalAxis] != point[normalAxis] ||
+            p[2][normalAxis] != point[normalAxis] ||
+            glm::cross(p[1] - p[0], p[2] - p[0])[normalAxis] * normalSign <= 0.f)
+            continue;
+        const glm::vec3 a = p[1] - p[0], b = p[2] - p[0], q = point - p[0];
+        const float determinant = a[u] * b[v] - a[v] * b[u];
+        const float one = (q[u] * b[v] - q[v] * b[u]) / determinant;
+        const float two = (a[u] * q[v] - a[v] * q[u]) / determinant;
+        if (one >= -.0001f && two >= -.0001f && one + two <= 1.0001f)
+            return (1.f - one - two) * lights[mesh.indices[i]] +
+                   one * lights[mesh.indices[i + 1]] + two * lights[mesh.indices[i + 2]];
+    }
+    return -1.f;
+}
+
+void caseShoreSurfacePresentation()
+{
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, freshSaveDirectory("shore_surface"), false, 0);
+    auto& manager = world.getChunkManager();
+    constexpr int west = -7000, north = -7000;
+    for (int cx = west; cx <= west + 1; ++cx) {
+        auto& chunk = manager.getOrCreateChunk(cx, north);
+        chunk.transitionDataResidency(ChunkDataResidencyState::Requested);
+        chunk.transitionDataResidency(ChunkDataResidencyState::Loading);
+        std::vector<Block_t> ids(CHUNK_VOLUME * 3, 0);
+        std::vector<BlockMetadata_t> metadata(ids.size(), 0);
+        chunk.loadBlockData(3, ids, metadata);
+        for (int z = 0; z < CHUNK_SIZE; ++z)
+            for (int x = 0; x < CHUNK_SIZE; ++x) {
+                for (int y = 0; y < CHUNK_SIZE * 2; ++y)
+                    chunk.setBlockLight(x, y, z, MAX_LIGHT_LEVEL);
+                for (int bankZ = 8; bankZ <= 11; ++bankZ)
+                    chunk.setBlock(x, 15, bankZ, BlockId::Sand);
+            }
+    }
+    auto& left = *manager.findChunk(west, north);
+    auto& right = *manager.findChunk(west + 1, north);
+    const auto chunkCount = manager.getChunks().size();
+    const auto build = [](const SectionMeshInput& input, bool ao = true) {
+        ChunkMeshCollection meshes;
+        ChunkMeshBuilder(input, meshes, ao).buildMesh();
+        return meshes;
+    };
+    const auto equal = [](const ChunkMesh& a, const ChunkMesh& b) {
+        const auto& x = a.getClientMesh(); const auto& y = b.getClientMesh();
+        return x.vertexPositions == y.vertexPositions && x.indices == y.indices &&
+            x.textureCoords == y.textureCoords && x.textureRepeatCoords == y.textureRepeatCoords &&
+            a.getLight() == b.getLight();
+    };
+    SectionMeshInput dry;
+    left.findSection(0)->captureMeshInput(dry);
+    const auto dryMesh = build(dry);
+    check("WATER_DEPTH/shore-dry-snapshot-skips-sampling", !dry.containsWater());
+    left.setBlock(1, 1, 1, BlockId::Water);
+    SectionMeshInput distant;
+    left.findSection(0)->captureMeshInput(distant);
+    check("WATER_DEPTH/shore-distant-water-preserves-solid-bytes",
+        distant.containsWater() && equal(dryMesh.solidMesh, build(distant).solidMesh));
+    left.setBlock(1, 1, 1, BlockId::Air);
+    for (auto* chunk : {&left, &right})
+        for (int x = 0; x < CHUNK_SIZE; ++x) chunk->setBlock(x, 15, 7, BlockId::Water);
+    SectionMeshInput wet, wetRight;
+    left.findSection(0)->captureMeshInput(wet);
+    right.findSection(0)->captureMeshInput(wetRight);
+    const auto wetMesh = build(wet), rightMesh = build(wetRight);
+    const auto point = [](float x, float y, float z) {
+        return glm::vec3(west * CHUNK_SIZE + x, y, north * CHUNK_SIZE + z);
+    };
+    const float near = shoreMeshShade(wetMesh.solidMesh, point(15.5f, 16, 8.25f), 1, 1);
+    const float far = shoreMeshShade(wetMesh.solidMesh, point(15.5f, 16, 8.75f), 1, 1);
+    const float original = shoreMeshShade(dryMesh.solidMesh, point(15.5f, 16, 8.25f), 1, 1);
+    check("WATER_DEPTH/shore-real-water-darkens-land-gradually",
+        original > 0.f && near >= .82f * original && near < .95f * original && far > near && far < original);
+    check("WATER_DEPTH/shore-band-ends-one-block-inland",
+        shoreMeshShade(wetMesh.solidMesh, point(15.5f, 16, 9.5f), 1, 1) ==
+        shoreMeshShade(dryMesh.solidMesh, point(15.5f, 16, 9.5f), 1, 1));
+    const float seam = shoreMeshShade(wetMesh.solidMesh, point(16, 16, 8.25f), 1, 1);
+    check("WATER_DEPTH/shore-negative-chunk-seam-agrees", seam > 0.f &&
+        std::abs(seam - shoreMeshShade(rightMesh.solidMesh, point(16, 16, 8.25f), 1, 1)) < .00001f);
+    const auto noAo = build(wet, false);
+    check("WATER_DEPTH/shore-no-ao-fallback-keeps-band",
+        shoreMeshShade(noAo.solidMesh, point(15.5f, 16, 8.25f), 1, 1) < original);
+    check("WATER_DEPTH/shore-does-not-write-stored-light-or-load",
+        wet.getCombinedLight(15, 15, 8) == dry.getCombinedLight(15, 15, 8) &&
+        left.getBlockLight(15, 15, 8) == MAX_LIGHT_LEVEL && manager.getChunks().size() == chunkCount);
+    for (auto* chunk : {&left, &right})
+        for (int x = 0; x < CHUNK_SIZE; ++x) chunk->setBlock(x, 15, 7, BlockId::Air);
+    left.findSection(0)->captureMeshInput(distant);
+    check("WATER_DEPTH/shore-removing-water-restores-original-mesh",
+        !distant.containsWater() && equal(dryMesh.solidMesh, build(distant).solidMesh));
+    check("WATER_DEPTH/shore-old-snapshot-remains-independent",
+        wet.containsWater() && equal(wetMesh.solidMesh, build(wet).solidMesh));
+    for (int x = 2; x <= 3; ++x) {
+        left.setBlock(x, 15, 3, BlockId::Sand);
+        left.setBlock(x, 16, 3, BlockId::Sand);
+        left.setBlock(x, 15, 2, BlockId::Water);
+    }
+    SectionMeshInput lower, upper;
+    left.findSection(0)->captureMeshInput(lower);
+    left.findSection(1)->captureMeshInput(upper);
+    const auto lowerMesh = build(lower, false), upperMesh = build(upper, false);
+    const float lowerShade = shoreMeshShade(lowerMesh.solidMesh, point(2.5f, 16, 3), 2, -1);
+    check("WATER_DEPTH/shore-vertical-section-seam-agrees", lowerShade > 0.f &&
+        std::abs(lowerShade - shoreMeshShade(upperMesh.solidMesh, point(2.5f, 16, 3), 2, -1)) < .00001f);
+    const auto& actual = wetMesh.solidMesh.getClientMesh();
+    check("WATER_DEPTH/shore-mesh-attributes-and-indices-remain-valid",
+        actual.textureCoords.size() == actual.textureRepeatCoords.size() &&
+        actual.vertexPositions.size() / 3 == wetMesh.solidMesh.getLight().size() &&
+        std::all_of(actual.indices.begin(), actual.indices.end(), [&](auto i) { return i < actual.vertexPositions.size() / 3; }));
+}
+
 void caseWaterDepthPresentation()
 {
+    caseShoreSurfacePresentation();
     Config config = makeConfig();
     Camera camera(config);
     Player player;
