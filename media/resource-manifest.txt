@@ -48,8 +48,8 @@ material-profile|media/materials/Base.terrain-material
 music-track|media/music/tracks/quiet-horizons.wav
 music|media/music/Base.music
 objective|media/objectives/Base.objective
-presentation-font|media/fonts/NotoSansSC-VF.ttf
 presentation-font|media/fonts/HelloMineUI-Medium.ttf
+presentation-font|media/fonts/NotoSansSC-VF.ttf
 recipe|media/recipes/Base.recipe
 resource-script|media/ogre/HelloMine3D.compositor
 resource-script|media/ogre/HelloMine3D.material
