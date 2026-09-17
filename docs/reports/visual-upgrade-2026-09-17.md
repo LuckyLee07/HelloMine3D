@@ -321,12 +321,36 @@ r8 Release SHA-256：`78dd417323a6a8e4bd03bba323056f88a78e252b4b952c788e95e81797
 `background-readable-candidate-r8/`。本批性能增量尚待验证；r7 的正式性能 PASS 不自动转移给 r8。
 正常玩法、地景连续观察及最终整合交付仍按既有 Goal 继续。
 
+### 无截图读回的物品诊断入口（r9）
+
+r8 性能补验首轮 `drop-performance-r8-r1/` 在创建窗口前退出：物品展示入口只接受
+`HELLO_RENDER_CAPTURE`，与性能采样禁用截图读回的设置冲突，实际帧数为 0。
+失败原始日志和零帧记录保留；已恢复工作包与配置，不将其当作性能退化。
+
+入口现与已有方块反馈诊断一致：明确启用画面采集或 `RuntimePerformanceCapture` 之一即可使用；
+合法姿态限制保留。未启用诊断、或姿态非法时仍拒绝，不影响正常玩法路径。
+Debug/Release 客户端构建通过，四个启动负例均在创建窗口前按预期退出；Release 新旧两版
+已完成开启性能、关闭画面采集的正例，原生日志、CSV 和零截图输出均符合预期。
+记录为 `actor-capture-entry-validation-r9.json`；此 PASS 只针对入口，不代表三轮性能已完成。
+
+r9 候选二进制为 `c7182b4fc56ec27f2ab76fe053d7312103cb138a4925ac22f678a6a95ee33530`，
+视觉源码与 r8 相同，仅增加上述入口修复。对照基线为
+`6e0a6c89e87695cd2a95b2db0fd4e446dca107209efaeecfb80694a901063cf7`，第一方源码对应
+`3a73058` 的 r7 视觉加同一份入口修复；对照包与 r7 的源码清单差异严格限制为 `OgreBootstrap.cpp`。
+324/323 个源码及共同原生窗口/依赖身份分开留存于 `drop-performance-packages-r9.json` 和冻结记录。
+
+`drop-performance-r9-r1/` 正在执行 r7 → r8 掉落物变化的专项对照：固定五个掉落物和四个敌人姿态，
+Off/High+post × 静止/快速流送 × 三轮 × 两版，共 24 次、四组；同为实际 1280×720、隐藏、静音、
+不读回截图。三轮顺序 A/B、B/A、A/B，预热 5 秒后采集 30 秒，P95/P99 门槛仍为 1.10。
+这是掉落物变化的增量检查，不替代最终整体性能或正常玩法；快速流送仍是四次跨区块传送。
+独立审计 `audit_drop_performance_r9_r1.py` 已准备，等原 runner 正常结束并恢复配置后再执行。
+
 ### 当前恢复入口
 
 - 水面工程批次已本地提交 `864c86e`；前六个本地提交保留，均未推送。每个可独立验证的小批次及时提交，整合性能/玩法待办继续单独跟踪。
 - 原工作路径 `HelloMine3D-Visual-Upgrade.app`、bundle id `local.hellomine3d.visual-upgrade` 保留 r3。此前自动审批拒绝终止其进程，理由为可能丢失未保存状态；本轮未停止、刷新或覆盖该运行包。
-- 专用工作路径 `round2-compact-layout-recheck-r3/Diagnostic.app`，bundle id `local.hellomine3d.visual-layout-check`，本批采集已结束，已核对保留 r8 与先前正常配置。A/B 正常存档保持原状；r8 的 324 个第一方源码已与构建检出核对，原生窗口修复保持不变。
-- 前台 runner 已停止。后台矩阵、独立审计和掉落物采集均已退出，无待恢复的采集 session。恢复记录见本地 `goal-recovery-r7.json`，不要重新等待已退出的历史 handle。历史 Reduced 停摆仍未决。r2 为 1280×720 实际像素，r5 前台为 2560×1440；两者均不得改标为当前后台结果。
+- 专用工作路径 `round2-compact-layout-recheck-r3/Diagnostic.app`，bundle id `local.hellomine3d.visual-layout-check`，当前由 r9 专项性能 runner 在冻结的两版间切换，使用诊断配置；结束后必须核对恢复 r9 候选和正常配置，不能把上一轮恢复状态当作当前状态。A/B 正常存档保持原状，原生窗口修复保持不变。
+- 前台 runner 已停止。r7 完整矩阵与掉落物图片采集均已结束；当前 r9 专项性能采集仍在运行。活跃 handle 见本地 `goal-recovery-r7.json`，继续等待原进程，不启动重复 runner。历史 Reduced 停摆仍未决。r2 为 1280×720 实际像素，r5 前台为 2560×1440；两者均不得改标为当前后台结果。
 - 正常菜单、设置、保存/重开已有 r4 证据，持续移动/采集等输入仍缺可用路径；按用户约定不启动前台/CUA，继续不依赖它的工作。首次 Reduced 静止现象尚未解释，不以重采掩盖。Goal 已恢复，尚未完成。
 - 用户要求沿用中文提交形式，最近 12 条英文提交已仅重写说明和相应父提交 ID；各提交文件树、顺序、作者与日期保持一致。旧证据 SHA 保留，可通过 `refs/rewrites/visual-message-style-20260917` 追溯；新旧映射在本地 `commit-message-style-rewrite-r1.json`。
 

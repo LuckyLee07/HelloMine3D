@@ -962,7 +962,8 @@ namespace
         {
             if (const char* fixture = std::getenv("HELLOMINE3D_ACTOR_VISUAL_CAPTURE")) {
                 m_actorVisualCapture = fixture;
-                if (!isTrueValue(std::getenv("HELLO_RENDER_CAPTURE")) ||
+                if ((!isTrueValue(std::getenv("HELLO_RENDER_CAPTURE")) &&
+                     !RuntimePerformanceCapture::isEnabled()) ||
                     (m_actorVisualCapture != "idle" && m_actorVisualCapture != "windup" &&
                      m_actorVisualCapture != "recover"))
                     throw std::runtime_error("Actor visual fixture requires diagnostic capture and a valid pose.");
