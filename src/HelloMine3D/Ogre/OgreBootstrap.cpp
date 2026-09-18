@@ -3872,7 +3872,9 @@ namespace
         void syncEnvironment(const WorldEnvironmentState& air)
         {
             float immersion = 0.f;
-            if (m_v10cAtmosphereEnabled && m_world != nullptr && m_camera != nullptr)
+            // Water visibility is a basic camera medium, independent of the
+            // optional cloud, surface-lighting and water-detail features.
+            if (m_world != nullptr && m_camera != nullptr)
             {
                 const Ogre::Vector3 eye = m_camera->getDerivedPosition();
                 const int x = World::toBlockCoord(eye.x);

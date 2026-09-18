@@ -41,7 +41,7 @@ AI 平台对应规则见 [当前验收规范](ai-assisted-gameplay-acceptance-v1
 | POSIX 渲染计时 | `bash scripts/verify_posix_timer.sh Debug` / `Release` 以实际 Timer 源码隔离注入墙钟回拨、前跳和暂停；不改系统时间。重建受影响 Ogre 依赖及客户端，再核查隐藏客户端的真实帧增量、模拟 tick 和正常配置恢复；短采样不代替三轮性能门槛。 |
 | 隐藏诊断相机 | `bash scripts/verify_visual_camera_sweep.sh Debug` / `Release` 检查开关隔离、有限参数、位移/角度/时长边界与连续性；客户端双配置构建、实际启动负例、开关关闭路径及原始连续帧。相机观察不证明玩家移动、碰撞、小地图位置刷新或正常玩法。 |
 | 水线表层过渡 | `tools/validate_water_shader_macos.cpp` 执行生产 GLSL，覆盖浅/深水、细节开启/关闭共 8,004 个跨水线采样、合成颜色连续性与近裁剪覆盖；冻结旧 shader 反例、同机位连续帧及相关三轮性能。只改 fragment 时复用身份匹配的客户端，资源/实际 GPU 检查不冒充 C++ 重建或正常游泳验收。 |
-| 相机水介质与远景衔接 | `V10C` 定向检查顶层水块内的深度过渡、表面/块边界连续性及昼夜雾色与地平线一致；双配置客户端构建，同机位水下/出水连续帧、空气及大气关闭回退、相关三轮性能。端点亮带消失不能替代穿越过程检查。 |
+| 相机水介质与远景衔接 | `V10C` 定向检查顶层水块内的深度过渡、表面/块边界连续性及昼夜雾色与地平线一致；双配置客户端构建，同机位水下/出水连续帧、空气及大气关闭回退、相关三轮性能。基础水介质独立于增强大气开关，关闭大气时仍检查昼夜水下与干燥岸边，保留云层/水面细节回退。端点亮带消失不能替代穿越过程检查。 |
 | `AL-A0` 纯文档基线 | 逐项对照实际源码冻结模块/API/ownership/tick/snapshot；`git diff --check`、本地 Markdown 引用、World→Ogre 反向依赖检查和 VS2017 完整门禁。运行时代码/身份未变时引用既有正式 Q1/Q3，不重跑 1800 秒；无 OS Computer Use 时 `AI-08=NOT_RUN`。 |
 | `AL-A1` World 责任地图 | `tools\validate_world_responsibility_map.ps1` 必须覆盖全部公开方法、匹配 public-surface hash 且无 stale/重复行；随后运行 VS2017 完整门禁。没有运行时行为变化时引用既有正式 Q1/Q3，`AI-01..AI-08` 保持 `NOT_RUN`。 |
 | `AL-A2` Chunk Runtime 边界 | `tools\validate_chunk_runtime_boundary.ps1` + AL-A1 公开面门禁；VS2017/v141 Debug/Release 完整门禁；WorldRuntime 的 S0.5/M2/M6/M7/E5/S2.4 与 loader stress 必须通过。禁止新增 Residency 状态、改变 save/unload 转换或修改既有预算；AI 场景未执行时保持 `NOT_RUN`。 |

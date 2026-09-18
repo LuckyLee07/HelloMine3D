@@ -46,6 +46,10 @@ V10C 使用世界空间水平 slab，而不是跟随相机的无限投影：
 继续使用 `time_0_x`，V10C 使用不循环的绝对 `time`。回退不是仅跳过绘制，而是已由真实 Release
 OpenGL 画面验证的旧路径。
 
+综合视觉升级的基础水介质独立于此能力开关：水下相机仍使用有界驻留查询和连续深度过渡，
+使雾与地平线协调；回退不关闭基础水下可见距离。空气视图不变，云公式、定向雾强度与水面细节
+仍按上面的简化路径选择，具体边界见[水面合同](visual-water-depth-v1.md)。
+
 `AtmosphereShaderContract` 在创建 Ogre 窗口前，从资源包解析后的有效资源视图校验 program、
 terrain/water/actor/sky shader 接口。缺失 V10C uniform 或错误覆盖会在启动阶段给出明确失败，不把
 问题拖到 GPU 编译后的黑屏。
