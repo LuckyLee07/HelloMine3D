@@ -647,7 +647,7 @@ RGB 无损解码原图：白天水下远端亮带消失，近景台阶保留，�
 证据在 `underwater-horizon-r15/after-r2/`、`sequence-analysis-r2.json`、`review-after-r2/` 和
 `revision2/visual-acceptance.json`。这份限定范围画面记录允许进入性能比较，不代替正常游泳输入。
 实际图像分析 runner 38037 和无损解码 runner 37751 均退出 0。采集后正常配置原样恢复。
-本批验证完成，按中文说明本地提交。
+本批已本地提交 `b1a4a1c`（修复: 协调水下远景与出水颜色过渡）。
 
 修正版性能输入已独立冻结，不操作前台工作包：`horizon-performance-freeze-r15-r1.json` 核对两版各
 111 项分发文件、325 份源码，以及共用的 5 份原生源码和 17 份依赖归档。运行资源完全相同，
@@ -680,12 +680,31 @@ RGB 无损解码原图：白天水下远端亮带消失，近景台阶保留，�
 完整结果在 `horizon-performance-r15-r1/audit-r1.json`，原始日志为 `horizon-performance-r15-r1-runner.log`。
 这是当前 r14→r15 修正版的后台性能结论，四次传送式流送不等于正常行走或游泳；历史结果保持原范围。
 
+### r15 候选客户端更新
+
+代码提交 `b1a4a1c` 的干净候选包位于 `delivery-r15/HelloMine3D-Visual-Candidate.app`，
+未自动打开前台窗口。Release、325 份源码清单和资源清单与上述已测候选一致；111 项分发文件
+逐项验证通过，普通设置使用采样前保存的真实配置，未打包用户世界或诊断存档。
+`HELLOMINE3D_VALIDATE_ONLY=1` 在独立数据目录实际退出 0（session 59978），未创建渲染窗口。
+结果在 `delivery-r15/validate-only-r1/result.json` 与 `delivery-verification.json`。
+
+同目录 `README.md` 列出最新改动、性能和未完成项；`gallery/index.html` 提供六组、十二张
+原图对照，新增白天/夜间水下 r14→r15 修正版，前期四组保留 r11/r12 实际身份。
+图片复制哈希、成对尺寸和页面链接均已校验；沿用已存在画廊布局，未新增浏览器视觉验收声明。
+首次画廊脚本误按通用 capture 的 `package_identity` 读取定向记录，报 KeyError；修正为其实际
+`identity` 字段后通过，初始脚本与失败说明保留在交付目录，不改原始采集数据。
+
+本次仅只读重查公开 CUA 文档：仍提供单次 `pressKey`、click、drag，没有持续键/按钮状态或
+按住时长接口。未重复已失败的相同输入，也未通过替代注入冒充正常玩法。持续行走、采集制作、
+工具/容器/战斗、地图生命周期和当前版保存重开仍待验；关闭大气旧亮带与首次 Reduced 停顿
+根因的不确定性继续保留。候选包交付不代表完整 Goal 已完成。
+
 ### 当前恢复入口
 
 - 水面工程批次已本地提交 `864c86e`；前六个本地提交保留，均未推送。每个可独立验证的小批次及时提交，整合性能/玩法待办继续单独跟踪。
 - 原工作路径 `HelloMine3D-Visual-Upgrade.app`、bundle id `local.hellomine3d.visual-upgrade` 保留 r3。此前自动审批拒绝终止其进程，理由为可能丢失未保存状态；本轮未停止、刷新或覆盖该运行包。
 - 专用工作路径 `round2-compact-layout-recheck-r3/Diagnostic.app`，bundle id `local.hellomine3d.visual-layout-check`，当前为 r15 修正版 `186f388d…`。用户已明确释放预览，已通过 CUA 保存并退出；预览存档在 `user-preview-r15-20260918-222739/`，A/B 正常存档及 r12 候选包保留。后续自动流程保持隐藏/noActivate。
-- r14 的 24 次性能对照与审计已通过。r15 初版连续画面失败保留，修正版工程、限定范围画面、36 次性能及审计通过；本批按中文形式提交后更新候选客户端，继续完整玩法。采集 84364、图像审核 38037、解码 37751、性能 8378、审计 38149 均已实际退出 0，当前无 runner，不能重复启动。原结果见上述目录与本地 `goal-recovery-r7.json`。
+- r14 的 24 次性能对照与审计已通过。r15 初版连续画面失败保留，修正版工程、限定范围画面、36 次性能及审计通过，已提交 `b1a4a1c`，候选更新到 `delivery-r15/`。采集 84364、图像审核 38037、解码 37751、性能 8378、审计 38149、无窗口启动校验 59978 均已实际退出 0，当前无 runner，不能重复启动。下一步仅针对未解决问题或有变化的正常输入条件推进；禁止重跑已通过的相同矩阵，原结果见上述目录与本地 `goal-recovery-r7.json`。
 - 正常菜单、设置、保存/重开已有 r4 证据，持续移动/采集等仍待验。前述三轮窗口占用阻塞已由用户最新释放指令解除，Goal 为 active，不再等待或重复询问。首次 Reduced 静止现象缺原始计时、根因尚未证实；完整 Goal 范围和恢复步骤全部保留。
 - 用户要求沿用中文提交形式，最近 12 条英文提交已仅重写说明和相应父提交 ID；各提交文件树、顺序、作者与日期保持一致。旧证据 SHA 保留，可通过 `refs/rewrites/visual-message-style-20260917` 追溯；新旧映射在本地 `commit-message-style-rewrite-r1.json`。
 
