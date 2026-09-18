@@ -59,6 +59,7 @@
 #include "../Diagnostics/OperationPerformanceTiming.h"
 #include "../Diagnostics/RuntimePerformanceCapture.h"
 #include "../Diagnostics/RuntimeProfiler.h"
+#include "../Diagnostics/VisualCameraSweep.h"
 #include "../Gameplay/ObjectiveRegistry.h"
 #include "../Item/FoodRegistry.h"
 #include "../Item/RecipeRegistry.h"
@@ -960,6 +961,16 @@ namespace
 
         void createWindowAndScene(const std::string &initialSaveDirectory)
         {
+            m_visualCameraSweep = VisualCameraSweep::parse(
+                std::getenv("HELLOMINE3D_VISUAL_CAMERA_SWEEP"),
+                isTrueValue(std::getenv("HELLOMINE3D_WINDOW_HIDDEN")) &&
+                    isTrueValue(std::getenv("HELLO_RENDER_CAPTURE")),
+                !initialSaveDirectory.empty(),
+                RuntimePerformanceCapture::isEnabled() ||
+                    std::getenv("HELLOMINE3D_RC_PERF_PROFILE") != nullptr ||
+                    std::getenv("HELLOMINE3D_E2_BATCH_MANIFEST") != nullptr);
+            if (m_visualCameraSweep.enabled)
+                std::cout << "[VISUAL_CAMERA_SWEEP] enabled=1 evidence=developer-diagnostic normal_input=0 player_unchanged=1\n";
             if (const char* fixture = std::getenv("HELLOMINE3D_ACTOR_VISUAL_CAPTURE")) {
                 m_actorVisualCapture = fixture;
                 if ((!isTrueValue(std::getenv("HELLO_RENDER_CAPTURE")) &&
@@ -2009,6 +2020,7 @@ namespace
             m_world = nullptr;
             m_worldPlayer = nullptr;
             m_logicCamera.reset();
+            m_visualCameraSweep = {};
             m_blockFeedbackCapture = false;
             if (m_camera != nullptr)
             {
@@ -2218,6 +2230,11 @@ namespace
 
         bool frameStarted(const Ogre::FrameEvent& event) override
         {
+            if (m_visualCameraSweep.enabled && std::isfinite(event.timeSinceLastFrame) &&
+                event.timeSinceLastFrame > 0.f)
+                m_visualCameraSweepElapsed = std::min(
+                    m_visualCameraSweepElapsed + event.timeSinceLastFrame,
+                    VisualCameraSweep::WarmupSeconds + m_visualCameraSweep.durationSeconds + 1.0);
             if (!m_actorVisualCapture.empty())
                 m_actorVisualCaptureSeconds += std::clamp(event.timeSinceLastFrame, 0.f, .25f);
             HELLOMINE3D_PROFILE_FRAME();
@@ -2785,8 +2802,10 @@ namespace
                     snapshots.push_back(sample);
                 }
             }
+            const Ogre::Vector3 renderEye = m_camera->getPosition();
             m_actorRenderer->sync(snapshots,
-                m_logicCamera->position,
+                m_visualCameraSweep.enabled ? glm::vec3(renderEye.x, renderEye.y, renderEye.z) :
+                    m_logicCamera->position,
                 m_config.feedbackIntensity == GameplayFeedbackIntensity::Off ? 0.f :
                 m_config.feedbackIntensity == GameplayFeedbackIntensity::Reduced ? .35f : 1.f);
             m_actorRenderer->syncProjectiles(
@@ -3115,8 +3134,32 @@ namespace
                 return;
             }
 
-            const glm::vec3 &position = m_logicCamera->position;
-            const glm::vec3 &rotation = m_logicCamera->rotation;
+            glm::vec3 position = m_logicCamera->position;
+            glm::vec3 rotation = m_logicCamera->rotation;
+            if (m_visualCameraSweep.enabled)
+            {
+                if (!m_visualCameraSweepAnchored ||
+                    m_visualCameraSweepElapsed <= VisualCameraSweep::WarmupSeconds)
+                {
+                    m_visualCameraSweepOrigin = position;
+                    m_visualCameraSweepRotation = rotation;
+                    m_visualCameraSweepAnchored = true;
+                }
+                const auto offset = m_visualCameraSweep.offset(m_visualCameraSweepElapsed);
+                position = m_visualCameraSweepOrigin + glm::vec3(offset[0], offset[1], offset[2]);
+                rotation = m_visualCameraSweepRotation + glm::vec3(offset[4], offset[3], 0.0);
+                rotation.x = std::clamp(rotation.x, -89.f, 89.f);
+                const int second = static_cast<int>(m_visualCameraSweepElapsed);
+                if (second != m_visualCameraSweepLoggedSecond)
+                {
+                    m_visualCameraSweepLoggedSecond = second;
+                    std::cout << "[VISUAL_CAMERA_SWEEP] seconds=" << m_visualCameraSweepElapsed
+                              << " position=" << position.x << ',' << position.y << ',' << position.z
+                              << " rotation=" << rotation.x << ',' << rotation.y
+                              << " player=" << m_worldPlayer->position.x << ','
+                              << m_worldPlayer->position.y << ',' << m_worldPlayer->position.z << '\n';
+                }
+            }
             m_camera->setPosition(position.x, position.y, position.z);
             m_camera->setOrientation(Ogre::Quaternion::IDENTITY);
             m_camera->yaw(Ogre::Degree(-rotation.y));
@@ -4548,6 +4591,12 @@ namespace
         OIS::Mouse* m_mouse = nullptr;
         std::uintptr_t m_nativeWindowHandle = 0;
         std::unique_ptr<OgreRenderCapture> m_renderCapture;
+        VisualCameraSweep m_visualCameraSweep;
+        double m_visualCameraSweepElapsed = 0.0;
+        bool m_visualCameraSweepAnchored = false;
+        int m_visualCameraSweepLoggedSecond = -1;
+        glm::vec3 m_visualCameraSweepOrigin{0.f};
+        glm::vec3 m_visualCameraSweepRotation{0.f};
         std::unique_ptr<OgreUserInterface> m_userInterface;
         std::unique_ptr<AudioRuntime> m_audio;
         std::unique_ptr<MusicRuntime> m_music;
