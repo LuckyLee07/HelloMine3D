@@ -5402,7 +5402,8 @@ void caseWorldEnvironment()
     const auto nightWaterView = WorldEnvironment::forCameraMedium(midnight, 2.f);
     check("V10C/camera-air-medium-retains-original-state",
           dryView.fogDensity == noon.fogDensity && dryView.daylight == noon.daylight &&
-              dryView.fogColour == noon.fogColour && dryView.fogSunwardColour == noon.fogSunwardColour);
+              dryView.fogColour == noon.fogColour && dryView.fogSunwardColour == noon.fogSunwardColour &&
+              dryView.skyHorizonColour == noon.skyHorizonColour);
     check("V10C/submerged-camera-has-bounded-water-visibility",
           std::abs(submergedView.fogDensity - .065f) < epsilon &&
               submergedView.fogDirectionalStrength == 0.f &&
@@ -5416,6 +5417,51 @@ void caseWorldEnvironment()
               colourIsBounded(nightWaterView.fogColour) &&
               nightWaterView.fogDensity == submergedView.fogDensity &&
               glm::length(nightWaterView.fogColour) < glm::length(submergedView.fogColour));
+
+    bool mediumHorizonAligned = true;
+    bool mediumOtherSkyPreserved = true;
+    for (const auto &air : {dawn, noon, dusk, midnight}) {
+        for (int step = -10; step <= 110; ++step) {
+            const auto view = WorldEnvironment::forCameraMedium(air, step * .01f);
+            mediumHorizonAligned = mediumHorizonAligned &&
+                glm::length(view.skyHorizonColour - view.fogColour) < epsilon;
+            mediumOtherSkyPreserved = mediumOtherSkyPreserved &&
+                view.skyZenithColour == air.skyZenithColour &&
+                view.cloudLightColour == air.cloudLightColour &&
+                view.cloudShadowColour == air.cloudShadowColour &&
+                view.sunIntensity == air.sunIntensity &&
+                view.moonIntensity == air.moonIntensity &&
+                view.starIntensity == air.starIntensity;
+        }
+    }
+    check("V10C/camera-medium-horizon-matches-fog-throughout-day-and-depth",
+          mediumHorizonAligned);
+    check("V10C/camera-medium-preserves-other-sky-and-celestial-state",
+          mediumOtherSkyPreserved);
+
+    check("V10C/camera-medium-fades-across-top-water-block",
+          WorldEnvironment::cameraWaterImmersion(-1.f) == 0.f &&
+              WorldEnvironment::cameraWaterImmersion(.05f) == 0.f &&
+              WorldEnvironment::cameraWaterImmersion(.5f) > .4f &&
+              WorldEnvironment::cameraWaterImmersion(.5f) < .6f &&
+              WorldEnvironment::cameraWaterImmersion(1.f) == 1.f &&
+              WorldEnvironment::cameraWaterImmersion(2.f) == 1.f);
+    bool mediumDepthContinuous = true;
+    for (const auto &air : {dawn, noon, dusk, midnight}) {
+        auto previous = air;
+        float previousAmount = 0.f;
+        for (int millimetres = -100; millimetres <= 1100; ++millimetres) {
+            const float amount = WorldEnvironment::cameraWaterImmersion(millimetres * .001f);
+            const auto view = WorldEnvironment::forCameraMedium(air, amount);
+            mediumDepthContinuous = mediumDepthContinuous &&
+                amount >= previousAmount && amount <= 1.f &&
+                glm::length(view.skyHorizonColour - previous.skyHorizonColour) < .001f;
+            previous = view;
+            previousAmount = amount;
+        }
+    }
+    check("V10C/camera-medium-depth-ramp-has-no-surface-or-block-boundary-jump",
+          mediumDepthContinuous);
 
     const glm::vec3 duskSunwardFog =
         WorldEnvironment::directionalFogColour(

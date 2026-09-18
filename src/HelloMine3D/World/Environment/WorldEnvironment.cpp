@@ -114,6 +114,13 @@ WorldEnvironmentState WorldEnvironment::evaluate(float worldTime)
     return state;
 }
 
+float WorldEnvironment::cameraWaterImmersion(float depthBelowSurface)
+{
+    // Keep the wave-height collar dry, then restore the medium over the top
+    // block. A quarter-metre ramp makes the entire sky flash during swimming.
+    return std::clamp((depthBelowSurface - .05f) / .95f, 0.f, 1.f);
+}
+
 WorldEnvironmentState WorldEnvironment::forCameraMedium(
     const WorldEnvironmentState &air, float immersion)
 {
@@ -121,6 +128,9 @@ WorldEnvironmentState WorldEnvironment::forCameraMedium(
     WorldEnvironmentState view = air;
     const glm::vec3 waterFog = mix(air.waterDeepColour, air.waterShallowColour, 0.28f);
     view.fogColour = mix(air.fogColour, waterFog, amount);
+    // The lower sky is the backdrop beyond resident terrain. It must follow
+    // the same medium as distance fog, including while crossing the surface.
+    view.skyHorizonColour = mix(air.skyHorizonColour, waterFog, amount);
     view.fogSunwardColour = mix(air.fogSunwardColour, waterFog, amount);
     view.fogDensity += (0.065f - view.fogDensity) * amount;
     view.fogDirectionalStrength *= 1.f - amount;

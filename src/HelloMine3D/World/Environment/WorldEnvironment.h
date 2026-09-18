@@ -43,6 +43,8 @@ class WorldEnvironment {
     static constexpr int TicksPerDay = 24000;
 
     static WorldEnvironmentState evaluate(float worldTime);
+    // Fade through the top water block; deeper resident water uses full immersion.
+    static float cameraWaterImmersion(float depthBelowSurface);
     // Presentation-only medium; the world clock and water palette stay intact.
     static WorldEnvironmentState forCameraMedium(
         const WorldEnvironmentState &air, float immersion);

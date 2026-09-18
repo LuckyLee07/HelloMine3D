@@ -3881,7 +3881,7 @@ namespace
                 // getBlock only observes resident chunks, never loads/generates.
                 if (m_world->getBlock(x, y, z) == BlockId::Water)
                     immersion = m_world->getBlock(x, y + 1, z) == BlockId::Water
-                        ? 1.f : std::clamp((y + 1.f - eye.y - .05f) / .25f, 0.f, 1.f);
+                        ? 1.f : WorldEnvironment::cameraWaterImmersion(y + 1.f - eye.y);
             }
             const WorldEnvironmentState state = WorldEnvironment::forCameraMedium(air, immersion);
             if (m_blockFeedback != nullptr) m_blockFeedback->setEnvironment(state);
