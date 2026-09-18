@@ -101,11 +101,10 @@ void main()
     float diffuseLight = mix(0.70, 1.0, clamp(waterLight, 0.0, 1.0));
     colour *= diffuseLight * mix(0.48, 1.0, environmentLight);
 
-    bool cameraBelowSurface = cameraPosition.y < waterWorldPosition.y + 0.12;
-    if (cameraBelowSurface)
-    {
-        colour = mix(waterDeepColour * 0.72, colour, 0.20);
-    }
+    float eyeHeight = cameraPosition.y - waterWorldPosition.y;
+    float aboveSurface = smoothstep(-0.20, 0.20, eyeHeight);
+    colour = mix(mix(waterDeepColour * 0.72, colour, 0.20),
+                 colour, aboveSurface);
 
     float fogVisibility = clamp(
         exp(-waterDistance * waterDistance * fogDensity * fogDensity),
@@ -113,7 +112,15 @@ void main()
     vec3 localFogColour = directionalFogColour(
         waterWorldPosition - cameraPosition);
     colour = mix(localFogColour, colour, fogVisibility);
-    float alpha = cameraBelowSurface ? 0.90 :
-        clamp(mix(0.36, 0.84, depthAmount) + fresnel * 0.12, 0.36, 0.94);
+    float surfaceAlpha = clamp(mix(0.36, 0.84, depthAmount) + fresnel * 0.12,
+                               0.36, 0.94);
+    float alpha = mix(0.90, surfaceAlpha, aboveSurface);
+    // When the eye crosses this sheet, the 0.1 m near plane cuts its silhouette
+    // into a screen-wide strip. Fade only this narrow crossing collar; resident
+    // water-medium fog still describes immersion and depth absorption is kept
+    // outside it. Approach from below is longer because the sheet covers most
+    // of the sky. Shared surface heights preserve chunk continuity.
+    float crossingWidth = mix(1.0, 0.35, aboveSurface);
+    alpha *= smoothstep(0.10, crossingWidth, abs(eyeHeight));
     fragmentColour = vec4(clamp(colour, 0.0, 1.0), alpha);
 }

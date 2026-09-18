@@ -124,6 +124,46 @@ void main() {
     require(sample(1, 12, .4f, 0) == sample(1, 12, .4f, 1), "Fallback shoreline still animates");
     vector("cameraPosition", 0, -1, 0);
     require(sample(1, 12, 0, 0)[3] >= 225, "Underwater surface loses opacity");
+    // Read the production fragment output while crossing the surface. A hard
+    // medium switch used to change an entire clipped water sheet in one frame.
+    // Nonzero horizontal offset keeps the view direction defined at height 0.
+    int maxCrossingDelta = 0;
+    std::size_t crossingSamples = 0;
+    bool nearClipClear = true;
+    for (float detailAmount : {0.f, 1.f}) {
+        scalar("waterDetailStrength", detailAmount);
+        for (float depth : {1.f, 8.f}) {
+            std::array<unsigned char, 4> previous{};
+            for (int millimetres = -1200; millimetres <= 800; ++millimetres) {
+                vector("cameraPosition", 2, millimetres * .001f, 1);
+                const auto current = sample(depth, 12, .4f, 1);
+                if (millimetres > -1200) {
+                    // Compare the visible contribution over a bright sky and
+                    // dark bed, as well as alpha. Uncovered RGB is irrelevant.
+                    for (float background : {24.f, 190.f}) {
+                        for (int channel = 0; channel < 3; ++channel) {
+                            const auto composite = [&](const auto& pixel) {
+                                return int(std::round((pixel[channel] * pixel[3] +
+                                    background * (255 - pixel[3])) / 255.f));
+                            };
+                            maxCrossingDelta = std::max(maxCrossingDelta,
+                                std::abs(composite(current) - composite(previous)));
+                        }
+                    }
+                    maxCrossingDelta = std::max(maxCrossingDelta,
+                        std::abs(int(current[3]) - int(previous[3])));
+                }
+                if (std::abs(millimetres) <= 100)
+                    nearClipClear = nearClipClear && current[3] == 0;
+                previous = current;
+                ++crossingSamples;
+            }
+        }
+    }
+    std::cout << "[WATER_SHADER] waterline_samples=" << crossingSamples
+              << " max_composited_delta=" << maxCrossingDelta << '\n';
+    require(maxCrossingDelta <= 3, "Waterline colour/opacity changes discontinuously");
+    require(nearClipClear, "Near-eye water sheet is still opaque at the clipping plane");
     std::cout << "[WATER_SHADER] PASS depth-absorption distance-invariance depth-bound shore-motion drift-motion drift-continuity fallback underwater\n";
     glDeleteProgram(program);
 }
