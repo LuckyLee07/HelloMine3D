@@ -89,7 +89,7 @@ def main():
     parser.add_argument("--ui-scale", type=float, choices=(0.85, 1.0, 1.25), default=1.0)
     parser.add_argument("--feedback", choices=("off", "reduced", "full"), default="full")
     parser.add_argument("--minimap-range", type=int, choices=(64, 128, 256))
-    parser.add_argument("--actor-visual", choices=("idle", "windup", "recover", "walk", "cycle"))
+    parser.add_argument("--actor-visual", choices=("idle", "windup", "recover", "walk", "cycle", "projectiles", "projectile-flight"))
     parser.add_argument("--actor-distance", type=int, choices=(6, 12, 24),
                         help="Diagnostic gallery distance; requires --actor-visual")
     parser.add_argument("--hud-fixture", action="store_true")

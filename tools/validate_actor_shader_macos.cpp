@@ -180,6 +180,20 @@ int main(int argc,char** argv) {
         check("spitter-neck-shadow-disabled-parity",neckDay==render(shadow,9,0,-.5f,1,1,3,0));
         check("spitter-neck-fallback-remains-flat-tint",
             render(normal,9,0,-.5f,0,1,3,0)==render(normal,0,0,-.5f,0));
+        const auto spitTip = render(normal,10,0,-.45f,1,1,0,0);
+        const auto spitTail = render(normal,10,0,.5f,1,1,0,0);
+        check("projectile-leading-end-distinct-from-tail", difference(spitTip,spitTail)>20);
+        check("projectile-shadow-disabled-parity",spitTip==render(shadow,10,0,-.45f,1,1,0,0));
+        check("projectile-fallback-keeps-base-tint",render(normal,10,0,-.45f,0,1,0,0)==render(normal,0,0,-.5f,0));
+        check("projectile-colour-does-not-pulse-with-combat-phase",spitTip==render(normal,10,1,-.45f,1,1,0,0));
+        check("projectile-surface-attached-to-local-shape",spitTip==render(normal,10,0,-.45f,1,1,0,0,0,512));
+        const auto spitNight = render(normal,10,0,-.45f,1,0,0,0);
+        bool spitExposure = true;
+        for (std::size_t i=0; i<spitTip.size(); ++i)
+            if (i%4!=3) spitExposure &= std::abs(spitTip[i]*.34f-spitNight[i])<=1.f;
+        check("projectile-no-unbounded-night-emission",spitExposure);
+        check("projectile-obeys-opaque-fog",render(normal,10,0,-.45f,1,1,0,0,20)==render(normal,0,0,-.45f,1,1,0,0,20));
+        png(output/"projectile-tip.png",spitTip);png(output/"projectile-tail.png",spitTail);
         glDeleteProgram(normal);glDeleteProgram(shadow);glDeleteRenderbuffers(1,&colour);
         glDeleteFramebuffers(1,&fbo);glDeleteVertexArrays(1,&vao);CGLSetCurrentContext(nullptr);CGLDestroyContext(context);
         std::cout<<"[ACTOR_GPU] checks="<<checks<<" failures=0\n";return 0;

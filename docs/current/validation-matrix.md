@@ -34,6 +34,7 @@ AI 平台对应规则见 [当前验收规范](ai-assisted-gameplay-acceptance-v1
 | 第一人称手臂与抓握表现 | `bash scripts/verify_player_hand_presentation.sh Debug` / `Release`；受影响客户端双配置、P11A/P11B/ITEM_VISUAL 定向回归、空手/图标/方块及昼夜/窄窗口/面板隐藏截图、三档反馈连续帧和相关三轮性能。诊断采集夹具不替代正常输入。 |
 | 生物关节与步态表现 | `bash scripts/verify_enemy_articulation.sh Debug` / `Release`；方向/传送/固定关节/头口连接、颈部截面体积、30/60/120 fps 姿态过渡、暂停/死亡复位、真实展示比例/时序与故障负例，客户端双配置和 P11E 回归，静态前后图、具有不同时间点的连续行走/战斗姿态、相关三轮性能。新增部件还需检查 GPU 角色编号、昼夜及回退。诊断展示不代替正常战斗。 |
 | 生物表面与面部表现 | `tools/validate_actor_shader_macos.cpp` 运行生产普通/阴影 shader，检查原型分区、局部坐标、夜间提示、雾遮挡和关闭回退；旧 shader 负例、双配置客户端/资源检查、昼夜/中远距离连续画面及受影响三轮性能。正常战斗与人类审美单独记录。 |
+| 投射物模型与朝向 | `bash scripts/verify_projectile_presentation.sh Debug` / `Release` 检查封闭外向网格、体积边界、速度正交基和非法半径；双配置客户端与 `PROJECTILE` 定向行为回归、生产生物 shader GPU 检查及旧实现负例，近/中/远、昼夜、关闭回退和连续帧，相关三轮性能。诊断快照不替代正常战斗，未改 World 步进时不声明运动插值改善。 |
 | 方块选中表面、裂纹与世界碎屑 | P11B 定向与完整 WorldRuntime、模型/metadata/tile 映射、GPU 透明遮罩/阶段/遮挡检查、标准与兼容干净包多帧、取消与 Off 回退、相关性能；诊断夹具与正常输入分开记录。见[补充合同](../contracts/block-feedback-contract-v2.md)。 |
 | 目标、配方发现、探索奖励或资源经济 | 主线可达、输入输出守恒、重复奖励/一次性领取、保存重载和全部受影响迁移；脚本化 AI 记录可执行流程，无上下文 AI 盲玩只提供可理解性代理。 |
 | 资源、配方、声音或 shader | 资源清单/解析验证；缺失和非法引用必须明确失败。水波坐标变化用 `tools/validate_water_shader_macos.cpp` 执行实际 GLSL 的相邻区块位置/法线检查，命令见[水面修复记录](../reports/water-seam-fix-2026-09-12.md)。 |

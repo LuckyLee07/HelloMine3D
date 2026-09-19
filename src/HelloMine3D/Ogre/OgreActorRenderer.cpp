@@ -1,6 +1,7 @@
 #include "OgreActorRenderer.h"
 #include "OgreItemGeometry.h"
 #include "../Presentation/ItemVisualPose.h"
+#include "../Presentation/ProjectilePresentation.h"
 
 #include <Ogre.h>
 
@@ -238,7 +239,7 @@ OgreActorRenderer::validateProjectileSnapshots(
         if (!finiteVector(snapshot.position) ||
             !finiteVector(snapshot.velocity) ||
             glm::length(snapshot.velocity) <= 0.000001f ||
-            snapshot.radius <= 0.0f || snapshot.radius > 0.5f ||
+            !ProjectilePresentation::validRadius(snapshot.radius) ||
             snapshot.ticksRemaining <= 0 ||
             !std::isfinite(snapshot.distanceTravelled) ||
             !std::isfinite(snapshot.maximumDistance) ||
@@ -405,7 +406,16 @@ OgreActorRenderer::ActorVisual OgreActorRenderer::createProjectileVisual(
     ActorVisual visual;
     visual.type = "combat_projectile";
     visual.object = m_sceneManager->createManualObject(baseName + "_Mesh");
-    buildUnitCube(*visual.object, ProjectileMaterial, m_castShadows);
+    visual.object->begin(ProjectileMaterial, Ogre::RenderOperation::OT_TRIANGLE_LIST);
+    const auto& mesh = ProjectilePresentation::mesh();
+    for (const auto& position : mesh.positions)
+        visual.object->position(position.x, position.y, position.z);
+    for (const auto index : mesh.indices) visual.object->index(index);
+    visual.object->end();
+    visual.object->getSection(0)->setCustomParameter(1,
+        Ogre::Vector4(ProjectilePresentation::SurfaceRole, 0.f, 0.f, 0.f));
+    visual.object->setCastShadows(m_castShadows);
+    visual.object->setRenderQueueGroup(Ogre::RENDER_QUEUE_MAIN);
     visual.node = m_sceneManager->getRootSceneNode()->createChildSceneNode(
         baseName + "_Node");
     visual.node->attachObject(visual.object);
@@ -419,15 +429,12 @@ void OgreActorRenderer::updateProjectileVisual(
     visual.node->setPosition(snapshot.position.x, snapshot.position.y,
                              snapshot.position.z);
     const float diameter = snapshot.radius * 2.0f;
-    visual.node->setScale(diameter, diameter, diameter * 1.8f);
-    const glm::vec3 direction = glm::normalize(snapshot.velocity);
-    const float yaw = glm::degrees(std::atan2(direction.x, -direction.z));
-    const float horizontal = std::sqrt(
-        direction.x * direction.x + direction.z * direction.z);
-    const float pitch = glm::degrees(std::atan2(direction.y, horizontal));
-    visual.node->setOrientation(
-        Ogre::Quaternion(Ogre::Degree(yaw), Ogre::Vector3::UNIT_Y) *
-        Ogre::Quaternion(Ogre::Degree(pitch), Ogre::Vector3::UNIT_X));
+    visual.node->setScale(diameter, diameter, diameter);
+    const auto frame = ProjectilePresentation::frame(snapshot.velocity);
+    const auto vector = [](const glm::vec3& v) { return Ogre::Vector3(v.x, v.y, v.z); };
+    Ogre::Matrix3 basis;
+    basis.FromAxes(vector(frame.right), vector(frame.up), vector(frame.back));
+    visual.node->setOrientation(Ogre::Quaternion(basis));
 }
 
 OgreActorRenderer::ActorVisual OgreActorRenderer::createVisual(

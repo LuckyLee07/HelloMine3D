@@ -19986,6 +19986,9 @@ int main()
             caseWorldOutcomeAndLocalizedText();
             caseP11EEnemyPresentationAndResonance();
         }
+        else if (focus != nullptr && std::string(focus) == "PROJECTILE") {
+            caseRangedCombatProjectiles();
+        }
         else if (focus != nullptr && std::string(focus) == "AL-A3") {
             caseFixedTickScheduler();
             casePausedApplicationFlow();

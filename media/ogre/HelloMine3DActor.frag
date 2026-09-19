@@ -72,6 +72,13 @@ vec3 readableActorSurface()
     float shade = 0.68 + 0.22 * max(faceNormal.y, 0.0) +
                   0.10 * max(dot(faceNormal, normalize(vec3(-0.4, 0.6, -0.5))), 0.0);
     float role = actorPartData.x;
+    if (role > 9.5 && role < 10.5) {
+        // Compact, faceted spit: a pale leading end and a dark tapered tail.
+        // Attached to local geometry; no pulsing, transparency or extra glow.
+        float leading = 1.0 - smoothstep(-0.32, 0.20, actorLocalPosition.z);
+        vec3 tip = mix(actorTint.rgb, vec3(0.97, 0.87, 0.80), 0.55);
+        return mix(actorTint.rgb * 0.52, tip, leading) * shade;
+    }
     float archetype = actorPartData.w;
     float front = step(actorLocalPosition.z, -0.499);
     vec3 p = actorLocalPosition;

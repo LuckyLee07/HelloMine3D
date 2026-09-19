@@ -1011,7 +1011,8 @@ namespace
                      !RuntimePerformanceCapture::isEnabled()) ||
                     (m_actorVisualCapture != "idle" && m_actorVisualCapture != "windup" &&
                      m_actorVisualCapture != "recover" && m_actorVisualCapture != "walk" &&
-                     m_actorVisualCapture != "cycle"))
+                     m_actorVisualCapture != "cycle" && m_actorVisualCapture != "projectiles" &&
+                     m_actorVisualCapture != "projectile-flight"))
                     throw std::runtime_error("Actor visual fixture requires diagnostic capture and a valid pose.");
                 std::cout << "[ACTOR_VISUAL_CAPTURE] pose=" << m_actorVisualCapture
                     << " evidence=developer-diagnostic normal_input=0\n";
@@ -2803,7 +2804,8 @@ namespace
                 return;
             }
             auto snapshots = m_world->collectActorSnapshots();
-            if (!m_actorVisualCapture.empty())
+            if (!m_actorVisualCapture.empty() && m_actorVisualCapture != "projectiles" &&
+                m_actorVisualCapture != "projectile-flight")
             {
                 // Fixed presentation gallery; no actors/items enter the World or save.
                 snapshots.clear();
@@ -2867,8 +2869,34 @@ namespace
                 m_config.feedbackIntensity == GameplayFeedbackIntensity::Off ? 0.f :
                 m_config.feedbackIntensity == GameplayFeedbackIntensity::Reduced ? .35f : 1.f,
                 deltaSeconds);
-            m_actorRenderer->syncProjectiles(
-                m_world->collectCombatProjectileSnapshots());
+            auto projectiles = m_world->collectCombatProjectileSnapshots();
+            if (m_actorVisualCapture == "projectiles" || m_actorVisualCapture == "projectile-flight") {
+                // Diagnostic mirror only: cover near/middle/far and the World
+                // hard cap through the production renderer, without combat or save writes.
+                projectiles.clear();
+                const Ogre::Vector3 view = m_camera->getDirection();
+                const glm::vec3 forward = glm::normalize(glm::vec3(view.x, view.y, view.z));
+                const glm::vec3 reference = std::abs(forward.y) < .95f
+                    ? glm::vec3(0,1,0) : glm::vec3(0,0,1);
+                const glm::vec3 right = glm::normalize(glm::cross(forward, reference));
+                const glm::vec3 up = glm::cross(right, forward);
+                const glm::vec3 origin(renderEye.x, renderEye.y, renderEye.z);
+                const float tickTime = std::floor(m_actorVisualCaptureSeconds * 20.f) / 20.f;
+                for (int index = 0; index < 32; ++index) {
+                    CombatProjectileSnapshot sample;
+                    sample.id = 910001 + index; sample.ownerId = 1;
+                    const float distance = index == 0 ? .9f : index == 1 ? 2.f : 6.f + (index/8)*2.f;
+                    const float across = index == 0 ? .4f : index == 1 ? -.8f : ((index%8)-3.5f)*.8f;
+                    sample.position = origin + forward*distance + right*across + up*(index < 2 ? .18f : (index/8-1.5f)*.55f);
+                    sample.velocity = glm::normalize(right + up*((index%3-1)*.45f) - forward*.35f)*10.f;
+                    if (m_actorVisualCapture == "projectile-flight")
+                        sample.position += right*(std::fmod(tickTime*10.f + index*.4f, 4.f)-2.f);
+                    sample.radius = .15f; sample.ticksRemaining = 50;
+                    sample.distanceTravelled = 3.f; sample.maximumDistance = 20.f;
+                    projectiles.push_back(sample);
+                }
+            }
+            m_actorRenderer->syncProjectiles(projectiles);
         }
 
         void spawnValidationActors()
