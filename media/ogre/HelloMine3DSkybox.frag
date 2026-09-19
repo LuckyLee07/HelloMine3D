@@ -60,6 +60,33 @@ float cloudNoise(vec2 value)
     return result;
 }
 
+// Value and analytic horizontal slope share the same four lattice samples.
+// This gives the bounded clouds rounded lighting without extra noise lookups
+// or screen-space derivatives, which would vary with camera/resolution.
+vec3 cloudNoiseSlopeOctave(vec2 value)
+{
+    vec2 cell = floor(value);
+    vec2 part = fract(value);
+    vec2 blend = part * part * (3.0 - 2.0 * part);
+    vec2 slope = 6.0 * part * (1.0 - part);
+    float a = hash21(cell);
+    float b = hash21(cell + vec2(1.0, 0.0));
+    float c = hash21(cell + vec2(0.0, 1.0));
+    float d = hash21(cell + vec2(1.0, 1.0));
+    return vec3(mix(mix(a, b, blend.x), mix(c, d, blend.x), blend.y),
+                mix(b - a, d - c, blend.y) * slope.x,
+                mix(c - a, d - b, blend.x) * slope.y);
+}
+
+vec3 cloudNoiseSlope(vec2 value)
+{
+    vec3 low = cloudNoiseSlopeOctave(value);
+    vec3 middle = cloudNoiseSlopeOctave(value * 2.03 + 19.7);
+    vec3 high = cloudNoiseSlopeOctave(value * 4.07 - 7.3);
+    return low * 0.58 + middle * vec3(0.28, 0.28 * 2.03, 0.28 * 2.03) +
+           high * vec3(0.14, 0.14 * 4.07, 0.14 * 4.07);
+}
+
 vec3 directionalFogColour(vec3 viewDirection)
 {
     vec3 normalisedView = normalize(viewDirection);
@@ -135,9 +162,9 @@ void sampleBoundedCloudLayer(vec3 direction, out float mask,
         return;
     }
 
-    float sampleDistance = cameraInside
-        ? min(farDistance * 0.08, cloudHorizontalScale * 1.25)
-        : nearDistance;
+    // The ray entry tends to zero continuously when crossing either face.
+    // An inside-only offset would jump to a different part of the noise field.
+    float sampleDistance = nearDistance;
     float layerTravel = max(farDistance - nearDistance, 0.0);
     float secondDistance = min(
         farDistance,
@@ -149,31 +176,45 @@ void sampleBoundedCloudLayer(vec3 direction, out float mask,
     vec2 secondUv = (cameraPosition.xz +
                      direction.xz * secondDistance + motion) /
                     max(cloudHorizontalScale, 1.0);
-    float firstDensity = cloudNoise(firstUv);
-    float secondDensity = cloudNoise(secondUv + vec2(0.31, -0.17));
+    vec3 firstSample = cloudNoiseSlope(firstUv);
+    vec3 secondSample = cloudNoiseSlope(secondUv + vec2(0.31, -0.17));
     // Blend two slab samples instead of taking their union: disconnected
     // cloud groups retain clear sky between them, without extra noise octaves.
-    float density = mix(firstDensity, secondDensity, 0.32);
+    vec3 cloudSample = mix(firstSample, secondSample, 0.32);
+    float density = cloudSample.x;
     float threshold = mix(0.70, 0.48, cloudCoverage);
-    float body = smoothstep(threshold - 0.06,
-                            threshold + 0.14, density);
-    float edge = smoothstep(threshold, threshold + 0.085, density);
+    float body = smoothstep(threshold + 0.015,
+                            threshold + 0.20, density);
+    float edge = smoothstep(threshold, threshold + 0.065, density);
     float distanceFade = 1.0 - smoothstep(
         cloudMaxDistance * 0.72, cloudMaxDistance,
         cameraInside ? 0.0 : nearDistance);
-    float horizonFade = cameraInside
-        ? 1.0
-        : smoothstep(0.012, 0.065, abs(direction.y));
+    float interiorBlend = smoothstep(0.0, max(cloudThickness * 0.15, 0.1),
+        min(cameraPosition.y - bottom, top - cameraPosition.y));
+    float horizonFade = mix(smoothstep(0.012, 0.065, abs(direction.y)),
+                            1.0, interiorBlend);
     float opticalDepth = clamp(
         layerTravel / max(cloudThickness, 1.0), 0.0, 3.0);
-    mask = edge * distanceFade * horizonFade *
-           clamp(0.66 + opticalDepth * 0.10, 0.0, 0.92);
+    // An outward ray just inside the slab has nearly zero cloud travel.
+    // Fade that short segment instead of exposing a full-opacity plane.
+    float thicknessFade = smoothstep(0.0, 0.12, opticalDepth);
+    mask = edge * distanceFade * horizonFade * thicknessFade *
+           clamp(0.72 + opticalDepth * 0.10, 0.0, 0.96);
 
-    float topLighting = cameraPosition.y > top
-        ? 0.88
-        : (cameraPosition.y < bottom ? 0.35 : 0.48);
+    // Thin rims transmit more sky light; denser centres retain a darker base.
+    // Use the existing sun/moon direction and palette so dusk and night keep
+    // their environment colours. No new light, shadow map or weather state.
+    vec3 roundedNormal = normalize(vec3(-cloudSample.y * 0.85, 0.65,
+                                        -cloudSample.z * 0.85));
+    float sunFacing = dot(roundedNormal, normalize(sunDirection));
+    // Blend both contributions continuously through sunrise/sunset.
+    float directionalLight = max(sunFacing, 0.0) * sunIntensity +
+                             max(-sunFacing, 0.0) * moonIntensity;
+    float topLighting = mix(0.32, 0.72,
+                             smoothstep(bottom, top, cameraPosition.y));
     float lightAmount = clamp(
-        topLighting + body * 0.34 - opticalDepth * 0.035,
+        topLighting + directionalLight * 0.24 + (1.0 - body) * 0.24 -
+        body * 0.18 - opticalDepth * 0.025,
         0.12, 1.0);
     colour = mix(cloudShadowColour, cloudLightColour, lightAmount);
 }

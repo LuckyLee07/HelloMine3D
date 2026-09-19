@@ -30,11 +30,12 @@ std::string read(const std::filesystem::path& path) {
 GLuint program(const std::string& fragment) {
     const std::string vertex = R"GLSL(#version 150
 out vec3 vDirection;
+uniform float viewPitch;
 void main() {
     vec2 p = gl_VertexID == 0 ? vec2(-1,-1) :
         (gl_VertexID == 1 ? vec2(3,-1) : vec2(-1,3));
     gl_Position = vec4(p,0,1);
-    vDirection = vec3(p.x * 1.5, p.y * .75 + .4, -1);
+    vDirection = vec3(p.x * 1.5, p.y * .75 + viewPitch, -1);
 })GLSL";
     const GLuint p = glCreateProgram();
     for (const auto& entry : {std::pair<GLenum,const std::string*>{GL_VERTEX_SHADER,&vertex},
@@ -55,7 +56,9 @@ void main() {
     return p;
 }
 Pixels render(GLuint p, float time, bool enabled=true, bool night=false,
-              float height=108, float x=168) {
+              float height=108, float x=168, float lightX=0,
+              bool cloudLightingProbe=false, float lightBalance=-1,
+              float viewPitch=.4f) {
     glUseProgram(p);
     const auto scalar=[&](const char* key,float value) {
         glUniform1f(glGetUniformLocation(p,key),value);
@@ -63,11 +66,16 @@ Pixels render(GLuint p, float time, bool enabled=true, bool night=false,
     const auto vector=[&](const char* key,float x,float y,float z) {
         glUniform3f(glGetUniformLocation(p,key),x,y,z);
     };
+    scalar("viewPitch",viewPitch);
     vector("skyZenithColour",night?.006f:.12f,night?.014f:.36f,night?.05f:.68f);
     vector("skyHorizonColour",night?.025f:.56f,night?.04f:.70f,night?.085f:.8f);
-    vector("fogSunwardColour",.78f,.7f,.59f); scalar("fogDirectionalStrength",night?.04f:.12f);
-    vector("sunDirection",0,night?-1:1,0); vector("sunColour",1,.92f,.72f);
+    vector("fogSunwardColour",.78f,.7f,.59f);
+    scalar("fogDirectionalStrength",cloudLightingProbe?0:(night?.04f:.12f));
+    vector("sunDirection",lightX,night?-1:1,0); vector("sunColour",1,.92f,.72f);
     scalar("sunIntensity",night?0:1); scalar("moonIntensity",night?1:0); scalar("starIntensity",night?1:0);
+    if(lightBalance>=0) {
+        scalar("sunIntensity",1-lightBalance); scalar("moonIntensity",lightBalance);
+    }
     vector("cloudLightColour",night?.1f:.90f,night?.14f:.93f,night?.22f:.95f);
     vector("cloudShadowColour",night?.018f:.42f,night?.032f:.53f,night?.075f:.60f);
     scalar("cloudCoverage",.44f); scalar("cloudLayerEnabled",enabled?1:0);
@@ -99,6 +107,10 @@ void png(const std::filesystem::path& path,const Pixels& pixels) {
 double difference(const Pixels& a,const Pixels& b) {
     double total=0; for(std::size_t i=0;i<a.size();++i) total+=std::abs(int(a[i])-int(b[i]));
     return total/a.size();
+}
+bool equalRows(const Pixels& a,const Pixels& b,int first,int last) {
+    return std::equal(a.begin()+first*Edge*4,a.begin()+last*Edge*4,
+                      b.begin()+first*Edge*4);
 }
 }
 int main(int argc,char** argv) {
@@ -140,6 +152,42 @@ int main(int argc,char** argv) {
         check("world-space-parallax",difference(day,render(current,5,true,false,108,208))>.1);
         check("cloud-layer-height-parallax",difference(day,render(current,5,true,false,168))>.1);
         check("day-and-night-readable",difference(day,render(current,5,true,true))>20);
+        check("sun-moon-handoff-continuity",
+              difference(render(current,5,true,false,108,168,1,true,.4999f),
+                         render(current,5,true,false,108,168,1,true,.5001f))<.002);
+        check("cloud-bottom-crossing-continuity",
+              difference(render(current,5,true,false,155.999f),
+                         render(current,5,true,false,156.001f))<.1);
+        check("cloud-top-crossing-continuity",
+              difference(render(current,5,true,false,179.999f,168,0,false,-1,-.4f),
+                         render(current,5,true,false,180.001f,168,0,false,-1,-.4f))<.1);
+        png(output/"cloud-inside.png",render(current,5,true,false,168));
+        png(output/"cloud-above.png",render(current,5,true,false,210,168,0,false,-1,-.4f));
+        // This view excludes both discs/halos. Fog is disabled for the probe:
+        // only cloud shading may respond to the horizontal light direction.
+        for(bool night:{false,true}) {
+            const auto left=render(current,5,true,night,108,168,-1,true);
+            const auto right=render(current,5,true,night,108,168,1,true);
+            check(night?"moon-lights-cloud-form":"sun-lights-cloud-form",
+                  difference(left,right)>.01);
+            check(night?"night-clear-horizon-preserved":"day-clear-horizon-preserved",
+                  equalRows(render(current,5,true,night),
+                            render(baseline,5,true,night),0,56));
+            check(night?"night-no-cloud-above-outward-ray":"day-no-cloud-above-outward-ray",
+                  equalRows(render(current,5,true,night,210),
+                            render(baseline,5,true,night,210),128,Edge));
+            png(output/(night?"moon-left.png":"sun-left.png"),left);
+            png(output/(night?"moon-right.png":"sun-right.png"),right);
+            auto previous=render(current,5,true,night);
+            double maximumStep=0;
+            for(int frame=1;frame<=120;++frame) {
+                const auto next=render(current,5+frame/60.f,true,night);
+                maximumStep=std::max(maximumStep,difference(previous,next));
+                previous=next;
+            }
+            check(night?"night-continuous-drift":"day-continuous-drift",maximumStep<.05);
+            std::cout<<"[SKY_GPU] max-step-60hz="<<maximumStep<<'\n';
+        }
         png(output/"day-before.png",old);png(output/"day-after.png",day);
         glDeleteProgram(current);glDeleteProgram(baseline);glDeleteRenderbuffers(1,&colour);
         glDeleteFramebuffers(1,&fbo);glDeleteVertexArrays(1,&vao);
