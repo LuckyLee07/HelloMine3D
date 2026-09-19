@@ -628,6 +628,11 @@ POSIX Ogre `Timer` 的经过时间使用 `std::chrono::steady_clock`，毫秒/�
 已提交事实，使用世界坐标和解析重力轨迹；拾取图标仍在 HUD。两者共用 48 粒子上限与
 0.55 秒生命周期，不进入世界 fixed tick 或存档。详见[表现补充合同](../contracts/block-feedback-contract-v2.md)。
 
+湿地的既有 `TallGrass` 通过纯值 `WetlandGrassGeometry` 派生细长叶片、错层茎秆与成熟穗头；
+仅匹配 Wetland 和未改造的标准 Cross，资源包自定义形状保留原路径。区块网格和表面反馈共用
+同一几何及逐顶点风摆高度，复用已注册 Grass/OakBark tile；幼株六面、成熟八面，仍进入既有
+Flora 批次。世界生成、方块 ID、成熟状态、命中、掉落与存档不承载此表现变体。
+
 圆形小地图属于 Ogre 派生表现。2026-09-17 视觉升级将旧的生成器预测色块改为
 `ChunkManager::collectSurfaceMapSamples` 的真实驻留区块表面快照：World 锁忙时延后，
 每次最多 256 列，UI 以 30 Hz、每次 195 列轮转刷新 65×65 个采样点；三档范围对应 1/2/4 米步长，不加载或生成区块。

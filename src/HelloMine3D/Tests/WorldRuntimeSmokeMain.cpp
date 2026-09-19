@@ -19769,6 +19769,7 @@ void caseWorldManager()
 #include "MinimapNavigationSmokeCases.h"
 #include "PresentationClockSmokeCases.h"
 #include "TerrainLandformSmokeCases.h"
+#include "WetlandGrassSmokeCases.h"
 
 int main()
 {
@@ -19906,6 +19907,9 @@ int main()
         else if (focus != nullptr &&
                  std::string(focus) == "E6_VEGETATION") {
             caseVegetationMosaicV12();
+        }
+        else if (focus != nullptr && std::string(focus) == "WETLAND_GRASS") {
+            caseWetlandGrassPresentation();
         }
         else if (focus != nullptr && std::string(focus) == "E7_LANDFORMS") {
             caseLandformDiversityV13();
@@ -20148,6 +20152,7 @@ int main()
         caseInlandWaterV11();
         caseVegetationMosaicV12();
         caseLandformDiversityV13();
+        caseWetlandGrassPresentation();
         caseTerrainFoundationV5();
         caseP11TerrainContoursAndEntrances();
         caseP11EEnemyPresentationAndResonance();

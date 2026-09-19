@@ -152,7 +152,6 @@ struct OgreBlockFeedback::Impl
                 chunks.getTerrainSeed());
             surface->clear();
             surface->begin(material->getName(), Ogre::RenderOperation::OT_TRIANGLE_LIST);
-            const std::array<glm::vec2, 4> repeat{{{1,1}, {0,1}, {0,0}, {1,0}}};
             unsigned int first = 0;
             for (const auto &face : faces)
             {
@@ -162,7 +161,7 @@ struct OgreBlockFeedback::Impl
                     surface->position(face.positions[vertex * 3], face.positions[vertex * 3 + 1],
                                       face.positions[vertex * 3 + 2]);
                     surface->textureCoord(uv[vertex * 2], uv[vertex * 2 + 1]);
-                    surface->textureCoord(repeat[vertex].x, repeat[vertex].y);
+                    surface->textureCoord(face.repeat[vertex * 2], face.repeat[vertex * 2 + 1]);
                     surface->textureCoord(1.f);
                 }
                 surface->quad(first, first + 1, first + 2, first + 3);

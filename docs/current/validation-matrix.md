@@ -36,6 +36,7 @@ AI 平台对应规则见 [当前验收规范](ai-assisted-gameplay-acceptance-v1
 | 生物表面与面部表现 | `tools/validate_actor_shader_macos.cpp` 运行生产普通/阴影 shader，检查原型分区、局部坐标、夜间提示、雾遮挡和关闭回退；旧 shader 负例、双配置客户端/资源检查、昼夜/中远距离连续画面及受影响三轮性能。正常战斗与人类审美单独记录。 |
 | 投射物模型与朝向 | `bash scripts/verify_projectile_presentation.sh Debug` / `Release` 检查封闭外向网格、体积边界、速度正交基和非法半径；双配置客户端与 `PROJECTILE` 定向行为回归、生产生物 shader GPU 检查及旧实现负例，近/中/远、昼夜、关闭回退和连续帧，相关三轮性能。诊断快照不替代正常战斗，未改 World 步进时不声明运动插值改善。 |
 | 方块选中表面、裂纹与世界碎屑 | P11B 定向与完整 WorldRuntime、模型/metadata/tile 映射、GPU 透明遮罩/阶段/遮挡检查、标准与兼容干净包多帧、取消与 Off 回退、相关性能；诊断夹具与正常输入分开记录。见[补充合同](../contracts/block-feedback-contract-v2.md)。 |
+| 湿地草丛区域模型 | `bash scripts/verify_wetland_grass.sh Debug` / `Release`；双配置客户端、`WETLAND_GRASS` / `P11B`、WorldRuntime 与 MeshDirty，检查真实区块和反馈几何/材质/风摆一致、成熟状态、单格边界及自定义资源形状回退。`tools/validate_flora_shader_macos.cpp` 检查生产 GPU 的根部、茎穗接点、普通/阴影一致及故障负例；多 seed 昼夜/兼容画面、可见连续风摆和 Off/High 常驻/流送三轮性能。GPU 编译需 `-Isrc/external/glm`，完整命令见[本批记录](../reports/wetland-grass-presentation-r29-2026-09-19.md)。 |
 | 目标、配方发现、探索奖励或资源经济 | 主线可达、输入输出守恒、重复奖励/一次性领取、保存重载和全部受影响迁移；脚本化 AI 记录可执行流程，无上下文 AI 盲玩只提供可理解性代理。 |
 | 资源、配方、声音或 shader | 资源清单/解析验证；缺失和非法引用必须明确失败。水波坐标变化用 `tools/validate_water_shader_macos.cpp` 执行实际 GLSL 的相邻区块位置/法线检查，命令见[水面修复记录](../reports/water-seam-fix-2026-09-12.md)。 |
 | terrain atlas 或 HUD/手持图标 | `tools\validate_terrain_atlas.ps1`（暖野 macOS 使用 `python3 tools/validate_warm_texture_atlas.py`，含分面/图标映射）、确定性重建、Alpha/空 tile、block 分面、Material 坐标、资源包与隐藏固定截图。 |

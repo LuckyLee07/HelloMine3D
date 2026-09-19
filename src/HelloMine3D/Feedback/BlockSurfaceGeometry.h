@@ -4,11 +4,14 @@
 #include "../World/Block/BlockDefinition.h"
 #include "../World/Block/ChunkBlock.h"
 #include "../World/Block/TerrainAppearance.h"
+#include "../World/Block/BlockDatabase.h"
+#include "../World/Block/WetlandGrassGeometry.h"
 
 struct BlockSurfaceFace
 {
     BlockShapeFace positions;
     glm::ivec2 tile{0};
+    std::array<float, 8> repeat{{1,1, 0,1, 0,0, 1,0}};
 };
 
 // Presentation geometry uses the registered shape, crop scale and world tile
@@ -27,6 +30,23 @@ inline std::vector<BlockSurfaceFace> blockSurfaceGeometry(
     if (render.meshType == BlockMeshType::Resource)
     {
         const float height = definition.behavior->verticalRenderScale(definition, block);
+        if (WetlandGrassGeometry::applies(static_cast<BlockId>(block.id), biome, render.shape))
+        {
+            const auto &database = BlockDatabase::get();
+            const auto leafTile = TerrainAppearance::select(BlockId::Grass,
+                TerrainFaceKind::Top, database.getDefinition(BlockId::Grass).render.texTopCoord,
+                biome, seed, position).coordinates;
+            const auto seedTile = database.getDefinition(BlockId::OakBark).render.texSideCoord;
+            const auto model = WetlandGrassGeometry::build(
+                TerrainAppearance::coordinateVariant(seed, position, BlockId::TallGrass),
+                block.metadata >= BlockMetadata::TallGrass::Mature, height);
+            for (std::size_t i = 0; i < model.count; ++i)
+            {
+                const auto &face = model.faces[i];
+                result.push_back({face.positions, face.seedHead ? seedTile : leafTile, face.repeat});
+            }
+            return result;
+        }
         for (BlockShapeFace face : render.shape.faces)
         {
             for (std::size_t y = 1; y < face.size(); y += 3)

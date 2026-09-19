@@ -1,7 +1,8 @@
 // Run the production GLSL and the time binding declared in HelloMine3D.program.
-// clang++ -std=c++17 -Wno-deprecated-declarations tools/validate_flora_shader_macos.cpp \
+// clang++ -std=c++17 -Wno-deprecated-declarations -Isrc/external/glm tools/validate_flora_shader_macos.cpp \
 //   -framework OpenGL -o /tmp/validate-flora-shader
 // /tmp/validate-flora-shader media/ogre
+#include "../src/HelloMine3D/World/Block/WetlandGrassGeometry.h"
 #include <OpenGL/OpenGL.h>
 #include <OpenGL/gl3.h>
 
@@ -216,7 +217,55 @@ int main(int argc, char **argv)
         check("spatial-motion-variation", neighbourDifference > .005f, neighbourDifference);
         check("section-independent-wind", spatialMismatch < .0002f, spatialMismatch);
         check("shadow-receiver-motion-matches", passMismatch < .00001f, passMismatch);
-        std::cout << "timeline_samples=" << samples << " checks=10 failures=" << failures << '\n';
+        float wetRoot = 0.f, wetMotion = 0.f, wetPass = 0.f, jointGap = 0.f;
+        float badJointGap = 0.f;
+        std::size_t wetSamples = 0;
+        for (unsigned variant = 0; variant < 3; ++variant) {
+            for (const bool mature : {false, true}) {
+                const auto model = WetlandGrassGeometry::build(variant, mature, 1.f);
+                for (int step = 0; step <= 32; ++step) {
+                    const float time = step * .125f;
+                    for (std::size_t f = 0; f < model.count; ++f) {
+                        const auto &face = model.faces[f];
+                        for (std::size_t v = 0; v < 4; ++v) {
+                            const float x = 4 + face.positions[v*3];
+                            const float y = 8 + face.positions[v*3+1];
+                            const float z = 4 + face.positions[v*3+2];
+                            const auto normalPoint = normal.sample(time, world, x, y, z, face.repeat[v*2+1]);
+                            const float motion = difference(normalPoint, {x, y+48, z});
+                            if (face.positions[v*3+1] == 0.f) wetRoot = std::max(wetRoot, motion);
+                            wetMotion = std::max(wetMotion, motion);
+                            wetPass = std::max(wetPass, difference(normalPoint,
+                                shadow.sample(time, world, x, y, z, face.repeat[v*2+1])));
+                            ++wetSamples;
+                        }
+                    }
+                    if (mature) {
+                        const auto centre = [&](std::size_t f, std::size_t a, std::size_t b, bool wrongWeight) {
+                            Vector result{};
+                            for (const auto v : {a,b}) {
+                                const auto &face = model.faces[f];
+                                const auto p = normal.sample(time, world, 4+face.positions[v*3],
+                                    8+face.positions[v*3+1], 4+face.positions[v*3+2],
+                                    wrongWeight ? 1.f : face.repeat[v*2+1]);
+                                for (std::size_t axis=0; axis<3; ++axis) result[axis] += p[axis] * .5f;
+                            }
+                            return result;
+                        };
+                        const auto stem = centre(4,2,3,false);
+                        jointGap = std::max(jointGap, difference(stem,centre(6,0,1,false)));
+                        badJointGap = std::max(badJointGap, difference(stem,centre(6,0,1,true)));
+                    }
+                }
+            }
+        }
+        check("wetland-model-roots-anchored", wetRoot < .00001f, wetRoot);
+        check("wetland-model-visible-bounded-wind", wetMotion > .005f && wetMotion < .09f, wetMotion);
+        check("wetland-model-shadow-motion-matches", wetPass < .00001f, wetPass);
+        check("wetland-model-stem-seed-joint", jointGap < .001f, jointGap);
+        check("wetland-model-pinned-seed-negative-detected", badJointGap > .005f, badJointGap);
+        std::cout << "timeline_samples=" << samples << " wetland_vertex_samples=" << wetSamples
+                  << " checks=15 failures=" << failures << '\n';
         glDeleteProgram(normal.program);
         glDeleteProgram(shadow.program);
         glDeleteBuffers(1, &buffer);
