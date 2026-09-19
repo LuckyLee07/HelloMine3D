@@ -976,7 +976,8 @@ namespace
                 if ((!isTrueValue(std::getenv("HELLO_RENDER_CAPTURE")) &&
                      !RuntimePerformanceCapture::isEnabled()) ||
                     (m_actorVisualCapture != "idle" && m_actorVisualCapture != "windup" &&
-                     m_actorVisualCapture != "recover"))
+                     m_actorVisualCapture != "recover" && m_actorVisualCapture != "walk" &&
+                     m_actorVisualCapture != "cycle"))
                     throw std::runtime_error("Actor visual fixture requires diagnostic capture and a valid pose.");
                 std::cout << "[ACTOR_VISUAL_CAPTURE] pose=" << m_actorVisualCapture
                     << " evidence=developer-diagnostic normal_input=0\n";
@@ -2787,6 +2788,24 @@ namespace
                         m_actorVisualCapture == "recover" ? MobCombatState::Recover : MobCombatState::Idle;
                     sample.combatStateTicksTotal = 20;
                     sample.combatStateTicksRemaining = 3;
+                    if (m_actorVisualCapture == "walk") {
+                        // Deliberately travel along x=-z: the old coordinate-
+                        // sum gait froze on this path. These are render-only
+                        // gallery snapshots, never actors in the world/save.
+                        const float travel = .55f * std::sin(m_actorVisualCaptureSeconds * 2.f);
+                        sample.position += glm::vec3(travel, 0.f, -travel);
+                        sample.combatState = MobCombatState::Chase;
+                        sample.rotation.y += 25.f;
+                    }
+                    else if (m_actorVisualCapture == "cycle") {
+                        const float phase = std::fmod(m_actorVisualCaptureSeconds, 4.f);
+                        sample.combatState = phase < 1.f ? MobCombatState::Idle :
+                            phase < 2.f ? MobCombatState::Windup :
+                            phase < 3.f ? MobCombatState::Recover : MobCombatState::Idle;
+                        sample.combatStateTicksRemaining = std::clamp(
+                            static_cast<int>(std::ceil((1.f - std::fmod(phase, 1.f)) * 20.f)), 1, 20);
+                        sample.rotation.y += 25.f;
+                    }
                     snapshots.push_back(sample);
                 }
                 const Material::ID materials[]{Material::Stone, Material::OakBark,

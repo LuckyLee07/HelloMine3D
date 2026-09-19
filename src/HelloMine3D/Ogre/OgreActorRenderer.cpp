@@ -514,7 +514,10 @@ void OgreActorRenderer::updateVisual(
     const EnemyVisualProfile profile =
         EnemyPresentation::profileForType(snapshot.type);
     const EnemyVisualPose pose =
-        EnemyPresentation::poseFor(snapshot, profile);
+        EnemyPresentation::poseFor(snapshot, profile,
+            visual.gaitPhase.update(snapshot.position,
+                snapshot.combatState == MobCombatState::Chase &&
+                !snapshot.deathPresentation));
     visual.node->setPosition(
         snapshot.position.x,
         snapshot.position.y + pose.rootYOffset *

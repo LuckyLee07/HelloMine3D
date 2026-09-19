@@ -62,6 +62,51 @@ namespace EnemyPresentation
     inline constexpr int DeathPoseTicks = 8;
     inline constexpr std::size_t MaximumDeathPoses = 32;
 
+    // Owned by one render visual, not the Actor or its save state. Accumulated
+    // horizontal travel avoids the x+z cancellation on diagonal paths.
+    class GaitPhase
+    {
+      public:
+        float update(const glm::vec3& position, bool walking)
+        {
+            if (!std::isfinite(position.x) || !std::isfinite(position.y) ||
+                !std::isfinite(position.z)) {
+                *this = GaitPhase{};
+                return m_phase;
+            }
+            if (m_seeded && walking) {
+                const double dx = static_cast<double>(position.x) - m_previous.x;
+                const double dz = static_cast<double>(position.z) - m_previous.z;
+                const double distance = std::hypot(dx, dz);
+                // A normal fixed-tick stride is much smaller than two metres.
+                // Rebase teleports without turning them into frantic steps.
+                if (distance <= 2.0)
+                    m_phase = static_cast<float>(std::fmod(
+                        m_phase + distance * 4.5, 6.283185307179586));
+            }
+            m_previous = position;
+            m_seeded = true;
+            return m_phase;
+        }
+
+      private:
+        glm::vec3 m_previous{0.f};
+        float m_phase = 0.f;
+        bool m_seeded = false;
+    };
+
+    // Match Ogre's yaw * pitch * roll order (roll is applied first).
+    inline glm::vec3 rotatePart(glm::vec3 point, const glm::vec3& degrees)
+    {
+        const glm::vec3 a = glm::radians(degrees);
+        point = {point.x * std::cos(a.z) - point.y * std::sin(a.z),
+                 point.x * std::sin(a.z) + point.y * std::cos(a.z), point.z};
+        point = {point.x, point.y * std::cos(a.x) - point.z * std::sin(a.x),
+                 point.y * std::sin(a.x) + point.z * std::cos(a.x)};
+        return {point.x * std::cos(a.y) + point.z * std::sin(a.y), point.y,
+                -point.x * std::sin(a.y) + point.z * std::cos(a.y)};
+    }
+
     inline bool isWaystoneGuardianType(const std::string &type) noexcept
     {
         return type == "hellomine:waystone_stalker" ||
@@ -92,14 +137,14 @@ namespace EnemyPresentation
                 {0.42f, 0.48f, 0.34f});
             add(EnemyVisualPartRole::Head, {0.f, 0.39f, -0.02f},
                 {0.34f, 0.25f, 0.32f});
-            add(EnemyVisualPartRole::LeftArm, {-0.32f, 0.02f, 0.f},
+            add(EnemyVisualPartRole::LeftArm, {-0.28f, 0.02f, 0.f},
                 {0.16f, 0.56f, 0.16f});
-            add(EnemyVisualPartRole::RightArm, {0.32f, 0.02f, 0.f},
+            add(EnemyVisualPartRole::RightArm, {0.28f, 0.02f, 0.f},
                 {0.16f, 0.56f, 0.16f});
-            add(EnemyVisualPartRole::LeftLeg, {-0.13f, -0.37f, 0.f},
-                {0.16f, 0.30f, 0.19f});
-            add(EnemyVisualPartRole::RightLeg, {0.13f, -0.37f, 0.f},
-                {0.16f, 0.30f, 0.19f});
+            add(EnemyVisualPartRole::LeftLeg, {-0.13f, -0.355f, 0.f},
+                {0.16f, 0.33f, 0.19f});
+            add(EnemyVisualPartRole::RightLeg, {0.13f, -0.355f, 0.f},
+                {0.16f, 0.33f, 0.19f});
         }
         else if (brute) {
             profile.archetype = EnemyVisualArchetype::Brute;
@@ -146,7 +191,8 @@ namespace EnemyPresentation
     }
 
     inline EnemyVisualPose poseFor(const ActorSnapshot &snapshot,
-                                   const EnemyVisualProfile &profile)
+                                   const EnemyVisualProfile &profile,
+                                   float travelPhase = 0.f)
     {
         EnemyVisualPose pose;
         const float stateProgress = snapshot.combatStateTicksTotal > 0
@@ -156,7 +202,7 @@ namespace EnemyPresentation
                   0.f, 1.f)
             : 0.f;
         const float gait = std::sin(
-            (snapshot.position.x + snapshot.position.z) * 4.5f +
+            (std::isfinite(travelPhase) ? travelPhase : 0.f) +
             static_cast<float>(snapshot.id % 17u) * 0.37f);
 
         for (std::size_t index = 0; index < profile.partCount; ++index) {
@@ -218,6 +264,35 @@ namespace EnemyPresentation
                           role == EnemyVisualPartRole::Muzzle)) {
                     pose.rotations[index].x = 18.f * followThrough;
                 }
+            }
+        }
+
+        std::size_t head = profile.partCount;
+        for (std::size_t index = 0; index < profile.partCount; ++index)
+            if (profile.parts[index].role == EnemyVisualPartRole::Head) head = index;
+        for (std::size_t index = 0; index < profile.partCount; ++index) {
+            const auto& part = profile.parts[index];
+            if (part.role == EnemyVisualPartRole::LeftArm ||
+                part.role == EnemyVisualPartRole::RightArm ||
+                part.role == EnemyVisualPartRole::LeftLeg ||
+                part.role == EnemyVisualPartRole::RightLeg) {
+                const glm::vec3 pivot(0.f, part.scale.y * .5f, 0.f);
+                pose.offsets[index] = pivot - rotatePart(
+                    pivot * pose.scales[index], pose.rotations[index]);
+            }
+            else if (head < profile.partCount &&
+                     (part.role == EnemyVisualPartRole::Head ||
+                      part.role == EnemyVisualPartRole::Muzzle)) {
+                const auto& headPart = profile.parts[head];
+                const glm::vec3 neck = headPart.offset + glm::vec3(
+                    0.f, -.5f * headPart.scale.y, .25f * headPart.scale.z);
+                // Muzzle shares the head's complete neck transform, including
+                // Idle yaw and Windup scale; their seam cannot pull apart.
+                pose.rotations[index] = pose.rotations[head];
+                pose.scales[index] = pose.scales[head];
+                pose.offsets[index] = neck + rotatePart(
+                    (part.offset - neck) * pose.scales[index],
+                    pose.rotations[index]) - part.offset;
             }
         }
 

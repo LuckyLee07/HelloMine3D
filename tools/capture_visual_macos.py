@@ -89,7 +89,7 @@ def main():
     parser.add_argument("--ui-scale", type=float, choices=(0.85, 1.0, 1.25), default=1.0)
     parser.add_argument("--feedback", choices=("off", "reduced", "full"), default="full")
     parser.add_argument("--minimap-range", type=int, choices=(64, 128, 256))
-    parser.add_argument("--actor-visual", choices=("idle", "windup", "recover"))
+    parser.add_argument("--actor-visual", choices=("idle", "windup", "recover", "walk", "cycle"))
     parser.add_argument("--hud-fixture", action="store_true")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--panel", choices=("crafting", "container", "settings"))

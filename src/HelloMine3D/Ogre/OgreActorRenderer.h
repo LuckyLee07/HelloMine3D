@@ -69,6 +69,7 @@ class OgreActorRenderer
         std::string type;
         int itemMaterialId = 0;
         bool itemIcon = false;
+        EnemyPresentation::GaitPhase gaitPhase;
     };
 
     ActorVisual createVisual(const ActorSnapshot& snapshot);
