@@ -310,7 +310,7 @@ E6 窗口阶段已用唯一工作 `.app` 的同一 PID `82431` 完成 28/28 个�
   高度/坡差、变化量、极值坐标与纯规划确定性。旧 v1–v12 使用同一最终 WorldRuntime 的
   `T0-SURVEY`，与修改前 `samples.csv` / `chunks.csv` 逐字节核对。
 - `HELLOMINE3D_WORLD_SMOKE_FOCUS=E7_LANDFORMS`：48 个选定地点实际生成及反序指纹、
-  公开查询、干燥植物、八 seed 资源/出生/洞口/结构接近方向、默认 v13 与改块保存重开。
+  公开查询、干燥植物、八 seed 资源/出生/洞口/结构接近方向、显式 v13 与改块保存重开。
 - `HELLOMINE3D_WORLD_SMOKE_FOCUS=E7_REGIONS` 配合
   `HELLOMINE3D_TERRAIN_SURVEY_DIR=<新目录>`：导出三个 seed 的 18 片 128×128 实际区域，
   明确洞口/结构/矿物例外，检查沙丘/岩台跨度和湿地实际水、干草地。连片选点工具为
@@ -320,3 +320,21 @@ E6 窗口阶段已用唯一工作 `.app` 的同一 PID `82431` 完成 28/28 个�
 - 同一工作包固定原图、多 seed / 多视角和连续相机；新地貌 Off / High 都观察。受影响
   常驻/快速流送 v12/v13 各三轮，P95/P99 中位数不超过 1.10，记录网格、驻留和生成成本。
   最后通过正常菜单新建/进入/保存重开；持续输入按用户决定暂缓，不由诊断代替。
+
+### E8 地标建筑 terrain v14
+
+按 [v14 合同](../contracts/landmark-architecture-v14-contract-v1.md) 检查：
+
+- `HELLOMINE3D_WORLD_SMOKE_FOCUS=E8`：八 seed 三类实际地标的基础/连通、两格净空入口、
+  核心/矿物/玻璃数量、箱子奖励、跨区块正反生成与树冠避让；默认 v14 改块保存重开，
+  真实容器取空和门柱破坏后重开保持。查询 halo 超过 9 格必须拒绝。
+  三类陡坡候选一旦已不合格，应提前结束高度查询；R4 同时保留旧规划器触发该工作量断言的负例。
+- `HELLOMINE3D_WORLD_SMOKE_FOCUS=LANDMARK-SURVEY` 配合
+  `HELLOMINE3D_TERRAIN_SURVEY_VERSION=2..14` 和 `HELLOMINE3D_TERRAIN_SURVEY_DIR=<新目录>`，
+  导出 `plans.csv` / `chunks.csv`；v2–v13 与修改前生产基线逐字节比较，v1 由既有完整回归覆盖。
+  八 seed 每类至多取两个地点；旧 v2 只有路标。扫描半径上限 32 cells，不能无限搜索。
+- 双配置客户端、WorldRuntime、Soak 构建及聚焦/完整 WorldRuntime；相关 nominal/stress 短 Q3。
+- 三 seed 地标原图、近入口与夜景，连续诊断保留真实时间点；相同地点与机位进行常驻/快速
+  流送各三对性能，P95/P99 中位数比不超过 1.10。记录网格、驻留和生成成本。
+  诊断截图不等同正常移动，正常持续输入按用户决定暂缓。最新证据见
+  [r31 记录](../reports/landmark-architecture-r31-2026-09-19.md)。

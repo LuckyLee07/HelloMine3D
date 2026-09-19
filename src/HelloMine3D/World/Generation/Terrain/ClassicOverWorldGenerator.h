@@ -57,7 +57,7 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
     StructurePlanSnapshot getStructurePlanForCell(
         StructureType type, int cellX, int cellZ) const;
     std::vector<StructurePlanSnapshot> getStructurePlansForChunk(
-        int chunkX, int chunkZ) const;
+        int chunkX, int chunkZ, int padding = 0) const;
 
   private:
     struct BlockPosition {
@@ -75,8 +75,8 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
     void placeOreVein(Random<std::minstd_rand> &random, BlockId oreBlock,
                       int startX, int startY, int startZ, int size);
     void applyPlantDecorators(const std::vector<BlockPosition> &positions);
-    void applyTreeDecorators();
-    void applyLandmarkDecorators();
+    void applyTreeDecorators(const std::vector<StructurePlanSnapshot> &plans);
+    void applyLandmarkDecorators(const std::vector<StructurePlanSnapshot> &plans);
     void sanitizeSurfaceDecoratorsV8();
     void projectStructurePlan(const StructurePlanSnapshot &plan);
 

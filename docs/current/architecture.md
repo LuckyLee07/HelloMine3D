@@ -365,14 +365,19 @@ C3 为 copied topology observation 增至 79 项并同步更新 machine-checked 
   邻 Chunk。v13 `sampleV13` 连续混合弯曲沙丘、岩台切谷、林地盆地和浅水湿地；岩台位移
   有界，湿地复用既有水位，Wetland/RockPlateau 只追加生态值。区块高度/生态、公开查询
   和放置规则消费同一列结果，湿地树木和草丛只落在干燥地表。完整区块生成在装饰 halo
-  运算前拒绝越界。v1–v12 旧路径及存档身份保留，已保存区块不重生成；
+  运算前拒绝越界。v14 沿用 v13 的高度/生态列，仅版本化三类地标建筑和树冠避让。
+  `LandmarkArchitecture::blockAt` 是有界、逐格唯一的蓝图；纯结构规划校验 footprint 与前向入口，
+  查询 halo 最多 9 格（树木来源 6 格加树冠 3 格），不加载邻 Chunk。同一批计划供树木避让和
+  地标投影使用，箱子仍走既有 block entity 初始化与保存路径。v1–v13 旧路径及存档身份保留，
+  已保存区块不重生成；
   v5 基线见 [v5 合同](../contracts/terrain-foundation-v5-contract-v1.md)，当前 E2 门槛见
   [v8 合同](../contracts/ecology-surface-coast-v8-e2-contract-v1.md)，v9 首批范围见
   [E3 合同](../contracts/ecology-inland-meadow-v9-e3-contract-v1.md)，v10/v11 范围分别见
   [E4 合同](../contracts/ecology-inland-relief-v10-e4-contract-v1.md)和
   [E5 合同](../contracts/ecology-inland-water-v11-e5-contract-v1.md)，v12 范围见
   [E6 合同](../contracts/ecology-vegetation-mosaic-v12-e6-contract-v1.md)，v13 范围见
-  [地貌多样化合同](../contracts/terrain-diversity-v13-contract-v1.md)；
+  [地貌多样化合同](../contracts/terrain-diversity-v13-contract-v1.md)，v14 范围见
+  [地标建筑合同](../contracts/landmark-architecture-v14-contract-v1.md)；
 - 查询、创建、加载、生成、保存和卸载 Chunk；
 - 在卸载前同步保存 dirty Chunk，失败时保留 resident Chunk；
 - 发布 generated/loaded/saved/unloaded 事实；

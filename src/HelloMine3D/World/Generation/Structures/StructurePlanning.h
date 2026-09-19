@@ -105,6 +105,8 @@ class DeterministicStructurePlanner {
     static constexpr int CampProjectionPriority = 60;
     static constexpr std::size_t CampPlannedBlockCount = 905;
     static constexpr int MaximumHorizontalRadius = CampRadiusX;
+    // Six-block tree source halo plus the three-block canopy radius.
+    static constexpr int MaximumTreeClearancePadding = 9;
     static constexpr std::size_t MaximumPlansPerChunk = 4;
 
     DeterministicStructurePlanner(int seed, int terrainGenerationVersion,
@@ -116,7 +118,7 @@ class DeterministicStructurePlanner {
     StructurePlanSnapshot planForCell(StructureType type, int cellX,
                                       int cellZ) const;
     std::vector<StructurePlanSnapshot> plansForChunk(int chunkX,
-                                                     int chunkZ) const;
+                                                     int chunkZ, int padding = 0) const;
 
     static std::vector<StructurePlanSnapshot> resolveOverlaps(
         std::vector<StructurePlanSnapshot> candidates);

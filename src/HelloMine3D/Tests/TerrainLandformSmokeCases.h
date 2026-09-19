@@ -270,7 +270,7 @@ void caseLandformDiversityV13()
     setEnv("HELLOMINE3D_SEED", "20260807");
     setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
     const auto directory = freshSaveDirectory("e7_new_world_reopen");
-    bool persisted = false;
+    bool persisted = initializeTerrainIdentity(directory, "e7-preserved-v13", 13, 20260807);
     std::uint64_t chunkHash = 0;
     {
         Player player;
@@ -279,7 +279,7 @@ void caseLandformDiversityV13()
         chunks.loadChunk(-1, -1);
         created.setBlock(-2, 190, -2, BlockId::OakBark);
         chunkHash = TerrainSurvey::blockHash(chunks.getChunk(-1, -1));
-        persisted = chunks.getTerrainGenerationVersion() == 13 && created.save();
+        persisted = persisted && chunks.getTerrainGenerationVersion() == 13 && created.save();
     }
     {
         Player player;
@@ -289,7 +289,7 @@ void caseLandformDiversityV13()
             reopened.getBlock(-2, 190, -2) == BlockId::OakBark &&
             chunkHash == TerrainSurvey::blockHash(reopened.getChunkManager().getChunk(-1, -1));
     }
-    check("E7/default-new-world-v13-save-edit-and-complete-chunk-reopen", persisted);
+    check("E7/preserved-v13-save-edit-and-complete-chunk-reopen", persisted);
     WorldSaveData identity;
     bool rejected = WorldSave(directory).load(identity);
     identity.terrainGenerationVersion = CurrentTerrainGenerationVersion + 1;

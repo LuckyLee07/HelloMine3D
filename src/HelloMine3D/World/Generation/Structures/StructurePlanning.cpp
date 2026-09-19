@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <limits>
 #include <tuple>
+#include <stdexcept>
 #include <utility>
 
 #include "../../WorldConstants.h"
@@ -200,7 +201,10 @@ structureLootForPlan(const StructurePlanSnapshot &plan,
     hash ^= mixStructureValue(static_cast<std::uint64_t>(
         static_cast<unsigned>(plan.key.type) + 1u));
     hash ^= mixStructureValue(static_cast<std::uint64_t>(
-        static_cast<std::int64_t>(plan.key.terrainGenerationVersion)));
+        static_cast<std::int64_t>(plan.key.terrainGenerationVersion >=
+            LandmarkArchitectureTerrainGenerationVersion
+                ? FoundationTerrainGenerationVersion
+                : plan.key.terrainGenerationVersion)));
     hash ^= mixStructureValue(static_cast<std::uint64_t>(
         static_cast<std::int64_t>(plan.key.cellX)));
     hash ^= mixStructureValue(static_cast<std::uint64_t>(
@@ -256,10 +260,13 @@ StructureType DeterministicStructurePlanner::selectedStructureTypeForCell(
         ExplorationSiteMinimumTerrainVersion) {
         return StructureType::Waystone;
     }
+    const int selectionVersion = m_terrainGenerationVersion >=
+        LandmarkArchitectureTerrainGenerationVersion
+            ? FoundationTerrainGenerationVersion : m_terrainGenerationVersion;
     const std::uint64_t selection = compatibilityStructureHash(
         m_seed ^ CellTypeSalt,
-        cellX * 47 + m_terrainGenerationVersion * 7,
-        cellZ * 53 - m_terrainGenerationVersion * 11);
+        cellX * 47 + selectionVersion * 7,
+        cellZ * 53 - selectionVersion * 11);
     switch (selection % 3ull) {
         case 0: return StructureType::Waystone;
         case 1: return StructureType::Ruin;
@@ -290,7 +297,8 @@ DeterministicStructurePlanner::planWaystoneForCell(int cellX,
     plan.key = {StructureType::Waystone, m_terrainGenerationVersion,
                 cellX, cellZ};
     plan.projectionPriority = WaystoneProjectionPriority;
-    plan.plannedBlockCount = WaystonePlannedBlockCount;
+    const bool architecture = m_terrainGenerationVersion >= LandmarkArchitectureTerrainGenerationVersion;
+    plan.plannedBlockCount = architecture ? 225 : WaystonePlannedBlockCount;
     if (m_terrainGenerationVersion < WaystoneMinimumTerrainVersion ||
         !m_surfaceHeight ||
         (m_terrainGenerationVersion >=
@@ -308,6 +316,8 @@ DeterministicStructurePlanner::planWaystoneForCell(int cellX,
     int bestZ = 0;
     int bestCandidate = -1;
     std::uint64_t bestHash = 0;
+    struct Candidate { int x, z, height, attempt; std::uint64_t hash; };
+    std::vector<Candidate> architecturalCandidates;
 
     // This is the exact terrain-v2 Waystone selection stream. Keeping the
     // compatibility branch here makes the structure type and terrain version
@@ -326,6 +336,11 @@ DeterministicStructurePlanner::planWaystoneForCell(int cellX,
             static_cast<int>(zHash %
                              static_cast<std::uint64_t>(coordinateRange));
         const int height = m_surfaceHeight(worldX, worldZ);
+        if (architecture) {
+            architecturalCandidates.push_back({worldX, worldZ, height, attempt,
+                mixStructureValue(xHash ^ (zHash << 1) ^ static_cast<std::uint64_t>(attempt))});
+            continue;
+        }
         if (height > bestHeight) {
             bestHeight = height;
             bestX = worldX;
@@ -337,6 +352,33 @@ DeterministicStructurePlanner::planWaystoneForCell(int cellX,
         }
     }
 
+    if (architecture) {
+        std::stable_sort(architecturalCandidates.begin(), architecturalCandidates.end(),
+            [](const Candidate &a, const Candidate &b) { return a.height > b.height; });
+        for (const auto &candidate : architecturalCandidates) {
+            if (candidate.height < WATER_LEVEL + 4) { continue; }
+            int low = std::numeric_limits<int>::max(), high = 0;
+            bool eligible = true;
+            for (int dx = -WaystoneRadius; dx <= WaystoneRadius && eligible; ++dx) {
+                for (int dz = -WaystoneRadius; dz <= WaystoneRadius; ++dz) {
+                    const int h = m_surfaceHeight(candidate.x + dx, candidate.z + dz);
+                    low = std::min(low, h); high = std::max(high, h);
+                    // Further samples cannot repair water or an excessive
+                    // height range; accepted sites still sample every column.
+                    if (low < WATER_LEVEL + 4 || high - low > MaximumSiteRelief) {
+                        eligible = false;
+                        break;
+                    }
+                }
+            }
+            if (!eligible) { continue; }
+            const int approach = m_surfaceHeight(candidate.x, candidate.z - WaystoneRadius - 1);
+            if (approach < high - 1 || approach > high + 1) { continue; }
+            bestX = candidate.x; bestZ = candidate.z; bestHeight = high;
+            bestCandidate = candidate.attempt; bestHash = candidate.hash;
+            break;
+        }
+    }
     plan.anchor = {bestX, bestHeight, bestZ};
     plan.selectedCandidate = bestCandidate;
     plan.selectionHash = bestHash;
@@ -347,7 +389,7 @@ DeterministicStructurePlanner::planWaystoneForCell(int cellX,
     if (plan.valid) {
         plan.footprint = {
             bestX - WaystoneRadius, bestX + WaystoneRadius,
-            bestHeight + 1, bestHeight + WaystoneHeight,
+            bestHeight + (architecture ? -2 : 1), bestHeight + WaystoneHeight,
             bestZ - WaystoneRadius, bestZ + WaystoneRadius};
     }
     return plan;
@@ -361,8 +403,10 @@ DeterministicStructurePlanner::planExplorationSiteForCell(
     plan.key = {type, m_terrainGenerationVersion, cellX, cellZ};
     plan.projectionPriority = type == StructureType::Ruin
         ? RuinProjectionPriority : CampProjectionPriority;
+    const bool architecture = m_terrainGenerationVersion >= LandmarkArchitectureTerrainGenerationVersion;
     plan.plannedBlockCount = type == StructureType::Ruin
-        ? RuinPlannedBlockCount : CampPlannedBlockCount;
+        ? (architecture ? 729 : RuinPlannedBlockCount)
+        : (architecture ? 792 : CampPlannedBlockCount);
     if ((type != StructureType::Ruin &&
          type != StructureType::RaiderCamp) ||
         m_terrainGenerationVersion <
@@ -430,14 +474,25 @@ DeterministicStructurePlanner::planExplorationSiteForCell(
     for (const SiteCandidate &candidate : candidates) {
         int minimumHeight = std::numeric_limits<int>::max();
         int maximumHeight = std::numeric_limits<int>::min();
+        bool eligible = true;
         for (int x = candidate.x - radiusX;
-             x <= candidate.x + radiusX; ++x) {
+             x <= candidate.x + radiusX && eligible; ++x) {
             for (int z = candidate.z - radiusZ;
                  z <= candidate.z + radiusZ; ++z) {
                 const int height = m_surfaceHeight(x, z);
                 minimumHeight = std::min(minimumHeight, height);
                 maximumHeight = std::max(maximumHeight, height);
+                if (architecture && (minimumHeight < WATER_LEVEL + 4 ||
+                    maximumHeight - minimumHeight > MaximumSiteRelief)) {
+                    eligible = false;
+                    break;
+                }
             }
+        }
+        if (!eligible) { continue; }
+        if (architecture) {
+            const int approach = m_surfaceHeight(candidate.x, candidate.z - radiusZ - 1);
+            if (approach < maximumHeight - 1 || approach > maximumHeight + 1) { continue; }
         }
         if (minimumHeight >= WATER_LEVEL + 4 &&
             maximumHeight - minimumHeight <= MaximumSiteRelief) {
@@ -468,13 +523,16 @@ DeterministicStructurePlanner::planExplorationSiteForCell(
 }
 
 std::vector<StructurePlanSnapshot>
-DeterministicStructurePlanner::plansForChunk(int chunkX, int chunkZ) const
+DeterministicStructurePlanner::plansForChunk(int chunkX, int chunkZ, int padding) const
 {
+    if (padding < 0 || padding > MaximumTreeClearancePadding) {
+        throw std::out_of_range("structure query exceeds bounded tree clearance");
+    }
     std::vector<StructurePlanSnapshot> candidates;
-    const int targetMinimumX = chunkX * CHUNK_SIZE;
-    const int targetMaximumX = targetMinimumX + CHUNK_SIZE - 1;
-    const int targetMinimumZ = chunkZ * CHUNK_SIZE;
-    const int targetMaximumZ = targetMinimumZ + CHUNK_SIZE - 1;
+    const int targetMinimumX = chunkX * CHUNK_SIZE - padding;
+    const int targetMaximumX = chunkX * CHUNK_SIZE + CHUNK_SIZE - 1 + padding;
+    const int targetMinimumZ = chunkZ * CHUNK_SIZE - padding;
+    const int targetMaximumZ = chunkZ * CHUNK_SIZE + CHUNK_SIZE - 1 + padding;
     const int cellSize = SiteCellChunks * CHUNK_SIZE;
     const int minimumCellX = WorldCoordinates::floorDiv(
         targetMinimumX - MaximumHorizontalRadius, cellSize);
@@ -491,7 +549,10 @@ DeterministicStructurePlanner::plansForChunk(int chunkX, int chunkZ) const
                 selectedStructureTypeForCell(cellX, cellZ);
             StructurePlanSnapshot plan = planForCell(
                 selected, cellX, cellZ);
-            if (plan.valid && plan.footprint.overlapsChunk(chunkX, chunkZ)) {
+            if (plan.valid && plan.footprint.minimumX <= targetMaximumX &&
+                plan.footprint.maximumX >= targetMinimumX &&
+                plan.footprint.minimumZ <= targetMaximumZ &&
+                plan.footprint.maximumZ >= targetMinimumZ) {
                 candidates.push_back(std::move(plan));
             }
         }

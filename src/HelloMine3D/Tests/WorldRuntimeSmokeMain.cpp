@@ -19770,6 +19770,8 @@ void caseWorldManager()
 #include "PresentationClockSmokeCases.h"
 #include "TerrainLandformSmokeCases.h"
 #include "WetlandGrassSmokeCases.h"
+#include "LandmarkSurvey.h"
+#include "LandmarkArchitectureSmokeCases.h"
 
 int main()
 {
@@ -19790,7 +19792,8 @@ int main()
             {{"runtime.food", validFoodDefinitions()}});
 
         const char *focus = std::getenv("HELLOMINE3D_WORLD_SMOKE_FOCUS");
-        if (focus != nullptr && std::string(focus) == "T0-SURVEY") {
+        if (focus != nullptr && (std::string(focus) == "T0-SURVEY" ||
+                                 std::string(focus) == "LANDMARK-SURVEY")) {
             const char *output = std::getenv("HELLOMINE3D_TERRAIN_SURVEY_DIR");
             const char *version = std::getenv("HELLOMINE3D_TERRAIN_SURVEY_VERSION");
             if (output == nullptr || version == nullptr) {
@@ -19803,10 +19806,16 @@ int main()
             Player player;
             World world(camera, config, player,
                         freshSaveDirectory("t0_survey"), false, 0);
-            const std::size_t count = TerrainSurvey::write(
-                world, output, std::stoi(version));
-            check("T0/survey-complete", count == 463056,
+            const bool landmarks = std::string(focus) == "LANDMARK-SURVEY";
+            const std::size_t count = landmarks
+                ? LandmarkSurvey::write(world, output, std::stoi(version))
+                : TerrainSurvey::write(world, output, std::stoi(version));
+            check(landmarks ? "Landmark/survey-complete" : "T0/survey-complete",
+                  count == (landmarks ? (std::stoi(version) == 2 ? 16u : 48u) : 463056u),
                   "samples=" + std::to_string(count));
+        }
+        else if (focus != nullptr && std::string(focus) == "E8") {
+            caseLandmarkArchitectureV14();
         }
         else if (focus != nullptr && std::string(focus) == "E2-SCENES") {
             const char *output = std::getenv("HELLOMINE3D_TERRAIN_SURVEY_DIR");
@@ -20070,6 +20079,7 @@ int main()
             caseSimulationActivationEntryProbe();
         }
         else {
+        caseLandmarkArchitectureV14();
         caseSurfaceMapObservations();
         caseWaterDepthPresentation();
         caseItemVisualPresentation();

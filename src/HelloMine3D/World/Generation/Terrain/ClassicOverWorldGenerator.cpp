@@ -17,6 +17,7 @@
 
 #include "../Structures/TreeGenerator.h"
 #include "../Structures/StructureBuilder.h"
+#include "../Structures/LandmarkArchitecture.h"
 #include "../Ecology/TerrainEcologyPlanner.h"
 
 namespace {
@@ -183,8 +184,11 @@ void ClassicOverWorldGenerator::generateTerrainFor(Chunk &chunk)
     applyCavePass();
     applyOreDecorators();
     applyPlantDecorators(plantPositions);
-    applyTreeDecorators();
-    applyLandmarkDecorators();
+    const auto plans = getStructurePlansForChunk(location.x, location.y,
+        m_generationVersion >= LandmarkArchitectureTerrainGenerationVersion
+            ? DeterministicStructurePlanner::MaximumTreeClearancePadding : 0);
+    applyTreeDecorators(plans);
+    applyLandmarkDecorators(plans);
     if (m_generationVersion >= SurfaceCoastTerrainGenerationVersion) {
         sanitizeSurfaceDecoratorsV8();
     }
@@ -317,8 +321,9 @@ StructurePlanSnapshot ClassicOverWorldGenerator::getStructurePlanForCell(
     StructureType type, int cellX, int cellZ) const
 {
     const DeterministicStructurePlanner planner(
-        m_seed, std::min(m_generationVersion,
-                         FoundationTerrainGenerationVersion),
+        m_seed, m_generationVersion >= LandmarkArchitectureTerrainGenerationVersion
+            ? LandmarkArchitectureTerrainGenerationVersion
+            : std::min(m_generationVersion, FoundationTerrainGenerationVersion),
         [this](int worldX, int worldZ) {
             return getSurfaceHeightAtWorld(worldX, worldZ);
         },
@@ -330,18 +335,19 @@ StructurePlanSnapshot ClassicOverWorldGenerator::getStructurePlanForCell(
 
 std::vector<StructurePlanSnapshot>
 ClassicOverWorldGenerator::getStructurePlansForChunk(
-    int chunkX, int chunkZ) const
+    int chunkX, int chunkZ, int padding) const
 {
     const DeterministicStructurePlanner planner(
-        m_seed, std::min(m_generationVersion,
-                         FoundationTerrainGenerationVersion),
+        m_seed, m_generationVersion >= LandmarkArchitectureTerrainGenerationVersion
+            ? LandmarkArchitectureTerrainGenerationVersion
+            : std::min(m_generationVersion, FoundationTerrainGenerationVersion),
         [this](int worldX, int worldZ) {
             return getSurfaceHeightAtWorld(worldX, worldZ);
         },
         [this](int worldX, int worldZ) {
             return getBiomeAtWorld(worldX, worldZ);
         });
-    return planner.plansForChunk(chunkX, chunkZ);
+    return planner.plansForChunk(chunkX, chunkZ, padding);
 }
 
 void ClassicOverWorldGenerator::getHeightIn(int xMin, int zMin, int xMax,
@@ -670,7 +676,8 @@ void ClassicOverWorldGenerator::applyPlantDecorators(
     }
 }
 
-void ClassicOverWorldGenerator::applyTreeDecorators()
+void ClassicOverWorldGenerator::applyTreeDecorators(
+    const std::vector<StructurePlanSnapshot> &plans)
 {
     const TerrainEcologyPlanner ecologyPlanner(m_seed);
     const glm::ivec2 target = m_pChunk->getLocation();
@@ -687,6 +694,12 @@ void ClassicOverWorldGenerator::applyTreeDecorators()
         const int localX =
             WorldCoordinates::floorMod(worldX, CHUNK_SIZE);
         for (int worldZ = minimumZ; worldZ <= maximumZ; ++worldZ) {
+            if (m_generationVersion >= LandmarkArchitectureTerrainGenerationVersion &&
+                std::any_of(plans.begin(), plans.end(), [worldX, worldZ](const auto &plan) {
+                    const auto &f = plan.footprint;
+                    return worldX >= f.minimumX - 3 && worldX <= f.maximumX + 3 &&
+                           worldZ >= f.minimumZ - 3 && worldZ <= f.maximumZ + 3;
+                })) { continue; }
             const int sourceChunkZ =
                 WorldCoordinates::floorDiv(worldZ, CHUNK_SIZE);
             const int localZ =
@@ -823,12 +836,12 @@ void ClassicOverWorldGenerator::applyTreeDecorators()
     }
 }
 
-void ClassicOverWorldGenerator::applyLandmarkDecorators()
+void ClassicOverWorldGenerator::applyLandmarkDecorators(
+    const std::vector<StructurePlanSnapshot> &plans)
 {
     const glm::ivec2 target = m_pChunk->getLocation();
-    for (const StructurePlanSnapshot &plan :
-         getStructurePlansForChunk(target.x, target.y)) {
-        projectStructurePlan(plan);
+    for (const StructurePlanSnapshot &plan : plans) {
+        if (plan.footprint.overlapsChunk(target.x, target.y)) { projectStructurePlan(plan); }
     }
 }
 
@@ -843,7 +856,18 @@ void ClassicOverWorldGenerator::projectStructurePlan(
     const int z = plan.anchor.z;
     StructureBuilder builder;
 
-    if (plan.key.type == StructureType::Waystone) {
+    if (m_generationVersion >= LandmarkArchitectureTerrainGenerationVersion) {
+        const auto &f = plan.footprint;
+        for (int py = f.minimumY; py <= f.maximumY; ++py) {
+            for (int px = f.minimumX; px <= f.maximumX; ++px) {
+                for (int pz = f.minimumZ; pz <= f.maximumZ; ++pz) {
+                    builder.addBlock(px, py, pz, LandmarkArchitecture::blockAt(
+                        plan, px - x, py - y, pz - z));
+                }
+            }
+        }
+    }
+    else if (plan.key.type == StructureType::Waystone) {
         for (int clearY = y + 1;
              clearY <= y + DeterministicStructurePlanner::WaystoneHeight;
              ++clearY) {

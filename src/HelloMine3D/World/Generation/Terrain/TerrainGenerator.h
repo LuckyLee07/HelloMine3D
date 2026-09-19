@@ -27,8 +27,9 @@ inline constexpr int InlandReliefTerrainGenerationVersion = 10;
 inline constexpr int InlandWaterTerrainGenerationVersion = 11;
 inline constexpr int VegetationMosaicTerrainGenerationVersion = 12;
 inline constexpr int LandformDiversityTerrainGenerationVersion = 13;
+inline constexpr int LandmarkArchitectureTerrainGenerationVersion = 14;
 inline constexpr int CurrentTerrainGenerationVersion =
-    LandformDiversityTerrainGenerationVersion;
+    LandmarkArchitectureTerrainGenerationVersion;
 
 class TerrainGenerator {
   public:
