@@ -31,7 +31,7 @@ std::string read(const std::filesystem::path &path)
     require(stream.good(), "Missing shader " + path.string());
     return {std::istreambuf_iterator<char>(stream), {}};
 }
-GLuint program(const std::filesystem::path &root, const char *vertex, const char *fragment, bool array)
+GLuint program(const std::filesystem::path &root, const char *vertex, const char *fragment, bool array, bool unfilteredGeology = false)
 {
     GLuint result = glCreateProgram();
     for (const auto &entry : {std::pair<GLenum,const char *>{GL_VERTEX_SHADER,vertex},
@@ -40,6 +40,19 @@ GLuint program(const std::filesystem::path &root, const char *vertex, const char
         auto source = read(root / "media/ogre" / entry.second);
         if (array && entry.first == GL_FRAGMENT_SHADER)
             source.insert(source.find('\n') + 1, "#define TERRAIN_ARRAY 1\n");
+        if (unfilteredGeology && entry.first == GL_FRAGMENT_SHADER)
+        {
+            // Fault injection: retain the real production colour algorithm but
+            // remove only its footprint attenuation.
+            for (const auto *line : {
+                "float resolved = 1.0 - smoothstep(0.20, 0.65, footprint * 0.31);",
+                "float resolved = 1.0 - smoothstep(0.10, 0.32, footprint * 0.84);"})
+            {
+                const auto at = source.find(line);
+                require(at != std::string::npos, "Geology negative target missing");
+                source.replace(at, std::string(line).size(), "float resolved = 1.0;");
+            }
+        }
         auto shader = glCreateShader(entry.first);
         const char *text = source.c_str();
         glShaderSource(shader, 1, &text, nullptr);
@@ -140,6 +153,64 @@ Pixels renderGround(GLuint shader, float enabled, float offset, int tile = 0,
     require(glGetError() == GL_NO_ERROR, "Ground shader draw failed");
     return pixels;
 }
+// Constant UV removes image texel variation from the geology measurement;
+// positions still run through both complete production vertex/fragment stages.
+Pixels renderGeology(GLuint shader, int tileX, int tileY, bool top,
+                     float span = 8.f, float originX = -24.f,
+                     float originY = 72.f, float originZ = 16.f,
+                     float enabled = 1.f, float localOrigin = 0.f,
+                     float time = 1.23f, float daylight = 1.f)
+{
+    glDisable(GL_BLEND); glDepthMask(GL_TRUE);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); setup(shader);
+    value(shader,"surfaceLightingStrength",enabled);
+    value(shader,"globalTime",time); value(shader,"environmentLight",daylight);
+    glUniform1i(glGetUniformLocation(shader,"directionalShadowMap"),1);
+    const float shift = localOrigin * span;
+    const std::array<float,16> world = top
+        ? std::array<float,16>{span,0,0,0, 0,0,-span,0, 0,span,0,0,
+                              originX-shift,originY-shift,originZ+shift,1}
+        : std::array<float,16>{span,0,0,0, 0,span,0,0, 0,0,span,0,
+                              originX-shift,originY-shift,originZ-shift,1};
+    const float clip[]{1,0,0,0, 0,1,0,0, 0,0,1,0,
+                       -localOrigin,-localOrigin,-localOrigin,1};
+    glUniformMatrix4fv(glGetUniformLocation(shader,"world"),1,GL_FALSE,world.data());
+    glUniformMatrix4fv(glGetUniformLocation(shader,"worldViewProj"),1,GL_FALSE,clip);
+    std::array<float,18> points{-1,-1,0, 1,-1,0, 1,1,0, 1,1,0, -1,1,0, -1,-1,0};
+    for (auto &v : points) v += localOrigin;
+    GLuint vbo; glGenBuffers(1,&vbo); glBindBuffer(GL_ARRAY_BUFFER,vbo);
+    glBufferData(GL_ARRAY_BUFFER,sizeof(points),points.data(),GL_STATIC_DRAW);
+    const auto vertex = glGetAttribLocation(shader,"vertex");
+    glEnableVertexAttribArray(vertex); glVertexAttribPointer(vertex,3,GL_FLOAT,GL_FALSE,0,nullptr);
+    for (const auto *name : {"uv0","uv1","uv2"})
+    {
+        const auto a = glGetAttribLocation(shader,name); if (a >= 0) glDisableVertexAttribArray(a);
+    }
+    glVertexAttrib2f(glGetAttribLocation(shader,"uv0"),(tileX+.5f)/16.f,(tileY+.5f)/16.f);
+    glVertexAttrib2f(glGetAttribLocation(shader,"uv1"),.37f,.43f);
+    glVertexAttrib1f(glGetAttribLocation(shader,"uv2"),1.f);
+    glDrawArrays(GL_TRIANGLES,0,6); glDisableVertexAttribArray(vertex); glDeleteBuffers(1,&vbo);
+    Pixels pixels(Edge*Edge*4); glReadPixels(0,0,Edge,Edge,GL_RGBA,GL_UNSIGNED_BYTE,pixels.data());
+    require(glGetError()==GL_NO_ERROR,"Geology draw/readback failed"); return pixels;
+}
+float colourDifference(const Pixels &a, const Pixels &b)
+{
+    double sum=0;
+    for (std::size_t p=0;p<a.size();p+=4)
+        for (int c=0;c<3;++c) sum+=std::abs(int(a[p+c])-int(b[p+c]));
+    return static_cast<float>(sum/(Edge*Edge*3));
+}
+float pixelGradient(const Pixels &pixels)
+{
+    double sum=0;
+    for (int y=1;y<Edge;++y) for (int x=1;x<Edge;++x) for (int c=0;c<3;++c)
+    {
+        const int p=(y*Edge+x)*4+c;
+        sum+=std::abs(int(pixels[p])-int(pixels[p-4]));
+        sum+=std::abs(int(pixels[p])-int(pixels[p-Edge*4]));
+    }
+    return static_cast<float>(sum/((Edge-1)*(Edge-1)*6));
+}
 void png(const std::filesystem::path &path, const Pixels &pixels)
 {
     Pixels flipped(pixels.size());
@@ -196,7 +267,7 @@ int main(int argc,char **argv)
 {
     try
     {
-        require(argc==3,"Usage: block-feedback-gpu <root> <new-output-directory>");
+        require(argc==3 || argc==4,"Usage: block-feedback-gpu <root> <new-output-directory> [baseline-root-for-geology]");
         const std::filesystem::path root(argv[1]), output(argv[2]);
         require(!std::filesystem::exists(output),"Output must be new");
         std::filesystem::create_directories(output);
@@ -274,6 +345,46 @@ int main(int argc,char **argv)
             check(mode+"-waystone-inset-readable-at-night", brighterCore > 100 && retainedFrame > 100 && coreAlpha);
             check(mode+"-waystone-shadow-off-agrees", coreAfter == renderGround(shadow, 1.f, 0.f, 15, 0, .18f));
             png(output/(mode+"-waystone-night.png"), coreAfter);
+            if (argc == 4)
+            {
+                const std::filesystem::path baseline(argv[3]);
+                auto old = program(baseline,"HelloMine3DTerrain.vert","HelloMine3DTerrain.frag",array);
+                auto unfiltered = program(root,"HelloMine3DTerrain.vert","HelloMine3DTerrain.frag",array,true);
+                for (const int tile : {3,7})
+                {
+                    const bool top = tile==7;
+                    const auto near = renderGeology(base,tile,0,top);
+                    const auto before = renderGeology(old,tile,0,top);
+                    const std::string label=mode+"-geology-"+std::to_string(tile);
+                    check(label+"-visible-world-pattern",colourDifference(near,before)>2.f && pixelGradient(near)>.10f);
+                    check(label+"-shadow-agrees",near==renderGeology(shadow,tile,0,top));
+                    check(label+"-section-origin-independent",near==renderGeology(base,tile,0,top,8,-24,72,16,1,16));
+                    check(label+"-time-independent",near==renderGeology(base,tile,0,top,8,-24,72,16,1,0,71.23f));
+                    check(label+"-disabled-unchanged",renderGeology(base,tile,0,top,8,-24,72,16,0)==renderGeology(old,tile,0,top,8,-24,72,16,0));
+                    check(label+"-night-shadow-agrees",renderGeology(base,tile,0,top,8,-24,72,16,1,0,1.23f,.18f)==renderGeology(shadow,tile,0,top,8,-24,72,16,1,0,1.23f,.18f));
+                    bool boundary=true;
+                    for (const float seam : {-16.f,0.f,16.f})
+                        boundary &= colourDifference(renderGeology(base,tile,0,top,.25f,seam-.0001f),renderGeology(base,tile,0,top,.25f,seam+.0001f))<.1f;
+                    check(label+"-signed-section-boundaries-continuous",boundary);
+                    const float farSpan=top?64.f:384.f;
+                    const auto far = renderGeology(base,tile,0,top,farSpan);
+                    const auto alias = renderGeology(unfiltered,tile,0,top,farSpan);
+                    const float smooth = pixelGradient(far), noisy = pixelGradient(alias);
+                    check(label+"-footprint-fade-rejects-unfiltered",smooth<noisy*.70f && noisy>.20f);
+                    check(label+"-old-shader-negative-detected",pixelGradient(before)<=.10f);
+                    bool alpha=true;for (std::size_t p=3;p<near.size();p+=4)alpha &= near[p]==before[p];
+                    check(label+"-alpha-unchanged",alpha);
+                    std::cout << label << " mean_change=" << colourDifference(near,before)
+                              << " near_gradient=" << pixelGradient(near) << " far_gradient=" << smooth
+                              << " unfiltered_gradient=" << noisy << '\n';
+                    png(output/(label+"-before.png"),before);png(output/(label+"-after.png"),near);
+                    png(output/(label+"-far.png"),far);png(output/(label+"-unfiltered-negative.png"),alias);
+                }
+                for (const auto tile : {std::pair<int,int>{13,0},{14,0},{7,1},{2,1},{0,4},{4,0}})
+                    check(mode+"-geology-preserves-"+std::to_string(tile.first)+"-"+std::to_string(tile.second),
+                        renderGeology(base,tile.first,tile.second,false)==renderGeology(old,tile.first,tile.second,false));
+                glDeleteProgram(old); glDeleteProgram(unfiltered);
+            }
             glUseProgram(base);
             value(base,"surfaceLightingStrength",0);
             glDeleteProgram(shadow);

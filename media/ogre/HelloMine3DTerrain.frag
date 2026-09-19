@@ -72,7 +72,41 @@ float groundNoise(vec2 position)
     return mix(mix(values.x, values.y, f.x), mix(values.z, values.w, f.x), f.y);
 }
 
-vec3 naturalPalette(vec3 colour, vec2 tile)
+// Broad mineral beds and wind-aligned sand use continuous world coordinates.
+// Frequency fades with pixel coverage before the pattern can alias in distance.
+vec3 geologyPalette(vec3 colour, bool rock, vec3 face, float footprint)
+{
+    vec2 ground = terrainWorldPosition.xz;
+    float broad = groundNoise(ground * 0.018 + vec2(6.7, -12.1));
+    if (rock)
+    {
+        float warp = 0.40 * sin(dot(ground, vec2(0.041, 0.028))) +
+                     0.25 * sin(dot(ground, vec2(-0.023, 0.053)));
+        float level = terrainWorldPosition.y * 0.235 + warp;
+        float bed = 0.5 + 0.5 * sin(level * 6.2831853 +
+                                    0.28 * sin(level * 2.71));
+        float resolved = 1.0 - smoothstep(0.20, 0.65, footprint * 0.31);
+        float band = mix(0.5, smoothstep(0.18, 0.84, bed), resolved);
+        float side = 1.0 - abs(face.y);
+        band = mix(0.5, band, 0.55 + side * 0.45);
+        vec3 mineral = mix(vec3(0.82, 0.87, 0.91),
+                           vec3(1.10, 1.00, 0.85), band);
+        float grey = dot(colour, vec3(0.2126, 0.7152, 0.0722));
+        return mix(colour, vec3(grey), 0.22) * mineral * mix(0.89, 1.03, broad);
+    }
+    float sweep = groundNoise(ground * 0.065 + vec2(-4.3, 9.7));
+    float drift = 0.30 * sin(dot(ground, vec2(0.19, -0.13))) +
+                  (sweep - 0.5) * 0.45;
+    float phase = dot(ground, vec2(0.72, 0.38)) + drift;
+    float resolved = 1.0 - smoothstep(0.10, 0.32, footprint * 0.84);
+    float crest = smoothstep(0.30, 0.95, 0.5 + 0.5 * sin(phase * 6.2831853));
+    float localStrength = 0.25 + 0.75 * smoothstep(0.28, 0.72, sweep);
+    float ripple = mix(1.0, mix(0.965, 1.04, crest),
+                       resolved * localStrength * (0.22 + 0.78 * abs(face.y)));
+    return colour * mix(vec3(0.95, 0.93, 0.88), vec3(1.03, 1.02, 0.99), broad) * ripple;
+}
+
+vec3 naturalPalette(vec3 colour, vec2 tile, vec3 face, float footprint)
 {
     if (surfaceLightingStrength < 0.5) return colour;
     bool ecology = tile.y >= 3.0 && tile.y <= 7.0;
@@ -116,6 +150,8 @@ vec3 naturalPalette(vec3 colour, vec2 tile)
         vec3 quiet = mix(colour, vec3(luminance), 0.10);
         return mix(quiet, vec3(0.36, 0.29, 0.21), earth ? 0.07 : 0.04);
     }
+    if (tile.y == 0.0 && (tile.x == 3.0 || tile.x == 7.0))
+        return geologyPalette(colour, tile.x == 3.0, face, footprint);
     if (stone)
         return mix(colour, vec3(luminance), 0.12) * vec3(1.025, 1.01, 0.975);
     return colour;
@@ -124,7 +160,10 @@ vec3 naturalPalette(vec3 colour, vec2 tile)
 void main()
 {
     // Evaluate derivatives before alpha discard, including cutout/flora quads.
-    vec3 face = cross(dFdx(terrainWorldPosition), dFdy(terrainWorldPosition));
+    vec3 worldDx = dFdx(terrainWorldPosition);
+    vec3 worldDy = dFdy(terrainWorldPosition);
+    float footprint = max(length(worldDx), length(worldDy));
+    vec3 face = cross(worldDx, worldDy);
     face /= max(length(face), 0.00001);
     face *= gl_FrontFacing ? 1.0 : -1.0;
     vec2 tileIndex = floor(terrainTileUv * tilesPerRow);
@@ -155,7 +194,7 @@ void main()
     balancedColour.r += greenExcess * greenRedShift;
     balancedColour = pow(
         max(balancedColour, vec3(0.0)), vec3(toneGamma));
-    balancedColour = naturalPalette(balancedColour, tileIndex);
+    balancedColour = naturalPalette(balancedColour, tileIndex, face, footprint);
     float shapedLight = mix(0.24, 1.0, clamp(terrainLight, 0.0, 1.0));
     float environmentExposure = mix(
         0.34, 1.0, clamp(environmentLight, 0.0, 1.0));
