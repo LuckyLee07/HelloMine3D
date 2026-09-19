@@ -3351,50 +3351,58 @@ class OgreUserInterface::Impl
         drawHudNotifications(notificationBottom);
     }
 
-    void drawHudNotifications(float notificationBottom)
+    float drawNotification(const std::string& text, float bottom)
     {
         const ImGuiIO& io = ImGui::GetIO();
-        const ImGuiWindowFlags overlayFlags =
-            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
-            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs |
-            ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
+        const ImGuiStyle& style = ImGui::GetStyle();
+        const ImVec2 padding = style.WindowPadding;
+        const float maximumWidth = std::max(1.f,
+            std::min(520.f * appliedSettings.uiScale, io.DisplaySize.x - 32.f));
+        const float wrapWidth = std::max(1.f, maximumWidth - 2.f * padding.x);
+        const ImVec2 textSize = ImGui::CalcTextSize(text.c_str(), nullptr, false, wrapWidth);
+        const float width = std::min(maximumWidth, textSize.x + 2.f * padding.x);
+        const float height = std::min(textSize.y + 2.f * padding.y,
+            std::max(1.f, io.DisplaySize.y - 16.f));
+        bottom = std::clamp(bottom, height + 8.f, std::max(height + 8.f, io.DisplaySize.y - 8.f));
+        const ImVec2 topLeft((io.DisplaySize.x - width) * .5f, bottom - height);
+        const ImVec2 bottomRight(topLeft.x + width, bottom);
+
+        // Warnings must remain above crafting/container windows without taking
+        // focus or intercepting their controls. Both text and background belong
+        // to the foreground layer; a no-input window can still be covered.
+        ImDrawList* draw = ImGui::GetForegroundDrawList();
+        ImVec4 background = style.Colors[ImGuiCol_WindowBg];
+        background.w = .96f;
+        draw->AddRectFilled(topLeft, bottomRight, ImGui::GetColorU32(background),
+            style.WindowRounding);
+        draw->AddRect(topLeft, bottomRight, ImGui::GetColorU32(ImGuiCol_Border),
+            style.WindowRounding);
+        draw->PushClipRect(topLeft, bottomRight, true);
+        draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(),
+            ImVec2(topLeft.x + padding.x, topLeft.y + padding.y),
+            ImGui::GetColorU32(ImGuiCol_Text), text.c_str(), nullptr, wrapWidth);
+        draw->PopClipRect();
+        return topLeft.y - 6.f;
+    }
+
+    void drawHudNotifications(float notificationBottom)
+    {
         const PresentationCaptionSnapshot caption =
             captionTimeline.snapshot();
         if (caption.visible())
         {
-            ImGui::SetNextWindowPos(
-                ImVec2(io.DisplaySize.x * 0.5f,
-                       notificationBottom),
-                ImGuiCond_Always, ImVec2(0.5f, 1.0f));
-            ImGui::SetNextWindowBgAlpha(0.82f);
-            if (ImGui::Begin("##AudioCaption", nullptr, overlayFlags))
-            {
-                const std::string localizedCaption =
-                    LocalizedPresentation::audioCaption(
-                        appliedSettings.locale, caption.cueId,
-                        caption.fallback);
-                ImGui::Text("[%s] %s", tr("caption.prefix").c_str(),
-                            localizedCaption.c_str());
-            }
-            notificationBottom = ImGui::GetWindowPos().y - 6.0f;
-            ImGui::End();
+            const std::string localizedCaption =
+                LocalizedPresentation::audioCaption(
+                    appliedSettings.locale, caption.cueId,
+                    caption.fallback);
+            notificationBottom = drawNotification(
+                "[" + tr("caption.prefix") + "] " + localizedCaption,
+                notificationBottom);
         }
         if (statusMessageSeconds > 0.f && !statusMessage.empty() &&
             flow->state() == GameApplicationState::Playing)
         {
-            ImGui::SetNextWindowPos(
-                ImVec2(io.DisplaySize.x * 0.5f,
-                       notificationBottom),
-                ImGuiCond_Always, ImVec2(0.5f, 1.0f));
-            ImGui::SetNextWindowBgAlpha(0.82f);
-            if (ImGui::Begin("##StatusToast", nullptr, overlayFlags))
-            {
-                ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + std::min(520.0f * appliedSettings.uiScale, io.DisplaySize.x - 48.0f));
-                ImGui::TextWrapped("%s", statusMessage.c_str());
-                ImGui::PopTextWrapPos();
-            }
-            notificationBottom = ImGui::GetWindowPos().y - 6.0f;
-            ImGui::End();
+            drawNotification(statusMessage, notificationBottom);
         }
 
     }
