@@ -38,6 +38,7 @@
 #include "../Presentation/PresentationCaption.h"
 #include "../Presentation/PresentationLayout.h"
 #include "../Presentation/PresentationClock.h"
+#include "../Presentation/PlayerHandPresentation.h"
 #include "../Presentation/MinimapNavigation.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/GameApplicationFlow.h"
@@ -2110,24 +2111,15 @@ class OgreUserInterface::Impl
             state.inventory[static_cast<std::size_t>(state.heldItem)];
         ImVec2 uvMin;
         ImVec2 uvMax;
-        if (slot.amount <= 0 || !materialIconUv(slot.materialId, uvMin, uvMax))
-        {
-            return;
-        }
-
-        const auto& geometry = itemVisualGeometry(slot.materialId);
-        if (geometry.empty()) return;
+        const bool hasItem = slot.amount > 0 && materialIconUv(slot.materialId, uvMin, uvMax);
+        const auto grip = !hasItem ? PlayerHandPresentation::Grip::Empty :
+            itemVisualUsesCube(slot.materialId) ? PlayerHandPresentation::Grip::Block :
+            PlayerHandPresentation::Grip::Icon;
+        const auto& hand = PlayerHandPresentation::mesh(grip);
+        static const ItemVisualGeometry::Mesh emptyGeometry;
+        const auto& geometry = hasItem ? itemVisualGeometry(slot.materialId) : emptyGeometry;
         const float intensity = appliedSettings.feedbackIntensity == GameplayFeedbackIntensity::Off
             ? 0.f : appliedSettings.feedbackIntensity == GameplayFeedbackIntensity::Reduced ? .35f : 1.f;
-        const auto ease = [](float value) {
-            value = std::clamp(value, 0.f, 1.f);
-            return value * value * (3.f - 2.f * value);
-        };
-        const float cycle = static_cast<float>(std::fmod(hudElapsedSeconds * 2.7, 1.0));
-        const float miningSwing = !miningProgress.active ? 0.f :
-            cycle < .2f ? -.15f * ease(cycle / .2f) :
-            cycle < .45f ? -.15f + 1.15f * ease((cycle - .2f) / .25f) :
-            cycle < .55f ? 1.f : 1.f - ease((cycle - .55f) / .45f);
         const bool contactAction = actionFeedback.kind == ActionFeedbackKind::AttackHit ||
             actionFeedback.kind == ActionFeedbackKind::AttackMiss ||
             actionFeedback.kind == ActionFeedbackKind::BlockBreak ||
@@ -2136,48 +2128,41 @@ class OgreUserInterface::Impl
         const float recovery = contactAction ? std::clamp(
             actionFeedback.secondsRemaining / .32f, 0.f, 1.f) : 0.f;
         const float contact = actionFeedback.hitStopSeconds > 0.f ? 1.f : recovery * recovery;
-        const float swing = intensity * (contact > 0.f ? std::max(contact, miningSwing) : miningSwing);
-        const float walk = heldMovement * intensity;
-        const float pitch = -.22f - swing * .65f + std::sin(hudElapsedSeconds * 7.5f) * walk * .055f;
-        const float yaw = -.52f + swing * .32f;
-        const float roll = -.24f + swing * .85f + std::sin(hudElapsedSeconds * 1.7f) * .02f * intensity;
+        const auto pose = PlayerHandPresentation::motion(hudElapsedSeconds, heldMovement,
+            intensity, miningProgress.active, contact);
+        const float swing = pose.swing;
         const float hudRight = io.DisplaySize.x * .5f +
             (280.f * appliedSettings.uiScale + 46.f) * .5f + 12.f;
+        // Reserve the complete rotated silhouette and its contact travel in
+        // the gutter. Large accessibility UI must not slice a block in half.
         const float size = std::min(std::clamp(io.DisplaySize.y * .24f, 100.f, 200.f),
-                                    std::max(56.f, io.DisplaySize.x - hudRight - 12.f));
+            std::max(16.f, (io.DisplaySize.x - hudRight - 65.f) / 1.7f));
         const ImVec2 center(io.DisplaySize.x - size * .66f - 18.f - swing * 35.f,
-            io.DisplaySize.y - size * .78f - 22.f +
-            (std::sin(hudElapsedSeconds * 2.f) * 2.f +
-             std::abs(std::sin(hudElapsedSeconds * 7.5f)) * heldMovement * 7.f) * intensity - swing * 20.f);
-        const auto rotate = [&](glm::vec3 value) {
-            value = {value.x, value.y * std::cos(pitch) - value.z * std::sin(pitch),
-                     value.y * std::sin(pitch) + value.z * std::cos(pitch)};
-            value = {value.x * std::cos(yaw) + value.z * std::sin(yaw), value.y,
-                    -value.x * std::sin(yaw) + value.z * std::cos(yaw)};
-            return glm::vec3(value.x * std::cos(roll) - value.y * std::sin(roll),
-                             value.x * std::sin(roll) + value.y * std::cos(roll), value.z);
-        };
+            io.DisplaySize.y - size * .78f - 22.f + pose.bob - swing * 20.f);
         struct ProjectedFace {
             std::array<ImVec2, 4> points, uv;
             float depth;
             ImU32 tint;
+            bool textured;
         };
         std::vector<ProjectedFace> faces;
-        faces.reserve(geometry.size());
+        faces.reserve(geometry.size() + hand.size());
         const auto& atlas = runtimeTerrainMaterialProfile().parameters();
-        for (const auto& face : geometry) {
-            const glm::vec3 normal = rotate(face.normal);
+        const float exposure = .42f + .58f * std::clamp(worldStats.environment.daylight, 0.f, 1.f);
+        const auto project = [&](const ItemVisualGeometry::Face& face, glm::vec3 colour, bool textured) {
+            const glm::vec3 normal = pose.rotate(face.normal);
             glm::vec3 midpoint(0.f);
-            for (const auto& vertex : face.positions) midpoint += rotate(vertex) * .25f;
-            if (glm::dot(normal, glm::vec3(0,0,3) - midpoint) <= 0.f) continue;
+            for (const auto& vertex : face.positions) midpoint += pose.rotate(vertex) * .25f;
+            if (glm::dot(normal, glm::vec3(0,0,3) - midpoint) <= 0.f) return;
             ProjectedFace projected{};
             projected.depth = midpoint.z;
-            const float light = .60f + .40f * std::max(0.f,
-                glm::dot(normal, glm::normalize(glm::vec3(-.35f, .65f, 1.f))));
-            const int shade = static_cast<int>(light * 255.f);
-            projected.tint = IM_COL32(shade, shade, shade, 255);
+            projected.textured = textured;
+            const float light = exposure * (.60f + .40f * std::max(0.f,
+                glm::dot(normal, glm::normalize(glm::vec3(-.35f, .65f, 1.f)))));
+            projected.tint = IM_COL32(static_cast<int>(colour.r * light),
+                static_cast<int>(colour.g * light), static_cast<int>(colour.b * light), 255);
             for (int corner = 0; corner < 4; ++corner) {
-                const glm::vec3 point = rotate(face.positions[corner]);
+                const glm::vec3 point = pose.rotate(face.positions[corner]);
                 const float perspective = 3.f / (3.f - point.z);
                 projected.points[corner] = ImVec2(center.x + point.x * size * perspective,
                                                   center.y - point.y * size * perspective);
@@ -2187,16 +2172,22 @@ class OgreUserInterface::Impl
                     (face.tile.y * atlas.tilePixels + .5f + uv.y * (atlas.tilePixels - 1.f)) / atlas.atlasPixels);
             }
             faces.push_back(projected);
-        }
+        };
+        for (const auto& face : geometry) project(face, glm::vec3(255.f), true);
+        for (const auto& face : hand) project(face.geometry, face.colour, false);
         std::sort(faces.begin(), faces.end(), [](const auto& a, const auto& b) { return a.depth < b.depth; });
         ImDrawList* draw = ImGui::GetForegroundDrawList();
         draw->PushClipRect(ImVec2(hudRight, io.DisplaySize.y * .5f), io.DisplaySize, true);
         const auto& callbacks = ImGui::GetPlatformIO();
         if (callbacks.DrawCallback_SetSamplerNearest)
             draw->AddCallback(callbacks.DrawCallback_SetSamplerNearest, nullptr);
-        for (const auto& face : faces)
-            draw->AddImageQuad(ImTextureRef(atlasTextureId), face.points[0], face.points[1],
-                face.points[2], face.points[3], face.uv[0], face.uv[1], face.uv[2], face.uv[3], face.tint);
+        for (const auto& face : faces) {
+            if (face.textured)
+                draw->AddImageQuad(ImTextureRef(atlasTextureId), face.points[0], face.points[1],
+                    face.points[2], face.points[3], face.uv[0], face.uv[1], face.uv[2], face.uv[3], face.tint);
+            else
+                draw->AddConvexPolyFilled(face.points.data(), 4, face.tint);
+        }
         if (callbacks.DrawCallback_SetSamplerLinear)
             draw->AddCallback(callbacks.DrawCallback_SetSamplerLinear, nullptr);
         draw->PopClipRect();

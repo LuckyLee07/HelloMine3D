@@ -87,6 +87,7 @@ def main():
     parser.add_argument("--post", choices=("off", "on"), default="off")
     parser.add_argument("--locale", choices=("en-US", "zh-CN"), default="zh-CN")
     parser.add_argument("--ui-scale", type=float, choices=(0.85, 1.0, 1.25), default=1.0)
+    parser.add_argument("--feedback", choices=("off", "reduced", "full"), default="full")
     parser.add_argument("--minimap-range", type=int, choices=(64, 128, 256))
     parser.add_argument("--actor-visual", choices=("idle", "windup", "recover"))
     parser.add_argument("--hud-fixture", action="store_true")
@@ -161,7 +162,7 @@ audiocaptions 1
 actionhints 1
 sprintmode hold
 sneakmode hold
-feedbackintensity full
+feedbackintensity {args.feedback}
 mouse_break_attack primary
 mouse_use secondary
 mouse_place secondary
