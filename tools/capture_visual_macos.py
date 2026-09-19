@@ -90,6 +90,8 @@ def main():
     parser.add_argument("--feedback", choices=("off", "reduced", "full"), default="full")
     parser.add_argument("--minimap-range", type=int, choices=(64, 128, 256))
     parser.add_argument("--actor-visual", choices=("idle", "windup", "recover", "walk", "cycle"))
+    parser.add_argument("--actor-distance", type=int, choices=(6, 12, 24),
+                        help="Diagnostic gallery distance; requires --actor-visual")
     parser.add_argument("--hud-fixture", action="store_true")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--panel", choices=("crafting", "container", "settings"))
@@ -108,6 +110,8 @@ def main():
     parser.add_argument("--reuse-app", action="store_true",
                         help="Run the supplied stable app in place; its diagnostic config is updated")
     args = parser.parse_args()
+    if args.actor_distance is not None and not args.actor_visual:
+        parser.error("--actor-distance requires --actor-visual")
     if platform.system() != "Darwin":
         parser.error("macOS required")
     if not 0 <= args.time < 24000:
@@ -212,6 +216,8 @@ seed random
         })
     if args.actor_visual:
         environment["HELLOMINE3D_ACTOR_VISUAL_CAPTURE"] = args.actor_visual
+    if args.actor_distance is not None:
+        environment["HELLOMINE3D_ACTOR_VISUAL_DISTANCE"] = str(args.actor_distance)
     if args.panel:
         key = "HELLOMINE3D_V10E_SETTINGS_FIXTURE" if args.panel == "settings" else (
             "HELLOMINE3D_" + args.panel.upper() + "_FIXTURE")

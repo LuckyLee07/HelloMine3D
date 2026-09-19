@@ -982,6 +982,14 @@ namespace
                 std::cout << "[ACTOR_VISUAL_CAPTURE] pose=" << m_actorVisualCapture
                     << " evidence=developer-diagnostic normal_input=0\n";
             }
+            if (const char* distance = std::getenv("HELLOMINE3D_ACTOR_VISUAL_DISTANCE")) {
+                const std::string value(distance);
+                if (m_actorVisualCapture.empty() ||
+                    (value != "6" && value != "12" && value != "24"))
+                    throw std::runtime_error("Actor visual distance requires a diagnostic gallery and 6, 12 or 24 metres.");
+                m_actorVisualDistance = std::stof(value);
+                std::cout << "[ACTOR_VISUAL_CAPTURE] distance=" << value << '\n';
+            }
             const bool hiddenWindow = isTrueValue(
                 std::getenv("HELLOMINE3D_WINDOW_HIDDEN"));
             m_hiddenWindow = hiddenWindow;
@@ -2778,7 +2786,7 @@ namespace
                     ActorSnapshot sample;
                     sample.id = 900001 + index;
                     sample.type = types[index];
-                    sample.position = origin + forward * 4.6f + right * ((index - 1.5f) * 1.5f);
+                    sample.position = origin + forward * m_actorVisualDistance + right * ((index - 1.5f) * 1.5f);
                     sample.position.y -= .3f;
                     sample.rotation.y = glm::degrees(std::atan2(forward.x, forward.z));
                     sample.dimensions = index == 1 ? glm::vec3(.55f,1.05f,.55f) : glm::vec3(.4f,.9f,.4f);
@@ -4633,6 +4641,7 @@ namespace
         float m_blockFeedbackCaptureSeconds = 0.f;
         std::string m_actorVisualCapture;
         float m_actorVisualCaptureSeconds = 0.f;
+        float m_actorVisualDistance = 4.6f;
         int m_blockFeedbackCaptureLastStage = -2;
         std::unique_ptr<OgreActorRenderer> m_actorRenderer;
         Player* m_worldPlayer = nullptr;

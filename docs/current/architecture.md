@@ -654,12 +654,14 @@ POSIX Ogre `Timer` 的经过时间使用 `std::chrono::steady_clock`，毫秒/�
 `ActorSnapshot` 复制物品材质、数量、年龄；Ogre/UI 共用有界纯几何缓存，工具按 Alpha 轮廓挤出厚度、
 方块使用实际材质分面。掉落方块保留旋转，薄图标模型通过纯 `ItemVisualPose` 朝向观察者并有界摆动，
 避免转到侧面丢失轮廓；不改变 Actor、拾取或保存数据，见[物品表现合同](../contracts/visual-item-volume-v1.md)。敌人 shader 接收局部坐标与
-每部件 custom 参数（角色/守卫/蓄力比例），只表达已有姿态；不增加 AI、判定、掉落或持久化状态。
+每部件 custom 参数（角色/守卫/蓄力比例/原型），派生局部坐标材质分区与面部；细颗粒按屏幕覆盖渐隐，
+眼睛和 crest 符记之外不新增发光。普通和阴影路径保持相同语义，平色回退保留；不增加 AI、判定、掉落或持久化状态。
 
 敌人关节通过纯 `EnemyPresentation` 派生偏移，让四肢围绕肩髋顶端、头与口鼻围绕共同颈部运动。
 每个 `OgreActorRenderer::ActorVisual` 持有一份 `GaitPhase`，只从 Chase 快照累计水平距离，
 相位保持在一周内；超过 2 m 的相邻位移只重设参考位置，死亡不累计。生命周期与已有 visual 一致，
-不另建全局缓存，不改 Actor、攻击 tick 或存档。已有诊断展示增加 `walk`/`cycle`，只提供渲染快照。
+不另建全局缓存，不改 Actor、攻击 tick 或存档。已有诊断展示增加 `walk`/`cycle` 及可选 6/12/24 m 距离，
+只提供渲染快照，普通入口拒绝诊断距离。
 
 第一人称 UI 通过纯 `PlayerHandPresentation` 缓存空手、握图标、托方块三种手臂几何，
 每种最多 54 个分面；和已有持物共用动作姿态及深度排序。daylight 只调整表现曝光，

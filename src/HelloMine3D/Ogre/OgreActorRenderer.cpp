@@ -550,7 +550,8 @@ void OgreActorRenderer::updateVisual(
                     snapshot.combatStateTicksTotal, 0.f, 1.f) : 0.f;
         part.object->getSection(0)->setCustomParameter(1, Ogre::Vector4(
             static_cast<float>(definition.role) + 1.f,
-            profile.waystoneGuardian ? 1.f : 0.f, windup, 0.f));
+            profile.waystoneGuardian ? 1.f : 0.f, windup,
+            static_cast<float>(profile.archetype)));
         const glm::vec3 offset = definition.offset + pose.offsets[index];
         part.node->setPosition(offset.x, offset.y, offset.z);
         const float partScale = pose.scales[index];

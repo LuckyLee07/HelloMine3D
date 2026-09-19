@@ -44,18 +44,25 @@ GLuint program(const std::filesystem::path& root, bool shadow) {
     glGetProgramiv(p,GL_LINK_STATUS,&ok);glGetProgramInfoLog(p,sizeof(log),nullptr,log);
     require(ok,std::string("Actor link: ")+log);return p;
 }
-Pixels render(GLuint p,float role,float windup=0,float front=-.5f,float enabled=1,float light=1) {
+Pixels render(GLuint p,float role,float windup=0,float front=-.5f,float enabled=1,float light=1,
+              float archetype=0,float guardian=1,float fog=0,float worldOffset=0) {
     glUseProgram(p);
     auto scalar=[&](const char* key,float v){glUniform1f(glGetUniformLocation(p,key),v);};
     const float identity[]{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
     const float projection[]{2,0,0,0,0,2,0,0,0,0,0,0,0,0,0,1};
     for(const char* key:{"world","worldView"})
         glUniformMatrix4fv(glGetUniformLocation(p,key),1,GL_FALSE,identity);
+    float translated[]{1,0,0,0,0,1,0,0,0,0,1,0,worldOffset,0,0,1};
+    glUniformMatrix4fv(glGetUniformLocation(p,"world"),1,GL_FALSE,translated);
     glUniformMatrix4fv(glGetUniformLocation(p,"worldViewProj"),1,GL_FALSE,projection);
     glUniform4f(glGetUniformLocation(p,"actorTint"),.25f,.47f,.51f,1);
-    glUniform4f(glGetUniformLocation(p,"actorPartData"),role,1,windup,0);
+    glUniform4f(glGetUniformLocation(p,"actorPartData"),role,guardian,windup,archetype);
     scalar("actorSurfaceStrength",enabled);scalar("environmentLight",light);
-    scalar("fogDensity",0);scalar("directionalShadowEnabled",0);scalar("directionalShadowStrength",0);
+    scalar("fogDensity",fog);scalar("directionalShadowEnabled",0);scalar("directionalShadowStrength",0);
+    scalar("fogDirectionalStrength",0);
+    glUniform3f(glGetUniformLocation(p,"fogColour"),.12f,.18f,.26f);
+    glUniform3f(glGetUniformLocation(p,"fogSunwardColour"),.12f,.18f,.26f);
+    glUniform3f(glGetUniformLocation(p,"cameraPosition"),0,0,0);
     glUniform3f(glGetUniformLocation(p,"sunDirection"),0,1,0);
     const float vertices[]{-.5f,-.5f,front,.5f,-.5f,front,.5f,.5f,front,
                           .5f,.5f,front,-.5f,.5f,front,-.5f,-.5f,front};
@@ -127,6 +134,42 @@ int main(int argc,char** argv) {
         png(output/"head-night-windup.png",nightWindup);
         png(output/"head-idle.png",head);png(output/"head-windup.png",windup);
         png(output/"torso.png",render(normal,1));png(output/"legs.png",render(normal,5));
+        for (float archetype : {1,2,3}) {
+            for (float role : {1,2,3,5,7,8}) {
+                check("archetype-normal-shadow-disabled-parity",
+                    render(normal,role,.6f,-.5f,1,.18f,archetype)==
+                    render(shadow,role,.6f,-.5f,1,.18f,archetype));
+                check("archetype-fallback-remains-flat-tint",
+                    render(normal,role,1,-.5f,0,1,archetype)==render(normal,0,0,-.5f,0));
+                check("surface-is-attached-to-part-not-world-origin",
+                    render(normal,role,0,-.5f,1,1,archetype)==
+                    render(normal,role,0,-.5f,1,1,archetype,1,0,512));
+            }
+            check("back-of-head-has-no-attack-eye-cue",
+                render(normal,2,0,.5f,1,0,archetype)==render(normal,2,1,.5f,1,0,archetype));
+            check("front-head-retains-night-facing",
+                difference(render(normal,2,0,-.5f,1,0,archetype),
+                           render(normal,2,0,.5f,1,0,archetype))>.4);
+            check("opaque-fog-hides-emissive-eyes",
+                render(normal,2,1,-.5f,1,0,archetype,1,20)==
+                render(normal,1,0,-.5f,1,0,archetype,0,20));
+            check("torso-detail-is-not-emissive",
+                difference(render(normal,1,0,-.5f,1,1,archetype),
+                           render(normal,1,0,-.5f,1,0,archetype))>10);
+            const auto stem="type-"+std::to_string(static_cast<int>(archetype));
+            for (const auto& part : {std::pair<float,const char*>{1,"torso"},{2,"head"},{5,"leg"},{7,"muzzle"}})
+                png(output/(stem+"-"+part.second+".png"),render(normal,part.first,0,-.5f,1,1,archetype));
+        }
+        for (float role : {1,2}) {
+            for (float a : {1,2})
+                check("archetypes-differ-even-with-identical-base-tint",
+                    difference(render(normal,role,0,-.5f,1,1,a),
+                               render(normal,role,0,-.5f,1,1,a+1))>1.0);
+        }
+        check("spitter-muzzle-has-nose-and-mouth-pattern",
+            difference(render(normal,7,0,-.5f,1,1,3),render(normal,7,0,.5f,1,1,3))>1.0);
+        check("guardian-core-is-a-mark-with-dark-border",
+            difference(render(normal,8,0,-.5f,1,1,1,1),render(normal,8,0,-.5f,1,1,1,0))>4);
         glDeleteProgram(normal);glDeleteProgram(shadow);glDeleteRenderbuffers(1,&colour);
         glDeleteFramebuffers(1,&fbo);glDeleteVertexArrays(1,&vao);CGLSetCurrentContext(nullptr);CGLDestroyContext(context);
         std::cout<<"[ACTOR_GPU] checks="<<checks<<" failures=0\n";return 0;
