@@ -1572,7 +1572,11 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 468 &&
+              registry.keys("en-US").size() == 470 &&
+              registry.lookup("en-US", "hud.region_wetland") == "Wetland" &&
+              registry.lookup("zh-CN", "hud.region_wetland") == "湿地" &&
+              registry.lookup("en-US", "hud.region_plateau") == "Rock plateau" &&
+              registry.lookup("zh-CN", "hud.region_plateau") == "岩台" &&
               registry.lookup("en-US", "hud.status_food") == "Food" &&
               registry.lookup("zh-CN", "hud.status_food") == "进食" &&
               registry.lookup("en-US", "hud.status_attack") == "Attack" &&
@@ -4829,7 +4833,9 @@ void caseTerrainAppearance()
             case TerrainBiome::LightForest: return 2;
             case TerrainBiome::TemperateForest: return 3;
             case TerrainBiome::Ocean: return 4;
-            case TerrainBiome::Mountain: return -1;
+            case TerrainBiome::Mountain:
+            case TerrainBiome::Wetland:
+            case TerrainBiome::RockPlateau: return -1;
         }
         return 1;
     };
@@ -19762,6 +19768,7 @@ void caseWorldManager()
 #include "ItemVisualSmokeCases.h"
 #include "MinimapNavigationSmokeCases.h"
 #include "PresentationClockSmokeCases.h"
+#include "TerrainLandformSmokeCases.h"
 
 int main()
 {
@@ -19899,6 +19906,12 @@ int main()
         else if (focus != nullptr &&
                  std::string(focus) == "E6_VEGETATION") {
             caseVegetationMosaicV12();
+        }
+        else if (focus != nullptr && std::string(focus) == "E7_LANDFORMS") {
+            caseLandformDiversityV13();
+        }
+        else if (focus != nullptr && std::string(focus) == "E7_REGIONS") {
+            writeLandformRegions();
         }
         else if (focus != nullptr && std::string(focus) == "SURFACE_MAP") {
             caseSurfaceMapObservations();
@@ -20134,6 +20147,7 @@ int main()
         caseInlandReliefV10();
         caseInlandWaterV11();
         caseVegetationMosaicV12();
+        caseLandformDiversityV13();
         caseTerrainFoundationV5();
         caseP11TerrainContoursAndEntrances();
         caseP11EEnemyPresentationAndResonance();

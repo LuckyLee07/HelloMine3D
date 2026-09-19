@@ -298,3 +298,23 @@ E6 窗口阶段已用唯一工作 `.app` 的同一 PID `82431` 完成 28/28 个�
 `1.001×/1.015×`，均 `PASS`。首次启动因已跟踪资源清单的字体项排序错误在窗口创建前失败，
 失败证据保留，排序修复提交 `cd6304a` 后有效重试一次。Computer Use 在批次运行时再次报告
 图形会话锁定，中文菜单正常玩法为 `NOT_RUN`。
+
+### E7 地貌多样化 terrain v13
+
+按 [v13 合同](../contracts/terrain-diversity-v13-contract-v1.md) 和
+[执行记录](../reports/terrain-diversity-v13-2026-09-19.md) 检查：
+
+- `bash scripts/verify_terrain_landforms.sh Debug <新目录>` 与 Release：八 seed 覆盖、
+  高度/坡差、变化量、极值坐标与纯规划确定性。旧 v1–v12 使用同一最终 WorldRuntime 的
+  `T0-SURVEY`，与修改前 `samples.csv` / `chunks.csv` 逐字节核对。
+- `HELLOMINE3D_WORLD_SMOKE_FOCUS=E7_LANDFORMS`：48 个选定地点实际生成及反序指纹、
+  公开查询、干燥植物、八 seed 资源/出生/洞口/结构接近方向、默认 v13 与改块保存重开。
+- `HELLOMINE3D_WORLD_SMOKE_FOCUS=E7_REGIONS` 配合
+  `HELLOMINE3D_TERRAIN_SURVEY_DIR=<新目录>`：导出三个 seed 的 18 片 128×128 实际区域，
+  明确洞口/结构/矿物例外，检查沙丘/岩台跨度和湿地实际水、干草地。连片选点工具为
+  `python3 tools/select_terrain_landform_regions.py <samples.csv> <新输出.json>`。
+- 双配置客户端、完整 WorldRuntime、资源、世界目录、事务与备份回归。测试使用隔离根，
+  完整套件需要现有 `tools/fixtures`，不读取用户世界；构建和运行命令沿 README。
+- 同一工作包固定原图、多 seed / 多视角和连续相机；新地貌 Off / High 都观察。受影响
+  常驻/快速流送 v12/v13 各三轮，P95/P99 中位数不超过 1.10，记录网格、驻留和生成成本。
+  最后通过正常菜单新建/进入/保存重开；持续输入按用户决定暂缓，不由诊断代替。

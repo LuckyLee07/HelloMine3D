@@ -2629,6 +2629,8 @@ class OgreUserInterface::Impl
                                 scaleStart.y - ImGui::GetFontSize() * 0.5f),
                           IM_COL32(243, 232, 201, 255), scaleLabel.c_str());
             const char* regionKey = minimapBiome == TerrainBiome::Desert ? "hud.region_desert" :
+                minimapBiome == TerrainBiome::Wetland ? "hud.region_wetland" :
+                minimapBiome == TerrainBiome::RockPlateau ? "hud.region_plateau" :
                 minimapBiome == TerrainBiome::Ocean ? "hud.region_ocean" :
                 minimapBiome == TerrainBiome::Mountain ? "hud.region_mountain" :
                 minimapBiome == TerrainBiome::TemperateForest ? "hud.region_forest" :

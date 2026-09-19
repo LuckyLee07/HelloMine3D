@@ -359,6 +359,108 @@ TerrainFoundation::Column TerrainFoundation::sampleV11(
     return column;
 }
 
+TerrainFoundation::Column TerrainFoundation::sampleV13(
+    int worldX, int worldZ) const noexcept
+{
+    Column column = sampleV11(worldX, worldZ);
+    const double oldHeight = column.height;
+    if (oldHeight < 59.0 || oldHeight >= 164.0) { return column; }
+    const double x = static_cast<double>(worldX);
+    const double z = static_cast<double>(worldZ);
+    const auto blend = [](double a, double b, double weight) {
+        return a + (b - a) * weight;
+    };
+    const double ecology = noise(x, z, 300.0, 0x3f84d5b5b5470917ull);
+    const double geology = noise(x, z, 512.0, 0x9b05688c2b3e6c1full);
+    const double moisture = noise(x, z, 420.0, 0x1f83d9abfb41bd6bull);
+    const double inland = smooth(61.0, 92.0, oldHeight) *
+        (1.0 - smooth(108.0, 164.0, oldHeight));
+
+    // Each region changes the silhouette, not just its biome label. All
+    // Blend the new relief before rounding and assigning the final biome.
+    const double rolling = oldHeight +
+        noise(x, z, 165.0, 0x5be0cd19137e2179ull) * 10.0 +
+        noise(x, z, 55.0, 0xcbbb9d5dc1059ed8ull) * 2.0;
+    const double basin = oldHeight +
+        noise(x, z, 300.0, 0x629a292a367cd507ull) * 8.0 + 4.0 -
+        smooth(-0.2, 0.65, noise(x, z, 210.0, 0x9159015a3070dd17ull)) * 14.0;
+    double height = blend(oldHeight,
+        blend(rolling, basin, smooth(-0.1, 0.34, ecology)), inland);
+
+    // Bent, uneven wind ridges: a broad warp avoids straight, equal-width
+    // bands. Their amplitude and underlying grade stay bounded.
+    const double wind = (x * .82 + z * .57 +
+        noise(x, z, 140.0, 0x152fecd8f70e5939ull) * 35.0 +
+        noise(x, z, 320.0, 0x67332667ffc00b31ull) * 60.0) / 14.0;
+    const double crest = .5 + .5 * std::sin(wind);
+    const double duneHeight = 78.0 + (oldHeight - 78.0) * .5 +
+        crest * crest * 12.0 - 3.0;
+    const double dunes = (1.0 - smooth(-.55, -.12, ecology)) * inland;
+    height = blend(height, duneHeight, dunes);
+
+    // Broad rock shelves separated by sloping shoulders, with a winding
+    // incision through them. The terrace interpolation is continuous at
+    // integer levels; a discrete biome boundary never creates the cliff.
+    const double level = (noise(x, z, 230.0, 0x8eb44a8768581511ull) + 1.0) * 1.5;
+    const double fraction = level - std::floor(level);
+    const double shelf = std::floor(level) + smooth(.38, .92, fraction);
+    const double valley = std::abs(noise(x, z, 300.0, 0xdb0c2e0d64f98fa7ull) +
+        noise(x, z, 105.0, 0x47b5481dbefa4fa4ull) * .18);
+    const double cut = 22.0 * (1.0 - smooth(.04, .26, valley));
+    const double rockHeight = 74.0 + shelf * 15.0 - cut +
+        noise(x, z, 65.0, 0x0fc19dc68b8cd5b5ull) * 1.3;
+    const double rock = smooth(.05, .60, geology) * inland;
+    // A low shelf must not pull down the shoulder of an existing high ridge
+    // by its entire altitude difference. Bound the local displacement before
+    // blending, retaining flat shelves in the lowlands and a gradual upland
+    // transition instead of magnifying rounded parent contour steps.
+    const double localRockHeight = oldHeight +
+        std::max(-28.0, std::min(28.0, rockHeight - oldHeight));
+    height = blend(height, localRockHeight, rock);
+
+    // Low wet basins contain real water at the existing sea level and dry
+    // grass islands. No per-column floating water level or neighbour reads.
+    const double wet = smooth(.04, .60, moisture) * smooth(-.30, .08, ecology) *
+        smooth(60.0, 74.0, oldHeight) * (1.0 - smooth(76.0, 99.0, oldHeight)) *
+        (1.0 - rock * .7);
+    const double wetHeight = 60.0 +
+        noise(x, z, 55.0, 0x240ca1cc77ac9c65ull) * 4.5 +
+        smooth(-.25, .55, noise(x, z, 180.0, 0x2de92c6f592b0275ull)) * 3.0;
+    height = blend(height, wetHeight, wet);
+    column.height = std::max(1, std::min(176, static_cast<int>(std::lround(height))));
+
+    if (wet > .55) {
+        column.biome = TerrainBiome::Wetland;
+        column.surface = column.height < 64 ? Surface::Dirt : Surface::Grass;
+    }
+    else if (column.height < 64) {
+        column.biome = TerrainBiome::Ocean;
+        column.surface = Surface::Sand;
+    }
+    else if (rock > .55) {
+        column.biome = TerrainBiome::RockPlateau;
+        // A narrow sandy wash and thin soil belts leave the shelves visibly
+        // rocky. Wide sand bands would make this silhouette read as dunes.
+        column.surface = valley < .025 ? Surface::Sand :
+            fraction > .45 && fraction < .53 ? Surface::Dirt : Surface::Stone;
+    }
+    else {
+        if (column.biome == TerrainBiome::Ocean) {
+            column.biome = ecology < -.35 ? TerrainBiome::Desert :
+                ecology < -.05 ? TerrainBiome::Grassland :
+                ecology < .30 ? TerrainBiome::LightForest : TerrainBiome::TemperateForest;
+        }
+        if (dunes > .5) { column.biome = TerrainBiome::Desert; }
+        if (column.height <= 65) { column.surface = Surface::Sand; }
+        else if (inland > .25) {
+            column.surface = column.biome == TerrainBiome::Desert ? Surface::Sand :
+                column.biome == TerrainBiome::Mountain && column.height >= 100
+                    ? Surface::Stone : Surface::Grass;
+        }
+    }
+    return column;
+}
+
 int TerrainFoundation::chunkSeed(int seed, int chunkX, int chunkZ,
                                  std::uint64_t salt) noexcept
 {

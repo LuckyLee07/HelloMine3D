@@ -29,6 +29,7 @@ class TerrainFoundation {
     Column sampleV9(int worldX, int worldZ) const noexcept;
     Column sampleV10(int worldX, int worldZ) const noexcept;
     Column sampleV11(int worldX, int worldZ) const noexcept;
+    Column sampleV13(int worldX, int worldZ) const noexcept;
 
     static int chunkSeed(int seed, int chunkX, int chunkZ,
                          std::uint64_t salt) noexcept;

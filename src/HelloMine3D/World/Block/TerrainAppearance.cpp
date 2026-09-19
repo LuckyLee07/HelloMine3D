@@ -118,7 +118,10 @@ int TerrainAppearance::ecologyRow(TerrainBiome biome) noexcept
         case TerrainBiome::Ocean:
             return EcologyRowBase + 4;
         case TerrainBiome::Mountain:
+        case TerrainBiome::Wetland:
             return EcologyRowBase + 3;
+        case TerrainBiome::RockPlateau:
+            return EcologyRowBase;
     }
     return EcologyRowBase + 1;
 }

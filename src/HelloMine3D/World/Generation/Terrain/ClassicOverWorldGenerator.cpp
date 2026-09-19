@@ -22,6 +22,8 @@
 namespace {
 constexpr int MaximumStructureRadius = 6;
 constexpr int MountainBiomeValue = -1000000;
+constexpr int WetlandBiomeValue = -1000001;
+constexpr int RockPlateauBiomeValue = -1000002;
 constexpr int MountainRockHeight = WATER_LEVEL + 36;
 constexpr int ForestTreeCellSize = 5;
 
@@ -34,6 +36,8 @@ int biomeMapValue(TerrainBiome biome) noexcept
         case TerrainBiome::TemperateForest: return 121;
         case TerrainBiome::Mountain: return MountainBiomeValue;
         case TerrainBiome::Desert: return 100;
+        case TerrainBiome::Wetland: return WetlandBiomeValue;
+        case TerrainBiome::RockPlateau: return RockPlateauBiomeValue;
     }
     return 151;
 }
@@ -246,6 +250,9 @@ int ClassicOverWorldGenerator::getGenerationVersion() const noexcept
 TerrainFoundation::Column ClassicOverWorldGenerator::sampleFoundationForVersion(
     int worldX, int worldZ) const noexcept
 {
+    if (m_generationVersion >= LandformDiversityTerrainGenerationVersion) {
+        return m_foundation.sampleV13(worldX, worldZ);
+    }
     if (m_generationVersion >= InlandWaterTerrainGenerationVersion) {
         return m_foundation.sampleV11(worldX, worldZ);
     }
@@ -500,8 +507,10 @@ void ClassicOverWorldGenerator::generateBaseTerrain(
                         const bool suitablePlantSurface = !planned ||
                             surface == TerrainFoundation::Surface::Grass ||
                             (surface == TerrainFoundation::Surface::Sand &&
-                             getBiomeKindForValue(m_biomeMap.get(x, z)) ==
-                                 TerrainBiome::Desert);
+                             (getBiomeKindForValue(m_biomeMap.get(x, z)) ==
+                                  TerrainBiome::Desert ||
+                              getBiomeKindForValue(m_biomeMap.get(x, z)) ==
+                                  TerrainBiome::RockPlateau));
                         if (selectedPlant && suitablePlantSurface) {
                             plantPositions.push_back({x, y + 1, z});
                         }
@@ -601,11 +610,12 @@ void ClassicOverWorldGenerator::applyPlantDecorators(
             const TerrainBiome kind =
                 getBiomeKindForValue(m_biomeMap.get(x, z));
             if (kind != TerrainBiome::LightForest &&
-                kind != TerrainBiome::TemperateForest) {
+                kind != TerrainBiome::TemperateForest && kind != TerrainBiome::Wetland) {
                 continue;
             }
             const int height = m_heightMap.get(x, z);
-            if (height < WATER_LEVEL + 4 || height + 1 >= 256 ||
+            const int plantHeight = kind == TerrainBiome::Wetland ? WATER_LEVEL : WATER_LEVEL + 4;
+            if (height < plantHeight || height + 1 >= 256 ||
                 m_pChunk->getBlock(x, height + 1, z) != BlockId::Air) {
                 continue;
             }
@@ -705,7 +715,8 @@ void ClassicOverWorldGenerator::applyTreeDecorators()
                 SurfaceCoastTerrainGenerationVersion
                     ? v8Column.height
                     : getHeightAt(localX, localZ, sourceChunkX, sourceChunkZ);
-            if (height < WATER_LEVEL + 4) {
+            if (height < (v8Column.biome == TerrainBiome::Wetland
+                              ? WATER_LEVEL + 1 : WATER_LEVEL + 4)) {
                 continue;
             }
             const TerrainBiome kind =
@@ -734,7 +745,7 @@ void ClassicOverWorldGenerator::applyTreeDecorators()
                 continue;
             }
             if (m_generationVersion >= MountainTerrainGenerationVersion &&
-                kind == TerrainBiome::Mountain) {
+                (kind == TerrainBiome::Mountain || kind == TerrainBiome::RockPlateau)) {
                 continue;
             }
 
@@ -745,7 +756,7 @@ void ClassicOverWorldGenerator::applyTreeDecorators()
             if (m_generationVersion >=
                     VegetationMosaicTerrainGenerationVersion &&
                 (kind == TerrainBiome::LightForest ||
-                 kind == TerrainBiome::TemperateForest)) {
+                 kind == TerrainBiome::TemperateForest || kind == TerrainBiome::Wetland)) {
                 ecologyPlan = ecologyPlanner.planTree(
                     worldX, worldZ, v8Column);
                 if (!ecologyPlan.place) {
@@ -1095,6 +1106,10 @@ ClassicOverWorldGenerator::getBiomeForValue(int biomeValue) const
             return m_desertBiome;
         case TerrainBiome::Mountain:
             return m_lightForest;
+        case TerrainBiome::Wetland:
+            return m_lightForest;
+        case TerrainBiome::RockPlateau:
+            return m_desertBiome;
     }
     return m_grassBiome;
 }
@@ -1105,6 +1120,8 @@ TerrainBiome ClassicOverWorldGenerator::getBiomeKindForValue(
     if (biomeValue == MountainBiomeValue) {
         return TerrainBiome::Mountain;
     }
+    if (biomeValue == WetlandBiomeValue) { return TerrainBiome::Wetland; }
+    if (biomeValue == RockPlateauBiomeValue) { return TerrainBiome::RockPlateau; }
     if (biomeValue > 160) {
         return TerrainBiome::Ocean;
     }

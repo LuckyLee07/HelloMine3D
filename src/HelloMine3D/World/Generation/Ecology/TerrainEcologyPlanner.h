@@ -31,8 +31,9 @@ struct EcologyGroundCoverPlan {
     double density = 0.0;
 };
 
-// Pure terrain-v12 placement policy. It consumes only the world identity,
-// signed world coordinates and the already-planned v11 column; it never owns
+// Pure terrain-v12 placement policy, with v13-only wetland biome handling.
+// It consumes only the world identity,
+// signed world coordinates and the already-planned versioned column; it never owns
 // or reads a Chunk and does not consume the generator's mutable random stream.
 class TerrainEcologyPlanner {
   public:
@@ -47,7 +48,8 @@ class TerrainEcologyPlanner {
         const TerrainFoundation::Column &column) const noexcept
     {
         EcologyTreePlan plan;
-        if (!isForest(column.biome) || column.height < 68 ||
+        const bool wetland = column.biome == TerrainBiome::Wetland;
+        if ((!isForest(column.biome) && !wetland) || column.height < (wetland ? 65 : 68) ||
             (column.surface != TerrainFoundation::Surface::Original &&
              column.surface != TerrainFoundation::Surface::Grass)) {
             return plan;
@@ -73,7 +75,8 @@ class TerrainEcologyPlanner {
             x, z, 112.0, 0x243f6a8885a308d3ull) +
             noise(x, z, 36.0, 0x13198a2e03707344ull) * 0.55;
         plan.density = smooth(-0.55, 0.55, field);
-        const double chance = column.biome == TerrainBiome::LightForest
+        const double chance = wetland ? .08 + .22 * plan.density * plan.density :
+            column.biome == TerrainBiome::LightForest
             ? 0.20 + 0.60 * plan.density * plan.density
             : 0.24 + 0.73 * plan.density * plan.density;
         const double placementRoll = unit(
@@ -111,7 +114,8 @@ class TerrainEcologyPlanner {
         const TerrainFoundation::Column &column) const noexcept
     {
         EcologyGroundCoverPlan plan;
-        if (!isForest(column.biome) || column.height < 68 ||
+        const bool wetland = column.biome == TerrainBiome::Wetland;
+        if ((!isForest(column.biome) && !wetland) || column.height < (wetland ? 64 : 68) ||
             (column.surface != TerrainFoundation::Surface::Original &&
              column.surface != TerrainFoundation::Surface::Grass)) {
             return plan;
@@ -122,14 +126,14 @@ class TerrainEcologyPlanner {
             x, z, 62.0, 0xc0ac29b7c97c50ddull) +
             noise(x, z, 23.0, 0xe43d17bc92f6a805ull) * 0.30;
         plan.density = smooth(-0.36, 0.58, field);
-        const double chance = 0.003 +
-            0.038 * plan.density * plan.density;
+        const double chance = wetland ? .015 + .11 * plan.density * plan.density :
+            0.003 + 0.038 * plan.density * plan.density;
         const std::uint64_t coordinateHash = hashAt(
             worldX, worldZ, 0x4c91eac7096b32dfull);
         if (unit(coordinateHash) >= chance) {
             return plan;
         }
-        plan.cover = unit(mix(coordinateHash ^ 0x3ab095d86cdb72e4ull)) < 0.22
+        plan.cover = !wetland && unit(mix(coordinateHash ^ 0x3ab095d86cdb72e4ull)) < 0.22
             ? EcologyGroundCover::Rose
             : EcologyGroundCover::TallGrass;
         return plan;

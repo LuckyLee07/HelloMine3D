@@ -9,7 +9,9 @@ enum class TerrainBiome {
     LightForest,
     TemperateForest,
     Ocean,
-    Mountain
+    Mountain,
+    Wetland,
+    RockPlateau
 };
 
 inline constexpr int LegacyTerrainGenerationVersion = 1;
@@ -24,8 +26,9 @@ inline constexpr int InlandMeadowTerrainGenerationVersion = 9;
 inline constexpr int InlandReliefTerrainGenerationVersion = 10;
 inline constexpr int InlandWaterTerrainGenerationVersion = 11;
 inline constexpr int VegetationMosaicTerrainGenerationVersion = 12;
+inline constexpr int LandformDiversityTerrainGenerationVersion = 13;
 inline constexpr int CurrentTerrainGenerationVersion =
-    VegetationMosaicTerrainGenerationVersion;
+    LandformDiversityTerrainGenerationVersion;
 
 class TerrainGenerator {
   public:
