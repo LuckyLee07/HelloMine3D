@@ -1,5 +1,6 @@
 #include "OgreBootstrap.h"
 #include "OgreActorRenderer.h"
+#include "../Actor/EnemyPresentationGallery.h"
 #include "ChunkSectionRenderable.h"
 #include "OgreBlockFeedback.h"
 #include "OgreRenderCapture.h"
@@ -2585,7 +2586,7 @@ namespace
             m_focusTransitionFrame = false;
             syncRenderCamera();
             syncSectionMeshes();
-            syncActorVisuals();
+            syncActorVisuals(deltaSeconds);
             if (m_blockFeedback != nullptr)
             {
                 const auto& selection = m_sandbox->getBlockSelection();
@@ -2760,7 +2761,7 @@ namespace
             }
         }
 
-        void syncActorVisuals()
+        void syncActorVisuals(float deltaSeconds = 0.f)
         {
             HELLOMINE3D_PROFILE_SCOPE("Ogre::syncActorVisuals");
             if (m_world == nullptr || m_actorRenderer == nullptr ||
@@ -2783,19 +2784,21 @@ namespace
                 const char* types[]{"hellomine:stalker", "hellomine:brute", "hellomine:spitter",
                                     "hellomine:waystone_stalker"};
                 for (int index=0; index<4; ++index) {
-                    ActorSnapshot sample;
+                    const auto* definition = runtimeEnemyRegistry().find(types[index]);
+                    if (definition == nullptr)
+                        throw std::runtime_error("Actor gallery enemy definition is missing");
+                    ActorSnapshot sample = EnemyPresentation::gallerySnapshot(
+                        *definition, m_actorVisualCapture, m_actorVisualCaptureSeconds);
                     sample.id = 900001 + index;
-                    sample.type = types[index];
+                    if (!m_actorVisualGalleryLogged)
+                        std::cout << "[ACTOR_GALLERY_PROFILE] type=" << sample.type
+                                  << " dimensions=" << sample.dimensions.x << ","
+                                  << sample.dimensions.y << "," << sample.dimensions.z
+                                  << " windup=" << definition->combat.windupTicks
+                                  << " recover=" << definition->combat.recoverTicks << '\n';
                     sample.position = origin + forward * m_actorVisualDistance + right * ((index - 1.5f) * 1.5f);
                     sample.position.y -= .3f;
                     sample.rotation.y = glm::degrees(std::atan2(forward.x, forward.z));
-                    sample.dimensions = index == 1 ? glm::vec3(.55f,1.05f,.55f) : glm::vec3(.4f,.9f,.4f);
-                    sample.combatant = true;
-                    sample.combatMode = index == 2 ? EnemyCombatMode::Ranged : EnemyCombatMode::Melee;
-                    sample.combatState = m_actorVisualCapture == "windup" ? MobCombatState::Windup :
-                        m_actorVisualCapture == "recover" ? MobCombatState::Recover : MobCombatState::Idle;
-                    sample.combatStateTicksTotal = 20;
-                    sample.combatStateTicksRemaining = 3;
                     if (m_actorVisualCapture == "walk") {
                         // Deliberately travel along x=-z: the old coordinate-
                         // sum gait froze on this path. These are render-only
@@ -2806,16 +2809,11 @@ namespace
                         sample.rotation.y += 25.f;
                     }
                     else if (m_actorVisualCapture == "cycle") {
-                        const float phase = std::fmod(m_actorVisualCaptureSeconds, 4.f);
-                        sample.combatState = phase < 1.f ? MobCombatState::Idle :
-                            phase < 2.f ? MobCombatState::Windup :
-                            phase < 3.f ? MobCombatState::Recover : MobCombatState::Idle;
-                        sample.combatStateTicksRemaining = std::clamp(
-                            static_cast<int>(std::ceil((1.f - std::fmod(phase, 1.f)) * 20.f)), 1, 20);
                         sample.rotation.y += 25.f;
                     }
                     snapshots.push_back(sample);
                 }
+                m_actorVisualGalleryLogged = true;
                 const Material::ID materials[]{Material::Stone, Material::OakBark,
                     Material::StoneSword, Material::IronIngot, Material::Bread};
                 for (int index=0; index<5; ++index) {
@@ -2834,7 +2832,8 @@ namespace
                 m_visualCameraSweep.enabled ? glm::vec3(renderEye.x, renderEye.y, renderEye.z) :
                     m_logicCamera->position,
                 m_config.feedbackIntensity == GameplayFeedbackIntensity::Off ? 0.f :
-                m_config.feedbackIntensity == GameplayFeedbackIntensity::Reduced ? .35f : 1.f);
+                m_config.feedbackIntensity == GameplayFeedbackIntensity::Reduced ? .35f : 1.f,
+                deltaSeconds);
             m_actorRenderer->syncProjectiles(
                 m_world->collectCombatProjectileSnapshots());
         }
@@ -4641,6 +4640,7 @@ namespace
         float m_blockFeedbackCaptureSeconds = 0.f;
         std::string m_actorVisualCapture;
         float m_actorVisualCaptureSeconds = 0.f;
+        bool m_actorVisualGalleryLogged = false;
         float m_actorVisualDistance = 4.6f;
         int m_blockFeedbackCaptureLastStage = -2;
         std::unique_ptr<OgreActorRenderer> m_actorRenderer;

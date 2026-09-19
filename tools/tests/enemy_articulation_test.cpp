@@ -3,6 +3,7 @@
 #include <limits>
 #include <glm/gtc/quaternion.hpp>
 #include "Actor/EnemyPresentation.h"
+#include "Actor/EnemyPresentationGallery.h"
 
 namespace {
 int failures = 0;
@@ -145,5 +146,134 @@ int main()
     check("neck-has-volume-connected-to-head-and-torso-in-every-pose", neckBridge);
     check("part-rotation-matches-yaw-pitch-roll-quaternion", rotations);
     check("all-poses-bounded-with-unchanged-snapshot-and-part-budget", extent);
+    const auto stalkerProfile = profileForType("hellomine:stalker");
+    ActorSnapshot transition;
+    transition.id = 7; transition.type = "hellomine:stalker";
+    transition.combatState = MobCombatState::Windup;
+    transition.combatStateTicksTotal = 20; transition.combatStateTicksRemaining = 0;
+    const auto raised = poseFor(transition, stalkerProfile);
+    transition.combatState = MobCombatState::Recover;
+    transition.combatStateTicksRemaining = 20;
+    const auto strike = poseFor(transition, stalkerProfile);
+    PoseBlend blend;
+    blend.update(transition, stalkerProfile, raised, 0.f);
+    const auto middle = blend.update(transition, stalkerProfile, strike, 1.f / 60.f);
+    check("state-change-moves-toward-strike-without-a-full-frame-snap",
+        middle.rotations[3].x > raised.rotations[3].x &&
+        middle.rotations[3].x < strike.rotations[3].x);
+    const auto held = blend.update(transition, stalkerProfile, strike, 0.f);
+    check("paused-frame-holds-articulation", held.rotations == middle.rotations &&
+        held.scales == middle.scales && held.rootPitch == middle.rootPitch);
+    std::array<EnemyVisualPose, 3> settled;
+    const int rates[]{30,60,120};
+    bool boundedSettle = true;
+    for (int rate = 0; rate < 3; ++rate) {
+        PoseBlend atRate; atRate.update(transition, stalkerProfile, raised, 0.f);
+        float previous = raised.rotations[3].x;
+        for (int frame = 0; frame < rates[rate] / 10; ++frame) {
+            settled[rate] = atRate.update(transition, stalkerProfile, strike, 1.f/rates[rate]);
+            boundedSettle &= settled[rate].rotations[3].x >= previous &&
+                settled[rate].rotations[3].x <= strike.rotations[3].x;
+            previous = settled[rate].rotations[3].x;
+        }
+    }
+    check("settling-has-no-overshoot", boundedSettle);
+    check("same-settling-time-at-30-60-120-fps",
+        near(settled[0].rotations[3].x, settled[1].rotations[3].x) &&
+        near(settled[0].rotations[3].x, settled[2].rotations[3].x));
+    bool resets = true;
+    for (const float dt : {-1.f, INFINITY, NAN, .3f}) {
+        PoseBlend reset; reset.update(transition, stalkerProfile, raised, 0.f);
+        resets &= reset.update(transition, stalkerProfile, strike, dt).rotations == strike.rotations;
+    }
+    PoseBlend teleport; teleport.update(transition, stalkerProfile, raised, 0.f);
+    transition.position.x += 3.f;
+    resets &= teleport.update(transition, stalkerProfile, strike, 1.f/60.f).rotations == strike.rotations;
+    check("teleport-and-discontinuous-frame-reset-pose-history", resets);
+    PoseBlend feedback; feedback.update(transition, stalkerProfile, raised, 0.f);
+    transition.hitFeedback = 1.f;
+    const auto hitTarget = poseFor(transition, stalkerProfile);
+    const auto hitPose = feedback.update(transition, stalkerProfile, hitTarget, 1.f/60.f);
+    check("hit-reaction-stays-immediate", hitPose.rootRoll == hitTarget.rootRoll &&
+        hitPose.rootScale == hitTarget.rootScale);
+    transition.deathPresentation = true;
+    transition.deathPresentationTicksTotal = 8; transition.deathPresentationTicksRemaining = 4;
+    const auto deathTarget = poseFor(transition, stalkerProfile);
+    const auto deathPose = feedback.update(transition, stalkerProfile, deathTarget, 1.f/60.f);
+    check("death-presentation-bypasses-blending", deathPose.rotations == deathTarget.rotations &&
+        deathPose.scales == deathTarget.scales && deathPose.rootRoll == deathTarget.rootRoll &&
+        deathPose.rootScale == deathTarget.rootScale && deathPose.rootYOffset == deathTarget.rootYOffset);
+    bool blendedJoints = true, blendedBridge = true;
+    for (const auto* type : types) {
+        const auto profile = profileForType(type);
+        ActorSnapshot actor; actor.type=type; actor.id=7;
+        PoseBlend continuous;
+        for (int frame=0; frame<360; ++frame) {
+            const int section = (frame / 60) % 4;
+            actor.combatState = section == 0 ? MobCombatState::Idle : section == 1 ?
+                MobCombatState::Windup : section == 2 ? MobCombatState::Recover : MobCombatState::Chase;
+            actor.combatStateTicksTotal=20;
+            actor.combatStateTicksRemaining=20-(frame%60)/3;
+            const auto pose = continuous.update(actor, profile, poseFor(actor,profile,frame*.075f),1.f/60.f);
+            for (std::size_t part=0; part<profile.partCount; ++part) {
+                const auto& def = profile.parts[part];
+                if (def.role==EnemyVisualPartRole::LeftArm || def.role==EnemyVisualPartRole::RightArm ||
+                    def.role==EnemyVisualPartRole::LeftLeg || def.role==EnemyVisualPartRole::RightLeg) {
+                    const auto joint=def.offset+glm::vec3(0,def.scale.y*.5f,0);
+                    blendedJoints &= near(transformPoint(profile,pose,part,joint),joint);
+                }
+                if (def.role==EnemyVisualPartRole::Muzzle) {
+                    const auto& head = profile.parts[1];
+                    const auto seam=(def.offset+head.offset)*.5f;
+                    blendedJoints &= near(transformPoint(profile,pose,part,seam),transformPoint(profile,pose,1,seam));
+                }
+                if (def.role==EnemyVisualPartRole::Neck) {
+                    for (int x=-2;x<=2;++x) for(int z=-2;z<=2;++z) {
+                        const auto slice=glm::vec3(x*.2f,.25f,z*.2f)*def.scale;
+                        const auto upper=transformPoint(profile,pose,part,def.offset+slice);
+                        const auto lower=transformPoint(profile,pose,part,def.offset+glm::vec3(slice.x,-slice.y,slice.z));
+                        blendedBridge &= insidePart(profile,pose,1,upper) && insidePart(profile,pose,0,lower);
+                    }
+                }
+            }
+        }
+    }
+    check("blended-poses-preserve-fixed-limb-pivots-and-muzzle-seam", blendedJoints);
+    check("blended-poses-keep-volumetric-neck-connection", blendedBridge);
+    EnemyDefinition galleryDefinition;
+    galleryDefinition.type = "diagnostic-test";
+    galleryDefinition.dimensions = {.13f, .61f, .24f};
+    galleryDefinition.combat.mode = EnemyCombatMode::Ranged;
+    galleryDefinition.combat.windupTicks = 12;
+    galleryDefinition.combat.recoverTicks = 9;
+    const auto gallery = gallerySnapshot(galleryDefinition, "windup", 0.f);
+    check("gallery-copies-actual-type-dimensions-and-combat-mode",
+        gallery.type == galleryDefinition.type &&
+        gallery.dimensions == galleryDefinition.dimensions &&
+        gallery.combatMode == EnemyCombatMode::Ranged);
+    int windupSamples = 0, recoverySamples = 0;
+    bool galleryTicks = true;
+    for (int tick = 0; tick < 61; ++tick) {
+        const auto sample = gallerySnapshot(galleryDefinition, "cycle", tick / 20.f);
+        if (sample.combatState == MobCombatState::Windup) {
+            ++windupSamples;
+            galleryTicks &= sample.combatStateTicksTotal == 12 &&
+                sample.combatStateTicksRemaining == 32 - tick;
+        }
+        if (sample.combatState == MobCombatState::Recover) {
+            ++recoverySamples;
+            galleryTicks &= sample.combatStateTicksTotal == 9 &&
+                sample.combatStateTicksRemaining == 41 - tick;
+        }
+    }
+    check("gallery-cycle-preserves-species-windup-and-recovery-ticks",
+        galleryTicks && windupSamples == 12 && recoverySamples == 9);
+    check("gallery-attack-boundary-matches-its-real-duration",
+        gallerySnapshot(galleryDefinition, "cycle", 1.55f).combatState == MobCombatState::Windup &&
+        gallerySnapshot(galleryDefinition, "cycle", 1.60f).combatState == MobCombatState::Recover &&
+        gallerySnapshot(galleryDefinition, "cycle", 2.05f).combatState == MobCombatState::Idle);
+    check("gallery-invalid-time-starts-at-rest",
+        gallerySnapshot(galleryDefinition, "cycle", NAN).combatState == MobCombatState::Idle &&
+        gallerySnapshot(galleryDefinition, "cycle", -2.f).combatState == MobCombatState::Idle);
     return failures ? 1 : 0;
 }

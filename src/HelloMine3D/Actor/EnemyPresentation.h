@@ -195,6 +195,40 @@ namespace EnemyPresentation
         return profile;
     }
 
+    // Rebuild offsets after any angle/scale blend. Interpolating the already
+    // anchored offsets independently would pull shoulder and neck joints apart.
+    inline void anchorParts(const EnemyVisualProfile& profile, EnemyVisualPose& pose)
+    {
+        std::size_t head = profile.partCount;
+        for (std::size_t index = 0; index < profile.partCount; ++index)
+            if (profile.parts[index].role == EnemyVisualPartRole::Head) head = index;
+        for (std::size_t index = 0; index < profile.partCount; ++index) {
+            const auto& part = profile.parts[index];
+            if (part.role == EnemyVisualPartRole::LeftArm ||
+                part.role == EnemyVisualPartRole::RightArm ||
+                part.role == EnemyVisualPartRole::LeftLeg ||
+                part.role == EnemyVisualPartRole::RightLeg) {
+                const glm::vec3 pivot(0.f, part.scale.y * .5f, 0.f);
+                pose.offsets[index] = pivot - rotatePart(
+                    pivot * pose.scales[index], pose.rotations[index]);
+            }
+            else if (head < profile.partCount &&
+                     (part.role == EnemyVisualPartRole::Head ||
+                      part.role == EnemyVisualPartRole::Muzzle)) {
+                const auto& headPart = profile.parts[head];
+                const glm::vec3 neck = headPart.offset + glm::vec3(
+                    0.f, -.5f * headPart.scale.y, .25f * headPart.scale.z);
+                // Muzzle shares the head's complete neck transform, including
+                // Idle yaw and Windup scale; their seam cannot pull apart.
+                pose.rotations[index] = pose.rotations[head];
+                pose.scales[index] = pose.scales[head];
+                pose.offsets[index] = neck + rotatePart(
+                    (part.offset - neck) * pose.scales[index],
+                    pose.rotations[index]) - part.offset;
+            }
+        }
+    }
+
     inline EnemyVisualPose poseFor(const ActorSnapshot &snapshot,
                                    const EnemyVisualProfile &profile,
                                    float travelPhase = 0.f)
@@ -272,34 +306,7 @@ namespace EnemyPresentation
             }
         }
 
-        std::size_t head = profile.partCount;
-        for (std::size_t index = 0; index < profile.partCount; ++index)
-            if (profile.parts[index].role == EnemyVisualPartRole::Head) head = index;
-        for (std::size_t index = 0; index < profile.partCount; ++index) {
-            const auto& part = profile.parts[index];
-            if (part.role == EnemyVisualPartRole::LeftArm ||
-                part.role == EnemyVisualPartRole::RightArm ||
-                part.role == EnemyVisualPartRole::LeftLeg ||
-                part.role == EnemyVisualPartRole::RightLeg) {
-                const glm::vec3 pivot(0.f, part.scale.y * .5f, 0.f);
-                pose.offsets[index] = pivot - rotatePart(
-                    pivot * pose.scales[index], pose.rotations[index]);
-            }
-            else if (head < profile.partCount &&
-                     (part.role == EnemyVisualPartRole::Head ||
-                      part.role == EnemyVisualPartRole::Muzzle)) {
-                const auto& headPart = profile.parts[head];
-                const glm::vec3 neck = headPart.offset + glm::vec3(
-                    0.f, -.5f * headPart.scale.y, .25f * headPart.scale.z);
-                // Muzzle shares the head's complete neck transform, including
-                // Idle yaw and Windup scale; their seam cannot pull apart.
-                pose.rotations[index] = pose.rotations[head];
-                pose.scales[index] = pose.scales[head];
-                pose.offsets[index] = neck + rotatePart(
-                    (part.offset - neck) * pose.scales[index],
-                    pose.rotations[index]) - part.offset;
-            }
-        }
+        anchorParts(profile, pose);
 
         pose.rootRoll += (snapshot.id % 2u == 0u ? 1.f : -1.f) *
             snapshot.hitFeedback * 9.f;
@@ -319,4 +326,49 @@ namespace EnemyPresentation
         }
         return pose;
     }
+
+    // Bounded, render-owned pose history. Combat facts and hit/death feedback
+    // remain immediate; only limb articulation and body lean settle over frames.
+    class PoseBlend
+    {
+      public:
+        EnemyVisualPose update(const ActorSnapshot& snapshot,
+            const EnemyVisualProfile& profile, EnemyVisualPose target,
+            float deltaSeconds)
+        {
+            const float travel = m_seeded
+                ? glm::length(snapshot.position - m_previousPosition) : 0.f;
+            const bool reset = !m_seeded || snapshot.deathPresentation ||
+                m_wasDead || !std::isfinite(deltaSeconds) || deltaSeconds < 0.f ||
+                deltaSeconds > .25f || !std::isfinite(travel) || travel > 2.f;
+            m_previousPosition = snapshot.position;
+            m_wasDead = snapshot.deathPresentation;
+            if (!reset) {
+                const float settleSeconds = snapshot.combatState == MobCombatState::Recover
+                    ? .035f : snapshot.combatState == MobCombatState::Windup ? .045f : .06f;
+                const float weight = -std::expm1(-deltaSeconds / settleSeconds);
+                for (std::size_t i = 0; i < profile.partCount; ++i) {
+                    target.rotations[i] = m_pose.rotations[i] +
+                        (target.rotations[i] - m_pose.rotations[i]) * weight;
+                    target.scales[i] = m_pose.scales[i] +
+                        (target.scales[i] - m_pose.scales[i]) * weight;
+                }
+                target.rootPitch = m_pose.rootPitch +
+                    (target.rootPitch - m_pose.rootPitch) * weight;
+                target.rootYOffset = m_pose.rootYOffset +
+                    (target.rootYOffset - m_pose.rootYOffset) * weight;
+            }
+            anchorParts(profile, target);
+            m_pose = target;
+            m_seeded = true;
+            return target;
+        }
+
+      private:
+        EnemyVisualPose m_pose;
+        glm::vec3 m_previousPosition{0.f};
+        bool m_seeded = false;
+        bool m_wasDead = false;
+    };
+
 }

@@ -258,7 +258,7 @@ OgreActorRenderer::validateProjectileSnapshots(
 
 void OgreActorRenderer::sync(
     const std::vector<ActorSnapshot>& snapshots,
-    const glm::vec3& cameraPosition, float animationStrength)
+    const glm::vec3& cameraPosition, float animationStrength, float deltaSeconds)
 {
     m_animationStrength = std::clamp(animationStrength, 0.f, 1.f);
     if (m_sceneManager == nullptr)
@@ -303,7 +303,7 @@ void OgreActorRenderer::sync(
             existing = m_visuals.emplace(
                 snapshot.id, createVisual(snapshot)).first;
         }
-        updateVisual(existing->second, snapshot, cameraPosition);
+        updateVisual(existing->second, snapshot, cameraPosition, deltaSeconds);
     }
 
     for (auto it = m_visuals.begin(); it != m_visuals.end();)
@@ -493,7 +493,7 @@ OgreActorRenderer::ActorVisual OgreActorRenderer::createVisual(
 
 void OgreActorRenderer::updateVisual(
     ActorVisual& visual, const ActorSnapshot& snapshot,
-    const glm::vec3& cameraPosition)
+    const glm::vec3& cameraPosition, float deltaSeconds)
 {
     visual.node->setVisible(
         !intersectsFirstPersonNearPlane(snapshot, cameraPosition));
@@ -513,11 +513,13 @@ void OgreActorRenderer::updateVisual(
 
     const EnemyVisualProfile profile =
         EnemyPresentation::profileForType(snapshot.type);
-    const EnemyVisualPose pose =
+    const EnemyVisualPose targetPose =
         EnemyPresentation::poseFor(snapshot, profile,
             visual.gaitPhase.update(snapshot.position,
                 snapshot.combatState == MobCombatState::Chase &&
                 !snapshot.deathPresentation));
+    const EnemyVisualPose pose = visual.poseBlend.update(
+        snapshot, profile, targetPose, deltaSeconds);
     visual.node->setPosition(
         snapshot.position.x,
         snapshot.position.y + pose.rootYOffset *

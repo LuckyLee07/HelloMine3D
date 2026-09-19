@@ -9,6 +9,7 @@ mkdir -p "$LOG_DIR"
 OPTIONS=(-std=c++17 -Wall -Wextra -Werror -I"$ROOT_DIR/src/external/glm" -I"$ROOT_DIR/src/HelloMine3D")
 if [[ "$CONFIGURATION" == Debug ]]; then OPTIONS+=(-O0 -g); else OPTIONS+=(-O3 -DNDEBUG); fi
 shasum -a 256 "$ROOT_DIR/src/HelloMine3D/Actor/EnemyPresentation.h" \
+    "$ROOT_DIR/src/HelloMine3D/Actor/EnemyPresentationGallery.h" \
     "$ROOT_DIR/tools/tests/enemy_articulation_test.cpp" > "$LOG_DIR/sources-sha256.txt"
 clang++ "${OPTIONS[@]}" "$ROOT_DIR/tools/tests/enemy_articulation_test.cpp" \
     -o "$LOG_DIR/enemy_articulation_test" > "$LOG_DIR/build.log" 2>&1
