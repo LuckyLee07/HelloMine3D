@@ -25,7 +25,8 @@ enum class EnemyVisualPartRole
     LeftLeg,
     RightLeg,
     Muzzle,
-    Crest
+    Crest,
+    Neck
 };
 
 struct EnemyVisualPartDefinition
@@ -177,6 +178,10 @@ namespace EnemyPresentation
                 {0.16f, 0.31f, 0.17f});
             add(EnemyVisualPartRole::RightArm, {0.28f, -0.34f, 0.25f},
                 {0.16f, 0.31f, 0.17f});
+            // A fixed neck bridges the torso and rotating head with visible
+            // volume; a shared pivot alone only leaves a thin contact sliver.
+            add(EnemyVisualPartRole::Neck, {0.f, 0.13f, -0.12f},
+                {0.18f, 0.16f, 0.22f});
         }
         else {
             add(EnemyVisualPartRole::Torso, glm::vec3(0.f),

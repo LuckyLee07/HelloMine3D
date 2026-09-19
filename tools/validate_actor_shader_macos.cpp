@@ -170,6 +170,16 @@ int main(int argc,char** argv) {
             difference(render(normal,7,0,-.5f,1,1,3),render(normal,7,0,.5f,1,1,3))>1.0);
         check("guardian-core-is-a-mark-with-dark-border",
             difference(render(normal,8,0,-.5f,1,1,1,1),render(normal,8,0,-.5f,1,1,1,0))>4);
+        const auto neckDay = render(normal,9,0,-.5f,1,1,3,0);
+        const auto neckNight = render(normal,9,0,-.5f,1,0,3,0);
+        bool neckExposure = true;
+        for (std::size_t i=0; i<neckDay.size(); ++i)
+            if (i % 4 != 3)
+                neckExposure &= std::abs(neckDay[i] * .34f - neckNight[i]) <= 1.f;
+        check("spitter-neck-follows-exposure-without-crest-emission",neckExposure);
+        check("spitter-neck-shadow-disabled-parity",neckDay==render(shadow,9,0,-.5f,1,1,3,0));
+        check("spitter-neck-fallback-remains-flat-tint",
+            render(normal,9,0,-.5f,0,1,3,0)==render(normal,0,0,-.5f,0));
         glDeleteProgram(normal);glDeleteProgram(shadow);glDeleteRenderbuffers(1,&colour);
         glDeleteFramebuffers(1,&fbo);glDeleteVertexArrays(1,&vao);CGLSetCurrentContext(nullptr);CGLDestroyContext(context);
         std::cout<<"[ACTOR_GPU] checks="<<checks<<" failures=0\n";return 0;

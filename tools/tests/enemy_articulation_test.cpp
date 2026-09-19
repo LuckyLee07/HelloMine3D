@@ -13,6 +13,16 @@ void check(const char* name, bool pass)
 }
 bool near(glm::vec3 a, glm::vec3 b) { return glm::length(a - b) < .00002f; }
 bool near(float a, float b) { return std::abs(a - b) < .0002f; }
+bool insidePart(const EnemyVisualProfile& profile, const EnemyVisualPose& pose,
+    std::size_t index, glm::vec3 point)
+{
+    const auto& part = profile.parts[index];
+    const auto r = glm::radians(pose.rotations[index]);
+    const auto q = glm::angleAxis(r.y, glm::vec3(0,1,0)) *
+        glm::angleAxis(r.x, glm::vec3(1,0,0)) * glm::angleAxis(r.z, glm::vec3(0,0,1));
+    const auto local = glm::conjugate(q) * (point - part.offset - pose.offsets[index]) / pose.scales[index];
+    return glm::all(glm::lessThanEqual(glm::abs(local), part.scale * .5f));
+}
 glm::vec3 transformPoint(const EnemyVisualProfile& profile,
     const EnemyVisualPose& pose, std::size_t index, glm::vec3 bodyPoint)
 {
@@ -64,7 +74,7 @@ int main()
     }
     check("long-travel-phase-stays-bounded", bounded);
 
-    bool pivots = true, neck = true, extent = true, rotations = true, restContact = true;
+    bool pivots = true, neck = true, extent = true, rotations = true, restContact = true, neckBridge = true;
     const char* types[]{"hellomine:stalker", "hellomine:brute", "hellomine:spitter",
         "hellomine:waystone_stalker", "hellomine:waystone_brute", "unknown"};
     for (const auto* type : types) {
@@ -108,6 +118,22 @@ int main()
                     const auto& head = profile.parts[1];
                     const auto joint = head.offset + glm::vec3(0,-head.scale.y*.5f,head.scale.z*.25f);
                     neck &= near(transformPoint(profile, pose, 1, joint), joint);
+                    std::size_t bridge = profile.partCount;
+                    for (std::size_t i = 0; i < profile.partCount; ++i)
+                        if (profile.parts[i].role == EnemyVisualPartRole::Neck) bridge = i;
+                    neckBridge &= bridge < profile.partCount;
+                    if (bridge < profile.partCount) {
+                        const auto& connection = profile.parts[bridge];
+                        // Sample an inset 80% cross-section, not a single pivot.
+                        // Both ends must remain inside their neighboring volume.
+                        for (int x = -2; x <= 2; ++x) for (int z = -2; z <= 2; ++z) {
+                            const auto slice = glm::vec3(x * .2f, .25f, z * .2f) * connection.scale;
+                            const auto upper = transformPoint(profile, pose, bridge, connection.offset + slice);
+                            const auto lower = transformPoint(profile, pose, bridge,
+                                connection.offset + glm::vec3(slice.x, -slice.y, slice.z));
+                            neckBridge &= insidePart(profile, pose, 1, upper) && insidePart(profile, pose, 0, lower);
+                        }
+                    }
                 }
                 extent &= actor.position == glm::vec3(3,8,-3) && profile.partCount <= 8;
             }
@@ -116,6 +142,7 @@ int main()
     check("resting-limbs-connect-to-the-body", restContact);
     check("shoulder-and-hip-anchors-stay-fixed-through-all-poses", pivots);
     check("head-and-muzzle-share-one-fixed-neck-and-seam", neck);
+    check("neck-has-volume-connected-to-head-and-torso-in-every-pose", neckBridge);
     check("part-rotation-matches-yaw-pitch-roll-quaternion", rotations);
     check("all-poses-bounded-with-unchanged-snapshot-and-part-budget", extent);
     return failures ? 1 : 0;

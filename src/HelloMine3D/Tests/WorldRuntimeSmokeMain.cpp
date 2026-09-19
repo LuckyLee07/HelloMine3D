@@ -14517,7 +14517,7 @@ void caseP11EEnemyPresentationAndResonance()
               brute.archetype == EnemyVisualArchetype::Brute &&
               spitter.archetype == EnemyVisualArchetype::Spitter &&
               stalker.partCount == 6 && brute.partCount == 6 &&
-              spitter.partCount == 7 && guardian.partCount == 7 &&
+              spitter.partCount == 8 && guardian.partCount == 7 &&
               guardian.waystoneGuardian &&
               guardian.parts[guardian.partCount - 1].role ==
                   EnemyVisualPartRole::Crest &&

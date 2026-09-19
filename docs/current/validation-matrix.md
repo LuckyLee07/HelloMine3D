@@ -32,7 +32,7 @@ AI 平台对应规则见 [当前验收规范](ai-assisted-gameplay-acceptance-v1
 | UI 或输入 | 动作仲裁、焦点隔离、映射/冲突、设置迁移自动测试；macOS Cocoa 改动在已构建对应配置后运行 `bash scripts/verify_cocoa_input.sh Debug` / `Release`（非可见自动回归）；适用时运行 `AI-01..AI-04`。OS 焦点、Alt+Tab、最小化和窗口关闭只能由 Computer Use 关闭功能范围。 |
 | 第一人称动作、命中/受击、粒子或镜头反馈 | 判定时刻与表现解耦测试、数量/持续时间上限、关闭回退、HUD/准星截图和 AI 多帧/视频观察；镜头效果必须可调或可关，人类舒适度不声明。 |
 | 第一人称手臂与抓握表现 | `bash scripts/verify_player_hand_presentation.sh Debug` / `Release`；受影响客户端双配置、P11A/P11B/ITEM_VISUAL 定向回归、空手/图标/方块及昼夜/窄窗口/面板隐藏截图、三档反馈连续帧和相关三轮性能。诊断采集夹具不替代正常输入。 |
-| 生物关节与步态表现 | `bash scripts/verify_enemy_articulation.sh Debug` / `Release`；方向/传送/固定关节/头口连接与故障负例，客户端双配置和 P11E 回归，静态前后图、连续行走/战斗姿态、相关三轮性能。诊断展示不代替正常战斗。 |
+| 生物关节与步态表现 | `bash scripts/verify_enemy_articulation.sh Debug` / `Release`；方向/传送/固定关节/头口连接、颈部截面体积与故障负例，客户端双配置和 P11E 回归，静态前后图、连续行走/战斗姿态、相关三轮性能。新增部件还需检查 GPU 角色编号、昼夜及回退。诊断展示不代替正常战斗。 |
 | 生物表面与面部表现 | `tools/validate_actor_shader_macos.cpp` 运行生产普通/阴影 shader，检查原型分区、局部坐标、夜间提示、雾遮挡和关闭回退；旧 shader 负例、双配置客户端/资源检查、昼夜/中远距离连续画面及受影响三轮性能。正常战斗与人类审美单独记录。 |
 | 方块选中表面、裂纹与世界碎屑 | P11B 定向与完整 WorldRuntime、模型/metadata/tile 映射、GPU 透明遮罩/阶段/遮挡检查、标准与兼容干净包多帧、取消与 Off 回退、相关性能；诊断夹具与正常输入分开记录。见[补充合同](../contracts/block-feedback-contract-v2.md)。 |
 | 目标、配方发现、探索奖励或资源经济 | 主线可达、输入输出守恒、重复奖励/一次性领取、保存重载和全部受影响迁移；脚本化 AI 记录可执行流程，无上下文 AI 盲玩只提供可理解性代理。 |

@@ -658,6 +658,7 @@ POSIX Ogre `Timer` 的经过时间使用 `std::chrono::steady_clock`，毫秒/�
 眼睛和 crest 符记之外不新增发光。普通和阴影路径保持相同语义，平色回退保留；不增加 AI、判定、掉落或持久化状态。
 
 敌人关节通过纯 `EnemyPresentation` 派生偏移，让四肢围绕肩髋顶端、头与口鼻围绕共同颈部运动。
+Spitter 用固定颈部体积桥接抬头时的间隙，占满既有 8 部件预算；原部件编号、根部姿态和逻辑 AABB 保持。
 每个 `OgreActorRenderer::ActorVisual` 持有一份 `GaitPhase`，只从 Chase 快照累计水平距离，
 相位保持在一周内；超过 2 m 的相邻位移只重设参考位置，死亡不累计。生命周期与已有 visual 一致，
 不另建全局缓存，不改 Actor、攻击 tick 或存档。已有诊断展示增加 `walk`/`cycle` 及可选 6/12/24 m 距离，
