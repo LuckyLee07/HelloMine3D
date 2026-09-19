@@ -415,7 +415,8 @@ namespace
             "uniform float directionalShadowBias;\n"
             "float directionalShadowVisibility() {}\n"
             "projected.z = projected.z * 0.5 + 0.5;\n"
-            "litSamples / 4.0\n");
+            "vec2 base = floor(samplePosition);\n"
+            "pcfVisibility += visible * weight.x * weight.y;\n");
         writeFile(root / "media/ogre/HelloMine3DActorShadow.vert",
             "out vec4 actorShadowPosition;\n"
             "out vec3 actorLocalPosition;\n"
@@ -428,7 +429,8 @@ namespace
             "uniform sampler2D directionalShadowMap;\n"
             "float directionalShadowVisibility() {}\n"
             "projected.z = projected.z * 0.5 + 0.5;\n"
-            "litSamples / 4.0\n");
+            "vec2 base = floor(samplePosition);\n"
+            "pcfVisibility += visible * weight.x * weight.y;\n");
         writeFile(
             root / "media/ogre/HelloMine3DDirectionalShadowCaster.vert",
             "uniform mat4 worldViewProj;\n"
@@ -473,6 +475,23 @@ namespace
                           validateDirectionalShadowShaderContract(resolver);
                       },
                       "missing interface declaration"));
+        }
+        for (const char* name : {"HelloMine3DTerrainShadow.frag", "HelloMine3DActorShadow.frag"})
+        {
+            const fs::path root = freshRoot(std::string("v10d-stale-pcf-") + name);
+            writeDirectionalShadowFixture(root);
+            const fs::path shader = root / "media/ogre" / name;
+            std::ifstream input(shader);
+            std::string source{std::istreambuf_iterator<char>(input), {}};
+            input.close();
+            const std::string current = "pcfVisibility += visible * weight.x * weight.y;";
+            source.replace(source.find(current), current.size(), "litSamples / 4.0");
+            writeFile(shader, source);
+            ResourcePackResolver resolver;
+            resolver.freeze(root.string(), requirements(), {});
+            check("V10D/reject-stale-unweighted-shadow-filter",
+                  throwsContaining([&] { validateDirectionalShadowShaderContract(resolver); },
+                                   "missing interface declaration"));
         }
     }
 

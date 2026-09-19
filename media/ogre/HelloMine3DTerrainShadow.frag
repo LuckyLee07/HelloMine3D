@@ -57,21 +57,30 @@ float directionalShadowVisibility()
         return 1.0;
     }
 
-    vec2 texel = 1.0 / vec2(textureSize(directionalShadowMap, 0));
-    float litSamples = 0.0;
-    for (int y = 0; y <= 1; ++y)
+    // A continuous quadratic 3x3 kernel spreads a caster rasterization step
+    // across neighbouring texels instead of flashing a whole receiver patch.
+    // Compare depths before weighting so filtering cannot erase thin blockers.
+    vec2 mapSize = vec2(textureSize(directionalShadowMap, 0));
+    vec2 samplePosition = projected.xy * mapSize;
+    vec2 base = floor(samplePosition);
+    vec2 blend = fract(samplePosition);
+    vec2 low = 0.5 * (vec2(1.0) - blend) * (vec2(1.0) - blend);
+    vec2 middle = vec2(0.75) - (blend - vec2(0.5)) * (blend - vec2(0.5));
+    vec2 high = 0.5 * blend * blend;
+    vec3 weightX = vec3(low.x, middle.x, high.x);
+    vec3 weightY = vec3(low.y, middle.y, high.y);
+    float pcfVisibility = 0.0;
+    for (int y = -1; y <= 1; ++y)
     {
-        for (int x = 0; x <= 1; ++x)
+        for (int x = -1; x <= 1; ++x)
         {
-            float storedDepth = texture(
-                directionalShadowMap,
-                projected.xy +
-                    (vec2(x, y) - vec2(0.5)) * texel).r;
-            litSamples += projected.z - directionalShadowBias <= storedDepth
-                ? 1.0 : 0.0;
+            vec2 weight = vec2(weightX[x + 1], weightY[y + 1]);
+            float storedDepth = texture(directionalShadowMap,
+                (base + vec2(x, y) + vec2(0.5)) / mapSize).r;
+            float visible = projected.z - directionalShadowBias <= storedDepth ? 1.0 : 0.0;
+            pcfVisibility += visible * weight.x * weight.y;
         }
     }
-    float pcfVisibility = litSamples / 4.0;
     float distanceFade = 1.0 - smoothstep(
         directionalShadowFadeStart, directionalShadowFadeEnd,
         terrainDistance);

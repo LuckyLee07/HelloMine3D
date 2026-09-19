@@ -155,7 +155,8 @@ void validateDirectionalShadowShaderContract(
          "uniform float directionalShadowBias;",
          "float directionalShadowVisibility()",
          "projected.z = projected.z * 0.5 + 0.5;",
-         "litSamples / 4.0"});
+         "vec2 base = floor(samplePosition);",
+         "pcfVisibility += visible * weight.x * weight.y;"});
     requireTokens(
         resolver, "media/ogre/HelloMine3DActorShadow.vert",
         {"out vec4 actorShadowPosition;", "out vec3 actorLocalPosition;",
@@ -169,7 +170,8 @@ void validateDirectionalShadowShaderContract(
          "uniform sampler2D directionalShadowMap;",
          "float directionalShadowVisibility()",
          "projected.z = projected.z * 0.5 + 0.5;",
-         "litSamples / 4.0"});
+         "vec2 base = floor(samplePosition);",
+         "pcfVisibility += visible * weight.x * weight.y;"});
     requireTokens(
         resolver, "media/ogre/HelloMine3DDirectionalShadowCaster.vert",
         {"uniform mat4 worldViewProj;",

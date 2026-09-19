@@ -1,6 +1,7 @@
 #include "OgreBootstrap.h"
 #include "OgreActorRenderer.h"
 #include "../Actor/EnemyPresentationGallery.h"
+#include "../Presentation/DirectionalShadowPresentation.h"
 #include "ChunkSectionRenderable.h"
 #include "OgreBlockFeedback.h"
 #include "OgreRenderCapture.h"
@@ -325,6 +326,38 @@ namespace
         std::vector<std::unique_ptr<ChunkSectionRenderable>> renderables;
     };
 
+    // Own only the solar light's projection, leaving Ogre's other lights alone.
+    class StableSolarShadowCamera final : public Ogre::ShadowCameraSetup
+    {
+        void getShadowCamera(const Ogre::SceneManager* scene,
+                             const Ogre::Camera* camera, const Ogre::Viewport*,
+                             const Ogre::Light* light, Ogre::Camera* shadow,
+                             size_t) const override
+        {
+            const float distance = light->getShadowFarDistance();
+            const Ogre::Vector3 target = camera->getDerivedPosition() +
+                camera->getDerivedDirection() *
+                    (distance * scene->getShadowDirLightTextureOffset());
+            const Ogre::Vector3 sun = -light->getDerivedDirection();
+            const auto frame = DirectionalShadowPresentation::cameraFrame(
+                {target.x, target.y, target.z}, {sun.x, sun.y, sun.z},
+                distance, shadow->getViewport()->getActualWidth());
+            auto vector = [](const glm::vec3& value) {
+                return Ogre::Vector3(value.x, value.y, value.z);
+            };
+            Ogre::Quaternion orientation;
+            orientation.FromAxes(vector(frame.right), vector(frame.up), vector(frame.back));
+            shadow->setCustomViewMatrix(false);
+            shadow->setCustomProjectionMatrix(false);
+            shadow->setProjectionType(Ogre::PT_ORTHOGRAPHIC);
+            shadow->setOrthoWindow(distance * 2.f, distance * 2.f);
+            shadow->setNearClipDistance(light->_deriveShadowNearClipDistance(camera));
+            shadow->setFarClipDistance(light->_deriveShadowFarClipDistance(camera));
+            shadow->setPosition(vector(frame.position));
+            shadow->setOrientation(orientation);
+        }
+    };
+
     struct DirectionalShadowProfile
     {
         unsigned short textureSize = 0;
@@ -338,11 +371,11 @@ namespace
     {
         if (quality == DirectionalShadowQuality::High)
         {
-            return {1024, 96.f, 72.f, 0.004f};
+            return {2048, 96.f, 72.f, 0.002f};
         }
         if (quality == DirectionalShadowQuality::Medium)
         {
-            return {512, 64.f, 48.f, 0.008f};
+            return {1024, 64.f, 48.f, 0.004f};
         }
         return {};
     }
@@ -3576,6 +3609,8 @@ namespace
                             "HelloMine3D_DirectionalSun");
                     m_directionalSunLight->setType(
                         Ogre::Light::LT_DIRECTIONAL);
+                    m_directionalSunLight->setCustomShadowCameraSetup(
+                        Ogre::ShadowCameraSetupPtr(OGRE_NEW StableSolarShadowCamera()));
                     m_directionalSunLight->setDiffuseColour(
                         Ogre::ColourValue::White);
                     m_directionalSunLight->setSpecularColour(
@@ -3627,7 +3662,7 @@ namespace
                           << " fallback=0 reason=supported texture="
                           << profile.textureSize << " distance="
                           << profile.farDistance
-                          << " pcf=2x2 bias=" << profile.bias << '\n';
+                          << " pcf=quadratic-3x3 camera=stable-solar-v1 bias=" << profile.bias << '\n';
                 return true;
             }
             catch (const std::exception& exception)
@@ -3960,8 +3995,8 @@ namespace
                 m_directionalShadowQuality !=
                 DirectionalShadowQuality::Off;
             const float shadowStrength = shadowActive
-                ? std::max(0.f, std::min(0.42f,
-                      state.sunIntensity * 0.42f))
+                ? std::max(0.f, std::min(0.34f,
+                      state.sunIntensity * 0.34f))
                 : 0.f;
             if (m_directionalSunLight != nullptr)
             {
