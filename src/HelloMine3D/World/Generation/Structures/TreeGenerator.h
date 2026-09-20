@@ -12,13 +12,13 @@ enum class EcologyTreeShape : std::uint8_t;
 void makeOakTree(Chunk &chunk, Random<std::minstd_rand> &rand, int x, int y,
                  int z);
 void makeVoxelOakTree(Chunk &chunk, Random<std::minstd_rand> &rand, int x,
-                      int y, int z);
+                      int y, int z, bool preserveTerrain = false);
 void makeEcologyOakTree(Chunk &chunk, Random<std::minstd_rand> &rand, int x,
-                        int y, int z, EcologyTreeShape shape);
+                        int y, int z, EcologyTreeShape shape, bool preserveTerrain = false);
 void makePalmTree(Chunk &chunk, Random<std::minstd_rand> &rand, int x, int y,
-                  int z);
+                  int z, bool preserveTerrain = false);
 
 void makeCactus(Chunk &chunk, Random<std::minstd_rand> &rand, int x, int y,
-                int z);
+                int z, bool preserveTerrain = false);
 
 #endif // TREEGENERATOR_H_INCLUDED

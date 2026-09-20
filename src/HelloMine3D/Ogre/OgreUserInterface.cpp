@@ -2644,6 +2644,8 @@ class OgreUserInterface::Impl
         const char* regionKey = minimapBiome == TerrainBiome::Desert ? "hud.region_desert" :
             minimapBiome == TerrainBiome::Wetland ? "hud.region_wetland" :
             minimapBiome == TerrainBiome::RockPlateau ? "hud.region_plateau" :
+            minimapBiome == TerrainBiome::River ? "hud.region_river" :
+            minimapBiome == TerrainBiome::Lake ? "hud.region_lake" :
             minimapBiome == TerrainBiome::Ocean ? "hud.region_ocean" :
             minimapBiome == TerrainBiome::Mountain ? "hud.region_mountain" :
             minimapBiome == TerrainBiome::TemperateForest ? "hud.region_forest" :

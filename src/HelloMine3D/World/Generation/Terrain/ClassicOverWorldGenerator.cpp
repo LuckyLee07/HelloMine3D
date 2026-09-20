@@ -25,6 +25,8 @@ constexpr int MaximumStructureRadius = 6;
 constexpr int MountainBiomeValue = -1000000;
 constexpr int WetlandBiomeValue = -1000001;
 constexpr int RockPlateauBiomeValue = -1000002;
+constexpr int RiverBiomeValue = -1000003;
+constexpr int LakeBiomeValue = -1000004;
 constexpr int MountainRockHeight = WATER_LEVEL + 36;
 constexpr int ForestTreeCellSize = 5;
 
@@ -39,6 +41,8 @@ int biomeMapValue(TerrainBiome biome) noexcept
         case TerrainBiome::Desert: return 100;
         case TerrainBiome::Wetland: return WetlandBiomeValue;
         case TerrainBiome::RockPlateau: return RockPlateauBiomeValue;
+        case TerrainBiome::River: return RiverBiomeValue;
+        case TerrainBiome::Lake: return LakeBiomeValue;
     }
     return 151;
 }
@@ -124,6 +128,7 @@ ClassicOverWorldGenerator::ClassicOverWorldGenerator(
                       FoundationTerrainGenerationVersion ? 0 : seed * 2)
     , m_foundation(seed)
     , m_adventure(seed)
+    , m_adventureWater(seed)
     , m_caveGenerator(seed,
                       normalizeTerrainGenerationVersion(generationVersion))
     , m_grassBiome(seed)
@@ -255,6 +260,9 @@ int ClassicOverWorldGenerator::getGenerationVersion() const noexcept
 TerrainFoundation::Column ClassicOverWorldGenerator::sampleFoundationForVersion(
     int worldX, int worldZ) const noexcept
 {
+    if (m_generationVersion >= AdventureWaterTerrainGenerationVersion) {
+        return m_adventureWater.sample(worldX, worldZ).column;
+    }
     if (m_generationVersion >= AdventureRegionTerrainGenerationVersion) {
         return m_adventure.sample(worldX, worldZ).column;
     }
@@ -833,7 +841,7 @@ void ClassicOverWorldGenerator::applyTreeDecorators(
                 ecologyPlan.place) {
                 makeEcologyOakTree(*m_pChunk, structureRandom, worldX,
                                    height + 1, worldZ,
-                                   ecologyPlan.shape);
+                                   ecologyPlan.shape, m_generationVersion >= AdventureWaterTerrainGenerationVersion);
             }
             else {
                 biome.makeTree(structureRandom, *m_pChunk, worldX,
@@ -1126,6 +1134,8 @@ ClassicOverWorldGenerator::getBiomeForValue(int biomeValue) const
 {
     switch (getBiomeKindForValue(biomeValue)) {
         case TerrainBiome::Ocean:
+        case TerrainBiome::River:
+        case TerrainBiome::Lake:
             return m_oceanBiome;
         case TerrainBiome::Grassland:
             return m_grassBiome;
@@ -1153,6 +1163,8 @@ TerrainBiome ClassicOverWorldGenerator::getBiomeKindForValue(
     }
     if (biomeValue == WetlandBiomeValue) { return TerrainBiome::Wetland; }
     if (biomeValue == RockPlateauBiomeValue) { return TerrainBiome::RockPlateau; }
+    if (biomeValue == RiverBiomeValue) { return TerrainBiome::River; }
+    if (biomeValue == LakeBiomeValue) { return TerrainBiome::Lake; }
     if (biomeValue > 160) {
         return TerrainBiome::Ocean;
     }

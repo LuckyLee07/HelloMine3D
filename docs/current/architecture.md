@@ -372,13 +372,19 @@ C3 为 copied topology observation 增至 79 项并同步更新 machine-checked 
   已保存区块不重生成。v15 在同一地貌算式后加入有界干地岩台表层分支：
   连续材料场控制坡积土、沙沟宽窄及边缘裸岩，保留高度/生态、湿地、近水和高山路径；
   旧 `sampleV13` 不启用该分支。见[地表过渡合同](../contracts/surface-transitions-v15-contract-v1.md)；
-  v16 新世界使用独立的 `AdventureTerrainPlanner`：固定 3×3 区域锚点、连续归一化权重、
+  v16 使用独立的 `AdventureTerrainPlanner`：固定 3×3 区域锚点、连续归一化权重、
   温湿度与地貌参数共同规划草甸、林地、高地、沙丘、峡谷、湿地和高山轮廓；陆海场独立控制
   海岸及海床。三向边界也混合全部有效锚点，不只选最近两个；坐标偏移以 double/int64
   计算，查询有界且无区块依赖。`sampleFoundationForVersion` 统一向实际方块、公开查询、
   洞口、出生、植被与地标提供同一列。规划区域身份不写入存档，首批复用既有 biome/block ID；
-  专用针叶树、雪材料及完整水系尚属后续批次。v1–v15 原路径与保存身份保持，见
+  专用针叶树与雪材料尚属后续批次。v1–v15 原路径与保存身份保持，见
   [区域骨架合同](../contracts/adventure-terrain-v16-contract-v1.md)。
+  v17 新世界在 v16 列上叠加 `AdventureWaterPlanner`：512 米扰动节点先规划低地湖盆水头，
+  再向较低势能节点连接弯曲河谷；河床汇合处共享端点，低段与湖盆使用真实水位 64。
+  每次读取固定 5×5 节点，派生 3×3 出边及湖盆；线程本地缓存固定 64 项、上限 256 KiB，
+  按 seed/网格完整校验，不持有世界或区块。River/Lake 只追加生态 ID；树冠投影在 v17
+  开始保护实体地表和水体，防止陡岸被叶块覆盖。旧 v1–v16 生成输出与存档身份保持，见
+  [水系合同](../contracts/adventure-water-v17-contract-v1.md)。
   v5 基线见 [v5 合同](../contracts/terrain-foundation-v5-contract-v1.md)，当前 E2 门槛见
   [v8 合同](../contracts/ecology-surface-coast-v8-e2-contract-v1.md)，v9 首批范围见
   [E3 合同](../contracts/ecology-inland-meadow-v9-e3-contract-v1.md)，v10/v11 范围分别见
@@ -510,7 +516,7 @@ WorldManager
 
 - `WorldSaveData` 是内存中的当前 metadata payload，写出前由 World 收集 Player、Actor、目标、结局、
   难度、terrain identity 和其他版本化状态。
-- world save format 当前为 v12；新世界 terrain generation 为独立 v16，旧 v1–v15 身份保留；settings 当前为独立 v10（含三档小地图范围，保留 v9 标准/兼容画面选择与旧偏好迁移）。
+- world save format 当前为 v12；新世界 terrain generation 为独立 v17，旧 v1–v16 身份保留；settings 当前为独立 v10（含三档小地图范围，保留 v9 标准/兼容画面选择与旧偏好迁移）。
 - `StorageTransaction` 负责同目录 candidate、flush、真实 reader 校验和原子替换；失败 candidate 不
   成为权威。
 - Chunk 只有成功发布后才清 save-dirty；unload 保存失败则取消卸载。

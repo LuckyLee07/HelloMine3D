@@ -3,8 +3,8 @@
 namespace {
 void caseAdventureTerrainV16()
 {
-    check("ADVENTURE/default-v16-and-frozen-v15-identity",
-        CurrentTerrainGenerationVersion == 16 && AdventureRegionTerrainGenerationVersion == 16 &&
+    check("ADVENTURE/frozen-v16-and-v15-identity",
+        AdventureRegionTerrainGenerationVersion == 16 &&
         SurfaceTransitionTerrainGenerationVersion == 15 && static_cast<int>(TerrainBiome::RockPlateau) == 7);
     // Largest core components selected before visual capture. Full selection
     // provenance lives in tools/fixtures/terrain/adventure-regions-v16.json.
@@ -82,6 +82,7 @@ void caseAdventureTerrainV16()
     check("ADVENTURE/plants-supported",plants);
     check("ADVENTURE/real-water-columns",water && waterColumns>2000,"columns="+std::to_string(waterColumns));
     const auto directory=freshSaveDirectory("adventure_default_world");
+    check("ADVENTURE/initialize-frozen-v16-world",initializeTerrainIdentity(directory,"adventure-v16",16,42));
     std::uint64_t savedHash=0;int height=0;bool persisted=false;
     {
         Player player;World created(camera,config,player,directory,false,0);
@@ -98,7 +99,7 @@ void caseAdventureTerrainV16()
             reopened.getBlock(64,height,480)==BlockId::OakPlank &&
             savedHash==TerrainSurvey::blockHash(reopened.getChunkManager().getChunk(4,30));
     }
-    check("ADVENTURE/default-world-edit-save-reopen",persisted);
+    check("ADVENTURE/frozen-v16-world-edit-save-reopen",persisted);
     clearDeterministicEnv();setEnv("HELLOMINE3D_SEED","");
 }
 }

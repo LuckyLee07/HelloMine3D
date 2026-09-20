@@ -11,7 +11,9 @@ enum class TerrainBiome {
     Ocean,
     Mountain,
     Wetland,
-    RockPlateau
+    RockPlateau,
+    River,
+    Lake
 };
 
 inline constexpr int LegacyTerrainGenerationVersion = 1;
@@ -30,8 +32,9 @@ inline constexpr int LandformDiversityTerrainGenerationVersion = 13;
 inline constexpr int LandmarkArchitectureTerrainGenerationVersion = 14;
 inline constexpr int SurfaceTransitionTerrainGenerationVersion = 15;
 inline constexpr int AdventureRegionTerrainGenerationVersion = 16;
+inline constexpr int AdventureWaterTerrainGenerationVersion = 17;
 inline constexpr int CurrentTerrainGenerationVersion =
-    AdventureRegionTerrainGenerationVersion;
+    AdventureWaterTerrainGenerationVersion;
 
 class TerrainGenerator {
   public:

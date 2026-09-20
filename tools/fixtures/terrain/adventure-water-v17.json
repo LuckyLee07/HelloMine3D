@@ -1,0 +1,177 @@
+{
+  "schema": 1,
+  "terrain_version": 17,
+  "source_sha256": "b17a84efb41636d1e10f631ada0fdd2618b8f4e22b4672db531ba05a6630adfd",
+  "selection": "nearest river and lake sample to origin by Manhattan distance, x/z deterministic ties; eight seeds; frozen before captures",
+  "sites": [
+    {
+      "seed": 0,
+      "x": 352,
+      "z": -160,
+      "height": 60,
+      "biome": 8
+    },
+    {
+      "seed": 0,
+      "x": 608,
+      "z": -192,
+      "height": 62,
+      "biome": 9
+    },
+    {
+      "seed": 1,
+      "x": 0,
+      "z": -416,
+      "height": 62,
+      "biome": 8
+    },
+    {
+      "seed": 1,
+      "x": -704,
+      "z": 352,
+      "height": 58,
+      "biome": 9
+    },
+    {
+      "seed": 42,
+      "x": 224,
+      "z": -192,
+      "height": 61,
+      "biome": 8
+    },
+    {
+      "seed": 42,
+      "x": 224,
+      "z": -128,
+      "height": 62,
+      "biome": 9
+    },
+    {
+      "seed": 424,
+      "x": -416,
+      "z": 0,
+      "height": 59,
+      "biome": 8
+    },
+    {
+      "seed": 424,
+      "x": 832,
+      "z": -1888,
+      "height": 60,
+      "biome": 9
+    },
+    {
+      "seed": 20260807,
+      "x": -448,
+      "z": 96,
+      "height": 63,
+      "biome": 8
+    },
+    {
+      "seed": 20260807,
+      "x": 1248,
+      "z": -352,
+      "height": 61,
+      "biome": 9
+    },
+    {
+      "seed": 20260809,
+      "x": 448,
+      "z": 160,
+      "height": 62,
+      "biome": 8
+    },
+    {
+      "seed": 20260809,
+      "x": 128,
+      "z": 736,
+      "height": 61,
+      "biome": 9
+    },
+    {
+      "seed": 8675309,
+      "x": 704,
+      "z": -64,
+      "height": 62,
+      "biome": 8
+    },
+    {
+      "seed": 8675309,
+      "x": 192,
+      "z": -1248,
+      "height": 58,
+      "biome": 9
+    },
+    {
+      "seed": 325322,
+      "x": 0,
+      "z": 544,
+      "height": 60,
+      "biome": 8
+    },
+    {
+      "seed": 325322,
+      "x": -352,
+      "z": 1184,
+      "height": 61,
+      "biome": 9
+    }
+  ],
+  "dry_bank_cameras": [
+    {
+      "seed": 42,
+      "water": [
+        224,
+        -128
+      ],
+      "position": [
+        224,
+        71,
+        -116
+      ],
+      "rotation": [
+        10,
+        0.0,
+        0
+      ],
+      "distance": 12.0
+    },
+    {
+      "seed": 20260807,
+      "water": [
+        1248,
+        -352
+      ],
+      "position": [
+        1237,
+        68,
+        -345
+      ],
+      "rotation": [
+        10,
+        57.53,
+        0
+      ],
+      "distance": 13.04
+    },
+    {
+      "seed": 20260809,
+      "water": [
+        128,
+        736
+      ],
+      "position": [
+        116,
+        74,
+        736
+      ],
+      "rotation": [
+        10,
+        90.0,
+        0
+      ],
+      "distance": 12.0
+    }
+  ],
+  "camera_selection": "nearest dry four-neighbor walkable bank, radius 12..80 m, height 65..75, facing nearest frozen lake sample; before capture"
+}

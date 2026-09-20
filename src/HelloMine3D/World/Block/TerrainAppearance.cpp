@@ -116,6 +116,8 @@ int TerrainAppearance::ecologyRow(TerrainBiome biome) noexcept
         case TerrainBiome::TemperateForest:
             return EcologyRowBase + 3;
         case TerrainBiome::Ocean:
+        case TerrainBiome::River:
+        case TerrainBiome::Lake:
             return EcologyRowBase + 4;
         case TerrainBiome::Mountain:
         case TerrainBiome::Wetland:

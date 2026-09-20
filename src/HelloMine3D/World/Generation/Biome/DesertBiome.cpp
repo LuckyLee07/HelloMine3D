@@ -2,6 +2,7 @@
 
 #include "../../WorldConstants.h"
 #include "../Structures/TreeGenerator.h"
+#include "../Terrain/TerrainGenerator.h"
 
 namespace
 {
@@ -35,17 +36,16 @@ ChunkBlock DesertBiome::getUnderWaterBlock(Rand &rand) const
 void DesertBiome::makeTree(Rand &rand, Chunk &chunk, int x, int y, int z,
                            int generationVersion) const
 {
-    (void)generationVersion;
     if (y < WATER_LEVEL + 15) {
         if (rand.intInRange(0, 100) > 75) {
-            makePalmTree(chunk, rand, x, y, z);
+            makePalmTree(chunk, rand, x, y, z, generationVersion >= AdventureWaterTerrainGenerationVersion);
         }
         else {
-            makeCactus(chunk, rand, x, y, z);
+            makeCactus(chunk, rand, x, y, z, generationVersion >= AdventureWaterTerrainGenerationVersion);
         }
     }
     else {
-        makeCactus(chunk, rand, x, y, z);
+        makeCactus(chunk, rand, x, y, z, generationVersion >= AdventureWaterTerrainGenerationVersion);
     }
 }
 

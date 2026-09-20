@@ -38,10 +38,10 @@ void OceanBiome::makeTree(Rand &rand, Chunk &chunk, int x, int y, int z,
                           int generationVersion) const
 {
     if (rand.intInRange(0, 5) < 3) {
-        makePalmTree(chunk, rand, x, y, z);
+        makePalmTree(chunk, rand, x, y, z, generationVersion >= AdventureWaterTerrainGenerationVersion);
     }
     else if (generationVersion >= VoxelOakTerrainGenerationVersion) {
-        makeVoxelOakTree(chunk, rand, x, y, z);
+        makeVoxelOakTree(chunk, rand, x, y, z, generationVersion >= AdventureWaterTerrainGenerationVersion);
     }
     else {
         makeOakTree(chunk, rand, x, y, z);

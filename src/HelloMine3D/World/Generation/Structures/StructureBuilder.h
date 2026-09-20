@@ -22,7 +22,7 @@ class StructureBuilder {
 
   public:
     /// Projects world-space structure blocks into the supplied target chunk.
-    void build(Chunk &chunk);
+    void build(Chunk &chunk, bool vegetationOnly = false);
 
     void makeColumn(int x, int z, int yStart, int height, BlockId block);
     void makeRowX(int xStart, int xEnd, int y, int z, BlockId block);

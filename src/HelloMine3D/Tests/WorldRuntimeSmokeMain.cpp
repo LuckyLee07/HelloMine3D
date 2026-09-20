@@ -1572,7 +1572,11 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 481 &&
+              registry.keys("en-US").size() == 483 &&
+              registry.lookup("en-US", "hud.region_river") == "River" &&
+              registry.lookup("zh-CN", "hud.region_river") == "河道" &&
+              registry.lookup("en-US", "hud.region_lake") == "Lake" &&
+              registry.lookup("zh-CN", "hud.region_lake") == "湖泊" &&
               registry.lookup("en-US", "hud.minimap_east") == "E" &&
               registry.lookup("zh-CN", "hud.minimap_east") == "东" &&
               registry.lookup("en-US", "hud.minimap_south") == "S" &&
@@ -4848,6 +4852,8 @@ void caseTerrainAppearance()
             case TerrainBiome::Mountain:
             case TerrainBiome::Wetland:
             case TerrainBiome::RockPlateau: return -1;
+            case TerrainBiome::River:
+            case TerrainBiome::Lake: return -1;
         }
         return 1;
     };
@@ -19876,6 +19882,7 @@ void caseWorldManager()
 #include "LandmarkArchitectureSmokeCases.h"
 #include "TerrainSurfaceTransitionSmokeCases.h"
 #include "AdventureTerrainSmokeCases.h"
+#include "AdventureWaterSmokeCases.h"
 
 int main()
 {
@@ -19920,6 +19927,9 @@ int main()
         }
         else if (focus != nullptr && std::string(focus) == "ADVENTURE") {
             caseAdventureTerrainV16();
+        }
+        else if (focus != nullptr && std::string(focus) == "ADVENTURE_WATER") {
+            caseAdventureWaterV17();
         }
         else if (focus != nullptr && std::string(focus) == "E8") {
             caseLandmarkArchitectureV14();
@@ -20192,6 +20202,7 @@ int main()
         caseLandmarkArchitectureV14();
         caseTerrainSurfaceTransitionsV15();
         caseAdventureTerrainV16();
+        caseAdventureWaterV17();
         caseSurfaceMapObservations();
         caseWaterDepthPresentation();
         caseItemVisualPresentation();

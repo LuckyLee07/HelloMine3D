@@ -23,7 +23,9 @@ class TerrainEcologyColour {
             case TerrainBiome::TemperateForest:
             case TerrainBiome::Mountain:
             case TerrainBiome::Wetland: return {0.f, 1.f};
-            case TerrainBiome::Ocean: return {0.f, -1.f};
+            case TerrainBiome::Ocean:
+            case TerrainBiome::River:
+            case TerrainBiome::Lake: return {0.f, -1.f};
             default: return {0.f, 0.f};
         }
     }

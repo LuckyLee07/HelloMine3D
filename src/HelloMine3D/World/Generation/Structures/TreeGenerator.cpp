@@ -26,15 +26,15 @@ void addCanopyLayer(StructureBuilder &builder, int centerX, int y,
 }
 
 void makeCactus1(Chunk &chunk, Random<std::minstd_rand> &rand, int x, int y,
-                 int z)
+                 int z, bool preserveTerrain)
 {
     StructureBuilder builder;
     builder.makeColumn(x, z, y, rand.intInRange(4, 7), CACTUS);
-    builder.build(chunk);
+    builder.build(chunk, preserveTerrain);
 }
 
 void makeCactus2(Chunk &chunk, Random<std::minstd_rand> &rand, int x, int y,
-                 int z)
+                 int z, bool preserveTerrain)
 {
     StructureBuilder builder;
     int height = rand.intInRange(6, 8);
@@ -47,11 +47,11 @@ void makeCactus2(Chunk &chunk, Random<std::minstd_rand> &rand, int x, int y,
     builder.addBlock(x - 2, stem + y + 2, z, CACTUS);
     builder.addBlock(x + 2, stem + y + 1, z, CACTUS);
 
-    builder.build(chunk);
+    builder.build(chunk, preserveTerrain);
 }
 
 void makeCactus3(Chunk &chunk, Random<std::minstd_rand> &rand, int x, int y,
-                 int z)
+                 int z, bool preserveTerrain)
 {
     StructureBuilder builder;
     int height = rand.intInRange(6, 8);
@@ -64,7 +64,7 @@ void makeCactus3(Chunk &chunk, Random<std::minstd_rand> &rand, int x, int y,
     builder.addBlock(x, stem + y + 2, z - 2, CACTUS);
     builder.addBlock(x, stem + y + 1, z + 2, CACTUS);
 
-    builder.build(chunk);
+    builder.build(chunk, preserveTerrain);
 }
 } // namespace
 
@@ -95,7 +95,7 @@ void makeOakTree(Chunk &chunk, Random<std::minstd_rand> &rand, int x, int y,
 }
 
 void makeVoxelOakTree(Chunk &chunk, Random<std::minstd_rand> &rand, int x,
-                      int y, int z)
+                      int y, int z, bool preserveTerrain)
 {
     StructureBuilder builder;
     const int height = rand.intInRange(4, 7);
@@ -136,14 +136,14 @@ void makeVoxelOakTree(Chunk &chunk, Random<std::minstd_rand> &rand, int x,
     }
 
     builder.makeColumn(x, z, y, height, BlockId::OakBark);
-    builder.build(chunk);
+    builder.build(chunk, preserveTerrain);
 }
 
 void makeEcologyOakTree(Chunk &chunk, Random<std::minstd_rand> &rand, int x,
-                        int y, int z, EcologyTreeShape shape)
+                        int y, int z, EcologyTreeShape shape, bool preserveTerrain)
 {
     if (shape == EcologyTreeShape::Standard) {
-        makeVoxelOakTree(chunk, rand, x, y, z);
+        makeVoxelOakTree(chunk, rand, x, y, z, preserveTerrain);
         return;
     }
 
@@ -168,11 +168,11 @@ void makeEcologyOakTree(Chunk &chunk, Random<std::minstd_rand> &rand, int x,
                        z + offsetZ, 1, true);
         builder.makeColumn(x, z, y, height, BlockId::OakBark);
     }
-    builder.build(chunk);
+    builder.build(chunk, preserveTerrain);
 }
 
 void makePalmTree(Chunk &chunk, Random<std::minstd_rand> &rand, int x, int y,
-                  int z)
+                  int z, bool preserveTerrain)
 {
     StructureBuilder builder;
 
@@ -193,24 +193,24 @@ void makePalmTree(Chunk &chunk, Random<std::minstd_rand> &rand, int x, int y,
     builder.addBlock(x, y + height + 1, z, BlockId::OakLeaf);
 
     builder.makeColumn(x, z, y, height, BlockId::OakBark);
-    builder.build(chunk);
+    builder.build(chunk, preserveTerrain);
 }
 
 void makeCactus(Chunk &chunk, Random<std::minstd_rand> &rand, int x, int y,
-                int z)
+                int z, bool preserveTerrain)
 {
     int cac = rand.intInRange(0, 2);
 
     switch (cac) {
         case 0:
-            makeCactus1(chunk, rand, x, y, z);
+            makeCactus1(chunk, rand, x, y, z, preserveTerrain);
             break;
 
         case 1:
-            makeCactus2(chunk, rand, x, y, z);
+            makeCactus2(chunk, rand, x, y, z, preserveTerrain);
             break;
 
         case 2:
-            makeCactus3(chunk, rand, x, y, z);
+            makeCactus3(chunk, rand, x, y, z, preserveTerrain);
     }
 }

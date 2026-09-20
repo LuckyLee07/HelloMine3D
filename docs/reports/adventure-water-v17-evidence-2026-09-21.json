@@ -1,0 +1,325 @@
+{
+  "schema": 1,
+  "batch": "B2 terrain v17 water",
+  "starting_commit": "40cbb04",
+  "platform": "macOS / gmake / Apple clang / x86_64",
+  "production_compatibility": {
+    "binary_sha256": "25554cda7f7cca4f9f0503d529baf027f1fe40aba89836b565e93a015c9e6ec7",
+    "versions": {
+      "1": {
+        "actual": {
+          "samples.csv": "7d8697ef110b6c7abebd134173772765d118af026cd22c2d6da712e36743da01",
+          "chunks.csv": "d1a625a6f6e1cf68461725ffbed0372a9d14c7d4e1b795990c4cc7fc66b29613"
+        },
+        "expected": {
+          "samples.csv": "7d8697ef110b6c7abebd134173772765d118af026cd22c2d6da712e36743da01",
+          "chunks.csv": "d1a625a6f6e1cf68461725ffbed0372a9d14c7d4e1b795990c4cc7fc66b29613"
+        },
+        "matches": true
+      },
+      "2": {
+        "actual": {
+          "samples.csv": "51814ab79fab30fa8b7cad0d7dfe5e48d2605cb2540227d5c37d50d63e31d555",
+          "chunks.csv": "e73a09376540cbca90c2311fbc7500ea86180f9afefbafce2fd904ac82026483"
+        },
+        "expected": {
+          "samples.csv": "51814ab79fab30fa8b7cad0d7dfe5e48d2605cb2540227d5c37d50d63e31d555",
+          "chunks.csv": "e73a09376540cbca90c2311fbc7500ea86180f9afefbafce2fd904ac82026483"
+        },
+        "matches": true
+      },
+      "3": {
+        "actual": {
+          "samples.csv": "0f08bd3c97b4aebe89138d90664f37ecff6feebfdb0114b32f7feca3c2893c3a",
+          "chunks.csv": "9da4c2ca353239056b19e94c7bdd90c1ef4e8bb62774248e44b9183a20f8d361"
+        },
+        "expected": {
+          "samples.csv": "0f08bd3c97b4aebe89138d90664f37ecff6feebfdb0114b32f7feca3c2893c3a",
+          "chunks.csv": "9da4c2ca353239056b19e94c7bdd90c1ef4e8bb62774248e44b9183a20f8d361"
+        },
+        "matches": true
+      },
+      "4": {
+        "actual": {
+          "samples.csv": "d403429111240351548d22d5256017b79c4f746a9d7db2427fefb7e42b70f1bf",
+          "chunks.csv": "e3b207721774c6798cb28e5821e13c6a7a5785e6a9d31c6b0d5227b0a49995b9"
+        },
+        "expected": {
+          "samples.csv": "d403429111240351548d22d5256017b79c4f746a9d7db2427fefb7e42b70f1bf",
+          "chunks.csv": "e3b207721774c6798cb28e5821e13c6a7a5785e6a9d31c6b0d5227b0a49995b9"
+        },
+        "matches": true
+      },
+      "5": {
+        "actual": {
+          "samples.csv": "3c90bb987b919e17110a6d33a9e084845682a7b136d7cc3a3a880ec6f78f16ba",
+          "chunks.csv": "abcf235f4685537ef455302844a7f0eed950ac5f74b3a4f4594b7317fd10494e"
+        },
+        "expected": {
+          "samples.csv": "3c90bb987b919e17110a6d33a9e084845682a7b136d7cc3a3a880ec6f78f16ba",
+          "chunks.csv": "abcf235f4685537ef455302844a7f0eed950ac5f74b3a4f4594b7317fd10494e"
+        },
+        "matches": true
+      },
+      "6": {
+        "actual": {
+          "samples.csv": "6780a068f773a7980b196d55c15543ea7808417c1a0cc2cd9d1e1f4dde407188",
+          "chunks.csv": "1f9a89741e8ee891dc55c3d1e632872a30774873c638478a0d1980b785e826e3"
+        },
+        "expected": {
+          "samples.csv": "6780a068f773a7980b196d55c15543ea7808417c1a0cc2cd9d1e1f4dde407188",
+          "chunks.csv": "1f9a89741e8ee891dc55c3d1e632872a30774873c638478a0d1980b785e826e3"
+        },
+        "matches": true
+      },
+      "7": {
+        "actual": {
+          "samples.csv": "8bc7ce43a5e01dedd1c4dfce7276329c1d777cd911ba328757a2b695cf77f323",
+          "chunks.csv": "2b210f3be8f41439128a536524138e0611b4e755d63185c1ffc542ac24ac786c"
+        },
+        "expected": {
+          "samples.csv": "8bc7ce43a5e01dedd1c4dfce7276329c1d777cd911ba328757a2b695cf77f323",
+          "chunks.csv": "2b210f3be8f41439128a536524138e0611b4e755d63185c1ffc542ac24ac786c"
+        },
+        "matches": true
+      },
+      "8": {
+        "actual": {
+          "samples.csv": "71b46545c2aec8027279df9e615edbd403c73ceadd4e8488d919c99d4133b97a",
+          "chunks.csv": "69054fd975693228067efa4ce7994e43be427a0f9e6c987f20b57131a004d70d"
+        },
+        "expected": {
+          "samples.csv": "71b46545c2aec8027279df9e615edbd403c73ceadd4e8488d919c99d4133b97a",
+          "chunks.csv": "69054fd975693228067efa4ce7994e43be427a0f9e6c987f20b57131a004d70d"
+        },
+        "matches": true
+      },
+      "9": {
+        "actual": {
+          "samples.csv": "1329b469658ca0fba8c4ce322cfb04f2d7e3126d8d0dbb39eb8e63cd67ba9e5e",
+          "chunks.csv": "eadd6a880c991b2e31c4d67faa8017c3d53c034391951824d37c67ea770ea939"
+        },
+        "expected": {
+          "samples.csv": "1329b469658ca0fba8c4ce322cfb04f2d7e3126d8d0dbb39eb8e63cd67ba9e5e",
+          "chunks.csv": "eadd6a880c991b2e31c4d67faa8017c3d53c034391951824d37c67ea770ea939"
+        },
+        "matches": true
+      },
+      "10": {
+        "actual": {
+          "samples.csv": "cb6cce97393378764e28019bca016010685377d98ed40add69cf1cb07b5a071b",
+          "chunks.csv": "c030cd69bd0429be85d1836b82d69bf36bc343efc413503c19c481a9f61b3e05"
+        },
+        "expected": {
+          "samples.csv": "cb6cce97393378764e28019bca016010685377d98ed40add69cf1cb07b5a071b",
+          "chunks.csv": "c030cd69bd0429be85d1836b82d69bf36bc343efc413503c19c481a9f61b3e05"
+        },
+        "matches": true
+      },
+      "11": {
+        "actual": {
+          "samples.csv": "c1ac15a447a11028b5bd41986ac9077deeed1fb739dd3c5c0a03e282c9ec4f41",
+          "chunks.csv": "2a943cdfe947b695e8207dc493b835c43fe1681b256a7330c9828e146db1ece4"
+        },
+        "expected": {
+          "samples.csv": "c1ac15a447a11028b5bd41986ac9077deeed1fb739dd3c5c0a03e282c9ec4f41",
+          "chunks.csv": "2a943cdfe947b695e8207dc493b835c43fe1681b256a7330c9828e146db1ece4"
+        },
+        "matches": true
+      },
+      "12": {
+        "actual": {
+          "samples.csv": "71cbed0c608239c6f0a963dbfc93031a7a4069d8785223cea3ae175a93e8c603",
+          "chunks.csv": "88bfe05972dae737797a7e805f4a0661e8679726b664b6845fe69e60f36bd740"
+        },
+        "expected": {
+          "samples.csv": "71cbed0c608239c6f0a963dbfc93031a7a4069d8785223cea3ae175a93e8c603",
+          "chunks.csv": "88bfe05972dae737797a7e805f4a0661e8679726b664b6845fe69e60f36bd740"
+        },
+        "matches": true
+      },
+      "13": {
+        "actual": {
+          "samples.csv": "4dff99e291b2994aee3311fb0dfa3732e7109816c7773ae47a0685260d145544",
+          "chunks.csv": "79b44cdf19cd02600ba4cdcb0ad45be56b5fba19fb35116205c641d2c117a1f9"
+        },
+        "expected": {
+          "samples.csv": "4dff99e291b2994aee3311fb0dfa3732e7109816c7773ae47a0685260d145544",
+          "chunks.csv": "79b44cdf19cd02600ba4cdcb0ad45be56b5fba19fb35116205c641d2c117a1f9"
+        },
+        "matches": true
+      },
+      "14": {
+        "actual": {
+          "samples.csv": "3d35b8c22c3625e422c28105f8a7708a125afd6f6f8186901c785b2e2cc43c54",
+          "chunks.csv": "57ed22e79cb88afe8d8dd13f72dd671c6c5d1fba3da3fa85407f1ee2953bf0be"
+        },
+        "expected": {
+          "samples.csv": "3d35b8c22c3625e422c28105f8a7708a125afd6f6f8186901c785b2e2cc43c54",
+          "chunks.csv": "57ed22e79cb88afe8d8dd13f72dd671c6c5d1fba3da3fa85407f1ee2953bf0be"
+        },
+        "matches": true
+      },
+      "15": {
+        "actual": {
+          "samples.csv": "9afe12221555368cad3facab3336d40c1b8648e3c5543ba17dedf2ba08817d52",
+          "chunks.csv": "f091fa6b489579c3c95994f4bf1daf56bf1c71fa60c38fba54dc153093dc249b"
+        },
+        "expected": {
+          "samples.csv": "9afe12221555368cad3facab3336d40c1b8648e3c5543ba17dedf2ba08817d52",
+          "chunks.csv": "f091fa6b489579c3c95994f4bf1daf56bf1c71fa60c38fba54dc153093dc249b"
+        },
+        "matches": true
+      },
+      "16": {
+        "actual": {
+          "samples.csv": "eae56947dfad82d50d719d23d282a608d0fff62cd209bb086c1469e4829e3947",
+          "chunks.csv": "64dcc3ee68f5e2e7a1824600c2ccb550792251d7c8c57c512a9e9a4effcb7ff3"
+        },
+        "expected": {
+          "samples.csv": "eae56947dfad82d50d719d23d282a608d0fff62cd209bb086c1469e4829e3947",
+          "chunks.csv": "64dcc3ee68f5e2e7a1824600c2ccb550792251d7c8c57c512a9e9a4effcb7ff3"
+        },
+        "matches": true
+      },
+      "17": {
+        "actual": {
+          "samples.csv": "19c59dbd4701c85f9a4b39dab66881b5a174b103505fbc03f145f50a1af1615f",
+          "chunks.csv": "69091bf0f7eb232bbb44673b009ea1894417d53c737428dd55ab307a0b6b7ae6"
+        },
+        "expected": null,
+        "matches": null
+      }
+    }
+  },
+  "planner": {
+    "Debug": "7/7",
+    "Release": "7/7",
+    "samples": 133128,
+    "changed_columns": 7123,
+    "river_samples": 2113,
+    "lake_samples": 86,
+    "dry_valley_samples": 4905,
+    "descending_edges": 605,
+    "terminals": 43,
+    "maximum_adjacent_step": 5,
+    "gentle_fraction": 0.999151
+  },
+  "production": {
+    "checks": 22,
+    "failures": 0,
+    "surface_columns": 16287,
+    "structure_columns_excluded": 97,
+    "cave_columns_excluded": 0,
+    "water_columns": 9571,
+    "source_chunks_forward_and_reverse": 64
+  },
+  "full_world": {
+    "Debug": {
+      "checks": 1505,
+      "failures": 0
+    },
+    "Release": {
+      "checks": 1505,
+      "failures": 0
+    }
+  },
+  "clients": {
+    "Debug": "BUILD_PASS",
+    "Release": "BUILD_PASS",
+    "Xcode": "NOT_RUN",
+    "Windows": "NOT_RUN"
+  },
+  "visual": [
+    {
+      "site": "lake42",
+      "type": "DEVELOPER_DIAGNOSTIC",
+      "normal_input": false,
+      "seed": "42",
+      "position": "224 71 -116",
+      "rotation": "10 0 0",
+      "client_sha256": "68d409cf145050d80216e42bd9dee469581f99b7a3e29aef75586b9d69f19094",
+      "fov": 120,
+      "resolution": [
+        1280,
+        720
+      ],
+      "shadow": "medium",
+      "world_time": 6000,
+      "hidden": true,
+      "frames": {
+        "capture_05000ms.png": "4ecb3e044d1f4805c31dc499d45c5fe9dc52f9261e0e1a75be15e9936fb031b8",
+        "capture_10000ms.png": "f24a3b70ed8bf04264a3136042c834eb6ade3006cad0690af040725c0010b9a8"
+      },
+      "reviewed": "5000 ms frame"
+    },
+    {
+      "site": "lake20260807",
+      "type": "DEVELOPER_DIAGNOSTIC",
+      "normal_input": false,
+      "seed": "20260807",
+      "position": "1237 68 -345",
+      "rotation": "10 57.53 0",
+      "client_sha256": "68d409cf145050d80216e42bd9dee469581f99b7a3e29aef75586b9d69f19094",
+      "fov": 120,
+      "resolution": [
+        1280,
+        720
+      ],
+      "shadow": "medium",
+      "world_time": 6000,
+      "hidden": true,
+      "frames": {
+        "capture_05000ms.png": "d691ccf62a0e43b4c48949fc8ae18dc4411ebae9dfde21be2d5a42513be21f96",
+        "capture_10000ms.png": "ab9b6430497b61fbda3d6cedcff94f0d4ac481cb780d9de5b56f2bb401ff4aa9"
+      },
+      "reviewed": "5000 ms frame"
+    },
+    {
+      "site": "lake20260809",
+      "type": "DEVELOPER_DIAGNOSTIC",
+      "normal_input": false,
+      "seed": "20260809",
+      "position": "116 74 736",
+      "rotation": "10 90 0",
+      "client_sha256": "68d409cf145050d80216e42bd9dee469581f99b7a3e29aef75586b9d69f19094",
+      "fov": 120,
+      "resolution": [
+        1280,
+        720
+      ],
+      "shadow": "medium",
+      "world_time": 6000,
+      "hidden": true,
+      "frames": {
+        "capture_05000ms.png": "66d04eaf4e639c28e568519d0797cc73f924a9b2eda876dcd9d2496492987bd7",
+        "capture_10000ms.png": "eff0d5720e8692136c741d7fa5dbb7a4e8e0e05a4feb91c6ee66bf7475ded397"
+      },
+      "reviewed": "5000 ms frame"
+    }
+  ],
+  "headless_cost": {
+    "15": {
+      "survey_ms": 325.519854,
+      "generation_ms": 13.278334000000001
+    },
+    "16": {
+      "survey_ms": 416.601625,
+      "generation_ms": 10.549042
+    },
+    "17": {
+      "survey_ms": 425.3252295,
+      "generation_ms": 10.1315835
+    },
+    "meaning": "Single sequential surveys during other background work; not paired window performance or a PASS against a frame-time guardrail."
+  },
+  "normal_input": "NOT_RUN",
+  "paired_window_performance": "NOT_RUN",
+  "art_acceptance": "NOT_COMPLETE",
+  "limitations": [
+    "Dedicated regional vegetation/materials pending",
+    "Triangular bank shading/mesh artifacts remain; present before water changes",
+    "Graph descent is not global physical water simulation",
+    "Final exploration and paired performance remain pending"
+  ]
+}

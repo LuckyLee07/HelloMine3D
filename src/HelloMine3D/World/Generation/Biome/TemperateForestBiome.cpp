@@ -36,7 +36,7 @@ void TemperateForestBiome::makeTree(Rand &rand, Chunk &chunk, int x, int y,
                                     int z, int generationVersion) const
 {
     if (generationVersion >= VoxelOakTerrainGenerationVersion) {
-        makeVoxelOakTree(chunk, rand, x, y, z);
+        makeVoxelOakTree(chunk, rand, x, y, z, generationVersion >= AdventureWaterTerrainGenerationVersion);
     }
     else {
         makeOakTree(chunk, rand, x, y, z);

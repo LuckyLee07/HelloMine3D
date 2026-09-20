@@ -4,7 +4,7 @@
 
 #include <iostream>
 
-void StructureBuilder::build(Chunk &chunk)
+void StructureBuilder::build(Chunk &chunk, bool vegetationOnly)
 {
     const glm::ivec2 location = chunk.getLocation();
     const int worldMinX = location.x * CHUNK_SIZE;
@@ -15,6 +15,14 @@ void StructureBuilder::build(Chunk &chunk)
         if (localX < 0 || localX >= CHUNK_SIZE ||
             localZ < 0 || localZ >= CHUNK_SIZE) {
             continue;
+        }
+        if (vegetationOnly) {
+            const auto existing = static_cast<BlockId>(chunk.getBlock(localX, block.y, localZ).id);
+            // New vegetation must not replace steep banks, water or a previous
+            // trunk. Legacy generation and landmark projection keep their rules.
+            const bool replaceable = existing == BlockId::Air || existing == BlockId::OakLeaf ||
+                existing == BlockId::TallGrass || existing == BlockId::Rose || existing == BlockId::DeadShrub;
+            if (!replaceable) { continue; }
         }
         chunk.setBlock(localX, block.y, localZ, block.id);
     }
