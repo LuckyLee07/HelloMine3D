@@ -4,7 +4,7 @@ namespace {
 void caseAdventureWaterV17()
 {
     check("ADVENTURE_WATER/version-and-appended-biomes",
-          CurrentTerrainGenerationVersion == 17 && AdventureRegionTerrainGenerationVersion == 16 &&
+          AdventureWaterTerrainGenerationVersion == 17 && AdventureRegionTerrainGenerationVersion == 16 &&
           static_cast<int>(TerrainBiome::River) == 8 && static_cast<int>(TerrainBiome::Lake) == 9);
     // Nearest samples to the origin, selected before capture (fixture stores provenance).
     const struct Site { int seed, x, z, biome; } sites[] = {
@@ -82,6 +82,7 @@ void caseAdventureWaterV17()
           "columns="+std::to_string(waterColumns));
     check("ADVENTURE_WATER/no-terrestrial-plants-in-water",plants);
     const auto directory=freshSaveDirectory("adventure_water_default_world");
+    check("ADVENTURE_WATER/initialize-frozen-v17-world",initializeTerrainIdentity(directory,"adventure-v17",17,42));
     std::uint64_t savedHash=0; bool persisted=false;
     {
         Player player; World created(camera,config,player,directory,false,0);
@@ -97,7 +98,7 @@ void caseAdventureWaterV17()
             reopened.getBlock(224,64,-128)==BlockId::OakPlank &&
             savedHash==TerrainSurvey::blockHash(reopened.getChunkManager().getChunk(14,-8));
     }
-    check("ADVENTURE_WATER/default-v17-water-edit-save-reopen",persisted);
+    check("ADVENTURE_WATER/frozen-v17-water-edit-save-reopen",persisted);
     clearDeterministicEnv(); setEnv("HELLOMINE3D_SEED","");
 }
 }

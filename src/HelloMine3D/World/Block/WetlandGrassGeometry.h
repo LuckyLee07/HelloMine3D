@@ -22,11 +22,11 @@ struct Model {
 };
 
 inline bool applies(BlockId block, TerrainBiome biome,
-                    const BlockShape &shape) noexcept
+                    const BlockShape &shape, BlockMetadata_t metadata = 0) noexcept
 {
     static constexpr BlockShapeFace crossA{0,0,0, 1,0,1, 1,1,1, 0,1,0};
     static constexpr BlockShapeFace crossB{0,0,1, 1,0,0, 1,1,0, 0,1,1};
-    return block == BlockId::TallGrass && biome == TerrainBiome::Wetland &&
+    return block == BlockId::TallGrass && (biome == TerrainBiome::Wetland || metadata == BlockMetadata::TallGrass::Reed) &&
         shape.name == "Cross" && shape.faces.size() == 2 &&
         shape.faces[0] == crossA && shape.faces[1] == crossB;
 }

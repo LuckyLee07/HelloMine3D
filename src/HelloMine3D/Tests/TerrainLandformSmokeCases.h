@@ -116,6 +116,7 @@ void writeLandformRegions()
                         case TerrainFoundation::Surface::Sand:expected=BlockId::Sand;break;
                         case TerrainFoundation::Surface::Stone:expected=BlockId::Stone;break;
                         case TerrainFoundation::Surface::Original:break;
+                        default:throw std::logic_error("unexpected surface in frozen terrain fixture");
                     }
                     if(column.biome==TerrainBiome::Mountain && h>=100)expected=BlockId::Stone;
                     const bool ore=expected==BlockId::Stone && (top==BlockId::CoalOre || top==BlockId::IronOre);

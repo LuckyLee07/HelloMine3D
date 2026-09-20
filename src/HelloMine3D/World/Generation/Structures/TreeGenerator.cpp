@@ -2,12 +2,72 @@
 
 #include "../../Chunk/Chunk.h"
 #include "../Ecology/TerrainEcologyPlanner.h"
+#include "../Ecology/AdventureEcologyPlanner.h"
 #include "StructureBuilder.h"
 
 #include <cstdint>
 #include <cstdlib>
 
 constexpr BlockId CACTUS = BlockId::Cactus;
+
+void makeAdventureTree(Chunk &chunk, int randomSeed, int x, int y, int z,
+                       AdventureTreeKind kind)
+{
+    Random<std::minstd_rand> random(randomSeed);
+    if(kind == AdventureTreeKind::Oak) {
+        makeEcologyOakTree(chunk,random,x,y,z,
+            random.intInRange(0,2)==0?EcologyTreeShape::Broad:EcologyTreeShape::Standard,true);
+        return;
+    }
+    if(kind == AdventureTreeKind::Palm) { makePalmTree(chunk,random,x,y,z,true); return; }
+    if(kind == AdventureTreeKind::Cactus) { makeCactus(chunk,random,x,y,z,true); return; }
+    if(kind == AdventureTreeKind::None)return;
+    StructureBuilder builder;
+    const BlockMetadata_t metadata=kind==AdventureTreeKind::Spruce?BlockMetadata::Tree::Spruce:
+        kind==AdventureTreeKind::Birch?BlockMetadata::Tree::Birch:BlockMetadata::Tree::Oak;
+    const ChunkBlock leaf(BlockId::OakLeaf,metadata),log(BlockId::OakBark,metadata);
+    const auto crown=[&](int cy,int radius,int ox=0,int oz=0) {
+        for(int dx=-radius;dx<=radius;++dx)for(int dz=-radius;dz<=radius;++dz) {
+            if(radius>1 && std::abs(dx)==radius && std::abs(dz)==radius)continue;
+            builder.addBlock(x+ox+dx,cy,z+oz+dz,leaf);
+        }
+    };
+    if(kind==AdventureTreeKind::Spruce) {
+        const int height=random.intInRange(9,12);
+        // Tiered wide skirts and narrowing whorls form a recognisable conifer,
+        // with two clear blocks below the crown for walking through the grove.
+        for(int level=3;level<height;++level) {
+            const int remaining=height-level;
+            int radius=remaining>=6?3:remaining>=3?2:1;
+            if(level%2==0 && radius>1)--radius;
+            crown(y+level,radius);
+        }
+        crown(y+height,0);
+        builder.makeColumn(x,z,y,height,log);
+    }
+    else if(kind==AdventureTreeKind::Birch) {
+        const int height=random.intInRange(7,10),lean=random.intInRange(0,1)*2-1;
+        crown(y+height-3,1);crown(y+height-2,2);
+        crown(y+height-1,2,lean,0);crown(y+height,1,lean,0);
+        builder.makeColumn(x,z,y,height-1,log);
+        builder.addBlock(x+lean,y+height-2,z,log);
+    }
+    else {
+        const int height=random.intInRange(5,7);
+        crown(y+height-1,3);crown(y+height,3);crown(y+height+1,2);
+        // Hanging perimeter strands break the broad silhouette while leaving
+        // the root and several sides open; no foliage replaces bank or water.
+        for(int dx=-3;dx<=3;++dx)for(int dz=-3;dz<=3;++dz) {
+            if(std::abs(dx)+std::abs(dz)>5 || (std::abs(dx)!=3 && std::abs(dz)!=3))continue;
+            const int drop=random.intInRange(1,3);
+            for(int level=1;level<=drop;++level)builder.addBlock(x+dx,y+height-1-level,z+dz,leaf);
+        }
+        builder.makeColumn(x,z,y,height,log);
+        builder.makeRowX(x-2,x+2,y+height-2,z,log);
+        builder.makeRowZ(z-2,z+2,x,y+height-2,log);
+    }
+    builder.build(chunk,true);
+}
 
 namespace {
 void addCanopyLayer(StructureBuilder &builder, int centerX, int y,

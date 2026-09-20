@@ -10,6 +10,7 @@ class AdventureWaterPlanner {
         TerrainFoundation::Column column;
         double riverInfluence = 0;
         double lakeInfluence = 0;
+        AdventureTerrainPlanner::Sample base;
     };
     struct FlowNode {
         double x = 0, z = 0, height = 0, potential = 0;

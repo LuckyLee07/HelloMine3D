@@ -112,7 +112,7 @@ const AdventureWaterPlanner::Tile &AdventureWaterPlanner::tile(std::int64_t cell
 AdventureWaterPlanner::Sample AdventureWaterPlanner::sample(int worldX,int worldZ) const noexcept
 {
     const auto base=m_base.sample(worldX,worldZ);
-    Sample result{base.column,0,0};
+    Sample result{base.column,0,0,base};
     if(base.column.biome==TerrainBiome::Ocean)return result;
     const double x=worldX,z=worldZ;
     const auto &graph=tile(static_cast<std::int64_t>(std::floor(x/CellSize)),

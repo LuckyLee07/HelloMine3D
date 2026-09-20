@@ -10,6 +10,7 @@
 #include "../Block/BlockDefinition.h"
 #include "../Block/TerrainAppearance.h"
 #include "../Block/WetlandGrassGeometry.h"
+#include "../Block/ForestFernGeometry.h"
 #include "../../Diagnostics/RuntimeProfiler.h"
 
 #include <algorithm>
@@ -866,14 +867,15 @@ void ChunkMeshBuilder::addResourceShapeToMesh(
     const float light = combineTerrainLight(
         LIGHT_X, m_pInput->getCombinedLight(
                      blockPosition.x, blockPosition.y, blockPosition.z));
-    if (WetlandGrassGeometry::applies(static_cast<BlockId>(block.id), appearance.biome, shape)) {
+    const bool fern = ForestFernGeometry::applies(block,shape);
+    if (fern || WetlandGrassGeometry::applies(static_cast<BlockId>(block.id), appearance.biome, shape,block.metadata)) {
         const auto &database = BlockDatabase::get();
         const auto leafTile = TerrainAppearance::select(BlockId::Grass,
             TerrainFaceKind::Top, database.getDefinition(BlockId::Grass).render.texTopCoord,
             appearance.biome, m_pInput->getTerrainSeed(),
             worldPositionFor(blockPosition)).coordinates;
         const auto seedTile = database.getDefinition(BlockId::OakBark).render.texSideCoord;
-        const auto model = WetlandGrassGeometry::build(appearance.variant,
+        const auto model = fern ? ForestFernGeometry::build(appearance.variant,verticalScale) : WetlandGrassGeometry::build(appearance.variant,
             block.metadata >= BlockMetadata::TallGrass::Mature, verticalScale);
         for (std::size_t i = 0; i < model.count; ++i) {
             const auto &face = model.faces[i];

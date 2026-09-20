@@ -15,6 +15,8 @@ constexpr BlockMetadata_t Birch = 2;
 namespace TallGrass {
 constexpr BlockMetadata_t Immature = 0;
 constexpr BlockMetadata_t Mature = 1;
+constexpr BlockMetadata_t Fern = 2;
+constexpr BlockMetadata_t Reed = 3;
 } // namespace TallGrass
 namespace WheatCrop {
 constexpr BlockMetadata_t Planted = 0;

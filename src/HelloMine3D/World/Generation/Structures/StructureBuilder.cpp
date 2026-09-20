@@ -29,7 +29,7 @@ void StructureBuilder::build(Chunk &chunk, bool vegetationOnly)
 }
 
 void StructureBuilder::makeColumn(int x, int z, int yStart, int height,
-                                  BlockId block)
+                                  ChunkBlock block)
 {
     for (int y = yStart; y < yStart + height; y++) {
         addBlock(x, y, z, block);
@@ -37,7 +37,7 @@ void StructureBuilder::makeColumn(int x, int z, int yStart, int height,
 }
 
 void StructureBuilder::makeRowX(int xStart, int xEnd, int y, int z,
-                                BlockId block)
+                                ChunkBlock block)
 {
     for (int x = xStart; x <= xEnd; ++x) {
         addBlock(x, y, z, block);
@@ -45,7 +45,7 @@ void StructureBuilder::makeRowX(int xStart, int xEnd, int y, int z,
 }
 
 void StructureBuilder::makeRowZ(int zStart, int zEnd, int x, int y,
-                                BlockId block)
+                                ChunkBlock block)
 {
     for (int z = zStart; z <= zEnd; ++z) {
         addBlock(x, y, z, block);
@@ -53,7 +53,7 @@ void StructureBuilder::makeRowZ(int zStart, int zEnd, int x, int y,
 }
 
 void StructureBuilder::fill(int y, int xStart, int xEnd, int zStart, int zEnd,
-                            BlockId block)
+                            ChunkBlock block)
 {
     for (int x = xStart; x < xEnd; ++x)
         for (int z = zStart; z < zEnd; ++z) {
@@ -61,7 +61,7 @@ void StructureBuilder::fill(int y, int xStart, int xEnd, int zStart, int zEnd,
         }
 }
 
-void StructureBuilder::addBlock(int x, int y, int z, BlockId block)
+void StructureBuilder::addBlock(int x, int y, int z, ChunkBlock block)
 {
     m_blocks.emplace_back(block, x, y, z);
 }

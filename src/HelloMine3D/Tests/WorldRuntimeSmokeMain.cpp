@@ -3607,7 +3607,7 @@ void caseManagedWorldFirstSpawn()
           std::to_string(suggestedSeedA) + " -> " +
               std::to_string(suggestedSeedB));
 
-    const auto oakCountInLoadedChunks = [](World &world) {
+    const auto woodCountInLoadedChunks = [](World &world) {
         int count = 0;
         for (const auto &entry : world.getChunkManager().getChunks()) {
             const Chunk &chunk = entry.second;
@@ -3619,7 +3619,7 @@ void caseManagedWorldFirstSpawn()
                     const int highest = chunk.getHeightAt(x, z);
                     for (int y = highest; y >= std::max(0, highest - 12);
                          --y) {
-                        if (chunk.getBlock(x, y, z) == BlockId::OakBark) {
+                        if (chunk.getBlock(x, y, z).id == static_cast<Block_t>(BlockId::OakBark)) {
                             ++count;
                         }
                     }
@@ -3691,8 +3691,8 @@ void caseManagedWorldFirstSpawn()
                   body == BlockId::Air && head == BlockId::Air);
             check("FS1/" + name + "/spawn-is-not-ocean",
                   biome != TerrainBiome::Ocean);
-            check("FS1/" + name + "/spawn-neighborhood-has-oak",
-                  oakCountInLoadedChunks(world) > 0,
+            check("FS1/" + name + "/spawn-neighborhood-has-harvestable-wood",
+                  woodCountInLoadedChunks(world) > 0,
                   "spawn=" + vecToString(firstSpawn));
             check("FS1/" + name + "/initialized-world-saves",
                   world.save());
@@ -19885,6 +19885,7 @@ void caseWorldManager()
 #include "AdventureWaterSmokeCases.h"
 #include "TerrainMeshTopologySmokeCases.h"
 #include "AdventureMaterialSmokeCases.h"
+#include "AdventureEcologySmokeCases.h"
 
 int main()
 {
@@ -19935,6 +19936,9 @@ int main()
         }
         else if (focus != nullptr && std::string(focus) == "BANK_MESH") {
             caseTerrainBankMeshTopology();
+        }
+        else if (focus != nullptr && std::string(focus) == "ADVENTURE_ECOLOGY") {
+            caseAdventureEcologyV18();
         }
         else if (focus != nullptr && std::string(focus) == "ADVENTURE_MATERIAL") {
             caseAdventureMaterials();
@@ -20213,6 +20217,7 @@ int main()
         caseAdventureWaterV17();
         caseTerrainBankMeshTopology();
         caseAdventureMaterials();
+        caseAdventureEcologyV18();
         caseSurfaceMapObservations();
         caseWaterDepthPresentation();
         caseItemVisualPresentation();

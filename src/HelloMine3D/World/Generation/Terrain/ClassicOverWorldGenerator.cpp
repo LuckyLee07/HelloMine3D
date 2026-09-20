@@ -129,6 +129,7 @@ ClassicOverWorldGenerator::ClassicOverWorldGenerator(
     , m_foundation(seed)
     , m_adventure(seed)
     , m_adventureWater(seed)
+    , m_adventureEcology(seed)
     , m_caveGenerator(seed,
                       normalizeTerrainGenerationVersion(generationVersion))
     , m_grassBiome(seed)
@@ -214,6 +215,11 @@ void ClassicOverWorldGenerator::sanitizeSurfaceDecoratorsV8()
                 m_pChunk->getBlock(x, height + 1, z).id);
             const bool grassPlant = above == BlockId::TallGrass ||
                                     above == BlockId::Rose;
+            if(m_generationVersion >= AdventureEcologyTerrainGenerationVersion) {
+                if((grassPlant || above == BlockId::DeadShrub) && !AdventureEcologyPlanner::supportsPlant(ground,above))
+                    m_pChunk->setBlock(x,height+1,z,BlockId::Air);
+                continue;
+            }
             if ((grassPlant && ground != BlockId::Grass) ||
                 (above == BlockId::DeadShrub && ground != BlockId::Sand)) {
                 m_pChunk->setBlock(x, height + 1, z, BlockId::Air);
@@ -260,6 +266,9 @@ int ClassicOverWorldGenerator::getGenerationVersion() const noexcept
 TerrainFoundation::Column ClassicOverWorldGenerator::sampleFoundationForVersion(
     int worldX, int worldZ) const noexcept
 {
+    if (m_generationVersion >= AdventureEcologyTerrainGenerationVersion) {
+        return m_adventureEcology.sample(worldX, worldZ).column;
+    }
     if (m_generationVersion >= AdventureWaterTerrainGenerationVersion) {
         return m_adventureWater.sample(worldX, worldZ).column;
     }
@@ -430,8 +439,13 @@ void ClassicOverWorldGenerator::getBiomeMap()
     if (m_generationVersion >= FoundationTerrainGenerationVersion) {
         for (int x = 0; x <= CHUNK_SIZE; ++x) {
             for (int z = 0; z <= CHUNK_SIZE; ++z) {
-                const auto column =
-                    sampleFoundationForVersion(
+                const auto ecology = m_generationVersion >= AdventureEcologyTerrainGenerationVersion
+                    ? m_adventureEcology.sample(location.x * CHUNK_SIZE + x, location.y * CHUNK_SIZE + z)
+                    : AdventureEcologyPlanner::Sample{};
+                if(x < CHUNK_SIZE && z < CHUNK_SIZE && m_generationVersion >= AdventureEcologyTerrainGenerationVersion)
+                    m_ecologyMap.get(x,z) = ecology;
+                const auto column = m_generationVersion >= AdventureEcologyTerrainGenerationVersion
+                    ? ecology.column : sampleFoundationForVersion(
                         location.x * CHUNK_SIZE + x,
                         location.y * CHUNK_SIZE + z);
                 m_biomeMap.get(x, z) = biomeMapValue(column.biome);
@@ -475,7 +489,7 @@ void ClassicOverWorldGenerator::generateBaseTerrain(
                     SurfaceCoastTerrainGenerationVersion
                     ? m_surfaceMap.get(x, z)
                     : TerrainFoundation::Surface::Original;
-                const bool mountainRock =
+                const bool mountainRock = m_generationVersion < AdventureEcologyTerrainGenerationVersion &&
                     getBiomeKindForValue(m_biomeMap.get(x, z)) ==
                         TerrainBiome::Mountain &&
                     height >= MountainRockHeight;
@@ -499,6 +513,12 @@ void ClassicOverWorldGenerator::generateBaseTerrain(
                                 return BlockId::Stone;
                             case TerrainFoundation::Surface::Grass:
                                 return BlockId::Grass;
+                            case TerrainFoundation::Surface::Snow: return BlockId::Snow;
+                            case TerrainFoundation::Surface::Gravel: return BlockId::Gravel;
+                            case TerrainFoundation::Surface::Clay: return BlockId::Clay;
+                            case TerrainFoundation::Surface::ForestFloor: return BlockId::ForestFloor;
+                            case TerrainFoundation::Surface::MossStone: return BlockId::MossStone;
+                            case TerrainFoundation::Surface::Silt: return BlockId::Silt;
                             case TerrainFoundation::Surface::Original:
                                 break;
                         }
@@ -548,11 +568,19 @@ void ClassicOverWorldGenerator::generateBaseTerrain(
                                     : biome.getUnderWaterBlock(m_random));
                     }
                 }
+                else if (m_generationVersion >= AdventureEcologyTerrainGenerationVersion &&
+                         surface == TerrainFoundation::Surface::Clay && y > height - 6) {
+                    m_pChunk->setBlock(x,y,z,BlockId::Clay);
+                }
                 else if (y > height - 3 && !mountainRock) {
                     m_pChunk->setBlock(x, y, z,
                         surface == TerrainFoundation::Surface::Sand
                             ? BlockId::Sand
-                            : surface == TerrainFoundation::Surface::Stone
+                            : surface == TerrainFoundation::Surface::Gravel ? BlockId::Gravel
+                            : surface == TerrainFoundation::Surface::Silt ? BlockId::Silt
+                            : (surface == TerrainFoundation::Surface::Stone ||
+                               surface == TerrainFoundation::Surface::Snow ||
+                               surface == TerrainFoundation::Surface::MossStone)
                                 ? BlockId::Stone : BlockId::Dirt);
                 }
                 else {
@@ -610,6 +638,7 @@ void ClassicOverWorldGenerator::placeOreVein(Random<std::minstd_rand> &random,
 void ClassicOverWorldGenerator::applyPlantDecorators(
     const std::vector<BlockPosition> &positions)
 {
+    if(m_generationVersion >= AdventureEcologyTerrainGenerationVersion) { applyAdventurePlants(); return; }
     const TerrainEcologyPlanner ecologyPlanner(m_seed);
     for (auto &plant : positions) {
         const int x = plant.x;
@@ -694,6 +723,7 @@ void ClassicOverWorldGenerator::applyPlantDecorators(
 void ClassicOverWorldGenerator::applyTreeDecorators(
     const std::vector<StructurePlanSnapshot> &plans)
 {
+    if(m_generationVersion >= AdventureEcologyTerrainGenerationVersion) { applyAdventureTrees(plans); return; }
     const TerrainEcologyPlanner ecologyPlanner(m_seed);
     const glm::ivec2 target = m_pChunk->getLocation();
     const int minimumX = target.x * CHUNK_SIZE - MaximumStructureRadius;
@@ -849,6 +879,38 @@ void ClassicOverWorldGenerator::applyTreeDecorators(
             }
         }
     }
+}
+
+void ClassicOverWorldGenerator::applyAdventurePlants()
+{
+    const auto location=m_pChunk->getLocation();
+    for(int x=0;x<CHUNK_SIZE;++x)for(int z=0;z<CHUNK_SIZE;++z) {
+        const auto &sample=m_ecologyMap.get(x,z);
+        const int y=sample.column.height;
+        if(m_pChunk->getBlock(x,y+1,z)!=BlockId::Air)continue;
+        const auto plant=m_adventureEcology.groundCover(location.x*CHUNK_SIZE+x,location.y*CHUNK_SIZE+z,sample);
+        if(plant.id!=BlockId::Air && AdventureEcologyPlanner::supportsPlant(
+               static_cast<BlockId>(m_pChunk->getBlock(x,y,z).id),plant.id))
+            m_pChunk->setBlock(x,y+1,z,ChunkBlock(plant.id,plant.metadata));
+    }
+}
+
+void ClassicOverWorldGenerator::applyAdventureTrees(const std::vector<StructurePlanSnapshot> &plans)
+{
+    const auto target=m_pChunk->getLocation();
+    const int minX=target.x*CHUNK_SIZE-MaximumStructureRadius,minZ=target.y*CHUNK_SIZE-MaximumStructureRadius;
+    for(int x=minX;x<minX+CHUNK_SIZE+2*MaximumStructureRadius;++x)
+        for(int z=minZ;z<minZ+CHUNK_SIZE+2*MaximumStructureRadius;++z) {
+            if(!m_adventureEcology.treeAnchor(x,z))continue;
+            if(std::any_of(plans.begin(),plans.end(),[x,z](const auto &p) {
+                return x>=p.footprint.minimumX-3 && x<=p.footprint.maximumX+3 &&
+                       z>=p.footprint.minimumZ-3 && z<=p.footprint.maximumZ+3;
+            }))continue;
+            const auto sample=m_adventureEcology.sample(x,z);
+            const auto tree=m_adventureEcology.tree(x,z,sample);
+            if(tree.kind!=AdventureTreeKind::None)
+                makeAdventureTree(*m_pChunk,tree.randomSeed,x,tree.height,z,tree.kind);
+        }
 }
 
 void ClassicOverWorldGenerator::applyLandmarkDecorators(

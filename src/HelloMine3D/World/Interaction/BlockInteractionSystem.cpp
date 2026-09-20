@@ -88,7 +88,7 @@ bool BlockInteractionSystem::breakBlock(World &world, Player &player,
 
     definition.behavior->onBroken(world, player, blockPosition, block);
     world.setBlock(x, y, z, BlockId::Air);
-    world.getEventBus().publish(BlockBreakEvent(blockPosition, blockId));
+    world.getEventBus().publish(BlockBreakEvent(blockPosition, blockId, block.metadata));
     world.getEventBus().publish(
         BlockChangedEvent(blockPosition, blockId, BlockId::Air));
     if (toolDamage != Inventory::ToolDamageResult::NotTool) {

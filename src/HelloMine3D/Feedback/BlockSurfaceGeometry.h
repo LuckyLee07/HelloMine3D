@@ -6,6 +6,7 @@
 #include "../World/Block/TerrainAppearance.h"
 #include "../World/Block/BlockDatabase.h"
 #include "../World/Block/WetlandGrassGeometry.h"
+#include "../World/Block/ForestFernGeometry.h"
 
 struct BlockSurfaceFace
 {
@@ -24,20 +25,22 @@ inline std::vector<BlockSurfaceFace> blockSurfaceGeometry(
     const auto tile = [&](TerrainFaceKind kind, const glm::ivec2 &base)
     {
         return TerrainAppearance::select(definition.id, kind, base,
-                                         biome, seed, position).coordinates;
+                                         biome, seed, position, block.metadata).coordinates;
     };
     std::vector<BlockSurfaceFace> result;
     if (render.meshType == BlockMeshType::Resource)
     {
         const float height = definition.behavior->verticalRenderScale(definition, block);
-        if (WetlandGrassGeometry::applies(static_cast<BlockId>(block.id), biome, render.shape))
+        const bool fern = ForestFernGeometry::applies(block,render.shape);
+        if (fern || WetlandGrassGeometry::applies(static_cast<BlockId>(block.id), biome, render.shape,block.metadata))
         {
             const auto &database = BlockDatabase::get();
             const auto leafTile = TerrainAppearance::select(BlockId::Grass,
                 TerrainFaceKind::Top, database.getDefinition(BlockId::Grass).render.texTopCoord,
-                biome, seed, position).coordinates;
+                biome, seed, position, block.metadata).coordinates;
             const auto seedTile = database.getDefinition(BlockId::OakBark).render.texSideCoord;
-            const auto model = WetlandGrassGeometry::build(
+            const auto model = fern ? ForestFernGeometry::build(
+                TerrainAppearance::coordinateVariant(seed,position,BlockId::TallGrass),height) : WetlandGrassGeometry::build(
                 TerrainAppearance::coordinateVariant(seed, position, BlockId::TallGrass),
                 block.metadata >= BlockMetadata::TallGrass::Mature, height);
             for (std::size_t i = 0; i < model.count; ++i)

@@ -1,0 +1,467 @@
+{
+  "schema": 1,
+  "batch": "B3-v18-regional-ecology",
+  "source_parent": "679f7a1",
+  "platform": "macOS / gmake / Apple clang / x86_64",
+  "world_checks": {
+    "Debug": 1628,
+    "Release": 1628
+  },
+  "pure_checks": {
+    "Debug": 14,
+    "Release": 14
+  },
+  "production_checks": 88,
+  "seed_count": 8,
+  "region_sites": 72,
+  "actual_chunks": 288,
+  "reverse_generation": true,
+  "observed_columns": 73509,
+  "real_water_columns": 12650,
+  "surface_counts": {
+    "snow": 5513,
+    "gravel": 6365,
+    "clay": 2459,
+    "forest_floor": 4660,
+    "moss_stone": 1089,
+    "silt": 7792
+  },
+  "tree_log_counts": {
+    "oak": 542,
+    "spruce": 344,
+    "birch": 221
+  },
+  "cover_counts": {
+    "grass": 131,
+    "fern": 445,
+    "reed": 347
+  },
+  "compatibility": {
+    "binary_sha256": "d824372b037a5ba8e29d93b1ac8e4a309d059a49236f9d4d8b20bce7d41b5947",
+    "versions": {
+      "1": {
+        "actual": {
+          "samples.csv": "7d8697ef110b6c7abebd134173772765d118af026cd22c2d6da712e36743da01",
+          "chunks.csv": "d1a625a6f6e1cf68461725ffbed0372a9d14c7d4e1b795990c4cc7fc66b29613"
+        },
+        "expected": {
+          "samples.csv": "7d8697ef110b6c7abebd134173772765d118af026cd22c2d6da712e36743da01",
+          "chunks.csv": "d1a625a6f6e1cf68461725ffbed0372a9d14c7d4e1b795990c4cc7fc66b29613"
+        },
+        "matches": true
+      },
+      "2": {
+        "actual": {
+          "samples.csv": "51814ab79fab30fa8b7cad0d7dfe5e48d2605cb2540227d5c37d50d63e31d555",
+          "chunks.csv": "e73a09376540cbca90c2311fbc7500ea86180f9afefbafce2fd904ac82026483"
+        },
+        "expected": {
+          "samples.csv": "51814ab79fab30fa8b7cad0d7dfe5e48d2605cb2540227d5c37d50d63e31d555",
+          "chunks.csv": "e73a09376540cbca90c2311fbc7500ea86180f9afefbafce2fd904ac82026483"
+        },
+        "matches": true
+      },
+      "3": {
+        "actual": {
+          "samples.csv": "0f08bd3c97b4aebe89138d90664f37ecff6feebfdb0114b32f7feca3c2893c3a",
+          "chunks.csv": "9da4c2ca353239056b19e94c7bdd90c1ef4e8bb62774248e44b9183a20f8d361"
+        },
+        "expected": {
+          "samples.csv": "0f08bd3c97b4aebe89138d90664f37ecff6feebfdb0114b32f7feca3c2893c3a",
+          "chunks.csv": "9da4c2ca353239056b19e94c7bdd90c1ef4e8bb62774248e44b9183a20f8d361"
+        },
+        "matches": true
+      },
+      "4": {
+        "actual": {
+          "samples.csv": "d403429111240351548d22d5256017b79c4f746a9d7db2427fefb7e42b70f1bf",
+          "chunks.csv": "e3b207721774c6798cb28e5821e13c6a7a5785e6a9d31c6b0d5227b0a49995b9"
+        },
+        "expected": {
+          "samples.csv": "d403429111240351548d22d5256017b79c4f746a9d7db2427fefb7e42b70f1bf",
+          "chunks.csv": "e3b207721774c6798cb28e5821e13c6a7a5785e6a9d31c6b0d5227b0a49995b9"
+        },
+        "matches": true
+      },
+      "5": {
+        "actual": {
+          "samples.csv": "3c90bb987b919e17110a6d33a9e084845682a7b136d7cc3a3a880ec6f78f16ba",
+          "chunks.csv": "abcf235f4685537ef455302844a7f0eed950ac5f74b3a4f4594b7317fd10494e"
+        },
+        "expected": {
+          "samples.csv": "3c90bb987b919e17110a6d33a9e084845682a7b136d7cc3a3a880ec6f78f16ba",
+          "chunks.csv": "abcf235f4685537ef455302844a7f0eed950ac5f74b3a4f4594b7317fd10494e"
+        },
+        "matches": true
+      },
+      "6": {
+        "actual": {
+          "samples.csv": "6780a068f773a7980b196d55c15543ea7808417c1a0cc2cd9d1e1f4dde407188",
+          "chunks.csv": "1f9a89741e8ee891dc55c3d1e632872a30774873c638478a0d1980b785e826e3"
+        },
+        "expected": {
+          "samples.csv": "6780a068f773a7980b196d55c15543ea7808417c1a0cc2cd9d1e1f4dde407188",
+          "chunks.csv": "1f9a89741e8ee891dc55c3d1e632872a30774873c638478a0d1980b785e826e3"
+        },
+        "matches": true
+      },
+      "7": {
+        "actual": {
+          "samples.csv": "8bc7ce43a5e01dedd1c4dfce7276329c1d777cd911ba328757a2b695cf77f323",
+          "chunks.csv": "2b210f3be8f41439128a536524138e0611b4e755d63185c1ffc542ac24ac786c"
+        },
+        "expected": {
+          "samples.csv": "8bc7ce43a5e01dedd1c4dfce7276329c1d777cd911ba328757a2b695cf77f323",
+          "chunks.csv": "2b210f3be8f41439128a536524138e0611b4e755d63185c1ffc542ac24ac786c"
+        },
+        "matches": true
+      },
+      "8": {
+        "actual": {
+          "samples.csv": "71b46545c2aec8027279df9e615edbd403c73ceadd4e8488d919c99d4133b97a",
+          "chunks.csv": "69054fd975693228067efa4ce7994e43be427a0f9e6c987f20b57131a004d70d"
+        },
+        "expected": {
+          "samples.csv": "71b46545c2aec8027279df9e615edbd403c73ceadd4e8488d919c99d4133b97a",
+          "chunks.csv": "69054fd975693228067efa4ce7994e43be427a0f9e6c987f20b57131a004d70d"
+        },
+        "matches": true
+      },
+      "9": {
+        "actual": {
+          "samples.csv": "1329b469658ca0fba8c4ce322cfb04f2d7e3126d8d0dbb39eb8e63cd67ba9e5e",
+          "chunks.csv": "eadd6a880c991b2e31c4d67faa8017c3d53c034391951824d37c67ea770ea939"
+        },
+        "expected": {
+          "samples.csv": "1329b469658ca0fba8c4ce322cfb04f2d7e3126d8d0dbb39eb8e63cd67ba9e5e",
+          "chunks.csv": "eadd6a880c991b2e31c4d67faa8017c3d53c034391951824d37c67ea770ea939"
+        },
+        "matches": true
+      },
+      "10": {
+        "actual": {
+          "samples.csv": "cb6cce97393378764e28019bca016010685377d98ed40add69cf1cb07b5a071b",
+          "chunks.csv": "c030cd69bd0429be85d1836b82d69bf36bc343efc413503c19c481a9f61b3e05"
+        },
+        "expected": {
+          "samples.csv": "cb6cce97393378764e28019bca016010685377d98ed40add69cf1cb07b5a071b",
+          "chunks.csv": "c030cd69bd0429be85d1836b82d69bf36bc343efc413503c19c481a9f61b3e05"
+        },
+        "matches": true
+      },
+      "11": {
+        "actual": {
+          "samples.csv": "c1ac15a447a11028b5bd41986ac9077deeed1fb739dd3c5c0a03e282c9ec4f41",
+          "chunks.csv": "2a943cdfe947b695e8207dc493b835c43fe1681b256a7330c9828e146db1ece4"
+        },
+        "expected": {
+          "samples.csv": "c1ac15a447a11028b5bd41986ac9077deeed1fb739dd3c5c0a03e282c9ec4f41",
+          "chunks.csv": "2a943cdfe947b695e8207dc493b835c43fe1681b256a7330c9828e146db1ece4"
+        },
+        "matches": true
+      },
+      "12": {
+        "actual": {
+          "samples.csv": "71cbed0c608239c6f0a963dbfc93031a7a4069d8785223cea3ae175a93e8c603",
+          "chunks.csv": "88bfe05972dae737797a7e805f4a0661e8679726b664b6845fe69e60f36bd740"
+        },
+        "expected": {
+          "samples.csv": "71cbed0c608239c6f0a963dbfc93031a7a4069d8785223cea3ae175a93e8c603",
+          "chunks.csv": "88bfe05972dae737797a7e805f4a0661e8679726b664b6845fe69e60f36bd740"
+        },
+        "matches": true
+      },
+      "13": {
+        "actual": {
+          "samples.csv": "4dff99e291b2994aee3311fb0dfa3732e7109816c7773ae47a0685260d145544",
+          "chunks.csv": "79b44cdf19cd02600ba4cdcb0ad45be56b5fba19fb35116205c641d2c117a1f9"
+        },
+        "expected": {
+          "samples.csv": "4dff99e291b2994aee3311fb0dfa3732e7109816c7773ae47a0685260d145544",
+          "chunks.csv": "79b44cdf19cd02600ba4cdcb0ad45be56b5fba19fb35116205c641d2c117a1f9"
+        },
+        "matches": true
+      },
+      "14": {
+        "actual": {
+          "samples.csv": "3d35b8c22c3625e422c28105f8a7708a125afd6f6f8186901c785b2e2cc43c54",
+          "chunks.csv": "57ed22e79cb88afe8d8dd13f72dd671c6c5d1fba3da3fa85407f1ee2953bf0be"
+        },
+        "expected": {
+          "samples.csv": "3d35b8c22c3625e422c28105f8a7708a125afd6f6f8186901c785b2e2cc43c54",
+          "chunks.csv": "57ed22e79cb88afe8d8dd13f72dd671c6c5d1fba3da3fa85407f1ee2953bf0be"
+        },
+        "matches": true
+      },
+      "15": {
+        "actual": {
+          "samples.csv": "9afe12221555368cad3facab3336d40c1b8648e3c5543ba17dedf2ba08817d52",
+          "chunks.csv": "f091fa6b489579c3c95994f4bf1daf56bf1c71fa60c38fba54dc153093dc249b"
+        },
+        "expected": {
+          "samples.csv": "9afe12221555368cad3facab3336d40c1b8648e3c5543ba17dedf2ba08817d52",
+          "chunks.csv": "f091fa6b489579c3c95994f4bf1daf56bf1c71fa60c38fba54dc153093dc249b"
+        },
+        "matches": true
+      },
+      "16": {
+        "actual": {
+          "samples.csv": "eae56947dfad82d50d719d23d282a608d0fff62cd209bb086c1469e4829e3947",
+          "chunks.csv": "64dcc3ee68f5e2e7a1824600c2ccb550792251d7c8c57c512a9e9a4effcb7ff3"
+        },
+        "expected": {
+          "samples.csv": "eae56947dfad82d50d719d23d282a608d0fff62cd209bb086c1469e4829e3947",
+          "chunks.csv": "64dcc3ee68f5e2e7a1824600c2ccb550792251d7c8c57c512a9e9a4effcb7ff3"
+        },
+        "matches": true
+      },
+      "17": {
+        "actual": {
+          "samples.csv": "19c59dbd4701c85f9a4b39dab66881b5a174b103505fbc03f145f50a1af1615f",
+          "chunks.csv": "69091bf0f7eb232bbb44673b009ea1894417d53c737428dd55ab307a0b6b7ae6"
+        },
+        "expected": {
+          "samples.csv": "19c59dbd4701c85f9a4b39dab66881b5a174b103505fbc03f145f50a1af1615f",
+          "chunks.csv": "69091bf0f7eb232bbb44673b009ea1894417d53c737428dd55ab307a0b6b7ae6"
+        },
+        "matches": true
+      },
+      "18": {
+        "actual": {
+          "samples.csv": "4aa476c7df0d805ed6990b352278c253045b875a4f018fdf83d085284b5142a8",
+          "chunks.csv": "0557087c3988a0f82f3621c250ae95efa482674e23fc3f00b84061057d57c610"
+        },
+        "expected": null,
+        "matches": null
+      }
+    }
+  },
+  "logs": [
+    {
+      "path": "build/adventure-terrain-20260921/ecology-pure-release-r1/test.log",
+      "sha256": "36fc53f41f474371a0531822c05c6da83c3637c1c1ef9f1b774bc15ac16fdfb0"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/ecology-pure-debug-r1/test.log",
+      "sha256": "36fc53f41f474371a0531822c05c6da83c3637c1c1ef9f1b774bc15ac16fdfb0"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/ecology-production-release-r2.log",
+      "sha256": "b5cf606aea781d1b4d6a3cd6e0b4bc2c7adab0d78cecc5d4010f0de0b5a8025d"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/ecology-spawn-release-r1.log",
+      "sha256": "46be05984a0336b7ccb70cbca6558bbb485d4b27e2c0779f26ca74cd007cdf68"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/ecology-world-release-r2.log",
+      "sha256": "06c2edfac64c97ddbcb4501c535336c6d8012f97228cd96577a8d5f1bdef871c"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/ecology-world-debug-r1.log",
+      "sha256": "865035f648991fdae3ea42ce3b47c1a48ec5c2d6c834604ced569d542b714495"
+    }
+  ],
+  "captures": [
+    {
+      "path": "build/adventure-terrain-20260921/ecology-visual-r1-conifer",
+      "source_commit": "679f7a190cc57039eb3585732593f6e357aa36a5",
+      "executable_sha256": "7ce33086a47aebe94869a7d147a4ab86642100ce368544d6ca89562ed5d66769",
+      "normal_input": false,
+      "reviewed_frames": [
+        "capture_05000ms.png"
+      ],
+      "frame_sha256": {
+        "frames/capture_05000ms.png": "fd1f1d40997dbbe61c024395bfe33e9ab8942af5a4222ed6bb4a7df71cc16738",
+        "frames/capture_10000ms.png": "fdb38e9d852bdf67f51af51872ba09adca76168fb2261a04f951b2caa08d933d"
+      },
+      "position": "752 102 -32",
+      "rotation": "-8 35 0",
+      "seed": "42"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/ecology-visual-r1-woodland",
+      "source_commit": "679f7a190cc57039eb3585732593f6e357aa36a5",
+      "executable_sha256": "7ce33086a47aebe94869a7d147a4ab86642100ce368544d6ca89562ed5d66769",
+      "normal_input": false,
+      "reviewed_frames": [
+        "capture_05000ms.png"
+      ],
+      "frame_sha256": {
+        "frames/capture_05000ms.png": "d10b378ef2726c536d4c6c5e050fe63b905bf5557118d475509145af1e9137a3",
+        "frames/capture_10000ms.png": "449b9b00a1d8e980e4d5b62fb2531ba0270d3d82314fbf296390a9208f9ab6ed"
+      },
+      "position": "52 85 -1152",
+      "rotation": "-8 35 0",
+      "seed": "42"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/ecology-visual-r1-wetland",
+      "source_commit": "679f7a190cc57039eb3585732593f6e357aa36a5",
+      "executable_sha256": "7ce33086a47aebe94869a7d147a4ab86642100ce368544d6ca89562ed5d66769",
+      "normal_input": false,
+      "reviewed_frames": [
+        "capture_05000ms.png"
+      ],
+      "frame_sha256": {
+        "frames/capture_05000ms.png": "7b40916f0f0e6f8e2d57fefa2712b3c2b4b4ab1b65559e9ff5bc9bfa0be96dda",
+        "frames/capture_10000ms.png": "09abfb5d3d7c5faf540b28ea3d45e9b1f6368c328f0453ef7b58d2af578c9218"
+      },
+      "position": "1620 66 -956",
+      "rotation": "-8 35 0",
+      "seed": "42"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/ecology-visual-r1-alpine",
+      "source_commit": "679f7a190cc57039eb3585732593f6e357aa36a5",
+      "executable_sha256": "20afebd25ff906437bb3e28a217a800cf265248ca127d6e0c0167e1dc31e15c1",
+      "normal_input": false,
+      "reviewed_frames": [
+        "capture_05000ms.png"
+      ],
+      "frame_sha256": {
+        "frames/capture_05000ms.png": "cbe91c48fadae9af429d9c9938101f6187baa1c61020510727cdcd28186ee329",
+        "frames/capture_10000ms.png": "ae4a75132696b3a721a1b0b949d0587abe43bae507895d53339e7643c3f1519f"
+      },
+      "position": "1648 128 668",
+      "rotation": "-8 35 0",
+      "seed": "42"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/ecology-visual-r1-canyon",
+      "source_commit": "679f7a190cc57039eb3585732593f6e357aa36a5",
+      "executable_sha256": "20afebd25ff906437bb3e28a217a800cf265248ca127d6e0c0167e1dc31e15c1",
+      "normal_input": false,
+      "reviewed_frames": [
+        "capture_05000ms.png"
+      ],
+      "frame_sha256": {
+        "frames/capture_05000ms.png": "def9f2aeb822270f4b303f30d4f83ef730ad8f4c102f594bbe5b7a9a0a2ff919",
+        "frames/capture_10000ms.png": "4a4ddcf6c3dc61c13234bfda33a8a5f99f3275d8b4d3040bc8a64fa2909a8dac"
+      },
+      "position": "1396 111 -1684",
+      "rotation": "-8 35 0",
+      "seed": "42"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/ecology-visual-r1-meadow",
+      "source_commit": "679f7a190cc57039eb3585732593f6e357aa36a5",
+      "executable_sha256": "20afebd25ff906437bb3e28a217a800cf265248ca127d6e0c0167e1dc31e15c1",
+      "normal_input": false,
+      "reviewed_frames": [
+        "capture_05000ms.png"
+      ],
+      "frame_sha256": {
+        "frames/capture_05000ms.png": "b52eab491a60969c51d3223f4c6deb49e5aef59167c35bc84a3b75bfd2aae615",
+        "frames/capture_10000ms.png": "fc0e9839db4b864ad7533b1d1ca02c97ca09c0800d154bb6b1c6c1617bd9304b"
+      },
+      "position": "1032 75 640",
+      "rotation": "-8 35 0",
+      "seed": "42"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/ecology-visual-r1-dunes",
+      "source_commit": "679f7a190cc57039eb3585732593f6e357aa36a5",
+      "executable_sha256": "20afebd25ff906437bb3e28a217a800cf265248ca127d6e0c0167e1dc31e15c1",
+      "normal_input": false,
+      "reviewed_frames": [
+        "capture_05000ms.png"
+      ],
+      "frame_sha256": {
+        "frames/capture_05000ms.png": "896855d62e90cbce03ce2f616c91126ba20dfcb1ffd87236d555a435dc80301f",
+        "frames/capture_10000ms.png": "fb1b7bf26d93565bfda3d3fd93e90f56a8151dbefd8771369628a677224f3c14"
+      },
+      "position": "780 79 -1012",
+      "rotation": "-8 35 0",
+      "seed": "42"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/ecology-visual-r1-coast",
+      "source_commit": "679f7a190cc57039eb3585732593f6e357aa36a5",
+      "executable_sha256": "20afebd25ff906437bb3e28a217a800cf265248ca127d6e0c0167e1dc31e15c1",
+      "normal_input": false,
+      "reviewed_frames": [
+        "capture_05000ms.png"
+      ],
+      "frame_sha256": {
+        "frames/capture_05000ms.png": "7518f3c6dbc1aff804592f88ce0bcf726c4711bbe9b4093bef4788a17aafdc6a",
+        "frames/capture_10000ms.png": "185bd20bbe0ebe4e7f83b45e2e6c6b18a5f0eb5fadd16f498fa5452b19b173c4"
+      },
+      "position": "-1656 68 24",
+      "rotation": "-8 35 0",
+      "seed": "42"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/ecology-bank-compare-r1",
+      "source_commit": "679f7a190cc57039eb3585732593f6e357aa36a5",
+      "executable_sha256": "20afebd25ff906437bb3e28a217a800cf265248ca127d6e0c0167e1dc31e15c1",
+      "normal_input": false,
+      "reviewed_frames": [
+        "capture_05000ms.png"
+      ],
+      "frame_sha256": {
+        "frames/capture_05000ms.png": "9adc884ac6c9f495046b5f0eb098e3e75f18c72d96c60aee15e2ac1471782b6a",
+        "frames/capture_10000ms.png": "a0e45fe9d63676497659bd16212f805c31e2e909c700e9f578bcdc05e286e37e"
+      },
+      "position": "1237 68 -345",
+      "rotation": "10 57.53 0",
+      "seed": "20260807"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/ecology-compatibility-visual-r1",
+      "source_commit": "679f7a190cc57039eb3585732593f6e357aa36a5",
+      "executable_sha256": "20afebd25ff906437bb3e28a217a800cf265248ca127d6e0c0167e1dc31e15c1",
+      "normal_input": false,
+      "reviewed_frames": [
+        "capture_05000ms.png"
+      ],
+      "frame_sha256": {
+        "frames/capture_05000ms.png": "a8d50f252e8d4669a91cf342bbd854150954f11ee479ade8ea31c04d7a5c5c1c",
+        "frames/capture_10000ms.png": "6a85af204f8cd235866da3c6cc5c228a3afcc40eb1538c9781ea9b4db43855c8"
+      },
+      "position": "752 102 -32",
+      "rotation": "-8 35 0",
+      "seed": "42"
+    }
+  ],
+  "package_identity": {
+    "platform": "macOS",
+    "configuration": "Release",
+    "bundle_id": "local.hellomine3d.adventure-work",
+    "source_commit": "679f7a190cc57039eb3585732593f6e357aa36a5",
+    "tracked_diff_sha256": "1f1e801fd9f32af1cb63ae88406bf14d18cb047d4a2218a49cd645025183cc18",
+    "executable_sha256": "20afebd25ff906437bb3e28a217a800cf265248ca127d6e0c0167e1dc31e15c1",
+    "file_identity": "/Users/lizi/Desktop/Workspace/HelloMine3D/bin/HelloMine3D: Mach-O 64-bit executable x86_64",
+    "capabilities": {
+      "hidden_window_no_activate_v1": true
+    },
+    "linkage": [
+      "\t/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa (compatibility version 1.0.0, current version 24.0.0)",
+      "\t/System/Library/Frameworks/Carbon.framework/Versions/A/Carbon (compatibility version 2.0.0, current version 170.0.0)",
+      "\t/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit (compatibility version 1.0.0, current version 275.0.0)",
+      "\t/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation (compatibility version 300.0.0, current version 4201.0.0)",
+      "\t/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit (compatibility version 45.0.0, current version 2685.30.107)",
+      "\t/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 4201.0.0)",
+      "\t/System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL (compatibility version 1.0.0, current version 1.0.0)",
+      "\t/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 2000.67.0)",
+      "\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)",
+      "\t/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics (compatibility version 64.0.0, current version 1965.2.3)",
+      "\t/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)"
+    ],
+    "resource_manifest_sha256": "9c4bbd7eb7a0d7419e33c23e4aa0bb7a7926424280a35cbd3c2189a5b72e40cd",
+    "source_file_count": 350,
+    "source_manifest_sha256": "8ae023af76f00846b2907768958fec5e174a4b3fe66802772dad115f1ce79511",
+    "source_tree_required": false,
+    "acceptance": "NOT_RUN",
+    "signed_or_notarized": false
+  },
+  "normal_input_acceptance": "NOT_RUN",
+  "final_paired_performance": "NOT_RUN",
+  "remaining": [
+    "Continuous ordinary exploration and destinations",
+    "Rock banding, snow slope lines and repeated ground texture",
+    "Close wetland crown inspection",
+    "Custom Cross shape fallback for fern",
+    "Cave entrance vegetation clearance"
+  ]
+}

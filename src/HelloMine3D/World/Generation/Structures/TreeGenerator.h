@@ -6,6 +6,9 @@
 
 class Chunk;
 enum class EcologyTreeShape : std::uint8_t;
+enum class AdventureTreeKind : std::uint8_t;
+void makeAdventureTree(Chunk &chunk, int randomSeed, int x, int y, int z,
+                       AdventureTreeKind kind);
 
 /// Structure origins use world block coordinates; each target chunk receives
 /// only the portion of the generated structure that overlaps it.

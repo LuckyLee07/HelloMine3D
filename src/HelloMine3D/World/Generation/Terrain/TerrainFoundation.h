@@ -14,7 +14,8 @@ class TerrainFoundation {
         Grass,
         Dirt,
         Sand,
-        Stone
+        Stone,
+        Snow, Gravel, Clay, ForestFloor, MossStone, Silt
     };
 
     struct Column {

@@ -76,7 +76,7 @@ BlockSelectionSystem::pick(World &world, const glm::vec3 &origin,
         const auto blockId = static_cast<BlockId>(block.id);
         if (blockId != BlockId::Air && blockId != BlockId::Water) {
             return BlockSelection{blockPosition, previousPosition,
-                                  ray.getEnd(), blockId};
+                                  ray.getEnd(), blockId, block.metadata};
         }
 
         previousPosition = blockPosition;

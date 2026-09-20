@@ -5,6 +5,7 @@
 #include "TerrainFoundation.h"
 #include "AdventureTerrainPlanner.h"
 #include "AdventureWaterPlanner.h"
+#include "../Ecology/AdventureEcologyPlanner.h"
 
 #include "../../../Util/Array2D.h"
 #include "../../../Util/Random.h"
@@ -78,6 +79,8 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
                       int startX, int startY, int startZ, int size);
     void applyPlantDecorators(const std::vector<BlockPosition> &positions);
     void applyTreeDecorators(const std::vector<StructurePlanSnapshot> &plans);
+    void applyAdventureTrees(const std::vector<StructurePlanSnapshot> &plans);
+    void applyAdventurePlants();
     void applyLandmarkDecorators(const std::vector<StructurePlanSnapshot> &plans);
     void sanitizeSurfaceDecoratorsV8();
     void projectStructurePlan(const StructurePlanSnapshot &plan);
@@ -103,6 +106,8 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
     Array2D<int, CHUNK_SIZE + 1> m_biomeMap;
     Array2D<TerrainFoundation::Surface, CHUNK_SIZE> m_surfaceMap;
 
+    Array2D<AdventureEcologyPlanner::Sample, CHUNK_SIZE> m_ecologyMap;
+
     int m_seed = 0;
     int m_generationVersion = CurrentTerrainGenerationVersion;
     int m_explorationRewardVersion =
@@ -113,6 +118,7 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
     TerrainFoundation m_foundation;
     AdventureTerrainPlanner m_adventure;
     AdventureWaterPlanner m_adventureWater;
+    AdventureEcologyPlanner m_adventureEcology;
     CaveGenerator m_caveGenerator;
 
     GrasslandBiome m_grassBiome;

@@ -47,6 +47,7 @@ void caseTerrainSurfaceTransitionsV15()
                     case Surface::Sand:expected=BlockId::Sand;break;
                     case Surface::Stone:expected=BlockId::Stone;break;
                     case Surface::Original:break;
+                        default:throw std::logic_error("unexpected surface in frozen terrain fixture");
                 }
                 const bool ore=expected==BlockId::Stone && (actual==BlockId::CoalOre || actual==BlockId::IronOre);
                 oreColumns+=ore;

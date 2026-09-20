@@ -74,9 +74,9 @@ const Material Material::GRASS_BLOCK(ID::Grass, 99, true, "Grass Block");
 const Material Material::DIRT_BLOCK(ID::Dirt, 99, true, "Dirt Block");
 const Material Material::STONE_BLOCK(ID::Stone, 99, true, "Stone Block");
 const Material Material::OAK_BARK_BLOCK(ID::OakBark, 99, true,
-                                        "Oak Bark Block");
+                                        "Wood Log");
 const Material Material::OAK_LEAF_BLOCK(ID::OakLeaf, 99, true,
-                                        "Oak Leaf Block");
+                                        "Leaves");
 const Material Material::SAND_BLOCK(ID::Sand, 99, true, "Sand Block");
 const Material Material::CACTUS_BLOCK(ID::Cactus, 99, true, "Cactus Block");
 

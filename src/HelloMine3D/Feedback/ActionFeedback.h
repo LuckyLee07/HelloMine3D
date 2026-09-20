@@ -41,6 +41,7 @@ struct ActionFeedbackParticle
     // Block fragments live in the world; pickup sparkles remain in the HUD.
     bool worldSpace = false;
     BlockId blockId = BlockId::Air;
+    BlockMetadata_t metadata = 0;
     glm::ivec3 blockPosition{0};
     glm::vec3 worldPosition{0.f};
     float rotation = 0.f;
@@ -96,6 +97,7 @@ class ActionFeedbackTimeline
         float size = 0.f;
         bool worldSpace = false;
         BlockId blockId = BlockId::Air;
+        BlockMetadata_t metadata = 0;
         glm::ivec3 blockPosition{0};
         glm::vec3 origin{0.f};
         glm::vec3 velocity{0.f};
@@ -109,7 +111,7 @@ class ActionFeedbackTimeline
     void emit(Material::ID materialId, std::size_t count) noexcept;
     void emitBlock(BlockId blockId, const glm::ivec3 &blockPosition,
                    std::size_t count, const glm::vec3 &origin,
-                   const glm::vec3 &normal, bool mining) noexcept;
+                   const glm::vec3 &normal, bool mining, BlockMetadata_t metadata = 0) noexcept;
     std::size_t reserveParticles(std::size_t count) noexcept;
 
     SandboxEventBus *m_eventBus = nullptr;

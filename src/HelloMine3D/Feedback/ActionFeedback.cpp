@@ -42,7 +42,7 @@ void ActionFeedbackTimeline::attach(SandboxEventBus &eventBus)
             const auto &block = static_cast<const BlockBreakEvent &>(event);
             activate(ActionFeedbackKind::BlockBreak, 0.34f, 0.7f, 0.f);
             emitBlock(block.blockId, block.position, FullBlockParticleCount,
-                      glm::vec3(block.position) + glm::vec3(0.5f), {}, false);
+                      glm::vec3(block.position) + glm::vec3(0.5f), {}, false, block.metadata);
         }, SandboxEventSubscriptionOptions::observer(
             "ActionFeedbackTimeline")));
     m_subscriptions.push_back(eventBus.subscribe(
@@ -51,7 +51,7 @@ void ActionFeedbackTimeline::attach(SandboxEventBus &eventBus)
             const auto &block = static_cast<const BlockPlaceEvent &>(event);
             activate(ActionFeedbackKind::BlockPlace, 0.28f, 0.45f, 0.f);
             emitBlock(block.blockId, block.position, FullBlockParticleCount / 2,
-                      glm::vec3(block.position) + glm::vec3(0.5f), {}, false);
+                      glm::vec3(block.position) + glm::vec3(0.5f), {}, false, block.metadata);
         }, SandboxEventSubscriptionOptions::observer(
             "ActionFeedbackTimeline")));
     m_subscriptions.push_back(eventBus.subscribe(
@@ -201,7 +201,7 @@ void ActionFeedbackTimeline::observeMining(
     const float length = glm::length(normal);
     normal = length > 0.f ? normal / length : glm::vec3(0.f, 1.f, 0.f);
     emitBlock(progress.blockId, progress.target, 2,
-              selection->hitPoint + normal * 0.035f, normal, true);
+              selection->hitPoint + normal * 0.035f, normal, true, selection->metadata);
 }
 
 ActionFeedbackSnapshot ActionFeedbackTimeline::snapshot() const
@@ -227,6 +227,7 @@ ActionFeedbackSnapshot ActionFeedbackTimeline::snapshot() const
         visual.alpha = alpha;
         visual.worldSpace = particle.worldSpace;
         visual.blockId = particle.blockId;
+        visual.metadata = particle.metadata;
         visual.blockPosition = particle.blockPosition;
         visual.worldPosition = particle.origin + particle.velocity * particle.age +
             glm::vec3(0.f, -4.9f * particle.age * particle.age, 0.f);
@@ -308,7 +309,7 @@ std::size_t ActionFeedbackTimeline::reserveParticles(std::size_t count) noexcept
 
 void ActionFeedbackTimeline::emitBlock(
     BlockId blockId, const glm::ivec3 &blockPosition, std::size_t count,
-    const glm::vec3 &origin, const glm::vec3 &normal, bool mining) noexcept
+    const glm::vec3 &origin, const glm::vec3 &normal, bool mining, BlockMetadata_t metadata) noexcept
 {
     count = reserveParticles(count);
     ++m_particleEpoch;
@@ -327,6 +328,7 @@ void ActionFeedbackTimeline::emitBlock(
         particle.materialId = Material::toMaterial(blockId).id;
         particle.worldSpace = true;
         particle.blockId = blockId;
+        particle.metadata = metadata;
         particle.blockPosition = blockPosition;
         const float spread = mining ? 0.055f : 0.65f;
         particle.origin = origin + glm::vec3{

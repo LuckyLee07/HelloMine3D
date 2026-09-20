@@ -69,7 +69,7 @@ namespace
             resource ? TerrainFaceKind::Resource : TerrainFaceKind::Side,
             resource ? render.texTopCoord : render.texSideCoord,
             chunks.getTerrainGenerator().getBiomeAtWorld(position.x, position.z),
-            chunks.getTerrainSeed(), position).coordinates;
+            chunks.getTerrainSeed(), position, particle.metadata).coordinates;
     }
 }
 
@@ -217,7 +217,7 @@ struct OgreBlockFeedback::Impl
         const auto cameraRight = camera.getDerivedOrientation() * Ogre::Vector3::UNIT_X;
         const auto cameraUp = camera.getDerivedOrientation() * Ogre::Vector3::UNIT_Y;
         const std::array<Ogre::Vector2, 4> corners{{{-1,-1}, {1,-1}, {1,1}, {-1,1}}};
-        struct TileEntry { BlockId id; glm::ivec3 position; glm::ivec2 tile; };
+        struct TileEntry { BlockId id; BlockMetadata_t metadata; glm::ivec3 position; glm::ivec2 tile; };
         std::vector<TileEntry> tiles;
         unsigned int first = 0;
         for (const auto *particle : visible)
@@ -227,11 +227,11 @@ struct OgreBlockFeedback::Impl
             const auto up = (cameraUp * c - cameraRight * s) * particle->size * 0.5f;
             auto cached = std::find_if(tiles.begin(), tiles.end(), [&](const TileEntry &entry)
             {
-                return entry.id == particle->blockId && entry.position == particle->blockPosition;
+                return entry.id == particle->blockId && entry.metadata == particle->metadata && entry.position == particle->blockPosition;
             });
             if (cached == tiles.end())
             {
-                tiles.push_back({particle->blockId, particle->blockPosition, particleTile(world, *particle)});
+                tiles.push_back({particle->blockId, particle->metadata, particle->blockPosition, particleTile(world, *particle)});
                 cached = tiles.end() - 1;
             }
             const auto tile = cached->tile;

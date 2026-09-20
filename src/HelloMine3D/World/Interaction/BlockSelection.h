@@ -14,6 +14,7 @@ struct BlockSelection {
     glm::ivec3 placementPosition{0};
     glm::vec3 hitPoint{0.f};
     BlockId blockId = BlockId::Air;
+    BlockMetadata_t metadata = 0;
 };
 
 struct ActorSelection {

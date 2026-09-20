@@ -6,27 +6,31 @@
 #include "SandboxEventBus.h"
 
 struct BlockBreakEvent : public SandboxEvent {
-    BlockBreakEvent(const glm::ivec3 &blockPosition, BlockId brokenBlock)
+    BlockBreakEvent(const glm::ivec3 &blockPosition, BlockId brokenBlock, BlockMetadata_t data = 0)
         : SandboxEvent(SandboxEventType::BlockBreak)
         , position(blockPosition)
         , blockId(brokenBlock)
+        , metadata(data)
     {
     }
 
     glm::ivec3 position{0};
     BlockId blockId = BlockId::Air;
+    BlockMetadata_t metadata = 0;
 };
 
 struct BlockPlaceEvent : public SandboxEvent {
-    BlockPlaceEvent(const glm::ivec3 &blockPosition, BlockId placedBlock)
+    BlockPlaceEvent(const glm::ivec3 &blockPosition, BlockId placedBlock, BlockMetadata_t data = 0)
         : SandboxEvent(SandboxEventType::BlockPlace)
         , position(blockPosition)
         , blockId(placedBlock)
+        , metadata(data)
     {
     }
 
     glm::ivec3 position{0};
     BlockId blockId = BlockId::Air;
+    BlockMetadata_t metadata = 0;
 };
 
 struct BlockUseEvent : public SandboxEvent {

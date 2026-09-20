@@ -122,6 +122,12 @@ namespace
             case BlockId::Sand:
             case BlockId::CoalOre:
             case BlockId::IronOre:
+            case BlockId::Snow:
+            case BlockId::Gravel:
+            case BlockId::Clay:
+            case BlockId::ForestFloor:
+            case BlockId::MossStone:
+            case BlockId::Silt:
                 return true;
             default:
                 return false;
@@ -3608,7 +3614,7 @@ void World::setSpawnPoint()
         return false;
     };
 
-    const auto chunkContainsOak = [&](int chunkX, int chunkZ) {
+    const auto chunkContainsWood = [&](int chunkX, int chunkZ) {
         const Chunk &chunk = m_chunkManager.getChunk(chunkX, chunkZ);
         for (int x = 0; x < CHUNK_SIZE; ++x) {
             for (int z = 0; z < CHUNK_SIZE; ++z) {
@@ -3650,10 +3656,10 @@ void World::setSpawnPoint()
                 glm::vec3 candidate{0.f};
                 const bool safe =
                     findSafeColumn(chunkX, chunkZ, candidate);
-                const bool hasOak = safe && chunkContainsOak(chunkX, chunkZ);
-                if (safe && (!preferredOnly || hasOak)) {
+                const bool hasWood = safe && chunkContainsWood(chunkX, chunkZ);
+                if (safe && (!preferredOnly || hasWood)) {
                     selected = candidate;
-                    treeBacked = hasOak;
+                    treeBacked = hasWood;
                     found = true;
                     return;
                 }
@@ -3681,7 +3687,7 @@ void World::setSpawnPoint()
     searchPass(true);
     if (!found) {
         loadedCandidates = 0;
-        std::cout << "Spawn search did not find nearby oak; using bounded "
+        std::cout << "Spawn search did not find nearby wood; using bounded "
                      "safe-land fallback.\n";
         searchPass(false);
     }
@@ -3694,7 +3700,7 @@ void World::setSpawnPoint()
     m_chunkRuntime.preloadAroundLocked(m_playerSpawnPoint);
 
     std::cout << "Spawn found! Loaded candidates: " << loadedCandidates
-              << " Nearby oak: " << (treeBacked ? "yes" : "fallback")
+              << " Nearby wood: " << (treeBacked ? "yes" : "fallback")
               << " Time Taken: "
               << std::chrono::duration<double>(std::chrono::steady_clock::now() -
                                                start)
