@@ -4,8 +4,8 @@ namespace {
 void caseTerrainSurfaceTransitionsV15()
 {
     using Surface = TerrainFoundation::Surface;
-    check("E9/new-world-surface-version-and-stable-biomes",
-          SurfaceTransitionTerrainGenerationVersion == 15 && CurrentTerrainGenerationVersion == 15 &&
+    check("E9/legacy-surface-version-and-stable-biomes",
+          SurfaceTransitionTerrainGenerationVersion == 15 &&
           LandmarkArchitectureTerrainGenerationVersion == 14 && static_cast<int>(TerrainBiome::RockPlateau) == 7);
     setEnv("HELLOMINE3D_SEED", "42");
     setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
@@ -75,6 +75,7 @@ void caseTerrainSurfaceTransitionsV15()
           " structure="+std::to_string(excludedStructures)+" cave="+std::to_string(excludedCaves)+" ore="+std::to_string(oreColumns));
     check("E9/vegetation-remains-on-suitable-ground",supported);
     const auto directory=freshSaveDirectory("e9_default_new_world");bool persisted=false;std::uint64_t hash=0;
+    check("E9/initialize-frozen-v15-world", initializeTerrainIdentity(directory,"e9-v15",15,42));
     {
         Player player;World created(camera,config,player,directory,false,0);
         created.getChunkManager().loadChunk(4,30);
@@ -91,7 +92,7 @@ void caseTerrainSurfaceTransitionsV15()
             reopened.getBlock(64,height,480)==BlockId::OakPlank &&
             hash==TerrainSurvey::blockHash(reopened.getChunkManager().getChunk(4,30));
     }
-    check("E9/default-v15-surface-edit-save-reopen",persisted);
+    check("E9/frozen-v15-surface-edit-save-reopen",persisted);
     clearDeterministicEnv();setEnv("HELLOMINE3D_SEED", "");
 }
 }

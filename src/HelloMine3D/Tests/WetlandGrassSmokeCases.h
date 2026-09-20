@@ -4,19 +4,23 @@
 // high-air sections keep existing plants from obscuring topology assertions.
 void caseWetlandGrassPresentation()
 {
-    struct Site { int seed, x, z; };
-    for (const Site site : {Site{0,576,-1152}, Site{1,960,-96}, Site{42,288,-1248}})
+    struct Site { int seed, x, z, version; };
+    for (const Site site : {Site{0,576,-1152,15}, Site{1,960,-96,15}, Site{42,288,-1248,15},
+                           Site{0,1024,0,16}, Site{42,1664,-928,16}, Site{20260807,1888,-1376,16}})
     {
         setEnv("HELLOMINE3D_SEED", std::to_string(site.seed));
         setEnv("HELLOMINE3D_PLAYER_POSITION", std::to_string(site.x) + " 200 " + std::to_string(site.z));
         setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
         Config config = makeConfig(); Camera camera(config); Player player;
-        World world(camera, config, player, freshSaveDirectory("wetland_grass_mesh"), false, 0);
+        const auto directory=freshSaveDirectory("wetland_grass_mesh");
+        check("WETLAND_GRASS/fixed-generation-identity",
+              initializeTerrainIdentity(directory,"wetland-mesh",site.version,site.seed));
+        World world(camera, config, player, directory, false, 0);
         const glm::ivec3 position(site.x, 200, site.z);
         auto &chunks = world.getChunkManager();
         const auto biome = chunks.getTerrainGenerator().getBiomeAtWorld(site.x, site.z);
         check("WETLAND_GRASS/production-wetland-fixture", biome == TerrainBiome::Wetland,
-              "seed=" + std::to_string(site.seed));
+              "seed=" + std::to_string(site.seed) + " version=" + std::to_string(site.version));
         for (const bool mature : {false, true})
         {
             const ChunkBlock block(BlockId::TallGrass, mature ? BlockMetadata::TallGrass::Mature : BlockMetadata::TallGrass::Immature);

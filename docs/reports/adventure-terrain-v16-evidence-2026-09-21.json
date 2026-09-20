@@ -1,0 +1,215 @@
+{
+  "schema": 1,
+  "batch": "B1 terrain v16",
+  "starting_commit": "5d1945a",
+  "platform": "macOS / gmake / Apple clang / x86_64",
+  "baseline_production": {
+    "commit": "5d1945ae5f5b015ca7270e49739450190f03ff7a",
+    "binary_sha256": "ece35e6704d13dbf7b9616d2df9907090406744a73c38ea4101acb6d020e4d41",
+    "platform": "macOS gmake Apple clang x86_64 Release",
+    "versions": {
+      "1": {
+        "samples.csv": "7d8697ef110b6c7abebd134173772765d118af026cd22c2d6da712e36743da01",
+        "chunks.csv": "d1a625a6f6e1cf68461725ffbed0372a9d14c7d4e1b795990c4cc7fc66b29613",
+        "timings.csv": "e97702ebd01ca97c31033233ea920a0c03777021a5bada61e2049c9575f0020e"
+      },
+      "2": {
+        "samples.csv": "51814ab79fab30fa8b7cad0d7dfe5e48d2605cb2540227d5c37d50d63e31d555",
+        "chunks.csv": "e73a09376540cbca90c2311fbc7500ea86180f9afefbafce2fd904ac82026483",
+        "timings.csv": "1bd228bdefb5d2960092e1c55444cde08b1d6bd712dc471a6ba4bc5eb01ad1bf"
+      },
+      "3": {
+        "samples.csv": "0f08bd3c97b4aebe89138d90664f37ecff6feebfdb0114b32f7feca3c2893c3a",
+        "chunks.csv": "9da4c2ca353239056b19e94c7bdd90c1ef4e8bb62774248e44b9183a20f8d361",
+        "timings.csv": "54e699be70a491643eaa96d98d256e0ecb0a4965f47090b2ac9870798c6ce789"
+      },
+      "4": {
+        "samples.csv": "d403429111240351548d22d5256017b79c4f746a9d7db2427fefb7e42b70f1bf",
+        "chunks.csv": "e3b207721774c6798cb28e5821e13c6a7a5785e6a9d31c6b0d5227b0a49995b9",
+        "timings.csv": "45da50c2eda880cf2ff52c0f4eb5716df1e8e8fa60b146d61814d272cfb19653"
+      },
+      "5": {
+        "samples.csv": "3c90bb987b919e17110a6d33a9e084845682a7b136d7cc3a3a880ec6f78f16ba",
+        "chunks.csv": "abcf235f4685537ef455302844a7f0eed950ac5f74b3a4f4594b7317fd10494e",
+        "timings.csv": "28eb7d0b0b28b9e31b4cf102b7a1f6c3a567f1bae9bc126c32af05f2e1b99f8b"
+      },
+      "6": {
+        "samples.csv": "6780a068f773a7980b196d55c15543ea7808417c1a0cc2cd9d1e1f4dde407188",
+        "chunks.csv": "1f9a89741e8ee891dc55c3d1e632872a30774873c638478a0d1980b785e826e3",
+        "timings.csv": "080e18744052150eb80f7418c8be2de9b1c06ee7c918b5e2ff4597dd6b3ab118"
+      },
+      "7": {
+        "samples.csv": "8bc7ce43a5e01dedd1c4dfce7276329c1d777cd911ba328757a2b695cf77f323",
+        "chunks.csv": "2b210f3be8f41439128a536524138e0611b4e755d63185c1ffc542ac24ac786c",
+        "timings.csv": "b62909695705c89e9554fb263bb99d4e739c827674b9350039f63a32383ad576"
+      },
+      "8": {
+        "samples.csv": "71b46545c2aec8027279df9e615edbd403c73ceadd4e8488d919c99d4133b97a",
+        "chunks.csv": "69054fd975693228067efa4ce7994e43be427a0f9e6c987f20b57131a004d70d",
+        "timings.csv": "410aca167ee41608fc3e780f327b17d6cf91ff16088c35291f01f93961d661ee"
+      },
+      "9": {
+        "samples.csv": "1329b469658ca0fba8c4ce322cfb04f2d7e3126d8d0dbb39eb8e63cd67ba9e5e",
+        "chunks.csv": "eadd6a880c991b2e31c4d67faa8017c3d53c034391951824d37c67ea770ea939",
+        "timings.csv": "32e51d3c0de5ac33f682e7103e09fd7836275470f1e11734c612233a7acaa77f"
+      },
+      "10": {
+        "samples.csv": "cb6cce97393378764e28019bca016010685377d98ed40add69cf1cb07b5a071b",
+        "chunks.csv": "c030cd69bd0429be85d1836b82d69bf36bc343efc413503c19c481a9f61b3e05",
+        "timings.csv": "2407010ca1b363663adbfd83a458e78e4122adf8d3acffac8cef8043672d757b"
+      },
+      "11": {
+        "samples.csv": "c1ac15a447a11028b5bd41986ac9077deeed1fb739dd3c5c0a03e282c9ec4f41",
+        "chunks.csv": "2a943cdfe947b695e8207dc493b835c43fe1681b256a7330c9828e146db1ece4",
+        "timings.csv": "32452e880b64cdb13cfbf331c0472ff18633b8307c6c64577f531c74d46f9b04"
+      },
+      "12": {
+        "samples.csv": "71cbed0c608239c6f0a963dbfc93031a7a4069d8785223cea3ae175a93e8c603",
+        "chunks.csv": "88bfe05972dae737797a7e805f4a0661e8679726b664b6845fe69e60f36bd740",
+        "timings.csv": "388703d1093c53540ac0e96d306bdcd81786d3bd28073976ae678de07b189a1b"
+      },
+      "13": {
+        "samples.csv": "4dff99e291b2994aee3311fb0dfa3732e7109816c7773ae47a0685260d145544",
+        "chunks.csv": "79b44cdf19cd02600ba4cdcb0ad45be56b5fba19fb35116205c641d2c117a1f9",
+        "timings.csv": "60af3e3060253de94f7eda74bb6196630f810ea219582ba7a78dc5254475a87f"
+      },
+      "14": {
+        "samples.csv": "3d35b8c22c3625e422c28105f8a7708a125afd6f6f8186901c785b2e2cc43c54",
+        "chunks.csv": "57ed22e79cb88afe8d8dd13f72dd671c6c5d1fba3da3fa85407f1ee2953bf0be",
+        "timings.csv": "38c856e263c8f367dc78f62c1798c065b9c3e39122d2a1b83db5267ab7c91c23"
+      },
+      "15": {
+        "samples.csv": "9afe12221555368cad3facab3336d40c1b8648e3c5543ba17dedf2ba08817d52",
+        "chunks.csv": "f091fa6b489579c3c95994f4bf1daf56bf1c71fa60c38fba54dc153093dc249b",
+        "timings.csv": "b228a6ec00087e8b131e33c5c4c0e03ccfd9db0a90e7b942afa4ec24a05be710"
+      }
+    }
+  },
+  "legacy_compatibility": {
+    "result": "PASS",
+    "completed_versions": [
+      {
+        "version": 1,
+        "samples.csv": "7d8697ef110b6c7abebd134173772765d118af026cd22c2d6da712e36743da01",
+        "chunks.csv": "d1a625a6f6e1cf68461725ffbed0372a9d14c7d4e1b795990c4cc7fc66b29613"
+      },
+      {
+        "version": 2,
+        "samples.csv": "51814ab79fab30fa8b7cad0d7dfe5e48d2605cb2540227d5c37d50d63e31d555",
+        "chunks.csv": "e73a09376540cbca90c2311fbc7500ea86180f9afefbafce2fd904ac82026483"
+      },
+      {
+        "version": 3,
+        "samples.csv": "0f08bd3c97b4aebe89138d90664f37ecff6feebfdb0114b32f7feca3c2893c3a",
+        "chunks.csv": "9da4c2ca353239056b19e94c7bdd90c1ef4e8bb62774248e44b9183a20f8d361"
+      },
+      {
+        "version": 4,
+        "samples.csv": "d403429111240351548d22d5256017b79c4f746a9d7db2427fefb7e42b70f1bf",
+        "chunks.csv": "e3b207721774c6798cb28e5821e13c6a7a5785e6a9d31c6b0d5227b0a49995b9"
+      },
+      {
+        "version": 5,
+        "samples.csv": "3c90bb987b919e17110a6d33a9e084845682a7b136d7cc3a3a880ec6f78f16ba",
+        "chunks.csv": "abcf235f4685537ef455302844a7f0eed950ac5f74b3a4f4594b7317fd10494e"
+      },
+      {
+        "version": 6,
+        "samples.csv": "6780a068f773a7980b196d55c15543ea7808417c1a0cc2cd9d1e1f4dde407188",
+        "chunks.csv": "1f9a89741e8ee891dc55c3d1e632872a30774873c638478a0d1980b785e826e3"
+      },
+      {
+        "version": 7,
+        "samples.csv": "8bc7ce43a5e01dedd1c4dfce7276329c1d777cd911ba328757a2b695cf77f323",
+        "chunks.csv": "2b210f3be8f41439128a536524138e0611b4e755d63185c1ffc542ac24ac786c"
+      },
+      {
+        "version": 8,
+        "samples.csv": "71b46545c2aec8027279df9e615edbd403c73ceadd4e8488d919c99d4133b97a",
+        "chunks.csv": "69054fd975693228067efa4ce7994e43be427a0f9e6c987f20b57131a004d70d"
+      },
+      {
+        "version": 9,
+        "samples.csv": "1329b469658ca0fba8c4ce322cfb04f2d7e3126d8d0dbb39eb8e63cd67ba9e5e",
+        "chunks.csv": "eadd6a880c991b2e31c4d67faa8017c3d53c034391951824d37c67ea770ea939"
+      },
+      {
+        "version": 10,
+        "samples.csv": "cb6cce97393378764e28019bca016010685377d98ed40add69cf1cb07b5a071b",
+        "chunks.csv": "c030cd69bd0429be85d1836b82d69bf36bc343efc413503c19c481a9f61b3e05"
+      },
+      {
+        "version": 11,
+        "samples.csv": "c1ac15a447a11028b5bd41986ac9077deeed1fb739dd3c5c0a03e282c9ec4f41",
+        "chunks.csv": "2a943cdfe947b695e8207dc493b835c43fe1681b256a7330c9828e146db1ece4"
+      },
+      {
+        "version": 12,
+        "samples.csv": "71cbed0c608239c6f0a963dbfc93031a7a4069d8785223cea3ae175a93e8c603",
+        "chunks.csv": "88bfe05972dae737797a7e805f4a0661e8679726b664b6845fe69e60f36bd740"
+      },
+      {
+        "version": 13,
+        "samples.csv": "4dff99e291b2994aee3311fb0dfa3732e7109816c7773ae47a0685260d145544",
+        "chunks.csv": "79b44cdf19cd02600ba4cdcb0ad45be56b5fba19fb35116205c641d2c117a1f9"
+      },
+      {
+        "version": 14,
+        "samples.csv": "3d35b8c22c3625e422c28105f8a7708a125afd6f6f8186901c785b2e2cc43c54",
+        "chunks.csv": "57ed22e79cb88afe8d8dd13f72dd671c6c5d1fba3da3fa85407f1ee2953bf0be"
+      },
+      {
+        "version": 15,
+        "samples.csv": "9afe12221555368cad3facab3336d40c1b8648e3c5543ba17dedf2ba08817d52",
+        "chunks.csv": "f091fa6b489579c3c95994f4bf1daf56bf1c71fa60c38fba54dc153093dc249b"
+      }
+    ],
+    "baseline_binary": "ece35e6704d13dbf7b9616d2df9907090406744a73c38ea4101acb6d020e4d41",
+    "candidate_binary": "439f8a3e4dac2acf69e6a9e31062285d94ad58796a536a5cf12a476c5d763f6e"
+  },
+  "world_runtime": {
+    "Release": {
+      "checks": 1482,
+      "failures": 0,
+      "log": "build/adventure-terrain-20260921/world-release-r2.log"
+    },
+    "Debug": {
+      "checks": 1482,
+      "failures": 0,
+      "log": "build/adventure-terrain-20260921/world-debug-r1.log"
+    }
+  },
+  "planner": {
+    "Debug": {
+      "checks": 12,
+      "failures": 0
+    },
+    "Release": {
+      "checks": 12,
+      "failures": 0
+    },
+    "height_range": [
+      28,
+      162
+    ],
+    "sampled_max_step": 4,
+    "sampled_macro_gentle_fraction": 0.999632,
+    "minimum_regions_per_seed": 7
+  },
+  "headless_cost": {
+    "schema": 1,
+    "version": 16,
+    "files": {
+      "samples.csv": "eae56947dfad82d50d719d23d282a608d0fff62cd209bb086c1469e4829e3947",
+      "chunks.csv": "64dcc3ee68f5e2e7a1824600c2ccb550792251d7c8c57c512a9e9a4effcb7ff3",
+      "timings.csv": "3ef8b718608d65560884676c1cbaa5d608908cb3fd177eda2841a57cff618e67"
+    },
+    "scope": "single headless survey, not paired window performance",
+    "query_ms_median_v15": 317.73597900000004,
+    "query_ms_median_v16": 417.048854,
+    "four_chunk_generation_ms_median_v15": 12.901396,
+    "four_chunk_generation_ms_median_v16": 10.928125000000001
+  },
+  "client_binary_sha256": "c5b5fe5b78bdcf00c5c8f3e8a211ae049bb8159eefe7668341b8f69dab9a6ab6",
+  "scope": "Regional skeleton implemented; full hydrology, ecosystem art, paired window performance and normal exploration not accepted."
+}

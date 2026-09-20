@@ -1572,7 +1572,13 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 478 &&
+              registry.keys("en-US").size() == 481 &&
+              registry.lookup("en-US", "hud.minimap_east") == "E" &&
+              registry.lookup("zh-CN", "hud.minimap_east") == "东" &&
+              registry.lookup("en-US", "hud.minimap_south") == "S" &&
+              registry.lookup("zh-CN", "hud.minimap_south") == "南" &&
+              registry.lookup("en-US", "hud.minimap_west") == "W" &&
+              registry.lookup("zh-CN", "hud.minimap_west") == "西" &&
               registry.lookup("en-US", "inventory.storage") == "STORAGE" &&
               registry.lookup("zh-CN", "inventory.storage") == "储物空间" &&
               registry.lookup("en-US", "inventory.carried") == "YOUR PACK" &&
@@ -19869,6 +19875,7 @@ void caseWorldManager()
 #include "LandmarkSurvey.h"
 #include "LandmarkArchitectureSmokeCases.h"
 #include "TerrainSurfaceTransitionSmokeCases.h"
+#include "AdventureTerrainSmokeCases.h"
 
 int main()
 {
@@ -19910,6 +19917,9 @@ int main()
             check(landmarks ? "Landmark/survey-complete" : "T0/survey-complete",
                   count == (landmarks ? (std::stoi(version) == 2 ? 16u : 48u) : 463056u),
                   "samples=" + std::to_string(count));
+        }
+        else if (focus != nullptr && std::string(focus) == "ADVENTURE") {
+            caseAdventureTerrainV16();
         }
         else if (focus != nullptr && std::string(focus) == "E8") {
             caseLandmarkArchitectureV14();
@@ -20181,6 +20191,7 @@ int main()
         else {
         caseLandmarkArchitectureV14();
         caseTerrainSurfaceTransitionsV15();
+        caseAdventureTerrainV16();
         caseSurfaceMapObservations();
         caseWaterDepthPresentation();
         caseItemVisualPresentation();

@@ -28,6 +28,7 @@ AI 平台对应规则见 [当前验收规范](ai-assisted-gameplay-acceptance-v1
 | ---- | ------------ |
 | 所有 C++ 改动 | 受影响目标能够编译；运行对应定向自动测试。 |
 | 世界、区块、实体或持久化 | 定向自动测试 + `HelloMine3DWorldRuntimeSmoke`。 |
+| 冒险地图区域规划 | `bash scripts/verify_adventure_terrain.sh Debug` / `Release`；`HELLOMINE3D_WORLD_SMOKE_FOCUS=ADVENTURE` 生产区块、水柱、植被、正逆加载与默认版本保存重开；v1–v15 T0 生产摘要对照、完整世界回归、双配置客户端及适用视觉/性能。地区覆盖不代替实机效果，参见[区域骨架合同](../contracts/adventure-terrain-v16-contract-v1.md)。 |
 | 物品、容器、制作、工具或食物 | 状态守恒、容量边界、失败原子性、固定 tick 和保存/重载测试。 |
 | UI 或输入 | 动作仲裁、焦点隔离、映射/冲突、设置迁移自动测试；macOS Cocoa 改动在已构建对应配置后运行 `bash scripts/verify_cocoa_input.sh Debug` / `Release`（非可见自动回归）；适用时运行 `AI-01..AI-04`。OS 焦点、Alt+Tab、最小化和窗口关闭只能由 Computer Use 关闭功能范围。 |
 | 第一人称动作、命中/受击、粒子或镜头反馈 | 判定时刻与表现解耦测试、数量/持续时间上限、关闭回退、HUD/准星截图和 AI 多帧/视频观察；镜头效果必须可调或可关，人类舒适度不声明。 |

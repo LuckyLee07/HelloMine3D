@@ -1,0 +1,387 @@
+{
+  "schema": 1,
+  "terrain_version": 16,
+  "source_sha256": "b683259ea0b88c34875e0fb83c10c63df8fa992e6992fcdd77422230378d4428",
+  "selection": "largest core component, nearest sample to centroid, deterministic ties",
+  "scope": "planning sites fixed before visual capture; no visual or gameplay PASS",
+  "sites": [
+    {
+      "seed": 0,
+      "region": 0,
+      "x": -960,
+      "z": -832,
+      "height": 77,
+      "component_samples": 177,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 0,
+      "region": 1,
+      "x": -1568,
+      "z": -1728,
+      "height": 79,
+      "component_samples": 287,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 0,
+      "region": 2,
+      "x": -32,
+      "z": -992,
+      "height": 109,
+      "component_samples": 935,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 0,
+      "region": 3,
+      "x": 1792,
+      "z": -832,
+      "height": 78,
+      "component_samples": 403,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 0,
+      "region": 4,
+      "x": 1344,
+      "z": -1952,
+      "height": 75,
+      "component_samples": 81,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 0,
+      "region": 5,
+      "x": 1024,
+      "z": 0,
+      "height": 62,
+      "component_samples": 623,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 0,
+      "region": 6,
+      "x": 1600,
+      "z": 1184,
+      "height": 123,
+      "component_samples": 873,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 0,
+      "region": 7,
+      "x": -736,
+      "z": -1824,
+      "height": 65,
+      "component_samples": 34,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 0,
+      "region": 8,
+      "x": -704,
+      "z": 832,
+      "height": 37,
+      "component_samples": 6384,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 42,
+      "region": 0,
+      "x": 1024,
+      "z": 576,
+      "height": 77,
+      "component_samples": 291,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 42,
+      "region": 1,
+      "x": 96,
+      "z": -1152,
+      "height": 81,
+      "component_samples": 953,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 42,
+      "region": 2,
+      "x": 768,
+      "z": -32,
+      "height": 101,
+      "component_samples": 493,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 42,
+      "region": 3,
+      "x": 800,
+      "z": -992,
+      "height": 85,
+      "component_samples": 763,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 42,
+      "region": 4,
+      "x": 1376,
+      "z": -1664,
+      "height": 111,
+      "component_samples": 476,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 42,
+      "region": 5,
+      "x": 1664,
+      "z": -928,
+      "height": 62,
+      "component_samples": 707,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 42,
+      "region": 6,
+      "x": 1440,
+      "z": 32,
+      "height": 120,
+      "component_samples": 324,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 42,
+      "region": 7,
+      "x": -1728,
+      "z": -128,
+      "height": 64,
+      "component_samples": 31,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 42,
+      "region": 8,
+      "x": -704,
+      "z": 992,
+      "height": 38,
+      "component_samples": 3278,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 20260807,
+      "region": 0,
+      "x": -1312,
+      "z": -576,
+      "height": 77,
+      "component_samples": 1881,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 20260807,
+      "region": 1,
+      "x": 992,
+      "z": 32,
+      "height": 80,
+      "component_samples": 172,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 20260807,
+      "region": 2,
+      "x": -1440,
+      "z": -1536,
+      "height": 106,
+      "component_samples": 493,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 20260807,
+      "region": 3,
+      "x": -864,
+      "z": 704,
+      "height": 90,
+      "component_samples": 324,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 20260807,
+      "region": 4,
+      "x": -1504,
+      "z": 1824,
+      "height": 104,
+      "component_samples": 419,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 20260807,
+      "region": 5,
+      "x": 1888,
+      "z": -1376,
+      "height": 64,
+      "component_samples": 121,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 20260807,
+      "region": 6,
+      "x": -992,
+      "z": -1824,
+      "height": 150,
+      "component_samples": 275,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 20260807,
+      "region": 7,
+      "x": 672,
+      "z": -192,
+      "height": 68,
+      "component_samples": 20,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    },
+    {
+      "seed": 20260807,
+      "region": 8,
+      "x": 640,
+      "z": 128,
+      "height": 60,
+      "component_samples": 7376,
+      "camera_rotation": [
+        -8,
+        35,
+        0
+      ],
+      "world_time": 6000
+    }
+  ]
+}

@@ -3,6 +3,7 @@
 
 #include "TerrainGenerator.h"
 #include "TerrainFoundation.h"
+#include "AdventureTerrainPlanner.h"
 
 #include "../../../Util/Array2D.h"
 #include "../../../Util/Random.h"
@@ -109,6 +110,7 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
 
     NoiseGenerator m_biomeNoiseGen;
     TerrainFoundation m_foundation;
+    AdventureTerrainPlanner m_adventure;
     CaveGenerator m_caveGenerator;
 
     GrasslandBiome m_grassBiome;

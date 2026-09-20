@@ -123,6 +123,7 @@ ClassicOverWorldGenerator::ClassicOverWorldGenerator(
     , m_biomeNoiseGen(normalizeTerrainGenerationVersion(generationVersion) >=
                       FoundationTerrainGenerationVersion ? 0 : seed * 2)
     , m_foundation(seed)
+    , m_adventure(seed)
     , m_caveGenerator(seed,
                       normalizeTerrainGenerationVersion(generationVersion))
     , m_grassBiome(seed)
@@ -254,6 +255,9 @@ int ClassicOverWorldGenerator::getGenerationVersion() const noexcept
 TerrainFoundation::Column ClassicOverWorldGenerator::sampleFoundationForVersion(
     int worldX, int worldZ) const noexcept
 {
+    if (m_generationVersion >= AdventureRegionTerrainGenerationVersion) {
+        return m_adventure.sample(worldX, worldZ).column;
+    }
     if (m_generationVersion >= SurfaceTransitionTerrainGenerationVersion) {
         return m_foundation.sampleV15(worldX, worldZ);
     }

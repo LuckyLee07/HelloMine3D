@@ -83,6 +83,8 @@ def main():
     parser.add_argument("--position", help="Override diagnostic world spawn as 'x y z'")
     parser.add_argument("--rotation", help="Override diagnostic camera rotation as 'x y z'")
     parser.add_argument("--time", type=int, default=6000)
+    parser.add_argument("--seed", type=int, default=20260807)
+    parser.add_argument("--fov", type=int, default=90)
     parser.add_argument("--shadow", choices=("off", "medium", "high"), default="off")
     parser.add_argument("--post", choices=("off", "on"), default="off")
     parser.add_argument("--locale", choices=("en-US", "zh-CN"), default="zh-CN")
@@ -116,6 +118,10 @@ def main():
         parser.error("macOS required")
     if not 0 <= args.time < 24000:
         parser.error("--time must be in [0, 24000)")
+    if not -(2**31) <= args.seed < 2**31:
+        parser.error("--seed must fit a signed 32-bit integer")
+    if not 45 <= args.fov <= 120:
+        parser.error("--fov must be in [45, 120]")
     if not 640 <= args.width <= 3840 or not 480 <= args.height <= 2160:
         parser.error("Window size must be within 640..3840 by 480..2160")
     if args.scene == "menu" and (args.performance or args.hud_fixture or args.streaming or args.panel or args.actor_visual):
@@ -159,7 +165,7 @@ directionalshadowquality {args.shadow}
 postprocessingquality {args.post}
 fullscreen 0
 windowsize {args.width} {args.height}
-fov 90
+fov {args.fov}
 uiscale {args.ui_scale}
 locale {args.locale}
 audiocaptions 1
@@ -209,7 +215,7 @@ seed random
                 parser.error("position and rotation must each contain three numbers")
         environment.update({
             "HELLOMINE3D_SAVE_DIR": str(output / "save"),
-            "HELLOMINE3D_SEED": "20260807",
+            "HELLOMINE3D_SEED": str(args.seed),
             "HELLOMINE3D_PLAYER_POSITION": position,
             "HELLOMINE3D_PLAYER_ROTATION": rotation,
             "HELLOMINE3D_WORLD_TIME": str(args.time),
