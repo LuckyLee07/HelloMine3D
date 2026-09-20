@@ -338,3 +338,11 @@ E6 窗口阶段已用唯一工作 `.app` 的同一 PID `82431` 完成 28/28 个�
   流送各三对性能，P95/P99 中位数比不超过 1.10。记录网格、驻留和生成成本。
   诊断截图不等同正常移动，正常持续输入按用户决定暂缓。最新证据见
   [r31 记录](../reports/landmark-architecture-r31-2026-09-19.md)。
+
+### E9 岩台地表过渡 terrain v15
+
+- `bash scripts/verify_terrain_surface_transitions.sh Debug <新目录>` / Release：八 seed 的高度/生态不变、保护地表、连片性、signed 极值和原土带变化；旧 Foundation 实际负例与旧样本哈希对照。
+- `HELLOMINE3D_WORLD_SMOKE_FOCUS=E9`：48 处实际表层与公开规划一致、植被支持、四区块反序指纹和默认 v15 改块保存重开。保留显式 v13/v14 生命周期用例。
+- v1/v14 生产 T0 及 v2–v14 地标/区块与冻结基线逐字节一致；v14/v15 只忽略预期版本列比较高度/生态和地标规划。双配置完整 WorldRuntime、短 Q3，生成成本单独记录。
+- 三 seed 原图、实际草/沙/林地边缘、有效连续相机、夜间/兼容材质及受影响常驻/流送三轮帧耗；正常 v15 新建/保存重开。倍率/图形能力变化和穿入地形的诊断镜头不得计为同协议通过。
+- 本批真实进度与失败保留见[记录](../reports/terrain-surface-transitions-r32-2026-09-20.md)，不以 CPU 成本替代图形门槛。

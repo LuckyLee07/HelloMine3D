@@ -369,7 +369,9 @@ C3 为 copied topology observation 增至 79 项并同步更新 machine-checked 
   `LandmarkArchitecture::blockAt` 是有界、逐格唯一的蓝图；纯结构规划校验 footprint 与前向入口，
   查询 halo 最多 9 格（树木来源 6 格加树冠 3 格），不加载邻 Chunk。同一批计划供树木避让和
   地标投影使用，箱子仍走既有 block entity 初始化与保存路径。v1–v13 旧路径及存档身份保留，
-  已保存区块不重生成；
+  已保存区块不重生成。当前 v15 在同一地貌算式后加入有界干地岩台表层分支：
+  连续材料场控制坡积土、沙沟宽窄及边缘裸岩，保留高度/生态、湿地、近水和高山路径；
+  旧 `sampleV13` 不启用该分支。见[地表过渡合同](../contracts/surface-transitions-v15-contract-v1.md)；
   v5 基线见 [v5 合同](../contracts/terrain-foundation-v5-contract-v1.md)，当前 E2 门槛见
   [v8 合同](../contracts/ecology-surface-coast-v8-e2-contract-v1.md)，v9 首批范围见
   [E3 合同](../contracts/ecology-inland-meadow-v9-e3-contract-v1.md)，v10/v11 范围分别见

@@ -362,6 +362,18 @@ TerrainFoundation::Column TerrainFoundation::sampleV11(
 TerrainFoundation::Column TerrainFoundation::sampleV13(
     int worldX, int worldZ) const noexcept
 {
+    return sampleLandform(worldX, worldZ, false);
+}
+
+TerrainFoundation::Column TerrainFoundation::sampleV15(
+    int worldX, int worldZ) const noexcept
+{
+    return sampleLandform(worldX, worldZ, true);
+}
+
+TerrainFoundation::Column TerrainFoundation::sampleLandform(
+    int worldX, int worldZ, bool surfaceTransitions) const noexcept
+{
     Column column = sampleV11(worldX, worldZ);
     const double oldHeight = column.height;
     if (oldHeight < 59.0 || oldHeight >= 164.0) { return column; }
@@ -456,6 +468,34 @@ TerrainFoundation::Column TerrainFoundation::sampleV13(
             column.surface = column.biome == TerrainBiome::Desert ? Surface::Sand :
                 column.biome == TerrainBiome::Mountain && column.height >= 100
                     ? Surface::Stone : Surface::Grass;
+        }
+    }
+    if (surfaceTransitions && column.height > 65 && rock > .38 &&
+        column.biome != TerrainBiome::Wetland &&
+        !(column.biome == TerrainBiome::Mountain && column.height >= 100)) {
+        // Several-metre deposits break up contour-wide soil ribbons. The
+        // broad rock field also blends outcrops into the surrounding ground
+        // before/after the biome label switches, without changing elevation.
+        // All samples are continuous world-coordinate fields, not per-block
+        // random rolls or neighbour queries.
+        const double patch = .5 + .5 * noise(
+            x, z, 18.0, 0x81c2c92e47edaee6ull);
+        const double rockCover = smooth(.38, .72, rock);
+        const bool bareRock = patch < rockCover;
+        const Surface surround = dunes > .5 || column.biome == TerrainBiome::Desert
+            ? Surface::Sand : column.biome == TerrainBiome::Mountain
+                ? Surface::Stone : Surface::Grass;
+        column.surface = bareRock ? Surface::Stone : surround;
+        if (bareRock) {
+            const double sediment = noise(x, z, 24.0, 0xc6bc279692b5cc83ull) * .7 +
+                noise(x, z, 9.0, 0x9e6c63d0676a9a99ull) * .3;
+            const double soilBed = 1.0 - smooth(.025, .075, std::abs(fraction - .49));
+            if (valley < .008 + .030 * patch) {
+                column.surface = Surface::Sand;
+            }
+            else if (soilBed * smooth(-.50, .55, sediment) > .48) {
+                column.surface = Surface::Dirt;
+            }
         }
     }
     return column;

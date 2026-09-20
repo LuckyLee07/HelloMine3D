@@ -10,7 +10,7 @@ namespace {
 void caseLandmarkArchitectureV14()
 {
     check("E8/version-is-separate-from-save-format",
-          LandmarkArchitectureTerrainGenerationVersion == 14 && CurrentTerrainGenerationVersion == 14);
+          LandmarkArchitectureTerrainGenerationVersion == 14 && CurrentTerrainGenerationVersion >= 14);
     setEnv("HELLOMINE3D_SEED", "0");
     setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
     Config config = makeConfig(); Camera camera(config); Player player;
@@ -156,13 +156,14 @@ void caseLandmarkArchitectureV14()
               exercised && samples <= 24, "samples=" + std::to_string(samples));
     }
     const auto directory = freshSaveDirectory("e8_new_world_reopen");
-    bool persisted = false; std::uint64_t hash = 0;
+    bool persisted = initializeTerrainIdentity(directory, "e8-preserved-v14", 14, 0);
+    std::uint64_t hash = 0;
     {
         Player owner; World created(camera,config,owner,directory,false,0);
         auto &chunks = created.getChunkManager(); chunks.loadChunk(-1,-1);
         created.setBlock(-2,190,-2,BlockId::OakPlank);
         hash = TerrainSurvey::blockHash(chunks.getChunk(-1,-1));
-        persisted = chunks.getTerrainGenerationVersion() == 14 && created.save();
+        persisted = persisted && chunks.getTerrainGenerationVersion() == 14 && created.save();
     }
     {
         Player owner; World reopened(camera,config,owner,directory,false,0);
@@ -171,7 +172,7 @@ void caseLandmarkArchitectureV14()
             reopened.getBlock(-2,190,-2) == BlockId::OakPlank &&
             hash == TerrainSurvey::blockHash(reopened.getChunkManager().getChunk(-1,-1));
     }
-    check("E8/default-v14-save-edit-reopen",persisted);
+    check("E8/preserved-v14-save-edit-reopen",persisted);
     const auto chestDirectory = freshSaveDirectory("e8_loot_persistence");
     bool chestSaved = persistencePlan.valid && initializeTerrainIdentity(
         chestDirectory, "e8-loot-v14", 14, 0);

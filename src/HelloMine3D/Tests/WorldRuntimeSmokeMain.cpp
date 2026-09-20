@@ -19772,6 +19772,7 @@ void caseWorldManager()
 #include "WetlandGrassSmokeCases.h"
 #include "LandmarkSurvey.h"
 #include "LandmarkArchitectureSmokeCases.h"
+#include "TerrainSurfaceTransitionSmokeCases.h"
 
 int main()
 {
@@ -19816,6 +19817,9 @@ int main()
         }
         else if (focus != nullptr && std::string(focus) == "E8") {
             caseLandmarkArchitectureV14();
+        }
+        else if (focus != nullptr && std::string(focus) == "E9") {
+            caseTerrainSurfaceTransitionsV15();
         }
         else if (focus != nullptr && std::string(focus) == "E2-SCENES") {
             const char *output = std::getenv("HELLOMINE3D_TERRAIN_SURVEY_DIR");
@@ -20080,6 +20084,7 @@ int main()
         }
         else {
         caseLandmarkArchitectureV14();
+        caseTerrainSurfaceTransitionsV15();
         caseSurfaceMapObservations();
         caseWaterDepthPresentation();
         caseItemVisualPresentation();

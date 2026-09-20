@@ -30,11 +30,14 @@ class TerrainFoundation {
     Column sampleV10(int worldX, int worldZ) const noexcept;
     Column sampleV11(int worldX, int worldZ) const noexcept;
     Column sampleV13(int worldX, int worldZ) const noexcept;
+    Column sampleV15(int worldX, int worldZ) const noexcept;
 
     static int chunkSeed(int seed, int chunkX, int chunkZ,
                          std::uint64_t salt) noexcept;
 
   private:
+    Column sampleLandform(int worldX, int worldZ,
+                          bool surfaceTransitions) const noexcept;
     Column sampleBase(int worldX, int worldZ,
                       double *rawHeight,
                       bool heightOnly = false) const noexcept;

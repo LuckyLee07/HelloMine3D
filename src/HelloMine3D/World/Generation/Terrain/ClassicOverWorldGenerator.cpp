@@ -254,6 +254,9 @@ int ClassicOverWorldGenerator::getGenerationVersion() const noexcept
 TerrainFoundation::Column ClassicOverWorldGenerator::sampleFoundationForVersion(
     int worldX, int worldZ) const noexcept
 {
+    if (m_generationVersion >= SurfaceTransitionTerrainGenerationVersion) {
+        return m_foundation.sampleV15(worldX, worldZ);
+    }
     if (m_generationVersion >= LandformDiversityTerrainGenerationVersion) {
         return m_foundation.sampleV13(worldX, worldZ);
     }
