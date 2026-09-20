@@ -80,17 +80,17 @@ vec3 geologyPalette(vec3 colour, bool rock, vec3 face, float footprint)
     float broad = groundNoise(ground * 0.018 + vec2(6.7, -12.1));
     if (rock)
     {
-        float warp = 0.40 * sin(dot(ground, vec2(0.041, 0.028))) +
-                     0.25 * sin(dot(ground, vec2(-0.023, 0.053)));
-        float level = terrainWorldPosition.y * 0.235 + warp;
-        float bed = 0.5 + 0.5 * sin(level * 6.2831853 +
-                                    0.28 * sin(level * 2.71));
+        // Irregular broad mineral deposits replace the old four-metre
+        // sine bands. Actual voxel steps remain readable without a repeated
+        // painted stripe at every few elevation levels.
+        float bed = groundNoise(vec2(dot(ground, vec2(0.035, 0.015)),
+            terrainWorldPosition.y * 0.065 + broad * 1.6));
         float resolved = 1.0 - smoothstep(0.20, 0.65, footprint * 0.31);
-        float band = mix(0.5, smoothstep(0.18, 0.84, bed), resolved);
+        float band = mix(0.5, bed, resolved);
         float side = 1.0 - abs(face.y);
-        band = mix(0.5, band, 0.55 + side * 0.45);
-        vec3 mineral = mix(vec3(0.82, 0.87, 0.91),
-                           vec3(1.10, 1.00, 0.85), band);
+        band = mix(0.5, band, 0.35 + side * 0.65);
+        vec3 mineral = mix(vec3(0.94, 0.96, 0.98),
+                           vec3(1.04, 1.015, 0.97), band);
         float grey = dot(colour, vec3(0.2126, 0.7152, 0.0722));
         return mix(colour, vec3(grey), 0.22) * mineral * mix(0.89, 1.03, broad);
     }

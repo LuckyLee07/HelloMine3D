@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "source_parent": "32670c8",
+  "changes_world_generation": false,
+  "reused_release_sha256": "20afebd25ff906437bb3e28a217a800cf265248ca127d6e0c0167e1dc31e15c1",
+  "gpu_checks": 180,
+  "resource_checks": {
+    "Debug": 114,
+    "Release": 114
+  },
+  "paired_window_performance": "NOT_RUN",
+  "normal_input": false,
+  "evidence": [
+    {
+      "path": "build/adventure-terrain-20260921/geology-gpu-r1.log",
+      "sha256": "14a766fd0b037f31924cbcd34d7699ab9e08e416286a3e3d717be8b96c663536"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/geology-resource-release.log",
+      "sha256": "6b0b6408db2288bdb0715d0fcdfee46f607305436925d8d97fb339315fbf1f58"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/geology-resource-debug.log",
+      "sha256": "6b0b6408db2288bdb0715d0fcdfee46f607305436925d8d97fb339315fbf1f58"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/geology-visual-r1-canyon/capture.json",
+      "sha256": "907acfcc6bf349975a149aa7d819f576d90d786196e539ba8fec519d9e334e9f"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/ecology-snow-no-ao-r1/capture.json",
+      "sha256": "0ed806cc1ea602d9074d8c30e0a13873f014274ac42615b2628b92fa2b7d4f2f"
+    }
+  ]
+}

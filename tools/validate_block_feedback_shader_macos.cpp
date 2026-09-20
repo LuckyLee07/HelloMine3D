@@ -270,7 +270,7 @@ int main(int argc,char **argv)
 {
     try
     {
-        require(argc==3 || argc==4,"Usage: block-feedback-gpu <root> <new-output-directory> [baseline-root-for-geology]");
+        require(argc==3 || argc==4 || (argc==5 && std::string(argv[4])=="--irregular-geology"),"Usage: block-feedback-gpu <root> <new-output-directory> [baseline-root-for-geology] [--irregular-geology]");
         const std::filesystem::path root(argv[1]), output(argv[2]);
         require(!std::filesystem::exists(output),"Output must be new");
         std::filesystem::create_directories(output);
@@ -376,6 +376,35 @@ int main(int argc,char **argv)
             check(mode+"-waystone-inset-readable-at-night", brighterCore > 100 && retainedFrame > 100 && coreAlpha);
             check(mode+"-waystone-shadow-off-agrees", coreAfter == renderGround(shadow, 1.f, 0.f, 15, 0, .18f));
             png(output/(mode+"-waystone-night.png"), coreAfter);
+            if (argc == 5)
+            {
+                // The former test intentionally required strong periodic bands.
+                // This mode measures the user-requested quieter, irregular rock
+                // against that frozen shader while keeping all shared checks.
+                auto old=program(std::filesystem::path(argv[3]),"HelloMine3DTerrain.vert","HelloMine3DTerrain.frag",array);
+                const auto near=renderGeology(base,3,0,false,32);
+                const auto before=renderGeology(old,3,0,false,32);
+                const float oldGradient=pixelGradient(before),newGradient=pixelGradient(near);
+                check(mode+"-rock-reduces-repeated-band-contrast",newGradient<oldGradient*.45f && colourDifference(near,before)>1.f);
+                check(mode+"-rock-retains-broad-spatial-variation",newGradient>.001f);
+                check(mode+"-old-periodic-rock-negative-detected",oldGradient>.10f && oldGradient>newGradient*2.f);
+                check(mode+"-irregular-rock-shadow-agrees",near==renderGeology(shadow,3,0,false,32));
+                check(mode+"-irregular-rock-time-independent",near==renderGeology(base,3,0,false,32,-24,72,16,1,0,73));
+                check(mode+"-irregular-rock-origin-independent",near==renderGeology(base,3,0,false,32,-24,72,16,1,16));
+                check(mode+"-irregular-rock-disabled-unchanged",renderGeology(base,3,0,false,32,-24,72,16,0)==renderGeology(old,3,0,false,32,-24,72,16,0));
+                check(mode+"-irregular-rock-night-agrees",renderGeology(base,3,0,false,32,-24,72,16,1,0,1.23f,.18f)==renderGeology(shadow,3,0,false,32,-24,72,16,1,0,1.23f,.18f));
+                bool boundary=true;
+                for(float seam:{-16.f,0.f,16.f})boundary &= colourDifference(renderGeology(base,3,0,false,.25f,seam-.0001f),renderGeology(base,3,0,false,.25f,seam+.0001f))<.1f;
+                check(mode+"-irregular-rock-signed-seams-continuous",boundary);
+                const auto far=renderGeology(base,3,0,false,384);
+                check(mode+"-irregular-rock-far-gradient-bounded",pixelGradient(far)<.12f);
+                for(const auto tile:{std::pair<int,int>{7,0},{13,0},{14,0},{7,1},{2,1},{0,4},{4,0},{6,8},{7,8},{8,8},{9,8},{10,8},{11,8}})
+                    check(mode+"-irregular-rock-preserves-"+std::to_string(tile.first)+"-"+std::to_string(tile.second),
+                        renderGeology(base,tile.first,tile.second,false)==renderGeology(old,tile.first,tile.second,false));
+                std::cout << mode << " rock_old_gradient=" << oldGradient << " rock_new_gradient=" << newGradient << " far_gradient=" << pixelGradient(far) << '\n';
+                png(output/(mode+"-rock-periodic-before.png"),before);png(output/(mode+"-rock-irregular-after.png"),near);
+                glDeleteProgram(old);
+            }
             if (argc == 4)
             {
                 const std::filesystem::path baseline(argv[3]);
