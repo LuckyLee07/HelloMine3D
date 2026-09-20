@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cfloat>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -611,6 +612,17 @@ class OgreUserInterface::Impl
                 throw std::runtime_error("Menu background has no GL texture ID.");
             }
             menuTextureId = static_cast<ImTextureID>(menuGlId);
+            const auto loadHudTexture = [](const char* name, Ogre::TexturePtr& texture) {
+                texture = Ogre::TextureManager::getSingleton().load(name,
+                    Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+                    Ogre::TEX_TYPE_2D, 0);
+                unsigned int glId = 0;
+                texture->getCustomAttribute("GLID", &glId);
+                if (glId == 0) throw std::runtime_error("HUD art has no GL texture ID.");
+                return static_cast<ImTextureID>(glId);
+            };
+            hudPanelTextureId = loadHudTexture("SandboxPanel.png", hudPanelTexture);
+            hudGlyphTextureId = loadHudTexture("SandboxGlyphs.png", hudGlyphTexture);
         }
         catch (...)
         {
@@ -618,6 +630,8 @@ class OgreUserInterface::Impl
             ImGui::DestroyContext();
             atlasTexture.setNull();
             menuTexture.setNull();
+            hudPanelTexture.setNull();
+            hudGlyphTexture.setNull();
             throw;
         }
 
@@ -648,6 +662,9 @@ class OgreUserInterface::Impl
         atlasTexture.setNull();
         menuTextureId = ImTextureID_Invalid;
         menuTexture.setNull();
+        hudPanelTextureId = hudGlyphTextureId = ImTextureID_Invalid;
+        hudPanelTexture.setNull();
+        hudGlyphTexture.setNull();
         initialized = false;
     }
 
@@ -1469,12 +1486,12 @@ class OgreUserInterface::Impl
             !world->getObjectiveSnapshot().completedTitles.empty()
             ? 570.f : 470.f;
         const PresentationWindowLayout layout = fitPresentationWindow(
-            io.DisplaySize.x, io.DisplaySize.y, 460.f,
+            io.DisplaySize.x, io.DisplaySize.y - 64.f, 460.f,
             pauseHeight + 280.f *
                 std::max(0.0f, appliedSettings.uiScale - 1.0f),
             appliedSettings.uiScale);
         ImGui::SetNextWindowPos(
-            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
+            ImVec2(io.DisplaySize.x * 0.5f, (io.DisplaySize.y - 64.f) * 0.5f),
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
         ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height), ImGuiCond_Always);
         const std::string pauseTitle = label("pause.title", "##PauseMenu");
@@ -1631,10 +1648,10 @@ class OgreUserInterface::Impl
     {
         const ImGuiIO &io = ImGui::GetIO();
         ImGui::SetNextWindowPos(
-            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
+            ImVec2(io.DisplaySize.x * 0.5f, (io.DisplaySize.y - 64.f) * 0.5f),
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
         const PresentationWindowLayout layout = fitPresentationWindow(
-            io.DisplaySize.x, io.DisplaySize.y, 620.0f, 680.0f, appliedSettings.uiScale);
+            io.DisplaySize.x, io.DisplaySize.y - 64.f, 620.0f, 680.0f, appliedSettings.uiScale);
         ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height), ImGuiCond_Always);
         const std::string settingsTitle =
             label("settings.title", "##PausedSettings");
@@ -2133,7 +2150,7 @@ class OgreUserInterface::Impl
             intensity, miningProgress.active, contact);
         const float swing = pose.swing;
         const float hudRight = io.DisplaySize.x * .5f +
-            (280.f * appliedSettings.uiScale + 46.f) * .5f + 12.f;
+            (300.f * appliedSettings.uiScale) * .5f + 12.f;
         // Reserve the complete rotated silhouette and its contact travel in
         // the gutter. Large accessibility UI must not slice a block in half.
         const float size = std::min(std::clamp(io.DisplaySize.y * .24f, 100.f, 200.f),
@@ -2192,33 +2209,6 @@ class OgreUserInterface::Impl
         if (callbacks.DrawCallback_SetSamplerLinear)
             draw->AddCallback(callbacks.DrawCallback_SetSamplerLinear, nullptr);
         draw->PopClipRect();
-    }
-
-    void drawKeyHint(const std::string& hint)
-    {
-        const auto separator = hint.find("  ");
-        if (separator == std::string::npos) { ImGui::TextUnformatted(hint.c_str()); return; }
-        const std::string key = hint.substr(0, separator);
-        const std::string action = hint.substr(separator + 2);
-        const float scale = appliedSettings.uiScale;
-        const ImVec2 position = ImGui::GetCursorScreenPos();
-        const float keyHeight = ImGui::GetTextLineHeight() + 6.f * scale;
-        const float width = ImGui::CalcTextSize(key.c_str()).x + 12.f * scale;
-        const float wrapWidth = std::max(1.f,
-            ImGui::GetContentRegionAvail().x - width - 8.f * scale);
-        const float height = std::max(keyHeight,
-            ImGui::CalcTextSize(action.c_str(), nullptr, false, wrapWidth).y + 6.f * scale);
-        auto* draw = ImGui::GetWindowDrawList();
-        draw->AddRectFilled(position, ImVec2(position.x + width, position.y + keyHeight),
-                            IM_COL32(46, 61, 70, 255), 3.f);
-        draw->AddRect(position, ImVec2(position.x + width, position.y + keyHeight),
-                      IM_COL32(119, 139, 147, 170), 3.f);
-        draw->AddText(ImVec2(position.x + 6.f * scale, position.y + 3.f * scale),
-                       IM_COL32(238, 211, 161, 255), key.c_str());
-        draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(),
-            ImVec2(position.x + width + 8.f * scale, position.y + 3.f * scale),
-            IM_COL32(226, 233, 225, 255), action.c_str(), nullptr, wrapWidth);
-        ImGui::Dummy(ImVec2(0.f, height));
     }
 
     bool drawInventoryCard(Material::ID materialId, int amount, const std::string& id,
@@ -2393,17 +2383,106 @@ class OgreUserInterface::Impl
         if (callbacks.DrawCallback_SetSamplerLinear) draw->AddCallback(callbacks.DrawCallback_SetSamplerLinear, nullptr);
     }
 
+    void drawFieldKitPanel(ImDrawList* draw, ImVec2 lo, ImVec2 hi, float corner) const
+    {
+        GameInterfaceWidgets::texturedPanel(draw, hudPanelTextureId, lo, hi, corner);
+    }
+
+    void drawFieldKitWindow() const
+    {
+        const ImVec2 lo = ImGui::GetWindowPos();
+        const ImVec2 size = ImGui::GetWindowSize();
+        drawFieldKitPanel(ImGui::GetWindowDrawList(), lo,
+            ImVec2(lo.x + size.x, lo.y + size.y), 14.f * appliedSettings.uiScale);
+    }
+
+    void drawHudGlyph(ImDrawList* draw, int glyph, ImVec2 lo, float size,
+                      ImU32 tint = IM_COL32_WHITE) const
+    {
+        const auto& callbacks = ImGui::GetPlatformIO();
+        if (callbacks.DrawCallback_SetSamplerNearest) draw->AddCallback(callbacks.DrawCallback_SetSamplerNearest, nullptr);
+        draw->AddImage(ImTextureRef(hudGlyphTextureId), lo, ImVec2(lo.x + size, lo.y + size),
+            ImVec2(glyph * .5f, 0.f), ImVec2((glyph + 1) * .5f, 1.f), tint);
+        if (callbacks.DrawCallback_SetSamplerLinear) draw->AddCallback(callbacks.DrawCallback_SetSamplerLinear, nullptr);
+    }
+
+    std::string boundedHudText(std::string text, float fontSize, float width, int lines = 1) const
+    {
+        const auto fits = [&](const std::string& value) {
+            const ImVec2 measured = ImGui::GetFont()->CalcTextSizeA(fontSize, FLT_MAX,
+                lines == 1 ? 0.f : width, value.c_str());
+            return measured.x <= width && measured.y <= fontSize * lines + .5f;
+        };
+        if (fits(text)) return text;
+        while (!text.empty())
+        {
+            std::size_t last = text.size() - 1;
+            while (last > 0 && (static_cast<unsigned char>(text[last]) & 0xc0) == 0x80) --last;
+            text.erase(last);
+            if (fits(text + "…")) return text + "…";
+        }
+        return "";
+    }
+
+    float drawHudActionStrip(float bottom, Material::ID heldMaterial)
+    {
+        if (!appliedSettings.showActionHints || flow->state() != GameApplicationState::Playing) return bottom;
+        const auto& io = ImGui::GetIO();
+        const float scale = appliedSettings.uiScale;
+        const float fontSize = ImGui::GetFontSize() * .78f;
+        struct Hint { std::string key, action; };
+        std::vector<Hint> hints = {
+            {keyName(appliedSettings.inputBindings.get(GameplayAction::OpenCrafting)), tr("hint.crafting")},
+            {"Esc", tr("hint.pause")}};
+        const auto* tool = runtimeToolRegistry().find(heldMaterial);
+        if (runtimeFoodRegistry().find(heldMaterial) && worldStats.playerHealth < worldStats.playerMaxHealth)
+            hints.insert(hints.begin() + 1, {keyName(appliedSettings.inputBindings.get(GameplayAction::ConsumeFood)), tr("hint.eat")});
+        else if (tool && tool->miningClass == MiningClass::Weapon)
+            hints.insert(hints.begin() + 1, {mouseButtonName(appliedSettings.mouseBindings.get(GameplayWorldAction::Guard)), tr("action.guard")});
+        const auto textWidth = [&](const std::string& value) {
+            return ImGui::GetFont()->CalcTextSizeA(fontSize, FLT_MAX, 0.f, value.c_str()).x;
+        };
+        float totalWidth = 0.f;
+        for (const auto& hint : hints) totalWidth += textWidth(hint.key) + textWidth(hint.action) + 30.f * scale;
+        totalWidth -= 12.f * scale;
+        const float available = io.DisplaySize.x - 36.f;
+        const float fit = std::min(1.f, available / std::max(totalWidth, 1.f));
+        const float height = fontSize + 8.f * scale;
+        ImVec2 at((io.DisplaySize.x - totalWidth * fit) * .5f, bottom - height);
+        auto* draw = ImGui::GetForegroundDrawList();
+        for (const auto& hint : hints)
+        {
+            const float keyWidth = (textWidth(hint.key) + 10.f * scale) * fit;
+            const float actionWidth = textWidth(hint.action) * fit;
+            draw->AddRectFilled(ImVec2(at.x - 4.f, at.y - 2.f),
+                ImVec2(at.x + keyWidth + actionWidth + 10.f * scale, at.y + height + 2.f), IM_COL32(14, 24, 29, 210), 2.f);
+            draw->AddRectFilled(at, ImVec2(at.x + keyWidth, at.y + height), IM_COL32(37, 52, 57, 255), 2.f);
+            draw->AddRect(at, ImVec2(at.x + keyWidth, at.y + height), IM_COL32(94, 116, 120, 210), 2.f);
+            draw->AddText(ImGui::GetFont(), fontSize * fit, ImVec2(at.x + 5.f * scale * fit, at.y + 4.f * scale),
+                IM_COL32(228, 207, 168, 255), hint.key.c_str());
+            draw->AddText(ImGui::GetFont(), fontSize * fit, ImVec2(at.x + keyWidth + 6.f * scale, at.y + 4.f * scale),
+                IM_COL32(204, 217, 215, 255), hint.action.c_str());
+            at.x += (textWidth(hint.key) + textWidth(hint.action) + 30.f * scale) * fit;
+        }
+        return bottom - height - 10.f * scale;
+    }
+
     void drawHotbarSlot(const InventorySlotState &slot,
                         std::size_t index, bool selected)
     {
         const float scale = appliedSettings.uiScale;
-        const float slotSize = 56.f * scale;
+        const float slotSize = 52.f * scale;
         ImGui::PushID(static_cast<int>(index));
         ImGui::InvisibleButton("##hotbar_slot", ImVec2(slotSize, slotSize));
         const ImVec2 minimum = ImGui::GetItemRectMin();
         const ImVec2 maximum = ImGui::GetItemRectMax();
         ImDrawList *drawList = ImGui::GetWindowDrawList();
         GameInterfaceWidgets::slotFrame(drawList, minimum, maximum, selected, false, false, scale);
+        drawList->AddImage(ImTextureRef(hudPanelTextureId),
+            ImVec2(minimum.x + 3.f * scale, minimum.y + 3.f * scale),
+            ImVec2(maximum.x - 3.f * scale, maximum.y - 3.f * scale),
+            ImVec2(.2f, .2f), ImVec2(.8f, .8f),
+            selected ? IM_COL32(238, 215, 168, 180) : IM_COL32(160, 181, 182, 175));
 
         const std::string key = std::to_string(index + 1);
         drawList->AddText(ImVec2(minimum.x + 5.f * scale, minimum.y + 2.f * scale),
@@ -2554,16 +2633,31 @@ class OgreUserInterface::Impl
     void drawMinimap(const PlayerSaveState& state, const ImGuiIO& io)
     {
         refreshMinimap(state);
-        minimapOverlayBottom = 18.f;
+        minimapOverlayWidth = 0.f;
         if (!minimapValid || camera == nullptr)
         {
             return;
         }
 
-        const float mapDiameter = std::min(
-            std::clamp(146.f * appliedSettings.uiScale, 118.f, 174.f),
-            std::max(88.f, io.DisplaySize.y * 0.26f));
-        const ImVec2 windowSize(mapDiameter, mapDiameter + 46.f * appliedSettings.uiScale);
+        const float scale = appliedSettings.uiScale;
+        const float mapDiameter = std::min(148.f * scale, io.DisplaySize.y * .25f);
+        const char* regionKey = minimapBiome == TerrainBiome::Desert ? "hud.region_desert" :
+            minimapBiome == TerrainBiome::Wetland ? "hud.region_wetland" :
+            minimapBiome == TerrainBiome::RockPlateau ? "hud.region_plateau" :
+            minimapBiome == TerrainBiome::Ocean ? "hud.region_ocean" :
+            minimapBiome == TerrainBiome::Mountain ? "hud.region_mountain" :
+            minimapBiome == TerrainBiome::TemperateForest ? "hud.region_forest" :
+            minimapBiome == TerrainBiome::LightForest ? "hud.region_woodland" : "hud.region_meadow";
+        const float labelFont = ImGui::GetFontSize() * .85f;
+        const std::string region = tr(regionKey);
+        const float regionWidth = ImGui::GetFont()->CalcTextSizeA(labelFont, FLT_MAX, 0.f, region.c_str()).x;
+        // Reserve the cardinal badges outside the terrain disc, including at
+        // the smallest window size and largest text setting.
+        const float bezelDiameter = mapDiameter + 24.f * scale;
+        const float bezelInset = (bezelDiameter - mapDiameter) * .5f;
+        const float windowWidth = std::max(bezelDiameter, regionWidth + 20.f * scale);
+        const ImVec2 windowSize(windowWidth, bezelDiameter + 49.f * scale);
+        minimapOverlayWidth = windowWidth;
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x - 18.f, 18.f), ImGuiCond_Always,
             ImVec2(1.f, 0.f));
@@ -2581,7 +2675,8 @@ class OgreUserInterface::Impl
         if (ImGui::Begin("##Minimap", nullptr, flags))
         {
             ImDrawList* draw = ImGui::GetWindowDrawList();
-            const ImVec2 mapMin = ImGui::GetCursorScreenPos();
+            const ImVec2 origin = ImGui::GetCursorScreenPos();
+            const ImVec2 mapMin(origin.x + (windowWidth - mapDiameter) * .5f, origin.y + bezelInset);
             const ImVec2 mapCenter(mapMin.x + mapDiameter * 0.5f,
                                    mapMin.y + mapDiameter * 0.5f);
             const float radius = mapDiameter * 0.5f - 4.f;
@@ -2645,17 +2740,32 @@ class OgreUserInterface::Impl
                                   IM_COL32(236, 238, 220, 34), 1.f);
                 }
             }
-            draw->AddCircle(mapCenter, radius,
-                            IM_COL32(221, 204, 151, 230),
-                            MinimapClipSegments, 2.f);
-            const std::string north = tr("hud.minimap_north", "N");
-            const ImVec2 northSize = ImGui::CalcTextSize(north.c_str());
-            draw->AddCircleFilled(
-                ImVec2(mapCenter.x, mapMin.y + 11.f), 9.f,
-                IM_COL32(25, 39, 32, 235), 24);
-            draw->AddText(ImVec2(mapCenter.x - northSize.x * 0.5f,
-                                 mapMin.y + 11.f - northSize.y * 0.5f),
-                          IM_COL32(244, 219, 151, 255), north.c_str());
+            draw->AddCircle(mapCenter, radius + 1.f, IM_COL32(24, 38, 40, 235), MinimapClipSegments, 5.f);
+            draw->AddCircle(mapCenter, radius, IM_COL32(134, 155, 144, 245), MinimapClipSegments, 2.f);
+            const char* cardinalKeys[] = {"hud.minimap_east", "hud.minimap_south",
+                                          "hud.minimap_west", "hud.minimap_north"};
+            const char* cardinalFallbacks[] = {"E", "S", "W", "N"};
+            const float cardinalFont = ImGui::GetFontSize() * .78f;
+            for (int direction = 0; direction < 4; ++direction)
+            {
+                const float angle = direction * glm::pi<float>() * .5f;
+                const ImVec2 axis(std::cos(angle), std::sin(angle));
+                draw->AddLine(ImVec2(mapCenter.x + axis.x * (radius - 11.f * scale), mapCenter.y + axis.y * (radius - 11.f * scale)),
+                    ImVec2(mapCenter.x + axis.x * (radius + 3.f * scale), mapCenter.y + axis.y * (radius + 3.f * scale)),
+                    IM_COL32(216, 224, 202, 245), 2.f);
+                const std::string label = tr(cardinalKeys[direction], cardinalFallbacks[direction]);
+                const ImVec2 textSize = ImGui::GetFont()->CalcTextSizeA(cardinalFont, FLT_MAX, 0.f, label.c_str());
+                const ImVec2 badgeCenter(mapCenter.x + axis.x * (radius + 4.f * scale),
+                    mapCenter.y + axis.y * (radius + 4.f * scale));
+                const float halfBadge = 9.f * scale;
+                const ImVec2 badgeMin(badgeCenter.x - halfBadge, badgeCenter.y - halfBadge);
+                const ImVec2 badgeMax(badgeCenter.x + halfBadge, badgeCenter.y + halfBadge);
+                draw->AddRectFilled(badgeMin, badgeMax, IM_COL32(32, 51, 57, 238), 2.f * scale);
+                draw->AddRect(badgeMin, badgeMax, IM_COL32(94, 120, 121, 160), 2.f * scale);
+                draw->AddText(ImGui::GetFont(), cardinalFont,
+                    ImVec2(badgeCenter.x - textSize.x * .5f, badgeCenter.y - textSize.y * .5f),
+                    IM_COL32(237, 239, 222, 255), label.c_str());
+            }
 
             const float playerDx =
                 (state.position.x - static_cast<float>(minimapCenterX)) /
@@ -2723,34 +2833,37 @@ class OgreUserInterface::Impl
             draw->AddTriangleFilled(tip, left, right,
                                     IM_COL32(255, 224, 133, 255));
 
-            draw->AddCircle(mapCenter, radius + 2.f, IM_COL32(19, 26, 34, 240),
-                            MinimapClipSegments, 3.f);
-            const float scaleLength = mapDiameter * 16.f / MinimapCellCount;
-            const std::string scaleLabel = std::to_string(16 * minimapStep) + " m";
-            const ImVec2 scaleStart(mapMin.x + 8.f, mapMin.y + mapDiameter + 8.f);
-            draw->AddLine(scaleStart, ImVec2(scaleStart.x + scaleLength, scaleStart.y),
-                          IM_COL32(243, 232, 201, 255), 2.f);
-            draw->AddText(ImVec2(scaleStart.x + scaleLength + 6.f,
-                                scaleStart.y - ImGui::GetFontSize() * 0.5f),
-                          IM_COL32(243, 232, 201, 255), scaleLabel.c_str());
-            const char* regionKey = minimapBiome == TerrainBiome::Desert ? "hud.region_desert" :
-                minimapBiome == TerrainBiome::Wetland ? "hud.region_wetland" :
-                minimapBiome == TerrainBiome::RockPlateau ? "hud.region_plateau" :
-                minimapBiome == TerrainBiome::Ocean ? "hud.region_ocean" :
-                minimapBiome == TerrainBiome::Mountain ? "hud.region_mountain" :
-                minimapBiome == TerrainBiome::TemperateForest ? "hud.region_forest" :
-                minimapBiome == TerrainBiome::LightForest ? "hud.region_woodland" : "hud.region_meadow";
-            const std::string region = tr(regionKey);
-            const float regionWidth = ImGui::CalcTextSize(region.c_str()).x;
-            const ImVec2 labelStart(mapCenter.x - regionWidth * .5f,
-                mapMin.y + mapDiameter + 22.f * appliedSettings.uiScale);
-            draw->AddRectFilled(ImVec2(labelStart.x - 5.f, labelStart.y - 2.f),
-                ImVec2(labelStart.x + regionWidth + 5.f, labelStart.y + ImGui::GetFontSize() + 2.f),
-                IM_COL32(19, 29, 37, 232), 3.f);
-            draw->AddText(labelStart, IM_COL32(220, 232, 223, 255), region.c_str());
-            minimapOverlayBottom =
-                ImGui::GetWindowPos().y + ImGui::GetWindowSize().y;
+            // The open label stack follows the compass concept. A restrained
+            // light keyline keeps its dark lettering readable over night scenes.
+            const ImVec2 plaqueMin(origin.x, origin.y + bezelDiameter);
+            const auto navigationText = [&](float font, ImVec2 at, ImU32 colour, const char* text) {
+                for (const ImVec2 offset : {ImVec2(-1.f, 0.f), ImVec2(1.f, 0.f), ImVec2(0.f, -1.f), ImVec2(0.f, 1.f)})
+                    draw->AddText(ImGui::GetFont(), font, ImVec2(at.x + offset.x * .75f, at.y + offset.y * .75f), IM_COL32(211, 224, 211, 185), text);
+                draw->AddText(ImGui::GetFont(), font, at, colour, text);
+            };
+            navigationText(labelFont, ImVec2(mapCenter.x - regionWidth * .5f, plaqueMin.y + 5.f * scale),
+                IM_COL32(20, 42, 47, 255), region.c_str());
+            // End-to-end distance includes the centered label gap. Use half
+            // the sampled width so both arms remain visible at large UI scales.
+            const float scaleLength = mapDiameter * 32.f / MinimapCellCount;
+            const std::string scaleLabel = std::to_string(32 * minimapStep) + " m";
+            const float smallFont = ImGui::GetFontSize() * .65f;
+            const float textWidth = ImGui::GetFont()->CalcTextSizeA(smallFont, FLT_MAX, 0.f, scaleLabel.c_str()).x;
+            const ImVec2 scaleStart(mapCenter.x - scaleLength * .5f,
+                plaqueMin.y + 30.f * scale);
+            const float labelGap = textWidth * .5f + 5.f * scale;
+            const auto scaleLine = [&](ImVec2 from, ImVec2 to) {
+                draw->AddLine(from, to, IM_COL32(211, 224, 211, 185), 3.f);
+                draw->AddLine(from, to, IM_COL32(20, 42, 47, 255), 1.5f);
+            };
+            scaleLine(scaleStart, ImVec2(mapCenter.x - labelGap, scaleStart.y));
+            scaleLine(ImVec2(mapCenter.x + labelGap, scaleStart.y), ImVec2(scaleStart.x + scaleLength, scaleStart.y));
+            for (const float x : {scaleStart.x, scaleStart.x + scaleLength})
+                scaleLine(ImVec2(x, scaleStart.y - 3.f * scale), ImVec2(x, scaleStart.y + 3.f * scale));
+            navigationText(smallFont, ImVec2(mapCenter.x - textWidth * .5f,
+                scaleStart.y - smallFont * .5f), IM_COL32(20, 42, 47, 255), scaleLabel.c_str());
         }
+        hudNoticeRightTop = ImGui::GetWindowPos().y + ImGui::GetWindowSize().y + 10.f;
         ImGui::End();
         ImGui::PopStyleVar();
     }
@@ -2774,6 +2887,8 @@ class OgreUserInterface::Impl
             return;
         }
         const PlayerSaveState state = player->getSaveState();
+        hudNoticeLeftTop = 18.f;
+        hudNoticeRightTop = 18.f;
         drawMinimap(state, io);
         const bool hasHeldStack = state.heldItem >= 0 &&
             state.heldItem < static_cast<int>(state.inventory.size()) &&
@@ -2990,17 +3105,21 @@ class OgreUserInterface::Impl
                         GameplayFeedbackIntensity::Reduced
                     ? 0.35f
                     : 0.65f;
-            const float pulse = 0.75f +
-                std::sin(hudElapsedSeconds * 5.f) * 0.25f;
+            const float visibility = 0.65f;
             const ImU32 warning = IM_COL32(
                 220, 35, 28,
-                static_cast<int>(255.f * intensity * pulse));
+                static_cast<int>(255.f * intensity * visibility));
             ImDrawList *foreground = ImGui::GetForegroundDrawList();
-            foreground->AddRect(
-                ImVec2(3.f, 3.f),
-                ImVec2(io.DisplaySize.x - 3.f,
-                       io.DisplaySize.y - 3.f),
-                warning, 0.f, 0, 5.f);
+            for (const float x : {4.f, io.DisplaySize.x - 4.f})
+            {
+                const float dx = x < io.DisplaySize.x * .5f ? 22.f : -22.f;
+                for (const float y : {4.f, io.DisplaySize.y - 4.f})
+                {
+                    const float dy = y < io.DisplaySize.y * .5f ? 22.f : -22.f;
+                    foreground->AddLine(ImVec2(x, y), ImVec2(x + dx, y), warning, 3.f);
+                    foreground->AddLine(ImVec2(x, y), ImVec2(x, y + dy), warning, 3.f);
+                }
+            }
         }
 
         if (miningProgress.active &&
@@ -3032,22 +3151,29 @@ class OgreUserInterface::Impl
                 displayedObjectiveId = objective.currentId;
                 objectiveHintSeconds = 12.f;
             }
-            const float objectiveWidth = std::min(
-                310.f * appliedSettings.uiScale, io.DisplaySize.x - 36.f);
+            const float objectiveWidth = std::min({320.f * appliedSettings.uiScale,
+                io.DisplaySize.x * .52f, io.DisplaySize.x - minimapOverlayWidth - 54.f});
             ImGui::SetNextWindowPos(ImVec2(18.0f,
                                           performanceOverlayBottom + 10.f),
                                     ImGuiCond_Always);
             ImGui::SetNextWindowSize(ImVec2(objectiveWidth, 0.f), ImGuiCond_Always);
-            ImGui::SetNextWindowBgAlpha(0.93f);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.f * appliedSettings.uiScale, 12.f * appliedSettings.uiScale));
             if (ImGui::Begin(
                     "##Objectives", nullptr,
-                    ImGuiWindowFlags_NoDecoration |
+                    ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground |
                         ImGuiWindowFlags_AlwaysAutoResize |
                         ImGuiWindowFlags_NoSavedSettings |
                         ImGuiWindowFlags_NoInputs |
                         ImGuiWindowFlags_NoFocusOnAppearing |
                         ImGuiWindowFlags_NoNav))
             {
+                drawFieldKitWindow();
+                const ImVec2 header = ImGui::GetCursorScreenPos();
+                const float badge = 42.f * appliedSettings.uiScale;
+                drawHudGlyph(ImGui::GetWindowDrawList(), 0,
+                    ImVec2(header.x - 3.f * appliedSettings.uiScale, header.y - 2.f * appliedSettings.uiScale), badge);
+                ImGui::Indent(badge);
+                ImGui::SetWindowFontScale(.75f);
                 ImGui::TextColored(WarmMuted, "%s  %zu / %zu", tr("hud.journey").c_str(),
                                     objective.completedObjectives,
                                     objective.totalObjectives);
@@ -3061,11 +3187,12 @@ class OgreUserInterface::Impl
                         : objectiveText(objective.currentId, "instruction",
                                         objective.instruction);
                 ImGui::Spacing();
-                ImGui::SetWindowFontScale(1.2f);
+                ImGui::SetWindowFontScale(1.05f);
                 ImGui::PushStyleColor(ImGuiCol_Text, WarmAccent);
                 ImGui::TextWrapped("%s", currentTitle.c_str());
                 ImGui::PopStyleColor();
-                ImGui::SetWindowFontScale(1.f);
+                ImGui::Unindent(badge);
+                ImGui::SetWindowFontScale(.85f);
                 ImGui::Spacing();
                 if (appliedSettings.showActionHints &&
                     (objectiveHintSeconds > 0.f || showDebugPanel))
@@ -3076,6 +3203,7 @@ class OgreUserInterface::Impl
                 {
                     ImGui::TextDisabled("%s", tr("hud.journey_details").c_str());
                 }
+                ImGui::SetWindowFontScale(.8f);
                 if (objective.required > 1)
                 {
                     const float ratio = std::clamp(
@@ -3137,8 +3265,9 @@ class OgreUserInterface::Impl
                     const std::string feedback = objectiveText(
                         objective.completionFeedbackId, "feedback",
                         objective.completionFeedback);
-                    ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.45f, 1.0f),
-                                       "%s", feedback.c_str());
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(.53f, .8f, .68f, 1.f));
+                    ImGui::TextWrapped("%s", feedback.c_str());
+                    ImGui::PopStyleColor();
                 }
                 const ExplorationRewardSnapshot explorationReward =
                     world->getExplorationRewardSnapshot();
@@ -3152,7 +3281,7 @@ class OgreUserInterface::Impl
                             explorationReward.homeDirection == "HERE"
                                 ? tr("hud.compass_here")
                                 : explorationReward.homeDirection;
-                        ImGui::Text("%s: %s  %.0f m",
+                        ImGui::TextWrapped("%s: %s  %.0f m",
                                     tr("hud.compass_home").c_str(),
                                     direction.c_str(),
                                     explorationReward.homeDistance);
@@ -3188,16 +3317,11 @@ class OgreUserInterface::Impl
                                        replayInstruction.c_str());
                 }
             }
+            hudNoticeLeftTop = ImGui::GetWindowPos().y + ImGui::GetWindowSize().y + 10.f;
             ImGui::End();
+            ImGui::PopStyleVar();
         }
 
-        const ImGuiWindowFlags overlayFlags =
-            ImGuiWindowFlags_NoDecoration |
-            ImGuiWindowFlags_AlwaysAutoResize |
-            ImGuiWindowFlags_NoSavedSettings |
-            ImGuiWindowFlags_NoInputs |
-            ImGuiWindowFlags_NoFocusOnAppearing |
-            ImGuiWindowFlags_NoNav;
         if (worldStats.combatFeedback.kind !=
                 PlayerCombatFeedbackKind::None &&
             worldStats.combatFeedback.ticksRemaining > 0)
@@ -3257,212 +3381,91 @@ class OgreUserInterface::Impl
             ImGui::GetForegroundDrawList()->AddTriangleFilled(
                 tip, left, right, colour);
         }
-        if (appliedSettings.showActionHints &&
-            flow->state() == GameApplicationState::Playing &&
-            !player->hasOpenContainer() && !player->hasOpenCrafting())
-        {
-            const std::string craftingHint =
-                keyName(appliedSettings.inputBindings.get(
-                    GameplayAction::OpenCrafting)) + "  " +
-                tr("hint.crafting");
-            const std::string pauseHint = "Esc  " + tr("hint.pause");
-            const bool showEatHint =
-                runtimeFoodRegistry().find(heldMaterial) != nullptr &&
-                worldStats.playerHealth < worldStats.playerMaxHealth;
-            const std::string eatHint = showEatHint
-                ? keyName(appliedSettings.inputBindings.get(
-                      GameplayAction::ConsumeFood)) + "  " + tr("hint.eat")
-                : "";
-            const ToolDefinition* heldTool =
-                runtimeToolRegistry().find(heldMaterial);
-            const bool showGuardHint = heldTool != nullptr &&
-                heldTool->miningClass == MiningClass::Weapon;
-            const float hintSpace = io.DisplaySize.y - 180.f * appliedSettings.uiScale -
-                (minimapOverlayBottom + 10.f);
-            const bool compactHints = hintSpace < 170.f * appliedSettings.uiScale;
-            const std::string guardHint = showGuardHint
-                ? mouseButtonName(appliedSettings.mouseBindings.get(
-                      GameplayWorldAction::Guard)) + "  " +
-                    tr(compactHints ? "action.guard" : "hint.guard")
-                : "";
-            // Include the keycap, key/action gap and panel insets in addition
-            // to the label text, so short actions do not wrap mid-word.
-            const float hintPadding = 20.f * appliedSettings.uiScale +
-                2.f * ImGui::GetStyle().WindowPadding.x;
-            const float desiredWidth = std::max({
-                146.f * appliedSettings.uiScale,
-                ImGui::CalcTextSize(craftingHint.c_str()).x + hintPadding,
-                ImGui::CalcTextSize(pauseHint.c_str()).x + hintPadding,
-                ImGui::CalcTextSize(eatHint.c_str()).x + hintPadding,
-                ImGui::CalcTextSize(guardHint.c_str()).x + hintPadding});
-            const float hintWidth = std::min(
-                desiredWidth,
-                std::min(260.f * appliedSettings.uiScale,
-                         io.DisplaySize.x * 0.38f));
-            ImGui::SetNextWindowPos(
-                ImVec2(io.DisplaySize.x - 18.0f,
-                       minimapOverlayBottom + 10.f),
-                ImGuiCond_Always, ImVec2(1.0f, 0.0f));
-            ImGui::SetNextWindowBgAlpha(0.90f);
-            ImGui::SetNextWindowSize(ImVec2(hintWidth, 0.f),
-                                     ImGuiCond_Always);
-            if (ImGui::Begin("##ActionHints", nullptr, overlayFlags))
-            {
-                drawKeyHint(craftingHint);
-                if (showEatHint)
-                    drawKeyHint(eatHint);
-                if (showGuardHint)
-                    drawKeyHint(guardHint);
-                drawKeyHint(pauseHint);
-            }
-            ImGui::End();
-        }
         drawHeldMaterial(state, io);
-        ImGui::SetNextWindowPos(
-            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y - 18.0f),
-            ImGuiCond_Always, ImVec2(0.5f, 1.0f));
-        ImGui::SetNextWindowBgAlpha(0.f);
-        const ImGuiWindowFlags flags =
-            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground |
-            ImGuiWindowFlags_AlwaysAutoResize |
-            ImGuiWindowFlags_NoSavedSettings |
-            ImGuiWindowFlags_NoInputs |
-            ImGuiWindowFlags_NoFocusOnAppearing |
-            ImGuiWindowFlags_NoNav;
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(7.0f, 7.0f));
-        float notificationBottom = io.DisplaySize.y - 180.0f * appliedSettings.uiScale;
-        ImGui::SetNextWindowSize(ImVec2(5.0f * 56.0f * appliedSettings.uiScale +
-            4.0f * ImGui::GetStyle().ItemSpacing.x + 14.0f, 0.0f));
+        const float scale = appliedSettings.uiScale;
+        const float dockWidth = 300.f * scale;
+        const float dockHeight = 114.f * scale;
+        const ImVec2 dockMin((io.DisplaySize.x - dockWidth) * .5f, io.DisplaySize.y - 16.f - dockHeight);
+        ImGui::SetNextWindowPos(dockMin, ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(dockWidth, dockHeight), ImGuiCond_Always);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.f * scale, 8.f * scale));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(6.f * scale, 4.f * scale));
+        const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground |
+            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
         if (ImGui::Begin("##OgrePlayerHud", nullptr, flags))
         {
-            const float healthRatio =
-                worldStats.playerMaxHealth > 0.f
-                    ? std::clamp(worldStats.playerHealth /
-                                     worldStats.playerMaxHealth,
-                                 0.f, 1.f)
-                    : 0.f;
-            const float scale = appliedSettings.uiScale;
-            ImDrawList* hudDraw = ImGui::GetWindowDrawList();
-            const ImVec2 healthMin = ImGui::GetCursorScreenPos();
-            const float healthWidth = ImGui::GetContentRegionAvail().x;
-            hudDraw->AddRectFilled(ImVec2(healthMin.x - 1.f, healthMin.y - 4.f),
-                ImVec2(healthMin.x + healthWidth + 1.f, healthMin.y + 35.f * scale),
-                IM_COL32(17, 26, 34, 236), 5.f);
-            const ImU32 healthColour = healthRatio > 0.3f
-                ? IM_COL32(132, 204, 173, 255) : IM_COL32(243, 126, 106, 255);
-            const std::string health = tr("hud.health");
+            drawFieldKitWindow();
+            auto* draw = ImGui::GetWindowDrawList();
+            const ImVec2 origin = ImGui::GetCursorScreenPos();
+            const float contentWidth = dockWidth - 16.f * scale;
+            const float healthRatio = worldStats.playerMaxHealth > 0.f
+                ? std::clamp(worldStats.playerHealth / worldStats.playerMaxHealth, 0.f, 1.f) : 0.f;
+            const ImU32 healthColour = healthRatio > .3f ? IM_COL32(138, 196, 169, 255) : IM_COL32(245, 139, 111, 255);
+            const float font = ImGui::GetFontSize() * .8f;
+            // A fixed health glyph and numeric value are readable without
+            // relying on colour or a flashing full-screen warning.
+            drawHudGlyph(draw, 1, ImVec2(origin.x - 5.f * scale, origin.y - 3.f * scale), 24.f * scale, healthColour);
             char healthValue[48];
-            std::snprintf(healthValue, sizeof(healthValue), "%.0f / %.0f",
-                          std::ceil(worldStats.playerHealth), std::ceil(worldStats.playerMaxHealth));
-            hudDraw->AddText(ImVec2(healthMin.x + 8.f, healthMin.y),
-                             IM_COL32(232, 237, 228, 255), health.c_str());
-            hudDraw->AddText(ImVec2(healthMin.x + healthWidth - 8.f -
-                                   ImGui::CalcTextSize(healthValue).x, healthMin.y),
-                             healthColour, healthValue);
-            const float segmentWidth = (healthWidth - 16.f - 9.f * 3.f) / 10.f;
+            std::snprintf(healthValue, sizeof(healthValue), "%.0f / %.0f", std::ceil(worldStats.playerHealth), std::ceil(worldStats.playerMaxHealth));
+            draw->AddText(ImGui::GetFont(), font, ImVec2(origin.x + 20.f * scale, origin.y + 1.f * scale), healthColour, healthValue);
+            const std::string heldName = boundedHudText(hasHeldStack ? materialName(heldMaterial) : tr("common.empty"), font, contentWidth * .58f);
+            const float nameWidth = ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0.f, heldName.c_str()).x;
+            draw->AddText(ImGui::GetFont(), font, ImVec2(origin.x + contentWidth - nameWidth, origin.y + scale), IM_COL32(227, 205, 161, 255), heldName.c_str());
+            const float segmentWidth = (contentWidth - 9.f * 3.f * scale) / 10.f;
             for (int segment = 0; segment < 10; ++segment)
             {
-                const ImVec2 start(healthMin.x + 8.f + segment * (segmentWidth + 3.f),
-                                   healthMin.y + 25.f * scale);
-                const ImVec2 end(start.x + segmentWidth, start.y + 5.f * scale);
-                hudDraw->AddRectFilled(start, end, IM_COL32(60, 76, 80, 255), 1.f);
+                const ImVec2 start(origin.x + segment * (segmentWidth + 3.f * scale), origin.y + 21.f * scale);
+                const ImVec2 end(start.x + segmentWidth, start.y + 4.f * scale);
+                draw->AddRectFilled(start, end, IM_COL32(51, 69, 73, 255), 1.f);
                 const float filled = std::clamp(healthRatio * 10.f - segment, 0.f, 1.f);
-                if (filled > 0.f)
-                    hudDraw->AddRectFilled(start, ImVec2(start.x + segmentWidth * filled, end.y),
-                                           healthColour, 1.f);
+                if (filled > 0.f) draw->AddRectFilled(start, ImVec2(start.x + segmentWidth * filled, end.y), healthColour, 1.f);
             }
-            ImGui::Dummy(ImVec2(healthWidth, 38.f * scale));
-            // Always reserve one status row. State changes must not move the
-            // health bar or the notification anchor above this window.
+            ImGui::Dummy(ImVec2(contentWidth, 25.f * scale));
+            for (std::size_t index = 0; index < state.inventory.size(); ++index)
+            {
+                if (index > 0) ImGui::SameLine();
+                drawHotbarSlot(state.inventory[index], index, static_cast<int>(index) == state.heldItem);
+            }
             const ImVec2 statusOrigin = ImGui::GetCursorScreenPos();
-            const float statusWidth = ImGui::GetContentRegionAvail().x;
-            const float statusHeight = ImGui::GetTextLineHeight();
-            const float columnWidth = statusWidth / 3.f;
-            const auto cooldown = [&](int column, const char* key, int ticks,
-                                      bool guarding = false) {
+            const float columnWidth = contentWidth / 3.f;
+            const float statusFont = ImGui::GetFontSize() * .7f;
+            const auto cooldown = [&](int column, const char* key, int ticks, bool guarding = false) {
                 if (ticks <= 0 && !guarding) return;
-                char value[32];
-                std::snprintf(value, sizeof(value), " %.1fs", ticks / 20.f);
-                const std::string label = guarding ? tr("hud.guarding")
-                    : tr(key) + value;
-                const float textWidth = ImGui::CalcTextSize(label.c_str()).x;
-                const float fontSize = ImGui::GetFontSize() * std::min(1.f,
-                    (columnWidth - 6.f * scale) / std::max(1.f, textWidth));
-                const ImVec2 start(statusOrigin.x + column * columnWidth,
-                                   statusOrigin.y);
-                hudDraw->AddRectFilled(start,
-                    ImVec2(start.x + columnWidth - 3.f, start.y + statusHeight),
-                    IM_COL32(20, 32, 41, 230), 3.f);
-                hudDraw->AddText(ImGui::GetFont(), fontSize,
-                    ImVec2(start.x + (columnWidth - 3.f - textWidth *
-                        fontSize / ImGui::GetFontSize()) * 0.5f,
-                        start.y + (statusHeight - fontSize) * 0.5f),
-                    guarding ? IM_COL32(146, 216, 218, 255)
-                             : IM_COL32(215, 210, 190, 255), label.c_str());
+                char value[32]; std::snprintf(value, sizeof(value), " %.1fs", ticks / 20.f);
+                const std::string text = boundedHudText(guarding ? tr("hud.guarding") : tr(key) + value, statusFont, columnWidth - 5.f * scale);
+                draw->AddText(ImGui::GetFont(), statusFont, ImVec2(statusOrigin.x + column * columnWidth, statusOrigin.y),
+                    guarding ? IM_COL32(146, 216, 218, 255) : IM_COL32(188, 204, 198, 255), text.c_str());
             };
             cooldown(0, "hud.status_food", worldStats.foodCooldownTicksRemaining);
             cooldown(1, "hud.status_attack", worldStats.attackCooldownTicksRemaining);
-            cooldown(2, "hud.status_guard",
-                worldStats.combatFeedback.guardRecoverTicksRemaining,
-                worldStats.combatFeedback.guarding);
-            ImGui::Dummy(ImVec2(statusWidth, statusHeight));
-            const bool heldItemValid = state.heldItem >= 0 &&
-                state.heldItem < static_cast<int>(state.inventory.size());
-            if (heldItemValid)
-            {
-                const InventorySlotState &held =
-                    state.inventory[static_cast<std::size_t>(state.heldItem)];
-                if (held.amount > 0)
-                {
-                    const std::string heldName = materialName(held.materialId);
-                    const float available = ImGui::GetContentRegionAvail().x;
-                    const float width = ImGui::CalcTextSize(
-                        heldName.c_str()).x;
-                    ImGui::SetCursorPosX(
-                        ImGui::GetCursorPosX() +
-                        std::max(0.f, (available - width) * 0.5f));
-                    const ImVec2 namePosition = ImGui::GetCursorScreenPos();
-                    ImGui::GetWindowDrawList()->AddRectFilled(
-                        ImVec2(namePosition.x - 8.f, namePosition.y - 2.f),
-                        ImVec2(namePosition.x + width + 8.f,
-                               namePosition.y + ImGui::GetTextLineHeight() + 2.f),
-                        IM_COL32(18, 27, 34, 230), 4.f);
-                    ImGui::TextColored(WarmAccent, "%s", heldName.c_str());
-                }
-                else ImGui::Dummy(ImVec2(0.f, ImGui::GetTextLineHeight()));
-            }
-            for (std::size_t index = 0; index < state.inventory.size(); ++index)
-            {
-                if (index > 0)
-                {
-                    ImGui::SameLine();
-                }
-
-                drawHotbarSlot(
-                    state.inventory[index], index,
-                    static_cast<int>(index) == state.heldItem);
-            }
+            cooldown(2, "hud.status_guard", worldStats.combatFeedback.guardRecoverTicksRemaining, worldStats.combatFeedback.guarding);
+            ImGui::Dummy(ImVec2(contentWidth, 14.f * scale));
         }
-        notificationBottom = ImGui::GetWindowPos().y - 8.0f;
         ImGui::End();
-        ImGui::PopStyleVar();
+        ImGui::PopStyleVar(2);
+        const float notificationBottom = drawHudActionStrip(dockMin.y - 9.f * scale, heldMaterial);
         drawHudNotifications(notificationBottom);
     }
 
-    float drawNotification(const std::string& text, float bottom)
+    float drawNotification(const std::string& text, float bottom, int side = 0)
     {
         const ImGuiIO& io = ImGui::GetIO();
         const ImGuiStyle& style = ImGui::GetStyle();
-        const ImVec2 padding = style.WindowPadding;
+        const ImVec2 padding(10.f * appliedSettings.uiScale, 6.f * appliedSettings.uiScale);
+        const float fontSize = ImGui::GetFontSize() * .82f;
         const float maximumWidth = std::max(1.f,
-            std::min(520.f * appliedSettings.uiScale, io.DisplaySize.x - 32.f));
+            side == 0 ? std::min(520.f * appliedSettings.uiScale, io.DisplaySize.x - 32.f)
+                      : std::min(300.f * appliedSettings.uiScale, io.DisplaySize.x * .5f - 58.f));
         const float wrapWidth = std::max(1.f, maximumWidth - 2.f * padding.x);
-        const ImVec2 textSize = ImGui::CalcTextSize(text.c_str(), nullptr, false, wrapWidth);
+        const ImVec2 textSize = ImGui::GetFont()->CalcTextSizeA(fontSize, FLT_MAX, wrapWidth, text.c_str());
         const float width = std::min(maximumWidth, textSize.x + 2.f * padding.x);
         const float height = std::min(textSize.y + 2.f * padding.y,
             std::max(1.f, io.DisplaySize.y - 16.f));
+        if (side != 0) bottom += height;
         bottom = std::clamp(bottom, height + 8.f, std::max(height + 8.f, io.DisplaySize.y - 8.f));
-        const ImVec2 topLeft((io.DisplaySize.x - width) * .5f, bottom - height);
+        const float left = side < 0 ? 18.f : side > 0 ? io.DisplaySize.x - 18.f - width
+                                                            : (io.DisplaySize.x - width) * .5f;
+        const ImVec2 topLeft(left, bottom - height);
         const ImVec2 bottomRight(topLeft.x + width, bottom);
 
         // Warnings must remain above crafting/container windows without taking
@@ -3476,7 +3479,8 @@ class OgreUserInterface::Impl
         draw->AddRect(topLeft, bottomRight, ImGui::GetColorU32(ImGuiCol_Border),
             style.WindowRounding);
         draw->PushClipRect(topLeft, bottomRight, true);
-        draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(),
+        draw->AddLine(ImVec2(topLeft.x + 1.f, topLeft.y + 4.f), ImVec2(topLeft.x + 1.f, bottomRight.y - 4.f), IM_COL32(153, 183, 174, 255), 2.f);
+        draw->AddText(ImGui::GetFont(), fontSize,
             ImVec2(topLeft.x + padding.x, topLeft.y + padding.y),
             ImGui::GetColorU32(ImGuiCol_Text), text.c_str(), nullptr, wrapWidth);
         draw->PopClipRect();
@@ -3485,6 +3489,8 @@ class OgreUserInterface::Impl
 
     void drawHudNotifications(float notificationBottom)
     {
+        const bool sideLanes = player != nullptr && !player->hasOpenContainer() && !player->hasOpenCrafting() &&
+            flow->state() == GameApplicationState::Playing && ImGui::GetIO().DisplaySize.y < 600.f * appliedSettings.uiScale;
         const PresentationCaptionSnapshot caption =
             captionTimeline.snapshot();
         if (caption.visible())
@@ -3495,12 +3501,12 @@ class OgreUserInterface::Impl
                     caption.fallback);
             notificationBottom = drawNotification(
                 "[" + tr("caption.prefix") + "] " + localizedCaption,
-                notificationBottom);
+                sideLanes ? hudNoticeRightTop : notificationBottom, sideLanes ? 1 : 0);
         }
         if (statusMessageSeconds > 0.f && !statusMessage.empty() &&
             flow->state() == GameApplicationState::Playing)
         {
-            drawNotification(statusMessage, notificationBottom);
+            drawNotification(statusMessage, sideLanes ? hudNoticeLeftTop : notificationBottom, sideLanes ? -1 : 0);
         }
 
     }
@@ -4731,7 +4737,9 @@ class OgreUserInterface::Impl
     int minimapGenerationVersion = 0;
     int minimapCenterX = std::numeric_limits<int>::min();
     int minimapCenterZ = std::numeric_limits<int>::min();
-    float minimapOverlayBottom = 18.f;
+    float minimapOverlayWidth = 0.f;
+    float hudNoticeLeftTop = 18.f;
+    float hudNoticeRightTop = 18.f;
     bool minimapValid = false;
     bool settingsFixtureRequested = false;
     bool settingsFixtureOpened = false;
@@ -4741,6 +4749,10 @@ class OgreUserInterface::Impl
     bool framePending = false;
     Ogre::TexturePtr atlasTexture;
     ImTextureID atlasTextureId = ImTextureID_Invalid;
+    Ogre::TexturePtr hudPanelTexture;
+    ImTextureID hudPanelTextureId = ImTextureID_Invalid;
+    Ogre::TexturePtr hudGlyphTexture;
+    ImTextureID hudGlyphTextureId = ImTextureID_Invalid;
     Ogre::TexturePtr menuTexture;
     ImTextureID menuTextureId = ImTextureID_Invalid;
     std::string iniPath;

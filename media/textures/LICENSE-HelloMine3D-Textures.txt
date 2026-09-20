@@ -43,3 +43,9 @@ the same tool. Their prompts, source hashes, derived 128-pixel masters and
 per-semantic provenance are retained in docs/art-sources/warm-wilderness-v2/.
 The pixel-revision directory records the replacement set requested after the
 first visual review. The earlier natural set is retained as rejected artwork.
+
+Sandbox HUD assets generated for this project with the built-in OpenAI image
+generation tool in September 2026 (unchanged PNG output; original colour and alpha channels):
+- media/textures/SandboxPanel.png
+- media/textures/SandboxGlyphs.png
+Prompts, hashes and runtime slicing notes: docs/art-sources/field-kit-ui-r35/.

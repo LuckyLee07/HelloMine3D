@@ -83,6 +83,8 @@ shape|media/shapes/OakDoorClosed.shape
 shape|media/shapes/OakDoorOpen.shape
 smelting|media/smelting/Base.smelting
 texture|media/textures/DefaultPack.png
+texture|media/textures/SandboxGlyphs.png
+texture|media/textures/SandboxPanel.png
 texture|media/textures/WarmWilderness64.hmt
 texture|media/textures/WarmWildernessMenu.png
 text|media/text/en-US.text

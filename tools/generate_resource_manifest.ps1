@@ -55,6 +55,10 @@ foreach ($match in [regex]::Matches($profileSource, '(?m)^array_texture=(\S+)\s*
 Add-ManifestEntry "atlas-layout" `
     "media/materials/Base.terrain-atlas"
 Add-ManifestEntry "font" "media/fonts/rs.ttf"
+# Presentation textures are loaded by OgreUserInterface, not a .material script.
+foreach ($texture in @('WarmWildernessMenu.png', 'SandboxPanel.png', 'SandboxGlyphs.png')) {
+    Add-ManifestEntry "texture" "media/textures/$texture"
+}
 Add-ManifestEntry "presentation-font" "media/fonts/NotoSansSC-VF.ttf"
 Add-ManifestEntry "presentation-font" "media/fonts/HelloMineUI-Medium.ttf"
 Add-ManifestEntry "license" "media/fonts/NotoSansSC-OFL.txt"

@@ -1,0 +1,34 @@
+{
+  "generator": "Built-in OpenAI imagegen tool",
+  "date": "2026-09-21",
+  "assets": [
+    {
+      "path": "media/textures/SandboxPanel.png",
+      "sha256": "151e36ec7bd3f0c066a156677233064014701f12c9c3af04a51586d800832c8a",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "mode": "RGB",
+      "prompt": "quiet-panel-prompt.txt",
+      "generated_source_basename": "exec-3ef6730a-7c85-409a-b251-92ddb119bc69.png",
+      "pixel_editing": "none; original PNG copied byte-for-byte"
+    },
+    {
+      "path": "media/textures/SandboxGlyphs.png",
+      "sha256": "1571169b002178922dca925e464ab215f70694c6ce81963df5a9d5dbe250b2d7",
+      "dimensions": [
+        1774,
+        887
+      ],
+      "mode": "RGBA",
+      "prompt": "glyphs-prompt.txt",
+      "generated_source_basename": "exec-705d717f-0a3b-4d39-8609-5c9969f60f3e.png",
+      "pixel_editing": "none; original PNG copied byte-for-byte"
+    }
+  ],
+  "approved_direction": "User preferred the quiet integrated HUD composition generated with context-design-prompt.txt; local design study is NOT an actual game screenshot.",
+  "rejected_drafts": "Realistic wood/brass and orange pixel wood/iron skins rejected as jarring. Retained locally in hud-interface-r35/rejected-art-r4 and rejected-art-r5.",
+  "panel_note": "Generator painted a checkerboard outside the panel, including after an alpha-only retry. Final opaque texture samples only UV .064..936, whose pixels were checked to exclude all bright background; no bitmap editing. Glyph atlas has genuine alpha.",
+  "runtime": "Nine-slice panel UV .064/.15/.85/.936. Leaf and tintable heart use left/right halves of RGBA atlas. Actual minimap retains code-drawn narrow stone rim and real terrain; all text/items/state stay runtime drawn."
+}

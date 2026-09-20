@@ -7,6 +7,25 @@
 // Input, item ownership and transfer rules remain with the callers.
 namespace GameInterfaceWidgets
 {
+// The generated corner craft stays at native proportions; only the straight
+// edges and quiet cloth center stretch. No image contains gameplay text.
+inline void texturedPanel(ImDrawList* draw, ImTextureID texture,
+                          ImVec2 lo, ImVec2 hi, float corner,
+                          ImU32 tint = IM_COL32_WHITE)
+{
+    corner = std::min(corner, std::min(hi.x - lo.x, hi.y - lo.y) * .5f);
+    const float x[] = {lo.x, lo.x + corner, hi.x - corner, hi.x};
+    const float y[] = {lo.y, lo.y + corner, hi.y - corner, hi.y};
+    // The opaque panel atlas has unused background outside its footprint.
+    // Sample only the verified dark rectangle; glyphs use genuine alpha.
+    const float uv[] = {.064f, .15f, .85f, .936f};
+    for (int row = 0; row < 3; ++row)
+        for (int col = 0; col < 3; ++col)
+            draw->AddImage(ImTextureRef(texture), ImVec2(x[col], y[row]),
+                ImVec2(x[col + 1], y[row + 1]), ImVec2(uv[col], uv[row]),
+                ImVec2(uv[col + 1], uv[row + 1]), tint);
+}
+
 inline void slotFrame(ImDrawList* draw, ImVec2 lo, ImVec2 hi,
                       bool selected, bool hovered, bool pressed, float scale)
 {
