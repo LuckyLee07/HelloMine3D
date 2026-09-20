@@ -122,3 +122,17 @@ water_ocean_v2|11|7|translucent|246F8B|Ocean coast water variant 2|海岸水变�
 tall_grass_ocean_v0|12|7|cutout|477149|Ocean coast tall grass variant 0|海岸高草变体 0
 tall_grass_ocean_v1|13|7|cutout|477149|Ocean coast tall grass variant 1|海岸高草变体 1
 tall_grass_ocean_v2|14|7|cutout|477149|Ocean coast tall grass variant 2|海岸高草变体 2
+
+# Adventure ecology materials; legacy slots remain stable.
+spruce_bark_side|0|8|opaque|594131|Spruce bark|针叶树皮
+spruce_bark_top|1|8|opaque|AD8959|Spruce growth rings|针叶木断面
+spruce_leaves|2|8|cutout|000000|Spruce needles|针叶树叶
+birch_bark_side|3|8|opaque|DAD7C9|Birch bark|浅色阔叶树皮
+birch_bark_top|4|8|opaque|D7C18D|Birch growth rings|浅色阔叶木断面
+birch_leaves|5|8|cutout|000000|Birch leaves|浅色阔叶树叶
+snow|6|8|opaque|E7EDF2|Snow|雪
+gravel|7|8|opaque|918D86|Gravel|砾石
+clay|8|8|opaque|A36345|Clay|黏土
+forest_floor|9|8|opaque|62482F|Forest floor|林床
+moss_stone|10|8|opaque|6C7451|Moss stone|苔石
+silt|11|8|opaque|5D4939|Silt|淤泥

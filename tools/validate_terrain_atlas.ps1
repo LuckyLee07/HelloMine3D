@@ -91,8 +91,8 @@ foreach ($line in $lines | Select-Object -Skip 1) {
          $semanticSet.Add($entry.Semantic) -and
          $coordinateSet.Add("$x,$y")) $trimmed
 }
-Test-Contract "layout-populated-count" ($entries.Count -eq 120) `
-    "expected=120 actual=$($entries.Count)"
+Test-Contract "layout-populated-count" ($entries.Count -eq 132) `
+    "expected=132 actual=$($entries.Count)"
 
 $requiredSemantics = @(
     'grass_top', 'grass_side', 'dirt', 'stone', 'oak_bark_side',

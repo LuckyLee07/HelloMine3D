@@ -9,6 +9,7 @@ import struct
 import numpy as np
 from build_warm_texture_array import ART, ROOT, NAMES, fnv64, source_path
 from build_warm_texture_atlas import layout
+from adventure_texture_source import SOURCE as ADVENTURE_SOURCE, NAMES as ADVENTURE_NAMES
 
 
 def validate(path, report_path):
@@ -22,8 +23,14 @@ def validate(path, report_path):
     assert report['sha256'] == hashlib.sha256(data).hexdigest()
     entries = layout(ROOT / 'media/materials/Base.terrain-atlas')
     active = {y // 16 * 16 + x // 16 for x, y, _ in entries.values()}
-    assert len(active) == 120 and len(set(range(256)) - active) == 136
-    assert len(report['semantics']) == 120
+    assert len(active) == 132 and len(set(range(256)) - active) == 124
+    assert len(report['semantics']) == 132
+    assert report['adventure_source_sha256'] == hashlib.sha256(ADVENTURE_SOURCE.read_bytes()).hexdigest()
+    assert report['adventure_authored_edge'] == 32 and report['adventure_leaf_cutout_key_max'] == 12
+    adventure_records = [r for r in report['semantics'] if r['semantic'] in ADVENTURE_NAMES]
+    assert len(adventure_records) == 12
+    assert all(r['provenance'] == 'authored' and r['sources'] == ['adventure/' + r['semantic']]
+               for r in adventure_records)
     leaf_records = [r for r in report['semantics'] if r['semantic'].startswith('oak_leaves')]
     assert len(leaf_records) == 16
     assert all(r['provenance'] in ('authored', 'derived') and
@@ -66,7 +73,7 @@ def validate(path, report_path):
                 empty_slots=256-len(active), array_pixel_bytes=length,
                 retained_legacy_atlas_bytes=262144, alpha_layers=len(authored_cutout),
                 voxel_oak_leaf_layers=len(leaf_records),
-                source_images=len(NAMES), sha256=report['sha256'])
+                source_images=len(NAMES)+1, adventure_materials=len(adventure_records), sha256=report['sha256'])
 
 
 if __name__ == '__main__':

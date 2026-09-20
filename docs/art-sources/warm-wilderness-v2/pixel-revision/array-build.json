@@ -4,7 +4,7 @@
   "layers": 256,
   "mips": 7,
   "payload_bytes": 5592064,
-  "sha256": "e64871ba629d3aa1571e731813466e3ee142fcb3d432765be84593972b9e7f3d",
+  "sha256": "3633f0cc5a314ddf852454292bad94b3de1fbad9875b2b0451dbfa990038df67",
   "sources": {
     "grass-top-a": "b1b39fa1c14073bb94fc9c5f9e6ac3e25190b6556155c34bc97974394dd6a2c3",
     "grass-top-b": "5ebd6fa00b22e8d4a109e4173ed7435b8a2c914dde89a1d785015b7d3aeba201",
@@ -25,6 +25,9 @@
     "voxel-oak-a-rgb": "9565c9d1b13237d0eec07f09129a45123fbfa3ff1b79439d15c603bb3c6857cf",
     "voxel-oak-b-rgb": "d82ce3ddfa6df224d85156b716ebd210e808d01d5b8852c17368d506bd2897e4"
   },
+  "adventure_source_sha256": "9c566473a6afdde477434d873c469fdcde1ad64d8591e10dbd85f5028615ede7",
+  "adventure_authored_edge": 32,
+  "adventure_leaf_cutout_key_max": 12,
   "leaf_cutout_thresholds": {
     "voxel-oak-a-rgb": 16,
     "voxel-oak-b-rgb": 12
@@ -59,8 +62,8 @@
     "voxel-oak-a-rgb": "af9970c5c2f2caa116f74c0b9c7dd4fafd9dfc4807f49efb034084cc21240e1e",
     "voxel-oak-b-rgb": "c2c7799aadad81c690d915dbc475d5fd24b32e62756bbe355dfc9e545423864c"
   },
-  "active_slots": 120,
-  "empty_slots": 136,
+  "active_slots": 132,
+  "empty_slots": 124,
   "semantics": [
     {
       "semantic": "grass_top",
@@ -1145,6 +1148,114 @@
       "sources": [
         "tallgrass-a"
       ]
+    },
+    {
+      "semantic": "spruce_bark_side",
+      "layer": 128,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "adventure/spruce_bark_side"
+      ]
+    },
+    {
+      "semantic": "spruce_bark_top",
+      "layer": 129,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "adventure/spruce_bark_top"
+      ]
+    },
+    {
+      "semantic": "spruce_leaves",
+      "layer": 130,
+      "alpha": "cutout",
+      "provenance": "authored",
+      "sources": [
+        "adventure/spruce_leaves"
+      ]
+    },
+    {
+      "semantic": "birch_bark_side",
+      "layer": 131,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "adventure/birch_bark_side"
+      ]
+    },
+    {
+      "semantic": "birch_bark_top",
+      "layer": 132,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "adventure/birch_bark_top"
+      ]
+    },
+    {
+      "semantic": "birch_leaves",
+      "layer": 133,
+      "alpha": "cutout",
+      "provenance": "authored",
+      "sources": [
+        "adventure/birch_leaves"
+      ]
+    },
+    {
+      "semantic": "snow",
+      "layer": 134,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "adventure/snow"
+      ]
+    },
+    {
+      "semantic": "gravel",
+      "layer": 135,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "adventure/gravel"
+      ]
+    },
+    {
+      "semantic": "clay",
+      "layer": 136,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "adventure/clay"
+      ]
+    },
+    {
+      "semantic": "forest_floor",
+      "layer": 137,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "adventure/forest_floor"
+      ]
+    },
+    {
+      "semantic": "moss_stone",
+      "layer": 138,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "adventure/moss_stone"
+      ]
+    },
+    {
+      "semantic": "silt",
+      "layer": 139,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "adventure/silt"
+      ]
     }
   ],
   "alpha_coverage": [
@@ -1183,7 +1294,9 @@
       "120": 0.88720703125,
       "124": 0.412353515625,
       "125": 0.4658203125,
-      "126": 0.412353515625
+      "126": 0.412353515625,
+      "130": 0.9912109375,
+      "133": 0.9921875
     },
     {
       "6": 0.8876953125,
@@ -1220,7 +1333,9 @@
       "120": 0.8876953125,
       "124": 0.412109375,
       "125": 0.4677734375,
-      "126": 0.412109375
+      "126": 0.412109375,
+      "130": 0.9912109375,
+      "133": 0.9921875
     },
     {
       "6": 0.88671875,
@@ -1257,7 +1372,9 @@
       "120": 0.88671875,
       "124": 0.4140625,
       "125": 0.46484375,
-      "126": 0.4140625
+      "126": 0.4140625,
+      "130": 0.99609375,
+      "133": 0.99609375
     },
     {
       "6": 0.890625,
@@ -1294,7 +1411,9 @@
       "120": 0.890625,
       "124": 0.40625,
       "125": 0.46875,
-      "126": 0.40625
+      "126": 0.40625,
+      "130": 1.0,
+      "133": 1.0
     },
     {
       "6": 0.9375,
@@ -1331,7 +1450,9 @@
       "120": 0.9375,
       "124": 0.4375,
       "125": 0.4375,
-      "126": 0.4375
+      "126": 0.4375,
+      "130": 1.0,
+      "133": 1.0
     },
     {
       "6": 1.0,
@@ -1368,7 +1489,9 @@
       "120": 1.0,
       "124": 0.5,
       "125": 0.5,
-      "126": 0.5
+      "126": 0.5,
+      "130": 1.0,
+      "133": 1.0
     },
     {
       "6": 1.0,
@@ -1405,7 +1528,9 @@
       "120": 1.0,
       "124": 0.0,
       "125": 0.0,
-      "126": 0.0
+      "126": 0.0,
+      "130": 1.0,
+      "133": 1.0
     }
   ],
   "colour_space": "sRGB RGBA8, premultiplied linear-light offline filtering"

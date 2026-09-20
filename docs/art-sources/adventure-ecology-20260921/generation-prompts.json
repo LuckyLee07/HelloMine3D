@@ -1,0 +1,20 @@
+{
+  "mode": "built-in image_gen",
+  "initial_prompt": "Use case: stylized-concept. Asset type: one production texture atlas sheet for an original voxel sandbox adventure game. Create a precisely aligned 4-column by 3-row grid of 12 square texture tiles, filling the entire rectangular image edge to edge. No gutters, borders, frames, labels or text. Each tile must be a FLAT orthographic material swatch, not a cube render or object scene. Every tile uses the same clearly visible coarse pixel-art grid, approximately 32 by 32 large square colour pixels per tile, nearest-neighbour crisp edges, a restrained 6-to-10-colour palette, softly grouped pixel clusters, no smooth gradients, no photoreal micro-detail, no glossy highlights, no directional baked cast shadows. Intended to wrap 1-metre voxel cubes; quiet repeating patterns, not decorative framed panels. Natural warm earth colours with muted green vegetation; white snow should have light blue-grey recessed clusters, without dazzling pure white. Exact tile order, reading left to right: row 1 = dark russet spruce trunk bark with vertical broken ridges; spruce log end with subtle square-ish growth rings; muted deep blue-green spruce needles with compact irregular pixel clusters and a few small fully transparent square gaps; chalky ivory birch bark with short charcoal horizontal dashes. Row 2 = pale birch log end with soft square growth rings; lighter sage green birch leaves with irregular pixel clusters and a few small fully transparent square gaps; compact off-white snow surface with sparse pale cool shadows; rounded small grey and warm taupe gravel grains, clustered rather than high contrast noise. Row 3 = muted terracotta clay strata with irregular broad mineral mottles, no perfectly straight ruler stripes; forest floor of warm brown fallen leaf fragments and humus, low contrast; mossy grey stone with irregular muted green patches; wet riverbank silt in dark desaturated warm brown with sparse fine pebble pixels. All non-leaf tiles fully opaque and square, leaves have actual alpha for the few gaps only, never draw a checkerboard background. No logos, no borrowed game assets, no objects beyond the material patterns. Cohesive classic block-game pixel art, readable at small on-screen sizes.",
+  "initial_result": "Rejected: white leaf holes and globally non-opaque alpha (236..250). Original retained only in local work artifacts.",
+  "final_edit_prompt": "Use case: precise-object-edit. This is a production texture atlas edit, preserve the exact 4 by 3 grid, all pixel patterns, material order, colour palette and flat perspective. Fix ONLY the small glaring WHITE gaps inside the two green leaf tiles (column 3 row 1 and column 2 row 2): replace those white cells with absolute solid black RGB(0,0,0), as an authored cutout-mask key for the existing game texture compiler. There must be no white dots in either green tile. Everything else in the image must remain the same, particularly pale birch bark, snow, growth rings and earth tiles. Make the entire source sheet fully OPAQUE, do not attempt alpha transparency, do not draw checkerboards. We will interpret exactly black leaf cells as gaps during deterministic texture compilation. No new shapes, no text, no borders. Crisp large square pixel art.",
+  "final_source": "material-sheet-v2.png",
+  "final_sha256": "9c566473a6afdde477434d873c469fdcde1ad64d8591e10dbd85f5028615ede7",
+  "compiler": "tools/adventure_texture_source.py",
+  "compiler_policy": {
+    "grid": [
+      4,
+      3
+    ],
+    "effective_standard_edge": 32,
+    "compatibility_edge": 16,
+    "leaf_black_key_max_rgb": 12,
+    "other_pixels_alpha": 255
+  },
+  "acceptance": "Source sheet visually inspected; compiled alpha, deterministic rebuild, old slots and mips checked. In-world new ecology review pending."
+}

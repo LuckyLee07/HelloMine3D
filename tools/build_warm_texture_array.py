@@ -15,6 +15,7 @@ import struct
 import numpy as np
 from PIL import Image
 from build_warm_texture_atlas import layout
+from adventure_texture_source import SOURCE as ADVENTURE_SOURCE, tiles as adventure_tiles
 
 ROOT = Path(__file__).resolve().parents[1]
 ART = ROOT / 'docs/art-sources/warm-wilderness-v2/pixel-revision'
@@ -126,6 +127,7 @@ def build(edge=64):
         master_hashes[name] = hashlib.sha256(master_path.read_bytes()).hexdigest()
         masters[name] = master
     old = Image.open(ROOT / 'media/textures/DefaultPack.png').convert('RGBA')
+    adventure = adventure_tiles(32)
     # The compatibility atlas remains classic; only standard array leaf layers
     # use this voxel-oak material candidate.
     direct = {'grass_top': ['grass-top-a', 'grass-top-b', 'grass-top-c'],
@@ -148,7 +150,11 @@ def build(edge=64):
                 base, index = semantic.split(marker)
                 variant, biome = int(index), candidate
                 break
-        if base in direct:
+        if base in adventure:
+            authored = adventure[base].resize((128, 128), Image.Resampling.NEAREST)
+            rgba = np.asarray(authored, dtype=np.float32) / 255
+            used, provenance = ['adventure/' + base], 'authored'
+        elif base in direct:
             names = direct[base]
             # Single-address earth/rock/bark/sand use both authored sources;
             # ecology variants retain independent grass/leaf silhouettes.
@@ -191,6 +197,8 @@ def build(edge=64):
     header = struct.pack('<8sIIIIIQ', b'HMTARRAY', 1, edge, 256, mips, len(payload), fnv64(payload))
     report = dict(format_version=1, edge=edge, layers=256, mips=mips, payload_bytes=len(payload),
                   sha256=hashlib.sha256(header + payload).hexdigest(), sources=source_hashes,
+                  adventure_source_sha256=hashlib.sha256(ADVENTURE_SOURCE.read_bytes()).hexdigest(),
+                  adventure_authored_edge=32, adventure_leaf_cutout_key_max=12,
                   leaf_cutout_thresholds=leaf_cutout_thresholds,
                   leaf_visible_rgb_floor=leaf_visible_rgb_floor,
                   leaf_colour_gain=leaf_colour_gain,

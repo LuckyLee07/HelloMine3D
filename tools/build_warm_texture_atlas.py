@@ -11,6 +11,7 @@ import re
 import struct
 import zlib
 from PIL import Image
+from adventure_texture_source import tiles as adventure_tiles
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / 'docs/art-sources/hellomine3d-pre-warm-atlas.png'
@@ -38,8 +39,8 @@ def layout(path):
             raise ValueError(f'Invalid layout entry: {line}')
         entries[name] = (x * 16, y * 16, alpha)
         coordinates.add((x, y))
-    if len(entries) != 120:
-        raise ValueError('Expected 120 semantics')
+    if len(entries) != 132:
+        raise ValueError('Expected 132 semantics')
     return entries
 
 
@@ -118,6 +119,8 @@ def build(source=SOURCE, base=BASE, layout_path=LAYOUT):
                         rgb = tuple(min(255, int(rgba[i] * factor[i] * (1.0, 1.02, .98)[variant] + .5)) for i in range(3))
                         image.putpixel((x, y), (*rgb, rgba[3]))
                 put(f'{name}_{biome}_v{variant}', image)
+    for name, image in adventure_tiles(16).items():
+        put(name, image)
     return atlas
 
 

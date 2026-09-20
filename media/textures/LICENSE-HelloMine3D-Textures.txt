@@ -49,3 +49,10 @@ generation tool in September 2026 (unchanged PNG output; original colour and alp
 - media/textures/SandboxPanel.png
 - media/textures/SandboxGlyphs.png
 Prompts, hashes and runtime slicing notes: docs/art-sources/field-kit-ui-r35/.
+
+Adventure ecology material sheet generated and revised with the built-in
+OpenAI image generation tool in September 2026:
+- docs/art-sources/adventure-ecology-20260921/material-sheet-v2.png
+Prompts, source identity and packing rules are retained in the same directory.
+The authored black leaf cells are explicitly compiled as cutout transparency;
+new atlas slots do not replace existing material pixels.
