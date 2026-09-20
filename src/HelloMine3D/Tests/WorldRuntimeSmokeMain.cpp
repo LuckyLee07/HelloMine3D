@@ -1572,7 +1572,13 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 470 &&
+              registry.keys("en-US").size() == 478 &&
+              registry.lookup("en-US", "inventory.storage") == "STORAGE" &&
+              registry.lookup("zh-CN", "inventory.storage") == "储物空间" &&
+              registry.lookup("en-US", "inventory.carried") == "YOUR PACK" &&
+              registry.lookup("zh-CN", "inventory.carried") == "随身行囊" &&
+              registry.lookup("en-US", "inventory.craft_subtitle") == "CHOOSE / ARRANGE / CRAFT" &&
+              registry.lookup("zh-CN", "inventory.craft_subtitle") == "选择材料 · 排列配方 · 制作物品" &&
               registry.lookup("en-US", "hud.region_wetland") == "Wetland" &&
               registry.lookup("zh-CN", "hud.region_wetland") == "湿地" &&
               registry.lookup("en-US", "hud.region_plateau") == "Rock plateau" &&

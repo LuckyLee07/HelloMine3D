@@ -1,5 +1,6 @@
 #include "OgreUserInterface.h"
 #include "OgreItemGeometry.h"
+#include "GameInterfaceWidgets.h"
 
 #include <OIS.h>
 #include <OgreCamera.h>
@@ -2221,58 +2222,175 @@ class OgreUserInterface::Impl
     }
 
     bool drawInventoryCard(Material::ID materialId, int amount, const std::string& id,
-                           ImVec2 size, bool selected = false)
+                           ImVec2 size, bool selected = false, bool compact = false,
+                           int shortcut = 0)
     {
         const float scale = appliedSettings.uiScale;
-        size.y = std::max(size.y, 54.f * scale);
+        if (!compact) size.y = std::max(size.y, 54.f * scale);
         ImGui::PushID(id.c_str());
-        const bool clicked = ImGui::Button("##item_card", size);
+        const bool clicked = ImGui::InvisibleButton("##item_card", size, ImGuiButtonFlags_EnableNav);
         ImGui::PopID();
-        const bool hovered = ImGui::IsItemHovered() || ImGui::IsItemFocused();
+        const bool focused = ImGui::IsItemFocused() && ImGui::GetIO().NavVisible;
+        const bool hovered = ImGui::IsItemHovered();
         const ImVec2 minimum = ImGui::GetItemRectMin();
         const ImVec2 maximum = ImGui::GetItemRectMax();
         ImDrawList* draw = ImGui::GetWindowDrawList();
-        draw->AddRectFilled(minimum, maximum,
-            selected ? IM_COL32(60, 71, 67, 255) : hovered
-                ? IM_COL32(53, 73, 84, 255) : IM_COL32(29, 43, 54, 255), 4.f);
-        draw->AddRect(minimum, maximum, selected
-            ? IM_COL32(231, 196, 128, 255) : IM_COL32(95, 119, 132, 110), 4.f);
-        if (amount <= 0)
+        GameInterfaceWidgets::slotFrame(draw, minimum, maximum, selected || focused,
+            hovered, ImGui::IsItemActive(), scale);
+        draw->PushClipRect(minimum, maximum, true);
+        if (amount > 0 && compact)
         {
-            const std::string empty = tr("common.empty");
-            const ImVec2 textSize = ImGui::CalcTextSize(empty.c_str());
-            draw->AddText(ImVec2(minimum.x + (size.x - textSize.x) * 0.5f,
-                                minimum.y + (size.y - textSize.y) * 0.5f),
-                           IM_COL32(134, 153, 164, 255), empty.c_str());
-            return clicked;
+            const float iconSize = std::min(size.y * .66f, size.x * .64f);
+            const float inset = ImGui::IsItemActive() ? 1.f * scale : 0.f;
+            const float iconX = minimum.x + (size.x - iconSize) * .5f + inset;
+            const float iconY = minimum.y + (size.y - iconSize) * .42f + inset;
+            drawMaterialIcon(draw, materialId, ImVec2(iconX, iconY),
+                ImVec2(iconX + iconSize, iconY + iconSize));
+            if (amount > 1)
+            {
+                const std::string quantity = std::to_string(amount);
+                const ImVec2 textSize = ImGui::CalcTextSize(quantity.c_str());
+                const ImVec2 textPos(maximum.x - textSize.x - 5.f * scale,
+                                     maximum.y - textSize.y - 3.f * scale);
+                draw->AddRectFilled(ImVec2(textPos.x - 3.f, textPos.y),
+                    ImVec2(maximum.x - 2.f, maximum.y - 2.f), IM_COL32(12, 20, 24, 215), 2.f);
+                draw->AddText(textPos, IM_COL32(242, 237, 222, 255), quantity.c_str());
+            }
         }
-        const float iconSize = std::min(32.f * scale, size.x * 0.32f);
-        drawMaterialIcon(draw, materialId,
-            ImVec2(minimum.x + 7.f * scale, minimum.y + (size.y - iconSize) * 0.5f),
-            ImVec2(minimum.x + 7.f * scale + iconSize,
-                   minimum.y + (size.y + iconSize) * 0.5f));
-        const std::string fullName = materialName(materialId);
-        std::string name = fullName;
-        const float textX = minimum.x + iconSize + 13.f * scale;
-        const float available = maximum.x - textX - 6.f * scale;
-        bool shortened = false;
-        while (!name.empty() && ImGui::CalcTextSize(
-                   (name + (shortened ? "…" : "")).c_str()).x > available)
+        else if (amount > 0)
         {
-            std::size_t last = name.size() - 1;
-            while (last > 0 && (static_cast<unsigned char>(name[last]) & 0xc0) == 0x80)
-                --last;
-            name.erase(last);
-            shortened = true;
+            const float iconSize = std::min(32.f * scale, size.x * .32f);
+            drawMaterialIcon(draw, materialId,
+                ImVec2(minimum.x + 7.f * scale, minimum.y + (size.y - iconSize) * .5f),
+                ImVec2(minimum.x + 7.f * scale + iconSize, minimum.y + (size.y + iconSize) * .5f));
+            const std::string fullName = materialName(materialId);
+            std::string name = fullName;
+            const float textX = minimum.x + iconSize + 13.f * scale;
+            const float available = maximum.x - textX - 6.f * scale;
+            bool shortened = false;
+            while (!name.empty() && ImGui::CalcTextSize((name + (shortened ? "…" : "")).c_str()).x > available)
+            {
+                std::size_t last = name.size() - 1;
+                while (last > 0 && (static_cast<unsigned char>(name[last]) & 0xc0) == 0x80) --last;
+                name.erase(last); shortened = true;
+            }
+            if (shortened) name += "…";
+            draw->AddText(ImVec2(textX, minimum.y + 6.f * scale), IM_COL32(242, 237, 222, 255), name.c_str());
+            const std::string quantity = "x" + std::to_string(amount);
+            draw->AddText(ImVec2(textX, maximum.y - ImGui::GetTextLineHeight() - 5.f * scale),
+                IM_COL32(164, 185, 182, 255), quantity.c_str());
         }
-        if (shortened) name += "…";
-        draw->AddText(ImVec2(textX, minimum.y + 6.f * scale),
-                       IM_COL32(242, 237, 222, 255), name.c_str());
-        const std::string quantity = "x" + std::to_string(amount);
-        draw->AddText(ImVec2(textX, maximum.y - ImGui::GetTextLineHeight() - 5.f * scale),
-                       IM_COL32(181, 199, 197, 255), quantity.c_str());
-        if (hovered && shortened) ImGui::SetTooltip("%s", fullName.c_str());
+        else
+        {
+            const ImVec2 c((minimum.x + maximum.x) * .5f, (minimum.y + maximum.y) * .5f);
+            draw->AddLine(ImVec2(c.x - 4.f, c.y), ImVec2(c.x + 4.f, c.y), IM_COL32(63, 80, 86, 160));
+            draw->AddLine(ImVec2(c.x, c.y - 4.f), ImVec2(c.x, c.y + 4.f), IM_COL32(63, 80, 86, 160));
+        }
+        if (shortcut > 0)
+        {
+            const std::string key = std::to_string(shortcut);
+            draw->AddText(ImVec2(minimum.x + 5.f * scale, minimum.y + 3.f * scale),
+                IM_COL32(164, 180, 181, 230), key.c_str());
+        }
+        draw->PopClipRect();
+        if ((hovered || focused) && amount > 0)
+        {
+            if (!hovered) ImGui::SetNextWindowPos(minimum, ImGuiCond_Always, ImVec2(0.f, 1.f));
+            ImGui::SetTooltip("%s  x%d", materialName(materialId).c_str(), amount);
+        }
         return clicked;
+    }
+
+    void drawInventoryHeading(const std::string& title, const std::string& detail)
+    {
+        ImGui::TextColored(WarmMuted, "%s", title.c_str());
+        if (!detail.empty())
+        {
+            const float width = ImGui::CalcTextSize(detail.c_str()).x;
+            const float right = ImGui::GetWindowContentRegionMax().x;
+            if (ImGui::GetCursorPosX() + width < right)
+            {
+                ImGui::SameLine(std::max(ImGui::GetItemRectSize().x + 24.f,
+                    right - width));
+                ImGui::TextDisabled("%s", detail.c_str());
+            }
+        }
+    }
+
+    bool drawInventoryHeader(Material::ID icon, const std::string& title,
+                             const std::string& subtitle)
+    {
+        const float scale = appliedSettings.uiScale;
+        GameInterfaceWidgets::panelFrame(scale);
+        const ImVec2 start = ImGui::GetCursorScreenPos();
+        const float width = ImGui::GetContentRegionAvail().x;
+        const float emblem = 34.f * scale;
+        const float height = 40.f * scale;
+        ImDrawList* draw = ImGui::GetWindowDrawList();
+        GameInterfaceWidgets::slotFrame(draw, start, ImVec2(start.x + emblem, start.y + emblem),
+            true, false, false, scale);
+        drawMaterialIcon(draw, icon, ImVec2(start.x + 6.f * scale, start.y + 6.f * scale),
+            ImVec2(start.x + emblem - 6.f * scale, start.y + emblem - 6.f * scale));
+        const float textX = start.x + emblem + 12.f * scale;
+        draw->AddText(ImGui::GetFont(), ImGui::GetFontSize() * 1.18f,
+            ImVec2(textX, start.y - 1.f), IM_COL32(242, 237, 222, 255), title.c_str());
+        draw->AddText(ImGui::GetFont(), ImGui::GetFontSize() * .83f,
+            ImVec2(textX, start.y + 22.f * scale), IM_COL32(156, 177, 177, 255), subtitle.c_str());
+        const float closeSize = 25.f * scale;
+        ImGui::SetCursorScreenPos(ImVec2(start.x + width - closeSize, start.y));
+        const bool close = ImGui::InvisibleButton("##PanelClose", ImVec2(closeSize, closeSize), ImGuiButtonFlags_EnableNav);
+        const ImVec2 lo = ImGui::GetItemRectMin();
+        const ImU32 colour = ImGui::IsItemHovered() || ImGui::IsItemFocused()
+            ? IM_COL32(242, 215, 157, 255) : IM_COL32(136, 159, 163, 255);
+        const float a = 8.f * scale, b = 17.f * scale;
+        draw->AddLine(ImVec2(lo.x + a, lo.y + a), ImVec2(lo.x + b, lo.y + b), colour, 1.5f);
+        draw->AddLine(ImVec2(lo.x + a, lo.y + b), ImVec2(lo.x + b, lo.y + a), colour, 1.5f);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s · Esc", tr("common.close").c_str());
+        ImGui::SetCursorScreenPos(start);
+        ImGui::Dummy(ImVec2(width, height));
+        ImGui::Separator();
+        return close;
+    }
+
+    void drawItemPortrait(Material::ID material, ImVec2 center, float size)
+    {
+        if (material == Material::ID::Nothing) return;
+        const auto& geometry = itemVisualGeometry(material);
+        const auto& atlas = runtimeTerrainMaterialProfile().parameters();
+        struct Face { std::array<ImVec2, 4> points, uv; float depth; ImU32 tint; };
+        std::vector<Face> faces; faces.reserve(geometry.size());
+        const auto rotate = [](glm::vec3 p) {
+            const glm::vec3 yaw(.82f * p.x + .57f * p.z, p.y, -.57f * p.x + .82f * p.z);
+            return glm::vec3(yaw.x, .90f * yaw.y - .44f * yaw.z, .44f * yaw.y + .90f * yaw.z);
+        };
+        for (const auto& face : geometry)
+        {
+            const glm::vec3 normal = rotate(face.normal);
+            if (normal.z <= 0.f) continue;
+            Face projected{};
+            const float light = .65f + .35f * std::max(0.f,
+                glm::dot(normal, glm::normalize(glm::vec3(-.35f, .65f, 1.f))));
+            const int value = static_cast<int>(255.f * light);
+            projected.tint = IM_COL32(value, value, value, 255);
+            for (int corner = 0; corner < 4; ++corner)
+            {
+                const glm::vec3 p = rotate(face.positions[corner]);
+                projected.depth += p.z * .25f;
+                projected.points[corner] = ImVec2(center.x + p.x * size, center.y - p.y * size);
+                projected.uv[corner] = ImVec2(
+                    (face.tile.x * atlas.tilePixels + .5f + face.uv[corner].x * (atlas.tilePixels - 1.f)) / atlas.atlasPixels,
+                    (face.tile.y * atlas.tilePixels + .5f + face.uv[corner].y * (atlas.tilePixels - 1.f)) / atlas.atlasPixels);
+            }
+            faces.push_back(projected);
+        }
+        std::sort(faces.begin(), faces.end(), [](const auto& a, const auto& b) { return a.depth < b.depth; });
+        ImDrawList* draw = ImGui::GetWindowDrawList();
+        const auto& callbacks = ImGui::GetPlatformIO();
+        if (callbacks.DrawCallback_SetSamplerNearest) draw->AddCallback(callbacks.DrawCallback_SetSamplerNearest, nullptr);
+        for (const auto& face : faces)
+            draw->AddImageQuad(ImTextureRef(atlasTextureId), face.points[0], face.points[1], face.points[2], face.points[3],
+                face.uv[0], face.uv[1], face.uv[2], face.uv[3], face.tint);
+        if (callbacks.DrawCallback_SetSamplerLinear) draw->AddCallback(callbacks.DrawCallback_SetSamplerLinear, nullptr);
     }
 
     void drawHotbarSlot(const InventorySlotState &slot,
@@ -2285,20 +2403,7 @@ class OgreUserInterface::Impl
         const ImVec2 minimum = ImGui::GetItemRectMin();
         const ImVec2 maximum = ImGui::GetItemRectMax();
         ImDrawList *drawList = ImGui::GetWindowDrawList();
-        drawList->AddRectFilled(
-            minimum, maximum,
-            selected ? IM_COL32(58, 66, 65, 248)
-                     : IM_COL32(19, 29, 38, 232),
-            5.f);
-        drawList->AddRect(
-            minimum, maximum,
-            selected ? IM_COL32(244, 211, 145, 255)
-                     : IM_COL32(122, 143, 151, 145),
-            4.f, 0, selected ? 1.5f : 1.f);
-        if (selected)
-            drawList->AddRectFilled(ImVec2(minimum.x + 12.f * scale, maximum.y - 2.f * scale),
-                ImVec2(maximum.x - 12.f * scale, maximum.y + 1.f * scale),
-                IM_COL32(248, 212, 144, 255), 1.f);
+        GameInterfaceWidgets::slotFrame(drawList, minimum, maximum, selected, false, false, scale);
 
         const std::string key = std::to_string(index + 1);
         drawList->AddText(ImVec2(minimum.x + 5.f * scale, minimum.y + 2.f * scale),
@@ -3683,90 +3788,97 @@ class OgreUserInterface::Impl
         }
 
         const ImGuiIO &io = ImGui::GetIO();
-        ImGui::SetNextWindowPos(
-            ImVec2(io.DisplaySize.x * 0.5f, (io.DisplaySize.y - 80.f) * 0.5f),
-            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        const float scale = appliedSettings.uiScale;
+        const float captionSpace = 64.f;
+        ImGui::GetBackgroundDrawList()->AddRectFilled(ImVec2(0.f, 0.f), io.DisplaySize, IM_COL32(5, 12, 16, 85));
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * .5f, (io.DisplaySize.y - captionSpace) * .5f),
+            ImGuiCond_Always, ImVec2(.5f, .5f));
         const PresentationWindowLayout layout = fitPresentationWindow(
-            io.DisplaySize.x, io.DisplaySize.y - 80.f, 620.0f,
-            440.0f * std::max(1.f, appliedSettings.uiScale), appliedSettings.uiScale);
+            io.DisplaySize.x, io.DisplaySize.y - captionSpace, 700.f, 520.f * scale, scale);
         ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height), ImGuiCond_Always);
-        ImGui::SetNextWindowBgAlpha(0.96f);
         bool open = true;
-        const ImGuiWindowFlags flags =
-            ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings |
-            ImGuiWindowFlags_NoResize;
-        const std::string chestTitle = label("chest.title", "##Chest");
-        if (ImGui::Begin(chestTitle.c_str(), &open, flags))
+        const ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
+            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoBackground;
+        if (ImGui::Begin("##Chest", nullptr, flags))
         {
-            ImGui::TextWrapped("%s", tr("chest.slots_hint").c_str());
-            const float chestRowWidth = ImGui::GetContentRegionAvail().x;
+            if (drawInventoryHeader(Material::ID::Chest, tr("chest.title"), tr("inventory.storage_subtitle"))) open = false;
+            const ImGuiStyle &style = ImGui::GetStyle();
+            const float width = ImGui::GetContentRegionAvail().x;
+            const float slotGap = 8.f * scale;
+            const int playerSlots = player->getInventorySlotCount();
+            const float hotbarCell = std::min(58.f * scale,
+                (width - (playerSlots - 1) * slotGap) / std::max(1, playerSlots));
+            const float footer = ImGui::GetTextLineHeight() + hotbarCell +
+                ImGui::GetFrameHeight() + 6.f * style.ItemSpacing.y + 1.f;
+            drawInventoryHeading(tr("inventory.storage"), std::to_string(inventory->slotCount) + " " + tr("inventory.slots"));
+            const float bodyHeight = std::max(1.f, ImGui::GetContentRegionAvail().y - footer);
+            const int columns = bodyHeight < 210.f * scale ? 5 : 3;
+            const int rows = (inventory->slotCount + columns - 1) / columns;
+            const float cell = std::min(76.f * scale, std::max(24.f,
+                (bodyHeight - (rows - 1) * slotGap - 4.f) / rows));
+            const float gridWidth = columns * cell + (columns - 1) * slotGap;
+            InventorySlotState inspected{};
+            for (int slot = 0; slot < inventory->slotCount; ++slot)
+                if (inventory->slots[slot].state.amount > 0) { inspected = inventory->slots[slot].state; break; }
+            ImGui::BeginGroup();
+            ImGui::BeginChild("##ChestContents", ImVec2(gridWidth, bodyHeight), false);
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(slotGap, slotGap));
             for (int slot = 0; slot < inventory->slotCount; ++slot)
             {
-                if (slot > 0 && slot % 3 != 0)
-                {
-                    ImGui::SameLine();
-                }
+                if (slot % columns != 0) ImGui::SameLine();
                 const InventorySlotState stack = inventory->slots[slot].state;
-                const Material &material =
-                    Material::toMaterial(stack.materialId);
-                const std::string label =
-                    (stack.amount > 0 ? materialName(material.id)
-                                      : tr("common.empty")) + " x" +
-                    std::to_string(stack.amount) + "##chest" +
-                    std::to_string(slot);
-                if (drawInventoryCard(stack.materialId, stack.amount, label,
-                    ImVec2((chestRowWidth - 2.f * ImGui::GetStyle().ItemSpacing.x) / 3.f, 54.f)) &&
-                    stack.amount > 0)
-                {
-                    if (provider.transferToPlayer(
-                            *world, *player, slot, stack.amount,
-                            runtimeSmeltingRegistry()))
-                    {
-                        playUiFeedback();
-                    }
-                }
+                const bool clicked = drawInventoryCard(stack.materialId, stack.amount, "chest" + std::to_string(slot),
+                    ImVec2(cell, cell), false, true);
+                if (ImGui::IsItemHovered() || (ImGui::IsItemFocused() && io.NavVisible)) inspected = stack;
+                if (clicked && stack.amount > 0 && provider.transferToPlayer(
+                    *world, *player, slot, stack.amount, runtimeSmeltingRegistry())) playUiFeedback();
             }
-
+            ImGui::PopStyleVar();
+            ImGui::EndChild();
+            ImGui::SameLine(0.f, 22.f * scale);
+            ImGui::BeginChild("##ItemInspection", ImVec2(std::max(1.f, width - gridWidth - 22.f * scale), bodyHeight), false);
+            const ImVec2 previewStart = ImGui::GetCursorScreenPos();
+            const float previewWidth = ImGui::GetContentRegionAvail().x;
+            const float portraitHeight = bodyHeight < 155.f * scale ? 0.f :
+                std::min(126.f * scale, bodyHeight - 3.f * ImGui::GetTextLineHeightWithSpacing() - style.ItemSpacing.y);
+            if (portraitHeight > 0.f)
+            {
+                ImDrawList* draw = ImGui::GetWindowDrawList();
+                draw->AddRectFilled(previewStart, ImVec2(previewStart.x + previewWidth, previewStart.y + portraitHeight),
+                    IM_COL32(23, 36, 41, 255), 2.f);
+                const ImVec2 center(previewStart.x + previewWidth * .5f, previewStart.y + portraitHeight * .48f);
+                draw->AddLine(ImVec2(center.x - 25.f * scale, previewStart.y + portraitHeight - 8.f),
+                    ImVec2(center.x + 25.f * scale, previewStart.y + portraitHeight - 8.f), IM_COL32(103, 128, 121, 120));
+                if (inspected.amount > 0) drawItemPortrait(inspected.materialId, center, portraitHeight * .62f);
+                ImGui::Dummy(ImVec2(previewWidth, portraitHeight));
+            }
+            ImGui::TextWrapped("%s", inspected.amount > 0 ? materialName(inspected.materialId).c_str() : tr("common.empty").c_str());
+            if (inspected.amount > 0)
+                ImGui::TextColored(WarmAccent, "%s  %d", tr("inventory.quantity").c_str(), inspected.amount);
+            ImGui::PushStyleColor(ImGuiCol_Text, WarmMuted);
+            ImGui::TextWrapped("%s", tr("inventory.take_hint").c_str());
+            ImGui::PopStyleColor();
+            ImGui::EndChild();
+            ImGui::EndGroup();
             ImGui::Separator();
-            ImGui::TextWrapped("%s", tr("chest.hotbar_hint").c_str());
-            const float chestPlayerWidth = ImGui::GetContentRegionAvail().x;
-            for (int slot = 0; slot < player->getInventorySlotCount(); ++slot)
+            drawInventoryHeading(tr("inventory.carried"), tr("inventory.store_hint"));
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(slotGap, slotGap));
+            for (int slot = 0; slot < playerSlots; ++slot)
             {
-                if (slot > 0)
-                {
-                    ImGui::SameLine();
-                }
+                if (slot > 0) ImGui::SameLine();
                 const ItemStack &stack = player->getInventorySlot(slot);
-                const std::string label =
-                    (stack.isEmpty() ? tr("common.empty")
-                                     : materialName(stack.getMaterial().id)) +
-                    " x" + std::to_string(stack.getNumInStack()) +
-                    "##player" + std::to_string(slot);
-                if (drawInventoryCard(stack.getMaterial().id, stack.getNumInStack(), label,
-                    ImVec2((chestPlayerWidth - 4.f * ImGui::GetStyle().ItemSpacing.x) / 5.f, 54.f)) &&
-                    !stack.isEmpty())
-                {
-                    if (provider.transferFromPlayer(
-                            *world, *player, InventoryProvider::AutomaticSlot,
-                            slot, stack.getNumInStack(),
-                            runtimeSmeltingRegistry()))
-                    {
-                        playUiFeedback();
-                    }
-                }
+                const bool clicked = drawInventoryCard(stack.getMaterial().id, stack.getNumInStack(),
+                    "player" + std::to_string(slot), ImVec2(hotbarCell, hotbarCell), false, true, slot + 1);
+                if (clicked && !stack.isEmpty() && provider.transferFromPlayer(*world, *player,
+                    InventoryProvider::AutomaticSlot, slot, stack.getNumInStack(), runtimeSmeltingRegistry())) playUiFeedback();
             }
-            ImGui::TextWrapped("%s", tr("container.close_hint").c_str());
-            if (ImGui::Button(label("common.close", "##CloseChest").c_str(), ImVec2(100.0f, 32.0f)))
-            {
-                open = false;
-                playUiFeedback();
-            }
+            ImGui::PopStyleVar();
+            ImGui::Spacing();
+            if (ImGui::Button((tr("common.close") + "  [Esc]##CloseChest").c_str())) { open = false; playUiFeedback(); }
         }
         ImGui::End();
-        if (!open)
-        {
-            player->closeContainer();
-        }
+        if (!open) player->closeContainer();
     }
 
     void drawCrafting()
@@ -3799,12 +3911,12 @@ class OgreUserInterface::Impl
 
         const ImGuiIO &io = ImGui::GetIO();
         ImGui::SetNextWindowPos(
-            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
+            ImVec2(io.DisplaySize.x * 0.5f, (io.DisplaySize.y - 64.f) * 0.5f),
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
         const PresentationWindowLayout layout = fitPresentationWindow(
-            io.DisplaySize.x, io.DisplaySize.y,
+            io.DisplaySize.x, io.DisplaySize.y - 64.f,
             learnedRecipes == 0 ? 700.0f : 820.0f,
-            (learnedRecipes == 0 ? 600.0f : 660.0f) * appliedSettings.uiScale,
+            (learnedRecipes == 0 ? 480.0f : 580.0f) * appliedSettings.uiScale,
             appliedSettings.uiScale);
         ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height), ImGuiCond_Always);
         bool open = true;
@@ -3812,17 +3924,23 @@ class OgreUserInterface::Impl
             gridSize == CraftingSession::WorkbenchGridSize
                 ? label("crafting.workbench_title", "##Crafting")
                 : label("crafting.player_title", "##Crafting");
-        if (ImGui::Begin(title.c_str(), &open,
+        ImGui::GetBackgroundDrawList()->AddRectFilled(ImVec2(0.f, 0.f), io.DisplaySize, IM_COL32(5, 12, 16, 85));
+        if (ImGui::Begin(title.c_str(), nullptr,
+                         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoMove |
                          ImGuiWindowFlags_NoCollapse |
                              ImGuiWindowFlags_NoResize |
                              ImGuiWindowFlags_NoSavedSettings))
         {
+            if (drawInventoryHeader(Material::ID::Workbench,
+                tr(gridSize == CraftingSession::WorkbenchGridSize ? "crafting.workbench_title" : "crafting.player_title"),
+                tr("inventory.craft_subtitle"))) open = false;
             // Recipes and materials may scroll without moving the complete input
             // grid or the result controls out of view.
-            ImGui::BeginChild("##CraftingContent", ImVec2(0.f,
-                -100.f * appliedSettings.uiScale), false);
-            ImGui::TextWrapped("%s", tr("crafting.choose_hint").c_str());
-            ImGui::TextWrapped("%s", tr("crafting.grid_hint").c_str());
+            const float resultHeight = std::max(58.f * appliedSettings.uiScale,
+                2.f * ImGui::GetTextLineHeightWithSpacing() + 2.f * ImGui::GetStyle().ItemSpacing.y);
+            const float resultFooterHeight = resultHeight + 32.f * appliedSettings.uiScale +
+                5.f * ImGui::GetStyle().ItemSpacing.y + 2.f;
+            ImGui::BeginChild("##CraftingContent", ImVec2(0.f, -resultFooterHeight), false);
             const ImGuiStyle &craftingStyle = ImGui::GetStyle();
             const float preferredCellWidth = 46.f * appliedSettings.uiScale;
             const std::string gridTitle = std::to_string(gridSize) + "x" +
@@ -3840,8 +3958,9 @@ class OgreUserInterface::Impl
                             learnedRecipes, eligibleRecipes);
                 if (learnedRecipes == 0)
                 {
-                    ImGui::TextDisabled("%s",
-                        tr("crafting.recipe_book_hint").c_str());
+                    ImGui::PushStyleColor(ImGuiCol_Text, WarmMuted);
+                    ImGui::TextWrapped("%s", tr("crafting.recipe_book_hint").c_str());
+                    ImGui::PopStyleColor();
                 }
                 else
                 {
@@ -3874,7 +3993,7 @@ class OgreUserInterface::Impl
                                                     appliedSettings.locale);
                         const std::string outputName =
                             materialName(recipe.outputMaterialId);
-                        ImGui::Text("%s x%d  <-  %s", outputName.c_str(),
+                        ImGui::TextWrapped("%s x%d  <-  %s", outputName.c_str(),
                                     recipe.outputCount,
                                     ingredients.c_str());
                     }
@@ -3884,7 +4003,7 @@ class OgreUserInterface::Impl
             ImGui::Separator();
 
             const PlayerSaveState state = player->getSaveState();
-            ImGui::TextUnformatted(tr("crafting.inventory").c_str());
+            drawInventoryHeading(tr("crafting.inventory"), "");
             const float craftingInventoryWidth = ImGui::GetContentRegionAvail().x;
             const int inventoryColumns = craftingInventoryWidth >= 420.f * appliedSettings.uiScale ? 3 : 2;
             for (std::size_t index = 0; index < state.inventory.size();
@@ -3909,12 +4028,12 @@ class OgreUserInterface::Impl
                     slot.materialId == selectedCraftingMaterial && slot.amount > 0))
                 {
                     selectedCraftingMaterial = slot.materialId;
+                    craftingMessage.clear();
                 }
                 ImGui::EndDisabled();
             }
-            ImGui::Text("%s: %s", tr("crafting.selected").c_str(),
+            ImGui::TextWrapped("%s: %s", tr("crafting.selected").c_str(),
                         materialName(selectedCraftingMaterial).c_str());
-            ImGui::SameLine();
             if (ImGui::SmallButton(label("crafting.clear_selection", "##ClearSelection").c_str()))
             {
                 selectedCraftingMaterial = Material::ID::Nothing;
@@ -3927,8 +4046,8 @@ class OgreUserInterface::Impl
             const ImVec2 gridSpace = ImGui::GetContentRegionAvail();
             const float craftingCellWidth = std::max(24.f, std::min({preferredCellWidth,
                 (gridSpace.x - (gridSize - 1) * craftingStyle.ItemSpacing.x) / gridSize,
-                (gridSpace.y - ImGui::GetFrameHeightWithSpacing() -
-                 gridSize * craftingStyle.ItemSpacing.y) / gridSize}));
+                (gridSpace.y - ImGui::GetTextLineHeight() -
+                 gridSize * craftingStyle.ItemSpacing.y - 3.f * appliedSettings.uiScale) / gridSize}));
             for (int index = 0; index < craftingSession->cellCount();
                  ++index)
             {
@@ -3944,31 +4063,25 @@ class OgreUserInterface::Impl
                     (cell.amount > 0 ? materialName(material.id)
                                      : tr("common.empty")) +
                     "##craft-cell-" + std::to_string(index);
-                const bool cellClicked = ImGui::Button(("##" + label).c_str(),
-                    ImVec2(craftingCellWidth, craftingCellWidth));
+                const bool cellClicked = drawInventoryCard(cell.materialId, cell.amount, label,
+                    ImVec2(craftingCellWidth, craftingCellWidth), false, true);
                 const bool clearCell = ImGui::IsItemClicked(ImGuiMouseButton_Right);
-                if (cell.amount > 0) {
-                    const ImVec2 cellMin = ImGui::GetItemRectMin();
-                    const ImVec2 cellMax = ImGui::GetItemRectMax();
-                    drawMaterialIcon(ImGui::GetWindowDrawList(), cell.materialId,
-                        ImVec2(cellMin.x + 10.f, cellMin.y + 10.f),
-                        ImVec2(cellMax.x - 10.f, cellMax.y - 10.f));
-                    if (ImGui::IsItemHovered() || ImGui::IsItemFocused())
-                        ImGui::SetTooltip("%s", materialName(cell.materialId).c_str());
-                }
                 if (cellClicked && selectedCraftingMaterial != Material::ID::Nothing)
                 {
                     craftingSession->setCell(
                         index, selectedCraftingMaterial);
+                    craftingMessage.clear();
                 }
                 if (clearCell)
                 {
                     craftingSession->clearCell(index);
+                    craftingMessage.clear();
                 }
             }
-            if (ImGui::Button(label("crafting.clear_grid", "##ClearGrid").c_str()))
+            if (ImGui::SmallButton(label("crafting.clear_grid", "##ClearGrid").c_str()))
             {
                 craftingSession->clear();
+                craftingMessage.clear();
             }
 
             ImGui::EndChild();
@@ -3976,19 +4089,36 @@ class OgreUserInterface::Impl
             const CraftingPreview preview = player->previewCrafting(
                 *craftingSession, runtimeRecipeRegistry());
             ImGui::Separator();
+            ImGui::BeginChild("##CraftResult", ImVec2(0.f, resultHeight), false);
+            const ImVec2 resultStart = ImGui::GetCursorScreenPos();
+            const float iconSize = 48.f * appliedSettings.uiScale;
+            GameInterfaceWidgets::slotFrame(ImGui::GetWindowDrawList(), resultStart,
+                ImVec2(resultStart.x + iconSize, resultStart.y + iconSize), preview.ready(), false, false, appliedSettings.uiScale);
             if (!preview.recipeId.empty())
-            {
-                ImGui::TextWrapped("%s: %s x%d | %s: %d",
-                            tr("crafting.output").c_str(),
-                            materialName(preview.outputMaterialId).c_str(),
-                            preview.outputCount,
-                            tr("crafting.maximum_crafts").c_str(),
-                            preview.maxCrafts);
-            }
-            ImGui::TextWrapped("%s",
-                               craftingPreviewMessage(preview.status).c_str());
+                drawItemPortrait(preview.outputMaterialId,
+                    ImVec2(resultStart.x + iconSize * .5f, resultStart.y + iconSize * .48f), iconSize * .66f);
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + iconSize + 14.f * appliedSettings.uiScale);
+            ImGui::BeginGroup();
+            if (preview.recipeId.empty())
+                ImGui::TextColored(WarmMuted, "%s", tr("crafting.output").c_str());
+            else
+                ImGui::TextColored(preview.ready() ? WarmAccent : WarmMuted, "%s  x%d",
+                    materialName(preview.outputMaterialId).c_str(), preview.outputCount);
+            ImGui::SetWindowFontScale(.85f);
+            if (!craftingMessage.empty())
+                ImGui::TextWrapped("%s", craftingMessage.c_str());
+            else if (preview.ready())
+                ImGui::TextWrapped("%s: %d", tr("crafting.maximum_crafts").c_str(), preview.maxCrafts);
+            else
+                ImGui::TextWrapped("%s", craftingPreviewMessage(preview.status).c_str());
+            ImGui::SetWindowFontScale(1.f);
+            ImGui::EndGroup();
+            ImGui::EndChild();
+            const float actionsWidth = ImGui::GetContentRegionAvail().x - 2.f * ImGui::GetStyle().ItemSpacing.x;
+            const float actionHeight = 32.f * appliedSettings.uiScale;
             ImGui::BeginDisabled(!preview.ready());
-            if (ImGui::Button(label("crafting.craft_one", "##CraftOne").c_str(), ImVec2(150.0f, 38.0f)))
+            pushPrimaryButtonStyle();
+            if (ImGui::Button(label("crafting.craft_one", "##CraftOne").c_str(), ImVec2(actionsWidth * .36f, actionHeight)))
             {
                 const CraftingCommitResult committed =
                     player->commitCrafting(
@@ -3996,8 +4126,11 @@ class OgreUserInterface::Impl
                         1);
                 craftingMessage = craftingCommitMessage(committed.status);
             }
+            ImGui::PopStyleColor(4);
             ImGui::SameLine();
-            if (ImGui::Button(label("crafting.craft_maximum", "##CraftMaximum").c_str(), ImVec2(170.0f, 38.0f)))
+            const std::string maximumLabel = tr("crafting.craft_maximum") +
+                (preview.ready() ? " (" + std::to_string(preview.maxCrafts) + ")" : "") + "###CraftMaximum";
+            if (ImGui::Button(maximumLabel.c_str(), ImVec2(actionsWidth * .38f, actionHeight)))
             {
                 const CraftingCommitResult committed =
                     player->commitCrafting(
@@ -4007,14 +4140,10 @@ class OgreUserInterface::Impl
             }
             ImGui::EndDisabled();
             ImGui::SameLine();
-            if (ImGui::Button(label("common.close", "##CloseCrafting").c_str(), ImVec2(110.0f, 38.0f)))
+            if (ImGui::Button(label("common.close", "##CloseCrafting").c_str(), ImVec2(actionsWidth * .26f, actionHeight)))
             {
                 open = false;
                 playUiFeedback();
-            }
-            if (!craftingMessage.empty())
-            {
-                ImGui::TextWrapped("%s", craftingMessage.c_str());
             }
         }
         ImGui::End();

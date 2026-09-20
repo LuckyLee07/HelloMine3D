@@ -698,6 +698,12 @@ Spitter 用固定颈部体积桥接抬头时的间隙，占满既有 8 部件预
 受击/死亡与蓄力眼色保持即时，暂停、传送和生命周期清理有明确边界。诊断展示通过
 `EnemyPresentationGallery` 读取冻结 registry 的真实体型和战斗 tick，不使用统一放大的身体尺寸。
 
+行囊、储物与合成面板及快捷栏共用 `Ogre/GameInterfaceWidgets.h` 的纯绘制槽位／面板装饰。
+物品预览复用 `itemVisualGeometry` 与实际图集，局部投影、排序和明暗均为派生表现；
+箱子仍通过 capability provider 转移，合成仍通过 `CraftingSession` 预览／提交，不写入新玩法或存档状态。
+窄窗口中材料列表单独滚动，结果区和主要操作固定；具体视觉范围见
+[游戏 UI 方向](game-ui-direction-2026-09-20.md)。
+
 第一人称 UI 通过纯 `PlayerHandPresentation` 缓存空手、握图标、托方块三种手臂几何，
 每种最多 54 个分面；和已有持物共用动作姿态及深度排序。daylight 只调整表现曝光，
 窄窗口按 HUD 右侧余量缩放，面板/暂停隐藏；不新增 Player 字段、动作事件或世界查询。
