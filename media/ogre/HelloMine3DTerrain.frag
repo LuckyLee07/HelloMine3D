@@ -157,6 +157,27 @@ vec3 naturalPalette(vec3 colour, vec2 tile, vec3 face, float footprint)
     return colour;
 }
 
+// Climate arrives in the unused fractional part of uv0; integer tile
+// selection and the 32-byte vertex format stay intact. All vegetation samples
+// the same grassland reference row before receiving this continuous palette.
+vec3 ecologyPalette(vec3 colour, vec2 tile)
+{
+    vec2 climate = vec2((fract(terrainTileUv.x * tilesPerRow) - 0.25) * 2.0,
+                        (fract(terrainTileUv.y * tilesPerRow) - 0.5) * 4.0);
+    climate = clamp(climate, vec2(0.0, -1.0), vec2(1.0));
+    vec3 meadow = vec3(1.02, 1.02, 0.95);
+    vec3 wet = climate.y < 0.0
+        ? mix(meadow, vec3(0.92, 0.99, 1.04), -climate.y)
+        : climate.y < 0.5
+            ? mix(meadow, vec3(0.96, 1.01, 0.96), climate.y * 2.0)
+            : mix(vec3(0.96, 1.01, 0.96), vec3(0.91, 0.96, 0.94), climate.y * 2.0 - 1.0);
+    vec3 tint = wet + climate.x * (vec3(1.12, 0.92, 0.77) - meadow);
+    // Keep exposed dirt in the side texture neutral, including filtered edges.
+    float plant = tile.x >= 3.0 && tile.x <= 5.0
+        ? smoothstep(0.01, 0.04, colour.g - colour.r) : 1.0;
+    return colour * mix(vec3(1.0), tint / meadow, plant);
+}
+
 void main()
 {
     // Evaluate derivatives before alpha discard, including cutout/flora quads.
@@ -167,24 +188,29 @@ void main()
     face /= max(length(face), 0.00001);
     face *= gl_FrontFacing ? 1.0 : -1.0;
     vec2 tileIndex = floor(terrainTileUv * tilesPerRow);
+    bool blendedPlant = surfaceLightingStrength > 0.5 &&
+        tileIndex.y >= 3.0 && tileIndex.y <= 7.0 &&
+        (tileIndex.x <= 8.0 || (tileIndex.x >= 12.0 && tileIndex.x <= 14.0));
+    vec2 sampleTile = blendedPlant ? vec2(tileIndex.x, 4.0) : tileIndex;
 #ifdef TERRAIN_ARRAY
     // Derivatives stay continuous across greedy repeats; each array layer has
     // its own mip chain and wrap addressing, so adjacent tiles never bleed.
     vec2 repeatDx = dFdx(terrainRepeat);
     vec2 repeatDy = dFdy(terrainRepeat);
-    float layer = tileIndex.y * tilesPerRow + tileIndex.x;
+    float layer = sampleTile.y * tilesPerRow + sampleTile.x;
     vec4 texel = textureGrad(terrainArray,
         vec3(fract(terrainRepeat), layer), repeatDx, repeatDy);
     if (texel.a < alphaCutoff)
 #else
     vec2 tilePixel = vec2(0.5) + fract(terrainRepeat) * (tilePixels - 1.0);
-    vec2 atlasUv = (tileIndex * tilePixels + tilePixel) / atlasPixels;
+    vec2 atlasUv = (sampleTile * tilePixels + tilePixel) / atlasPixels;
     vec4 texel = texture(terrainAtlas, atlasUv);
     if (texel.a == 0.0)
 #endif
     {
         discard;
     }
+    if (blendedPlant) texel.rgb = ecologyPalette(texel.rgb, tileIndex);
     float luminance = dot(texel.rgb, vec3(0.2126, 0.7152, 0.0722));
     vec3 balancedColour = mix(
         vec3(luminance), texel.rgb, colourSaturation);

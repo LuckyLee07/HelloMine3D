@@ -6,6 +6,7 @@
 #include <cstdint>
 
 #include "../Block/ChunkBlock.h"
+#include "../Block/TerrainEcologyColour.h"
 #include "../Generation/Terrain/TerrainGenerator.h"
 #include "../Light/LightLevel.h"
 #include "../WorldConstants.h"
@@ -41,6 +42,8 @@ class SectionMeshInput {
     LightLevel getBlockLight(int x, int y, int z) const;
     LightLevel getCombinedLight(int x, int y, int z) const;
     TerrainBiome getBiome(int x, int z) const;
+    glm::vec2 getEcologyColour(float x, float z) const noexcept
+    { return m_ecologyColour.at(x, z); }
     int getTerrainSeed() const noexcept;
     float getWaterDepth(int x, int y, int z) const;
     bool containsWater() const noexcept { return m_containsWater; }
@@ -61,6 +64,7 @@ class SectionMeshInput {
     std::array<LightLevel, Volume> m_blockLight{};
     std::array<std::uint8_t, Volume> m_waterDepth{};
     std::array<TerrainBiome, Size * Size> m_biomes{};
+    TerrainEcologyColour m_ecologyColour;
 
     /// Own layers for y in [-1, CHUNK_SIZE], stored at y + 1.
     std::array<bool, CHUNK_SIZE + 2> m_ownLayerAllSolid{};

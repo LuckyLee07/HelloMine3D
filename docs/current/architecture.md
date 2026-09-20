@@ -646,6 +646,12 @@ Flora 批次。世界生成、方块 ID、成熟状态、命中、掉落与存�
 来源；矿石、圆石、机器保持各自路径。兼容图集仍可叠加地质着色，关闭 surface lighting 才
 返回原始着色，不能把两种回退混为一谈。
 
+生态植被颜色由 `SectionMeshInput` 捕获的纯值 `TerrainEcologyColour` 场驱动：世界对齐 4 米网格、
+8 米半径过滤，每段 81 次纯查询、25 个气候值，不加载邻块。uv0 整数 tile 保持，小数携带
+干暖/林湿参数；uv1、32 字节顶点、光照及存档不变。greedy 检查内部颜色可重建，普通/阴影
+材质使用同变体参考层再着色；关闭表面光照保留旧生态行。见
+[颜色过渡合同](../contracts/ecology-colour-transition-contract-v1.md)。
+
 圆形小地图属于 Ogre 派生表现。2026-09-17 视觉升级将旧的生成器预测色块改为
 `ChunkManager::collectSurfaceMapSamples` 的真实驻留区块表面快照：World 锁忙时延后，
 每次最多 256 列，UI 以 30 Hz、每次 195 列轮转刷新 65×65 个采样点；三档范围对应 1/2/4 米步长，不加载或生成区块。

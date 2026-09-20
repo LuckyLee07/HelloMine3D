@@ -202,6 +202,7 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
         glm::ivec2 textureCoords{0};
         std::uint16_t appearanceKey = 0;
         VertexLightingQuad lighting;
+        std::array<glm::vec2, 4> colour{};
     };
 
     const auto sameMaterial = [](const FaceCell &left,
@@ -223,14 +224,16 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
             cell.lighting.corners.end(),
             [&](const VertexLightCorner &corner) {
                 return sameCorner(cell.lighting.corners[0], corner);
-            });
+            }) && std::all_of(cell.colour.begin() + 1, cell.colour.end(),
+                [&](const glm::vec2 &colour) { return colour == cell.colour[0]; });
     };
     const auto hasSameConstantLighting =
         [&sameCorner, &isConstantLighting](const FaceCell &reference,
                                            const FaceCell &candidate) {
             return isConstantLighting(candidate) &&
                    sameCorner(reference.lighting.corners[0],
-                              candidate.lighting.corners[0]);
+                              candidate.lighting.corners[0]) &&
+                   reference.colour[0] == candidate.colour[0];
         };
     const auto positionFor = [face](int slice, int u, int v) {
         switch (face) {
@@ -291,11 +294,19 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
             std::array<float, 4> outerFinal{};
             std::array<float, 4> outerSmooth{};
             std::array<float, 4> outerAo{};
+            const std::array<glm::vec2, 4> outerColour = {
+                mask[startV * CHUNK_SIZE + startU].colour[0],
+                mask[startV * CHUNK_SIZE + startU + width - 1].colour[1],
+                mask[(startV + height - 1) * CHUNK_SIZE + startU + width - 1].colour[2],
+                mask[(startV + height - 1) * CHUNK_SIZE + startU].colour[3]};
+            std::array<float, 4> outerWarmth{}, outerForest{};
             for (std::size_t corner = 0; corner < 4; ++corner) {
                 outerFinal[corner] = rectangle.corners[corner].finalLight;
                 outerSmooth[corner] = rectangle.corners[corner].smoothLight;
                 outerAo[corner] = static_cast<float>(
                     rectangle.corners[corner].ambientOcclusion);
+                outerWarmth[corner] = outerColour[corner].x;
+                outerForest[corner] = outerColour[corner].y;
             }
 
             constexpr int cornerU[4] = {0, 1, 1, 0};
@@ -323,13 +334,18 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
                         const float expectedAo =
                             VertexLighting::interpolateQuad(
                                 outerAo, rectangle.flipDiagonal, x, y);
+                        const glm::vec2 expectedColour(
+                            VertexLighting::interpolateQuad(outerWarmth, rectangle.flipDiagonal, x, y),
+                            VertexLighting::interpolateQuad(outerForest, rectangle.flipDiagonal, x, y));
                         if (std::abs(actual.finalLight - expectedFinal) >
                                 epsilon ||
                             std::abs(actual.smoothLight - expectedSmooth) >
                                 epsilon ||
                             std::abs(static_cast<float>(
                                          actual.ambientOcclusion) -
-                                     expectedAo) > epsilon) {
+                                     expectedAo) > epsilon ||
+                            std::abs(cell.colour[corner].x - expectedColour.x) > epsilon ||
+                            std::abs(cell.colour[corner].y - expectedColour.y) > epsilon) {
                             return false;
                         }
                     }
@@ -374,6 +390,16 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
                 cell.block = block;
                 cell.textureCoords = appearance.coordinates;
                 cell.appearanceKey = appearance.mergeKey;
+                if (TerrainEcologyColour::plantTile(appearance.coordinates.x,
+                                                    appearance.coordinates.y)) {
+                    constexpr int cu[4] = {0, 1, 1, 0};
+                    constexpr int cv[4] = {0, 0, 1, 1};
+                    const auto positiveFace = glm::max(adjacentOffset, glm::ivec3(0));
+                    for (int corner = 0; corner < 4; ++corner) {
+                        const auto p = positionFor(slice, u + cu[corner], v + cv[corner]) + positiveFace;
+                        cell.colour[corner] = m_pInput->getEcologyColour(p.x, p.z);
+                    }
+                }
                 cell.lighting = calculateVertexLighting(face, position);
                 if (m_pInput->containsWater()) {
                     applyShoreTint(face, position, cell.lighting);
@@ -751,20 +777,41 @@ void ChunkMeshBuilder::addVertexLitFace(
             break;
     }
 
+    const auto tintedCoords = ecologyCoordinates(blockFace, textureCoords, blockPosition);
     if (textureRepeatCoords != nullptr && shareRepeatVertices) {
-        mesh.addSharedFace(blockFace, textureCoords,
+        mesh.addSharedFace(blockFace, tintedCoords,
                            m_pInput->getLocation(), blockPosition, light,
                            flipDiagonal, *textureRepeatCoords);
     }
     else if (textureRepeatCoords != nullptr) {
-        mesh.addFace(blockFace, textureCoords, m_pInput->getLocation(),
+        mesh.addFace(blockFace, tintedCoords, m_pInput->getLocation(),
                      blockPosition, light, flipDiagonal, *textureRepeatCoords);
     }
     else {
-        mesh.addFace(blockFace, textureCoords, m_pInput->getLocation(),
+        mesh.addFace(blockFace, tintedCoords, m_pInput->getLocation(),
                      blockPosition, light, flipDiagonal, textureRepeatWidth,
                      textureRepeatHeight);
     }
+}
+
+std::array<float, 8> ChunkMeshBuilder::ecologyCoordinates(
+    const std::array<float, 12> &positions,
+    const std::array<float, 8> &coordinates,
+    const glm::ivec3 &blockPosition) const
+{
+    const float tiles = static_cast<float>(runtimeTerrainMaterialProfile().parameters().tilesPerRow);
+    const int tx = static_cast<int>(std::floor(coordinates[0] * tiles));
+    const int ty = static_cast<int>(std::floor(coordinates[1] * tiles));
+    if (!TerrainEcologyColour::plantTile(tx, ty)) return coordinates;
+    std::array<float, 8> result{};
+    for (int i = 0; i < 4; ++i) {
+        const auto climate = m_pInput->getEcologyColour(
+            blockPosition.x + positions[i * 3], blockPosition.z + positions[i * 3 + 2]);
+        const auto encoded = TerrainEcologyColour::encode(tx, ty, climate, tiles);
+        result[i * 2] = encoded.x;
+        result[i * 2 + 1] = encoded.y;
+    }
+    return result;
 }
 
 bool ChunkMeshBuilder::isGreedySolidBlock(ChunkBlock block) const
@@ -832,7 +879,7 @@ void ChunkMeshBuilder::addResourceShapeToMesh(
             const auto &face = model.faces[i];
             const auto tile = face.seedHead ? seedTile : leafTile;
             m_pActiveMesh->addFace(face.positions,
-                BlockTextureCoordinates::get(tile.x, tile.y), m_pInput->getLocation(),
+                ecologyCoordinates(face.positions, BlockTextureCoordinates::get(tile.x, tile.y), blockPosition), m_pInput->getLocation(),
                 blockPosition, {light, light, light, light}, false, face.repeat);
         }
         return;
@@ -842,7 +889,7 @@ void ChunkMeshBuilder::addResourceShapeToMesh(
         for (std::size_t y = 1; y < scaledFace.size(); y += 3) {
             scaledFace[y] *= verticalScale;
         }
-        m_pActiveMesh->addFace(scaledFace, texCoords, m_pInput->getLocation(),
+        m_pActiveMesh->addFace(scaledFace, ecologyCoordinates(scaledFace, texCoords, blockPosition), m_pInput->getLocation(),
                                blockPosition, light);
     }
 }

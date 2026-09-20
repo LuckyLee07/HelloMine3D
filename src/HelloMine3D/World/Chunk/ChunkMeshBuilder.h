@@ -72,6 +72,10 @@ class ChunkMeshBuilder {
                           bool shareRepeatVertices = true);
 
     void setActiveMesh(ChunkBlock block);
+    std::array<float, 8> ecologyCoordinates(
+        const std::array<float, 12> &positions,
+        const std::array<float, 8> &coordinates,
+        const glm::ivec3 &blockPosition) const;
 
     void addResourceShapeToMesh(const BlockShape &shape,
                                 const glm::ivec2 &textureCoords,

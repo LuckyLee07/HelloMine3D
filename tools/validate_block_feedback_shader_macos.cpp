@@ -159,7 +159,9 @@ Pixels renderGeology(GLuint shader, int tileX, int tileY, bool top,
                      float span = 8.f, float originX = -24.f,
                      float originY = 72.f, float originZ = 16.f,
                      float enabled = 1.f, float localOrigin = 0.f,
-                     float time = 1.23f, float daylight = 1.f)
+                     float time = 1.23f, float daylight = 1.f,
+                     float warmth = .5f, float forest = 0.f,
+                     float sampleU = .37f, float sampleV = .43f)
 {
     glDisable(GL_BLEND); glDepthMask(GL_TRUE);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); setup(shader);
@@ -186,8 +188,9 @@ Pixels renderGeology(GLuint shader, int tileX, int tileY, bool top,
     {
         const auto a = glGetAttribLocation(shader,name); if (a >= 0) glDisableVertexAttribArray(a);
     }
-    glVertexAttrib2f(glGetAttribLocation(shader,"uv0"),(tileX+.5f)/16.f,(tileY+.5f)/16.f);
-    glVertexAttrib2f(glGetAttribLocation(shader,"uv1"),.37f,.43f);
+    glVertexAttrib2f(glGetAttribLocation(shader,"uv0"),
+        (tileX+.25f+.5f*warmth)/16.f,(tileY+.5f+.25f*forest)/16.f);
+    glVertexAttrib2f(glGetAttribLocation(shader,"uv1"),sampleU,sampleV);
     glVertexAttrib1f(glGetAttribLocation(shader,"uv2"),1.f);
     glDrawArrays(GL_TRIANGLES,0,6); glDisableVertexAttribArray(vertex); glDeleteBuffers(1,&vbo);
     Pixels pixels(Edge*Edge*4); glReadPixels(0,0,Edge,Edge,GL_RGBA,GL_UNSIGNED_BYTE,pixels.data());
@@ -333,6 +336,34 @@ int main(int argc,char **argv)
                     check(mode + "-ecology-" + std::to_string(row) + "-" + std::to_string(column),
                         renderGround(base, 1.f, -16.f, column, row) ==
                         renderGround(shadow, 1.f, -16.f, column, row));
+            const auto climateImage = [](GLuint shader, int col, int row,
+                    float warm, float forest, float enabled = 1.f,
+                    float daylight = 1.f, float u = .37f, float v = .43f) {
+                return renderGeology(shader, col, row, true, 8.f, -24.f, 72.f, 16.f,
+                                     enabled, 0.f, 1.23f, daylight, warm, forest, u, v);
+            };
+            for (int column : {0, 3, 6, 12}) {
+                const auto shared = climateImage(base, column, 3, .35f, .4f);
+                check(mode+"-ecotone-row-boundary-"+std::to_string(column),
+                    shared == climateImage(base, column, 6, .35f, .4f));
+                check(mode+"-ecotone-shadow-agrees-"+std::to_string(column),
+                    shared == climateImage(shadow, column, 6, .35f, .4f));
+                const auto dry = climateImage(base, column, 3, 1.f, 0.f);
+                const auto forest = climateImage(base, column, 6, 0.f, 1.f);
+                bool sameAlpha = true;
+                for (std::size_t i = 3; i < dry.size(); i += 4) sameAlpha &= dry[i] == forest[i];
+                check(mode+"-ecotone-keeps-alpha-"+std::to_string(column), sameAlpha);
+                check(mode+"-ecotone-compatibility-keeps-original-row-"+std::to_string(column),
+                    climateImage(base, column, 3, 0.f, 1.f, 0.f) ==
+                    climateImage(base, column, 3, 1.f, 0.f, 0.f));
+            }
+            check(mode+"-ecotone-regions-retain-colour-character",
+                colourDifference(climateImage(base,0,3,1,0), climateImage(base,0,6,0,1)) > 2.f &&
+                colourDifference(climateImage(base,0,4,0,0), climateImage(base,0,7,0,-1)) > 1.f);
+            check(mode+"-ecotone-grass-side-dirt-is-neutral",
+                climateImage(base,3,3,1,0,1,1,.37f,.8f) == climateImage(base,3,6,0,1,1,1,.37f,.8f));
+            check(mode+"-ecotone-night-shadow-agrees",
+                climateImage(base,0,3,.4f,.3f,1,.18f) == climateImage(shadow,0,6,.4f,.3f,1,.18f));
             const auto coreBefore = renderGround(base, 0.f, 0.f, 15, 0, .18f);
             const auto coreAfter = renderGround(base, 1.f, 0.f, 15, 0, .18f);
             int brighterCore = 0, retainedFrame = 0;

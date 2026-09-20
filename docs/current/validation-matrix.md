@@ -41,6 +41,7 @@ AI 平台对应规则见 [当前验收规范](ai-assisted-gameplay-acceptance-v1
 | 资源、配方、声音或 shader | 资源清单/解析验证；缺失和非法引用必须明确失败。水波坐标变化用 `tools/validate_water_shader_macos.cpp` 执行实际 GLSL 的相邻区块位置/法线检查，命令见[水面修复记录](../reports/water-seam-fix-2026-09-12.md)。 |
 | terrain atlas 或 HUD/手持图标 | `tools\validate_terrain_atlas.ps1`（暖野 macOS 使用 `python3 tools/validate_warm_texture_atlas.py`，含分面/图标映射）、确定性重建、Alpha/空 tile、block 分面、Material 坐标、资源包与隐藏固定截图。 |
 | 岩层与沙面地质着色 | `tools/validate_block_feedback_shader_macos.cpp` 以可选旧包资源根参数比较实际 GLSL，检查 atlas/array、普通/阴影、昼夜、时间不变、区块原点、负坐标接缝、关闭回退、远处细节衰减及旧版/移除衰减负例；双配置资源检查、多 seed 原图与相机连续帧、相关三轮常驻/流送性能。仅改 fragment 时可复用源码身份一致的客户端，不冒充 C++ 重建或正常行进。命令及范围见[地质材质记录](../reports/geology-materials-r30-2026-09-19.md)。 |
+| 生态植被颜色过渡 | `bash scripts/verify_terrain_ecology_colour.sh Debug` / `Release` 检查有界查询、跨区块/负坐标连续和极值；`V10B3` 真实快照及 greedy 内部颜色重建、`WETLAND_GRASS` 反馈/风摆和完整 WorldRuntime；双配置客户端/资源、生产 GPU 四路径及旧 shader/取消滤波/错误合并负例，配对原图、连续帧和相关三轮帧耗/网格规模。见[本批记录](../reports/ecology-colour-transitions-r33-2026-09-20.md)。 |
 | 顶点格式、网格、光照或 AO | 确定性角落/边界夹具、MeshDirty、隐藏固定截图、既有 schema 3 顶点/索引/构建/驻留字段的补充比较和相关 Q1。仅改每顶点值时不得误报为顶点格式升级。 |
 | 雾、天空、云、阴影或后处理 | shader 正反例、关闭回退、固定昼夜截图、窗口缩放/切世界清理、各图形档性能和 AI/开发者视觉检查；动态项必须用多帧、视频或连续窗口。 |
 | 阴影稳定性 | `bash scripts/verify_directional_shadow.sh Debug` / `Release` 检查正午参考轴、光源平面纹素锚定与负坐标；生产滤波 `tools/validate_shadow_filter_macos.cpp` 的 GPU 连续性/遮挡/回退和旧版负例，完整 terrain/actor shader 回归、资源接口陈旧覆盖负例、客户端双配置、昼夜/移动多帧与各受影响图形档三轮性能。有限采样不声明全部场景零闪烁。 |

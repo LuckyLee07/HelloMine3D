@@ -4970,6 +4970,96 @@ void caseTerrainAppearance()
           TerrainBufferMetrics::VertexStrideBytes == 32 &&
               world.getChunkManager().getTerrainGenerationVersion() ==
                   CurrentTerrainGenerationVersion);
+
+    // A real flat grass patch crossing an ecology boundary tests the entire
+    // generator -> snapshot -> greedy/shared vertices path, not only a helper.
+    glm::ivec2 boundaryOrigin(0);
+    bool foundBoundary = false;
+    for (int z = -512; z <= 512 && !foundBoundary; z += CHUNK_SIZE)
+        for (int x = -512; x <= 512 && !foundBoundary; x += CHUNK_SIZE) {
+            const auto a = TerrainEcologyColour::climate(generator.getBiomeAtWorld(x, z));
+            const auto b = TerrainEcologyColour::climate(generator.getBiomeAtWorld(x + 16, z + 16));
+            if (a != b) { boundaryOrigin = {x, z}; foundBoundary = true; }
+        }
+    check("V10B3/continuous-colour-boundary-fixture-found", foundBoundary);
+    if (!foundBoundary) return;
+    for (int x = 0; x < 2; ++x)
+        world.getChunkManager().loadChunk(boundaryOrigin.x / 16 + x, boundaryOrigin.y / 16);
+    for (int z = 0; z < 16; ++z) for (int x = 0; x < 32; ++x)
+        world.setBlock(boundaryOrigin.x + x, blockY, boundaryOrigin.y + z, BlockId::Grass);
+    world.setBlock(boundaryOrigin.x + 5, blockY + 2, boundaryOrigin.y + 5, BlockId::OakLeaf);
+    world.setBlock(boundaryOrigin.x + 7, blockY + 1, boundaryOrigin.y + 7, BlockId::TallGrass);
+    SectionMeshInput colourInputs[2];
+    bool validEncoding = true, repeated = true, reconstructsColour = true;
+    int interiorSamples = 0;
+    int plantVertices = 0, floraVertices = 0;
+    float minWarmth = 1.f, maxWarmth = 0.f, minForest = 1.f, maxForest = -1.f;
+    for (int sectionX = 0; sectionX < 2; ++sectionX) {
+        auto *c = world.getChunkManager().findChunk(boundaryOrigin.x / 16 + sectionX, boundaryOrigin.y / 16);
+        auto *s = c ? c->findSection(blockY / 16) : nullptr;
+        if (!s) { validEncoding = false; continue; }
+        auto &snapshot = colourInputs[sectionX]; s->captureMeshInput(snapshot);
+        ChunkMeshCollection meshes, again;
+        ChunkMeshBuilder(snapshot, meshes).buildMesh(); ChunkMeshBuilder(snapshot, again).buildMesh();
+        repeated &= meshes.solidMesh.getClientMesh().textureCoords == again.solidMesh.getClientMesh().textureCoords;
+        for (const auto *part : {&meshes.solidMesh, &meshes.transparentMesh, &meshes.floraMesh}) {
+            const auto &mesh = part->getClientMesh();
+            for (std::size_t i = 0; i < mesh.vertexPositions.size() / 3; ++i) {
+                const glm::vec2 uv(mesh.textureCoords[i * 2] * 16.f, mesh.textureCoords[i * 2 + 1] * 16.f);
+                const int tx = static_cast<int>(std::floor(uv.x)), ty = static_cast<int>(std::floor(uv.y));
+                if (!TerrainEcologyColour::plantTile(tx, ty)) continue;
+                ++plantVertices; if (part == &meshes.floraMesh) ++floraVertices;
+                const glm::vec2 actual((uv.x - tx - .25f) * 2.f, (uv.y - ty - .5f) * 4.f);
+                const auto expected = snapshot.getEcologyColour(
+                    mesh.vertexPositions[i * 3] - snapshot.getLocation().x * 16,
+                    mesh.vertexPositions[i * 3 + 2] - snapshot.getLocation().z * 16);
+                validEncoding &= std::abs(actual.x - expected.x) < .00001f && std::abs(actual.y - expected.y) < .00001f;
+                minWarmth = std::min(minWarmth, actual.x); maxWarmth = std::max(maxWarmth, actual.x);
+                minForest = std::min(minForest, actual.y); maxForest = std::max(maxForest, actual.y);
+            }
+        }
+        const auto &solid = meshes.solidMesh.getClientMesh();
+        for (std::size_t i = 0; i < solid.indices.size(); i += 3) {
+            glm::vec2 p[3], colour[3]; bool grassTop = true;
+            for (int j = 0; j < 3; ++j) {
+                const auto v = solid.indices[i + j];
+                p[j] = {solid.vertexPositions[v * 3], solid.vertexPositions[v * 3 + 2]};
+                const glm::vec2 uv(solid.textureCoords[v * 2] * 16.f, solid.textureCoords[v * 2 + 1] * 16.f);
+                const auto tile = glm::floor(uv);
+                colour[j] = {(uv.x - tile.x - .25f) * 2.f, (uv.y - tile.y - .5f) * 4.f};
+                grassTop &= solid.vertexPositions[v * 3 + 1] == blockY + 1 && tile.x <= 2 && tile.y >= 3 && tile.y <= 7;
+            }
+            if (!grassTop) continue;
+            const auto cross = [](glm::vec2 a, glm::vec2 b) { return a.x * b.y - a.y * b.x; };
+            const float area = cross(p[1] - p[0], p[2] - p[0]);
+            if (std::abs(area) < .001f) continue;
+            const auto low = glm::min(p[0], glm::min(p[1], p[2]));
+            const auto high = glm::max(p[0], glm::max(p[1], p[2]));
+            for (int z = static_cast<int>(low.y); z <= high.y; ++z)
+                for (int x = static_cast<int>(low.x); x <= high.x; ++x) {
+                    const glm::vec2 point(x, z);
+                    const float u = cross(point - p[0], p[2] - p[0]) / area;
+                    const float v = cross(p[1] - p[0], point - p[0]) / area;
+                    if (u < -.00001f || v < -.00001f || u + v > 1.00001f) continue;
+                    const auto actual = colour[0] * (1.f - u - v) + colour[1] * u + colour[2] * v;
+                    const auto expected = snapshot.getEcologyColour(x - snapshot.getLocation().x * 16, z - snapshot.getLocation().z * 16);
+                    reconstructsColour &= std::abs(actual.x - expected.x) < .00001f && std::abs(actual.y - expected.y) < .00001f;
+                    ++interiorSamples;
+                }
+        }
+    }
+    bool sharedColours = true;
+    for (int z = 0; z <= 16; ++z) {
+        const auto difference = colourInputs[0].getEcologyColour(16, z) - colourInputs[1].getEcologyColour(0, z);
+        sharedColours &= std::abs(difference.x) < .00001f && std::abs(difference.y) < .00001f;
+    }
+    check("V10B3/real-grass-leaf-flora-encode-copied-climate", validEncoding && plantVertices > 20 && floraVertices > 0,
+          "plant_vertices=" + std::to_string(plantVertices) + " flora_vertices=" + std::to_string(floraVertices));
+    check("V10B3/real-boundary-is-varying-and-build-order-stable", repeated &&
+          std::max(maxWarmth - minWarmth, maxForest - minForest) > .1f);
+    check("V10B3/real-adjacent-sections-share-climate", sharedColours);
+    check("V10B3/greedy-triangles-reconstruct-interior-colour", reconstructsColour && interiorSamples > 512,
+          "samples=" + std::to_string(interiorSamples));
 }
 
 // ---------------------------------------------------------------------------

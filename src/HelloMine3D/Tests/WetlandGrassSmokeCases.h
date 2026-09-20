@@ -42,9 +42,24 @@ void caseWetlandGrassPresentation()
                 const auto uv = BlockTextureCoordinates::get(faces[f].tile.x, faces[f].tile.y);
                 for (std::size_t v = 0; v < 12; ++v)
                     aligned &= mesh.vertexPositions[f*12+v] == faces[f].positions[v] + static_cast<float>(position[v%3]);
-                for (std::size_t v = 0; v < 8; ++v)
-                    aligned &= mesh.textureCoords[f*8+v] == uv[v] &&
-                               mesh.textureRepeatCoords[f*8+v] == faces[f].repeat[v];
+                for (std::size_t v = 0; v < 4; ++v) {
+                    glm::vec2 expected(uv[v*2], uv[v*2+1]);
+                    if (TerrainEcologyColour::plantTile(faces[f].tile.x, faces[f].tile.y)) {
+                        const auto climate = input.getEcologyColour(
+                            position.x - input.getLocation().x * CHUNK_SIZE + faces[f].positions[v*3],
+                            position.z - input.getLocation().z * CHUNK_SIZE + faces[f].positions[v*3+2]);
+                        expected = TerrainEcologyColour::encode(faces[f].tile.x, faces[f].tile.y, climate, 16.f);
+                    }
+                    for (int axis = 0; axis < 2; ++axis) {
+                        const auto index = f*8 + v*2 + axis;
+                        // Feedback consumes only the integer tile; climate
+                        // occupies the previously unused fractional part.
+                        aligned &= std::floor(mesh.textureCoords[index] * 16.f) ==
+                                   std::floor(uv[v*2+axis] * 16.f) &&
+                                   std::abs(mesh.textureCoords[index] - expected[axis]) < .00001f &&
+                                   mesh.textureRepeatCoords[index] == faces[f].repeat[v*2+axis];
+                    }
+                }
             }
             check("WETLAND_GRASS/highlight-shape-tile-and-wind-match-real-mesh", aligned);
             check("WETLAND_GRASS/mesh-build-keeps-block-metadata",

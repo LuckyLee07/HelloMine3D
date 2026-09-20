@@ -23,6 +23,11 @@ void SectionMeshInput::capture(
     m_location = section.getLocation();
     m_terrainSeed = terrainSeed;
     m_containsWater = false;
+    static_assert(CHUNK_SIZE == 16, "Ecology colour grid follows section size");
+    m_ecologyColour.capture(m_location.x * CHUNK_SIZE, m_location.z * CHUNK_SIZE,
+        [&terrainGenerator](int x, int z) {
+            return terrainGenerator.getBiomeAtWorld(x, z);
+        });
 
     for (int z = -1; z <= CHUNK_SIZE; ++z) {
         for (int x = -1; x <= CHUNK_SIZE; ++x) {
