@@ -1,0 +1,84 @@
+{
+  "batch": "B3-material-primitives",
+  "terrain_version": 17,
+  "generation_changed": false,
+  "world_checks": {
+    "Debug": 1539,
+    "Release": 1539
+  },
+  "material_checks": 22,
+  "resource_checks": {
+    "Debug": 114,
+    "Release": 114
+  },
+  "recipe_checks": 126,
+  "platform": "macOS gmake clang x86_64",
+  "normal_input": false,
+  "evidence": [
+    {
+      "path": "build/adventure-terrain-20260921/ecology-block-focus-release-r3.log",
+      "sha256": "0cd03b2f5a76506db19a4b3d45365517d3fe0effc825bedfba2df9ae3e0f1fd0"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/material-world-release-r1.log",
+      "sha256": "05cba2dc5741fcabe3dd2a19af70bf1d29559f972a10f6be53a66aabc7684e8f"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/material-world-debug-r1.log",
+      "sha256": "8963fc4f192b943fc658d567457325c6daa05c01ea11408f5cd536e6a9a31d29"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/material-recipe-release.log",
+      "sha256": "d6194ceda27bc26b0c1d09c00e31119bef491c65e13a15256b31d62dc5f73ac9"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/ecology-block-resource-release-r1.log",
+      "sha256": "6b0b6408db2288bdb0715d0fcdfee46f607305436925d8d97fb339315fbf1f58"
+    },
+    {
+      "path": "build/adventure-terrain-20260921/material-resource-debug-r1.log",
+      "sha256": "6b0b6408db2288bdb0715d0fcdfee46f607305436925d8d97fb339315fbf1f58"
+    }
+  ],
+  "gallery": {
+    "standard": "material-gallery-standard-r1",
+    "compatibility": "material-gallery-compatibility-r1",
+    "purpose": "Synthetic material rendering only; not regional ecology acceptance"
+  },
+  "package_identity": {
+    "platform": "macOS",
+    "configuration": "Release",
+    "bundle_id": "local.hellomine3d.adventure-work",
+    "source_commit": "c620b3ac391d7a22e1b226614d6d6bc522a9044c",
+    "tracked_diff_sha256": "c34338ecdb9ba02a2a5c3c4b963d50fdd56defdcd77e3cbf7e81970f733f5cc0",
+    "executable_sha256": "430e48ccc84b5ad10a64abf0ca3cfe9cac9626f808134cd0e30a070ac30ffbe8",
+    "file_identity": "/Users/lizi/Desktop/Workspace/HelloMine3D/bin/HelloMine3D: Mach-O 64-bit executable x86_64",
+    "capabilities": {
+      "hidden_window_no_activate_v1": true
+    },
+    "linkage": [
+      "\t/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa (compatibility version 1.0.0, current version 24.0.0)",
+      "\t/System/Library/Frameworks/Carbon.framework/Versions/A/Carbon (compatibility version 2.0.0, current version 170.0.0)",
+      "\t/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit (compatibility version 1.0.0, current version 275.0.0)",
+      "\t/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation (compatibility version 300.0.0, current version 4201.0.0)",
+      "\t/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit (compatibility version 45.0.0, current version 2685.30.107)",
+      "\t/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 4201.0.0)",
+      "\t/System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL (compatibility version 1.0.0, current version 1.0.0)",
+      "\t/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 2000.67.0)",
+      "\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)",
+      "\t/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics (compatibility version 64.0.0, current version 1965.2.3)",
+      "\t/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)"
+    ],
+    "resource_manifest_sha256": "9c4bbd7eb7a0d7419e33c23e4aa0bb7a7926424280a35cbd3c2189a5b72e40cd",
+    "source_file_count": 346,
+    "source_manifest_sha256": "21878763de691083ef3136deb804cb7af953c21d90080cd7b8ebd2578bebaf8a",
+    "source_tree_required": false,
+    "acceptance": "NOT_RUN",
+    "signed_or_notarized": false
+  },
+  "pending": [
+    "Regional tree and surface generation",
+    "Tree metadata in mining and fragment feedback",
+    "Final route, compatibility and paired window performance"
+  ]
+}

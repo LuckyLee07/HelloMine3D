@@ -34,7 +34,8 @@ class TerrainAppearance {
     static TerrainTileSelection select(
         BlockId block, TerrainFaceKind face,
         const glm::ivec2 &baseCoordinates, TerrainBiome biome,
-        int terrainSeed, const glm::ivec3 &worldPosition) noexcept;
+        int terrainSeed, const glm::ivec3 &worldPosition,
+        BlockMetadata_t metadata = 0) noexcept;
 
     static std::uint8_t coordinateVariant(
         int terrainSeed, const glm::ivec3 &worldPosition,

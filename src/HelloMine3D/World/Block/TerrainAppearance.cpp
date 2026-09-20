@@ -1,4 +1,5 @@
 #include "TerrainAppearance.h"
+#include "ChunkBlock.h"
 
 #include <cstdint>
 
@@ -46,11 +47,21 @@ int patchCoordinate(int coordinate) noexcept
 TerrainTileSelection TerrainAppearance::select(
     BlockId block, TerrainFaceKind face,
     const glm::ivec2 &baseCoordinates, TerrainBiome biome,
-    int terrainSeed, const glm::ivec3 &worldPosition) noexcept
+    int terrainSeed, const glm::ivec3 &worldPosition, BlockMetadata_t metadata) noexcept
 {
     TerrainTileSelection selection;
     selection.coordinates = baseCoordinates;
     selection.biome = biome;
+
+    if ((block == BlockId::OakBark || block == BlockId::OakLeaf) &&
+        (metadata == BlockMetadata::Tree::Spruce || metadata == BlockMetadata::Tree::Birch)) {
+        const int start = metadata == BlockMetadata::Tree::Spruce ? 0 : 3;
+        const int offset = block == BlockId::OakLeaf ? 2 :
+            (face == TerrainFaceKind::Top || face == TerrainFaceKind::Bottom) ? 1 : 0;
+        selection.coordinates = {start + offset, 8};
+        selection.mergeKey = static_cast<std::uint16_t>(1 + 8 * 16 + start + offset);
+        return selection;
+    }
 
     const int column = ecologyColumn(block, face);
     if (column < 0) {

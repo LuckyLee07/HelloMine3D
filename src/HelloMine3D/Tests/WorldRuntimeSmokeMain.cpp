@@ -1572,7 +1572,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 483 &&
+              registry.keys("en-US").size() == 489 &&
               registry.lookup("en-US", "hud.region_river") == "River" &&
               registry.lookup("zh-CN", "hud.region_river") == "河道" &&
               registry.lookup("en-US", "hud.region_lake") == "Lake" &&
@@ -19884,6 +19884,7 @@ void caseWorldManager()
 #include "AdventureTerrainSmokeCases.h"
 #include "AdventureWaterSmokeCases.h"
 #include "TerrainMeshTopologySmokeCases.h"
+#include "AdventureMaterialSmokeCases.h"
 
 int main()
 {
@@ -19934,6 +19935,9 @@ int main()
         }
         else if (focus != nullptr && std::string(focus) == "BANK_MESH") {
             caseTerrainBankMeshTopology();
+        }
+        else if (focus != nullptr && std::string(focus) == "ADVENTURE_MATERIAL") {
+            caseAdventureMaterials();
         }
         else if (focus != nullptr && std::string(focus) == "E8") {
             caseLandmarkArchitectureV14();
@@ -20208,6 +20212,7 @@ int main()
         caseAdventureTerrainV16();
         caseAdventureWaterV17();
         caseTerrainBankMeshTopology();
+        caseAdventureMaterials();
         caseSurfaceMapObservations();
         caseWaterDepthPresentation();
         caseItemVisualPresentation();

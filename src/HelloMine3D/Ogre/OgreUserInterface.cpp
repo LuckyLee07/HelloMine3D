@@ -2549,6 +2549,12 @@ class OgreUserInterface::Impl
             case BlockId::OakLeaf: colour = ImVec4(49, 91, 63, 255); break;
             case BlockId::Water: colour = ImVec4(58, 133, 158, 255); break;
             case BlockId::Sand: colour = ImVec4(204, 186, 132, 255); break;
+            case BlockId::Snow: colour = ImVec4(227, 235, 239, 255); break;
+            case BlockId::Gravel: colour = ImVec4(147, 143, 135, 255); break;
+            case BlockId::Clay: colour = ImVec4(168, 104, 75, 255); break;
+            case BlockId::ForestFloor: colour = ImVec4(99, 76, 49, 255); break;
+            case BlockId::MossStone: colour = ImVec4(109, 120, 82, 255); break;
+            case BlockId::Silt: colour = ImVec4(101, 83, 65, 255); break;
             case BlockId::Dirt: colour = ImVec4(132, 106, 79, 255); break;
             case BlockId::OakBark: colour = ImVec4(104, 82, 58, 255); break;
             case BlockId::OakPlank:
@@ -2566,9 +2572,9 @@ class OgreUserInterface::Impl
         const int slope = (west.known ? west.height - cell.height : 0) +
                           (north.known ? north.height - cell.height : 0);
         const float shade = std::clamp(1.f - slope * 0.055f, 0.72f, 1.18f);
-        return IM_COL32(static_cast<int>(colour.x * shade),
-                        static_cast<int>(colour.y * shade),
-                        static_cast<int>(colour.z * shade), 255);
+        return IM_COL32(static_cast<int>(std::clamp(colour.x * shade, 0.f, 255.f)),
+                        static_cast<int>(std::clamp(colour.y * shade, 0.f, 255.f)),
+                        static_cast<int>(std::clamp(colour.z * shade, 0.f, 255.f)), 255);
     }
 
     void refreshMinimap(const PlayerSaveState& state)

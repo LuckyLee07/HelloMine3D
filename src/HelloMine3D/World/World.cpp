@@ -3615,7 +3615,7 @@ void World::setSpawnPoint()
                 const int highest = chunk.getHeightAt(x, z);
                 const int lowest = std::max(0, highest - 12);
                 for (int y = highest; y >= lowest; --y) {
-                    if (chunk.getBlock(x, y, z) == BlockId::OakBark) {
+                    if (chunk.getBlock(x, y, z).id == static_cast<Block_t>(BlockId::OakBark)) {
                         return true;
                     }
                 }

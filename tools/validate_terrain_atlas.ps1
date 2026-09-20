@@ -281,6 +281,12 @@ $expectedBlocks = @{
     OakDoorClosed = @{TexAll='8,1'}
     OakDoorOpen = @{TexAll='8,1'}
     Crusher = @{TexAll='11,1'}
+    Snow = @{TexAll='6,8'}
+    Gravel = @{TexAll='7,8'}
+    Clay = @{TexAll='8,8'}
+    ForestFloor = @{TexAll='9,8'}
+    MossStone = @{TexAll='10,8'}
+    Silt = @{TexAll='11,8'}
 }
 foreach ($blockName in $expectedBlocks.Keys) {
     $actual = Read-BlockCoordinates $blockName
@@ -301,7 +307,8 @@ $semanticByMaterial = @(
     'stone_sword', 'waystone_core', 'raw_meat', 'cooked_meat',
     'cactus_salad', 'trail_ration', 'plant_fiber', 'torch', 'oak_planks',
     'cobblestone', 'oak_door', 'wooden_axe', 'wooden_shovel',
-    'ancient_compass', 'raider_ward', 'crusher'
+    'ancient_compass', 'raider_ward', 'crusher',
+    'snow', 'gravel', 'clay', 'forest_floor', 'moss_stone', 'silt'
 )
 $materialSource = Get-Content -LiteralPath $materialSourcePath -Raw
 $iconsMatch = [regex]::Match(

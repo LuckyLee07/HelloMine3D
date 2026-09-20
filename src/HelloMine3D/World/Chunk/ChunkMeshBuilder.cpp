@@ -859,7 +859,7 @@ void ChunkMeshBuilder::addResourceShapeToMesh(
         static_cast<BlockId>(block.id), TerrainFaceKind::Resource,
         textureCoords,
         m_pInput->getBiome(blockPosition.x, blockPosition.z),
-        m_pInput->getTerrainSeed(), worldPositionFor(blockPosition));
+        m_pInput->getTerrainSeed(), worldPositionFor(blockPosition), block.metadata);
     const auto texCoords =
         BlockTextureCoordinates::get(appearance.coordinates.x,
                                      appearance.coordinates.y);
@@ -971,7 +971,7 @@ TerrainTileSelection ChunkMeshBuilder::selectTerrainTile(
     return TerrainAppearance::select(
         static_cast<BlockId>(block.id), faceKind, baseCoordinates,
         m_pInput->getBiome(blockPosition.x, blockPosition.z),
-        m_pInput->getTerrainSeed(), worldPositionFor(blockPosition));
+        m_pInput->getTerrainSeed(), worldPositionFor(blockPosition), block.metadata);
 }
 
 glm::ivec3 ChunkMeshBuilder::worldPositionFor(

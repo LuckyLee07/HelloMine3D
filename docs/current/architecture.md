@@ -385,6 +385,10 @@ C3 为 copied topology observation 增至 79 项并同步更新 machine-checked 
   按 seed/网格完整校验，不持有世界或区块。River/Lake 只追加生态 ID；树冠投影在 v17
   开始保护实体地表和水体，防止陡岸被叶块覆盖。旧 v1–v16 生成输出与存档身份保持，见
   [水系合同](../contracts/adventure-water-v17-contract-v1.md)。
+  v18 生态资源先独立接入：BlockId 27..32 / Material ID 43..48 追加雪、砾石、黏土、林床、
+  苔石及淤泥，不改变既有编号。木材／叶块 metadata 0 保持橡树，1/2 表示针叶／浅色阔叶，
+  真实区块保存该字节；区块材质按树种选择树皮、断面和叶片，原木掉落及配方继续共用原资源。
+  此资源阶段默认生成仍为 v17，区域树型与地表摆放按[v18 合同](../contracts/adventure-ecology-v18-contract-v1.md)后续启用。
   v5 基线见 [v5 合同](../contracts/terrain-foundation-v5-contract-v1.md)，当前 E2 门槛见
   [v8 合同](../contracts/ecology-surface-coast-v8-e2-contract-v1.md)，v9 首批范围见
   [E3 合同](../contracts/ecology-inland-meadow-v9-e3-contract-v1.md)，v10/v11 范围分别见

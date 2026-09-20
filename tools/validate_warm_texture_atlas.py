@@ -87,7 +87,7 @@ def main():
             pass
         else:
             raise AssertionError('Failed to reject duplicate semantic')
-    print('[WARM_ATLAS] PASS dimensions=256x256 semantics=132 empty=124 alpha=all block-faces=26 material-icons=43 icons=unchanged rebuild=byte-identical negative=5 sha256=' + hashlib.sha256(rebuilt).hexdigest())
+    print('[WARM_ATLAS] PASS dimensions=256x256 semantics=132 empty=124 alpha=all block-faces=32 material-icons=49 icons=unchanged rebuild=byte-identical negative=5 sha256=' + hashlib.sha256(rebuilt).hexdigest())
 
 
 if __name__ == '__main__':

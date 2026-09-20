@@ -48,6 +48,12 @@ namespace
         "hellomine:ancient_compass",
         "hellomine:raider_ward",
         "hellomine:crusher",
+        "hellomine:snow",
+        "hellomine:gravel",
+        "hellomine:clay",
+        "hellomine:forest_floor",
+        "hellomine:moss_stone",
+        "hellomine:silt",
     }};
 
     constexpr std::array<Material::IconCoordinate, Material::ID::Count>
@@ -59,7 +65,7 @@ namespace
             {6, 2}, {7, 2}, {8, 2}, {9, 2}, {15, 0}, {10, 2},
             {11, 2}, {12, 2}, {13, 2}, {14, 2}, {6, 1}, {5, 1},
             {7, 1}, {8, 1}, {15, 2}, {15, 3}, {9, 1}, {10, 1},
-            {11, 1},
+            {11, 1}, {6, 8}, {7, 8}, {8, 8}, {9, 8}, {10, 8}, {11, 8},
         }};
 }
 
@@ -132,6 +138,13 @@ const Material Material::RAIDER_WARD(ID::RaiderWard, 1, false,
                                      "Raider Ward");
 const Material Material::CRUSHER_BLOCK(ID::Crusher, 99, true,
                                        "Hand-Cranked Crusher");
+
+const Material Material::SNOW_BLOCK(ID::Snow, 99, true, "Snow");
+const Material Material::GRAVEL_BLOCK(ID::Gravel, 99, true, "Gravel");
+const Material Material::CLAY_BLOCK(ID::Clay, 99, true, "Clay");
+const Material Material::FOREST_FLOOR_BLOCK(ID::ForestFloor, 99, true, "Forest Floor");
+const Material Material::MOSS_STONE_BLOCK(ID::MossStone, 99, true, "Moss Stone");
+const Material Material::SILT_BLOCK(ID::Silt, 99, true, "Silt");
 
 Material::Material(Material::ID id, int maxStack, bool isBlock,
                    std::string &&name, bool isTool, bool isFood)
@@ -221,6 +234,13 @@ BlockId Material::toBlockID() const
 
         case Crusher:
             return BlockId::Crusher;
+        case Snow: return BlockId::Snow;
+        case Gravel: return BlockId::Gravel;
+        case Clay: return BlockId::Clay;
+        case ForestFloor: return BlockId::ForestFloor;
+        case MossStone: return BlockId::MossStone;
+        case Silt: return BlockId::Silt;
+
 
         default:
             return BlockId::NUM_TYPES;
@@ -302,6 +322,13 @@ const Material &Material::toMaterial(BlockId id)
 
         case BlockId::Crusher:
             return CRUSHER_BLOCK;
+        case BlockId::Snow: return SNOW_BLOCK;
+        case BlockId::Gravel: return GRAVEL_BLOCK;
+        case BlockId::Clay: return CLAY_BLOCK;
+        case BlockId::ForestFloor: return FOREST_FLOOR_BLOCK;
+        case BlockId::MossStone: return MOSS_STONE_BLOCK;
+        case BlockId::Silt: return SILT_BLOCK;
+
 
         default:
             return NOTHING;
@@ -436,6 +463,13 @@ const Material &Material::toMaterial(Material::ID id)
 
         case Crusher:
             return CRUSHER_BLOCK;
+        case Snow: return SNOW_BLOCK;
+        case Gravel: return GRAVEL_BLOCK;
+        case Clay: return CLAY_BLOCK;
+        case ForestFloor: return FOREST_FLOOR_BLOCK;
+        case MossStone: return MOSS_STONE_BLOCK;
+        case Silt: return SILT_BLOCK;
+
 
         default:
             return NOTHING;

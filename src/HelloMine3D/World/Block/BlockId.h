@@ -36,6 +36,13 @@ enum class BlockId : Block_t {
     OakDoorOpen = 25,
     Crusher = 26,
 
+    Snow = 27,
+    Gravel = 28,
+    Clay = 29,
+    ForestFloor = 30,
+    MossStone = 31,
+    Silt = 32,
+
     NUM_TYPES
 };
 

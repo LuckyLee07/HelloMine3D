@@ -7,6 +7,11 @@ struct BlockDataHolder;
 class BlockType;
 
 namespace BlockMetadata {
+namespace Tree {
+constexpr BlockMetadata_t Oak = 0;
+constexpr BlockMetadata_t Spruce = 1;
+constexpr BlockMetadata_t Birch = 2;
+} // namespace Tree
 namespace TallGrass {
 constexpr BlockMetadata_t Immature = 0;
 constexpr BlockMetadata_t Mature = 1;

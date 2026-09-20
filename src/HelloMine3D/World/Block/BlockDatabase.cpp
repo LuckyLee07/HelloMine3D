@@ -475,6 +475,12 @@ BlockDatabase::BlockDatabase()
               InventoryProviderKind::Crusher,
               MachineProcessorKind::Crusher,
               MechanicalPortKind::CrusherAllFaces});
+    addBlock(BlockId::Snow, "Snow");
+    addBlock(BlockId::Gravel, "Gravel");
+    addBlock(BlockId::Clay, "Clay");
+    addBlock(BlockId::ForestFloor, "ForestFloor");
+    addBlock(BlockId::MossStone, "MossStone");
+    addBlock(BlockId::Silt, "Silt");
 }
 
 BlockDatabase &BlockDatabase::get()
