@@ -6,6 +6,7 @@
 !/bin/MineResources.cfg
 !/bin/resource-packs.txt
 /build/
+/.local-notes/
 /vcpkg_installed/
 /packages/
 __pycache__/
