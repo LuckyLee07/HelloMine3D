@@ -4,6 +4,67 @@
 #include "../Feedback/BlockSurfaceGeometry.h"
 
 namespace {
+void caseAdventureSurfaceQueryCache() {
+    const std::array<int, 8> seeds{{0, 1, 42, 424, 325322, 8675309, 20260807, 20260809}};
+    const std::array<std::pair<int, int>, 8> extremes{{
+        {-1, -1}, {-16, -17}, {15, 16}, {-513, 512},
+        {std::numeric_limits<int>::min(), 0},
+        {std::numeric_limits<int>::max(), -1},
+        {0, std::numeric_limits<int>::min()},
+        {-1, std::numeric_limits<int>::max()}}};
+    const auto agrees = [](const ClassicOverWorldGenerator &generator,
+                           const TerrainFoundation::Column &column, int x, int z) {
+        return generator.getBiomeAtWorld(x, z) == column.biome &&
+               generator.getSurfaceHeightAtWorld(x, z) == column.height;
+    };
+    bool exact = true;
+    for (int version : {17, 18, 19}) {
+        for (int seed : seeds) {
+            ClassicOverWorldGenerator generator(seed, version);
+            AdventureWaterPlanner water(seed); AdventureEcologyPlanner ecology(seed);
+            const auto expected = [&](int x, int z) {
+                return version == 17 ? water.sample(x, z).column : ecology.sample(x, z).column;
+            };
+            for (int z = -48; z <= 48; z += 3) for (int x = -48; x <= 48; x += 3)
+                exact &= agrees(generator, expected(x, z), x, z);
+            for (const auto &p : extremes)
+                exact &= agrees(generator, expected(p.first, p.second), p.first, p.second);
+        }
+    }
+    check("ADVENTURE_QUERY/uncached-plan-equality-seeds-versions-signed-limits", exact);
+
+    // More unique columns than cache capacity, then revisit another seed and
+    // version. An evicted answer must be recomputed rather than aliased.
+    ClassicOverWorldGenerator generator(42, 19), other(424, 17);
+    AdventureEcologyPlanner ecology(42); AdventureWaterPlanner otherWater(424);
+    bool eviction = true;
+    for (int i = 0; i < 32768; ++i) {
+        const int x = i % 256 - 128, z = i / 256 - 64;
+        eviction &= agrees(generator, ecology.sample(x, z).column, x, z);
+    }
+    for (int i = 32767; i >= 0; i -= 13) {
+        const int x = i % 256 - 128, z = i / 256 - 64;
+        eviction &= agrees(other, otherWater.sample(x, z).column, x, z);
+        eviction &= agrees(generator, ecology.sample(x, z).column, x, z);
+    }
+    check("ADVENTURE_QUERY/eviction-and-interleaved-world-identities", eviction);
+
+    std::array<bool, 4> results{}; std::array<std::thread, 4> workers;
+    for (int worker = 0; worker < 4; ++worker) {
+        workers[worker] = std::thread([&, worker] {
+            bool valid = true;
+            AdventureEcologyPlanner reference(42);
+            for (int i = 0; i < 4096; ++i) {
+                const int x = i % 64 - 32, z = i / 64 - 32 + worker * 13;
+                valid &= agrees(generator, reference.sample(x, z).column, x, z);
+            }
+            results[worker] = valid;
+        });
+    }
+    for (auto &worker : workers) worker.join();
+    check("ADVENTURE_QUERY/shared-generator-concurrent-queries",
+          std::all_of(results.begin(), results.end(), [](bool value) { return value; }));
+}
 void caseAdventureEcologyV18() {
     check("ADVENTURE_ECOLOGY/frozen-v18-identity",AdventureEcologyTerrainGenerationVersion==18 && AdventureWaterTerrainGenerationVersion==17);
     const struct Site {int seed,x,z,region;} sites[]={

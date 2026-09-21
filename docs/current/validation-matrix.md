@@ -34,6 +34,7 @@ AI 平台对应规则见 [当前验收规范](ai-assisted-gameplay-acceptance-v1
 | 冒险生态材料与树种数据 | `HELLOMINE3D_WORLD_SMOKE_FOCUS=ADVENTURE_MATERIAL` 检查末尾追加 ID、工具／掉落、真实采集放置、12 个网格材质槽及 metadata 保存重开；资源包与配方回归、图集校验和标准／兼容材质展台。新生成与生态路线另按 [v18 合同](../contracts/adventure-ecology-v18-contract-v1.md) 验收。 |
 | 冒险生态实际生成 | `bash scripts/verify_adventure_ecology.sh Debug` / `Release`；`HELLOMINE3D_WORLD_SMOKE_FOCUS=ADVENTURE_ECOLOGY` 检查八 seed × 九区域实际地表、水柱、树型、地被、正逆生成、碎片 metadata 和默认 v18 保存；v1–v17 T0 摘要对照、完整世界回归及双配置客户端。预冻结机位与连续路线分开验收，最终性能和普通探索仍按 [v18 合同](../contracts/adventure-ecology-v18-contract-v1.md) 与目标执行。 |
 | 冒险地图探索整合 | `HELLOMINE3D_WORLD_SMOKE_FOCUS=ADVENTURE_EXPLORE`：八 seed 普通出生、实际木石资源、有界陆路连接区域核心／水岸／三类地点、洞口植被避让、雪层保持、自定义 Cross 回退、v19 保存重开；完整世界回归、v1–v18 生产摘要、双配置客户端。陆路查询与正常输入分开，见 [v19 合同](../contracts/adventure-exploration-v19-contract-v1.md)。 |
+| 冒险地表纯查询缓存 | `ADVENTURE_QUERY`：八 seed／v17–v19 与无缓存规划逐列一致，负坐标／整数极限、超容量替换与交替世界身份、共享生成器并发；完整 WorldRuntime、v17–v19 生产摘要和双配置客户端。不得缓存实际方块或改变生成版本。 |
 | 物品、容器、制作、工具或食物 | 状态守恒、容量边界、失败原子性、固定 tick 和保存/重载测试。 |
 | UI 或输入 | 动作仲裁、焦点隔离、映射/冲突、设置迁移自动测试；macOS Cocoa 改动在已构建对应配置后运行 `bash scripts/verify_cocoa_input.sh Debug` / `Release`（非可见自动回归）；适用时运行 `AI-01..AI-04`。OS 焦点、Alt+Tab、最小化和窗口关闭只能由 Computer Use 关闭功能范围。 |
 | 第一人称动作、命中/受击、粒子或镜头反馈 | 判定时刻与表现解耦测试、数量/持续时间上限、关闭回退、HUD/准星截图和 AI 多帧/视频观察；镜头效果必须可调或可关，人类舒适度不声明。 |

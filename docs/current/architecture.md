@@ -400,6 +400,9 @@ C3 为 copied topology observation 增至 79 项并同步更新 machine-checked 
   树冠来源 halo 同步纳入有界规划；不加载邻区块。营地允许使用满足既有坡差和入口条件的
   疏林／森林空地，旧版本仍保持原候选语义。v18 高度、水位、雪层及材料查询保持，
   蕨类外观只替换标准 Cross，自定义资源形状回退原定义。见[v19 合同](../contracts/adventure-exploration-v19-contract-v1.md)。
+  v17+ 纯地表列查询使用每线程固定 8192 项、最多 256 KiB 的派生缓存，完整校验 seed、
+  生成版本和有符号世界坐标；不缓存实际方块、存档或 World 指针，替换仅影响计算成本。
+  不同高度 section 可复用同列结果，世界切换和并发线程不共享可变缓存。
   v5 基线见 [v5 合同](../contracts/terrain-foundation-v5-contract-v1.md)，当前 E2 门槛见
   [v8 合同](../contracts/ecology-surface-coast-v8-e2-contract-v1.md)，v9 首批范围见
   [E3 合同](../contracts/ecology-inland-meadow-v9-e3-contract-v1.md)，v10/v11 范围分别见

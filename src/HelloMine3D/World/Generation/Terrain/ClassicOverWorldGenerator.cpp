@@ -1,6 +1,7 @@
 #include "ClassicOverWorldGenerator.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <functional>
@@ -268,11 +269,36 @@ int ClassicOverWorldGenerator::getGenerationVersion() const noexcept
 TerrainFoundation::Column ClassicOverWorldGenerator::sampleFoundationForVersion(
     int worldX, int worldZ) const noexcept
 {
-    if (m_generationVersion >= AdventureEcologyTerrainGenerationVersion) {
-        return m_adventureEcology.sample(worldX, worldZ).column;
-    }
     if (m_generationVersion >= AdventureWaterTerrainGenerationVersion) {
-        return m_adventureWater.sample(worldX, worldZ).column;
+        // Mesh sections at different heights ask for the same immutable
+        // surface columns. Keep only derived values, never world/block state.
+        // Full keys prevent collisions or another world's seed/version from
+        // changing an answer; thread-local storage needs no world-lock work.
+        struct Entry {
+            int seed = 0, version = 0, x = 0, z = 0;
+            TerrainFoundation::Column column;
+            bool valid = false;
+        };
+        thread_local std::array<Entry, 8192> cache{};
+        static_assert(sizeof(cache) <= 256 * 1024,
+                      "Surface query cache stays bounded per thread");
+        const auto key = structureHash(m_seed, worldX, worldZ) ^
+            mixStructureValue(static_cast<std::uint64_t>(m_generationVersion));
+        auto &entry = cache[key % cache.size()];
+        if (!entry.valid || entry.seed != m_seed ||
+            entry.version != m_generationVersion ||
+            entry.x != worldX || entry.z != worldZ) {
+            entry.column =
+                m_generationVersion >= AdventureEcologyTerrainGenerationVersion
+                    ? m_adventureEcology.sample(worldX, worldZ).column
+                    : m_adventureWater.sample(worldX, worldZ).column;
+            entry.seed = m_seed;
+            entry.version = m_generationVersion;
+            entry.x = worldX;
+            entry.z = worldZ;
+            entry.valid = true;
+        }
+        return entry.column;
     }
     if (m_generationVersion >= AdventureRegionTerrainGenerationVersion) {
         return m_adventure.sample(worldX, worldZ).column;

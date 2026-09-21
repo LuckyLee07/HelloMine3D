@@ -1,0 +1,69 @@
+{
+  "binary_sha256": "3a508cda86e086b280ea813fd6a79327c99950adffe35f4bc204bf9152b8e235",
+  "versions": {
+    "17": {
+      "actual": {
+        "samples.csv": "19c59dbd4701c85f9a4b39dab66881b5a174b103505fbc03f145f50a1af1615f",
+        "chunks.csv": "69091bf0f7eb232bbb44673b009ea1894417d53c737428dd55ab307a0b6b7ae6"
+      },
+      "expected": {
+        "samples.csv": "19c59dbd4701c85f9a4b39dab66881b5a174b103505fbc03f145f50a1af1615f",
+        "chunks.csv": "69091bf0f7eb232bbb44673b009ea1894417d53c737428dd55ab307a0b6b7ae6"
+      },
+      "matches": true
+    },
+    "18": {
+      "actual": {
+        "samples.csv": "4aa476c7df0d805ed6990b352278c253045b875a4f018fdf83d085284b5142a8",
+        "chunks.csv": "0557087c3988a0f82f3621c250ae95efa482674e23fc3f00b84061057d57c610"
+      },
+      "expected": {
+        "samples.csv": "4aa476c7df0d805ed6990b352278c253045b875a4f018fdf83d085284b5142a8",
+        "chunks.csv": "0557087c3988a0f82f3621c250ae95efa482674e23fc3f00b84061057d57c610"
+      },
+      "matches": true
+    },
+    "19": {
+      "actual": {
+        "samples.csv": "9d3e4deee84b44b9ad0b8dce76ce49518c34b53890c482be9cde51db5e93c160",
+        "chunks.csv": "cd5d3084eab6743e45ca60efbe1332be2446a02f5adb3a9195ee9efb81aa5544"
+      },
+      "expected": {
+        "samples.csv": "9d3e4deee84b44b9ad0b8dce76ce49518c34b53890c482be9cde51db5e93c160",
+        "chunks.csv": "cd5d3084eab6743e45ca60efbe1332be2446a02f5adb3a9195ee9efb81aa5544"
+      },
+      "matches": true
+    }
+  },
+  "schema": 1,
+  "scope": "Pure derived-column cache only; no generation output or stored block change.",
+  "client_sha256": "58dd5a9bd29fb37a164f620c86ce5a010fda063b9697d061aaedf4e231330fdb",
+  "platform": "macOS Apple clang gmake x86_64",
+  "checks": {
+    "release_focus": 3,
+    "debug_focus": 3,
+    "release_world": 1686,
+    "debug_world": 1686,
+    "failures": 0
+  },
+  "cache": {
+    "entries_per_thread": 8192,
+    "maximum_bytes_per_thread": 262144,
+    "identity": [
+      "seed",
+      "generation_version",
+      "signed_world_x",
+      "signed_world_z"
+    ],
+    "world_state_cached": false
+  },
+  "performance": "Pending paired window verification; no performance PASS claimed",
+  "logs": {
+    "query-cache-release-build-r1.log": "45d97bddc566573feb25831944b09d092987c65bff0ef9328f98bef9f0a07206",
+    "query-cache-debug-build-r1.log": "07fb3b2fcf0420bb4540e2fa0c10353a7589b84d71c94bbbf5fa49a37dfd6991",
+    "query-cache-focus-release-r1.log": "e41b79b81a44d0927f1400f0bdf0056f6e1af1265a66fed27c3563fc99f27d44",
+    "query-cache-focus-debug-r1.log": "e41b79b81a44d0927f1400f0bdf0056f6e1af1265a66fed27c3563fc99f27d44",
+    "query-cache-world-release-r1.log": "530468e686e4ff4c9c5073a4f486238e1c6fb17f3da98e13b1cd4255cc1c5024",
+    "query-cache-world-debug-r1.log": "492e09f4269a365d1f9a81678aac65c2d429f25564d9277858db791566fd8005"
+  }
+}

@@ -19941,6 +19941,9 @@ int main()
         else if (focus != nullptr && std::string(focus) == "ADVENTURE_EXPLORE") {
             caseAdventureExplorationV19();
         }
+        else if (focus != nullptr && std::string(focus) == "ADVENTURE_QUERY") {
+            caseAdventureSurfaceQueryCache();
+        }
         else if (focus != nullptr && std::string(focus) == "ADVENTURE_ECOLOGY") {
             caseAdventureEcologyV18();
         }
@@ -20222,6 +20225,7 @@ int main()
         caseTerrainBankMeshTopology();
         caseAdventureMaterials();
         caseAdventureEcologyV18();
+        caseAdventureSurfaceQueryCache();
         caseAdventureExplorationV19();
         caseSurfaceMapObservations();
         caseWaterDepthPresentation();
