@@ -418,6 +418,9 @@ C3 为 copied topology observation 增至 79 项并同步更新 machine-checked 
 - 查询、创建、加载、生成、保存和卸载 Chunk；
 - 在卸载前同步保存 dirty Chunk，失败时保留 resident Chunk；
 - 发布 generated/loaded/saved/unloaded 事实；
+- 载入后在既有世界锁内衔接方块光：区块内部重建已完成，仅读取新边界及四个已驻留邻区块的光值，
+  将亮度大于一的边界格送入原传播器；不为黑暗边界构造哈希集合，不加载缺失邻区块。
+  卸载同样直接读取四个驻留边界，保留全部非零移除根；熔炉归一化、传播规则和 dirty 通知保持；
 - 提供 `beginMeshJob -> off-lock build -> finishMeshJob` 和 B4 detached
   `begin/prepare/finish/cancel ChunkLoadJob` 边界；
 - cancelled detached reservation 转成语义 `Absent` 后立即从 manager map 擦除，不保留无界坐标墓碑；

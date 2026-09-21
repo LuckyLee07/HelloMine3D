@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "scope": "Optimize only derived block-light boundary reconciliation; generation, saved blocks, lighting rules and budgets unchanged.",
+  "client_sha256": "3bb10ef8a953532abafa1a925481cf49112bf84e9af1e3ce9d5ddd26dacea3a0",
+  "resource_manifest_sha256": "9c4bbd7eb7a0d7419e33c23e4aa0bb7a7926424280a35cbd3c2189a5b72e40cd",
+  "validation": [
+    {
+      "configuration": "release",
+      "suite": "focus",
+      "checks": 52,
+      "sha256": "2ad3d4c84d20b7a6a285f961e71feb30e1e4cf6bef084c653c94db2bf49f2366",
+      "file": "boundary-light-focus-release-r2.log"
+    },
+    {
+      "configuration": "release",
+      "suite": "world",
+      "checks": 1699,
+      "sha256": "31d12208ba28224a8c1cc0d16adea11e3753b95de0c4133251643b12537c4c3f",
+      "file": "boundary-light-world-release-r2.log"
+    },
+    {
+      "configuration": "debug",
+      "suite": "focus",
+      "checks": 52,
+      "sha256": "2ad3d4c84d20b7a6a285f961e71feb30e1e4cf6bef084c653c94db2bf49f2366",
+      "file": "boundary-light-focus-debug-r2.log"
+    },
+    {
+      "configuration": "debug",
+      "suite": "world",
+      "checks": 1699,
+      "sha256": "3416702575243524d2d5bbcd3a1b75a9065df1eecd778bdc6c8591cbb60dbb35",
+      "file": "boundary-light-world-debug-r2.log"
+    }
+  ],
+  "light_field": {
+    "cells": 12800,
+    "sources": 4,
+    "chunks": 9,
+    "reloads": [
+      "forward",
+      "reverse",
+      "detached_commit"
+    ],
+    "checks": [
+      "Manhattan falloff across four faces and a corner",
+      "all remaining light removed with source chunk",
+      "no implicit neighbour loading",
+      "legacy torch/edit/occlusion/furnace checks"
+    ]
+  },
+  "profiles": [
+    {
+      "path": "enclosed-profile-r1/sample.txt",
+      "sha256": "5d847434579b663fc0af7f2b95787ea4a71bfc1a3bd35e29332cc3d53a3657f4",
+      "finding": "Main-thread World mutex waits; worker load commit dominated by block-light reconciliation."
+    },
+    {
+      "path": "boundary-stream-profile-r1/sample.txt",
+      "sha256": "ee6c6dfd0408d696ef93fae3a95577142d47bea9c542af493ac089cb73df8027",
+      "finding": "Remaining streaming spikes dominated by unload light-boundary hashing/lookup."
+    }
+  ],
+  "profile_runs_excluded_from_performance": true,
+  "night_visual": {
+    "result": "CAPTURED_REVIEWED",
+    "normal_input": false,
+    "inherited_environment": {
+      "HELLOMINE3D_P11_LIGHT_FIXTURE": "night_torch"
+    },
+    "frames": [
+      {
+        "ms": 4000,
+        "sha256": "b7c742cc3b3df298db71ff7de3ecf0a8a939c4e90fbaec4896a2600b5f1486f2",
+        "reviewed": true
+      },
+      {
+        "ms": 10000,
+        "sha256": "d68365e1f4ff07959a794fcea57dfbddd10b3bc02676dd4d7c04db3504a4d2a5",
+        "reviewed": true
+      }
+    ],
+    "observation": "Torch and lit ground visible; no boundary dark seam apparent in these views. Enemy approaches and obscures centre later; not a normal exploration or exhaustive flicker test."
+  },
+  "performance": "Three-round final pairing active; preceding failures preserved, no overall PASS claim."
+}

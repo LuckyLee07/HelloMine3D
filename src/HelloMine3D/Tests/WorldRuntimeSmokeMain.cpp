@@ -6552,6 +6552,94 @@ void caseLocalRelightAfterEdits()
     }
 }
 
+// A closed-form empty-space light field exercises load reconciliation across
+// every face and a four-chunk corner, independently of its seed enumeration.
+void caseBoundaryLightLoading()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player,
+                freshSaveDirectory("boundary_light_loading"), false, 1);
+    auto &chunks = world.getChunkManager();
+    std::vector<glm::ivec2> positions;
+    for (int x = -1; x <= 1; ++x) {
+        for (int z = -1; z <= 1; ++z) {
+            positions.push_back({x, z});
+            Chunk *chunk = chunks.findChunk(x, z);
+            if (chunk == nullptr || !chunk->hasLoaded()) {
+                check("L4/fixture-resident", false); return;
+            }
+            for (int lz = 0; lz < CHUNK_SIZE; ++lz) {
+                for (int lx = 0; lx < CHUNK_SIZE; ++lx) {
+                    chunk->setBlock(lx, 199, lz, BlockId::Stone);
+                    for (int y = 200; y < 208; ++y) {
+                        chunk->setBlock(lx, y, lz, BlockId::Air);
+                    }
+                }
+            }
+            chunk->rebuildBlockLight();
+        }
+    }
+    const std::array<glm::ivec3, 4> sources{{
+        {0, 202, 0}, {15, 203, 8}, {8, 204, 15}, {8, 205, 0}
+    }};
+    for (const auto &source : sources) {
+        world.setBlock(source.x, source.y, source.z, BlockId::Torch);
+    }
+    const auto mismatches = [&](bool sourcesPresent = true) {
+        int count = 0;
+        for (int y = 200; y < 208; ++y) {
+            for (int z = -12; z <= 27; ++z) {
+                for (int x = -12; x <= 27; ++x) {
+                    int expected = 0;
+                    for (const auto &source : sources) {
+                        if (!sourcesPresent) break;
+                        expected = std::max(expected, 14 - std::abs(x-source.x)
+                            - std::abs(y-source.y) - std::abs(z-source.z));
+                    }
+                    if (world.getBlockLight(x, y, z) != expected) ++count;
+                }
+            }
+        }
+        return count;
+    };
+    int errors = mismatches();
+    check("L4/empty-space-light-matches-manhattan-falloff", errors == 0,
+          "mismatches=" + std::to_string(errors));
+    world.save();
+    for (int round = 0; round < 3; ++round) {
+        const bool unloadedSource = chunks.unloadChunk(0, 0);
+        errors = mismatches(false);
+        check("L4/source-unload-clears-all-neighbours-" + std::to_string(round),
+              unloadedSource && errors == 0, "mismatches=" + std::to_string(errors));
+        for (const auto &position : positions) {
+            chunks.unloadChunk(position.x, position.y);
+        }
+        if (round == 1) std::reverse(positions.begin(), positions.end());
+        bool loaded = true;
+        if (round < 2) {
+            for (const auto &position : positions) chunks.loadChunk(position.x, position.y);
+        }
+        else {
+            for (std::size_t n = 0; n < positions.size(); ++n) {
+                ChunkLoadJob job;
+                chunks.beginChunkNeighborhoodLoadJob(0, 0, 1, job);
+                loaded = loaded && job.valid && chunks.prepareChunkLoadJob(job)
+                    && chunks.finishChunkLoadJob(job);
+            }
+        }
+        errors = mismatches();
+        check("L4/reload-order-" + std::to_string(round) + "-keeps-complete-light-field",
+              loaded && errors == 0, "mismatches=" + std::to_string(errors));
+        check("L4/reconciliation-does-not-load-neighbours-" + std::to_string(round),
+              chunks.collectDebugStats().loadedChunks == positions.size());
+    }
+}
+
 // ---------------------------------------------------------------------------
 // M6 - sections sealed by opaque neighbours complete without a mesh build
 // ---------------------------------------------------------------------------
@@ -20114,6 +20202,12 @@ int main()
             caseSectionMeshInput();
             caseEnclosedSectionSkip();
         }
+        else if (focus != nullptr && std::string(focus) == "LIGHT_BOUNDARY") {
+            caseBlockLightStorage();
+            caseLocalRelightAfterEdits();
+            caseBoundaryLightLoading();
+            caseFurnaceProgression();
+        }
         else if (focus != nullptr && std::string(focus) == "V10A") {
             caseGreedyMeshing();
             caseVertexLighting();
@@ -20302,6 +20396,7 @@ int main()
         caseSunlightStorage();
         caseBlockLightStorage();
         caseLocalRelightAfterEdits();
+        caseBoundaryLightLoading();
         caseEnclosedSectionSkip();
         caseFrustumMeshPriority();
         caseStreamingDemandModel();

@@ -729,22 +729,45 @@ void World::reconcileBlockLightAfterChunkLoad(int chunkX, int chunkZ)
     const int baseX = chunkX * CHUNK_SIZE;
     const int baseZ = chunkZ * CHUNK_SIZE;
     const int height = static_cast<int>(chunk->getSectionCount()) * CHUNK_SIZE;
-    std::unordered_set<glm::ivec3, IVec3Hash> uniqueSeeds;
+    // Each loaded chunk has already rebuilt its internal emitted light. Only
+    // a lit boundary cell can add light across the new interface. Reading
+    // resident neighbours once avoids hashing every dark boundary coordinate
+    // and flooding thousands of zero-light seeds while holding the world lock.
+    const auto resident = [this](int x, int z) -> const Chunk * {
+        const Chunk *candidate = m_chunkManager.findChunk(x, z);
+        return candidate != nullptr && candidate->hasLoaded()
+            ? candidate : nullptr;
+    };
+    const Chunk *west = resident(chunkX - 1, chunkZ);
+    const Chunk *east = resident(chunkX + 1, chunkZ);
+    const Chunk *north = resident(chunkX, chunkZ - 1);
+    const Chunk *south = resident(chunkX, chunkZ + 1);
+    std::deque<glm::ivec3> pending;
+    const auto seed = [&pending](const Chunk *owner, int x, int y, int z,
+                                 int worldX, int worldZ) {
+        if (owner != nullptr &&
+            owner->getBlockLight(x, y, z) > MIN_LIGHT_LEVEL + 1) {
+            pending.emplace_back(worldX, y, worldZ);
+        }
+    };
     for (int y = 0; y < height; ++y) {
         for (int offset = 0; offset < CHUNK_SIZE; ++offset) {
-            uniqueSeeds.emplace(baseX, y, baseZ + offset);
-            uniqueSeeds.emplace(baseX - 1, y, baseZ + offset);
-            uniqueSeeds.emplace(baseX + CHUNK_SIZE - 1, y, baseZ + offset);
-            uniqueSeeds.emplace(baseX + CHUNK_SIZE, y, baseZ + offset);
-            uniqueSeeds.emplace(baseX + offset, y, baseZ);
-            uniqueSeeds.emplace(baseX + offset, y, baseZ - 1);
-            uniqueSeeds.emplace(baseX + offset, y,
-                                baseZ + CHUNK_SIZE - 1);
-            uniqueSeeds.emplace(baseX + offset, y, baseZ + CHUNK_SIZE);
+            seed(chunk, 0, y, offset, baseX, baseZ + offset);
+            seed(chunk, CHUNK_SIZE - 1, y, offset,
+                 baseX + CHUNK_SIZE - 1, baseZ + offset);
+            // The two corner columns were included by the x-facing edges.
+            if (offset > 0 && offset < CHUNK_SIZE - 1) {
+                seed(chunk, offset, y, 0, baseX + offset, baseZ);
+                seed(chunk, offset, y, CHUNK_SIZE - 1,
+                     baseX + offset, baseZ + CHUNK_SIZE - 1);
+            }
+            seed(west, CHUNK_SIZE - 1, y, offset, baseX - 1, baseZ + offset);
+            seed(east, 0, y, offset, baseX + CHUNK_SIZE, baseZ + offset);
+            seed(north, offset, y, CHUNK_SIZE - 1, baseX + offset, baseZ - 1);
+            seed(south, offset, y, 0, baseX + offset, baseZ + CHUNK_SIZE);
         }
     }
 
-    std::deque<glm::ivec3> pending(uniqueSeeds.begin(), uniqueSeeds.end());
     std::vector<glm::ivec3> changedPositions;
     propagateBlockLight(pending, changedPositions);
     m_chunkRuntime.queueLightingUpdatesLocked(changedPositions);
@@ -755,29 +778,38 @@ void World::reconcileBlockLightAfterChunkUnload(int chunkX, int chunkZ,
 {
     const int baseX = chunkX * CHUNK_SIZE;
     const int baseZ = chunkZ * CHUNK_SIZE;
-    std::unordered_set<glm::ivec3, IVec3Hash> uniqueRoots;
-    for (int y = 0; y < height; ++y) {
-        for (int offset = 0; offset < CHUNK_SIZE; ++offset) {
-            uniqueRoots.emplace(baseX - 1, y, baseZ + offset);
-            uniqueRoots.emplace(baseX + CHUNK_SIZE, y, baseZ + offset);
-            uniqueRoots.emplace(baseX + offset, y, baseZ - 1);
-            uniqueRoots.emplace(baseX + offset, y, baseZ + CHUNK_SIZE);
-        }
-    }
-
+    // These four outside faces have no overlapping coordinates. Preserve all
+    // nonzero removal roots, including level one, without allocating a hash
+    // node or doing a world lookup for every dark cell in every vertical layer.
+    const auto resident = [this](int x, int z) -> Chunk * {
+        Chunk *candidate = m_chunkManager.findChunk(x, z);
+        return candidate != nullptr && candidate->hasLoaded()
+            ? candidate : nullptr;
+    };
+    Chunk *west = resident(chunkX - 1, chunkZ);
+    Chunk *east = resident(chunkX + 1, chunkZ);
+    Chunk *north = resident(chunkX, chunkZ - 1);
+    Chunk *south = resident(chunkX, chunkZ + 1);
     std::deque<std::pair<glm::ivec3, LightLevel>> removalQueue;
     std::deque<glm::ivec3> additionQueue;
     std::vector<glm::ivec3> changedPositions;
-    for (const glm::ivec3 &position : uniqueRoots) {
-        const LightLevel previous =
-            getBlockLightUnlocked(position.x, position.y, position.z);
-        if (previous == MIN_LIGHT_LEVEL) {
-            continue;
-        }
-        if (setBlockLightUnlocked(position.x, position.y, position.z,
-                                  MIN_LIGHT_LEVEL)) {
+    const auto clear = [&removalQueue, &changedPositions](
+        Chunk *owner, int x, int y, int z, int worldX, int worldZ) {
+        if (owner == nullptr) return;
+        const LightLevel previous = owner->getBlockLight(x, y, z);
+        if (previous != MIN_LIGHT_LEVEL &&
+            owner->setBlockLight(x, y, z, MIN_LIGHT_LEVEL)) {
+            const glm::ivec3 position{worldX, y, worldZ};
             changedPositions.push_back(position);
             removalQueue.emplace_back(position, previous);
+        }
+    };
+    for (int y = 0; y < height; ++y) {
+        for (int offset = 0; offset < CHUNK_SIZE; ++offset) {
+            clear(west, CHUNK_SIZE - 1, y, offset, baseX - 1, baseZ + offset);
+            clear(east, 0, y, offset, baseX + CHUNK_SIZE, baseZ + offset);
+            clear(north, offset, y, CHUNK_SIZE - 1, baseX + offset, baseZ - 1);
+            clear(south, offset, y, 0, baseX + offset, baseZ + CHUNK_SIZE);
         }
     }
 

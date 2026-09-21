@@ -34,6 +34,7 @@ AI 平台对应规则见 [当前验收规范](ai-assisted-gameplay-acceptance-v1
 | 冒险生态材料与树种数据 | `HELLOMINE3D_WORLD_SMOKE_FOCUS=ADVENTURE_MATERIAL` 检查末尾追加 ID、工具／掉落、真实采集放置、12 个网格材质槽及 metadata 保存重开；资源包与配方回归、图集校验和标准／兼容材质展台。新生成与生态路线另按 [v18 合同](../contracts/adventure-ecology-v18-contract-v1.md) 验收。 |
 | 冒险生态实际生成 | `bash scripts/verify_adventure_ecology.sh Debug` / `Release`；`HELLOMINE3D_WORLD_SMOKE_FOCUS=ADVENTURE_ECOLOGY` 检查八 seed × 九区域实际地表、水柱、树型、地被、正逆生成、碎片 metadata 和默认 v18 保存；v1–v17 T0 摘要对照、完整世界回归及双配置客户端。预冻结机位与连续路线分开验收，最终性能和普通探索仍按 [v18 合同](../contracts/adventure-ecology-v18-contract-v1.md) 与目标执行。 |
 | 冒险地图探索整合 | `HELLOMINE3D_WORLD_SMOKE_FOCUS=ADVENTURE_EXPLORE`：八 seed 普通出生、实际木石资源、有界陆路连接区域核心／水岸／三类地点、洞口植被避让、雪层保持、自定义 Cross 回退、v19 保存重开；完整世界回归、v1–v18 生产摘要、双配置客户端。陆路查询与正常输入分开，见 [v19 合同](../contracts/adventure-exploration-v19-contract-v1.md)。 |
+| 载入/卸载边界方块光优化 | `LIGHT_BOUNDARY` 覆盖光源/遮挡、跨区块编辑、完整邻区块光场在光源卸载后归零、九区块正逆加载及 detached commit 的完整光场、熔炉燃烧状态；完整 WorldRuntime 和双配置客户端。不得减少真实亮度、邻区块范围或世界更新预算。 |
 | 封闭网格输入跳过 | `MESH_INPUT` 覆盖完整 halo／编辑 revision、默认完整快照、封闭输入零生态查询、开洞后复用输入与网格重建、同步与异步跳过；完整 WorldRuntime 和双配置客户端。输入省略不能改变任何可见层或状态机。 |
 | 冒险地表纯查询缓存 | `ADVENTURE_QUERY`：八 seed／v17–v19 与无缓存规划逐列一致，负坐标／整数极限、超容量替换与交替世界身份、共享生成器并发；完整 WorldRuntime、v17–v19 生产摘要和双配置客户端。不得缓存实际方块或改变生成版本。 |
 | 物品、容器、制作、工具或食物 | 状态守恒、容量边界、失败原子性、固定 tick 和保存/重载测试。 |
