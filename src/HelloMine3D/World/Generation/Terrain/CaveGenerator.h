@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <vector>
 
 class Chunk;
 
@@ -32,6 +33,7 @@ class CaveGenerator {
     static constexpr int EntranceCellBlocks = CHUNK_SIZE * 6;
     static constexpr int EntranceCandidateCount = 12;
     static constexpr int EntranceTunnelLength = 24;
+    static constexpr int VegetationPlanPadding = 6;
 
     explicit CaveGenerator(
         int seed,
@@ -42,7 +44,8 @@ class CaveGenerator {
         const Array2D<int, CHUNK_SIZE> &surfaceHeights) const;
     std::size_t carveNaturalEntrances(
         Chunk &chunk, const SurfaceHeightSampler &surfaceHeight,
-        const BiomeSampler &biome) const;
+        const BiomeSampler &biome,
+        std::vector<NaturalEntrance> *vegetationPlans = nullptr) const;
     NaturalEntrance getNaturalEntranceForCell(
         int cellX, int cellZ,
         const SurfaceHeightSampler &surfaceHeight,

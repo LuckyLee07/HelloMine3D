@@ -163,8 +163,9 @@ CaveGenerator::NaturalEntrance CaveGenerator::getNaturalEntranceForCell(
 
 std::size_t CaveGenerator::carveNaturalEntrances(
     Chunk &chunk, const SurfaceHeightSampler &surfaceHeight,
-    const BiomeSampler &biome) const
+    const BiomeSampler &biome, std::vector<NaturalEntrance> *vegetationPlans) const
 {
+    if (vegetationPlans) vegetationPlans->clear();
     if (m_generationVersion < MountainTerrainGenerationVersion) {
         return 0;
     }
@@ -175,7 +176,8 @@ std::size_t CaveGenerator::carveNaturalEntrances(
     const int chunkMinimumZ = chunkLocation.y * CHUNK_SIZE;
     const int chunkMaximumX = chunkMinimumX + CHUNK_SIZE - 1;
     const int chunkMaximumZ = chunkMinimumZ + CHUNK_SIZE - 1;
-    const int reach = EntranceTunnelLength + ChamberRadius;
+    const int reach = EntranceTunnelLength + ChamberRadius +
+        (vegetationPlans ? VegetationPlanPadding : 0);
     const int minimumCellX = WorldCoordinates::floorDiv(
         chunkMinimumX - reach, EntranceCellBlocks);
     const int maximumCellX = WorldCoordinates::floorDiv(
@@ -209,6 +211,7 @@ std::size_t CaveGenerator::carveNaturalEntrances(
                 continue;
             }
 
+            if (vegetationPlans) vegetationPlans->push_back(entrance);
             const int perpendicularX = -entrance.directionZ;
             const int perpendicularZ = entrance.directionX;
             for (int step = 0; step <= EntranceTunnelLength; ++step) {

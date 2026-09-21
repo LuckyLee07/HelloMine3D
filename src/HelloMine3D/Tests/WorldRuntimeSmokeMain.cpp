@@ -19886,6 +19886,7 @@ void caseWorldManager()
 #include "TerrainMeshTopologySmokeCases.h"
 #include "AdventureMaterialSmokeCases.h"
 #include "AdventureEcologySmokeCases.h"
+#include "AdventureExplorationSmokeCases.h"
 
 int main()
 {
@@ -19936,6 +19937,9 @@ int main()
         }
         else if (focus != nullptr && std::string(focus) == "BANK_MESH") {
             caseTerrainBankMeshTopology();
+        }
+        else if (focus != nullptr && std::string(focus) == "ADVENTURE_EXPLORE") {
+            caseAdventureExplorationV19();
         }
         else if (focus != nullptr && std::string(focus) == "ADVENTURE_ECOLOGY") {
             caseAdventureEcologyV18();
@@ -20218,6 +20222,7 @@ int main()
         caseTerrainBankMeshTopology();
         caseAdventureMaterials();
         caseAdventureEcologyV18();
+        caseAdventureExplorationV19();
         caseSurfaceMapObservations();
         caseWaterDepthPresentation();
         caseItemVisualPresentation();

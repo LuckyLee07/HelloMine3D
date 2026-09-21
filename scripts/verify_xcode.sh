@@ -112,7 +112,7 @@ run_binary() {
     ) 2>&1 | tee "$log"
 
     if [ "$name" = "HelloMine3DWorldRuntimeSmoke" ] &&
-       ! grep -F "[VALIDATION] checks=1628 failures=0" "$log" >/dev/null; then
+       ! grep -F "[VALIDATION] checks=1683 failures=0" "$log" >/dev/null; then
         echo "[XCODE_VERIFY] World runtime summary is missing or failed." >&2
         exit 1
     fi

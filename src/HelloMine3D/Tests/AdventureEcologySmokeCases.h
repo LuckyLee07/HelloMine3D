@@ -5,7 +5,7 @@
 
 namespace {
 void caseAdventureEcologyV18() {
-    check("ADVENTURE_ECOLOGY/new-world-version",CurrentTerrainGenerationVersion==18 && AdventureWaterTerrainGenerationVersion==17);
+    check("ADVENTURE_ECOLOGY/frozen-v18-identity",AdventureEcologyTerrainGenerationVersion==18 && AdventureWaterTerrainGenerationVersion==17);
     const struct Site {int seed,x,z,region;} sites[]={
         {0,-928,-816,0},
         {0,1816,80,1},
@@ -159,7 +159,9 @@ void caseAdventureEcologyV18() {
     }
     check("ADVENTURE_ECOLOGY/fern-reed-geometry-and-harvest",geometry);
 
-    const auto directory=freshSaveDirectory("adventure_ecology_default_world");std::uint64_t hash=0;bool saved=false;
+    const auto directory=freshSaveDirectory("adventure_ecology_frozen_world");
+    check("ADVENTURE_ECOLOGY/initialize-frozen-v18",initializeTerrainIdentity(directory,"adventure-v18",18,42));
+    std::uint64_t hash=0;bool saved=false;
     {
         Player player;World actual(camera,config,player,directory,false,0);actual.getChunkManager().loadChunk(0,0);
         actual.setBlock(6,201,8,ChunkBlock(BlockId::OakBark,BlockMetadata::Tree::Birch));
@@ -179,7 +181,7 @@ void caseAdventureEcologyV18() {
         hash=TerrainSurvey::blockHash(actual.getChunkManager().getChunk(0,0));saved=actual.getChunkManager().getTerrainGenerationVersion()==18 && actual.save();
     }
     {Player player;World actual(camera,config,player,directory,false,0);actual.getChunkManager().loadChunk(0,0);saved &= hash==TerrainSurvey::blockHash(actual.getChunkManager().getChunk(0,0)) && actual.getChunkManager().getTerrainGenerationVersion()==18;}
-    check("ADVENTURE_ECOLOGY/default-world-and-metadata-save-reopen",saved);
+    check("ADVENTURE_ECOLOGY/frozen-v18-and-metadata-save-reopen",saved);
     clearDeterministicEnv();setEnv("HELLOMINE3D_SEED","");
 }
 }

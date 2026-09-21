@@ -388,7 +388,7 @@ C3 为 copied topology observation 增至 79 项并同步更新 machine-checked 
   v18 生态资源先独立接入：BlockId 27..32 / Material ID 43..48 追加雪、砾石、黏土、林床、
   苔石及淤泥，不改变既有编号。木材／叶块 metadata 0 保持橡树，1/2 表示针叶／浅色阔叶，
   真实区块保存该字节；区块材质按树种选择树皮、断面和叶片，原木掉落及配方继续共用原资源。
-  默认新世界现为 v18，`AdventureEcologyPlanner` 复用 v17 高度／水系及已有区域权重，
+  v18 引入生态生成，`AdventureEcologyPlanner` 复用 v17 高度／水系及已有区域权重，
   通过 96/28 米树群斑块、37 米过渡斑块、海拔／水岸组合选择实际材料与植物。
   7 米格内固定扰动树锚点先拒绝密度，再做四次坡度查询；树型为橡树、浅色阔叶、
   分层锥形针叶和低垂湿地冠，沙地保留仙人掌／棕榈。metadata 与真实方块一起投影、
@@ -396,6 +396,10 @@ C3 为 copied topology observation 增至 79 项并同步更新 machine-checked 
   相应几何在普通网格与反馈轮廓中共用；资源经济仍按成熟草处理。
   林床、泥岸、砾滩与波动雪线进入同一表面列，树冠不覆盖地形和水体；v1–v17 原输出保留。
   参见[v18 合同](../contracts/adventure-ecology-v18-contract-v1.md)，连续探索／最终性能验收单独记录。
+  v19 为默认新世界版本：洞口规划额外返回纯几何入口清单，植被在通道投影周围留空，
+  树冠来源 halo 同步纳入有界规划；不加载邻区块。营地允许使用满足既有坡差和入口条件的
+  疏林／森林空地，旧版本仍保持原候选语义。v18 高度、水位、雪层及材料查询保持，
+  蕨类外观只替换标准 Cross，自定义资源形状回退原定义。见[v19 合同](../contracts/adventure-exploration-v19-contract-v1.md)。
   v5 基线见 [v5 合同](../contracts/terrain-foundation-v5-contract-v1.md)，当前 E2 门槛见
   [v8 合同](../contracts/ecology-surface-coast-v8-e2-contract-v1.md)，v9 首批范围见
   [E3 合同](../contracts/ecology-inland-meadow-v9-e3-contract-v1.md)，v10/v11 范围分别见
@@ -527,7 +531,7 @@ WorldManager
 
 - `WorldSaveData` 是内存中的当前 metadata payload，写出前由 World 收集 Player、Actor、目标、结局、
   难度、terrain identity 和其他版本化状态。
-- world save format 当前为 v12；新世界 terrain generation 为独立 v18，旧 v1–v17 身份保留；settings 当前为独立 v10（含三档小地图范围，保留 v9 标准/兼容画面选择与旧偏好迁移）。
+- world save format 当前为 v12；新世界 terrain generation 为独立 v19，旧 v1–v18 身份保留；settings 当前为独立 v10（含三档小地图范围，保留 v9 标准/兼容画面选择与旧偏好迁移）。
 - `StorageTransaction` 负责同目录 candidate、flush、真实 reader 校验和原子替换；失败 candidate 不
   成为权威。
 - Chunk 只有成功发布后才清 save-dirty；unload 保存失败则取消卸载。

@@ -7,7 +7,8 @@
 namespace ForestFernGeometry {
 inline bool applies(ChunkBlock block, const BlockShape &shape) noexcept {
     return block.id==static_cast<Block_t>(BlockId::TallGrass) &&
-        block.metadata==BlockMetadata::TallGrass::Fern && shape.name=="Cross" && shape.faces.size()==2;
+        block.metadata==BlockMetadata::TallGrass::Fern &&
+        WetlandGrassGeometry::applies(BlockId::TallGrass,TerrainBiome::Wetland,shape);
 }
 inline WetlandGrassGeometry::Model build(unsigned variant, float scale) noexcept {
     WetlandGrassGeometry::Model result;

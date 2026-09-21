@@ -34,8 +34,9 @@ inline constexpr int SurfaceTransitionTerrainGenerationVersion = 15;
 inline constexpr int AdventureRegionTerrainGenerationVersion = 16;
 inline constexpr int AdventureWaterTerrainGenerationVersion = 17;
 inline constexpr int AdventureEcologyTerrainGenerationVersion = 18;
+inline constexpr int AdventureExplorationTerrainGenerationVersion = 19;
 inline constexpr int CurrentTerrainGenerationVersion =
-    AdventureEcologyTerrainGenerationVersion;
+    AdventureExplorationTerrainGenerationVersion;
 
 class TerrainGenerator {
   public:

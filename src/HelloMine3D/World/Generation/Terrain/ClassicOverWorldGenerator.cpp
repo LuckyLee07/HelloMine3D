@@ -230,6 +230,7 @@ void ClassicOverWorldGenerator::sanitizeSurfaceDecoratorsV8()
 
 void ClassicOverWorldGenerator::applyCavePass()
 {
+    m_vegetationEntrances.clear();
     m_caveGenerator.carve(*m_pChunk, m_heightMap);
     if (m_generationVersion >= MountainTerrainGenerationVersion) {
         m_caveGenerator.carveNaturalEntrances(
@@ -239,7 +240,8 @@ void ClassicOverWorldGenerator::applyCavePass()
             },
             [this](int worldX, int worldZ) {
                 return getBiomeAtWorld(worldX, worldZ);
-            });
+            }, m_generationVersion >= AdventureExplorationTerrainGenerationVersion
+                ? &m_vegetationEntrances : nullptr);
     }
 }
 
@@ -345,7 +347,9 @@ StructurePlanSnapshot ClassicOverWorldGenerator::getStructurePlanForCell(
     StructureType type, int cellX, int cellZ) const
 {
     const DeterministicStructurePlanner planner(
-        m_seed, m_generationVersion >= LandmarkArchitectureTerrainGenerationVersion
+        m_seed, m_generationVersion >= AdventureExplorationTerrainGenerationVersion
+            ? AdventureExplorationTerrainGenerationVersion
+            : m_generationVersion >= LandmarkArchitectureTerrainGenerationVersion
             ? LandmarkArchitectureTerrainGenerationVersion
             : std::min(m_generationVersion, FoundationTerrainGenerationVersion),
         [this](int worldX, int worldZ) {
@@ -362,7 +366,9 @@ ClassicOverWorldGenerator::getStructurePlansForChunk(
     int chunkX, int chunkZ, int padding) const
 {
     const DeterministicStructurePlanner planner(
-        m_seed, m_generationVersion >= LandmarkArchitectureTerrainGenerationVersion
+        m_seed, m_generationVersion >= AdventureExplorationTerrainGenerationVersion
+            ? AdventureExplorationTerrainGenerationVersion
+            : m_generationVersion >= LandmarkArchitectureTerrainGenerationVersion
             ? LandmarkArchitectureTerrainGenerationVersion
             : std::min(m_generationVersion, FoundationTerrainGenerationVersion),
         [this](int worldX, int worldZ) {
@@ -905,6 +911,12 @@ void ClassicOverWorldGenerator::applyAdventureTrees(const std::vector<StructureP
             if(std::any_of(plans.begin(),plans.end(),[x,z](const auto &p) {
                 return x>=p.footprint.minimumX-3 && x<=p.footprint.maximumX+3 &&
                        z>=p.footprint.minimumZ-3 && z<=p.footprint.maximumZ+3;
+            }))continue;
+            if(std::any_of(m_vegetationEntrances.begin(),m_vegetationEntrances.end(),[x,z](const auto &e) {
+                const int dx=x-e.anchorX,dz=z-e.anchorZ;
+                const int along=dx*e.directionX+dz*e.directionZ;
+                const int lateral=-dx*e.directionZ+dz*e.directionX;
+                return along>=-4 && along<=CaveGenerator::EntranceTunnelLength+4 && std::abs(lateral)<=4;
             }))continue;
             const auto sample=m_adventureEcology.sample(x,z);
             const auto tree=m_adventureEcology.tree(x,z,sample);

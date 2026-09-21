@@ -120,6 +120,7 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
     AdventureWaterPlanner m_adventureWater;
     AdventureEcologyPlanner m_adventureEcology;
     CaveGenerator m_caveGenerator;
+    std::vector<CaveGenerator::NaturalEntrance> m_vegetationEntrances;
 
     GrasslandBiome m_grassBiome;
     TemperateForestBiome m_temperateForest;

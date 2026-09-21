@@ -62,7 +62,7 @@ bool preferredPlan(const StructurePlanSnapshot &left,
                     right.anchor.x, right.anchor.y, right.anchor.z);
 }
 
-bool eligibleSiteBiome(StructureType type, TerrainBiome biome) noexcept
+bool eligibleSiteBiome(StructureType type, TerrainBiome biome, int version) noexcept
 {
     if (type == StructureType::Ruin) {
         return biome == TerrainBiome::LightForest ||
@@ -70,7 +70,9 @@ bool eligibleSiteBiome(StructureType type, TerrainBiome biome) noexcept
     }
     if (type == StructureType::RaiderCamp) {
         return biome == TerrainBiome::Desert ||
-               biome == TerrainBiome::Grassland;
+               biome == TerrainBiome::Grassland ||
+               (version >= AdventureExplorationTerrainGenerationVersion &&
+                (biome == TerrainBiome::LightForest || biome == TerrainBiome::TemperateForest));
     }
     return false;
 }
@@ -445,7 +447,7 @@ DeterministicStructurePlanner::planExplorationSiteForCell(
             static_cast<int>(zHash %
                              static_cast<std::uint64_t>(coordinateRange));
         const TerrainBiome biome = m_biome(worldX, worldZ);
-        if (!eligibleSiteBiome(type, biome)) {
+        if (!eligibleSiteBiome(type, biome, m_terrainGenerationVersion)) {
             continue;
         }
         const int anchorHeight = m_surfaceHeight(worldX, worldZ);

@@ -1,0 +1,354 @@
+{
+  "status": "PASS",
+  "scope": "v19 production and old generation compatibility; interactive scope separately recorded",
+  "world_checks": {
+    "Debug": 1683,
+    "Release": 1683
+  },
+  "focus_checks": {
+    "Debug": 54,
+    "Release": 54
+  },
+  "resource_checks": {
+    "Debug": 114,
+    "Release": 114
+  },
+  "compatibility": {
+    "binary_sha256": "1343f113643007041e7af725bc8f052cb64ff3e35f97d68f0bb10983c6c2072e",
+    "versions": {
+      "1": {
+        "actual": {
+          "samples.csv": "7d8697ef110b6c7abebd134173772765d118af026cd22c2d6da712e36743da01",
+          "chunks.csv": "d1a625a6f6e1cf68461725ffbed0372a9d14c7d4e1b795990c4cc7fc66b29613"
+        },
+        "expected": {
+          "samples.csv": "7d8697ef110b6c7abebd134173772765d118af026cd22c2d6da712e36743da01",
+          "chunks.csv": "d1a625a6f6e1cf68461725ffbed0372a9d14c7d4e1b795990c4cc7fc66b29613"
+        },
+        "matches": true
+      },
+      "2": {
+        "actual": {
+          "samples.csv": "51814ab79fab30fa8b7cad0d7dfe5e48d2605cb2540227d5c37d50d63e31d555",
+          "chunks.csv": "e73a09376540cbca90c2311fbc7500ea86180f9afefbafce2fd904ac82026483"
+        },
+        "expected": {
+          "samples.csv": "51814ab79fab30fa8b7cad0d7dfe5e48d2605cb2540227d5c37d50d63e31d555",
+          "chunks.csv": "e73a09376540cbca90c2311fbc7500ea86180f9afefbafce2fd904ac82026483"
+        },
+        "matches": true
+      },
+      "3": {
+        "actual": {
+          "samples.csv": "0f08bd3c97b4aebe89138d90664f37ecff6feebfdb0114b32f7feca3c2893c3a",
+          "chunks.csv": "9da4c2ca353239056b19e94c7bdd90c1ef4e8bb62774248e44b9183a20f8d361"
+        },
+        "expected": {
+          "samples.csv": "0f08bd3c97b4aebe89138d90664f37ecff6feebfdb0114b32f7feca3c2893c3a",
+          "chunks.csv": "9da4c2ca353239056b19e94c7bdd90c1ef4e8bb62774248e44b9183a20f8d361"
+        },
+        "matches": true
+      },
+      "4": {
+        "actual": {
+          "samples.csv": "d403429111240351548d22d5256017b79c4f746a9d7db2427fefb7e42b70f1bf",
+          "chunks.csv": "e3b207721774c6798cb28e5821e13c6a7a5785e6a9d31c6b0d5227b0a49995b9"
+        },
+        "expected": {
+          "samples.csv": "d403429111240351548d22d5256017b79c4f746a9d7db2427fefb7e42b70f1bf",
+          "chunks.csv": "e3b207721774c6798cb28e5821e13c6a7a5785e6a9d31c6b0d5227b0a49995b9"
+        },
+        "matches": true
+      },
+      "5": {
+        "actual": {
+          "samples.csv": "3c90bb987b919e17110a6d33a9e084845682a7b136d7cc3a3a880ec6f78f16ba",
+          "chunks.csv": "abcf235f4685537ef455302844a7f0eed950ac5f74b3a4f4594b7317fd10494e"
+        },
+        "expected": {
+          "samples.csv": "3c90bb987b919e17110a6d33a9e084845682a7b136d7cc3a3a880ec6f78f16ba",
+          "chunks.csv": "abcf235f4685537ef455302844a7f0eed950ac5f74b3a4f4594b7317fd10494e"
+        },
+        "matches": true
+      },
+      "6": {
+        "actual": {
+          "samples.csv": "6780a068f773a7980b196d55c15543ea7808417c1a0cc2cd9d1e1f4dde407188",
+          "chunks.csv": "1f9a89741e8ee891dc55c3d1e632872a30774873c638478a0d1980b785e826e3"
+        },
+        "expected": {
+          "samples.csv": "6780a068f773a7980b196d55c15543ea7808417c1a0cc2cd9d1e1f4dde407188",
+          "chunks.csv": "1f9a89741e8ee891dc55c3d1e632872a30774873c638478a0d1980b785e826e3"
+        },
+        "matches": true
+      },
+      "7": {
+        "actual": {
+          "samples.csv": "8bc7ce43a5e01dedd1c4dfce7276329c1d777cd911ba328757a2b695cf77f323",
+          "chunks.csv": "2b210f3be8f41439128a536524138e0611b4e755d63185c1ffc542ac24ac786c"
+        },
+        "expected": {
+          "samples.csv": "8bc7ce43a5e01dedd1c4dfce7276329c1d777cd911ba328757a2b695cf77f323",
+          "chunks.csv": "2b210f3be8f41439128a536524138e0611b4e755d63185c1ffc542ac24ac786c"
+        },
+        "matches": true
+      },
+      "8": {
+        "actual": {
+          "samples.csv": "71b46545c2aec8027279df9e615edbd403c73ceadd4e8488d919c99d4133b97a",
+          "chunks.csv": "69054fd975693228067efa4ce7994e43be427a0f9e6c987f20b57131a004d70d"
+        },
+        "expected": {
+          "samples.csv": "71b46545c2aec8027279df9e615edbd403c73ceadd4e8488d919c99d4133b97a",
+          "chunks.csv": "69054fd975693228067efa4ce7994e43be427a0f9e6c987f20b57131a004d70d"
+        },
+        "matches": true
+      },
+      "9": {
+        "actual": {
+          "samples.csv": "1329b469658ca0fba8c4ce322cfb04f2d7e3126d8d0dbb39eb8e63cd67ba9e5e",
+          "chunks.csv": "eadd6a880c991b2e31c4d67faa8017c3d53c034391951824d37c67ea770ea939"
+        },
+        "expected": {
+          "samples.csv": "1329b469658ca0fba8c4ce322cfb04f2d7e3126d8d0dbb39eb8e63cd67ba9e5e",
+          "chunks.csv": "eadd6a880c991b2e31c4d67faa8017c3d53c034391951824d37c67ea770ea939"
+        },
+        "matches": true
+      },
+      "10": {
+        "actual": {
+          "samples.csv": "cb6cce97393378764e28019bca016010685377d98ed40add69cf1cb07b5a071b",
+          "chunks.csv": "c030cd69bd0429be85d1836b82d69bf36bc343efc413503c19c481a9f61b3e05"
+        },
+        "expected": {
+          "samples.csv": "cb6cce97393378764e28019bca016010685377d98ed40add69cf1cb07b5a071b",
+          "chunks.csv": "c030cd69bd0429be85d1836b82d69bf36bc343efc413503c19c481a9f61b3e05"
+        },
+        "matches": true
+      },
+      "11": {
+        "actual": {
+          "samples.csv": "c1ac15a447a11028b5bd41986ac9077deeed1fb739dd3c5c0a03e282c9ec4f41",
+          "chunks.csv": "2a943cdfe947b695e8207dc493b835c43fe1681b256a7330c9828e146db1ece4"
+        },
+        "expected": {
+          "samples.csv": "c1ac15a447a11028b5bd41986ac9077deeed1fb739dd3c5c0a03e282c9ec4f41",
+          "chunks.csv": "2a943cdfe947b695e8207dc493b835c43fe1681b256a7330c9828e146db1ece4"
+        },
+        "matches": true
+      },
+      "12": {
+        "actual": {
+          "samples.csv": "71cbed0c608239c6f0a963dbfc93031a7a4069d8785223cea3ae175a93e8c603",
+          "chunks.csv": "88bfe05972dae737797a7e805f4a0661e8679726b664b6845fe69e60f36bd740"
+        },
+        "expected": {
+          "samples.csv": "71cbed0c608239c6f0a963dbfc93031a7a4069d8785223cea3ae175a93e8c603",
+          "chunks.csv": "88bfe05972dae737797a7e805f4a0661e8679726b664b6845fe69e60f36bd740"
+        },
+        "matches": true
+      },
+      "13": {
+        "actual": {
+          "samples.csv": "4dff99e291b2994aee3311fb0dfa3732e7109816c7773ae47a0685260d145544",
+          "chunks.csv": "79b44cdf19cd02600ba4cdcb0ad45be56b5fba19fb35116205c641d2c117a1f9"
+        },
+        "expected": {
+          "samples.csv": "4dff99e291b2994aee3311fb0dfa3732e7109816c7773ae47a0685260d145544",
+          "chunks.csv": "79b44cdf19cd02600ba4cdcb0ad45be56b5fba19fb35116205c641d2c117a1f9"
+        },
+        "matches": true
+      },
+      "14": {
+        "actual": {
+          "samples.csv": "3d35b8c22c3625e422c28105f8a7708a125afd6f6f8186901c785b2e2cc43c54",
+          "chunks.csv": "57ed22e79cb88afe8d8dd13f72dd671c6c5d1fba3da3fa85407f1ee2953bf0be"
+        },
+        "expected": {
+          "samples.csv": "3d35b8c22c3625e422c28105f8a7708a125afd6f6f8186901c785b2e2cc43c54",
+          "chunks.csv": "57ed22e79cb88afe8d8dd13f72dd671c6c5d1fba3da3fa85407f1ee2953bf0be"
+        },
+        "matches": true
+      },
+      "15": {
+        "actual": {
+          "samples.csv": "9afe12221555368cad3facab3336d40c1b8648e3c5543ba17dedf2ba08817d52",
+          "chunks.csv": "f091fa6b489579c3c95994f4bf1daf56bf1c71fa60c38fba54dc153093dc249b"
+        },
+        "expected": {
+          "samples.csv": "9afe12221555368cad3facab3336d40c1b8648e3c5543ba17dedf2ba08817d52",
+          "chunks.csv": "f091fa6b489579c3c95994f4bf1daf56bf1c71fa60c38fba54dc153093dc249b"
+        },
+        "matches": true
+      },
+      "16": {
+        "actual": {
+          "samples.csv": "eae56947dfad82d50d719d23d282a608d0fff62cd209bb086c1469e4829e3947",
+          "chunks.csv": "64dcc3ee68f5e2e7a1824600c2ccb550792251d7c8c57c512a9e9a4effcb7ff3"
+        },
+        "expected": {
+          "samples.csv": "eae56947dfad82d50d719d23d282a608d0fff62cd209bb086c1469e4829e3947",
+          "chunks.csv": "64dcc3ee68f5e2e7a1824600c2ccb550792251d7c8c57c512a9e9a4effcb7ff3"
+        },
+        "matches": true
+      },
+      "17": {
+        "actual": {
+          "samples.csv": "19c59dbd4701c85f9a4b39dab66881b5a174b103505fbc03f145f50a1af1615f",
+          "chunks.csv": "69091bf0f7eb232bbb44673b009ea1894417d53c737428dd55ab307a0b6b7ae6"
+        },
+        "expected": {
+          "samples.csv": "19c59dbd4701c85f9a4b39dab66881b5a174b103505fbc03f145f50a1af1615f",
+          "chunks.csv": "69091bf0f7eb232bbb44673b009ea1894417d53c737428dd55ab307a0b6b7ae6"
+        },
+        "matches": true
+      },
+      "18": {
+        "actual": {
+          "samples.csv": "4aa476c7df0d805ed6990b352278c253045b875a4f018fdf83d085284b5142a8",
+          "chunks.csv": "0557087c3988a0f82f3621c250ae95efa482674e23fc3f00b84061057d57c610"
+        },
+        "expected": {
+          "samples.csv": "4aa476c7df0d805ed6990b352278c253045b875a4f018fdf83d085284b5142a8",
+          "chunks.csv": "0557087c3988a0f82f3621c250ae95efa482674e23fc3f00b84061057d57c610"
+        },
+        "matches": true
+      },
+      "19": {
+        "actual": {
+          "samples.csv": "9d3e4deee84b44b9ad0b8dce76ce49518c34b53890c482be9cde51db5e93c160",
+          "chunks.csv": "cd5d3084eab6743e45ca60efbe1332be2446a02f5adb3a9195ee9efb81aa5544"
+        },
+        "expected": null,
+        "matches": null
+      }
+    }
+  },
+  "routes": [
+    {
+      "seed": "0",
+      "spawn_x": "8",
+      "spawn_y": "73",
+      "spawn_z": "-184",
+      "wood": "234",
+      "stone": "45330",
+      "visited": "25603",
+      "core_regions": "2",
+      "water_route_m": "12",
+      "waystone_route_m": "64",
+      "ruin_route_m": "156",
+      "camp_route_m": "272"
+    },
+    {
+      "seed": "1",
+      "spawn_x": "120",
+      "spawn_y": "72",
+      "spawn_z": "760",
+      "wood": "77",
+      "stone": "46101",
+      "visited": "40837",
+      "core_regions": "3",
+      "water_route_m": "40",
+      "waystone_route_m": "64",
+      "ruin_route_m": "80",
+      "camp_route_m": "112"
+    },
+    {
+      "seed": "42",
+      "spawn_x": "40",
+      "spawn_y": "92",
+      "spawn_z": "56",
+      "wood": "56",
+      "stone": "50501",
+      "visited": "62163",
+      "core_regions": "6",
+      "water_route_m": "356",
+      "waystone_route_m": "76",
+      "ruin_route_m": "16",
+      "camp_route_m": "60"
+    },
+    {
+      "seed": "424",
+      "spawn_x": "-72",
+      "spawn_y": "110",
+      "spawn_z": "-72",
+      "wood": "266",
+      "stone": "51913",
+      "visited": "64204",
+      "core_regions": "4",
+      "water_route_m": "352",
+      "waystone_route_m": "64",
+      "ruin_route_m": "68",
+      "camp_route_m": "196"
+    },
+    {
+      "seed": "20260807",
+      "spawn_x": "-424",
+      "spawn_y": "98",
+      "spawn_z": "-424",
+      "wood": "110",
+      "stone": "49021",
+      "visited": "22116",
+      "core_regions": "3",
+      "water_route_m": "88",
+      "waystone_route_m": "8",
+      "ruin_route_m": "28",
+      "camp_route_m": "648"
+    },
+    {
+      "seed": "20260809",
+      "spawn_x": "568",
+      "spawn_y": "74",
+      "spawn_z": "-360",
+      "wood": "247",
+      "stone": "49458",
+      "visited": "26145",
+      "core_regions": "2",
+      "water_route_m": "16",
+      "waystone_route_m": "12",
+      "ruin_route_m": "280",
+      "camp_route_m": "104"
+    },
+    {
+      "seed": "8675309",
+      "spawn_x": "600",
+      "spawn_y": "77",
+      "spawn_z": "-295",
+      "wood": "315",
+      "stone": "44812",
+      "visited": "31128",
+      "core_regions": "3",
+      "water_route_m": "36",
+      "waystone_route_m": "140",
+      "ruin_route_m": "8",
+      "camp_route_m": "40"
+    },
+    {
+      "seed": "325322",
+      "spawn_x": "-648",
+      "spawn_y": "72",
+      "spawn_z": "456",
+      "wood": "275",
+      "stone": "42638",
+      "visited": "35825",
+      "core_regions": "6",
+      "water_route_m": "16",
+      "waystone_route_m": "132",
+      "ruin_route_m": "492",
+      "camp_route_m": "372"
+    }
+  ],
+  "binary_sha256": "f5e3abea72dc3d8b964188ebf205091183935794d797f0e1820fad3840d72806",
+  "normal_input": {
+    "create_enter": "PASS",
+    "crafting_open": "PASS",
+    "save_menu_reopen": "PASS",
+    "sustained_walk_turn_and_harvest": "BLOCKED_TOOL_CAPABILITY",
+    "scope": "AI_INTERACTIVE through Computer Use, not independent blind play. Short-key motion reached x=36.3 from spawn x=40.5, but sustained movement/relative aiming was not reliable. No harvesting or continuous exploration claim."
+  },
+  "failures_retained": [
+    "exploration-production-release-r1.log: no forest camp near seed 0, fixed eligibility in v19",
+    "exploration-production-release-r3.log: seed42 old obstruction search too narrow, expanded bounded coverage and retained assertion",
+    "exploration-snow-visual-r1: thicker snow did not fix texture contamination; reverted geometry, fixed crop in preceding commit"
+  ]
+}
