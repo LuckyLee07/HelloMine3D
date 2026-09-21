@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "generation_version": 19,
+  "evidence": "PURE_COLUMN_TOPOLOGY_AND_DEVELOPER_VISUAL_NOT_NORMAL_WALK",
+  "selection": "Two frozen coarse components refined at 1 m with all 8 dry-neighbor contacts. Cameras chosen before images at cardinal extrema of component cells at height >=65 (one voxel above sea level), ties nearest component centroid then x,z. Seed0 all four cardinal edges; seed20260807 west/east. Every camera looks toward its component centroid. No image-based reselection.",
+  "settings": {
+    "fov": 120,
+    "shadow": "medium",
+    "post": "on",
+    "visual_detail": "standard",
+    "world_time": 6000,
+    "width": 1280,
+    "height": 720,
+    "pixel_ratio": 2,
+    "minimap_range": 256
+  },
+  "capture_ms": "4000,7000",
+  "stations": [
+    {
+      "name": "seed-0-west",
+      "seed": 0,
+      "position": "-189.5 67 1844.5",
+      "rotation": "5 84.7541 0",
+      "surface_height": 65,
+      "grid_sha256": "8f428fa92394dbcec03b06e31e59589a87d9833474597239dfc8b2523ea0cf09"
+    },
+    {
+      "name": "seed-0-east",
+      "seed": 0,
+      "position": "125.5 67 1840.5",
+      "rotation": "5 -86.3001 0",
+      "surface_height": 65,
+      "grid_sha256": "8f428fa92394dbcec03b06e31e59589a87d9833474597239dfc8b2523ea0cf09"
+    },
+    {
+      "name": "seed-0-north",
+      "seed": 0,
+      "position": "-47.5 67 1767.5",
+      "rotation": "5 167.6435 0",
+      "surface_height": 65,
+      "grid_sha256": "8f428fa92394dbcec03b06e31e59589a87d9833474597239dfc8b2523ea0cf09"
+    },
+    {
+      "name": "seed-0-south",
+      "seed": 0,
+      "position": "-61.5 67 1883.5",
+      "rotation": "5 27.4917 0",
+      "surface_height": 65,
+      "grid_sha256": "8f428fa92394dbcec03b06e31e59589a87d9833474597239dfc8b2523ea0cf09"
+    },
+    {
+      "name": "seed-20260807-west",
+      "seed": 20260807,
+      "position": "1745.5 67 1277.5",
+      "rotation": "5 74.7652 0",
+      "surface_height": 65,
+      "grid_sha256": "925739bfcd68df0de4f9ea954a6dab022c6f65c2e8cdfbc259951e8a534e5bed"
+    },
+    {
+      "name": "seed-20260807-east",
+      "seed": 20260807,
+      "position": "1826.5 67 1254.5",
+      "rotation": "5 -106.4336 0",
+      "surface_height": 65,
+      "grid_sha256": "925739bfcd68df0de4f9ea954a6dab022c6f65c2e8cdfbc259951e8a534e5bed"
+    }
+  ]
+}

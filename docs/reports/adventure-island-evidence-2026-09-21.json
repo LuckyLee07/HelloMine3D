@@ -1,0 +1,142 @@
+{
+  "schema": 1,
+  "status": "PASS_WITH_RECORDED_VISUAL_LIMITS",
+  "scope": "Final v19 pure production-column marine enclosure plus real packaged client shore views; not a normal walking or global island-frequency claim.",
+  "release_executable_sha256": "3ffe41d4d7f925d3da1e9e349c62c126edc0b04d2ceea59b30f29b3c316dd315",
+  "topology": {
+    "status": "PASS",
+    "grid_spacing_m": 1,
+    "dry_condition": "height >=64, matching fill: water above surface only at y<=64",
+    "connectivity": 8,
+    "negative_case": "Inject height64 dry bridge into analysis copy; detector rejects enclosure for both candidates. World data is never mutated.",
+    "configurations": [
+      "macOS x86_64 Release -O3 -DNDEBUG",
+      "macOS x86_64 Debug -O0 -g"
+    ],
+    "configurations_byte_identical": true,
+    "tool": "tools/survey_adventure_islands.cpp",
+    "tool_sha256": "aa943c7db8e9ca8ed92841bfa9d1d7128c633e3b8d7a9b0ad87bcdb240fd75d9",
+    "components": [
+      {
+        "seed": 0,
+        "queries": 197505,
+        "dry_cells": 30102,
+        "x_min": -195,
+        "x_max": 130,
+        "z_min": 1763,
+        "z_max": 1892,
+        "max_height": 72,
+        "wet_boundary_cells": 1002,
+        "marine_boundary_cells": 1002,
+        "closed": 1,
+        "bridge_negative_rejected": 1
+      },
+      {
+        "seed": 20260807,
+        "queries": 66049,
+        "dry_cells": 6656,
+        "x_min": 1738,
+        "x_max": 1831,
+        "z_min": 1217,
+        "z_max": 1314,
+        "max_height": 67,
+        "wet_boundary_cells": 388,
+        "marine_boundary_cells": 388,
+        "closed": 1,
+        "bridge_negative_rejected": 1
+      }
+    ],
+    "csv_sha256": {
+      "summary.csv": "47ba65724b93a8ab0a136c16a703e52acd5a46d1e2b0d26d9c94cdbb28f4f001",
+      "seed-0-grid.csv": "8f428fa92394dbcec03b06e31e59589a87d9833474597239dfc8b2523ea0cf09",
+      "seed-20260807-grid.csv": "925739bfcd68df0de4f9ea954a6dab022c6f65c2e8cdfbc259951e8a534e5bed"
+    }
+  },
+  "visual_fixture": "tools/fixtures/terrain/adventure-v19-island-shores.json",
+  "settings": {
+    "fov": 120,
+    "shadow": "medium",
+    "post": "on",
+    "visual_detail": "standard",
+    "world_time": 6000,
+    "width": 1280,
+    "height": 720,
+    "pixel_ratio": 2,
+    "minimap_range": 256
+  },
+  "visual": [
+    {
+      "name": "seed-0-west",
+      "capture_sha256": "545c7225ea2b65430588e633dd1b8079d7492270644ecf99234f19b8c9da7468",
+      "frames": {
+        "capture_04000ms.png": "05314f3eca50154b8024f952afcfe713aec2d0aecba5cb36c405ca773d2aa363",
+        "capture_07000ms.png": "c5333d089bcef4460691f33e4b2b0a276f3da7d92ab248655ec3e2400167d7ae"
+      },
+      "status": "REVIEWED_ALL_CAPTURED_TIMES",
+      "observation": "Gravel foreland, surrounding water and raised palm grove visible at 4s/7s; one enemy approaches the foreground.",
+      "original_size_additional_review": false
+    },
+    {
+      "name": "seed-0-east",
+      "capture_sha256": "57c277b7f2104632e850cbe7393aae9c04d83efbca51768ba679ceefb6076679",
+      "frames": {
+        "capture_04000ms.png": "01d826048bbc0c39c84e1396334e6ef936a483e782aea9e92a3aaa08a010d322",
+        "capture_07000ms.png": "566c1a5eb353f46f3d157af2c4f6f7c0107a6558b0298a18e0e88696e2718426"
+      },
+      "status": "REVIEWED_ALL_CAPTURED_TIMES",
+      "observation": "Sand foreland, gravel strip, low distant vegetation and water on both sides; two enemies partially block the center by7s.",
+      "original_size_additional_review": false
+    },
+    {
+      "name": "seed-0-north",
+      "capture_sha256": "989bc2c715e1701cb493227de3422420e9133f1c27f720e4143f092af71df1db",
+      "frames": {
+        "capture_04000ms.png": "2ddbc79aa86bcd256be0ab958f71b17420c8fc706cc7a62065365dc14722f95f",
+        "capture_07000ms.png": "5449aab402775ccd2ea7794d6f087d41bc053a05d31c666fda59329439821a48"
+      },
+      "status": "REVIEWED_ALL_CAPTURED_TIMES",
+      "observation": "Sand bay, visible water, grassy rise and several palms; nearby enemy occupies lower-right foreground.",
+      "original_size_additional_review": true
+    },
+    {
+      "name": "seed-0-south",
+      "capture_sha256": "8a84fce580b1d55439ca3ddae01b0e47180acea05d84b545893edd174870c3c9",
+      "frames": {
+        "capture_04000ms.png": "f2fc85441db7e3a36030a0830eaf949b26a14f3f54a4b1128c3d3b9ad5bf2bc0",
+        "capture_07000ms.png": "217024647d6435074e0f05f95083a3826a8f5800b8fc80bd15c402128c326a23"
+      },
+      "status": "REVIEWED_ALL_CAPTURED_TIMES",
+      "observation": "Unbroken sand shore follows water on right and grass/palm interior on left; diagonal voxel stair edges remain.",
+      "original_size_additional_review": false
+    },
+    {
+      "name": "seed-20260807-west",
+      "capture_sha256": "40760f19133928d8f981e7b39fae689002e44b695d63bf289da174f17b2f9d74",
+      "frames": {
+        "capture_04000ms.png": "044fe0711cae7f338fb4ae15a76df55f3cfda21fdec5920500b8d01ac87e0d51",
+        "capture_07000ms.png": "77a88be752b8c497d6692cd2cb2da9690e6dd9b6bfdc4f2b7f36ba639410ca27"
+      },
+      "status": "REVIEWED_ALL_CAPTURED_TIMES",
+      "observation": "Low sand/gravel island with water on both sides; two foreground enemies obscure the center at both times.",
+      "original_size_additional_review": false
+    },
+    {
+      "name": "seed-20260807-east",
+      "capture_sha256": "fadeb081df5888357bb365c44071c6d23580ef967549f4f9addee3a7f4ad33e5",
+      "frames": {
+        "capture_04000ms.png": "5900cb9f6171f1a1179647a813040597966e549969b4c51a04e8b32d3af9f475",
+        "capture_07000ms.png": "329eb98bd05f739b8083f4a96575783f14044755db5f76f11bb739cc35481d71"
+      },
+      "status": "REVIEWED_ALL_CAPTURED_TIMES",
+      "observation": "Sand border around gravel foreland and sparse grassy interior clearly visible; no visible tree; edge of one enemy at right.",
+      "original_size_additional_review": true
+    }
+  ],
+  "limits": [
+    "Raw ground/shore geometry is visible, but some foreground views have approaching enemies; these frames retained.",
+    "Palm canopy visible on seed0; seed20260807 is a low sandy/gravel island with a small grassy interior and no visible tree.",
+    "Cardinal views cannot show an entire long island at render distance8; enclosure comes from the full 1m topology audit, not a single screenshot.",
+    "Diagnostic cameras, two times per station; no player navigation or swimming claim.",
+    "Minimap256 chosen for shoreline context; separate from the minimap128 user-settings review."
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "scope": "Renderer-only bounded vertical batching; terrain generation remains v19 and old world identities unchanged.",
-  "status": "IMPLEMENTED_VALIDATED_FINAL_PERFORMANCE_PENDING",
+  "status": "IMPLEMENTED_VALIDATED_FINAL_PERFORMANCE_PASS",
   "source_head": "85376c16206667d46471a409e1a6500a4ca78c73",
   "release_executable_sha256": "3ffe41d4d7f925d3da1e9e349c62c126edc0b04d2ceea59b30f29b3c316dd315",
   "resource_manifest_sha256": "9c4bbd7eb7a0d7419e33c23e4aa0bb7a7926424280a35cbd3c2189a5b72e40cd",
@@ -258,11 +258,16 @@
     }
   ],
   "remaining": [
-    "Final three-round paired performance at current 2x framebuffer",
     "Final clean client delivery"
   ],
   "failed_preflight": {
     "path": "render-batch-visual-r2",
     "reason": "Expected 1280x720 1x but actual Cocoa backing restored to 2560x1440 2x. Retained FAIL; r3 freezes actual 2x."
+  },
+  "runtime_commit": "438b92f12d16be0077806549eae8abeecb518959",
+  "final_performance": {
+    "status": "PASS",
+    "runs": 72,
+    "evidence": "adventure-final-performance-evidence-2026-09-21.json"
   }
 }
