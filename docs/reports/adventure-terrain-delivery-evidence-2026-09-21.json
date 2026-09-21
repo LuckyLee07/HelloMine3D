@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "status": "PASS_WITH_EXPLICIT_CAPABILITY_LIMITS",
+  "platform": "macOS x86_64 Release on current host",
+  "package": "build/adventure-terrain-20260921/HelloMine3D-Adventure.app",
+  "bundle_id": "local.hellomine3d.adventure-release",
+  "package_source_commit": "423ad31378dc7558bdef69b097a4d912eb6f34e9",
+  "runtime_commit": "438b92f12d16be0077806549eae8abeecb518959",
+  "executable_sha256": "3ffe41d4d7f925d3da1e9e349c62c126edc0b04d2ceea59b30f29b3c316dd315",
+  "resource_manifest_sha256": "9c4bbd7eb7a0d7419e33c23e4aa0bb7a7926424280a35cbd3c2189a5b72e40cd",
+  "source_manifest_sha256": "543a1f2c3fd603c1b90b686055ab52fa9988de0c696a3a0115bffa66fbe90a2c",
+  "source_files": 352,
+  "package_manifest_sha256": "398b0e57d3e6281f3c86be23672e6bf9f320e7724b1257b402aef2c721339a35",
+  "package_files_including_inventory": 120,
+  "package_bytes": 53347587,
+  "package_integrity": "PASS_ALL_FILES_NO_EXTRA_STATE",
+  "source_receipt_matches_tested_working_package": true,
+  "package_signing": "local unsigned/unnotarized development delivery",
+  "full_gameplay_acceptance": "PARTIAL; packaging metadata NOT_RUN remains unmodified and does not claim universal gameplay acceptance",
+  "menu_smoke": {
+    "status": "PASS_OBSERVED_MENU",
+    "hidden": true,
+    "frames": 2,
+    "framebuffer": [
+      2560,
+      1440
+    ],
+    "capture_sha256": "526a8f64b8b5eb34155f8e933bbabcb7129c0fa11eb403ff1913987bd619c3a6",
+    "normal_input": false,
+    "configuration_and_generated_logs_removed_after_capture": true
+  },
+  "reference_exclusion": {
+    "status": "PASS",
+    "scope": "Every package path and byte, all goal-range commit messages and added/modified file versions; not a rewrite or audit of unrelated pre-goal history. No push performed.",
+    "commits_through": "423ad31378dc7558bdef69b097a4d912eb6f34e9",
+    "commits_checked": 17,
+    "file_versions_checked": 256,
+    "local_reference_notes_distributed": false,
+    "final_documentation_commit": "Checked separately using the same full staged-path/content/message guard; post-commit full goal-range audit retained locally."
+  },
+  "cleanup": {
+    "status": "PASS",
+    "record": "build/adventure-terrain-20260921/delivery-cleanup-r1.json",
+    "record_sha256": "a95537f15f214ad2901461e7ac857dd5a3f88f970c368184d0f7e3876853fb07",
+    "removed_files": 2102,
+    "removed_bytes": 1799010397,
+    "build_bytes_before": 3346016687,
+    "build_bytes_after": 1547006290,
+    "scope": "Only current-goal superseded executable copies, rebuildable Debug object/library caches, and the new delivery menu-smoke generated config/log. Retain all source, generated project rules, Release build caches, current Debug/Release binaries, every raw performance sample/failure, route images, protected app and existing saves.",
+    "protected_package_identical": true,
+    "working_saves_identical": true
+  },
+  "limitations": {
+    "sustained_normal_walking_and_harvest": "BLOCKED_BY_INPUT_CAPABILITY; current-version real menu, crafting-open, save-return, same-world reentry and save-quit observed separately via Computer Use",
+    "night_light_source_appearance": "LIMITED_BY_ENEMY_OCCLUSION",
+    "windows_and_xcode": "NOT_RUN_THIS_BATCH",
+    "human_aesthetic_approval": "NOT_CLAIMED",
+    "independent_blind_gameplay": "NOT_RUN_NOT_CLAIMED",
+    "sky_sun_cloud_rework": "DEFERRED_BY_GOAL_SCOPE"
+  }
+}

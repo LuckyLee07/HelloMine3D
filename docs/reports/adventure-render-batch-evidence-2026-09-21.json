@@ -257,9 +257,7 @@
       "status": "PILOT_ONLY_NOT_FINAL_GUARDRAIL"
     }
   ],
-  "remaining": [
-    "Final clean client delivery"
-  ],
+  "remaining": [],
   "failed_preflight": {
     "path": "render-batch-visual-r2",
     "reason": "Expected 1280x720 1x but actual Cocoa backing restored to 2560x1440 2x. Retained FAIL; r3 freezes actual 2x."
@@ -269,5 +267,6 @@
     "status": "PASS",
     "runs": 72,
     "evidence": "adventure-final-performance-evidence-2026-09-21.json"
-  }
+  },
+  "delivery_evidence": "adventure-terrain-delivery-evidence-2026-09-21.json"
 }

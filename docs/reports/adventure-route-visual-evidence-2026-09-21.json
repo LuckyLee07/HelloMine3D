@@ -491,7 +491,7 @@
   },
   "remaining": [
     "Camera has no player collision; listed structure/tree intersections do not prove actual walking or accessibility",
-    "Shadow flicker between sampled times is not exhaustively tested",
-    "Final paired performance and final client handoff pending"
-  ]
+    "Shadow flicker between sampled times is not exhaustively tested"
+  ],
+  "final_performance_and_delivery": "Completed; see adventure-final-performance-evidence-2026-09-21.json and adventure-terrain-delivery-evidence-2026-09-21.json. Earlier route capture identity remains unchanged."
 }
