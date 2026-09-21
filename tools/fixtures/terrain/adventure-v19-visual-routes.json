@@ -1,0 +1,274 @@
+{
+  "schema": 1,
+  "version": 19,
+  "evidence": "DEVELOPER_DIAGNOSTIC_CAMERA_SWEEP_NOT_NORMAL_WALK",
+  "selection": "Every 40 m along all three frozen seed42 ordinary-spawn land routes; no camera chosen after visual review. Four additional regional sites taken from the frozen largest-component ecology fixture. Sweep follows endpoints and does not move player/world residency; intermediate clipping is possible and must be reported.",
+  "route_source_sha256": "9f17e91e44e364c3789e646f2e31aabd31fdc9e2192d4495cd30d22fd67d281e",
+  "fov": 120,
+  "time": 6000,
+  "shadow": "medium",
+  "pixel_ratio": 1,
+  "capture_ms": "4000,6000,8000,10000",
+  "stations": [
+    {
+      "name": "east-forest-highland-00",
+      "seed": 42,
+      "position": "40 92 56",
+      "rotation": "5 90 0",
+      "sweep": "40 -11 0 0 0 6",
+      "route_metres": 0
+    },
+    {
+      "name": "east-forest-highland-01",
+      "seed": 42,
+      "position": "80 81 56",
+      "rotation": "5 90 0",
+      "sweep": "40 -4 0 0 0 6",
+      "route_metres": 40
+    },
+    {
+      "name": "east-forest-highland-02",
+      "seed": 42,
+      "position": "120 77 56",
+      "rotation": "5 90 0",
+      "sweep": "40 -2 0 0 0 6",
+      "route_metres": 80
+    },
+    {
+      "name": "east-forest-highland-03",
+      "seed": 42,
+      "position": "160 75 56",
+      "rotation": "5 90 0",
+      "sweep": "40 0 0 0 0 6",
+      "route_metres": 120
+    },
+    {
+      "name": "east-forest-highland-04",
+      "seed": 42,
+      "position": "200 75 56",
+      "rotation": "5 90 0",
+      "sweep": "40 7 0 0 0 6",
+      "route_metres": 160
+    },
+    {
+      "name": "east-forest-highland-05",
+      "seed": 42,
+      "position": "240 82 56",
+      "rotation": "5 90 0",
+      "sweep": "40 7 0 0 0 6",
+      "route_metres": 200
+    },
+    {
+      "name": "east-forest-highland-06",
+      "seed": 42,
+      "position": "280 89 56",
+      "rotation": "5 90 0",
+      "sweep": "40 12 0 0 0 6",
+      "route_metres": 240
+    },
+    {
+      "name": "east-forest-highland-07",
+      "seed": 42,
+      "position": "320 101 56",
+      "rotation": "5 90 0",
+      "sweep": "40 14 0 0 0 6",
+      "route_metres": 280
+    },
+    {
+      "name": "east-forest-highland-08",
+      "seed": 42,
+      "position": "360 115 56",
+      "rotation": "5 90 0",
+      "sweep": "0 0 0 0 0 6",
+      "route_metres": 320
+    },
+    {
+      "name": "west-rockland-dunes-00",
+      "seed": 42,
+      "position": "40 92 56",
+      "rotation": "5 -90 0",
+      "sweep": "-40 7 0 0 0 6",
+      "route_metres": 0
+    },
+    {
+      "name": "west-rockland-dunes-01",
+      "seed": 42,
+      "position": "0 99 56",
+      "rotation": "5 -90 0",
+      "sweep": "-40 3 0 0 0 6",
+      "route_metres": 40
+    },
+    {
+      "name": "west-rockland-dunes-02",
+      "seed": 42,
+      "position": "-40 102 56",
+      "rotation": "5 -90 0",
+      "sweep": "-40 6 0 0 0 6",
+      "route_metres": 80
+    },
+    {
+      "name": "west-rockland-dunes-03",
+      "seed": 42,
+      "position": "-80 108 56",
+      "rotation": "5 -90 0",
+      "sweep": "-40 25 0 0 0 6",
+      "route_metres": 120
+    },
+    {
+      "name": "west-rockland-dunes-04",
+      "seed": 42,
+      "position": "-120 133 56",
+      "rotation": "5 -90 0",
+      "sweep": "-40 4 0 0 0 6",
+      "route_metres": 160
+    },
+    {
+      "name": "west-rockland-dunes-05",
+      "seed": 42,
+      "position": "-160 137 56",
+      "rotation": "5 -90 0",
+      "sweep": "-40 0 0 0 0 6",
+      "route_metres": 200
+    },
+    {
+      "name": "west-rockland-dunes-06",
+      "seed": 42,
+      "position": "-200 137 56",
+      "rotation": "5 -90 0",
+      "sweep": "-40 0 0 0 0 6",
+      "route_metres": 240
+    },
+    {
+      "name": "west-rockland-dunes-07",
+      "seed": 42,
+      "position": "-240 137 56",
+      "rotation": "5 -90 0",
+      "sweep": "-40 -2 0 0 0 6",
+      "route_metres": 280
+    },
+    {
+      "name": "west-rockland-dunes-08",
+      "seed": 42,
+      "position": "-280 135 56",
+      "rotation": "5 -90 0",
+      "sweep": "-40 -25 0 0 0 6",
+      "route_metres": 320
+    },
+    {
+      "name": "west-rockland-dunes-09",
+      "seed": 42,
+      "position": "-320 110 56",
+      "rotation": "5 -90 0",
+      "sweep": "-40 -15 0 0 0 6",
+      "route_metres": 360
+    },
+    {
+      "name": "west-rockland-dunes-10",
+      "seed": 42,
+      "position": "-360 95 56",
+      "rotation": "5 -90 0",
+      "sweep": "0 0 0 0 0 6",
+      "route_metres": 400
+    },
+    {
+      "name": "south-woodland-wetland-00",
+      "seed": 42,
+      "position": "40 92 56",
+      "rotation": "5 180 0",
+      "sweep": "32 -9 8 0 0 6",
+      "route_metres": 0
+    },
+    {
+      "name": "south-woodland-wetland-01",
+      "seed": 42,
+      "position": "72 83 64",
+      "rotation": "5 180 0",
+      "sweep": "0 9 40 0 0 6",
+      "route_metres": 40
+    },
+    {
+      "name": "south-woodland-wetland-02",
+      "seed": 42,
+      "position": "72 92 104",
+      "rotation": "5 180 0",
+      "sweep": "0 1 40 0 0 6",
+      "route_metres": 80
+    },
+    {
+      "name": "south-woodland-wetland-03",
+      "seed": 42,
+      "position": "72 93 144",
+      "rotation": "5 180 0",
+      "sweep": "0 0 40 0 0 6",
+      "route_metres": 120
+    },
+    {
+      "name": "south-woodland-wetland-04",
+      "seed": 42,
+      "position": "72 93 184",
+      "rotation": "5 180 0",
+      "sweep": "0 -1 40 0 0 6",
+      "route_metres": 160
+    },
+    {
+      "name": "south-woodland-wetland-05",
+      "seed": 42,
+      "position": "72 92 224",
+      "rotation": "5 180 0",
+      "sweep": "0 -4 40 0 0 6",
+      "route_metres": 200
+    },
+    {
+      "name": "south-woodland-wetland-06",
+      "seed": 42,
+      "position": "72 88 264",
+      "rotation": "5 180 0",
+      "sweep": "0 -9 40 0 0 6",
+      "route_metres": 240
+    },
+    {
+      "name": "south-woodland-wetland-07",
+      "seed": 42,
+      "position": "72 79 304",
+      "rotation": "5 180 0",
+      "sweep": "0 -6 40 0 0 6",
+      "route_metres": 280
+    },
+    {
+      "name": "south-woodland-wetland-08",
+      "seed": 42,
+      "position": "72 73 344",
+      "rotation": "5 180 0",
+      "sweep": "0 0 0 0 0 6",
+      "route_metres": 320
+    },
+    {
+      "name": "regional-seed-0-region-5",
+      "seed": 0,
+      "position": "1032 67 -32",
+      "rotation": "0 35 0",
+      "sweep": "0 0 0 70 0 6"
+    },
+    {
+      "name": "regional-seed-0-region-3",
+      "seed": 0,
+      "position": "1760 84 -816",
+      "rotation": "0 35 0",
+      "sweep": "0 0 0 70 0 6"
+    },
+    {
+      "name": "regional-seed-20260807-region-6",
+      "seed": 20260807,
+      "position": "-1012 154 -1824",
+      "rotation": "0 35 0",
+      "sweep": "0 0 0 70 0 6"
+    },
+    {
+      "name": "regional-seed-0-region-7",
+      "seed": 0,
+      "position": "-704 67 -1824",
+      "rotation": "0 35 0",
+      "sweep": "0 0 0 70 0 6"
+    }
+  ]
+}

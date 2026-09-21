@@ -16,6 +16,7 @@ import os
 from pathlib import Path
 import platform
 import re
+import resource
 import shutil
 import subprocess
 import time
@@ -105,6 +106,8 @@ def main():
     parser.add_argument("--terrain-fallback", action="store_true")
     parser.add_argument("--visual-detail", choices=("standard", "compatibility"))
     parser.add_argument("--performance", action="store_true")
+    parser.add_argument("--capture-ms", default="5000,10000",
+                        help="Up to eight increasing render capture times in milliseconds (1..60000)")
     parser.add_argument("--streaming", action="store_true")
     parser.add_argument("--launch-method", choices=("open", "direct"), default="open")
     parser.add_argument("--foreground", action="store_true",
@@ -112,6 +115,16 @@ def main():
     parser.add_argument("--reuse-app", action="store_true",
                         help="Run the supplied stable app in place; its diagnostic config is updated")
     args = parser.parse_args()
+    try:
+        capture_times = [int(value) for value in args.capture_ms.split(',')]
+        if (not 1 <= len(capture_times) <= 8 or
+                capture_times != sorted(set(capture_times)) or
+                not all(1 <= value <= 60000 for value in capture_times)):
+            raise ValueError
+    except ValueError:
+        parser.error("--capture-ms requires up to eight increasing integers in 1..60000")
+    if args.performance and args.capture_ms != "5000,10000":
+        parser.error("--capture-ms applies only to render capture")
     if args.actor_distance is not None and not args.actor_visual:
         parser.error("--actor-distance requires --actor-visual")
     if platform.system() != "Darwin":
@@ -196,7 +209,7 @@ seed random
         "HELLOMINE3D_SHOW_DEBUG_INFO": "1" if args.debug else "0",
         "HELLO_RENDER_CAPTURE": "0" if args.performance else "1",
         "HELLO_RENDER_CAPTURE_DIR": str(output / "frames"),
-        "HELLO_RENDER_CAPTURE_MS": "5000,10000",
+        "HELLO_RENDER_CAPTURE_MS": ','.join(map(str, capture_times)),
         "HELLO_RENDER_CAPTURE_MAX_DELTA_MS": "5000",
         "HELLO_RENDER_CAPTURE_EXIT": "0" if args.performance else "1",
     }
@@ -277,8 +290,12 @@ seed random
                 subprocess.run(command, check=True, timeout=100,
                                env={**os.environ, **environment},
                                stdout=stdout, stderr=stderr)
+            # macOS reports ru_maxrss in bytes. In direct mode the executable
+            # is the child we waited for; LaunchServices mode cannot claim that.
+            record["peak_child_rss_bytes"] = int(
+                resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss)
         frames = sorted((output / "frames").glob("*.png"))
-        expected_frames = 0 if args.performance else 2
+        expected_frames = 0 if args.performance else len(capture_times)
         if len(frames) != expected_frames:
             raise RuntimeError(f"Expected {expected_frames} captured frames, got {len(frames)}")
         # Window points and framebuffer pixels differ on Retina displays. Require

@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "seed": 42,
+  "versions": [
+    15,
+    19
+  ],
+  "round_order": [
+    [
+      15,
+      19
+    ],
+    [
+      19,
+      15
+    ],
+    [
+      15,
+      19
+    ]
+  ],
+  "settings": {
+    "fov": 120,
+    "shadow": "medium",
+    "post": "on",
+    "width": 1280,
+    "height": 720,
+    "pixel_ratio": 2,
+    "visual_detail": "standard",
+    "world_time": 6000,
+    "render_distance": 8
+  },
+  "warmup_ms": 5000,
+  "duration_ms": 30000,
+  "guardrail": 1.1,
+  "scenes": [
+    {
+      "name": "conifer-steady",
+      "position": "752 200 -32",
+      "rotation": "10 35 0",
+      "streaming": false
+    },
+    {
+      "name": "conifer-streaming",
+      "position": "752 200 -32",
+      "rotation": "10 35 0",
+      "streaming": true
+    },
+    {
+      "name": "canyon-steady",
+      "position": "1396 200 -1684",
+      "rotation": "10 35 0",
+      "streaming": false
+    },
+    {
+      "name": "canyon-streaming",
+      "position": "1396 200 -1684",
+      "rotation": "10 35 0",
+      "streaming": true
+    }
+  ],
+  "scope": "Same world coordinates and settings, distinct real v15/v19 terrain workloads. Initial elevated position settles by normal gravity; streaming is developer diagnostic. No render readback or competing builds. Each run uses a fresh disposable save. Initial preflight rejected expected 1x because Cocoa reports current Retina backing 2560x1440. Full paired run freezes actual 2x for both versions.",
+  "baseline_executable_sha256": "1f9de91945538ec1d363ede56b9784a01aebf5e43e6e8e235312c81e7604f83a",
+  "candidate_executable_sha256": "f5e3abea72dc3d8b964188ebf205091183935794d797f0e1820fad3840d72806"
+}

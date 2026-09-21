@@ -649,6 +649,9 @@ BlockSelection + MiningProgressSnapshot + ActionFeedbackSnapshot
 Snapshots are copied values and Ogre owns only their visual mirrors and Render state. A removed live section destroys its Ogre visual；
 stale CPU upload acknowledgement cannot promote a newer revision，且上传后会在进入下一帧前被销毁。Renderer reset/rebuild therefore does not mutate
 block、Actor、inventory、objective or persistence truth。
+Ogre 保留上一份 live section 数值坐标清单，仅在清单改变时重建字符串驻留索引并清理卸载；
+退出世界／销毁渲染器时同步清空该派生清单。无上传时不取第二份确认快照；有上传时仍
+确认真实当前 revision 和 CpuReady 状态，但仅对至多八个上传位置做数值查找，不构建全量字符串索引。
 
 方向阴影的太阳投影设置由 Ogre 灯持有，第一方纯数学 helper 负责正午稳定参考轴与纹素锚定；
 terrain/actor 接收端共享连续比较滤波语义。切档、切世界及退出随灯清理，不向 World 写回状态，

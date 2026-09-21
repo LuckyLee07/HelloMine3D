@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "seed": 42,
+  "versions": [
+    15,
+    19
+  ],
+  "round_order": [
+    [
+      15,
+      19
+    ],
+    [
+      19,
+      15
+    ],
+    [
+      15,
+      19
+    ]
+  ],
+  "settings": {
+    "fov": 120,
+    "shadow": "medium",
+    "post": "on",
+    "width": 1280,
+    "height": 720,
+    "pixel_ratio": 1,
+    "visual_detail": "standard",
+    "world_time": 6000,
+    "render_distance": 8
+  },
+  "warmup_ms": 5000,
+  "duration_ms": 30000,
+  "guardrail": 1.1,
+  "scenes": [
+    {
+      "name": "conifer-steady",
+      "position": "752 200 -32",
+      "rotation": "10 35 0",
+      "streaming": false,
+      "baseline_position": "-128 200 1312"
+    },
+    {
+      "name": "conifer-streaming",
+      "position": "752 200 -32",
+      "rotation": "10 35 0",
+      "streaming": true,
+      "baseline_position": "-128 200 1312"
+    },
+    {
+      "name": "canyon-steady",
+      "position": "1396 200 -1684",
+      "rotation": "10 35 0",
+      "streaming": false,
+      "baseline_position": "-32 200 480"
+    },
+    {
+      "name": "canyon-streaming",
+      "position": "1396 200 -1684",
+      "rotation": "10 35 0",
+      "streaming": true,
+      "baseline_position": "-32 200 480"
+    }
+  ],
+  "scope": "Matched regional workloads, not identical coordinates: legacy forest versus new conifer, legacy rockland versus new canyon. Legacy locations are largest connected biome centroids from the frozen pre-change production survey; candidate locations were already frozen before visual/performance review. Original same-coordinate ocean-to-forest results remain reported separately. Same machine, resolution, settings, seed, duration and alternating three rounds; no dropped runs. Final candidate includes residency synchronization optimization. All final runs use actual 1280x720 backing (1x); earlier 2x and failed-size data are retained separately and never mixed into these medians.",
+  "baseline_executable_sha256": "1f9de91945538ec1d363ede56b9784a01aebf5e43e6e8e235312c81e7604f83a",
+  "candidate_executable_sha256": "f5da20918ca3427bd0e64bd30141a86dc407d4e93c23ffcbf7d2d3a8b0f11ad7",
+  "reference_selection": {
+    "forest": {
+      "position": "-128 200 1312",
+      "height": 75,
+      "biome": 3,
+      "component_samples": 581,
+      "selection": "Nearest largest connected regional component centroid on frozen 32 m production grid; no timing used"
+    },
+    "canyon": {
+      "position": "-32 200 480",
+      "height": 117,
+      "biome": 7,
+      "component_samples": 167,
+      "selection": "Nearest largest connected regional component centroid on frozen 32 m production grid; no timing used"
+    }
+  }
+}

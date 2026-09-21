@@ -2053,6 +2053,7 @@ namespace
             }
             m_sectionVisuals.clear();
             m_sectionRenderStates.clear();
+            m_lastLiveSections.clear();
             destroyDirectionalShadowResources();
             m_actorRenderer.reset();
             if (m_sceneManager != nullptr)
@@ -2676,37 +2677,43 @@ namespace
 
             WorldMeshSnapshot snapshot =
                 m_world->collectSectionMeshSnapshot();
-            std::unordered_set<std::string> liveSections;
-            liveSections.reserve(snapshot.liveSections.size());
-            for (const glm::ivec3& location : snapshot.liveSections)
+            // World height increases the number of live sections. Rebuilding
+            // their string index every idle frame does not change residency.
+            if (snapshot.liveSections != m_lastLiveSections)
             {
-                const std::string key = sectionKey(location);
-                liveSections.insert(key);
-                m_sectionRenderStates.emplace(
-                    key, ChunkRenderState::NotResident);
-            }
-
-            for (auto it = m_sectionRenderStates.begin();
-                 it != m_sectionRenderStates.end();)
-            {
-                if (liveSections.find(it->first) != liveSections.end())
+                std::unordered_set<std::string> liveSections;
+                liveSections.reserve(snapshot.liveSections.size());
+                for (const glm::ivec3& location : snapshot.liveSections)
                 {
-                    ++it;
-                    continue;
+                    const std::string key = sectionKey(location);
+                    liveSections.insert(key);
+                    m_sectionRenderStates.emplace(
+                        key, ChunkRenderState::NotResident);
                 }
 
-                const auto visual = m_sectionVisuals.find(it->first);
-                if (visual != m_sectionVisuals.end())
+                for (auto it = m_sectionRenderStates.begin();
+                     it != m_sectionRenderStates.end();)
                 {
-                    destroySectionVisual(visual->second);
-                    m_sectionVisuals.erase(visual);
+                    if (liveSections.find(it->first) != liveSections.end())
+                    {
+                        ++it;
+                        continue;
+                    }
+
+                    const auto visual = m_sectionVisuals.find(it->first);
+                    if (visual != m_sectionVisuals.end())
+                    {
+                        destroySectionVisual(visual->second);
+                        m_sectionVisuals.erase(visual);
+                    }
+                    if (it->second != ChunkRenderState::NotResident)
+                    {
+                        transitionRenderState(it->first,
+                                              ChunkRenderState::NotResident);
+                    }
+                    it = m_sectionRenderStates.erase(it);
                 }
-                if (it->second != ChunkRenderState::NotResident)
-                {
-                    transitionRenderState(it->first,
-                                          ChunkRenderState::NotResident);
-                }
-                it = m_sectionRenderStates.erase(it);
+                m_lastLiveSections = snapshot.liveSections;
             }
 
             std::vector<WorldSectionMeshVersion> uploaded;
@@ -2751,35 +2758,37 @@ namespace
                 uploaded.push_back(
                     {section.location, section.blockRevision});
             }
+            // Residency cleanup above always runs. With no uploads there is
+            // nothing to acknowledge or validate against a second snapshot;
+            // new worker output will be offered on the next frame as usual.
+            if (uploaded.empty())
+            {
+                return;
+            }
             m_world->acknowledgeSectionMeshUploads(uploaded);
             const WorldMeshSnapshot acknowledged =
                 m_world->collectSectionMeshSnapshot();
-            std::unordered_map<std::string, std::uint32_t>
-                currentRevisions;
-            currentRevisions.reserve(
-                acknowledged.liveSectionVersions.size());
-            for (const WorldSectionMeshVersion& version :
-                 acknowledged.liveSectionVersions)
-            {
-                currentRevisions.emplace(
-                    sectionKey(version.location), version.blockRevision);
-            }
-            std::unordered_set<std::string> stillCpuReady;
-            stillCpuReady.reserve(
-                acknowledged.cpuReadySections.size());
-            for (const WorldSectionMeshSnapshot& section :
-                 acknowledged.cpuReadySections)
-            {
-                stillCpuReady.insert(sectionKey(section.location));
-            }
             for (const WorldSectionMeshVersion& version : uploaded)
             {
                 const std::string key = sectionKey(version.location);
+                // At most eight uploads need validation. Compare numeric
+                // locations directly instead of indexing every live section.
+                const auto current = std::find_if(
+                    acknowledged.liveSectionVersions.begin(),
+                    acknowledged.liveSectionVersions.end(),
+                    [&version](const WorldSectionMeshVersion& candidate) {
+                        return candidate.location == version.location;
+                    });
+                const bool stillCpuReady = std::any_of(
+                    acknowledged.cpuReadySections.begin(),
+                    acknowledged.cpuReadySections.end(),
+                    [&version](const WorldSectionMeshSnapshot& candidate) {
+                        return candidate.location == version.location;
+                    });
                 const bool acceptedCurrent =
-                    currentRevisions.find(key) !=
-                        currentRevisions.end() &&
-                    currentRevisions[key] == version.blockRevision &&
-                    stillCpuReady.find(key) == stillCpuReady.end();
+                    current != acknowledged.liveSectionVersions.end() &&
+                    current->blockRevision == version.blockRevision &&
+                    !stillCpuReady;
                 const bool hasVisual =
                     m_sectionVisuals.find(key) != m_sectionVisuals.end();
                 if (!acceptedCurrent && hasVisual)
@@ -4642,6 +4651,7 @@ namespace
             }
             m_sectionVisuals.clear();
             m_sectionRenderStates.clear();
+            m_lastLiveSections.clear();
             destroyDirectionalShadowResources();
             if (m_audio != nullptr)
             {
@@ -4714,6 +4724,7 @@ namespace
         std::unordered_map<std::string, SectionVisual> m_sectionVisuals;
         std::unordered_map<std::string, ChunkRenderState>
             m_sectionRenderStates;
+        std::vector<glm::ivec3> m_lastLiveSections;
         bool m_listenersInstalled = false;
         bool m_shutdownRequested = false;
         bool m_runtimeStarted = false;
