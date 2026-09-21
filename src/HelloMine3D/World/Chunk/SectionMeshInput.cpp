@@ -18,11 +18,27 @@ int SectionMeshInput::index(int x, int y, int z)
 
 void SectionMeshInput::capture(
     ChunkSection &section, const TerrainGenerator &terrainGenerator,
-    int terrainSeed)
+    int terrainSeed, bool omitEnclosedPayload)
 {
     m_location = section.getLocation();
     m_terrainSeed = terrainSeed;
     m_containsWater = false;
+    // Decide enclosure before copying 18^3 cells or querying climate. The
+    // same flags still govern the builder; only unused snapshot work is cut.
+    for (int y = -1; y <= CHUNK_SIZE; ++y) {
+        m_ownLayerAllSolid[y + 1] = section.getLayer(y).isAllSolid();
+    }
+    for (int neighbour = 0; neighbour < 4; ++neighbour) {
+        const ChunkSection *adjacent = section.findAdjacent(
+            kNeighbourOffsetX[neighbour], kNeighbourOffsetZ[neighbour]);
+        for (int y = 0; y < CHUNK_SIZE; ++y) {
+            m_neighbourLayerAllSolid[neighbour][y] =
+                adjacent != nullptr && adjacent->getLayer(y).isAllSolid();
+        }
+    }
+    if (omitEnclosedPayload && !needsMeshBuild()) {
+        return;
+    }
     static_assert(CHUNK_SIZE == 16, "Ecology colour grid follows section size");
     m_ecologyColour.capture(m_location.x * CHUNK_SIZE, m_location.z * CHUNK_SIZE,
         [&terrainGenerator](int x, int z) {
@@ -73,18 +89,6 @@ void SectionMeshInput::capture(
         }
     }
 
-    for (int y = -1; y <= CHUNK_SIZE; ++y) {
-        m_ownLayerAllSolid[y + 1] = section.getLayer(y).isAllSolid();
-    }
-
-    for (int neighbour = 0; neighbour < 4; ++neighbour) {
-        const ChunkSection *adjacent = section.findAdjacent(
-            kNeighbourOffsetX[neighbour], kNeighbourOffsetZ[neighbour]);
-        for (int y = 0; y < CHUNK_SIZE; ++y) {
-            m_neighbourLayerAllSolid[neighbour][y] =
-                adjacent != nullptr && adjacent->getLayer(y).isAllSolid();
-        }
-    }
 }
 
 LightLevel SectionMeshInput::getSunlight(int x, int y, int z) const

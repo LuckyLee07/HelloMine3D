@@ -6604,6 +6604,24 @@ void caseEnclosedSectionSkip()
         return;
     }
 
+    struct CountingTerrain final : TerrainGenerator {
+        mutable int queries = 0;
+        void generateTerrainFor(Chunk &) override {}
+        int getMinimumSpawnHeight() const noexcept override { return 64; }
+        int getGenerationVersion() const noexcept override { return 19; }
+        int getSurfaceHeightAtWorld(int, int) const noexcept override { return 64; }
+        TerrainBiome getBiomeAtWorld(int, int) const noexcept override {
+            ++queries; return TerrainBiome::Grassland;
+        }
+    } counting;
+    SectionMeshInput meshOnly;
+    meshOnly.capture(*section, counting, 42, true);
+    check("M6/enclosed-mesh-only-capture-omits-climate", !meshOnly.needsMeshBuild() && counting.queries == 0);
+    SectionMeshInput complete;
+    complete.capture(*section, counting, 42);
+    check("M6/default-enclosed-snapshot-retains-payload", counting.queries > 0 &&
+          complete.getBlock(8, 8, 8) == BlockId::Stone);
+
     SectionMeshInput enclosedInput;
     section->captureMeshInput(enclosedInput);
     check("M6/enclosed-snapshot-skips-build",
@@ -6630,6 +6648,11 @@ void caseEnclosedSectionSkip()
               afterSkip.meshBuildTotalMs == beforeSkip.meshBuildTotalMs);
 
     world.setBlock(8, baseY + CHUNK_SIZE, 8, BlockId::Air);
+    counting.queries = 0;
+    meshOnly.capture(*section, counting, 42, true);
+    check("M6/reused-mesh-only-capture-fills-opened-payload", meshOnly.needsMeshBuild() &&
+          counting.queries > 0 && meshOnly.getBlock(8, CHUNK_SIZE, 8) == BlockId::Air &&
+          meshOnly.getBlock(8, CHUNK_SIZE - 1, 8) == BlockId::Stone);
     SectionMeshInput openedInput;
     section->captureMeshInput(openedInput);
     check("M6/opening-invalidates-enclosure",
@@ -20086,6 +20109,10 @@ int main()
             caseBlockTextureCoordinates();
             caseRuntimeConfigOwnership();
             caseMeshDirtyPropagation();
+        }
+        else if (focus != nullptr && std::string(focus) == "MESH_INPUT") {
+            caseSectionMeshInput();
+            caseEnclosedSectionSkip();
         }
         else if (focus != nullptr && std::string(focus) == "V10A") {
             caseGreedyMeshing();

@@ -224,7 +224,7 @@ bool ChunkSection::makeMesh()
     beginMeshBuild();
 
     SectionMeshInput input;
-    captureMeshInput(input);
+    captureMeshInput(input, true);
 
     m_meshes.solidMesh.clearClientData();
     m_meshes.transparentMesh.clearClientData();
@@ -238,11 +238,11 @@ bool ChunkSection::makeMesh()
     return built;
 }
 
-void ChunkSection::captureMeshInput(SectionMeshInput &input)
+void ChunkSection::captureMeshInput(SectionMeshInput &input, bool omitEnclosedPayload)
 {
     ChunkManager &manager = m_pWorld->getChunkManager();
     input.capture(*this, manager.getTerrainGenerator(),
-                  manager.getTerrainSeed());
+                  manager.getTerrainSeed(), omitEnclosedPayload);
 }
 
 void ChunkSection::adoptMesh(ChunkMeshCollection &built)

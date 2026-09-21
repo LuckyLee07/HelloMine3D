@@ -346,6 +346,10 @@ World (public facade / composition root)
   section revision 与同 revision GPU acknowledgement；
 - 每 loader pass 至多 8 个 authoritative commit interval，以及不持久化的 copied pressure diagnostics。
 
+`SectionMeshInput` 默认继续提供完整方块／光照／生态快照；只有两条 mesh 构建入口显式允许
+先读层封闭标志，完全封闭时省略未使用的 payload。开洞、缺少邻区段或任一非实心层仍捕获完整数据；
+网格状态、revision 拒绝、上传和预算保持原语义。
+
 这些对象是派生数据或工作协调，不拥有 block/light/save truth。AL-A2 至 B10 保持当时的 78 项公开面；
 C3 为 copied topology observation 增至 79 项并同步更新 machine-checked hash；
 `World::planChunkMeshWork` 仍只转发到纯 `ChunkRuntime::planMeshWork`。

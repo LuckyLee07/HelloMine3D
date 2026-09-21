@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "platform": "macOS Apple clang gmake x86_64",
+  "client_sha256": "3df386cd1d058e074c301169c5c8418a9e3f0f66e534be1250fd352c8e4fe730",
+  "checks": {
+    "debug_focus": 21,
+    "release_focus": 21,
+    "debug_world": 1689,
+    "release_world": 1689,
+    "failures": 0
+  },
+  "scope": "Only explicitly mesh-only captures omit payload for fully enclosed sections. Default snapshots remain complete. Visibility predicates, mesh state/revision protocol and work budgets are unchanged.",
+  "logs": {
+    "enclosed-capture-release-build-r1.log": "39541d838f01b86f780b63d1f2d0754038934e8dc1b581978d6f11908235e7cc",
+    "enclosed-capture-debug-build-r1.log": "5b3ed803c5c835275f8e6073a44462ff5a4a62efb8488185d6da9ae53e44bb76",
+    "enclosed-capture-focus-release-r1.log": "d52140ef1f23f8fa9e6f8bf762c2599d5a0a320c5c180268f90835957a06b8a0",
+    "enclosed-capture-focus-debug-r1.log": "d52140ef1f23f8fa9e6f8bf762c2599d5a0a320c5c180268f90835957a06b8a0",
+    "enclosed-capture-world-release-r1.log": "1fb22e407b1671040889c03996f41b3cf6730117dd418d418c6eb36331a6c52d",
+    "enclosed-capture-world-debug-r1.log": "a98da542328c099cf8218fce66193ea3aebc947e5de745891c69a326bd7e6594"
+  },
+  "performance": "Three-round matched/control/original protocol starts after all build, tests and visual captures have completed. Guardrail not yet passed."
+}

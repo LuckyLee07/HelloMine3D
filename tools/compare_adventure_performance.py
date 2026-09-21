@@ -18,6 +18,7 @@ def read_run(directory, protocol, scene, version):
     assert record['result'] == 'CAPTURED', directory
     assert not record['render_readback'] and not record['normal_input']
     assert record['window_mode'] == 'hidden'
+    assert not record.get('inherited_diagnostic_environment'), directory
     settings = protocol['settings']
     assert record['framebuffer_size_pixels'] == [
         settings['width'] * settings['pixel_ratio'],
@@ -40,6 +41,10 @@ def read_run(directory, protocol, scene, version):
     expected_hash = protocol['baseline_executable_sha256' if version == 15
                              else 'candidate_executable_sha256']
     assert identity == expected_hash
+    resource_key = ('baseline_resource_manifest_sha256' if version == 15
+                    else 'candidate_resource_manifest_sha256')
+    if resource_key in protocol:
+        assert record['package_identity']['resource_manifest_sha256'] == protocol[resource_key]
     summary_path = directory / 'performance/summary.txt'
     summary = dict(line.split('=', 1) for line in summary_path.read_text().splitlines()
                    if '=' in line)

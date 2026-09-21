@@ -31,10 +31,12 @@ class SectionMeshInput {
     // to resident data, including at most one section below this snapshot.
     static constexpr int MaxWaterDepth = 8;
 
-    /// Must be called while the world lock is held.
+    /// Must be called while the world lock is held. Mesh-only callers may
+    /// omit enclosed payloads: when needsMeshBuild() is false, only location,
+    /// seed and layer visibility are then valid, not block/light/biome data.
     void capture(ChunkSection &section,
                  const TerrainGenerator &terrainGenerator,
-                 int terrainSeed);
+                 int terrainSeed, bool omitEnclosedPayload = false);
 
     /// Valid for coordinates in [-1, CHUNK_SIZE].
     ChunkBlock getBlock(int x, int y, int z) const;

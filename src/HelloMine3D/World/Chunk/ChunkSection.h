@@ -73,7 +73,10 @@ class ChunkSection : public IChunk {
 
     /// Snapshot the data a mesh build reads. Must be called under the world
     /// lock; the returned input can then be built without it.
-    void captureMeshInput(SectionMeshInput &input);
+    /// With omitEnclosedPayload, a non-buildable input contains visibility
+    /// flags only; the full snapshot remains the default for other readers.
+    void captureMeshInput(SectionMeshInput &input,
+                          bool omitEnclosedPayload = false);
 
     /// Install a mesh built off the world lock. Must be called under it.
     void adoptMesh(ChunkMeshCollection &built);

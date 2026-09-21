@@ -301,7 +301,7 @@ ChunkMeshWorkResult ChunkManager::beginMeshJob(int x, int z, int maxChunkLoads,
     job.chunkPosition = {x, z};
     job.sectionIndex = sectionIndex;
     job.blockRevision = section->getBlockRevision();
-    section->captureMeshInput(job.input);
+    section->captureMeshInput(job.input, true);
 
     if (!job.input.needsMeshBuild()) {
         ChunkMeshCollection emptyMeshes;
