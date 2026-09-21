@@ -9,7 +9,7 @@ import struct
 import numpy as np
 from build_warm_texture_array import ART, ROOT, NAMES, fnv64, source_path
 from build_warm_texture_atlas import layout
-from adventure_texture_source import SOURCE as ADVENTURE_SOURCE, NAMES as ADVENTURE_NAMES
+from adventure_texture_source import SOURCE as ADVENTURE_SOURCE, NAMES as ADVENTURE_NAMES, OVERRIDE_SOURCES
 
 
 def validate(path, report_path):
@@ -26,6 +26,8 @@ def validate(path, report_path):
     assert len(active) == 132 and len(set(range(256)) - active) == 124
     assert len(report['semantics']) == 132
     assert report['adventure_source_sha256'] == hashlib.sha256(ADVENTURE_SOURCE.read_bytes()).hexdigest()
+    assert report['adventure_override_sha256'] == {
+        name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in OVERRIDE_SOURCES.items()}
     assert report['adventure_authored_edge'] == 32 and report['adventure_leaf_cutout_key_max'] == 12
     adventure_records = [r for r in report['semantics'] if r['semantic'] in ADVENTURE_NAMES]
     assert len(adventure_records) == 12

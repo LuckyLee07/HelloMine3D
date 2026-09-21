@@ -1,0 +1,86 @@
+{
+  "status": "PASS",
+  "scope": "Only clay and forest-floor artwork replaced; all other atlas texels and 254 array layers including every mip remain exact.",
+  "array_sha256": "eb0f7fdc5dfbeac00eed93a4d6bfec9aedb31b2866de21e17895dbdcb908adaa",
+  "atlas_sha256": "c2ef562d669669a026e26edb2ad7d70e2b8af63f4c6de8c21da0b7c56c07ea7c",
+  "tiles": {
+    "clay": {
+      "old": {
+        "mean_rgb": [
+          170.212890625,
+          95.935546875,
+          71.60546875
+        ],
+        "luminance_std": 15.465130484948762,
+        "rgb_range": [
+          58,
+          206
+        ]
+      },
+      "new": {
+        "mean_rgb": [
+          146.74609375,
+          112.77734375,
+          93.775390625
+        ],
+        "luminance_std": 9.827794955914843,
+        "rgb_range": [
+          85,
+          173
+        ]
+      },
+      "source_sha256": "e4b6cf474d7efc382430bbb0d3eda71fb1a6af5b26efc228a7b3e2e6b068d762"
+    },
+    "forest_floor": {
+      "old": {
+        "mean_rgb": [
+          100.66796875,
+          67.794921875,
+          46.287109375
+        ],
+        "luminance_std": 21.861572425427912,
+        "rgb_range": [
+          29,
+          179
+        ]
+      },
+      "new": {
+        "mean_rgb": [
+          100.564453125,
+          85.70703125,
+          65.7236328125
+        ],
+        "luminance_std": 12.172856873468518,
+        "rgb_range": [
+          55,
+          135
+        ]
+      },
+      "source_sha256": "6158ce919a8db7f40519a6e82b1ac706a732c6079c09eea9421a6cc23791e168"
+    }
+  },
+  "client_sha256": "58dd5a9bd29fb37a164f620c86ce5a010fda063b9697d061aaedf4e231330fdb",
+  "resource_checks": {
+    "release": 114,
+    "debug": 114,
+    "failures": 0
+  },
+  "visual": {
+    "kind": "DEVELOPER_DIAGNOSTIC_NOT_NORMAL_INPUT",
+    "captures": [
+      "east-forest-highland-01-standard",
+      "west-rockland-dunes-04-standard",
+      "regional-seed-0-region-5-standard",
+      "east-forest-highland-01-compatibility"
+    ],
+    "reviewed_original_frames": [
+      "east-forest-highland-01-standard/4000",
+      "east-forest-highland-01-standard/10000",
+      "west-rockland-dunes-04-standard/4000",
+      "west-rockland-dunes-04-standard/10000",
+      "regional-seed-0-region-5-standard/4000",
+      "east-forest-highland-01-compatibility/10000"
+    ],
+    "finding": "Large bright litter shapes and strong diagonal clay bands removed; coherent brown humus and muted clay remain distinct from grass and rock. Existing geometric voxel steps remain. Not a full route or performance PASS."
+  }
+}

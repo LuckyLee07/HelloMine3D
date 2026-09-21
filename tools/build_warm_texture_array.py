@@ -15,7 +15,7 @@ import struct
 import numpy as np
 from PIL import Image
 from build_warm_texture_atlas import layout
-from adventure_texture_source import SOURCE as ADVENTURE_SOURCE, SOURCE_ROWS, tiles as adventure_tiles
+from adventure_texture_source import SOURCE as ADVENTURE_SOURCE, SOURCE_ROWS, OVERRIDE_SOURCES, tiles as adventure_tiles
 
 ROOT = Path(__file__).resolve().parents[1]
 ART = ROOT / 'docs/art-sources/warm-wilderness-v2/pixel-revision'
@@ -198,6 +198,8 @@ def build(edge=64):
     report = dict(format_version=1, edge=edge, layers=256, mips=mips, payload_bytes=len(payload),
                   sha256=hashlib.sha256(header + payload).hexdigest(), sources=source_hashes,
                   adventure_source_sha256=hashlib.sha256(ADVENTURE_SOURCE.read_bytes()).hexdigest(),
+                  adventure_override_sha256={name: hashlib.sha256(path.read_bytes()).hexdigest()
+                                             for name, path in OVERRIDE_SOURCES.items()},
                   adventure_authored_edge=32, adventure_leaf_cutout_key_max=12,
                   adventure_source_rows=SOURCE_ROWS,
                   leaf_cutout_thresholds=leaf_cutout_thresholds,

@@ -4,7 +4,7 @@
   "layers": 256,
   "mips": 7,
   "payload_bytes": 5592064,
-  "sha256": "5a64490adaddc7deff3e35d87b42486e5980a1f2ef6ffa05c85870586b1dc9cd",
+  "sha256": "eb0f7fdc5dfbeac00eed93a4d6bfec9aedb31b2866de21e17895dbdcb908adaa",
   "sources": {
     "grass-top-a": "b1b39fa1c14073bb94fc9c5f9e6ac3e25190b6556155c34bc97974394dd6a2c3",
     "grass-top-b": "5ebd6fa00b22e8d4a109e4173ed7435b8a2c914dde89a1d785015b7d3aeba201",
@@ -26,6 +26,10 @@
     "voxel-oak-b-rgb": "d82ce3ddfa6df224d85156b716ebd210e808d01d5b8852c17368d506bd2897e4"
   },
   "adventure_source_sha256": "9c566473a6afdde477434d873c469fdcde1ad64d8591e10dbd85f5028615ede7",
+  "adventure_override_sha256": {
+    "forest_floor": "6158ce919a8db7f40519a6e82b1ac706a732c6079c09eea9421a6cc23791e168",
+    "clay": "e4b6cf474d7efc382430bbb0d3eda71fb1a6af5b26efc228a7b3e2e6b068d762"
+  },
   "adventure_authored_edge": 32,
   "adventure_leaf_cutout_key_max": 12,
   "adventure_source_rows": [

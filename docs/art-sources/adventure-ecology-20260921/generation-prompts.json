@@ -29,7 +29,25 @@
         1086
       ]
     ],
-    "crop_reason": "Authored second row ends at y=713; equal thirds include neighbouring material texels."
+    "crop_reason": "Authored second row ends at y=713; equal thirds include neighbouring material texels.",
+    "standalone_overrides": [
+      "forest_floor",
+      "clay"
+    ]
   },
-  "acceptance": "Source sheet visually inspected; compiled alpha, deterministic rebuild, old slots and mips checked. In-world new ecology review pending."
+  "acceptance": "Source sheet and standalone refinements visually inspected; deterministic atlas/array alpha and mips validated. Original-size forest/clay/wetland and compatibility captures inspected. Full final routes and performance remain tracked in the execution report.",
+  "standalone_refinement": {
+    "reason": "Continuous ordinary-spawn route review found orange leaf litter and diagonal clay bands dominating large surfaces.",
+    "reference": "material-sheet-v2.png",
+    "forest_floor": {
+      "source": "forest-floor-v3.png",
+      "prompt": "Production pixel-art texture refinement for an original voxel sandbox adventure game. Using the attached sheet ONLY as a reference for coarse pixel scale and restrained natural colours, output ONE square, flat, orthographic, edge-to-edge FOREST HUMUS FLOOR texture tile. Do not output the multi-tile atlas. Replace the orange fallen-leaf pattern with quiet desaturated olive-brown earth and decomposed humus. A very limited 6-colour palette centred on muted brown-grey (approximately #645a45, #71664f, #5b5443, #797058); sparse small irregular dull olive leaf fragments, no bright orange, no yellow-gold. Group pixels into softly changing broad mottles, maintain narrow luminance contrast, avoid black crevices. Explicit coarse 32 by 32 pixel grid of large crisp square pixels over the whole image, nearest-neighbour edges, no texture inside pixels, no smooth gradients. Seamless tiling design, no central object or border. The purpose is a calm, low-contrast floor across large forest areas, so it should visually recede underneath tree trunks and grass. No bark, no parallel fibres, no twigs, no recognizable piles of leaves, no diagonal streaks, no large clover-shaped repeating motifs. Fully opaque, no shadows, no lights, no photoreal surface details, no labels, no grid lines. One square material swatch only.",
+      "sha256": "6158ce919a8db7f40519a6e82b1ac706a732c6079c09eea9421a6cc23791e168"
+    },
+    "clay": {
+      "source": "clay-v3.png",
+      "prompt": "Create ONE standalone square production texture tile for a voxel sandbox adventure game. Use the attached sheet as a style reference for coarse square pixel art only. Material: dry canyon clay, subdued dusty terracotta blended with grey-brown mineral earth. Flat orthographic edge-to-edge opaque surface, no object, no grid, no border, no lighting, no text, no multi-tile sheet. Explicit crisp large square pixels, approximately 32 by 32 texels across the entire swatch, 6 to 8 closely spaced colours. Centre palette near muted dusty clay #956f59, #a27861, #886b58, #a6846d, with low contrast broad irregular cloudy mottles. Absolutely no stripes, no strata lines, no wood grain, no diagonal bands, no waves or swirls, no cracks, no sharp dark flecks, no bright orange-red. It must tile across a large cliff or flat plateau without looking like rows of wood planks. Calm matte earthen pattern with varied pixel clusters, visually subordinate to the block geometry. Seamless on all four edges; crisp nearest-neighbour pixel edges with zero fine detail inside the pixels. One clay material swatch only.",
+      "sha256": "e4b6cf474d7efc382430bbb0d3eda71fb1a6af5b26efc228a7b3e2e6b068d762"
+    }
+  }
 }
