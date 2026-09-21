@@ -1002,7 +1002,8 @@ namespace
                 !initialSaveDirectory.empty(),
                 RuntimePerformanceCapture::isEnabled() ||
                     std::getenv("HELLOMINE3D_RC_PERF_PROFILE") != nullptr ||
-                    std::getenv("HELLOMINE3D_E2_BATCH_MANIFEST") != nullptr);
+                    std::getenv("HELLOMINE3D_E2_BATCH_MANIFEST") != nullptr,
+                std::getenv("HELLOMINE3D_VISUAL_CAMERA_PATH"));
             if (m_visualCameraSweep.enabled)
                 std::cout << "[VISUAL_CAMERA_SWEEP] enabled=1 evidence=developer-diagnostic normal_input=0 player_unchanged=1\n";
             if (const char* fixture = std::getenv("HELLOMINE3D_ACTOR_VISUAL_CAPTURE")) {

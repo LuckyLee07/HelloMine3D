@@ -272,6 +272,10 @@ seed random
               "save_template_meta_sha256": template_meta_sha256,
               "package_identity": identity,
               "scene": args.scene, "settings": settings, "environment": environment,
+              "inherited_diagnostic_environment": {
+                  key: os.environ[key] for key in (
+                      "HELLOMINE3D_VISUAL_CAMERA_SWEEP", "HELLOMINE3D_VISUAL_CAMERA_PATH",
+                      "HELLOMINE3D_BLOCK_FEEDBACK_CAPTURE") if key in os.environ},
               "window_size_points": [args.width, args.height],
               "window_mode": "foreground" if args.foreground else "hidden",
               "render_readback": not args.performance,

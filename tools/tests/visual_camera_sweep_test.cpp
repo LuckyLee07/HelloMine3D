@@ -52,5 +52,24 @@ int main()
     require(std::abs(route.offset(4.001)[3]) < .000003 &&
             std::abs(route.offset(15.999)[3] - route.delta[3]) < .000003,
             "Entry and exit velocity ease to zero");
+    const auto hill = VisualCameraSweep::parse("40 0 0 0 0 6", true, true, false,
+        "0 0 0 20 10 0 40 0 0");
+    require(hill.offset(7)[1] == 10.0 && hill.offset(10) == hill.delta,
+            "Intermediate hill follows the frozen path instead of clipping through it");
+    require(hill.offset(4) == std::array<double, 5>{} && hill.offset(100) == hill.delta,
+            "Waypoint route holds at both ends");
+    for (const char *invalid : {"0 0 0", "0 0 0 20 10", "1 0 0 40 0 0",
+            "0 0 0 49 0 0 40 0 0", "0 0 0 40 1 0", "0 0 0 nan 0 0 40 0 0",
+            "0 0 0 40 0 0 extra", "0 0 0 -40 0 0 40 0 0",
+            "0 0 0 1 0 0 2 0 0 3 0 0 4 0 0 5 0 0 6 0 0 7 0 0 8 0 0 9 0 0 10 0 0 11 0 0 12 0 0 40 0 0"}) {
+        bool invalidRejected = false;
+        try { VisualCameraSweep::parse("40 0 0 0 0 6", true, true, false, invalid); }
+        catch (const std::runtime_error&) { invalidRejected = true; }
+        require(invalidRejected, "Reject malformed or out-of-bounds waypoint path");
+    }
+    bool normalRejected = false;
+    try { VisualCameraSweep::parse(nullptr, false, false, false, "0 0 0 1 0 0"); }
+    catch (const std::runtime_error&) { normalRejected = true; }
+    require(normalRejected, "Waypoints cannot activate normal-launch camera control");
     std::cout << "[VISUAL_CAMERA_SWEEP] checks=" << checks << " samples=12000 status=PASS\n";
 }

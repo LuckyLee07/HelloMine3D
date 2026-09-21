@@ -1,0 +1,497 @@
+{
+  "schema": 1,
+  "kind": "DEVELOPER_VISUAL_REVIEW_NOT_NORMAL_INPUT",
+  "client_sha256": "db37700981c1fe574f243980ae58f365d2bc6088e045e8bd095df6f48ab51c4f",
+  "resource_manifest_sha256": "9c4bbd7eb7a0d7419e33c23e4aa0bb7a7926424280a35cbd3c2189a5b72e40cd",
+  "route_protocol_sha256": "fb89148f45c7d1a9fa22d73c3aeaea8b53859be02e10f4f044f39c6867da26f4",
+  "stations": [
+    {
+      "station": "east-forest-highland-00",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": "8s camera intersects raised ruin platform; no collision claim",
+      "frames_sha256": {
+        "capture_04000ms.png": "a76e1c8e0b2f589511fea17895ca373823c79d3315b591ac32d7e0e1fcb04a92",
+        "capture_06000ms.png": "3ec10890d471c1ec7099c2e7da4ef00aaa19f429ec01293df1718841015ad5c8",
+        "capture_08000ms.png": "b7735bf0bc2a2d3e1798209ddc921989db1ca316478c5f46d084ccd770b5889e",
+        "capture_10000ms.png": "c26a9b7ff3fdf745b4c2e322808d3d3b22a15024b22449528a78b66b3dad5b9e"
+      }
+    },
+    {
+      "station": "east-forest-highland-01",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "955dd1dbd57d815e9c8d8af5effb0a65317e3af013a48a85c2e34c97461ea9e5",
+        "capture_06000ms.png": "686ef898a65137cd92de8230cc4e32471208887bdbf247d1f59e5a1dbd5007eb",
+        "capture_08000ms.png": "e253a84e573098462d2971b09e131f98240688b108d365011c963bcd679694fd",
+        "capture_10000ms.png": "4c04b50b0c8a5ffcf216af5ed126020ef0efba5cbc9a360ead9d2a615495bc65"
+      }
+    },
+    {
+      "station": "east-forest-highland-02",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "9642b5ae4a103abe9ec969821214d0a849c1ec1843cb6a93c542f3c7a0a00104",
+        "capture_06000ms.png": "6ba5b99a716e603ad1374a51648f6198a7e4c26b318ff6997b676c3c350871ac",
+        "capture_08000ms.png": "89e7f7cd75eddb562b1511751fce3ad228d73772f4784be97301101fe86def02",
+        "capture_10000ms.png": "c644f4320eab8bf26e3264d3b427616d6361ed27ba088ff77201a4784619e0b4"
+      }
+    },
+    {
+      "station": "east-forest-highland-03",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "9ed6dcea14fbe243220956372a4d52751f7ce689dd937c078453247870ea944a",
+        "capture_06000ms.png": "1bdb9193ac905a36d8922567329f1534b072daf59277f6f9e59e55913524424a",
+        "capture_08000ms.png": "8dd7b505207c54216b0ecbde95a8f3ade9cbaa1522ab0bf7d18c0e9e6cb52db9",
+        "capture_10000ms.png": "9a79dc86655c2a9a98a880df05f856d8b7207cf5c261404789f3921e7b8e550c"
+      }
+    },
+    {
+      "station": "east-forest-highland-04",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "d95b31d58eaaa11f8b37dd15275fdc7d04775f7c8cf0b1f28c4e42cee296b31f",
+        "capture_06000ms.png": "aeeb6faccc1879bb916e2fccef84466b8455da86d2f54133dbec4f71dc994f27",
+        "capture_08000ms.png": "da90f10ca69880983c5a478896a573e95d2cc0769e3b33c4b451266aa9addc73",
+        "capture_10000ms.png": "3e7cf1fce57ffb3e15e4ab571537b962edf6693eff96845b0bb0efc99a0874d7"
+      }
+    },
+    {
+      "station": "east-forest-highland-05",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": "6s/8s camera grazes landmark geometry; not a navigation clearance test",
+      "frames_sha256": {
+        "capture_04000ms.png": "91f4c427c1b8bf60dd135ba27b72d12aea041ee1e785e138de071351e082235e",
+        "capture_06000ms.png": "52bb37416b2a80d2aad33082aa209529580fc9f0bb97cb5add61d0ecc8d5f981",
+        "capture_08000ms.png": "e9ad4e2bf03335319b85b19de354da17e9f7b11b277c91de2fdd681534126656",
+        "capture_10000ms.png": "a73a12949860a62f729772b5158f6f36a021eede5b725c3ad3f15f16293a7f80"
+      }
+    },
+    {
+      "station": "east-forest-highland-06",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "90f37877e7bb239c5136ebaf099d93b4675bd1b96aaeba0f2fb340eaa779f490",
+        "capture_06000ms.png": "fd56bdab495ab582dea7662e53baf0a6a1322d7feb090ae1576079a7b96d2d91",
+        "capture_08000ms.png": "64270b4577793704d4a17e45fc380166294c4cba0fb144c30a386a7b89eee64d",
+        "capture_10000ms.png": "a4b651a2486e9ee2832c6c5ff7c185d9356e5c28566b1c57af22aca20fd9b1d9"
+      }
+    },
+    {
+      "station": "east-forest-highland-07",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "8f4ab7678c4631167c9c5f625b8b85e40d45fb5a52307896c2cc0429e671c86d",
+        "capture_06000ms.png": "b5ee6fbc84b46838333288114ba84baa702edb4120ee4f9123ef4241391c7dfc",
+        "capture_08000ms.png": "42a7f81141c463e280df9ff128c3faa91036eec71bd9de468d9cef993f9bf267",
+        "capture_10000ms.png": "0957b98f1f601255cbe29d5391a3b6827b2961f85155e525c28fb92eeab24c11"
+      }
+    },
+    {
+      "station": "east-forest-highland-08",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "1e4b71340ee3115831b1f877eb2433e5642bea1b57e4d044964ad987a2933982",
+        "capture_06000ms.png": "606e0e5ca5e808788e9f3779ae1b6d513679ab2f5f83e77307a94bf120400852",
+        "capture_08000ms.png": "cbc79b5b57946a87264440b632c68c777405cc316a6df0d934c3389c7c2bdeb1",
+        "capture_10000ms.png": "201daeb39b642db0861cc72c53c33252ab6b68a5bcf73a217769a27826d2f75c"
+      }
+    },
+    {
+      "station": "west-rockland-dunes-00",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "39423a959f0721e67df751a09a5183a8227da2097dc8abadd69f938f2e97d84c",
+        "capture_06000ms.png": "4af582b01f6fca7de85008ec3945ad02e7738c8eb1b06a455e54c7d9a8b9728e",
+        "capture_08000ms.png": "667e304b7dc391717326ced87d4ab7d82e94f6f4fa97a78de084d9c07f93e2e3",
+        "capture_10000ms.png": "b94b86d28f964d9787dd2dba3dc494e9212a6aed3161650432787ae304abf87c"
+      }
+    },
+    {
+      "station": "west-rockland-dunes-01",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "b94a621be1025a43e549e40e7b30dab3f2b263214976625dad7500c29b233c0c",
+        "capture_06000ms.png": "58e16ea20d8e3056204b247bb3a237d1de7d5ea8b4bd6475ddfd23f220c0c7af",
+        "capture_08000ms.png": "551ec16931698029aa88bba33905ace0e683d2b4ccd1644383c4fd58150c09ed",
+        "capture_10000ms.png": "6690536cb649a5b0bc17cb4dd8ce314835ec34550c1d2ab62768588cae2d16a0"
+      }
+    },
+    {
+      "station": "west-rockland-dunes-02",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "ffa980c38eb60e9ebfc141cc0bfdfa1869c4f53a94b8ee505cbda14df0268483",
+        "capture_06000ms.png": "473e6176e292ead37367d50e68ed3f64521556965f491b578000e2c7ace86a92",
+        "capture_08000ms.png": "bed4af93d3eaf5dfc373e523177c160f877b03cbf4f7464b947e55692329b385",
+        "capture_10000ms.png": "9440113999f4407e54dc2c023ebb23f74ee410c84f097be8530fd64bfa385e1f"
+      }
+    },
+    {
+      "station": "west-rockland-dunes-03",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "a012dc8271585b17a2ddd8664026acffde2b823eda72364f1ee3f45027d5cef1",
+        "capture_06000ms.png": "298499cf361866bc359f257a81b4422ef94be0c6320290c3554b9d9cd107d6e2",
+        "capture_08000ms.png": "6a022ba3645a4ca11fcb672a25d75a1cd16596c0e40c3355f5f259f3a2e3a225",
+        "capture_10000ms.png": "370fb333b7b8620839caaf881d7289a4dece2a21fad87ee71a67bb60a53cf0b7"
+      }
+    },
+    {
+      "station": "west-rockland-dunes-04",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "b1fd1eca243364e0ba553d9277f9f4a51705db7a1439bee84efc970882fd91db",
+        "capture_06000ms.png": "86cec68b16864289615f428831dfcb69b27596d08f43ebfa8bf62762056476f0",
+        "capture_08000ms.png": "650b3a4c50fedd010691280e0ade7b64c00ae5b4e0e4ec0df748678f31a7d44c",
+        "capture_10000ms.png": "bd3e80fc461d8363604e9eb70883ee83ec517a85a7a90484bb90bed60bd830be"
+      }
+    },
+    {
+      "station": "west-rockland-dunes-05",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "4307e83b18b8cc71752a30fbb0cbe996e105d58197be8c0b740665bfed70ea7e",
+        "capture_06000ms.png": "6ec06b1003428da812abfe2bb626557abcb3bc69ab2d2e7d66ca919ad41d9eb9",
+        "capture_08000ms.png": "d94b22b4127913cc41edd7abbf64e56c8ac3377158eddb95084de26d980460b4",
+        "capture_10000ms.png": "387b7897471a6cd17d1820f3baaa0687911a55f09bfecc61737bc8e985f64430"
+      }
+    },
+    {
+      "station": "west-rockland-dunes-06",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "a5b8751bb684dbd8ada40246eb7411ecba6343d91df1aa843a6ce725375764c2",
+        "capture_06000ms.png": "2b72bcc763e54a0eb24bdfd30dfaf24ad3821f3b1013d99f4196015ad9f0ea51",
+        "capture_08000ms.png": "9a4a5f0d236508017abeb1f79473b86875cb87c2e53ee5dd42c25de74fbcebbc",
+        "capture_10000ms.png": "5fade382dbb44dafcd923bd9ee80e1fc9bd263684ec9471693f8c24ae7e757d1"
+      }
+    },
+    {
+      "station": "west-rockland-dunes-07",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "42a09e39d6fa963d4e92347893f6bd4de0fbff32316cfd8fd46124d9a873d6b3",
+        "capture_06000ms.png": "8a20a6e3d64a396cb82aae3eebee90e9f918bd0792dbea3f3cca3a52f26b768d",
+        "capture_08000ms.png": "fcab3ef1eac6b3d3cce02a11583a4bc39d3aed15e0d5e6abb7e9f4d4d46a90f2",
+        "capture_10000ms.png": "d01da88fa994059da927a73f85b90bbc00c5e75979c9a47aa6aa3fd1acea43d2"
+      }
+    },
+    {
+      "station": "west-rockland-dunes-08",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "87f1b19c3940ab79baec3dcc66fbc2d5063747c34f5dc4dd2003e6ef2d0d1e73",
+        "capture_06000ms.png": "4d218aa09fdafacc3eff5d61a24900dab086e8e97c93c252244f66c5cd15c4cf",
+        "capture_08000ms.png": "541e9cbfcdc3396a3ff3106316f431b8d56470388ae32fd10746d9879872e413",
+        "capture_10000ms.png": "b0ef2fce66f461080d1f22cd59a601e083d249c6ca3fb779f7d529453850a0b4"
+      }
+    },
+    {
+      "station": "west-rockland-dunes-09",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": "6s camera approaches camp post; remaining segment and dune transition visible",
+      "frames_sha256": {
+        "capture_04000ms.png": "9a892fe33d9dcc6bb4715c3c358c1bc4304f6afadd933095f252604e56d3c036",
+        "capture_06000ms.png": "7bc4f788132d991775e4f83e6e89c7443f219b4e61577fc3089f7ebe4b6e7e90",
+        "capture_08000ms.png": "147c62cfd490141e75254598b38659af4391e1af0220c7d68a5239b92983df51",
+        "capture_10000ms.png": "a8de4f7a9ff9a74e0fed7993301b1fa22bbb7d428d801f291b304c4ec9042438"
+      }
+    },
+    {
+      "station": "west-rockland-dunes-10",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "29079efe54d104d8b3458ed2a2a1b98359a86e2ac5a550c5ce92a1238c91b5f4",
+        "capture_06000ms.png": "93a11002cc61ef471a81d05bf7e292e9907aae3398dcab215978c8fc6b5b1d0c",
+        "capture_08000ms.png": "29c0d89bff18723ba6115a786800013aa505882a3cd5eb50e81d613b148e549d",
+        "capture_10000ms.png": "a1af3685c3866c823f49e75e66a38cda0a90bbf0167ecf1ef41fdc4612437eab"
+      }
+    },
+    {
+      "station": "south-woodland-wetland-00",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": "8s camera intersects raised ruin platform",
+      "frames_sha256": {
+        "capture_04000ms.png": "5fcdc8fd37669705472d9ad24fe8302860c8ffcf6baa5a5920648c542d5c689f",
+        "capture_06000ms.png": "e1d33c042d0c523aadd73aa8032ec933b8188cd5fd725872bc9065fbd6f5df9c",
+        "capture_08000ms.png": "9ec590e3c7cf6ca6ff98443f12b482c9136f7adacb8cc7d169dd5240a7133131",
+        "capture_10000ms.png": "f51c9fbc5f75ad46476c3a20890a7dd1473c838fa5d2a9cabae0da0a0809834c"
+      }
+    },
+    {
+      "station": "south-woodland-wetland-01",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "d0547b1be34b4cd62a92933404b1ba496c7b3ce7d724375f71372a3258ac3d1b",
+        "capture_06000ms.png": "712cfdc75a66ec3a7b721fd6255f0406c7dd6a365715883bd0b2d8187b026bc9",
+        "capture_08000ms.png": "a27d1f5494ad1863aaf654de0abba4b5785cca592fc595584c00fdfa5c9e3b5e",
+        "capture_10000ms.png": "f0ff5a47b5d38ed54ec4d505dae5c718a733698a52c2a5320112662d54355d3e"
+      }
+    },
+    {
+      "station": "south-woodland-wetland-02",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": "8s camera passes through birch trunk",
+      "frames_sha256": {
+        "capture_04000ms.png": "2f13d92816983dc12e3310763df77b38aaca2aae0cdd51e3a3b83c50439dab55",
+        "capture_06000ms.png": "fc29291796f7676fe65c416f19e6b75bcc540b08c77234e92a297e5c815a8f92",
+        "capture_08000ms.png": "110b25e29b564a98f1e51487e9171866e5500c58868bf58599ed0ddbab540c42",
+        "capture_10000ms.png": "3aa3dbcc36504cdedb625c5697f0f04e7aa5d87a020d1ac227538840f5f2c643"
+      }
+    },
+    {
+      "station": "south-woodland-wetland-03",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "21494a824dc9dd2805a8ad8ff859c83176c8a96fa3cea3da1d2140dc3f08a98e",
+        "capture_06000ms.png": "1a789b5851c11ac609414a0d8e8d6bc662178b73405cc7dc0211d9fdec151285",
+        "capture_08000ms.png": "803090659c9d407ed9b5f180c270728fce7e82e58a3cff3aad8c4322f2b81619",
+        "capture_10000ms.png": "99ca15aaee57322556b679be0a0dc1d8322bd54e6ec454fc954b21538ade313b"
+      }
+    },
+    {
+      "station": "south-woodland-wetland-04",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "724cff572730abe71efd8853fe6cbe15684dee08aecf2ffbb0ec6a352a955591",
+        "capture_06000ms.png": "1618df2dd9861d54e93a2f04c4c78d387df5b8af04a842ecba53b1fafae1e0b6",
+        "capture_08000ms.png": "91ccb4e1049316fa833b2daaffcae084b2785a37f7a6e8969288ac45a9b1844c",
+        "capture_10000ms.png": "2f0fb25561be72370fe22632d30bcfe414d5f13acaf6a4ceb82037f356769a5f"
+      }
+    },
+    {
+      "station": "south-woodland-wetland-05",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "fd9fcac22ccfba99fb26a8d4d2458043a4252bf8f75cb074717413a2fb5259f8",
+        "capture_06000ms.png": "8a028438ccf4a9e64ca70e5c53ba25354f59e8c7412f14645268f8cf33a809fb",
+        "capture_08000ms.png": "359444f64beed525c5c106ff788e5c0b057be0666d500954b82d6b8a2cc4b2bb",
+        "capture_10000ms.png": "2b1ae0cd11bbf56aff51a3bb5aa171830662a6b49721fbd2c724f55a75989ac4"
+      }
+    },
+    {
+      "station": "south-woodland-wetland-06",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": "8s close leaf canopy obscures part of view",
+      "frames_sha256": {
+        "capture_04000ms.png": "af3d0a551b367f3ee2c8d42bd8eae9cfdc8743e1936db90f4eae9be455d045aa",
+        "capture_06000ms.png": "de7bb3992a7d0386ff531b217c7d8eff1e0725ad2213f92ba747f7eb0dcc406a",
+        "capture_08000ms.png": "02537382d6ca4b315aa26e67f278b8667589f002f0f7b915cbd303f69185b21c",
+        "capture_10000ms.png": "81b5f412bb20e54dfac5a136dbbe9817f9b186b4560324390e80421a5614315d"
+      }
+    },
+    {
+      "station": "south-woodland-wetland-07",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "3cb290f8a93bfcea7bd904ac80af54eefe7d5a059f156fd074778fc1989afcac",
+        "capture_06000ms.png": "b51c4cd7581e4ddd452763afa25328b5bc8b563c63d0624020227b4b46d84484",
+        "capture_08000ms.png": "b5f8ece599c9519494f38b823e6bf339466213332d494abbb5fc328f294a9929",
+        "capture_10000ms.png": "cc226b9acc3b3c0492b2b9def92d83cf323d0517a22ed35d35ac758db44c26c8"
+      }
+    },
+    {
+      "station": "south-woodland-wetland-08",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "8e8d81131fde5d9f8882edfdbbefe8af2510c70c6842841f303d2b4b8bcc58d4",
+        "capture_06000ms.png": "40eda423f44cd12ae2cce0b96ac67f515566d93315e9269cdab36db00e288f2b",
+        "capture_08000ms.png": "f46b56e49da60ad964b0fe276c903cb23e51562cf119206ae3488c0a75b7dd3b",
+        "capture_10000ms.png": "e4fc1cc77ad0714a229c7b50f8d5ccb6b500c2724a705d6f59cb09ea4313f1f7"
+      }
+    },
+    {
+      "station": "regional-seed-0-region-5",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "c32ab6a6d7db006f7d9b44d5ae7a0b7210f917e315fed5475754f4fff960875d",
+        "capture_06000ms.png": "0a448e14c81f068c7c7091f6fa4bb778e2ae7f3a7e218c4d8845bfc99cc63604",
+        "capture_08000ms.png": "4cf3a0564d203a02405856d8cc71d9c375d456568d8b4a6cf20d47e369923c79",
+        "capture_10000ms.png": "7a5f4fdbe27ae3f67a789557c8af4015400ea73a8059a4968d6f86b490780c7c"
+      }
+    },
+    {
+      "station": "regional-seed-0-region-3",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "db50f9c2f1e39bde07ba0e1b84eb82f6869ce5c4564effbfd4d14bf3762ed7ef",
+        "capture_06000ms.png": "9f01b94c55b1b48e829554c74c81aed446714763c0379fb60b16daf76837f5ec",
+        "capture_08000ms.png": "5a8c95cc26ec00cfff28a58ce8fe4ae3b0dc92abcc3612908e2b433919820ab7",
+        "capture_10000ms.png": "8eacf56c1a9885bd8ab5d280f8f0b934b239a9ef6260bb930a1ff7295c477dd2"
+      }
+    },
+    {
+      "station": "regional-seed-20260807-region-6",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "f11622d2ad50359417a09903689b8ae0ce8018fe167182e7c7fa3f803a9ddffa",
+        "capture_06000ms.png": "56cbd4950ef6ac5546aec86a9ab8dc9cdb83a9de263e21b88c4b62fba4dcc227",
+        "capture_08000ms.png": "dcb8588749ef254fa117ce46e4b8e0a1bcfec98da8d1e776cf716bbcd396f790",
+        "capture_10000ms.png": "65fd582e73822067014420f0f698c509947998f9660ddaa935db2fe1fb823c54"
+      }
+    },
+    {
+      "station": "regional-seed-0-region-7",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "345be738fd8cd90e0dab2650982a800388969086a1f21c0ac4baba990b5caed0",
+        "capture_06000ms.png": "560c14776a540d8407339fb219894929bf4898c626481a76f6d2e300ef990136",
+        "capture_08000ms.png": "caa0231aa1aa2d41b564852a1f28df0b20f7146776e310073f4262a3e194c680",
+        "capture_10000ms.png": "175a74b648c37e9ee607e5d2bd4de4e058536e45703f127c024f80797b31cbe9"
+      }
+    },
+    {
+      "station": "water-approach-00",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": "8s camera intersects same raised ruin platform",
+      "frames_sha256": {
+        "capture_04000ms.png": "f1cba9a126246a24859a055e9e4e368137656c2c2b14271b7cb752ee49dc4a3b",
+        "capture_06000ms.png": "2d33c34e0812a6f8d14ae8d3e406cb7358f750885df3269bd1e25766c9d36973",
+        "capture_08000ms.png": "060722741393855248772e8c39b98bd7b4eecd9043dc36797b96c206006234f1",
+        "capture_10000ms.png": "ee56588f4614e8209f00a99ac27281df18bc35c32809ceb89875444f444a9708"
+      }
+    },
+    {
+      "station": "water-approach-01",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "e1c1fa9bf704b6d9889b860c9803e0a43c5d4a0bf803f7edae637de2c1eab25f",
+        "capture_06000ms.png": "c66c4a6c8a45dbf4efb87890c822e42018dc4090dd4a028feab85ac08dc3e4f4",
+        "capture_08000ms.png": "6e2888afd642c4b3ddf9dc01465c55cad71cdc5d10290fa91a4c3f8dd1835922",
+        "capture_10000ms.png": "7c192beed5c8492abc320a018263ae8fcd63c96bb7b25c1f13f7e1da1435bea2"
+      }
+    },
+    {
+      "station": "water-approach-02",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "e6e11c32f7270823912241487c33be83aa8e488fb49d1ac05cfb3ad7dd1fb1aa",
+        "capture_06000ms.png": "0a442685a9307ad41e6debd9c19c4bd301c2b8cb6dd4488d7cbf8895b27eedd9",
+        "capture_08000ms.png": "cdb721da63dcccf8022db7b379d5fa549d7efc9235fd8b7a22a2daf70201ad9e",
+        "capture_10000ms.png": "3a503311eb9248a2b8ee9a37880f7427aeabca1a5751a693a71ee701eb480c73"
+      }
+    },
+    {
+      "station": "water-approach-03",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "9ed6dcea14fbe243220956372a4d52751f7ce689dd937c078453247870ea944a",
+        "capture_06000ms.png": "64f1ffa87c73fc24901d3013794825cb8134d6bb3fb25c5a86f9098a1c68aba9",
+        "capture_08000ms.png": "5ee4e905853aa43d40e67178604184359e2907ed8091c52f56fd81a4d4687165",
+        "capture_10000ms.png": "e7625206739bf6db558b6555d4b3bc408f7b90723e4c044bbc25e51a00ee9eaa"
+      }
+    },
+    {
+      "station": "water-approach-04",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "927bde880eb69f6a3d34e393455f0717174e1e6d93f0700f64875b916f566a83",
+        "capture_06000ms.png": "3091be0261262fe1245305c1f8c8da650214f7160d5c205076f70ae10968d545",
+        "capture_08000ms.png": "32a678c11d2ad4686a06f856665655ff958b5fdf5079b05c6c428a94c4020fed",
+        "capture_10000ms.png": "9f7855c358c933cf9ca8f82d9d2c81baaed4112716d149156ca37d8ffae0c7a4"
+      }
+    },
+    {
+      "station": "water-approach-05",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "51944e78ab15162f21d88743d0b1e9e95eac9efeee7868dea1878fb86fec7760",
+        "capture_06000ms.png": "46cf4d83d20443ccdc7f1c7a328abe2a07b569b78315184ac355df6043e71381",
+        "capture_08000ms.png": "8485537824fdb034708fb2addb04ef795c9aeb976e67cc338f44ce3608a36ce2",
+        "capture_10000ms.png": "f403f956d3a00b60efe858d517b996925d1b49f86649baca72834b75f8882f4b"
+      }
+    },
+    {
+      "station": "water-approach-06",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "7d34f846cf2284ddc125630349056e10664d357ef916489380cdedf24cdc7133",
+        "capture_06000ms.png": "b61a7bd7038788e792b1c5a212819bedc20610efe5a265102fa51c4cbccaed9b",
+        "capture_08000ms.png": "1d0b54d4d35a0564035219fdc43a648e08f26cdda556ed5ecc7723d5b8eec8e5",
+        "capture_10000ms.png": "885027c201c0e817a53628e67bde8d8a9c1132e347e83b0598822fc5b136b061"
+      }
+    },
+    {
+      "station": "water-approach-07",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "2fedf4b0cab46422ccb8f5023d161f5c3fac9865385dfa63a94375bf5951a895",
+        "capture_06000ms.png": "3d04a7bfc6270a40b5b9cf7e07e2b693befd9f20661277089877a8cbe19e8bdc",
+        "capture_08000ms.png": "14767343ad384a0a006ea98f25e21b0287c5dd94338245ef9fb369918802924f",
+        "capture_10000ms.png": "e063c1a79feb6bd0fd1f2e79a0182c85d00ff538c41ed6f0868e2027687cdac0"
+      }
+    },
+    {
+      "station": "water-approach-08",
+      "review": "ALL_FOUR_TIMES_INSPECTED_IN_CONTACT_SHEET",
+      "limitation": null,
+      "frames_sha256": {
+        "capture_04000ms.png": "e4c0e7baf4264790b8a92fd09bb7c546b46a62b4c8b2c1b0a10c6cfb50c1adf4",
+        "capture_06000ms.png": "b8aa9669615cb6dda67044fb2a8a0f1783e0ca0840e7c4de1f36716f76d4abae",
+        "capture_08000ms.png": "967654c19891b53b9ea951dfc7f1399a0d60cca27c5a85c5cc123781affe4ed8",
+        "capture_10000ms.png": "c6e8b95ee23d1c39dd8787896014127e13455d7c0242e986a989d31cfabf98ab"
+      }
+    }
+  ],
+  "finding": [
+    "Mixed forest changes to conifer highland along the complete 320 m east route",
+    "Rock plateau changes to dunes along the complete 400 m west route",
+    "Mixed forest changes to low willow/reed ecology along the 320 m south route",
+    "The complete 356 m shore approach transitions from woodland through open meadow to a sandy water edge",
+    "Additional seed0 wetland/dunes/coast and seed20260807 snowland remain visibly distinct",
+    "Forest-floor and clay repetition corrected after first complete route review"
+  ],
+  "camera_validation": {
+    "release": 33,
+    "debug": 33,
+    "startup_negative": "PASS_EXPECTED_REJECTION",
+    "disabled_menu": "CAPTURED",
+    "normal_player_input": "NOT_CLAIMED"
+  },
+  "user_settings": {
+    "postprocessing": "off",
+    "minimap_range_metres": 128,
+    "capture": "waypoint-user-settings-r1",
+    "reviewed_original_frame_ms": 10000
+  },
+  "remaining": [
+    "Camera has no player collision; listed structure/tree intersections do not prove actual walking or accessibility",
+    "Shadow flicker between sampled times is not exhaustively tested",
+    "Final paired performance and final client handoff pending"
+  ]
+}
