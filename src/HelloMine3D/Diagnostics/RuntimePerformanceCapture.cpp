@@ -176,6 +176,7 @@ namespace
                "terrain_index_stride_bytes,resident_terrain_vertices,"
                "resident_terrain_indices,resident_terrain_vertex_bytes,"
                "resident_terrain_index_bytes,resident_terrain_buffer_bytes,"
+               "resident_terrain_renderables,"
                "actor_count,natural_mob_count,natural_mob_world_cap,"
                "natural_mob_local_cap,natural_mob_spawn_attempts,"
                "natural_mobs_spawned,natural_mobs_despawned,player_health,"
@@ -492,6 +493,8 @@ namespace
                     << last.terrainBuffers.indexBytes() << "\n";
             summary << "last_resident_terrain_buffer_bytes="
                     << last.terrainBuffers.totalBytes() << "\n";
+            summary << "last_resident_terrain_renderables="
+                    << last.terrainBuffers.renderableCount << "\n";
             summary << "last_actor_count=" << last.actorCount << "\n";
             summary << "last_natural_mob_count=" << last.naturalMobCount
                     << "\n";
@@ -671,6 +674,7 @@ void recordFrame(const FrameTimings &timings,
                         << worldStats.terrainBuffers.vertexBytes() << ","
                         << worldStats.terrainBuffers.indexBytes() << ","
                         << worldStats.terrainBuffers.totalBytes() << ","
+                        << worldStats.terrainBuffers.renderableCount << ","
                         << worldStats.actorCount << ","
                         << worldStats.naturalMobCount << ","
                         << worldStats.naturalMobWorldCap << ","

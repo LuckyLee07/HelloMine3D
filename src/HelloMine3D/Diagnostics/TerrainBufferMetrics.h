@@ -10,11 +10,14 @@ struct TerrainBufferMetrics
 
     std::size_t vertexCount = 0;
     std::size_t indexCount = 0;
+    // Resident GPU objects, not camera/shadow draw calls.
+    std::size_t renderableCount = 0;
 
     void add(std::size_t vertices, std::size_t indices) noexcept
     {
         vertexCount += vertices;
         indexCount += indices;
+        if (indices != 0) ++renderableCount;
     }
 
     std::size_t vertexBytes() const noexcept

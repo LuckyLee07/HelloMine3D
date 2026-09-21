@@ -52,6 +52,7 @@ AI 平台对应规则见 [当前验收规范](ai-assisted-gameplay-acceptance-v1
 | 岩层与沙面地质着色 | 当前冒险地貌去条带使用 `tools/validate_block_feedback_shader_macos.cpp <root> <新目录> <冻结旧条带资源根> --irregular-geology`，检查旧条带负例、相邻像素对比下降但宽变化保留；其余历史模式保留原资源版本归属。 `tools/validate_block_feedback_shader_macos.cpp` 以可选旧包资源根参数比较实际 GLSL，检查 atlas/array、普通/阴影、昼夜、时间不变、区块原点、负坐标接缝、关闭回退、远处细节衰减及旧版/移除衰减负例；双配置资源检查、多 seed 原图与相机连续帧、相关三轮常驻/流送性能。仅改 fragment 时可复用源码身份一致的客户端，不冒充 C++ 重建或正常行进。命令及范围见[地质材质记录](../reports/geology-materials-r30-2026-09-19.md)。 |
 | 生态植被颜色过渡 | `bash scripts/verify_terrain_ecology_colour.sh Debug` / `Release` 检查有界查询、跨区块/负坐标连续和极值；`V10B3` 真实快照及 greedy 内部颜色重建、`WETLAND_GRASS` 反馈/风摆和完整 WorldRuntime；双配置客户端/资源、生产 GPU 四路径及旧 shader/取消滤波/错误合并负例，配对原图、连续帧和相关三轮帧耗/网格规模。见[本批记录](../reports/ecology-colour-transitions-r33-2026-09-20.md)。 |
 | 顶点格式、网格、光照或 AO | 确定性角落/边界夹具、MeshDirty、隐藏固定截图、既有 schema 3 顶点/索引/构建/驻留字段的补充比较和相关 Q1。仅改每顶点值时不得误报为顶点格式升级。 |
+| 同列 section 合并绘制 | `RENDER_BATCH` 双配置聚焦：全部属性／世界坐标／索引保持、负坐标与整数极值、非法和空数据、替换／移除、透明／多 pass／自定义程序回退；完整 WorldRuntime、双配置客户端、真实改块／水岸／林地／雪山／阴影及兼容路径多帧，三轮静止与流送性能。合并不改变实际几何量，驻留对象数不能当作 draw 次数。 |
 | 雾、天空、云、阴影或后处理 | shader 正反例、关闭回退、固定昼夜截图、窗口缩放/切世界清理、各图形档性能和 AI/开发者视觉检查；动态项必须用多帧、视频或连续窗口。 |
 | 阴影稳定性 | `bash scripts/verify_directional_shadow.sh Debug` / `Release` 检查正午参考轴、光源平面纹素锚定与负坐标；生产滤波 `tools/validate_shadow_filter_macos.cpp` 的 GPU 连续性/遮挡/回退和旧版负例，完整 terrain/actor shader 回归、资源接口陈旧覆盖负例、客户端双配置、昼夜/移动多帧与各受影响图形档三轮性能。有限采样不声明全部场景零闪烁。 |
 | 构建图或平台代码 | 当前批准平台的工程生成和受影响目标编译；macOS 只有被当批列入范围时才要求新原生证据。 |

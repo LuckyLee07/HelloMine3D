@@ -16,78 +16,27 @@
 #include "../World/Chunk/ChunkMesh.h"
 #include "../World/WorldConstants.h"
 
-namespace
-{
-    struct TerrainVertex
-    {
-        float x;
-        float y;
-        float z;
-        float u;
-        float v;
-        float repeatU;
-        float repeatV;
-        float light;
-    };
-
-    static_assert(sizeof(TerrainVertex) ==
-                      TerrainBufferMetrics::VertexStrideBytes,
-                  "Terrain vertices must be tightly packed.");
-
-    std::vector<TerrainVertex>
-    buildVertexStream(const ChunkMesh &mesh,
-                      const glm::ivec3 &sectionLocation)
-    {
-        const auto &clientMesh = mesh.getClientMesh();
-        const auto &positions = clientMesh.vertexPositions;
-        const auto &textureCoordinates = clientMesh.textureCoords;
-        const auto &textureRepeatCoordinates =
-            clientMesh.textureRepeatCoords;
-        const auto &light = mesh.getLight();
-        const std::size_t vertexCount = positions.size() / 3;
-
-        std::vector<TerrainVertex> vertices;
-        vertices.reserve(vertexCount);
-
-        const float originX =
-            static_cast<float>(sectionLocation.x * CHUNK_SIZE);
-        const float originY =
-            static_cast<float>(sectionLocation.y * CHUNK_SIZE);
-        const float originZ =
-            static_cast<float>(sectionLocation.z * CHUNK_SIZE);
-        for (std::size_t index = 0; index < vertexCount; ++index)
-        {
-            vertices.push_back(
-                {positions[index * 3] - originX,
-                 positions[index * 3 + 1] - originY,
-                 positions[index * 3 + 2] - originZ,
-                 textureCoordinates[index * 2],
-                 textureCoordinates[index * 2 + 1],
-                 textureRepeatCoordinates[index * 2],
-                 textureRepeatCoordinates[index * 2 + 1],
-                 light[index]});
-        }
-        return vertices;
-    }
-}
-
 ChunkSectionRenderable::ChunkSectionRenderable(
     const Ogre::String &name, const ChunkMesh &mesh,
     const glm::ivec3 &sectionLocation, const Ogre::String &materialName,
     std::uint8_t renderQueueGroup)
+    : ChunkSectionRenderable(name, std::vector<TerrainRenderBatchPart>{{sectionLocation, &mesh}},
+                             sectionLocation, materialName, renderQueueGroup)
+{
+}
+
+ChunkSectionRenderable::ChunkSectionRenderable(
+    const Ogre::String &name, const std::vector<TerrainRenderBatchPart>& parts,
+    const glm::ivec3 &sectionLocation, const Ogre::String &materialName,
+    std::uint8_t renderQueueGroup)
     : Ogre::SimpleRenderable(name)
 {
-    const ChunkMeshValidation validation =
-        validateCpuMesh(mesh, sectionLocation);
-    if (!validation.valid || validation.indexCount == 0)
-    {
-        throw std::runtime_error("Invalid chunk mesh: " +
-                                 validation.message);
-    }
-
-    const std::vector<TerrainVertex> vertices =
-        buildVertexStream(mesh, sectionLocation);
-    const auto &indices = mesh.getClientMesh().indices;
+    const auto packed = packTerrainRenderBatch(parts, sectionLocation);
+    if (packed.indices.empty()) throw std::runtime_error("Invalid empty terrain batch");
+    const auto& vertices = packed.vertices;
+    const auto& indices = packed.indices;
+    static_assert(sizeof(TerrainRenderVertex) == TerrainBufferMetrics::VertexStrideBytes,
+                  "Terrain vertices must be tightly packed");
 
     mRenderOp.operationType = Ogre::RenderOperation::OT_TRIANGLE_LIST;
     mRenderOp.useIndexes = true;
@@ -132,9 +81,10 @@ ChunkSectionRenderable::ChunkSectionRenderable(
     setRenderQueueGroup(renderQueueGroup);
     setBoundingBox(Ogre::AxisAlignedBox(
         Ogre::Vector3::ZERO,
-        Ogre::Vector3(static_cast<Ogre::Real>(CHUNK_SIZE))));
+        Ogre::Vector3(CHUNK_SIZE, CHUNK_SIZE * packed.heightSections, CHUNK_SIZE)));
     m_boundingRadius =
-        Ogre::Math::Sqrt(static_cast<Ogre::Real>(CHUNK_SIZE * CHUNK_SIZE * 3));
+        Ogre::Math::Sqrt(static_cast<Ogre::Real>(CHUNK_SIZE * CHUNK_SIZE *
+            (2 + packed.heightSections * packed.heightSections)));
 }
 
 ChunkSectionRenderable::~ChunkSectionRenderable()
@@ -162,78 +112,15 @@ std::size_t ChunkSectionRenderable::indexCount() const noexcept
 ChunkMeshValidation ChunkSectionRenderable::validateCpuMesh(
     const ChunkMesh &mesh, const glm::ivec3 &sectionLocation)
 {
-    const auto &clientMesh = mesh.getClientMesh();
-    const auto &positions = clientMesh.vertexPositions;
-    const auto &textureCoordinates = clientMesh.textureCoords;
-    const auto &indices = clientMesh.indices;
-    const auto &light = mesh.getLight();
-
     ChunkMeshValidation result;
-    if (positions.size() % 3 != 0)
-    {
-        result.message = "position count is not divisible by three";
-        return result;
+    result.vertexCount = mesh.getClientMesh().vertexPositions.size() / 3;
+    result.indexCount = mesh.getClientMesh().indices.size();
+    try {
+        validateTerrainRenderPart({sectionLocation, &mesh});
+        result.valid = true;
+        result.message = "ok";
     }
-
-    result.vertexCount = positions.size() / 3;
-    result.indexCount = indices.size();
-    if (textureCoordinates.size() != result.vertexCount * 2)
-    {
-        result.message = "texture coordinate count does not match vertices";
-        return result;
-    }
-    if (clientMesh.textureRepeatCoords.size() != result.vertexCount * 2)
-    {
-        result.message =
-            "texture repeat coordinate count does not match vertices";
-        return result;
-    }
-    if (light.size() != result.vertexCount)
-    {
-        result.message = "light count does not match vertices";
-        return result;
-    }
-    if (indices.size() % 3 != 0)
-    {
-        result.message = "index count is not divisible by three";
-        return result;
-    }
-    if (!indices.empty() &&
-        *std::max_element(indices.begin(), indices.end()) >=
-            result.vertexCount)
-    {
-        result.message = "an index references a missing vertex";
-        return result;
-    }
-
-    const std::vector<TerrainVertex> vertices =
-        buildVertexStream(mesh, sectionLocation);
-    const float epsilon = 0.001f;
-    for (const TerrainVertex &vertex : vertices)
-    {
-        if (vertex.x < -epsilon || vertex.y < -epsilon ||
-            vertex.z < -epsilon || vertex.x > CHUNK_SIZE + epsilon ||
-            vertex.y > CHUNK_SIZE + epsilon ||
-            vertex.z > CHUNK_SIZE + epsilon)
-        {
-            result.message = "a vertex lies outside its section bounds";
-            return result;
-        }
-        if (!std::isfinite(vertex.u) || !std::isfinite(vertex.v) ||
-            !std::isfinite(vertex.light))
-        {
-            result.message = "a vertex contains a non-finite attribute";
-            return result;
-        }
-        if (vertex.light < 0.f || vertex.light > 1.f)
-        {
-            result.message = "a vertex light value is outside [0, 1]";
-            return result;
-        }
-    }
-
-    result.valid = true;
-    result.message = "ok";
+    catch (const std::exception& error) { result.message = error.what(); }
     return result;
 }
 

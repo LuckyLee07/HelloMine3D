@@ -25,7 +25,7 @@
     "post": "on",
     "width": 1280,
     "height": 720,
-    "pixel_ratio": 1,
+    "pixel_ratio": 2,
     "visual_detail": "standard",
     "world_time": 6000,
     "render_distance": 8
@@ -63,9 +63,9 @@
       "baseline_position": "-32 200 480"
     }
   ],
-  "scope": "Matched regional workloads, not identical coordinates: legacy forest versus new conifer, legacy rockland versus new canyon. Legacy locations are largest connected biome centroids from the frozen pre-change production survey; candidate locations were already frozen before visual/performance review. Original same-coordinate ocean-to-forest results remain reported separately. Same machine, resolution, settings, seed, duration and alternating three rounds; no dropped runs. Final candidate includes residency synchronization optimization. All final runs use actual 1280x720 backing (1x); earlier 2x and failed-size data are retained separately and never mixed into these medians.",
+  "scope": "Comparable region cores frozen from production survey before timing; forest and canyon workloads remain distinct. Final candidate includes residency synchronization, bounded surface-query reuse, enclosed mesh capture, sparse boundary lighting and four-section opaque render batches. Actual backing is 2560x1440 (1280x720 points, 2x) for both clients. Earlier 1x/2x failures and pilots are retained separately, never mixed. No readback, competing build or other game client; fresh disposable save per run. Fixed FOV/quality/clock/5s warmup/30s measurement and P95/P99 guardrail 1.10. Original, matched, control groups run in that order; stop after any complete six-run scene fails, retain every sample and record remaining scenes NOT_RUN.",
   "baseline_executable_sha256": "1f9de91945538ec1d363ede56b9784a01aebf5e43e6e8e235312c81e7604f83a",
-  "candidate_executable_sha256": "f5da20918ca3427bd0e64bd30141a86dc407d4e93c23ffcbf7d2d3a8b0f11ad7",
+  "candidate_executable_sha256": "3ffe41d4d7f925d3da1e9e349c62c126edc0b04d2ceea59b30f29b3c316dd315",
   "reference_selection": {
     "forest": {
       "position": "-128 200 1312",
@@ -81,5 +81,7 @@
       "component_samples": 167,
       "selection": "Nearest largest connected regional component centroid on frozen 32 m production grid; no timing used"
     }
-  }
+  },
+  "candidate_resource_manifest_sha256": "9c4bbd7eb7a0d7419e33c23e4aa0bb7a7926424280a35cbd3c2189a5b72e40cd",
+  "baseline_resource_manifest_sha256": "041fe3b347bb5d1bfda749ef39c206ce35f45702f62f335c907440543a1bc448"
 }

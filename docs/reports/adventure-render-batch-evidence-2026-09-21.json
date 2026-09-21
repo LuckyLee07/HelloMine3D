@@ -1,0 +1,268 @@
+{
+  "schema": 1,
+  "scope": "Renderer-only bounded vertical batching; terrain generation remains v19 and old world identities unchanged.",
+  "status": "IMPLEMENTED_VALIDATED_FINAL_PERFORMANCE_PENDING",
+  "source_head": "85376c16206667d46471a409e1a6500a4ca78c73",
+  "release_executable_sha256": "3ffe41d4d7f925d3da1e9e349c62c126edc0b04d2ceea59b30f29b3c316dd315",
+  "resource_manifest_sha256": "9c4bbd7eb7a0d7419e33c23e4aa0bb7a7926424280a35cbd3c2189a5b72e40cd",
+  "checks": {
+    "focus_release": {
+      "status": "PASS",
+      "checks": 34,
+      "log": "render-batch-focus-release-r2.log",
+      "sha256": "9187966e525e3baeaa75d49cb1714350de39793c5b1573c468851b90a1275181"
+    },
+    "world_release": {
+      "status": "PASS",
+      "checks": 1710,
+      "log": "render-batch-world-release-r2.log",
+      "sha256": "a8e66ac0ddb5cabfb07b26d98567bb663b27d79c327f5dfca4570f53e11b23dd"
+    },
+    "build_release": {
+      "status": "PASS",
+      "warnings": 0,
+      "log": "render-batch-release-build-r2.log",
+      "sha256": "ec612a72bdab4731a0dd4c4f6c55a61b80bdbb74c4ac65809ee9215bab748b39"
+    },
+    "focus_debug": {
+      "status": "PASS",
+      "checks": 34,
+      "log": "render-batch-focus-debug-r2.log",
+      "sha256": "9187966e525e3baeaa75d49cb1714350de39793c5b1573c468851b90a1275181"
+    },
+    "world_debug": {
+      "status": "PASS",
+      "checks": 1710,
+      "log": "render-batch-world-debug-r2.log",
+      "sha256": "a5bf57a36ee82ac945d3d713fac530fce2b3becd14f6faed7620cecbce04c448"
+    },
+    "build_debug": {
+      "status": "PASS",
+      "warnings": 0,
+      "log": "render-batch-debug-build-r2.log",
+      "sha256": "42be0913abfaace6f7f65d572c0d4d3f555e5472205abb68c69167438b899291"
+    }
+  },
+  "visual": [
+    {
+      "name": "east-forest-highland-06-standard",
+      "status": "REVIEWED",
+      "capture_sha256": "128937c0bd902b68f6aeed2e22ca121347a8b220921f7fd9c372d6d20a29eac5",
+      "frame_size": [
+        2560,
+        1440
+      ],
+      "frames": {
+        "capture_04000ms.png": "5cd4d3154e756f566a95b6f5eebb12c28810adaaf987384d9809a0acf712940f",
+        "capture_06000ms.png": "4bd5167d5276e56e3939e06e7770f279fd568b5e97458020754b0cbec3e304e1",
+        "capture_08000ms.png": "60dadea56f01ab9892efb3b058262338cff3f79addd2840fed112dabca56d004",
+        "capture_10000ms.png": "d421d0abc40c06c619e43892502b10c40ca975fb784986b3366fa5251fe5f0fb"
+      },
+      "observation": "Mixed trunks, canopy, terrain and material boundaries remain present along four viewpoint samples.",
+      "normal_input": false,
+      "review": "All captured times reviewed in contact sheet; CUA normal-menu/world screenshots reviewed separately."
+    },
+    {
+      "name": "west-rockland-dunes-04-standard",
+      "status": "REVIEWED",
+      "capture_sha256": "9c1dadcf0a7fd5e973adb8ce48d9db31c0dddda9b38fc612299799c696c218fa",
+      "frame_size": [
+        2560,
+        1440
+      ],
+      "frames": {
+        "capture_04000ms.png": "ae64955156d962c5a52a7b2d3396592594c59ec0683c321df1f5251d35935e11",
+        "capture_06000ms.png": "d0f26a4f6ff93c6a2d39149bc4972e1514f6255800fb853c0ceaec3564fc9f50",
+        "capture_08000ms.png": "05737e723cdbb4acc9ca015ac35d1bf8a5aa33f77b617b2c9a7d6056be1603c1",
+        "capture_10000ms.png": "077e1a75913a8b89ad3e90896738d1e1b4b6ea7ce88d9f089f75371cfccfccd7"
+      },
+      "observation": "Rock/clay terrace and valley remain continuous through the sweep.",
+      "normal_input": false,
+      "review": "All captured times reviewed in contact sheet; CUA normal-menu/world screenshots reviewed separately."
+    },
+    {
+      "name": "south-woodland-wetland-08-standard",
+      "status": "REVIEWED",
+      "capture_sha256": "39ff87bcc31aa5b400e94f4ab4118e4afad4f338e98f6be97326cf4f366ed49c",
+      "frame_size": [
+        2560,
+        1440
+      ],
+      "frames": {
+        "capture_04000ms.png": "e459eab3c1f5975368a98c5269063a6358778f34e4f1b3567dec3194b8df2a56",
+        "capture_06000ms.png": "e99020b9abda8b548d99e69dfe8a12142c7a321c46c92eb999f230183d12d281",
+        "capture_08000ms.png": "626a3938d8425a07b88f70ac431b883399861024b6e53aded6c5ae8fb81e1345",
+        "capture_10000ms.png": "d7e5fa08c47e0d963a2b8ed4b4e7d9fc551caf3c8d2be043933ee90ed2d4111e"
+      },
+      "observation": "Low canopy, reeds and mud bank remain visible; low canopy limits long views.",
+      "normal_input": false,
+      "review": "All captured times reviewed in contact sheet; CUA normal-menu/world screenshots reviewed separately."
+    },
+    {
+      "name": "water-approach-08-standard",
+      "status": "REVIEWED",
+      "capture_sha256": "84494409ac851c183835e64a23d59fbd1ea2bcc74a7e1061810b858d26783f7c",
+      "frame_size": [
+        2560,
+        1440
+      ],
+      "frames": {
+        "capture_04000ms.png": "5d03760a2a04524f478d0692e03f915ad8a04084c67839cbc7c34741c3eadc04",
+        "capture_06000ms.png": "c77ae8edd01b9f28b0a67d48de3d7b97f261b16c019fc343b69d8dc210c3ca79",
+        "capture_08000ms.png": "9be1b25651a0b3e2e18f752034bf064df93a1cce9b28a911c7c322c7d7f4723a",
+        "capture_10000ms.png": "c46c9e8f8558630670a705c5fbedac745b7c565a37de49d74499e0c04da19033"
+      },
+      "observation": "Meadow to sand/gravel bank and water transition visible across all four samples; diagonal voxel stair edges remain.",
+      "normal_input": false,
+      "review": "All captured times reviewed in contact sheet; CUA normal-menu/world screenshots reviewed separately."
+    },
+    {
+      "name": "regional-seed-20260807-region-6-standard",
+      "status": "REVIEWED",
+      "capture_sha256": "069902ac2de096e46d7126ff48bb4bcb19d88038e52b0ad4a8ba9e17bc6f3e2d",
+      "frame_size": [
+        2560,
+        1440
+      ],
+      "frames": {
+        "capture_04000ms.png": "d3fb838cb933dda6985bf009c7674d6c68c1bec5e5e681e098b500dcc596c51a",
+        "capture_06000ms.png": "e5ce0db6ed25e688ae82c1a29e8855c602b144bda5668878375759ad5b23bfbb",
+        "capture_08000ms.png": "855af6a9660497a12644a29d6f2119cc848a943ec841bae3221eee68870b6297",
+        "capture_10000ms.png": "0e1a8e1dfe068e6b1cdaa1993a9402d64c80c377a9286a603e3a9d2eadb0edc0"
+      },
+      "observation": "Snow terraces, rock and landmarks remain visible during sweep.",
+      "normal_input": false,
+      "review": "All captured times reviewed in contact sheet; CUA normal-menu/world screenshots reviewed separately."
+    },
+    {
+      "name": "east-forest-highland-06-compatibility",
+      "status": "REVIEWED",
+      "capture_sha256": "2f05cc07f5451df8b1c8cf48df70de15808bbe68a45130ef36bc5249fb3397ba",
+      "frame_size": [
+        2560,
+        1440
+      ],
+      "frames": {
+        "capture_04000ms.png": "374bc0ba58394d79f6def4a2366edf8a99274c692d2d1605d82f1c41f09b9249",
+        "capture_06000ms.png": "12b622ab48f467db9997f56889eb14435c57fed221f365209519f2b97205c066",
+        "capture_08000ms.png": "e02c5085ebc5e37e2efdb3df75f93c0a87216bfdf0445883c9dcff9920b0bd06",
+        "capture_10000ms.png": "347d6bcada9830a19401868e6ed7a4d681e6a279ac60e78d4f5922bbe1d9aeb6"
+      },
+      "observation": "Atlas path retains terrain, trunks and foliage at all four samples.",
+      "normal_input": false,
+      "review": "All captured times reviewed in contact sheet; CUA normal-menu/world screenshots reviewed separately."
+    },
+    {
+      "name": "flower",
+      "status": "REVIEWED",
+      "capture_sha256": "6ec6bd295d44a61a63c5429c2fa94a06eae2f3e271efb286a03cdc9515dce324",
+      "frame_size": [
+        2560,
+        1440
+      ],
+      "frames": {
+        "capture_01250ms.png": "d150ccbe4b668a5f756a96c1ed70c6905218ffc7af3d2c71e2c585123671b4e9",
+        "capture_02450ms.png": "9917eb4c2b5bfa4b8d5e957e272ce773e26a04753b9402b3675b0ed369ed74ae",
+        "capture_03850ms.png": "67fb861639d2eef2c48bd4d5d67dc62ff9d802104534e8a027c470c313c4a2e0",
+        "capture_06000ms.png": "c94103f32cfb92c9cc1d872aa5e2315c992816d3c5174190fd3959536dfb012c"
+      },
+      "observation": "Rose visible before mining, disappears by 2450 ms; particles and held/inventory rose appear, then particles clear. Diagnostic Sandbox input, not OS harvest.",
+      "normal_input": false,
+      "review": "All captured times reviewed in contact sheet; CUA normal-menu/world screenshots reviewed separately."
+    },
+    {
+      "name": "shadow-glass",
+      "status": "REVIEWED",
+      "capture_sha256": "76c451f5ef001a9ac31fa31445f4211600169c357c9672b931ce1c33cf9ac440",
+      "frame_size": [
+        2560,
+        1440
+      ],
+      "frames": {
+        "capture_04000ms.png": "59c40ec6aeeda924b5b81749ccb6a05d4cf77dfeed9081ece3e2a2aa6c223ee6",
+        "capture_07000ms.png": "1d1dc2227954118502bfcdea7ce87c6654e9bb945285c0905b979c6f8894fc7f",
+        "capture_10000ms.png": "aaf9d41eba2404420cfd811a93ab86bea9cb1e497f22d321f3b00342deb4f159"
+      },
+      "observation": "Three samples show glass transparency and solid casters with ground shadow.",
+      "normal_input": false,
+      "review": "All captured times reviewed in contact sheet; CUA normal-menu/world screenshots reviewed separately."
+    },
+    {
+      "name": "night",
+      "status": "REVIEWED",
+      "capture_sha256": "b8457ca99534ad604ae60ba4335472f586fe9cadf97a861ec36dc1c61fb6a915",
+      "frame_size": [
+        2560,
+        1440
+      ],
+      "frames": {
+        "capture_04000ms.png": "28960b61444e36f8c95c5a28aca8158fe0e00aecdb15095f905422e4cdd48504",
+        "capture_07000ms.png": "47ba310f85e165c20c579b5406f4488f1282e1200bf2753fe318ba59d2d9ed97",
+        "capture_10000ms.png": "0353f9b5c5e93752092c40cde1650668913794d0541b06fa1616299d2f787499"
+      },
+      "observation": "Three samples show continuous lit ground; enemy obscures torch area, so light-source appearance is LIMITED.",
+      "normal_input": false,
+      "review": "All captured times reviewed in contact sheet; CUA normal-menu/world screenshots reviewed separately."
+    }
+  ],
+  "normal_input": {
+    "status": "PARTIAL",
+    "package": "Working.app",
+    "world": "Adventure-v19-test",
+    "seed": 42,
+    "generation_version": 19,
+    "difficulty": "normal",
+    "actions_observed": [
+      "main menu",
+      "world list",
+      "enter existing test world",
+      "open crafting",
+      "save to main menu",
+      "reenter same world",
+      "save and quit"
+    ],
+    "evidence": "Computer Use screenshots in current task; local render-batch-normal-play-r2/client-ogre.log and test-world.meta",
+    "continuous_movement": "Ten individual W presses did not move the saved position 36.2999992 92 56.5; sustained walk and ordinary harvest remain capability-limited, not PASS.",
+    "user_client": "Not operated"
+  },
+  "pilots": [
+    {
+      "name": "steady",
+      "framebuffer": [
+        1280,
+        720
+      ],
+      "executable_sha256": "a6f662ab31ac31350ba4cf73c80ae0976b67c4c3a73f68830a113a8a73ef85aa",
+      "p95_ms": 6.113,
+      "p99_ms": 6.839,
+      "resident_vertices": 1550902,
+      "resident_indices": 2903688,
+      "buffer_bytes": 61243616,
+      "peak_rss_bytes": 413335552,
+      "status": "PILOT_ONLY_NOT_FINAL_GUARDRAIL"
+    },
+    {
+      "name": "streaming",
+      "framebuffer": [
+        1280,
+        720
+      ],
+      "executable_sha256": "a6f662ab31ac31350ba4cf73c80ae0976b67c4c3a73f68830a113a8a73ef85aa",
+      "p95_ms": 5.646,
+      "p99_ms": 6.619,
+      "resident_vertices": 1411900,
+      "resident_indices": 2664006,
+      "buffer_bytes": 55836824,
+      "peak_rss_bytes": 468017152,
+      "status": "PILOT_ONLY_NOT_FINAL_GUARDRAIL"
+    }
+  ],
+  "remaining": [
+    "Final three-round paired performance at current 2x framebuffer",
+    "Final clean client delivery"
+  ],
+  "failed_preflight": {
+    "path": "render-batch-visual-r2",
+    "reason": "Expected 1280x720 1x but actual Cocoa backing restored to 2560x1440 2x. Retained FAIL; r3 freezes actual 2x."
+  }
+}

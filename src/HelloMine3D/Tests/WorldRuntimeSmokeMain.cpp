@@ -68,6 +68,7 @@
 #include "../Presentation/LocalizedPresentation.h"
 #include "../Presentation/PresentationCaption.h"
 #include "../Presentation/PresentationLayout.h"
+#include "../Presentation/TerrainRenderBatch.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/Events/BlockEvents.h"
 #include "../Sandbox/Events/ChunkEvents.h"
@@ -4565,6 +4566,102 @@ void caseSectionMeshInput()
 // M4 - opaque cubes merge into material-safe rectangles while transparent
 // passes keep their original topology
 // ---------------------------------------------------------------------------
+void caseTerrainRenderBatch()
+{
+    const glm::ivec3 first{-2, 12, 3}, second{-2, 15, 3};
+    const std::array<float, 12> face{{0,1,0, 0,1,1, 1,1,1, 1,1,0}};
+    const std::array<float, 8> uv{{0,0, 0,1, 1,1, 1,0}};
+    ChunkMesh a, b;
+    a.addFace(face, uv, first, {2,3,4}, 0.8f);
+    b.addFace(face, uv, second, {5,2,8}, 0.6f);
+    const auto packed = packTerrainRenderBatch({{first,&a},{second,&b}}, first);
+    bool identical = true;
+    std::size_t vertex = 0, index = 0;
+    for (const auto* source : {&a, &b}) {
+        const auto& mesh = source->getClientMesh();
+        const auto base = static_cast<std::uint32_t>(vertex);
+        for (std::size_t n = 0; n < source->getLight().size(); ++n, ++vertex) {
+            const auto& v = packed.vertices[vertex];
+            identical = identical && v.x + first.x*CHUNK_SIZE == mesh.vertexPositions[n*3] &&
+                v.y + first.y*CHUNK_SIZE == mesh.vertexPositions[n*3+1] &&
+                v.z + first.z*CHUNK_SIZE == mesh.vertexPositions[n*3+2] &&
+                v.u == mesh.textureCoords[n*2] && v.v == mesh.textureCoords[n*2+1] &&
+                v.repeatU == mesh.textureRepeatCoords[n*2] && v.repeatV == mesh.textureRepeatCoords[n*2+1] &&
+                v.light == source->getLight()[n];
+        }
+        for (const auto i : mesh.indices) identical = identical && packed.indices[index++] == base+i;
+    }
+    check("RENDER_BATCH/world-positions-attributes-and-triangles-preserved", identical);
+    check("RENDER_BATCH/no-extra-vertices-indices-or-stride",
+          packed.vertices.size() == vertex && packed.indices.size() == index &&
+          sizeof(TerrainRenderVertex) == TerrainBufferMetrics::VertexStrideBytes && packed.heightSections == 4);
+    check("RENDER_BATCH/negative-origin-and-group-boundary",
+          terrainRenderBatchOrigin({-17,-1,31}) == glm::ivec3(-17,-4,31) &&
+          terrainRenderBatchOrigin({-17,15,31}) == glm::ivec3(-17,12,31) &&
+          terrainRenderBatchOrigin({-17,16,31}) == glm::ivec3(-17,16,31));
+    const auto rejects = [&](const std::vector<TerrainRenderBatchPart>& parts) {
+        try { packTerrainRenderBatch(parts, first); return false; }
+        catch (const std::exception&) { return true; }
+    };
+    check("RENDER_BATCH/reject-duplicate-foreign-column-and-excess-slots",
+          rejects({{first,&a},{first,&a}}) && rejects({{{-1,12,3},&a}}) &&
+          rejects({{first,&a},{first,&a},{first,&a},{first,&a},{first,&a}}));
+    const auto empty = packTerrainRenderBatch({}, first);
+    check("RENDER_BATCH/empty-batch-has-no-upload", empty.vertices.empty() && empty.indices.empty());
+    ChunkMesh invalid = a;
+    auto& invalidMesh = const_cast<Mesh&>(invalid.getClientMesh());
+    invalidMesh.indices.front() = 999;
+    const bool badIndex = rejects({{first, &invalid}});
+    invalid = a;
+    invalidMesh.textureCoords.pop_back();
+    const bool badAttribute = rejects({{first, &invalid}});
+    invalid = a;
+    invalidMesh.vertexPositions.front() = std::numeric_limits<float>::quiet_NaN();
+    const bool badPosition = rejects({{first, &invalid}});
+    invalid = a;
+    invalidMesh.indices.clear();
+    invalidMesh.textureRepeatCoords.clear();
+    check("RENDER_BATCH/reject-invalid-streams-including-empty-indices",
+          badIndex && badAttribute && badPosition && rejects({{first, &invalid}}) &&
+          rejects({{first, nullptr}}));
+    check("RENDER_BATCH/integer-extremes-do-not-wrap-into-group",
+          terrainRenderBatchOrigin({0, std::numeric_limits<int>::min(), 0}).y ==
+              std::numeric_limits<int>::min() &&
+          terrainRenderBatchOrigin({0, std::numeric_limits<int>::max(), 0}).y ==
+              std::numeric_limits<int>::max() - 3 &&
+          rejects({{{first.x, std::numeric_limits<int>::min(), first.z}, &a}}));
+    bool builtIns = true;
+    for (const auto* vs : {"HelloMine3D/TerrainVertex", "HelloMine3D/TerrainShadowVertex",
+                           "HelloMine3D/FloraVertex", "HelloMine3D/FloraShadowVertex"})
+        for (const auto* fs : {"HelloMine3D/TerrainFragment", "HelloMine3D/TerrainShadowFragment",
+                               "HelloMine3D/TerrainArrayFragment", "HelloMine3D/TerrainShadowArrayFragment"})
+            builtIns = builtIns && canBatchTerrainMaterial(1, true, false, vs, fs);
+    check("RENDER_BATCH/atlas-array-and-shadow-programs-eligible", builtIns);
+    const auto* vs = "HelloMine3D/TerrainVertex";
+    const auto* fs = "HelloMine3D/TerrainFragment";
+    check("RENDER_BATCH/blended-depthless-multipass-and-custom-fall-back",
+          !canBatchTerrainMaterial(1, true, true, vs, fs) &&
+          !canBatchTerrainMaterial(1, false, false, vs, fs) &&
+          !canBatchTerrainMaterial(2, true, false, vs, fs) &&
+          !canBatchTerrainMaterial(0, true, false, vs, fs) &&
+          !canBatchTerrainMaterial(1, true, false, "Custom/Vertex", fs) &&
+          !canBatchTerrainMaterial(1, true, false, vs, "Custom/Fragment"));
+    // Rebuilding after one section is removed must not retain its old faces.
+    const auto remaining = packTerrainRenderBatch({{second, &b}}, first);
+    a.clearClientData();
+    a.addFace(face, uv, first, {1,1,1}, 0.3f);
+    const auto replaced = packTerrainRenderBatch({{first, &a}, {second, &b}}, first);
+    check("RENDER_BATCH/replacement-and-unload-preserve-only-current-parts",
+          remaining.vertices.size() == b.getLight().size() &&
+          remaining.indices == b.getClientMesh().indices &&
+          replaced.vertices.front().light == 0.3f &&
+          replaced.vertices.back().light == 0.6f &&
+          replaced.indices.size() == packed.indices.size());
+    a.clearClientData(); b.clearClientData();
+    check("RENDER_BATCH/packed-data-owns-its-source-copy", packed.vertices.size() == vertex &&
+          packed.indices.size() == index && packed.vertices.front().light == 0.8f);
+}
+
 void caseGreedyMeshing()
 {
     setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
@@ -5417,10 +5514,11 @@ void caseTerrainBufferMetrics()
 
     TerrainBufferMetrics metrics;
     metrics.add(10, 12);
+    metrics.add(0, 0);
     check("W4/resident-buffer-estimate",
           metrics.vertexBytes() == 320 &&
               metrics.indexBytes() == 48 &&
-              metrics.totalBytes() == 368,
+              metrics.totalBytes() == 368 && metrics.renderableCount == 1,
           "vertex/index/total=" +
               std::to_string(metrics.vertexBytes()) + "/" +
               std::to_string(metrics.indexBytes()) + "/" +
@@ -20198,6 +20296,12 @@ int main()
             caseRuntimeConfigOwnership();
             caseMeshDirtyPropagation();
         }
+        else if (focus != nullptr && std::string(focus) == "RENDER_BATCH") {
+            caseTerrainRenderBatch();
+            caseTerrainBufferMetrics();
+            caseSectionMeshInput();
+            caseEnclosedSectionSkip();
+        }
         else if (focus != nullptr && std::string(focus) == "MESH_INPUT") {
             caseSectionMeshInput();
             caseEnclosedSectionSkip();
@@ -20385,6 +20489,7 @@ int main()
         casePersistence();
         caseSectionMeshInput();
         caseGreedyMeshing();
+        caseTerrainRenderBatch();
         caseTerrainAppearance();
         caseVertexLighting();
         caseTerrainBufferMetrics();

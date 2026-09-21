@@ -662,6 +662,13 @@ block、Actor、inventory、objective or persistence truth。
 Ogre 保留上一份 live section 数值坐标清单，仅在清单改变时重建字符串驻留索引并清理卸载；
 退出世界／销毁渲染器时同步清空该派生清单。无上传时不取第二份确认快照；有上传时仍
 确认真实当前 revision 和 CpuReady 状态，但仅对至多八个上传位置做数值查找，不构建全量字符串索引。
+内置单 pass、写深度的 Terrain／Flora 可将同一 x/z 列内最多四个连续高度 section 合并成 GPU 对象；
+`TerrainRenderBatch` 保留全部顶点、三角形、UV、重复坐标与光照，只重基到共同原点。
+Ogre 从复制快照保留驻留 section 的 solid/flora CPU 数据，修改、卸载及陈旧确认均失效所属组，
+本帧上传结束后统一重建；确认、八 section 预算及 World 权威仍按原 section。
+水／玻璃保持逐 section 排序；非内置程序、混合、禁写深度或多 pass 材质保持原对象路径。
+两处世界退出均释放分组 GPU／CPU 数据。统计同时累计独立对象和分组对象的真实缓冲，
+新增 resident renderables 仅指驻留 GPU 对象数量，不冒充相机／阴影实际 draw 次数。
 
 方向阴影的太阳投影设置由 Ogre 灯持有，第一方纯数学 helper 负责正午稳定参考轴与纹素锚定；
 terrain/actor 接收端共享连续比较滤波语义。切档、切世界及退出随灯清理，不向 World 写回状态，

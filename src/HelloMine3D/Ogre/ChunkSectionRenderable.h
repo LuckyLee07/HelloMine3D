@@ -7,6 +7,7 @@
 #include <string>
 
 #include "../Maths/glm.h"
+#include "../Presentation/TerrainRenderBatch.h"
 
 class ChunkMesh;
 
@@ -23,6 +24,11 @@ class ChunkSectionRenderable final : public Ogre::SimpleRenderable
   public:
     ChunkSectionRenderable(const Ogre::String &name, const ChunkMesh &mesh,
                            const glm::ivec3 &sectionLocation,
+                           const Ogre::String &materialName,
+                           std::uint8_t renderQueueGroup);
+    ChunkSectionRenderable(const Ogre::String &name,
+                           const std::vector<TerrainRenderBatchPart>& parts,
+                           const glm::ivec3 &batchOrigin,
                            const Ogre::String &materialName,
                            std::uint8_t renderQueueGroup);
     ~ChunkSectionRenderable() override;

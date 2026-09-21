@@ -66,6 +66,11 @@ def read_run(directory, protocol, scene, version):
         measured = times[math.ceil(p / 100 * (len(times) - 1))]
         assert abs(measured - float(summary[key])) <= .0011
         result[key] = float(summary[key])
+    # Older frozen clients did not count GPU objects. Keep the missing value
+    # explicit; resident objects are not equivalent to actual draw calls.
+    for key in ('last_resident_terrain_vertices', 'last_resident_terrain_indices',
+                'last_resident_terrain_renderables'):
+        result[key] = int(summary[key]) if key in summary else None
     for key in ('update_p95_ms', 'render_p95_ms', 'last_existing_chunks',
                 'last_loaded_chunks', 'last_solid_faces', 'last_water_faces',
                 'last_flora_faces', 'last_resident_terrain_buffer_bytes',

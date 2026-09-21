@@ -324,6 +324,8 @@ namespace
     {
         Ogre::SceneNode* node = nullptr;
         std::vector<std::unique_ptr<ChunkSectionRenderable>> renderables;
+        glm::ivec3 location{0};
+        std::unique_ptr<ChunkMeshCollection> batchMeshes;
     };
 
     // Own only the solar light's projection, leaving Ogre's other lights alone.
@@ -2053,6 +2055,7 @@ namespace
                 destroySectionVisual(entry.second);
             }
             m_sectionVisuals.clear();
+            clearTerrainBatches();
             m_sectionRenderStates.clear();
             m_lastLiveSections.clear();
             destroyDirectionalShadowResources();
@@ -2719,7 +2722,7 @@ namespace
 
             std::vector<WorldSectionMeshVersion> uploaded;
             uploaded.reserve(snapshot.cpuReadySections.size());
-            for (const WorldSectionMeshSnapshot& section :
+            for (WorldSectionMeshSnapshot& section :
                  snapshot.cpuReadySections)
             {
                 const std::string key = sectionKey(section.location);
@@ -2741,6 +2744,12 @@ namespace
                         key, ChunkRenderState::UploadPending);
                 }
                 uploadSectionVisual(section);
+                uploaded.push_back(
+                    {section.location, section.blockRevision});
+            }
+            flushTerrainBatches();
+            for (const auto& section : uploaded)
+            {
                 if (m_fastStreamingPending &&
                     section.location.x == m_fastStreamingTarget.x &&
                     section.location.z == m_fastStreamingTarget.z)
@@ -2756,8 +2765,6 @@ namespace
                     m_nextFastStreamingMoveSeconds =
                         m_rcPerformanceElapsedSeconds + 2.0f;
                 }
-                uploaded.push_back(
-                    {section.location, section.blockRevision});
             }
             // Residency cleanup above always runs. With no uploads there is
             // nothing to acknowledge or validate against a second snapshot;
@@ -2803,6 +2810,7 @@ namespace
                              ? ChunkRenderState::GpuResident
                              : ChunkRenderState::NotResident);
             }
+            flushTerrainBatches();
         }
 
         void syncActorVisuals(float deltaSeconds = 0.f)
@@ -3094,8 +3102,16 @@ namespace
             m_fastStreamingPending = true;
         }
 
-        bool uploadSectionVisual(
-            const WorldSectionMeshSnapshot& section)
+        bool canBatchMaterial(const char* name)
+        {
+            Ogre::Pass* pass = materialPass(name);
+            return canBatchTerrainMaterial(
+                pass->getParent()->getNumPasses(), pass->getDepthWriteEnabled(),
+                pass->isTransparent(), pass->getVertexProgramName(),
+                pass->getFragmentProgramName());
+        }
+
+        bool uploadSectionVisual(WorldSectionMeshSnapshot& section)
         {
             const std::string key = sectionKey(section.location);
             const auto existing = m_sectionVisuals.find(key);
@@ -3104,78 +3120,112 @@ namespace
                 destroySectionVisual(existing->second);
                 m_sectionVisuals.erase(existing);
             }
-
-            const std::string objectName = "ChunkSection_" + key;
             SectionVisual visual;
-            auto ensureNode = [&]() {
-                if (visual.node == nullptr)
+            visual.location = section.location;
+            const std::string name = "ChunkSection_" + key;
+            auto upload = [&](const ChunkMesh& mesh, const char* suffix,
+                              const char* material, std::uint8_t queue, bool shadows) {
+                if (mesh.getClientMesh().indices.empty())
                 {
-                    visual.node = m_sceneManager->getRootSceneNode()
-                                      ->createChildSceneNode(
-                                          objectName + "_Node",
-                                          Ogre::Vector3(
-                                              static_cast<Ogre::Real>(
-                                                  section.location.x *
-                                                  CHUNK_SIZE),
-                                              static_cast<Ogre::Real>(
-                                                  section.location.y *
-                                                  CHUNK_SIZE),
-                                              static_cast<Ogre::Real>(
-                                                  section.location.z *
-                                                  CHUNK_SIZE)));
+                    validateTerrainRenderPart({section.location, &mesh});
+                    return;
                 }
-                return visual.node;
+                auto object = std::make_unique<ChunkSectionRenderable>(
+                    name + suffix, mesh, section.location, material, queue);
+                object->setCastShadows(shadows);
+                if (!visual.node)
+                    visual.node = m_sceneManager->getRootSceneNode()->createChildSceneNode(
+                        name + "_Node", Ogre::Vector3(
+                            static_cast<float>(section.location.x) * CHUNK_SIZE,
+                            static_cast<float>(section.location.y) * CHUNK_SIZE,
+                            static_cast<float>(section.location.z) * CHUNK_SIZE));
+                visual.node->attachObject(object.get());
+                visual.renderables.push_back(std::move(object));
             };
-
-            auto uploadLayer =
-                [&](const ChunkMesh& mesh, const char* layerName,
-                    const char* materialName, std::uint8_t renderQueue) {
-                    const ChunkMeshValidation validation =
-                        ChunkSectionRenderable::validateCpuMesh(
-                            mesh, section.location);
-                    if (!validation.valid)
-                    {
-                        throw std::runtime_error(
-                            std::string(layerName) +
-                            " mesh validation failed: " +
-                            validation.message);
-                    }
-                    if (validation.indexCount == 0)
-                    {
-                        return;
-                    }
-
-                    auto renderable =
-                        std::make_unique<ChunkSectionRenderable>(
-                            objectName + "_" + layerName, mesh,
-                            section.location, materialName, renderQueue);
-                    renderable->setCastShadows(
-                        std::string(materialName) ==
-                        "HelloMine3D/Terrain");
-                    ensureNode()->attachObject(renderable.get());
-                    visual.renderables.push_back(std::move(renderable));
-                };
-
-            uploadLayer(
-                section.meshes.solidMesh, "Solid", "HelloMine3D/Terrain",
-                static_cast<std::uint8_t>(Ogre::RENDER_QUEUE_MAIN));
-            uploadLayer(
-                section.meshes.transparentMesh, "Transparent",
-                "HelloMine3D/Transparent",
-                static_cast<std::uint8_t>(Ogre::RENDER_QUEUE_8));
-            uploadLayer(
-                section.meshes.waterMesh, "Water", "HelloMine3D/Water",
-                static_cast<std::uint8_t>(Ogre::RENDER_QUEUE_8));
-            uploadLayer(
-                section.meshes.floraMesh, "Flora", "HelloMine3D/Flora",
-                static_cast<std::uint8_t>(Ogre::RENDER_QUEUE_6));
-
-            if (visual.node != nullptr)
+            // Blended layers retain their per-section objects and depth sorting.
+            upload(section.meshes.transparentMesh, "_Transparent", "HelloMine3D/Transparent",
+                   Ogre::RENDER_QUEUE_8, false);
+            upload(section.meshes.waterMesh, "_Water", "HelloMine3D/Water",
+                   Ogre::RENDER_QUEUE_8, false);
+            auto retainOrUpload = [&](ChunkMesh& mesh, bool solid) {
+                const char* material = solid ? "HelloMine3D/Terrain" : "HelloMine3D/Flora";
+                if (!mesh.getClientMesh().indices.empty() && canBatchMaterial(material))
+                {
+                    if (!visual.batchMeshes)
+                        visual.batchMeshes = std::make_unique<ChunkMeshCollection>();
+                    (solid ? visual.batchMeshes->solidMesh : visual.batchMeshes->floraMesh)
+                        .adoptClientData(mesh);
+                }
+                else
+                {
+                    upload(mesh, solid ? "_Solid" : "_Flora", material,
+                           solid ? Ogre::RENDER_QUEUE_MAIN : Ogre::RENDER_QUEUE_6, solid);
+                }
+            };
+            retainOrUpload(section.meshes.solidMesh, true);
+            retainOrUpload(section.meshes.floraMesh, false);
+            if (visual.batchMeshes)
             {
-                m_sectionVisuals.emplace(key, std::move(visual));
-                return true;
+                const auto origin = terrainRenderBatchOrigin(section.location);
+                m_dirtyTerrainBatches[sectionKey(origin)] = origin;
             }
-            return false;
+            if (!visual.node && !visual.batchMeshes) return false;
+            m_sectionVisuals.emplace(key, std::move(visual));
+            return true;
+        }
+
+        void flushTerrainBatches()
+        {
+            for (const auto& dirty : m_dirtyTerrainBatches)
+            {
+                const auto old = m_terrainBatchVisuals.find(dirty.first);
+                if (old != m_terrainBatchVisuals.end())
+                {
+                    destroySectionVisual(old->second);
+                    m_terrainBatchVisuals.erase(old);
+                }
+                const auto origin = dirty.second;
+                std::vector<TerrainRenderBatchPart> solids, flora;
+                for (int y = 0; y < TerrainRenderBatchSections; ++y)
+                {
+                    const glm::ivec3 location{origin.x, origin.y + y, origin.z};
+                    const auto slot = m_sectionVisuals.find(sectionKey(location));
+                    if (slot == m_sectionVisuals.end() || !slot->second.batchMeshes) continue;
+                    const auto& meshes = *slot->second.batchMeshes;
+                    if (!meshes.solidMesh.getClientMesh().indices.empty())
+                        solids.push_back({location, &meshes.solidMesh});
+                    if (!meshes.floraMesh.getClientMesh().indices.empty())
+                        flora.push_back({location, &meshes.floraMesh});
+                }
+                SectionVisual visual;
+                const std::string name = "TerrainBatch_" + dirty.first;
+                auto upload = [&](const auto& parts, const char* suffix, const char* material,
+                                  std::uint8_t queue, bool shadows) {
+                    if (parts.empty()) return;
+                    auto object = std::make_unique<ChunkSectionRenderable>(name + suffix,
+                        parts, origin, material, queue);
+                    object->setCastShadows(shadows);
+                    if (!visual.node)
+                        visual.node = m_sceneManager->getRootSceneNode()->createChildSceneNode(
+                            name + "_Node", Ogre::Vector3(
+                                static_cast<float>(origin.x) * CHUNK_SIZE,
+                                static_cast<float>(origin.y) * CHUNK_SIZE,
+                                static_cast<float>(origin.z) * CHUNK_SIZE));
+                    visual.node->attachObject(object.get());
+                    visual.renderables.push_back(std::move(object));
+                };
+                upload(solids, "_Solid", "HelloMine3D/Terrain", Ogre::RENDER_QUEUE_MAIN, true);
+                upload(flora, "_Flora", "HelloMine3D/Flora", Ogre::RENDER_QUEUE_6, false);
+                if (visual.node) m_terrainBatchVisuals.emplace(dirty.first, std::move(visual));
+            }
+            m_dirtyTerrainBatches.clear();
+        }
+
+        void clearTerrainBatches()
+        {
+            for (auto& entry : m_terrainBatchVisuals) destroySectionVisual(entry.second);
+            m_terrainBatchVisuals.clear();
+            m_dirtyTerrainBatches.clear();
         }
 
         bool transitionRenderState(const std::string& key,
@@ -3199,6 +3249,12 @@ namespace
 
         void destroySectionVisual(SectionVisual& visual)
         {
+            if (visual.batchMeshes)
+            {
+                const auto origin = terrainRenderBatchOrigin(visual.location);
+                m_dirtyTerrainBatches[sectionKey(origin)] = origin;
+                visual.batchMeshes.reset();
+            }
             for (auto& renderable : visual.renderables)
             {
                 if (renderable->isAttached())
@@ -3289,6 +3345,16 @@ namespace
                     }
                 }
                 for (const auto& visualEntry : m_sectionVisuals)
+                {
+                    for (const auto& renderable :
+                         visualEntry.second.renderables)
+                    {
+                        stats.terrainBuffers.add(
+                            renderable->vertexCount(),
+                            renderable->indexCount());
+                    }
+                }
+                for (const auto& visualEntry : m_terrainBatchVisuals)
                 {
                     for (const auto& renderable :
                          visualEntry.second.renderables)
@@ -4651,6 +4717,7 @@ namespace
                 destroySectionVisual(entry.second);
             }
             m_sectionVisuals.clear();
+            clearTerrainBatches();
             m_sectionRenderStates.clear();
             m_lastLiveSections.clear();
             destroyDirectionalShadowResources();
@@ -4723,6 +4790,8 @@ namespace
         std::unique_ptr<SandboxRuntime> m_sandbox;
         World* m_world = nullptr;
         std::unordered_map<std::string, SectionVisual> m_sectionVisuals;
+        std::unordered_map<std::string, SectionVisual> m_terrainBatchVisuals;
+        std::unordered_map<std::string, glm::ivec3> m_dirtyTerrainBatches;
         std::unordered_map<std::string, ChunkRenderState>
             m_sectionRenderStates;
         std::vector<glm::ivec3> m_lastLiveSections;
