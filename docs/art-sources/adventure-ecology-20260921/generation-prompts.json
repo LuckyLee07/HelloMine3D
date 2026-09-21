@@ -14,7 +14,22 @@
     "effective_standard_edge": 32,
     "compatibility_edge": 16,
     "leaf_black_key_max_rgb": 12,
-    "other_pixels_alpha": 255
+    "other_pixels_alpha": 255,
+    "source_rows_exclusive_bottom": [
+      [
+        0,
+        361
+      ],
+      [
+        362,
+        713
+      ],
+      [
+        714,
+        1086
+      ]
+    ],
+    "crop_reason": "Authored second row ends at y=713; equal thirds include neighbouring material texels."
   },
   "acceptance": "Source sheet visually inspected; compiled alpha, deterministic rebuild, old slots and mips checked. In-world new ecology review pending."
 }

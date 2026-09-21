@@ -1,0 +1,39 @@
+{
+  "legacy_atlas_texels_unchanged": true,
+  "unchanged_array_layers_all_mips": 244,
+  "snow": {
+    "16": {
+      "min_rgb": 201,
+      "bottom_row_mean": [
+        232.875,
+        238.625,
+        246.25
+      ]
+    },
+    "32": {
+      "min_rgb": 195,
+      "bottom_row_mean": [
+        235.28125,
+        240.75,
+        246.875
+      ]
+    }
+  },
+  "negative_equal_rows_min_rgb": 45,
+  "source_sha256": "9c566473a6afdde477434d873c469fdcde1ad64d8591e10dbd85f5028615ede7",
+  "array_sha256": "5a64490adaddc7deff3e35d87b42486e5980a1f2ef6ffa05c85870586b1dc9cd",
+  "status": "PASS",
+  "scope": "Frozen source crop correction; no terrain changes",
+  "visual": {
+    "directory": "crop-snow-visual-r1",
+    "binary_sha256": "20afebd25ff906437bb3e28a217a800cf265248ca127d6e0c0167e1dc31e15c1",
+    "reviewed_frame": "capture_05000ms.png",
+    "frame_sha256": "b3481dc05e5bdb5c7294e8ee1b167dceb4873fcefa16c8a3e4c71f8fda1bccc6",
+    "normal_input": false
+  },
+  "validation": [
+    "atlas deterministic rebuild and five negative cases",
+    "array 132 slots, 7 mips, cutout coverage",
+    "old layers byte identity and equal-row negative crop"
+  ]
+}
