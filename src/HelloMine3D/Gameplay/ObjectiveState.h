@@ -17,7 +17,15 @@ struct ObjectiveSaveState
 {
     static constexpr int LegacyDefinitionVersion = 1;
     static constexpr int PreviousDefinitionVersion = 2;
-    static constexpr int CurrentDefinitionVersion = 3;
+    static constexpr int ParallelDefinitionVersion = 3;
+    static constexpr int CurrentDefinitionVersion = 4;
+
+    static constexpr bool isLegacyDefinitionVersion(int version) noexcept
+    {
+        return version == LegacyDefinitionVersion ||
+               version == PreviousDefinitionVersion ||
+               version == ParallelDefinitionVersion;
+    }
 
     int definitionVersion = CurrentDefinitionVersion;
     std::vector<std::string> completedIds;

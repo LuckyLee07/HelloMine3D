@@ -393,7 +393,7 @@ text objective.alpha.collect_mob_loot.instruction "Move close to the dropped ite
 text objective.alpha.collect_mob_loot.feedback "Enemy loot collected"
 text objective.alpha.reopen_world.title "Save and continue"
 text objective.alpha.reopen_world.instruction "Pause, save to the main menu, then reopen this world."
-text objective.alpha.reopen_world.feedback "First session complete"
+text objective.alpha.reopen_world.feedback "World saved and resumed"
 text objective.alpha.reach_spawn_marker.title "Reach the Alpha start"
 text objective.alpha.reach_spawn_marker.instruction "Enter the fixed Alpha start area."
 text objective.alpha.reach_spawn_marker.feedback "Alpha start reached"

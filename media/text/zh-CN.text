@@ -393,7 +393,7 @@ text objective.alpha.collect_mob_loot.instruction "靠近掉落物即可将其�
 text objective.alpha.collect_mob_loot.feedback "敌人战利品已收集"
 text objective.alpha.reopen_world.title "保存并继续"
 text objective.alpha.reopen_world.instruction "暂停并保存到主菜单，然后重新打开这个世界。"
-text objective.alpha.reopen_world.feedback "首次游戏流程已完成"
+text objective.alpha.reopen_world.feedback "世界已保存并继续"
 text objective.alpha.reach_spawn_marker.title "到达 Alpha 起点"
 text objective.alpha.reach_spawn_marker.instruction "进入固定的 Alpha 起始区域。"
 text objective.alpha.reach_spawn_marker.feedback "已到达 Alpha 起点"

@@ -1,6 +1,6 @@
 # HelloMine3D objective registry v1
 
-version 3
+version 4
 
 objective alpha.gather_wood
 type break_block
@@ -114,10 +114,10 @@ type reopen_world
 required 1
 prerequisite alpha.collect_mob_loot
 visible 1
-optional 0
+optional 1
 title "Save and continue"
 instruction "Pause, save to the main menu, then reopen this world."
-feedback "First session complete"
+feedback "World saved and resumed"
 end
 
 objective alpha.reach_spawn_marker
@@ -208,7 +208,7 @@ objective progression.craft_furnace
 type craft_item
 target hellomine:furnace
 required 1
-prerequisite alpha.reopen_world
+prerequisite alpha.collect_mob_loot
 visible 1
 optional 0
 title "Build a Furnace"
@@ -268,7 +268,7 @@ objective survival.craft_bread
 type craft_item
 target hellomine:bread
 required 1
-prerequisite progression.craft_iron_sword
+prerequisite alpha.place_workbench
 visible 1
 optional 0
 title "Bake Bread"
@@ -291,7 +291,7 @@ end
 objective combat.defeat_enemies
 type defeat_enemy
 required 3
-prerequisite survival.eat_bread
+prerequisite progression.craft_iron_sword
 visible 1
 optional 0
 title "Clear the Threat"

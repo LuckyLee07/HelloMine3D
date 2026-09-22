@@ -173,10 +173,7 @@ bool validObjectiveState(const WorldSaveData &data,
     if ((definitionVersion !=
              ObjectiveSaveState::CurrentDefinitionVersion &&
          (!allowLegacyDefinition ||
-          (definitionVersion !=
-               ObjectiveSaveState::LegacyDefinitionVersion &&
-           definitionVersion !=
-               ObjectiveSaveState::PreviousDefinitionVersion))) ||
+          !ObjectiveSaveState::isLegacyDefinitionVersion(definitionVersion))) ||
         data.objectiveState.completedIds.size() > MaxStoredObjectives ||
         data.objectiveState.progress.size() > MaxStoredObjectives ||
         ObjectiveState::legacyFlagsFromCompleted(
@@ -729,10 +726,8 @@ bool loadWorldSaveFile(const std::string &path, WorldSaveData &data,
     }
 
     if (loaded.version >= 5 &&
-        (loaded.objectiveState.definitionVersion ==
-             ObjectiveSaveState::LegacyDefinitionVersion ||
-         loaded.objectiveState.definitionVersion ==
-             ObjectiveSaveState::PreviousDefinitionVersion))
+        ObjectiveSaveState::isLegacyDefinitionVersion(
+            loaded.objectiveState.definitionVersion))
     {
         loaded.objectiveState.definitionVersion =
             ObjectiveSaveState::CurrentDefinitionVersion;

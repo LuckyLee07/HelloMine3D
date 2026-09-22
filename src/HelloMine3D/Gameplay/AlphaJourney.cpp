@@ -2,22 +2,6 @@
 
 #include "ObjectiveRegistry.h"
 
-namespace
-{
-    AlphaJourneyStep stepForId(const std::string& id) noexcept
-    {
-        for (std::size_t index = 0;
-             index < ObjectiveState::LegacyAlphaIds.size(); ++index)
-        {
-            if (id == ObjectiveState::LegacyAlphaIds[index])
-            {
-                return static_cast<AlphaJourneyStep>(index);
-            }
-        }
-        return AlphaJourneyStep::Complete;
-    }
-}
-
 AlphaJourney::AlphaJourney(Player& player, SandboxEventBus& eventBus,
                            std::uint32_t persistedFlags,
                            bool restoredWorld)
@@ -44,15 +28,14 @@ AlphaJourneySnapshot AlphaJourney::snapshot() const
 {
     const ObjectiveSnapshot objective = m_objectives.snapshot();
     AlphaJourneySnapshot result;
-    result.step = objective.sessionComplete
-                      ? AlphaJourneyStep::Complete
-                      : stepForId(objective.currentId);
+    result.step = AlphaJourneyStep::Complete;
     result.totalSteps = StepCount;
     const std::uint32_t completedFlags = flags();
     for (std::size_t index = 0; index < StepCount; ++index)
     {
         if ((completedFlags & (1u << static_cast<unsigned>(index))) == 0u)
         {
+            result.step = static_cast<AlphaJourneyStep>(index);
             break;
         }
         ++result.completedSteps;
@@ -61,6 +44,20 @@ AlphaJourneySnapshot AlphaJourney::snapshot() const
     result.required = objective.required;
     result.title = objective.title;
     result.instruction = objective.instruction;
+    // The legacy ten-step view is independent of the active parallel route.
+    // An optional reopen objective still has its original identity and bit.
+    if (result.completedSteps < StepCount)
+    {
+        const auto* definition = runtimeObjectiveRegistry().find(
+            ObjectiveState::LegacyAlphaIds[result.completedSteps]);
+        if (definition != nullptr)
+        {
+            result.progress = m_objectives.progress(definition->id);
+            result.required = definition->required;
+            result.title = definition->title;
+            result.instruction = definition->instruction;
+        }
+    }
     result.completionFeedback = objective.completionFeedback;
     return result;
 }

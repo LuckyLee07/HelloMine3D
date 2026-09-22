@@ -852,5 +852,7 @@ Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先
 `Presentation/HudInteraction` 只保存临时页面；Ogre 输入壳负责捕获切换，进入或离开时清理输入并等待旧鼠标按钮释放。Tab 查看时暂停世界模拟，Esc 先关闭 HUD 再处理普通暂停。物品浮层读取玩家槽位和冻结注册表，点击通过既有 PlayerInputState 选槽，不修改库存数量。详见 [HUD 交互合同](../contracts/hud-interaction-contract-v1.md)。
 
 任务日志通过 `World::getObjectiveSnapshot(true)` 按需取得值快照，AlphaJourney 转发至 ObjectiveSystem；任务可见性、前置、进度仍由冻结定义和保存状态决定。UI 的选择／过滤／追踪均为当前世界临时状态，不进入保存协议。
+冒险前期定义 v4 将重开目标改为可见可选并提前面包教学；存档读取 v1／v2／v3 显式归一，
+Alpha 十位兼容门面独立于通用并行机会，ID／进度／发现集合保持。详见[前期引导合同](../contracts/adventure-onboarding-contract-v1.md)。
 
 区域立体地图使用 `Presentation/TerrainMapView` 对小地图的 `SurfaceMapSample` 值快照进行正交投影；只绘制已知表面和相邻已知列之间的高差墙面，按深度排序并从前到后拾取。共享 65×65 样本、每次 195 列、30 Hz 预算，按样本 revision／视角重建缓存；缩放和平移无需重新采样或生成区块。手势保留按下原点，并应用最终释放位置，兼容渲染帧之间完成的快速拖动。几何、选择、发现地点与页面均为临时表现状态，切世界清理，不影响地形 v19 和存档。

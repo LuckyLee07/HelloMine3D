@@ -1938,7 +1938,7 @@ void caseWaystoneVictoryLoop()
     const ObjectiveDefinition *claimObjective =
         finaleRegistry.find("finale.claim_reward");
     check("N7B/five-ordered-finale-objectives-are-data-driven",
-          finaleRegistry.definitionVersion() == 3 &&
+          finaleRegistry.definitionVersion() == 4 &&
               finaleRegistry.definitions().size() == 34 &&
               finaleRegistry.find("finale.prepare_ritual") != nullptr &&
               finaleRegistry.find("finale.activate_waystone") != nullptr &&
@@ -1980,7 +1980,7 @@ void caseWaystoneVictoryLoop()
     const ObjectiveSnapshot finaleComplete = finaleObjectives.snapshot();
     check("N7B/finale-objectives-filter-actors-and-remain-read-only-guidance",
           wrongActorIgnored && finaleComplete.sessionComplete &&
-              finaleComplete.completedObjectives == 33);
+              finaleComplete.completedObjectives == 32);
 
     setEnv("HELLOMINE3D_SEED", "20260825");
     setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
@@ -9943,7 +9943,7 @@ void caseFoodRecovery()
 
     const std::string objectiveSource =
         "# HelloMine3D objective registry v1\n"
-        "version 3\n"
+        "version 4\n"
         "objective n3.consume_bread\n"
         "type consume_item\n"
         "target hellomine:bread\n"
@@ -11898,7 +11898,7 @@ void caseToolMiningProgression()
               upgraded.find("version 12") != std::string::npos &&
               upgraded.find("alpha_journey_flags 0") !=
                   std::string::npos &&
-              upgraded.find("objective_definition_version 3") !=
+              upgraded.find("objective_definition_version 4") !=
                   std::string::npos &&
               upgraded.find("objective_completed_count 0") !=
                   std::string::npos &&
@@ -12064,6 +12064,115 @@ void caseP11MinimumBuildingAndTools()
 // ---------------------------------------------------------------------------
 // P11C - parallel first-session opportunities and earned recipe knowledge
 // ---------------------------------------------------------------------------
+void caseAdventureProgression()
+{
+    ensureRuntimeObjectiveRegistry();
+    const auto& registry = runtimeObjectiveRegistry();
+    const auto* bread = registry.find("survival.craft_bread");
+    const auto* furnace = registry.find("progression.craft_furnace");
+    const auto* reopen = registry.find("alpha.reopen_world");
+    const auto* combat = registry.find("combat.defeat_enemies");
+    check("ADVENTURE-PROGRESS/food-opens-at-workbench-and-combat-keeps-tool-preparation",
+          bread && bread->prerequisite == "alpha.place_workbench" &&
+          combat && combat->prerequisite == "progression.craft_iron_sword");
+    check("ADVENTURE-PROGRESS/reopen-is-visible-optional-and-no-longer-gates-furnace",
+          reopen && reopen->visible && reopen->optional && furnace &&
+          furnace->prerequisite == "alpha.collect_mob_loot");
+
+    ObjectiveSaveState early;
+    early.completedIds = {"alpha.gather_wood", "alpha.craft_workbench",
+                          "alpha.place_workbench"};
+    Player player;
+    SandboxEventBus bus;
+    ObjectiveSystem food(registry, player, bus, early, 0u, false);
+    bus.publish(CraftCompletedEvent(
+        "hellomine:bread", Material::ID::Bread, 1, 1, {}));
+    check("ADVENTURE-PROGRESS/real-bread-craft-counts-before-iron-tools",
+          food.isCompleted("survival.craft_bread") &&
+          !food.isCompleted("progression.craft_iron_sword"));
+    bus.publish(FoodConsumedEvent(DefaultPlayerActorId,
+                                 Material::ID::Bread, 0.f, 20.f, {}));
+    check("ADVENTURE-PROGRESS/full-health-does-not-fabricate-food-completion",
+          !food.isCompleted("survival.eat_bread"));
+    bus.publish(FoodConsumedEvent(DefaultPlayerActorId,
+                                 Material::ID::Bread, 6.f, 18.f, {}));
+    check("ADVENTURE-PROGRESS/actual-recovery-completes-early-food-teaching",
+          food.isCompleted("survival.eat_bread"));
+
+    ObjectiveSaveState postLoot;
+    for (std::size_t i=0; i+1<ObjectiveState::LegacyAlphaIds.size(); ++i)
+        postLoot.completedIds.emplace_back(ObjectiveState::LegacyAlphaIds[i]);
+    SandboxEventBus progressionBus;
+    ObjectiveSystem progression(registry, player, progressionBus, postLoot, 0u, false);
+    progressionBus.publish(CraftCompletedEvent(
+        "hellomine:furnace", Material::ID::Furnace, 1, 1, {}));
+    check("ADVENTURE-PROGRESS/furnace-progresses-without-a-restart",
+          progression.isCompleted("progression.craft_furnace") &&
+          !progression.isCompleted("alpha.reopen_world"));
+    AlphaJourney legacy(player, progressionBus, postLoot, 0u, false);
+    check("ADVENTURE-PROGRESS/legacy-view-keeps-reopen-step-and-unchanged-bit",
+          legacy.snapshot().step == AlphaJourneyStep::ReopenWorld &&
+          legacy.snapshot().completedSteps == 9 &&
+          legacy.flags() == (ObjectiveState::LegacyAlphaKnownFlags >> 1));
+
+    ObjectiveSaveState finished;
+    for (const auto& definition : registry.definitions())
+        if (!definition.optional) finished.completedIds.push_back(definition.id);
+    SandboxEventBus finishedBus;
+    ObjectiveSystem complete(registry, player, finishedBus, finished, 0u, false);
+    const auto journal = complete.snapshot(true);
+    const auto reopening = std::find_if(journal.journal.begin(), journal.journal.end(),
+        [](const auto& entry) { return entry.id == "alpha.reopen_world"; });
+    check("ADVENTURE-PROGRESS/mainline-finishes-with-optional-reopen-still-in-journal",
+          journal.sessionComplete && journal.completedObjectives == 32 &&
+          reopening != journal.journal.end() && reopening->optional &&
+          reopening->available && !reopening->completed);
+
+    for (int version : {1, 2, 3})
+    {
+        const auto directory = freshSaveDirectory("adventure_objective_v" + std::to_string(version));
+        WorldSaveData source;
+        source.worldId = "adventure-objective-migration";
+        source.worldName = "Adventure objective migration";
+        source.seed = kValidationSeed;
+        source.createdUtc = source.lastPlayedUtc = LegacyWorldTimestampUtc;
+        source.lastBuildIdentity = "validation";
+        source.objectiveState = early;
+        source.objectiveState.completedIds.push_back("future.completed");
+        source.objectiveState.completedIds.push_back(
+            ObjectiveSystem::recipeDiscoveryToken("hellomine:bread"));
+        source.objectiveState.progress = {{"shelter.place_planks", 3}, {"future.partial", 7}};
+        source.alphaJourneyFlags = ObjectiveState::legacyFlagsFromCompleted(source.objectiveState.completedIds);
+        WorldSave save(directory);
+        const bool saved = save.save(source);
+        std::string metadata = readTextFile(save.metadataPath());
+        const std::string currentField = "objective_definition_version 4";
+        const auto at = metadata.find(currentField);
+        bool changed = at != std::string::npos;
+        if (changed) {
+            metadata.replace(at, currentField.size(), "objective_definition_version " + std::to_string(version));
+            std::ofstream output(save.metadataPath(), std::ios::binary | std::ios::trunc);
+            output << metadata;
+            changed = output.good();
+        }
+        WorldSaveData migrated;
+        const bool loaded = changed && save.load(migrated);
+        check("ADVENTURE-PROGRESS/v" + std::to_string(version) + "-history-discovery-progress-migrate",
+              saved && loaded && migrated.objectiveState.definitionVersion == 4 &&
+              migrated.alphaJourneyFlags == source.alphaJourneyFlags &&
+              migrated.objectiveState.completedIds == source.objectiveState.completedIds &&
+              migrated.objectiveState.progress.size() == 2 &&
+              migrated.objectiveState.progress[0].id == "shelter.place_planks" &&
+              migrated.objectiveState.progress[0].value == 3 &&
+              migrated.objectiveState.progress[1].id == "future.partial" &&
+              migrated.objectiveState.progress[1].value == 7 &&
+              migrated.playerState.health == source.playerState.health);
+        check("ADVENTURE-PROGRESS/v" + std::to_string(version) + "-republishes-current-definition",
+              loaded && save.save(migrated) &&
+              readTextFile(save.metadataPath()).find(currentField) != std::string::npos);
+    }
+}
+
 void caseP11CFirstThirtyMinutes()
 {
     ensureRuntimeObjectiveRegistry();
@@ -12104,7 +12213,7 @@ void caseP11CFirstThirtyMinutes()
         check("P11C/new-session-begins-with-one-clear-opportunity",
               initial.currentId == "alpha.gather_wood" &&
                   initial.opportunities.size() == 1 &&
-                  initial.totalObjectives == 33 &&
+                  initial.totalObjectives == 32 &&
                   objectives.recipeDiscoverySnapshot()
                           .discoveredIds.empty());
 
@@ -12231,9 +12340,9 @@ void caseP11CFirstThirtyMinutes()
             ObjectiveSystem objectives(optionalRegistry, player, bus, {}, 0u, false);
             const auto snapshot = objectives.snapshot(true);
             const auto optional = std::find_if(snapshot.journal.begin(), snapshot.journal.end(),
-                [](const auto& entry) { return entry.optional; });
+                [](const auto& entry) { return entry.id == "alpha.reach_spawn_marker"; });
             check("HUD-JOURNAL/visible-optional-does-not-alter-main-count",
-                snapshot.journal.size() == 34 && snapshot.totalObjectives == 33 &&
+                snapshot.journal.size() == 34 && snapshot.totalObjectives == 32 &&
                 optional != snapshot.journal.end() && optional->available && !optional->completed);
         }
     }
@@ -12253,7 +12362,7 @@ void caseP11CFirstThirtyMinutes()
     const bool currentSaved = migrationSave.save(migrationData);
     std::string metadata = readTextFile(migrationSave.metadataPath());
     const std::string currentField =
-        "objective_definition_version 3";
+        "objective_definition_version 4";
     const std::size_t versionPosition = metadata.find(currentField);
     bool downgraded = versionPosition != std::string::npos;
     if (downgraded)
@@ -17238,7 +17347,7 @@ void casePlayableVerticalSlice()
 std::string validObjectiveTestDefinitions()
 {
     return R"(# HelloMine3D objective registry v1
-version 3
+version 4
 objective n1.break_dirt
 type break_block
 target hellomine:dirt
@@ -17349,7 +17458,7 @@ void caseDataDrivenObjectives()
             ? baseRegistry.find("alpha.reach_spawn_marker")
             : nullptr;
     check("N1/base-objective-registry-is-versioned-and-complete",
-          baseLoaded && baseRegistry.definitionVersion() == 3 &&
+          baseLoaded && baseRegistry.definitionVersion() == 4 &&
               baseRegistry.definitions().size() == 34 &&
               baseRegistry.find("alpha.gather_wood") != nullptr &&
               baseRegistry.find("alpha.reopen_world") != nullptr &&
@@ -20420,6 +20529,13 @@ int main()
             caseOreTextures();
             caseP11MinimumBuildingAndTools();
         }
+        else if (focus != nullptr && std::string(focus) == "ADVENTURE_PROGRESS") {
+            caseWorldOutcomeAndLocalizedText();
+            caseDataDrivenObjectives();
+            caseP11CFirstThirtyMinutes();
+            caseFoodRecovery();
+            caseAdventureProgression();
+        }
         else if (focus != nullptr && std::string(focus) == "P11C") {
             caseWorldOutcomeAndLocalizedText();
             caseDataDrivenObjectives();
@@ -20587,6 +20703,7 @@ int main()
         caseToolMiningProgression();
         caseP11MinimumBuildingAndTools();
         caseP11CFirstThirtyMinutes();
+        caseAdventureProgression();
         caseP11DExplorationRewards();
         caseVoxelOakCanopy();
         caseForestEcologyV7();
