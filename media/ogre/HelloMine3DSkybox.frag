@@ -219,6 +219,68 @@ void sampleBoundedCloudLayer(vec3 direction, out float mask,
     colour = mix(cloudShadowColour, cloudLightColour, lightAmount);
 }
 
+// A fixed orbit reference remains well-conditioned at noon and midnight.
+// Coordinates belong to the celestial body, never to the screen or camera.
+vec2 celestialCoordinates(vec3 direction, vec3 bodyDirection, float radius)
+{
+    vec3 right = normalize(cross(vec3(0.0, 0.0, 1.0), bodyDirection));
+    vec3 up = cross(bodyDirection, right);
+    float forward = max(dot(direction, bodyDirection), 0.0001);
+    return vec2(dot(direction, right), dot(direction, up)) / (forward * radius);
+}
+
+float pixelBodyMask(vec2 uv, float alignment, float antialias)
+{
+    vec2 edge = abs(uv);
+    // Cut one square from each corner; retain a readable block silhouette.
+    float boundary = max(max(edge.x, edge.y), min(edge.x, edge.y) + 0.25);
+    return (1.0 - smoothstep(1.0 - antialias, 1.0 + antialias, boundary)) *
+           step(0.0, alignment);
+}
+
+vec3 composePixelCelestials(vec3 colour, vec3 direction)
+{
+    vec3 toSun = normalize(sunDirection);
+    float sunAlignment = dot(direction, toSun);
+    float moonAlignment = -sunAlignment;
+    // Evaluate derivatives before the varying branch. Only the small angular
+    // region containing a disc/halo needs projection and pixel surface work.
+    vec3 angularPixel = fwidth(direction);
+    float antialias = clamp(max(max(angularPixel.x, angularPixel.y), angularPixel.z) /
+                             0.046, 0.001, 0.08);
+    if (sunAlignment <= 0.965 && moonAlignment <= 0.982)
+    {
+        return colour;
+    }
+    vec2 sunUv = celestialCoordinates(direction, toSun, 0.052);
+    vec2 moonUv = celestialCoordinates(direction, -toSun, 0.046);
+    float sunMask = pixelBodyMask(sunUv, sunAlignment, antialias);
+    float moonMask = pixelBodyMask(moonUv, moonAlignment, antialias);
+
+    float sunHalo = smoothstep(0.965, 0.9992, sunAlignment);
+    float moonHalo = smoothstep(0.982, 0.9993, moonAlignment);
+    colour += sunColour * sunIntensity * sunHalo * 0.14;
+    colour += vec3(0.62, 0.72, 0.92) * moonIntensity * moonHalo * 0.08;
+
+    vec2 sunPixel = (floor(sunUv * 8.0) + 0.5) / 8.0;
+    float sunCore = 1.0 - step(0.76, max(abs(sunPixel.x), abs(sunPixel.y)));
+    vec3 sunSurface = sunColour * mix(vec3(0.96, 0.79, 0.54),
+                                      vec3(1.03, 1.01, 0.92), sunCore);
+    colour = mix(colour, sunSurface, sunMask * sunIntensity);
+
+    vec2 moonPixel = (floor(moonUv * 8.0) + 0.5) / 8.0;
+    vec2 firstCrater = abs(moonPixel - vec2(-0.31, 0.25));
+    vec2 secondCrater = abs(moonPixel - vec2(0.37, -0.31));
+    vec2 thirdCrater = abs(moonPixel - vec2(-0.44, -0.50));
+    float craters = max(max(1.0 - step(0.26, max(firstCrater.x, firstCrater.y)),
+                            1.0 - step(0.17, max(secondCrater.x, secondCrater.y))),
+                       1.0 - step(0.10, max(thirdCrater.x, thirdCrater.y)));
+    float moonRim = step(0.77, max(abs(moonPixel.x), abs(moonPixel.y)));
+    vec3 moonSurface = mix(vec3(0.72, 0.80, 0.91), vec3(0.48, 0.59, 0.73),
+                           max(craters * 0.65, moonRim * 0.32));
+    return mix(colour, moonSurface, moonMask * moonIntensity);
+}
+
 void main()
 {
     vec3 direction = normalize(vDirection);
@@ -252,8 +314,18 @@ void main()
         // adding weather simulation, collision or a volumetric ray marcher.
         sampleBoundedCloudLayer(direction, cloudMask, cloudColour);
     }
-    colour = mix(colour, cloudColour, cloudMask);
+    if (cloudLayerEnabled >= 0.5)
+    {
+        // Celestial bodies and their halos are behind the same cloud layer
+        // as the stars. Cloud optical coverage therefore attenuates all three.
+        colour = composePixelCelestials(colour, direction);
+        colour = mix(colour, cloudColour, cloudMask);
+        fragColor = vec4(clamp(colour, vec3(0.0), vec3(1.35)), 1.0);
+        return;
+    }
 
+    // Preserve the complete legacy appearance when atmosphere is disabled.
+    colour = mix(colour, cloudColour, cloudMask);
     float sunAlignment = dot(direction, normalize(sunDirection));
     float sunHalo = smoothstep(0.965, 0.9992, sunAlignment);
     float sunDisc = smoothstep(0.9988, 0.99975, sunAlignment);

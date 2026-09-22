@@ -1,7 +1,7 @@
 // Render the production sky fragment shader; these are diagnostic GPU samples.
 // clang++ -std=c++17 -Wno-deprecated-declarations tools/validate_sky_shader_macos.cpp \
 //   -framework OpenGL -framework CoreGraphics -framework ImageIO -framework CoreFoundation -o /tmp/sky-gpu
-// /tmp/sky-gpu <candidate Skybox.frag> <baseline Skybox.frag> <new output directory>
+// /tmp/sky-gpu <candidate Skybox.frag> <baseline Skybox.frag> <new output directory> [--celestial]
 #include <OpenGL/OpenGL.h>
 #include <OpenGL/gl3.h>
 #include <CoreGraphics/CoreGraphics.h>
@@ -27,8 +27,8 @@ std::string read(const std::filesystem::path& path) {
     require(input.good(), "Missing shader " + path.string());
     return {std::istreambuf_iterator<char>(input), {}};
 }
-GLuint program(const std::string& fragment) {
-    const std::string vertex = R"GLSL(#version 150
+GLuint program(const std::string& fragment, const std::string& customVertex = {}) {
+    const std::string vertex = customVertex.empty() ? R"GLSL(#version 150
 out vec3 vDirection;
 uniform float viewPitch;
 void main() {
@@ -36,7 +36,7 @@ void main() {
         (gl_VertexID == 1 ? vec2(3,-1) : vec2(-1,3));
     gl_Position = vec4(p,0,1);
     vDirection = vec3(p.x * 1.5, p.y * .75 + viewPitch, -1);
-})GLSL";
+})GLSL" : customVertex;
     const GLuint p = glCreateProgram();
     for (const auto& entry : {std::pair<GLenum,const std::string*>{GL_VERTEX_SHADER,&vertex},
                              {GL_FRAGMENT_SHADER,&fragment}}) {
@@ -112,10 +112,78 @@ bool equalRows(const Pixels& a,const Pixels& b,int first,int last) {
     return std::equal(a.begin()+first*Edge*4,a.begin()+last*Edge*4,
                       b.begin()+first*Edge*4);
 }
+
+const std::string CelestialVertex = R"GLSL(#version 150
+out vec3 vDirection;
+uniform vec3 probeDirection;
+void main() {
+    vec2 p = gl_VertexID == 0 ? vec2(-1,-1) :
+        (gl_VertexID == 1 ? vec2(3,-1) : vec2(-1,3));
+    gl_Position = vec4(p,0,1);
+    vec3 right = normalize(cross(vec3(0,0,1), probeDirection));
+    vDirection = probeDirection + 0.14 *
+        (p.x * right + p.y * cross(probeDirection, right));
+})GLSL";
+
+Pixels celestialProbe(GLuint p, bool moon=false, float height=210,
+                      float x=168, bool legacy=false, bool reverse=false,
+                      float noonOffset=2.f) {
+    glUseProgram(p);
+    const auto scalar=[&](const char* key,float value) {
+        glUniform1f(glGetUniformLocation(p,key),value);
+    };
+    const auto vector=[&](const char* key,float x,float y,float z) {
+        glUniform3f(glGetUniformLocation(p,key),x,y,z);
+    };
+    // Equal sky and cloud colours isolate transmission of the real body.
+    for(const char* key : {"skyZenithColour","skyHorizonColour",
+                          "cloudLightColour","cloudShadowColour","fogSunwardColour"})
+        vector(key,.05f,.05f,.05f);
+    float sx=0,sy=.70710678f,sz=-.70710678f;
+    if(noonOffset!=2.f) {sx=noonOffset;sy=1;sz=0;}
+    const float sign=moon?-1.f:1.f;
+    vector("sunDirection",sign*sx,sign*sy,sign*sz);
+    vector("sunColour",1,.92f,.72f);
+    scalar("sunIntensity",moon?0:1);scalar("moonIntensity",moon?1:0);
+    scalar("starIntensity",0);scalar("fogDirectionalStrength",0);
+    scalar("cloudCoverage",1);scalar("cloudLayerEnabled",legacy?0:1);
+    scalar("cloudBaseHeight",168);scalar("cloudThickness",24);
+    scalar("cloudHorizontalScale",92);scalar("cloudMaxDistance",2400);
+    glUniform2f(glGetUniformLocation(p,"cloudVelocity"),1.6f,.55f);
+    vector("cameraPosition",x,height,552);scalar("globalTime",5);scalar("legacyTime",0);
+    float facing=reverse?-1.f:1.f;
+    // A fixed probe through noon catches any discontinuity in the body basis.
+    if(noonOffset!=2.f) {sx=0;sy=1;sz=0;}
+    vector("probeDirection",facing*sx,facing*sy,facing*sz);
+    glDrawArrays(GL_TRIANGLES,0,3);
+    Pixels pixels(Edge*Edge*4);
+    glReadPixels(0,0,Edge,Edge,GL_RGBA,GL_UNSIGNED_BYTE,pixels.data());
+    require(glGetError()==GL_NO_ERROR,"Celestial draw/read failure");
+    return pixels;
+}
+
+double centreLight(const Pixels& image) {
+    double value=0;
+    for(int y=120;y<136;++y) for(int x=120;x<136;++x)
+        for(int c=0;c<3;++c) value+=image[(y*Edge+x)*4+c];
+    return value/(16*16*3);
+}
+double minimumTransmission(GLuint program,bool moon) {
+    const double clear=centreLight(celestialProbe(program,moon))-12.75;
+    double minimum=1;
+    // All predetermined columns contribute; no selection of a new fixture
+    // after inspecting the candidate or weakening the rejection threshold.
+    for(int x=0;x<2048;x+=128) {
+        const double covered=centreLight(celestialProbe(program,moon,108,float(x)))-12.75;
+        minimum=std::min(minimum,covered/clear);
+    }
+    return minimum;
+}
 }
 int main(int argc,char** argv) {
     try {
-        require(argc==4,"Usage: sky-gpu <candidate> <baseline> <new output>");
+        const bool celestial=argc==5&&std::string(argv[4])=="--celestial";
+        require(argc==4||celestial,"Usage: sky-gpu <candidate> <baseline> <new output> [--celestial]");
         const std::filesystem::path output(argv[3]);
         require(!std::filesystem::exists(output),"Output must be new");
         std::filesystem::create_directories(output);
@@ -148,7 +216,8 @@ int main(int argc,char** argv) {
         }
         const auto day=render(current,5);
         const auto old=render(baseline,5);
-        check("bounded-cloud-composition-changes",difference(day,old)>.1);
+        if(celestial) check("cloud-only-composition-preserved",day==old);
+        else check("bounded-cloud-composition-changes",difference(day,old)>.1);
         check("world-space-parallax",difference(day,render(current,5,true,false,108,208))>.1);
         check("cloud-layer-height-parallax",difference(day,render(current,5,true,false,168))>.1);
         check("day-and-night-readable",difference(day,render(current,5,true,true))>20);
@@ -189,6 +258,45 @@ int main(int argc,char** argv) {
             std::cout<<"[SKY_GPU] max-step-60hz="<<maximumStep<<'\n';
         }
         png(output/"day-before.png",old);png(output/"day-after.png",day);
+        if(celestial) {
+            const auto source=read(argv[1]);
+            const GLuint body=program(source,CelestialVertex),oldBody=program(read(argv[2]),CelestialVertex);
+            for(bool moon:{false,true}) {
+                const auto clear=celestialProbe(body,moon),before=celestialProbe(oldBody,moon);
+                png(output/(moon?"moon-clear.png":"sun-clear.png"),clear);
+                png(output/(moon?"moon-before.png":"sun-before.png"),before);
+                check(moon?"moon-redesigned":"sun-redesigned",difference(clear,before)>1);
+                const auto transmission=minimumTransmission(body,moon);
+                std::cout<<"[SKY_GPU] "<<(moon?"moon":"sun")<<" transmission="<<transmission<<'\n';
+                check(moon?"moon-cloud-occlusion":"sun-cloud-occlusion",transmission<.45);
+                check(moon?"old-moon-occlusion-defect-detected":"old-sun-occlusion-defect-detected",
+                      minimumTransmission(oldBody,moon)>.95);
+                check(moon?"legacy-moon-exact":"legacy-sun-exact",
+                      celestialProbe(body,moon,108,168,true)==celestialProbe(oldBody,moon,108,168,true));
+                check(moon?"moon-no-backface":"sun-no-backface",
+                      centreLight(celestialProbe(body,moon,210,168,false,true))<14);
+                check(moon?"moon-zenith-continuity":"sun-zenith-continuity",
+                      difference(celestialProbe(body,moon,210,168,false,false,-.00001f),
+                                 celestialProbe(body,moon,210,168,false,false,.00001f))<.1);
+            }
+            const auto sun=celestialProbe(body),moon=celestialProbe(body,true);
+            // The sun core must retain warm colour instead of saturating white.
+            const int centre=(128*Edge+128)*4;
+            check("sun-warm-readable-core",sun[centre]-sun[centre+2]>30);
+            // Two equal-radius locations: block crater versus plain moon surface.
+            const int left=(139*Edge+115)*4,right=(139*Edge+140)*4;
+            check("moon-pixel-crater-contrast",int(moon[right])-int(moon[left])>15);
+            std::string unoccluded=source;
+            const std::string blend="colour = mix(colour, cloudColour, cloudMask);";
+            const auto start=unoccluded.find("colour = composePixelCelestials(colour, direction);");
+            require(start!=std::string::npos,"Missing production celestial composition");
+            const auto location=unoccluded.find(blend,start);
+            require(location!=std::string::npos,"Missing production cloud composition");
+            unoccluded.replace(location,blend.size(),"colour = colour;");
+            const GLuint broken=program(unoccluded,CelestialVertex);
+            check("removed-cloud-blend-negative-detected",minimumTransmission(broken,false)>.95);
+            glDeleteProgram(broken);glDeleteProgram(body);glDeleteProgram(oldBody);
+        }
         glDeleteProgram(current);glDeleteProgram(baseline);glDeleteRenderbuffers(1,&colour);
         glDeleteFramebuffers(1,&fbo);glDeleteVertexArrays(1,&vao);
         CGLSetCurrentContext(nullptr);CGLDestroyContext(context);

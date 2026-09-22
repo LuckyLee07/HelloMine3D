@@ -674,6 +674,10 @@ Ogre 从复制快照保留驻留 section 的 solid/flora CPU 数据，修改、�
 terrain/actor 接收端共享连续比较滤波语义。切档、切世界及退出随灯清理，不向 World 写回状态，
 不改第三方默认相机；当前参数与范围见[阴影合同](../contracts/directional-shadow-contract-v1.md)。
 
+冒险世界 B1a 的日月像素轮廓由天空 fragment 在天体局部坐标中派生，复用原时间、方向、亮度和
+全部 uniform；默认路径先合成星空／日月，再通过同一云覆盖合成遮挡。FS2 保持原先完整外观，
+不新增世界状态、纹理或渲染目标。云形及地区光色的后续范围见[冒险天空合同](../contracts/adventure-sky-contract-v1.md)。
+
 POSIX Ogre `Timer` 的经过时间使用 `std::chrono::steady_clock`，毫秒/微秒 API 和各实例 reset 语义不变；
 避免系统墙钟校正经 Root 的无符号差值形成巨大帧增量。CPU 时间 API 保持原行为，世界仍按既有 fixed tick
 推进，存档时间戳不受此修改影响。真实长帧由诊断原样记录，不以截断帧耗时掩盖渲染停顿。
