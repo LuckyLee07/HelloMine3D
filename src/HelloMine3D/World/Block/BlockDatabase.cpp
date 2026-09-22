@@ -168,7 +168,8 @@ class WheatCropBlockBehavior final : public BlockBehavior {
         }
         const auto support = static_cast<BlockId>(
             world.getBlock(position.x, position.y - 1, position.z).id);
-        return support == BlockId::Grass || support == BlockId::Dirt;
+        return support == BlockId::Grass || support == BlockId::Dirt ||
+               support == BlockId::ForestFloor || support == BlockId::Silt;
     }
 
     float verticalRenderScale(

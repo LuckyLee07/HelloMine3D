@@ -573,8 +573,8 @@ text map.water "水"
 
 # Adventure guidance uses current inventory and player state.
 text guidance.food.craft "小麦已够：在工作台的一行放 3 个小麦，制作面包。"
-text guidance.food.plant "手持种子在草地或泥土上种植，等小麦成熟后收获；3 个小麦可制作面包。"
-text guidance.food.seeds "采集成熟高草获取种子，在草地或泥土上种植小麦，收获后制作面包。"
+text guidance.food.plant "手持种子在草地、泥土、林床或淤泥上种植，等小麦成熟后收获；3 个小麦可制作面包。"
+text guidance.food.seeds "采集成熟高草获取种子，在草地、泥土、林床或淤泥上种植小麦，收获后制作面包。"
 text guidance.food.reserve "生命已满，先储备面包，受伤后再食用。无需为了完成任务主动受伤。"
 text guidance.food.recover "手持面包，按 {consume} 恢复生命。"
 text guidance.food.cooldown "刚刚进食，等恢复冷却结束后再食用；面包不会因等待而消耗。"

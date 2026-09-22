@@ -48,7 +48,7 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 
 ## 当前批准批次
 
-**2026-09-22 用户明确启动：冒险世界体验升级（Doing，完整 Goal）。** 按 [迭代规划](adventure-experience-plan-2026-09-22.md) 与 [完整 Goal](adventure-experience-goal-prompt-2026-09-22.md) 持续实现：B0 基线 → B1 天空 → B2 前期任务 → B3 动物 → B4 目的地与建造 → B5 地图 → B6 界面 → B7 地下 → B8 玩家 → B9 声音 → B10 整合交付。全部方向均为必做范围，当前已建立独立工作包，进行 B1 天空修正与 B2 前期目标／状态指导；按用户要求减少重复客户端启动，将完整图形矩阵集中验收；进度、失败、真实缺项和恢复入口集中在[唯一执行记录](../reports/adventure-experience-execution-2026-09-22.md)。本顺序取代下文历史目标的恢复顺序，已交付地形与 HUD 保留为基础，不把首批完成当成总 Goal 完成。
+**2026-09-22 用户明确启动：冒险世界体验升级（Doing，完整 Goal）。** 按 [迭代规划](adventure-experience-plan-2026-09-22.md) 与 [完整 Goal](adventure-experience-goal-prompt-2026-09-22.md) 持续实现：B0 基线 → B1 天空 → B2 前期任务 → B3 动物 → B4 目的地与建造 → B5 地图 → B6 界面 → B7 地下 → B8 玩家 → B9 声音 → B10 整合交付。全部方向均为必做范围，当前已建立独立工作包，进行 B1 天空修正与 B2 前期目标／状态指导与危险节奏；按用户要求减少重复客户端启动，将完整图形矩阵集中验收；进度、失败、真实缺项和恢复入口集中在[唯一执行记录](../reports/adventure-experience-execution-2026-09-22.md)。本顺序取代下文历史目标的恢复顺序，已交付地形与 HUD 保留为基础，不把首批完成当成总 Goal 完成。
 
 **2026-09-21 用户批准／2026-09-22 交付：HUD 交互入口 Goal（Done，本轮 HUD 功能）。** 快捷栏真实物品详情、任务日志入口、可交互 3D 区域地图及自由指针输入隔离已实现并分批中文提交。双配置完整世界各 1716、资源各 114、输入各 33、地图各 26 通过，末次名称修正 P11A 各 99 通过；12 次性能对照通过，独立中文客户端约 51 MiB。解锁后已补最终任务卡、地图、返回、切世界和普通菜单重启；工具／食物鼠标详情采用明确标注的隔离测试库存，普通采集及持续输入不冒充通过。见[目标](hud-interaction-goal-prompt-2026-09-22.md)、[合同](../contracts/hud-interaction-contract-v1.md)、[最终复核](../reports/hud-interaction-final-input-2026-09-22.md)和[交付记录](../reports/hud-interaction-delivery-2026-09-22.md)。
 

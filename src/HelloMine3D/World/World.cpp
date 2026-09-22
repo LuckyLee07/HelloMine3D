@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "../Actor/EnemyRegistry.h"
+#include "../Gameplay/NaturalPopulationRules.h"
 #include "../Actor/ItemEntity.h"
 #include "../Actor/MobActor.h"
 #include "../Core/Camera.h"
@@ -2879,12 +2880,10 @@ glm::ivec2 World::naturalMobSpawnOffset(int terrainSeed, int spawnEpoch,
         naturalMobSelection(terrainSeed, spawnEpoch, attempt);
     const std::uint32_t second = naturalMobSelection(
         terrainSeed ^ 0x5bd1e995, spawnEpoch, attempt + 97);
-    int x = static_cast<int>(first % 45u) - 22;
-    int z = static_cast<int>(second % 45u) - 22;
-    if (std::abs(x) < 8 && std::abs(z) < 8) {
-        x += x < 0 ? -8 : 8;
-    }
-    return {x, z};
+    // Integer rounding and the player's fractional cell offset stay inside the local cap.
+    static_assert(NaturalPopulationRules::MaximumCandidateRadius + 1.5f <= NaturalMobLocalRadius,
+                  "Natural spawn ring must fit the local population radius");
+    return NaturalPopulationRules::offset(first, second);
 }
 
 bool World::isNaturalMobType(const std::string &type)
@@ -2955,7 +2954,8 @@ bool World::findSafeNaturalMobPosition(int blockX, int blockZ,
 
 void World::runNaturalMobPopulation(int worldTime)
 {
-    if (m_player == nullptr || worldTime <= 0 ||
+    if (m_player == nullptr || !m_playerActor.isAlive() ||
+        !NaturalPopulationRules::surfaceSpawnTime(worldTime) ||
         worldTime % NaturalMobSpawnIntervalTicks != 0) {
         return;
     }
@@ -3035,6 +3035,19 @@ void World::runNaturalMobPopulation(int worldTime)
                                     spawnEpoch, attempt + 193)) %
                 naturalEnemies.size();
             selectedEnemy = naturalEnemies[typeIndex];
+        }
+        // Respect the actual archetype's awareness range, not just an inner square.
+        if (!NaturalPopulationRules::outsideChaseRange(
+                m_player->position, spawnPosition, selectedEnemy->chaseRadius)) {
+            continue;
+        }
+        const int spawnX = toBlockCoord(spawnPosition.x);
+        const int spawnY = toBlockCoord(spawnPosition.y);
+        const int spawnZ = toBlockCoord(spawnPosition.z);
+        const auto support = static_cast<BlockId>(getBlock(spawnX, spawnY - 1, spawnZ).id);
+        if (support == BlockId::OakLeaf || support == BlockId::OakBark ||
+            getBlockLight(spawnX, spawnY, spawnZ) >= NaturalPopulationRules::BrightBlockLight) {
+            continue;
         }
         const std::string &type = selectedEnemy->type;
 

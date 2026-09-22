@@ -573,8 +573,8 @@ text map.water "Water"
 
 # Adventure guidance uses current inventory and player state.
 text guidance.food.craft "You have enough Wheat: place 3 in one Workbench row to make Bread."
-text guidance.food.plant "Plant your seeds on Grass or Dirt. Harvest mature Wheat; 3 Wheat make Bread."
-text guidance.food.seeds "Gather seeds from mature Tall Grass. Plant on Grass or Dirt, then harvest Wheat for Bread."
+text guidance.food.plant "Plant your seeds on Grass, Dirt, Forest Floor or Silt. Harvest mature Wheat; 3 Wheat make Bread."
+text guidance.food.seeds "Gather seeds from mature Tall Grass. Plant on Grass, Dirt, Forest Floor or Silt, then harvest Wheat for Bread."
 text guidance.food.reserve "Health is full. Keep Bread for later injuries; you do not need to hurt yourself for this task."
 text guidance.food.recover "Hold Bread and press {consume} to restore health."
 text guidance.food.cooldown "Food recovery is cooling down. Wait before eating again; waiting does not consume Bread."

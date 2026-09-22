@@ -49,6 +49,7 @@
 #include "../Diagnostics/RuntimeDebugOptions.h"
 #include "../Diagnostics/TerrainBufferMetrics.h"
 #include "../Gameplay/AlphaJourney.h"
+#include "../Gameplay/NaturalPopulationRules.h"
 #include "../Gameplay/ObjectiveRegistry.h"
 #include "../Gameplay/VictoryFlow.h"
 #include "../Gameplay/WaystoneEncounter.h"
@@ -509,6 +510,13 @@ void caseSimulationPhaseMetrics()
           identityOrdered && initial.metrics.size() == 5);
 
     world.tick(4240);
+    const auto daylight = world.collectDebugStats().simulation;
+    const auto* dayPopulation = findSimulationPhaseMetrics(daylight, WorldSimulationPhase::Population);
+    check("AL-A5/daylight-skips-population-with-budget-identity-intact",
+          dayPopulation && dayPopulation->processed == 0 && dayPopulation->deferred == 0 &&
+          dayPopulation->budget == World::NaturalMobSpawnAttemptsPerCycle &&
+          dayPopulation->budgetScope == SimulationPhaseBudgetScope::PerPopulationCycle);
+    world.tick(NaturalPopulationRules::NightStartTick + 20);
     const WorldSimulationSnapshot cycle =
         world.collectDebugStats().simulation;
     bool elapsedMatches = true;
@@ -567,7 +575,7 @@ void caseSimulationPhaseMetrics()
         population != nullptr ? population->processed : 0;
     const std::size_t cycleBudget =
         population != nullptr ? population->budget : 0;
-    world.tick(4241);
+    world.tick(NaturalPopulationRules::NightStartTick + 21);
     const WorldSimulationSnapshot nextCycle =
         world.collectDebugStats().simulation;
     const SimulationPhaseMetrics *nextPopulation =
@@ -10395,7 +10403,7 @@ void caseDifficultyProfiles()
             result.incomingDamage = playerHealth - world.getPlayerHealth();
         }
         const WorldDebugStats before = world.collectDebugStats();
-        world.tick(20);
+        world.tick(NaturalPopulationRules::NightStartTick + 20);
         const WorldDebugStats after = world.collectDebugStats();
         result.spawnAttempts = after.naturalMobSpawnAttempts -
             before.naturalMobSpawnAttempts;
@@ -15501,6 +15509,7 @@ void caseP11EEnemyPresentationAndResonance()
 // ---------------------------------------------------------------------------
 void caseNaturalMobPopulation()
 {
+    constexpr int Night = NaturalPopulationRules::NightStartTick;
     setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
     setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
     setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
@@ -15511,10 +15520,8 @@ void caseNaturalMobPopulation()
         const glm::ivec2 candidate = World::naturalMobSpawnOffset(
             kValidationSeed, 17, attempt);
         candidatesInRange = candidatesInRange &&
-                            std::abs(candidate.x) <= 22 &&
-                            std::abs(candidate.y) <= 22 &&
-                            (std::abs(candidate.x) >= 8 ||
-                             std::abs(candidate.y) >= 8);
+                            glm::length(glm::vec2(candidate)) >= 23.29f &&
+                            glm::length(glm::vec2(candidate)) <= 30.71f;
         candidates.push_back(candidate);
     }
     check("D3/deterministic-candidates",
@@ -15528,7 +15535,7 @@ void caseNaturalMobPopulation()
     Config config = makeConfig();
     Camera camera(config);
     Player player;
-    World world(camera, config, player, directory, false, 1);
+    World world(camera, config, player, directory, false, 2);
 
     auto prepareSpawnPads = [](World &target, const glm::vec3 &center,
                                int spawnEpoch) {
@@ -15552,7 +15559,7 @@ void caseNaturalMobPopulation()
             target.setBlock(x, groundY + 2, z, BlockId::Air);
         }
     };
-    prepareSpawnPads(world, player.position, 1);
+    prepareSpawnPads(world, player.position, Night / World::NaturalMobSpawnIntervalTicks + 1);
 
     auto naturalSnapshots = [&world]() {
         std::vector<ActorSnapshot> result;
@@ -15564,7 +15571,7 @@ void caseNaturalMobPopulation()
         return result;
     };
 
-    world.tick(World::NaturalMobSpawnIntervalTicks);
+    world.tick(Night + World::NaturalMobSpawnIntervalTicks);
     const std::vector<ActorSnapshot> initial = naturalSnapshots();
     check("D3/live-world-spawns-mobs",
           !initial.empty() &&
@@ -15587,7 +15594,7 @@ void caseNaturalMobPopulation()
     }
     check("D3/safe-ground-and-headroom", safePlacement);
 
-    world.tick(World::NaturalMobSpawnIntervalTicks * 2);
+    world.tick(Night + World::NaturalMobSpawnIntervalTicks * 2);
     const std::vector<ActorSnapshot> localSnapshots = naturalSnapshots();
     const std::size_t localCount = static_cast<std::size_t>(std::count_if(
         localSnapshots.begin(), localSnapshots.end(),
@@ -15609,7 +15616,7 @@ void caseNaturalMobPopulation()
     }
     player.position = {512.f, 90.f, 512.f};
     player.box.update(player.position);
-    world.tick(World::NaturalMobSpawnIntervalTicks * 3);
+    world.tick(Night + World::NaturalMobSpawnIntervalTicks * 3);
     const std::size_t cappedCount = naturalSnapshots().size();
     check("D3/world-cap-enforced",
           cappedCount == World::NaturalMobWorldCap,
@@ -15648,10 +15655,10 @@ void caseNaturalMobPopulation()
     {
         Player savedPlayer;
         World savedWorld(camera, config, savedPlayer, persistenceDirectory,
-                         false, 1);
-        prepareSpawnPads(savedWorld, savedPlayer.position, 1);
-        int tick = 0;
-        while (savedNaturalCount < World::NaturalMobLocalCap && tick < 200) {
+                         false, 2);
+        prepareSpawnPads(savedWorld, savedPlayer.position, Night / World::NaturalMobSpawnIntervalTicks + 1);
+        int tick = Night;
+        while (savedNaturalCount < World::NaturalMobLocalCap && tick < Night + 200) {
             tick += World::NaturalMobSpawnIntervalTicks;
             savedWorld.tick(tick);
             const std::vector<ActorSnapshot> current =
@@ -15692,7 +15699,7 @@ void caseNaturalMobPopulation()
     {
         Player restoredPlayer;
         World restoredWorld(camera, config, restoredPlayer,
-                            persistenceDirectory, false, 1);
+                            persistenceDirectory, false, 2);
         const std::vector<ActorSnapshot> restored =
             restoredWorld.collectActorSnapshots();
         const std::size_t restoredCount = static_cast<std::size_t>(
@@ -17191,6 +17198,7 @@ void caseWheatCropLoop()
 // ---------------------------------------------------------------------------
 void casePlayableVerticalSlice()
 {
+    constexpr int Night = NaturalPopulationRules::NightStartTick;
     setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
     setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
     setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
@@ -17261,7 +17269,7 @@ void casePlayableVerticalSlice()
     int mobLootAfterPickup = 0;
     {
         Player player;
-        World world(camera, config, player, directory, false, 1);
+        World world(camera, config, player, directory, false, 2);
         EventRecorder events(world.getEventBus());
 
         // The only direct world edits in this scenario are deterministic
@@ -17282,7 +17290,7 @@ void casePlayableVerticalSlice()
                 world.setBlock(x, 99, z, BlockId::Stone);
             }
         }
-        prepareSpawnPads(world, player.position, 1);
+        prepareSpawnPads(world, player.position, Night / World::NaturalMobSpawnIntervalTicks + 1);
 
         const bool gatheredSeed = BlockInteractionSystem::breakBlock(
             world, player, glm::vec3(grassPosition) + glm::vec3(0.5f));
@@ -17325,7 +17333,7 @@ void casePlayableVerticalSlice()
                   countPlayer(player, Material::ID::Wheat) == 0);
         ChestContainer::close(player);
 
-        world.tick(World::NaturalMobSpawnIntervalTicks);
+        world.tick(Night + World::NaturalMobSpawnIntervalTicks);
         const std::vector<ActorSnapshot> encountered =
             world.collectActorSnapshots();
         const auto naturalMob = std::min_element(
@@ -17373,9 +17381,9 @@ void casePlayableVerticalSlice()
         }
         const bool firstHit = foundNaturalMob &&
                               world.attackActor(defeatedMobId);
-        int combatTick = World::NaturalMobSpawnIntervalTicks;
+        int combatTick = Night + World::NaturalMobSpawnIntervalTicks;
         bool mobReachedPlayer = false;
-        while (firstHit && combatTick < 200 && !mobReachedPlayer) {
+        while (firstHit && combatTick < Night + 200 && !mobReachedPlayer) {
             world.tick(++combatTick);
             const Actor *target =
                 world.getActorManager().findActor(defeatedMobId);
@@ -17472,7 +17480,7 @@ void casePlayableVerticalSlice()
     {
         Player restoredPlayer;
         World restoredWorld(camera, config, restoredPlayer, directory,
-                            false, 1);
+                            false, 2);
         const ChunkBlock restoredCrop = restoredWorld.getBlock(
             cropPosition.x, cropPosition.y, cropPosition.z);
         const bool opened = ChestContainer::open(
@@ -17830,6 +17838,7 @@ void caseDataDrivenObjectives()
 // ---------------------------------------------------------------------------
 void casePlayableAlphaJourney()
 {
+    constexpr int Night = NaturalPopulationRules::NightStartTick;
     setEnv("HELLOMINE3D_SEED", "");
     setEnv("HELLOMINE3D_PLAYER_POSITION", "8 100 8");
     setEnv("HELLOMINE3D_PLAYER_ROTATION", "0 0 0");
@@ -17944,7 +17953,7 @@ void casePlayableAlphaJourney()
     ActorId defeatedMobId = InvalidActorId;
     {
         Player player;
-        World world(camera, config, player, opened.directoryPath, false, 1);
+        World world(camera, config, player, opened.directoryPath, false, 2);
         const AlphaJourneySnapshot initial =
             world.getAlphaJourneySnapshot();
         check("G6/clean-world-starts-with-minimal-wood-guidance",
@@ -17969,7 +17978,7 @@ void casePlayableAlphaJourney()
         }
         world.setBlock(ironPosition.x, ironPosition.y, ironPosition.z,
                        BlockId::IronOre);
-        prepareSpawnPads(world, player.position, 1);
+        prepareSpawnPads(world, player.position, Night / World::NaturalMobSpawnIntervalTicks + 1);
 
         bool gatheredWood = true;
         for (const glm::ivec3 &position : oakPositions) {
@@ -18077,7 +18086,7 @@ void casePlayableAlphaJourney()
                   world.getAlphaJourneySnapshot().step ==
                       AlphaJourneyStep::DefeatMob);
 
-        world.tick(World::NaturalMobSpawnIntervalTicks);
+        world.tick(Night + World::NaturalMobSpawnIntervalTicks);
         const std::vector<ActorSnapshot> encountered =
             world.collectActorSnapshots();
         const auto naturalMob = std::min_element(
@@ -18127,9 +18136,9 @@ void casePlayableAlphaJourney()
                               world.attackActor(
                                   defeatedMobId,
                                   World::PlayerAttackDamage);
-        int combatTick = World::NaturalMobSpawnIntervalTicks;
+        int combatTick = Night + World::NaturalMobSpawnIntervalTicks;
         bool mobReachedPlayer = false;
-        while (firstHit && combatTick < 200 && !mobReachedPlayer) {
+        while (firstHit && combatTick < Night + 200 && !mobReachedPlayer) {
             world.tick(++combatTick);
             const Actor *target =
                 world.getActorManager().findActor(defeatedMobId);
@@ -18221,7 +18230,7 @@ void casePlayableAlphaJourney()
     World restoredWorld(camera, config, restoredPlayer,
                         reopened.succeeded() ? reopened.directoryPath
                                              : opened.directoryPath,
-                        false, 1);
+                        false, 2);
     const AlphaJourneySnapshot restoredJourney =
         restoredWorld.getAlphaJourneySnapshot();
     const int restoredStoneSlot =
@@ -20420,6 +20429,7 @@ void caseWorldManager()
 #include "AdventureMaterialSmokeCases.h"
 #include "AdventureEcologySmokeCases.h"
 #include "AdventureExplorationSmokeCases.h"
+#include "AdventureSurvivalSmokeCases.h"
 
 int main()
 {
@@ -20684,6 +20694,16 @@ int main()
             caseOreTextures();
             caseP11MinimumBuildingAndTools();
         }
+        else if (focus != nullptr && std::string(focus) == "ADVENTURE_SURVIVAL") {
+            caseAdventureSurvival();
+            caseSimulationPhaseMetrics();
+            caseNaturalMobPopulation();
+            caseWheatCropLoop();
+            casePlayableVerticalSlice();
+            casePlayableAlphaJourney();
+            caseDifficultyProfiles();
+            caseFoodRecovery();
+        }
         else if (focus != nullptr && std::string(focus) == "ADVENTURE_PROGRESS") {
             caseWorldOutcomeAndLocalizedText();
             caseDataDrivenObjectives();
@@ -20861,6 +20881,7 @@ int main()
         caseP11CFirstThirtyMinutes();
         caseAdventureProgression();
         caseAdventureGuidance();
+        caseAdventureSurvival();
         caseP11DExplorationRewards();
         caseVoxelOakCanopy();
         caseForestEcologyV7();
