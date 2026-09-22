@@ -60,31 +60,37 @@ float cloudNoise(vec2 value)
     return result;
 }
 
-// Value and analytic horizontal slope share the same four lattice samples.
-// This gives the bounded clouds rounded lighting without extra noise lookups
-// or screen-space derivatives, which would vary with camera/resolution.
-vec3 cloudNoiseSlopeOctave(vec2 value)
+// Interpolate occupied cloud cells, not warped noise coordinates. Four
+// shared coarse lattice values define all four fine-cell corners. This keeps
+// real, bounded edge coverage without false slivers or nearest-cell popping.
+vec4 cloudCellSample(vec2 value, float threshold)
 {
-    vec2 cell = floor(value);
+    vec2 coarse = floor(value);
+    vec2 fine = fract(value) * 12.0;
+    vec2 low = floor(fine) / 12.0;
+    vec2 high = low + vec2(1.0 / 12.0);
+    low = low * low * (3.0 - 2.0 * low);
+    high = high * high * (3.0 - 2.0 * high);
+    float a = hash21(coarse);
+    float b = hash21(coarse + vec2(1.0, 0.0));
+    float c = hash21(coarse + vec2(0.0, 1.0));
+    float d = hash21(coarse + vec2(1.0, 1.0));
+    vec2 lowRow = vec2(mix(a, b, low.x), mix(c, d, low.x));
+    vec2 highRow = vec2(mix(a, b, high.x), mix(c, d, high.x));
+    vec4 corners = vec4(mix(lowRow.x, lowRow.y, low.y),
+                        mix(highRow.x, highRow.y, low.y),
+                        mix(lowRow.x, lowRow.y, high.y),
+                        mix(highRow.x, highRow.y, high.y));
+    vec4 occupied = step(vec4(threshold), corners);
+    vec2 edge = smoothstep(0.45, 0.55, fract(fine));
+    float coverage = mix(mix(occupied.x, occupied.y, edge.x),
+                         mix(occupied.z, occupied.w, edge.x), edge.y);
     vec2 part = fract(value);
     vec2 blend = part * part * (3.0 - 2.0 * part);
     vec2 slope = 6.0 * part * (1.0 - part);
-    float a = hash21(cell);
-    float b = hash21(cell + vec2(1.0, 0.0));
-    float c = hash21(cell + vec2(0.0, 1.0));
-    float d = hash21(cell + vec2(1.0, 1.0));
-    return vec3(mix(mix(a, b, blend.x), mix(c, d, blend.x), blend.y),
+    return vec4(coverage, mix(mix(a, b, blend.x), mix(c, d, blend.x), blend.y),
                 mix(b - a, d - c, blend.y) * slope.x,
                 mix(c - a, d - b, blend.x) * slope.y);
-}
-
-vec3 cloudNoiseSlope(vec2 value)
-{
-    vec3 low = cloudNoiseSlopeOctave(value);
-    vec3 middle = cloudNoiseSlopeOctave(value * 2.03 + 19.7);
-    vec3 high = cloudNoiseSlopeOctave(value * 4.07 - 7.3);
-    return low * 0.58 + middle * vec3(0.28, 0.28 * 2.03, 0.28 * 2.03) +
-           high * vec3(0.14, 0.14 * 4.07, 0.14 * 4.07);
 }
 
 vec3 directionalFogColour(vec3 viewDirection)
@@ -176,16 +182,17 @@ void sampleBoundedCloudLayer(vec3 direction, out float mask,
     vec2 secondUv = (cameraPosition.xz +
                      direction.xz * secondDistance + motion) /
                     max(cloudHorizontalScale, 1.0);
-    vec3 firstSample = cloudNoiseSlope(firstUv);
-    vec3 secondSample = cloudNoiseSlope(secondUv + vec2(0.31, -0.17));
-    // Blend two slab samples instead of taking their union: disconnected
-    // cloud groups retain clear sky between them, without extra noise octaves.
-    vec3 cloudSample = mix(firstSample, secondSample, 0.32);
-    float density = cloudSample.x;
-    float threshold = mix(0.70, 0.48, cloudCoverage);
-    float body = smoothstep(threshold + 0.015,
-                            threshold + 0.20, density);
-    float edge = smoothstep(threshold, threshold + 0.065, density);
+    float threshold = mix(0.74, 0.53, cloudCoverage);
+    vec4 firstSample = cloudCellSample(firstUv, threshold);
+    vec4 secondSample = cloudCellSample(secondUv, threshold);
+    vec3 cloudSample = mix(firstSample.yzw, secondSample.yzw, 0.32);
+    float density = max(firstSample.y, secondSample.y);
+    float body = smoothstep(threshold + 0.02,
+                            threshold + 0.22, density);
+    float entryEdge = firstSample.x;
+    float exitEdge = secondSample.x;
+    float edge = max(entryEdge, exitEdge);
+    float sideAmount = (1.0 - entryEdge) * exitEdge;
     float distanceFade = 1.0 - smoothstep(
         cloudMaxDistance * 0.72, cloudMaxDistance,
         cameraInside ? 0.0 : nearDistance);
@@ -213,8 +220,8 @@ void sampleBoundedCloudLayer(vec3 direction, out float mask,
     float topLighting = mix(0.32, 0.72,
                              smoothstep(bottom, top, cameraPosition.y));
     float lightAmount = clamp(
-        topLighting + directionalLight * 0.24 + (1.0 - body) * 0.24 -
-        body * 0.18 - opticalDepth * 0.025,
+        topLighting + directionalLight * 0.22 + (1.0 - body) * 0.16 +
+        sideAmount * 0.30 - body * 0.12 - opticalDepth * 0.025,
         0.12, 1.0);
     colour = mix(cloudShadowColour, cloudLightColour, lightAmount);
 }

@@ -1,7 +1,7 @@
 // Render the production sky fragment shader; these are diagnostic GPU samples.
 // clang++ -std=c++17 -Wno-deprecated-declarations tools/validate_sky_shader_macos.cpp \
 //   -framework OpenGL -framework CoreGraphics -framework ImageIO -framework CoreFoundation -o /tmp/sky-gpu
-// /tmp/sky-gpu <candidate Skybox.frag> <baseline Skybox.frag> <new output directory> [--celestial]
+// /tmp/sky-gpu <candidate Skybox.frag> <baseline Skybox.frag> <new output directory> [--celestial|--cloud-form]
 #include <OpenGL/OpenGL.h>
 #include <OpenGL/gl3.h>
 #include <CoreGraphics/CoreGraphics.h>
@@ -58,7 +58,7 @@ void main() {
 Pixels render(GLuint p, float time, bool enabled=true, bool night=false,
               float height=108, float x=168, float lightX=0,
               bool cloudLightingProbe=false, float lightBalance=-1,
-              float viewPitch=.4f) {
+              float viewPitch=.4f, float z=552) {
     glUseProgram(p);
     const auto scalar=[&](const char* key,float value) {
         glUniform1f(glGetUniformLocation(p,key),value);
@@ -81,7 +81,7 @@ Pixels render(GLuint p, float time, bool enabled=true, bool night=false,
     scalar("cloudCoverage",.44f); scalar("cloudLayerEnabled",enabled?1:0);
     scalar("cloudBaseHeight",168); scalar("cloudThickness",24); scalar("cloudHorizontalScale",92);
     glUniform2f(glGetUniformLocation(p,"cloudVelocity"),1.6f,.55f);
-    scalar("cloudMaxDistance",2400); vector("cameraPosition",x,height,552);
+    scalar("cloudMaxDistance",2400); vector("cameraPosition",x,height,z);
     scalar("globalTime",time); scalar("legacyTime",std::fmod(time,1.f));
     glDrawArrays(GL_TRIANGLES,0,3);
     Pixels result(Edge*Edge*4);
@@ -182,8 +182,9 @@ double minimumTransmission(GLuint program,bool moon) {
 }
 int main(int argc,char** argv) {
     try {
-        const bool celestial=argc==5&&std::string(argv[4])=="--celestial";
-        require(argc==4||celestial,"Usage: sky-gpu <candidate> <baseline> <new output> [--celestial]");
+        const bool cloudForm=argc==5&&std::string(argv[4])=="--cloud-form";
+        const bool celestial=argc==5&&(std::string(argv[4])=="--celestial"||cloudForm);
+        require(argc==4||celestial,"Usage: sky-gpu <candidate> <baseline> <new output> [--celestial|--cloud-form]");
         const std::filesystem::path output(argv[3]);
         require(!std::filesystem::exists(output),"Output must be new");
         std::filesystem::create_directories(output);
@@ -216,7 +217,7 @@ int main(int argc,char** argv) {
         }
         const auto day=render(current,5);
         const auto old=render(baseline,5);
-        if(celestial) check("cloud-only-composition-preserved",day==old);
+        if(celestial&&!cloudForm) check("cloud-only-composition-preserved",day==old);
         else check("bounded-cloud-composition-changes",difference(day,old)>.1);
         check("world-space-parallax",difference(day,render(current,5,true,false,108,208))>.1);
         check("cloud-layer-height-parallax",difference(day,render(current,5,true,false,168))>.1);
@@ -296,6 +297,51 @@ int main(int argc,char** argv) {
             const GLuint broken=program(unoccluded,CelestialVertex);
             check("removed-cloud-blend-negative-detected",minimumTransmission(broken,false)>.95);
             glDeleteProgram(broken);glDeleteProgram(body);glDeleteProgram(oldBody);
+        }
+        if(cloudForm) {
+            const auto maskShader=[](std::string source) {
+                const auto main=source.find("void main()");
+                require(main!=std::string::npos,"Missing sky entry point");
+                source.replace(main,11,"void unusedMain()");
+                return source+R"GLSL(
+void main() {
+    float mask; vec3 colour;
+    sampleBoundedCloudLayer(normalize(vDirection),mask,colour);
+    fragColor=vec4(vec3(mask),1);
+})GLSL";
+            };
+            const auto cloud=program(maskShader(read(argv[1])));
+            const auto oldCloud=program(maskShader(read(argv[2])));
+            const auto currentMask=render(cloud,5),oldMask=render(oldCloud,5);
+            const auto fractions=[](const Pixels& p) {
+                double filled=0,transition=0;
+                for(std::size_t i=0;i<p.size();i+=4) {
+                    filled+=p[i]>8;transition+=p[i]>24&&p[i]<160;
+                }
+                return std::pair<double,double>{filled/(Edge*Edge),transition/(Edge*Edge)};
+            };
+            const auto shape=fractions(currentMask),before=fractions(oldMask);
+            std::cout<<"[SKY_GPU] cloud-filled="<<shape.first
+                     <<" transition="<<shape.second<<" old-transition="<<before.second<<'\n';
+            check("cloud-groups-leave-clear-sky",shape.first>.02&&shape.first<.60);
+            check("cloud-boundaries-defined",shape.second<before.second*.80);
+            check("world-wind-advection-invariant",
+                  difference(currentMask,render(cloud,10,true,false,108,160,0,false,-1,.4f,549.25f))<.01);
+            check("negative-coordinate-wind-advection-invariant",
+                  difference(render(cloud,5,true,false,108,-168,0,false,-1,.4f,-552),
+                             render(cloud,10,true,false,108,-176,0,false,-1,.4f,-554.75f))<.01);
+            auto stationarySource=maskShader(read(argv[1]));
+            const std::string motion="vec2 motion = cloudVelocity * globalTime;";
+            const auto motionAt=stationarySource.find(motion);
+            require(motionAt!=std::string::npos,"Missing world cloud advection");
+            stationarySource.replace(motionAt,motion.size(),"vec2 motion = vec2(0.0);");
+            const auto stationary=program(stationarySource);
+            check("stationary-cloud-negative-detected",
+                  difference(render(stationary,5),
+                             render(stationary,10,true,false,108,160,0,false,-1,.4f,549.25f))>.10);
+            png(output/"cloud-mask-before.png",oldMask);
+            png(output/"cloud-mask-after.png",currentMask);
+            glDeleteProgram(cloud);glDeleteProgram(oldCloud);glDeleteProgram(stationary);
         }
         glDeleteProgram(current);glDeleteProgram(baseline);glDeleteRenderbuffers(1,&colour);
         glDeleteFramebuffers(1,&fbo);glDeleteVertexArrays(1,&vao);

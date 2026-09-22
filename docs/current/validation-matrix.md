@@ -55,6 +55,7 @@ AI 平台对应规则见 [当前验收规范](ai-assisted-gameplay-acceptance-v1
 | 同列 section 合并绘制 | `RENDER_BATCH` 双配置聚焦：全部属性／世界坐标／索引保持、负坐标与整数极值、非法和空数据、替换／移除、透明／多 pass／自定义程序回退；完整 WorldRuntime、双配置客户端、真实改块／水岸／林地／雪山／阴影及兼容路径多帧，三轮静止与流送性能。合并不改变实际几何量，驻留对象数不能当作 draw 次数。 |
 | 雾、天空、云、阴影或后处理 | shader 正反例、关闭回退、固定昼夜截图、窗口缩放/切世界清理、各图形档性能和 AI/开发者视觉检查；动态项必须用多帧、视频或连续窗口。 |
 | 冒险天空日月与遮挡 | `tools/validate_sky_shader_macos.cpp` 文件头构建后以 `<候选 shader> <冻结旧 shader> <新输出目录> --celestial` 执行生产 GPU：日月特征、背面、正午连续、云遮挡、旧版及移除遮挡负例、FS2 逐像素保持及既有云动态；双配置资源检查、FOV 90／120 昼夜实景、三档各三对性能。B1a 不关闭后续云形／区域氛围／阴影范围，见[冒险天空合同](../contracts/adventure-sky-contract-v1.md)。 |
+| 冒险天空云团 | 同一 GPU 工具以 `--cloud-form` 检查 B1b 云形变化、清晰边缘与留白、正负坐标风移不变性及停止风移负例；保留日月／遮挡、60 Hz 漂移、云层穿越和 FS2 原版回退检查。林地／海岸／雪山、两 FOV 日月、连续诊断和适用三对性能，普通输入另记。 |
 | 阴影稳定性 | `bash scripts/verify_directional_shadow.sh Debug` / `Release` 检查正午参考轴、光源平面纹素锚定与负坐标；生产滤波 `tools/validate_shadow_filter_macos.cpp` 的 GPU 连续性/遮挡/回退和旧版负例，完整 terrain/actor shader 回归、资源接口陈旧覆盖负例、客户端双配置、昼夜/移动多帧与各受影响图形档三轮性能。有限采样不声明全部场景零闪烁。 |
 | 构建图或平台代码 | 当前批准平台的工程生成和受影响目标编译；macOS 只有被当批列入范围时才要求新原生证据。 |
 | POSIX 渲染计时 | `bash scripts/verify_posix_timer.sh Debug` / `Release` 以实际 Timer 源码隔离注入墙钟回拨、前跳和暂停；不改系统时间。重建受影响 Ogre 依赖及客户端，再核查隐藏客户端的真实帧增量、模拟 tick 和正常配置恢复；短采样不代替三轮性能门槛。 |
