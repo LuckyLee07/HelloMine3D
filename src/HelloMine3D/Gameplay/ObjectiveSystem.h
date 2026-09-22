@@ -13,12 +13,22 @@ class Player;
 struct SandboxEvent;
 class SandboxEventBus;
 
+// Derived guidance inputs; never persisted and never grant gameplay authority.
+struct ObjectiveGuidanceContext
+{
+    float health = 0.f;
+    float maxHealth = 0.f;
+    int foodCooldownTicks = 0;
+    bool prepareForDark = false;
+};
+
 struct ObjectiveOpportunitySnapshot
 {
     std::string id;
     std::string track;
     std::string title;
     std::string instruction;
+    std::string guidanceKey;
     int progress = 0;
     int required = 0;
 };
@@ -45,6 +55,7 @@ struct ObjectiveSnapshot
     std::string nextId;
     std::string title;
     std::string instruction;
+    std::string guidanceKey;
     std::string nextTitle;
     std::string completionFeedback;
     std::string completionFeedbackId;
@@ -75,7 +86,8 @@ class ObjectiveSystem
     ObjectiveSystem& operator=(const ObjectiveSystem&) = delete;
 
     void update(float deltaSeconds);
-    ObjectiveSnapshot snapshot(bool includeJournal = false) const;
+    ObjectiveSnapshot snapshot(bool includeJournal = false,
+        const ObjectiveGuidanceContext& guidance = {}) const;
     ObjectiveSaveState saveState() const;
     std::uint32_t legacyAlphaFlags() const noexcept;
     bool isCompleted(const std::string& id) const noexcept;
@@ -96,7 +108,6 @@ class ObjectiveSystem
     ObjectiveOpportunitySnapshot makeOpportunity(
         const ObjectiveDefinition& definition) const;
     int inventoryCount(Material::ID materialId) const noexcept;
-    const ObjectiveDefinition* currentDefinition() const noexcept;
 
     const ObjectiveRegistry* m_registry = nullptr;
     Player* m_player = nullptr;

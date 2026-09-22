@@ -14,6 +14,9 @@ namespace LocalizedPresentation
                               const std::string& objectiveId,
                               const char* field,
                               const std::string& fallback = {});
+    std::string objectiveInstruction(const std::string& locale,
+        const std::string& objectiveId, const std::string& fallback,
+        const std::string& guidanceKey, const std::string& consumeBinding);
     std::string audioCaption(const std::string& locale,
                              const std::string& cueId,
                              const std::string& fallback = {});

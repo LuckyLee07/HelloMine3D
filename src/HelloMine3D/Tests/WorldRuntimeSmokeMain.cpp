@@ -1573,7 +1573,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 564 &&
+              registry.keys("en-US").size() == 582 &&
               registry.lookup("zh-CN", "hud.pointer_show") == "显示鼠标" &&
               registry.lookup("en-US", "item.durability") == "Durability" &&
               registry.lookup("en-US", "hud.region_river") == "River" &&
@@ -12173,6 +12173,161 @@ void caseAdventureProgression()
     }
 }
 
+void caseAdventureGuidance()
+{
+    ensureRuntimeObjectiveRegistry();
+    ensureRuntimeLocalizedTextRegistry();
+    const auto& registry = runtimeObjectiveRegistry();
+    ObjectiveSaveState early;
+    early.completedIds = {"alpha.gather_wood", "alpha.craft_workbench", "alpha.place_workbench"};
+    ObjectiveGuidanceContext healthy{20.f, 20.f, 0, false};
+    ObjectiveGuidanceContext hurt{10.f, 20.f, 0, false};
+    const auto view = [&](const ObjectiveSaveState& state,
+                          std::initializer_list<std::pair<Material::ID, int>> inventory,
+                          const ObjectiveGuidanceContext& context) {
+        Player player;
+        for (const auto& item : inventory) player.addItem(Material::toMaterial(item.first), item.second);
+        SandboxEventBus bus;
+        ObjectiveSystem objectives(registry, player, bus, state, 0u, false);
+        return objectives.snapshot(true, context);
+    };
+    const auto entry = [](const ObjectiveSnapshot& snapshot, const std::string& id) -> const ObjectiveJournalEntry* {
+        for (const auto& value : snapshot.journal) if (value.id == id) return &value;
+        return nullptr;
+    };
+    const auto hint = [&](const ObjectiveSnapshot& snapshot, const std::string& id) {
+        const auto* value = entry(snapshot, id);
+        return value ? value->guidanceKey : std::string{};
+    };
+    const auto initial = view({}, {}, healthy);
+    check("ADVENTURE-GUIDANCE/locked-food-does-not-pretend-to-be-actionable",
+          initial.currentId == "alpha.gather_wood" && initial.opportunities.size() == 1 &&
+          hint(initial, "survival.craft_bread").empty());
+    const auto empty = view(early, {}, healthy);
+    check("ADVENTURE-GUIDANCE/food-is-visible-before-iron-and-shows-real-seed-route",
+          empty.currentId == "survival.craft_bread" && empty.opportunities.size() == 3 &&
+          empty.guidanceKey == "guidance.food.seeds");
+    check("ADVENTURE-GUIDANCE/seeds-offer-planting-not-fabricated-wheat",
+          hint(view(early, {{Material::ID::WheatSeeds, 1}}, healthy), "survival.craft_bread") == "guidance.food.plant");
+    check("ADVENTURE-GUIDANCE/three-wheat-offer-actionable-recipe",
+          hint(view(early, {{Material::ID::Wheat, 3}}, healthy), "survival.craft_bread") == "guidance.food.craft" &&
+          hint(view(early, {{Material::ID::Wheat, 2}}, healthy), "survival.craft_bread") != "guidance.food.craft");
+    auto foodReady = early;
+    foodReady.completedIds.push_back("survival.craft_bread");
+    const auto reserve = view(foodReady, {{Material::ID::Bread, 1}}, healthy);
+    check("ADVENTURE-GUIDANCE/full-health-prepares-food-without-requesting-damage",
+          reserve.currentId != "survival.eat_bread" &&
+          hint(reserve, "survival.eat_bread") == "guidance.food.reserve" &&
+          !entry(reserve, "survival.eat_bread")->completed &&
+          hint(reserve, "survival.craft_bread").empty());
+    const auto recover = view(foodReady, {{Material::ID::Bread, 1}}, hurt);
+    check("ADVENTURE-GUIDANCE/injury-with-bread-prioritizes-real-recovery",
+          recover.currentId == "survival.eat_bread" && recover.guidanceKey == "guidance.food.recover");
+    auto cooldown = hurt; cooldown.foodCooldownTicks = 10;
+    check("ADVENTURE-GUIDANCE/cooldown-does-not-prompt-immediate-consumption",
+          hint(view(foodReady, {{Material::ID::Bread, 1}}, cooldown), "survival.eat_bread") == "guidance.food.cooldown");
+    check("ADVENTURE-GUIDANCE/no-bread-returns-to-food-supply",
+          hint(view(foodReady, {}, hurt), "survival.eat_bread") == "guidance.food.seeds");
+    auto dead = hurt; dead.health = 0.f;
+    auto invalid = hurt; invalid.health = std::numeric_limits<float>::quiet_NaN();
+    check("ADVENTURE-GUIDANCE/death-and-unavailable-health-never-offer-healing",
+          hint(view(foodReady, {{Material::ID::Bread, 1}}, dead), "survival.eat_bread") == "guidance.food.respawn" &&
+          hint(view(foodReady, {{Material::ID::Bread, 1}}, invalid), "survival.eat_bread").empty());
+    auto dark = healthy; dark.prepareForDark = true;
+    const auto dusk = view(early, {}, dark);
+    check("ADVENTURE-GUIDANCE/dusk-promotes-shelter-and-light-with-bounded-opportunities",
+          dusk.currentId == "shelter.craft_planks" && dusk.opportunities.size() == 3 &&
+          dusk.opportunities[1].id == "exploration.find_coal" &&
+          hint(dusk, "shelter.craft_planks") == "guidance.shelter.wood");
+    auto coalFound = early; coalFound.completedIds.push_back("exploration.find_coal");
+    const auto readyLight = view(coalFound, {{Material::ID::CoalOre, 1}, {Material::ID::OakBark, 1}}, dark);
+    check("ADVENTURE-GUIDANCE/light-advice-checks-current-materials-not-past-pickup",
+          readyLight.currentId == "exploration.craft_torches" && readyLight.guidanceKey == "guidance.light.craft" &&
+          hint(view(coalFound, {}, dark), "exploration.craft_torches") == "guidance.light.coal" &&
+          hint(view(coalFound, {{Material::ID::CoalOre, 1}}, dark), "exploration.craft_torches") == "guidance.light.wood");
+    check("ADVENTURE-GUIDANCE/carried-torches-remove-urgent-light-priority",
+          view(coalFound, {{Material::ID::Torch, 4}}, dark).currentId == "shelter.craft_planks");
+    auto built = early;
+    built.completedIds.insert(built.completedIds.end(), {"shelter.craft_planks", "shelter.place_planks"});
+    check("ADVENTURE-GUIDANCE/door-advice-needs-six-current-planks",
+          hint(view(built, {{Material::ID::OakPlank, 6}}, dark), "shelter.craft_door") == "guidance.shelter.door" &&
+          hint(view(built, {{Material::ID::OakPlank, 5}}, dark), "shelter.craft_door") == "guidance.shelter.door_materials");
+    built.completedIds.push_back("shelter.craft_door");
+    check("ADVENTURE-GUIDANCE/missing-door-does-not-claim-it-is-carried",
+          hint(view(built, {}, dark), "shelter.place_door") == "guidance.shelter.replace_door" &&
+          hint(view(built, {{Material::ID::OakDoor, 1}}, dark), "shelter.place_door") == "guidance.shelter.entrance");
+
+    for (const std::string locale : {"zh-CN", "en-US"})
+    {
+        const auto localized = LocalizedPresentation::objectiveInstruction(locale,
+            "survival.eat_bread", "fallback", recover.guidanceKey, "F");
+        check("ADVENTURE-GUIDANCE/" + locale + "-dynamic-text-keeps-rebound-consume-key",
+              localized.find('F') != std::string::npos && localized.find("{consume}") == std::string::npos &&
+              localized != "fallback" && localized != LocalizedPresentation::objectiveText(locale, "survival.eat_bread", "instruction"));
+        check("ADVENTURE-GUIDANCE/" + locale + "-locked-or-completed-food-keeps-rebound-key",
+              LocalizedPresentation::objectiveInstruction(locale, "survival.eat_bread", "fallback", "", "F").find(" F ") != std::string::npos);
+        check("ADVENTURE-GUIDANCE/" + locale + "-static-instruction-fallback-remains",
+              LocalizedPresentation::objectiveInstruction(locale, "alpha.gather_wood", "fallback", "", "F") ==
+              LocalizedPresentation::objectiveText(locale, "alpha.gather_wood", "instruction"));
+    }
+
+    Player player;
+    player.addItem(Material::BREAD, 2);
+    SandboxEventBus bus;
+    ObjectiveSystem objectives(registry, player, bus, foodReady, 0u, false);
+    const auto before = objectives.saveState();
+    const auto inventoryRevision = player.getInventoryRevision();
+    bool stable = true;
+    for (int i = 0; i < 100; ++i)
+    {
+        const auto value = objectives.snapshot((i % 2) != 0, hurt);
+        stable = stable && value.currentId == recover.currentId &&
+            value.opportunities.size() == 3 && value.opportunities[1].id == recover.opportunities[1].id;
+    }
+    check("ADVENTURE-GUIDANCE/repeated-journal-and-hud-queries-are-stable-and-read-only",
+          stable && before.completedIds == objectives.saveState().completedIds &&
+          before.progress.size() == objectives.saveState().progress.size() &&
+          player.getInventoryRevision() == inventoryRevision && player.getInventoryCount(Material::ID::Bread) == 2);
+
+    // Restore actual World state so the real World -> Alpha -> Objective bridge is covered.
+    const auto directory = freshSaveDirectory("adventure_guidance_world");
+    WorldSaveData source;
+    source.worldId = "adventure-guidance-world";
+    source.worldName = "Adventure guidance world";
+    source.seed = kValidationSeed;
+    source.createdUtc = source.lastPlayedUtc = LegacyWorldTimestampUtc;
+    source.lastBuildIdentity = "validation";
+    source.objectiveState = foodReady;
+    source.alphaJourneyFlags = ObjectiveState::legacyFlagsFromCompleted(foodReady.completedIds);
+    source.hasPlayerState = true;
+    source.playerState = player.getSaveState();
+    source.playerState.health = 10.f;
+    source.playerState.foodCooldownTicks = 7;
+    source.worldTime = 18000.f;
+    clearDeterministicEnv();
+    WorldSave save(directory);
+    const bool saved = save.save(source);
+    Config config = makeConfig();
+    Camera camera(config);
+    Player restored;
+    {
+        World world(camera, config, restored, directory, false, 0);
+        const auto value = world.getObjectiveSnapshot(true);
+        check("ADVENTURE-GUIDANCE/world-reads-restored-health-cooldown-inventory-and-clock",
+              saved && world.getPlayerHealth() == 10.f && world.getFoodCooldownTicksRemaining() == 7 &&
+              hint(value, "survival.eat_bread") == "guidance.food.cooldown" &&
+              value.currentId == "shelter.craft_planks");
+        world.tick(8999);
+        const auto daytime = world.getObjectiveSnapshot();
+        world.tick(9000);
+        const auto nightfall = world.getObjectiveSnapshot();
+        check("ADVENTURE-GUIDANCE/world-clock-changes-guidance-without-changing-progress",
+              daytime.currentId == "alpha.craft_wooden_pickaxe" &&
+              nightfall.currentId == "shelter.craft_planks" &&
+              daytime.completedObjectives == nightfall.completedObjectives);
+    }
+}
+
 void caseP11CFirstThirtyMinutes()
 {
     ensureRuntimeObjectiveRegistry();
@@ -20535,6 +20690,7 @@ int main()
             caseP11CFirstThirtyMinutes();
             caseFoodRecovery();
             caseAdventureProgression();
+            caseAdventureGuidance();
         }
         else if (focus != nullptr && std::string(focus) == "P11C") {
             caseWorldOutcomeAndLocalizedText();
@@ -20704,6 +20860,7 @@ int main()
         caseP11MinimumBuildingAndTools();
         caseP11CFirstThirtyMinutes();
         caseAdventureProgression();
+        caseAdventureGuidance();
         caseP11DExplorationRewards();
         caseVoxelOakCanopy();
         caseForestEcologyV7();

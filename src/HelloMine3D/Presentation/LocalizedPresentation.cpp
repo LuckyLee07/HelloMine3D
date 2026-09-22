@@ -55,6 +55,19 @@ std::string LocalizedPresentation::objectiveText(
                 fallback);
 }
 
+std::string LocalizedPresentation::objectiveInstruction(
+    const std::string& locale, const std::string& objectiveId,
+    const std::string& fallback, const std::string& guidanceKey,
+    const std::string& consumeBinding)
+{
+    std::string instruction = guidanceKey.empty()
+        ? objectiveText(locale, objectiveId, "instruction", fallback)
+        : text(locale, guidanceKey, fallback);
+    const auto at = instruction.find("{consume}");
+    if (at != std::string::npos) instruction.replace(at, 9, consumeBinding);
+    return instruction;
+}
+
 std::string LocalizedPresentation::audioCaption(
     const std::string& locale, const std::string& cueId,
     const std::string& fallback)

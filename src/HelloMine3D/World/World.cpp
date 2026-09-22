@@ -1405,9 +1405,16 @@ AlphaJourneySnapshot World::getAlphaJourneySnapshot() const
 
 ObjectiveSnapshot World::getObjectiveSnapshot(bool includeJournal) const
 {
-    return m_alphaJourney != nullptr
-               ? m_alphaJourney->objectiveSnapshot(includeJournal)
-               : ObjectiveSnapshot{};
+    if (m_alphaJourney == nullptr) return {};
+    ObjectiveGuidanceContext guidance;
+    guidance.health = getPlayerHealth();
+    guidance.maxHealth = getPlayerMaxHealth();
+    guidance.foodCooldownTicks = getFoodCooldownTicksRemaining();
+    // Use the saved simulation clock, independent of sky rendering and enhancement settings.
+    const float clock = std::fmod(m_worldSaveData.worldTime,
+                                 static_cast<float>(WorldEnvironment::TicksPerDay));
+    guidance.prepareForDark = std::isfinite(clock) && clock >= 9000.f;
+    return m_alphaJourney->objectiveSnapshot(includeJournal, guidance);
 }
 
 RecipeDiscoverySnapshot World::getRecipeDiscoverySnapshot() const

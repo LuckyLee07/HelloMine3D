@@ -62,9 +62,10 @@ AlphaJourneySnapshot AlphaJourney::snapshot() const
     return result;
 }
 
-ObjectiveSnapshot AlphaJourney::objectiveSnapshot(bool includeJournal) const
+ObjectiveSnapshot AlphaJourney::objectiveSnapshot(
+    bool includeJournal, const ObjectiveGuidanceContext& guidance) const
 {
-    return m_objectives.snapshot(includeJournal);
+    return m_objectives.snapshot(includeJournal, guidance);
 }
 
 RecipeDiscoverySnapshot AlphaJourney::recipeDiscoverySnapshot() const

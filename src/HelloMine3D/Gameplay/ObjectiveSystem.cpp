@@ -1,6 +1,7 @@
 #include "ObjectiveSystem.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <iomanip>
@@ -23,6 +24,95 @@
 namespace
 {
     constexpr float FeedbackDurationSeconds = 3.f;
+
+    struct GuidanceInventory
+    {
+        int bread = 0, wheat = 0, seeds = 0, torches = 0, coal = 0, bark = 0;
+        int planks = 0, doors = 0;
+    };
+
+    GuidanceInventory guidanceInventory(const Player& player)
+    {
+        GuidanceInventory result;
+        for (int slot = 0; slot < player.getInventorySlotCount(); ++slot)
+        {
+            const auto& stack = player.getInventorySlot(slot);
+            const int count = stack.getNumInStack();
+            switch (stack.getMaterial().id)
+            {
+                case Material::ID::Bread: result.bread += count; break;
+                case Material::ID::Wheat: result.wheat += count; break;
+                case Material::ID::WheatSeeds: result.seeds += count; break;
+                case Material::ID::Torch: result.torches += count; break;
+                case Material::ID::CoalOre: result.coal += count; break;
+                case Material::ID::OakBark: result.bark += count; break;
+                case Material::ID::OakPlank: result.planks += count; break;
+                case Material::ID::OakDoor: result.doors += count; break;
+                default: break;
+            }
+        }
+        return result;
+    }
+
+    struct GuidanceChoice
+    {
+        int priority = 50;
+        const char* key = "";
+    };
+
+    GuidanceChoice adventureGuidance(const std::string& id,
+        const GuidanceInventory& items, const ObjectiveGuidanceContext& context)
+    {
+        const bool healthKnown = std::isfinite(context.health) &&
+            std::isfinite(context.maxHealth) && context.maxHealth > 0.f &&
+            context.health >= 0.f && context.health <= context.maxHealth;
+        const bool injured = healthKnown && context.health > 0.f &&
+            context.health < context.maxHealth;
+        const auto foodPreparation = [&]() -> const char* {
+            if (items.wheat >= 3) return "guidance.food.craft";
+            if (items.seeds > 0) return "guidance.food.plant";
+            return "guidance.food.seeds";
+        };
+        if (id == "alpha.craft_workbench" || id == "alpha.place_workbench")
+            return {100, ""};
+        if (id == "survival.craft_bread")
+            return {items.wheat >= 3 ? 90 : 60, foodPreparation()};
+        if (id == "survival.eat_bread")
+        {
+            if (healthKnown && context.health <= 0.f)
+                return {10, "guidance.food.respawn"};
+            if (healthKnown && !injured)
+                return {20, "guidance.food.reserve"};
+            if (items.bread <= 0)
+                return {injured ? 70 : 20, foodPreparation()};
+            if (context.foodCooldownTicks > 0)
+                return {20, "guidance.food.cooldown"};
+            return injured ? GuidanceChoice{140, "guidance.food.recover"}
+                           : GuidanceChoice{20, ""};
+        }
+        if (id == "exploration.craft_torches")
+        {
+            const int priority = context.prepareForDark && items.torches == 0 ? 110 : 60;
+            if (items.coal <= 0) return {priority, "guidance.light.coal"};
+            if (items.bark <= 0) return {priority, "guidance.light.wood"};
+            return {priority, "guidance.light.craft"};
+        }
+        if (id == "exploration.find_coal" && context.prepareForDark && items.torches == 0)
+            return {75, "guidance.light.coal"};
+        if (id == "shelter.craft_planks")
+            return {context.prepareForDark ? 80 : 50,
+                items.bark > 0 ? "guidance.shelter.planks" : "guidance.shelter.wood"};
+        if (id == "shelter.place_planks")
+            return {context.prepareForDark ? 80 : 50,
+                items.planks > 0 ? "guidance.shelter.walls" : "guidance.shelter.more_planks"};
+        if (id == "shelter.craft_door")
+            return {context.prepareForDark ? 80 : 50,
+                items.planks >= 6 ? "guidance.shelter.door" : "guidance.shelter.door_materials"};
+        if (id == "shelter.place_door")
+            return {context.prepareForDark ? 80 : 50,
+                items.doors > 0 ? "guidance.shelter.entrance" : "guidance.shelter.replace_door"};
+        return {};
+    }
 
     bool blockMatches(Material::ID materialId, BlockId blockId)
     {
@@ -206,18 +296,44 @@ void ObjectiveSystem::update(float deltaSeconds)
     }
 }
 
-ObjectiveSnapshot ObjectiveSystem::snapshot(bool includeJournal) const
+ObjectiveSnapshot ObjectiveSystem::snapshot(
+    bool includeJournal, const ObjectiveGuidanceContext& guidance) const
 {
     ObjectiveSnapshot result;
     result.definitionVersion = m_registry->definitionVersion();
+    const bool useGuidance = m_registry == &runtimeObjectiveRegistry();
+    const auto items = useGuidance ? guidanceInventory(*m_player) : GuidanceInventory{};
+    struct RankedOpportunity {
+        const ObjectiveDefinition* definition = nullptr;
+        GuidanceChoice guidance;
+    };
+    std::array<RankedOpportunity, MaxVisibleOpportunities> selected{};
+    std::size_t selectedCount = 0;
     for (const ObjectiveDefinition& definition : m_registry->definitions())
     {
+        const bool completed = isCompleted(definition.id);
+        const bool available = !completed && prerequisiteSatisfied(definition);
+        const auto choice = useGuidance && available
+            ? adventureGuidance(definition.id, items, guidance) : GuidanceChoice{};
+        if (definition.visible && !definition.optional && available)
+        {
+            // Stable top-three insertion: no sort, registry mutation or world query.
+            std::size_t at = 0;
+            while (at < selectedCount && selected[at].guidance.priority >= choice.priority) ++at;
+            if (at < selected.size())
+            {
+                selectedCount = std::min(selectedCount + 1, selected.size());
+                for (std::size_t i = selectedCount - 1; i > at; --i) selected[i] = selected[i - 1];
+                selected[at] = {&definition, choice};
+            }
+        }
         if (includeJournal && definition.visible)
         {
             ObjectiveJournalEntry entry;
             static_cast<ObjectiveOpportunitySnapshot&>(entry) = makeOpportunity(definition);
-            entry.completed = isCompleted(definition.id);
-            entry.available = !entry.completed && prerequisiteSatisfied(definition);
+            entry.completed = completed;
+            entry.available = available;
+            entry.guidanceKey = choice.key;
             entry.optional = definition.optional;
             entry.prerequisiteId = definition.prerequisite;
             if (const auto* prerequisite = m_registry->find(definition.prerequisite))
@@ -240,22 +356,15 @@ ObjectiveSnapshot ObjectiveSystem::snapshot(bool includeJournal) const
     result.completionFeedback = m_completionFeedback;
     result.completionFeedbackId = m_completionFeedbackId;
 
-    for (const ObjectiveDefinition& definition : m_registry->definitions())
+    result.opportunities.reserve(selectedCount);
+    for (std::size_t i = 0; i < selectedCount; ++i)
     {
-        if (result.opportunities.size() >= MaxVisibleOpportunities)
-        {
-            break;
-        }
-        if (definition.visible && !definition.optional &&
-            !isCompleted(definition.id) &&
-            prerequisiteSatisfied(definition))
-        {
-            result.opportunities.push_back(makeOpportunity(definition));
-        }
+        auto opportunity = makeOpportunity(*selected[i].definition);
+        opportunity.guidanceKey = selected[i].guidance.key;
+        result.opportunities.push_back(std::move(opportunity));
     }
 
-    const ObjectiveDefinition* current = currentDefinition();
-    if (current == nullptr)
+    if (result.opportunities.empty())
     {
         result.sessionComplete = true;
         result.title = "First session complete";
@@ -269,6 +378,7 @@ ObjectiveSnapshot ObjectiveSystem::snapshot(bool includeJournal) const
     result.currentId = primary.id;
     result.title = primary.title;
     result.instruction = primary.instruction;
+    result.guidanceKey = primary.guidanceKey;
     result.required = primary.required;
     result.progress = primary.progress;
     if (result.opportunities.size() > 1)
@@ -687,17 +797,4 @@ int ObjectiveSystem::inventoryCount(Material::ID materialId) const noexcept
         }
     }
     return total;
-}
-
-const ObjectiveDefinition* ObjectiveSystem::currentDefinition() const noexcept
-{
-    for (const ObjectiveDefinition& definition : m_registry->definitions())
-    {
-        if (definition.visible && !definition.optional &&
-            !isCompleted(definition.id) && prerequisiteSatisfied(definition))
-        {
-            return &definition;
-        }
-    }
-    return nullptr;
 }

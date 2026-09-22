@@ -511,6 +511,14 @@ class OgreUserInterface::Impl
             appliedSettings.locale, id, field, fallback);
     }
 
+    std::string objectiveInstructionText(const std::string& id,
+        const std::string& fallback, const std::string& guidanceKey) const
+    {
+        return LocalizedPresentation::objectiveInstruction(
+            appliedSettings.locale, id, fallback, guidanceKey,
+            keyName(appliedSettings.inputBindings.get(GameplayAction::ConsumeFood)));
+    }
+
     std::string craftingPreviewMessage(CraftingPreviewStatus status) const
     {
         switch (status)
@@ -1545,8 +1553,8 @@ class OgreUserInterface::Impl
                 const std::string objectiveInstruction =
                     objective.sessionComplete
                         ? tr("objective.complete.instruction")
-                        : objectiveText(objective.currentId, "instruction",
-                                        objective.instruction);
+                        : objectiveInstructionText(objective.currentId,
+                                        objective.instruction, objective.guidanceKey);
                 ImGui::TextUnformatted(objectiveTitle.c_str());
                 ImGui::TextWrapped("%s", objectiveInstruction.c_str());
                 if (objective.opportunities.size() > 1 &&
@@ -1558,8 +1566,8 @@ class OgreUserInterface::Impl
                         const auto& opportunity = objective.opportunities[index];
                         ImGui::TextWrapped("%s", objectiveText(
                             opportunity.id, "title", opportunity.title).c_str());
-                        ImGui::TextWrapped("%s", objectiveText(
-                            opportunity.id, "instruction", opportunity.instruction).c_str());
+                        ImGui::TextWrapped("%s", objectiveInstructionText(
+                            opportunity.id, opportunity.instruction, opportunity.guidanceKey).c_str());
                     }
                 }
                 if (!objective.completedTitles.empty() &&
@@ -3244,7 +3252,7 @@ class OgreUserInterface::Impl
                 ImGui::TextColored(WarmMuted, "%s · %s", tr(entry.optional ? "journal.optional" : "journal.main").c_str(),
                     tr(entry.completed ? "journal.completed" : (entry.available ? "journal.available" : "journal.locked")).c_str());
                 ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
-                ImGui::TextWrapped("%s", objectiveText(entry.id, "instruction", entry.instruction).c_str());
+                ImGui::TextWrapped("%s", objectiveInstructionText(entry.id, entry.instruction, entry.guidanceKey).c_str());
                 ImGui::Spacing();
                 const auto progress = std::to_string(std::min(entry.progress, entry.required)) + " / " + std::to_string(entry.required);
                 ImGui::ProgressBar(entry.required > 0 ? std::clamp(float(entry.progress) / entry.required, 0.f, 1.f) : 0.f,
@@ -3570,14 +3578,17 @@ class OgreUserInterface::Impl
                     objective.currentId = entry->id;
                     objective.title = entry->title;
                     objective.instruction = entry->instruction;
+                    objective.guidanceKey = entry->guidanceKey;
                     objective.progress = entry->progress;
                     objective.required = entry->required;
                     objective.sessionComplete = false;
                 }
             }
-            if (displayedObjectiveId != objective.currentId)
+            if (displayedObjectiveId != objective.currentId ||
+                displayedObjectiveGuidanceKey != objective.guidanceKey)
             {
                 displayedObjectiveId = objective.currentId;
+                displayedObjectiveGuidanceKey = objective.guidanceKey;
                 objectiveHintSeconds = 12.f;
             }
             const float objectiveWidth = std::min({320.f * appliedSettings.uiScale,
@@ -3613,8 +3624,8 @@ class OgreUserInterface::Impl
                 const std::string currentInstruction =
                     objective.sessionComplete
                         ? tr("objective.complete.instruction")
-                        : objectiveText(objective.currentId, "instruction",
-                                        objective.instruction);
+                        : objectiveInstructionText(objective.currentId,
+                                        objective.instruction, objective.guidanceKey);
                 ImGui::Spacing();
                 ImGui::SetWindowFontScale(1.05f);
                 ImGui::PushStyleColor(ImGuiCol_Text, WarmAccent);
@@ -3681,8 +3692,8 @@ class OgreUserInterface::Impl
                         const std::string opportunityTitle = objectiveText(
                             opportunity.id, "title", opportunity.title);
                         const std::string opportunityInstruction =
-                            objectiveText(opportunity.id, "instruction",
-                                          opportunity.instruction);
+                            objectiveInstructionText(opportunity.id,
+                                          opportunity.instruction, opportunity.guidanceKey);
                         ImGui::TextDisabled("[%s] %s", track.c_str(),
                                             opportunityTitle.c_str());
                         ImGui::TextWrapped("  %s",
@@ -5157,6 +5168,7 @@ class OgreUserInterface::Impl
     float displayedPeakFrameMs = 0.f;
     float performanceOverlayBottom = 90.f;
     std::string displayedObjectiveId;
+    std::string displayedObjectiveGuidanceKey;
     std::string selectedJournalId;
     std::string trackedObjectiveId;
     int journalFilter = 0;
@@ -5395,6 +5407,7 @@ void OgreUserInterface::setWorldContext(Player *player,
     m_impl->previousPlayerHealth = -1.f;
     m_impl->difficultyDraftInitialized = false;
     m_impl->displayedObjectiveId.clear();
+    m_impl->displayedObjectiveGuidanceKey.clear();
     m_impl->selectedJournalId.clear();
     m_impl->trackedObjectiveId.clear();
     m_impl->journalFilter = 0;
