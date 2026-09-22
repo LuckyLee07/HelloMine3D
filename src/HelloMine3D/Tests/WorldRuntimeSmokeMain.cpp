@@ -1573,7 +1573,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 563 &&
+              registry.keys("en-US").size() == 564 &&
               registry.lookup("zh-CN", "hud.pointer_show") == "显示鼠标" &&
               registry.lookup("en-US", "item.durability") == "Durability" &&
               registry.lookup("en-US", "hud.region_river") == "River" &&
@@ -1630,6 +1630,10 @@ void caseWorldOutcomeAndLocalizedText()
 
     ensureRuntimeLocalizedTextRegistry();
     check("N12A/semantic-ids-localize-without-changing-identity",
+          LocalizedPresentation::surfaceName("zh-CN", BlockId::Water) == "水" &&
+              LocalizedPresentation::surfaceName("en-US", BlockId::Water) == "Water" &&
+              LocalizedPresentation::surfaceName("zh-CN", BlockId::Stone) ==
+                  LocalizedPresentation::materialName("zh-CN", Material::ID::Stone) &&
           LocalizedPresentation::materialName(
               "zh-CN", Material::ID::IronIngot) ==
                   runtimeLocalizedTextRegistry().lookup(

@@ -9,6 +9,7 @@ namespace LocalizedPresentation
     std::string text(const std::string& locale, const std::string& key,
                      const std::string& fallback = {});
     std::string materialName(const std::string& locale, Material::ID id);
+    std::string surfaceName(const std::string& locale, BlockId id);
     std::string objectiveText(const std::string& locale,
                               const std::string& objectiveId,
                               const char* field,

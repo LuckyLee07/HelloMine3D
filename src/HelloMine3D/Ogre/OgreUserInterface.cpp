@@ -3148,7 +3148,7 @@ class OgreUserInterface::Impl
             if (inspection >= 0 && inspection < int(minimapCells.size()) && minimapCells[inspection].known)
             {
                 const auto& cell = minimapCells[inspection];
-                ImGui::TextWrapped("%s",materialName(Material::toMaterial(cell.material).id).c_str());
+                ImGui::TextWrapped("%s",LocalizedPresentation::surfaceName(appliedSettings.locale, cell.material).c_str());
                 ImGui::Text("X %d  Y %d  Z %d",minimapCenterX+(inspection%MinimapCellCount-32)*minimapStep,
                     cell.height,minimapCenterZ+(inspection/MinimapCellCount-32)*minimapStep);
             }

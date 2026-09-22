@@ -569,3 +569,4 @@ text map.session "显示本次活动区域的地表，不包含地下。继续�
 text map.waystone "界石"
 text map.workbench "工作台"
 text map.storage "储物处"
+text map.water "水"

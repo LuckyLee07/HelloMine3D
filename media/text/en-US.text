@@ -569,3 +569,4 @@ text map.session "Shows the active region surface, excluding underground areas. 
 text map.waystone "Waystone"
 text map.workbench "Workbench"
 text map.storage "Storage"
+text map.water "Water"

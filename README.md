@@ -56,8 +56,12 @@ On first launch the game creates a local `bin/config.txt`; graphics, audio,
 language, and controls can be changed in the in-game settings. Default movement
 uses WASD, Space to jump, Ctrl to sprint, Shift to sneak, E to open crafting, and
 R to consume held food. Mouse buttons handle mining/attack and context-sensitive
-use, placement, or guard. The grave/backtick key beside Escape toggles the free
-cursor without pausing; L remains an alternative.
+use, placement, or guard. Tab opens the HUD cursor and pauses the single-player
+simulation. Hover a hotbar slot for item details or click to select it. Click the
+quest card to open the journey journal, or the minimap to rotate, zoom, pan and
+inspect a regional 3D surface map. Tab, Escape or the page close button resumes
+the game. L and the grave/backtick key remain alternatives when not rebound to
+another gameplay action.
 
 ## Development and verification
 

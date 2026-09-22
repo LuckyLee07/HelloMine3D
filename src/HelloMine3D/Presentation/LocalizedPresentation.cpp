@@ -36,6 +36,13 @@ std::string LocalizedPresentation::materialName(
                 material.name);
 }
 
+std::string LocalizedPresentation::surfaceName(const std::string& locale, BlockId id)
+{
+    // Water has no inventory material; mapping through Material would say None.
+    if (id == BlockId::Water) return text(locale, "map.water");
+    return materialName(locale, Material::toMaterial(id).id);
+}
+
 std::string LocalizedPresentation::objectiveText(
     const std::string& locale, const std::string& objectiveId,
     const char* field, const std::string& fallback)
