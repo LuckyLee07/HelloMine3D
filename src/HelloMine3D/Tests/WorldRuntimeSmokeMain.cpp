@@ -1573,7 +1573,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 544 &&
+              registry.keys("en-US").size() == 563 &&
               registry.lookup("zh-CN", "hud.pointer_show") == "显示鼠标" &&
               registry.lookup("en-US", "item.durability") == "Durability" &&
               registry.lookup("en-US", "hud.region_river") == "River" &&

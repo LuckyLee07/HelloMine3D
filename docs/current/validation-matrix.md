@@ -361,3 +361,5 @@ E6 窗口阶段已用唯一工作 `.app` 的同一 PID `82431` 完成 28/28 个�
 ### HUD 交互
 
 按 [HUD 交互合同](../contracts/hud-interaction-contract-v1.md) 分批检查。`bash scripts/verify_hud_interaction.sh Release|Debug <新输出目录>` 覆盖页面转换、Esc 消耗、输入释放门与失焦；物品详情同时需要真实窗口检查。任务／地图增加对应真值和有界采样检查，完整交付采用双配置客户端、世界与资源回归。
+
+HUD 地图纯检查与输入检查共用 `verify_hud_interaction.sh`，分别覆盖正交方向、真实高差、可见墙面、未知列空白、深度拾取、最大网格、快速拖动释放与平移边界。`capture_visual_macos.py --panel map|journal|pointer` 是显式后台诊断；物品内容图加 `--hud-fixture --inspect-slot 0..4`，不作为普通 hover 的证据。双语小窗口和浮层遮挡应查看原图；关闭 HUD 的性能与暂停页面成本分开比较。

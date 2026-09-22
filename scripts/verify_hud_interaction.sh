@@ -13,3 +13,7 @@ clang++ "${OPTIONS[@]}" "$ROOT_DIR/tools/tests/hud_interaction_test.cpp" \
     "$ROOT_DIR/src/HelloMine3D/GameplayInput.cpp" \
     -o "$LOG_DIR/hud_interaction_test" > "$LOG_DIR/build.log" 2>&1
 "$LOG_DIR/hud_interaction_test" | tee "$LOG_DIR/test.log"
+
+clang++ "${OPTIONS[@]}" "$ROOT_DIR/tools/tests/terrain_map_view_test.cpp" \
+    -o "$LOG_DIR/terrain_map_view_test" > "$LOG_DIR/map-build.log" 2>&1
+"$LOG_DIR/terrain_map_view_test" | tee "$LOG_DIR/map-test.log"

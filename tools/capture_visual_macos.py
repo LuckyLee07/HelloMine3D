@@ -96,8 +96,9 @@ def main():
     parser.add_argument("--actor-distance", type=int, choices=(6, 12, 24),
                         help="Diagnostic gallery distance; requires --actor-visual")
     parser.add_argument("--hud-fixture", action="store_true")
+    parser.add_argument("--inspect-slot", type=int, choices=range(5), help="Item detail diagnostic; requires pointer panel and HUD fixture")
     parser.add_argument("--debug", action="store_true")
-    parser.add_argument("--panel", choices=("crafting", "container", "settings"))
+    parser.add_argument("--panel", choices=("crafting", "container", "settings", "map", "journal", "pointer"))
     parser.add_argument("--width", type=int, default=1280)
     parser.add_argument("--height", type=int, default=720)
     parser.add_argument("--pixel-ratio", type=int, choices=(1, 2), default=1,
@@ -123,6 +124,8 @@ def main():
             raise ValueError
     except ValueError:
         parser.error("--capture-ms requires up to eight increasing integers in 1..60000")
+    if args.inspect_slot is not None and (args.panel != "pointer" or not args.hud_fixture):
+        parser.error("--inspect-slot requires --panel pointer --hud-fixture")
     if args.performance and args.capture_ms != "5000,10000":
         parser.error("--capture-ms applies only to render capture")
     if args.actor_distance is not None and not args.actor_visual:
@@ -237,12 +240,16 @@ seed random
         environment["HELLOMINE3D_ACTOR_VISUAL_CAPTURE"] = args.actor_visual
     if args.actor_distance is not None:
         environment["HELLOMINE3D_ACTOR_VISUAL_DISTANCE"] = str(args.actor_distance)
-    if args.panel:
+    if args.panel in ("map", "journal", "pointer"):
+        environment["HELLOMINE3D_HUD_PAGE_FIXTURE"] = args.panel
+    elif args.panel:
         key = "HELLOMINE3D_V10E_SETTINGS_FIXTURE" if args.panel == "settings" else (
             "HELLOMINE3D_" + args.panel.upper() + "_FIXTURE")
         environment[key] = "1"
     if args.atmosphere_fallback:
         environment["HELLOMINE3D_V10C_FALLBACK"] = "1"
+    if args.inspect_slot is not None:
+        environment["HELLOMINE3D_HUD_INSPECT_SLOT"] = str(args.inspect_slot)
     if args.hud_fixture:
         environment["HELLOMINE3D_HUD_FIXTURE"] = "1"
     if args.performance:

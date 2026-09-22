@@ -12,6 +12,7 @@
 #include <OgreViewport.h>
 
 #include <algorithm>
+#include <iostream>
 #include <array>
 #include <cctype>
 #include <cfloat>
@@ -43,6 +44,7 @@
 #include "../Presentation/PlayerHandPresentation.h"
 #include "../Presentation/MinimapNavigation.h"
 #include "../Presentation/HudInteraction.h"
+#include "../Presentation/TerrainMapView.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/GameApplicationFlow.h"
 #include "../Util/ResourcePaths.h"
@@ -386,6 +388,20 @@ class OgreUserInterface::Impl
         , iniPath(ResourcePaths::bin("imgui-ogre.ini"))
         , fontPath(std::move(presentationFontPath))
     {
+        if (const char* page = std::getenv("HELLOMINE3D_HUD_PAGE_FIXTURE"))
+        {
+            hudPageFixture = page;
+            if ((!environmentFlagEnabled("HELLO_RENDER_CAPTURE") && !environmentFlagEnabled("HELLO_PERF_CAPTURE")) ||
+                (hudPageFixture != "map" && hudPageFixture != "journal" && hudPageFixture != "pointer"))
+                throw std::runtime_error("HUD page fixture requires diagnostic capture and a valid page.");
+        }
+        if (const char* slot = std::getenv("HELLOMINE3D_HUD_INSPECT_SLOT"))
+        {
+            if (hudPageFixture != "pointer" || !environmentFlagEnabled("HELLOMINE3D_HUD_FIXTURE") ||
+                slot[0] < '0' || slot[0] > '4' || slot[1] != '\0')
+                throw std::runtime_error("HUD inspection fixture requires pointer capture, item fixture and slot 0..4.");
+            inspectSlotFixture = slot[0] - '0';
+        }
         std::snprintf(createName.data(), createName.size(), "%s",
                       LocalizedPresentation::text(
                           appliedSettings.locale,
@@ -778,6 +794,17 @@ class OgreUserInterface::Impl
         if (flow->state() != GameApplicationState::Playing || victoryOverlayVisible() ||
             (player != nullptr && (player->hasOpenContainer() || player->hasOpenCrafting())))
             hudInteraction.dismiss();
+        if (!hudPageFixture.empty() && !hudPageFixtureOpened && flow->state() == GameApplicationState::Playing)
+        {
+            hudPageFixtureSeconds += frameSeconds;
+            if (hudPageFixtureSeconds >= 3.f && player && !player->hasOpenContainer() && !player->hasOpenCrafting())
+            {
+                hudInteraction.togglePointer();
+                if (hudPageFixture != "pointer") hudInteraction.open(hudPageFixture == "map" ? HudInteraction::Page::Map : HudInteraction::Page::Journal);
+                hudPageFixtureOpened = true;
+                std::cout << "[HUD_PAGE_FIXTURE] page=" << hudPageFixture << "\n";
+            }
+        }
         switch (flow->state())
         {
             case GameApplicationState::MainMenu:
@@ -2441,9 +2468,9 @@ class OgreUserInterface::Impl
         hints.push_back({"Tab", tr(hudInteraction.ownsInput() ? "hud.pointer_resume" : "hud.pointer_show")});
         hints.push_back({"Esc", tr(hudInteraction.ownsInput() ? "hud.pointer_resume" : "hint.pause")});
         const auto* tool = runtimeToolRegistry().find(heldMaterial);
-        if (runtimeFoodRegistry().find(heldMaterial) && worldStats.playerHealth < worldStats.playerMaxHealth)
+        if (!hudInteraction.ownsInput() && runtimeFoodRegistry().find(heldMaterial) && worldStats.playerHealth < worldStats.playerMaxHealth)
             hints.insert(hints.begin() + 1, {keyName(appliedSettings.inputBindings.get(GameplayAction::ConsumeFood)), tr("hint.eat")});
-        else if (tool && tool->miningClass == MiningClass::Weapon)
+        else if (!hudInteraction.ownsInput() && tool && tool->miningClass == MiningClass::Weapon)
             hints.insert(hints.begin() + 1, {mouseButtonName(appliedSettings.mouseBindings.get(GameplayWorldAction::Guard)), tr("action.guard")});
         const auto textWidth = [&](const std::string& value) {
             return ImGui::GetFont()->CalcTextSizeA(fontSize, FLT_MAX, 0.f, value.c_str()).x;
@@ -2547,7 +2574,8 @@ class OgreUserInterface::Impl
         const float slotSize = 52.f * scale;
         ImGui::PushID(static_cast<int>(index));
         const bool clicked = ImGui::InvisibleButton("##hotbar_slot", ImVec2(slotSize, slotSize));
-        const bool hovered = hudInteraction.ownsInput() && ImGui::IsItemHovered();
+        const bool fixture = hudPageFixtureOpened && inspectSlotFixture == static_cast<int>(index);
+        const bool hovered = hudInteraction.ownsInput() && (ImGui::IsItemHovered() || fixture);
         if (clicked && hudInteraction.ownsInput())
         {
             pendingAction.type = OgreUserInterfaceActionType::SelectHotbar;
@@ -2613,7 +2641,12 @@ class OgreUserInterface::Impl
         }
         if (hovered)
         {
+            hotbarDetailsVisible = true;
             ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+            if (fixture)
+                ImGui::SetNextWindowPos(ImVec2(std::clamp(minimum.x, 12.f,
+                    std::max(12.f, ImGui::GetIO().DisplaySize.x - 320.f * scale - 12.f)), minimum.y - 12.f),
+                    ImGuiCond_Always, ImVec2(0.f,1.f));
             drawItemDetails(slot, static_cast<int>(index));
         }
         ImGui::PopID();
@@ -2682,6 +2715,8 @@ class OgreUserInterface::Impl
         {
             const auto old = minimapCells;
             minimapCells.fill({});
+            ++minimapRevision;
+            selectedMapCell = -1;
             // Retain only samples at the exact same world coordinates.
             if (minimapValid && !identityChanged && !scaleChanged)
             {
@@ -2716,8 +2751,13 @@ class OgreUserInterface::Impl
         if (samples.empty()) return; // Lock contention defers observation only.
         for (int row = 0; row < rowsPerRefresh; ++row)
         for (int x = 0; x < MinimapCellCount; ++x)
-            minimapCells[((minimapRefreshRow + row) % MinimapCellCount) *
-                         MinimapCellCount + x] = samples[row * MinimapCellCount + x];
+        {
+            auto& cell = minimapCells[((minimapRefreshRow + row) % MinimapCellCount) * MinimapCellCount + x];
+            const auto& sample = samples[row * MinimapCellCount + x];
+            if (cell.known != sample.known || cell.height != sample.height || cell.material != sample.material)
+                ++minimapRevision;
+            cell = sample;
+        }
         minimapRefreshRow = (minimapRefreshRow + rowsPerRefresh) % MinimapCellCount;
     }
 
@@ -2760,7 +2800,7 @@ class OgreUserInterface::Impl
             ImGuiWindowFlags_NoDecoration |
             ImGuiWindowFlags_NoBackground |
             ImGuiWindowFlags_NoSavedSettings |
-            ImGuiWindowFlags_NoInputs |
+            (hudInteraction.ownsInput() ? 0 : ImGuiWindowFlags_NoInputs) |
             ImGuiWindowFlags_NoFocusOnAppearing |
             ImGuiWindowFlags_NoNav;
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,
@@ -2955,10 +2995,173 @@ class OgreUserInterface::Impl
                 scaleLine(ImVec2(x, scaleStart.y - 3.f * scale), ImVec2(x, scaleStart.y + 3.f * scale));
             navigationText(smallFont, ImVec2(mapCenter.x - textWidth * .5f,
                 scaleStart.y - smallFont * .5f), IM_COL32(20, 42, 47, 255), scaleLabel.c_str());
+            if (hudInteraction.ownsInput())
+            {
+                ImGui::SetCursorScreenPos(origin);
+                if (ImGui::InvisibleButton("##OpenTerrainMap", windowSize))
+                {
+                    mapView = {}; selectedMapCell = -1; mapGesture.button = -1;
+                    hudInteraction.open(HudInteraction::Page::Map);
+                }
+                if (ImGui::IsItemHovered())
+                {
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+                    draw->AddCircle(mapCenter, radius + 3.f, IM_COL32(244,208,132,255), MinimapClipSegments, 2.f);
+                    ImGui::SetTooltip("%s",tr("map.open").c_str());
+                }
+            }
         }
         hudNoticeRightTop = ImGui::GetWindowPos().y + ImGui::GetWindowSize().y + 10.f;
         ImGui::End();
         ImGui::PopStyleVar();
+    }
+
+    void drawTerrainMap(const PlayerSaveState& state)
+    {
+        refreshMinimap(state);
+        const auto& io = ImGui::GetIO();
+        const float scale = appliedSettings.uiScale;
+        ImGui::GetBackgroundDrawList()->AddRectFilled(ImVec2(0,0), io.DisplaySize, IM_COL32(5,12,16,180));
+        ImGui::SetNextWindowPos(ImVec2(16.f, 16.f), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x - 32.f, io.DisplaySize.y - 32.f), ImGuiCond_Always);
+        if (ImGui::Begin("##TerrainMap", nullptr, ImGuiWindowFlags_NoDecoration |
+            ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBackground))
+        {
+            if (drawInventoryHeader(Material::ID::Grass, tr("map.title"), tr("map.subtitle")))
+                hudInteraction.dismiss();
+            const auto button = [&](const char* key) { return ImGui::Button(tr(key).c_str()); };
+            if (button("map.center")) { mapView = {}; selectedMapCell = -1; }
+            ImGui::SameLine(); if (button("map.north")) mapView.yaw = 0;
+            ImGui::SameLine(); if (ImGui::Button(" - ")) mapView.zoom /= 1.25f;
+            ImGui::SameLine(); if (ImGui::Button(" + ")) mapView.zoom *= 1.25f;
+            ImGui::SameLine(); if (ImGui::Button("<")) mapView.panX -= .12f;
+            ImGui::SameLine(); if (ImGui::Button(">")) mapView.panX += .12f;
+            ImGui::SameLine(); if (ImGui::Button("^")) mapView.panY -= .12f;
+            ImGui::SameLine(); if (ImGui::Button("v")) mapView.panY += .12f;
+            ImGui::TextWrapped("%s", tr("map.controls").c_str());
+            const float width = ImGui::GetContentRegionAvail().x;
+            const bool wide = width > 760.f * scale;
+            const float legendWidth = wide ? 228.f * scale : 0.f;
+            const float footerHeight = wide ? 0.f : ImGui::GetTextLineHeightWithSpacing() * 3.5f;
+            const ImVec2 size(std::max(1.f, width - legendWidth - (wide ? 10.f : 0.f)),
+                std::max(60.f, ImGui::GetContentRegionAvail().y - footerHeight));
+            const ImVec2 origin = ImGui::GetCursorScreenPos();
+            ImGui::InvisibleButton("##MapViewport", size, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
+            const bool hovered = ImGui::IsItemHovered();
+            if (hovered && io.MouseWheel != 0) mapView.zoom *= std::pow(1.15f, std::clamp(io.MouseWheel, -4.f, 4.f));
+            for (int button = 0; button < 2; ++button)
+                if (hovered && ImGui::IsMouseClicked(button))
+                    mapGesture.begin(mapView, io.MousePos.x, io.MousePos.y, button);
+            if (mapGesture.button >= 0)
+                mapGesture.update(mapView, io.MousePos.x, io.MousePos.y, size.x, size.y,
+                    ImGui::IsMouseDown(mapGesture.button));
+            mapView.constrain();
+            const float baseHeight = std::floor(state.position.y);
+            if (mapBuiltRevision != minimapRevision || mapBuiltYaw != mapView.yaw ||
+                mapBuiltPitch != mapView.pitch || mapBuiltBase != baseHeight)
+            {
+                TerrainMapView::build(minimapCells, MinimapCellCount, minimapStep, baseHeight, mapView, mapFaces);
+                mapBuiltRevision = minimapRevision; mapBuiltYaw = mapView.yaw;
+                mapBuiltPitch = mapView.pitch; mapBuiltBase = baseHeight;
+            }
+            const float pixels = .78f * std::min(size.x, size.y) / (MinimapCellCount * minimapStep) * mapView.zoom;
+            const ImVec2 center(origin.x + size.x * (.5f + mapView.panX), origin.y + size.y * (.58f + mapView.panY));
+            const auto screen = [&](const TerrainMapView::Point& point) { return ImVec2(center.x + point.x * pixels, center.y + point.y * pixels); };
+            auto* draw = ImGui::GetWindowDrawList();
+            draw->AddRectFilled(origin, ImVec2(origin.x + size.x, origin.y + size.y), IM_COL32(17,29,35,255));
+            draw->PushClipRect(origin, ImVec2(origin.x + size.x, origin.y + size.y), true);
+            for (float x = origin.x; x < origin.x + size.x; x += 32.f * scale)
+                draw->AddLine(ImVec2(x,origin.y), ImVec2(x,origin.y+size.y), IM_COL32(33,49,53,255));
+            for (float y = origin.y; y < origin.y + size.y; y += 32.f * scale)
+                draw->AddLine(ImVec2(origin.x,y), ImVec2(origin.x+size.x,y), IM_COL32(33,49,53,255));
+            const int hoverCell = hovered ? TerrainMapView::pick(mapFaces,
+                (io.MousePos.x - center.x) / pixels, (io.MousePos.y - center.y) / pixels) : -1;
+            if (hovered && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !mapGesture.dragged)
+                selectedMapCell = hoverCell;
+            const auto oldFlags = draw->Flags;
+            draw->Flags &= ~ImDrawListFlags_AntiAliasedFill;
+            for (const auto& face : mapFaces)
+            {
+                const auto a = screen(face.points[0]), b = screen(face.points[1]), c = screen(face.points[2]), d = screen(face.points[3]);
+                auto colour = ImGui::ColorConvertU32ToFloat4(minimapCellColour(face.cell % MinimapCellCount, face.cell / MinimapCellCount));
+                colour.x *= face.shade; colour.y *= face.shade; colour.z *= face.shade;
+                draw->AddQuadFilled(a,b,c,d,ImGui::ColorConvertFloat4ToU32(colour));
+                if (face.top && (face.cell == selectedMapCell || face.cell == hoverCell))
+                    draw->AddQuad(a,b,c,d,IM_COL32(255,222,137,255),2.f);
+            }
+            draw->Flags = oldFlags;
+            const TerrainMapView::Projection project(mapView);
+            const auto pointAt = [&](float x, float y, float z) {
+                return screen(project(x - minimapCenterX, y - baseHeight, z - minimapCenterZ));
+            };
+            for (const auto& landmark : navigationMemory.landmarks())
+            {
+                const float dx = landmark.position.x - minimapCenterX, dz = landmark.position.z - minimapCenterZ;
+                if (std::abs(dx) > 32 * minimapStep || std::abs(dz) > 32 * minimapStep) continue;
+                const auto at = pointAt(landmark.position.x + .5f, landmark.position.y + 1.f, landmark.position.z + .5f);
+                const auto colour = landmark.kind == MinimapNavigation::Kind::Waystone ? IM_COL32(117,221,237,255) : IM_COL32(235,178,112,255);
+                draw->AddCircleFilled(at, 7.f * scale, IM_COL32(17,29,35,255));
+                draw->AddQuadFilled(ImVec2(at.x,at.y-5.f*scale),ImVec2(at.x+4.f*scale,at.y),ImVec2(at.x,at.y+5.f*scale),ImVec2(at.x-4.f*scale,at.y),colour);
+                if (hovered && std::abs(io.MousePos.x-at.x) < 10.f*scale && std::abs(io.MousePos.y-at.y) < 10.f*scale)
+                    ImGui::SetTooltip("%s · %d, %d, %d", tr(landmark.kind == MinimapNavigation::Kind::Waystone ? "map.waystone" :
+                        landmark.kind == MinimapNavigation::Kind::Workbench ? "map.workbench" : "map.storage").c_str(),
+                        landmark.position.x,landmark.position.y,landmark.position.z);
+            }
+            const auto at = pointAt(state.position.x, state.position.y, state.position.z);
+            draw->AddCircleFilled(at, 8.f*scale, IM_COL32(17,29,35,255));
+            draw->AddTriangleFilled(ImVec2(at.x,at.y-8.f*scale),ImVec2(at.x-5.f*scale,at.y+4.f*scale),
+                ImVec2(at.x+5.f*scale,at.y+4.f*scale),IM_COL32(255,222,137,255));
+            draw->AddText(ImVec2(at.x+10.f*scale,at.y-8.f*scale),IM_COL32(255,222,137,255),tr("map.player").c_str());
+            // Compass uses the same projection as the relief. The scale is
+            // measured along world X, including its view foreshortening.
+            const auto north = project(0,0,-1), east = project(1,0,0);
+            const ImVec2 compass(origin.x+38.f*scale,origin.y+42.f*scale);
+            const ImVec2 northEnd(compass.x+north.x*24.f*scale,compass.y+north.y*24.f*scale);
+            draw->AddLine(compass,northEnd,IM_COL32(233,209,146,255),2.f);
+            draw->AddText(ImVec2(northEnd.x-5.f,northEnd.y-17.f*scale),IM_COL32(233,209,146,255),tr("hud.minimap_north").c_str());
+            const float metres = 16.f * minimapStep;
+            const ImVec2 ruler(origin.x+16.f*scale,origin.y+size.y-22.f*scale);
+            draw->AddLine(ruler,ImVec2(ruler.x+metres*pixels*std::hypot(east.x,east.y),ruler.y),IM_COL32(184,199,186,255),2.f);
+            const auto scaleLabel = std::to_string(int(metres))+" m";
+            draw->AddText(ImVec2(ruler.x,ruler.y-18.f*scale),IM_COL32(184,199,186,255),scaleLabel.c_str());
+            draw->PopClipRect();
+            if (wide) ImGui::SameLine();
+            ImGui::BeginChild("##MapLegend", ImVec2(0,0), false);
+            const auto observed = std::count_if(minimapCells.begin(), minimapCells.end(), [](const auto& cell){return cell.known;});
+            if (wide)
+            {
+                ImGui::TextColored(WarmAccent, "%s", tr("map.region").c_str());
+                ImGui::TextWrapped("%s", tr("map.unknown").c_str());
+                ImGui::Text("%s: %d m",tr("map.span").c_str(),MinimapCellCount * minimapStep);
+                ImGui::Text("%s: %.1fx",tr("map.zoom").c_str(),mapView.zoom);
+                ImGui::Text("%s: %.0f%%",tr("map.observed").c_str(),100.f*observed/minimapCells.size());
+                ImGui::Separator();
+                ImGui::TextColored(WarmAccent,"%s",tr("map.surface").c_str());
+            }
+            else
+            {
+                ImGui::TextColored(WarmMuted, "%d m · %.1fx · %s %.0f%%", MinimapCellCount * minimapStep,
+                    mapView.zoom,tr("map.observed").c_str(),100.f*observed/minimapCells.size());
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s",tr("map.unknown").c_str());
+            }
+            const int inspection = hoverCell >= 0 ? hoverCell : selectedMapCell;
+            if (inspection >= 0 && inspection < int(minimapCells.size()) && minimapCells[inspection].known)
+            {
+                const auto& cell = minimapCells[inspection];
+                ImGui::TextWrapped("%s",materialName(Material::toMaterial(cell.material).id).c_str());
+                ImGui::Text("X %d  Y %d  Z %d",minimapCenterX+(inspection%MinimapCellCount-32)*minimapStep,
+                    cell.height,minimapCenterZ+(inspection/MinimapCellCount-32)*minimapStep);
+            }
+            else ImGui::TextWrapped("%s",tr("map.select").c_str());
+            if (wide)
+            {
+                ImGui::Spacing(); ImGui::Separator();
+                ImGui::TextWrapped("%s",tr("map.legend").c_str());
+                ImGui::TextWrapped("%s",tr("map.session").c_str());
+            }
+            ImGui::EndChild();
+        }
+        ImGui::End();
     }
 
     void drawQuestJournal()
@@ -3071,6 +3274,7 @@ class OgreUserInterface::Impl
 
     void drawHud()
     {
+        hotbarDetailsVisible = false;
         if (player == nullptr)
         {
             return;
@@ -3093,6 +3297,11 @@ class OgreUserInterface::Impl
             return;
         }
         const PlayerSaveState state = player->getSaveState();
+        if (hudInteraction.page() == HudInteraction::Page::Map)
+        {
+            drawTerrainMap(state);
+            return;
+        }
         hudNoticeLeftTop = 18.f;
         hudNoticeRightTop = 18.f;
         drawMinimap(state, io);
@@ -3536,26 +3745,22 @@ class OgreUserInterface::Impl
                     ImGui::TextWrapped("%s",
                                        replayInstruction.c_str());
                 }
-                if (hudInteraction.ownsInput())
+                if (hudInteraction.ownsInput() && ImGui::IsWindowHovered())
                 {
-                    const auto cursor = ImGui::GetCursorScreenPos();
                     const auto origin = ImGui::GetWindowPos();
                     const auto size = ImGui::GetWindowSize();
-                    ImGui::SetCursorScreenPos(ImVec2(origin.x + 3.f, origin.y + 3.f));
-                    if (ImGui::InvisibleButton("##OpenJournal", ImVec2(size.x - 6.f, size.y - 6.f)))
+                    // Window hover captures the whole card without adding a
+                    // layout item whose size feeds back into auto-resizing.
+                    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
                     {
                         selectedJournalId = objective.currentId;
                         journalFilter = 0;
                         hudInteraction.open(HudInteraction::Page::Journal);
                     }
-                    if (ImGui::IsItemHovered())
-                    {
-                        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
-                        ImGui::GetWindowDrawList()->AddRect(origin, ImVec2(origin.x + size.x, origin.y + size.y),
-                            ImGui::ColorConvertFloat4ToU32(WarmAccent), 2.f, 0, 2.f);
-                        ImGui::SetTooltip("%s", tr("journal.open").c_str());
-                    }
-                    ImGui::SetCursorScreenPos(cursor);
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+                    ImGui::GetWindowDrawList()->AddRect(origin, ImVec2(origin.x + size.x, origin.y + size.y),
+                        ImGui::ColorConvertFloat4ToU32(WarmAccent), 2.f, 0, 2.f);
+                    ImGui::SetTooltip("%s", tr("journal.open").c_str());
                 }
             }
             hudNoticeLeftTop = ImGui::GetWindowPos().y + ImGui::GetWindowSize().y + 10.f;
@@ -3563,7 +3768,7 @@ class OgreUserInterface::Impl
             ImGui::PopStyleVar();
         }
 
-        if (worldStats.combatFeedback.kind !=
+        if (!hudInteraction.ownsInput() && worldStats.combatFeedback.kind !=
                 PlayerCombatFeedbackKind::None &&
             worldStats.combatFeedback.ticksRemaining > 0)
         {
@@ -3622,7 +3827,7 @@ class OgreUserInterface::Impl
             ImGui::GetForegroundDrawList()->AddTriangleFilled(
                 tip, left, right, colour);
         }
-        drawHeldMaterial(state, io);
+        if (!hudInteraction.ownsInput()) drawHeldMaterial(state, io);
         const float scale = appliedSettings.uiScale;
         const float dockWidth = 300.f * scale;
         const float dockHeight = 114.f * scale;
@@ -3684,8 +3889,11 @@ class OgreUserInterface::Impl
         }
         ImGui::End();
         ImGui::PopStyleVar(2);
-        const float notificationBottom = drawHudActionStrip(dockMin.y - 9.f * scale, heldMaterial);
-        drawHudNotifications(notificationBottom);
+        if (!hotbarDetailsVisible)
+        {
+            const float notificationBottom = drawHudActionStrip(dockMin.y - 9.f * scale, heldMaterial);
+            drawHudNotifications(notificationBottom);
+        }
     }
 
     float drawNotification(const std::string& text, float bottom, int side = 0)
@@ -4976,6 +5184,17 @@ class OgreUserInterface::Impl
     TerrainBiome minimapBiome = TerrainBiome::Grassland;
     MinimapNavigation::Memory navigationMemory;
     HudInteraction hudInteraction;
+    bool hotbarDetailsVisible = false;
+    std::string hudPageFixture;
+    bool hudPageFixtureOpened = false;
+    int inspectSlotFixture = -1;
+    float hudPageFixtureSeconds = 0;
+    TerrainMapView::View mapView;
+    std::vector<TerrainMapView::Face> mapFaces;
+    std::uint64_t minimapRevision = 1, mapBuiltRevision = 0;
+    float mapBuiltYaw = 0, mapBuiltPitch = 0, mapBuiltBase = 0;
+    int selectedMapCell = -1;
+    TerrainMapView::Gesture mapGesture;
     int minimapRefreshRow = 0;
     double minimapNextRefresh = 0.0;
     int minimapSeed = 0;
@@ -5187,6 +5406,11 @@ void OgreUserInterface::setWorldContext(Player *player,
     m_impl->minimapCenterX = std::numeric_limits<int>::min();
     m_impl->minimapCenterZ = std::numeric_limits<int>::min();
     m_impl->minimapValid = false;
+    ++m_impl->minimapRevision;
+    m_impl->mapFaces.clear();
+    m_impl->mapView = {};
+    m_impl->mapGesture = {};
+    m_impl->selectedMapCell = -1;
     if (world != nullptr)
     {
         m_impl->statusMessage.clear();
