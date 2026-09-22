@@ -41,6 +41,7 @@ enum class OgreUserInterfaceActionType
     ApplySettings,
     ApplyDifficulty,
     ClaimVictoryReward,
+    SelectHotbar,
     ReturnToMainMenu,
     Quit
 };
@@ -51,6 +52,7 @@ struct OgreUserInterfaceAction
     std::string worldId;
     UserSettings settings;
     WorldDifficulty difficulty = WorldDifficulty::Normal;
+    int hotbarSlot = -1;
 };
 
 struct OgreUserInterfaceValidation
@@ -91,6 +93,9 @@ class OgreUserInterface final : public Ogre::RenderTargetListener
                      int button, bool pressed);
     bool wantsKeyboardInput() const;
     bool wantsMouseInput() const;
+    bool wantsHudPointer() const noexcept;
+    bool toggleHudPointer() noexcept;
+    bool dismissHudInteraction() noexcept;
     bool hasBlockingModal() const noexcept;
     bool isDebugPanelVisible() const noexcept;
     void setWorldContext(Player *player, World *world) noexcept;

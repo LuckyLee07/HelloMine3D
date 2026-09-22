@@ -343,6 +343,11 @@ void GameplayFocusGate::setFocused(bool focused) noexcept
         return;
     }
     m_focused = focused;
+    suppressUntilRelease();
+}
+
+void GameplayFocusGate::suppressUntilRelease() noexcept
+{
     m_suppressButtonsUntilRelease = true;
     m_discardNextLookSample = true;
 }

@@ -42,6 +42,7 @@
 #include "../Presentation/PresentationClock.h"
 #include "../Presentation/PlayerHandPresentation.h"
 #include "../Presentation/MinimapNavigation.h"
+#include "../Presentation/HudInteraction.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/GameApplicationFlow.h"
 #include "../Util/ResourcePaths.h"
@@ -774,6 +775,9 @@ class OgreUserInterface::Impl
             settingsApplyPending = false;
             settingsFixtureOpened = true;
         }
+        if (flow->state() != GameApplicationState::Playing || victoryOverlayVisible() ||
+            (player != nullptr && (player->hasOpenContainer() || player->hasOpenCrafting())))
+            hudInteraction.dismiss();
         switch (flow->state())
         {
             case GameApplicationState::MainMenu:
@@ -2431,9 +2435,11 @@ class OgreUserInterface::Impl
         const float scale = appliedSettings.uiScale;
         const float fontSize = ImGui::GetFontSize() * .78f;
         struct Hint { std::string key, action; };
-        std::vector<Hint> hints = {
-            {keyName(appliedSettings.inputBindings.get(GameplayAction::OpenCrafting)), tr("hint.crafting")},
-            {"Esc", tr("hint.pause")}};
+        std::vector<Hint> hints;
+        if (!hudInteraction.ownsInput())
+            hints.push_back({keyName(appliedSettings.inputBindings.get(GameplayAction::OpenCrafting)), tr("hint.crafting")});
+        hints.push_back({"Tab", tr(hudInteraction.ownsInput() ? "hud.pointer_resume" : "hud.pointer_show")});
+        hints.push_back({"Esc", tr(hudInteraction.ownsInput() ? "hud.pointer_resume" : "hint.pause")});
         const auto* tool = runtimeToolRegistry().find(heldMaterial);
         if (runtimeFoodRegistry().find(heldMaterial) && worldStats.playerHealth < worldStats.playerMaxHealth)
             hints.insert(hints.begin() + 1, {keyName(appliedSettings.inputBindings.get(GameplayAction::ConsumeFood)), tr("hint.eat")});
@@ -2467,17 +2473,91 @@ class OgreUserInterface::Impl
         return bottom - height - 10.f * scale;
     }
 
+    void drawItemDetails(const InventorySlotState& slot, int hotbarIndex)
+    {
+        const float scale = appliedSettings.uiScale;
+        const float width = std::min(320.f * scale, ImGui::GetIO().DisplaySize.x - 24.f);
+        ImGui::SetNextWindowSizeConstraints(ImVec2(width, 0.f), ImVec2(width, FLT_MAX));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(14.f * scale, 12.f * scale));
+        if (ImGui::BeginTooltip())
+        {
+            ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + width - 28.f * scale);
+            if (slot.amount <= 0 || slot.materialId == Material::Nothing)
+            {
+                ImGui::TextColored(WarmAccent, "%s %d", tr("item.empty_slot").c_str(), hotbarIndex + 1);
+                ImGui::TextWrapped("%s", tr("item.empty_help").c_str());
+            }
+            else
+            {
+                const auto& material = Material::toMaterial(slot.materialId);
+                const auto* tool = runtimeToolRegistry().find(slot.materialId);
+                const auto* food = runtimeFoodRegistry().find(slot.materialId);
+                ImGui::TextColored(WarmAccent, "%s", materialName(slot.materialId).c_str());
+                ImGui::TextDisabled("%s  ·  %s %d / %d", tr(tool ? "item.kind_tool" : food ? "item.kind_food" :
+                    material.isBlock ? "item.kind_block" : "item.kind_material").c_str(),
+                    tr("item.stack").c_str(), slot.amount, material.maxStackSize);
+                ImGui::Separator();
+                std::string materialKey = Material::toStringId(slot.materialId);
+                const auto separator = materialKey.find(':');
+                if (separator != std::string::npos) materialKey.erase(0, separator + 1);
+                const std::string helpKey = "item.help." + materialKey;
+                const std::string fallback = tr(tool ? "item.tool_help" : food ? "item.food_help" :
+                    material.isBlock ? "item.block_help" : "item.material_help");
+                const auto& texts = runtimeLocalizedTextRegistry();
+                ImGui::TextWrapped("%s", (texts.hasKey(appliedSettings.locale, helpKey) ||
+                    texts.hasKey("en-US", helpKey) ? tr(helpKey) : fallback).c_str());
+                if (tool != nullptr)
+                {
+                    ImGui::Spacing();
+                    ImGui::Text("%s  %s", tr("item.specialty").c_str(),
+                        tr(std::string("item.mining.") + ToolRegistry::miningClassName(tool->miningClass)).c_str());
+                    ImGui::Text("%s  %d / %d", tr("item.durability").c_str(),
+                        std::clamp(slot.durability, 0, tool->maxDurability), tool->maxDurability);
+                    ImGui::ProgressBar(tool->maxDurability > 0 ? std::clamp(
+                        static_cast<float>(slot.durability) / tool->maxDurability, 0.f, 1.f) : 0.f,
+                        ImVec2(-1.f, 5.f * scale), "");
+                    ImGui::Text("%s  %d", tr("item.tier").c_str(), tool->tier);
+                    ImGui::Text("%s  %.1f×", tr("item.mining_speed").c_str(), tool->speedMultiplier);
+                    ImGui::Text("%s  %.1f   ·   %s  %.1f m", tr("item.damage").c_str(), tool->attackDamage,
+                        tr("item.reach").c_str(), tool->attackReach);
+                    ImGui::Text("%s  %.1f s", tr("item.attack_cooldown").c_str(), tool->attackCooldownTicks / 20.f);
+                }
+                if (food != nullptr)
+                {
+                    ImGui::Spacing();
+                    ImGui::Text("%s  +%.1f", tr("item.healing").c_str(), food->healthRestored);
+                    ImGui::Text("%s  %.1f s", tr("item.food_cooldown").c_str(), food->cooldownTicks / 20.f);
+                    ImGui::TextWrapped("%s · %s", keyName(appliedSettings.inputBindings.get(GameplayAction::ConsumeFood)).c_str(),
+                        tr("item.eat_help").c_str());
+                }
+                ImGui::Spacing();
+                ImGui::TextDisabled("%s %d  ·  %s", tr("item.slot").c_str(), hotbarIndex + 1,
+                    tr("item.select_hint").c_str());
+            }
+            ImGui::PopTextWrapPos();
+            ImGui::EndTooltip();
+        }
+        ImGui::PopStyleVar();
+    }
+
     void drawHotbarSlot(const InventorySlotState &slot,
                         std::size_t index, bool selected)
     {
         const float scale = appliedSettings.uiScale;
         const float slotSize = 52.f * scale;
         ImGui::PushID(static_cast<int>(index));
-        ImGui::InvisibleButton("##hotbar_slot", ImVec2(slotSize, slotSize));
+        const bool clicked = ImGui::InvisibleButton("##hotbar_slot", ImVec2(slotSize, slotSize));
+        const bool hovered = hudInteraction.ownsInput() && ImGui::IsItemHovered();
+        if (clicked && hudInteraction.ownsInput())
+        {
+            pendingAction.type = OgreUserInterfaceActionType::SelectHotbar;
+            pendingAction.hotbarSlot = static_cast<int>(index);
+            if (uiFeedback) uiFeedback();
+        }
         const ImVec2 minimum = ImGui::GetItemRectMin();
         const ImVec2 maximum = ImGui::GetItemRectMax();
         ImDrawList *drawList = ImGui::GetWindowDrawList();
-        GameInterfaceWidgets::slotFrame(drawList, minimum, maximum, selected, false, false, scale);
+        GameInterfaceWidgets::slotFrame(drawList, minimum, maximum, selected, hovered, ImGui::IsItemActive(), scale);
         drawList->AddImage(ImTextureRef(hudPanelTextureId),
             ImVec2(minimum.x + 3.f * scale, minimum.y + 3.f * scale),
             ImVec2(maximum.x - 3.f * scale, maximum.y - 3.f * scale),
@@ -2530,6 +2610,11 @@ class OgreUserInterface::Impl
                 ImVec2((minimum.x + maximum.x - markSize.x) * 0.5f,
                        (minimum.y + maximum.y - markSize.y) * 0.5f),
                 IM_COL32(123, 141, 119, 150), emptyMark);
+        }
+        if (hovered)
+        {
+            ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+            drawItemDetails(slot, static_cast<int>(index));
         }
         ImGui::PopID();
     }
@@ -2953,7 +3038,7 @@ class OgreUserInterface::Impl
             ImGui::End();
         }
 
-        if (!player->hasOpenContainer() && !player->hasOpenCrafting())
+        if (!hudInteraction.ownsInput() && !player->hasOpenContainer() && !player->hasOpenCrafting())
         {
             ImDrawList *foreground = ImGui::GetForegroundDrawList();
             const ImU32 crosshairColour = IM_COL32(255, 255, 255, 230);
@@ -3399,7 +3484,7 @@ class OgreUserInterface::Impl
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.f * scale, 8.f * scale));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(6.f * scale, 4.f * scale));
         const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground |
-            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
+            ImGuiWindowFlags_NoSavedSettings | (hudInteraction.ownsInput() ? 0 : ImGuiWindowFlags_NoInputs) | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
         if (ImGui::Begin("##OgrePlayerHud", nullptr, flags))
         {
             drawFieldKitWindow();
@@ -4739,6 +4824,7 @@ class OgreUserInterface::Impl
     int minimapStep = 2;
     TerrainBiome minimapBiome = TerrainBiome::Grassland;
     MinimapNavigation::Memory navigationMemory;
+    HudInteraction hudInteraction;
     int minimapRefreshRow = 0;
     double minimapNextRefresh = 0.0;
     int minimapSeed = 0;
@@ -4881,7 +4967,7 @@ void OgreUserInterface::mouseButton(const OIS::MouseEvent &event,
 
 bool OgreUserInterface::wantsKeyboardInput() const
 {
-    return m_impl->flow->state() != GameApplicationState::Playing ||
+    return m_impl->hudInteraction.ownsInput() || m_impl->flow->state() != GameApplicationState::Playing ||
            (m_impl->player != nullptr &&
             (m_impl->player->hasOpenContainer() ||
              m_impl->player->hasOpenCrafting())) ||
@@ -4891,12 +4977,32 @@ bool OgreUserInterface::wantsKeyboardInput() const
 
 bool OgreUserInterface::wantsMouseInput() const
 {
-    return m_impl->flow->state() != GameApplicationState::Playing ||
+    return m_impl->hudInteraction.ownsInput() || m_impl->flow->state() != GameApplicationState::Playing ||
            (m_impl->player != nullptr &&
             (m_impl->player->hasOpenContainer() ||
              m_impl->player->hasOpenCrafting())) ||
            m_impl->victoryOverlayVisible() ||
            ImGui::GetIO().WantCaptureMouse;
+}
+
+bool OgreUserInterface::wantsHudPointer() const noexcept
+{
+    return m_impl->flow->state() == GameApplicationState::Playing &&
+        m_impl->hudInteraction.ownsInput();
+}
+
+bool OgreUserInterface::toggleHudPointer() noexcept
+{
+    if (m_impl->flow->state() != GameApplicationState::Playing || m_impl->player == nullptr ||
+        m_impl->player->hasOpenContainer() || m_impl->player->hasOpenCrafting() || hasBlockingModal())
+        return false;
+    m_impl->hudInteraction.togglePointer();
+    return true;
+}
+
+bool OgreUserInterface::dismissHudInteraction() noexcept
+{
+    return m_impl->hudInteraction.dismiss();
 }
 
 bool OgreUserInterface::hasBlockingModal() const noexcept
@@ -4921,6 +5027,7 @@ void OgreUserInterface::setWorldContext(Player *player,
     m_impl->displayedObjectiveId.clear();
     m_impl->objectiveHintSeconds = 12.f;
     m_impl->navigationMemory.clear();
+    m_impl->hudInteraction.dismiss();
     m_impl->minimapRefreshRow = 0;
     m_impl->minimapNextRefresh = 0.f;
     m_impl->minimapCenterX = std::numeric_limits<int>::min();

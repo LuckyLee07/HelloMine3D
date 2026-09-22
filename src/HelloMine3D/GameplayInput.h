@@ -164,6 +164,8 @@ class GameplayFocusGate {
     bool isFocused() const noexcept;
     bool allowsWorldButtons(bool anyButtonDown) noexcept;
     bool acceptsLookSample() noexcept;
+    // UI ownership changes must not reuse the closing click or cursor warp.
+    void suppressUntilRelease() noexcept;
 
   private:
     bool m_focused = true;

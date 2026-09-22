@@ -840,3 +840,7 @@ Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先
   都是派生状态，不写入 save v12，也不改变每台 Crusher 独立手摇的 C2 行为。
 - C3 本身没有授权 Track D；D1 是之后单独获批的具名批次。D1 又不构成 B7-B9、C4-C11、D2-D8、
   动力传播、通用网络或 Extended 的自动启动权限。
+
+### HUD 指针所有权
+
+`Presentation/HudInteraction` 只保存临时页面；Ogre 输入壳负责捕获切换，进入或离开时清理输入并等待旧鼠标按钮释放。Tab 查看时暂停世界模拟，Esc 先关闭 HUD 再处理普通暂停。物品浮层读取玩家槽位和冻结注册表，点击通过既有 PlayerInputState 选槽，不修改库存数量。详见 [HUD 交互合同](../contracts/hud-interaction-contract-v1.md)。

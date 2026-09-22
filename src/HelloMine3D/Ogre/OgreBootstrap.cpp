@@ -2091,6 +2091,15 @@ namespace
             {
                 case OgreUserInterfaceActionType::None:
                     return;
+                case OgreUserInterfaceActionType::SelectHotbar:
+                    if (m_worldPlayer != nullptr && m_userInterface->wantsHudPointer() &&
+                        action.hotbarSlot >= 0 && action.hotbarSlot < m_worldPlayer->getInventorySlotCount())
+                    {
+                        PlayerInputState input;
+                        input.hotbarSlot = action.hotbarSlot;
+                        m_worldPlayer->applyInput(input);
+                    }
+                    return;
                 case OgreUserInterfaceActionType::Quit:
                     if (!clearActiveWorld())
                     {
@@ -2476,7 +2485,8 @@ namespace
                 return;
             }
             updateRcPerformanceScenario(deltaSeconds);
-            if (!m_applicationFlow.acceptsWorldSimulation())
+            if (!m_applicationFlow.acceptsWorldSimulation() ||
+                (m_userInterface != nullptr && m_userInterface->wantsHudPointer()))
             {
                 if (m_keyboard != nullptr)
                 {
@@ -2549,9 +2559,9 @@ namespace
                         static_cast<GameplayMouseButton>(buttonIndex)));
             }
             const bool worldMouseButtonsAllowed =
-                worldInputActive && m_mouseLookEnabled &&
+                worldInputActive &&
                 m_focusGate.allowsWorldButtons(anyMouseButtonDown);
-            if (worldInputActive && m_mouseLookEnabled &&
+            if (worldInputActive &&
                 m_focusGate.acceptsLookSample())
             {
                 const GameplayLookDelta look = calculateGameplayLookDelta(
@@ -4268,10 +4278,10 @@ namespace
         bool keyPressed(const OIS::KeyEvent& event) override
         {
             bool firstCursorTogglePress = false;
-            if (event.key == OIS::KC_GRAVE || event.key == OIS::KC_L)
+            if (event.key == OIS::KC_GRAVE || event.key == OIS::KC_L || event.key == OIS::KC_TAB)
             {
                 bool &held = event.key == OIS::KC_GRAVE
-                    ? m_graveKeyHeld : m_lKeyHeld;
+                    ? m_graveKeyHeld : event.key == OIS::KC_L ? m_lKeyHeld : m_tabKeyHeld;
                 firstCursorTogglePress = !held;
                 held = true;
             }
@@ -4297,6 +4307,12 @@ namespace
                 if (m_userInterface != nullptr &&
                     m_userInterface->hasBlockingModal())
                 {
+                    return true;
+                }
+                if (m_userInterface != nullptr &&
+                    m_userInterface->dismissHudInteraction())
+                {
+                    updateNativeCursorCapture();
                     return true;
                 }
                 if (m_userInterface != nullptr &&
@@ -4335,6 +4351,20 @@ namespace
                 }
                 return true;
             }
+            // Tab is dedicated to the HUD pointer. Retain the old L/grave
+            // aliases only when a user gameplay binding does not own that key.
+            bool boundGameplayKey = false;
+            for (std::size_t i = 0; i < GameplayActionCount; ++i)
+                boundGameplayKey = boundGameplayKey || event.key == toOisKey(
+                    m_config.inputBindings.get(static_cast<GameplayAction>(i)));
+            if ((event.key == OIS::KC_TAB ||
+                 ((event.key == OIS::KC_GRAVE || event.key == OIS::KC_L) && !boundGameplayKey)) &&
+                firstCursorTogglePress && m_userInterface != nullptr &&
+                m_userInterface->toggleHudPointer())
+            {
+                updateNativeCursorCapture();
+                return true;
+            }
             if (m_userInterface != nullptr &&
                 m_userInterface->wantsKeyboardInput())
             {
@@ -4363,17 +4393,6 @@ namespace
             {
                 case OIS::KC_F:
                     m_toggleFlying = true;
-                    break;
-                case OIS::KC_GRAVE:
-                case OIS::KC_L:
-                    if (firstCursorTogglePress &&
-                        m_applicationFlow.state() ==
-                        GameApplicationState::Playing)
-                    {
-                        m_mouseLookEnabled = !m_mouseLookEnabled;
-                        m_pendingLookDelta = glm::vec2(0.0f);
-                        updateNativeCursorCapture();
-                    }
                     break;
                 case OIS::KC_C:
                     m_resetMeshes = true;
@@ -4409,6 +4428,7 @@ namespace
             {
                 m_lKeyHeld = false;
             }
+            if (event.key == OIS::KC_TAB) m_tabKeyHeld = false;
             if (m_userInterface != nullptr)
             {
                 m_userInterface->keyEvent(event, false, *m_keyboard);
@@ -4524,6 +4544,7 @@ namespace
             m_focusTransitionFrame = true;
             m_graveKeyHeld = false;
             m_lKeyHeld = false;
+            m_tabKeyHeld = false;
             clearTransientInput();
             if (!focused)
             {
@@ -4584,10 +4605,10 @@ namespace
             if (m_hiddenWindow || m_window == nullptr ||
                 m_nativeWindowHandle == 0 || m_worldPlayer == nullptr ||
                 m_applicationFlow.state() != GameApplicationState::Playing ||
-                !m_mouseLookEnabled || m_worldPlayer->hasOpenContainer() ||
+                m_worldPlayer->hasOpenContainer() ||
                 m_worldPlayer->hasOpenCrafting() ||
                 (m_userInterface != nullptr &&
-                 m_userInterface->hasBlockingModal()))
+                 (m_userInterface->hasBlockingModal() || m_userInterface->wantsHudPointer())))
             {
                 return false;
             }
@@ -4622,6 +4643,13 @@ namespace
 
         void updateNativeCursorCapture()
         {
+            const bool hudOwnsInput = m_userInterface != nullptr && m_userInterface->wantsHudPointer();
+            if (hudOwnsInput != m_previousHudInput)
+            {
+                m_previousHudInput = hudOwnsInput;
+                m_focusGate.suppressUntilRelease();
+                clearTransientInput();
+            }
 #if defined(__APPLE__)
             if (m_mouse != nullptr)
             {
@@ -4815,7 +4843,8 @@ namespace
         bool m_toggleFlying = false;
         bool m_resetMeshes = false;
         bool m_useHeldFood = false;
-        bool m_mouseLookEnabled = true;
+        bool m_previousHudInput = false;
+        bool m_tabKeyHeld = false;
         bool m_graveKeyHeld = false;
         bool m_lKeyHeld = false;
         bool m_hiddenWindow = false;
