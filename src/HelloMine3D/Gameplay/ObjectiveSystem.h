@@ -23,6 +23,15 @@ struct ObjectiveOpportunitySnapshot
     int required = 0;
 };
 
+struct ObjectiveJournalEntry : ObjectiveOpportunitySnapshot
+{
+    std::string prerequisiteId;
+    std::string prerequisiteTitle;
+    bool completed = false;
+    bool available = false;
+    bool optional = false;
+};
+
 struct RecipeDiscoverySnapshot
 {
     std::vector<std::string> discoveredIds;
@@ -42,6 +51,7 @@ struct ObjectiveSnapshot
     std::vector<std::string> completedIds;
     std::vector<std::string> completedTitles;
     std::vector<ObjectiveOpportunitySnapshot> opportunities;
+    std::vector<ObjectiveJournalEntry> journal;
     int progress = 0;
     int required = 0;
     std::size_t completedObjectives = 0;
@@ -65,7 +75,7 @@ class ObjectiveSystem
     ObjectiveSystem& operator=(const ObjectiveSystem&) = delete;
 
     void update(float deltaSeconds);
-    ObjectiveSnapshot snapshot() const;
+    ObjectiveSnapshot snapshot(bool includeJournal = false) const;
     ObjectiveSaveState saveState() const;
     std::uint32_t legacyAlphaFlags() const noexcept;
     bool isCompleted(const std::string& id) const noexcept;

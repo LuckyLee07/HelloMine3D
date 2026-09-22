@@ -844,3 +844,5 @@ Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先
 ### HUD 指针所有权
 
 `Presentation/HudInteraction` 只保存临时页面；Ogre 输入壳负责捕获切换，进入或离开时清理输入并等待旧鼠标按钮释放。Tab 查看时暂停世界模拟，Esc 先关闭 HUD 再处理普通暂停。物品浮层读取玩家槽位和冻结注册表，点击通过既有 PlayerInputState 选槽，不修改库存数量。详见 [HUD 交互合同](../contracts/hud-interaction-contract-v1.md)。
+
+任务日志通过 `World::getObjectiveSnapshot(true)` 按需取得值快照，AlphaJourney 转发至 ObjectiveSystem；任务可见性、前置、进度仍由冻结定义和保存状态决定。UI 的选择／过滤／追踪均为当前世界临时状态，不进入保存协议。

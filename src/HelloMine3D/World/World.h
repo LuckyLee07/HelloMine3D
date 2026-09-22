@@ -277,7 +277,7 @@ class World : public NonCopyable {
     ExplorationRewardSnapshot getExplorationRewardSnapshot() const noexcept;
     int getPlayerGuardRecoverDurationTicks() const noexcept;
     AlphaJourneySnapshot getAlphaJourneySnapshot() const;
-    ObjectiveSnapshot getObjectiveSnapshot() const;
+    ObjectiveSnapshot getObjectiveSnapshot(bool includeJournal = false) const;
     RecipeDiscoverySnapshot getRecipeDiscoverySnapshot() const;
     bool isRecipeDiscovered(const std::string &recipeId) const noexcept;
     WorldOutcomeSnapshot getWorldOutcomeSnapshot() const noexcept;

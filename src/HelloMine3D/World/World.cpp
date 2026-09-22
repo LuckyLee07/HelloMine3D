@@ -1403,10 +1403,10 @@ AlphaJourneySnapshot World::getAlphaJourneySnapshot() const
                : AlphaJourneySnapshot{};
 }
 
-ObjectiveSnapshot World::getObjectiveSnapshot() const
+ObjectiveSnapshot World::getObjectiveSnapshot(bool includeJournal) const
 {
     return m_alphaJourney != nullptr
-               ? m_alphaJourney->objectiveSnapshot()
+               ? m_alphaJourney->objectiveSnapshot(includeJournal)
                : ObjectiveSnapshot{};
 }
 

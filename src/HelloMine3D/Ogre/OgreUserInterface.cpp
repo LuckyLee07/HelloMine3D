@@ -2961,6 +2961,114 @@ class OgreUserInterface::Impl
         ImGui::PopStyleVar();
     }
 
+    void drawQuestJournal()
+    {
+        if (world == nullptr) return;
+        const auto snapshot = world->getObjectiveSnapshot(true);
+        const auto& io = ImGui::GetIO();
+        const float scale = appliedSettings.uiScale;
+        ImGui::GetBackgroundDrawList()->AddRectFilled(ImVec2(0, 0), io.DisplaySize, IM_COL32(5, 12, 16, 150));
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * .5f, io.DisplaySize.y * .5f), ImGuiCond_Always, ImVec2(.5f, .5f));
+        ImGui::SetNextWindowSize(ImVec2(std::min(940.f * scale, io.DisplaySize.x - 32.f),
+            std::min(640.f * scale, io.DisplaySize.y - 32.f)), ImGuiCond_Always);
+        const auto flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings |
+            ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground;
+        if (ImGui::Begin("##QuestJournal", nullptr, flags))
+        {
+            if (drawInventoryHeader(Material::ID::OakBark, tr("journal.title"), tr("journal.subtitle")))
+                hudInteraction.dismiss();
+            ImGui::TextColored(WarmMuted, "%s  %zu / %zu", tr("journal.main").c_str(),
+                snapshot.completedObjectives, snapshot.totalObjectives);
+            const char* filters[] = {"journal.all", "journal.available", "journal.completed"};
+            for (int i = 0; i < 3; ++i)
+            {
+                if (i) ImGui::SameLine();
+                if (ImGui::RadioButton(tr(filters[i]).c_str(), journalFilter == i)) journalFilter = i;
+            }
+            std::vector<const ObjectiveJournalEntry*> entries;
+            for (const auto& entry : snapshot.journal)
+                if (journalFilter == 0 || (journalFilter == 1 && entry.available) ||
+                    (journalFilter == 2 && entry.completed)) entries.push_back(&entry);
+            auto selected = std::find_if(entries.begin(), entries.end(), [&](const auto* entry) {
+                return entry->id == selectedJournalId;
+            });
+            if (selected == entries.end() && !entries.empty())
+            {
+                selectedJournalId = entries.front()->id;
+                selected = entries.begin();
+            }
+            const float width = ImGui::GetContentRegionAvail().x;
+            const float height = ImGui::GetContentRegionAvail().y;
+            const bool wide = width >= 650.f * scale;
+            const float listWidth = wide ? width * .43f : width;
+            const float listHeight = wide ? height : std::max(64.f, height * .40f);
+            ImGui::BeginChild("##QuestList", ImVec2(listWidth, listHeight), true);
+            if (entries.empty()) ImGui::TextWrapped("%s", tr("journal.empty").c_str());
+            for (const auto* entry : entries)
+            {
+                ImGui::PushID(entry->id.c_str());
+                const auto title = objectiveText(entry->id, "title", entry->title);
+                const auto status = tr(entry->completed ? "journal.completed" :
+                    (entry->available ? "journal.available" : "journal.locked"));
+                const float rowHeight = ImGui::CalcTextSize(title.c_str(), nullptr, false,
+                    std::max(1.f, ImGui::GetContentRegionAvail().x - 16.f)).y + ImGui::GetTextLineHeight() + 12.f * scale;
+                const auto origin = ImGui::GetCursorScreenPos();
+                if (ImGui::Selectable("##QuestRow", selectedJournalId == entry->id, 0, ImVec2(0, rowHeight)))
+                    selectedJournalId = entry->id;
+                if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+                auto* draw = ImGui::GetWindowDrawList();
+                draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(origin.x + 6.f, origin.y + 3.f),
+                    ImGui::ColorConvertFloat4ToU32(entry->available ? WarmText : WarmMuted), title.c_str(), nullptr,
+                    std::max(1.f, ImGui::GetContentRegionAvail().x - 16.f));
+                const auto secondary = tr(entry->optional ? "journal.optional" : "journal.main") + " · " + status +
+                    (entry->id == trackedObjectiveId ? " · " + tr("journal.tracking") : "");
+                draw->AddText(ImVec2(origin.x + 6.f, origin.y + rowHeight - ImGui::GetTextLineHeight() - 3.f),
+                    ImGui::ColorConvertFloat4ToU32(WarmMuted), secondary.c_str());
+                ImGui::PopID();
+            }
+            ImGui::EndChild();
+            if (wide) ImGui::SameLine();
+            ImGui::BeginChild("##QuestDetail", ImVec2(0, 0), true);
+            const auto detail = std::find_if(entries.begin(), entries.end(), [&](const auto* entry) {
+                return entry->id == selectedJournalId;
+            });
+            if (detail != entries.end())
+            {
+                const auto& entry = **detail;
+                ImGui::PushStyleColor(ImGuiCol_Text, WarmAccent);
+                ImGui::TextWrapped("%s", objectiveText(entry.id, "title", entry.title).c_str());
+                ImGui::PopStyleColor();
+                ImGui::TextColored(WarmMuted, "%s · %s", tr(entry.optional ? "journal.optional" : "journal.main").c_str(),
+                    tr(entry.completed ? "journal.completed" : (entry.available ? "journal.available" : "journal.locked")).c_str());
+                ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
+                ImGui::TextWrapped("%s", objectiveText(entry.id, "instruction", entry.instruction).c_str());
+                ImGui::Spacing();
+                const auto progress = std::to_string(std::min(entry.progress, entry.required)) + " / " + std::to_string(entry.required);
+                ImGui::ProgressBar(entry.required > 0 ? std::clamp(float(entry.progress) / entry.required, 0.f, 1.f) : 0.f,
+                    ImVec2(-1.f, 0.f), progress.c_str());
+                if (!entry.prerequisiteId.empty())
+                {
+                    ImGui::Spacing();
+                    ImGui::TextWrapped("%s: %s", tr("journal.prerequisite").c_str(),
+                        objectiveText(entry.prerequisiteId, "title", entry.prerequisiteTitle).c_str());
+                }
+                ImGui::Spacing();
+                if (entry.available)
+                {
+                    const bool tracked = entry.id == trackedObjectiveId;
+                    if (ImGui::Button(tr(tracked ? "journal.untrack" : "journal.track").c_str(), ImVec2(-1.f, 0.f)))
+                    {
+                        trackedObjectiveId = tracked ? std::string{} : entry.id;
+                        objectiveHintSeconds = 12.f;
+                    }
+                }
+                ImGui::TextWrapped("%s", tr("journal.track_help").c_str());
+            }
+            ImGui::EndChild();
+        }
+        ImGui::End();
+    }
+
     void drawHud()
     {
         if (player == nullptr)
@@ -2977,6 +3085,11 @@ class OgreUserInterface::Impl
         if (player->hasOpenContainer() || player->hasOpenCrafting())
         {
             drawHudNotifications(io.DisplaySize.y - 8.f);
+            return;
+        }
+        if (hudInteraction.page() == HudInteraction::Page::Journal)
+        {
+            drawQuestJournal();
             return;
         }
         const PlayerSaveState state = player->getSaveState();
@@ -3237,8 +3350,22 @@ class OgreUserInterface::Impl
 
         if (world != nullptr)
         {
-            const ObjectiveSnapshot objective =
-                world->getObjectiveSnapshot();
+            ObjectiveSnapshot objective = world->getObjectiveSnapshot(!trackedObjectiveId.empty());
+            if (!trackedObjectiveId.empty())
+            {
+                const auto entry = std::find_if(objective.journal.begin(), objective.journal.end(),
+                    [&](const auto& value) { return value.id == trackedObjectiveId && value.available; });
+                if (entry == objective.journal.end()) trackedObjectiveId.clear();
+                else
+                {
+                    objective.currentId = entry->id;
+                    objective.title = entry->title;
+                    objective.instruction = entry->instruction;
+                    objective.progress = entry->progress;
+                    objective.required = entry->required;
+                    objective.sessionComplete = false;
+                }
+            }
             if (displayedObjectiveId != objective.currentId)
             {
                 displayedObjectiveId = objective.currentId;
@@ -3256,7 +3383,7 @@ class OgreUserInterface::Impl
                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground |
                         ImGuiWindowFlags_AlwaysAutoResize |
                         ImGuiWindowFlags_NoSavedSettings |
-                        ImGuiWindowFlags_NoInputs |
+                        (hudInteraction.ownsInput() ? 0 : ImGuiWindowFlags_NoInputs) |
                         ImGuiWindowFlags_NoFocusOnAppearing |
                         ImGuiWindowFlags_NoNav))
             {
@@ -3294,7 +3421,7 @@ class OgreUserInterface::Impl
                 }
                 else
                 {
-                    ImGui::TextDisabled("%s", tr("hud.journey_details").c_str());
+                    ImGui::TextDisabled("%s", tr(hudInteraction.ownsInput() ? "journal.open" : "hud.journey_details").c_str());
                 }
                 ImGui::SetWindowFontScale(.8f);
                 if (objective.required > 1)
@@ -3408,6 +3535,27 @@ class OgreUserInterface::Impl
                     const std::string replayInstruction = tr(instructionKey);
                     ImGui::TextWrapped("%s",
                                        replayInstruction.c_str());
+                }
+                if (hudInteraction.ownsInput())
+                {
+                    const auto cursor = ImGui::GetCursorScreenPos();
+                    const auto origin = ImGui::GetWindowPos();
+                    const auto size = ImGui::GetWindowSize();
+                    ImGui::SetCursorScreenPos(ImVec2(origin.x + 3.f, origin.y + 3.f));
+                    if (ImGui::InvisibleButton("##OpenJournal", ImVec2(size.x - 6.f, size.y - 6.f)))
+                    {
+                        selectedJournalId = objective.currentId;
+                        journalFilter = 0;
+                        hudInteraction.open(HudInteraction::Page::Journal);
+                    }
+                    if (ImGui::IsItemHovered())
+                    {
+                        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+                        ImGui::GetWindowDrawList()->AddRect(origin, ImVec2(origin.x + size.x, origin.y + size.y),
+                            ImGui::ColorConvertFloat4ToU32(WarmAccent), 2.f, 0, 2.f);
+                        ImGui::SetTooltip("%s", tr("journal.open").c_str());
+                    }
+                    ImGui::SetCursorScreenPos(cursor);
                 }
             }
             hudNoticeLeftTop = ImGui::GetWindowPos().y + ImGui::GetWindowSize().y + 10.f;
@@ -4801,6 +4949,9 @@ class OgreUserInterface::Impl
     float displayedPeakFrameMs = 0.f;
     float performanceOverlayBottom = 90.f;
     std::string displayedObjectiveId;
+    std::string selectedJournalId;
+    std::string trackedObjectiveId;
+    int journalFilter = 0;
     float objectiveHintSeconds = 12.f;
     std::size_t performanceSampleFrames = 0;
     std::uint32_t dismissedVictoryEpoch = 0;
@@ -5025,6 +5176,9 @@ void OgreUserInterface::setWorldContext(Player *player,
     m_impl->previousPlayerHealth = -1.f;
     m_impl->difficultyDraftInitialized = false;
     m_impl->displayedObjectiveId.clear();
+    m_impl->selectedJournalId.clear();
+    m_impl->trackedObjectiveId.clear();
+    m_impl->journalFilter = 0;
     m_impl->objectiveHintSeconds = 12.f;
     m_impl->navigationMemory.clear();
     m_impl->hudInteraction.dismiss();

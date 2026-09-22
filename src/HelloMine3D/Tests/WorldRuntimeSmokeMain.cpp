@@ -1573,7 +1573,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 529 &&
+              registry.keys("en-US").size() == 544 &&
               registry.lookup("zh-CN", "hud.pointer_show") == "显示鼠标" &&
               registry.lookup("en-US", "item.durability") == "Durability" &&
               registry.lookup("en-US", "hud.region_river") == "River" &&
@@ -1609,7 +1609,7 @@ void caseWorldOutcomeAndLocalizedText()
               registry.lookup("en-US", "main.tagline") ==
                   "Gather. Build. Find your own way." &&
               registry.lookup("zh-CN", "hud.journey_details") ==
-                  "Esc · 查看旅程" &&
+                  "Tab · 查看任务" &&
               registry.lookup("en-US", "material.torch.name") ==
                   "Torch" &&
               registry.lookup("zh-CN", "material.torch.name") ==
@@ -12104,6 +12104,26 @@ void caseP11CFirstThirtyMinutes()
                   objectives.recipeDiscoverySnapshot()
                           .discoveredIds.empty());
 
+        const auto journal = objectives.snapshot(true);
+        const auto journalEntry = [](const ObjectiveSnapshot& value, const std::string& id) -> const ObjectiveJournalEntry* {
+            for (const auto& entry : value.journal) if (entry.id == id) return &entry;
+            return nullptr;
+        };
+        const auto* gather = journalEntry(journal, "alpha.gather_wood");
+        const auto* craft = journalEntry(journal, "alpha.craft_workbench");
+        check("HUD-JOURNAL/visible-entries-preserve-prerequisites-and-status",
+            initial.journal.empty() && journal.journal.size() == 33 && gather && craft &&
+            gather->available && !gather->completed && !gather->optional && gather->progress == 0 &&
+            !craft->available && !craft->completed && craft->prerequisiteId == gather->id &&
+            craft->prerequisiteTitle == gather->title &&
+            !journalEntry(journal, "alpha.reach_spawn_marker"));
+        auto detached = journal;
+        detached.journal.front().completed = true;
+        detached.journal.front().progress = 999;
+        check("HUD-JOURNAL/copied-view-cannot-mutate-authority",
+            !objectives.isCompleted("alpha.gather_wood") && objectives.progress("alpha.gather_wood") == 0 &&
+            objectives.saveState().completedIds.empty() && objectives.saveState().progress.empty());
+
         const int added = player.addItem(Material::OAK_BARK_BLOCK, 11);
         eventBus.publish(PlayerInventoryChangedEvent(
             DefaultPlayerActorId, Material::ID::OakBark, added,
@@ -12119,6 +12139,13 @@ void caseP11CFirstThirtyMinutes()
                   hasOpportunity(opened, "alpha.craft_workbench") &&
                   hasOpportunity(opened, "shelter.craft_planks") &&
                   hasOpportunity(opened, "exploration.find_coal"));
+
+        const auto openedJournal = objectives.snapshot(true);
+        gather = journalEntry(openedJournal, "alpha.gather_wood");
+        craft = journalEntry(openedJournal, "alpha.craft_workbench");
+        check("HUD-JOURNAL/completion-unlocks-dependent-entry",
+            gather && gather->completed && !gather->available && gather->progress == gather->required &&
+            craft && craft->available && !craft->completed);
 
         const RecipeDiscoverySnapshot barkKnowledge =
             objectives.recipeDiscoverySnapshot();
@@ -12165,6 +12192,12 @@ void caseP11CFirstThirtyMinutes()
         ObjectiveSystem restored(registry, restoredPlayer, restoredBus,
                                  branchedState, branchedFlags, false);
         const ObjectiveSnapshot restoredSnapshot = restored.snapshot();
+        const auto restoredJournal = restored.snapshot(true);
+        const auto restoredPlanks = std::find_if(restoredJournal.journal.begin(), restoredJournal.journal.end(),
+            [](const auto& entry) { return entry.id == "shelter.place_planks"; });
+        check("HUD-JOURNAL/restored-progress-remains-available",
+            restoredPlanks != restoredJournal.journal.end() && restoredPlanks->progress == 3 &&
+            restoredPlanks->available && !restoredPlanks->completed);
         const bool wheatAdded =
             restoredPlayer.addItem(Material::WHEAT, 1) == 1;
         restoredBus.publish(PlayerInventoryChangedEvent(
@@ -12178,6 +12211,27 @@ void caseP11CFirstThirtyMinutes()
                       "hellomine:oak_planks") &&
                   !branchedState.completedIds.empty() && wheatAdded &&
                   restored.isRecipeDiscovered("hellomine:bread"));
+    }
+
+    {
+        auto text = readTextFile(ResourcePaths::media("objectives/Base.objective"));
+        const auto hidden = text.find("visible 0");
+        check("HUD-JOURNAL/optional-fixture-has-hidden-entry", hidden != std::string::npos);
+        if (hidden != std::string::npos)
+        {
+            text.replace(hidden, 9, "visible 1");
+            ObjectiveRegistry optionalRegistry;
+            optionalRegistry.freeze({{"journal.objective", text}});
+            Player player;
+            SandboxEventBus bus;
+            ObjectiveSystem objectives(optionalRegistry, player, bus, {}, 0u, false);
+            const auto snapshot = objectives.snapshot(true);
+            const auto optional = std::find_if(snapshot.journal.begin(), snapshot.journal.end(),
+                [](const auto& entry) { return entry.optional; });
+            check("HUD-JOURNAL/visible-optional-does-not-alter-main-count",
+                snapshot.journal.size() == 34 && snapshot.totalObjectives == 33 &&
+                optional != snapshot.journal.end() && optional->available && !optional->completed);
+        }
     }
 
     const auto saveDirectory =

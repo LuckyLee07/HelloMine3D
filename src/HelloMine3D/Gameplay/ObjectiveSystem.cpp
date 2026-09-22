@@ -206,12 +206,25 @@ void ObjectiveSystem::update(float deltaSeconds)
     }
 }
 
-ObjectiveSnapshot ObjectiveSystem::snapshot() const
+ObjectiveSnapshot ObjectiveSystem::snapshot(bool includeJournal) const
 {
     ObjectiveSnapshot result;
     result.definitionVersion = m_registry->definitionVersion();
     for (const ObjectiveDefinition& definition : m_registry->definitions())
     {
+        if (includeJournal && definition.visible)
+        {
+            ObjectiveJournalEntry entry;
+            static_cast<ObjectiveOpportunitySnapshot&>(entry) = makeOpportunity(definition);
+            entry.completed = isCompleted(definition.id);
+            entry.available = !entry.completed && prerequisiteSatisfied(definition);
+            entry.optional = definition.optional;
+            entry.prerequisiteId = definition.prerequisite;
+            if (const auto* prerequisite = m_registry->find(definition.prerequisite))
+                entry.prerequisiteTitle = prerequisite->title;
+            if (entry.completed) entry.progress = entry.required;
+            result.journal.push_back(std::move(entry));
+        }
         if (!definition.visible || definition.optional)
         {
             continue;
