@@ -48,7 +48,7 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 
 ## 当前批准批次
 
-**2026-09-21 用户新批准／2026-09-22 执行：HUD 交互入口 Goal（Doing）。** 快捷栏 hover 真实物品详情、任务区打开真实任务日志、小地图打开可交互 3D 区域地图；先完善自由指针和输入隔离，再接任务与地图。上一轮地形 Goal 已交付，本目标为当前最高优先级。见[提示词](hud-interaction-goal-prompt-2026-09-22.md)、[合同](../contracts/hud-interaction-contract-v1.md)和[执行记录](../reports/hud-interaction-execution-2026-09-22.md)。
+**2026-09-21 用户新批准／2026-09-22 执行：HUD 交互入口 Goal（Engineering Done，Goal active，正常输入收尾待解锁）。** 快捷栏 hover 真实物品详情、任务区打开真实任务日志、小地图打开可交互 3D 区域地图；先完善自由指针和输入隔离，再接任务与地图。上一轮地形 Goal 已交付，本目标为当前最高优先级。见[提示词](hud-interaction-goal-prompt-2026-09-22.md)、[合同](../contracts/hud-interaction-contract-v1.md)和[执行记录](../reports/hud-interaction-execution-2026-09-22.md)。 三个入口已实现并分批中文提交；双配置完整世界各 1716、资源各 114、输入各 33、地图各 26 通过，末次名称修正的 P11A 各 99 通过。12 次性能对照通过，独立中文客户端约 51 MiB；Mac 锁屏后最后普通输入复核尚未完成，详见[交付与恢复入口](../reports/hud-interaction-delivery-2026-09-22.md)。
 
 **2026-09-21 已交付：冒险地图级地形与生态。** 用户认为现有地貌仍过于简单，要求形成区域鲜明、生态丰富且适合持续探索的方块沙盒地图。先做宏观区域、差异化地貌、水系、成套植被／材质和探索路线；机器／菜单及独立天空重做后移。既有 E6、v13–v15 是基础，不代表新目标完成。可执行提示词见[冒险地图 Goal](adventure-terrain-goal-prompt-2026-09-21.md)，当前差距和天空诊断见[现状调查](../reports/terrain-ecology-baseline-2026-09-21.md)。用户已明确启动完整目标；B1–B5 现已完成实现、当前可执行验证及本地交付，新世界默认 terrain v19，旧 v1–v18 输出保持。双配置完整世界各 1710/1710，42 站连续观察、当前绘制复查和海岛补查完成；当前 Retina 分辨率下 72 次配对、364146 帧的 P95/P99 全部通过。正常菜单重开／合成界面／保存返回和再载入通过，持续步行与正常采集按目标约定保留输入能力限制。独立客户端约 51 MiB，清理冗余产物约 1.80 GB，原用户包和存档不变。详见[最终交付](../reports/adventure-terrain-delivery-2026-09-21.md)及[执行记录](../reports/adventure-terrain-execution-2026-09-21.md)。不替用户宣布审美认可；下文旧 Goal 的 paused／active 状态仅为历史，本次不自动启动天空或菜单新任务。
 

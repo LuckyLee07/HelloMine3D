@@ -2,11 +2,12 @@
 
 ## 当前恢复状态
 
-- 用户已批准完整 Goal，宿主 active；起始 `4e9b172`、工作区干净。范围见[提示词](../current/hud-interaction-goal-prompt-2026-09-22.md)和[合同](../contracts/hud-interaction-contract-v1.md)。
-- 已核查：常驻三块 HUD 原来均 NoInputs；已有 L／反引号仅释放光标，无物品详情或页面路由。输入壳拥有 OS 捕获，UI 派生画面，ObjectiveSystem 拥有任务真值；小地图仅采样驻留区块。
-- 当前 B1：实现 Tab 指针、查看时暂停模拟、所有权转移防穿透、真实物品详情与点击选槽；已完成聚焦验证和正常窗口空槽交互，详见 B1。B2 日志、B3 地图和交付待做。
-- 工作产物集中 `build/hud-interaction-20260922/`。前轮交付的 `build/adventure-terrain-20260921/HelloMine3D-Adventure.app` 以及历史用户包、所有现有存档受保护；不原位刷新或操作。
-- 输入限制按实际窗口逐项判断，不重复持续 WASD 权限排查；本轮 hover、点击与离散按键可使用 Computer Use 验证。
+- 用户完整 HUD Goal 仍 active；工程实现、自动检查、性能、独立客户端和小批次中文提交已完成。源码 `ee42d30`，B1/B2/B3/B4 分别见下文；交付及实际缺项见[交付记录](hud-interaction-delivery-2026-09-22.md)。不恢复此前已经完成的地形 Goal。
+- 当前没有构建、性能采样或本轮客户端进程运行。所有 exec session 已完成；本轮工作目录 `build/hud-interaction-20260922/`，最终包 `HelloMine3D-HUD.app` 约 51 MiB，工作包和正常测试世界保留。新交付包与历史用户包不再原位刷新或操作。
+- Mac 锁屏导致 Computer Use 不能继续；已异步请求用户解锁，尚未收到回复。**最后任务卡命中修正后的正常点击、工具／食物实际 hover、最终包普通菜单操作待复核**；此前正常路径已覆盖三个入口和旋转／缩放等，不把后续后台诊断当作最终正常输入通过。右键持续拖动缺少对应工具接口，平移按钮已实际验证。
+- 下一步只需解锁后通过 `Working.app` 补最后正常输入，更新报告后再判断退出条件；不要重复全量构建／性能或重新排查持续 WASD 权限。此处不把工程完成标成整体 Goal 完成。
+- 用户客户端 `build/adventure-terrain-20260921/HelloMine3D-Adventure.app`、历史 `Diagnostic.app`、旧工作包及其存档受保护，两个历史二进制哈希已复核未变；本轮正常存档 metadata 未被诊断改变。
+- 分发 119 项已校验；最后 Release 菜单和 Debug 地图后台渲染通过；本轮清理 2,009,154,118 B 重复二进制／Debug 缓存／临时包，原始失败和当前证据保留。
 
 ## B1：指针与物品详情
 
