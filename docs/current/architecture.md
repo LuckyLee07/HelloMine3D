@@ -885,4 +885,6 @@ B5b 增加 `ExplorationMapStore`：世界目录内版本化、带身份与校验
 tick 从玩家周围最多 81 个驻留地表列采样，锁忙保持未知；观察变化后在保存及退出时
 写地图。损坏或错身份文件隔离，世界载入不被地图损坏阻断。当前 UI 仍仅使用临时
 65×65 样本；平面总览与导航属于后续 B5c，不能把存储接线称为已交付的地图页面。
+地图文件 v2 增加 `ExplorationMarkers` 的稳定 ID、基地与追踪信息，仍接受 v1 地表文件；
+World 读写时显式保留标记，但尚无玩家创建／编辑入口。
 约束见[探索地图合同](../contracts/adventure-exploration-map-contract-v1.md)。

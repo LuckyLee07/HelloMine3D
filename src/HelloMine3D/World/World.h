@@ -476,6 +476,7 @@ class World : public NonCopyable {
     WorldBackup m_worldBackup;
     ExplorationMapStore m_explorationMapStore;
     ExplorationAtlas m_explorationAtlas;
+    ExplorationMarkers m_explorationMarkers;
     bool m_explorationMapDirty = false;
     bool m_explorationMapFull = false;
     int m_explorationSampleCountdown = 0;

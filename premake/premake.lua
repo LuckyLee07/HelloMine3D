@@ -524,6 +524,7 @@ project "HelloMine3DWorldCatalogueSmoke"
         source_dir .. "/World/Storage/WorldBackup.h",
         source_dir .. "/World/Storage/WorldBackup.cpp",
         source_dir .. "/World/Exploration/ExplorationAtlas.h",
+        source_dir .. "/World/Exploration/ExplorationMarkers.h",
         source_dir .. "/World/Exploration/ExplorationMapStore.h",
         source_dir .. "/World/Exploration/ExplorationMapStore.cpp",
         source_dir .. "/World/Storage/WorldCatalogue.h",
@@ -631,6 +632,7 @@ project "HelloMine3DWorldBackupSmoke"
         source_dir .. "/World/Storage/WorldBackup.h",
         source_dir .. "/World/Storage/WorldBackup.cpp",
         source_dir .. "/World/Exploration/ExplorationAtlas.h",
+        source_dir .. "/World/Exploration/ExplorationMarkers.h",
         source_dir .. "/World/Exploration/ExplorationMapStore.h",
         source_dir .. "/World/Exploration/ExplorationMapStore.cpp"
     }

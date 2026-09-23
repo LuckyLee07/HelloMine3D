@@ -160,6 +160,7 @@ bool readFileBytes(const std::string& path, std::vector<char>& bytes,
 bool ExplorationMapStore::parseFile(const std::string& path,
                                     Identity& identity,
                                     ExplorationAtlas& atlas,
+                                    ExplorationMarkers& markers,
                                     std::string& error)
 {
     std::vector<char> bytes;
@@ -178,7 +179,7 @@ bool ExplorationMapStore::parseFile(const std::string& path,
     std::uint32_t version = 0;
     std::uint8_t idLength = 0;
     if (!reader.read32(version) ||
-        version != ExplorationMapStore::FormatVersion ||
+        (version != 1 && version != FormatVersion) ||
         !reader.read8(idLength) || idLength == 0 || idLength > 64 ||
         reader.offset() + idLength > bytes.size()) {
         error = "map version or identity length differs";
@@ -197,10 +198,15 @@ bool ExplorationMapStore::parseFile(const std::string& path,
     }
     identity.seed = signed32(seed);
     identity.terrainGenerationVersion = signed32(terrain);
+    const std::size_t fixedBytes = reader.offset() +
+        std::size_t(pageCount) * TileBytes + 8;
     if (!validIdentity(identity) ||
-        pageCount > ExplorationAtlas::MaxTiles || markerCount != 0 ||
-        reader.offset() + std::size_t(pageCount) * TileBytes + 8 !=
-            bytes.size()) {
+        pageCount > ExplorationAtlas::MaxTiles ||
+        markerCount > ExplorationMarkers::Capacity ||
+        (version == 1 && (markerCount != 0 ||
+                          fixedBytes != bytes.size())) ||
+        (version == FormatVersion &&
+         fixedBytes + 8 + std::size_t(markerCount) * 14 > bytes.size())) {
         error = "map identity, count or length is invalid";
         return false;
     }
@@ -266,11 +272,78 @@ bool ExplorationMapStore::parseFile(const std::string& path,
         }
         parsed.m_knownCells += pageKnown;
     }
+    ExplorationMarkers parsedMarkers;
+    if (version == FormatVersion) {
+        std::uint32_t nextId = 0, trackedId = 0;
+        if (!reader.read32(nextId) || !reader.read32(trackedId)) {
+            error = "map marker header is truncated";
+            return false;
+        }
+        parsedMarkers.m_nextId = nextId;
+        parsedMarkers.m_trackedId = trackedId;
+        for (std::uint32_t index = 0; index < markerCount; ++index) {
+            std::uint32_t id = 0, rawX = 0, rawZ = 0;
+            std::uint8_t kind = 0, nameLength = 0;
+            if (!reader.read32(id) || !reader.read32(rawX) ||
+                !reader.read32(rawZ) || !reader.read8(kind) ||
+                !reader.read8(nameLength) ||
+                nameLength == 0 ||
+                nameLength > ExplorationMarkers::MaxNameBytes ||
+                reader.offset() + nameLength > bytes.size() - 8) {
+                error = "map marker record is truncated or oversized";
+                return false;
+            }
+            std::string name;
+            name.reserve(nameLength);
+            for (std::uint8_t offset = 0; offset < nameLength; ++offset) {
+                reader.read8(byte);
+                name.push_back(static_cast<char>(byte));
+            }
+            parsedMarkers.m_markers.push_back({
+                id, signed32(rawX), signed32(rawZ), std::move(name),
+                static_cast<ExplorationMarkers::Kind>(kind)});
+        }
+        if (!validateMarkers(parsed, parsedMarkers, error)) {
+            return false;
+        }
+    }
     if (reader.offset() != bytes.size() - 8) {
         error = "map page length differs";
         return false;
     }
     atlas = std::move(parsed);
+    markers = std::move(parsedMarkers);
+    return true;
+}
+
+bool ExplorationMapStore::validateMarkers(
+    const ExplorationAtlas& atlas, const ExplorationMarkers& markers,
+    std::string& error)
+{
+    if (markers.m_markers.size() > ExplorationMarkers::Capacity) {
+        error = "map marker count exceeds limit";
+        return false;
+    }
+    std::uint32_t previousId = 0;
+    std::size_t homeCount = 0;
+    bool trackedFound = markers.m_trackedId == 0;
+    for (const auto& marker : markers.m_markers) {
+        if (marker.id == 0 || marker.id <= previousId ||
+            !ExplorationMarkers::validKind(marker.kind) ||
+            !ExplorationMarkers::validName(marker.name) ||
+            !atlas.surfaceAt(marker.worldX, marker.worldZ).has_value()) {
+            error = "map marker id, value or explored position is invalid";
+            return false;
+        }
+        previousId = marker.id;
+        homeCount += marker.kind == ExplorationMarkers::Kind::Home;
+        trackedFound |= marker.id == markers.m_trackedId;
+    }
+    if (homeCount > 1 || !trackedFound ||
+        (markers.m_nextId != 0 && markers.m_nextId <= previousId)) {
+        error = "map marker home, tracking or next id is invalid";
+        return false;
+    }
     return true;
 }
 
@@ -291,7 +364,16 @@ ExplorationMapStore::LoadStatus ExplorationMapStore::load(
     const Identity& expected, ExplorationAtlas& atlas,
     std::string* error) const
 {
+    ExplorationMarkers ignored;
+    return load(expected, atlas, ignored, error);
+}
+
+ExplorationMapStore::LoadStatus ExplorationMapStore::load(
+    const Identity& expected, ExplorationAtlas& atlas,
+    ExplorationMarkers& markers, std::string* error) const
+{
     atlas.clear();
+    markers.clear();
     if (error != nullptr) {
         error->clear();
     }
@@ -310,7 +392,8 @@ ExplorationMapStore::LoadStatus ExplorationMapStore::load(
     }
     Identity loadedIdentity;
     std::string localError;
-    if (!parseFile(filePath(), loadedIdentity, atlas, localError)) {
+    if (!parseFile(filePath(), loadedIdentity, atlas, markers,
+                   localError)) {
         if (error != nullptr) {
             *error = localError;
         }
@@ -322,6 +405,7 @@ ExplorationMapStore::LoadStatus ExplorationMapStore::load(
         loadedIdentity.terrainGenerationVersion !=
             expected.terrainGenerationVersion) {
         atlas.clear();
+        markers.clear();
         if (error != nullptr) {
             *error = "map belongs to another world identity";
         }
@@ -332,14 +416,18 @@ ExplorationMapStore::LoadStatus ExplorationMapStore::load(
 
 bool ExplorationMapStore::save(
     const Identity& identity, const ExplorationAtlas& atlas,
+    const ExplorationMarkers& markers,
     const StorageTransactionOptions& options,
     StorageTransactionMetrics* metrics) const
 {
+    std::string markerError;
     if (!validIdentity(identity) || atlas.tileCount() >
-            ExplorationAtlas::MaxTiles) {
+            ExplorationAtlas::MaxTiles ||
+        !validateMarkers(atlas, markers, markerError)) {
         if (metrics != nullptr) {
             *metrics = {};
-            metrics->error = "map identity or page count is invalid";
+            metrics->error = markerError.empty()
+                ? "map identity or page count is invalid" : markerError;
         }
         return false;
     }
@@ -361,7 +449,8 @@ bool ExplorationMapStore::save(
         }
     }
     std::vector<char> bytes;
-    bytes.reserve(64 + atlas.tileCount() * TileBytes);
+    bytes.reserve(64 + atlas.tileCount() * TileBytes +
+                  markers.size() * (14 + ExplorationMarkers::MaxNameBytes));
     bytes.insert(bytes.end(), Magic.begin(), Magic.end());
     append32(bytes, FormatVersion);
     append8(bytes, static_cast<std::uint8_t>(identity.worldId.size()));
@@ -371,7 +460,7 @@ bool ExplorationMapStore::save(
     append32(bytes, static_cast<std::uint32_t>(
                         identity.terrainGenerationVersion));
     append32(bytes, static_cast<std::uint32_t>(atlas.tileCount()));
-    append32(bytes, 0); // Marker records enter a later format revision.
+    append32(bytes, static_cast<std::uint32_t>(markers.size()));
     for (const auto& entry : atlas.m_tiles) {
         append32(bytes, static_cast<std::uint32_t>(entry.first.first));
         append32(bytes, static_cast<std::uint32_t>(entry.first.second));
@@ -399,6 +488,16 @@ bool ExplorationMapStore::save(
             append8(bytes, cell.material);
         }
     }
+    append32(bytes, markers.m_nextId);
+    append32(bytes, markers.m_trackedId);
+    for (const auto& marker : markers.m_markers) {
+        append32(bytes, marker.id);
+        append32(bytes, static_cast<std::uint32_t>(marker.worldX));
+        append32(bytes, static_cast<std::uint32_t>(marker.worldZ));
+        append8(bytes, static_cast<std::uint8_t>(marker.kind));
+        append8(bytes, static_cast<std::uint8_t>(marker.name.size()));
+        bytes.insert(bytes.end(), marker.name.begin(), marker.name.end());
+    }
     append64(bytes, hashPrefix(bytes, bytes.size()));
     if (bytes.size() > MaxFileBytes) {
         if (metrics != nullptr) {
@@ -412,8 +511,9 @@ bool ExplorationMapStore::save(
         [&](const std::string& candidate, std::string& validationError) {
             Identity validatedIdentity;
             ExplorationAtlas validated;
+            ExplorationMarkers validatedMarkers;
             if (!parseFile(candidate, validatedIdentity, validated,
-                           validationError)) {
+                           validatedMarkers, validationError)) {
                 return false;
             }
             if (validatedIdentity.worldId != identity.worldId ||
@@ -421,9 +521,22 @@ bool ExplorationMapStore::save(
                 validatedIdentity.terrainGenerationVersion !=
                     identity.terrainGenerationVersion ||
                 validated.tileCount() != atlas.tileCount() ||
-                validated.knownCellCount() != atlas.knownCellCount()) {
+                validated.knownCellCount() != atlas.knownCellCount() ||
+                validatedMarkers.m_nextId != markers.m_nextId ||
+                validatedMarkers.m_trackedId != markers.m_trackedId ||
+                validatedMarkers.size() != markers.size()) {
                 validationError = "map candidate identity or count differs";
                 return false;
+            }
+            for (std::size_t index = 0; index < markers.size(); ++index) {
+                const auto& left = validatedMarkers.all()[index];
+                const auto& right = markers.all()[index];
+                if (left.id != right.id || left.worldX != right.worldX ||
+                    left.worldZ != right.worldZ || left.name != right.name ||
+                    left.kind != right.kind) {
+                    validationError = "map candidate marker differs";
+                    return false;
+                }
             }
             return true;
         }, options, metrics);
@@ -480,8 +593,10 @@ bool ExplorationMapStore::validateFile(const std::string& path,
 {
     Identity identity;
     ExplorationAtlas atlas;
+    ExplorationMarkers markers;
     std::string localError;
-    const bool valid = parseFile(path, identity, atlas, localError);
+    const bool valid = parseFile(path, identity, atlas, markers,
+                                 localError);
     if (error != nullptr) {
         *error = localError;
     }

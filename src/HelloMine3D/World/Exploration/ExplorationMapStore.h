@@ -2,6 +2,7 @@
 #define EXPLORATIONMAPSTORE_H_INCLUDED
 
 #include "ExplorationAtlas.h"
+#include "ExplorationMarkers.h"
 #include "../Storage/StorageTransaction.h"
 
 #include <cstdint>
@@ -11,7 +12,7 @@
 // a reason to reject the authoritative world metadata or chunk storage.
 class ExplorationMapStore {
   public:
-    static constexpr std::uint32_t FormatVersion = 1;
+    static constexpr std::uint32_t FormatVersion = 2;
     static constexpr std::size_t MaxFileBytes = 64u * 1024u * 1024u;
 
     struct Identity {
@@ -26,7 +27,11 @@ class ExplorationMapStore {
 
     LoadStatus load(const Identity& expected, ExplorationAtlas& atlas,
                     std::string* error = nullptr) const;
+    LoadStatus load(const Identity& expected, ExplorationAtlas& atlas,
+                    ExplorationMarkers& markers,
+                    std::string* error = nullptr) const;
     bool save(const Identity& identity, const ExplorationAtlas& atlas,
+              const ExplorationMarkers& markers,
               const StorageTransactionOptions& options = {},
               StorageTransactionMetrics* metrics = nullptr) const;
     // Keep a damaged or foreign primary for inspection before a new map is
@@ -40,7 +45,11 @@ class ExplorationMapStore {
 
   private:
     static bool parseFile(const std::string& path, Identity& identity,
-                          ExplorationAtlas& atlas, std::string& error);
+                          ExplorationAtlas& atlas,
+                          ExplorationMarkers& markers, std::string& error);
+    static bool validateMarkers(const ExplorationAtlas& atlas,
+                                const ExplorationMarkers& markers,
+                                std::string& error);
     std::string m_worldDirectory;
 };
 

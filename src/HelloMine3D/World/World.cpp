@@ -409,7 +409,7 @@ World::World(const Camera &camera, const Config &config, Player &player,
         m_worldSaveData.terrainGenerationVersion};
     std::string mapError;
     const auto mapStatus = m_explorationMapStore.load(
-        mapIdentity, m_explorationAtlas, &mapError);
+        mapIdentity, m_explorationAtlas, m_explorationMarkers, &mapError);
     m_explorationMapFull =
         m_explorationAtlas.tileCount() == ExplorationAtlas::MaxTiles;
     if (mapStatus == ExplorationMapStore::LoadStatus::Corrupt ||
@@ -3399,8 +3399,8 @@ bool World::saveExplorationMap()
         m_worldSaveData.worldId, m_worldSaveData.seed,
         m_worldSaveData.terrainGenerationVersion};
     StorageTransactionMetrics metrics;
-    if (!m_explorationMapStore.save(identity, m_explorationAtlas, {},
-                                    &metrics)) {
+    if (!m_explorationMapStore.save(identity, m_explorationAtlas,
+                                    m_explorationMarkers, {}, &metrics)) {
         std::cerr << "Unable to save exploration map: "
                   << metrics.error << '\n';
         return false;
