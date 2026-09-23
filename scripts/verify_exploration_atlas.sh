@@ -28,6 +28,13 @@ for configuration in Debug Release; do
         -o "$markers_binary"
     "$markers_binary"
 
+    navigation_binary="$output_dir/exploration-navigation-test-$configuration"
+    "${CXX:-clang++}" -std=c++17 "${architecture[@]}" \
+        "${optimisation[@]}" -Wall -Wextra -Werror \
+        "$project_root/tools/tests/exploration_navigation_test.cpp" \
+        -o "$navigation_binary"
+    "$navigation_binary"
+
     store_binary="$output_dir/exploration-map-store-test-$configuration"
     "${CXX:-clang++}" -std=c++17 "${architecture[@]}" \
         "${optimisation[@]}" -Wall -Wextra -Werror \
