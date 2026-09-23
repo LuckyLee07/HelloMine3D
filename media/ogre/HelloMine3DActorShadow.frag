@@ -127,6 +127,48 @@ vec3 readableActorSurface()
     float shade = 0.68 + 0.22 * max(faceNormal.y, 0.0) +
                   0.10 * max(dot(faceNormal, normalize(vec3(-0.4, 0.6, -0.5))), 0.0);
     float role = actorPartData.x;
+    if (actorPartData.w > 9.5) {
+        // Keep the animal palette identical in normal and shadow receivers.
+        vec3 p = actorLocalPosition;
+        float front = step(p.z, -0.499);
+        vec3 base = actorTint.rgb;
+        float species = actorPartData.w;
+        if (species < 10.5) {
+            if (role > 3.5 && role < 4.5) base *= 0.60;
+            if (role > 2.5 && role < 3.5) base = vec3(0.49, 0.43, 0.36);
+            if (role > 1.5 && role < 2.5) base *= 0.88;
+            if (role > 0.5 && role < 1.5) {
+                vec3 cell = floor((p + 0.5) * 5.0);
+                float patch = step(0.56, fract(dot(cell, vec3(0.31, 0.17, 0.47))));
+                base *= mix(0.96, 1.035, patch);
+            }
+        }
+        else if (species < 11.5) {
+            if (role > 3.5 && role < 4.5) base *= 0.79;
+            if (role > 4.5 && role < 5.5) {
+                float inner = front * actorPatch(p.xy, vec2(0.0, 0.02),
+                    vec2(0.24, 0.38));
+                base = mix(base * 0.91, vec3(0.69, 0.51, 0.49), inner);
+            }
+            if (role > 5.5 && role < 6.5) base = vec3(0.75, 0.69, 0.58);
+        }
+        else {
+            if (role > 3.5 && role < 4.5) base = vec3(0.46, 0.37, 0.27);
+            if (role > 6.5 && role < 7.5) base = vec3(0.77, 0.61, 0.33);
+            if (role > 7.5 && role < 8.5) base *= 0.72;
+            if (role > 0.5 && role < 1.5) {
+                float side = step(0.42, abs(p.x));
+                base = mix(base, base * 0.87, side);
+            }
+        }
+        if (role > 1.5 && role < 2.5) {
+            float eye = front * actorPatch(
+                vec2(abs(p.x), p.y), vec2(0.28, 0.08),
+                vec2(0.075, 0.075));
+            base = mix(base, vec3(0.15, 0.18, 0.17), eye);
+        }
+        return base * shade;
+    }
     if (role > 9.5 && role < 10.5) {
         // Compact, faceted spit: a pale leading end and a dark tapered tail.
         // Attached to local geometry; no pulsing, transparency or extra glow.

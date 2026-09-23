@@ -1,10 +1,70 @@
 #pragma once
 
 #include "../Actor/WildlifeActor.h"
+#include "../Actor/WildlifePresentation.h"
 
 namespace {
 void caseAdventureWildlife()
 {
+    {
+        const auto sheep = WildlifePresentation::profileFor(
+            WildlifeSpecies::Sheep);
+        const auto rabbit = WildlifePresentation::profileFor(
+            WildlifeSpecies::Rabbit);
+        const auto bird = WildlifePresentation::profileFor(
+            WildlifeSpecies::MarshBird);
+        const auto hasRole = [](const WildlifeVisualProfile &profile,
+                                WildlifeVisualRole role) {
+            for (std::size_t index = 0; index < profile.partCount; ++index)
+                if (profile.parts[index].role == role) return true;
+            return false;
+        };
+        check("ADVENTURE-WILDLIFE/three-bounded-model-silhouettes",
+            sheep.partCount == 8 && rabbit.partCount == 7 &&
+            bird.partCount == 8 &&
+            sheep.speciesIndex == 0 && rabbit.speciesIndex == 1 &&
+            bird.speciesIndex == 2 &&
+            hasRole(sheep, WildlifeVisualRole::Muzzle) &&
+            hasRole(rabbit, WildlifeVisualRole::Ear) &&
+            hasRole(bird, WildlifeVisualRole::Beak) &&
+            hasRole(bird, WildlifeVisualRole::Wing) &&
+            WildlifeVisualProfile::MaximumParts * 12 == 96 &&
+            World::WildlifeWorldCap * WildlifeVisualProfile::MaximumParts *
+                24 <= 10000);
+        ActorSnapshot snapshot;
+        snapshot.type = WildlifeSpecies::Rabbit;
+        snapshot.wildlifeActivity = static_cast<int>(WildlifeActivity::Flee);
+        const auto fleeing = WildlifePresentation::poseFor(
+            snapshot, rabbit, 1.2f, 1.f);
+        const auto still = WildlifePresentation::poseFor(
+            snapshot, rabbit, 1.2f, 0.f);
+        bool legMoves = false, earsLift = false;
+        for (std::size_t index = 0; index < rabbit.partCount; ++index) {
+            if (rabbit.parts[index].role == WildlifeVisualRole::Leg)
+                legMoves |= std::abs(fleeing.rotations[index].x) > 5.f;
+            if (rabbit.parts[index].role == WildlifeVisualRole::Ear)
+                earsLift |= fleeing.rotations[index].x > 5.f;
+        }
+        check("ADVENTURE-WILDLIFE/activity-drives-bounded-pose",
+            legMoves && earsLift && fleeing.heightOffset > 0.f &&
+            fleeing.heightOffset < 0.08f &&
+            still.heightOffset == 0.f);
+        snapshot.type = WildlifeSpecies::MarshBird;
+        snapshot.wildlifeActivity = static_cast<int>(WildlifeActivity::Forage);
+        snapshot.wildlifeMotionSeconds = 0.f;
+        const auto peckA = WildlifePresentation::poseFor(
+            snapshot, bird, 0.f, 1.f);
+        snapshot.wildlifeMotionSeconds = 0.5f;
+        const auto peckB = WildlifePresentation::poseFor(
+            snapshot, bird, 0.f, 1.f);
+        bool peckChanges = false;
+        for (std::size_t index = 0; index < bird.partCount; ++index)
+            if (bird.parts[index].role == WildlifeVisualRole::Beak)
+                peckChanges = peckB.rotations[index].x >
+                    peckA.rotations[index].x + 5.f;
+        check("ADVENTURE-WILDLIFE/forage-is-live-not-frozen",
+            peckChanges);
+    }
     check("ADVENTURE-WILDLIFE/three-distinct-habitats",
         std::string(WildlifeSpecies::forBiome(TerrainBiome::Grassland)) ==
             WildlifeSpecies::Sheep &&

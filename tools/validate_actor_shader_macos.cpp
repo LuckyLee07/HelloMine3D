@@ -194,6 +194,36 @@ int main(int argc,char** argv) {
         check("projectile-no-unbounded-night-emission",spitExposure);
         check("projectile-obeys-opaque-fog",render(normal,10,0,-.45f,1,1,0,0,20)==render(normal,0,0,-.45f,1,1,0,0,20));
         png(output/"projectile-tip.png",spitTip);png(output/"projectile-tail.png",spitTail);
+        for (float species : {10.f, 11.f, 12.f}) {
+            for (float role : {1.f, 2.f, 4.f}) {
+                check("wildlife-normal-shadow-disabled-parity",
+                    render(normal,role,0,-.5f,1,1,species)==
+                    render(shadow,role,0,-.5f,1,1,species));
+                check("wildlife-flat-tint-off-fallback",
+                    render(normal,role,0,-.5f,0,1,species)==
+                    render(normal,0,0,-.5f,0));
+                check("wildlife-mark-follows-local-part",
+                    render(normal,role,0,-.5f,1,1,species)==
+                    render(normal,role,0,-.5f,1,1,species,1,0,512));
+            }
+            check("wildlife-eye-only-on-front",
+                difference(render(normal,2,0,-.5f,1,1,species),
+                           render(normal,2,0,.5f,1,1,species))>.4);
+            check("wildlife-fog-hides-face-mark",
+                render(normal,2,0,-.5f,1,1,species,1,20)==
+                render(normal,2,0,.5f,1,1,species,1,20));
+            const auto stem="wildlife-"+std::to_string(static_cast<int>(species));
+            png(output/(stem+"-head.png"),render(normal,2,0,-.5f,1,1,species));
+        }
+        check("sheep-muzzle-differs-from-wool",
+            difference(render(normal,3,0,-.5f,1,1,10),
+                       render(normal,1,0,-.5f,1,1,10))>5);
+        check("rabbit-ear-has-front-inlay",
+            difference(render(normal,5,0,-.5f,1,1,11),
+                       render(normal,5,0,.5f,1,1,11))>1);
+        check("marsh-bird-beak-contrasts-with-wing",
+            difference(render(normal,7,0,-.5f,1,1,12),
+                       render(normal,8,0,-.5f,1,1,12))>5);
         glDeleteProgram(normal);glDeleteProgram(shadow);glDeleteRenderbuffers(1,&colour);
         glDeleteFramebuffers(1,&fbo);glDeleteVertexArrays(1,&vao);CGLSetCurrentContext(nullptr);CGLDestroyContext(context);
         std::cout<<"[ACTOR_GPU] checks="<<checks<<" failures=0\n";return 0;

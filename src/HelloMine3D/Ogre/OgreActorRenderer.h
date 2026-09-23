@@ -8,6 +8,7 @@
 
 #include "../Actor/Actor.h"
 #include "../Actor/EnemyPresentation.h"
+#include "../Actor/WildlifePresentation.h"
 
 namespace Ogre
 {

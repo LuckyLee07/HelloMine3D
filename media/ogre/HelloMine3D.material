@@ -238,6 +238,66 @@ material HelloMine3D/ActorSpitter
     }
 }
 
+material HelloMine3D/ActorSheep
+{
+    technique
+    {
+        pass
+        {
+            lighting off
+            depth_write on
+            cull_hardware clockwise
+            vertex_program_ref HelloMine3D/ActorVertex
+            {
+            }
+            fragment_program_ref HelloMine3D/ActorFragment
+            {
+                param_named actorTint float4 0.72 0.68 0.57 1.0
+            }
+        }
+    }
+}
+
+material HelloMine3D/ActorRabbit
+{
+    technique
+    {
+        pass
+        {
+            lighting off
+            depth_write on
+            cull_hardware clockwise
+            vertex_program_ref HelloMine3D/ActorVertex
+            {
+            }
+            fragment_program_ref HelloMine3D/ActorFragment
+            {
+                param_named actorTint float4 0.55 0.45 0.34 1.0
+            }
+        }
+    }
+}
+
+material HelloMine3D/ActorMarshBird
+{
+    technique
+    {
+        pass
+        {
+            lighting off
+            depth_write on
+            cull_hardware clockwise
+            vertex_program_ref HelloMine3D/ActorVertex
+            {
+            }
+            fragment_program_ref HelloMine3D/ActorFragment
+            {
+                param_named actorTint float4 0.38 0.51 0.49 1.0
+            }
+        }
+    }
+}
+
 material HelloMine3D/CombatProjectile
 {
     technique

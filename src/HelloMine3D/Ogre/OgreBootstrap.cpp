@@ -3450,6 +3450,18 @@ namespace
                  "HelloMine3D/ActorShadowVertex",
                  "HelloMine3D/ActorFragment",
                  "HelloMine3D/ActorShadowFragment"},
+                {"HelloMine3D/ActorSheep", "HelloMine3D/ActorVertex",
+                 "HelloMine3D/ActorShadowVertex",
+                 "HelloMine3D/ActorFragment",
+                 "HelloMine3D/ActorShadowFragment"},
+                {"HelloMine3D/ActorRabbit", "HelloMine3D/ActorVertex",
+                 "HelloMine3D/ActorShadowVertex",
+                 "HelloMine3D/ActorFragment",
+                 "HelloMine3D/ActorShadowFragment"},
+                {"HelloMine3D/ActorMarshBird", "HelloMine3D/ActorVertex",
+                 "HelloMine3D/ActorShadowVertex",
+                 "HelloMine3D/ActorFragment",
+                 "HelloMine3D/ActorShadowFragment"},
                 {"HelloMine3D/ActorStalker", "HelloMine3D/ActorVertex",
                  "HelloMine3D/ActorShadowVertex",
                  "HelloMine3D/ActorFragment",
@@ -3535,6 +3547,8 @@ namespace
             const char* actorMaterials[] = {
                 "HelloMine3D/ActorMob", "HelloMine3D/ActorStalker",
                 "HelloMine3D/ActorBrute", "HelloMine3D/ActorSpitter",
+                "HelloMine3D/ActorSheep", "HelloMine3D/ActorRabbit",
+                "HelloMine3D/ActorMarshBird",
                 "HelloMine3D/ActorItem",
                 "HelloMine3D/CombatProjectile"};
             for (const char* materialName : actorMaterials)
@@ -4191,6 +4205,8 @@ namespace
             const char* actorMaterials[] = {
                 "HelloMine3D/ActorMob", "HelloMine3D/ActorStalker",
                 "HelloMine3D/ActorBrute", "HelloMine3D/ActorSpitter",
+                "HelloMine3D/ActorSheep", "HelloMine3D/ActorRabbit",
+                "HelloMine3D/ActorMarshBird",
                 "HelloMine3D/ActorItem",
                 "HelloMine3D/CombatProjectile"};
             for (const char* materialName : actorMaterials)

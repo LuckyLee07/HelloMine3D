@@ -13,6 +13,9 @@
 namespace
 {
     constexpr const char* MobMaterial = "HelloMine3D/ActorMob";
+    constexpr const char* SheepMaterial = "HelloMine3D/ActorSheep";
+    constexpr const char* RabbitMaterial = "HelloMine3D/ActorRabbit";
+    constexpr const char* MarshBirdMaterial = "HelloMine3D/ActorMarshBird";
     constexpr const char* StalkerMaterial = "HelloMine3D/ActorStalker";
     constexpr const char* BruteMaterial = "HelloMine3D/ActorBrute";
     constexpr const char* SpitterMaterial = "HelloMine3D/ActorSpitter";
@@ -34,6 +37,9 @@ namespace
 
     const char* materialFor(const ActorSnapshot& snapshot)
     {
+        if (snapshot.type == WildlifeSpecies::Sheep) return SheepMaterial;
+        if (snapshot.type == WildlifeSpecies::Rabbit) return RabbitMaterial;
+        if (snapshot.type == WildlifeSpecies::MarshBird) return MarshBirdMaterial;
         if (snapshot.type == "item")
         {
             return ItemMaterial;
@@ -152,6 +158,17 @@ OgreActorRendererValidation OgreActorRenderer::validateSnapshots(
                 snapshot.combatStateTicksTotal)
         {
             validation.message = "actor combat snapshot is invalid";
+            return validation;
+        }
+        if (WildlifeSpecies::isWildlife(snapshot.type) &&
+            (snapshot.wildlifeActivity <
+                 static_cast<int>(WildlifeActivity::Rest) ||
+             snapshot.wildlifeActivity >
+                 static_cast<int>(WildlifeActivity::Flee) ||
+             !std::isfinite(snapshot.wildlifeMotionSeconds) ||
+             snapshot.wildlifeMotionSeconds < 0.f))
+        {
+            validation.message = "wildlife pose snapshot is invalid";
             return validation;
         }
         if ((snapshot.deathPresentation &&
@@ -480,6 +497,25 @@ OgreActorRenderer::ActorVisual OgreActorRenderer::createVisual(
         return visual;
     }
 
+    if (WildlifeSpecies::isWildlife(snapshot.type))
+    {
+        const WildlifeVisualProfile profile =
+            WildlifePresentation::profileFor(snapshot.type);
+        visual.parts.reserve(profile.partCount);
+        for (std::size_t index = 0; index < profile.partCount; ++index)
+        {
+            ActorPartVisual part;
+            part.object = m_sceneManager->createManualObject(
+                baseName + "_PartMesh_" + std::to_string(index));
+            buildUnitCube(*part.object, materialFor(snapshot), m_castShadows);
+            part.node = visual.node->createChildSceneNode(
+                baseName + "_PartNode_" + std::to_string(index));
+            part.node->attachObject(part.object);
+            visual.parts.push_back(part);
+        }
+        return visual;
+    }
+
     const EnemyVisualProfile profile =
         EnemyPresentation::profileForType(snapshot.type);
     visual.parts.reserve(profile.partCount);
@@ -515,6 +551,52 @@ void OgreActorRenderer::updateVisual(
                               snapshot.dimensions.z * 2.0f);
         visual.node->setOrientation(Ogre::Quaternion(pose.orientation.w,
             pose.orientation.x, pose.orientation.y, pose.orientation.z));
+        return;
+    }
+
+    if (WildlifeSpecies::isWildlife(snapshot.type))
+    {
+        const WildlifeVisualProfile profile =
+            WildlifePresentation::profileFor(snapshot.type);
+        const bool moving = snapshot.wildlifeActivity ==
+                static_cast<int>(WildlifeActivity::Wander) ||
+            snapshot.wildlifeActivity ==
+                static_cast<int>(WildlifeActivity::Flee);
+        const float stridePhase = visual.gaitPhase.update(
+            snapshot.position, moving);
+        const WildlifeVisualPose pose = WildlifePresentation::poseFor(
+            snapshot, profile, stridePhase, m_animationStrength);
+        visual.node->setPosition(snapshot.position.x,
+            snapshot.position.y + snapshot.dimensions.y + pose.heightOffset,
+            snapshot.position.z);
+        visual.node->setScale(snapshot.dimensions.x * 2.f,
+            snapshot.dimensions.y * 2.f,
+            snapshot.dimensions.z * 2.f);
+        visual.node->setOrientation(Ogre::Quaternion(
+            Ogre::Degree(snapshot.rotation.y), Ogre::Vector3::UNIT_Y));
+        const std::size_t count = std::min(
+            visual.parts.size(), profile.partCount);
+        for (std::size_t index = 0; index < count; ++index)
+        {
+            ActorPartVisual& part = visual.parts[index];
+            const WildlifeVisualPart& definition = profile.parts[index];
+            part.object->getSection(0)->setCustomParameter(1,
+                Ogre::Vector4(static_cast<float>(definition.role), 0.f, 0.f,
+                    10.f + static_cast<float>(profile.speciesIndex)));
+            const glm::vec3 offset = definition.offset + pose.offsets[index];
+            part.node->setPosition(offset.x, offset.y, offset.z);
+            part.node->setScale(definition.scale.x,
+                                definition.scale.y,
+                                definition.scale.z);
+            const glm::vec3 rotation = pose.rotations[index];
+            part.node->setOrientation(
+                Ogre::Quaternion(Ogre::Degree(rotation.y),
+                                 Ogre::Vector3::UNIT_Y) *
+                Ogre::Quaternion(Ogre::Degree(rotation.x),
+                                 Ogre::Vector3::UNIT_X) *
+                Ogre::Quaternion(Ogre::Degree(rotation.z),
+                                 Ogre::Vector3::UNIT_Z));
+        }
         return;
     }
 
