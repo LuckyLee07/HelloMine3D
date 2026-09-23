@@ -20,6 +20,7 @@
 #include "../Structures/StructureBuilder.h"
 #include "../Structures/LandmarkArchitecture.h"
 #include "../Structures/LandmarkExpedition.h"
+#include "../Structures/LandmarkApproach.h"
 #include "../Ecology/TerrainEcologyPlanner.h"
 
 namespace {
@@ -198,6 +199,9 @@ void ClassicOverWorldGenerator::generateTerrainFor(Chunk &chunk)
             ? DeterministicStructurePlanner::MaximumTreeClearancePadding : 0);
     applyTreeDecorators(plans);
     applyLandmarkDecorators(plans);
+    if (m_generationVersion >= LandmarkApproachTerrainGenerationVersion) {
+        applyLandmarkApproaches(plans);
+    }
     if (m_generationVersion >= SurfaceCoastTerrainGenerationVersion) {
         sanitizeSurfaceDecoratorsV8();
     }
@@ -374,7 +378,9 @@ StructurePlanSnapshot ClassicOverWorldGenerator::getStructurePlanForCell(
     StructureType type, int cellX, int cellZ) const
 {
     const DeterministicStructurePlanner planner(
-        m_seed, m_generationVersion >= LandmarkExpeditionTerrainGenerationVersion
+        m_seed, m_generationVersion >= LandmarkApproachTerrainGenerationVersion
+            ? LandmarkApproachTerrainGenerationVersion
+            : m_generationVersion >= LandmarkExpeditionTerrainGenerationVersion
             ? LandmarkExpeditionTerrainGenerationVersion
             : m_generationVersion >= AdventureExplorationTerrainGenerationVersion
             ? AdventureExplorationTerrainGenerationVersion
@@ -395,7 +401,9 @@ ClassicOverWorldGenerator::getStructurePlansForChunk(
     int chunkX, int chunkZ, int padding) const
 {
     const DeterministicStructurePlanner planner(
-        m_seed, m_generationVersion >= LandmarkExpeditionTerrainGenerationVersion
+        m_seed, m_generationVersion >= LandmarkApproachTerrainGenerationVersion
+            ? LandmarkApproachTerrainGenerationVersion
+            : m_generationVersion >= LandmarkExpeditionTerrainGenerationVersion
             ? LandmarkExpeditionTerrainGenerationVersion
             : m_generationVersion >= AdventureExplorationTerrainGenerationVersion
             ? AdventureExplorationTerrainGenerationVersion
@@ -943,6 +951,10 @@ void ClassicOverWorldGenerator::applyAdventureTrees(const std::vector<StructureP
                 return x>=p.footprint.minimumX-3 && x<=p.footprint.maximumX+3 &&
                        z>=p.footprint.minimumZ-3 && z<=p.footprint.maximumZ+3;
             }))continue;
+            if (m_generationVersion >= LandmarkApproachTerrainGenerationVersion &&
+                std::any_of(plans.begin(), plans.end(), [x,z](const auto &p) {
+                    return LandmarkApproach::clearsTreeSource(p, x, z);
+                }))continue;
             if(std::any_of(m_vegetationEntrances.begin(),m_vegetationEntrances.end(),[x,z](const auto &e) {
                 const int dx=x-e.anchorX,dz=z-e.anchorZ;
                 const int along=dx*e.directionX+dz*e.directionZ;
@@ -962,6 +974,63 @@ void ClassicOverWorldGenerator::applyLandmarkDecorators(
     const glm::ivec2 target = m_pChunk->getLocation();
     for (const StructurePlanSnapshot &plan : plans) {
         if (plan.footprint.overlapsChunk(target.x, target.y)) { projectStructurePlan(plan); }
+    }
+}
+
+void ClassicOverWorldGenerator::applyLandmarkApproaches(
+    const std::vector<StructurePlanSnapshot> &plans)
+{
+    const glm::ivec2 target = m_pChunk->getLocation();
+    const int chunkX = target.x * CHUNK_SIZE;
+    const int chunkZ = target.y * CHUNK_SIZE;
+    const auto replaceable = [](BlockId id) {
+        return id == BlockId::Air || id == BlockId::TallGrass ||
+               id == BlockId::Rose || id == BlockId::DeadShrub ||
+               id == BlockId::OakLeaf;
+    };
+    for (const StructurePlanSnapshot &plan : plans) {
+        if (!plan.valid) continue;
+        const auto style = LandmarkApproach::styleFor(plan,
+            [this](int x, int z) { return getBiomeAtWorld(x, z); });
+        for (int distance = 1; distance <= LandmarkApproach::Length; ++distance) {
+            const int z = plan.footprint.minimumZ - distance;
+            if (z < chunkZ || z >= chunkZ + CHUNK_SIZE) continue;
+            for (int lateral = -LandmarkApproach::HalfWidth;
+                 lateral <= LandmarkApproach::HalfWidth; ++lateral) {
+                const int x = plan.anchor.x + lateral;
+                if (x < chunkX || x >= chunkX + CHUNK_SIZE) continue;
+                if (std::any_of(plans.begin(), plans.end(),
+                        [x,z,&plan](const auto &other) {
+                            return other.valid && !(other.key == plan.key) &&
+                                   x >= other.footprint.minimumX &&
+                                   x <= other.footprint.maximumX &&
+                                   z >= other.footprint.minimumZ &&
+                                   z <= other.footprint.maximumZ;
+                        })) continue;
+                const int y = getSurfaceHeightAtWorld(x, z);
+                if (y < WATER_LEVEL + 2 || y > 251 ||
+                    std::abs(y - plan.anchor.y) > 4) continue;
+                const int lx = x - chunkX, lz = z - chunkZ;
+                const BlockId ground = static_cast<BlockId>(
+                    m_pChunk->getBlock(lx, y, lz).id);
+                if (ground == BlockId::Air || ground == BlockId::Water) continue;
+                bool clear = true;
+                for (int above = 1; above <= 3; ++above) {
+                    const BlockId id = static_cast<BlockId>(
+                        m_pChunk->getBlock(lx, y + above, lz).id);
+                    clear &= replaceable(id);
+                }
+                if (!clear) continue;
+                m_pChunk->setBlock(lx, y, lz,
+                    LandmarkApproach::surface(style, distance, lateral));
+                for (int above = 1; above <= 3; ++above)
+                    m_pChunk->setBlock(lx, y + above, lz, BlockId::Air);
+                const BlockId marker = LandmarkApproach::shoulderMarker(
+                    style, distance, lateral);
+                if (marker != BlockId::Air)
+                    m_pChunk->setBlock(lx, y + 1, lz, marker);
+            }
+        }
     }
 }
 

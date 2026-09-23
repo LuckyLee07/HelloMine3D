@@ -8,7 +8,7 @@
 namespace LandmarkExpedition {
 
 // The location, footprint, chest and Waystone core stay fixed across both
-// layouts. Only terrain v20 calls this blueprint; v1-v19 keep their bytes.
+// layouts. Terrain v20+ calls this blueprint; v1-v19 keep their bytes.
 inline int layoutFor(const StructurePlanSnapshot &plan) noexcept
 {
     return static_cast<int>((plan.selectionHash >> 7) & 1ull);

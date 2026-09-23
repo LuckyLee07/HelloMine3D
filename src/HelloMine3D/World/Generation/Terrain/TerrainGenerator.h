@@ -36,8 +36,9 @@ inline constexpr int AdventureWaterTerrainGenerationVersion = 17;
 inline constexpr int AdventureEcologyTerrainGenerationVersion = 18;
 inline constexpr int AdventureExplorationTerrainGenerationVersion = 19;
 inline constexpr int LandmarkExpeditionTerrainGenerationVersion = 20;
+inline constexpr int LandmarkApproachTerrainGenerationVersion = 21;
 inline constexpr int CurrentTerrainGenerationVersion =
-    LandmarkExpeditionTerrainGenerationVersion;
+    LandmarkApproachTerrainGenerationVersion;
 
 class TerrainGenerator {
   public:

@@ -408,9 +408,12 @@ C3 为 copied topology observation 增至 79 项并同步更新 machine-checked 
   树冠来源 halo 同步纳入有界规划；不加载邻区块。营地允许使用满足既有坡差和入口条件的
   疏林／森林空地，旧版本仍保持原候选语义。v18 高度、水位、雪层及材料查询保持，
   蕨类外观只替换标准 Cross，自定义资源形状回退原定义。见[v19 合同](../contracts/adventure-exploration-v19-contract-v1.md)。
-  v20 成为默认新世界版本：保持 v19 地形列、地标候选和奖励哈希，按稳定选择位给营地、
+  v20 保持 v19 地形列、地标候选和奖励哈希，按稳定选择位给营地、
   遗迹、路标各增加第二套可进入方块布局。旧 v1–v19 世界继续按各自版本投影，
   world save v12 不变；见[目的地合同](../contracts/adventure-landmarks-v20-contract-v1.md)。
+  v21 为当前新世界版本，仅在地点建筑前方按实际林地、水岸或高地列铺设短程地面线索，
+  树木来源避让入口；地点候选、建筑、奖励与旧 v1–v20 规则不变。详见
+  [接近线索合同](../contracts/adventure-landmark-approach-v21-contract-v1.md)。
   v17+ 纯地表列查询使用每线程固定 8192 项、最多 256 KiB 的派生缓存，完整校验 seed、
   生成版本和有符号世界坐标；不缓存实际方块、存档或 World 指针，替换仅影响计算成本。
   不同高度 section 可复用同列结果，世界切换和并发线程不共享可变缓存。
@@ -548,7 +551,7 @@ WorldManager
 
 - `WorldSaveData` 是内存中的当前 metadata payload，写出前由 World 收集 Player、Actor、目标、结局、
   难度、terrain identity 和其他版本化状态。
-- world save format 当前为 v12；新世界 terrain generation 为独立 v20，旧 v1–v19 身份保留；settings 当前为独立 v10（含三档小地图范围，保留 v9 标准/兼容画面选择与旧偏好迁移）。
+- world save format 当前为 v12；新世界 terrain generation 为独立 v21，旧 v1–v20 身份保留；settings 当前为独立 v10（含三档小地图范围，保留 v9 标准/兼容画面选择与旧偏好迁移）。
 - `StorageTransaction` 负责同目录 candidate、flush、真实 reader 校验和原子替换；失败 candidate 不
   成为权威。
 - Chunk 只有成功发布后才清 save-dirty；unload 保存失败则取消卸载。

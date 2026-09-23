@@ -32,7 +32,7 @@ void caseAdventureLandmarkLayouts()
     check("ADVENTURE-LANDMARK/v20-appends-without-save-bump",
         AdventureExplorationTerrainGenerationVersion == 19 &&
         LandmarkExpeditionTerrainGenerationVersion == 20 &&
-        CurrentTerrainGenerationVersion == 20 &&
+        CurrentTerrainGenerationVersion >= 20 &&
         WorldSaveFormatVersion == 12);
 
     constexpr int seed = 42;
@@ -212,7 +212,8 @@ void caseAdventureLandmarkLayouts()
     }
     const auto directory = freshSaveDirectory(
         "adventure_landmark_v20_reopen");
-    bool persisted = true;
+    bool persisted = initializeTerrainIdentity(
+        directory, "adventure-landmark-v20", 20, 42);
     std::uint64_t editedHash = 0;
     {
         Player owner;
@@ -234,7 +235,7 @@ void caseAdventureLandmarkLayouts()
             editedHash == TerrainSurvey::blockHash(
                 reopened.getChunkManager().getChunk(-1, -1));
     }
-    check("ADVENTURE-LANDMARK/default-v20-edit-save-reopen", persisted);
+    check("ADVENTURE-LANDMARK/old-v20-edit-save-reopen", persisted);
     clearDeterministicEnv();
 }
 } // namespace
