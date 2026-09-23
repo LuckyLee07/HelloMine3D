@@ -20430,6 +20430,7 @@ void caseWorldManager()
 #include "AdventureEcologySmokeCases.h"
 #include "AdventureExplorationSmokeCases.h"
 #include "AdventureSurvivalSmokeCases.h"
+#include "AdventureWildlifeSmokeCases.h"
 
 int main()
 {
@@ -20704,6 +20705,10 @@ int main()
             caseDifficultyProfiles();
             caseFoodRecovery();
         }
+        else if (focus != nullptr && std::string(focus) == "ADVENTURE_WILDLIFE") {
+            caseAdventureWildlife();
+            caseNaturalMobPopulation();
+        }
         else if (focus != nullptr && std::string(focus) == "ADVENTURE_PROGRESS") {
             caseWorldOutcomeAndLocalizedText();
             caseDataDrivenObjectives();
@@ -20882,6 +20887,7 @@ int main()
         caseAdventureProgression();
         caseAdventureGuidance();
         caseAdventureSurvival();
+        caseAdventureWildlife();
         caseP11DExplorationRewards();
         caseVoxelOakCanopy();
         caseForestEcologyV7();

@@ -10,6 +10,7 @@
 #include <future>
 #include <iomanip>
 #include <iostream>
+#include <string_view>
 #include <random>
 #include <sstream>
 #include <stdexcept>
@@ -20,6 +21,7 @@
 #include "../Gameplay/NaturalPopulationRules.h"
 #include "../Actor/ItemEntity.h"
 #include "../Actor/MobActor.h"
+#include "../Actor/WildlifeActor.h"
 #include "../Core/Camera.h"
 #include "../Diagnostics/RuntimeProfiler.h"
 #include "../Diagnostics/OperationPerformanceTiming.h"
@@ -3059,6 +3061,156 @@ void World::runNaturalMobPopulation(int worldTime)
     }
 }
 
+void World::runNaturalWildlifePopulation(int worldTime)
+{
+    if (m_player == nullptr || !m_playerActor.isAlive() || worldTime <= 0 ||
+        worldTime % WildlifeSpawnIntervalTicks != 0 ||
+        worldTime % WorldEnvironment::TicksPerDay >= 12000) {
+        return;
+    }
+
+    std::vector<ActorSnapshot> actors =
+        m_actorManager.collectSnapshots();
+    actors.reserve(actors.size() + WildlifeSpawnAttemptsPerCycle);
+    std::size_t worldCount = 0;
+    std::size_t localCount = 0;
+    for (const ActorSnapshot &actor : actors) {
+        if (actor.deathPresentation ||
+            !WildlifeSpecies::isWildlife(actor.type)) continue;
+        ++worldCount;
+        const float dx = actor.position.x - m_player->position.x;
+        const float dz = actor.position.z - m_player->position.z;
+        if (dx * dx + dz * dz <=
+            WildlifeLocalRadius * WildlifeLocalRadius) ++localCount;
+    }
+    if (worldCount >= WildlifeWorldCap || localCount >= WildlifeLocalCap)
+        return;
+
+    const int centerX = toBlockCoord(m_player->position.x);
+    const int centerZ = toBlockCoord(m_player->position.z);
+    const int epoch = worldTime / WildlifeSpawnIntervalTicks;
+    for (std::size_t attempt = 0;
+         attempt < WildlifeSpawnAttemptsPerCycle &&
+         worldCount < WildlifeWorldCap && localCount < WildlifeLocalCap;
+         ++attempt) {
+        // Loaded-column lookup, height, four safe-foot/head reads and the
+        // habitat support read share the movement budget in this fixed tick.
+        constexpr std::size_t SpawnQueryCost = 7;
+        if (m_wildlifeBlockQueriesUsed + SpawnQueryCost >
+            WildlifeBlockQueryBudgetPerTick) {
+            ++m_wildlifeBlockQueriesDenied;
+            break;
+        }
+        m_wildlifeBlockQueriesUsed += SpawnQueryCost;
+        ++m_wildlifeSpawnAttempts;
+        const glm::ivec2 offset = naturalMobSpawnOffset(
+            m_chunkManager.getTerrainSeed() ^ 0x36a7549, epoch,
+            attempt + 307u);
+        glm::vec3 candidate{0.f};
+        if (!findSafeNaturalMobPosition(centerX + offset.x,
+                                        centerZ + offset.y, candidate))
+            continue;
+        const int x = toBlockCoord(candidate.x);
+        const int y = toBlockCoord(candidate.y);
+        const int z = toBlockCoord(candidate.z);
+        const TerrainBiome biome =
+            m_chunkManager.getTerrainGenerator().getBiomeAtWorld(x, z);
+        const char *species = WildlifeSpecies::forBiome(biome);
+        if (species == nullptr) continue;
+        const BlockId support = static_cast<BlockId>(
+            getBlock(x, y - 1, z).id);
+        if (support == BlockId::OakLeaf ||
+            support == BlockId::OakBark ||
+            support == BlockId::Water) continue;
+        if (std::string_view(species) == WildlifeSpecies::MarshBird &&
+            support != BlockId::Silt && support != BlockId::Grass &&
+            support != BlockId::Dirt && support != BlockId::Clay)
+            continue;
+        bool occupied = false;
+        for (const ActorSnapshot &actor : actors) {
+            if (actor.deathPresentation) continue;
+            const float dx = actor.position.x - candidate.x;
+            const float dz = actor.position.z - candidate.z;
+            if (dx * dx + dz * dz < 2.25f &&
+                std::abs(actor.position.y - candidate.y) < 2.f) {
+                occupied = true;
+                break;
+            }
+        }
+        if (occupied) continue;
+        auto animal = std::make_unique<WildlifeActor>(
+            m_actorManager.allocateActorId(), species, candidate);
+        const ActorSnapshot newSnapshot = animal->getSnapshot();
+        if (m_actorManager.addActor(std::move(animal), *this) !=
+            InvalidActorId) {
+            actors.push_back(newSnapshot);
+            ++worldCount;
+            ++localCount;
+            ++m_wildlifeSpawned;
+        }
+    }
+}
+
+World::WildlifeStepResult World::tryWildlifeStep(
+    const glm::vec3 &from, const glm::vec3 &to,
+    const glm::vec3 &halfDimensions, glm::vec3 &settled)
+{
+    // One height query, five residency checks and at most twelve block reads.
+    constexpr std::size_t QueriesPerStep = 18;
+    if (m_wildlifeBlockQueriesUsed + QueriesPerStep >
+        WildlifeBlockQueryBudgetPerTick) {
+        ++m_wildlifeBlockQueriesDenied;
+        return WildlifeStepResult::BudgetDenied;
+    }
+    m_wildlifeBlockQueriesUsed += QueriesPerStep;
+    if (!std::isfinite(to.x) || !std::isfinite(to.y) ||
+        !std::isfinite(to.z) || !std::isfinite(from.y) ||
+        !std::isfinite(halfDimensions.x) ||
+        !std::isfinite(halfDimensions.y) ||
+        !std::isfinite(halfDimensions.z) ||
+        halfDimensions.x <= 0.f || halfDimensions.y <= 0.f ||
+        halfDimensions.z <= 0.f)
+        return WildlifeStepResult::Blocked;
+
+    std::unique_lock<std::mutex> lock(m_mainMutex);
+    const int centerX = toBlockCoord(to.x);
+    const int centerZ = toBlockCoord(to.z);
+    const VectorXZ chunkPosition = getChunkXZ(centerX, centerZ);
+    const Chunk *chunk = m_chunkManager.findChunk(
+        chunkPosition.x, chunkPosition.z);
+    if (chunk == nullptr || !chunk->hasLoaded())
+        return WildlifeStepResult::Blocked;
+    const VectorXZ local = getBlockXZ(centerX, centerZ);
+    const int feetY = chunk->getHeightAt(local.x, local.z) + 1;
+    if (feetY <= 1 || std::abs(static_cast<float>(feetY) - from.y) > 1.f)
+        return WildlifeStepResult::Blocked;
+    const float inset = 0.02f;
+    for (int sx : {-1, 1}) for (int sz : {-1, 1}) {
+        const int x = toBlockCoord(to.x + sx *
+            std::max(0.f, halfDimensions.x - inset));
+        const int z = toBlockCoord(to.z + sz *
+            std::max(0.f, halfDimensions.z - inset));
+        const VectorXZ column = getChunkXZ(x, z);
+        const Chunk *corner = m_chunkManager.findChunk(column.x, column.z);
+        if (corner == nullptr || !corner->hasLoaded())
+            return WildlifeStepResult::Blocked;
+        const auto support = getBlockUnlocked(x, feetY - 1, z);
+        const BlockId supportId = static_cast<BlockId>(support.id);
+        if (!support.getData().isCollidable ||
+            supportId == BlockId::Water ||
+            supportId == BlockId::OakLeaf)
+            return WildlifeStepResult::Blocked;
+        for (int y : {feetY, feetY + 1}) {
+            const auto body = getBlockUnlocked(x, y, z);
+            if (body.getData().isCollidable ||
+                body.id == static_cast<Block_t>(BlockId::Water))
+                return WildlifeStepResult::Blocked;
+        }
+    }
+    settled = {to.x, static_cast<float>(feetY), to.z};
+    return WildlifeStepResult::Allowed;
+}
+
 void World::despawnNaturalMobsInChunk(int chunkX, int chunkZ)
 {
     const std::size_t removed = m_actorManager.removeActorsIf(
@@ -3072,6 +3224,14 @@ void World::despawnNaturalMobsInChunk(int chunkX, int chunkZ)
             return actorChunk.x == chunkX && actorChunk.z == chunkZ;
         });
     m_naturalMobsDespawned += removed;
+    m_wildlifeDespawned += m_actorManager.removeActorsIf(
+        [chunkX, chunkZ](const Actor &actor) {
+            if (!WildlifeSpecies::isWildlife(actor.getType())) return false;
+            const VectorXZ cell = World::getChunkXZ(
+                World::toBlockCoord(actor.position.x),
+                World::toBlockCoord(actor.position.z));
+            return cell.x == chunkX && cell.z == chunkZ;
+        });
     removeCombatProjectilesInChunk(chunkX, chunkZ);
     clearInvalidCombatProjectiles();
     if (m_waystoneAnchor.has_value()) {
@@ -3215,6 +3375,17 @@ WorldDebugStats World::collectDebugStats()
     stats.naturalMobSpawnAttempts = m_naturalMobSpawnAttempts;
     stats.naturalMobsSpawned = m_naturalMobsSpawned;
     stats.naturalMobsDespawned = m_naturalMobsDespawned;
+    stats.wildlifeCount = static_cast<std::size_t>(std::count_if(
+        actorSnapshots.begin(), actorSnapshots.end(),
+        [](const ActorSnapshot &snapshot) {
+            return !snapshot.deathPresentation &&
+                   WildlifeSpecies::isWildlife(snapshot.type);
+        }));
+    stats.wildlifeSpawnAttempts = m_wildlifeSpawnAttempts;
+    stats.wildlifeSpawned = m_wildlifeSpawned;
+    stats.wildlifeDespawned = m_wildlifeDespawned;
+    stats.wildlifeBlockQueriesUsed = m_wildlifeBlockQueriesUsed;
+    stats.wildlifeBlockQueriesDenied = m_wildlifeBlockQueriesDenied;
     stats.combat.raycastBudget = CombatRaycastBudgetPerTick;
     stats.combat.raycastsUsed = m_combatRaycastsUsed;
     stats.combat.raycastBudgetDenied = m_combatRaycastBudgetDenied;
@@ -3493,6 +3664,13 @@ bool World::saveWorldState()
             ? m_victoryFlow->state()
             : WorldOutcomeState{};
     m_worldSaveData.actors = m_actorManager.collectSaveStates();
+    m_worldSaveData.actors.erase(
+        std::remove_if(m_worldSaveData.actors.begin(),
+                       m_worldSaveData.actors.end(),
+                       [](const ActorSaveState &state) {
+                           return WildlifeSpecies::isWildlife(state.type);
+                       }),
+        m_worldSaveData.actors.end());
 
     StorageTransactionMetrics metrics;
     if (!m_worldSave.save(m_worldSaveData, {}, &metrics)) {

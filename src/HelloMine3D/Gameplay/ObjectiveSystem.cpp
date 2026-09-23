@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "../Actor/ActorTypes.h"
+#include "../Actor/WildlifeActor.h"
 #include "../Item/RecipeRegistry.h"
 #include "../Player/Player.h"
 #include "../Sandbox/Events/BlockEvents.h"
@@ -551,6 +552,7 @@ void ObjectiveSystem::consumeEvent(const SandboxEvent& event)
             {
                 const auto& death = static_cast<const EntityDeathEvent&>(event);
                 if (death.id != DefaultPlayerActorId &&
+                    !WildlifeSpecies::isWildlife(death.type) &&
                     death.killerId == DefaultPlayerActorId &&
                     (definition.targetActorType.empty() ||
                      definition.targetActorType == death.type))

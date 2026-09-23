@@ -284,6 +284,8 @@ void WorldSimulation::fixedTick(const WorldTickContext &context)
         m_world.m_combatChaseStepBudgetDenied = 0;
         m_world.m_combatProjectileStepsUsed = 0;
         m_world.m_combatProjectileStepBudgetDenied = 0;
+        m_world.m_wildlifeBlockQueriesUsed = 0;
+        m_world.m_wildlifeBlockQueriesDenied = 0;
         if (m_world.m_playerGuardRecoverTicksRemaining > 0) {
             --m_world.m_playerGuardRecoverTicksRemaining;
         }
@@ -387,6 +389,7 @@ void WorldSimulation::fixedTick(const WorldTickContext &context)
         metrics->budget = m_world.getDifficultySnapshot()
                               .parameters.naturalSpawnAttemptsPerCycle;
         m_world.runNaturalMobPopulation(context.tick);
+        m_world.runNaturalWildlifePopulation(context.tick);
         metrics->processed = m_world.m_naturalMobSpawnAttempts -
                              attemptsBefore;
         metrics->eligible = metrics->processed;

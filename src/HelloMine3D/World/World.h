@@ -115,6 +115,12 @@ struct WorldDebugStats {
     std::size_t naturalMobSpawnAttempts = 0;
     std::size_t naturalMobsSpawned = 0;
     std::size_t naturalMobsDespawned = 0;
+    std::size_t wildlifeCount = 0;
+    std::size_t wildlifeSpawnAttempts = 0;
+    std::size_t wildlifeSpawned = 0;
+    std::size_t wildlifeDespawned = 0;
+    std::size_t wildlifeBlockQueriesUsed = 0;
+    std::size_t wildlifeBlockQueriesDenied = 0;
     float playerHealth = 0.f;
     float playerMaxHealth = 0.f;
     int foodCooldownTicksRemaining = 0;
@@ -194,6 +200,13 @@ class World : public NonCopyable {
     static constexpr const char *StalkerMobType = "hellomine:stalker";
     static constexpr const char *BruteMobType = "hellomine:brute";
     static constexpr const char *SpitterMobType = "hellomine:spitter";
+    static constexpr int WildlifeSpawnIntervalTicks = 80;
+    static constexpr std::size_t WildlifeSpawnAttemptsPerCycle = 8;
+    static constexpr std::size_t WildlifeWorldCap = 24;
+    static constexpr std::size_t WildlifeLocalCap = 12;
+    static constexpr float WildlifeLocalRadius = 64.f;
+    static constexpr std::size_t WildlifeBlockQueryBudgetPerTick = 48;
+    enum class WildlifeStepResult { Allowed, Blocked, BudgetDenied };
     static constexpr float PlayerAttackDamage = 4.f;
     static constexpr int PlayerAttackCooldownTicks = 10;
     static constexpr float PlayerAttackReach = 3.f;
@@ -248,6 +261,9 @@ class World : public NonCopyable {
                             const glm::vec3 &position,
                             const glm::vec3 &initialVelocity = glm::vec3(0.f));
     ActorId spawnMob(const std::string &type, const glm::vec3 &position);
+    WildlifeStepResult tryWildlifeStep(
+        const glm::vec3 &from, const glm::vec3 &to,
+        const glm::vec3 &halfDimensions, glm::vec3 &settled);
     CombatAttackResult tryAttackActor(ActorId actorId,
                                       bool simulationRunning = true);
     bool attackActor(ActorId actorId);
@@ -387,6 +403,7 @@ class World : public NonCopyable {
     void removeRandomTickSectionsForChunk(int chunkX, int chunkZ);
     void runRandomTicks(int worldTime, std::size_t sectionBudget);
     void runNaturalMobPopulation(int worldTime);
+    void runNaturalWildlifePopulation(int worldTime);
     void applyPendingDifficulty() noexcept;
     void respawnPlayer();
     void tickCombatProjectiles();
@@ -469,6 +486,11 @@ class World : public NonCopyable {
     std::size_t m_naturalMobSpawnAttempts = 0;
     std::size_t m_naturalMobsSpawned = 0;
     std::size_t m_naturalMobsDespawned = 0;
+    std::size_t m_wildlifeSpawnAttempts = 0;
+    std::size_t m_wildlifeSpawned = 0;
+    std::size_t m_wildlifeDespawned = 0;
+    std::size_t m_wildlifeBlockQueriesUsed = 0;
+    std::size_t m_wildlifeBlockQueriesDenied = 0;
     std::optional<WorldDifficulty> m_pendingDifficulty;
     unsigned long long m_difficultyApplicationEpoch = 0;
 
