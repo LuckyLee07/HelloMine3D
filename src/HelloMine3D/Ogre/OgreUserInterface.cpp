@@ -22,6 +22,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <limits>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -50,6 +51,7 @@
 #include "../Sandbox/GameApplicationFlow.h"
 #include "../Util/ResourcePaths.h"
 #include "../World/World.h"
+#include "../World/Exploration/ExplorationNavigation.h"
 #include "../World/Block/BlockCapability.h"
 #include "../World/Block/TerrainMaterialProfile.h"
 #include "../Item/SmeltingRegistry.h"
@@ -2785,6 +2787,7 @@ class OgreUserInterface::Impl
         }
 
         const float scale = appliedSettings.uiScale;
+        const auto trackedMarker = world->trackedExplorationMarker();
         const float mapDiameter = std::min(148.f * scale, io.DisplaySize.y * .25f);
         const char* regionKey = minimapBiome == TerrainBiome::Desert ? "hud.region_desert" :
             minimapBiome == TerrainBiome::Wetland ? "hud.region_wetland" :
@@ -2798,12 +2801,33 @@ class OgreUserInterface::Impl
         const float labelFont = ImGui::GetFontSize() * .85f;
         const std::string region = tr(regionKey);
         const float regionWidth = ImGui::GetFont()->CalcTextSizeA(labelFont, FLT_MAX, 0.f, region.c_str()).x;
+        const float routeFont = ImGui::GetFontSize() * .65f;
+        std::string trackingLine;
+        if (trackedMarker)
+        {
+            constexpr const char* directions[] = {
+                "map.direction_n", "map.direction_ne", "map.direction_e",
+                "map.direction_se", "map.direction_s", "map.direction_sw",
+                "map.direction_w", "map.direction_nw"};
+            const auto bearing = ExplorationNavigation::toward(
+                World::toBlockCoord(state.position.x),
+                World::toBlockCoord(state.position.z),
+                trackedMarker->worldX, trackedMarker->worldZ);
+            trackingLine = tr("map.marker_tracking") + "  " +
+                tr(directions[bearing.octant]) + "  " +
+                std::to_string(bearing.metres) + " m";
+        }
+        const float trackingWidth = trackingLine.empty() ? 0.f :
+            ImGui::GetFont()->CalcTextSizeA(routeFont, FLT_MAX, 0.f,
+                trackingLine.c_str()).x;
         // Reserve the cardinal badges outside the terrain disc, including at
         // the smallest window size and largest text setting.
         const float bezelDiameter = mapDiameter + 24.f * scale;
         const float bezelInset = (bezelDiameter - mapDiameter) * .5f;
-        const float windowWidth = std::max(bezelDiameter, regionWidth + 20.f * scale);
-        const ImVec2 windowSize(windowWidth, bezelDiameter + 49.f * scale);
+        const float windowWidth = std::max({bezelDiameter,
+            regionWidth + 20.f * scale, trackingWidth + 16.f * scale});
+        const ImVec2 windowSize(windowWidth,
+            bezelDiameter + (trackedMarker ? 67.f : 49.f) * scale);
         minimapOverlayWidth = windowWidth;
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x - 18.f, 18.f), ImGuiCond_Always,
@@ -2975,6 +2999,29 @@ class OgreUserInterface::Impl
                 else draw->AddRectFilled(ImVec2(point.x - 3.5f, point.y - 3.f),
                     ImVec2(point.x + 3.5f, point.y + 3.f), IM_COL32(232, 186, 124, 255), 1.f);
             }
+            if (trackedMarker)
+            {
+                const float dx = static_cast<float>(
+                    static_cast<std::int64_t>(trackedMarker->worldX) -
+                    World::toBlockCoord(state.position.x));
+                const float dz = static_cast<float>(
+                    static_cast<std::int64_t>(trackedMarker->worldZ) -
+                    World::toBlockCoord(state.position.z));
+                const float length = std::hypot(dx, dz);
+                if (length > 0.5f)
+                {
+                    const float reach = std::min(length /
+                        minimapStep * cellSize, radius - 10.f * scale);
+                    const ImVec2 target(mapCenter.x + dx / length * reach,
+                                        mapCenter.y + dz / length * reach);
+                    draw->AddCircleFilled(target, 6.f * scale,
+                        IM_COL32(17, 29, 35, 255));
+                    draw->AddCircleFilled(target, 3.f * scale,
+                        trackedMarker->kind == ExplorationMarkers::Kind::Home
+                            ? IM_COL32(242, 211, 151, 255)
+                            : IM_COL32(127, 218, 228, 255));
+                }
+            }
             draw->AddCircleFilled(marker, 7.f,
                                   IM_COL32(19, 29, 25, 220), 24);
             draw->AddTriangleFilled(tip, left, right,
@@ -3009,6 +3056,13 @@ class OgreUserInterface::Impl
                 scaleLine(ImVec2(x, scaleStart.y - 3.f * scale), ImVec2(x, scaleStart.y + 3.f * scale));
             navigationText(smallFont, ImVec2(mapCenter.x - textWidth * .5f,
                 scaleStart.y - smallFont * .5f), IM_COL32(20, 42, 47, 255), scaleLabel.c_str());
+            if (!trackingLine.empty())
+            {
+                navigationText(routeFont,
+                    ImVec2(mapCenter.x - trackingWidth * .5f,
+                           plaqueMin.y + 48.f * scale),
+                    IM_COL32(20, 42, 47, 255), trackingLine.c_str());
+            }
             if (hudInteraction.ownsInput())
             {
                 ImGui::SetCursorScreenPos(origin);
@@ -3018,6 +3072,7 @@ class OgreUserInterface::Impl
                     overviewOffsetX = overviewOffsetZ = 0;
                     overviewPanRemainderX = overviewPanRemainderZ = 0.f;
                     selectedOverviewCell = -1;
+                    mapMarkerPanel = false;
                     hudInteraction.open(HudInteraction::Page::Map);
                 }
                 if (ImGui::IsItemHovered())
@@ -3057,7 +3112,7 @@ class OgreUserInterface::Impl
         const float width = ImGui::GetContentRegionAvail().x;
         const bool wide = width > 760.f * scale;
         const float legendWidth = wide ? 228.f * scale : 0.f;
-        const float footerHeight = wide ? 0.f : ImGui::GetTextLineHeightWithSpacing() * 5.5f;
+        const float footerHeight = wide ? 0.f : ImGui::GetTextLineHeightWithSpacing() * 7.5f;
         const ImVec2 size(std::max(1.f, width - legendWidth - (wide ? 10.f : 0.f)),
             std::max(60.f, ImGui::GetContentRegionAvail().y - footerHeight));
         const ImVec2 origin = ImGui::GetCursorScreenPos();
@@ -3148,6 +3203,40 @@ class OgreUserInterface::Impl
                 ImVec2(grid.x + (x + 1) * pixel, grid.y + (z + 1) * pixel),
                 IM_COL32(255, 222, 137, 255), 0.f, 0, 2.f);
         }
+        const auto markers = world->explorationMarkers();
+        const auto tracked = world->trackedExplorationMarker();
+        for (const auto& marker : markers)
+        {
+            const float mx = grid.x + side * .5f +
+                static_cast<float>(static_cast<std::int64_t>(marker.worldX) - centerX) /
+                step * pixel;
+            const float mz = grid.y + side * .5f +
+                static_cast<float>(static_cast<std::int64_t>(marker.worldZ) - centerZ) /
+                step * pixel;
+            if (mx < grid.x + 5.f || mx > grid.x + side - 5.f ||
+                mz < grid.y + 5.f || mz > grid.y + side - 5.f) continue;
+            const ImVec2 at(mx, mz);
+            const auto colour = marker.kind == ExplorationMarkers::Kind::Home
+                ? IM_COL32(242, 211, 151, 255)
+                : IM_COL32(127, 218, 228, 255);
+            draw->AddCircleFilled(at, 6.f * scale,
+                IM_COL32(17, 29, 35, 255));
+            if (marker.kind == ExplorationMarkers::Kind::Home)
+                draw->AddRectFilled(ImVec2(mx - 3.f * scale, mz - 3.f * scale),
+                    ImVec2(mx + 3.f * scale, mz + 3.f * scale), colour);
+            else
+                draw->AddCircleFilled(at, 3.f * scale, colour);
+            if (tracked && tracked->id == marker.id)
+                draw->AddCircle(at, 8.f * scale, colour, 16, 1.5f);
+            if (hovered && std::abs(io.MousePos.x - mx) < 7.f * scale &&
+                std::abs(io.MousePos.y - mz) < 7.f * scale)
+            {
+                ImGui::SetTooltip("%s · X %d  Z %d", marker.name.c_str(),
+                    marker.worldX, marker.worldZ);
+                if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+                    selectedMapMarkerId = marker.id;
+            }
+        }
         const float px = grid.x + side * .5f +
             static_cast<float>(playerX - centerX) / step * pixel;
         const float pz = grid.y + side * .5f +
@@ -3180,7 +3269,186 @@ class OgreUserInterface::Impl
                 static_cast<long long>(centerZ + (inspection / count - count / 2) * step));
         }
         else ImGui::TextWrapped("%s", tr("map.select").c_str());
+        if (tracked)
+        {
+            constexpr const char* directions[] = {
+                "map.direction_n", "map.direction_ne", "map.direction_e",
+                "map.direction_se", "map.direction_s", "map.direction_sw",
+                "map.direction_w", "map.direction_nw"};
+            const auto bearing = ExplorationNavigation::toward(
+                World::toBlockCoord(state.position.x),
+                World::toBlockCoord(state.position.z),
+                tracked->worldX, tracked->worldZ);
+            ImGui::TextWrapped("%s: %s · %s  %llu m",
+                tr("map.marker_tracking").c_str(), tracked->name.c_str(),
+                tr(directions[bearing.octant]).c_str(),
+                static_cast<unsigned long long>(bearing.metres));
+        }
         ImGui::TextWrapped("%s", tr("map.overview_note").c_str());
+        ImGui::EndChild();
+    }
+
+    void drawExplorationMarkerPanel(const PlayerSaveState& state)
+    {
+        using Result = ExplorationMarkers::Result;
+        using Kind = ExplorationMarkers::Kind;
+        const float scale = appliedSettings.uiScale;
+        const auto resultKey = [](Result result) {
+            switch (result) {
+                case Result::Created: return "map.marker_created";
+                case Result::Changed: return "map.marker_saved";
+                case Result::Removed: return "map.marker_removed";
+                case Result::Unchanged: return "map.marker_unchanged";
+                case Result::Full: return "map.marker_full";
+                case Result::Missing: return "map.marker_missing";
+                case Result::Invalid: return "map.marker_invalid";
+            }
+            return "map.marker_invalid";
+        };
+        const auto markerPosition = [&]() -> std::optional<std::pair<int, int>> {
+            if (!overviewValid || selectedOverviewCell < 0 ||
+                selectedOverviewCell >= static_cast<int>(overviewCells.size()) ||
+                !overviewCells[selectedOverviewCell].known) return std::nullopt;
+            const std::int64_t x = overviewCenterX +
+                (selectedOverviewCell % OverviewCellCount - OverviewCellCount / 2) *
+                ExplorationAtlas::MetresPerCell;
+            const std::int64_t z = overviewCenterZ +
+                (selectedOverviewCell / OverviewCellCount - OverviewCellCount / 2) *
+                ExplorationAtlas::MetresPerCell;
+            if (x < std::numeric_limits<int>::min() ||
+                x > std::numeric_limits<int>::max() ||
+                z < std::numeric_limits<int>::min() ||
+                z > std::numeric_limits<int>::max()) return std::nullopt;
+            return std::make_pair(static_cast<int>(x), static_cast<int>(z));
+        };
+        const auto selectedPosition = markerPosition();
+        if (ImGui::BeginChild("##ExplorationMarkerPanel", ImVec2(0, 0), false))
+        {
+            auto markers = world->explorationMarkers();
+            const auto tracked = world->trackedExplorationMarker();
+            ImGui::TextColored(WarmAccent, "%s  %zu / %zu",
+                tr("map.markers").c_str(), markers.size(), ExplorationMarkers::Capacity);
+            if (selectedPosition)
+                ImGui::Text("X %d  Z %d", selectedPosition->first,
+                    selectedPosition->second);
+            else
+                ImGui::TextWrapped("%s", tr("map.marker_choose_cell").c_str());
+            ImGui::Text("%s", tr("map.marker_new_name").c_str());
+            ImGui::InputText("##NewMapMarkerName", newMapMarkerName.data(),
+                newMapMarkerName.size());
+            ImGui::BeginDisabled(!selectedPosition.has_value());
+            const auto create = [&](Kind kind) {
+                std::uint32_t createdId = 0;
+                const auto result = world->createExplorationMarker(
+                    selectedPosition->first, selectedPosition->second,
+                    newMapMarkerName.data(), kind, &createdId);
+                mapMarkerFeedbackKey = resultKey(result);
+                if (result == Result::Created) {
+                    selectedMapMarkerId = createdId;
+                    std::snprintf(editMapMarkerName.data(),
+                        editMapMarkerName.size(), "%s", newMapMarkerName.data());
+                    newMapMarkerName.fill(0);
+                }
+            };
+            if (ImGui::Button(tr("map.marker_add").c_str())) create(Kind::Note);
+            ImGui::SameLine();
+            if (ImGui::Button(tr("map.marker_add_home").c_str())) create(Kind::Home);
+            ImGui::EndDisabled();
+            if (!mapMarkerFeedbackKey.empty())
+                ImGui::TextColored(WarmAccent, "%s",
+                    tr(mapMarkerFeedbackKey).c_str());
+            ImGui::Separator();
+            const float listHeight = std::max(72.f * scale,
+                std::min(170.f * scale, ImGui::GetContentRegionAvail().y * .43f));
+            ImGui::BeginChild("##ExplorationMarkerList",
+                ImVec2(0, listHeight), true);
+            if (markers.empty())
+                ImGui::TextWrapped("%s", tr("map.marker_empty").c_str());
+            for (const auto& marker : markers)
+            {
+                ImGui::PushID(static_cast<int>(marker.id));
+                std::string row = marker.name;
+                if (marker.kind == Kind::Home)
+                    row += " · " + tr("map.marker_home");
+                if (tracked && tracked->id == marker.id)
+                    row += " · " + tr("map.marker_tracking");
+                if (ImGui::Selectable(row.c_str(),
+                    selectedMapMarkerId == marker.id))
+                {
+                    selectedMapMarkerId = marker.id;
+                    std::snprintf(editMapMarkerName.data(),
+                        editMapMarkerName.size(), "%s", marker.name.c_str());
+                    mapMarkerFeedbackKey.clear();
+                }
+                ImGui::PopID();
+            }
+            ImGui::EndChild();
+            const auto selected = std::find_if(markers.begin(), markers.end(),
+                [&](const auto& marker) {
+                    return marker.id == selectedMapMarkerId;
+                });
+            if (selected != markers.end())
+            {
+                constexpr const char* directions[] = {
+                    "map.direction_n", "map.direction_ne", "map.direction_e",
+                    "map.direction_se", "map.direction_s", "map.direction_sw",
+                    "map.direction_w", "map.direction_nw"};
+                const auto bearing = ExplorationNavigation::toward(
+                    World::toBlockCoord(state.position.x),
+                    World::toBlockCoord(state.position.z),
+                    selected->worldX, selected->worldZ);
+                ImGui::TextWrapped("%s · X %d  Z %d",
+                    selected->name.c_str(), selected->worldX, selected->worldZ);
+                ImGui::Text("%s  %llu m", tr(directions[bearing.octant]).c_str(),
+                    static_cast<unsigned long long>(bearing.metres));
+                ImGui::Text("%s", tr("map.marker_edit_name").c_str());
+                ImGui::InputText("##EditMapMarkerName",
+                    editMapMarkerName.data(), editMapMarkerName.size());
+                if (ImGui::Button(tr("map.marker_rename").c_str()))
+                    mapMarkerFeedbackKey = resultKey(
+                        world->renameExplorationMarker(selected->id,
+                            editMapMarkerName.data()));
+                ImGui::SameLine();
+                if (ImGui::Button(tr(tracked && tracked->id == selected->id ?
+                    "map.marker_untrack" : "map.marker_track").c_str()))
+                    mapMarkerFeedbackKey = resultKey(
+                        world->trackExplorationMarker(
+                            tracked && tracked->id == selected->id ? 0 : selected->id));
+                if (selected->kind != Kind::Home)
+                {
+                    if (ImGui::Button(tr("map.marker_set_home").c_str()))
+                        mapMarkerFeedbackKey = resultKey(
+                            world->setHomeExplorationMarker(selected->id));
+                    ImGui::SameLine();
+                }
+                ImGui::BeginDisabled(!selectedPosition.has_value());
+                if (ImGui::Button(tr("map.marker_move_here").c_str()))
+                    mapMarkerFeedbackKey = resultKey(
+                        world->moveExplorationMarker(selected->id,
+                            selectedPosition->first, selectedPosition->second));
+                ImGui::EndDisabled();
+                if (ImGui::Button(tr("map.marker_delete").c_str()))
+                    ImGui::OpenPopup("##ConfirmMapMarkerDelete");
+                if (ImGui::BeginPopupModal("##ConfirmMapMarkerDelete", nullptr,
+                    ImGuiWindowFlags_AlwaysAutoResize))
+                {
+                    ImGui::TextWrapped("%s",
+                        tr("map.marker_delete_confirm").c_str());
+                    if (ImGui::Button(tr("map.marker_delete").c_str()))
+                    {
+                        mapMarkerFeedbackKey = resultKey(
+                            world->eraseExplorationMarker(selected->id));
+                        selectedMapMarkerId = 0;
+                        editMapMarkerName.fill(0);
+                        ImGui::CloseCurrentPopup();
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button(tr("common.cancel").c_str()))
+                        ImGui::CloseCurrentPopup();
+                    ImGui::EndPopup();
+                }
+            }
+        }
         ImGui::EndChild();
     }
 
@@ -3200,7 +3468,17 @@ class OgreUserInterface::Impl
             if (ImGui::Button(tr(mapFlatOverview ? "map.view_3d" : "map.view_flat").c_str()))
             {
                 mapFlatOverview = !mapFlatOverview;
+                mapMarkerPanel = false;
                 selectedOverviewCell = selectedMapCell = -1;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button(tr(mapMarkerPanel ? "map.marker_back" :
+                "map.markers").c_str())) mapMarkerPanel = !mapMarkerPanel;
+            if (mapMarkerPanel)
+            {
+                drawExplorationMarkerPanel(state);
+                ImGui::End();
+                return;
             }
             if (mapFlatOverview)
             {
@@ -5378,6 +5656,11 @@ class OgreUserInterface::Impl
     static constexpr int OverviewCellCount = 65;
     std::array<MinimapCell, OverviewCellCount * OverviewCellCount> overviewCells{};
     bool mapFlatOverview = true;
+    bool mapMarkerPanel = false;
+    std::uint32_t selectedMapMarkerId = 0;
+    std::array<char, ExplorationMarkers::MaxNameBytes + 1> newMapMarkerName{};
+    std::array<char, ExplorationMarkers::MaxNameBytes + 1> editMapMarkerName{};
+    std::string mapMarkerFeedbackKey;
     std::int64_t overviewOffsetX = 0, overviewOffsetZ = 0;
     std::int64_t overviewCenterX = 0, overviewCenterZ = 0;
     float overviewPanRemainderX = 0.f, overviewPanRemainderZ = 0.f;
@@ -5606,6 +5889,11 @@ void OgreUserInterface::setWorldContext(Player *player,
     m_impl->mapGesture = {};
     m_impl->selectedMapCell = -1;
     m_impl->selectedOverviewCell = -1;
+    m_impl->selectedMapMarkerId = 0;
+    m_impl->mapMarkerPanel = false;
+    m_impl->newMapMarkerName.fill(0);
+    m_impl->editMapMarkerName.fill(0);
+    m_impl->mapMarkerFeedbackKey.clear();
     m_impl->overviewOffsetX = m_impl->overviewOffsetZ = 0;
     m_impl->overviewPanRemainderX = m_impl->overviewPanRemainderZ = 0.f;
     m_impl->overviewValid = false;
