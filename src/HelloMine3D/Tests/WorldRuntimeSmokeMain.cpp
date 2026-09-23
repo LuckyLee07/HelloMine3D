@@ -5738,6 +5738,10 @@ void caseWorldEnvironment()
         noon.cloudBaseHeight - noon.cloudThickness * 0.5f;
     const float cloudTop =
         noon.cloudBaseHeight + noon.cloudThickness * 0.5f;
+    // The frozen alpine camera is near 129 m. Clouds directly overhead must
+    // retain enough clearance to avoid a giant nearby ceiling in normal view.
+    check("V10C/alpine-view-keeps-cloud-clearance",
+          cloudBottom - 129.f >= 128.f);
     const CloudRayInterval fromBelow =
         WorldEnvironment::cloudRayInterval(
             noon, glm::vec3(0.f, cloudBottom - 32.f, 0.f),

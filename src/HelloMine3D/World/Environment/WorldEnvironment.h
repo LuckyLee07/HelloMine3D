@@ -22,7 +22,7 @@ struct WorldEnvironmentState {
     glm::vec3 cloudLightColour{0.9f, 0.93f, 0.96f};
     glm::vec3 cloudShadowColour{0.46f, 0.56f, 0.64f};
     float cloudCoverage = 0.46f;
-    float cloudBaseHeight = 168.f;
+    float cloudBaseHeight = 320.f;
     float cloudThickness = 24.f;
     float cloudHorizontalScale = 92.f;
     glm::vec2 cloudVelocity{1.6f, 0.55f};

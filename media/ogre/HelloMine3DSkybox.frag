@@ -60,39 +60,6 @@ float cloudNoise(vec2 value)
     return result;
 }
 
-// Interpolate occupied cloud cells, not warped noise coordinates. Four
-// shared coarse lattice values define all four fine-cell corners. This keeps
-// real, bounded edge coverage without false slivers or nearest-cell popping.
-vec4 cloudCellSample(vec2 value, float threshold)
-{
-    vec2 coarse = floor(value);
-    vec2 fine = fract(value) * 12.0;
-    vec2 low = floor(fine) / 12.0;
-    vec2 high = low + vec2(1.0 / 12.0);
-    low = low * low * (3.0 - 2.0 * low);
-    high = high * high * (3.0 - 2.0 * high);
-    float a = hash21(coarse);
-    float b = hash21(coarse + vec2(1.0, 0.0));
-    float c = hash21(coarse + vec2(0.0, 1.0));
-    float d = hash21(coarse + vec2(1.0, 1.0));
-    vec2 lowRow = vec2(mix(a, b, low.x), mix(c, d, low.x));
-    vec2 highRow = vec2(mix(a, b, high.x), mix(c, d, high.x));
-    vec4 corners = vec4(mix(lowRow.x, lowRow.y, low.y),
-                        mix(highRow.x, highRow.y, low.y),
-                        mix(lowRow.x, lowRow.y, high.y),
-                        mix(highRow.x, highRow.y, high.y));
-    vec4 occupied = step(vec4(threshold), corners);
-    vec2 edge = smoothstep(0.45, 0.55, fract(fine));
-    float coverage = mix(mix(occupied.x, occupied.y, edge.x),
-                         mix(occupied.z, occupied.w, edge.x), edge.y);
-    vec2 part = fract(value);
-    vec2 blend = part * part * (3.0 - 2.0 * part);
-    vec2 slope = 6.0 * part * (1.0 - part);
-    return vec4(coverage, mix(mix(a, b, blend.x), mix(c, d, blend.x), blend.y),
-                mix(b - a, d - c, blend.y) * slope.x,
-                mix(c - a, d - b, blend.x) * slope.y);
-}
-
 vec3 directionalFogColour(vec3 viewDirection)
 {
     vec3 normalisedView = normalize(viewDirection);
@@ -168,62 +135,38 @@ void sampleBoundedCloudLayer(vec3 direction, out float mask,
         return;
     }
 
-    // The ray entry tends to zero continuously when crossing either face.
-    // An inside-only offset would jump to a different part of the noise field.
-    float sampleDistance = nearDistance;
-    float layerTravel = max(farDistance - nearDistance, 0.0);
-    float secondDistance = min(
-        farDistance,
-        sampleDistance + min(layerTravel, cloudHorizontalScale * 0.75));
+    // A single atmospheric layer carries independently shaped coverage and
+    // broad lighting. It has no extruded faces or solid-object normals.
+    float distanceAlongRay = (nearDistance + farDistance) * 0.5;
+    vec3 point = cameraPosition + direction * distanceAlongRay;
     vec2 motion = cloudVelocity * globalTime;
-    vec2 firstUv = (cameraPosition.xz +
-                    direction.xz * sampleDistance + motion) /
-                   max(cloudHorizontalScale, 1.0);
-    vec2 secondUv = (cameraPosition.xz +
-                     direction.xz * secondDistance + motion) /
-                    max(cloudHorizontalScale, 1.0);
-    float threshold = mix(0.74, 0.53, cloudCoverage);
-    vec4 firstSample = cloudCellSample(firstUv, threshold);
-    vec4 secondSample = cloudCellSample(secondUv, threshold);
-    vec3 cloudSample = mix(firstSample.yzw, secondSample.yzw, 0.32);
-    float density = max(firstSample.y, secondSample.y);
-    float body = smoothstep(threshold + 0.02,
-                            threshold + 0.22, density);
-    float entryEdge = firstSample.x;
-    float exitEdge = secondSample.x;
-    float edge = max(entryEdge, exitEdge);
-    float sideAmount = (1.0 - entryEdge) * exitEdge;
+    float scale = max(cloudHorizontalScale * 0.85, 1.0);
+    vec2 uv = (point.xz + motion) / scale;
+    float broad = valueNoise(uv);
+    float middle = valueNoise(uv * 2.03 + 19.7);
+    float detail = valueNoise(uv * 4.07 - 7.3);
+    float density = broad * 0.68 + middle * 0.25 + detail * 0.07;
+    float threshold = mix(0.64, 0.50, cloudCoverage);
+    float coverage = smoothstep(threshold - 0.012, threshold + 0.060, density);
     float distanceFade = 1.0 - smoothstep(
-        cloudMaxDistance * 0.72, cloudMaxDistance,
+        cloudMaxDistance * 0.42, cloudMaxDistance,
         cameraInside ? 0.0 : nearDistance);
     float interiorBlend = smoothstep(0.0, max(cloudThickness * 0.15, 0.1),
         min(cameraPosition.y - bottom, top - cameraPosition.y));
-    float horizonFade = mix(smoothstep(0.012, 0.065, abs(direction.y)),
+    float horizonFade = mix(smoothstep(0.12, 0.24, abs(direction.y)),
                             1.0, interiorBlend);
-    float opticalDepth = clamp(
-        layerTravel / max(cloudThickness, 1.0), 0.0, 3.0);
-    // An outward ray just inside the slab has nearly zero cloud travel.
-    // Fade that short segment instead of exposing a full-opacity plane.
-    float thicknessFade = smoothstep(0.0, 0.12, opticalDepth);
-    mask = edge * distanceFade * horizonFade * thicknessFade *
-           clamp(0.72 + opticalDepth * 0.10, 0.0, 0.96);
+    float crossingFade = smoothstep(0.0, 0.12,
+        (farDistance - nearDistance) / max(cloudThickness, 1.0));
+    mask = coverage * distanceFade * horizonFade * crossingFade * 0.94;
+    // A sparse light-facing density lookup tints broad regions without
+    // generating rock-like bevels. Day/night colour remains authoritative.
+    vec2 lightOffset = sunDirection.xz * 0.18 * (sunIntensity - moonIntensity);
+    float lightDensity = valueNoise(uv + lightOffset);
+    float bodyLight = clamp(0.42 +
+        smoothstep(threshold, threshold + 0.22, density) * 0.46 +
+        (broad - lightDensity) * 0.7, 0.36, 0.95);
+    colour = mix(cloudShadowColour, cloudLightColour, bodyLight);
 
-    // Thin rims transmit more sky light; denser centres retain a darker base.
-    // Use the existing sun/moon direction and palette so dusk and night keep
-    // their environment colours. No new light, shadow map or weather state.
-    vec3 roundedNormal = normalize(vec3(-cloudSample.y * 0.85, 0.65,
-                                        -cloudSample.z * 0.85));
-    float sunFacing = dot(roundedNormal, normalize(sunDirection));
-    // Blend both contributions continuously through sunrise/sunset.
-    float directionalLight = max(sunFacing, 0.0) * sunIntensity +
-                             max(-sunFacing, 0.0) * moonIntensity;
-    float topLighting = mix(0.32, 0.72,
-                             smoothstep(bottom, top, cameraPosition.y));
-    float lightAmount = clamp(
-        topLighting + directionalLight * 0.22 + (1.0 - body) * 0.16 +
-        sideAmount * 0.30 - body * 0.12 - opticalDepth * 0.025,
-        0.12, 1.0);
-    colour = mix(cloudShadowColour, cloudLightColour, lightAmount);
 }
 
 // A fixed orbit reference remains well-conditioned at noon and midnight.
@@ -238,9 +181,9 @@ vec2 celestialCoordinates(vec3 direction, vec3 bodyDirection, float radius)
 
 float pixelBodyMask(vec2 uv, float alignment, float antialias)
 {
-    vec2 edge = abs(uv);
-    // Cut one square from each corner; retain a readable block silhouette.
-    float boundary = max(max(edge.x, edge.y), min(edge.x, edge.y) + 0.25);
+    // A round disc with sparse pixel surface detail belongs to this sky;
+    // block-world materials do not require square celestial silhouettes.
+    float boundary = length(uv);
     return (1.0 - smoothstep(1.0 - antialias, 1.0 + antialias, boundary)) *
            step(0.0, alignment);
 }
@@ -270,7 +213,7 @@ vec3 composePixelCelestials(vec3 colour, vec3 direction)
     colour += vec3(0.62, 0.72, 0.92) * moonIntensity * moonHalo * 0.08;
 
     vec2 sunPixel = (floor(sunUv * 8.0) + 0.5) / 8.0;
-    float sunCore = 1.0 - step(0.76, max(abs(sunPixel.x), abs(sunPixel.y)));
+    float sunCore = 1.0 - step(0.76, length(sunPixel));
     vec3 sunSurface = sunColour * mix(vec3(0.96, 0.79, 0.54),
                                       vec3(1.03, 1.01, 0.92), sunCore);
     colour = mix(colour, sunSurface, sunMask * sunIntensity);
@@ -282,7 +225,7 @@ vec3 composePixelCelestials(vec3 colour, vec3 direction)
     float craters = max(max(1.0 - step(0.26, max(firstCrater.x, firstCrater.y)),
                             1.0 - step(0.17, max(secondCrater.x, secondCrater.y))),
                        1.0 - step(0.10, max(thirdCrater.x, thirdCrater.y)));
-    float moonRim = step(0.77, max(abs(moonPixel.x), abs(moonPixel.y)));
+    float moonRim = step(0.77, length(moonPixel));
     vec3 moonSurface = mix(vec3(0.72, 0.80, 0.91), vec3(0.48, 0.59, 0.73),
                            max(craters * 0.65, moonRim * 0.32));
     return mix(colour, moonSurface, moonMask * moonIntensity);

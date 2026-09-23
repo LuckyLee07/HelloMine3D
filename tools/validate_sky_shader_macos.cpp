@@ -1,7 +1,7 @@
 // Render the production sky fragment shader; these are diagnostic GPU samples.
 // clang++ -std=c++17 -Wno-deprecated-declarations tools/validate_sky_shader_macos.cpp \
 //   -framework OpenGL -framework CoreGraphics -framework ImageIO -framework CoreFoundation -o /tmp/sky-gpu
-// /tmp/sky-gpu <candidate Skybox.frag> <baseline Skybox.frag> <new output directory> [--celestial|--cloud-form]
+// /tmp/sky-gpu <candidate Skybox.frag> <baseline Skybox.frag> <new output directory> [--celestial|--cloud-form|--natural-sky|--atmospheric-clouds]
 #include <OpenGL/OpenGL.h>
 #include <OpenGL/gl3.h>
 #include <CoreGraphics/CoreGraphics.h>
@@ -18,6 +18,10 @@
 
 namespace {
 constexpr int Edge = 256;
+constexpr float CloudBaseHeight = 320.f;
+constexpr float CloudBottom = CloudBaseHeight - 12.f;
+constexpr float CloudTop = CloudBaseHeight + 12.f;
+constexpr float AboveClouds = CloudTop + 30.f;
 using Pixels = std::vector<unsigned char>;
 void require(bool condition, const std::string& message) {
     if (!condition) throw std::runtime_error(message);
@@ -79,7 +83,7 @@ Pixels render(GLuint p, float time, bool enabled=true, bool night=false,
     vector("cloudLightColour",night?.1f:.90f,night?.14f:.93f,night?.22f:.95f);
     vector("cloudShadowColour",night?.018f:.42f,night?.032f:.53f,night?.075f:.60f);
     scalar("cloudCoverage",.44f); scalar("cloudLayerEnabled",enabled?1:0);
-    scalar("cloudBaseHeight",168); scalar("cloudThickness",24); scalar("cloudHorizontalScale",92);
+    scalar("cloudBaseHeight",CloudBaseHeight); scalar("cloudThickness",24); scalar("cloudHorizontalScale",92);
     glUniform2f(glGetUniformLocation(p,"cloudVelocity"),1.6f,.55f);
     scalar("cloudMaxDistance",2400); vector("cameraPosition",x,height,z);
     scalar("globalTime",time); scalar("legacyTime",std::fmod(time,1.f));
@@ -125,7 +129,7 @@ void main() {
         (p.x * right + p.y * cross(probeDirection, right));
 })GLSL";
 
-Pixels celestialProbe(GLuint p, bool moon=false, float height=210,
+Pixels celestialProbe(GLuint p, bool moon=false, float height=AboveClouds,
                       float x=168, bool legacy=false, bool reverse=false,
                       float noonOffset=2.f) {
     glUseProgram(p);
@@ -147,7 +151,7 @@ Pixels celestialProbe(GLuint p, bool moon=false, float height=210,
     scalar("sunIntensity",moon?0:1);scalar("moonIntensity",moon?1:0);
     scalar("starIntensity",0);scalar("fogDirectionalStrength",0);
     scalar("cloudCoverage",1);scalar("cloudLayerEnabled",legacy?0:1);
-    scalar("cloudBaseHeight",168);scalar("cloudThickness",24);
+    scalar("cloudBaseHeight",CloudBaseHeight);scalar("cloudThickness",24);
     scalar("cloudHorizontalScale",92);scalar("cloudMaxDistance",2400);
     glUniform2f(glGetUniformLocation(p,"cloudVelocity"),1.6f,.55f);
     vector("cameraPosition",x,height,552);scalar("globalTime",5);scalar("legacyTime",0);
@@ -179,12 +183,31 @@ double minimumTransmission(GLuint program,bool moon) {
     }
     return minimum;
 }
+
+bool roundBody(const Pixels& pixels,bool moon) {
+    // Sample the rendered surface, not a reimplementation of the mask.
+    // Cardinal edges remain lit; diagonal corners at the same box extent
+    // must show sky. Check all quadrants so crater patterns cannot hide a card.
+    const float radius=(moon?.046f:.052f)/.14f*Edge*.5f;
+    const auto red=[&](float x,float y) {
+        const int px=int(Edge*.5f+x*radius),py=int(Edge*.5f+y*radius);
+        return int(pixels[(py*Edge+px)*4]);
+    };
+    for(float sign:{-1.f,1.f}) {
+        if(red(sign*.88f,0)<100||red(0,sign*.88f)<100) return false;
+        for(float other:{-1.f,1.f})
+            if(red(sign*.84f,other*.84f)>80) return false;
+    }
+    return true;
+}
 }
 int main(int argc,char** argv) {
     try {
-        const bool cloudForm=argc==5&&std::string(argv[4])=="--cloud-form";
+        const bool atmosphericClouds=argc==5&&std::string(argv[4])=="--atmospheric-clouds";
+        const bool naturalSky=argc==5&&(std::string(argv[4])=="--natural-sky"||atmosphericClouds);
+        const bool cloudForm=argc==5&&(std::string(argv[4])=="--cloud-form"||naturalSky);
         const bool celestial=argc==5&&(std::string(argv[4])=="--celestial"||cloudForm);
-        require(argc==4||celestial,"Usage: sky-gpu <candidate> <baseline> <new output> [--celestial|--cloud-form]");
+        require(argc==4||celestial,"Usage: sky-gpu <candidate> <baseline> <new output> [--celestial|--cloud-form|--natural-sky|--atmospheric-clouds]");
         const std::filesystem::path output(argv[3]);
         require(!std::filesystem::exists(output),"Output must be new");
         std::filesystem::create_directories(output);
@@ -220,19 +243,19 @@ int main(int argc,char** argv) {
         if(celestial&&!cloudForm) check("cloud-only-composition-preserved",day==old);
         else check("bounded-cloud-composition-changes",difference(day,old)>.1);
         check("world-space-parallax",difference(day,render(current,5,true,false,108,208))>.1);
-        check("cloud-layer-height-parallax",difference(day,render(current,5,true,false,168))>.1);
+        check("cloud-layer-height-parallax",difference(day,render(current,5,true,false,CloudBaseHeight))>.1);
         check("day-and-night-readable",difference(day,render(current,5,true,true))>20);
         check("sun-moon-handoff-continuity",
               difference(render(current,5,true,false,108,168,1,true,.4999f),
                          render(current,5,true,false,108,168,1,true,.5001f))<.002);
         check("cloud-bottom-crossing-continuity",
-              difference(render(current,5,true,false,155.999f),
-                         render(current,5,true,false,156.001f))<.1);
+              difference(render(current,5,true,false,CloudBottom-.001f),
+                         render(current,5,true,false,CloudBottom+.001f))<.1);
         check("cloud-top-crossing-continuity",
-              difference(render(current,5,true,false,179.999f,168,0,false,-1,-.4f),
-                         render(current,5,true,false,180.001f,168,0,false,-1,-.4f))<.1);
-        png(output/"cloud-inside.png",render(current,5,true,false,168));
-        png(output/"cloud-above.png",render(current,5,true,false,210,168,0,false,-1,-.4f));
+              difference(render(current,5,true,false,CloudTop-.001f,168,0,false,-1,-.4f),
+                         render(current,5,true,false,CloudTop+.001f,168,0,false,-1,-.4f))<.1);
+        png(output/"cloud-inside.png",render(current,5,true,false,CloudBaseHeight));
+        png(output/"cloud-above.png",render(current,5,true,false,AboveClouds,168,0,false,-1,-.4f));
         // This view excludes both discs/halos. Fog is disabled for the probe:
         // only cloud shading may respond to the horizontal light direction.
         for(bool night:{false,true}) {
@@ -244,8 +267,8 @@ int main(int argc,char** argv) {
                   equalRows(render(current,5,true,night),
                             render(baseline,5,true,night),0,56));
             check(night?"night-no-cloud-above-outward-ray":"day-no-cloud-above-outward-ray",
-                  equalRows(render(current,5,true,night,210),
-                            render(baseline,5,true,night,210),128,Edge));
+                  equalRows(render(current,5,true,night,AboveClouds),
+                            render(baseline,5,true,night,AboveClouds),128,Edge));
             png(output/(night?"moon-left.png":"sun-left.png"),left);
             png(output/(night?"moon-right.png":"sun-right.png"),right);
             auto previous=render(current,5,true,night);
@@ -275,12 +298,26 @@ int main(int argc,char** argv) {
                 check(moon?"legacy-moon-exact":"legacy-sun-exact",
                       celestialProbe(body,moon,108,168,true)==celestialProbe(oldBody,moon,108,168,true));
                 check(moon?"moon-no-backface":"sun-no-backface",
-                      centreLight(celestialProbe(body,moon,210,168,false,true))<14);
+                      centreLight(celestialProbe(body,moon,AboveClouds,168,false,true))<14);
                 check(moon?"moon-zenith-continuity":"sun-zenith-continuity",
-                      difference(celestialProbe(body,moon,210,168,false,false,-.00001f),
-                                 celestialProbe(body,moon,210,168,false,false,.00001f))<.1);
+                      difference(celestialProbe(body,moon,AboveClouds,168,false,false,-.00001f),
+                                 celestialProbe(body,moon,AboveClouds,168,false,false,.00001f))<.1);
             }
             const auto sun=celestialProbe(body),moon=celestialProbe(body,true);
+            if(naturalSky) {
+                check("sun-round-silhouette",roundBody(sun,false));
+                check("moon-round-silhouette",roundBody(moon,true));
+                auto square=source;
+                const std::string boundary="float boundary = length(uv);";
+                const auto at=square.find(boundary);
+                require(at!=std::string::npos,"Missing round celestial boundary");
+                square.replace(at,boundary.size(),
+                    "float boundary = max(abs(uv.x),abs(uv.y));");
+                const auto squareBody=program(square,CelestialVertex);
+                check("square-sun-negative-detected",!roundBody(celestialProbe(squareBody),false));
+                check("square-moon-negative-detected",!roundBody(celestialProbe(squareBody,true),true));
+                glDeleteProgram(squareBody);
+            }
             // The sun core must retain warm colour instead of saturating white.
             const int centre=(128*Edge+128)*4;
             check("sun-warm-readable-core",sun[centre]-sun[centre+2]>30);
@@ -324,7 +361,47 @@ void main() {
             std::cout<<"[SKY_GPU] cloud-filled="<<shape.first
                      <<" transition="<<shape.second<<" old-transition="<<before.second<<'\n';
             check("cloud-groups-leave-clear-sky",shape.first>.02&&shape.first<.60);
-            check("cloud-boundaries-defined",shape.second<before.second*.80);
+            if(atmosphericClouds) {
+                // Review the same production shader at ordinary ground,
+                // alpine and near-summit heights before opening a client.
+                // These are sky-only probes, never normal-play evidence.
+                png(output/"cloud-lowland-sky.png",
+                    render(current,5,true,false,70));
+                png(output/"cloud-alpine-sky.png",
+                    render(current,5,true,false,129));
+                png(output/"cloud-summit-sky.png",
+                    render(current,5,true,false,240));
+                // B1e explicitly uses translucent margins. Keep the historical
+                // hard-edge check in its original mode; it is not an art score.
+                const auto layeredCoverage=[](const Pixels& p) {
+                    int clear=0,thin=0,dense=0;
+                    for(std::size_t i=0;i<p.size();i+=4) {
+                        clear+=p[i]<=8;
+                        thin+=p[i]>24&&p[i]<160;
+                        dense+=p[i]>=192;
+                    }
+                    const double pixels=Edge*Edge;
+                    return clear/pixels>.25&&thin/pixels>.01&&dense/pixels>.01;
+                };
+                check("cloud-clear-thin-dense-regions",layeredCoverage(currentMask));
+                auto hardSource=maskShader(read(argv[1]));
+                const std::string outputMask="fragColor=vec4(vec3(mask),1);";
+                auto at=hardSource.find(outputMask);
+                require(at!=std::string::npos,"Missing cloud probe output");
+                hardSource.replace(at,outputMask.size(),
+                                   "fragColor=vec4(vec3(step(0.5,mask)),1);");
+                const auto hard=program(hardSource);
+                check("hard-cutout-cloud-negative-detected",!layeredCoverage(render(hard,5)));
+                glDeleteProgram(hard);
+                auto hazeSource=maskShader(read(argv[1]));
+                at=hazeSource.find(outputMask);
+                hazeSource.replace(at,outputMask.size(),"fragColor=vec4(vec3(0.35),1);");
+                const auto haze=program(hazeSource);
+                check("uniform-haze-negative-detected",!layeredCoverage(render(haze,5)));
+                glDeleteProgram(haze);
+            } else {
+                check("cloud-boundaries-defined",shape.second<before.second*.80);
+            }
             check("world-wind-advection-invariant",
                   difference(currentMask,render(cloud,10,true,false,108,160,0,false,-1,.4f,549.25f))<.01);
             check("negative-coordinate-wind-advection-invariant",

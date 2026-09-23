@@ -92,7 +92,7 @@ WorldEnvironmentState WorldEnvironment::evaluate(float worldTime)
         twilightCloudShadow, twilightAmount * 0.30f);
     state.cloudCoverage = 0.44f +
         0.04f * (0.5f + 0.5f * std::cos(angle * 2.f));
-    state.cloudBaseHeight = 168.f;
+    state.cloudBaseHeight = 320.f;
     state.cloudThickness = 24.f;
     state.cloudHorizontalScale = 92.f;
     state.cloudVelocity = glm::vec2(1.6f, 0.55f);
