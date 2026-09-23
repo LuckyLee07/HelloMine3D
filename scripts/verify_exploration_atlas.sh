@@ -21,6 +21,13 @@ for configuration in Debug Release; do
         "$project_root/tools/tests/exploration_atlas_test.cpp" -o "$binary"
     "$binary"
 
+    markers_binary="$output_dir/exploration-markers-test-$configuration"
+    "${CXX:-clang++}" -std=c++17 "${architecture[@]}" \
+        "${optimisation[@]}" -Wall -Wextra -Werror \
+        "$project_root/tools/tests/exploration_markers_test.cpp" \
+        -o "$markers_binary"
+    "$markers_binary"
+
     store_binary="$output_dir/exploration-map-store-test-$configuration"
     "${CXX:-clang++}" -std=c++17 "${architecture[@]}" \
         "${optimisation[@]}" -Wall -Wextra -Werror \
