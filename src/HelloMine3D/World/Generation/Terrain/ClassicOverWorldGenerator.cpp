@@ -19,6 +19,7 @@
 #include "../Structures/TreeGenerator.h"
 #include "../Structures/StructureBuilder.h"
 #include "../Structures/LandmarkArchitecture.h"
+#include "../Structures/LandmarkExpedition.h"
 #include "../Ecology/TerrainEcologyPlanner.h"
 
 namespace {
@@ -373,7 +374,9 @@ StructurePlanSnapshot ClassicOverWorldGenerator::getStructurePlanForCell(
     StructureType type, int cellX, int cellZ) const
 {
     const DeterministicStructurePlanner planner(
-        m_seed, m_generationVersion >= AdventureExplorationTerrainGenerationVersion
+        m_seed, m_generationVersion >= LandmarkExpeditionTerrainGenerationVersion
+            ? LandmarkExpeditionTerrainGenerationVersion
+            : m_generationVersion >= AdventureExplorationTerrainGenerationVersion
             ? AdventureExplorationTerrainGenerationVersion
             : m_generationVersion >= LandmarkArchitectureTerrainGenerationVersion
             ? LandmarkArchitectureTerrainGenerationVersion
@@ -392,7 +395,9 @@ ClassicOverWorldGenerator::getStructurePlansForChunk(
     int chunkX, int chunkZ, int padding) const
 {
     const DeterministicStructurePlanner planner(
-        m_seed, m_generationVersion >= AdventureExplorationTerrainGenerationVersion
+        m_seed, m_generationVersion >= LandmarkExpeditionTerrainGenerationVersion
+            ? LandmarkExpeditionTerrainGenerationVersion
+            : m_generationVersion >= AdventureExplorationTerrainGenerationVersion
             ? AdventureExplorationTerrainGenerationVersion
             : m_generationVersion >= LandmarkArchitectureTerrainGenerationVersion
             ? LandmarkArchitectureTerrainGenerationVersion
@@ -976,8 +981,12 @@ void ClassicOverWorldGenerator::projectStructurePlan(
         for (int py = f.minimumY; py <= f.maximumY; ++py) {
             for (int px = f.minimumX; px <= f.maximumX; ++px) {
                 for (int pz = f.minimumZ; pz <= f.maximumZ; ++pz) {
-                    builder.addBlock(px, py, pz, LandmarkArchitecture::blockAt(
-                        plan, px - x, py - y, pz - z));
+                    builder.addBlock(px, py, pz,
+                        m_generationVersion >= LandmarkExpeditionTerrainGenerationVersion
+                            ? LandmarkExpedition::blockAt(
+                                plan, px - x, py - y, pz - z)
+                            : LandmarkArchitecture::blockAt(
+                                plan, px - x, py - y, pz - z));
                 }
             }
         }

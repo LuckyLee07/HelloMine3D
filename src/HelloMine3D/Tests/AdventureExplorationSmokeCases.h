@@ -4,7 +4,10 @@
 
 namespace {
 void caseAdventureExplorationV19() {
-    check("ADVENTURE_EXPLORE/appended-v19",CurrentTerrainGenerationVersion==19 && AdventureEcologyTerrainGenerationVersion==18);
+    check("ADVENTURE_EXPLORE/v19-remains-supported",
+        CurrentTerrainGenerationVersion >= 19 &&
+        AdventureExplorationTerrainGenerationVersion == 19 &&
+        AdventureEcologyTerrainGenerationVersion == 18);
     clearDeterministicEnv();Config config=makeConfig();Camera camera(config);
     const auto evidence=freshSaveDirectory("adventure_exploration_routes");
     std::ofstream summary(std::filesystem::path(evidence)/"summary.csv");
@@ -139,11 +142,14 @@ void caseAdventureExplorationV19() {
     const auto &grass=BlockDatabase::get().getDefinition(BlockId::TallGrass);
     auto custom=grass.render.shape;custom.faces[0][0]=.15f;
     check("ADVENTURE_EXPLORE/custom-cross-keeps-resource-geometry",ForestFernGeometry::applies(ChunkBlock(BlockId::TallGrass,2),grass.render.shape) && !ForestFernGeometry::applies(ChunkBlock(BlockId::TallGrass,2),custom));
-    // Full v19 default save identity and edited ecology data survive reopening.
-    const auto directory=freshSaveDirectory("adventure_v19_save");bool saved=false;std::uint64_t hash=0;
-    {Player player;World actual(camera,config,player,directory,false,0);actual.getChunkManager().loadChunk(103,41);actual.setBlock(1650,140,660,BlockId::OakPlank);hash=TerrainSurvey::blockHash(actual.getChunkManager().getChunk(103,41));saved=actual.save() && actual.getChunkManager().getTerrainGenerationVersion()==19;}
+    // An explicit v19 world retains its original generation and edits after
+    // the default version advances; this is a compatibility assertion.
+    const auto directory=freshSaveDirectory("adventure_v19_save");
+    bool saved=initializeTerrainIdentity(directory,"adventure-v19",19,42);
+    std::uint64_t hash=0;
+    {Player player;World actual(camera,config,player,directory,false,0);actual.getChunkManager().loadChunk(103,41);actual.setBlock(1650,140,660,BlockId::OakPlank);hash=TerrainSurvey::blockHash(actual.getChunkManager().getChunk(103,41));saved &= actual.save() && actual.getChunkManager().getTerrainGenerationVersion()==19;}
     {Player player;World actual(camera,config,player,directory,false,0);actual.getChunkManager().loadChunk(103,41);saved &= actual.getChunkManager().getTerrainGenerationVersion()==19 && actual.getBlock(1650,140,660)==BlockId::OakPlank && hash==TerrainSurvey::blockHash(actual.getChunkManager().getChunk(103,41));}
-    check("ADVENTURE_EXPLORE/default-v19-save-reopen",saved);
+    check("ADVENTURE_EXPLORE/old-v19-save-reopen",saved);
     clearDeterministicEnv();setEnv("HELLOMINE3D_SEED","");
 }
 }

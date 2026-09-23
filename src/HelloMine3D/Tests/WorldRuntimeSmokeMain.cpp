@@ -20422,6 +20422,7 @@ void caseWorldManager()
 #include "WetlandGrassSmokeCases.h"
 #include "LandmarkSurvey.h"
 #include "LandmarkArchitectureSmokeCases.h"
+#include "AdventureLandmarkSmokeCases.h"
 #include "TerrainSurfaceTransitionSmokeCases.h"
 #include "AdventureTerrainSmokeCases.h"
 #include "AdventureWaterSmokeCases.h"
@@ -20484,6 +20485,10 @@ int main()
         }
         else if (focus != nullptr && std::string(focus) == "ADVENTURE_EXPLORE") {
             caseAdventureExplorationV19();
+        }
+        else if (focus != nullptr && std::string(focus) == "ADVENTURE_LANDMARK") {
+            caseAdventureLandmarkLayouts();
+            caseLandmarkArchitectureV14();
         }
         else if (focus != nullptr && std::string(focus) == "ADVENTURE_QUERY") {
             caseAdventureSurfaceQueryCache();
@@ -20888,6 +20893,7 @@ int main()
         caseAdventureGuidance();
         caseAdventureSurvival();
         caseAdventureWildlife();
+        caseAdventureLandmarkLayouts();
         caseP11DExplorationRewards();
         caseVoxelOakCanopy();
         caseForestEcologyV7();
