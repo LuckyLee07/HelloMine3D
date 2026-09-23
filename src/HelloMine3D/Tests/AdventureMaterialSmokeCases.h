@@ -84,4 +84,141 @@ void caseAdventureMaterials()
     check("ADVENTURE_MATERIAL/blocks-and-tree-metadata-save-reopen",persisted);
     clearDeterministicEnv();setEnv("HELLOMINE3D_SEED","");
 }
+
+void caseAdventureRegionalBuildRecipes()
+{
+    RecipeRegistry recipes;
+    std::ifstream input(ResourcePaths::media("recipes/Base.recipe"), std::ios::binary);
+    std::ostringstream content;
+    content << input.rdbuf();
+    recipes.freeze({{"base.recipe", content.str()}});
+
+    struct Build {
+        const char *id;
+        Material::ID output;
+        BlockId block;
+        const char *entityType;
+        std::vector<RecipeIngredient> ingredients;
+    };
+    const std::array<Build, 3> builds{{
+        {"hellomine:woodland_cache", Material::ID::Chest, BlockId::Chest, "hellomine:chest",
+         {{Material::ID::MossStone, 2}, {Material::ID::OakPlank, 4},
+          {Material::ID::ForestFloor, 1}}},
+        {"hellomine:river_kiln", Material::ID::Furnace, BlockId::Furnace, "hellomine:furnace",
+         {{Material::ID::Clay, 4}, {Material::ID::Gravel, 4},
+          {Material::ID::Silt, 1}}},
+        {"hellomine:highland_crusher", Material::ID::Crusher, BlockId::Crusher, "hellomine:crusher",
+         {{Material::ID::Gravel, 4}, {Material::ID::Stone, 2},
+          {Material::ID::OakPlank, 2}, {Material::ID::IronIngot, 1}}}
+    }};
+
+    const auto directory = freshSaveDirectory("adventure_regional_builds");
+    setEnv("HELLOMINE3D_SEED", "42");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    bool saved = false;
+    {
+        World world(camera, config, player, directory, false, 0);
+        world.getChunkManager().loadChunk(0, 0);
+        for (int x = 3; x <= 9; ++x)
+            for (int z = 3; z <= 6; ++z) {
+                world.setBlock(x, 198, z, BlockId::Stone);
+                world.setBlock(x, 199, z, BlockId::Air);
+            }
+        player.addItem(Material::WORKBENCH_BLOCK, 1);
+        PlayerInputState select;
+        select.hotbarSlot = 0;
+        player.applyInput(select);
+        const bool stationPlaced = BlockInteractionSystem::placeBlock(
+            world, player, {4.5f, 199.5f, 4.5f});
+        check("ADVENTURE-REGIONAL/workbench-placed-through-player",
+              stationPlaced && world.getBlock(4, 199, 4) == BlockId::Workbench);
+
+        for (std::size_t index = 0; index < builds.size(); ++index) {
+            const Build &build = builds[index];
+            const RecipeDefinition *definition = recipes.find(build.id);
+            bool recipeMatches = definition != nullptr &&
+                definition->type == RecipeType::Shapeless &&
+                definition->outputMaterialId == build.output &&
+                definition->outputCount == 1 &&
+                definition->ingredients.size() == build.ingredients.size();
+            if (recipeMatches) {
+                for (const auto &expected : build.ingredients) {
+                    recipeMatches &= std::any_of(
+                        definition->ingredients.begin(), definition->ingredients.end(),
+                        [&](const RecipeIngredient &actual) {
+                            return actual.materialId == expected.materialId &&
+                                   actual.count == expected.count;
+                        });
+                }
+            }
+            const std::string label = "ADVENTURE-REGIONAL/" +
+                std::to_string(index);
+            check(label + "-formal-regional-recipe", recipeMatches);
+            if (!recipeMatches) continue;
+
+            bool supplied = true;
+            for (const auto &ingredient : build.ingredients)
+                supplied &= player.addItem(Material::toMaterial(
+                    ingredient.materialId), ingredient.count) == ingredient.count;
+            const bool stationOpened = BlockInteractionSystem::useBlock(
+                world, player, {4.5f, 199.5f, 4.5f});
+            CraftingSession session(CraftingSession::WorkbenchGridSize);
+            const bool loaded = session.loadRecipe(*definition);
+            const CraftingPreview preview = player.previewCrafting(session, recipes);
+            const CraftingCommitResult result = player.commitCrafting(
+                session, recipes, preview, 1);
+            player.closeCrafting();
+            bool consumed = true;
+            for (const auto &ingredient : build.ingredients)
+                consumed &= player.getInventoryCount(ingredient.materialId) == 0;
+            check(label + "-real-workbench-craft-and-conservation",
+                  supplied && stationOpened && loaded && preview.ready() &&
+                  preview.recipeId == build.id && result.succeeded() &&
+                  result.outputAdded == 1 && consumed &&
+                  player.getInventoryCount(build.output) == 1);
+
+            int outputSlot = -1;
+            for (int slot = 0; slot < player.getInventorySlotCount(); ++slot)
+                if (player.getInventorySlot(slot).getMaterial().id == build.output)
+                    outputSlot = slot;
+            select.hotbarSlot = outputSlot;
+            if (outputSlot >= 0) player.applyInput(select);
+            const int x = 6 + static_cast<int>(index);
+            const bool placed = outputSlot >= 0 &&
+                BlockInteractionSystem::placeBlock(world, player,
+                    {float(x) + .5f, 199.5f, 4.5f});
+            check(label + "-place-functional-building-block",
+                  placed && world.getBlock(x, 199, 4) == build.block &&
+                  player.getInventoryCount(build.output) == 0);
+            const auto entity = world.getBlockEntity({x, 199, 4});
+            const bool used = BlockInteractionSystem::useBlock(
+                world, player, {float(x) + .5f, 199.5f, 4.5f});
+            const auto opened = player.getOpenContainer();
+            check(label + "-placed-block-opens-real-container",
+                  entity && entity->type == build.entityType && used &&
+                  opened && *opened == glm::ivec3(x, 199, 4));
+            player.closeContainer();
+        }
+        saved = world.save();
+    }
+    {
+        Player reopenedPlayer;
+        World reopened(camera, config, reopenedPlayer, directory, false, 0);
+        reopened.getChunkManager().loadChunk(0, 0);
+        bool allPresent = saved;
+        for (std::size_t index = 0; index < builds.size(); ++index)
+        {
+            const int x = 6 + static_cast<int>(index);
+            const auto entity = reopened.getBlockEntity({x, 199, 4});
+            allPresent &= reopened.getBlock(x, 199, 4) == builds[index].block &&
+                entity && entity->type == builds[index].entityType;
+        }
+        check("ADVENTURE-REGIONAL/three-built-uses-survive-reopen", allPresent);
+    }
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", "");
+}
 }

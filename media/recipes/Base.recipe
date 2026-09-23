@@ -158,3 +158,26 @@ row hellomine:oak_planks _ hellomine:oak_planks
 row hellomine:cobblestone hellomine:cobblestone hellomine:cobblestone
 output hellomine:crusher 1
 end
+
+# Region materials become working building pieces, not inventory trophies.
+recipe hellomine:woodland_cache shapeless
+input hellomine:moss_stone 2
+input hellomine:oak_planks 4
+input hellomine:forest_floor 1
+output hellomine:chest 1
+end
+
+recipe hellomine:river_kiln shapeless
+input hellomine:clay 4
+input hellomine:gravel 4
+input hellomine:silt 1
+output hellomine:furnace 1
+end
+
+recipe hellomine:highland_crusher shapeless
+input hellomine:gravel 4
+input hellomine:stone 2
+input hellomine:oak_planks 2
+input hellomine:iron_ingot 1
+output hellomine:crusher 1
+end

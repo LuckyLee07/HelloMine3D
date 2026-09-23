@@ -20498,6 +20498,7 @@ int main()
         }
         else if (focus != nullptr && std::string(focus) == "ADVENTURE_MATERIAL") {
             caseAdventureMaterials();
+            caseAdventureRegionalBuildRecipes();
         }
         else if (focus != nullptr && std::string(focus) == "E8") {
             caseLandmarkArchitectureV14();
@@ -20811,6 +20812,7 @@ int main()
         caseAdventureWaterV17();
         caseTerrainBankMeshTopology();
         caseAdventureMaterials();
+        caseAdventureRegionalBuildRecipes();
         caseAdventureEcologyV18();
         caseAdventureSurfaceQueryCache();
         caseAdventureExplorationV19();

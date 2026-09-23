@@ -1738,8 +1738,14 @@ end
             smelting.findRecipe(Material::ID::Cobblestone);
         const SmeltingFuelDefinition *fiberFuel =
             smelting.findFuel(Material::ID::PlantFiber);
-        check("N10/base-content-counts-are-frozen",
-              recipes.recipes().size() == 25 &&
+        check("N10/base-and-regional-content-are-frozen",
+              recipes.recipes().size() == 28 &&
+                  recipes.find("hellomine:workbench") != nullptr &&
+                  recipes.find("hellomine:oak_planks") != nullptr &&
+                  recipes.find("hellomine:bread") != nullptr &&
+                  recipes.find("hellomine:woodland_cache") != nullptr &&
+                  recipes.find("hellomine:river_kiln") != nullptr &&
+                  recipes.find("hellomine:highland_crusher") != nullptr &&
                   smelting.recipes().size() == 4 &&
                   smelting.fuels().size() == 2 &&
                   foods.foods().size() == 4);
