@@ -58,10 +58,10 @@ uses WASD, Space to jump, Ctrl to sprint, Shift to sneak, E to open crafting, an
 R to consume held food. Mouse buttons handle mining/attack and context-sensitive
 use, placement, or guard. Tab opens the HUD cursor and pauses the single-player
 simulation. Hover a hotbar slot for item details or click to select it. Click the
-quest card to open the journey journal, or the minimap to rotate, zoom, pan and
-inspect a regional 3D surface map. Tab, Escape or the page close button resumes
-the game. L and the grave/backtick key remain alternatives when not rebound to
-another gameplay action.
+quest card to open the journey journal, or the minimap to inspect an explored
+surface overview and switch to the regional 3D relief map. Tab, Escape or the
+page close button resumes the game. L and the grave/backtick key remain
+alternatives when not rebound to another gameplay action.
 
 ## Development and verification
 

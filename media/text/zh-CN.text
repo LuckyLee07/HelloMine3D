@@ -550,9 +550,14 @@ text journal.track_help "追踪会显示在左上角；完成后自动回到当�
 text journal.open "点击查看任务日志"
 
 # Regional terrain map
-text map.title "区域立体地图"
-text map.subtitle "地表与已发现地点 · Esc 返回"
-text map.open "点击打开立体地图"
+text map.title "探索地图"
+text map.subtitle "已探索地表与区域立体视图 · Esc 返回"
+text map.open "点击打开探索地图"
+text map.overview "已探索地表"
+text map.view_flat "平面总览"
+text map.view_3d "局部立体"
+text map.overview_controls "右键拖动平移 · 点击查看地表 · 空白区域尚无记录"
+text map.overview_note "仅显示真实观察到的地表；可拖动查看附近路线。"
 text map.center "回到玩家"
 text map.north "朝北"
 text map.controls "左键拖动旋转 · 右键拖动平移 · 滚轮缩放 · 点击查看地表"
