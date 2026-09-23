@@ -255,6 +255,19 @@ class World : public NonCopyable {
         int worldX, int worldZ) const;
     std::size_t exploredCellCount() const noexcept;
     bool explorationMapFull() const noexcept;
+    std::vector<ExplorationMarkers::Marker> explorationMarkers() const;
+    std::optional<ExplorationMarkers::Marker> trackedExplorationMarker() const;
+    ExplorationMarkers::Result createExplorationMarker(
+        int worldX, int worldZ, std::string name,
+        ExplorationMarkers::Kind kind = ExplorationMarkers::Kind::Note,
+        std::uint32_t* createdId = nullptr);
+    ExplorationMarkers::Result renameExplorationMarker(
+        std::uint32_t id, std::string name);
+    ExplorationMarkers::Result moveExplorationMarker(
+        std::uint32_t id, int worldX, int worldZ);
+    ExplorationMarkers::Result setHomeExplorationMarker(std::uint32_t id);
+    ExplorationMarkers::Result trackExplorationMarker(std::uint32_t id);
+    ExplorationMarkers::Result eraseExplorationMarker(std::uint32_t id);
     float getWorldTime() const;
     WorldDebugStats collectDebugStats();
     std::vector<ActorSnapshot> collectActorSnapshots();
@@ -439,6 +452,7 @@ class World : public NonCopyable {
     bool saveWorldState();
     bool saveExplorationMap();
     void sampleExplorationSurface();
+    bool ensureExploredMapPosition(int worldX, int worldZ);
     void restoreActors(const std::vector<ActorSaveState> &states);
     void setSpawnPoint();
     bool readWaystoneState(const glm::ivec3 &position,

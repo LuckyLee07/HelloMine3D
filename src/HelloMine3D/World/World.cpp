@@ -3390,6 +3390,108 @@ bool World::explorationMapFull() const noexcept
     return m_explorationMapFull;
 }
 
+std::vector<ExplorationMarkers::Marker> World::explorationMarkers() const
+{
+    return m_explorationMarkers.all();
+}
+
+std::optional<ExplorationMarkers::Marker>
+World::trackedExplorationMarker() const
+{
+    const auto* marker = m_explorationMarkers.tracked();
+    return marker == nullptr ? std::nullopt
+                             : std::optional<ExplorationMarkers::Marker>(*marker);
+}
+
+ExplorationMarkers::Result World::createExplorationMarker(
+    int worldX, int worldZ, std::string name,
+    ExplorationMarkers::Kind kind, std::uint32_t* createdId)
+{
+    if (!ExplorationMarkers::validName(name) ||
+        !ensureExploredMapPosition(worldX, worldZ)) {
+        return ExplorationMarkers::Result::Invalid;
+    }
+    const auto result = m_explorationMarkers.create(
+        worldX, worldZ, std::move(name), kind, createdId);
+    m_explorationMapDirty |=
+        result == ExplorationMarkers::Result::Created;
+    return result;
+}
+
+ExplorationMarkers::Result World::renameExplorationMarker(
+    std::uint32_t id, std::string name)
+{
+    const auto result = m_explorationMarkers.rename(id, std::move(name));
+    m_explorationMapDirty |=
+        result == ExplorationMarkers::Result::Changed;
+    return result;
+}
+
+ExplorationMarkers::Result World::moveExplorationMarker(
+    std::uint32_t id, int worldX, int worldZ)
+{
+    if (m_explorationMarkers.find(id) == nullptr) {
+        return ExplorationMarkers::Result::Missing;
+    }
+    if (!ensureExploredMapPosition(worldX, worldZ)) {
+        return ExplorationMarkers::Result::Invalid;
+    }
+    const auto result = m_explorationMarkers.move(id, worldX, worldZ);
+    m_explorationMapDirty |=
+        result == ExplorationMarkers::Result::Changed;
+    return result;
+}
+
+ExplorationMarkers::Result World::setHomeExplorationMarker(
+    std::uint32_t id)
+{
+    const auto result = m_explorationMarkers.setHome(id);
+    m_explorationMapDirty |=
+        result == ExplorationMarkers::Result::Changed;
+    return result;
+}
+
+ExplorationMarkers::Result World::trackExplorationMarker(
+    std::uint32_t id)
+{
+    const auto result = m_explorationMarkers.track(id);
+    m_explorationMapDirty |=
+        result == ExplorationMarkers::Result::Changed;
+    return result;
+}
+
+ExplorationMarkers::Result World::eraseExplorationMarker(
+    std::uint32_t id)
+{
+    const auto result = m_explorationMarkers.erase(id);
+    m_explorationMapDirty |=
+        result == ExplorationMarkers::Result::Removed;
+    return result;
+}
+
+bool World::ensureExploredMapPosition(int worldX, int worldZ)
+{
+    if (m_explorationAtlas.surfaceAt(worldX, worldZ).has_value()) {
+        return true;
+    }
+    const auto samples = m_chunkManager.collectSurfaceMapSamples(
+        {{worldX, worldZ}});
+    if (samples.size() != 1 || !samples.front().known) {
+        return false;
+    }
+    const auto result = m_explorationAtlas.observe({
+        worldX, worldZ, samples.front().height,
+        samples.front().material, true});
+    if (result == ExplorationAtlas::ObserveResult::Updated) {
+        m_explorationMapDirty = true;
+    }
+    else if (result == ExplorationAtlas::ObserveResult::Full) {
+        m_explorationMapFull = true;
+        return false;
+    }
+    return m_explorationAtlas.surfaceAt(worldX, worldZ).has_value();
+}
+
 bool World::saveExplorationMap()
 {
     if (!m_explorationMapDirty) {

@@ -12,6 +12,7 @@ void caseExplorationMapLifecycle()
     Camera camera(config);
     int observedX = 0;
     int observedZ = 0;
+    std::uint32_t homeId = 0;
     std::optional<ExplorationAtlas::Surface> initialSurface;
     {
         Player player;
@@ -29,6 +30,22 @@ void caseExplorationMapLifecycle()
                   world.exploredCellCount() > 0 &&
                   world.exploredCellCount() <= 81 &&
                   !world.explorationMapFull());
+        const std::size_t chunkCount =
+            world.getChunkManager().getChunks().size();
+        check("MAP5/unknown-marker-does-not-generate-terrain",
+              world.createExplorationMarker(1000000, 1000000,
+                  "未知地点") == ExplorationMarkers::Result::Invalid &&
+                  world.explorationMarkers().empty() &&
+                  world.getChunkManager().getChunks().size() == chunkCount);
+        check("MAP5/player-home-and-tracking-use-observed-surface",
+              world.createExplorationMarker(observedX, observedZ,
+                  "出发点", ExplorationMarkers::Kind::Home, &homeId) ==
+                      ExplorationMarkers::Result::Created &&
+                  world.renameExplorationMarker(homeId, "返航点") ==
+                      ExplorationMarkers::Result::Changed &&
+                  world.trackExplorationMarker(homeId) ==
+                      ExplorationMarkers::Result::Changed &&
+                  world.trackedExplorationMarker().has_value());
         const bool saved = world.save();
         std::vector<WorldBackupInfo> backups;
         const bool backupListed = WorldBackup(directory).listBackups(backups);
@@ -49,6 +66,15 @@ void caseExplorationMapLifecycle()
                   restored->height == initialSurface->height &&
                   restored->material == initialSurface->material &&
                   world.exploredCellCount() > 0);
+        const auto markers = world.explorationMarkers();
+        const auto tracked = world.trackedExplorationMarker();
+        check("MAP5/reopen-recovers-home-and-tracking",
+              markers.size() == 1 && markers.front().id == homeId &&
+                  markers.front().name == "返航点" &&
+                  markers.front().kind == ExplorationMarkers::Kind::Home &&
+                  tracked.has_value() && tracked->id == homeId &&
+                  world.moveExplorationMarker(homeId, 1000000, 1000000) ==
+                      ExplorationMarkers::Result::Invalid);
     }
 
     const auto mapPath =
