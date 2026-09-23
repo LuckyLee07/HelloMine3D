@@ -83,6 +83,7 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
     void applyAdventurePlants();
     void applyLandmarkDecorators(const std::vector<StructurePlanSnapshot> &plans);
     void applyLandmarkApproaches(const std::vector<StructurePlanSnapshot> &plans);
+    void applyLandmarkWorkshops(const std::vector<StructurePlanSnapshot> &plans);
     void sanitizeSurfaceDecoratorsV8();
     void projectStructurePlan(const StructurePlanSnapshot &plan);
 

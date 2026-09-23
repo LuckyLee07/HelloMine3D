@@ -8,7 +8,7 @@ void caseAdventureLandmarkApproaches()
     check("ADVENTURE-APPROACH/v21-appends-without-save-bump",
           LandmarkExpeditionTerrainGenerationVersion == 20 &&
           LandmarkApproachTerrainGenerationVersion == 21 &&
-          CurrentTerrainGenerationVersion == 21 &&
+          CurrentTerrainGenerationVersion >= 21 &&
           WorldSaveFormatVersion == 12);
 
     struct Selected {
@@ -159,7 +159,8 @@ void caseAdventureLandmarkApproaches()
 
     const auto directory = freshSaveDirectory(
         "adventure_landmark_v21_reopen");
-    bool persisted = true;
+    bool persisted = initializeTerrainIdentity(
+        directory, "adventure-landmark-v21", 21, 42);
     std::uint64_t editedHash = 0;
     {
         Player player;
@@ -181,7 +182,7 @@ void caseAdventureLandmarkApproaches()
             editedHash == TerrainSurvey::blockHash(
                 reopened.getChunkManager().getChunk(-1, -1));
     }
-    check("ADVENTURE-APPROACH/default-v21-edit-save-reopen", persisted);
+    check("ADVENTURE-APPROACH/old-v21-edit-save-reopen", persisted);
     clearDeterministicEnv();
     setEnv("HELLOMINE3D_SEED", "");
 }

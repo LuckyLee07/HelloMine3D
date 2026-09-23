@@ -13,6 +13,8 @@
 #include "../../../Util/Random.h"
 #include "../../../Item/ContainerInventory.h"
 #include "../../Block/ChestContainer.h"
+#include "../../Block/FurnaceContainer.h"
+#include "../../Block/CrusherContainer.h"
 #include "../../Chunk/Chunk.h"
 #include "../../WorldCoordinates.h"
 
@@ -21,6 +23,7 @@
 #include "../Structures/LandmarkArchitecture.h"
 #include "../Structures/LandmarkExpedition.h"
 #include "../Structures/LandmarkApproach.h"
+#include "../Structures/LandmarkWorkshop.h"
 #include "../Ecology/TerrainEcologyPlanner.h"
 
 namespace {
@@ -202,6 +205,9 @@ void ClassicOverWorldGenerator::generateTerrainFor(Chunk &chunk)
     if (m_generationVersion >= LandmarkApproachTerrainGenerationVersion) {
         applyLandmarkApproaches(plans);
     }
+    if (m_generationVersion >= LandmarkWorkshopTerrainGenerationVersion) {
+        applyLandmarkWorkshops(plans);
+    }
     if (m_generationVersion >= SurfaceCoastTerrainGenerationVersion) {
         sanitizeSurfaceDecoratorsV8();
     }
@@ -378,7 +384,9 @@ StructurePlanSnapshot ClassicOverWorldGenerator::getStructurePlanForCell(
     StructureType type, int cellX, int cellZ) const
 {
     const DeterministicStructurePlanner planner(
-        m_seed, m_generationVersion >= LandmarkApproachTerrainGenerationVersion
+        m_seed, m_generationVersion >= LandmarkWorkshopTerrainGenerationVersion
+            ? LandmarkWorkshopTerrainGenerationVersion
+            : m_generationVersion >= LandmarkApproachTerrainGenerationVersion
             ? LandmarkApproachTerrainGenerationVersion
             : m_generationVersion >= LandmarkExpeditionTerrainGenerationVersion
             ? LandmarkExpeditionTerrainGenerationVersion
@@ -401,7 +409,9 @@ ClassicOverWorldGenerator::getStructurePlansForChunk(
     int chunkX, int chunkZ, int padding) const
 {
     const DeterministicStructurePlanner planner(
-        m_seed, m_generationVersion >= LandmarkApproachTerrainGenerationVersion
+        m_seed, m_generationVersion >= LandmarkWorkshopTerrainGenerationVersion
+            ? LandmarkWorkshopTerrainGenerationVersion
+            : m_generationVersion >= LandmarkApproachTerrainGenerationVersion
             ? LandmarkApproachTerrainGenerationVersion
             : m_generationVersion >= LandmarkExpeditionTerrainGenerationVersion
             ? LandmarkExpeditionTerrainGenerationVersion
@@ -944,6 +954,12 @@ void ClassicOverWorldGenerator::applyAdventureTrees(const std::vector<StructureP
 {
     const auto target=m_pChunk->getLocation();
     const int minX=target.x*CHUNK_SIZE-MaximumStructureRadius,minZ=target.y*CHUNK_SIZE-MaximumStructureRadius;
+    std::vector<LandmarkWorkshop::Site> workshops;
+    if (m_generationVersion >= LandmarkWorkshopTerrainGenerationVersion)
+        for (const auto &plan : plans)
+            workshops.push_back(LandmarkWorkshop::select(plan,
+                [this](int x, int z) { return getSurfaceHeightAtWorld(x, z); },
+                [this](int x, int z) { return getBiomeAtWorld(x, z); }));
     for(int x=minX;x<minX+CHUNK_SIZE+2*MaximumStructureRadius;++x)
         for(int z=minZ;z<minZ+CHUNK_SIZE+2*MaximumStructureRadius;++z) {
             if(!m_adventureEcology.treeAnchor(x,z))continue;
@@ -955,6 +971,10 @@ void ClassicOverWorldGenerator::applyAdventureTrees(const std::vector<StructureP
                 std::any_of(plans.begin(), plans.end(), [x,z](const auto &p) {
                     return LandmarkApproach::clearsTreeSource(p, x, z);
                 }))continue;
+            if (std::any_of(workshops.begin(), workshops.end(),
+                    [x,z](const auto &site) {
+                        return LandmarkWorkshop::clearsTreeSource(site, x, z);
+                    }))continue;
             if(std::any_of(m_vegetationEntrances.begin(),m_vegetationEntrances.end(),[x,z](const auto &e) {
                 const int dx=x-e.anchorX,dz=z-e.anchorZ;
                 const int along=dx*e.directionX+dz*e.directionZ;
@@ -1031,6 +1051,110 @@ void ClassicOverWorldGenerator::applyLandmarkApproaches(
                     m_pChunk->setBlock(lx, y + 1, lz, marker);
             }
         }
+    }
+}
+
+void ClassicOverWorldGenerator::applyLandmarkWorkshops(
+    const std::vector<StructurePlanSnapshot> &plans)
+{
+    const glm::ivec2 target = m_pChunk->getLocation();
+    const int chunkX = target.x * CHUNK_SIZE;
+    const int chunkZ = target.y * CHUNK_SIZE;
+    const auto replaceable = [](BlockId id) {
+        return id == BlockId::Air || id == BlockId::TallGrass ||
+               id == BlockId::Rose || id == BlockId::DeadShrub ||
+               id == BlockId::OakLeaf;
+    };
+    std::vector<LandmarkWorkshop::Site> placed;
+    for (const auto &plan : plans) {
+        const auto site = LandmarkWorkshop::select(plan,
+            [this](int x, int z) { return getSurfaceHeightAtWorld(x, z); },
+            [this](int x, int z) { return getBiomeAtWorld(x, z); });
+        if (!site.valid || site.minimumX < chunkX ||
+            site.minimumX + 2 >= chunkX + CHUNK_SIZE ||
+            site.minimumZ < chunkZ ||
+            site.minimumZ + 2 >= chunkZ + CHUNK_SIZE) continue;
+        bool safe = true;
+        for (int across = 0; across < 3; ++across)
+            for (int depth = 0; depth < 3; ++depth) {
+                const int x = site.worldX(across);
+                const int z = site.worldZ(depth);
+                safe &= !std::any_of(plans.begin(), plans.end(),
+                    [x,z](const auto &other) {
+                        return other.valid &&
+                            x >= other.footprint.minimumX &&
+                            x <= other.footprint.maximumX &&
+                            z >= other.footprint.minimumZ &&
+                            z <= other.footprint.maximumZ;
+                    });
+                safe &= !std::any_of(placed.begin(), placed.end(),
+                    [x,z](const auto &other) {
+                        return x >= other.minimumX &&
+                            x <= other.minimumX + 2 &&
+                            z >= other.minimumZ &&
+                            z <= other.minimumZ + 2;
+                    });
+                safe &= !std::any_of(m_vegetationEntrances.begin(),
+                    m_vegetationEntrances.end(), [x,z](const auto &entrance) {
+                        const int dx = x - entrance.anchorX;
+                        const int dz = z - entrance.anchorZ;
+                        const int along = dx * entrance.directionX +
+                                          dz * entrance.directionZ;
+                        const int lateral = -dx * entrance.directionZ +
+                                             dz * entrance.directionX;
+                        return along >= -2 &&
+                            along <= CaveGenerator::EntranceTunnelLength + 2 &&
+                            std::abs(lateral) <= 2;
+                    });
+                const int y = getSurfaceHeightAtWorld(x, z);
+                const int lx = x - chunkX, lz = z - chunkZ;
+                const BlockId ground = static_cast<BlockId>(
+                    m_pChunk->getBlock(lx, y, lz).id);
+                safe &= ground != BlockId::Air &&
+                    ground != BlockId::Water;
+                if (y < site.baseY)
+                    safe &= replaceable(static_cast<BlockId>(
+                        m_pChunk->getBlock(lx, site.baseY, lz).id));
+                for (int level = 1; level <= 3; ++level)
+                    safe &= replaceable(static_cast<BlockId>(
+                        m_pChunk->getBlock(lx, site.baseY + level, lz).id));
+            }
+        if (!safe) continue;
+        for (int across = 0; across < 3; ++across)
+            for (int depth = 0; depth < 3; ++depth) {
+                const int lx = site.worldX(across) - chunkX;
+                const int lz = site.worldZ(depth) - chunkZ;
+                for (int level = 0; level <= 3; ++level)
+                    m_pChunk->setBlock(lx, site.baseY + level, lz,
+                        LandmarkWorkshop::blockAt(
+                            site.style, across, depth, level));
+            }
+        const int localMachineX = site.machineX() - chunkX;
+        const int localMachineZ = site.machineZ() - chunkZ;
+        std::string type, payload;
+        if (site.style == LandmarkApproach::Style::Forest) {
+            type = ChestContainer::BlockEntityType;
+            payload = ContainerInventory(ChestContainer::SlotCount)
+                .serialize();
+        }
+        else if (site.style == LandmarkApproach::Style::Riverbank) {
+            type = FurnaceContainer::BlockEntityType;
+            payload = FurnaceContainer::serialize(FurnaceState{});
+        }
+        else {
+            type = CrusherContainer::BlockEntityType;
+            payload = CrusherContainer::serialize(CrusherState{});
+        }
+        if (!m_pChunk->createBlockEntity({
+                {localMachineX, site.baseY + 1, localMachineZ},
+                type, payload})) {
+            m_pChunk->setBlock(localMachineX, site.baseY + 1,
+                               localMachineZ, BlockId::Workbench);
+            std::cerr << "Unable to initialize regional workshop at "
+                      << site.machineX() << ',' << site.baseY + 1 << ','
+                      << site.machineZ() << '\n';
+        }
+        placed.push_back(site);
     }
 }
 
