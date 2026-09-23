@@ -83,6 +83,7 @@
 #include "../World/Block/TerrainMaterialProfile.h"
 #include "../World/Block/TerrainTextureArray.h"
 #include "../World/Environment/AtmosphereShaderContract.h"
+#include "../World/Environment/RegionalAtmosphere.h"
 #include "../World/Generation/Terrain/TerrainGenerator.h"
 #include "../World/World.h"
 #include "../World/Storage/WorldManagementService.h"
@@ -1162,6 +1163,7 @@ namespace
             m_worldPlayer = &m_sandbox->getPlayer();
             m_world =
                 m_sandbox->getWorldManager().getActiveWorld();
+            m_regionalAtmosphere.reset();
             if (m_world == nullptr)
             {
                 throw std::runtime_error(
@@ -2067,6 +2069,7 @@ namespace
             }
             m_sandbox.reset();
             m_world = nullptr;
+            m_regionalAtmosphere.reset();
             m_worldPlayer = nullptr;
             m_logicCamera.reset();
             m_visualCameraSweep = {};
@@ -4061,6 +4064,7 @@ namespace
         void syncEnvironment(const WorldEnvironmentState& air)
         {
             float immersion = 0.f;
+            WorldEnvironmentState regionalAir = air;
             // Water visibility is a basic camera medium, independent of the
             // optional cloud, surface-lighting and water-detail features.
             if (m_world != nullptr && m_camera != nullptr)
@@ -4069,12 +4073,20 @@ namespace
                 const int x = World::toBlockCoord(eye.x);
                 const int y = World::toBlockCoord(eye.y);
                 const int z = World::toBlockCoord(eye.z);
+                if (m_v10cAtmosphereEnabled)
+                {
+                    const auto& generator = m_world->getChunkManager().getTerrainGenerator();
+                    const auto region = m_regionalAtmosphere.at(eye.x, eye.z,
+                        [&](int sx, int sz) { return generator.getBiomeAtWorld(sx, sz); },
+                        [&](int sx, int sz) { return generator.getSurfaceHeightAtWorld(sx, sz); });
+                    regionalAir = RegionalAtmosphere::apply(air, region);
+                }
                 // getBlock only observes resident chunks, never loads/generates.
                 if (m_world->getBlock(x, y, z) == BlockId::Water)
                     immersion = m_world->getBlock(x, y + 1, z) == BlockId::Water
                         ? 1.f : WorldEnvironment::cameraWaterImmersion(y + 1.f - eye.y);
             }
-            const WorldEnvironmentState state = WorldEnvironment::forCameraMedium(air, immersion);
+            const WorldEnvironmentState state = WorldEnvironment::forCameraMedium(regionalAir, immersion);
             if (m_blockFeedback != nullptr) m_blockFeedback->setEnvironment(state);
             if (m_sceneManager == nullptr)
             {
@@ -4774,6 +4786,7 @@ namespace
                 m_music->stopImmediately();
             }
             m_world = nullptr;
+            m_regionalAtmosphere.reset();
             m_worldPlayer = nullptr;
             m_sandbox.reset();
             m_logicCamera.reset();
@@ -4833,6 +4846,7 @@ namespace
         std::unique_ptr<::Camera> m_logicCamera;
         std::unique_ptr<SandboxRuntime> m_sandbox;
         World* m_world = nullptr;
+        RegionalAtmosphere m_regionalAtmosphere;
         std::unordered_map<std::string, SectionVisual> m_sectionVisuals;
         std::unordered_map<std::string, SectionVisual> m_terrainBatchVisuals;
         std::unordered_map<std::string, glm::ivec3> m_dirtyTerrainBatches;
