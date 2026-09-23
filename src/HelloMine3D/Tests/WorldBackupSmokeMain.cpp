@@ -3,6 +3,7 @@
 #include "../World/Storage/ChunkStorageData.h"
 #include "../World/Storage/WorldBackup.h"
 #include "../World/Storage/WorldSave.h"
+#include "../World/Exploration/ExplorationMapStore.h"
 #include "../World/WorldConstants.h"
 
 #include <array>
@@ -317,6 +318,71 @@ int main()
                     fs::path(backup.recoveryQuarantineDirectory()) /
                     "chunks/chunk_9_9.hmcchunk"),
             backup.recoveryQuarantineDirectory());
+    }
+
+    {
+        TemporaryDirectory root("exploration-map");
+        const WorldBackup backup(root.path().string(), testPolicy());
+        const ExplorationMapStore mapStore(root.path().string());
+        ExplorationAtlas observed;
+        const ExplorationMapStore::Identity first{
+            "world-backup-fixture", 9001, CurrentTerrainGenerationVersion};
+        const ExplorationMapStore::Identity second{
+            "world-backup-fixture", 9002, CurrentTerrainGenerationVersion};
+        const bool initial = saveGeneration(root.path(), 1) &&
+            observed.observe({0, 0, 72, BlockId::ForestFloor, true}) ==
+                ExplorationAtlas::ObserveResult::Updated &&
+            mapStore.save(first, observed);
+        WorldBackupInfo saved;
+        const bool backedUp = initial && backup.createBackup(&saved);
+        suite.check("K3/exploration-map-backed-up-with-world",
+                    backedUp && saved.fileCount == 3 &&
+                        fs::is_regular_file(fs::path(saved.directoryPath) /
+                                            "exploration.hmap"));
+
+        observed.clear();
+        const bool newer = saveGeneration(root.path(), 2) &&
+            observed.observe({0, 0, 75, BlockId::MossStone, true}) ==
+                ExplorationAtlas::ObserveResult::Updated &&
+            mapStore.save(second, observed);
+        WorldBackupMetrics metrics;
+        const bool restored = newer &&
+            backup.restoreBackup(saved.id, {}, &metrics);
+        ExplorationAtlas restoredMap;
+        suite.check("K3/exploration-map-restores-with-matching-world",
+                    restored && generationMatches(root.path(), 1) &&
+                        mapStore.load(first, restoredMap) ==
+                            ExplorationMapStore::LoadStatus::Loaded &&
+                        restoredMap.surfaceAt(0, 0).has_value() &&
+                        restoredMap.surfaceAt(0, 0)->height == 72 &&
+                        metrics.published,
+                    metrics.error);
+
+        const bool oldStyle = saveGeneration(root.path(), 2);
+        fs::remove(mapStore.filePath());
+        WorldBackupInfo withoutMap;
+        const bool oldBackedUp = oldStyle &&
+            backup.createBackup(&withoutMap) && withoutMap.fileCount == 2;
+        const bool added = mapStore.save(second, observed);
+        WorldBackupMetrics oldMetrics;
+        const bool oldRestored = oldBackedUp && added &&
+            backup.restoreBackup(withoutMap.id, {}, &oldMetrics);
+        suite.check("K3/old-backup-clears-newer-exploration-map",
+                    oldRestored && generationMatches(root.path(), 2) &&
+                        !fs::exists(mapStore.filePath()) &&
+                        mapStore.load(second, restoredMap) ==
+                            ExplorationMapStore::LoadStatus::Absent,
+                    oldMetrics.error);
+
+        const bool foreignWritten = mapStore.save(first, observed);
+        WorldBackupMetrics mismatchMetrics;
+        suite.check("K3/foreign-exploration-map-rejects-backup",
+                    foreignWritten &&
+                        !backup.createBackup(nullptr, &mismatchMetrics) &&
+                        mismatchMetrics.error.find("identity differs") !=
+                            std::string::npos &&
+                        generationMatches(root.path(), 2),
+                    mismatchMetrics.error);
     }
 
     {

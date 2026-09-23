@@ -523,6 +523,9 @@ project "HelloMine3DWorldCatalogueSmoke"
         source_dir .. "/World/Storage/ChunkStorageData.cpp",
         source_dir .. "/World/Storage/WorldBackup.h",
         source_dir .. "/World/Storage/WorldBackup.cpp",
+        source_dir .. "/World/Exploration/ExplorationAtlas.h",
+        source_dir .. "/World/Exploration/ExplorationMapStore.h",
+        source_dir .. "/World/Exploration/ExplorationMapStore.cpp",
         source_dir .. "/World/Storage/WorldCatalogue.h",
         source_dir .. "/World/Storage/WorldCatalogue.cpp",
         source_dir .. "/World/Storage/WorldManagementService.h",
@@ -626,7 +629,10 @@ project "HelloMine3DWorldBackupSmoke"
         source_dir .. "/World/Storage/WorldSave.h",
         source_dir .. "/World/Storage/WorldSave.cpp",
         source_dir .. "/World/Storage/WorldBackup.h",
-        source_dir .. "/World/Storage/WorldBackup.cpp"
+        source_dir .. "/World/Storage/WorldBackup.cpp",
+        source_dir .. "/World/Exploration/ExplorationAtlas.h",
+        source_dir .. "/World/Exploration/ExplorationMapStore.h",
+        source_dir .. "/World/Exploration/ExplorationMapStore.cpp"
     }
 
     includedirs {

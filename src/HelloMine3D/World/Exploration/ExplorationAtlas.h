@@ -98,6 +98,8 @@ class ExplorationAtlas {
     }
 
   private:
+    friend class ExplorationMapStore;
+
     struct Cell {
         std::uint8_t known = 0;
         std::uint8_t height = 0;

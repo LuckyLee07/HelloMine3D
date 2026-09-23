@@ -20,4 +20,13 @@ for configuration in Debug Release; do
         "${optimisation[@]}" -Wall -Wextra -Werror \
         "$project_root/tools/tests/exploration_atlas_test.cpp" -o "$binary"
     "$binary"
+
+    store_binary="$output_dir/exploration-map-store-test-$configuration"
+    "${CXX:-clang++}" -std=c++17 "${architecture[@]}" \
+        "${optimisation[@]}" -Wall -Wextra -Werror \
+        "$project_root/tools/tests/exploration_map_store_test.cpp" \
+        "$project_root/src/HelloMine3D/World/Exploration/ExplorationMapStore.cpp" \
+        "$project_root/src/HelloMine3D/World/Storage/StorageTransaction.cpp" \
+        -o "$store_binary"
+    "$store_binary"
 done

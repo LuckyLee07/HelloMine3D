@@ -561,6 +561,8 @@ WorldManager
 - Chunk block-entity v2 已能保存经过具体 owner 验证的 type/payload；C2 因此直接保存 Crusher payload v1
   的输入、输出、进度和剩余手摇动力，不改变 world save v12，也没有 offline catch-up。
 - `WorldBackup` 在 metadata/chunk 发布之后创建有界且可验证的整世界快照。
+  B5b 的备份格式可选纳入 `exploration.hmap`，验证其文件格式和世界身份；恢复旧快照时
+  会移除快照中不存在的较新地图。`World` 尚未向此文件写入真实探索观察。
 - 可稳定重建的 sunlight、block light、mesh、render nodes、storage/diagnostic caches 不作为独立
   Gameplay truth 保存。
 
@@ -878,5 +880,7 @@ B2c 的 `NaturalPopulationRules` 仅派生地表自然生成时段与距离，Wo
 区域立体地图使用 `Presentation/TerrainMapView` 对小地图的 `SurfaceMapSample` 值快照进行正交投影；只绘制已知表面和相邻已知列之间的高差墙面，按深度排序并从前到后拾取。共享 65×65 样本、每次 195 列、30 Hz 预算，按样本 revision／视角重建缓存；缩放和平移无需重新采样或生成区块。手势保留按下原点，并应用最终释放位置，兼容渲染帧之间完成的快速拖动。几何、选择、发现地点与页面均为临时表现状态，切世界清理，不影响地形生成规则和存档。
 冒险世界 B5a 新增 `World/Exploration/ExplorationAtlas`：它只接收已加载地表的值观察，
 按 4 m 单元和 32×32 单元页有界缓存，未知与已知空列分开，满额不淘汰旧记录。
-当前尚未接入 UI、世界保存或备份；持久文件、平面总览与导航属于后续 B5 批次，
-不能把这个数据层称为已交付的探索地图。约束见[探索地图合同](../contracts/adventure-exploration-map-contract-v1.md)。
+B5b 增加 `ExplorationMapStore`：世界目录内版本化、带身份与校验的独立文件，
+通过 `StorageTransaction` 发布，`WorldBackup` 可同时备份和恢复。当前尚未接入真实
+世界观察、`World::save` 或 UI；平面总览与导航属于后续 B5 批次，不能把文件层
+称为已交付的探索地图。约束见[探索地图合同](../contracts/adventure-exploration-map-contract-v1.md)。

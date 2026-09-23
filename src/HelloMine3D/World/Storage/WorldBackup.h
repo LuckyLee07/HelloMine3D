@@ -9,7 +9,7 @@
 struct WorldBackupPolicy {
     std::size_t maxBackups = 3;
     std::uintmax_t maxTotalBytes = 512ull * 1024ull * 1024ull;
-    std::size_t maxFiles = 4097;
+    std::size_t maxFiles = 4098;
     std::uintmax_t maxFileBytes = 128ull * 1024ull * 1024ull;
 };
 

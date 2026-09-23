@@ -3,6 +3,7 @@
 #include "ChunkStorageData.h"
 #include "StorageTransaction.h"
 #include "WorldSave.h"
+#include "../Exploration/ExplorationMapStore.h"
 #include "../../Diagnostics/OperationPerformanceTiming.h"
 
 #include <algorithm>
@@ -41,6 +42,7 @@ namespace
         int chunkZ = 0;
         bool isWorldMetadata = false;
         bool isChunk = false;
+        bool isExplorationMap = false;
     };
 
     struct ParsedManifest {
@@ -224,8 +226,42 @@ namespace
             }
             return true;
         }
+        if (file.isExplorationMap) {
+            if (!ExplorationMapStore::validateFile(path.string(), &error)) {
+                error = "invalid exploration map: " + error;
+                return false;
+            }
+            return true;
+        }
         error = "unsupported backup file: " + file.relativePath;
         return false;
+    }
+
+    bool validateMapIdentity(const fs::path &directory,
+                             const std::vector<BackupFile> &files,
+                             std::string &error)
+    {
+        const auto map = std::find_if(files.begin(), files.end(),
+            [](const BackupFile &file) { return file.isExplorationMap; });
+        if (map == files.end()) {
+            return true;
+        }
+        WorldSaveData world;
+        if (!WorldSave::loadFromPath((directory / "world.meta").string(),
+                                     world, &error)) {
+            error = "cannot read world identity for map: " + error;
+            return false;
+        }
+        ExplorationAtlas atlas;
+        const ExplorationMapStore store(directory.string());
+        const ExplorationMapStore::Identity identity{
+            world.worldId, world.seed, world.terrainGenerationVersion};
+        if (store.load(identity, atlas, &error) !=
+            ExplorationMapStore::LoadStatus::Loaded) {
+            error = "exploration map identity differs: " + error;
+            return false;
+        }
+        return true;
     }
 
     bool collectWorldFiles(const fs::path &worldDirectory,
@@ -272,6 +308,32 @@ namespace
         else if (requireMetadata) {
             error = "world metadata is missing or not a real file: " +
                     metadataPath.string();
+            return false;
+        }
+
+        const fs::path mapPath = worldDirectory / "exploration.hmap";
+        std::error_code mapStatusError;
+        const fs::file_status mapStatus =
+            fs::symlink_status(mapPath, mapStatusError);
+        if (!mapStatusError && fs::exists(mapStatus)) {
+            BackupFile map;
+            map.relativePath = "exploration.hmap";
+            map.isExplorationMap = true;
+            if (!readFile(mapPath, policy.maxFileBytes, map.bytes, error,
+                          !requireValidFormats)) {
+                return false;
+            }
+            map.hash = hashBytes(map.bytes);
+            if (requireValidFormats &&
+                !validateFileFormat(mapPath, map, nullptr, error)) {
+                return false;
+            }
+            files.push_back(std::move(map));
+        }
+        else if (mapStatusError &&
+                 mapStatusError != std::errc::no_such_file_or_directory) {
+            error = "cannot inspect exploration map: " +
+                    mapStatusError.message();
             return false;
         }
 
@@ -334,6 +396,10 @@ namespace
                   [](const BackupFile &left, const BackupFile &right) {
                       return left.relativePath < right.relativePath;
                   });
+        if (requireValidFormats &&
+            !validateMapIdentity(worldDirectory, files, error)) {
+            return false;
+        }
         if (files.size() > policy.maxFiles) {
             error = "world file count exceeds the backup limit";
             return false;
@@ -544,6 +610,9 @@ namespace
                 if (file.relativePath == "world.meta") {
                     file.isWorldMetadata = true;
                 }
+                else if (file.relativePath == "exploration.hmap") {
+                    file.isExplorationMap = true;
+                }
                 else if (file.relativePath.rfind("chunks/", 0) == 0 &&
                          file.relativePath.find('/', 7) == std::string::npos &&
                          parseChunkName(file.relativePath.substr(7),
@@ -694,6 +763,9 @@ namespace
         if (actualTotal != parsed.info.totalBytes ||
             worldVersion != parsed.info.worldFormatVersion) {
             error = "backup totals or world version do not match manifest";
+            return false;
+        }
+        if (!validateMapIdentity(backupDirectory, parsed.files, error)) {
             return false;
         }
         manifest = std::move(parsed);
