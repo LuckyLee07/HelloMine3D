@@ -562,7 +562,7 @@ WorldManager
   的输入、输出、进度和剩余手摇动力，不改变 world save v12，也没有 offline catch-up。
 - `WorldBackup` 在 metadata/chunk 发布之后创建有界且可验证的整世界快照。
   B5b 的备份格式可选纳入 `exploration.hmap`，验证其文件格式和世界身份；恢复旧快照时
-  会移除快照中不存在的较新地图。`World` 尚未向此文件写入真实探索观察。
+  会移除快照中不存在的较新地图。`World` 在区块和元数据发布后写地图，再创建备份。
 - 可稳定重建的 sunlight、block light、mesh、render nodes、storage/diagnostic caches 不作为独立
   Gameplay truth 保存。
 
@@ -881,6 +881,8 @@ B2c 的 `NaturalPopulationRules` 仅派生地表自然生成时段与距离，Wo
 冒险世界 B5a 新增 `World/Exploration/ExplorationAtlas`：它只接收已加载地表的值观察，
 按 4 m 单元和 32×32 单元页有界缓存，未知与已知空列分开，满额不淘汰旧记录。
 B5b 增加 `ExplorationMapStore`：世界目录内版本化、带身份与校验的独立文件，
-通过 `StorageTransaction` 发布，`WorldBackup` 可同时备份和恢复。当前尚未接入真实
-世界观察、`World::save` 或 UI；平面总览与导航属于后续 B5 批次，不能把文件层
-称为已交付的探索地图。约束见[探索地图合同](../contracts/adventure-exploration-map-contract-v1.md)。
+通过 `StorageTransaction` 发布，`WorldBackup` 可同时备份和恢复。`World` 每 10 个固定
+tick 从玩家周围最多 81 个驻留地表列采样，锁忙保持未知；观察变化后在保存及退出时
+写地图。损坏或错身份文件隔离，世界载入不被地图损坏阻断。当前 UI 仍仅使用临时
+65×65 样本；平面总览与导航属于后续 B5c，不能把存储接线称为已交付的地图页面。
+约束见[探索地图合同](../contracts/adventure-exploration-map-contract-v1.md)。

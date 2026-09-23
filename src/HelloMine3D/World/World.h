@@ -28,6 +28,8 @@
 #include "Simulation/WorldSimulation.h"
 #include "Storage/WorldSave.h"
 #include "Storage/WorldBackup.h"
+#include "Exploration/ExplorationAtlas.h"
+#include "Exploration/ExplorationMapStore.h"
 
 #include "Command/IWorldCommand.h"
 
@@ -249,6 +251,10 @@ class World : public NonCopyable {
     void resetChunkMeshes();
     void updateChunk(int blockX, int blockY, int blockZ);
     bool save();
+    std::optional<ExplorationAtlas::Surface> exploredSurfaceAt(
+        int worldX, int worldZ) const;
+    std::size_t exploredCellCount() const noexcept;
+    bool explorationMapFull() const noexcept;
     float getWorldTime() const;
     WorldDebugStats collectDebugStats();
     std::vector<ActorSnapshot> collectActorSnapshots();
@@ -431,6 +437,8 @@ class World : public NonCopyable {
     void despawnNaturalMobsInChunk(int chunkX, int chunkZ);
     void preloadAroundForTeleport(const glm::vec3 &position);
     bool saveWorldState();
+    bool saveExplorationMap();
+    void sampleExplorationSurface();
     void restoreActors(const std::vector<ActorSaveState> &states);
     void setSpawnPoint();
     bool readWaystoneState(const glm::ivec3 &position,
@@ -466,6 +474,11 @@ class World : public NonCopyable {
     Player *m_player = nullptr;
     WorldSave m_worldSave;
     WorldBackup m_worldBackup;
+    ExplorationMapStore m_explorationMapStore;
+    ExplorationAtlas m_explorationAtlas;
+    bool m_explorationMapDirty = false;
+    bool m_explorationMapFull = false;
+    int m_explorationSampleCountdown = 0;
     WorldSaveData m_worldSaveData;
     std::unique_ptr<AlphaJourney> m_alphaJourney;
     std::unique_ptr<VictoryFlow> m_victoryFlow;

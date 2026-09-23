@@ -104,12 +104,15 @@ int main()
         const ExplorationMapStore::Identity otherSeed{"world-map-test", 43, 22};
         const ExplorationMapStore::Identity otherTerrain{"world-map-test", 42, 21};
         for (const auto& foreign : {otherWorld, otherSeed, otherTerrain}) {
-            require(store.load(foreign, loaded, &error) ==
+        require(store.load(foreign, loaded, &error) ==
                         Status::IdentityMismatch &&
                         loaded.tileCount() == 0 &&
                         readBytes(store.filePath()) == original,
                     "foreign world identity leaked or rewrote map data");
         }
+        require(!store.save(otherWorld, atlas, {}, &metrics) &&
+                    readBytes(store.filePath()) == original,
+                "foreign save replaced another world's valid map");
 
         atlas.observe({-1, -1, 71, BlockId::MossStone, true});
         StorageTransactionOptions fault;
@@ -129,6 +132,9 @@ int main()
                     !ExplorationMapStore::validateFile(store.filePath()) &&
                     readBytes(store.filePath()) == corrupted,
                 "damaged sidecar did not fall back without mutation");
+        require(!store.save(identity, atlas, {}, &metrics) &&
+                    readBytes(store.filePath()) == corrupted,
+                "save overwrote an unquarantined damaged map");
         writeBytes(store.filePath(), original);
 
         std::vector<char> unsupported = original;
@@ -160,7 +166,23 @@ int main()
                         std::vector<char>({'w','o','r','l','d','-','u','n',
                                            't','o','u','c','h','e','d','\n'}),
                 "map recovery touched authoritative world metadata");
-        std::cout << "[EXPLORATION_MAP_STORE] checks=8 status=PASS\n";
+        require(store.quarantineInvalid(otherWorld, &error) &&
+                    !fs::exists(store.filePath()) &&
+                    readBytes(store.filePath() + ".corrupt.failed") ==
+                        original &&
+                    store.save(otherWorld, atlas, {}, &metrics) &&
+                    store.load(otherWorld, loaded, &error) == Status::Loaded,
+                "foreign map was not preserved before new publication");
+        std::vector<char> secondDamage = readBytes(store.filePath());
+        secondDamage[0] ^= 1;
+        writeBytes(store.filePath(), secondDamage);
+        require(!store.quarantineInvalid(otherWorld, &error) &&
+                    !error.empty() &&
+                    readBytes(store.filePath()) == secondDamage &&
+                    readBytes(store.filePath() + ".corrupt.failed") ==
+                        original,
+                "occupied quarantine slot was overwritten");
+        std::cout << "[EXPLORATION_MAP_STORE] checks=12 status=PASS\n";
         return 0;
     }
     catch (const std::exception& exception) {

@@ -343,6 +343,23 @@ bool ExplorationMapStore::save(
         }
         return false;
     }
+    std::error_code statusError;
+    const fs::file_status status =
+        fs::symlink_status(filePath(), statusError);
+    if (statusError != std::errc::no_such_file_or_directory) {
+        ExplorationAtlas existing;
+        std::string loadError;
+        if (statusError || !fs::is_regular_file(status) ||
+            fs::is_symlink(status) ||
+            load(identity, existing, &loadError) != LoadStatus::Loaded) {
+            if (metrics != nullptr) {
+                *metrics = {};
+                metrics->error = "existing exploration map must be "
+                    "quarantined before replacement: " + loadError;
+            }
+            return false;
+        }
+    }
     std::vector<char> bytes;
     bytes.reserve(64 + atlas.tileCount() * TileBytes);
     bytes.insert(bytes.end(), Magic.begin(), Magic.end());
@@ -410,6 +427,52 @@ bool ExplorationMapStore::save(
             }
             return true;
         }, options, metrics);
+}
+
+bool ExplorationMapStore::quarantineInvalid(const Identity& expected,
+                                             std::string* error) const
+{
+    if (error != nullptr) {
+        error->clear();
+    }
+    ExplorationAtlas parsed;
+    std::string loadError;
+    const LoadStatus loaded = load(expected, parsed, &loadError);
+    if (loaded == LoadStatus::Absent || loaded == LoadStatus::Loaded) {
+        return true;
+    }
+    const fs::path source(filePath());
+    const fs::path quarantine(filePath() + ".corrupt.failed");
+    std::error_code statusError;
+    const fs::file_status status = fs::symlink_status(source, statusError);
+    if (statusError || !fs::is_regular_file(status) ||
+        fs::is_symlink(status)) {
+        if (error != nullptr) {
+            *error = "invalid map path is not a real regular file";
+        }
+        return false;
+    }
+    std::error_code quarantineError;
+    const fs::file_status quarantineStatus =
+        fs::symlink_status(quarantine, quarantineError);
+    if ((quarantineError &&
+         quarantineError != std::errc::no_such_file_or_directory) ||
+        (!quarantineError && fs::exists(quarantineStatus))) {
+        if (error != nullptr) {
+            *error = "exploration map quarantine slot is occupied";
+        }
+        return false;
+    }
+    std::error_code moveError;
+    fs::rename(source, quarantine, moveError);
+    if (moveError) {
+        if (error != nullptr) {
+            *error = "cannot quarantine invalid exploration map: " +
+                     moveError.message();
+        }
+        return false;
+    }
+    return true;
 }
 
 bool ExplorationMapStore::validateFile(const std::string& path,

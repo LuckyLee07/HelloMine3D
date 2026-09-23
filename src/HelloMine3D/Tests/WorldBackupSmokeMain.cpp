@@ -342,6 +342,7 @@ int main()
 
         observed.clear();
         const bool newer = saveGeneration(root.path(), 2) &&
+            mapStore.quarantineInvalid(second) &&
             observed.observe({0, 0, 75, BlockId::MossStone, true}) ==
                 ExplorationAtlas::ObserveResult::Updated &&
             mapStore.save(second, observed);

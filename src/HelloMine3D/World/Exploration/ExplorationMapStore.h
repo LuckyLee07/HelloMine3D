@@ -29,6 +29,10 @@ class ExplorationMapStore {
     bool save(const Identity& identity, const ExplorationAtlas& atlas,
               const StorageTransactionOptions& options = {},
               StorageTransactionMetrics* metrics = nullptr) const;
+    // Keep a damaged or foreign primary for inspection before a new map is
+    // published. Never overwrite an existing quarantine slot or a symlink.
+    bool quarantineInvalid(const Identity& expected,
+                           std::string* error = nullptr) const;
 
     static bool validateFile(const std::string& path,
                              std::string* error = nullptr);

@@ -10,6 +10,7 @@
 #include <future>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <string_view>
 #include <random>
 #include <sstream>
@@ -320,6 +321,7 @@ World::World(const Camera &camera, const Config &config, Player &player,
     , m_player(&player)
     , m_worldSave(resolveSaveDirectory(saveDirectory))
     , m_worldBackup(resolveSaveDirectory(saveDirectory))
+    , m_explorationMapStore(resolveSaveDirectory(saveDirectory))
 {
     (void)camera;
     player.attachEventBus(m_eventBus);
@@ -402,6 +404,27 @@ World::World(const Camera &camera, const Config &config, Player &player,
         m_worldSaveData.spawnPoint = m_playerSpawnPoint;
         saveWorldState();
     }
+    const ExplorationMapStore::Identity mapIdentity{
+        m_worldSaveData.worldId, m_worldSaveData.seed,
+        m_worldSaveData.terrainGenerationVersion};
+    std::string mapError;
+    const auto mapStatus = m_explorationMapStore.load(
+        mapIdentity, m_explorationAtlas, &mapError);
+    m_explorationMapFull =
+        m_explorationAtlas.tileCount() == ExplorationAtlas::MaxTiles;
+    if (mapStatus == ExplorationMapStore::LoadStatus::Corrupt ||
+        mapStatus == ExplorationMapStore::LoadStatus::IdentityMismatch) {
+        std::string quarantineError;
+        if (!m_explorationMapStore.quarantineInvalid(
+                mapIdentity, &quarantineError)) {
+            std::cerr << "Cannot isolate invalid exploration map: "
+                      << quarantineError << '\n';
+        }
+        else {
+            std::cerr << "Exploration map reset after invalid data: "
+                      << mapError << '\n';
+        }
+    }
     runtimeOperationTimings().markLatestActive(
         RuntimeOperationKind::WorldEntry);
 
@@ -481,7 +504,13 @@ World::~World()
 
     std::unique_lock<std::mutex> lock(m_mainMutex);
     m_chunkManager.saveDirtyChunks();
-    saveWorldState();
+    const bool worldSaved = saveWorldState();
+    if (!worldSaved) {
+        std::cerr << "Unable to save world state on world exit.\n";
+    }
+    else if (!saveExplorationMap()) {
+        std::cerr << "Unable to save exploration map on world exit.\n";
+    }
 }
 
 // world coords into chunk column coords
@@ -1145,6 +1174,13 @@ void World::tick(int worldTime)
     context.tick = worldTime;
     context.deltaSeconds = WorldSimulation::FixedDeltaSeconds;
     m_worldSimulation.fixedTick(context);
+    if (m_explorationSampleCountdown == 0) {
+        sampleExplorationSurface();
+        m_explorationSampleCountdown = 9;
+    }
+    else {
+        --m_explorationSampleCountdown;
+    }
 }
 
 bool World::attackActor(ActorId actorId)
@@ -3326,6 +3362,9 @@ bool World::save()
     if (!chunksSaved || !worldSaved) {
         return finish(false);
     }
+    if (!saveExplorationMap()) {
+        return finish(false);
+    }
     WorldBackupMetrics backupMetrics;
     if (!m_worldBackup.createBackup(nullptr, &backupMetrics)) {
         std::cerr << "Unable to create world backup: "
@@ -3333,6 +3372,86 @@ bool World::save()
         return finish(false);
     }
     return finish(true);
+}
+
+std::optional<ExplorationAtlas::Surface> World::exploredSurfaceAt(
+    int worldX, int worldZ) const
+{
+    return m_explorationAtlas.surfaceAt(worldX, worldZ);
+}
+
+std::size_t World::exploredCellCount() const noexcept
+{
+    return m_explorationAtlas.knownCellCount();
+}
+
+bool World::explorationMapFull() const noexcept
+{
+    return m_explorationMapFull;
+}
+
+bool World::saveExplorationMap()
+{
+    if (!m_explorationMapDirty) {
+        return true;
+    }
+    const ExplorationMapStore::Identity identity{
+        m_worldSaveData.worldId, m_worldSaveData.seed,
+        m_worldSaveData.terrainGenerationVersion};
+    StorageTransactionMetrics metrics;
+    if (!m_explorationMapStore.save(identity, m_explorationAtlas, {},
+                                    &metrics)) {
+        std::cerr << "Unable to save exploration map: "
+                  << metrics.error << '\n';
+        return false;
+    }
+    m_explorationMapDirty = false;
+    return true;
+}
+
+void World::sampleExplorationSurface()
+{
+    if (m_player == nullptr) {
+        return;
+    }
+    constexpr int radius = 4;
+    constexpr int step = ExplorationAtlas::MetresPerCell;
+    const int blockX = toBlockCoord(m_player->position.x);
+    const int blockZ = toBlockCoord(m_player->position.z);
+    const int centerX = floorDiv(blockX, step) * step;
+    const int centerZ = floorDiv(blockZ, step) * step;
+    std::vector<VectorXZ> positions;
+    positions.reserve((radius * 2 + 1) * (radius * 2 + 1));
+    for (int dz = -radius; dz <= radius; ++dz) {
+        for (int dx = -radius; dx <= radius; ++dx) {
+            const std::int64_t x = std::int64_t(centerX) + dx * step;
+            const std::int64_t z = std::int64_t(centerZ) + dz * step;
+            if (x >= std::numeric_limits<int>::min() &&
+                x <= std::numeric_limits<int>::max() &&
+                z >= std::numeric_limits<int>::min() &&
+                z <= std::numeric_limits<int>::max()) {
+                positions.push_back({static_cast<int>(x),
+                                     static_cast<int>(z)});
+            }
+        }
+    }
+    const auto samples = m_chunkManager.collectSurfaceMapSamples(positions);
+    if (samples.size() != positions.size()) {
+        return; // A contended chunk lock delays the next observation.
+    }
+    for (std::size_t index = 0; index < samples.size(); ++index) {
+        const auto& sample = samples[index];
+        if (!sample.known) {
+            continue;
+        }
+        const auto result = m_explorationAtlas.observe({
+            positions[index].x, positions[index].z, sample.height,
+            sample.material, true});
+        m_explorationMapDirty |=
+            result == ExplorationAtlas::ObserveResult::Updated;
+        m_explorationMapFull |=
+            result == ExplorationAtlas::ObserveResult::Full;
+    }
 }
 
 float World::getWorldTime() const
