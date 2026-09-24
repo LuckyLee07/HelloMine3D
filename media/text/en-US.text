@@ -628,3 +628,16 @@ text guidance.shelter.door "You have enough Planks. Use 6 at the Workbench to cr
 text guidance.shelter.door_materials "Prepare 6 Planks and craft an Oak Door at the Workbench."
 text guidance.shelter.entrance "Place the Door at your entrance, check walls and roof, then light the shelter with Torches."
 text guidance.shelter.replace_door "You have no Door in your inventory. Recover or craft an Oak Door for the entrance."
+
+# Exploration map recovery feedback
+text map.status_notice "Map record needs attention · Details"
+text map.status_reset "The map was damaged and its original file was preserved. Exploration is being recorded anew; a world backup can restore earlier records."
+text map.status_foreign "The map belonged to a different world and was preserved separately. Exploration is being recorded anew; check this world’s backups."
+text map.status_isolation_failed "The invalid map could not be isolated and remains untouched. Current exploration cannot be saved. Preserve the original world files and backups before resolving the file problem."
+text map.status_save_failed "Exploration map save failed; the previous file is intact. New records are not saved yet. Retry saving or check world backups."
+text map.status_full "Map capacity reached: existing areas remain and can update; new areas are no longer recorded. Zooming does not expand capacity. Back up your world; history is never deleted automatically."
+text map.backup_open "Backups and recovery"
+text map.backup_body "Save and return to this world’s backup list. Check the backup date before restoring: restoration rolls back the entire world, including builds, inventory and tasks, not just the map. A failed save keeps this session open."
+text map.backup_continue "Save and view backups"
+text map.backup_choose "The previous world is selected. Check backup dates before choosing Restore. Without a backup, earlier history cannot be recovered."
+text map.backup_save_failed "Save failed; return to backups was cancelled and this session remains open. Existing backups were not replaced. Preserve the world files before resolving the save problem."

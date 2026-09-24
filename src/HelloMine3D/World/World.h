@@ -30,6 +30,7 @@
 #include "Storage/WorldBackup.h"
 #include "Exploration/ExplorationAtlas.h"
 #include "Exploration/ExplorationMapStore.h"
+#include "Exploration/ExplorationMapStatus.h"
 
 #include "Command/IWorldCommand.h"
 
@@ -258,6 +259,7 @@ class World : public NonCopyable {
         int cellsPerSide, int metresPerPixel) const;
     std::size_t exploredCellCount() const noexcept;
     bool explorationMapFull() const noexcept;
+    ExplorationMapStatus explorationMapStatus() const noexcept;
     std::vector<ExplorationMarkers::Marker> explorationMarkers() const;
     std::optional<ExplorationMarkers::Marker> trackedExplorationMarker() const;
     std::optional<ExplorationMapStore::KnownSite>
@@ -503,6 +505,7 @@ class World : public NonCopyable {
     std::optional<ExplorationMapStore::KnownSite> m_boundWaystoneSite;
     bool m_explorationMapDirty = false;
     bool m_explorationMapFull = false;
+    ExplorationMapStatus m_explorationMapStatus;
     int m_explorationSampleCountdown = 0;
     WorldSaveData m_worldSaveData;
     std::unique_ptr<AlphaJourney> m_alphaJourney;

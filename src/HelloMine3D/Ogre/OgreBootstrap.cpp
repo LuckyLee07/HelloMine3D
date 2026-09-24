@@ -6,6 +6,7 @@
 #include "OgreBlockFeedback.h"
 #include "OgreRenderCapture.h"
 #include "OgreUserInterface.h"
+#include "../Presentation/LocalizedPresentation.h"
 #include "StartupErrorReporter.h"
 #include "StartupResourcePreflight.h"
 
@@ -2120,6 +2121,17 @@ namespace
                         return;
                     }
                     m_applicationFlow.returnToMainMenu();
+                    return;
+                case OgreUserInterfaceActionType::OpenWorldBackups:
+                    if (!clearActiveWorld())
+                    {
+                        m_userInterface->setStatusMessage(LocalizedPresentation::text(
+                            userSettings(m_config).locale, "map.backup_save_failed"));
+                        return;
+                    }
+                    m_applicationFlow.returnToMainMenu();
+                    m_applicationFlow.showWorldList();
+                    m_userInterface->showWorldBackups(action.worldId);
                     return;
                 case OgreUserInterfaceActionType::ApplySettings:
                 {

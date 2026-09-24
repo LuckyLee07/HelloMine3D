@@ -28,6 +28,18 @@ inline bool knownWaystoneTask(std::string_view objectiveId,
          objectiveId == "finale.claim_reward");
 }
 
+struct Heading { float x = 0.f; float z = -1.f; };
+
+// Player yaw is degrees clockwise from north, matching the render camera.
+inline Heading heading(float yawDegrees) noexcept
+{
+    if (!std::isfinite(yawDegrees)) return {};
+    constexpr double radians = 3.14159265358979323846 / 180.;
+    const double angle = std::remainder(double(yawDegrees), 360.) * radians;
+    return {static_cast<float>(std::sin(angle)),
+            static_cast<float>(-std::cos(angle))};
+}
+
 inline Bearing toward(int fromX, int fromZ, int toX, int toZ) noexcept
 {
     const std::int64_t dx = static_cast<std::int64_t>(toX) - fromX;

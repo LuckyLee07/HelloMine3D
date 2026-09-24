@@ -89,7 +89,8 @@ void caseExplorationMapLifecycle()
         check("MAP5/old-world-starts-without-sidecar",
               !std::filesystem::exists(
                   std::filesystem::path(directory) / "exploration.hmap") &&
-                  world.exploredCellCount() == 0);
+                  world.exploredCellCount() == 0 &&
+                  !world.explorationMapStatus().needsAttention());
         world.tick(1);
         initialSurface = world.exploredSurfaceAt(observedX, observedZ);
         check("MAP5/resident-player-route-observed",
@@ -209,11 +210,84 @@ void caseExplorationMapLifecycle()
         World world(camera, config, player, directory, false, 1);
         check("MAP5/corrupt-map-does-not-block-world-entry",
               world.exploredCellCount() == 0 &&
+                  world.explorationMapStatus().resetReason ==
+                      ExplorationMapStatus::ResetReason::Corrupt &&
+                  !world.explorationMapStatus().quarantineFailed &&
                   !std::filesystem::exists(mapPath) &&
                   std::filesystem::exists(
                       mapPath.string() + ".corrupt.failed"));
+        world.tick(1);
         check("MAP5/world-save-after-map-recovery",
-              world.save());
+              world.save() && std::filesystem::exists(mapPath));
+    }
+    {
+        Player player;
+        World world(camera, config, player, directory, false, 1);
+        check("MAP5/healthy-reopen-clears-session-warning",
+              !world.explorationMapStatus().needsAttention());
+        world.tick(1);
+        const bool changed = world.createExplorationMarker(observedX, observedZ,
+            "保存检查") == ExplorationMarkers::Result::Created;
+        const auto preserved = mapPath.string() + ".save-test-original";
+        std::filesystem::rename(mapPath, preserved);
+        std::filesystem::create_directory(mapPath);
+        check("MAP5/save-error-reaches-presentation-state",
+              changed && !world.save() && world.explorationMapStatus().saveFailed &&
+                  std::filesystem::is_regular_file(preserved));
+        std::filesystem::remove(mapPath);
+        std::filesystem::rename(preserved, mapPath);
+        check("MAP5/successful-retry-clears-save-warning",
+              world.save() && !world.explorationMapStatus().needsAttention());
+    }
+    const auto validBytes = readTextFile(mapPath.string());
+    { std::ofstream invalid(mapPath, std::ios::binary); invalid << "damaged-map"; }
+    {
+        Player player;
+        World world(camera, config, player, directory, false, 1);
+        check("MAP5/occupied-isolation-slot-reports-save-block",
+              world.explorationMapStatus().quarantineFailed && !world.save() &&
+                  readTextFile(mapPath.string()) == "damaged-map" &&
+                  std::filesystem::exists(mapPath.string() + ".corrupt.failed"));
+    }
+    // Only repair this isolated fixture after verifying both files survived.
+    { std::ofstream restored(mapPath, std::ios::binary);
+      restored.write(validBytes.data(), validBytes.size()); }
+    WorldSaveData savedData;
+    const bool metadataLoaded = WorldSave(directory).load(savedData);
+    ExplorationMapStore store(directory);
+    ExplorationAtlas fullAtlas;
+    for (std::size_t tile = 0; tile < ExplorationAtlas::MaxTiles; ++tile)
+        fullAtlas.observe({static_cast<int>(tile * 128), 0, 70,
+                           BlockId::Stone, true});
+    const ExplorationMapStore::Identity identity{savedData.worldId,
+        savedData.seed, savedData.terrainGenerationVersion};
+    const bool fullSaved = metadataLoaded && store.save(identity, fullAtlas,
+        ExplorationMarkers{}, std::nullopt, std::nullopt);
+    {
+        Player player;
+        World world(camera, config, player, directory, false, 1);
+        check("MAP5/full-record-reaches-ui-with-history-intact",
+              fullSaved && world.explorationMapStatus().full &&
+                  world.explorationMapStatus().needsAttention() &&
+                  world.exploredCellCount() == ExplorationAtlas::MaxTiles &&
+                  world.exploredSurfaceAt(0,0).has_value());
+    }
+    // Keep the ordinary small fixture; this capacity test need not leave a
+    // maximum-size map or its destructor-created backup on disk.
+    std::filesystem::remove_all(directory);
+    const auto foreignDirectory = freshSaveDirectory("map_foreign_warning");
+    const bool foreignFixture = initializeTerrainIdentity(foreignDirectory,
+        "world-map-actual", CurrentTerrainGenerationVersion, 42) &&
+        ExplorationMapStore(foreignDirectory).save(
+            {"world-map-other",42,CurrentTerrainGenerationVersion},
+            ExplorationAtlas{}, ExplorationMarkers{}, std::nullopt, std::nullopt);
+    {
+        Player player;
+        World world(camera, config, player, foreignDirectory, false, 0);
+        check("MAP5/foreign-map-has-distinct-recovery-message",
+            foreignFixture && world.explorationMapStatus().resetReason ==
+                ExplorationMapStatus::ResetReason::ForeignIdentity &&
+                !world.explorationMapStatus().quarantineFailed);
     }
     clearDeterministicEnv();
     setEnv("HELLOMINE3D_SEED", "");

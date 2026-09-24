@@ -211,7 +211,7 @@ save v12。C3 topology 没有 tick 行为，因此不存在伪造的 Network wor
 `AL-A1` 为每个公开方法分配两个正交标签：API concept 描述调用语义，responsibility 描述当前主要
 实现领域。重载只列一次；完整声明、重载、公开常量和签名由 public-surface hash 共同保护。
 
-<!-- AL-A1-WORLD-API-HASH sha256=D6D45DAC48E25A0FE19DFF375C8A7E4AAFFC96B06CD23A41E530482FBFB89B54 -->
+<!-- AL-A1-WORLD-API-HASH sha256=FE361C23A6B107F05812F8FB0B3BB0B891E57CC4CBAABF7C4B5DEA2385B8E717 -->
 <!-- AL-A1-WORLD-API-MAP-BEGIN -->
 | API | Concept | Responsibility | Current boundary |
 | --- | ------- | -------------- | ---------------- |
@@ -294,6 +294,21 @@ save v12。C3 topology 没有 tick 行为，因此不存在伪造的 Network wor
 | `useHeldFood` | `Command` | `Progression` | 提交库存消耗与生命恢复。 |
 | `useWaystone` | `Command` | `Progression` | 提交路标状态机动作。 |
 | `World` | `Command` | `World Mutation` | 创建/恢复 World 组合根并可启动 loader。 |
+| `createExplorationMarker` | `Command` | `Progression` | 在真实已观察单元创建稳定 ID 标记，最多查询一个驻留列。 |
+| `eraseExplorationMarker` | `Command` | `Progression` | 删除标记并清理相关追踪。 |
+| `explorationMapFull` | `Query` | `World Query` | 返回地表归档容量状态。 |
+| `explorationMapStatus` | `Query` | `World Query` | 返回本世界地图重置、隔离、保存与容量的瞬时状态。 |
+| `explorationMarkers` | `Query` | `World Query` | 复制至多 64 个已保存标记。 |
+| `exploredCellCount` | `Query` | `World Query` | 返回已观察地表数量。 |
+| `exploredOverviewAt` | `Query` | `World Query` | 仅聚合既有归档，不触发生成或加载。 |
+| `exploredSurfaceAt` | `Query` | `World Query` | 读取既有归档单元；未知返回空。 |
+| `knownWaystoneTaskSite` | `Query` | `Progression` | 返回真实任务绑定或适用的已知发现，不猜测坐标。 |
+| `moveExplorationMarker` | `Command` | `Progression` | 仅将现有标记移至真实已观察位置。 |
+| `renameExplorationMarker` | `Command` | `Progression` | 验证并更新标记名称。 |
+| `setHomeExplorationMarker` | `Command` | `Progression` | 设置单一基地标记。 |
+| `trackExplorationMarker` | `Command` | `Progression` | 设置或取消单一标记追踪。 |
+| `trackedExplorationMarker` | `Query` | `World Query` | 复制当前追踪标记，未跟踪返回空。 |
+| `tryWildlifeStep` | `Runtime Tick` | `Simulation` | 在全局 48 次预算内检查局部支撑、扫掠净空与落地；不加载区块。 |
 <!-- AL-A1-WORLD-API-MAP-END -->
 
 概念规则：
@@ -906,3 +921,8 @@ UI 状态切世界清理，只有 World 标记集合进入地图文件。实际�
 记录。真实激活／继续／事件恢复建立绑定，普通放置只更新发现。导航优先绑定与运行锚点；
 v3 发现记录不按任务进度猜测绑定。主存档 v12、terrain v22 不变，事务与备份涵盖两记录，
 各自拆除时清除。详见持久探索地图合同。
+
+地图异常使用每世界瞬时 `ExplorationMapStatus`，UI 不解析日志；满额与隔离／保存故障分别
+显示。小地图警示入口、地图说明及保存后进入既有世界备份列表构成恢复路径；保存失败
+保留当前会话，恢复仍使用原确认与整世界事务。标记点击与列表共用编辑状态，底图北向，
+玩家指针与小地图共用实际 yaw 的方向计算。上述状态不新增存档字段。

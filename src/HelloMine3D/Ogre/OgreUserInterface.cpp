@@ -46,6 +46,7 @@
 #include "../Presentation/PlayerHandPresentation.h"
 #include "../Presentation/MinimapNavigation.h"
 #include "../Presentation/HudInteraction.h"
+#include "../Presentation/ExplorationMapInteraction.h"
 #include "../Presentation/TerrainMapView.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/GameApplicationFlow.h"
@@ -2946,21 +2947,9 @@ class OgreUserInterface::Impl
                 static_cast<float>(minimapStep) * cellSize;
             const ImVec2 marker(mapCenter.x + playerDx,
                                 mapCenter.y + playerDy);
-            const Ogre::Vector3 direction = camera->getDirection();
-            float forwardX = direction.x;
-            float forwardY = direction.z;
-            const float directionLength = std::sqrt(
-                forwardX * forwardX + forwardY * forwardY);
-            if (directionLength > 0.0001f)
-            {
-                forwardX /= directionLength;
-                forwardY /= directionLength;
-            }
-            else
-            {
-                forwardX = 0.f;
-                forwardY = -1.f;
-            }
+            const auto heading = ExplorationNavigation::heading(state.rotation.y);
+            const float forwardX = heading.x;
+            const float forwardY = heading.z;
             const float markerLength = 10.f;
             const float markerWidth = 5.f;
             const ImVec2 tip(marker.x + forwardX * markerLength,
@@ -3063,6 +3052,16 @@ class OgreUserInterface::Impl
                            plaqueMin.y + 48.f * scale),
                     IM_COL32(20, 42, 47, 255), trackingLine.c_str());
             }
+            if (world->explorationMapStatus().needsAttention())
+            {
+                const ImVec2 badge(mapCenter.x + radius * .72f,
+                                   mapCenter.y + radius * .72f);
+                draw->AddCircleFilled(badge, 9.f * scale, IM_COL32(35,47,48,255));
+                draw->AddCircle(badge, 9.f * scale, IM_COL32(235,192,112,255), 16, 1.5f);
+                const auto textSize = ImGui::CalcTextSize("!");
+                draw->AddText(ImVec2(badge.x - textSize.x * .5f,
+                    badge.y - textSize.y * .5f), IM_COL32(255,218,140,255), "!");
+            }
             if (hudInteraction.ownsInput())
             {
                 ImGui::SetCursorScreenPos(origin);
@@ -3079,7 +3078,8 @@ class OgreUserInterface::Impl
                 {
                     ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
                     draw->AddCircle(mapCenter, radius + 3.f, IM_COL32(244,208,132,255), MinimapClipSegments, 2.f);
-                    ImGui::SetTooltip("%s",tr("map.open").c_str());
+                    ImGui::SetTooltip("%s", tr(world->explorationMapStatus().needsAttention()
+                        ? "map.status_notice" : "map.open").c_str());
                 }
             }
         }
@@ -3262,8 +3262,10 @@ class OgreUserInterface::Impl
             {
                 ImGui::SetTooltip("%s · X %d  Z %d", marker.name.c_str(),
                     marker.worldX, marker.worldZ);
-                if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
-                    selectedMapMarkerId = marker.id;
+                if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+                    mapMarkerEditor.select(marker.id, marker.name);
+                    mapMarkerFeedbackKey.clear();
+                }
             }
         }
         if (taskLocated)
@@ -3296,9 +3298,13 @@ class OgreUserInterface::Impl
             static_cast<float>(playerZ - centerZ) / step * pixel;
         draw->AddCircleFilled(ImVec2(px, pz), 7.f * scale,
             IM_COL32(17, 29, 35, 255));
-        draw->AddTriangleFilled(ImVec2(px, pz - 7.f * scale),
-            ImVec2(px - 5.f * scale, pz + 4.f * scale),
-            ImVec2(px + 5.f * scale, pz + 4.f * scale),
+        const auto heading = ExplorationNavigation::heading(state.rotation.y);
+        const auto arrowPoint = [&](float forward, float right) {
+            return ImVec2(px + (heading.x * forward - heading.z * right) * scale,
+                          pz + (heading.z * forward + heading.x * right) * scale);
+        };
+        draw->AddTriangleFilled(arrowPoint(7.f, 0.f),
+            arrowPoint(-4.f, -5.f), arrowPoint(-4.f, 5.f),
             IM_COL32(255, 222, 137, 255));
         draw->AddText(ImVec2(grid.x + 10.f * scale, grid.y + 8.f * scale),
             IM_COL32(233, 209, 146, 255), tr("hud.minimap_north").c_str());
@@ -3401,9 +3407,7 @@ class OgreUserInterface::Impl
                     newMapMarkerName.data(), kind, &createdId);
                 mapMarkerFeedbackKey = resultKey(result);
                 if (result == Result::Created) {
-                    selectedMapMarkerId = createdId;
-                    std::snprintf(editMapMarkerName.data(),
-                        editMapMarkerName.size(), "%s", newMapMarkerName.data());
+                    mapMarkerEditor.select(createdId, newMapMarkerName.data());
                     newMapMarkerName.fill(0);
                 }
             };
@@ -3430,11 +3434,9 @@ class OgreUserInterface::Impl
                 if (tracked && tracked->id == marker.id)
                     row += " · " + tr("map.marker_tracking");
                 if (ImGui::Selectable(row.c_str(),
-                    selectedMapMarkerId == marker.id))
+                    mapMarkerEditor.id == marker.id))
                 {
-                    selectedMapMarkerId = marker.id;
-                    std::snprintf(editMapMarkerName.data(),
-                        editMapMarkerName.size(), "%s", marker.name.c_str());
+                    mapMarkerEditor.select(marker.id, marker.name);
                     mapMarkerFeedbackKey.clear();
                 }
                 ImGui::PopID();
@@ -3442,7 +3444,7 @@ class OgreUserInterface::Impl
             ImGui::EndChild();
             const auto selected = std::find_if(markers.begin(), markers.end(),
                 [&](const auto& marker) {
-                    return marker.id == selectedMapMarkerId;
+                    return marker.id == mapMarkerEditor.id;
                 });
             if (selected != markers.end())
             {
@@ -3460,11 +3462,11 @@ class OgreUserInterface::Impl
                     static_cast<unsigned long long>(bearing.metres));
                 ImGui::Text("%s", tr("map.marker_edit_name").c_str());
                 ImGui::InputText("##EditMapMarkerName",
-                    editMapMarkerName.data(), editMapMarkerName.size());
+                    mapMarkerEditor.name.data(), mapMarkerEditor.name.size());
                 if (ImGui::Button(tr("map.marker_rename").c_str()))
                     mapMarkerFeedbackKey = resultKey(
                         world->renameExplorationMarker(selected->id,
-                            editMapMarkerName.data()));
+                            mapMarkerEditor.name.data()));
                 ImGui::SameLine();
                 if (ImGui::Button(tr(tracked && tracked->id == selected->id ?
                     "map.marker_untrack" : "map.marker_track").c_str()))
@@ -3495,8 +3497,7 @@ class OgreUserInterface::Impl
                     {
                         mapMarkerFeedbackKey = resultKey(
                             world->eraseExplorationMarker(selected->id));
-                        selectedMapMarkerId = 0;
-                        editMapMarkerName.fill(0);
+                        mapMarkerEditor.clear();
                         ImGui::CloseCurrentPopup();
                     }
                     ImGui::SameLine();
@@ -3507,6 +3508,42 @@ class OgreUserInterface::Impl
             }
         }
         ImGui::EndChild();
+    }
+
+    void drawExplorationMapStatus()
+    {
+        const auto health = world->explorationMapStatus();
+        if (health.needsAttention() && ImGui::CollapsingHeader(
+            tr("map.status_notice").c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (const char* key = health.recoveryMessageKey())
+                ImGui::TextWrapped("%s", tr(key).c_str());
+            if (health.full)
+                ImGui::TextWrapped("%s", tr("map.status_full").c_str());
+            if (ImGui::Button(tr("map.backup_open").c_str()))
+                ImGui::OpenPopup("##MapBackupHelp");
+        }
+        if (ImGui::BeginPopupModal("##MapBackupHelp", nullptr,
+            ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::PushTextWrapPos(ImGui::GetCursorPosX() +
+                std::min(360.f * appliedSettings.uiScale,
+                         ImGui::GetIO().DisplaySize.x - 96.f));
+            ImGui::TextWrapped("%s", tr("map.backup_body").c_str());
+            ImGui::PopTextWrapPos();
+            if (ImGui::Button(tr("map.backup_continue").c_str()))
+            {
+                pendingAction.type = OgreUserInterfaceActionType::OpenWorldBackups;
+                pendingAction.worldId = flow->activeWorldId();
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button(tr("common.cancel").c_str()))
+                ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+        }
+        if (!statusMessage.empty())
+            ImGui::TextWrapped("%s", statusMessage.c_str());
     }
 
     void drawTerrainMap(const PlayerSaveState& state)
@@ -3522,6 +3559,7 @@ class OgreUserInterface::Impl
         {
             if (drawInventoryHeader(Material::ID::Grass, tr("map.title"), tr("map.subtitle")))
                 hudInteraction.dismiss();
+            drawExplorationMapStatus();
             if (ImGui::Button(tr(mapFlatOverview ? "map.view_3d" : "map.view_flat").c_str()))
             {
                 mapFlatOverview = !mapFlatOverview;
@@ -5717,9 +5755,8 @@ class OgreUserInterface::Impl
     int overviewStep = ExplorationAtlas::MetresPerCell;
     bool mapFlatOverview = true;
     bool mapMarkerPanel = false;
-    std::uint32_t selectedMapMarkerId = 0;
+    ExplorationMarkerEditor mapMarkerEditor;
     std::array<char, ExplorationMarkers::MaxNameBytes + 1> newMapMarkerName{};
-    std::array<char, ExplorationMarkers::MaxNameBytes + 1> editMapMarkerName{};
     std::string mapMarkerFeedbackKey;
     std::int64_t overviewOffsetX = 0, overviewOffsetZ = 0;
     std::int64_t overviewCenterX = 0, overviewCenterZ = 0;
@@ -5949,10 +5986,9 @@ void OgreUserInterface::setWorldContext(Player *player,
     m_impl->mapGesture = {};
     m_impl->selectedMapCell = -1;
     m_impl->selectedOverviewCell = -1;
-    m_impl->selectedMapMarkerId = 0;
+    m_impl->mapMarkerEditor.clear();
     m_impl->mapMarkerPanel = false;
     m_impl->newMapMarkerName.fill(0);
-    m_impl->editMapMarkerName.fill(0);
     m_impl->mapMarkerFeedbackKey.clear();
     m_impl->overviewOffsetX = m_impl->overviewOffsetZ = 0;
     m_impl->overviewStep = ExplorationAtlas::MetresPerCell;
@@ -5968,6 +6004,24 @@ void OgreUserInterface::setWorldContext(Player *player,
             snapshot.changePending ? snapshot.pending : snapshot.active);
         m_impl->difficultyDraftInitialized = true;
     }
+}
+
+void OgreUserInterface::showWorldBackups(const std::string& worldId)
+{
+    m_impl->selectedWorldId.clear();
+    m_impl->backups.clear();
+    m_impl->statusMessage.clear();
+    m_impl->refreshCatalogue();
+    const auto found = std::find_if(m_impl->worlds.begin(), m_impl->worlds.end(),
+        [&](const auto& entry) { return entry.id == worldId; });
+    if (found == m_impl->worlds.end()) {
+        if (m_impl->statusMessage.empty())
+            m_impl->setStatusMessage(m_impl->tr("world.operation_failed"));
+        return;
+    }
+    m_impl->selectWorld(*found);
+    if (m_impl->statusMessage.empty())
+        m_impl->setStatusMessage(m_impl->tr("map.backup_choose"));
 }
 
 void OgreUserInterface::setStatusMessage(std::string message)

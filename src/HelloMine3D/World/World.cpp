@@ -416,9 +416,15 @@ World::World(const Camera &camera, const Config &config, Player &player,
         m_explorationAtlas.tileCount() == ExplorationAtlas::MaxTiles;
     if (mapStatus == ExplorationMapStore::LoadStatus::Corrupt ||
         mapStatus == ExplorationMapStore::LoadStatus::IdentityMismatch) {
+        m_explorationMapStatus.resetReason =
+            mapStatus == ExplorationMapStore::LoadStatus::Corrupt
+                ? ExplorationMapStatus::ResetReason::Corrupt
+                : ExplorationMapStatus::ResetReason::ForeignIdentity;
         std::string quarantineError;
         if (!m_explorationMapStore.quarantineInvalid(
                 mapIdentity, &quarantineError)) {
+            m_explorationMapStatus.quarantineFailed = true;
+            m_explorationMapDirty = true;
             std::cerr << "Cannot isolate invalid exploration map: "
                       << quarantineError << '\n';
         }
@@ -3518,6 +3524,13 @@ bool World::explorationMapFull() const noexcept
     return m_explorationMapFull;
 }
 
+ExplorationMapStatus World::explorationMapStatus() const noexcept
+{
+    auto status = m_explorationMapStatus;
+    status.full = m_explorationMapFull;
+    return status;
+}
+
 std::vector<ExplorationMarkers::Marker> World::explorationMarkers() const
 {
     return m_explorationMarkers.all();
@@ -3659,11 +3672,14 @@ bool World::saveExplorationMap()
     if (!m_explorationMapStore.save(identity, m_explorationAtlas,
                                     m_explorationMarkers,
                                     m_knownWaystoneSite, m_boundWaystoneSite, {}, &metrics)) {
+        m_explorationMapStatus.saveFailed = true;
         std::cerr << "Unable to save exploration map: "
                   << metrics.error << '\n';
         return false;
     }
     m_explorationMapDirty = false;
+    m_explorationMapStatus.saveFailed = false;
+    m_explorationMapStatus.quarantineFailed = false;
     return true;
 }
 

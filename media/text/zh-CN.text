@@ -628,3 +628,16 @@ text guidance.shelter.door "木板已够：在工作台用 6 块木板制作橡�
 text guidance.shelter.door_materials "准备 6 块木板，在工作台制作橡木门。"
 text guidance.shelter.entrance "将门放在预留入口，检查墙和屋顶，再用火把照亮落脚点。"
 text guidance.shelter.replace_door "背包里已没有门，重新取得或制作橡木门，再安装到入口。"
+
+# Exploration map recovery feedback
+text map.status_notice "地图记录需要注意 · 打开详情"
+text map.status_reset "地图记录损坏，已隔离原文件。本次重新记录探索；可从世界备份恢复之前的记录。"
+text map.status_foreign "地图与当前世界不匹配，已隔离原文件。本次重新记录探索；可查看该世界的备份。"
+text map.status_isolation_failed "地图异常且暂时无法隔离，原文件未覆盖。当前探索记录无法保存；请保留世界目录中的原文件和备份后再处理。"
+text map.status_save_failed "探索地图保存失败，旧文件仍保留。新的地图记录尚未保存，请重试保存或检查世界备份。"
+text map.status_full "地图记录已满：保留并更新已记录地区，停止新增地区。切换视图或缩放不会扩大容量；请先备份，不会自动删除探索历史。"
+text map.backup_open "查看备份与恢复方式"
+text map.backup_body "将先保存并返回此世界的备份列表。恢复前请核对备份时间；恢复会回滚整个世界（包括建筑、背包和任务），不只是地图。保存失败时会保留当前会话。"
+text map.backup_continue "保存并查看备份"
+text map.backup_choose "已选中刚才的世界。请在备份列表核对时间后选择恢复；没有备份时不会凭空恢复历史。"
+text map.backup_save_failed "保存失败，已取消返回备份列表，当前会话保留。原有备份不会因此被覆盖；请先保留世界文件再处理保存问题。"

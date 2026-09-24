@@ -1,5 +1,7 @@
 #include "../../src/HelloMine3D/Presentation/HudInteraction.h"
 #include "../../src/HelloMine3D/GameplayInput.h"
+#include "../../src/HelloMine3D/Presentation/ExplorationMapInteraction.h"
+#include "../../src/HelloMine3D/World/Exploration/ExplorationMapStatus.h"
 #include <iostream>
 #include <stdexcept>
 
@@ -10,6 +12,36 @@ int main()
         if (!value) throw std::runtime_error(message);
         ++count;
     };
+    ExplorationMarkerEditor editor;
+    editor.select(1, "基地 A");
+    std::snprintf(editor.name.data(), editor.name.size(), "%s", "A 的未保存编辑");
+    editor.select(2, "营地 B");
+    check(editor.id == 2 && std::string(editor.name.data()) == "营地 B",
+          "canvas selection kept another marker's pending name");
+    editor.select(1, "基地 A");
+    check(editor.id == 1 && std::string(editor.name.data()) == "基地 A",
+          "list reselection failed to restore the stored name");
+    editor.clear();
+    check(editor.id == 0 && editor.name[0] == 0,
+          "world switch or deletion retained a marker edit target");
+    ExplorationMapStatus health;
+    check(!health.needsAttention() && !health.recoveryMessageKey(),
+          "healthy map displayed a warning");
+    health.full = true;
+    check(health.needsAttention() && !health.recoveryMessageKey(),
+          "full map lost its independent notice");
+    health.resetReason = ExplorationMapStatus::ResetReason::Corrupt;
+    check(std::string(health.recoveryMessageKey()) == "map.status_reset",
+          "corrupt map did not explain history reset");
+    health.resetReason = ExplorationMapStatus::ResetReason::ForeignIdentity;
+    check(std::string(health.recoveryMessageKey()) == "map.status_foreign",
+          "foreign map was described as a normal empty map");
+    health.saveFailed = true;
+    check(std::string(health.recoveryMessageKey()) == "map.status_save_failed",
+          "save failure was hidden behind reset status");
+    health.quarantineFailed = true;
+    check(std::string(health.recoveryMessageKey()) == "map.status_isolation_failed",
+          "failed isolation was incorrectly described as successful reset");
     HudInteraction ui;
     using Page = HudInteraction::Page;
     check(!ui.ownsInput() && ui.page() == Page::Game, "ordinary startup owns no UI input");

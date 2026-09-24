@@ -43,7 +43,8 @@ enum class OgreUserInterfaceActionType
     ClaimVictoryReward,
     SelectHotbar,
     ReturnToMainMenu,
-    Quit
+    Quit,
+    OpenWorldBackups
 };
 
 struct OgreUserInterfaceAction
@@ -100,6 +101,7 @@ class OgreUserInterface final : public Ogre::RenderTargetListener
     bool isDebugPanelVisible() const noexcept;
     void setWorldContext(Player *player, World *world) noexcept;
     void setStatusMessage(std::string message);
+    void showWorldBackups(const std::string& worldId);
     void setAudioCaption(std::string cueId, std::string caption);
     bool dismissSettings() noexcept;
     void reportSettingsApplied(bool succeeded,
