@@ -84,7 +84,8 @@ int main()
                     Result::Updated,
                 "test observations were not accepted");
         StorageTransactionMetrics metrics;
-        require(store.save(identity, atlas, emptyMarkers, {}, &metrics) &&
+        require(store.save(identity, atlas, emptyMarkers,
+                           std::nullopt, {}, &metrics) &&
                     metrics.published && metrics.candidateValidated &&
                     store.filePath() ==
                         (world.path / "exploration.hmap").string() &&
@@ -113,7 +114,7 @@ int main()
         }
 
         std::vector<char> legacy = original;
-        legacy.erase(legacy.end() - 16, legacy.end() - 8);
+        legacy.erase(legacy.end() - 17, legacy.end() - 8);
         legacy[8] = 1; // The same family magic accepts the old v1 layout.
         refreshHash(legacy);
         writeBytes(store.filePath(), legacy);
@@ -122,6 +123,16 @@ int main()
                     Status::Loaded && loadedMarkers.size() == 0 &&
                     loaded.knownCellCount() == 2,
                 "version-one map did not migrate without losing surfaces");
+        std::vector<char> legacyV2 = original;
+        legacyV2.erase(legacyV2.end() - 9);
+        legacyV2[8] = 2;
+        refreshHash(legacyV2);
+        writeBytes(store.filePath(), legacyV2);
+        std::optional<ExplorationMapStore::KnownSite> loadedSite;
+        require(store.load(identity, loaded, loadedMarkers, loadedSite,
+                           &error) == Status::Loaded &&
+                    loaded.knownCellCount() == 2 && !loadedSite,
+                "version-two map did not default the new site to unknown");
         writeBytes(store.filePath(), original);
 
         ExplorationMarkers markers;
@@ -132,13 +143,65 @@ int main()
                         ExplorationMarkers::Result::Created &&
                     markers.track(homeId) ==
                         ExplorationMarkers::Result::Changed &&
-                    store.save(identity, atlas, markers, {}, &metrics) &&
+                    store.save(identity, atlas, markers,
+                               std::nullopt, {}, &metrics) &&
                     store.load(identity, loaded, loadedMarkers, &error) ==
                         Status::Loaded &&
                     loadedMarkers.size() == 2 &&
                     loadedMarkers.home()->name == "家" &&
                     loadedMarkers.trackedId() == homeId,
-                "version-two markers did not round trip with the map");
+                "version-three markers did not round trip with the map");
+        const auto currentWithMarkers = readBytes(store.filePath());
+        legacyV2 = currentWithMarkers;
+        legacyV2.erase(legacyV2.end() - 9);
+        legacyV2[8] = 2;
+        refreshHash(legacyV2);
+        writeBytes(store.filePath(), legacyV2);
+        require(store.load(identity, loaded, loadedMarkers, loadedSite,
+                           &error) == Status::Loaded &&
+                    loadedMarkers.size() == 2 &&
+                    loadedMarkers.trackedId() == homeId && !loadedSite,
+                "version-two markers lost their IDs during migration");
+        require(store.save(identity, loaded, loadedMarkers,
+                           std::nullopt, {}, &metrics) &&
+                    store.load(identity, loaded, loadedMarkers, loadedSite,
+                               &error) == Status::Loaded &&
+                    readBytes(store.filePath())[8] == 3 &&
+                    loadedMarkers.trackedId() == homeId && !loadedSite,
+                "version-two map did not upgrade without changing markers");
+        writeBytes(store.filePath(), currentWithMarkers);
+        const ExplorationMapStore::KnownSite known{-4, 80, -4};
+        require(store.save(identity, atlas, markers, known, {}, &metrics) &&
+                    store.load(identity, loaded, loadedMarkers, loadedSite,
+                               &error) == Status::Loaded &&
+                    loadedSite == known && loadedMarkers.trackedId() == homeId,
+                "known task site did not round trip with markers");
+        const auto withKnownSite = readBytes(store.filePath());
+        require(store.load(otherWorld, loaded, loadedMarkers, loadedSite,
+                           &error) == Status::IdentityMismatch &&
+                    !loadedSite && loaded.tileCount() == 0 &&
+                    loadedMarkers.size() == 0,
+                "foreign world inherited a discovered task site");
+        require(!store.save(identity, atlas, markers,
+                            ExplorationMapStore::KnownSite{-4, 0, -4},
+                            {}, &metrics) &&
+                    readBytes(store.filePath()) == withKnownSite,
+                "invalid task site replaced the valid map");
+        std::vector<char> invalidSite = readBytes(store.filePath());
+        invalidSite[invalidSite.size() - 21] = 2;
+        refreshHash(invalidSite);
+        writeBytes(store.filePath(), invalidSite);
+        require(!ExplorationMapStore::validateFile(store.filePath()),
+                "invalid known-site flag with valid checksum was accepted");
+        invalidSite = readBytes(store.filePath());
+        invalidSite[invalidSite.size() - 21] = 1;
+        for (int offset = 0; offset < 4; ++offset)
+            invalidSite[invalidSite.size() - 16 + offset] = 0;
+        refreshHash(invalidSite);
+        writeBytes(store.filePath(), invalidSite);
+        require(!ExplorationMapStore::validateFile(store.filePath()),
+                "invalid known-site height with valid checksum was accepted");
+        writeBytes(store.filePath(), currentWithMarkers);
         std::vector<char> badMarker = readBytes(store.filePath());
         constexpr std::size_t tileBytes = 8 + 128 + 2048;
         const std::size_t firstPage =
@@ -151,14 +214,15 @@ int main()
         require(!ExplorationMapStore::validateFile(store.filePath()),
                 "invalid UTF-8 marker with corrected checksum was accepted");
         writeBytes(store.filePath(), original);
-        require(!store.save(otherWorld, atlas, emptyMarkers, {}, &metrics) &&
+        require(!store.save(otherWorld, atlas, emptyMarkers,
+                            std::nullopt, {}, &metrics) &&
                     readBytes(store.filePath()) == original,
                 "foreign save replaced another world's valid map");
 
         atlas.observe({-1, -1, 71, BlockId::MossStone, true});
         StorageTransactionOptions fault;
         fault.faultPoint = StorageFaultPoint::BeforeReplace;
-        require(!store.save(identity, atlas, emptyMarkers,
+        require(!store.save(identity, atlas, emptyMarkers, std::nullopt,
                             fault, &metrics) &&
                     !metrics.published &&
                     readBytes(store.filePath()) == original &&
@@ -174,7 +238,8 @@ int main()
                     !ExplorationMapStore::validateFile(store.filePath()) &&
                     readBytes(store.filePath()) == corrupted,
                 "damaged sidecar did not fall back without mutation");
-        require(!store.save(identity, atlas, emptyMarkers, {}, &metrics) &&
+        require(!store.save(identity, atlas, emptyMarkers,
+                            std::nullopt, {}, &metrics) &&
                     readBytes(store.filePath()) == corrupted,
                 "save overwrote an unquarantined damaged map");
         writeBytes(store.filePath(), original);
@@ -210,7 +275,7 @@ int main()
                     !fs::exists(store.filePath()) &&
                     readBytes(store.filePath() + ".corrupt.failed") ==
                         original &&
-                    store.save(otherWorld, atlas, emptyMarkers,
+                    store.save(otherWorld, atlas, emptyMarkers, std::nullopt,
                                {}, &metrics) &&
                     store.load(otherWorld, loaded, &error) == Status::Loaded,
                 "foreign map was not preserved before new publication");
@@ -223,7 +288,7 @@ int main()
                     readBytes(store.filePath() + ".corrupt.failed") ==
                         original,
                 "occupied quarantine slot was overwritten");
-        std::cout << "[EXPLORATION_MAP_STORE] checks=15 status=PASS\n";
+        std::cout << "[EXPLORATION_MAP_STORE] checks=23 status=PASS\n";
         return 0;
     }
     catch (const std::exception& exception) {

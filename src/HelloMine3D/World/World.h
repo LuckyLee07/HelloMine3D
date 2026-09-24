@@ -260,6 +260,8 @@ class World : public NonCopyable {
     bool explorationMapFull() const noexcept;
     std::vector<ExplorationMarkers::Marker> explorationMarkers() const;
     std::optional<ExplorationMarkers::Marker> trackedExplorationMarker() const;
+    std::optional<ExplorationMapStore::KnownSite>
+    knownWaystoneTaskSite() const noexcept;
     ExplorationMarkers::Result createExplorationMarker(
         int worldX, int worldZ, std::string name,
         ExplorationMarkers::Kind kind = ExplorationMarkers::Kind::Note,
@@ -456,6 +458,7 @@ class World : public NonCopyable {
     bool saveExplorationMap();
     void sampleExplorationSurface();
     bool ensureExploredMapPosition(int worldX, int worldZ);
+    void rememberWaystoneSite(const glm::ivec3& position) noexcept;
     void restoreActors(const std::vector<ActorSaveState> &states);
     void setSpawnPoint();
     bool readWaystoneState(const glm::ivec3 &position,
@@ -494,6 +497,7 @@ class World : public NonCopyable {
     ExplorationMapStore m_explorationMapStore;
     ExplorationAtlas m_explorationAtlas;
     ExplorationMarkers m_explorationMarkers;
+    std::optional<ExplorationMapStore::KnownSite> m_knownWaystoneSite;
     bool m_explorationMapDirty = false;
     bool m_explorationMapFull = false;
     int m_explorationSampleCountdown = 0;

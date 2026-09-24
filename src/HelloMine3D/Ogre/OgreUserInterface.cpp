@@ -3231,9 +3231,9 @@ class OgreUserInterface::Impl
                 taskTitle = entry->title;
             }
         }
-        const auto taskAnchor = world->getWaystoneEncounterSnapshot();
+        const auto taskSite = world->knownWaystoneTaskSite();
         const bool taskLocated = ExplorationNavigation::knownWaystoneTask(
-            taskId, taskAnchor.anchorKnown);
+            taskId, taskSite.has_value());
         for (const auto& marker : markers)
         {
             const float mx = grid.x + side * .5f +
@@ -3269,10 +3269,10 @@ class OgreUserInterface::Impl
         if (taskLocated)
         {
             const float mx = grid.x + side * .5f +
-                static_cast<float>(static_cast<std::int64_t>(taskAnchor.anchor.x) - centerX) /
+                static_cast<float>(static_cast<std::int64_t>(taskSite->worldX) - centerX) /
                 step * pixel;
             const float mz = grid.y + side * .5f +
-                static_cast<float>(static_cast<std::int64_t>(taskAnchor.anchor.z) - centerZ) /
+                static_cast<float>(static_cast<std::int64_t>(taskSite->worldZ) - centerZ) /
                 step * pixel;
             if (mx >= grid.x + 5.f && mx <= grid.x + side - 5.f &&
                 mz >= grid.y + 5.f && mz <= grid.y + side - 5.f)
@@ -3287,7 +3287,7 @@ class OgreUserInterface::Impl
                 if (hovered && std::abs(io.MousePos.x - mx) < 8.f * scale &&
                     std::abs(io.MousePos.y - mz) < 8.f * scale)
                     ImGui::SetTooltip("%s · X %d  Z %d", taskTitle.c_str(),
-                        taskAnchor.anchor.x, taskAnchor.anchor.z);
+                        taskSite->worldX, taskSite->worldZ);
             }
         }
         const float px = grid.x + side * .5f +
@@ -3345,7 +3345,7 @@ class OgreUserInterface::Impl
             const auto bearing = ExplorationNavigation::toward(
                 World::toBlockCoord(state.position.x),
                 World::toBlockCoord(state.position.z),
-                taskAnchor.anchor.x, taskAnchor.anchor.z);
+                taskSite->worldX, taskSite->worldZ);
             ImGui::TextWrapped("%s: %s · %s  %llu m",
                 tr("map.objective_destination").c_str(), taskTitle.c_str(),
                 tr(directions[bearing.octant]).c_str(),

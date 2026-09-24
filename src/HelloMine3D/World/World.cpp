@@ -29,6 +29,7 @@
 #include "../Maths/Vector2XZ.h"
 #include "../Player/Player.h"
 #include "../Sandbox/Events/FoodEvents.h"
+#include "../Sandbox/Events/BlockEvents.h"
 #include "../Sandbox/Events/EntityEvents.h"
 #include "../Sandbox/Events/PlayerEvents.h"
 #include "../Sandbox/Events/WaystoneEvents.h"
@@ -409,7 +410,8 @@ World::World(const Camera &camera, const Config &config, Player &player,
         m_worldSaveData.terrainGenerationVersion};
     std::string mapError;
     const auto mapStatus = m_explorationMapStore.load(
-        mapIdentity, m_explorationAtlas, m_explorationMarkers, &mapError);
+        mapIdentity, m_explorationAtlas, m_explorationMarkers,
+        m_knownWaystoneSite, &mapError);
     m_explorationMapFull =
         m_explorationAtlas.tileCount() == ExplorationAtlas::MaxTiles;
     if (mapStatus == ExplorationMapStore::LoadStatus::Corrupt ||
@@ -479,6 +481,27 @@ World::World(const Camera &camera, const Config &config, Player &player,
         SandboxEventSubscriptionOptions::domainMutation(
             "World.WaystoneGuardianDeath",
             SandboxEventRepublishPolicy::Bounded));
+    m_eventBus.subscribe(SandboxEventType::BlockPlace,
+        [this](const SandboxEvent& event) {
+            const auto& placed = static_cast<const BlockPlaceEvent&>(event);
+            if (placed.blockId == BlockId::WaystoneCore)
+                rememberWaystoneSite(placed.position);
+        }, SandboxEventSubscriptionOptions::domainMutation(
+            "World.KnownWaystonePlacement"));
+    m_eventBus.subscribe(SandboxEventType::BlockBreak,
+        [this](const SandboxEvent& event) {
+            const auto& broken = static_cast<const BlockBreakEvent&>(event);
+            if (broken.blockId != BlockId::WaystoneCore ||
+                !m_knownWaystoneSite) return;
+            const auto& site = *m_knownWaystoneSite;
+            if (site.worldX == broken.position.x &&
+                site.worldY == broken.position.y &&
+                site.worldZ == broken.position.z) {
+                m_knownWaystoneSite.reset();
+                m_explorationMapDirty = true;
+            }
+        }, SandboxEventSubscriptionOptions::domainMutation(
+            "World.KnownWaystoneRemoval"));
     reconcileWaystoneEncounter();
 
     // Restore retained actors and objectives before persisting the repaired
@@ -1669,6 +1692,7 @@ WaystoneActionResult World::useWaystone(const glm::ivec3 &position,
             return finish(WaystoneActionResult::Rejected);
         }
         m_waystoneAnchor = position;
+        rememberWaystoneSite(position);
         m_waystoneEncounterState = {};
         m_eventBus.publish(PlayerInventoryChangedEvent(
             DefaultPlayerActorId, Material::ID::IronIngot,
@@ -1680,6 +1704,7 @@ WaystoneActionResult World::useWaystone(const glm::ivec3 &position,
     }
     if (outcome.phase == WorldOutcomePhase::Activated) {
         m_waystoneAnchor = position;
+        rememberWaystoneSite(position);
         if (persisted.wave != 0) {
             persisted = {};
             if (!writeWaystoneState(position, persisted)) {
@@ -1812,6 +1837,7 @@ WaystoneActionResult World::usePostVictoryWaystone(
         state = {3, 0, WaystoneEncounter::RewardEpoch};
     }
     m_waystoneAnchor = position;
+    rememberWaystoneSite(position);
 
     if (m_worldSaveData.completedPostVictoryEvents >=
         PostVictoryEvents::MaximumEvents) {
@@ -2217,6 +2243,7 @@ void World::reconcileWaystoneEncounter()
                  (postVictoryContext &&
                   state.postVictoryEvent > 0))) {
                 m_waystoneAnchor = candidate;
+                rememberWaystoneSite(candidate);
                 m_waystoneEncounterState = state;
                 break;
             }
@@ -3411,6 +3438,24 @@ World::trackedExplorationMarker() const
                              : std::optional<ExplorationMarkers::Marker>(*marker);
 }
 
+std::optional<ExplorationMapStore::KnownSite>
+World::knownWaystoneTaskSite() const noexcept
+{
+    if (m_knownWaystoneSite) return m_knownWaystoneSite;
+    if (!m_waystoneAnchor) return std::nullopt;
+    return ExplorationMapStore::KnownSite{
+        m_waystoneAnchor->x, m_waystoneAnchor->y, m_waystoneAnchor->z};
+}
+
+void World::rememberWaystoneSite(const glm::ivec3& position) noexcept
+{
+    const ExplorationMapStore::KnownSite observed{
+        position.x, position.y, position.z};
+    if (m_knownWaystoneSite == observed) return;
+    m_knownWaystoneSite = observed;
+    m_explorationMapDirty = true;
+}
+
 ExplorationMarkers::Result World::createExplorationMarker(
     int worldX, int worldZ, std::string name,
     ExplorationMarkers::Kind kind, std::uint32_t* createdId)
@@ -3510,7 +3555,8 @@ bool World::saveExplorationMap()
         m_worldSaveData.terrainGenerationVersion};
     StorageTransactionMetrics metrics;
     if (!m_explorationMapStore.save(identity, m_explorationAtlas,
-                                    m_explorationMarkers, {}, &metrics)) {
+                                    m_explorationMarkers,
+                                    m_knownWaystoneSite, {}, &metrics)) {
         std::cerr << "Unable to save exploration map: "
                   << metrics.error << '\n';
         return false;

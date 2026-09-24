@@ -2040,6 +2040,7 @@ void caseWaystoneVictoryLoop()
         const WaystoneActionResult activated =
             world.useWaystone(core, player, true);
         WaystoneEncounterState stored;
+        const auto knownTaskSite = world.knownWaystoneTaskSite();
         check("N7B/normal-use-activation-conserves-materials",
               arenaReady && supplied &&
                   paused == WaystoneActionResult::SimulationPaused &&
@@ -2049,6 +2050,9 @@ void caseWaystoneVictoryLoop()
                   world.getWorldOutcomeSnapshot().phase ==
                       WorldOutcomePhase::Activated &&
                   world.getWaystoneEncounterSnapshot().loadedGuardians == 0 &&
+                  knownTaskSite && knownTaskSite->worldX == core.x &&
+                  knownTaskSite->worldY == core.y &&
+                  knownTaskSite->worldZ == core.z &&
                   world.getBlockEntity(core).has_value() &&
                   WaystoneEncounter::deserialize(
                       world.getBlockEntity(core)->payload, stored) &&

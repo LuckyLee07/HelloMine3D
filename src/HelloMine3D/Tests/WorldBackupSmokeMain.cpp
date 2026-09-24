@@ -327,6 +327,7 @@ int main()
         ExplorationAtlas observed;
         ExplorationMarkers emptyMarkers;
         ExplorationMarkers savedMarkers;
+        const ExplorationMapStore::KnownSite knownSite{0, 80, 0};
         std::uint32_t homeId = 0;
         const ExplorationMapStore::Identity first{
             "world-backup-fixture", 9001, CurrentTerrainGenerationVersion};
@@ -341,7 +342,7 @@ int main()
                 ExplorationMarkers::Result::Created &&
             savedMarkers.track(homeId) ==
                 ExplorationMarkers::Result::Changed &&
-            mapStore.save(first, observed, savedMarkers);
+            mapStore.save(first, observed, savedMarkers, knownSite);
         WorldBackupInfo saved;
         const bool backedUp = initial && backup.createBackup(&saved);
         suite.check("K3/exploration-map-backed-up-with-world",
@@ -354,22 +355,24 @@ int main()
             mapStore.quarantineInvalid(second) &&
             observed.observe({0, 0, 75, BlockId::MossStone, true}) ==
                 ExplorationAtlas::ObserveResult::Updated &&
-            mapStore.save(second, observed, emptyMarkers);
+            mapStore.save(second, observed, emptyMarkers, std::nullopt);
         WorldBackupMetrics metrics;
         const bool restored = newer &&
             backup.restoreBackup(saved.id, {}, &metrics);
         ExplorationAtlas restoredMap;
         ExplorationMarkers restoredMarkers;
+        std::optional<ExplorationMapStore::KnownSite> restoredSite;
         suite.check("K3/exploration-map-restores-with-matching-world",
                     restored && generationMatches(root.path(), 1) &&
                         mapStore.load(first, restoredMap,
-                                      restoredMarkers) ==
+                                      restoredMarkers, restoredSite) ==
                             ExplorationMapStore::LoadStatus::Loaded &&
                         restoredMap.surfaceAt(0, 0).has_value() &&
                         restoredMap.surfaceAt(0, 0)->height == 72 &&
                         restoredMarkers.home() != nullptr &&
                         restoredMarkers.home()->name == "Home" &&
                         restoredMarkers.trackedId() == homeId &&
+                        restoredSite == knownSite &&
                         metrics.published,
                     metrics.error);
 
@@ -378,7 +381,8 @@ int main()
         WorldBackupInfo withoutMap;
         const bool oldBackedUp = oldStyle &&
             backup.createBackup(&withoutMap) && withoutMap.fileCount == 2;
-        const bool added = mapStore.save(second, observed, emptyMarkers);
+        const bool added = mapStore.save(second, observed, emptyMarkers,
+                                       std::nullopt);
         WorldBackupMetrics oldMetrics;
         const bool oldRestored = oldBackedUp && added &&
             backup.restoreBackup(withoutMap.id, {}, &oldMetrics);
@@ -390,7 +394,7 @@ int main()
                     oldMetrics.error);
 
         const bool foreignWritten =
-            mapStore.save(first, observed, emptyMarkers);
+            mapStore.save(first, observed, emptyMarkers, std::nullopt);
         WorldBackupMetrics mismatchMetrics;
         suite.check("K3/foreign-exploration-map-rejects-backup",
                     foreignWritten &&

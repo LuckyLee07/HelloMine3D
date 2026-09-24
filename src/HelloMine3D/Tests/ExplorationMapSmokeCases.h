@@ -12,6 +12,7 @@ void caseExplorationMapLifecycle()
     Camera camera(config);
     int observedX = 0;
     int observedZ = 0;
+    const glm::ivec3 taskSite{8, 200, 8};
     std::uint32_t homeId = 0;
     std::optional<ExplorationAtlas::Surface> initialSurface;
     {
@@ -54,6 +55,18 @@ void caseExplorationMapLifecycle()
                   world.trackExplorationMarker(homeId) ==
                       ExplorationMarkers::Result::Changed &&
                   world.trackedExplorationMarker().has_value());
+        const bool supplied = player.addItem(Material::WAYSTONE_CORE, 1) == 1;
+        const bool placed = supplied && BlockInteractionSystem::placeBlock(
+            world, player, glm::vec3(taskSite));
+        const auto knownSite = world.knownWaystoneTaskSite();
+        check("MAP5/real-waystone-placement-discovers-task-site",
+              placed && knownSite &&
+                  knownSite->worldX == taskSite.x &&
+                  knownSite->worldY == taskSite.y &&
+                  knownSite->worldZ == taskSite.z &&
+                  static_cast<BlockId>(world.getBlock(
+                      taskSite.x, taskSite.y, taskSite.z).id) ==
+                      BlockId::WaystoneCore);
         const bool saved = world.save();
         std::vector<WorldBackupInfo> backups;
         const bool backupListed = WorldBackup(directory).listBackups(backups);
@@ -65,6 +78,20 @@ void caseExplorationMapLifecycle()
                       std::filesystem::path(backups.back().directoryPath) /
                       "exploration.hmap"));
     }
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "512 90 512");
+    {
+        Player player;
+        World world(camera, config, player, directory, false, 1);
+        const auto remoteSite = world.knownWaystoneTaskSite();
+        const VectorXZ siteChunk = World::getChunkXZ(taskSite.x, taskSite.z);
+        check("MAP5/distant-reopen-keeps-discovered-task-site",
+              remoteSite && remoteSite->worldX == taskSite.x &&
+                  remoteSite->worldY == taskSite.y &&
+                  remoteSite->worldZ == taskSite.z &&
+                  !world.getChunkManager().chunkLoadedAt(
+                      siteChunk.x, siteChunk.z));
+    }
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
     {
         Player player;
         World world(camera, config, player, directory, false, 1);
@@ -83,6 +110,23 @@ void caseExplorationMapLifecycle()
                   tracked.has_value() && tracked->id == homeId &&
                   world.moveExplorationMarker(homeId, 1000000, 1000000) ==
                       ExplorationMarkers::Result::Invalid);
+        const auto restoredSite = world.knownWaystoneTaskSite();
+        check("MAP5/reopen-recovers-known-task-site",
+              restoredSite && restoredSite->worldX == taskSite.x &&
+                  restoredSite->worldY == taskSite.y &&
+                  restoredSite->worldZ == taskSite.z);
+        const bool removed = BlockInteractionSystem::breakBlock(
+            world, player, glm::vec3(taskSite));
+        check("MAP5/breaking-known-waystone-clears-task-site",
+              removed && !world.knownWaystoneTaskSite() && world.save());
+    }
+    {
+        Player player;
+        World world(camera, config, player, directory, false, 1);
+        check("MAP5/removed-task-site-stays-unknown-after-reopen",
+              !world.knownWaystoneTaskSite() &&
+                  world.exploredSurfaceAt(observedX, observedZ).has_value() &&
+                  world.trackedExplorationMarker().has_value());
     }
 
     const auto mapPath =
