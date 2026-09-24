@@ -40,6 +40,38 @@ struct WildlifeVisualPose {
 };
 
 namespace WildlifePresentation {
+    // Interpolate the last authoritative segment, without predicting through
+    // obstacles. This is presentation-only; collisions keep the World position.
+    class MotionBlend {
+      public:
+        glm::vec3 update(const ActorSnapshot& snapshot, float dt)
+        {
+            if (!m_valid || glm::distance(snapshot.position, m_target) > 4.f) {
+                m_from = m_target = m_position = snapshot.position;
+                m_lastMoveTime = snapshot.wildlifeMotionSeconds;
+                m_elapsed = m_duration = .05f;
+                m_valid = true;
+                return m_position;
+            }
+            if (snapshot.position != m_target) {
+                m_from = m_position;
+                m_target = snapshot.position;
+                m_duration = std::clamp(
+                    snapshot.wildlifeMotionSeconds - m_lastMoveTime, .05f, .20f);
+                m_lastMoveTime = snapshot.wildlifeMotionSeconds;
+                m_elapsed = 0.f;
+            }
+            m_elapsed = std::min(m_duration, m_elapsed +
+                (std::isfinite(dt) ? std::clamp(dt, 0.f, .10f) : 0.f));
+            m_position = glm::mix(m_from, m_target, m_elapsed / m_duration);
+            return m_position;
+        }
+      private:
+        bool m_valid = false;
+        glm::vec3 m_from{0.f}, m_target{0.f}, m_position{0.f};
+        float m_lastMoveTime = 0.f, m_elapsed = 0.f, m_duration = .05f;
+    };
+
     inline WildlifeVisualProfile profileFor(const std::string &type)
     {
         WildlifeVisualProfile profile;

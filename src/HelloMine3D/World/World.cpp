@@ -3216,62 +3216,153 @@ void World::runNaturalWildlifePopulation(int worldTime)
 
 World::WildlifeStepResult World::tryWildlifeStep(
     const glm::vec3 &from, const glm::vec3 &to,
-    const glm::vec3 &halfDimensions, glm::vec3 &settled)
+    const glm::vec3 &halfDimensions, glm::vec3 &settled, bool* grounded)
 {
-    // One height query, five residency checks and at most twelve block reads.
-    constexpr std::size_t QueriesPerStep = 18;
-    if (m_wildlifeBlockQueriesUsed + QueriesPerStep >
-        WildlifeBlockQueryBudgetPerTick) {
-        ++m_wildlifeBlockQueriesDenied;
-        return WildlifeStepResult::BudgetDenied;
-    }
-    m_wildlifeBlockQueriesUsed += QueriesPerStep;
-    if (!std::isfinite(to.x) || !std::isfinite(to.y) ||
-        !std::isfinite(to.z) || !std::isfinite(from.y) ||
-        !std::isfinite(halfDimensions.x) ||
-        !std::isfinite(halfDimensions.y) ||
-        !std::isfinite(halfDimensions.z) ||
-        halfDimensions.x <= 0.f || halfDimensions.y <= 0.f ||
-        halfDimensions.z <= 0.f)
+    if (grounded != nullptr) *grounded = false;
+    const auto finitePosition = [](const glm::vec3& value) {
+        return std::isfinite(value.x) && std::isfinite(value.y) &&
+            std::isfinite(value.z) && std::abs(double(value.x)) < 2147483000. &&
+            std::abs(double(value.z)) < 2147483000. &&
+            value.y >= 1.f && value.y <= 256.f;
+    };
+    if (!finitePosition(from) || !finitePosition(to) ||
+        !std::isfinite(halfDimensions.x) || !std::isfinite(halfDimensions.y) ||
+        !std::isfinite(halfDimensions.z) || halfDimensions.x <= 0.f ||
+        halfDimensions.y <= 0.f || halfDimensions.z <= 0.f ||
+        halfDimensions.x > .5f || halfDimensions.z > .5f ||
+        halfDimensions.y > .6f || std::abs(to.x - from.x) > .61f ||
+        std::abs(to.z - from.z) > .61f)
         return WildlifeStepResult::Blocked;
 
     std::unique_lock<std::mutex> lock(m_mainMutex);
-    const int centerX = toBlockCoord(to.x);
-    const int centerZ = toBlockCoord(to.z);
-    const VectorXZ chunkPosition = getChunkXZ(centerX, centerZ);
-    const Chunk *chunk = m_chunkManager.findChunk(
-        chunkPosition.x, chunkPosition.z);
-    if (chunk == nullptr || !chunk->hasLoaded())
-        return WildlifeStepResult::Blocked;
-    const VectorXZ local = getBlockXZ(centerX, centerZ);
-    const int feetY = chunk->getHeightAt(local.x, local.z) + 1;
-    if (feetY <= 1 || std::abs(static_cast<float>(feetY) - from.y) > 1.f)
-        return WildlifeStepResult::Blocked;
-    const float inset = 0.02f;
-    for (int sx : {-1, 1}) for (int sz : {-1, 1}) {
-        const int x = toBlockCoord(to.x + sx *
-            std::max(0.f, halfDimensions.x - inset));
-        const int z = toBlockCoord(to.z + sz *
-            std::max(0.f, halfDimensions.z - inset));
-        const VectorXZ column = getChunkXZ(x, z);
-        const Chunk *corner = m_chunkManager.findChunk(column.x, column.z);
-        if (corner == nullptr || !corner->hasLoaded())
-            return WildlifeStepResult::Blocked;
-        const auto support = getBlockUnlocked(x, feetY - 1, z);
-        const BlockId supportId = static_cast<BlockId>(support.id);
-        if (!support.getData().isCollidable ||
-            supportId == BlockId::Water ||
-            supportId == BlockId::OakLeaf)
-            return WildlifeStepResult::Blocked;
-        for (int y : {feetY, feetY + 1}) {
-            const auto body = getBlockUnlocked(x, y, z);
-            if (body.getData().isCollidable ||
-                body.id == static_cast<Block_t>(BlockId::Water))
+    struct Read { int x, y, z; ChunkBlock block; };
+    std::array<Read, WildlifeBlockQueryBudgetPerTick> reads{};
+    std::array<VectorXZ, WildlifeBlockQueryBudgetPerTick> columns{};
+    std::size_t readCount = 0, columnCount = 0;
+    bool denied = false, missing = false;
+    const auto reserveQuery = [&]() {
+        if (m_wildlifeBlockQueriesUsed >= WildlifeBlockQueryBudgetPerTick) {
+            if (!denied) ++m_wildlifeBlockQueriesDenied;
+            denied = true;
+            return false;
+        }
+        ++m_wildlifeBlockQueriesUsed;
+        return true;
+    };
+    const auto read = [&](int x, int y, int z) -> const ChunkBlock* {
+        if (denied || missing) return nullptr;
+        for (std::size_t i = 0; i < readCount; ++i)
+            if (reads[i].x == x && reads[i].y == y && reads[i].z == z)
+                return &reads[i].block;
+        bool resident = false;
+        for (std::size_t i = 0; i < columnCount; ++i)
+            resident |= columns[i].x == x && columns[i].z == z;
+        if (!resident) {
+            if (!reserveQuery()) return nullptr;
+            const auto chunkPosition = getChunkXZ(x, z);
+            const auto* chunk = m_chunkManager.findChunk(
+                chunkPosition.x, chunkPosition.z);
+            if (chunk == nullptr || !chunk->hasLoaded()) {
+                missing = true;
+                return nullptr;
+            }
+            columns[columnCount++] = {x, z};
+        }
+        if (!reserveQuery()) return nullptr;
+        reads[readCount] = {x, y, z, getBlockUnlocked(x, y, z)};
+        return &reads[readCount++].block;
+    };
+    const auto failure = [&]() {
+        return denied ? WildlifeStepResult::BudgetDenied
+                      : WildlifeStepResult::Blocked;
+    };
+    constexpr float epsilon = .001f;
+    const auto bounds = [&](const glm::vec3& position) {
+        return std::array<int, 4>{
+            toBlockCoord(position.x - halfDimensions.x + epsilon),
+            toBlockCoord(position.x + halfDimensions.x - epsilon),
+            toBlockCoord(position.z - halfDimensions.z + epsilon),
+            toBlockCoord(position.z + halfDimensions.z - epsilon)};
+    };
+    const auto current = bounds(from);
+    const int below = toBlockCoord(from.y - epsilon);
+    bool supported = false;
+    for (int x = current[0]; x <= current[1]; ++x)
+        for (int z = current[2]; z <= current[3]; ++z) {
+            const auto* block = read(x, below, z);
+            if (block == nullptr) return failure();
+            if (block->id == static_cast<Block_t>(BlockId::Water))
                 return WildlifeStepResult::Blocked;
+            supported |= block->getData().isCollidable;
+        }
+    if (!supported) {
+        // A removed support must cause a fall even while resting. Only inspect
+        // the swept local feet; a canopy/roof is unrelated to the ground.
+        float landing = std::max(1.f, std::min(from.y, to.y));
+        landing = std::max(landing, from.y - .8f);
+        bool landed = false;
+        for (int y = below; y >= toBlockCoord(landing - epsilon); --y)
+            for (int x = current[0]; x <= current[1]; ++x)
+                for (int z = current[2]; z <= current[3]; ++z) {
+                    const auto* block = read(x, y, z);
+                    if (block == nullptr) return failure();
+                    if (block->getData().isCollidable ||
+                        block->id == static_cast<Block_t>(BlockId::Water)) {
+                        landing = std::max(landing, float(y + 1));
+                        landed = true;
+                    }
+                }
+        settled = {from.x, landing, from.z};
+        if (grounded != nullptr) *grounded = landed;
+        return WildlifeStepResult::Allowed;
+    }
+
+    const auto target = bounds(to);
+    const int base = static_cast<int>(std::round(from.y));
+    for (int rise : {0, 1, -1}) {
+        const int feet = base + rise;
+        bool safe = feet >= 1 && feet <= 254;
+        if (!safe) continue;
+        for (int x = target[0]; x <= target[1] && safe; ++x)
+            for (int z = target[2]; z <= target[3] && safe; ++z) {
+                const auto* block = read(x, feet - 1, z);
+                if (block == nullptr) return failure();
+                safe = block->getData().isCollidable &&
+                    block->id != static_cast<Block_t>(BlockId::Water) &&
+                    block->id != static_cast<Block_t>(BlockId::OakLeaf);
+            }
+        // Sweep the horizontal footprint as well as the destination, so a
+        // diagonal step cannot skip a corner or walk through a thin obstacle.
+        // On a descending step the old floor is below the horizontal sweep,
+        // while the lower destination still needs its own body clearance.
+        for (int x = target[0]; x <= target[1] && safe; ++x)
+            for (int z = target[2]; z <= target[3] && safe; ++z)
+                for (int y = feet; y < base && safe; ++y) {
+                    const auto* block = read(x, y, z);
+                    if (block == nullptr) return failure();
+                    safe = !block->getData().isCollidable &&
+                        block->id != static_cast<Block_t>(BlockId::Water);
+                }
+        for (int x = std::min(current[0], target[0]);
+             x <= std::max(current[1], target[1]) && safe; ++x)
+            for (int z = std::min(current[2], target[2]);
+                 z <= std::max(current[3], target[3]) && safe; ++z)
+                for (int y = std::max(base, feet);
+                     y <= toBlockCoord(std::max(base, feet) +
+                         halfDimensions.y * 2.f - epsilon)
+                         && safe; ++y) {
+                    const auto* block = read(x, y, z);
+                    if (block == nullptr) return failure();
+                    safe = !block->getData().isCollidable &&
+                        block->id != static_cast<Block_t>(BlockId::Water);
+                }
+        if (safe) {
+            settled = {to.x, float(feet), to.z};
+            if (grounded != nullptr) *grounded = true;
+            return WildlifeStepResult::Allowed;
         }
     }
-    settled = {to.x, static_cast<float>(feetY), to.z};
-    return WildlifeStepResult::Allowed;
+    return failure();
 }
 
 void World::despawnNaturalMobsInChunk(int chunkX, int chunkZ)

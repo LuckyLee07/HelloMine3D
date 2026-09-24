@@ -50,6 +50,7 @@ class ActorManager {
     std::vector<std::unique_ptr<Actor>> m_actors;
     std::vector<DeathPresentation> m_deathPresentations;
     ActorId m_nextActorId = DefaultPlayerActorId + 1;
+    std::size_t m_wildlifeTickCursor = 0;
 };
 
 #endif // ACTORMANAGER_H_INCLUDED

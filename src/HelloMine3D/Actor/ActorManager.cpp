@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "EnemyPresentation.h"
+#include "WildlifeActor.h"
 
 ActorId ActorManager::allocateActorId()
 {
@@ -98,14 +99,31 @@ std::size_t ActorManager::tickBudgetedRange(
 
     std::size_t processed = 0;
     const std::size_t boundedCount = std::min(count, actorCount);
+    std::vector<Actor*> wildlife;
+    wildlife.reserve(std::min<std::size_t>(boundedCount, 24));
     for (std::size_t offset = 0; offset < boundedCount; ++offset) {
         std::unique_ptr<Actor> &actor =
             m_actors[(firstIndex + offset) % actorCount];
         if (actor && actor->isAlive()) {
-            actor->tick(world, dt);
+            if (WildlifeSpecies::isWildlife(actor->getType()))
+                wildlife.push_back(actor.get());
+            else
+                actor->tick(world, dt);
             ++processed;
         }
     }
+
+    // Admission of all actors does not rotate the general scheduler. Rotate
+    // wildlife separately so its smaller shared query budget is fair, while
+    // leaving the existing enemy/item simulation order intact.
+    if (!wildlife.empty()) {
+        m_wildlifeTickCursor %= wildlife.size();
+        for (std::size_t offset = 0; offset < wildlife.size(); ++offset)
+            wildlife[(m_wildlifeTickCursor + offset) % wildlife.size()]
+                ->tick(world, dt);
+        m_wildlifeTickCursor = (m_wildlifeTickCursor + 1) % wildlife.size();
+    }
+    else m_wildlifeTickCursor = 0;
 
     return processed;
 }

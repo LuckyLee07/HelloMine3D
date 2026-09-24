@@ -73,6 +73,7 @@ class OgreActorRenderer
         bool itemIcon = false;
         EnemyPresentation::GaitPhase gaitPhase;
         EnemyPresentation::PoseBlend poseBlend;
+        WildlifePresentation::MotionBlend wildlifeMotion;
     };
 
     ActorVisual createVisual(const ActorSnapshot& snapshot);

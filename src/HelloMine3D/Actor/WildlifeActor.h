@@ -52,10 +52,11 @@ class WildlifeActor final : public LivingActor {
     glm::vec3 m_home{0.f};
     WildlifeActivity m_activity = WildlifeActivity::Rest;
     float m_ageSeconds = 0.f;
-    float m_stepClock = 0.f;
+    float m_decisionClock = 0.f;
+    float m_motionElapsed = 0.f;
+    float m_fallSpeed = 0.f;
     float m_alarmSeconds = 0.f;
     float m_headingRadians = 0.f;
-    bool m_stepPending = false;
 };
 
 #endif // WILDLIFEACTOR_H_INCLUDED

@@ -4,8 +4,118 @@
 #include "../Actor/WildlifePresentation.h"
 
 namespace {
+void caseWildlifeReviewRegressions()
+{
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", "42");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 201 8");
+    Config config = makeConfig(); Camera camera(config); Player player;
+    World world(camera, config, player,
+        freshSaveDirectory("wildlife_review_regressions"), false, 0);
+    for (int x = 0; x < 16; ++x) for (int z = 0; z < 16; ++z) {
+        world.setBlock(x, 200, z, BlockId::Stone);
+        for (int y = 201; y <= 205; ++y)
+            world.setBlock(x, y, z, BlockId::Air);
+    }
+    for (const int population : {12, 24}) {
+        world.getActorManager().removeActorsIf([](const Actor&) { return true; });
+        std::vector<ActorId> ids;
+        std::vector<glm::vec3> origins;
+        std::vector<int> firstMoved(population, 0);
+        for (int i = 0; i < population; ++i) {
+            const float angle = float(i % 12) * 6.2831853f / 12.f;
+            const float radius = i < 12 ? 2.5f : 4.5f;
+            const glm::vec3 at{8.f + radius * std::sin(angle), 201.f,
+                               8.f + radius * std::cos(angle)};
+            const auto id = world.getActorManager().allocateActorId();
+            ids.push_back(id); origins.push_back(at);
+            world.getActorManager().addActor(std::make_unique<WildlifeActor>(
+                id, WildlifeSpecies::Rabbit, at), world);
+        }
+        bool bounded = true;
+        for (int tick = 1; tick <= 40; ++tick) {
+            world.tick(1000 + tick);
+            bounded &= world.collectDebugStats().wildlifeBlockQueriesUsed <=
+                World::WildlifeBlockQueryBudgetPerTick;
+            for (int i = 0; i < population; ++i)
+                if (firstMoved[i] == 0 && glm::distance(origins[i],
+                    world.getActorManager().findActor(ids[i])->position) > .01f)
+                    firstMoved[i] = tick;
+        }
+        check("WILDLIFE-REVIEW/fair-service-" + std::to_string(population),
+            bounded && std::all_of(firstMoved.begin(), firstMoved.end(),
+                [](int tick) { return tick > 0 && tick <= 28; }));
+    }
+    world.getActorManager().removeActorsIf([](const Actor&) { return true; });
+    WildlifeActor rabbit(900001, WildlifeSpecies::Rabbit, {8.5f,201.f,8.5f});
+    float largestStep = 0.f; int movingTicks = 0;
+    for (int tick = 1; tick <= 16; ++tick) {
+        player.position = rabbit.position + glm::vec3(0,0,2);
+        world.tick(1100 + tick);
+        const auto before = rabbit.position;
+        rabbit.tick(world, .05f);
+        const float distance = glm::distance(before, rabbit.position);
+        largestStep = std::max(largestStep, distance);
+        movingTicks += distance > .01f;
+    }
+    check("WILDLIFE-REVIEW/motion-is-independent-of-decision-rate",
+        movingTicks >= 10 && largestStep <= .151f,
+        "steps=" + std::to_string(movingTicks) +
+        " largest=" + std::to_string(largestStep));
+
+    world.tick(1201);
+    world.setBlock(6,204,6,BlockId::OakLeaf);
+    glm::vec3 settled; bool grounded = false;
+    check("WILDLIFE-REVIEW/clear-ground-under-canopy",
+        world.tryWildlifeStep({6.5f,201.f,6.5f}, {6.6f,201.f,6.5f},
+            {.22f,.27f,.22f}, settled, &grounded) ==
+            World::WildlifeStepResult::Allowed && grounded && settled.y == 201.f);
+    world.setBlock(10,201,10,BlockId::Stone);
+    world.tick(1202);
+    const bool down = world.tryWildlifeStep({10.78f,202.f,10.5f},
+        {11.24f,202.f,10.5f}, {.22f,.27f,.22f}, settled) ==
+        World::WildlifeStepResult::Allowed && settled.y == 201.f;
+    world.tick(1203);
+    const bool up = world.tryWildlifeStep({11.24f,201.f,10.5f},
+        {10.78f,201.f,10.5f}, {.22f,.27f,.22f}, settled) ==
+        World::WildlifeStepResult::Allowed && settled.y == 202.f;
+    check("WILDLIFE-REVIEW/one-block-stairs-both-directions", down && up);
+    world.setBlock(11,201,11,BlockId::Stone);
+    world.setBlock(11,202,11,BlockId::Stone);
+    world.tick(1204);
+    check("WILDLIFE-REVIEW/diagonal-obstacle-cannot-be-skipped",
+        world.tryWildlifeStep({10.75f,201.f,11.75f},
+            {11.25f,201.f,12.25f}, {.22f,.27f,.22f}, settled) ==
+            World::WildlifeStepResult::Blocked);
+    WildlifeActor falling(900002, WildlifeSpecies::Sheep, {6.5f,201.f,6.5f});
+    for (int x = 4; x <= 9; ++x) for (int z = 4; z <= 9; ++z) {
+        world.setBlock(x,197,z,BlockId::Stone);
+        for (int y = 198; y <= 200; ++y) world.setBlock(x,y,z,BlockId::Air);
+    }
+    for (int tick = 1; tick <= 60; ++tick) {
+        world.tick(1201 + tick); falling.tick(world,.05f);
+    }
+    check("WILDLIFE-REVIEW/removed-support-falls-and-lands",
+        std::abs(falling.position.y - 198.f) < .001f);
+
+    WildlifePresentation::MotionBlend blend;
+    ActorSnapshot sample; sample.position = {0,10,0};
+    blend.update(sample,0.f);
+    sample.position.x = .15f; sample.wildlifeMotionSeconds = .05f;
+    const auto mid = blend.update(sample,.025f);
+    const auto paused = blend.update(sample,0.f);
+    const auto end = blend.update(sample,.025f);
+    check("WILDLIFE-REVIEW/visual-interpolation-pause-and-no-overshoot",
+        mid.x > 0.f && mid.x < .15f && paused == mid && end.x == .15f);
+    sample.position.x = 100.f;
+    check("WILDLIFE-REVIEW/teleport-resets-visual-segment",
+        blend.update(sample,.01f) == sample.position);
+    clearDeterministicEnv();
+}
+
 void caseAdventureWildlife()
 {
+    caseWildlifeReviewRegressions();
     {
         const auto sheep = WildlifePresentation::profileFor(
             WildlifeSpecies::Sheep);
@@ -101,7 +211,7 @@ void caseAdventureWildlife()
         World world(camera, config, player,
                     freshSaveDirectory("adventure_wildlife_step"), false, 0);
         const glm::vec3 feet{8.5f, 201.f, 8.5f};
-        const glm::vec3 half{0.22f, 0.27f, 0.22f};
+        const glm::vec3 half{0.42f, 0.55f, 0.30f};
         glm::vec3 settled{0.f};
         world.setBlock(8, 200, 8, BlockId::Stone);
         world.setBlock(8, 201, 8, BlockId::Air);
@@ -127,14 +237,17 @@ void caseAdventureWildlife()
         const bool second = world.tryWildlifeStep(feet, feet, half,
             settled) == World::WildlifeStepResult::Allowed;
         const auto beforeDenied = world.collectDebugStats().chunks;
-        const bool denied = world.tryWildlifeStep(feet, feet, half,
-            settled) == World::WildlifeStepResult::BudgetDenied;
+        bool denied = false;
+        for (int attempt = 0; attempt < 20 && !denied; ++attempt)
+            denied = world.tryWildlifeStep(feet, feet, half, settled) ==
+                World::WildlifeStepResult::BudgetDenied;
         const auto afterDenied = world.collectDebugStats();
         check("ADVENTURE-WILDLIFE/dry-support-and-water-head-avoidance",
             dry && wetFeet && wetGround && blockedHead);
         check("ADVENTURE-WILDLIFE/query-cap-denies-before-world-read",
             first && second && denied &&
-            afterDenied.wildlifeBlockQueriesUsed == 36 &&
+            afterDenied.wildlifeBlockQueriesUsed ==
+                World::WildlifeBlockQueryBudgetPerTick &&
             afterDenied.wildlifeBlockQueriesDenied == 1 &&
             beforeDenied.existingChunks == afterDenied.chunks.existingChunks &&
             beforeDenied.loadedChunks == afterDenied.chunks.loadedChunks);

@@ -562,13 +562,14 @@ void OgreActorRenderer::updateVisual(
                 static_cast<int>(WildlifeActivity::Wander) ||
             snapshot.wildlifeActivity ==
                 static_cast<int>(WildlifeActivity::Flee);
-        const float stridePhase = visual.gaitPhase.update(
-            snapshot.position, moving);
+        const glm::vec3 position = visual.wildlifeMotion.update(
+            snapshot, deltaSeconds);
+        const float stridePhase = visual.gaitPhase.update(position, moving);
         const WildlifeVisualPose pose = WildlifePresentation::poseFor(
             snapshot, profile, stridePhase, m_animationStrength);
-        visual.node->setPosition(snapshot.position.x,
-            snapshot.position.y + snapshot.dimensions.y + pose.heightOffset,
-            snapshot.position.z);
+        visual.node->setPosition(position.x,
+            position.y + snapshot.dimensions.y + pose.heightOffset,
+            position.z);
         visual.node->setScale(snapshot.dimensions.x * 2.f,
             snapshot.dimensions.y * 2.f,
             snapshot.dimensions.z * 2.f);

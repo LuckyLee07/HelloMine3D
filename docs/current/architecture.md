@@ -92,7 +92,8 @@ Core / Entity / Physics / Maths / Util
 - 冒险动物使用独立 `WildlifeActor`、真实 habitat 与 `ActorSnapshot`，仍由同一个 ActorManager
   调度。自然动物作为临时种群在区块卸载时移除，`World::saveWorldState` 过滤其 Actor 状态；
   重新进入时从已加载生态刷新，敌人／物品的 save v12 路径不变。地面与避障探测在 World
-  的每 fixed tick 预算内完成，不向生成器或 Ogre 反向持有状态，见[冒险动物合同](../contracts/adventure-wildlife-contract-v1.md)。
+  的每 fixed tick 预算内完成，动物独立轮转，低频决策与逐 tick 局部碰撞／重力分开；
+  Ogre 仅插值快照的位置，不向生成器或 Ogre 反向持有状态，见[冒险动物合同](../contracts/adventure-wildlife-contract-v1.md)。
 - Sandbox 定义事件协议，但每个 `World` 实例实际拥有自己的 `SandboxEventBus`。
 - Event handler 当前同步执行；AL-A4 已把请求 mutation 的 typed Command、已发生的 immutable Event
   与不提交 Gameplay 的 Query 分开。订阅者不得假设异步或跨线程投递。

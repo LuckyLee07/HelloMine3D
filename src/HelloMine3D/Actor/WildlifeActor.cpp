@@ -36,11 +36,13 @@ void WildlifeActor::tick(World &world, float dt)
     LivingActor::tick(world, dt);
     if (!isAlive() || dt <= 0.f) return;
     m_ageSeconds += dt;
-    m_stepClock = std::min(0.20f, m_stepClock + dt);
+    m_decisionClock += dt;
+    m_motionElapsed = std::min(0.20f, m_motionElapsed + dt);
     m_alarmSeconds = std::max(0.f, m_alarmSeconds - dt);
 
-    if (m_stepClock < 0.20f) return;
-    if (!m_stepPending) {
+    const bool decide = m_decisionClock >= 0.20f;
+    if (decide) {
+        m_decisionClock = 0.f;
         const Player *player = world.getPlayer();
         const glm::vec3 relative = player != nullptr
             ? position - player->position : glm::vec3(1000.f, 0.f, 0.f);
@@ -70,29 +72,30 @@ void WildlifeActor::tick(World &world, float dt)
                 m_headingRadians += 0.11f +
                     static_cast<float>(getId() % 5u) * 0.06f;
         }
-        if (m_activity != WildlifeActivity::Wander &&
-            m_activity != WildlifeActivity::Flee) {
-            m_stepClock = 0.f;
-            return;
-        }
-        m_stepPending = true;
     }
 
-    const float step = speedFor(getType(),
-                                m_activity == WildlifeActivity::Flee) * 0.20f;
+    const bool moving = m_activity == WildlifeActivity::Wander ||
+                        m_activity == WildlifeActivity::Flee;
+    const float step = moving ? speedFor(getType(),
+        m_activity == WildlifeActivity::Flee) * m_motionElapsed : 0.f;
     glm::vec3 candidate = position;
     candidate.x += std::sin(m_headingRadians) * step;
     candidate.z -= std::cos(m_headingRadians) * step;
+    const float fallSpeed = std::min(8.f,
+        m_fallSpeed + 18.f * m_motionElapsed);
+    candidate.y = std::max(1.f, candidate.y -
+        std::min(.8f, fallSpeed * m_motionElapsed));
     glm::vec3 settled{0.f};
+    bool grounded = false;
     const World::WildlifeStepResult result = world.tryWildlifeStep(
-        position, candidate, box.dimensions, settled);
+        position, candidate, box.dimensions, settled, &grounded);
     if (result == World::WildlifeStepResult::BudgetDenied) return;
-    m_stepPending = false;
-    m_stepClock = 0.f;
+    m_motionElapsed = 0.f;
     if (result != World::WildlifeStepResult::Allowed) {
-        m_headingRadians += 1.57f;
+        if (decide) m_headingRadians += 1.57f;
         return;
     }
+    m_fallSpeed = grounded ? 0.f : fallSpeed;
     position = settled;
     box.update(position);
     rotation.y = glm::degrees(m_headingRadians);
