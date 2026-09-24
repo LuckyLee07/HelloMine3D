@@ -30,6 +30,14 @@ void caseExplorationMapLifecycle()
                   world.exploredCellCount() > 0 &&
                   world.exploredCellCount() <= 81 &&
                   !world.explorationMapFull());
+        const auto overview = world.exploredOverviewAt(
+            observedX, observedZ, 3, 8);
+        check("MAP5/overview-shows-only-recorded-world-surface",
+              overview.size() == 9 && overview[4].known &&
+                  overview[4].worldX == observedX &&
+                  overview[4].worldZ == observedZ &&
+                  initialSurface.has_value() &&
+                  overview[4].surface.material == initialSurface->material);
         const std::size_t chunkCount =
             world.getChunkManager().getChunks().size();
         check("MAP5/unknown-marker-does-not-generate-terrain",

@@ -253,6 +253,9 @@ class World : public NonCopyable {
     bool save();
     std::optional<ExplorationAtlas::Surface> exploredSurfaceAt(
         int worldX, int worldZ) const;
+    std::vector<ExplorationAtlas::OverviewSample> exploredOverviewAt(
+        std::int64_t centerX, std::int64_t centerZ,
+        int cellsPerSide, int metresPerPixel) const;
     std::size_t exploredCellCount() const noexcept;
     bool explorationMapFull() const noexcept;
     std::vector<ExplorationMarkers::Marker> explorationMarkers() const;

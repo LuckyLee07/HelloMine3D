@@ -48,6 +48,35 @@ int main()
                     Result::Invalid && atlas.knownCellCount() == 2,
                 "invalid heights and materials cannot enter the archive");
 
+        ExplorationAtlas overview;
+        overview.observe({-1, -1, 82, BlockId::ForestFloor, true});
+        overview.observe({0, 0, 70, BlockId::Grass, true});
+        overview.observe({28, 28, 65, BlockId::Sand, true});
+        overview.observe({60, 60, 64, BlockId::Water, true});
+        const auto near = overview.overviewAt(0, 0, 3, 4);
+        require(near.size() == 9 && near[0].known &&
+                    near[0].surface.material == BlockId::ForestFloor &&
+                    near[4].known &&
+                    near[4].surface.material == BlockId::Grass &&
+                    !near[8].known,
+                "native-scale overview invented or missed observed cells");
+        const auto far = overview.overviewAt(32, 32, 3, 64);
+        require(far.size() == 9 && far[0].known && far[4].known &&
+                    far[4].surface.material == BlockId::Sand &&
+                    far[4].worldX == 28 && far[4].worldZ == 28 &&
+                    !far[8].known,
+                "zoomed-out overview dropped an off-centre visited route");
+        overview.observe({124, 0, 75, BlockId::Snow, true});
+        overview.observe({128, 0, 76, BlockId::Gravel, true});
+        const auto seam = overview.overviewAt(160, 0, 3, 64);
+        require(seam.size() == 9 && seam[3].known && seam[4].known &&
+                    seam[3].surface.material == BlockId::Snow &&
+                    seam[4].surface.material == BlockId::Gravel,
+                "tile seam merged two distinct overview pixels");
+        require(overview.overviewAt(0, 0, 66, 4).empty() &&
+                    overview.overviewAt(0, 0, 65, 128).empty(),
+                "unbounded overview request was accepted");
+
         atlas.clear();
         require(atlas.observe({std::numeric_limits<int>::min(),
                                std::numeric_limits<int>::max(),
@@ -57,6 +86,13 @@ int main()
                                     std::numeric_limits<int>::max())
                             ->material == BlockId::Snow,
                 "extreme world coordinates cannot overflow page addressing");
+        const auto extremeOverview = atlas.overviewAt(
+            std::numeric_limits<int>::min(),
+            static_cast<std::int64_t>(std::numeric_limits<int>::max()) - 3,
+            3, 4);
+        require(extremeOverview.size() == 9 && extremeOverview[4].known &&
+                    extremeOverview[4].surface.material == BlockId::Snow,
+                "extreme observed surface disappeared from overview");
         atlas.clear();
         for (std::size_t tile = 0; tile < ExplorationAtlas::MaxTiles; ++tile) {
             require(atlas.observe({static_cast<int>(tile * 128), 0,
@@ -82,7 +118,7 @@ int main()
         require(atlas.tileCount() == 0 && atlas.knownCellCount() == 0 &&
                     !atlas.surfaceAt(0, 0).has_value(),
                 "world detach clears all exploration memory");
-        std::cout << "[EXPLORATION_ATLAS] checks=8 status=PASS\n";
+        std::cout << "[EXPLORATION_ATLAS] checks=13 status=PASS\n";
         return 0;
     }
     catch (const std::exception& error) {

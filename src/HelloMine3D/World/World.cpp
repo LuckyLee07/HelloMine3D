@@ -3380,6 +3380,14 @@ std::optional<ExplorationAtlas::Surface> World::exploredSurfaceAt(
     return m_explorationAtlas.surfaceAt(worldX, worldZ);
 }
 
+std::vector<ExplorationAtlas::OverviewSample> World::exploredOverviewAt(
+    std::int64_t centerX, std::int64_t centerZ,
+    int cellsPerSide, int metresPerPixel) const
+{
+    return m_explorationAtlas.overviewAt(
+        centerX, centerZ, cellsPerSide, metresPerPixel);
+}
+
 std::size_t World::exploredCellCount() const noexcept
 {
     return m_explorationAtlas.knownCellCount();

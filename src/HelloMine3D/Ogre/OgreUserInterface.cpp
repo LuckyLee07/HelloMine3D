@@ -3091,9 +3091,16 @@ class OgreUserInterface::Impl
     void drawExplorationOverview(const PlayerSaveState& state)
     {
         constexpr int count = OverviewCellCount;
-        constexpr int step = ExplorationAtlas::MetresPerCell;
         const float scale = appliedSettings.uiScale;
         const auto& io = ImGui::GetIO();
+        const auto setOverviewStep = [&](int next) {
+            next = std::clamp(next, ExplorationAtlas::MetresPerCell, 64);
+            if (next == overviewStep) return;
+            overviewStep = next;
+            overviewValid = false;
+            selectedOverviewCell = -1;
+            overviewPanRemainderX = overviewPanRemainderZ = 0.f;
+        };
         if (ImGui::Button(tr("map.center").c_str()))
         {
             overviewOffsetX = overviewOffsetZ = 0;
@@ -3101,13 +3108,17 @@ class OgreUserInterface::Impl
             selectedOverviewCell = -1;
         }
         ImGui::SameLine();
-        if (ImGui::Button("<")) overviewOffsetX -= 8 * step;
+        if (ImGui::Button("<")) overviewOffsetX -= 8 * overviewStep;
         ImGui::SameLine();
-        if (ImGui::Button(">")) overviewOffsetX += 8 * step;
+        if (ImGui::Button(">")) overviewOffsetX += 8 * overviewStep;
         ImGui::SameLine();
-        if (ImGui::Button("^")) overviewOffsetZ -= 8 * step;
+        if (ImGui::Button("^")) overviewOffsetZ -= 8 * overviewStep;
         ImGui::SameLine();
-        if (ImGui::Button("v")) overviewOffsetZ += 8 * step;
+        if (ImGui::Button("v")) overviewOffsetZ += 8 * overviewStep;
+        ImGui::SameLine();
+        if (ImGui::Button("-##OverviewZoom")) setOverviewStep(overviewStep * 2);
+        ImGui::SameLine();
+        if (ImGui::Button("+##OverviewZoom")) setOverviewStep(overviewStep / 2);
         ImGui::TextWrapped("%s", tr("map.overview_controls").c_str());
         const float width = ImGui::GetContentRegionAvail().x;
         const bool wide = width > 760.f * scale;
@@ -3125,6 +3136,10 @@ class OgreUserInterface::Impl
         const bool hovered = ImGui::IsItemHovered() &&
             io.MousePos.x >= grid.x && io.MousePos.x < grid.x + side &&
             io.MousePos.y >= grid.y && io.MousePos.y < grid.y + side;
+        if (hovered && io.MouseWheel != 0.f)
+            setOverviewStep(io.MouseWheel > 0.f
+                ? overviewStep / 2 : overviewStep * 2);
+        const int step = overviewStep;
         if (hovered && ImGui::IsMouseDown(ImGuiMouseButton_Right))
         {
             overviewPanRemainderX += io.MouseDelta.x / pixel;
@@ -3144,8 +3159,8 @@ class OgreUserInterface::Impl
         const auto align = [=](std::int64_t value) {
             return (value >= 0 ? value / step : (value - step + 1) / step) * step;
         };
-        const std::int64_t centerX = align(playerX) + overviewOffsetX;
-        const std::int64_t centerZ = align(playerZ) + overviewOffsetZ;
+        const std::int64_t centerX = align(playerX + overviewOffsetX);
+        const std::int64_t centerZ = align(playerZ + overviewOffsetZ);
         if (!overviewValid || centerX != overviewCenterX ||
             centerZ != overviewCenterZ || hudElapsedSeconds >= overviewNextRefresh)
         {
@@ -3155,20 +3170,16 @@ class OgreUserInterface::Impl
             overviewCenterX = centerX;
             overviewCenterZ = centerZ;
             overviewCells.fill({});
-            for (int z = 0; z < count; ++z)
-            for (int x = 0; x < count; ++x)
+            overviewObservedPositions.fill({});
+            const auto samples = world->exploredOverviewAt(
+                centerX, centerZ, count, step);
+            for (std::size_t index = 0; index < samples.size(); ++index)
             {
-                const auto worldX = centerX + (x - count / 2) * step;
-                const auto worldZ = centerZ + (z - count / 2) * step;
-                if (worldX < std::numeric_limits<int>::min() ||
-                    worldX > std::numeric_limits<int>::max() ||
-                    worldZ < std::numeric_limits<int>::min() ||
-                    worldZ > std::numeric_limits<int>::max()) continue;
-                const auto surface = world->exploredSurfaceAt(
-                    static_cast<int>(worldX), static_cast<int>(worldZ));
-                if (surface)
-                    overviewCells[z * count + x] =
-                        {true, surface->height, surface->material};
+                if (!samples[index].known) continue;
+                overviewCells[index] = {true, samples[index].surface.height,
+                    samples[index].surface.material};
+                overviewObservedPositions[index] =
+                    {samples[index].worldX, samples[index].worldZ};
             }
             overviewValid = true;
             overviewNextRefresh = hudElapsedSeconds + 1.0;
@@ -3263,10 +3274,9 @@ class OgreUserInterface::Impl
             const auto& cell = overviewCells[inspection];
             ImGui::TextWrapped("%s", LocalizedPresentation::surfaceName(
                 appliedSettings.locale, cell.material).c_str());
-            ImGui::Text("X %lld  Y %d  Z %lld",
-                static_cast<long long>(centerX + (inspection % count - count / 2) * step),
-                cell.height,
-                static_cast<long long>(centerZ + (inspection / count - count / 2) * step));
+            ImGui::Text("X %d  Y %d  Z %d",
+                overviewObservedPositions[inspection].first, cell.height,
+                overviewObservedPositions[inspection].second);
         }
         else ImGui::TextWrapped("%s", tr("map.select").c_str());
         if (tracked)
@@ -3309,17 +3319,7 @@ class OgreUserInterface::Impl
             if (!overviewValid || selectedOverviewCell < 0 ||
                 selectedOverviewCell >= static_cast<int>(overviewCells.size()) ||
                 !overviewCells[selectedOverviewCell].known) return std::nullopt;
-            const std::int64_t x = overviewCenterX +
-                (selectedOverviewCell % OverviewCellCount - OverviewCellCount / 2) *
-                ExplorationAtlas::MetresPerCell;
-            const std::int64_t z = overviewCenterZ +
-                (selectedOverviewCell / OverviewCellCount - OverviewCellCount / 2) *
-                ExplorationAtlas::MetresPerCell;
-            if (x < std::numeric_limits<int>::min() ||
-                x > std::numeric_limits<int>::max() ||
-                z < std::numeric_limits<int>::min() ||
-                z > std::numeric_limits<int>::max()) return std::nullopt;
-            return std::make_pair(static_cast<int>(x), static_cast<int>(z));
+            return overviewObservedPositions[selectedOverviewCell];
         };
         const auto selectedPosition = markerPosition();
         if (ImGui::BeginChild("##ExplorationMarkerPanel", ImVec2(0, 0), false))
@@ -5655,6 +5655,9 @@ class OgreUserInterface::Impl
     std::vector<TerrainMapView::Face> mapFaces;
     static constexpr int OverviewCellCount = 65;
     std::array<MinimapCell, OverviewCellCount * OverviewCellCount> overviewCells{};
+    std::array<std::pair<int, int>, OverviewCellCount * OverviewCellCount>
+        overviewObservedPositions{};
+    int overviewStep = ExplorationAtlas::MetresPerCell;
     bool mapFlatOverview = true;
     bool mapMarkerPanel = false;
     std::uint32_t selectedMapMarkerId = 0;
@@ -5895,6 +5898,7 @@ void OgreUserInterface::setWorldContext(Player *player,
     m_impl->editMapMarkerName.fill(0);
     m_impl->mapMarkerFeedbackKey.clear();
     m_impl->overviewOffsetX = m_impl->overviewOffsetZ = 0;
+    m_impl->overviewStep = ExplorationAtlas::MetresPerCell;
     m_impl->overviewPanRemainderX = m_impl->overviewPanRemainderZ = 0.f;
     m_impl->overviewValid = false;
     if (world != nullptr)
