@@ -411,7 +411,7 @@ World::World(const Camera &camera, const Config &config, Player &player,
     std::string mapError;
     const auto mapStatus = m_explorationMapStore.load(
         mapIdentity, m_explorationAtlas, m_explorationMarkers,
-        m_knownWaystoneSite, &mapError);
+        m_knownWaystoneSite, m_boundWaystoneSite, &mapError);
     m_explorationMapFull =
         m_explorationAtlas.tileCount() == ExplorationAtlas::MaxTiles;
     if (mapStatus == ExplorationMapStore::LoadStatus::Corrupt ||
@@ -485,20 +485,22 @@ World::World(const Camera &camera, const Config &config, Player &player,
         [this](const SandboxEvent& event) {
             const auto& placed = static_cast<const BlockPlaceEvent&>(event);
             if (placed.blockId == BlockId::WaystoneCore)
-                rememberWaystoneSite(placed.position);
+                rememberWaystoneSite(placed.position, false);
         }, SandboxEventSubscriptionOptions::domainMutation(
             "World.KnownWaystonePlacement"));
     m_eventBus.subscribe(SandboxEventType::BlockBreak,
         [this](const SandboxEvent& event) {
             const auto& broken = static_cast<const BlockBreakEvent&>(event);
-            if (broken.blockId != BlockId::WaystoneCore ||
-                !m_knownWaystoneSite) return;
-            const auto& site = *m_knownWaystoneSite;
-            if (site.worldX == broken.position.x &&
-                site.worldY == broken.position.y &&
-                site.worldZ == broken.position.z) {
-                m_knownWaystoneSite.reset();
-                m_explorationMapDirty = true;
+            if (broken.blockId != BlockId::WaystoneCore) return;
+            for (auto* recorded : {&m_knownWaystoneSite, &m_boundWaystoneSite}) {
+                if (!*recorded) continue;
+                const auto& site = **recorded;
+                if (site.worldX == broken.position.x &&
+                    site.worldY == broken.position.y &&
+                    site.worldZ == broken.position.z) {
+                    recorded->reset();
+                    m_explorationMapDirty = true;
+                }
             }
         }, SandboxEventSubscriptionOptions::domainMutation(
             "World.KnownWaystoneRemoval"));
@@ -3532,19 +3534,28 @@ World::trackedExplorationMarker() const
 std::optional<ExplorationMapStore::KnownSite>
 World::knownWaystoneTaskSite() const noexcept
 {
-    if (m_knownWaystoneSite) return m_knownWaystoneSite;
-    if (!m_waystoneAnchor) return std::nullopt;
-    return ExplorationMapStore::KnownSite{
+    if (m_boundWaystoneSite) return m_boundWaystoneSite;
+    if (m_waystoneAnchor) return ExplorationMapStore::KnownSite{
         m_waystoneAnchor->x, m_waystoneAnchor->y, m_waystoneAnchor->z};
+    // A v3 discovery may be an unrelated, later placement. Do not promote it
+    // to an active encounter binding merely because the task has progressed.
+    return getWorldOutcomeSnapshot().phase == WorldOutcomePhase::Unstarted
+        ? m_knownWaystoneSite : std::nullopt;
 }
 
-void World::rememberWaystoneSite(const glm::ivec3& position) noexcept
+void World::rememberWaystoneSite(const glm::ivec3& position,
+                                bool bindTask) noexcept
 {
     const ExplorationMapStore::KnownSite observed{
         position.x, position.y, position.z};
-    if (m_knownWaystoneSite == observed) return;
-    m_knownWaystoneSite = observed;
-    m_explorationMapDirty = true;
+    if (m_knownWaystoneSite != observed) {
+        m_knownWaystoneSite = observed;
+        m_explorationMapDirty = true;
+    }
+    if (bindTask && m_boundWaystoneSite != observed) {
+        m_boundWaystoneSite = observed;
+        m_explorationMapDirty = true;
+    }
 }
 
 ExplorationMarkers::Result World::createExplorationMarker(
@@ -3647,7 +3658,7 @@ bool World::saveExplorationMap()
     StorageTransactionMetrics metrics;
     if (!m_explorationMapStore.save(identity, m_explorationAtlas,
                                     m_explorationMarkers,
-                                    m_knownWaystoneSite, {}, &metrics)) {
+                                    m_knownWaystoneSite, m_boundWaystoneSite, {}, &metrics)) {
         std::cerr << "Unable to save exploration map: "
                   << metrics.error << '\n';
         return false;

@@ -162,6 +162,7 @@ bool ExplorationMapStore::parseFile(const std::string& path,
                                     ExplorationAtlas& atlas,
                                     ExplorationMarkers& markers,
                                     std::optional<KnownSite>& knownWaystone,
+                                    std::optional<KnownSite>& boundWaystone,
                                     std::string& error)
 {
     std::vector<char> bytes;
@@ -180,7 +181,7 @@ bool ExplorationMapStore::parseFile(const std::string& path,
     std::uint32_t version = 0;
     std::uint8_t idLength = 0;
     if (!reader.read32(version) ||
-        (version != 1 && version != 2 && version != FormatVersion) ||
+        (version < 1 || version > FormatVersion) ||
         !reader.read8(idLength) || idLength == 0 || idLength > 64 ||
         reader.offset() + idLength > bytes.size()) {
         error = "map version or identity length differs";
@@ -208,7 +209,7 @@ bool ExplorationMapStore::parseFile(const std::string& path,
                           fixedBytes != bytes.size())) ||
         (version >= 2 &&
          fixedBytes + 8 + std::size_t(markerCount) * 14 +
-             (version == FormatVersion ? 1 : 0) > bytes.size())) {
+             (version >= 3 ? 1 : 0) + (version >= 4 ? 1 : 0) > bytes.size())) {
         error = "map identity, count or length is invalid";
         return false;
     }
@@ -309,8 +310,8 @@ bool ExplorationMapStore::parseFile(const std::string& path,
             return false;
         }
     }
-    std::optional<KnownSite> parsedSite;
-    if (version == FormatVersion) {
+    std::optional<KnownSite> parsedSite, parsedBinding;
+    const auto readSite = [&](std::optional<KnownSite>& site) {
         std::uint8_t present = 0;
         if (!reader.read8(present) || present > 1) {
             error = "map known site flag is invalid";
@@ -328,9 +329,12 @@ bool ExplorationMapStore::parseFile(const std::string& path,
                 error = "map known site height is invalid";
                 return false;
             }
-            parsedSite = KnownSite{signed32(rawX), y, signed32(rawZ)};
+            site = KnownSite{signed32(rawX), y, signed32(rawZ)};
         }
-    }
+        return true;
+    };
+    if ((version >= 3 && !readSite(parsedSite)) ||
+        (version >= 4 && !readSite(parsedBinding))) return false;
     if (reader.offset() != bytes.size() - 8) {
         error = "map page length differs";
         return false;
@@ -338,6 +342,7 @@ bool ExplorationMapStore::parseFile(const std::string& path,
     atlas = std::move(parsed);
     markers = std::move(parsedMarkers);
     knownWaystone = parsedSite;
+    boundWaystone = parsedBinding;
     return true;
 }
 
@@ -406,9 +411,19 @@ ExplorationMapStore::LoadStatus ExplorationMapStore::load(
     ExplorationMarkers& markers,
     std::optional<KnownSite>& knownWaystone, std::string* error) const
 {
+    std::optional<KnownSite> ignored;
+    return load(expected, atlas, markers, knownWaystone, ignored, error);
+}
+
+ExplorationMapStore::LoadStatus ExplorationMapStore::load(
+    const Identity& expected, ExplorationAtlas& atlas,
+    ExplorationMarkers& markers, std::optional<KnownSite>& knownWaystone,
+    std::optional<KnownSite>& boundWaystone, std::string* error) const
+{
     atlas.clear();
     markers.clear();
     knownWaystone.reset();
+    boundWaystone.reset();
     if (error != nullptr) {
         error->clear();
     }
@@ -428,7 +443,7 @@ ExplorationMapStore::LoadStatus ExplorationMapStore::load(
     Identity loadedIdentity;
     std::string localError;
     if (!parseFile(filePath(), loadedIdentity, atlas, markers,
-                   knownWaystone,
+                   knownWaystone, boundWaystone,
                    localError)) {
         if (error != nullptr) {
             *error = localError;
@@ -443,6 +458,7 @@ ExplorationMapStore::LoadStatus ExplorationMapStore::load(
         atlas.clear();
         markers.clear();
         knownWaystone.reset();
+        boundWaystone.reset();
         if (error != nullptr) {
             *error = "map belongs to another world identity";
         }
@@ -455,11 +471,13 @@ bool ExplorationMapStore::save(
     const Identity& identity, const ExplorationAtlas& atlas,
     const ExplorationMarkers& markers,
     const std::optional<KnownSite>& knownWaystone,
+    const std::optional<KnownSite>& boundWaystone,
     const StorageTransactionOptions& options,
     StorageTransactionMetrics* metrics) const
 {
     std::string markerError;
-    const bool siteValid = !knownWaystone || knownWaystone->worldY > 0;
+    const bool siteValid = (!knownWaystone || knownWaystone->worldY > 0) &&
+        (!boundWaystone || boundWaystone->worldY > 0);
     if (!validIdentity(identity) || atlas.tileCount() >
             ExplorationAtlas::MaxTiles ||
         !validateMarkers(atlas, markers, markerError) ||
@@ -492,7 +510,7 @@ bool ExplorationMapStore::save(
     std::vector<char> bytes;
     bytes.reserve(64 + atlas.tileCount() * TileBytes +
                   markers.size() * (14 + ExplorationMarkers::MaxNameBytes) +
-                  13);
+                  26);
     bytes.insert(bytes.end(), Magic.begin(), Magic.end());
     append32(bytes, FormatVersion);
     append8(bytes, static_cast<std::uint8_t>(identity.worldId.size()));
@@ -540,12 +558,16 @@ bool ExplorationMapStore::save(
         append8(bytes, static_cast<std::uint8_t>(marker.name.size()));
         bytes.insert(bytes.end(), marker.name.begin(), marker.name.end());
     }
-    append8(bytes, knownWaystone.has_value() ? 1 : 0);
-    if (knownWaystone) {
-        append32(bytes, static_cast<std::uint32_t>(knownWaystone->worldX));
-        append32(bytes, static_cast<std::uint32_t>(knownWaystone->worldY));
-        append32(bytes, static_cast<std::uint32_t>(knownWaystone->worldZ));
-    }
+    const auto appendSite = [&](const std::optional<KnownSite>& site) {
+        append8(bytes, site.has_value() ? 1 : 0);
+        if (site) {
+            append32(bytes, static_cast<std::uint32_t>(site->worldX));
+            append32(bytes, static_cast<std::uint32_t>(site->worldY));
+            append32(bytes, static_cast<std::uint32_t>(site->worldZ));
+        }
+    };
+    appendSite(knownWaystone);
+    appendSite(boundWaystone);
     append64(bytes, hashPrefix(bytes, bytes.size()));
     if (bytes.size() > MaxFileBytes) {
         if (metrics != nullptr) {
@@ -560,9 +582,9 @@ bool ExplorationMapStore::save(
             Identity validatedIdentity;
             ExplorationAtlas validated;
             ExplorationMarkers validatedMarkers;
-            std::optional<KnownSite> validatedSite;
+            std::optional<KnownSite> validatedSite, validatedBinding;
             if (!parseFile(candidate, validatedIdentity, validated,
-                           validatedMarkers, validatedSite,
+                           validatedMarkers, validatedSite, validatedBinding,
                            validationError)) {
                 return false;
             }
@@ -575,7 +597,7 @@ bool ExplorationMapStore::save(
                 validatedMarkers.m_nextId != markers.m_nextId ||
                 validatedMarkers.m_trackedId != markers.m_trackedId ||
                 validatedMarkers.size() != markers.size() ||
-                validatedSite != knownWaystone) {
+                validatedSite != knownWaystone || validatedBinding != boundWaystone) {
                 validationError = "map candidate identity or count differs";
                 return false;
             }
@@ -645,10 +667,10 @@ bool ExplorationMapStore::validateFile(const std::string& path,
     Identity identity;
     ExplorationAtlas atlas;
     ExplorationMarkers markers;
-    std::optional<KnownSite> knownWaystone;
+    std::optional<KnownSite> knownWaystone, boundWaystone;
     std::string localError;
     const bool valid = parseFile(path, identity, atlas, markers,
-                                 knownWaystone,
+                                 knownWaystone, boundWaystone,
                                  localError);
     if (error != nullptr) {
         *error = localError;

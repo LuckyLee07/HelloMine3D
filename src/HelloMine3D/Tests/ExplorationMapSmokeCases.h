@@ -2,8 +2,74 @@
 
 // Included by WorldRuntimeSmokeMain after its shared fixture helpers.
 namespace {
+void caseWaystoneMapBinding()
+{
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", "42");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8.5 201 8.5");
+    const auto directory = freshSaveDirectory("map_task_binding");
+    Config config = makeConfig(); Camera camera(config);
+    const glm::ivec3 active{9,201,8}, other{11,201,8};
+    {
+        Player player;
+        World world(camera,config,player,directory,false,0);
+        for (int x = 1; x < 16; ++x) for (int z = 1; z < 16; ++z) {
+            world.setBlock(x,200,z,BlockId::Stone);
+            world.setBlock(x,201,z,BlockId::Air);
+            world.setBlock(x,202,z,BlockId::Air);
+        }
+        world.setBlock(active.x,active.y,active.z,BlockId::WaystoneCore);
+        const bool initialized = world.initializeWaystone(active);
+        player.addItem(Material::IRON_INGOT,WaystoneEncounter::ActivationIronIngots);
+        const auto activation = world.useWaystone(active,player,true);
+        const auto encounter = world.useWaystone(active,player,true);
+        player.addItem(Material::WAYSTONE_CORE,1);
+        for (int slot = 0; slot < 5; ++slot) {
+            PlayerInputState input; input.hotbarSlot = slot; player.applyInput(input);
+            if (player.getHeldItems().getMaterial().id == Material::ID::WaystoneCore)
+                break;
+        }
+        const bool placed = BlockInteractionSystem::placeBlock(world,player,glm::vec3(other));
+        const auto site = world.knownWaystoneTaskSite();
+        check("MAP5/extra-placement-keeps-active-encounter-binding",
+            initialized && activation == WaystoneActionResult::Activated &&
+            encounter == WaystoneActionResult::EncounterStarted && placed &&
+            site && site->worldX == active.x && site->worldY == active.y &&
+            site->worldZ == active.z && world.save());
+    }
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "512 201 512");
+    {
+        Player player;
+        World world(camera,config,player,directory,false,0);
+        const auto site = world.knownWaystoneTaskSite();
+        check("MAP5/active-task-binding-survives-distant-reopen",
+            site && site->worldX == active.x && site->worldY == active.y &&
+            !world.getChunkManager().chunkLoadedAt(0,0));
+    }
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8.5 201 8.5");
+    {
+        Player player;
+        World world(camera,config,player,directory,false,0);
+        const bool removedOther = BlockInteractionSystem::breakBlock(
+            world,player,glm::vec3(other));
+        const auto site = world.knownWaystoneTaskSite();
+        check("MAP5/removing-extra-waystone-keeps-binding",
+            removedOther && site && site->worldX == active.x);
+        check("MAP5/removing-bound-waystone-clears-binding",
+            BlockInteractionSystem::breakBlock(world,player,glm::vec3(active)) &&
+            !world.knownWaystoneTaskSite() && world.save());
+    }
+    {
+        Player player;
+        World world(camera,config,player,directory,false,0);
+        check("MAP5/removed-binding-stays-cleared", !world.knownWaystoneTaskSite());
+    }
+    clearDeterministicEnv();
+}
+
 void caseExplorationMapLifecycle()
 {
+    caseWaystoneMapBinding();
     const std::string directory =
         freshSaveDirectory("adventure_exploration_map");
     setEnv("HELLOMINE3D_SEED", "42");

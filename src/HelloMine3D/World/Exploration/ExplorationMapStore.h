@@ -13,7 +13,7 @@
 // a reason to reject the authoritative world metadata or chunk storage.
 class ExplorationMapStore {
   public:
-    static constexpr std::uint32_t FormatVersion = 3;
+    static constexpr std::uint32_t FormatVersion = 4;
     static constexpr std::size_t MaxFileBytes = 64u * 1024u * 1024u;
 
     struct Identity {
@@ -50,9 +50,15 @@ class ExplorationMapStore {
                     ExplorationMarkers& markers,
                     std::optional<KnownSite>& knownWaystone,
                     std::string* error = nullptr) const;
+    LoadStatus load(const Identity& expected, ExplorationAtlas& atlas,
+                    ExplorationMarkers& markers,
+                    std::optional<KnownSite>& knownWaystone,
+                    std::optional<KnownSite>& boundWaystone,
+                    std::string* error = nullptr) const;
     bool save(const Identity& identity, const ExplorationAtlas& atlas,
               const ExplorationMarkers& markers,
               const std::optional<KnownSite>& knownWaystone,
+              const std::optional<KnownSite>& boundWaystone,
               const StorageTransactionOptions& options = {},
               StorageTransactionMetrics* metrics = nullptr) const;
     // Keep a damaged or foreign primary for inspection before a new map is
@@ -69,6 +75,7 @@ class ExplorationMapStore {
                           ExplorationAtlas& atlas,
                           ExplorationMarkers& markers,
                           std::optional<KnownSite>& knownWaystone,
+                          std::optional<KnownSite>& boundWaystone,
                           std::string& error);
     static bool validateMarkers(const ExplorationAtlas& atlas,
                                 const ExplorationMarkers& markers,
