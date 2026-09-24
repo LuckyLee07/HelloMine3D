@@ -3216,6 +3216,24 @@ class OgreUserInterface::Impl
         }
         const auto markers = world->explorationMarkers();
         const auto tracked = world->trackedExplorationMarker();
+        const auto objective = world->getObjectiveSnapshot(!trackedObjectiveId.empty());
+        std::string taskId = objective.currentId;
+        std::string taskTitle = objective.title;
+        if (!trackedObjectiveId.empty())
+        {
+            const auto entry = std::find_if(objective.journal.begin(),
+                objective.journal.end(), [&](const auto& value) {
+                    return value.id == trackedObjectiveId && value.available;
+                });
+            if (entry != objective.journal.end())
+            {
+                taskId = entry->id;
+                taskTitle = entry->title;
+            }
+        }
+        const auto taskAnchor = world->getWaystoneEncounterSnapshot();
+        const bool taskLocated = ExplorationNavigation::knownWaystoneTask(
+            taskId, taskAnchor.anchorKnown);
         for (const auto& marker : markers)
         {
             const float mx = grid.x + side * .5f +
@@ -3246,6 +3264,30 @@ class OgreUserInterface::Impl
                     marker.worldX, marker.worldZ);
                 if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
                     selectedMapMarkerId = marker.id;
+            }
+        }
+        if (taskLocated)
+        {
+            const float mx = grid.x + side * .5f +
+                static_cast<float>(static_cast<std::int64_t>(taskAnchor.anchor.x) - centerX) /
+                step * pixel;
+            const float mz = grid.y + side * .5f +
+                static_cast<float>(static_cast<std::int64_t>(taskAnchor.anchor.z) - centerZ) /
+                step * pixel;
+            if (mx >= grid.x + 5.f && mx <= grid.x + side - 5.f &&
+                mz >= grid.y + 5.f && mz <= grid.y + side - 5.f)
+            {
+                draw->AddCircleFilled(ImVec2(mx, mz), 7.f * scale,
+                    IM_COL32(17, 29, 35, 255));
+                draw->AddQuadFilled(ImVec2(mx, mz - 5.f * scale),
+                    ImVec2(mx + 5.f * scale, mz),
+                    ImVec2(mx, mz + 5.f * scale),
+                    ImVec2(mx - 5.f * scale, mz),
+                    IM_COL32(232, 188, 115, 255));
+                if (hovered && std::abs(io.MousePos.x - mx) < 8.f * scale &&
+                    std::abs(io.MousePos.y - mz) < 8.f * scale)
+                    ImGui::SetTooltip("%s · X %d  Z %d", taskTitle.c_str(),
+                        taskAnchor.anchor.x, taskAnchor.anchor.z);
             }
         }
         const float px = grid.x + side * .5f +
@@ -3291,6 +3333,21 @@ class OgreUserInterface::Impl
                 tracked->worldX, tracked->worldZ);
             ImGui::TextWrapped("%s: %s · %s  %llu m",
                 tr("map.marker_tracking").c_str(), tracked->name.c_str(),
+                tr(directions[bearing.octant]).c_str(),
+                static_cast<unsigned long long>(bearing.metres));
+        }
+        if (taskLocated)
+        {
+            constexpr const char* directions[] = {
+                "map.direction_n", "map.direction_ne", "map.direction_e",
+                "map.direction_se", "map.direction_s", "map.direction_sw",
+                "map.direction_w", "map.direction_nw"};
+            const auto bearing = ExplorationNavigation::toward(
+                World::toBlockCoord(state.position.x),
+                World::toBlockCoord(state.position.z),
+                taskAnchor.anchor.x, taskAnchor.anchor.z);
+            ImGui::TextWrapped("%s: %s · %s  %llu m",
+                tr("map.objective_destination").c_str(), taskTitle.c_str(),
                 tr(directions[bearing.octant]).c_str(),
                 static_cast<unsigned long long>(bearing.metres));
         }

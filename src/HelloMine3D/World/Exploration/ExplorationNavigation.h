@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <string_view>
 
 // A north-up bearing to a location the player has already chosen or found.
 // World coordinates are widened before subtraction so old extreme-coordinate
@@ -13,6 +14,19 @@ struct Bearing {
     // Clockwise from north: N, NE, E, SE, S, SW, W, NW.
     int octant = 0;
 };
+
+// Only stages tied to the Waystone the player actually used can point to its
+// runtime anchor. Earlier exploration goals have no authoritative location.
+inline bool knownWaystoneTask(std::string_view objectiveId,
+                              bool anchorKnown) noexcept
+{
+    return anchorKnown &&
+        (objectiveId == "finale.prepare_ritual" ||
+         objectiveId == "finale.activate_waystone" ||
+         objectiveId == "finale.defeat_stalkers" ||
+         objectiveId == "finale.defeat_brute" ||
+         objectiveId == "finale.claim_reward");
+}
 
 inline Bearing toward(int fromX, int fromZ, int toX, int toZ) noexcept
 {

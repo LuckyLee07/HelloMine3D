@@ -30,7 +30,21 @@ int main()
             INT_MIN, INT_MAX, INT_MAX, INT_MIN);
         require(extreme.octant == 1 && extreme.metres > 6000000000ull,
                 "extreme old-world coordinates overflowed");
-        std::cout << "[EXPLORATION_NAVIGATION] checks=10 failures=0\n";
+        require(!ExplorationNavigation::knownWaystoneTask(
+                    "finale.defeat_brute", false) &&
+                    !ExplorationNavigation::knownWaystoneTask(
+                    "exploration.recover_waystone", true) &&
+                    !ExplorationNavigation::knownWaystoneTask(
+                    "exploration.restore_waystone", true),
+                "unrevealed task acquired a generated destination");
+        require(ExplorationNavigation::knownWaystoneTask(
+                    "finale.prepare_ritual", true) &&
+                    ExplorationNavigation::knownWaystoneTask(
+                    "finale.defeat_brute", true) &&
+                    ExplorationNavigation::knownWaystoneTask(
+                    "finale.claim_reward", true),
+                "known Waystone stage lost its observed destination");
+        std::cout << "[EXPLORATION_NAVIGATION] checks=12 failures=0\n";
     }
     catch (const std::exception& error) {
         std::cerr << "[EXPLORATION_NAVIGATION] FAIL " << error.what() << '\n';
