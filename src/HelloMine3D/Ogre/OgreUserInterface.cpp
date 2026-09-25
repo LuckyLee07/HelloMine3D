@@ -1689,7 +1689,8 @@ class OgreUserInterface::Impl
                 settingsApplyPending = false;
                 playUiFeedback();
             }
-            ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
+            if (!compact) ImGui::Spacing();
+            ImGui::Separator(); ImGui::Spacing();
             const auto worldAt = ImGui::GetCursorScreenPos();
             const float worldWidth = ImGui::GetContentRegionAvail().x;
             const auto foldId = ImGui::GetID("##PauseWorldExpanded");
