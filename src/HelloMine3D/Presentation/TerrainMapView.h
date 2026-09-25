@@ -123,7 +123,7 @@ namespace TerrainMapView
                const View& view, std::vector<Face>& faces)
     {
         faces.clear();
-        if (count < 1 || count > 65 || step < 1 || step > 4 ||
+        if (count < 1 || count > 129 || step < 1 || step > 32 ||
             cells.size() != static_cast<std::size_t>(count * count) || !std::isfinite(baseHeight)) return;
         faces.reserve(cells.size() * 3);
         const Projection project(view);

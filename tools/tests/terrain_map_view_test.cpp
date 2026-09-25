@@ -1,4 +1,5 @@
 #include "../../src/HelloMine3D/Presentation/TerrainMapView.h"
+#include "../../src/HelloMine3D/Presentation/MapSurfaceRegion.h"
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
@@ -10,7 +11,7 @@ void check(bool value, const char* label) {
     ++checks;
     if (!value) { std::cerr << "FAIL " << label << '\n'; std::exit(1); }
 }
-struct Sample { bool known = false; int height = 0; };
+struct Sample { bool known = false; int height = 0; int material = 0; };
 }
 int main() {
     using namespace TerrainMapView;
@@ -103,5 +104,50 @@ int main() {
     check(overview.step==4 && overview.zoom==16,"zoom in has bounded geometry and magnification");
     const auto saved=overview; overview.change(std::numeric_limits<float>::quiet_NaN());
     check(overview.step==saved.step && overview.zoom==saved.zoom,"invalid zoom ignored");
+    MapSurfaceRegion<Sample> region;
+    check(region.configure(500,438,8) && region.step==4 && region.count==73,
+        "detail scope follows render chunks rather than 130m minimap");
+    check(region.centerZ==436 && region.count*region.step>=17*16,
+        "render window covered including chunk-centre margin");
+    const auto first=region.nextBatch();
+    check(first.size()==195 && first.front().x==500 && first.front().z==436,
+        "bounded centre-first surface batch");
+    const auto revision=region.revision;
+    check(!region.accept(first,{}) && region.cursor==0 && region.revision==revision,
+        "lock contention cannot publish or skip pending observations");
+    std::vector<bool> visited(region.cells.size(),false);
+    for (int n=0;n<(int(region.cells.size())+194)/195;++n) {
+        const auto batch=region.nextBatch();std::vector<Sample> samples;
+        for (const auto& q:batch) {
+            samples.push_back({true,70+(q.x/4+q.z/4)%20,0}); visited[q.cell]=true;
+        }
+        region.accept(batch,samples);
+    }
+    check(std::all_of(visited.begin(),visited.end(),[](bool v){return v;}),
+        "one bounded sweep visits every column across all render chunks");
+    check(region.surfaceHeight(500,438).has_value() && !region.surfaceHeight(9000,9000),
+        "player marker uses only its observed ground not flying altitude");
+    const auto ground=region.surfaceHeight(500,438);
+    build(region.cells,region.count,region.step,*ground,view,faces);
+    check(faces.size()>=region.cells.size() && faces.size()<=region.cells.size()*3,
+        "expanded region geometry remains bounded and includes every known top");
+    check(!region.configure(501,439,8),"subcell movement keeps exact sampled coordinates");
+    check(region.configure(-1,-1,8) && region.centerX==-4 && region.centerZ==-4 &&
+        !region.surfaceHeight(-1,-1),"negative relocation clears old-world-coordinate cache");
+    auto batch=region.nextBatch();std::vector<Sample> known(batch.size(),{true,90,0});
+    region.accept(batch,known);region.cursor=0;
+    region.accept(region.nextBatch(),std::vector<Sample>(batch.size()));
+    check(!region.surfaceHeight(-1,-1),"eviction removes stale live terrain");
+    region.configure(std::numeric_limits<int>::max(),std::numeric_limits<int>::min(),64);
+    check(region.count<=129 && region.step<=32 && region.nextBatch().size()<=195,
+        "extreme coordinates and render distance remain bounded");
+    bool sane=true;
+    for(const auto& q:region.nextBatch()) sane &= q.cell>=0 && q.cell<int(region.cells.size());
+    check(sane,"overflow boundary cannot wrap samples to opposite world edge");
+    region.configure(0,0,15);
+    check(region.count==129 && region.step==4,"largest detailed sampling side is fixed");
+    for(auto& c:region.cells)c={true,80,0};
+    build(region.cells,region.count,region.step,80,view,faces);
+    check(faces.size()==129*129,"maximum flat surface has no invented walls");
     std::cout<<"PASS "<<checks<<" checks; 65x65 build+sort mean "<<ms<<" ms; faces "<<faces.size()<<'\n';
 }

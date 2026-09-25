@@ -48,6 +48,7 @@
 #include "../Presentation/HudInteraction.h"
 #include "../Presentation/ExplorationMapInteraction.h"
 #include "../Presentation/TerrainMapView.h"
+#include "../Presentation/MapSurfaceRegion.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/GameApplicationFlow.h"
 #include "../Util/ResourcePaths.h"
@@ -2907,7 +2908,7 @@ class OgreUserInterface::Impl
             positions.push_back({centerX + (x - MinimapCellCount / 2) * minimapStep,
                 centerZ + ((minimapRefreshRow + row) % MinimapCellCount -
                            MinimapCellCount / 2) * minimapStep});
-        const auto samples = world->getChunkManager().collectSurfaceMapSamples(positions);
+        const auto samples = world->observeSurfaceMap(positions);
         if (samples.empty()) return; // Lock contention defers observation only.
         for (int row = 0; row < rowsPerRefresh; ++row)
         for (int x = 0; x < MinimapCellCount; ++x)
@@ -3346,6 +3347,9 @@ class OgreUserInterface::Impl
                 overviewObservedPositions[index] =
                     {samples[index].worldX, samples[index].worldZ};
             }
+            if (overviewFollowsFit && overviewSourceRevision != detailMap.revision)
+                overviewAutoFit = true;
+            overviewSourceRevision = detailMap.revision;
             overviewValid = true;
             overviewNextRefresh = hudElapsedSeconds + 1.0;
         }
@@ -3736,9 +3740,34 @@ class OgreUserInterface::Impl
             ImGui::TextWrapped("%s", statusMessage.c_str());
     }
 
+    void refreshDetailMap(const PlayerSaveState& state)
+    {
+        const bool reset = detailMap.configure(World::toBlockCoord(state.position.x),
+            World::toBlockCoord(state.position.z), world->getRenderDistance());
+        if (reset) {
+            selectedMapCell = -1;
+            detailMapNextRefresh = 0;
+            if (overviewFollowsFit) {
+                overviewScale = {};
+                while (OverviewCellCount * overviewScale.step < detailMap.count * detailMap.step)
+                    overviewScale.step *= 2;
+                overviewAutoFit = true;
+            }
+            overviewValid = false;
+        }
+        if (hudElapsedSeconds < detailMapNextRefresh) return;
+        detailMapNextRefresh = hudElapsedSeconds + 1.0 / 30.0;
+        const auto batch = detailMap.nextBatch();
+        std::vector<VectorXZ> positions;
+        positions.reserve(batch.size());
+        for (const auto& query : batch) positions.push_back({query.x, query.z});
+        detailMap.accept(batch, world->observeSurfaceMap(positions));
+    }
+
     void drawTerrainMap(const PlayerSaveState& state)
     {
         if (world == nullptr) return;
+        refreshDetailMap(state);
         const auto& io = ImGui::GetIO();
         const float scale = appliedSettings.uiScale;
         GameInterfaceWidgets::OverlayStyle theme(scale);
@@ -3842,7 +3871,9 @@ class OgreUserInterface::Impl
                 drawExplorationOverview(state);
                 ImGui::EndChild(); footer(); ImGui::End(); return;
             }
-            refreshMinimap(state);
+            const auto& mapCells = detailMap.cells;
+            const int mapCount = detailMap.count, mapStep = detailMap.step;
+            const int mapCenterX = detailMap.centerX, mapCenterZ = detailMap.centerZ;
             const float width = ImGui::GetContentRegionAvail().x;
             const bool wide = width > 760.f * scale;
             const float legendWidth = wide ? 228.f * scale : 0.f;
@@ -3860,19 +3891,20 @@ class OgreUserInterface::Impl
                 mapGesture.update(mapView, io.MousePos.x, io.MousePos.y, size.x, size.y,
                     ImGui::IsMouseDown(mapGesture.button));
             mapView.constrain();
-            const float baseHeight = std::floor(state.position.y);
-            if (mapBuiltRevision != minimapRevision || mapBuiltYaw != mapView.yaw ||
+            const auto playerSurface = detailMap.surfaceHeight(state.position.x, state.position.z);
+            const float baseHeight = playerSurface.value_or(0.f);
+            if (mapBuiltRevision != detailMap.revision || mapBuiltYaw != mapView.yaw ||
                 mapBuiltPitch != mapView.pitch || mapBuiltBase != baseHeight)
             {
-                TerrainMapView::build(minimapCells, MinimapCellCount, minimapStep, baseHeight, mapView, mapFaces);
+                TerrainMapView::build(mapCells, mapCount, mapStep, baseHeight, mapView, mapFaces);
                 mapBounds={};
                 for (const auto& face : mapFaces) for (const auto& p : face.points) mapBounds.include(p);
                 mapFloorHeight=baseHeight;
-                for (const auto& cell : minimapCells) if (cell.known) mapFloorHeight=std::min(mapFloorHeight,float(cell.height));
-                mapBuiltRevision = minimapRevision; mapBuiltYaw = mapView.yaw;
+                for (const auto& cell : mapCells) if (cell.known) mapFloorHeight=std::min(mapFloorHeight,float(cell.height));
+                mapBuiltRevision = detailMap.revision; mapBuiltYaw = mapView.yaw;
                 mapBuiltPitch = mapView.pitch; mapBuiltBase = baseHeight;
             }
-            const float pixels = mapBounds.fittedScale(size.x,size.y,MinimapCellCount*minimapStep*.35f)*mapView.zoom;
+            const float pixels = mapBounds.fittedScale(size.x,size.y,mapCount*mapStep*.35f)*mapView.zoom;
             const ImVec2 center(origin.x+size.x*(.5f+mapView.panX)-(mapBounds.minX+mapBounds.maxX)*.5f*pixels,
                 origin.y+size.y*(.5f+mapView.panY)-(mapBounds.minY+mapBounds.maxY)*.5f*pixels);
             const auto screen = [&](const TerrainMapView::Point& point) { return ImVec2(center.x + point.x * pixels, center.y + point.y * pixels); };
@@ -3881,9 +3913,9 @@ class OgreUserInterface::Impl
             draw->AddRectFilled(origin,edge,IM_COL32(20,35,42,255));
             draw->PushClipRect(origin,edge,true);
             const TerrainMapView::Projection project(mapView);
-            const float extent=MinimapCellCount*minimapStep*2.f;
+            const float extent=mapCount*mapStep*2.f;
             const float floor=mapFloorHeight-baseHeight-1.f;
-            for (float line=-extent;line<=extent;line+=8.f*minimapStep) {
+            for (float line=-extent;line<=extent;line+=8.f*mapStep) {
                 draw->AddLine(screen(project(line,floor,-extent)),screen(project(line,floor,extent)),IM_COL32(87,111,116,45));
                 draw->AddLine(screen(project(-extent,floor,line)),screen(project(extent,floor,line)),IM_COL32(87,111,116,45));
             }
@@ -3901,7 +3933,7 @@ class OgreUserInterface::Impl
                 const auto a = screen(face.points[0]), b = screen(face.points[1]), c = screen(face.points[2]), d = screen(face.points[3]);
                 if (std::max({a.x,b.x,c.x,d.x})<origin.x || std::min({a.x,b.x,c.x,d.x})>edge.x ||
                     std::max({a.y,b.y,c.y,d.y})<origin.y || std::min({a.y,b.y,c.y,d.y})>edge.y) continue;
-                const auto& cell=minimapCells[face.cell];
+                const auto& cell=mapCells[face.cell];
                 const auto& render=BlockDatabase::get().getDefinition(cell.material).render;
                 const auto tile=face.top ? render.texTopCoord : render.texSideCoord;
                 if (atlasTextureId!=ImTextureID_Invalid && atlas.containsTile(int(tile.x),int(tile.y)) && cell.material!=BlockId::Air) {
@@ -3911,7 +3943,7 @@ class OgreUserInterface::Impl
                     draw->AddImageQuad(ImTextureRef(atlasTextureId),a,b,c,d,lo,ImVec2(hi.x,lo.y),hi,ImVec2(lo.x,hi.y),
                         IM_COL32(shade,shade,shade,255));
                 } else {
-                    auto colour=ImGui::ColorConvertU32ToFloat4(minimapCellColour(face.cell%MinimapCellCount,face.cell/MinimapCellCount));
+                    auto colour=ImGui::ColorConvertU32ToFloat4(mapCellColour(mapCells.data(),mapCount,face.cell%mapCount,face.cell/mapCount));
                     colour.x*=face.shade; colour.y*=face.shade; colour.z*=face.shade;
                     draw->AddQuadFilled(a,b,c,d,ImGui::ColorConvertFloat4ToU32(colour));
                 }
@@ -3923,12 +3955,12 @@ class OgreUserInterface::Impl
                 if (face.top && (face.cell==selectedMapCell || face.cell==hoverCell))
                     draw->AddQuad(screen(face.points[0]),screen(face.points[1]),screen(face.points[2]),screen(face.points[3]),IM_COL32(255,222,137,255),2.f);
             const auto pointAt = [&](float x, float y, float z) {
-                return screen(project(x - minimapCenterX, y - baseHeight, z - minimapCenterZ));
+                return screen(project(x - mapCenterX, y - baseHeight, z - mapCenterZ));
             };
             for (const auto& landmark : navigationMemory.landmarks())
             {
-                const float dx = landmark.position.x - minimapCenterX, dz = landmark.position.z - minimapCenterZ;
-                if (std::abs(dx) > 32 * minimapStep || std::abs(dz) > 32 * minimapStep) continue;
+                const float dx = landmark.position.x - mapCenterX, dz = landmark.position.z - mapCenterZ;
+                if (std::abs(dx) > (mapCount / 2) * mapStep || std::abs(dz) > (mapCount / 2) * mapStep) continue;
                 const auto at = pointAt(landmark.position.x + .5f, landmark.position.y + 1.f, landmark.position.z + .5f);
                 const auto colour = landmark.kind == MinimapNavigation::Kind::Waystone ? IM_COL32(117,221,237,255) : IM_COL32(235,178,112,255);
                 draw->AddCircleFilled(at, 7.f * scale, IM_COL32(17,29,35,255));
@@ -3938,16 +3970,20 @@ class OgreUserInterface::Impl
                         landmark.kind == MinimapNavigation::Kind::Workbench ? "map.workbench" : "map.storage").c_str(),
                         landmark.position.x,landmark.position.y,landmark.position.z);
             }
-            const auto at = pointAt(state.position.x, state.position.y, state.position.z);
-            const auto heading = ExplorationNavigation::heading(state.rotation.y);
-            const auto facing = project(heading.x,0.f,heading.z);
-            const float facingLength = std::max(.001f,std::hypot(facing.x,facing.y));
-            const float dx = facing.x/facingLength, dy = facing.y/facingLength;
-            const auto arrow = [&](float forward,float right) {
-                return ImVec2(at.x+(dx*forward-dy*right)*scale,at.y+(dy*forward+dx*right)*scale);
-            };
-            GameInterfaceWidgets::playerArrow(draw,arrow(8.f,0.f),arrow(-4.f,-5.f),arrow(-4.f,5.f));
-            draw->AddText(ImVec2(at.x+10.f*scale,at.y-8.f*scale),IM_COL32(255,222,137,255),tr("map.player").c_str());
+            // Map navigation uses the observed surface below the player. Flying
+            // or jumping must not move the horizontal position off the terrain.
+            if (playerSurface) {
+                const auto at = pointAt(state.position.x, *playerSurface + 1.f, state.position.z);
+                const auto heading = ExplorationNavigation::heading(state.rotation.y);
+                const auto facing = project(heading.x,0.f,heading.z);
+                const float facingLength = std::max(.001f,std::hypot(facing.x,facing.y));
+                const float dx = facing.x/facingLength, dy = facing.y/facingLength;
+                const auto arrow = [&](float forward,float right) {
+                    return ImVec2(at.x+(dx*forward-dy*right)*scale,at.y+(dy*forward+dx*right)*scale);
+                };
+                GameInterfaceWidgets::playerArrow(draw,arrow(8.f,0.f),arrow(-4.f,-5.f),arrow(-4.f,5.f));
+                draw->AddText(ImVec2(at.x+10.f*scale,at.y-8.f*scale),IM_COL32(255,222,137,255),tr("map.player").c_str());
+            }
             const auto north=project(0,0,-1), east=project(1,0,0);
             GameInterfaceWidgets::compass(draw,ImVec2(origin.x+35.f*scale,origin.y+57.f*scale),north.x,north.y,scale,tr("hud.minimap_north").c_str());
             GameInterfaceWidgets::mapRuler(draw,ImVec2(edge.x-18.f*scale,edge.y-9.f*scale),pixels*std::hypot(east.x,east.y),scale);
@@ -3957,15 +3993,15 @@ class OgreUserInterface::Impl
             ImGui::BeginChild("##MapLegend", ImVec2(0,0), wide);
             ImGui::SetWindowFontScale(wide ? .82f : .72f);
             int inspection=hoverCell>=0 ? hoverCell : selectedMapCell;
-            if (inspection<0 && minimapCells[32*MinimapCellCount+32].known) inspection=32*MinimapCellCount+32;
+            if (inspection<0 && mapCells[(mapCount/2)*mapCount+mapCount/2].known) inspection=(mapCount/2)*mapCount+mapCount/2;
             if (wide) {
                 ImGui::TextUnformatted(tr("map.surface").c_str());
                 ImGui::Separator(); ImGui::Spacing();
-                mapSurfaceCard(inspection>=0 ? &minimapCells[inspection] : nullptr,
-                    minimapCenterX+(inspection%MinimapCellCount-32)*minimapStep,
-                    minimapCenterZ+(inspection/MinimapCellCount-32)*minimapStep);
+                mapSurfaceCard(inspection>=0 ? &mapCells[inspection] : nullptr,
+                    mapCenterX+(inspection%mapCount-mapCount/2)*mapStep,
+                    mapCenterZ+(inspection/mapCount-mapCount/2)*mapStep);
                 ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
-                mapMetric("map.region",std::to_string(MinimapCellCount*minimapStep)+" m");
+                mapMetric("map.region",std::to_string(mapCount*mapStep)+" m");
                 char zoom[24]; std::snprintf(zoom,sizeof(zoom),"%.1f ×",double(mapView.zoom));
                 mapMetric("map.zoom",zoom);
                 ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
@@ -3974,12 +4010,12 @@ class OgreUserInterface::Impl
                 mapLegendRow("map.workbench",IM_COL32(235,178,112,255),1);
                 mapLegendRow("map.storage",IM_COL32(235,178,112,255),1);
                 mapLegendRow("map.unexplored",IM_COL32(20,35,42,255),2);
-            } else if (inspection>=0 && minimapCells[inspection].known) {
-                const auto& cell=minimapCells[inspection];
+            } else if (inspection>=0 && mapCells[inspection].known) {
+                const auto& cell=mapCells[inspection];
                 ImGui::Text("%s · %d m · %.1fx",LocalizedPresentation::surfaceName(appliedSettings.locale,cell.material).c_str(),
-                    MinimapCellCount*minimapStep,mapView.zoom);
-                ImGui::TextDisabled("X %d  Y %d  Z %d",minimapCenterX+(inspection%MinimapCellCount-32)*minimapStep,
-                    cell.height,minimapCenterZ+(inspection/MinimapCellCount-32)*minimapStep);
+                    mapCount*mapStep,mapView.zoom);
+                ImGui::TextDisabled("X %d  Y %d  Z %d",mapCenterX+(inspection%mapCount-mapCount/2)*mapStep,
+                    cell.height,mapCenterZ+(inspection/mapCount-mapCount/2)*mapStep);
             } else ImGui::TextWrapped("%s",tr("map.select").c_str());
             ImGui::SetWindowFontScale(1.f);
             ImGui::EndChild();
@@ -6073,6 +6109,9 @@ class OgreUserInterface::Impl
     bool hudPageFixtureOpened = false;
     int inspectSlotFixture = -1;
     float hudPageFixtureSeconds = 0;
+    MapSurfaceRegion<MinimapCell> detailMap;
+    double detailMapNextRefresh = 0;
+    std::uint64_t overviewSourceRevision = 0;
     TerrainMapView::View mapView;
     std::vector<TerrainMapView::Face> mapFaces;
     TerrainMapView::Bounds mapBounds;
@@ -6312,6 +6351,10 @@ void OgreUserInterface::setWorldContext(Player *player,
     m_impl->minimapCenterZ = std::numeric_limits<int>::min();
     m_impl->minimapValid = false;
     ++m_impl->minimapRevision;
+    m_impl->detailMap = {};
+    m_impl->detailMapNextRefresh = 0;
+    m_impl->overviewSourceRevision = 0;
+    m_impl->mapBuiltRevision = 0;
     m_impl->mapFaces.clear();
     m_impl->mapView = {};
     m_impl->mapGesture = {};

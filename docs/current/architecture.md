@@ -211,7 +211,7 @@ save v12。C3 topology 没有 tick 行为，因此不存在伪造的 Network wor
 `AL-A1` 为每个公开方法分配两个正交标签：API concept 描述调用语义，responsibility 描述当前主要
 实现领域。重载只列一次；完整声明、重载、公开常量和签名由 public-surface hash 共同保护。
 
-<!-- AL-A1-WORLD-API-HASH sha256=FE361C23A6B107F05812F8FB0B3BB0B891E57CC4CBAABF7C4B5DEA2385B8E717 -->
+<!-- AL-A1-WORLD-API-HASH sha256=3F1D9BEE7D3690D75804750327AB8A7A5D93AB2AF4E4895D2087A1AF6829DBEF -->
 <!-- AL-A1-WORLD-API-MAP-BEGIN -->
 | API | Concept | Responsibility | Current boundary |
 | --- | ------- | -------------- | ---------------- |
@@ -301,6 +301,7 @@ save v12。C3 topology 没有 tick 行为，因此不存在伪造的 Network wor
 | `explorationMarkers` | `Query` | `World Query` | 复制至多 64 个已保存标记。 |
 | `exploredCellCount` | `Query` | `World Query` | 返回已观察地表数量。 |
 | `exploredOverviewAt` | `Query` | `World Query` | 仅聚合既有归档，不触发生成或加载。 |
+| `observeSurfaceMap` | `Command` | `Persistence` | 从驻留列取得有界真实观察，同时更新规范地表归档；不接受外部声称的地形。 |
 | `exploredSurfaceAt` | `Query` | `World Query` | 读取既有归档单元；未知返回空。 |
 | `knownWaystoneTaskSite` | `Query` | `Progression` | 返回真实任务绑定或适用的已知发现，不猜测坐标。 |
 | `moveExplorationMarker` | `Command` | `Progression` | 仅将现有标记移至真实已观察位置。 |
@@ -902,17 +903,17 @@ Alpha 十位兼容门面独立于通用并行机会，ID／进度／发现集合
 
 B2c 的 `NaturalPopulationRules` 仅派生地表自然生成时段与距离，World 结合实际光照／支撑块筛选，保留难度 cap 和现有 Actor／守卫；林床与淤泥进入既有小麦种植能力，无新增保存字段或地形生成版本。
 
-区域立体地图使用 `Presentation/TerrainMapView` 对小地图的 `SurfaceMapSample` 值快照进行正交投影；只绘制已知表面和相邻已知列之间的高差墙面，按深度排序并从前到后拾取。共享 65×65 样本、每次 195 列、30 Hz 预算，按样本 revision／视角重建缓存；缩放和平移无需重新采样或生成区块。手势保留按下原点，并应用最终释放位置，兼容渲染帧之间完成的快速拖动。几何、选择、发现地点与页面均为临时表现状态，切世界清理，不影响地形生成规则和存档。
+区域立体地图使用 `Presentation/TerrainMapView` 对真实 `SurfaceMapSample` 值快照进行正交投影；只绘制已知表面和相邻已知列之间的高差墙面，按深度排序并从前到后拾取。`MapSurfaceRegion` 独立覆盖渲染距离加一 chunk 对齐余量，最多 129×129 列，4–32 m 间隔；小地图仍为 65×65。两入口互斥使用每次 195 列、30 Hz 预算，按样本 revision／视角重建缓存；缩放和平移无需重新采样或生成区块。玩家箭头按当前 X/Z 对应的已观察地表定位，跳跃或飞行高度不改变地表上的平面位置。手势保留按下原点，并应用最终释放位置，兼容渲染帧之间完成的快速拖动。几何、选择、发现地点与页面均为临时表现状态，切世界清理，不影响地形生成规则和存档。
 冒险世界 B5a 新增 `World/Exploration/ExplorationAtlas`：它只接收已加载地表的值观察，
 按 4 m 单元和 32×32 单元页有界缓存，未知与已知空列分开，满额不淘汰旧记录。
 B5b 增加 `ExplorationMapStore`：世界目录内版本化、带身份与校验的独立文件，
 通过 `StorageTransaction` 发布，`WorldBackup` 可同时备份和恢复。`World` 每 10 个固定
-tick 从玩家周围最多 81 个驻留地表列采样，锁忙保持未知；观察变化后在保存及退出时
-写地图。损坏或错身份文件隔离，世界载入不被地图损坏阻断。B5c 平面地图使用
+tick 从玩家周围最多 81 个驻留地表列采样；HUD 通过 `World::observeSurfaceMap` 将自身真实采样同步归档，
+即使暂停模拟也不丢失地图中实际看到的驻留地表。归档只接纳规范 4 m 列；锁忙保持未知，观察变化后在保存及退出时写地图。损坏或错身份文件隔离，世界载入不被地图损坏阻断。B5c 平面地图使用
 归档的 65×65 个显示格，支持 4／8／16／32／64 m 每格、离开区域平移复看；缩小范围
 只汇总视口覆盖的已记录 4 m 单元，每格保留代表样本的真实坐标供标记使用。静止时
-每秒刷新一次值快照，不请求远区生成。旧局部立体视图仍使用临时驻留样本，后续继续
-完成两视图持久数据共用和任务导航。
+每秒刷新一次值快照，不请求远区生成。局部立体图只使用当前驻留样本，平面图使用同次真实观察更新后的历史归档；
+卸载清除实时缓存而不擦除历史。初始自适配跟随新增记录，手动缩放／平移后保持用户视图。
 地图文件 v2 增加 `ExplorationMarkers` 的稳定 ID、基地与追踪信息，v3 追加单一真实发现
 界石地点；仍接受 v1/v2 并对缺失字段使用未知默认。World 读写时显式保留标记与地点，
 提供创建、重命名、移动、基地、追踪和删除命令。

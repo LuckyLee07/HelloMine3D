@@ -252,6 +252,8 @@ class World : public NonCopyable {
     void resetChunkMeshes();
     void updateChunk(int blockX, int blockY, int blockZ);
     bool save();
+    std::vector<SurfaceMapSample> observeSurfaceMap(
+        const std::vector<VectorXZ>& positions);
     std::optional<ExplorationAtlas::Surface> exploredSurfaceAt(
         int worldX, int worldZ) const;
     std::vector<ExplorationAtlas::OverviewSample> exploredOverviewAt(

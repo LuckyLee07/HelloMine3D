@@ -67,8 +67,54 @@ void caseWaystoneMapBinding()
     clearDeterministicEnv();
 }
 
+void caseExplorationMapLiveObservation()
+{
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", "42");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 90 8");
+    const auto directory = freshSaveDirectory("map_live_observation");
+    Config config=makeConfig(); Camera camera(config);
+    const VectorXZ coordinate{96, -48};
+    {
+        Player player; World world(camera,config,player,directory,false,0);
+        auto& manager=world.getChunkManager();
+        manager.loadChunk(6,-3);
+        world.setBlock(coordinate.x,240,coordinate.z,BlockId::Sand);
+        const auto before=manager.getChunks().size();
+        const auto samples=world.observeSurfaceMap({coordinate,{1000000,1000000}});
+        const auto archived=world.exploredSurfaceAt(coordinate.x,coordinate.z);
+        check("MAP5/detail-observation-archives-resident-terrain-without-tick",
+            samples.size()==2 && samples[0].known && samples[0].height==240 &&
+            archived && archived->height==240 && archived->material==BlockId::Sand &&
+            !samples[1].known && !world.exploredSurfaceAt(1000000,1000000) &&
+            manager.getChunks().size()==before);
+        world.setBlock(coordinate.x+1,245,coordinate.z+1,BlockId::Stone);
+        world.observeSurfaceMap({{coordinate.x+1,coordinate.z+1}});
+        check("MAP5/dense-minimap-does-not-rewrite-canonical-archive-column",
+            world.exploredSurfaceAt(coordinate.x,coordinate.z)->material==BlockId::Sand);
+        world.setBlock(coordinate.x,240,coordinate.z,BlockId::Water);
+        const auto updated=world.observeSurfaceMap({coordinate});
+        check("MAP5/live-edit-updates-both-detail-and-archive",
+            updated[0].material==BlockId::Water &&
+            world.exploredSurfaceAt(coordinate.x,coordinate.z)->material==BlockId::Water && world.save());
+        manager.unloadChunk(6,-3);
+        const auto evicted=world.observeSurfaceMap({coordinate});
+        check("MAP5/unloaded-live-column-keeps-archived-history",
+            !evicted[0].known && world.exploredSurfaceAt(coordinate.x,coordinate.z)->material==BlockId::Water);
+    }
+    {
+        Player player; World world(camera,config,player,directory,false,0);
+        const auto saved=world.exploredSurfaceAt(coordinate.x,coordinate.z);
+        check("MAP5/paused-map-observation-persists-without-revealing-unloaded-world",
+            saved && saved->height==240 && saved->material==BlockId::Water &&
+            !world.getChunkManager().chunkLoadedAt(6,-3));
+    }
+    clearDeterministicEnv();
+}
+
 void caseExplorationMapLifecycle()
 {
+    caseExplorationMapLiveObservation();
     caseWaystoneMapBinding();
     const std::string directory =
         freshSaveDirectory("adventure_exploration_map");

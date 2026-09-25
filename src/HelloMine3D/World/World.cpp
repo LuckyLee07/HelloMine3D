@@ -3500,6 +3500,27 @@ bool World::save()
     return finish(true);
 }
 
+std::vector<SurfaceMapSample> World::observeSurfaceMap(
+    const std::vector<VectorXZ>& positions)
+{
+    // The UI supplies coordinates, never claimed terrain. Only actual resident
+    // columns can enter the archive, including while HUD input pauses ticks.
+    const auto samples = m_chunkManager.collectSurfaceMapSamples(positions);
+    if (samples.size() != positions.size()) return samples;
+    for (std::size_t i = 0; i < samples.size(); ++i) {
+        if (!samples[i].known) continue;
+        // Archive a stable canonical column per 4 m cell. Denser minimap
+        // samples must not alternate tree/ground records within that cell.
+        if (positions[i].x % ExplorationAtlas::MetresPerCell != 0 ||
+            positions[i].z % ExplorationAtlas::MetresPerCell != 0) continue;
+        const auto result = m_explorationAtlas.observe({positions[i].x,
+            positions[i].z, samples[i].height, samples[i].material, true});
+        m_explorationMapDirty |= result == ExplorationAtlas::ObserveResult::Updated;
+        m_explorationMapFull |= result == ExplorationAtlas::ObserveResult::Full;
+    }
+    return samples;
+}
+
 std::optional<ExplorationAtlas::Surface> World::exploredSurfaceAt(
     int worldX, int worldZ) const
 {
@@ -3709,23 +3730,7 @@ void World::sampleExplorationSurface()
             }
         }
     }
-    const auto samples = m_chunkManager.collectSurfaceMapSamples(positions);
-    if (samples.size() != positions.size()) {
-        return; // A contended chunk lock delays the next observation.
-    }
-    for (std::size_t index = 0; index < samples.size(); ++index) {
-        const auto& sample = samples[index];
-        if (!sample.known) {
-            continue;
-        }
-        const auto result = m_explorationAtlas.observe({
-            positions[index].x, positions[index].z, sample.height,
-            sample.material, true});
-        m_explorationMapDirty |=
-            result == ExplorationAtlas::ObserveResult::Updated;
-        m_explorationMapFull |=
-            result == ExplorationAtlas::ObserveResult::Full;
-    }
+    observeSurfaceMap(positions);
 }
 
 float World::getWorldTime() const
