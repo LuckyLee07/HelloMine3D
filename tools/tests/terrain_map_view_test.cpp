@@ -1,5 +1,6 @@
 #include "../../src/HelloMine3D/Presentation/TerrainMapView.h"
 #include "../../src/HelloMine3D/Presentation/MapSurfaceRegion.h"
+#include "../../src/HelloMine3D/Presentation/SurfaceMapHistory.h"
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
@@ -157,7 +158,12 @@ int main() {
     check(region.configure(-1,-1,8) && region.centerX==-4 && region.centerZ==-4 &&
         !region.surfaceHeight(-1,-1),"negative relocation clears old-world-coordinate cache");
     auto batch=region.nextBatch();std::vector<Sample> known(batch.size(),{true,90,0});
-    region.accept(batch,known);region.cursor=0;
+    region.accept(batch,known);
+    while (region.pendingCount()) {
+        auto pendingBatch=region.nextBatch();
+        region.accept(pendingBatch,std::vector<Sample>(pendingBatch.size(),{true,90,0}));
+    }
+    region.cursor=0;
     region.accept(region.nextBatch(),std::vector<Sample>(batch.size()));
     check(!region.surfaceHeight(-1,-1),"eviction removes stale live terrain");
     region.configure(std::numeric_limits<int>::max(),std::numeric_limits<int>::min(),64);
@@ -171,5 +177,81 @@ int main() {
     for(auto& c:region.cells)c={true,80,0};
     build(region.cells,region.count,region.step,80,view,faces);
     check(faces.size()==129*129,"maximum flat surface has no invented walls");
+    // Close/reopen does not configure a new identity; movement preserves exact
+    // overlapping observations and prioritises the newly exposed strip.
+    MapSurfaceRegion<Sample,257,2> moving;
+    moving.configure(0,0,8);
+    auto fill=[&](auto& grid) {
+        int queries=0;
+        while (grid.pendingCount()) {
+            const auto next=grid.nextBatch(); std::vector<Sample> samples;
+            for (const auto& q:next) samples.push_back({true,100+q.x/2,1});
+            queries+=int(next.size());grid.accept(next,samples);
+        }
+        return queries;
+    };
+    check(fill(moving)==21025,"initial fine view consumes exactly its bounded surface count");
+    const auto stableRevision=moving.revision;
+    check(!moving.configure(0,0,8) && moving.pendingCount()==0 && moving.revision==stableRevision,
+        "reopening without travel retains all data and pending work");
+    moving.configure(2,0,8);
+    check(moving.pendingCount()==145 && moving.surfaceHeight(0,0)==100,
+        "two metre movement retains 20880 columns and queues only one new edge");
+    auto edge=moving.nextBatch();
+    check(edge.size()==145 && std::all_of(edge.begin(),edge.end(),[](const auto&q){return q.x==146;}),
+        "new edge is serviced before already observed interior");
+    moving.accept(edge,{});
+    check(moving.pendingCount()==145,"lock busy does not lose edge priority");
+    check(fill(moving)==145,"one edge completes in one bounded update instead of a whole sweep");
+    moving.cursor=0;
+    auto updated=moving.nextBatch();
+    moving.accept(updated,std::vector<Sample>(updated.size(),{true,123,2}));
+    check(moving.surfaceHeight(2,0)==123,"retained interior still refreshes actual edits after the edge completes");
+    moving.cursor=0;moving.accept(moving.nextBatch(),std::vector<Sample>(updated.size(),{true,101,1}));
+    moving.configure(4,2,8);
+    check(moving.pendingCount()==289 && moving.surfaceHeight(0,0)==101,
+        "diagonal travel preserves overlap without duplicating the corner");
+    const auto stale=moving.nextBatch();moving.configure(6,2,8);
+    const auto pendingBefore=moving.pendingCount();
+    check(!moving.accept(stale,std::vector<Sample>(stale.size(),{true,999,2})) &&
+        moving.pendingCount()==pendingBefore,"old-centre response cannot write into reused indices");
+    fill(moving); moving.configure(6,2,16);
+    check(moving.surfaceHeight(0,0)==101 && moving.pendingCount()<moving.cells.size(),
+        "resolution change reuses only exact world coordinates");
+    moving.configure(100000,-100000,8);
+    check(moving.pendingCount()==moving.cells.size() && !moving.surfaceHeight(100000,-100000),
+        "disjoint travel never wraps old observations to new land");
+    SurfaceMapHistory<Sample,2> history;
+    history.observe(-2,-2,{true,80,1}); history.observe(0,0,{true,90,2});
+    check(history.at(-2,-2)->surface.height==80 && !history.at(2,0),
+        "recent fine history retains only actual observed columns across tile seams");
+    history.observe(-2,-2,{});
+    check(history.at(-2,-2)->surface.height==80,"unload preserves last-known fine history");
+    history.observe(-2,-2,{true,81,3});history.observe(16,0,{true,100,4});
+    check(history.tileCount()==2 && history.at(-2,-2)->surface.height==81 && !history.at(0,0),
+        "fine history updates edits and evicts least recently observed tile at capacity");
+    history.observe(3,0,{true,50,5});
+    check(!history.at(3,0) && !history.at(1e100,0),"unaligned and extreme fine samples stay unknown");
+    SurfaceMapHistory<Sample> seamHistory;
+    seamHistory.observe(14,0,{true,70,1});seamHistory.observe(16,0,{true,80,2});
+    int visible=0;bool seamCorrect=false;
+    seamHistory.visit(15.5,-.5,16.5,.5,[&](int x,int,const Sample& c,const Sample&w,const Sample&) {
+        ++visible;seamCorrect=x==16 && c.height==80 && w.height==70;
+    });
+    check(visible==1 && seamCorrect,"viewport culling and cross-tile slope preserve detailed edges");
+    seamHistory={};check(seamHistory.tileCount()==0 && !seamHistory.at(16,0),"world detach clears fine history");
+    SurfaceMapHistory<Sample> boundedHistory;
+    for (int tile=0;tile<2200;++tile) for (int z=0;z<16;z+=2) for (int x=0;x<16;x+=2)
+        boundedHistory.observe(tile*16+x,z,{true,90,1});
+    int boundedCells=0;
+    boundedHistory.visit(-1,-1,40000,20,[&](int,int,const Sample&,const Sample&,const Sample&){++boundedCells;});
+    check(boundedHistory.tileCount()==2048 && boundedCells==131072 && !boundedHistory.at(0,0),
+        "long-distance history caps both tiles and drawable fine samples");
+    boundedHistory={};
+    for (int z=-256;z<=256;z+=2) for (int x=-256;x<=256;x+=2)
+        boundedHistory.observe(x,z,{true,70,1});
+    int completeFineView=0;
+    boundedHistory.visit(-257,-257,257,257,[&](int,int,const Sample&,const Sample&,const Sample&){++completeFineView;});
+    check(completeFineView==257*257,"maximum live fine view cannot evict its own detail history");
     std::cout<<"PASS "<<checks<<" checks; 65x65 build+sort mean "<<ms<<" ms; faces "<<faces.size()<<'\n';
 }

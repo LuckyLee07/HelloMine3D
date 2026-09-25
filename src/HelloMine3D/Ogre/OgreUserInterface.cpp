@@ -49,6 +49,7 @@
 #include "../Presentation/ExplorationMapInteraction.h"
 #include "../Presentation/TerrainMapView.h"
 #include "../Presentation/MapSurfaceRegion.h"
+#include "../Presentation/SurfaceMapHistory.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/GameApplicationFlow.h"
 #include "../Util/ResourcePaths.h"
@@ -2812,9 +2813,9 @@ class OgreUserInterface::Impl
     static constexpr int MinimapCellCount = 65;
 
 
-    static ImU32 mapCellColour(const MinimapCell* cells, int count, int x, int z)
+    static ImU32 mapSurfaceColour(const MinimapCell& cell,
+        const MinimapCell& west, const MinimapCell& north)
     {
-        const auto& cell = cells[z * count + x];
         if (!cell.known) return IM_COL32(30, 39, 45, 255);
         ImVec4 colour;
         switch (cell.material)
@@ -2841,14 +2842,18 @@ class OgreUserInterface::Impl
             case BlockId::Air: colour = ImVec4(37, 43, 46, 255); break;
             default: colour = ImVec4(157, 157, 145, 255); break;
         }
-        const auto& west = cells[z * count + std::max(0, x - 1)];
-        const auto& north = cells[std::max(0, z - 1) * count + x];
         const int slope = (west.known ? west.height - cell.height : 0) +
                           (north.known ? north.height - cell.height : 0);
         const float shade = std::clamp(1.f - slope * 0.055f, 0.72f, 1.18f);
         return IM_COL32(static_cast<int>(std::clamp(colour.x * shade, 0.f, 255.f)),
                         static_cast<int>(std::clamp(colour.y * shade, 0.f, 255.f)),
                         static_cast<int>(std::clamp(colour.z * shade, 0.f, 255.f)), 255);
+    }
+
+    static ImU32 mapCellColour(const MinimapCell* cells, int count, int x, int z)
+    {
+        return mapSurfaceColour(cells[z*count+x],cells[z*count+std::max(0,x-1)],
+            cells[std::max(0,z-1)*count+x]);
     }
 
     ImU32 minimapCellColour(int x, int z) const
@@ -2918,6 +2923,10 @@ class OgreUserInterface::Impl
             if (cell.known != sample.known || cell.height != sample.height || cell.material != sample.material)
                 ++minimapRevision;
             cell = sample;
+            if (minimapStep <= 2) {
+                const auto& position = positions[row * MinimapCellCount + x];
+                fineMapHistory.observe(position.x, position.z, sample);
+            }
         }
         minimapRefreshRow = (minimapRefreshRow + rowsPerRefresh) % MinimapCellCount;
     }
@@ -3200,10 +3209,10 @@ class OgreUserInterface::Impl
                 ImGui::SetCursorScreenPos(origin);
                 if (ImGui::InvisibleButton("##OpenTerrainMap", windowSize))
                 {
-                    mapView = {}; selectedMapCell = -1; mapGesture.button = -1;
-                    overviewOffsetX = overviewOffsetZ = 0;
-                    overviewPanRemainderX = overviewPanRemainderZ = 0.f;
-                    selectedOverviewCell = selectedOverviewFineCell = -1;
+                    // Reopening preserves zoom, pan and relief orientation.
+                    // Only the explicit return-to-player action resets them.
+                    selectedMapCell = -1; mapGesture.button = -1;
+                    selectedOverviewCell = -1; selectedOverviewFinePosition.reset();
                     mapMarkerPanel = false;
                     hudInteraction.open(HudInteraction::Page::Map);
                 }
@@ -3229,7 +3238,7 @@ class OgreUserInterface::Impl
         overviewFollowsFit = false;
         if (oldStep != overviewScale.step) {
             overviewValid = false;
-            selectedOverviewCell = selectedOverviewFineCell = -1;
+            selectedOverviewCell = -1; selectedOverviewFinePosition.reset();
             overviewPanRemainderX = overviewPanRemainderZ = 0.f;
         }
     }
@@ -3284,6 +3293,20 @@ class OgreUserInterface::Impl
         }
     }
 
+    struct OverviewSurface { int x, z, step; MinimapCell surface; };
+    std::optional<OverviewSurface> inspectOverviewSurface(double x, double z) const
+    {
+        if (const auto fine = fineMapHistory.at(x,z))
+            return OverviewSurface{fine->x,fine->z,2,fine->surface};
+        // Large render distances use coarser live samples. Pick the same full
+        // footprint that is drawn, without inventing unobserved 2m subcells.
+        const int cell = flatMap.step > 2 ? flatMap.cellAt(x,z) : -1;
+        if (cell >= 0 && flatMap.cells[cell].known)
+            return OverviewSurface{flatMap.centerX+(cell%flatMap.count-flatMap.count/2)*flatMap.step,
+                flatMap.centerZ+(cell/flatMap.count-flatMap.count/2)*flatMap.step,flatMap.step,flatMap.cells[cell]};
+        return {};
+    }
+
     void drawExplorationOverview(const PlayerSaveState& state)
     {
         constexpr int count = OverviewCellCount;
@@ -3336,8 +3359,10 @@ class OgreUserInterface::Impl
             centerZ != overviewCenterZ || hudElapsedSeconds >= overviewNextRefresh)
         {
             if (overviewValid && (centerX != overviewCenterX ||
-                                  centerZ != overviewCenterZ))
-                selectedOverviewCell = selectedOverviewFineCell = -1;
+                                  centerZ != overviewCenterZ)) {
+                selectedOverviewCell = -1;
+                selectedOverviewFinePosition.reset();
+            }
             overviewCenterX = centerX;
             overviewCenterZ = centerZ;
             overviewCells.fill({});
@@ -3384,6 +3409,7 @@ class OgreUserInterface::Impl
             grid.y + side * .5f +
             float(std::int64_t(flatMap.centerZ) - centerZ - flatMap.count / 2 * flatMap.step) * pixelsPerMetre);
         const float livePixel = flatMap.step * pixelsPerMetre;
+        if (flatMap.step > 2)
         for (int z=0; z<flatMap.count; ++z) for (int x=0; x<flatMap.count; ++x) {
             if (!flatMap.cells[z*flatMap.count+x].known) continue;
             const ImVec2 at(liveOrigin.x+(x-.5f)*livePixel,liveOrigin.y+(z-.5f)*livePixel);
@@ -3391,20 +3417,30 @@ class OgreUserInterface::Impl
             draw->AddRectFilled(at,ImVec2(at.x+livePixel+.15f,at.y+livePixel+.15f),
                 mapCellColour(flatMap.cells.data(),flatMap.count,x,z));
         }
+        fineMapHistory.visit(centerX-size.x*.5/pixelsPerMetre,centerZ-size.y*.5/pixelsPerMetre,
+            centerX+size.x*.5/pixelsPerMetre,centerZ+size.y*.5/pixelsPerMetre,
+            [&](int x,int z,const MinimapCell& cell,const MinimapCell& west,const MinimapCell& north) {
+                const ImVec2 at(grid.x+side*.5f+float(std::int64_t(x)-centerX-1)*pixelsPerMetre,
+                    grid.y+side*.5f+float(std::int64_t(z)-centerZ-1)*pixelsPerMetre);
+                draw->AddRectFilled(at,ImVec2(at.x+2*pixelsPerMetre+.15f,at.y+2*pixelsPerMetre+.15f),
+                    mapSurfaceColour(cell,west,north));
+            });
         draw->Flags = oldFlags;
         const int hoveredX = hovered ? int(std::floor((io.MousePos.x - grid.x) / pixel)) : -1;
         const int hoveredZ = hovered ? int(std::floor((io.MousePos.y - grid.y) / pixel)) : -1;
         const int hoverCell = hoveredX >= 0 && hoveredX < count &&
             hoveredZ >= 0 && hoveredZ < count ? hoveredZ * count + hoveredX : -1;
-        const int hoverFine = hovered ? flatMap.cellAt(
+        const auto fineHover = hovered ? inspectOverviewSurface(
             centerX + (io.MousePos.x-grid.x-side*.5f)/pixelsPerMetre,
-            centerZ + (io.MousePos.y-grid.y-side*.5f)/pixelsPerMetre) : -1;
+            centerZ + (io.MousePos.y-grid.y-side*.5f)/pixelsPerMetre) : std::nullopt;
         if (hovered && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
             selectedOverviewCell = hoverCell;
-            selectedOverviewFineCell = hoverFine;
+            selectedOverviewFinePosition = fineHover ? std::optional<std::pair<int,int>>(
+                {fineHover->x,fineHover->z}) : std::nullopt;
         }
         const int inspection = hovered ? hoverCell : selectedOverviewCell;
-        const int fineInspection = hovered ? hoverFine : selectedOverviewFineCell;
+        const auto fineInspection = hovered ? fineHover : selectedOverviewFinePosition ?
+            inspectOverviewSurface(selectedOverviewFinePosition->first,selectedOverviewFinePosition->second) : std::nullopt;
         MinimapCell inspectedSurface{};
         std::pair<int,int> inspectedPosition{};
         ImVec2 selectionAt;
@@ -3414,13 +3450,12 @@ class OgreUserInterface::Impl
             inspectedPosition = overviewObservedPositions[inspection];
             selectionAt = ImVec2(grid.x+(inspection%count)*pixel,grid.y+(inspection/count)*pixel);
         }
-        if (fineInspection >= 0 && fineInspection < int(flatMap.cells.size()) && flatMap.cells[fineInspection].known) {
-            const int x = fineInspection % flatMap.count, z = fineInspection / flatMap.count;
-            inspectedSurface = flatMap.cells[fineInspection];
-            inspectedPosition = {flatMap.centerX+(x-flatMap.count/2)*flatMap.step,
-                flatMap.centerZ+(z-flatMap.count/2)*flatMap.step};
-            selectionAt = ImVec2(liveOrigin.x+(x-.5f)*livePixel,liveOrigin.y+(z-.5f)*livePixel);
-            selectionPixels = livePixel;
+        if (fineInspection) {
+            inspectedSurface = fineInspection->surface;
+            inspectedPosition = {fineInspection->x,fineInspection->z};
+            selectionPixels = fineInspection->step*pixelsPerMetre;
+            selectionAt = ImVec2(grid.x+side*.5f+float(std::int64_t(fineInspection->x)-centerX)*pixelsPerMetre-selectionPixels*.5f,
+                grid.y+side*.5f+float(std::int64_t(fineInspection->z)-centerZ)*pixelsPerMetre-selectionPixels*.5f);
         }
         if (inspectedSurface.known)
             draw->AddRect(selectionAt,ImVec2(selectionAt.x+selectionPixels,selectionAt.y+selectionPixels),
@@ -3592,10 +3627,9 @@ class OgreUserInterface::Impl
         if (overviewValid && selectedOverviewCell >= 0 && selectedOverviewCell < int(overviewCells.size()) &&
             overviewCells[selectedOverviewCell].known)
             selectedPosition = overviewObservedPositions[selectedOverviewCell];
-        if (selectedOverviewFineCell >= 0 && selectedOverviewFineCell < int(flatMap.cells.size()) &&
-            flatMap.cells[selectedOverviewFineCell].known)
-            selectedPosition = {flatMap.centerX+(selectedOverviewFineCell%flatMap.count-flatMap.count/2)*flatMap.step,
-                flatMap.centerZ+(selectedOverviewFineCell/flatMap.count-flatMap.count/2)*flatMap.step};
+        if (selectedOverviewFinePosition && inspectOverviewSurface(
+            selectedOverviewFinePosition->first,selectedOverviewFinePosition->second))
+            selectedPosition = selectedOverviewFinePosition;
         const auto markers = world->explorationMarkers();
         const auto tracked = world->trackedExplorationMarker();
         ImGui::Text("%s",tr("map.markers").c_str());
@@ -3768,7 +3802,7 @@ class OgreUserInterface::Impl
             const bool reset = region.configure(World::toBlockCoord(state.position.x),
                 World::toBlockCoord(state.position.z), world->getRenderDistance());
             if (reset) {
-                selectedMapCell = selectedOverviewCell = selectedOverviewFineCell = -1;
+                selectedMapCell = selectedOverviewCell = -1; selectedOverviewFinePosition.reset();
                 detailMapNextRefresh = 0;
                 if (overviewFollowsFit) overviewAutoFit = true;
                 overviewValid = false;
@@ -3779,7 +3813,11 @@ class OgreUserInterface::Impl
             std::vector<VectorXZ> positions;
             positions.reserve(batch.size());
             for (const auto& query : batch) positions.push_back({query.x, query.z});
-            region.accept(batch, world->observeSurfaceMap(positions));
+            const auto samples = world->observeSurfaceMap(positions);
+            region.accept(batch, samples);
+            if (mapFlatOverview && region.step == 2 && samples.size() == batch.size())
+                for (std::size_t i=0;i<samples.size();++i)
+                    fineMapHistory.observe(batch[i].x,batch[i].z,samples[i]);
         };
         // One sampling budget shared by the active view, never two sweeps per frame.
         if (mapFlatOverview) refresh(flatMap);
@@ -3817,11 +3855,11 @@ class OgreUserInterface::Impl
             const float tabWidth=std::max(104.f*scale,ImGui::CalcTextSize(tr("map.view_flat").c_str()).x+22.f*scale);
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,ImVec2(0,8.f*scale));
             if (adventureTab("map.view_flat",mapFlatOverview,tabWidth)) {
-                mapFlatOverview=true; mapMarkerPanel=false; selectedOverviewCell=selectedOverviewFineCell=selectedMapCell=-1;
+                mapFlatOverview=true; mapMarkerPanel=false; selectedOverviewCell=selectedMapCell=-1; selectedOverviewFinePosition.reset();
             }
             ImGui::SameLine();
             if (adventureTab("map.view_3d",!mapFlatOverview,tabWidth)) {
-                mapFlatOverview=false; mapMarkerPanel=false; selectedOverviewCell=selectedOverviewFineCell=selectedMapCell=-1;
+                mapFlatOverview=false; mapMarkerPanel=false; selectedOverviewCell=selectedMapCell=-1; selectedOverviewFinePosition.reset();
             }
             ImGui::PopStyleVar();
             const float gap=ImGui::GetStyle().ItemSpacing.x;
@@ -3850,7 +3888,7 @@ class OgreUserInterface::Impl
                 if (mapFlatOverview) {
                     overviewOffsetX=overviewOffsetZ=0; overviewScale={}; overviewAutoFit=overviewFollowsFit=true;
                     overviewValid=false; overviewPanRemainderX=overviewPanRemainderZ=0.f;
-                    selectedOverviewCell=selectedOverviewFineCell=-1;
+                    selectedOverviewCell=-1; selectedOverviewFinePosition.reset();
                 } else { mapView={}; selectedMapCell=-1; }
             }
             if (!mapFlatOverview) {
@@ -6133,7 +6171,8 @@ class OgreUserInterface::Impl
     float hudPageFixtureSeconds = 0;
     MapSurfaceRegion<MinimapCell> detailMap;
     MapSurfaceRegion<MinimapCell, 257, 2> flatMap;
-    int selectedOverviewFineCell = -1;
+    SurfaceMapHistory<MinimapCell> fineMapHistory;
+    std::optional<std::pair<int,int>> selectedOverviewFinePosition;
     double detailMapNextRefresh = 0;
     TerrainMapView::View mapView;
     std::vector<TerrainMapView::Face> mapFaces;
@@ -6377,7 +6416,8 @@ void OgreUserInterface::setWorldContext(Player *player,
     m_impl->detailMap = {};
     m_impl->detailMapNextRefresh = 0;
     m_impl->flatMap = {};
-    m_impl->selectedOverviewFineCell = -1;
+    m_impl->fineMapHistory = {};
+    m_impl->selectedOverviewFinePosition.reset();
     m_impl->mapBuiltRevision = 0;
     m_impl->mapFaces.clear();
     m_impl->mapView = {};
