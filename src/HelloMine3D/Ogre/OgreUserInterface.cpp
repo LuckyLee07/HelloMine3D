@@ -18,6 +18,7 @@
 #include <cfloat>
 #include <cstdint>
 #include <cmath>
+#include <ctime>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -364,6 +365,29 @@ namespace
                        " x" + std::to_string(ingredient.count);
         }
         return summary;
+    }
+
+    std::string formatLocalDate(std::int64_t seconds)
+    {
+        const std::time_t timestamp = static_cast<std::time_t>(seconds);
+        std::tm local{};
+#if defined(_WIN32)
+        if (localtime_s(&local, &timestamp) != 0)
+        {
+            return {};
+        }
+#else
+        if (localtime_r(&timestamp, &local) == nullptr)
+        {
+            return {};
+        }
+#endif
+        char value[24] = {};
+        if (std::strftime(value, sizeof(value), "%Y-%m-%d %H:%M", &local) == 0)
+        {
+            return {};
+        }
+        return value;
     }
 }
 
@@ -823,7 +847,14 @@ class OgreUserInterface::Impl
         switch (flow->state())
         {
             case GameApplicationState::MainMenu:
-                drawMainMenu();
+                if (settingsSession.isOpen())
+                {
+                    drawSettingsMenu();
+                }
+                else
+                {
+                    drawMainMenu();
+                }
                 break;
             case GameApplicationState::WorldList:
                 drawWorldList();
@@ -975,10 +1006,18 @@ class OgreUserInterface::Impl
 
     void drawMainMenu()
     {
+        if (worldsDirty)
+        {
+            refreshCatalogue();
+        }
         const ImGuiIO &io = ImGui::GetIO();
         const float scale = appliedSettings.uiScale;
+        const bool hasCatalogueNotice = !worldCatalogueError.empty() ||
+            !worldRecoveryWarning.empty();
         const PresentationWindowLayout layout = fitPresentationWindow(
-            io.DisplaySize.x, io.DisplaySize.y, 350.f, 354.f, scale);
+            io.DisplaySize.x, io.DisplaySize.y, 350.f,
+            (worlds.empty() ? 404.f : 456.f) +
+                (hasCatalogueNotice ? 60.f : 0.f), scale);
         const float left = std::min(io.DisplaySize.x * 0.08f,
                                    io.DisplaySize.x - layout.width - 15.f);
         ImGui::SetNextWindowPos(
@@ -987,8 +1026,11 @@ class OgreUserInterface::Impl
         ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height), ImGuiCond_Always);
         ImGui::SetNextWindowBgAlpha(0.f);
         const ImGuiWindowFlags flags =
-            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize |
-            ImGuiWindowFlags_NoSavedSettings;
+            ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
+            ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings |
+            (layout.scrollRequired
+                ? ImGuiWindowFlags_AlwaysVerticalScrollbar
+                : ImGuiWindowFlags_None);
         if (ImGui::Begin("##MainMenu", nullptr, flags))
         {
             ImGui::Dummy(ImVec2(0.f, 12.f * scale));
@@ -1003,10 +1045,48 @@ class OgreUserInterface::Impl
             ImGui::TextWrapped("%s", tr("main.tagline").c_str());
             ImGui::PopStyleColor();
             ImGui::Dummy(ImVec2(0.f, 28.f * scale));
-            pushPrimaryButtonStyle();
+            if (hasCatalogueNotice)
+            {
+                const bool fatal = !worldCatalogueError.empty();
+                ImGui::TextColored(ImVec4(.95f, .58f, .42f, 1.f), "%s",
+                    tr(fatal ? "world.catalogue_error"
+                             : "world.recovery_warning").c_str());
+                ImGui::TextWrapped("%s", (fatal ? worldCatalogueError
+                                                  : worldRecoveryWarning).c_str());
+                if (ImGui::Button(label("common.retry", "##RetryWorlds").c_str(),
+                                  ImVec2(-1.f, 34.f * scale)))
+                {
+                    worldsDirty = true;
+                    playUiFeedback();
+                }
+                ImGui::Dummy(ImVec2(0.f, 4.f * scale));
+            }
+            ImGui::BeginDisabled(!worldCatalogueError.empty());
+            if (!worlds.empty() && worldCatalogueError.empty())
+            {
+                pushPrimaryButtonStyle();
+                if (ImGui::Button(
+                        label("main.continue", "##ContinueLatest").c_str(),
+                        ImVec2(-1.f, 48.f * scale)))
+                {
+                    pendingAction.type = OgreUserInterfaceActionType::OpenWorld;
+                    pendingAction.worldId = worlds.front().id;
+                    playUiFeedback();
+                }
+                ImGui::PopStyleColor(4);
+                ImGui::PushStyleColor(ImGuiCol_Text, WarmMuted);
+                const std::string lastPlayed = worlds.front().legacyMetadata
+                    ? tr("world.last_played_legacy")
+                    : formatLocalDate(worlds.front().lastPlayedUtc);
+                ImGui::TextWrapped("%s · %s", worlds.front().displayName.c_str(),
+                    lastPlayed.c_str());
+                ImGui::PopStyleColor();
+                ImGui::Dummy(ImVec2(0.f, 4.f * scale));
+            }
+            if (worlds.empty() && worldCatalogueError.empty()) pushPrimaryButtonStyle();
             if (ImGui::Button(
                     label("main.single_player", "##SinglePlayer").c_str(),
-                    ImVec2(-1.f, 48.f * scale)))
+                    ImVec2(-1.f, 44.f * scale)))
             {
                 if (flow->showWorldList())
                 {
@@ -1014,8 +1094,17 @@ class OgreUserInterface::Impl
                     playUiFeedback();
                 }
             }
-            ImGui::PopStyleColor(4);
+            if (worlds.empty() && worldCatalogueError.empty()) ImGui::PopStyleColor(4);
+            ImGui::EndDisabled();
             ImGui::Dummy(ImVec2(0.f, 4.f * scale));
+            if (ImGui::Button(label("main.settings", "##MainSettings").c_str(),
+                              ImVec2(-1.f, 42.f * scale)))
+            {
+                settingsSession.begin(appliedSettings);
+                settingsMessage.clear();
+                settingsApplyPending = false;
+                playUiFeedback();
+            }
             if (ImGui::Button(label("main.credits", "##Credits").c_str(),
                               ImVec2(-1.f, 42.f * scale)))
             {
@@ -1100,10 +1189,14 @@ class OgreUserInterface::Impl
         worldsDirty = false;
         worlds.clear();
         deletedWorlds.clear();
+        worldCatalogueError.clear();
+        worldRecoveryWarning.clear();
         const WorldManagementListResult active = management->listWorlds();
         if (!active.succeeded())
         {
-            statusMessage = active.message;
+            worldCatalogueError = active.message;
+            selectedWorldId.clear();
+            backups.clear();
             return;
         }
         worlds = active.worlds;
@@ -1111,10 +1204,25 @@ class OgreUserInterface::Impl
             management->listDeletedWorlds();
         if (!deleted.succeeded())
         {
-            statusMessage = deleted.message;
-            return;
+            worldRecoveryWarning = deleted.message;
         }
-        deletedWorlds = deleted.worlds;
+        else
+        {
+            deletedWorlds = deleted.worlds;
+        }
+        const auto selected = std::find_if(worlds.begin(), worlds.end(),
+            [&](const WorldCatalogueEntry& entry) {
+                return entry.id == selectedWorldId;
+            });
+        if (selected == worlds.end())
+        {
+            selectedWorldId.clear();
+            backups.clear();
+            if (!worlds.empty())
+            {
+                selectWorld(worlds.front());
+            }
+        }
     }
 
     void selectWorld(const WorldCatalogueEntry &entry)
@@ -1168,16 +1276,24 @@ class OgreUserInterface::Impl
             refreshCatalogue();
         }
         const ImGuiIO &io = ImGui::GetIO();
+        const float scale = appliedSettings.uiScale;
+        GameInterfaceWidgets::OverlayStyle theme(scale);
+        adventureBackdrop();
+        const bool showCreateWorld = worldCatalogueError.empty() &&
+            (createWorldExpanded || worlds.empty());
+        const PresentationWindowLayout maximumLayout = fitPresentationWindow(
+            io.DisplaySize.x, io.DisplaySize.y, 820.0f, 620.0f,
+            appliedSettings.uiScale);
+        const bool compactCatalogue = maximumLayout.width < 720.f * scale;
         const float catalogueHeight = std::min(620.0f,
-            (435.0f + (!selectedWorldId.empty()
-                ? 42.0f + 24.0f * std::min<std::size_t>(backups.size(), 4)
+            (300.0f + (showCreateWorld ? 145.0f : 0.0f) +
+                (!selectedWorldId.empty()
+                ? (compactCatalogue ? 300.0f : 175.0f) +
+                      24.0f * std::min<std::size_t>(backups.size(), 4)
                 : 0.0f) + (!deletedWorlds.empty()
                 ? 24.0f * std::min<std::size_t>(deletedWorlds.size(), 3)
                 : 0.0f) + (!statusMessage.empty() ? 32.0f : 0.0f) +
                 140.0f * std::max(0.0f, appliedSettings.uiScale - 1.0f)));
-        const PresentationWindowLayout maximumLayout = fitPresentationWindow(
-            io.DisplaySize.x, io.DisplaySize.y, 820.0f, 620.0f,
-            appliedSettings.uiScale);
         const float top = std::max(18.0f,
             (io.DisplaySize.y - maximumLayout.height) * 0.5f);
         ImGui::SetNextWindowPos(
@@ -1188,36 +1304,65 @@ class OgreUserInterface::Impl
             catalogueHeight, appliedSettings.uiScale);
         ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height), ImGuiCond_Always);
         const ImGuiWindowFlags flags =
-            ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
-            ImGuiWindowFlags_NoSavedSettings;
-        const std::string windowTitle = label("world.title", "##Worlds");
+            ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
+            ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings |
+            ImGuiWindowFlags_NoBackground |
+            (layout.scrollRequired
+                ? ImGuiWindowFlags_AlwaysVerticalScrollbar
+                : ImGuiWindowFlags_None);
+        const std::string windowTitle = "##Worlds";
         if (ImGui::Begin(windowTitle.c_str(), nullptr, flags))
         {
-            if (ImGui::Button(label("world.back_to_main", "##WorldBack").c_str()))
+            if (adventureHeader(tr("world.title"),
+                    GameInterfaceWidgets::Glyph::Home,
+                    tr("world.subtitle"), io.DisplaySize.y < 560.f * scale))
             {
                 if (flow->returnToMainMenu())
                 {
                     playUiFeedback();
                 }
             }
+            ImGui::BeginDisabled(!worldCatalogueError.empty());
+            if (adventureButton("world.create_title", 180.f * scale, false,
+                    Material::Workbench, GameInterfaceWidgets::Glyph::None))
+            {
+                createWorldExpanded = !createWorldExpanded;
+                playUiFeedback();
+            }
+            ImGui::EndDisabled();
             ImGui::SameLine();
-            if (ImGui::Button(label("common.refresh", "##WorldRefresh").c_str()))
+            if (ImGui::Button(label("common.refresh", "##WorldRefresh").c_str(),
+                    ImVec2(110.f * scale, 0.f)))
             {
                 worldsDirty = true;
                 playUiFeedback();
             }
             ImGui::Separator();
 
-            ImGui::TextUnformatted(tr("world.create_title").c_str());
-            ImGui::SameLine();
-            ImGui::TextDisabled("%s v%d", tr("world.terrain").c_str(),
-                                CurrentTerrainGenerationVersion);
-            // Labels occupy their own lines so font scaling cannot push the
-            // Create action outside the panel or consume the seed editor width.
-            if (ImGui::BeginTable("WorldCreateForm", 2,
-                    ImGuiTableFlags_SizingStretchProp |
-                    ImGuiTableFlags_NoSavedSettings))
+            if (!worldCatalogueError.empty() || !worldRecoveryWarning.empty())
             {
+                const bool fatal = !worldCatalogueError.empty();
+                ImGui::TextColored(ImVec4(.95f, .58f, .42f, 1.f), "%s",
+                    tr(fatal ? "world.catalogue_error"
+                             : "world.recovery_warning").c_str());
+                ImGui::SameLine();
+                ImGui::TextWrapped("%s", (fatal ? worldCatalogueError
+                                                  : worldRecoveryWarning).c_str());
+                ImGui::Separator();
+            }
+
+            if (showCreateWorld)
+            {
+                ImGui::TextColored(WarmAccent, "%s",
+                                   tr("world.create_title").c_str());
+                ImGui::TextDisabled("%s v%d", tr("world.terrain").c_str(),
+                                    CurrentTerrainGenerationVersion);
+                // Labels occupy their own lines so font scaling cannot push the
+                // Create action outside the panel or consume the seed editor width.
+                if (ImGui::BeginTable("WorldCreateForm", 2,
+                        ImGuiTableFlags_SizingStretchProp |
+                        ImGuiTableFlags_NoSavedSettings))
+                {
                 ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 1.2f);
                 ImGui::TableSetupColumn("Seed", ImGuiTableColumnFlags_WidthStretch, 1.0f);
                 ImGui::TableNextRow();
@@ -1267,40 +1412,45 @@ class OgreUserInterface::Impl
                     if (result.succeeded())
                     {
                         createSeed = WorldManagementService::suggestWorldSeed();
+                        createWorldExpanded = false;
+                        selectedWorldId.clear();
+                        backups.clear();
                     }
                 }
-                ImGui::EndTable();
+                    ImGui::EndTable();
+                }
+                ImGui::Spacing();
+                ImGui::Separator();
             }
 
-            ImGui::Separator();
             ImGui::Text("%s (%llu)", tr("world.active").c_str(),
                         static_cast<unsigned long long>(worlds.size()));
             const float activeListHeight = std::min(185.0f,
                 std::max(58.0f, 18.0f +
-                    worlds.size() * ImGui::GetTextLineHeightWithSpacing()));
+                    worlds.size() * 2.f *
+                        ImGui::GetTextLineHeightWithSpacing()));
             ImGui::BeginChild("WorldList", ImVec2(0.0f, activeListHeight), true);
             if (worlds.empty())
-                ImGui::TextDisabled("%s", tr("world.none").c_str());
+            {
+                if (worldCatalogueError.empty())
+                    ImGui::TextDisabled("%s", tr("world.none").c_str());
+                else
+                    ImGui::TextDisabled("%s", tr("world.catalogue_error").c_str());
+            }
             const ImGuiTableFlags worldTableFlags =
                 ImGuiTableFlags_SizingStretchProp |
                 ImGuiTableFlags_NoSavedSettings;
-            if (ImGui::BeginTable("ActiveWorlds", 5, worldTableFlags))
+            if (ImGui::BeginTable("ActiveWorlds", 3, worldTableFlags))
             {
                 ImGui::TableSetupColumn(
                     tr("world.world").c_str(),
-                    ImGuiTableColumnFlags_WidthStretch, 1.0f);
+                    ImGuiTableColumnFlags_WidthStretch, 1.4f);
                 ImGui::TableSetupColumn(
-                    tr("world.seed").c_str(),
-                    ImGuiTableColumnFlags_WidthFixed);
-                ImGui::TableSetupColumn(
-                    tr("world.terrain").c_str(),
-                    ImGuiTableColumnFlags_WidthFixed, 68.0f);
-                ImGui::TableSetupColumn(
-                    tr("world.difficulty").c_str(),
-                    ImGuiTableColumnFlags_WidthFixed, 110.0f);
+                    tr("world.last_played").c_str(),
+                    ImGuiTableColumnFlags_WidthStretch, 0.8f);
                 ImGui::TableSetupColumn(
                     tr("world.actions").c_str(),
-                    ImGuiTableColumnFlags_WidthFixed, 150.0f);
+                    ImGuiTableColumnFlags_WidthFixed, 148.0f * scale);
                 for (const WorldCatalogueEntry &entry : worlds)
                 {
                     ImGui::PushID(entry.id.c_str());
@@ -1317,27 +1467,18 @@ class OgreUserInterface::Impl
                     {
                         selectWorld(entry);
                     }
+                    const std::string terrain = entry.terrainGenerationVersion > 0
+                        ? tr("world.terrain") + " v" +
+                              std::to_string(entry.terrainGenerationVersion)
+                        : tr("world.terrain_unknown");
+                    ImGui::TextDisabled("%s · %s", difficultyName(entry.difficulty).c_str(),
+                                        terrain.c_str());
                     ImGui::TableSetColumnIndex(1);
-                    ImGui::Text("%s %d", tr("world.seed").c_str(),
-                                entry.seed);
+                    const std::string lastPlayed = entry.legacyMetadata
+                        ? tr("world.last_played_legacy")
+                        : formatLocalDate(entry.lastPlayedUtc);
+                    ImGui::TextUnformatted(lastPlayed.c_str());
                     ImGui::TableSetColumnIndex(2);
-                    if (entry.terrainGenerationVersion > 0)
-                        ImGui::Text("v%d",
-                                    entry.terrainGenerationVersion);
-                    else
-                        ImGui::TextDisabled("%s",
-                            tr("world.terrain_unknown").c_str());
-                    ImGui::TableSetColumnIndex(3);
-                    ImGui::TextUnformatted(
-                        difficultyName(entry.difficulty).c_str());
-                    if (entry.completedPostVictoryEvents > 0)
-                    {
-                        ImGui::TextDisabled(
-                            "%s %d / %d", tr("world.echo_trials").c_str(),
-                            entry.completedPostVictoryEvents,
-                            PostVictoryEvents::MaximumEvents);
-                    }
-                    ImGui::TableSetColumnIndex(4);
                     if (ImGui::SmallButton(label("common.play", "##Play").c_str()))
                     {
                         pendingAction.type =
@@ -1359,6 +1500,109 @@ class OgreUserInterface::Impl
 
             if (!selectedWorldId.empty())
             {
+                const auto selected = std::find_if(worlds.begin(), worlds.end(),
+                    [&](const WorldCatalogueEntry &entry) {
+                        return entry.id == selectedWorldId;
+                    });
+                const bool compactSummary = compactCatalogue;
+                if (selected != worlds.end() && ImGui::BeginTable(
+                        "SelectedWorldSummary", compactSummary ? 1 : 2,
+                        ImGuiTableFlags_SizingStretchProp |
+                            ImGuiTableFlags_NoSavedSettings))
+                {
+                    ImGui::TableSetupColumn("Preview",
+                        ImGuiTableColumnFlags_WidthStretch, .7f);
+                    if (!compactSummary)
+                    {
+                        ImGui::TableSetupColumn("Details",
+                            ImGuiTableColumnFlags_WidthStretch, 1.3f);
+                    }
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    const ImVec2 previewAt = ImGui::GetCursorScreenPos();
+                    const float previewWidth = ImGui::GetContentRegionAvail().x;
+                    const float previewHeight = 96.f * scale;
+                    ImDrawList* draw = ImGui::GetWindowDrawList();
+                    draw->AddRectFilled(previewAt,
+                        ImVec2(previewAt.x + previewWidth,
+                               previewAt.y + previewHeight),
+                        IM_COL32(19, 42, 47, 235), 4.f * scale);
+                    draw->AddRect(previewAt,
+                        ImVec2(previewAt.x + previewWidth,
+                               previewAt.y + previewHeight),
+                        IM_COL32(75, 104, 105, 180), 4.f * scale);
+                    GameInterfaceWidgets::glyph(draw,
+                        GameInterfaceWidgets::Glyph::Map,
+                        ImVec2(previewAt.x + 12.f * scale,
+                               previewAt.y + 12.f * scale),
+                        26.f * scale);
+                    draw->AddText(
+                        ImVec2(previewAt.x + 48.f * scale,
+                               previewAt.y + 14.f * scale),
+                        ImGui::GetColorU32(WarmText),
+                        tr("world.preview_unavailable").c_str());
+                    draw->AddText(ImGui::GetFont(), ImGui::GetFontSize() * .8f,
+                        ImVec2(previewAt.x + 12.f * scale,
+                               previewAt.y + 55.f * scale),
+                        ImGui::GetColorU32(WarmMuted),
+                        tr("world.preview_fallback").c_str(), nullptr,
+                        previewWidth - 24.f * scale);
+                    ImGui::Dummy(ImVec2(previewWidth, previewHeight));
+                    if (compactSummary)
+                    {
+                        ImGui::TableNextRow();
+                        ImGui::TableSetColumnIndex(0);
+                    }
+                    else
+                    {
+                        ImGui::TableSetColumnIndex(1);
+                    }
+                    ImGui::TextColored(WarmAccent, "%s",
+                        selected->displayName.c_str());
+                    ImGui::Text("%s: %s", tr("world.last_played").c_str(),
+                        (selected->legacyMetadata
+                            ? tr("world.last_played_legacy")
+                            : formatLocalDate(selected->lastPlayedUtc)).c_str());
+                    ImGui::Text("%s: %s", tr("world.difficulty").c_str(),
+                        difficultyName(selected->difficulty).c_str());
+                    if (selected->terrainGenerationVersion > 0)
+                    {
+                        ImGui::Text("%s: %d · %s v%d", tr("world.seed").c_str(),
+                            selected->seed, tr("world.terrain").c_str(),
+                            selected->terrainGenerationVersion);
+                    }
+                    else
+                    {
+                        ImGui::Text("%s: %d · %s: %s", tr("world.seed").c_str(),
+                            selected->seed, tr("world.terrain").c_str(),
+                            tr("world.terrain_unknown").c_str());
+                    }
+                    if (selected->completed)
+                    {
+                        ImGui::TextColored(WarmAccent, "%s",
+                            tr("world.list.completed").c_str());
+                    }
+                    if (selected->completedPostVictoryEvents > 0)
+                    {
+                        ImGui::TextDisabled("%s %d / %d",
+                            tr("world.echo_trials").c_str(),
+                            selected->completedPostVictoryEvents,
+                            PostVictoryEvents::MaximumEvents);
+                    }
+                    pushPrimaryButtonStyle();
+                    if (ImGui::Button(label("world.continue", "##SelectedPlay").c_str(),
+                                      ImVec2(-1.f, 36.f * scale)))
+                    {
+                        pendingAction.type = OgreUserInterfaceActionType::OpenWorld;
+                        pendingAction.worldId = selected->id;
+                        playUiFeedback();
+                    }
+                    ImGui::PopStyleColor(4);
+                    ImGui::EndTable();
+                }
+                ImGui::Spacing();
+                if (ImGui::CollapsingHeader(tr("world.manage").c_str()))
+                {
                 ImGui::SetNextItemWidth(300.0f);
                 ImGui::InputText(label("world.display_name", "##rename").c_str(),
                                  renameName.data(),
@@ -1388,36 +1632,56 @@ class OgreUserInterface::Impl
                     }
                     ImGui::PopID();
                 }
+                if (backups.empty())
+                {
+                    ImGui::TextDisabled("%s", tr("world.backups_none").c_str());
+                }
+                }
             }
 
             ImGui::Separator();
-            ImGui::Text("%s (%llu)", tr("world.recoverable").c_str(),
-                        static_cast<unsigned long long>(
-                            deletedWorlds.size()));
-            if (!deletedWorlds.empty())
+            const std::string recoverableTitle = tr("world.recoverable") +
+                " (" + std::to_string(deletedWorlds.size()) + ")";
+            ImGui::BeginDisabled(!worldRecoveryWarning.empty());
+            const bool recoverableExpanded =
+                ImGui::CollapsingHeader(recoverableTitle.c_str());
+            ImGui::EndDisabled();
+            if (recoverableExpanded && !deletedWorlds.empty())
             {
                 const float deletedListHeight = std::min(105.0f,
                     18.0f + deletedWorlds.size() *
                     ImGui::GetTextLineHeightWithSpacing());
                 ImGui::BeginChild("DeletedWorldList",
                                   ImVec2(0.0f, deletedListHeight), true);
-                for (const DeletedWorldInfo &entry : deletedWorlds)
+                if (ImGui::BeginTable("RecoverableWorlds", 2,
+                        ImGuiTableFlags_SizingStretchProp |
+                            ImGuiTableFlags_NoSavedSettings))
                 {
-                    ImGui::PushID(entry.recoveryId.c_str());
-                    ImGui::TextUnformatted(entry.world.displayName.c_str());
-                    ImGui::SameLine(400.0f);
-                    if (ImGui::SmallButton(label("common.restore", "##RestoreWorld").c_str()))
+                    ImGui::TableSetupColumn("World",
+                        ImGuiTableColumnFlags_WidthStretch);
+                    ImGui::TableSetupColumn("Actions",
+                        ImGuiTableColumnFlags_WidthFixed, 250.f * scale);
+                    for (const DeletedWorldInfo &entry : deletedWorlds)
                     {
-                        reportResult(management->restoreDeletedWorld(
-                            entry.world.id), "world.feedback.restored");
+                        ImGui::PushID(entry.recoveryId.c_str());
+                        ImGui::TableNextRow();
+                        ImGui::TableSetColumnIndex(0);
+                        ImGui::TextUnformatted(entry.world.displayName.c_str());
+                        ImGui::TableSetColumnIndex(1);
+                        if (ImGui::SmallButton(label("common.restore", "##RestoreWorld").c_str()))
+                        {
+                            reportResult(management->restoreDeletedWorld(
+                                entry.world.id), "world.feedback.restored");
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::SmallButton(label("world.delete_permanently", "##DeletePermanent").c_str()))
+                        {
+                            pendingPermanentDeleteWorldId = entry.world.id;
+                            openPermanentDeletePopup = true;
+                        }
+                        ImGui::PopID();
                     }
-                    ImGui::SameLine();
-                    if (ImGui::SmallButton(label("world.delete_permanently", "##DeletePermanent").c_str()))
-                    {
-                        pendingPermanentDeleteWorldId = entry.world.id;
-                        openPermanentDeletePopup = true;
-                    }
-                    ImGui::PopID();
+                    ImGui::EndTable();
                 }
                 ImGui::EndChild();
             }
@@ -1861,7 +2125,10 @@ class OgreUserInterface::Impl
             io.DisplaySize.x, io.DisplaySize.y - 64.f, 620.0f, 680.0f, appliedSettings.uiScale);
         ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height), ImGuiCond_Always);
         const std::string settingsTitle =
-            label("settings.title", "##PausedSettings");
+            label(flow->state() == GameApplicationState::MainMenu
+                      ? "settings.title_main"
+                      : "settings.title",
+                  "##Settings");
         if (ImGui::Begin(settingsTitle.c_str(), nullptr,
                          ImGuiWindowFlags_NoCollapse |
                              ImGuiWindowFlags_NoResize |
@@ -6122,6 +6389,8 @@ class OgreUserInterface::Impl
     std::string pendingPermanentDeleteWorldId;
     std::string pendingBackupId;
     std::string statusMessage;
+    std::string worldCatalogueError;
+    std::string worldRecoveryWarning;
     float statusMessageSeconds = 0.f;
     PresentationCaptionTimeline captionTimeline;
     float previousPlayerHealth = -1.f;
@@ -6150,6 +6419,7 @@ class OgreUserInterface::Impl
     int pauseDifficulty = static_cast<int>(WorldDifficulty::Normal);
     bool difficultyDraftInitialized = false;
     bool worldsDirty = true;
+    bool createWorldExpanded = false;
     bool openDeletePopup = false;
     bool openPermanentDeletePopup = false;
     bool openBackupPopup = false;
@@ -6394,6 +6664,10 @@ bool OgreUserInterface::isDebugPanelVisible() const noexcept
 void OgreUserInterface::setWorldContext(Player *player,
                                         World *world) noexcept
 {
+    if (m_impl->world != nullptr && world == nullptr)
+    {
+        m_impl->worldsDirty = true;
+    }
     m_impl->player = player;
     m_impl->world = world;
     m_impl->dismissedVictoryEpoch = 0;

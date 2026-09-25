@@ -1581,7 +1581,19 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 638 &&
+              registry.keys("en-US").size() == 652 &&
+              registry.lookup("en-US", "main.continue") == "Continue" &&
+              registry.lookup("zh-CN", "main.continue") == "继续游戏" &&
+              registry.lookup("en-US", "world.preview_unavailable") ==
+                  "No saved preview" &&
+              registry.lookup("zh-CN", "world.preview_unavailable") ==
+                  "暂无世界预览" &&
+              registry.lookup("en-US", "settings.title_main") == "Settings" &&
+              registry.lookup("zh-CN", "settings.title_main") == "设置" &&
+              registry.lookup("en-US", "world.catalogue_error") ==
+                  "World list unavailable" &&
+              registry.lookup("zh-CN", "world.recovery_warning") ==
+                  "可恢复区暂不可用" &&
               registry.lookup("zh-CN", "pause.world_journey") == "世界与旅程" &&
               registry.lookup("en-US", "ui.return_game") == "Return to game" &&
               registry.lookup("zh-CN", "hud.pointer_show") == "显示鼠标" &&
