@@ -649,3 +649,5 @@ text pause.world_journey "世界与旅程"
 text journal.progress "目标进度"
 
 text ui.return_game "返回游戏"
+
+text map.marker_more "更多"

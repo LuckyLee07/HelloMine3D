@@ -888,6 +888,10 @@ Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先
 
 `Presentation/HudInteraction` 只保存临时页面；Ogre 输入壳负责捕获切换，进入或离开时清理输入并等待旧鼠标按钮释放。Tab 查看时暂停世界模拟，Esc 先关闭 HUD 再处理普通暂停。物品浮层读取玩家槽位和冻结注册表，点击通过既有 PlayerInputState 选槽，不修改库存数量。详见 [HUD 交互合同](../contracts/hud-interaction-contract-v1.md)。
 
+2026-09-25 定稿的任务、暂停和地图页共用 draw-only 冒险界面组件，主色、像素图标、细边框及焦点一致。
+任务和地图详情在紧凑窗口可滚动，平面地图宽屏显示标记编辑侧栏；所有操作仍经原有 UI action／World 服务，
+未增加保存字段、地图缓存或渲染后台。
+
 任务日志通过 `World::getObjectiveSnapshot(true)` 按需取得值快照，AlphaJourney 转发至 ObjectiveSystem；任务可见性、前置、进度仍由冻结定义和保存状态决定。UI 的选择／过滤／追踪均为当前世界临时状态，不进入保存协议。
 冒险前期定义 v4 将重开目标改为可见可选并提前面包教学；存档读取 v1／v2／v3 显式归一，
 Alpha 十位兼容门面独立于通用并行机会，ID／进度／发现集合保持。B2b 经 World→Alpha→Objective 传入只读生命、冷却与时钟，单次库存扫描及三槽固定选择输出状态指导；HUD／任务／暂停共享本地化指导与真实食用键，不新增保存字段。详见[前期引导合同](../contracts/adventure-onboarding-contract-v1.md)。

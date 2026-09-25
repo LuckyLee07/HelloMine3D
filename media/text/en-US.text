@@ -649,3 +649,5 @@ text pause.world_journey "World and journey"
 text journal.progress "Progress"
 
 text ui.return_game "Return to game"
+
+text map.marker_more "More"

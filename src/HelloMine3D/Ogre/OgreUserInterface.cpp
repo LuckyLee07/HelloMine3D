@@ -3166,42 +3166,25 @@ class OgreUserInterface::Impl
         ImGui::PopStyleVar();
     }
 
+    void setOverviewStep(int next)
+    {
+        next = std::clamp(next, ExplorationAtlas::MetresPerCell, 64);
+        if (next == overviewStep) return;
+        overviewStep = next;
+        overviewValid = false;
+        selectedOverviewCell = -1;
+        overviewPanRemainderX = overviewPanRemainderZ = 0.f;
+    }
+
     void drawExplorationOverview(const PlayerSaveState& state)
     {
         constexpr int count = OverviewCellCount;
         const float scale = appliedSettings.uiScale;
         const auto& io = ImGui::GetIO();
-        const auto setOverviewStep = [&](int next) {
-            next = std::clamp(next, ExplorationAtlas::MetresPerCell, 64);
-            if (next == overviewStep) return;
-            overviewStep = next;
-            overviewValid = false;
-            selectedOverviewCell = -1;
-            overviewPanRemainderX = overviewPanRemainderZ = 0.f;
-        };
-        if (ImGui::Button(tr("map.center").c_str()))
-        {
-            overviewOffsetX = overviewOffsetZ = 0;
-            overviewPanRemainderX = overviewPanRemainderZ = 0.f;
-            selectedOverviewCell = -1;
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("<")) overviewOffsetX -= 8 * overviewStep;
-        ImGui::SameLine();
-        if (ImGui::Button(">")) overviewOffsetX += 8 * overviewStep;
-        ImGui::SameLine();
-        if (ImGui::Button("^")) overviewOffsetZ -= 8 * overviewStep;
-        ImGui::SameLine();
-        if (ImGui::Button("v")) overviewOffsetZ += 8 * overviewStep;
-        ImGui::SameLine();
-        if (ImGui::Button("-##OverviewZoom")) setOverviewStep(overviewStep * 2);
-        ImGui::SameLine();
-        if (ImGui::Button("+##OverviewZoom")) setOverviewStep(overviewStep / 2);
-        ImGui::TextWrapped("%s", tr("map.overview_controls").c_str());
         const float width = ImGui::GetContentRegionAvail().x;
         const bool wide = width > 760.f * scale;
-        const float legendWidth = wide ? 228.f * scale : 0.f;
-        const float footerHeight = wide ? 0.f : ImGui::GetTextLineHeightWithSpacing() * 7.5f;
+        const float legendWidth = wide ? 276.f * scale : 0.f;
+        const float footerHeight = wide ? 0.f : ImGui::GetTextLineHeightWithSpacing() * 3.5f;
         const ImVec2 size(std::max(1.f, width - legendWidth - (wide ? 10.f : 0.f)),
             std::max(60.f, ImGui::GetContentRegionAvail().y - footerHeight));
         const ImVec2 origin = ImGui::GetCursorScreenPos();
@@ -3266,6 +3249,11 @@ class OgreUserInterface::Impl
         draw->AddRectFilled(origin, ImVec2(origin.x + size.x, origin.y + size.y),
             IM_COL32(17, 29, 35, 255));
         draw->PushClipRect(grid, ImVec2(grid.x + side, grid.y + side), true);
+        for (int line = 0; line <= count; line += 8) {
+            const float offset = line * pixel;
+            draw->AddLine(ImVec2(grid.x + offset,grid.y),ImVec2(grid.x + offset,grid.y + side),IM_COL32(55,76,81,95));
+            draw->AddLine(ImVec2(grid.x,grid.y + offset),ImVec2(grid.x + side,grid.y + offset),IM_COL32(55,76,81,95));
+        }
         const auto oldFlags = draw->Flags;
         draw->Flags &= ~ImDrawListFlags_AntiAliasedFill;
         for (int z = 0; z < count; ++z)
@@ -3374,21 +3362,22 @@ class OgreUserInterface::Impl
             static_cast<float>(playerX - centerX) / step * pixel;
         const float pz = grid.y + side * .5f +
             static_cast<float>(playerZ - centerZ) / step * pixel;
-        draw->AddCircleFilled(ImVec2(px, pz), 7.f * scale,
-            IM_COL32(17, 29, 35, 255));
         const auto heading = ExplorationNavigation::heading(state.rotation.y);
         const auto arrowPoint = [&](float forward, float right) {
             return ImVec2(px + (heading.x * forward - heading.z * right) * scale,
                           pz + (heading.z * forward + heading.x * right) * scale);
         };
-        draw->AddTriangleFilled(arrowPoint(7.f, 0.f),
-            arrowPoint(-4.f, -5.f), arrowPoint(-4.f, 5.f),
-            IM_COL32(255, 222, 137, 255));
+        GameInterfaceWidgets::playerArrow(draw, arrowPoint(7.f, 0.f),
+            arrowPoint(-4.f, -5.f), arrowPoint(-4.f, 5.f));
         draw->AddText(ImVec2(grid.x + 10.f * scale, grid.y + 8.f * scale),
             IM_COL32(233, 209, 146, 255), tr("hud.minimap_north").c_str());
         draw->PopClipRect();
         if (wide) ImGui::SameLine();
-        ImGui::BeginChild("##OverviewLegend", ImVec2(0, 0), false);
+        ImGui::BeginChild("##OverviewLegend", ImVec2(0, 0), wide);
+        if (wide) {
+            drawExplorationMarkerPanel(state);
+            ImGui::Spacing(); ImGui::Separator();
+        }
         const auto observed = std::count_if(overviewCells.begin(), overviewCells.end(),
             [](const auto& cell) { return cell.known; });
         ImGui::TextColored(WarmAccent, "%s", tr("map.overview").c_str());
@@ -3444,148 +3433,137 @@ class OgreUserInterface::Impl
         using Result = ExplorationMarkers::Result;
         using Kind = ExplorationMarkers::Kind;
         const float scale = appliedSettings.uiScale;
-        const auto resultKey = [](Result result) {
+        const auto feedback = [&](Result result) {
+            const char* key = "map.marker_invalid";
             switch (result) {
-                case Result::Created: return "map.marker_created";
-                case Result::Changed: return "map.marker_saved";
-                case Result::Removed: return "map.marker_removed";
-                case Result::Unchanged: return "map.marker_unchanged";
-                case Result::Full: return "map.marker_full";
-                case Result::Missing: return "map.marker_missing";
-                case Result::Invalid: return "map.marker_invalid";
+                case Result::Created: key = "map.marker_created"; break;
+                case Result::Changed: key = "map.marker_saved"; break;
+                case Result::Removed: key = "map.marker_removed"; break;
+                case Result::Unchanged: key = "map.marker_unchanged"; break;
+                case Result::Full: key = "map.marker_full"; break;
+                case Result::Missing: key = "map.marker_missing"; break;
+                default: break;
             }
-            return "map.marker_invalid";
+            mapMarkerFeedbackKey = key;
+            playUiFeedback();
         };
-        const auto markerPosition = [&]() -> std::optional<std::pair<int, int>> {
-            if (!overviewValid || selectedOverviewCell < 0 ||
-                selectedOverviewCell >= static_cast<int>(overviewCells.size()) ||
-                !overviewCells[selectedOverviewCell].known) return std::nullopt;
-            return overviewObservedPositions[selectedOverviewCell];
-        };
-        const auto selectedPosition = markerPosition();
-        if (ImGui::BeginChild("##ExplorationMarkerPanel", ImVec2(0, 0), false))
+        std::optional<std::pair<int,int>> selectedPosition;
+        if (overviewValid && selectedOverviewCell >= 0 && selectedOverviewCell < int(overviewCells.size()) &&
+            overviewCells[selectedOverviewCell].known)
+            selectedPosition = overviewObservedPositions[selectedOverviewCell];
+        const auto markers = world->explorationMarkers();
+        const auto tracked = world->trackedExplorationMarker();
+        ImGui::Text("%s",tr("map.markers").c_str());
+        ImGui::SameLine();
+        ImGui::TextDisabled("%zu / %zu",markers.size(),ExplorationMarkers::Capacity);
+        ImGui::Separator();
+        const float listHeight = std::max(64.f * scale,std::min(145.f * scale,ImGui::GetContentRegionAvail().y * .28f));
+        ImGui::BeginChild("##MarkerRows",ImVec2(0,listHeight),false);
+        if (markers.empty()) ImGui::TextWrapped("%s",tr("map.marker_empty").c_str());
+        for (const auto& marker : markers)
         {
-            auto markers = world->explorationMarkers();
-            const auto tracked = world->trackedExplorationMarker();
-            ImGui::TextColored(WarmAccent, "%s  %zu / %zu",
-                tr("map.markers").c_str(), markers.size(), ExplorationMarkers::Capacity);
-            if (selectedPosition)
-                ImGui::Text("X %d  Z %d", selectedPosition->first,
-                    selectedPosition->second);
-            else
-                ImGui::TextWrapped("%s", tr("map.marker_choose_cell").c_str());
-            ImGui::Text("%s", tr("map.marker_new_name").c_str());
-            ImGui::InputText("##NewMapMarkerName", newMapMarkerName.data(),
-                newMapMarkerName.size());
-            ImGui::BeginDisabled(!selectedPosition.has_value());
-            const auto create = [&](Kind kind) {
-                std::uint32_t createdId = 0;
-                const auto result = world->createExplorationMarker(
-                    selectedPosition->first, selectedPosition->second,
-                    newMapMarkerName.data(), kind, &createdId);
-                mapMarkerFeedbackKey = resultKey(result);
-                if (result == Result::Created) {
-                    mapMarkerEditor.select(createdId, newMapMarkerName.data());
-                    newMapMarkerName.fill(0);
-                }
-            };
-            if (ImGui::Button(tr("map.marker_add").c_str())) create(Kind::Note);
-            ImGui::SameLine();
-            if (ImGui::Button(tr("map.marker_add_home").c_str())) create(Kind::Home);
-            ImGui::EndDisabled();
-            if (!mapMarkerFeedbackKey.empty())
-                ImGui::TextColored(WarmAccent, "%s",
-                    tr(mapMarkerFeedbackKey).c_str());
-            ImGui::Separator();
-            const float listHeight = std::max(72.f * scale,
-                std::min(170.f * scale, ImGui::GetContentRegionAvail().y * .43f));
-            ImGui::BeginChild("##ExplorationMarkerList",
-                ImVec2(0, listHeight), true);
-            if (markers.empty())
-                ImGui::TextWrapped("%s", tr("map.marker_empty").c_str());
-            for (const auto& marker : markers)
+            ImGui::PushID(static_cast<int>(marker.id));
+            const std::string suffix = marker.kind == Kind::Home ? " · " + tr("map.marker_home") : "";
+            const std::string title = marker.name + suffix + (tracked && tracked->id == marker.id ? " · " + tr("map.marker_tracking") : "");
+            const float width = ImGui::GetContentRegionAvail().x;
+            const float rowHeight = std::max(35.f * scale,ImGui::CalcTextSize(title.c_str(),nullptr,false,std::max(1.f,width-12.f*scale)).y+12.f*scale);
+            const auto at = ImGui::GetCursorScreenPos();
+            if (ImGui::Selectable("##Marker",mapMarkerEditor.id==marker.id,0,ImVec2(0,rowHeight)))
             {
-                ImGui::PushID(static_cast<int>(marker.id));
-                std::string row = marker.name;
-                if (marker.kind == Kind::Home)
-                    row += " · " + tr("map.marker_home");
-                if (tracked && tracked->id == marker.id)
-                    row += " · " + tr("map.marker_tracking");
-                if (ImGui::Selectable(row.c_str(),
-                    mapMarkerEditor.id == marker.id))
-                {
-                    mapMarkerEditor.select(marker.id, marker.name);
-                    mapMarkerFeedbackKey.clear();
-                }
-                ImGui::PopID();
+                mapMarkerEditor.select(marker.id,marker.name);
+                mapMarkerFeedbackKey.clear();
             }
-            ImGui::EndChild();
-            const auto selected = std::find_if(markers.begin(), markers.end(),
-                [&](const auto& marker) {
-                    return marker.id == mapMarkerEditor.id;
-                });
-            if (selected != markers.end())
-            {
-                constexpr const char* directions[] = {
-                    "map.direction_n", "map.direction_ne", "map.direction_e",
-                    "map.direction_se", "map.direction_s", "map.direction_sw",
-                    "map.direction_w", "map.direction_nw"};
-                const auto bearing = ExplorationNavigation::toward(
-                    World::toBlockCoord(state.position.x),
-                    World::toBlockCoord(state.position.z),
-                    selected->worldX, selected->worldZ);
-                ImGui::TextWrapped("%s · X %d  Z %d",
-                    selected->name.c_str(), selected->worldX, selected->worldZ);
-                ImGui::Text("%s  %llu m", tr(directions[bearing.octant]).c_str(),
-                    static_cast<unsigned long long>(bearing.metres));
-                ImGui::Text("%s", tr("map.marker_edit_name").c_str());
-                ImGui::InputText("##EditMapMarkerName",
-                    mapMarkerEditor.name.data(), mapMarkerEditor.name.size());
-                if (ImGui::Button(tr("map.marker_rename").c_str()))
-                    mapMarkerFeedbackKey = resultKey(
-                        world->renameExplorationMarker(selected->id,
-                            mapMarkerEditor.name.data()));
-                ImGui::SameLine();
-                if (ImGui::Button(tr(tracked && tracked->id == selected->id ?
-                    "map.marker_untrack" : "map.marker_track").c_str()))
-                    mapMarkerFeedbackKey = resultKey(
-                        world->trackExplorationMarker(
-                            tracked && tracked->id == selected->id ? 0 : selected->id));
-                if (selected->kind != Kind::Home)
-                {
-                    if (ImGui::Button(tr("map.marker_set_home").c_str()))
-                        mapMarkerFeedbackKey = resultKey(
-                            world->setHomeExplorationMarker(selected->id));
-                    ImGui::SameLine();
-                }
-                ImGui::BeginDisabled(!selectedPosition.has_value());
-                if (ImGui::Button(tr("map.marker_move_here").c_str()))
-                    mapMarkerFeedbackKey = resultKey(
-                        world->moveExplorationMarker(selected->id,
-                            selectedPosition->first, selectedPosition->second));
-                ImGui::EndDisabled();
-                if (ImGui::Button(tr("map.marker_delete").c_str()))
-                    ImGui::OpenPopup("##ConfirmMapMarkerDelete");
-                if (ImGui::BeginPopupModal("##ConfirmMapMarkerDelete", nullptr,
-                    ImGuiWindowFlags_AlwaysAutoResize))
-                {
-                    ImGui::TextWrapped("%s",
-                        tr("map.marker_delete_confirm").c_str());
-                    if (ImGui::Button(tr("map.marker_delete").c_str()))
-                    {
-                        mapMarkerFeedbackKey = resultKey(
-                            world->eraseExplorationMarker(selected->id));
-                        mapMarkerEditor.clear();
-                        ImGui::CloseCurrentPopup();
-                    }
-                    ImGui::SameLine();
-                    if (ImGui::Button(tr("common.cancel").c_str()))
-                        ImGui::CloseCurrentPopup();
-                    ImGui::EndPopup();
-                }
-            }
+            ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),ImGui::GetFontSize(),ImVec2(at.x+6.f*scale,at.y+5.f*scale),
+                ImGui::ColorConvertFloat4ToU32(marker.kind==Kind::Home ? WarmAccent : WarmText),title.c_str(),nullptr,std::max(1.f,width-12.f*scale));
+            ImGui::PopID();
         }
         ImGui::EndChild();
+        if (adventureButton("map.marker_add")) {
+            mapMarkerFeedbackKey.clear();
+            ImGui::OpenPopup("##NewMapMarker");
+        }
+        if (ImGui::BeginPopup("##NewMapMarker"))
+        {
+            ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + std::min(280.f * scale,ImGui::GetIO().DisplaySize.x-80.f));
+            if (selectedPosition) ImGui::Text("X %d  Z %d",selectedPosition->first,selectedPosition->second);
+            else ImGui::TextWrapped("%s",tr("map.marker_choose_cell").c_str());
+            ImGui::TextUnformatted(tr("map.marker_new_name").c_str());
+            ImGui::SetNextItemWidth(std::min(260.f*scale,ImGui::GetIO().DisplaySize.x-96.f));
+            ImGui::InputText("##NewName",newMapMarkerName.data(),newMapMarkerName.size());
+            ImGui::BeginDisabled(!selectedPosition.has_value());
+            const auto create = [&](Kind kind) {
+                std::uint32_t id = 0;
+                const auto result = world->createExplorationMarker(selectedPosition->first,selectedPosition->second,
+                    newMapMarkerName.data(),kind,&id);
+                feedback(result);
+                if (result == Result::Created) {
+                    mapMarkerEditor.select(id,newMapMarkerName.data()); newMapMarkerName.fill(0);
+                    ImGui::CloseCurrentPopup();
+                }
+            };
+            if (adventureButton("map.marker_add",-1.f,true)) create(Kind::Note);
+            if (adventureButton("map.marker_add_home")) create(Kind::Home);
+            ImGui::EndDisabled();
+            if (!mapMarkerFeedbackKey.empty())
+                ImGui::TextWrapped("%s",tr(mapMarkerFeedbackKey).c_str());
+            if (adventureButton("common.cancel")) ImGui::CloseCurrentPopup();
+            ImGui::PopTextWrapPos(); ImGui::EndPopup();
+        }
+        ImGui::Separator();
+        const auto selected = std::find_if(markers.begin(),markers.end(),[&](const auto& m){return m.id==mapMarkerEditor.id;});
+        if (selected != markers.end())
+        {
+            constexpr const char* directions[] = {"map.direction_n","map.direction_ne","map.direction_e","map.direction_se",
+                "map.direction_s","map.direction_sw","map.direction_w","map.direction_nw"};
+            const auto bearing = ExplorationNavigation::toward(World::toBlockCoord(state.position.x),World::toBlockCoord(state.position.z),
+                selected->worldX,selected->worldZ);
+            ImGui::PushStyleColor(ImGuiCol_Text,WarmAccent);
+            ImGui::TextWrapped("%s",selected->name.c_str());
+            ImGui::PopStyleColor();
+            ImGui::Text("%s · %llu m",tr(directions[bearing.octant]).c_str(),static_cast<unsigned long long>(bearing.metres));
+            ImGui::TextDisabled("X %d  Z %d",selected->worldX,selected->worldZ);
+            ImGui::TextUnformatted(tr("map.marker_edit_name").c_str());
+            const float editWidth = ImGui::GetContentRegionAvail().x;
+            const float saveWidth = ImGui::CalcTextSize(tr("map.marker_rename").c_str()).x + 20.f*scale;
+            ImGui::SetNextItemWidth(std::max(60.f*scale,editWidth-saveWidth-ImGui::GetStyle().ItemSpacing.x));
+            ImGui::InputText("##EditMapMarkerName",mapMarkerEditor.name.data(),mapMarkerEditor.name.size());
+            ImGui::SameLine();
+            if (adventureButton("map.marker_rename",saveWidth)) feedback(world->renameExplorationMarker(selected->id,mapMarkerEditor.name.data()));
+            const bool tracking = tracked && tracked->id == selected->id;
+            const float moreWidth = ImGui::CalcTextSize(tr("map.marker_more").c_str()).x + 24.f*scale;
+            if (adventureButton(tracking ? "map.marker_untrack" : "map.marker_track",editWidth-moreWidth-ImGui::GetStyle().ItemSpacing.x,true))
+                feedback(world->trackExplorationMarker(tracking ? 0 : selected->id));
+            ImGui::SameLine();
+            if (adventureButton("map.marker_more",moreWidth)) ImGui::OpenPopup("##MarkerMore");
+            bool deleteRequested = false;
+            if (ImGui::BeginPopup("##MarkerMore"))
+            {
+                if (selected->kind != Kind::Home && ImGui::MenuItem(tr("map.marker_set_home").c_str()))
+                    feedback(world->setHomeExplorationMarker(selected->id));
+                if (ImGui::MenuItem(tr("map.marker_move_here").c_str(),nullptr,false,selectedPosition.has_value()))
+                    feedback(world->moveExplorationMarker(selected->id,selectedPosition->first,selectedPosition->second));
+                ImGui::Separator();
+                if (ImGui::MenuItem(tr("map.marker_delete").c_str())) deleteRequested = true;
+                ImGui::EndPopup();
+            }
+            if (deleteRequested) ImGui::OpenPopup("##ConfirmMapMarkerDelete");
+            if (ImGui::BeginPopupModal("##ConfirmMapMarkerDelete",nullptr,ImGuiWindowFlags_AlwaysAutoResize))
+            {
+                ImGui::TextWrapped("%s",tr("map.marker_delete_confirm").c_str());
+                if (adventureButton("map.marker_delete",0.f)) {
+                    feedback(world->eraseExplorationMarker(selected->id)); mapMarkerEditor.clear(); ImGui::CloseCurrentPopup();
+                }
+                ImGui::SameLine();
+                if (adventureButton("common.cancel",0.f)) ImGui::CloseCurrentPopup();
+                ImGui::EndPopup();
+            }
+        }
+        if (!mapMarkerFeedbackKey.empty()) {
+            ImGui::Spacing(); ImGui::TextWrapped("%s",tr(mapMarkerFeedbackKey).c_str());
+        }
+        ImGui::Spacing(); ImGui::PushStyleColor(ImGuiCol_Text,WarmMuted);
+        ImGui::TextWrapped("%s",tr("map.marker_choose_cell").c_str());
+        ImGui::PopStyleColor();
     }
 
     void drawExplorationMapStatus()
@@ -3629,47 +3607,85 @@ class OgreUserInterface::Impl
         if (world == nullptr) return;
         const auto& io = ImGui::GetIO();
         const float scale = appliedSettings.uiScale;
-        ImGui::GetBackgroundDrawList()->AddRectFilled(ImVec2(0,0), io.DisplaySize, IM_COL32(5,12,16,180));
-        ImGui::SetNextWindowPos(ImVec2(16.f, 16.f), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x - 32.f, io.DisplaySize.y - 32.f), ImGuiCond_Always);
+        GameInterfaceWidgets::OverlayStyle theme(scale);
+        adventureBackdrop();
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x*.5f,io.DisplaySize.y*.5f),ImGuiCond_Always,ImVec2(.5f,.5f));
+        ImGui::SetNextWindowSize(ImVec2(std::min(1120.f*scale,io.DisplaySize.x-32.f),
+            std::min(630.f*scale,io.DisplaySize.y-32.f)),ImGuiCond_Always);
         if (ImGui::Begin("##TerrainMap", nullptr, ImGuiWindowFlags_NoDecoration |
             ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBackground))
         {
-            if (drawInventoryHeader(Material::ID::Grass, tr("map.title"), tr("map.subtitle")))
-                hudInteraction.dismiss();
+            if (adventureHeader(tr("map.title"),GameInterfaceWidgets::Glyph::Map)) hudInteraction.dismiss();
+            const auto footer = [&] {
+                ImGui::Separator();
+                const auto hint = boundedHudText(tr(mapFlatOverview ? "map.overview_controls" : "map.controls"),
+                    ImGui::GetFontSize()*.72f,std::max(1.f,ImGui::GetContentRegionAvail().x-135.f*scale));
+                ImGui::SetWindowFontScale(.72f);
+                ImGui::TextDisabled("%s",hint.c_str());
+                ImGui::SameLine(std::max(ImGui::GetCursorPosX(),ImGui::GetWindowWidth()-140.f*scale));
+                ImGui::TextDisabled("Esc  %s",tr("ui.return_game").c_str());
+                ImGui::SetWindowFontScale(1.f);
+            };
+            ImGui::BeginChild("##MapContents",ImVec2(0,-29.f*scale),false);
             drawExplorationMapStatus();
-            if (ImGui::Button(tr(mapFlatOverview ? "map.view_3d" : "map.view_flat").c_str()))
-            {
-                mapFlatOverview = !mapFlatOverview;
-                mapMarkerPanel = false;
-                selectedOverviewCell = selectedMapCell = -1;
+            if (adventureTab("map.view_flat",mapFlatOverview,112.f*scale)) {
+                mapFlatOverview=true; mapMarkerPanel=false; selectedOverviewCell=selectedMapCell=-1;
             }
             ImGui::SameLine();
-            if (ImGui::Button(tr(mapMarkerPanel ? "map.marker_back" :
-                "map.markers").c_str())) mapMarkerPanel = !mapMarkerPanel;
-            if (mapMarkerPanel)
+            if (adventureTab("map.view_3d",!mapFlatOverview,112.f*scale)) {
+                mapFlatOverview=false; mapMarkerPanel=false; selectedOverviewCell=selectedMapCell=-1;
+            }
+            const float toolbarWidth = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;
+            if (!mapFlatOverview || toolbarWidth <= 760.f*scale) {
+                ImGui::SameLine();
+                if (adventureTab(mapMarkerPanel ? "map.marker_back" : "map.markers",mapMarkerPanel)) {
+                    mapFlatOverview=true; mapMarkerPanel=!mapMarkerPanel;
+                }
+            }
+            if (toolbarWidth > 900.f*scale) ImGui::SameLine();
+            if (ImGui::Button(tr("map.center").c_str())) {
+                if (mapFlatOverview) {
+                    overviewOffsetX=overviewOffsetZ=0;
+                    overviewPanRemainderX=overviewPanRemainderZ=0.f;
+                    selectedOverviewCell=-1;
+                } else { mapView={}; selectedMapCell=-1; }
+            }
+            if (!mapFlatOverview) {
+                ImGui::SameLine(); if (ImGui::Button(tr("map.north").c_str())) mapView.yaw=0;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("-##MapZoom")) {
+                if (mapFlatOverview) setOverviewStep(overviewStep*2); else mapView.zoom/=1.25f;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("+##MapZoom")) {
+                if (mapFlatOverview) setOverviewStep(overviewStep/2); else mapView.zoom*=1.25f;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button(tr("map.marker_more").c_str())) ImGui::OpenPopup("##MapPan");
+            if (ImGui::BeginPopup("##MapPan")) {
+                const auto pan = [&](int dx,int dz) {
+                    if (mapFlatOverview) { overviewOffsetX+=dx*8*overviewStep; overviewOffsetZ+=dz*8*overviewStep; }
+                    else { mapView.panX+=dx*.12f; mapView.panY+=dz*.12f; }
+                };
+                if (ImGui::Button("<")) pan(-1,0);
+                ImGui::SameLine(); if (ImGui::Button(">")) pan(1,0);
+                ImGui::SameLine(); if (ImGui::Button("^")) pan(0,-1);
+                ImGui::SameLine(); if (ImGui::Button("v")) pan(0,1);
+                ImGui::EndPopup();
+            }
+            if (mapMarkerPanel && toolbarWidth <= 760.f*scale)
             {
+                ImGui::BeginChild("##CompactMarkers",ImVec2(0,0),false);
                 drawExplorationMarkerPanel(state);
-                ImGui::End();
-                return;
+                ImGui::EndChild(); ImGui::EndChild(); footer(); ImGui::End(); return;
             }
             if (mapFlatOverview)
             {
                 drawExplorationOverview(state);
-                ImGui::End();
-                return;
+                ImGui::EndChild(); footer(); ImGui::End(); return;
             }
             refreshMinimap(state);
-            const auto button = [&](const char* key) { return ImGui::Button(tr(key).c_str()); };
-            if (button("map.center")) { mapView = {}; selectedMapCell = -1; }
-            ImGui::SameLine(); if (button("map.north")) mapView.yaw = 0;
-            ImGui::SameLine(); if (ImGui::Button(" - ")) mapView.zoom /= 1.25f;
-            ImGui::SameLine(); if (ImGui::Button(" + ")) mapView.zoom *= 1.25f;
-            ImGui::SameLine(); if (ImGui::Button("<")) mapView.panX -= .12f;
-            ImGui::SameLine(); if (ImGui::Button(">")) mapView.panX += .12f;
-            ImGui::SameLine(); if (ImGui::Button("^")) mapView.panY -= .12f;
-            ImGui::SameLine(); if (ImGui::Button("v")) mapView.panY += .12f;
-            ImGui::TextWrapped("%s", tr("map.controls").c_str());
             const float width = ImGui::GetContentRegionAvail().x;
             const bool wide = width > 760.f * scale;
             const float legendWidth = wide ? 228.f * scale : 0.f;
@@ -3739,9 +3755,14 @@ class OgreUserInterface::Impl
                         landmark.position.x,landmark.position.y,landmark.position.z);
             }
             const auto at = pointAt(state.position.x, state.position.y, state.position.z);
-            draw->AddCircleFilled(at, 8.f*scale, IM_COL32(17,29,35,255));
-            draw->AddTriangleFilled(ImVec2(at.x,at.y-8.f*scale),ImVec2(at.x-5.f*scale,at.y+4.f*scale),
-                ImVec2(at.x+5.f*scale,at.y+4.f*scale),IM_COL32(255,222,137,255));
+            const auto heading = ExplorationNavigation::heading(state.rotation.y);
+            const auto facing = project(heading.x,0.f,heading.z);
+            const float facingLength = std::max(.001f,std::hypot(facing.x,facing.y));
+            const float dx = facing.x/facingLength, dy = facing.y/facingLength;
+            const auto arrow = [&](float forward,float right) {
+                return ImVec2(at.x+(dx*forward-dy*right)*scale,at.y+(dy*forward+dx*right)*scale);
+            };
+            GameInterfaceWidgets::playerArrow(draw,arrow(8.f,0.f),arrow(-4.f,-5.f),arrow(-4.f,5.f));
             draw->AddText(ImVec2(at.x+10.f*scale,at.y-8.f*scale),IM_COL32(255,222,137,255),tr("map.player").c_str());
             // Compass uses the same projection as the relief. The scale is
             // measured along world X, including its view foreshortening.
@@ -3757,17 +3778,16 @@ class OgreUserInterface::Impl
             draw->AddText(ImVec2(ruler.x,ruler.y-18.f*scale),IM_COL32(184,199,186,255),scaleLabel.c_str());
             draw->PopClipRect();
             if (wide) ImGui::SameLine();
-            ImGui::BeginChild("##MapLegend", ImVec2(0,0), false);
+            ImGui::BeginChild("##MapLegend", ImVec2(0,0), wide);
             const auto observed = std::count_if(minimapCells.begin(), minimapCells.end(), [](const auto& cell){return cell.known;});
             if (wide)
             {
-                ImGui::TextColored(WarmAccent, "%s", tr("map.region").c_str());
-                ImGui::TextWrapped("%s", tr("map.unknown").c_str());
+                ImGui::TextColored(WarmText, "%s", tr("map.surface").c_str());
                 ImGui::Text("%s: %d m",tr("map.span").c_str(),MinimapCellCount * minimapStep);
                 ImGui::Text("%s: %.1fx",tr("map.zoom").c_str(),mapView.zoom);
                 ImGui::Text("%s: %.0f%%",tr("map.observed").c_str(),100.f*observed/minimapCells.size());
                 ImGui::Separator();
-                ImGui::TextColored(WarmAccent,"%s",tr("map.surface").c_str());
+
             }
             else
             {
@@ -3779,6 +3799,10 @@ class OgreUserInterface::Impl
             if (inspection >= 0 && inspection < int(minimapCells.size()) && minimapCells[inspection].known)
             {
                 const auto& cell = minimapCells[inspection];
+                if (wide) {
+                    adventureIcon(Material::toMaterial(cell.material).id,ImGui::GetCursorScreenPos(),34.f*scale);
+                    ImGui::Dummy(ImVec2(34.f*scale,34.f*scale));
+                }
                 ImGui::TextWrapped("%s",LocalizedPresentation::surfaceName(appliedSettings.locale, cell.material).c_str());
                 ImGui::Text("X %d  Y %d  Z %d",minimapCenterX+(inspection%MinimapCellCount-32)*minimapStep,
                     cell.height,minimapCenterZ+(inspection/MinimapCellCount-32)*minimapStep);
@@ -3787,10 +3811,17 @@ class OgreUserInterface::Impl
             if (wide)
             {
                 ImGui::Spacing(); ImGui::Separator();
-                ImGui::TextWrapped("%s",tr("map.legend").c_str());
+                ImGui::TextColored(WarmAccent,"%s",tr("map.player").c_str());
+                ImGui::TextColored(ImVec4(.46f,.86f,.92f,1.f),"%s",tr("map.waystone").c_str());
+                ImGui::TextColored(ImVec4(.92f,.7f,.44f,1.f),"%s",tr("map.workbench").c_str());
+                ImGui::TextColored(ImVec4(.92f,.7f,.44f,1.f),"%s",tr("map.storage").c_str());
+                ImGui::Spacing();
+                ImGui::TextWrapped("%s",tr("map.unknown").c_str());
                 ImGui::TextWrapped("%s",tr("map.session").c_str());
             }
             ImGui::EndChild();
+            ImGui::EndChild();
+            footer();
         }
         ImGui::End();
     }
