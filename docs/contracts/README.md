@@ -77,6 +77,7 @@
 - [first-thirty-minutes-contract-v1.md](first-thirty-minutes-contract-v1.md)
 - [exploration-reward-contract-v1.md](exploration-reward-contract-v1.md)
 - [terrain-contours-cave-entrances-contract-v1.md](terrain-contours-cave-entrances-contract-v1.md)
+- [adventure-underground-contract-v1.md](adventure-underground-contract-v1.md)
 - [enemy-presentation-waystone-resonance-contract-v1.md](enemy-presentation-waystone-resonance-contract-v1.md)
 
 合同完成后只允许修正事实错误、失效链接或明确的迁移说明；新的行为变化应建立新版本或新批次
