@@ -104,6 +104,28 @@ int main() {
     check(overview.step==4 && overview.zoom==16,"zoom in has bounded geometry and magnification");
     const auto saved=overview; overview.change(std::numeric_limits<float>::quiet_NaN());
     check(overview.step==saved.step && overview.zoom==saved.zoom,"invalid zoom ignored");
+    for (const auto& viewport : {std::pair<float,float>{810,479},{380,220},{1100,700}}) {
+        overview.fitRegion(viewport.first,viewport.second,290);
+        const float pixelsPerMetre=overview.cellPixels(viewport.first,viewport.second)/overview.step;
+        check(std::abs(290*pixelsPerMetre/std::min(viewport.first,viewport.second)-.82f)<.001f,
+            "initial and recenter fit fills viewport without coarse-scale drift");
+    }
+    MapSurfaceRegion<Sample,257,2> fine;
+    fine.configure(-360,-504,8);
+    check(fine.step==2 && fine.count==145 && fine.nextBatch().size()==195,
+        "flat map preserves minimap detail across render scope under same query budget");
+    auto firstFine=fine.nextBatch();
+    fine.accept(firstFine,std::vector<Sample>(firstFine.size(),{true,81,3}));
+    check(fine.cellAt(-360,-504)==fine.count/2*fine.count+fine.count/2 &&
+        fine.cellAt(-359.01,-504)==fine.cellAt(-360,-504) &&
+        fine.cellAt(-358.99,-504)!=fine.cellAt(-360,-504),
+        "fine hover follows exact surface footprint including negative coordinates");
+    check(fine.cellAt(10000,10000)==-1 && fine.cellAt(-360,-510)==-1 &&
+        fine.cellAt(std::numeric_limits<double>::infinity(),0)==-1,
+        "fine picking cannot invent unknown or out-of-range ground");
+    fine.configure(0,0,64);
+    check(fine.count<=257 && fine.step<=16 && fine.cells.size()<=257*257,
+        "maximum live flat cache remains bounded independently of zoom");
     MapSurfaceRegion<Sample> region;
     check(region.configure(500,438,8) && region.step==4 && region.count==73,
         "detail scope follows render chunks rather than 130m minimap");

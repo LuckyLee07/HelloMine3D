@@ -101,7 +101,7 @@ class ExplorationAtlas {
         std::int64_t centerX, std::int64_t centerZ,
         int cellsPerSide, int metresPerPixel) const
     {
-        if (cellsPerSide < 1 || cellsPerSide > 65 ||
+        if (cellsPerSide < 1 || cellsPerSide > 129 ||
             metresPerPixel < MetresPerCell || metresPerPixel > 64 ||
             (metresPerPixel & (metresPerPixel - 1)) != 0) return {};
         std::vector<OverviewSample> result(

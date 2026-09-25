@@ -73,7 +73,11 @@ int main()
                     seam[3].surface.material == BlockId::Snow &&
                     seam[4].surface.material == BlockId::Gravel,
                 "tile seam merged two distinct overview pixels");
-        require(overview.overviewAt(0, 0, 66, 4).empty() &&
+        const auto detailed = overview.overviewAt(0, 0, 129, 4);
+        require(detailed.size() == 129*129 && detailed[64*129+64].known &&
+                    detailed[64*129+96].surface.height == 76,
+                "detail overview must retain separate real 4m records across tile seams");
+        require(overview.overviewAt(0, 0, 130, 4).empty() &&
                     overview.overviewAt(0, 0, 65, 128).empty(),
                 "unbounded overview request was accepted");
 
@@ -118,7 +122,7 @@ int main()
         require(atlas.tileCount() == 0 && atlas.knownCellCount() == 0 &&
                     !atlas.surfaceAt(0, 0).has_value(),
                 "world detach clears all exploration memory");
-        std::cout << "[EXPLORATION_ATLAS] checks=13 status=PASS\n";
+        std::cout << "[EXPLORATION_ATLAS] checks=14 status=PASS\n";
         return 0;
     }
     catch (const std::exception& error) {

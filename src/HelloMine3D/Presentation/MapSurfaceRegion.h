@@ -9,10 +9,10 @@
 
 // A bounded, centre-first sweep of the current render region. This class owns
 // only copied observations: it cannot generate terrain or turn unknown into land.
-template<class Sample>
+template<class Sample, int MaximumSide = 129, int MinimumStep = 4>
 struct MapSurfaceRegion
 {
-    static constexpr int MaxSide = 129;
+    static constexpr int MaxSide = MaximumSide;
     static constexpr int BatchSize = 195;
     struct Query { int x, z, cell; };
     std::vector<Sample> cells;
@@ -23,7 +23,7 @@ struct MapSurfaceRegion
     {
         // One chunk margin covers the difference between player and chunk centre.
         const int radius = (std::clamp(renderDistance, 1, 64) + 1) * 16;
-        int spacing = 4;
+        int spacing = MinimumStep;
         while (2 * ((radius + spacing - 1) / spacing) + 1 > MaxSide) spacing *= 2;
         const int side = 2 * ((radius + spacing - 1) / spacing) + 1;
         const auto align = [spacing](int v) {
@@ -68,6 +68,16 @@ struct MapSurfaceRegion
         cursor = (cursor + std::min(BatchSize, int(cells.size()))) % int(cells.size());
         if (changed) ++revision;
         return changed;
+    }
+
+    int cellAt(double x, double z) const
+    {
+        if (!std::isfinite(x) || !std::isfinite(z) || cells.empty()) return -1;
+        const double ix = std::floor((x - centerX) / step + count / 2 + .5);
+        const double iz = std::floor((z - centerZ) / step + count / 2 + .5);
+        if (ix < 0 || iz < 0 || ix >= count || iz >= count) return -1;
+        const int index = int(iz) * count + int(ix);
+        return cells[index].known ? index : -1;
     }
 
     std::optional<float> surfaceHeight(float x, float z) const

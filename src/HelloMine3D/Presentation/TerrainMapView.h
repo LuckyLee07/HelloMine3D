@@ -92,8 +92,20 @@ namespace TerrainMapView
     // Coarser query levels keep the existing 65x65 result budget when zooming out.
     struct OverviewScale
     {
+        static constexpr int CellCount = 129;
         int step = 4;
         float zoom = 1.f;
+        // Fit the actual local region, independent of how many rows have
+        // arrived. Zoom and query resolution must be solved together.
+        void fitRegion(float width, float height, float metres) noexcept
+        {
+            const float perPixel = std::max(4.f, metres) /
+                (std::max(1.f, std::min(width, height)) * .82f);
+            step = 4;
+            zoom = step * float(CellCount) / (std::max({1.f,width,height}) * perPixel);
+            while (zoom < 1.f && step < 64) { step *= 2; zoom *= 2.f; }
+            zoom = std::clamp(zoom, 1.f, 16.f);
+        }
         void change(float factor) noexcept
         {
             if (!std::isfinite(factor) || factor <= 0.f) return;
@@ -103,7 +115,7 @@ namespace TerrainMapView
             zoom = std::clamp(zoom,1.f,16.f);
         }
         float cellPixels(float width, float height) const noexcept
-        { return std::max({1.f,width,height}) / 65.f * zoom; }
+        { return std::max({1.f,width,height}) / float(CellCount) * zoom; }
     };
     inline bool contains(const Face& face, float x, float y) noexcept
     {
