@@ -1581,7 +1581,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 661 &&
+              registry.keys("en-US").size() == 681 &&
               registry.lookup("en-US", "main.continue") == "Continue" &&
               registry.lookup("zh-CN", "main.continue") == "继续游戏" &&
               registry.lookup("en-US", "world.preview_unavailable") ==
@@ -1602,6 +1602,10 @@ void caseWorldOutcomeAndLocalizedText()
                   "Balance the world, interface and music here. Audio captions can be enabled separately." &&
               registry.lookup("zh-CN", "settings.controls_help") ==
                   "为每项动作选择一个输入；应用时会检查按键冲突。" &&
+              registry.lookup("en-US", "machine.guidance.blocked_output") ==
+                  "Take the output or clear room for the result." &&
+              registry.lookup("zh-CN", "machine.feedback.incompatible") ==
+                  "该物品不适用于这台机器。" &&
               registry.lookup("en-US", "world.catalogue_error") ==
                   "World list unavailable" &&
               registry.lookup("zh-CN", "world.recovery_warning") ==

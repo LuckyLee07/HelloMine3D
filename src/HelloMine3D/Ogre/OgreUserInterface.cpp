@@ -5505,11 +5505,38 @@ class OgreUserInterface::Impl
         ImGui::End();
     }
 
+    const char* machineGuidanceKey(MachineStatus status,
+                                   bool isCrusher) const noexcept
+    {
+        switch (status)
+        {
+            case MachineStatus::Idle:
+                return isCrusher
+                    ? "machine.guidance.crusher_idle"
+                    : "machine.guidance.furnace_idle";
+            case MachineStatus::MissingInput:
+                return isCrusher
+                    ? "machine.guidance.crusher_missing_input"
+                    : "machine.guidance.furnace_missing_input";
+            case MachineStatus::BlockedOutput:
+                return "machine.guidance.blocked_output";
+            case MachineStatus::NoPower:
+                return isCrusher
+                    ? "machine.guidance.crusher_no_power"
+                    : "machine.guidance.furnace_no_power";
+            case MachineStatus::Running:
+                return "machine.guidance.running";
+        }
+        return "machine.guidance.furnace_idle";
+    }
+
     void drawContainer()
     {
         if (player == nullptr || !player->hasOpenContainer() ||
             player->hasOpenCrafting() || world == nullptr)
         {
+            machineFeedbackKey.clear();
+            machineFeedbackBound = false;
             return;
         }
 
@@ -5517,6 +5544,8 @@ class OgreUserInterface::Impl
             *world, *player->getOpenContainer());
         if (!capabilities.inventoryProvider)
         {
+            machineFeedbackKey.clear();
+            machineFeedbackBound = false;
             player->closeContainer();
             return;
         }
@@ -5526,6 +5555,8 @@ class OgreUserInterface::Impl
             provider.view(*world, runtimeSmeltingRegistry());
         if (!inventory)
         {
+            machineFeedbackKey.clear();
+            machineFeedbackBound = false;
             player->closeContainer();
             return;
         }
@@ -5541,6 +5572,17 @@ class OgreUserInterface::Impl
         {
             const bool isCrusher = capabilities.machineProcessor->kind() ==
                 MachineProcessorKind::Crusher;
+            const glm::ivec3 machinePosition = processor->position;
+            const bool sameFeedbackMachine = machineFeedbackBound &&
+                machineFeedbackPosition.x == machinePosition.x &&
+                machineFeedbackPosition.y == machinePosition.y &&
+                machineFeedbackPosition.z == machinePosition.z;
+            if (!sameFeedbackMachine)
+            {
+                machineFeedbackKey.clear();
+                machineFeedbackPosition = machinePosition;
+                machineFeedbackBound = true;
+            }
             std::optional<MechanicalNodeSnapshot> mechanicalNode;
             if (isCrusher && capabilities.mechanicalPort)
             {
@@ -5549,119 +5591,234 @@ class OgreUserInterface::Impl
             const std::string machineKey = isCrusher
                 ? "crusher"
                 : "furnace";
-            const std::string widgetKey = isCrusher
-                ? "crusher"
-                : "furnace";
-            const ImGuiIO &io = ImGui::GetIO();
-            ImGui::SetNextWindowPos(
-                ImVec2(io.DisplaySize.x * 0.5f,
-                       (io.DisplaySize.y - 80.f) * 0.5f),
-                ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+            const std::string widgetKey = isCrusher ? "crusher" : "furnace";
+            const ImGuiIO& io = ImGui::GetIO();
+            const float scale = appliedSettings.uiScale;
             const PresentationWindowLayout layout = fitPresentationWindow(
-                io.DisplaySize.x, io.DisplaySize.y - 80.f, 700.f,
-                isCrusher ? 540.f : 440.f, appliedSettings.uiScale);
-            ImGui::SetNextWindowSize(
-                ImVec2(layout.width, layout.height), ImGuiCond_Always);
-            ImGui::SetNextWindowBgAlpha(0.96f);
+                io.DisplaySize.x, io.DisplaySize.y, 840.f, 620.f, scale);
+            const bool compact = layout.width <= 700.f * scale ||
+                layout.height < 520.f * scale;
+            GameInterfaceWidgets::OverlayStyle theme(scale);
+            adventureBackdrop();
+            ImGui::SetNextWindowPos(
+                ImVec2(io.DisplaySize.x * .5f, io.DisplaySize.y * .5f),
+                ImGuiCond_Always, ImVec2(.5f, .5f));
+            ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height),
+                                     ImGuiCond_Always);
             bool open = true;
             const ImGuiWindowFlags flags =
+                ImGuiWindowFlags_NoTitleBar |
                 ImGuiWindowFlags_NoCollapse |
                 ImGuiWindowFlags_NoSavedSettings |
-                ImGuiWindowFlags_NoResize;
-            const std::string machineTitle =
-                label(machineKey + ".title", "##Machine");
-            if (ImGui::Begin(machineTitle.c_str(), &open, flags))
+                ImGuiWindowFlags_NoResize |
+                ImGuiWindowFlags_NoMove |
+                ImGuiWindowFlags_NoBackground;
+            if (ImGui::Begin("##Machine", nullptr, flags))
             {
-                const float slotWidth = (ImGui::GetContentRegionAvail().x -
-                    (inventory->slotCount - 1) * ImGui::GetStyle().ItemSpacing.x) /
-                    std::max(1, inventory->slotCount);
-                for (int index = 0; index < inventory->slotCount; ++index)
+                if (drawInventoryHeader(
+                        isCrusher ? Material::ID::Crusher
+                                  : Material::ID::Furnace,
+                        tr(machineKey + ".title"),
+                        tr(machineKey + ".subtitle")))
                 {
-                    if (index > 0) ImGui::SameLine();
-                    ImGui::BeginGroup();
-                    const InventorySlotState &stack =
-                        inventory->slots[index].state;
-                    const InventorySlotRole role =
-                        inventory->slots[index].role;
-                    const std::string slotName = role == InventorySlotRole::Fuel
-                        ? tr("furnace.fuel")
-                        : tr(machineKey +
-                             (role == InventorySlotRole::Output
-                                  ? ".output"
-                                  : ".input"));
-                    ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + slotWidth);
-                    ImGui::TextDisabled("%s", slotName.c_str());
-                    ImGui::PopTextWrapPos();
-                    if (drawInventoryCard(stack.materialId, stack.amount,
-                            widgetKey + std::to_string(index),
-                            ImVec2(slotWidth, 62.f * appliedSettings.uiScale)) &&
-                        stack.amount > 0 &&
-                        provider.transferToPlayer(
-                            *world, *player, index, stack.amount,
-                            runtimeSmeltingRegistry()))
-                    {
-                        playUiFeedback();
-                    }
-                    ImGui::EndGroup();
+                    open = false;
                 }
+
+                const auto setMachineFeedback = [&](const char* key)
+                {
+                    machineFeedbackKey = key;
+                    playUiFeedback();
+                };
+                const auto roleSlot = [&](InventorySlotRole role)
+                {
+                    for (int slot = 0; slot < inventory->slotCount; ++slot)
+                    {
+                        if (inventory->slots[slot].role == role) return slot;
+                    }
+                    return -1;
+                };
+                const int inputSlot = roleSlot(InventorySlotRole::Input);
+                const int fuelSlot = roleSlot(InventorySlotRole::Fuel);
+                const int outputSlot = roleSlot(InventorySlotRole::Output);
+                const auto drawProviderSlot = [&](int slot,
+                                                  const std::string& slotName)
+                {
+                    if (slot < 0 || slot >= inventory->slotCount) return;
+                    ImGui::PushStyleColor(ImGuiCol_Text, WarmMuted);
+                    ImGui::TextWrapped("%s", slotName.c_str());
+                    ImGui::PopStyleColor();
+                    const InventoryProviderSlotView& slotView =
+                        inventory->slots[slot];
+                    const InventorySlotState stack = slotView.state;
+                    const bool clicked = drawInventoryCard(
+                        stack.materialId, stack.amount,
+                        widgetKey + std::to_string(slot),
+                        ImVec2(std::max(1.f, ImGui::GetContentRegionAvail().x),
+                               (compact ? 60.f : 72.f) * scale),
+                        false, compact);
+                    if (!clicked || stack.amount <= 0 ||
+                        !slotView.extractable) return;
+                    const Material& material =
+                        Material::toMaterial(stack.materialId);
+                    if (player->getInventoryCapacity(material) <= 0)
+                    {
+                        setMachineFeedback("machine.feedback.pack_full");
+                    }
+                    else if (provider.transferToPlayer(
+                                 *world, *player, slot, stack.amount,
+                                 runtimeSmeltingRegistry()))
+                    {
+                        setMachineFeedback("machine.feedback.taken");
+                    }
+                    else
+                    {
+                        setMachineFeedback("machine.feedback.retry");
+                    }
+                };
+
                 const float machineProgress =
                     processor->recipeDurationTicks > 0
-                        ? static_cast<float>(processor->progressTicks) /
+                        ? std::clamp(
+                              static_cast<float>(processor->progressTicks) /
                               static_cast<float>(
-                                  processor->recipeDurationTicks)
+                                  processor->recipeDurationTicks),
+                              0.f, 1.f)
                         : 0.f;
                 const float powerProgress =
                     processor->powerTicksTotal > 0
-                        ? static_cast<float>(
-                              processor->powerTicksRemaining) /
-                              static_cast<float>(processor->powerTicksTotal)
+                        ? std::clamp(
+                              static_cast<float>(
+                                  processor->powerTicksRemaining) /
+                                  static_cast<float>(
+                                      processor->powerTicksTotal),
+                              0.f, 1.f)
                         : 0.f;
-                ImGui::TextUnformatted(
-                    tr(isCrusher ? "crusher.progress"
-                                 : "furnace.progress").c_str());
-                ImGui::ProgressBar(machineProgress, ImVec2(-1.0f, 0.0f));
-                ImGui::TextUnformatted(
-                    tr(isCrusher ? "crusher.power_remaining"
-                                 : "furnace.fuel_remaining").c_str());
-                ImGui::ProgressBar(powerProgress, ImVec2(-1.0f, 0.0f));
                 const std::string statusText =
                     tr(std::string("machine.status.") +
                        machineStatusName(processor->status));
-                ImGui::Text("%s: %s", tr("machine.status").c_str(),
-                            statusText.c_str());
-                if (mechanicalNode && showDebugPanel)
-                {
-                    ImGui::Text("%s: %s",
-                        tr("crusher.network_id").c_str(),
-                        mechanicalNetworkIdString(
-                            mechanicalNode->networkId).c_str());
-                    ImGui::Text("%s: %llu",
-                        tr("crusher.network_nodes").c_str(),
-                        static_cast<unsigned long long>(
-                            mechanicalNode->nodeCount));
-                    ImGui::Text("%s: %llu",
-                        tr("crusher.network_connections").c_str(),
-                        static_cast<unsigned long long>(
-                            mechanicalNode->connectionCount));
-                }
-                if (processor->manualPowerSupported &&
-                    ImGui::Button(
-                        label("crusher.crank", "##CrusherCrank").c_str(),
-                        ImVec2(-1.f, 36.f * appliedSettings.uiScale)))
-                {
-                    if (capabilities.machineProcessor->supplyManualPower(
-                            *world, *player))
-                    {
-                        playUiFeedback();
-                    }
-                }
-                ImGui::Separator();
-                ImGui::TextWrapped("%s",
-                    tr(machineKey + ".inventory_hint").c_str());
+                const ImVec4 statusColour =
+                    processor->status == MachineStatus::Running
+                        ? ImVec4(.55f, .82f, .62f, 1.f)
+                        : processor->status == MachineStatus::BlockedOutput
+                              ? ImVec4(.95f, .58f, .42f, 1.f)
+                              : WarmAccent;
+
+                const float contentWidth = ImGui::GetContentRegionAvail().x;
+                const float slotGap = compact ? 6.f * scale : 10.f * scale;
                 const int playerSlots = player->getInventorySlotCount();
-                const float playerSlotWidth = (ImGui::GetContentRegionAvail().x -
-                    (playerSlots - 1) * ImGui::GetStyle().ItemSpacing.x) /
-                    std::max(1, playerSlots);
+                const float hotbarCell = std::min(
+                    (compact ? 52.f : 58.f) * scale,
+                    (contentWidth - (playerSlots - 1) * slotGap) /
+                        std::max(1, playerSlots));
+                const float footerHeight =
+                    ImGui::GetTextLineHeightWithSpacing() * 2.f +
+                    hotbarCell + 23.f * scale +
+                    ImGui::GetStyle().ItemSpacing.y * 5.f + 2.f;
+                ImGui::BeginChild("##MachineFlow",
+                                  ImVec2(0.f, -footerHeight), false);
+                if (ImGui::BeginTable(
+                        "##MachineFlowColumns", 3,
+                        ImGuiTableFlags_SizingStretchProp |
+                            ImGuiTableFlags_BordersInnerV))
+                {
+                    ImGui::TableSetupColumn(
+                        "Input", ImGuiTableColumnFlags_WidthStretch, .95f);
+                    ImGui::TableSetupColumn(
+                        "Process", ImGuiTableColumnFlags_WidthStretch, 1.25f);
+                    ImGui::TableSetupColumn(
+                        "Output", ImGuiTableColumnFlags_WidthStretch, .95f);
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    drawProviderSlot(inputSlot, tr(machineKey + ".input"));
+                    if (fuelSlot >= 0)
+                    {
+                        ImGui::Spacing();
+                        drawProviderSlot(fuelSlot, tr("furnace.fuel"));
+                    }
+
+                    ImGui::TableNextColumn();
+                    ImGui::SeparatorText(tr("machine.process").c_str());
+                    ImGui::TextColored(statusColour, "%s", statusText.c_str());
+                    ImGui::PushStyleColor(ImGuiCol_Text, WarmMuted);
+                    ImGui::TextWrapped(
+                        "%s", tr(machineGuidanceKey(
+                                  processor->status, isCrusher)).c_str());
+                    ImGui::PopStyleColor();
+                    ImGui::Spacing();
+                    ImGui::TextWrapped(
+                        "%s", tr(isCrusher ? "crusher.progress"
+                                           : "furnace.progress").c_str());
+                    ImGui::ProgressBar(machineProgress, ImVec2(-1.f, 0.f));
+                    ImGui::TextWrapped(
+                        "%s", tr(isCrusher ? "crusher.power_remaining"
+                                           : "furnace.fuel_remaining").c_str());
+                    ImGui::ProgressBar(powerProgress, ImVec2(-1.f, 0.f));
+                    if (processor->manualPowerSupported)
+                    {
+                        const bool powerFull =
+                            processor->powerTicksTotal > 0 &&
+                            processor->powerTicksRemaining >=
+                                processor->powerTicksTotal;
+                        ImGui::BeginDisabled(powerFull);
+                        if (ImGui::Button(
+                                label("crusher.crank",
+                                      "##CrusherCrank").c_str(),
+                                ImVec2(-1.f, 36.f * scale)))
+                        {
+                            if (capabilities.machineProcessor
+                                    ->supplyManualPower(*world, *player))
+                            {
+                                setMachineFeedback(
+                                    "machine.feedback.cranked");
+                            }
+                            else
+                            {
+                                setMachineFeedback(
+                                    "machine.feedback.retry");
+                            }
+                        }
+                        ImGui::EndDisabled();
+                        if (powerFull)
+                        {
+                            ImGui::TextColored(
+                                WarmMuted, "%s",
+                                tr("machine.feedback.power_full").c_str());
+                        }
+                    }
+                    if (mechanicalNode && showDebugPanel)
+                    {
+                        ImGui::Separator();
+                        ImGui::TextDisabled(
+                            "%s: %s", tr("crusher.network_id").c_str(),
+                            mechanicalNetworkIdString(
+                                mechanicalNode->networkId).c_str());
+                        ImGui::TextDisabled(
+                            "%s: %llu",
+                            tr("crusher.network_nodes").c_str(),
+                            static_cast<unsigned long long>(
+                                mechanicalNode->nodeCount));
+                        ImGui::TextDisabled(
+                            "%s: %llu",
+                            tr("crusher.network_connections").c_str(),
+                            static_cast<unsigned long long>(
+                                mechanicalNode->connectionCount));
+                    }
+
+                    ImGui::TableNextColumn();
+                    drawProviderSlot(outputSlot, tr(machineKey + ".output"));
+                    ImGui::EndTable();
+                }
+                ImGui::EndChild();
+
+                ImGui::Separator();
+                drawInventoryHeading(tr("inventory.carried"), {});
+                const float hotbarWidth = playerSlots * hotbarCell +
+                    (playerSlots - 1) * slotGap;
+                ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
+                    std::max(0.f,
+                        (ImGui::GetContentRegionAvail().x - hotbarWidth) * .5f));
+                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
+                                    ImVec2(slotGap, slotGap));
                 for (int playerSlot = 0;
                      playerSlot < playerSlots;
                      ++playerSlot)
@@ -5669,53 +5826,102 @@ class OgreUserInterface::Impl
                     if (playerSlot > 0) ImGui::SameLine();
                     const ItemStack &stack =
                         player->getInventorySlot(playerSlot);
-                    if (drawInventoryCard(stack.getMaterial().id,
-                            stack.getNumInStack(), widgetKey + "player" +
-                                std::to_string(playerSlot),
-                            ImVec2(playerSlotWidth, 54.f * appliedSettings.uiScale)) &&
-                        !stack.isEmpty())
+                    const bool clicked = drawInventoryCard(
+                        stack.getMaterial().id, stack.getNumInStack(),
+                        widgetKey + "player" + std::to_string(playerSlot),
+                        ImVec2(hotbarCell, hotbarCell), false, true,
+                        playerSlot + 1);
+                    if (clicked && !stack.isEmpty())
                     {
                         int target = -1;
                         if (isCrusher && stack.getMaterial().id ==
                                              Material::ID::Cobblestone)
                         {
-                            target = 0;
+                            target = inputSlot;
                         }
                         else if (!isCrusher &&
                             runtimeSmeltingRegistry().findRecipe(
                                 stack.getMaterial().id) != nullptr)
                         {
-                            target = 0;
+                            target = inputSlot;
                         }
                         else if (!isCrusher &&
                             runtimeSmeltingRegistry().findFuel(
                                      stack.getMaterial().id) != nullptr)
                         {
-                            target = 1;
+                            target = fuelSlot;
                         }
-                        if (target >= 0 && provider.transferFromPlayer(
-                                *world, *player, target, playerSlot,
-                                stack.getNumInStack(),
-                                runtimeSmeltingRegistry()))
+                        if (target < 0 || target >= inventory->slotCount ||
+                            !inventory->slots[target].insertable)
                         {
-                            playUiFeedback();
+                            setMachineFeedback(
+                                "machine.feedback.incompatible");
+                        }
+                        else
+                        {
+                            const InventorySlotState destination =
+                                inventory->slots[target].state;
+                            if (destination.amount > 0 &&
+                                destination.materialId !=
+                                    stack.getMaterial().id)
+                            {
+                                setMachineFeedback(
+                                    "machine.feedback.slot_blocked");
+                            }
+                            else if (destination.amount >=
+                                     stack.getMaterial().maxStackSize)
+                            {
+                                setMachineFeedback(
+                                    "machine.feedback.slot_full");
+                            }
+                            else if (provider.transferFromPlayer(
+                                         *world, *player, target,
+                                         playerSlot,
+                                         stack.getNumInStack(),
+                                         runtimeSmeltingRegistry()))
+                            {
+                                setMachineFeedback(
+                                    "machine.feedback.inserted");
+                            }
+                            else
+                            {
+                                setMachineFeedback(
+                                    "machine.feedback.retry");
+                            }
                         }
                     }
                 }
-                if (ImGui::Button(
-                        label("common.close", isCrusher
-                            ? "##CloseCrusher"
-                            : "##CloseFurnace").c_str(),
-                        ImVec2(100.0f, 32.0f)))
+                ImGui::PopStyleVar();
+                const std::string feedback = machineFeedbackKey.empty()
+                    ? tr(machineKey + ".inventory_hint")
+                    : tr(machineFeedbackKey);
+                const std::string feedbackSummary = boundedHudText(
+                    feedback, ImGui::GetFontSize(),
+                    ImGui::GetContentRegionAvail().x);
+                ImGui::PushStyleColor(
+                    ImGuiCol_Text,
+                    machineFeedbackKey.empty() ? WarmMuted : WarmAccent);
+                ImGui::TextUnformatted(feedbackSummary.c_str());
+                ImGui::PopStyleColor();
+                if (ImGui::IsItemHovered() && feedbackSummary != feedback)
                 {
-                    open = false;
-                    playUiFeedback();
+                    ImGui::SetTooltip("%s", feedback.c_str());
                 }
+                adventureEscape("ui.return_game", true);
             }
             ImGui::End();
-            if (!open) player->closeContainer();
+            if (!open)
+            {
+                machineFeedbackKey.clear();
+                machineFeedbackBound = false;
+                player->closeContainer();
+                playUiFeedback();
+            }
             return;
         }
+
+        machineFeedbackKey.clear();
+        machineFeedbackBound = false;
 
         const ImGuiIO &io = ImGui::GetIO();
         const float scale = appliedSettings.uiScale;
@@ -6611,6 +6817,9 @@ class OgreUserInterface::Impl
     std::unique_ptr<CraftingSession> craftingSession;
     Material::ID selectedCraftingMaterial = Material::ID::Nothing;
     std::string craftingMessage;
+    std::string machineFeedbackKey;
+    glm::ivec3 machineFeedbackPosition{0};
+    bool machineFeedbackBound = false;
     std::vector<WorldCatalogueEntry> worlds;
     std::vector<DeletedWorldInfo> deletedWorlds;
     std::vector<WorldBackupInfo> backups;
