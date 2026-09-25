@@ -3958,25 +3958,35 @@ class OgreUserInterface::Impl
                 const auto& entry = **detail;
                 const float actionHeight = entry.available ? ImGui::GetTextLineHeight() + 30.f * scale : 0.f;
                 ImGui::BeginChild("##QuestReading", ImVec2(0, -std::max(1.f,actionHeight)), false);
-                const ImVec2 at = ImGui::GetCursorScreenPos();
-                const float iconSize = (wide ? 45.f : 30.f)*scale;
-                const float iconIndent = (wide ? 58.f : 42.f)*scale;
-                adventureIcon(objectiveIcon(entry.id), at, iconSize);
-                ImGui::Indent(iconIndent);
-                ImGui::SetWindowFontScale(wide ? 1.30f : 1.05f);
-                ImGui::TextWrapped("%s", objectiveText(entry.id,"title",entry.title).c_str());
-                ImGui::SetWindowFontScale(1.f);
-                ImGui::TextColored(WarmAccent, "%s · %s", tr(entry.optional ? "journal.optional" : "journal.main").c_str(),
-                    tr(entry.completed ? "journal.completed" : entry.available ? "journal.available" : "journal.locked").c_str());
-                ImGui::Unindent(iconIndent);
-                ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY(), at.y - ImGui::GetWindowPos().y + iconSize + 8.f*scale));
-                ImGui::Separator(); ImGui::Spacing();
+                const auto progress = std::to_string(std::min(entry.progress,entry.required)) + " / " + std::to_string(entry.required);
+                const auto status = tr(entry.completed ? "journal.completed" : entry.available ? "journal.available" : "journal.locked");
+                if (wide)
+                {
+                    const ImVec2 at = ImGui::GetCursorScreenPos();
+                    adventureIcon(objectiveIcon(entry.id), at,45.f*scale);
+                    ImGui::Indent(58.f*scale);
+                    ImGui::SetWindowFontScale(1.30f);
+                    ImGui::TextWrapped("%s",objectiveText(entry.id,"title",entry.title).c_str());
+                    ImGui::SetWindowFontScale(1.f);
+                    ImGui::TextColored(WarmAccent,"%s · %s",tr(entry.optional ? "journal.optional" : "journal.main").c_str(),status.c_str());
+                    ImGui::Unindent(58.f*scale);
+                    ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY(),at.y-ImGui::GetWindowPos().y+53.f*scale));
+                    ImGui::Separator(); ImGui::Spacing();
+                }
+                else
+                {
+                    // The selection above already names the task. Keep its
+                    // state and progress together, leaving room to read the goal.
+                    ImGui::SetWindowFontScale(.75f);
+                    ImGui::TextColored(WarmAccent,"%s · %s · %s",tr(entry.optional ? "journal.optional" : "journal.main").c_str(),status.c_str(),progress.c_str());
+                    ImGui::SetWindowFontScale(1.f);
+                }
                 ImGui::TextWrapped("%s", objectiveInstructionText(entry.id,entry.instruction,entry.guidanceKey).c_str());
                 ImGui::Spacing();
-                ImGui::TextColored(WarmMuted,"%s",tr("journal.progress").c_str());
-                ImGui::SameLine();
-                const auto progress = std::to_string(std::min(entry.progress,entry.required)) + " / " + std::to_string(entry.required);
-                ImGui::TextColored(WarmAccent,"%s",progress.c_str());
+                if (wide) {
+                    ImGui::TextColored(WarmMuted,"%s",tr("journal.progress").c_str());
+                    ImGui::SameLine(); ImGui::TextColored(WarmAccent,"%s",progress.c_str());
+                }
                 const auto bar = ImGui::GetCursorScreenPos();
                 GameInterfaceWidgets::progress(ImGui::GetWindowDrawList(), bar,
                     ImVec2(bar.x + ImGui::GetContentRegionAvail().x, bar.y + 7.f * scale),
