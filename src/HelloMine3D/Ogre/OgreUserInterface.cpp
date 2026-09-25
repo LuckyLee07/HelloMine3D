@@ -1667,7 +1667,8 @@ class OgreUserInterface::Impl
         const auto& io = ImGui::GetIO();
         const float scale = appliedSettings.uiScale;
         const bool compact=io.DisplaySize.y<520.f*scale;
-        const float rowHeight=(compact ? 38.f : 52.f)*scale;
+        const float rowHeight=(compact ? 32.f : 52.f)*scale;
+        const float worldHeight=(compact ? 52.f : 66.f)*scale;
         GameInterfaceWidgets::OverlayStyle theme(scale);
         adventureBackdrop();
         ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * .5f, io.DisplaySize.y * .5f), ImGuiCond_Always, ImVec2(.5f,.5f));
@@ -1693,24 +1694,24 @@ class OgreUserInterface::Impl
             const float worldWidth = ImGui::GetContentRegionAvail().x;
             const auto foldId = ImGui::GetID("##PauseWorldExpanded");
             bool expanded = ImGui::GetStateStorage()->GetBool(foldId,false);
-            if (ImGui::Button("##WorldJourney",ImVec2(worldWidth,66.f*scale))) {
+            if (ImGui::Button("##WorldJourney",ImVec2(worldWidth,worldHeight))) {
                 expanded=!expanded; ImGui::GetStateStorage()->SetBool(foldId,expanded);
             }
-            adventureIcon(Material::Grass,ImVec2(worldAt.x+10.f*scale,worldAt.y+17.f*scale),30.f*scale);
+            adventureIcon(Material::Grass,ImVec2(worldAt.x+10.f*scale,worldAt.y+worldHeight*.5f-15.f*scale),30.f*scale);
             auto* worldDraw = ImGui::GetWindowDrawList();
             const float titleX=worldAt.x+50.f*scale;
             const float copyWidth=std::max(1.f,worldWidth-75.f*scale);
             const auto worldTitle=boundedHudText(tr("pause.world_journey"),ImGui::GetFontSize(),copyWidth);
-            worldDraw->AddText(ImVec2(titleX,worldAt.y+8.f*scale),ImGui::GetColorU32(WarmText),worldTitle.c_str());
+            worldDraw->AddText(ImVec2(titleX,worldAt.y+(compact ? 5.f : 8.f)*scale),ImGui::GetColorU32(WarmText),worldTitle.c_str());
             if (world != nullptr) {
                 const auto objective=world->getObjectiveSnapshot();
                 const std::string summary=difficultyName(world->getDifficultySnapshot().active)+" · "+tr("journal.main")+" "+
                     std::to_string(objective.completedObjectives)+" / "+std::to_string(objective.totalObjectives);
                 const auto shortSummary=boundedHudText(summary,ImGui::GetFontSize()*.8f,copyWidth);
                 worldDraw->AddText(ImGui::GetFont(),ImGui::GetFontSize()*.8f,
-                    ImVec2(titleX,worldAt.y+37.f*scale),ImGui::GetColorU32(WarmMuted),shortSummary.c_str());
+                    ImVec2(titleX,worldAt.y+(compact ? 30.f : 37.f)*scale),ImGui::GetColorU32(WarmMuted),shortSummary.c_str());
             }
-            const ImVec2 chevron(worldAt.x+worldWidth-17.f*scale,worldAt.y+33.f*scale);
+            const ImVec2 chevron(worldAt.x+worldWidth-17.f*scale,worldAt.y+worldHeight*.5f);
             if (expanded) {
                 worldDraw->AddLine(ImVec2(chevron.x-4.f*scale,chevron.y-2.f*scale),ImVec2(chevron.x,chevron.y+2.f*scale),ImGui::GetColorU32(WarmText),1.5f);
                 worldDraw->AddLine(ImVec2(chevron.x,chevron.y+2.f*scale),ImVec2(chevron.x+4.f*scale,chevron.y-2.f*scale),ImGui::GetColorU32(WarmText),1.5f);
@@ -3498,9 +3499,20 @@ class OgreUserInterface::Impl
             arrowPoint(-4.f, -5.f), arrowPoint(-4.f, 5.f));
         GameInterfaceWidgets::compass(draw,ImVec2(origin.x+35.f*scale,origin.y+57.f*scale),0,-1,scale,tr("hud.minimap_north").c_str());
         GameInterfaceWidgets::mapRuler(draw,ImVec2(edge.x-18.f*scale,edge.y-9.f*scale),pixel/step,scale);
-        const auto unknown=tr("map.unexplored");
-        draw->AddText(ImGui::GetFont(),ImGui::GetFontSize()*.7f,ImVec2(origin.x+16.f*scale,edge.y-29.f*scale),
-            IM_COL32(135,159,161,190),unknown.c_str());
+        std::string surfaceHint=tr("map.unexplored");
+        if (inspection>=0 && overviewCells[inspection].known) {
+            const auto& cell=overviewCells[inspection];
+            surfaceHint=LocalizedPresentation::surfaceName(appliedSettings.locale,cell.material)+" · X "+
+                std::to_string(overviewObservedPositions[inspection].first)+" Y "+std::to_string(cell.height)+" Z "+
+                std::to_string(overviewObservedPositions[inspection].second);
+        }
+        const float hintFont=ImGui::GetFontSize()*.7f;
+        const auto hint=boundedHudText(surfaceHint,hintFont,std::max(1.f,size.x-125.f*scale));
+        const ImVec2 hintAt(origin.x+16.f*scale,edge.y-29.f*scale);
+        draw->AddRectFilled(ImVec2(hintAt.x-4.f,hintAt.y-2.f),
+            ImVec2(hintAt.x+ImGui::GetFont()->CalcTextSizeA(hintFont,FLT_MAX,0,hint.c_str()).x+4.f,hintAt.y+hintFont+2.f),
+            IM_COL32(20,35,42,210),2.f);
+        draw->AddText(ImGui::GetFont(),hintFont,hintAt,IM_COL32(176,195,189,240),hint.c_str());
         draw->PopClipRect();
         draw->AddRect(origin,edge,IM_COL32(89,116,119,175),2.f);
         if (wide) ImGui::SameLine();
@@ -3512,16 +3524,9 @@ class OgreUserInterface::Impl
             const std::string span=std::to_string(int(size.x/pixel*step))+" × "+std::to_string(int(size.y/pixel*step))+" m";
             mapMetric("map.overview",span);
         }
-        if (inspection >= 0 && overviewCells[inspection].known)
-        {
-            const auto& cell = overviewCells[inspection];
-            ImGui::TextWrapped("%s", LocalizedPresentation::surfaceName(
-                appliedSettings.locale, cell.material).c_str());
-            ImGui::Text("X %d  Y %d  Z %d",
-                overviewObservedPositions[inspection].first, cell.height,
-                overviewObservedPositions[inspection].second);
+        if (!wide) {
+            ImGui::TextWrapped("%s",surfaceHint.c_str());
         }
-        else ImGui::TextWrapped("%s", tr("map.select").c_str());
         if (taskLocated)
         {
             constexpr const char* directions[] = {
@@ -3680,7 +3685,12 @@ class OgreUserInterface::Impl
             }
         }
         if (!mapMarkerFeedbackKey.empty()) {
-            ImGui::Spacing(); ImGui::TextWrapped("%s",tr(mapMarkerFeedbackKey).c_str());
+            ImGui::Spacing(); ImGui::PushFont(nullptr,16.f);
+            const auto message=tr(mapMarkerFeedbackKey);
+            const auto shortMessage=boundedHudText(message,ImGui::GetFontSize(),ImGui::GetContentRegionAvail().x);
+            ImGui::TextColored(WarmMuted,"%s",shortMessage.c_str());
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s",message.c_str());
+            ImGui::PopFont();
         }
         if (markers.empty()) {
             ImGui::Spacing(); ImGui::PushStyleColor(ImGuiCol_Text,WarmMuted);
