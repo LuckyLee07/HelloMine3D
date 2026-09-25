@@ -643,3 +643,9 @@ text map.backup_choose "The previous world is selected. Check backup dates befor
 text map.backup_save_failed "Save failed; return to backups was cancelled and this session remains open. Existing backups were not replaced. Preserve the world files before resolving the save problem."
 
 text hud.collect_wood "Collect logs"
+
+text pause.world_journey "World and journey"
+
+text journal.progress "Progress"
+
+text ui.return_game "Return to game"

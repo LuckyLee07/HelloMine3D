@@ -7,6 +7,36 @@
 // Input, item ownership and transfer rules remain with the callers.
 namespace GameInterfaceWidgets
 {
+enum class Glyph { None, Play, Pause, Settings, Journal, Map, Exit };
+
+inline void glyph(ImDrawList* draw, Glyph kind, ImVec2 at, float size,
+                  ImU32 colour = IM_COL32(222, 182, 110, 255))
+{
+    // Small integer-grid silhouettes share the pixel scale of item icons.
+    const unsigned short* rows = nullptr;
+    static const unsigned short play[] = {0x200,0x300,0x380,0x3c0,0x3e0,0x3f0,0x3e0,0x3c0,0x380,0x300,0x200,0};
+    static const unsigned short pause[] = {0,0x366,0x366,0x366,0x366,0x366,0x366,0x366,0x366,0x366,0x366,0};
+    static const unsigned short gear[] = {0x0f0,0x6f6,0x7fe,0x3fc,0x718,0xf0f,0xf0f,0x718,0x3fc,0x7fe,0x6f6,0x0f0};
+    static const unsigned short journal[] = {0x3fc,0x606,0x602,0x6fa,0x602,0x6fa,0x602,0x6fa,0x602,0x606,0x3fc,0};
+    static const unsigned short map[] = {0x030,0x1c8,0xe06,0x842,0x842,0x842,0x842,0x842,0x842,0xc07,0x138,0x0c0};
+    static const unsigned short leave[] = {0x07c,0x064,0x064,0x264,0x364,0xff4,0x364,0x264,0x064,0x064,0x07c,0};
+    switch (kind) {
+        case Glyph::Play: rows = play; break;
+        case Glyph::Pause: rows = pause; break;
+        case Glyph::Settings: rows = gear; break;
+        case Glyph::Journal: rows = journal; break;
+        case Glyph::Map: rows = map; break;
+        case Glyph::Exit: rows = leave; break;
+        default: return;
+    }
+    const float pixel = size / 12.f;
+    for (int y = 0; y < 12; ++y)
+        for (int x = 0; x < 12; ++x)
+            if (rows[y] & (1u << (11 - x)))
+                draw->AddRectFilled(ImVec2(at.x + x * pixel, at.y + y * pixel),
+                    ImVec2(at.x + (x + 1) * pixel, at.y + (y + 1) * pixel), colour);
+}
+
 inline void surface(ImDrawList* draw, ImVec2 lo, ImVec2 hi,
                     bool accent = false, float scale = 1.f)
 {

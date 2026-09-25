@@ -643,3 +643,9 @@ text map.backup_choose "已选中刚才的世界。请在备份列表核对时�
 text map.backup_save_failed "保存失败，已取消返回备份列表，当前会话保留。原有备份不会因此被覆盖；请先保留世界文件再处理保存问题。"
 
 text hud.collect_wood "收集原木"
+
+text pause.world_journey "世界与旅程"
+
+text journal.progress "目标进度"
+
+text ui.return_game "返回游戏"

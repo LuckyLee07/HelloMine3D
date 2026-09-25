@@ -1522,27 +1522,139 @@ class OgreUserInterface::Impl
         ImGui::End();
     }
 
+    Material::ID objectiveIcon(const std::string& id) const
+    {
+        const std::pair<const char*, Material::ID> icons[] = {
+            {"wooden_pickaxe", Material::WoodenPickaxe}, {"stone_pickaxe", Material::StonePickaxe},
+            {"iron_pickaxe", Material::IronPickaxe}, {"iron_sword", Material::IronSword},
+            {"workbench", Material::Workbench}, {"gather_wood", Material::OakBark},
+            {"gather_stone", Material::Cobblestone}, {"iron_ore", Material::IronOre},
+            {"torches", Material::Torch}, {"coal", Material::CoalOre}, {"bread", Material::Bread},
+            {"furnace", Material::Furnace}, {"smelt_iron", Material::IronIngot},
+            {"planks", Material::OakPlank}, {"door", Material::OakDoor},
+            {"waystone", Material::WaystoneCore}, {"ritual", Material::WaystoneCore},
+            {"wheat", Material::Wheat}, {"reopen_world", Material::Chest}
+        };
+        for (const auto& icon : icons)
+            if (id.find(icon.first) != std::string::npos) return icon.second;
+        return Material::OakLeaf;
+    }
+
+    void adventureIcon(Material::ID icon, ImVec2 lo, float size)
+    {
+        if (icon == Material::Nothing) return;
+        if (itemVisualUsesCube(icon))
+            drawItemPortrait(icon, ImVec2(lo.x + size * .5f, lo.y + size * .5f), size * .77f);
+        else drawMaterialIcon(ImGui::GetWindowDrawList(), icon, lo, ImVec2(lo.x + size, lo.y + size));
+    }
+
+    void adventureBackdrop()
+    {
+        ImGui::GetBackgroundDrawList()->AddRectFilled(ImVec2(0,0), ImGui::GetIO().DisplaySize,
+            IM_COL32(5, 12, 16, 110));
+    }
+
+    bool adventureHeader(const std::string& title, GameInterfaceWidgets::Glyph icon,
+                         const std::string& subtitle = {})
+    {
+        const float scale = appliedSettings.uiScale;
+        const auto lo = ImGui::GetWindowPos(), size = ImGui::GetWindowSize();
+        auto* draw = ImGui::GetWindowDrawList();
+        GameInterfaceWidgets::surface(draw, lo, ImVec2(lo.x + size.x, lo.y + size.y), false, scale);
+        const ImVec2 start = ImGui::GetCursorScreenPos();
+        const float width = ImGui::GetContentRegionAvail().x, closeSize = 28.f * scale;
+        GameInterfaceWidgets::glyph(draw, icon, ImVec2(start.x, start.y + 3.f * scale), 24.f * scale);
+        const float font = ImGui::GetFontSize() * 1.22f;
+        const std::string heading = boundedHudText(title, font, width - 78.f * scale);
+        draw->AddText(ImGui::GetFont(), font, ImVec2(start.x + 36.f * scale, start.y),
+            ImGui::ColorConvertFloat4ToU32(WarmText), heading.c_str());
+        const float headingWidth = ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0.f, heading.c_str()).x;
+        if (!subtitle.empty())
+        {
+            const float x = start.x + 52.f * scale + headingWidth;
+            const auto detail = boundedHudText(subtitle, ImGui::GetFontSize() * .8f,
+                start.x + width - closeSize - 12.f * scale - x);
+            draw->AddText(ImGui::GetFont(), ImGui::GetFontSize() * .8f,
+                ImVec2(x, start.y + 5.f * scale), ImGui::ColorConvertFloat4ToU32(WarmMuted), detail.c_str());
+        }
+        ImGui::SetCursorScreenPos(ImVec2(start.x + width - closeSize, start.y));
+        const bool close = ImGui::Button("##AdventureClose", ImVec2(closeSize, closeSize));
+        const ImVec2 a(start.x + width - closeSize + 8.f * scale, start.y + 8.f * scale);
+        const ImVec2 b(a.x + 12.f * scale, a.y + 12.f * scale);
+        const auto colour = ImGui::GetColorU32(ImGui::IsItemHovered() ? WarmAccent : WarmText);
+        draw->AddLine(a, b, colour, 1.8f);
+        draw->AddLine(ImVec2(a.x,b.y), ImVec2(b.x,a.y), colour, 1.8f);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s · Esc", tr("common.close").c_str());
+        ImGui::SetCursorScreenPos(start);
+        ImGui::Dummy(ImVec2(width, std::max(closeSize, font) + 3.f * scale));
+        ImGui::Separator();
+        return close;
+    }
+
+    bool adventureButton(const char* key, float width = -1.f, bool primary = false,
+        Material::ID material = Material::Nothing, GameInterfaceWidgets::Glyph glyph = GameInterfaceWidgets::Glyph::None)
+    {
+        const float scale = appliedSettings.uiScale;
+        const bool icon = material != Material::Nothing || glyph != GameInterfaceWidgets::Glyph::None;
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2((icon ? 40.f : 10.f) * scale, 8.f * scale));
+        ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(icon ? 0.f : .5f, .5f));
+        if (primary) {
+            ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(98, 86, 52, 155));
+            ImGui::PushStyleColor(ImGuiCol_Border, WarmAccent);
+        }
+        const bool result = ImGui::Button(tr(key).c_str(), ImVec2(width, 0.f));
+        if (primary) ImGui::PopStyleColor(2);
+        ImGui::PopStyleVar(2);
+        if (icon)
+        {
+            const auto lo = ImGui::GetItemRectMin(), hi = ImGui::GetItemRectMax();
+            const ImVec2 at(lo.x + 11.f * scale, (lo.y + hi.y) * .5f - 10.f * scale);
+            if (material != Material::Nothing) adventureIcon(material, at, 20.f * scale);
+            else GameInterfaceWidgets::glyph(ImGui::GetWindowDrawList(), glyph, at, 20.f * scale);
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+        return result;
+    }
+
+    bool adventureTab(const char* key, bool selected, float width = 0.f)
+    {
+        if (selected) {
+            ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(111, 94, 50, 165));
+            ImGui::PushStyleColor(ImGuiCol_Border, WarmAccent);
+            ImGui::PushStyleColor(ImGuiCol_Text, WarmAccent);
+        }
+        const bool clicked = ImGui::Button(tr(key).c_str(), ImVec2(width, 0.f));
+        if (selected) ImGui::PopStyleColor(3);
+        return clicked;
+    }
+
     void drawPauseMenu()
     {
-        const ImGuiIO &io = ImGui::GetIO();
-        const float pauseHeight = world != nullptr &&
-            !world->getObjectiveSnapshot().completedTitles.empty()
-            ? 570.f : 470.f;
-        const PresentationWindowLayout layout = fitPresentationWindow(
-            io.DisplaySize.x, io.DisplaySize.y - 64.f, 460.f,
-            pauseHeight + 280.f *
-                std::max(0.0f, appliedSettings.uiScale - 1.0f),
-            appliedSettings.uiScale);
-        ImGui::SetNextWindowPos(
-            ImVec2(io.DisplaySize.x * 0.5f, (io.DisplaySize.y - 64.f) * 0.5f),
-            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height), ImGuiCond_Always);
-        const std::string pauseTitle = label("pause.title", "##PauseMenu");
-        if (ImGui::Begin(pauseTitle.c_str(), nullptr,
-                         ImGuiWindowFlags_NoCollapse |
-                             ImGuiWindowFlags_NoResize |
-                             ImGuiWindowFlags_NoSavedSettings))
+        const auto& io = ImGui::GetIO();
+        const float scale = appliedSettings.uiScale;
+        GameInterfaceWidgets::OverlayStyle theme(scale);
+        adventureBackdrop();
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * .5f, io.DisplaySize.y * .5f), ImGuiCond_Always, ImVec2(.5f,.5f));
+        ImGui::SetNextWindowSize(ImVec2(std::min(380.f * scale,io.DisplaySize.x-32.f),
+            std::min(505.f * scale,io.DisplaySize.y-32.f)), ImGuiCond_Always);
+        if (ImGui::Begin("##PauseMenu",nullptr,ImGuiWindowFlags_NoDecoration |
+            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBackground))
         {
+            if (adventureHeader(tr("pause.title"),GameInterfaceWidgets::Glyph::Pause) && flow->resume()) playUiFeedback();
+            const float footerHeight = 3.f * ImGui::GetTextLineHeight() + 67.f * scale;
+            ImGui::BeginChild("##PauseOptions",ImVec2(0,-footerHeight),false);
+            if (adventureButton("pause.resume",-1.f,true,Material::Nothing,GameInterfaceWidgets::Glyph::Play) && flow->resume())
+                playUiFeedback();
+            if (adventureButton("pause.settings",-1.f,false,Material::Nothing,GameInterfaceWidgets::Glyph::Settings))
+            {
+                settingsSession.begin(appliedSettings);
+                settingsMessage.clear();
+                settingsApplyPending = false;
+                playUiFeedback();
+            }
+            ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
+            if (ImGui::CollapsingHeader(tr("pause.world_journey").c_str()))
+            {
             if (world != nullptr)
             {
                 const ObjectiveSnapshot objective =
@@ -1649,40 +1761,28 @@ class OgreUserInterface::Impl
                     tr("pause.difficulty_pending").c_str());
                 ImGui::Separator();
             }
-            pushPrimaryButtonStyle();
-            const bool resumePressed = ImGui::Button(
-                label("pause.resume", "##Resume").c_str(), ImVec2(-1.0f, 38.0f));
-            ImGui::PopStyleColor(4);
-            if (resumePressed)
-            {
-                if (flow->resume())
-                {
-                    playUiFeedback();
-                }
+
             }
-            if (ImGui::Button(label("pause.settings", "##Settings").c_str(), ImVec2(-1.0f, 38.0f)))
+            else if (world != nullptr)
             {
-                settingsSession.begin(appliedSettings);
-                settingsMessage.clear();
-                settingsApplyPending = false;
+                const auto objective = world->getObjectiveSnapshot();
+                ImGui::TextDisabled("%s · %s %zu / %zu", difficultyName(world->getDifficultySnapshot().active).c_str(),
+                    tr("journal.main").c_str(),objective.completedObjectives,objective.totalObjectives);
+            }
+            ImGui::EndChild();
+            ImGui::Separator();
+            if (adventureButton("pause.save_main",-1.f,false,Material::Chest))
+            {
+                pendingAction.type = OgreUserInterfaceActionType::ReturnToMainMenu;
                 playUiFeedback();
             }
-            if (ImGui::Button(label("pause.save_main", "##SaveMain").c_str(),
-                              ImVec2(-1.0f, 38.0f)))
-            {
-                pendingAction.type =
-                    OgreUserInterfaceActionType::ReturnToMainMenu;
-                playUiFeedback();
-            }
-            if (ImGui::Button(label("pause.save_quit", "##SaveQuit").c_str(), ImVec2(-1.0f, 38.0f)))
+            if (adventureButton("pause.save_quit",-1.f,false,Material::Nothing,GameInterfaceWidgets::Glyph::Exit))
             {
                 pendingAction.type = OgreUserInterfaceActionType::Quit;
                 playUiFeedback();
             }
-            if (!statusMessage.empty())
-            {
-                ImGui::TextWrapped("%s", statusMessage.c_str());
-            }
+            ImGui::TextDisabled("Esc  %s",tr("pause.resume").c_str());
+            if (!statusMessage.empty()) drawNotification(statusMessage,io.DisplaySize.y - 12.f);
         }
         ImGui::End();
     }
@@ -3701,104 +3801,124 @@ class OgreUserInterface::Impl
         const auto snapshot = world->getObjectiveSnapshot(true);
         const auto& io = ImGui::GetIO();
         const float scale = appliedSettings.uiScale;
-        ImGui::GetBackgroundDrawList()->AddRectFilled(ImVec2(0, 0), io.DisplaySize, IM_COL32(5, 12, 16, 150));
-        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * .5f, io.DisplaySize.y * .5f), ImGuiCond_Always, ImVec2(.5f, .5f));
-        ImGui::SetNextWindowSize(ImVec2(std::min(940.f * scale, io.DisplaySize.x - 32.f),
-            std::min(640.f * scale, io.DisplaySize.y - 32.f)), ImGuiCond_Always);
-        const auto flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings |
-            ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground;
-        if (ImGui::Begin("##QuestJournal", nullptr, flags))
+        GameInterfaceWidgets::OverlayStyle theme(scale);
+        adventureBackdrop();
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * .5f, io.DisplaySize.y * .5f), ImGuiCond_Always, ImVec2(.5f,.5f));
+        ImGui::SetNextWindowSize(ImVec2(std::min(800.f * scale, io.DisplaySize.x - 32.f),
+            std::min(520.f * scale, io.DisplaySize.y - 32.f)), ImGuiCond_Always);
+        if (ImGui::Begin("##QuestJournal", nullptr, ImGuiWindowFlags_NoDecoration |
+            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBackground))
         {
-            if (drawInventoryHeader(Material::ID::OakBark, tr("journal.title"), tr("journal.subtitle")))
+            const std::string summary = tr("journal.main") + " " + std::to_string(snapshot.completedObjectives) +
+                " / " + std::to_string(snapshot.totalObjectives);
+            if (adventureHeader(tr("journal.title"), GameInterfaceWidgets::Glyph::Journal, summary))
                 hudInteraction.dismiss();
-            ImGui::TextColored(WarmMuted, "%s  %zu / %zu", tr("journal.main").c_str(),
-                snapshot.completedObjectives, snapshot.totalObjectives);
             const char* filters[] = {"journal.all", "journal.available", "journal.completed"};
-            for (int i = 0; i < 3; ++i)
-            {
+            const float tabWidth = std::min(126.f * scale, (ImGui::GetContentRegionAvail().x - 16.f * scale) / 3.f);
+            for (int i = 0; i < 3; ++i) {
                 if (i) ImGui::SameLine();
-                if (ImGui::RadioButton(tr(filters[i]).c_str(), journalFilter == i)) journalFilter = i;
+                if (adventureTab(filters[i], journalFilter == i, tabWidth)) journalFilter = i;
             }
             std::vector<const ObjectiveJournalEntry*> entries;
             for (const auto& entry : snapshot.journal)
                 if (journalFilter == 0 || (journalFilter == 1 && entry.available) ||
                     (journalFilter == 2 && entry.completed)) entries.push_back(&entry);
-            auto selected = std::find_if(entries.begin(), entries.end(), [&](const auto* entry) {
-                return entry->id == selectedJournalId;
-            });
-            if (selected == entries.end() && !entries.empty())
-            {
-                selectedJournalId = entries.front()->id;
-                selected = entries.begin();
-            }
+            if (std::none_of(entries.begin(), entries.end(), [&](const auto* e) { return e->id == selectedJournalId; }))
+                selectedJournalId = entries.empty() ? std::string{} : entries.front()->id;
             const float width = ImGui::GetContentRegionAvail().x;
-            const float height = ImGui::GetContentRegionAvail().y;
-            const bool wide = width >= 650.f * scale;
-            const float listWidth = wide ? width * .43f : width;
-            const float listHeight = wide ? height : std::max(64.f, height * .40f);
-            ImGui::BeginChild("##QuestList", ImVec2(listWidth, listHeight), true);
+            const float height = std::max(1.f, ImGui::GetContentRegionAvail().y - 29.f * scale);
+            const bool wide = width >= 610.f * scale;
+            const float listWidth = wide ? width * .36f : width;
+            const float listHeight = wide ? height : std::max(60.f * scale, height * .30f);
+            ImGui::BeginChild("##QuestList", ImVec2(listWidth, listHeight), false);
             if (entries.empty()) ImGui::TextWrapped("%s", tr("journal.empty").c_str());
             for (const auto* entry : entries)
             {
                 ImGui::PushID(entry->id.c_str());
                 const auto title = objectiveText(entry->id, "title", entry->title);
-                const auto status = tr(entry->completed ? "journal.completed" :
-                    (entry->available ? "journal.available" : "journal.locked"));
-                const float rowHeight = ImGui::CalcTextSize(title.c_str(), nullptr, false,
-                    std::max(1.f, ImGui::GetContentRegionAvail().x - 16.f)).y + ImGui::GetTextLineHeight() + 12.f * scale;
-                const auto origin = ImGui::GetCursorScreenPos();
-                if (ImGui::Selectable("##QuestRow", selectedJournalId == entry->id, 0, ImVec2(0, rowHeight)))
-                    selectedJournalId = entry->id;
+                const bool selected = selectedJournalId == entry->id;
+                const float icon = 29.f * scale;
+                const float rowWidth = ImGui::GetContentRegionAvail().x;
+                const float textWidth = std::max(1.f, rowWidth - icon - 24.f * scale);
+                const float titleHeight = ImGui::CalcTextSize(title.c_str(), nullptr, false, textWidth).y;
+                const float rowHeight = std::max(58.f * scale, titleHeight + ImGui::GetTextLineHeight() + 16.f * scale);
+                const ImVec2 at = ImGui::GetCursorScreenPos();
+                if (ImGui::Selectable("##QuestRow", selected, 0, ImVec2(0,rowHeight))) selectedJournalId = entry->id;
                 if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
-                auto* draw = ImGui::GetWindowDrawList();
-                draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(origin.x + 6.f, origin.y + 3.f),
-                    ImGui::ColorConvertFloat4ToU32(entry->available ? WarmText : WarmMuted), title.c_str(), nullptr,
-                    std::max(1.f, ImGui::GetContentRegionAvail().x - 16.f));
-                const auto secondary = tr(entry->optional ? "journal.optional" : "journal.main") + " · " + status +
-                    (entry->id == trackedObjectiveId ? " · " + tr("journal.tracking") : "");
-                draw->AddText(ImVec2(origin.x + 6.f, origin.y + rowHeight - ImGui::GetTextLineHeight() - 3.f),
-                    ImGui::ColorConvertFloat4ToU32(WarmMuted), secondary.c_str());
+                if (ImGui::IsItemVisible())
+                {
+                    auto* draw = ImGui::GetWindowDrawList();
+                    draw->AddRect(at, ImVec2(at.x + rowWidth, at.y + rowHeight),
+                        selected ? IM_COL32(184,153,90,225) : IM_COL32(71,96,101,145), 3.f);
+                    if (selected) draw->AddLine(ImVec2(at.x+1.f,at.y+4.f),ImVec2(at.x+1.f,at.y+rowHeight-4.f),
+                        ImGui::ColorConvertFloat4ToU32(WarmAccent), 3.f * scale);
+                    adventureIcon(objectiveIcon(entry->id), ImVec2(at.x + 9.f * scale, at.y + 11.f * scale), icon);
+                    draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(),
+                        ImVec2(at.x + icon + 17.f * scale, at.y + 7.f * scale),
+                        ImGui::ColorConvertFloat4ToU32(entry->available || entry->completed ? WarmText : WarmMuted),
+                        title.c_str(), nullptr, textWidth);
+                    const auto status = tr(entry->completed ? "journal.completed" : entry->available ? "journal.available" : "journal.locked");
+                    const auto secondary = boundedHudText(tr(entry->optional ? "journal.optional" : "journal.main") + " · " + status +
+                        (entry->id == trackedObjectiveId ? " · " + tr("journal.tracking") : ""),
+                        ImGui::GetFontSize() * .78f, textWidth);
+                    draw->AddText(ImGui::GetFont(), ImGui::GetFontSize() * .78f,
+                        ImVec2(at.x + icon + 17.f * scale, at.y + rowHeight - ImGui::GetTextLineHeight() - 4.f * scale),
+                        ImGui::ColorConvertFloat4ToU32(selected ? WarmAccent : WarmMuted), secondary.c_str());
+                }
                 ImGui::PopID();
             }
             ImGui::EndChild();
             if (wide) ImGui::SameLine();
-            ImGui::BeginChild("##QuestDetail", ImVec2(0, 0), true);
-            const auto detail = std::find_if(entries.begin(), entries.end(), [&](const auto* entry) {
-                return entry->id == selectedJournalId;
-            });
+            ImGui::BeginChild("##QuestDetail", ImVec2(0, wide ? height : height - listHeight - 8.f * scale), true);
+            const auto detail = std::find_if(entries.begin(), entries.end(), [&](const auto* e) { return e->id == selectedJournalId; });
             if (detail != entries.end())
             {
                 const auto& entry = **detail;
-                ImGui::PushStyleColor(ImGuiCol_Text, WarmAccent);
-                ImGui::TextWrapped("%s", objectiveText(entry.id, "title", entry.title).c_str());
-                ImGui::PopStyleColor();
-                ImGui::TextColored(WarmMuted, "%s · %s", tr(entry.optional ? "journal.optional" : "journal.main").c_str(),
-                    tr(entry.completed ? "journal.completed" : (entry.available ? "journal.available" : "journal.locked")).c_str());
-                ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
-                ImGui::TextWrapped("%s", objectiveInstructionText(entry.id, entry.instruction, entry.guidanceKey).c_str());
+                const float actionHeight = entry.available ? ImGui::GetTextLineHeight() + 30.f * scale : 0.f;
+                ImGui::BeginChild("##QuestReading", ImVec2(0, -std::max(1.f,actionHeight)), false);
+                const ImVec2 at = ImGui::GetCursorScreenPos();
+                adventureIcon(objectiveIcon(entry.id), at, 45.f * scale);
+                ImGui::Indent(58.f * scale);
+                ImGui::SetWindowFontScale(1.12f);
+                ImGui::TextWrapped("%s", objectiveText(entry.id,"title",entry.title).c_str());
+                ImGui::SetWindowFontScale(1.f);
+                ImGui::TextColored(WarmAccent, "%s · %s", tr(entry.optional ? "journal.optional" : "journal.main").c_str(),
+                    tr(entry.completed ? "journal.completed" : entry.available ? "journal.available" : "journal.locked").c_str());
+                ImGui::Unindent(58.f * scale);
+                ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY(), at.y - ImGui::GetWindowPos().y + 53.f * scale));
+                ImGui::Separator(); ImGui::Spacing();
+                ImGui::TextWrapped("%s", objectiveInstructionText(entry.id,entry.instruction,entry.guidanceKey).c_str());
                 ImGui::Spacing();
-                const auto progress = std::to_string(std::min(entry.progress, entry.required)) + " / " + std::to_string(entry.required);
-                ImGui::ProgressBar(entry.required > 0 ? std::clamp(float(entry.progress) / entry.required, 0.f, 1.f) : 0.f,
-                    ImVec2(-1.f, 0.f), progress.c_str());
+                ImGui::TextColored(WarmMuted,"%s",tr("journal.progress").c_str());
+                ImGui::SameLine();
+                const auto progress = std::to_string(std::min(entry.progress,entry.required)) + " / " + std::to_string(entry.required);
+                ImGui::TextColored(WarmAccent,"%s",progress.c_str());
+                const auto bar = ImGui::GetCursorScreenPos();
+                GameInterfaceWidgets::progress(ImGui::GetWindowDrawList(), bar,
+                    ImVec2(bar.x + ImGui::GetContentRegionAvail().x, bar.y + 7.f * scale),
+                    entry.required > 0 ? float(entry.progress) / entry.required : 0.f);
+                ImGui::Dummy(ImVec2(1, 7.f * scale));
                 if (!entry.prerequisiteId.empty())
-                {
-                    ImGui::Spacing();
-                    ImGui::TextWrapped("%s: %s", tr("journal.prerequisite").c_str(),
-                        objectiveText(entry.prerequisiteId, "title", entry.prerequisiteTitle).c_str());
-                }
+                    ImGui::TextWrapped("%s: %s",tr("journal.prerequisite").c_str(),
+                        objectiveText(entry.prerequisiteId,"title",entry.prerequisiteTitle).c_str());
                 ImGui::Spacing();
+                ImGui::PushStyleColor(ImGuiCol_Text,WarmMuted);
+                ImGui::TextWrapped("%s",tr("journal.track_help").c_str());
+                ImGui::PopStyleColor();
+                ImGui::EndChild();
                 if (entry.available)
                 {
-                    const bool tracked = entry.id == trackedObjectiveId;
-                    if (ImGui::Button(tr(tracked ? "journal.untrack" : "journal.track").c_str(), ImVec2(-1.f, 0.f)))
+                    const bool tracked = trackedObjectiveId == entry.id;
+                    if (adventureButton(tracked ? "journal.untrack" : "journal.track", -1.f, true))
                     {
                         trackedObjectiveId = tracked ? std::string{} : entry.id;
                         objectiveHintSeconds = 12.f;
+                        playUiFeedback();
                     }
                 }
-                ImGui::TextWrapped("%s", tr("journal.track_help").c_str());
             }
             ImGui::EndChild();
+            ImGui::TextDisabled("Esc  %s",tr("ui.return_game").c_str());
         }
         ImGui::End();
     }
