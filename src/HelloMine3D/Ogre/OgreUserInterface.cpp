@@ -1806,7 +1806,7 @@ class OgreUserInterface::Impl
                 playUiFeedback();
             }
             ImGui::TextDisabled("Esc  %s",tr("pause.resume").c_str());
-            if (!statusMessage.empty()) drawNotification(statusMessage,io.DisplaySize.y - 12.f);
+            if (!statusMessage.empty() && statusMessageSeconds > 0.f) drawNotification(statusMessage,io.DisplaySize.y - 12.f);
         }
         ImGui::End();
     }
@@ -3208,7 +3208,7 @@ class OgreUserInterface::Impl
         const float width = ImGui::GetContentRegionAvail().x;
         const bool wide = width > 760.f * scale;
         const float legendWidth = wide ? 276.f * scale : 0.f;
-        const float footerHeight = wide ? 0.f : ImGui::GetTextLineHeightWithSpacing() * 3.5f;
+        const float footerHeight = wide ? 0.f : 58.f * scale;
         const ImVec2 size(std::max(1.f, width - legendWidth - (wide ? 10.f : 0.f)),
             std::max(60.f, ImGui::GetContentRegionAvail().y - footerHeight));
         const ImVec2 origin = ImGui::GetCursorScreenPos();
@@ -3398,16 +3398,18 @@ class OgreUserInterface::Impl
         draw->PopClipRect();
         if (wide) ImGui::SameLine();
         ImGui::BeginChild("##OverviewLegend", ImVec2(0, 0), wide);
+        if (!wide) ImGui::SetWindowFontScale(.72f);
         if (wide) {
             drawExplorationMarkerPanel(state);
             ImGui::Spacing(); ImGui::Separator();
         }
         const auto observed = std::count_if(overviewCells.begin(), overviewCells.end(),
             [](const auto& cell) { return cell.known; });
-        ImGui::TextColored(WarmAccent, "%s", tr("map.overview").c_str());
-        ImGui::Text("%s: %d m", tr("map.span").c_str(), count * step);
-        ImGui::Text("%s: %.0f%%", tr("map.observed").c_str(),
-            100.f * observed / overviewCells.size());
+        if (wide) {
+            ImGui::TextColored(WarmAccent, "%s", tr("map.overview").c_str());
+            ImGui::Text("%s: %d m", tr("map.span").c_str(), count * step);
+            ImGui::Text("%s: %.0f%%", tr("map.observed").c_str(),100.f * observed / overviewCells.size());
+        } else ImGui::TextColored(WarmMuted,"%d m · %s %.0f%%",count*step,tr("map.observed").c_str(),100.f*observed/overviewCells.size());
         if (inspection >= 0 && overviewCells[inspection].known)
         {
             const auto& cell = overviewCells[inspection];
@@ -3449,6 +3451,7 @@ class OgreUserInterface::Impl
                 static_cast<unsigned long long>(bearing.metres));
         }
         ImGui::TextWrapped("%s", tr("map.overview_note").c_str());
+        if (!wide) ImGui::SetWindowFontScale(1.f);
         ImGui::EndChild();
     }
 
@@ -3623,7 +3626,7 @@ class OgreUserInterface::Impl
                 ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
         }
-        if (!statusMessage.empty())
+        if (!statusMessage.empty() && statusMessageSeconds > 0.f)
             ImGui::TextWrapped("%s", statusMessage.c_str());
     }
 
@@ -3714,7 +3717,7 @@ class OgreUserInterface::Impl
             const float width = ImGui::GetContentRegionAvail().x;
             const bool wide = width > 760.f * scale;
             const float legendWidth = wide ? 228.f * scale : 0.f;
-            const float footerHeight = wide ? 0.f : ImGui::GetTextLineHeightWithSpacing() * 3.5f;
+            const float footerHeight = wide ? 0.f : 58.f * scale;
             const ImVec2 size(std::max(1.f, width - legendWidth - (wide ? 10.f : 0.f)),
                 std::max(60.f, ImGui::GetContentRegionAvail().y - footerHeight));
             const ImVec2 origin = ImGui::GetCursorScreenPos();
@@ -3804,6 +3807,7 @@ class OgreUserInterface::Impl
             draw->PopClipRect();
             if (wide) ImGui::SameLine();
             ImGui::BeginChild("##MapLegend", ImVec2(0,0), wide);
+            if (!wide) ImGui::SetWindowFontScale(.72f);
             const auto observed = std::count_if(minimapCells.begin(), minimapCells.end(), [](const auto& cell){return cell.known;});
             if (wide)
             {
@@ -3844,6 +3848,7 @@ class OgreUserInterface::Impl
                 ImGui::TextWrapped("%s",tr("map.unknown").c_str());
                 ImGui::TextWrapped("%s",tr("map.session").c_str());
             }
+            if (!wide) ImGui::SetWindowFontScale(1.f);
             ImGui::EndChild();
             ImGui::EndChild();
             footer();
@@ -3884,8 +3889,28 @@ class OgreUserInterface::Impl
             const float width = ImGui::GetContentRegionAvail().x;
             const float height = std::max(1.f, ImGui::GetContentRegionAvail().y - 29.f * scale);
             const bool wide = width >= 610.f * scale;
-            const float listWidth = wide ? width * .36f : width;
-            const float listHeight = wide ? height : std::max(60.f * scale, height * .30f);
+            const float listWidth = width * .36f;
+            const float listHeight = height;
+            float detailHeight = height;
+            if (!wide)
+            {
+                const auto selected = std::find_if(entries.begin(),entries.end(),[&](const auto* e){return e->id==selectedJournalId;});
+                const auto title = selected == entries.end() ? tr("journal.empty") : objectiveText((*selected)->id,"title",(*selected)->title);
+                const auto preview = boundedHudText(title,ImGui::GetFontSize(),width-60.f*scale);
+                ImGui::SetNextItemWidth(-1.f);
+                if (ImGui::BeginCombo("##CompactQuestSelection",preview.c_str(),ImGuiComboFlags_HeightLarge)) {
+                    for (const auto* entry : entries) {
+                        const auto option = objectiveText(entry->id,"title",entry->title);
+                        ImGui::PushID(entry->id.c_str());
+                        if (ImGui::Selectable(option.c_str(),entry->id==selectedJournalId)) selectedJournalId=entry->id;
+                        ImGui::PopID();
+                    }
+                    ImGui::EndCombo();
+                }
+                detailHeight = std::max(1.f,ImGui::GetContentRegionAvail().y-29.f*scale);
+            }
+            else
+            {
             ImGui::BeginChild("##QuestList", ImVec2(listWidth, listHeight), false);
             if (entries.empty()) ImGui::TextWrapped("%s", tr("journal.empty").c_str());
             for (const auto* entry : entries)
@@ -3924,8 +3949,9 @@ class OgreUserInterface::Impl
                 ImGui::PopID();
             }
             ImGui::EndChild();
-            if (wide) ImGui::SameLine();
-            ImGui::BeginChild("##QuestDetail", ImVec2(0, wide ? height : height - listHeight - 8.f * scale), true);
+            ImGui::SameLine();
+            }
+            ImGui::BeginChild("##QuestDetail", ImVec2(0, detailHeight), true);
             const auto detail = std::find_if(entries.begin(), entries.end(), [&](const auto* e) { return e->id == selectedJournalId; });
             if (detail != entries.end())
             {
@@ -3933,15 +3959,17 @@ class OgreUserInterface::Impl
                 const float actionHeight = entry.available ? ImGui::GetTextLineHeight() + 30.f * scale : 0.f;
                 ImGui::BeginChild("##QuestReading", ImVec2(0, -std::max(1.f,actionHeight)), false);
                 const ImVec2 at = ImGui::GetCursorScreenPos();
-                adventureIcon(objectiveIcon(entry.id), at, 45.f * scale);
-                ImGui::Indent(58.f * scale);
-                ImGui::SetWindowFontScale(1.30f);
+                const float iconSize = (wide ? 45.f : 30.f)*scale;
+                const float iconIndent = (wide ? 58.f : 42.f)*scale;
+                adventureIcon(objectiveIcon(entry.id), at, iconSize);
+                ImGui::Indent(iconIndent);
+                ImGui::SetWindowFontScale(wide ? 1.30f : 1.05f);
                 ImGui::TextWrapped("%s", objectiveText(entry.id,"title",entry.title).c_str());
                 ImGui::SetWindowFontScale(1.f);
                 ImGui::TextColored(WarmAccent, "%s · %s", tr(entry.optional ? "journal.optional" : "journal.main").c_str(),
                     tr(entry.completed ? "journal.completed" : entry.available ? "journal.available" : "journal.locked").c_str());
-                ImGui::Unindent(58.f * scale);
-                ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY(), at.y - ImGui::GetWindowPos().y + 53.f * scale));
+                ImGui::Unindent(iconIndent);
+                ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY(), at.y - ImGui::GetWindowPos().y + iconSize + 8.f*scale));
                 ImGui::Separator(); ImGui::Spacing();
                 ImGui::TextWrapped("%s", objectiveInstructionText(entry.id,entry.instruction,entry.guidanceKey).c_str());
                 ImGui::Spacing();
