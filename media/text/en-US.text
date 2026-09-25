@@ -641,3 +641,5 @@ text map.backup_body "Save and return to this world’s backup list. Check the b
 text map.backup_continue "Save and view backups"
 text map.backup_choose "The previous world is selected. Check backup dates before choosing Restore. Without a backup, earlier history cannot be recovered."
 text map.backup_save_failed "Save failed; return to backups was cancelled and this session remains open. Existing backups were not replaced. Preserve the world files before resolving the save problem."
+
+text hud.collect_wood "Collect logs"

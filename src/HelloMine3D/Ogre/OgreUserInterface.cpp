@@ -2473,43 +2473,26 @@ class OgreUserInterface::Impl
         const auto& io = ImGui::GetIO();
         const float scale = appliedSettings.uiScale;
         const float fontSize = ImGui::GetFontSize() * .78f;
-        struct Hint { std::string key, action; };
-        std::vector<Hint> hints;
-        if (!hudInteraction.ownsInput())
-            hints.push_back({keyName(appliedSettings.inputBindings.get(GameplayAction::OpenCrafting)), tr("hint.crafting")});
-        hints.push_back({"Tab", tr(hudInteraction.ownsInput() ? "hud.pointer_resume" : "hud.pointer_show")});
-        hints.push_back({"Esc", tr(hudInteraction.ownsInput() ? "hud.pointer_resume" : "hint.pause")});
-        const auto* tool = runtimeToolRegistry().find(heldMaterial);
-        if (!hudInteraction.ownsInput() && runtimeFoodRegistry().find(heldMaterial) && worldStats.playerHealth < worldStats.playerMaxHealth)
-            hints.insert(hints.begin() + 1, {keyName(appliedSettings.inputBindings.get(GameplayAction::ConsumeFood)), tr("hint.eat")});
-        else if (!hudInteraction.ownsInput() && tool && tool->miningClass == MiningClass::Weapon)
-            hints.insert(hints.begin() + 1, {mouseButtonName(appliedSettings.mouseBindings.get(GameplayWorldAction::Guard)), tr("action.guard")});
-        const auto textWidth = [&](const std::string& value) {
-            return ImGui::GetFont()->CalcTextSizeA(fontSize, FLT_MAX, 0.f, value.c_str()).x;
-        };
-        float totalWidth = 0.f;
-        for (const auto& hint : hints) totalWidth += textWidth(hint.key) + textWidth(hint.action) + 30.f * scale;
-        totalWidth -= 12.f * scale;
-        const float available = io.DisplaySize.x - 36.f;
-        const float fit = std::min(1.f, available / std::max(totalWidth, 1.f));
-        const float height = fontSize + 8.f * scale;
-        ImVec2 at((io.DisplaySize.x - totalWidth * fit) * .5f, bottom - height);
+        std::string hint = "Tab  " + tr(hudInteraction.ownsInput() ? "hud.pointer_resume" : "hud.pointer_show");
+        if (hudInteraction.ownsInput())
+            hint += "   ·   " + keyName(appliedSettings.inputBindings.get(GameplayAction::OpenCrafting)) + "  " + tr("hint.crafting");
+        else if (runtimeFoodRegistry().find(heldMaterial) && worldStats.playerHealth < worldStats.playerMaxHealth)
+            hint += "   ·   " + keyName(appliedSettings.inputBindings.get(GameplayAction::ConsumeFood)) + "  " + tr("hint.eat");
+        else if (const auto* tool = runtimeToolRegistry().find(heldMaterial);
+                 tool && tool->miningClass == MiningClass::Weapon)
+            hint += "   ·   " + mouseButtonName(appliedSettings.mouseBindings.get(GameplayWorldAction::Guard)) + "  " + tr("action.guard");
+        const float lane = (io.DisplaySize.x - 300.f * scale) * .5f - 32.f;
+        const bool beside = lane >= 145.f * scale;
+        const float available = beside ? lane : io.DisplaySize.x - 36.f;
+        const auto text = boundedHudText(hint, fontSize, available, 2);
+        const ImVec2 measured = ImGui::GetFont()->CalcTextSizeA(fontSize, FLT_MAX, available, text.c_str());
+        const ImVec2 at(18.f, beside ? io.DisplaySize.y - 22.f - measured.y : bottom - measured.y);
         auto* draw = ImGui::GetForegroundDrawList();
-        for (const auto& hint : hints)
-        {
-            const float keyWidth = (textWidth(hint.key) + 10.f * scale) * fit;
-            const float actionWidth = textWidth(hint.action) * fit;
-            draw->AddRectFilled(ImVec2(at.x - 4.f, at.y - 2.f),
-                ImVec2(at.x + keyWidth + actionWidth + 10.f * scale, at.y + height + 2.f), IM_COL32(14, 24, 29, 210), 2.f);
-            draw->AddRectFilled(at, ImVec2(at.x + keyWidth, at.y + height), IM_COL32(37, 52, 57, 255), 2.f);
-            draw->AddRect(at, ImVec2(at.x + keyWidth, at.y + height), IM_COL32(94, 116, 120, 210), 2.f);
-            draw->AddText(ImGui::GetFont(), fontSize * fit, ImVec2(at.x + 5.f * scale * fit, at.y + 4.f * scale),
-                IM_COL32(228, 207, 168, 255), hint.key.c_str());
-            draw->AddText(ImGui::GetFont(), fontSize * fit, ImVec2(at.x + keyWidth + 6.f * scale, at.y + 4.f * scale),
-                IM_COL32(204, 217, 215, 255), hint.action.c_str());
-            at.x += (textWidth(hint.key) + textWidth(hint.action) + 30.f * scale) * fit;
-        }
-        return bottom - height - 10.f * scale;
+        draw->AddText(ImGui::GetFont(), fontSize, ImVec2(at.x + 1.f, at.y + 1.f),
+            IM_COL32(8, 16, 20, 230), text.c_str(), nullptr, available);
+        draw->AddText(ImGui::GetFont(), fontSize, at, IM_COL32(236, 237, 223, 255),
+            text.c_str(), nullptr, available);
+        return beside ? bottom : at.y - 10.f * scale;
     }
 
     void drawItemDetails(const InventorySlotState& slot, int hotbarIndex)
@@ -2520,6 +2503,9 @@ class OgreUserInterface::Impl
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(14.f * scale, 12.f * scale));
         if (ImGui::BeginTooltip())
         {
+            const auto lo = ImGui::GetWindowPos(), size = ImGui::GetWindowSize();
+            GameInterfaceWidgets::surface(ImGui::GetWindowDrawList(), lo,
+                ImVec2(lo.x + size.x, lo.y + size.y), false, scale);
             ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + width - 28.f * scale);
             if (slot.amount <= 0 || slot.materialId == Material::Nothing)
             {
@@ -2598,11 +2584,6 @@ class OgreUserInterface::Impl
         const ImVec2 maximum = ImGui::GetItemRectMax();
         ImDrawList *drawList = ImGui::GetWindowDrawList();
         GameInterfaceWidgets::slotFrame(drawList, minimum, maximum, selected, hovered, ImGui::IsItemActive(), scale);
-        drawList->AddImage(ImTextureRef(hudPanelTextureId),
-            ImVec2(minimum.x + 3.f * scale, minimum.y + 3.f * scale),
-            ImVec2(maximum.x - 3.f * scale, maximum.y - 3.f * scale),
-            ImVec2(.2f, .2f), ImVec2(.8f, .8f),
-            selected ? IM_COL32(238, 215, 168, 180) : IM_COL32(160, 181, 182, 175));
 
         const std::string key = std::to_string(index + 1);
         drawList->AddText(ImVec2(minimum.x + 5.f * scale, minimum.y + 2.f * scale),
@@ -3011,10 +2992,7 @@ class OgreUserInterface::Impl
                             : IM_COL32(127, 218, 228, 255));
                 }
             }
-            draw->AddCircleFilled(marker, 7.f,
-                                  IM_COL32(19, 29, 25, 220), 24);
-            draw->AddTriangleFilled(tip, left, right,
-                                    IM_COL32(255, 224, 133, 255));
+            GameInterfaceWidgets::playerArrow(draw, tip, left, right);
 
             // The open label stack follows the compass concept. A restrained
             // light keyline keeps its dark lettering readable over night scenes.
@@ -4136,13 +4114,13 @@ class OgreUserInterface::Impl
                 displayedObjectiveGuidanceKey = objective.guidanceKey;
                 objectiveHintSeconds = 12.f;
             }
-            const float objectiveWidth = std::min({320.f * appliedSettings.uiScale,
+            const float objectiveWidth = std::min({250.f * appliedSettings.uiScale,
                 io.DisplaySize.x * .52f, io.DisplaySize.x - minimapOverlayWidth - 54.f});
             ImGui::SetNextWindowPos(ImVec2(18.0f,
                                           performanceOverlayBottom + 10.f),
                                     ImGuiCond_Always);
             ImGui::SetNextWindowSize(ImVec2(objectiveWidth, 0.f), ImGuiCond_Always);
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.f * appliedSettings.uiScale, 12.f * appliedSettings.uiScale));
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.f * appliedSettings.uiScale, 8.f * appliedSettings.uiScale));
             if (ImGui::Begin(
                     "##Objectives", nullptr,
                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground |
@@ -4152,76 +4130,51 @@ class OgreUserInterface::Impl
                         ImGuiWindowFlags_NoFocusOnAppearing |
                         ImGuiWindowFlags_NoNav))
             {
-                drawFieldKitWindow();
+                const float scale = appliedSettings.uiScale;
+                auto* draw = ImGui::GetWindowDrawList();
+                const ImVec2 lo = ImGui::GetWindowPos(), size = ImGui::GetWindowSize();
+                GameInterfaceWidgets::surface(draw, lo, ImVec2(lo.x + size.x, lo.y + size.y), true, scale);
                 const ImVec2 header = ImGui::GetCursorScreenPos();
-                const float badge = 42.f * appliedSettings.uiScale;
-                drawHudGlyph(ImGui::GetWindowDrawList(), 0,
-                    ImVec2(header.x - 3.f * appliedSettings.uiScale, header.y - 2.f * appliedSettings.uiScale), badge);
-                ImGui::Indent(badge);
-                ImGui::SetWindowFontScale(.75f);
-                ImGui::TextColored(WarmMuted, "%s  %zu / %zu", tr("hud.journey").c_str(),
-                                    objective.completedObjectives,
-                                    objective.totalObjectives);
+                const float width = ImGui::GetContentRegionAvail().x;
                 const std::string currentTitle = objective.sessionComplete
                     ? tr("objective.complete.title")
-                    : objectiveText(objective.currentId, "title",
-                                    objective.title);
-                const std::string currentInstruction =
-                    objective.sessionComplete
-                        ? tr("objective.complete.instruction")
-                        : objectiveInstructionText(objective.currentId,
-                                        objective.instruction, objective.guidanceKey);
-                ImGui::Spacing();
-                ImGui::SetWindowFontScale(1.05f);
-                ImGui::PushStyleColor(ImGuiCol_Text, WarmAccent);
-                ImGui::TextWrapped("%s", currentTitle.c_str());
-                ImGui::PopStyleColor();
-                ImGui::Unindent(badge);
-                ImGui::SetWindowFontScale(.85f);
-                ImGui::Spacing();
-                if (appliedSettings.showActionHints &&
-                    (objectiveHintSeconds > 0.f || showDebugPanel))
+                    : objectiveText(objective.currentId, "title", objective.title);
+                const std::string instruction = objective.sessionComplete
+                    ? tr("objective.complete.instruction")
+                    : objectiveInstructionText(objective.currentId, objective.instruction, objective.guidanceKey);
+                drawHudGlyph(draw, 0, ImVec2(header.x - 2.f * scale, header.y - 2.f * scale),
+                    23.f * scale, IM_COL32(240, 205, 130, 255));
+                const auto title = boundedHudText(currentTitle, ImGui::GetFontSize(), width - 43.f * scale);
+                draw->AddText(ImVec2(header.x + 25.f * scale, header.y),
+                    ImGui::ColorConvertFloat4ToU32(WarmText), title.c_str());
+                const float arrowX = header.x + width - 5.f * scale;
+                draw->AddLine(ImVec2(arrowX - 3.f * scale, header.y + 4.f * scale),
+                    ImVec2(arrowX + scale, header.y + 8.f * scale), IM_COL32(218, 222, 205, 255), 1.5f);
+                draw->AddLine(ImVec2(arrowX + scale, header.y + 8.f * scale),
+                    ImVec2(arrowX - 3.f * scale, header.y + 12.f * scale), IM_COL32(218, 222, 205, 255), 1.5f);
+                ImGui::Dummy(ImVec2(width, ImGui::GetTextLineHeight() + 2.f * scale));
+                const ImVec2 row = ImGui::GetCursorScreenPos();
+                const float font = ImGui::GetFontSize() * .85f;
+                const std::string count = std::to_string(std::min(objective.progress, objective.required)) +
+                    " / " + std::to_string(objective.required);
+                const float countWidth = objective.required > 0
+                    ? ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0.f, count.c_str()).x : 0.f;
+                const std::string summary = boundedHudText(objective.currentId == "alpha.gather_wood"
+                    ? tr("hud.collect_wood") : instruction, font, width - countWidth - 12.f * scale);
+                draw->AddText(ImGui::GetFont(), font, row, ImGui::ColorConvertFloat4ToU32(WarmMuted), summary.c_str());
+                if (objective.required > 0)
+                    draw->AddText(ImGui::GetFont(), font, ImVec2(row.x + width - countWidth, row.y),
+                        ImGui::ColorConvertFloat4ToU32(WarmAccent), count.c_str());
+                ImGui::Dummy(ImVec2(width, font));
+                if (objective.required > 0)
                 {
-                    ImGui::TextWrapped("%s", currentInstruction.c_str());
+                    const ImVec2 bar = ImGui::GetCursorScreenPos();
+                    GameInterfaceWidgets::progress(draw, bar, ImVec2(bar.x + width, bar.y + 3.f * scale),
+                        float(objective.progress) / objective.required);
+                    ImGui::Dummy(ImVec2(width, 3.f * scale));
                 }
-                else
-                {
-                    ImGui::TextDisabled("%s", tr(hudInteraction.ownsInput() ? "journal.open" : "hud.journey_details").c_str());
-                }
-                ImGui::SetWindowFontScale(.8f);
-                if (objective.required > 1)
-                {
-                    const float ratio = std::clamp(
-                        static_cast<float>(objective.progress) /
-                            static_cast<float>(objective.required),
-                        0.0f, 1.0f);
-                    const std::string overlay =
-                        std::to_string(std::min(objective.progress,
-                                                objective.required)) +
-                        " / " + std::to_string(objective.required);
-                    ImGui::Spacing();
-                    const ImVec2 origin = ImGui::GetCursorScreenPos();
-                    const float width = ImGui::GetContentRegionAvail().x;
-                    const float rowHeight = ImGui::GetTextLineHeight();
-                    const float countWidth = ImGui::CalcTextSize(overlay.c_str()).x;
-                    const float barWidth = std::max(1.f, width - countWidth -
-                        12.f * appliedSettings.uiScale);
-                    const float barHeight = 5.f * appliedSettings.uiScale;
-                    const ImVec2 barStart(origin.x,
-                        origin.y + (rowHeight - barHeight) * 0.5f);
-                    const ImVec2 barEnd(barStart.x + barWidth,
-                                        barStart.y + barHeight);
-                    auto* draw = ImGui::GetWindowDrawList();
-                    draw->AddRectFilled(barStart, barEnd,
-                                         IM_COL32(54, 69, 77, 255), 2.f);
-                    if (ratio > 0.f)
-                        draw->AddRectFilled(barStart,
-                            ImVec2(barStart.x + barWidth * ratio, barEnd.y),
-                            ImGui::ColorConvertFloat4ToU32(WarmAccent), 2.f);
-                    draw->AddText(ImVec2(origin.x + width - countWidth, origin.y),
-                        ImGui::ColorConvertFloat4ToU32(WarmText), overlay.c_str());
-                    ImGui::Dummy(ImVec2(width, rowHeight));
-                }
+                if (hudInteraction.ownsInput() && ImGui::IsWindowHovered())
+                    ImGui::SetTooltip("%s\n%s", instruction.c_str(), tr("journal.open").c_str());
                 if (objective.opportunities.size() > 1 &&
                     !objective.sessionComplete && showDebugPanel)
                 {
@@ -4316,7 +4269,6 @@ class OgreUserInterface::Impl
                     ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
                     ImGui::GetWindowDrawList()->AddRect(origin, ImVec2(origin.x + size.x, origin.y + size.y),
                         ImGui::ColorConvertFloat4ToU32(WarmAccent), 2.f, 0, 2.f);
-                    ImGui::SetTooltip("%s", tr("journal.open").c_str());
                 }
             }
             hudNoticeLeftTop = ImGui::GetWindowPos().y + ImGui::GetWindowSize().y + 10.f;
@@ -4386,7 +4338,7 @@ class OgreUserInterface::Impl
         if (!hudInteraction.ownsInput()) drawHeldMaterial(state, io);
         const float scale = appliedSettings.uiScale;
         const float dockWidth = 300.f * scale;
-        const float dockHeight = 114.f * scale;
+        const float dockHeight = 94.f * scale;
         const ImVec2 dockMin((io.DisplaySize.x - dockWidth) * .5f, io.DisplaySize.y - 16.f - dockHeight);
         ImGui::SetNextWindowPos(dockMin, ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(dockWidth, dockHeight), ImGuiCond_Always);
@@ -4396,7 +4348,6 @@ class OgreUserInterface::Impl
             ImGuiWindowFlags_NoSavedSettings | (hudInteraction.ownsInput() ? 0 : ImGuiWindowFlags_NoInputs) | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
         if (ImGui::Begin("##OgrePlayerHud", nullptr, flags))
         {
-            drawFieldKitWindow();
             auto* draw = ImGui::GetWindowDrawList();
             const ImVec2 origin = ImGui::GetCursorScreenPos();
             const float contentWidth = dockWidth - 16.f * scale;
@@ -4409,20 +4360,14 @@ class OgreUserInterface::Impl
             drawHudGlyph(draw, 1, ImVec2(origin.x - 5.f * scale, origin.y - 3.f * scale), 24.f * scale, healthColour);
             char healthValue[48];
             std::snprintf(healthValue, sizeof(healthValue), "%.0f / %.0f", std::ceil(worldStats.playerHealth), std::ceil(worldStats.playerMaxHealth));
-            draw->AddText(ImGui::GetFont(), font, ImVec2(origin.x + 20.f * scale, origin.y + 1.f * scale), healthColour, healthValue);
-            const std::string heldName = boundedHudText(hasHeldStack ? materialName(heldMaterial) : tr("common.empty"), font, contentWidth * .58f);
-            const float nameWidth = ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0.f, heldName.c_str()).x;
-            draw->AddText(ImGui::GetFont(), font, ImVec2(origin.x + contentWidth - nameWidth, origin.y + scale), IM_COL32(227, 205, 161, 255), heldName.c_str());
-            const float segmentWidth = (contentWidth - 9.f * 3.f * scale) / 10.f;
-            for (int segment = 0; segment < 10; ++segment)
-            {
-                const ImVec2 start(origin.x + segment * (segmentWidth + 3.f * scale), origin.y + 21.f * scale);
-                const ImVec2 end(start.x + segmentWidth, start.y + 4.f * scale);
-                draw->AddRectFilled(start, end, IM_COL32(51, 69, 73, 255), 1.f);
-                const float filled = std::clamp(healthRatio * 10.f - segment, 0.f, 1.f);
-                if (filled > 0.f) draw->AddRectFilled(start, ImVec2(start.x + segmentWidth * filled, end.y), healthColour, 1.f);
-            }
-            ImGui::Dummy(ImVec2(contentWidth, 25.f * scale));
+            const float numberWidth = ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0.f, healthValue).x;
+            draw->AddText(ImGui::GetFont(), font,
+                ImVec2(origin.x + contentWidth - numberWidth, origin.y),
+                ImGui::ColorConvertFloat4ToU32(WarmText), healthValue);
+            const ImVec2 barStart(origin.x + 22.f * scale, origin.y + 5.f * scale);
+            const ImVec2 barEnd(origin.x + contentWidth - numberWidth - 6.f * scale, barStart.y + 7.f * scale);
+            GameInterfaceWidgets::progress(draw, barStart, barEnd, healthRatio, healthColour);
+            ImGui::Dummy(ImVec2(contentWidth, 21.f * scale));
             for (std::size_t index = 0; index < state.inventory.size(); ++index)
             {
                 if (index > 0) ImGui::SameLine();

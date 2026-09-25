@@ -7,6 +7,60 @@
 // Input, item ownership and transfer rules remain with the callers.
 namespace GameInterfaceWidgets
 {
+inline void surface(ImDrawList* draw, ImVec2 lo, ImVec2 hi,
+                    bool accent = false, float scale = 1.f)
+{
+    draw->AddRectFilled(ImVec2(lo.x, lo.y + 3.f * scale),
+        ImVec2(hi.x, hi.y + 3.f * scale), IM_COL32(5, 12, 16, 90), 3.f * scale);
+    draw->AddRectFilled(lo, hi, IM_COL32(25, 45, 52, 239), 3.f * scale);
+    draw->AddRect(lo, hi, IM_COL32(105, 132, 131, 200), 3.f * scale);
+    if (accent)
+        draw->AddLine(ImVec2(lo.x + 1.f, lo.y + 5.f * scale),
+            ImVec2(lo.x + 1.f, hi.y - 5.f * scale), IM_COL32(222, 182, 110, 255), 2.f * scale);
+}
+
+inline void progress(ImDrawList* draw, ImVec2 lo, ImVec2 hi,
+                     float ratio, ImU32 colour = IM_COL32(222, 182, 110, 255))
+{
+    draw->AddRectFilled(lo, hi, IM_COL32(48, 67, 73, 245), 3.f);
+    ratio = std::clamp(ratio, 0.f, 1.f);
+    if (ratio > 0.f)
+        draw->AddRectFilled(lo, ImVec2(lo.x + (hi.x - lo.x) * ratio, hi.y), colour, 3.f);
+}
+
+inline void playerArrow(ImDrawList* draw, ImVec2 tip, ImVec2 left, ImVec2 right)
+{
+    draw->AddTriangleFilled(tip, left, right, IM_COL32(247, 235, 195, 255));
+    draw->AddTriangle(tip, left, right, IM_COL32(27, 43, 47, 255), 1.5f);
+}
+
+// Scoped to the adventure overlays so unrelated settings and machine layouts
+// retain their existing sizing and semantics.
+struct OverlayStyle
+{
+    explicit OverlayStyle(float scale)
+    {
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.f * scale, 14.f * scale));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.f * scale, 8.f * scale));
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.f * scale, 7.f * scale));
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.f * scale);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.f);
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 2.f * scale);
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(17, 32, 38, 65));
+        ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(89, 116, 119, 175));
+        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(30, 49, 56, 245));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(56, 73, 72, 255));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(69, 77, 66, 255));
+        ImGui::PushStyleColor(ImGuiCol_Header, IM_COL32(113, 98, 58, 100));
+        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, IM_COL32(105, 103, 76, 100));
+        ImGui::PushStyleColor(ImGuiCol_HeaderActive, IM_COL32(128, 108, 65, 130));
+        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, IM_COL32(222, 182, 110, 255));
+    }
+    ~OverlayStyle() { ImGui::PopStyleColor(9); ImGui::PopStyleVar(6); }
+    OverlayStyle(const OverlayStyle&) = delete;
+    OverlayStyle& operator=(const OverlayStyle&) = delete;
+};
+
 // The generated corner craft stays at native proportions; only the straight
 // edges and quiet cloth center stretch. No image contains gameplay text.
 inline void texturedPanel(ImDrawList* draw, ImTextureID texture,

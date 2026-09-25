@@ -641,3 +641,5 @@ text map.backup_body "将先保存并返回此世界的备份列表。恢复前�
 text map.backup_continue "保存并查看备份"
 text map.backup_choose "已选中刚才的世界。请在备份列表核对时间后选择恢复；没有备份时不会凭空恢复历史。"
 text map.backup_save_failed "保存失败，已取消返回备份列表，当前会话保留。原有备份不会因此被覆盖；请先保留世界文件再处理保存问题。"
+
+text hud.collect_wood "收集原木"
