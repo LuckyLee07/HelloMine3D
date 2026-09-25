@@ -527,6 +527,8 @@ project "HelloMine3DWorldCatalogueSmoke"
         source_dir .. "/World/Exploration/ExplorationMarkers.h",
         source_dir .. "/World/Exploration/ExplorationMapStore.h",
         source_dir .. "/World/Exploration/ExplorationMapStore.cpp",
+        source_dir .. "/World/Exploration/WorldPreviewStore.h",
+        source_dir .. "/World/Exploration/WorldPreviewStore.cpp",
         source_dir .. "/World/Storage/WorldCatalogue.h",
         source_dir .. "/World/Storage/WorldCatalogue.cpp",
         source_dir .. "/World/Storage/WorldManagementService.h",

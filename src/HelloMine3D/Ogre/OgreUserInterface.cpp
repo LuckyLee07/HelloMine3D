@@ -56,6 +56,7 @@
 #include "../Util/ResourcePaths.h"
 #include "../World/World.h"
 #include "../World/Exploration/ExplorationNavigation.h"
+#include "../World/Exploration/WorldPreviewStore.h"
 #include "../World/Block/BlockCapability.h"
 #include "../World/Block/TerrainMaterialProfile.h"
 #include "../Item/SmeltingRegistry.h"
@@ -1197,6 +1198,7 @@ class OgreUserInterface::Impl
             worldCatalogueError = active.message;
             selectedWorldId.clear();
             backups.clear();
+            selectedWorldPreview.reset();
             return;
         }
         worlds = active.worlds;
@@ -1218,10 +1220,18 @@ class OgreUserInterface::Impl
         {
             selectedWorldId.clear();
             backups.clear();
+            selectedWorldPreview.reset();
             if (!worlds.empty())
             {
                 selectWorld(worlds.front());
             }
+        }
+        else
+        {
+            // A catalogue refresh follows save, rename and backup restore.
+            // Reload the one selected world's bounded cache so the menu never
+            // keeps a pre-save or pre-restore preview in memory.
+            selectWorld(*selected);
         }
     }
 
@@ -1232,11 +1242,15 @@ class OgreUserInterface::Impl
         std::snprintf(renameName.data(), renameName.size(), "%s",
                       entry.displayName.c_str());
         backups.clear();
-        WorldManagementResult listed;
-        if (!management->listBackups(entry.id, backups, &listed))
+        selectedWorldPreview.reset();
+        const WorldSelectionDetails details = management->inspectWorld(entry.id);
+        if (!details.succeeded())
         {
-            statusMessage = listed.message;
+            statusMessage = details.message;
+            return;
         }
+        backups = details.backups;
+        selectedWorldPreview = details.preview;
     }
 
     void reportResult(const WorldManagementResult &result,
@@ -1415,6 +1429,7 @@ class OgreUserInterface::Impl
                         createWorldExpanded = false;
                         selectedWorldId.clear();
                         backups.clear();
+                        selectedWorldPreview.reset();
                     }
                 }
                     ImGui::EndTable();
@@ -1531,22 +1546,107 @@ class OgreUserInterface::Impl
                         ImVec2(previewAt.x + previewWidth,
                                previewAt.y + previewHeight),
                         IM_COL32(75, 104, 105, 180), 4.f * scale);
-                    GameInterfaceWidgets::glyph(draw,
-                        GameInterfaceWidgets::Glyph::Map,
-                        ImVec2(previewAt.x + 12.f * scale,
-                               previewAt.y + 12.f * scale),
-                        26.f * scale);
-                    draw->AddText(
-                        ImVec2(previewAt.x + 48.f * scale,
-                               previewAt.y + 14.f * scale),
-                        ImGui::GetColorU32(WarmText),
-                        tr("world.preview_unavailable").c_str());
-                    draw->AddText(ImGui::GetFont(), ImGui::GetFontSize() * .8f,
-                        ImVec2(previewAt.x + 12.f * scale,
-                               previewAt.y + 55.f * scale),
-                        ImGui::GetColorU32(WarmMuted),
-                        tr("world.preview_fallback").c_str(), nullptr,
-                        previewWidth - 24.f * scale);
+                    const bool previewReady = selectedWorldPreview &&
+                        selectedWorldPreview->width == WorldPreviewStore::Width &&
+                        selectedWorldPreview->height == WorldPreviewStore::Height &&
+                        selectedWorldPreview->cells.size() ==
+                            WorldPreviewStore::CellCount;
+                    if (previewReady)
+                    {
+                        const auto& preview = *selectedWorldPreview;
+                        const float inset = 5.f * scale;
+                        const float pixel = std::min(
+                            (previewWidth - inset * 2.f) /
+                                static_cast<float>(preview.width),
+                            (previewHeight - inset * 2.f) /
+                                static_cast<float>(preview.height));
+                        const ImVec2 mapSize(pixel * preview.width,
+                                             pixel * preview.height);
+                        const ImVec2 mapAt(
+                            previewAt.x + (previewWidth - mapSize.x) * .5f,
+                            previewAt.y + (previewHeight - mapSize.y) * .5f);
+                        draw->PushClipRect(mapAt,
+                            ImVec2(mapAt.x + mapSize.x,
+                                   mapAt.y + mapSize.y), true);
+                        const auto surface = [&](int column, int row) {
+                            const auto& cell = preview.at(column, row);
+                            return SurfaceMapSample{
+                                cell.known, static_cast<int>(cell.height),
+                                cell.material};
+                        };
+                        for (int row = 0; row < preview.height; ++row)
+                        {
+                            for (int column = 0; column < preview.width; ++column)
+                            {
+                                const SurfaceMapSample cell = surface(column, row);
+                                const SurfaceMapSample west = surface(
+                                    std::max(0, column - 1), row);
+                                const SurfaceMapSample north = surface(
+                                    column, std::max(0, row - 1));
+                                const ImVec2 cellAt(
+                                    mapAt.x + column * pixel,
+                                    mapAt.y + row * pixel);
+                                draw->AddRectFilled(cellAt,
+                                    ImVec2(cellAt.x + pixel + .35f,
+                                           cellAt.y + pixel + .35f),
+                                    mapSurfaceColour(cell, west, north));
+                            }
+                        }
+                        const ImVec2 marker(mapAt.x + mapSize.x * .5f,
+                                            mapAt.y + mapSize.y * .5f);
+                        const auto heading = ExplorationNavigation::heading(
+                            preview.playerYaw);
+                        const float markerLength = 8.f * scale;
+                        const float markerBase = 4.f * scale;
+                        const float markerWidth = 4.f * scale;
+                        GameInterfaceWidgets::playerArrow(draw,
+                            ImVec2(marker.x + heading.x * markerLength,
+                                   marker.y + heading.z * markerLength),
+                            ImVec2(marker.x - heading.x * markerBase -
+                                       heading.z * markerWidth,
+                                   marker.y - heading.z * markerBase +
+                                       heading.x * markerWidth),
+                            ImVec2(marker.x - heading.x * markerBase +
+                                       heading.z * markerWidth,
+                                   marker.y - heading.z * markerBase -
+                                       heading.x * markerWidth));
+                        const float captionFont = ImGui::GetFontSize() * .62f;
+                        draw->AddText(ImGui::GetFont(), captionFont,
+                            ImVec2(mapAt.x + 4.f * scale,
+                                   mapAt.y + 3.f * scale),
+                            IM_COL32(240, 226, 188, 245),
+                            tr("hud.minimap_north").c_str());
+                        const std::string ruler = "64 m";
+                        const ImVec2 rulerSize = ImGui::GetFont()->CalcTextSizeA(
+                            captionFont, FLT_MAX, 0.f, ruler.c_str());
+                        draw->AddText(ImGui::GetFont(), captionFont,
+                            ImVec2(mapAt.x + mapSize.x - rulerSize.x -
+                                       4.f * scale,
+                                   mapAt.y + mapSize.y - rulerSize.y -
+                                       3.f * scale),
+                            IM_COL32(229, 220, 191, 235), ruler.c_str());
+                        draw->PopClipRect();
+                    }
+                    else
+                    {
+                        GameInterfaceWidgets::glyph(draw,
+                            GameInterfaceWidgets::Glyph::Map,
+                            ImVec2(previewAt.x + 12.f * scale,
+                                   previewAt.y + 12.f * scale),
+                            26.f * scale);
+                        draw->AddText(
+                            ImVec2(previewAt.x + 48.f * scale,
+                                   previewAt.y + 14.f * scale),
+                            ImGui::GetColorU32(WarmText),
+                            tr("world.preview_unavailable").c_str());
+                        draw->AddText(ImGui::GetFont(),
+                            ImGui::GetFontSize() * .8f,
+                            ImVec2(previewAt.x + 12.f * scale,
+                                   previewAt.y + 55.f * scale),
+                            ImGui::GetColorU32(WarmMuted),
+                            tr("world.preview_fallback").c_str(), nullptr,
+                            previewWidth - 24.f * scale);
+                    }
                     ImGui::Dummy(ImVec2(previewWidth, previewHeight));
                     if (compactSummary)
                     {
@@ -1715,6 +1815,8 @@ class OgreUserInterface::Impl
                     reportResult(management->deleteWorld(
                         pendingDeleteWorldId), "world.feedback.recoverable");
                     selectedWorldId.clear();
+                    backups.clear();
+                    selectedWorldPreview.reset();
                     ImGui::CloseCurrentPopup();
                 }
                 ImGui::SameLine();
@@ -6823,6 +6925,7 @@ class OgreUserInterface::Impl
     std::vector<WorldCatalogueEntry> worlds;
     std::vector<DeletedWorldInfo> deletedWorlds;
     std::vector<WorldBackupInfo> backups;
+    std::optional<WorldPreviewStore::Preview> selectedWorldPreview;
     std::string selectedWorldId;
     std::string pendingDeleteWorldId;
     std::string pendingPermanentDeleteWorldId;
@@ -7164,6 +7267,7 @@ void OgreUserInterface::showWorldBackups(const std::string& worldId)
 {
     m_impl->selectedWorldId.clear();
     m_impl->backups.clear();
+    m_impl->selectedWorldPreview.reset();
     m_impl->statusMessage.clear();
     m_impl->refreshCatalogue();
     const auto found = std::find_if(m_impl->worlds.begin(), m_impl->worlds.end(),

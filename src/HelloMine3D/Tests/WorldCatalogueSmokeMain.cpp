@@ -1,5 +1,7 @@
 #include "../Diagnostics/OperationPerformanceTiming.h"
 #include "../Sandbox/GameApplicationFlow.h"
+#include "../World/Exploration/ExplorationMapStore.h"
+#include "../World/Exploration/WorldPreviewStore.h"
 #include "../World/Storage/WorldBackup.h"
 #include "../World/Storage/WorldCatalogue.h"
 #include "../World/Storage/WorldManagementService.h"
@@ -15,6 +17,7 @@
 #include <iomanip>
 #include <iostream>
 #include <iterator>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -218,6 +221,52 @@ namespace
         fixture.created = created;
         fixture.lastPlayed = lastPlayed;
         return fixture;
+    }
+
+    const WorldCatalogueEntry *findEntry(
+        const WorldManagementListResult &listed,
+        const std::string &worldId)
+    {
+        const auto found = std::find_if(
+            listed.worlds.begin(), listed.worlds.end(),
+            [&](const WorldCatalogueEntry &entry) {
+                return entry.id == worldId;
+            });
+        return found == listed.worlds.end() ? nullptr : &*found;
+    }
+
+    ExplorationMapStore::Identity mapIdentity(
+        const WorldCatalogueEntry &entry)
+    {
+        return {entry.id, entry.seed, entry.terrainGenerationVersion};
+    }
+
+    WorldPreviewStore::Identity previewIdentity(
+        const WorldCatalogueEntry &entry)
+    {
+        return {entry.id, entry.seed, entry.terrainGenerationVersion,
+                entry.lastPlayedUtc};
+    }
+
+    bool saveExplorationMap(const WorldCatalogueEntry &entry,
+                            const ExplorationAtlas &atlas)
+    {
+        const ExplorationMarkers markers;
+        return ExplorationMapStore(entry.directoryPath)
+            .save(mapIdentity(entry), atlas, markers, std::nullopt,
+                  std::nullopt);
+    }
+
+    bool saveWorldPreview(const WorldCatalogueEntry &entry,
+                          const ExplorationAtlas &atlas, int centerX,
+                          int centerZ, float playerYaw,
+                          const WorldPreviewStore::Identity *identity =
+                              nullptr)
+    {
+        const WorldPreviewStore::Identity expected =
+            identity == nullptr ? previewIdentity(entry) : *identity;
+        return WorldPreviewStore(entry.directoryPath)
+            .save(expected, centerX, centerZ, playerYaw, atlas);
     }
 }
 
@@ -825,10 +874,292 @@ int main()
         fs::create_directories(root.path() / "missing-meta");
         const WorldManagementListResult listed =
             WorldManagementService(root.path().string()).listWorlds();
+        const WorldSelectionDetails selected =
+            WorldManagementService(root.path().string())
+                .inspectWorld("world-alpha");
         suite.check("K4/corrupt-catalogue-has-structured-failure",
                     listed.status ==
                             WorldManagementStatus::CatalogueInvalid &&
-                        !listed.message.empty());
+                        !listed.message.empty() && !selected.succeeded() &&
+                        selected.status ==
+                            WorldManagementStatus::CatalogueInvalid);
+    }
+
+    {
+        TemporaryDirectory root("management-preview-absent");
+        const WorldManagementService service(root.path().string());
+        const WorldManagementResult created =
+            service.createWorld("Preview Legacy", 606);
+        const std::string beforeSelection = snapshot(root.path());
+        const WorldSelectionDetails absent =
+            service.inspectWorld(created.worldId);
+        suite.check(
+            "B6/selected-old-world-without-preview-remains-usable",
+            created.succeeded() && absent.succeeded() &&
+                absent.world.id == created.worldId &&
+                absent.backups.empty() && !absent.preview.has_value() &&
+                absent.previewStatus ==
+                    WorldPreviewStore::LoadStatus::Absent &&
+                beforeSelection == snapshot(root.path()));
+
+        if (created.succeeded()) {
+            std::ofstream corrupt(
+                fs::path(created.directoryPath) / "world-preview.hmp",
+                std::ios::binary | std::ios::trunc);
+            corrupt << "not-a-preview";
+        }
+        const std::string beforeCatalogue = snapshot(root.path());
+        const WorldManagementListResult listed = service.listWorlds();
+        suite.check(
+            "B6/catalogue-enumeration-never-opens-preview-payload",
+            listed.succeeded() && listed.worlds.size() == 1 &&
+                beforeCatalogue == snapshot(root.path()));
+        const WorldSelectionDetails corrupt =
+            service.inspectWorld(created.worldId);
+        suite.check(
+            "B6/corrupt-selected-preview-is-soft-fallback",
+            corrupt.succeeded() && !corrupt.preview.has_value() &&
+                corrupt.previewStatus ==
+                    WorldPreviewStore::LoadStatus::Corrupt &&
+                !corrupt.previewMessage.empty());
+
+        if (created.succeeded()) {
+            std::ofstream invalidBackups(
+                fs::path(created.directoryPath) / "backups",
+                std::ios::binary | std::ios::trunc);
+            invalidBackups << "not-a-directory";
+        }
+        const WorldSelectionDetails backupFailure =
+            service.inspectWorld(created.worldId);
+        suite.check(
+            "B6/selected-world-backup-failure-remains-hard",
+            !backupFailure.succeeded() &&
+                backupFailure.status ==
+                    WorldManagementStatus::StorageFailure &&
+                !backupFailure.message.empty());
+    }
+
+    {
+        TemporaryDirectory root("management-preview-selected");
+        const WorldManagementService service(root.path().string());
+        const WorldManagementResult firstCreated =
+            service.createWorld("Preview First", 701);
+        const WorldManagementResult secondCreated =
+            service.createWorld("Preview Second", 702);
+        const WorldManagementListResult listed = service.listWorlds();
+        const WorldCatalogueEntry *first =
+            findEntry(listed, firstCreated.worldId);
+        const WorldCatalogueEntry *second =
+            findEntry(listed, secondCreated.worldId);
+
+        ExplorationAtlas firstAtlas;
+        ExplorationAtlas secondAtlas;
+        bool fixturesSaved = first != nullptr && second != nullptr;
+        if (fixturesSaved) {
+            fixturesSaved =
+                firstAtlas.observe({0, 0, 71, BlockId::ForestFloor,
+                                    true}) ==
+                    ExplorationAtlas::ObserveResult::Updated &&
+                secondAtlas.observe({800, -400, 63, BlockId::Sand,
+                                     true}) ==
+                    ExplorationAtlas::ObserveResult::Updated &&
+                saveExplorationMap(*first, firstAtlas) &&
+                saveWorldPreview(*first, firstAtlas, 0, 0, 45.f) &&
+                saveExplorationMap(*second, secondAtlas) &&
+                saveWorldPreview(*second, secondAtlas, 800, -400,
+                                 225.f);
+        }
+        const WorldSelectionDetails firstSelected =
+            service.inspectWorld(firstCreated.worldId);
+        const WorldSelectionDetails secondSelected =
+            service.inspectWorld(secondCreated.worldId);
+        const WorldSelectionDetails firstAgain =
+            service.inspectWorld(firstCreated.worldId);
+        const bool firstSurface = firstSelected.preview.has_value() &&
+            firstSelected.preview->at(WorldPreviewStore::Width / 2,
+                                      WorldPreviewStore::Height / 2)
+                    .known &&
+            firstSelected.preview->at(WorldPreviewStore::Width / 2,
+                                      WorldPreviewStore::Height / 2)
+                    .material == BlockId::ForestFloor;
+        const bool secondSurface = secondSelected.preview.has_value() &&
+            secondSelected.preview->at(WorldPreviewStore::Width / 2,
+                                       WorldPreviewStore::Height / 2)
+                    .known &&
+            secondSelected.preview->at(WorldPreviewStore::Width / 2,
+                                       WorldPreviewStore::Height / 2)
+                    .material == BlockId::Sand;
+        suite.check(
+            "B6/selected-world-loads-real-bounded-preview",
+            fixturesSaved && firstSelected.succeeded() && firstSurface &&
+                firstSelected.previewStatus ==
+                    WorldPreviewStore::LoadStatus::Loaded &&
+                firstSelected.preview->centerX == 0 &&
+                firstSelected.preview->centerZ == 0 &&
+                firstSelected.preview->cells.size() ==
+                    WorldPreviewStore::CellCount);
+        suite.check(
+            "B6/switching-selection-does-not-cross-contaminate-preview",
+            secondSelected.succeeded() && secondSurface &&
+                secondSelected.preview->centerX == 800 &&
+                secondSelected.preview->centerZ == -400 &&
+                firstAgain.succeeded() && firstAgain.preview.has_value() &&
+                firstAgain.preview->centerX == 0 &&
+                firstAgain.preview->at(WorldPreviewStore::Width / 2,
+                                       WorldPreviewStore::Height / 2)
+                        .material == BlockId::ForestFloor);
+
+        bool foreignSaved = false;
+        if (first != nullptr) {
+            WorldPreviewStore::Identity foreign = previewIdentity(*first);
+            foreign.worldId = "foreign-preview";
+            foreignSaved = saveWorldPreview(*first, firstAtlas, 0, 0,
+                                             45.f, &foreign);
+        }
+        const WorldSelectionDetails foreign =
+            service.inspectWorld(firstCreated.worldId);
+        suite.check(
+            "B6/foreign-selected-preview-is-soft-fallback",
+            foreignSaved && foreign.succeeded() &&
+                !foreign.preview.has_value() &&
+                foreign.previewStatus ==
+                    WorldPreviewStore::LoadStatus::IdentityMismatch);
+
+        if (first != nullptr) {
+            std::ofstream corrupt(
+                fs::path(first->directoryPath) / "world-preview.hmp",
+                std::ios::binary | std::ios::trunc);
+            corrupt << "broken";
+        }
+        const WorldSelectionDetails corrupt =
+            service.inspectWorld(firstCreated.worldId);
+        suite.check(
+            "B6/malformed-selected-preview-does-not-fail-selection",
+            corrupt.succeeded() && !corrupt.preview.has_value() &&
+                corrupt.previewStatus ==
+                    WorldPreviewStore::LoadStatus::Corrupt);
+
+        bool sourceChanged = false;
+        if (first != nullptr) {
+            const bool rewritten =
+                saveWorldPreview(*first, firstAtlas, 0, 0, 45.f);
+            sourceChanged = rewritten &&
+                firstAtlas.observe({8, 0, 74, BlockId::MossStone, true}) ==
+                    ExplorationAtlas::ObserveResult::Updated &&
+                saveExplorationMap(*first, firstAtlas);
+        }
+        const WorldSelectionDetails stale =
+            service.inspectWorld(firstCreated.worldId);
+        suite.check(
+            "B6/stale-source-selected-preview-is-soft-fallback",
+            sourceChanged && stale.succeeded() &&
+                !stale.preview.has_value() &&
+                stale.previewStatus ==
+                    WorldPreviewStore::LoadStatus::StaleSource);
+
+        bool unsafePrepared = false;
+        if (first != nullptr) {
+            std::error_code error;
+            const fs::path previewPath =
+                fs::path(first->directoryPath) / "world-preview.hmp";
+            fs::remove(previewPath, error);
+            unsafePrepared = !error && fs::create_directory(previewPath,
+                                                             error) &&
+                             !error;
+        }
+        const WorldSelectionDetails unsafe =
+            service.inspectWorld(firstCreated.worldId);
+        suite.check(
+            "B6/unsafe-selected-preview-path-is-soft-fallback",
+            unsafePrepared && unsafe.succeeded() &&
+                !unsafe.preview.has_value() &&
+                unsafe.previewStatus ==
+                    WorldPreviewStore::LoadStatus::UnsafePath);
+    }
+
+    {
+        TemporaryDirectory root("management-preview-restore");
+        const WorldManagementService service(root.path().string());
+        const WorldManagementResult created =
+            service.createWorld("Preview Restore", 808);
+        const WorldManagementListResult listed = service.listWorlds();
+        const WorldCatalogueEntry *entry =
+            findEntry(listed, created.worldId);
+        ExplorationAtlas atlas;
+        bool initialSaved = entry != nullptr;
+        if (initialSaved) {
+            initialSaved =
+                atlas.observe({16, 24, 68, BlockId::ForestFloor, true}) ==
+                    ExplorationAtlas::ObserveResult::Updated &&
+                saveExplorationMap(*entry, atlas) &&
+                saveWorldPreview(*entry, atlas, 16, 24, 90.f);
+        }
+        WorldBackupInfo backup;
+        const bool backedUp = initialSaved &&
+            WorldBackup(created.directoryPath).createBackup(&backup);
+        const WorldManagementResult renamed =
+            service.renameWorld(created.worldId, "Preview Current");
+        bool alternatePreviewSaved = false;
+        if (entry != nullptr) {
+            // Keep world.meta and exploration.hmap byte-identical to the
+            // backup. Only the disposable camera centre changes, reproducing
+            // the same-second/same-source restore collision.
+            alternatePreviewSaved =
+                saveWorldPreview(*entry, atlas, 240, -160, 180.f);
+        }
+        const WorldSelectionDetails beforeRestore =
+            service.inspectWorld(created.worldId);
+        const std::string metadataBeforeFailure = readFile(
+            fs::path(created.directoryPath) / "world.meta");
+        const std::string mapBeforeFailure = readFile(
+            fs::path(created.directoryPath) / "exploration.hmap");
+        WorldBackupOptions interrupted;
+        interrupted.faultPoint =
+            WorldBackupFaultPoint::AfterFirstRestorePublish;
+        const WorldManagementResult failedRestore = service.restoreBackup(
+            created.worldId, backup.id, interrupted);
+        const WorldSelectionDetails afterFailedRestore =
+            service.inspectWorld(created.worldId);
+        const std::string metadataAfterFailedRestore = readFile(
+            fs::path(created.directoryPath) / "world.meta");
+        const std::string mapAfterFailedRestore = readFile(
+            fs::path(created.directoryPath) / "exploration.hmap");
+        const WorldManagementResult restored =
+            service.restoreBackup(created.worldId, backup.id);
+        const WorldSelectionDetails afterRestore =
+            service.inspectWorld(created.worldId);
+        suite.check(
+            "B6/preview-cache-is-excluded-from-authoritative-backup",
+            backedUp && backup.fileCount == 2 &&
+                !fs::exists(fs::path(backup.directoryPath) /
+                            "world-preview.hmp"));
+        suite.check(
+            "B6/failed-backup-restore-drops-preview-and-rolls-back-world",
+            renamed.succeeded() && alternatePreviewSaved &&
+                beforeRestore.succeeded() &&
+                beforeRestore.preview.has_value() &&
+                beforeRestore.preview->centerX == 240 &&
+                beforeRestore.preview->centerZ == -160 &&
+                !failedRestore.succeeded() &&
+                afterFailedRestore.succeeded() &&
+                afterFailedRestore.world.displayName == "Preview Current" &&
+                !afterFailedRestore.preview.has_value() &&
+                afterFailedRestore.previewStatus ==
+                    WorldPreviewStore::LoadStatus::Absent &&
+                metadataBeforeFailure == metadataAfterFailedRestore &&
+                mapBeforeFailure == mapAfterFailedRestore,
+            failedRestore.message);
+        suite.check(
+            "B6/same-revision-backup-restore-discards-old-preview-centre",
+            restored.succeeded() &&
+                !fs::exists(fs::path(created.directoryPath) /
+                            "world-preview.hmp") &&
+                afterRestore.succeeded() &&
+                afterRestore.world.displayName == "Preview Restore" &&
+                !afterRestore.preview.has_value() &&
+                afterRestore.previewStatus ==
+                    WorldPreviewStore::LoadStatus::Absent,
+            afterRestore.previewMessage);
     }
 
     {
@@ -899,6 +1230,33 @@ int main()
                 flow.completeLoading(false) &&
                 flow.state() == GameApplicationState::WorldList &&
                 flow.activeWorldId().empty());
+    }
+
+    // Keep a known successful three-entry scan inside the bounded timing
+    // window after the expanded selected-world fixtures above.
+    {
+        TemporaryDirectory timing("timing-three-worlds");
+        timing.create();
+        writeMetadata(timing.path(), "one",
+                      fixtureWith("timing-one", "Timing One",
+                                  "1786838100", "1786838200"));
+        writeMetadata(timing.path(), "two",
+                      fixtureWith("timing-two", "Timing Two",
+                                  "1786838200", "1786838300"));
+        writeMetadata(timing.path(), "three",
+                      fixtureWith("timing-three", "Timing Three",
+                                  "1786838300", "1786838400"));
+        (void)WorldCatalogue::enumerate(timing.path().string());
+    }
+    {
+        TemporaryDirectory timing("timing-invalid-world");
+        timing.create();
+        fs::create_directories(timing.path() / "missing-meta");
+        try {
+            (void)WorldCatalogue::enumerate(timing.path().string());
+        }
+        catch (const WorldCatalogueError &) {
+        }
     }
 
     const std::vector<RuntimeOperationRecord> timingRecords =

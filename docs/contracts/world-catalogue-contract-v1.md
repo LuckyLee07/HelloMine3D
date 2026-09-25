@@ -20,6 +20,9 @@ separately in `docs/contracts/storage-transaction-contract-v1.md`.
   partial list that could be mistaken for the authoritative catalogue.
 - Enumeration only reads directory entries and metadata. It never creates,
   repairs, upgrades, renames or touches a world.
+- Enumeration does not open or validate `world-preview.hmp`. That file is a
+  rebuildable, non-authoritative presentation cache, so a missing, malformed,
+  foreign or stale preview cannot invalidate an otherwise valid catalogue.
 
 The result is ordered by `last_played_utc` descending, then `created_utc`
 descending, then immutable `world_id` ascending. This makes repeated scans
@@ -93,3 +96,6 @@ now has 45 checks and requires complete successful and rejected enumeration
 timings. The full world runtime smoke
 also proves version-5 creation, quoted display-name round-trip, immutable id
 across relaunch and version-1 load/upgrade through the real `World` path.
+The B6 preview extension must additionally cover both Debug and Release
+catalogue fixtures with absent, malformed, foreign and stale preview files,
+and prove enumeration never reads preview payloads.

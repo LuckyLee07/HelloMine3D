@@ -3,9 +3,11 @@
 
 #include "WorldBackup.h"
 #include "WorldCatalogue.h"
+#include "../Exploration/WorldPreviewStore.h"
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -36,6 +38,25 @@ struct WorldManagementListResult {
     WorldManagementStatus status = WorldManagementStatus::StorageFailure;
     std::vector<WorldCatalogueEntry> worlds;
     std::string message;
+
+    bool succeeded() const noexcept
+    {
+        return status == WorldManagementStatus::Success;
+    }
+};
+
+/// Bounded details for one explicitly selected catalogue entry. Preview
+/// failures remain presentation-only and are exposed separately from the
+/// authoritative catalogue/backup status.
+struct WorldSelectionDetails {
+    WorldManagementStatus status = WorldManagementStatus::StorageFailure;
+    WorldCatalogueEntry world;
+    std::vector<WorldBackupInfo> backups;
+    std::optional<WorldPreviewStore::Preview> preview;
+    WorldPreviewStore::LoadStatus previewStatus =
+        WorldPreviewStore::LoadStatus::Absent;
+    std::string message;
+    std::string previewMessage;
 
     bool succeeded() const noexcept
     {
@@ -77,6 +98,7 @@ class WorldManagementService {
 
     WorldManagementListResult listWorlds() const;
     DeletedWorldListResult listDeletedWorlds() const;
+    WorldSelectionDetails inspectWorld(const std::string &worldId) const;
 
     WorldManagementResult createWorld(const std::string &displayName,
                                       int seed,

@@ -566,6 +566,9 @@ WorldManager
         |      +-> WorldSave
         |             +-> StorageTransaction
         |
+        +-> ExplorationMapStore / WorldPreviewStore
+        |             +-> StorageTransaction
+        |
         +-> WorldBackup::createBackup()
 ```
 
@@ -580,6 +583,10 @@ WorldManager
 - `WorldBackup` 在 metadata/chunk 发布之后创建有界且可验证的整世界快照。
   B5b 的备份格式可选纳入 `exploration.hmap`，验证其文件格式和世界身份；恢复旧快照时
   会移除快照中不存在的较新地图。`World` 在区块和元数据发布后写地图，再创建备份。
+- B6 世界入口的 `world-preview.hmp` v1 是由已持久化 `ExplorationAtlas` 重采样出的
+  49×25、8 m／格、最多 4096 B 的非权威派生缓存。它单独通过 `StorageTransaction` 发布；
+  失败只使菜单回退为无预览，不否定已成功的主保存。world save v12、terrain v22 和
+  `exploration.hmap` v4 均不升级，预览不进入备份；恢复后旧缓存删除或因来源修订不匹配失效。
 - 可稳定重建的 sunlight、block light、mesh、render nodes、storage/diagnostic caches 不作为独立
   Gameplay truth 保存。
 
@@ -943,3 +950,9 @@ v3 发现记录不按任务进度猜测绑定。主存档 v12、terrain v22 不�
 显示。小地图警示入口、地图说明及保存后进入既有世界备份列表构成恢复路径；保存失败
 保留当前会话，恢复仍使用原确认与整世界事务。标记点击与列表共用编辑状态，底图北向，
 玩家指针与小地图共用实际 yaw 的方向计算。上述状态不新增存档字段。
+
+B6 世界列表预览复用真实 `ExplorationAtlas` 的已知格生成 `world-preview.hmp` v1，不调用地形
+生成器。`WorldCatalogue` 仍只枚举目录与 `world.meta`，完全不读预览。用户选中世界后，
+`WorldManagementService` 才拒绝 symlink／非普通／超限文件并读取最多 4096 B；它仅通过
+`exploration.hmap` 文件长度和尾部已存 64 位 checksum 核对 source revision，不为菜单解析
+整份探索图。缺失、损坏、身份错和陈旧缓存均返回 UI fallback，不影响 catalogue 或开世界。

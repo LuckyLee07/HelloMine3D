@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -57,6 +58,59 @@ namespace
         return !path.is_absolute() && path.filename() == path &&
                value.find('/') == std::string::npos &&
                value.find('\\') == std::string::npos;
+    }
+
+    // The menu preview is a disposable derivative and is deliberately not
+    // part of a world backup. Discard a prior regular cache before changing
+    // authoritative state so a deletion failure can abort cleanly. Unsafe
+    // path types are left untouched; WorldPreviewStore rejects them.
+    bool invalidatePreviewBeforeRestore(const std::string &worldDirectory,
+                                        std::string &error)
+    {
+        error.clear();
+        const fs::path path =
+            WorldPreviewStore(worldDirectory).filePath();
+        std::error_code statusError;
+        const fs::file_status status =
+            fs::symlink_status(path, statusError);
+        if (statusError == std::errc::no_such_file_or_directory) {
+            return true;
+        }
+        if (statusError) {
+            error = "cannot inspect preview cache before restore: " +
+                    statusError.message();
+            return false;
+        }
+        if (fs::is_symlink(status) || !fs::is_regular_file(status)) {
+            return true;
+        }
+
+        std::error_code removeError;
+        const bool removed = fs::remove(path, removeError);
+        if (removed && !removeError) {
+            return true;
+        }
+
+        // A concurrent disappearance or replacement by an unsafe path is
+        // already a safe fallback. Never follow or recursively remove it.
+        std::error_code afterError;
+        const fs::file_status after =
+            fs::symlink_status(path, afterError);
+        if (afterError == std::errc::no_such_file_or_directory) {
+            return true;
+        }
+        if (!afterError &&
+            (fs::is_symlink(after) || !fs::is_regular_file(after))) {
+            return true;
+        }
+        error = "cannot invalidate preview cache before restore";
+        if (removeError) {
+            error += ": " + removeError.message();
+        }
+        else if (afterError) {
+            error += ": " + afterError.message();
+        }
+        return false;
     }
 
     WorldManagementResult result(WorldManagementStatus status,
@@ -277,6 +331,63 @@ WorldManagementListResult WorldManagementService::listWorlds() const
         listed.message = error.what();
     }
     return listed;
+}
+
+WorldSelectionDetails WorldManagementService::inspectWorld(
+    const std::string &worldId) const
+{
+    WorldSelectionDetails details;
+    if (!WorldCatalogue::isValidWorldId(worldId)) {
+        details.status = WorldManagementStatus::InvalidArgument;
+        details.message = "World id is invalid.";
+        return details;
+    }
+
+    const WorldManagementListResult listed = listWorlds();
+    if (!listed.succeeded()) {
+        details.status = listed.status;
+        details.message = listed.message;
+        return details;
+    }
+    if (!findWorld(listed.worlds, worldId, details.world)) {
+        details.status = WorldManagementStatus::NotFound;
+        details.message = "World was not found.";
+        return details;
+    }
+
+    std::string backupError;
+    if (!WorldBackup(details.world.directoryPath)
+             .listBackups(details.backups, &backupError)) {
+        details.status = WorldManagementStatus::StorageFailure;
+        details.message = backupError.empty()
+            ? "World backups cannot be listed."
+            : backupError;
+        return details;
+    }
+
+    WorldPreviewStore::Preview preview;
+    const WorldPreviewStore::Identity identity{
+        details.world.id, details.world.seed,
+        details.world.terrainGenerationVersion,
+        details.world.lastPlayedUtc};
+    try {
+        details.previewStatus =
+            WorldPreviewStore(details.world.directoryPath)
+                .load(identity, preview, &details.previewMessage);
+    }
+    catch (const std::exception &error) {
+        details.previewStatus =
+            WorldPreviewStore::LoadStatus::Unreadable;
+        details.previewMessage = error.what();
+    }
+    if (details.previewStatus ==
+        WorldPreviewStore::LoadStatus::Loaded) {
+        details.preview = std::move(preview);
+    }
+
+    details.status = WorldManagementStatus::Success;
+    details.message = "ok";
+    return details;
 }
 
 DeletedWorldListResult WorldManagementService::listDeletedWorlds() const
@@ -680,6 +791,15 @@ WorldManagementResult WorldManagementService::restoreBackup(
     if (!findWorld(listed.worlds, worldId, entry)) {
         return result(WorldManagementStatus::NotFound,
                       "World was not found.", worldId);
+    }
+    std::string previewError;
+    if (!invalidatePreviewBeforeRestore(entry.directoryPath,
+                                        previewError)) {
+        return result(
+            WorldManagementStatus::StorageFailure,
+            "Backup restore did not start because its old preview cache "
+            "could not be invalidated: " + previewError,
+            worldId, entry.directoryPath);
     }
     WorldBackupMetrics metrics;
     if (!WorldBackup(entry.directoryPath)
