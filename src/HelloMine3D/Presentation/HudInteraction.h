@@ -7,9 +7,11 @@ class HudInteraction
     enum class Page { Game, Pointer, Journal, Map };
     Page page() const noexcept { return m_page; }
     bool ownsInput() const noexcept { return m_page != Page::Game; }
-    void togglePointer() noexcept
+    bool togglePointer(bool editing = false) noexcept
     {
+        if (editing) return false;
         m_page = ownsInput() ? Page::Game : Page::Pointer;
+        return true;
     }
     bool open(Page page) noexcept
     {

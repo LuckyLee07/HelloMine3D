@@ -59,6 +59,11 @@ int main()
     }
     ui.togglePointer(); ui.open(Page::Map); ui.togglePointer();
     check(!ui.ownsInput(), "Tab from map returns to game");
+    ui.togglePointer(); ui.open(Page::Map);
+    check(!ui.togglePointer(true) && ui.page()==Page::Map && ui.ownsInput(),
+          "typing L or grave in a marker must not release input to gameplay");
+    check(ui.togglePointer(false) && !ui.ownsInput(),
+          "pointer shortcut is available again after text entry ends");
     GameplayFocusGate gate;
     check(gate.isFocused(), "initial focus");
     gate.suppressUntilRelease();

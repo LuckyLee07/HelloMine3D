@@ -1666,6 +1666,8 @@ class OgreUserInterface::Impl
     {
         const auto& io = ImGui::GetIO();
         const float scale = appliedSettings.uiScale;
+        const bool compact=io.DisplaySize.y<520.f*scale;
+        const float rowHeight=(compact ? 38.f : 52.f)*scale;
         GameInterfaceWidgets::OverlayStyle theme(scale);
         adventureBackdrop();
         ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * .5f, io.DisplaySize.y * .5f), ImGuiCond_Always, ImVec2(.5f,.5f));
@@ -1674,12 +1676,12 @@ class OgreUserInterface::Impl
         if (ImGui::Begin("##PauseMenu",nullptr,ImGuiWindowFlags_NoDecoration |
             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBackground))
         {
-            if (adventureHeader(tr("pause.title"),GameInterfaceWidgets::Glyph::Pause,tr(currentRegionKey()),true) && flow->resume()) playUiFeedback();
-            const float footerHeight = ImGui::GetTextLineHeight() + 139.f * scale;
+            if (adventureHeader(tr("pause.title"),GameInterfaceWidgets::Glyph::Pause,tr(currentRegionKey()),!compact) && flow->resume()) playUiFeedback();
+            const float footerHeight = ImGui::GetTextLineHeight() + 35.f * scale + rowHeight*2.f;
             ImGui::BeginChild("##PauseOptions",ImVec2(0,-footerHeight),false);
-            if (adventureButton("pause.resume",-1.f,true,Material::Nothing,GameInterfaceWidgets::Glyph::Play,52.f*scale) && flow->resume())
+            if (adventureButton("pause.resume",-1.f,true,Material::Nothing,GameInterfaceWidgets::Glyph::Play,rowHeight) && flow->resume())
                 playUiFeedback();
-            if (adventureButton("pause.settings",-1.f,false,Material::Nothing,GameInterfaceWidgets::Glyph::Settings,52.f*scale))
+            if (adventureButton("pause.settings",-1.f,false,Material::Nothing,GameInterfaceWidgets::Glyph::Settings,rowHeight))
             {
                 settingsSession.begin(appliedSettings);
                 settingsMessage.clear();
@@ -1828,12 +1830,12 @@ class OgreUserInterface::Impl
             }
             ImGui::EndChild();
             ImGui::Separator();
-            if (adventureButton("pause.save_main",-1.f,false,Material::Chest,GameInterfaceWidgets::Glyph::None,52.f*scale))
+            if (adventureButton("pause.save_main",-1.f,false,Material::Chest,GameInterfaceWidgets::Glyph::None,rowHeight))
             {
                 pendingAction.type = OgreUserInterfaceActionType::ReturnToMainMenu;
                 playUiFeedback();
             }
-            if (adventureButton("pause.save_quit",-1.f,false,Material::Nothing,GameInterfaceWidgets::Glyph::Exit,52.f*scale))
+            if (adventureButton("pause.save_quit",-1.f,false,Material::Nothing,GameInterfaceWidgets::Glyph::Exit,rowHeight))
             {
                 pendingAction.type = OgreUserInterfaceActionType::Quit;
                 playUiFeedback();
@@ -3221,6 +3223,7 @@ class OgreUserInterface::Impl
         const int oldStep = overviewScale.step;
         overviewScale.change(factor);
         overviewAutoFit = false;
+        overviewFollowsFit = false;
         if (oldStep != overviewScale.step) {
             overviewValid = false;
             selectedOverviewCell = -1;
@@ -3289,6 +3292,8 @@ class OgreUserInterface::Impl
         const float footerHeight = wide ? 0.f : 58.f * scale;
         const ImVec2 size(std::max(1.f, width - legendWidth - (wide ? 10.f : 0.f)),
             std::max(60.f, ImGui::GetContentRegionAvail().y - footerHeight));
+        if (overviewFollowsFit && (overviewLastViewport.x!=size.x || overviewLastViewport.y!=size.y)) overviewAutoFit=true;
+        overviewLastViewport=size;
         const ImVec2 origin = ImGui::GetCursorScreenPos();
         ImGui::InvisibleButton("##OverviewViewport", size,
             ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
@@ -3299,6 +3304,7 @@ class OgreUserInterface::Impl
         float pixel = overviewScale.cellPixels(size.x,size.y);
         if (hovered && ImGui::IsMouseDown(ImGuiMouseButton_Right))
         {
+            if (io.MouseDelta.x!=0.f || io.MouseDelta.y!=0.f) overviewFollowsFit=false;
             overviewPanRemainderX += io.MouseDelta.x / pixel;
             overviewPanRemainderZ += io.MouseDelta.y / pixel;
             const int dx = static_cast<int>(overviewPanRemainderX);
@@ -3763,11 +3769,25 @@ class OgreUserInterface::Impl
             const float markerWidth=ImGui::CalcTextSize(tr(mapMarkerPanel ? "map.marker_back" : "map.markers").c_str()).x+40.f*scale;
             const float toolsWidth=centerWidth+(mapFlatOverview ? 0.f : northWidth+gap)+
                 3.f*32.f*scale+markerWidth+4.f*gap;
-            if (toolbarWidth>tabWidth*2.f+toolsWidth+20.f*scale)
-                ImGui::SameLine(ImGui::GetWindowContentRegionMax().x-toolsWidth);
+            const bool singleToolbar=toolbarWidth>tabWidth*2.f+toolsWidth+20.f*scale;
+            const auto markerControls = [&] {
+                if (adventureButton(mapMarkerPanel ? "map.marker_back" : "map.markers",markerWidth,false,
+                    Material::Nothing,GameInterfaceWidgets::Glyph::Pin)) {
+                    mapFlatOverview=true; mapMarkerPanel=!mapMarkerPanel;
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("?##MapHelp",ImVec2(32.f*scale,0))) ImGui::OpenPopup("##MapPan");
+            };
+            if (singleToolbar) ImGui::SameLine(ImGui::GetWindowContentRegionMax().x-toolsWidth);
+            else {
+                const float remaining=markerWidth+32.f*scale+gap;
+                if (toolbarWidth>tabWidth*2.f+remaining+gap)
+                    ImGui::SameLine(ImGui::GetWindowContentRegionMax().x-remaining);
+                markerControls();
+            }
             if (ImGui::Button(tr("map.center").c_str(),ImVec2(centerWidth,0))) {
                 if (mapFlatOverview) {
-                    overviewOffsetX=overviewOffsetZ=0; overviewScale={}; overviewAutoFit=true;
+                    overviewOffsetX=overviewOffsetZ=0; overviewScale={}; overviewAutoFit=overviewFollowsFit=true;
                     overviewValid=false; overviewPanRemainderX=overviewPanRemainderZ=0.f;
                     selectedOverviewCell=-1;
                 } else { mapView={}; selectedMapCell=-1; }
@@ -3783,13 +3803,7 @@ class OgreUserInterface::Impl
             if (ImGui::Button("+##MapZoom",ImVec2(32.f*scale,0))) {
                 if (mapFlatOverview) zoomOverview(1.25f); else mapView.zoom*=1.25f;
             }
-            if (ImGui::GetContentRegionAvail().x>markerWidth+44.f*scale) ImGui::SameLine();
-            if (adventureButton(mapMarkerPanel ? "map.marker_back" : "map.markers",markerWidth,false,
-                Material::Nothing,GameInterfaceWidgets::Glyph::Pin)) {
-                mapFlatOverview=true; mapMarkerPanel=!mapMarkerPanel;
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("?##MapHelp",ImVec2(32.f*scale,0))) ImGui::OpenPopup("##MapPan");
+            if (singleToolbar) { ImGui::SameLine(); markerControls(); }
             if (ImGui::BeginPopup("##MapPan")) {
                 ImGui::PushTextWrapPos(ImGui::GetCursorPosX()+std::min(300.f*scale,io.DisplaySize.x-96.f));
                 ImGui::TextWrapped("%s",tr(mapFlatOverview ? "map.overview_note" : "map.session").c_str());
@@ -6057,7 +6071,8 @@ class OgreUserInterface::Impl
     std::array<std::pair<int, int>, OverviewCellCount * OverviewCellCount>
         overviewObservedPositions{};
     TerrainMapView::OverviewScale overviewScale;
-    bool overviewAutoFit = true;
+    bool overviewAutoFit = true, overviewFollowsFit = true;
+    ImVec2 overviewLastViewport{};
     bool mapFlatOverview = false;
     bool mapMarkerPanel = false;
     ExplorationMarkerEditor mapMarkerEditor;
@@ -6244,8 +6259,8 @@ bool OgreUserInterface::toggleHudPointer() noexcept
     if (m_impl->flow->state() != GameApplicationState::Playing || m_impl->player == nullptr ||
         m_impl->player->hasOpenContainer() || m_impl->player->hasOpenCrafting() || hasBlockingModal())
         return false;
-    m_impl->hudInteraction.togglePointer();
-    return true;
+    return m_impl->hudInteraction.togglePointer(ImGui::GetIO().WantTextInput ||
+        ImGui::IsPopupOpen(nullptr,ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel));
 }
 
 bool OgreUserInterface::dismissHudInteraction() noexcept
@@ -6297,7 +6312,8 @@ void OgreUserInterface::setWorldContext(Player *player,
     m_impl->mapMarkerFeedbackKey.clear();
     m_impl->overviewOffsetX = m_impl->overviewOffsetZ = 0;
     m_impl->overviewScale = {};
-    m_impl->overviewAutoFit = true;
+    m_impl->overviewAutoFit = m_impl->overviewFollowsFit = true;
+    m_impl->overviewLastViewport = {};
     m_impl->mapFlatOverview = false;
     m_impl->overviewPanRemainderX = m_impl->overviewPanRemainderZ = 0.f;
     m_impl->overviewValid = false;
