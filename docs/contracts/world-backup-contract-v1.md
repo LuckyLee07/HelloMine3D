@@ -14,11 +14,15 @@ three snapshots, 512 MiB of aggregate payload, 4,097 files per snapshot and
 Rotation removes the oldest published snapshot until both count and payload
 limits hold.
 
-Every snapshot contains only:
+The original K3 snapshot payload contains only:
 
 - `world.meta`;
 - canonical immediate `chunks/chunk_<x>_<z>.hmcchunk` files; and
 - `manifest.hmb`.
+
+The later B5 extension may also include the validated `exploration.hmap`
+sidecar. The rebuildable B6 `world-preview.hmp` cache is never included in a
+backup.
 
 The version-1 manifest records the canonical backup id, sequence, UTC creation
 time, world format version, exact file count, aggregate payload bytes and each

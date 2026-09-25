@@ -323,6 +323,7 @@ World::World(const Camera &camera, const Config &config, Player &player,
     , m_worldSave(resolveSaveDirectory(saveDirectory))
     , m_worldBackup(resolveSaveDirectory(saveDirectory))
     , m_explorationMapStore(resolveSaveDirectory(saveDirectory))
+    , m_worldPreviewStore(resolveSaveDirectory(saveDirectory))
 {
     (void)camera;
     player.attachEventBus(m_eventBus);
@@ -541,6 +542,9 @@ World::~World()
     }
     else if (!saveExplorationMap()) {
         std::cerr << "Unable to save exploration map on world exit.\n";
+    }
+    else {
+        (void)saveWorldPreview();
     }
 }
 
@@ -3491,6 +3495,7 @@ bool World::save()
     if (!saveExplorationMap()) {
         return finish(false);
     }
+    (void)saveWorldPreview();
     WorldBackupMetrics backupMetrics;
     if (!m_worldBackup.createBackup(nullptr, &backupMetrics)) {
         std::cerr << "Unable to create world backup: "
@@ -3701,6 +3706,47 @@ bool World::saveExplorationMap()
     m_explorationMapDirty = false;
     m_explorationMapStatus.saveFailed = false;
     m_explorationMapStatus.quarantineFailed = false;
+    return true;
+}
+
+bool World::saveWorldPreview()
+{
+    if (m_player == nullptr || m_explorationAtlas.knownCellCount() == 0) {
+        return true;
+    }
+    const PlayerSaveState state = m_player->getSaveState();
+    const auto coordinate = [](float value, int& result) {
+        if (!std::isfinite(value)) {
+            return false;
+        }
+        const double floored = std::floor(static_cast<double>(value));
+        if (floored < static_cast<double>(std::numeric_limits<int>::min()) ||
+            floored > static_cast<double>(std::numeric_limits<int>::max())) {
+            return false;
+        }
+        result = static_cast<int>(floored);
+        return true;
+    };
+    int centerX = 0;
+    int centerZ = 0;
+    if (!coordinate(state.position.x, centerX) ||
+        !coordinate(state.position.z, centerZ) ||
+        !std::isfinite(state.rotation.y)) {
+        std::cerr << "Unable to refresh world preview: invalid player pose.\n";
+        return false;
+    }
+    const WorldPreviewStore::Identity identity{
+        m_worldSaveData.worldId, m_worldSaveData.seed,
+        m_worldSaveData.terrainGenerationVersion,
+        m_worldSaveData.lastPlayedUtc};
+    StorageTransactionMetrics metrics;
+    if (!m_worldPreviewStore.save(identity, centerX, centerZ,
+                                  state.rotation.y, m_explorationAtlas,
+                                  {}, &metrics)) {
+        std::cerr << "Unable to refresh world preview: "
+                  << metrics.error << '\n';
+        return false;
+    }
     return true;
 }
 

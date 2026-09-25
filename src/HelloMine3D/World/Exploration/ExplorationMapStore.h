@@ -22,6 +22,23 @@ class ExplorationMapStore {
         std::int32_t terrainGenerationVersion = 0;
     };
 
+    // A cheap cache dependency token. It is obtained from file metadata and
+    // the map's already-stored trailing checksum without loading map pages.
+    struct SourceRevision {
+        std::uint64_t fileBytes = 0;
+        std::uint64_t trailingChecksum = 0;
+
+        bool operator==(const SourceRevision& other) const noexcept
+        {
+            return fileBytes == other.fileBytes &&
+                   trailingChecksum == other.trailingChecksum;
+        }
+        bool operator!=(const SourceRevision& other) const noexcept
+        {
+            return !(*this == other);
+        }
+    };
+
     struct KnownSite {
         int worldX = 0;
         int worldY = 0;
@@ -38,6 +55,13 @@ class ExplorationMapStore {
     };
 
     enum class LoadStatus { Absent, Loaded, Corrupt, IdentityMismatch };
+    enum class SourceRevisionStatus {
+        Missing,
+        Available,
+        UnsafePath,
+        Invalid,
+        Unreadable
+    };
 
     explicit ExplorationMapStore(std::string worldDirectory);
 
@@ -65,6 +89,9 @@ class ExplorationMapStore {
     // published. Never overwrite an existing quarantine slot or a symlink.
     bool quarantineInvalid(const Identity& expected,
                            std::string* error = nullptr) const;
+
+    SourceRevisionStatus sourceRevision(
+        SourceRevision& revision, std::string* error = nullptr) const;
 
     static bool validateFile(const std::string& path,
                              std::string* error = nullptr);

@@ -661,6 +661,98 @@ bool ExplorationMapStore::quarantineInvalid(const Identity& expected,
     return true;
 }
 
+ExplorationMapStore::SourceRevisionStatus
+ExplorationMapStore::sourceRevision(SourceRevision& revision,
+                                    std::string* error) const
+{
+    revision = {};
+    if (error != nullptr) {
+        error->clear();
+    }
+    const auto fail = [&](SourceRevisionStatus status,
+                          const std::string& message) {
+        if (error != nullptr) {
+            *error = message;
+        }
+        return status;
+    };
+    const fs::path path(filePath());
+    std::error_code statusError;
+    const fs::file_status status = fs::symlink_status(path, statusError);
+    if (statusError == std::errc::no_such_file_or_directory) {
+        return SourceRevisionStatus::Missing;
+    }
+    if (statusError) {
+        return fail(SourceRevisionStatus::Unreadable,
+                    "map path status cannot be read: " +
+                        statusError.message());
+    }
+    if (fs::is_symlink(status) || !fs::is_regular_file(status)) {
+        return fail(SourceRevisionStatus::UnsafePath,
+                    "map path is a symlink or non-regular file");
+    }
+
+    std::error_code sizeError;
+    const std::uintmax_t size = fs::file_size(path, sizeError);
+    constexpr std::size_t minimumBytes =
+        Magic.size() + 4 + 1 + 1 + 4 * 4 + 8;
+    if (sizeError) {
+        return fail(SourceRevisionStatus::Unreadable,
+                    "map metadata cannot be read");
+    }
+    if (size < minimumBytes || size > MaxFileBytes ||
+        size > std::numeric_limits<std::uint64_t>::max()) {
+        return fail(SourceRevisionStatus::Invalid,
+                    "map file size is outside revision limits");
+    }
+
+    std::ifstream input(path, std::ios::binary);
+    if (!input ||
+        !input.seekg(static_cast<std::streamoff>(size - 8), std::ios::beg)) {
+        return fail(SourceRevisionStatus::Unreadable,
+                    "map checksum cannot be reached");
+    }
+    std::array<unsigned char, 8> tail{};
+    input.read(reinterpret_cast<char*>(tail.data()),
+               static_cast<std::streamsize>(tail.size()));
+    if (!input) {
+        return fail(SourceRevisionStatus::Unreadable,
+                    "map checksum cannot be read");
+    }
+    std::uint64_t checksum = 0;
+    for (std::size_t index = 0; index < tail.size(); ++index) {
+        checksum |= std::uint64_t(tail[index]) << (index * 8);
+    }
+
+    // Reject a concurrently replaced source rather than publishing a token
+    // assembled from two different files.
+    std::error_code afterStatusError, afterSizeError;
+    const fs::file_status afterStatus =
+        fs::symlink_status(path, afterStatusError);
+    const std::uintmax_t afterSize = fs::file_size(path, afterSizeError);
+    if (afterStatusError || afterSizeError ||
+        fs::is_symlink(afterStatus) || !fs::is_regular_file(afterStatus) ||
+        afterSize != size) {
+        return fail(SourceRevisionStatus::Unreadable,
+                    "map changed while reading its revision");
+    }
+    std::ifstream verification(path, std::ios::binary);
+    std::array<unsigned char, 8> verifiedTail{};
+    if (!verification ||
+        !verification.seekg(static_cast<std::streamoff>(size - 8),
+                            std::ios::beg) ||
+        !verification.read(reinterpret_cast<char*>(verifiedTail.data()),
+                           static_cast<std::streamsize>(
+                               verifiedTail.size())) ||
+        verifiedTail != tail) {
+        return fail(SourceRevisionStatus::Unreadable,
+                    "map changed while reading its revision");
+    }
+    revision.fileBytes = static_cast<std::uint64_t>(size);
+    revision.trailingChecksum = checksum;
+    return SourceRevisionStatus::Available;
+}
+
 bool ExplorationMapStore::validateFile(const std::string& path,
                                        std::string* error)
 {

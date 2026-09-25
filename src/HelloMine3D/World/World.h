@@ -31,6 +31,7 @@
 #include "Exploration/ExplorationAtlas.h"
 #include "Exploration/ExplorationMapStore.h"
 #include "Exploration/ExplorationMapStatus.h"
+#include "Exploration/WorldPreviewStore.h"
 
 #include "Command/IWorldCommand.h"
 
@@ -461,6 +462,7 @@ class World : public NonCopyable {
     void preloadAroundForTeleport(const glm::vec3 &position);
     bool saveWorldState();
     bool saveExplorationMap();
+    bool saveWorldPreview();
     void sampleExplorationSurface();
     bool ensureExploredMapPosition(int worldX, int worldZ);
     void rememberWaystoneSite(const glm::ivec3& position,
@@ -501,6 +503,7 @@ class World : public NonCopyable {
     WorldSave m_worldSave;
     WorldBackup m_worldBackup;
     ExplorationMapStore m_explorationMapStore;
+    WorldPreviewStore m_worldPreviewStore;
     ExplorationAtlas m_explorationAtlas;
     ExplorationMarkers m_explorationMarkers;
     std::optional<ExplorationMapStore::KnownSite> m_knownWaystoneSite;

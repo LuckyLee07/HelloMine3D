@@ -43,4 +43,14 @@ for configuration in Debug Release; do
         "$project_root/src/HelloMine3D/World/Storage/StorageTransaction.cpp" \
         -o "$store_binary"
     "$store_binary"
+
+    preview_store_binary="$output_dir/world-preview-store-test-$configuration"
+    "${CXX:-clang++}" -std=c++17 "${architecture[@]}" \
+        "${optimisation[@]}" -Wall -Wextra -Werror \
+        "$project_root/tools/tests/world_preview_store_test.cpp" \
+        "$project_root/src/HelloMine3D/World/Exploration/WorldPreviewStore.cpp" \
+        "$project_root/src/HelloMine3D/World/Exploration/ExplorationMapStore.cpp" \
+        "$project_root/src/HelloMine3D/World/Storage/StorageTransaction.cpp" \
+        -o "$preview_store_binary"
+    "$preview_store_binary"
 done
