@@ -824,9 +824,7 @@ class OgreUserInterface::Impl
         if (settingsFixtureRequested && !settingsFixtureOpened &&
             flow->state() == GameApplicationState::Playing && flow->pause())
         {
-            settingsSession.begin(appliedSettings);
-            settingsMessage.clear();
-            settingsApplyPending = false;
+            beginSettingsSession();
             settingsFixtureOpened = true;
         }
         if (flow->state() != GameApplicationState::Playing || victoryOverlayVisible() ||
@@ -1100,9 +1098,7 @@ class OgreUserInterface::Impl
             if (ImGui::Button(label("main.settings", "##MainSettings").c_str(),
                               ImVec2(-1.f, 42.f * scale)))
             {
-                settingsSession.begin(appliedSettings);
-                settingsMessage.clear();
-                settingsApplyPending = false;
+                beginSettingsSession();
                 playUiFeedback();
             }
             if (ImGui::Button(label("main.credits", "##Credits").c_str(),
@@ -1119,6 +1115,10 @@ class OgreUserInterface::Impl
             }
         }
         ImGui::End();
+        if (!statusMessage.empty() && statusMessageSeconds > 0.f)
+        {
+            drawNotification(statusMessage, io.DisplaySize.y - 12.f);
+        }
     }
 
     void drawCredits()
@@ -1822,7 +1822,9 @@ class OgreUserInterface::Impl
     }
 
     bool adventureHeader(const std::string& title, GameInterfaceWidgets::Glyph icon,
-                         const std::string& subtitle = {}, bool stackedSubtitle = false)
+                         const std::string& subtitle = {},
+                         bool stackedSubtitle = false,
+                         bool closeEnabled = true)
     {
         const float scale = appliedSettings.uiScale;
         const auto lo = ImGui::GetWindowPos(), size = ImGui::GetWindowSize();
@@ -1847,17 +1849,21 @@ class OgreUserInterface::Impl
                 ImVec2(x, start.y + (stackedSubtitle ? font+3.f*scale : 5.f*scale)), ImGui::ColorConvertFloat4ToU32(WarmMuted), detail.c_str());
         }
         ImGui::SetCursorScreenPos(ImVec2(start.x + width - closeSize, start.y));
+        ImGui::BeginDisabled(!closeEnabled);
         const bool close = ImGui::Button("##AdventureClose", ImVec2(closeSize, closeSize));
+        const bool closeHovered = ImGui::IsItemHovered();
+        ImGui::EndDisabled();
         const ImVec2 a(start.x + width - closeSize + 8.f * scale, start.y + 8.f * scale);
         const ImVec2 b(a.x + 12.f * scale, a.y + 12.f * scale);
-        const auto colour = ImGui::GetColorU32(ImGui::IsItemHovered() ? WarmAccent : WarmText);
+        const auto colour = ImGui::GetColorU32(closeHovered ? WarmAccent :
+            (closeEnabled ? WarmText : WarmMuted));
         draw->AddLine(a, b, colour, 1.8f);
         draw->AddLine(ImVec2(a.x,b.y), ImVec2(b.x,a.y), colour, 1.8f);
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s · Esc", tr("common.close").c_str());
+        if (closeHovered) ImGui::SetTooltip("%s · Esc", tr("common.close").c_str());
         ImGui::SetCursorScreenPos(start);
         ImGui::Dummy(ImVec2(width, std::max(closeSize, font) + (stackedSubtitle ? 28.f : 3.f) * scale));
         ImGui::Separator();
-        return close;
+        return close && closeEnabled;
     }
 
     bool adventureButton(const char* key, float width = -1.f, bool primary = false,
@@ -1950,9 +1956,7 @@ class OgreUserInterface::Impl
                 playUiFeedback();
             if (adventureButton("pause.settings",-1.f,false,Material::Nothing,GameInterfaceWidgets::Glyph::Settings,rowHeight))
             {
-                settingsSession.begin(appliedSettings);
-                settingsMessage.clear();
-                settingsApplyPending = false;
+                beginSettingsSession();
                 playUiFeedback();
             }
             if (!compact) ImGui::Spacing();
@@ -2115,342 +2119,562 @@ class OgreUserInterface::Impl
         ImGui::End();
     }
 
-    void drawSettingsMenu()
+    void beginSettingsSession()
     {
-        const ImGuiIO &io = ImGui::GetIO();
-        ImGui::SetNextWindowPos(
-            ImVec2(io.DisplaySize.x * 0.5f, (io.DisplaySize.y - 64.f) * 0.5f),
-            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-        const PresentationWindowLayout layout = fitPresentationWindow(
-            io.DisplaySize.x, io.DisplaySize.y - 64.f, 620.0f, 680.0f, appliedSettings.uiScale);
-        ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height), ImGuiCond_Always);
-        const std::string settingsTitle =
-            label(flow->state() == GameApplicationState::MainMenu
-                      ? "settings.title_main"
-                      : "settings.title",
-                  "##Settings");
-        if (ImGui::Begin(settingsTitle.c_str(), nullptr,
-                         ImGuiWindowFlags_NoCollapse |
-                             ImGuiWindowFlags_NoResize |
-                             ImGuiWindowFlags_NoSavedSettings))
+        settingsSession.begin(appliedSettings);
+        settingsMessage.clear();
+        settingsApplyPending = false;
+        settingsPage = 0;
+    }
+
+    void drawSettingsVisualOptions(UserSettings& draft)
+    {
+        ImGui::SeparatorText(tr("settings.display").c_str());
+        ImGui::PushItemWidth(std::max(120.f, ImGui::GetContentRegionAvail().x * .52f));
+        int windowSize[2] = {draft.windowX, draft.windowY};
+        if (ImGui::InputInt2(
+                label("settings.window_size", "##WindowSize").c_str(),
+                windowSize))
         {
-            UserSettings &draft = settingsSession.draft();
-            ImGui::BeginChild("##SettingsContent", ImVec2(0.0f, -58.0f),
-                              false);
-            ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * .42f);
-            int windowSize[2] = {draft.windowX, draft.windowY};
-            if (ImGui::InputInt2(label("settings.window_size", "##WindowSize").c_str(), windowSize))
+            draft.windowX = windowSize[0];
+            draft.windowY = windowSize[1];
+        }
+        ImGui::Checkbox(label("settings.fullscreen", "##Fullscreen").c_str(),
+                        &draft.isFullscreen);
+        ImGui::SliderInt(
+            label("settings.render_distance", "##RenderDistance").c_str(),
+            &draft.renderDistance, 1, 32);
+        const char* shadowPreviewKey =
+            draft.directionalShadowQuality == DirectionalShadowQuality::High
+                ? "settings.shadow_high"
+                : draft.directionalShadowQuality ==
+                          DirectionalShadowQuality::Medium
+                      ? "settings.shadow_medium"
+                      : "settings.shadow_off";
+        if (ImGui::BeginCombo(
+                label("settings.shadow_quality",
+                      "##DirectionalShadowQuality").c_str(),
+                tr(shadowPreviewKey).c_str()))
+        {
+            const DirectionalShadowQuality qualities[] = {
+                DirectionalShadowQuality::Off,
+                DirectionalShadowQuality::Medium,
+                DirectionalShadowQuality::High};
+            const char* keys[] = {"settings.shadow_off",
+                                  "settings.shadow_medium",
+                                  "settings.shadow_high"};
+            for (int index = 0; index < 3; ++index)
             {
-                draft.windowX = windowSize[0];
-                draft.windowY = windowSize[1];
+                const bool selected =
+                    draft.directionalShadowQuality == qualities[index];
+                if (ImGui::Selectable(tr(keys[index]).c_str(), selected))
+                {
+                    draft.directionalShadowQuality = qualities[index];
+                }
+                if (selected) ImGui::SetItemDefaultFocus();
             }
-            ImGui::Checkbox(label("settings.fullscreen", "##Fullscreen").c_str(), &draft.isFullscreen);
-            ImGui::SliderInt(label("settings.render_distance", "##RenderDistance").c_str(), &draft.renderDistance,
-                             1, 32);
-            const char* shadowPreviewKey =
-                draft.directionalShadowQuality ==
-                        DirectionalShadowQuality::High
-                    ? "settings.shadow_high"
-                    : draft.directionalShadowQuality ==
-                              DirectionalShadowQuality::Medium
-                          ? "settings.shadow_medium"
-                          : "settings.shadow_off";
+            ImGui::EndCombo();
+        }
+        bool postProcessingEnabled =
+            draft.postProcessingQuality == PostProcessingQuality::On;
+        if (ImGui::Checkbox(
+                label("settings.post_processing", "##PostProcessing").c_str(),
+                &postProcessingEnabled))
+        {
+            draft.postProcessingQuality = postProcessingEnabled
+                ? PostProcessingQuality::On
+                : PostProcessingQuality::Off;
+        }
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("%s",
+                              tr("settings.post_processing_help").c_str());
+        }
+        ImGui::SliderInt(label("settings.fov", "##Fov").c_str(),
+                         &draft.fov, 45, 120);
+        ImGui::PopItemWidth();
+
+        const char* visualPreview =
+            draft.visualDetail == VisualDetail::Standard
+                ? "settings.visual_standard"
+                : "settings.visual_compatibility";
+        ImGui::TextWrapped("%s", tr("settings.visual_detail").c_str());
+        ImGui::SetNextItemWidth(-1.f);
+        if (ImGui::BeginCombo("##VisualDetail", tr(visualPreview).c_str()))
+        {
+            for (const auto detail : {VisualDetail::Standard,
+                                      VisualDetail::Compatibility})
+            {
+                const char* key = detail == VisualDetail::Standard
+                    ? "settings.visual_standard"
+                    : "settings.visual_compatibility";
+                if (ImGui::Selectable(tr(key).c_str(),
+                                      draft.visualDetail == detail))
+                {
+                    draft.visualDetail = detail;
+                }
+            }
+            ImGui::EndCombo();
+        }
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("%s",
+                              tr("settings.visual_detail_help").c_str());
+        }
+        ImGui::PushStyleColor(ImGuiCol_Text, WarmMuted);
+        ImGui::TextWrapped("%s", tr("settings.restart_note").c_str());
+        ImGui::PopStyleColor();
+    }
+
+    void drawSettingsExperienceOptions(UserSettings& draft)
+    {
+        ImGui::SeparatorText(tr("settings.experience").c_str());
+        ImGui::PushItemWidth(std::max(120.f, ImGui::GetContentRegionAvail().x * .52f));
+        ImGui::SliderFloat(
+            label("settings.mouse_sensitivity", "##MouseSensitivity").c_str(),
+            &draft.mouseSensitivity, 0.005f, 1.0f, "%.3f",
+            ImGuiSliderFlags_Logarithmic);
+        ImGui::Checkbox(
+            label("settings.invert_mouse_y", "##InvertMouseY").c_str(),
+            &draft.invertMouseY);
+
+        const auto drawHoldMode = [&](const char* translationKey,
+                                      const char* widgetId,
+                                      GameplayHoldMode& mode)
+        {
+            const char* previewKey = mode == GameplayHoldMode::Toggle
+                ? "settings.mode_toggle"
+                : "settings.mode_hold";
             if (ImGui::BeginCombo(
-                    label("settings.shadow_quality",
-                          "##DirectionalShadowQuality").c_str(),
-                    tr(shadowPreviewKey).c_str()))
+                    label(translationKey, widgetId).c_str(),
+                    tr(previewKey, gameplayHoldModeName(mode)).c_str()))
             {
-                const DirectionalShadowQuality qualities[] = {
-                    DirectionalShadowQuality::Off,
-                    DirectionalShadowQuality::Medium,
-                    DirectionalShadowQuality::High};
-                const char* keys[] = {
-                    "settings.shadow_off", "settings.shadow_medium",
-                    "settings.shadow_high"};
-                for (int index = 0; index < 3; ++index)
+                for (GameplayHoldMode candidate : {GameplayHoldMode::Hold,
+                                                   GameplayHoldMode::Toggle})
                 {
-                    const bool selected =
-                        draft.directionalShadowQuality ==
-                        qualities[index];
-                    const std::string option = tr(keys[index]);
-                    if (ImGui::Selectable(option.c_str(), selected))
+                    const bool selected = candidate == mode;
+                    const char* candidateKey =
+                        candidate == GameplayHoldMode::Toggle
+                            ? "settings.mode_toggle"
+                            : "settings.mode_hold";
+                    if (ImGui::Selectable(
+                            tr(candidateKey,
+                               gameplayHoldModeName(candidate)).c_str(),
+                            selected))
                     {
-                        draft.directionalShadowQuality =
-                            qualities[index];
-                    }
-                    if (selected)
-                    {
-                        ImGui::SetItemDefaultFocus();
-                    }
-                }
-                ImGui::EndCombo();
-            }
-            bool postProcessingEnabled =
-                draft.postProcessingQuality == PostProcessingQuality::On;
-            if (ImGui::Checkbox(
-                    label("settings.post_processing",
-                          "##PostProcessing").c_str(),
-                    &postProcessingEnabled))
-            {
-                draft.postProcessingQuality = postProcessingEnabled
-                    ? PostProcessingQuality::On
-                    : PostProcessingQuality::Off;
-            }
-            if (ImGui::IsItemHovered())
-            {
-                ImGui::SetTooltip("%s",
-                    tr("settings.post_processing_help").c_str());
-            }
-            const char *visualPreview = draft.visualDetail == VisualDetail::Standard
-                ? "settings.visual_standard" : "settings.visual_compatibility";
-            ImGui::TextWrapped("%s", tr("settings.visual_detail").c_str());
-            ImGui::SetNextItemWidth(-1.f);
-            if (ImGui::BeginCombo("##VisualDetail", tr(visualPreview).c_str()))
-            {
-                for (const auto detail : {VisualDetail::Standard, VisualDetail::Compatibility})
-                {
-                    const char *key = detail == VisualDetail::Standard
-                        ? "settings.visual_standard" : "settings.visual_compatibility";
-                    if (ImGui::Selectable(tr(key).c_str(), draft.visualDetail == detail))
-                        draft.visualDetail = detail;
-                }
-                ImGui::EndCombo();
-            }
-            if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("%s", tr("settings.visual_detail_help").c_str());
-            ImGui::SliderInt(label("settings.fov", "##Fov").c_str(), &draft.fov, 45, 120);
-            ImGui::SliderFloat(label("settings.mouse_sensitivity", "##MouseSensitivity").c_str(),
-                               &draft.mouseSensitivity, 0.005f, 1.0f,
-                               "%.3f", ImGuiSliderFlags_Logarithmic);
-            ImGui::Checkbox(label("settings.invert_mouse_y", "##InvertMouseY").c_str(), &draft.invertMouseY);
-            const auto drawHoldMode = [&](const char *translationKey,
-                                          const char *widgetId,
-                                          GameplayHoldMode &mode)
-            {
-                const char *previewKey =
-                    mode == GameplayHoldMode::Toggle
-                        ? "settings.mode_toggle"
-                        : "settings.mode_hold";
-                if (ImGui::BeginCombo(
-                        label(translationKey, widgetId).c_str(),
-                        tr(previewKey, gameplayHoldModeName(mode)).c_str()))
-                {
-                    for (GameplayHoldMode candidate : {
-                             GameplayHoldMode::Hold,
-                             GameplayHoldMode::Toggle})
-                    {
-                        const bool selected = candidate == mode;
-                        const char *candidateKey =
-                            candidate == GameplayHoldMode::Toggle
-                                ? "settings.mode_toggle"
-                                : "settings.mode_hold";
-                        const std::string option = tr(
-                            candidateKey, gameplayHoldModeName(candidate));
-                        if (ImGui::Selectable(option.c_str(), selected))
-                        {
-                            mode = candidate;
-                        }
-                        if (selected)
-                        {
-                            ImGui::SetItemDefaultFocus();
-                        }
-                    }
-                    ImGui::EndCombo();
-                }
-            };
-            drawHoldMode("settings.sprint_mode", "##SprintMode",
-                         draft.sprintMode);
-            drawHoldMode("settings.sneak_mode", "##SneakMode",
-                         draft.sneakMode);
-            const std::string feedbackPreview = tr(
-                draft.feedbackIntensity == GameplayFeedbackIntensity::Off
-                    ? "settings.feedback_off"
-                    : (draft.feedbackIntensity ==
-                               GameplayFeedbackIntensity::Reduced
-                           ? "settings.feedback_reduced"
-                           : "settings.feedback_full"),
-                gameplayFeedbackIntensityName(draft.feedbackIntensity));
-            if (ImGui::BeginCombo(
-                    label("settings.feedback_intensity",
-                          "##FeedbackIntensity").c_str(),
-                    feedbackPreview.c_str()))
-            {
-                for (GameplayFeedbackIntensity candidate : {
-                         GameplayFeedbackIntensity::Off,
-                         GameplayFeedbackIntensity::Reduced,
-                         GameplayFeedbackIntensity::Full})
-                {
-                    const bool selected =
-                        candidate == draft.feedbackIntensity;
-                    const char *candidateKey =
-                        candidate == GameplayFeedbackIntensity::Off
-                            ? "settings.feedback_off"
-                            : (candidate == GameplayFeedbackIntensity::Reduced
-                                   ? "settings.feedback_reduced"
-                                   : "settings.feedback_full");
-                    const std::string option = tr(
-                        candidateKey,
-                        gameplayFeedbackIntensityName(candidate));
-                    if (ImGui::Selectable(option.c_str(), selected))
-                    {
-                        draft.feedbackIntensity = candidate;
-                    }
-                    if (selected)
-                    {
-                        ImGui::SetItemDefaultFocus();
-                    }
-                }
-                ImGui::EndCombo();
-            }
-            const std::string languagePreview = draft.locale == "zh-CN"
-                ? tr("language.zh-cn") : tr("language.en-us");
-            if (ImGui::BeginCombo(label("settings.language", "##Language").c_str(),
-                                  languagePreview.c_str()))
-            {
-                const char* locales[] = {"en-US", "zh-CN"};
-                const char* keys[] = {"language.en-us", "language.zh-cn"};
-                for (int index = 0; index < 2; ++index)
-                {
-                    const bool selected = draft.locale == locales[index];
-                    const std::string option = tr(keys[index]);
-                    if (ImGui::Selectable(option.c_str(), selected))
-                    {
-                        draft.locale = locales[index];
+                        mode = candidate;
                     }
                     if (selected) ImGui::SetItemDefaultFocus();
                 }
                 ImGui::EndCombo();
             }
-            ImGui::SliderFloat(label("settings.ui_scale", "##UiScale").c_str(), &draft.uiScale, 0.75f, 1.75f,
-                               "%.2fx");
-            if (ImGui::BeginCombo(label("settings.minimap_range", "##MinimapRange").c_str(),
-                (std::to_string(draft.minimapRange) + " m").c_str()))
+        };
+        drawHoldMode("settings.sprint_mode", "##SprintMode",
+                     draft.sprintMode);
+        drawHoldMode("settings.sneak_mode", "##SneakMode",
+                     draft.sneakMode);
+
+        const std::string feedbackPreview = tr(
+            draft.feedbackIntensity == GameplayFeedbackIntensity::Off
+                ? "settings.feedback_off"
+                : draft.feedbackIntensity ==
+                          GameplayFeedbackIntensity::Reduced
+                      ? "settings.feedback_reduced"
+                      : "settings.feedback_full",
+            gameplayFeedbackIntensityName(draft.feedbackIntensity));
+        if (ImGui::BeginCombo(
+                label("settings.feedback_intensity",
+                      "##FeedbackIntensity").c_str(),
+                feedbackPreview.c_str()))
+        {
+            for (GameplayFeedbackIntensity candidate : {
+                     GameplayFeedbackIntensity::Off,
+                     GameplayFeedbackIntensity::Reduced,
+                     GameplayFeedbackIntensity::Full})
             {
-                for (const int range : {64, 128, 256})
-                    if (ImGui::Selectable((std::to_string(range) + " m").c_str(),
-                        draft.minimapRange == range)) draft.minimapRange = range;
+                const bool selected = candidate == draft.feedbackIntensity;
+                const char* candidateKey =
+                    candidate == GameplayFeedbackIntensity::Off
+                        ? "settings.feedback_off"
+                        : candidate == GameplayFeedbackIntensity::Reduced
+                              ? "settings.feedback_reduced"
+                              : "settings.feedback_full";
+                if (ImGui::Selectable(
+                        tr(candidateKey,
+                           gameplayFeedbackIntensityName(candidate)).c_str(),
+                        selected))
+                {
+                    draft.feedbackIntensity = candidate;
+                }
+                if (selected) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+
+        const std::string languagePreview = draft.locale == "zh-CN"
+            ? tr("language.zh-cn")
+            : tr("language.en-us");
+        if (ImGui::BeginCombo(
+                label("settings.language", "##Language").c_str(),
+                languagePreview.c_str()))
+        {
+            const char* locales[] = {"en-US", "zh-CN"};
+            const char* keys[] = {"language.en-us", "language.zh-cn"};
+            for (int index = 0; index < 2; ++index)
+            {
+                const bool selected = draft.locale == locales[index];
+                if (ImGui::Selectable(tr(keys[index]).c_str(), selected))
+                {
+                    draft.locale = locales[index];
+                }
+                if (selected) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SliderFloat(label("settings.ui_scale", "##UiScale").c_str(),
+                           &draft.uiScale, 0.75f, 1.75f, "%.2fx");
+        if (ImGui::BeginCombo(
+                label("settings.minimap_range", "##MinimapRange").c_str(),
+                (std::to_string(draft.minimapRange) + " m").c_str()))
+        {
+            for (const int range : {64, 128, 256})
+            {
+                if (ImGui::Selectable(
+                        (std::to_string(range) + " m").c_str(),
+                        draft.minimapRange == range))
+                {
+                    draft.minimapRange = range;
+                }
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::Checkbox(
+            label("settings.show_action_hints", "##ActionHints").c_str(),
+            &draft.showActionHints);
+        ImGui::PopItemWidth();
+        ImGui::PushStyleColor(ImGuiCol_Text, WarmMuted);
+        ImGui::TextWrapped("%s", tr("settings.minimap_help").c_str());
+        ImGui::PopStyleColor();
+    }
+
+    void drawSettingsDisplayPage(UserSettings& draft, bool compact)
+    {
+        if (!compact && ImGui::BeginTable(
+                "##DisplaySettingsColumns", 2,
+                ImGuiTableFlags_SizingStretchSame |
+                    ImGuiTableFlags_BordersInnerV))
+        {
+            ImGui::TableNextColumn();
+            drawSettingsVisualOptions(draft);
+            ImGui::TableNextColumn();
+            drawSettingsExperienceOptions(draft);
+            ImGui::EndTable();
+            return;
+        }
+        drawSettingsVisualOptions(draft);
+        ImGui::Spacing();
+        drawSettingsExperienceOptions(draft);
+    }
+
+    void drawSettingsAudioPage(UserSettings& draft)
+    {
+        ImGui::SeparatorText(tr("settings.audio").c_str());
+        ImGui::PushStyleColor(ImGuiCol_Text, WarmMuted);
+        ImGui::TextWrapped("%s", tr("settings.audio_help").c_str());
+        ImGui::PopStyleColor();
+        ImGui::Spacing();
+        const float contentWidth = ImGui::GetContentRegionAvail().x;
+        const float fieldWidth = std::max(180.f,
+            std::min(540.f, contentWidth * .62f));
+        ImGui::PushItemWidth(fieldWidth);
+        ImGui::SliderFloat(
+            label("settings.master_volume", "##MasterVolume").c_str(),
+            &draft.masterVolume, 0.0f, 1.0f);
+        ImGui::SliderFloat(
+            label("settings.ui_volume", "##UiVolume").c_str(),
+            &draft.uiVolume, 0.0f, 1.0f);
+        ImGui::SliderFloat(
+            label("settings.effects_volume", "##EffectsVolume").c_str(),
+            &draft.effectsVolume, 0.0f, 1.0f);
+        ImGui::SliderFloat(
+            label("settings.ambient_volume", "##AmbientVolume").c_str(),
+            &draft.ambientVolume, 0.0f, 1.0f);
+        ImGui::SliderFloat(
+            label("settings.music_volume", "##MusicVolume").c_str(),
+            &draft.musicVolume, 0.0f, 1.0f);
+        ImGui::PopItemWidth();
+        ImGui::Spacing();
+        ImGui::Checkbox(
+            label("settings.audio_captions", "##AudioCaptions").c_str(),
+            &draft.audioCaptions);
+    }
+
+    void drawSettingsKeyboardBindings(UserSettings& draft)
+    {
+        ImGui::SeparatorText(tr("settings.keyboard").c_str());
+        if (!ImGui::BeginTable("##KeyboardBindingRows", 2,
+                               ImGuiTableFlags_SizingStretchProp))
+        {
+            return;
+        }
+        ImGui::TableSetupColumn("Action",
+                                ImGuiTableColumnFlags_WidthStretch, .56f);
+        ImGui::TableSetupColumn("Binding",
+                                ImGuiTableColumnFlags_WidthStretch, .44f);
+        for (std::size_t actionIndex = 0;
+             actionIndex < GameplayActionCount; ++actionIndex)
+        {
+            const auto action = static_cast<GameplayAction>(actionIndex);
+            const GameplayKey current = draft.inputBindings.get(action);
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextWrapped("%s", actionName(action).c_str());
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(-1.f);
+            const std::string widgetId =
+                "##binding-" + std::to_string(actionIndex);
+            if (ImGui::BeginCombo(widgetId.c_str(), keyName(current).c_str()))
+            {
+                for (std::size_t keyIndex = 0;
+                     keyIndex < GameplayKeyCount; ++keyIndex)
+                {
+                    const auto key = static_cast<GameplayKey>(keyIndex);
+                    const bool selected = key == current;
+                    if (ImGui::Selectable(keyName(key).c_str(), selected))
+                    {
+                        draft.inputBindings.set(action, key);
+                    }
+                    if (selected) ImGui::SetItemDefaultFocus();
+                }
                 ImGui::EndCombo();
             }
-            ImGui::TextWrapped("%s", tr("settings.minimap_help").c_str());
-            ImGui::Checkbox(label("settings.show_action_hints", "##ActionHints").c_str(), &draft.showActionHints);
-            ImGui::SeparatorText(tr("settings.audio").c_str());
-            ImGui::SliderFloat(label("settings.master_volume", "##MasterVolume").c_str(), &draft.masterVolume, 0.0f, 1.0f);
-            ImGui::SliderFloat(label("settings.ui_volume", "##UiVolume").c_str(), &draft.uiVolume, 0.0f, 1.0f);
-            ImGui::SliderFloat(label("settings.effects_volume", "##EffectsVolume").c_str(), &draft.effectsVolume,
-                               0.0f, 1.0f);
-            ImGui::SliderFloat(label("settings.ambient_volume", "##AmbientVolume").c_str(), &draft.ambientVolume,
-                               0.0f, 1.0f);
-            ImGui::SliderFloat(label("settings.music_volume", "##MusicVolume").c_str(), &draft.musicVolume,
-                               0.0f, 1.0f);
-            ImGui::Checkbox(label("settings.audio_captions", "##AudioCaptions").c_str(), &draft.audioCaptions);
-            ImGui::SeparatorText(tr("settings.controls").c_str());
-            for (std::size_t actionIndex = 0;
-                 actionIndex < GameplayActionCount; ++actionIndex)
-            {
-                const auto action =
-                    static_cast<GameplayAction>(actionIndex);
-                const GameplayKey current = draft.inputBindings.get(action);
-                const std::string bindingLabel =
-                    actionName(action) +
-                    "##binding-" + std::to_string(actionIndex);
-                if (ImGui::BeginCombo(bindingLabel.c_str(),
-                                      keyName(current).c_str()))
-                {
-                    for (std::size_t keyIndex = 0;
-                         keyIndex < GameplayKeyCount; ++keyIndex)
-                    {
-                        const auto key = static_cast<GameplayKey>(keyIndex);
-                        const bool selected = key == current;
-                        const std::string option = keyName(key);
-                        if (ImGui::Selectable(option.c_str(), selected))
-                        {
-                            draft.inputBindings.set(action, key);
-                        }
-                        if (selected)
-                        {
-                            ImGui::SetItemDefaultFocus();
-                        }
-                    }
-                    ImGui::EndCombo();
-                }
-            }
-            for (std::size_t actionIndex = 0;
-                 actionIndex < GameplayWorldActionCount; ++actionIndex)
-            {
-                const auto action =
-                    static_cast<GameplayWorldAction>(actionIndex);
-                const GameplayMouseButton current =
-                    draft.mouseBindings.get(action);
-                const std::string bindingLabel =
-                    worldActionName(action) + "##mouse-binding-" +
-                    std::to_string(actionIndex);
-                if (ImGui::BeginCombo(
-                        bindingLabel.c_str(),
-                        mouseButtonName(current).c_str()))
-                {
-                    for (std::size_t buttonIndex = 0;
-                         buttonIndex < GameplayMouseButtonCount;
-                         ++buttonIndex)
-                    {
-                        const auto button =
-                            static_cast<GameplayMouseButton>(buttonIndex);
-                        const bool selected = button == current;
-                        const std::string option = mouseButtonName(button);
-                        if (ImGui::Selectable(option.c_str(), selected))
-                        {
-                            draft.mouseBindings.set(action, button);
-                        }
-                        if (selected)
-                        {
-                            ImGui::SetItemDefaultFocus();
-                        }
-                    }
-                    ImGui::EndCombo();
-                }
-            }
-            const std::string mouseSharing =
-                sharedMouseBinding(draft.mouseBindings);
-            if (!mouseSharing.empty())
-            {
-                ImGui::TextWrapped(
-                    "%s: %s",
-                    tr("settings.context_binding", "Context binding").c_str(),
-                    mouseSharing.c_str());
-            }
-            ImGui::TextWrapped("%s", tr("settings.apply_note").c_str());
-            if (!settingsMessage.empty())
-            {
-                ImGui::TextWrapped("%s", settingsMessage.c_str());
-            }
-            ImGui::PopItemWidth();
-            ImGui::EndChild();
+        }
+        ImGui::EndTable();
+    }
 
-            ImGui::BeginDisabled(settingsApplyPending);
-            if (ImGui::Button(label("common.apply", "##ApplySettings").c_str(), ImVec2(140.0f, 38.0f)))
+    void drawSettingsMouseBindings(UserSettings& draft)
+    {
+        ImGui::SeparatorText(tr("settings.mouse").c_str());
+        if (!ImGui::BeginTable("##MouseBindingRows", 2,
+                               ImGuiTableFlags_SizingStretchProp))
+        {
+            return;
+        }
+        ImGui::TableSetupColumn("Action",
+                                ImGuiTableColumnFlags_WidthStretch, .56f);
+        ImGui::TableSetupColumn("Binding",
+                                ImGuiTableColumnFlags_WidthStretch, .44f);
+        for (std::size_t actionIndex = 0;
+             actionIndex < GameplayWorldActionCount; ++actionIndex)
+        {
+            const auto action =
+                static_cast<GameplayWorldAction>(actionIndex);
+            const GameplayMouseButton current =
+                draft.mouseBindings.get(action);
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextWrapped("%s", worldActionName(action).c_str());
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(-1.f);
+            const std::string widgetId =
+                "##mouse-binding-" + std::to_string(actionIndex);
+            if (ImGui::BeginCombo(
+                    widgetId.c_str(), mouseButtonName(current).c_str()))
             {
-                RuntimeSettingsApplyPlan plan;
-                if (settingsSession.prepareApply(plan, settingsMessage))
+                for (std::size_t buttonIndex = 0;
+                     buttonIndex < GameplayMouseButtonCount; ++buttonIndex)
                 {
-                    pendingAction.type =
-                        OgreUserInterfaceActionType::ApplySettings;
-                    pendingAction.settings = plan.settings;
-                    settingsMessage = tr("settings.saving");
-                    settingsApplyPending = true;
+                    const auto button =
+                        static_cast<GameplayMouseButton>(buttonIndex);
+                    const bool selected = button == current;
+                    if (ImGui::Selectable(mouseButtonName(button).c_str(),
+                                          selected))
+                    {
+                        draft.mouseBindings.set(action, button);
+                    }
+                    if (selected) ImGui::SetItemDefaultFocus();
                 }
+                ImGui::EndCombo();
             }
-            ImGui::SameLine();
-            if (ImGui::Button(label("common.cancel", "##CancelSettings").c_str(), ImVec2(140.0f, 38.0f)))
+        }
+        ImGui::EndTable();
+        const std::string mouseSharing =
+            sharedMouseBinding(draft.mouseBindings);
+        if (!mouseSharing.empty())
+        {
+            ImGui::TextWrapped(
+                "%s: %s",
+                tr("settings.context_binding", "Context binding").c_str(),
+                mouseSharing.c_str());
+        }
+    }
+
+    void drawSettingsControlsPage(UserSettings& draft, bool compact)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Text, WarmMuted);
+        ImGui::TextWrapped("%s", tr("settings.controls_help").c_str());
+        ImGui::PopStyleColor();
+        ImGui::Spacing();
+        if (!compact && ImGui::BeginTable(
+                "##ControlSettingsColumns", 2,
+                ImGuiTableFlags_SizingStretchSame |
+                    ImGuiTableFlags_BordersInnerV))
+        {
+            ImGui::TableNextColumn();
+            drawSettingsKeyboardBindings(draft);
+            ImGui::TableNextColumn();
+            drawSettingsMouseBindings(draft);
+            ImGui::EndTable();
+            return;
+        }
+        drawSettingsKeyboardBindings(draft);
+        ImGui::Spacing();
+        drawSettingsMouseBindings(draft);
+    }
+
+    void drawSettingsMenu()
+    {
+        const ImGuiIO& io = ImGui::GetIO();
+        const float scale = appliedSettings.uiScale;
+        const PresentationWindowLayout layout = fitPresentationWindow(
+            io.DisplaySize.x, io.DisplaySize.y, 940.f, 700.f, scale);
+        const bool compact = layout.width <= 752.f * scale ||
+            layout.height < 520.f * scale;
+        GameInterfaceWidgets::OverlayStyle theme(scale);
+        adventureBackdrop();
+        ImGui::SetNextWindowPos(
+            ImVec2(io.DisplaySize.x * .5f, io.DisplaySize.y * .5f),
+            ImGuiCond_Always, ImVec2(.5f, .5f));
+        ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height),
+                                 ImGuiCond_Always);
+        if (ImGui::Begin("##SettingsMenu", nullptr,
+                         ImGuiWindowFlags_NoDecoration |
+                             ImGuiWindowFlags_NoSavedSettings |
+                             ImGuiWindowFlags_NoBackground))
+        {
+            const std::string title = tr(
+                flow->state() == GameApplicationState::MainMenu
+                    ? "settings.title_main"
+                    : "settings.title");
+            if (adventureHeader(title, GameInterfaceWidgets::Glyph::Settings,
+                                tr("settings.subtitle"), compact,
+                                !settingsApplyPending))
             {
                 settingsSession.cancel();
                 settingsMessage.clear();
                 playUiFeedback();
             }
-            ImGui::SameLine();
-            if (ImGui::Button(label("common.defaults", "##DefaultSettings").c_str(), ImVec2(140.0f, 38.0f)))
+
+            ImGui::BeginDisabled(settingsApplyPending);
+            const float spacing = ImGui::GetStyle().ItemSpacing.x;
+            const float tabWidth =
+                (ImGui::GetContentRegionAvail().x - spacing * 2.f) / 3.f;
+            if (adventureTab("settings.display_tab", settingsPage == 0,
+                             tabWidth))
             {
-                settingsSession.restoreDefaults();
-                settingsMessage.clear();
+                settingsPage = 0;
                 playUiFeedback();
+            }
+            ImGui::SameLine();
+            if (adventureTab("settings.audio", settingsPage == 1,
+                             tabWidth))
+            {
+                settingsPage = 1;
+                playUiFeedback();
+            }
+            ImGui::SameLine();
+            if (adventureTab("settings.controls", settingsPage == 2,
+                             tabWidth))
+            {
+                settingsPage = 2;
+                playUiFeedback();
+            }
+
+            const float footerHeight = compact ? 92.f * scale : 82.f * scale;
+            ImGui::BeginChild("##SettingsContent",
+                              ImVec2(0.f, -footerHeight), false);
+            UserSettings& draft = settingsSession.draft();
+            if (settingsPage == 0)
+            {
+                drawSettingsDisplayPage(draft, compact);
+            }
+            else if (settingsPage == 1)
+            {
+                drawSettingsAudioPage(draft);
+            }
+            else
+            {
+                drawSettingsControlsPage(draft, compact);
+            }
+            ImGui::EndChild();
+            ImGui::EndDisabled();
+
+            ImGui::Separator();
+            const std::string footerMessage = settingsMessage.empty()
+                ? tr("settings.restart_note")
+                : settingsMessage;
+            const std::string footerSummary = boundedHudText(
+                footerMessage, ImGui::GetFontSize(),
+                ImGui::GetContentRegionAvail().x);
+            ImGui::PushStyleColor(ImGuiCol_Text,
+                                  settingsMessage.empty()
+                                      ? WarmMuted
+                                      : WarmAccent);
+            ImGui::TextUnformatted(footerSummary.c_str());
+            ImGui::PopStyleColor();
+            if (ImGui::IsItemHovered() && footerSummary != footerMessage)
+            {
+                ImGui::SetTooltip("%s", footerMessage.c_str());
+            }
+
+            ImGui::BeginDisabled(settingsApplyPending);
+            if (ImGui::BeginTable("##SettingsActions", 3,
+                                  ImGuiTableFlags_SizingStretchSame))
+            {
+                ImGui::TableNextColumn();
+                if (adventureButton("common.defaults", -1.f, false,
+                                    Material::Nothing,
+                                    GameInterfaceWidgets::Glyph::None,
+                                    36.f * scale))
+                {
+                    settingsSession.restoreDefaults();
+                    settingsMessage.clear();
+                    playUiFeedback();
+                }
+                ImGui::TableNextColumn();
+                if (adventureButton("common.cancel", -1.f, false,
+                                    Material::Nothing,
+                                    GameInterfaceWidgets::Glyph::None,
+                                    36.f * scale))
+                {
+                    settingsSession.cancel();
+                    settingsMessage.clear();
+                    playUiFeedback();
+                }
+                ImGui::TableNextColumn();
+                if (adventureButton("common.apply", -1.f, true,
+                                    Material::Nothing,
+                                    GameInterfaceWidgets::Glyph::None,
+                                    36.f * scale))
+                {
+                    RuntimeSettingsApplyPlan plan;
+                    if (settingsSession.prepareApply(plan, settingsMessage))
+                    {
+                        pendingAction.type =
+                            OgreUserInterfaceActionType::ApplySettings;
+                        pendingAction.settings = plan.settings;
+                        settingsMessage = tr("settings.saving");
+                        settingsApplyPending = true;
+                    }
+                }
+                if (ImGui::IsItemHovered())
+                {
+                    ImGui::SetTooltip("%s",
+                                      tr("settings.apply_note").c_str());
+                }
+                ImGui::EndTable();
             }
             ImGui::EndDisabled();
         }
@@ -2477,21 +2701,26 @@ class OgreUserInterface::Impl
                                std::string message)
     {
         settingsApplyPending = false;
-        settingsMessage = std::move(message);
         if (!succeeded)
         {
+            settingsMessage = std::move(message);
             return;
         }
         const bool restartRequired =
             appliedSettings.windowX != settings.windowX ||
             appliedSettings.windowY != settings.windowY ||
-            appliedSettings.isFullscreen != settings.isFullscreen;
+            appliedSettings.isFullscreen != settings.isFullscreen ||
+            appliedSettings.visualDetail != settings.visualDetail;
         appliedSettings = settings;
         settingsMessage = message.empty()
             ? tr(restartRequired
                      ? "settings.saved_restart"
                      : "settings.saved")
             : tr(message, message);
+        if (!message.empty() && restartRequired)
+        {
+            settingsMessage += " " + tr("settings.restart_note");
+        }
         ImGui::GetIO().FontGlobalScale = appliedSettings.uiScale;
         if (!appliedSettings.audioCaptions)
         {
@@ -6378,6 +6607,7 @@ class OgreUserInterface::Impl
     RuntimeSettingsSession settingsSession;
     std::string settingsMessage;
     bool settingsApplyPending = false;
+    int settingsPage = 0;
     std::unique_ptr<CraftingSession> craftingSession;
     Material::ID selectedCraftingMaterial = Material::ID::Nothing;
     std::string craftingMessage;

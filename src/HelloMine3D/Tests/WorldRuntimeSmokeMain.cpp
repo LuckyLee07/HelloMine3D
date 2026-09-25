@@ -1581,7 +1581,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 652 &&
+              registry.keys("en-US").size() == 661 &&
               registry.lookup("en-US", "main.continue") == "Continue" &&
               registry.lookup("zh-CN", "main.continue") == "继续游戏" &&
               registry.lookup("en-US", "world.preview_unavailable") ==
@@ -1590,6 +1590,18 @@ void caseWorldOutcomeAndLocalizedText()
                   "暂无世界预览" &&
               registry.lookup("en-US", "settings.title_main") == "Settings" &&
               registry.lookup("zh-CN", "settings.title_main") == "设置" &&
+              registry.lookup("en-US", "settings.display_tab") ==
+                  "Display" &&
+              registry.lookup("zh-CN", "settings.display_tab") ==
+                  "画面" &&
+              registry.lookup("en-US", "settings.display") ==
+                  "Display & Gameplay" &&
+              registry.lookup("zh-CN", "settings.display") ==
+                  "画面与体验" &&
+              registry.lookup("en-US", "settings.audio_help") ==
+                  "Balance the world, interface and music here. Audio captions can be enabled separately." &&
+              registry.lookup("zh-CN", "settings.controls_help") ==
+                  "为每项动作选择一个输入；应用时会检查按键冲突。" &&
               registry.lookup("en-US", "world.catalogue_error") ==
                   "World list unavailable" &&
               registry.lookup("zh-CN", "world.recovery_warning") ==
