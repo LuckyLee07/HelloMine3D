@@ -72,6 +72,39 @@ namespace TerrainMapView
         int cell = 0;
         bool top = true;
     };
+    struct Bounds
+    {
+        float minX = 0, minY = 0, maxX = 0, maxY = 0;
+        bool valid = false;
+        void include(const Point& p) noexcept
+        {
+            if (!valid) { minX = maxX = p.x; minY = maxY = p.y; valid = true; }
+            else { minX = std::min(minX,p.x); maxX = std::max(maxX,p.x);
+                   minY = std::min(minY,p.y); maxY = std::max(maxY,p.y); }
+        }
+        float fittedScale(float width, float height, float minimumSpan) const noexcept
+        {
+            return .90f * std::min(std::max(1.f,width) / std::max(minimumSpan,maxX-minX),
+                                  std::max(1.f,height) / std::max(minimumSpan,maxY-minY));
+        }
+    };
+    // Display zoom is independent of the atlas' immutable 4 m recording cells.
+    // Coarser query levels keep the existing 65x65 result budget when zooming out.
+    struct OverviewScale
+    {
+        int step = 4;
+        float zoom = 1.f;
+        void change(float factor) noexcept
+        {
+            if (!std::isfinite(factor) || factor <= 0.f) return;
+            zoom = std::clamp(zoom * factor, .0625f, 16.f);
+            while (zoom < 1.f && step < 64) { zoom *= 2.f; step *= 2; }
+            while (zoom >= 2.f && step > 4) { zoom *= .5f; step /= 2; }
+            zoom = std::clamp(zoom,1.f,16.f);
+        }
+        float cellPixels(float width, float height) const noexcept
+        { return std::max({1.f,width,height}) / 65.f * zoom; }
+    };
     inline bool contains(const Face& face, float x, float y) noexcept
     {
         bool positive = false, negative = false;

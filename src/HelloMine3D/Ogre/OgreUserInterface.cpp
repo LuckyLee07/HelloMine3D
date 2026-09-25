@@ -813,6 +813,7 @@ class OgreUserInterface::Impl
             {
                 hudInteraction.togglePointer();
                 if (hudPageFixture != "pointer") hudInteraction.open(hudPageFixture == "map" ? HudInteraction::Page::Map : HudInteraction::Page::Journal);
+                if (hudPageFixture == "map") mapFlatOverview = true;
                 hudPageFixtureOpened = true;
                 std::cout << "[HUD_PAGE_FIXTURE] page=" << hudPageFixture << "\n";
             }
@@ -3190,14 +3191,61 @@ class OgreUserInterface::Impl
         ImGui::PopStyleVar();
     }
 
-    void setOverviewStep(int next)
+    void zoomOverview(float factor)
     {
-        next = std::clamp(next, ExplorationAtlas::MetresPerCell, 64);
-        if (next == overviewStep) return;
-        overviewStep = next;
-        overviewValid = false;
-        selectedOverviewCell = -1;
-        overviewPanRemainderX = overviewPanRemainderZ = 0.f;
+        const int oldStep = overviewScale.step;
+        overviewScale.change(factor);
+        overviewAutoFit = false;
+        if (oldStep != overviewScale.step) {
+            overviewValid = false;
+            selectedOverviewCell = -1;
+            overviewPanRemainderX = overviewPanRemainderZ = 0.f;
+        }
+    }
+
+    void mapMetric(const char* key, const std::string& value)
+    {
+        ImGui::TextColored(WarmMuted,"%s",tr(key).c_str());
+        const float x = ImGui::GetWindowContentRegionMax().x - ImGui::CalcTextSize(value.c_str()).x;
+        ImGui::SameLine(std::max(ImGui::GetCursorPosX(),x));
+        ImGui::TextUnformatted(value.c_str());
+    }
+
+    void mapLegendRow(const char* key, ImU32 colour, int kind)
+    {
+        const float scale = appliedSettings.uiScale;
+        const auto at = ImGui::GetCursorScreenPos();
+        auto* draw = ImGui::GetWindowDrawList();
+        const ImVec2 c(at.x+11.f*scale,at.y+11.f*scale);
+        if (kind==0) GameInterfaceWidgets::playerArrow(draw,ImVec2(c.x,c.y-8.f*scale),
+            ImVec2(c.x-5.f*scale,c.y+5.f*scale),ImVec2(c.x+5.f*scale,c.y+5.f*scale));
+        else if (kind==1) draw->AddQuadFilled(ImVec2(c.x,c.y-7.f*scale),ImVec2(c.x+7.f*scale,c.y),
+            ImVec2(c.x,c.y+7.f*scale),ImVec2(c.x-7.f*scale,c.y),colour);
+        else { draw->AddRectFilled(at,ImVec2(at.x+21.f*scale,at.y+21.f*scale),colour,2.f);
+               draw->AddRect(at,ImVec2(at.x+21.f*scale,at.y+21.f*scale),IM_COL32(91,117,119,170),2.f); }
+        ImGui::Dummy(ImVec2(24.f*scale,24.f*scale)); ImGui::SameLine();
+        ImGui::TextUnformatted(tr(key).c_str());
+    }
+
+    void mapSurfaceCard(const MinimapCell* cell, int x, int z)
+    {
+        const float scale = appliedSettings.uiScale;
+        const auto at = ImGui::GetCursorScreenPos();
+        if (cell && cell->known) {
+            adventureIcon(Material::toMaterial(cell->material).id,at,38.f*scale);
+            ImGui::Indent(49.f*scale);
+            ImGui::TextWrapped("%s",LocalizedPresentation::surfaceName(appliedSettings.locale,cell->material).c_str());
+            ImGui::SetWindowFontScale(.70f);
+            ImGui::Text("X %d  Y %d  Z %d",x,cell->height,z);
+            ImGui::SetWindowFontScale(.82f);
+            ImGui::Unindent(49.f*scale);
+            ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY(),at.y-ImGui::GetWindowPos().y+49.f*scale));
+        } else {
+            ImGui::TextColored(WarmMuted,"%s",tr("map.unexplored").c_str());
+            ImGui::SetWindowFontScale(.72f);
+            ImGui::TextWrapped("%s",tr("map.select").c_str());
+            ImGui::SetWindowFontScale(.82f);
+        }
     }
 
     void drawExplorationOverview(const PlayerSaveState& state)
@@ -3214,17 +3262,11 @@ class OgreUserInterface::Impl
         const ImVec2 origin = ImGui::GetCursorScreenPos();
         ImGui::InvisibleButton("##OverviewViewport", size,
             ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
-        const float side = std::min(size.x, size.y);
-        const float pixel = side / count;
-        const ImVec2 grid(origin.x + (size.x - side) * .5f,
-                          origin.y + (size.y - side) * .5f);
-        const bool hovered = ImGui::IsItemHovered() &&
-            io.MousePos.x >= grid.x && io.MousePos.x < grid.x + side &&
-            io.MousePos.y >= grid.y && io.MousePos.y < grid.y + side;
+        const bool hovered = ImGui::IsItemHovered();
         if (hovered && io.MouseWheel != 0.f)
-            setOverviewStep(io.MouseWheel > 0.f
-                ? overviewStep / 2 : overviewStep * 2);
-        const int step = overviewStep;
+            zoomOverview(std::pow(1.25f,std::clamp(io.MouseWheel,-4.f,4.f)));
+        const int step = overviewScale.step;
+        float pixel = overviewScale.cellPixels(size.x,size.y);
         if (hovered && ImGui::IsMouseDown(ImGuiMouseButton_Right))
         {
             overviewPanRemainderX += io.MouseDelta.x / pixel;
@@ -3269,11 +3311,28 @@ class OgreUserInterface::Impl
             overviewValid = true;
             overviewNextRefresh = hudElapsedSeconds + 1.0;
         }
+        if (overviewAutoFit) {
+            int radiusX=5, radiusZ=5;
+            bool known=false;
+            for (int z=0;z<count;++z) for (int x=0;x<count;++x)
+                if (overviewCells[z*count+x].known) {
+                    known=true; radiusX=std::max(radiusX,std::abs(x-count/2));
+                    radiusZ=std::max(radiusZ,std::abs(z-count/2));
+                }
+            if (known) {
+                const float fitted = .82f*std::min(size.x/(2*radiusX+5),size.y/(2*radiusZ+5));
+                overviewScale.zoom=std::clamp(fitted*count/std::max(size.x,size.y),1.f,8.f);
+                pixel=overviewScale.cellPixels(size.x,size.y);
+                overviewAutoFit=false;
+            }
+        }
+        const float side=pixel*count;
+        const ImVec2 grid(origin.x+(size.x-side)*.5f,origin.y+(size.y-side)*.5f);
+        const ImVec2 edge(origin.x+size.x,origin.y+size.y);
         auto* draw = ImGui::GetWindowDrawList();
-        draw->AddRectFilled(origin, ImVec2(origin.x + size.x, origin.y + size.y),
-            IM_COL32(17, 29, 35, 255));
-        draw->PushClipRect(grid, ImVec2(grid.x + side, grid.y + side), true);
-        for (int line = 0; line <= count; line += 8) {
+        draw->AddRectFilled(origin,edge,IM_COL32(20,35,42,255));
+        draw->PushClipRect(origin,edge,true);
+        for (int line = 0; line <= count; line += 4) {
             const float offset = line * pixel;
             draw->AddLine(ImVec2(grid.x + offset,grid.y),ImVec2(grid.x + offset,grid.y + side),IM_COL32(55,76,81,95));
             draw->AddLine(ImVec2(grid.x,grid.y + offset),ImVec2(grid.x + side,grid.y + offset),IM_COL32(55,76,81,95));
@@ -3284,7 +3343,8 @@ class OgreUserInterface::Impl
         for (int x = 0; x < count; ++x)
         {
             const auto& cell = overviewCells[z * count + x];
-            if (!cell.known) continue;
+            if (!cell.known || grid.x+(x+1)*pixel<origin.x || grid.x+x*pixel>edge.x ||
+                grid.y+(z+1)*pixel<origin.y || grid.y+z*pixel>edge.y) continue;
             draw->AddRectFilled(ImVec2(grid.x + x * pixel, grid.y + z * pixel),
                 ImVec2(grid.x + (x + 1) * pixel, grid.y + (z + 1) * pixel),
                 mapCellColour(overviewCells.data(), count, x, z));
@@ -3332,8 +3392,8 @@ class OgreUserInterface::Impl
             const float mz = grid.y + side * .5f +
                 static_cast<float>(static_cast<std::int64_t>(marker.worldZ) - centerZ) /
                 step * pixel;
-            if (mx < grid.x + 5.f || mx > grid.x + side - 5.f ||
-                mz < grid.y + 5.f || mz > grid.y + side - 5.f) continue;
+            if (mx < origin.x + 5.f || mx > edge.x - 5.f ||
+                mz < origin.y + 5.f || mz > edge.y - 5.f) continue;
             const ImVec2 at(mx, mz);
             const auto colour = marker.kind == ExplorationMarkers::Kind::Home
                 ? IM_COL32(242, 211, 151, 255)
@@ -3341,12 +3401,19 @@ class OgreUserInterface::Impl
             draw->AddCircleFilled(at, 6.f * scale,
                 IM_COL32(17, 29, 35, 255));
             if (marker.kind == ExplorationMarkers::Kind::Home)
-                draw->AddRectFilled(ImVec2(mx - 3.f * scale, mz - 3.f * scale),
-                    ImVec2(mx + 3.f * scale, mz + 3.f * scale), colour);
+                GameInterfaceWidgets::glyph(draw,GameInterfaceWidgets::Glyph::Home,
+                    ImVec2(mx-9.f*scale,mz-9.f*scale),18.f*scale,colour);
             else
                 draw->AddCircleFilled(at, 3.f * scale, colour);
             if (tracked && tracked->id == marker.id)
-                draw->AddCircle(at, 8.f * scale, colour, 16, 1.5f);
+                draw->AddCircle(at, 11.f * scale, colour, 16, 1.5f);
+            if ((tracked && tracked->id==marker.id) || mapMarkerEditor.id==marker.id || marker.kind==ExplorationMarkers::Kind::Home) {
+                const float font=ImGui::GetFontSize()*.72f;
+                const auto label=boundedHudText(marker.name,font,std::min(150.f*scale,edge.x-mx-16.f*scale));
+                const ImVec2 pos(mx+13.f*scale,mz-font*.5f);
+                draw->AddText(ImGui::GetFont(),font,ImVec2(pos.x+1.f,pos.y+1.f),IM_COL32(8,20,24,255),label.c_str());
+                draw->AddText(ImGui::GetFont(),font,pos,colour,label.c_str());
+            }
             if (hovered && std::abs(io.MousePos.x - mx) < 7.f * scale &&
                 std::abs(io.MousePos.y - mz) < 7.f * scale)
             {
@@ -3366,8 +3433,8 @@ class OgreUserInterface::Impl
             const float mz = grid.y + side * .5f +
                 static_cast<float>(static_cast<std::int64_t>(taskSite->worldZ) - centerZ) /
                 step * pixel;
-            if (mx >= grid.x + 5.f && mx <= grid.x + side - 5.f &&
-                mz >= grid.y + 5.f && mz <= grid.y + side - 5.f)
+            if (mx >= origin.x + 5.f && mx <= edge.x - 5.f &&
+                mz >= origin.y + 5.f && mz <= edge.y - 5.f)
             {
                 draw->AddCircleFilled(ImVec2(mx, mz), 7.f * scale,
                     IM_COL32(17, 29, 35, 255));
@@ -3393,23 +3460,22 @@ class OgreUserInterface::Impl
         };
         GameInterfaceWidgets::playerArrow(draw, arrowPoint(7.f, 0.f),
             arrowPoint(-4.f, -5.f), arrowPoint(-4.f, 5.f));
-        draw->AddText(ImVec2(grid.x + 10.f * scale, grid.y + 8.f * scale),
-            IM_COL32(233, 209, 146, 255), tr("hud.minimap_north").c_str());
+        GameInterfaceWidgets::compass(draw,ImVec2(origin.x+35.f*scale,origin.y+57.f*scale),0,-1,scale,tr("hud.minimap_north").c_str());
+        GameInterfaceWidgets::mapRuler(draw,ImVec2(edge.x-18.f*scale,edge.y-9.f*scale),pixel/step,scale);
+        const auto unknown=tr("map.unexplored");
+        draw->AddText(ImGui::GetFont(),ImGui::GetFontSize()*.7f,ImVec2(origin.x+16.f*scale,edge.y-29.f*scale),
+            IM_COL32(135,159,161,190),unknown.c_str());
         draw->PopClipRect();
+        draw->AddRect(origin,edge,IM_COL32(89,116,119,175),2.f);
         if (wide) ImGui::SameLine();
         ImGui::BeginChild("##OverviewLegend", ImVec2(0, 0), wide);
-        if (!wide) ImGui::SetWindowFontScale(.72f);
+        ImGui::SetWindowFontScale(wide ? .82f : .72f);
         if (wide) {
             drawExplorationMarkerPanel(state);
             ImGui::Spacing(); ImGui::Separator();
+            const std::string span=std::to_string(int(size.x/pixel*step))+" × "+std::to_string(int(size.y/pixel*step))+" m";
+            mapMetric("map.overview",span);
         }
-        const auto observed = std::count_if(overviewCells.begin(), overviewCells.end(),
-            [](const auto& cell) { return cell.known; });
-        if (wide) {
-            ImGui::TextColored(WarmAccent, "%s", tr("map.overview").c_str());
-            ImGui::Text("%s: %d m", tr("map.span").c_str(), count * step);
-            ImGui::Text("%s: %.0f%%", tr("map.observed").c_str(),100.f * observed / overviewCells.size());
-        } else ImGui::TextColored(WarmMuted,"%d m · %s %.0f%%",count*step,tr("map.observed").c_str(),100.f*observed/overviewCells.size());
         if (inspection >= 0 && overviewCells[inspection].known)
         {
             const auto& cell = overviewCells[inspection];
@@ -3420,21 +3486,6 @@ class OgreUserInterface::Impl
                 overviewObservedPositions[inspection].second);
         }
         else ImGui::TextWrapped("%s", tr("map.select").c_str());
-        if (tracked)
-        {
-            constexpr const char* directions[] = {
-                "map.direction_n", "map.direction_ne", "map.direction_e",
-                "map.direction_se", "map.direction_s", "map.direction_sw",
-                "map.direction_w", "map.direction_nw"};
-            const auto bearing = ExplorationNavigation::toward(
-                World::toBlockCoord(state.position.x),
-                World::toBlockCoord(state.position.z),
-                tracked->worldX, tracked->worldZ);
-            ImGui::TextWrapped("%s: %s · %s  %llu m",
-                tr("map.marker_tracking").c_str(), tracked->name.c_str(),
-                tr(directions[bearing.octant]).c_str(),
-                static_cast<unsigned long long>(bearing.metres));
-        }
         if (taskLocated)
         {
             constexpr const char* directions[] = {
@@ -3450,8 +3501,7 @@ class OgreUserInterface::Impl
                 tr(directions[bearing.octant]).c_str(),
                 static_cast<unsigned long long>(bearing.metres));
         }
-        ImGui::TextWrapped("%s", tr("map.overview_note").c_str());
-        if (!wide) ImGui::SetWindowFontScale(1.f);
+        ImGui::SetWindowFontScale(1.f);
         ImGui::EndChild();
     }
 
@@ -3481,28 +3531,38 @@ class OgreUserInterface::Impl
         const auto markers = world->explorationMarkers();
         const auto tracked = world->trackedExplorationMarker();
         ImGui::Text("%s",tr("map.markers").c_str());
-        ImGui::SameLine();
-        ImGui::TextDisabled("%zu / %zu",markers.size(),ExplorationMarkers::Capacity);
+        const auto count=std::to_string(markers.size())+" / "+std::to_string(ExplorationMarkers::Capacity);
+        ImGui::SameLine(std::max(ImGui::GetCursorPosX(),ImGui::GetWindowContentRegionMax().x-ImGui::CalcTextSize(count.c_str()).x));
+        ImGui::TextDisabled("%s",count.c_str());
+        if (!mapMarkerEditor.id && !markers.empty()) {
+            const auto first=tracked ? *tracked : markers.front();
+            mapMarkerEditor.select(first.id,first.name);
+        }
         ImGui::Separator();
-        const float listHeight = std::clamp(43.f*scale*std::max(std::size_t(1),markers.size()),
-            48.f*scale,std::max(48.f*scale,std::min(145.f*scale,ImGui::GetContentRegionAvail().y*.28f)));
+        const float listHeight = std::clamp(60.f*scale*std::max(std::size_t(1),markers.size()),
+            62.f*scale,std::max(62.f*scale,std::min(145.f*scale,ImGui::GetContentRegionAvail().y*.28f)));
         ImGui::BeginChild("##MarkerRows",ImVec2(0,listHeight),false);
         if (markers.empty()) ImGui::TextWrapped("%s",tr("map.marker_empty").c_str());
         for (const auto& marker : markers)
         {
             ImGui::PushID(static_cast<int>(marker.id));
-            const std::string suffix = marker.kind == Kind::Home ? " · " + tr("map.marker_home") : "";
-            const std::string title = marker.name + suffix + (tracked && tracked->id == marker.id ? " · " + tr("map.marker_tracking") : "");
-            const float width = ImGui::GetContentRegionAvail().x;
-            const float rowHeight = std::max(35.f * scale,ImGui::CalcTextSize(title.c_str(),nullptr,false,std::max(1.f,width-12.f*scale)).y+12.f*scale);
-            const auto at = ImGui::GetCursorScreenPos();
-            if (ImGui::Selectable("##Marker",mapMarkerEditor.id==marker.id,0,ImVec2(0,rowHeight)))
-            {
-                mapMarkerEditor.select(marker.id,marker.name);
-                mapMarkerFeedbackKey.clear();
+            const float width=ImGui::GetContentRegionAvail().x;
+            const float rowHeight=52.f*scale;
+            const auto at=ImGui::GetCursorScreenPos();
+            if (ImGui::Selectable("##Marker",mapMarkerEditor.id==marker.id,0,ImVec2(0,rowHeight))) {
+                mapMarkerEditor.select(marker.id,marker.name); mapMarkerFeedbackKey.clear();
             }
-            ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),ImGui::GetFontSize(),ImVec2(at.x+6.f*scale,at.y+5.f*scale),
-                ImGui::ColorConvertFloat4ToU32(marker.kind==Kind::Home ? WarmAccent : WarmText),title.c_str(),nullptr,std::max(1.f,width-12.f*scale));
+            auto* draw=ImGui::GetWindowDrawList();
+            const ImU32 colour=ImGui::GetColorU32(marker.kind==Kind::Home ? WarmAccent : WarmText);
+            GameInterfaceWidgets::glyph(draw,marker.kind==Kind::Home ? GameInterfaceWidgets::Glyph::Home : GameInterfaceWidgets::Glyph::Pin,
+                ImVec2(at.x+5.f*scale,at.y+12.f*scale),24.f*scale,colour);
+            const auto title=boundedHudText(marker.name,ImGui::GetFontSize(),width-42.f*scale);
+            draw->AddText(ImVec2(at.x+38.f*scale,at.y+3.f*scale),colour,title.c_str());
+            std::string badge=marker.kind==Kind::Home ? tr("map.marker_home") : tr("map.markers");
+            if (tracked && tracked->id==marker.id) badge+=" · "+tr("map.marker_tracking");
+            draw->AddText(ImGui::GetFont(),ImGui::GetFontSize()*.75f,ImVec2(at.x+38.f*scale,at.y+29.f*scale),
+                ImGui::GetColorU32(WarmMuted),badge.c_str());
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s",marker.name.c_str());
             ImGui::PopID();
         }
         ImGui::EndChild();
@@ -3545,9 +3605,6 @@ class OgreUserInterface::Impl
                 "map.direction_s","map.direction_sw","map.direction_w","map.direction_nw"};
             const auto bearing = ExplorationNavigation::toward(World::toBlockCoord(state.position.x),World::toBlockCoord(state.position.z),
                 selected->worldX,selected->worldZ);
-            ImGui::PushStyleColor(ImGuiCol_Text,WarmAccent);
-            ImGui::TextWrapped("%s",selected->name.c_str());
-            ImGui::PopStyleColor();
             ImGui::Text("%s · %llu m",tr(directions[bearing.octant]).c_str(),static_cast<unsigned long long>(bearing.metres));
             ImGui::TextDisabled("X %d  Z %d",selected->worldX,selected->worldZ);
             ImGui::TextUnformatted(tr("map.marker_edit_name").c_str());
@@ -3589,9 +3646,11 @@ class OgreUserInterface::Impl
         if (!mapMarkerFeedbackKey.empty()) {
             ImGui::Spacing(); ImGui::TextWrapped("%s",tr(mapMarkerFeedbackKey).c_str());
         }
-        ImGui::Spacing(); ImGui::PushStyleColor(ImGuiCol_Text,WarmMuted);
-        ImGui::TextWrapped("%s",tr("map.marker_choose_cell").c_str());
-        ImGui::PopStyleColor();
+        if (markers.empty()) {
+            ImGui::Spacing(); ImGui::PushStyleColor(ImGuiCol_Text,WarmMuted);
+            ImGui::TextWrapped("%s",tr("map.marker_choose_cell").c_str());
+            ImGui::PopStyleColor();
+        }
     }
 
     void drawExplorationMapStatus()
@@ -3656,52 +3715,67 @@ class OgreUserInterface::Impl
             };
             ImGui::BeginChild("##MapContents",ImVec2(0,-29.f*scale),false);
             drawExplorationMapStatus();
-            if (adventureTab("map.view_flat",mapFlatOverview,112.f*scale)) {
+            const float toolbarWidth=ImGui::GetContentRegionAvail().x;
+            ImGui::PushFont(nullptr,20.f);
+            const float tabWidth=std::max(104.f*scale,ImGui::CalcTextSize(tr("map.view_flat").c_str()).x+22.f*scale);
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,ImVec2(0,8.f*scale));
+            if (adventureTab("map.view_flat",mapFlatOverview,tabWidth)) {
                 mapFlatOverview=true; mapMarkerPanel=false; selectedOverviewCell=selectedMapCell=-1;
             }
             ImGui::SameLine();
-            if (adventureTab("map.view_3d",!mapFlatOverview,112.f*scale)) {
+            if (adventureTab("map.view_3d",!mapFlatOverview,tabWidth)) {
                 mapFlatOverview=false; mapMarkerPanel=false; selectedOverviewCell=selectedMapCell=-1;
             }
-            const float toolbarWidth = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;
-            if (!mapFlatOverview || toolbarWidth <= 760.f*scale) {
-                ImGui::SameLine();
-                if (adventureTab(mapMarkerPanel ? "map.marker_back" : "map.markers",mapMarkerPanel)) {
-                    mapFlatOverview=true; mapMarkerPanel=!mapMarkerPanel;
-                }
-            }
-            if (toolbarWidth > 900.f*scale) ImGui::SameLine();
-            if (ImGui::Button(tr("map.center").c_str())) {
+            ImGui::PopStyleVar();
+            const float gap=ImGui::GetStyle().ItemSpacing.x;
+            const float centerWidth=ImGui::CalcTextSize(tr("map.center").c_str()).x+20.f*scale;
+            const float northWidth=ImGui::CalcTextSize(tr("map.north").c_str()).x+20.f*scale;
+            const float markerWidth=ImGui::CalcTextSize(tr(mapMarkerPanel ? "map.marker_back" : "map.markers").c_str()).x+40.f*scale;
+            const float toolsWidth=centerWidth+(mapFlatOverview ? 0.f : northWidth+gap)+
+                3.f*32.f*scale+markerWidth+4.f*gap;
+            if (toolbarWidth>tabWidth*2.f+toolsWidth+20.f*scale)
+                ImGui::SameLine(ImGui::GetWindowContentRegionMax().x-toolsWidth);
+            if (ImGui::Button(tr("map.center").c_str(),ImVec2(centerWidth,0))) {
                 if (mapFlatOverview) {
-                    overviewOffsetX=overviewOffsetZ=0;
-                    overviewPanRemainderX=overviewPanRemainderZ=0.f;
+                    overviewOffsetX=overviewOffsetZ=0; overviewScale={}; overviewAutoFit=true;
+                    overviewValid=false; overviewPanRemainderX=overviewPanRemainderZ=0.f;
                     selectedOverviewCell=-1;
                 } else { mapView={}; selectedMapCell=-1; }
             }
             if (!mapFlatOverview) {
-                ImGui::SameLine(); if (ImGui::Button(tr("map.north").c_str())) mapView.yaw=0;
+                ImGui::SameLine(); if (ImGui::Button(tr("map.north").c_str(),ImVec2(northWidth,0))) mapView.yaw=0;
             }
             ImGui::SameLine();
-            if (ImGui::Button("-##MapZoom")) {
-                if (mapFlatOverview) setOverviewStep(overviewStep*2); else mapView.zoom/=1.25f;
+            if (ImGui::Button("-##MapZoom",ImVec2(32.f*scale,0))) {
+                if (mapFlatOverview) zoomOverview(.8f); else mapView.zoom/=1.25f;
             }
             ImGui::SameLine();
-            if (ImGui::Button("+##MapZoom")) {
-                if (mapFlatOverview) setOverviewStep(overviewStep/2); else mapView.zoom*=1.25f;
+            if (ImGui::Button("+##MapZoom",ImVec2(32.f*scale,0))) {
+                if (mapFlatOverview) zoomOverview(1.25f); else mapView.zoom*=1.25f;
+            }
+            if (ImGui::GetContentRegionAvail().x>markerWidth+44.f*scale) ImGui::SameLine();
+            if (adventureButton(mapMarkerPanel ? "map.marker_back" : "map.markers",markerWidth,false,
+                Material::Nothing,GameInterfaceWidgets::Glyph::Pin)) {
+                mapFlatOverview=true; mapMarkerPanel=!mapMarkerPanel;
             }
             ImGui::SameLine();
-            if (ImGui::Button(tr("map.marker_more").c_str())) ImGui::OpenPopup("##MapPan");
+            if (ImGui::Button("?##MapHelp",ImVec2(32.f*scale,0))) ImGui::OpenPopup("##MapPan");
             if (ImGui::BeginPopup("##MapPan")) {
+                ImGui::PushTextWrapPos(ImGui::GetCursorPosX()+std::min(300.f*scale,io.DisplaySize.x-96.f));
+                ImGui::TextWrapped("%s",tr(mapFlatOverview ? "map.overview_note" : "map.session").c_str());
+                ImGui::TextWrapped("%s",tr("map.unknown").c_str());
+                ImGui::Separator();
                 const auto pan = [&](int dx,int dz) {
-                    if (mapFlatOverview) { overviewOffsetX+=dx*8*overviewStep; overviewOffsetZ+=dz*8*overviewStep; }
+                    if (mapFlatOverview) { overviewOffsetX+=dx*8*overviewScale.step; overviewOffsetZ+=dz*8*overviewScale.step; }
                     else { mapView.panX+=dx*.12f; mapView.panY+=dz*.12f; }
                 };
                 if (ImGui::Button("<")) pan(-1,0);
                 ImGui::SameLine(); if (ImGui::Button(">")) pan(1,0);
                 ImGui::SameLine(); if (ImGui::Button("^")) pan(0,-1);
                 ImGui::SameLine(); if (ImGui::Button("v")) pan(0,1);
-                ImGui::EndPopup();
+                ImGui::PopTextWrapPos(); ImGui::EndPopup();
             }
+            ImGui::PopFont();
             if (mapMarkerPanel && toolbarWidth <= 760.f*scale)
             {
                 ImGui::BeginChild("##CompactMarkers",ImVec2(0,0),false);
@@ -3736,36 +3810,63 @@ class OgreUserInterface::Impl
                 mapBuiltPitch != mapView.pitch || mapBuiltBase != baseHeight)
             {
                 TerrainMapView::build(minimapCells, MinimapCellCount, minimapStep, baseHeight, mapView, mapFaces);
+                mapBounds={};
+                for (const auto& face : mapFaces) for (const auto& p : face.points) mapBounds.include(p);
+                mapFloorHeight=baseHeight;
+                for (const auto& cell : minimapCells) if (cell.known) mapFloorHeight=std::min(mapFloorHeight,float(cell.height));
                 mapBuiltRevision = minimapRevision; mapBuiltYaw = mapView.yaw;
                 mapBuiltPitch = mapView.pitch; mapBuiltBase = baseHeight;
             }
-            const float pixels = .78f * std::min(size.x, size.y) / (MinimapCellCount * minimapStep) * mapView.zoom;
-            const ImVec2 center(origin.x + size.x * (.5f + mapView.panX), origin.y + size.y * (.58f + mapView.panY));
+            const float pixels = mapBounds.fittedScale(size.x,size.y,MinimapCellCount*minimapStep*.35f)*mapView.zoom;
+            const ImVec2 center(origin.x+size.x*(.5f+mapView.panX)-(mapBounds.minX+mapBounds.maxX)*.5f*pixels,
+                origin.y+size.y*(.5f+mapView.panY)-(mapBounds.minY+mapBounds.maxY)*.5f*pixels);
             const auto screen = [&](const TerrainMapView::Point& point) { return ImVec2(center.x + point.x * pixels, center.y + point.y * pixels); };
             auto* draw = ImGui::GetWindowDrawList();
-            draw->AddRectFilled(origin, ImVec2(origin.x + size.x, origin.y + size.y), IM_COL32(17,29,35,255));
-            draw->PushClipRect(origin, ImVec2(origin.x + size.x, origin.y + size.y), true);
-            for (float x = origin.x; x < origin.x + size.x; x += 32.f * scale)
-                draw->AddLine(ImVec2(x,origin.y), ImVec2(x,origin.y+size.y), IM_COL32(33,49,53,255));
-            for (float y = origin.y; y < origin.y + size.y; y += 32.f * scale)
-                draw->AddLine(ImVec2(origin.x,y), ImVec2(origin.x+size.x,y), IM_COL32(33,49,53,255));
+            const ImVec2 edge(origin.x+size.x,origin.y+size.y);
+            draw->AddRectFilled(origin,edge,IM_COL32(20,35,42,255));
+            draw->PushClipRect(origin,edge,true);
+            const TerrainMapView::Projection project(mapView);
+            const float extent=MinimapCellCount*minimapStep*2.f;
+            const float floor=mapFloorHeight-baseHeight-1.f;
+            for (float line=-extent;line<=extent;line+=8.f*minimapStep) {
+                draw->AddLine(screen(project(line,floor,-extent)),screen(project(line,floor,extent)),IM_COL32(87,111,116,45));
+                draw->AddLine(screen(project(-extent,floor,line)),screen(project(extent,floor,line)),IM_COL32(87,111,116,45));
+            }
             const int hoverCell = hovered ? TerrainMapView::pick(mapFaces,
                 (io.MousePos.x - center.x) / pixels, (io.MousePos.y - center.y) / pixels) : -1;
             if (hovered && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !mapGesture.dragged)
                 selectedMapCell = hoverCell;
             const auto oldFlags = draw->Flags;
             draw->Flags &= ~ImDrawListFlags_AntiAliasedFill;
+            const auto& callbacks=ImGui::GetPlatformIO();
+            if (callbacks.DrawCallback_SetSamplerNearest) draw->AddCallback(callbacks.DrawCallback_SetSamplerNearest,nullptr);
+            const auto& atlas=runtimeTerrainMaterialProfile().parameters();
             for (const auto& face : mapFaces)
             {
                 const auto a = screen(face.points[0]), b = screen(face.points[1]), c = screen(face.points[2]), d = screen(face.points[3]);
-                auto colour = ImGui::ColorConvertU32ToFloat4(minimapCellColour(face.cell % MinimapCellCount, face.cell / MinimapCellCount));
-                colour.x *= face.shade; colour.y *= face.shade; colour.z *= face.shade;
-                draw->AddQuadFilled(a,b,c,d,ImGui::ColorConvertFloat4ToU32(colour));
-                if (face.top && (face.cell == selectedMapCell || face.cell == hoverCell))
-                    draw->AddQuad(a,b,c,d,IM_COL32(255,222,137,255),2.f);
+                if (std::max({a.x,b.x,c.x,d.x})<origin.x || std::min({a.x,b.x,c.x,d.x})>edge.x ||
+                    std::max({a.y,b.y,c.y,d.y})<origin.y || std::min({a.y,b.y,c.y,d.y})>edge.y) continue;
+                const auto& cell=minimapCells[face.cell];
+                const auto& render=BlockDatabase::get().getDefinition(cell.material).render;
+                const auto tile=face.top ? render.texTopCoord : render.texSideCoord;
+                if (atlasTextureId!=ImTextureID_Invalid && atlas.containsTile(int(tile.x),int(tile.y)) && cell.material!=BlockId::Air) {
+                    const ImVec2 lo((tile.x*atlas.tilePixels+.5f)/atlas.atlasPixels,(tile.y*atlas.tilePixels+.5f)/atlas.atlasPixels);
+                    const ImVec2 hi(((tile.x+1)*atlas.tilePixels-.5f)/atlas.atlasPixels,((tile.y+1)*atlas.tilePixels-.5f)/atlas.atlasPixels);
+                    const int shade=int(245.f*face.shade);
+                    draw->AddImageQuad(ImTextureRef(atlasTextureId),a,b,c,d,lo,ImVec2(hi.x,lo.y),hi,ImVec2(lo.x,hi.y),
+                        IM_COL32(shade,shade,shade,255));
+                } else {
+                    auto colour=ImGui::ColorConvertU32ToFloat4(minimapCellColour(face.cell%MinimapCellCount,face.cell/MinimapCellCount));
+                    colour.x*=face.shade; colour.y*=face.shade; colour.z*=face.shade;
+                    draw->AddQuadFilled(a,b,c,d,ImGui::ColorConvertFloat4ToU32(colour));
+                }
             }
+            if (callbacks.DrawCallback_SetSamplerLinear) draw->AddCallback(callbacks.DrawCallback_SetSamplerLinear,nullptr);
             draw->Flags = oldFlags;
-            const TerrainMapView::Projection project(mapView);
+            // Selection is a separate pass, keeping texture submission batched.
+            for (const auto& face : mapFaces)
+                if (face.top && (face.cell==selectedMapCell || face.cell==hoverCell))
+                    draw->AddQuad(screen(face.points[0]),screen(face.points[1]),screen(face.points[2]),screen(face.points[3]),IM_COL32(255,222,137,255),2.f);
             const auto pointAt = [&](float x, float y, float z) {
                 return screen(project(x - minimapCenterX, y - baseHeight, z - minimapCenterZ));
             };
@@ -3792,63 +3893,40 @@ class OgreUserInterface::Impl
             };
             GameInterfaceWidgets::playerArrow(draw,arrow(8.f,0.f),arrow(-4.f,-5.f),arrow(-4.f,5.f));
             draw->AddText(ImVec2(at.x+10.f*scale,at.y-8.f*scale),IM_COL32(255,222,137,255),tr("map.player").c_str());
-            // Compass uses the same projection as the relief. The scale is
-            // measured along world X, including its view foreshortening.
-            const auto north = project(0,0,-1), east = project(1,0,0);
-            const ImVec2 compass(origin.x+38.f*scale,origin.y+42.f*scale);
-            const ImVec2 northEnd(compass.x+north.x*24.f*scale,compass.y+north.y*24.f*scale);
-            draw->AddLine(compass,northEnd,IM_COL32(233,209,146,255),2.f);
-            draw->AddText(ImVec2(northEnd.x-5.f,northEnd.y-17.f*scale),IM_COL32(233,209,146,255),tr("hud.minimap_north").c_str());
-            const float metres = 16.f * minimapStep;
-            const ImVec2 ruler(origin.x+16.f*scale,origin.y+size.y-22.f*scale);
-            draw->AddLine(ruler,ImVec2(ruler.x+metres*pixels*std::hypot(east.x,east.y),ruler.y),IM_COL32(184,199,186,255),2.f);
-            const auto scaleLabel = std::to_string(int(metres))+" m";
-            draw->AddText(ImVec2(ruler.x,ruler.y-18.f*scale),IM_COL32(184,199,186,255),scaleLabel.c_str());
+            const auto north=project(0,0,-1), east=project(1,0,0);
+            GameInterfaceWidgets::compass(draw,ImVec2(origin.x+35.f*scale,origin.y+57.f*scale),north.x,north.y,scale,tr("hud.minimap_north").c_str());
+            GameInterfaceWidgets::mapRuler(draw,ImVec2(edge.x-18.f*scale,edge.y-9.f*scale),pixels*std::hypot(east.x,east.y),scale);
             draw->PopClipRect();
+            draw->AddRect(origin,edge,IM_COL32(89,116,119,175),2.f);
             if (wide) ImGui::SameLine();
             ImGui::BeginChild("##MapLegend", ImVec2(0,0), wide);
-            if (!wide) ImGui::SetWindowFontScale(.72f);
-            const auto observed = std::count_if(minimapCells.begin(), minimapCells.end(), [](const auto& cell){return cell.known;});
-            if (wide)
-            {
-                ImGui::TextColored(WarmText, "%s", tr("map.surface").c_str());
-                ImGui::Text("%s: %d m",tr("map.span").c_str(),MinimapCellCount * minimapStep);
-                ImGui::Text("%s: %.1fx",tr("map.zoom").c_str(),mapView.zoom);
-                ImGui::Text("%s: %.0f%%",tr("map.observed").c_str(),100.f*observed/minimapCells.size());
-                ImGui::Separator();
-
-            }
-            else
-            {
-                ImGui::TextColored(WarmMuted, "%d m · %.1fx · %s %.0f%%", MinimapCellCount * minimapStep,
-                    mapView.zoom,tr("map.observed").c_str(),100.f*observed/minimapCells.size());
-                if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s",tr("map.unknown").c_str());
-            }
-            const int inspection = hoverCell >= 0 ? hoverCell : selectedMapCell;
-            if (inspection >= 0 && inspection < int(minimapCells.size()) && minimapCells[inspection].known)
-            {
-                const auto& cell = minimapCells[inspection];
-                if (wide) {
-                    adventureIcon(Material::toMaterial(cell.material).id,ImGui::GetCursorScreenPos(),34.f*scale);
-                    ImGui::Dummy(ImVec2(34.f*scale,34.f*scale));
-                }
-                ImGui::TextWrapped("%s",LocalizedPresentation::surfaceName(appliedSettings.locale, cell.material).c_str());
-                ImGui::Text("X %d  Y %d  Z %d",minimapCenterX+(inspection%MinimapCellCount-32)*minimapStep,
+            ImGui::SetWindowFontScale(wide ? .82f : .72f);
+            int inspection=hoverCell>=0 ? hoverCell : selectedMapCell;
+            if (inspection<0 && minimapCells[32*MinimapCellCount+32].known) inspection=32*MinimapCellCount+32;
+            if (wide) {
+                ImGui::TextUnformatted(tr("map.surface").c_str());
+                ImGui::Separator(); ImGui::Spacing();
+                mapSurfaceCard(inspection>=0 ? &minimapCells[inspection] : nullptr,
+                    minimapCenterX+(inspection%MinimapCellCount-32)*minimapStep,
+                    minimapCenterZ+(inspection/MinimapCellCount-32)*minimapStep);
+                ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
+                mapMetric("map.region",std::to_string(MinimapCellCount*minimapStep)+" m");
+                char zoom[24]; std::snprintf(zoom,sizeof(zoom),"%.1f ×",double(mapView.zoom));
+                mapMetric("map.zoom",zoom);
+                ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
+                mapLegendRow("map.player",IM_COL32(247,235,195,255),0);
+                mapLegendRow("map.waystone",IM_COL32(117,221,237,255),1);
+                mapLegendRow("map.workbench",IM_COL32(235,178,112,255),1);
+                mapLegendRow("map.storage",IM_COL32(235,178,112,255),1);
+                mapLegendRow("map.unexplored",IM_COL32(20,35,42,255),2);
+            } else if (inspection>=0 && minimapCells[inspection].known) {
+                const auto& cell=minimapCells[inspection];
+                ImGui::Text("%s · %d m · %.1fx",LocalizedPresentation::surfaceName(appliedSettings.locale,cell.material).c_str(),
+                    MinimapCellCount*minimapStep,mapView.zoom);
+                ImGui::TextDisabled("X %d  Y %d  Z %d",minimapCenterX+(inspection%MinimapCellCount-32)*minimapStep,
                     cell.height,minimapCenterZ+(inspection/MinimapCellCount-32)*minimapStep);
-            }
-            else ImGui::TextWrapped("%s",tr("map.select").c_str());
-            if (wide)
-            {
-                ImGui::Spacing(); ImGui::Separator();
-                ImGui::TextColored(WarmAccent,"%s",tr("map.player").c_str());
-                ImGui::TextColored(ImVec4(.46f,.86f,.92f,1.f),"%s",tr("map.waystone").c_str());
-                ImGui::TextColored(ImVec4(.92f,.7f,.44f,1.f),"%s",tr("map.workbench").c_str());
-                ImGui::TextColored(ImVec4(.92f,.7f,.44f,1.f),"%s",tr("map.storage").c_str());
-                ImGui::Spacing();
-                ImGui::TextWrapped("%s",tr("map.unknown").c_str());
-                ImGui::TextWrapped("%s",tr("map.session").c_str());
-            }
-            if (!wide) ImGui::SetWindowFontScale(1.f);
+            } else ImGui::TextWrapped("%s",tr("map.select").c_str());
+            ImGui::SetWindowFontScale(1.f);
             ImGui::EndChild();
             ImGui::EndChild();
             footer();
@@ -5907,12 +5985,15 @@ class OgreUserInterface::Impl
     float hudPageFixtureSeconds = 0;
     TerrainMapView::View mapView;
     std::vector<TerrainMapView::Face> mapFaces;
+    TerrainMapView::Bounds mapBounds;
+    float mapFloorHeight = 0.f;
     static constexpr int OverviewCellCount = 65;
     std::array<MinimapCell, OverviewCellCount * OverviewCellCount> overviewCells{};
     std::array<std::pair<int, int>, OverviewCellCount * OverviewCellCount>
         overviewObservedPositions{};
-    int overviewStep = ExplorationAtlas::MetresPerCell;
-    bool mapFlatOverview = true;
+    TerrainMapView::OverviewScale overviewScale;
+    bool overviewAutoFit = true;
+    bool mapFlatOverview = false;
     bool mapMarkerPanel = false;
     ExplorationMarkerEditor mapMarkerEditor;
     std::array<char, ExplorationMarkers::MaxNameBytes + 1> newMapMarkerName{};
@@ -6150,7 +6231,9 @@ void OgreUserInterface::setWorldContext(Player *player,
     m_impl->newMapMarkerName.fill(0);
     m_impl->mapMarkerFeedbackKey.clear();
     m_impl->overviewOffsetX = m_impl->overviewOffsetZ = 0;
-    m_impl->overviewStep = ExplorationAtlas::MetresPerCell;
+    m_impl->overviewScale = {};
+    m_impl->overviewAutoFit = true;
+    m_impl->mapFlatOverview = false;
     m_impl->overviewPanRemainderX = m_impl->overviewPanRemainderZ = 0.f;
     m_impl->overviewValid = false;
     if (world != nullptr)

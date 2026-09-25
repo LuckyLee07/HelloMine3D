@@ -72,5 +72,36 @@ int main() {
         for(const auto& p:face.points) if(!std::isfinite(p.x)||!std::isfinite(p.y)||!std::isfinite(p.depth))return 1;
     }
     check(true,"all emitted geometry is finite and observed");
+    // A tall, off-centre region must fit without clipping at different views.
+    for (float yaw : {0.f,.65f,1.8f,3.1f}) {
+        view.yaw=yaw; build(full,65,4,70,view,faces);
+        Bounds bounds;
+        for (const auto& face:faces) for (const auto& p:face.points) bounds.include(p);
+        const float scale=bounds.fittedScale(740,430,90);
+        for (const auto& face:faces) for (const auto& p:face.points) {
+            const float x=370+(p.x-(bounds.minX+bounds.maxX)*.5f)*scale;
+            const float y=215+(p.y-(bounds.minY+bounds.maxY)*.5f)*scale;
+            if (x<0 || x>740 || y<0 || y>430) return 1;
+        }
+    }
+    check(true,"fitted relief retains complete observed geometry across rotations");
+    Bounds empty;
+    check(std::isfinite(empty.fittedScale(1,1,4)),"empty view fit stays finite");
+    OverviewScale overview;
+    const float initial=overview.cellPixels(900,400);
+    overview.change(1.25f);
+    check(overview.step==4 && overview.cellPixels(900,400)>initial,
+        "zoom in enlarges immutable 4m cells");
+    overview.change(.8f);
+    check(std::abs(overview.zoom-1.f)<.001f && overview.step==4,"zoom round trip");
+    overview.change(.8f);
+    check(overview.step==8 && std::abs(overview.cellPixels(900,400)/overview.step-initial/4*.8f)<.001f,
+        "coarser query preserves continuous displayed world scale");
+    for(int i=0;i<100;++i) overview.change(.5f);
+    check(overview.step==64 && overview.zoom==1,"zoom out has bounded query coverage");
+    for(int i=0;i<100;++i) overview.change(2.f);
+    check(overview.step==4 && overview.zoom==16,"zoom in has bounded geometry and magnification");
+    const auto saved=overview; overview.change(std::numeric_limits<float>::quiet_NaN());
+    check(overview.step==saved.step && overview.zoom==saved.zoom,"invalid zoom ignored");
     std::cout<<"PASS "<<checks<<" checks; 65x65 build+sort mean "<<ms<<" ms; faces "<<faces.size()<<'\n';
 }

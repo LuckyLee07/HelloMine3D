@@ -2,24 +2,46 @@
 
 #include <imgui.h>
 #include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <cfloat>
 
 // Draw-only furniture shared by the in-world HUD and inventory panels.
 // Input, item ownership and transfer rules remain with the callers.
 namespace GameInterfaceWidgets
 {
-enum class Glyph { None, Play, Pause, Settings, Journal, Map, Exit };
+enum class Glyph { None, Play, Pause, Settings, Journal, Map, Exit, Home, Pin };
 
 inline void glyph(ImDrawList* draw, Glyph kind, ImVec2 at, float size,
                   ImU32 colour = IM_COL32(222, 182, 110, 255))
 {
+    if (kind == Glyph::Journal || kind == Glyph::Map)
+    {
+        static const char* book[] = {".bbbbbbbbb..","baappppppbb.","baappppppdb.","baapddddpdb.",
+            "baappppppdb.","baapddddpdb.","baappppppdb.","baapddddpdb.","baappppppdb.","baappppppbb.",".bbbbbbbbb..","..ddddddddd."};
+        static const char* mapArt[] = {"....bbb.....",".bbbpwpbbb..","bpggpwpggpb.","bpggpwpggpb.",
+            "bpggpwwpgpb.","bpggppwpppb.","bpgpppwpgpb.","bppggpwggpb.","bpggppwggpb.","bpggppwpppb.",".bbbpppbbb..","....bbb....."};
+        const float p = size / 12.f;
+        for (int y=0;y<12;++y) for (int x=0;x<12;++x) {
+            const char c = (kind == Glyph::Journal ? book : mapArt)[y][x];
+            if (c=='.') continue;
+            const ImU32 ink = c=='b' ? IM_COL32(139,111,65,255) : c=='d' ? IM_COL32(133,127,99,255) :
+                c=='a' ? IM_COL32(220,174,94,255) : c=='g' ? IM_COL32(129,151,97,255) :
+                c=='w' ? IM_COL32(89,154,168,255) : IM_COL32(227,213,163,255);
+            draw->AddRectFilled(ImVec2(at.x+x*p,at.y+y*p),ImVec2(at.x+(x+1)*p,at.y+(y+1)*p),ink);
+        }
+        return;
+    }
     // Small integer-grid silhouettes share the pixel scale of item icons.
     const unsigned short* rows = nullptr;
     static const unsigned short play[] = {0x200,0x300,0x380,0x3c0,0x3e0,0x3f0,0x3e0,0x3c0,0x380,0x300,0x200,0};
-    static const unsigned short pause[] = {0,0x366,0x366,0x366,0x366,0x366,0x366,0x366,0x366,0x366,0x366,0};
+    static const unsigned short pause[] = {0,0x318,0x318,0x318,0x318,0x318,0x318,0x318,0x318,0x318,0x318,0};
     static const unsigned short gear[] = {0x0f0,0x6f6,0x7fe,0x3fc,0x718,0xf0f,0xf0f,0x718,0x3fc,0x7fe,0x6f6,0x0f0};
     static const unsigned short journal[] = {0x3fc,0x606,0x602,0x6fa,0x602,0x6fa,0x602,0x6fa,0x602,0x606,0x3fc,0};
     static const unsigned short map[] = {0x030,0x1c8,0xe06,0x842,0x842,0x842,0x842,0x842,0x842,0xc07,0x138,0x0c0};
     static const unsigned short leave[] = {0x07c,0x064,0x064,0x264,0x364,0xff4,0x364,0x264,0x064,0x064,0x07c,0};
+    static const unsigned short home[] = {0,0x060,0x0f0,0x1f8,0x3fc,0x7fe,0x318,0x318,0x378,0x378,0x3f8,0};
+    static const unsigned short pin[] = {0x0f0,0x1f8,0x318,0x318,0x318,0x1f8,0x0f0,0x060,0x060,0x060,0,0};
     switch (kind) {
         case Glyph::Play: rows = play; break;
         case Glyph::Pause: rows = pause; break;
@@ -27,8 +49,12 @@ inline void glyph(ImDrawList* draw, Glyph kind, ImVec2 at, float size,
         case Glyph::Journal: rows = journal; break;
         case Glyph::Map: rows = map; break;
         case Glyph::Exit: rows = leave; break;
+        case Glyph::Home: rows = home; break;
+        case Glyph::Pin: rows = pin; break;
         default: return;
     }
+    if (kind == Glyph::Settings) colour = IM_COL32(204,213,202,255);
+    if (kind == Glyph::Exit) colour = IM_COL32(203,145,112,255);
     const float pixel = size / 12.f;
     for (int y = 0; y < 12; ++y)
         for (int x = 0; x < 12; ++x)
@@ -44,6 +70,7 @@ inline void surface(ImDrawList* draw, ImVec2 lo, ImVec2 hi,
         ImVec2(hi.x, hi.y + 3.f * scale), IM_COL32(5, 12, 16, 90), 3.f * scale);
     draw->AddRectFilled(lo, hi, IM_COL32(25, 45, 52, 239), 3.f * scale);
     draw->AddRect(lo, hi, IM_COL32(105, 132, 131, 200), 3.f * scale);
+    draw->AddLine(ImVec2(lo.x+3.f,lo.y+2.f),ImVec2(hi.x-3.f,lo.y+2.f),IM_COL32(202,215,196,34));
     if (accent)
         draw->AddLine(ImVec2(lo.x + 1.f, lo.y + 5.f * scale),
             ImVec2(lo.x + 1.f, hi.y - 5.f * scale), IM_COL32(222, 182, 110, 255), 2.f * scale);
@@ -62,6 +89,35 @@ inline void playerArrow(ImDrawList* draw, ImVec2 tip, ImVec2 left, ImVec2 right)
 {
     draw->AddTriangleFilled(tip, left, right, IM_COL32(247, 235, 195, 255));
     draw->AddTriangle(tip, left, right, IM_COL32(27, 43, 47, 255), 1.5f);
+}
+
+inline void compass(ImDrawList* draw, ImVec2 at, float dx, float dy, float scale, const char* label)
+{
+    const float length = std::max(.001f,std::hypot(dx,dy)); dx/=length; dy/=length;
+    draw->AddCircleFilled(at,19.f*scale,IM_COL32(20,35,41,210),32);
+    draw->AddCircle(at,19.f*scale,IM_COL32(166,184,174,180),32);
+    const auto point = [&](float f,float r) { return ImVec2(at.x+(dx*f-dy*r)*scale,at.y+(dy*f+dx*r)*scale); };
+    playerArrow(draw,point(13,0),point(-7,-5),point(-7,5));
+    const float font=ImGui::GetFontSize()*.75f;
+    const float w=ImGui::GetFont()->CalcTextSizeA(font,FLT_MAX,0,label).x;
+    draw->AddText(ImGui::GetFont(),font,ImVec2(at.x-w*.5f,at.y-22.f*scale-font),IM_COL32(242,229,195,255),label);
+}
+
+inline void mapRuler(ImDrawList* draw, ImVec2 bottomRight, float pixelsPerMetre, float scale)
+{
+    const float target=72.f*scale/std::max(.001f,pixelsPerMetre);
+    const float unit=std::pow(10.f,std::floor(std::log10(std::max(.01f,target))));
+    const float count=target/unit;
+    const float metres=(count>=5.f ? 5.f : count>=2.f ? 2.f : 1.f)*unit;
+    const float width=metres*pixelsPerMetre;
+    const ImVec2 a(bottomRight.x-width,bottomRight.y-22.f*scale), b(bottomRight.x,a.y);
+    const ImU32 ink=IM_COL32(231,228,204,240);
+    draw->AddLine(a,b,ink,1.5f);
+    for (float x : {a.x,b.x}) draw->AddLine(ImVec2(x,a.y-3.f*scale),ImVec2(x,a.y+3.f*scale),ink,1.5f);
+    char label[32]; std::snprintf(label,sizeof(label),"%g m",double(metres));
+    const float font=ImGui::GetFontSize()*.7f;
+    const float textWidth=ImGui::GetFont()->CalcTextSizeA(font,FLT_MAX,0,label).x;
+    draw->AddText(ImGui::GetFont(),font,ImVec2((a.x+b.x-textWidth)*.5f,a.y+5.f*scale),ink,label);
 }
 
 // Scoped to the adventure overlays so unrelated settings and machine layouts
