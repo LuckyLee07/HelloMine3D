@@ -10,7 +10,7 @@
 // Input, item ownership and transfer rules remain with the callers.
 namespace GameInterfaceWidgets
 {
-enum class Glyph { None, Play, Pause, Settings, Journal, Map, Exit, Home, Pin };
+enum class Glyph { None, Play, Pause, Settings, Journal, Map, Exit, Home, Pin, Feather };
 
 inline void glyph(ImDrawList* draw, Glyph kind, ImVec2 at, float size,
                   ImU32 colour = IM_COL32(222, 182, 110, 255))
@@ -42,6 +42,7 @@ inline void glyph(ImDrawList* draw, Glyph kind, ImVec2 at, float size,
     static const unsigned short leave[] = {0x07c,0x064,0x064,0x264,0x364,0xff4,0x364,0x264,0x064,0x064,0x07c,0};
     static const unsigned short home[] = {0,0x060,0x0f0,0x1f8,0x3fc,0x7fe,0x318,0x318,0x378,0x378,0x3f8,0};
     static const unsigned short pin[] = {0x0f0,0x1f8,0x318,0x318,0x318,0x1f8,0x0f0,0x060,0x060,0x060,0,0};
+    static const unsigned short feather[] = {0x00e,0x03e,0x07e,0x0fc,0x1ec,0x1d8,0x3b0,0x360,0x3c0,0x180,0x300,0x400};
     switch (kind) {
         case Glyph::Play: rows = play; break;
         case Glyph::Pause: rows = pause; break;
@@ -49,6 +50,7 @@ inline void glyph(ImDrawList* draw, Glyph kind, ImVec2 at, float size,
         case Glyph::Journal: rows = journal; break;
         case Glyph::Map: rows = map; break;
         case Glyph::Exit: rows = leave; break;
+        case Glyph::Feather: rows = feather; break;
         case Glyph::Home: rows = home; break;
         case Glyph::Pin: rows = pin; break;
         default: return;
@@ -173,10 +175,10 @@ inline void slotFrame(ImDrawList* draw, ImVec2 lo, ImVec2 hi,
                       bool selected, bool hovered, bool pressed, float scale)
 {
     const ImU32 rim = selected ? IM_COL32(224, 188, 119, 255) :
-        hovered ? IM_COL32(149, 171, 168, 240) : IM_COL32(74, 92, 98, 255);
+        hovered ? IM_COL32(149, 171, 168, 240) : IM_COL32(103, 121, 122, 235);
     const ImU32 top = pressed ? IM_COL32(26, 35, 37, 255) :
-        selected ? IM_COL32(60, 64, 55, 255) : IM_COL32(35, 48, 53, 255);
-    const ImU32 bottom = selected ? IM_COL32(35, 43, 39, 255) : IM_COL32(19, 29, 34, 255);
+        selected ? IM_COL32(60, 64, 55, 255) : IM_COL32(47, 61, 65, 225);
+    const ImU32 bottom = selected ? IM_COL32(35, 43, 39, 255) : IM_COL32(30, 42, 47, 225);
     const float inset = 2.f * scale;
     draw->AddRectFilled(ImVec2(lo.x, lo.y + 3.f * scale),
         ImVec2(hi.x, hi.y + 3.f * scale), IM_COL32(5, 11, 15, 165), 2.f);

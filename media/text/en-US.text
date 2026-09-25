@@ -653,3 +653,5 @@ text ui.return_game "Return to game"
 text map.marker_more "More"
 
 text map.unexplored "Unexplored"
+
+text journal.track_hint "Tracked on your HUD"

@@ -1556,7 +1556,7 @@ class OgreUserInterface::Impl
     }
 
     bool adventureHeader(const std::string& title, GameInterfaceWidgets::Glyph icon,
-                         const std::string& subtitle = {})
+                         const std::string& subtitle = {}, bool stackedSubtitle = false)
     {
         const float scale = appliedSettings.uiScale;
         const auto lo = ImGui::GetWindowPos(), size = ImGui::GetWindowSize();
@@ -1572,11 +1572,13 @@ class OgreUserInterface::Impl
         const float headingWidth = ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0.f, heading.c_str()).x;
         if (!subtitle.empty())
         {
-            const float x = start.x + 52.f * scale + headingWidth;
+            const float x = stackedSubtitle ? start.x+36.f*scale : start.x+64.f*scale+headingWidth;
+            if (!stackedSubtitle) draw->AddLine(ImVec2(x-14.f*scale,start.y+5.f*scale),
+                ImVec2(x-14.f*scale,start.y+font-3.f*scale),IM_COL32(117,140,139,180));
             const auto detail = boundedHudText(subtitle, ImGui::GetFontSize() * .8f,
                 start.x + width - closeSize - 12.f * scale - x);
             draw->AddText(ImGui::GetFont(), ImGui::GetFontSize() * .8f,
-                ImVec2(x, start.y + 5.f * scale), ImGui::ColorConvertFloat4ToU32(WarmMuted), detail.c_str());
+                ImVec2(x, start.y + (stackedSubtitle ? font+3.f*scale : 5.f*scale)), ImGui::ColorConvertFloat4ToU32(WarmMuted), detail.c_str());
         }
         ImGui::SetCursorScreenPos(ImVec2(start.x + width - closeSize, start.y));
         const bool close = ImGui::Button("##AdventureClose", ImVec2(closeSize, closeSize));
@@ -1587,7 +1589,7 @@ class OgreUserInterface::Impl
         draw->AddLine(ImVec2(a.x,b.y), ImVec2(b.x,a.y), colour, 1.8f);
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s · Esc", tr("common.close").c_str());
         ImGui::SetCursorScreenPos(start);
-        ImGui::Dummy(ImVec2(width, std::max(closeSize, font) + 3.f * scale));
+        ImGui::Dummy(ImVec2(width, std::max(closeSize, font) + (stackedSubtitle ? 28.f : 3.f) * scale));
         ImGui::Separator();
         return close;
     }
@@ -1630,6 +1632,36 @@ class OgreUserInterface::Impl
         return clicked;
     }
 
+    void adventureEscape(const char* key, bool centered = false)
+    {
+        const float scale=appliedSettings.uiScale;
+        ImGui::PushFont(nullptr,17.f);
+        const auto label=tr(key);
+        const float keyWidth=ImGui::CalcTextSize("Esc").x+12.f*scale;
+        const float width=keyWidth+8.f*scale+ImGui::CalcTextSize(label.c_str()).x;
+        if (centered) ImGui::SetCursorPosX(ImGui::GetCursorPosX()+std::max(0.f,(ImGui::GetContentRegionAvail().x-width)*.5f));
+        const auto at=ImGui::GetCursorScreenPos();
+        auto* draw=ImGui::GetWindowDrawList();
+        draw->AddRectFilled(at,ImVec2(at.x+keyWidth,at.y+23.f*scale),IM_COL32(35,54,59,255),3.f);
+        draw->AddRect(at,ImVec2(at.x+keyWidth,at.y+23.f*scale),IM_COL32(115,140,139,210),3.f);
+        draw->AddText(ImVec2(at.x+6.f*scale,at.y+3.f*scale),ImGui::GetColorU32(WarmText),"Esc");
+        draw->AddText(ImVec2(at.x+keyWidth+8.f*scale,at.y+3.f*scale),ImGui::GetColorU32(WarmMuted),label.c_str());
+        ImGui::Dummy(ImVec2(width,23.f*scale)); ImGui::PopFont();
+    }
+
+    const char* currentRegionKey() const
+    {
+        return minimapBiome == TerrainBiome::Desert ? "hud.region_desert" :
+            minimapBiome == TerrainBiome::Wetland ? "hud.region_wetland" :
+            minimapBiome == TerrainBiome::RockPlateau ? "hud.region_plateau" :
+            minimapBiome == TerrainBiome::River ? "hud.region_river" :
+            minimapBiome == TerrainBiome::Lake ? "hud.region_lake" :
+            minimapBiome == TerrainBiome::Ocean ? "hud.region_ocean" :
+            minimapBiome == TerrainBiome::Mountain ? "hud.region_mountain" :
+            minimapBiome == TerrainBiome::TemperateForest ? "hud.region_forest" :
+            minimapBiome == TerrainBiome::LightForest ? "hud.region_woodland" : "hud.region_meadow";
+    }
+
     void drawPauseMenu()
     {
         const auto& io = ImGui::GetIO();
@@ -1638,11 +1670,11 @@ class OgreUserInterface::Impl
         adventureBackdrop();
         ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * .5f, io.DisplaySize.y * .5f), ImGuiCond_Always, ImVec2(.5f,.5f));
         ImGui::SetNextWindowSize(ImVec2(std::min(380.f * scale,io.DisplaySize.x-32.f),
-            std::min(505.f * scale,io.DisplaySize.y-32.f)), ImGuiCond_Always);
+            std::min(485.f * scale,io.DisplaySize.y-32.f)), ImGuiCond_Always);
         if (ImGui::Begin("##PauseMenu",nullptr,ImGuiWindowFlags_NoDecoration |
             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBackground))
         {
-            if (adventureHeader(tr("pause.title"),GameInterfaceWidgets::Glyph::Pause) && flow->resume()) playUiFeedback();
+            if (adventureHeader(tr("pause.title"),GameInterfaceWidgets::Glyph::Pause,tr(currentRegionKey()),true) && flow->resume()) playUiFeedback();
             const float footerHeight = ImGui::GetTextLineHeight() + 139.f * scale;
             ImGui::BeginChild("##PauseOptions",ImVec2(0,-footerHeight),false);
             if (adventureButton("pause.resume",-1.f,true,Material::Nothing,GameInterfaceWidgets::Glyph::Play,52.f*scale) && flow->resume())
@@ -1806,7 +1838,8 @@ class OgreUserInterface::Impl
                 pendingAction.type = OgreUserInterfaceActionType::Quit;
                 playUiFeedback();
             }
-            ImGui::TextDisabled("Esc  %s",tr("pause.resume").c_str());
+            ImGui::Separator();
+            adventureEscape("pause.resume",true);
             if (!statusMessage.empty() && statusMessageSeconds > 0.f) drawNotification(statusMessage,io.DisplaySize.y - 12.f);
         }
         ImGui::End();
@@ -2896,15 +2929,7 @@ class OgreUserInterface::Impl
         const float scale = appliedSettings.uiScale;
         const auto trackedMarker = world->trackedExplorationMarker();
         const float mapDiameter = std::min(148.f * scale, io.DisplaySize.y * .25f);
-        const char* regionKey = minimapBiome == TerrainBiome::Desert ? "hud.region_desert" :
-            minimapBiome == TerrainBiome::Wetland ? "hud.region_wetland" :
-            minimapBiome == TerrainBiome::RockPlateau ? "hud.region_plateau" :
-            minimapBiome == TerrainBiome::River ? "hud.region_river" :
-            minimapBiome == TerrainBiome::Lake ? "hud.region_lake" :
-            minimapBiome == TerrainBiome::Ocean ? "hud.region_ocean" :
-            minimapBiome == TerrainBiome::Mountain ? "hud.region_mountain" :
-            minimapBiome == TerrainBiome::TemperateForest ? "hud.region_forest" :
-            minimapBiome == TerrainBiome::LightForest ? "hud.region_woodland" : "hud.region_meadow";
+        const char* regionKey = currentRegionKey();
         const float labelFont = ImGui::GetFontSize() * .85f;
         const std::string region = tr(regionKey);
         const float regionWidth = ImGui::GetFont()->CalcTextSizeA(labelFont, FLT_MAX, 0.f, region.c_str()).x;
@@ -3205,9 +3230,14 @@ class OgreUserInterface::Impl
 
     void mapMetric(const char* key, const std::string& value)
     {
-        ImGui::TextColored(WarmMuted,"%s",tr(key).c_str());
-        const float x = ImGui::GetWindowContentRegionMax().x - ImGui::CalcTextSize(value.c_str()).x;
-        ImGui::SameLine(std::max(ImGui::GetCursorPosX(),x));
+        const auto label=tr(key);
+        const float width=ImGui::GetContentRegionAvail().x;
+        const float valueWidth=ImGui::CalcTextSize(value.c_str()).x;
+        const bool sameRow=ImGui::CalcTextSize(label.c_str()).x+valueWidth+12.f*appliedSettings.uiScale<=width;
+        ImGui::TextColored(WarmMuted,"%s",label.c_str());
+        const float x=ImGui::GetWindowContentRegionMax().x-valueWidth;
+        if (sameRow) ImGui::SameLine(x);
+        else ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(),x));
         ImGui::TextUnformatted(value.c_str());
     }
 
@@ -3954,10 +3984,13 @@ class OgreUserInterface::Impl
                 hudInteraction.dismiss();
             const char* filters[] = {"journal.all", "journal.available", "journal.completed"};
             const float tabWidth = std::min(126.f * scale, (ImGui::GetContentRegionAvail().x - 16.f * scale) / 3.f);
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,ImVec2(0,8.f*scale));
             for (int i = 0; i < 3; ++i) {
                 if (i) ImGui::SameLine();
                 if (adventureTab(filters[i], journalFilter == i, tabWidth)) journalFilter = i;
             }
+            ImGui::PopStyleVar();
+            ImGui::Separator();
             std::vector<const ObjectiveJournalEntry*> entries;
             for (const auto& entry : snapshot.journal)
                 if (journalFilter == 0 || (journalFilter == 1 && entry.available) ||
@@ -3996,11 +4029,11 @@ class OgreUserInterface::Impl
                 ImGui::PushID(entry->id.c_str());
                 const auto title = objectiveText(entry->id, "title", entry->title);
                 const bool selected = selectedJournalId == entry->id;
-                const float icon = 29.f * scale;
+                const float icon = 34.f * scale;
                 const float rowWidth = ImGui::GetContentRegionAvail().x;
-                const float textWidth = std::max(1.f, rowWidth - icon - 24.f * scale);
+                const float textWidth = std::max(1.f, rowWidth - icon - 36.f * scale);
                 const float titleHeight = ImGui::CalcTextSize(title.c_str(), nullptr, false, textWidth).y;
-                const float rowHeight = std::max(58.f * scale, titleHeight + ImGui::GetTextLineHeight() + 16.f * scale);
+                const float rowHeight = std::max(66.f * scale, titleHeight + ImGui::GetTextLineHeight() + 16.f * scale);
                 const ImVec2 at = ImGui::GetCursorScreenPos();
                 if (ImGui::Selectable("##QuestRow", selected, 0, ImVec2(0,rowHeight))) selectedJournalId = entry->id;
                 if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
@@ -4011,7 +4044,10 @@ class OgreUserInterface::Impl
                         selected ? IM_COL32(184,153,90,225) : IM_COL32(71,96,101,145), 3.f);
                     if (selected) draw->AddLine(ImVec2(at.x+1.f,at.y+4.f),ImVec2(at.x+1.f,at.y+rowHeight-4.f),
                         ImGui::ColorConvertFloat4ToU32(WarmAccent), 3.f * scale);
-                    adventureIcon(objectiveIcon(entry->id), ImVec2(at.x + 9.f * scale, at.y + 11.f * scale), icon);
+                    adventureIcon(objectiveIcon(entry->id), ImVec2(at.x + 9.f * scale, at.y + 13.f * scale), icon);
+                    const ImVec2 arrow(at.x+rowWidth-12.f*scale,at.y+rowHeight*.5f);
+                    draw->AddLine(ImVec2(arrow.x-3.f*scale,arrow.y-5.f*scale),arrow,ImGui::GetColorU32(WarmMuted),1.5f);
+                    draw->AddLine(arrow,ImVec2(arrow.x-3.f*scale,arrow.y+5.f*scale),ImGui::GetColorU32(WarmMuted),1.5f);
                     draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(),
                         ImVec2(at.x + icon + 17.f * scale, at.y + 7.f * scale),
                         ImGui::ColorConvertFloat4ToU32(entry->available || entry->completed ? WarmText : WarmMuted),
@@ -4029,12 +4065,19 @@ class OgreUserInterface::Impl
             ImGui::EndChild();
             ImGui::SameLine();
             }
-            ImGui::BeginChild("##QuestDetail", ImVec2(0, detailHeight), true);
+            if (wide) {
+                const auto at=ImGui::GetCursorScreenPos();
+                ImGui::GetWindowDrawList()->AddLine(ImVec2(at.x-4.f*scale,at.y),
+                    ImVec2(at.x-4.f*scale,at.y+detailHeight),IM_COL32(105,132,131,175));
+            }
+            ImGui::PushStyleColor(ImGuiCol_ChildBg,IM_COL32(0,0,0,0));
+            ImGui::BeginChild("##QuestDetail", ImVec2(0, detailHeight),false);
+            if (wide) ImGui::Indent(16.f*scale);
             const auto detail = std::find_if(entries.begin(), entries.end(), [&](const auto* e) { return e->id == selectedJournalId; });
             if (detail != entries.end())
             {
                 const auto& entry = **detail;
-                const float actionHeight = entry.available ? ImGui::GetTextLineHeight() + 30.f * scale : 0.f;
+                const float actionHeight = entry.available ? (wide ? 83.f*scale : ImGui::GetTextLineHeight()+30.f*scale) : 0.f;
                 ImGui::BeginChild("##QuestReading", ImVec2(0, -std::max(1.f,actionHeight)), false);
                 const auto progress = std::to_string(std::min(entry.progress,entry.required)) + " / " + std::to_string(entry.required);
                 const auto status = tr(entry.completed ? "journal.completed" : entry.available ? "journal.available" : "journal.locked");
@@ -4061,36 +4104,57 @@ class OgreUserInterface::Impl
                 }
                 ImGui::TextWrapped("%s", objectiveInstructionText(entry.id,entry.instruction,entry.guidanceKey).c_str());
                 ImGui::Spacing();
+                const auto bar=ImGui::GetCursorScreenPos();
+                const float progressWidth=ImGui::GetContentRegionAvail().x;
+                const float progressHeight=wide ? 65.f*scale : 7.f*scale;
+                auto* draw=ImGui::GetWindowDrawList();
                 if (wide) {
-                    ImGui::TextColored(WarmMuted,"%s",tr("journal.progress").c_str());
-                    ImGui::SameLine(); ImGui::TextColored(WarmAccent,"%s",progress.c_str());
+                    draw->AddRectFilled(bar,ImVec2(bar.x+progressWidth,bar.y+progressHeight),IM_COL32(19,36,42,90),3.f);
+                    draw->AddRect(bar,ImVec2(bar.x+progressWidth,bar.y+progressHeight),IM_COL32(91,117,119,150),3.f);
+                    const auto icon=objectiveIcon(entry.id);
+                    const bool materialTarget=entry.id=="alpha.gather_wood" || entry.id=="alpha.gather_stone" ||
+                        entry.id=="alpha.gather_iron_ore" || entry.id=="alpha.gather_coal";
+                    if (materialTarget) adventureIcon(icon,ImVec2(bar.x+10.f*scale,bar.y+8.f*scale),23.f*scale);
+                    const auto label=materialTarget ? materialName(icon) : tr("journal.progress");
+                    draw->AddText(ImVec2(bar.x+(materialTarget ? 40.f : 12.f)*scale,bar.y+8.f*scale),ImGui::GetColorU32(WarmText),label.c_str());
+                    draw->AddText(ImVec2(bar.x+progressWidth-12.f*scale-ImGui::CalcTextSize(progress.c_str()).x,bar.y+8.f*scale),
+                        ImGui::GetColorU32(WarmAccent),progress.c_str());
                 }
-                const auto bar = ImGui::GetCursorScreenPos();
-                GameInterfaceWidgets::progress(ImGui::GetWindowDrawList(), bar,
-                    ImVec2(bar.x + ImGui::GetContentRegionAvail().x, bar.y + 7.f * scale),
-                    entry.required > 0 ? float(entry.progress) / entry.required : 0.f);
-                ImGui::Dummy(ImVec2(1, 7.f * scale));
+                const ImVec2 barStart(bar.x+(wide ? 12.f*scale : 0.f),bar.y+(wide ? 44.f*scale : 0.f));
+                GameInterfaceWidgets::progress(draw,barStart,
+                    ImVec2(bar.x+progressWidth-(wide ? 12.f*scale : 0.f),barStart.y+7.f*scale),
+                    entry.required>0 ? float(entry.progress)/entry.required : 0.f);
+                ImGui::Dummy(ImVec2(progressWidth,progressHeight));
                 if (!entry.prerequisiteId.empty())
                     ImGui::TextWrapped("%s: %s",tr("journal.prerequisite").c_str(),
                         objectiveText(entry.prerequisiteId,"title",entry.prerequisiteTitle).c_str());
-                ImGui::Spacing();
-                ImGui::PushStyleColor(ImGuiCol_Text,WarmMuted);
-                ImGui::TextWrapped("%s",tr("journal.track_help").c_str());
-                ImGui::PopStyleColor();
                 ImGui::EndChild();
                 if (entry.available)
                 {
                     const bool tracked = trackedObjectiveId == entry.id;
-                    if (adventureButton(tracked ? "journal.untrack" : "journal.track", -1.f, true))
+                    const char* action=tracked ? "journal.untrack" : "journal.track";
+                    const float buttonWidth=wide ? std::min(ImGui::GetContentRegionAvail().x,
+                        std::max(188.f*scale,ImGui::CalcTextSize(tr(action).c_str()).x+28.f*scale)) : ImGui::GetContentRegionAvail().x;
+                    if (wide) ImGui::SetCursorPosX(ImGui::GetCursorPosX()+ImGui::GetContentRegionAvail().x-buttonWidth);
+                    if (adventureButton(action,buttonWidth,true,Material::Nothing,GameInterfaceWidgets::Glyph::None,wide ? 46.f*scale : 0.f))
                     {
                         trackedObjectiveId = tracked ? std::string{} : entry.id;
                         objectiveHintSeconds = 12.f;
                         playUiFeedback();
                     }
+                    if (wide) {
+                        ImGui::PushFont(nullptr,17.f);
+                        const auto hint=tr("journal.track_hint");
+                        ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(),ImGui::GetWindowContentRegionMax().x-ImGui::CalcTextSize(hint.c_str()).x));
+                        ImGui::TextColored(WarmMuted,"%s",hint.c_str());
+                        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s",tr("journal.track_help").c_str());
+                        ImGui::PopFont();
+                    }
                 }
             }
-            ImGui::EndChild();
-            ImGui::TextDisabled("Esc  %s",tr("ui.return_game").c_str());
+            if (wide) ImGui::Unindent(16.f*scale);
+            ImGui::EndChild(); ImGui::PopStyleColor();
+            adventureEscape("ui.return_game");
         }
         ImGui::End();
     }
@@ -4406,7 +4470,7 @@ class OgreUserInterface::Impl
                 displayedObjectiveGuidanceKey = objective.guidanceKey;
                 objectiveHintSeconds = 12.f;
             }
-            const float objectiveWidth = std::min({250.f * appliedSettings.uiScale,
+            const float objectiveWidth = std::min({210.f * appliedSettings.uiScale,
                 io.DisplaySize.x * .52f, io.DisplaySize.x - minimapOverlayWidth - 54.f});
             ImGui::SetNextWindowPos(ImVec2(18.0f,
                                           performanceOverlayBottom + 10.f),
@@ -4434,8 +4498,8 @@ class OgreUserInterface::Impl
                 const std::string instruction = objective.sessionComplete
                     ? tr("objective.complete.instruction")
                     : objectiveInstructionText(objective.currentId, objective.instruction, objective.guidanceKey);
-                drawHudGlyph(draw, 0, ImVec2(header.x - 2.f * scale, header.y - 2.f * scale),
-                    23.f * scale, IM_COL32(240, 205, 130, 255));
+                GameInterfaceWidgets::glyph(draw,GameInterfaceWidgets::Glyph::Feather,
+                    ImVec2(header.x,header.y),20.f*scale);
                 const auto title = boundedHudText(currentTitle, ImGui::GetFontSize(), width - 43.f * scale);
                 draw->AddText(ImVec2(header.x + 25.f * scale, header.y),
                     ImGui::ColorConvertFloat4ToU32(WarmText), title.c_str());
@@ -4452,8 +4516,9 @@ class OgreUserInterface::Impl
                 const float countWidth = objective.required > 0
                     ? ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0.f, count.c_str()).x : 0.f;
                 const std::string summary = boundedHudText(objective.currentId == "alpha.gather_wood"
-                    ? tr("hud.collect_wood") : instruction, font, width - countWidth - 12.f * scale);
-                draw->AddText(ImGui::GetFont(), font, row, ImGui::ColorConvertFloat4ToU32(WarmMuted), summary.c_str());
+                    ? tr("hud.collect_wood") : instruction, font, width - countWidth - 36.f * scale);
+                adventureIcon(objectiveIcon(objective.currentId),ImVec2(row.x,row.y-2.f*scale),18.f*scale);
+                draw->AddText(ImGui::GetFont(),font,ImVec2(row.x+25.f*scale,row.y),ImGui::ColorConvertFloat4ToU32(WarmText),summary.c_str());
                 if (objective.required > 0)
                     draw->AddText(ImGui::GetFont(), font, ImVec2(row.x + width - countWidth, row.y),
                         ImGui::ColorConvertFloat4ToU32(WarmAccent), count.c_str());
@@ -4645,7 +4710,7 @@ class OgreUserInterface::Impl
             const float contentWidth = dockWidth - 16.f * scale;
             const float healthRatio = worldStats.playerMaxHealth > 0.f
                 ? std::clamp(worldStats.playerHealth / worldStats.playerMaxHealth, 0.f, 1.f) : 0.f;
-            const ImU32 healthColour = healthRatio > .3f ? IM_COL32(138, 196, 169, 255) : IM_COL32(245, 139, 111, 255);
+            const ImU32 healthColour = healthRatio > .3f ? IM_COL32(146, 199, 143, 255) : IM_COL32(245, 139, 111, 255);
             const float font = ImGui::GetFontSize() * .8f;
             // A fixed health glyph and numeric value are readable without
             // relying on colour or a flashing full-screen warning.

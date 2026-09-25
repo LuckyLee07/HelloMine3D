@@ -653,3 +653,5 @@ text ui.return_game "返回游戏"
 text map.marker_more "更多"
 
 text map.unexplored "未探索"
+
+text journal.track_hint "追踪后显示在左上角"
