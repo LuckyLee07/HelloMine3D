@@ -70,6 +70,9 @@ struct OverlayStyle
 {
     explicit OverlayStyle(float scale)
     {
+        // Detail pages use a larger reading size than the unobtrusive HUD.
+        // The existing locale font and user scale remain authoritative.
+        ImGui::PushFont(nullptr, 24.f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.f * scale, 14.f * scale));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.f * scale, 8.f * scale));
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.f * scale, 7.f * scale));
@@ -86,7 +89,7 @@ struct OverlayStyle
         ImGui::PushStyleColor(ImGuiCol_HeaderActive, IM_COL32(128, 108, 65, 130));
         ImGui::PushStyleColor(ImGuiCol_PlotHistogram, IM_COL32(222, 182, 110, 255));
     }
-    ~OverlayStyle() { ImGui::PopStyleColor(9); ImGui::PopStyleVar(6); }
+    ~OverlayStyle() { ImGui::PopStyleColor(9); ImGui::PopStyleVar(6); ImGui::PopFont(); }
     OverlayStyle(const OverlayStyle&) = delete;
     OverlayStyle& operator=(const OverlayStyle&) = delete;
 };

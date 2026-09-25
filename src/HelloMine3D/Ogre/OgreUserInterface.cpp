@@ -1564,7 +1564,7 @@ class OgreUserInterface::Impl
         const ImVec2 start = ImGui::GetCursorScreenPos();
         const float width = ImGui::GetContentRegionAvail().x, closeSize = 28.f * scale;
         GameInterfaceWidgets::glyph(draw, icon, ImVec2(start.x, start.y + 3.f * scale), 24.f * scale);
-        const float font = ImGui::GetFontSize() * 1.22f;
+        const float font = ImGui::GetFontSize() * 1.35f;
         const std::string heading = boundedHudText(title, font, width - 78.f * scale);
         draw->AddText(ImGui::GetFont(), font, ImVec2(start.x + 36.f * scale, start.y),
             ImGui::ColorConvertFloat4ToU32(WarmText), heading.c_str());
@@ -1592,7 +1592,8 @@ class OgreUserInterface::Impl
     }
 
     bool adventureButton(const char* key, float width = -1.f, bool primary = false,
-        Material::ID material = Material::Nothing, GameInterfaceWidgets::Glyph glyph = GameInterfaceWidgets::Glyph::None)
+        Material::ID material = Material::Nothing, GameInterfaceWidgets::Glyph glyph = GameInterfaceWidgets::Glyph::None,
+        float height = 0.f)
     {
         const float scale = appliedSettings.uiScale;
         const bool icon = material != Material::Nothing || glyph != GameInterfaceWidgets::Glyph::None;
@@ -1602,7 +1603,7 @@ class OgreUserInterface::Impl
             ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(98, 86, 52, 155));
             ImGui::PushStyleColor(ImGuiCol_Border, WarmAccent);
         }
-        const bool result = ImGui::Button(tr(key).c_str(), ImVec2(width, 0.f));
+        const bool result = ImGui::Button(tr(key).c_str(), ImVec2(width, height));
         if (primary) ImGui::PopStyleColor(2);
         ImGui::PopStyleVar(2);
         if (icon)
@@ -1641,11 +1642,11 @@ class OgreUserInterface::Impl
             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBackground))
         {
             if (adventureHeader(tr("pause.title"),GameInterfaceWidgets::Glyph::Pause) && flow->resume()) playUiFeedback();
-            const float footerHeight = 3.f * ImGui::GetTextLineHeight() + 67.f * scale;
+            const float footerHeight = ImGui::GetTextLineHeight() + 139.f * scale;
             ImGui::BeginChild("##PauseOptions",ImVec2(0,-footerHeight),false);
-            if (adventureButton("pause.resume",-1.f,true,Material::Nothing,GameInterfaceWidgets::Glyph::Play) && flow->resume())
+            if (adventureButton("pause.resume",-1.f,true,Material::Nothing,GameInterfaceWidgets::Glyph::Play,52.f*scale) && flow->resume())
                 playUiFeedback();
-            if (adventureButton("pause.settings",-1.f,false,Material::Nothing,GameInterfaceWidgets::Glyph::Settings))
+            if (adventureButton("pause.settings",-1.f,false,Material::Nothing,GameInterfaceWidgets::Glyph::Settings,52.f*scale))
             {
                 settingsSession.begin(appliedSettings);
                 settingsMessage.clear();
@@ -1653,7 +1654,36 @@ class OgreUserInterface::Impl
                 playUiFeedback();
             }
             ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
-            if (ImGui::CollapsingHeader(tr("pause.world_journey").c_str()))
+            const auto worldAt = ImGui::GetCursorScreenPos();
+            const float worldWidth = ImGui::GetContentRegionAvail().x;
+            const auto foldId = ImGui::GetID("##PauseWorldExpanded");
+            bool expanded = ImGui::GetStateStorage()->GetBool(foldId,false);
+            if (ImGui::Button("##WorldJourney",ImVec2(worldWidth,66.f*scale))) {
+                expanded=!expanded; ImGui::GetStateStorage()->SetBool(foldId,expanded);
+            }
+            adventureIcon(Material::Grass,ImVec2(worldAt.x+10.f*scale,worldAt.y+17.f*scale),30.f*scale);
+            auto* worldDraw = ImGui::GetWindowDrawList();
+            const float titleX=worldAt.x+50.f*scale;
+            const float copyWidth=std::max(1.f,worldWidth-75.f*scale);
+            const auto worldTitle=boundedHudText(tr("pause.world_journey"),ImGui::GetFontSize(),copyWidth);
+            worldDraw->AddText(ImVec2(titleX,worldAt.y+8.f*scale),ImGui::GetColorU32(WarmText),worldTitle.c_str());
+            if (world != nullptr) {
+                const auto objective=world->getObjectiveSnapshot();
+                const std::string summary=difficultyName(world->getDifficultySnapshot().active)+" · "+tr("journal.main")+" "+
+                    std::to_string(objective.completedObjectives)+" / "+std::to_string(objective.totalObjectives);
+                const auto shortSummary=boundedHudText(summary,ImGui::GetFontSize()*.8f,copyWidth);
+                worldDraw->AddText(ImGui::GetFont(),ImGui::GetFontSize()*.8f,
+                    ImVec2(titleX,worldAt.y+37.f*scale),ImGui::GetColorU32(WarmMuted),shortSummary.c_str());
+            }
+            const ImVec2 chevron(worldAt.x+worldWidth-17.f*scale,worldAt.y+33.f*scale);
+            if (expanded) {
+                worldDraw->AddLine(ImVec2(chevron.x-4.f*scale,chevron.y-2.f*scale),ImVec2(chevron.x,chevron.y+2.f*scale),ImGui::GetColorU32(WarmText),1.5f);
+                worldDraw->AddLine(ImVec2(chevron.x,chevron.y+2.f*scale),ImVec2(chevron.x+4.f*scale,chevron.y-2.f*scale),ImGui::GetColorU32(WarmText),1.5f);
+            } else {
+                worldDraw->AddLine(ImVec2(chevron.x-2.f*scale,chevron.y-4.f*scale),ImVec2(chevron.x+2.f*scale,chevron.y),ImGui::GetColorU32(WarmText),1.5f);
+                worldDraw->AddLine(ImVec2(chevron.x+2.f*scale,chevron.y),ImVec2(chevron.x-2.f*scale,chevron.y+4.f*scale),ImGui::GetColorU32(WarmText),1.5f);
+            }
+            if (expanded)
             {
             if (world != nullptr)
             {
@@ -1763,20 +1793,14 @@ class OgreUserInterface::Impl
             }
 
             }
-            else if (world != nullptr)
-            {
-                const auto objective = world->getObjectiveSnapshot();
-                ImGui::TextDisabled("%s · %s %zu / %zu", difficultyName(world->getDifficultySnapshot().active).c_str(),
-                    tr("journal.main").c_str(),objective.completedObjectives,objective.totalObjectives);
-            }
             ImGui::EndChild();
             ImGui::Separator();
-            if (adventureButton("pause.save_main",-1.f,false,Material::Chest))
+            if (adventureButton("pause.save_main",-1.f,false,Material::Chest,GameInterfaceWidgets::Glyph::None,52.f*scale))
             {
                 pendingAction.type = OgreUserInterfaceActionType::ReturnToMainMenu;
                 playUiFeedback();
             }
-            if (adventureButton("pause.save_quit",-1.f,false,Material::Nothing,GameInterfaceWidgets::Glyph::Exit))
+            if (adventureButton("pause.save_quit",-1.f,false,Material::Nothing,GameInterfaceWidgets::Glyph::Exit,52.f*scale))
             {
                 pendingAction.type = OgreUserInterfaceActionType::Quit;
                 playUiFeedback();
@@ -3457,7 +3481,8 @@ class OgreUserInterface::Impl
         ImGui::SameLine();
         ImGui::TextDisabled("%zu / %zu",markers.size(),ExplorationMarkers::Capacity);
         ImGui::Separator();
-        const float listHeight = std::max(64.f * scale,std::min(145.f * scale,ImGui::GetContentRegionAvail().y * .28f));
+        const float listHeight = std::clamp(43.f*scale*std::max(std::size_t(1),markers.size()),
+            48.f*scale,std::max(48.f*scale,std::min(145.f*scale,ImGui::GetContentRegionAvail().y*.28f)));
         ImGui::BeginChild("##MarkerRows",ImVec2(0,listHeight),false);
         if (markers.empty()) ImGui::TextWrapped("%s",tr("map.marker_empty").c_str());
         for (const auto& marker : markers)
@@ -3910,7 +3935,7 @@ class OgreUserInterface::Impl
                 const ImVec2 at = ImGui::GetCursorScreenPos();
                 adventureIcon(objectiveIcon(entry.id), at, 45.f * scale);
                 ImGui::Indent(58.f * scale);
-                ImGui::SetWindowFontScale(1.12f);
+                ImGui::SetWindowFontScale(1.30f);
                 ImGui::TextWrapped("%s", objectiveText(entry.id,"title",entry.title).c_str());
                 ImGui::SetWindowFontScale(1.f);
                 ImGui::TextColored(WarmAccent, "%s · %s", tr(entry.optional ? "journal.optional" : "journal.main").c_str(),
