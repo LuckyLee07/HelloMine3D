@@ -417,6 +417,9 @@ void CocoaMouse::capture()
 
 - (void)scrollWheel:(NSEvent*)theEvent
 {
+	// A wheel event can target a new view position without a mouseMoved event.
+	// Keep UI hit testing at the native event location, as button events do.
+	[self updateAbsolutePosition:theEvent];
 	if([theEvent deltaY] != 0.0)
 		mTempState.Z.rel += ([theEvent deltaY] * 60);
 }

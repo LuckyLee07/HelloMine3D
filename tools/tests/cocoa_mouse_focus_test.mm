@@ -16,9 +16,20 @@ static bool syntheticAppActive=true;
 @implementation MouseFocusTestWindow
 - (BOOL)isKeyWindow { return self.syntheticKey; }
 @end
+// In-process event only; never posted to the OS input queue.
+@interface MouseWheelTestEvent : NSObject
+@property NSPoint nativePosition;
+@end
+@implementation MouseWheelTestEvent
+- (NSPoint)locationInWindow { return self.nativePosition; }
+- (CGFloat)deltaY { return 1; }
+@end
 struct Listener: OIS::MouseListener {
     unsigned int held=0, releases=0;
-    bool mouseMoved(const OIS::MouseEvent&) override { return true; }
+    int x=0, y=0, wheel=0;
+    bool mouseMoved(const OIS::MouseEvent& event) override {
+        x=event.state.X.abs; y=event.state.Y.abs; wheel=event.state.Z.rel; return true;
+    }
     bool mousePressed(const OIS::MouseEvent&, OIS::MouseButtonID button) override {
         held |= 1u<<button; return true;
     }
@@ -94,6 +105,17 @@ int main() { @autoreleasepool {
         else if(button==1) [responder rightMouseUp:up];
         else [responder otherMouseUp:up];
     }
+    // Scroll straight into another UI region without a preceding motion event.
+    mouse->setCursorCaptured(false);
+    mouse->getMouseState().width=100;
+    mouse->getMouseState().height=100;
+    MouseWheelTestEvent* wheelEvent=[[MouseWheelTestEvent alloc] init];
+    wheelEvent.nativePosition=[responder convertPoint:NSMakePoint(20,75) toView:nil];
+    [responder scrollWheel:(NSEvent*)wheelEvent];
+    mouse->capture();
+    check(-1,"wheel-without-motion-hits-native-position",listener.x==20&&listener.y==25);
+    check(-1,"wheel-location-keeps-buffered-delta",listener.wheel==60);
+    [wheelEvent release];
     mouse->setEventCallback(nullptr);
     manager->destroyInputObject(mouse); OIS::InputManager::destroyInputSystem(manager);
     [window close];
