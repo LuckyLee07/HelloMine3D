@@ -18,6 +18,19 @@ enum class PostProcessingQuality {
     On = 1
 };
 
+/// Player-requested gameplay camera. Renderer safety fallbacks remain
+/// transient presentation state and are never persisted through this value.
+enum class CameraPerspective {
+    FirstPerson = 0,
+    ThirdPerson = 1
+};
+
+inline const char *cameraPerspectiveToken(
+    CameraPerspective perspective) noexcept
+{
+    return perspective == CameraPerspective::ThirdPerson ? "third" : "first";
+}
+
 enum class VisualDetail { Standard = 0, Compatibility = 1 };
 
 inline const char *visualDetailToken(VisualDetail detail) noexcept
@@ -57,6 +70,7 @@ struct UserSettings {
     PostProcessingQuality postProcessingQuality =
         PostProcessingQuality::Off;
     int fov = 90;
+    CameraPerspective cameraPerspective = CameraPerspective::FirstPerson;
     float mouseSensitivity = 0.05f;
     bool invertMouseY = false;
     float masterVolume = 1.0f;

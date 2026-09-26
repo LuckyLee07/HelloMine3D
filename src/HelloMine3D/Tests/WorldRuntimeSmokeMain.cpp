@@ -916,6 +916,8 @@ void caseRuntimeConfigOwnership()
                   DirectionalShadowQuality::Off &&
               generated.postProcessingQuality ==
                   PostProcessingQuality::Off &&
+              generated.cameraPerspective ==
+                  CameraPerspective::FirstPerson &&
               std::abs(generated.mouseSensitivity - 0.05f) < 0.0001f &&
               !generated.invertMouseY &&
               std::abs(generated.musicVolume - 0.65f) < 0.0001f &&
@@ -945,8 +947,8 @@ void caseRuntimeConfigOwnership()
         std::ifstream input(configPath, std::ios::binary);
         const std::string text((std::istreambuf_iterator<char>(input)),
                                std::istreambuf_iterator<char>());
-        check("V10E/settings-file-is-versioned-with-post-processing",
-               text.find("settings_version 10\n") != std::string::npos &&
+        check("B8/settings-file-is-versioned-with-camera-perspective",
+               text.find("settings_version 11\n") != std::string::npos &&
                    text.find("directionalshadowquality off\n") !=
                        std::string::npos &&
                    text.find("postprocessingquality off\n") !=
@@ -963,6 +965,8 @@ void caseRuntimeConfigOwnership()
                    text.find("mouse_guard secondary\n") !=
                        std::string::npos &&
                    text.find("feedbackintensity full\n") !=
+                       std::string::npos &&
+                   text.find("cameraperspective first\n") !=
                        std::string::npos,
               text);
     }
@@ -994,7 +998,9 @@ void caseRuntimeConfigOwnership()
                        DirectionalShadowQuality::Off &&
                    customised.postProcessingQuality ==
                        PostProcessingQuality::Off &&
-                   text.find("settings_version 10\n") == 0 &&
+                   customised.cameraPerspective ==
+                       CameraPerspective::FirstPerson &&
+                   text.find("settings_version 11\n") == 0 &&
                    text.find("directionalshadowquality off\n") !=
                        std::string::npos &&
                    text.find("postprocessingquality off\n") !=
@@ -1031,7 +1037,9 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::Off &&
                   versionOne.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 10\n") == 0,
+                  versionOne.cameraPerspective ==
+                      CameraPerspective::FirstPerson &&
+                  text.find("settings_version 11\n") == 0,
               text);
     }
 
@@ -1058,7 +1066,9 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::Off &&
                   versionTwo.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 10\n") == 0 &&
+                  versionTwo.cameraPerspective ==
+                      CameraPerspective::FirstPerson &&
+                  text.find("settings_version 11\n") == 0 &&
                   text.find("locale en-US\n") != std::string::npos,
               text);
     }
@@ -1085,7 +1095,9 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::Off &&
                   versionThree.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 10\n") == 0 &&
+                  versionThree.cameraPerspective ==
+                      CameraPerspective::FirstPerson &&
+                  text.find("settings_version 11\n") == 0 &&
                   text.find("musicvolume 0.649") != std::string::npos,
               text);
     }
@@ -1109,7 +1121,9 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::Off &&
                   versionFour.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 10\n") == 0 &&
+                  versionFour.cameraPerspective ==
+                      CameraPerspective::FirstPerson &&
+                  text.find("settings_version 11\n") == 0 &&
                    text.find("directionalshadowquality off\n") !=
                        std::string::npos,
               text);
@@ -1133,7 +1147,9 @@ void caseRuntimeConfigOwnership()
                       DirectionalShadowQuality::High &&
                   versionFive.postProcessingQuality ==
                       PostProcessingQuality::Off &&
-                  text.find("settings_version 10\n") == 0 &&
+                  versionFive.cameraPerspective ==
+                      CameraPerspective::FirstPerson &&
+                  text.find("settings_version 11\n") == 0 &&
                   text.find("postprocessingquality off\n") !=
                       std::string::npos,
               text);
@@ -1169,7 +1185,9 @@ void caseRuntimeConfigOwnership()
                   versionSix.mouseBindings.get(
                       GameplayWorldAction::Guard) ==
                       GameplayMouseButton::Secondary &&
-                  text.find("settings_version 10\n") == 0 &&
+                  versionSix.cameraPerspective ==
+                      CameraPerspective::FirstPerson &&
+                  text.find("settings_version 11\n") == 0 &&
                   versionSix.feedbackIntensity ==
                       GameplayFeedbackIntensity::Full,
               text);
@@ -1199,7 +1217,9 @@ void caseRuntimeConfigOwnership()
               versionSeven.sprintMode == GameplayHoldMode::Toggle &&
                   versionSeven.feedbackIntensity ==
                       GameplayFeedbackIntensity::Full &&
-                  text.find("settings_version 10\n") == 0 &&
+                  versionSeven.cameraPerspective ==
+                      CameraPerspective::FirstPerson &&
+                  text.find("settings_version 11\n") == 0 &&
                   text.find("feedbackintensity full\n") !=
                       std::string::npos,
               text);
@@ -1213,6 +1233,7 @@ void caseRuntimeConfigOwnership()
         DirectionalShadowQuality::Medium;
     session.draft().postProcessingQuality =
         PostProcessingQuality::On;
+    session.draft().cameraPerspective = CameraPerspective::ThirdPerson;
     RuntimeSettingsApplyPlan plan;
     std::string settingsError;
     check("G4/settings-draft-prepares-valid-apply",
@@ -1221,12 +1242,16 @@ void caseRuntimeConfigOwnership()
               plan.renderDistanceChanged &&
               plan.directionalShadowQualityChanged &&
               plan.postProcessingQualityChanged &&
+              plan.settings.cameraPerspective ==
+                  CameraPerspective::ThirdPerson &&
               !plan.restartRequired,
           settingsError);
     session.cancel();
     check("G4/settings-cancel-restores-snapshot",
           !session.isOpen() && session.draft().fov == customised.fov &&
-              session.draft().renderDistance == customised.renderDistance);
+              session.draft().renderDistance == customised.renderDistance &&
+              session.draft().cameraPerspective ==
+                  CameraPerspective::FirstPerson);
 
     session.begin(userSettings(customised));
     session.draft().windowX = 1600;
@@ -1242,6 +1267,8 @@ void caseRuntimeConfigOwnership()
                   DirectionalShadowQuality::Off &&
               plan.settings.postProcessingQuality ==
                   PostProcessingQuality::Off &&
+              plan.settings.cameraPerspective ==
+                  CameraPerspective::FirstPerson &&
               std::abs(plan.settings.masterVolume - 1.0f) < 0.0001f &&
               std::abs(plan.settings.musicVolume - 0.65f) < 0.0001f);
     session.draft().fov = 121;
@@ -1269,6 +1296,7 @@ void caseRuntimeConfigOwnership()
     persisted.sprintMode = GameplayHoldMode::Toggle;
     persisted.sneakMode = GameplayHoldMode::Toggle;
     persisted.feedbackIntensity = GameplayFeedbackIntensity::Reduced;
+    persisted.cameraPerspective = CameraPerspective::ThirdPerson;
     check("G4/settings-save-publishes-valid-candidate",
           saveRuntimeConfig(configPath.string(), persisted,
                             &settingsError),
@@ -1292,7 +1320,9 @@ void caseRuntimeConfigOwnership()
               reloaded.sprintMode == GameplayHoldMode::Toggle &&
               reloaded.sneakMode == GameplayHoldMode::Toggle &&
               reloaded.feedbackIntensity ==
-                  GameplayFeedbackIntensity::Reduced);
+                  GameplayFeedbackIntensity::Reduced &&
+              reloaded.cameraPerspective ==
+                  CameraPerspective::ThirdPerson);
 
     Config rejected = reloaded;
     rejected.fov = 101;
@@ -1307,7 +1337,9 @@ void caseRuntimeConfigOwnership()
     const Config afterFailure = loadRuntimeConfig(configPath.string());
     check("G4/settings-atomic-failure-keeps-previous-file",
           afterFailure.fov == 96 && afterFailure.worldSeed.has_value() &&
-              *afterFailure.worldSeed == 77123);
+              *afterFailure.worldSeed == 77123 &&
+              afterFailure.cameraPerspective ==
+                  CameraPerspective::ThirdPerson);
 
     Camera settingsCamera(afterFailure);
     const float previousProjection = settingsCamera.getProjMatrix()[1][1];
@@ -1443,7 +1475,8 @@ void caseRuntimeConfigOwnership()
             migrated.postProcessingQuality == PostProcessingQuality::On &&
             migrated.locale == "zh-CN" && migrated.uiScale == 1.25f &&
             migrated.sprintMode == GameplayHoldMode::Toggle &&
-            migrated.feedbackIntensity == GameplayFeedbackIntensity::Reduced);
+            migrated.feedbackIntensity == GameplayFeedbackIntensity::Reduced &&
+            migrated.cameraPerspective == CameraPerspective::FirstPerson);
         Config compatibility = migrated;
         compatibility.visualDetail = VisualDetail::Compatibility;
         std::string error;
@@ -1483,7 +1516,8 @@ void caseRuntimeConfigOwnership()
         Config migrated = loadRuntimeConfig(configPath.string());
         check("NAVIGATION/v9-migrates-with-map-default-and-preferences", migrated.minimapRange == 128 &&
             migrated.locale == "zh-CN" && migrated.uiScale == 1.25f &&
-            migrated.visualDetail == VisualDetail::Compatibility);
+            migrated.visualDetail == VisualDetail::Compatibility &&
+            migrated.cameraPerspective == CameraPerspective::FirstPerson);
         bool rangesPersist = true;
         for (int range : {64,128,256}) {
             migrated.minimapRange = range;
@@ -1507,6 +1541,51 @@ void caseRuntimeConfigOwnership()
         invalidSettingsRejected("invalid-v10-map.txt", v10Required + "minimaprange 0\n") &&
         invalidSettingsRejected("unbounded-v10-map.txt", v10Required + "minimaprange 99999\n") &&
         invalidSettingsRejected("old-v9-map.txt", v9Required + "visualdetail standard\nminimaprange 64\n"));
+    const std::string v10Complete = v10Required + "minimaprange 128\n";
+    {
+        std::ofstream output(configPath, std::ios::binary | std::ios::trunc);
+        output << v10Complete;
+        output.close();
+        Config migrated = loadRuntimeConfig(configPath.string());
+        std::ifstream rewrittenInput(configPath, std::ios::binary);
+        const std::string rewritten{
+            std::istreambuf_iterator<char>(rewrittenInput),
+            std::istreambuf_iterator<char>()};
+        check("B8/v10-migrates-to-first-person-request",
+              migrated.cameraPerspective == CameraPerspective::FirstPerson &&
+                  rewritten.find("settings_version 11\n") == 0 &&
+                  rewritten.find("cameraperspective first\n") !=
+                      std::string::npos,
+              rewritten);
+        migrated.cameraPerspective = CameraPerspective::ThirdPerson;
+        std::string error;
+        const bool saved =
+            saveRuntimeConfig(configPath.string(), migrated, &error);
+        check("B8/camera-perspective-round-trips",
+              saved && loadRuntimeConfig(configPath.string()).cameraPerspective ==
+                           CameraPerspective::ThirdPerson,
+              error);
+    }
+    const std::string v11Required = "settings_version 11\n" +
+        v10Complete.substr(v10Complete.find('\n') + 1);
+    Config invalidPerspective;
+    invalidPerspective.cameraPerspective =
+        static_cast<CameraPerspective>(99);
+    std::string invalidPerspectiveError;
+    check("B8/invalid-v11-camera-perspective-is-rejected",
+          invalidSettingsRejected("missing-v11-camera.txt", v11Required) &&
+              invalidSettingsRejected(
+                  "unknown-v11-camera.txt",
+                  v11Required + "cameraperspective orbit\n") &&
+              invalidSettingsRejected(
+                  "duplicate-v11-camera.txt",
+                  v11Required + "cameraperspective first\n"
+                      "cameraperspective third\n") &&
+              invalidSettingsRejected(
+                  "old-v10-camera.txt",
+                  v10Complete + "cameraperspective first\n") &&
+              !saveRuntimeConfig(configPath.string(), invalidPerspective,
+                                 &invalidPerspectiveError));
     check("WV2/invalid-v9-visual-settings-are-rejected",
         invalidSettingsRejected("missing-v9-visual.txt", v9Required) &&
         invalidSettingsRejected("unknown-v9-visual.txt", v9Required + "visualdetail ultra\n") &&
@@ -1582,7 +1661,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 681 &&
+              registry.keys("en-US").size() == 687 &&
               registry.lookup("en-US", "main.continue") == "Continue" &&
               registry.lookup("zh-CN", "main.continue") == "继续游戏" &&
               registry.lookup("en-US", "world.preview_unavailable") ==
@@ -1599,6 +1678,18 @@ void caseWorldOutcomeAndLocalizedText()
                   "Display & Gameplay" &&
               registry.lookup("zh-CN", "settings.display") ==
                   "画面与体验" &&
+              registry.lookup("en-US", "settings.camera_perspective") ==
+                  "Camera perspective" &&
+              registry.lookup("zh-CN", "settings.camera_first_person") ==
+                  "第一人称" &&
+              registry.lookup("zh-CN", "settings.camera_third_person") ==
+                  "第三人称" &&
+              registry.lookup("en-US", "camera.perspective.first") ==
+                  "First-person view" &&
+              registry.lookup("zh-CN", "camera.perspective.third") ==
+                  "第三人称视角" &&
+              registry.lookup("zh-CN", "camera.perspective_save_failed") ==
+                  "无法保存游戏视角设置。" &&
               registry.lookup("en-US", "settings.audio_help") ==
                   "Balance the world, interface and music here. Audio captions can be enabled separately." &&
               registry.lookup("zh-CN", "settings.controls_help") ==
@@ -20831,6 +20922,11 @@ int main()
         }
         else if (focus != nullptr && std::string(focus) == "WATER_DEPTH") {
             caseWaterDepthPresentation();
+        }
+        else if (focus != nullptr &&
+                 std::string(focus) == "CAMERA_SETTINGS") {
+            caseRuntimeConfigOwnership();
+            caseWorldOutcomeAndLocalizedText();
         }
         else if (focus != nullptr && std::string(focus) == "NAVIGATION") {
             caseMinimapNavigation();

@@ -2340,6 +2340,34 @@ class OgreUserInterface::Impl
             label("settings.invert_mouse_y", "##InvertMouseY").c_str(),
             &draft.invertMouseY);
 
+        const char* perspectivePreviewKey =
+            draft.cameraPerspective == CameraPerspective::ThirdPerson
+                ? "settings.camera_third_person"
+                : "settings.camera_first_person";
+        if (ImGui::BeginCombo(
+                label("settings.camera_perspective",
+                      "##CameraPerspective").c_str(),
+                tr(perspectivePreviewKey).c_str()))
+        {
+            for (const CameraPerspective perspective : {
+                     CameraPerspective::FirstPerson,
+                     CameraPerspective::ThirdPerson})
+            {
+                const bool selected =
+                    draft.cameraPerspective == perspective;
+                const char* key =
+                    perspective == CameraPerspective::ThirdPerson
+                        ? "settings.camera_third_person"
+                        : "settings.camera_first_person";
+                if (ImGui::Selectable(tr(key).c_str(), selected))
+                {
+                    draft.cameraPerspective = perspective;
+                }
+                if (selected) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+
         const auto drawHoldMode = [&](const char* translationKey,
                                       const char* widgetId,
                                       GameplayHoldMode& mode)

@@ -91,6 +91,24 @@ PostProcessingQuality readPostProcessingQuality(
     fail(path, key, "must be one of off or on");
 }
 
+CameraPerspective readCameraPerspective(
+    const std::string &path, const std::string &key,
+    std::istringstream &input)
+{
+    std::string value;
+    if (!(input >> value)) {
+        fail(path, key, "must contain first or third");
+    }
+    requireEnd(path, key, input);
+    if (value == "first") {
+        return CameraPerspective::FirstPerson;
+    }
+    if (value == "third") {
+        return CameraPerspective::ThirdPerson;
+    }
+    fail(path, key, "must be one of first or third");
+}
+
 GameplayHoldMode readGameplayHoldMode(
     const std::string &path, const std::string &key,
     std::istringstream &input)
@@ -147,6 +165,7 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
     bool usesVersionEightKey = false;
     bool hasVisualDetail = false;
     bool hasMinimapRange = false;
+    bool hasCameraPerspective = false;
     bool hasSprintMode = false;
     bool hasSneakMode = false;
     bool hasFeedbackIntensity = false;
@@ -182,7 +201,8 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
                 version != PostProcessingRuntimeSettingsFormatVersion &&
                 version != InputRuntimeSettingsFormatVersion &&
                 version != FeedbackRuntimeSettingsFormatVersion &&
-                version != PreviousRuntimeSettingsFormatVersion &&
+                version != VisualDetailRuntimeSettingsFormatVersion &&
+                version != NavigationRuntimeSettingsFormatVersion &&
                 version != RuntimeSettingsFormatVersion) {
                 fail(path, key, "uses unsupported version " +
                                     std::to_string(version));
@@ -269,6 +289,11 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
             parsed.config.minimapRange = readInteger(path, key, values);
             requireEnd(path, key, values);
             hasMinimapRange = true;
+        }
+        else if (key == "cameraperspective") {
+            parsed.config.cameraPerspective =
+                readCameraPerspective(path, key, values);
+            hasCameraPerspective = true;
         }
         else if (key == "uiscale") {
             parsed.config.uiScale = readFloat(path, key, values);
@@ -478,6 +503,18 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
         !hasMinimapRange) {
         fail(path, "minimaprange", "is required by settings version 10");
     }
+    if (hasCameraPerspective &&
+        (!hasVersion || parsed.version <
+                            CameraPerspectiveRuntimeSettingsFormatVersion)) {
+        fail(path, "settings_version",
+             "older versions cannot contain version 11 settings");
+    }
+    if (hasVersion && parsed.version >=
+                          CameraPerspectiveRuntimeSettingsFormatVersion &&
+        !hasCameraPerspective) {
+        fail(path, "cameraperspective",
+             "is required by settings version 11");
+    }
     parsed.needsMigration =
         !hasVersion || parsed.version < RuntimeSettingsFormatVersion;
     try {
@@ -508,6 +545,8 @@ std::vector<char> serializeRuntimeConfig(const Config &config)
            << "windowsize " << config.windowX << ' ' << config.windowY
            << '\n'
            << "fov " << config.fov << '\n'
+           << "cameraperspective "
+           << cameraPerspectiveToken(config.cameraPerspective) << '\n'
            << "mousesensitivity " << config.mouseSensitivity << '\n'
            << "invertmousey " << (config.invertMouseY ? 1 : 0) << '\n'
            << "mastervolume " << config.masterVolume << '\n'
@@ -589,6 +628,11 @@ void validateUserSettings(const UserSettings &settings)
     }
     if (settings.fov < 45 || settings.fov > 120) {
         throw std::runtime_error("FOV must be between 45 and 120 degrees");
+    }
+    if (settings.cameraPerspective != CameraPerspective::FirstPerson &&
+        settings.cameraPerspective != CameraPerspective::ThirdPerson) {
+        throw std::runtime_error(
+            "camera perspective must be first or third person");
     }
     if (!std::isfinite(settings.mouseSensitivity) ||
         settings.mouseSensitivity < 0.005f ||
