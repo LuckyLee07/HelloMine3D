@@ -26,6 +26,10 @@ struct AudioPlaybackEvent {
     bool hasPosition = false;
     glm::vec3 position{0.f};
     float gain = 1.f;
+    // Repeating ambience and footsteps remain audible without keeping the
+    // subtitle HUD permanently occupied. Semantic warnings and animal calls
+    // retain the default caption behavior.
+    bool caption = true;
 };
 
 enum class AudioBackendPlayResult {
@@ -45,6 +49,7 @@ class IAudioBackend {
         const AudioListenerState &listener) noexcept = 0;
     virtual void update() noexcept = 0;
     virtual void setPaused(bool paused) noexcept = 0;
+    virtual void stopAll() noexcept = 0;
     virtual std::size_t activeVoices() const noexcept = 0;
     virtual const char *name() const noexcept = 0;
     virtual bool isReal() const noexcept = 0;
@@ -60,6 +65,7 @@ class DummyAudioBackend final : public IAudioBackend {
         const AudioListenerState &listener) noexcept override;
     void update() noexcept override;
     void setPaused(bool paused) noexcept override;
+    void stopAll() noexcept override;
     std::size_t activeVoices() const noexcept override;
     const char *name() const noexcept override;
     bool isReal() const noexcept override;
@@ -119,12 +125,14 @@ class AudioRuntime {
     void setWorldPaused(bool paused) noexcept;
     void setMuted(bool muted) noexcept;
     void setSuspended(bool suspended) noexcept;
+    void stopAllPlayback() noexcept;
 
     const AudioRuntimeStats &stats() const noexcept;
     const AudioDefinitionRegistry &definitions() const noexcept;
     const AudioSampleBank &samples() const noexcept;
     const char *backendName() const noexcept;
     bool usesRealBackend() const noexcept;
+    bool captionsEnabled() const noexcept;
     const std::string &degradedReason() const noexcept;
 
   private:
@@ -143,6 +151,8 @@ class AudioRuntime {
     std::function<void(std::string, std::string)> m_captionSink;
     float m_ambientElapsedSeconds = 0.f;
     std::uint64_t m_feedbackVariantEpoch = 0;
+    bool m_backendStartedReal = false;
+    bool m_backendFailureObserved = false;
     bool m_worldPaused = false;
     bool m_muted = false;
 };

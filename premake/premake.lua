@@ -236,6 +236,7 @@ local function configure_game_logic_target()
             "-framework Foundation",
             "-framework AppKit",
             "-framework CoreFoundation",
+            "-framework AudioToolbox",
             "-framework OpenGL"
         }
 

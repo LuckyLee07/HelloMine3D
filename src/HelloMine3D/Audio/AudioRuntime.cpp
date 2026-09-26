@@ -1,6 +1,8 @@
 #include "AudioRuntime.h"
 
 #include <algorithm>
+#include <array>
+#include <atomic>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -22,8 +24,64 @@
 #include <mmsystem.h>
 #endif
 
+#if defined(__APPLE__) && defined(__MACH__)
+#include <AudioToolbox/AudioQueue.h>
+#endif
+
 namespace {
 constexpr std::size_t MaxGlobalVoices = 16;
+
+struct StereoGains {
+    float left = 0.f;
+    float right = 0.f;
+};
+
+bool computeStereoGains(const AudioDefinition &definition,
+                        const AudioPlaybackEvent &event,
+                        float effectiveGain,
+                        const AudioListenerState &listener,
+                        StereoGains &gains) noexcept
+{
+    if (!std::isfinite(effectiveGain) || effectiveGain <= 0.0001f) {
+        return false;
+    }
+    gains.left = effectiveGain;
+    gains.right = effectiveGain;
+    if (!definition.spatial || !event.hasPosition) {
+        return true;
+    }
+
+    const glm::vec3 relative = event.position - listener.position;
+    const float distance = glm::length(relative);
+    if (!std::isfinite(distance)) {
+        return false;
+    }
+    const float attenuation =
+        std::clamp(1.f - distance / 40.f, 0.f, 1.f);
+    if (attenuation <= 0.0001f) {
+        return false;
+    }
+    glm::vec3 forward(listener.forward.x, 0.f, listener.forward.z);
+    if (glm::length(forward) < 0.0001f) {
+        forward = glm::vec3(0.f, 0.f, -1.f);
+    }
+    forward = glm::normalize(forward);
+    const glm::vec3 right(-forward.z, 0.f, forward.x);
+    float pan = 0.f;
+    if (distance > 0.0001f) {
+        pan = std::clamp(glm::dot(relative / distance, right), -1.f,
+                         1.f);
+    }
+    gains.left *= attenuation * std::sqrt((1.f - pan) * 0.5f);
+    gains.right *= attenuation * std::sqrt((1.f + pan) * 0.5f);
+    return true;
+}
+
+std::int16_t toPcmSample(float value) noexcept
+{
+    return static_cast<std::int16_t>(
+        std::clamp(value, -1.f, 1.f) * 32767.f);
+}
 
 glm::vec3 blockCenter(const glm::ivec3 &position)
 {
@@ -99,7 +157,9 @@ class WindowsWaveOutBackend final : public IAudioBackend {
         if (m_output == nullptr || m_paused) {
             return AudioBackendPlayResult::Failed;
         }
-        if (effectiveGain <= 0.0001f) {
+        StereoGains gains;
+        if (!computeStereoGains(definition, event, effectiveGain,
+                                listener, gains)) {
             return AudioBackendPlayResult::Suppressed;
         }
         if (m_voices.size() >= MaxGlobalVoices) {
@@ -116,31 +176,6 @@ class WindowsWaveOutBackend final : public IAudioBackend {
             return AudioBackendPlayResult::Suppressed;
         }
 
-        float leftGain = effectiveGain;
-        float rightGain = effectiveGain;
-        if (definition.spatial && event.hasPosition) {
-            const glm::vec3 relative = event.position - listener.position;
-            const float distance = glm::length(relative);
-            const float attenuation =
-                std::clamp(1.f - distance / 40.f, 0.f, 1.f);
-            if (attenuation <= 0.0001f) {
-                return AudioBackendPlayResult::Suppressed;
-            }
-            glm::vec3 forward(listener.forward.x, 0.f, listener.forward.z);
-            if (glm::length(forward) < 0.0001f) {
-                forward = glm::vec3(0.f, 0.f, -1.f);
-            }
-            forward = glm::normalize(forward);
-            const glm::vec3 right(-forward.z, 0.f, forward.x);
-            float pan = 0.f;
-            if (distance > 0.0001f) {
-                pan = std::clamp(glm::dot(relative / distance, right),
-                                 -1.f, 1.f);
-            }
-            leftGain *= attenuation * std::sqrt((1.f - pan) * 0.5f);
-            rightGain *= attenuation * std::sqrt((1.f + pan) * 0.5f);
-        }
-
         auto voice = std::make_unique<Voice>();
         voice->cueId = definition.id;
         const std::size_t frames = sample.monoSamples.size();
@@ -149,9 +184,10 @@ class WindowsWaveOutBackend final : public IAudioBackend {
             const float source = static_cast<float>(
                                      sample.monoSamples[frame]) /
                                  32768.f;
-            voice->samples[frame * 2u] = toSample(source * leftGain);
+            voice->samples[frame * 2u] =
+                toPcmSample(source * gains.left);
             voice->samples[frame * 2u + 1u] =
-                toSample(source * rightGain);
+                toPcmSample(source * gains.right);
         }
         voice->header.lpData = reinterpret_cast<LPSTR>(
             voice->samples.data());
@@ -205,6 +241,19 @@ class WindowsWaveOutBackend final : public IAudioBackend {
         }
     }
 
+    void stopAll() noexcept override
+    {
+        if (m_output == nullptr) {
+            return;
+        }
+        waveOutReset(m_output);
+        for (const auto &voice : m_voices) {
+            waveOutUnprepareHeader(m_output, &voice->header,
+                                   sizeof(WAVEHDR));
+        }
+        m_voices.clear();
+    }
+
     std::size_t activeVoices() const noexcept override
     {
         return m_voices.size();
@@ -229,15 +278,379 @@ class WindowsWaveOutBackend final : public IAudioBackend {
 
     static constexpr int SampleRate = 44100;
 
-    static std::int16_t toSample(float value) noexcept
-    {
-        return static_cast<std::int16_t>(
-            std::clamp(value, -1.f, 1.f) * 32767.f);
-    }
-
     HWAVEOUT m_output = nullptr;
     std::list<std::unique_ptr<Voice>> m_voices;
     bool m_paused = false;
+};
+#endif
+
+#if defined(__APPLE__) && defined(__MACH__)
+class MacAudioQueueBackend final : public IAudioBackend {
+  public:
+    ~MacAudioQueueBackend() override
+    {
+        shutdown();
+    }
+
+    bool initialize(std::string &error) noexcept override
+    {
+        AudioStreamBasicDescription format{};
+        format.mSampleRate = static_cast<Float64>(SampleRate);
+        format.mFormatID = kAudioFormatLinearPCM;
+        format.mFormatFlags = kLinearPCMFormatFlagIsSignedInteger |
+                              kLinearPCMFormatFlagIsPacked;
+        format.mBytesPerPacket = BytesPerFrame;
+        format.mFramesPerPacket = 1;
+        format.mBytesPerFrame = BytesPerFrame;
+        format.mChannelsPerFrame = ChannelCount;
+        format.mBitsPerChannel = BitsPerChannel;
+
+        OSStatus status = AudioQueueNewOutput(
+            &format, &MacAudioQueueBackend::outputCallback, this,
+            nullptr, nullptr, 0, &m_queue);
+        if (status != noErr) {
+            error = statusError("AudioQueueNewOutput", status);
+            m_queue = nullptr;
+            return false;
+        }
+
+        for (AudioQueueBufferRef &buffer : m_buffers) {
+            status = AudioQueueAllocateBuffer(m_queue, BufferBytes,
+                                              &buffer);
+            if (status != noErr) {
+                error = statusError("AudioQueueAllocateBuffer", status);
+                shutdown();
+                return false;
+            }
+            std::fill_n(static_cast<std::int16_t *>(buffer->mAudioData),
+                        BufferFrames * ChannelCount,
+                        static_cast<std::int16_t>(0));
+            buffer->mAudioDataByteSize = BufferBytes;
+            status = AudioQueueEnqueueBuffer(m_queue, buffer, 0, nullptr);
+            if (status != noErr) {
+                error = statusError("AudioQueueEnqueueBuffer", status);
+                shutdown();
+                return false;
+            }
+        }
+
+        error.clear();
+        return true;
+    }
+
+    AudioBackendPlayResult play(
+        const AudioDefinition &definition,
+        const AudioSampleData &sample,
+        const AudioPlaybackEvent &event, float effectiveGain,
+        const AudioListenerState &listener) noexcept override
+    {
+        StereoGains gains;
+        if (!computeStereoGains(definition, event, effectiveGain,
+                                listener, gains)) {
+            return AudioBackendPlayResult::Suppressed;
+        }
+        if (sample.sampleRate != SampleRate ||
+            sample.monoSamples.empty()) {
+            return AudioBackendPlayResult::Failed;
+        }
+
+        if (m_queue == nullptr ||
+            m_failed.load(std::memory_order_acquire) ||
+            m_stopping.load(std::memory_order_acquire)) {
+            return AudioBackendPlayResult::Failed;
+        }
+        if (m_paused.load(std::memory_order_acquire)) {
+            return AudioBackendPlayResult::Suppressed;
+        }
+        if (voiceCount() >= MaxGlobalVoices) {
+            return AudioBackendPlayResult::Suppressed;
+        }
+        const std::size_t cueVoices =
+            static_cast<std::size_t>(std::count_if(
+                m_voices.begin(), m_voices.end(),
+                [&definition](const Voice &voice) {
+                    return voice.state.load(std::memory_order_acquire) !=
+                               VoiceState::Free &&
+                           voice.definition == &definition;
+                }));
+        if (cueVoices >=
+            static_cast<std::size_t>(definition.maxVoices)) {
+            return AudioBackendPlayResult::Suppressed;
+        }
+
+        Voice *available = nullptr;
+        for (Voice &voice : m_voices) {
+            VoiceState expected = VoiceState::Free;
+            if (voice.state.compare_exchange_strong(
+                    expected, VoiceState::Reserved,
+                    std::memory_order_acq_rel,
+                    std::memory_order_acquire)) {
+                available = &voice;
+                break;
+            }
+        }
+        if (available == nullptr) {
+            return AudioBackendPlayResult::Suppressed;
+        }
+        available->definition = &definition;
+        available->sample = &sample;
+        available->frame = 0u;
+        available->leftGain = gains.left;
+        available->rightGain = gains.right;
+        available->state.store(VoiceState::Ready,
+                               std::memory_order_release);
+        m_idleUpdateCount = 0u;
+        if (!ensureStarted()) {
+            available->state.store(VoiceState::Free,
+                                   std::memory_order_release);
+            return AudioBackendPlayResult::Failed;
+        }
+        return AudioBackendPlayResult::Played;
+    }
+
+    void update() noexcept override
+    {
+        if (m_queue == nullptr || !m_started || m_idlePaused ||
+            m_paused.load(std::memory_order_acquire) ||
+            m_failed.load(std::memory_order_acquire) ||
+            m_stopping.load(std::memory_order_acquire)) {
+            return;
+        }
+        if (voiceCount() != 0u) {
+            m_idleUpdateCount = 0u;
+            return;
+        }
+        if (++m_idleUpdateCount < IdleUpdatesBeforePause) {
+            return;
+        }
+        if (AudioQueuePause(m_queue) == noErr) {
+            m_idlePaused = true;
+        }
+        else {
+            m_failed.store(true, std::memory_order_release);
+        }
+    }
+
+    void setPaused(bool paused) noexcept override
+    {
+        if (m_queue == nullptr ||
+            m_stopping.load(std::memory_order_acquire) ||
+            m_failed.load(std::memory_order_acquire) ||
+            paused == m_paused.load(std::memory_order_acquire)) {
+            return;
+        }
+        m_paused.store(paused, std::memory_order_release);
+
+        OSStatus status = noErr;
+        if (paused) {
+            if (m_started && !m_idlePaused) {
+                status = AudioQueuePause(m_queue);
+            }
+        }
+        else if (m_started && !m_idlePaused) {
+            status = AudioQueueStart(m_queue, nullptr);
+        }
+        if (status != noErr) {
+            m_failed.store(true, std::memory_order_release);
+        }
+    }
+
+    void stopAll() noexcept override
+    {
+        // Do not recycle a slot while the realtime callback may still be
+        // reading it. Cancellation becomes Free on the callback thread.
+        for (Voice &voice : m_voices) {
+            VoiceState expected = VoiceState::Ready;
+            voice.state.compare_exchange_strong(
+                expected, VoiceState::Cancelled,
+                std::memory_order_acq_rel,
+                std::memory_order_acquire);
+        }
+    }
+
+    std::size_t activeVoices() const noexcept override
+    {
+        return m_failed.load(std::memory_order_acquire) ? 0u
+                                                        : voiceCount();
+    }
+
+    const char *name() const noexcept override
+    {
+        return "macos-audioqueue";
+    }
+
+    bool isReal() const noexcept override
+    {
+        return !m_failed.load(std::memory_order_acquire);
+    }
+
+  private:
+    enum class VoiceState : std::uint8_t {
+        Free,
+        Reserved,
+        Ready,
+        Cancelled
+    };
+
+    struct Voice {
+        std::atomic<VoiceState> state{VoiceState::Free};
+        const AudioDefinition *definition = nullptr;
+        const AudioSampleData *sample = nullptr;
+        std::size_t frame = 0;
+        float leftGain = 0.f;
+        float rightGain = 0.f;
+    };
+
+    static constexpr int SampleRate = AudioSampleBank::RequiredSampleRate;
+    static constexpr std::size_t ChannelCount = 2u;
+    static constexpr std::size_t BitsPerChannel = 16u;
+    static constexpr std::size_t BytesPerFrame =
+        ChannelCount * (BitsPerChannel / 8u);
+    static constexpr std::size_t BufferFrames = 512u;
+    static constexpr UInt32 BufferBytes = static_cast<UInt32>(
+        BufferFrames * BytesPerFrame);
+    static constexpr std::size_t BufferCount = 3u;
+    static constexpr std::size_t IdleUpdatesBeforePause = 30u;
+
+    static void outputCallback(void *userData, AudioQueueRef queue,
+                               AudioQueueBufferRef buffer) noexcept
+    {
+        if (userData == nullptr || buffer == nullptr) {
+            return;
+        }
+        static_cast<MacAudioQueueBackend *>(userData)->renderAndEnqueue(
+            queue, buffer);
+    }
+
+    void renderAndEnqueue(AudioQueueRef queue,
+                          AudioQueueBufferRef buffer) noexcept
+    {
+        std::array<float, BufferFrames * ChannelCount> mixed{};
+        if (m_stopping.load(std::memory_order_acquire) ||
+            m_failed.load(std::memory_order_acquire) || queue == nullptr ||
+            queue != m_queue) {
+            return;
+        }
+
+        if (!m_paused.load(std::memory_order_acquire)) {
+            for (Voice &voice : m_voices) {
+                const VoiceState state =
+                    voice.state.load(std::memory_order_acquire);
+                if (state == VoiceState::Cancelled) {
+                    deactivateVoice(voice);
+                    continue;
+                }
+                if (state != VoiceState::Ready) {
+                    continue;
+                }
+                if (voice.sample == nullptr ||
+                    voice.frame >= voice.sample->monoSamples.size()) {
+                    deactivateVoice(voice);
+                    continue;
+                }
+                const std::size_t remaining =
+                    voice.sample->monoSamples.size() - voice.frame;
+                const std::size_t frames =
+                    std::min(BufferFrames, remaining);
+                for (std::size_t frame = 0; frame < frames; ++frame) {
+                    const float source =
+                        static_cast<float>(voice.sample->monoSamples[
+                            voice.frame + frame]) /
+                        32768.f;
+                    mixed[frame * ChannelCount] +=
+                        source * voice.leftGain;
+                    mixed[frame * ChannelCount + 1u] +=
+                        source * voice.rightGain;
+                }
+                voice.frame += frames;
+                if (voice.frame >= voice.sample->monoSamples.size()) {
+                    deactivateVoice(voice);
+                }
+            }
+        }
+
+        auto *output = static_cast<std::int16_t *>(buffer->mAudioData);
+        for (std::size_t index = 0; index < mixed.size(); ++index) {
+            output[index] = toPcmSample(mixed[index]);
+        }
+        buffer->mAudioDataByteSize = BufferBytes;
+        const OSStatus status =
+            AudioQueueEnqueueBuffer(queue, buffer, 0, nullptr);
+        if (status != noErr) {
+            m_failed.store(true, std::memory_order_release);
+        }
+    }
+
+    void deactivateVoice(Voice &voice) noexcept
+    {
+        voice.state.store(VoiceState::Free, std::memory_order_release);
+    }
+
+    void clearVoices() noexcept
+    {
+        for (Voice &voice : m_voices) {
+            deactivateVoice(voice);
+        }
+    }
+
+    std::size_t voiceCount() const noexcept
+    {
+        return static_cast<std::size_t>(std::count_if(
+            m_voices.begin(), m_voices.end(), [](const Voice &voice) {
+                return voice.state.load(std::memory_order_acquire) !=
+                       VoiceState::Free;
+            }));
+    }
+
+    bool ensureStarted() noexcept
+    {
+        if (m_started && !m_idlePaused) {
+            return true;
+        }
+        if (m_queue == nullptr ||
+            AudioQueueStart(m_queue, nullptr) != noErr) {
+            m_failed.store(true, std::memory_order_release);
+            return false;
+        }
+        m_started = true;
+        m_idlePaused = false;
+        return true;
+    }
+
+    void shutdown() noexcept
+    {
+        if (m_queue == nullptr) {
+            return;
+        }
+        m_stopping.store(true, std::memory_order_release);
+        if (m_started) {
+            AudioQueueStop(m_queue, true);
+        }
+        AudioQueueDispose(m_queue, true);
+        clearVoices();
+        m_queue = nullptr;
+        m_started = false;
+        for (AudioQueueBufferRef &buffer : m_buffers) {
+            buffer = nullptr;
+        }
+    }
+
+    static std::string statusError(const char *operation,
+                                   OSStatus status)
+    {
+        return std::string(operation) + " failed with code " +
+               std::to_string(static_cast<long long>(status));
+    }
+
+    AudioQueueRef m_queue = nullptr;
+    std::array<AudioQueueBufferRef, BufferCount> m_buffers{};
+    std::array<Voice, MaxGlobalVoices> m_voices{};
+    std::atomic<bool> m_paused{false};
+    std::atomic<bool> m_stopping{false};
+    std::atomic<bool> m_failed{false};
+    std::size_t m_idleUpdateCount = 0u;
+    bool m_started = false;
+    bool m_idlePaused = false;
 };
 #endif
 
@@ -245,6 +658,8 @@ std::unique_ptr<IAudioBackend> platformBackend()
 {
 #if defined(_WIN32)
     return std::make_unique<WindowsWaveOutBackend>();
+#elif defined(__APPLE__) && defined(__MACH__)
+    return std::make_unique<MacAudioQueueBackend>();
 #else
     return nullptr;
 #endif
@@ -286,6 +701,12 @@ void DummyAudioBackend::update() noexcept
 void DummyAudioBackend::setPaused(bool paused) noexcept
 {
     m_paused = paused;
+}
+
+void DummyAudioBackend::stopAll() noexcept
+{
+    m_activeVoices = 0;
+    m_activeByCue.clear();
 }
 
 std::size_t DummyAudioBackend::activeVoices() const noexcept
@@ -399,6 +820,7 @@ AudioRuntime::AudioRuntime(AudioDefinitionRegistry definitions,
     , m_backend(std::move(backend))
     , m_degradedReason(std::move(degradedReason))
 {
+    m_backendStartedReal = m_backend != nullptr && m_backend->isReal();
 }
 
 AudioRuntime::~AudioRuntime()
@@ -465,6 +887,10 @@ void AudioRuntime::detach() noexcept
     }
     m_subscriptions.clear();
     m_eventBus = nullptr;
+    if (m_backend != nullptr) {
+        m_backend->stopAll();
+    }
+    m_stats.activeVoices = 0;
 }
 
 float AudioRuntime::nextFeedbackGain() noexcept
@@ -481,11 +907,14 @@ void AudioRuntime::submit(AudioPlaybackEvent event) noexcept
         ++m_stats.missingDefinitions;
         return;
     }
+    if (definition->id.rfind("ambient.", 0) == 0) {
+        ++m_stats.ambientEvents;
+    }
     if (m_worldPaused && definition->category != AudioCategory::Ui) {
         ++m_stats.suppressedEvents;
         return;
     }
-    if (m_settings.audioCaptions && m_captionSink &&
+    if (event.caption && m_settings.audioCaptions && m_captionSink &&
         !definition->caption.empty()) {
         try {
             m_captionSink(definition->id, definition->caption);
@@ -526,6 +955,7 @@ void AudioRuntime::submit(AudioPlaybackEvent event) noexcept
         ++m_stats.backendFailures;
         break;
     }
+    m_stats.activeVoices = m_backend->activeVoices();
 }
 
 void AudioRuntime::emitUiClick() noexcept
@@ -540,6 +970,13 @@ void AudioRuntime::update(float deltaSeconds, bool worldSimulationActive,
     if (m_backend != nullptr) {
         m_backend->update();
         m_stats.activeVoices = m_backend->activeVoices();
+        if (m_backendStartedReal && !m_backendFailureObserved &&
+            !m_backend->isReal()) {
+            ++m_stats.backendFailures;
+            m_backendFailureObserved = true;
+            m_degradedReason =
+                "native audio backend failed during playback";
+        }
     }
     if (!worldSimulationActive || m_worldPaused || m_muted) {
         return;
@@ -550,7 +987,6 @@ void AudioRuntime::update(float deltaSeconds, bool worldSimulationActive,
     }
     m_ambientElapsedSeconds =
         std::fmod(m_ambientElapsedSeconds, AmbientIntervalSeconds);
-    ++m_stats.ambientEvents;
     submit({"ambient.wind", false, glm::vec3(0.f), 1.f});
 }
 
@@ -567,11 +1003,19 @@ void AudioRuntime::setCaptionSink(
 
 void AudioRuntime::setWorldPaused(bool paused) noexcept
 {
+    if (paused && !m_worldPaused && m_backend != nullptr) {
+        // Cut already-buffered world feedback at the pause boundary while
+        // leaving the backend available for menu UI cues.
+        m_backend->stopAll();
+    }
     m_worldPaused = paused;
 }
 
 void AudioRuntime::setMuted(bool muted) noexcept
 {
+    if (muted && !m_muted && m_backend != nullptr) {
+        m_backend->stopAll();
+    }
     m_muted = muted;
 }
 
@@ -580,6 +1024,14 @@ void AudioRuntime::setSuspended(bool suspended) noexcept
     if (m_backend != nullptr) {
         m_backend->setPaused(suspended);
     }
+}
+
+void AudioRuntime::stopAllPlayback() noexcept
+{
+    if (m_backend != nullptr) {
+        m_backend->stopAll();
+    }
+    m_stats.activeVoices = 0;
 }
 
 const AudioRuntimeStats &AudioRuntime::stats() const noexcept
@@ -605,6 +1057,11 @@ const char *AudioRuntime::backendName() const noexcept
 bool AudioRuntime::usesRealBackend() const noexcept
 {
     return m_backend != nullptr && m_backend->isReal();
+}
+
+bool AudioRuntime::captionsEnabled() const noexcept
+{
+    return m_settings.audioCaptions;
 }
 
 const std::string &AudioRuntime::degradedReason() const noexcept
