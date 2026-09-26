@@ -87,6 +87,7 @@
 #include "../World/Block/BlockDatabase.h"
 #include "../World/Block/BlockData.h"
 #include "../World/Block/ChestContainer.h"
+#include "../World/Block/CrusherContainer.h"
 #include "../World/Block/FurnaceContainer.h"
 #include "../World/Block/TerrainMaterialProfile.h"
 #include "../World/Block/TerrainTextureArray.h"
@@ -1558,6 +1559,51 @@ namespace
                         "Container fixture failed to open the chest.");
                 }
                 m_containerFixturePlaced = true;
+            }
+
+            const char* machineFixture = std::getenv(
+                "HELLOMINE3D_MACHINE_FIXTURE");
+            if (machineFixture != nullptr && machineFixture[0] != '\0')
+            {
+                const std::string kind(machineFixture);
+                const char* fixtureSave = std::getenv("HELLOMINE3D_SAVE_DIR");
+                if ((kind != "furnace" && kind != "crusher") ||
+                    fixtureSave == nullptr || fixtureSave[0] == '\0')
+                {
+                    throw std::runtime_error(
+                        "Machine fixture requires furnace or crusher and an "
+                        "explicit diagnostic save directory.");
+                }
+                const bool crusher = kind == "crusher";
+                const glm::ivec3 position{
+                    World::toBlockCoord(m_worldPlayer->position.x) + 2,
+                    World::toBlockCoord(m_worldPlayer->position.y),
+                    World::toBlockCoord(m_worldPlayer->position.z) + 2};
+                m_world->setBlock(position.x, position.y, position.z,
+                                  BlockId::Air);
+                m_world->setBlock(position.x, position.y, position.z,
+                                  crusher ? BlockId::Crusher : BlockId::Furnace);
+                const bool initialized = crusher
+                    ? CrusherContainer::initialize(*m_world, position)
+                    : FurnaceContainer::initialize(*m_world, position);
+                const bool opened = initialized && (crusher
+                    ? CrusherContainer::open(*m_world, *m_worldPlayer, position)
+                    : FurnaceContainer::open(*m_world, *m_worldPlayer, position,
+                                             runtimeSmeltingRegistry()));
+                if (!opened)
+                {
+                    throw std::runtime_error("Machine fixture failed to open.");
+                }
+                // Preparation only; processing and transfers use the real UI.
+                m_worldPlayer->addItem(crusher ? Material::COBBLESTONE_BLOCK
+                                              : Material::IRON_ORE_BLOCK, 4);
+                m_worldPlayer->addItem(Material::COAL_ORE_BLOCK, 3);
+                m_worldPlayer->addItem(Material::SAND_BLOCK, 2);
+                m_worldPlayer->addItem(Material::DIRT_BLOCK, 8);
+                m_worldPlayer->addItem(Material::GLASS_BLOCK, 2);
+                m_containerFixturePlaced = true;
+                std::cout << "[MACHINE_FIXTURE] kind=" << kind
+                          << " preparation=diagnostic normal_input=0\n";
             }
 
             if (isTrueValue(std::getenv(

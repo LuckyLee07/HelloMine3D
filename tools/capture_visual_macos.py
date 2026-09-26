@@ -100,7 +100,7 @@ def main():
     parser.add_argument("--hud-fixture", action="store_true")
     parser.add_argument("--inspect-slot", type=int, choices=range(5), help="Item detail diagnostic; requires pointer panel and HUD fixture")
     parser.add_argument("--debug", action="store_true")
-    parser.add_argument("--panel", choices=("crafting", "container", "settings", "map", "journal", "pointer"))
+    parser.add_argument("--panel", choices=("crafting", "container", "furnace", "crusher", "settings", "map", "journal", "pointer"))
     parser.add_argument("--width", type=int, default=1280)
     parser.add_argument("--height", type=int, default=720)
     parser.add_argument("--pixel-ratio", type=int, choices=(1, 2), default=1,
@@ -251,6 +251,8 @@ seed random
         environment["HELLOMINE3D_ACTOR_VISUAL_DISTANCE"] = str(args.actor_distance)
     if args.panel in ("map", "journal", "pointer"):
         environment["HELLOMINE3D_HUD_PAGE_FIXTURE"] = args.panel
+    elif args.panel in ("furnace", "crusher"):
+        environment["HELLOMINE3D_MACHINE_FIXTURE"] = args.panel
     elif args.panel:
         key = "HELLOMINE3D_V10E_SETTINGS_FIXTURE" if args.panel == "settings" else (
             "HELLOMINE3D_" + args.panel.upper() + "_FIXTURE")
