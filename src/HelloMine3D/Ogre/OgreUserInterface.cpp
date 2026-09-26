@@ -5893,7 +5893,7 @@ class OgreUserInterface::Impl
                         stack.materialId, stack.amount,
                         widgetKey + std::to_string(slot),
                         ImVec2(std::max(1.f, ImGui::GetContentRegionAvail().x),
-                               (compact ? 60.f : 72.f) * scale),
+                               (compact ? 44.f : 72.f) * scale),
                         false, compact);
                     if (!clicked || stack.amount <= 0 ||
                         !slotView.extractable) return;
