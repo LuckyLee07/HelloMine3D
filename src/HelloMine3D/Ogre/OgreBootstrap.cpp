@@ -1025,7 +1025,8 @@ namespace
                     (m_actorVisualCapture != "idle" && m_actorVisualCapture != "windup" &&
                      m_actorVisualCapture != "recover" && m_actorVisualCapture != "walk" &&
                      m_actorVisualCapture != "cycle" && m_actorVisualCapture != "projectiles" &&
-                     m_actorVisualCapture != "projectile-flight"))
+                     m_actorVisualCapture != "projectile-flight" &&
+                     m_actorVisualCapture != "wildlife-cycle"))
                     throw std::runtime_error("Actor visual fixture requires diagnostic capture and a valid pose.");
                 std::cout << "[ACTOR_VISUAL_CAPTURE] pose=" << m_actorVisualCapture
                     << " evidence=developer-diagnostic normal_input=0\n";
@@ -3329,6 +3330,7 @@ namespace
                 return;
             }
             m_frameActorSnapshots = m_world->collectActorSnapshots();
+            const bool wildlifeGallery = m_actorVisualCapture == "wildlife-cycle";
             const bool actorGallery =
                 !m_actorVisualCapture.empty() &&
                 m_actorVisualCapture != "projectiles" &&
@@ -3336,7 +3338,7 @@ namespace
             std::vector<ActorSnapshot> gallerySnapshots;
             std::vector<ActorSnapshot>& snapshots =
                 actorGallery ? gallerySnapshots : m_frameActorSnapshots;
-            if (actorGallery)
+            if (actorGallery && !wildlifeGallery)
             {
                 // Fixed presentation gallery; no actors/items enter the World or save.
                 const Ogre::Vector3 view = m_camera->getDirection();
@@ -3391,6 +3393,38 @@ namespace
                     sample.itemAgeSeconds = m_actorVisualCaptureSeconds;
                     snapshots.push_back(sample);
                 }
+            }
+            if (wildlifeGallery)
+            {
+                // Render-only samples use production species dimensions and
+                // pose code. They never join the World or claim natural AI.
+                const Ogre::Vector3 view = m_camera->getDirection();
+                glm::vec3 forward(view.x, 0.f, view.z);
+                if (glm::length(forward) < .001f) forward = {0,0,-1};
+                forward = glm::normalize(forward);
+                const glm::vec3 right(-forward.z, 0.f, forward.x);
+                const Ogre::Vector3 eye = m_camera->getPosition();
+                const glm::vec3 origin(eye.x, eye.y - 1.2f, eye.z);
+                const char* types[]{WildlifeSpecies::Sheep, WildlifeSpecies::Rabbit,
+                                    WildlifeSpecies::MarshBird};
+                const int phase = static_cast<int>(m_actorVisualCaptureSeconds / 4.f) % 4;
+                for (int index = 0; index < 3; ++index) {
+                    WildlifeActor model(900021 + index, types[index], origin);
+                    ActorSnapshot sample = model.getSnapshot();
+                    sample.position += forward * m_actorVisualDistance + right * ((index - 1.f) * 1.3f);
+                    sample.rotation.y = glm::degrees(std::atan2(forward.x, forward.z)) + 55.f;
+                    sample.wildlifeActivity = phase;
+                    sample.wildlifeMotionSeconds = m_actorVisualCaptureSeconds;
+                    if (phase >= static_cast<int>(WildlifeActivity::Wander))
+                        sample.position += right * (.25f * std::sin(m_actorVisualCaptureSeconds * 3.f));
+                    if (!m_actorVisualGalleryLogged)
+                        std::cout << "[WILDLIFE_GALLERY] type=" << sample.type
+                                  << " dimensions=" << sample.dimensions.x << ','
+                                  << sample.dimensions.y << ',' << sample.dimensions.z
+                                  << " state_period_seconds=4 world_actor=0\n";
+                    snapshots.push_back(sample);
+                }
+                m_actorVisualGalleryLogged = true;
             }
             const Ogre::Vector3 renderEye = m_camera->getPosition();
             m_actorRenderer->sync(snapshots,

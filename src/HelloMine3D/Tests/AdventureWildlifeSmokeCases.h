@@ -116,6 +116,72 @@ void caseWildlifeReviewRegressions()
 void caseAdventureWildlife()
 {
     caseWildlifeReviewRegressions();
+    for (const char* type : {WildlifeSpecies::Sheep, WildlifeSpecies::Rabbit,
+                            WildlifeSpecies::MarshBird}) {
+        const auto profile = WildlifePresentation::profileFor(type);
+        ActorSnapshot sample;
+        sample.type = type;
+        const auto posedPoint = [&](const WildlifeVisualPose& pose,
+                                    std::size_t index, glm::vec3 reference) {
+            const auto relative = reference - profile.parts[index].offset;
+            const float angle = glm::radians(pose.rotations[index].x);
+            return profile.parts[index].offset + pose.offsets[index] + glm::vec3(
+                relative.x, std::cos(angle) * relative.y - std::sin(angle) * relative.z,
+                std::sin(angle) * relative.y + std::cos(angle) * relative.z);
+        };
+        std::size_t head = 0;
+        for (std::size_t i = 0; i < profile.partCount; ++i)
+            if (profile.parts[i].role == WildlifeVisualRole::Head) head = i;
+        bool lowersFront = true, attached = true, earsRooted = true, neutral = true;
+        for (float strength : {.35f, 1.f}) for (float seconds : {0.f, .46f, 1.3f}) {
+            sample.wildlifeActivity = static_cast<int>(WildlifeActivity::Forage);
+            sample.wildlifeMotionSeconds = seconds;
+            const auto pose = WildlifePresentation::poseFor(sample, profile, 0.f, strength);
+            const auto frontRole = profile.speciesIndex == 0 ? WildlifeVisualRole::Muzzle :
+                profile.speciesIndex == 1 ? WildlifeVisualRole::Head : WildlifeVisualRole::Beak;
+            for (std::size_t i = 0; i < profile.partCount; ++i) {
+                const auto& part = profile.parts[i];
+                if (part.role == frontRole) {
+                    const auto front = part.offset + glm::vec3(0.f, 0.f, -.5f * part.scale.z);
+                    lowersFront &= posedPoint(pose, i, front).y < front.y - .001f;
+                }
+                if (part.role != WildlifeVisualRole::Ear &&
+                    part.role != WildlifeVisualRole::Muzzle &&
+                    part.role != WildlifeVisualRole::Beak &&
+                    part.role != WildlifeVisualRole::Neck) continue;
+                // A point in the original overlapping volumes must remain
+                // shared after articulation, even at the extreme feed pose.
+                const auto& headPart = profile.parts[head];
+                const auto lo = glm::max(part.offset - part.scale * .5f,
+                                        headPart.offset - headPart.scale * .5f);
+                const auto hi = glm::min(part.offset + part.scale * .5f,
+                                        headPart.offset + headPart.scale * .5f);
+                const auto seam = (lo + hi) * .5f;
+                attached &= glm::all(glm::lessThanEqual(lo, hi)) &&
+                    glm::distance(posedPoint(pose, i, seam),
+                                  posedPoint(pose, head, seam)) < .00001f;
+                if (part.role == WildlifeVisualRole::Ear) {
+                    sample.wildlifeActivity = static_cast<int>(WildlifeActivity::Flee);
+                    const auto flee = WildlifePresentation::poseFor(sample, profile, 1.f, strength);
+                    const auto root = part.offset - glm::vec3(0.f, .5f * part.scale.y, 0.f);
+                    earsRooted &= glm::distance(posedPoint(flee, i, root),
+                                                posedPoint(flee, head, root)) < .00001f;
+                    sample.wildlifeActivity = static_cast<int>(WildlifeActivity::Forage);
+                }
+            }
+        }
+        const auto off = WildlifePresentation::poseFor(sample, profile, 1.f, 0.f);
+        sample.wildlifeActivity = static_cast<int>(WildlifeActivity::Rest);
+        const auto rest = WildlifePresentation::poseFor(sample, profile, 1.f, 1.f);
+        for (std::size_t i = 0; i < profile.partCount; ++i)
+            neutral &= off.offsets[i] == glm::vec3(0.f) && off.rotations[i] == glm::vec3(0.f) &&
+                       rest.offsets[i] == glm::vec3(0.f) && rest.rotations[i] == glm::vec3(0.f);
+        check(std::string("WILDLIFE-POSE/forage-lowers-front/") + type, lowersFront);
+        check(std::string("WILDLIFE-POSE/head-attachments-stay-connected/") + type, attached);
+        if (profile.speciesIndex == 1)
+            check("WILDLIFE-POSE/flee-ears-rooted-in-head", earsRooted);
+        check(std::string("WILDLIFE-POSE/off-and-rest-are-neutral/") + type, neutral);
+    }
     {
         const auto sheep = WildlifePresentation::profileFor(
             WildlifeSpecies::Sheep);
@@ -170,8 +236,8 @@ void caseAdventureWildlife()
         bool peckChanges = false;
         for (std::size_t index = 0; index < bird.partCount; ++index)
             if (bird.parts[index].role == WildlifeVisualRole::Beak)
-                peckChanges = peckB.rotations[index].x >
-                    peckA.rotations[index].x + 5.f;
+                peckChanges = peckB.rotations[index].x <
+                    peckA.rotations[index].x - 5.f;
         check("ADVENTURE-WILDLIFE/forage-is-live-not-frozen",
             peckChanges);
     }

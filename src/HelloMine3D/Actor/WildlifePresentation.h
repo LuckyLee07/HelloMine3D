@@ -150,6 +150,19 @@ namespace WildlifePresentation {
             : 0.f;
         const float foragePitch = (12.f +
             7.f * std::sin(snapshot.wildlifeMotionSeconds * 3.4f)) * strength;
+        // Models face -Z. A negative X pitch lowers the muzzle; all head
+        // attachments orbit the same neck instead of rotating in place.
+        const float headPitch = activity == WildlifeActivity::Forage ?
+            -foragePitch : activity == WildlifeActivity::Flee ? 8.f * strength : 0.f;
+        const glm::vec3 neckPivot = profile.speciesIndex == 0 ?
+            glm::vec3(0.f, .23f, -.16f) : profile.speciesIndex == 1 ?
+            glm::vec3(0.f, .05f, -.19f) : glm::vec3(0.f, -.10f, -.25f);
+        const auto pitchVector = [](glm::vec3 value, float degrees) {
+            const float angle = glm::radians(degrees);
+            return glm::vec3(value.x,
+                std::cos(angle) * value.y - std::sin(angle) * value.z,
+                std::sin(angle) * value.y + std::cos(angle) * value.z);
+        };
         for (std::size_t index = 0; index < profile.partCount; ++index) {
             const auto role = profile.parts[index].role;
             if (role == WildlifeVisualRole::Leg)
@@ -159,15 +172,18 @@ namespace WildlifePresentation {
             if (role == WildlifeVisualRole::Head ||
                 role == WildlifeVisualRole::Muzzle ||
                 role == WildlifeVisualRole::Neck ||
-                role == WildlifeVisualRole::Beak) {
-                if (activity == WildlifeActivity::Forage)
-                    pose.rotations[index].x = foragePitch;
-                else if (activity == WildlifeActivity::Flee)
-                    pose.rotations[index].x = -8.f * strength;
+                role == WildlifeVisualRole::Beak ||
+                role == WildlifeVisualRole::Ear) {
+                const auto& part = profile.parts[index];
+                const float earPitch = role == WildlifeVisualRole::Ear &&
+                    activity == WildlifeActivity::Flee ? 12.f * strength : 0.f;
+                const glm::vec3 earRoot(0.f, -.5f * part.scale.y, 0.f);
+                const glm::vec3 localOffset = earRoot - pitchVector(earRoot, earPitch);
+                pose.rotations[index].x = headPitch + earPitch;
+                if (headPitch != 0.f || earPitch != 0.f)
+                    pose.offsets[index] = neckPivot + pitchVector(
+                        part.offset + localOffset - neckPivot, headPitch) - part.offset;
             }
-            if (role == WildlifeVisualRole::Ear &&
-                activity == WildlifeActivity::Flee)
-                pose.rotations[index].x = 12.f * strength;
             if (role == WildlifeVisualRole::Wing && walking)
                 pose.rotations[index].z =
                     (profile.parts[index].offset.x < 0.f ? -1.f : 1.f) *
