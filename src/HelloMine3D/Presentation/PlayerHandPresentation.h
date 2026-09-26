@@ -13,6 +13,37 @@ struct Face {
 };
 using Mesh = std::vector<Face>;
 
+struct LightingState {
+    float exposure = .12f;
+    bool initialized = false;
+};
+
+// Match the current terrain's local-light shaping and day/night exposure.
+// Inputs are copied light-level brightness values, never world queries.
+inline float lightingExposure(float sunlight, float blockLight, float daylight)
+{
+    const auto bounded = [](float value, float fallback) {
+        return std::isfinite(value) ? std::clamp(value, 0.f, 1.f) : fallback;
+    };
+    const float local = std::max(bounded(sunlight, .15f), bounded(blockLight, .15f));
+    return (.24f + .76f * local) * (.34f + .66f * bounded(daylight, 0.f));
+}
+
+inline float updateLighting(LightingState& state, bool known, float sunlight,
+                            float blockLight, float daylight, float deltaSeconds)
+{
+    if (!known) return state.exposure;
+    const float target = lightingExposure(sunlight, blockLight, daylight);
+    if (!state.initialized) {
+        state.exposure = target;
+        state.initialized = true;
+    } else if (std::isfinite(deltaSeconds) && deltaSeconds > 0.f) {
+        state.exposure += (target - state.exposure) *
+            (1.f - std::exp(-std::min(deltaSeconds, .25f) / .1f));
+    }
+    return state.exposure;
+}
+
 inline glm::vec3 turn(glm::vec3 point, float angle)
 {
     return {point.x * std::cos(angle) - point.y * std::sin(angle),

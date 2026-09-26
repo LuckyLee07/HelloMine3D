@@ -808,6 +808,11 @@ class OgreUserInterface::Impl
         ImGui::NewFrame();
         framePending = true;
         worldStats = stats;
+        PlayerHandPresentation::updateLighting(heldLighting,
+            stats.playerLocalLightKnown,
+            lightLevelToBrightness(stats.playerSunlight),
+            lightLevelToBrightness(stats.playerBlockLight),
+            stats.environment.daylight, frameSeconds);
         miningProgress = progress;
         actionFeedback = feedback;
         const float targetMovement = player != nullptr &&
@@ -3068,7 +3073,7 @@ class OgreUserInterface::Impl
         std::vector<ProjectedFace> faces;
         faces.reserve(geometry.size() + hand.size());
         const auto& atlas = runtimeTerrainMaterialProfile().parameters();
-        const float exposure = .42f + .58f * std::clamp(worldStats.environment.daylight, 0.f, 1.f);
+        const float exposure = heldLighting.exposure;
         const auto project = [&](const ItemVisualGeometry::Face& face, glm::vec3 colour, bool textured) {
             const glm::vec3 normal = pose.rotate(face.normal);
             glm::vec3 midpoint(0.f);
@@ -7073,6 +7078,7 @@ class OgreUserInterface::Impl
     ImVec4 interactionFeedbackColour = ImVec4(1.f, 1.f, 1.f, 1.f);
     double hudElapsedSeconds = 0.0;
     float heldMovement = 0.f;
+    PlayerHandPresentation::LightingState heldLighting;
     float performanceSampleSeconds = 0.f;
     float performanceSamplePeakMs = 0.f;
     float displayedFramesPerSecond = 0.f;
@@ -7345,6 +7351,7 @@ void OgreUserInterface::setWorldContext(Player *player,
     }
     m_impl->player = player;
     m_impl->world = world;
+    m_impl->heldLighting = {};
     m_impl->dismissedVictoryEpoch = 0;
     m_impl->previousPlayerHealth = -1.f;
     m_impl->difficultyDraftInitialized = false;

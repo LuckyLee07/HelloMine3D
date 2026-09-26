@@ -127,6 +127,10 @@ struct WorldDebugStats {
     std::size_t wildlifeBlockQueriesDenied = 0;
     float playerHealth = 0.f;
     float playerMaxHealth = 0.f;
+    // Copied light at the real player eye, never a missing-chunk sky fallback.
+    bool playerLocalLightKnown = false;
+    LightLevel playerSunlight = MIN_LIGHT_LEVEL;
+    LightLevel playerBlockLight = MIN_LIGHT_LEVEL;
     int foodCooldownTicksRemaining = 0;
     int attackCooldownTicksRemaining = 0;
     CombatRuntimeDebugStats combat;

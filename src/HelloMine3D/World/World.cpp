@@ -3893,6 +3893,42 @@ WorldDebugStats World::collectDebugStats()
     }
     stats.playerHealth = m_playerActor.getHealth();
     stats.playerMaxHealth = m_playerActor.getMaxHealth();
+    if (m_player != nullptr) {
+        const glm::vec3 eye =
+            m_player->position + glm::vec3(0.f, .6f, 0.f);
+        const auto checkedBlockCoordinate = [](float value, int &result) {
+            if (!std::isfinite(value)) {
+                return false;
+            }
+            const double coordinate = std::floor(static_cast<double>(value));
+            if (coordinate < std::numeric_limits<int>::min() ||
+                coordinate > std::numeric_limits<int>::max()) {
+                return false;
+            }
+            result = static_cast<int>(coordinate);
+            return true;
+        };
+        int x = 0;
+        int y = 0;
+        int z = 0;
+        if (checkedBlockCoordinate(eye.x, x) &&
+            checkedBlockCoordinate(eye.y, y) &&
+            checkedBlockCoordinate(eye.z, z) && y >= 0) {
+            const auto owner = getChunkXZ(x, z);
+            const Chunk *chunk =
+                m_chunkManager.findChunk(owner.x, owner.z);
+            if (chunk != nullptr && chunk->hasLoaded()) {
+                const auto local = getBlockXZ(x, z);
+                // The existing lock covers both values from the same resident
+                // column. Above its sections, Chunk defines open sky and no
+                // block light; no section or chunk is created by these reads.
+                stats.playerSunlight = chunk->getSunlight(local.x, y, local.z);
+                stats.playerBlockLight =
+                    chunk->getBlockLight(local.x, y, local.z);
+                stats.playerLocalLightKnown = true;
+            }
+        }
+    }
     stats.foodCooldownTicksRemaining = m_foodCooldownTicksRemaining;
     stats.attackCooldownTicksRemaining = m_attackCooldownTicksRemaining;
     stats.combatFeedback = m_playerCombatFeedback;

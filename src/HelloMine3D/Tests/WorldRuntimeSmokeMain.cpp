@@ -6727,6 +6727,79 @@ void caseBlockLightStorage()
               "level=" +
                   std::to_string(world.getBlockLight(6, floorY + 1, z)));
 
+        const glm::vec3 originalPlayerPosition = player.position;
+        player.position = {targetX + .5f, floorY + .5f, z + .5f};
+        const WorldDebugStats litPlayer = world.collectDebugStats();
+        check("L2/player-eye-snapshot-reads-resident-sky-and-block-light",
+              litPlayer.playerLocalLightKnown &&
+                  litPlayer.playerSunlight == MIN_LIGHT_LEVEL &&
+                  litPlayer.playerBlockLight == 13);
+
+        world.setBlock(sourceX, floorY + 1, z, BlockId::Air);
+        const WorldDebugStats darkPlayer = world.collectDebugStats();
+        check("L2/player-eye-snapshot-follows-light-removal",
+              darkPlayer.playerLocalLightKnown &&
+                  darkPlayer.playerSunlight == MIN_LIGHT_LEVEL &&
+                  darkPlayer.playerBlockLight == MIN_LIGHT_LEVEL);
+        check("L2/player-eye-snapshot-is-a-copied-value",
+              litPlayer.playerLocalLightKnown &&
+                  litPlayer.playerSunlight == MIN_LIGHT_LEVEL &&
+                  litPlayer.playerBlockLight == 13);
+        world.setBlock(sourceX, floorY + 1, z, BlockId::Torch);
+
+        player.position = {
+            8.5f, static_cast<float>(chunk->getSectionCount() * CHUNK_SIZE) + 2.f,
+            8.5f};
+        const WorldDebugStats openSkyPlayer = world.collectDebugStats();
+        check("L2/player-eye-above-resident-sections-is-open-sky",
+              openSkyPlayer.playerLocalLightKnown &&
+                  openSkyPlayer.playerSunlight == MAX_LIGHT_LEVEL &&
+                  openSkyPlayer.playerBlockLight == MIN_LIGHT_LEVEL);
+
+        world.setBlock(-1, floorY + 1, -1, BlockId::Torch);
+        player.position = {-.25f, floorY + .5f, -.25f};
+        const WorldDebugStats negativePlayer = world.collectDebugStats();
+        check("L2/player-eye-negative-coordinates-use-owning-chunk",
+              negativePlayer.playerLocalLightKnown &&
+                  negativePlayer.playerSunlight == MAX_LIGHT_LEVEL &&
+                  negativePlayer.playerBlockLight == 14);
+        world.setBlock(-1, floorY + 1, -1, BlockId::Air);
+
+        const auto residentCount =
+            world.getChunkManager().collectDebugStats().existingChunks;
+        player.position = {1000000.f, 201.f, -1000000.f};
+        const WorldDebugStats absentPlayer = world.collectDebugStats();
+        check("L2/player-eye-missing-chunk-is-unknown-without-generation",
+              !absentPlayer.playerLocalLightKnown &&
+                  absentPlayer.playerSunlight == MIN_LIGHT_LEVEL &&
+                  absentPlayer.playerBlockLight == MIN_LIGHT_LEVEL &&
+                  absentPlayer.chunks.existingChunks == residentCount);
+
+        const float nan = std::numeric_limits<float>::quiet_NaN();
+        const float infinity = std::numeric_limits<float>::infinity();
+        const float beyondInteger =
+            static_cast<float>(std::numeric_limits<int>::max());
+        const std::array<glm::vec3, 10> invalidPlayerPositions{{
+            {nan, 201.f, 8.f}, {8.f, nan, 8.f}, {8.f, 201.f, nan},
+            {infinity, 201.f, 8.f}, {8.f, infinity, 8.f},
+            {8.f, 201.f, -infinity},
+            {beyondInteger, 201.f, 8.f}, {8.f, beyondInteger, 8.f},
+            {8.f, 201.f, -beyondInteger - 512.f},
+            {8.f, -1.f, 8.f},
+        }};
+        bool invalidUnknown = true;
+        for (const glm::vec3 &position : invalidPlayerPositions) {
+            player.position = position;
+            const WorldDebugStats invalid = world.collectDebugStats();
+            invalidUnknown &= !invalid.playerLocalLightKnown &&
+                invalid.playerSunlight == MIN_LIGHT_LEVEL &&
+                invalid.playerBlockLight == MIN_LIGHT_LEVEL &&
+                invalid.chunks.existingChunks == residentCount;
+        }
+        check("L2/player-eye-invalid-coordinates-remain-unknown",
+              invalidUnknown);
+        player.position = originalPlayerPosition;
+
         SectionMeshInput input;
         section->captureMeshInput(input);
         int blockLightMismatches = 0;

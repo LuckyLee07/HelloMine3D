@@ -16,6 +16,39 @@ bool near(glm::vec3 a, glm::vec3 b) { return glm::length(a-b) < .00002f; }
 int main()
 {
     using namespace PlayerHandPresentation;
+    const float dark = lightingExposure(.15f, .15f, 1.f);
+    check("local-light-distinguishes-daylit-cave-and-torch",
+          dark < .4f && dark > .1f &&
+          lightingExposure(1.f, .15f, 1.f) > .99f &&
+          lightingExposure(.15f, 1.f, 1.f) > .99f &&
+          lightingExposure(.15f, .15f, 0.f) < dark);
+    LightingState first;
+    const float unknown = updateLighting(first, false, 1.f, 1.f, 1.f, .1f);
+    check("unknown-sample-never-flashes-bright-and-first-known-snaps",
+          !first.initialized && unknown < .4f &&
+          std::abs(updateLighting(first, true, .15f, .15f, 1.f, 0.f) - dark) < 1e-6f);
+    const float retained = first.exposure;
+    check("unloaded-sample-keeps-light-and-paused-frame-does-not-advance",
+          updateLighting(first, false, 1.f, 1.f, 1.f, 1.f) == retained &&
+          updateLighting(first, true, 1.f, 1.f, 1.f, 0.f) == retained);
+    LightingState at30{dark, true}, at60{dark, true};
+    bool monotonic = true;
+    for (int frame = 0; frame < 30; ++frame) {
+        const float before = at30.exposure;
+        updateLighting(at30, true, 1.f, .15f, 1.f, 1.f / 30.f);
+        monotonic &= at30.exposure >= before && at30.exposure <= 1.f;
+    }
+    for (int frame = 0; frame < 60; ++frame)
+        updateLighting(at60, true, 1.f, .15f, 1.f, 1.f / 60.f);
+    check("lighting-transition-is-bounded-and-frame-rate-independent",
+          monotonic && std::abs(at30.exposure - at60.exposure) < 1e-5f);
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    const float inf = std::numeric_limits<float>::infinity();
+    LightingState invalid;
+    check("invalid-light-and-delta-remain-finite",
+          std::isfinite(updateLighting(invalid, true, nan, inf, nan, inf)) &&
+          updateLighting(invalid, true, 1.f, 1.f, 1.f, nan) == invalid.exposure &&
+          lightingExposure(-1.f, 5.f, 5.f) <= 1.f);
     bool geometry = true, bounded = true, projection = true, rigid = true;
     for (auto grip : {Grip::Empty, Grip::Icon, Grip::Block}) {
         const auto& hand = mesh(grip);
