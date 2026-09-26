@@ -39,8 +39,8 @@ Premake 从共享的 `src/HelloMine3D` 与资源边界生成 `build/` 下工程�
 | `Actor/` | 21 / 2,348 | Actor id、生命周期、Living/Mob/Player/Item actor 行为、存档值和不可变渲染快照。 | `ActorManager` 拥有的 Actor 实例为权威；`ActorSnapshot` 与 `ActorSaveState` 是发布/序列化值。 | 由 World 拥有；Actor tick 可回调 World 并发布 Sandbox 事件；依赖 Item、Player、Entity、Maths。 |
 | `Feedback/` | 2 / 361 | 从已提交领域事件和开采进度生成有界 recoil、hit-stop、粒子等表现时间线；提供注册模型的表面几何。 | 全部为派生表现状态；不得改变战斗、方块、库存或存档结果。 | 订阅 Sandbox EventBus；由 Sandbox 更新，Ogre 消费 snapshot 和表面几何。 |
 | `Gameplay/` | 15 / 2,340 | 目标、Alpha Journey 兼容视图、胜利、Waystone 遭遇、难度、探索奖励和胜利后事件语义。 | 注册表冻结定义和 World 所持运行时实例/保存 payload 为权威；HUD/progress snapshot 为派生。目标 definition 当前为 v3。 | 依赖 Actor、Item、Player、Sandbox Events、Maths/Util；具体实例由 World 组合。 |
-| `Audio/` | 12 / 2,626 | cue/music 定义、样本缓存、流式音乐状态、真实/静默后端和音频统计。 | 定义与播放状态只对音频域权威，不是 Gameplay 真值；caption/cue 输出为派生。 | 订阅 Sandbox facts；使用 Maths/Util；由 Ogre shell 组合和逐帧更新。 |
-| `Presentation/` | 8 / 812 | 语义文本、locale fallback、caption 生命周期/优先级和布局探针。 | catalogue 是显示语义来源；渲染文本和布局为派生，翻译字符串不得充当玩法 identity。 | 依赖 Item/Util；Ogre UI 消费，不反向修改 Gameplay。 |
+| `Audio/` | 12 / 2,626 | cue/music 定义、冻结采样缓存、Windows `waveOut`、macOS `AudioQueue`、流式音乐、静默后端和音频统计。 | 定义与播放状态只对音频域权威，不是 Gameplay 真值；caption/cue 输出为派生。 | 订阅 Sandbox facts；使用 Maths/Util；由 Ogre shell 组合和逐帧更新。 |
+| `Presentation/` | 8 / 812 | 语义文本、locale fallback、caption 生命周期/优先级、布局探针及从只读世界值派生的有界冒险声音调度。 | catalogue 是显示语义来源；渲染文本、布局和声音调度状态均为派生，不能充当玩法 identity 或写回世界。 | 纯调度使用值输入，适配器读取 Item/World 类型；Ogre 壳组合并消费，不反向修改 Gameplay。 |
 | `Ogre/` | 17 / 8,940 | Ogre/GL3Plus/OIS 启动、窗口/焦点/输入、GPU terrain/actor/UI、音频组合、截图和帧序。 | GPU buffer、scene node、UI、方块表面反馈、capture 为派生；绝不拥有 Gameplay truth。 | 向内依赖 Sandbox、World snapshots、Actor/Audio/Presentation/Diagnostics/Item/Gameplay 等；第一方模拟层不得反向依赖 Ogre。 |
 | `Diagnostics/` | 16 / 2,581 | 性能采集、Q2 操作阶段、Tracy 边界、崩溃 dump/sidecar/inbox 和 terrain buffer metrics。 | 指标和崩溃产物是观察/诊断记录，不驱动 Gameplay。 | 可被 World/Sandbox/Ogre 使用；Windows 异常与 DbgHelp 只留在平台实现。 |
 | `Player/` | 4 / 557 | 玩家运动、碰撞、输入应用、库存访问、容器/制作 UI ownership 和保存值。 | `Player` 拥有当前运动、旋转、库存与 UI 打开状态；战斗生命由 World 的 `PlayerActor` 镜像/覆盖后存盘。 | 依赖 Entity、Item、World 查询、Sandbox Events；由 SandboxRuntime 拥有。 |
@@ -846,8 +846,8 @@ UI/兼容路径沿用独立旧图集；旧资源包覆盖、能力不足与用�
 
 ## 12. Frozen Version and Boundary Facts
 
-| Identity | A0 value |
-| -------- | -------- |
+| Identity | A0 value / later override |
+| -------- | ------------------------- |
 | world save format | v12 |
 | terrain generation | v5 |
 | runtime settings | v9 |
@@ -856,7 +856,7 @@ UI/兼容路径沿用独立旧图集；旧资源包覆盖、能力不足与用�
 | exploration reward | v1 |
 | difficulty profile | v1 |
 | post-victory event | v1 |
-| audio definitions | v3 |
+| audio definitions | A0 v3；当前正式 v4，继续读取完整 v3 |
 | music definitions | v1 |
 
 这些版本属于不同兼容性域，不能用 world save v12 推断其他定义已迁移，也不能因重建派生数据而
@@ -976,3 +976,23 @@ B6 世界列表预览复用真实 `ExplorationAtlas` 的已知格生成 `world-p
 `WorldManagementService` 才拒绝 symlink／非普通／超限文件并读取最多 4096 B；它仅通过
 `exploration.hmap` 文件长度和尾部已存 64 位 checksum 核对 source revision，不为菜单解析
 整份探索图。缺失、损坏、身份错和陈旧缓存均返回 UI fallback，不影响 catalogue 或开世界。
+
+冒险世界 B9 将正式 `Base.audio` 从 v3 升为 v4；注册表仍接受完整 v3，禁止多源混用版本。
+v4 保留原 9 个反馈 cue，并追加旷野、森林、内陆水、海岸、三种动物和四类双变体脚步，形成
+24 个 cue、23 个唯一冻结采样和 1,298,306 字节 PCM；既有 32 样本、4 MiB 解码缓存和 16 全局
+声部上限不变。Windows 继续使用 `waveOut`，macOS 使用单一 `AudioQueue` 混音队列；初始化或
+设备失败统一降级 dummy，不能阻止加载、保存、切世界或退出。
+
+`Presentation/AdventureAudioPresentation` 是无分配、固定容量的纯表现调度器；Ogre 适配层只把
+玩家位置/落地/飞行、脚下实际方块、daylight、真实动物快照及附近有界地表观察转换为值输入。
+调度器在旷野、森林、内陆水、海岸四种候选中最多保留三个有效环境层，权重约 2 秒平滑；Ogre
+使用四个固定重播槽，以旷野约 1.45 秒、其余层约 2.25 秒为昼夜中值重播短采样；白天密度和增益
+略高、夜间略低，不建立流式循环。
+调度器最多跟踪 24 个动物来源并在单帧提交最多三个 cue；河流/湖泊映射内陆水，Ocean 只有在
+同一有界探针格存在陆地证据时才映射海岸，纯外海保持无岸浪。脚步按真实水平位移和
+草土/石/木/沙支撑面派生。世界暂停执行一次 `stopAll` 并停止世界
+调度，同时保留暂停菜单 UI 音；失焦才全局挂起后端。HUD／容器等 UI 捕获冻结脚步与动物调度，
+世界未暂停时环境床继续；飞行、传送和 world epoch 负责重置对应临时累计。读取过程不加载区块、
+不揭示探索地图、不写 World/Actor/Player/存档。环境层首次可听和动物鸣叫可提交最低优先级字幕；
+环境重复与脚步关闭事件字幕，不能反复刷新或覆盖战斗警告。
+完整数据、生命周期、失败与验证边界见[音频反馈合同](../contracts/audio-feedback-contract-v1.md)。
