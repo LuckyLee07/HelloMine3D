@@ -20464,6 +20464,9 @@ void caseWorldManager()
 #include "AdventureLandmarkSmokeCases.h"
 #include "AdventureLandmarkApproachSmokeCases.h"
 #include "AdventureLandmarkWorkshopSmokeCases.h"
+#include "AdventureUndergroundSmokeCases.h"
+#include "AdventureUndergroundSafetySmokeCases.h"
+#include "AdventureUndergroundPerformanceCases.h"
 #include "TerrainSurfaceTransitionSmokeCases.h"
 #include "AdventureTerrainSmokeCases.h"
 #include "AdventureWaterSmokeCases.h"
@@ -20536,6 +20539,19 @@ int main()
         }
         else if (focus != nullptr && std::string(focus) == "ADVENTURE_WORKSHOP") {
             caseAdventureLandmarkWorkshops();
+        }
+        else if (focus != nullptr &&
+                 std::string(focus) == "ADVENTURE_UNDERGROUND_PERF") {
+            caseAdventureUndergroundGenerationPerformance();
+        }
+        else if (focus != nullptr &&
+                 std::string(focus) == "ADVENTURE_UNDERGROUND_GEOMETRY") {
+            caseAdventureUndergroundGeometryEvidence();
+        }
+        else if (focus != nullptr &&
+                 std::string(focus) == "ADVENTURE_UNDERGROUND") {
+            caseAdventureUndergroundV23();
+            caseAdventureUndergroundSafetyV23();
         }
         else if (focus != nullptr && std::string(focus) == "ADVENTURE_QUERY") {
             caseAdventureSurfaceQueryCache();
@@ -20949,6 +20965,8 @@ int main()
         caseAdventureLandmarkLayouts();
         caseAdventureLandmarkApproaches();
         caseAdventureLandmarkWorkshops();
+        caseAdventureUndergroundV23();
+        caseAdventureUndergroundSafetyV23();
         caseP11DExplorationRewards();
         caseVoxelOakCanopy();
         caseForestEcologyV7();
