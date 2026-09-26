@@ -1661,7 +1661,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 687 &&
+              registry.keys("en-US").size() == 702 &&
               registry.lookup("en-US", "main.continue") == "Continue" &&
               registry.lookup("zh-CN", "main.continue") == "继续游戏" &&
               registry.lookup("en-US", "world.preview_unavailable") ==
