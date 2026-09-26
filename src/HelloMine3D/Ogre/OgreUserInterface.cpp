@@ -5944,15 +5944,38 @@ class OgreUserInterface::Impl
 
                 const float contentWidth = ImGui::GetContentRegionAvail().x;
                 const float slotGap = compact ? 6.f * scale : 10.f * scale;
+                const bool fixedCrank = compact && processor->manualPowerSupported;
+                const bool powerFull = processor->powerTicksTotal > 0 &&
+                    processor->powerTicksRemaining >= processor->powerTicksTotal;
+                const auto drawCrank = [&](float width)
+                {
+                    ImGui::BeginDisabled(powerFull);
+                    if (ImGui::Button(label("crusher.crank", "##CrusherCrank").c_str(),
+                                      ImVec2(width, 36.f * scale)))
+                    {
+                        setMachineFeedback(capabilities.machineProcessor
+                            ->supplyManualPower(*world, *player)
+                                ? "machine.feedback.cranked"
+                                : "machine.feedback.retry");
+                    }
+                    ImGui::EndDisabled();
+                    if (powerFull && ImGui::IsItemHovered(
+                            ImGuiHoveredFlags_AllowWhenDisabled))
+                    {
+                        ImGui::SetTooltip("%s", tr("machine.feedback.power_full").c_str());
+                    }
+                };
                 const int playerSlots = player->getInventorySlotCount();
                 const float hotbarCell = std::min(
                     (compact ? 52.f : 58.f) * scale,
                     (contentWidth - (playerSlots - 1) * slotGap) /
                         std::max(1, playerSlots));
                 const float footerHeight =
-                    ImGui::GetTextLineHeightWithSpacing() * 2.f +
+                    std::max(ImGui::GetTextLineHeight(),
+                             fixedCrank ? 36.f * scale : 0.f) +
+                    ImGui::GetTextLineHeight() +
                     hotbarCell + 23.f * scale +
-                    ImGui::GetStyle().ItemSpacing.y * 5.f + 2.f;
+                    ImGui::GetStyle().ItemSpacing.y * 4.f + slotGap + 2.f;
                 ImGui::BeginChild("##MachineFlow",
                                   ImVec2(0.f, -footerHeight), false);
                 if (ImGui::BeginTable(
@@ -5992,31 +6015,9 @@ class OgreUserInterface::Impl
                         "%s", tr(isCrusher ? "crusher.power_remaining"
                                            : "furnace.fuel_remaining").c_str());
                     ImGui::ProgressBar(powerProgress, ImVec2(-1.f, 0.f));
-                    if (processor->manualPowerSupported)
+                    if (processor->manualPowerSupported && !fixedCrank)
                     {
-                        const bool powerFull =
-                            processor->powerTicksTotal > 0 &&
-                            processor->powerTicksRemaining >=
-                                processor->powerTicksTotal;
-                        ImGui::BeginDisabled(powerFull);
-                        if (ImGui::Button(
-                                label("crusher.crank",
-                                      "##CrusherCrank").c_str(),
-                                ImVec2(-1.f, 36.f * scale)))
-                        {
-                            if (capabilities.machineProcessor
-                                    ->supplyManualPower(*world, *player))
-                            {
-                                setMachineFeedback(
-                                    "machine.feedback.cranked");
-                            }
-                            else
-                            {
-                                setMachineFeedback(
-                                    "machine.feedback.retry");
-                            }
-                        }
-                        ImGui::EndDisabled();
+                        drawCrank(-1.f);
                         if (powerFull)
                         {
                             ImGui::TextColored(
@@ -6050,7 +6051,15 @@ class OgreUserInterface::Impl
                 ImGui::EndChild();
 
                 ImGui::Separator();
+                if (fixedCrank) ImGui::AlignTextToFramePadding();
                 drawInventoryHeading(tr("inventory.carried"), {});
+                if (fixedCrank)
+                {
+                    const float crankWidth = std::min(contentWidth * .5f,
+                        ImGui::CalcTextSize(tr("crusher.crank").c_str()).x + 24.f * scale);
+                    ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - crankWidth);
+                    drawCrank(crankWidth);
+                }
                 const float hotbarWidth = playerSlots * hotbarCell +
                     (playerSlots - 1) * slotGap;
                 ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
