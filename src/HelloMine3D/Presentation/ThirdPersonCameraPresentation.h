@@ -25,6 +25,9 @@ struct Input
     glm::vec3 rotation{0.f};
     float desiredDistance = 4.f;
     float radius = .18f;
+    bool subjectBoundsEnabled = false;
+    glm::vec3 subjectMinimum{0.f};
+    glm::vec3 subjectMaximum{0.f};
 };
 
 struct State
@@ -54,12 +57,15 @@ struct Pose
     std::size_t collisionQueries = 0;
     bool obstructionHit = false;
     bool collisionBudgetExhausted = false;
+    bool subjectObstruction = false;
+    bool subjectBoundsRejected = false;
 };
 
 inline constexpr float DefaultDistance = 4.f;
 inline constexpr float MaximumDistance = 8.f;
 inline constexpr float DefaultRadius = .18f;
 inline constexpr float MaximumRadius = .5f;
+inline constexpr float MaximumSubjectSpan = 4.f;
 inline constexpr float CollisionPadding = .08f;
 inline constexpr float FallbackEnterDistance = .65f;
 inline constexpr float FallbackExitDistance = .85f;
@@ -119,10 +125,10 @@ inline bool safeCoordinate(float value) noexcept
            coordinate <= static_cast<double>(std::numeric_limits<int>::max()) - Margin;
 }
 
-inline bool segmentEntry(const glm::vec3& start, const glm::vec3& end,
-                         const glm::vec3& minimum,
-                         const glm::vec3& maximum,
-                         float& entry) noexcept
+inline bool segmentInterval(const glm::vec3& start, const glm::vec3& end,
+                            const glm::vec3& minimum,
+                            const glm::vec3& maximum,
+                            float& entry, float& exit) noexcept
 {
     const glm::vec3 delta = end - start;
     float nearTime = 0.f;
@@ -142,8 +148,79 @@ inline bool segmentEntry(const glm::vec3& start, const glm::vec3& end,
         farTime = std::min(farTime, second);
         if (nearTime > farTime) return false;
     }
+    if (farTime < 0.f || nearTime > 1.f) return false;
     entry = std::clamp(nearTime, 0.f, 1.f);
-    return farTime >= 0.f && nearTime <= 1.f;
+    exit = std::clamp(farTime, 0.f, 1.f);
+    return true;
+}
+
+inline bool segmentEntry(const glm::vec3& start, const glm::vec3& end,
+                         const glm::vec3& minimum,
+                         const glm::vec3& maximum,
+                         float& entry) noexcept
+{
+    float exit = 1.f;
+    return segmentInterval(start, end, minimum, maximum, entry, exit);
+}
+
+inline bool validSubjectBounds(const Input& input) noexcept
+{
+    if (!finite(input.subjectMinimum) || !finite(input.subjectMaximum))
+        return false;
+    const glm::vec3 span = input.subjectMaximum - input.subjectMinimum;
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        if (!safeCoordinate(input.subjectMinimum[axis]) ||
+            !safeCoordinate(input.subjectMaximum[axis]) ||
+            !std::isfinite(span[axis]) || span[axis] <= .000001f ||
+            span[axis] > MaximumSubjectSpan)
+            return false;
+    }
+    return true;
+}
+
+struct SubjectCollision
+{
+    bool valid = true;
+    bool targetOverlaps = false;
+    float clearanceDistance = 0.f;
+};
+
+inline SubjectCollision subjectCollision(const Input& input,
+                                         float targetDistance,
+                                         float desiredDistance) noexcept
+{
+    SubjectCollision result;
+    if (!input.subjectBoundsEnabled) return result;
+    if (!validSubjectBounds(input))
+    {
+        result.valid = false;
+        return result;
+    }
+
+    const float cameraRadius = radius(input);
+    const glm::vec3 minimum = input.subjectMinimum -
+        glm::vec3(cameraRadius);
+    const glm::vec3 maximum = input.subjectMaximum +
+        glm::vec3(cameraRadius);
+    const glm::vec3 rear = -forward(input.rotation);
+    const glm::vec3 target = input.eye + rear * targetDistance;
+    result.targetOverlaps =
+        target.x >= minimum.x && target.x <= maximum.x &&
+        target.y >= minimum.y && target.y <= maximum.y &&
+        target.z >= minimum.z && target.z <= maximum.z;
+
+    float entry = 0.f;
+    float exit = 0.f;
+    if (desiredDistance > .000001f &&
+        segmentInterval(input.eye, input.eye + rear * desiredDistance,
+                        minimum, maximum, entry, exit))
+    {
+        result.clearanceDistance = std::clamp(
+            exit * desiredDistance + CollisionPadding,
+            0.f, desiredDistance);
+    }
+    return result;
 }
 } // namespace Detail
 
@@ -232,7 +309,8 @@ ClipResult clip(const Input& input, IsCollidable&& isCollidable)
 
 inline Mode advance(State& state, Mode requestedMode,
                     float targetDistance, float desiredDistance,
-                    float deltaSeconds) noexcept
+                    float deltaSeconds,
+                    float minimumExitDistance = 0.f) noexcept
 {
     targetDistance = std::clamp(
         std::isfinite(targetDistance) ? targetDistance : 0.f,
@@ -240,6 +318,9 @@ inline Mode advance(State& state, Mode requestedMode,
     desiredDistance = std::clamp(
         std::isfinite(desiredDistance) ? desiredDistance : DefaultDistance,
         0.f, MaximumDistance);
+    minimumExitDistance = std::clamp(
+        std::isfinite(minimumExitDistance) ? minimumExitDistance : 0.f,
+        0.f, desiredDistance);
     state.currentDistance = std::clamp(
         std::isfinite(state.currentDistance) ? state.currentDistance : 0.f,
         0.f, MaximumDistance);
@@ -278,8 +359,10 @@ inline Mode advance(State& state, Mode requestedMode,
 
     const float enterDistance = std::min(
         FallbackEnterDistance, desiredDistance * FallbackEnterRatio);
-    const float exitDistance = std::min(
-        FallbackExitDistance, desiredDistance * FallbackExitRatio);
+    const float exitDistance = std::max(
+        std::min(FallbackExitDistance,
+                 desiredDistance * FallbackExitRatio),
+        minimumExitDistance);
     if (state.nearWallFallback)
     {
         if (targetDistance >= exitDistance && exitDistance > .000001f)
@@ -323,17 +406,34 @@ Pose update(State& state, Mode requestedMode, const Input& input,
         return pose;
     }
 
+    const float desiredDistance = Detail::distance(input);
+    if (input.subjectBoundsEnabled &&
+        !Detail::validSubjectBounds(input))
+    {
+        pose.effectiveMode = advance(
+            state, requestedMode, 0.f, desiredDistance, deltaSeconds);
+        pose.distance = state.currentDistance;
+        pose.distanceRatio = desiredDistance > .000001f
+            ? std::clamp(pose.distance / desiredDistance, 0.f, 1.f) : 0.f;
+        pose.subjectBoundsRejected = true;
+        return pose;
+    }
+
     const ClipResult clipped = clip(
         input, std::forward<IsCollidable>(isCollidable));
-    const float desiredDistance = Detail::distance(input);
-    pose.effectiveMode = advance(state, requestedMode, clipped.distance,
-                                 desiredDistance, deltaSeconds);
+    const Detail::SubjectCollision subject = Detail::subjectCollision(
+        input, clipped.distance, desiredDistance);
+    const float safeTarget = subject.targetOverlaps ? 0.f : clipped.distance;
+    pose.effectiveMode = advance(
+        state, requestedMode, safeTarget, desiredDistance, deltaSeconds,
+        subject.clearanceDistance);
     pose.distance = state.currentDistance;
     pose.distanceRatio = desiredDistance > .000001f
         ? std::clamp(pose.distance / desiredDistance, 0.f, 1.f) : 0.f;
     pose.collisionQueries = clipped.queries;
     pose.obstructionHit = clipped.hit;
     pose.collisionBudgetExhausted = clipped.budgetExhausted;
+    pose.subjectObstruction = subject.targetOverlaps;
     if (pose.effectiveMode == Mode::ThirdPersonRear)
     {
         pose.position = input.eye - forward(pose.rotation) * pose.distance;

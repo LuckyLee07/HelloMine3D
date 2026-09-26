@@ -2951,7 +2951,8 @@ class OgreUserInterface::Impl
     void drawHeldMaterial(const PlayerSaveState &state,
                           const ImGuiIO &io) const
     {
-        if (flow->state() != GameApplicationState::Playing ||
+        if (!firstPersonPresentationVisible ||
+            flow->state() != GameApplicationState::Playing ||
             player->hasOpenContainer() || player->hasOpenCrafting() ||
             state.heldItem < 0 ||
             state.heldItem >= static_cast<int>(state.inventory.size()))
@@ -6972,6 +6973,7 @@ class OgreUserInterface::Impl
     RuntimeSettingsSession settingsSession;
     std::string settingsMessage;
     bool settingsApplyPending = false;
+    bool firstPersonPresentationVisible = true;
     int settingsPage = 0;
     std::unique_ptr<CraftingSession> craftingSession;
     Material::ID selectedCraftingMaterial = Material::ID::Nothing;
@@ -7318,6 +7320,12 @@ void OgreUserInterface::setWorldContext(Player *player,
             snapshot.changePending ? snapshot.pending : snapshot.active);
         m_impl->difficultyDraftInitialized = true;
     }
+}
+
+void OgreUserInterface::setFirstPersonPresentationVisible(
+    bool visible) noexcept
+{
+    m_impl->firstPersonPresentationVisible = visible;
 }
 
 void OgreUserInterface::showWorldBackups(const std::string& worldId)

@@ -125,6 +125,7 @@ class ActionFeedbackTimeline
                    std::size_t count, const glm::vec3 &origin,
                    const glm::vec3 &normal, bool mining, BlockMetadata_t metadata = 0) noexcept;
     std::size_t reserveParticles(std::size_t count) noexcept;
+    void resetTransientFeedback() noexcept;
 
     SandboxEventBus *m_eventBus = nullptr;
     std::vector<SandboxEventBus::SubscriptionId> m_subscriptions;

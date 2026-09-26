@@ -3,6 +3,7 @@
 #include "../Item/CraftingSession.h"
 #include "../Item/RecipeRegistry.h"
 #include "../Sandbox/Events/CraftingEvents.h"
+#include "../Sandbox/Events/PlayerEvents.h"
 #include "../Sandbox/Events/SandboxEventBus.h"
 
 #include <algorithm>
@@ -184,15 +185,26 @@ bool Player::isSneaking() const noexcept
     return m_isSneak;
 }
 
+bool Player::isOnGround() const noexcept
+{
+    return m_isOnGround;
+}
+
 glm::vec3 Player::getInterpolatedPosition(float alpha) const noexcept
 {
     const float amount = std::clamp(alpha, 0.f, 1.f);
     return m_previousPosition + (position - m_previousPosition) * amount;
 }
 
+std::uint64_t Player::getInterpolationEpoch() const noexcept
+{
+    return m_interpolationEpoch;
+}
+
 void Player::resetInterpolation() noexcept
 {
     m_previousPosition = position;
+    ++m_interpolationEpoch;
 }
 
 PlayerSaveState Player::getSaveState() const
@@ -240,7 +252,15 @@ void Player::update(float dt, World& world)
 
     if (position.y <= 0 && !m_isFlying)
     {
+        const glm::vec3 source = position;
         position.y = 300;
+        velocity = glm::vec3(0.f);
+        resetInterpolation();
+        if (m_eventBus != nullptr)
+        {
+            m_eventBus->publish(PlayerTeleportEvent(
+                DefaultPlayerActorId, 0, 0, source, position));
+        }
     }
 
     collide(world, {velocity.x, 0, 0}, dt);

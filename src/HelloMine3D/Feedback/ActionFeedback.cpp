@@ -8,6 +8,7 @@
 #include "../Sandbox/Events/BlockEvents.h"
 #include "../Sandbox/Events/EntityEvents.h"
 #include "../Sandbox/Events/FoodEvents.h"
+#include "../Sandbox/Events/PlayerEvents.h"
 #include "../World/Interaction/BlockSelection.h"
 
 namespace
@@ -111,6 +112,19 @@ void ActionFeedbackTimeline::attach(SandboxEventBus &eventBus)
             }
         }, SandboxEventSubscriptionOptions::observer(
             "ActionFeedbackTimeline")));
+    const auto resetAfterPlayerDiscontinuity =
+        [this](const SandboxEvent &)
+        {
+            resetTransientFeedback();
+        };
+    m_subscriptions.push_back(eventBus.subscribe(
+        SandboxEventType::PlayerSpawn, resetAfterPlayerDiscontinuity,
+        SandboxEventSubscriptionOptions::observer(
+            "ActionFeedbackTimeline")));
+    m_subscriptions.push_back(eventBus.subscribe(
+        SandboxEventType::PlayerTeleport, resetAfterPlayerDiscontinuity,
+        SandboxEventSubscriptionOptions::observer(
+            "ActionFeedbackTimeline")));
 }
 
 void ActionFeedbackTimeline::detach() noexcept
@@ -129,7 +143,20 @@ void ActionFeedbackTimeline::detach() noexcept
     m_lastMiningBucket = -1;
     m_kind = ActionFeedbackKind::None;
     m_elapsedSeconds = m_secondsRemaining = m_recoil =
-        m_hitStopSeconds = 0.f;
+    m_hitStopSeconds = 0.f;
+}
+
+void ActionFeedbackTimeline::resetTransientFeedback() noexcept
+{
+    ++m_epoch;
+    m_particles.clear();
+    m_lastMining = {};
+    m_lastMiningBucket = -1;
+    m_kind = ActionFeedbackKind::None;
+    m_elapsedSeconds = 0.f;
+    m_secondsRemaining = 0.f;
+    m_recoil = 0.f;
+    m_hitStopSeconds = 0.f;
 }
 
 void ActionFeedbackTimeline::setIntensity(

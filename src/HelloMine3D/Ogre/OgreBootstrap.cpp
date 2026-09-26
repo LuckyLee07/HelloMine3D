@@ -1,5 +1,6 @@
 #include "OgreBootstrap.h"
 #include "OgreActorRenderer.h"
+#include "OgrePlayerRenderer.h"
 #include "../Actor/EnemyPresentationGallery.h"
 #include "../Presentation/DirectionalShadowPresentation.h"
 #include "ChunkSectionRenderable.h"
@@ -71,6 +72,9 @@
 #include "../Item/SmeltingRegistry.h"
 #include "../Player/Player.h"
 #include "../Presentation/LocalizedTextRegistry.h"
+#include "../Presentation/PlayerAvatarPresentation.h"
+#include "../Presentation/PlayerHandPresentation.h"
+#include "../Presentation/ThirdPersonCameraPresentation.h"
 #include "../RuntimeConfig.h"
 #include "../Sandbox/GameApplicationFlow.h"
 #include "../Sandbox/SandboxRuntime.h"
@@ -79,6 +83,7 @@
 #include "../World/Chunk/Chunk.h"
 #include "../World/Chunk/ChunkSection.h"
 #include "../World/Block/BlockDatabase.h"
+#include "../World/Block/BlockData.h"
 #include "../World/Block/ChestContainer.h"
 #include "../World/Block/FurnaceContainer.h"
 #include "../World/Block/TerrainMaterialProfile.h"
@@ -1107,6 +1112,11 @@ namespace
             m_actorRenderer->setCastShadows(
                 m_directionalShadowQuality !=
                 DirectionalShadowQuality::Off);
+            m_playerRenderer =
+                std::make_unique<OgrePlayerRenderer>(*m_sceneManager);
+            m_playerRenderer->setCastShadows(
+                m_directionalShadowQuality !=
+                DirectionalShadowQuality::Off);
             m_blockFeedback =
                 std::make_unique<OgreBlockFeedback>(*m_sceneManager);
             TerrainBuildSummary terrain;
@@ -2063,11 +2073,15 @@ namespace
             m_lastLiveSections.clear();
             destroyDirectionalShadowResources();
             m_actorRenderer.reset();
+            m_playerRenderer.reset();
             if (m_sceneManager != nullptr)
             {
                 m_actorRenderer =
                     std::make_unique<OgreActorRenderer>(*m_sceneManager);
+                m_playerRenderer =
+                    std::make_unique<OgrePlayerRenderer>(*m_sceneManager);
             }
+            resetPlayerPresentation();
             m_sandbox.reset();
             m_world = nullptr;
             m_regionalAtmosphere.reset();
@@ -2352,7 +2366,15 @@ namespace
             {
                 activatePendingWorld();
             }
-            updateSandbox(event.timeSinceLastFrame);
+            const bool sandboxAdvanced =
+                updateSandbox(event.timeSinceLastFrame);
+            if (!sandboxAdvanced && m_sandbox != nullptr)
+            {
+                // Paused menus and the HUD pointer still need an immediate
+                // perspective preview, but must not advance animation time.
+                syncRenderCamera(0.f);
+                syncPlayerPresentation(0.f);
+            }
             updateAudio(event.timeSinceLastFrame);
 
             m_frameWorldStats = collectRuntimeStats();
@@ -2492,12 +2514,12 @@ namespace
                    !RuntimePerformanceCapture::shouldCloseWindow();
         }
 
-        void updateSandbox(float deltaSeconds)
+        bool updateSandbox(float deltaSeconds)
         {
             HELLOMINE3D_PROFILE_SCOPE("Ogre::updateSandbox");
             if (m_sandbox == nullptr)
             {
-                return;
+                return false;
             }
             updateRcPerformanceScenario(deltaSeconds);
             if (!m_applicationFlow.acceptsWorldSimulation() ||
@@ -2518,7 +2540,7 @@ namespace
                 m_sandbox->cancelMiningProgress();
                 if (m_blockFeedback != nullptr) m_blockFeedback->hideSelection();
                 clearTransientInput();
-                return;
+                return false;
             }
 
             const bool keyboardCaptured =
@@ -2648,7 +2670,10 @@ namespace
             }
             clearTransientInput();
             m_focusTransitionFrame = false;
-            syncRenderCamera();
+            // The Ogre camera must reflect the current authoritative logic
+            // camera before any camera-facing actors or block feedback update.
+            syncRenderCamera(deltaSeconds);
+            syncPlayerPresentation(deltaSeconds);
             syncSectionMeshes();
             syncActorVisuals(deltaSeconds);
             if (m_blockFeedback != nullptr)
@@ -2668,6 +2693,7 @@ namespace
                               << " selected=" << (selection ? static_cast<int>(selection->blockId) : -1) << '\n';
                 }
             }
+            return true;
         }
 
         void updateAudio(float deltaSeconds)
@@ -2907,8 +2933,7 @@ namespace
             }
             const Ogre::Vector3 renderEye = m_camera->getPosition();
             m_actorRenderer->sync(snapshots,
-                m_visualCameraSweep.enabled ? glm::vec3(renderEye.x, renderEye.y, renderEye.z) :
-                    m_logicCamera->position,
+                glm::vec3(renderEye.x, renderEye.y, renderEye.z),
                 m_config.feedbackIntensity == GameplayFeedbackIntensity::Off ? 0.f :
                 m_config.feedbackIntensity == GameplayFeedbackIntensity::Reduced ? .35f : 1.f,
                 deltaSeconds);
@@ -3305,10 +3330,57 @@ namespace
             m_hotbarSlot = -1;
         }
 
-        void syncRenderCamera()
+        void resetPlayerAvatarMotion() noexcept
+        {
+            m_playerAvatarPoseHistory = {};
+            m_playerMovementSeconds = 0.f;
+            m_playerLandingEnvelope = 0.f;
+            m_previousPlayerGrounded = false;
+            m_playerGroundStateInitialized = false;
+            m_playerAvatarWasVisible = false;
+        }
+
+        void resetPlayerPresentation() noexcept
+        {
+            m_thirdPersonCameraState = {};
+            m_effectiveCameraMode =
+                ThirdPersonCameraPresentation::Mode::FirstPerson;
+            resetPlayerAvatarMotion();
+            m_playerInterpolationEpoch =
+                m_worldPlayer != nullptr
+                    ? m_worldPlayer->getInterpolationEpoch()
+                    : 0;
+            if (m_playerRenderer != nullptr)
+            {
+                m_playerRenderer->setVisible(false);
+            }
+            if (m_userInterface != nullptr)
+            {
+                m_userInterface->setFirstPersonPresentationVisible(true);
+            }
+        }
+
+        PlayerAvatarPresentation::MotionStrength
+        playerMotionStrength() const noexcept
+        {
+            switch (m_config.feedbackIntensity)
+            {
+                case GameplayFeedbackIntensity::Off:
+                    return PlayerAvatarPresentation::MotionStrength::Off;
+                case GameplayFeedbackIntensity::Reduced:
+                    return PlayerAvatarPresentation::MotionStrength::Reduced;
+                case GameplayFeedbackIntensity::Full:
+                    return PlayerAvatarPresentation::MotionStrength::Full;
+            }
+            return PlayerAvatarPresentation::MotionStrength::Reduced;
+        }
+
+        void syncRenderCamera(float deltaSeconds)
         {
             if (m_logicCamera == nullptr || m_camera == nullptr)
             {
+                m_effectiveCameraMode =
+                    ThirdPersonCameraPresentation::Mode::FirstPerson;
                 return;
             }
 
@@ -3337,11 +3409,222 @@ namespace
                               << " player=" << m_worldPlayer->position.x << ','
                               << m_worldPlayer->position.y << ',' << m_worldPlayer->position.z << '\n';
                 }
+                ThirdPersonCameraPresentation::advance(
+                    m_thirdPersonCameraState,
+                    ThirdPersonCameraPresentation::Mode::FirstPerson,
+                    0.f, 0.f, deltaSeconds);
+                m_effectiveCameraMode =
+                    ThirdPersonCameraPresentation::Mode::FirstPerson;
+            }
+            else
+            {
+                ThirdPersonCameraPresentation::Input input;
+                input.eye = position;
+                input.rotation = rotation;
+                input.desiredDistance =
+                    ThirdPersonCameraPresentation::DefaultDistance;
+                input.radius =
+                    ThirdPersonCameraPresentation::DefaultRadius;
+                if (m_worldPlayer != nullptr)
+                {
+                    const glm::vec3 playerCentre(
+                        m_logicCamera->position.x,
+                        m_logicCamera->position.y - .6f,
+                        m_logicCamera->position.z);
+                    input.subjectBoundsEnabled = true;
+                    input.subjectMinimum =
+                        playerCentre - m_worldPlayer->box.dimensions;
+                    input.subjectMaximum =
+                        playerCentre + m_worldPlayer->box.dimensions;
+                }
+                const ThirdPersonCameraPresentation::Mode requestedMode =
+                    m_config.cameraPerspective ==
+                            CameraPerspective::ThirdPerson
+                        ? ThirdPersonCameraPresentation::Mode::ThirdPersonRear
+                        : ThirdPersonCameraPresentation::Mode::FirstPerson;
+                const auto pose = ThirdPersonCameraPresentation::update(
+                    m_thirdPersonCameraState,
+                    m_world != nullptr
+                        ? requestedMode
+                        : ThirdPersonCameraPresentation::Mode::FirstPerson,
+                    input, deltaSeconds,
+                    [this](int x, int y, int z)
+                    {
+                        return m_world != nullptr &&
+                               m_world->getBlock(x, y, z)
+                                   .getData().isCollidable;
+                    });
+                position = pose.position;
+                rotation = pose.rotation;
+                m_effectiveCameraMode = pose.effectiveMode;
             }
             m_camera->setPosition(position.x, position.y, position.z);
             m_camera->setOrientation(Ogre::Quaternion::IDENTITY);
             m_camera->yaw(Ogre::Degree(-rotation.y));
             m_camera->pitch(Ogre::Degree(-rotation.x));
+        }
+
+        void syncPlayerPresentation(float deltaSeconds)
+        {
+            if (m_playerRenderer == nullptr || m_worldPlayer == nullptr ||
+                m_logicCamera == nullptr || m_sandbox == nullptr)
+            {
+                if (m_playerRenderer != nullptr)
+                {
+                    m_playerRenderer->setVisible(false);
+                }
+                return;
+            }
+
+            const std::uint64_t interpolationEpoch =
+                m_worldPlayer->getInterpolationEpoch();
+            if (interpolationEpoch != m_playerInterpolationEpoch)
+            {
+                resetPlayerAvatarMotion();
+                m_playerInterpolationEpoch = interpolationEpoch;
+            }
+
+            const float elapsed = std::clamp(
+                std::isfinite(deltaSeconds) ? deltaSeconds : 0.f,
+                0.f, .1f);
+            const bool grounded = m_worldPlayer->isOnGround();
+            m_playerLandingEnvelope = std::max(
+                0.f, m_playerLandingEnvelope - elapsed / .22f);
+            if (m_playerGroundStateInitialized && grounded &&
+                !m_previousPlayerGrounded)
+            {
+                m_playerLandingEnvelope = 1.f;
+            }
+            m_previousPlayerGrounded = grounded;
+            m_playerGroundStateInitialized = true;
+
+            const float horizontalSpeed = std::sqrt(
+                m_worldPlayer->velocity.x * m_worldPlayer->velocity.x +
+                m_worldPlayer->velocity.z * m_worldPlayer->velocity.z);
+            const float movementStrength = std::clamp(
+                horizontalSpeed / 4.5f, 0.f, 1.f);
+            const float gaitRate = std::clamp(
+                horizontalSpeed / 4.5f, 0.f, 1.65f);
+            if (gaitRate > .02f)
+            {
+                m_playerMovementSeconds += elapsed * gaitRate;
+            }
+
+            const ActionFeedbackSnapshot actionFeedback =
+                m_sandbox->getActionFeedback();
+            const MiningProgressSnapshot& mining =
+                m_sandbox->getMiningProgress();
+            PlayerHandPresentation::Action feedbackAction =
+                PlayerHandPresentation::Action::None;
+            switch (actionFeedback.kind)
+            {
+                case ActionFeedbackKind::BlockBreak:
+                case ActionFeedbackKind::BlockPlace:
+                case ActionFeedbackKind::AttackMiss:
+                case ActionFeedbackKind::AttackHit:
+                case ActionFeedbackKind::Guard:
+                    feedbackAction =
+                        PlayerHandPresentation::Action::Strike;
+                    break;
+                case ActionFeedbackKind::BlockUse:
+                    feedbackAction =
+                        PlayerHandPresentation::Action::Use;
+                    break;
+                case ActionFeedbackKind::FoodConsume:
+                    feedbackAction =
+                        PlayerHandPresentation::Action::Consume;
+                    break;
+                case ActionFeedbackKind::None:
+                case ActionFeedbackKind::PlayerHurt:
+                case ActionFeedbackKind::ItemPickup:
+                    break;
+            }
+            const auto actionPhase = PlayerHandPresentation::actionPhase(
+                mining.active, mining.elapsedSeconds,
+                feedbackAction, actionFeedback.elapsedSeconds);
+            PlayerHandPresentation::MotionInput actionMotionInput;
+            actionMotionInput.action = actionPhase.action;
+            actionMotionInput.actionSeconds = actionPhase.seconds;
+            actionMotionInput.strength = 1.f;
+            actionMotionInput.recoil = actionFeedback.recoil;
+            if (actionPhase.acceptsFeedbackContact &&
+                actionFeedbackHoldsContact(actionFeedback.kind))
+            {
+                const float recovery = std::clamp(
+                    actionFeedback.secondsRemaining / .32f, 0.f, 1.f);
+                actionMotionInput.contact =
+                    actionFeedback.hitStopSeconds > 0.f
+                        ? 1.f
+                        : recovery * recovery;
+            }
+            const PlayerHandPresentation::Motion actionMotion =
+                PlayerHandPresentation::motion(actionMotionInput);
+
+            PlayerAvatarPresentation::Snapshot snapshot;
+            const glm::vec3 playerCentre(
+                m_logicCamera->position.x,
+                m_logicCamera->position.y - .6f,
+                m_logicCamera->position.z);
+            const glm::vec3 feet = playerCentre - glm::vec3(
+                0.f, m_worldPlayer->box.dimensions.y, 0.f);
+            snapshot.position = {feet.x, feet.y, feet.z};
+            snapshot.rotationDegrees = {
+                m_logicCamera->rotation.x, m_logicCamera->rotation.y,
+                m_logicCamera->rotation.z};
+            snapshot.velocity = {
+                m_worldPlayer->velocity.x, m_worldPlayer->velocity.y,
+                m_worldPlayer->velocity.z};
+            snapshot.grounded = grounded;
+            snapshot.feedback.landing = m_playerLandingEnvelope;
+            snapshot.feedback.toolUse = actionMotion.swing;
+            snapshot.feedback.hurt =
+                actionFeedback.kind == ActionFeedbackKind::PlayerHurt &&
+                        m_config.feedbackIntensity !=
+                            GameplayFeedbackIntensity::Off
+                    ? std::max(.6f, actionFeedback.recoil)
+                    : 0.f;
+            snapshot.movementSeconds = m_playerMovementSeconds;
+            snapshot.movementStrength = movementStrength;
+
+            PlayerAvatarPresentation::Pose pose =
+                PlayerAvatarPresentation::derivePose(
+                    snapshot, m_playerAvatarProfile,
+                    playerMotionStrength());
+            // derivePose applies the accessibility scale once to articulation.
+            // Scale only the independent shader tint here, avoiding a second
+            // reduction of the body motion.
+            if (m_config.feedbackIntensity ==
+                GameplayFeedbackIntensity::Reduced)
+            {
+                pose.weights.hurt *= .55f;
+            }
+            const bool visible = !m_visualCameraSweep.enabled &&
+                m_effectiveCameraMode ==
+                    ThirdPersonCameraPresentation::Mode::ThirdPersonRear;
+            if (m_userInterface != nullptr)
+            {
+                m_userInterface->setFirstPersonPresentationVisible(!visible);
+            }
+            if ((visible && !m_playerAvatarWasVisible) ||
+                m_applicationFlow.state() != GameApplicationState::Playing ||
+                !m_focusGate.isFocused())
+            {
+                m_playerAvatarPoseHistory = {};
+            }
+            pose = PlayerAvatarPresentation::smoothPose(
+                m_playerAvatarPoseHistory, pose,
+                m_playerAvatarProfile, deltaSeconds);
+            const ItemStack& heldItem = m_worldPlayer->getHeldItems();
+            const Material::ID heldMaterial = heldItem.isEmpty()
+                ? Material::Nothing
+                : heldItem.getMaterial().id;
+            m_playerRenderer->sync(
+                m_playerAvatarProfile, pose, visible, heldMaterial);
+            if (!visible)
+            {
+                m_playerAvatarPoseHistory = {};
+            }
+            m_playerAvatarWasVisible = visible;
         }
 
         WorldDebugStats collectRuntimeStats()
@@ -3438,6 +3721,33 @@ namespace
             shadow->setTextureFiltering(Ogre::TFO_NONE);
         }
 
+        void restoreActorMaterialTints()
+        {
+            struct ActorTint
+            {
+                const char* material;
+                Ogre::Vector4 value;
+            };
+            const ActorTint tints[] = {
+                {"HelloMine3D/ActorMob", {.32f, .48f, .26f, 1.f}},
+                {"HelloMine3D/ActorPlayer", {.23f, .46f, .47f, 1.f}},
+                {"HelloMine3D/ActorStalker", {.25f, .47f, .51f, 1.f}},
+                {"HelloMine3D/ActorBrute", {.55f, .32f, .24f, 1.f}},
+                {"HelloMine3D/ActorSpitter", {.39f, .33f, .50f, 1.f}},
+                {"HelloMine3D/ActorSheep", {.72f, .68f, .57f, 1.f}},
+                {"HelloMine3D/ActorRabbit", {.55f, .45f, .34f, 1.f}},
+                {"HelloMine3D/ActorMarshBird", {.38f, .51f, .49f, 1.f}},
+                {"HelloMine3D/ActorItem", {1.f, .67f, .12f, 1.f}},
+                {"HelloMine3D/CombatProjectile", {.92f, .35f, 1.f, 1.f}}
+            };
+            for (const ActorTint& tint : tints)
+            {
+                materialPass(tint.material)
+                    ->getFragmentProgramParameters()
+                    ->setNamedConstant("actorTint", tint.value);
+            }
+        }
+
         void setDirectionalShadowReceiverPrograms(bool enabled)
         {
             struct ReceiverPrograms
@@ -3474,6 +3784,10 @@ namespace
                  "HelloMine3D/ActorFragment",
                  "HelloMine3D/ActorShadowFragment"},
                 {"HelloMine3D/ActorMarshBird", "HelloMine3D/ActorVertex",
+                 "HelloMine3D/ActorShadowVertex",
+                 "HelloMine3D/ActorFragment",
+                 "HelloMine3D/ActorShadowFragment"},
+                {"HelloMine3D/ActorPlayer", "HelloMine3D/ActorVertex",
                  "HelloMine3D/ActorShadowVertex",
                  "HelloMine3D/ActorFragment",
                  "HelloMine3D/ActorShadowFragment"},
@@ -3525,6 +3839,10 @@ namespace
                     }
                 }
             }
+            // setFragmentProgram() replaces the program parameter set. Restore
+            // the per-material palette that was originally declared in the
+            // material script after every normal/shadow program transition.
+            restoreActorMaterialTints();
             syncTerrainMaterialParameters();
         }
 
@@ -3564,6 +3882,7 @@ namespace
                 "HelloMine3D/ActorBrute", "HelloMine3D/ActorSpitter",
                 "HelloMine3D/ActorSheep", "HelloMine3D/ActorRabbit",
                 "HelloMine3D/ActorMarshBird",
+                "HelloMine3D/ActorPlayer",
                 "HelloMine3D/ActorItem",
                 "HelloMine3D/CombatProjectile"};
             for (const char* materialName : actorMaterials)
@@ -3678,6 +3997,10 @@ namespace
             {
                 m_actorRenderer->setCastShadows(false);
             }
+            if (m_playerRenderer != nullptr)
+            {
+                m_playerRenderer->setCastShadows(false);
+            }
         }
 
         bool configureDirectionalShadows(
@@ -3700,6 +4023,10 @@ namespace
             if (m_actorRenderer != nullptr)
             {
                 m_actorRenderer->setCastShadows(false);
+            }
+            if (m_playerRenderer != nullptr)
+            {
+                m_playerRenderer->setCastShadows(false);
             }
 
             if (requestedQuality == DirectionalShadowQuality::Off)
@@ -3795,6 +4122,10 @@ namespace
                 if (m_actorRenderer != nullptr)
                 {
                     m_actorRenderer->setCastShadows(true);
+                }
+                if (m_playerRenderer != nullptr)
+                {
+                    m_playerRenderer->setCastShadows(true);
                 }
                 syncDirectionalShadowMaterialParameters(0.f);
                 std::cout << "[V10D_SHADOW] requested="
@@ -4231,6 +4562,7 @@ namespace
                 "HelloMine3D/ActorBrute", "HelloMine3D/ActorSpitter",
                 "HelloMine3D/ActorSheep", "HelloMine3D/ActorRabbit",
                 "HelloMine3D/ActorMarshBird",
+                "HelloMine3D/ActorPlayer",
                 "HelloMine3D/ActorItem",
                 "HelloMine3D/CombatProjectile"};
             for (const char* materialName : actorMaterials)
@@ -4315,9 +4647,54 @@ namespace
             }
         }
 
+        void toggleCameraPerspective()
+        {
+            Config candidate = m_config;
+            candidate.cameraPerspective =
+                m_config.cameraPerspective == CameraPerspective::FirstPerson
+                    ? CameraPerspective::ThirdPerson
+                    : CameraPerspective::FirstPerson;
+            std::string error;
+            if (!saveRuntimeConfig(ResourcePaths::bin("config.txt"),
+                                   candidate, &error))
+            {
+                std::cerr << "[CAMERA_PERSPECTIVE] save-failed="
+                          << error << '\n';
+                if (m_userInterface != nullptr)
+                {
+                    m_userInterface->setStatusMessage(
+                        LocalizedPresentation::text(
+                            m_config.locale,
+                            "camera.perspective_save_failed"));
+                }
+                return;
+            }
+
+            userSettings(m_config) = userSettings(candidate);
+            if (m_sandbox != nullptr)
+            {
+                m_sandbox->applyUserSettings(userSettings(m_config));
+            }
+            if (m_userInterface != nullptr)
+            {
+                m_userInterface->reportSettingsApplied(
+                    true, userSettings(m_config),
+                    m_config.cameraPerspective ==
+                            CameraPerspective::ThirdPerson
+                        ? "camera.perspective.third"
+                        : "camera.perspective.first");
+            }
+        }
+
         bool keyPressed(const OIS::KeyEvent& event) override
         {
             bool firstCursorTogglePress = false;
+            const bool firstCameraTogglePress =
+                event.key == OIS::KC_F5 && !m_f5KeyHeld;
+            if (event.key == OIS::KC_F5)
+            {
+                m_f5KeyHeld = true;
+            }
             if (event.key == OIS::KC_GRAVE || event.key == OIS::KC_L || event.key == OIS::KC_TAB)
             {
                 bool &held = event.key == OIS::KC_GRAVE
@@ -4411,6 +4788,14 @@ namespace
                 return true;
             }
 
+            if (event.key == OIS::KC_F5 &&
+                firstCameraTogglePress &&
+                m_applicationFlow.state() == GameApplicationState::Playing)
+            {
+                toggleCameraPerspective();
+                return true;
+            }
+
             if (event.key == toOisKey(m_config.inputBindings.get(
                                  GameplayAction::ConsumeFood)))
             {
@@ -4469,6 +4854,7 @@ namespace
                 m_lKeyHeld = false;
             }
             if (event.key == OIS::KC_TAB) m_tabKeyHeld = false;
+            if (event.key == OIS::KC_F5) m_f5KeyHeld = false;
             if (m_userInterface != nullptr)
             {
                 m_userInterface->keyEvent(event, false, *m_keyboard);
@@ -4585,6 +4971,7 @@ namespace
             m_graveKeyHeld = false;
             m_lKeyHeld = false;
             m_tabKeyHeld = false;
+            m_f5KeyHeld = false;
             clearTransientInput();
             if (!focused)
             {
@@ -4779,6 +5166,7 @@ namespace
             destroyPostProcessingResources();
             m_blockFeedback.reset();
             m_actorRenderer.reset();
+            m_playerRenderer.reset();
 
             for (auto &entry : m_sectionVisuals)
             {
@@ -4854,6 +5242,19 @@ namespace
         float m_actorVisualDistance = 4.6f;
         int m_blockFeedbackCaptureLastStage = -2;
         std::unique_ptr<OgreActorRenderer> m_actorRenderer;
+        std::unique_ptr<OgrePlayerRenderer> m_playerRenderer;
+        PlayerAvatarPresentation::Profile m_playerAvatarProfile =
+            PlayerAvatarPresentation::defaultProfile();
+        PlayerAvatarPresentation::PoseHistory m_playerAvatarPoseHistory;
+        ThirdPersonCameraPresentation::State m_thirdPersonCameraState;
+        ThirdPersonCameraPresentation::Mode m_effectiveCameraMode =
+            ThirdPersonCameraPresentation::Mode::FirstPerson;
+        float m_playerMovementSeconds = 0.f;
+        float m_playerLandingEnvelope = 0.f;
+        bool m_previousPlayerGrounded = false;
+        bool m_playerGroundStateInitialized = false;
+        bool m_playerAvatarWasVisible = false;
+        std::uint64_t m_playerInterpolationEpoch = 0;
         Player* m_worldPlayer = nullptr;
         std::unique_ptr<::Camera> m_logicCamera;
         std::unique_ptr<SandboxRuntime> m_sandbox;
@@ -4889,6 +5290,7 @@ namespace
         bool m_tabKeyHeld = false;
         bool m_graveKeyHeld = false;
         bool m_lKeyHeld = false;
+        bool m_f5KeyHeld = false;
         bool m_hiddenWindow = false;
         bool m_v10cAtmosphereEnabled = true;
         bool m_directionalShadowDiagnosticsEmitted = false;

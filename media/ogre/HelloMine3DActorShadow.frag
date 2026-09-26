@@ -127,6 +127,61 @@ vec3 readableActorSurface()
     float shade = 0.68 + 0.22 * max(faceNormal.y, 0.0) +
                   0.10 * max(dot(faceNormal, normalize(vec3(-0.4, 0.6, -0.5))), 0.0);
     float role = actorPartData.x;
+    if (actorPartData.w < -0.5) {
+        // Keep the local-player palette identical in normal and shadow
+        // receivers. Material and part roles come from the immutable avatar
+        // profile; no gameplay or equipment state is inferred here.
+        vec3 p = actorLocalPosition;
+        float front = step(p.z, -0.499);
+        float materialRole = actorPartData.y;
+        vec3 skin = vec3(0.72, 0.53, 0.39);
+        vec3 tunic = actorTint.rgb;
+        vec3 trousers = vec3(0.23, 0.26, 0.29);
+        vec3 hair = vec3(0.27, 0.19, 0.13);
+        vec3 accent = vec3(0.60, 0.44, 0.23);
+        vec3 base = materialRole < 0.5 ? skin :
+                    materialRole < 1.5 ? tunic :
+                    materialRole < 2.5 ? trousers :
+                    materialRole < 3.5 ? hair : accent;
+
+        if (role > 1.5 && role < 3.5) {
+            float hand = 1.0 - smoothstep(-0.31, -0.23, p.y);
+            float cuff = 1.0 - smoothstep(0.025, 0.065, abs(p.y + 0.20));
+            base = mix(base, tunic * 0.72, cuff);
+            base = mix(base, skin, hand);
+        }
+        if (role > 3.5 && role < 5.5) {
+            float boot = 1.0 - smoothstep(-0.30, -0.18, p.y);
+            base = mix(base, vec3(0.17, 0.15, 0.14), boot);
+        }
+        if (role > 0.5 && role < 1.5) {
+            float collar = front * actorPatch(
+                vec2(abs(p.x), p.y), vec2(0.0, 0.40),
+                vec2(0.16, 0.075));
+            float seam = front * actorPatch(
+                p.xy, vec2(0.0, -0.03), vec2(0.025, 0.37));
+            base = mix(base, skin * 0.72, collar);
+            base = mix(base, tunic * 0.68, seam);
+        }
+        if (role > -0.5 && role < 0.5) {
+            float eye = front * actorPatch(
+                vec2(abs(p.x), p.y), vec2(0.23, 0.06),
+                vec2(0.075, 0.065));
+            float nose = front * actorPatch(
+                p.xy, vec2(0.0, -0.08), vec2(0.055, 0.085));
+            base = mix(base, skin * 0.90, nose);
+            base = mix(base, vec3(0.13, 0.17, 0.16), eye);
+        }
+        if (role > 5.5 && role < 6.5) {
+            float fringe = front * actorPatch(
+                vec2(p.x, p.y), vec2(-0.17, -0.29),
+                vec2(0.12, 0.16));
+            base = mix(base, hair * 0.72, fringe);
+        }
+        float hurt = clamp(actorPartData.z, 0.0, 1.0);
+        base = mix(base, vec3(0.66, 0.25, 0.20), hurt * 0.22);
+        return base * shade;
+    }
     if (actorPartData.w > 9.5) {
         // Keep the animal palette identical in normal and shadow receivers.
         vec3 p = actorLocalPosition;
@@ -271,6 +326,7 @@ vec3 readableActorSurface()
 vec3 actorCueEmission()
 {
     if (actorSurfaceStrength < 0.5) return vec3(0.0);
+    if (actorPartData.w < -0.5) return vec3(0.0);
     if (actorPartData.x > 1.5 && actorPartData.x < 2.5)
         return mix(vec3(0.90, 0.79, 0.47), vec3(1.0, 0.31, 0.12), actorPartData.z) * actorEyeMask() * 0.64;
     if (actorPartData.x > 7.5 && actorPartData.y > 0.5)

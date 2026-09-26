@@ -1,6 +1,7 @@
 #ifndef PLAYER_H_INCLUDED
 #define PLAYER_H_INCLUDED
 
+#include <cstdint>
 #include <optional>
 #include <vector>
 
@@ -77,7 +78,9 @@ class Player : public Entity {
     const std::optional<glm::ivec3> &getOpenWorkbench() const noexcept;
     bool isFlying() const noexcept;
     bool isSneaking() const noexcept;
+    bool isOnGround() const noexcept;
     glm::vec3 getInterpolatedPosition(float alpha) const noexcept;
+    std::uint64_t getInterpolationEpoch() const noexcept;
     void resetInterpolation() noexcept;
     PlayerSaveState getSaveState() const;
     void applySaveState(const PlayerSaveState &state);
@@ -96,6 +99,7 @@ class Player : public Entity {
     PlayerController m_controller;
     PlayerInputState m_input;
     glm::vec3 m_previousPosition{0.f};
+    std::uint64_t m_interpolationEpoch = 0;
     SandboxEventBus *m_eventBus = nullptr;
 };
 

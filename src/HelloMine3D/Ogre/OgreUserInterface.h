@@ -100,6 +100,7 @@ class OgreUserInterface final : public Ogre::RenderTargetListener
     bool hasBlockingModal() const noexcept;
     bool isDebugPanelVisible() const noexcept;
     void setWorldContext(Player *player, World *world) noexcept;
+    void setFirstPersonPresentationVisible(bool visible) noexcept;
     void setStatusMessage(std::string message);
     void showWorldBackups(const std::string& worldId);
     void setAudioCaption(std::string cueId, std::string caption);

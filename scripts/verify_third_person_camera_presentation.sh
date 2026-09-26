@@ -110,6 +110,145 @@ int main()
     }
 
     {
+        T::Input subject = base;
+        subject.subjectBoundsEnabled = true;
+        subject.subjectMinimum = {-.3f, 0.f, -.3f};
+        subject.subjectMaximum = {.3f, 2.1f, .3f};
+        T::State state;
+        const auto pose = T::update(
+            state, T::Mode::ThirdPersonRear, subject, .016f,
+            [](int, int, int) { return false; });
+        require(pose.effectiveMode == T::Mode::ThirdPersonRear &&
+                    close(pose.distance, subject.desiredDistance) &&
+                    !pose.subjectObstruction &&
+                    !pose.subjectBoundsRejected,
+                "valid subject bounds must preserve a clear horizontal camera");
+        for (const float pitch : {-82.f, 82.f})
+        {
+            subject.rotation.x = pitch;
+            T::State pitchedState;
+            const auto pitched = T::update(
+                pitchedState, T::Mode::ThirdPersonRear, subject, .016f,
+                [](int, int, int) { return false; });
+            require(pitched.effectiveMode == T::Mode::ThirdPersonRear &&
+                        !pitched.subjectObstruction,
+                    "clear large pitch must remain outside the subject");
+        }
+        ++passed;
+    }
+
+    {
+        T::Input subject = base;
+        subject.radius = T::MaximumRadius;
+        subject.subjectBoundsEnabled = true;
+        subject.subjectMinimum = {-.3f, 0.f, -.3f};
+        subject.subjectMaximum = {.3f, 2.1f, .3f};
+        T::State state;
+        const std::set<Cell> wall{{0, 2, 1}};
+        const auto pose = T::update(
+            state, T::Mode::ThirdPersonRear, subject, .016f,
+            [&](int x, int y, int z) {
+                return wall.count({x, y, z}) != 0;
+            });
+        require(pose.obstructionHit && pose.subjectObstruction &&
+                    pose.effectiveMode == T::Mode::FirstPerson &&
+                    state.nearWallFallback && close(pose.distance, 0.f),
+                "world clipping inside the subject must enter fallback");
+        ++passed;
+    }
+
+    {
+        T::Input steep = base;
+        steep.rotation.x = -75.f;
+        steep.subjectBoundsEnabled = true;
+        steep.subjectMinimum = {-.3f, 0.f, -.3f};
+        steep.subjectMaximum = {.3f, 2.1f, .3f};
+        T::State state;
+        const auto blocked = T::update(
+            state, T::Mode::ThirdPersonRear, steep, .016f,
+            [](int x, int y, int z) {
+                return x == 0 && y == 1 && z == 0;
+            });
+        require(blocked.effectiveMode == T::Mode::FirstPerson &&
+                    blocked.subjectObstruction,
+                "steep camera clipped into the subject must fail to first person");
+
+        T::Pose released;
+        int clearFrames = 0;
+        do
+        {
+            released = T::update(
+                state, T::Mode::ThirdPersonRear, steep, .016f,
+                [](int, int, int) { return false; });
+            ++clearFrames;
+        }
+        while (released.effectiveMode == T::Mode::FirstPerson &&
+               clearFrames < 60);
+        const glm::vec3 expandedMinimum = steep.subjectMinimum -
+            glm::vec3(steep.radius);
+        const glm::vec3 expandedMaximum = steep.subjectMaximum +
+            glm::vec3(steep.radius);
+        const bool releasedInside =
+            released.position.x >= expandedMinimum.x &&
+            released.position.x <= expandedMaximum.x &&
+            released.position.y >= expandedMinimum.y &&
+            released.position.y <= expandedMaximum.y &&
+            released.position.z >= expandedMinimum.z &&
+            released.position.z <= expandedMaximum.z;
+        require(released.effectiveMode == T::Mode::ThirdPersonRear &&
+                    clearFrames > 1 && !releasedInside &&
+                    released.distance > T::FallbackExitDistance,
+                "steep fallback must release only beyond the subject bounds");
+        const auto recovering = T::update(
+            state, T::Mode::ThirdPersonRear, steep, .016f,
+            [](int, int, int) { return false; });
+        require(recovering.distance > released.distance &&
+                    recovering.distance < steep.desiredDistance,
+                "subject-safe release must continue smooth recovery");
+        ++passed;
+    }
+
+    {
+        for (int invalidCase = 0; invalidCase < 3; ++invalidCase)
+        {
+            T::Input invalid = base;
+            invalid.subjectBoundsEnabled = true;
+            invalid.subjectMinimum = {-.3f, 0.f, -.3f};
+            invalid.subjectMaximum = {.3f, 2.1f, .3f};
+            if (invalidCase == 0)
+                invalid.subjectMinimum.x =
+                    std::numeric_limits<float>::quiet_NaN();
+            else if (invalidCase == 1)
+                invalid.subjectMinimum.y = 3.f;
+            else
+                invalid.subjectMaximum.y = T::MaximumSubjectSpan + 1.f;
+            T::State state;
+            std::size_t callbacks = 0;
+            const auto pose = T::update(
+                state, T::Mode::ThirdPersonRear, invalid, .016f,
+                [&](int, int, int) { ++callbacks; return false; });
+            require(pose.effectiveMode == T::Mode::FirstPerson &&
+                        pose.subjectBoundsRejected && callbacks == 0 &&
+                        pose.collisionQueries == 0,
+                    "invalid enabled subject bounds must fail closed before queries");
+        }
+
+        T::Input disabled = base;
+        disabled.subjectMinimum.x =
+            std::numeric_limits<float>::quiet_NaN();
+        T::State state;
+        std::size_t callbacks = 0;
+        const auto pose = T::update(
+            state, T::Mode::ThirdPersonRear, disabled, .016f,
+            [&](int, int, int) { ++callbacks; return false; });
+        require(pose.effectiveMode == T::Mode::ThirdPersonRear &&
+                    !pose.subjectBoundsRejected && callbacks > 0 &&
+                    callbacks == pose.collisionQueries,
+                "disabled subject collision must ignore subject-bound data");
+        ++passed;
+    }
+
+    {
         T::Input diagonal = base;
         diagonal.rotation.y = 45.f;
         T::State state;
@@ -260,14 +399,18 @@ int main()
         maximum.desiredDistance = 100.f;
         maximum.radius = 100.f;
         maximum.rotation = {35.264f, 45.f, 0.f};
+        maximum.subjectBoundsEnabled = true;
+        maximum.subjectMinimum = {-.3f, 0.f, -.3f};
+        maximum.subjectMaximum = {.3f, 2.1f, .3f};
         T::State state;
         std::size_t callbackCount = 0;
         const auto pose = T::update(state, T::Mode::ThirdPersonRear, maximum,
             .016f, [&](int, int, int) { ++callbackCount; return false; });
         require(!pose.collisionBudgetExhausted &&
                     pose.collisionQueries == callbackCount &&
-                    pose.collisionQueries <= T::MaximumVoxelQueries,
-                "sanitized maximum sweep must remain inside the query budget");
+                    pose.collisionQueries <= T::MaximumVoxelQueries &&
+                    !pose.subjectBoundsRejected,
+                "subject collision must not change the world-query budget");
         ++passed;
     }
 

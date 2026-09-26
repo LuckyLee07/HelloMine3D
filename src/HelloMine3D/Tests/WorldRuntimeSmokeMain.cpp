@@ -2813,9 +2813,15 @@ void caseP11BActionFeedback()
           feedback.snapshot().particles.empty());
     feedback.setIntensity(GameplayFeedbackIntensity::Full);
     eventBus.publish(BlockBreakEvent(selected.blockPosition, selected.blockId));
+    eventBus.publish(PlayerSpawnEvent(
+        DefaultPlayerActorId, 0, glm::vec3(4.f, 80.f, 7.f)));
+    const bool spawnCleared = feedback.snapshot().particles.empty() &&
+        feedback.snapshot().kind == ActionFeedbackKind::None;
+    eventBus.publish(BlockBreakEvent(selected.blockPosition, selected.blockId));
     feedback.attach(otherBus);
     check("P11B/switching-world-clears-old-fragments-and-feedback-state",
-        feedback.snapshot().particles.empty() && feedback.snapshot().kind == ActionFeedbackKind::None);
+        spawnCleared && feedback.snapshot().particles.empty() &&
+        feedback.snapshot().kind == ActionFeedbackKind::None);
 
     const glm::ivec3 surfacePosition(-17, 64, 31);
     const auto surfaceFor = [&](BlockId id, BlockMetadata_t metadata)
@@ -3500,10 +3506,15 @@ void casePlayerControllerInput()
 
     const glm::vec3 interpolationMidpoint =
         sampledOnce.getInterpolatedPosition(0.5f);
+    const std::uint64_t interpolationEpoch =
+        sampledOnce.getInterpolationEpoch();
+    sampledOnce.resetInterpolation();
     check("V2/player-position-interpolates-between-ticks",
           glm::length(interpolationMidpoint -
                       (glm::vec3(20.f, 220.f, 20.f) +
-                       sampledOnce.position) * 0.5f) < 0.0001f,
+                       sampledOnce.position) * 0.5f) < 0.0001f &&
+              sampledOnce.getInterpolationEpoch() ==
+                  interpolationEpoch + 1,
           vecToString(interpolationMidpoint));
 
     Player diagonal;
