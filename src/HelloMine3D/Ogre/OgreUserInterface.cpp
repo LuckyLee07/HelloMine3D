@@ -4977,6 +4977,9 @@ class OgreUserInterface::Impl
             : Material::ID::Nothing;
         const ImVec2 center(io.DisplaySize.x * 0.5f,
                             io.DisplaySize.y * 0.5f);
+        const ImVec2 aimCenter(
+            io.DisplaySize.x * (0.5f + aimIndicatorOffsetX * 0.5f),
+            io.DisplaySize.y * (0.5f - aimIndicatorOffsetY * 0.5f));
 
         const ImGuiWindowFlags performanceFlags =
             ImGuiWindowFlags_NoDecoration |
@@ -5034,13 +5037,26 @@ class OgreUserInterface::Impl
             foreground->AddLine(ImVec2(center.x, center.y - 8.0f),
                                 ImVec2(center.x, center.y + 8.0f),
                                 crosshairColour, 2.0f);
+            const bool showThirdPersonAim =
+                !firstPersonPresentationVisible && aimIndicatorVisible;
+            const ImVec2 targetFeedbackCenter =
+                showThirdPersonAim ? aimCenter : center;
+            if (showThirdPersonAim)
+            {
+                foreground->AddCircleFilled(
+                    aimCenter, 3.5f, IM_COL32(241, 196, 112, 245), 12);
+                foreground->AddCircle(
+                    aimCenter, 6.f, IM_COL32(16, 28, 31, 210), 16, 1.5f);
+            }
             if (miningProgress.active)
             {
                 constexpr float pi = 3.14159265358979323846f;
-                foreground->AddCircle(center, 15.f,
+                const ImVec2 progressCenter =
+                    showThirdPersonAim ? aimCenter : center;
+                foreground->AddCircle(progressCenter, 15.f,
                                       IM_COL32(16, 20, 26, 180), 32, 3.f);
                 foreground->PathArcTo(
-                    center, 15.f, -pi * 0.5f,
+                    progressCenter, 15.f, -pi * 0.5f,
                     -pi * 0.5f + pi * 2.f *
                         miningProgress.normalized(),
                     32);
@@ -5084,8 +5100,8 @@ class OgreUserInterface::Impl
                     continue;
                 }
                 const ImVec2 particleCenter(
-                    center.x + particle.offsetX,
-                    center.y + particle.offsetY);
+                    targetFeedbackCenter.x + particle.offsetX,
+                    targetFeedbackCenter.y + particle.offsetY);
                 const float half = particle.size * 0.5f;
                 const ImVec2 minimum(particleCenter.x - half,
                                      particleCenter.y - half);
@@ -5123,20 +5139,28 @@ class OgreUserInterface::Impl
                 const float inner = 12.f;
                 const float outer = 19.f;
                 foreground->AddLine(
-                    ImVec2(center.x - outer, center.y - outer),
-                    ImVec2(center.x - inner, center.y - inner),
+                    ImVec2(targetFeedbackCenter.x - outer,
+                           targetFeedbackCenter.y - outer),
+                    ImVec2(targetFeedbackCenter.x - inner,
+                           targetFeedbackCenter.y - inner),
                     markerColour, 3.f);
                 foreground->AddLine(
-                    ImVec2(center.x + outer, center.y - outer),
-                    ImVec2(center.x + inner, center.y - inner),
+                    ImVec2(targetFeedbackCenter.x + outer,
+                           targetFeedbackCenter.y - outer),
+                    ImVec2(targetFeedbackCenter.x + inner,
+                           targetFeedbackCenter.y - inner),
                     markerColour, 3.f);
                 foreground->AddLine(
-                    ImVec2(center.x + outer, center.y + outer),
-                    ImVec2(center.x + inner, center.y + inner),
+                    ImVec2(targetFeedbackCenter.x + outer,
+                           targetFeedbackCenter.y + outer),
+                    ImVec2(targetFeedbackCenter.x + inner,
+                           targetFeedbackCenter.y + inner),
                     markerColour, 3.f);
                 foreground->AddLine(
-                    ImVec2(center.x - outer, center.y + outer),
-                    ImVec2(center.x - inner, center.y + inner),
+                    ImVec2(targetFeedbackCenter.x - outer,
+                           targetFeedbackCenter.y + outer),
+                    ImVec2(targetFeedbackCenter.x - inner,
+                           targetFeedbackCenter.y + inner),
                     markerColour, 3.f);
             }
             if (interactionFeedbackSeconds > 0.f)
@@ -5150,20 +5174,28 @@ class OgreUserInterface::Impl
                 const float outer = 18.f + (1.f - fade) * 8.f;
                 const float inner = outer - 6.f;
                 foreground->AddLine(
-                    ImVec2(center.x - outer, center.y - outer),
-                    ImVec2(center.x - inner, center.y - inner),
+                    ImVec2(targetFeedbackCenter.x - outer,
+                           targetFeedbackCenter.y - outer),
+                    ImVec2(targetFeedbackCenter.x - inner,
+                           targetFeedbackCenter.y - inner),
                     feedbackColour, 3.f);
                 foreground->AddLine(
-                    ImVec2(center.x + outer, center.y - outer),
-                    ImVec2(center.x + inner, center.y - inner),
+                    ImVec2(targetFeedbackCenter.x + outer,
+                           targetFeedbackCenter.y - outer),
+                    ImVec2(targetFeedbackCenter.x + inner,
+                           targetFeedbackCenter.y - inner),
                     feedbackColour, 3.f);
                 foreground->AddLine(
-                    ImVec2(center.x + outer, center.y + outer),
-                    ImVec2(center.x + inner, center.y + inner),
+                    ImVec2(targetFeedbackCenter.x + outer,
+                           targetFeedbackCenter.y + outer),
+                    ImVec2(targetFeedbackCenter.x + inner,
+                           targetFeedbackCenter.y + inner),
                     feedbackColour, 3.f);
                 foreground->AddLine(
-                    ImVec2(center.x - outer, center.y + outer),
-                    ImVec2(center.x - inner, center.y + inner),
+                    ImVec2(targetFeedbackCenter.x - outer,
+                           targetFeedbackCenter.y + outer),
+                    ImVec2(targetFeedbackCenter.x - inner,
+                           targetFeedbackCenter.y + inner),
                     feedbackColour, 3.f);
             }
         }
@@ -6974,6 +7006,9 @@ class OgreUserInterface::Impl
     std::string settingsMessage;
     bool settingsApplyPending = false;
     bool firstPersonPresentationVisible = true;
+    bool aimIndicatorVisible = false;
+    float aimIndicatorOffsetX = 0.f;
+    float aimIndicatorOffsetY = 0.f;
     int settingsPage = 0;
     std::unique_ptr<CraftingSession> craftingSession;
     Material::ID selectedCraftingMaterial = Material::ID::Nothing;
@@ -7310,6 +7345,9 @@ void OgreUserInterface::setWorldContext(Player *player,
     m_impl->mapFlatOverview = false;
     m_impl->overviewPanRemainderX = m_impl->overviewPanRemainderZ = 0.f;
     m_impl->overviewValid = false;
+    m_impl->aimIndicatorVisible = false;
+    m_impl->aimIndicatorOffsetX = 0.f;
+    m_impl->aimIndicatorOffsetY = 0.f;
     if (world != nullptr)
     {
         m_impl->statusMessage.clear();
@@ -7326,6 +7364,16 @@ void OgreUserInterface::setFirstPersonPresentationVisible(
     bool visible) noexcept
 {
     m_impl->firstPersonPresentationVisible = visible;
+}
+
+void OgreUserInterface::setThirdPersonAimIndicator(
+    bool visible, float normalizedX, float normalizedY) noexcept
+{
+    m_impl->aimIndicatorVisible = visible;
+    m_impl->aimIndicatorOffsetX = std::clamp(
+        std::isfinite(normalizedX) ? normalizedX : 0.f, -.9f, .9f);
+    m_impl->aimIndicatorOffsetY = std::clamp(
+        std::isfinite(normalizedY) ? normalizedY : 0.f, -.9f, .9f);
 }
 
 void OgreUserInterface::showWorldBackups(const std::string& worldId)

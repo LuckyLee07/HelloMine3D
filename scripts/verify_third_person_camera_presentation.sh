@@ -60,6 +60,191 @@ int main()
     }
 
     {
+        require(close(T::distanceForVerticalFov(90.f), 4.f) &&
+                    close(T::distanceForVerticalFov(120.f), 2.4f) &&
+                    close(T::distanceForVerticalFov(45.f), 6.f) &&
+                    close(T::distanceForVerticalFov(
+                        std::numeric_limits<float>::quiet_NaN()), 4.f),
+                "FOV framing must keep the avatar readable with bounded fallback");
+        ++passed;
+    }
+
+    {
+        const float radius90 = T::radiusForProjection(90.f, 16.f / 9.f, .1f);
+        const float radius120 = T::radiusForProjection(120.f, 16.f / 9.f, .1f);
+        const float radiusWide = T::radiusForProjection(120.f, 3.f, .1f);
+        const float radiusExtreme = T::radiusForProjection(120.f, 16.f, .1f);
+        require(radius90 > .22f && radius90 < .26f &&
+                    radius120 > .38f && radius120 < .40f &&
+                    radiusWide > .57f && radiusWide < .59f &&
+                    close(radiusExtreme, radiusWide) &&
+                    T::projectionSupported(120.f, 16.f / 9.f, .1f) &&
+                    T::projectionSupported(120.f, 3.f, .1f) &&
+                    T::projectionSupported(120.0001f, 16.f / 9.f, .1f) &&
+                    !T::projectionSupported(120.01f, 16.f / 9.f, .1f) &&
+                    !T::projectionSupported(120.f, 3.01f, .1f) &&
+                    !T::projectionSupported(120.f, 3.f, .11f) &&
+                    !T::projectionSupported(120.f, 16.f, .1f) &&
+                    close(T::radiusForProjection(
+                              std::numeric_limits<float>::quiet_NaN(),
+                              std::numeric_limits<float>::quiet_NaN(),
+                              std::numeric_limits<float>::quiet_NaN()),
+                          radius90),
+                "projection-aware radius must enclose supported near planes and reject unsafe extremes");
+        ++passed;
+    }
+
+    {
+        T::Input corner = base;
+        corner.eye = {.7f, 2.f, 0.f};
+        corner.radius = T::DefaultRadius;
+        const auto narrow = T::clip(corner, [](int x, int y, int z) {
+            return x == 1 && y == 2 && z == 3;
+        });
+        corner.radius = T::radiusForProjection(120.f, 16.f / 9.f, .1f);
+        const auto projectionSafe = T::clip(
+            corner, [](int x, int y, int z) {
+                return x == 1 && y == 2 && z == 3;
+            });
+        require(!narrow.hit && projectionSafe.hit &&
+                    projectionSafe.distance < corner.desiredDistance,
+                "near-plane corner contact must clip before the camera view enters a wall");
+        ++passed;
+    }
+
+    {
+        T::Input invalid = base;
+        invalid.shoulderOffset =
+            std::numeric_limits<float>::quiet_NaN();
+        invalid.verticalOffset =
+            std::numeric_limits<float>::infinity();
+        invalid.aimTargetDistance =
+            std::numeric_limits<float>::quiet_NaN();
+        T::State state;
+        const auto pose = T::update(
+            state, T::Mode::ThirdPersonRear, invalid, .016f,
+            [](int, int, int) { return false; });
+        require(T::finite(pose.position) && T::finite(pose.rotation) &&
+                    close(pose.position.x, 0.f) &&
+                    close(pose.position.y, invalid.eye.y) &&
+                    close(pose.position.z, invalid.desiredDistance),
+                "non-finite composition inputs must reduce to the safe rear camera");
+        ++passed;
+    }
+
+    {
+        T::Input shoulder = base;
+        shoulder.shoulderOffset = T::DefaultShoulderOffset;
+        shoulder.verticalOffset = T::DefaultVerticalOffset;
+        shoulder.aimTargetDistance =
+            T::DefaultAimConvergenceDistance;
+        T::State state;
+        const auto pose = T::update(
+            state, T::Mode::ThirdPersonRear, shoulder, .016f,
+            [](int, int, int) { return false; });
+        require(close(pose.position.x, T::DefaultShoulderOffset) &&
+                    close(pose.position.y,
+                          shoulder.eye.y + T::DefaultVerticalOffset) &&
+                    close(pose.position.z, shoulder.desiredDistance),
+                "clear shoulder camera must use the full bounded composition");
+        const glm::vec3 focus = shoulder.eye +
+            T::forward(shoulder.rotation) *
+                T::DefaultAimConvergenceDistance;
+        const glm::vec3 expected = glm::normalize(focus - pose.position);
+        require(glm::dot(T::forward(pose.rotation), expected) > .9999f &&
+                    glm::dot(shoulder.eye - pose.position,
+                             T::right(pose.rotation)) < -.25f,
+                "render aim must converge on the logical ray while moving the avatar off-centre");
+
+        for (const float targetDistance : {0.f, .35f, 1.f, 4.f, 6.f})
+        {
+            shoulder.aimTargetDistance = targetDistance;
+            shoulder.aimTargetVisible = true;
+            T::State targetState;
+            const auto targeted = T::update(
+                targetState, T::Mode::ThirdPersonRear, shoulder, .016f,
+                [](int, int, int) { return false; });
+            const glm::vec3 target = shoulder.eye +
+                T::forward(shoulder.rotation) * targetDistance;
+            const glm::vec3 targetDelta = target - targeted.position;
+            const glm::vec3 cameraForward = T::forward(targeted.rotation);
+            const glm::vec3 cameraRight = T::right(targeted.rotation);
+            const glm::vec3 cameraUp = glm::normalize(
+                glm::cross(cameraRight, cameraForward));
+            const float depth = glm::dot(targetDelta, cameraForward);
+            const float verticalScale = depth *
+                std::tan(glm::radians(shoulder.verticalFovDegrees * .5f));
+            const glm::vec2 expectedCrosshair(
+                glm::dot(targetDelta, cameraRight) /
+                    (verticalScale * shoulder.aspectRatio),
+                glm::dot(targetDelta, cameraUp) / verticalScale);
+            require(close(targeted.rotation.x, pose.rotation.x) &&
+                        close(targeted.rotation.y, pose.rotation.y) &&
+                        targeted.aimIndicatorVisible &&
+                        close(targeted.aimIndicatorNdc.x,
+                              std::clamp(expectedCrosshair.x, -1.f, 1.f)) &&
+                        close(targeted.aimIndicatorNdc.y,
+                              std::clamp(expectedCrosshair.y, -1.f, 1.f)),
+                    "target depth must move the reticle without rotating the shoulder camera");
+        }
+
+        shoulder.rotation.y = 90.f;
+        T::State yawState;
+        const auto yawed = T::update(
+            yawState, T::Mode::ThirdPersonRear, shoulder, .016f,
+            [](int, int, int) { return false; });
+        require(close(yawed.position.x, -shoulder.desiredDistance) &&
+                    close(yawed.position.z, T::DefaultShoulderOffset),
+                "shoulder offset must rotate with yaw without changing handedness");
+        ++passed;
+    }
+
+    {
+        T::Input pitched = base;
+        pitched.shoulderOffset = T::DefaultShoulderOffset;
+        pitched.verticalOffset = T::DefaultVerticalOffset;
+        pitched.subjectBoundsEnabled = true;
+        pitched.subjectMinimum = {-.3f, 0.f, -.3f};
+        pitched.subjectMaximum = {.3f, 2.1f, .3f};
+        for (const float pitch : {-82.f, 82.f})
+        {
+            pitched.rotation.x = pitch;
+            T::State state;
+            const auto pose = T::update(
+                state, T::Mode::ThirdPersonRear, pitched, .016f,
+                [](int, int, int) { return false; });
+            require(pose.effectiveMode == T::Mode::ThirdPersonRear &&
+                        T::finite(pose.position) &&
+                        T::finite(pose.rotation) &&
+                        close(glm::dot(pose.position - pitched.eye,
+                                       T::right(pitched.rotation)),
+                              T::DefaultShoulderOffset) &&
+                        !pose.subjectObstruction,
+                    "steep shoulder camera must remain finite and outside the subject");
+        }
+        ++passed;
+    }
+
+    {
+        T::Input shoulder = base;
+        shoulder.shoulderOffset = 1.f;
+        T::State state;
+        const std::set<Cell> shoulderWall{{1, 2, 3}};
+        const auto pose = T::update(
+            state, T::Mode::ThirdPersonRear, shoulder, .016f,
+            [&](int x, int y, int z) {
+                return shoulderWall.count({x, y, z}) != 0;
+            });
+        require(pose.obstructionHit &&
+                    pose.distance < shoulder.desiredDistance &&
+                    close(pose.position.x,
+                          shoulder.shoulderOffset * pose.distance /
+                              shoulder.desiredDistance),
+                "shoulder-only wall must clip the diagonal sweep and scale the lateral offset");
+        ++passed;
+    }
+
+    {
         for (float coordinate : {
                  static_cast<float>(std::numeric_limits<int>::max()),
                  static_cast<float>(std::numeric_limits<int>::min())})
@@ -377,17 +562,20 @@ int main()
 
     {
         T::State state;
-        T::update(state, T::Mode::ThirdPersonRear, base, .016f,
+        T::Input switching = base;
+        switching.shoulderOffset = T::DefaultShoulderOffset;
+        switching.verticalOffset = T::DefaultVerticalOffset;
+        T::update(state, T::Mode::ThirdPersonRear, switching, .016f,
                   [](int, int, int) { return false; });
         bool queried = false;
-        const auto first = T::update(state, T::Mode::FirstPerson, base, .016f,
+        const auto first = T::update(state, T::Mode::FirstPerson, switching, .016f,
             [&](int, int, int) { queried = true; return true; });
         require(!queried && first.effectiveMode == T::Mode::FirstPerson &&
                     close(first.distance, 0.f) && close(state.currentDistance, 0.f) &&
                     close(state.fallbackClearSeconds, 0.f) &&
                     !state.nearWallFallback,
                 "first-person switch must reset state without world queries");
-        const auto third = T::update(state, T::Mode::ThirdPersonRear, base, .016f,
+        const auto third = T::update(state, T::Mode::ThirdPersonRear, switching, .016f,
                                      [](int, int, int) { return false; });
         require(close(third.distance, 4.f),
                 "returning to third person must initialize from the current safe target");
@@ -399,6 +587,10 @@ int main()
         maximum.desiredDistance = 100.f;
         maximum.radius = 100.f;
         maximum.rotation = {35.264f, 45.f, 0.f};
+        maximum.shoulderOffset = T::MaximumShoulderOffset;
+        maximum.verticalOffset = T::MaximumVerticalOffset;
+        maximum.aimTargetDistance =
+            T::MaximumAimConvergenceDistance;
         maximum.subjectBoundsEnabled = true;
         maximum.subjectMinimum = {-.3f, 0.f, -.3f};
         maximum.subjectMaximum = {.3f, 2.1f, .3f};

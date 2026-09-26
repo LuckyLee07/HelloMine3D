@@ -25,6 +25,12 @@ struct Input
     glm::vec3 rotation{0.f};
     float desiredDistance = 4.f;
     float radius = .18f;
+    float shoulderOffset = 0.f;
+    float verticalOffset = 0.f;
+    float verticalFovDegrees = 90.f;
+    float aspectRatio = 16.f / 9.f;
+    float aimTargetDistance = 6.f;
+    bool aimTargetVisible = false;
     bool subjectBoundsEnabled = false;
     glm::vec3 subjectMinimum{0.f};
     glm::vec3 subjectMaximum{0.f};
@@ -59,12 +65,30 @@ struct Pose
     bool collisionBudgetExhausted = false;
     bool subjectObstruction = false;
     bool subjectBoundsRejected = false;
+    glm::vec2 aimIndicatorNdc{0.f};
+    bool aimIndicatorVisible = false;
 };
 
 inline constexpr float DefaultDistance = 4.f;
 inline constexpr float MaximumDistance = 8.f;
+inline constexpr float MinimumFramingDistance = 2.4f;
+inline constexpr float MaximumFramingDistance = 6.f;
 inline constexpr float DefaultRadius = .18f;
-inline constexpr float MaximumRadius = .5f;
+inline constexpr float MaximumRadius = .65f;
+inline constexpr float ProjectionSafetyMargin = .02f;
+inline constexpr float DefaultProjectionAspect = 16.f / 9.f;
+inline constexpr float MinimumSupportedProjectionAspect = .5f;
+inline constexpr float MaximumSupportedProjectionAspect = 3.f;
+inline constexpr float DefaultNearClipDistance = .1f;
+inline constexpr float MaximumSupportedNearClipDistance = .1f;
+inline constexpr float ProjectionInputTolerance = .001f;
+inline constexpr float DefaultShoulderOffset = .85f;
+inline constexpr float MaximumShoulderOffset = 1.25f;
+inline constexpr float DefaultVerticalOffset = .25f;
+inline constexpr float MaximumVerticalOffset = .75f;
+inline constexpr float DefaultAimConvergenceDistance = 6.f;
+inline constexpr float MinimumAimConvergenceDistance = 0.f;
+inline constexpr float MaximumAimConvergenceDistance = 64.f;
 inline constexpr float MaximumSubjectSpan = 4.f;
 inline constexpr float CollisionPadding = .08f;
 inline constexpr float FallbackEnterDistance = .65f;
@@ -99,6 +123,67 @@ inline glm::vec3 forward(const glm::vec3& inputRotation) noexcept
                                     -std::cos(yaw) * horizontal));
 }
 
+inline glm::vec3 right(const glm::vec3& inputRotation) noexcept
+{
+    const glm::vec3 rotation = sanitizedRotation(inputRotation);
+    const float yaw = glm::radians(rotation.y);
+    return glm::vec3(std::cos(yaw), 0.f, std::sin(yaw));
+}
+
+inline float distanceForVerticalFov(float degrees) noexcept
+{
+    degrees = std::clamp(std::isfinite(degrees) ? degrees : 90.f,
+                         45.f, 120.f);
+    const float halfAngle = glm::radians(degrees * .5f);
+    const float framed = DefaultDistance / std::tan(halfAngle);
+    return std::clamp(framed, MinimumFramingDistance,
+                      MaximumFramingDistance);
+}
+
+inline bool projectionSupported(float verticalFovDegrees,
+                                float aspectRatio,
+                                float nearClipDistance) noexcept
+{
+    return std::isfinite(verticalFovDegrees) &&
+        verticalFovDegrees >= 45.f - ProjectionInputTolerance &&
+        verticalFovDegrees <= 120.f + ProjectionInputTolerance &&
+        std::isfinite(aspectRatio) &&
+        aspectRatio >= MinimumSupportedProjectionAspect -
+            ProjectionInputTolerance &&
+        aspectRatio <= MaximumSupportedProjectionAspect +
+            ProjectionInputTolerance &&
+        std::isfinite(nearClipDistance) &&
+        nearClipDistance >= .01f - ProjectionInputTolerance &&
+        nearClipDistance <= MaximumSupportedNearClipDistance +
+            ProjectionInputTolerance;
+}
+
+inline float radiusForProjection(float verticalFovDegrees,
+                                 float aspectRatio,
+                                 float nearClipDistance) noexcept
+{
+    verticalFovDegrees = std::clamp(
+        std::isfinite(verticalFovDegrees) ? verticalFovDegrees : 90.f,
+        45.f, 120.f);
+    aspectRatio = std::clamp(
+        std::isfinite(aspectRatio) && aspectRatio > 0.f
+            ? aspectRatio : DefaultProjectionAspect,
+        MinimumSupportedProjectionAspect,
+        MaximumSupportedProjectionAspect);
+    nearClipDistance = std::clamp(
+        std::isfinite(nearClipDistance) && nearClipDistance > 0.f
+            ? nearClipDistance : DefaultNearClipDistance,
+        .01f, MaximumSupportedNearClipDistance);
+    const float halfHeight = nearClipDistance *
+        std::tan(glm::radians(verticalFovDegrees * .5f));
+    const float halfWidth = halfHeight * aspectRatio;
+    const float cornerRadius = std::sqrt(
+        nearClipDistance * nearClipDistance +
+        halfHeight * halfHeight + halfWidth * halfWidth);
+    return std::clamp(cornerRadius + ProjectionSafetyMargin,
+                      DefaultRadius, MaximumRadius);
+}
+
 namespace Detail
 {
 inline float distance(const Input& input) noexcept
@@ -114,6 +199,101 @@ inline float radius(const Input& input) noexcept
     return std::clamp(std::isfinite(input.radius) ? input.radius
                                                   : DefaultRadius,
                       0.f, MaximumRadius);
+}
+
+inline float shoulderOffset(const Input& input) noexcept
+{
+    return std::clamp(std::isfinite(input.shoulderOffset)
+                          ? input.shoulderOffset : 0.f,
+                      -MaximumShoulderOffset, MaximumShoulderOffset);
+}
+
+inline float verticalOffset(const Input& input) noexcept
+{
+    return std::clamp(std::isfinite(input.verticalOffset)
+                          ? input.verticalOffset : 0.f,
+                      -MaximumVerticalOffset, MaximumVerticalOffset);
+}
+
+inline float aimTargetDistance(const Input& input) noexcept
+{
+    return std::clamp(std::isfinite(input.aimTargetDistance)
+                          ? input.aimTargetDistance
+                          : DefaultAimConvergenceDistance,
+                      MinimumAimConvergenceDistance,
+                      MaximumAimConvergenceDistance);
+}
+
+inline glm::vec3 cameraOffset(const Input& input, float rearDistance,
+                             float desiredDistance) noexcept
+{
+    rearDistance = std::clamp(
+        std::isfinite(rearDistance) ? rearDistance : 0.f,
+        0.f, MaximumDistance);
+    desiredDistance = std::clamp(
+        std::isfinite(desiredDistance) ? desiredDistance : DefaultDistance,
+        0.f, MaximumDistance);
+    const float ratio = desiredDistance > .000001f
+        ? std::clamp(rearDistance / desiredDistance, 0.f, 1.f) : 0.f;
+    return -forward(input.rotation) * rearDistance +
+        right(input.rotation) * (shoulderOffset(input) * ratio) +
+        glm::vec3(0.f, verticalOffset(input) * ratio, 0.f);
+}
+
+inline glm::vec3 aimedRotation(const Input& input,
+                              const glm::vec3& cameraPosition) noexcept
+{
+    const glm::vec3 base = sanitizedRotation(input.rotation);
+    if (!finite(cameraPosition) ||
+        (std::abs(shoulderOffset(input)) <= .000001f &&
+         std::abs(verticalOffset(input)) <= .000001f))
+        return base;
+
+    const glm::vec3 focus = input.eye +
+        forward(base) * DefaultAimConvergenceDistance;
+    const glm::vec3 delta = focus - cameraPosition;
+    const float length = glm::length(delta);
+    if (!std::isfinite(length) || length <= .000001f) return base;
+    const glm::vec3 direction = delta / length;
+    return sanitizedRotation(glm::vec3(
+        glm::degrees(-std::asin(std::clamp(direction.y, -1.f, 1.f))),
+        glm::degrees(std::atan2(direction.x, -direction.z)), 0.f));
+}
+
+inline glm::vec2 aimIndicatorNdc(const Input& input,
+                                const glm::vec3& cameraPosition,
+                                const glm::vec3& cameraRotation) noexcept
+{
+    if (!finite(cameraPosition) || !finite(cameraRotation))
+        return glm::vec2(0.f);
+    const glm::vec3 target = input.eye +
+        forward(input.rotation) * aimTargetDistance(input);
+    const glm::vec3 delta = target - cameraPosition;
+    const glm::vec3 cameraForward = forward(cameraRotation);
+    const glm::vec3 cameraRight = right(cameraRotation);
+    const glm::vec3 cameraUp = glm::normalize(
+        glm::cross(cameraRight, cameraForward));
+    const float depth = glm::dot(delta, cameraForward);
+    const float halfAngle = glm::radians(std::clamp(
+        std::isfinite(input.verticalFovDegrees)
+            ? input.verticalFovDegrees : 90.f,
+        45.f, 120.f) * .5f);
+    const float aspect = std::clamp(
+        std::isfinite(input.aspectRatio) && input.aspectRatio > 0.f
+            ? input.aspectRatio : DefaultProjectionAspect,
+        MinimumSupportedProjectionAspect,
+        MaximumSupportedProjectionAspect);
+    const float verticalScale = depth * std::tan(halfAngle);
+    if (!std::isfinite(depth) || depth <= .000001f ||
+        !std::isfinite(verticalScale) ||
+        std::abs(verticalScale) <= .000001f)
+        return glm::vec2(0.f);
+    const glm::vec2 projected(
+        glm::dot(delta, cameraRight) / (verticalScale * aspect),
+        glm::dot(delta, cameraUp) / verticalScale);
+    return std::isfinite(projected.x) && std::isfinite(projected.y)
+        ? glm::clamp(projected, glm::vec2(-1.f), glm::vec2(1.f))
+        : glm::vec2(0.f);
 }
 
 inline bool safeCoordinate(float value) noexcept
@@ -203,8 +383,8 @@ inline SubjectCollision subjectCollision(const Input& input,
         glm::vec3(cameraRadius);
     const glm::vec3 maximum = input.subjectMaximum +
         glm::vec3(cameraRadius);
-    const glm::vec3 rear = -forward(input.rotation);
-    const glm::vec3 target = input.eye + rear * targetDistance;
+    const glm::vec3 target = input.eye +
+        cameraOffset(input, targetDistance, desiredDistance);
     result.targetOverlaps =
         target.x >= minimum.x && target.x <= maximum.x &&
         target.y >= minimum.y && target.y <= maximum.y &&
@@ -212,12 +392,15 @@ inline SubjectCollision subjectCollision(const Input& input,
 
     float entry = 0.f;
     float exit = 0.f;
-    if (desiredDistance > .000001f &&
-        segmentInterval(input.eye, input.eye + rear * desiredDistance,
+    const glm::vec3 desiredEnd = input.eye +
+        cameraOffset(input, desiredDistance, desiredDistance);
+    const float pathLength = glm::length(desiredEnd - input.eye);
+    if (desiredDistance > .000001f && pathLength > .000001f &&
+        segmentInterval(input.eye, desiredEnd,
                         minimum, maximum, entry, exit))
     {
         result.clearanceDistance = std::clamp(
-            exit * desiredDistance + CollisionPadding,
+            (exit + CollisionPadding / pathLength) * desiredDistance,
             0.f, desiredDistance);
     }
     return result;
@@ -238,7 +421,9 @@ ClipResult clip(const Input& input, IsCollidable&& isCollidable)
     }
 
     const float cameraRadius = Detail::radius(input);
-    const glm::vec3 end = input.eye - forward(input.rotation) * desiredDistance;
+    const glm::vec3 end = input.eye +
+        Detail::cameraOffset(input, desiredDistance, desiredDistance);
+    const float pathLength = glm::length(end - input.eye);
     const glm::vec3 minimum = glm::min(input.eye, end) -
         glm::vec3(cameraRadius);
     const glm::vec3 maximum = glm::max(input.eye, end) +
@@ -301,8 +486,10 @@ ClipResult clip(const Input& input, IsCollidable&& isCollidable)
 
     if (result.hit)
     {
-        result.distance = std::max(
-            0.f, desiredDistance * earliest - CollisionPadding);
+        const float safeFraction = pathLength > .000001f
+            ? std::max(0.f, earliest - CollisionPadding / pathLength)
+            : 0.f;
+        result.distance = desiredDistance * safeFraction;
     }
     return result;
 }
@@ -436,7 +623,15 @@ Pose update(State& state, Mode requestedMode, const Input& input,
     pose.subjectObstruction = subject.targetOverlaps;
     if (pose.effectiveMode == Mode::ThirdPersonRear)
     {
-        pose.position = input.eye - forward(pose.rotation) * pose.distance;
+        pose.position = input.eye +
+            Detail::cameraOffset(input, pose.distance, desiredDistance);
+        pose.rotation = Detail::aimedRotation(input, pose.position);
+        if (input.aimTargetVisible)
+        {
+            pose.aimIndicatorNdc = Detail::aimIndicatorNdc(
+                input, pose.position, pose.rotation);
+            pose.aimIndicatorVisible = true;
+        }
     }
     return pose;
 }

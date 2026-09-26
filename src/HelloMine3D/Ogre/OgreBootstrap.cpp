@@ -3357,6 +3357,8 @@ namespace
             if (m_userInterface != nullptr)
             {
                 m_userInterface->setFirstPersonPresentationVisible(true);
+                m_userInterface->setThirdPersonAimIndicator(
+                    false, 0.f, 0.f);
             }
         }
 
@@ -3381,6 +3383,11 @@ namespace
             {
                 m_effectiveCameraMode =
                     ThirdPersonCameraPresentation::Mode::FirstPerson;
+                if (m_userInterface != nullptr)
+                {
+                    m_userInterface->setThirdPersonAimIndicator(
+                        false, 0.f, 0.f);
+                }
                 return;
             }
 
@@ -3415,16 +3422,62 @@ namespace
                     0.f, 0.f, deltaSeconds);
                 m_effectiveCameraMode =
                     ThirdPersonCameraPresentation::Mode::FirstPerson;
+                if (m_userInterface != nullptr)
+                {
+                    m_userInterface->setThirdPersonAimIndicator(
+                        false, 0.f, 0.f);
+                }
             }
             else
             {
                 ThirdPersonCameraPresentation::Input input;
                 input.eye = position;
                 input.rotation = rotation;
+                input.verticalFovDegrees = static_cast<float>(
+                    m_camera->getFOVy().valueDegrees());
+                input.aspectRatio = static_cast<float>(
+                    m_camera->getAspectRatio());
+                const float nearClipDistance = static_cast<float>(
+                    m_camera->getNearClipDistance());
                 input.desiredDistance =
-                    ThirdPersonCameraPresentation::DefaultDistance;
+                    ThirdPersonCameraPresentation::distanceForVerticalFov(
+                        input.verticalFovDegrees);
                 input.radius =
-                    ThirdPersonCameraPresentation::DefaultRadius;
+                    ThirdPersonCameraPresentation::radiusForProjection(
+                        input.verticalFovDegrees, input.aspectRatio,
+                        nearClipDistance);
+                input.shoulderOffset =
+                    ThirdPersonCameraPresentation::DefaultShoulderOffset;
+                input.verticalOffset =
+                    ThirdPersonCameraPresentation::DefaultVerticalOffset;
+                input.aimTargetDistance =
+                    ThirdPersonCameraPresentation::
+                        DefaultAimConvergenceDistance;
+                if (m_sandbox != nullptr)
+                {
+                    // Selection remains authoritative on the logic-camera ray.
+                    // The shoulder camera stays stable while the HUD projects
+                    // its reticle onto this selected depth, preserving the
+                    // authoritative ray at both near and far interaction ranges.
+                    const auto& actorSelection =
+                        m_sandbox->getActorSelection();
+                    const auto& blockSelection =
+                        m_sandbox->getBlockSelection();
+                    const glm::vec3* hitPoint = actorSelection
+                        ? &actorSelection->hitPoint
+                        : (blockSelection ? &blockSelection->hitPoint
+                                          : nullptr);
+                    if (hitPoint != nullptr &&
+                        ThirdPersonCameraPresentation::finite(*hitPoint))
+                    {
+                        input.aimTargetDistance =
+                            glm::dot(
+                                *hitPoint - input.eye,
+                                ThirdPersonCameraPresentation::forward(
+                                    input.rotation));
+                        input.aimTargetVisible = true;
+                    }
+                }
                 if (m_worldPlayer != nullptr)
                 {
                     const glm::vec3 playerCentre(
@@ -3439,7 +3492,10 @@ namespace
                 }
                 const ThirdPersonCameraPresentation::Mode requestedMode =
                     m_config.cameraPerspective ==
-                            CameraPerspective::ThirdPerson
+                            CameraPerspective::ThirdPerson &&
+                        ThirdPersonCameraPresentation::projectionSupported(
+                            input.verticalFovDegrees, input.aspectRatio,
+                            nearClipDistance)
                         ? ThirdPersonCameraPresentation::Mode::ThirdPersonRear
                         : ThirdPersonCameraPresentation::Mode::FirstPerson;
                 const auto pose = ThirdPersonCameraPresentation::update(
@@ -3457,6 +3513,16 @@ namespace
                 position = pose.position;
                 rotation = pose.rotation;
                 m_effectiveCameraMode = pose.effectiveMode;
+                if (m_userInterface != nullptr)
+                {
+                    const bool thirdPerson =
+                        pose.effectiveMode ==
+                        ThirdPersonCameraPresentation::Mode::ThirdPersonRear;
+                    m_userInterface->setThirdPersonAimIndicator(
+                        thirdPerson && pose.aimIndicatorVisible,
+                        thirdPerson ? pose.aimIndicatorNdc.x : 0.f,
+                        thirdPerson ? pose.aimIndicatorNdc.y : 0.f);
+                }
             }
             m_camera->setPosition(position.x, position.y, position.z);
             m_camera->setOrientation(Ogre::Quaternion::IDENTITY);

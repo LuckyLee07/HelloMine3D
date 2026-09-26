@@ -101,6 +101,8 @@ class OgreUserInterface final : public Ogre::RenderTargetListener
     bool isDebugPanelVisible() const noexcept;
     void setWorldContext(Player *player, World *world) noexcept;
     void setFirstPersonPresentationVisible(bool visible) noexcept;
+    void setThirdPersonAimIndicator(bool visible, float normalizedX,
+                                    float normalizedY) noexcept;
     void setStatusMessage(std::string message);
     void showWorldBackups(const std::string& worldId);
     void setAudioCaption(std::string cueId, std::string caption);
