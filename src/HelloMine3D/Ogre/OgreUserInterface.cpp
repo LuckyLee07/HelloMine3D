@@ -1703,8 +1703,14 @@ class OgreUserInterface::Impl
                 ImGui::Spacing();
                 if (ImGui::CollapsingHeader(tr("world.manage").c_str()))
                 {
-                ImGui::SetNextItemWidth(300.0f);
-                ImGui::InputText(label("world.display_name", "##rename").c_str(),
+                ImGui::TextUnformatted(tr("world.display_name").c_str());
+                const float renameWidth = ImGui::CalcTextSize(
+                    tr("common.rename").c_str()).x +
+                    ImGui::GetStyle().FramePadding.x * 2.f;
+                ImGui::SetNextItemWidth(std::max(1.f,
+                    ImGui::GetContentRegionAvail().x - renameWidth -
+                        ImGui::GetStyle().ItemSpacing.x));
+                ImGui::InputText("##rename",
                                  renameName.data(),
                                  renameName.size());
                 ImGui::SameLine();
@@ -1714,17 +1720,23 @@ class OgreUserInterface::Impl
                         selectedWorldId, renameName.data()),
                         "world.feedback.renamed");
                 }
-                ImGui::SameLine();
                 ImGui::Text("%s: %llu", tr("world.backups").c_str(),
                             static_cast<unsigned long long>(backups.size()));
                 for (const WorldBackupInfo &backup : backups)
                 {
                     ImGui::PushID(backup.id.c_str());
-                    ImGui::Text("%s (%llu %s)", backup.id.c_str(),
-                                static_cast<unsigned long long>(
-                                    backup.fileCount),
-                                tr("world.files").c_str());
-                    ImGui::SameLine();
+                    const std::string backupSummary = backup.id + " (" +
+                        std::to_string(backup.fileCount) + " " +
+                        tr("world.files") + ")";
+                    const float restoreWidth = ImGui::CalcTextSize(
+                        tr("world.restore_backup").c_str()).x +
+                        ImGui::GetStyle().FramePadding.x * 2.f;
+                    const bool inlineRestore =
+                        ImGui::CalcTextSize(backupSummary.c_str()).x +
+                            ImGui::GetStyle().ItemSpacing.x + restoreWidth <=
+                        ImGui::GetContentRegionAvail().x;
+                    ImGui::TextWrapped("%s", backupSummary.c_str());
+                    if (inlineRestore) ImGui::SameLine();
                     if (ImGui::SmallButton(label("world.restore_backup", "##RestoreBackup").c_str()))
                     {
                         pendingBackupId = backup.id;
@@ -1748,9 +1760,23 @@ class OgreUserInterface::Impl
             ImGui::EndDisabled();
             if (recoverableExpanded && !deletedWorlds.empty())
             {
-                const float deletedListHeight = std::min(105.0f,
-                    18.0f + deletedWorlds.size() *
-                    ImGui::GetTextLineHeightWithSpacing());
+                const float restoreWidth = ImGui::CalcTextSize(
+                    tr("common.restore").c_str()).x +
+                    ImGui::GetStyle().FramePadding.x * 2.f;
+                const float deleteWidth = ImGui::CalcTextSize(
+                    tr("world.delete_permanently").c_str()).x +
+                    ImGui::GetStyle().FramePadding.x * 2.f;
+                const float actionWidth = compactCatalogue
+                    ? std::max(restoreWidth, deleteWidth)
+                    : restoreWidth + ImGui::GetStyle().ItemSpacing.x +
+                          deleteWidth;
+                const float deletedRowHeight =
+                    ImGui::GetTextLineHeight() * (compactCatalogue ? 2.f : 1.f) +
+                    (compactCatalogue ? ImGui::GetStyle().ItemSpacing.y : 0.f) +
+                    ImGui::GetStyle().CellPadding.y * 2.f;
+                const float deletedListHeight = std::min(150.f * scale,
+                    ImGui::GetStyle().WindowPadding.y * 2.f +
+                        deletedWorlds.size() * deletedRowHeight);
                 ImGui::BeginChild("DeletedWorldList",
                                   ImVec2(0.0f, deletedListHeight), true);
                 if (ImGui::BeginTable("RecoverableWorlds", 2,
@@ -1760,7 +1786,7 @@ class OgreUserInterface::Impl
                     ImGui::TableSetupColumn("World",
                         ImGuiTableColumnFlags_WidthStretch);
                     ImGui::TableSetupColumn("Actions",
-                        ImGuiTableColumnFlags_WidthFixed, 250.f * scale);
+                        ImGuiTableColumnFlags_WidthFixed, actionWidth);
                     for (const DeletedWorldInfo &entry : deletedWorlds)
                     {
                         ImGui::PushID(entry.recoveryId.c_str());
@@ -1773,7 +1799,7 @@ class OgreUserInterface::Impl
                             reportResult(management->restoreDeletedWorld(
                                 entry.world.id), "world.feedback.restored");
                         }
-                        ImGui::SameLine();
+                        if (!compactCatalogue) ImGui::SameLine();
                         if (ImGui::SmallButton(label("world.delete_permanently", "##DeletePermanent").c_str()))
                         {
                             pendingPermanentDeleteWorldId = entry.world.id;
@@ -1827,21 +1853,34 @@ class OgreUserInterface::Impl
                 }
                 ImGui::EndPopup();
             }
+            ImGui::SetNextWindowSize(ImVec2(
+                std::min(480.f * scale, io.DisplaySize.x - 30.f), 0.f));
             if (ImGui::BeginPopupModal(label("world.delete_permanent_title", "##PermanentDelete").c_str(), nullptr,
                                        ImGuiWindowFlags_AlwaysAutoResize))
             {
                 ImGui::TextWrapped("%s", tr("world.delete_permanent_body").c_str());
+                const float availableWidth = ImGui::GetContentRegionAvail().x;
+                const float deleteWidth = std::min(availableWidth,
+                    std::max(170.f, ImGui::CalcTextSize(
+                        tr("world.delete_permanently").c_str()).x +
+                        ImGui::GetStyle().FramePadding.x * 2.f));
+                const float cancelWidth = std::min(availableWidth,
+                    std::max(120.f, ImGui::CalcTextSize(
+                        tr("common.cancel").c_str()).x +
+                        ImGui::GetStyle().FramePadding.x * 2.f));
                 if (ImGui::Button(label("world.delete_permanently", "##ConfirmPermanent").c_str(),
-                                  ImVec2(170.0f, 0.0f)))
+                                  ImVec2(deleteWidth, 0.f)))
                 {
                     reportResult(management->permanentlyDeleteWorld(
                         pendingPermanentDeleteWorldId),
                         "world.feedback.permanently_deleted");
                     ImGui::CloseCurrentPopup();
                 }
-                ImGui::SameLine();
+                if (deleteWidth + ImGui::GetStyle().ItemSpacing.x +
+                        cancelWidth <= availableWidth)
+                    ImGui::SameLine();
                 if (ImGui::Button(label("common.cancel", "##CancelPermanent").c_str(),
-                                  ImVec2(120.0f, 0.0f)))
+                                  ImVec2(cancelWidth, 0.f)))
                 {
                     playUiFeedback();
                     ImGui::CloseCurrentPopup();
