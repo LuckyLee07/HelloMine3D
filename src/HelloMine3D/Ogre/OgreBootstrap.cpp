@@ -72,6 +72,8 @@
 #include "../Item/SmeltingRegistry.h"
 #include "../Player/Player.h"
 #include "../Presentation/LocalizedTextRegistry.h"
+#include "../Presentation/AdventureAudioPresentation.h"
+#include "../Presentation/AdventureAudioWorldAdapter.h"
 #include "../Presentation/PlayerAvatarPresentation.h"
 #include "../Presentation/PlayerHandPresentation.h"
 #include "../Presentation/ThirdPersonCameraPresentation.h"
@@ -1180,6 +1182,7 @@ namespace
                 throw std::runtime_error(
                     "Sandbox did not create an active world.");
             }
+            resetAdventureAudioPresentation(true);
             if (m_audio != nullptr)
             {
                 m_audio->attach(m_world->getEventBus());
@@ -2053,6 +2056,8 @@ namespace
                 {
                     m_audio->attach(m_world->getEventBus());
                 }
+                m_adventureAmbientReplayCountdown.fill(0.f);
+                m_adventureAmbientReplaySuspended = true;
                 return false;
             }
             if (m_userInterface != nullptr)
@@ -2086,6 +2091,7 @@ namespace
             m_world = nullptr;
             m_regionalAtmosphere.reset();
             m_worldPlayer = nullptr;
+            resetAdventureAudioPresentation(false);
             m_logicCamera.reset();
             m_visualCameraSweep = {};
             m_blockFeedbackCapture = false;
@@ -2199,7 +2205,17 @@ namespace
                                 << fallbackSaveError << '\n';
                         }
                     }
+                    const bool audioCaptionsWereEnabled =
+                        userSettings(m_config).audioCaptions;
                     userSettings(m_config) = userSettings(candidate);
+                    if (!audioCaptionsWereEnabled &&
+                        userSettings(m_config).audioCaptions)
+                    {
+                        // A disabled caption timeline is cleared by the UI.
+                        // Let each still-audible environment layer announce
+                        // itself once when captions are enabled again.
+                        m_adventureAmbientCaptionAnnounced.fill(false);
+                    }
                     if (m_camera != nullptr)
                     {
                         m_camera->setFOVy(Ogre::Degree(
@@ -2696,6 +2712,348 @@ namespace
             return true;
         }
 
+        void resetAdventureAudioPresentation(bool beginWorld) noexcept
+        {
+            m_adventureAudioState = {};
+            m_adventureAudioEnvironment = {};
+            m_adventureAudioEnvironmentCell = {
+                std::numeric_limits<int>::min(),
+                std::numeric_limits<int>::min()};
+            m_adventureAudioEnvironmentRefreshSeconds = 0.f;
+            m_adventureAmbientReplayCountdown.fill(0.f);
+            m_adventureAmbientCaptionAnnounced.fill(false);
+            m_adventureAmbientReplaySuspended = true;
+            m_frameActorSnapshots.clear();
+            m_adventureAudioPlayerInterpolationEpoch =
+                beginWorld && m_worldPlayer != nullptr
+                    ? m_worldPlayer->getInterpolationEpoch()
+                    : 0;
+            if (beginWorld)
+            {
+                advanceAdventureAudioEpoch();
+            }
+        }
+
+        void advanceAdventureAudioEpoch() noexcept
+        {
+            if (m_audio != nullptr)
+            {
+                // Teleports, respawns and world transitions must not carry
+                // queued voices or replay timing from the previous place.
+                m_audio->stopAllPlayback();
+            }
+            m_adventureAmbientReplayCountdown.fill(0.f);
+            m_adventureAmbientCaptionAnnounced.fill(false);
+            m_adventureAmbientReplaySuspended = true;
+            ++m_adventureAudioWorldEpoch;
+            if (m_adventureAudioWorldEpoch == 0)
+                m_adventureAudioWorldEpoch = 1;
+        }
+
+        AdventureAudioPresentation::SurfaceKind
+        playerSupportSurface() const
+        {
+            namespace Adapter = AdventureAudioWorldAdapter;
+            using Surface = AdventureAudioPresentation::SurfaceKind;
+            if (m_world == nullptr || m_worldPlayer == nullptr ||
+                !m_worldPlayer->isOnGround() || m_worldPlayer->isFlying())
+            {
+                return Surface::Unknown;
+            }
+
+            const glm::vec3 position = m_worldPlayer->position;
+            const glm::vec3 half = m_worldPlayer->box.dimensions;
+            const int supportY = World::toBlockCoord(
+                position.y - half.y - .04f);
+            const float insetX = std::max(.05f, half.x * .72f);
+            const float insetZ = std::max(.05f, half.z * .72f);
+            const std::array<glm::vec2, 5> probes{{
+                {0.f, 0.f},
+                {-insetX, -insetZ},
+                {insetX, -insetZ},
+                {-insetX, insetZ},
+                {insetX, insetZ}}};
+            for (int verticalOffset = 0; verticalOffset >= -1;
+                 --verticalOffset)
+            {
+                for (const glm::vec2 &probe : probes)
+                {
+                    const BlockId block = static_cast<BlockId>(
+                        m_world->getBlock(
+                            World::toBlockCoord(position.x + probe.x),
+                            supportY + verticalOffset,
+                            World::toBlockCoord(position.z + probe.y)).id);
+                    const Surface surface = Adapter::surfaceKind(block);
+                    if (surface != Surface::Unknown)
+                        return surface;
+                }
+            }
+            return Surface::Unknown;
+        }
+
+        void refreshAdventureAudioEnvironment(float deltaSeconds)
+        {
+            namespace Audio = AdventureAudioPresentation;
+            namespace Adapter = AdventureAudioWorldAdapter;
+            if (m_world == nullptr || m_worldPlayer == nullptr)
+            {
+                m_adventureAudioEnvironment = {};
+                return;
+            }
+
+            m_adventureAudioEnvironmentRefreshSeconds = std::max(
+                0.f, m_adventureAudioEnvironmentRefreshSeconds -
+                         std::clamp(deltaSeconds, 0.f, .25f));
+            const int centerX = World::toBlockCoord(
+                m_worldPlayer->position.x);
+            const int centerZ = World::toBlockCoord(
+                m_worldPlayer->position.z);
+            const glm::ivec2 cell{World::floorDiv(centerX, 8),
+                                  World::floorDiv(centerZ, 8)};
+            if (cell == m_adventureAudioEnvironmentCell &&
+                m_adventureAudioEnvironmentRefreshSeconds > 0.f)
+            {
+                return;
+            }
+
+            constexpr int GridRadius = 2;
+            constexpr int ProbeSpacing = 8;
+            constexpr std::size_t ProbeCount =
+                (GridRadius * 2 + 1) * (GridRadius * 2 + 1);
+            std::array<VectorXZ, ProbeCount> coordinates{};
+            std::vector<VectorXZ> query;
+            query.reserve(ProbeCount);
+            std::size_t output = 0;
+            for (int dz = -GridRadius; dz <= GridRadius; ++dz)
+            {
+                for (int dx = -GridRadius; dx <= GridRadius; ++dx)
+                {
+                    coordinates[output++] = {
+                        centerX + dx * ProbeSpacing,
+                        centerZ + dz * ProbeSpacing};
+                }
+            }
+            query.assign(coordinates.begin(), coordinates.end());
+            const auto surfaces = m_world->getChunkManager()
+                                      .collectSurfaceMapSamples(query);
+            const bool residentBatchReady =
+                surfaces.size() == coordinates.size();
+            if (!residentBatchReady &&
+                m_adventureAudioEnvironmentCell.x !=
+                    std::numeric_limits<int>::min())
+            {
+                m_adventureAudioEnvironmentRefreshSeconds = .1f;
+                return;
+            }
+
+            const TerrainGenerator &generator =
+                m_world->getChunkManager().getTerrainGenerator();
+            Adapter::EnvironmentAccumulator accumulator;
+            bool playerBelowSurface = false;
+            for (std::size_t index = 0; index < coordinates.size(); ++index)
+            {
+                const VectorXZ coordinate = coordinates[index];
+                const int dx = static_cast<int>(index % 5) - GridRadius;
+                const int dz = static_cast<int>(index / 5) - GridRadius;
+                const float distance = std::sqrt(
+                    static_cast<float>(dx * dx + dz * dz));
+                const float weight = (dx == 0 && dz == 0)
+                                         ? 3.f
+                                         : 1.f / (1.f + distance * .38f);
+                const bool known = residentBatchReady &&
+                                   surfaces[index].known;
+                const int height = known
+                    ? surfaces[index].height
+                    : generator.getSurfaceHeightAtWorld(
+                          coordinate.x, coordinate.z);
+                const BlockId material = known
+                    ? surfaces[index].material
+                    : BlockId::Air;
+                accumulator.add({
+                    generator.getBiomeAtWorld(coordinate.x, coordinate.z),
+                    known, height, material,
+                    {static_cast<float>(coordinate.x),
+                     static_cast<float>(height + 1),
+                     static_cast<float>(coordinate.z)},
+                    weight});
+                if (dx == 0 && dz == 0)
+                {
+                    playerBelowSurface =
+                        m_worldPlayer->position.y <
+                        static_cast<float>(height - 4);
+                }
+            }
+            m_adventureAudioEnvironment = playerBelowSurface
+                ? std::array<Audio::EnvironmentTarget,
+                             Audio::AmbientKindCount>{}
+                : accumulator.targets();
+            m_adventureAudioEnvironmentCell = cell;
+            m_adventureAudioEnvironmentRefreshSeconds = .5f;
+        }
+
+        AdventureAudioPresentation::Input adventureAudioInput(
+            float deltaSeconds, bool presentationPaused,
+            bool uiBlocked) const
+        {
+            namespace Audio = AdventureAudioPresentation;
+            namespace Adapter = AdventureAudioWorldAdapter;
+            Audio::Input input;
+            input.deltaSeconds = deltaSeconds;
+            input.worldEpoch = m_adventureAudioWorldEpoch;
+            input.worldActive = m_world != nullptr &&
+                                m_worldPlayer != nullptr;
+            input.paused = presentationPaused;
+            input.uiBlocked = uiBlocked;
+            if (!input.worldActive)
+                return input;
+
+            input.playerPositionValid = true;
+            input.playerPosition = {
+                m_worldPlayer->position.x,
+                m_worldPlayer->position.y,
+                m_worldPlayer->position.z};
+            input.grounded = m_worldPlayer->isOnGround();
+            input.flying = m_worldPlayer->isFlying();
+            input.supportSurface = playerSupportSurface();
+            input.daylight = WorldEnvironment::evaluate(
+                m_world->getWorldTime()).daylight;
+            input.environment = m_adventureAudioEnvironment;
+
+            for (const ActorSnapshot &snapshot : m_frameActorSnapshots)
+            {
+                const Audio::AnimalSpecies species =
+                    Adapter::animalSpecies(snapshot.type);
+                if (species == Audio::AnimalSpecies::Unknown ||
+                    input.animalCount >= input.animals.size())
+                {
+                    continue;
+                }
+                input.animals[input.animalCount++] = {
+                    snapshot.id, species,
+                    Adapter::animalActivity(snapshot.wildlifeActivity),
+                    {snapshot.position.x, snapshot.position.y,
+                     snapshot.position.z}};
+            }
+            return input;
+        }
+
+        void submitAdventureAudioFrame(
+            const AdventureAudioPresentation::Frame &frame)
+        {
+            if (m_audio == nullptr)
+                return;
+            for (std::size_t index = 0; index < frame.cueCount; ++index)
+            {
+                const AdventureAudioPresentation::Cue &cue =
+                    frame.cues[index];
+                switch (cue.kind)
+                {
+                case AdventureAudioPresentation::CueKind::AmbientOpenLand:
+                case AdventureAudioPresentation::CueKind::AmbientForest:
+                case AdventureAudioPresentation::CueKind::AmbientInlandWater:
+                case AdventureAudioPresentation::CueKind::AmbientCoast:
+                    // Fixed bounded ambient replay below owns these samples;
+                    // the scheduler's sparse cue only advances its cadence.
+                    continue;
+                default:
+                    break;
+                }
+                const char *cueId = AdventureAudioPresentation::cueId(cue);
+                if (cueId[0] == '\0')
+                    continue;
+                const bool caption =
+                    cue.kind ==
+                        AdventureAudioPresentation::CueKind::AnimalSheep ||
+                    cue.kind ==
+                        AdventureAudioPresentation::CueKind::AnimalRabbit ||
+                    cue.kind == AdventureAudioPresentation::CueKind::
+                                    AnimalWetlandBird;
+                m_audio->submit({
+                    cueId, cue.spatial,
+                    {cue.position.x, cue.position.y, cue.position.z},
+                    cue.gain, caption});
+            }
+        }
+
+        void updateAdventureAmbientLoops(
+            const AdventureAudioPresentation::Frame &frame,
+            float deltaSeconds, float daylight, bool reset,
+            bool suspended)
+        {
+            namespace Audio = AdventureAudioPresentation;
+            if (m_audio == nullptr)
+                return;
+            if (reset)
+            {
+                m_adventureAmbientReplayCountdown.fill(0.f);
+                m_adventureAmbientReplaySuspended = true;
+                return;
+            }
+            if (suspended)
+            {
+                // The backend retains and pauses its current buffers while
+                // unfocused. Preserve the replay countdown so focus recovery
+                // cannot stack a fresh copy over the resumed sample.
+                m_adventureAmbientReplaySuspended = true;
+                return;
+            }
+
+            std::array<float, Audio::AmbientKindCount> weights{};
+            std::array<bool, Audio::AmbientKindCount> positioned{};
+            std::array<Audio::Vec3, Audio::AmbientKindCount> positions{};
+            for (std::size_t index = 0;
+                 index < frame.ambientLayerCount; ++index)
+            {
+                const Audio::AmbientLayer &layer =
+                    frame.ambientLayers[index];
+                const std::size_t kind =
+                    static_cast<std::size_t>(layer.kind);
+                if (kind >= weights.size())
+                    continue;
+                weights[kind] = layer.weight;
+                positioned[kind] = layer.hasPosition;
+                positions[kind] = layer.position;
+            }
+
+            const float delta = std::clamp(deltaSeconds, 0.f, .25f);
+            for (std::size_t kind = 0; kind < weights.size(); ++kind)
+            {
+                if (weights[kind] <= Audio::MinimumAudibleLayerWeight)
+                {
+                    m_adventureAmbientReplayCountdown[kind] = 0.f;
+                    m_adventureAmbientCaptionAnnounced[kind] = false;
+                    continue;
+                }
+                float &countdown =
+                    m_adventureAmbientReplayCountdown[kind];
+                if (!m_adventureAmbientReplaySuspended)
+                    countdown = std::max(0.f, countdown - delta);
+                if (countdown > 0.f)
+                    continue;
+
+                const Audio::AmbientKind ambientKind =
+                    static_cast<Audio::AmbientKind>(kind);
+                const char *cueId = Audio::cueId(
+                    Audio::ambientCue(ambientKind));
+                if (cueId[0] == '\0')
+                    continue;
+                const bool announceCaption =
+                    !m_adventureAmbientCaptionAnnounced[kind] &&
+                    m_audio->captionsEnabled();
+                m_audio->submit({
+                    cueId, positioned[kind],
+                    {positions[kind].x, positions[kind].y,
+                     positions[kind].z},
+                    Audio::ambientLayerGain(weights[kind], daylight),
+                    announceCaption});
+                if (announceCaption)
+                    m_adventureAmbientCaptionAnnounced[kind] = true;
+                countdown = Audio::ambientReplayInterval(
+                    ambientKind, daylight);
+            }
+            m_adventureAmbientReplaySuspended = false;
+        }
+
         void updateAudio(float deltaSeconds)
         {
             AudioListenerState listener;
@@ -2710,10 +3068,52 @@ namespace
                 m_applicationFlow.state() == GameApplicationState::Paused;
             if (m_audio != nullptr)
             {
+                if (m_worldPlayer != nullptr &&
+                    m_adventureAudioPlayerInterpolationEpoch !=
+                        m_worldPlayer->getInterpolationEpoch())
+                {
+                    m_adventureAudioPlayerInterpolationEpoch =
+                        m_worldPlayer->getInterpolationEpoch();
+                    // Player::resetInterpolation marks authoritative position
+                    // discontinuities such as teleport and void recovery. Make
+                    // them a scheduler epoch even when the displacement is
+                    // below the generic four-metre teleport guard.
+                    advanceAdventureAudioEpoch();
+                }
+                const bool focused = m_focusGate.isFocused();
+                const bool uiBlocked = m_worldPlayer != nullptr &&
+                    (m_worldPlayer->hasOpenContainer() ||
+                     m_worldPlayer->hasOpenCrafting() ||
+                     (m_userInterface != nullptr &&
+                      (m_userInterface->wantsKeyboardInput() ||
+                       m_userInterface->wantsMouseInput())));
+                const bool presentationPaused =
+                    worldPaused || !focused || uiBlocked;
+                const bool ambientSuspended = !focused;
                 m_audio->setWorldPaused(worldPaused);
+                // Pause menus retain UI click feedback. Only loss of process
+                // focus suspends the device queue itself.
+                m_audio->setSuspended(!focused);
+                // The adventure scheduler below owns environment timing. Keep
+                // AudioRuntime updating the listener/backend while disabling
+                // its legacy unconditional ambient.wind timer.
                 m_audio->update(deltaSeconds,
-                                m_applicationFlow.acceptsWorldSimulation(),
+                                false,
                                 listener);
+                refreshAdventureAudioEnvironment(deltaSeconds);
+                const AdventureAudioPresentation::Input audioInput =
+                    adventureAudioInput(deltaSeconds,
+                                        presentationPaused,
+                                        uiBlocked);
+                const AdventureAudioPresentation::Frame frame =
+                    AdventureAudioPresentation::update(
+                        m_adventureAudioState,
+                        audioInput);
+                updateAdventureAmbientLoops(
+                    frame, deltaSeconds, audioInput.daylight,
+                    worldPaused || frame.resetThisFrame,
+                    ambientSuspended);
+                submitAdventureAudioFrame(frame);
             }
             if (m_music != nullptr)
             {
@@ -2872,12 +3272,17 @@ namespace
             {
                 return;
             }
-            auto snapshots = m_world->collectActorSnapshots();
-            if (!m_actorVisualCapture.empty() && m_actorVisualCapture != "projectiles" &&
-                m_actorVisualCapture != "projectile-flight")
+            m_frameActorSnapshots = m_world->collectActorSnapshots();
+            const bool actorGallery =
+                !m_actorVisualCapture.empty() &&
+                m_actorVisualCapture != "projectiles" &&
+                m_actorVisualCapture != "projectile-flight";
+            std::vector<ActorSnapshot> gallerySnapshots;
+            std::vector<ActorSnapshot>& snapshots =
+                actorGallery ? gallerySnapshots : m_frameActorSnapshots;
+            if (actorGallery)
             {
                 // Fixed presentation gallery; no actors/items enter the World or save.
-                snapshots.clear();
                 const Ogre::Vector3 view = m_camera->getDirection();
                 glm::vec3 forward(view.x, 0.f, view.z);
                 if (glm::length(forward) < .001f) forward = {0,0,-1};
@@ -5032,6 +5437,14 @@ namespace
                 std::string("[INPUT_FOCUS] focused=") + (focused ? "1" : "0") +
                 " frame=" + std::to_string(m_frameCount));
 #endif
+            if (m_audio != nullptr)
+            {
+                m_audio->setSuspended(!focused);
+            }
+            if (m_music != nullptr)
+            {
+                m_music->setSuspended(!focused);
+            }
             m_focusGate.setFocused(focused);
             m_focusTransitionFrame = true;
             m_graveKeyHeld = false;
@@ -5292,6 +5705,22 @@ namespace
         std::unique_ptr<OgreUserInterface> m_userInterface;
         std::unique_ptr<AudioRuntime> m_audio;
         std::unique_ptr<MusicRuntime> m_music;
+        AdventureAudioPresentation::State m_adventureAudioState;
+        std::array<AdventureAudioPresentation::EnvironmentTarget,
+                   AdventureAudioPresentation::AmbientKindCount>
+            m_adventureAudioEnvironment{};
+        glm::ivec2 m_adventureAudioEnvironmentCell{
+            std::numeric_limits<int>::min(),
+            std::numeric_limits<int>::min()};
+        float m_adventureAudioEnvironmentRefreshSeconds = 0.f;
+        std::array<float, AdventureAudioPresentation::AmbientKindCount>
+            m_adventureAmbientReplayCountdown{};
+        std::array<bool, AdventureAudioPresentation::AmbientKindCount>
+            m_adventureAmbientCaptionAnnounced{};
+        bool m_adventureAmbientReplaySuspended = true;
+        std::uint64_t m_adventureAudioWorldEpoch = 0;
+        std::uint64_t m_adventureAudioPlayerInterpolationEpoch = 0;
+        std::vector<ActorSnapshot> m_frameActorSnapshots;
         std::vector<PendingCrashReport> m_pendingCrashReports;
         std::string m_audioDefinitionError;
         std::string m_musicDefinitionError;
