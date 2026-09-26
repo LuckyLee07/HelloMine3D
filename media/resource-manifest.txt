@@ -1,12 +1,26 @@
 # HelloMine3D resource manifest v1
 atlas-layout|media/materials/Base.terrain-atlas
+audio-sample|media/audio/samples/ambient-coast.wav
+audio-sample|media/audio/samples/ambient-forest.wav
+audio-sample|media/audio/samples/ambient-river.wav
 audio-sample|media/audio/samples/ambient-wind.wav
+audio-sample|media/audio/samples/animal-marsh-bird.wav
+audio-sample|media/audio/samples/animal-rabbit.wav
+audio-sample|media/audio/samples/animal-sheep.wav
 audio-sample|media/audio/samples/block-break.wav
 audio-sample|media/audio/samples/block-place.wav
 audio-sample|media/audio/samples/combat-guard.wav
 audio-sample|media/audio/samples/combat-hit.wav
 audio-sample|media/audio/samples/combat-windup.wav
 audio-sample|media/audio/samples/craft-success.wav
+audio-sample|media/audio/samples/footstep-grass-dirt-1.wav
+audio-sample|media/audio/samples/footstep-grass-dirt-2.wav
+audio-sample|media/audio/samples/footstep-sand-1.wav
+audio-sample|media/audio/samples/footstep-sand-2.wav
+audio-sample|media/audio/samples/footstep-stone-1.wav
+audio-sample|media/audio/samples/footstep-stone-2.wav
+audio-sample|media/audio/samples/footstep-wood-1.wav
+audio-sample|media/audio/samples/footstep-wood-2.wav
 audio-sample|media/audio/samples/item-pickup.wav
 audio-sample|media/audio/samples/ui-click.wav
 audio|media/audio/Base.audio

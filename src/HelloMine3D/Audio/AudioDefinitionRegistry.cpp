@@ -10,8 +10,10 @@
 #include <stdexcept>
 
 namespace {
-constexpr const char *AudioHeader =
+constexpr const char *AudioHeaderV3 =
     "# HelloMine3D audio definitions v3";
+constexpr const char *AudioHeaderV4 =
+    "# HelloMine3D audio definitions v4";
 
 std::string trim(const std::string &value)
 {
@@ -94,18 +96,45 @@ AudioCategory parseCategory(const AudioDefinitionSource &source,
     fail(source, line, "unknown category '" + value + "'");
 }
 
-void requireCompleteCueSet(
-    const std::unordered_map<std::string, std::size_t> &byId)
+int parseFormatVersion(const std::string &header) noexcept
 {
-    static const std::vector<std::string> required = {
+    if (header == AudioHeaderV3) {
+        return 3;
+    }
+    if (header == AudioHeaderV4) {
+        return 4;
+    }
+    return 0;
+}
+
+void requireCompleteCueSet(
+    const std::unordered_map<std::string, std::size_t> &byId,
+    int version)
+{
+    static const std::vector<std::string> baseRequired = {
         "ui.click", "block.break", "block.place", "item.pickup",
         "craft.success", "combat.hit", "combat.windup", "combat.guard",
         "ambient.wind"};
-    for (const std::string &id : required) {
+    static const std::vector<std::string> adventureRequired = {
+        "ambient.open", "ambient.forest", "ambient.river",
+        "ambient.coast", "animal.sheep", "animal.rabbit",
+        "animal.marsh-bird", "footstep.grass-dirt.1",
+        "footstep.grass-dirt.2", "footstep.stone.1",
+        "footstep.stone.2", "footstep.wood.1", "footstep.wood.2",
+        "footstep.sand.1", "footstep.sand.2"};
+    auto require = [&byId](const std::string &id) {
         if (byId.find(id) == byId.end()) {
             throw std::runtime_error(
                 "Audio definitions are missing required cue '" + id +
                 "'.");
+        }
+    };
+    for (const std::string &id : baseRequired) {
+        require(id);
+    }
+    if (version >= 4) {
+        for (const std::string &id : adventureRequired) {
+            require(id);
         }
     }
 }
@@ -137,6 +166,7 @@ void AudioDefinitionRegistry::freeze(
 
     std::vector<AudioDefinition> parsed;
     std::unordered_map<std::string, std::size_t> byId;
+    int parsedFormatVersion = 0;
     for (const AudioDefinitionSource &source : sources) {
         std::istringstream input(source.content);
         std::string line;
@@ -154,10 +184,17 @@ void AudioDefinitionRegistry::freeze(
                 line.erase(0, 3);
             }
             if (!headerSeen) {
-                if (trim(line) != AudioHeader) {
+                const int sourceFormatVersion = parseFormatVersion(trim(line));
+                if (sourceFormatVersion == 0) {
                     fail(source, lineNumber,
                          "unsupported or missing version header");
                 }
+                if (parsedFormatVersion != 0 &&
+                    parsedFormatVersion != sourceFormatVersion) {
+                    fail(source, lineNumber,
+                         "mixed audio definition versions are unsupported");
+                }
+                parsedFormatVersion = sourceFormatVersion;
                 headerSeen = true;
                 continue;
             }
@@ -237,9 +274,10 @@ void AudioDefinitionRegistry::freeze(
         }
     }
 
-    requireCompleteCueSet(byId);
+    requireCompleteCueSet(byId, parsedFormatVersion);
     m_definitions = std::move(parsed);
     m_byId = std::move(byId);
+    m_formatVersion = parsedFormatVersion;
     m_frozen = true;
 }
 
@@ -261,6 +299,7 @@ bool AudioDefinitionRegistry::tryFreezeFromFile(
     catch (const std::exception &exception) {
         m_definitions.clear();
         m_byId.clear();
+        m_formatVersion = 0;
         m_frozen = true;
         error = exception.what();
         return false;
@@ -270,6 +309,11 @@ bool AudioDefinitionRegistry::tryFreezeFromFile(
 bool AudioDefinitionRegistry::isFrozen() const noexcept
 {
     return m_frozen;
+}
+
+int AudioDefinitionRegistry::formatVersion() const noexcept
+{
+    return m_formatVersion;
 }
 
 const AudioDefinition *AudioDefinitionRegistry::find(

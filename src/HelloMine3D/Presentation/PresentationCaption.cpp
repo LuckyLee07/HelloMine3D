@@ -61,7 +61,9 @@ int PresentationCaptionTimeline::priority(const std::string& cueId) noexcept
     {
         return 2;
     }
-    if (cueId == "ambient.wind")
+    if (cueId.rfind("ambient.", 0) == 0 ||
+        cueId.rfind("animal.", 0) == 0 ||
+        cueId.rfind("footstep.", 0) == 0)
     {
         return 0;
     }

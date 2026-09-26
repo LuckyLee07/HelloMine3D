@@ -11133,6 +11133,11 @@ sample ambient.wind ambient 2d "media/audio/samples/ambient-wind.wav" 0.20 1 "au
 // ---------------------------------------------------------------------------
 void caseAudioFeedback()
 {
+    std::ifstream bundledDefinitionInput(
+        ResourcePaths::media("audio/Base.audio"), std::ios::binary);
+    std::ostringstream bundledDefinitionContent;
+    bundledDefinitionContent << bundledDefinitionInput.rdbuf();
+    const std::string bundledDefinitions = bundledDefinitionContent.str();
     AudioDefinitionRegistry loaded;
     std::string loadError;
     const bool loadedBase = loaded.tryFreezeFromFile(
@@ -11141,7 +11146,8 @@ void caseAudioFeedback()
     const AudioDefinition *block = loaded.find("block.break");
     check("G5/base-audio-definitions-freeze-complete-cue-set",
           loadedBase && loadError.empty() && loaded.isFrozen() &&
-              loaded.definitions().size() == 9 && ui != nullptr &&
+              loaded.formatVersion() == 4 &&
+              loaded.definitions().size() == 24 && ui != nullptr &&
               block != nullptr && ui->caption == "Menu selection" &&
               block->caption == "Block broken" &&
               ui->samplePath == "media/audio/samples/ui-click.wav" &&
@@ -11150,12 +11156,46 @@ void caseAudioFeedback()
           ui != nullptr && ui->category == AudioCategory::Ui &&
               !ui->spatial && block != nullptr && block->spatial &&
               block->category == AudioCategory::Effects);
+    std::unique_ptr<AudioRuntime> bundledAudio = AudioRuntime::createDummy(
+        std::move(loaded), userSettings(makeConfig()));
+    check("B9/bundled-adventure-samples-fit-existing-cache-budget",
+          bundledAudio->samples().isFrozen() &&
+              bundledAudio->samples().cueCount() == 24 &&
+              bundledAudio->samples().uniqueSampleCount() == 23 &&
+              bundledAudio->samples().decodedBytes() == 1298306 &&
+              bundledAudio->samples().decodedBytes() <=
+                  AudioSampleBank::MaximumDecodedBytes &&
+              bundledAudio->samples().find("ambient.coast") != nullptr &&
+              bundledAudio->samples().find("animal.sheep") != nullptr &&
+              bundledAudio->samples().find("footstep.wood.2") != nullptr);
+    std::vector<std::string> repeatingCaptions;
+    bundledAudio->setCaptionSink(
+        [&repeatingCaptions](std::string cueId, std::string caption) {
+            repeatingCaptions.push_back(std::move(cueId) + ":" + caption);
+        });
+    bundledAudio->submit({"footstep.wood.1", true,
+                          glm::vec3(0.f), 1.f, false});
+    check("B9/repeating-footsteps-can-suppress-caption-spam",
+          bundledAudio->stats().playedEvents == 1 &&
+              repeatingCaptions.empty());
 
     auto rejects = [](const std::string &source,
                       const std::string &expected) {
         try {
             AudioDefinitionRegistry invalid;
             invalid.freeze({{"invalid.audio", source}});
+        }
+        catch (const std::exception &error) {
+            return std::string(error.what()).find(expected) !=
+                   std::string::npos;
+        }
+        return false;
+    };
+    auto rejectsSources = [](std::vector<AudioDefinitionSource> sources,
+                             const std::string &expected) {
+        try {
+            AudioDefinitionRegistry invalid;
+            invalid.freeze(sources);
         }
         catch (const std::exception &error) {
             return std::string(error.what()).find(expected) !=
@@ -11192,6 +11232,26 @@ void caseAudioFeedback()
     std::string missingCue = validAudioDefinitions().substr(0, ambientLine);
     check("G5/missing-required-audio-cue-is-rejected",
           rejects(missingCue, "missing required cue"));
+    std::string missingAdventureCue = bundledDefinitions;
+    const std::size_t missingAdventureBegin =
+        missingAdventureCue.find("sample animal.rabbit ");
+    if (missingAdventureBegin != std::string::npos) {
+        const std::size_t missingAdventureEnd =
+            missingAdventureCue.find('\n', missingAdventureBegin);
+        missingAdventureCue.erase(
+            missingAdventureBegin,
+            missingAdventureEnd == std::string::npos
+                ? std::string::npos
+                : missingAdventureEnd - missingAdventureBegin + 1);
+    }
+    check("B9/v4-requires-the-complete-adventure-cue-set",
+          missingAdventureBegin != std::string::npos &&
+              rejects(missingAdventureCue,
+                      "missing required cue 'animal.rabbit'"));
+    check("B9/mixed-v3-v4-definition-sources-are-rejected",
+          rejectsSources({{"legacy.audio", validAudioDefinitions()},
+                          {"adventure.audio", bundledDefinitions}},
+                         "mixed audio definition versions"));
 
     AudioDefinitionRegistry unavailable;
     std::string unavailableError;
@@ -11428,10 +11488,21 @@ void caseAudioFeedback()
           audio->stats().missingDefinitions == missingBefore + 1);
     const std::size_t submittedBeforeDetach =
         audio->stats().submittedEvents;
+    const bool hadActiveVoiceBeforeDetach =
+        audio->stats().activeVoices > 0;
     audio->detach();
     eventBus.publish(BlockBreakEvent({1, 2, 3}, BlockId::Stone));
-    check("G5/detach-removes-all-domain-subscriptions",
-          audio->stats().submittedEvents == submittedBeforeDetach);
+    check("G5/detach-stops-voices-and-removes-domain-subscriptions",
+          hadActiveVoiceBeforeDetach &&
+              audio->stats().activeVoices == 0 &&
+              audio->stats().submittedEvents == submittedBeforeDetach);
+    const std::size_t playedBeforeReattach =
+        audio->stats().playedEvents;
+    audio->attach(eventBus);
+    eventBus.publish(BlockBreakEvent({1, 2, 3}, BlockId::Stone));
+    check("G5/reattach-routes-each-domain-event-once",
+          audio->stats().playedEvents == playedBeforeReattach + 1);
+    audio->detach();
 
     AudioDefinitionRegistry ambientDefinitions;
     ambientDefinitions.freeze(
@@ -20949,6 +21020,9 @@ int main()
         }
         else if (focus != nullptr && std::string(focus) == "PRESENTATION_CLOCK") {
             casePresentationClock();
+        }
+        else if (focus != nullptr && std::string(focus) == "B9_AUDIO") {
+            caseAudioFeedback();
         }
         else if (focus != nullptr && std::string(focus) == "WV2") {
             caseBlockTextureCoordinates();

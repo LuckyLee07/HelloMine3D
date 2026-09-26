@@ -31,18 +31,20 @@ const char *audioCategoryName(AudioCategory category) noexcept;
 
 class AudioDefinitionRegistry {
   public:
-    static constexpr int SupportedFormatVersion = 3;
+    static constexpr int SupportedFormatVersion = 4;
 
     void freeze(const std::vector<AudioDefinitionSource> &sources);
     bool tryFreezeFromFile(const std::string &path,
                            std::string &error) noexcept;
     bool isFrozen() const noexcept;
+    int formatVersion() const noexcept;
     const AudioDefinition *find(const std::string &id) const noexcept;
     const std::vector<AudioDefinition> &definitions() const noexcept;
 
   private:
     std::vector<AudioDefinition> m_definitions;
     std::unordered_map<std::string, std::size_t> m_byId;
+    int m_formatVersion = 0;
     bool m_frozen = false;
 };
 

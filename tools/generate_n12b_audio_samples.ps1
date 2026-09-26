@@ -30,11 +30,8 @@ $ExpectedLicenseHash =
     "AF64D609430DE21C78BF0B72B8E3BA62F1C0A0FD03CBC45ED140B1302208FB7D"
 
 if ($Check) {
-    $actualSamples = @(
-        Get-ChildItem -LiteralPath $OutputRoot -Filter "*.wav" -File)
-    if ($actualSamples.Count -ne $ExpectedHashes.Count) {
-        throw "Expected $($ExpectedHashes.Count) WAV files, found $($actualSamples.Count)."
-    }
+    # Later audio batches share this base-only directory. N12B continues to
+    # own and verify its original nine files without rejecting newer samples.
     foreach ($entry in $ExpectedHashes.GetEnumerator()) {
         $path = Join-Path $OutputRoot $entry.Key
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
@@ -51,7 +48,7 @@ if ($Check) {
     if ($licenseHash -ne $ExpectedLicenseHash) {
         throw "N12B audio license hash mismatch: expected=$ExpectedLicenseHash actual=$licenseHash"
     }
-    Write-Host "[N12B_AUDIO] status=PASS mode=check samples=$($ExpectedHashes.Count) license=1"
+    Write-Host "[N12B_AUDIO] status=PASS mode=check owned_samples=$($ExpectedHashes.Count) license=1"
     return
 }
 

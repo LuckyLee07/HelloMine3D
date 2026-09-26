@@ -82,8 +82,8 @@ foreach ($audioFile in $audioFiles) {
 }
 $sampleFiles = @(Get-ChildItem -LiteralPath $audioRoot `
     -Filter "*.wav" -File -Recurse)
-if ($sampleFiles.Count -ne 9) {
-    throw "Expected exactly 9 N12B audio samples, found $($sampleFiles.Count)."
+if ($sampleFiles.Count -ne 23) {
+    throw "Expected 9 N12B and 14 B9 audio samples, found $($sampleFiles.Count)."
 }
 foreach ($sampleFile in $sampleFiles) {
     $relativeSample = $sampleFile.FullName.Substring($Root.Length).TrimStart(
