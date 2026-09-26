@@ -2767,6 +2767,8 @@ class OgreUserInterface::Impl
             }
 
             const float footerHeight = compact ? 92.f * scale : 82.f * scale;
+            // Each page retains its own scroll position when revisited.
+            ImGui::PushID(settingsPage);
             ImGui::BeginChild("##SettingsContent",
                               ImVec2(0.f, -footerHeight), false);
             UserSettings& draft = settingsSession.draft();
@@ -2783,6 +2785,7 @@ class OgreUserInterface::Impl
                 drawSettingsControlsPage(draft, compact);
             }
             ImGui::EndChild();
+            ImGui::PopID();
             ImGui::EndDisabled();
 
             ImGui::Separator();
