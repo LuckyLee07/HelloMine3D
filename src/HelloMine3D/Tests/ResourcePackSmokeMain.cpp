@@ -247,6 +247,22 @@ namespace
             });
     }
 
+    std::string playerExposureProgramFixture(bool shadow)
+    {
+        std::string source;
+        const std::string suffix = shadow ? "Shadow" : "";
+        for (const std::string &program : {
+                 "HelloMine3D/Actor" + suffix + "Fragment",
+                 "HelloMine3D/Terrain" + suffix + "Fragment",
+                 "HelloMine3D/Terrain" + suffix + "ArrayFragment"})
+        {
+            source += "fragment_program " + program + " glsl\n{\n"
+                "    default_params\n    {\n"
+                "        param_named playerExposure float -1\n    }\n}\n";
+        }
+        return source;
+    }
+
     void writeAtmosphereFixture(const fs::path &root)
     {
         writeFile(root / "media/ogre/HelloMine3D.program",
@@ -264,7 +280,11 @@ namespace
             "param_named cloudMaxDistance float\n"
             "param_named_auto cameraPosition camera_position\n"
             "param_named_auto globalTime time 1.0\n"
-            "param_named_auto legacyTime time_0_x 1.0\n");
+            "param_named_auto legacyTime time_0_x 1.0\n" +
+            playerExposureProgramFixture(false));
+        writeFile(root / "media/ogre/HelloMine3D.material",
+            "material HelloMine3D/PlayerHeld : HelloMine3D/Terrain {}\n"
+            "material HelloMine3D/PlayerHeldTransparent : HelloMine3D/Transparent {}\n");
         writeFile(root / "media/ogre/HelloMine3DSkybox.frag",
             "uniform vec3 fogSunwardColour;\n"
             "uniform float fogDirectionalStrength;\n"
@@ -286,6 +306,7 @@ namespace
         writeFile(root / "media/ogre/HelloMine3DTerrain.frag",
             terrainShaderInterface() +
             "in vec3 terrainWorldPosition;\n"
+            "uniform float playerExposure;\n"
             "uniform vec3 sunColour;\n"
             "uniform float sunIntensity;\n"
             "uniform float surfaceLightingStrength;\n"
@@ -309,6 +330,7 @@ namespace
         writeFile(root / "media/ogre/HelloMine3DActor.frag",
             "in vec3 actorWorldPosition;\n"
             "in vec3 actorLocalPosition;\n"
+            "uniform float playerExposure;\n"
             "uniform vec4 actorPartData;\n"
             "uniform float actorSurfaceStrength;\n"
             "uniform vec3 fogSunwardColour;\n"
@@ -398,8 +420,11 @@ namespace
             "param_named directionalShadowBias float 0.001\n"
             "param_named directionalShadowStrength float 0\n"
             "HelloMine3D/DirectionalShadowCasterVertex\n"
-            "HelloMine3D/DirectionalShadowCasterFragment\n");
+            "HelloMine3D/DirectionalShadowCasterFragment\n" +
+            playerExposureProgramFixture(true));
         writeFile(root / "media/ogre/HelloMine3D.material",
+            "material HelloMine3D/PlayerHeld : HelloMine3D/Terrain {}\n"
+            "material HelloMine3D/PlayerHeldTransparent : HelloMine3D/Transparent {}\n"
             "material HelloMine3D/DirectionalShadowCaster\n"
             "vertex_program_ref HelloMine3D/DirectionalShadowCasterVertex\n"
             "fragment_program_ref HelloMine3D/DirectionalShadowCasterFragment\n");
@@ -408,6 +433,7 @@ namespace
             "uniform mat4 shadowWorldViewProj;\n");
         writeFile(root / "media/ogre/HelloMine3DTerrainShadow.frag",
             "in vec4 terrainShadowPosition;\n"
+            "uniform float playerExposure;\n"
             "uniform vec3 sunColour;\n"
             "uniform float sunIntensity;\n"
             "uniform float surfaceLightingStrength;\n"
@@ -424,6 +450,7 @@ namespace
         writeFile(root / "media/ogre/HelloMine3DActorShadow.frag",
             "in vec4 actorShadowPosition;\n"
             "in vec3 actorLocalPosition;\n"
+            "uniform float playerExposure;\n"
             "uniform vec4 actorPartData;\n"
             "uniform float actorSurfaceStrength;\n"
             "uniform sampler2D directionalShadowMap;\n"
@@ -492,6 +519,77 @@ namespace
             check("V10D/reject-stale-unweighted-shadow-filter",
                   throwsContaining([&] { validateDirectionalShadowShaderContract(resolver); },
                                    "missing interface declaration"));
+        }
+    }
+
+    void casePlayerLightingShaderContract()
+    {
+        const auto rejectOverride = [](bool shadow, const std::string &id,
+            const std::string &logical, const std::string &declaration,
+            const std::string &replacement, const std::string &expected,
+            const std::string &program = "")
+        {
+            const fs::path root = freshRoot("player-lighting-interface");
+            if (shadow) writeDirectionalShadowFixture(root);
+            else writeAtmosphereFixture(root);
+            std::ifstream input(root / logical);
+            std::string source((std::istreambuf_iterator<char>(input)), {});
+            const std::size_t start = program.empty() ? 0 :
+                source.find("fragment_program " + program + " glsl");
+            const std::size_t offset = start == std::string::npos ? start :
+                source.find(declaration, start);
+            if (offset == std::string::npos)
+            {
+                check(id, false, "fixture declaration missing");
+                return;
+            }
+            source.replace(offset, declaration.size(), replacement);
+            const fs::path pack = createPack(root, "stale-player-light",
+                "Stale player lighting", 1, {{logical, source}});
+            ResourcePackResolver resolver;
+            resolver.freeze(root.string(), requirements(), {pack.string()});
+            check(id, throwsContaining([&] {
+                if (shadow) validateDirectionalShadowShaderContract(resolver);
+                else validateAtmosphereShaderContract(resolver);
+            }, expected));
+        };
+        for (const bool shadow : {false, true})
+        {
+            const std::string suffix = shadow ? "Shadow" : "";
+            for (const char *family : {"Actor", "Terrain"})
+            {
+                const std::string file =
+                    std::string("HelloMine3D") + family + suffix + ".frag";
+                rejectOverride(shadow,
+                    "PLAYER_LIGHTING/reject-missing-exposure-" + file,
+                    "media/ogre/" + file, "uniform float playerExposure;",
+                    "", "uniform float playerExposure;");
+            }
+            for (const std::string &program : {
+                     "HelloMine3D/Actor" + suffix + "Fragment",
+                     "HelloMine3D/Terrain" + suffix + "Fragment",
+                     "HelloMine3D/Terrain" + suffix + "ArrayFragment"})
+            {
+                rejectOverride(shadow,
+                    "PLAYER_LIGHTING/reject-single-missing-default-" + program,
+                    "media/ogre/HelloMine3D.program",
+                    "param_named playerExposure float -1", "", program, program);
+            }
+            const std::string program =
+                "HelloMine3D/Actor" + suffix + "Fragment";
+            rejectOverride(shadow,
+                "PLAYER_LIGHTING/reject-active-shared-default-" + program,
+                "media/ogre/HelloMine3D.program",
+                "param_named playerExposure float -1",
+                "param_named playerExposure float 0", program, program);
+        }
+        for (const char *declaration : {
+                 "material HelloMine3D/PlayerHeld : HelloMine3D/Terrain",
+                 "material HelloMine3D/PlayerHeldTransparent : HelloMine3D/Transparent"})
+        {
+            rejectOverride(false,
+                std::string("PLAYER_LIGHTING/reject-missing-") + declaration,
+                "media/ogre/HelloMine3D.material", declaration, "", declaration);
         }
     }
 
@@ -1493,6 +1591,7 @@ int main()
     caseTerrainArray();
     caseAtmosphereShaderContract();
     caseDirectionalShadowShaderContract();
+    casePlayerLightingShaderContract();
     caseWarmSurfaceShaderContract();
     casePostProcessingShaderContract();
     caseOptionalAudio();

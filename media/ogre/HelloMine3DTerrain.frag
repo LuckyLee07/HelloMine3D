@@ -22,6 +22,7 @@ uniform float greenSuppression;
 uniform float greenRedShift;
 uniform float toneGamma;
 uniform float environmentLight;
+uniform float playerExposure;
 uniform vec3 fogColour;
 uniform vec3 fogSunwardColour;
 uniform vec3 sunDirection;
@@ -224,6 +225,9 @@ void main()
     float shapedLight = mix(0.24, 1.0, clamp(terrainLight, 0.0, 1.0));
     float environmentExposure = mix(
         0.34, 1.0, clamp(environmentLight, 0.0, 1.0));
+    // Player exposure already includes sampled local light and daylight.
+    if (playerExposure >= 0.0)
+        environmentExposure = clamp(playerExposure, 0.0, 1.0);
     vec3 litColour = balancedColour * shapedLight * environmentExposure;
     float facingSun = max(dot(face, sunDirection), 0.0);
     float sunlight = clamp(terrainLight, 0.0, 1.0) *

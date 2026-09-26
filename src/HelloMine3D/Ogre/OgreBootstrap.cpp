@@ -2397,6 +2397,16 @@ namespace
             if (m_world != nullptr)
             {
                 syncEnvironment(m_frameWorldStats.environment);
+                if (m_playerRenderer != nullptr)
+                {
+                    const float exposure = PlayerHandPresentation::updateLighting(
+                        m_playerLighting, m_frameWorldStats.playerLocalLightKnown,
+                        lightLevelToBrightness(m_frameWorldStats.playerSunlight),
+                        lightLevelToBrightness(m_frameWorldStats.playerBlockLight),
+                        m_frameWorldStats.environment.daylight,
+                        event.timeSinceLastFrame);
+                    m_playerRenderer->setLighting(exposure);
+                }
             }
             if (m_userInterface != nullptr)
             {
@@ -3747,6 +3757,7 @@ namespace
 
         void resetPlayerPresentation() noexcept
         {
+            m_playerLighting = {};
             m_thirdPersonCameraState = {};
             m_effectiveCameraMode =
                 ThirdPersonCameraPresentation::Mode::FirstPerson;
@@ -4238,6 +4249,14 @@ namespace
                  "HelloMine3D/TerrainShadowVertex",
                  "HelloMine3D/TerrainFragment",
                  "HelloMine3D/TerrainShadowFragment"},
+                {OgrePlayerRenderer::HeldMaterialName, "HelloMine3D/TerrainVertex",
+                 "HelloMine3D/TerrainShadowVertex",
+                 "HelloMine3D/TerrainFragment",
+                 "HelloMine3D/TerrainShadowFragment"},
+                {OgrePlayerRenderer::HeldTransparentMaterialName, "HelloMine3D/TerrainVertex",
+                 "HelloMine3D/TerrainShadowVertex",
+                 "HelloMine3D/TerrainFragment",
+                 "HelloMine3D/TerrainShadowFragment"},
                 {"HelloMine3D/Flora", "HelloMine3D/FloraVertex",
                  "HelloMine3D/FloraShadowVertex",
                  "HelloMine3D/TerrainFragment",
@@ -4330,6 +4349,8 @@ namespace
             const float enabled = 1.f;
             const char* terrainMaterials[] = {
                 "HelloMine3D/Terrain", "HelloMine3D/Transparent",
+                OgrePlayerRenderer::HeldMaterialName,
+                OgrePlayerRenderer::HeldTransparentMaterialName,
                 "HelloMine3D/Flora"};
             for (const char* materialName : terrainMaterials)
             {
@@ -4811,6 +4832,8 @@ namespace
                         throw std::runtime_error(std::string("Invalid standard terrain shader: ") + name);
                 }
                 for (const char *name : {"HelloMine3D/Terrain", "HelloMine3D/Transparent",
+                                        OgrePlayerRenderer::HeldMaterialName,
+                                        OgrePlayerRenderer::HeldTransparentMaterialName,
                                         "HelloMine3D/Flora"})
                 {
                     auto material = Ogre::MaterialManager::getSingleton().getByName(name);
@@ -4845,6 +4868,8 @@ namespace
                 runtimeTerrainMaterialProfile().parameters();
             const char *terrainMaterials[] = {
                 "HelloMine3D/Terrain", "HelloMine3D/Transparent",
+                OgrePlayerRenderer::HeldMaterialName,
+                OgrePlayerRenderer::HeldTransparentMaterialName,
                 "HelloMine3D/Flora"};
             for (const char *materialName : terrainMaterials)
             {
@@ -4858,7 +4883,8 @@ namespace
                 }
                 else
                 {
-                    const bool cutout = std::string(materialName) != "HelloMine3D/Transparent";
+                    const bool cutout = std::string(materialName) != "HelloMine3D/Transparent" &&
+                        std::string(materialName) != OgrePlayerRenderer::HeldTransparentMaterialName;
                     parameters->setNamedConstant("alphaCutoff", cutout ? 0.5f : 0.01f);
                 }
                 parameters->setNamedConstant(
@@ -4973,6 +4999,8 @@ namespace
 
             const char* terrainMaterials[] = {
                 "HelloMine3D/Terrain", "HelloMine3D/Transparent",
+                OgrePlayerRenderer::HeldMaterialName,
+                OgrePlayerRenderer::HeldTransparentMaterialName,
                 "HelloMine3D/Flora"};
             for (const char* materialName : terrainMaterials)
             {
@@ -5741,6 +5769,7 @@ namespace
         PlayerAvatarPresentation::Profile m_playerAvatarProfile =
             PlayerAvatarPresentation::defaultProfile();
         PlayerAvatarPresentation::PoseHistory m_playerAvatarPoseHistory;
+        PlayerHandPresentation::LightingState m_playerLighting;
         ThirdPersonCameraPresentation::State m_thirdPersonCameraState;
         ThirdPersonCameraPresentation::Mode m_effectiveCameraMode =
             ThirdPersonCameraPresentation::Mode::FirstPerson;

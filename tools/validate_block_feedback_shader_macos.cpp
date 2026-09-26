@@ -85,11 +85,13 @@ void setup(GLuint p)
     value(p,"atlasPixels",256); value(p,"tilePixels",16); value(p,"tilesPerRow",16);
     value(p,"alphaCutoff",0.4999f); value(p,"highlightStrength",0.27f);
     value(p,"colourSaturation",1); value(p,"toneGamma",1); value(p,"environmentLight",1);
+    value(p,"playerExposure",-1);
+    value(p,"directionalShadowEnabled",0); value(p,"directionalShadowStrength",0);
     value(p,"globalTime",1.23f); value(p,"fogDensity",0);
     glUniform2f(glGetUniformLocation(p,"crackSeed"),17.0f,31.0f);
     glUniform2f(glGetUniformLocation(p,"crackStretch"),1,1);
 }
-void quad(GLuint p, int tileX, int tileY)
+void quad(GLuint p, int tileX, int tileY, float vertexLight = 1.f)
 {
     // All geometry reaches the production vertex shader, including plant wind.
     struct Vertex { float x,y,z,u,v; };
@@ -110,7 +112,7 @@ void quad(GLuint p, int tileX, int tileY)
     GLint tile = glGetAttribLocation(p,"uv0"), light = glGetAttribLocation(p,"uv2");
     GLint colour = glGetAttribLocation(p,"colour");
     if (tile >= 0) glVertexAttrib2f(tile,(tileX+0.5f)/16.f,(tileY+0.5f)/16.f);
-    if (light >= 0) glVertexAttrib1f(light,1);
+    if (light >= 0) glVertexAttrib1f(light,vertexLight);
     if (colour >= 0) glVertexAttrib4f(colour,0.9f,0.9f,0.9f,0.65f);
     glDrawArrays(GL_TRIANGLES,0,6);
     glDisableVertexAttribArray(position);
@@ -137,17 +139,31 @@ Pixels render(GLuint base, GLuint overlay, int stage, int tileX, bool occluded =
     return pixels;
 }
 Pixels renderGround(GLuint shader, float enabled, float offset, int tile = 0,
-                    int tileY = 0, float daylight = 1.f)
+                    int tileY = 0, float daylight = 1.f,
+                    float playerExposure = -1.f, float vertexLight = 1.f,
+                    float shadowStrength = 0.f, float fog = 0.f,
+                    float alphaCutoff = .4999f)
 {
     glDisable(GL_BLEND); glDepthMask(GL_TRUE);
+    glClearColor(0,0,0,0); glClearDepth(1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     setup(shader);
+    value(shader, "playerExposure", playerExposure);
+    value(shader, "alphaCutoff", alphaCutoff);
+    value(shader, "fogDensity", fog);
+    value(shader, "directionalShadowEnabled", shadowStrength > 0 ? 1.f : 0.f);
+    value(shader, "directionalShadowStrength", shadowStrength);
+    value(shader, "directionalShadowBias", .003f);
+    value(shader, "directionalShadowFadeStart", 72.f);
+    value(shader, "directionalShadowFadeEnd", 96.f);
+    const float shadowProjection[]{0,0,0,0, 0,0,0,0, 0,0,0,0, .5f,.5f,0,1};
+    glUniformMatrix4fv(glGetUniformLocation(shader,"shadowWorldViewProj"),1,GL_FALSE,shadowProjection);
     value(shader, "surfaceLightingStrength", enabled);
     value(shader, "environmentLight", daylight);
     glUniform1i(glGetUniformLocation(shader, "directionalShadowMap"), 1);
     const float world[]{1,0,0,0, 0,1,0,0, 0,0,1,0, offset,0,offset,1};
     glUniformMatrix4fv(glGetUniformLocation(shader,"world"),1,GL_FALSE,world);
-    quad(shader, tile, tileY);
+    quad(shader, tile, tileY, vertexLight);
     Pixels pixels(Edge * Edge * 4);
     glReadPixels(0,0,Edge,Edge,GL_RGBA,GL_UNSIGNED_BYTE,pixels.data());
     require(glGetError() == GL_NO_ERROR, "Ground shader draw failed");
@@ -195,6 +211,13 @@ Pixels renderGeology(GLuint shader, int tileX, int tileY, bool top,
     glDrawArrays(GL_TRIANGLES,0,6); glDisableVertexAttribArray(vertex); glDeleteBuffers(1,&vbo);
     Pixels pixels(Edge*Edge*4); glReadPixels(0,0,Edge,Edge,GL_RGBA,GL_UNSIGNED_BYTE,pixels.data());
     require(glGetError()==GL_NO_ERROR,"Geology draw/readback failed"); return pixels;
+}
+bool scaledExposure(const Pixels &bright, const Pixels &dim, float ratio)
+{
+    for (std::size_t i=0;i<bright.size();++i)
+        if (i%4==3 ? bright[i]!=dim[i] : std::abs(bright[i]*ratio-dim[i])>1.f)
+            return false;
+    return true;
 }
 float colourDifference(const Pixels &a, const Pixels &b)
 {
@@ -293,6 +316,13 @@ int main(int argc,char **argv)
         glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_RENDERBUFFER,depth);
         require(glCheckFramebufferStatus(GL_FRAMEBUFFER)==GL_FRAMEBUFFER_COMPLETE,"Incomplete framebuffer");
         glViewport(0,0,Edge,Edge); glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LEQUAL);
+        GLuint shadowMap; glGenTextures(1,&shadowMap); glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D,shadowMap);
+        const float occluder=.25f;
+        glTexImage2D(GL_TEXTURE_2D,0,GL_R32F,1,1,0,GL_RED,GL_FLOAT,&occluder);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+        glActiveTexture(GL_TEXTURE0);
         int checks=0,failures=0;
         const auto check = [&](const std::string &name,bool ok)
         {
@@ -310,6 +340,47 @@ int main(int argc,char **argv)
             auto flora = program(root,"HelloMine3DFlora.vert","HelloMine3DBlockFeedback.frag",array);
             auto particle = program(root,"HelloMine3DBlockParticle.vert","HelloMine3DBlockParticle.frag",array);
             check(mode+"-production-programs-link",true);
+            // The same complete shaders drive the isolated held-item passes.
+            // Disable colour accents to measure exposure independently, then
+            // check the production palette, AO, fog and alpha paths separately.
+            const auto held = [&](GLuint shader,float exposure,float day=1.f,
+                                  float light=1.f,float shadowStrength=0.f,
+                                  int tile=3,float fog=0.f,float surface=0.f) {
+                return renderGround(shader,surface,0,tile,0,day,exposure,light,shadowStrength,fog);
+            };
+            for (auto shader : {base,shadow}) {
+                const std::string path=mode+(shader==base?"-held-normal":"-held-shadow");
+                check(path+"-exposure-uniform-active",glGetUniformLocation(shader,"playerExposure")>=0);
+                const auto bright=held(shader,1),dark=held(shader,.08f);
+                check(path+"-local-exposure-darkens",colourDifference(bright,dark)>30.f &&
+                      scaledExposure(bright,dark,.08f));
+                check(path+"-zero-exposure",scaledExposure(bright,held(shader,0),0));
+                check(path+"-daylight-not-applied-twice",dark==held(shader,.08f,0));
+                check(path+"-negative-fallback-keeps-daylight",held(shader,-1,0)==held(shader,.34f));
+                check(path+"-vertex-light-shaping-retained",
+                      scaledExposure(held(shader,.5f),held(shader,.5f,1,0),.24f));
+                check(path+"-material-palette-retained",
+                      scaledExposure(held(shader,1,1,1,0,0,0,1),held(shader,.08f,1,1,0,0,0,1),.08f));
+                check(path+"-opaque-fog-hides-exposure",
+                      held(shader,1,1,1,0,3,20)==held(shader,.08f,1,1,0,3,20));
+                for (int tile : {10,14}) for (float cutoff : {.4999f,.01f}) {
+                    const auto legacy=renderGround(shader,0,0,tile,0,1,-1,1,0,0,cutoff);
+                    const auto local=renderGround(shader,0,0,tile,0,1,.08f,1,0,0,cutoff);
+                    bool sameAlpha=true; int empty=0,covered=0;
+                    for (std::size_t i=3;i<local.size();i+=4) {
+                        sameAlpha &= legacy[i]==local[i];
+                        empty += local[i]==0; covered += local[i]>0;
+                    }
+                    check(path+"-alpha-and-discard-preserved-"+std::to_string(tile)+
+                          (cutoff>.1f?"-cutout":"-transparent"),
+                          sameAlpha && covered>100 && (tile!=10 || empty>1000));
+                }
+            }
+            check(mode+"-held-normal-shadow-off-agrees",held(base,.08f)==held(shadow,.08f));
+            check(mode+"-held-directional-shadow-retained",
+                  scaledExposure(held(shadow,.5f),held(shadow,.5f,1,1,.6f),.4f));
+            png(output/(mode+"-held-bright.png"),held(base,1));
+            png(output/(mode+"-held-dark.png"),held(base,.08f));
             const auto originalGround = renderGround(base, 0.f, -16.f);
             const auto quietGround = renderGround(base, 1.f, -16.f);
             check(mode+"-ground-palette-affects-grass", originalGround != quietGround);
@@ -480,6 +551,7 @@ int main(int argc,char **argv)
             for(auto p : {base,surface,floraBase,flora,particle}) glDeleteProgram(p);
             glDeleteTextures(1,&tex);
         }
+        glDeleteTextures(1,&shadowMap);
         std::cout << "checks=" << checks << " failures=" << failures << '\n';
         return failures?1:0;
     }

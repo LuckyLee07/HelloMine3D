@@ -10,6 +10,7 @@ uniform vec4 actorTint;
 uniform vec4 actorPartData;
 uniform float actorSurfaceStrength;
 uniform float environmentLight;
+uniform float playerExposure;
 uniform vec3 fogColour;
 uniform vec3 fogSunwardColour;
 uniform vec3 sunDirection;
@@ -284,6 +285,9 @@ void main()
 {
     float environmentExposure = mix(
         0.34, 1.0, clamp(environmentLight, 0.0, 1.0));
+    // Player exposure already includes sampled local light and daylight.
+    if (actorPartData.w < -0.5 && playerExposure >= 0.0)
+        environmentExposure = clamp(playerExposure, 0.0, 1.0);
     float fogVisibility = clamp(
         exp(-actorDistance * actorDistance * fogDensity * fogDensity),
         0.0, 1.0);

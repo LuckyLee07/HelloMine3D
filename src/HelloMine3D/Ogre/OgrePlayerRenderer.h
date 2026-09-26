@@ -31,6 +31,10 @@ class OgrePlayerRenderer
   public:
     static constexpr const char* MaterialName =
         "HelloMine3D/ActorPlayer";
+    static constexpr const char* HeldMaterialName =
+        "HelloMine3D/PlayerHeld";
+    static constexpr const char* HeldTransparentMaterialName =
+        "HelloMine3D/PlayerHeldTransparent";
     static constexpr float PlayerSurfaceMarker = -1.f;
 
     explicit OgrePlayerRenderer(Ogre::SceneManager& sceneManager);
@@ -44,6 +48,9 @@ class OgrePlayerRenderer
               Material::ID heldMaterial = Material::Nothing);
     void setVisible(bool visible) noexcept;
     void setCastShadows(bool enabled) noexcept;
+    // Updates only the local player's material instances, never shared terrain
+    // or other actors, and does not invalidate held-item geometry.
+    void setLighting(float exposure);
     void clear();
 
     static OgrePlayerRendererValidation validate(

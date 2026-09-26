@@ -37,11 +37,62 @@ void requireTokens(const ResourcePackResolver &resolver,
         }
     }
 }
+
+void requirePlayerExposureDefaults(
+    const ResourcePackResolver &resolver,
+    std::initializer_list<const char *> programs)
+{
+    const std::string source = readText(
+        resolver, "media/ogre/HelloMine3D.program");
+    for (const char *program : programs) {
+        const std::string declaration =
+            std::string("fragment_program ") + program + " glsl";
+        const std::size_t start = source.find(declaration);
+        const std::size_t open = start == std::string::npos
+            ? std::string::npos : source.find('{', start + declaration.size());
+        std::size_t end = open;
+        int depth = 0;
+        if (open != std::string::npos) {
+            do {
+                if (source[end] == '{') ++depth;
+                else if (source[end] == '}') --depth;
+                ++end;
+            } while (end < source.size() && depth > 0);
+        }
+        bool found = false;
+        if (open != std::string::npos && depth == 0) {
+            std::istringstream tokens(source.substr(open, end - open));
+            std::string token;
+            while (tokens >> token) {
+                if (token != "param_named") continue;
+                std::string name;
+                std::string type;
+                tokens >> name >> type;
+                if (name == "playerExposure") {
+                    float value = 0.f;
+                    found = type == "float" && (tokens >> value) && value == -1.f;
+                    break;
+                }
+            }
+        }
+        if (!found) {
+            throw std::runtime_error(
+                std::string("Player lighting shader '") + program +
+                "': missing interface declaration 'param_named playerExposure float -1'.");
+        }
+    }
+}
 }
 
 void validateAtmosphereShaderContract(
     const ResourcePackResolver &resolver)
 {
+    requirePlayerExposureDefaults(resolver,
+        {"HelloMine3D/ActorFragment", "HelloMine3D/TerrainFragment",
+         "HelloMine3D/TerrainArrayFragment"});
+    requireTokens(resolver, "media/ogre/HelloMine3D.material",
+        {"material HelloMine3D/PlayerHeld : HelloMine3D/Terrain",
+         "material HelloMine3D/PlayerHeldTransparent : HelloMine3D/Transparent"});
     requireTokens(
         resolver, "media/ogre/HelloMine3D.program",
         {"param_named_auto actorPartData custom 1",
@@ -83,6 +134,7 @@ void validateAtmosphereShaderContract(
     requireTokens(
         resolver, "media/ogre/HelloMine3DTerrain.frag",
         {"in vec3 terrainWorldPosition;",
+         "uniform float playerExposure;",
          "uniform vec3 sunColour;",
          "uniform float sunIntensity;",
          "uniform float surfaceLightingStrength;",
@@ -111,6 +163,7 @@ void validateAtmosphereShaderContract(
         resolver, "media/ogre/HelloMine3DActor.frag",
         {"in vec3 actorWorldPosition;",
          "in vec3 actorLocalPosition;",
+         "uniform float playerExposure;",
          "uniform vec4 actorPartData;",
          "uniform float actorSurfaceStrength;",
          "uniform vec3 fogSunwardColour;",
@@ -123,6 +176,9 @@ void validateAtmosphereShaderContract(
 void validateDirectionalShadowShaderContract(
     const ResourcePackResolver &resolver)
 {
+    requirePlayerExposureDefaults(resolver,
+        {"HelloMine3D/ActorShadowFragment", "HelloMine3D/TerrainShadowFragment",
+         "HelloMine3D/TerrainShadowArrayFragment"});
     requireTokens(
         resolver, "media/ogre/HelloMine3D.program",
         {"HelloMine3D/TerrainShadowVertex",
@@ -139,6 +195,8 @@ void validateDirectionalShadowShaderContract(
     requireTokens(
         resolver, "media/ogre/HelloMine3D.material",
         {"material HelloMine3D/DirectionalShadowCaster",
+         "material HelloMine3D/PlayerHeld : HelloMine3D/Terrain",
+         "material HelloMine3D/PlayerHeldTransparent : HelloMine3D/Transparent",
          "vertex_program_ref HelloMine3D/DirectionalShadowCasterVertex",
          "fragment_program_ref HelloMine3D/DirectionalShadowCasterFragment"});
     requireTokens(
@@ -148,6 +206,7 @@ void validateDirectionalShadowShaderContract(
     requireTokens(
         resolver, "media/ogre/HelloMine3DTerrainShadow.frag",
         {"in vec4 terrainShadowPosition;",
+         "uniform float playerExposure;",
          "uniform vec3 sunColour;",
          "uniform float sunIntensity;",
          "uniform float surfaceLightingStrength;",
@@ -165,6 +224,7 @@ void validateDirectionalShadowShaderContract(
         resolver, "media/ogre/HelloMine3DActorShadow.frag",
         {"in vec4 actorShadowPosition;",
          "in vec3 actorLocalPosition;",
+         "uniform float playerExposure;",
          "uniform vec4 actorPartData;",
          "uniform float actorSurfaceStrength;",
          "uniform sampler2D directionalShadowMap;",

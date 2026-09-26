@@ -45,7 +45,8 @@ GLuint program(const std::filesystem::path& root, bool shadow) {
     require(ok,std::string("Actor link: ")+log);return p;
 }
 Pixels render(GLuint p,float role,float windup=0,float front=-.5f,float enabled=1,float light=1,
-              float archetype=0,float guardian=1,float fog=0,float worldOffset=0) {
+              float archetype=0,float guardian=1,float fog=0,float worldOffset=0,
+              float playerExposure=-1,float shadowStrength=0) {
     glUseProgram(p);
     auto scalar=[&](const char* key,float v){glUniform1f(glGetUniformLocation(p,key),v);};
     const float identity[]{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
@@ -58,7 +59,14 @@ Pixels render(GLuint p,float role,float windup=0,float front=-.5f,float enabled=
     glUniform4f(glGetUniformLocation(p,"actorTint"),.25f,.47f,.51f,1);
     glUniform4f(glGetUniformLocation(p,"actorPartData"),role,guardian,windup,archetype);
     scalar("actorSurfaceStrength",enabled);scalar("environmentLight",light);
-    scalar("fogDensity",fog);scalar("directionalShadowEnabled",0);scalar("directionalShadowStrength",0);
+    scalar("playerExposure",playerExposure);
+    scalar("fogDensity",fog);scalar("directionalShadowEnabled",shadowStrength>0?1:0);
+    scalar("directionalShadowStrength",shadowStrength);
+    scalar("directionalShadowBias",.003f);scalar("directionalShadowFadeStart",72);
+    scalar("directionalShadowFadeEnd",96);
+    glUniform1i(glGetUniformLocation(p,"directionalShadowMap"),1);
+    const float shadowProjection[]{0,0,0,0, 0,0,0,0, 0,0,0,0, .5f,.5f,0,1};
+    glUniformMatrix4fv(glGetUniformLocation(p,"shadowWorldViewProj"),1,GL_FALSE,shadowProjection);
     scalar("fogDirectionalStrength",0);
     glUniform3f(glGetUniformLocation(p,"fogColour"),.12f,.18f,.26f);
     glUniform3f(glGetUniformLocation(p,"fogSunwardColour"),.12f,.18f,.26f);
@@ -89,6 +97,12 @@ void png(const std::filesystem::path& path,const Pixels& pixels) {
     require(CGImageDestinationFinalize(dest),"PNG encode failed");
     CFRelease(dest); CFRelease(url); CGImageRelease(image); CGDataProviderRelease(provider); CGColorSpaceRelease(space);
 }
+bool scaledExposure(const Pixels& bright,const Pixels& dim,float ratio) {
+    for (std::size_t i=0;i<bright.size();++i)
+        if (i%4==3 ? bright[i]!=dim[i] : std::abs(bright[i]*ratio-dim[i])>1.f)
+            return false;
+    return true;
+}
 double difference(const Pixels& a,const Pixels& b) {
     double total=0; for(std::size_t i=0;i<a.size();++i) total+=std::abs(int(a[i])-int(b[i]));
     return total/a.size();
@@ -116,6 +130,13 @@ int main(int argc,char** argv) {
         require(glCheckFramebufferStatus(GL_FRAMEBUFFER)==GL_FRAMEBUFFER_COMPLETE,"Incomplete framebuffer");
         glViewport(0,0,Edge,Edge);
         const GLuint normal=program(root,false),shadow=program(root,true);
+        GLuint shadowMap;glGenTextures(1,&shadowMap);glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D,shadowMap);
+        const float occluder=.25f;
+        glTexImage2D(GL_TEXTURE_2D,0,GL_R32F,1,1,0,GL_RED,GL_FLOAT,&occluder);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+        glActiveTexture(GL_TEXTURE0);
         int checks=0;
         auto check=[&](const char* name,bool ok){++checks;require(ok,name);std::cout<<"[ACTOR_GPU] PASS "<<name<<'\n';};
         for(float role:{0,1,2,3,5,8}) {
@@ -224,6 +245,37 @@ int main(int argc,char** argv) {
         check("marsh-bird-beak-contrasts-with-wing",
             difference(render(normal,7,0,-.5f,1,1,12),
                        render(normal,8,0,-.5f,1,1,12))>5);
+        // Exercise production player and non-player branches with the same
+        // uniform, including a real occluding shadow map and the Off fallback.
+        const auto player = [&](GLuint p,float exposure,float day=1,float enabled=1,
+                                float fog=0,float shadowStrength=0) {
+            return render(p,1,0,-.5f,enabled,day,-1,1,fog,0,exposure,shadowStrength);
+        };
+        for (GLuint p : {normal,shadow}) {
+            check("player-exposure-uniform-active",glGetUniformLocation(p,"playerExposure")>=0);
+            const auto bright=player(p,1),dark=player(p,.08f),black=player(p,0);
+            check("player-local-exposure-darkens-body",difference(bright,dark)>30 &&
+                  scaledExposure(bright,dark,.08f));
+            check("player-zero-local-exposure-has-no-emission",scaledExposure(bright,black,0));
+            check("player-local-exposure-does-not-double-apply-daylight",dark==player(p,.08f,0));
+            check("player-negative-exposure-keeps-legacy-daylight",player(p,-1,0)==player(p,.34f));
+            check("player-off-fallback-still-receives-local-light",
+                  scaledExposure(player(p,1,1,0),player(p,.08f,1,0),.08f));
+            check("player-fog-hides-local-exposure",player(p,1,1,1,20)==player(p,.08f,1,1,20));
+            for (float archetype : {0.f,1.f,2.f,3.f,10.f,11.f,12.f})
+                for (float day : {0.f,1.f}) {
+                    const auto legacy=render(p,2,.6f,-.5f,1,day,archetype);
+                    check("non-player-ignores-player-exposure",
+                          legacy==render(p,2,.6f,-.5f,1,day,archetype,1,0,0,.08f) &&
+                          legacy==render(p,2,.6f,-.5f,1,day,archetype,1,0,0,1));
+                }
+        }
+        check("player-normal-shadow-disabled-parity",player(normal,.08f)==player(shadow,.08f));
+        check("player-local-exposure-retains-directional-shadow",
+              scaledExposure(player(shadow,.5f),player(shadow,.5f,1,1,0,.6f),.4f));
+        png(output/"player-bright.png",player(normal,1));
+        png(output/"player-dark.png",player(normal,.08f));
+        glDeleteTextures(1,&shadowMap);
         glDeleteProgram(normal);glDeleteProgram(shadow);glDeleteRenderbuffers(1,&colour);
         glDeleteFramebuffers(1,&fbo);glDeleteVertexArrays(1,&vao);CGLSetCurrentContext(nullptr);CGLDestroyContext(context);
         std::cout<<"[ACTOR_GPU] checks="<<checks<<" failures=0\n";return 0;

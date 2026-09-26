@@ -65,6 +65,7 @@ fragment_program HelloMine3D/TerrainFragment glsl
         param_named greenRedShift float 0.02
         param_named toneGamma float 1.0
         param_named environmentLight float 1.0
+        param_named playerExposure float -1
         param_named fogColour float3 0.58 0.75 0.92
         param_named fogSunwardColour float3 0.78 0.70 0.59
         param_named sunDirection float3 0.0 1.0 0.0
@@ -125,6 +126,7 @@ fragment_program HelloMine3D/TerrainShadowFragment glsl
         param_named greenRedShift float 0.02
         param_named toneGamma float 1.0
         param_named environmentLight float 1.0
+        param_named playerExposure float -1
         param_named fogColour float3 0.58 0.75 0.92
         param_named fogSunwardColour float3 0.78 0.70 0.59
         param_named sunDirection float3 0.0 1.0 0.0
@@ -286,6 +288,7 @@ fragment_program HelloMine3D/ActorFragment glsl
         param_named_auto actorPartData custom 1
         param_named actorSurfaceStrength float 1.0
         param_named environmentLight float 1.0
+        param_named playerExposure float -1
         param_named fogColour float3 0.58 0.75 0.92
         param_named fogSunwardColour float3 0.78 0.70 0.59
         param_named sunDirection float3 0.0 1.0 0.0
@@ -317,6 +320,7 @@ fragment_program HelloMine3D/ActorShadowFragment glsl
         param_named_auto actorPartData custom 1
         param_named actorSurfaceStrength float 1.0
         param_named environmentLight float 1.0
+        param_named playerExposure float -1
         param_named directionalShadowMap int 0
         param_named directionalShadowEnabled float 1.0
         param_named directionalShadowBias float 0.003
@@ -385,6 +389,7 @@ fragment_program HelloMine3D/TerrainArrayFragment glsl
         param_named greenRedShift float 0.02
         param_named toneGamma float 1.0
         param_named environmentLight float 1.0
+        param_named playerExposure float -1
         param_named fogColour float3 0.58 0.75 0.92
         param_named fogSunwardColour float3 0.78 0.70 0.59
         param_named sunDirection float3 0.0 1.0 0.0
@@ -418,6 +423,7 @@ fragment_program HelloMine3D/TerrainShadowArrayFragment glsl
         param_named greenRedShift float 0.02
         param_named toneGamma float 1.0
         param_named environmentLight float 1.0
+        param_named playerExposure float -1
         param_named fogColour float3 0.58 0.75 0.92
         param_named fogSunwardColour float3 0.78 0.70 0.59
         param_named sunDirection float3 0.0 1.0 0.0

@@ -349,8 +349,8 @@ void OgrePlayerRenderer::rebuildHeldItem(Material::ID material)
     const char* materialName =
         material == Material::Glass ||
                 material == Material::GlassBorderless
-            ? "HelloMine3D/Transparent"
-            : "HelloMine3D/Terrain";
+            ? HeldTransparentMaterialName
+            : HeldMaterialName;
     m_heldItem.object->begin(
         materialName, Ogre::RenderOperation::OT_TRIANGLE_LIST);
     Ogre::uint32 vertex = 0;
@@ -494,6 +494,25 @@ void OgrePlayerRenderer::sync(
                              pose.weights.hurt, PlayerSurfaceMarker));
     }
     syncHeldItem(profile, pose, heldMaterial);
+}
+
+void OgrePlayerRenderer::setLighting(float exposure)
+{
+    const float boundedExposure =
+        std::isfinite(exposure) ? std::clamp(exposure, 0.f, 1.f) : .12f;
+    for (const char* name :
+         {MaterialName, HeldMaterialName, HeldTransparentMaterialName})
+    {
+        const auto material = Ogre::MaterialManager::getSingleton().getByName(name);
+        if (material.isNull() || material->getNumTechniques() == 0 ||
+            material->getTechnique(0)->getNumPasses() == 0)
+        {
+            throw std::runtime_error(std::string("Missing player material: ") + name);
+        }
+        // Reapply each frame: switching shadow/array programs replaces params.
+        material->getTechnique(0)->getPass(0)->getFragmentProgramParameters()
+            ->setNamedConstant("playerExposure", boundedExposure);
+    }
 }
 
 void OgrePlayerRenderer::setCastShadows(bool enabled) noexcept

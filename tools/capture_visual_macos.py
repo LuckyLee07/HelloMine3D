@@ -86,6 +86,8 @@ def main():
     parser.add_argument("--time", type=int, default=6000)
     parser.add_argument("--seed", type=int, default=20260807)
     parser.add_argument("--fov", type=int, default=90)
+    parser.add_argument("--perspective", choices=("first", "third"),
+                        help="Use the normal saved camera setting in a diagnostic capture")
     parser.add_argument("--shadow", choices=("off", "medium", "high"), default="off")
     parser.add_argument("--post", choices=("off", "on"), default="off")
     parser.add_argument("--locale", choices=("en-US", "zh-CN"), default="zh-CN")
@@ -204,6 +206,13 @@ seed random
         if not args.visual_detail:
             settings += "visualdetail standard\n"
         settings += f"minimaprange {args.minimap_range}\n"
+    if args.perspective:
+        settings = settings.replace(settings.splitlines()[0], "settings_version 11", 1)
+        if not args.visual_detail and not args.minimap_range:
+            settings += "visualdetail standard\n"
+        if not args.minimap_range:
+            settings += "minimaprange 128\n"
+        settings += f"cameraperspective {args.perspective}\n"
     (root / "bin/config.txt").write_text(settings)
     environment = {
         "HELLOMINE3D_ROOT": str(root),
