@@ -2943,16 +2943,45 @@ class OgreUserInterface::Impl
         const auto& geometry = hasItem ? itemVisualGeometry(slot.materialId) : emptyGeometry;
         const float intensity = appliedSettings.feedbackIntensity == GameplayFeedbackIntensity::Off
             ? 0.f : appliedSettings.feedbackIntensity == GameplayFeedbackIntensity::Reduced ? .35f : 1.f;
-        const bool contactAction = actionFeedback.kind == ActionFeedbackKind::AttackHit ||
-            actionFeedback.kind == ActionFeedbackKind::AttackMiss ||
-            actionFeedback.kind == ActionFeedbackKind::BlockBreak ||
-            actionFeedback.kind == ActionFeedbackKind::BlockPlace ||
-            actionFeedback.kind == ActionFeedbackKind::Guard;
+        const bool contactAction =
+            actionFeedbackHoldsContact(actionFeedback.kind);
         const float recovery = contactAction ? std::clamp(
             actionFeedback.secondsRemaining / .32f, 0.f, 1.f) : 0.f;
         const float contact = actionFeedback.hitStopSeconds > 0.f ? 1.f : recovery * recovery;
-        const auto pose = PlayerHandPresentation::motion(hudElapsedSeconds, heldMovement,
-            intensity, miningProgress.active, contact);
+        PlayerHandPresentation::MotionInput motion;
+        motion.ambientSeconds = hudElapsedSeconds;
+        motion.movement = heldMovement;
+        motion.strength = intensity;
+        motion.recoil = actionFeedback.recoil;
+        PlayerHandPresentation::Action feedbackAction =
+            PlayerHandPresentation::Action::None;
+        switch (actionFeedback.kind)
+        {
+            case ActionFeedbackKind::BlockBreak:
+            case ActionFeedbackKind::BlockPlace:
+            case ActionFeedbackKind::AttackMiss:
+            case ActionFeedbackKind::AttackHit:
+            case ActionFeedbackKind::Guard:
+                feedbackAction = PlayerHandPresentation::Action::Strike;
+                break;
+            case ActionFeedbackKind::BlockUse:
+                feedbackAction = PlayerHandPresentation::Action::Use;
+                break;
+            case ActionFeedbackKind::FoodConsume:
+                feedbackAction = PlayerHandPresentation::Action::Consume;
+                break;
+            case ActionFeedbackKind::None:
+            case ActionFeedbackKind::PlayerHurt:
+            case ActionFeedbackKind::ItemPickup:
+                break;
+        }
+        const auto phase = PlayerHandPresentation::actionPhase(
+            miningProgress.active, miningProgress.elapsedSeconds,
+            feedbackAction, actionFeedback.elapsedSeconds);
+        motion.action = phase.action;
+        motion.actionSeconds = phase.seconds;
+        motion.contact = phase.acceptsFeedbackContact ? contact : 0.f;
+        const auto pose = PlayerHandPresentation::motion(motion);
         const float swing = pose.swing;
         const float hudRight = io.DisplaySize.x * .5f +
             (300.f * appliedSettings.uiScale) * .5f + 12.f;

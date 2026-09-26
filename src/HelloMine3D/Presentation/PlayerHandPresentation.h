@@ -73,23 +73,123 @@ struct Motion {
     }
 };
 
+enum class Action { None, Mining, Strike, Use, Consume };
+
+struct MotionInput {
+    double ambientSeconds = 0.;
+    float actionSeconds = 0.f;
+    float movement = 0.f;
+    float strength = 0.f;
+    // Recoil is already scaled by ActionFeedbackTimeline. Contact remains a
+    // separate hold so an attack miss can follow through without pretending
+    // that it struck a surface.
+    float recoil = 0.f;
+    float contact = 0.f;
+    Action action = Action::None;
+};
+
+struct ActionPhase {
+    Action action = Action::None;
+    float seconds = 0.f;
+    bool acceptsFeedbackContact = true;
+};
+
+inline ActionPhase actionPhase(bool miningActive, float miningSeconds,
+                               Action feedbackAction,
+                               float feedbackSeconds) noexcept
+{
+    return miningActive
+        ? ActionPhase{Action::Mining, miningSeconds, false}
+        : ActionPhase{feedbackAction, feedbackSeconds, true};
+}
+
+inline Motion motion(const MotionInput &input)
+{
+    const auto unit = [](float value) {
+        return std::isfinite(value) ? std::clamp(value, 0.f, 1.f) : 0.f;
+    };
+    const auto ease = [&](float value) {
+        value = unit(value);
+        return value * value * (3.f - 2.f * value);
+    };
+    const auto pulse = [&](float seconds, float rise, float hold,
+                           float fall) {
+        seconds = std::isfinite(seconds) ? std::max(0.f, seconds) : 0.f;
+        if (seconds < rise)
+            return ease(seconds / std::max(0.001f, rise));
+        seconds -= rise;
+        if (seconds < hold) return 1.f;
+        seconds -= hold;
+        if (seconds < fall)
+            return 1.f - ease(seconds / std::max(0.001f, fall));
+        return 0.f;
+    };
+
+    const double ambientSeconds = std::isfinite(input.ambientSeconds)
+        ? std::max(0., input.ambientSeconds) : 0.;
+    const float actionSeconds = std::isfinite(input.actionSeconds)
+        ? std::max(0.f, input.actionSeconds) : 0.f;
+    const float strength = unit(input.strength);
+    const float movement = unit(input.movement);
+    const float recoil = unit(input.recoil);
+    const float contact = unit(input.contact) * strength;
+
+    float mining = 0.f;
+    float strike = 0.f;
+    float use = 0.f;
+    float consume = 0.f;
+    switch (input.action) {
+        case Action::Mining: {
+            const float cycle = std::fmod(actionSeconds * 2.7f, 1.f);
+            mining = strength * (cycle < .38f
+                ? ease(cycle / .38f)
+                : 1.f - ease((cycle - .38f) / .62f));
+            break;
+        }
+        case Action::Strike:
+            strike = recoil * pulse(actionSeconds, .055f, .025f, .12f);
+            break;
+        case Action::Use:
+            use = recoil * pulse(actionSeconds, .08f, .025f, .155f);
+            break;
+        case Action::Consume:
+            consume = recoil * pulse(actionSeconds, .11f, .15f, .16f);
+            break;
+        case Action::None:
+            break;
+    }
+
+    const float strikePose = std::max({mining, strike, contact});
+    const float swing = std::clamp(
+        std::max({strikePose, use * .58f, consume * .42f}), 0.f, 1.f);
+    const float walk = static_cast<float>(
+        std::sin(ambientSeconds * 7.5)) * movement * strength;
+    const float idle = static_cast<float>(
+        std::sin(ambientSeconds * 1.7)) * strength;
+    return {
+        -.22f - strikePose * .65f - use * .18f + consume * .43f +
+            walk * .055f,
+        -.52f + strikePose * .32f + use * .18f + consume * .38f,
+        -.24f + strikePose * .85f + use * .34f - consume * .28f +
+            idle * .02f,
+        swing,
+        (static_cast<float>(std::sin(ambientSeconds * 2.)) * 2.f +
+         std::abs(static_cast<float>(std::sin(ambientSeconds * 7.5))) *
+             movement * 7.f) * strength
+    };
+}
+
 // Keep the existing held-item timing; hand and item share one rigid pose so
 // contact and recovery cannot separate the grip from its contents.
 inline Motion motion(double seconds, float movement, float strength, bool mining, float contact)
 {
-    seconds = std::isfinite(seconds) ? std::max(0., seconds) : 0.;
-    const auto unit = [](float value) { return std::isfinite(value) ? std::clamp(value, 0.f, 1.f) : 0.f; };
-    strength = unit(strength); movement = unit(movement); contact = unit(contact);
-    const auto ease = [&](float value) { value = unit(value); return value * value * (3.f - 2.f * value); };
-    const float cycle = static_cast<float>(std::fmod(seconds * 2.7, 1.));
-    const float miningSwing = !mining ? 0.f : cycle < .2f ? -.15f * ease(cycle / .2f) :
-        cycle < .45f ? -.15f + 1.15f * ease((cycle - .2f) / .25f) :
-        cycle < .55f ? 1.f : 1.f - ease((cycle - .55f) / .45f);
-    const float swing = strength * (contact > 0.f ? std::max(contact, miningSwing) : miningSwing);
-    return {-.22f - swing * .65f + static_cast<float>(std::sin(seconds * 7.5)) * movement * strength * .055f,
-            -.52f + swing * .32f,
-            -.24f + swing * .85f + static_cast<float>(std::sin(seconds * 1.7)) * .02f * strength,
-            swing, static_cast<float>(std::sin(seconds * 2.) * 2. +
-                std::abs(std::sin(seconds * 7.5)) * movement * 7.) * strength};
+    MotionInput input;
+    input.ambientSeconds = seconds;
+    input.actionSeconds = static_cast<float>(seconds);
+    input.movement = movement;
+    input.strength = strength;
+    input.contact = contact;
+    input.action = mining ? Action::Mining : Action::None;
+    return motion(input);
 }
 }

@@ -67,6 +67,7 @@
 #include "../Player/Player.h"
 #include "../Presentation/LocalizedTextRegistry.h"
 #include "../Presentation/LocalizedPresentation.h"
+#include "../Presentation/PlayerHandPresentation.h"
 #include "../Presentation/PresentationCaption.h"
 #include "../Presentation/PresentationLayout.h"
 #include "../Presentation/TerrainRenderBatch.h"
@@ -2438,6 +2439,81 @@ void caseP11BActionFeedback()
                                   Material::ID::Stone;
                           }));
 
+    const std::uint64_t epochBeforeUse = snapshot.epoch;
+    eventBus.publish(BlockUseEvent({4, 5, 6}, BlockId::Chest));
+    const ActionFeedbackSnapshot useStart = feedback.snapshot();
+    feedback.update(0.08f);
+    const ActionFeedbackSnapshot useAdvanced = feedback.snapshot();
+    eventBus.publish(BlockUseEvent({4, 5, 6}, BlockId::Chest));
+    const ActionFeedbackSnapshot useRestarted = feedback.snapshot();
+    check("P11B/successful-block-use-restarts-bounded-feedback-phase",
+          useStart.kind == ActionFeedbackKind::BlockUse &&
+              useStart.epoch > epochBeforeUse &&
+              useStart.elapsedSeconds == 0.f &&
+              useStart.secondsRemaining > 0.f &&
+              useStart.secondsRemaining <= 0.6f &&
+              useStart.recoil > 0.f && useStart.recoil <= 1.f &&
+              useStart.hitStopSeconds == 0.f &&
+              useAdvanced.elapsedSeconds > 0.f &&
+              useRestarted.epoch > useAdvanced.epoch &&
+              useRestarted.elapsedSeconds == 0.f);
+
+    const ActionFeedbackSnapshot beforeOtherFood = feedback.snapshot();
+    eventBus.publish(FoodConsumedEvent(
+        42, Material::ID::Bread, 2.f, 12.f, {}));
+    const ActionFeedbackSnapshot afterOtherFood = feedback.snapshot();
+    check("P11B/other-actor-food-does-not-trigger-player-hand-feedback",
+          afterOtherFood.kind == beforeOtherFood.kind &&
+              afterOtherFood.epoch == beforeOtherFood.epoch &&
+              afterOtherFood.elapsedSeconds ==
+                  beforeOtherFood.elapsedSeconds);
+    eventBus.publish(FoodConsumedEvent(
+        DefaultPlayerActorId, Material::ID::Bread, 2.f, 14.f, {}));
+    const ActionFeedbackSnapshot food = feedback.snapshot();
+    check("P11B/player-food-consume-has-bounded-feedback-without-hit-stop",
+          food.kind == ActionFeedbackKind::FoodConsume &&
+              food.epoch > afterOtherFood.epoch &&
+              food.elapsedSeconds == 0.f &&
+              food.secondsRemaining > useStart.secondsRemaining &&
+              food.secondsRemaining <= 0.6f &&
+              food.recoil > 0.f && food.recoil <= 1.f &&
+              food.hitStopSeconds == 0.f);
+
+    {
+        Config useConfig = makeConfig();
+        Camera useCamera(useConfig);
+        Player usePlayer;
+        World useWorld(useCamera, useConfig, usePlayer,
+                       freshSaveDirectory("p11b_block_use_feedback"),
+                       false, 1);
+        EventRecorder useEvents(useWorld.getEventBus());
+        ActionFeedbackTimeline useFeedback;
+        useFeedback.attach(useWorld.getEventBus());
+
+        const glm::ivec3 brokenChest{3, 100, 3};
+        useWorld.setBlock(brokenChest.x, brokenChest.y, brokenChest.z,
+                          BlockId::Chest);
+        const bool openedBrokenChest = BlockInteractionSystem::useBlock(
+            useWorld, usePlayer, glm::vec3(brokenChest) + glm::vec3(.5f));
+        check("P11B/failed-container-use-publishes-no-success-feedback",
+              !openedBrokenChest &&
+                  useEvents.count(SandboxEventType::BlockUse) == 0 &&
+                  useFeedback.snapshot().kind == ActionFeedbackKind::None &&
+                  useFeedback.snapshot().epoch == 0);
+
+        const glm::ivec3 waystone{6, 100, 6};
+        usePlayer.position = glm::vec3(waystone) + glm::vec3(.5f);
+        useWorld.setBlock(waystone.x, waystone.y, waystone.z,
+                          BlockId::WaystoneCore);
+        const bool usedWithoutMaterials = BlockInteractionSystem::useBlock(
+            useWorld, usePlayer, glm::vec3(waystone) + glm::vec3(.5f));
+        check("P11B/rejected-waystone-use-publishes-no-success-feedback",
+              !usedWithoutMaterials &&
+                  useEvents.count(SandboxEventType::BlockUse) == 0 &&
+                  useFeedback.snapshot().kind == ActionFeedbackKind::None &&
+                  useFeedback.snapshot().epoch == 0);
+    }
+
     for (int eventIndex = 0; eventIndex < 12; ++eventIndex)
     {
         eventBus.publish(BlockBreakEvent(
@@ -2461,16 +2537,32 @@ void caseP11BActionFeedback()
               snapshot.recoil > 0.f && snapshot.recoil < 0.7f);
 
     feedback.setIntensity(GameplayFeedbackIntensity::Off);
-    feedback.submitAttackMiss();
+    eventBus.publish(BlockUseEvent({4, 5, 6}, BlockId::Chest));
     snapshot = feedback.snapshot();
     check("P11B/off-keeps-essential-state-without-discomfort-effects",
-          snapshot.kind == ActionFeedbackKind::AttackMiss &&
+          snapshot.kind == ActionFeedbackKind::BlockUse &&
               snapshot.particles.empty() && snapshot.recoil == 0.f &&
               snapshot.hitStopSeconds == 0.f);
 
     feedback.setIntensity(GameplayFeedbackIntensity::Full);
     feedback.submitAttackMiss();
-    const ActionFeedbackKind missKind = feedback.snapshot().kind;
+    const ActionFeedbackSnapshot miss = feedback.snapshot();
+    ActionFeedbackTimeline missTimeline;
+    missTimeline.submitAttackMiss();
+    missTimeline.update(0.18f);
+    const ActionFeedbackSnapshot missTail = missTimeline.snapshot();
+    PlayerHandPresentation::MotionInput missMotion;
+    missMotion.actionSeconds = missTail.elapsedSeconds;
+    missMotion.strength = 1.f;
+    missMotion.recoil = missTail.recoil;
+    missMotion.action = PlayerHandPresentation::Action::Strike;
+    const auto missTailPose = PlayerHandPresentation::motion(missMotion);
+    missTimeline.update(0.02f);
+    check("P11B/attack-miss-timeline-covers-complete-strike-recovery",
+          missTail.kind == ActionFeedbackKind::AttackMiss &&
+              missTail.secondsRemaining > 0.f &&
+              missTailPose.swing > 0.f &&
+              missTimeline.snapshot().kind == ActionFeedbackKind::None);
     eventBus.publish(EntityDamageEvent(
         42, DefaultPlayerActorId, 3.f, 7.f, {}));
     const ActionFeedbackSnapshot hit = feedback.snapshot();
@@ -2481,13 +2573,66 @@ void caseP11BActionFeedback()
         DefaultPlayerActorId, 42, 2.f, 8.f, {}));
     const ActionFeedbackSnapshot hurt = feedback.snapshot();
     check("P11B/miss-hit-guard-and-hurt-have-distinct-feedback-states",
-          missKind == ActionFeedbackKind::AttackMiss &&
+          miss.kind == ActionFeedbackKind::AttackMiss &&
+              !actionFeedbackHoldsContact(miss.kind) &&
+              miss.recoil > 0.f && miss.hitStopSeconds == 0.f &&
               hit.kind == ActionFeedbackKind::AttackHit &&
+              actionFeedbackHoldsContact(hit.kind) &&
               guard.kind == ActionFeedbackKind::Guard &&
               hurt.kind == ActionFeedbackKind::PlayerHurt &&
               hit.hitStopSeconds > 0.f &&
               hit.hitStopSeconds <=
                   ActionFeedbackTimeline::MaxHitStopSeconds);
+
+    PlayerHandPresentation::MotionInput handMotion;
+    handMotion.ambientSeconds = 120.;
+    handMotion.actionSeconds = useAdvanced.elapsedSeconds;
+    handMotion.strength = 1.f;
+    handMotion.recoil = useAdvanced.recoil;
+    handMotion.action = PlayerHandPresentation::Action::Use;
+    const auto usePoseAdvanced =
+        PlayerHandPresentation::motion(handMotion);
+    handMotion.actionSeconds = useRestarted.elapsedSeconds;
+    handMotion.recoil = useRestarted.recoil;
+    const auto usePoseRestarted =
+        PlayerHandPresentation::motion(handMotion);
+    handMotion.actionSeconds = 0.14f;
+    handMotion.recoil = 0.f;
+    handMotion.action = PlayerHandPresentation::Action::Mining;
+    const auto miningPose = PlayerHandPresentation::motion(handMotion);
+    handMotion.actionSeconds = 0.f;
+    const auto miningRestarted =
+        PlayerHandPresentation::motion(handMotion);
+    check("P11B/recoil-and-action-elapsed-drive-bounded-resettable-hand-phase",
+          usePoseAdvanced.swing > usePoseRestarted.swing &&
+              usePoseRestarted.swing == 0.f &&
+              usePoseAdvanced.swing >= 0.f &&
+              usePoseAdvanced.swing <= 1.f &&
+              miningPose.swing > miningRestarted.swing &&
+              miningRestarted.swing == 0.f &&
+              std::isfinite(usePoseAdvanced.pitch +
+                            usePoseAdvanced.yaw +
+                            usePoseAdvanced.roll));
+
+    handMotion.actionSeconds = 0.14f;
+    handMotion.recoil = 0.5f;
+    handMotion.action = PlayerHandPresentation::Action::Use;
+    const auto usePose = PlayerHandPresentation::motion(handMotion);
+    handMotion.action = PlayerHandPresentation::Action::Consume;
+    const auto consumePose = PlayerHandPresentation::motion(handMotion);
+    check("P11B/use-and-consume-have-distinct-bounded-hand-poses",
+          usePose.swing >= 0.f && usePose.swing <= 1.f &&
+              consumePose.swing >= 0.f && consumePose.swing <= 1.f &&
+              (std::abs(usePose.pitch - consumePose.pitch) > 0.01f ||
+               std::abs(usePose.roll - consumePose.roll) > 0.01f));
+
+    const auto miningPhase = PlayerHandPresentation::actionPhase(
+        true, 0.14f, PlayerHandPresentation::Action::Strike,
+        useAdvanced.elapsedSeconds);
+    check("P11B/active-mining-retains-mining-phase-over-live-feedback",
+          miningPhase.action == PlayerHandPresentation::Action::Mining &&
+              miningPhase.seconds == 0.14f &&
+              !miningPhase.acceptsFeedbackContact);
 
     eventBus.publish(ItemPickupEvent(
         DefaultPlayerActorId, 91, Material::ID::IronIngot, 1, {}));

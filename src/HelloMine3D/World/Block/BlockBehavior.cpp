@@ -54,7 +54,8 @@ bool BlockBehavior::supportsUse() const noexcept
     return false;
 }
 
-void BlockBehavior::onUse(World &, Player &, const glm::ivec3 &,
+bool BlockBehavior::onUse(World &, Player &, const glm::ivec3 &,
                           const ChunkBlock &) const
 {
+    return false;
 }

@@ -24,6 +24,8 @@ enum class ActionFeedbackKind
     None,
     BlockBreak,
     BlockPlace,
+    BlockUse,
+    FoodConsume,
     AttackMiss,
     AttackHit,
     Guard,
@@ -52,11 +54,21 @@ struct ActionFeedbackSnapshot
 {
     ActionFeedbackKind kind = ActionFeedbackKind::None;
     std::uint64_t epoch = 0;
+    float elapsedSeconds = 0.f;
     float secondsRemaining = 0.f;
     float recoil = 0.f;
     float hitStopSeconds = 0.f;
     std::vector<ActionFeedbackParticle> particles;
 };
+
+inline bool actionFeedbackHoldsContact(
+    ActionFeedbackKind kind) noexcept
+{
+    return kind == ActionFeedbackKind::AttackHit ||
+           kind == ActionFeedbackKind::BlockBreak ||
+           kind == ActionFeedbackKind::BlockPlace ||
+           kind == ActionFeedbackKind::Guard;
+}
 
 /// Renderer-independent, deterministic timeline for short player action
 /// feedback. Gameplay outcomes are already committed before this timeline is
@@ -121,6 +133,7 @@ class ActionFeedbackTimeline
         GameplayFeedbackIntensity::Full;
     ActionFeedbackKind m_kind = ActionFeedbackKind::None;
     std::uint64_t m_epoch = 0;
+    float m_elapsedSeconds = 0.f;
     float m_secondsRemaining = 0.f;
     float m_recoil = 0.f;
     float m_hitStopSeconds = 0.f;

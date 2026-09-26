@@ -32,6 +32,38 @@ void giveBehaviorDrop(World &world, Player &player,
         glm::vec3(0.f, 2.5f, 0.f));
 }
 
+bool waystoneUseSucceeded(WaystoneActionResult result) noexcept
+{
+    switch (result) {
+        case WaystoneActionResult::Activated:
+        case WaystoneActionResult::EncounterStarted:
+        case WaystoneActionResult::EncounterInProgress:
+        case WaystoneActionResult::RewardClaimed:
+        case WaystoneActionResult::RewardAlreadyClaimed:
+        case WaystoneActionResult::PostVictoryEventStarted:
+        case WaystoneActionResult::PostVictoryEventInProgress:
+        case WaystoneActionResult::PostVictoryRewardClaimed:
+        case WaystoneActionResult::PostVictoryComplete:
+        case WaystoneActionResult::ResonancePulse:
+        case WaystoneActionResult::ResonanceCharging:
+            return true;
+        case WaystoneActionResult::PostVictoryInventoryFull:
+        case WaystoneActionResult::SimulationPaused:
+        case WaystoneActionResult::PlayerUnavailable:
+        case WaystoneActionResult::PlayerDead:
+        case WaystoneActionResult::UiBusy:
+        case WaystoneActionResult::OutOfReach:
+        case WaystoneActionResult::InvalidCore:
+        case WaystoneActionResult::MissingMaterials:
+        case WaystoneActionResult::InventoryFull:
+        case WaystoneActionResult::SpawnBlocked:
+        case WaystoneActionResult::Rejected:
+        case WaystoneActionResult::ResonanceNoTarget:
+            return false;
+    }
+    return false;
+}
+
 class NoDropBlockBehavior final : public BlockBehavior {
   public:
     Material::ID getDrop(const BlockDefinition &,
@@ -68,7 +100,7 @@ class OakDoorBlockBehavior final : public BlockBehavior {
         return Material::ID::OakDoor;
     }
 
-    void onUse(World &world, Player &, const glm::ivec3 &position,
+    bool onUse(World &world, Player &, const glm::ivec3 &position,
                const ChunkBlock &block) const override
     {
         const auto previous = static_cast<BlockId>(block.id);
@@ -79,6 +111,7 @@ class OakDoorBlockBehavior final : public BlockBehavior {
                        ChunkBlock(next));
         world.getEventBus().publish(
             BlockChangedEvent(position, previous, next));
+        return true;
     }
 };
 
@@ -220,11 +253,11 @@ class ChestBlockBehavior final : public BlockBehavior {
         }
     }
 
-    void onUse(World &world, Player &player,
+    bool onUse(World &world, Player &player,
                const glm::ivec3 &position,
                const ChunkBlock &) const override
     {
-        ChestContainer::open(world, player, position);
+        return ChestContainer::open(world, player, position);
     }
 };
 
@@ -244,11 +277,12 @@ class WorkbenchBlockBehavior final : public BlockBehavior {
         }
     }
 
-    void onUse(World &, Player &player,
+    bool onUse(World &, Player &player,
                const glm::ivec3 &position,
                const ChunkBlock &) const override
     {
         player.openCrafting(3, position);
+        return true;
     }
 };
 
@@ -290,14 +324,15 @@ class FurnaceBlockBehavior final : public BlockBehavior {
         }
     }
 
-    void onUse(World &world, Player &player,
+    bool onUse(World &world, Player &player,
                const glm::ivec3 &position,
                const ChunkBlock &) const override
     {
-        if (runtimeSmeltingRegistry().isFrozen()) {
-            FurnaceContainer::open(world, player, position,
-                                   runtimeSmeltingRegistry());
+        if (!runtimeSmeltingRegistry().isFrozen()) {
+            return false;
         }
+        return FurnaceContainer::open(world, player, position,
+                                      runtimeSmeltingRegistry());
     }
 };
 
@@ -325,13 +360,15 @@ class CrusherBlockBehavior final : public BlockBehavior {
         }
     }
 
-    void onUse(World &world, Player &player,
+    bool onUse(World &world, Player &player,
                const glm::ivec3 &position,
                const ChunkBlock &) const override
     {
-        if (CrusherContainer::open(world, player, position)) {
-            CrusherContainer::supplyManualPower(world, player, position);
+        if (!CrusherContainer::open(world, player, position)) {
+            return false;
         }
+        CrusherContainer::supplyManualPower(world, player, position);
+        return true;
     }
 };
 
@@ -353,11 +390,12 @@ class WaystoneBlockBehavior final : public BlockBehavior {
         world.onWaystoneBroken(position);
     }
 
-    void onUse(World &world, Player &player,
+    bool onUse(World &world, Player &player,
                const glm::ivec3 &position,
                const ChunkBlock &) const override
     {
-        world.useWaystone(position, player, true);
+        return waystoneUseSucceeded(
+            world.useWaystone(position, player, true));
     }
 };
 

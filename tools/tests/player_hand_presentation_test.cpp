@@ -72,5 +72,68 @@ int main()
     check("reduced-scales-action-and-walk-amplitude", reduced);
     check("ending-action-clears-swing-without-lingering-state", returns);
     check("invalid-presentation-inputs-remain-finite", finite);
+
+    MotionInput action;
+    action.ambientSeconds = 42.;
+    action.actionSeconds = .10f;
+    action.strength = 1.f;
+    action.recoil = .7f;
+    action.action = Action::Strike;
+    const auto strike = motion(action);
+    action.recoil = 0.f;
+    const auto noRecoil = motion(action);
+    check("recoil-drives-follow-through-without-contact-hold",
+          strike.swing > noRecoil.swing && strike.swing > 0.f &&
+              strike.swing <= 1.f);
+
+    action.recoil = .6f;
+    action.actionSeconds = .14f;
+    action.action = Action::Use;
+    const auto use = motion(action);
+    action.action = Action::Consume;
+    const auto consume = motion(action);
+    check("use-and-consume-actions-have-distinct-bounded-poses",
+          use.swing >= 0.f && use.swing <= 1.f &&
+              consume.swing >= 0.f && consume.swing <= 1.f &&
+              (std::abs(use.pitch-consume.pitch) > .01f ||
+               std::abs(use.roll-consume.roll) > .01f));
+
+    const auto miningPriority = actionPhase(
+        true, .14f, Action::Strike, .08f);
+    const auto feedbackPriority = actionPhase(
+        false, .14f, Action::Strike, .08f);
+    check("active-mining-keeps-its-own-action-phase",
+          miningPriority.action == Action::Mining &&
+              miningPriority.seconds == .14f &&
+              !miningPriority.acceptsFeedbackContact &&
+              feedbackPriority.action == Action::Strike &&
+              feedbackPriority.seconds == .08f &&
+              feedbackPriority.acceptsFeedbackContact);
+
+    action.action = Action::Strike;
+    action.recoil = .5f;
+    action.actionSeconds = .18f;
+    const auto missTail = motion(action);
+    action.actionSeconds = .199f;
+    const auto missNearRest = motion(action);
+    action.actionSeconds = .20f;
+    const auto missRest = motion(action);
+    check("strike-pulse-recovers-continuously-through-020-seconds",
+          missTail.swing > missNearRest.swing &&
+              missNearRest.swing > missRest.swing &&
+              missRest.swing == 0.f);
+
+    action.recoil = 0.f;
+    action.action = Action::Mining;
+    const auto mining = motion(action);
+    action.actionSeconds = 0.f;
+    const auto miningReset = motion(action);
+    action.actionSeconds = 1000000.f;
+    const auto miningLate = motion(action);
+    check("mining-elapsed-resets-and-remains-bounded",
+          mining.swing > miningReset.swing && miningReset.swing == 0.f &&
+              miningLate.swing >= 0.f && miningLate.swing <= 1.f &&
+              std::isfinite(miningLate.pitch + miningLate.yaw +
+                            miningLate.roll + miningLate.bob));
     return failures ? EXIT_FAILURE : EXIT_SUCCESS;
 }

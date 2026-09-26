@@ -7,6 +7,7 @@
 #include "../Actor/ActorTypes.h"
 #include "../Sandbox/Events/BlockEvents.h"
 #include "../Sandbox/Events/EntityEvents.h"
+#include "../Sandbox/Events/FoodEvents.h"
 #include "../World/Interaction/BlockSelection.h"
 
 namespace
@@ -52,6 +53,23 @@ void ActionFeedbackTimeline::attach(SandboxEventBus &eventBus)
             activate(ActionFeedbackKind::BlockPlace, 0.28f, 0.45f, 0.f);
             emitBlock(block.blockId, block.position, FullBlockParticleCount / 2,
                       glm::vec3(block.position) + glm::vec3(0.5f), {}, false, block.metadata);
+        }, SandboxEventSubscriptionOptions::observer(
+            "ActionFeedbackTimeline")));
+    m_subscriptions.push_back(eventBus.subscribe(
+        SandboxEventType::BlockUse, [this](const SandboxEvent &)
+        {
+            activate(ActionFeedbackKind::BlockUse, 0.26f, 0.38f, 0.f);
+        }, SandboxEventSubscriptionOptions::observer(
+            "ActionFeedbackTimeline")));
+    m_subscriptions.push_back(eventBus.subscribe(
+        SandboxEventType::FoodConsumed, [this](const SandboxEvent &event)
+        {
+            const auto &food = static_cast<const FoodConsumedEvent &>(event);
+            if (food.playerId == DefaultPlayerActorId)
+            {
+                activate(ActionFeedbackKind::FoodConsume, 0.42f, 0.52f,
+                         0.f);
+            }
         }, SandboxEventSubscriptionOptions::observer(
             "ActionFeedbackTimeline")));
     m_subscriptions.push_back(eventBus.subscribe(
@@ -110,7 +128,8 @@ void ActionFeedbackTimeline::detach() noexcept
     m_lastMining = {};
     m_lastMiningBucket = -1;
     m_kind = ActionFeedbackKind::None;
-    m_secondsRemaining = m_recoil = m_hitStopSeconds = 0.f;
+    m_elapsedSeconds = m_secondsRemaining = m_recoil =
+        m_hitStopSeconds = 0.f;
 }
 
 void ActionFeedbackTimeline::setIntensity(
@@ -133,11 +152,16 @@ GameplayFeedbackIntensity ActionFeedbackTimeline::intensity() const noexcept
 void ActionFeedbackTimeline::update(float deltaSeconds) noexcept
 {
     const float elapsed = std::clamp(deltaSeconds, 0.f, 0.25f);
+    if (m_kind != ActionFeedbackKind::None)
+    {
+        m_elapsedSeconds += elapsed;
+    }
     m_secondsRemaining = std::max(0.f, m_secondsRemaining - elapsed);
     m_hitStopSeconds = std::max(0.f, m_hitStopSeconds - elapsed);
     if (m_secondsRemaining <= 0.f)
     {
         m_kind = ActionFeedbackKind::None;
+        m_elapsedSeconds = 0.f;
         m_recoil = 0.f;
     }
     for (ParticleState &particle : m_particles)
@@ -166,7 +190,7 @@ void ActionFeedbackTimeline::submitAttackMiss() noexcept
     {
         return;
     }
-    activate(ActionFeedbackKind::AttackMiss, 0.18f, 0.5f, 0.f);
+    activate(ActionFeedbackKind::AttackMiss, 0.20f, 0.5f, 0.f);
 }
 
 void ActionFeedbackTimeline::observeMining(
@@ -209,6 +233,7 @@ ActionFeedbackSnapshot ActionFeedbackTimeline::snapshot() const
     ActionFeedbackSnapshot result;
     result.kind = m_kind;
     result.epoch = m_epoch;
+    result.elapsedSeconds = m_elapsedSeconds;
     result.secondsRemaining = m_secondsRemaining;
     const float scale = visualScale(m_intensity);
     result.recoil = m_recoil * scale;
@@ -251,6 +276,7 @@ void ActionFeedbackTimeline::activate(ActionFeedbackKind kind,
 {
     ++m_epoch;
     m_kind = kind;
+    m_elapsedSeconds = 0.f;
     m_secondsRemaining = std::clamp(duration, 0.f, 0.6f);
     m_recoil = std::clamp(recoil, 0.f, 1.f);
     m_hitStopSeconds = std::clamp(

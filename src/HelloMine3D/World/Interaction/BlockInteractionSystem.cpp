@@ -162,7 +162,9 @@ bool BlockInteractionSystem::useBlock(World &world, Player &player,
     if (!definition.behavior->supportsUse()) {
         return false;
     }
-    definition.behavior->onUse(world, player, {x, y, z}, block);
+    if (!definition.behavior->onUse(world, player, {x, y, z}, block)) {
+        return false;
+    }
     world.getEventBus().publish(BlockUseEvent({x, y, z}, blockId));
     return true;
 }
