@@ -24,6 +24,10 @@ class AdventureEcologyPlanner {
         int height = 0;
     };
     explicit AdventureEcologyPlanner(int seed) noexcept : m_seed(seed), m_water(seed) {}
+    // Height and biome remain the v17 water shape in every v18+ ecology
+    // version. Pure shape queries can avoid computing grove, patch and snow
+    // fields while full ecology sampling still owns the surface material.
+    TerrainFoundation::Column sampleWaterColumn(int x, int z) const noexcept;
     Sample sample(int x, int z) const noexcept;
     bool treeAnchor(int x, int z) const noexcept;
     Tree tree(int x, int z, const Sample &sample) const noexcept;

@@ -8,7 +8,7 @@ void caseAdventureLandmarkWorkshops()
     check("ADVENTURE-WORKSHOP/v22-appends-without-save-bump",
           LandmarkApproachTerrainGenerationVersion == 21 &&
           LandmarkWorkshopTerrainGenerationVersion == 22 &&
-          CurrentTerrainGenerationVersion == 22 &&
+          CurrentTerrainGenerationVersion == 23 &&
           WorldSaveFormatVersion == 12);
 
     setEnv("HELLOMINE3D_SEED", "0");
@@ -218,7 +218,7 @@ void caseAdventureLandmarkWorkshops()
             "adventure_workshop_v22_" + std::to_string(index));
         bool lifecycle = initializeTerrainIdentity(directory,
             "adventure-workshop-v22-" + std::to_string(index),
-            22, item.seed);
+            LandmarkWorkshopTerrainGenerationVersion, item.seed);
         {
             Player player;
             World world(camera, config, player, directory, false, 0);
@@ -266,21 +266,23 @@ void caseAdventureLandmarkWorkshops()
         check(label + "-open-save-break-reopen-no-respawn", lifecycle);
     }
     const auto newDirectory = freshSaveDirectory(
-        "adventure_workshop_v22_default");
+        "adventure_workshop_current_default");
     bool defaultVersion = false;
     {
         Player player;
         World world(camera, config, player, newDirectory, false, 0);
         defaultVersion = world.getChunkManager()
-            .getTerrainGenerationVersion() == 22 && world.save();
+            .getTerrainGenerationVersion() ==
+                CurrentTerrainGenerationVersion && world.save();
     }
     {
         Player player;
         World world(camera, config, player, newDirectory, false, 0);
         defaultVersion &= world.getChunkManager()
-            .getTerrainGenerationVersion() == 22;
+            .getTerrainGenerationVersion() ==
+                CurrentTerrainGenerationVersion;
     }
-    check("ADVENTURE-WORKSHOP/default-v22-save-reopen",
+    check("ADVENTURE-WORKSHOP/default-current-save-reopen",
           defaultVersion);
     clearDeterministicEnv();
     setEnv("HELLOMINE3D_SEED", "");

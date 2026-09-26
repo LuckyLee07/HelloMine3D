@@ -97,6 +97,8 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
     void getBiomeMap();
     TerrainFoundation::Column sampleFoundationForVersion(
         int worldX, int worldZ) const noexcept;
+    TerrainFoundation::Column sampleAdventureShapeForVersion(
+        int worldX, int worldZ) const noexcept;
 
     const Biome &getBiome(int x, int z) const;
     const Biome &getBiomeAt(int x, int z, int chunkX,

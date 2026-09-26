@@ -33,6 +33,78 @@ AdventureRegion regionFor(double temperature, double moisture,
     if (moisture > .28) { return AdventureRegion::Wetland; }
     return moisture > -.02 ? AdventureRegion::Woodland : AdventureRegion::Meadow;
 }
+
+struct CachedAnchor {
+    std::uint64_t seed = 0;
+    std::int64_t cellX = 0;
+    std::int64_t cellZ = 0;
+    double x = 0;
+    double z = 0;
+    double temperature = 0;
+    double moisture = 0;
+    double relief = 0;
+    AdventureRegion region = AdventureRegion::Meadow;
+    bool valid = false;
+};
+
+// A terrain sample visits the same nine region anchors for every column in a
+// distorted cell. Keep only the anchor values that do not depend on the query
+// position. The complete key makes direct-map collisions replacement-only;
+// they can reduce the hit rate, but cannot change a sample result.
+constexpr std::size_t AnchorCacheCapacity = 128;
+static_assert((AnchorCacheCapacity & (AnchorCacheCapacity - 1)) == 0,
+              "anchor cache capacity must be a power of two");
+static_assert(sizeof(std::array<CachedAnchor, AnchorCacheCapacity>) <= 16 * 1024,
+              "per-thread anchor cache must stay within its fixed budget");
+thread_local std::array<CachedAnchor, AnchorCacheCapacity> AnchorCache{};
+
+struct CachedNoiseCorners {
+    std::uint64_t seed = 0;
+    std::uint64_t salt = 0;
+    std::int64_t x = 0;
+    std::int64_t z = 0;
+    double lowerLeft = 0;
+    double lowerRight = 0;
+    double upperLeft = 0;
+    double upperRight = 0;
+    bool valid = false;
+};
+
+// Nearby samples revisit a small set of noise cells at every scale. Cache the
+// exact four random corners, not an interpolated value, so tx/tz and all blend
+// operations remain on the original path. Full keys make collisions replace
+// entries without ever aliasing a result.
+constexpr std::size_t NoiseCornerCacheCapacity = 512;
+static_assert((NoiseCornerCacheCapacity &
+               (NoiseCornerCacheCapacity - 1)) == 0,
+              "noise corner cache capacity must be a power of two");
+static_assert(sizeof(std::array<CachedNoiseCorners,
+                                NoiseCornerCacheCapacity>) <= 64 * 1024,
+              "per-thread noise corner cache must stay within budget");
+thread_local std::array<CachedNoiseCorners,
+                        NoiseCornerCacheCapacity> NoiseCornerCache{};
+
+std::size_t anchorCacheIndex(std::uint64_t seed, std::int64_t cellX,
+                             std::int64_t cellZ) noexcept
+{
+    const auto hash = mix(seed ^
+        mix(static_cast<std::uint64_t>(cellX) + 0x632be59bd9b4e019ull) ^
+        mix(static_cast<std::uint64_t>(cellZ) + 0x8cb92baa3f3d8dd7ull));
+    return static_cast<std::size_t>(hash & (AnchorCacheCapacity - 1));
+}
+
+std::size_t noiseCornerCacheIndex(std::uint64_t seed,
+                                  std::uint64_t salt,
+                                  std::int64_t x,
+                                  std::int64_t z) noexcept
+{
+    std::uint64_t hash = seed ^ salt;
+    hash ^= static_cast<std::uint64_t>(x) * 0x9e3779b185ebca87ull;
+    hash ^= static_cast<std::uint64_t>(z) * 0xc2b2ae3d27d4eb4full;
+    hash ^= hash >> 32;
+    return static_cast<std::size_t>(
+        hash & (NoiseCornerCacheCapacity - 1));
+}
 } // namespace
 
 AdventureTerrainPlanner::AdventureTerrainPlanner(int seed) noexcept
@@ -57,8 +129,22 @@ double AdventureTerrainPlanner::noise(double x, double z, double scale,
     const auto iz = static_cast<std::int64_t>(std::floor(z));
     const double tx = smooth(0, 1, x - static_cast<double>(ix));
     const double tz = smooth(0, 1, z - static_cast<double>(iz));
-    return blend(blend(random(ix, iz, salt), random(ix + 1, iz, salt), tx),
-                 blend(random(ix, iz + 1, salt), random(ix + 1, iz + 1, salt), tx), tz) * 2 - 1;
+    auto &corners = NoiseCornerCache[
+        noiseCornerCacheIndex(m_seed, salt, ix, iz)];
+    if (!corners.valid || corners.seed != m_seed ||
+        corners.salt != salt || corners.x != ix || corners.z != iz) {
+        corners.seed = m_seed;
+        corners.salt = salt;
+        corners.x = ix;
+        corners.z = iz;
+        corners.lowerLeft = random(ix, iz, salt);
+        corners.lowerRight = random(ix + 1, iz, salt);
+        corners.upperLeft = random(ix, iz + 1, salt);
+        corners.upperRight = random(ix + 1, iz + 1, salt);
+        corners.valid = true;
+    }
+    return blend(blend(corners.lowerLeft, corners.lowerRight, tx),
+                 blend(corners.upperLeft, corners.upperRight, tx), tz) * 2 - 1;
 }
 
 AdventureTerrainPlanner::Sample AdventureTerrainPlanner::sample(
@@ -79,16 +165,34 @@ AdventureTerrainPlanner::Sample AdventureTerrainPlanner::sample(
     for (int dz = -1; dz <= 1; ++dz) {
         for (int dx = -1; dx <= 1; ++dx) {
             const auto ax = cx + dx, az = cz + dz;
-            const double sx = (static_cast<double>(ax) + .3 +
-                .4 * random(ax, az, 0x6780abc41903ed53ull)) * Cell;
-            const double sz = (static_cast<double>(az) + .3 +
-                .4 * random(ax, az, 0x17cf36da56044921ull)) * Cell;
-            const double temperature = noise(sx, sz, 870, 0x63b1a908490c712full);
-            const double moisture = noise(sx, sz, 690, 0x24db34175ab820cdull);
-            const double relief = noise(sx, sz, 610, 0xd762547e1a945263ull);
+            auto &cached = AnchorCache[anchorCacheIndex(m_seed, ax, az)];
+            if (!cached.valid || cached.seed != m_seed ||
+                cached.cellX != ax || cached.cellZ != az) {
+                const double sx = (static_cast<double>(ax) + .3 +
+                    .4 * random(ax, az, 0x6780abc41903ed53ull)) * Cell;
+                const double sz = (static_cast<double>(az) + .3 +
+                    .4 * random(ax, az, 0x17cf36da56044921ull)) * Cell;
+                const double temperature = noise(sx, sz, 870, 0x63b1a908490c712full);
+                const double moisture = noise(sx, sz, 690, 0x24db34175ab820cdull);
+                const double relief = noise(sx, sz, 610, 0xd762547e1a945263ull);
+                cached.seed = m_seed;
+                cached.cellX = ax;
+                cached.cellZ = az;
+                cached.x = sx;
+                cached.z = sz;
+                cached.temperature = temperature;
+                cached.moisture = moisture;
+                cached.relief = relief;
+                cached.region = regionFor(temperature, moisture, relief);
+                cached.valid = true;
+            }
+            const double sx = cached.x;
+            const double sz = cached.z;
+            const double temperature = cached.temperature;
+            const double moisture = cached.moisture;
             const double distance = std::hypot(px - sx, pz - sz);
             anchors[index++] = {distance, temperature, moisture,
-                                regionFor(temperature, moisture, relief)};
+                                cached.region};
             nearest = std::min(nearest, distance);
         }
     }

@@ -35,6 +35,11 @@ double AdventureEcologyPlanner::noise(int x, int z, double scale, std::uint64_t 
     return (a+(b-a)*tx)*(1-tz)+(c+(d-c)*tx)*tz;
 }
 
+TerrainFoundation::Column AdventureEcologyPlanner::sampleWaterColumn(
+    int x, int z) const noexcept {
+    return m_water.sample(x, z).column;
+}
+
 AdventureEcologyPlanner::Sample AdventureEcologyPlanner::sample(int x, int z) const noexcept {
     const auto water=m_water.sample(x,z);
     const auto &base=water.base;

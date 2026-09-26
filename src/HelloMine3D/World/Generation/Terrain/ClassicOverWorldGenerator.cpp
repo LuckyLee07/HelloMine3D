@@ -196,6 +196,56 @@ void ClassicOverWorldGenerator::generateTerrainFor(Chunk &chunk)
     generateBaseTerrain(maxHeight, plantPositions);
     applyCavePass();
     applyOreDecorators();
+    if (m_generationVersion >=
+            AdventureUndergroundTerrainGenerationVersion) {
+        const std::int64_t chunkMinimumX =
+            static_cast<std::int64_t>(location.x) * CHUNK_SIZE;
+        const std::int64_t chunkMinimumZ =
+            static_cast<std::int64_t>(location.y) * CHUNK_SIZE;
+        const auto currentColumn =
+            [chunkMinimumX, chunkMinimumZ](int worldX, int worldZ,
+                                           int &localX, int &localZ) {
+                const std::int64_t offsetX =
+                    static_cast<std::int64_t>(worldX) - chunkMinimumX;
+                const std::int64_t offsetZ =
+                    static_cast<std::int64_t>(worldZ) - chunkMinimumZ;
+                if (offsetX < 0 || offsetX >= CHUNK_SIZE ||
+                    offsetZ < 0 || offsetZ >= CHUNK_SIZE) {
+                    return false;
+                }
+                localX = static_cast<int>(offsetX);
+                localZ = static_cast<int>(offsetZ);
+                return true;
+            };
+        m_caveGenerator.projectAdventureUnderground(
+            *m_pChunk,
+            [this, &currentColumn](int worldX, int worldZ) {
+                int localX = 0;
+                int localZ = 0;
+                if (currentColumn(
+                        worldX, worldZ, localX, localZ)) {
+                    return m_heightMap.get(localX, localZ);
+                }
+                return getSurfaceHeightAtWorld(worldX, worldZ);
+            },
+            [this, &currentColumn](int worldX, int worldZ) {
+                int localX = 0;
+                int localZ = 0;
+                if (currentColumn(
+                        worldX, worldZ, localX, localZ)) {
+                    return m_ecologyMap.get(
+                        localX, localZ).column.biome;
+                }
+                return getBiomeAtWorld(worldX, worldZ);
+            },
+            [this](int worldX, int worldZ) {
+                // Water shaping can retain a base biome or replace it with
+                // River/Lake, but never promotes a non-mountain to Mountain.
+                return m_adventure.sample(
+                    worldX, worldZ).column.biome ==
+                    TerrainBiome::Mountain;
+            });
+    }
     applyPlantDecorators(plantPositions);
     const auto plans = getStructurePlansForChunk(location.x, location.y,
         m_generationVersion >= LandmarkArchitectureTerrainGenerationVersion
@@ -335,9 +385,45 @@ TerrainFoundation::Column ClassicOverWorldGenerator::sampleFoundationForVersion(
     return m_foundation.sample(worldX, worldZ);
 }
 
+TerrainFoundation::Column
+ClassicOverWorldGenerator::sampleAdventureShapeForVersion(
+    int worldX, int worldZ) const noexcept
+{
+    // v18+ ecology only changes the chosen surface and decoration fields.
+    // Height/biome queries retain the v17 water shape, so they need neither
+    // grove/patch/snow-line noise nor a full ecology sample. The cache stores
+    // only immutable derived columns and verifies every part of its identity.
+    struct Entry {
+        int seed = 0, version = 0, x = 0, z = 0;
+        TerrainFoundation::Column column;
+        bool valid = false;
+    };
+    thread_local std::array<Entry, 8192> cache{};
+    static_assert(sizeof(cache) <= 256 * 1024,
+                  "Adventure shape cache stays bounded per thread");
+    const auto key = structureHash(m_seed, worldX, worldZ) ^
+        mixStructureValue(static_cast<std::uint64_t>(m_generationVersion));
+    auto &entry = cache[key % cache.size()];
+    if (!entry.valid || entry.seed != m_seed ||
+        entry.version != m_generationVersion ||
+        entry.x != worldX || entry.z != worldZ) {
+        entry.column = m_adventureEcology.sampleWaterColumn(
+            worldX, worldZ);
+        entry.seed = m_seed;
+        entry.version = m_generationVersion;
+        entry.x = worldX;
+        entry.z = worldZ;
+        entry.valid = true;
+    }
+    return entry.column;
+}
+
 TerrainBiome ClassicOverWorldGenerator::getBiomeAtWorld(
     int worldX, int worldZ) const noexcept
 {
+    if (m_generationVersion >= AdventureEcologyTerrainGenerationVersion) {
+        return sampleAdventureShapeForVersion(worldX, worldZ).biome;
+    }
     if (m_generationVersion >= FoundationTerrainGenerationVersion) {
         return sampleFoundationForVersion(worldX, worldZ).biome;
     }
@@ -359,6 +445,9 @@ TerrainBiome ClassicOverWorldGenerator::getBiomeAtWorld(
 int ClassicOverWorldGenerator::getSurfaceHeightAtWorld(
     int worldX, int worldZ) const noexcept
 {
+    if (m_generationVersion >= AdventureEcologyTerrainGenerationVersion) {
+        return sampleAdventureShapeForVersion(worldX, worldZ).height;
+    }
     if (m_generationVersion >= FoundationTerrainGenerationVersion) {
         return sampleFoundationForVersion(worldX, worldZ).height;
     }
