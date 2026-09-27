@@ -2259,7 +2259,7 @@ class OgreUserInterface::Impl
                     ImGui::EndCombo();
                 }
                 if (ImGui::Button(label("pause.apply_difficulty", "##ApplyDifficulty").c_str(),
-                                  ImVec2(-1.0f, 32.0f)))
+                                  ImVec2(-1.0f, 0.0f)))
                 {
                     pendingAction.type =
                         OgreUserInterfaceActionType::ApplyDifficulty;
