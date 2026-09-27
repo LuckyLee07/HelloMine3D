@@ -1661,7 +1661,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 712 &&
+              registry.keys("en-US").size() == 716 &&
               registry.lookup("en-US", "map.marker_name_hint") ==
                   "Up to 24 characters; no spaces at either end." &&
               registry.lookup("zh-CN", "map.marker_invalid_name") ==

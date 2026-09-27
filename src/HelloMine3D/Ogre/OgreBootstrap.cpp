@@ -2295,26 +2295,26 @@ namespace
                 {
                     if (m_world == nullptr)
                     {
-                        m_userInterface->setStatusMessage(
-                            "No active world can accept a difficulty change.");
+                        m_userInterface->setStatusMessage(LocalizedPresentation::text(
+                            userSettings(m_config).locale, "pause.difficulty_no_world"));
                         return;
                     }
                     const DifficultyChangeResult result =
                         m_world->requestDifficulty(action.difficulty);
                     if (result == DifficultyChangeResult::Invalid)
                     {
-                        m_userInterface->setStatusMessage(
-                            "Difficulty change was rejected.");
+                        m_userInterface->setStatusMessage(LocalizedPresentation::text(
+                            userSettings(m_config).locale, "pause.difficulty_rejected"));
                     }
                     else if (result == DifficultyChangeResult::Unchanged)
                     {
-                        m_userInterface->setStatusMessage(
-                            "Difficulty is already selected.");
+                        m_userInterface->setStatusMessage(LocalizedPresentation::text(
+                            userSettings(m_config).locale, "pause.difficulty_unchanged"));
                     }
                     else
                     {
-                        m_userInterface->setStatusMessage(
-                            "Difficulty queued for the next simulation tick.");
+                        m_userInterface->setStatusMessage(LocalizedPresentation::text(
+                            userSettings(m_config).locale, "pause.difficulty_queued"));
                     }
                     return;
                 }

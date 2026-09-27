@@ -2176,7 +2176,7 @@ class OgreUserInterface::Impl
                         ? tr("objective.complete.instruction")
                         : objectiveInstructionText(objective.currentId,
                                         objective.instruction, objective.guidanceKey);
-                ImGui::TextUnformatted(objectiveTitle.c_str());
+                ImGui::TextWrapped("%s", objectiveTitle.c_str());
                 ImGui::TextWrapped("%s", objectiveInstruction.c_str());
                 if (objective.opportunities.size() > 1 &&
                     ImGui::CollapsingHeader(tr("hud.opportunities").c_str()))
@@ -2206,7 +2206,7 @@ class OgreUserInterface::Impl
                                 : std::string();
                         const std::string title = objectiveText(
                             id, "title", objective.completedTitles[index]);
-                        ImGui::Text("[x] %s", title.c_str());
+                        ImGui::TextWrapped("[x] %s", title.c_str());
                     }
                     ImGui::EndChild();
                 }
@@ -2224,10 +2224,11 @@ class OgreUserInterface::Impl
                             difficultyName(difficulty.active).c_str());
                 if (difficulty.changePending)
                 {
-                    ImGui::SameLine();
+                    ImGui::PushTextWrapPos(0.0f);
                     ImGui::TextDisabled("(%s %s)",
                         tr("pause.pending").c_str(),
                         difficultyName(difficulty.pending).c_str());
+                    ImGui::PopTextWrapPos();
                 }
                 ImGui::SetNextItemWidth(-1.0f);
                 if (ImGui::BeginCombo(
@@ -2262,8 +2263,10 @@ class OgreUserInterface::Impl
                         static_cast<WorldDifficulty>(pauseDifficulty);
                     playUiFeedback();
                 }
+                ImGui::PushTextWrapPos(0.0f);
                 ImGui::TextDisabled("%s",
                     tr("pause.difficulty_pending").c_str());
+                ImGui::PopTextWrapPos();
                 ImGui::Separator();
             }
 
@@ -2282,7 +2285,6 @@ class OgreUserInterface::Impl
             }
             ImGui::Separator();
             adventureEscape("pause.resume",true);
-            if (!statusMessage.empty() && statusMessageSeconds > 0.f) drawNotification(statusMessage,io.DisplaySize.y - 12.f);
         }
         ImGui::End();
     }
@@ -5703,7 +5705,8 @@ class OgreUserInterface::Impl
                 sideLanes ? hudNoticeRightTop : notificationBottom, sideLanes ? 1 : 0);
         }
         if (statusMessageSeconds > 0.f && !statusMessage.empty() &&
-            flow->state() == GameApplicationState::Playing)
+            (flow->state() == GameApplicationState::Playing ||
+             (flow->state() == GameApplicationState::Paused && !settingsSession.isOpen())))
         {
             drawNotification(statusMessage, sideLanes ? hudNoticeLeftTop : notificationBottom, sideLanes ? -1 : 0);
         }
