@@ -30,6 +30,18 @@
 
 namespace {
 constexpr std::size_t MaxGlobalVoices = 16;
+constexpr std::size_t ReservedFeedbackVoices = 4;
+
+std::size_t voiceAdmissionLimit(const AudioDefinition &definition) noexcept
+{
+    // Keep headroom for new warnings and menu feedback without stealing a
+    // voice that the native callback may still be reading.
+    const bool critical = definition.category == AudioCategory::Ui ||
+        definition.id == "combat.windup" || definition.id == "combat.hit" ||
+        definition.id == "combat.guard";
+    return critical ? MaxGlobalVoices
+                    : MaxGlobalVoices - ReservedFeedbackVoices;
+}
 
 struct StereoGains {
     float left = 0.f;
@@ -162,7 +174,7 @@ class WindowsWaveOutBackend final : public IAudioBackend {
                                 listener, gains)) {
             return AudioBackendPlayResult::Suppressed;
         }
-        if (m_voices.size() >= MaxGlobalVoices) {
+        if (m_voices.size() >= voiceAdmissionLimit(definition)) {
             return AudioBackendPlayResult::Suppressed;
         }
         const std::size_t cueVoices =
@@ -362,7 +374,7 @@ class MacAudioQueueBackend final : public IAudioBackend {
         if (m_paused.load(std::memory_order_acquire)) {
             return AudioBackendPlayResult::Suppressed;
         }
-        if (voiceCount() >= MaxGlobalVoices) {
+        if (voiceCount() >= voiceAdmissionLimit(definition)) {
             return AudioBackendPlayResult::Suppressed;
         }
         const std::size_t cueVoices =
@@ -682,7 +694,7 @@ AudioBackendPlayResult DummyAudioBackend::play(
         return AudioBackendPlayResult::Suppressed;
     }
     const std::size_t cueVoices = m_activeByCue[definition.id];
-    if (m_activeVoices >= MaxGlobalVoices ||
+    if (m_activeVoices >= voiceAdmissionLimit(definition) ||
         cueVoices >= static_cast<std::size_t>(definition.maxVoices)) {
         return AudioBackendPlayResult::Suppressed;
     }

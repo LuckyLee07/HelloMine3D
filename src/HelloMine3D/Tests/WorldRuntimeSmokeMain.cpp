@@ -11529,6 +11529,66 @@ void caseAudioFeedback()
           bundledAudio->stats().playedEvents == 1 &&
               repeatingCaptions.empty());
 
+    bundledAudio->stopAllPlayback();
+    const std::size_t beforeVoicePressure =
+        bundledAudio->stats().playedEvents;
+    for (const char *cue : {"ambient.open", "ambient.forest",
+                            "ambient.river", "animal.sheep",
+                            "animal.rabbit", "animal.marsh-bird"}) {
+        for (int voice = 0; voice < 2; ++voice) {
+            bundledAudio->submit({cue, true, glm::vec3(0.f), 1.f, false});
+        }
+    }
+    const bool normalPoolFilled =
+        bundledAudio->stats().activeVoices == 12 &&
+        bundledAudio->stats().playedEvents == beforeVoicePressure + 12;
+    for (int voice = 0; voice < 4; ++voice) {
+        bundledAudio->submit({"block.break", true,
+                              glm::vec3(0.f), 1.f, false});
+    }
+    check("B9/background-and-interaction-pressure-leaves-critical-headroom",
+          normalPoolFilled && bundledAudio->stats().activeVoices == 12 &&
+              bundledAudio->stats().playedEvents == beforeVoicePressure + 12);
+
+    const std::size_t beforeCritical = bundledAudio->stats().playedEvents;
+    for (const char *cue : {"combat.windup", "combat.hit", "combat.guard",
+                            "ui.click"}) {
+        bundledAudio->submit({cue, true, glm::vec3(0.f), 1.f, false});
+    }
+    check("B9/combat-and-ui-remain-admissible-under-normal-voice-pressure",
+          bundledAudio->stats().playedEvents == beforeCritical + 4 &&
+              bundledAudio->stats().activeVoices == 16);
+    const std::size_t beforeGlobalLimit =
+        bundledAudio->stats().suppressedEvents;
+    bundledAudio->submit({"combat.windup", true,
+                          glm::vec3(0.f), 1.f, false});
+    check("B9/critical-feedback-still-respects-global-sixteen-voice-cap",
+          bundledAudio->stats().activeVoices == 16 &&
+              bundledAudio->stats().suppressedEvents == beforeGlobalLimit + 1);
+
+    bundledAudio->stopAllPlayback();
+    const std::size_t beforeCriticalCue = bundledAudio->stats().playedEvents;
+    const std::size_t beforeCriticalCueLimit =
+        bundledAudio->stats().suppressedEvents;
+    for (int voice = 0; voice < 5; ++voice) {
+        bundledAudio->submit({"combat.windup", true,
+                              glm::vec3(0.f), 1.f, false});
+    }
+    check("B9/critical-feedback-respects-per-cue-cap-after-stop",
+          bundledAudio->stats().playedEvents == beforeCriticalCue + 4 &&
+              bundledAudio->stats().suppressedEvents == beforeCriticalCueLimit + 1 &&
+              bundledAudio->stats().activeVoices == 4);
+    bundledAudio->setWorldPaused(true);
+    const std::size_t beforePausedMenu = bundledAudio->stats().playedEvents;
+    bundledAudio->emitUiClick();
+    check("B9/pause-clears-pressure-and-retains-menu-feedback",
+          bundledAudio->stats().playedEvents == beforePausedMenu + 1 &&
+              bundledAudio->stats().activeVoices == 1);
+    bundledAudio->setWorldPaused(false);
+    bundledAudio->detach();
+    check("B9/detach-releases-all-critical-voice-capacity",
+          bundledAudio->stats().activeVoices == 0);
+
     auto rejects = [](const std::string &source,
                       const std::string &expected) {
         try {
