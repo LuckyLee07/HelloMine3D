@@ -628,6 +628,10 @@ Observer 的嵌套发布会被拒绝；显式允许的领域反应最多同时�
 
 ## 10. Main Tick and Frame Chain
 
+OIS 鼠标按下事件通过 `GameplayMouseFrameInput` 的五键定长缓冲保留一帧，采样时与当前按住态合并，
+随后清空。Ogre 壳在事件和采样两处核查 UI／焦点所有权；释放门将短点击也视为按钮活动，防止
+回焦穿透。该状态不持久化，不延长按住动作，也不改变 Sandbox 原有动作仲裁与冷却。
+
 ```text
 Ogre::frameStarted
   -> pump OS messages / capture OIS input / process UI action

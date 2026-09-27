@@ -2616,17 +2616,7 @@ namespace
                 return false;
             }
 
-            const bool keyboardCaptured =
-                m_worldPlayer->hasOpenContainer() ||
-                (m_userInterface != nullptr &&
-                 m_userInterface->wantsKeyboardInput());
-            const bool mouseCaptured =
-                m_worldPlayer->hasOpenContainer() ||
-                (m_userInterface != nullptr &&
-                 m_userInterface->wantsMouseInput());
-            const bool worldInputActive =
-                m_focusGate.isFocused() && !m_focusTransitionFrame &&
-                !keyboardCaptured && !mouseCaptured;
+            const bool worldInputActive = acceptsWorldInput();
 
             SandboxInputState input;
             const GameplayInputBindings &bindings =
@@ -2660,17 +2650,16 @@ namespace
                 input.useHeldFood = m_useHeldFood;
             }
             const OIS::MouseState &mouseState = m_mouse->getMouseState();
-            bool anyMouseButtonDown = false;
+            GameplayMouseFrameInput::Buttons heldMouseButtons{};
             for (std::size_t buttonIndex = 0;
                  buttonIndex < GameplayMouseButtonCount; ++buttonIndex)
             {
-                anyMouseButtonDown = anyMouseButtonDown ||
+                heldMouseButtons[buttonIndex] =
                     mouseState.buttonDown(toOisMouseButton(
                         static_cast<GameplayMouseButton>(buttonIndex)));
             }
-            const bool worldMouseButtonsAllowed =
-                worldInputActive &&
-                m_focusGate.allowsWorldButtons(anyMouseButtonDown);
+            const auto mouseButtons = m_mouseFrameInput.consume(
+                heldMouseButtons, worldInputActive, m_focusGate);
             if (worldInputActive &&
                 m_focusGate.acceptsLookSample())
             {
@@ -2680,22 +2669,19 @@ namespace
                 input.player.lookDelta.x = look.yaw;
                 input.player.lookDelta.y = look.pitch;
             }
-            if (worldMouseButtonsAllowed)
+            if (worldInputActive)
             {
                 const GameplayMouseBindings &mouseBindings =
                     m_config.mouseBindings;
-                input.breakAttack = mouseState.buttonDown(
-                    toOisMouseButton(mouseBindings.get(
-                        GameplayWorldAction::BreakAttack)));
-                input.useBlock = mouseState.buttonDown(
-                    toOisMouseButton(mouseBindings.get(
-                        GameplayWorldAction::Use)));
-                input.placeBlock = mouseState.buttonDown(
-                    toOisMouseButton(mouseBindings.get(
-                        GameplayWorldAction::Place)));
-                input.guardCombat = mouseState.buttonDown(
-                    toOisMouseButton(mouseBindings.get(
-                        GameplayWorldAction::Guard)));
+                const auto down = [&](GameplayWorldAction action) {
+                    const auto index = static_cast<std::size_t>(
+                        mouseBindings.get(action));
+                    return index < mouseButtons.size() && mouseButtons[index];
+                };
+                input.breakAttack = down(GameplayWorldAction::BreakAttack);
+                input.useBlock = down(GameplayWorldAction::Use);
+                input.placeBlock = down(GameplayWorldAction::Place);
+                input.guardCombat = down(GameplayWorldAction::Guard);
             }
 
             const bool diagnosticsActive =
@@ -3817,6 +3803,7 @@ namespace
 
         void clearTransientInput()
         {
+            m_mouseFrameInput.clear();
             m_pendingLookDelta = glm::vec2(0.0f);
             m_toggleFlying = false;
             m_resetMeshes = false;
@@ -5475,6 +5462,16 @@ namespace
         bool mousePressed(const OIS::MouseEvent& event,
                           OIS::MouseButtonID button) override
         {
+            // Decide ownership before the UI can consume/close on this click.
+            for (std::size_t i = 0; i < GameplayMouseButtonCount; ++i)
+            {
+                const auto mapped = static_cast<GameplayMouseButton>(i);
+                if (toOisMouseButton(mapped) == button)
+                {
+                    m_mouseFrameInput.press(mapped, acceptsWorldInput());
+                    break;
+                }
+            }
             if (m_userInterface != nullptr)
             {
                 m_userInterface->mouseButton(event, button, true);
@@ -5614,6 +5611,20 @@ namespace
                 static_cast<float>(height) / viewPointScale);
         }
 
+        bool acceptsWorldInput() const
+        {
+            return m_worldPlayer != nullptr &&
+                m_applicationFlow.state() == GameApplicationState::Playing &&
+                m_focusGate.isFocused() && !m_focusTransitionFrame &&
+                !m_worldPlayer->hasOpenContainer() &&
+                !m_worldPlayer->hasOpenCrafting() &&
+                (m_userInterface == nullptr ||
+                 (!m_userInterface->wantsKeyboardInput() &&
+                  !m_userInterface->wantsMouseInput() &&
+                  !m_userInterface->wantsHudPointer() &&
+                  !m_userInterface->hasBlockingModal()));
+        }
+
         bool shouldCaptureNativeCursor() const
         {
             if (m_hiddenWindow || m_window == nullptr ||
@@ -5657,10 +5668,10 @@ namespace
 
         void updateNativeCursorCapture()
         {
-            const bool hudOwnsInput = m_userInterface != nullptr && m_userInterface->wantsHudPointer();
-            if (hudOwnsInput != m_previousHudInput)
+            const bool worldOwnsInput = acceptsWorldInput();
+            if (worldOwnsInput != m_previousWorldInput)
             {
-                m_previousHudInput = hudOwnsInput;
+                m_previousWorldInput = worldOwnsInput;
                 m_focusGate.suppressUntilRelease();
                 clearTransientInput();
             }
@@ -5886,11 +5897,12 @@ namespace
         glm::vec2 m_pendingLookDelta{0.0f};
         GameplayMovementModeTracker m_movementModeTracker;
         GameplayFocusGate m_focusGate;
+        GameplayMouseFrameInput m_mouseFrameInput;
         bool m_focusTransitionFrame = false;
         bool m_toggleFlying = false;
         bool m_resetMeshes = false;
         bool m_useHeldFood = false;
-        bool m_previousHudInput = false;
+        bool m_previousWorldInput = false;
         bool m_tabKeyHeld = false;
         bool m_graveKeyHeld = false;
         bool m_lKeyHeld = false;

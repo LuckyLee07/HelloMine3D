@@ -383,3 +383,36 @@ bool GameplayFocusGate::acceptsLookSample() noexcept
     }
     return true;
 }
+
+void GameplayMouseFrameInput::press(GameplayMouseButton button,
+                                    bool worldInputActive) noexcept
+{
+    const auto index = static_cast<std::size_t>(button);
+    if (worldInputActive && index < m_pressed.size()) {
+        m_pressed[index] = true;
+    }
+}
+
+GameplayMouseFrameInput::Buttons GameplayMouseFrameInput::consume(
+    const Buttons &held, bool worldInputActive,
+    GameplayFocusGate &focus) noexcept
+{
+    Buttons result{};
+    bool anyButton = false;
+    for (std::size_t i = 0; i < result.size(); ++i) {
+        result[i] = held[i] || m_pressed[i];
+        anyButton = anyButton || result[i];
+    }
+    // Include completed clicks in the release gate: a focus/closing click
+    // must not reopen the gate merely because it was released in this frame.
+    if (!worldInputActive || !focus.allowsWorldButtons(anyButton)) {
+        result.fill(false);
+    }
+    clear();
+    return result;
+}
+
+void GameplayMouseFrameInput::clear() noexcept
+{
+    m_pressed.fill(false);
+}

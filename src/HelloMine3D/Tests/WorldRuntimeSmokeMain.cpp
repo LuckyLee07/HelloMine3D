@@ -2483,6 +2483,80 @@ void caseP11ACoreInput()
     check("P11A/focus-gate-discards-one-look-and-rearms-on-release",
           !firstLook && released && nextLook);
 
+    GameplayMouseFrameInput mouse;
+    GameplayMouseFrameInput::Buttons held{};
+    const auto primary = static_cast<std::size_t>(GameplayMouseButton::Primary);
+    const auto secondary = static_cast<std::size_t>(GameplayMouseButton::Secondary);
+    const auto noButtons = GameplayMouseFrameInput::Buttons{};
+    mouse.press(GameplayMouseButton::Secondary, true);
+    auto buttons = mouse.consume(held, true, focus);
+    check("P11A/completed-short-click-survives-frame-sampling",
+          buttons[secondary] && !buttons[primary]);
+    check("P11A/short-click-is-not-replayed-next-frame",
+          mouse.consume(held, true, focus) == noButtons);
+    held[primary] = true;
+    mouse.press(GameplayMouseButton::Primary, true);
+    const bool firstHeld = mouse.consume(held, true, focus)[primary];
+    const bool stillHeld = mouse.consume(held, true, focus)[primary];
+    held[primary] = false;
+    check("P11A/held-mining-remains-held-and-stops-on-release",
+          firstHeld && stillHeld &&
+          mouse.consume(held, true, focus) == noButtons);
+    mouse.press(GameplayMouseButton::Secondary, false);
+    check("P11A/ui-closing-click-cannot-become-world-click",
+          mouse.consume(held, true, focus) == noButtons);
+    mouse.press(GameplayMouseButton::Secondary, true);
+    const auto captured = mouse.consume(held, false, focus);
+    check("P11A/opening-ui-discards-pending-world-click",
+          captured == noButtons &&
+          mouse.consume(held, true, focus) == noButtons);
+    mouse.press(GameplayMouseButton::Primary, true);
+    mouse.clear();
+    check("P11A/transient-clear-discards-pending-click",
+          mouse.consume(held, true, focus) == noButtons);
+    focus.setFocused(false);
+    mouse.press(GameplayMouseButton::Secondary, true);
+    check("P11A/background-click-cannot-reach-world",
+          mouse.consume(held, true, focus) == noButtons);
+    focus.setFocused(true);
+    mouse.press(GameplayMouseButton::Secondary, true);
+    check("P11A/released-focus-click-stays-suppressed",
+          mouse.consume(held, true, focus) == noButtons);
+    mouse.consume(held, true, focus);
+    mouse.press(GameplayMouseButton::Secondary, true);
+    check("P11A/new-click-works-after-focus-release-frame",
+          mouse.consume(held, true, focus)[secondary]);
+    focus.suppressUntilRelease();
+    held[secondary] = true;
+    const auto closingHeld = mouse.consume(held, true, focus);
+    held[secondary] = false;
+    mouse.consume(held, true, focus);
+    mouse.press(GameplayMouseButton::Secondary, true);
+    check("P11A/ui-held-click-waits-for-release-before-rearming",
+          closingHeld == noButtons &&
+          mouse.consume(held, true, focus)[secondary]);
+    bool bindingsPreserved = true;
+    for (std::size_t i = 0; i < GameplayMouseButtonCount; ++i) {
+        mouse.press(static_cast<GameplayMouseButton>(i), true);
+        GameplayMouseFrameInput::Buttons expected{};
+        expected[i] = true;
+        bindingsPreserved = bindingsPreserved &&
+            mouse.consume(held, true, focus) == expected;
+    }
+    check("P11A/all-five-mouse-bindings-retain-short-clicks", bindingsPreserved);
+    mouse.press(GameplayMouseButton::Count, true);
+    check("P11A/unsupported-button-does-not-activate-another",
+          mouse.consume(held, true, focus) == noButtons);
+    mouse.press(GameplayMouseButton::Primary, true);
+    mouse.press(GameplayMouseButton::Secondary, true);
+    buttons = mouse.consume(held, true, focus);
+    intent.breakAttack = buttons[primary];
+    intent.use = intent.place = intent.guard = buttons[secondary];
+    context.usableBlockTarget = true;
+    check("P11A/same-frame-clicks-still-use-single-action-arbitration",
+          resolveGameplayWorldAction(intent, context) ==
+              GameplayWorldAction::BreakAttack);
+
     check("P11A/only-interactive-block-behaviors-support-use",
           BlockDatabase::get()
                   .getDefinition(BlockId::Chest)

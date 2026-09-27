@@ -173,6 +173,20 @@ class GameplayFocusGate {
     bool m_discardNextLookSample = false;
 };
 
+/// Retains short clicks between frame samples without extending held input.
+/// UI/focus ownership is checked both at the press and when consuming the frame.
+class GameplayMouseFrameInput {
+  public:
+    using Buttons = std::array<bool, GameplayMouseButtonCount>;
+    void press(GameplayMouseButton button, bool worldInputActive) noexcept;
+    Buttons consume(const Buttons &held, bool worldInputActive,
+                    GameplayFocusGate &focus) noexcept;
+    void clear() noexcept;
+
+  private:
+    Buttons m_pressed{};
+};
+
 const char *gameplayActionName(GameplayAction action) noexcept;
 const char *gameplayActionConfigKey(GameplayAction action) noexcept;
 const char *gameplayKeyName(GameplayKey key) noexcept;
