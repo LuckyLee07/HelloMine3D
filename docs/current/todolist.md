@@ -48,6 +48,12 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 
 ## 当前批准批次
 
+**2026-09-28 视觉精修 Goal 已启动，进入 V00／V01 首批。** 用户在文档同步后明确要求直接执行。
+[0925 规划](visual-experience-polish-plan-2026-09-25.md)保留 V01–V10 全部范围，已更新地下、玩家、
+声音与界面的实现基线及旧 Goal 阶段边界；[新提示词](visual-experience-polish-goal-prompt-2026-09-28.md)
+明确不设置人工核验环节，保留必要自动检查与代理自测，严格性能沿用延期。宿主状态 `active`，
+本阶段维护[独立执行报告](../reports/visual-experience-polish-execution-2026-09-28.md)，旧报告缺项保持。
+
 **2026-09-28 冒险世界体验升级已由用户阶段放行，旧宿主 Goal 已删除。**
 B1–B9 主要功能已接入；用户确认按当前工程结果先行放行，人工核验及独立试玩暂缓。
 实际查询 `goal=null`；旧报告的 NOT_RUN／BLOCKED 保留，不改写成实测 PASS，严格性能微调
