@@ -4338,6 +4338,12 @@ class OgreUserInterface::Impl
             mapMarkerFeedbackKey = key;
             playUiFeedback();
         };
+        const auto validateName = [&](const char* name) {
+            if (ExplorationMarkers::validName(name)) return true;
+            mapMarkerFeedbackKey = "map.marker_invalid_name";
+            playUiFeedback();
+            return false;
+        };
         std::optional<std::pair<int,int>> selectedPosition;
         if (overviewValid && selectedOverviewCell >= 0 && selectedOverviewCell < int(overviewCells.size()) &&
             overviewCells[selectedOverviewCell].known)
@@ -4387,16 +4393,26 @@ class OgreUserInterface::Impl
             mapMarkerFeedbackKey.clear();
             ImGui::OpenPopup("##NewMapMarker");
         }
+        // Feedback can increase the popup height after it opens. Keep it inside
+        // the viewport, with scrolling available at compact sizes.
+        const auto display = ImGui::GetIO().DisplaySize;
+        const float popupWidth = std::min(344.f * scale, display.x - 32.f);
+        ImGui::SetNextWindowPos(ImVec2(display.x * .5f, display.y * .5f),
+            ImGuiCond_Always, ImVec2(.5f, .5f));
+        ImGui::SetNextWindowSizeConstraints(ImVec2(popupWidth, 0.f),
+            ImVec2(popupWidth, display.y - 32.f));
         if (ImGui::BeginPopup("##NewMapMarker"))
         {
-            ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + std::min(280.f * scale,ImGui::GetIO().DisplaySize.x-80.f));
+            ImGui::PushTextWrapPos(0.f);
             if (selectedPosition) ImGui::Text("X %d  Z %d",selectedPosition->first,selectedPosition->second);
             else ImGui::TextWrapped("%s",tr("map.marker_choose_cell").c_str());
             ImGui::TextUnformatted(tr("map.marker_new_name").c_str());
-            ImGui::SetNextItemWidth(std::min(260.f*scale,ImGui::GetIO().DisplaySize.x-96.f));
+            ImGui::SetNextItemWidth(-1.f);
             ImGui::InputText("##NewName",newMapMarkerName.data(),newMapMarkerName.size());
+            ImGui::TextDisabled("%s",tr("map.marker_name_hint").c_str());
             ImGui::BeginDisabled(!selectedPosition.has_value());
             const auto create = [&](Kind kind) {
+                if (!validateName(newMapMarkerName.data())) return;
                 std::uint32_t id = 0;
                 const auto result = world->createExplorationMarker(selectedPosition->first,selectedPosition->second,
                     newMapMarkerName.data(),kind,&id);
@@ -4430,7 +4446,8 @@ class OgreUserInterface::Impl
             ImGui::SetNextItemWidth(std::max(60.f*scale,editWidth-saveWidth-ImGui::GetStyle().ItemSpacing.x));
             ImGui::InputText("##EditMapMarkerName",mapMarkerEditor.name.data(),mapMarkerEditor.name.size());
             ImGui::SameLine();
-            if (adventureButton("map.marker_rename",saveWidth)) feedback(world->renameExplorationMarker(selected->id,mapMarkerEditor.name.data()));
+            if (adventureButton("map.marker_rename",saveWidth) && validateName(mapMarkerEditor.name.data()))
+                feedback(world->renameExplorationMarker(selected->id,mapMarkerEditor.name.data()));
             const bool tracking = tracked && tracked->id == selected->id;
             const float moreWidth = ImGui::CalcTextSize(tr("map.marker_more").c_str()).x + 24.f*scale;
             if (adventureButton(tracking ? "map.marker_untrack" : "map.marker_track",editWidth-moreWidth-ImGui::GetStyle().ItemSpacing.x,true))
