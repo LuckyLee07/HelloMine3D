@@ -5774,8 +5774,8 @@ class OgreUserInterface::Impl
         if (player == nullptr || !player->hasOpenContainer() ||
             player->hasOpenCrafting() || world == nullptr)
         {
-            machineFeedbackKey.clear();
-            machineFeedbackBound = false;
+            containerFeedbackKey.clear();
+            containerFeedbackBound = false;
             return;
         }
 
@@ -5783,8 +5783,8 @@ class OgreUserInterface::Impl
             *world, *player->getOpenContainer());
         if (!capabilities.inventoryProvider)
         {
-            machineFeedbackKey.clear();
-            machineFeedbackBound = false;
+            containerFeedbackKey.clear();
+            containerFeedbackBound = false;
             player->closeContainer();
             return;
         }
@@ -5794,11 +5794,30 @@ class OgreUserInterface::Impl
             provider.view(*world, runtimeSmeltingRegistry());
         if (!inventory)
         {
-            machineFeedbackKey.clear();
-            machineFeedbackBound = false;
+            containerFeedbackKey.clear();
+            containerFeedbackBound = false;
             player->closeContainer();
             return;
         }
+
+        const glm::ivec3 containerPosition = inventory->position;
+        const bool sameFeedbackContainer = containerFeedbackBound &&
+            containerFeedbackKind == provider.kind() &&
+            containerFeedbackPosition.x == containerPosition.x &&
+            containerFeedbackPosition.y == containerPosition.y &&
+            containerFeedbackPosition.z == containerPosition.z;
+        if (!sameFeedbackContainer)
+        {
+            containerFeedbackKey.clear();
+            containerFeedbackPosition = containerPosition;
+            containerFeedbackKind = provider.kind();
+            containerFeedbackBound = true;
+        }
+        const auto setContainerFeedback = [&](const char* key)
+        {
+            containerFeedbackKey = key;
+            playUiFeedback();
+        };
 
         std::optional<MachineProcessorView> processor;
         if (capabilities.machineProcessor &&
@@ -5811,17 +5830,6 @@ class OgreUserInterface::Impl
         {
             const bool isCrusher = capabilities.machineProcessor->kind() ==
                 MachineProcessorKind::Crusher;
-            const glm::ivec3 machinePosition = processor->position;
-            const bool sameFeedbackMachine = machineFeedbackBound &&
-                machineFeedbackPosition.x == machinePosition.x &&
-                machineFeedbackPosition.y == machinePosition.y &&
-                machineFeedbackPosition.z == machinePosition.z;
-            if (!sameFeedbackMachine)
-            {
-                machineFeedbackKey.clear();
-                machineFeedbackPosition = machinePosition;
-                machineFeedbackBound = true;
-            }
             std::optional<MechanicalNodeSnapshot> mechanicalNode;
             if (isCrusher && capabilities.mechanicalPort)
             {
@@ -5863,11 +5871,6 @@ class OgreUserInterface::Impl
                     open = false;
                 }
 
-                const auto setMachineFeedback = [&](const char* key)
-                {
-                    machineFeedbackKey = key;
-                    playUiFeedback();
-                };
                 const auto roleSlot = [&](InventorySlotRole role)
                 {
                     for (int slot = 0; slot < inventory->slotCount; ++slot)
@@ -5901,17 +5904,17 @@ class OgreUserInterface::Impl
                         Material::toMaterial(stack.materialId);
                     if (player->getInventoryCapacity(material) <= 0)
                     {
-                        setMachineFeedback("machine.feedback.pack_full");
+                        setContainerFeedback("machine.feedback.pack_full");
                     }
                     else if (provider.transferToPlayer(
                                  *world, *player, slot, stack.amount,
                                  runtimeSmeltingRegistry()))
                     {
-                        setMachineFeedback("machine.feedback.taken");
+                        setContainerFeedback("machine.feedback.taken");
                     }
                     else
                     {
-                        setMachineFeedback("machine.feedback.retry");
+                        setContainerFeedback("machine.feedback.retry");
                     }
                 };
 
@@ -5953,7 +5956,7 @@ class OgreUserInterface::Impl
                     if (ImGui::Button(label("crusher.crank", "##CrusherCrank").c_str(),
                                       ImVec2(width, 36.f * scale)))
                     {
-                        setMachineFeedback(capabilities.machineProcessor
+                        setContainerFeedback(capabilities.machineProcessor
                             ->supplyManualPower(*world, *player)
                                 ? "machine.feedback.cranked"
                                 : "machine.feedback.retry");
@@ -6102,7 +6105,7 @@ class OgreUserInterface::Impl
                         if (target < 0 || target >= inventory->slotCount ||
                             !inventory->slots[target].insertable)
                         {
-                            setMachineFeedback(
+                            setContainerFeedback(
                                 "machine.feedback.incompatible");
                         }
                         else
@@ -6113,13 +6116,13 @@ class OgreUserInterface::Impl
                                 destination.materialId !=
                                     stack.getMaterial().id)
                             {
-                                setMachineFeedback(
+                                setContainerFeedback(
                                     "machine.feedback.slot_blocked");
                             }
                             else if (destination.amount >=
                                      stack.getMaterial().maxStackSize)
                             {
-                                setMachineFeedback(
+                                setContainerFeedback(
                                     "machine.feedback.slot_full");
                             }
                             else if (provider.transferFromPlayer(
@@ -6128,27 +6131,27 @@ class OgreUserInterface::Impl
                                          stack.getNumInStack(),
                                          runtimeSmeltingRegistry()))
                             {
-                                setMachineFeedback(
+                                setContainerFeedback(
                                     "machine.feedback.inserted");
                             }
                             else
                             {
-                                setMachineFeedback(
+                                setContainerFeedback(
                                     "machine.feedback.retry");
                             }
                         }
                     }
                 }
                 ImGui::PopStyleVar();
-                const std::string feedback = machineFeedbackKey.empty()
+                const std::string feedback = containerFeedbackKey.empty()
                     ? tr(machineKey + ".inventory_hint")
-                    : tr(machineFeedbackKey);
+                    : tr(containerFeedbackKey);
                 const std::string feedbackSummary = boundedHudText(
                     feedback, ImGui::GetFontSize(),
                     ImGui::GetContentRegionAvail().x);
                 ImGui::PushStyleColor(
                     ImGuiCol_Text,
-                    machineFeedbackKey.empty() ? WarmMuted : WarmAccent);
+                    containerFeedbackKey.empty() ? WarmMuted : WarmAccent);
                 ImGui::TextUnformatted(feedbackSummary.c_str());
                 ImGui::PopStyleColor();
                 if (ImGui::IsItemHovered() && feedbackSummary != feedback)
@@ -6160,16 +6163,13 @@ class OgreUserInterface::Impl
             ImGui::End();
             if (!open)
             {
-                machineFeedbackKey.clear();
-                machineFeedbackBound = false;
+                containerFeedbackKey.clear();
+                containerFeedbackBound = false;
                 player->closeContainer();
                 playUiFeedback();
             }
             return;
         }
-
-        machineFeedbackKey.clear();
-        machineFeedbackBound = false;
 
         const ImGuiIO &io = ImGui::GetIO();
         const float scale = appliedSettings.uiScale;
@@ -6194,7 +6194,8 @@ class OgreUserInterface::Impl
             const float hotbarCell = std::min(58.f * scale,
                 (width - (playerSlots - 1) * slotGap) / std::max(1, playerSlots));
             const float footer = ImGui::GetTextLineHeight() + hotbarCell +
-                ImGui::GetFrameHeight() + 6.f * style.ItemSpacing.y + 1.f;
+                ImGui::GetFrameHeight() + ImGui::GetTextLineHeightWithSpacing() +
+                6.f * style.ItemSpacing.y + 1.f;
             drawInventoryHeading(tr("inventory.storage"), std::to_string(inventory->slotCount) + " " + tr("inventory.slots"));
             const float bodyHeight = std::max(1.f, ImGui::GetContentRegionAvail().y - footer);
             const int columns = bodyHeight < 210.f * scale ? 5 : 3;
@@ -6215,8 +6216,20 @@ class OgreUserInterface::Impl
                 const bool clicked = drawInventoryCard(stack.materialId, stack.amount, "chest" + std::to_string(slot),
                     ImVec2(cell, cell), false, true);
                 if (ImGui::IsItemHovered() || (ImGui::IsItemFocused() && io.NavVisible)) inspected = stack;
-                if (clicked && stack.amount > 0 && provider.transferToPlayer(
-                    *world, *player, slot, stack.amount, runtimeSmeltingRegistry())) playUiFeedback();
+                if (clicked && stack.amount > 0)
+                {
+                    const int capacity = player->getInventoryCapacity(
+                        Material::toMaterial(stack.materialId));
+                    if (capacity <= 0)
+                        setContainerFeedback("chest.feedback.pack_full");
+                    else if (provider.transferToPlayer(*world, *player, slot,
+                                 stack.amount, runtimeSmeltingRegistry()))
+                        setContainerFeedback(capacity < stack.amount
+                            ? "chest.feedback.taken_partial"
+                            : "chest.feedback.taken");
+                    else
+                        setContainerFeedback("chest.feedback.retry");
+                }
             }
             ImGui::PopStyleVar();
             ImGui::EndChild();
@@ -6254,15 +6267,51 @@ class OgreUserInterface::Impl
                 const ItemStack &stack = player->getInventorySlot(slot);
                 const bool clicked = drawInventoryCard(stack.getMaterial().id, stack.getNumInStack(),
                     "player" + std::to_string(slot), ImVec2(hotbarCell, hotbarCell), false, true, slot + 1);
-                if (clicked && !stack.isEmpty() && provider.transferFromPlayer(*world, *player,
-                    InventoryProvider::AutomaticSlot, slot, stack.getNumInStack(), runtimeSmeltingRegistry())) playUiFeedback();
+                if (clicked && !stack.isEmpty())
+                {
+                    const Material& material = stack.getMaterial();
+                    const int requested = stack.getNumInStack();
+                    int capacity = 0;
+                    for (int target = 0; target < inventory->slotCount; ++target)
+                    {
+                        const auto& destination = inventory->slots[target];
+                        if (destination.insertable &&
+                            (destination.state.amount == 0 ||
+                             destination.state.materialId == material.id))
+                            capacity += material.maxStackSize - destination.state.amount;
+                    }
+                    if (material.isTool)
+                        setContainerFeedback("chest.feedback.tool");
+                    else if (capacity <= 0)
+                        setContainerFeedback("chest.feedback.storage_full");
+                    else if (provider.transferFromPlayer(*world, *player,
+                                 InventoryProvider::AutomaticSlot, slot, requested,
+                                 runtimeSmeltingRegistry()))
+                        setContainerFeedback(capacity < requested
+                            ? "chest.feedback.stored_partial"
+                            : "chest.feedback.stored");
+                    else
+                        setContainerFeedback("chest.feedback.retry");
+                }
             }
             ImGui::PopStyleVar();
             ImGui::Spacing();
+            const std::string feedback = containerFeedbackKey.empty()
+                ? std::string() : tr(containerFeedbackKey);
+            const std::string summary = boundedHudText(feedback,
+                ImGui::GetFontSize(), ImGui::GetContentRegionAvail().x);
+            ImGui::TextColored(WarmAccent, "%s", summary.c_str());
+            if (ImGui::IsItemHovered() && summary != feedback)
+                ImGui::SetTooltip("%s", feedback.c_str());
             if (ImGui::Button((tr("common.close") + "  [Esc]##CloseChest").c_str())) { open = false; playUiFeedback(); }
         }
         ImGui::End();
-        if (!open) player->closeContainer();
+        if (!open)
+        {
+            containerFeedbackKey.clear();
+            containerFeedbackBound = false;
+            player->closeContainer();
+        }
     }
 
     void drawCrafting()
@@ -7069,9 +7118,10 @@ class OgreUserInterface::Impl
     std::unique_ptr<CraftingSession> craftingSession;
     Material::ID selectedCraftingMaterial = Material::ID::Nothing;
     std::string craftingMessage;
-    std::string machineFeedbackKey;
-    glm::ivec3 machineFeedbackPosition{0};
-    bool machineFeedbackBound = false;
+    std::string containerFeedbackKey;
+    glm::ivec3 containerFeedbackPosition{0};
+    InventoryProviderKind containerFeedbackKind = InventoryProviderKind::None;
+    bool containerFeedbackBound = false;
     std::vector<WorldCatalogueEntry> worlds;
     std::vector<DeletedWorldInfo> deletedWorlds;
     std::vector<WorldBackupInfo> backups;
@@ -7363,6 +7413,8 @@ void OgreUserInterface::setWorldContext(Player *player,
     }
     m_impl->player = player;
     m_impl->world = world;
+    m_impl->containerFeedbackKey.clear();
+    m_impl->containerFeedbackBound = false;
     m_impl->heldLighting = {};
     m_impl->dismissedVictoryEpoch = 0;
     m_impl->previousPlayerHealth = -1.f;
