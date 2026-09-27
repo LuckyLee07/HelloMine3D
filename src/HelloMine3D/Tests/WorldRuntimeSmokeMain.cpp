@@ -3714,6 +3714,92 @@ void casePlayerControllerInput()
 }
 
 // ---------------------------------------------------------------------------
+// P11A - short jump presses survive frame sampling without extending held input
+// ---------------------------------------------------------------------------
+void casePlayerJumpPressInput()
+{
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 202 8");
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player,
+                freshSaveDirectory("player_jump_press"), false, 1);
+    world.setBlock(8, 200, 8, BlockId::Stone);
+    const float restingY = 201.f + player.box.dimensions.y;
+    auto groundPlayer = [&]() {
+        auto state = player.getSaveState();
+        state.position = {8.5f, restingY, 8.5f};
+        player.applySaveState(state);
+        player.box.update(player.position);
+        player.update(0.05f, world);
+    };
+    auto settle = [&]() {
+        for (int tick = 0; tick < 30; ++tick) player.update(0.05f, world);
+        return player.isOnGround() &&
+               std::abs(player.position.y - restingY) < 0.001f;
+    };
+    groundPlayer();
+    check("P11A/jump-fixture-grounded", player.isOnGround());
+
+    // The OS already delivered press AND release before this frame. Subsequent
+    // render frames can also sample no held key before the next fixed tick.
+    PlayerInputState tap;
+    tap.jumpPressed = true;
+    player.applyInput(tap);
+    for (int frame = 0; frame < 3; ++frame) player.applyInput({});
+    player.update(0.05f, world);
+    check("P11A/released-jump-press-survives-until-fixed-tick",
+          player.position.y > restingY && player.velocity.y > 0.f);
+    check("P11A/jump-press-does-not-replay-after-landing", settle());
+    player.applyInput(tap);
+    player.update(0.05f, world);
+    check("P11A/second-jump-press-works-after-landing",
+          player.position.y > restingY);
+
+    groundPlayer();
+    PlayerInputState held;
+    held.jump = true;
+    player.applyInput(held);
+    player.update(0.05f, world);
+    check("P11A/held-jump-legacy-edge-preserved", player.position.y > restingY);
+    for (int tick = 0; tick < 30; ++tick) {
+        player.applyInput(held);
+        player.update(0.05f, world);
+    }
+    check("P11A/held-jump-does-not-auto-hop", player.isOnGround());
+
+    // An airborne tap outside the existing coyote/buffer window must expire.
+    auto airborne = player.getSaveState();
+    airborne.position.y = restingY + 10.f;
+    player.applySaveState(airborne);
+    player.box.update(player.position);
+    player.update(0.05f, world);
+    for (int tick = 0; tick < 3; ++tick) player.update(0.05f, world);
+    player.applyInput(tap);
+    player.applyInput({});
+    check("P11A/airborne-jump-buffer-expires-before-landing", settle());
+
+    groundPlayer();
+    player.applyInput(tap);
+    player.applySaveState(player.getSaveState());
+    player.update(0.05f, world);
+    check("P11A/save-restore-clears-transient-jump", player.isOnGround());
+
+    PlayerInputState flightTap = tap;
+    flightTap.toggleFlying = true;
+    player.applyInput(flightTap);
+    player.update(0.05f, world);
+    check("P11A/short-jump-press-does-not-fabricate-flight-ascent",
+          player.isFlying() && std::abs(player.position.y - restingY) < 0.001f);
+    player.applyInput(held);
+    player.update(0.05f, world);
+    check("P11A/flight-ascent-still-requires-held-jump", player.position.y > restingY);
+    clearDeterministicEnv();
+}
+
+// ---------------------------------------------------------------------------
 // V2 - player collision sweeps across every crossed block cell
 // ---------------------------------------------------------------------------
 void casePlayerSweptCollision()
@@ -21349,6 +21435,7 @@ int main()
             caseWorldOutcomeAndLocalizedText();
             caseRuntimeConfigOwnership();
             caseP11ACoreInput();
+            casePlayerJumpPressInput();
             casePausedApplicationFlow();
             caseInteractionAndEvents();
         }
@@ -21513,6 +21600,7 @@ int main()
         caseConfiguredWorldSeed();
         caseBlockSelection();
         casePlayerControllerInput();
+        casePlayerJumpPressInput();
         casePlayerSweptCollision();
         caseHeightMapEdits();
         caseBackgroundLoaderStress();

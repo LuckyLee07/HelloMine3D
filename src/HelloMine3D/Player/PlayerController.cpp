@@ -51,8 +51,10 @@ void PlayerController::applyInput(Player &player,
         player.m_jumpBufferSeconds = 0.f;
     }
 
-    const bool jumpPressed = input.jump && !player.m_input.jump;
+    const bool jumpPressed =
+        input.jumpPressed || (input.jump && !player.m_input.jump);
     player.m_input = input;
+    player.m_input.jumpPressed = false;
     player.m_input.toggleFlying = false;
     player.m_input.hotbarDelta = 0;
     player.m_input.hotbarSlot = -1;

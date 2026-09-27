@@ -39,6 +39,7 @@
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -2646,6 +2647,7 @@ namespace
                 input.player.sprint = movementModes.sprint;
                 input.player.jump = m_keyboard->isKeyDown(
                     toOisKey(bindings.get(GameplayAction::Jump)));
+                input.player.jumpPressed = m_jumpPressed;
                 input.player.descend = movementModes.sneak;
                 input.player.toggleFlying = m_toggleFlying;
                 input.player.hotbarDelta = m_hotbarDelta;
@@ -3808,6 +3810,7 @@ namespace
         {
             m_mouseFrameInput.clear();
             m_pendingLookDelta = glm::vec2(0.0f);
+            m_jumpPressed = false;
             m_toggleFlying = false;
             m_resetMeshes = false;
             m_useHeldFood = false;
@@ -5257,6 +5260,12 @@ namespace
 
         bool keyPressed(const OIS::KeyEvent& event) override
         {
+            const bool isJumpKey = event.key == toOisKey(
+                m_config.inputBindings.get(GameplayAction::Jump));
+            const bool firstJumpPress = isJumpKey && m_jumpHeldKey != event.key;
+            // Track ownership even while a UI consumes the key, so OS repeat
+            // cannot become a fresh world press when that UI closes.
+            if (isJumpKey) m_jumpHeldKey = event.key;
             bool firstCursorTogglePress = false;
             const bool firstCameraTogglePress =
                 event.key == OIS::KC_F5 && !m_f5KeyHeld;
@@ -5357,6 +5366,12 @@ namespace
                 return true;
             }
 
+            if (isJumpKey)
+            {
+                if (firstJumpPress && acceptsWorldInput()) m_jumpPressed = true;
+                return true;
+            }
+
             if (event.key == OIS::KC_F5 &&
                 firstCameraTogglePress &&
                 m_applicationFlow.state() == GameApplicationState::Playing)
@@ -5414,6 +5429,7 @@ namespace
 
         bool keyReleased(const OIS::KeyEvent& event) override
         {
+            if (m_jumpHeldKey == event.key) m_jumpHeldKey.reset();
             if (event.key == OIS::KC_GRAVE)
             {
                 m_graveKeyHeld = false;
@@ -5559,6 +5575,7 @@ namespace
             m_lKeyHeld = false;
             m_tabKeyHeld = false;
             m_f5KeyHeld = false;
+            m_jumpHeldKey.reset();
             clearTransientInput();
             if (!focused)
             {
@@ -5902,6 +5919,8 @@ namespace
         GameplayFocusGate m_focusGate;
         GameplayMouseFrameInput m_mouseFrameInput;
         bool m_focusTransitionFrame = false;
+        bool m_jumpPressed = false;
+        std::optional<OIS::KeyCode> m_jumpHeldKey;
         bool m_toggleFlying = false;
         bool m_resetMeshes = false;
         bool m_useHeldFood = false;

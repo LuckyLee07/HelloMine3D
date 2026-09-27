@@ -12,6 +12,9 @@ struct PlayerInputState {
     bool moveRight = false;
     bool sprint = false;
     bool jump = false;
+    // Frame-local press edge, including a tap released before held-state sampling.
+    // Flight ascent continues to use only the held jump state above.
+    bool jumpPressed = false;
     bool descend = false;
     bool toggleFlying = false;
     int hotbarDelta = 0;
