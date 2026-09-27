@@ -38,6 +38,7 @@ AI 平台对应规则见 [当前验收规范](ai-assisted-gameplay-acceptance-v1
 | 封闭网格输入跳过 | `MESH_INPUT` 覆盖完整 halo／编辑 revision、默认完整快照、封闭输入零生态查询、开洞后复用输入与网格重建、同步与异步跳过；完整 WorldRuntime 和双配置客户端。输入省略不能改变任何可见层或状态机。 |
 | 冒险地表纯查询缓存 | `ADVENTURE_QUERY`：八 seed／v17–v19 与无缓存规划逐列一致，负坐标／整数极限、超容量替换与交替世界身份、共享生成器并发；完整 WorldRuntime、v17–v19 生产摘要和双配置客户端。不得缓存实际方块或改变生成版本。 |
 | 物品、容器、制作、工具或食物 | 状态守恒、容量边界、失败原子性、固定 tick 和保存/重载测试。 |
+| 箱子容量与双向转移 | `HELLOMINE3D_WORLD_SMOKE_FOCUS=CHEST_CONTAINER`：实际箱子开启／存取、容量限制下的部分存入与取出、满容量拒绝、其他槽不变、事件实际增量及双方库存保存重开。聚焦入口不替代界面反馈与普通采集验收。 |
 | UI 或输入 | 动作仲裁、焦点隔离、映射/冲突、设置迁移自动测试；macOS Cocoa 改动在已构建对应配置后运行 `bash scripts/verify_cocoa_input.sh Debug` / `Release`（非可见自动回归）；适用时运行 `AI-01..AI-04`。OS 焦点、Alt+Tab、最小化和窗口关闭只能由 Computer Use 关闭功能范围。 |
 | 第一人称动作、命中/受击、粒子或镜头反馈 | 判定时刻与表现解耦测试、数量/持续时间上限、关闭回退、HUD/准星截图和 AI 多帧/视频观察；镜头效果必须可调或可关，人类舒适度不声明。 |
 | 第一人称手臂与抓握表现 | `bash scripts/verify_player_hand_presentation.sh Debug` / `Release`；受影响客户端双配置、P11A/P11B/ITEM_VISUAL 定向回归、空手/图标/方块及昼夜/窄窗口/面板隐藏截图、三档反馈连续帧和相关三轮性能。诊断采集夹具不替代正常输入。 |

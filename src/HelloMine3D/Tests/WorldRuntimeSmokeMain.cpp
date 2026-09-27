@@ -9179,6 +9179,119 @@ void caseChestContainer()
 }
 
 // ---------------------------------------------------------------------------
+// Capacity-limited transfers must preserve both inventories, including when a
+// rejected request follows them and when the world is saved and reopened.
+void caseChestCapacityTransfers()
+{
+    setEnv("HELLOMINE3D_SEED", std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 200 8");
+    const auto directory = freshSaveDirectory("chest_capacity_transfers");
+    const glm::ivec3 position{8, 200, 8};
+    const int stackSize = Material::STONE_BLOCK.maxStackSize;
+    const int chestCapacity = ChestContainer::SlotCount * stackSize;
+    const int total = chestCapacity + stackSize - 6;
+    std::vector<InventorySlotState> expected = {
+        {Material::ID::Stone, stackSize - 3, 0},
+        {Material::ID::Dirt, 32, 0},
+        {Material::ID::Bread, 3, 0},
+        {Material::ID::WheatSeeds, 9, 0},
+        {Material::ID::OakBark, 12, 0}};
+    const auto matchesInventory = [&expected](const Player &player) {
+        const auto actual = player.getSaveState().inventory;
+        if (actual.size() != expected.size()) {
+            return false;
+        }
+        for (std::size_t i = 0; i < actual.size(); ++i) {
+            if (actual[i].materialId != expected[i].materialId ||
+                actual[i].amount != expected[i].amount ||
+                actual[i].durability != expected[i].durability) {
+                return false;
+            }
+        }
+        return true;
+    };
+    std::string persistedPayload;
+    Config config = makeConfig();
+    Camera camera(config);
+    {
+        Player player;
+        World world(camera, config, player, directory, false, 0);
+        world.getChunkManager().loadChunk(0, 0);
+        world.setBlock(position.x, position.y, position.z, BlockId::Chest);
+        ContainerInventory contents(ChestContainer::SlotCount);
+        const int filled = contents.addItem(Material::STONE_BLOCK,
+                                            chestCapacity - 3);
+        check("D2/capacity-fixture-initializes-real-chest",
+              filled == chestCapacity - 3 &&
+                  ChestContainer::initialize(world, position) &&
+                  world.updateBlockEntity(position, contents.serialize()));
+        auto state = player.getSaveState();
+        state.inventory = expected;
+        player.applySaveState(state);
+        check("D2/capacity-fixture-opens-real-chest",
+              ChestContainer::open(world, player, position));
+        std::vector<int> deltas;
+        const auto subscription = world.getEventBus().subscribe(
+            SandboxEventType::PlayerInventoryChanged,
+            [&deltas](const SandboxEvent &event) {
+                deltas.push_back(
+                    static_cast<const PlayerInventoryChangedEvent &>(event)
+                        .amountDelta);
+            });
+        const auto matchesChest = [&](int amount) {
+            const auto chest = ChestContainer::view(world, player);
+            return chest && chest->inventory.count(Material::ID::Stone) == amount &&
+                chest->inventory.count(Material::ID::Stone) +
+                    player.getInventorySlot(0).getNumInStack() == total;
+        };
+        const auto payload = [&]() {
+            const auto record = world.getBlockEntity(position);
+            return record ? record->payload : std::string{};
+        };
+        const std::string before = payload();
+        check("D2/incompatible-store-rejected-without-loss",
+              !ChestContainer::transferFromPlayer(world, player, 1, 32) &&
+                  matchesInventory(player) && payload() == before && deltas.empty());
+
+        const bool stored = ChestContainer::transferFromPlayer(
+            world, player, 0, stackSize - 3);
+        expected[0].amount = stackSize - 6;
+        check("D2/partial-store-moves-only-three",
+              stored && matchesInventory(player) && matchesChest(chestCapacity) &&
+                  deltas == std::vector<int>{-3});
+        const std::string full = payload();
+        check("D2/full-chest-store-rejected-without-loss",
+              !ChestContainer::transferFromPlayer(world, player, 0, 1) &&
+                  matchesInventory(player) && payload() == full &&
+                  deltas == std::vector<int>{-3});
+
+        const bool taken = ChestContainer::transferToPlayer(
+            world, player, 0, stackSize);
+        expected[0].amount = stackSize;
+        check("D2/partial-take-moves-only-six",
+              taken && matchesInventory(player) && matchesChest(chestCapacity - 6) &&
+                  deltas == std::vector<int>({-3, 6}));
+        persistedPayload = payload();
+        check("D2/full-player-take-rejected-without-loss",
+              !ChestContainer::transferToPlayer(world, player, 0, stackSize) &&
+                  matchesInventory(player) && payload() == persistedPayload &&
+                  deltas == std::vector<int>({-3, 6}));
+        world.getEventBus().unsubscribe(subscription);
+        player.closeContainer();
+        check("D2/capacity-transfer-save", world.save());
+    }
+    {
+        Player player;
+        World world(camera, config, player, directory, false, 0);
+        world.getChunkManager().loadChunk(0, 0);
+        const auto record = world.getBlockEntity(position);
+        check("D2/capacity-transfer-reload-preserves-both-inventories",
+              record && !persistedPayload.empty() &&
+                  record->payload == persistedPayload && matchesInventory(player));
+    }
+}
+
+// ---------------------------------------------------------------------------
 // N2 - strict smelting, dedicated slots and fixed-tick persistence
 // ---------------------------------------------------------------------------
 void caseFurnaceProgression()
@@ -20997,6 +21110,10 @@ int main()
                   count == (landmarks ? (std::stoi(version) == 2 ? 16u : 48u) : 463056u),
                   "samples=" + std::to_string(count));
         }
+        else if (focus != nullptr && std::string(focus) == "CHEST_CONTAINER") {
+            caseChestContainer();
+            caseChestCapacityTransfers();
+        }
         else if (focus != nullptr && std::string(focus) == "ADVENTURE") {
             caseAdventureTerrainV16();
         }
@@ -21433,6 +21550,7 @@ int main()
         caseUnloadPersistence();
         caseBlockEntityLifecycle();
         caseChestContainer();
+        caseChestCapacityTransfers();
         caseFurnaceProgression();
         caseBlockCapabilityModel();
         caseMachineRuntimeC2();
