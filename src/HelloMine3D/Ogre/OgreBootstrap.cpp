@@ -2469,6 +2469,10 @@ namespace
                                             m_frameWorldStats, progress,
                                             actionFeedback);
             }
+            // Focus suppression lasts one input frame, including paused/HUD
+            // frames. Tying it to world simulation can permanently block the
+            // very Escape/Tab press needed to resume after switching windows.
+            m_focusTransitionFrame = false;
             m_updateEnd = std::chrono::steady_clock::now();
             return true;
         }
@@ -2728,7 +2732,6 @@ namespace
                 }
             }
             clearTransientInput();
-            m_focusTransitionFrame = false;
             // The Ogre camera must reflect the current authoritative logic
             // camera before any camera-facing actors or block feedback update.
             syncRenderCamera(deltaSeconds);
