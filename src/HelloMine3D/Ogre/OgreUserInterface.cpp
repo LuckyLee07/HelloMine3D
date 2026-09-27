@@ -6194,8 +6194,7 @@ class OgreUserInterface::Impl
             const float hotbarCell = std::min(58.f * scale,
                 (width - (playerSlots - 1) * slotGap) / std::max(1, playerSlots));
             const float footer = ImGui::GetTextLineHeight() + hotbarCell +
-                ImGui::GetFrameHeight() + ImGui::GetTextLineHeightWithSpacing() +
-                6.f * style.ItemSpacing.y + 1.f;
+                ImGui::GetFrameHeight() + 6.f * style.ItemSpacing.y + 1.f;
             drawInventoryHeading(tr("inventory.storage"), std::to_string(inventory->slotCount) + " " + tr("inventory.slots"));
             const float bodyHeight = std::max(1.f, ImGui::GetContentRegionAvail().y - footer);
             const int columns = bodyHeight < 210.f * scale ? 5 : 3;
@@ -6296,6 +6295,9 @@ class OgreUserInterface::Impl
             }
             ImGui::PopStyleVar();
             ImGui::Spacing();
+            if (ImGui::Button((tr("common.close") + "  [Esc]##CloseChest").c_str())) { open = false; playUiFeedback(); }
+            ImGui::SameLine();
+            ImGui::AlignTextToFramePadding();
             const std::string feedback = containerFeedbackKey.empty()
                 ? std::string() : tr(containerFeedbackKey);
             const std::string summary = boundedHudText(feedback,
@@ -6303,7 +6305,6 @@ class OgreUserInterface::Impl
             ImGui::TextColored(WarmAccent, "%s", summary.c_str());
             if (ImGui::IsItemHovered() && summary != feedback)
                 ImGui::SetTooltip("%s", feedback.c_str());
-            if (ImGui::Button((tr("common.close") + "  [Esc]##CloseChest").c_str())) { open = false; playUiFeedback(); }
         }
         ImGui::End();
         if (!open)
