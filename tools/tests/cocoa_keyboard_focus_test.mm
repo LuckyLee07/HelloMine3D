@@ -132,7 +132,9 @@ int main() { @autoreleasepool {
     };
     listener.events.clear();
     [responder flagsChanged:event(NSEventTypeFlagsChanged,NSEventModifierFlagControl|NSEventModifierFlagShift,59)];
-    [responder keyDown:event(NSEventTypeKeyDown,0,13)]; // W-down, intentionally no up
+    // A held-modifier native key carries those flags too; a zero mask would
+    // mean they were released before W, not a missing flagsChanged callback.
+    [responder keyDown:event(NSEventTypeKeyDown,NSEventModifierFlagControl|NSEventModifierFlagShift,13)]; // W-down, intentionally no up
     keyboard->capture();
     check("setup-held-key-and-modifiers",keyboard->isKeyDown(OIS::KC_W)&&keyboard->isKeyDown(OIS::KC_LCONTROL));
     check("setup-client-tracks-held-key-and-modifiers",listener.clientHeld[OIS::KC_W]&&listener.clientHeld[OIS::KC_LCONTROL]&&listener.clientHeld[OIS::KC_LSHIFT]);

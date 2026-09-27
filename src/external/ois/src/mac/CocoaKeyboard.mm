@@ -24,7 +24,7 @@ following restrictions:
     3. This notice may not be removed or altered from any source distribution. 
  */
 
-// Modified by HelloMine3D: modifier event timing and native focus isolation.
+// Modified by HelloMine3D: modifier event timing, payload reconciliation and native focus isolation.
 #include "mac/CocoaKeyboard.h"
 #include "mac/CocoaInputManager.h"
 #include "mac/CocoaHelpers.h"
@@ -452,6 +452,9 @@ void CocoaKeyboard::copyKeyStates(char keys[256]) const
 {
 	if(![self acceptsKeyboardEvent:theEvent])
 		return;
+	// Key events include the current modifiers even when flagsChanged was not
+	// delivered (e.g. a fast chord). Reconcile before queuing the physical key.
+	[self flagsChanged:theEvent];
 	unsigned short virtualKey = [theEvent keyCode];
 	unsigned int time		  = (unsigned int)[theEvent timestamp];
 	KeyCode kc				  = keyConversion[virtualKey];
@@ -483,6 +486,7 @@ void CocoaKeyboard::copyKeyStates(char keys[256]) const
 {
 	if(![self acceptsKeyboardEvent:theEvent])
 		return;
+	[self flagsChanged:theEvent];
 	unsigned short virtualKey = [theEvent keyCode];
 
 	KeyCode kc = keyConversion[virtualKey];

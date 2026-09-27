@@ -257,6 +257,9 @@ project(project_name)
         source_dir .. "/Ogre/**.h",
         source_dir .. "/Ogre/**.cpp"
     }
+    filter "system:macosx"
+        files { source_dir .. "/Ogre/**.mm" }
+    filter {}
     includedirs {
         source_dir,
         "../src/Engine/ogre3d/include",

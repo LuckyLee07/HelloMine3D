@@ -927,6 +927,11 @@ Section/Part 结构和单文件规则，并在 `scripts/verify_build.ps1` 中先
 
 `Presentation/HudInteraction` 只保存临时页面；Ogre 输入壳负责捕获切换，进入或离开时清理输入并等待旧鼠标按钮释放。Tab 查看时暂停世界模拟，Esc 先关闭 HUD 再处理普通暂停。物品浮层读取玩家槽位和冻结注册表，点击通过既有 PlayerInputState 选槽，不修改库存数量。详见 [HUD 交互合同](../contracts/hud-interaction-contract-v1.md)。
 
+macOS 客户端的 `OgreMacClipboard` 为 ImGui 提供 Cocoa 文本剪贴板回调，仅在显式复制／粘贴时访问，
+临时 UTF-8 文本上限 64 KiB，不持久化或轮询剪贴板。非文本与超额数据拒绝且清除旧缓存；写入前
+校验失败不覆盖原内容。Cocoa OIS 在 keyDown／keyUp 前以事件自带修饰标志补齐转换，保留焦点隔离和
+组合键不产文字的语义。输入法组合文字与普通窗口验收独立于这些工程检查。
+
 2026-09-25 定稿的任务、暂停和地图页共用 draw-only 冒险界面组件，主色、像素图标、细边框及焦点一致。
 任务和地图详情在紧凑窗口可滚动，平面地图宽屏显示标记编辑侧栏；所有操作仍经原有 UI action／World 服务，
 未增加保存字段、地图缓存或渲染后台。

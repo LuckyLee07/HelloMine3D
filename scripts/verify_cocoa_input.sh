@@ -33,4 +33,9 @@ clang++ "${COMMON[@]}" -I"$ROOT_DIR/src/external/imgui" \
     "$ROOT_DIR/tools/tests/imgui_focus_semantics_test.cpp" "$IMGUI_ARCHIVE" \
     -o "$LOG_DIR/imgui_focus_semantics_test" > "$LOG_DIR/imgui-focus-build.log" 2>&1
 "$LOG_DIR/imgui_focus_semantics_test" | tee "$LOG_DIR/imgui-focus.log"
+clang++ "${COMMON[@]}" -I"$ROOT_DIR/src/external/imgui" -I"$ROOT_DIR/src/HelloMine3D" \
+    "$ROOT_DIR/tools/tests/cocoa_clipboard_test.mm" \
+    "$ROOT_DIR/src/HelloMine3D/Ogre/OgreMacClipboard.mm" "$IMGUI_ARCHIVE" -framework Cocoa \
+    -o "$LOG_DIR/cocoa_clipboard_test" > "$LOG_DIR/clipboard-build.log" 2>&1
+"$LOG_DIR/cocoa_clipboard_test" | tee "$LOG_DIR/clipboard.log"
 echo "[COCOA_INPUT] status=PASS configuration=$CONFIGURATION logs=$LOG_DIR"

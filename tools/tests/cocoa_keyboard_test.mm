@@ -76,6 +76,16 @@ int main() { @autoreleasepool {
     check("quick-command-chord-retains-event-time-state",chord);
     check("released-command-not-held-after-capture",!keyboard->isKeyDown(OIS::KC_LWIN));
     listener.events.clear();
+    // A key event carries its own authoritative modifier flags. A shortcut
+    // must also work if a separate flagsChanged event wasn't delivered.
+    [responder keyDown:event(NSEventTypeKeyDown,NSEventModifierFlagCommand,0)];
+    [responder keyUp:event(NSEventTypeKeyUp,0,0)];
+    keyboard->capture();
+    chord=false;
+    for(auto& e:listener.events) if(e.key==OIS::KC_A && e.pressed) chord=e.command;
+    check("key-payload-restores-missing-command-transition",chord);
+    check("key-up-payload-clears-released-command",!keyboard->isKeyDown(OIS::KC_LWIN));
+    listener.events.clear();
     // Multiple aggregate modifier bits can change together; device bits are irrelevant.
     [responder flagsChanged:event(NSEventTypeFlagsChanged,NSEventModifierFlagControl|NSEventModifierFlagShift|3,59)];
     keyboard->capture();
@@ -100,7 +110,7 @@ int main() { @autoreleasepool {
         check(modifier==NSEventModifierFlagControl ? "control-chord-does-not-insert-text" : "command-chord-does-not-insert-text",found&&noText);
     }
     keyboard->setTextTranslation(OIS::Keyboard::Unicode);
-    for(NSString* characters : {@"", @"å", @"abcdefghijklmnop"}) {
+    for(NSString* characters : {@"", @"å", @"abcdefghijklmnop", @"山脚路口"}) {
         listener.events.clear();
         NSEvent* nativeText=[NSEvent keyEventWithType:NSEventTypeKeyDown location:NSZeroPoint
             modifierFlags:0 timestamp:2 windowNumber:[window windowNumber] context:nil
@@ -115,7 +125,8 @@ int main() { @autoreleasepool {
             correct=text[i]==[characters characterAtIndex:i];
         if([characters length]==0) correct=correct && text[0]==0;
         check([characters length]==0 ? "empty-text-retains-physical-key" :
-            ([characters length]==1 ? "native-translated-text-preserved" : "long-text-without-fixed-buffer"),correct);
+            ([characters length]==1 ? "native-translated-text-preserved" :
+                ([characters length]==4 ? "native-chinese-text-preserved" : "long-text-without-fixed-buffer")),correct);
     }
     manager->destroyInputObject(keyboard); OIS::InputManager::destroyInputSystem(manager);
     [window close];

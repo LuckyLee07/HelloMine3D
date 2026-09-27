@@ -1,6 +1,9 @@
 #include "OgreUserInterface.h"
 #include "OgreItemGeometry.h"
 #include "GameInterfaceWidgets.h"
+#ifdef __APPLE__
+#include "OgreMacClipboard.h"
+#endif
 
 #include <OIS.h>
 #include <OgreCamera.h>
@@ -606,6 +609,9 @@ class OgreUserInterface::Impl
     {
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
+#ifdef __APPLE__
+        OgreMacClipboard::install();
+#endif
         ImGuiIO &io = ImGui::GetIO();
         io.BackendPlatformName = "HelloMine3D_OIS";
         io.IniFilename = iniPath.c_str();
