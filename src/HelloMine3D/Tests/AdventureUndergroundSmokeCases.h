@@ -228,6 +228,105 @@ int adventureUndergroundDirectionBit(int x, int z)
     return 0;
 }
 
+// Engineering replay only: use real generated blocks and Player physics, with
+// synthetic controls. This is not an ordinary-input exploration acceptance run.
+void checkAdventureUndergroundPlayerReturn(
+    int seed, const CaveGenerator::AdventureUndergroundPlan &plan)
+{
+    std::vector<glm::ivec3> route;
+    for (int step = 0; step <= 29; ++step) {
+        route.push_back({
+            plan.entrance.anchorX + plan.entrance.directionX * step,
+            plan.entrance.anchorY - std::min(step, 24) * 3 / 4,
+            plan.entrance.anchorZ + plan.entrance.directionZ * step});
+    }
+    for (int step = 1; step <= 29; ++step) {
+        route.push_back({
+            plan.chamberX + plan.riftDirectionX * step,
+            plan.chamberAirY - (plan.chamberAirY - plan.riftEndAirY) *
+                std::max(0, step - 6) / 23,
+            plan.chamberZ + plan.riftDirectionZ * step});
+    }
+    const auto directory = freshSaveDirectory(
+        "underground_player_return_" + std::to_string(seed));
+    if (!initializeTerrainIdentity(directory, "underground-player-return",
+            AdventureUndergroundTerrainGenerationVersion, seed)) {
+        check("ADVENTURE-UNDERGROUND/player-route-world", false);
+        return;
+    }
+    Config config = makeConfig();
+    Camera camera(config);
+    Player player;
+    World world(camera, config, player, directory, false, 0);
+    for (const auto &location : adventureUndergroundLocations(plan)) {
+        world.getChunkManager().loadChunk(location.x, location.y);
+    }
+    auto start = player.getSaveState();
+    start.position = glm::vec3(route.front()) + glm::vec3(0.5f, 1.f, 0.5f);
+    player.applySaveState(start);
+    player.box.update(player.position);
+    player.update(0.05f, world);
+
+    glm::ivec3 targetCell = route.front();
+    int ticks = 0;
+    const auto followRoute = [&](bool allowJump) {
+        bool arrived = true;
+        ticks = 0;
+        for (const auto &cell : route) {
+            targetCell = cell;
+            const glm::vec3 target = glm::vec3(cell) + glm::vec3(0.5f, 1.f, 0.5f);
+            arrived = false;
+            for (int tick = 0; tick < 120; ++tick) {
+                const glm::vec2 offset(target.x - player.position.x,
+                                       target.z - player.position.z);
+                const float distance = glm::length(offset);
+                if (distance < 0.2f && player.isOnGround() &&
+                    std::abs(player.position.y - target.y) < 0.01f) {
+                    arrived = true;
+                    break;
+                }
+                PlayerInputState input;
+                input.moveForward = distance >= 0.2f;
+                if (input.moveForward) {
+                    input.lookDelta.x = glm::degrees(std::atan2(offset.x, -offset.y)) -
+                        player.rotation.y;
+                }
+                input.jumpPressed = allowJump && player.isOnGround() &&
+                    target.y > player.position.y + 0.1f && distance < 1.2f;
+                player.applyInput(input);
+                player.update(0.05f, world);
+                ++ticks;
+            }
+            if (!arrived) break;
+        }
+        return arrived;
+    };
+    const auto details = [&]() {
+        return "target=" + vecToString(glm::vec3(targetCell)) +
+            " actual=" + vecToString(player.position) +
+            " ticks=" + std::to_string(ticks);
+    };
+    for (bool returning : {false, true}) {
+        if (returning) {
+            std::reverse(route.begin(), route.end());
+            // Negative control on the same terrain, then restore only this
+            // test player's destination pose before the positive return leg.
+            const auto destination = player.getSaveState();
+            const bool blockedWithoutJump = !followRoute(false);
+            check("ADVENTURE-UNDERGROUND/return-requires-jump-" +
+                      std::to_string(seed), blockedWithoutJump, details());
+            player.applySaveState(destination);
+            player.box.update(player.position);
+            player.update(0.05f, world);
+        }
+        const bool arrived = followRoute(true);
+        check(std::string("ADVENTURE-UNDERGROUND/player-physics-") +
+                  (returning ? "return-" : "entry-") + std::to_string(seed),
+              arrived, details());
+        if (!arrived) break;
+    }
+}
+
 void caseAdventureUndergroundV23()
 {
     check("ADVENTURE-UNDERGROUND/v23-appends-without-save-bump",
@@ -693,6 +792,7 @@ void caseAdventureUndergroundV23()
                   std::to_string(fixture.seed), dryReturn);
         check("ADVENTURE-UNDERGROUND/complete-entry-return-route-" +
                   std::to_string(fixture.seed), completeRoute);
+        checkAdventureUndergroundPlayerReturn(fixture.seed, plan);
 
         const int poolX = plan.chamberX + plan.poolDirectionX * 5;
         const int poolZ = plan.chamberZ + plan.poolDirectionZ * 5;
