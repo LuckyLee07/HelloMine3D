@@ -1,0 +1,17 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-09-28",
+  "file": "ground-sheet-v1.png",
+  "purpose": "V01a grass top variants and forest floor candidate",
+  "prompt": "Use case: stylized-concept. Asset type: one production pixel-art terrain texture atlas for a voxel game, a SINGLE square image arranged as an exact 2-by-2 grid of four equal square tiles, no gutters, margins, labels, frame, text, or perspective. Image 1 and Image 2 are references for current grass and forest floor material identities; redraw the artwork in a calmer, coarser pixel language rather than preserve the noisy pixels. Top-left: green meadow grass top variation A. Top-right: same grass, variation B with a different quiet cluster distribution. Bottom-left: same grass, variation C. Bottom-right: warm brown forest floor with restrained olive moss clusters and sparse dark earth indentations; it must read as earth and fallen organic material, not green grass. All four are flat orthographic, unlit albedo surfaces, fully opaque. Each tile must look like crisp 16-by-16 pixel art enlarged with nearest-neighbor: large square pixel clusters, exactly hard horizontal/vertical edges, only 5 to 7 muted tones per tile, NO gradients, soft blur, smooth painting, antialiasing, single-pixel noise, bright flecks or cross-hatching. Grass should be a quiet middle olive green base with a few connected darker clusters and sparse connected slightly lighter clusters, no lime or neon accents, no large isolated emblem, flower, blade silhouette, circular blobs, diagonally marching stripes, checker pattern, or obvious center. Forest floor should be a quiet umber base with a few grouped organic patches, no scattered bright gravel. Keep broad patch contrast modest so repeated terrain surfaces stay readable. The edges of each tile should visually wrap seamlessly; no border or dark perimeter. Preserve recognizable green grass versus brown forest floor. Match average midtone approximately grass RGB 84 111 57 and forest floor RGB 98 83 59, with highlights no more than about 20 RGB levels above the base. Canvas 1024 by 1024 if possible.",
+  "references": [
+    "docs/art-sources/warm-wilderness-v2/pixel-revision/grass-top-a.png",
+    "docs/art-sources/adventure-ecology-20260921/forest-floor-v3.png"
+  ],
+  "packing": "Exact 2x2 cells sampled to a shared 16x16 authored grid; standard array uses nearest expansion before existing independent mip generation; no procedural replacement artwork.",
+  "sha256": "4fdca793a0a753639231d7707d89b2b745b8efdfd28593190214da749c2b25f9",
+  "source_size": [
+    1254,
+    1254
+  ]
+}

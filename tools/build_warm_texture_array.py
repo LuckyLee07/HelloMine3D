@@ -16,11 +16,13 @@ import numpy as np
 from PIL import Image
 from build_warm_texture_atlas import layout
 from adventure_texture_source import SOURCE as ADVENTURE_SOURCE, SOURCE_ROWS, OVERRIDE_SOURCES, tiles as adventure_tiles
+from visual_polish_texture_source import (
+    SOURCE as POLISH_SOURCE, AUTHORED_EDGE as POLISH_EDGE, tiles as polish_tiles)
 
 ROOT = Path(__file__).resolve().parents[1]
 ART = ROOT / 'docs/art-sources/warm-wilderness-v2/pixel-revision'
 LEAF_ART = ROOT / 'docs/art-sources/warm-wilderness-v2/canopy-voxel-oak-20260913'
-NAMES = ('grass-top-a grass-top-b grass-top-c grass-side-a grass-side-b '
+NAMES = ('grass-side-a grass-side-b '
          'dirt-a dirt-b stone-a stone-b bark-a bark-b bark-top '
          'sand-a sand-b tallgrass-a tallgrass-b voxel-oak-a-rgb voxel-oak-b-rgb').split()
 
@@ -128,10 +130,10 @@ def build(edge=64):
         masters[name] = master
     old = Image.open(ROOT / 'media/textures/DefaultPack.png').convert('RGBA')
     adventure = adventure_tiles(32)
+    ground = polish_tiles(128)
     # The compatibility atlas remains classic; only standard array leaf layers
     # use this voxel-oak material candidate.
-    direct = {'grass_top': ['grass-top-a', 'grass-top-b', 'grass-top-c'],
-              'grass_side': ['grass-side-a', 'grass-side-b', 'grass-side-a'],
+    direct = {'grass_side': ['grass-side-a', 'grass-side-b', 'grass-side-a'],
               'dirt': ['dirt-a', 'dirt-b'], 'stone': ['stone-a', 'stone-b'],
               'oak_bark_side': ['bark-a', 'bark-b'], 'oak_bark_top': ['bark-top'],
               'sand': ['sand-a', 'sand-b'], 'tall_grass': ['tallgrass-a', 'tallgrass-b', 'tallgrass-a'],
@@ -150,7 +152,16 @@ def build(edge=64):
                 base, index = semantic.split(marker)
                 variant, biome = int(index), candidate
                 break
-        if base in adventure:
+        if base in ('grass_top', 'forest_floor'):
+            name = ('grass_top_' + ('a', 'b', 'c')[variant % 3]
+                    if base == 'grass_top' else base)
+            rgba = np.asarray(ground[name], dtype=np.float32) / 255
+            if biome:
+                rgba[:, :, :3] *= (np.array(tints[biome], dtype=np.float32) *
+                                   (1.0, 1.02, .98)[variant])
+            used = ['visual-polish/' + name]
+            provenance = 'derived' if biome else 'authored'
+        elif base in adventure:
             authored = adventure[base].resize((128, 128), Image.Resampling.NEAREST)
             rgba = np.asarray(authored, dtype=np.float32) / 255
             used, provenance = ['adventure/' + base], 'authored'
@@ -201,7 +212,10 @@ def build(edge=64):
                   adventure_override_sha256={name: hashlib.sha256(path.read_bytes()).hexdigest()
                                              for name, path in OVERRIDE_SOURCES.items()},
                   adventure_authored_edge=32, adventure_leaf_cutout_key_max=12,
+                  adventure_material_overrides=['forest_floor'],
                   adventure_source_rows=SOURCE_ROWS,
+                  polish_ground_source_sha256=hashlib.sha256(POLISH_SOURCE.read_bytes()).hexdigest(),
+                  polish_ground_authored_edge=POLISH_EDGE,
                   leaf_cutout_thresholds=leaf_cutout_thresholds,
                   leaf_visible_rgb_floor=leaf_visible_rgb_floor,
                   leaf_colour_gain=leaf_colour_gain,

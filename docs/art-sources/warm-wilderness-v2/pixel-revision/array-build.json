@@ -4,11 +4,8 @@
   "layers": 256,
   "mips": 7,
   "payload_bytes": 5592064,
-  "sha256": "eb0f7fdc5dfbeac00eed93a4d6bfec9aedb31b2866de21e17895dbdcb908adaa",
+  "sha256": "ee4d048ec01672903818e960b12c89b6d435725a4858afb06b94d55019367601",
   "sources": {
-    "grass-top-a": "b1b39fa1c14073bb94fc9c5f9e6ac3e25190b6556155c34bc97974394dd6a2c3",
-    "grass-top-b": "5ebd6fa00b22e8d4a109e4173ed7435b8a2c914dde89a1d785015b7d3aeba201",
-    "grass-top-c": "9383d6b5ef3bb85eb53142c61650cf75ceb5658eb554a1d0fb55d418d1947db2",
     "grass-side-a": "ca65e11daf0ff480299b98c498b4387feb6e6f0ab3421109633bf39d1a671095",
     "grass-side-b": "295648c65e0523b7f8f50c711ee47f73cee9f5a73c5b6051d8f4896a2be2602a",
     "dirt-a": "3014a8dbf7543c1d54b91e81106761100908b4c7ae1f6e2c315302c4897315bd",
@@ -27,11 +24,13 @@
   },
   "adventure_source_sha256": "9c566473a6afdde477434d873c469fdcde1ad64d8591e10dbd85f5028615ede7",
   "adventure_override_sha256": {
-    "forest_floor": "6158ce919a8db7f40519a6e82b1ac706a732c6079c09eea9421a6cc23791e168",
     "clay": "e4b6cf474d7efc382430bbb0d3eda71fb1a6af5b26efc228a7b3e2e6b068d762"
   },
   "adventure_authored_edge": 32,
   "adventure_leaf_cutout_key_max": 12,
+  "adventure_material_overrides": [
+    "forest_floor"
+  ],
   "adventure_source_rows": [
     [
       0,
@@ -46,6 +45,8 @@
       1086
     ]
   ],
+  "polish_ground_source_sha256": "4fdca793a0a753639231d7707d89b2b745b8efdfd28593190214da749c2b25f9",
+  "polish_ground_authored_edge": 16,
   "leaf_cutout_thresholds": {
     "voxel-oak-a-rgb": 16,
     "voxel-oak-b-rgb": 12
@@ -61,9 +62,6 @@
     1.1
   ],
   "masters128": {
-    "grass-top-a": "d544e2b9cdfa782eeb0f7ef3a2273de970d5a63d01091cd859ef12c041e53488",
-    "grass-top-b": "3afeea90c283d685ef94e19c9eb67b69face27d3307332c9fa41751bbb9efa0c",
-    "grass-top-c": "178b57bdbf7f45a2c2863c26f3f16a8b6742e6d2e539ce6b1920261e3934836e",
     "grass-side-a": "f6f2c488a69782339a85bdf220837abc44871513f103c906f8fb1bcf225aaebf",
     "grass-side-b": "cf5d3260663f589125e1d5525248e22e4c73e1646110ce7ab982b8023d00e426",
     "dirt-a": "c0e17a690f328ef9aefc1aa3cc39c96961223ad48cdec48db0abc1d65ff1d475",
@@ -89,7 +87,7 @@
       "alpha": "opaque",
       "provenance": "authored",
       "sources": [
-        "grass-top-a"
+        "visual-polish/grass_top_a"
       ]
     },
     {
@@ -498,7 +496,7 @@
       "alpha": "opaque",
       "provenance": "derived",
       "sources": [
-        "grass-top-a"
+        "visual-polish/grass_top_a"
       ]
     },
     {
@@ -507,7 +505,7 @@
       "alpha": "opaque",
       "provenance": "derived",
       "sources": [
-        "grass-top-b"
+        "visual-polish/grass_top_b"
       ]
     },
     {
@@ -516,7 +514,7 @@
       "alpha": "opaque",
       "provenance": "derived",
       "sources": [
-        "grass-top-c"
+        "visual-polish/grass_top_c"
       ]
     },
     {
@@ -633,7 +631,7 @@
       "alpha": "opaque",
       "provenance": "derived",
       "sources": [
-        "grass-top-a"
+        "visual-polish/grass_top_a"
       ]
     },
     {
@@ -642,7 +640,7 @@
       "alpha": "opaque",
       "provenance": "derived",
       "sources": [
-        "grass-top-b"
+        "visual-polish/grass_top_b"
       ]
     },
     {
@@ -651,7 +649,7 @@
       "alpha": "opaque",
       "provenance": "derived",
       "sources": [
-        "grass-top-c"
+        "visual-polish/grass_top_c"
       ]
     },
     {
@@ -768,7 +766,7 @@
       "alpha": "opaque",
       "provenance": "derived",
       "sources": [
-        "grass-top-a"
+        "visual-polish/grass_top_a"
       ]
     },
     {
@@ -777,7 +775,7 @@
       "alpha": "opaque",
       "provenance": "derived",
       "sources": [
-        "grass-top-b"
+        "visual-polish/grass_top_b"
       ]
     },
     {
@@ -786,7 +784,7 @@
       "alpha": "opaque",
       "provenance": "derived",
       "sources": [
-        "grass-top-c"
+        "visual-polish/grass_top_c"
       ]
     },
     {
@@ -903,7 +901,7 @@
       "alpha": "opaque",
       "provenance": "derived",
       "sources": [
-        "grass-top-a"
+        "visual-polish/grass_top_a"
       ]
     },
     {
@@ -912,7 +910,7 @@
       "alpha": "opaque",
       "provenance": "derived",
       "sources": [
-        "grass-top-b"
+        "visual-polish/grass_top_b"
       ]
     },
     {
@@ -921,7 +919,7 @@
       "alpha": "opaque",
       "provenance": "derived",
       "sources": [
-        "grass-top-c"
+        "visual-polish/grass_top_c"
       ]
     },
     {
@@ -1038,7 +1036,7 @@
       "alpha": "opaque",
       "provenance": "derived",
       "sources": [
-        "grass-top-a"
+        "visual-polish/grass_top_a"
       ]
     },
     {
@@ -1047,7 +1045,7 @@
       "alpha": "opaque",
       "provenance": "derived",
       "sources": [
-        "grass-top-b"
+        "visual-polish/grass_top_b"
       ]
     },
     {
@@ -1056,7 +1054,7 @@
       "alpha": "opaque",
       "provenance": "derived",
       "sources": [
-        "grass-top-c"
+        "visual-polish/grass_top_c"
       ]
     },
     {
@@ -1254,7 +1252,7 @@
       "alpha": "opaque",
       "provenance": "authored",
       "sources": [
-        "adventure/forest_floor"
+        "visual-polish/forest_floor"
       ]
     },
     {

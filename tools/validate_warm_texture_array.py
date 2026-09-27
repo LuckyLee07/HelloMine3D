@@ -7,9 +7,11 @@ from pathlib import Path
 import struct
 
 import numpy as np
+from PIL import Image
 from build_warm_texture_array import ART, ROOT, NAMES, fnv64, source_path
 from build_warm_texture_atlas import layout
 from adventure_texture_source import SOURCE as ADVENTURE_SOURCE, NAMES as ADVENTURE_NAMES, OVERRIDE_SOURCES
+from visual_polish_texture_source import SOURCE as POLISH_SOURCE, AUTHORED_EDGE as POLISH_EDGE
 
 
 def validate(path, report_path):
@@ -29,9 +31,13 @@ def validate(path, report_path):
     assert report['adventure_override_sha256'] == {
         name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in OVERRIDE_SOURCES.items()}
     assert report['adventure_authored_edge'] == 32 and report['adventure_leaf_cutout_key_max'] == 12
+    assert report['polish_ground_source_sha256'] == hashlib.sha256(POLISH_SOURCE.read_bytes()).hexdigest()
+    assert report['polish_ground_authored_edge'] == POLISH_EDGE
+    assert report['adventure_material_overrides'] == ['forest_floor']
     adventure_records = [r for r in report['semantics'] if r['semantic'] in ADVENTURE_NAMES]
     assert len(adventure_records) == 12
-    assert all(r['provenance'] == 'authored' and r['sources'] == ['adventure/' + r['semantic']]
+    assert all(r['provenance'] == 'authored' and r['sources'] == [
+                   ('visual-polish/' if r['semantic'] == 'forest_floor' else 'adventure/') + r['semantic']]
                for r in adventure_records)
     leaf_records = [r for r in report['semantics'] if r['semantic'].startswith('oak_leaves')]
     assert len(leaf_records) == 16
@@ -52,11 +58,24 @@ def validate(path, report_path):
         assert hashlib.sha256(source_path(name).read_bytes()).hexdigest() == report['sources'][name]
         assert hashlib.sha256((ART / 'masters128' / (name + '.png')).read_bytes()).hexdigest() == report['masters128'][name]
     authored_cutout = [r['layer'] for r in report['semantics'] if r['alpha'] == 'cutout' and r['provenance'] != 'retained']
+    ground_records = [r for r in report['semantics']
+                      if r['semantic'].startswith('grass_top') or r['semantic'] == 'forest_floor']
+    assert len(ground_records) == 17
+    atlas = Image.open(ROOT / 'media/textures/DefaultPack.png').convert('RGBA')
     offset, coverage = 36, {}
     for mip in range(mips):
         size = edge >> mip
         count = layers * size * size * 4
         pixels = np.frombuffer(data, dtype=np.uint8, count=count, offset=offset).reshape(layers, size, size, 4)
+        if mip == 0:
+            # World, held blocks and UI must retain the same authored ground
+            # cells; allow only one integer rounding step from offline tinting.
+            for record in ground_records:
+                x, y, _ = entries[record['semantic']]
+                expected = np.asarray(atlas.crop((x, y, x + 16, y + 16)).resize(
+                    (size, size), Image.Resampling.NEAREST), dtype=np.int16)
+                assert np.max(np.abs(pixels[record['layer']].astype(np.int16) - expected)) <= 1, \
+                    'World/UI ground identity differs: ' + record['semantic']
         assert not pixels[list(set(range(256)) - active)].any(), f'Nonempty unused layer at mip {mip}'
         for record in report['semantics']:
             if record['alpha'] == 'opaque':
@@ -75,7 +94,9 @@ def validate(path, report_path):
                 empty_slots=256-len(active), array_pixel_bytes=length,
                 retained_legacy_atlas_bytes=262144, alpha_layers=len(authored_cutout),
                 voxel_oak_leaf_layers=len(leaf_records),
-                source_images=len(NAMES)+1, adventure_materials=len(adventure_records), sha256=report['sha256'])
+                shared_ground_layers=len(ground_records),
+                source_images=len(NAMES)+2+len(OVERRIDE_SOURCES),
+                adventure_materials=len(adventure_records), sha256=report['sha256'])
 
 
 if __name__ == '__main__':

@@ -56,3 +56,10 @@ OpenAI image generation tool in September 2026:
 Prompts, source identity and packing rules are retained in the same directory.
 The authored black leaf cells are explicitly compiled as cutout transparency;
 new atlas slots do not replace existing material pixels.
+
+Visual polish ground sheet generated with the built-in OpenAI image generation
+tool in September 2026:
+- docs/art-sources/visual-polish-20260928/ground-sheet-v1.png
+Prompts, source hash and packing rules are retained in the same directory.
+The four authored cells refine existing grass-top and forest-floor semantics;
+the standard terrain array and compatibility/UI atlas share the authored grid.

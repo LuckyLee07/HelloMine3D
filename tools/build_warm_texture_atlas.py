@@ -12,6 +12,7 @@ import struct
 import zlib
 from PIL import Image
 from adventure_texture_source import tiles as adventure_tiles
+from visual_polish_texture_source import tiles as polish_tiles
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / 'docs/art-sources/hellomine3d-pre-warm-atlas.png'
@@ -79,7 +80,8 @@ def build(source=SOURCE, base=BASE, layout_path=LAYOUT):
         box = (column * 443 + 12, row * 443 + 12,
                (column + 1) * 443 - 12, (row + 1) * 443 - 12)
         return art.crop(box).resize((16, 16), Image.Resampling.NEAREST).convert('RGBA')
-    grasses = [sample(i, 0) for i in range(3)]
+    ground = polish_tiles(16)
+    grasses = [ground['grass_top_' + variant] for variant in ('a', 'b', 'c')]
     leaf_alpha = tile('oak_leaves').getchannel('A')
     for name, col, row in [('dirt', 3, 0), ('stone', 0, 1),
                            ('oak_bark_side', 1, 1), ('oak_bark_top', 2, 1),

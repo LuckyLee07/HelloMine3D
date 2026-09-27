@@ -342,5 +342,5 @@ P1 为首轮重点，P2 为随后整合，P3 为较大批次。V01–V10 都是�
 | 玩家、地下和声音影响 | [玩家／第三人称](../contracts/adventure-player-avatar-contract-v1.md)、[地下空间](../contracts/adventure-underground-contract-v1.md)、[声音反馈与环境](../contracts/audio-feedback-contract-v1.md) |
 | 地图和界面 | [持久地图](../contracts/adventure-exploration-map-contract-v1.md)、[HUD 输入](../contracts/hud-interaction-contract-v1.md)、[界面方向](game-ui-direction-2026-09-20.md) |
 
-本轮文档交付检查：十个方向完整覆盖，现状／建议／待验分开，阶段边界与 9 月 28 日调整一致，
-链接和状态一致，提交内容满足本地排除约定。只做文档检查，不启动构建、游戏或新性能采样。
+9 月 28 日规划同步已检查十个方向覆盖、现状／建议／待验区分、阶段边界、链接与状态，
+当时仅执行文档检查。随后用户已授权启动 Goal，实际实现与验证以本阶段执行记录为准。
