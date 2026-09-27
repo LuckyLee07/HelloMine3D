@@ -8,10 +8,11 @@ import struct
 
 import numpy as np
 from PIL import Image
-from build_warm_texture_array import ART, ROOT, NAMES, fnv64, source_path
+from build_warm_texture_array import ART, ROOT, fnv64
 from build_warm_texture_atlas import layout
 from adventure_texture_source import SOURCE as ADVENTURE_SOURCE, NAMES as ADVENTURE_NAMES, OVERRIDE_SOURCES
-from visual_polish_texture_source import SOURCE as POLISH_SOURCE, AUTHORED_EDGE as POLISH_EDGE
+from visual_polish_texture_source import (SHEETS as POLISH_SHEETS,
+    AUTHORED_EDGE as POLISH_EDGE, CUTOUT_KEY_MAX)
 
 
 def validate(path, report_path):
@@ -31,8 +32,10 @@ def validate(path, report_path):
     assert report['adventure_override_sha256'] == {
         name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in OVERRIDE_SOURCES.items()}
     assert report['adventure_authored_edge'] == 32 and report['adventure_leaf_cutout_key_max'] == 12
-    assert report['polish_ground_source_sha256'] == hashlib.sha256(POLISH_SOURCE.read_bytes()).hexdigest()
-    assert report['polish_ground_authored_edge'] == POLISH_EDGE
+    assert report['polish_source_sha256'] == {
+        path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in POLISH_SHEETS}
+    assert report['polish_authored_edge'] == POLISH_EDGE
+    assert report['polish_cutout_key_max'] == CUTOUT_KEY_MAX
     assert report['adventure_material_overrides'] == ['forest_floor']
     adventure_records = [r for r in report['semantics'] if r['semantic'] in ADVENTURE_NAMES]
     assert len(adventure_records) == 12
@@ -42,25 +45,18 @@ def validate(path, report_path):
     leaf_records = [r for r in report['semantics'] if r['semantic'].startswith('oak_leaves')]
     assert len(leaf_records) == 16
     assert all(r['provenance'] in ('authored', 'derived') and
-               all(source.startswith('voxel-oak-') for source in r['sources'])
-               for r in leaf_records), 'Standard leaf layers must use voxel-oak sources'
+               all(source.startswith('visual-polish/oak_leaves_') for source in r['sources'])
+               for r in leaf_records), 'Oak layers must use the authored voxel leaf cells'
     assert {source for r in leaf_records for source in r['sources']} == \
-        {'voxel-oak-a-rgb', 'voxel-oak-b-rgb'}
-    assert report['leaf_cutout_thresholds'] == {
-        'voxel-oak-a-rgb': 16, 'voxel-oak-b-rgb': 12}
-    assert report['leaf_visible_rgb_floor'] == [26, 47, 21]
-    assert report['leaf_colour_gain'] == [1.14, 1.18, 1.10]
+        {'visual-polish/oak_leaves_a', 'visual-polish/oak_leaves_b'}
     for record in report['semantics']:
         x, y, alpha = entries[record['semantic']]
         assert record['layer'] == y // 16 * 16 + x // 16 and record['alpha'] == alpha
         assert record['provenance'] in ('authored', 'derived', 'retained') and record['sources']
-    for name in NAMES:
-        assert hashlib.sha256(source_path(name).read_bytes()).hexdigest() == report['sources'][name]
-        assert hashlib.sha256((ART / 'masters128' / (name + '.png')).read_bytes()).hexdigest() == report['masters128'][name]
     authored_cutout = [r['layer'] for r in report['semantics'] if r['alpha'] == 'cutout' and r['provenance'] != 'retained']
-    ground_records = [r for r in report['semantics']
-                      if r['semantic'].startswith('grass_top') or r['semantic'] == 'forest_floor']
-    assert len(ground_records) == 17
+    shared_records = [r for r in report['semantics']
+                      if all(source.startswith('visual-polish/') for source in r['sources'])]
+    assert len(shared_records) == 70
     atlas = Image.open(ROOT / 'media/textures/DefaultPack.png').convert('RGBA')
     offset, coverage = 36, {}
     for mip in range(mips):
@@ -68,14 +64,22 @@ def validate(path, report_path):
         count = layers * size * size * 4
         pixels = np.frombuffer(data, dtype=np.uint8, count=count, offset=offset).reshape(layers, size, size, 4)
         if mip == 0:
-            # World, held blocks and UI must retain the same authored ground
+            # World, held blocks and UI must retain the same authored material
             # cells; allow only one integer rounding step from offline tinting.
-            for record in ground_records:
+            for record in shared_records:
                 x, y, _ = entries[record['semantic']]
                 expected = np.asarray(atlas.crop((x, y, x + 16, y + 16)).resize(
                     (size, size), Image.Resampling.NEAREST), dtype=np.int16)
-                assert np.max(np.abs(pixels[record['layer']].astype(np.int16) - expected)) <= 1, \
-                    'World/UI ground identity differs: ' + record['semantic']
+                actual = pixels[record['layer']].astype(np.int16)
+                visible = expected[:, :, 3] >= 128
+                assert np.array_equal(actual[:, :, 3] >= 128, visible), \
+                    'World/UI cutout identity differs: ' + record['semantic']
+                assert np.max(np.abs(actual[:, :, :3][visible] - expected[:, :, :3][visible])) <= 1, \
+                    'World/UI material identity differs: ' + record['semantic']
+                if record in leaf_records:
+                    assert .70 <= float(np.mean(visible)) <= .93, \
+                        'Oak canopy must keep both connected volume and authored holes'
+
         assert not pixels[list(set(range(256)) - active)].any(), f'Nonempty unused layer at mip {mip}'
         for record in report['semantics']:
             if record['alpha'] == 'opaque':
@@ -94,8 +98,8 @@ def validate(path, report_path):
                 empty_slots=256-len(active), array_pixel_bytes=length,
                 retained_legacy_atlas_bytes=262144, alpha_layers=len(authored_cutout),
                 voxel_oak_leaf_layers=len(leaf_records),
-                shared_ground_layers=len(ground_records),
-                source_images=len(NAMES)+2+len(OVERRIDE_SOURCES),
+                shared_material_layers=len(shared_records),
+                source_images=len(POLISH_SHEETS)+1+len(OVERRIDE_SOURCES),
                 adventure_materials=len(adventure_records), sha256=report['sha256'])
 
 

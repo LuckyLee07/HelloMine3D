@@ -17,18 +17,11 @@ from PIL import Image
 from build_warm_texture_atlas import layout
 from adventure_texture_source import SOURCE as ADVENTURE_SOURCE, SOURCE_ROWS, OVERRIDE_SOURCES, tiles as adventure_tiles
 from visual_polish_texture_source import (
-    SOURCE as POLISH_SOURCE, AUTHORED_EDGE as POLISH_EDGE, tiles as polish_tiles)
+    SHEETS as POLISH_SHEETS, AUTHORED_EDGE as POLISH_EDGE,
+    CUTOUT_KEY_MAX, SHARED_BASES)
 
 ROOT = Path(__file__).resolve().parents[1]
 ART = ROOT / 'docs/art-sources/warm-wilderness-v2/pixel-revision'
-LEAF_ART = ROOT / 'docs/art-sources/warm-wilderness-v2/canopy-voxel-oak-20260913'
-NAMES = ('grass-side-a grass-side-b '
-         'dirt-a dirt-b stone-a stone-b bark-a bark-b bark-top '
-         'sand-a sand-b tallgrass-a tallgrass-b voxel-oak-a-rgb voxel-oak-b-rgb').split()
-
-
-def source_path(name):
-    return (LEAF_ART if name.startswith('voxel-oak-') else ART) / (name + '.png')
 
 
 def srgb_to_linear(rgb):
@@ -77,6 +70,16 @@ def resize(rgba, edge, coverage=None):
             threshold = np.sort(a.ravel())[-count]
             if threshold > 0:
                 result[:, :, 3] = np.clip(a[:, :, 0] * (.501 / threshold), 0, 1)
+                # Coarse authored cells create equal filtered alpha values.
+                # Scaling alone admits every tie and fills distant leaf gaps.
+                # Resolve only threshold ties in stable pixel order, retaining
+                # exactly the nearest representable coverage after RGBA8 bake.
+                selected = np.zeros(edge * edge, dtype=bool)
+                selected[np.argsort(a.ravel(), kind='stable')[-count:]] = True
+                selected = selected.reshape(edge, edge)
+                result[:, :, 3] = np.where(selected,
+                    np.maximum(result[:, :, 3], 128 / 255),
+                    np.minimum(result[:, :, 3], 127 / 255))
         else:
             result[:, :, 3] = np.minimum(a[:, :, 0], .49)
     return extend_rgb(result)
@@ -95,99 +98,39 @@ def fnv64(data):
 
 def build(edge=64):
     entries = layout(ROOT / 'media/materials/Base.terrain-atlas')
-    masters = {}
-    source_hashes = {}
-    leaf_cutout_thresholds = {'voxel-oak-a-rgb': 16, 'voxel-oak-b-rgb': 12}
-    leaf_visible_rgb_floor = [26, 47, 21]
-    leaf_colour_gain = [1.14, 1.18, 1.10]
-    master_hashes = {}
-    master_dir = ART / 'masters128'
-    master_dir.mkdir(exist_ok=True)
-    for name in NAMES:
-        path = source_path(name)
-        source_hashes[name] = hashlib.sha256(path.read_bytes()).hexdigest()
-        src = np.asarray(Image.open(path).convert('RGBA'), dtype=np.float32) / 255
-        if name in leaf_cutout_thresholds:
-            # The original bitmap is RGB. Pure near-black cells are authored
-            # gaps; derive a hard pixel cutout before linear-light filtering.
-            src[:, :, 3] = (np.max(src[:, :, :3], axis=2) >=
-                            leaf_cutout_thresholds[name] / 255).astype(np.float32)
-            # Near-black cells just above the cutout threshold otherwise bake
-            # as opaque black specks and make the whole crown look dirty.
-            src[:, :, :3] = np.maximum(
-                src[:, :, :3], np.array(leaf_visible_rgb_floor) / 255)
-        if name.startswith(('voxel-oak-', 'tallgrass')):
-            src[:, :, 3] = np.where(src[:, :, 3] < .05, 0, src[:, :, 3])
-        coverage = float(np.mean(src[:, :, 3] >= .5)) if name.startswith(('voxel-oak-', 'tallgrass')) else None
-        master = resize(src, 128, coverage)
-        master_path = master_dir / (name + '.png')
-        # Preserve an existing PNG's bytes when its pixels match the freshly
-        # calculated master; Pillow metadata may differ across releases.
-        master_bytes = bytes_rgba(master)
-        if not master_path.exists() or Image.open(master_path).convert('RGBA').tobytes() != master_bytes:
-            Image.frombytes('RGBA', (128, 128), master_bytes).save(master_path)
-        master_hashes[name] = hashlib.sha256(master_path.read_bytes()).hexdigest()
-        masters[name] = master
     old = Image.open(ROOT / 'media/textures/DefaultPack.png').convert('RGBA')
     adventure = adventure_tiles(32)
-    ground = polish_tiles(128)
-    # The compatibility atlas remains classic; only standard array leaf layers
-    # use this voxel-oak material candidate.
-    direct = {'grass_side': ['grass-side-a', 'grass-side-b', 'grass-side-a'],
-              'dirt': ['dirt-a', 'dirt-b'], 'stone': ['stone-a', 'stone-b'],
-              'oak_bark_side': ['bark-a', 'bark-b'], 'oak_bark_top': ['bark-top'],
-              'sand': ['sand-a', 'sand-b'], 'tall_grass': ['tallgrass-a', 'tallgrass-b', 'tallgrass-a'],
-              'oak_leaves': ['voxel-oak-a-rgb', 'voxel-oak-b-rgb', 'voxel-oak-a-rgb']}
-    tints = dict(zip(('desert', 'grassland', 'light_forest', 'temperate_forest', 'ocean'),
-                    ((1.12, .92, .77), (1.02, 1.02, .95), (.96, 1.01, .96),
-                     (.91, .96, .94), (.92, .99, 1.04))))
+    biomes = ('desert', 'grassland', 'light_forest', 'temperate_forest', 'ocean')
     layers = [np.zeros((edge, edge, 4), dtype=np.float32) for _ in range(256)]
     records = []
     cutouts = set()
     for semantic, (x, y, alpha) in entries.items():
         base, variant, biome = semantic, 0, None
-        for candidate in tints:
+        for candidate in biomes:
             marker = '_' + candidate + '_v'
             if marker in semantic:
                 base, index = semantic.split(marker)
                 variant, biome = int(index), candidate
                 break
-        if base in ('grass_top', 'forest_floor'):
-            name = ('grass_top_' + ('a', 'b', 'c')[variant % 3]
-                    if base == 'grass_top' else base)
-            rgba = np.asarray(ground[name], dtype=np.float32) / 255
-            if biome:
-                rgba[:, :, :3] *= (np.array(tints[biome], dtype=np.float32) *
-                                   (1.0, 1.02, .98)[variant])
-            used = ['visual-polish/' + name]
-            provenance = 'derived' if biome else 'authored'
+        if base in SHARED_BASES:
+            # Share the final authored/tinted 16-pixel cells with held blocks,
+            # item icons and compatibility rendering, then filter per layer.
+            rgba = np.asarray(old.crop((x, y, x + 16, y + 16)).resize(
+                (128, 128), Image.Resampling.NEAREST), dtype=np.float32) / 255
+            if base == 'grass_top':
+                used = ['grass_top_' + ('a', 'b', 'c')[variant]]
+            elif base == 'grass_side':
+                used = ['grass_top_' + ('a', 'b', 'c')[variant], 'dirt']
+            elif base == 'oak_leaves':
+                used = ['oak_leaves_' + ('a', 'b', 'a')[variant]]
+            else:
+                used = [base]
+            used = ['visual-polish/' + name for name in used]
+            provenance = 'derived' if biome or base == 'grass_side' else 'authored'
         elif base in adventure:
             authored = adventure[base].resize((128, 128), Image.Resampling.NEAREST)
             rgba = np.asarray(authored, dtype=np.float32) / 255
             used, provenance = ['adventure/' + base], 'authored'
-        elif base in direct:
-            names = direct[base]
-            # Single-address earth/rock/bark/sand use both authored sources;
-            # ecology variants retain independent grass/leaf silhouettes.
-            if base in ('dirt', 'stone', 'oak_bark_side', 'sand'):
-                rgba = masters[names[0]].copy()
-                rgba[:, :, :3] = linear_to_srgb(sum(srgb_to_linear(masters[n][:, :, :3]) for n in names) / len(names))
-                used = names
-            else:
-                used = [names[variant % len(names)]]
-                rgba = masters[used[0]].copy()
-                if variant == 2 and base in ('grass_side', 'tall_grass', 'oak_leaves'):
-                    rgba = rgba[:, ::-1].copy()
-            if biome:
-                tint = np.array(tints[biome], dtype=np.float32)
-                if base == 'grass_side':
-                    rgba[:26, :, :3] *= tint
-                else:
-                    rgba[:, :, :3] *= tint
-            if base == 'oak_leaves':
-                rgba[:, :, :3] *= np.array(leaf_colour_gain,
-                                           dtype=np.float32)
-            provenance = 'authored' if len(used) == 1 and not biome else 'derived'
         else:
             rgba = np.asarray(old.crop((x, y, x + 16, y + 16)).resize((128, 128), Image.Resampling.NEAREST), dtype=np.float32) / 255
             used, provenance = ['Warm Wilderness v1 / ' + semantic], 'retained'
@@ -207,19 +150,16 @@ def build(edge=64):
     payload = b''.join(mip_data)
     header = struct.pack('<8sIIIIIQ', b'HMTARRAY', 1, edge, 256, mips, len(payload), fnv64(payload))
     report = dict(format_version=1, edge=edge, layers=256, mips=mips, payload_bytes=len(payload),
-                  sha256=hashlib.sha256(header + payload).hexdigest(), sources=source_hashes,
+                  sha256=hashlib.sha256(header + payload).hexdigest(),
                   adventure_source_sha256=hashlib.sha256(ADVENTURE_SOURCE.read_bytes()).hexdigest(),
                   adventure_override_sha256={name: hashlib.sha256(path.read_bytes()).hexdigest()
                                              for name, path in OVERRIDE_SOURCES.items()},
                   adventure_authored_edge=32, adventure_leaf_cutout_key_max=12,
                   adventure_material_overrides=['forest_floor'],
                   adventure_source_rows=SOURCE_ROWS,
-                  polish_ground_source_sha256=hashlib.sha256(POLISH_SOURCE.read_bytes()).hexdigest(),
-                  polish_ground_authored_edge=POLISH_EDGE,
-                  leaf_cutout_thresholds=leaf_cutout_thresholds,
-                  leaf_visible_rgb_floor=leaf_visible_rgb_floor,
-                  leaf_colour_gain=leaf_colour_gain,
-                  masters128=master_hashes,
+                  polish_source_sha256={path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+                                        for path in POLISH_SHEETS},
+                  polish_authored_edge=POLISH_EDGE, polish_cutout_key_max=CUTOUT_KEY_MAX,
                   active_slots=len(records), empty_slots=256-len(records), semantics=records,
                   alpha_coverage=coverage_records, colour_space='sRGB RGBA8, premultiplied linear-light offline filtering')
     return header + payload, report

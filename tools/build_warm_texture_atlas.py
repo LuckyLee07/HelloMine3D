@@ -16,7 +16,6 @@ from visual_polish_texture_source import tiles as polish_tiles
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / 'docs/art-sources/hellomine3d-pre-warm-atlas.png'
-SOURCE = ROOT / 'docs/art-sources/hellomine3d-warm-natural-source.png'
 LAYOUT = ROOT / 'media/materials/Base.terrain-atlas'
 OUTPUT = ROOT / 'media/textures/DefaultPack.png'
 
@@ -62,34 +61,23 @@ def png_bytes(image):
             chunk(b'IDAT', bytes(stream)) + chunk(b'IEND', b''))
 
 
-def build(source=SOURCE, base=BASE, layout_path=LAYOUT):
+def build(base=BASE, layout_path=LAYOUT):
     entries = layout(layout_path)
     atlas = Image.open(base).convert('RGBA')
     if atlas.size != (256, 256):
         raise ValueError('Invalid frozen atlas dimensions')
-    art = Image.open(source).convert('RGB')
-    if art.size != (1774, 887):
-        raise ValueError('Unexpected generated source dimensions')
     def tile(name):
         x, y, _ = entries[name]
         return atlas.crop((x, y, x + 16, y + 16))
     def put(name, image):
         atlas.paste(image, entries[name][:2])
-    def sample(column, row):
-        # Cell interiors exclude the generated edge seams, sampled at texel centres.
-        box = (column * 443 + 12, row * 443 + 12,
-               (column + 1) * 443 - 12, (row + 1) * 443 - 12)
-        return art.crop(box).resize((16, 16), Image.Resampling.NEAREST).convert('RGBA')
     ground = polish_tiles(16)
     grasses = [ground['grass_top_' + variant] for variant in ('a', 'b', 'c')]
-    leaf_alpha = tile('oak_leaves').getchannel('A')
-    for name, col, row in [('dirt', 3, 0), ('stone', 0, 1),
-                           ('oak_bark_side', 1, 1), ('oak_bark_top', 2, 1),
-                           ('oak_leaves', 3, 1)]:
-        image = sample(col, row)
-        if name == 'oak_leaves':
-            image.putalpha(leaf_alpha)
-        put(name, image)
+    for name in ('dirt', 'stone', 'sand', 'oak_bark_side', 'oak_bark_top', 'tall_grass'):
+        put(name, ground[name])
+    leaves = [ground['oak_leaves_a'], ground['oak_leaves_b'],
+              ground['oak_leaves_a'].transpose(Image.Transpose.FLIP_LEFT_RIGHT)]
+    put('oak_leaves', leaves[0])
     put('grass_top', grasses[0])
     def grass_side(grass):
         side = tile('dirt')
@@ -107,8 +95,9 @@ def build(source=SOURCE, base=BASE, layout_path=LAYOUT):
         for variant in range(3):
             for name in ('grass_top', 'grass_side', 'oak_leaves', 'water', 'tall_grass'):
                 image = (grasses[variant].copy() if name == 'grass_top' else
-                         grass_side(grasses[variant]) if name == 'grass_side' else tile(name))
-                if name not in ('grass_top', 'grass_side') and variant:
+                         grass_side(grasses[variant]) if name == 'grass_side' else
+                         leaves[variant].copy() if name == 'oak_leaves' else tile(name))
+                if name not in ('grass_top', 'grass_side', 'oak_leaves') and variant:
                     image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT if name == 'tall_grass'
                                             else Image.Transpose.ROTATE_90 if variant == 1
                                             else Image.Transpose.ROTATE_270)

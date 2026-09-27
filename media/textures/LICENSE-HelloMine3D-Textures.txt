@@ -63,3 +63,11 @@ tool in September 2026:
 Prompts, source hash and packing rules are retained in the same directory.
 The four authored cells refine existing grass-top and forest-floor semantics;
 the standard terrain array and compatibility/UI atlas share the authored grid.
+
+Additional original visual polish sheets generated with the built-in OpenAI
+image generation tool in September 2026:
+- docs/art-sources/visual-polish-20260928/earth-wood-sheet-v1.png
+- docs/art-sources/visual-polish-20260928/foliage-sand-sheet-v1.png
+Full prompts, references, hashes and deterministic packing rules are retained
+in that directory. The black markers in oak-leaf and tall-grass cells compile
+to cutout alpha; earth, stone, bark, end grain and sand remain fully opaque.

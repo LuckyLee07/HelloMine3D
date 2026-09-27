@@ -1,5 +1,10 @@
 # R1 voxel oak leaf sources
 
+Historical source: V01b on 2026-09-28 replaced the active oak leaf cells with
+`../../visual-polish-20260928/foliage-sand-sheet-v1.png`, shared by the standard
+array and compatibility/UI atlas. These originals and masters remain intact;
+the processing description below records their earlier R1 use.
+
 `voxel-oak-a-rgb.png` and `voxel-oak-b-rgb.png` are original square RGB
 bitmaps generated for HelloMine3D with OpenAI image generation on 2026-09-13.
 The user-provided HelloMine3D cover screenshot guided the leafy green palette,

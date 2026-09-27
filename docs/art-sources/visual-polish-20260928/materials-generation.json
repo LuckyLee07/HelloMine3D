@@ -1,0 +1,33 @@
+{
+  "generation_date": "2026-09-28",
+  "tool": "built-in imagegen",
+  "outputs": [
+    {
+      "file": "earth-wood-sheet-v1.png",
+      "prompt": "Create an ORIGINAL game texture source sheet for HelloMine3D, matching the restrained earthy voxel art of the references. A square image divided into exactly FOUR equal square cells in a 2 by 2 grid, no gutters, no borders, no labels, no text. Each cell must be a flat, evenly lit, seamless orthographic material, no perspective, no objects, no bevels, no ambient shadow. Every cell is designed on a COARSE 16 by 16 square pixel grid, hard square steps, broad connected 2\u20135 pixel clusters; no blur, no speckled micro-noise, no subpixel detail, no highlights. IMPORTANT this is texture pixels, not a render of cubes.\nTop left: compact soil, warm muted medium umber, quiet low-contrast clustered patches, no pebbles.\nTop right: natural stone, muted warm gray, subdued broad irregular patches; no masonry joints, no bricks, no white noise.\nBottom left: oak bark SIDE face, muted medium brown, a few broad vertical broken bands with short square steps, calm readable silhouette, minimal dark cracks. Far fewer grooves than the old bark reference.\nBottom right: oak trunk END grain, slightly lighter warm tan brown, restrained broad nested square-ish wood rings centered in the tile. Only 3\u20134 rings, low contrast, no thin outlines.\nUse 5\u20137 related colors per tile. Keep the soil and wood separate in value and structure. The new grass sheet is only a palette/pixel-scale reference. Preserve pixel precision in all four cells. Full-bleed opaque RGB.",
+      "references": [
+        "ground-sheet-v1.png",
+        "../warm-wilderness-v2/pixel-revision/bark-a.png"
+      ],
+      "sha256": "c9d11749f61be9f889fc7b1ab8870004b8d40d2f63787b3155ab70d969bc3abe",
+      "source_size": [
+        1254,
+        1254
+      ]
+    },
+    {
+      "file": "foliage-sand-sheet-v1.png",
+      "prompt": "Create an ORIGINAL production voxel texture source sheet for HelloMine3D. SQUARE full-bleed image, exactly FOUR equal square cells in a 2 by 2 grid. No borders, no gutters, no text. Flat evenly lit orthographic surfaces, no perspective. COARSE hard-edged 16 by 16 square pixel design per cell; broad 2\u20134 pixel connected clusters, no blur, no gradients or speckled micro-noise. Reference grass is palette/scale guidance only; the old leaf reference shows the type of material, but is too noisy and too yellow.\nTOP LEFT: oak leaf texture A for full cubic canopy blocks. Broad connected muted natural olive-green leaf masses; 75\u201385 percent area opaque medium green, calm dark green pockets, sparse restrained yellow-olive highlights. Several small PURE BLACK (#000000) holes scattered asymmetrically occupying 15\u201325 percent. All visible leaf colors clearly brighter than black (each RGB max above 45). No outlines, no isolated confetti.\nTOP RIGHT: oak leaf texture B, same palette and coverage but visibly different cluster and hole arrangement. Avoid a checkerboard or regular grid of holes. Keep cube volume legible.\nBOTTOM LEFT: opaque sand, warm subdued pale beige, quiet low-contrast broad irregular patches, no stones, no shells, no outlines. Seamless.\nBOTTOM RIGHT: a single small tuft of meadow grass made from 4\u20135 broad stepped square pixel blades on PURE BLACK (#000000), fully within cell. Occupy about half the cell, height 80 percent and width 80 percent, blades join near bottom center. Muted sage/olive greens, no flowers, no thin wisps.\nPure-black marker areas are for automatic cutout, not dark foliage. Keep all four cells distinct and regular aligned quarter regions. Do not create a scene.",
+      "references": [
+        "ground-sheet-v1.png",
+        "../warm-wilderness-v2/canopy-voxel-oak-20260913/voxel-oak-a-rgb.png"
+      ],
+      "sha256": "9e617ffddb01c76582ce89305f14292db99b4d7e25738050290cd1f240f094ae",
+      "source_size": [
+        1254,
+        1254
+      ]
+    }
+  ],
+  "packing": "Independent 627x627 cells sampled at centres to 16x16 with nearest filtering. Black RGB max <=12 becomes hard cutout for two oak leaf cells and tall grass only. No procedural artwork. Atlas and array share final semantic cells, including grass fringe composition and ecological tint."
+}
