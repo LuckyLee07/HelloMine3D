@@ -12775,15 +12775,25 @@ void caseAdventureGuidance()
     for (const std::string locale : {"zh-CN", "en-US"})
     {
         const auto localized = LocalizedPresentation::objectiveInstruction(locale,
-            "survival.eat_bread", "fallback", recover.guidanceKey, "F");
+            "survival.eat_bread", "fallback", recover.guidanceKey, "F", "C");
         check("ADVENTURE-GUIDANCE/" + locale + "-dynamic-text-keeps-rebound-consume-key",
               localized.find('F') != std::string::npos && localized.find("{consume}") == std::string::npos &&
               localized != "fallback" && localized != LocalizedPresentation::objectiveText(locale, "survival.eat_bread", "instruction"));
         check("ADVENTURE-GUIDANCE/" + locale + "-locked-or-completed-food-keeps-rebound-key",
-              LocalizedPresentation::objectiveInstruction(locale, "survival.eat_bread", "fallback", "", "F").find(" F ") != std::string::npos);
+              LocalizedPresentation::objectiveInstruction(locale, "survival.eat_bread", "fallback", "", "F", "C").find(" F ") != std::string::npos);
         check("ADVENTURE-GUIDANCE/" + locale + "-static-instruction-fallback-remains",
-              LocalizedPresentation::objectiveInstruction(locale, "alpha.gather_wood", "fallback", "", "F") ==
+              LocalizedPresentation::objectiveInstruction(locale, "alpha.gather_wood", "fallback", "", "F", "C") ==
               LocalizedPresentation::objectiveText(locale, "alpha.gather_wood", "instruction"));
+        const auto crafting = LocalizedPresentation::objectiveInstruction(locale,
+            "alpha.craft_workbench", "fallback", "", "F", "C");
+        check("ADVENTURE-GUIDANCE/" + locale + "-workbench-teaching-follows-crafting-binding",
+              crafting.find(" C ") != std::string::npos &&
+              crafting.find(" E ") == std::string::npos &&
+              crafting.find(" F ") == std::string::npos &&
+              crafting.find("{craft}") == std::string::npos);
+        check("ADVENTURE-GUIDANCE/" + locale + "-instruction-fallback-substitutes-both-bindings",
+              LocalizedPresentation::objectiveInstruction(locale, "",
+                  "Use {craft} then {consume}.", "", "F", "C") == "Use C then F.");
     }
 
     Player player;

@@ -565,7 +565,8 @@ class OgreUserInterface::Impl
     {
         return LocalizedPresentation::objectiveInstruction(
             appliedSettings.locale, id, fallback, guidanceKey,
-            keyName(appliedSettings.inputBindings.get(GameplayAction::ConsumeFood)));
+            keyName(appliedSettings.inputBindings.get(GameplayAction::ConsumeFood)),
+            keyName(appliedSettings.inputBindings.get(GameplayAction::OpenCrafting)));
     }
 
     std::string craftingPreviewMessage(CraftingPreviewStatus status) const

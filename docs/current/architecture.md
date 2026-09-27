@@ -942,7 +942,7 @@ macOS 客户端的 `OgreMacClipboard` 为 ImGui 提供 Cocoa 文本剪贴板回�
 
 任务日志通过 `World::getObjectiveSnapshot(true)` 按需取得值快照，AlphaJourney 转发至 ObjectiveSystem；任务可见性、前置、进度仍由冻结定义和保存状态决定。UI 的选择／过滤／追踪均为当前世界临时状态，不进入保存协议。
 冒险前期定义 v4 将重开目标改为可见可选并提前面包教学；存档读取 v1／v2／v3 显式归一，
-Alpha 十位兼容门面独立于通用并行机会，ID／进度／发现集合保持。B2b 经 World→Alpha→Objective 传入只读生命、冷却与时钟，单次库存扫描及三槽固定选择输出状态指导；HUD／任务／暂停共享本地化指导与真实食用键，不新增保存字段。详见[前期引导合同](../contracts/adventure-onboarding-contract-v1.md)。
+Alpha 十位兼容门面独立于通用并行机会，ID／进度／发现集合保持。B2b 经 World→Alpha→Objective 传入只读生命、冷却与时钟，单次库存扫描及三槽固定选择输出状态指导；HUD／任务／暂停共享本地化指导，食用和打开合成提示均取当前已应用键位，不新增保存字段。详见[前期引导合同](../contracts/adventure-onboarding-contract-v1.md)。
 
 B2c 的 `NaturalPopulationRules` 仅派生地表自然生成时段与距离，World 结合实际光照／支撑块筛选，保留难度 cap 和现有 Actor／守卫；林床与淤泥进入既有小麦种植能力，无新增保存字段或地形生成版本。
 

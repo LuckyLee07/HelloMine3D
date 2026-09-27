@@ -58,13 +58,15 @@ std::string LocalizedPresentation::objectiveText(
 std::string LocalizedPresentation::objectiveInstruction(
     const std::string& locale, const std::string& objectiveId,
     const std::string& fallback, const std::string& guidanceKey,
-    const std::string& consumeBinding)
+    const std::string& consumeBinding, const std::string& craftingBinding)
 {
     std::string instruction = guidanceKey.empty()
         ? objectiveText(locale, objectiveId, "instruction", fallback)
         : text(locale, guidanceKey, fallback);
-    const auto at = instruction.find("{consume}");
+    auto at = instruction.find("{consume}");
     if (at != std::string::npos) instruction.replace(at, 9, consumeBinding);
+    at = instruction.find("{craft}");
+    if (at != std::string::npos) instruction.replace(at, 7, craftingBinding);
     return instruction;
 }
 
