@@ -905,12 +905,16 @@ class OgreUserInterface::Impl
                 if (settingsSession.isOpen())
                 {
                     drawSettingsMenu();
+                    drawHudNotifications(ImGui::GetIO().DisplaySize.y - 8.f);
                 }
                 else
                 {
-                    drawPauseMenu();
+                    // Keep the pause controls above the actual wrapped notice
+                    // stack, including captions, in compact windows.
+                    const float noticeTop = drawHudNotifications(
+                        ImGui::GetIO().DisplaySize.y - 8.f);
+                    drawPauseMenu(noticeTop + 8.f);
                 }
-                drawHudNotifications(ImGui::GetIO().DisplaySize.y - 8.f);
                 break;
         }
         drawCrashReportPrompt();
@@ -2102,7 +2106,7 @@ class OgreUserInterface::Impl
             minimapBiome == TerrainBiome::LightForest ? "hud.region_woodland" : "hud.region_meadow";
     }
 
-    void drawPauseMenu()
+    void drawPauseMenu(float availableHeight)
     {
         const auto& io = ImGui::GetIO();
         const float scale = appliedSettings.uiScale;
@@ -2111,9 +2115,9 @@ class OgreUserInterface::Impl
         const float worldHeight=(compact ? 52.f : 66.f)*scale;
         GameInterfaceWidgets::OverlayStyle theme(scale);
         adventureBackdrop();
-        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * .5f, io.DisplaySize.y * .5f), ImGuiCond_Always, ImVec2(.5f,.5f));
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * .5f, availableHeight * .5f), ImGuiCond_Always, ImVec2(.5f,.5f));
         ImGui::SetNextWindowSize(ImVec2(std::min(380.f * scale,io.DisplaySize.x-32.f),
-            std::min(485.f * scale,io.DisplaySize.y-32.f)), ImGuiCond_Always);
+            std::max(1.f, std::min(485.f * scale,availableHeight-32.f))), ImGuiCond_Always);
         if (ImGui::Begin("##PauseMenu",nullptr,ImGuiWindowFlags_NoDecoration |
             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBackground))
         {
@@ -5688,7 +5692,7 @@ class OgreUserInterface::Impl
         return topLeft.y - 6.f;
     }
 
-    void drawHudNotifications(float notificationBottom)
+    float drawHudNotifications(float notificationBottom)
     {
         const bool sideLanes = player != nullptr && !player->hasOpenContainer() && !player->hasOpenCrafting() &&
             flow->state() == GameApplicationState::Playing && ImGui::GetIO().DisplaySize.y < 600.f * appliedSettings.uiScale;
@@ -5708,9 +5712,10 @@ class OgreUserInterface::Impl
             (flow->state() == GameApplicationState::Playing ||
              (flow->state() == GameApplicationState::Paused && !settingsSession.isOpen())))
         {
-            drawNotification(statusMessage, sideLanes ? hudNoticeLeftTop : notificationBottom, sideLanes ? -1 : 0);
+            notificationBottom = drawNotification(statusMessage,
+                sideLanes ? hudNoticeLeftTop : notificationBottom, sideLanes ? -1 : 0);
         }
-
+        return notificationBottom;
     }
 
     bool victoryOverlayVisible() const
