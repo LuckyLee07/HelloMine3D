@@ -73,6 +73,21 @@ namespace
 
     constexpr int MinimapClipSegments = 96;
 
+    void drawWrappedTooltip(const std::string& text)
+    {
+        const float availableWidth = ImGui::GetIO().DisplaySize.x -
+            2.f * ImGui::GetStyle().WindowPadding.x - 24.f;
+        const float wrapWidth = std::max(1.f, std::min(
+            26.f * ImGui::GetFontSize(), availableWidth));
+        if (ImGui::BeginTooltip())
+        {
+            ImGui::PushTextWrapPos(wrapWidth);
+            ImGui::TextUnformatted(text.c_str());
+            ImGui::PopTextWrapPos();
+            ImGui::EndTooltip();
+        }
+    }
+
     void fillCircularMinimapCell(
         ImDrawList* draw, const ImVec2& cellMin, const ImVec2& cellMax,
         const ImVec2& center, float radius,
@@ -2333,8 +2348,7 @@ class OgreUserInterface::Impl
         }
         if (ImGui::IsItemHovered())
         {
-            ImGui::SetTooltip("%s",
-                              tr("settings.post_processing_help").c_str());
+            drawWrappedTooltip(tr("settings.post_processing_help"));
         }
         ImGui::SliderInt(label("settings.fov", "##Fov").c_str(),
                          &draft.fov, 45, 120);
@@ -2364,8 +2378,7 @@ class OgreUserInterface::Impl
         }
         if (ImGui::IsItemHovered())
         {
-            ImGui::SetTooltip("%s",
-                              tr("settings.visual_detail_help").c_str());
+            drawWrappedTooltip(tr("settings.visual_detail_help"));
         }
         ImGui::PushStyleColor(ImGuiCol_Text, WarmMuted);
         ImGui::TextWrapped("%s", tr("settings.restart_note").c_str());
@@ -2803,7 +2816,7 @@ class OgreUserInterface::Impl
             ImGui::PopStyleColor();
             if (ImGui::IsItemHovered() && footerSummary != footerMessage)
             {
-                ImGui::SetTooltip("%s", footerMessage.c_str());
+                drawWrappedTooltip(footerMessage);
             }
 
             ImGui::BeginDisabled(settingsApplyPending);
@@ -2848,8 +2861,7 @@ class OgreUserInterface::Impl
                 }
                 if (ImGui::IsItemHovered())
                 {
-                    ImGui::SetTooltip("%s",
-                                      tr("settings.apply_note").c_str());
+                    drawWrappedTooltip(tr("settings.apply_note"));
                 }
                 ImGui::EndTable();
             }
