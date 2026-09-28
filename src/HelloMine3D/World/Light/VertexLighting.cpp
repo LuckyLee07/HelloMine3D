@@ -77,6 +77,16 @@ VertexLightCorner VertexLighting::evaluateCorner(
     return result;
 }
 
+float VertexLighting::sourceStrength(const VertexLightCornerSamples &samples) noexcept
+{
+    float sum = clampLightLevel(samples.centre);
+    int count = 1;
+    if (!samples.sideUOccludes) { sum += clampLightLevel(samples.sideU); ++count; }
+    if (!samples.sideVOccludes) { sum += clampLightLevel(samples.sideV); ++count; }
+    if (!samples.diagonalOccludes) { sum += clampLightLevel(samples.diagonal); ++count; }
+    return sum / (static_cast<float>(count) * MAX_LIGHT_LEVEL);
+}
+
 bool VertexLighting::shouldFlipDiagonal(
     const std::array<VertexLightCorner, 4> &corners) noexcept
 {

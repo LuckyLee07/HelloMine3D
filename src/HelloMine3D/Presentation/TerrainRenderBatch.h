@@ -43,9 +43,9 @@ struct TerrainRenderBatchPart {
     const ChunkMesh* mesh;
 };
 struct TerrainRenderVertex {
-    float x, y, z, u, v, repeatU, repeatV, light;
+    float x, y, z, u, v, repeatU, repeatV, light, skySource, blockSource;
 };
-static_assert(sizeof(TerrainRenderVertex) == 32, "Terrain vertex format stays unchanged");
+static_assert(sizeof(TerrainRenderVertex) == 40, "Terrain vertex format carries both light sources");
 struct PackedTerrainRenderBatch {
     std::vector<TerrainRenderVertex> vertices;
     std::vector<std::uint32_t> indices;
@@ -56,9 +56,10 @@ inline void validateTerrainRenderPart(const TerrainRenderBatchPart& part)
     if (!part.mesh) throw std::runtime_error("missing terrain mesh");
     const auto& mesh = part.mesh->getClientMesh();
     const auto& light = part.mesh->getLight();
+    const auto& sources = part.mesh->getLightSources();
     const auto count = mesh.vertexPositions.size() / 3;
     if (mesh.vertexPositions.size() % 3 != 0 || mesh.textureCoords.size() != count * 2 ||
-        mesh.textureRepeatCoords.size() != count * 2 || light.size() != count || mesh.indices.size() % 3 != 0)
+        mesh.textureRepeatCoords.size() != count * 2 || light.size() != count || sources.size() != count || mesh.indices.size() % 3 != 0)
         throw std::runtime_error("terrain vertex attribute or index count mismatch");
     for (const auto index : mesh.indices)
         if (index >= count) throw std::runtime_error("terrain index references a missing vertex");
@@ -71,7 +72,10 @@ inline void validateTerrainRenderPart(const TerrainRenderBatchPart& part)
         }
         if (!std::isfinite(mesh.textureCoords[i*2]) || !std::isfinite(mesh.textureCoords[i*2+1]) ||
             !std::isfinite(mesh.textureRepeatCoords[i*2]) || !std::isfinite(mesh.textureRepeatCoords[i*2+1]) ||
-            !std::isfinite(light[i]) || light[i] < 0.f || light[i] > 1.f)
+            !std::isfinite(light[i]) || light[i] < 0.f || light[i] > 1.f ||
+            !std::isfinite(sources[i].x) || !std::isfinite(sources[i].y) ||
+            !((sources[i].x == -1.f && sources[i].y == -1.f) ||
+              (sources[i].x >= 0.f && sources[i].x <= 1.f && sources[i].y >= 0.f && sources[i].y <= 1.f)))
             throw std::runtime_error("terrain vertex contains an invalid attribute");
     }
 }
@@ -99,6 +103,7 @@ inline PackedTerrainRenderBatch packTerrainRenderBatch(
     for (const auto& part : parts) {
         const auto& mesh = part.mesh->getClientMesh();
         const auto& light = part.mesh->getLight();
+        const auto& sources = part.mesh->getLightSources();
         const auto base = static_cast<std::uint32_t>(result.vertices.size());
         for (std::size_t i = 0; i < light.size(); ++i) {
             result.vertices.push_back({
@@ -106,7 +111,7 @@ inline PackedTerrainRenderBatch packTerrainRenderBatch(
                 mesh.vertexPositions[i*3+1] - static_cast<float>(origin.y)*CHUNK_SIZE,
                 mesh.vertexPositions[i*3+2] - static_cast<float>(origin.z)*CHUNK_SIZE,
                 mesh.textureCoords[i*2], mesh.textureCoords[i*2+1],
-                mesh.textureRepeatCoords[i*2], mesh.textureRepeatCoords[i*2+1], light[i]});
+                mesh.textureRepeatCoords[i*2], mesh.textureRepeatCoords[i*2+1], light[i], sources[i].x, sources[i].y + 1.f});
         }
         for (const auto index : mesh.indices) result.indices.push_back(base + index);
     }

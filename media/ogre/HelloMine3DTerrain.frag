@@ -3,6 +3,7 @@
 in vec2 terrainTileUv;
 in vec2 terrainRepeat;
 in float terrainLight;
+in vec2 terrainLightSources;
 in float terrainDistance;
 in vec3 terrainWorldPosition;
 
@@ -159,13 +160,17 @@ vec3 naturalPalette(vec3 colour, vec2 tile, vec3 face, float footprint)
 }
 
 // Climate arrives in the unused fractional part of uv0; integer tile
-// selection and the 32-byte vertex format stay intact. All vegetation samples
+// selection stays intact. All vegetation samples
 // the same grassland reference row before receiving this continuous palette.
 vec3 ecologyPalette(vec3 colour, vec2 tile)
 {
     vec2 climate = vec2((fract(terrainTileUv.x * tilesPerRow) - 0.25) * 2.0,
                         (fract(terrainTileUv.y * tilesPerRow) - 0.5) * 4.0);
     climate = clamp(climate, vec2(0.0, -1.0), vec2(1.0));
+    // Different atlas rows lose slightly different low bits while carrying
+    // climate in UV fractions. Canonicalize that transport noise before colour
+    // arithmetic; maximum rounding error stays below the CPU merge tolerance (1e-5).
+    climate = floor(climate * 65536.0 + 0.5) / 65536.0;
     vec3 meadow = vec3(1.02, 1.02, 0.95);
     vec3 wet = climate.y < 0.0
         ? mix(meadow, vec3(0.92, 0.99, 1.04), -climate.y)
@@ -236,7 +241,29 @@ void main()
     vec3 lightTint = mix(vec3(0.84, 0.93, 1.0), warmLight, sunlight);
     litColour *= mix(vec3(1.0), lightTint,
         clamp(sunIntensity * surfaceLightingStrength, 0.0, 1.0));
-    litColour += fogColour * (1.0 - environmentLight) * 0.035;
+    // World meshes retain both propagated sources. Only sky light follows
+    // time of day and directional shadows; a torch is stable in an enclosed room.
+    float skyAvailability = 1.0;
+    if (terrainLightSources.x >= 0.0 && playerExposure < 0.0) {
+        vec2 sources = clamp(terrainLightSources, 0.0, 1.0);
+        skyAvailability = sources.x;
+        float sky = sources.x * environmentExposure * 1.0;
+        float local = sources.y;
+        float sourceMaximum = max(sources.x, sources.y);
+        // A small, time-independent floor retains unlit silhouettes. Light
+        // level propagation, AO and cardinal shading remain CPU authority.
+        float exposure = mix(0.34, max(sky, local) / max(sourceMaximum, 0.00001),
+            smoothstep(0.0, 0.20, sourceMaximum));
+        float localShare = local / max(sky + local, 0.00001);
+        vec3 skyTint = mix(vec3(1.0), lightTint,
+            clamp(sunIntensity * surfaceLightingStrength, 0.0, 1.0));
+        vec3 localTint = mix(vec3(1.0), vec3(1.04, 0.94, 0.80),
+            clamp(surfaceLightingStrength, 0.0, 1.0));
+        vec3 sourceTint = sourceMaximum > 0.00001 ?
+            mix(skyTint, localTint, localShare) : vec3(0.90, 0.93, 1.0);
+        litColour = balancedColour * shapedLight * exposure * sourceTint;
+    }
+    litColour += fogColour * (1.0 - environmentLight) * 0.035 * skyAvailability;
     // The existing luminous Waystone core keeps its turquoise in moonlight.
     // Only its cyan inset emits; the masonry frame still receives AO/shadow.
     if (surfaceLightingStrength > 0.5 && tileIndex == vec2(15.0, 0.0)) {
@@ -248,6 +275,7 @@ void main()
         0.0, 1.0);
     vec3 localFogColour = directionalFogColour(
         terrainWorldPosition - cameraPosition);
+    localFogColour = mix(vec3(0.035, 0.043, 0.054), localFogColour, skyAvailability);
     fragmentColour = vec4(
         mix(localFogColour, litColour, fogVisibility), texel.a);
 }

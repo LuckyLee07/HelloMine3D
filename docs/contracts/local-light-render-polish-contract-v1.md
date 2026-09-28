@@ -1,0 +1,56 @@
+# 地下局部光源渲染精修合同 v1
+
+2026-09-28，视觉 Goal 的 V09a。承接[顶点光照](vertex-lighting-contract-v1.md)和
+[世界光源](world-light-source-contract-v1.md)；仅覆盖渲染和复制网格，不改变光传播、玩法或生成。
+
+## 原因与权威
+
+原 mesh 只携带天光／方块光的合成亮度，fragment 再统一乘昼夜曝光及太阳阴影，导致封闭地下
+火把照明随室外时间变暗。水面也会在无天光处反射明亮天空。本批从既有 `SectionMeshInput`
+复制两种来源；不额外查询／加载世界、不改 source level、dirty 集合、碰撞、箱子、矿物或存档。
+save v12、terrain v27、map v4、settings v11 保持。旧世界重新建网格即使用此表现。
+
+## 网格与格式
+
+- 既有四角组合亮度、AO 0.12、方向系数、对角线选择和 `shapedLight` 保持。
+- 两种来源分别取同一四角邻域非遮挡样本的原始 level 平均，除以 15 得 `[0,1]`。
+  来源强度不含 brightness floor、AO 或方向系数。非立方资源形状复制所在格两种 level。
+- greedy 除旧条件外，必须能以四外角重建内部两种来源；shared vertex key 包含两种来源。
+  不允许用相同 combined light 合并不同光源，阴影和昼夜变化后它们不等价。
+- `ChunkMesh` 维护与顶点等长的 `vec2`；clear／adopt 一并处理。手工 mesh 默认 `(-1,-1)`，
+  继续用原有不带来源的路径。打包拒绝缺失、越界、NaN、半个 legacy 标记。
+- GPU 格式为 `position3 + tileUV2 + repeatUV2 + light1 + sky1 + block1`，
+  **10 个 float／40 字节**。同一 interleaved stream 的 uv2 从 FLOAT1 改为 FLOAT3，传
+  `(combinedLight, sky, block + 1)`；最后一项区分普通手工 FLOAT1 的默认零分量。
+  不新增材质 pass、纹理、draw 或无界缓存；旧 shader 只读 uv2.x 的自定义程序可继续取组合值。
+  旧 vertex 与新 fragment 混配仍须通过实际链接检查，不声明任意第三方覆盖兼容。
+- 每顶点 GPU 比原 32 字节增加 8 字节（25%）；CPU source array 同增 8 字节，临时共享 key
+  及角点值也增长。实际顶点数可能因保留来源梯度增加，须记录冻结场景几何／缓冲增量。
+  严格配对性能按用户延期，不因此省略容量、崩溃和明显异常检查。
+
+## 着色
+
+普通／阴影 terrain 与 flora 共用来源语义。天光乘既有昼夜曝光与太阳遮挡，方块光保持稳定，
+取二者较强贡献与原 sourceMaximum 的比值，再乘原 shapedLight。零光曝光固定 0.34；
+原始最大来源 0–0.20 内以 smoothstep 过渡，避免传播边缘出现曝光跳变。暗部保留微弱冷色轮廓，
+方块光按已有表面光照开关混入克制暖色，不把整个洞室变成均匀白光。全户外 sky=1、block=0
+保留旧曝光。洞内雾不再取室外亮天空色，夜间额外环境提亮仅随天光加入。
+
+水面以同样方式分离来源；无天光时不反射室外天空及太阳高光，水深、漂移、岸纹、alpha 和水线
+过渡不改。手臂／工具／玩家的平滑曝光也区分两来源，保留原样本缺失策略和时间平滑。
+本批不宣称角色本身具有新的局部彩色光照模型或火把投影。
+
+生态 UV 中的气候参数在解码后以 1/65536 统一小数精度（最大舍入误差 < 1e-5），消除不同
+图集行低位传输误差造成的普通／阴影单像素差异。没有放宽既有逐像素比较。
+
+## 检查与证据边界
+
+- `LOCAL_LIGHT_RENDER`：来源平均、拒绝非法流、shared／packed／adopt、真实封闭跨区块火把、
+  撤除与复制快照、公共角点和全天光下局部梯度。
+- 双配置相关 `V10A / RENDER_BATCH / LIGHT_BOUNDARY / WATER_DEPTH / WATER_MOTION /
+  ADVENTURE_UNDERGROUND / V10B3 / WETLAND_GRASS`、MeshDirty、玩家表现、资源及完整 Release 世界。
+- GPU 工具执行实际 terrain／flora 普通／阴影、atlas／array 与 water GLSL；验证昼夜、太阳遮挡、
+  暗部、衰减、户外回归、原生态配色／alpha、水深水线，冻结旧实现必须被新增检查拒绝。
+- 固定机位矿洞与水池昼夜、洞口及户外图。每轮精选 2–3 张升级后原图；诊断定位不冒充普通行走。
+- 完整 V09 洞室形状、地质材料、两类目的地普通进入／收获／返回及三种子探索仍另行完成；
+  人工核验、严格配对性能延期。实际结果与失败历史见[执行记录](../reports/visual-experience-polish-execution-2026-09-28.md)。

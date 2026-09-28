@@ -91,7 +91,7 @@ void setup(GLuint p)
     glUniform2f(glGetUniformLocation(p,"crackSeed"),17.0f,31.0f);
     glUniform2f(glGetUniformLocation(p,"crackStretch"),1,1);
 }
-void quad(GLuint p, int tileX, int tileY, float vertexLight = 1.f)
+void quad(GLuint p, int tileX, int tileY, float vertexLight = 1.f, float skySource = -1.f, float blockSource = -1.f)
 {
     // All geometry reaches the production vertex shader, including plant wind.
     struct Vertex { float x,y,z,u,v; };
@@ -112,7 +112,7 @@ void quad(GLuint p, int tileX, int tileY, float vertexLight = 1.f)
     GLint tile = glGetAttribLocation(p,"uv0"), light = glGetAttribLocation(p,"uv2");
     GLint colour = glGetAttribLocation(p,"colour");
     if (tile >= 0) glVertexAttrib2f(tile,(tileX+0.5f)/16.f,(tileY+0.5f)/16.f);
-    if (light >= 0) glVertexAttrib1f(light,vertexLight);
+    if (light >= 0) glVertexAttrib3f(light,vertexLight,skySource,blockSource+1.f);
     if (colour >= 0) glVertexAttrib4f(colour,0.9f,0.9f,0.9f,0.65f);
     glDrawArrays(GL_TRIANGLES,0,6);
     glDisableVertexAttribArray(position);
@@ -142,7 +142,7 @@ Pixels renderGround(GLuint shader, float enabled, float offset, int tile = 0,
                     int tileY = 0, float daylight = 1.f,
                     float playerExposure = -1.f, float vertexLight = 1.f,
                     float shadowStrength = 0.f, float fog = 0.f,
-                    float alphaCutoff = .4999f)
+                    float alphaCutoff = .4999f, float skySource = -1.f, float blockSource = -1.f)
 {
     glDisable(GL_BLEND); glDepthMask(GL_TRUE);
     glClearColor(0,0,0,0); glClearDepth(1);
@@ -163,7 +163,7 @@ Pixels renderGround(GLuint shader, float enabled, float offset, int tile = 0,
     glUniform1i(glGetUniformLocation(shader, "directionalShadowMap"), 1);
     const float world[]{1,0,0,0, 0,1,0,0, 0,0,1,0, offset,0,offset,1};
     glUniformMatrix4fv(glGetUniformLocation(shader,"world"),1,GL_FALSE,world);
-    quad(shader, tile, tileY, vertexLight);
+    quad(shader, tile, tileY, vertexLight, skySource, blockSource);
     Pixels pixels(Edge * Edge * 4);
     glReadPixels(0,0,Edge,Edge,GL_RGBA,GL_UNSIGNED_BYTE,pixels.data());
     require(glGetError() == GL_NO_ERROR, "Ground shader draw failed");
@@ -340,6 +340,33 @@ int main(int argc,char **argv)
             auto flora = program(root,"HelloMine3DFlora.vert","HelloMine3DBlockFeedback.frag",array);
             auto particle = program(root,"HelloMine3DBlockParticle.vert","HelloMine3DBlockParticle.frag",array);
             check(mode+"-production-programs-link",true);
+            auto floraShadow = program(root,"HelloMine3DFloraShadow.vert","HelloMine3DTerrainShadow.frag",array);
+            // Real production vertex -> fragment sources; no CPU lighting replica.
+            for (auto shader : {base, shadow, floraBase, floraShadow}) {
+                const auto source = [&](float sky, float local, float day, float shadowAmount = 0.f, float fog = 0.f) {
+                    const float light = .15f + .85f * std::max(sky,local);
+                    return renderGround(shader,1,0,3,0,day,-1,light,shadowAmount,fog,.4999f,sky,local);
+                };
+                const std::string label=mode+"-source-"+std::to_string(shader);
+                const auto torch=source(0,.8f,1), dark=source(0,0,1);
+                check(label+"-torch-stable-through-day-night-and-sun-shadow",
+                    torch == source(0,.8f,0,1) && source(0,.8f,1,1,.2f)==source(0,.8f,0,0,.2f));
+                check(label+"-unlit-floor-stable-and-dimmer-than-torch",
+                    dark == source(0,0,0,1) && colourDifference(dark,torch)>20);
+                check(label+"-skylight-still-follows-day",colourDifference(source(1,0,1),source(1,0,0))>20);
+                if (shader==shadow || shader==floraShadow)
+                    check(label+"-sun-shadow-affects-sky",colourDifference(source(1,0,1),source(1,0,1,1))>10);
+                bool monotonic=true; float previous=-1;
+                for (int level=0;level<=15;++level) {
+                    const auto pixels=source(0,level/15.f,0,1);
+                    const float difference=colourDifference(dark,pixels);
+                    monotonic &= difference>=previous; previous=difference;
+                }
+                check(label+"-local-falloff-monotonic",monotonic);
+                check(label+"-legacy-outdoor-exposure-preserved",
+                    source(1,0,1)==renderGround(shader,1,0,3,0,1));
+            }
+            glDeleteProgram(floraShadow);
             // The same complete shaders drive the isolated held-item passes.
             // Disable colour accents to measure exposure independently, then
             // check the production palette, AO, fog and alpha paths separately.
@@ -433,6 +460,8 @@ int main(int argc,char **argv)
                 colourDifference(climateImage(base,0,4,0,0), climateImage(base,0,7,0,-1)) > 1.f);
             check(mode+"-ecotone-grass-side-dirt-is-neutral",
                 climateImage(base,3,3,1,0,1,1,.37f,.8f) == climateImage(base,3,6,0,1,1,1,.37f,.8f));
+            png(output/(mode+"-ecotone-night-base.png"),climateImage(base,0,3,.4f,.3f,1,.18f));
+            png(output/(mode+"-ecotone-night-shadow.png"),climateImage(shadow,0,6,.4f,.3f,1,.18f));
             check(mode+"-ecotone-night-shadow-agrees",
                 climateImage(base,0,3,.4f,.3f,1,.18f) == climateImage(shadow,0,6,.4f,.3f,1,.18f));
             const auto coreBefore = renderGround(base, 0.f, 0.f, 15, 0, .18f);

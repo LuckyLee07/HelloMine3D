@@ -217,7 +217,8 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
                                const VertexLightCorner &right) {
         return left.smoothLight == right.smoothLight &&
                left.finalLight == right.finalLight &&
-               left.ambientOcclusion == right.ambientOcclusion;
+               left.ambientOcclusion == right.ambientOcclusion &&
+               left.skySource == right.skySource && left.blockSource == right.blockSource;
     };
     const auto isConstantLighting = [&sameCorner](const FaceCell &cell) {
         return std::all_of(
@@ -295,6 +296,7 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
             std::array<float, 4> outerFinal{};
             std::array<float, 4> outerSmooth{};
             std::array<float, 4> outerAo{};
+            std::array<float, 4> outerSky{}, outerBlock{};
             const std::array<glm::vec2, 4> outerColour = {
                 mask[startV * CHUNK_SIZE + startU].colour[0],
                 mask[startV * CHUNK_SIZE + startU + width - 1].colour[1],
@@ -303,6 +305,8 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
             std::array<float, 4> outerWarmth{}, outerForest{};
             for (std::size_t corner = 0; corner < 4; ++corner) {
                 outerFinal[corner] = rectangle.corners[corner].finalLight;
+                outerSky[corner] = rectangle.corners[corner].skySource;
+                outerBlock[corner] = rectangle.corners[corner].blockSource;
                 outerSmooth[corner] = rectangle.corners[corner].smoothLight;
                 outerAo[corner] = static_cast<float>(
                     rectangle.corners[corner].ambientOcclusion);
@@ -338,7 +342,9 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
                         const glm::vec2 expectedColour(
                             VertexLighting::interpolateQuad(outerWarmth, rectangle.flipDiagonal, x, y),
                             VertexLighting::interpolateQuad(outerForest, rectangle.flipDiagonal, x, y));
-                        if (std::abs(actual.finalLight - expectedFinal) >
+                        if (std::abs(actual.skySource - VertexLighting::interpolateQuad(outerSky, rectangle.flipDiagonal, x, y)) > epsilon ||
+                            std::abs(actual.blockSource - VertexLighting::interpolateQuad(outerBlock, rectangle.flipDiagonal, x, y)) > epsilon ||
+                            std::abs(actual.finalLight - expectedFinal) >
                                 epsilon ||
                             std::abs(actual.smoothLight - expectedSmooth) >
                                 epsilon ||
@@ -669,7 +675,7 @@ VertexLightingQuad ChunkMeshBuilder::calculateVertexLighting(
     constexpr int tangentVSign[4] = {-1, -1, 1, 1};
     const glm::ivec3 centre = blockPosition + normal;
 
-    std::array<std::array<LightLevel, 3>, 3> neighbourhoodLight{};
+    std::array<std::array<LightLevel, 3>, 3> neighbourhoodLight{}, neighbourhoodSky{}, neighbourhoodBlock{};
     std::array<std::array<bool, 3>, 3> neighbourhoodOcclusion{};
     for (int u = -1; u <= 1; ++u) {
         for (int v = -1; v <= 1; ++v) {
@@ -677,6 +683,7 @@ VertexLightingQuad ChunkMeshBuilder::calculateVertexLighting(
                 centre + tangentU * u + tangentV * v;
             sampleVertexLighting(
                 sample, neighbourhoodLight[u + 1][v + 1],
+                neighbourhoodSky[u + 1][v + 1], neighbourhoodBlock[u + 1][v + 1],
                 neighbourhoodOcclusion[u + 1][v + 1]);
         }
     }
@@ -697,6 +704,16 @@ VertexLightingQuad ChunkMeshBuilder::calculateVertexLighting(
         lighting.corners[corner] =
             VertexLighting::evaluateCorner(
                 cardinalLight, samples, m_ambientOcclusionEnabled);
+        samples.centre = neighbourhoodSky[1][1];
+        samples.sideU = neighbourhoodSky[u][1];
+        samples.sideV = neighbourhoodSky[1][v];
+        samples.diagonal = neighbourhoodSky[u][v];
+        lighting.corners[corner].skySource = VertexLighting::sourceStrength(samples);
+        samples.centre = neighbourhoodBlock[1][1];
+        samples.sideU = neighbourhoodBlock[u][1];
+        samples.sideV = neighbourhoodBlock[1][v];
+        samples.diagonal = neighbourhoodBlock[u][v];
+        lighting.corners[corner].blockSource = VertexLighting::sourceStrength(samples);
     }
     lighting.flipDiagonal =
         VertexLighting::shouldFlipDiagonal(lighting.corners);
@@ -704,7 +721,8 @@ VertexLightingQuad ChunkMeshBuilder::calculateVertexLighting(
 }
 
 void ChunkMeshBuilder::sampleVertexLighting(
-    const glm::ivec3 &position, LightLevel &light, bool &occludes) const
+    const glm::ivec3 &position, LightLevel &light, LightLevel &sky,
+    LightLevel &block, bool &occludes) const
 {
     const int x = position.x + 1;
     const int y = position.y + 1;
@@ -715,12 +733,14 @@ void ChunkMeshBuilder::sampleVertexLighting(
                               (z + VertexSampleSize * y);
     CachedVertexSample &sample = m_vertexSamples[index];
     if (!sample.valid) {
-        sample.light = m_pInput->getCombinedLight(
-            position.x, position.y, position.z);
+        sample.sky = m_pInput->getSunlight(position.x, position.y, position.z);
+        sample.block = m_pInput->getBlockLight(position.x, position.y, position.z);
+        sample.light = std::max(sample.sky, sample.block);
         sample.occludes = isAmbientOccluder(position);
         sample.valid = true;
     }
     light = sample.light;
+    sky = sample.sky; block = sample.block;
     occludes = sample.occludes;
 }
 
@@ -751,31 +771,18 @@ void ChunkMeshBuilder::addVertexLitFace(
     const std::array<float, 8> *textureRepeatCoords, bool shareRepeatVertices)
 {
     std::array<float, 4> light{};
+    FaceLightSources sources{};
+    std::array<int, 4> order{0, 1, 2, 3};
     bool flipDiagonal = lighting.flipDiagonal;
-    switch (face) {
-        case CubeFace::Bottom:
-        case CubeFace::Left:
-        case CubeFace::Front:
-            light = {lighting.corners[0].finalLight,
-                     lighting.corners[1].finalLight,
-                     lighting.corners[2].finalLight,
-                     lighting.corners[3].finalLight};
-            break;
-        case CubeFace::Top:
-            light = {lighting.corners[3].finalLight,
-                     lighting.corners[2].finalLight,
-                     lighting.corners[1].finalLight,
-                     lighting.corners[0].finalLight};
-            flipDiagonal = !flipDiagonal;
-            break;
-        case CubeFace::Right:
-        case CubeFace::Back:
-            light = {lighting.corners[1].finalLight,
-                     lighting.corners[0].finalLight,
-                     lighting.corners[3].finalLight,
-                     lighting.corners[2].finalLight};
-            flipDiagonal = !flipDiagonal;
-            break;
+    if (face == CubeFace::Top) {
+        order = {3, 2, 1, 0}; flipDiagonal = !flipDiagonal;
+    } else if (face == CubeFace::Right || face == CubeFace::Back) {
+        order = {1, 0, 3, 2}; flipDiagonal = !flipDiagonal;
+    }
+    for (std::size_t i = 0; i < order.size(); ++i) {
+        const auto &corner = lighting.corners[order[i]];
+        light[i] = corner.finalLight;
+        sources[i] = {corner.skySource, corner.blockSource};
     }
 
     // Water UVs are velocity components, not atlas coordinates. Some vectors
@@ -786,16 +793,16 @@ void ChunkMeshBuilder::addVertexLitFace(
     if (textureRepeatCoords != nullptr && shareRepeatVertices) {
         mesh.addSharedFace(blockFace, tintedCoords,
                            m_pInput->getLocation(), blockPosition, light,
-                           flipDiagonal, *textureRepeatCoords);
+                           flipDiagonal, *textureRepeatCoords, &sources);
     }
     else if (textureRepeatCoords != nullptr) {
         mesh.addFace(blockFace, tintedCoords, m_pInput->getLocation(),
-                     blockPosition, light, flipDiagonal, *textureRepeatCoords);
+                     blockPosition, light, flipDiagonal, *textureRepeatCoords, &sources);
     }
     else {
         mesh.addFace(blockFace, tintedCoords, m_pInput->getLocation(),
                      blockPosition, light, flipDiagonal, textureRepeatWidth,
-                     textureRepeatHeight);
+                     textureRepeatHeight, &sources);
     }
 }
 
@@ -871,6 +878,10 @@ void ChunkMeshBuilder::addResourceShapeToMesh(
     const float light = combineTerrainLight(
         LIGHT_X, m_pInput->getCombinedLight(
                      blockPosition.x, blockPosition.y, blockPosition.z));
+    const glm::vec2 source(
+        m_pInput->getSunlight(blockPosition.x, blockPosition.y, blockPosition.z) / 15.f,
+        m_pInput->getBlockLight(blockPosition.x, blockPosition.y, blockPosition.z) / 15.f);
+    const FaceLightSources sources{source, source, source, source};
     const bool fern = ForestFernGeometry::applies(block,shape);
     if (fern || WetlandGrassGeometry::applies(static_cast<BlockId>(block.id), appearance.biome, shape,block.metadata)) {
         const auto &database = BlockDatabase::get();
@@ -886,7 +897,7 @@ void ChunkMeshBuilder::addResourceShapeToMesh(
             const auto tile = face.seedHead ? seedTile : leafTile;
             m_pActiveMesh->addFace(face.positions,
                 ecologyCoordinates(face.positions, BlockTextureCoordinates::get(tile.x, tile.y), blockPosition), m_pInput->getLocation(),
-                blockPosition, {light, light, light, light}, false, face.repeat);
+                blockPosition, {light, light, light, light}, false, face.repeat, &sources);
         }
         return;
     }
@@ -896,7 +907,7 @@ void ChunkMeshBuilder::addResourceShapeToMesh(
             scaledFace[y] *= verticalScale;
         }
         m_pActiveMesh->addFace(scaledFace, ecologyCoordinates(scaledFace, texCoords, blockPosition), m_pInput->getLocation(),
-                               blockPosition, light);
+                               blockPosition, light, 1.f, 1.f, &sources);
     }
 }
 

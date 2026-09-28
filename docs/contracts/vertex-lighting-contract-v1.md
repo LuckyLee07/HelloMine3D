@@ -4,6 +4,10 @@
 > 旧的真人产品体验边界现由 `AI-07` 与 `NOT_CLAIMED` 分类承接，详见
 > `docs/current/ai-assisted-gameplay-acceptance-v1.md`。
 
+> 2026-09-28：V09a 在保留本文 CPU AO／组合光照公式的基础上，新增两种原始来源通道，
+> GPU 顶点改为 40 字节并分别处理昼夜／太阳阴影；后续渲染规则以
+> [局部光源合同](local-light-render-polish-contract-v1.md)为准。以下 32 字节描述是本批历史基线。
+
 本文冻结 Stage 10 `V10A` 的 CPU 顶点平滑光照、环境遮蔽、三角形划分和 greedy merge
 边界。该合同只描述可重新生成的 mesh 数据，不进入世界保存、地形生成、玩家设置或资源身份。
 

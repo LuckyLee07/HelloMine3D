@@ -13,6 +13,8 @@ struct Mesh {
     std::vector<std::uint32_t> indices;
 };
 
+using FaceLightSources = std::array<glm::vec2, 4>;
+
 class ChunkMesh {
   public:
     ChunkMesh() = default;
@@ -22,7 +24,8 @@ class ChunkMesh {
                  const glm::ivec3 &chunkPosition,
                  const glm::ivec3 &blockPosition, float light,
                  float textureRepeatWidth = 1.f,
-                 float textureRepeatHeight = 1.f);
+                 float textureRepeatHeight = 1.f,
+                 const FaceLightSources *sources = nullptr);
 
     void addFace(const std::array<float, 12> &blockFace,
                  const std::array<float, 8> &textureCoords,
@@ -31,7 +34,8 @@ class ChunkMesh {
                  const std::array<float, 4> &vertexLight,
                  bool flipDiagonal,
                  float textureRepeatWidth = 1.f,
-                 float textureRepeatHeight = 1.f);
+                 float textureRepeatHeight = 1.f,
+                 const FaceLightSources *sources = nullptr);
 
     void addFace(const std::array<float, 12> &blockFace,
                  const std::array<float, 8> &textureCoords,
@@ -39,7 +43,8 @@ class ChunkMesh {
                  const glm::ivec3 &blockPosition,
                  const std::array<float, 4> &vertexLight,
                  bool flipDiagonal,
-                 const std::array<float, 8> &textureRepeatCoords);
+                 const std::array<float, 8> &textureRepeatCoords,
+                 const FaceLightSources *sources = nullptr);
 
     /// Emits a face while reusing byte-identical vertices already present in
     /// this mesh. Indices and face topology stay unchanged.
@@ -49,7 +54,8 @@ class ChunkMesh {
         const glm::ivec3 &chunkPosition,
         const glm::ivec3 &blockPosition,
         const std::array<float, 4> &vertexLight, bool flipDiagonal,
-        const std::array<float, 8> &textureRepeatCoords);
+        const std::array<float, 8> &textureRepeatCoords,
+        const FaceLightSources *sources = nullptr);
 
     /// Starts a coplanar face group. The fixed 17^3 section-corner cache is
     /// reset without touching vertices emitted by previous groups.
@@ -57,6 +63,7 @@ class ChunkMesh {
 
     const Mesh &getClientMesh() const;
     const std::vector<float> &getLight() const;
+    const std::vector<glm::vec2> &getLightSources() const { return m_lightSources; }
 
     void clearClientData();
 
@@ -69,7 +76,7 @@ class ChunkMesh {
   private:
     struct SharedVertexEntry
     {
-        std::array<std::uint32_t, 5> attributes{};
+        std::array<std::uint32_t, 7> attributes{};
         std::uint32_t vertexIndex = 0;
         std::int32_t next = -1;
     };
@@ -81,10 +88,11 @@ class ChunkMesh {
         const glm::ivec3 &blockPosition,
         const std::array<float, 4> &vertexLight, bool flipDiagonal,
         const std::array<float, 8> &textureRepeatCoords,
-        bool shareVertices);
+        bool shareVertices, const FaceLightSources *sources);
 
     Mesh m_mesh;
     std::vector<float> m_light;
+    std::vector<glm::vec2> m_lightSources;
     std::vector<std::int32_t> m_sharedVertexHeads;
     std::vector<std::uint32_t> m_sharedVertexGenerations;
     std::vector<SharedVertexEntry> m_sharedVertexEntries;

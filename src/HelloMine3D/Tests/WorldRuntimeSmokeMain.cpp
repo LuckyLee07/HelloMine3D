@@ -5025,6 +5025,8 @@ void caseSectionMeshInput()
 // M4 - opaque cubes merge into material-safe rectangles while transparent
 // passes keep their original topology
 // ---------------------------------------------------------------------------
+#include "LocalLightRenderSmokeCases.h"
+
 void caseTerrainRenderBatch()
 {
     const glm::ivec3 first{-2, 12, 3}, second{-2, 15, 3};
@@ -5540,8 +5542,8 @@ void caseTerrainAppearance()
           "top_faces=" + std::to_string(topFaces) +
               " tile_columns=" +
               std::to_string(topTileColumns.size()));
-    check("V10B3/vertex-and-terrain-identities-unchanged",
-          TerrainBufferMetrics::VertexStrideBytes == 32 &&
+    check("V10B3/current-vertex-format-and-terrain-identities",
+          TerrainBufferMetrics::VertexStrideBytes == 40 &&
               world.getChunkManager().getTerrainGenerationVersion() ==
                   CurrentTerrainGenerationVersion);
 
@@ -5724,10 +5726,10 @@ void caseVertexLighting()
     const std::array<float, 4> light = {0.2f, 0.4f, 0.6f, 0.8f};
     diagonalMesh.addFace(quad, texture, glm::ivec3(0), glm::ivec3(0),
                          light, true);
-    check("V10A/four-light-values-use-existing-vertex-stream",
+    check("V10A/four-light-values-preserved-in-source-aware-stream",
           diagonalMesh.getLight() ==
                   std::vector<float>(light.begin(), light.end()) &&
-              TerrainBufferMetrics::VertexStrideBytes == 32);
+              TerrainBufferMetrics::VertexStrideBytes == 40);
     check("V10A/flipped-diagonal-emits-stable-indices",
           diagonalMesh.getClientMesh().indices ==
               std::vector<std::uint32_t>({0, 1, 3, 1, 2, 3}));
@@ -5964,7 +5966,7 @@ void caseVertexLighting()
 void caseTerrainBufferMetrics()
 {
     check("W4/terrain-buffer-strides",
-          TerrainBufferMetrics::VertexStrideBytes == 32 &&
+          TerrainBufferMetrics::VertexStrideBytes == 40 &&
               TerrainBufferMetrics::IndexStrideBytes == 4,
           "vertex/index=" +
               std::to_string(TerrainBufferMetrics::VertexStrideBytes) +
@@ -5975,9 +5977,9 @@ void caseTerrainBufferMetrics()
     metrics.add(10, 12);
     metrics.add(0, 0);
     check("W4/resident-buffer-estimate",
-          metrics.vertexBytes() == 320 &&
+          metrics.vertexBytes() == 400 &&
               metrics.indexBytes() == 48 &&
-              metrics.totalBytes() == 368 && metrics.renderableCount == 1,
+              metrics.totalBytes() == 448 && metrics.renderableCount == 1,
           "vertex/index/total=" +
               std::to_string(metrics.vertexBytes()) + "/" +
               std::to_string(metrics.indexBytes()) + "/" +
@@ -21473,6 +21475,9 @@ int main()
             caseRuntimeConfigOwnership();
             caseMeshDirtyPropagation();
         }
+        else if (focus != nullptr && std::string(focus) == "LOCAL_LIGHT_RENDER") {
+            caseLocalLightRendering();
+        }
         else if (focus != nullptr && std::string(focus) == "RENDER_BATCH") {
             caseTerrainRenderBatch();
             caseTerrainBufferMetrics();
@@ -21696,6 +21701,7 @@ int main()
         casePersistence();
         caseSectionMeshInput();
         caseGreedyMeshing();
+        caseLocalLightRendering();
         caseTerrainRenderBatch();
         caseTerrainAppearance();
         caseVertexLighting();

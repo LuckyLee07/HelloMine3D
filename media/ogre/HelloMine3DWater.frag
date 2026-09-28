@@ -3,6 +3,7 @@
 in vec3 waterWorldPosition;
 in vec3 waterWorldNormal;
 in float waterLight;
+in vec2 waterLightSources;
 in float waterDistance;
 in vec2 waterSurfaceData;
 in vec2 waterSurfaceDrift;
@@ -71,7 +72,8 @@ void main()
 
     float skyAmount = clamp(normal.y * 0.72 + (1.0 - facing) * 0.28,
                             0.0, 1.0);
-    vec3 reflectedSky = mix(skyHorizonColour, skyZenithColour, skyAmount);
+    float skyAvailability = waterLightSources.x >= 0.0 ? clamp(waterLightSources.x, 0.0, 1.0) : 1.0;
+    vec3 reflectedSky = mix(bodyColour * 0.72, mix(skyHorizonColour, skyZenithColour, skyAmount), skyAvailability);
     vec3 colour = mix(bodyColour, reflectedSky, fresnel * 0.72);
 
     float motion = clamp(length(waterSurfaceDrift), 0.0, 1.0);
@@ -101,15 +103,22 @@ void main()
 
     vec3 halfDirection = normalize(viewDirection + normalize(sunDirection));
     float sunSparkle = pow(max(dot(normal, halfDirection), 0.0), 48.0) *
-                       sunIntensity;
+                       sunIntensity * skyAvailability;
     colour += sunColour * sunSparkle * 0.20;
 
     float diffuseLight = mix(0.70, 1.0, clamp(waterLight, 0.0, 1.0));
-    colour *= diffuseLight * mix(0.48, 1.0, environmentLight);
+    float exposure = mix(0.48, 1.0, environmentLight);
+    if (waterLightSources.x >= 0.0) {
+        vec2 sources = clamp(waterLightSources, 0.0, 1.0);
+        float sourceMaximum = max(sources.x, sources.y);
+        exposure = mix(0.34, max(sources.x * exposure, sources.y) / max(sourceMaximum, 0.00001),
+            smoothstep(0.0, 0.20, sourceMaximum));
+    }
+    colour *= diffuseLight * exposure;
 
     float eyeHeight = cameraPosition.y - waterWorldPosition.y;
     float aboveSurface = smoothstep(-0.20, 0.20, eyeHeight);
-    colour = mix(mix(waterDeepColour * 0.72, colour, 0.20),
+    colour = mix(mix(waterDeepColour * 0.72 * exposure, colour, 0.20),
                  colour, aboveSurface);
 
     float fogVisibility = clamp(
@@ -117,6 +126,7 @@ void main()
         0.0, 1.0);
     vec3 localFogColour = directionalFogColour(
         waterWorldPosition - cameraPosition);
+    localFogColour = mix(vec3(0.035, 0.043, 0.054), localFogColour, skyAvailability);
     colour = mix(localFogColour, colour, fogVisibility);
     float surfaceAlpha = clamp(mix(0.36, 0.84, depthAmount) + fresnel * 0.12,
                                0.36, 0.94);

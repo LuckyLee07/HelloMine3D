@@ -3,11 +3,12 @@
 in vec4 vertex;
 in vec2 uv0;
 in vec2 uv1;
-in float uv2;
+in vec3 uv2;
 
 out vec3 waterWorldPosition;
 out vec3 waterWorldNormal;
 out float waterLight;
+out vec2 waterLightSources;
 out float waterDistance;
 out vec2 waterSurfaceData;
 out vec2 waterSurfaceDrift;
@@ -47,7 +48,8 @@ void main()
     gl_Position = worldViewProj * animatedVertex;
     waterWorldPosition = worldPosition.xyz;
     waterWorldNormal = normalize(mat3(world) * localNormal);
-    waterLight = uv2;
+    waterLight = uv2.x;
+    waterLightSources = uv2.z >= 1.0 ? vec2(uv2.y, uv2.z - 1.0) : vec2(-1.0);
     waterDistance = length((worldView * animatedVertex).xyz);
     waterSurfaceData = uv1;
     waterSurfaceDrift = uv0;

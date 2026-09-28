@@ -23,6 +23,10 @@ struct VertexLightCorner {
     float smoothLight = MIN_TERRAIN_BRIGHTNESS;
     float finalLight = MIN_TERRAIN_BRIGHTNESS;
     std::uint8_t ambientOcclusion = 0;
+    // Unshaded source strengths, averaged over the same non-opaque samples.
+    // -1 preserves legacy/manual meshes without separate source information.
+    float skySource = -1.f;
+    float blockSource = -1.f;
 };
 
 /// CPU-only V10A vertex-lighting result in canonical quad order:
@@ -46,6 +50,8 @@ class VertexLighting {
     evaluateCorner(float cardinalLight,
                    const VertexLightCornerSamples &samples,
                    bool ambientOcclusionEnabled = true) noexcept;
+
+    static float sourceStrength(const VertexLightCornerSamples &samples) noexcept;
 
     /// Chooses the 1-3 diagonal when it has lower endpoint interpolation
     /// error than the legacy 0-2 diagonal. Exact ties retain 0-2.

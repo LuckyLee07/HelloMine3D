@@ -26,8 +26,16 @@ inline float lightingExposure(float sunlight, float blockLight, float daylight)
     const auto bounded = [](float value, float fallback) {
         return std::isfinite(value) ? std::clamp(value, 0.f, 1.f) : fallback;
     };
-    const float local = std::max(bounded(sunlight, .15f), bounded(blockLight, .15f));
-    return (.24f + .76f * local) * (.34f + .66f * bounded(daylight, 0.f));
+    const float sky = bounded(sunlight, .15f), block = bounded(blockLight, .15f);
+    // Inputs include the terrain brightness floor; remove it to recover source
+    // strengths before applying daylight only to the sky contribution.
+    const float skySource = std::max(0.f, (sky - .15f) / .85f);
+    const float blockSource = std::max(0.f, (block - .15f) / .85f);
+    const float maximum = std::max(skySource, blockSource);
+    const float radiance = std::max(skySource * (.34f + .66f * bounded(daylight, 0.f)), blockSource);
+    const float t = std::clamp(maximum / .20f, 0.f, 1.f);
+    const float exposure = .34f + (radiance / std::max(maximum, .00001f) - .34f) * t*t*(3.f-2.f*t);
+    return (.24f + .76f * std::max(sky, block)) * exposure;
 }
 
 inline float updateLighting(LightingState& state, bool known, float sunlight,

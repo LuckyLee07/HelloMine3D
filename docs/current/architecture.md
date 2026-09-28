@@ -756,6 +756,12 @@ Ogre 从复制快照保留驻留 section 的 solid/flora CPU 数据，修改、�
 两处世界退出均释放分组 GPU／CPU 数据。统计同时累计独立对象和分组对象的真实缓冲，
 新增 resident renderables 仅指驻留 GPU 对象数量，不冒充相机／阴影实际 draw 次数。
 
+V09a 网格从现有快照额外复制天光和方块光强度，逐顶点与原组合光照并存。greedy／shared
+保留两种来源梯度，打包为40字节顶点（原32字节），uv2三分量包含组合值、sky、block+1标记。
+只有天光随昼夜和太阳阴影改变，火把等局部光保持稳定；地下水面不再反射室外天空。
+暗部曝光及玩家手持曝光按同一来源语义处理，光传播与生成／存档均不改。每顶点GPU／CPU来源
+增加8字节，实测规模与边界见[局部光源合同](../contracts/local-light-render-polish-contract-v1.md)。
+
 方向阴影的太阳投影设置由 Ogre 灯持有，第一方纯数学 helper 负责正午稳定参考轴与纹素锚定；
 terrain/actor 接收端共享连续比较滤波语义。切档、切世界及退出随灯清理，不向 World 写回状态，
 不改第三方默认相机；当前参数与范围见[阴影合同](../contracts/directional-shadow-contract-v1.md)。
@@ -792,7 +798,7 @@ Flora 批次。世界生成、方块 ID、成熟状态、命中、掉落与存�
 
 生态植被颜色由 `SectionMeshInput` 捕获的纯值 `TerrainEcologyColour` 场驱动：世界对齐 4 米网格、
 8 米半径过滤，每段 81 次纯查询、25 个气候值，不加载邻块。uv0 整数 tile 保持，小数携带
-干暖/林湿参数；uv1、32 字节顶点、光照及存档不变。greedy 检查内部颜色可重建，普通/阴影
+干暖/林湿参数；uv1与存档不变，当前顶点格式见下述 V09a。greedy 检查内部颜色可重建，普通/阴影
 材质使用同变体参考层再着色；关闭表面光照保留旧生态行。见
 [颜色过渡合同](../contracts/ecology-colour-transition-contract-v1.md)。
 

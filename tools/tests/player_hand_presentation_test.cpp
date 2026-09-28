@@ -18,10 +18,13 @@ int main()
     using namespace PlayerHandPresentation;
     const float dark = lightingExposure(.15f, .15f, 1.f);
     check("local-light-distinguishes-daylit-cave-and-torch",
-          dark < .4f && dark > .1f &&
+          dark < .15f && dark > .1f &&
           lightingExposure(1.f, .15f, 1.f) > .99f &&
           lightingExposure(.15f, 1.f, 1.f) > .99f &&
-          lightingExposure(.15f, .15f, 0.f) < dark);
+          lightingExposure(.15f, .15f, 0.f) == dark);
+    check("torch-exposure-independent-of-day-and-sky-still-varies",
+          lightingExposure(.15f, .75f, 0.f) == lightingExposure(.15f, .75f, 1.f) &&
+          lightingExposure(1.f, .15f, 0.f) < lightingExposure(1.f, .15f, 1.f));
     LightingState first;
     const float unknown = updateLighting(first, false, 1.f, 1.f, 1.f, .1f);
     check("unknown-sample-never-flashes-bright-and-first-known-snaps",

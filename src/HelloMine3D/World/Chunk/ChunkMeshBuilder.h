@@ -57,7 +57,7 @@ class ChunkMeshBuilder {
                         VertexLightingQuad &lighting) const;
     float shoreTintAt(const glm::ivec3 &corner) const;
     void sampleVertexLighting(const glm::ivec3 &position,
-                              LightLevel &light,
+                              LightLevel &light, LightLevel &sky, LightLevel &block,
                               bool &occludes) const;
     bool isAmbientOccluder(const glm::ivec3 &position) const;
     void addVertexLitFace(ChunkMesh &mesh, CubeFace face,
@@ -108,6 +108,8 @@ class ChunkMeshBuilder {
     struct CachedVertexSample
     {
         LightLevel light = MIN_LIGHT_LEVEL;
+        LightLevel sky = MIN_LIGHT_LEVEL;
+        LightLevel block = MIN_LIGHT_LEVEL;
         bool occludes = false;
         bool valid = false;
     };

@@ -42,6 +42,8 @@ void checkDepthFragment(const std::filesystem::path& directory)
 out vec3 waterWorldPosition;
 out vec3 waterWorldNormal;
 out float waterLight;
+out vec2 waterLightSources;
+uniform vec2 diagnosticLightSources;
 out float waterDistance;
 out vec2 waterSurfaceData;
 out vec2 waterSurfaceDrift;
@@ -58,6 +60,7 @@ void main() {
     waterWorldPosition = vec3(worldXZ.x, 0, worldXZ.y);
     waterWorldNormal = vec3(0,1,0);
     waterLight = 1;
+    waterLightSources = diagnosticLightSources;
     waterDistance = diagnosticDistance;
     waterSurfaceData = depthAndShore;
     waterSurfaceDrift = diagnosticDrift;
@@ -85,6 +88,7 @@ void main() {
     const auto vector = [&](const char* name, float x, float y, float z) {
         glUniform3f(glGetUniformLocation(program, name), x, y, z);
     };
+    glUniform2f(glGetUniformLocation(program,"diagnosticLightSources"),-1,-1);
     scalar("environmentLight", 1); scalar("waterDetailStrength", 1);
     vector("waterShallowColour", .15f, .5f, .6f);
     vector("waterDeepColour", .02f, .1f, .18f);
@@ -204,6 +208,21 @@ void main() {
     require(maxCrossingDelta <= 3, "Waterline colour/opacity changes discontinuously");
     require(nearClipClear, "Near-eye water sheet is still opaque at the clipping plane");
     std::cout << "[WATER_SHADER] PASS depth-absorption distance-invariance depth-bound shore-motion drift-motion drift-continuity fallback underwater\n";
+    vector("cameraPosition", 2, 4, 1); scalar("waterDetailStrength",1);
+    vector("sunColour",1,.8f,.4f); scalar("sunIntensity",1);
+    vector("skyHorizonColour",.5f,.6f,.7f); vector("skyZenithColour",.3f,.6f,1);
+    glUniform2f(glGetUniformLocation(program,"diagnosticLightSources"),0,.8f);
+    scalar("environmentLight",1); const auto caveDay=sample(4,12,.4f,1);
+    scalar("environmentLight",0); scalar("sunIntensity",0);
+    vector("skyHorizonColour",.01f,.01f,.02f); vector("skyZenithColour",.02f,.02f,.04f);
+    require(caveDay==sample(4,12,.4f,1), "Enclosed lit pool changes with sky colour, sun or daylight");
+    glUniform2f(glGetUniformLocation(program,"diagnosticLightSources"),0,0);
+    const auto caveDark=sample(4,12,.4f,1);
+    require(caveDark[1]<caveDay[1],"Unlit pool is as bright as a lit pool");
+    glUniform2f(glGetUniformLocation(program,"diagnosticLightSources"),1,0);
+    const auto skyNight=sample(4,12,.4f,1); scalar("environmentLight",1);
+    require(skyNight!=sample(4,12,.4f,1),"Exposed pool ignores daylight");
+    std::cout << "[WATER_SHADER] PASS enclosed-pool-stable no-underground-sky-reflection local-light-response exposed-pool-daylight\n";
     glDeleteProgram(program);
 }
 }
