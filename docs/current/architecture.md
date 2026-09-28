@@ -454,10 +454,16 @@ C3 为 copied topology observation 增至 79 项并同步更新 machine-checked 
   权重抑制。生态表层用同一新版高度的四向2米探针识别实际陡面，避免粗坡度吞掉平台土壤；
   裸岩与坡积砾土使用原材料，出生、树根、洞口和建筑仍消费统一列。旧v1–v24身份及输出保持，
   见[局部地形合同](../contracts/local-relief-polish-v25-contract-v1.md)。
+  v26 在同一水系图上增加中段宽窄变化和非对称弯道岸坡，端点恢复原宽度／床高；内侧浅滩与
+  落脚滩台使用真实水下／岸上方块，外侧岸坡相对较陡。湖缘增加有界径向变化与浅水床，
+  海洋基础列不变，水位仍64。生态依实际弯道沉积与湿度选择沙、砾、土、淤泥，湿地和雪线
+  保持原优先级。`ChannelPath` 只复制九个纯值控制折线点供连续中心线检查，不持有图缓存引用。
+  旧v1–v25世界继续使用原生成规则；水面动画仍为沿岸风漂移，不因此变为水文流向。
+  见[河湖岸形合同](../contracts/waterbank-polish-v26-contract-v1.md)。
   v17+ 纯地表列查询有两个可在同一生成线程同时驻留的独立派生缓存：地表列缓存和
   v18+ 水系形状缓存各固定 8192 项、各最多 256 KiB。区域锚点和噪声角点另使用每线程
   固定 128 项／最多 16 KiB 与 512 项／最多 64 KiB 的缓存；四者的聚合声明上界为每线程
-  592 KiB；v25另有128项局部地貌锚点缓存，声明上限20 KiB，校验seed及完整有符号格坐标。
+  592 KiB；v25另有128项局部地貌锚点缓存，声明上限20 KiB，校验seed、生成版本及完整有符号格坐标。
   连同上文独立水系图缓存256 KiB，生成纯值缓存声明总上限为每线程868 KiB。每个 `CaveGenerator` 另持有一份 256 项、小于 64 KiB 的地下计划缓存，不计入前述
   每线程合计。两个列缓存完整校验 seed、生成版本和有符号世界坐标；锚点缓存校验
   混合 seed 与有符号 cell 坐标，噪声缓存校验混合 seed、salt 与有符号格点坐标。生成器计划
@@ -606,7 +612,7 @@ WorldManager
 
 - `WorldSaveData` 是内存中的当前 metadata payload，写出前由 World 收集 Player、Actor、目标、结局、
   难度、terrain identity 和其他版本化状态。
-- world save format 当前为 v12；新世界 terrain generation 为独立 v25，旧 v1–v24 身份保留；settings 当前为独立 v11（新增可持久化第一/第三人称请求，含 v10 三档小地图范围、v9 标准/兼容画面选择与旧偏好迁移）。
+- world save format 当前为 v12；新世界 terrain generation 为独立 v26，旧 v1–v25 身份保留；settings 当前为独立 v11（新增可持久化第一/第三人称请求，含 v10 三档小地图范围、v9 标准/兼容画面选择与旧偏好迁移）。
 - `StorageTransaction` 负责同目录 candidate、flush、真实 reader 校验和原子替换；失败 candidate 不
   成为权威。
 - Chunk 只有成功发布后才清 save-dirty；unload 保存失败则取消卸载。

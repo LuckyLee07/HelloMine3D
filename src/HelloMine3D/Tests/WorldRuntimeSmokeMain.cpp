@@ -21213,6 +21213,7 @@ void caseWorldManager()
 #include "AdventureEcologySmokeCases.h"
 #include "VegetationPolishSmokeCases.h"
 #include "LocalReliefSmokeCases.h"
+#include "WaterbankPolishSmokeCases.h"
 #include "AdventureExplorationSmokeCases.h"
 #include "AdventureSurvivalSmokeCases.h"
 #include "AdventureWildlifeSmokeCases.h"
@@ -21299,6 +21300,9 @@ int main()
         }
         else if (focus != nullptr && std::string(focus) == "ADVENTURE_QUERY") {
             caseAdventureSurfaceQueryCache();
+        }
+        else if (focus != nullptr && std::string(focus) == "WATERBANK_POLISH") {
+            caseWaterbankPolishV26();
         }
         else if (focus != nullptr && std::string(focus) == "LOCAL_RELIEF") {
             caseLocalReliefV25();
@@ -21641,6 +21645,7 @@ int main()
         caseAdventureEcologyV18();
         caseVegetationPolishV24();
         caseLocalReliefV25();
+        caseWaterbankPolishV26();
         caseAdventureSurfaceQueryCache();
         caseAdventureExplorationV19();
         caseSurfaceMapObservations();

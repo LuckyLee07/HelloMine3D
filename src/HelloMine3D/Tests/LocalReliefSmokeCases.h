@@ -3,7 +3,7 @@
 namespace {
 void caseLocalReliefV25() {
     check("LOCAL25/version-and-save-boundary",LocalReliefTerrainGenerationVersion==25 &&
-          VegetationPolishTerrainGenerationVersion==24 && CurrentTerrainGenerationVersion==25 && WorldSaveFormatVersion==12);
+          VegetationPolishTerrainGenerationVersion==24 && CurrentTerrainGenerationVersion>=25 && WorldSaveFormatVersion==12);
     setEnv("HELLOMINE3D_SEED","42");setEnv("HELLOMINE3D_PLAYER_POSITION","8 200 8");
     Config config=makeConfig();Camera camera(config);Player owner;
     World world(camera,config,owner,freshSaveDirectory("local_relief_projection"),false,0);
@@ -54,6 +54,7 @@ void caseLocalReliefV25() {
     clearDeterministicEnv();
     for(int seed:{42,20260807,239701883}) {
         setEnv("HELLOMINE3D_SEED",std::to_string(seed));const auto directory=freshSaveDirectory("local25_save_"+std::to_string(seed));
+        check("LOCAL25/initialize-frozen-v25-"+std::to_string(seed),initializeTerrainIdentity(directory,"local25-"+std::to_string(seed),25,seed,false));
         glm::ivec3 edit{0};bool persisted=false;std::uint64_t hash=0;
         {
             Player player;World created(camera,config,player,directory,false,1);

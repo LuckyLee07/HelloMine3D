@@ -77,9 +77,17 @@ AdventureEcologyPlanner::Sample AdventureEcologyPlanner::sample(int x, int z) co
         c.surface=patch>.22?S::Snow:S::Stone; return result;
     }
     if(result.shore) {
+        if(m_banks && water.bankDeposit>.25 && result.region!=R::Wetland) {
+            c.surface=base.moisture>.25?S::Silt:patch>.52?S::Gravel:S::Sand;
+            return result;
+        }
         if(result.region==R::Wetland || (base.moisture>.25 && patch>.38))c.surface=patch>.72?S::Clay:S::Silt;
         else if(patch>.57)c.surface=S::Gravel;
         else if(c.height<=65)c.surface=S::Sand;
+        return result;
+    }
+    if(m_banks && water.bankDeposit>.40 && result.region!=R::Wetland) {
+        c.surface=base.moisture>.15?S::Dirt:S::Gravel;
         return result;
     }
     switch(result.region) {

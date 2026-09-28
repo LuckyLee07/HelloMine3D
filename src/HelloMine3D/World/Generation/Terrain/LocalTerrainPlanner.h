@@ -11,7 +11,8 @@
 class LocalTerrainPlanner {
   public:
     struct Sample { int height=0; double slope=0, deposit=0; };
-    explicit LocalTerrainPlanner(int seed) noexcept : m_seed(seed),m_water(seed) {}
+    explicit LocalTerrainPlanner(int seed,int version=LocalReliefTerrainGenerationVersion) noexcept
+        : m_seed(seed),m_version(version),m_water(seed,version) {}
 
     Sample sample(int x,int z,const AdventureWaterPlanner::Sample &water) const noexcept
     {
@@ -61,7 +62,7 @@ class LocalTerrainPlanner {
 
   private:
     struct Patch {
-        int seed=0;std::int64_t cellX=0,cellZ=0;
+        int seed=0,version=0;std::int64_t cellX=0,cellZ=0;
         double x=0,z=0,height=0,downX=1,downZ=0,slope=0,deposit=0,strength=0;
         int kind=0;bool active=false,valid=false;
     };
@@ -80,8 +81,8 @@ class LocalTerrainPlanner {
         const auto h=mix(static_cast<std::uint64_t>(m_seed)^mix(static_cast<std::uint64_t>(x))^
             mix(static_cast<std::uint64_t>(z)+0xd481a2753ull));
         auto &p=cache[h%cache.size()];
-        if(p.valid && p.seed==m_seed && p.cellX==x && p.cellZ==z)return p;
-        p={};p.seed=m_seed;p.cellX=x;p.cellZ=z;
+        if(p.valid && p.seed==m_seed && p.version==m_version && p.cellX==x && p.cellZ==z)return p;
+        p={};p.seed=m_seed;p.version=m_version;p.cellX=x;p.cellZ=z;
         p.x=double(x)*64+32+double((h>>8)%13)-6;
         p.z=double(z)*64+32+double((h>>16)%13)-6;
         const auto centre=m_water.sample(bounded(p.x),bounded(p.z));
@@ -99,6 +100,6 @@ class LocalTerrainPlanner {
         p.active=p.height>70 && centre.column.biome!=TerrainBiome::Ocean;
         p.valid=true;return p;
     }
-    int m_seed=0;
+    int m_seed=0,m_version=LocalReliefTerrainGenerationVersion;
     AdventureWaterPlanner m_water;
 };

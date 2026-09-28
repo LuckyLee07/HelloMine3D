@@ -26,7 +26,8 @@ class AdventureEcologyPlanner {
     };
     explicit AdventureEcologyPlanner(int seed,
         int version = AdventureEcologyTerrainGenerationVersion) noexcept
-        : m_seed(seed), m_water(seed), m_local(seed),
+        : m_seed(seed), m_water(seed,version), m_local(seed,version),
+          m_banks(version >= WaterbankPolishTerrainGenerationVersion),
           m_relief(version >= LocalReliefTerrainGenerationVersion),
           m_polished(version >= VegetationPolishTerrainGenerationVersion) {}
     // v18-v24 retain the v17 water shape; v25 adds local relief to height.
@@ -49,6 +50,7 @@ class AdventureEcologyPlanner {
     int m_seed = 0;
     AdventureWaterPlanner m_water;
     LocalTerrainPlanner m_local;
+    bool m_banks = false;
     bool m_relief = false;
     bool m_polished = false;
 };

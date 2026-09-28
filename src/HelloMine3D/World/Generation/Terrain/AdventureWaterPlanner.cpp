@@ -79,6 +79,8 @@ AdventureWaterPlanner::Tile AdventureWaterPlanner::buildTile(std::int64_t cellX,
         edge.heightA=a.height;edge.heightB=b.height;edge.widthA=a.width;edge.widthB=b.width;
         const double length=std::hypot(b.x-a.x,b.z-a.z);
         const double bend=(random(cellX+x,cellZ+z,0x730941ad284f529bull)*2-1)*64;
+        edge.bend=bend;
+        edge.phase=random(cellX+x,cellZ+z,0x7f356891fcb27ull)*6.283185307179586;
         const Point control{(a.x+b.x)*.5-(b.z-a.z)/length*bend,(a.z+b.z)*.5+(b.x-a.x)/length*bend};
         for(std::size_t i=0;i<edge.points.size();++i) {
             const double t=static_cast<double>(i)/(edge.points.size()-1),u=1-t;
@@ -109,6 +111,15 @@ const AdventureWaterPlanner::Tile &AdventureWaterPlanner::tile(std::int64_t cell
     return entry.value;
 }
 
+AdventureWaterPlanner::ChannelPath AdventureWaterPlanner::channelPath(int cellX,int cellZ) const noexcept
+{
+    const auto &edge=tile(cellX,cellZ).edges[4];
+    ChannelPath result;result.valid=edge.valid;
+    if(edge.valid)for(std::size_t i=0;i<edge.points.size();++i)
+        result.points[i]={edge.points[i].x,edge.points[i].z};
+    return result;
+}
+
 AdventureWaterPlanner::Sample AdventureWaterPlanner::sample(int worldX,int worldZ) const noexcept
 {
     const auto base=m_base.sample(worldX,worldZ);
@@ -121,29 +132,68 @@ AdventureWaterPlanner::Sample AdventureWaterPlanner::sample(int worldX,int world
     double height=original;
     for(const auto &edge:graph.edges) {
         if(!edge.valid)continue;
-        if(x<edge.minimumX-40 || x>edge.maximumX+40 || z<edge.minimumZ-40 || z>edge.maximumZ+40)continue;
-        double bestDistanceSquared=std::numeric_limits<double>::max(),bestT=0;
+        const double padding=m_polished?64:40;
+        if(x<edge.minimumX-padding || x>edge.maximumX+padding || z<edge.minimumZ-padding || z>edge.maximumZ+padding)continue;
+        double bestDistanceSquared=std::numeric_limits<double>::max(),bestT=0,bestSide=0;
         for(std::size_t i=0;i+1<edge.points.size();++i) {
             const auto a=edge.points[i],b=edge.points[i+1];
             const double dx=b.x-a.x,dz=b.z-a.z;
             const double t=std::clamp(((x-a.x)*dx+(z-a.z)*dz)/(dx*dx+dz*dz),0.0,1.0);
             const double offsetX=x-blend(a.x,b.x,t),offsetZ=z-blend(a.z,b.z,t);
             const double distanceSquared=offsetX*offsetX+offsetZ*offsetZ;
-            if(distanceSquared<bestDistanceSquared){bestDistanceSquared=distanceSquared;bestT=(i+t)/(edge.points.size()-1);}
+            if(distanceSquared<bestDistanceSquared){
+                bestDistanceSquared=distanceSquared;bestT=(i+t)/(edge.points.size()-1);
+                bestSide=(dx*offsetZ-dz*offsetX)/std::hypot(dx,dz);
+            }
         }
-        const double width=blend(edge.widthA,edge.widthB,bestT);
-        const double influence=1-smooth(width,width+32,std::sqrt(bestDistanceSquared));
-        if(influence<=0)continue;
+        const double baseWidth=blend(edge.widthA,edge.widthB,bestT);
         const double bed=std::max(58.0,blend(edge.heightA,edge.heightB,bestT)-12);
-        const double drop=std::clamp(original-bed,0.0,42.0)*influence;
-        height=std::min(height,original-drop);
+        double width=baseWidth, bankSpan=32, inner=0, middle=0;
+        if(m_polished) {
+            // Both incident reaches recover their common node width/bed. The
+            // longitudinal variation lives only inside the existing connection.
+            middle=smooth(0,.18,bestT)*(1-smooth(.82,1,bestT));
+            width*=1+.45*std::sin(bestT*6.283185307179586+edge.phase)*middle;
+            // Quadratic curvature points opposite the control-point bend.
+            // Signed nearest-channel distance distinguishes depositional inside
+            // from the cut bank, without a discontinuous left/right label.
+            const double curvature=std::clamp(edge.bend/36.0,-1.0,1.0);
+            const double inside=smooth(-3,3,-bestSide*curvature);
+            inner=inside*std::abs(curvature)*middle;
+            bankSpan+=middle*std::abs(curvature)*(18*inside-6);
+        }
+        const double distance=std::sqrt(bestDistanceSquared);
+        const double influence=1-smooth(width,width+bankSpan,distance);
+        if(influence<=0)continue;
+        const double originalDrop=std::clamp(original-bed,0.0,42.0)*influence;
+        double target=original-originalDrop;
+        if(m_polished) {
+            const double across=std::min(1.0,distance/width);
+            const double shoal=2*inner*smooth(.4,1,across)*(1-smooth(width,width+5,distance));
+            target=std::min(original,target+shoal);
+            const double bar=inner*smooth(width+1,width+4,distance)*
+                (1-smooth(width+11,width+20,distance));
+            const double landing=std::max(65.0,bed+4);
+            target=blend(target,std::min(target,landing),bar);
+            target=std::max(target,original-42);
+            if(target<original)result.bankDeposit=std::max(result.bankDeposit,bar);
+        }
+        const double drop=m_polished?original-target:originalDrop;
+        height=std::min(height,target);
         result.riverInfluence=std::max(result.riverInfluence,drop>0?influence:0);
     }
     for(const auto &lake:graph.lakes) {
         if(!lake.valid)continue;
         const double distance=std::hypot(x-lake.x,z-lake.z);
-        const double influence=1-smooth(lake.radius*.42,lake.radius,distance);
-        const double bed=60+std::min(2.0,distance/lake.radius*2);
+        double radius=lake.radius;
+        if(m_polished) {
+            const double angle=std::atan2(z-lake.z,x-lake.x);
+            const double phase=(lake.x+lake.z)*.013;
+            radius*=1+.12*std::sin(3*angle+phase)+.07*std::sin(5*angle-phase);
+        }
+        const double influence=1-smooth(radius*.42,radius,distance);
+        const double bed=m_polished ? 59.5+3*smooth(.15,.85,distance/radius)
+            : 60+std::min(2.0,distance/lake.radius*2);
         const double drop=std::clamp(original-bed,0.0,42.0)*influence;
         height=std::min(height,original-drop);
         result.lakeInfluence=std::max(result.lakeInfluence,drop>0?influence:0);
