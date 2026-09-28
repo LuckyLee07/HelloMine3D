@@ -1,4 +1,5 @@
 #include "CaveGenerator.h"
+#include "UndergroundPolish.h"
 
 #include "../../../Item/ContainerInventory.h"
 #include "../../../Item/Material.h"
@@ -1871,6 +1872,7 @@ std::size_t CaveGenerator::projectAdventureUndergroundImpl(
                 continue;
             }
 
+            const bool polish = m_generationVersion >= UndergroundPolishTerrainGenerationVersion;
             const int entrancePerpendicularX =
                 -plan.entrance.directionZ;
             const int entrancePerpendicularZ =
@@ -1917,7 +1919,9 @@ std::size_t CaveGenerator::projectAdventureUndergroundImpl(
                             plan.entrance.directionZ * along +
                             entrancePerpendicularZ * lateral;
                         const int y = plan.chamberAirY + 3 + vertical;
-                        setBlock(worldX, y, worldZ, BlockId::Air);
+                        setBlock(worldX, y, worldZ,
+                            polish && !UndergroundPolish::chamberAir(plan.stableKey, along, lateral, vertical)
+                                ? BlockId::Stone : BlockId::Air);
                     }
                 }
             }
@@ -1950,8 +1954,13 @@ std::size_t CaveGenerator::projectAdventureUndergroundImpl(
                     const int worldZ = plan.chamberZ +
                         plan.riftDirectionZ * distance +
                         riftPerpendicularZ * lateral;
-                    carveColumn(worldX, worldZ, airY,
-                                airY + AdventureRiftHeight - 1);
+                    if (polish) {
+                        const int ceiling = UndergroundPolish::riftCeiling(plan.stableKey, step, lateral);
+                        for (int y=0; y<AdventureRiftHeight; ++y)
+                            setBlock(worldX, airY+y, worldZ, y<=ceiling ? BlockId::Air : BlockId::Stone);
+                    } else {
+                        carveColumn(worldX, worldZ, airY, airY + AdventureRiftHeight - 1);
+                    }
                 }
             }
 
@@ -1980,8 +1989,18 @@ std::size_t CaveGenerator::projectAdventureUndergroundImpl(
                     const int worldZ = plan.destinationZ +
                         plan.riftDirectionZ * along +
                         riftPerpendicularZ * lateral;
-                    carveColumn(worldX, worldZ, plan.riftEndAirY,
-                                plan.riftEndAirY + AdventureRoomHeight - 1);
+                    const bool mine = plan.layout == AdventureUndergroundLayout::MinerCache;
+                    if (polish) {
+                        const int ceiling = UndergroundPolish::roomCeiling(mine, plan.stableKey, along, lateral);
+                        for (int y=0; y<AdventureRoomHeight; ++y) {
+                            const bool shelf = UndergroundPolish::roomShelf(mine, along, lateral, y);
+                            setBlock(worldX, plan.riftEndAirY+y, worldZ,
+                                shelf ? BlockId::MossStone : y<=ceiling ? BlockId::Air : BlockId::Stone);
+                        }
+                    } else {
+                        carveColumn(worldX, worldZ, plan.riftEndAirY,
+                                    plan.riftEndAirY + AdventureRoomHeight - 1);
+                    }
                     BlockId floor = BlockId::Cobblestone;
                     if (plan.layout ==
                             AdventureUndergroundLayout::MossCellar) {
@@ -2002,6 +2021,7 @@ std::size_t CaveGenerator::projectAdventureUndergroundImpl(
                             default: floor = BlockId::Stone; break;
                         }
                     }
+                    if (polish) floor = UndergroundPolish::roomFloor(mine, plan.stableKey, along, lateral);
                     setBlock(worldX, plan.riftEndAirY - 1,
                              worldZ, floor);
                 }
@@ -2059,9 +2079,8 @@ std::size_t CaveGenerator::projectAdventureUndergroundImpl(
                         static_cast<std::uint64_t>(z + 8) * 23ull;
                     setBlock(poolX + x, plan.chamberAirY - 2,
                              poolZ + z,
-                             (bank & 1ull) == 0
-                                 ? BlockId::Silt
-                                 : BlockId::Gravel);
+                             polish ? UndergroundPolish::poolBank(x,z,plan.stableKey) :
+                             (bank & 1ull) == 0 ? BlockId::Silt : BlockId::Gravel);
                 }
             }
 
@@ -2101,22 +2120,27 @@ std::size_t CaveGenerator::projectAdventureUndergroundImpl(
                             plan.riftDirectionZ * along +
                             riftPerpendicularZ * side * 4;
                         for (int y = plan.riftEndAirY;
-                             y <= plan.riftEndAirY + 3; ++y) {
+                             y < plan.riftEndAirY + (polish ? UndergroundPolish::timberHeight(side*4) : 4); ++y) {
                             setBlock(worldX, y, worldZ,
                                      BlockId::OakBark);
                         }
                     }
                     for (int lateral = -4; lateral <= 4; ++lateral) {
-                        setBlock(
-                            plan.destinationX +
-                                plan.riftDirectionX * along +
-                                riftPerpendicularX * lateral,
-                            plan.riftEndAirY + 4,
-                            plan.destinationZ +
-                                plan.riftDirectionZ * along +
-                                riftPerpendicularZ * lateral,
-                            BlockId::OakPlank);
+                        const int top = polish ? UndergroundPolish::timberHeight(lateral) : 4;
+                        const int bottom = polish && std::abs(lateral)>=2 && std::abs(lateral)<=3 ? top-1 : top;
+                        for (int y=bottom;y<=top;++y)
+                            setBlock(plan.destinationX + plan.riftDirectionX*along + riftPerpendicularX*lateral,
+                                     plan.riftEndAirY+y,
+                                     plan.destinationZ + plan.riftDirectionZ*along + riftPerpendicularZ*lateral,
+                                     BlockId::OakPlank);
                     }
+                }
+                if (polish) {
+                    for (const int side : {-1,1}) for (int along=-3;along<=3;++along)
+                        setBlock(plan.destinationX + plan.riftDirectionX*along + riftPerpendicularX*side*3,
+                                 plan.riftEndAirY+4,
+                                 plan.destinationZ + plan.riftDirectionZ*along + riftPerpendicularZ*side*3,
+                                 BlockId::OakBark);
                 }
                 chestX = plan.destinationX +
                     plan.riftDirectionX * 2 +

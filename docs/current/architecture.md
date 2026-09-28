@@ -463,7 +463,11 @@ C3 为 copied topology observation 增至 79 项并同步更新 machine-checked 
   v27 只在既有地点占地内调用纯 `LandmarkPolish::blockAt`：营地双棚屋脊／支梁、遗迹残顶／半拱、
   路标前后柱高和林地苔石基部。候选、v22计划身份、位置、写入预算、箱子与核心及矿物保持；
   地表、水系、地下、接近线索和区域工位沿用原路径，不新增查询或缓存。旧v1–v26不调用新版蓝图，
-  新世界用v27；两格净空的领域跳步路线与普通输入分开验，见[地点精修合同](../contracts/landmark-polish-v27-contract-v1.md)。
+  两格净空的领域跳步路线与普通输入分开验，见[地点精修合同](../contracts/landmark-polish-v27-contract-v1.md)。
+  v28 在既有地下计划的认证列／高度内调用纯 `UndergroundPolish`：大洞室非对称岩肩和低台、
+  裂隙变高顶、目的地拱顶、矿室面连接木门架／纵梁及行走带、苔石室连续湿地与矿脉对侧低台。
+  原三宽三高干燥路径、水体、九块目的地矿物、火把、宝箱和负载保持，规划与缓存范围不变；
+  旧v1–v27沿用原规则，新世界使用v28，见[地下精修合同](../contracts/underground-polish-v28-contract-v1.md)。
   v17+ 纯地表列查询有两个可在同一生成线程同时驻留的独立派生缓存：地表列缓存和
   v18+ 水系形状缓存各固定 8192 项、各最多 256 KiB。区域锚点和噪声角点另使用每线程
   固定 128 项／最多 16 KiB 与 512 项／最多 64 KiB 的缓存；四者的聚合声明上界为每线程
@@ -616,7 +620,7 @@ WorldManager
 
 - `WorldSaveData` 是内存中的当前 metadata payload，写出前由 World 收集 Player、Actor、目标、结局、
   难度、terrain identity 和其他版本化状态。
-- world save format 当前为 v12；新世界 terrain generation 为独立 v27，旧 v1–v26 身份保留；settings 当前为独立 v11（新增可持久化第一/第三人称请求，含 v10 三档小地图范围、v9 标准/兼容画面选择与旧偏好迁移）。
+- world save format 当前为 v12；新世界 terrain generation 为独立 v28，旧 v1–v27 身份保留；settings 当前为独立 v11（新增可持久化第一/第三人称请求，含 v10 三档小地图范围、v9 标准/兼容画面选择与旧偏好迁移）。
 - `StorageTransaction` 负责同目录 candidate、flush、真实 reader 校验和原子替换；失败 candidate 不
   成为权威。
 - Chunk 只有成功发布后才清 save-dirty；unload 保存失败则取消卸载。

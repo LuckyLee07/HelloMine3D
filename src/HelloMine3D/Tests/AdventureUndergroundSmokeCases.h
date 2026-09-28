@@ -231,7 +231,8 @@ int adventureUndergroundDirectionBit(int x, int z)
 // Engineering replay only: use real generated blocks and Player physics, with
 // synthetic controls. This is not an ordinary-input exploration acceptance run.
 void checkAdventureUndergroundPlayerReturn(
-    int seed, const CaveGenerator::AdventureUndergroundPlan &plan)
+    int seed, const CaveGenerator::AdventureUndergroundPlan &plan,
+    int generationVersion = AdventureUndergroundTerrainGenerationVersion)
 {
     std::vector<glm::ivec3> route;
     for (int step = 0; step <= 29; ++step) {
@@ -248,9 +249,9 @@ void checkAdventureUndergroundPlayerReturn(
             plan.chamberZ + plan.riftDirectionZ * step});
     }
     const auto directory = freshSaveDirectory(
-        "underground_player_return_" + std::to_string(seed));
+        "underground_player_return_" + std::to_string(seed) + "_v" + std::to_string(generationVersion));
     if (!initializeTerrainIdentity(directory, "underground-player-return",
-            AdventureUndergroundTerrainGenerationVersion, seed)) {
+            generationVersion, seed)) {
         check("ADVENTURE-UNDERGROUND/player-route-world", false);
         return;
     }

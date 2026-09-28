@@ -47,7 +47,7 @@ void caseLandmarkPolishV27()
 {
     check("LANDMARK27/appended-version-and-save-boundary",
         WaterbankPolishTerrainGenerationVersion==26 && LandmarkPolishTerrainGenerationVersion==27 &&
-        CurrentTerrainGenerationVersion==27 && WorldSaveFormatVersion==12);
+        CurrentTerrainGenerationVersion>=27 && WorldSaveFormatVersion==12);
     setEnv("HELLOMINE3D_SEED","0");setEnv("HELLOMINE3D_PLAYER_POSITION","8 200 8");
     Config config=makeConfig();Camera camera(config);Player player;
     World world(camera,config,player,freshSaveDirectory("landmark27_projection"),false,0);

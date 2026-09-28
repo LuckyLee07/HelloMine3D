@@ -45,8 +45,9 @@ inline constexpr int VegetationPolishTerrainGenerationVersion = 24;
 inline constexpr int LocalReliefTerrainGenerationVersion = 25;
 inline constexpr int WaterbankPolishTerrainGenerationVersion = 26;
 inline constexpr int LandmarkPolishTerrainGenerationVersion = 27;
+inline constexpr int UndergroundPolishTerrainGenerationVersion = 28;
 inline constexpr int CurrentTerrainGenerationVersion =
-    LandmarkPolishTerrainGenerationVersion;
+    UndergroundPolishTerrainGenerationVersion;
 
 class TerrainGenerator {
   public:

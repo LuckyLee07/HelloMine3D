@@ -21209,6 +21209,7 @@ void caseWorldManager()
 #include "AdventureUndergroundSmokeCases.h"
 #include "AdventureUndergroundSafetySmokeCases.h"
 #include "AdventureUndergroundPerformanceCases.h"
+#include "UndergroundPolishSmokeCases.h"
 #include "TerrainSurfaceTransitionSmokeCases.h"
 #include "AdventureTerrainSmokeCases.h"
 #include "AdventureWaterSmokeCases.h"
@@ -21304,6 +21305,12 @@ int main()
                  std::string(focus) == "ADVENTURE_UNDERGROUND") {
             caseAdventureUndergroundV23();
             caseAdventureUndergroundSafetyV23();
+        }
+        else if (focus != nullptr && std::string(focus) == "UNDERGROUND_POLISH") {
+            caseUndergroundPolishV28();
+        }
+        else if (focus != nullptr && std::string(focus) == "UNDERGROUND_POLISH_GEOMETRY") {
+            caseUndergroundPolishGeometry();
         }
         else if (focus != nullptr && std::string(focus) == "ADVENTURE_QUERY") {
             caseAdventureSurfaceQueryCache();
@@ -21749,6 +21756,7 @@ int main()
         caseAdventureLandmarkLayouts();
         caseAdventureLandmarkApproaches();
         caseAdventureLandmarkWorkshops();
+        caseUndergroundPolishV28();
         caseAdventureUndergroundV23();
         caseAdventureUndergroundSafetyV23();
         caseP11DExplorationRewards();
