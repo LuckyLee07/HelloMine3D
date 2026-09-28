@@ -10,6 +10,7 @@ OPTIONS=(-std=c++17 -Wall -Wextra -Werror -I"$ROOT_DIR/src/external/glm")
 if [[ "$CONFIGURATION" == Debug ]]; then OPTIONS+=(-O0 -g); else OPTIONS+=(-O3 -DNDEBUG); fi
 shasum -a 256 "$ROOT_DIR/src/HelloMine3D/Presentation/PlayerHandPresentation.h" \
     "$ROOT_DIR/src/HelloMine3D/Presentation/ItemVisualGeometry.h" \
+    "$ROOT_DIR/src/HelloMine3D/Presentation/ToolActionPresentation.h" \
     "$ROOT_DIR/tools/tests/player_hand_presentation_test.cpp" > "$LOG_DIR/sources-sha256.txt"
 clang++ "${OPTIONS[@]}" "$ROOT_DIR/tools/tests/player_hand_presentation_test.cpp" \
     -o "$LOG_DIR/player_hand_test" > "$LOG_DIR/build.log" 2>&1

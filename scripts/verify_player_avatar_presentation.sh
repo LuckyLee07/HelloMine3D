@@ -28,6 +28,7 @@ fi
 
 shasum -a 256 \
     "$ROOT_DIR/src/HelloMine3D/Presentation/PlayerAvatarPresentation.h" \
+    "$ROOT_DIR/src/HelloMine3D/Presentation/ToolActionPresentation.h" \
     "$ROOT_DIR/tools/tests/player_avatar_presentation_test.cpp" \
     > "$LOG_DIR/sources-sha256.txt"
 

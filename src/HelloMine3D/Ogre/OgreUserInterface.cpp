@@ -5322,25 +5322,8 @@ class OgreUserInterface::Impl
             }
         }
 
-        if (miningProgress.active &&
-            !player->hasOpenContainer() && !player->hasOpenCrafting())
-        {
-            ImGui::SetNextWindowPos(
-                ImVec2(center.x, center.y + 24.0f), ImGuiCond_Always,
-                ImVec2(0.5f, 0.0f));
-            ImGui::SetNextWindowBgAlpha(0.68f);
-            if (ImGui::Begin(
-                    "##MiningProgress", nullptr,
-                    ImGuiWindowFlags_NoDecoration |
-                        ImGuiWindowFlags_AlwaysAutoResize |
-                        ImGuiWindowFlags_NoSavedSettings |
-                        ImGuiWindowFlags_NoInputs))
-            {
-                ImGui::ProgressBar(miningProgress.normalized(),
-                                   ImVec2(180.0f, 10.0f), "");
-            }
-            ImGui::End();
-        }
+        // The target-anchored ring above already shows the exact mining
+        // progress. A second central bar obscured the avatar's working arm.
 
         if (world != nullptr)
         {

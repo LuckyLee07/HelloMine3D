@@ -4112,8 +4112,10 @@ namespace
                         ? 1.f
                         : recovery * recovery;
             }
-            const PlayerHandPresentation::Motion actionMotion =
-                PlayerHandPresentation::motion(actionMotionInput);
+            const auto toolPose = ToolActionPresentation::derive(
+                actionMotionInput.action, actionMotionInput.actionSeconds,
+                actionMotionInput.strength, actionMotionInput.recoil,
+                actionMotionInput.contact);
 
             PlayerAvatarPresentation::Snapshot snapshot;
             const glm::vec3 playerCentre(
@@ -4131,7 +4133,7 @@ namespace
                 m_worldPlayer->velocity.z};
             snapshot.grounded = grounded;
             snapshot.feedback.landing = m_playerLandingEnvelope;
-            snapshot.feedback.toolUse = actionMotion.swing;
+            snapshot.feedback.tool = toolPose;
             snapshot.feedback.hurt =
                 actionFeedback.kind == ActionFeedbackKind::PlayerHurt &&
                         m_config.feedbackIntensity !=

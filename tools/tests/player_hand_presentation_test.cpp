@@ -168,5 +168,42 @@ int main()
               miningLate.swing >= 0.f && miningLate.swing <= 1.f &&
               std::isfinite(miningLate.pitch + miningLate.yaw +
                             miningLate.roll + miningLate.bob));
+    // Sample full paths, including the seam, with independent continuity
+    // and timing bounds rather than comparing against copied coefficients.
+    bool continuous = true, distinctPath = false, offActions = true;
+    for (Action kind : {Action::Mining, Action::Strike, Action::Use, Action::Consume}) {
+        MotionInput in;
+        in.action = kind; in.strength = 1.f; in.recoil = 1.f;
+        auto previous = motion(in);
+        for (int frame = 1; frame <= 1500; ++frame) {
+            in.actionSeconds = frame / 1000.f;
+            const auto current = motion(in);
+            continuous &= std::abs(current.pitch - previous.pitch) < .09f &&
+                std::abs(current.roll - previous.roll) < .10f &&
+                current.swing >= 0.f && current.swing <= 1.f;
+            previous = current;
+            in.strength = 0.f;
+            const auto disabled = motion(in);
+            offActions &= disabled.swing == 0.f && disabled.bob == 0.f &&
+                near(disabled.rotate(point), rest.rotate(point));
+            in.strength = 1.f;
+        }
+    }
+    action.action = Action::Mining; action.strength = 1.f; action.recoil = 0.f;
+    action.ambientSeconds = 0.; action.contact = 0.f;
+    action.actionSeconds = .2f / 2.7f;
+    const auto windup = motion(action);
+    action.actionSeconds = .42f / 2.7f;
+    const auto impact = motion(action);
+    distinctPath = windup.roll < rest.roll - .2f && impact.roll > rest.roll + .5f &&
+        windup.pitch > rest.pitch && impact.pitch < rest.pitch;
+    check("all-action-paths-are-continuous-at-subframe-and-cycle-boundaries", continuous);
+    check("mining-lifts-before-a-distinct-downstroke", distinctPath);
+    check("off-removes-every-action-even-with-stale-recoil", offActions);
+    const auto contactPose = ToolActionPresentation::derive(Action::Strike, .01f, 1.f, 1.f, 1.f);
+    const auto missPose = ToolActionPresentation::derive(Action::Strike, .01f, 1.f, 1.f, 0.f);
+    check("actual-contact-holds-downstroke-while-miss-keeps-preparation",
+        contactPose.strike == 1.f && contactPose.preparation == 0.f &&
+        missPose.strike == 0.f && missPose.preparation > 0.f);
     return failures ? EXIT_FAILURE : EXIT_SUCCESS;
 }

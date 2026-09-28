@@ -155,10 +155,10 @@ namespace
         check(land.rootOffset.y < -.1f, "land pose visibly compresses the root");
 
         input = {};
-        input.feedback.toolUse = 1.f;
+        input.feedback.tool.preparation = 1.f;
         const Avatar::Pose tool = Avatar::derivePose(input, profile);
         check(tool.kind == Avatar::PoseKind::Tool, "tool envelope selects Tool");
-        check(part(tool, profile, Avatar::PartRole::RightArm).rotationDegrees.x < -70.f,
+        check(part(tool, profile, Avatar::PartRole::RightArm).rotationDegrees.x > 90.f,
               "tool pose raises the working arm");
 
         input.feedback.hurt = 1.f;
@@ -183,7 +183,7 @@ namespace
         input.movementSeconds = .19f;
         input.movementStrength = 1.f;
         input.feedback.landing = .7f;
-        input.feedback.toolUse = .8f;
+        input.feedback.tool.preparation = .8f;
         input.feedback.hurt = .6f;
         const Avatar::Pose off = Avatar::derivePose(
             input, profile, Avatar::MotionStrength::Off);
@@ -206,7 +206,9 @@ namespace
         hostile.velocity = {nan, infinity, nan};
         hostile.movementSeconds = infinity;
         hostile.movementStrength = infinity;
-        hostile.feedback = {nan, infinity, -infinity};
+        hostile.feedback.landing = nan;
+        hostile.feedback.tool = {infinity, nan, -infinity, nan};
+        hostile.feedback.hurt = -infinity;
         const Avatar::Pose bounded = Avatar::derivePose(hostile, profile);
         check(finite(bounded.worldPosition) &&
               std::isfinite(bounded.facingYawDegrees) &&
@@ -224,12 +226,67 @@ namespace
         }
     }
 
+    Avatar::Vec3 rotate(Avatar::Vec3 p, Avatar::Vec3 degrees)
+    {
+        constexpr float radians = 3.14159265359f / 180.f;
+        const float x = degrees.x * radians, y = degrees.y * radians, z = degrees.z * radians;
+        p = {p.x*std::cos(z)-p.y*std::sin(z), p.x*std::sin(z)+p.y*std::cos(z), p.z};
+        p = {p.x, p.y*std::cos(x)-p.z*std::sin(x), p.y*std::sin(x)+p.z*std::cos(x)};
+        return {p.x*std::cos(y)+p.z*std::sin(y), p.y, -p.x*std::sin(y)+p.z*std::cos(y)};
+    }
+
+    void toolDirectionCase()
+    {
+        const auto profile = Avatar::defaultProfile();
+        const auto armIndex = Avatar::partIndex(profile, Avatar::PartRole::RightArm);
+        const auto& arm = profile.parts[armIndex];
+        bool forward = true, bounded = true, layers = true;
+        for (auto action : {ToolActionPresentation::Action::Mining,
+                            ToolActionPresentation::Action::Strike,
+                            ToolActionPresentation::Action::Use,
+                            ToolActionPresentation::Action::Consume}) {
+            for (int tick = 0; tick < 800; ++tick) {
+                Avatar::Snapshot snapshot;
+                snapshot.feedback.tool = ToolActionPresentation::derive(
+                    action, tick / 1000.f, 1.f, 1.f, 0.f);
+                const auto pose = Avatar::derivePose(snapshot, profile);
+                const auto wrist = rotate({0.f, arm.centre.y-arm.pivot.y-arm.size.y*.5f, 0.f},
+                                          pose.parts[armIndex].rotationDegrees);
+                if (pose.weights.tool > .1f) forward &= wrist.z < -.03f;
+                bounded &= finite(wrist) && std::abs(wrist.x) < .7f && std::abs(wrist.z) < .8f;
+                layers &= near(part(pose, profile, Avatar::PartRole::Hair).rotationDegrees.x,
+                               part(pose, profile, Avatar::PartRole::Head).rotationDegrees.x) &&
+                          near(part(pose, profile, Avatar::PartRole::Belt).rotationDegrees.y,
+                               part(pose, profile, Avatar::PartRole::Torso).rotationDegrees.y);
+            }
+        }
+        check(forward, "every active tool path reaches local forward rather than behind player");
+        check(bounded, "all working wrist paths stay within arm reach");
+        check(layers, "head and torso cosmetic seams follow all action paths");
+        Avatar::Snapshot input;
+        input.feedback.tool.use = 1.f;
+        const auto use = Avatar::derivePose(input, profile);
+        input.feedback.tool = {}; input.feedback.tool.consume = 1.f;
+        const auto eat = Avatar::derivePose(input, profile);
+        check(part(eat, profile, Avatar::PartRole::RightArm).rotationDegrees.z < -20.f &&
+              part(eat, profile, Avatar::PartRole::RightArm).rotationDegrees.x >
+              part(use, profile, Avatar::PartRole::RightArm).rotationDegrees.x + 20.f,
+              "consume moves hand inward and higher than forward use");
+        input.feedback.tool = {}; input.feedback.tool.strike = 1.f;
+        const auto strike = Avatar::derivePose(input, profile);
+        input.feedback.tool = {}; input.feedback.tool.preparation = 1.f;
+        const auto lift = Avatar::derivePose(input, profile);
+        check(part(lift, profile, Avatar::PartRole::RightArm).rotationDegrees.x >
+              part(strike, profile, Avatar::PartRole::RightArm).rotationDegrees.x + 40.f,
+              "tool lift and downstroke have separate silhouettes");
+    }
+
     void smoothingCase()
     {
         const Avatar::Profile profile = Avatar::defaultProfile();
         Avatar::Snapshot neutralInput;
         Avatar::Snapshot toolInput;
-        toolInput.feedback.toolUse = 1.f;
+        toolInput.feedback.tool.preparation = 1.f;
         const Avatar::Pose neutral = Avatar::derivePose(neutralInput, profile);
         const Avatar::Pose tool = Avatar::derivePose(toolInput, profile);
 
@@ -298,6 +355,7 @@ int main()
     actionCase();
     strengthAndBoundsCase();
     smoothingCase();
+    toolDirectionCase();
     std::cout << "[PLAYER_AVATAR] checks=" << checks
               << " failures=" << failures << '\n';
     return failures == 0 ? 0 : 1;

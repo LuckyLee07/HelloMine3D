@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstddef>
 #include <type_traits>
+#include "ToolActionPresentation.h"
 
 // Header-only, renderer-independent values for the complete player avatar.
 // The future Ogre adapter may copy these values, but this layer deliberately
@@ -83,7 +84,7 @@ namespace PlayerAvatarPresentation
         // Normalized envelopes copied from already-authoritative actions.
         // The presentation layer never starts, completes, or scores actions.
         float landing = 0.f;
-        float toolUse = 0.f;
+        ToolActionPresentation::Pose tool{};
         float hurt = 0.f;
     };
 
@@ -308,7 +309,8 @@ namespace PlayerAvatarPresentation
         pose.weights.walk = source.grounded ? clamp01(source.movementStrength) : 0.f;
         pose.weights.airborne = source.grounded ? 0.f : 1.f;
         pose.weights.land = source.grounded ? clamp01(source.feedback.landing) : 0.f;
-        pose.weights.tool = clamp01(source.feedback.toolUse);
+        const auto& action = source.feedback.tool;
+        pose.weights.tool = clamp01(action.activity());
         pose.weights.hurt = clamp01(source.feedback.hurt);
         const float active = std::max({pose.weights.walk, pose.weights.airborne,
             pose.weights.land, pose.weights.tool, pose.weights.hurt});
@@ -354,14 +356,28 @@ namespace PlayerAvatarPresentation
             pose.rootRotationDegrees.x += 7.f * land;
         }
 
-        const float tool = pose.weights.tool * scale;
-        if (tool > 0.f) {
+        const float preparation = clamp01(action.preparation) * scale;
+        const float strike = clamp01(action.strike) * scale;
+        const float use = clamp01(action.use) * scale;
+        const float consume = clamp01(action.consume) * scale;
+        // Local forward is -Z. Positive X pitch raises a hanging arm toward
+        // the target; the previous negative pitch swung it behind the body.
+        const float activity = std::max({preparation, strike, use, consume});
+        if (activity > 0.f) {
+            const auto arm = partIndex(profile, PartRole::RightArm);
+            if (arm < std::min(profile.partCount, profile.parts.size()))
+                pose.parts[arm].rotationDegrees.x *= 1.f - activity;
             addRotation(pose, profile, PartRole::RightArm,
-                        {-78.f * tool, -7.f * tool, 9.f * tool});
+                        {102.f * preparation + 48.f * strike + 64.f * use + 104.f * consume,
+                         -8.f * preparation + 12.f * strike + 28.f * consume,
+                         12.f * preparation + 7.f * strike - 26.f * consume});
             addRotation(pose, profile, PartRole::LeftArm,
-                        {-12.f * tool, 0.f, -4.f * tool});
-            addRotation(pose, profile, PartRole::Torso, {0.f, -7.f * tool, 0.f});
-            pose.rootRotationDegrees.y -= 5.f * tool;
+                        {12.f * preparation + 9.f * strike + 10.f * consume,
+                         0.f, -4.f * activity});
+            // Keep shoulder sockets and the eight-part body connected. A
+            // small whole-body twist conveys load without twisting only the
+            // torso away from its sibling arm nodes.
+            pose.rootRotationDegrees.y += -4.f * preparation + 5.f * strike;
         }
 
         const float hurt = pose.weights.hurt * scale;

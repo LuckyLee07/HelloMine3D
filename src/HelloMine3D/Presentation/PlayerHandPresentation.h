@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include "ItemVisualGeometry.h"
+#include "ToolActionPresentation.h"
 
 // Render-only geometry and motion. No Player, inventory or world ownership.
 namespace PlayerHandPresentation {
@@ -104,7 +105,7 @@ struct Motion {
     }
 };
 
-enum class Action { None, Mining, Strike, Use, Consume };
+using Action = ToolActionPresentation::Action;
 
 struct MotionInput {
     double ambientSeconds = 0.;
@@ -139,69 +140,28 @@ inline Motion motion(const MotionInput &input)
     const auto unit = [](float value) {
         return std::isfinite(value) ? std::clamp(value, 0.f, 1.f) : 0.f;
     };
-    const auto ease = [&](float value) {
-        value = unit(value);
-        return value * value * (3.f - 2.f * value);
-    };
-    const auto pulse = [&](float seconds, float rise, float hold,
-                           float fall) {
-        seconds = std::isfinite(seconds) ? std::max(0.f, seconds) : 0.f;
-        if (seconds < rise)
-            return ease(seconds / std::max(0.001f, rise));
-        seconds -= rise;
-        if (seconds < hold) return 1.f;
-        seconds -= hold;
-        if (seconds < fall)
-            return 1.f - ease(seconds / std::max(0.001f, fall));
-        return 0.f;
-    };
-
     const double ambientSeconds = std::isfinite(input.ambientSeconds)
         ? std::max(0., input.ambientSeconds) : 0.;
     const float actionSeconds = std::isfinite(input.actionSeconds)
         ? std::max(0.f, input.actionSeconds) : 0.f;
     const float strength = unit(input.strength);
     const float movement = unit(input.movement);
-    const float recoil = unit(input.recoil);
-    const float contact = unit(input.contact) * strength;
-
-    float mining = 0.f;
-    float strike = 0.f;
-    float use = 0.f;
-    float consume = 0.f;
-    switch (input.action) {
-        case Action::Mining: {
-            const float cycle = std::fmod(actionSeconds * 2.7f, 1.f);
-            mining = strength * (cycle < .38f
-                ? ease(cycle / .38f)
-                : 1.f - ease((cycle - .38f) / .62f));
-            break;
-        }
-        case Action::Strike:
-            strike = recoil * pulse(actionSeconds, .055f, .025f, .12f);
-            break;
-        case Action::Use:
-            use = recoil * pulse(actionSeconds, .08f, .025f, .155f);
-            break;
-        case Action::Consume:
-            consume = recoil * pulse(actionSeconds, .11f, .15f, .16f);
-            break;
-        case Action::None:
-            break;
-    }
-
-    const float strikePose = std::max({mining, strike, contact});
-    const float swing = std::clamp(
-        std::max({strikePose, use * .58f, consume * .42f}), 0.f, 1.f);
+    const auto tool = ToolActionPresentation::derive(input.action,
+        actionSeconds, strength, input.recoil, input.contact);
+    const float preparation = tool.preparation;
+    const float strikePose = tool.strike;
+    const float use = tool.use;
+    const float consume = tool.consume;
+    const float swing = tool.activity();
     const float walk = static_cast<float>(
         std::sin(ambientSeconds * 7.5)) * movement * strength;
     const float idle = static_cast<float>(
         std::sin(ambientSeconds * 1.7)) * strength;
     return {
-        -.22f - strikePose * .65f - use * .18f + consume * .43f +
+        -.22f + preparation * .30f - strikePose * .65f - use * .18f + consume * .43f +
             walk * .055f,
-        -.52f + strikePose * .32f + use * .18f + consume * .38f,
-        -.24f + strikePose * .85f + use * .34f - consume * .28f +
+        -.52f - preparation * .12f + strikePose * .32f + use * .18f + consume * .38f,
+        -.24f - preparation * .38f + strikePose * .85f + use * .34f - consume * .28f +
             idle * .02f,
         swing,
         (static_cast<float>(std::sin(ambientSeconds * 2.)) * 2.f +
