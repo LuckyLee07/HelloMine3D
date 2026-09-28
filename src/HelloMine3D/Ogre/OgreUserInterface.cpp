@@ -5622,6 +5622,12 @@ class OgreUserInterface::Impl
                 ? std::clamp(worldStats.playerHealth / worldStats.playerMaxHealth, 0.f, 1.f) : 0.f;
             const ImU32 healthColour = healthRatio > .3f ? IM_COL32(146, 199, 143, 255) : IM_COL32(245, 139, 111, 255);
             const float font = ImGui::GetFontSize() * .8f;
+            // Keep the whole health row legible against snow and bright skies.
+            // Reuse the HUD surface without changing the dock or slot hit areas.
+            GameInterfaceWidgets::surface(draw,
+                ImVec2(origin.x - 6.f * scale, origin.y - 4.f * scale),
+                ImVec2(origin.x + contentWidth + 6.f * scale, origin.y + 20.f * scale),
+                false, scale);
             // A fixed health glyph and numeric value are readable without
             // relying on colour or a flashing full-screen warning.
             drawHudGlyph(draw, 1, ImVec2(origin.x - 5.f * scale, origin.y - 3.f * scale), 24.f * scale, healthColour);
