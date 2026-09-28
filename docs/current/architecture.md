@@ -448,10 +448,17 @@ C3 为 copied topology observation 增至 79 项并同步更新 machine-checked 
   投影只写目标区块。建筑查询 padding 在 v24 增至 12 米，洞口植被计划 padding 增至 13 米，
   对应更大冠幅的来源避让；旧版本保留原 9／6 米路径。原 v1–v23 输出与已保存世界不迁移，
   详见[植被精修合同](../contracts/vegetation-polish-v24-contract-v1.md)。
+  v25 在 v17 水系之后、生态材料之前由 `LocalTerrainPlanner` 追加局部地貌：64 米格内扰动锚点
+  以真实父地形四向12米探针确定坡向，有限支脊、浅槽和等高落脚平台在数十米范围淡出，
+  单列位移不超过6米。水下及68米以下岸地保持，河湖主体附近位移淡出；沙丘／湿地按连续区域
+  权重抑制。生态表层用同一新版高度的四向2米探针识别实际陡面，避免粗坡度吞掉平台土壤；
+  裸岩与坡积砾土使用原材料，出生、树根、洞口和建筑仍消费统一列。旧v1–v24身份及输出保持，
+  见[局部地形合同](../contracts/local-relief-polish-v25-contract-v1.md)。
   v17+ 纯地表列查询有两个可在同一生成线程同时驻留的独立派生缓存：地表列缓存和
   v18+ 水系形状缓存各固定 8192 项、各最多 256 KiB。区域锚点和噪声角点另使用每线程
   固定 128 项／最多 16 KiB 与 512 项／最多 64 KiB 的缓存；四者的聚合声明上界为每线程
-  592 KiB。每个 `CaveGenerator` 另持有一份 256 项、小于 64 KiB 的地下计划缓存，不计入前述
+  592 KiB；v25另有128项局部地貌锚点缓存，声明上限20 KiB，校验seed及完整有符号格坐标。
+  连同上文独立水系图缓存256 KiB，生成纯值缓存声明总上限为每线程868 KiB。每个 `CaveGenerator` 另持有一份 256 项、小于 64 KiB 的地下计划缓存，不计入前述
   每线程合计。两个列缓存完整校验 seed、生成版本和有符号世界坐标；锚点缓存校验
   混合 seed 与有符号 cell 坐标，噪声缓存校验混合 seed、salt 与有符号格点坐标。生成器计划
   缓存校验完整 cell 坐标，seed 和版本由该不变生成器实例确定。它们都不保存实际方块、
@@ -599,7 +606,7 @@ WorldManager
 
 - `WorldSaveData` 是内存中的当前 metadata payload，写出前由 World 收集 Player、Actor、目标、结局、
   难度、terrain identity 和其他版本化状态。
-- world save format 当前为 v12；新世界 terrain generation 为独立 v24，旧 v1–v23 身份保留；settings 当前为独立 v11（新增可持久化第一/第三人称请求，含 v10 三档小地图范围、v9 标准/兼容画面选择与旧偏好迁移）。
+- world save format 当前为 v12；新世界 terrain generation 为独立 v25，旧 v1–v24 身份保留；settings 当前为独立 v11（新增可持久化第一/第三人称请求，含 v10 三档小地图范围、v9 标准/兼容画面选择与旧偏好迁移）。
 - `StorageTransaction` 负责同目录 candidate、flush、真实 reader 校验和原子替换；失败 candidate 不
   成为权威。
 - Chunk 只有成功发布后才清 save-dirty；unload 保存失败则取消卸载。
@@ -610,8 +617,8 @@ WorldManager
   会移除快照中不存在的较新地图。`World` 在区块和元数据发布后写地图，再创建备份。
 - B6 世界入口的 `world-preview.hmp` v1 是由已持久化 `ExplorationAtlas` 重采样出的
   49×25、8 m／格、最多 4096 B 的非权威派生缓存。它单独通过 `StorageTransaction` 发布；
-  失败只使菜单回退为无预览，不否定已成功的主保存。当前 world save v12、terrain v24 和
-  `exploration.hmap` v4 均不因预览缓存升级；旧 terrain v1–v23 身份保留。预览不进入备份，
+  失败只使菜单回退为无预览，不否定已成功的主保存。当前 world save v12、terrain v25 和
+  `exploration.hmap` v4 均不因预览缓存升级；旧 terrain v1–v24 身份保留。预览不进入备份，
   恢复后旧缓存删除或因来源修订不匹配失效。
 - 可稳定重建的 sunlight、block light、mesh、render nodes、storage/diagnostic caches 不作为独立
   Gameplay truth 保存。

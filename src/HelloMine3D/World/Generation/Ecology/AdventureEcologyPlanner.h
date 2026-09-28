@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Terrain/AdventureWaterPlanner.h"
+#include "../Terrain/LocalTerrainPlanner.h"
 #include "../../Block/ChunkBlock.h"
 
 enum class AdventureTreeKind : std::uint8_t { None, Oak, Birch, Spruce, Willow, Cactus, Palm };
@@ -26,10 +26,11 @@ class AdventureEcologyPlanner {
     };
     explicit AdventureEcologyPlanner(int seed,
         int version = AdventureEcologyTerrainGenerationVersion) noexcept
-        : m_seed(seed), m_water(seed),
+        : m_seed(seed), m_water(seed), m_local(seed),
+          m_relief(version >= LocalReliefTerrainGenerationVersion),
           m_polished(version >= VegetationPolishTerrainGenerationVersion) {}
-    // Height and biome remain the v17 water shape in every v18+ ecology
-    // version. Pure shape queries can avoid computing grove, patch and snow
+    // v18-v24 retain the v17 water shape; v25 adds local relief to height.
+    // Pure shape queries can avoid computing grove, patch and snow
     // fields while full ecology sampling still owns the surface material.
     TerrainFoundation::Column sampleWaterColumn(int x, int z) const noexcept;
     Sample sample(int x, int z) const noexcept;
@@ -47,5 +48,7 @@ class AdventureEcologyPlanner {
     double noise(int x, int z, double scale, std::uint64_t salt) const noexcept;
     int m_seed = 0;
     AdventureWaterPlanner m_water;
+    LocalTerrainPlanner m_local;
+    bool m_relief = false;
     bool m_polished = false;
 };

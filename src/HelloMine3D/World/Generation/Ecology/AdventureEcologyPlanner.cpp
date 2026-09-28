@@ -37,7 +37,10 @@ double AdventureEcologyPlanner::noise(int x, int z, double scale, std::uint64_t 
 
 TerrainFoundation::Column AdventureEcologyPlanner::sampleWaterColumn(
     int x, int z) const noexcept {
-    return m_water.sample(x, z).column;
+    const auto water=m_water.sample(x,z);
+    auto column=water.column;
+    if(m_relief)column.height=m_local.sample(x,z,water).height;
+    return column;
 }
 
 AdventureEcologyPlanner::Sample AdventureEcologyPlanner::sample(int x, int z) const noexcept {
@@ -45,6 +48,8 @@ AdventureEcologyPlanner::Sample AdventureEcologyPlanner::sample(int x, int z) co
     const auto &base=water.base;
     Sample result;
     result.column=water.column;result.region=base.region;result.moisture=base.moisture;
+    const auto relief=m_relief?m_local.sample(x,z,water):LocalTerrainPlanner::Sample{};
+    if(m_relief)result.column.height=relief.height;
     result.grove=noise(x,z,96,0x73906143ull)*.72+noise(x,z,28,0xf138ad7bull)*.28;
     const double patch=noise(x,z,19,0x4de2713aull);
     auto &c=result.column;
@@ -103,6 +108,28 @@ AdventureEcologyPlanner::Sample AdventureEcologyPlanner::sample(int x, int z) co
         case R::Dunes: c.surface=S::Sand; break;
         case R::Coast: case R::Ocean: break;
     }
+    if(m_relief && c.height>68 && result.region!=R::Wetland && result.region!=R::Dunes) {
+        // Regional patches remain coherent, but steep rock and deposited ground
+        // now follow the actual parent slope instead of a contour-wide soil band.
+        const auto offsetHeight=[&](int dx,int dz) {
+            const auto px=std::clamp(static_cast<std::int64_t>(x)+dx,
+                static_cast<std::int64_t>(std::numeric_limits<int>::min()),
+                static_cast<std::int64_t>(std::numeric_limits<int>::max()));
+            const auto pz=std::clamp(static_cast<std::int64_t>(z)+dz,
+                static_cast<std::int64_t>(std::numeric_limits<int>::min()),
+                static_cast<std::int64_t>(std::numeric_limits<int>::max()));
+            return sampleWaterColumn(static_cast<int>(px),static_cast<int>(pz)).height;
+        };
+        // Four metres measure the ground the player actually steps on. The
+        // broad patch slope must not strip a level landing of soil and seeds.
+        const double dx=(offsetHeight(2,0)-offsetHeight(-2,0))*.25;
+        const double dz=(offsetHeight(0,2)-offsetHeight(0,-2))*.25;
+        const double actualSlope=std::hypot(dx,dz);
+        const double exposed=smooth(.45,1.0,actualSlope);
+        if(exposed>patch+.12)c.surface=S::Stone;
+        else if(relief.deposit>.35 && patch>.30)
+            c.surface=actualSlope>.5?S::Gravel:S::Dirt;
+    }
     return result;
 }
 
@@ -149,7 +176,7 @@ AdventureEcologyPlanner::Tree AdventureEcologyPlanner::tree(int x, int z,const S
         const auto px=static_cast<std::int64_t>(x)+offset.first,pz=static_cast<std::int64_t>(z)+offset.second;
         if(px<std::numeric_limits<int>::min() || px>std::numeric_limits<int>::max() ||
            pz<std::numeric_limits<int>::min() || pz>std::numeric_limits<int>::max()) {result.kind=T::None;return result;}
-        const int height=m_water.sample(static_cast<int>(px),static_cast<int>(pz)).column.height;
+        const int height=sampleWaterColumn(static_cast<int>(px),static_cast<int>(pz)).height;
         low=std::min(low,height);high=std::max(high,height);
     }
     if(low<64 || high-low>(result.kind==T::Spruce?5:3))result.kind=T::None;
@@ -185,7 +212,7 @@ AdventureEcologyPlanner::GroundCover AdventureEcologyPlanner::groundCover(int x,
             const auto pz=static_cast<std::int64_t>(z)+offset.second;
             if(px<std::numeric_limits<int>::min() || px>std::numeric_limits<int>::max() ||
                pz<std::numeric_limits<int>::min() || pz>std::numeric_limits<int>::max())return BlockId::Air;
-            const int height=m_water.sample(static_cast<int>(px),static_cast<int>(pz)).column.height;
+            const int height=sampleWaterColumn(static_cast<int>(px),static_cast<int>(pz)).height;
             low=std::min(low,height);high=std::max(high,height);
         }
         if(high-low>2 || unit(mix(hash(x,z,0x7d12bf4aull)))<.85*smooth(0,3,high-low))return BlockId::Air;

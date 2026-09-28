@@ -391,8 +391,8 @@ TerrainFoundation::Column
 ClassicOverWorldGenerator::sampleAdventureShapeForVersion(
     int worldX, int worldZ) const noexcept
 {
-    // v18+ ecology only changes the chosen surface and decoration fields.
-    // Height/biome queries retain the v17 water shape, so they need neither
+    // v18-v24 ecology preserves water shape; v25 adds the same local relief
+    // used by full ecology. Pure height/biome queries still need neither
     // grove/patch/snow-line noise nor a full ecology sample. The cache stores
     // only immutable derived columns and verifies every part of its identity.
     struct Entry {

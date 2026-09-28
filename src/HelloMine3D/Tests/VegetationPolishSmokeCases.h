@@ -55,7 +55,7 @@ void caseVegetationPolishV24()
 {
     check("VEGETATION24/version-and-save-boundary",
         AdventureUndergroundTerrainGenerationVersion==23 && VegetationPolishTerrainGenerationVersion==24 &&
-        CurrentTerrainGenerationVersion==24 && WorldSaveFormatVersion==12);
+        CurrentTerrainGenerationVersion>=24 && WorldSaveFormatVersion==12);
     setEnv("HELLOMINE3D_SEED","42");setEnv("HELLOMINE3D_PLAYER_POSITION","8 200 8");
     Config config=makeConfig();Camera camera(config);Player owner;
     World world(camera,config,owner,freshSaveDirectory("vegetation24_projection"),false,0);
