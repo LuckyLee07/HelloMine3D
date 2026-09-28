@@ -558,15 +558,10 @@ void OgreActorRenderer::updateVisual(
     {
         const WildlifeVisualProfile profile =
             WildlifePresentation::profileFor(snapshot.type);
-        const bool moving = snapshot.wildlifeActivity ==
-                static_cast<int>(WildlifeActivity::Wander) ||
-            snapshot.wildlifeActivity ==
-                static_cast<int>(WildlifeActivity::Flee);
-        const glm::vec3 position = visual.wildlifeMotion.update(
-            snapshot, deltaSeconds);
-        const float stridePhase = visual.gaitPhase.update(position, moving);
-        const WildlifeVisualPose pose = WildlifePresentation::poseFor(
-            snapshot, profile, stridePhase, m_animationStrength);
+        const glm::vec3 position = visual.wildlifeMotion.update(snapshot, deltaSeconds);
+        const auto animated = visual.wildlifePose.update(
+            snapshot, profile, position, deltaSeconds, m_animationStrength);
+        const auto& pose = animated.pose;
         visual.node->setPosition(position.x,
             position.y + snapshot.dimensions.y + pose.heightOffset,
             position.z);
@@ -574,7 +569,7 @@ void OgreActorRenderer::updateVisual(
             snapshot.dimensions.y * 2.f,
             snapshot.dimensions.z * 2.f);
         visual.node->setOrientation(Ogre::Quaternion(
-            Ogre::Degree(snapshot.rotation.y), Ogre::Vector3::UNIT_Y));
+            Ogre::Degree(animated.yawDegrees), Ogre::Vector3::UNIT_Y));
         const std::size_t count = std::min(
             visual.parts.size(), profile.partCount);
         for (std::size_t index = 0; index < count; ++index)

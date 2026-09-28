@@ -74,6 +74,7 @@ class OgreActorRenderer
         EnemyPresentation::GaitPhase gaitPhase;
         EnemyPresentation::PoseBlend poseBlend;
         WildlifePresentation::MotionBlend wildlifeMotion;
+        WildlifePresentation::PoseBlend wildlifePose;
     };
 
     ActorVisual createVisual(const ActorSnapshot& snapshot);
