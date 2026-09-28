@@ -742,6 +742,8 @@ Ogre 从复制快照保留驻留 section 的 solid/flora CPU 数据，修改、�
 方向阴影的太阳投影设置由 Ogre 灯持有，第一方纯数学 helper 负责正午稳定参考轴与纹素锚定；
 terrain/actor 接收端共享连续比较滤波语义。切档、切世界及退出随灯清理，不向 World 写回状态，
 不改第三方默认相机；当前参数与范围见[阴影合同](../contracts/directional-shadow-contract-v1.md)。
+V05 接收端以屏幕导数恢复接收平面，对九个PCF点分别校正深度；正常投影缩小接触bias，
+退化投影保留原偏移。terrain在alpha裁切前求导及求值，AO、环境光和阴影资源预算不变。
 
 冒险世界 B1d 的日月圆形轮廓与像素内纹由天空 fragment 在天体局部坐标中派生，复用原时间、方向、亮度和
 全部 uniform；默认路径先合成星空／日月，再通过同一云覆盖合成遮挡。FS2 保持原先完整外观，

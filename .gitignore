@@ -7,6 +7,8 @@
 !/bin/resource-packs.txt
 /build/
 /.local-notes/
+# 用户要求每轮保留的精选视觉证据；不作为 build 缓存清理，不提交原图。
+/.local-evidence/
 /vcpkg_installed/
 /packages/
 __pycache__/

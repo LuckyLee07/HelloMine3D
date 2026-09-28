@@ -27,14 +27,29 @@ uniform float directionalShadowFadeEnd;
 
 float directionalShadowVisibility()
 {
+    // Derivatives must be evaluated before any varying early return. The
+    // receiving plane supplies the depth at each PCF tap, allowing a small
+    // contact bias without bringing back slope acne on rock or actor faces.
+    vec3 projected = actorShadowPosition.xyz /
+        max(actorShadowPosition.w, 0.00001);
+    projected.z = projected.z * 0.5 + 0.5;
+    vec3 dx = dFdx(projected);
+    vec3 dy = dFdy(projected);
+    float determinant = dx.x * dy.y - dx.y * dy.x;
+    bool validPlane = abs(determinant) > 1e-12;
+    vec2 receiverDepthGradient = vec2(0.0);
+    if (validPlane)
+        receiverDepthGradient = vec2(dx.z * dy.y - dy.z * dx.y,
+                                     dy.z * dx.x - dx.z * dy.x) / determinant;
+    // Retain the historical bias only for a degenerate projection, where the
+    // plane cannot be recovered. Normal surfaces keep ~4-5 cm of tolerance.
+    float receiverBias = directionalShadowBias * (validPlane ? 0.10 : 1.0);
     if (directionalShadowEnabled < 0.5 ||
         directionalShadowStrength <= 0.0001 ||
         actorShadowPosition.w <= 0.00001)
     {
         return 1.0;
     }
-    vec3 projected = actorShadowPosition.xyz / actorShadowPosition.w;
-    projected.z = projected.z * 0.5 + 0.5;
     if (projected.x <= 0.0 || projected.x >= 1.0 ||
         projected.y <= 0.0 || projected.y >= 1.0 ||
         projected.z <= 0.0 || projected.z >= 1.0)
@@ -60,9 +75,11 @@ float directionalShadowVisibility()
         for (int x = -1; x <= 1; ++x)
         {
             vec2 weight = vec2(weightX[x + 1], weightY[y + 1]);
-            float storedDepth = texture(directionalShadowMap,
-                (base + vec2(x, y) + vec2(0.5)) / mapSize).r;
-            float visible = projected.z - directionalShadowBias <= storedDepth ? 1.0 : 0.0;
+            vec2 sampleUv = (base + vec2(x, y) + vec2(0.5)) / mapSize;
+            float storedDepth = texture(directionalShadowMap, sampleUv).r;
+            float receiverDepth = projected.z +
+                dot(receiverDepthGradient, sampleUv - projected.xy);
+            float visible = receiverDepth - receiverBias <= storedDepth ? 1.0 : 0.0;
             pcfVisibility += visible * weight.x * weight.y;
         }
     }
