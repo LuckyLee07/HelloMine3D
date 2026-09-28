@@ -1661,7 +1661,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 720 &&
+              registry.keys("en-US").size() == 722 &&
               registry.lookup("en-US", "map.marker_name_hint") ==
                   "Up to 24 characters; no spaces at either end." &&
               registry.lookup("zh-CN", "map.marker_invalid_name") ==
@@ -1767,6 +1767,15 @@ void caseWorldOutcomeAndLocalizedText()
               "The output is ready. Click it to move it into your pack." &&
           registry.lookup("zh-CN", "machine.guidance.collect") ==
               "产物已就绪，点击产物槽即可收入行囊。");
+    check("N7A/machine-partial-transfer-feedback-resolves",
+          registry.lookup("en-US", "machine.feedback.taken_partial") ==
+              "Part taken; the rest stays in the machine." &&
+          registry.lookup("zh-CN", "machine.feedback.taken_partial") ==
+              "已取出部分，其余仍在机器内。" &&
+          registry.lookup("en-US", "machine.feedback.inserted_partial") ==
+              "Part inserted; the rest stays in your pack." &&
+          registry.lookup("zh-CN", "machine.feedback.inserted_partial") ==
+              "已投入部分，其余仍在行囊。");
     check("N7A/localized-victory-text-resolves",
           registry.lookup("en-US", "victory.overlay.title") ==
                   "Waystone Restored" &&

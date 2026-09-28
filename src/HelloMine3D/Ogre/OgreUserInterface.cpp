@@ -6019,7 +6019,8 @@ class OgreUserInterface::Impl
                         !slotView.extractable) return;
                     const Material& material =
                         Material::toMaterial(stack.materialId);
-                    if (player->getInventoryCapacity(material) <= 0)
+                    const int capacity = player->getInventoryCapacity(material);
+                    if (capacity <= 0)
                     {
                         setContainerFeedback("machine.feedback.pack_full");
                     }
@@ -6027,7 +6028,9 @@ class OgreUserInterface::Impl
                                  *world, *player, slot, stack.amount,
                                  runtimeSmeltingRegistry()))
                     {
-                        setContainerFeedback("machine.feedback.taken");
+                        setContainerFeedback(capacity < stack.amount
+                            ? "machine.feedback.taken_partial"
+                            : "machine.feedback.taken");
                     }
                     else
                     {
@@ -6273,6 +6276,9 @@ class OgreUserInterface::Impl
                         {
                             const InventorySlotState destination =
                                 inventory->slots[target].state;
+                            const int requested = stack.getNumInStack();
+                            const int capacity = stack.getMaterial().maxStackSize -
+                                destination.amount;
                             if (destination.amount > 0 &&
                                 destination.materialId !=
                                     stack.getMaterial().id)
@@ -6288,12 +6294,12 @@ class OgreUserInterface::Impl
                             }
                             else if (provider.transferFromPlayer(
                                          *world, *player, target,
-                                         playerSlot,
-                                         stack.getNumInStack(),
+                                         playerSlot, requested,
                                          runtimeSmeltingRegistry()))
                             {
-                                setContainerFeedback(
-                                    "machine.feedback.inserted");
+                                setContainerFeedback(capacity < requested
+                                    ? "machine.feedback.inserted_partial"
+                                    : "machine.feedback.inserted");
                             }
                             else
                             {
