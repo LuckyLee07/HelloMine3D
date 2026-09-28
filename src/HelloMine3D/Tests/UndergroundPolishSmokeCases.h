@@ -6,7 +6,7 @@ void caseUndergroundPolishV28()
 {
     check("UNDERGROUND28/appended-generation-save-unchanged",
           LandmarkPolishTerrainGenerationVersion==27 && UndergroundPolishTerrainGenerationVersion==28 &&
-          CurrentTerrainGenerationVersion==28 && WorldSaveFormatVersion==12);
+          CurrentTerrainGenerationVersion>=28 && WorldSaveFormatVersion==12);
     setEnv("HELLOMINE3D_SEED","0"); setEnv("HELLOMINE3D_PLAYER_POSITION","8 200 8");
     Config config=makeConfig(); Camera camera(config); Player player;
     World owner(camera,config,player,freshSaveDirectory("underground28_projection"),false,0);

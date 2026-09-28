@@ -3,9 +3,17 @@
 #include "../World/Generation/Structures/LandmarkWorkshop.h"
 
 namespace {
-void caseAdventureLandmarkWorkshops()
+void caseAdventureLandmarkWorkshops(
+    int generationVersion = LandmarkWorkshopTerrainGenerationVersion)
 {
-    check("ADVENTURE-WORKSHOP/v22-appends-without-save-bump",
+    const bool courtyard = generationVersion >= WorkshopCourtyardTerrainGenerationVersion;
+    const std::string prefix = courtyard ? "WORKSHOP29" : "ADVENTURE-WORKSHOP";
+    if (courtyard)
+        check(prefix + "/appended-version-save-boundary",
+              UndergroundPolishTerrainGenerationVersion == 28 &&
+              WorkshopCourtyardTerrainGenerationVersion == 29 &&
+              CurrentTerrainGenerationVersion >= 29 && WorldSaveFormatVersion == 12);
+    check(prefix + "/v22-appends-without-save-bump",
           LandmarkApproachTerrainGenerationVersion == 21 &&
           LandmarkWorkshopTerrainGenerationVersion == 22 &&
           CurrentTerrainGenerationVersion >= 23 &&
@@ -17,7 +25,7 @@ void caseAdventureLandmarkWorkshops()
     Camera camera(config);
     Player owner;
     World sampleWorld(camera, config, owner,
-        freshSaveDirectory("adventure_workshop_samples"), false, 0);
+        freshSaveDirectory("adventure_workshop_samples_" + std::to_string(generationVersion)), false, 0);
 
     struct Selected {
         int seed = 0;
@@ -28,7 +36,7 @@ void caseAdventureLandmarkWorkshops()
     int candidates = 0;
     for (const int seed : {42, 20260807, 239701883}) {
         ClassicOverWorldGenerator generator(seed,
-            LandmarkWorkshopTerrainGenerationVersion);
+            generationVersion);
         for (int radius = 0; radius <= 24; ++radius) {
             for (int cellX = -radius; cellX <= radius; ++cellX)
                 for (int cellZ = -radius; cellZ <= radius; ++cellZ) {
@@ -78,7 +86,7 @@ void caseAdventureLandmarkWorkshops()
     }
     const bool threeRegions = std::all_of(selected.begin(), selected.end(),
         [](const auto &item) { return item.site.valid; });
-    check("ADVENTURE-WORKSHOP/three-real-regional-sites",
+    check(prefix + "/three-real-regional-sites",
           threeRegions, "candidates=" + std::to_string(candidates));
     if (!threeRegions) {
         clearDeterministicEnv();
@@ -96,12 +104,13 @@ void caseAdventureLandmarkWorkshops()
         const auto &item = selected[index];
         const auto &site = item.site;
         const auto &plan = item.plan;
-        const std::string label = "ADVENTURE-WORKSHOP/style-" +
+        const std::string label = prefix + "/style-" +
             std::to_string(index);
         ClassicOverWorldGenerator current(item.seed,
-            LandmarkWorkshopTerrainGenerationVersion);
+            generationVersion);
         ClassicOverWorldGenerator previous(item.seed,
-            LandmarkApproachTerrainGenerationVersion);
+            courtyard ? UndergroundPolishTerrainGenerationVersion
+                      : LandmarkApproachTerrainGenerationVersion);
         const auto oldPlan = previous.getStructurePlanForCell(
             plan.key.type, plan.key.cellX, plan.key.cellZ);
         check(label + "-candidate-layout-loot-preserved",
@@ -137,7 +146,7 @@ void caseAdventureLandmarkWorkshops()
                     oldBuildingSame &= generatedLandmarkBlock(
                         forward, x, y, z) ==
                         generatedLandmarkBlock(old, x, y, z);
-        check(label + "-v21-building-unchanged", oldBuildingSame);
+        check(label + "-previous-building-unchanged", oldBuildingSame);
 
         const glm::ivec3 machinePosition{
             site.machineX(), site.baseY + 1, site.machineZ()};
@@ -171,13 +180,13 @@ void caseAdventureLandmarkWorkshops()
         const bool regionalMix = index == 0
             ? entry == BlockId::MossStone &&
               centre == BlockId::ForestFloor &&
-              roof == BlockId::OakPlank
+              roof == (courtyard ? BlockId::Air : BlockId::OakPlank)
             : index == 1
                 ? entry == BlockId::Gravel &&
                   centre == BlockId::Silt && edge == BlockId::Clay &&
-                  roof == BlockId::Clay
+                  roof == (courtyard ? BlockId::Air : BlockId::Clay)
                 : entry == BlockId::Gravel && edge == BlockId::Stone &&
-                  roof == BlockId::OakPlank;
+                  roof == (courtyard ? BlockId::Air : BlockId::OakPlank);
         check(label + "-built-materials-open-workspace",
               styleMaterials == 9 && regionalMix &&
               generatedLandmarkBlock(forward,
@@ -187,6 +196,45 @@ void caseAdventureLandmarkWorkshops()
                   site.baseY + 1, frontZ) == BlockId::Air &&
               generatedLandmarkBlock(forward, frontX,
                   site.baseY + 2, frontZ) == BlockId::Air);
+        if (courtyard) {
+            const auto oldSite = LandmarkWorkshop::select(oldPlan,
+                [&previous](int x,int z) {return previous.getSurfaceHeightAtWorld(x,z);},
+                [&previous](int x,int z) {return previous.getBiomeAtWorld(x,z);});
+            check(label + "-same-site-ground-and-tree-clearance",
+                  oldSite.valid && oldSite.minimumX == site.minimumX &&
+                  oldSite.minimumZ == site.minimumZ && oldSite.baseY == site.baseY &&
+                  oldSite.side == site.side && oldSite.style == site.style);
+            bool lowerSame = true, openUpper = true;
+            int removed = 0, solid = 0, oldUpper = 0;
+            for (int a=0;a<3;++a) for (int d=0;d<3;++d) for (int h=0;h<4;++h) {
+                const auto now = generatedLandmarkBlock(forward,site.worldX(a),site.baseY+h,site.worldZ(d));
+                const auto before = generatedLandmarkBlock(old,site.worldX(a),site.baseY+h,site.worldZ(d));
+                solid += now != BlockId::Air;
+                if (h<2) lowerSame &= now == before;
+                else {
+                    openUpper &= now == BlockId::Air;
+                    oldUpper += before != BlockId::Air;
+                }
+                if (now != before) {
+                    ++removed;
+                    lowerSame &= h>=2 && now==BlockId::Air && before!=BlockId::Air;
+                }
+            }
+            check(label + "-only-eight-upper-solids-removed", lowerSame && removed==8 && solid==13);
+            check(label + "-open-sight-volume-and-old-canopy-negative", openUpper && oldUpper==8);
+            // A two-block-clear centre route must still reach the machine's
+            // use square without crossing a decorative corner block.
+            bool route = true;
+            for (int d=0;d<2;++d) {
+                route &= generatedLandmarkBlock(forward,site.worldX(1),site.baseY,site.worldZ(d)) != BlockId::Air;
+                for (int h=1;h<=2;++h)
+                    route &= generatedLandmarkBlock(forward,site.worldX(1),site.baseY+h,site.worldZ(d)) == BlockId::Air;
+            }
+            check(label + "-two-clear-blocks-to-machine", route);
+            std::cout << "[WORKSHOP29_VIEW] seed=" << item.seed << " style=" << index
+                      << " plan=" << vecToString(plan.anchor) << " site="
+                      << site.minimumX << ' ' << site.baseY << ' ' << site.minimumZ << '\n';
+        }
         int matchingRecords = 0;
         bool initiallyEmpty = false;
         for (const auto &sample : forward)
@@ -215,10 +263,10 @@ void caseAdventureLandmarkWorkshops()
               matchingRecords == 1 && initiallyEmpty);
 
         const auto directory = freshSaveDirectory(
-            "adventure_workshop_v22_" + std::to_string(index));
+            "adventure_workshop_v" + std::to_string(generationVersion) + "_" + std::to_string(index));
         bool lifecycle = initializeTerrainIdentity(directory,
-            "adventure-workshop-v22-" + std::to_string(index),
-            LandmarkWorkshopTerrainGenerationVersion, item.seed);
+            "adventure-workshop-v" + std::to_string(generationVersion) + "-" + std::to_string(index),
+            generationVersion, item.seed);
         {
             Player player;
             World world(camera, config, player, directory, false, 0);
@@ -282,7 +330,7 @@ void caseAdventureLandmarkWorkshops()
             .getTerrainGenerationVersion() ==
                 CurrentTerrainGenerationVersion;
     }
-    check("ADVENTURE-WORKSHOP/default-current-save-reopen",
+    check(prefix + "/default-current-save-reopen",
           defaultVersion);
     clearDeterministicEnv();
     setEnv("HELLOMINE3D_SEED", "");

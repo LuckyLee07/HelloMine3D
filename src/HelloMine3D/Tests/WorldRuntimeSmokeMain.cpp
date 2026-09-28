@@ -1661,7 +1661,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 716 &&
+              registry.keys("en-US").size() == 720 &&
               registry.lookup("en-US", "map.marker_name_hint") ==
                   "Up to 24 characters; no spaces at either end." &&
               registry.lookup("zh-CN", "map.marker_invalid_name") ==
@@ -1756,6 +1756,17 @@ void caseWorldOutcomeAndLocalizedText()
                   "Music" &&
               registry.lookup("zh-CN", "settings.music_volume") !=
                   registry.lookup("en-US", "settings.music_volume"));
+    check("N7A/compact-machine-keys-resolve-in-both-locales",
+          registry.lookup("en-US", "machine.progress_short") == "Progress" &&
+          registry.lookup("zh-CN", "machine.progress_short") == "进度" &&
+          registry.lookup("en-US", "machine.power_short") == "Power" &&
+          registry.lookup("zh-CN", "machine.power_short") == "动力" &&
+          registry.lookup("en-US", "machine.collect") == "Collect" &&
+          registry.lookup("zh-CN", "machine.collect") == "领取" &&
+          registry.lookup("en-US", "machine.guidance.collect") ==
+              "The output is ready. Click it to move it into your pack." &&
+          registry.lookup("zh-CN", "machine.guidance.collect") ==
+              "产物已就绪，点击产物槽即可收入行囊。");
     check("N7A/localized-victory-text-resolves",
           registry.lookup("en-US", "victory.overlay.title") ==
                   "Waystone Restored" &&
@@ -21290,6 +21301,9 @@ int main()
         else if (focus != nullptr && std::string(focus) == "ADVENTURE_APPROACH") {
             caseAdventureLandmarkApproaches();
         }
+        else if (focus != nullptr && std::string(focus) == "WORKSHOP_COURTYARD") {
+            caseAdventureLandmarkWorkshops(WorkshopCourtyardTerrainGenerationVersion);
+        }
         else if (focus != nullptr && std::string(focus) == "ADVENTURE_WORKSHOP") {
             caseAdventureLandmarkWorkshops();
         }
@@ -21756,6 +21770,7 @@ int main()
         caseAdventureLandmarkLayouts();
         caseAdventureLandmarkApproaches();
         caseAdventureLandmarkWorkshops();
+        caseAdventureLandmarkWorkshops(WorkshopCourtyardTerrainGenerationVersion);
         caseUndergroundPolishV28();
         caseAdventureUndergroundV23();
         caseAdventureUndergroundSafetyV23();
