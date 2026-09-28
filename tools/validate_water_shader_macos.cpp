@@ -212,10 +212,38 @@ void main() {
     vector("sunColour",1,.8f,.4f); scalar("sunIntensity",1);
     vector("skyHorizonColour",.5f,.6f,.7f); vector("skyZenithColour",.3f,.6f,1);
     glUniform2f(glGetUniformLocation(program,"diagnosticLightSources"),0,.8f);
+    // WorldEnvironment::evaluate already tints these water palette uniforms
+    // for time of day. V09's original fixture varied only exposure and sky,
+    // missing this second daylight dependency in a torch-lit chamber.
+    vector("waterShallowColour",.12f,.43f,.53f);
+    vector("waterDeepColour",.018f,.15f,.24f);
     scalar("environmentLight",1); const auto caveDay=sample(4,12,.4f,1);
     scalar("environmentLight",0); scalar("sunIntensity",0);
     vector("skyHorizonColour",.01f,.01f,.02f); vector("skyZenithColour",.02f,.02f,.04f);
-    require(caveDay==sample(4,12,.4f,1), "Enclosed lit pool changes with sky colour, sun or daylight");
+    vector("waterShallowColour",.020f,.075f,.13f);
+    vector("waterDeepColour",.005f,.024f,.060f);
+    require(caveDay==sample(4,12,.4f,1), "Enclosed lit pool changes with sky colour, sun, daylight or water palette");
+    std::size_t enclosedPalettePairs = 0;
+    for (float eyeHeight : {-1.f, 4.f}) {
+        vector("cameraPosition",2,eyeHeight,1);
+        for (float detailAmount : {0.f,1.f}) {
+            scalar("waterDetailStrength",detailAmount);
+            for (float depth : {.25f,4.f,8.f}) {
+                for (float shore : {0.f,.4f,1.f}) {
+                    vector("waterShallowColour",.12f,.43f,.53f);
+                    vector("waterDeepColour",.018f,.15f,.24f);
+                    const auto dayPalette=sample(depth,12,shore,1);
+                    vector("waterShallowColour",.020f,.075f,.13f);
+                    vector("waterDeepColour",.005f,.024f,.060f);
+                    require(dayPalette==sample(depth,12,shore,1),
+                        "Enclosed pool body, ripple or underwater tint follows outdoor palette");
+                    ++enclosedPalettePairs;
+                }
+            }
+        }
+    }
+    std::cout << "[WATER_SHADER] enclosed_palette_pairs=" << enclosedPalettePairs << '\n';
+    vector("cameraPosition",2,4,1); scalar("waterDetailStrength",1);
     glUniform2f(glGetUniformLocation(program,"diagnosticLightSources"),0,0);
     const auto caveDark=sample(4,12,.4f,1);
     require(caveDark[1]<caveDay[1],"Unlit pool is as bright as a lit pool");

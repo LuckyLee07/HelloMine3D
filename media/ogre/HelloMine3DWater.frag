@@ -68,11 +68,16 @@ void main()
     // for atmospheric fog, so an unchanged pool keeps its depth as we move.
     float depth = clamp(waterSurfaceData.x, 0.0, 8.0);
     float depthAmount = 1.0 - exp(-depth * 0.32);
-    vec3 bodyColour = mix(waterShallowColour, waterDeepColour, depthAmount);
+    float skyAvailability = waterLightSources.x >= 0.0 ? clamp(waterLightSources.x, 0.0, 1.0) : 1.0;
+    // The environment palette already contains outdoor daylight. A sealed
+    // pool needs a stable material colour before its propagated local light
+    // is applied; otherwise torch-lit water still goes dark every night.
+    vec3 shallowColour = mix(vec3(0.12, 0.43, 0.53), waterShallowColour, skyAvailability);
+    vec3 deepColour = mix(vec3(0.018, 0.15, 0.24), waterDeepColour, skyAvailability);
+    vec3 bodyColour = mix(shallowColour, deepColour, depthAmount);
 
     float skyAmount = clamp(normal.y * 0.72 + (1.0 - facing) * 0.28,
                             0.0, 1.0);
-    float skyAvailability = waterLightSources.x >= 0.0 ? clamp(waterLightSources.x, 0.0, 1.0) : 1.0;
     vec3 reflectedSky = mix(bodyColour * 0.72, mix(skyHorizonColour, skyZenithColour, skyAmount), skyAvailability);
     vec3 colour = mix(bodyColour, reflectedSky, fresnel * 0.72);
 
@@ -88,7 +93,7 @@ void main()
         shore * (1.0 - shore) * waterDetailStrength *
         mix(0.35, 1.0, motion) * detailVisibility;
     colour *= 1.0 - shore * 0.08 * waterDetailStrength;
-    colour += mix(waterShallowColour, vec3(0.73, 0.85, 0.81), 0.65) * ripple * 0.38;
+    colour += mix(shallowColour, vec3(0.73, 0.85, 0.81), 0.65) * ripple * 0.38;
 
     // Two overlapping advection phases reset only at zero weight. Their
     // bounded offsets avoid long-session stretching or a visible time seam.
@@ -118,7 +123,7 @@ void main()
 
     float eyeHeight = cameraPosition.y - waterWorldPosition.y;
     float aboveSurface = smoothstep(-0.20, 0.20, eyeHeight);
-    colour = mix(mix(waterDeepColour * 0.72 * exposure, colour, 0.20),
+    colour = mix(mix(deepColour * 0.72 * exposure, colour, 0.20),
                  colour, aboveSurface);
 
     float fogVisibility = clamp(
