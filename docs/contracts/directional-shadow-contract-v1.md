@@ -61,6 +61,26 @@ terrain标准／兼容、flora接收以及actor接收使用相同计算。原3×
 移动、移除平面修正后重新出现自阴影的负例，以及原滤波／Off／夜间／距离边界。完整actor
 shader及林地／岩坡实景另查；不能只凭GPU平面夹具关闭正常动态与所有场景。
 
+## 2026-09-28 V05b 斜射投影精度修订
+
+V11a在seed42雪地晨间复现细碎自阴影。旧V05直接对接近同值的、已带平移的shadow坐标求差；
+低太阳角度和小屏幕投影下，浮点有效位损失会放大接收面梯度误差。实际GPU无障碍平面也可
+得到0.5可见度，正常世界同位置medium／high可见黑点，关闭阴影消失。
+
+V05b先对已有世界位置求屏幕切向，再用方向灯的正交投影矩阵变换方向（w=0，不带平移），
+最后按原算法求UV深度梯度。terrain／flora与actor一致；深度bias、8厘米接触门槛、九次PCF读取、
+滤波权重、强度、距离淡出、相机锚定、纹理和顶点预算不变。不通过增大bias掩盖精度问题。
+不新增世界查询或缓存；每片元增加两个方向矩阵变换，严格配对性能仍按Goal延期。
+
+三个阴影fragment program均新增`directionalShadowViewProj`，由Ogre的
+`texture_viewproj_matrix 0`提供世界到阴影投影；不能使用再次包含对象world变换的
+`texture_worldviewproj_matrix`。资源合同逐program校验绑定和索引，旧fragment缺少矩阵或
+旧program缺失／错绑时明确拒绝。完整材质切换仍使用原清理和重绑路径。
+
+GPU工具保留原60项，补terrain／actor、两档、陡坡、窄／倾斜屏幕足迹及远原点的
+48项断言，共108项；新增测试必须拒绝冻结旧shader。完整actor与terrain实际GLSL、双配置
+资源及客户端另验证；固定机位结果不关闭普通移动、动物／建筑及暂停恢复的剩余动态范围。
+
 ## 能力选择与回退
 
 Medium/High 要求 vertex/fragment program、GLSL 150 和 float texture。支持时日志冻结请求档、

@@ -4,6 +4,7 @@
 // /tmp/shadow-filter <repository or packaged resource root>
 #include <OpenGL/OpenGL.h>
 #include <OpenGL/gl3.h>
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -34,11 +35,13 @@ GLuint program(const std::filesystem::path& path, const std::string& prefix, boo
         function.insert(at,"receiverDepthGradient = vec2(0.0);\n    ");
     }
     const std::string fragment="#version 150\nuniform vec4 probeShadowPosition;\nvec4 "+prefix+"ShadowPosition;\n"
-        "uniform vec2 probeDepthSlope; uniform float probePixelSpan;\n"
+        "uniform vec2 probeDepthSlope; uniform float probePixelSpan, probeShear, probeCompression;\n"
+        "vec3 "+prefix+"WorldPosition; uniform mat4 directionalShadowViewProj;\n"
         "uniform float "+prefix+"Distance;\nuniform sampler2D directionalShadowMap;\n"
         "uniform float directionalShadowEnabled, directionalShadowStrength, directionalShadowBias;\n"
         "uniform float directionalShadowFadeStart, directionalShadowFadeEnd;\nout vec4 colour;\n"+
-        function+"\nvoid main(){vec2 shift=(gl_FragCoord.xy-vec2(0.5))*probePixelSpan;"+
+        function+"\nvoid main(){vec2 shift=mat2(1,0,probeShear,probeCompression)*(gl_FragCoord.xy-vec2(0.5))*probePixelSpan;"+
+        prefix+"WorldPosition=vec3(1648,128,668)+vec3(shift*128.0,0);"+
         prefix+"ShadowPosition=probeShadowPosition+vec4(shift,2.0*dot(shift,probeDepthSlope),0);"+
         "colour=vec4(directionalShadowVisibility());}\n";
     GLuint p=glCreateProgram();
@@ -49,12 +52,15 @@ GLuint program(const std::filesystem::path& path, const std::string& prefix, boo
 }
 float sample(GLuint p,const std::string& prefix,float x,float y=.5f,float z=0.f,
              float enabled=1.f,float strength=1.f,float distance=1.f,
-             float bias=.008f,float slopeX=0.f,float slopeY=0.f,float pixelSpan=0.f) {
+             float bias=.008f,float slopeX=0.f,float slopeY=0.f,float pixelSpan=0.f,float shear=0.f,float compression=1.f) {
     glUseProgram(p);
     auto scalar=[&](const char* key,float value){glUniform1f(glGetUniformLocation(p,key),value);};
     scalar("directionalShadowEnabled",enabled);scalar("directionalShadowStrength",strength);
     scalar("directionalShadowBias",bias);scalar("directionalShadowFadeStart",48);scalar("directionalShadowFadeEnd",64);
-    scalar("probePixelSpan",pixelSpan);
+    scalar("probePixelSpan",pixelSpan);scalar("probeShear",shear);scalar("probeCompression",compression);
+    const float lightProjection[]{1.f/128,0,2*slopeX/128,0, 0,1.f/128,2*slopeY/128,0,
+                                  0,0,1,0, .5f,.5f,0,1};
+    glUniformMatrix4fv(glGetUniformLocation(p,"directionalShadowViewProj"),1,GL_FALSE,lightProjection);
     glUniform2f(glGetUniformLocation(p,"probeDepthSlope"),slopeX,slopeY);
     scalar((prefix+"Distance").c_str(),distance);
     glUniform1i(glGetUniformLocation(p,"directionalShadowMap"),0);
@@ -136,6 +142,28 @@ int main(int argc,char** argv) {
                 }
                 check("removed-plane-correction-negative-detected",
                       sample(broken,prefix,.5f,.5f,0,1,1,1,bias,-1.6f,.9f,1.f/size)<.9f);
+
+                // Dawn faces project to thin, skewed footprints. Differencing
+                // translated shadow coordinates used to turn an unobstructed
+                // plane into half-shadow at subtexel screen spans. Keep world
+                // coordinates far from zero as in the production snow scene.
+                for(const auto slope : {std::pair<float,float>{16,5},{32,6}}) {
+                    for(int y=0;y<size;++y)for(int x=0;x<size;++x)
+                        depth[y*size+x]=.5f+slope.first*((x+.5f)/size-.5f)+
+                            slope.second*((y+.5f)/size-.5f);
+                    glTexImage2D(GL_TEXTURE_2D,0,GL_R32F,size,size,0,GL_RED,GL_FLOAT,depth.data());
+                    for(float span:{.01f,.05f,.25f})for(float compression:{.05f,1.f}) {
+                        float minimum=1;
+                        for(int step=-4;step<=4;++step) {
+                            const float delta=step/(4.f*size);
+                            minimum=std::min(minimum,sample(p,prefix,.5f+delta,.5f,2*delta*slope.first,
+                                1,1,1,bias,slope.first,slope.second,span/size,.8f,compression));
+                        }
+                        std::cout<<"[SHADOW_FILTER] grazing slope="<<slope.first<<","<<slope.second
+                            <<" span="<<span<<" compression="<<compression<<" minimum="<<minimum<<'\n';
+                        check("grazing-subtexel-receiver-remains-lit",minimum>.9999f);
+                    }
+                }
             }
             glDeleteProgram(p);glDeleteProgram(broken);
         }

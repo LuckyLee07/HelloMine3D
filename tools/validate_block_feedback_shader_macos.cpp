@@ -158,6 +158,7 @@ Pixels renderGround(GLuint shader, float enabled, float offset, int tile = 0,
     value(shader, "directionalShadowFadeEnd", 96.f);
     const float shadowProjection[]{0,0,0,0, 0,0,0,0, 0,0,0,0, .5f,.5f,0,1};
     glUniformMatrix4fv(glGetUniformLocation(shader,"shadowWorldViewProj"),1,GL_FALSE,shadowProjection);
+    glUniformMatrix4fv(glGetUniformLocation(shader,"directionalShadowViewProj"),1,GL_FALSE,shadowProjection);
     value(shader, "surfaceLightingStrength", enabled);
     value(shader, "environmentLight", daylight);
     glUniform1i(glGetUniformLocation(shader, "directionalShadowMap"), 1);

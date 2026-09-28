@@ -67,6 +67,7 @@ Pixels render(GLuint p,float role,float windup=0,float front=-.5f,float enabled=
     glUniform1i(glGetUniformLocation(p,"directionalShadowMap"),1);
     const float shadowProjection[]{0,0,0,0, 0,0,0,0, 0,0,0,0, .5f,.5f,0,1};
     glUniformMatrix4fv(glGetUniformLocation(p,"shadowWorldViewProj"),1,GL_FALSE,shadowProjection);
+    glUniformMatrix4fv(glGetUniformLocation(p,"directionalShadowViewProj"),1,GL_FALSE,shadowProjection);
     scalar("fogDirectionalStrength",0);
     glUniform3f(glGetUniformLocation(p,"fogColour"),.12f,.18f,.26f);
     glUniform3f(glGetUniformLocation(p,"fogSunwardColour"),.12f,.18f,.26f);

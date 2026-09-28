@@ -76,7 +76,7 @@ P95／P99 ≤1.10 和细微调参统一为 `DEFERRED_BY_USER`，不再阻塞本�
 | 顶点格式、网格、光照或 AO | 确定性角落/边界夹具、MeshDirty、隐藏固定截图、既有 schema 3 顶点/索引/构建/驻留字段的补充比较和相关 Q1。仅改每顶点值时不得误报为顶点格式升级。 |
 | 同列 section 合并绘制 | `RENDER_BATCH` 双配置聚焦：全部属性／世界坐标／索引保持、负坐标与整数极值、非法和空数据、替换／移除、透明／多 pass／自定义程序回退；完整 WorldRuntime、双配置客户端、真实改块／水岸／林地／雪山／阴影及兼容路径多帧，三轮静止与流送性能。合并不改变实际几何量，驻留对象数不能当作 draw 次数。 |
 | 雾、天空、云、阴影或后处理 | shader 正反例、关闭回退、固定昼夜截图、窗口缩放/切世界清理、各图形档性能和 AI/开发者视觉检查；动态项必须用多帧、视频或连续窗口。 |
-| V05 接触阴影 | `tools/validate_shadow_filter_macos.cpp` 执行terrain／actor生产PCF，覆盖两档8厘米遮挡、斜坡跨纹素移动、移除接收平面修正负例及原连续滤波／回退；完整actor GPU、资源双配置、林地／岩坡标准与兼容实景。AO、世界和档位语义未改时不重跑完整世界门禁；普通动态和其他场景仍按Goal补齐。 |
+| V05 接触阴影 | `tools/validate_shadow_filter_macos.cpp` 执行terrain／actor生产PCF，覆盖两档8厘米遮挡、斜坡跨纹素移动、移除接收平面修正负例及原连续滤波／回退；V05b补低太阳角度小投影、远原点与倾斜足迹48项，冻结旧shader须失败；完整actor／terrain GPU、资源双配置（每个阴影program缺绑定／错矩阵／错索引及旧fragment负例）、双配置客户端、雪地／林地／岩坡标准与兼容实景。AO、世界和档位语义未改时不重跑完整世界门禁；普通动态和其他场景仍按Goal补齐。 |
 | 冒险前期危险与种植 | `ADVENTURE_SURVIVAL` 双配置：夜间／跨日、候选距离、实际光照与树顶拒绝、加载数不变、三种子自然种子与土层、无战斗领域种植；D3／D5／D6／G6、阶段指标、难度与食物，Release 完整世界，双配置客户端／资源。正常输入及同负荷性能在 B2 整合，详见[前期引导合同](../contracts/adventure-onboarding-contract-v1.md)。 |
 | 冒险动物生态 | `ADVENTURE_WILDLIFE` 双配置：三生态自然出现、真实移动／停留／觅食／受惊、四角贴地避水与查询预算、原敌人 D3、区块卸载／重开再生、击杀无掉落且不计敌人目标；Release 完整世界、双配置客户端。B3b 同入口检查三类有界模型与状态动作，`tools/validate_actor_shader_macos.cpp` 验证生产普通／阴影 GPU、像素标记、关闭回退、雾和原生物／投射物回归，双配置资源。三生态普通画面、密集流送与配对性能集中实机验收，详见[冒险动物合同](../contracts/adventure-wildlife-contract-v1.md)。 |
 | 动物动作精修 | `bash scripts/verify_wildlife_presentation.sh Debug`／`Release` 检查最短转向、30／120Hz恒定目标、1200帧活动切换、关节／耳根连接、足盒角点支撑、停走、暂停、传送、强度关闭与群体错相；故障版本检出瞬切／腿根断开／同步，修复前脚尖回归保留。复核双配置 `ADVENTURE_WILDLIFE`、Release完整世界与双配置客户端；实际标准／兼容、动画关闭及自然栖息画面分开记账，不以展示模型代替普通遭遇，见[精修合同](../contracts/wildlife-motion-polish-contract-v1.md)。 |

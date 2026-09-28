@@ -40,7 +40,8 @@ void requireTokens(const ResourcePackResolver &resolver,
 
 void requirePlayerExposureDefaults(
     const ResourcePackResolver &resolver,
-    std::initializer_list<const char *> programs)
+    std::initializer_list<const char *> programs,
+    bool requireShadowProjection = false)
 {
     const std::string source = readText(
         resolver, "media/ogre/HelloMine3D.program");
@@ -79,6 +80,26 @@ void requirePlayerExposureDefaults(
             throw std::runtime_error(
                 std::string("Player lighting shader '") + program +
                 "': missing interface declaration 'param_named playerExposure float -1'.");
+        }
+        if (requireShadowProjection) {
+            std::istringstream tokens(source.substr(open, end - open));
+            std::string token;
+            bool projectionFound = false;
+            while (tokens >> token) {
+                if (token != "param_named_auto") continue;
+                std::string name, binding;
+                tokens >> name >> binding;
+                if (name == "directionalShadowViewProj") {
+                    int index = -1;
+                    projectionFound = binding == "texture_viewproj_matrix" &&
+                        (tokens >> index) && index == 0;
+                    break;
+                }
+            }
+            if (!projectionFound) {
+                throw std::runtime_error(std::string("Directional shadow shader '") + program +
+                    "': missing interface declaration 'param_named_auto directionalShadowViewProj texture_viewproj_matrix 0'.");
+            }
         }
     }
 }
@@ -178,7 +199,7 @@ void validateDirectionalShadowShaderContract(
 {
     requirePlayerExposureDefaults(resolver,
         {"HelloMine3D/ActorShadowFragment", "HelloMine3D/TerrainShadowFragment",
-         "HelloMine3D/TerrainShadowArrayFragment"});
+         "HelloMine3D/TerrainShadowArrayFragment"}, true);
     requireTokens(
         resolver, "media/ogre/HelloMine3D.program",
         {"HelloMine3D/TerrainShadowVertex",
@@ -211,6 +232,7 @@ void validateDirectionalShadowShaderContract(
          "uniform float sunIntensity;",
          "uniform float surfaceLightingStrength;",
          "uniform sampler2D directionalShadowMap;",
+         "uniform mat4 directionalShadowViewProj;",
          "uniform float directionalShadowBias;",
          "float directionalShadowVisibility()",
          "projected.z = projected.z * 0.5 + 0.5;",
@@ -228,6 +250,7 @@ void validateDirectionalShadowShaderContract(
          "uniform vec4 actorPartData;",
          "uniform float actorSurfaceStrength;",
          "uniform sampler2D directionalShadowMap;",
+         "uniform mat4 directionalShadowViewProj;",
          "float directionalShadowVisibility()",
          "projected.z = projected.z * 0.5 + 0.5;",
          "vec2 base = floor(samplePosition);",

@@ -113,6 +113,7 @@ fragment_program HelloMine3D/TerrainShadowFragment glsl
     {
         param_named terrainAtlas int 0
         param_named directionalShadowMap int 1
+        param_named_auto directionalShadowViewProj texture_viewproj_matrix 0
         param_named directionalShadowEnabled float 1.0
         param_named directionalShadowBias float 0.003
         param_named directionalShadowStrength float 0.0
@@ -322,6 +323,7 @@ fragment_program HelloMine3D/ActorShadowFragment glsl
         param_named environmentLight float 1.0
         param_named playerExposure float -1
         param_named directionalShadowMap int 0
+        param_named_auto directionalShadowViewProj texture_viewproj_matrix 0
         param_named directionalShadowEnabled float 1.0
         param_named directionalShadowBias float 0.003
         param_named directionalShadowStrength float 0.0
@@ -412,6 +414,7 @@ fragment_program HelloMine3D/TerrainShadowArrayFragment glsl
         param_named terrainArray int 0
         param_named alphaCutoff float 0.01
         param_named directionalShadowMap int 1
+        param_named_auto directionalShadowViewProj texture_viewproj_matrix 0
         param_named directionalShadowEnabled float 1.0
         param_named directionalShadowBias float 0.003
         param_named directionalShadowStrength float 0.0

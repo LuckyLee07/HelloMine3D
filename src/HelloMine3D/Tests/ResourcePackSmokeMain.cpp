@@ -258,7 +258,10 @@ namespace
         {
             source += "fragment_program " + program + " glsl\n{\n"
                 "    default_params\n    {\n"
-                "        param_named playerExposure float -1\n    }\n}\n";
+                "        param_named playerExposure float -1\n";
+            if (shadow)
+                source += "        param_named_auto directionalShadowViewProj texture_viewproj_matrix 0\n";
+            source += "    }\n}\n";
         }
         return source;
     }
@@ -438,6 +441,7 @@ namespace
             "uniform float sunIntensity;\n"
             "uniform float surfaceLightingStrength;\n"
             "uniform sampler2D directionalShadowMap;\n"
+            "uniform mat4 directionalShadowViewProj;\n"
             "uniform float directionalShadowBias;\n"
             "float directionalShadowVisibility() {}\n"
             "projected.z = projected.z * 0.5 + 0.5;\n"
@@ -454,6 +458,7 @@ namespace
             "uniform vec4 actorPartData;\n"
             "uniform float actorSurfaceStrength;\n"
             "uniform sampler2D directionalShadowMap;\n"
+            "uniform mat4 directionalShadowViewProj;\n"
             "float directionalShadowVisibility() {}\n"
             "projected.z = projected.z * 0.5 + 0.5;\n"
             "vec2 base = floor(samplePosition);\n"
@@ -502,6 +507,44 @@ namespace
                           validateDirectionalShadowShaderContract(resolver);
                       },
                       "missing interface declaration"));
+        }
+        for (const char* program : {"ActorShadowFragment", "TerrainShadowFragment", "TerrainShadowArrayFragment"})
+        {
+            for (const char* replacement : {"", "param_named_auto directionalShadowViewProj texture_worldviewproj_matrix 0",
+                                            "param_named_auto directionalShadowViewProj texture_viewproj_matrix 1"})
+            {
+                const fs::path root = freshRoot("v05b-shadow-projection");
+                writeDirectionalShadowFixture(root);
+                const fs::path path = root / "media/ogre/HelloMine3D.program";
+                std::ifstream input(path);
+                std::string source{std::istreambuf_iterator<char>(input), {}};
+                input.close();
+                const auto start = source.find(std::string("fragment_program HelloMine3D/") + program);
+                const std::string binding = "param_named_auto directionalShadowViewProj texture_viewproj_matrix 0";
+                source.replace(source.find(binding, start), binding.size(), replacement);
+                writeFile(path, source);
+                ResourcePackResolver resolver;
+                resolver.freeze(root.string(), requirements(), {});
+                check("V05B/reject-missing-or-wrong-projection-in-each-program",
+                    throwsContaining([&] { validateDirectionalShadowShaderContract(resolver); },
+                                     "directionalShadowViewProj texture_viewproj_matrix 0"));
+            }
+        }
+        for (const char* name : {"HelloMine3DTerrainShadow.frag", "HelloMine3DActorShadow.frag"})
+        {
+            const fs::path root = freshRoot("v05b-shadow-stale-fragment");
+            writeDirectionalShadowFixture(root);
+            const fs::path path = root / "media/ogre" / name;
+            std::ifstream input(path);
+            std::string source{std::istreambuf_iterator<char>(input), {}};
+            input.close();
+            const std::string declaration = "uniform mat4 directionalShadowViewProj;";
+            source.erase(source.find(declaration), declaration.size());
+            writeFile(path, source);
+            ResourcePackResolver resolver;
+            resolver.freeze(root.string(), requirements(), {});
+            check("V05B/reject-fragment-without-projection", throwsContaining(
+                [&] { validateDirectionalShadowShaderContract(resolver); }, declaration));
         }
         for (const char* name : {"HelloMine3DTerrainShadow.frag", "HelloMine3DActorShadow.frag"})
         {

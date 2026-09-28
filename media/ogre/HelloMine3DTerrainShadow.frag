@@ -17,6 +17,7 @@ uniform float alphaCutoff;
 uniform sampler2D terrainAtlas;
 #endif
 uniform sampler2D directionalShadowMap;
+uniform mat4 directionalShadowViewProj;
 uniform float atlasPixels;
 uniform float tilePixels;
 uniform float tilesPerRow;
@@ -49,8 +50,13 @@ float directionalShadowVisibility()
     vec3 projected = terrainShadowPosition.xyz /
         max(terrainShadowPosition.w, 0.00001);
     projected.z = projected.z * 0.5 + 0.5;
-    vec3 dx = dFdx(projected);
-    vec3 dy = dFdy(projected);
+    // Differentiate world tangents before projection. Subtracting nearby
+    // translated shadow coordinates loses significant bits at grazing angles.
+    // The directional camera is orthographic; w=0 excludes its translation.
+    vec3 dx = (directionalShadowViewProj * vec4(dFdx(terrainWorldPosition), 0.0)).xyz;
+    vec3 dy = (directionalShadowViewProj * vec4(dFdy(terrainWorldPosition), 0.0)).xyz;
+    dx.z *= 0.5;
+    dy.z *= 0.5;
     float determinant = dx.x * dy.y - dx.y * dy.x;
     bool validPlane = abs(determinant) > 1e-12;
     vec2 receiverDepthGradient = vec2(0.0);
