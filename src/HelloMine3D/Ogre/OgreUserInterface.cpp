@@ -3177,7 +3177,7 @@ class OgreUserInterface::Impl
 
     bool drawInventoryCard(Material::ID materialId, int amount, const std::string& id,
                            ImVec2 size, bool selected = false, bool compact = false,
-                           int shortcut = 0)
+                           int shortcut = 0, bool tooltipAbove = false)
     {
         const float scale = appliedSettings.uiScale;
         if (!compact) size.y = std::max(size.y, 54.f * scale);
@@ -3249,8 +3249,24 @@ class OgreUserInterface::Impl
         draw->PopClipRect();
         if ((hovered || focused) && amount > 0)
         {
-            if (!hovered) ImGui::SetNextWindowPos(minimum, ImGuiCond_Always, ImVec2(0.f, 1.f));
-            ImGui::SetTooltip("%s  x%d", materialName(materialId).c_str(), amount);
+            if (tooltipAbove)
+            {
+                const std::string text = materialName(materialId) + "  x" + std::to_string(amount);
+                const float padding = 2.f * ImGui::GetStyle().WindowPadding.x;
+                const float wrapWidth = std::max(1.f, std::min(26.f * ImGui::GetFontSize(),
+                    ImGui::GetIO().DisplaySize.x - padding - 24.f));
+                const float width = std::min(ImGui::CalcTextSize(text.c_str()).x, wrapWidth) + padding;
+                const float right = std::max(12.f, ImGui::GetIO().DisplaySize.x - width - 12.f);
+                const float x = std::clamp((minimum.x + maximum.x) * .5f, 12.f, right);
+                ImGui::SetNextWindowPos(ImVec2(x, minimum.y - 4.f * scale),
+                    ImGuiCond_Always, ImVec2(0.f, 1.f));
+                drawWrappedTooltip(text);
+            }
+            else
+            {
+                if (!hovered) ImGui::SetNextWindowPos(minimum, ImGuiCond_Always, ImVec2(0.f, 1.f));
+                ImGui::SetTooltip("%s  x%d", materialName(materialId).c_str(), amount);
+            }
         }
         return clicked;
     }
@@ -6245,7 +6261,7 @@ class OgreUserInterface::Impl
                         stack.getMaterial().id, stack.getNumInStack(),
                         widgetKey + "player" + std::to_string(playerSlot),
                         ImVec2(hotbarCell, hotbarCell), false, true,
-                        playerSlot + 1);
+                        playerSlot + 1, true);
                     if (clicked && !stack.isEmpty())
                     {
                         int target = -1;
