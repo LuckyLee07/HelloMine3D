@@ -909,11 +909,13 @@ class OgreUserInterface::Impl
                 }
                 else
                 {
-                    // Keep the pause controls above the actual wrapped notice
-                    // stack, including captions, in compact windows.
-                    const float noticeTop = drawHudNotifications(
-                        ImGui::GetIO().DisplaySize.y - 8.f);
-                    drawPauseMenu(noticeTop + 8.f);
+                    // Reserve a stable rail even after a caption expires. A
+                    // long notice scrolls inside it instead of moving controls
+                    // while the player is about to save or quit.
+                    const float noticeHeight = std::min(64.f * appliedSettings.uiScale,
+                        ImGui::GetIO().DisplaySize.y * .25f);
+                    drawPauseMenu(ImGui::GetIO().DisplaySize.y - noticeHeight - 8.f);
+                    drawPauseNotifications(noticeHeight);
                 }
                 break;
         }
@@ -5700,6 +5702,55 @@ class OgreUserInterface::Impl
             ImGui::GetColorU32(ImGuiCol_Text), text.c_str(), nullptr, wrapWidth);
         draw->PopClipRect();
         return topLeft.y - 6.f;
+    }
+
+    void drawPauseNotifications(float height)
+    {
+        const auto caption = captionTimeline.snapshot();
+        const bool hasStatus = statusMessageSeconds > 0.f && !statusMessage.empty();
+        if (!caption.visible() && !hasStatus) return;
+
+        const auto& io = ImGui::GetIO();
+        const float scale = appliedSettings.uiScale;
+        const float width = std::min(520.f * scale, io.DisplaySize.x - 32.f);
+        ImGui::SetNextWindowPos(ImVec2((io.DisplaySize.x - width) * .5f,
+            io.DisplaySize.y - 8.f - height), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.f, 6.f * scale));
+        const auto flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
+            ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoFocusOnAppearing |
+            ImGuiWindowFlags_NoNav;
+        if (ImGui::Begin("##PauseNotifications", nullptr, flags))
+        {
+            const auto card = [&](const std::string& text) {
+                const ImVec2 at = ImGui::GetCursorScreenPos();
+                const float cardWidth = ImGui::GetContentRegionAvail().x;
+                const float font = ImGui::GetFontSize() * .82f;
+                const float wrap = std::max(1.f, cardWidth - 20.f * scale);
+                const float cardHeight = ImGui::GetFont()->CalcTextSizeA(
+                    font, FLT_MAX, wrap, text.c_str()).y + 12.f * scale;
+                auto* draw = ImGui::GetWindowDrawList();
+                const ImVec2 end(at.x + cardWidth, at.y + cardHeight);
+                draw->AddRectFilled(at, end, IM_COL32(25, 45, 52, 245), 3.f * scale);
+                draw->AddRect(at, end, IM_COL32(105, 132, 131, 200), 3.f * scale);
+                draw->AddLine(ImVec2(at.x + 1.f, at.y + 4.f),
+                    ImVec2(at.x + 1.f, end.y - 4.f), IM_COL32(153, 183, 174, 255), 2.f);
+                draw->AddText(ImGui::GetFont(), font,
+                    ImVec2(at.x + 10.f * scale, at.y + 6.f * scale),
+                    ImGui::GetColorU32(WarmText), text.c_str(), nullptr, wrap);
+                ImGui::Dummy(ImVec2(cardWidth, cardHeight));
+            };
+            // Action feedback comes first so ambient captions cannot push it
+            // below the viewport. Both retain their complete wrapped text.
+            if (hasStatus) card(statusMessage);
+            if (caption.visible()) card("[" + tr("caption.prefix") + "] " +
+                LocalizedPresentation::audioCaption(appliedSettings.locale,
+                    caption.cueId, caption.fallback));
+        }
+        ImGui::End();
+        ImGui::PopStyleVar(2);
     }
 
     float drawHudNotifications(float notificationBottom)
