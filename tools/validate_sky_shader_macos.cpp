@@ -1,7 +1,7 @@
 // Render the production sky fragment shader; these are diagnostic GPU samples.
 // clang++ -std=c++17 -Wno-deprecated-declarations tools/validate_sky_shader_macos.cpp \
 //   -framework OpenGL -framework CoreGraphics -framework ImageIO -framework CoreFoundation -o /tmp/sky-gpu
-// /tmp/sky-gpu <candidate Skybox.frag> <baseline Skybox.frag> <new output directory> [--celestial|--cloud-form|--natural-sky|--atmospheric-clouds]
+// /tmp/sky-gpu <candidate Skybox.frag> <baseline Skybox.frag> <new output directory> [--celestial|--cloud-form|--natural-sky|--atmospheric-clouds|--polished-clouds]
 #include <OpenGL/OpenGL.h>
 #include <OpenGL/gl3.h>
 #include <CoreGraphics/CoreGraphics.h>
@@ -200,14 +200,47 @@ bool roundBody(const Pixels& pixels,bool moon) {
     }
     return true;
 }
+
+bool separatedCloudGroups(const Pixels& pixels) {
+    // Fixed ordinary-view probe: reject one dense ribbon occupying most of
+    // the sky width. This is a regression guard, not a universal art score.
+    std::vector<bool> seen(Edge*Edge,false);
+    std::vector<int> pending;
+    int largest=0,widest=0;
+    for(int start=0;start<Edge*Edge;++start) {
+        if(seen[start] || pixels[start*4]<160)continue;
+        pending.clear();pending.push_back(start);seen[start]=true;
+        int lo=start%Edge,hi=lo;
+        for(std::size_t cursor=0;cursor<pending.size();++cursor) {
+            const int at=pending[cursor],x=at%Edge,y=at/Edge;
+            lo=std::min(lo,x);hi=std::max(hi,x);
+            for(const auto delta : {std::pair<int,int>{-1,0},{1,0},{0,-1},{0,1}}) {
+                const int nx=x+delta.first,ny=y+delta.second;
+                if(nx<0||ny<0||nx>=Edge||ny>=Edge)continue;
+                const int next=ny*Edge+nx;
+                if(!seen[next]&&pixels[next*4]>=160) {
+                    seen[next]=true;pending.push_back(next);
+                }
+            }
+        }
+        largest=std::max(largest,int(pending.size()));
+        widest=std::max(widest,hi-lo+1);
+    }
+    std::cout<<"[SKY_GPU] cloud-largest-dense-group="<<largest
+             <<" widest-dense-group="<<widest<<'\n';
+    return largest>64 && largest<Edge*Edge*.08 && widest<Edge*.60;
+}
 }
 int main(int argc,char** argv) {
     try {
-        const bool atmosphericClouds=argc==5&&std::string(argv[4])=="--atmospheric-clouds";
+        // Polish compares with the existing natural sky, not the old unoccluded
+        // celestial implementation used by the original migration checks.
+        const bool polishedClouds=argc==5&&std::string(argv[4])=="--polished-clouds";
+        const bool atmosphericClouds=argc==5&&(std::string(argv[4])=="--atmospheric-clouds"||polishedClouds);
         const bool naturalSky=argc==5&&(std::string(argv[4])=="--natural-sky"||atmosphericClouds);
         const bool cloudForm=argc==5&&(std::string(argv[4])=="--cloud-form"||naturalSky);
         const bool celestial=argc==5&&(std::string(argv[4])=="--celestial"||cloudForm);
-        require(argc==4||celestial,"Usage: sky-gpu <candidate> <baseline> <new output> [--celestial|--cloud-form|--natural-sky|--atmospheric-clouds]");
+        require(argc==4||celestial,"Usage: sky-gpu <candidate> <baseline> <new output> [--celestial|--cloud-form|--natural-sky|--atmospheric-clouds|--polished-clouds]");
         const std::filesystem::path output(argv[3]);
         require(!std::filesystem::exists(output),"Output must be new");
         std::filesystem::create_directories(output);
@@ -289,12 +322,17 @@ int main(int argc,char** argv) {
                 const auto clear=celestialProbe(body,moon),before=celestialProbe(oldBody,moon);
                 png(output/(moon?"moon-clear.png":"sun-clear.png"),clear);
                 png(output/(moon?"moon-before.png":"sun-before.png"),before);
-                check(moon?"moon-redesigned":"sun-redesigned",difference(clear,before)>1);
+                if(polishedClouds)
+                    check(moon?"moon-preserved":"sun-preserved",clear==before);
+                else check(moon?"moon-redesigned":"sun-redesigned",difference(clear,before)>1);
                 const auto transmission=minimumTransmission(body,moon);
                 std::cout<<"[SKY_GPU] "<<(moon?"moon":"sun")<<" transmission="<<transmission<<'\n';
                 check(moon?"moon-cloud-occlusion":"sun-cloud-occlusion",transmission<.45);
-                check(moon?"old-moon-occlusion-defect-detected":"old-sun-occlusion-defect-detected",
-                      minimumTransmission(oldBody,moon)>.95);
+                if(polishedClouds)
+                    check(moon?"baseline-moon-occlusion-valid":"baseline-sun-occlusion-valid",
+                          minimumTransmission(oldBody,moon)<.45);
+                else check(moon?"old-moon-occlusion-defect-detected":"old-sun-occlusion-defect-detected",
+                           minimumTransmission(oldBody,moon)>.95);
                 check(moon?"legacy-moon-exact":"legacy-sun-exact",
                       celestialProbe(body,moon,108,168,true)==celestialProbe(oldBody,moon,108,168,true));
                 check(moon?"moon-no-backface":"sun-no-backface",
@@ -350,6 +388,10 @@ void main() {
             const auto cloud=program(maskShader(read(argv[1])));
             const auto oldCloud=program(maskShader(read(argv[2])));
             const auto currentMask=render(cloud,5),oldMask=render(oldCloud,5);
+            if(polishedClouds) {
+                check("dense-cloud-groups-separated",separatedCloudGroups(currentMask));
+                check("baseline-wide-ribbon-defect-detected",!separatedCloudGroups(oldMask));
+            }
             const auto fractions=[](const Pixels& p) {
                 double filled=0,transition=0;
                 for(std::size_t i=0;i<p.size();i+=4) {

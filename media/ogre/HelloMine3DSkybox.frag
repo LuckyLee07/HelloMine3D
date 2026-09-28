@@ -145,15 +145,19 @@ void sampleBoundedCloudLayer(vec3 direction, out float mask,
     float broad = valueNoise(uv);
     float middle = valueNoise(uv * 2.03 + 19.7);
     float detail = valueNoise(uv * 4.07 - 7.3);
-    float density = broad * 0.68 + middle * 0.25 + detail * 0.07;
+    // Middle-size lobes interrupt the broad field before it becomes one
+    // horizon-spanning ribbon. Keep three scales, without adding noise taps.
+    float density = broad * 0.40 + middle * 0.46 + detail * 0.14;
     float threshold = mix(0.64, 0.50, cloudCoverage);
-    float coverage = smoothstep(threshold - 0.012, threshold + 0.060, density);
+    float coverage = smoothstep(threshold - 0.010, threshold + 0.045, density);
     float distanceFade = 1.0 - smoothstep(
         cloudMaxDistance * 0.42, cloudMaxDistance,
         cameraInside ? 0.0 : nearDistance);
     float interiorBlend = smoothstep(0.0, max(cloudThickness * 0.15, 0.1),
         min(cameraPosition.y - bottom, top - cameraPosition.y));
-    float horizonFade = mix(smoothstep(0.12, 0.24, abs(direction.y)),
+    // The grazing projection compresses the layer into repeated strips;
+    // dissolve those distant strips, retaining ordinary overhead groups.
+    float horizonFade = mix(smoothstep(0.16, 0.32, abs(direction.y)),
                             1.0, interiorBlend);
     float crossingFade = smoothstep(0.0, 0.12,
         (farDistance - nearDistance) / max(cloudThickness, 1.0));
@@ -162,9 +166,9 @@ void sampleBoundedCloudLayer(vec3 direction, out float mask,
     // generating rock-like bevels. Day/night colour remains authoritative.
     vec2 lightOffset = sunDirection.xz * 0.18 * (sunIntensity - moonIntensity);
     float lightDensity = valueNoise(uv + lightOffset);
-    float bodyLight = clamp(0.42 +
-        smoothstep(threshold, threshold + 0.22, density) * 0.46 +
-        (broad - lightDensity) * 0.7, 0.36, 0.95);
+    float bodyLight = clamp(0.40 +
+        smoothstep(threshold, threshold + 0.22, density) * 0.34 +
+        (broad - lightDensity) * 0.55, 0.36, 0.82);
     colour = mix(cloudShadowColour, cloudLightColour, bodyLight);
 
 }
