@@ -1046,7 +1046,7 @@ class OgreUserInterface::Impl
             !worldRecoveryWarning.empty();
         const PresentationWindowLayout layout = fitPresentationWindow(
             io.DisplaySize.x, io.DisplaySize.y, 350.f,
-            (worlds.empty() ? 404.f : 456.f) +
+            (worlds.empty() ? 404.f : 476.f) +
                 (hasCatalogueNotice ? 60.f : 0.f), scale);
         const float left = std::min(io.DisplaySize.x * 0.08f,
                                    io.DisplaySize.x - layout.width - 15.f);
@@ -1104,12 +1104,17 @@ class OgreUserInterface::Impl
                     playUiFeedback();
                 }
                 ImGui::PopStyleColor(4);
-                ImGui::PushStyleColor(ImGuiCol_Text, WarmMuted);
                 const std::string lastPlayed = worlds.front().legacyMetadata
                     ? tr("world.last_played_legacy")
                     : formatLocalDate(worlds.front().lastPlayedUtc);
-                ImGui::TextWrapped("%s · %s", worlds.front().displayName.c_str(),
-                    lastPlayed.c_str());
+                const std::string name = boundedHudText(
+                    worlds.front().displayName, ImGui::GetFontSize(),
+                    ImGui::GetContentRegionAvail().x);
+                ImGui::TextUnformatted(name.c_str());
+                if (name != worlds.front().displayName && ImGui::IsItemHovered())
+                    drawWrappedTooltip(worlds.front().displayName);
+                ImGui::PushStyleColor(ImGuiCol_Text, WarmMuted);
+                ImGui::TextUnformatted(lastPlayed.c_str());
                 ImGui::PopStyleColor();
                 ImGui::Dummy(ImVec2(0.f, 4.f * scale));
             }
@@ -1331,7 +1336,8 @@ class OgreUserInterface::Impl
             appliedSettings.uiScale);
         const bool compactCatalogue = maximumLayout.width < 720.f * scale;
         const float catalogueHeight = std::min(620.0f,
-            (300.0f + (showCreateWorld ? 145.0f : 0.0f) +
+            (300.0f + 44.f * std::min<std::size_t>(worlds.size(), 3) +
+                (showCreateWorld ? 145.0f : 0.0f) +
                 (!selectedWorldId.empty()
                 ? (compactCatalogue ? 300.0f : 175.0f) +
                       24.0f * std::min<std::size_t>(backups.size(), 4)
@@ -1471,10 +1477,12 @@ class OgreUserInterface::Impl
 
             ImGui::Text("%s (%llu)", tr("world.active").c_str(),
                         static_cast<unsigned long long>(worlds.size()));
-            const float activeListHeight = std::min(185.0f,
-                std::max(58.0f, 18.0f +
-                    worlds.size() * 2.f *
-                        ImGui::GetTextLineHeightWithSpacing()));
+            const float rowFont = ImGui::GetFontSize();
+            const float metadataFont = rowFont * .78f;
+            const float worldRowHeight = rowFont + metadataFont + 12.f * scale;
+            const float activeListHeight = std::min(185.f * scale,
+                std::max(58.f * scale, 16.f * scale + worlds.size() *
+                    (worldRowHeight + ImGui::GetStyle().ItemSpacing.y)));
             ImGui::BeginChild("WorldList", ImVec2(0.0f, activeListHeight), true);
             if (worlds.empty())
             {
@@ -1486,45 +1494,53 @@ class OgreUserInterface::Impl
             const ImGuiTableFlags worldTableFlags =
                 ImGuiTableFlags_SizingStretchProp |
                 ImGuiTableFlags_NoSavedSettings;
-            if (ImGui::BeginTable("ActiveWorlds", 3, worldTableFlags))
+            if (ImGui::BeginTable("ActiveWorlds", 2, worldTableFlags))
             {
                 ImGui::TableSetupColumn(
                     tr("world.world").c_str(),
-                    ImGuiTableColumnFlags_WidthStretch, 1.4f);
-                ImGui::TableSetupColumn(
-                    tr("world.last_played").c_str(),
-                    ImGuiTableColumnFlags_WidthStretch, 0.8f);
+                    ImGuiTableColumnFlags_WidthStretch, 1.f);
+                const float actionWidth = ImGui::CalcTextSize(tr("common.play").c_str()).x +
+                    ImGui::CalcTextSize(tr("common.delete").c_str()).x +
+                    ImGui::GetStyle().FramePadding.x * 4.f +
+                    ImGui::GetStyle().ItemSpacing.x + 8.f * scale;
                 ImGui::TableSetupColumn(
                     tr("world.actions").c_str(),
-                    ImGuiTableColumnFlags_WidthFixed, 148.0f * scale);
+                    ImGuiTableColumnFlags_WidthFixed, actionWidth);
                 for (const WorldCatalogueEntry &entry : worlds)
                 {
                     ImGui::PushID(entry.id.c_str());
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
                     const bool selected = selectedWorldId == entry.id;
-                    const std::string worldLabel = entry.completed
-                        ? entry.displayName + "  [" +
-                              runtimeLocalizedTextRegistry().lookup(
-                                  appliedSettings.locale,
-                                  "world.list.completed") + "]"
-                        : entry.displayName;
-                    if (ImGui::Selectable(worldLabel.c_str(), selected))
+                    const ImVec2 rowAt = ImGui::GetCursorScreenPos();
+                    const float rowWidth = ImGui::GetContentRegionAvail().x;
+                    // User names are text, not ImGui labels: ## is valid here.
+                    if (ImGui::Selectable("##WorldSelect", selected,
+                            ImGuiSelectableFlags_None, ImVec2(rowWidth, worldRowHeight)))
                     {
                         selectWorld(entry);
                     }
-                    const std::string terrain = entry.terrainGenerationVersion > 0
-                        ? tr("world.terrain") + " v" +
-                              std::to_string(entry.terrainGenerationVersion)
-                        : tr("world.terrain_unknown");
-                    ImGui::TextDisabled("%s · %s", difficultyName(entry.difficulty).c_str(),
-                                        terrain.c_str());
-                    ImGui::TableSetColumnIndex(1);
                     const std::string lastPlayed = entry.legacyMetadata
                         ? tr("world.last_played_legacy")
                         : formatLocalDate(entry.lastPlayedUtc);
-                    ImGui::TextUnformatted(lastPlayed.c_str());
-                    ImGui::TableSetColumnIndex(2);
+                    const std::string metadata = difficultyName(entry.difficulty) + " · " + lastPlayed +
+                        (entry.completed ? " · " + tr("world.list.completed") : "");
+                    const float textWidth = std::max(1.f, rowWidth - 12.f * scale);
+                    const std::string name = boundedHudText(entry.displayName, rowFont, textWidth);
+                    const std::string detail = boundedHudText(metadata, metadataFont, textWidth);
+                    if (ImGui::IsItemHovered() &&
+                        (name != entry.displayName || detail != metadata))
+                        drawWrappedTooltip(entry.displayName + "\n" + metadata);
+                    ImDrawList* rowDraw = ImGui::GetWindowDrawList();
+                    rowDraw->AddText(ImGui::GetFont(), rowFont,
+                        ImVec2(rowAt.x + 6.f * scale, rowAt.y + 3.f * scale),
+                        ImGui::GetColorU32(selected ? WarmAccent : WarmText), name.c_str());
+                    rowDraw->AddText(ImGui::GetFont(), metadataFont,
+                        ImVec2(rowAt.x + 6.f * scale, rowAt.y + rowFont + 7.f * scale),
+                        ImGui::GetColorU32(WarmMuted), detail.c_str());
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() +
+                        std::max(0.f, (worldRowHeight - ImGui::GetTextLineHeight()) * .5f));
                     if (ImGui::SmallButton(label("common.play", "##Play").c_str()))
                     {
                         pendingAction.type =
@@ -1567,7 +1583,22 @@ class OgreUserInterface::Impl
                     ImGui::TableSetColumnIndex(0);
                     const ImVec2 previewAt = ImGui::GetCursorScreenPos();
                     const float previewWidth = ImGui::GetContentRegionAvail().x;
-                    const float previewHeight = 96.f * scale;
+                    const bool previewReady = selectedWorldPreview &&
+                        selectedWorldPreview->width == WorldPreviewStore::Width &&
+                        selectedWorldPreview->height == WorldPreviewStore::Height &&
+                        selectedWorldPreview->cells.size() == WorldPreviewStore::CellCount;
+                    const float titleWidth = std::max(1.f, previewWidth - 60.f * scale);
+                    const float bodyWidth = std::max(1.f, previewWidth - 24.f * scale);
+                    const float fallbackTitleHeight = ImGui::GetFont()->CalcTextSizeA(
+                        ImGui::GetFontSize(), FLT_MAX, titleWidth,
+                        tr("world.preview_unavailable").c_str()).y;
+                    const float fallbackBodyY = 14.f * scale +
+                        std::max(26.f * scale, fallbackTitleHeight) + 10.f * scale;
+                    const float fallbackBodyHeight = ImGui::GetFont()->CalcTextSizeA(
+                        ImGui::GetFontSize() * .8f, FLT_MAX, bodyWidth,
+                        tr("world.preview_fallback").c_str()).y;
+                    const float previewHeight = previewReady ? 96.f * scale :
+                        std::max(96.f * scale, fallbackBodyY + fallbackBodyHeight + 12.f * scale);
                     ImDrawList* draw = ImGui::GetWindowDrawList();
                     draw->AddRectFilled(previewAt,
                         ImVec2(previewAt.x + previewWidth,
@@ -1577,11 +1608,6 @@ class OgreUserInterface::Impl
                         ImVec2(previewAt.x + previewWidth,
                                previewAt.y + previewHeight),
                         IM_COL32(75, 104, 105, 180), 4.f * scale);
-                    const bool previewReady = selectedWorldPreview &&
-                        selectedWorldPreview->width == WorldPreviewStore::Width &&
-                        selectedWorldPreview->height == WorldPreviewStore::Height &&
-                        selectedWorldPreview->cells.size() ==
-                            WorldPreviewStore::CellCount;
                     if (previewReady)
                     {
                         const auto& preview = *selectedWorldPreview;
@@ -1665,18 +1691,18 @@ class OgreUserInterface::Impl
                             ImVec2(previewAt.x + 12.f * scale,
                                    previewAt.y + 12.f * scale),
                             26.f * scale);
-                        draw->AddText(
+                        draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(),
                             ImVec2(previewAt.x + 48.f * scale,
                                    previewAt.y + 14.f * scale),
                             ImGui::GetColorU32(WarmText),
-                            tr("world.preview_unavailable").c_str());
+                            tr("world.preview_unavailable").c_str(), nullptr, titleWidth);
                         draw->AddText(ImGui::GetFont(),
                             ImGui::GetFontSize() * .8f,
                             ImVec2(previewAt.x + 12.f * scale,
-                                   previewAt.y + 55.f * scale),
+                                   previewAt.y + fallbackBodyY),
                             ImGui::GetColorU32(WarmMuted),
                             tr("world.preview_fallback").c_str(), nullptr,
-                            previewWidth - 24.f * scale);
+                            bodyWidth);
                     }
                     ImGui::Dummy(ImVec2(previewWidth, previewHeight));
                     if (compactSummary)
@@ -1688,9 +1714,10 @@ class OgreUserInterface::Impl
                     {
                         ImGui::TableSetColumnIndex(1);
                     }
-                    ImGui::TextColored(WarmAccent, "%s",
-                        selected->displayName.c_str());
-                    ImGui::Text("%s: %s", tr("world.last_played").c_str(),
+                    ImGui::PushStyleColor(ImGuiCol_Text, WarmAccent);
+                    ImGui::TextWrapped("%s", selected->displayName.c_str());
+                    ImGui::PopStyleColor();
+                    ImGui::TextWrapped("%s: %s", tr("world.last_played").c_str(),
                         (selected->legacyMetadata
                             ? tr("world.last_played_legacy")
                             : formatLocalDate(selected->lastPlayedUtc)).c_str());
@@ -1698,13 +1725,13 @@ class OgreUserInterface::Impl
                         difficultyName(selected->difficulty).c_str());
                     if (selected->terrainGenerationVersion > 0)
                     {
-                        ImGui::Text("%s: %d · %s v%d", tr("world.seed").c_str(),
+                        ImGui::TextWrapped("%s: %d · %s v%d", tr("world.seed").c_str(),
                             selected->seed, tr("world.terrain").c_str(),
                             selected->terrainGenerationVersion);
                     }
                     else
                     {
-                        ImGui::Text("%s: %d · %s: %s", tr("world.seed").c_str(),
+                        ImGui::TextWrapped("%s: %d · %s: %s", tr("world.seed").c_str(),
                             selected->seed, tr("world.terrain").c_str(),
                             tr("world.terrain_unknown").c_str());
                     }
