@@ -55,4 +55,6 @@ def tiles(edge=32):
     polished = polish_tiles(edge)
     for name in ADVENTURE_OVERRIDES:
         result[name] = polished[name]
+    if min(min(p[:3]) for p in result['snow'].getdata()) < 180:
+        raise ValueError('Polished snow contains dark texels from a neighbouring swatch')
     return result

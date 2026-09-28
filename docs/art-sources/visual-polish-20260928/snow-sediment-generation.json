@@ -1,0 +1,26 @@
+{
+  "tool": "built-in image_gen",
+  "purpose": "V01d snow and sediment authored pixel scale",
+  "file": "snow-sediment-v1.png",
+  "prompt": "Use case: stylized-concept. Asset type: ORIGINAL production material texture sheet for a restrained natural voxel game. Generate ONE perfectly SQUARE sheet containing EXACTLY FOUR equal square material swatches in a 2 by 2 grid, full-bleed with NO borders, gaps, gutters, labels, text or objects. Every quadrant is a flat orthographic ALBEDO material, evenly lit, fully opaque. All four designs use a COARSE 16 by 16 hard square-pixel grid per quadrant, broad connected 2-5 pixel patches, only 5 or 6 colors, no soft gradients, tiny noise, glossy lighting or perspective. Textures should tile quietly on all four edges; avoid a central emblem, repeating diagonal bands, brick mortar or framed outlines.\nTOP LEFT: soft clean SNOW. Predominantly off-white approximately RGB 237,242,244 with two or three broad subtly stepped pale blue-grey depressions, all colors channels at least 185. Low contrast, large calm areas. No dark flecks, ice crystals, blue stripes, stone or dirt contamination.\nTOP RIGHT: compact natural GRAVEL. Muted warm-neutral greys around RGB 135,132,123, with sparse larger angular pebble clusters 2-4 pixels across in slightly lighter or darker tones, touching in irregular quiet groups. Clearly granular compared to smooth massive rock but NOT a busy mosaic, tiny confetti, sharp black crevices, masonry or cobblestone pavement. Avoid tiny white highlights.\nBOTTOM LEFT: dense smooth CLAY. Muted warm grey terracotta tan, around RGB 151,113,89. Broad irregular connected 3-6 pixel planes with two short discontinuous, nearly horizontal subdued clay seams, subtle mineral variations. Calm compact surface, low contrast, clearly warmer and lighter than mud. No cracks in a regular grid, no diagonal striping, stones, highlights or fine mottling.\nBOTTOM RIGHT: damp SILT. Muted dark olive-brown earth around RGB 94,79,61. Broad joined 2-4 pixel moist soil clods with subtle ochre-brown patches and at most THREE subdued grey-brown embedded pebbles, each 1-2 pixels. Clearly darker than clay, with organic compact sediment character. No bright speckles, weeds, glossy wet reflections, regular pattern or diagonal lines.\nThe exact quadrant order is mandatory. Every pixel is opaque; no transparency or black alpha key. The shared broad pixel scale must feel appropriate on full cube faces, hand-held cubes and small inventory icons.",
+  "references": [],
+  "grid": {
+    "source_size": [
+      1254,
+      1254
+    ],
+    "cell_size": [
+      627,
+      627
+    ],
+    "order": [
+      "snow",
+      "gravel",
+      "clay",
+      "silt"
+    ],
+    "authored_edge": 16
+  },
+  "encoding": "opaque RGBA; deterministic quadrant cropping and nearest-neighbour sampling only",
+  "sha256": "0d4550dd42c49510dcca1bb881f543dc875bef99ba6f84203bcd6c99d41e2ac6"
+}

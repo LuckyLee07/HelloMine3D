@@ -905,8 +905,8 @@ V07b的纯`ToolActionPresentation`由第一／第三人称共用已有动作elap
 GL 能力与用户设置在创建世界前只选择一次有效表现。
 标准路径使用 64×64×256、7 级独立 mip 的数组纹理，CPU 载荷校验不依赖 Ogre；
 Ogre 持有 GPU 纹理和重载用载荷，在释放渲染根后释放 loader。
-UI/兼容路径使用独立16×16图集；V01精修的77个材质槽与标准数组共用最终像素、生态tint和透明掩码，
-包含两树种的树皮／端面／叶及苔石；来源见[材质源记录](../art-sources/visual-polish-20260928/README.md)。
+UI/兼容路径使用独立16×16图集；V01精修的81个材质槽与标准数组共用最终像素、生态tint和透明掩码，
+包含两树种的树皮／端面／叶、苔石及雪／砾石／黏土／淤泥；来源见[材质源记录](../art-sources/visual-polish-20260928/README.md)。
 旧资源包覆盖、能力不足与用户兼容选择均保持完整兼容路径。
 坏数组与坏 shader 明确失败，不伪装能力回退。最新范围见
 [M1 实施记录](../reports/warm-wilderness-m1-implementation-2026-09-12.md)。

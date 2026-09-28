@@ -38,7 +38,7 @@ def validate(path, report_path):
     assert report['polish_cutout_key_max'] == CUTOUT_KEY_MAX
     polished_adventure = {'forest_floor', 'spruce_bark_side', 'spruce_bark_top',
                          'spruce_leaves', 'birch_bark_side', 'birch_bark_top',
-                         'birch_leaves', 'moss_stone'}
+                         'birch_leaves', 'moss_stone', 'snow', 'gravel', 'clay', 'silt'}
     assert set(report['adventure_material_overrides']) == polished_adventure
     adventure_records = [r for r in report['semantics'] if r['semantic'] in ADVENTURE_NAMES]
     assert len(adventure_records) == 12
@@ -59,7 +59,7 @@ def validate(path, report_path):
     authored_cutout = [r['layer'] for r in report['semantics'] if r['alpha'] == 'cutout' and r['provenance'] != 'retained']
     shared_records = [r for r in report['semantics']
                       if all(source.startswith('visual-polish/') for source in r['sources'])]
-    assert len(shared_records) == 77
+    assert len(shared_records) == 81
     atlas = Image.open(ROOT / 'media/textures/DefaultPack.png').convert('RGBA')
     offset, coverage = 36, {}
     for mip in range(mips):

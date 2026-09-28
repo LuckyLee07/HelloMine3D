@@ -4,7 +4,7 @@
   "layers": 256,
   "mips": 7,
   "payload_bytes": 5592064,
-  "sha256": "1e139d6ad41ab93b302ada27d7005f2c64f1e625d6d20e1cc41998a07c3d71e2",
+  "sha256": "021e5a340c170f955844aaf1b62d69d0acd5530928758085b482bf146a3882c6",
   "adventure_source_sha256": "9c566473a6afdde477434d873c469fdcde1ad64d8591e10dbd85f5028615ede7",
   "adventure_override_sha256": {
     "clay": "e4b6cf474d7efc382430bbb0d3eda71fb1a6af5b26efc228a7b3e2e6b068d762"
@@ -19,7 +19,11 @@
     "birch_bark_side",
     "birch_bark_top",
     "birch_leaves",
-    "moss_stone"
+    "moss_stone",
+    "snow",
+    "gravel",
+    "clay",
+    "silt"
   ],
   "adventure_source_rows": [
     [
@@ -41,6 +45,7 @@
     "foliage-sand-sheet-v1.png": "9e617ffddb01c76582ce89305f14292db99b4d7e25738050290cd1f240f094ae",
     "birch-spruce-wood-v1.png": "d17e0d9438b59eae1e08e8b391e0f64af02d6a603325811719a66c032a5c2fff",
     "birch-spruce-stone-v1.png": "1e7203e7c8b06d0fdde778b7e05450d31b8c8d25f3bcb1aa5d0b172c8af29f57",
+    "snow-sediment-v1.png": "0d4550dd42c49510dcca1bb881f543dc875bef99ba6f84203bcd6c99d41e2ac6",
     "stone-planes-v2.png": "fba5a126ef6a70168ce5c23cbcb81c6db6ea05ac7148f0e06a0926c7f04e8581"
   },
   "polish_authored_edge": 16,
@@ -1204,7 +1209,7 @@
       "alpha": "opaque",
       "provenance": "authored",
       "sources": [
-        "adventure/snow"
+        "visual-polish/snow"
       ]
     },
     {
@@ -1213,7 +1218,7 @@
       "alpha": "opaque",
       "provenance": "authored",
       "sources": [
-        "adventure/gravel"
+        "visual-polish/gravel"
       ]
     },
     {
@@ -1222,7 +1227,7 @@
       "alpha": "opaque",
       "provenance": "authored",
       "sources": [
-        "adventure/clay"
+        "visual-polish/clay"
       ]
     },
     {
@@ -1249,7 +1254,7 @@
       "alpha": "opaque",
       "provenance": "authored",
       "sources": [
-        "adventure/silt"
+        "visual-polish/silt"
       ]
     }
   ],
