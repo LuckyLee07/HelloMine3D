@@ -5921,6 +5921,7 @@ class OgreUserInterface::Impl
         const auto setContainerFeedback = [&](const char* key)
         {
             containerFeedbackKey = key;
+            containerFeedbackExpiresAt = ImGui::GetTime() + 4.0;
             playUiFeedback();
         };
 
@@ -5933,6 +5934,8 @@ class OgreUserInterface::Impl
         }
         if (processor)
         {
+            if (ImGui::GetTime() >= containerFeedbackExpiresAt)
+                containerFeedbackKey.clear();
             const bool isCrusher = capabilities.machineProcessor->kind() ==
                 MachineProcessorKind::Crusher;
             std::optional<MechanicalNodeSnapshot> mechanicalNode;
@@ -5987,11 +5990,14 @@ class OgreUserInterface::Impl
                 const int inputSlot = roleSlot(InventorySlotRole::Input);
                 const int fuelSlot = roleSlot(InventorySlotRole::Fuel);
                 const int outputSlot = roleSlot(InventorySlotRole::Output);
+                const bool outputReady = outputSlot >= 0 &&
+                    inventory->slots[outputSlot].state.amount > 0;
                 const auto drawProviderSlot = [&](int slot,
                                                   const std::string& slotName)
                 {
                     if (slot < 0 || slot >= inventory->slotCount) return;
-                    ImGui::PushStyleColor(ImGuiCol_Text, WarmMuted);
+                    const bool ready = slot == outputSlot && outputReady;
+                    ImGui::PushStyleColor(ImGuiCol_Text, ready ? WarmAccent : WarmMuted);
                     ImGui::TextWrapped("%s", slotName.c_str());
                     ImGui::PopStyleColor();
                     const InventoryProviderSlotView& slotView =
@@ -6002,7 +6008,7 @@ class OgreUserInterface::Impl
                         widgetKey + std::to_string(slot),
                         ImVec2(std::max(1.f, ImGui::GetContentRegionAvail().x),
                                (compact ? 44.f : 72.f) * scale),
-                        false, compact);
+                        ready, compact);
                     if (!clicked || stack.amount <= 0 ||
                         !slotView.extractable) return;
                     const Material& material =
@@ -6067,10 +6073,11 @@ class OgreUserInterface::Impl
                                 : "machine.feedback.retry");
                     }
                     ImGui::EndDisabled();
-                    if (powerFull && ImGui::IsItemHovered(
+                    if (ImGui::IsItemHovered(
                             ImGuiHoveredFlags_AllowWhenDisabled))
                     {
-                        ImGui::SetTooltip("%s", tr("machine.feedback.power_full").c_str());
+                        drawWrappedTooltip(tr(powerFull ? "machine.feedback.power_full"
+                                                       : "crusher.inventory_hint"));
                     }
                 };
                 const int playerSlots = player->getInventorySlotCount();
@@ -6086,51 +6093,96 @@ class OgreUserInterface::Impl
                     ImGui::GetStyle().ItemSpacing.y * 4.f + slotGap + 2.f;
                 ImGui::BeginChild("##MachineFlow",
                                   ImVec2(0.f, -footerHeight), false);
+                const bool separateFuel = compact && fuelSlot >= 0;
                 if (ImGui::BeginTable(
-                        "##MachineFlowColumns", 3,
+                        "##MachineFlowColumns", separateFuel ? 4 : 3,
                         ImGuiTableFlags_SizingStretchProp |
                             ImGuiTableFlags_BordersInnerV))
                 {
                     ImGui::TableSetupColumn(
-                        "Input", ImGuiTableColumnFlags_WidthStretch, .95f);
+                        "Input", ImGuiTableColumnFlags_WidthStretch, separateFuel ? .8f : .95f);
+                    if (separateFuel)
+                        ImGui::TableSetupColumn("Fuel", ImGuiTableColumnFlags_WidthStretch, .8f);
                     ImGui::TableSetupColumn(
-                        "Process", ImGuiTableColumnFlags_WidthStretch, 1.25f);
+                        "Process", ImGuiTableColumnFlags_WidthStretch, separateFuel ? 1.5f : 1.25f);
                     ImGui::TableSetupColumn(
-                        "Output", ImGuiTableColumnFlags_WidthStretch, .95f);
+                        "Output", ImGuiTableColumnFlags_WidthStretch, separateFuel ? .8f : .95f);
                     ImGui::TableNextRow();
                     ImGui::TableNextColumn();
-                    drawProviderSlot(inputSlot, tr(machineKey + ".input"));
+                    drawProviderSlot(inputSlot, tr(compact ? "furnace.input" : machineKey + ".input"));
                     if (fuelSlot >= 0)
                     {
-                        ImGui::Spacing();
+                        if (separateFuel) ImGui::TableNextColumn();
+                        else ImGui::Spacing();
                         drawProviderSlot(fuelSlot, tr("furnace.fuel"));
                     }
 
-                    ImGui::TableNextColumn();
-                    ImGui::SeparatorText(tr("machine.process").c_str());
-                    ImGui::TextColored(statusColour, "%s", statusText.c_str());
-                    ImGui::PushStyleColor(ImGuiCol_Text, WarmMuted);
-                    ImGui::TextWrapped(
-                        "%s", tr(machineGuidanceKey(
-                                  processor->status, isCrusher)).c_str());
-                    ImGui::PopStyleColor();
-                    ImGui::Spacing();
-                    ImGui::TextWrapped(
-                        "%s", tr(isCrusher ? "crusher.progress"
-                                           : "furnace.progress").c_str());
-                    ImGui::ProgressBar(machineProgress, ImVec2(-1.f, 0.f));
-                    ImGui::TextWrapped(
-                        "%s", tr(isCrusher ? "crusher.power_remaining"
-                                           : "furnace.fuel_remaining").c_str());
-                    ImGui::ProgressBar(powerProgress, ImVec2(-1.f, 0.f));
-                    if (processor->manualPowerSupported && !fixedCrank)
+                    // Draw all slot labels before the smaller process font and
+                    // meters can change the table row's text baseline.
+                    ImGui::TableSetColumnIndex(separateFuel ? 3 : 2);
+                    drawProviderSlot(outputSlot, tr(outputReady ? "machine.collect" :
+                        compact ? "furnace.output" : machineKey + ".output"));
+                    ImGui::TableSetColumnIndex(separateFuel ? 2 : 1);
+                    if (compact)
                     {
-                        drawCrank(-1.f);
-                        if (powerFull)
+                        ImGui::PushFont(nullptr, 17.f);
+                        const std::string shortStatus = boundedHudText(statusText,
+                            ImGui::GetFontSize(), ImGui::GetContentRegionAvail().x);
+                        ImGui::TextColored(statusColour, "%s", shortStatus.c_str());
+                        if (ImGui::IsItemHovered())
+                            drawWrappedTooltip(statusText + "\n" +
+                                tr(machineGuidanceKey(processor->status, isCrusher)));
+                        const auto meter = [&](const char* key, float value, ImVec4 colour) {
+                            const std::string text = tr(key) + " " +
+                                std::to_string(static_cast<int>(std::round(value * 100.f))) + "%";
+                            ImGui::PushStyleColor(ImGuiCol_PlotHistogram, colour);
+                            ImGui::ProgressBar(value, ImVec2(-1.f, 20.f * scale), "");
+                            ImGui::PopStyleColor();
+                            const ImVec2 begin = ImGui::GetItemRectMin();
+                            const ImVec2 end = ImGui::GetItemRectMax();
+                            const ImVec2 textSize = ImGui::CalcTextSize(text.c_str());
+                            ImGui::GetWindowDrawList()->AddText(
+                                ImVec2((begin.x + end.x - textSize.x) * .5f,
+                                       (begin.y + end.y - textSize.y) * .5f),
+                                ImGui::GetColorU32(ImGuiCol_Text), text.c_str());
+                        };
+                        const ImVec4 progressFill = processor->status == MachineStatus::Running
+                            ? ImVec4(.22f, .44f, .31f, 1.f)
+                            : processor->status == MachineStatus::BlockedOutput
+                                ? ImVec4(.5f, .24f, .16f, 1.f)
+                                : ImVec4(.42f, .34f, .20f, 1.f);
+                        meter("machine.progress_short", machineProgress, progressFill);
+                        meter(isCrusher ? "machine.power_short" : "furnace.fuel",
+                            powerProgress, ImVec4(.24f, .42f, .47f, 1.f));
+                        ImGui::PopFont();
+                    }
+                    else
+                    {
+                        ImGui::SeparatorText(tr("machine.process").c_str());
+                        ImGui::TextColored(statusColour, "%s", statusText.c_str());
+                        ImGui::PushStyleColor(ImGuiCol_Text, WarmMuted);
+                        ImGui::TextWrapped(
+                            "%s", tr(machineGuidanceKey(
+                                      processor->status, isCrusher)).c_str());
+                        ImGui::PopStyleColor();
+                        ImGui::Spacing();
+                        ImGui::TextWrapped(
+                            "%s", tr(isCrusher ? "crusher.progress"
+                                               : "furnace.progress").c_str());
+                        ImGui::ProgressBar(machineProgress, ImVec2(-1.f, 0.f));
+                        ImGui::TextWrapped(
+                            "%s", tr(isCrusher ? "crusher.power_remaining"
+                                               : "furnace.fuel_remaining").c_str());
+                        ImGui::ProgressBar(powerProgress, ImVec2(-1.f, 0.f));
+                        if (processor->manualPowerSupported && !fixedCrank)
                         {
-                            ImGui::TextColored(
-                                WarmMuted, "%s",
-                                tr("machine.feedback.power_full").c_str());
+                            drawCrank(-1.f);
+                            if (powerFull)
+                            {
+                                ImGui::TextColored(
+                                    WarmMuted, "%s",
+                                    tr("machine.feedback.power_full").c_str());
+                            }
                         }
                     }
                     if (mechanicalNode && showDebugPanel)
@@ -6152,8 +6204,6 @@ class OgreUserInterface::Impl
                                 mechanicalNode->connectionCount));
                     }
 
-                    ImGui::TableNextColumn();
-                    drawProviderSlot(outputSlot, tr(machineKey + ".output"));
                     ImGui::EndTable();
                 }
                 ImGui::EndChild();
@@ -6249,7 +6299,8 @@ class OgreUserInterface::Impl
                 }
                 ImGui::PopStyleVar();
                 const std::string feedback = containerFeedbackKey.empty()
-                    ? tr(machineKey + ".inventory_hint")
+                    ? tr(outputReady ? "machine.guidance.collect" :
+                        machineGuidanceKey(processor->status, isCrusher))
                     : tr(containerFeedbackKey);
                 const std::string feedbackSummary = boundedHudText(
                     feedback, ImGui::GetFontSize(),
@@ -7225,6 +7276,7 @@ class OgreUserInterface::Impl
     Material::ID selectedCraftingMaterial = Material::ID::Nothing;
     std::string craftingMessage;
     std::string containerFeedbackKey;
+    double containerFeedbackExpiresAt = 0.0;
     glm::ivec3 containerFeedbackPosition{0};
     InventoryProviderKind containerFeedbackKind = InventoryProviderKind::None;
     bool containerFeedbackBound = false;
