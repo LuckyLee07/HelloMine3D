@@ -6623,7 +6623,12 @@ class OgreUserInterface::Impl
             const PlayerSaveState state = player->getSaveState();
             drawInventoryHeading(tr("crafting.inventory"), "");
             const float craftingInventoryWidth = ImGui::GetContentRegionAvail().x;
-            const int inventoryColumns = craftingInventoryWidth >= 420.f * appliedSettings.uiScale ? 3 : 2;
+            // Short panels need all five source slots in view alongside the
+            // grid. Keep named cards when there is room for their extra rows.
+            const bool compactInventory = ImGui::GetWindowHeight() < 300.f * appliedSettings.uiScale;
+            const int inventoryColumns = compactInventory
+                ? static_cast<int>(state.inventory.size())
+                : craftingInventoryWidth >= 420.f * appliedSettings.uiScale ? 3 : 2;
             for (std::size_t index = 0; index < state.inventory.size();
                  ++index)
             {
@@ -6642,8 +6647,9 @@ class OgreUserInterface::Impl
                 ImGui::BeginDisabled(slot.amount <= 0);
                 if (drawInventoryCard(slot.materialId, slot.amount, label,
                     ImVec2((craftingInventoryWidth - (inventoryColumns - 1) * craftingStyle.ItemSpacing.x) /
-                               inventoryColumns, 56.f),
-                    slot.materialId == selectedCraftingMaterial && slot.amount > 0))
+                               inventoryColumns, compactInventory ? 54.f * appliedSettings.uiScale : 56.f),
+                    slot.materialId == selectedCraftingMaterial && slot.amount > 0,
+                    compactInventory, 0, compactInventory))
                 {
                     selectedCraftingMaterial = slot.materialId;
                     craftingMessage.clear();
