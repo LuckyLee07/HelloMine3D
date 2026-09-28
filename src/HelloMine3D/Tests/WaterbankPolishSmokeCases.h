@@ -3,7 +3,7 @@
 namespace {
 void caseWaterbankPolishV26() {
     check("BANK26/version-and-save-boundary",WaterbankPolishTerrainGenerationVersion==26 &&
-        LocalReliefTerrainGenerationVersion==25 && CurrentTerrainGenerationVersion==26 && WorldSaveFormatVersion==12);
+        LocalReliefTerrainGenerationVersion==25 && CurrentTerrainGenerationVersion>=26 && WorldSaveFormatVersion==12);
     setEnv("HELLOMINE3D_SEED","42");setEnv("HELLOMINE3D_PLAYER_POSITION","8 200 8");
     Config config=makeConfig();Camera camera(config);Player owner;
     World world(camera,config,owner,freshSaveDirectory("bank26_projection"),false,0);
@@ -78,12 +78,12 @@ void caseWaterbankPolishV26() {
             const auto floor=created.getBlock(x,y-2,z);
             check("BANK26/normal-new-world-spawn-"+std::to_string(seed),floor.getData().isCollidable && floor!=BlockId::Water &&
                 created.getBlock(x,y-1,z)==BlockId::Air && created.getBlock(x,y,z)==BlockId::Air &&
-                created.getChunkManager().getTerrainGenerationVersion()==26,vecToString(spawn));
+                created.getChunkManager().getTerrainGenerationVersion()==CurrentTerrainGenerationVersion,vecToString(spawn));
             saved=created.save();
         }
         {
             Player player;World reopened(camera,config,player,directory,false,0);
-            saved &= reopened.getChunkManager().getTerrainGenerationVersion()==26 &&
+            saved &= reopened.getChunkManager().getTerrainGenerationVersion()==CurrentTerrainGenerationVersion &&
                 glm::length(reopened.getPlayerSpawnPoint()-spawn)<.001f && glm::length(player.position-spawn)<.001f;
         }
         check("BANK26/new-world-spawn-save-reopen-"+std::to_string(seed),saved);

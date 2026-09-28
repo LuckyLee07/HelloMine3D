@@ -22,6 +22,7 @@
 #include "../Structures/StructureBuilder.h"
 #include "../Structures/LandmarkArchitecture.h"
 #include "../Structures/LandmarkExpedition.h"
+#include "../Structures/LandmarkPolish.h"
 #include "../Structures/LandmarkApproach.h"
 #include "../Structures/LandmarkWorkshop.h"
 #include "../Ecology/TerrainEcologyPlanner.h"
@@ -1287,7 +1288,10 @@ void ClassicOverWorldGenerator::projectStructurePlan(
             for (int px = f.minimumX; px <= f.maximumX; ++px) {
                 for (int pz = f.minimumZ; pz <= f.maximumZ; ++pz) {
                     builder.addBlock(px, py, pz,
-                        m_generationVersion >= LandmarkExpeditionTerrainGenerationVersion
+                        m_generationVersion >= LandmarkPolishTerrainGenerationVersion
+                            ? LandmarkPolish::blockAt(
+                                plan, px - x, py - y, pz - z)
+                            : m_generationVersion >= LandmarkExpeditionTerrainGenerationVersion
                             ? LandmarkExpedition::blockAt(
                                 plan, px - x, py - y, pz - z)
                             : LandmarkArchitecture::blockAt(

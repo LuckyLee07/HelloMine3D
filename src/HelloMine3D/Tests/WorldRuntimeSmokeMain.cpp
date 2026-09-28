@@ -21201,6 +21201,7 @@ void caseWorldManager()
 #include "LandmarkSurvey.h"
 #include "LandmarkArchitectureSmokeCases.h"
 #include "AdventureLandmarkSmokeCases.h"
+#include "LandmarkPolishSmokeCases.h"
 #include "AdventureLandmarkApproachSmokeCases.h"
 #include "AdventureLandmarkWorkshopSmokeCases.h"
 #include "AdventureUndergroundSmokeCases.h"
@@ -21275,6 +21276,9 @@ int main()
         }
         else if (focus != nullptr && std::string(focus) == "ADVENTURE_EXPLORE") {
             caseAdventureExplorationV19();
+        }
+        else if (focus != nullptr && std::string(focus) == "LANDMARK_POLISH") {
+            caseLandmarkPolishV27();
         }
         else if (focus != nullptr && std::string(focus) == "ADVENTURE_LANDMARK") {
             caseAdventureLandmarkLayouts();
@@ -21735,6 +21739,7 @@ int main()
         caseAdventureGuidance();
         caseAdventureSurvival();
         caseAdventureWildlife();
+        caseLandmarkPolishV27();
         caseAdventureLandmarkLayouts();
         caseAdventureLandmarkApproaches();
         caseAdventureLandmarkWorkshops();
