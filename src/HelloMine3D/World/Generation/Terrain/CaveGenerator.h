@@ -62,6 +62,8 @@ class CaveGenerator {
     static constexpr int EntranceCandidateCount = 12;
     static constexpr int EntranceTunnelLength = 24;
     static constexpr int VegetationPlanPadding = 6;
+    // v24: six-block tree source halo plus seven-block entrance clearance.
+    static constexpr int PolishedVegetationPlanPadding = 13;
     static constexpr int AdventureUndergroundReach = 64;
     static constexpr int AdventureChamberAlongRadius = 9;
     static constexpr int AdventureChamberPerpendicularRadius = 7;

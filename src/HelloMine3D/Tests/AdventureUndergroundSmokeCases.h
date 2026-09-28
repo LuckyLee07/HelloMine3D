@@ -332,7 +332,7 @@ void caseAdventureUndergroundV23()
     check("ADVENTURE-UNDERGROUND/v23-appends-without-save-bump",
           LandmarkWorkshopTerrainGenerationVersion == 22 &&
           AdventureUndergroundTerrainGenerationVersion == 23 &&
-          CurrentTerrainGenerationVersion == 23 &&
+          CurrentTerrainGenerationVersion >= 23 &&
           WorldSaveFormatVersion == 12);
 
     const std::array<AdventureUndergroundFixture, 3> fixtures{{
@@ -1379,14 +1379,14 @@ void caseAdventureUndergroundV23()
           entranceMarker);
 
     const auto defaultDirectory = freshSaveDirectory(
-        "adventure_underground_v23_default");
+        "adventure_underground_current_default");
     bool defaultVersion = false;
     {
         Player player;
         World world(camera, config, player, defaultDirectory, false, 0);
         defaultVersion = world.getChunkManager()
             .getTerrainGenerationVersion() ==
-                AdventureUndergroundTerrainGenerationVersion &&
+                CurrentTerrainGenerationVersion &&
             world.save();
     }
     {
@@ -1394,9 +1394,9 @@ void caseAdventureUndergroundV23()
         World world(camera, config, player, defaultDirectory, false, 0);
         defaultVersion = defaultVersion && world.getChunkManager()
             .getTerrainGenerationVersion() ==
-                AdventureUndergroundTerrainGenerationVersion;
+                CurrentTerrainGenerationVersion;
     }
-    check("ADVENTURE-UNDERGROUND/default-v23-save-reopen",
+    check("ADVENTURE-UNDERGROUND/default-current-save-reopen",
           defaultVersion);
 
     WorldSave defaultSave(defaultDirectory);
@@ -1406,14 +1406,14 @@ void caseAdventureUndergroundV23()
     futureData.terrainGenerationVersion =
         CurrentTerrainGenerationVersion + 1;
     WorldSaveData preservedData;
-    check("ADVENTURE-UNDERGROUND/future-v24-rejected-without-overwrite",
+    check("ADVENTURE-UNDERGROUND/future-version-rejected-without-overwrite",
           currentLoaded &&
               currentData.terrainGenerationVersion ==
-                  AdventureUndergroundTerrainGenerationVersion &&
+                  CurrentTerrainGenerationVersion &&
               !defaultSave.save(futureData) &&
               defaultSave.load(preservedData) &&
               preservedData.terrainGenerationVersion ==
-                  AdventureUndergroundTerrainGenerationVersion);
+                  CurrentTerrainGenerationVersion);
     clearDeterministicEnv();
     setEnv("HELLOMINE3D_SEED", "");
 }

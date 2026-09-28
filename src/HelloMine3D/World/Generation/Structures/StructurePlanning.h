@@ -106,7 +106,9 @@ class DeterministicStructurePlanner {
     static constexpr std::size_t CampPlannedBlockCount = 905;
     static constexpr int MaximumHorizontalRadius = CampRadiusX;
     // Six-block tree source halo plus the three-block canopy radius.
-    static constexpr int MaximumTreeClearancePadding = 9;
+    static constexpr int LegacyTreeClearancePadding = 9;
+    // v24 keeps the six-block source halo and supports six-block crowns.
+    static constexpr int MaximumTreeClearancePadding = 12;
     static constexpr std::size_t MaximumPlansPerChunk = 4;
 
     DeterministicStructurePlanner(int seed, int terrainGenerationVersion,

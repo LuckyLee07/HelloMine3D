@@ -8,7 +8,7 @@ void caseAdventureLandmarkWorkshops()
     check("ADVENTURE-WORKSHOP/v22-appends-without-save-bump",
           LandmarkApproachTerrainGenerationVersion == 21 &&
           LandmarkWorkshopTerrainGenerationVersion == 22 &&
-          CurrentTerrainGenerationVersion == 23 &&
+          CurrentTerrainGenerationVersion >= 23 &&
           WorldSaveFormatVersion == 12);
 
     setEnv("HELLOMINE3D_SEED", "0");

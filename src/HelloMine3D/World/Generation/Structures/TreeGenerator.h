@@ -9,6 +9,9 @@ enum class EcologyTreeShape : std::uint8_t;
 enum class AdventureTreeKind : std::uint8_t;
 void makeAdventureTree(Chunk &chunk, int randomSeed, int x, int y, int z,
                        AdventureTreeKind kind);
+// v24 only; all shapes stay within the existing six-block projection halo.
+void makePolishedAdventureTree(Chunk &chunk, int randomSeed, int x, int y,
+                              int z, AdventureTreeKind kind, int stature);
 
 /// Structure origins use world block coordinates; each target chunk receives
 /// only the portion of the generated structure that overlaps it.

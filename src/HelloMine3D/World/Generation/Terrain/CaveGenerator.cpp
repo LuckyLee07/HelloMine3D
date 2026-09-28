@@ -2293,7 +2293,8 @@ std::size_t CaveGenerator::carveNaturalEntrances(
         return 0;
     }
     const int reach = EntranceTunnelLength + ChamberRadius +
-        (vegetationPlans ? VegetationPlanPadding : 0);
+        (vegetationPlans ? (m_generationVersion >= VegetationPolishTerrainGenerationVersion
+            ? PolishedVegetationPlanPadding : VegetationPlanPadding) : 0);
     int minimumCellX = 0;
     int maximumCellX = 0;
     int minimumCellZ = 0;

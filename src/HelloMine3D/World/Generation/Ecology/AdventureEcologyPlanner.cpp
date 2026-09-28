@@ -131,6 +131,16 @@ AdventureEcologyPlanner::Tree AdventureEcologyPlanner::tree(int x, int z,const S
         case R::Canyon: chance=.02;result.kind=T::Cactus;break;
         case R::Ocean: break;
     }
+    if (m_polished) {
+        // A broad glade field leaves walkable openings inside dense groves;
+        // stature follows the same grove field, so edges build up gradually.
+        const double glade = noise(x,z,52,0xa148df02ull);
+        const bool forest = s.region==R::Woodland || s.region==R::ConiferHighland;
+        if (forest) chance *= smooth(.22,.46,glade);
+        chance *= smooth(0,16,s.snowLine-7-s.column.height);
+        result.stature = density>.66 ? 2 : density>.30 ? 1 : 0;
+        if (forest && glade<.46) result.stature=0;
+    }
     if(unit(h)>=chance) {result.kind=T::None;return result;}
     // Four bounded queries only after candidate rejection. This also prevents
     // trees balancing on cliffs and rooted vegetation crossing a water edge.
@@ -143,6 +153,8 @@ AdventureEcologyPlanner::Tree AdventureEcologyPlanner::tree(int x, int z,const S
         low=std::min(low,height);high=std::max(high,height);
     }
     if(low<64 || high-low>(result.kind==T::Spruce?5:3))result.kind=T::None;
+    if (m_polished && unit(mix(h ^ 0x83a09bf1ull)) <
+        .75*smooth(0,result.kind==T::Spruce?5:3,high-low)) result.kind=T::None;
     result.randomSeed=static_cast<int>((h^(h>>32))&0x7fffffff);
     result.height=s.column.height+1;
     return result;
@@ -157,10 +169,31 @@ AdventureEcologyPlanner::GroundCover AdventureEcologyPlanner::groundCover(int x,
     if(surface==S::Sand)return (s.region==R::Dunes || s.region==R::Canyon) && roll<.006?BlockId::DeadShrub:BlockId::Air;
     const bool wet=s.region==R::Wetland || (s.shore && surface==S::Silt);
     const bool forest=s.region==R::Woodland || s.region==R::ConiferHighland;
-    const double chance=wet?.025+.18*patch*patch:forest?.006+.07*patch*patch:.005+.035*patch*patch;
+    double chance=wet?.025+.18*patch*patch:forest?.006+.07*patch*patch:.005+.035*patch*patch;
+    if (m_polished) {
+        // Compact patches with bare lanes instead of evenly distributed stems.
+        chance *= smooth(.25,.68,noise(x,z,11,0xdeb47c13ull))*1.7;
+        chance *= smooth(0,10,s.snowLine-s.column.height);
+    }
     if(roll>=chance)return BlockId::Air;
-    if(wet)return GroundCover(BlockId::TallGrass,BlockMetadata::TallGrass::Reed);
-    if(forest)return GroundCover(BlockId::TallGrass,BlockMetadata::TallGrass::Fern);
+    if (m_polished) {
+        // Neighbour queries only for accepted cover candidates, with the same
+        // signed-coordinate bounds as tree roots. Steep ledges stay open.
+        int low=s.column.height,high=low;
+        for(const auto &offset:{std::pair<int,int>{-1,0},{1,0},{0,-1},{0,1}}) {
+            const auto px=static_cast<std::int64_t>(x)+offset.first;
+            const auto pz=static_cast<std::int64_t>(z)+offset.second;
+            if(px<std::numeric_limits<int>::min() || px>std::numeric_limits<int>::max() ||
+               pz<std::numeric_limits<int>::min() || pz>std::numeric_limits<int>::max())return BlockId::Air;
+            const int height=m_water.sample(static_cast<int>(px),static_cast<int>(pz)).column.height;
+            low=std::min(low,height);high=std::max(high,height);
+        }
+        if(high-low>2 || unit(mix(hash(x,z,0x7d12bf4aull)))<.85*smooth(0,3,high-low))return BlockId::Air;
+    }
+    if(wet)return GroundCover(BlockId::TallGrass,
+        !m_polished || s.shore || patch>.60 ? BlockMetadata::TallGrass::Reed : BlockMetadata::TallGrass::Fern);
+    if(forest)return GroundCover(BlockId::TallGrass,
+        !m_polished || patch>.35 ? BlockMetadata::TallGrass::Fern : BlockMetadata::TallGrass::Mature);
     if(s.region==R::Meadow && patch>.62 && unit(mix(hash(x,z,31)))<.15)return BlockId::Rose;
     return GroundCover(BlockId::TallGrass,BlockMetadata::TallGrass::Mature);
 }

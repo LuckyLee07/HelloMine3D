@@ -442,6 +442,12 @@ C3 为 copied topology observation 增至 79 项并同步更新 machine-checked 
   邻区块。箱子继续使用现有方块实体和区块保存路径。显式 v1–v22 保持原生成顺序及结果，已有
   世界不迁移或回填，world save 仍为 v12。工程、普通路线、画面与性能证据分别按 B7 验证记录，
   不能由架构接线视为已通过。见[地下空间合同](../contracts/adventure-underground-contract-v1.md)。
+  v24 在相同地表、水系、洞穴及地点规划上追加植被精修：7 米树锚点保留，52 米空地场、
+  林缘／林内树高、坡度与雪线衰减选择有界树群，11 米地被斑块补充留白。邻域坡度查询仅对
+  已初选的树／地被执行。新树型由相连立方叶团、分枝、偏冠及物种轮廓组成，水平不超过 6 米；
+  投影只写目标区块。建筑查询 padding 在 v24 增至 12 米，洞口植被计划 padding 增至 13 米，
+  对应更大冠幅的来源避让；旧版本保留原 9／6 米路径。原 v1–v23 输出与已保存世界不迁移，
+  详见[植被精修合同](../contracts/vegetation-polish-v24-contract-v1.md)。
   v17+ 纯地表列查询有两个可在同一生成线程同时驻留的独立派生缓存：地表列缓存和
   v18+ 水系形状缓存各固定 8192 项、各最多 256 KiB。区域锚点和噪声角点另使用每线程
   固定 128 项／最多 16 KiB 与 512 项／最多 64 KiB 的缓存；四者的聚合声明上界为每线程
@@ -593,7 +599,7 @@ WorldManager
 
 - `WorldSaveData` 是内存中的当前 metadata payload，写出前由 World 收集 Player、Actor、目标、结局、
   难度、terrain identity 和其他版本化状态。
-- world save format 当前为 v12；新世界 terrain generation 为独立 v23，旧 v1–v22 身份保留；settings 当前为独立 v11（新增可持久化第一/第三人称请求，含 v10 三档小地图范围、v9 标准/兼容画面选择与旧偏好迁移）。
+- world save format 当前为 v12；新世界 terrain generation 为独立 v24，旧 v1–v23 身份保留；settings 当前为独立 v11（新增可持久化第一/第三人称请求，含 v10 三档小地图范围、v9 标准/兼容画面选择与旧偏好迁移）。
 - `StorageTransaction` 负责同目录 candidate、flush、真实 reader 校验和原子替换；失败 candidate 不
   成为权威。
 - Chunk 只有成功发布后才清 save-dirty；unload 保存失败则取消卸载。
@@ -604,8 +610,8 @@ WorldManager
   会移除快照中不存在的较新地图。`World` 在区块和元数据发布后写地图，再创建备份。
 - B6 世界入口的 `world-preview.hmp` v1 是由已持久化 `ExplorationAtlas` 重采样出的
   49×25、8 m／格、最多 4096 B 的非权威派生缓存。它单独通过 `StorageTransaction` 发布；
-  失败只使菜单回退为无预览，不否定已成功的主保存。当前 world save v12、terrain v23 和
-  `exploration.hmap` v4 均不因预览缓存升级；旧 terrain v1–v22 身份保留。预览不进入备份，
+  失败只使菜单回退为无预览，不否定已成功的主保存。当前 world save v12、terrain v24 和
+  `exploration.hmap` v4 均不因预览缓存升级；旧 terrain v1–v23 身份保留。预览不进入备份，
   恢复后旧缓存删除或因来源修订不匹配失效。
 - 可稳定重建的 sunlight、block light、mesh、render nodes、storage/diagnostic caches 不作为独立
   Gameplay truth 保存。

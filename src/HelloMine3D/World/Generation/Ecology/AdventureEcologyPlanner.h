@@ -22,8 +22,12 @@ class AdventureEcologyPlanner {
         AdventureTreeKind kind = AdventureTreeKind::None;
         int randomSeed = 0;
         int height = 0;
+        int stature = 0; // v24: 0 low edge, 1 transitional, 2 grove interior.
     };
-    explicit AdventureEcologyPlanner(int seed) noexcept : m_seed(seed), m_water(seed) {}
+    explicit AdventureEcologyPlanner(int seed,
+        int version = AdventureEcologyTerrainGenerationVersion) noexcept
+        : m_seed(seed), m_water(seed),
+          m_polished(version >= VegetationPolishTerrainGenerationVersion) {}
     // Height and biome remain the v17 water shape in every v18+ ecology
     // version. Pure shape queries can avoid computing grove, patch and snow
     // fields while full ecology sampling still owns the surface material.
@@ -43,4 +47,5 @@ class AdventureEcologyPlanner {
     double noise(int x, int z, double scale, std::uint64_t salt) const noexcept;
     int m_seed = 0;
     AdventureWaterPlanner m_water;
+    bool m_polished = false;
 };

@@ -135,7 +135,7 @@ ClassicOverWorldGenerator::ClassicOverWorldGenerator(
     , m_foundation(seed)
     , m_adventure(seed)
     , m_adventureWater(seed)
-    , m_adventureEcology(seed)
+    , m_adventureEcology(seed, normalizeTerrainGenerationVersion(generationVersion))
     , m_caveGenerator(seed,
                       normalizeTerrainGenerationVersion(generationVersion))
     , m_grassBiome(seed)
@@ -248,8 +248,10 @@ void ClassicOverWorldGenerator::generateTerrainFor(Chunk &chunk)
     }
     applyPlantDecorators(plantPositions);
     const auto plans = getStructurePlansForChunk(location.x, location.y,
-        m_generationVersion >= LandmarkArchitectureTerrainGenerationVersion
-            ? DeterministicStructurePlanner::MaximumTreeClearancePadding : 0);
+        m_generationVersion >= VegetationPolishTerrainGenerationVersion
+            ? DeterministicStructurePlanner::MaximumTreeClearancePadding
+            : m_generationVersion >= LandmarkArchitectureTerrainGenerationVersion
+                ? DeterministicStructurePlanner::LegacyTreeClearancePadding : 0);
     applyTreeDecorators(plans);
     applyLandmarkDecorators(plans);
     if (m_generationVersion >= LandmarkApproachTerrainGenerationVersion) {
@@ -497,6 +499,13 @@ std::vector<StructurePlanSnapshot>
 ClassicOverWorldGenerator::getStructurePlansForChunk(
     int chunkX, int chunkZ, int padding) const
 {
+    // Vegetation query extent belongs to the world generation version. The
+    // landmark planner below intentionally retains its frozen v22 identity.
+    const int maximumPadding = m_generationVersion >= VegetationPolishTerrainGenerationVersion
+        ? DeterministicStructurePlanner::MaximumTreeClearancePadding
+        : DeterministicStructurePlanner::LegacyTreeClearancePadding;
+    if (padding < 0 || padding > maximumPadding)
+        throw std::out_of_range("structure query exceeds versioned tree clearance");
     const DeterministicStructurePlanner planner(
         m_seed, m_generationVersion >= LandmarkWorkshopTerrainGenerationVersion
             ? LandmarkWorkshopTerrainGenerationVersion
@@ -1042,6 +1051,8 @@ void ClassicOverWorldGenerator::applyAdventurePlants()
 void ClassicOverWorldGenerator::applyAdventureTrees(const std::vector<StructurePlanSnapshot> &plans)
 {
     const auto target=m_pChunk->getLocation();
+    const bool polished = m_generationVersion >= VegetationPolishTerrainGenerationVersion;
+    const int clearance = polished ? MaximumStructureRadius : 3;
     const int minX=target.x*CHUNK_SIZE-MaximumStructureRadius,minZ=target.y*CHUNK_SIZE-MaximumStructureRadius;
     std::vector<LandmarkWorkshop::Site> workshops;
     if (m_generationVersion >= LandmarkWorkshopTerrainGenerationVersion)
@@ -1052,28 +1063,31 @@ void ClassicOverWorldGenerator::applyAdventureTrees(const std::vector<StructureP
     for(int x=minX;x<minX+CHUNK_SIZE+2*MaximumStructureRadius;++x)
         for(int z=minZ;z<minZ+CHUNK_SIZE+2*MaximumStructureRadius;++z) {
             if(!m_adventureEcology.treeAnchor(x,z))continue;
-            if(std::any_of(plans.begin(),plans.end(),[x,z](const auto &p) {
-                return x>=p.footprint.minimumX-3 && x<=p.footprint.maximumX+3 &&
-                       z>=p.footprint.minimumZ-3 && z<=p.footprint.maximumZ+3;
+            if(std::any_of(plans.begin(),plans.end(),[x,z,clearance](const auto &p) {
+                return x>=p.footprint.minimumX-clearance && x<=p.footprint.maximumX+clearance &&
+                       z>=p.footprint.minimumZ-clearance && z<=p.footprint.maximumZ+clearance;
             }))continue;
             if (m_generationVersion >= LandmarkApproachTerrainGenerationVersion &&
-                std::any_of(plans.begin(), plans.end(), [x,z](const auto &p) {
-                    return LandmarkApproach::clearsTreeSource(p, x, z);
+                std::any_of(plans.begin(), plans.end(), [x,z,clearance](const auto &p) {
+                    return LandmarkApproach::clearsTreeSource(p, x, z, clearance);
                 }))continue;
             if (std::any_of(workshops.begin(), workshops.end(),
-                    [x,z](const auto &site) {
-                        return LandmarkWorkshop::clearsTreeSource(site, x, z);
+                    [x,z,clearance](const auto &site) {
+                        return LandmarkWorkshop::clearsTreeSource(site, x, z, clearance);
                     }))continue;
-            if(std::any_of(m_vegetationEntrances.begin(),m_vegetationEntrances.end(),[x,z](const auto &e) {
+            if(std::any_of(m_vegetationEntrances.begin(),m_vegetationEntrances.end(),[x,z,polished](const auto &e) {
                 const int dx=x-e.anchorX,dz=z-e.anchorZ;
                 const int along=dx*e.directionX+dz*e.directionZ;
                 const int lateral=-dx*e.directionZ+dz*e.directionX;
-                return along>=-4 && along<=CaveGenerator::EntranceTunnelLength+4 && std::abs(lateral)<=4;
+                const int margin = polished ? MaximumStructureRadius+1 : 4;
+                return along>=-margin && along<=CaveGenerator::EntranceTunnelLength+margin && std::abs(lateral)<=margin;
             }))continue;
             const auto sample=m_adventureEcology.sample(x,z);
             const auto tree=m_adventureEcology.tree(x,z,sample);
-            if(tree.kind!=AdventureTreeKind::None)
-                makeAdventureTree(*m_pChunk,tree.randomSeed,x,tree.height,z,tree.kind);
+            if(tree.kind!=AdventureTreeKind::None) {
+                if (polished) makePolishedAdventureTree(*m_pChunk,tree.randomSeed,x,tree.height,z,tree.kind,tree.stature);
+                else makeAdventureTree(*m_pChunk,tree.randomSeed,x,tree.height,z,tree.kind);
+            }
         }
 }
 

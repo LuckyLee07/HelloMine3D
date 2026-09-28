@@ -21211,6 +21211,7 @@ void caseWorldManager()
 #include "TerrainMeshTopologySmokeCases.h"
 #include "AdventureMaterialSmokeCases.h"
 #include "AdventureEcologySmokeCases.h"
+#include "VegetationPolishSmokeCases.h"
 #include "AdventureExplorationSmokeCases.h"
 #include "AdventureSurvivalSmokeCases.h"
 #include "AdventureWildlifeSmokeCases.h"
@@ -21297,6 +21298,9 @@ int main()
         }
         else if (focus != nullptr && std::string(focus) == "ADVENTURE_QUERY") {
             caseAdventureSurfaceQueryCache();
+        }
+        else if (focus != nullptr && std::string(focus) == "VEGETATION_POLISH") {
+            caseVegetationPolishV24();
         }
         else if (focus != nullptr && std::string(focus) == "ADVENTURE_ECOLOGY") {
             caseAdventureEcologyV18();
@@ -21631,6 +21635,7 @@ int main()
         caseAdventureMaterials();
         caseAdventureRegionalBuildRecipes();
         caseAdventureEcologyV18();
+        caseVegetationPolishV24();
         caseAdventureSurfaceQueryCache();
         caseAdventureExplorationV19();
         caseSurfaceMapObservations();

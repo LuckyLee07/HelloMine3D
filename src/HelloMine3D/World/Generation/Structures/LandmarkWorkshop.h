@@ -58,11 +58,11 @@ Site select(const StructurePlanSnapshot &plan, HeightAt heightAt,
     return {};
 }
 
-inline bool clearsTreeSource(const Site &site, int x, int z) noexcept
+inline bool clearsTreeSource(const Site &site, int x, int z, int clearance = 3) noexcept
 {
-    return site.valid && x >= site.minimumX - 3 &&
-           x <= site.minimumX + 5 && z >= site.minimumZ - 3 &&
-           z <= site.minimumZ + 5;
+    return site.valid && x >= site.minimumX - clearance &&
+           x <= site.minimumX + 2 + clearance && z >= site.minimumZ - clearance &&
+           z <= site.minimumZ + 2 + clearance;
 }
 
 inline BlockId machine(LandmarkApproach::Style style) noexcept

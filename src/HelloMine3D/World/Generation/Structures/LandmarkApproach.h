@@ -48,13 +48,13 @@ inline bool onWalkIn(const StructurePlanSnapshot &plan, int x, int z) noexcept
 }
 
 inline bool clearsTreeSource(const StructurePlanSnapshot &plan,
-                             int x, int z) noexcept
+                             int x, int z, int clearance = TreeClearance) noexcept
 {
     if (!plan.valid) return false;
     const int distance = plan.footprint.minimumZ - z;
-    return distance >= 1 - TreeClearance &&
-           distance <= Length + TreeClearance &&
-           std::abs(x - plan.anchor.x) <= HalfWidth + TreeClearance;
+    return distance >= 1 - clearance &&
+           distance <= Length + clearance &&
+           std::abs(x - plan.anchor.x) <= HalfWidth + clearance;
 }
 
 inline BlockId surface(Style style, int distance, int lateral) noexcept
