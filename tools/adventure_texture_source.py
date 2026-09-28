@@ -5,7 +5,7 @@ Opaque authored black cells in leaf swatches are the explicit cutout key.
 """
 from pathlib import Path
 from PIL import Image
-from visual_polish_texture_source import tiles as polish_tiles
+from visual_polish_texture_source import tiles as polish_tiles, ADVENTURE_OVERRIDES
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'docs/art-sources/adventure-ecology-20260921/material-sheet-v2.png'
@@ -52,5 +52,7 @@ def tiles(edge=32):
             if not .75 <= coverage < 1:
                 raise ValueError(f'Invalid authored leaf cutout: {name} {coverage}')
         result[name] = tile
-    result['forest_floor'] = polish_tiles(edge)['forest_floor']
+    polished = polish_tiles(edge)
+    for name in ADVENTURE_OVERRIDES:
+        result[name] = polished[name]
     return result

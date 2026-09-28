@@ -1,0 +1,51 @@
+{
+  "tool": "built-in image_gen",
+  "purpose": "V01c species pixel scale and quieter large rock planes",
+  "sources": [
+    {
+      "file": "birch-spruce-wood-v1.png",
+      "prompt": "Use case: stylized-concept. Create an ORIGINAL production voxel-game texture source sheet for HelloMine3D. One perfectly SQUARE image, exactly FOUR equal square cells in a 2 by 2 grid, filling the entire image. No gaps, gutters, borders, labels or text. Flat orthographic ALBEDO swatches, evenly lit, no perspective, objects or baked shadows. Each cell is a COARSE 16 by 16 square pixel design: large hard-edged square pixels, connected 2–4 pixel clusters, restrained 5–7-color palette, no blur, smooth gradients or fine noise. Textures must tile quietly on all four edges. References only establish the game palette and broad pixel scale; do not copy their material layouts.\nTOP LEFT: spruce bark SIDE. Muted dark russet brown, three or four broad broken vertical ridges, few shorter notches, no alternating thin stripes. Strongly simpler than the old spruce bark. Keep a calm midtone rather than deep black cracks.\nTOP RIGHT: spruce log END. Medium warm brown heartwood, only THREE broad softly contrasted square-ish growth-ring bands, small off-center center, dark thin outer bark margin. Flat top face, not a log object or framed icon.\nBOTTOM LEFT: birch bark SIDE. Soft chalky warm ivory, irregularly spaced short charcoal horizontal dashes in broad square steps. Only 5–7 separated dashes across the whole 16x16 cell. Avoid high-frequency black speckles, regular stripes, or a central emblem.\nBOTTOM RIGHT: birch log END. Pale warm cream heartwood with only THREE broad low-contrast nested square-ish rings and a narrow ivory bark edge with two restrained charcoal marks. Clearly lighter than spruce.\nAll four cells fully opaque. Use natural moderate saturation and preserve distinct species identity. No glossy light spots, no checkerboard, no extra material cells.",
+      "references": [
+        "earth-wood-sheet-v1.png",
+        "../adventure-ecology-20260921/material-sheet-v2.png"
+      ],
+      "sha256": "d17e0d9438b59eae1e08e8b391e0f64af02d6a603325811719a66c032a5c2fff",
+      "source_size": [
+        1254,
+        1254
+      ]
+    },
+    {
+      "file": "birch-spruce-stone-v1.png",
+      "prompt": "Use case: stylized-concept. Generate ONE ORIGINAL production voxel-game texture source sheet. Perfectly SQUARE, exactly FOUR equal square cells in a 2 by 2 grid, edge-to-edge with no gutters, borders or labels. Every cell must be a flat orthographic material swatch, crisp COARSE 16 by 16 square pixels, broad connected 2–4 pixel color clusters, no blur, no gradients, no micro-noise, no perspective or baked shadows. Use the references only for the game's restrained natural palette and square-pixel language; their stone diagonal mottling and fine old leaf flecks are problems to avoid.\nTOP LEFT: spruce needle canopy for a full cube of foliage. Muted deep blue-green, compact irregular clusters with several broad short branchlet-like stepped forms. Medium base, restrained lighter blue-green clumps, dark green recesses. Approximately 82–88% visible foliage and 12–18% irregular PURE BLACK #000000 square gaps. No tiny speckles, brown branches or white pixels. Do not make a single free-standing tree or isolated object.\nTOP RIGHT: birch leafy canopy for a full cube. Muted sage green, clearly lighter and less blue than spruce, broad joined 2–4 pixel leaf clusters. 82–88% visible foliage and 12–18% irregular PURE BLACK #000000 gaps. No yellow confetti or diagonal vines, no outline, no single object. All visible leaf colors have RGB maximum above 50.\nBOTTOM LEFT: natural massive STONE albedo. Warm-neutral medium grey, base near RGB(119,117,111), subdued connected grey planes. Broad patches that do NOT form a diagonal line across the tile. Two or three short irregular broken fissures, low contrast, asymmetrically separated. No bricks, mortar, cobbles, ruler stripes, long diagonal streaks, strong outlines, highlights or border. No single central motif. Neighboring cells should read as quiet broad rock faces, not a woven repeating pattern. Opaque; tile quietly on four edges.\nBOTTOM RIGHT: MOSSY STONE. Same quiet warm-neutral grey rock base with 3–4 joined muted moss-green patches, covering about one third of the tile, broad irregular 2–4 pixel clumps. Clearly stone under soft moss, not fine confetti. Avoid diagonal arrangements and isolated one-pixel dots. Opaque, seamless.\nThe image is fully opaque RGB. Pure-black areas ONLY in the two foliage cells are an explicit key for the existing compiler to make cutout holes. No checkerboard or simulated alpha. Preserve equal quadrant boundaries. No text.",
+      "references": [
+        "earth-wood-sheet-v1.png",
+        "../adventure-ecology-20260921/material-sheet-v2.png"
+      ],
+      "unused_cells": [
+        "bottom-left stone candidate retained; replaced by stone-planes-v2.png"
+      ],
+      "sha256": "1e7203e7c8b06d0fdde778b7e05450d31b8c8d25f3bcb1aa5d0b172c8af29f57",
+      "source_size": [
+        1254,
+        1254
+      ]
+    },
+    {
+      "file": "stone-planes-v2.png",
+      "prompt": "Use case: stylized-concept. Asset type: one ORIGINAL production seamless voxel STONE albedo texture, a single SQUARE full-bleed tile. This is a flat texture swatch viewed orthographically, not a stone object or a scene. Crisp hard square pixel art on a COARSE 16 by 16 grid. Make a quiet medium warm-grey natural massive rock surface, overall RGB approximately 119,117,111. Use only FIVE closely related muted warm-grey tones. Organize it into FOUR or FIVE broad irregular connected planes, each approximately 4–7 pixels across. The differences between planes are subtle (neighboring tones about 5–10 values apart), not black outlines. Add only TWO short irregular one-pixel-wide broken fissures, separated, each 3–4 pixels long, slightly darker than base. Fissures must stop well before the tile edges and must NOT align diagonally with each other. Leave broad calm areas. No speckles, no mottled small checker patches, no herringbone or woven effect, no long diagonal streaks, no parallel stripes, no masonry, bricks or cobblestones, no framed border, no beveled edges, no directional lighting, no shiny highlights, no gradients, no text. All edges should meet quietly when tiled. Entirely opaque. Intended for large continuous cave walls and rock cliffs in a restrained natural voxel game, with lighting and geological large-scale color applied at runtime.",
+      "references": [],
+      "sha256": "fba5a126ef6a70168ce5c23cbcb81c6db6ea05ac7148f0e06a0926c7f04e8581",
+      "source_size": [
+        1254,
+        1254
+      ]
+    }
+  ],
+  "compiler": "tools/visual_polish_texture_source.py",
+  "authored_edge": 16,
+  "leaf_coverage": {
+    "spruce_leaves": 0.87109375,
+    "birch_leaves": 0.875
+  }
+}

@@ -11,13 +11,23 @@ NAMES = ('grass_top_a', 'grass_top_b', 'grass_top_c', 'forest_floor')
 SHEETS = {
     SOURCE: NAMES,
     SOURCE.with_name('earth-wood-sheet-v1.png'):
-        ('dirt', 'stone', 'oak_bark_side', 'oak_bark_top'),
+        ('dirt', None, 'oak_bark_side', 'oak_bark_top'),
     SOURCE.with_name('foliage-sand-sheet-v1.png'):
         ('oak_leaves_a', 'oak_leaves_b', 'sand', 'tall_grass'),
+    SOURCE.with_name('birch-spruce-wood-v1.png'):
+        ('spruce_bark_side', 'spruce_bark_top', 'birch_bark_side', 'birch_bark_top'),
+    SOURCE.with_name('birch-spruce-stone-v1.png'):
+        ('spruce_leaves', 'birch_leaves', None, 'moss_stone'),
 }
+SINGLE_TILES = {SOURCE.with_name('stone-planes-v2.png'): 'stone'}
+SOURCES = (*SHEETS, *SINGLE_TILES)
 CUTOUT_KEY_MAX = 12
+ADVENTURE_OVERRIDES = ('forest_floor', 'spruce_bark_side', 'spruce_bark_top',
+                       'spruce_leaves', 'birch_bark_side', 'birch_bark_top',
+                       'birch_leaves', 'moss_stone')
 SHARED_BASES = ('grass_top', 'grass_side', 'forest_floor', 'dirt', 'stone',
-                'oak_bark_side', 'oak_bark_top', 'sand', 'oak_leaves', 'tall_grass')
+                'oak_bark_side', 'oak_bark_top', 'sand', 'oak_leaves', 'tall_grass',
+                *ADVENTURE_OVERRIDES[1:])
 
 
 def tiles(edge=AUTHORED_EDGE):
@@ -32,11 +42,22 @@ def tiles(edge=AUTHORED_EDGE):
         if source.getchannel('A').getextrema() != (255, 255):
             raise ValueError(f'V01 source sheet must be opaque with RGB cutout keys: {path}')
         for index, name in enumerate(names):
+            if name is None:
+                continue
             x, y = index % 2 * cell, index // 2 * cell
             authored = source.crop((x, y, x + cell, y + cell)).resize(
                 (AUTHORED_EDGE, AUTHORED_EDGE), Image.Resampling.NEAREST)
-            if name.startswith('oak_leaves') or name == 'tall_grass':
+            if 'leaves' in name or name == 'tall_grass':
                 authored.putdata([(*pixel[:3], 0 if max(pixel[:3]) <= CUTOUT_KEY_MAX else 255)
                                   for pixel in authored.getdata()])
             result[name] = authored.resize((edge, edge), Image.Resampling.NEAREST)
+    for path, name in SINGLE_TILES.items():
+        with Image.open(path) as image:
+            if image.size != SOURCE_SIZE:
+                raise ValueError(f'V01 tile differs from frozen bounds: {path}')
+            authored = image.convert('RGBA')
+        if authored.getchannel('A').getextrema() != (255, 255):
+            raise ValueError(f'V01 opaque tile contains transparency: {path}')
+        result[name] = authored.resize((AUTHORED_EDGE, AUTHORED_EDGE),
+            Image.Resampling.NEAREST).resize((edge, edge), Image.Resampling.NEAREST)
     return result

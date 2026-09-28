@@ -4,7 +4,7 @@
   "layers": 256,
   "mips": 7,
   "payload_bytes": 5592064,
-  "sha256": "511dd44c71bc48eae5c1727012d9623738d15c4f6ae6df54d98168d81eac061b",
+  "sha256": "1e139d6ad41ab93b302ada27d7005f2c64f1e625d6d20e1cc41998a07c3d71e2",
   "adventure_source_sha256": "9c566473a6afdde477434d873c469fdcde1ad64d8591e10dbd85f5028615ede7",
   "adventure_override_sha256": {
     "clay": "e4b6cf474d7efc382430bbb0d3eda71fb1a6af5b26efc228a7b3e2e6b068d762"
@@ -12,7 +12,14 @@
   "adventure_authored_edge": 32,
   "adventure_leaf_cutout_key_max": 12,
   "adventure_material_overrides": [
-    "forest_floor"
+    "forest_floor",
+    "spruce_bark_side",
+    "spruce_bark_top",
+    "spruce_leaves",
+    "birch_bark_side",
+    "birch_bark_top",
+    "birch_leaves",
+    "moss_stone"
   ],
   "adventure_source_rows": [
     [
@@ -31,7 +38,10 @@
   "polish_source_sha256": {
     "ground-sheet-v1.png": "4fdca793a0a753639231d7707d89b2b745b8efdfd28593190214da749c2b25f9",
     "earth-wood-sheet-v1.png": "c9d11749f61be9f889fc7b1ab8870004b8d40d2f63787b3155ab70d969bc3abe",
-    "foliage-sand-sheet-v1.png": "9e617ffddb01c76582ce89305f14292db99b4d7e25738050290cd1f240f094ae"
+    "foliage-sand-sheet-v1.png": "9e617ffddb01c76582ce89305f14292db99b4d7e25738050290cd1f240f094ae",
+    "birch-spruce-wood-v1.png": "d17e0d9438b59eae1e08e8b391e0f64af02d6a603325811719a66c032a5c2fff",
+    "birch-spruce-stone-v1.png": "1e7203e7c8b06d0fdde778b7e05450d31b8c8d25f3bcb1aa5d0b172c8af29f57",
+    "stone-planes-v2.png": "fba5a126ef6a70168ce5c23cbcb81c6db6ea05ac7148f0e06a0926c7f04e8581"
   },
   "polish_authored_edge": 16,
   "polish_cutout_key_max": 12,
@@ -1140,7 +1150,7 @@
       "alpha": "opaque",
       "provenance": "authored",
       "sources": [
-        "adventure/spruce_bark_side"
+        "visual-polish/spruce_bark_side"
       ]
     },
     {
@@ -1149,7 +1159,7 @@
       "alpha": "opaque",
       "provenance": "authored",
       "sources": [
-        "adventure/spruce_bark_top"
+        "visual-polish/spruce_bark_top"
       ]
     },
     {
@@ -1158,7 +1168,7 @@
       "alpha": "cutout",
       "provenance": "authored",
       "sources": [
-        "adventure/spruce_leaves"
+        "visual-polish/spruce_leaves"
       ]
     },
     {
@@ -1167,7 +1177,7 @@
       "alpha": "opaque",
       "provenance": "authored",
       "sources": [
-        "adventure/birch_bark_side"
+        "visual-polish/birch_bark_side"
       ]
     },
     {
@@ -1176,7 +1186,7 @@
       "alpha": "opaque",
       "provenance": "authored",
       "sources": [
-        "adventure/birch_bark_top"
+        "visual-polish/birch_bark_top"
       ]
     },
     {
@@ -1185,7 +1195,7 @@
       "alpha": "cutout",
       "provenance": "authored",
       "sources": [
-        "adventure/birch_leaves"
+        "visual-polish/birch_leaves"
       ]
     },
     {
@@ -1230,7 +1240,7 @@
       "alpha": "opaque",
       "provenance": "authored",
       "sources": [
-        "adventure/moss_stone"
+        "visual-polish/moss_stone"
       ]
     },
     {
@@ -1280,8 +1290,8 @@
       "124": 0.38671875,
       "125": 0.38671875,
       "126": 0.38671875,
-      "130": 0.9912109375,
-      "133": 0.9912109375
+      "130": 0.87109375,
+      "133": 0.875
     },
     {
       "6": 0.87109375,
@@ -1319,8 +1329,8 @@
       "124": 0.38671875,
       "125": 0.38671875,
       "126": 0.38671875,
-      "130": 0.9912109375,
-      "133": 0.9912109375
+      "130": 0.87109375,
+      "133": 0.875
     },
     {
       "6": 0.87109375,
@@ -1358,8 +1368,8 @@
       "124": 0.38671875,
       "125": 0.38671875,
       "126": 0.38671875,
-      "130": 0.9921875,
-      "133": 0.9921875
+      "130": 0.87109375,
+      "133": 0.875
     },
     {
       "6": 0.875,
@@ -1397,8 +1407,8 @@
       "124": 0.390625,
       "125": 0.390625,
       "126": 0.390625,
-      "130": 0.984375,
-      "133": 0.984375
+      "130": 0.875,
+      "133": 0.875
     },
     {
       "6": 0.875,
@@ -1436,8 +1446,8 @@
       "124": 0.375,
       "125": 0.375,
       "126": 0.375,
-      "130": 1.0,
-      "133": 1.0
+      "130": 0.875,
+      "133": 0.875
     },
     {
       "6": 0.75,
@@ -1475,7 +1485,7 @@
       "124": 0.5,
       "125": 0.5,
       "126": 0.5,
-      "130": 1.0,
+      "130": 0.75,
       "133": 1.0
     },
     {

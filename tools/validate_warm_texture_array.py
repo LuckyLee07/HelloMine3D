@@ -11,7 +11,7 @@ from PIL import Image
 from build_warm_texture_array import ART, ROOT, fnv64
 from build_warm_texture_atlas import layout
 from adventure_texture_source import SOURCE as ADVENTURE_SOURCE, NAMES as ADVENTURE_NAMES, OVERRIDE_SOURCES
-from visual_polish_texture_source import (SHEETS as POLISH_SHEETS,
+from visual_polish_texture_source import (SOURCES as POLISH_SOURCES,
     AUTHORED_EDGE as POLISH_EDGE, CUTOUT_KEY_MAX)
 
 
@@ -33,14 +33,17 @@ def validate(path, report_path):
         name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in OVERRIDE_SOURCES.items()}
     assert report['adventure_authored_edge'] == 32 and report['adventure_leaf_cutout_key_max'] == 12
     assert report['polish_source_sha256'] == {
-        path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in POLISH_SHEETS}
+        path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in POLISH_SOURCES}
     assert report['polish_authored_edge'] == POLISH_EDGE
     assert report['polish_cutout_key_max'] == CUTOUT_KEY_MAX
-    assert report['adventure_material_overrides'] == ['forest_floor']
+    polished_adventure = {'forest_floor', 'spruce_bark_side', 'spruce_bark_top',
+                         'spruce_leaves', 'birch_bark_side', 'birch_bark_top',
+                         'birch_leaves', 'moss_stone'}
+    assert set(report['adventure_material_overrides']) == polished_adventure
     adventure_records = [r for r in report['semantics'] if r['semantic'] in ADVENTURE_NAMES]
     assert len(adventure_records) == 12
     assert all(r['provenance'] == 'authored' and r['sources'] == [
-                   ('visual-polish/' if r['semantic'] == 'forest_floor' else 'adventure/') + r['semantic']]
+                   ('visual-polish/' if r['semantic'] in polished_adventure else 'adventure/') + r['semantic']]
                for r in adventure_records)
     leaf_records = [r for r in report['semantics'] if r['semantic'].startswith('oak_leaves')]
     assert len(leaf_records) == 16
@@ -56,7 +59,7 @@ def validate(path, report_path):
     authored_cutout = [r['layer'] for r in report['semantics'] if r['alpha'] == 'cutout' and r['provenance'] != 'retained']
     shared_records = [r for r in report['semantics']
                       if all(source.startswith('visual-polish/') for source in r['sources'])]
-    assert len(shared_records) == 70
+    assert len(shared_records) == 77
     atlas = Image.open(ROOT / 'media/textures/DefaultPack.png').convert('RGBA')
     offset, coverage = 36, {}
     for mip in range(mips):
@@ -79,6 +82,9 @@ def validate(path, report_path):
                 if record in leaf_records:
                     assert .70 <= float(np.mean(visible)) <= .93, \
                         'Oak canopy must keep both connected volume and authored holes'
+                if record['semantic'] in ('birch_leaves', 'spruce_leaves'):
+                    assert .75 <= float(np.mean(visible)) < 1, \
+                        'Species canopy must keep both volume and authored holes'
 
         assert not pixels[list(set(range(256)) - active)].any(), f'Nonempty unused layer at mip {mip}'
         for record in report['semantics']:
@@ -99,7 +105,7 @@ def validate(path, report_path):
                 retained_legacy_atlas_bytes=262144, alpha_layers=len(authored_cutout),
                 voxel_oak_leaf_layers=len(leaf_records),
                 shared_material_layers=len(shared_records),
-                source_images=len(POLISH_SHEETS)+1+len(OVERRIDE_SOURCES),
+                source_images=len(POLISH_SOURCES)+1+len(OVERRIDE_SOURCES),
                 adventure_materials=len(adventure_records), sha256=report['sha256'])
 
 

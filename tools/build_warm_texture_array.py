@@ -17,8 +17,8 @@ from PIL import Image
 from build_warm_texture_atlas import layout
 from adventure_texture_source import SOURCE as ADVENTURE_SOURCE, SOURCE_ROWS, OVERRIDE_SOURCES, tiles as adventure_tiles
 from visual_polish_texture_source import (
-    SHEETS as POLISH_SHEETS, AUTHORED_EDGE as POLISH_EDGE,
-    CUTOUT_KEY_MAX, SHARED_BASES)
+    SOURCES as POLISH_SOURCES, AUTHORED_EDGE as POLISH_EDGE,
+    CUTOUT_KEY_MAX, SHARED_BASES, ADVENTURE_OVERRIDES)
 
 ROOT = Path(__file__).resolve().parents[1]
 ART = ROOT / 'docs/art-sources/warm-wilderness-v2/pixel-revision'
@@ -155,10 +155,10 @@ def build(edge=64):
                   adventure_override_sha256={name: hashlib.sha256(path.read_bytes()).hexdigest()
                                              for name, path in OVERRIDE_SOURCES.items()},
                   adventure_authored_edge=32, adventure_leaf_cutout_key_max=12,
-                  adventure_material_overrides=['forest_floor'],
+                  adventure_material_overrides=list(ADVENTURE_OVERRIDES),
                   adventure_source_rows=SOURCE_ROWS,
                   polish_source_sha256={path.name: hashlib.sha256(path.read_bytes()).hexdigest()
-                                        for path in POLISH_SHEETS},
+                                        for path in POLISH_SOURCES},
                   polish_authored_edge=POLISH_EDGE, polish_cutout_key_max=CUTOUT_KEY_MAX,
                   active_slots=len(records), empty_slots=256-len(records), semantics=records,
                   alpha_coverage=coverage_records, colour_space='sRGB RGBA8, premultiplied linear-light offline filtering')
