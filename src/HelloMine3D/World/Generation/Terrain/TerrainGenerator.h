@@ -1,6 +1,8 @@
 #ifndef TERRAINGENERATOR_H_INCLUDED
 #define TERRAINGENERATOR_H_INCLUDED
 
+#include <array>
+
 class Chunk;
 
 enum class TerrainBiome {
@@ -54,6 +56,19 @@ class TerrainGenerator {
                                          int worldZ) const noexcept = 0;
     virtual int getSurfaceHeightAtWorld(int worldX,
                                         int worldZ) const noexcept = 0;
+
+    // Pure presentation hint, never water physics or a prediction of saved
+    // blocks. The mesh only consumes it where resident surface water exists.
+    virtual std::array<float,2> getWaterSurfaceVelocityAtWorld(
+        int worldX, int worldZ) const noexcept
+    {
+        switch (getBiomeAtWorld(worldX, worldZ)) {
+            case TerrainBiome::Ocean: return {.8f,.6f};
+            case TerrainBiome::Lake: return {.16f,.12f};
+            case TerrainBiome::Wetland: return {.04f,.03f};
+            default: return {.12f,.09f};
+        }
+    }
 
     virtual ~TerrainGenerator() = default;
 };

@@ -21192,6 +21192,7 @@ void caseWorldManager()
 #include "SurfaceMapSmokeCases.h"
 #include "ExplorationMapSmokeCases.h"
 #include "WaterDepthSmokeCases.h"
+#include "WaterMotionSmokeCases.h"
 #include "ItemVisualSmokeCases.h"
 #include "MinimapNavigationSmokeCases.h"
 #include "PresentationClockSmokeCases.h"
@@ -21438,6 +21439,9 @@ int main()
         else if (focus != nullptr && std::string(focus) == "EXPLORATION_MAP") {
             caseExplorationMapLifecycle();
         }
+        else if (focus != nullptr && std::string(focus) == "WATER_MOTION") {
+            caseWaterMotionPresentation();
+        }
         else if (focus != nullptr && std::string(focus) == "WATER_DEPTH") {
             caseWaterDepthPresentation();
         }
@@ -21651,6 +21655,7 @@ int main()
         caseSurfaceMapObservations();
         caseExplorationMapLifecycle();
         caseWaterDepthPresentation();
+        caseWaterMotionPresentation();
         caseItemVisualPresentation();
         caseMinimapNavigation();
         casePresentationClock();

@@ -74,11 +74,17 @@ void main()
     vec3 reflectedSky = mix(skyHorizonColour, skyZenithColour, skyAmount);
     vec3 colour = mix(bodyColour, reflectedSky, fresnel * 0.72);
 
+    float motion = clamp(length(waterSurfaceDrift), 0.0, 1.0);
+    float footprint = max(length(dFdx(waterWorldPosition.xz)),
+                          length(dFdy(waterWorldPosition.xz)));
+    float detailVisibility = 1.0 - smoothstep(0.20, 0.80, footprint);
+
     float shore = smoothstep(0.04, 0.62, waterSurfaceData.y);
     float ripplePhase = shore * 22.0 - globalTime * 2.4 +
         dot(waterWorldPosition.xz, vec2(0.12, 0.08));
     float ripple = pow(max(sin(ripplePhase), 0.0), 12.0) *
-        shore * (1.0 - shore) * waterDetailStrength;
+        shore * (1.0 - shore) * waterDetailStrength *
+        mix(0.35, 1.0, motion) * detailVisibility;
     colour *= 1.0 - shore * 0.08 * waterDetailStrength;
     colour += mix(waterShallowColour, vec3(0.73, 0.85, 0.81), 0.65) * ripple * 0.38;
 
@@ -91,12 +97,12 @@ void main()
     float driftB = surfaceStreak(waterWorldPosition.xz - drift * fract(driftPhase + 0.5));
     float streak = mix(driftB, driftA, driftBlend);
     colour *= 1.0 + streak * 0.035 * waterDetailStrength *
-        clamp(length(waterSurfaceDrift), 0.0, 1.0);
+        motion * detailVisibility;
 
     vec3 halfDirection = normalize(viewDirection + normalize(sunDirection));
-    float sunSparkle = pow(max(dot(normal, halfDirection), 0.0), 96.0) *
+    float sunSparkle = pow(max(dot(normal, halfDirection), 0.0), 48.0) *
                        sunIntensity;
-    colour += sunColour * sunSparkle * 0.82;
+    colour += sunColour * sunSparkle * 0.20;
 
     float diffuseLight = mix(0.70, 1.0, clamp(waterLight, 0.0, 1.0));
     colour *= diffuseLight * mix(0.48, 1.0, environmentLight);

@@ -47,12 +47,15 @@ out vec2 waterSurfaceData;
 out vec2 waterSurfaceDrift;
 uniform vec2 depthAndShore;
 uniform vec2 diagnosticDrift;
+uniform vec2 diagnosticOrigin;
+uniform float diagnosticScale;
 uniform float diagnosticDistance;
 void main() {
     vec2 position = gl_VertexID == 0 ? vec2(-1,-1) :
         (gl_VertexID == 1 ? vec2(3,-1) : vec2(-1,3));
     gl_Position = vec4(position, 0, 1);
-    waterWorldPosition = vec3(0);
+    vec2 worldXZ = diagnosticOrigin + position * diagnosticScale;
+    waterWorldPosition = vec3(worldXZ.x, 0, worldXZ.y);
     waterWorldNormal = vec3(0,1,0);
     waterLight = 1;
     waterDistance = diagnosticDistance;
@@ -102,8 +105,13 @@ void main() {
         "Water depth does not increase colour absorption and opacity");
     require(shallow == sample(1, 150, 0, 0), "Depth incorrectly depends on camera distance");
     require(deep == sample(80, 12, 0, 0), "Depth does not saturate at the sampling bound");
-    const auto shoreA = sample(1, 12, .4f, 0), shoreB = sample(1, 12, .4f, 1);
-    require(shoreA != shoreB, "Shore ripple does not animate");
+    const auto shoreA = sample(1, 12, .4f, 0);
+    int shoreRange=0;
+    for(int tick=1;tick<=40;++tick) {
+        const auto b=sample(1,12,.4f,tick*.15f);
+        for(int k=0;k<3;++k)shoreRange=std::max(shoreRange,std::abs(int(b[k])-int(shoreA[k])));
+    }
+    require(shoreRange>=2, "Shore ripple does not visibly animate through a complete period");
     const GLint driftUniform = glGetUniformLocation(program, "diagnosticDrift");
     require(driftUniform >= 0, "Missing surface drift input");
     require(sample(1, 12, 0, 0) == sample(1, 12, 0, 4), "Zero drift still moves surface streaks");
@@ -120,6 +128,37 @@ void main() {
             require(std::abs(int(a[component]) - int(b[component])) <= 1,
                     "Surface drift jumps at its phase boundary");
     }
+    // A coarse world footprint must remove time-varying subpixel streaks and
+    // shore ripples. Removing the production derivative filter fails here.
+    scalar("diagnosticScale", .5f);
+    const auto farDetail=sample(1,12,.4f,0);
+    bool filtered=true;
+    for(int tick=1;tick<=20;++tick)filtered &= sample(1,12,.4f,tick*.3f)==farDetail;
+    require(filtered,"Far-water detail still aliases at a one-metre pixel footprint");
+    scalar("diagnosticScale",0);
+    const GLint origin=glGetUniformLocation(program,"diagnosticOrigin");
+    const auto linearSample=[&](float x,float z,float time) {
+        glUniform2f(origin,x,z);vector("cameraPosition",x,10,z);(void)sample(1,12,0,time);
+        std::array<float,4> value{};glReadPixels(0,0,1,1,GL_RGBA,GL_FLOAT,value.data());return value;
+    };
+    // Track an advected feature through production fragment output. Sampling
+    // the later frame downstream must align better than sampling upstream.
+    double forward=0,backward=0;
+    for(const auto velocity:{std::array<float,2>{.6f,0.f},std::array<float,2>{-.36f,.48f}}) {
+        glUniform2f(driftUniform,velocity[0],velocity[1]);
+        for(int z=-8;z<=8;++z)for(int x=-8;x<=8;++x) {
+            const float px=x*.37f,pz=z*.41f,dx=velocity[0]*.027f,dz=velocity[1]*.027f;
+            const auto a=linearSample(px,pz,1),b=linearSample(px+dx,pz+dz,1.1f),c=linearSample(px-dx,pz-dz,1.1f);
+            for(int k=0;k<3;++k){forward+=std::pow(a[k]-b[k],2);backward+=std::pow(a[k]-c[k],2);}
+        }
+    }
+    std::cout<<"[WATER_SHADER] advected_forward_error="<<forward<<" backward_error="<<backward<<'\n';
+    require(forward<backward*.95,"Surface features do not travel with the supplied downstream vector");
+    glUniform2f(origin,0,0);glUniform2f(driftUniform,0,0);
+    vector("sunColour",1,1,1);scalar("sunIntensity",0);const auto unlit=linearSample(0,0,0);
+    scalar("sunIntensity",1);const auto lit=linearSample(0,0,0);
+    for(int k=0;k<3;++k)require(lit[k]-unlit[k]>.15f && lit[k]-unlit[k]<=.205f,"Sun reflection exceeds its restrained highlight budget");
+    scalar("sunIntensity",0);
     scalar("waterDetailStrength", 0);
     require(sample(1, 12, .4f, 0) == sample(1, 12, .4f, 1), "Fallback shoreline still animates");
     vector("cameraPosition", 0, -1, 0);
@@ -236,7 +275,7 @@ int main(int argc, char **argv)
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
         glGenRenderbuffers(1, &colour);
         glBindRenderbuffer(GL_RENDERBUFFER, colour);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, 1, 1);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA32F, 1, 1);
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                                   GL_RENDERBUFFER, colour);
         require(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE,
@@ -254,6 +293,8 @@ int main(int argc, char **argv)
 
         const GLint vertex = glGetAttribLocation(program, "vertex");
         require(vertex >= 0, "Missing vertex input");
+        const GLint velocity=glGetAttribLocation(program,"uv0");
+        require(velocity>=0,"Water velocity does not affect wave geometry");
         const GLint globalTime = glGetUniformLocation(program, "globalTime");
         require(globalTime >= 0, "Missing wave time input");
         const auto sample = [&](const Matrix &world, float x, float y, float z) {
@@ -282,7 +323,10 @@ int main(int argc, char **argv)
         // Both representations of a shared edge must produce the same output.
         // Include both horizontal axes, negative coordinates, the origin,
         // four-section corners, and multiple animation phases.
-        for (float time : {0.0f, 0.25f, 0.75f, 1.0f, 8.0f}) {
+        const std::array<std::array<float,2>,4> profiles{{{{.04f,.03f}},{{.16f,.12f}},{{-.36f,.48f}},{{.8f,.6f}}}};
+        for(const auto profile:profiles) {
+          glVertexAttrib2f(velocity,profile[0],profile[1]);
+          for (float time : {0.0f, 0.25f, 0.75f, 1.0f, 8.0f}) {
             glUniform1f(globalTime, time);
             for (int boundary : {-1024, -256, -16, 0, 16, 256, 1024}) {
                 for (int along : {0, 7, CHUNK_SIZE}) {
@@ -313,6 +357,19 @@ int main(int argc, char **argv)
                     }
                 }
             }
+          }
+        }
+        float previousAmplitude=0;
+        for(const auto profile:profiles) {
+            glVertexAttrib2f(velocity,profile[0],profile[1]);float amplitude=0;
+            for(int tick=0;tick<128;++tick) {
+                glUniform1f(globalTime,tick*.125f);
+                amplitude=std::max(amplitude,std::abs(sample(translation(0,48,0),4,16,4)[1]-63.9f));
+            }
+            std::cout<<"[WATER_SHADER] speed="<<std::hypot(profile[0],profile[1])<<" wave_amplitude="<<amplitude<<'\n';
+            require(amplitude>previousAmplitude*1.5f && amplitude<=.06001f,"Waterbody wave profiles do not separate wetland/lake/river/sea");
+            if(previousAmplitude==0)require(amplitude<.003f,"Wetland surface is not sheltered");
+            previousAmplitude=amplitude;
         }
         std::cout << "pairs=" << pairs
                   << " max_position_delta=" << maxPositionDelta

@@ -235,8 +235,8 @@ void caseWaterDepthPresentation()
             return std::abs(value.first - x) < .00001f && std::abs(value.second - z) < .00001f;
         });
     };
-    check("WATER_DEPTH/open-water-drift-seam-agrees",
-        matchesDrift(driftWest, .8f, .6f) && matchesDrift(driftEast, .8f, .6f));
+    check("WATER_DEPTH/non-surface-water-calm-drift-seam-agrees",
+        matchesDrift(driftWest, .12f, .09f) && matchesDrift(driftEast, .12f, .09f));
     const auto lowerDrift = attributesAt(lowerMeshes.waterMesh.getClientMesh(),
         west * CHUNK_SIZE, 16, north * CHUNK_SIZE + 8, true);
     const auto upperDrift = attributesAt(westMeshes.waterMesh.getClientMesh(),
@@ -255,8 +255,8 @@ void caseWaterDepthPresentation()
     const auto alongBankWest = attributesAt(bankWestMeshes.waterMesh.getClientMesh(), seamX, 19, seamZ, true);
     const auto alongBankEast = attributesAt(bankEastMeshes.waterMesh.getClientMesh(), seamX, 19, seamZ, true);
     check("WATER_DEPTH/drift-bends-along-real-bank",
-        matchesDrift(alongBankWest, .4f, 0.f) && matchesDrift(alongBankEast, .4f, 0.f));
-    check("WATER_DEPTH/bank-edit-preserves-old-snapshot", matchesDrift(driftWest, .8f, .6f));
+        matchesDrift(alongBankWest, .06f, 0.f) && matchesDrift(alongBankEast, .06f, 0.f));
+    check("WATER_DEPTH/bank-edit-preserves-old-snapshot", matchesDrift(driftWest, .12f, .09f));
     const auto& bankMesh = bankWestMeshes.waterMesh.getClientMesh();
     bool boundedDrift = true;
     for (std::size_t i = 0; i < bankMesh.textureCoords.size(); i += 2) {

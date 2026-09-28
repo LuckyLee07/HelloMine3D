@@ -28,6 +28,7 @@ class AdventureWaterPlanner {
     Sample sample(int worldX, int worldZ) const noexcept;
     FlowNode planNode(int cellX, int cellZ) const noexcept;
     ChannelPath channelPath(int cellX,int cellZ) const noexcept;
+    std::array<float,2> surfaceFlow(int worldX,int worldZ) const noexcept;
 
   private:
     struct Node { double x=0,z=0,height=0,potential=0,width=0; bool lakeSite=false,basin=false; };

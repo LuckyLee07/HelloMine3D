@@ -54,6 +54,8 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
                                  int worldZ) const noexcept override;
     int getSurfaceHeightAtWorld(int worldX,
                                 int worldZ) const noexcept override;
+    std::array<float,2> getWaterSurfaceVelocityAtWorld(
+        int worldX,int worldZ) const noexcept override;
     int getSeed() const noexcept;
     int getExplorationRewardVersion() const noexcept;
     LandmarkPlacement getLandmarkForCell(int cellX, int cellZ) const;

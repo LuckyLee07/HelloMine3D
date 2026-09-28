@@ -778,7 +778,11 @@ void ChunkMeshBuilder::addVertexLitFace(
             break;
     }
 
-    const auto tintedCoords = ecologyCoordinates(blockFace, textureCoords, blockPosition);
+    // Water UVs are velocity components, not atlas coordinates. Some vectors
+    // numerically fall in plant tiles; encoding those as climate would change
+    // flow and wave height independently on adjacent faces.
+    const auto tintedCoords = &mesh == &m_pMeshes->waterMesh ? textureCoords :
+        ecologyCoordinates(blockFace, textureCoords, blockPosition);
     if (textureRepeatCoords != nullptr && shareRepeatVertices) {
         mesh.addSharedFace(blockFace, tintedCoords,
                            m_pInput->getLocation(), blockPosition, light,
@@ -917,13 +921,13 @@ void ChunkMeshBuilder::tryAddFaceToMesh(
                 const int y = blockPosition.y +
                     static_cast<int>(blockFace[corner * 3 + 1]) - 1;
                 glm::vec2 bankGradient(0.f);
-                float waterCoverage = 0.f;
+                glm::vec2 drift(0.f);
                 for (int dz = -1; dz <= 0; ++dz) {
                     for (int dx = -1; dx <= 0; ++dx) {
                         waterData[corner * 2] +=
                             m_pInput->getWaterDepth(cx + dx, y, cz + dz) * 0.25f;
                         const auto neighbour = m_pInput->getBlock(cx + dx, y, cz + dz);
-                        if (neighbour == BlockId::Water) waterCoverage += 0.25f;
+                        drift += m_pInput->getWaterSurfaceVelocity(cx+dx,y,cz+dz)*.25f;
                         if (neighbour != BlockId::Air && neighbour != BlockId::Water &&
                             !BlockDatabase::get().getDefinition(
                                 static_cast<BlockId>(neighbour.id)).transparent) {
@@ -933,14 +937,12 @@ void ChunkMeshBuilder::tryAddFaceToMesh(
                         }
                     }
                 }
-                // Wind-driven surface drift bends along the actual resident
-                // bank. E5 has level water, so this is not a river discharge
-                // model. The same four columns define both sides of a seam.
-                glm::vec2 drift(.8f, .6f);
+                // Natural channel direction or regional wind is averaged only
+                // over resident water, then constrained by the edited bank.
+                // Shared world corners use the same four immutable samples.
                 const float gradientSquared = glm::dot(bankGradient, bankGradient);
                 if (gradientSquared > 0.f)
                     drift -= bankGradient * glm::dot(drift, bankGradient) / gradientSquared;
-                drift *= waterCoverage;
                 waterDrift[corner * 2] = drift.x;
                 waterDrift[corner * 2 + 1] = drift.y;
             }

@@ -420,6 +420,15 @@ ClassicOverWorldGenerator::sampleAdventureShapeForVersion(
     return entry.column;
 }
 
+std::array<float,2> ClassicOverWorldGenerator::getWaterSurfaceVelocityAtWorld(
+    int worldX,int worldZ) const noexcept
+{
+    if(m_generationVersion>=AdventureWaterTerrainGenerationVersion &&
+        getBiomeAtWorld(worldX,worldZ)==TerrainBiome::River)
+        return m_adventureWater.surfaceFlow(worldX,worldZ);
+    return TerrainGenerator::getWaterSurfaceVelocityAtWorld(worldX,worldZ);
+}
+
 TerrainBiome ClassicOverWorldGenerator::getBiomeAtWorld(
     int worldX, int worldZ) const noexcept
 {

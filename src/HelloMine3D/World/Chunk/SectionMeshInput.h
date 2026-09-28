@@ -48,6 +48,7 @@ class SectionMeshInput {
     { return m_ecologyColour.at(x, z); }
     int getTerrainSeed() const noexcept;
     float getWaterDepth(int x, int y, int z) const;
+    glm::vec2 getWaterSurfaceVelocity(int x,int y,int z) const noexcept;
     bool containsWater() const noexcept { return m_containsWater; }
 
     /// Valid for y in [0, CHUNK_SIZE).
@@ -66,6 +67,7 @@ class SectionMeshInput {
     std::array<LightLevel, Volume> m_blockLight{};
     std::array<std::uint8_t, Volume> m_waterDepth{};
     std::array<TerrainBiome, Size * Size> m_biomes{};
+    std::array<glm::vec2, Size * Size> m_waterVelocity{};
     TerrainEcologyColour m_ecologyColour;
 
     /// Own layers for y in [-1, CHUNK_SIZE], stored at y + 1.

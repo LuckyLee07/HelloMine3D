@@ -120,6 +120,42 @@ AdventureWaterPlanner::ChannelPath AdventureWaterPlanner::channelPath(int cellX,
     return result;
 }
 
+std::array<float,2> AdventureWaterPlanner::surfaceFlow(int worldX,int worldZ) const noexcept
+{
+    const double x=worldX,z=worldZ;
+    const auto &graph=tile(static_cast<std::int64_t>(std::floor(x/CellSize)),
+                           static_cast<std::int64_t>(std::floor(z/CellSize)));
+    double flowX=0,flowZ=0,total=0,coverage=0;
+    for(const auto &edge:graph.edges) {
+        if(!edge.valid || x<edge.minimumX-48 || x>edge.maximumX+48 ||
+            z<edge.minimumZ-48 || z>edge.maximumZ+48)continue;
+        double nearest=std::numeric_limits<double>::max(),along=0;std::size_t segment=0;
+        for(std::size_t i=0;i+1<edge.points.size();++i) {
+            const auto a=edge.points[i],b=edge.points[i+1];
+            const double dx=b.x-a.x,dz=b.z-a.z;
+            const double t=std::clamp(((x-a.x)*dx+(z-a.z)*dz)/(dx*dx+dz*dz),0.0,1.0);
+            const double ox=x-blend(a.x,b.x,t),oz=z-blend(a.z,b.z,t),d=ox*ox+oz*oz;
+            if(d<nearest){nearest=d;along=t;segment=i;}
+        }
+        const double support=1-smooth(0,48,std::sqrt(nearest));
+        if(support<=0)continue;
+        const auto tangent=[&](std::size_t i) {
+            const auto a=edge.points[i?i-1:0],b=edge.points[std::min(i+1,edge.points.size()-1)];
+            const double length=std::hypot(b.x-a.x,b.z-a.z);
+            return Point{(b.x-a.x)/length,(b.z-a.z)/length};
+        };
+        const auto a=tangent(segment),b=tangent(segment+1);
+        // Every tangent follows the strictly descending node connection.
+        // Mixing instead of selecting a winner also smooths confluences.
+        const double weight=support*support/(4+nearest);
+        coverage=std::max(coverage,support);
+        flowX+=blend(a.x,b.x,along)*weight;
+        flowZ+=blend(a.z,b.z,along)*weight;total+=weight;
+    }
+    if(total<=0)return {0,0};
+    return {static_cast<float>(flowX/total*.60*coverage),static_cast<float>(flowZ/total*.60*coverage)};
+}
+
 AdventureWaterPlanner::Sample AdventureWaterPlanner::sample(int worldX,int worldZ) const noexcept
 {
     const auto base=m_base.sample(worldX,worldZ);

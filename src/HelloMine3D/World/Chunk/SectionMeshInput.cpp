@@ -73,6 +73,17 @@ void SectionMeshInput::capture(
     for (int z = -1; z <= CHUNK_SIZE; ++z) {
         for (int x = -1; x <= CHUNK_SIZE; ++x) {
             int depth = 0;
+            auto &velocity=m_waterVelocity[(x+1)+(z+1)*Size];
+            velocity=glm::vec2(0.f);
+            // Only natural sea-level water needs a graph/climate hint. Saved
+            // depth, banks and all other heights still use resident blocks.
+            const int surfaceY=64-m_location.y*CHUNK_SIZE;
+            if(getBlock(x,surfaceY,z)==BlockId::Water) {
+                const auto motion=terrainGenerator.getWaterSurfaceVelocityAtWorld(
+                    m_location.x*CHUNK_SIZE+x,m_location.z*CHUNK_SIZE+z);
+                velocity={motion[0],motion[1]};
+            }
+            static_assert(sizeof(m_waterVelocity)<=2592,"Water motion snapshot stays bounded");
             if (getBlock(x, -1, z) == BlockId::Water) {
                 // getBlock only reads existing chunks while this capture owns
                 // the world lock; it never creates or loads a neighbour.
@@ -127,6 +138,14 @@ TerrainBiome SectionMeshInput::getBiome(int x, int z) const
 int SectionMeshInput::getTerrainSeed() const noexcept
 {
     return m_terrainSeed;
+}
+
+glm::vec2 SectionMeshInput::getWaterSurfaceVelocity(int x,int y,int z) const noexcept
+{
+    if(x<-1 || x>CHUNK_SIZE || z<-1 || z>CHUNK_SIZE || getBlock(x,y,z)!=BlockId::Water)
+        return glm::vec2(0.f);
+    if(m_location.y*CHUNK_SIZE+y!=64)return {.12f,.09f};
+    return m_waterVelocity[(x+1)+(z+1)*Size];
 }
 
 float SectionMeshInput::getWaterDepth(int x, int y, int z) const
