@@ -1019,6 +1019,20 @@ namespace
                 std::getenv("HELLOMINE3D_VISUAL_CAMERA_PATH"));
             if (m_visualCameraSweep.enabled)
                 std::cout << "[VISUAL_CAMERA_SWEEP] enabled=1 evidence=developer-diagnostic normal_input=0 player_unchanged=1\n";
+            if (const char* fixture = std::getenv("HELLOMINE3D_PLAYER_MOTION_CAPTURE")) {
+                m_playerMotionCapture = fixture;
+                if (!isTrueValue(std::getenv("HELLOMINE3D_WINDOW_HIDDEN")) ||
+                    !isTrueValue(std::getenv("HELLO_RENDER_CAPTURE")) ||
+                    initialSaveDirectory.empty() || RuntimePerformanceCapture::isEnabled() ||
+                    std::getenv("HELLOMINE3D_RC_PERF_PROFILE") != nullptr ||
+                    std::getenv("HELLOMINE3D_E2_BATCH_MANIFEST") != nullptr ||
+                    m_visualCameraSweep.enabled ||
+                    (m_playerMotionCapture != "forward" && m_playerMotionCapture != "backward" &&
+                     m_playerMotionCapture != "left" && m_playerMotionCapture != "right"))
+                    throw std::runtime_error("Player motion fixture requires hidden world render capture without performance/camera fixtures and a valid direction.");
+                std::cout << "[PLAYER_MOTION_CAPTURE] direction=" << m_playerMotionCapture
+                    << " evidence=developer-diagnostic normal_input=0 player_unchanged=1\n";
+            }
             if (const char* fixture = std::getenv("HELLOMINE3D_ACTOR_VISUAL_CAPTURE")) {
                 m_actorVisualCapture = fixture;
                 if ((!isTrueValue(std::getenv("HELLO_RENDER_CAPTURE")) &&
@@ -4149,6 +4163,21 @@ namespace
             snapshot.movementSeconds = m_playerMovementSeconds;
             snapshot.movementStrength = movementStrength;
 
+            if (!m_playerMotionCapture.empty()) {
+                // Exercise the real avatar path with copied render facts only.
+                // The diagnostic never writes Player velocity or input state.
+                m_playerMotionCaptureSeconds += elapsed;
+                const float yaw = PlayerAvatarPresentation::wrapDegrees(snapshot.rotationDegrees.y) *
+                    3.14159265359f / 180.f;
+                const bool lateral = m_playerMotionCapture == "left" || m_playerMotionCapture == "right";
+                const float sign = m_playerMotionCapture == "backward" || m_playerMotionCapture == "left" ? -1.f : 1.f;
+                snapshot.velocity = lateral
+                    ? PlayerAvatarPresentation::Vec3{4.5f * sign * std::cos(yaw), 0.f, 4.5f * sign * std::sin(yaw)}
+                    : PlayerAvatarPresentation::Vec3{4.5f * sign * std::sin(yaw), 0.f, -4.5f * sign * std::cos(yaw)};
+                snapshot.movementStrength = 1.f;
+                snapshot.movementSeconds = m_playerMotionCaptureSeconds;
+            }
+
             PlayerAvatarPresentation::Pose pose =
                 PlayerAvatarPresentation::derivePose(
                     snapshot, m_playerAvatarProfile,
@@ -5923,6 +5952,8 @@ namespace
         BlockId m_blockFeedbackCaptureId = BlockId::Air;
         float m_blockFeedbackCaptureSeconds = 0.f;
         std::string m_actorVisualCapture;
+        std::string m_playerMotionCapture;
+        float m_playerMotionCaptureSeconds = 0.f;
         float m_actorVisualCaptureSeconds = 0.f;
         bool m_actorVisualGalleryLogged = false;
         float m_actorVisualDistance = 4.6f;

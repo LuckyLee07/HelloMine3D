@@ -59,6 +59,7 @@ P95／P99 ≤1.10 和细微调参统一为 `DEFERRED_BY_USER`，不再阻塞本�
 | 第一人称动作、命中/受击、粒子或镜头反馈 | 判定时刻与表现解耦测试、数量/持续时间上限、关闭回退、HUD/准星截图和 AI 多帧/视频观察；镜头效果必须可调或可关，人类舒适度不声明。 |
 | 第一人称手臂与抓握表现 | `bash scripts/verify_player_hand_presentation.sh Debug` / `Release`；受影响客户端双配置、P11A/P11B/ITEM_VISUAL 定向回归、空手/图标/方块及昼夜/窄窗口/面板隐藏截图、三档反馈连续帧和相关三轮性能。诊断采集夹具不替代正常输入。 |
 | 玩家工具阶段与朝向精修 | 双配置 `verify_player_hand_presentation.sh`／`verify_player_avatar_presentation.sh`：全动作连续性、预备／下挥、使用／进食区分、前向手掌、刚性握持、Off及Reduced缩放，反向工作臂／合并动作／取消预备故障负例；P11A／P11B／ITEM_VISUAL、受影响双配置客户端及Release完整世界。实际诊断采挖多帧与普通输入分开，不改变攻击和消耗时序，见[玩家合同](../contracts/adventure-player-avatar-contract-v1.md)。 |
+| 玩家四向步态混合 | 双配置 `verify_player_avatar_presentation.sh`：四向脚端／旋转等价、对角与速度归一化、无效速度、档位及工具全轴抑制；独立盒角点验证步态／换向／停止后的脚底和腿分离，30／60 Hz 收敛；全部前进、取消脚底修正、只抑制X故障负例。双配置客户端及P11A／P11B／ITEM_VISUAL、Release完整世界；隐藏四向原图单列为诊断，真实连续输入／坡面／近墙仍须正常操作证明。 |
 | 可持久化玩家视角设置 | Debug／Release `HELLOMINE3D_WORLD_SMOKE_FOCUS=CAMERA_SETTINGS`；检查 settings v11 默认、v0–v10 迁移、`first|third` 往返、缺失／未知／重复／旧版本越界拒绝、设置会话取消／默认／无需重启、双语键一致性；受影响客户端双配置编译。F5 原子保存、第一／第三人称实际切换及近墙回退另随 B8 运行时接线验收。 |
 | 生物关节与步态表现 | `bash scripts/verify_enemy_articulation.sh Debug` / `Release`；方向/传送/固定关节/头口连接、颈部截面体积、30/60/120 fps 姿态过渡、暂停/死亡复位、真实展示比例/时序与故障负例，客户端双配置和 P11E 回归，静态前后图、具有不同时间点的连续行走/战斗姿态、相关三轮性能。新增部件还需检查 GPU 角色编号、昼夜及回退。诊断展示不代替正常战斗。 |
 | 生物表面与面部表现 | `tools/validate_actor_shader_macos.cpp` 运行生产普通/阴影 shader，检查原型分区、局部坐标、夜间提示、雾遮挡和关闭回退；旧 shader 负例、双配置客户端/资源检查、昼夜/中远距离连续画面及受影响三轮性能。正常战斗与人类审美单独记录。 |

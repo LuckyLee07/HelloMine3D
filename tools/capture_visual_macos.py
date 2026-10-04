@@ -89,6 +89,8 @@ def main():
     parser.add_argument("--render-distance", type=int, choices=range(1, 33), default=8)
     parser.add_argument("--perspective", choices=("first", "third"),
                         help="Use the normal saved camera setting in a diagnostic capture")
+    parser.add_argument("--player-motion", choices=("forward", "backward", "left", "right"),
+                        help="Hidden render-only avatar motion facts; does not move the player or exercise input")
     parser.add_argument("--shadow", choices=("off", "medium", "high"), default="off")
     parser.add_argument("--post", choices=("off", "on"), default="off")
     parser.add_argument("--locale", choices=("en-US", "zh-CN"), default="zh-CN")
@@ -133,6 +135,10 @@ def main():
         parser.error("--capture-ms applies only to render capture")
     if args.actor_distance is not None and not args.actor_visual:
         parser.error("--actor-distance requires --actor-visual")
+    if args.player_motion and (args.perspective != "third" or args.foreground or args.performance or args.scene == "menu"):
+        parser.error("--player-motion requires hidden third-person world render capture")
+    if "HELLOMINE3D_PLAYER_MOTION_CAPTURE" in os.environ:
+        parser.error("Inherited player motion fixture is not accepted; use --player-motion explicitly")
     if platform.system() != "Darwin":
         parser.error("macOS required")
     if not 0 <= args.time < 24000:
@@ -228,6 +234,8 @@ seed random
     }
     if args.terrain_fallback:
         environment["HELLOMINE3D_FORCE_LEGACY_TERRAIN"] = "1"
+    if args.player_motion:
+        environment["HELLOMINE3D_PLAYER_MOTION_CAPTURE"] = args.player_motion
     if args.scene != "menu":
         position, rotation = SCENES[args.scene]
         position = args.position or position

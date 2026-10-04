@@ -298,6 +298,62 @@ namespace PlayerAvatarPresentation
         pose.weights.hurt = clamp01(pose.weights.hurt);
     }
 
+    inline Vec3 rotateLocal(Vec3 value, Vec3 degrees) noexcept
+    {
+        constexpr float radians = 3.14159265359f / 180.f;
+        const float sx = std::sin(degrees.x * radians);
+        const float cx = std::cos(degrees.x * radians);
+        const float sy = std::sin(degrees.y * radians);
+        const float cy = std::cos(degrees.y * radians);
+        const float sz = std::sin(degrees.z * radians);
+        const float cz = std::cos(degrees.z * radians);
+        // Match the adapter's Ry * Rx * Rz composition.
+        value = {value.x * cz - value.y * sz,
+                 value.x * sz + value.y * cz, value.z};
+        value = {value.x, value.y * cx - value.z * sx,
+                 value.y * sx + value.z * cx};
+        return {value.x * cy + value.z * sy, value.y,
+                -value.x * sy + value.z * cy};
+    }
+
+    inline void groundMovementPose(Pose& pose, const Profile& profile) noexcept
+    {
+        // This is a visual feet-plane correction, without a world query or
+        // placement change. Keep existing airborne, landing and hurt cues.
+        if (pose.weights.airborne > .001f || pose.weights.land > .001f ||
+            pose.weights.hurt > .001f) return;
+        float lowest = 0.f;
+        bool hasFoot = false;
+        for (const auto role : {PartRole::LeftLeg, PartRole::RightLeg}) {
+            const auto index = partIndex(profile, role);
+            if (index >= std::min(profile.partCount, profile.parts.size())) continue;
+            const auto& definition = profile.parts[index];
+            const auto& transform = pose.parts[index];
+            Vec3 centre = rotateLocal(
+                {definition.centre.x - definition.pivot.x,
+                 definition.centre.y - definition.pivot.y,
+                 definition.centre.z - definition.pivot.z},
+                transform.rotationDegrees);
+            centre = rotateLocal(
+                {centre.x + definition.pivot.x + transform.offset.x,
+                 centre.y + definition.pivot.y + transform.offset.y,
+                 centre.z + definition.pivot.z + transform.offset.z},
+                pose.rootRotationDegrees);
+            const auto axis = [&](Vec3 value) {
+                return rotateLocal(rotateLocal(value, transform.rotationDegrees),
+                                   pose.rootRotationDegrees).y;
+            };
+            // The projected half extents give the exact lowest box corner.
+            const float bottom = centre.y - .5f * (
+                std::abs(axis({1.f, 0.f, 0.f})) * definition.size.x * transform.scale.x +
+                std::abs(axis({0.f, 1.f, 0.f})) * definition.size.y * transform.scale.y +
+                std::abs(axis({0.f, 0.f, 1.f})) * definition.size.z * transform.scale.z);
+            if (!hasFoot || bottom < lowest) lowest = bottom;
+            hasFoot = true;
+        }
+        if (hasFoot) pose.rootOffset.y = clamp(-lowest, -.18f, .08f);
+    }
+
     inline Pose derivePose(const Snapshot& source, const Profile& profile,
                            MotionStrength strength = MotionStrength::Full) noexcept
     {
@@ -306,7 +362,23 @@ namespace PlayerAvatarPresentation
         pose.facingYawDegrees = wrapDegrees(source.rotationDegrees.y);
 
         const float scale = motionScale(strength);
-        pose.weights.walk = source.grounded ? clamp01(source.movementStrength) : 0.f;
+        // Normalize before projection so even very large finite velocities
+        // cannot overflow. A missing/invalid horizontal fact is stationary.
+        float forward = 0.f, right = 0.f;
+        const float vx = source.velocity.x, vz = source.velocity.z;
+        const float largest = std::max(std::abs(vx), std::abs(vz));
+        if (finite(vx) && finite(vz) && largest > 0.f) {
+            const float x = vx / largest, z = vz / largest;
+            const float length = std::sqrt(x * x + z * z);
+            constexpr float radians = 3.14159265359f / 180.f;
+            const float yaw = pose.facingYawDegrees * radians;
+            if (largest > .0001f / length) {
+                forward = clamp((x * std::sin(yaw) - z * std::cos(yaw)) / length, -1.f, 1.f);
+                right = clamp((x * std::cos(yaw) + z * std::sin(yaw)) / length, -1.f, 1.f);
+            }
+        }
+        const bool moving = forward != 0.f || right != 0.f;
+        pose.weights.walk = source.grounded && moving ? clamp01(source.movementStrength) : 0.f;
         pose.weights.airborne = source.grounded ? 0.f : 1.f;
         pose.weights.land = source.grounded ? clamp01(source.feedback.landing) : 0.f;
         const auto& action = source.feedback.tool;
@@ -324,14 +396,19 @@ namespace PlayerAvatarPresentation
 
         const float gaitClock = finiteOr(source.movementSeconds);
         const float gait = std::sin(std::remainder(gaitClock * 8.2f, 6.28318530718f));
-        const float legSwing = gait * 32.f * pose.weights.walk * scale;
-        const float armSwing = gait * 25.f * pose.weights.walk * scale;
-        addRotation(pose, profile, PartRole::LeftLeg, {legSwing, 0.f, 0.f});
-        addRotation(pose, profile, PartRole::RightLeg, {-legSwing, 0.f, 0.f});
-        addRotation(pose, profile, PartRole::LeftArm, {-armSwing, 0.f, -2.f * scale});
-        addRotation(pose, profile, PartRole::RightArm, {armSwing, 0.f, 2.f * scale});
-        pose.rootOffset.y += std::abs(gait) * .018f * pose.weights.walk * scale;
-        pose.rootRotationDegrees.x += 3.f * pose.weights.walk * scale;
+        const float walk = pose.weights.walk * scale;
+        const float legSwing = gait * 32.f * forward * walk;
+        const float armSwing = gait * 25.f * forward * walk;
+        // Lateral steps open outward only. Opposing inward leg rolls would
+        // cross the default profile's narrow 2 cm gap.
+        const float stepRight = std::max(gait * right, 0.f) * walk;
+        const float stepLeft = std::max(-gait * right, 0.f) * walk;
+        addRotation(pose, profile, PartRole::LeftLeg, {legSwing, 0.f, -12.f * stepLeft});
+        addRotation(pose, profile, PartRole::RightLeg, {-legSwing, 0.f, 12.f * stepRight});
+        addRotation(pose, profile, PartRole::LeftArm, {-armSwing, 0.f, (-2.f * scale - 8.f * stepRight)});
+        addRotation(pose, profile, PartRole::RightArm, {armSwing, 0.f, (2.f * scale + 8.f * stepLeft)});
+        pose.rootRotationDegrees.x += 3.f * forward * walk;
+        pose.rootRotationDegrees.z -= 3.f * right * walk;
 
         if (pose.weights.airborne > 0.f) {
             const float rise = clamp(source.velocity.y * .12f, -1.f, 1.f);
@@ -365,8 +442,13 @@ namespace PlayerAvatarPresentation
         const float activity = std::max({preparation, strike, use, consume});
         if (activity > 0.f) {
             const auto arm = partIndex(profile, PartRole::RightArm);
-            if (arm < std::min(profile.partCount, profile.parts.size()))
-                pose.parts[arm].rotationDegrees.x *= 1.f - activity;
+            if (arm < std::min(profile.partCount, profile.parts.size())) {
+                const float keep = 1.f - std::max({clamp01(action.preparation),
+                    clamp01(action.strike), clamp01(action.use), clamp01(action.consume)});
+                pose.parts[arm].rotationDegrees.x *= keep;
+                pose.parts[arm].rotationDegrees.y *= keep;
+                pose.parts[arm].rotationDegrees.z *= keep;
+            }
             addRotation(pose, profile, PartRole::RightArm,
                         {102.f * preparation + 48.f * strike + 64.f * use + 104.f * consume,
                          -8.f * preparation + 12.f * strike + 28.f * consume,
@@ -394,6 +476,7 @@ namespace PlayerAvatarPresentation
         copyTransform(pose, profile, PartRole::Hair, PartRole::Head);
         copyTransform(pose, profile, PartRole::Belt, PartRole::Torso);
         boundPose(pose, profile);
+        groundMovementPose(pose, profile);
         return pose;
     }
 
@@ -420,6 +503,7 @@ namespace PlayerAvatarPresentation
         if (!history.seeded || !finite(deltaSeconds) || deltaSeconds < 0.f ||
             deltaSeconds > maximumDelta) {
             boundPose(target, profile);
+            groundMovementPose(target, profile);
             history.pose = target;
             history.seeded = true;
             return target;
@@ -453,6 +537,7 @@ namespace PlayerAvatarPresentation
                                                      weight);
         }
         boundPose(target, profile);
+        groundMovementPose(target, profile);
         history.pose = target;
         return target;
     }
