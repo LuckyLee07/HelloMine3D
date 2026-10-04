@@ -46,20 +46,24 @@ GLuint program(const std::filesystem::path& root, bool shadow) {
 }
 Pixels render(GLuint p,float role,float windup=0,float front=-.5f,float enabled=1,float light=1,
               float archetype=0,float guardian=1,float fog=0,float worldOffset=0,
-              float playerExposure=-1,float shadowStrength=0) {
+              float playerExposure=-1,float shadowStrength=0,bool rangeFade=false,float worldOffsetZ=0,float rangeCentre=0,float rangeStrength=1) {
     glUseProgram(p);
     auto scalar=[&](const char* key,float v){glUniform1f(glGetUniformLocation(p,key),v);};
     const float identity[]{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
     const float projection[]{2,0,0,0,0,2,0,0,0,0,0,0,0,0,0,1};
     for(const char* key:{"world","worldView"})
         glUniformMatrix4fv(glGetUniformLocation(p,key),1,GL_FALSE,identity);
-    float translated[]{1,0,0,0,0,1,0,0,0,0,1,0,worldOffset,0,0,1};
+    float translated[]{1,0,0,0,0,1,0,0,0,0,1,0,worldOffset,0,worldOffsetZ,1};
     glUniformMatrix4fv(glGetUniformLocation(p,"world"),1,GL_FALSE,translated);
     glUniformMatrix4fv(glGetUniformLocation(p,"worldViewProj"),1,GL_FALSE,projection);
     glUniform4f(glGetUniformLocation(p,"actorTint"),.25f,.47f,.51f,1);
     glUniform4f(glGetUniformLocation(p,"actorPartData"),role,guardian,windup,archetype);
     scalar("actorSurfaceStrength",enabled);scalar("environmentLight",light);
     scalar("playerExposure",playerExposure);
+    glUniform2f(glGetUniformLocation(p,"viewRange"),rangeFade?118.f:0.f,rangeFade?126.f:0.f);
+    glUniform2f(glGetUniformLocation(p,"viewRangeCentre"),rangeCentre,rangeCentre);
+    scalar("viewRangeStrength",rangeStrength);
+    glClearColor(0,0,0,0);glClear(GL_COLOR_BUFFER_BIT);
     scalar("fogDensity",fog);scalar("directionalShadowEnabled",shadowStrength>0?1:0);
     scalar("directionalShadowStrength",shadowStrength);
     scalar("directionalShadowBias",.003f);scalar("directionalShadowFadeStart",72);
@@ -276,6 +280,39 @@ int main(int argc,char** argv) {
               scaledExposure(player(shadow,.5f),player(shadow,.5f,1,1,0,.6f),.4f));
         png(output/"player-bright.png",player(normal,1));
         png(output/"player-dark.png",player(normal,.08f));
+        for (GLuint p : {normal,shadow}) {
+            const auto at = [&](float distance,bool fade) {
+                return render(p,1,0,-.5f,1,1,0,1,0,distance,-1,0,fade);
+            };
+            check("view-range-preserves-near-pixels",at(80,true)==at(80,false));
+            check("view-range-preserves-diagonal-terrain",
+                render(p,1,0,-.5f,1,1,0,1,0,110,-1,0,true,110)==
+                render(p,1,0,-.5f,1,1,0,1,0,110,-1,0,false,110));
+            check("view-range-follows-logical-centre",
+                render(p,1,0,-.5f,1,1,0,1,0,130,-1,0,true,130,130)==
+                render(p,1,0,-.5f,1,1,0,1,0,130,-1,0,false,130,130));
+            check("view-range-preserves-underground",
+                render(p,1,0,-.5f,1,1,0,1,0,130,-1,0,true,0,0,0)==at(130,false));
+            const auto far=at(130,true);
+            check("view-range-retires-far-fragments",
+                std::all_of(far.begin(),far.end(),[](auto v){return v==0;}));
+            check("view-range-transition-is-time-stable",at(122,true)==at(122,true));
+            check("view-range-transition-is-continuous",difference(at(122,true),at(122.01f,true))<.1);
+            check("view-range-blends-without-stipple",[] (const Pixels& pixels) {
+                for(std::size_t i=3;i<pixels.size();i+=4)if(pixels[i]!=255)return false;
+                return true;
+            }(at(122,true)));
+            check("view-range-reduces-surface-contrast",difference(at(122,true),at(122,false))>5);
+            const auto stationary=render(p,1,0,-.5f,1,1,0,1,0,0,-1,0,false);
+            double previousContrast=-1;bool monotonic=true;
+            for(float distance:{116.f,118.f,120.f,122.f,124.f}) {
+                const auto movedCentre=render(p,1,0,-.5f,1,1,0,1,0,0,-1,0,true,0,-distance);
+                const double contrast=difference(stationary,movedCentre);
+                monotonic &= contrast>=previousContrast;previousContrast=contrast;
+            }
+            check("view-range-coverage-is-monotonic",monotonic);
+
+        }
         glDeleteTextures(1,&shadowMap);
         glDeleteProgram(normal);glDeleteProgram(shadow);glDeleteRenderbuffers(1,&colour);
         glDeleteFramebuffers(1,&fbo);glDeleteVertexArrays(1,&vao);CGLSetCurrentContext(nullptr);CGLDestroyContext(context);

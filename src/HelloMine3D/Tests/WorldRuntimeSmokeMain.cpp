@@ -5563,7 +5563,7 @@ void caseTerrainAppearance()
               " tile_columns=" +
               std::to_string(topTileColumns.size()));
     check("V10B3/current-vertex-format-and-terrain-identities",
-          TerrainBufferMetrics::VertexStrideBytes == 40 &&
+          TerrainBufferMetrics::VertexStrideBytes == 44 &&
               world.getChunkManager().getTerrainGenerationVersion() ==
                   CurrentTerrainGenerationVersion);
 
@@ -5749,7 +5749,7 @@ void caseVertexLighting()
     check("V10A/four-light-values-preserved-in-source-aware-stream",
           diagonalMesh.getLight() ==
                   std::vector<float>(light.begin(), light.end()) &&
-              TerrainBufferMetrics::VertexStrideBytes == 40);
+              TerrainBufferMetrics::VertexStrideBytes == 44);
     check("V10A/flipped-diagonal-emits-stable-indices",
           diagonalMesh.getClientMesh().indices ==
               std::vector<std::uint32_t>({0, 1, 3, 1, 2, 3}));
@@ -5986,7 +5986,7 @@ void caseVertexLighting()
 void caseTerrainBufferMetrics()
 {
     check("W4/terrain-buffer-strides",
-          TerrainBufferMetrics::VertexStrideBytes == 40 &&
+          TerrainBufferMetrics::VertexStrideBytes == 44 &&
               TerrainBufferMetrics::IndexStrideBytes == 4,
           "vertex/index=" +
               std::to_string(TerrainBufferMetrics::VertexStrideBytes) +
@@ -5997,9 +5997,9 @@ void caseTerrainBufferMetrics()
     metrics.add(10, 12);
     metrics.add(0, 0);
     check("W4/resident-buffer-estimate",
-          metrics.vertexBytes() == 400 &&
+          metrics.vertexBytes() == 440 &&
               metrics.indexBytes() == 48 &&
-              metrics.totalBytes() == 448 && metrics.renderableCount == 1,
+              metrics.totalBytes() == 488 && metrics.renderableCount == 1,
           "vertex/index/total=" +
               std::to_string(metrics.vertexBytes()) + "/" +
               std::to_string(metrics.indexBytes()) + "/" +
@@ -21237,6 +21237,8 @@ void caseWorldManager()
 #include "AdventureMaterialSmokeCases.h"
 #include "AdventureEcologySmokeCases.h"
 #include "VegetationPolishSmokeCases.h"
+#include "NaturalTreeOwnershipSmokeCases.h"
+#include "NaturalTreeRootTagSmokeCases.h"
 #include "LocalReliefSmokeCases.h"
 #include "WaterbankPolishSmokeCases.h"
 #include "AdventureExplorationSmokeCases.h"
@@ -21508,6 +21510,13 @@ int main()
         else if (focus != nullptr && std::string(focus) == "LOCAL_LIGHT_RENDER") {
             caseLocalLightRendering();
         }
+        else if (focus != nullptr && std::string(focus) == "NATURAL_TREE_OWNER") {
+            caseNaturalTreeOwnership();
+        }
+        else if (focus != nullptr && std::string(focus) == "TREE_ROOT_TAG") {
+            caseNaturalTreeOwnership();
+            caseNaturalTreeRootTag();
+        }
         else if (focus != nullptr && std::string(focus) == "RENDER_BATCH") {
             caseTerrainRenderBatch();
             caseTerrainBufferMetrics();
@@ -21730,6 +21739,8 @@ int main()
         caseMeshDirtyPropagation();
         casePersistence();
         caseSectionMeshInput();
+        caseNaturalTreeOwnership();
+        caseNaturalTreeRootTag();
         caseGreedyMeshing();
         caseLocalLightRendering();
         caseTerrainRenderBatch();

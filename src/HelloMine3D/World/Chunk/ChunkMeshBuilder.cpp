@@ -202,6 +202,7 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
         ChunkBlock block;
         glm::ivec2 textureCoords{0};
         std::uint16_t appearanceKey = 0;
+        std::uint16_t rootTag = 0;
         VertexLightingQuad lighting;
         std::array<glm::vec2, 4> colour{};
     };
@@ -211,7 +212,8 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
         return left.visible && right.visible && left.block == right.block &&
                left.textureCoords.x == right.textureCoords.x &&
                left.textureCoords.y == right.textureCoords.y &&
-               left.appearanceKey == right.appearanceKey;
+               left.appearanceKey == right.appearanceKey &&
+               left.rootTag == right.rootTag;
     };
     const auto sameCorner = [](const VertexLightCorner &left,
                                const VertexLightCorner &right) {
@@ -397,6 +399,8 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
                 cell.block = block;
                 cell.textureCoords = appearance.coordinates;
                 cell.appearanceKey = appearance.mergeKey;
+                cell.rootTag = m_pInput->getNaturalTreeRootTag(
+                    position.x, position.y, position.z);
                 if (TerrainEcologyColour::plantTile(appearance.coordinates.x,
                                                     appearance.coordinates.y)) {
                     constexpr int cu[4] = {0, 1, 1, 0};
@@ -790,19 +794,21 @@ void ChunkMeshBuilder::addVertexLitFace(
     // flow and wave height independently on adjacent faces.
     const auto tintedCoords = &mesh == &m_pMeshes->waterMesh ? textureCoords :
         ecologyCoordinates(blockFace, textureCoords, blockPosition);
+    const float rootTag = static_cast<float>(m_pInput->getNaturalTreeRootTag(
+        blockPosition.x, blockPosition.y, blockPosition.z));
     if (textureRepeatCoords != nullptr && shareRepeatVertices) {
         mesh.addSharedFace(blockFace, tintedCoords,
                            m_pInput->getLocation(), blockPosition, light,
-                           flipDiagonal, *textureRepeatCoords, &sources);
+                           flipDiagonal, *textureRepeatCoords, &sources, rootTag);
     }
     else if (textureRepeatCoords != nullptr) {
         mesh.addFace(blockFace, tintedCoords, m_pInput->getLocation(),
-                     blockPosition, light, flipDiagonal, *textureRepeatCoords, &sources);
+                     blockPosition, light, flipDiagonal, *textureRepeatCoords, &sources, rootTag);
     }
     else {
         mesh.addFace(blockFace, tintedCoords, m_pInput->getLocation(),
                      blockPosition, light, flipDiagonal, textureRepeatWidth,
-                     textureRepeatHeight, &sources);
+                     textureRepeatHeight, &sources, rootTag);
     }
 }
 
@@ -882,6 +888,8 @@ void ChunkMeshBuilder::addResourceShapeToMesh(
         m_pInput->getSunlight(blockPosition.x, blockPosition.y, blockPosition.z) / 15.f,
         m_pInput->getBlockLight(blockPosition.x, blockPosition.y, blockPosition.z) / 15.f);
     const FaceLightSources sources{source, source, source, source};
+    const float rootTag = static_cast<float>(m_pInput->getNaturalTreeRootTag(
+        blockPosition.x, blockPosition.y, blockPosition.z));
     const bool fern = ForestFernGeometry::applies(block,shape);
     if (fern || WetlandGrassGeometry::applies(static_cast<BlockId>(block.id), appearance.biome, shape,block.metadata)) {
         const auto &database = BlockDatabase::get();
@@ -897,7 +905,7 @@ void ChunkMeshBuilder::addResourceShapeToMesh(
             const auto tile = face.seedHead ? seedTile : leafTile;
             m_pActiveMesh->addFace(face.positions,
                 ecologyCoordinates(face.positions, BlockTextureCoordinates::get(tile.x, tile.y), blockPosition), m_pInput->getLocation(),
-                blockPosition, {light, light, light, light}, false, face.repeat, &sources);
+                blockPosition, {light, light, light, light}, false, face.repeat, &sources, rootTag);
         }
         return;
     }
@@ -907,7 +915,7 @@ void ChunkMeshBuilder::addResourceShapeToMesh(
             scaledFace[y] *= verticalScale;
         }
         m_pActiveMesh->addFace(scaledFace, ecologyCoordinates(scaledFace, texCoords, blockPosition), m_pInput->getLocation(),
-                               blockPosition, light, 1.f, 1.f, &sources);
+                               blockPosition, light, 1.f, 1.f, &sources, rootTag);
     }
 }
 

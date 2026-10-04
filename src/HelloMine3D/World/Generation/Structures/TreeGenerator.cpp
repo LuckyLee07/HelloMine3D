@@ -11,13 +11,14 @@
 
 constexpr BlockId CACTUS = BlockId::Cactus;
 
-void makePolishedAdventureTree(Chunk &chunk, int randomSeed, int x, int y,
+namespace {
+template<class Builder>
+void planPolishedAdventureTree(Builder &builder, int randomSeed, int x, int y,
                               int z, AdventureTreeKind kind, int stature)
 {
     if (kind == AdventureTreeKind::None) return;
     Random<std::minstd_rand> random(randomSeed);
     stature=std::clamp(stature,0,2);
-    StructureBuilder builder;
     const auto metadata=kind==AdventureTreeKind::Spruce ? BlockMetadata::Tree::Spruce :
         kind==AdventureTreeKind::Birch ? BlockMetadata::Tree::Birch : BlockMetadata::Tree::Oak;
     const ChunkBlock leaf(BlockId::OakLeaf,metadata),log(BlockId::OakBark,metadata);
@@ -112,7 +113,37 @@ void makePolishedAdventureTree(Chunk &chunk, int randomSeed, int x, int y,
         for(int b=0;b<branches;++b)branch(directions[b],bases[b],lengths[b]);
         if(lean)builder.addBlock(x+ox,y+height-1,z+oz,log);
     }
-    builder.build(chunk,true);
+}
+
+struct VisitingTreeBuilder {
+    const TreeBlockVisitor &visitor;
+    void addBlock(int x, int y, int z, ChunkBlock block)
+    {
+        visitor(x, y, z, block);
+    }
+    void makeColumn(int x, int z, int yStart, int height, ChunkBlock block)
+    {
+        for (int y = yStart; y < yStart + height; ++y)
+            addBlock(x, y, z, block);
+    }
+};
+} // namespace
+
+void makePolishedAdventureTree(Chunk &chunk, int randomSeed, int x, int y,
+                              int z, AdventureTreeKind kind, int stature)
+{
+    StructureBuilder builder;
+    planPolishedAdventureTree(builder, randomSeed, x, y, z, kind, stature);
+    builder.build(chunk, true);
+}
+
+void visitPolishedAdventureTreeBlocks(int randomSeed, int x, int y, int z,
+                                     AdventureTreeKind kind, int stature,
+                                     const TreeBlockVisitor &visitor)
+{
+    if (!visitor) return;
+    VisitingTreeBuilder builder{visitor};
+    planPolishedAdventureTree(builder, randomSeed, x, y, z, kind, stature);
 }
 
 void makeAdventureTree(Chunk &chunk, int randomSeed, int x, int y, int z,

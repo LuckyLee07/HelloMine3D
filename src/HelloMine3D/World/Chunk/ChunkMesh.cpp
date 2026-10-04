@@ -11,11 +11,12 @@ void ChunkMesh::addFace(const std::array<float, 12> &blockFace,
                         const glm::ivec3 &chunkPosition,
                         const glm::ivec3 &blockPosition, float light,
                         float textureRepeatWidth,
-                        float textureRepeatHeight, const FaceLightSources *sources)
+                        float textureRepeatHeight, const FaceLightSources *sources,
+                        float rootTag)
 {
     addFace(blockFace, textureCoords, chunkPosition, blockPosition,
             {light, light, light, light}, false, textureRepeatWidth,
-            textureRepeatHeight, sources);
+            textureRepeatHeight, sources, rootTag);
 }
 
 void ChunkMesh::addFace(const std::array<float, 12> &blockFace,
@@ -24,13 +25,14 @@ void ChunkMesh::addFace(const std::array<float, 12> &blockFace,
                         const glm::ivec3 &blockPosition,
                         const std::array<float, 4> &vertexLight,
                         bool flipDiagonal, float textureRepeatWidth,
-                        float textureRepeatHeight, const FaceLightSources *sources)
+                        float textureRepeatHeight, const FaceLightSources *sources,
+                        float rootTag)
 {
     const std::array<float, 8> textureRepeatCoords = {
         textureRepeatWidth, textureRepeatHeight, 0.f,
         textureRepeatHeight, 0.f, 0.f, textureRepeatWidth, 0.f};
     addFace(blockFace, textureCoords, chunkPosition, blockPosition,
-            vertexLight, flipDiagonal, textureRepeatCoords, sources);
+            vertexLight, flipDiagonal, textureRepeatCoords, sources, rootTag);
 }
 
 void ChunkMesh::addFace(
@@ -39,10 +41,10 @@ void ChunkMesh::addFace(
     const glm::ivec3 &chunkPosition, const glm::ivec3 &blockPosition,
     const std::array<float, 4> &vertexLight, bool flipDiagonal,
     const std::array<float, 8> &textureRepeatCoords,
-    const FaceLightSources *sources)
+    const FaceLightSources *sources, float rootTag)
 {
     addFaceInternal(blockFace, textureCoords, chunkPosition, blockPosition,
-                    vertexLight, flipDiagonal, textureRepeatCoords, false, sources);
+                    vertexLight, flipDiagonal, textureRepeatCoords, false, sources, rootTag);
 }
 
 void ChunkMesh::addSharedFace(
@@ -51,10 +53,10 @@ void ChunkMesh::addSharedFace(
     const glm::ivec3 &chunkPosition, const glm::ivec3 &blockPosition,
     const std::array<float, 4> &vertexLight, bool flipDiagonal,
     const std::array<float, 8> &textureRepeatCoords,
-    const FaceLightSources *sources)
+    const FaceLightSources *sources, float rootTag)
 {
     addFaceInternal(blockFace, textureCoords, chunkPosition, blockPosition,
-                    vertexLight, flipDiagonal, textureRepeatCoords, true, sources);
+                    vertexLight, flipDiagonal, textureRepeatCoords, true, sources, rootTag);
 }
 
 void ChunkMesh::beginSharedFaces()
@@ -83,7 +85,7 @@ void ChunkMesh::addFaceInternal(
     const glm::ivec3 &chunkPosition, const glm::ivec3 &blockPosition,
     const std::array<float, 4> &vertexLight, bool flipDiagonal,
     const std::array<float, 8> &textureRepeatCoords, bool shareVertices,
-    const FaceLightSources *sources)
+    const FaceLightSources *sources, float rootTag)
 {
     faces++;
     auto &verticies = m_mesh.vertexPositions;
@@ -108,6 +110,7 @@ void ChunkMesh::addFaceInternal(
                 blockPosition.z);
             m_light.push_back(vertexLight[vertex]);
             m_lightSources.push_back(sources ? (*sources)[vertex] : glm::vec2(-1.f));
+            m_rootTags.push_back(rootTag);
         }
         if (flipDiagonal) {
             indices.insert(indices.end(),
@@ -136,7 +139,7 @@ void ChunkMesh::addFaceInternal(
                            blockPosition.y;
         const int localZ = static_cast<int>(blockFace[index + 2]) +
                            blockPosition.z;
-        const std::array<float, 10> values = {
+        const std::array<float, 11> values = {
             blockFace[index++] + chunkPosition.x * CHUNK_SIZE +
                 blockPosition.x,
             blockFace[index++] + chunkPosition.y * CHUNK_SIZE +
@@ -150,9 +153,10 @@ void ChunkMesh::addFaceInternal(
             vertexLight[i],
             sources ? (*sources)[i].x : -1.f,
             sources ? (*sources)[i].y : -1.f,
+            rootTag,
         };
 
-        std::array<std::uint32_t, 7> attributes{};
+        std::array<std::uint32_t, 8> attributes{};
         std::memcpy(attributes.data(), values.data() + 3,
                     sizeof(attributes));
         std::int32_t positionHead = -1;
@@ -210,6 +214,7 @@ void ChunkMesh::addFaceInternal(
             values.begin() + 7);
         m_light.push_back(values[7]);
         m_lightSources.emplace_back(values[8], values[9]);
+        m_rootTags.push_back(values[10]);
     }
 
     if (flipDiagonal) {
@@ -233,6 +238,7 @@ void ChunkMesh::clearClientData()
     m_mesh.indices.clear();
     m_light.clear();
     m_lightSources.clear();
+    m_rootTags.clear();
     m_sharedVertexHeads.clear();
     m_sharedVertexGenerations.clear();
     m_sharedVertexEntries.clear();
@@ -251,6 +257,7 @@ void ChunkMesh::adoptClientData(ChunkMesh &source)
     m_mesh.indices = std::move(source.m_mesh.indices);
     m_light = std::move(source.m_light);
     m_lightSources = std::move(source.m_lightSources);
+    m_rootTags = std::move(source.m_rootTags);
     m_sharedVertexHeads.clear();
     m_sharedVertexGenerations.clear();
     m_sharedVertexEntries.clear();

@@ -1,5 +1,6 @@
 #include "OgrePlayerRenderer.h"
 #include "OgreItemGeometry.h"
+#include "ManualMeshVertexAttributes.h"
 
 #include <Ogre.h>
 
@@ -79,14 +80,16 @@ namespace
         object.begin(OgrePlayerRenderer::MaterialName,
                      Ogre::RenderOperation::OT_TRIANGLE_LIST);
 
-        object.position(-0.5f, -0.5f, -0.5f);
-        object.position(0.5f, -0.5f, -0.5f);
-        object.position(0.5f, 0.5f, -0.5f);
-        object.position(-0.5f, 0.5f, -0.5f);
-        object.position(-0.5f, -0.5f, 0.5f);
-        object.position(0.5f, -0.5f, 0.5f);
-        object.position(0.5f, 0.5f, 0.5f);
-        object.position(-0.5f, 0.5f, 0.5f);
+        const Ogre::Vector3 positions[] = {
+            {-0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, -0.5f},
+            {0.5f, 0.5f, -0.5f}, {-0.5f, 0.5f, -0.5f},
+            {-0.5f, -0.5f, 0.5f}, {0.5f, -0.5f, 0.5f},
+            {0.5f, 0.5f, 0.5f}, {-0.5f, 0.5f, 0.5f}};
+        for (const Ogre::Vector3 &position : positions)
+        {
+            object.position(position);
+            appendOrdinaryManualVertexAttributes(object);
+        }
 
         const Ogre::uint32 indices[] = {
             0, 2, 1, 0, 3, 2,
@@ -361,11 +364,9 @@ void OgrePlayerRenderer::rebuildHeldItem(Material::ID material)
             const glm::vec3& position = face.positions[corner];
             m_heldItem.object->position(
                 position.x, position.y, position.z);
-            m_heldItem.object->textureCoord(
-                face.tile.x / 16.f, face.tile.y / 16.f);
-            m_heldItem.object->textureCoord(
-                face.uv[corner].x, face.uv[corner].y);
-            m_heldItem.object->textureCoord(
+            appendOrdinaryManualVertexAttributes(*m_heldItem.object,
+                face.tile.x / 16.f, face.tile.y / 16.f,
+                face.uv[corner].x, face.uv[corner].y,
                 .72f + .28f * std::max(face.normal.y, 0.f));
         }
         m_heldItem.object->quad(

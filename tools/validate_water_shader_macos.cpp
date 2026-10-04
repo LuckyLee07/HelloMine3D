@@ -104,6 +104,50 @@ void main() {
         require(glGetError() == GL_NO_ERROR, "Depth fragment draw failed");
         return pixel;
     };
+    const auto rangeUniform = glGetUniformLocation(program,"viewRange");
+    scalar("viewRangeStrength",1);
+    const auto rangeOrigin = glGetUniformLocation(program,"diagnosticOrigin");
+    glUniform2f(rangeOrigin,122,0);
+    const auto fullRange=sample(1,12,0,0);
+    glUniform2f(rangeUniform,118,126);
+    const auto halfRange=sample(1,12,0,0);
+    require(std::abs(int(halfRange[3])*2-int(fullRange[3]))<=1,
+        "Water range transition does not halve coverage at midpoint");
+    for(int component=0;component<3;++component)
+        require(halfRange[component]==fullRange[component],"Water range changes surface colour instead of coverage");
+    glUniform2f(rangeOrigin,110,110);
+    const auto diagonal=sample(1,12,0,0);
+    glUniform2f(rangeUniform,0,0);
+    require(diagonal==sample(1,12,0,0),"Water range removes interior diagonal coverage");
+    glUniform2f(rangeUniform,118,126);
+    glUniform2f(rangeOrigin,130,0);
+    require(sample(1,12,0,0)[3]==0,"Water survives outside view range");
+    scalar("viewRangeStrength",0);
+    const auto enclosed=sample(1,12,0,0);
+    glUniform2f(rangeUniform,0,0);
+    require(enclosed==sample(1,12,0,0),"Water range changes enclosed-space pixels");
+    scalar("viewRangeStrength",1);
+    glUniform2f(rangeUniform,118,126);
+    glUniform2f(glGetUniformLocation(program,"viewRangeCentre"),130,0);
+    const auto centred=sample(1,12,0,0);
+    glUniform2f(rangeUniform,0,0);
+    require(centred==sample(1,12,0,0),"Water range ignores logical centre");
+    glUniform2f(glGetUniformLocation(program,"viewRangeCentre"),0,0);
+    glUniform2f(rangeUniform,118,126);
+    glUniform2f(rangeOrigin,122,0);
+    int previousAlpha=256;
+    for(float distance:{116.f,118.f,120.f,122.f,124.f,126.f}) {
+        glUniform2f(glGetUniformLocation(program,"viewRangeCentre"),122-distance,0);
+        const int alpha=sample(1,12,0,0)[3];
+        require(alpha<=previousAlpha,"Water range coverage is not monotonic");
+        previousAlpha=alpha;
+    }
+    glUniform2f(glGetUniformLocation(program,"viewRangeCentre"),0,0);
+    glUniform2f(rangeOrigin,0,0);
+    const auto nearRange=sample(1,12,0,0);
+    glUniform2f(rangeUniform,0,0);
+    require(nearRange==sample(1,12,0,0),"Water range changes near pixels");
+    std::cout << "[WATER_SHADER] view_range_checks=10 PASS\n";
     const auto shallow = sample(1, 12, 0, 0), deep = sample(8, 12, 0, 0);
     require(shallow[1] > deep[1] && shallow[2] > deep[2] && shallow[3] < deep[3],
         "Water depth does not increase colour absorption and opacity");

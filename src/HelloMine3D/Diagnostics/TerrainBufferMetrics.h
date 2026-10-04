@@ -5,7 +5,7 @@
 
 struct TerrainBufferMetrics
 {
-    static constexpr std::size_t VertexStrideBytes = sizeof(float) * 10;
+    static constexpr std::size_t VertexStrideBytes = sizeof(float) * 11;
     static constexpr std::size_t IndexStrideBytes = sizeof(std::uint32_t);
 
     std::size_t vertexCount = 0;
@@ -36,7 +36,7 @@ struct TerrainBufferMetrics
     }
 };
 
-static_assert(TerrainBufferMetrics::VertexStrideBytes == 40,
+static_assert(TerrainBufferMetrics::VertexStrideBytes == 44,
               "The measured terrain vertex stride changed.");
 static_assert(TerrainBufferMetrics::IndexStrideBytes == 4,
               "The measured terrain index stride changed.");

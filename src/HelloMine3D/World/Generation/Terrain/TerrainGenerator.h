@@ -2,6 +2,10 @@
 #define TERRAINGENERATOR_H_INCLUDED
 
 #include <array>
+#include <cstddef>
+#include <functional>
+
+#include "../../Block/ChunkBlock.h"
 
 class Chunk;
 
@@ -50,6 +54,20 @@ inline constexpr int WorkshopCourtyardTerrainGenerationVersion = 29;
 inline constexpr int CurrentTerrainGenerationVersion =
     WorkshopCourtyardTerrainGenerationVersion;
 
+// Derived presentation ownership, never save data or a prediction of an
+// edited block. The consumer must compare the expected id AND metadata with
+// its copied resident block before assigning this root to a mesh face.
+struct NaturalTreeOwnershipBlock {
+    std::array<int, 3> position{};
+    ChunkBlock block;
+    std::array<int, 2> root{};
+};
+using NaturalTreeOwnershipVisitor =
+    std::function<void(const NaturalTreeOwnershipBlock &)>;
+inline constexpr int NaturalTreeOwnershipRadius = 6;
+inline constexpr std::size_t NaturalTreeMaximumSourceRoots = 25;
+inline constexpr std::size_t NaturalTreeMaximumSectionOwnershipBlocks = 4096;
+
 class TerrainGenerator {
   public:
     virtual void generateTerrainFor(Chunk &chunk) = 0;
@@ -71,6 +89,15 @@ class TerrainGenerator {
             case TerrainBiome::Wetland: return {.04f,.03f};
             default: return {.12f,.09f};
         }
+    }
+
+    // v24+ uses the exact production tree plan and projection ordering.
+    // Unsupported historical/custom generators return false and emit no
+    // ownership. A query never loads a Chunk or changes generation/storage.
+    virtual bool visitNaturalTreeOwnership(
+        int, int, int, const NaturalTreeOwnershipVisitor &) const
+    {
+        return false;
     }
 
     virtual ~TerrainGenerator() = default;

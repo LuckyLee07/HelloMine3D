@@ -53,6 +53,8 @@ ChunkSectionRenderable::ChunkSectionRenderable(
                             Ogre::VES_TEXTURE_COORDINATES, 1);
     declaration->addElement(0, sizeof(float) * 7, Ogre::VET_FLOAT3,
                             Ogre::VES_TEXTURE_COORDINATES, 2);
+    declaration->addElement(0, sizeof(float) * 10, Ogre::VET_FLOAT1,
+                            Ogre::VES_TEXTURE_COORDINATES, 3);
 
     Ogre::HardwareVertexBufferSharedPtr vertexBuffer =
         Ogre::HardwareBufferManager::getSingleton().createVertexBuffer(

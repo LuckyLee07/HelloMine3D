@@ -50,6 +50,9 @@ class SectionMeshInput {
     float getWaterDepth(int x, int y, int z) const;
     glm::vec2 getWaterSurfaceVelocity(int x,int y,int z) const noexcept;
     bool containsWater() const noexcept { return m_containsWater; }
+    /// Only owned cells carry derived natural-tree ownership; all other
+    /// blocks, edited cells and unsupported generators return zero.
+    std::uint16_t getNaturalTreeRootTag(int x, int y, int z) const noexcept;
 
     /// Valid for y in [0, CHUNK_SIZE).
     bool shouldMakeLayer(int y) const;
@@ -68,6 +71,7 @@ class SectionMeshInput {
     std::array<std::uint8_t, Volume> m_waterDepth{};
     std::array<TerrainBiome, Size * Size> m_biomes{};
     std::array<glm::vec2, Size * Size> m_waterVelocity{};
+    std::array<std::uint16_t, CHUNK_VOLUME> m_naturalTreeRootTags{};
     TerrainEcologyColour m_ecologyColour;
 
     /// Own layers for y in [-1, CHUNK_SIZE], stored at y + 1.

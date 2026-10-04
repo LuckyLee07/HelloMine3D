@@ -236,7 +236,8 @@ namespace
                   profile);
         writeFile(root / "media/textures/DefaultPack.png",
                   pngHeader(width, height));
-        writeFile(root / "media/ogre/HelloMine3DTerrain.frag", shader);
+        writeFile(root / "media/ogre/HelloMine3DTerrain.frag",
+            shader);
         ResourcePackResolver resolver;
         resolver.freeze(root.string(), requirements(), {});
         return loadTerrainMaterialParameters(
@@ -303,12 +304,18 @@ namespace
             "void sampleLegacyClouds() {}\n"
             "void sampleBoundedCloudLayer() {}\n");
         writeFile(root / "media/ogre/HelloMine3DTerrain.vert",
-            "out vec3 terrainWorldPosition;\nuniform mat4 world;\n");
+            "out vec3 terrainWorldPosition;\nuniform mat4 world;\n"
+            "in float uv3;\nflat out vec3 terrainNaturalTreeRoot;\n");
         writeFile(root / "media/ogre/HelloMine3DFlora.vert",
-            "out vec3 terrainWorldPosition;\nuniform mat4 world;\n");
+            "out vec3 terrainWorldPosition;\nuniform mat4 world;\n"
+            "in float uv3;\nflat out vec3 terrainNaturalTreeRoot;\n");
         writeFile(root / "media/ogre/HelloMine3DTerrain.frag",
             terrainShaderInterface() +
+            "uniform vec2 viewRange;\n"
+            "uniform vec2 viewRangeCentre;\n"
+            "uniform float viewRangeStrength;\n"
             "in vec3 terrainWorldPosition;\n"
+            "flat in vec3 terrainNaturalTreeRoot;\n"
             "uniform float playerExposure;\n"
             "uniform vec3 sunColour;\n"
             "uniform float sunIntensity;\n"
@@ -321,6 +328,9 @@ namespace
         writeFile(root / "media/ogre/HelloMine3DWater.vert",
             "out vec2 waterSurfaceData;\nout vec2 waterSurfaceDrift;\nuniform float waterDetailStrength;\n");
         writeFile(root / "media/ogre/HelloMine3DWater.frag",
+            std::string("uniform vec2 viewRange;\n") +
+            "uniform vec2 viewRangeCentre;\n"
+            "uniform float viewRangeStrength;\n"
             "in vec2 waterSurfaceData;\n"
             "in vec2 waterSurfaceDrift;\n"
             "uniform float waterDetailStrength;\n"
@@ -331,6 +341,9 @@ namespace
         writeFile(root / "media/ogre/HelloMine3DActor.vert",
             "out vec3 actorWorldPosition;\nout vec3 actorLocalPosition;\nuniform mat4 world;\n");
         writeFile(root / "media/ogre/HelloMine3DActor.frag",
+            std::string("uniform vec2 viewRange;\n") +
+            "uniform vec2 viewRangeCentre;\n"
+            "uniform float viewRangeStrength;\n"
             "in vec3 actorWorldPosition;\n"
             "in vec3 actorLocalPosition;\n"
             "uniform float playerExposure;\n"
@@ -345,6 +358,31 @@ namespace
 
     void caseAtmosphereShaderContract()
     {
+        for (const char* name : {"HelloMine3DTerrain.frag", "HelloMine3DActor.frag", "HelloMine3DWater.frag"})
+        {
+            for (const char* missingDeclaration : {"uniform vec2 viewRange;",
+                                                  "uniform vec2 viewRangeCentre;",
+                                                  "uniform float viewRangeStrength;"})
+            {
+                const fs::path root = freshRoot("view-range-stale-fragment");
+                writeAtmosphereFixture(root);
+                const fs::path path = root / "media/ogre" / name;
+                std::ifstream input(path);
+                std::string source{std::istreambuf_iterator<char>(input), {}};
+                input.close();
+                const std::string declaration = missingDeclaration;
+                source.erase(source.find(declaration), declaration.size());
+                writeFile(path, source);
+                ResourcePackResolver resolver;
+                resolver.freeze(root.string(), requirements(), {});
+                const std::string checkId = declaration == "uniform vec2 viewRange;"
+                    ? "VIEW_RANGE/reject-stale-fragment"
+                    : std::string("VIEW_RANGE/reject-missing-") +
+                        (declaration == "uniform vec2 viewRangeCentre;" ? "centre-" : "strength-") + name;
+                check(checkId, throwsContaining(
+                    [&] { validateAtmosphereShaderContract(resolver); }, declaration));
+            }
+        }
         {
             const fs::path root = freshRoot("v10c-atmosphere-valid");
             writeAtmosphereFixture(root);
@@ -422,8 +460,16 @@ namespace
             "param_named directionalShadowEnabled float 0\n"
             "param_named directionalShadowBias float 0.001\n"
             "param_named directionalShadowStrength float 0\n"
-            "HelloMine3D/DirectionalShadowCasterVertex\n"
-            "HelloMine3D/DirectionalShadowCasterFragment\n" +
+            "vertex_program HelloMine3D/DirectionalShadowCasterVertex glsl\n{\n"
+            "    default_params\n    {\n"
+            "        param_named_auto world world_matrix\n"
+            "    }\n}\n"
+            "fragment_program HelloMine3D/DirectionalShadowCasterFragment glsl\n{\n"
+            "    default_params\n    {\n"
+            "        param_named viewRange float2 0.0 0.0\n"
+            "        param_named viewRangeCentre float2 0.0 0.0\n"
+            "        param_named viewRangeStrength float 1.0\n"
+            "    }\n}\n" +
             playerExposureProgramFixture(true));
         writeFile(root / "media/ogre/HelloMine3D.material",
             "material HelloMine3D/PlayerHeld : HelloMine3D/Terrain {}\n"
@@ -433,9 +479,16 @@ namespace
             "fragment_program_ref HelloMine3D/DirectionalShadowCasterFragment\n");
         writeFile(root / "media/ogre/HelloMine3DTerrainShadow.vert",
             "out vec4 terrainShadowPosition;\n"
-            "uniform mat4 shadowWorldViewProj;\n");
+            "uniform mat4 shadowWorldViewProj;\n"
+            "in float uv3;\nflat out vec3 terrainNaturalTreeRoot;\n");
+        writeFile(root / "media/ogre/HelloMine3DFloraShadow.vert",
+            "in float uv3;\nflat out vec3 terrainNaturalTreeRoot;\n");
         writeFile(root / "media/ogre/HelloMine3DTerrainShadow.frag",
+            std::string("uniform vec2 viewRange;\n") +
+            "uniform vec2 viewRangeCentre;\n"
+            "uniform float viewRangeStrength;\n"
             "in vec4 terrainShadowPosition;\n"
+            "flat in vec3 terrainNaturalTreeRoot;\n"
             "uniform float playerExposure;\n"
             "uniform vec3 sunColour;\n"
             "uniform float sunIntensity;\n"
@@ -452,6 +505,9 @@ namespace
             "out vec3 actorLocalPosition;\n"
             "uniform mat4 shadowWorldViewProj;\n");
         writeFile(root / "media/ogre/HelloMine3DActorShadow.frag",
+            std::string("uniform vec2 viewRange;\n") +
+            "uniform vec2 viewRangeCentre;\n"
+            "uniform float viewRangeStrength;\n"
             "in vec4 actorShadowPosition;\n"
             "in vec3 actorLocalPosition;\n"
             "uniform float playerExposure;\n"
@@ -466,14 +522,44 @@ namespace
         writeFile(
             root / "media/ogre/HelloMine3DDirectionalShadowCaster.vert",
             "uniform mat4 worldViewProj;\n"
+            "uniform mat4 world;\nin float uv3;\n"
+            "flat out vec3 casterNaturalTreeRoot;\n"
             "gl_Position = worldViewProj * vertex;\n");
         writeFile(
             root / "media/ogre/HelloMine3DDirectionalShadowCaster.frag",
-            "out vec4 fragmentColour;\ngl_FragCoord.zzz\n");
+            "out vec4 fragmentColour;\ngl_FragCoord.zzz\n"
+            "flat in vec3 casterNaturalTreeRoot;\n"
+            "uniform vec2 viewRange;\nuniform vec2 viewRangeCentre;\n"
+            "uniform float viewRangeStrength;\n");
     }
 
     void caseDirectionalShadowShaderContract()
     {
+        for (const char* name : {"HelloMine3DTerrainShadow.frag", "HelloMine3DActorShadow.frag"})
+        {
+            for (const char* missingDeclaration : {"uniform vec2 viewRange;",
+                                                  "uniform vec2 viewRangeCentre;",
+                                                  "uniform float viewRangeStrength;"})
+            {
+                const fs::path root = freshRoot("view-range-stale-fragment");
+                writeDirectionalShadowFixture(root);
+                const fs::path path = root / "media/ogre" / name;
+                std::ifstream input(path);
+                std::string source{std::istreambuf_iterator<char>(input), {}};
+                input.close();
+                const std::string declaration = missingDeclaration;
+                source.erase(source.find(declaration), declaration.size());
+                writeFile(path, source);
+                ResourcePackResolver resolver;
+                resolver.freeze(root.string(), requirements(), {});
+                const std::string checkId = declaration == "uniform vec2 viewRange;"
+                    ? "VIEW_RANGE/reject-stale-fragment"
+                    : std::string("VIEW_RANGE/reject-missing-") +
+                        (declaration == "uniform vec2 viewRangeCentre;" ? "centre-" : "strength-") + name;
+                check(checkId, throwsContaining(
+                    [&] { validateDirectionalShadowShaderContract(resolver); }, declaration));
+            }
+        }
         {
             const fs::path root = freshRoot("v10d-shadow-valid");
             writeDirectionalShadowFixture(root);
@@ -562,6 +648,124 @@ namespace
             check("V10D/reject-stale-unweighted-shadow-filter",
                   throwsContaining([&] { validateDirectionalShadowShaderContract(resolver); },
                                    "missing interface declaration"));
+        }
+    }
+
+    void caseNaturalTreeShaderContract()
+    {
+        struct InterfaceCase
+        {
+            const char *file;
+            const char *declaration;
+            bool shadow;
+        };
+        for (const InterfaceCase &test : {
+                 InterfaceCase{"HelloMine3DTerrain.vert", "in float uv3;", false},
+                 {"HelloMine3DTerrain.vert", "flat out vec3 terrainNaturalTreeRoot;", false},
+                 {"HelloMine3DFlora.vert", "in float uv3;", false},
+                 {"HelloMine3DFlora.vert", "flat out vec3 terrainNaturalTreeRoot;", false},
+                 {"HelloMine3DTerrain.frag", "flat in vec3 terrainNaturalTreeRoot;", false},
+                 {"HelloMine3DTerrainShadow.vert", "in float uv3;", true},
+                 {"HelloMine3DTerrainShadow.vert", "flat out vec3 terrainNaturalTreeRoot;", true},
+                 {"HelloMine3DFloraShadow.vert", "in float uv3;", true},
+                 {"HelloMine3DFloraShadow.vert", "flat out vec3 terrainNaturalTreeRoot;", true},
+                 {"HelloMine3DTerrainShadow.frag", "flat in vec3 terrainNaturalTreeRoot;", true},
+                 {"HelloMine3DDirectionalShadowCaster.vert", "in float uv3;", true},
+                 {"HelloMine3DDirectionalShadowCaster.vert", "uniform mat4 world;", true},
+                 {"HelloMine3DDirectionalShadowCaster.vert", "flat out vec3 casterNaturalTreeRoot;", true},
+                 {"HelloMine3DDirectionalShadowCaster.frag", "flat in vec3 casterNaturalTreeRoot;", true},
+                 {"HelloMine3DDirectionalShadowCaster.frag", "uniform vec2 viewRange;", true},
+                 {"HelloMine3DDirectionalShadowCaster.frag", "uniform vec2 viewRangeCentre;", true},
+                 {"HelloMine3DDirectionalShadowCaster.frag", "uniform float viewRangeStrength;", true}})
+        {
+            const std::string id = std::string("NATURAL_TREE/reject-stale-") +
+                test.file + "/" + test.declaration;
+            const fs::path root = freshRoot("natural-tree-shader-interface");
+            if (test.shadow) writeDirectionalShadowFixture(root);
+            else writeAtmosphereFixture(root);
+            const std::string logical = std::string("media/ogre/") + test.file;
+            std::ifstream input(root / logical);
+            std::string source((std::istreambuf_iterator<char>(input)), {});
+            input.close();
+            const std::string declaration = test.declaration;
+            const std::size_t offset = source.find(declaration);
+            if (offset == std::string::npos)
+            {
+                check(id, false, "fixture declaration missing");
+                continue;
+            }
+            // Interpolation would give different roots within one triangle.
+            const std::string replacement = declaration.find("flat ") == 0
+                ? declaration.substr(5) : "";
+            source.replace(offset, declaration.size(), replacement);
+            const fs::path pack = createPack(root, "stale-natural-tree",
+                "Stale natural tree interface", 1, {{logical, source}});
+            ResourcePackResolver resolver;
+            resolver.freeze(root.string(), requirements(), {pack.string()});
+            check(id, throwsContaining([&] {
+                if (test.shadow) validateDirectionalShadowShaderContract(resolver);
+                else validateAtmosphereShaderContract(resolver);
+            }, declaration));
+        }
+        struct ProgramCase
+        {
+            const char *program;
+            const char *declaration;
+        };
+        for (const ProgramCase &test : {
+                 ProgramCase{"DirectionalShadowCasterVertex", "param_named_auto world world_matrix"},
+                 {"DirectionalShadowCasterFragment", "param_named viewRange float2"},
+                 {"DirectionalShadowCasterFragment", "param_named viewRangeCentre float2"},
+                 {"DirectionalShadowCasterFragment", "param_named viewRangeStrength float"}})
+        {
+            for (const bool misplaced : {false, true})
+            {
+                const std::string declaration = test.declaration;
+                const std::string id = std::string("NATURAL_TREE/reject-") +
+                    (misplaced ? "misplaced-" : "missing-") + test.program + "/" + declaration;
+                const fs::path root = freshRoot("natural-tree-caster-program");
+                writeDirectionalShadowFixture(root);
+                const std::string logical = "media/ogre/HelloMine3D.program";
+                std::ifstream input(root / logical);
+                std::string source((std::istreambuf_iterator<char>(input)), {});
+                input.close();
+                const std::size_t offset = source.find(declaration);
+                if (offset == std::string::npos)
+                {
+                    check(id, false, "fixture declaration missing");
+                    continue;
+                }
+                source.erase(offset, declaration.size());
+                if (misplaced)
+                    source += "fragment_program HelloMine3D/Unrelated glsl\n{\n"
+                        "    default_params\n    {\n        " + declaration + "\n    }\n}\n";
+                const fs::path pack = createPack(root, "stale-caster-program",
+                    "Stale caster program interface", 1, {{logical, source}});
+                ResourcePackResolver resolver;
+                resolver.freeze(root.string(), requirements(), {pack.string()});
+                check(id, throwsContaining([&] {
+                    validateDirectionalShadowShaderContract(resolver);
+                }, declaration));
+            }
+        }
+        {
+            const fs::path root = freshRoot("natural-tree-caster-wrong-world-binding");
+            writeDirectionalShadowFixture(root);
+            const std::string logical = "media/ogre/HelloMine3D.program";
+            std::ifstream input(root / logical);
+            std::string source((std::istreambuf_iterator<char>(input)), {});
+            input.close();
+            const std::string declaration = "param_named_auto world world_matrix";
+            source.replace(source.find(declaration), declaration.size(),
+                "param_named_auto world worldview_matrix");
+            const fs::path pack = createPack(root, "wrong-caster-world-binding",
+                "Wrong caster world binding", 1, {{logical, source}});
+            ResourcePackResolver resolver;
+            resolver.freeze(root.string(), requirements(), {pack.string()});
+            check("NATURAL_TREE/reject-caster-view-relative-world-binding",
+                throwsContaining([&] {
+                    validateDirectionalShadowShaderContract(resolver);
+                }, declaration));
         }
     }
 
@@ -1634,6 +1838,7 @@ int main()
     caseTerrainArray();
     caseAtmosphereShaderContract();
     caseDirectionalShadowShaderContract();
+    caseNaturalTreeShaderContract();
     casePlayerLightingShaderContract();
     caseWarmSurfaceShaderContract();
     casePostProcessingShaderContract();

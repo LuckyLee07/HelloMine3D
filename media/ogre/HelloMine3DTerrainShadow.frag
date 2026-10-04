@@ -6,6 +6,7 @@ in float terrainLight;
 in vec2 terrainLightSources;
 in float terrainDistance;
 in vec3 terrainWorldPosition;
+flat in vec3 terrainNaturalTreeRoot;
 in vec4 terrainShadowPosition;
 
 out vec4 fragmentColour;
@@ -36,11 +37,45 @@ uniform float surfaceLightingStrength;
 uniform float fogDirectionalStrength;
 uniform float fogDensity;
 uniform vec3 cameraPosition;
+uniform vec2 viewRange;
+uniform vec2 viewRangeCentre;
+uniform float viewRangeStrength;
 uniform float directionalShadowEnabled;
 uniform float directionalShadowBias;
 uniform float directionalShadowStrength;
 uniform float directionalShadowFadeStart;
 uniform float directionalShadowFadeEnd;
+
+// Retire the finite view-distance boundary into the existing atmospheric
+// backdrop, without changing lighting or fog within the near field.
+float viewRangeCoverage(vec3 worldPosition)
+{
+    if (viewRange.y <= viewRange.x) return 1.0;
+    vec2 position = worldPosition.xz;
+    vec2 range = viewRange;
+    if (terrainNaturalTreeRoot.z > 0.0)
+    {
+        position = terrainNaturalTreeRoot.xy;
+        // The production tree planner bounds every crown to six metres.
+        // Keep every possible six-metre interaction face at full strength,
+        // including the extra metre at the outer voxel corner. RD1 retains
+        // roots until 14 m; its outer crown is still limited by residency.
+        range.y = max(14.0, viewRange.y - 6.0);
+        range.x = max(13.0, max(range.y * 0.5, viewRange.x - 6.0));
+    }
+    vec2 distance = abs(position - viewRangeCentre);
+    float edgeDistance = max(distance.x, distance.y);
+    float coverage = 1.0 - smoothstep(range.x, range.y, edgeDistance);
+    // Underground retains its original geometry and local-light fog.
+    return mix(1.0, coverage, clamp(viewRangeStrength, 0.0, 1.0));
+}
+
+void applyViewRangeFade(vec3 worldPosition, vec3 backdropColour)
+{
+    float coverage = viewRangeCoverage(worldPosition);
+    if (coverage <= 0.0) discard;
+    fragmentColour.rgb = mix(backdropColour, fragmentColour.rgb, coverage);
+}
 
 float directionalShadowVisibility()
 {
@@ -111,6 +146,7 @@ float directionalShadowVisibility()
     return mix(1.0, pcfVisibility,
                directionalShadowStrength * distanceFade);
 }
+
 
 vec3 directionalFogColour(vec3 viewDirection)
 {
@@ -358,4 +394,6 @@ void main()
     localFogColour = mix(vec3(0.035, 0.043, 0.054), localFogColour, skyAvailability);
     fragmentColour = vec4(
         mix(localFogColour, litColour, fogVisibility), texel.a);
+    applyViewRangeFade(terrainWorldPosition,
+        directionalFogColour(terrainWorldPosition - cameraPosition));
 }

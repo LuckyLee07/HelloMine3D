@@ -20,11 +20,33 @@ uniform vec3 sunDirection;
 uniform float fogDirectionalStrength;
 uniform float fogDensity;
 uniform vec3 cameraPosition;
+uniform vec2 viewRange;
+uniform vec2 viewRangeCentre;
+uniform float viewRangeStrength;
 uniform float directionalShadowEnabled;
 uniform float directionalShadowBias;
 uniform float directionalShadowStrength;
 uniform float directionalShadowFadeStart;
 uniform float directionalShadowFadeEnd;
+
+// Retire the finite view-distance boundary into the existing atmospheric
+// backdrop, without changing lighting or fog within the near field.
+float viewRangeCoverage(vec3 worldPosition)
+{
+    if (viewRange.y <= viewRange.x) return 1.0;
+    vec2 distance = abs(worldPosition.xz - viewRangeCentre);
+    float edgeDistance = max(distance.x, distance.y);
+    float coverage = 1.0 - smoothstep(viewRange.x, viewRange.y, edgeDistance);
+    // Underground retains its original geometry and local-light fog.
+    return mix(1.0, coverage, clamp(viewRangeStrength, 0.0, 1.0));
+}
+
+void applyViewRangeFade(vec3 worldPosition, vec3 backdropColour)
+{
+    float coverage = viewRangeCoverage(worldPosition);
+    if (coverage <= 0.0) discard;
+    fragmentColour.rgb = mix(backdropColour, fragmentColour.rgb, coverage);
+}
 
 float directionalShadowVisibility()
 {
@@ -95,6 +117,7 @@ float directionalShadowVisibility()
     return mix(1.0, pcfVisibility,
                directionalShadowStrength * distanceFade);
 }
+
 
 vec3 directionalFogColour(vec3 viewDirection)
 {
@@ -375,4 +398,6 @@ void main()
             directionalShadowVisibility(), actorCueEmission()),
             fogVisibility),
         actorTint.a);
+    applyViewRangeFade(actorWorldPosition,
+        directionalFogColour(actorWorldPosition - cameraPosition));
 }

@@ -2444,7 +2444,7 @@ namespace
             m_frameWorldStats = collectRuntimeStats();
             if (m_world != nullptr)
             {
-                syncEnvironment(m_frameWorldStats.environment);
+                syncEnvironment(m_frameWorldStats.environment, event.timeSinceLastFrame);
                 if (m_playerRenderer != nullptr)
                 {
                     const float exposure = PlayerHandPresentation::updateLighting(
@@ -3831,6 +3831,8 @@ namespace
         void resetPlayerPresentation() noexcept
         {
             m_playerLighting = {};
+            m_viewRangeSkyAvailability = 0.f;
+            m_viewRangeSkyKnown = false;
             m_thirdPersonCameraState = {};
             m_effectiveCameraMode =
                 ThirdPersonCameraPresentation::Mode::FirstPerson;
@@ -4036,6 +4038,10 @@ namespace
             if (interpolationEpoch != m_playerInterpolationEpoch)
             {
                 resetPlayerAvatarMotion();
+                // Teleport and respawn must anchor to the new eye-light
+                // snapshot instead of carrying outdoor fade into a cave.
+                m_viewRangeSkyAvailability = 0.f;
+                m_viewRangeSkyKnown = false;
                 m_playerInterpolationEpoch = interpolationEpoch;
             }
 
@@ -4976,7 +4982,7 @@ namespace
             }
         }
 
-        void syncEnvironment(const WorldEnvironmentState& air)
+        void syncEnvironment(const WorldEnvironmentState& air, float deltaSeconds)
         {
             float immersion = 0.f;
             WorldEnvironmentState regionalAir = air;
@@ -5046,6 +5052,36 @@ namespace
                 m_v10cAtmosphereEnabled
                     ? state.fogDirectionalStrength
                     : 0.f;
+            // A camera-centred square preserves diagonal terrain while fitting
+            // inside demand even just before a chunk crossing. Leave a
+            // two-metre animation guard and retire only the final eight metres.
+            const float rangeEnd = std::max(1, m_config.renderDistance) * CHUNK_SIZE - 2.f;
+            const Ogre::Vector2 viewRange(std::max(rangeEnd * .5f, rangeEnd - 8.f), rangeEnd);
+            // Residency follows the logical camera, independently of shoulder
+            // presentation and diagnostic camera sweeps.
+            const Ogre::Vector2 viewRangeCentre(
+                m_logicCamera != nullptr ? m_logicCamera->position.x : 0.f,
+                m_logicCamera != nullptr ? m_logicCamera->position.z : 0.f);
+            // Reuse the resident eye-light snapshot. Block light (including
+            // torches) must never make an enclosed space look like open sky.
+            if (m_frameWorldStats.playerLocalLightKnown)
+            {
+                const float target = std::clamp(
+                    static_cast<float>(m_frameWorldStats.playerSunlight) / MAX_LIGHT_LEVEL,
+                    0.f, 1.f);
+                if (!m_viewRangeSkyKnown)
+                {
+                    m_viewRangeSkyAvailability = target;
+                    m_viewRangeSkyKnown = true;
+                }
+                else
+                {
+                    const float amount = 1.f - std::exp(-4.f * std::max(0.f, deltaSeconds));
+                    m_viewRangeSkyAvailability += (target - m_viewRangeSkyAvailability) * amount;
+                }
+            }
+            const float skyBlend = std::clamp((m_viewRangeSkyAvailability - .05f) / .25f, 0.f, 1.f);
+            const float viewRangeStrength = skyBlend * skyBlend * (3.f - 2.f * skyBlend);
             const bool shadowActive =
                 m_directionalShadowQuality !=
                 DirectionalShadowQuality::Off;
@@ -5064,6 +5100,11 @@ namespace
                     shadowActive && state.sunIntensity > 0.02f);
             }
             syncDirectionalShadowMaterialParameters(shadowStrength);
+            auto casterParameters = materialPass("HelloMine3D/DirectionalShadowCaster")
+                ->getFragmentProgramParameters();
+            casterParameters->setNamedConstant("viewRange", viewRange);
+            casterParameters->setNamedConstant("viewRangeCentre", viewRangeCentre);
+            casterParameters->setNamedConstant("viewRangeStrength", viewRangeStrength);
 
             m_sceneManager->setFog(Ogre::FOG_EXP2, fog,
                                    state.fogDensity);
@@ -5098,6 +5139,9 @@ namespace
                     "fogDirectionalStrength", directionalStrength);
                 parameters->setNamedConstant(
                     "fogDensity", state.fogDensity);
+                parameters->setNamedConstant("viewRange", viewRange);
+                parameters->setNamedConstant("viewRangeCentre", viewRangeCentre);
+                parameters->setNamedConstant("viewRangeStrength", viewRangeStrength);
             }
 
             Ogre::GpuProgramParametersSharedPtr waterParameters =
@@ -5112,6 +5156,9 @@ namespace
                 "fogDirectionalStrength", directionalStrength);
             waterParameters->setNamedConstant(
                 "fogDensity", state.fogDensity);
+            waterParameters->setNamedConstant("viewRange", viewRange);
+            waterParameters->setNamedConstant("viewRangeCentre", viewRangeCentre);
+            waterParameters->setNamedConstant("viewRangeStrength", viewRangeStrength);
             waterParameters->setNamedConstant(
                 "skyZenithColour", skyZenith);
             waterParameters->setNamedConstant(
@@ -5157,6 +5204,9 @@ namespace
                     "fogDirectionalStrength", directionalStrength);
                 parameters->setNamedConstant(
                     "fogDensity", state.fogDensity);
+                parameters->setNamedConstant("viewRange", viewRange);
+                parameters->setNamedConstant("viewRangeCentre", viewRangeCentre);
+                parameters->setNamedConstant("viewRangeStrength", viewRangeStrength);
             }
 
             const auto syncSkyParameters =
@@ -5883,6 +5933,8 @@ namespace
             PlayerAvatarPresentation::defaultProfile();
         PlayerAvatarPresentation::PoseHistory m_playerAvatarPoseHistory;
         PlayerHandPresentation::LightingState m_playerLighting;
+        float m_viewRangeSkyAvailability = 0.f;
+        bool m_viewRangeSkyKnown = false;
         ThirdPersonCameraPresentation::State m_thirdPersonCameraState;
         ThirdPersonCameraPresentation::Mode m_effectiveCameraMode =
             ThirdPersonCameraPresentation::Mode::FirstPerson;

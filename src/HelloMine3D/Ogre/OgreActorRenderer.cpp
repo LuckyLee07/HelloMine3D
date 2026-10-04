@@ -1,5 +1,6 @@
 #include "OgreActorRenderer.h"
 #include "OgreItemGeometry.h"
+#include "ManualMeshVertexAttributes.h"
 #include "../Presentation/ItemVisualPose.h"
 #include "../Presentation/ProjectilePresentation.h"
 
@@ -78,14 +79,16 @@ namespace
     {
         object.begin(material, Ogre::RenderOperation::OT_TRIANGLE_LIST);
 
-        object.position(-0.5f, -0.5f, -0.5f);
-        object.position(0.5f, -0.5f, -0.5f);
-        object.position(0.5f, 0.5f, -0.5f);
-        object.position(-0.5f, 0.5f, -0.5f);
-        object.position(-0.5f, -0.5f, 0.5f);
-        object.position(0.5f, -0.5f, 0.5f);
-        object.position(0.5f, 0.5f, 0.5f);
-        object.position(-0.5f, 0.5f, 0.5f);
+        const Ogre::Vector3 positions[] = {
+            {-0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, -0.5f},
+            {0.5f, 0.5f, -0.5f}, {-0.5f, 0.5f, -0.5f},
+            {-0.5f, -0.5f, 0.5f}, {0.5f, -0.5f, 0.5f},
+            {0.5f, 0.5f, 0.5f}, {-0.5f, 0.5f, 0.5f}};
+        for (const Ogre::Vector3 &position : positions)
+        {
+            object.position(position);
+            appendOrdinaryManualVertexAttributes(object);
+        }
 
         const Ogre::uint32 indices[] = {
             0, 2, 1, 0, 3, 2,
@@ -426,7 +429,10 @@ OgreActorRenderer::ActorVisual OgreActorRenderer::createProjectileVisual(
     visual.object->begin(ProjectileMaterial, Ogre::RenderOperation::OT_TRIANGLE_LIST);
     const auto& mesh = ProjectilePresentation::mesh();
     for (const auto& position : mesh.positions)
+    {
         visual.object->position(position.x, position.y, position.z);
+        appendOrdinaryManualVertexAttributes(*visual.object);
+    }
     for (const auto index : mesh.indices) visual.object->index(index);
     visual.object->end();
     visual.object->getSection(0)->setCustomParameter(1,
@@ -483,9 +489,10 @@ OgreActorRenderer::ActorVisual OgreActorRenderer::createVisual(
                 for (int corner = 0; corner < 4; ++corner) {
                     const auto& position = face.positions[corner];
                     visual.object->position(position.x, position.y, position.z);
-                    visual.object->textureCoord(face.tile.x / 16.f, face.tile.y / 16.f);
-                    visual.object->textureCoord(face.uv[corner].x, face.uv[corner].y);
-                    visual.object->textureCoord(.72f + .28f * std::max(face.normal.y, 0.f));
+                    appendOrdinaryManualVertexAttributes(*visual.object,
+                        face.tile.x / 16.f, face.tile.y / 16.f,
+                        face.uv[corner].x, face.uv[corner].y,
+                        .72f + .28f * std::max(face.normal.y, 0.f));
                 }
                 visual.object->quad(index, index + 1, index + 2, index + 3);
                 index += 4;

@@ -12,6 +12,10 @@ save v12、terrain v27、map v4、settings v11 保持。旧世界重新建网格
 
 ## 网格与格式
 
+V02b后续格式说明：本节40字节是V09a冻结布局。有限视距自然树关联保留这40字节
+光源前缀，并在末尾追加uv3 FLOAT1根标签，当前生产顶点为44字节；历史与当前容量
+按实际版本分别计量。来源语义保持，详见[视距过渡合同](view-distance-transition-contract-v1.md)。
+
 - 既有四角组合亮度、AO 0.12、方向系数、对角线选择和 `shapedLight` 保持。
 - 两种来源分别取同一四角邻域非遮挡样本的原始 level 平均，除以 15 得 `[0,1]`。
   来源强度不含 brightness floor、AO 或方向系数。非立方资源形状复制所在格两种 level。

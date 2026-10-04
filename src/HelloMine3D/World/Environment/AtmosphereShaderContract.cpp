@@ -38,6 +38,37 @@ void requireTokens(const ResourcePackResolver &resolver,
     }
 }
 
+void requireProgramTokens(const ResourcePackResolver &resolver,
+                          const char *kind, const char *program,
+                          std::initializer_list<const char *> tokens)
+{
+    const std::string source = readText(
+        resolver, "media/ogre/HelloMine3D.program");
+    const std::string declaration =
+        std::string(kind) + " " + program + " glsl";
+    const std::size_t start = source.find(declaration);
+    const std::size_t open = start == std::string::npos
+        ? std::string::npos : source.find('{', start + declaration.size());
+    std::size_t end = open;
+    int depth = 0;
+    if (open != std::string::npos) {
+        do {
+            if (source[end] == '{') ++depth;
+            else if (source[end] == '}') --depth;
+            ++end;
+        } while (end < source.size() && depth > 0);
+    }
+    const std::string body = open != std::string::npos && depth == 0
+        ? source.substr(open, end - open) : "";
+    for (const char *token : tokens) {
+        if (body.find(token) == std::string::npos) {
+            throw std::runtime_error(
+                std::string("Natural tree shader '") + program +
+                "': missing interface declaration '" + token + "'.");
+        }
+    }
+}
+
 void requirePlayerExposureDefaults(
     const ResourcePackResolver &resolver,
     std::initializer_list<const char *> programs,
@@ -148,13 +179,19 @@ void validateAtmosphereShaderContract(
          "void sampleBoundedCloudLayer"});
     requireTokens(
         resolver, "media/ogre/HelloMine3DTerrain.vert",
-        {"out vec3 terrainWorldPosition;", "uniform mat4 world;"});
+        {"out vec3 terrainWorldPosition;", "uniform mat4 world;",
+         "in float uv3;", "flat out vec3 terrainNaturalTreeRoot;"});
     requireTokens(
         resolver, "media/ogre/HelloMine3DFlora.vert",
-        {"out vec3 terrainWorldPosition;", "uniform mat4 world;"});
+        {"out vec3 terrainWorldPosition;", "uniform mat4 world;",
+         "in float uv3;", "flat out vec3 terrainNaturalTreeRoot;"});
     requireTokens(
         resolver, "media/ogre/HelloMine3DTerrain.frag",
-        {"in vec3 terrainWorldPosition;",
+        {"uniform vec2 viewRange;",
+         "uniform vec2 viewRangeCentre;",
+         "uniform float viewRangeStrength;",
+         "in vec3 terrainWorldPosition;",
+         "flat in vec3 terrainNaturalTreeRoot;",
          "uniform float playerExposure;",
          "uniform vec3 sunColour;",
          "uniform float sunIntensity;",
@@ -170,7 +207,10 @@ void validateAtmosphereShaderContract(
          "uniform float waterDetailStrength;"});
     requireTokens(
         resolver, "media/ogre/HelloMine3DWater.frag",
-        {"uniform vec3 fogSunwardColour;",
+        {"uniform vec2 viewRange;",
+         "uniform vec2 viewRangeCentre;",
+         "uniform float viewRangeStrength;",
+         "uniform vec3 fogSunwardColour;",
          "in vec2 waterSurfaceData;",
          "in vec2 waterSurfaceDrift;",
          "uniform float waterDetailStrength;",
@@ -182,7 +222,10 @@ void validateAtmosphereShaderContract(
         {"out vec3 actorWorldPosition;", "out vec3 actorLocalPosition;", "uniform mat4 world;"});
     requireTokens(
         resolver, "media/ogre/HelloMine3DActor.frag",
-        {"in vec3 actorWorldPosition;",
+        {"uniform vec2 viewRange;",
+         "uniform vec2 viewRangeCentre;",
+         "uniform float viewRangeStrength;",
+         "in vec3 actorWorldPosition;",
          "in vec3 actorLocalPosition;",
          "uniform float playerExposure;",
          "uniform vec4 actorPartData;",
@@ -223,10 +266,18 @@ void validateDirectionalShadowShaderContract(
     requireTokens(
         resolver, "media/ogre/HelloMine3DTerrainShadow.vert",
         {"out vec4 terrainShadowPosition;",
-         "uniform mat4 shadowWorldViewProj;"});
+         "uniform mat4 shadowWorldViewProj;",
+         "in float uv3;", "flat out vec3 terrainNaturalTreeRoot;"});
+    requireTokens(
+        resolver, "media/ogre/HelloMine3DFloraShadow.vert",
+        {"in float uv3;", "flat out vec3 terrainNaturalTreeRoot;"});
     requireTokens(
         resolver, "media/ogre/HelloMine3DTerrainShadow.frag",
-        {"in vec4 terrainShadowPosition;",
+        {"uniform vec2 viewRange;",
+         "uniform vec2 viewRangeCentre;",
+         "uniform float viewRangeStrength;",
+         "in vec4 terrainShadowPosition;",
+         "flat in vec3 terrainNaturalTreeRoot;",
          "uniform float playerExposure;",
          "uniform vec3 sunColour;",
          "uniform float sunIntensity;",
@@ -244,7 +295,10 @@ void validateDirectionalShadowShaderContract(
          "uniform mat4 shadowWorldViewProj;"});
     requireTokens(
         resolver, "media/ogre/HelloMine3DActorShadow.frag",
-        {"in vec4 actorShadowPosition;",
+        {"uniform vec2 viewRange;",
+         "uniform vec2 viewRangeCentre;",
+         "uniform float viewRangeStrength;",
+         "in vec4 actorShadowPosition;",
          "in vec3 actorLocalPosition;",
          "uniform float playerExposure;",
          "uniform vec4 actorPartData;",
@@ -258,10 +312,23 @@ void validateDirectionalShadowShaderContract(
     requireTokens(
         resolver, "media/ogre/HelloMine3DDirectionalShadowCaster.vert",
         {"uniform mat4 worldViewProj;",
+         "uniform mat4 world;", "in float uv3;",
+         "flat out vec3 casterNaturalTreeRoot;",
          "gl_Position = worldViewProj * vertex;"});
     requireTokens(
         resolver, "media/ogre/HelloMine3DDirectionalShadowCaster.frag",
-        {"gl_FragCoord.zzz", "out vec4 fragmentColour;"});
+        {"gl_FragCoord.zzz", "out vec4 fragmentColour;",
+         "flat in vec3 casterNaturalTreeRoot;",
+         "uniform vec2 viewRange;", "uniform vec2 viewRangeCentre;",
+         "uniform float viewRangeStrength;"});
+    requireProgramTokens(resolver, "vertex_program",
+        "HelloMine3D/DirectionalShadowCasterVertex",
+        {"param_named_auto world world_matrix"});
+    requireProgramTokens(resolver, "fragment_program",
+        "HelloMine3D/DirectionalShadowCasterFragment",
+        {"param_named viewRange float2",
+         "param_named viewRangeCentre float2",
+         "param_named viewRangeStrength float"});
 }
 
 void validatePostProcessingShaderContract(

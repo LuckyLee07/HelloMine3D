@@ -23,8 +23,25 @@ uniform float sunIntensity;
 uniform vec3 waterShallowColour;
 uniform vec3 waterDeepColour;
 uniform vec3 cameraPosition;
+uniform vec2 viewRange;
+uniform vec2 viewRangeCentre;
+uniform float viewRangeStrength;
 uniform float globalTime;
 uniform float waterDetailStrength;
+
+
+// Only the final view-distance band loses coverage. Keep near-field lighting
+// and atmospheric fog unchanged; the sky is visible through retired pixels.
+float viewRangeCoverage(vec3 worldPosition)
+{
+    if (viewRange.y <= viewRange.x) return 1.0;
+    vec2 distance = abs(worldPosition.xz - viewRangeCentre);
+    float edgeDistance = max(distance.x, distance.y);
+    float coverage = 1.0 - smoothstep(viewRange.x, viewRange.y, edgeDistance);
+    // Underground retains its original geometry and local-light fog.
+    return mix(1.0, coverage, clamp(viewRangeStrength, 0.0, 1.0));
+}
+
 
 vec3 directionalFogColour(vec3 viewDirection)
 {
@@ -143,5 +160,6 @@ void main()
     // of the sky. Shared surface heights preserve chunk continuity.
     float crossingWidth = mix(1.0, 0.35, aboveSurface);
     alpha *= smoothstep(0.10, crossingWidth, abs(eyeHeight));
-    fragmentColour = vec4(clamp(colour, 0.0, 1.0), alpha);
+    fragmentColour = vec4(clamp(colour, 0.0, 1.0),
+        alpha * viewRangeCoverage(waterWorldPosition));
 }

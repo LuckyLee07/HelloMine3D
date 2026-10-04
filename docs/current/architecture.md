@@ -765,7 +765,7 @@ Ogre 从复制快照保留驻留 section 的 solid/flora CPU 数据，修改、�
 新增 resident renderables 仅指驻留 GPU 对象数量，不冒充相机／阴影实际 draw 次数。
 
 V09a 网格从现有快照额外复制天光和方块光强度，逐顶点与原组合光照并存。greedy／shared
-保留两种来源梯度，打包为40字节顶点（原32字节），uv2三分量包含组合值、sky、block+1标记。
+保留两种来源梯度；V09a时打包为40字节顶点（原32字节），uv2三分量包含组合值、sky、block+1标记。
 只有天光随昼夜和太阳阴影改变，火把等局部光保持稳定；地下水面不再反射室外天空。
 暗部曝光及玩家手持曝光按同一来源语义处理，光传播与生成／存档均不改。每顶点GPU／CPU来源
 增加8字节，实测规模与边界见[局部光源合同](../contracts/local-light-render-polish-contract-v1.md)。
@@ -785,6 +785,21 @@ terrain在alpha裁切前求导及求值，AO、环境光、顶点与阴影纹理
 V04 在同一四次噪声查询内增加中尺度贡献，拆开连续宽云带，收窄软边并增强低仰角淡出；
 云高、日月、FS2 回退及所有 uniform 保持，不引入新世界状态或渲染分配。
 云形及地区光色的完整范围见[冒险天空合同](../contracts/adventure-sky-contract-v1.md)。
+
+V02b有限视距过渡以流送逻辑相机的xz为中心，取水平最大轴距离；半边长RD×16−2米，
+末端最多8米向原大气背景退场，保留方形需求的对角地貌。普通／阴影、标准／兼容及水面一致，
+强度复用玩家眼sunlight在地下关闭，换世界或位置epoch重置；观察相机仅负责雾方向。
+
+v24+自然树用共享生产树形visitor派生owner，在网格快照复制resident id＋metadata匹配的root；
+封闭及无树section跳过查询，off-lock builder只读复制标签。快照固定增加8KiB，查询最多25根／
+每根1024次计划写入／section4096条记录；不加载相邻区块，不增加无界缓存或保存字段。
+greedy、共享顶点与四section垂直batch保留root身份，末尾uv3 FLOAT1使当前顶点为44字节。
+两种光源的40字节前缀不变，实际几何及缓冲增幅另测。自然树按根一致退场并停止完全退场树的
+方向投影。RD≥2预留6米冠幅；RD1用13–14米以保留6米交互近面，但远侧冠枝不保证完整。
+v1–v23和未知自定义生成器没有owner，保持普通过渡；生成、区块需求及世界权威不变。
+GL3Plus按program复用VAO；角色、玩家、投射物及手持／掉落物的ManualObject显式写uv3=0，
+避免缺失属性沿用此前地形root流。无纹理对象同时补齐前三UV占位，有纹理对象保留原值。
+详见[视距过渡合同](../contracts/view-distance-transition-contract-v1.md)。
 
 POSIX Ogre `Timer` 的经过时间使用 `std::chrono::steady_clock`，毫秒/微秒 API 和各实例 reset 语义不变；
 避免系统墙钟校正经 Root 的无符号差值形成巨大帧增量。CPU 时间 API 保持原行为，世界仍按既有 fixed tick

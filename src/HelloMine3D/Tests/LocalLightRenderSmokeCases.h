@@ -23,7 +23,7 @@ void caseLocalLightRendering()
           mesh.getLightSources()[4] == glm::vec2(0,1));
     const auto packed = packTerrainRenderBatch({{{0,0,0},&mesh}},{0,0,0});
     check("LOCAL_LIGHT/packed-source-order-tag-and-size",
-          sizeof(TerrainRenderVertex) == 40 && packed.vertices[0].skySource == 1 &&
+          sizeof(TerrainRenderVertex) == 44 && packed.vertices[0].skySource == 1 &&
           packed.vertices[0].blockSource == 1 && packed.vertices[4].skySource == 0 &&
           packed.vertices[4].blockSource == 2 && packed.vertices[4].light == .8f);
     ChunkMesh moved;

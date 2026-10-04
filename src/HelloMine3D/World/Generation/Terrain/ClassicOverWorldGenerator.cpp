@@ -1061,9 +1061,26 @@ void ClassicOverWorldGenerator::applyAdventurePlants()
 void ClassicOverWorldGenerator::applyAdventureTrees(const std::vector<StructurePlanSnapshot> &plans)
 {
     const auto target=m_pChunk->getLocation();
+    visitAdventureTreesForChunk(target.x, target.y, plans, m_vegetationEntrances,
+        [this](int x, int z, const AdventureEcologyPlanner::Tree &tree) {
+            if (m_generationVersion >= VegetationPolishTerrainGenerationVersion)
+                makePolishedAdventureTree(*m_pChunk, tree.randomSeed, x,
+                    tree.height, z, tree.kind, tree.stature);
+            else
+                makeAdventureTree(*m_pChunk, tree.randomSeed, x,
+                    tree.height, z, tree.kind);
+        });
+}
+
+void ClassicOverWorldGenerator::visitAdventureTreesForChunk(
+    int chunkX, int chunkZ,
+    const std::vector<StructurePlanSnapshot> &plans,
+    const std::vector<CaveGenerator::NaturalEntrance> &entrances,
+    const AdventureTreeVisitor &visitor) const
+{
     const bool polished = m_generationVersion >= VegetationPolishTerrainGenerationVersion;
     const int clearance = polished ? MaximumStructureRadius : 3;
-    const int minX=target.x*CHUNK_SIZE-MaximumStructureRadius,minZ=target.y*CHUNK_SIZE-MaximumStructureRadius;
+    const int minX=chunkX*CHUNK_SIZE-MaximumStructureRadius,minZ=chunkZ*CHUNK_SIZE-MaximumStructureRadius;
     std::vector<LandmarkWorkshop::Site> workshops;
     if (m_generationVersion >= LandmarkWorkshopTerrainGenerationVersion)
         for (const auto &plan : plans)
@@ -1085,7 +1102,7 @@ void ClassicOverWorldGenerator::applyAdventureTrees(const std::vector<StructureP
                     [x,z,clearance](const auto &site) {
                         return LandmarkWorkshop::clearsTreeSource(site, x, z, clearance);
                     }))continue;
-            if(std::any_of(m_vegetationEntrances.begin(),m_vegetationEntrances.end(),[x,z,polished](const auto &e) {
+            if(std::any_of(entrances.begin(),entrances.end(),[x,z,polished](const auto &e) {
                 const int dx=x-e.anchorX,dz=z-e.anchorZ;
                 const int along=dx*e.directionX+dz*e.directionZ;
                 const int lateral=-dx*e.directionZ+dz*e.directionX;
@@ -1095,10 +1112,105 @@ void ClassicOverWorldGenerator::applyAdventureTrees(const std::vector<StructureP
             const auto sample=m_adventureEcology.sample(x,z);
             const auto tree=m_adventureEcology.tree(x,z,sample);
             if(tree.kind!=AdventureTreeKind::None) {
-                if (polished) makePolishedAdventureTree(*m_pChunk,tree.randomSeed,x,tree.height,z,tree.kind,tree.stature);
-                else makeAdventureTree(*m_pChunk,tree.randomSeed,x,tree.height,z,tree.kind);
+                visitor(x, z, tree);
             }
         }
+}
+
+bool ClassicOverWorldGenerator::visitNaturalTreeOwnership(
+    int chunkX, int sectionY, int chunkZ,
+    const NaturalTreeOwnershipVisitor &visitor) const
+{
+    if (m_generationVersion < VegetationPolishTerrainGenerationVersion)
+        return false;
+    if (!visitor || sectionY < 0 || sectionY >= 256 / CHUNK_SIZE)
+        return true;
+    // Match generation's safe signed-coordinate halo without narrowing its
+    // supported range or causing an int overflow in a presentation query.
+    constexpr int maximumChunk =
+        (std::numeric_limits<int>::max() - 1024) / CHUNK_SIZE;
+    if (chunkX < -maximumChunk || chunkX > maximumChunk ||
+        chunkZ < -maximumChunk || chunkZ > maximumChunk)
+        return false;
+    static_assert(CHUNK_SIZE == 16 && CHUNK_VOLUME == NaturalTreeMaximumSectionOwnershipBlocks,
+                  "Tree ownership stays bounded to the current section format");
+    static_assert(MaximumStructureRadius == NaturalTreeOwnershipRadius &&
+                  MaximumStructureRadius == PolishedTreeMaximumHorizontalRadius,
+                  "Tree owner projection uses the frozen production halo");
+
+    const int minimumX = chunkX * CHUNK_SIZE;
+    const int minimumZ = chunkZ * CHUNK_SIZE;
+    const int minimumY = sectionY * CHUNK_SIZE;
+    const auto plans = getStructurePlansForChunk(
+        chunkX, chunkZ, DeterministicStructurePlanner::MaximumTreeClearancePadding);
+    // The frozen v24 entrance pass queries its 24 m tunnel, 3 m chamber and
+    // 13 m vegetation padding. This covers at most 2x2 entrance cells, and
+    // reproduces the exact vector used by applyAdventureTrees for this chunk.
+    constexpr int entranceReach = CaveGenerator::EntranceTunnelLength + 3 +
+        CaveGenerator::PolishedVegetationPlanPadding;
+    const int minimumCellX = WorldCoordinates::floorDiv(
+        minimumX - entranceReach, CaveGenerator::EntranceCellBlocks);
+    const int maximumCellX = WorldCoordinates::floorDiv(
+        minimumX + CHUNK_SIZE - 1 + entranceReach, CaveGenerator::EntranceCellBlocks);
+    const int minimumCellZ = WorldCoordinates::floorDiv(
+        minimumZ - entranceReach, CaveGenerator::EntranceCellBlocks);
+    const int maximumCellZ = WorldCoordinates::floorDiv(
+        minimumZ + CHUNK_SIZE - 1 + entranceReach, CaveGenerator::EntranceCellBlocks);
+    std::vector<CaveGenerator::NaturalEntrance> entrances;
+    entrances.reserve(4);
+    for (int cellX = minimumCellX; cellX <= maximumCellX; ++cellX)
+        for (int cellZ = minimumCellZ; cellZ <= maximumCellZ; ++cellZ) {
+            const auto entrance = m_caveGenerator.getNaturalEntranceForCell(
+                cellX, cellZ,
+                [this](int x, int z) { return getSurfaceHeightAtWorld(x, z); },
+                [this](int x, int z) { return getBiomeAtWorld(x, z); });
+            if (entrance.valid) entrances.push_back(entrance);
+        }
+
+    struct OwnershipCell {
+        ChunkBlock block;
+        std::uint8_t owner = 0;
+    };
+    std::array<OwnershipCell, CHUNK_VOLUME> ownership{};
+    std::array<std::array<int, 2>, NaturalTreeMaximumSourceRoots> roots{};
+    std::size_t rootCount = 0;
+    visitAdventureTreesForChunk(chunkX, chunkZ, plans, entrances,
+        [&](int rootX, int rootZ, const AdventureEcologyPlanner::Tree &tree) {
+            if (rootCount == roots.size())
+                throw std::logic_error("Natural tree ownership exceeds the source-root budget");
+            roots[rootCount++] = {rootX, rootZ};
+            const auto owner = static_cast<std::uint8_t>(rootCount);
+            std::size_t plannedBlocks = 0;
+            visitPolishedAdventureTreeBlocks(tree.randomSeed, rootX, tree.height,
+                rootZ, tree.kind, tree.stature,
+                [&](int x, int y, int z, ChunkBlock block) {
+                    if (++plannedBlocks > PolishedTreeMaximumPlannedBlocks)
+                        throw std::logic_error("Natural tree ownership exceeds the tree-plan budget");
+                    const int localX = x - minimumX;
+                    const int localY = y - minimumY;
+                    const int localZ = z - minimumZ;
+                    if (localX < 0 || localX >= CHUNK_SIZE || localY < 0 ||
+                        localY >= CHUNK_SIZE || localZ < 0 || localZ >= CHUNK_SIZE)
+                        return;
+                    auto &cell = ownership[localX + CHUNK_SIZE * (localZ + CHUNK_SIZE * localY)];
+                    // Mirror StructureBuilder::build(..., true). In particular,
+                    // later foliage/wood cannot replace an earlier tree trunk.
+                    if (cell.block.id != static_cast<Block_t>(BlockId::Air) &&
+                        cell.block.id != static_cast<Block_t>(BlockId::OakLeaf))
+                        return;
+                    cell.block = block;
+                    cell.owner = owner;
+                });
+        });
+    for (int y = 0; y < CHUNK_SIZE; ++y)
+        for (int z = 0; z < CHUNK_SIZE; ++z)
+            for (int x = 0; x < CHUNK_SIZE; ++x) {
+                const auto &cell = ownership[x + CHUNK_SIZE * (z + CHUNK_SIZE * y)];
+                if (cell.owner != 0)
+                    visitor({{minimumX + x, minimumY + y, minimumZ + z},
+                             cell.block, roots[cell.owner - 1]});
+            }
+    return true;
 }
 
 void ClassicOverWorldGenerator::applyLandmarkDecorators(

@@ -91,7 +91,7 @@ void setup(GLuint p)
     glUniform2f(glGetUniformLocation(p,"crackSeed"),17.0f,31.0f);
     glUniform2f(glGetUniformLocation(p,"crackStretch"),1,1);
 }
-void quad(GLuint p, int tileX, int tileY, float vertexLight = 1.f, float skySource = -1.f, float blockSource = -1.f)
+void quad(GLuint p, int tileX, int tileY, float vertexLight = 1.f, float skySource = -1.f, float blockSource = -1.f, float rootTag = 0.f)
 {
     // All geometry reaches the production vertex shader, including plant wind.
     struct Vertex { float x,y,z,u,v; };
@@ -108,9 +108,16 @@ void quad(GLuint p, int tileX, int tileY, float vertexLight = 1.f, float skySour
     {
         glEnableVertexAttribArray(repeat);
         glVertexAttribPointer(repeat,2,GL_FLOAT,GL_FALSE,sizeof(Vertex),reinterpret_cast<void *>(12));
+        if (rootTag > 0.f) {
+            // Natural-tree coverage tests use an opaque constant texel and
+            // root UV V=1, so plant wind cannot alter the comparison geometry.
+            glDisableVertexAttribArray(repeat); glVertexAttrib2f(repeat,.37f,1.f);
+        }
     }
     GLint tile = glGetAttribLocation(p,"uv0"), light = glGetAttribLocation(p,"uv2");
     GLint colour = glGetAttribLocation(p,"colour");
+    GLint root = glGetAttribLocation(p,"uv3");
+    if (root >= 0) { glDisableVertexAttribArray(root); glVertexAttrib1f(root,rootTag); }
     if (tile >= 0) glVertexAttrib2f(tile,(tileX+0.5f)/16.f,(tileY+0.5f)/16.f);
     if (light >= 0) glVertexAttrib3f(light,vertexLight,skySource,blockSource+1.f);
     if (colour >= 0) glVertexAttrib4f(colour,0.9f,0.9f,0.9f,0.65f);
@@ -142,12 +149,15 @@ Pixels renderGround(GLuint shader, float enabled, float offset, int tile = 0,
                     int tileY = 0, float daylight = 1.f,
                     float playerExposure = -1.f, float vertexLight = 1.f,
                     float shadowStrength = 0.f, float fog = 0.f,
-                    float alphaCutoff = .4999f, float skySource = -1.f, float blockSource = -1.f)
+                    float alphaCutoff = .4999f, float skySource = -1.f, float blockSource = -1.f, bool rangeFade = false, float rangeCentre = 0.f, float rangeStrength = 1.f, float rootTag = 0.f, bool minimumRange = false, int centreAxis = 0)
 {
     glDisable(GL_BLEND); glDepthMask(GL_TRUE);
     glClearColor(0,0,0,0); glClearDepth(1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     setup(shader);
+    glUniform2f(glGetUniformLocation(shader,"viewRange"),rangeFade?(minimumRange?7.f:118.f):0.f,rangeFade?(minimumRange?14.f:126.f):0.f);
+    glUniform2f(glGetUniformLocation(shader,"viewRangeCentre"),centreAxis==2?0.f:rangeCentre,centreAxis==1?0.f:rangeCentre);
+    value(shader,"viewRangeStrength",rangeStrength);
     value(shader, "playerExposure", playerExposure);
     value(shader, "alphaCutoff", alphaCutoff);
     value(shader, "fogDensity", fog);
@@ -164,7 +174,7 @@ Pixels renderGround(GLuint shader, float enabled, float offset, int tile = 0,
     glUniform1i(glGetUniformLocation(shader, "directionalShadowMap"), 1);
     const float world[]{1,0,0,0, 0,1,0,0, 0,0,1,0, offset,0,offset,1};
     glUniformMatrix4fv(glGetUniformLocation(shader,"world"),1,GL_FALSE,world);
-    quad(shader, tile, tileY, vertexLight, skySource, blockSource);
+    quad(shader, tile, tileY, vertexLight, skySource, blockSource, rootTag);
     Pixels pixels(Edge * Edge * 4);
     glReadPixels(0,0,Edge,Edge,GL_RGBA,GL_UNSIGNED_BYTE,pixels.data());
     require(glGetError() == GL_NO_ERROR, "Ground shader draw failed");
@@ -201,7 +211,7 @@ Pixels renderGeology(GLuint shader, int tileX, int tileY, bool top,
     glBufferData(GL_ARRAY_BUFFER,sizeof(points),points.data(),GL_STATIC_DRAW);
     const auto vertex = glGetAttribLocation(shader,"vertex");
     glEnableVertexAttribArray(vertex); glVertexAttribPointer(vertex,3,GL_FLOAT,GL_FALSE,0,nullptr);
-    for (const auto *name : {"uv0","uv1","uv2"})
+    for (const auto *name : {"uv0","uv1","uv2","uv3"})
     {
         const auto a = glGetAttribLocation(shader,name); if (a >= 0) glDisableVertexAttribArray(a);
     }
@@ -209,6 +219,8 @@ Pixels renderGeology(GLuint shader, int tileX, int tileY, bool top,
         (tileX+.25f+.5f*warmth)/16.f,(tileY+.5f+.25f*forest)/16.f);
     glVertexAttrib2f(glGetAttribLocation(shader,"uv1"),sampleU,sampleV);
     glVertexAttrib1f(glGetAttribLocation(shader,"uv2"),1.f);
+    const auto rootAttribute = glGetAttribLocation(shader,"uv3");
+    if (rootAttribute >= 0) glVertexAttrib1f(rootAttribute,0.f);
     glDrawArrays(GL_TRIANGLES,0,6); glDisableVertexAttribArray(vertex); glDeleteBuffers(1,&vbo);
     Pixels pixels(Edge*Edge*4); glReadPixels(0,0,Edge,Edge,GL_RGBA,GL_UNSIGNED_BYTE,pixels.data());
     require(glGetError()==GL_NO_ERROR,"Geology draw/readback failed"); return pixels;
@@ -330,6 +342,24 @@ int main(int argc,char **argv)
             ++checks; failures+=!ok;
             std::cout << "[BLOCK_FEEDBACK_GPU] " << (ok?"PASS ":"FAIL ") << name << '\n';
         };
+        auto caster=program(root,"HelloMine3DDirectionalShadowCaster.vert","HelloMine3DDirectionalShadowCaster.frag",false);
+        const auto cast = [&](float origin,float tag,bool fade=true,float strength=1.f) {
+            return renderGround(caster,0,origin,0,0,1,-1,1,0,0,.4999f,-1,-1,fade,0,strength,tag);
+        };
+        const auto casterTag=[](int x,int z){return float(1+(x+6)*32+z+6);};
+        check("tree-caster-non-tree-original",cast(130,0)==cast(130,0,false));
+        check("tree-caster-inward-crown-original",cast(118,casterTag(-6,-6))==cast(118,casterTag(-6,-6),false));
+        const auto retiredCaster=cast(114,casterTag(6,6));
+        check("tree-caster-retired-root-stops-shadow",std::all_of(retiredCaster.begin(),retiredCaster.end(),[](auto v){return v==0;}));
+        check("tree-caster-underground-original",cast(114,casterTag(6,6),true,0)==cast(114,casterTag(6,6),false));
+        const auto minimumCast = [&](float origin,int root,bool fade=true) {
+            return renderGround(caster,0,origin,0,0,1,-1,1,0,0,.4999f,-1,-1,fade,0,1,casterTag(root,root),true);
+        };
+        check("tree-caster-rd1-interaction-crown-preserved",minimumCast(6,6)==minimumCast(6,6,false));
+        check("tree-caster-rd1-thirteen-metre-root-guard",minimumCast(7,6)==minimumCast(7,6,false));
+        const auto minimumRetiredCaster=minimumCast(8,6);
+        check("tree-caster-rd1-root-retires-before-demand-edge",std::all_of(minimumRetiredCaster.begin(),minimumRetiredCaster.end(),[](auto v){return v==0;}));
+        glDeleteProgram(caster);
         for (bool array : {false,true})
         {
             const std::string mode = array?"array":"atlas";
@@ -344,6 +374,75 @@ int main(int argc,char **argv)
             auto floraShadow = program(root,"HelloMine3DFloraShadow.vert","HelloMine3DTerrainShadow.frag",array);
             // Real production vertex -> fragment sources; no CPU lighting replica.
             for (auto shader : {base, shadow, floraBase, floraShadow}) {
+                const auto range = [&](float distance,bool fade) {
+                    return renderGround(shader,1,distance,0,0,1,-1,1,0,0,.4999f,-1,-1,fade);
+                };
+                check(mode+"-view-range-near-unchanged",range(80,true)==range(80,false));
+                check(mode+"-view-range-diagonal-preserved",range(110,true)==range(110,false));
+                check(mode+"-view-range-follows-logical-centre",
+                    renderGround(shader,1,130,0,0,1,-1,1,0,0,.4999f,-1,-1,true,130)==range(130,false));
+                check(mode+"-view-range-underground-preserved",
+                    renderGround(shader,1,130,0,0,1,-1,1,0,0,.4999f,-1,-1,true,0,0)==range(130,false));
+                const auto retired=range(130,true);
+                check(mode+"-view-range-far-retired",std::all_of(retired.begin(),retired.end(),[](auto v){return v==0;}));
+                const auto middle=range(122,true);
+                const auto unfaded=range(122,false);
+                bool covered=true;for(std::size_t i=3;i<middle.size();i+=4)covered &= middle[i]==unfaded[i];
+                check(mode+"-view-range-no-stipple",covered);
+                check(mode+"-view-range-transition-stable",middle==range(122,true));
+                std::cout << mode << " normalized_range_move_delta=" << colourDifference(middle,range(122.f + 8.f / 3200.f,true))
+                          << " unfaded_move_delta=" << colourDifference(unfaded,range(122.f + 8.f / 3200.f,false)) << '\n';
+                // Keep the original relative movement and 0.1 colour gate:
+                // 1 cm in a 32 m band is 2.5 mm in this 8 m band.
+                check(mode+"-view-range-transition-continuous",colourDifference(middle,range(122.f + 8.f / 3200.f,true))<.1);
+                check(mode+"-view-range-contrast-reduced",colourDifference(middle,range(122,false))>5);
+                // Move only the range centre; keep texture, wind and fog fixed.
+                const auto stationary=range(0,false);
+                double previousContrast=-1;bool rangeMonotonic=true;
+                for(float distance:{116.f,118.f,120.f,122.f,124.f}) {
+                    const auto movedCentre=renderGround(shader,1,0,0,0,1,-1,1,0,0,.4999f,-1,-1,true,-distance);
+                    const double contrast=colourDifference(stationary,movedCentre);
+                    rangeMonotonic &= contrast>=previousContrast;previousContrast=contrast;
+                }
+                check(mode+"-view-range-coverage-monotonic",rangeMonotonic);
+                const auto rootTag = [](int x,int z) { return float(1+(x+6)*32+z+6); };
+                const auto tree = [&](float origin,int root,bool fade=true,float strength=1.f,float centre=0.f) {
+                    return renderGround(shader,0,origin,0,0,1,-1,1,0,0,.4999f,-1,-1,fade,centre,strength,rootTag(root,root));
+                };
+                // Six-metre crown tips retain their root's coverage, even when
+                // their own fragments lie in a different part of the range band.
+                check(mode+"-tree-root-retains-complete-inward-crown",tree(118,-6)==tree(118,-6,false));
+                const auto retiredTree=tree(114,6);
+                check(mode+"-tree-root-retires-complete-outward-crown",std::all_of(retiredTree.begin(),retiredTree.end(),[](auto v){return v==0;}));
+                check(mode+"-tree-root-shares-coverage-across-section-origins",tree(110,6)==tree(122,-6));
+                check(mode+"-tree-root-follows-logical-centre",tree(114,6,true,1,120)==tree(114,6,false));
+                check(mode+"-tree-root-underground-retains-original",tree(114,6,true,0)==tree(114,6,false));
+                const auto middleTree=tree(110,6);
+                const auto brightTree=tree(110,6,false);
+                bool completeTree=true;for(std::size_t i=3;i<middleTree.size();i+=4)completeTree &= middleTree[i]==brightTree[i];
+                check(mode+"-tree-root-no-crown-stipple",completeTree && colourDifference(middleTree,brightTree)>5);
+                const auto minimumTree = [&](float origin,int root,bool fade=true) {
+                    return renderGround(shader,0,origin,0,0,1,-1,1,0,0,.4999f,-1,-1,fade,0,1,rootTag(root,root),true);
+                };
+                check(mode+"-tree-rd1-interaction-crown-preserved",minimumTree(6,6)==minimumTree(6,6,false));
+                check(mode+"-tree-rd1-thirteen-metre-root-guard",minimumTree(7,6)==minimumTree(7,6,false));
+                const auto minimumRetired=minimumTree(8,6);
+                check(mode+"-tree-rd1-root-retires-before-demand-edge",std::all_of(minimumRetired.begin(),minimumRetired.end(),[](auto v){return v==0;}));
+                const auto guardRange = [&](float distance,int axis=1,float sign=-1.f) {
+                    return renderGround(shader,0,0,0,0,1,-1,1,0,0,.4999f,-1,-1,true,sign*distance,1,rootTag(0,0),true,axis);
+                };
+                bool guardMonotonic=true,guardDirections=true;double previousGuardContrast=-1;
+                const auto guardBright=tree(0,0,false);
+                for(float distance:{13.f,13.25f,13.5f,13.75f,14.f}) {
+                    const auto pixels=guardRange(distance);
+                    const auto contrast=colourDifference(guardBright,pixels);
+                    guardMonotonic &= contrast>=previousGuardContrast;previousGuardContrast=contrast;
+                    guardDirections &= pixels==guardRange(distance,1,1.f) && pixels==guardRange(distance,2,-1.f) && pixels==guardRange(distance,2,1.f);
+                }
+                check(mode+"-tree-rd1-continuous-monotonic-guard-band",guardMonotonic && guardRange(13)==guardBright && colourDifference(guardBright,guardRange(14))>5);
+                check(mode+"-tree-rd1-four-signed-directions-identical",guardDirections);
+                check(mode+"-tree-rd1-normalized-movement-continuous",colourDifference(guardRange(13.5f),guardRange(13.5f+1.f/3200.f))<.1);
+
                 const auto source = [&](float sky, float local, float day, float shadowAmount = 0.f, float fog = 0.f) {
                     const float light = .15f + .85f * std::max(sky,local);
                     return renderGround(shader,1,0,3,0,day,-1,light,shadowAmount,fog,.4999f,sky,local);

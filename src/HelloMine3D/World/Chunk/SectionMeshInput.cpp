@@ -1,6 +1,7 @@
 #include "SectionMeshInput.h"
 
 #include "ChunkSection.h"
+#include "NaturalTreeRootTag.h"
 #include "../Generation/Terrain/TerrainGenerator.h"
 
 #include <algorithm>
@@ -9,6 +10,13 @@ namespace {
 // Order matches m_neighbourLayerAllSolid.
 constexpr int kNeighbourOffsetX[4] = {1, 0, -1, 0};
 constexpr int kNeighbourOffsetZ[4] = {0, 1, 0, -1};
+
+bool isTreeBlock(ChunkBlock block)
+{
+    const auto id = static_cast<BlockId>(block.id);
+    return id == BlockId::OakBark || id == BlockId::OakLeaf ||
+           id == BlockId::Cactus;
+}
 } // namespace
 
 int SectionMeshInput::index(int x, int y, int z)
@@ -23,6 +31,9 @@ void SectionMeshInput::capture(
     m_location = section.getLocation();
     m_terrainSeed = terrainSeed;
     m_containsWater = false;
+    m_naturalTreeRootTags.fill(0);
+    static_assert(sizeof(m_naturalTreeRootTags) == 8192,
+                  "Natural tree ownership uses at most 8 KiB per snapshot");
     // Decide enclosure before copying 18^3 cells or querying climate. The
     // same flags still govern the builder; only unused snapshot work is cut.
     for (int y = -1; y <= CHUNK_SIZE; ++y) {
@@ -56,10 +67,15 @@ void SectionMeshInput::capture(
 
     // ChunkSection::getBlock() resolves out-of-range coordinates through the
     // world, which is why this has to run under the world lock.
+    bool containsTreeCandidate = false;
     for (int y = -1; y <= CHUNK_SIZE; ++y) {
         for (int z = -1; z <= CHUNK_SIZE; ++z) {
             for (int x = -1; x <= CHUNK_SIZE; ++x) {
                 m_blocks[index(x, y, z)] = section.getBlock(x, y, z);
+                if (x >= 0 && x < CHUNK_SIZE && y >= 0 && y < CHUNK_SIZE &&
+                    z >= 0 && z < CHUNK_SIZE)
+                    containsTreeCandidate = containsTreeCandidate ||
+                        isTreeBlock(m_blocks[index(x, y, z)]);
                 m_containsWater = m_containsWater ||
                     m_blocks[index(x, y, z)] == BlockId::Water;
                 m_sunlight[index(x, y, z)] =
@@ -68,6 +84,46 @@ void SectionMeshInput::capture(
                     section.getBlockLight(x, y, z);
             }
         }
+    }
+
+    if (containsTreeCandidate) {
+        const std::int64_t minimumX =
+            static_cast<std::int64_t>(m_location.x) * CHUNK_SIZE;
+        const std::int64_t minimumY =
+            static_cast<std::int64_t>(m_location.y) * CHUNK_SIZE;
+        const std::int64_t minimumZ =
+            static_cast<std::int64_t>(m_location.z) * CHUNK_SIZE;
+        std::size_t ownershipBlocks = 0;
+        bool exceededOwnershipBudget = false;
+        const bool supported = terrainGenerator.visitNaturalTreeOwnership(
+            m_location.x, m_location.y, m_location.z,
+            [&](const NaturalTreeOwnershipBlock &owned) {
+                if (++ownershipBlocks > NaturalTreeMaximumSectionOwnershipBlocks) {
+                    exceededOwnershipBudget = true;
+                    return;
+                }
+                const auto x = static_cast<std::int64_t>(owned.position[0]) - minimumX;
+                const auto y = static_cast<std::int64_t>(owned.position[1]) - minimumY;
+                const auto z = static_cast<std::int64_t>(owned.position[2]) - minimumZ;
+                const auto rootX = static_cast<std::int64_t>(owned.root[0]) - minimumX;
+                const auto rootZ = static_cast<std::int64_t>(owned.root[1]) - minimumZ;
+                if (x < 0 || x >= CHUNK_SIZE || y < 0 || y >= CHUNK_SIZE ||
+                    z < 0 || z >= CHUNK_SIZE ||
+                    rootX < NaturalTreeRootTag::MinimumCoordinate ||
+                    rootX > NaturalTreeRootTag::MaximumCoordinate ||
+                    rootZ < NaturalTreeRootTag::MinimumCoordinate ||
+                    rootZ > NaturalTreeRootTag::MaximumCoordinate ||
+                    !isTreeBlock(owned.block) ||
+                    getBlock(static_cast<int>(x), static_cast<int>(y),
+                             static_cast<int>(z)) != owned.block)
+                    return;
+                m_naturalTreeRootTags[static_cast<std::size_t>(
+                    x + CHUNK_SIZE * (z + CHUNK_SIZE * y))] =
+                    NaturalTreeRootTag::encode(static_cast<int>(rootX),
+                                               static_cast<int>(rootZ));
+            });
+        if (!supported || exceededOwnershipBudget)
+            m_naturalTreeRootTags.fill(0);
     }
 
     for (int z = -1; z <= CHUNK_SIZE; ++z) {
@@ -100,6 +156,14 @@ void SectionMeshInput::capture(
         }
     }
 
+}
+
+std::uint16_t SectionMeshInput::getNaturalTreeRootTag(int x, int y, int z) const noexcept
+{
+    if (x < 0 || x >= CHUNK_SIZE || y < 0 || y >= CHUNK_SIZE ||
+        z < 0 || z >= CHUNK_SIZE)
+        return 0;
+    return m_naturalTreeRootTags[x + CHUNK_SIZE * (z + CHUNK_SIZE * y)];
 }
 
 LightLevel SectionMeshInput::getSunlight(int x, int y, int z) const

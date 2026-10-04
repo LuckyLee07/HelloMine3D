@@ -86,6 +86,7 @@ def main():
     parser.add_argument("--time", type=int, default=6000)
     parser.add_argument("--seed", type=int, default=20260807)
     parser.add_argument("--fov", type=int, default=90)
+    parser.add_argument("--render-distance", type=int, choices=range(1, 33), default=8)
     parser.add_argument("--perspective", choices=("first", "third"),
                         help="Use the normal saved camera setting in a diagnostic capture")
     parser.add_argument("--shadow", choices=("off", "medium", "high"), default="off")
@@ -178,7 +179,7 @@ def main():
     # A complete v8 set of the mandatory fields; other fields take the
     # production defaults. These are settings, not modifications to a save.
     settings = f"""settings_version 8
-renderdistance 8
+renderdistance {args.render_distance}
 directionalshadowquality {args.shadow}
 postprocessingquality {args.post}
 fullscreen 0

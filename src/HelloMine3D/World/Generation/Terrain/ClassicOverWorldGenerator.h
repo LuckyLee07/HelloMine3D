@@ -56,6 +56,9 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
                                 int worldZ) const noexcept override;
     std::array<float,2> getWaterSurfaceVelocityAtWorld(
         int worldX,int worldZ) const noexcept override;
+    bool visitNaturalTreeOwnership(
+        int chunkX, int sectionY, int chunkZ,
+        const NaturalTreeOwnershipVisitor &visitor) const override;
     int getSeed() const noexcept;
     int getExplorationRewardVersion() const noexcept;
     LandmarkPlacement getLandmarkForCell(int cellX, int cellZ) const;
@@ -82,6 +85,13 @@ class ClassicOverWorldGenerator : public TerrainGenerator {
     void applyPlantDecorators(const std::vector<BlockPosition> &positions);
     void applyTreeDecorators(const std::vector<StructurePlanSnapshot> &plans);
     void applyAdventureTrees(const std::vector<StructurePlanSnapshot> &plans);
+    using AdventureTreeVisitor = std::function<void(
+        int, int, const AdventureEcologyPlanner::Tree &)>;
+    void visitAdventureTreesForChunk(
+        int chunkX, int chunkZ,
+        const std::vector<StructurePlanSnapshot> &plans,
+        const std::vector<CaveGenerator::NaturalEntrance> &entrances,
+        const AdventureTreeVisitor &visitor) const;
     void applyAdventurePlants();
     void applyLandmarkDecorators(const std::vector<StructurePlanSnapshot> &plans);
     void applyLandmarkApproaches(const std::vector<StructurePlanSnapshot> &plans);
