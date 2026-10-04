@@ -51,8 +51,9 @@ inline constexpr int WaterbankPolishTerrainGenerationVersion = 26;
 inline constexpr int LandmarkPolishTerrainGenerationVersion = 27;
 inline constexpr int UndergroundPolishTerrainGenerationVersion = 28;
 inline constexpr int WorkshopCourtyardTerrainGenerationVersion = 29;
+inline constexpr int RockLandmarkTerrainGenerationVersion = 30;
 inline constexpr int CurrentTerrainGenerationVersion =
-    WorkshopCourtyardTerrainGenerationVersion;
+    RockLandmarkTerrainGenerationVersion;
 
 // Derived presentation ownership, never save data or a prediction of an
 // edited block. The consumer must compare the expected id AND metadata with

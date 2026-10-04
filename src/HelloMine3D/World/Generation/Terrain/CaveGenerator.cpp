@@ -2103,10 +2103,35 @@ std::size_t CaveGenerator::projectAdventureUndergroundImpl(
                 outcropDirectionX * outcropDistance;
             const int outcropZ = plan.chamberZ +
                 outcropDirectionZ * outcropDistance;
-            setBlock(outcropX, plan.chamberAirY + 3,
-                     outcropZ, BlockId::CoalOre);
-            setBlock(outcropX, plan.chamberAirY + 2,
-                     outcropZ, BlockId::IronOre);
+            if (m_generationVersion >= RockLandmarkTerrainGenerationVersion) {
+                // A natural cave may have erased the rock around this ore pair.
+                // Keep a face-connected rib to the dry floor, entirely inside
+                // the existing chamber ellipsoid's certified write ranges.
+                // At most 16 stone cells; the final dry-route pass retains its
+                // full clearance, and historical worlds keep their old shape.
+                for (int distance = 0; distance < outcropDistance; ++distance) {
+                    const int lower = std::max(-1, distance - (outcropDistance - 3));
+                    const int upper = distance < 2 ? lower : lower + 1;
+                    for (int height = lower; height <= upper; ++height)
+                        setBlock(plan.chamberX + outcropDirectionX * distance,
+                                 plan.chamberAirY + height,
+                                 plan.chamberZ + outcropDirectionZ * distance,
+                                 BlockId::Stone);
+                }
+                // Keep the two ores exposed toward the chamber centre. The
+                // original ore column remains part of the certified write set.
+                setBlock(outcropX, plan.chamberAirY + 3, outcropZ, BlockId::Air);
+                setBlock(outcropX, plan.chamberAirY + 2, outcropZ, BlockId::Air);
+                const int insetX = outcropX - outcropDirectionX * 2;
+                const int insetZ = outcropZ - outcropDirectionZ * 2;
+                setBlock(insetX, plan.chamberAirY + 3, insetZ, BlockId::CoalOre);
+                setBlock(insetX, plan.chamberAirY + 2, insetZ, BlockId::IronOre);
+            } else {
+                setBlock(outcropX, plan.chamberAirY + 3,
+                         outcropZ, BlockId::CoalOre);
+                setBlock(outcropX, plan.chamberAirY + 2,
+                         outcropZ, BlockId::IronOre);
+            }
 
             int chestX = 0;
             int chestZ = 0;

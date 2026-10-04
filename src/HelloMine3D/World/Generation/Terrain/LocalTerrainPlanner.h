@@ -10,7 +10,7 @@
 // Fixed pure-value caches never contain resident chunks or saved block state.
 class LocalTerrainPlanner {
   public:
-    struct Sample { int height=0; double slope=0, deposit=0; };
+    struct Sample { int height=0; double slope=0, deposit=0; bool rockCore=false; };
     explicit LocalTerrainPlanner(int seed,int version=LocalReliefTerrainGenerationVersion) noexcept
         : m_seed(seed),m_version(version),m_water(seed,version) {}
 
@@ -57,6 +57,24 @@ class LocalTerrainPlanner {
         // Lowered shallow slots collect a thin gravel/soil apron; raised spurs
         // expose their parent rock. Near-water materials remain ecology-owned.
         result.deposit+=std::max(0.0,-delta)*.18;
+        // Historical columns stay unchanged. The v30 addition has compact
+        // support and raises dry ground only; caves still carve later.
+        if(m_version<RockLandmarkTerrainGenerationVersion ||
+           result.height<94 || !rockGround(water))return result;
+        const int previousHeight=result.height;
+        double raised=0;
+        for(int dz=-1;dz<=1;++dz)for(int dx=-1;dx<=1;++dx) {
+            const auto &p=patch(cx+dx,cz+dz);
+            if(!p.rock)continue;
+            double u=double(x)-p.x,v=double(z)-p.z;
+            if(p.rockAcross)std::swap(u,v);
+            const double shape=(1-smooth(1,4.5,std::abs(u)))*
+                               (1-smooth(2,5.5,std::abs(v)));
+            const double lift=std::clamp(p.height+5-previousHeight,0.0,6.0);
+            raised=std::max(raised,shape*lift);
+        }
+        result.height=std::clamp(previousHeight+static_cast<int>(std::lround(raised)),1,176);
+        result.rockCore=result.height>previousHeight;
         return result;
     }
 
@@ -64,8 +82,22 @@ class LocalTerrainPlanner {
     struct Patch {
         int seed=0,version=0;std::int64_t cellX=0,cellZ=0;
         double x=0,z=0,height=0,downX=1,downZ=0,slope=0,deposit=0,strength=0;
-        int kind=0;bool active=false,valid=false;
+        int kind=0;bool active=false,valid=false,rock=false,rockAcross=false;
     };
+    static bool rockGround(const AdventureWaterPlanner::Sample &water) noexcept {
+        using R=AdventureRegion;
+        const auto &b=water.base;
+        return water.column.height>=94 && water.column.biome!=TerrainBiome::Ocean &&
+            (b.region==R::Canyon || water.column.biome==TerrainBiome::RockPlateau) &&
+            b.weights[static_cast<std::size_t>(R::Canyon)]>.60 &&
+            // Full ecology can choose any positive-weight neighbour region.
+            // Zero weight keeps its fine wetland/dune patches protected too.
+            b.weights[static_cast<std::size_t>(R::Wetland)]==0 &&
+            b.weights[static_cast<std::size_t>(R::Dunes)]==0 &&
+            b.weights[static_cast<std::size_t>(R::Alpine)]+
+                b.weights[static_cast<std::size_t>(R::ConiferHighland)]<.10 &&
+            b.moisture<.10 && water.riverInfluence==0 && water.lakeInfluence==0;
+    }
     static double smooth(double a,double b,double x) noexcept {
         const double t=std::clamp((x-a)/(b-a),0.0,1.0);return t*t*(3-2*t);
     }
@@ -98,6 +130,13 @@ class LocalTerrainPlanner {
         p.kind=static_cast<int>((h>>24)%3);
         p.strength=smooth(.05,.32,p.slope);
         p.active=p.height>70 && centre.column.biome!=TerrainBiome::Ocean;
+        if(m_version>=RockLandmarkTerrainGenerationVersion) {
+            const auto rockHash=mix(h^0x761d927ab83f04e5ull);
+            const double low=std::min({west,east,north,south,p.height});
+            const double high=std::max({west,east,north,south,p.height});
+            p.rock=rockHash%6==0 && rockGround(centre) && p.slope<=.12 && high-low<=3;
+            p.rockAcross=(rockHash>>8)&1;
+        }
         p.valid=true;return p;
     }
     int m_seed=0,m_version=LocalReliefTerrainGenerationVersion;

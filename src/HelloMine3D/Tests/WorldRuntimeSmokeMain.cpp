@@ -21240,6 +21240,7 @@ void caseWorldManager()
 #include "NaturalTreeOwnershipSmokeCases.h"
 #include "NaturalTreeRootTagSmokeCases.h"
 #include "LocalReliefSmokeCases.h"
+#include "RockLandmarkSmokeCases.h"
 #include "WaterbankPolishSmokeCases.h"
 #include "AdventureExplorationSmokeCases.h"
 #include "AdventureSurvivalSmokeCases.h"
@@ -21345,6 +21346,9 @@ int main()
         }
         else if (focus != nullptr && std::string(focus) == "LOCAL_RELIEF") {
             caseLocalReliefV25();
+        }
+        else if (focus != nullptr && std::string(focus) == "ROCK_LANDMARK") {
+            caseRockLandmarkV30();
         }
         else if (focus != nullptr && std::string(focus) == "VEGETATION_POLISH") {
             caseVegetationPolishV24();
@@ -21697,6 +21701,7 @@ int main()
         caseAdventureEcologyV18();
         caseVegetationPolishV24();
         caseLocalReliefV25();
+        caseRockLandmarkV30();
         caseWaterbankPolishV26();
         caseAdventureSurfaceQueryCache();
         caseAdventureExplorationV19();

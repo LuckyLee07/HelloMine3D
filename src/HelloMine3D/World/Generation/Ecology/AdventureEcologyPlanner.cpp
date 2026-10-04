@@ -138,6 +138,7 @@ AdventureEcologyPlanner::Sample AdventureEcologyPlanner::sample(int x, int z) co
         else if(relief.deposit>.35 && patch>.30)
             c.surface=actualSlope>.5?S::Gravel:S::Dirt;
     }
+    if(relief.rockCore)c.surface=S::Stone;
     return result;
 }
 
