@@ -71,3 +71,11 @@ image generation tool in September 2026:
 Full prompts, references, hashes and deterministic packing rules are retained
 in that directory. The black markers in oak-leaf and tall-grass cells compile
 to cutout alpha; earth, stone, bark, end grain and sand remain fully opaque.
+
+Original visual polish ore tiles generated with the built-in OpenAI image
+generation tool in October 2026:
+- docs/art-sources/visual-polish-20260928/coal-ore-v1.png
+- docs/art-sources/visual-polish-20260928/iron-ore-v1.png
+The existing project stone tile was used as a style reference. Exact prompts,
+source hashes and opaque 16-pixel nearest-neighbour packing are recorded in
+docs/art-sources/visual-polish-20260928/ore-generation.json.

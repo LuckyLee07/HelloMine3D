@@ -15,6 +15,13 @@ from visual_polish_texture_source import (SOURCES as POLISH_SOURCES,
     AUTHORED_EDGE as POLISH_EDGE, CUTOUT_KEY_MAX)
 
 
+# Validator-owned identities: do not derive these from the packing tables.
+ORE_SOURCES = {
+    'coal_ore': ('coal-ore-v1.png', 13),
+    'iron_ore': ('iron-ore-v1.png', 14),
+}
+
+
 def validate(path, report_path):
     data = path.read_bytes()
     report = json.loads(report_path.read_text())
@@ -28,6 +35,9 @@ def validate(path, report_path):
     active = {y // 16 * 16 + x // 16 for x, y, _ in entries.values()}
     assert len(active) == 132 and len(set(range(256)) - active) == 124
     assert len(report['semantics']) == 132
+    records = {record['semantic']: record for record in report['semantics']}
+    assert len(records) == 132 and set(records) == set(entries), \
+        'Array report must contain every semantic exactly once'
     assert report['adventure_source_sha256'] == hashlib.sha256(ADVENTURE_SOURCE.read_bytes()).hexdigest()
     assert report['adventure_override_sha256'] == {
         name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in OVERRIDE_SOURCES.items()}
@@ -57,10 +67,44 @@ def validate(path, report_path):
         assert record['layer'] == y // 16 * 16 + x // 16 and record['alpha'] == alpha
         assert record['provenance'] in ('authored', 'derived', 'retained') and record['sources']
     authored_cutout = [r['layer'] for r in report['semantics'] if r['alpha'] == 'cutout' and r['provenance'] != 'retained']
-    shared_records = [r for r in report['semantics']
-                      if all(source.startswith('visual-polish/') for source in r['sources'])]
-    assert len(shared_records) == 81
+    expected_shared = {
+        'grass_top', 'grass_side', 'dirt', 'stone', 'oak_bark_side',
+        'oak_bark_top', 'oak_leaves', 'sand', 'tall_grass',
+        'coal_ore', 'iron_ore', *polished_adventure,
+    }
+    expected_shared.update(
+        f'{base}_{biome}_v{variant}'
+        for base in ('grass_top', 'grass_side', 'oak_leaves', 'tall_grass')
+        for biome in ('desert', 'grassland', 'light_forest', 'temperate_forest', 'ocean')
+        for variant in range(3))
+    assert len(expected_shared) == 83
+    declared_shared = {r['semantic'] for r in report['semantics']
+                       if all(source.startswith('visual-polish/') for source in r['sources'])}
+    assert declared_shared == expected_shared, \
+        'Shared material semantics must match the independent 83-layer contract'
+    shared_records = [r for r in report['semantics'] if r['semantic'] in expected_shared]
+    assert len(shared_records) == 83
     atlas = Image.open(ROOT / 'media/textures/DefaultPack.png').convert('RGBA')
+    for semantic, (filename, layer) in ORE_SOURCES.items():
+        record = records[semantic]
+        assert entries[semantic] == (layer * 16, 0, 'opaque'), \
+            'Ore semantic slot differs: ' + semantic
+        assert (record['layer'], record['alpha'], record['provenance'], record['sources']) == \
+            (layer, 'opaque', 'authored', ['visual-polish/' + semantic]), \
+            'Ore authored provenance differs: ' + semantic
+        source_path = ROOT / 'docs/art-sources/visual-polish-20260928' / filename
+        assert filename in report['polish_source_sha256'] and \
+            report['polish_source_sha256'][filename] == hashlib.sha256(source_path.read_bytes()).hexdigest(), \
+            'Ore source hash differs: ' + semantic
+        with Image.open(source_path) as source_image:
+            assert source_image.size == (1254, 1254), 'Ore source dimensions differ: ' + semantic
+            source = source_image.convert('RGBA')
+        assert source.getchannel('A').getextrema() == (255, 255), \
+            'Ore source must be opaque: ' + semantic
+        authored = source.resize((16, 16), Image.Resampling.NEAREST)
+        x, y, _ = entries[semantic]
+        assert atlas.crop((x, y, x + 16, y + 16)).tobytes() == authored.tobytes(), \
+            'Ore atlas differs from the independent authored source: ' + semantic
     offset, coverage = 36, {}
     for mip in range(mips):
         size = edge >> mip

@@ -21,7 +21,11 @@ SHEETS = {
     SOURCE.with_name('snow-sediment-v1.png'):
         ('snow', 'gravel', 'clay', 'silt'),
 }
-SINGLE_TILES = {SOURCE.with_name('stone-planes-v2.png'): 'stone'}
+SINGLE_TILES = {
+    SOURCE.with_name('stone-planes-v2.png'): 'stone',
+    SOURCE.with_name('coal-ore-v1.png'): 'coal_ore',
+    SOURCE.with_name('iron-ore-v1.png'): 'iron_ore',
+}
 SOURCES = (*SHEETS, *SINGLE_TILES)
 CUTOUT_KEY_MAX = 12
 ADVENTURE_OVERRIDES = ('forest_floor', 'spruce_bark_side', 'spruce_bark_top',
@@ -29,7 +33,7 @@ ADVENTURE_OVERRIDES = ('forest_floor', 'spruce_bark_side', 'spruce_bark_top',
                        'birch_leaves', 'moss_stone', 'snow', 'gravel', 'clay', 'silt')
 SHARED_BASES = ('grass_top', 'grass_side', 'forest_floor', 'dirt', 'stone',
                 'oak_bark_side', 'oak_bark_top', 'sand', 'oak_leaves', 'tall_grass',
-                *ADVENTURE_OVERRIDES[1:])
+                *ADVENTURE_OVERRIDES[1:], 'coal_ore', 'iron_ore')
 
 
 def tiles(edge=AUTHORED_EDGE):

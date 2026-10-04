@@ -73,7 +73,8 @@ def build(base=BASE, layout_path=LAYOUT):
         atlas.paste(image, entries[name][:2])
     ground = polish_tiles(16)
     grasses = [ground['grass_top_' + variant] for variant in ('a', 'b', 'c')]
-    for name in ('dirt', 'stone', 'sand', 'oak_bark_side', 'oak_bark_top', 'tall_grass'):
+    for name in ('dirt', 'stone', 'sand', 'oak_bark_side', 'oak_bark_top', 'tall_grass',
+                 'coal_ore', 'iron_ore'):
         put(name, ground[name])
     leaves = [ground['oak_leaves_a'], ground['oak_leaves_b'],
               ground['oak_leaves_a'].transpose(Image.Transpose.FLIP_LEFT_RIGHT)]

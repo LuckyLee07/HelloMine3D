@@ -1,0 +1,47 @@
+{
+  "tool": "built-in image_gen",
+  "purpose": "V01e ore inclusions on shared calm stone ground",
+  "sources": [
+    {
+      "file": "coal-ore-v1.png",
+      "prompt": "Use case: stylized-concept. Asset type: ORIGINAL production seamless voxel COAL ORE albedo texture, ONE square full-bleed flat material swatch for HelloMine3D. Input image 1 is a STYLE REFERENCE for the current stone base only, not an edit target. Preserve its restrained warm-neutral grey palette, broad calm rock planes and coarse square-pixel language, while generating a new mineral arrangement. Flat orthographic albedo, evenly lit, fully opaque. A coherent COARSE 16 by 16 pixel design, hard-edged square cells, no blur or smooth gradient. Ground rock should match the reference stone, base near RGB(119,117,111), only a few muted grey tones in broad connected 4–7 pixel planes. Add FIVE asymmetrically separated irregular angular charcoal coal clusters, each mainly 2–3 pixels across, together occupying about 16–22% of the tile. Coal is dark matte charcoal near RGB(38,37,35), with one restrained slightly lighter charcoal edge, visibly embedded in the rock. Preserve dark coal identity without black holes or glossy gems. Clusters distributed across the face, neither a center emblem nor diagonal chain. No long fissures, tiny random speckles, colored crystals, bricks, mortar, outlines, bevels, border, perspective, baked directional lighting, text or watermark. Four edges should tile quietly; do not put coal bands along all borders. Entire image is the texture, no frame, background or object.",
+      "references": [
+        "stone-planes-v2.png"
+      ],
+      "reference_role": "style reference, not an edit target",
+      "source_size": [
+        1254,
+        1254
+      ],
+      "sha256": "59cfac7a05379144d919ed7563cfc9bfdb63bfa0f83d35b83dba57a7efc3cd8a",
+      "built_in_output": "/Users/lizi/.codex/generated_images/01a0e39c-9491-7ec1-83df-8598028730c6/exec-7a101f1d-fe5c-48ee-99ee-7315ce5d4837.png"
+    },
+    {
+      "file": "iron-ore-v1.png",
+      "prompt": "Use case: stylized-concept. Asset type: ORIGINAL production seamless voxel IRON ORE albedo texture, ONE square full-bleed flat material swatch for HelloMine3D. Input image 1 is a STYLE REFERENCE for the current stone ground only, not an edit target. Generate a new mineral arrangement while matching its restrained warm-neutral grey palette, calm connected planes and coarse square-pixel language. Flat orthographic albedo, evenly lit, entirely opaque. A coherent COARSE 16 by 16 pixel design with hard square cells, no blur or smooth gradient. Ground rock near RGB(119,117,111), a few related muted grey tones in broad connected 4–7 pixel planes. Embed FIVE irregular angular muted rust-ochre iron mineral clusters, mostly 2–3 pixels across and together covering about 16–22% of the tile. Iron colors near RGB(143,99,66) with restrained warm ochre highlights near RGB(162,122,83) and darker oxide edges near RGB(113,80,55). Mineral should read as matte reddish-brown inclusions IN rock, clearly distinct from coal, dirt, molten metal or gold. Asymmetric scattered positions, no central emblem, no diagonal chain, no checker pattern. Keep broad grey areas between clusters. No black holes, bright gold/yellow, glossy gems, tiny random speckles, long cracks, bricks, mortar, border, bevel, outlines, perspective, shadows, text or watermark. Four edges should tile quietly. Entire image is the texture, no frame or scene.",
+      "references": [
+        "stone-planes-v2.png"
+      ],
+      "reference_role": "style reference, not an edit target",
+      "source_size": [
+        1254,
+        1254
+      ],
+      "sha256": "6cc18b8780b51928a514bf85e5fe749aa774e69d78cf0891bbe0b40a979c2b00",
+      "built_in_output": "/Users/lizi/.codex/generated_images/01a0e39c-9491-7ec1-83df-8598028730c6/exec-f5cf5e63-0387-4709-b620-1922bf511bcb.png"
+    }
+  ],
+  "compiler": "tools/visual_polish_texture_source.py",
+  "authored_edge": 16,
+  "alpha": "opaque",
+  "runtime_semantics": {
+    "coal_ore": [
+      13,
+      0
+    ],
+    "iron_ore": [
+      14,
+      0
+    ]
+  }
+}
