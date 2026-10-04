@@ -2,15 +2,14 @@
 
 ## 恢复区
 
-- **2026-10-05 V07c实现及必要工程检查已完成，Goal仍为`active`。** 玩家按复制的水平速度
-  混合前后／向外横移步态，补最终腿盒脚底修正与工具目标全轴抑制；双配置纯动作各456项、
-  六个故障负例、领域各261项、最终客户端及Release完整2674项通过。四向隐藏姿态原图已查，
-  公开菜单出生与F5第三人称已查，真实连续W／S／A／D、坡面／近墙仍待验。
-  33个用户存档及受保护包133项未变。正常工作包会话handle`80108`、PID`46301`／窗口`5193`
-  在检测到用户操作后停止输入并保留；后续LaunchServices等待退出0，原生查询无进程／窗口，
-  已恢复测试前配置并刷新包身份。本批没有代理保存重进／退出按钮验收。详见文末V07c。
-  V03b已提交`73f6af6c`，terrain v30保持；下一批推进V07近距动作及其他剩余方向，
-  地下RD1旧天空缺口及普通路线验收继续保留。
+- **2026-10-05 V09c实现、世界／资源回归及最终画面对照已完成，Goal仍为`active`。**
+  实现已本地提交`3fd7431a`；低RD洞室的有限Near边界只为真实暗空气显示地下背景，保持真实天光口、已加载岩壁和保存格式。
+  双配置CAVE_BOUNDARY各35项、资源各198项、Release完整2709项和六个production故障拒绝通过；
+  生产GLSL GPU19项通过，双配置renderer最终各53分项PASS／1全局FAIL；无renderer的
+  最小基线同样留下GL0x500，背景阶段零错误。旧Ogre格式探测缺陷已归因，不将总体记为PASS。九组最终r2原图已查看，3张后图与3张前图已归档。
+  普通工作包handle`17266`、PID`58567`／窗口`5382`已启动；CUA返回Mac锁屏，尚无窗口输入。
+  已提示用户解锁，保留同一实例，不重启、恢复配置或刷新运行中的包。三seed普通探索仍`NOT_RUN`。
+  下一步完成普通菜单视距／保存重进，旧Ogre格式探测错误单独保留；V07连续移动等剩余范围继续，详见文末V09c。
 - 范围：[规划 V01–V10](../current/visual-experience-polish-plan-2026-09-25.md)与
   [执行提示词](../current/visual-experience-polish-goal-prompt-2026-09-28.md)，另记录 V00 基线和 V11 整合。
 - 用户已于 2026-09-28 要求直接创建并逐步执行 Goal；宿主创建成功，状态 `active`，未设置 token 预算。
@@ -24,26 +23,27 @@
 - 当前方向：V01a（`a2b1046`）、V01b（`2f9203d`）、V02a（`b6f0e9e`）已提交；V02 风摆现有路径
   已通过当前 GPU 检查，V04a 云带精修已提交 `6011801`；V05a 接触阴影已提交 `8a0cf2c`。
   V03a追加v25局部地形与坡积材料，已提交`b1f2527`；V06a追加v26河湖岸形，已提交`cb2afd0`；V06b水域运动与河面接缝修复已提交`bd4d264`；V07a动物比例与动作过渡已提交`5385bf4`；V07b玩家工具阶段、前向挥动和遮挡修复已提交`c09fc9af`；V08a六套地点蓝图与路线保持已提交`fefd76ae`；V09a局部光源分离已提交`07ae4aba`；V09b地下形态与铺地已提交`64242e4c`；
-  V10a世界目录与继续入口已提交`d462b123`；V10b暂停通知布局已提交`cb96e34d`；V10c机器进度与领取反馈已提交`1223ddad`；V01c两树种与石面材质已提交`d06389f2`；V08b露天工位已提交`39d98d22`；V01d四自然材质已提交`d614f38d`；V10d生命信息行对比已提交`8790069b`；V10e机器部分转移提示已提交`c2baba2c`；V10f机器浮层避让与容量边界已提交`9e89552c`；V10g制作材料紧凑布局与输入定位已提交`e91f4b37`；V11a补整合静态矩阵及洞室水色修复已提交`9b20cd0a`；V05b修复斜射投影精度及雪地自阴影已提交`ddd9a053`；V02b树根统一退场已提交`6992b77b`；V03b稀疏岩柱与洞室露头支撑已提交`73f6af6c`；V07c四向移动混合已提交`d374640a`。V01–V11整项仍`Doing`。
+  V10a世界目录与继续入口已提交`d462b123`；V10b暂停通知布局已提交`cb96e34d`；V10c机器进度与领取反馈已提交`1223ddad`；V01c两树种与石面材质已提交`d06389f2`；V08b露天工位已提交`39d98d22`；V01d四自然材质已提交`d614f38d`；V10d生命信息行对比已提交`8790069b`；V10e机器部分转移提示已提交`c2baba2c`；V10f机器浮层避让与容量边界已提交`9e89552c`；V10g制作材料紧凑布局与输入定位已提交`e91f4b37`；V11a补整合静态矩阵及洞室水色修复已提交`9b20cd0a`；V05b修复斜射投影精度及雪地自阴影已提交`ddd9a053`；V02b树根统一退场已提交`6992b77b`；V03b稀疏岩柱与洞室露头支撑已提交`73f6af6c`；V07c四向移动混合已提交`d374640a`；V09c暗空气边界背景已提交`3fd7431a`。V01–V11整项仍`Doing`。
 - 用户追加要求：每轮保留2–3张升级后游戏原图并在回复中展示。精选原图及索引位于
   `.local-evidence/visual-polish-20260928/`，不作为普通build缓存清理；本地保留、Git忽略。
-  目前28轮共116张（78张升级后及38张修改前／问题基线），`index.md` 有具体变化说明，`manifest.json` 有来源与哈希。
+  目前29轮共122张（81张升级后及41张修改前／问题基线），`index.md` 有具体变化说明，`manifest.json` 有来源与哈希。
 - 当前工作包：`build/visual-experience-polish-20260928/VisualPolishWorkbench.app`，独立 bundle
-  `local.hellomine3d.visual-polish`；默认v30／兼容v1–v29，V07c只修改玩家表现与隐藏诊断。
-  本批正常会话结束后已恢复配置并刷新身份，捕获元信息仍保留当时真实的提交前身份。
+  `local.hellomine3d.visual-polish`；默认v30／兼容v1–v29，V09c不修改生成、碰撞或保存。
+  r2包135管理项／409源码、Release SHA`87688321…7ca46c`已核对。当前普通会话未结束，
+  包保持捕获时真实的提交前身份，禁止运行中刷新；V07c的恢复记录仅属于上一批。
   V01b 封存身份见本地 `v01b/package-verification.json`；V02a 以其独立子目录记录后续身份。
-- 当前批次：V07c工程与原图归档完成。最终r3 Debug／Release客户端，双配置纯动作各456项、
-  P11A127／P11B121／ITEM_VISUAL13及Release完整2674项通过；六个姿态故障负例和15项诊断门禁通过。
-  Release SHA `6d449abe5a96cdaf236da321b53632ff648d0e927fb16892da8b33382d2d8e3e`，
-  Debug SHA `83b9cacc30d178efe9f8f5a043b4a1e718a631b18541e524567b1a9edb20d09b`。
-  八组四向采集64张原图（40个不同哈希），必要帧已查看；隐藏姿态不等于真实位移或相位配对。
-  工作包133项／406源码与捕获身份匹配；33个普通存档文件及集合不变，受保护客户端133项未变。
-  正常会话handle`80108`已结束，LaunchServices等待退出0；原生查询无PID／窗口。
-  工具提示用户操作后已停止输入，等会话结束才恢复配置及刷新身份。普通连续玩法与本批
-  代理保存重进／退出按钮验收仍未完成，不能把等待命令退出码当作客户端进程退出码。
-  V03b旧生成摘要仍按其版本有效；本批未改生成、资源或shader，不重复记其历史检查为本批PASS。
+- 当前批次：V09c双配置客户端／世界／资源r2构建完成，功能验证与原图归档已完成，旧Ogre启动基线仍FAIL。
+  World缓存上限2048面，首snapshot扫描8面／2048格，确认false不扫描；renderer新面最多8个、
+  固定696KiB，dirty／移除退化另计。原World块编辑照明路径与transient incarnation失效保持。
+  最终Release SHA `87688321658078eb76fc1a54f4202d2a30577fe3a03d4933330e27b9007ca46c`，
+  Debug SHA `de51c984a0b2ef321155118da7e5b013d2675cd443478d14621ef49accaf81c6`。
+  最终昼夜RD1／2／8、Debug及入口／地表九组原图已查看，固定机位不能替代普通探索。
+  只读审查核对33个用户存档、受保护客户端与冻结旧工作包各133项保持；API图与签名同步。
+  当前唯一正常实例handle`17266`、PID`58567`／窗口`5382`受Mac锁屏阻止，无输入验收结果。
+  保存配置基线SHA `70d9f6e9…16047`；会话结束前不恢复配置或刷新包，后续必须查询同一实例。
+  故障负例、像素比例误判、r1暂存包身份差异和GPU r1／r2的53／1、Debug fixture断言与最终双配置54／1全部保留，分别按实际版本解释。
 - 下一步：推进V07近距离动物及普通动作，V03b已补少量岩柱；普通地形连续路线继续。河岸已复现叶团由V02b关闭；
-  RD1地下远端天空缺口是旧包已有问题，继续处理；旧树无owner、异步未完成及主动破坏仍单独核查。
+  RD1洞室天空缺口已由V09c按有限暗空气边界修复，普通连续视距仍待验；旧树无owner、异步未完成及主动破坏仍单独核查。
   雪地已复现的黑点由V05b关闭，阴影普通连续动态和其他场景仍待补。首次右键未响应已定位为`open -g`后台启动后原生焦点仍为false；普通菜单可接收CUA点击，
   但世界输入保护正确拒绝。正式版本在菜单通过公开F8取得焦点，首次右键直接打开熔炉，不需制作页绕行。
   CUA的AX“focused”与Raise不能单独证明原生焦点；后续按实际`INPUT_FOCUS`记录核对。
@@ -72,7 +72,7 @@
 | V06 | 河湖海岸湿地 | Doing：V06a岸形已提交；V06b接入下降河道切向、四水域幅度与远纹滤波，修复河面亮缝；双配置相关各98项、Release完整2299项、GPU正负例及四水域昼昏诊断通过，v26输出未变；普通菜单保存重开已查，入水编辑和连续动态待补 |
 | V07 | 动物、玩家、工具动作 | Doing：V07a三动物比例、关节与活动／转向过渡，V07b工具四阶段、前向工作臂和遮挡修复均有分项工程／诊断证据；V07c四向混合、脚底及工具目标全轴抑制接入，双配置纯456／领域261、六故障负例和Release2674项通过；四向隐藏姿态、公开出生／F5已查，普通连续动作／近距动物仍待补 |
 | V08 | 地标与建筑周边 | Doing：V08a追加v27六套原占地蓝图、门架／屋脊／残顶／前后柱与苔石基部；双配置相关各458项、Release完整2425项、旧v1–v26生产调查保持、六布局及内外／夜间诊断已查；V08b追加v29低矮露天工位、双配置各238项／Release2514项与旧生成调查通过，三样式前后视线已查；普通发现进入及收获使用继续待验 |
-| V09 | 地下空间和照明 | Doing：V09a区分天光／方块光，火把昼夜稳定、地下水面不反射室外天空；双配置相关各402项、Release完整2437项、GPU230项及水面正反例通过，三seed几何不变／缓冲约增20%；地下固定机位已查；V09b追加v28岩肩／拱顶／木架和连续铺地，双配置相关各284项、Release2479项、旧v1–v27调查通过，三景网格增幅小于1%；V11a实际火把与昼夜全貌已查并补水体本色修复，普通探索继续 |
+| V09 | 地下空间和照明 | Doing：V09a区分天光／方块光，火把昼夜稳定、地下水面不反射室外天空；双配置相关各402项、Release完整2437项、GPU230项及水面正反例通过，三seed几何不变／缓冲约增20%；地下固定机位已查；V09b追加v28岩肩／拱顶／木架和连续铺地，双配置相关各284项、Release2479项、旧v1–v27调查通过，三景网格增幅小于1%；V11a实际火把与昼夜全貌已查并补水体本色修复；V09c暗空气有限背景接入、双配置35／资源198／Release2709及六故障拒绝通过，最终昼夜RD与天空保护图已查；生产GLSL19通过，renderer双配置53分项PASS／1旧Ogre基线FAIL，普通探索继续 |
 | V10 | UI 和地图连续性 | Doing：V10a长名称／日期／操作列与预览空态精修，双配置客户端、HUD44／地图74项通过；目录创建／保存重开／继续／重命名已查；V10b固定暂停通知区消除保存按钮跳动，双配置和紧凑双语／宽屏0.85普通操作通过；V10c机器同屏进度、领取强调和短暂操作反馈，双配置资源各128项及隔离准备后的真实加工／领取通过；V10d补生命行深色薄底板，双配置与双语低血量／三字号原图通过；V10e补机器部分转移提示，双配置各137项／资源128项及真实点击通过；V10f补浮层避让、九格满箱／燃料边界及保存重开；V10g补矮窗五格材料、真实制作和双语／宽屏保存重开；首次右键已归因于后台焦点，V11a补3×3双语空格布局，完整工作台制作与其余UI／地图及超长通知滚动待补 |
 | V11 | 整合、必要验证和客户端交付 | Doing：V11a补24组时段／FOV静态矩阵、3×3双语、兼容回退与实际火把；洞室水色修复通过，V05b关闭雪地黑点复现；普通完整路线及其余整合未关闭 |
 
@@ -1810,3 +1810,108 @@ SHA`70d9f6e90b8c362a232f961cd2f768138a0f0f7245e1cb07b338e48a86316047`。
 本批源码、工具、合同和账本随中文本地提交交付；不推送、发布或打标签。V07及其他方向
 继续Doing，Goal保持active。后续继续近距动物、
 普通动作及其他方向；地下RD1旧缺口、完整路线／生态和工作台／地图缺项不缩减。
+
+
+## V09c：地下有限可见边界背景（2026-10-05）
+
+### 修复范围
+
+实现提交`3fd7431a7b69d9ebe4fbfbab5039ac209742f78d`。运行时源文件与已测r2二进制的409项SHA匹配；
+普通实例仍运行，包内source_commit保持捕获时真实`2825cb8e`，结束前不刷新身份。
+
+冻结旧客户端在seed239701883、`390.5 78 -506.5`／`-8 90 0`的RD1洞室远端露出蓝天，
+同机位RD8存在后续岩壁。这是有限Near表示区外背景缺口；本批不为显示问题增加可碰撞墙、
+扩大加载半径或修改洞穴生成。terrain30、save12、map4、settings11与已有存档保持。
+语义和预算见[边界背景合同](../contracts/cave-boundary-background-contract-v1.md)。
+
+World只在已加载Near区块的外侧section四水平面采样，owned真实`Air && sunlight==0`置位；
+水、固体、有天光空气与内侧Near洞口不置位，不读取区外块／眼亮度／地貌或树形。
+候选top-K、cache及输出各自上限2048，按需求高度和XZ距离确定优先级；零面仍缓存。
+每次首snapshot扫描最多8面／2048格，上传确认传false，不重复采样；稳定场景仍有metadata工作。
+块revision与transient chunk incarnation共同失效，dirty当次停止发布；原World正式块编辑与照明
+队列递增受影响section revision。底层raw光setter／rebuild不独立递增，不声称任意直接写光安全。
+Chunk加载数据刷新incarnation；同对象直接loadBlockData只有静态守卫，无独立动态fixture。
+
+Ogre新增独立背景class和两个shader，queue6在sky5之后、普通几何50之前；无投影／受影、
+depth check on／write off。仅用原地下雾色，空texel discard；已加载地形／实体仍可覆盖。
+固定2048slots，20字节pos＋UV顶点160KiB、uint16索引24KiB、512×1024 R8 atlas512KiB，
+显式GPU allocation合计712704B（696KiB），不含驱动和对象开销。每次首sync最多激活8面，
+每tile256B、合计至多2048B；旧／dirty quad即时退化，删除顶点写入单独计入，最坏另加160KiB。
+确认sync false不激活新面；tile成功后才激活quad，固定索引仅初始化，不逐帧全量重建。
+换世界clear与shutdown析构接入真实路径，原地形八section上传和四层batch预算保持。
+
+### 工程和故障证据
+
+主产物为`build/visual-experience-polish-20260928/v09c/`。premake生成日志及`build-r1.sh`／
+`build-r2.sh`保留真实Xcode命令；macOS15.7.3 arm64宿主构建x86_64客户端（Rosetta），
+两配置客户端／WorldRuntimeSmoke／ResourcePackSmoke均构建退出0，未手改生成工程。
+
+| 检查 | 实际结果与证据 |
+| --- | --- |
+| World当前r2 | Debug／Release `CAVE_BOUNDARY`各35／0，四面、负坐标、精确mask、光／水／内侧洞口、resident-only、修改与同revision重载、独立消费者、zero／reset、2048上限及8扫描；`world-*-CAVE_BOUNDARY-r2.log` |
+| 受影响回归 | 两配置r1各208／0：CAVE35、MESH_INPUT21、LOCAL_LIGHT_RENDER12、TREE_ROOT_TAG23、RENDER_BATCH34、B5/B6各12、LIGHT_BOUNDARY59。其World源码后续未变，最终r2 Release完整2709／0再次覆盖；`world-release-full-r2.log` |
+| 资产清单 | `bash scripts/check_assets.sh`实际91／0，`assets-r2.log` |
+| 资源接口 | 两配置r2各198／0，两个文件、GLSL/program接口、精确material名字、注释不能补语义、唯一technique／pass／unit、深度／阴影等负例；r1各193历史结果保留 |
+| production故障 | 两配置各移除incarnation、revision、sunlight三个隔离源码变体，均真实编译／链接0、35checks运行exit1，分别2／5／3预期失败；六次EXPECTED_REJECT。`cave-boundary-production-negative-r1/summary.json`，源和共享build保护收据均保留 |
+| 实际GLSL GPU | `tools/validate_cave_boundary_shader_macos.cpp`实际CGL运行r2 19／0：空／满／checker／非对称mask、atlas边沿、暗色、深度不写与后续几何、去discard和转置UV负例；`cave-boundary-gpu-r2.log`，r1 14／0保留 |
+| 生产renderer GPU fixture | `tools/validate_cave_boundary_renderer_macos.cpp`最终r5严格两配置编译／链接0，实际各54checks／1FAIL、exit1：52功能＋严格post-startup GL零错误分项PASS，原全局零错误guard保留FAIL；startup1、post-startup0。实际2048slots／256×8更新、false立即撤下、tile／VBO／IB读回、非对称绘制、四面位置、清理／复用与9个actual Ogre状态拒绝均覆盖；`build/v09c/boundary-renderer-gpu-r5/run-receipt-r5.json` |
+| 无renderer启动基线 | r4 Debug／Release `--startup-only`各1check／1FAIL、exit1，未加载media／SceneManager或背景，同样GL0x500。证明残留来自既有Ogre启动；不得把启动失败计为PASS |
+| 静态审查与布局 | `build/v09c/layout-r1/review-receipt-r2.json`为独立只读STATIC_PASS，409源码／135管理项匹配。真实公开mask64B，private cache／candidate镜像72／56B；每collect向量元素峰值528KiB，保留首快照再确认为656KiB。allocator／容器／mesh等另计，非完整RSS |
+| World公开面 | 按现有PS算法用Python核对签名与责任图95项（54 Query／38 Command／3 Tick），SHA`CEDBD82F…1B57D0`；不宣称运行PowerShell或Windows门禁 |
+
+故障源码只在隔离目录编译，原生成工程的共享object／dependency、生产源码与包未被负例改写。
+原CAVE_BOUNDARY主体在最终guard更改后未变，不用旧资源193数量冒充最终198结果。
+GPU总FAIL保留，不把53个分项PASS改写为整体PASS。逐stage当前renderer构造／533次sync、
+VBO／IB／atlas读回、离屏绘制和析构均零GL错误；无背景启动基线同样错误，已有Engine未改。
+r3选择性API trace的10次错误来自实际FBO格式探测：A8的GL_ALPHA、B5G6R5的GL_BGR／packed565，
+八SNORM的sized内部token被用于origin format。trace会消费错误并影响probe观察及coalescing，
+不把10次当原始残留计数，也不据此声称全部format支持；正常无trace基线残留计数为1。
+A8修复还需保留alpha采样语义，不为本批改Engine映射或降低全局门槛。
+
+r4 Debug离屏读取触发getGLUsage的unknown usage flags断言：工具RTT仅TU_RENDERTARGET，
+漏HBU基础usage。r5仅tool追加TU_STATIC_WRITE_ONLY后两配置完整功能均跑完，无生产源码变化。
+原r4 source、-6退出、日志及Apple DiagnosticReports相关栈提取保留；LLDB尝试lost connection、
+exit1，未取得stack，不声称调试器通过。r1／r2 Release各53／1和r4各项真实失败均保留。
+
+### 原图、容量和普通窗口
+
+冻结旧包`V09cBefore.app`保留V07c Release SHA`6d449abe…d8e3e`和406源码；
+新包r2 SHA`87688321…7ca46c`、409源码／135项。最终前后各九组对照：
+RD1／2／8昼time6000与夜18000各6，Debug RD1昼1，真实入口与地表昼各1。
+洞室与前后天空guard均同位置、朝向、FOV90、Medium／Off、1280×720原生像素，
+seed239701883／保存terrain29，原火把库存15保留；隐藏、不激活且`normal_input=false`。
+Release采5／15秒，Debug采15／30秒；拍摄期间时钟正常推进，不宣称同步步态或像素完全相等。
+入口`372.5 90 -506.5`及地表`364.5 99 -506.5`朝向`-8 -90 0`，顶部／室外天空实际保留。
+入口画面中央原有灰矩形在旧包已存在，本批不宣称全部入口背景观感已关闭。
+
+最终九组必要帧已直接查看：RD1昼夜远端不再显示室外天空，近处火把、岩壁和水面保持；
+RD2／8真实后续岩壁仍可见；入口真实天光口和地表天空没有被暗mask遮住。
+每组capture.json保留完整源码／包身份、环境、PNG哈希尺寸及RSS。日志峰值scan8／upload7，
+固定gpu_bytes712704，末尾稳定不重复owned采样。独立`final-capture-audit-r2.json`核对前后
+36张原PNG、36不同哈希及全部包文件／条件匹配；九组RSS163.336–368.074MiB，cache最大427、
+live最大136，末尾十条scan／update／deferred均0。该审计仅STATIC_METADATA_LOG_PASS，
+false确认Ogre控制器未由采集日志单独观察，不能用此日志审计代替GPU fixture。
+固定窗口不是2048满槽或全部高RD覆盖证据。
+严格配对性能仍延期；此含PNG读回的RSS／帧率不作严格前后性能结论。
+
+`.local-evidence/visual-polish-20260928/v09c-cave-boundary/`保存三张r2后图和三张冻结前图，
+复制逐字节一致，未裁切／放大／调色。总29轮122张（81后／41前），manifest保持捕获时的
+真实提交前身份，implementation_commit已补`3fd7431a`；不改写capture_metadata、不提交PNG。来源、SHA及变化说明
+见本地index、manifest与`archive-verification-r2.json`。
+
+首个before-r1采集因预期pixel ratio2而实际1失败，原1280×720帧保留；随后按原生1倍采集，
+没有插值放大。r1包在guard后源码不一致的staging审查也保留，最终r2重新打包后匹配；
+不能把staging身份不一致写成最终产品失败。GL fixture基线失败、Debug fixture断言和旧版悬空／首版掩埋等历史证据不删除。
+
+普通菜单会话只传ROOT、隔离CATALOGUE_DIR与SHOW_DEBUG_INFO三项，无runtime强制机位、
+seed、time、库存或hidden。隔离复制V11实际火把存档并明确准备保存的朝向及名称，
+`ordinary-preparation-r1.json`记录源／新meta SHA；这一fixture不计普通寻找入口或采集／返回。
+LaunchServices正常实例handle17266、PID58567／窗口5382确认后，首次CUA选择返回Mac锁屏，
+实际未输入。已提示解锁并保留同一会话，普通视距切换／保存重进均NOT_RUN；
+不以启动日志或等待命令退出码冒充窗口输入、client退出码或正常玩法。
+
+只读审查时用户33个存档文件及集合、受保护正式包和冻结旧包各133管理项未变，
+普通工作包配置与基线SHA`70d9f6e9…16047`一致。当前正常实例仍保留，结束前不恢复配置或
+刷新包。下一步先查询同一PID／窗口与锁屏状态；功能验证与实现提交已完成；普通会话结束后安全刷新并同步恢复区，
+继续V07近距动物／真实动作、普通三seed地下进出／收获／返回及其余已批准方向。
+V09和总Goal仍Doing／active，人工审美／独立试玩／严格配对性能沿用DEFERRED_BY_USER。
