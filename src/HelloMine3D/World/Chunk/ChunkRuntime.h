@@ -2,6 +2,7 @@
 #define CHUNKRUNTIME_H_INCLUDED
 
 #include <atomic>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
@@ -30,12 +31,28 @@ struct WorldSectionMeshSnapshot : WorldSectionMeshVersion {
     ChunkMeshCollection meshes;
 };
 
+struct WorldBoundaryMaskFace {
+    glm::ivec3 location{0};
+    // 0: -X, 1: +X, 2: -Z, 3: +Z. Rows are local Y; bits are Z/X.
+    std::uint8_t face = 0;
+    std::uint32_t blockRevision = 0;
+    std::uint64_t incarnation = 0;
+    std::array<std::uint16_t, 16> rows{};
+};
+
 struct WorldMeshSnapshot {
     std::vector<glm::ivec3> liveSections;
     std::vector<WorldSectionMeshVersion> liveSectionVersions;
     std::vector<WorldSectionMeshSnapshot> cpuReadySections;
     std::size_t cpuReadyTotal = 0;
     std::size_t cpuReadyDeferred = 0;
+    std::vector<WorldBoundaryMaskFace> boundaryMasks;
+    std::size_t boundaryMaskCandidates = 0;
+    // Includes dirty selected faces and candidates beyond the cache cap.
+    std::size_t boundaryMaskDeferred = 0;
+    std::size_t boundaryMaskFacesScanned = 0;
+    std::size_t boundaryMaskCellsScanned = 0;
+    std::size_t boundaryMaskCacheEntries = 0;
 };
 
 struct ChunkBackpressureDebugStats {
@@ -70,6 +87,10 @@ class ChunkRuntime final : public NonCopyable {
     static constexpr std::size_t MaxAuthoritativeCommitsPerPass = 8;
     static constexpr std::size_t MaxSectionUploadsPerFrame = 8;
     static constexpr std::size_t MaxUnloadsPerUpdate = 8;
+    static constexpr std::size_t MaxBoundaryMaskCacheEntries = 2048;
+    static constexpr std::size_t MaxBoundaryMaskFacesPerSnapshot = 8;
+    static constexpr std::size_t MaxBoundaryMaskCellsPerSnapshot =
+        MaxBoundaryMaskFacesPerSnapshot * CHUNK_AREA;
 
     ChunkRuntime(ChunkManager &chunkManager, std::mutex &worldMutex,
                  int renderDistance);
@@ -87,7 +108,8 @@ class ChunkRuntime final : public NonCopyable {
     void startLoader();
     void stopLoader();
 
-    WorldMeshSnapshot collectSectionMeshSnapshot();
+    WorldMeshSnapshot collectSectionMeshSnapshot(
+        bool captureBoundaryMasks = true);
     void acknowledgeSectionMeshUploads(
         const std::vector<WorldSectionMeshVersion> &versions);
 
@@ -134,6 +156,11 @@ class ChunkRuntime final : public NonCopyable {
         bool valid = false;
     };
 
+    struct BoundaryMaskCacheEntry {
+        WorldBoundaryMaskFace mask;
+        bool valid = false;
+    };
+
     void queueSectionUpdateLocked(const glm::ivec3 &key);
     void invalidateWorldJobs();
     void refreshSpatialInterestLocked();
@@ -145,6 +172,8 @@ class ChunkRuntime final : public NonCopyable {
 
     std::deque<glm::ivec3> m_chunkUpdateQueue;
     std::unordered_set<glm::ivec3, IVec3Hash> m_queuedChunkUpdates;
+    // Sorted by section coordinates and face. Guarded by m_worldMutex.
+    std::vector<BoundaryMaskCacheEntry> m_boundaryMaskCache;
 
     std::atomic<bool> m_isRunning{true};
     std::vector<std::thread> m_chunkLoadThreads;

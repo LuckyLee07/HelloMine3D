@@ -3440,9 +3440,10 @@ void World::update(const Camera &camera)
         ChunkMeshRebuildBudgetPerUpdate);
 }
 
-WorldMeshSnapshot World::collectSectionMeshSnapshot()
+WorldMeshSnapshot World::collectSectionMeshSnapshot(
+    bool captureBoundaryMasks)
 {
-    return m_chunkRuntime.collectSectionMeshSnapshot();
+    return m_chunkRuntime.collectSectionMeshSnapshot(captureBoundaryMasks);
 }
 
 void World::acknowledgeSectionMeshUploads(

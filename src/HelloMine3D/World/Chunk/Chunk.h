@@ -7,6 +7,7 @@
 #include "ChunkSection.h"
 #include "ChunkLifecycle.h"
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <vector>
 
@@ -18,6 +19,10 @@ class Chunk : public IChunk {
     Chunk() = default;
     Chunk(World &world, const glm::ivec2 &location,
           bool updateWorldIndex = true);
+    Chunk(const Chunk &) = delete;
+    Chunk &operator=(const Chunk &) = delete;
+    Chunk(Chunk &&) = default;
+    Chunk &operator=(Chunk &&) = default;
 
     /// Index of a section whose mesh needs rebuilding, searched outwards from
     /// `preferredSectionY`, or -1 when everything is up to date.
@@ -40,6 +45,10 @@ class Chunk : public IChunk {
     bool transitionDataResidency(ChunkDataResidencyState state) noexcept;
     void clearSaveDirty() noexcept;
     std::size_t getSectionCount() const noexcept;
+    std::uint64_t getIncarnation() const noexcept
+    {
+        return m_incarnation;
+    }
     std::size_t countSections(ChunkMeshState state) const noexcept;
     void collectBlockData(std::vector<Block_t> &blockIds,
                           std::vector<BlockMetadata_t> &metadata) const;
@@ -70,6 +79,7 @@ class Chunk : public IChunk {
     void deleteMeshes();
 
   private:
+    static std::uint64_t nextIncarnation() noexcept;
     void addSection();
     void addSectionsBlockTarget(int blockY);
     void addSectionsIndexTarget(int index);
@@ -87,6 +97,8 @@ class Chunk : public IChunk {
     ChunkDataResidencyState m_dataResidencyState =
         ChunkDataResidencyState::Absent;
     bool m_saveDirty = false;
+    // Transient identity follows moves, but changes on authoritative reload.
+    std::uint64_t m_incarnation = nextIncarnation();
 };
 
 #endif // CHUNK_H_INCLUDED

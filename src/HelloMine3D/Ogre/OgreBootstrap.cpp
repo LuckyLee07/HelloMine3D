@@ -1,6 +1,7 @@
 #include "OgreBootstrap.h"
 #include "OgreActorRenderer.h"
 #include "OgrePlayerRenderer.h"
+#include "OgreCaveBoundaryRenderer.h"
 #include "../Actor/EnemyPresentationGallery.h"
 #include "../Presentation/DirectionalShadowPresentation.h"
 #include "ChunkSectionRenderable.h"
@@ -1136,6 +1137,8 @@ namespace
             m_playerRenderer->setCastShadows(
                 m_directionalShadowQuality !=
                 DirectionalShadowQuality::Off);
+            m_caveBoundaryRenderer =
+                std::make_unique<OgreCaveBoundaryRenderer>(*m_sceneManager);
             m_blockFeedback =
                 std::make_unique<OgreBlockFeedback>(*m_sceneManager);
             TerrainBuildSummary terrain;
@@ -2138,6 +2141,10 @@ namespace
             clearTerrainBatches();
             m_sectionRenderStates.clear();
             m_lastLiveSections.clear();
+            if (m_caveBoundaryRenderer != nullptr)
+            {
+                m_caveBoundaryRenderer->clear();
+            }
             destroyDirectionalShadowResources();
             m_actorRenderer.reset();
             m_playerRenderer.reset();
@@ -3194,6 +3201,36 @@ namespace
 
             WorldMeshSnapshot snapshot =
                 m_world->collectSectionMeshSnapshot();
+            if (m_caveBoundaryRenderer != nullptr)
+            {
+                m_caveBoundaryRenderer->sync(snapshot.boundaryMasks);
+                const auto &stats = m_caveBoundaryRenderer->stats();
+                m_boundaryMaskPeakFacesScanned = std::max(
+                    m_boundaryMaskPeakFacesScanned,
+                    snapshot.boundaryMaskFacesScanned);
+                m_boundaryMaskPeakUpdates = std::max(
+                    m_boundaryMaskPeakUpdates, stats.updatesThisSync);
+                ++m_boundaryMaskSyncCount;
+                if (m_renderCapture != nullptr &&
+                    m_boundaryMaskSyncCount % 60 == 1)
+                {
+                    std::cout << "[CAVE_BOUNDARY] candidates="
+                              << snapshot.boundaryMaskCandidates
+                              << " cache=" << snapshot.boundaryMaskCacheEntries
+                              << " cpu_deferred=" << snapshot.boundaryMaskDeferred
+                              << " scanned_faces=" << snapshot.boundaryMaskFacesScanned
+                              << " scanned_cells=" << snapshot.boundaryMaskCellsScanned
+                              << " live=" << stats.liveFaces
+                              << " gpu_deferred=" << stats.deferredFaces
+                              << " updates=" << stats.updatesThisSync
+                              << " hidden=" << stats.hiddenFacesThisSync
+                              << " texture_patch_bytes=" << stats.texturePatchBytesThisSync
+                              << " vertex_patch_bytes=" << stats.vertexPatchBytesThisSync
+                              << " gpu_bytes=" << stats.gpuBytes
+                              << " peak_scanned_faces=" << m_boundaryMaskPeakFacesScanned
+                              << " peak_updates=" << m_boundaryMaskPeakUpdates << '\n';
+                }
+            }
             // World height increases the number of live sections. Rebuilding
             // their string index every idle frame does not change residency.
             if (snapshot.liveSections != m_lastLiveSections)
@@ -3288,7 +3325,11 @@ namespace
             }
             m_world->acknowledgeSectionMeshUploads(uploaded);
             const WorldMeshSnapshot acknowledged =
-                m_world->collectSectionMeshSnapshot();
+                m_world->collectSectionMeshSnapshot(false);
+            if (m_caveBoundaryRenderer != nullptr)
+            {
+                m_caveBoundaryRenderer->sync(acknowledged.boundaryMasks, false);
+            }
             for (const WorldSectionMeshVersion& version : uploaded)
             {
                 const std::string key = sectionKey(version.location);
@@ -5873,6 +5914,7 @@ namespace
             }
             m_sectionVisuals.clear();
             clearTerrainBatches();
+            m_caveBoundaryRenderer.reset();
             m_sectionRenderStates.clear();
             m_lastLiveSections.clear();
             destroyDirectionalShadowResources();
@@ -5960,6 +6002,10 @@ namespace
         int m_blockFeedbackCaptureLastStage = -2;
         std::unique_ptr<OgreActorRenderer> m_actorRenderer;
         std::unique_ptr<OgrePlayerRenderer> m_playerRenderer;
+        std::unique_ptr<OgreCaveBoundaryRenderer> m_caveBoundaryRenderer;
+        std::size_t m_boundaryMaskSyncCount = 0;
+        std::size_t m_boundaryMaskPeakFacesScanned = 0;
+        std::size_t m_boundaryMaskPeakUpdates = 0;
         PlayerAvatarPresentation::Profile m_playerAvatarProfile =
             PlayerAvatarPresentation::defaultProfile();
         PlayerAvatarPresentation::PoseHistory m_playerAvatarPoseHistory;
@@ -6090,6 +6136,8 @@ int runOgreBootstrap(bool validateOnly,
         validateDirectionalShadowShaderContract(
             runtimeResourcePackResolver());
         validatePostProcessingShaderContract(
+            runtimeResourcePackResolver());
+        validateCaveBoundaryShaderContract(
             runtimeResourcePackResolver());
         BlockDatabase::get();
         runtimeRecipeRegistry().freezeFromResourceView(

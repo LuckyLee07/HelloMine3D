@@ -20,4 +20,8 @@ void validateDirectionalShadowShaderContract(
 void validatePostProcessingShaderContract(
     const ResourcePackResolver &resolver);
 
+/// The bounded dark-air background has a separate vertex layout and sampler.
+void validateCaveBoundaryShaderContract(
+    const ResourcePackResolver &resolver);
+
 #endif // ATMOSPHERE_SHADER_CONTRACT_H_INCLUDED

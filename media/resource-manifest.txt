@@ -84,6 +84,8 @@ shader|media/ogre/HelloMine3DActorShadow.vert
 shader|media/ogre/HelloMine3DBlockFeedback.frag
 shader|media/ogre/HelloMine3DBlockParticle.frag
 shader|media/ogre/HelloMine3DBlockParticle.vert
+shader|media/ogre/HelloMine3DCaveBoundary.frag
+shader|media/ogre/HelloMine3DCaveBoundary.vert
 shader|media/ogre/HelloMine3DDirectionalShadowCaster.frag
 shader|media/ogre/HelloMine3DDirectionalShadowCaster.vert
 shader|media/ogre/HelloMine3DFlora.vert

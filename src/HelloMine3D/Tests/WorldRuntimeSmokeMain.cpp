@@ -21239,6 +21239,7 @@ void caseWorldManager()
 #include "VegetationPolishSmokeCases.h"
 #include "NaturalTreeOwnershipSmokeCases.h"
 #include "NaturalTreeRootTagSmokeCases.h"
+#include "CaveBoundarySmokeCases.h"
 #include "LocalReliefSmokeCases.h"
 #include "RockLandmarkSmokeCases.h"
 #include "WaterbankPolishSmokeCases.h"
@@ -21531,6 +21532,9 @@ int main()
             caseSectionMeshInput();
             caseEnclosedSectionSkip();
         }
+        else if (focus != nullptr && std::string(focus) == "CAVE_BOUNDARY") {
+            caseCaveBoundaryMasks();
+        }
         else if (focus != nullptr && std::string(focus) == "LIGHT_BOUNDARY") {
             caseBlockLightStorage();
             caseLocalRelightAfterEdits();
@@ -21761,6 +21765,7 @@ int main()
         caseBlockLightStorage();
         caseLocalRelightAfterEdits();
         caseBoundaryLightLoading();
+        caseCaveBoundaryMasks();
         caseEnclosedSectionSkip();
         caseFrustumMeshPriority();
         caseStreamingDemandModel();

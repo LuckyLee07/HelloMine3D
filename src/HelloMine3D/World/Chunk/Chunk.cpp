@@ -12,10 +12,17 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cassert>
 #include <deque>
 #include <string>
 #include <utility>
+
+std::uint64_t Chunk::nextIncarnation() noexcept
+{
+    static std::atomic<std::uint64_t> next{1};
+    return next.fetch_add(1, std::memory_order_relaxed);
+}
 
 Chunk::Chunk(World &world, const glm::ivec2 &location,
              bool updateWorldIndex)
@@ -367,6 +374,7 @@ void Chunk::loadBlockData(std::size_t sectionCount,
                           bool updateWorldIndex)
 {
     assert(updateWorldIndex || !m_worldIndexUpdatesEnabled);
+    m_incarnation = nextIncarnation();
     if (updateWorldIndex) {
         m_pWorld->removeRandomTickSectionsForChunk(m_location.x,
                                                    m_location.y);

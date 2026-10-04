@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <limits>
+#include <tuple>
 #include <unordered_map>
 
 #include "../../Core/Camera.h"
@@ -14,6 +16,64 @@
 
 namespace
 {
+    bool boundaryMaskKeyLess(const WorldBoundaryMaskFace &left,
+                             const WorldBoundaryMaskFace &right)
+    {
+        return std::tie(left.location.x, left.location.y, left.location.z,
+                        left.face) <
+               std::tie(right.location.x, right.location.y,
+                        right.location.z, right.face);
+    }
+
+    struct BoundaryMaskCandidate {
+        glm::ivec3 location{0};
+        ChunkSection *section = nullptr;
+        std::uint64_t incarnation = 0;
+        std::uint64_t verticalDistance = 0;
+        std::uint64_t horizontalDistanceSquared = 0;
+        std::uint32_t blockRevision = 0;
+        std::uint8_t face = 0;
+        bool horizontalDistanceCarry = false;
+    };
+
+    bool boundaryCandidatePriorityLess(const BoundaryMaskCandidate &left,
+                                       const BoundaryMaskCandidate &right)
+    {
+        return std::tie(left.verticalDistance, left.horizontalDistanceCarry,
+                        left.horizontalDistanceSquared, left.location.x,
+                        left.location.y, left.location.z, left.face) <
+               std::tie(right.verticalDistance,
+                        right.horizontalDistanceCarry,
+                        right.horizontalDistanceSquared, right.location.x,
+                        right.location.y, right.location.z, right.face);
+    }
+
+    BoundaryMaskCandidate boundaryCandidate(
+        ChunkSection &section, const Chunk &chunk, std::uint8_t face,
+        int demandSectionY, const VectorXZ &origin)
+    {
+        BoundaryMaskCandidate candidate;
+        candidate.location = section.getLocation();
+        candidate.section = &section;
+        candidate.incarnation = chunk.getIncarnation();
+        candidate.blockRevision = section.getBlockRevision();
+        candidate.face = face;
+        candidate.verticalDistance = static_cast<std::uint64_t>(std::abs(
+            static_cast<std::int64_t>(candidate.location.y) -
+            demandSectionY));
+        const auto dx = static_cast<std::uint64_t>(std::abs(
+            static_cast<std::int64_t>(candidate.location.x) - origin.x));
+        const auto dz = static_cast<std::uint64_t>(std::abs(
+            static_cast<std::int64_t>(candidate.location.z) - origin.z));
+        const std::uint64_t xSquared = dx * dx;
+        const std::uint64_t zSquared = dz * dz;
+        candidate.horizontalDistanceSquared = xSquared + zSquared;
+        // Two squared int-coordinate differences fit in 65 unsigned bits.
+        candidate.horizontalDistanceCarry =
+            candidate.horizontalDistanceSquared < xSquared;
+        return candidate;
+    }
+
     int chunkDistanceSquared(const VectorXZ &chunk, const VectorXZ &center)
     {
         const int dx = chunk.x - center.x;
@@ -453,13 +513,15 @@ void ChunkRuntime::unloadDistantChunks(const Camera &camera)
 void ChunkRuntime::resetMeshes()
 {
     std::unique_lock<std::mutex> lock(m_worldMutex);
+    m_boundaryMaskCache.clear();
     m_chunkManager.deleteMeshes();
     m_loadDistance.store(2);
     m_chunkLoadRevision.fetch_add(1);
     invalidateWorldJobs();
 }
 
-WorldMeshSnapshot ChunkRuntime::collectSectionMeshSnapshot()
+WorldMeshSnapshot ChunkRuntime::collectSectionMeshSnapshot(
+    bool captureBoundaryMasks)
 {
     VectorXZ uploadOrigin{0, 0};
     SpatialInterestSnapshot spatialInterest;
@@ -472,6 +534,9 @@ WorldMeshSnapshot ChunkRuntime::collectSectionMeshSnapshot()
 
     WorldMeshSnapshot snapshot;
     std::vector<glm::ivec3> readySections;
+    std::vector<BoundaryMaskCandidate> boundaryCandidates;
+    boundaryCandidates.reserve(MaxBoundaryMaskCacheEntries);
+    const int demandSectionY = m_demandSectionY.load();
     for (auto &entry : m_chunkManager.getChunks()) {
         Chunk &chunk = entry.second;
         if (!chunk.hasLoaded()) {
@@ -482,6 +547,27 @@ WorldMeshSnapshot ChunkRuntime::collectSectionMeshSnapshot()
             spatialInterest, {chunkLocation.x, chunkLocation.y});
         if (!interest.requiresNearRepresentation) {
             continue;
+        }
+
+        std::array<bool, 4> boundaryFaces{};
+        constexpr std::array<int, 4> adjacentX{{-1, 1, 0, 0}};
+        constexpr std::array<int, 4> adjacentZ{{0, 0, -1, 1}};
+        for (std::size_t face = 0; face < boundaryFaces.size(); ++face) {
+            const std::int64_t x =
+                static_cast<std::int64_t>(chunkLocation.x) + adjacentX[face];
+            const std::int64_t z =
+                static_cast<std::int64_t>(chunkLocation.y) + adjacentZ[face];
+            const bool representable =
+                x >= std::numeric_limits<int>::min() &&
+                x <= std::numeric_limits<int>::max() &&
+                z >= std::numeric_limits<int>::min() &&
+                z <= std::numeric_limits<int>::max();
+            boundaryFaces[face] =
+                !representable ||
+                !SpatialInterestModel::interestAt(
+                     spatialInterest,
+                     {static_cast<int>(x), static_cast<int>(z)})
+                     .requiresNearRepresentation;
         }
 
         for (std::size_t sectionIndex = 0;
@@ -495,6 +581,33 @@ WorldMeshSnapshot ChunkRuntime::collectSectionMeshSnapshot()
             snapshot.liveSections.push_back(section->getLocation());
             snapshot.liveSectionVersions.push_back(
                 {section->getLocation(), section->getBlockRevision()});
+            for (std::size_t face = 0; face < boundaryFaces.size(); ++face) {
+                if (!boundaryFaces[face]) {
+                    continue;
+                }
+                ++snapshot.boundaryMaskCandidates;
+                const BoundaryMaskCandidate candidate = boundaryCandidate(
+                    *section, chunk, static_cast<std::uint8_t>(face),
+                    demandSectionY, uploadOrigin);
+                // A bounded max-heap keeps only the highest-priority faces;
+                // all candidates are counted without an uncapped scratch list.
+                if (boundaryCandidates.size() < MaxBoundaryMaskCacheEntries) {
+                    boundaryCandidates.push_back(candidate);
+                    std::push_heap(boundaryCandidates.begin(),
+                                   boundaryCandidates.end(),
+                                   boundaryCandidatePriorityLess);
+                }
+                else if (boundaryCandidatePriorityLess(
+                             candidate, boundaryCandidates.front())) {
+                    std::pop_heap(boundaryCandidates.begin(),
+                                  boundaryCandidates.end(),
+                                  boundaryCandidatePriorityLess);
+                    boundaryCandidates.back() = candidate;
+                    std::push_heap(boundaryCandidates.begin(),
+                                   boundaryCandidates.end(),
+                                   boundaryCandidatePriorityLess);
+                }
+            }
             if (section->getMeshState() !=
                 ChunkMeshState::CpuReady) {
                 continue;
@@ -502,6 +615,78 @@ WorldMeshSnapshot ChunkRuntime::collectSectionMeshSnapshot()
             readySections.push_back(section->getLocation());
         }
     }
+
+    std::sort(boundaryCandidates.begin(), boundaryCandidates.end(),
+              boundaryCandidatePriorityLess);
+    std::vector<BoundaryMaskCacheEntry> currentBoundaryCache;
+    currentBoundaryCache.reserve(boundaryCandidates.size());
+    snapshot.boundaryMasks.reserve(boundaryCandidates.size());
+    std::size_t validBoundaryFaces = 0;
+    for (const BoundaryMaskCandidate &candidate : boundaryCandidates) {
+        BoundaryMaskCacheEntry entry;
+        entry.mask.location = candidate.location;
+        entry.mask.face = candidate.face;
+        entry.mask.blockRevision = candidate.blockRevision;
+        entry.mask.incarnation = candidate.incarnation;
+        const auto previous = std::lower_bound(
+            m_boundaryMaskCache.begin(), m_boundaryMaskCache.end(),
+            entry.mask,
+            [](const BoundaryMaskCacheEntry &cached,
+               const WorldBoundaryMaskFace &key) {
+                return boundaryMaskKeyLess(cached.mask, key);
+            });
+        if (previous != m_boundaryMaskCache.end() && previous->valid &&
+            !boundaryMaskKeyLess(entry.mask, previous->mask) &&
+            previous->mask.blockRevision == candidate.blockRevision &&
+            previous->mask.incarnation == candidate.incarnation) {
+            entry = *previous;
+        }
+        else if (captureBoundaryMasks &&
+                 snapshot.boundaryMaskFacesScanned <
+                     MaxBoundaryMaskFacesPerSnapshot) {
+            for (int y = 0; y < CHUNK_SIZE; ++y) {
+                for (int u = 0; u < CHUNK_SIZE; ++u) {
+                    const int x = candidate.face < 2
+                                      ? (candidate.face == 0 ? 0
+                                                             : CHUNK_SIZE - 1)
+                                      : u;
+                    const int z = candidate.face >= 2
+                                      ? (candidate.face == 2 ? 0
+                                                             : CHUNK_SIZE - 1)
+                                      : u;
+                    if (candidate.section->getBlock(x, y, z).id ==
+                            static_cast<Block_t>(BlockId::Air) &&
+                        candidate.section->getSunlight(x, y, z) == 0) {
+                        entry.mask.rows[static_cast<std::size_t>(y)] |=
+                            static_cast<std::uint16_t>(1u << u);
+                    }
+                }
+            }
+            entry.valid = true;
+            ++snapshot.boundaryMaskFacesScanned;
+            snapshot.boundaryMaskCellsScanned += CHUNK_AREA;
+        }
+
+        if (entry.valid) {
+            ++validBoundaryFaces;
+            if (std::any_of(entry.mask.rows.begin(), entry.mask.rows.end(),
+                            [](std::uint16_t row) { return row != 0; })) {
+                snapshot.boundaryMasks.push_back(entry.mask);
+            }
+        }
+        currentBoundaryCache.push_back(std::move(entry));
+    }
+    // Replacement prunes departed faces and drops dirty old values immediately.
+    // Zero masks remain valid entries, and no consumer owns a one-shot delta.
+    std::sort(currentBoundaryCache.begin(), currentBoundaryCache.end(),
+              [](const BoundaryMaskCacheEntry &left,
+                 const BoundaryMaskCacheEntry &right) {
+                  return boundaryMaskKeyLess(left.mask, right.mask);
+              });
+    m_boundaryMaskCache.swap(currentBoundaryCache);
+    snapshot.boundaryMaskCacheEntries = m_boundaryMaskCache.size();
+    snapshot.boundaryMaskDeferred =
+        snapshot.boundaryMaskCandidates - validBoundaryFaces;
 
     const std::vector<glm::ivec3> selected = planSectionMeshUploads(
         readySections, uploadOrigin, MaxSectionUploadsPerFrame);

@@ -3,7 +3,10 @@
 #include "../../Util/ResourcePackResolver.h"
 
 #include <fstream>
+#include <cctype>
 #include <initializer_list>
+#include <iterator>
+#include <regex>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -381,4 +384,72 @@ void validatePostProcessingShaderContract(
          "smoothContrast",
          "gl_FragCoord.xy",
          "ditherStrength / 255.0"});
+}
+
+void validateCaveBoundaryShaderContract(
+    const ResourcePackResolver &resolver)
+{
+    requireProgramTokens(resolver, "vertex_program",
+        "HelloMine3D/CaveBoundaryVertex",
+        {"source HelloMine3DCaveBoundary.vert", "syntax glsl150",
+         "param_named_auto worldViewProj worldviewproj_matrix"});
+    requireProgramTokens(resolver, "fragment_program",
+        "HelloMine3D/CaveBoundaryFragment",
+        {"source HelloMine3DCaveBoundary.frag", "syntax glsl150",
+         "param_named caveBoundaryMask int 0"});
+    requireTokens(resolver, "media/ogre/HelloMine3DCaveBoundary.vert",
+        {"in vec4 vertex;", "in vec2 uv0;", "uniform mat4 worldViewProj;",
+         "out vec2 boundaryUV;"});
+    requireTokens(resolver, "media/ogre/HelloMine3DCaveBoundary.frag",
+        {"in vec2 boundaryUV;", "uniform sampler2D caveBoundaryMask;",
+         "out vec4 fragColour;"});
+
+    const std::string material = readText(
+        resolver, "media/ogre/HelloMine3D.material");
+    const std::string declaration = "material HelloMine3D/CaveBoundary";
+    auto start = material.find(declaration);
+    while (start != std::string::npos) {
+        const auto next = start + declaration.size();
+        if (next == material.size() || material[next] == '{' ||
+            material[next] == ':' ||
+            std::isspace(static_cast<unsigned char>(material[next]))) break;
+        start = material.find(declaration, next);
+    }
+    const auto open = start == std::string::npos ? std::string::npos :
+        material.find('{', start + declaration.size());
+    auto end = open;
+    int depth = 0;
+    if (open != std::string::npos) {
+        do {
+            if (material[end] == '{') ++depth;
+            else if (material[end] == '}') --depth;
+            ++end;
+        } while (end < material.size() && depth > 0);
+    }
+    const std::string body = open != std::string::npos && depth == 0 ?
+        material.substr(open, end - open) : "";
+    const std::string code = std::regex_replace(body,
+        std::regex(R"(/\*[\s\S]*?\*/|//[^\r\n]*)"), "");
+    for (const char *token : {
+             "receive_shadows off", "depth_check on", "depth_write off",
+             "cull_hardware none", "lighting off",
+             "vertex_program_ref HelloMine3D/CaveBoundaryVertex",
+             "fragment_program_ref HelloMine3D/CaveBoundaryFragment",
+             "texture_unit caveBoundaryMask", "filtering none"}) {
+        if (code.find(token) == std::string::npos) {
+            throw std::runtime_error(std::string(
+                "Cave boundary material: missing interface declaration '") +
+                token + "'.");
+        }
+    }
+    // The named sampler is bound to texture unit zero. Extra techniques,
+    // passes or units would make the source interface ambiguous.
+    for (const char *word : {"technique", "pass", "texture_unit"}) {
+        const std::regex token(std::string("\\b") + word + "\\b");
+        if (std::distance(std::sregex_iterator(code.begin(), code.end(), token),
+                          std::sregex_iterator()) != 1) {
+            throw std::runtime_error(std::string(
+                "Cave boundary material: requires exactly one ") + word + ".");
+        }
+    }
 }

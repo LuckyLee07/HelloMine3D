@@ -21,6 +21,35 @@ material HelloMine3D/Skybox
     }
 }
 
+// Owned dark-air cells at the finite visual boundary replace only sky pixels.
+// The renderer places this pass after the sky and before ordinary geometry.
+material HelloMine3D/CaveBoundary
+{
+    receive_shadows off
+    technique
+    {
+        pass
+        {
+            lighting off
+            depth_check on
+            depth_write off
+            cull_hardware none
+
+            vertex_program_ref HelloMine3D/CaveBoundaryVertex
+            {
+            }
+            fragment_program_ref HelloMine3D/CaveBoundaryFragment
+            {
+            }
+            texture_unit caveBoundaryMask
+            {
+                tex_address_mode clamp
+                filtering none
+            }
+        }
+    }
+}
+
 material HelloMine3D/Terrain
 {
     technique

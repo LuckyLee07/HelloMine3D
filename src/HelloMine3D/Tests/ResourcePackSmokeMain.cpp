@@ -161,6 +161,8 @@ namespace
             {"shader", "media/ogre/HelloMine3DActor.vert"},
             {"shader", "media/ogre/HelloMine3DActorShadow.frag"},
             {"shader", "media/ogre/HelloMine3DActorShadow.vert"},
+            {"shader", "media/ogre/HelloMine3DCaveBoundary.frag"},
+            {"shader", "media/ogre/HelloMine3DCaveBoundary.vert"},
             {"shader", "media/ogre/HelloMine3DDirectionalShadowCaster.frag"},
             {"shader", "media/ogre/HelloMine3DDirectionalShadowCaster.vert"},
             {"shader", "media/ogre/HelloMine3DFlora.vert"},
@@ -956,6 +958,85 @@ namespace
                       },
                       "missing interface declaration"));
         }
+    }
+
+    void caseCaveBoundaryShaderContract()
+    {
+        const fs::path root = freshRoot("cave-boundary");
+        const std::vector<std::pair<std::string, std::string>> fixture = {
+            {"media/ogre/HelloMine3DCaveBoundary.vert",
+             "in vec4 vertex;\nin vec2 uv0;\nuniform mat4 worldViewProj;\nout vec2 boundaryUV;\n"},
+            {"media/ogre/HelloMine3DCaveBoundary.frag",
+             "in vec2 boundaryUV;\nuniform sampler2D caveBoundaryMask;\nout vec4 fragColour;\n"},
+            {"media/ogre/HelloMine3D.program",
+             "vertex_program HelloMine3D/CaveBoundaryVertex glsl {\n"
+             "source HelloMine3DCaveBoundary.vert\nsyntax glsl150\n"
+             "param_named_auto worldViewProj worldviewproj_matrix\n}\n"
+             "fragment_program HelloMine3D/CaveBoundaryFragment glsl {\n"
+             "source HelloMine3DCaveBoundary.frag\nsyntax glsl150\n"
+             "param_named caveBoundaryMask int 0\n}\n"},
+            {"media/ogre/HelloMine3D.material",
+             "material HelloMine3D/CaveBoundary {\nreceive_shadows off\ntechnique { pass {\n"
+             "depth_check on\ndepth_write off\ncull_hardware none\nlighting off\n"
+             "vertex_program_ref HelloMine3D/CaveBoundaryVertex\n"
+             "fragment_program_ref HelloMine3D/CaveBoundaryFragment\n"
+             "texture_unit caveBoundaryMask {\nfiltering none\n}\n}\n}\n}\n"}};
+        for (const auto &entry : fixture) writeFile(root / entry.first, entry.second);
+        ResourcePackResolver resolver;
+        resolver.freeze(root.string(), requirements(), {});
+        bool valid = false;
+        try { validateCaveBoundaryShaderContract(resolver); valid = true; }
+        catch (...) {}
+        check("CAVE_BOUNDARY/valid-program-layout-sampler-material", valid);
+        const std::vector<std::pair<std::size_t, std::string>> missing = {
+            {0, "in vec2 uv0;"}, {0, "uniform mat4 worldViewProj;"},
+            {1, "uniform sampler2D caveBoundaryMask;"},
+            {2, "param_named caveBoundaryMask int 0"},
+            {2, "source HelloMine3DCaveBoundary.vert"},
+            {3, "depth_write off"}, {3, "receive_shadows off"},
+            {3, "filtering none"}, {3, "texture_unit caveBoundaryMask"}};
+        for (const auto &test : missing) {
+            const auto &entry = fixture[test.first];
+            std::string changed = entry.second;
+            changed.erase(changed.find(test.second), test.second.size());
+            // Correct tokens in an unrelated material/program cannot repair
+            // the missing interface in the named cave-boundary block.
+            if (test.first >= 2) changed += "\nother { " + test.second + " }\n";
+            writeFile(root / entry.first, changed);
+            check("CAVE_BOUNDARY/reject-missing-" + test.second,
+                throwsContaining([&] { validateCaveBoundaryShaderContract(resolver); },
+                                 "missing interface declaration"));
+            writeFile(root / entry.first, entry.second);
+        }
+        const auto &material = fixture[3];
+        std::string renamed = material.second;
+        const auto materialName = renamed.find("HelloMine3D/CaveBoundary");
+        renamed.insert(materialName + std::string("HelloMine3D/CaveBoundary").size(), "Fake");
+        writeFile(root / material.first, renamed);
+        check("CAVE_BOUNDARY/reject-material-prefix-alias",
+            throwsContaining([&] { validateCaveBoundaryShaderContract(resolver); },
+                             "missing interface declaration"));
+        std::string commented = material.second;
+        commented.replace(commented.find("depth_write off"),
+                          std::string("depth_write off").size(),
+                          "depth_write on // depth_write off");
+        writeFile(root / material.first, commented);
+        check("CAVE_BOUNDARY/comment-cannot-repair-depth-write-interface",
+            throwsContaining([&] { validateCaveBoundaryShaderContract(resolver); },
+                             "missing interface declaration"));
+        for (const char *word : {"technique", "pass", "texture_unit"}) {
+            std::string extra = material.second;
+            extra.insert(extra.rfind('}'), std::string(word) + " extra { }\n");
+            writeFile(root / material.first, extra);
+            check(std::string("CAVE_BOUNDARY/reject-extra-") + word,
+                throwsContaining([&] { validateCaveBoundaryShaderContract(resolver); },
+                                 "requires exactly one"));
+        }
+        writeFile(root / material.first, material.second);
+        fs::remove(root / fixture[1].first);
+        check("CAVE_BOUNDARY/reject-missing-fragment-resource",
+            throwsContaining([&] { validateCaveBoundaryShaderContract(resolver); },
+                             "Unable to read"));
     }
 
     void caseNoPackAndPrecedence()
@@ -1842,6 +1923,7 @@ int main()
     casePlayerLightingShaderContract();
     caseWarmSurfaceShaderContract();
     casePostProcessingShaderContract();
+    caseCaveBoundaryShaderContract();
     caseOptionalAudio();
     caseOptionalMusic();
     caseOptionalPresentationFont();

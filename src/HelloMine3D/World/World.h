@@ -285,7 +285,8 @@ class World : public NonCopyable {
     float getWorldTime() const;
     WorldDebugStats collectDebugStats();
     std::vector<ActorSnapshot> collectActorSnapshots();
-    WorldMeshSnapshot collectSectionMeshSnapshot();
+    WorldMeshSnapshot collectSectionMeshSnapshot(
+        bool captureBoundaryMasks = true);
     void acknowledgeSectionMeshUploads(
         const std::vector<WorldSectionMeshVersion> &versions);
     void preloadAround(const glm::vec3 &position);

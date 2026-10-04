@@ -211,7 +211,7 @@ save v12。C3 topology 没有 tick 行为，因此不存在伪造的 Network wor
 `AL-A1` 为每个公开方法分配两个正交标签：API concept 描述调用语义，responsibility 描述当前主要
 实现领域。重载只列一次；完整声明、重载、公开常量和签名由 public-surface hash 共同保护。
 
-<!-- AL-A1-WORLD-API-HASH sha256=3F1D9BEE7D3690D75804750327AB8A7A5D93AB2AF4E4895D2087A1AF6829DBEF -->
+<!-- AL-A1-WORLD-API-HASH sha256=CEDBD82F40ED2EDF387D481572537354A5E38744EEBBDEA3EB72DC05201B57D0 -->
 <!-- AL-A1-WORLD-API-MAP-BEGIN -->
 | API | Concept | Responsibility | Current boundary |
 | --- | ------- | -------------- | ---------------- |
@@ -325,7 +325,7 @@ save v12。C3 topology 没有 tick 行为，因此不存在伪造的 Network wor
 当前调用关系把边界进一步钉死：`SandboxRuntime/WorldManager` 驱动 `tick/update` 和玩家命令，
 `OgreBootstrap` 消费 mesh/Actor/diagnostic snapshot 并确认 upload，Actor/Block/Interaction 代码通过
 Combat、Actor、World Mutation 与 EventBus 入口协作。AL-A2/AL-A3 都保持当时的 78 项公开面不变；
-C3 为正常 capability 观察新增 `getMechanicalNodeSnapshot`，当前为 79 项：Streaming 方法内部转发给
+C3 为正常 capability 观察新增 `getMechanicalNodeSnapshot`，当时为 79 项；后续扩展的当前责任图为 95 项（54 Query／38 Command／3 Runtime Tick）：Streaming 方法内部转发给
 `ChunkRuntime`，20 Hz `World::tick(int)` 内部转发给 `WorldSimulation::fixedTick`。
 
 该表解释了 AL-A1 的真实动机：查询、命令、模拟、流送、持久化、Actor、战斗、进度和诊断目前
@@ -811,6 +811,14 @@ v1–v23和未知自定义生成器没有owner，保持普通过渡；生成、�
 GL3Plus按program复用VAO；角色、玩家、投射物及手持／掉落物的ManualObject显式写uv3=0，
 避免缺失属性沿用此前地形root流。无纹理对象同时补齐前三UV占位，有纹理对象保留原值。
 详见[视距过渡合同](../contracts/view-distance-transition-contract-v1.md)。
+
+V09c 的地下边界背景复用同一 Near 拓扑与块／天光 revision，以 transient chunk incarnation
+拒绝重载后相同坐标／revision的旧缓存。World快照按需求高度及玩家XZ确定性保留至多2048个
+16×16 bit面，每次首collect至多扫描8面；第二确认false仅处理拓扑／缓存metadata，不扫描格子。
+Ogre用独立696KiB固定quad／R8 atlas表示暗空气后的有限区外背景，sky之后、普通几何之前且不写深度／投影。
+每帧至多8面激活，旧／dirty quad即时退化，第二确认只清理；地形八section上传与四层batch保持。
+缓存零面、deferred和容量截断均显式保留；不能把全部RD32、底层直接光helper或普通地下探索记成已验证。
+预算和真实保护范围见[地下边界背景合同](../contracts/cave-boundary-background-contract-v1.md)。
 
 POSIX Ogre `Timer` 的经过时间使用 `std::chrono::steady_clock`，毫秒/微秒 API 和各实例 reset 语义不变；
 避免系统墙钟校正经 Root 的无符号差值形成巨大帧增量。CPU 时间 API 保持原行为，世界仍按既有 fixed tick
