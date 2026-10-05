@@ -2,6 +2,15 @@
 
 ## 恢复区
 
+- **2026-10-05 V10i：平面粗层同列刷新细历史已实现，完整 V01–V11 仍 Doing，Goal active。**
+  正常两配置 build0／first-party warning0，正式 HUD44／地图88各通过；合成回复的实际队列旧190检查冲突／exit3，提案193无冲突／exit0。
+  当前 Release SHA `e0cbab58…e70dc`、Debug `43225379…f255f`；195列／30Hz、细历史容量、4m归档和save12／terrain30／map4保持。
+  公开 CUA 已恢复实际输入：旧正常菜单创建并保存 seed42／“地图连续性-42”，新 CandidateAfter 普通 Continue 重开后，1/64基地名称／坐标／追踪保持。
+  CandidateAfter PID71691／窗口2765曾实际可用；检测到人工操作后Root停止输入，未关闭／保存／刷新该运行包，退出状态不作断言。
+  两张新客户端原图已核并入精选，现39轮169张；旧167图与entry保持。拟采平移重开图实际为人工操作后的HUD，保留并明确不作为地图证据。旧12包1699文件及普通配置保持。
+  系统89份ips复核与上批相同，未发现今天新增游戏报告；对话框缺确切程序名／时间，归属和根因仍未知，不能仅由Codex Renderer SIGTRAP归因。
+  本批独立 `v10i/After.app`交付及干净提交身份以 `postcommit-verification-r1.json` 的PASS为准；捕获包保留27806557＋真实dirty身份。
+  下一步继续真实改块／同列像素、普通连续路线、切世界、小地图step4接线及全部方向余项；严格配对性能沿用DEFERRED_BY_USER。详见文末V10i。
 - **2026-10-05 V02c：Fern原网格与actual程序专项通过，完整V01–V11仍Doing。**
   几何／UV／shader／生成／存档保持；正常两配置build0／first-party warning0，真实World新ABI软件各991／0。
   原GLSL两模式162／4严格新增候选FAIL保留，既有根门槛通过；错误时钟增加14行为FAIL、正常exit1无signal。
@@ -2746,3 +2755,53 @@ python3 -B tools/tests/pause_notification_capture_oracle.py <本批pause-notific
 完整V01–V10和V00／V11范围不缩减，Goal保持active，各方向整体Doing。CUA沿用最近真实超时reset后的UNKNOWN，
 不因隐藏UI通过而盲目重试或通过OS事件绕过；普通自测仍NOT_RUN。地图连续性、其余设置／背包／机器反馈、
 普通全路线及其他整合继续；严格配对性能沿用DEFERRED_BY_USER，没有新增人工批准关卡。
+
+## V10i：平面粗层同列刷新细历史与普通保存重开（2026-10-05）
+
+### 问题和实现范围
+
+从干净 `27806557` 开始核对地图队列、绘制与选点：RD8 的2m细历史先记同列Water64，
+RD16 的4m实时层后来观察到Sand65，旧细层仍后绘制且先选点，可能遮住该列新状态。
+生产 `MapSurfaceRegion`／`SurfaceMapHistory` 的实际队列执行复现此冲突；地表回复是合成值，
+没有把它称为真实World改块、正常输入或GPU像素复现。
+
+`refreshObserved` 仅刷新既有已知、精确偶数X/Z的细列；不新增页／槽、不向相邻列推断。
+未知保留最后已知，已知Air0／height0可替换旧地表，成功重新观察更新原页LRU。
+平面粗层的长度匹配回复接入此路径，不以 `accept()==true` 为条件：false也可表示实时值未变，
+旧细历史仍须刷新。细间隔保持原observe路径，锁忙长度不匹配不写。采样195列／30Hz、
+容量2048页／131072列、内存边界、4m归档与save12／terrain30／map4均保持。
+本次接线只覆盖活动平面图；小地图step4和立体图的新观察不在本次同步范围。
+
+### 实际证据
+
+证据根 `build/visual-experience-polish-20260928/v10i/`。本批只有三个运行时／测试文件及相关文档变更，
+未改World、生成、存储、Cocoa输入、资源或shader，不重复无关完整世界／资源门禁。
+
+| 检查 | 结果和证据边界 |
+| --- | --- |
+| 合成回复的生产队列 | `map-helper-execution-r2/receipt.json`：旧190检查／fixture0、同列冲突、正常exit3／无signal；提案193／fixture0、无冲突、exit0。实际细队列21025列、RD16待补13440列、step4／side137。提案纯回归86通过，最终正式88另见下行。旧UI绘制／选点只作源码核对，不称已经运行Ogre／World。 |
+| 正式HUD／地图 | `hud-matrix-r2/receipt.json`：Debug／Release各HUD44／地图88、exit0／无signal。14条新增检查含同列、相邻保护、禁止新增页／槽、未知、无变化回复、锁忙、已知空列、负坐标、容量0和LRU。helper计时仅为纯计算，非正常客户端性能。 |
+| 身份桥接 | HUD receipt保留括号修复前UI SHA `0adb0e2d…`，正式test／header／脚本保持；纯测试不编译UI。`validation-identity-bridge-r1.json`用完整文本证明仅两对显式括号的差异；当前UI SHA `a07e64ac…`由正常双配置构建覆盖，不改旧收据身份。 |
+| 正常客户端 | `normal-build-r2/receipt.json`：Xcode两配置均BUILD SUCCEEDED／exit0／无signal／first-party warning0，源码前后保持。Release `e0cbab58…e70dc`，Debug `43225379…f255f`，x86_64、SDK26.2／macOS15.7.3；第三方既有警告保留。打包显式使用Release快照，不能误用最后生成的Debug bin。 |
+| 旧包普通输入 | `ordinary-input-before-fix-r1.json`对应旧Release `ac28168f…78e7d`，真实Singleplayer/Create创建“地图连续性-42”／seed42／Normal／terrain30。实际基地名“岩台出生点”、X-120 Z132、追踪及3D拖动／页面重开、普通保存回菜单通过窄范围；20:45:44完整Ogre关闭、无PID。LaunchServices退出码不可取得，不能写exit0。初始／最终玩家位置不同，不推断连续移动原因。 |
+| 新包普通重开 | 新 `CandidateAfter.app`以当前Release打包，原普通世界8文件及config共9项字节原样复制；不注入World、库存或机位，不设观察器环境。真实Continue点击加载同世界；个人标记显示1/64、“岩台出生点”、基地·追踪中、X-120 Z132和停止追踪。菜单与标记两张2560×1496原图已查看，`ordinary-input-after-fix-r1.json`记窄PASS；4m归档重开不代表2m细历史落盘。 |
+| 缩放／平移与人工介入 | CUA实际画面观察两次plus后1123×668→719×427，页面重开保持；help右移后标记左移约141像素，范围不变，再重开位置保持。随后本地 `ordinary-after-flat-reopen-r1.png` 已是人工操作后的第三人称HUD，与其原examiner_note不同；原图／元数据保留，新收据明确排除其地图证明。再次操作被公开CUA以user changed拒绝，Root刷新状态后停止输入，不把人工移动或未执行的3D拖动计为代理PASS。 |
+| 保护与交付 | 构建、复制与普通输入后原12包1699文件完整集合／SHA保持，含旧测试世界；repo配置663B／SHAff28…5440与原普通配置705B／SHA70d9…16047均保持。运行中Candidate测试世界／配置可由用户修改，不原位刷新、不强制保存或退出。独立最终 `After.app`使用相同Release和原普通配置，干净提交身份及管理清单由postcommit收据核对。 |
+
+### 失败与异常记录
+
+`map-helper-execution-r1` 的CLT默认编译缺algorithm、`hud-matrix-r1`缺array均为compile exit1，未执行程序。
+r2使用实际Xcode clang及匹配SDK标准库头通过，没有安装工具链或改第三方CI。
+`normal-build-r1`实际Release构建exit0，但first-party dangling-else警告使门禁FAIL_GATE；
+补两层显式括号后r2两配置通过，不删警告或放宽门槛。旧菜单窗口歧义失败也保留。
+
+用户再次报告异常对话框后只读复核89份ips，`dialog-recheck-audit-r1.json`截至21:08确认与V10h相同。
+最近相关报告仍为18:05 Codex Renderer PID62788 SIGTRAP，以及14:13 camera-world-test PID66788的旧setup SIGSEGV；
+没有今天新增HelloMine3D报告。缺少弹窗确切程序名／时间，仍不能确定归属或根因；缺报告也不能证明未发生异常。
+未重复旧故障二进制，未操作系统异常对话框、重启Codex或发送反馈。
+
+本批范围不关闭真实同列World编辑／像素复现、持续普通移动／采集／水域／全路线、第二世界切换、
+本地成组缩放平移原图及新包3D重开；小地图step4接线继续核查。完整V01–V10与V00／V11不缩减，
+Goal保持active，各方向整项Doing。严格配对性能沿用DEFERRED_BY_USER，没有人工签字或新增批准关卡。
+两张有效新客户端原图进入 `.local-evidence/visual-polish-20260928/v10i-map-continuity/`，总39轮169张。
+旧167张source／archive SHA逐项保持；历史8个未标注role原样保留，不补改为显式After。见 `selected-archive-r1.json`。

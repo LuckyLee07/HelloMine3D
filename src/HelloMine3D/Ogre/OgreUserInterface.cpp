@@ -4708,9 +4708,14 @@ class OgreUserInterface::Impl
                     }
                     capture->observeMapQueries(facts, observations);
                 }
-            if (mapFlatOverview && region.step == 2 && samples.size() == batch.size())
-                for (std::size_t i=0;i<samples.size();++i)
-                    fineMapHistory.observe(batch[i].x,batch[i].z,samples[i]);
+            if (mapFlatOverview && samples.size() == batch.size()) {
+                for (std::size_t i=0;i<samples.size();++i) {
+                    if (region.step == 2)
+                        fineMapHistory.observe(batch[i].x,batch[i].z,samples[i]);
+                    else
+                        fineMapHistory.refreshObserved(batch[i].x,batch[i].z,samples[i]);
+                }
+            }
         };
         // One sampling budget shared by the active view, never two sweeps per frame.
         if (mapFlatOverview) refresh(flatMap);

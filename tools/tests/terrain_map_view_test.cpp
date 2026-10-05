@@ -221,6 +221,91 @@ int main() {
     moving.configure(100000,-100000,8);
     check(moving.pendingCount()==moving.cells.size() && !moving.surfaceHeight(100000,-100000),
         "disjoint travel never wraps old observations to new land");
+    // Actual region queues with synthetic surface samples: an older 2m record
+    // must not override a newer known observation of the exact same column.
+    MapSurfaceRegion<Sample,257,2> crossLayer;
+    SurfaceMapHistory<Sample> crossHistory;
+    crossLayer.configure(0,0,8);
+    while (crossLayer.pendingCount()) {
+        const auto next=crossLayer.nextBatch(); std::vector<Sample> samples(next.size());
+        for (std::size_t i=0;i<next.size();++i) {
+            if (next[i].x==0 && next[i].z==0) samples[i]={true,64,7};
+            if (next[i].x==2 && next[i].z==0) samples[i]={true,66,3};
+        }
+        crossLayer.accept(next,samples);
+        for (std::size_t i=0;i<samples.size();++i)
+            crossHistory.observe(next[i].x,next[i].z,samples[i]);
+    }
+    check(crossLayer.step==2 && crossHistory.at(0,0)->surface.material==7,
+        "accepted fine queue supplies old Water at the exact column");
+    crossLayer.configure(0,0,16);
+    while (crossLayer.pendingCount()) {
+        const auto next=crossLayer.nextBatch(); std::vector<Sample> samples(next.size());
+        crossLayer.accept(next,samples);
+        for (std::size_t i=0;i<samples.size();++i)
+            crossHistory.refreshObserved(next[i].x,next[i].z,samples[i]);
+    }
+    const auto coarseBatch=crossLayer.nextBatch();
+    std::vector<Sample> coarseSamples(coarseBatch.size());
+    for (std::size_t i=0;i<coarseBatch.size();++i)
+        if (coarseBatch[i].x==0 && coarseBatch[i].z==0) coarseSamples[i]={true,65,6};
+    crossLayer.accept(coarseBatch,coarseSamples);
+    for (std::size_t i=0;i<coarseSamples.size();++i)
+        crossHistory.refreshObserved(coarseBatch[i].x,coarseBatch[i].z,coarseSamples[i]);
+    const int coarseCell=crossLayer.cellAt(0,0);
+    check(crossLayer.step==4 && crossLayer.count==137 && coarseCell>=0 &&
+        crossLayer.cells[coarseCell].height==65 && crossLayer.cells[coarseCell].material==6,
+        "RD16 bounded coarse queue accepts new Sand at the same canonical column");
+    check(crossHistory.at(0,0)->surface.height==65 && crossHistory.at(0,0)->surface.material==6,
+        "old fine overlay and fine-first selection see the new exact-column observation");
+    check(crossHistory.at(2,0)->surface.height==66 && crossHistory.at(2,0)->surface.material==3,
+        "coarse update does not extrapolate into adjacent real 2m detail");
+    const auto crossTiles=crossHistory.tileCount();
+    check(!crossHistory.refreshObserved(4,0,{true,70,6}) && !crossHistory.at(4,0) &&
+        crossHistory.tileCount()==crossTiles,
+        "coarse known sample cannot create an unobserved fine slot inside an existing tile");
+    check(!crossHistory.refreshObserved(4000,0,{true,70,6}) && !crossHistory.at(4000,0) &&
+        crossHistory.tileCount()==crossTiles,
+        "coarse known sample cannot allocate a fine history tile");
+    check(!crossHistory.refreshObserved(1,0,{true,99,6}) && crossHistory.at(2,0)->surface.height==66,
+        "unaligned update cannot round onto an observed neighbour");
+    check(!crossHistory.refreshObserved(0,0,{}) && crossHistory.at(0,0)->surface.height==65,
+        "unknown coarse reply preserves the latest known fine column");
+    crossHistory.observe(0,0,{true,64,7});
+    const bool unchangedCoarse = crossLayer.accept(coarseBatch,coarseSamples);
+    for (std::size_t i=0;i<coarseSamples.size();++i)
+        crossHistory.refreshObserved(coarseBatch[i].x,coarseBatch[i].z,coarseSamples[i]);
+    check(!unchangedCoarse && crossHistory.at(0,0)->surface.height==65 &&
+        crossHistory.at(0,0)->surface.material==6,
+        "unchanged live reply still refreshes stale fine history at the same column");
+    const auto busyBatch=crossLayer.nextBatch();
+    const auto busyRevision=crossLayer.revision;
+    const auto busyCursor=crossLayer.cursor;
+    check(!crossLayer.accept(busyBatch,{}) && crossLayer.revision==busyRevision &&
+        crossLayer.cursor==busyCursor && crossHistory.at(0,0)->surface.height==65,
+        "busy sample batch neither advances the queue nor erases fine history");
+    auto emptyColumnSamples = coarseSamples;
+    for (std::size_t i=0;i<coarseBatch.size();++i)
+        if (coarseBatch[i].x==0 && coarseBatch[i].z==0) emptyColumnSamples[i]={true,0,0};
+    crossLayer.accept(coarseBatch,emptyColumnSamples);
+    for (std::size_t i=0;i<emptyColumnSamples.size();++i)
+        crossHistory.refreshObserved(coarseBatch[i].x,coarseBatch[i].z,emptyColumnSamples[i]);
+    check(crossHistory.at(0,0)->surface.known && crossHistory.at(0,0)->surface.height==0 &&
+        crossHistory.at(0,0)->surface.material==0 && crossHistory.at(2,0)->surface.material==3 &&
+        crossHistory.tileCount()==crossTiles,
+        "known empty column replaces old fine terrain without erasing adjacent detail");
+    crossHistory.observe(-2,-2,{true,64,7});
+    check(crossHistory.refreshObserved(-2,-2,{true,65,6}) &&
+        crossHistory.at(-2,-2)->surface.height==65 && crossHistory.at(-2,-2)->surface.material==6,
+        "exact negative column refresh crosses the floor-divided tile boundary correctly");
+    SurfaceMapHistory<Sample,0> noHistory;
+    check(!noHistory.refreshObserved(0,0,{true,65,6}) && noHistory.tileCount()==0,
+        "disabled fine history cannot acquire coarse records");
+    SurfaceMapHistory<Sample,2> refreshLru;
+    refreshLru.observe(-16,0,{true,64,7});refreshLru.observe(0,0,{true,66,3});
+    refreshLru.refreshObserved(-16,0,{true,65,6});refreshLru.observe(16,0,{true,70,1});
+    check(refreshLru.at(-16,0)->surface.height==65 && !refreshLru.at(0,0) && refreshLru.tileCount()==2,
+        "real exact-column reobservation refreshes recency without changing the capacity");
     SurfaceMapHistory<Sample,2> history;
     history.observe(-2,-2,{true,80,1}); history.observe(0,0,{true,90,2});
     check(history.at(-2,-2)->surface.height==80 && !history.at(2,0),

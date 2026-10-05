@@ -49,6 +49,23 @@ public:
         found->second.cells[iz*8+ix] = sample;
     }
 
+    // A coarser observation can refresh the same real column in fine history.
+    // It cannot create a new fine sample or spread across that column's footprint.
+    bool refreshObserved(int x, int z, const Sample& sample)
+    {
+        if (!sample.known || x%2 || z%2 || Capacity==0) return false;
+        const Key key{tileCoord(x),tileCoord(z)};
+        const auto found = tiles.find(key);
+        if (found == tiles.end()) return false;
+        const auto ix = (std::int64_t(x)-std::int64_t(key.first)*16)/2;
+        const auto iz = (std::int64_t(z)-std::int64_t(key.second)*16)/2;
+        auto& old = found->second.cells[iz*8+ix];
+        if (!old.known) return false;
+        old = sample;
+        recent.splice(recent.begin(),recent,found->second.recent);
+        return true;
+    }
+
     std::optional<Observation> at(double x, double z) const
     {
         if (!std::isfinite(x) || !std::isfinite(z)) return {};
