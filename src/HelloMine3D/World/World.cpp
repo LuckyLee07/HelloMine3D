@@ -3299,6 +3299,12 @@ World::WildlifeStepResult World::tryWildlifeStep(
             toBlockCoord(position.z + halfDimensions.z - epsilon)};
     };
     const auto current = bounds(from);
+    const auto target = bounds(to);
+    // The contact inset must not turn a tiny positive footprint into an empty
+    // range and accept it without inspecting any source/destination corner.
+    if (current[0] > current[1] || current[2] > current[3] ||
+        target[0] > target[1] || target[2] > target[3])
+        return WildlifeStepResult::Blocked;
     const int below = toBlockCoord(from.y - epsilon);
     bool supported = false;
     for (int x = current[0]; x <= current[1]; ++x)
@@ -3332,56 +3338,86 @@ World::WildlifeStepResult World::tryWildlifeStep(
         return WildlifeStepResult::Allowed;
     }
 
-    const auto target = bounds(to);
     const int base = static_cast<int>(std::round(from.y));
-    for (int rise : {0, 1, -1}) {
-        const int feet = base + rise;
-        bool safe = feet >= 1 && feet <= 254;
-        if (!safe) continue;
-        for (int x = target[0]; x <= target[1] && safe; ++x)
-            for (int z = target[2]; z <= target[3] && safe; ++z) {
-                const auto* block = read(x, feet - 1, z);
+
+    // Validate the current body's lower slab as well as the checked upper
+    // channel. A later terrain edit must not turn an already embedded start
+    // into a claimed collision-free step. Normal support positions are integer
+    // heights; unsupported vertical falls keep the earlier bounded path.
+    const int sourceFeet = toBlockCoord(from.y + epsilon);
+    const int sourceTop = toBlockCoord(from.y + halfDimensions.y * 2.f - epsilon);
+    if (sourceFeet < 1 || sourceTop > 255 || sourceFeet > sourceTop)
+        return WildlifeStepResult::Blocked;
+    for (int x = current[0]; x <= current[1]; ++x)
+        for (int z = current[2]; z <= current[3]; ++z)
+            for (int y = sourceFeet; y <= sourceTop; ++y) {
+                const auto* block = read(x, y, z);
                 if (block == nullptr) return failure();
-                safe = block->getData().isCollidable &&
-                    block->id != static_cast<Block_t>(BlockId::Water) &&
-                    block->id != static_cast<Block_t>(BlockId::OakLeaf);
+                if (block->getData().isCollidable ||
+                    block->id == static_cast<Block_t>(BlockId::Water))
+                    return WildlifeStepResult::Blocked;
             }
-        // Sweep the horizontal footprint as well as the destination, so a
-        // diagonal step cannot skip a corner or walk through a thin obstacle.
-        // On a descending step the old floor is below the horizontal sweep,
-        // while the lower destination still needs its own body clearance.
-        for (int x = target[0]; x <= target[1] && safe; ++x)
-            for (int z = target[2]; z <= target[3] && safe; ++z)
-                for (int y = feet; y < base && safe; ++y) {
-                    const auto* block = read(x, y, z);
-                    if (block == nullptr) return failure();
-                    safe = !block->getData().isCollidable &&
-                        block->id != static_cast<Block_t>(BlockId::Water);
+
+    // At most four distinct footprint corner columns, each with at most three
+    // local support probes. All corners need real, dry support; when straddling
+    // an ordinary one-block stair, use its highest support rather than requiring
+    // all corners to change floor height in a single horizontal movement.
+    int lowestFeet = std::numeric_limits<int>::max();
+    int highestFeet = 0;
+    for (int x = target[0]; x <= target[1]; ++x)
+        for (int z = target[2]; z <= target[3]; ++z) {
+            int cornerFeet = 0;
+            for (int supportFeet : {base + 1, base, base - 1}) {
+                if (supportFeet < 1 || supportFeet > 254) continue;
+                const auto* block = read(x, supportFeet - 1, z);
+                if (block == nullptr) return failure();
+                if (block->id == static_cast<Block_t>(BlockId::Water) ||
+                    block->id == static_cast<Block_t>(BlockId::OakLeaf))
+                    return WildlifeStepResult::Blocked;
+                if (block->getData().isCollidable) {
+                    cornerFeet = supportFeet;
+                    break;
                 }
-        for (int x = std::min(current[0], target[0]);
-             x <= std::max(current[1], target[1]) && safe; ++x)
-            for (int z = std::min(current[2], target[2]);
-                 z <= std::max(current[3], target[3]) && safe; ++z)
-                for (int y = std::max(base, feet);
-                     y <= toBlockCoord(std::max(base, feet) +
-                         halfDimensions.y * 2.f - epsilon)
-                         && safe; ++y) {
-                    const auto* block = read(x, y, z);
-                    if (block == nullptr) return failure();
-                    safe = !block->getData().isCollidable &&
-                        block->id != static_cast<Block_t>(BlockId::Water);
-                }
-        if (safe) {
-            settled = {to.x, float(feet), to.z};
-            if (grounded != nullptr) *grounded = true;
-            if (pathKind != nullptr)
-                *pathKind = rise == 1 ? WildlifeMotionPath::SupportRise :
-                    rise == -1 ? WildlifeMotionPath::SupportDescent :
-                    WildlifeMotionPath::GroundedLevel;
-            return WildlifeStepResult::Allowed;
+            }
+            if (cornerFeet == 0) return WildlifeStepResult::Blocked;
+            lowestFeet = std::min(lowestFeet, cornerFeet);
+            highestFeet = std::max(highestFeet, cornerFeet);
         }
-    }
-    return failure();
+    if (highestFeet - lowestFeet > 1) return WildlifeStepResult::Blocked;
+    const int feet = highestFeet;
+
+    // Descents still cross at the source height before lowering at the target.
+    // The destination's lower slab must be clear; its probes are cached from
+    // the support search. Ascents clear the current vertical channel first.
+    for (int x = target[0]; x <= target[1]; ++x)
+        for (int z = target[2]; z <= target[3]; ++z)
+            for (int y = feet; y < base; ++y) {
+                const auto* block = read(x, y, z);
+                if (block == nullptr) return failure();
+                if (block->getData().isCollidable ||
+                    block->id == static_cast<Block_t>(BlockId::Water))
+                    return WildlifeStepResult::Blocked;
+            }
+    for (int x = std::min(current[0], target[0]);
+         x <= std::max(current[1], target[1]); ++x)
+        for (int z = std::min(current[2], target[2]);
+             z <= std::max(current[3], target[3]); ++z)
+            for (int y = std::max(base, feet);
+                 y <= toBlockCoord(std::max(base, feet) +
+                     halfDimensions.y * 2.f - epsilon); ++y) {
+                const auto* block = read(x, y, z);
+                if (block == nullptr) return failure();
+                if (block->getData().isCollidable ||
+                    block->id == static_cast<Block_t>(BlockId::Water))
+                    return WildlifeStepResult::Blocked;
+            }
+    settled = {to.x, float(feet), to.z};
+    if (grounded != nullptr) *grounded = true;
+    if (pathKind != nullptr)
+        *pathKind = feet > base ? WildlifeMotionPath::SupportRise :
+            feet < base ? WildlifeMotionPath::SupportDescent :
+            WildlifeMotionPath::GroundedLevel;
+    return WildlifeStepResult::Allowed;
 }
 
 void World::despawnNaturalMobsInChunk(int chunkX, int chunkZ)

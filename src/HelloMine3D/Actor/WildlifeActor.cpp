@@ -44,6 +44,10 @@ void WildlifeActor::tick(World &world, float dt)
     const bool decide = m_decisionClock >= 0.20f;
     if (decide) {
         m_decisionClock = 0.f;
+        // Failed turns remain relative to the intended direction. Wander
+        // does not recompute an away heading, so undo its failed side before
+        // the ordinary home/phase decision can update that intention.
+        if (m_hasBlockedTurn) m_headingRadians = m_blockedHeadingRadians;
         const Player *player = world.getPlayer();
         const glm::vec3 relative = player != nullptr
             ? position - player->position : glm::vec3(1000.f, 0.f, 0.f);
@@ -95,11 +99,22 @@ void WildlifeActor::tick(World &world, float dt)
     const float motionSeconds = m_motionElapsed;
     m_motionElapsed = 0.f;
     if (result != World::WildlifeStepResult::Allowed) {
-        if (decide) m_headingRadians += 1.57f;
+        if (decide) {
+            // Try the other local side on the next blocked decision. Each
+            // tick still submits exactly one candidate to the shared budget.
+            m_blockedHeadingRadians = m_headingRadians;
+            m_hasBlockedTurn = true;
+            m_headingRadians += m_nextBlockedTurnNegative ? -1.57f : 1.57f;
+            m_nextBlockedTurnNegative = !m_nextBlockedTurnNegative;
+        }
         return;
     }
     m_fallSpeed = grounded ? 0.f : fallSpeed;
     if (settled != position) {
+        // A stationary support check cannot erase an unsuccessful side.
+        // Budget denial returned above without changing this turn memory.
+        m_hasBlockedTurn = false;
+        m_nextBlockedTurnNegative = false;
         // Overflow starts a new stream; renderers detect the sequence gap and
         // explicitly rebase. Accepted zero-distance checks are not motion.
         if (m_motionHistory.newestSequence ==

@@ -14,6 +14,7 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -103,6 +104,11 @@ double penetration(const Box& a, const Box& b, bool includeCrossProducts = true)
 struct Species { std::string type; glm::vec3 dimensions{}; };
 struct WorldCase { std::string name; ActorSnapshot before, after; };
 struct Oracle { Box block; std::vector<Species> species; std::vector<WorldCase> cases; };
+struct CadenceCase {
+    std::string species, activity;
+    std::vector<Box> blocks;
+    std::vector<ActorSnapshot> snapshots;
+};
 
 void expect(std::istream& in, const std::string& expected)
 {
@@ -173,6 +179,48 @@ Oracle readOracle(const char* filename)
     expect(in,"END");
     std::string extra;
     if (in >> extra) throw std::runtime_error("Trailing World oracle data");
+    return result;
+}
+
+std::vector<CadenceCase> readCadenceOracle(const char* filename)
+{
+    std::ifstream in(filename);
+    if (!in) throw std::runtime_error("Cannot read real ActorManager cadence oracle");
+    expect(in,"HMWILDLIFE_CADENCE");
+    int version = 0;
+    in >> version;
+    if (version != 1) throw std::runtime_error("ActorManager cadence oracle version must be 1");
+    std::vector<CadenceCase> result;
+    for (int i=0; i<6; ++i) {
+        expect(in,"CASE");
+        CadenceCase value;
+        std::size_t blockCount = 0, snapshotCount = 0;
+        in >> value.species >> value.activity >> blockCount >> snapshotCount;
+        if (!in || !WildlifeSpecies::isWildlife(value.species) ||
+            (value.activity != "FLEE" && value.activity != "WANDER") ||
+            blockCount == 0 || blockCount > 256 || snapshotCount < 3 || snapshotCount > 161)
+            throw std::runtime_error("Invalid bounded ActorManager cadence CASE");
+        for (const auto& prior : result)
+            if (prior.species == value.species && prior.activity == value.activity)
+                throw std::runtime_error("Duplicate species/activity cadence CASE");
+        for (std::size_t block=0; block<blockCount; ++block) {
+            expect(in,"BLOCK");
+            Vector minimum;
+            double size = 0;
+            in >> minimum.x >> minimum.y >> minimum.z >> size;
+            if (!in || size != 1 || !std::isfinite(minimum.x) ||
+                !std::isfinite(minimum.y) || !std::isfinite(minimum.z))
+                throw std::runtime_error("Invalid actual cadence voxel block");
+            value.blocks.push_back(cube(minimum,size));
+        }
+        for (std::size_t index=0; index<snapshotCount; ++index)
+            value.snapshots.push_back(snapshot(in));
+        expect(in,"ENDCASE");
+        result.push_back(std::move(value));
+    }
+    expect(in,"END");
+    std::string extra;
+    if (in >> extra) throw std::runtime_error("Trailing ActorManager cadence oracle data");
     return result;
 }
 
@@ -306,6 +354,150 @@ Sample sample(const Path& path, double time)
     }
     throw std::runtime_error("Empty accepted path");
 }
+
+// Cadence checks use a geometric union of the World-approved straight legs.
+// They do not predict MotionBlend's queue fractions, compression or timing.
+struct RouteLeg {
+    Vector from, to;
+    double begin = 0, distance = 0;
+    std::size_t segment = 0;
+};
+struct CadencePath {
+    std::vector<WildlifeMotionSegment> segments;
+    std::vector<RouteLeg> legs;
+    std::vector<double> published;
+    std::vector<double> segmentEnds;
+    double totalLength = 0, maximumNativeSpeed = 0;
+    bool valid = true, historyEvicted = false;
+    std::size_t rises = 0, descents = 0;
+};
+bool sameSegment(const WildlifeMotionSegment& a, const WildlifeMotionSegment& b)
+{
+    return a.sequence == b.sequence && a.from == b.from && a.to == b.to &&
+        a.seconds == b.seconds && a.kind == b.kind;
+}
+CadencePath cadencePathFor(const CadenceCase& value)
+{
+    CadencePath result;
+    const auto& initial = value.snapshots.front();
+    Vector previous = vector(initial.position);
+    result.valid &= initial.type == value.species && initial.wildlifeMotionHistory.count == 0 &&
+        initial.wildlifeMotionHistory.newestSequence == 0 &&
+        initial.wildlifeMotionSeconds == 0 && initial.position.x == 5.5f;
+    const auto addLeg = [&result](Vector from, Vector to, std::size_t segment) {
+        const double distance = length(to-from);
+        if (distance > 0) {
+            result.legs.push_back({from,to,result.totalLength,distance,segment});
+            result.totalLength += distance;
+        }
+    };
+    const int expectedActivity = value.activity == "FLEE" ? int(WildlifeActivity::Flee) :
+        int(WildlifeActivity::Wander);
+    for (std::size_t index=0; index<value.snapshots.size(); ++index) {
+        const auto& actor = value.snapshots[index];
+        const auto& history = actor.wildlifeMotionHistory;
+        result.valid &= actor.id == initial.id && actor.type == initial.type &&
+            actor.dimensions == initial.dimensions && actor.dimensions.x > 0 &&
+            actor.dimensions.y > 0 && actor.dimensions.z > 0 &&
+            std::isfinite(actor.rotation.y) &&
+            std::abs(double(actor.wildlifeMotionSeconds)-index*.05) < .0001 &&
+            history.newestSequence >= result.segments.size();
+        for (std::size_t item=0; item<history.count; ++item) {
+            const auto& segment = history.segments[item];
+            if (segment.sequence == 0 || segment.sequence > result.segments.size()+1) {
+                result.valid = false;
+                continue;
+            }
+            if (segment.sequence <= result.segments.size()) {
+                result.valid &= sameSegment(segment,result.segments[std::size_t(segment.sequence-1)]);
+                continue;
+            }
+            const Vector from = vector(segment.from), to = vector(segment.to), delta = to-from;
+            const std::size_t number = result.segments.size();
+            result.valid &= near(from,previous,1e-7) && to.x > from.x &&
+                std::isfinite(delta.z) && std::abs(delta.z) <= .61 &&
+                std::isfinite(segment.seconds) &&
+                segment.seconds > 0 && segment.seconds <= .2001f &&
+                actor.wildlifeActivity == expectedActivity;
+            const double begin = result.totalLength;
+            switch (segment.kind) {
+                case WildlifeMotionPath::GroundedLevel:
+                    result.valid &= delta.y == 0;
+                    addLeg(from,to,number);
+                    break;
+                case WildlifeMotionPath::SupportRise:
+                    result.valid &= std::abs(delta.y-1) < 1e-7;
+                    ++result.rises;
+                    addLeg(from,{from.x,to.y,from.z},number);
+                    addLeg({from.x,to.y,from.z},to,number);
+                    break;
+                case WildlifeMotionPath::SupportDescent:
+                    result.valid &= std::abs(delta.y+1) < 1e-7;
+                    ++result.descents;
+                    addLeg(from,{to.x,from.y,to.z},number);
+                    addLeg({to.x,from.y,to.z},to,number);
+                    break;
+                default:
+                    result.valid = false;
+                    addLeg(from,to,number);
+                    break;
+            }
+            result.maximumNativeSpeed = std::max(result.maximumNativeSpeed,
+                (result.totalLength-begin)/segment.seconds);
+            result.segmentEnds.push_back(result.totalLength);
+            result.segments.push_back(segment);
+            previous = to;
+        }
+        result.historyEvicted |= history.count == WildlifeMotionHistory::MaximumSegments &&
+            history.segments[0].sequence > 1;
+        result.valid &= history.newestSequence == result.segments.size() &&
+            near(vector(actor.position),previous,1e-7) &&
+            (history.count == 0 || history.segments[history.count-1].to == actor.position);
+        result.published.push_back(result.totalLength);
+    }
+    result.valid &= result.rises == 1 && result.descents == 1 && result.historyEvicted &&
+        value.snapshots.back().position.x >= 10 && !result.legs.empty() &&
+        result.segments.size() > WildlifeMotionHistory::MaximumSegments;
+    return result;
+}
+struct Projection {
+    double distance = std::numeric_limits<double>::infinity(), progress = 0;
+    std::size_t segment = 0;
+};
+Projection projectPublished(const CadencePath& path, Vector point,
+                            double published, double previousProgress)
+{
+    Projection best;
+    for (const auto& leg : path.legs) {
+        const Vector edge = leg.to-leg.from;
+        const double fraction = std::clamp(dot(point-leg.from,edge)/(leg.distance*leg.distance),0.0,1.0);
+        const double progress = leg.begin+leg.distance*fraction;
+        if (progress > published+PositionTolerance || progress+PositionTolerance < previousProgress)
+            continue;
+        const double distance = length(point-(leg.from+edge*fraction));
+        if (distance < best.distance-1e-10 ||
+            (std::abs(distance-best.distance) <= 1e-10 && progress > best.progress))
+            best = {distance,progress,leg.segment};
+    }
+    return best;
+}
+double voxelPenetration(const Box& part, const Box& voxel)
+{
+    // AABB separation is a valid early rejection; overlapping candidates
+    // still receive the full independent double-precision 15-axis SAT.
+    Vector lo = part[0], hi = part[0];
+    for (const Vector corner : part) {
+        lo.x = std::min(lo.x,corner.x); hi.x = std::max(hi.x,corner.x);
+        lo.y = std::min(lo.y,corner.y); hi.y = std::max(hi.y,corner.y);
+        lo.z = std::min(lo.z,corner.z); hi.z = std::max(hi.z,corner.z);
+    }
+    if (hi.x <= voxel[0].x || lo.x >= voxel[6].x ||
+        hi.y <= voxel[0].y || lo.y >= voxel[6].y ||
+        hi.z <= voxel[0].z || lo.z >= voxel[6].z) return 0;
+    return penetration(part,voxel);
+}
+double heading(Vector direction)
+{ return std::atan2(direction.x,-direction.z)*180/3.14159265358979323846; }
 
 void headings(Ogre::SceneManager& scene, const Oracle& oracle)
 {
@@ -459,12 +651,192 @@ void worldPaths(Ogre::SceneManager& scene, Ogre::SceneManager& neutralScene, con
             }
     }
 }
+
+void cadencePaths(Ogre::SceneManager& scene, Ogre::SceneManager& neutralScene,
+                  const std::vector<CadenceCase>& cases)
+{
+    for (const auto& actual : cases) {
+        const CadencePath path = cadencePathFor(actual);
+        const std::string name = actual.species+"/"+actual.activity;
+        check("CADENCE/"+name+"/actual-20Hz-manager-history-and-one-block-routes",path.valid);
+        if (!path.valid) continue;
+        for (float strength : {0.f,.35f,1.f}) for (int fps : {30,120}) {
+            const std::string prefix = "CADENCE/"+name+"/strength="+
+                (strength == 0 ? "0" : strength == 1 ? "1" : "0.35")+
+                "/fps="+std::to_string(fps);
+            OgreActorRenderer renderer(scene), neutralRenderer(neutralScene);
+            renderer.sync({actual.snapshots.front()},{1000,1000,1000},strength,0);
+            neutralRenderer.sync({actual.snapshots.front()},{1000,1000,1000},0,0);
+            Frame previous = readFrame(scene,actual.snapshots.front());
+            Frame previousNeutral = readFrame(neutralScene,actual.snapshots.front());
+            bool paused = true, onPath = true, continuous = true, geometry = true;
+            bool noNewPenetration = true, headingMatches = true, complete = false;
+            bool releasePositions = true;
+            double previousProgress = 0, previousDesired = actual.snapshots.front().rotation.y;
+            double previousHeadingError = std::abs(std::remainder(heading(previous.forward)-previousDesired,360.0));
+            double maximumDepth = 0, maximumAllowed = 0, maximumExcess = 0;
+            double maximumAdvance = 0, maximumFrameDisplacement = 0, maximumLag = 0;
+            std::size_t latest = 0, pendingPublications = 0, maximumCopiedHistory = 0;
+            std::vector<bool> interiors(path.segments.size(),false);
+            const double dt = 1.0/fps;
+            const double lastTime = (actual.snapshots.size()-1)*.05;
+            const int lastFrame = int(std::ceil((lastTime+.5)*fps));
+            for (int index=1; index<=lastFrame; ++index) {
+                const double time = index*dt;
+                const std::size_t priorLatest = latest;
+                while (latest+1 < actual.snapshots.size() && (latest+1)*.05 <= time+1e-8)
+                    ++latest;
+                const auto& actor = actual.snapshots[latest];
+                maximumCopiedHistory = std::max(maximumCopiedHistory,actor.wildlifeMotionHistory.count);
+                if (latest != priorLatest) {
+                    if (actor.wildlifeMotionHistory.newestSequence >
+                            actual.snapshots[priorLatest].wildlifeMotionHistory.newestSequence) {
+                        if (previousProgress+PositionTolerance < path.published[priorLatest])
+                            ++pendingPublications;
+                        else {
+                            const auto& priorActor = actual.snapshots[priorLatest];
+                            const Vector priorBase{previousNeutral.root.x,
+                                previousNeutral.root.y-priorActor.dimensions.y,previousNeutral.root.z};
+                            releasePositions &= near(priorBase,vector(priorActor.position));
+                        }
+                    }
+                    // A freshly arriving actual snapshot cannot consume its
+                    // sequence or replace a running motion target at dt zero.
+                    renderer.sync({actor},{1000,1000,1000},strength,0);
+                    neutralRenderer.sync({actor},{1000,1000,1000},0,0);
+                    paused &= sameFrame(previous,readFrame(scene,actor));
+                    paused &= sameFrame(previousNeutral,readFrame(neutralScene,actor));
+                }
+                renderer.sync({actor},{1000,1000,1000},strength,float(dt));
+                neutralRenderer.sync({actor},{1000,1000,1000},0,float(dt));
+                const Frame frame = readFrame(scene,actor), neutral = readFrame(neutralScene,actor);
+                const Vector motionBase{neutral.root.x,neutral.root.y-actor.dimensions.y,neutral.root.z};
+                const Vector rootBase{frame.root.x,frame.root.y-actor.dimensions.y,frame.root.z};
+                const Projection projected = projectPublished(path,motionBase,path.published[latest],previousProgress);
+                const double lift = rootBase.y-motionBase.y;
+                const bool frameOnPath = projected.distance <= PositionTolerance &&
+                    projected.progress <= path.published[latest]+PositionTolerance &&
+                    projected.progress+PositionTolerance >= previousProgress &&
+                    std::abs(rootBase.x-motionBase.x) <= PositionTolerance &&
+                    std::abs(rootBase.z-motionBase.z) <= PositionTolerance &&
+                    lift >= -PositionTolerance && lift <= MaximumPoseLift;
+                onPath &= frameOnPath;
+                const double advance = projected.progress-previousProgress;
+                maximumAdvance = std::max(maximumAdvance,advance);
+                maximumFrameDisplacement = std::max(maximumFrameDisplacement,length(frame.root-previous.root));
+                maximumLag = std::max(maximumLag,path.published[latest]-projected.progress);
+                // At 20Hz no native segment arrives faster than one per
+                // render interval. The accepted maximum arclength / seconds
+                // bounds frame travel without reproducing a blend formula.
+                continuous &= frameOnPath && advance >= -PositionTolerance &&
+                    advance <= path.maximumNativeSpeed*dt+PositionTolerance &&
+                    length(frame.root-previous.root) <=
+                        path.maximumNativeSpeed*dt+MaximumPoseLift+PositionTolerance;
+                geometry &= frame.geometry && neutral.geometry &&
+                    scene.getRootSceneNode()->numChildren() == 1 &&
+                    neutralScene.getRootSceneNode()->numChildren() == 1 &&
+                    maximumCopiedHistory <= WildlifeMotionHistory::MaximumSegments;
+                const double desired = std::remainder(double(actor.rotation.y),360.0);
+                const double angle = heading(frame.forward);
+                const double error = std::abs(std::remainder(angle-desired,360.0));
+                const double radians = desired*3.14159265358979323846/180;
+                const Vector expectedForward{std::sin(radians),0,-std::cos(radians)};
+                headingMatches &= near(neutral.forward,expectedForward,1e-5) &&
+                    std::abs(frame.forward.y) <= 1e-6 && std::abs(length(frame.forward)-1) <= 1e-5;
+                if (std::abs(std::remainder(desired-previousDesired,360.0)) < 1e-5)
+                    headingMatches &= error <= previousHeadingError+.0001;
+                if (index == lastFrame) headingMatches &= error < .2;
+                previousDesired = desired;
+                previousHeadingError = error;
+                const auto& segment = path.segments[projected.segment];
+                const double segmentBegin = projected.segment == 0 ? 0 : path.segmentEnds[projected.segment-1];
+                if (frameOnPath && projected.progress > segmentBegin+PositionTolerance &&
+                    projected.progress < path.segmentEnds[projected.segment]-PositionTolerance) {
+                    const bool first = !interiors[projected.segment];
+                    interiors[projected.segment] = true;
+                    if (first && (segment.kind == WildlifeMotionPath::SupportRise ||
+                                  segment.kind == WildlifeMotionPath::SupportDescent))
+                        std::cout << "[WILDLIFE_RENDERER] TRACE " << prefix << " time=" << time
+                                  << " snapshot_tick=" << latest << " actual_sequence=" << segment.sequence
+                                  << " kind=" << int(segment.kind) << " actual_base="
+                                  << motionBase.x << ',' << motionBase.y << ',' << motionBase.z
+                                  << " published_sequence=" << actor.wildlifeMotionHistory.newestSequence << '\n';
+                }
+                // Every candidate is a copied voxel in this actual World.
+                // Endpoint probes preserve this frame's actual node yaw and
+                // actual articulated VBO corners; neutral supplies its base.
+                for (const Box& part : frame.parts) {
+                    const Box from = translated(part,vector(segment.from)-motionBase);
+                    const Box to = translated(part,vector(segment.to)-motionBase);
+                    for (const Box& block : actual.blocks) {
+                        const double depth = voxelPenetration(part,block);
+                        const double allowed = std::max(voxelPenetration(from,block),voxelPenetration(to,block));
+                        maximumDepth = std::max(maximumDepth,depth);
+                        maximumAllowed = std::max(maximumAllowed,allowed);
+                        maximumExcess = std::max(maximumExcess,depth-allowed);
+                        noNewPenetration &= depth <= allowed+PenetrationTolerance;
+                    }
+                }
+                if (index%25 == 0) {
+                    renderer.sync({actor},{1000,1000,1000},strength,0);
+                    neutralRenderer.sync({actor},{1000,1000,1000},0,0);
+                    paused &= sameFrame(frame,readFrame(scene,actor));
+                    paused &= sameFrame(neutral,readFrame(neutralScene,actor));
+                }
+                if (time >= lastTime+.25) complete = near(motionBase,vector(actual.snapshots.back().position));
+                previous = frame;
+                previousNeutral = neutral;
+                previousProgress = projected.progress;
+            }
+            bool allInteriors = true, riseInterior = false, descentInterior = false;
+            std::size_t observed = 0;
+            for (std::size_t segment=0; segment<path.segments.size(); ++segment) {
+                allInteriors &= interiors[segment];
+                observed += interiors[segment] ? 1 : 0;
+                if (interiors[segment] && path.segments[segment].kind == WildlifeMotionPath::SupportRise)
+                    riseInterior = true;
+                if (interiors[segment] && path.segments[segment].kind == WildlifeMotionPath::SupportDescent)
+                    descentInterior = true;
+            }
+            check(prefix+"/newly-arriving-and-running-dt-zero-transforms-freeze",paused);
+            check(prefix+"/motion-base-stays-on-published-L-route-and-never-reverses",onPath);
+            check(prefix+"/accepted-native-travel-speed-rejects-full-step-snap",continuous);
+            // At 120Hz each .05s segment may finish six render intervals
+            // before the next publication. That drained cadence is valid;
+            // the non-integral 30Hz cadence exercises the in-flight append.
+            check(prefix+(fps == 30 ? "/actual-cadence-appends-during-in-flight-replay" :
+                  "/actual-cadence-arrives-in-flight-or-at-real-drained-endpoints"),
+                  releasePositions && (fps != 30 || pendingPublications > 0));
+            check(prefix+"/every-real-sequence-including-rise-and-descent-has-interior-progress",
+                  allInteriors && riseInterior && descentInterior);
+            check(prefix+"/drains-at-actual-final-authoritative-position",complete &&
+                  std::abs(previousProgress-path.totalLength) <= PositionTolerance);
+            check(prefix+"/actual-VBO-scene-and-copied-history-remain-bounded",geometry &&
+                  maximumCopiedHistory == WildlifeMotionHistory::MaximumSegments);
+            check(prefix+"/actual-root-forward-converges-to-authoritative-heading",headingMatches);
+            check(prefix+"/all-actual-voxels-have-no-new-same-pose-endpoint-penetration",noNewPenetration);
+            std::cout << "[WILDLIFE_RENDERER] METRIC " << prefix
+                      << " ticks=" << actual.snapshots.size()-1 << " frames=" << lastFrame
+                      << " observed_sequence_interiors=" << observed << '/' << path.segments.size()
+                      << " pending_publications=" << pendingPublications
+                      << " max_copied_history=" << maximumCopiedHistory
+                      << " actual_voxels=" << actual.blocks.size()
+                      << " max_arclength_advance=" << maximumAdvance
+                      << " native_route_speed_bound=" << path.maximumNativeSpeed
+                      << " max_root_frame_displacement=" << maximumFrameDisplacement
+                      << " max_published_route_lag=" << maximumLag
+                      << " max_part_penetration=" << maximumDepth
+                      << " permitted_endpoint_overhang=" << maximumAllowed
+                      << " max_new_penetration=" << maximumExcess << '\n';
+        }
+    }
+}
 } // namespace
 
 int main(int argc, char** argv)
 {
-    if (argc != 3) {
-        std::cerr << "Usage: wildlife-renderer-test actual-world-oracle-file ogre-log\n";
+    if (argc != 3 && argc != 4) {
+        std::cerr << "Usage: wildlife-renderer-test actual-world-oracle-file ogre-log [actual-cadence-oracle-file]\n";
         return EXIT_FAILURE;
     }
     std::cout << std::setprecision(9);
@@ -500,6 +872,7 @@ int main(int argc, char** argv)
         Ogre::SceneManager* neutralScene = root.createSceneManager(Ogre::ST_GENERIC,"WildlifeNeutralMotionProbe");
         headings(*scene,oracle);
         worldPaths(*scene,*neutralScene,oracle);
+        if (argc == 4) cadencePaths(*scene,*neutralScene,readCadenceOracle(argv[3]));
         check("SCOPE/no-render-system-window-or-GPU-claim",root.getRenderSystem() == nullptr);
         check("LIFECYCLE/renderer-clears-all-actor-nodes",scene->getRootSceneNode()->numChildren() == 0);
         check("LIFECYCLE/neutral-motion-probe-clears-all-actor-nodes",neutralScene->getRootSceneNode()->numChildren() == 0);

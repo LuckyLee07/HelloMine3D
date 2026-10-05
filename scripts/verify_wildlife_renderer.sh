@@ -3,8 +3,8 @@
 # This oracle creates Ogre scene nodes and software buffers, never a window.
 set -euo pipefail
 
-if [[ $# -ne 4 ]]; then
-    echo 'Usage: verify_wildlife_renderer.sh Debug|Release repository-root real-world-oracle-file new-output-directory' >&2
+if [[ $# -ne 4 && $# -ne 5 ]]; then
+    echo 'Usage: verify_wildlife_renderer.sh Debug|Release repository-root real-world-oracle-file new-output-directory [real-cadence-oracle-file]' >&2
     exit 2
 fi
 CONFIGURATION="$1"
@@ -12,11 +12,16 @@ case "$CONFIGURATION" in Debug|Release) ;; *) echo 'Expected Debug or Release.' 
 ROOT_DIR="$(cd "$2" && pwd)"
 ORACLE_FILE="$3"
 OUTPUT_DIR="$4"
+CADENCE_FILE="${5:-}"
 TEST_SOURCE="$ROOT_DIR/tools/tests/wildlife_renderer_transform_test.cpp"
 SCRIPT_SOURCE="$ROOT_DIR/scripts/verify_wildlife_renderer.sh"
 OBJECT_DIR="$ROOT_DIR/build/HelloMine3D/obj/x64/$CONFIGURATION/HelloMine3D.build/Objects-normal/x86_64"
 if [[ ! -d "$OBJECT_DIR" || ! -f "$ORACLE_FILE" || ! -f "$TEST_SOURCE" || -e "$OUTPUT_DIR" ]]; then
     echo 'Missing built client objects / formal test / World oracle, or output directory already exists.' >&2
+    exit 2
+fi
+if [[ -n "$CADENCE_FILE" && ! -f "$CADENCE_FILE" ]]; then
+    echo 'Missing real ActorManager cadence oracle.' >&2
     exit 2
 fi
 
@@ -33,6 +38,7 @@ if [[ ${#OBJECTS[@]} -eq 0 || ${#LIBRARIES[@]} -eq 0 || ! -f "$OBJECT_DIR/OgreAc
     exit 2
 fi
 SOURCE_FILES=("$TEST_SOURCE" "$SCRIPT_SOURCE" "$ORACLE_FILE")
+if [[ -n "$CADENCE_FILE" ]]; then SOURCE_FILES+=("$CADENCE_FILE"); fi
 while IFS= read -r source; do
     case "$source" in *.h|*.cpp|*.mm) SOURCE_FILES+=("$source");; esac
 done < <(rg --files "$ROOT_DIR/src/HelloMine3D" | sort)
@@ -55,6 +61,14 @@ printf '%s\n' 'Compile and link exit codes are distinct from assertion failures.
     'The caller retains production-source mutant builds and their designated rejected assertions separately.' \
     'No normal-input, render-window, graphics-context or GPU-draw acceptance is claimed.' \
     > "$OUTPUT_DIR/scope.txt"
+if [[ -n "$CADENCE_FILE" ]]; then
+    printf '%s\n' \
+        'The version-1 cadence oracle adds six actual ActorManager species/activity traces, sampled every real .05-second tick.' \
+        'Snapshots arrive by their .05-second cadence at 30/120Hz in three animation strengths, with newly arriving dt-zero freezes.' \
+        'Independent published-polyline projection checks ordered L routes, native travel-speed bounds, in-flight appends and bounded history eviction.' \
+        'All copied real voxels receive actual-frame same-pose segment-endpoint envelopes and full 15-axis SAT for overlapping candidates.' \
+        >> "$OUTPUT_DIR/scope.txt"
+fi
 
 finish_receipt()
 {
@@ -121,8 +135,12 @@ printf '%s\n' "$WILDLIFE_BUILD_EXIT" > "$OUTPUT_DIR/build-exit.txt"
 if [[ "$WILDLIFE_BUILD_EXIT" -ne 0 ]]; then cat "$OUTPUT_DIR/build.log"; exit "$WILDLIFE_BUILD_EXIT"; fi
 shasum -a 256 "$OUTPUT_DIR/wildlife-renderer-test" > "$OUTPUT_DIR/binary-sha256.txt"
 file "$OUTPUT_DIR/wildlife-renderer-test" >> "$OUTPUT_DIR/platform.txt"
+TEST_ARGUMENTS=("$ORACLE_FILE" "$OUTPUT_DIR/ogre.log")
+if [[ -n "$CADENCE_FILE" ]]; then TEST_ARGUMENTS+=("$CADENCE_FILE"); fi
+printf '%q ' "$OUTPUT_DIR/wildlife-renderer-test" "${TEST_ARGUMENTS[@]}" > "$OUTPUT_DIR/test-command.txt"
+printf '\n' >> "$OUTPUT_DIR/test-command.txt"
 set +e
-"$OUTPUT_DIR/wildlife-renderer-test" "$ORACLE_FILE" "$OUTPUT_DIR/ogre.log" \
+"$OUTPUT_DIR/wildlife-renderer-test" "${TEST_ARGUMENTS[@]}" \
     > "$OUTPUT_DIR/test.log" 2>&1
 WILDLIFE_TEST_EXIT=$?
 set -e
