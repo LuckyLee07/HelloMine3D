@@ -66,7 +66,7 @@ standard与compatibility各六阶段通过，恢复后保存成功。原件及�
 `PASS_SCOPED_STORAGE_WORLD_MAP_PIXELS`。原raw／facts副本的NaN44B、stride32、OOBindex、staleUV、missingHUDfine
 五项在更新副本SHA后均被语义检查拒绝，失败包保留于
 [故障回执](../../build/visual-experience-polish-20260928/v06c/raw-fault-suite-r1/faults.json)。这些是证据消费端故障挑战；
-失效规划／上传／地图生产源码的故障变体仍为`NOT_RUN`。
+失效规划／上传／地图生产源码的故障变体在V06c当批为`NOT_RUN`；后续实际校准见V06d。
 
 本次原存储一致性不证明native内部VAO取数、World incarnation／ABA或地形draw像素归因；地图像素证据仅覆盖
 已核对的实际矩形。普通鼠标选中／输入和原World列原子快照仍未验证。
@@ -75,3 +75,28 @@ standard与compatibility各六阶段通过，恢复后保存成功。原件及�
 未改procedural邻块本就不写save文件，目标已改chunk必须存在；原错误要求9个保存文件的失败保留。
 此项不声明中间编辑态保存、普通UI或GPU重开通过，详见执行报告V06c。
 V06b既有GLSL样片与历史检查继续保留，不能替代上述当前客户端边界。
+
+## V06d 实际水深生产者故障校准（2026-10-06）
+
+在独立源码副本中将生产水深固定为基线2.0，实际编译／链接并替换单一生产对象后，标准／兼容
+客户端各完整捕获六阶段，native均正常exit0、无signal／超时。原uploader CPU输入与原生GPU
+存储仍逐字节相同，但阶段1实际World四角预期为1.75，两个原存储均为2.0；未修改的
+`shore_edit_capture_oracle.py`均由`phase1/actual-World-four-corner-water-depth`拒绝，分类为
+`SOURCE_PRODUCER_CAPTURED_THEN_REJECTED_BY_INDEPENDENT_ORACLE`。正常生产代码同条件正控
+标准／兼容各208项通过。此项实际挑战生产深度来源，不沿用V06c修改捕获数据副本的结论。
+
+HUD源码省略同列细历史刷新另有standard实测：生产step4已回复Sand64，既有fine仍Water64，
+记录13条不一致；原有有界就绪保护拒绝继续，native正常exit1、无signal／超时，保留三张原图。
+由于只完成阶段0–2，独立oracle为`NOT_RUN_INCOMPLETE_CAPTURE`；该结果属于就绪保护拒绝，
+不是完整捕获后的oracle拒绝，详见[地图合同](adventure-exploration-map-contract-v1.md)。
+
+本批仅为pixel ratio1、1280×720的专项校准，先前ratio2正控失败保持，不证明当前Retina2视觉验收。
+5508项原输入、15个保护包共2110个完整文件及用户包135项托管文件保持；故障包实际source／binary
+与名义正式参考身份分记。跳过上传源码故障、内部VAO、incarnation／ABA、原子World快照和地形像素
+归属仍待验，普通出入水／编辑与连续路线继续待验。原件、正常退出与分类依据见
+[生产者回执](../../build/visual-experience-polish-20260928/v06d/producer-source-negatives-r1.json)和
+[最终分类复核](../../build/visual-experience-polish-20260928/v06d/final-classification-review-r1.json)。
+
+本批随后通过普通菜单实际创建42／20260807两个terrain30世界，基地保存与同进程切世界隔离
+有原图及地图文件校验支持，见[地图合同](adventure-exploration-map-contract-v1.md)。
+这项普通UI进展不包含出入水、水岸改块或连续路线，也不改变上述水域验收边界。

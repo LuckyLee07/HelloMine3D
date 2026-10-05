@@ -2,7 +2,18 @@
 
 ## 恢复区
 
-- **当前：2026-10-05 V06c：真实水岸编辑、原上传缓冲、HUD细历史与平面图像素专项通过，完整 V01–V11 仍 Doing，Goal active。**
+- **当前：2026-10-06 V06d：生产源码故障校准与普通地图切世界专项完成，完整 V01–V11 仍 Doing，Goal active。**
+  正常运行时仍4f6d0c55、Release `10c392d3…e6356`／Debug `c40e063c…5bc7e`，独立正式包仍 `v06c/After.app`；本批正常源码未变，只提交六份对应文档，不重建或刷新正式／用户包。
+  HUD源码省略刷新实际留下13次粗Sand64／细Water64错态，三图后原有界guard正常exit1拒绝；oracle因不完整捕获NOT_RUN。
+  固定水深源码故障标准／兼容均native0完整捕获六图，再由未改独立oracle拒绝真实1.75／原CPU及GPU2.0；独立分类复核58项通过。
+  倍率1正常代码正控两模式各208项通过，默认GL启动FAIL与请求倍率2／实际1的FAIL保留；不冒称当前Retina2工程通过。
+  公开CUA恢复真实普通菜单输入，独立 `v06d/OrdinaryWorkbench.app` PID14432／主窗口3968同进程创建42与20260807；42基地X36Z54／追踪保存重进保持，42→20260807→42标记1/64→0/64→1/64。
+  四张2560×1496原图、18保存文件、8地图文件完整解析与FNV校验经独立52项复核通过；只证明平面页、基地／追踪及世界隔离，普通跨进程重开未验。
+  后续短按无可靠位移，关闭—移动—重开、连续路线、右拖平移、第三种子及水岸普通编辑仍OPEN；历史锁屏不再作为当前阻断。
+  普通菜单退出有07:44:56完整Ogre关闭，随后pgrep无游戏PID；native退出码不可得。所有本批构建／capture／故障handles已terminal，无游戏进程待收尾。
+  5508原输入、15保护包2110完整文件、用户包135管理项、两普通配置及无关策略文档保持；原42轮175图对象／字节保持，精选现43轮177张，原始会话日志也已另存。
+  下一步普通跨进程重开与第三种子，继续全路线／全部方向；严格配对性能DEFERRED_BY_USER。详见文末V06d及本批 `precommit-verification-r2.json`／`postcommit-verification-r1.json`。
+- **历史检查点：2026-10-05 V06c：真实水岸编辑、原上传缓冲、HUD细历史与平面图像素专项通过，完整 V01–V11 当时仍 Doing，Goal active。**
   seed42／terrain30 自然河流目标 `(220,64,-204)`，附近干岸距离3m；非直接相邻岸条件，不扩大冻结机位或伪造World。
   标准PID98153／兼容PID98288六阶段实际正常exit0／无signal／GL0；独立检查各208项通过，原44B／u32缓冲与真实World深度、同列像素一致。
   HUD256 step4回复先更新既有2m细历史，再重开Flat step2；捕获帧没有对目标再次查询。西／北邻格保持，恢复后公开World.save成功。
@@ -2938,3 +2949,81 @@ Root已查看并归档当前标准phase003／phase005两张完整原图，source
 普通输入／连续水域与全路线、三种子terrain30探索／切世界、原World列原子快照、incarnation／ABA、
 native内部VAO取数及地形像素归属仍OPEN。完整V01–V10与V00／V11退出条件不缩减，Goal active，
 各方向整项仍Doing；严格配对性能DEFERRED_BY_USER，没有人工核验或新批准关卡。
+
+## V06d：生产源码故障校准与普通地图切世界（2026-10-06）
+
+本批起始与正式运行时为 `4f6d0c5564f2898cfbb020f30b7ac54a5f6aa9fa`，正常源码不改。
+继续使用V06c Release `10c392d388386dd241772b66b8c1b526c8ae4126a395b4b94ab4c32b679e6356`、
+Debug `c40e063c597ba60f2f1e0d006b3142d2a932c1372871767ec27e668a10c5bc7e`与冻结 `v06c/After.app`。
+本批证据根为 `build/visual-experience-polish-20260928/v06d/`，本地中文提交只包含六份对应文档；
+不重建正常客户端，不刷新冻结包或用户V10i包，文档提交身份不替代运行时4f6d0c55。
+
+### 实际源码与匹配校准
+
+`producer-source-prepare-r1/receipt.json` 准备两个独立源码变体，冻结5508原输入。
+实际复用r2 Release编译argv及r3链接argv：146个对象仅替换一个生产TU，145原对象／17 archives保持，
+编译产生的object／dep／dia／lto输出全部在新证据目录。HUD与depth分别编译／链接exit0，首方warning0。
+实际驱动为 `build_producer_faults_r1.py` → `package_producer_faults_r1.py` → `run_producer_faults_r1.py`；
+三个冻结r1已执行完毕，不能原位重跑。两个新135管理项故障包明确列 nominal正式参考与
+`diagnostic_provenance.effective_source_overrides`实际源码／对象／二进制及argv，不以干净名义身份掩盖故障来源。
+
+| 实际执行 | 结果与边界 |
+| --- | --- |
+| 初始正控 | `control-standard-r1` PID7218因默认OpenGL3.0不支持正常exit1；`control-standard-r2` PID7584正常exit0／六图，但请求倍率2而实际1，wrapper FAIL。两次原失败保留，不归为生产故障检出。 |
+| 倍率1匹配正控 | standard PID7887／compatibility PID8266均native exit0／无signal／无timeout，1280×720六阶段原图；未改oracle各208项通过，见 `control-dual-scale1-oracle-r1.json`。只有本专项倍率1校准，不关闭当前Retina2工程验收。 |
+| HUD省略粗→细刷新 | 复制OgreUserInterface生产TU，取消既有同列细历史刷新；native PID8443真实13次step4已知Sand64／保留fine Water64错态，阶段0–2三图后由原有界readiness guard正常exit1拒绝。`SOURCE_PRODUCER_REJECTED_BY_HUD_FINE_READINESS_GUARD`；oracle `NOT_RUN_INCOMPLETE_CAPTURE`，不写成oracle拒绝或完整六图。 |
+| 固定生产水深 | 复制ChunkMeshBuilder生产TU，四角水深均固定基线2.0；standard PID8497／compatibility PID8530均native exit0／六图且外层95原artifact SHA有效，未改oracle正常exit1在 `phase1/actual-World-four-corner-water-depth` 拒绝真实World四角应1.75／CPU及GPU均2.0。`SOURCE_PRODUCER_CAPTURED_THEN_REJECTED_BY_INDEPENDENT_ORACLE`。 |
+
+终态 `producer-source-negatives-r1.json` SHA `6665999c…ed6c`。独立只读
+`final-classification-review-r1.json` SHA `ddeb0ef8…2ae`，58项通过：实际source diff、单对象链接、
+两个包135项、原保护集合、正控及真实CPU／native44B存储均核对，并直接从World3×3原事实另算四角1.75。
+原oracle SHA `022301d3…bd27`保持；五类旧raw／facts副本负例没有被改称本批源码生产者。
+跳过上传源码故障、内部VAO取数、incarnation／ABA、原子World快照和地形像素归属仍待验。
+当前全部native与wrapper已返回；执行过的r1 runner未来超时分支尚缺显式kill／wait收敛，
+本批没有发生超时，不能借此重写原文件。若新增轮次，另准备新目录并先修该分支。
+
+### 普通菜单、持久标记与切世界
+
+最新公开CUA `listApps` 实际返回，历史锁屏不再是当前阻断。Root是唯一窗口操作者，
+完整复制冻结包137文件为独立 `OrdinaryWorkbench.app`，`ordinary-preparation-r1.json` 保留复制前SHA；
+使用705B普通配置，没有诊断库存／位置／时间或修改真实存档。首次 `getApp` 实际耗时266.1006秒，
+随后核对同一native PID14432／主窗口3968；没有因工具等待再启动重复实例。
+
+公开普通菜单创建“普通水岸-42-V06d”seed42及“切世界-20260807-V06d”seed20260807、terrain30。
+同一个进程世界进入序列为42、42、20260807、42：42实际小地图点击打开、局部页切到平面，
+选点添加“岩台基地-V06d”X36 Z54为基地并追踪；缩放现场记录475×282→380×226 m。
+普通保存返回后Continue重进42，基地1/64、名称／坐标／追踪保持。新20260807地图不同且0/64，
+没有42基地与追踪；保存返回并切回42后原基地及追踪1/64恢复，视野594×353 m。
+同进程World重新进入不等于应用重启；不同图来自正常世界，不以工程位置注入替代路线。
+
+四张 `ordinary-ui-r1/002–005`完整窗口原图各2560×1496，含56像素标题栏。第一次001抓图因同PID
+存在额外小窗口而query歧义FAIL，之后显式3968；第一次半缩坐标点击未命中，均保留。
+原图独立确认Flat、380及594视野、基地／追踪与世界标记隔离；初始475与局部页切换仅Root现场记录，
+静态PNG不证明完整缩放过程或连续动作。左拖只选择地图表面，未证明右拖平移；公开drag未提供右键参数。
+初始三次W后保存位置由出生40.5变为36.2999992，只有短距离位移；错误Tab开启指针后的S未移动，
+随后S也无可靠位移，最终保存仍 `(36.2999992,92,56.5)`。不重试堆短按或归为未经复现的产品缺陷。
+
+独立 `ordinary-ui-r1/independent-review-r1.json` SHA `a4eaa71a…662`，52项只读复核通过，
+实际看四原图，18文件live／冻结copy／session记录一致；8份actual `exploration.hmap`（含before／backup）
+完整解码及FNV校验通过。42存储9tiles、5329已知4m格、Home id1、正确名称X36 Z54与tracked1；
+20260807存储9tiles、5280格、无marker与tracked0。42sidecar前后byte一致，不承诺2m会话细历史落盘。
+原会话及保存副本冻结在 `ordinary-ui-r1/session-r1.json`、`before-movement-save/`、`after-session-saves/`；
+07:44:56完整Ogre关闭原日志另存 `native-session.log`，SHA `7238c680…0402`。
+普通菜单Exit后CUA提示App quit；随后Root获准只读pgrep exit1／空输出，无游戏PID，
+native自身退出码不可得。独立ps默认sandbox拒绝126保留，不凭工具拒绝造进程终态或exit0。
+
+### 保护、精选与后续
+
+源码／146原对象／archives／正式工具共5508项，15保护包2110完整文件、用户V10i包135管理项、
+705B普通配置、663B源配置与无关未跟踪策略文档保持。两个故障包独立来源与全部本批native终态已核对，
+普通工作副本仅生成自己的日志／存档。最终文档与保护检查以本批precommit／postcommit收据为准。
+首次保护helper误以为复制前已有日志而要求136文件，实际137原文件全保持、日志为新增；
+该计数假设失败已留 `closure-verification-failure-r1.json` 与原driver。r2严格要求137原文件保持，96项通过；
+最后文档同步另作聚焦链接／diff／SHA核对，不重复正常构建或既有工程测试。
+旧41轮173图保持后先增加两张倍率1工程正控；旧42轮175图及对象保持后再增加两张普通地图原图，
+当前精选43轮177张。`selected-archive-r1.json`、`selected-ordinary-archive-r1.json` 保存各次来源／SHA，
+新原图未裁剪、生成或覆盖；运行时身份始终4f6d0c55。
+
+下一步普通跨进程重开与第三种子239701883；连续路线、关闭—移动—重开、右拖平移、普通水岸编辑、
+三固定种子完整terrain30探索以及所有方向余项继续。此次仅闭合实际生产故障校准和两个普通世界标记隔离，
+V01–V10与V00／V11退出条件保持，整项仍Doing、Goal active；严格配对性能DEFERRED_BY_USER。
