@@ -1824,10 +1824,14 @@ namespace
             rejected(("WV2/reject-array-header-" + std::to_string(offset)).c_str(), corrupt, "Invalid terrain texture array");
         }
         writeFile(path, valid);
-        std::string v2 = terrainProfile();
-        v2.replace(v2.find("v1"), 2, "v2");
-        v2 += "array_texture=media/textures/WarmWilderness64.hmt\n"
-              "array_layer_pixels=64\nleaf_geometry=cube\n";
+        const auto arrayProfile = [](std::string profile)
+        {
+            profile.replace(profile.find("v1"), 2, "v2");
+            profile += "array_texture=media/textures/WarmWilderness64.hmt\n"
+                       "array_layer_pixels=64\nleaf_geometry=cube\n";
+            return profile;
+        };
+        const std::string v2 = arrayProfile(terrainProfile());
         const auto parsed = loadTerrainFixture(root, v2);
         check("WV2/v2-profile-selects-array", parsed.formatVersion == 2 &&
             parsed.arrayTexture == TerrainMaterialParameters::DefaultArrayLogicalPath &&
@@ -1868,6 +1872,55 @@ namespace
         newer.freezeFromResourceView(newResolver);
         newer.freezeRenderingMode(true, true);
         check("WV2/coherent-array-pack-keeps-standard", newer.usesTextureArray());
+
+        // pngHeader is an IHDR-only parser fixture. These cases cover profile
+        // dimensions, owner coherence and mode freezing, not pixel decoding.
+        const auto legacyGrid32 = createPack(root, "legacy-grid32", "Legacy Grid32", 1,
+            {{TerrainMaterialParameters::LogicalPath,
+              terrainProfile("atlas_pixels=512\ntiles_per_row=32")},
+             {TerrainMaterialParameters::DefaultAtlasLogicalPath, pngHeader(512, 512)}});
+        ResourcePackResolver legacyGridResolver;
+        legacyGridResolver.freeze(root.string(), requirements(), {legacyGrid32.string()});
+        RuntimeTerrainMaterialProfile legacyGridProfile;
+        legacyGridProfile.freezeFromResourceView(legacyGridResolver);
+        legacyGridProfile.freezeRenderingMode(true, true);
+        const auto& legacyGrid = legacyGridProfile.parameters();
+        check("WV2/legacy-v1-grid32-is-preserved", legacyGrid.formatVersion == 1 &&
+            legacyGrid.atlasPixels == 512 && legacyGrid.tilePixels == 16 &&
+            legacyGrid.tilesPerRow == 32 && legacyGrid.containsTile(31, 31) &&
+            !legacyGrid.containsTile(32, 0) && !legacyGridProfile.usesTextureArray() &&
+            legacyGridProfile.renderingModeReason() == "legacy-resource-profile");
+
+        const auto scaledGrid16 = createPack(root, "scaled-grid16", "Scaled Grid16", 1,
+            {{TerrainMaterialParameters::LogicalPath,
+              arrayProfile(terrainProfile("atlas_pixels=512\ntile_pixels=32"))},
+             {TerrainMaterialParameters::DefaultAtlasLogicalPath, pngHeader(512, 512)},
+             {TerrainMaterialParameters::DefaultArrayLogicalPath, valid}});
+        ResourcePackResolver scaledGridResolver;
+        scaledGridResolver.freeze(root.string(), requirements(), {scaledGrid16.string()});
+        RuntimeTerrainMaterialProfile scaledGridProfile;
+        scaledGridProfile.freezeFromResourceView(scaledGridResolver);
+        scaledGridProfile.freezeRenderingMode(true, true);
+        const auto& scaledGrid = scaledGridProfile.parameters();
+        check("WV2/scaled-v2-grid16-keeps-standard", scaledGrid.formatVersion == 2 &&
+            scaledGrid.atlasPixels == 512 && scaledGrid.tilePixels == 32 &&
+            scaledGrid.tilesPerRow == 16 && scaledGridProfile.usesTextureArray() &&
+            scaledGridProfile.renderingModeReason() == "standard-64" &&
+            scaledGridResolver.overrideCount() == 3);
+
+        const auto invalidGrid32 = createPack(root, "invalid-grid32", "Invalid Grid32", 1,
+            {{TerrainMaterialParameters::LogicalPath,
+              arrayProfile(terrainProfile("atlas_pixels=512\ntiles_per_row=32"))},
+             {TerrainMaterialParameters::DefaultAtlasLogicalPath, pngHeader(512, 512)},
+             {TerrainMaterialParameters::DefaultArrayLogicalPath, valid}});
+        ResourcePackResolver invalidGridResolver;
+        invalidGridResolver.freeze(root.string(), requirements(), {invalidGrid32.string()});
+        check("WV2/reject-coherent-v2-grid32-profile", throwsContaining(
+            [&]
+            {
+                RuntimeTerrainMaterialProfile invalidGridProfile;
+                invalidGridProfile.freezeFromResourceView(invalidGridResolver);
+            }, "v2 requires tiles_per_row=16"));
         writeFile(path, corrupt);
         check("WV2/bad-array-cannot-become-capability-fallback", throwsContaining(
             [&] { RuntimeTerrainMaterialProfile broken; broken.freezeFromResourceView(resolver); },

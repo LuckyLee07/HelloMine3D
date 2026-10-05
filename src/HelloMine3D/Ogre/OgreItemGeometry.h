@@ -2,6 +2,7 @@
 
 #include <Ogre.h>
 #include <array>
+#include <cstddef>
 #include <fstream>
 #include <iterator>
 #include "../Presentation/ItemVisualGeometry.h"
@@ -9,6 +10,16 @@
 #include "../Util/ResourcePackResolver.h"
 #include "../World/Block/BlockDatabase.h"
 #include "../World/Block/BlockDefinition.h"
+#include "../World/Block/BlockTextureCoordinates.h"
+
+inline glm::vec2 itemVisualTileOrigin(const glm::ivec2& tile)
+{
+    // Keep manual meshes inside the same frozen semantic cell as world meshes.
+    // The half-pixel inset also avoids rounding below an integer cell boundary
+    // when tilesPerRow is not a power of two.
+    const auto coordinates = BlockTextureCoordinates::get(tile.x, tile.y);
+    return {coordinates[2], coordinates[5]};
+}
 
 inline bool itemVisualUsesCube(Material::ID id)
 {
@@ -33,7 +44,8 @@ inline const ItemVisualGeometry::Mesh& itemVisualGeometry(Material::ID id)
             std::vector<char> bytes{std::istreambuf_iterator<char>(input), {}};
             Ogre::DataStreamPtr stream(new Ogre::MemoryDataStream(bytes.data(), bytes.size(), false, true));
             atlas.load(stream, "png");
-            const auto tileSize = atlas.getWidth() / 16;
+            const auto tileSize = static_cast<std::size_t>(
+                runtimeTerrainMaterialProfile().parameters().tilePixels);
             for (int value = 1; value < Material::Count; ++value) {
                 const auto icon = Material::iconCoordinate(static_cast<Material::ID>(value));
                 if (!icon.available()) continue;

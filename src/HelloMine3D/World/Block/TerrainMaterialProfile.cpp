@@ -323,6 +323,11 @@ TerrainMaterialParameters loadTerrainMaterialParameters(
         fail(parameterPath,
              "tiles_per_row must equal atlas_pixels / tile_pixels");
     }
+    if (versionTwo && result.tilesPerRow != 16)
+    {
+        fail(parameterPath,
+             "v2 requires tiles_per_row=16 for the fixed 256-layer array");
+    }
     const auto requireUnitRange = [&](const char *key, float value)
     {
         if (value < 0.f || value > 1.f)

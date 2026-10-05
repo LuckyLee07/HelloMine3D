@@ -359,13 +359,14 @@ void OgrePlayerRenderer::rebuildHeldItem(Material::ID material)
     Ogre::uint32 vertex = 0;
     for (const ItemVisualGeometry::Face& face : geometry)
     {
+        const glm::vec2 tileOrigin = itemVisualTileOrigin(face.tile);
         for (int corner = 0; corner < 4; ++corner)
         {
             const glm::vec3& position = face.positions[corner];
             m_heldItem.object->position(
                 position.x, position.y, position.z);
             appendOrdinaryManualVertexAttributes(*m_heldItem.object,
-                face.tile.x / 16.f, face.tile.y / 16.f,
+                tileOrigin.x, tileOrigin.y,
                 face.uv[corner].x, face.uv[corner].y,
                 .72f + .28f * std::max(face.normal.y, 0.f));
         }

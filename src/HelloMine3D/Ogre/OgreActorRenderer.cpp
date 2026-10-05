@@ -486,11 +486,12 @@ OgreActorRenderer::ActorVisual OgreActorRenderer::createVisual(
                 Ogre::RenderOperation::OT_TRIANGLE_LIST);
             Ogre::uint32 index = 0;
             for (const auto& face : geometry) {
+                const glm::vec2 tileOrigin = itemVisualTileOrigin(face.tile);
                 for (int corner = 0; corner < 4; ++corner) {
                     const auto& position = face.positions[corner];
                     visual.object->position(position.x, position.y, position.z);
                     appendOrdinaryManualVertexAttributes(*visual.object,
-                        face.tile.x / 16.f, face.tile.y / 16.f,
+                        tileOrigin.x, tileOrigin.y,
                         face.uv[corner].x, face.uv[corner].y,
                         .72f + .28f * std::max(face.normal.y, 0.f));
                 }
