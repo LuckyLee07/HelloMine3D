@@ -3759,7 +3759,7 @@ class OgreUserInterface::Impl
                 centerZ + ((minimapRefreshRow + row) % MinimapCellCount -
                            MinimapCellCount / 2) * minimapStep});
         const auto samples = world->observeSurfaceMap(positions);
-        if (samples.empty()) return; // Lock contention defers observation only.
+        if (samples.size() != positions.size()) return; // Lock contention defers observation only.
         for (int row = 0; row < rowsPerRefresh; ++row)
         for (int x = 0; x < MinimapCellCount; ++x)
         {
@@ -3768,10 +3768,11 @@ class OgreUserInterface::Impl
             if (cell.known != sample.known || cell.height != sample.height || cell.material != sample.material)
                 ++minimapRevision;
             cell = sample;
-            if (minimapStep <= 2) {
-                const auto& position = positions[row * MinimapCellCount + x];
+            const auto& position = positions[row * MinimapCellCount + x];
+            if (minimapStep <= 2)
                 fineMapHistory.observe(position.x, position.z, sample);
-            }
+            else
+                fineMapHistory.refreshObserved(position.x, position.z, sample);
         }
         minimapRefreshRow = (minimapRefreshRow + rowsPerRefresh) % MinimapCellCount;
     }

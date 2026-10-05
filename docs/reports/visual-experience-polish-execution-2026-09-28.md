@@ -2,7 +2,15 @@
 
 ## 恢复区
 
-- **2026-10-05 V10i：平面粗层同列刷新细历史已实现，完整 V01–V11 仍 Doing，Goal active。**
+- **当前：2026-10-05 V10j：256 m 小地图 step4 已接入同列细历史刷新，完整 V01–V11 仍 Doing，Goal active。**
+  正常两配置build0／first-party warning0，Release `7b5a9855…3c961`、Debug `dbc32a5a…1964`；源码复核通过。
+  旧HUD44／地图88仅按未变输入SHA复用，两张新隐藏HUD／平面页原图只证明渲染启动，精选40轮171张。
+  原13包1836文件、用户试玩包135管理项、两普通配置及V10i的79证据文件保持；未跟踪策略文档不纳入任务。
+  用户试玩21:35:48完整Ogre关闭，随后实查无游戏PID，退出码不可得；89份ips未新增、弹窗归属仍未知。
+  公开CUA本次只读inventory实际30.0148秒超时reset，当前UNKNOWN；不竞争输入、不重跑旧故障或覆盖用户客户端。
+  独立 `v10j/After.app` 的干净tracked身份／普通配置交付以本批postcommit收据为准；捕获b88＋dirty身份保留。
+  下一步实际水岸编辑／匹配上传／地图同步、普通路线及三种子terrain30连贯探索；严格性能继续延期，详见文末V10j。
+- **历史检查点：2026-10-05 V10i：平面粗层同列刷新细历史已实现，完整 V01–V11 仍 Doing，Goal active。**
   正常两配置 build0／first-party warning0，正式 HUD44／地图88各通过；合成回复的实际队列旧190检查冲突／exit3，提案193无冲突／exit0。
   当前 Release SHA `e0cbab58…e70dc`、Debug `43225379…f255f`；195列／30Hz、细历史容量、4m归档和save12／terrain30／map4保持。
   公开 CUA 已恢复实际输入：旧正常菜单创建并保存 seed42／“地图连续性-42”，新 CandidateAfter 普通 Continue 重开后，1/64基地名称／坐标／追踪保持。
@@ -2805,3 +2813,31 @@ r2使用实际Xcode clang及匹配SDK标准库头通过，没有安装工具链�
 Goal保持active，各方向整项Doing。严格配对性能沿用DEFERRED_BY_USER，没有人工签字或新增批准关卡。
 两张有效新客户端原图进入 `.local-evidence/visual-polish-20260928/v10i-map-continuity/`，总39轮169张。
 旧167张source／archive SHA逐项保持；历史8个未标注role原样保留，不补改为显式After。见 `selected-archive-r1.json`。
+
+## V10j：小地图粗观察刷新同列细历史（2026-10-05）
+
+256 m 小地图使用 step4，原来只在 step1／2 写细历史；实际 World 同列已更新后，旧细列仍可能在
+重开平面图时先绘制／先选中，直到平面轮询再次观察。仅在既有 UI 接入 `refreshObserved`，不创建细页／槽、
+不推断邻列；step1／2 保持原 `observe`。回复长度匹配后才索引及推进行，锁忙仍延后；此前的deadline／
+中心配置可能已更新，不将早退称为整函数无状态变化。预算195列／30Hz、容量和save12／terrain30／map4不变。
+
+证据根 `build/visual-experience-polish-20260928/v10j/`。`normal-build-r1/receipt.json` 两配置实际exit0／
+BUILD SUCCEEDED／first-party warning0，UI SHA `92046e14…9b6f3` 及2913项源码前后保持；Release
+`7b5a9855…3c961`，Debug `dbc32a5a…1964`。独立 `minimap-step4-readonly-audit-r1.json` 无新增问题。
+`validation-reuse-audit-r1.json` 核对 V10i 正式test／header／脚本及8日志原样，只复用历史HUD44／地图88的
+纯语义证据；旧纯测试不编译UI，新接线由本批正常构建覆盖，不称新普通编辑或像素测试。
+
+新 `CandidateAfter.app` 显式使用本批Release，两次direct隐藏诊断均正常退出，seed42／RD1／standard／
+zh-CN／ui1.0／minimap256／第三人称；HUD及平面页各一张2560×1440原图已查看。捕获输入为诊断机位、
+全新save／catalogue，未准备旧细列／真实改块，不能代称同列像素复现或普通操作。见 `current-client-smoke-r1.json`。
+两原图进入 `v10j-minimap-range256/`，精选40轮171图；旧39轮169图对象及全部原图SHA保持，8个未标注role保留。
+
+用户确认异常弹框作为事实保留；只读复核仍89份ips，最新相关报告仍18:05 Codex Renderer PID62788 SIGTRAP，
+与11:36报告栈特征相近，不能推断根因或直接对应刚才弹窗。用户试玩包21:35:47写出world.meta、21:35:48完整
+Ogre关闭，实际查询无游戏PID；LaunchServices退出码不可得，缺新报告也不证明没有异常。公开CUA只读inventory
+30.0148秒超时reset，未反复重试或操作系统弹框。见 `dialog-process-recheck-r1.json`、`dialog-attribution-audit-r1.json`。
+原13包1836文件、用户试玩包135管理项及两普通配置保持；用户存档／日志／配置保留，未原位刷新，未跟踪策略文档不纳入提交。
+
+本批本地提交后独立 `After.app` 以同一已验证Release、原普通配置及干净tracked身份交付，具体以postcommit收据为准。
+完整Goal保持active，V01–V10及V00／V11仍按原退出条件推进；下一批优先实际水岸编辑→匹配网格上传→地图同列刷新，
+普通连续路线、三固定种子当前terrain30的出生到地点／洞口、切世界及其他UI余项保持待验，严格配对性能继续延期。
