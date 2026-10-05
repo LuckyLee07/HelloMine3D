@@ -173,7 +173,7 @@ CUA仍UNKNOWN、普通输入NOT_RUN，完整默认五链／48项未闭合；继�
 再补近墙／低顶镜头与现有Fern生产网格风摆，不以非16列修复代替默认完整五链或总Goal完成。
 见[本阶段执行报告](../reports/visual-experience-polish-execution-2026-09-28.md)。
 
-**最新：2026-10-05 V01g已本地提交`437a0465`，总Goal仍active，V01–V11仍Doing。**
+**历史检查点：2026-10-05 V01g已本地提交`437a0465`，总Goal仍active，V01–V11仍Doing。**
 实际bootstrap纹理、World原缓冲、两视角手持、真实ItemEntity、快捷栏库存和立体地图接入观察器；
 标准／兼容四材料×六消费者48条静态诊断身份闭合，最终oracle1955／0、42独立源mip和四树皮控制通过。
 正常双配置构建exit0、首方warning0；实际18帧GL0／状态恢复通过，481输入保持。原r1revision0／地图遮挡、
@@ -186,6 +186,22 @@ CUA仍UNKNOWN、普通输入NOT_RUN，完整默认五链／48项未闭合；继�
 CUA当前实际超时reset，桌面UNKNOWN、普通输入NOT_RUN；诊断库存／方块注入与冻结模拟不关闭普通使用、动态、
 正常光照、远mip或Alpha GPU验收。继续真实近墙／低顶镜头、现有Fern网格风摆及所有其他余项，不缩减完整Goal。
 见[本阶段执行报告](../reports/visual-experience-polish-execution-2026-09-28.md)。
+
+**最新：2026-10-05 V07f已本地提交`9b5a3f65`，总Goal仍active，V01–V11仍Doing。**
+真实World／Ogre近裁面整合复现第一人称侧墙与墙角回退切入Stone；nominal与render near分离，
+第一人称按实际眼部净空即时缩小，开放／第三人称当帧恢复，动态near不反馈第三人称支持或sweep。
+额外最多128查询计入2048原总预算，非法／预算／嵌入／净空不足明确unresolved；权威逻辑相机与存档保持。
+双配置正常客户端build0／首方warning0，纯相机各25／0，真实World＋生产Ogre软件验证各5979／0、208样本，
+实际最大总查询48／near27。旧NULL RenderSystem独立测试SIGSEGV（PID66788）保留并修复setup，
+与V11b旧受控ASan SIGABRT（PID23586）分开归因；不关闭系统报告，也不重复运行原崩溃二进制。
+标准／兼容实际六帧各GL0，独立矩阵／完整near quad SAT／驻留元数据各123／0；旧Before111／2SATFAIL、exit1保持。
+第一人称near约0.08621，恢复0.1；实际九对象队列／UI显示标志一致，原GPU几何、手部像素、ABA及bound uniform仍OPEN。
+早期45秒夹具超时、交接SHA拒绝和精选角色统计错误保留，修后必要检查通过。已有假存档入口正常exit1／无signal／marker保持；
+普通菜单前后四PNG相同。七旧包1004项及Before137项保持，zeroPID；3后／3前归档，精选36轮161张（102后／59前）。
+新普通候选`build/visual-experience-polish-20260928/v07f/After.app`Release SHA`193c968d…61a9e`，
+普通配置保持；最终135管理项／2959源码与干净身份以本批`postcommit-verification-r1.json`的PASS为交付条件；捕获保留0fa3ac8b＋实际dirty，不改写为本地提交。
+本轮公开CUA仍30秒超时reset、桌面UNKNOWN／普通输入NOT_RUN；固定夹具与软件VBO不关闭普通近墙、连续动作或舒适度。
+继续现有Fern真实网格风摆／根部稳定及所有普通路线与其他余项，不缩减完整Goal；详见[执行报告](../reports/visual-experience-polish-execution-2026-09-28.md)。
 
 **2026-09-28 冒险世界体验升级已由用户阶段放行，旧宿主 Goal 已删除。**
 B1–B9 主要功能已接入；用户确认按当前工程结果先行放行，人工核验及独立试玩暂缓。

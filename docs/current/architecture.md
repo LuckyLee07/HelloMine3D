@@ -949,6 +949,14 @@ V07e在World原局部探测内允许目标脚印角列混合一级支持，取�
 方块光与昼夜曝光，沿用地形明暗曲线；值由现有 `WorldDebugStats` 在原有锁内复制，UI 不查询世界。
 首次有效样本直接初始化，未知保持上次曝光，后续以 100 ms 指数平滑，切世界清理；HUD 图标保持原亮度。
 窄窗口按 HUD 右侧余量缩放，面板/暂停隐藏；不新增 Player 字段、动作事件或持久状态。
+V07f将Bootstrap原相机接线抽入`OgreThirdPersonCameraRig`，逻辑相机仍拥有选取／攻击／流送权威。
+独立nominal near派生第三人称支持和完整sweep半径；第一人称按实际驻留World眼部净空即时限制render near，
+开放／第三人称当帧恢复nominal，动态值不反馈支持判断。额外最多128探测纳入原2048总预算，
+范围／预算先完整预检；非法输入、空World、嵌入和净空不足明确unresolved，不新增加载或保存状态。
+纯Presentation不反向依赖Ogre；新rig只在Ogre适配层依赖World。可选camera观察器只在hidden／capture和
+新save／catalogue／output同session目录下启用，在World构造前拒绝已有目录；普通路径不注入夹具。
+实际main-camera队列矩阵来自GPU绑定前的AutoParamDataSource，原GPU几何、手部像素和驻留ABA保留OPEN；
+六阶段／45秒和载荷均有界，不能替代普通输入与连续验收。详见[玩家合同](../contracts/adventure-player-avatar-contract-v1.md)。
 第三人称身体和持物复用同帧快照与曝光函数，由 Bootstrap 在环境更新后写入玩家专属的三个材质 pass。
 普通／阴影和 atlas／array 路径均接入，程序重绑后当帧恢复曝光；其他角色和世界材质保持默认值。
 V07b的纯`ToolActionPresentation`由第一／第三人称共用已有动作elapsed和反馈，输出预备、下挥、
