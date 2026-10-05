@@ -2,7 +2,16 @@
 
 ## 恢复区
 
-- **2026-10-05 V07f已本地提交`9b5a3f65`，Goal仍active，V01–V11整项仍Doing。**
+- **2026-10-05 V02c：Fern原网格与actual程序专项通过，完整V01–V11仍Doing。**
+  几何／UV／shader／生成／存档保持；正常两配置build0／first-party warning0，真实World新ABI软件各991／0。
+  原GLSL两模式162／4严格新增候选FAIL保留，既有根门槛通过；错误时钟增加14行为FAIL、正常exit1无signal。
+  自然2源×8实际帧原缓冲／program／time／world／WVP／query检查通过，GL0；正式oracle13／0、303输入保持，另独立46检查。
+  首standard-r1 PID29402正常exit1／GL1280保留，修4.1 active-unit sampler查询后两模式通过；既有目录拒绝无signal／marker保持。
+  3原图入精选，37轮164张，普通配置与8旧包＋Before1278文件保持；新候选v02c/After.app Release ba54d795…37e94。
+  最终135管理项／2961源码／137文件与提交后干净身份见本批postcommit-verification-r1；捕获身份保持445f＋实际dirty。
+  完整12方向68子项审计保留；incarnation／ABA、innerVAO取数、像素归因、连续动态及普通输入OPEN，CUA仍UNKNOWN。
+  Goal初读blocked／后读实际active均保留，Root未改生命周期；不将专项通过标记总完成。详见文末V02c。
+- **历史检查点：2026-10-05 V07f已本地提交`9b5a3f65`，当时记录Goal为active，V01–V11整项仍Doing。**
   真实World近墙／低顶接线复现并修复第一人称near quad切墙：独立nominal驱动第三人称支持／sweep，render near即时按净空缩小并恢复。
   正常双配置build0／首方warning0，纯相机各25／0，真实World＋生产Ogre软件各5979／0、208样本、最大总查询48／near27；权威与修订保持。
   标准／兼容实际六帧GL0，独立实际camera矩阵／全near quad SAT／驻留／队列／PNG检查各123／0。旧Before111／2SATFAIL/exit1保留。
@@ -2607,3 +2616,69 @@ Debug SHA`fe4fd5a9a0b14325d755ee618d9ef1ba0cb837516ffe065979c141f04d4fab94`。
 V07仍Doing：原GPU geometry／三角形可见性、UI手部像素归因、atomic residency／ABA、实际bound GPU uniforms、普通连续输入／舒适度仍OPEN。
 精选静图、矩阵与软件VBO不证明held／全身几何不穿墙，亦不证明正常跳跃／挥动／受伤／洞穴动态。
 继续现有Fern生产网格风摆／根部稳定和全部普通路线与其他方向余项；Goal保持active，不缩小退出条件。
+
+## V02c：Fern 原网格、连续风场与实际客户端程序（2026-10-05）
+
+从 `445f6a65` 继续用户授权。现有六叶面、scale1、GrassTop生态格、UV1纹理重复兼风权重、
+UV2光照和UV3 root0保持；没有确认需要修改这些生产语义的缺陷。本批新增显式隔离观察与独立核对，
+不把原图叫作审美升级，也不为新增 repeatV1 属性候选改变合法纹理编码。
+
+### 接线与边界
+
+Bootstrap拥有可选 `FloraWindCapture`；正常启动模块和instance observer均null，preRender始终true。
+隐藏诊断只接受全新save／catalogue／output同会话目录、固定seed20260807／terrain30、RD1、FOV90、
+First机位966.5 81 -21.5／rotation30 0 0和默认资源。真实自然World两Fern坐标966,80,-19及966,80,-18，
+不setBlock或写入诊断植物。模拟冻结，正常驻留／网格上传继续；四阶段Off0／Off1／High0／High1是
+方向阴影普通／接收路径，并非风摆关闭。每阶段至少0.75秒，45秒上界；4操作／帧、合计原缓冲16MiB／操作、
+会话256MiB、硬12帧、正常4帧。完成包只意味着采集完成。
+
+source owner使用现有section／batch map key及实际node平移核对。direct CPU对照复制自loader启动前的
+同一上传输入，或runtime uploader持有的锁内copied snapshot；batch使用renderer-owned原parts按原顺序重打包。
+没有并发读取World CPU mesh容器。公开锁内live快照仅有location／revision，incarnation明确null／known=false；
+在审查中发现的候选未锁findChunk／getIncarnation已在正式采用前移除，旧候选及withdrawal保留。
+World block／sun／local light分次加锁，帧前后端点不等于原子快照或ABA证明。
+
+main-camera listener读实际prebind pass／AutoParam矩阵；instance post在Engine最终GPU参数绑定与_render之后
+读取GL_CURRENT_PROGRAM、链接及attached shader ID、原native source、typed globalTime／world／worldViewProj。
+使用已有对象const handle，不调用可能创建／链接／绑定程序的getter。原GL3Plus VBO／IBO通过COPY_READ读取
+完整字节，对照同一原CPU输入；自有GL_PRIMITIVES_GENERATED查询只在无同类查询时开启，post结束并读取实际结果。
+已有查询、零／不完整结果或身份不符记OPEN，不抢占。结果读可能阻塞，不能用作正常性能证据。
+COPY_READ、active unit、PACK／PBO、draw对象的read selector及read FBO恢复，其他program／pipeline／VAO／EBO／viewport
+仅比较；实例销毁前detach，模块在scene／context之前清理查询。GL3Plus可能在post前解除VAO，存储一致不能
+证明绘制内部attribute取数。实际本批自然客户端只有direct section对象，batch等价另由原字节重放支持。
+详见[Fern观察合同](../contracts/fern-wind-client-observation-contract-v1.md)。
+
+### 实际检查与保留的失败
+
+| 范围 | 证据及结果 |
+| --- | --- |
+| 正常构建 | Root `normal-build-r1/receipt.json`生成工程并正常Release／Debug构建0；修复查询后r2两配置增量构建0，first-party warning均0。r2没有新文件／生成规则变化，复用r1生成工程。源码与9保护包1278文件保持；第三方旧警告不冒充零警告。x86_64、SDK／minOS26.2，在当前macOS15.7.3宿主实际运行，不声明其他平台。 |
+| 真实软件原网格 | 正式 `prepare_fern_world_export.py`默认compile/prepared，加--run才link/run。修改Renderable布局后重新编译fixture并链接各143正常对象／17库，两配置各991／0、exit0、guard／inventory保持。无OgreCamera／Frustum／RenderSystem或GLcontext，空诊断Material无Technique，软件原44B／u32；实际World.setBlock／update／mesher，section-a／section-b／batch原点和24V／36I／六根检查，不能称实际材质或GPU上传。软件r1链接在最终sampler修复之前；修复仅显式GL观察代码、类布局和软件消费者保持，未重复无关专项。 |
+| 自然来源 | `world-before-natural-r1/natural-locate.json`真实bounded resident搜索13521次，15／0；seed20260807、terrain30、biome2、两自然Fern、sun15／local0。旧locator的revision331及0 ranges不作为客户端期望；新客户端自行锁内读revision及从原buffer恢复范围。 |
+| 生产GLSL原字节重放 | r3普通／High接收、标准／兼容两模式各162项，4个新增严格repeatV1候选FAIL，其余0FAIL／GL0；正常exit1，无signal。根最大2.86102294922e-6m小于原1e-5门槛，叶片最大0.00863647460938m、receiver delta0，原section／batch／连续时钟／完整UV2和UV3传输通过。原FAIL保留，Root拒绝改变UV1双重语义，未删测试或放宽门槛。该CGL重放手动设置等价Ogre时间，并非真实binder。 |
+| 纹理参考与时钟故障 | 两模式各96原三角形RGBA32F raster，source comparison最大误差约1.301e-7，opaque15776／16172、transparent0；只证明本次opaque源alpha，不关闭cutout轮廓或远mip。独立复制.program只把两Flora的time改成time_0_x，shader编译／链接成功后162／18FAIL，其中14新增时钟行为FAIL，GL0／正常exit1／无signal；不是Ogre binder故障或系统崩溃。 |
+| 首次实际客户端失败 | `client-standard-r1` PID29402正常exit1／signalnull，Off0原query96、程序／时钟／矩阵与原缓冲有效；唯一GL1280在native-post-restored。诊断错误已记录，旧sampler0不是有效测量。依据OpenGL4.1规范及已验证MaterialIdentityCapture路径，将超出4.1 core的indexed sampler binding查询改为active-unit GetIntegerv，并增加四阶段错误位置。旧包Runtime、日志／PNG／JSON／failure classification保持。新GL0复验支持该定位；没有关闭GL错误门槛。 |
+| 修复后实际两模式 | `client-standard-r2`及`client-compatibility-r1`各四原始2560×1440帧，两个正常exit0／无signal，8帧GL0／state恢复／openReasons空；全原操作192V／288I、native=CPU字节，每次实际query96。只有一个direct section(60,5,-2)原对象，两自然源分别[96,120)／[144,180)和[120,144)／[180,216)。actual programs普通／High两route一致、native time四点各递增，world／WVP delta0。没有把query、存储及矩阵当作对象像素或连续shader输出证据。 |
+| 独立核对 | 正式 `flora_wind_capture_oracle.py`实跑13／0，8帧16源，303输入SHA保持；39纯CPU正反例保持，原r3测试harness执行顺序失败不删、仅修harness后r4通过。另 `independent-native-client-review-r1.json`不导入正式算法，direct struct恢复16源24V／36I／六根／tile(0,5)／sun15／local0，46窄检查PASS，独立314文件保持。各报告scope_open仍列宽范围缺项，不能把窄检查OPEN0读成全项完成。 |
+| 安全入口与普通菜单 | `existing-save-gate-r1`新隔离marker被World创建前拒绝，PID32481正常exit1／无signal，marker集合与SHA保持，没有catalogue／观察输出。新普通菜单无Fern环境／World夹具，两PNG与V07f旧菜单逐字节相同；诊断RD1／旧参考RD8设置不同，未声称设置整体相同，普通输入仍false。 |
+| 原图／保护／交付 | 三原图不裁切／调色保存，精选37轮164张（105后／59前）全部源／归档SHA一致。8旧包1141文件＋Before137保持；另保护失败与已完成Runtime包，退出后zeroPID。普通config705B／SHA70d9…16047保持。新候选After.app为Release ba54d795…37e94；最终135管理项／2961源码／137完整文件、干净身份须经提交后收据PASS。 |
+
+4.1查询依据：[OpenGL 4.1 core §3.8.2](https://registry.khronos.org/OpenGL/specs/gl/glspec41.core.pdf)；
+后续indexed binding queries见[ARB_direct_state_access §22.5](https://registry.khronos.org/OpenGL/extensions/ARB/ARB_direct_state_access.txt)。
+具体旧调用的归因是规范／现有正确路径推断，再由修复后的实际GL0确认，未补造旧粗stage逐调用日志。
+Root只在必要源变化后构建／复验；World、资源、shader、植物与存档未改，未重跑无关完整门禁。
+本批总证据以 `v02c/closure-evidence-r1.json` 和提交后 `postcommit-verification-r1.json` 为准。
+
+### 完整范围与恢复
+
+`remaining-full-scope-audit-r1.json`保留当时HEAD445f／原报告的12方向68范围子项，只是审计标签，
+不是68个新实跑断言。未发现新增已证实且未修的生产缺陷；V10同ID长通知滚动列待复现，未据候选扩围实施。
+生产风摆原语义、actual direct source程序／storage／提交的窄事实通过，完整V02及V01–V11仍Doing：
+inner-draw attribute／VAO、World／renderer incarnation及ABA、实际源texture bytes与visible pixel归因、
+连续正常输入／闪烁／采集使用／林间通行、透明Alpha轮廓与远mip、其他方向普通体验仍OPEN／NOT_RUN。
+Fern注册scale1，没有不同生长阶段；time0并非windOff。固定自然机位与冻结模拟不代替普通输入。
+
+宿主Goal初读blocked保存在first-native-proof-r1，后续Root实际读到active；未通过工具自行重启／新建或标记complete。
+用户已授权继续，本批推进可执行专项。公开CUA最近真实getState仍超时reset后UNKNOWN；隐藏GPU运行没有证明桌面输入
+恢复，未盲目重试或通过OS事件绕过。此前异常框PID23586受控ASan与PID66788测试setup崩溃归因保持，
+本批没有重跑原崩溃二进制，所有失败是正常exit1／无signal。继续完整范围的可执行项，必要普通自测不能冒充通过。

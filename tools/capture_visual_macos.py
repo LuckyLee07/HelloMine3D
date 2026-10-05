@@ -105,6 +105,8 @@ def main():
                         help="Capture nine actual material-consumer phases in a new isolated world (diagnostic input only)")
     parser.add_argument("--camera-diagnostics", action="store_true",
                         help="Capture six normal render-camera/scene phases in a new isolated world (diagnostic input only)")
+    parser.add_argument("--fern-wind", action="store_true",
+                        help="Observe four actual draws of two natural Fern sources in a new isolated forest (diagnostic input only)")
     parser.add_argument("--inspect-slot", type=int, choices=range(5), help="Item detail diagnostic; requires pointer panel and HUD fixture")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--panel", choices=("crafting", "container", "furnace", "crusher", "settings", "map", "journal", "pointer"))
@@ -147,8 +149,22 @@ def main():
         parser.error("Inherited material identity fixture is not accepted; use --material-identity explicitly")
     if "HELLOMINE3D_CAMERA_DIAGNOSTICS_DIR" in os.environ:
         parser.error("Inherited camera diagnostics are not accepted; use --camera-diagnostics explicitly")
+    if "HELLOMINE3D_FERN_WIND_CAPTURE_DIR" in os.environ:
+        parser.error("Inherited Fern diagnostics are not accepted; use --fern-wind explicitly")
+    if args.fern_wind and (args.foreground or args.performance or args.player_motion or
+            args.actor_visual or args.hud_fixture or args.panel or args.inspect_slot is not None or
+            args.material_identity or args.camera_diagnostics or args.scene != "forest" or
+            args.reuse_app or args.save_template or args.streaming or args.position or args.rotation or
+            args.render_distance != 1 or args.visual_detail not in ("standard", "compatibility") or
+            args.launch_method != "direct" or args.capture_ms != "5000,10000" or
+            args.terrain_fallback or args.atmosphere_fallback or os.environ.get("HELLOMINE3D_RESOURCE_PACKS") or
+            args.seed != 20260807 or args.time != 6000 or args.perspective != "first" or
+            args.shadow != "off" or args.post != "off" or args.fov != 90 or
+            args.width != 1280 or args.height != 720):
+        parser.error("--fern-wind requires a new hidden default-pack forest, seed20260807/time6000, RD1, explicit standard/compatibility, direct launch, first perspective, FOV90 and 1280x720 points")
     if args.camera_diagnostics and (args.foreground or args.performance or args.player_motion or
             args.actor_visual or args.hud_fixture or args.panel or args.material_identity or
+            args.fern_wind or
             args.scene == "menu" or args.reuse_app or args.save_template or args.streaming or
             args.position or args.rotation or
             args.render_distance != 1 or args.visual_detail not in ("standard", "compatibility") or
@@ -158,12 +174,13 @@ def main():
         parser.error("--camera-diagnostics requires a new hidden default-pack RD1 world, explicit standard/compatibility, direct launch, FOV120 and 1920x640 points")
     if args.material_identity and (args.foreground or args.performance or args.player_motion or
             args.actor_visual or args.hud_fixture or args.panel or args.inspect_slot is not None or
+            args.fern_wind or
             args.scene == "menu" or args.reuse_app or args.save_template or
             args.render_distance != 1 or args.visual_detail not in ("standard", "compatibility") or
             args.launch_method != "direct" or args.capture_ms != "5000,10000" or
             args.terrain_fallback or args.atmosphere_fallback or os.environ.get("HELLOMINE3D_RESOURCE_PACKS")):
         parser.error("--material-identity requires a new hidden default-pack world, RD1, explicit standard/compatibility, direct launch, and no other fixtures")
-    if args.material_identity or args.camera_diagnostics:
+    if args.material_identity or args.camera_diagnostics or args.fern_wind:
         other_fixtures = ("HELLOMINE3D_BLOCK_FEEDBACK_CAPTURE", "HELLOMINE3D_COMBAT_FIXTURE",
             "HELLOMINE3D_CONTAINER_FIXTURE", "HELLOMINE3D_CRAFTING_FIXTURE", "HELLOMINE3D_CROP_FIXTURE",
             "HELLOMINE3D_MACHINE_FIXTURE", "HELLOMINE3D_ORE_FIXTURE", "HELLOMINE3D_SPAWN_VALIDATION_ACTORS",
@@ -172,7 +189,7 @@ def main():
             "HELLOMINE3D_ACTOR_VISUAL_CAPTURE", "HELLOMINE3D_VISUAL_CAMERA_SWEEP", "HELLOMINE3D_VISUAL_CAMERA_PATH",
             "HELLOMINE3D_RC_PERF_PROFILE", "HELLOMINE3D_E2_BATCH_MANIFEST", "HELLOMINE3D_V10C_FALLBACK")
         if any(name in os.environ for name in other_fixtures):
-            parser.error("Inherited diagnostic fixtures cannot be combined with --material-identity")
+            parser.error("Inherited diagnostic fixtures cannot be combined with a consumer observer")
     if platform.system() != "Darwin":
         parser.error("macOS required")
     if not 0 <= args.time < 24000:
@@ -274,6 +291,10 @@ seed random
         environment["HELLOMINE3D_CAMERA_DIAGNOSTICS_DIR"] = str(output / "camera-diagnostics")
         environment["HELLO_RENDER_CAPTURE_MS"] = "60000"
         environment["HELLO_RENDER_CAPTURE_EXIT"] = "0"
+    if args.fern_wind:
+        environment["HELLOMINE3D_FERN_WIND_CAPTURE_DIR"] = str(output / "fern-wind")
+        environment["HELLO_RENDER_CAPTURE_MS"] = "60000"
+        environment["HELLO_RENDER_CAPTURE_EXIT"] = "0"
     if args.terrain_fallback:
         environment["HELLOMINE3D_FORCE_LEGACY_TERRAIN"] = "1"
     if args.player_motion:
@@ -284,6 +305,8 @@ seed random
         rotation = args.rotation or rotation
         if args.camera_diagnostics:
             position, rotation = "0.5 200 0.5", "0 0 0"
+        if args.fern_wind:
+            position, rotation = "966.5 81 -21.5", "30 0 0"
         for value in (position, rotation):
             try:
                 if len(value.split()) != 3:
@@ -343,7 +366,8 @@ seed random
               "save_template_meta_sha256": template_meta_sha256,
               "package_identity": identity,
               "scene": args.scene, "settings": settings, "environment": environment,
-              "diagnostic_fixture": "camera-fixed-resident-origin" if args.camera_diagnostics else None,
+              "diagnostic_fixture": "camera-fixed-resident-origin" if args.camera_diagnostics else
+                  ("fern-natural-source-native-draw" if args.fern_wind else None),
               "inherited_diagnostic_environment": {
                   key: os.environ[key] for key in (
                       "HELLOMINE3D_VISUAL_CAMERA_SWEEP", "HELLOMINE3D_VISUAL_CAMERA_PATH",
@@ -363,17 +387,37 @@ seed random
         else:
             with (output / "client.log").open("w") as stdout, \
                     (output / "client-stderr.log").open("w") as stderr:
-                subprocess.run(command, check=True, timeout=100,
-                               env={**os.environ, **environment},
-                               stdout=stdout, stderr=stderr)
+                if args.fern_wind:
+                    child = subprocess.Popen(command,
+                        env={**os.environ, **environment}, stdout=stdout, stderr=stderr)
+                    record["child_pid"] = child.pid
+                    record_path.write_text(json.dumps(record, indent=2) + "\n")
+                    try:
+                        child.wait(timeout=100)
+                    except subprocess.TimeoutExpired:
+                        child.kill()
+                        child.wait()
+                        record["child_timed_out"] = True
+                        raise
+                    finally:
+                        record["child_returncode"] = child.returncode
+                        record["child_signal"] = -child.returncode if child.returncode is not None and child.returncode < 0 else None
+                    if child.returncode:
+                        raise subprocess.CalledProcessError(child.returncode, command)
+                else:
+                    subprocess.run(command, check=True, timeout=100,
+                                   env={**os.environ, **environment},
+                                   stdout=stdout, stderr=stderr)
             # macOS reports ru_maxrss in bytes. In direct mode the executable
             # is the child we waited for; LaunchServices mode cannot claim that.
             record["peak_child_rss_bytes"] = int(
                 resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss)
         frames = sorted((output / "material-identity").glob("client-*.png")) if args.material_identity else \
             sorted((output / "camera-diagnostics").glob("*.png")) if args.camera_diagnostics else \
+            sorted((output / "fern-wind").glob("*.png")) if args.fern_wind else \
             sorted((output / "frames").glob("*.png"))
-        expected_frames = 9 if args.material_identity else (6 if args.camera_diagnostics else (0 if args.performance else len(capture_times)))
+        expected_frames = 9 if args.material_identity else (6 if args.camera_diagnostics else
+            (4 if args.fern_wind else (0 if args.performance else len(capture_times))))
         if len(frames) != expected_frames:
             raise RuntimeError(f"Expected {expected_frames} captured frames, got {len(frames)}")
         # Window points and framebuffer pixels differ on Retina displays. Require
@@ -399,6 +443,14 @@ seed random
             artifacts += [index]
             record["material_identity_session"] = str(index)
             record["material_identity_scope"] = "actual consumer capture; independent oracle required; normal input remains false"
+        if args.fern_wind:
+            index = output / "fern-wind/index.json"
+            session = json.loads(index.read_text())
+            if len(session.get("frames", [])) != 4:
+                raise RuntimeError("Fern session did not finish its four actual native draw frames")
+            artifacts += [index]
+            record["fern_wind_session"] = str(index)
+            record["fern_wind_scope"] = "natural source native draw capture; independent oracle required; normal input remains false"
         if args.performance:
             record["framebuffer_size_pixels"] = performance_framebuffer(
                 (output / "client.log").read_text(), args.width, args.height, args.pixel_ratio)

@@ -97,6 +97,31 @@ ChunkSectionRenderable::~ChunkSectionRenderable()
     mRenderOp.indexData = nullptr;
 }
 
+void ChunkSectionRenderable::setNativeDrawObserver(NativeDrawObserver *observer) noexcept
+{
+    m_nativeDrawObserver = observer;
+}
+
+bool ChunkSectionRenderable::preRender(Ogre::SceneManager *scene, Ogre::RenderSystem *renderSystem)
+{
+    m_activeNativeDrawObserver = nullptr;
+    auto *observer = m_nativeDrawObserver;
+    if (observer) {
+        // A throwing pre-callback leaves no armed post-callback. The diagnostic
+        // owns exception-safe cleanup for any query it started.
+        observer->beforeNativeDraw(*this, scene, renderSystem);
+        m_activeNativeDrawObserver = observer;
+    }
+    return true; // Preserve Renderable's default: never suppress normal drawing.
+}
+
+void ChunkSectionRenderable::postRender(Ogre::SceneManager *scene, Ogre::RenderSystem *renderSystem)
+{
+    auto *observer = m_activeNativeDrawObserver;
+    m_activeNativeDrawObserver = nullptr; // Clear before a possibly throwing callback.
+    if (observer) observer->afterNativeDraw(*this, scene, renderSystem);
+}
+
 std::size_t ChunkSectionRenderable::vertexCount() const noexcept
 {
     return mRenderOp.vertexData == nullptr

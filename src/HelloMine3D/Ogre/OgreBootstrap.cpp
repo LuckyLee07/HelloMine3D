@@ -11,6 +11,7 @@
 #include "OgreRenderCapture.h"
 #include "OgreUserInterface.h"
 #include "MaterialIdentityCapture.h"
+#include "FloraWindCapture.h"
 #include "../Presentation/LocalizedPresentation.h"
 #include "StartupErrorReporter.h"
 #include "StartupResourcePreflight.h"
@@ -342,6 +343,8 @@ namespace
         std::vector<std::unique_ptr<ChunkSectionRenderable>> renderables;
         glm::ivec3 location{0};
         std::unique_ptr<ChunkMeshCollection> batchMeshes;
+        // Optional diagnostic copy from the same safe CPU upload input; normal null.
+        std::unique_ptr<ChunkMesh> fernDiagnosticFlora;
     };
 
     // Own only the solar light's projection, leaving Ogre's other lights alone.
@@ -621,6 +624,21 @@ namespace
                     parent != std::filesystem::weakly_canonical(
                         std::filesystem::path(catalogueOverride).parent_path()))
                     throw std::runtime_error("Camera diagnostic directories must share the new session directory.");
+            }
+            const char* fernDirectory = std::getenv("HELLOMINE3D_FERN_WIND_CAPTURE_DIR");
+            if (fernDirectory != nullptr && fernDirectory[0] != '\0')
+            {
+                if (saveOverride == nullptr || saveOverride[0] == '\0' ||
+                    catalogueOverride == nullptr || catalogueOverride[0] == '\0' ||
+                    std::filesystem::exists(saveOverride) ||
+                    std::filesystem::exists(catalogueOverride) ||
+                    std::filesystem::exists(fernDirectory))
+                    throw std::runtime_error("Fern wind capture requires fresh save, catalogue and output directories.");
+                const auto parent = std::filesystem::weakly_canonical(
+                    std::filesystem::path(fernDirectory).parent_path());
+                if (parent != std::filesystem::weakly_canonical(std::filesystem::path(saveOverride).parent_path()) ||
+                    parent != std::filesystem::weakly_canonical(std::filesystem::path(catalogueOverride).parent_path()))
+                    throw std::runtime_error("Fern diagnostic directories must share the new session directory.");
             }
             m_worldManagement =
                 std::make_unique<WorldManagementService>(
@@ -1132,6 +1150,46 @@ namespace
                 m_cameraDiagnosticOutput = cameraOutput;
                 std::cout << "[CAMERA_DIAGNOSTICS] normal_input=0 isolated_world=1 simulation_delta=0 camera_sweep=0\n";
             }
+            const char* fernOutput = std::getenv(
+                "HELLOMINE3D_FERN_WIND_CAPTURE_DIR");
+            if (fernOutput != nullptr && fernOutput[0] != '\0')
+            {
+                if (!isTrueValue(std::getenv("HELLOMINE3D_WINDOW_HIDDEN")) ||
+                    !isTrueValue(std::getenv("HELLO_RENDER_CAPTURE")) ||
+                    initialSaveDirectory.empty() ||
+                    std::getenv("HELLOMINE3D_SAVE_DIR") == nullptr ||
+                    std::getenv("HELLOMINE3D_CATALOGUE_DIR") == nullptr ||
+                    RuntimePerformanceCapture::isEnabled() ||
+                    std::getenv("HELLOMINE3D_RC_PERF_PROFILE") != nullptr ||
+                    std::getenv("HELLOMINE3D_E2_BATCH_MANIFEST") != nullptr ||
+                    m_visualCameraSweep.enabled || !m_playerMotionCapture.empty() ||
+                    !m_actorVisualCapture.empty() || !m_materialIdentityOutput.empty() ||
+                    !m_cameraDiagnosticOutput.empty())
+                    throw std::runtime_error("Fern wind capture require a hidden isolated world without other diagnostics.");
+                for (const char* name : {"HELLOMINE3D_BLOCK_FEEDBACK_CAPTURE",
+                         "HELLOMINE3D_COMBAT_FIXTURE", "HELLOMINE3D_CONTAINER_FIXTURE",
+                         "HELLOMINE3D_CRAFTING_FIXTURE", "HELLOMINE3D_CROP_FIXTURE",
+                         "HELLOMINE3D_MACHINE_FIXTURE", "HELLOMINE3D_ORE_FIXTURE",
+                         "HELLOMINE3D_SPAWN_VALIDATION_ACTORS", "HELLOMINE3D_TRANSPARENT_FIXTURE",
+                         "HELLOMINE3D_VERTEX_LIGHTING_FIXTURE", "HELLOMINE3D_VERTICAL_SLICE_FIXTURE",
+                         "HELLOMINE3D_HUD_FIXTURE", "HELLOMINE3D_HUD_PAGE_FIXTURE",
+                         "HELLOMINE3D_RESOURCE_PACKS", "HELLOMINE3D_TERRAIN_FALLBACK", "HELLOMINE3D_V10C_FALLBACK"})
+                    if (std::getenv(name) != nullptr)
+                        throw std::runtime_error(std::string("Fern wind capture cannot combine fixture ") + name);
+                auto exact = [](const char* key, const char* value) {
+                    const char* actual = std::getenv(key);
+                    return actual != nullptr && std::string(actual) == value;
+                };
+                if (!exact("HELLOMINE3D_SEED", "20260807") ||
+                    !exact("HELLOMINE3D_WORLD_TIME", "6000") ||
+                    !exact("HELLOMINE3D_PLAYER_POSITION", "966.5 81 -21.5") ||
+                    !exact("HELLOMINE3D_PLAYER_ROTATION", "30 0 0") ||
+                    m_config.renderDistance != 1 || m_config.fov != 90 ||
+                    m_config.cameraPerspective != CameraPerspective::FirstPerson)
+                    throw std::runtime_error("Fern wind capture requires its fixed natural World camera and default resources.");
+                m_fernWindOutput = fernOutput;
+                std::cout << "[FERN_WIND_CAPTURE] normal_input=0 isolated_world=1 simulation_delta=0 camera_sweep=0\n";
+            }
             const bool hiddenWindow = isTrueValue(
                 std::getenv("HELLOMINE3D_WINDOW_HIDDEN"));
             m_hiddenWindow = hiddenWindow;
@@ -1189,6 +1247,9 @@ namespace
             if (!m_materialIdentityOutput.empty())
                 m_materialIdentityCapture = std::make_unique<MaterialIdentityCapture>(
                     m_materialIdentityOutput);
+            if (!m_fernWindOutput.empty())
+                m_floraWindCapture = std::make_unique<FloraWindCapture>(
+                    m_fernWindOutput, *m_sceneManager, *m_camera, *m_window);
             if (!m_cameraDiagnosticOutput.empty())
                 m_cameraDiagnostics = std::make_unique<OgreCameraDiagnostics>(
                     m_cameraDiagnosticOutput, *m_sceneManager);
@@ -2086,6 +2147,13 @@ namespace
                                 return;
                             }
 
+                            if (m_floraWindCapture && std::string(materialName)=="HelloMine3D/Flora" &&
+                                sectionLocation==glm::ivec3(60,5,-2))
+                            {
+                                if (validation.vertexCount*sizeof(TerrainRenderVertex)+validation.indexCount*sizeof(std::uint32_t)>16u*1024u*1024u)
+                                    throw std::runtime_error("Startup natural Flora diagnostic copy exceeds raw bound.");
+                                visual.fernDiagnosticFlora=std::make_unique<ChunkMesh>(mesh);
+                            }
                             auto renderable =
                                 std::make_unique<ChunkSectionRenderable>(
                                     sectionName.str() + "_" + layerName,
@@ -2135,7 +2203,7 @@ namespace
                                 key, std::move(visual));
                             m_sectionRenderStates[key] =
                                 ChunkRenderState::GpuResident;
-                            if (m_materialIdentityCapture)
+                            if (m_materialIdentityCapture || m_floraWindCapture)
                                 m_materialIdentityMeshRevisions[key] = section->getBlockRevision();
                         }
                         else
@@ -2539,6 +2607,7 @@ namespace
             }
             prepareMaterialIdentityCapture(event.timeSinceLastFrame);
             prepareCameraDiagnostics(event.timeSinceLastFrame);
+            prepareFloraWindCapture(event.timeSinceLastFrame);
             const bool sandboxAdvanced =
                 updateSandbox(event.timeSinceLastFrame);
             if (!sandboxAdvanced && m_sandbox != nullptr)
@@ -2567,6 +2636,7 @@ namespace
             }
             observeMaterialIdentityGeometry();
             observeCameraDiagnostics();
+            observeFloraWindCapture();
             if (m_userInterface != nullptr)
             {
                 const MiningProgressSnapshot progress =
@@ -2622,6 +2692,15 @@ namespace
                 m_cameraDiagnosticPhaseSeconds = 0.f;
                 m_cameraDiagnosticPhasePlaced = false;
                 m_cameraDiagnosticFramePending = false;
+            }
+            if (m_floraWindCapture && m_floraWindCapture->isFrameOpen())
+            {
+                m_window->writeContentsToFile(m_floraWindCapture->framePngPath());
+                auto end = collectFloraWindBindings();
+                if (end.empty()) throw std::runtime_error("Fern source endpoint lost its actual resident GPU object.");
+                m_floraWindCapture->finishFrame(std::move(end));
+                m_fernWindPhaseSeconds = 0.f;
+                m_fernWindPhaseApplied = false;
             }
             ++m_frameCount;
             return true;
@@ -2726,8 +2805,149 @@ namespace
                 m_frameCount >= m_exitAfterFrames;
             return !(m_materialIdentityCapture && m_materialIdentityPhase >= 9) &&
                    !(m_cameraDiagnostics && m_cameraDiagnosticPhase >= 6) &&
+                   !(m_floraWindCapture && m_floraWindCapture->isComplete()) &&
                    !captureComplete && !frameLimitReached &&
                    !RuntimePerformanceCapture::shouldCloseWindow();
+        }
+
+        // Same ordinary World.update/mesh uploader as the client; the only
+        // fixture is a fixed camera in a fresh natural World, never setBlock.
+        std::vector<FloraWindCapture::Binding> collectFloraWindBindings()
+        {
+            if (!m_floraWindCapture || !m_world) return {};
+            const std::array<glm::ivec3, 2> sources{{{966, 80, -19}, {966, 80, -18}}};
+            const auto snapshot = m_world->collectSectionMeshSnapshot(false);
+            std::vector<FloraWindCapture::Binding> result;
+            auto stateFor = [&](glm::ivec3 location, FloraWindCapture::PartState& state) {
+                const auto current = std::find_if(snapshot.liveSectionVersions.begin(),
+                    snapshot.liveSectionVersions.end(), [&](const auto& x) { return x.location == location; });
+                const auto key = sectionKey(location);
+                const auto uploaded = m_materialIdentityMeshRevisions.find(key);
+                const auto gpu = m_sectionRenderStates.find(key);
+                if (current == snapshot.liveSectionVersions.end() ||
+                    uploaded == m_materialIdentityMeshRevisions.end() ||
+                    uploaded->second != current->blockRevision || gpu == m_sectionRenderStates.end() ||
+                    gpu->second != ChunkRenderState::GpuResident) return false;
+                // The public locked snapshot has no incarnation; preserve
+                // this gap instead of reading the loader's unlocked Chunk map.
+                state.section = location; state.incarnationKnown = false;
+                state.liveRevision = current->blockRevision; state.uploadRevision = uploaded->second;
+                state.gpuResident = true;
+                return true;
+            };
+            auto append = [&](SectionVisual& visual, bool batched, const std::string& ownerKey) {
+                for (auto& object : visual.renderables)
+                {
+                    if (object->getMaterial()->getName() != "HelloMine3D/Flora") continue;
+                    std::vector<FloraWindCapture::SourceBlock> selected;
+                    for (auto p : sources)
+                    {
+                        const glm::ivec3 section(int(std::floor(p.x/double(CHUNK_SIZE))),
+                            int(std::floor(p.y/double(CHUNK_SIZE))),int(std::floor(p.z/double(CHUNK_SIZE))));
+                        if (sectionKey(batched?terrainRenderBatchOrigin(section):section)==ownerKey)
+                            selected.push_back({p});
+                    }
+                    if (selected.empty()) continue;
+                    FloraWindCapture::Binding binding; binding.renderable = object.get();
+                    // Startup's direct visual does not store its section location;
+                    // derive the actual constructor origin from its existing node.
+                    Ogre::Matrix4 actualWorld; object->getWorldTransforms(&actualWorld);
+                    const auto translation=actualWorld.getTrans();
+                    auto sectionAxis=[](float x) {
+                        const double a=double(x)/CHUNK_SIZE;
+                        if (!std::isfinite(a) || a<std::numeric_limits<int>::min() ||
+                            a>std::numeric_limits<int>::max() || std::floor(a)!=a)
+                            throw std::runtime_error("Natural Flora object has an invalid section translation.");
+                        return static_cast<int>(a);
+                    };
+                    binding.origin={sectionAxis(translation.x),sectionAxis(translation.y),sectionAxis(translation.z)};
+                    if (sectionKey(binding.origin)!=ownerKey)
+                        throw std::runtime_error("Natural Flora node origin disagrees with its actual renderer owner key.");
+                    binding.sources = std::move(selected);
+                    std::vector<TerrainRenderBatchPart> parts;
+                    if (batched)
+                    {
+                        for (int y=0; y<TerrainRenderBatchSections; ++y)
+                        {
+                            const glm::ivec3 location(binding.origin.x,binding.origin.y+y,binding.origin.z);
+                            const auto existing = m_sectionVisuals.find(sectionKey(location));
+                            if (existing == m_sectionVisuals.end() || !existing->second.batchMeshes) continue;
+                            const auto& mesh = existing->second.batchMeshes->floraMesh;
+                            if (mesh.getClientMesh().indices.empty()) continue;
+                            FloraWindCapture::PartState state;
+                            if (!stateFor(location,state)) return false;
+                            binding.parts.push_back(state); parts.push_back({location,&mesh});
+                        }
+                    }
+                    else
+                    {
+                        FloraWindCapture::PartState state;
+                        if (!stateFor(binding.origin,state)) return false;
+                        // Startup copied before the loader began, or copied
+                        // from the actual uploader's locked snapshot input.
+                        // Never dereference World CPU vectors concurrently here.
+                        if (!visual.fernDiagnosticFlora) return false;
+                        binding.parts.push_back(state);
+                        parts.push_back({binding.origin,visual.fernDiagnosticFlora.get()});
+                    }
+                    std::size_t vertexBytes=0,indexBytes=0;
+                    for (const auto& part : parts)
+                    {
+                        vertexBytes += part.mesh->getClientMesh().vertexPositions.size()/3*sizeof(TerrainRenderVertex);
+                        indexBytes += part.mesh->getClientMesh().indices.size()*sizeof(std::uint32_t);
+                    }
+                    if (vertexBytes>16u*1024u*1024u || indexBytes>16u*1024u*1024u-vertexBytes)
+                        throw std::runtime_error("Natural Flora operation exceeds the bounded original buffer observer.");
+                    binding.cpu = packTerrainRenderBatch(parts,binding.origin);
+                    result.push_back(std::move(binding));
+                }
+                return true;
+            };
+            for (auto& pair : m_sectionVisuals) if (!append(pair.second,false,pair.first)) return {};
+            for (auto& pair : m_terrainBatchVisuals) if (!append(pair.second,true,pair.first)) return {};
+            std::size_t found=0;
+            for (auto p:sources)
+            {
+                unsigned matches=0;
+                for (const auto& binding:result) for (const auto& source:binding.sources) matches += source.position==p;
+                if (matches>1) throw std::runtime_error("Ambiguous existing natural Fern GPU object.");
+                found += matches;
+            }
+            return found==sources.size() ? result : std::vector<FloraWindCapture::Binding>{};
+        }
+
+        void prepareFloraWindCapture(float deltaSeconds)
+        {
+            if (!m_floraWindCapture || !m_world || m_floraWindCapture->isComplete()) return;
+            const auto now=std::chrono::steady_clock::now();
+            if (m_fernWindStarted==std::chrono::steady_clock::time_point{}) m_fernWindStarted=now;
+            if (now-m_fernWindStarted>std::chrono::seconds(45))
+                throw std::runtime_error("Natural Fern capture exceeded 45 seconds waiting for actual resident draws.");
+            m_fernWindPhaseSeconds += std::isfinite(deltaSeconds) ? std::clamp(deltaSeconds,0.f,.25f) : 0.f;
+            if (!m_fernWindPhaseApplied)
+            {
+                const auto requested=m_floraWindCapture->frameCount()<2 ? DirectionalShadowQuality::Off : DirectionalShadowQuality::High;
+                if (!configureDirectionalShadows(requested))
+                    throw std::runtime_error("Fern capture could not select its actual requested shadow receiver route.");
+                m_config.directionalShadowQuality=requested;
+                m_fernWindPhaseApplied=true;
+                m_fernWindPhaseSeconds=0.f;
+            }
+        }
+
+        void observeFloraWindCapture()
+        {
+            if (!m_floraWindCapture || m_floraWindCapture->isComplete() ||
+                m_floraWindCapture->isFrameOpen() || !m_fernWindPhaseApplied || m_fernWindPhaseSeconds<.75f) return;
+            if (m_world->getChunkManager().getTerrainSeed()!=20260807 ||
+                m_world->getChunkManager().getTerrainGenerationVersion()!=30)
+                throw std::runtime_error("Fern natural source requires its real seed20260807 terrain30 World.");
+            auto bindings=collectFloraWindBindings();
+            if (bindings.empty()) return;
+            constexpr const char* phases[]{"Off0","Off1","High0","High1"};
+            m_floraWindCapture->beginFrame(phases[m_floraWindCapture->frameCount()],
+                runtimeTerrainMaterialProfile().usesTextureArray()?"standard":"compatibility",
+                static_cast<std::uint64_t>(m_frameCount), *m_world, std::move(bindings));
         }
 
         void prepareCameraDiagnostics(float deltaSeconds)
@@ -3065,7 +3285,7 @@ namespace
             {
                 return false;
             }
-            if (m_materialIdentityCapture || m_cameraDiagnostics)
+            if (m_materialIdentityCapture || m_cameraDiagnostics || m_floraWindCapture)
             {
                 // This bounded diagnostic freezes simulation only in its isolated
                 // world. Normal World residency/mesh upload and renderer sync run.
@@ -4178,6 +4398,15 @@ namespace
                     validateTerrainRenderPart({section.location, &mesh});
                     return;
                 }
+                if (m_floraWindCapture && std::string(material)=="HelloMine3D/Flora" &&
+                    section.location==glm::ivec3(60,5,-2))
+                {
+                    const auto vertexBytes=mesh.getClientMesh().vertexPositions.size()/3*sizeof(TerrainRenderVertex);
+                    const auto indexBytes=mesh.getClientMesh().indices.size()*sizeof(std::uint32_t);
+                    if(vertexBytes>16u*1024u*1024u || indexBytes>16u*1024u*1024u-vertexBytes)
+                        throw std::runtime_error("Natural Flora diagnostic CPU copy exceeds raw bound.");
+                    visual.fernDiagnosticFlora=std::make_unique<ChunkMesh>(mesh);
+                }
                 auto object = std::make_unique<ChunkSectionRenderable>(
                     name + suffix, mesh, section.location, material, queue);
                 object->setCastShadows(shadows);
@@ -4219,7 +4448,7 @@ namespace
             }
             if (!visual.node && !visual.batchMeshes) return false;
             m_sectionVisuals.emplace(key, std::move(visual));
-            if (m_materialIdentityCapture || m_cameraDiagnostics)
+            if (m_materialIdentityCapture || m_cameraDiagnostics || m_floraWindCapture)
                 m_materialIdentityMeshRevisions[key] = section.blockRevision;
             return true;
         }
@@ -4307,12 +4536,14 @@ namespace
             }
             for (auto& renderable : visual.renderables)
             {
+                if (m_floraWindCapture) m_floraWindCapture->detachRenderable(*renderable);
                 if (renderable->isAttached())
                 {
                     renderable->detachFromParent();
                 }
             }
             visual.renderables.clear();
+            visual.fernDiagnosticFlora.reset();
             if (visual.node != nullptr && m_sceneManager != nullptr)
             {
                 m_sceneManager->destroySceneNode(visual.node);
@@ -6309,6 +6540,7 @@ namespace
             m_renderCapture.reset();
             m_materialIdentityCapture.reset();
             m_cameraDiagnostics.reset();
+            m_floraWindCapture.reset();
             m_userInterface.reset();
             destroyPostProcessingResources();
             m_blockFeedback.reset();
@@ -6399,6 +6631,11 @@ namespace
         bool m_materialIdentityMapReady = false;
         bool m_materialIdentityFramePending = false;
         std::unordered_map<std::string, std::uint32_t> m_materialIdentityMeshRevisions;
+        std::unique_ptr<FloraWindCapture> m_floraWindCapture;
+        std::string m_fernWindOutput;
+        std::chrono::steady_clock::time_point m_fernWindStarted{};
+        float m_fernWindPhaseSeconds=0.f;
+        bool m_fernWindPhaseApplied=false;
         std::unique_ptr<OgreCameraDiagnostics> m_cameraDiagnostics;
         std::string m_cameraDiagnosticOutput;
         int m_cameraDiagnosticPhase = 0;

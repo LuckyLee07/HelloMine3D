@@ -187,7 +187,7 @@ CUA当前实际超时reset，桌面UNKNOWN、普通输入NOT_RUN；诊断库存�
 正常光照、远mip或Alpha GPU验收。继续真实近墙／低顶镜头、现有Fern网格风摆及所有其他余项，不缩减完整Goal。
 见[本阶段执行报告](../reports/visual-experience-polish-execution-2026-09-28.md)。
 
-**最新：2026-10-05 V07f已本地提交`9b5a3f65`，总Goal仍active，V01–V11仍Doing。**
+**历史检查点：2026-10-05 V07f已本地提交`9b5a3f65`，当时记录总Goal为active，V01–V11仍Doing。**
 真实World／Ogre近裁面整合复现第一人称侧墙与墙角回退切入Stone；nominal与render near分离，
 第一人称按实际眼部净空即时缩小，开放／第三人称当帧恢复，动态near不反馈第三人称支持或sweep。
 额外最多128查询计入2048原总预算，非法／预算／嵌入／净空不足明确unresolved；权威逻辑相机与存档保持。
@@ -202,6 +202,23 @@ CUA当前实际超时reset，桌面UNKNOWN、普通输入NOT_RUN；诊断库存�
 普通配置保持；最终135管理项／2959源码与干净身份以本批`postcommit-verification-r1.json`的PASS为交付条件；捕获保留0fa3ac8b＋实际dirty，不改写为本地提交。
 本轮公开CUA仍30秒超时reset、桌面UNKNOWN／普通输入NOT_RUN；固定夹具与软件VBO不关闭普通近墙、连续动作或舒适度。
 继续现有Fern真实网格风摆／根部稳定及所有普通路线与其他余项，不缩减完整Goal；详见[执行报告](../reports/visual-experience-polish-execution-2026-09-28.md)。
+
+**最新：2026-10-05 V02c Fern 原网格与实际程序专项完成，完整 V01–V11 仍 Doing。**
+既有几何／UV／shader／资源／生成／存档保持。真实World原软件缓冲新ABI双配置各991／0；
+生产GLSL两模式各162项／4新增repeatV1严格候选FAIL保留，既有根位移门槛通过，最大2.861e-6m，
+叶片约0.008636m；错误包裹时钟增加14行为FAIL、正常exit1／无signal，重放不冒充Ogre binder。
+可选新隔离自然源观察器四阶段两模式实际8帧GL0，原192V／288I字节一致、query各96，
+native程序／clock／world／WVP及16次源24V／36I检查通过；正式oracle13／0、303输入保持，独立另46项。
+首次非法indexed sampler查询PID29402正常exit1／GL1280保留；改4.1当前active-unit查询后复验通过。
+正常两配置build0／首方warning0，既有目录拒绝正常exit1／marker保持；旧8包与Before共1278文件保持。
+三张原图归档，精选37轮164张（105后／59前），这是接线证据，未宣称审美前后改进。
+当前独立候选 `build/visual-experience-polish-20260928/v02c/After.app` Release SHA`ba54d795…37e94`，
+普通配置保持，135管理项／2961源码／137完整文件须经本批提交后收据核对。
+incarnation／ABA、内部VAO取数、可见像素、连续闪烁及普通输入仍OPEN／NOT_RUN；完整范围12方向68子项已审计，
+未发现新增已证实未修生产缺陷，V10长通知滚动候选先复现，不当作新批准实施。
+宿主Goal初读blocked保留于`first-native-proof-r1.json`，本批后读实际active；Root未改生命周期，
+按用户继续授权推进。当前CUA沿用最近实际超时后的UNKNOWN，未因隐藏GPU通过冒充恢复。
+详见[执行报告](../reports/visual-experience-polish-execution-2026-09-28.md)。
 
 **2026-09-28 冒险世界体验升级已由用户阶段放行，旧宿主 Goal 已删除。**
 B1–B9 主要功能已接入；用户确认按当前工程结果先行放行，人工核验及独立试玩暂缓。

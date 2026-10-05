@@ -841,6 +841,16 @@ POSIX Ogre `Timer` 的经过时间使用 `std::chrono::steady_clock`，毫秒/�
 同一几何及逐顶点风摆高度，复用已注册 Grass/OakBark tile；幼株六面、成熟八面，仍进入既有
 Flora 批次。世界生成、方块 ID、成熟状态、命中、掉落与存档不承载此表现变体。
 
+V02c 的可选 `FloraWindCapture` 由 Bootstrap 拥有，仅在显式隐藏、新隔离自然 World 会话启用。
+`ChunkSectionRenderable` 的非拥有 instance observer 默认 null，preRender 始终返回 true；
+postRender 读取已绑定的实际程序、uniform 和原生存储。自有 primitive query 仅在无同类活动查询时开启，
+在实例或观察器销毁前结束／删除／解绑。CPU 对照来自启动 loader 前的同一原上传输入，或实际 uploader
+已复制的锁内快照；不并发读取 World mesh 容器，不改植物。source owner 用现有 section／batch map key
+及 node 原点核对，live revision 来自公开锁内快照。该快照没有 incarnation，记录 null／unknown，
+不得追加未锁 Chunk map 查询。post 可能已解除 VAO，原缓冲一致和实际 primitives 不等于内部 attribute
+取数观察；ABA、可见像素和普通输入仍 OPEN。四阶段、45秒、4操作／帧、原缓冲16MiB／操作及会话256MiB
+上界见 [Fern 观察合同](../contracts/fern-wind-client-observation-contract-v1.md)。
+
 世界中的 Stone/Sand 在普通与阴影 terrain fragment 中按连续世界坐标派生矿物色层和沙面风纹；
 岩层沿高度缓慢弯曲，沙纹具有局部曲率和强弱变化，两者按像素覆盖衰减细节。沿用既有 tile、
 纹理、顶点与绘制批次，不修改生成或碰撞。该表现也适用于玩家放置的块及旧世界，不区分块的
