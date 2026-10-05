@@ -12,6 +12,7 @@
 #include "OgreUserInterface.h"
 #include "MaterialIdentityCapture.h"
 #include "FloraWindCapture.h"
+#include "PauseNotificationCapture.h"
 #include "../Presentation/LocalizedPresentation.h"
 #include "StartupErrorReporter.h"
 #include "StartupResourcePreflight.h"
@@ -607,6 +608,9 @@ namespace
             const char* catalogueOverride =
                 std::getenv("HELLOMINE3D_CATALOGUE_DIR");
             const char* saveOverride = std::getenv("HELLOMINE3D_SAVE_DIR");
+            // Reject existing/shared paths and all other diagnostics before
+            // WorldManagementService or any actual World can create files.
+            m_pauseNotificationOutput = PauseNotificationCapture::validateEnvironment(userSettings(m_config));
             const char* cameraDiagnosticDirectory = std::getenv(
                 "HELLOMINE3D_CAMERA_DIAGNOSTICS_DIR");
             if (cameraDiagnosticDirectory != nullptr && cameraDiagnosticDirectory[0] != '\0')
@@ -679,6 +683,13 @@ namespace
                         m_audio->emitUiClick();
                     }
                 }, std::move(m_pendingCrashReports));
+            if (!m_pauseNotificationOutput.empty())
+            {
+                m_pauseNotificationCapture = std::make_unique<PauseNotificationCapture>(
+                    m_pauseNotificationOutput, m_config.locale);
+                m_userInterface->setPauseNotificationCapture(m_pauseNotificationCapture.get());
+                std::cout << "[PAUSE_NOTIFICATIONS] normal_input=0 fresh_isolated_world=1 maximum_frames=12 timeout_seconds=45\n";
+            }
             if (m_audio != nullptr)
             {
                 m_audio->setCaptionSink([this](std::string cueId,
@@ -2647,6 +2658,9 @@ namespace
                     m_sandbox != nullptr
                         ? m_sandbox->getActionFeedback()
                         : ActionFeedbackSnapshot();
+                if (m_pauseNotificationCapture != nullptr)
+                    m_pauseNotificationCapture->drive(*m_userInterface,
+                        m_applicationFlow, runtimeWindowFocused());
                 m_userInterface->beginFrame(event.timeSinceLastFrame,
                                             m_frameWorldStats, progress,
                                             actionFeedback);
@@ -2701,6 +2715,14 @@ namespace
                 m_floraWindCapture->finishFrame(std::move(end));
                 m_fernWindPhaseSeconds = 0.f;
                 m_fernWindPhaseApplied = false;
+            }
+            if (m_pauseNotificationCapture && m_pauseNotificationCapture->isFramePending())
+            {
+                m_window->writeContentsToFile(m_pauseNotificationCapture->framePngPath());
+                const auto error = glGetError();
+                if (error != GL_NO_ERROR)
+                    throw std::runtime_error("Pause notification actual PNG/backend reported GL error " + std::to_string(error));
+                m_pauseNotificationCapture->finishFrame();
             }
             ++m_frameCount;
             return true;
@@ -2806,6 +2828,7 @@ namespace
             return !(m_materialIdentityCapture && m_materialIdentityPhase >= 9) &&
                    !(m_cameraDiagnostics && m_cameraDiagnosticPhase >= 6) &&
                    !(m_floraWindCapture && m_floraWindCapture->isComplete()) &&
+                   !(m_pauseNotificationCapture && m_pauseNotificationCapture->isComplete()) &&
                    !captureComplete && !frameLimitReached &&
                    !RuntimePerformanceCapture::shouldCloseWindow();
         }
@@ -6541,6 +6564,8 @@ namespace
             m_materialIdentityCapture.reset();
             m_cameraDiagnostics.reset();
             m_floraWindCapture.reset();
+            if (m_userInterface) m_userInterface->setPauseNotificationCapture(nullptr);
+            m_pauseNotificationCapture.reset();
             m_userInterface.reset();
             destroyPostProcessingResources();
             m_blockFeedback.reset();
@@ -6631,6 +6656,8 @@ namespace
         bool m_materialIdentityMapReady = false;
         bool m_materialIdentityFramePending = false;
         std::unordered_map<std::string, std::uint32_t> m_materialIdentityMeshRevisions;
+        std::unique_ptr<PauseNotificationCapture> m_pauseNotificationCapture;
+        std::string m_pauseNotificationOutput;
         std::unique_ptr<FloraWindCapture> m_floraWindCapture;
         std::string m_fernWindOutput;
         std::chrono::steady_clock::time_point m_fernWindStarted{};

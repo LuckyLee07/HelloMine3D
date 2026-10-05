@@ -105,6 +105,8 @@ def main():
                         help="Capture nine actual material-consumer phases in a new isolated world (diagnostic input only)")
     parser.add_argument("--camera-diagnostics", action="store_true",
                         help="Capture six normal render-camera/scene phases in a new isolated world (diagnostic input only)")
+    parser.add_argument("--pause-notifications", action="store_true",
+                        help="Observe twelve actual pause-notification backend frames in a fresh compact hidden client (diagnostic input only)")
     parser.add_argument("--fern-wind", action="store_true",
                         help="Observe four actual draws of two natural Fern sources in a new isolated forest (diagnostic input only)")
     parser.add_argument("--inspect-slot", type=int, choices=range(5), help="Item detail diagnostic; requires pointer panel and HUD fixture")
@@ -151,6 +153,18 @@ def main():
         parser.error("Inherited camera diagnostics are not accepted; use --camera-diagnostics explicitly")
     if "HELLOMINE3D_FERN_WIND_CAPTURE_DIR" in os.environ:
         parser.error("Inherited Fern diagnostics are not accepted; use --fern-wind explicitly")
+    if "HELLOMINE3D_PAUSE_NOTIFICATIONS_DIR" in os.environ:
+        parser.error("Inherited pause notifications are not accepted; use --pause-notifications explicitly")
+    if args.pause_notifications and (args.foreground or args.performance or args.player_motion or
+            args.actor_visual or args.hud_fixture or args.panel or args.inspect_slot is not None or
+            args.material_identity or args.camera_diagnostics or args.fern_wind or args.scene == "menu" or
+            args.reuse_app or args.save_template or args.streaming or args.position or args.rotation or
+            args.render_distance != 1 or args.visual_detail != "standard" or
+            args.launch_method != "direct" or args.capture_ms != "5000,10000" or
+            args.terrain_fallback or args.atmosphere_fallback or os.environ.get("HELLOMINE3D_RESOURCE_PACKS") or
+            args.perspective != "first" or args.shadow != "off" or args.post != "off" or
+            args.width != 640 or args.height != 480 or args.ui_scale != 1.25):
+        parser.error("--pause-notifications requires a fresh hidden default-pack standard RD1 world, direct launch, 640x480 points/scale1.25, first perspective, and no other diagnostics")
     if args.fern_wind and (args.foreground or args.performance or args.player_motion or
             args.actor_visual or args.hud_fixture or args.panel or args.inspect_slot is not None or
             args.material_identity or args.camera_diagnostics or args.scene != "forest" or
@@ -180,14 +194,17 @@ def main():
             args.launch_method != "direct" or args.capture_ms != "5000,10000" or
             args.terrain_fallback or args.atmosphere_fallback or os.environ.get("HELLOMINE3D_RESOURCE_PACKS")):
         parser.error("--material-identity requires a new hidden default-pack world, RD1, explicit standard/compatibility, direct launch, and no other fixtures")
-    if args.material_identity or args.camera_diagnostics or args.fern_wind:
+    if args.material_identity or args.camera_diagnostics or args.fern_wind or args.pause_notifications:
         other_fixtures = ("HELLOMINE3D_BLOCK_FEEDBACK_CAPTURE", "HELLOMINE3D_COMBAT_FIXTURE",
             "HELLOMINE3D_CONTAINER_FIXTURE", "HELLOMINE3D_CRAFTING_FIXTURE", "HELLOMINE3D_CROP_FIXTURE",
             "HELLOMINE3D_MACHINE_FIXTURE", "HELLOMINE3D_ORE_FIXTURE", "HELLOMINE3D_SPAWN_VALIDATION_ACTORS",
             "HELLOMINE3D_TRANSPARENT_FIXTURE", "HELLOMINE3D_VERTEX_LIGHTING_FIXTURE",
             "HELLOMINE3D_VERTICAL_SLICE_FIXTURE", "HELLOMINE3D_HUD_FIXTURE", "HELLOMINE3D_HUD_PAGE_FIXTURE",
             "HELLOMINE3D_ACTOR_VISUAL_CAPTURE", "HELLOMINE3D_VISUAL_CAMERA_SWEEP", "HELLOMINE3D_VISUAL_CAMERA_PATH",
-            "HELLOMINE3D_RC_PERF_PROFILE", "HELLOMINE3D_E2_BATCH_MANIFEST", "HELLOMINE3D_V10C_FALLBACK")
+            "HELLOMINE3D_RC_PERF_PROFILE", "HELLOMINE3D_E2_BATCH_MANIFEST", "HELLOMINE3D_V10C_FALLBACK",
+            "HELLOMINE3D_V10E_SETTINGS_FIXTURE", "HELLOMINE3D_V10D_SHADOW_FIXTURE", "HELLOMINE3D_V10E_POST_FIXTURE",
+            "HELLOMINE3D_HUD_INSPECT_SLOT", "HELLOMINE3D_FORCE_LEGACY_TERRAIN", "HELLOMINE3D_TERRAIN_FALLBACK",
+            "HELLOMINE3D_V10D_SHADOW_FALLBACK", "HELLOMINE3D_V10E_POST_FALLBACK", "HELLOMINE3D_CONTROLLED_CRASH")
         if any(name in os.environ for name in other_fixtures):
             parser.error("Inherited diagnostic fixtures cannot be combined with a consumer observer")
     if platform.system() != "Darwin":
@@ -295,6 +312,10 @@ seed random
         environment["HELLOMINE3D_FERN_WIND_CAPTURE_DIR"] = str(output / "fern-wind")
         environment["HELLO_RENDER_CAPTURE_MS"] = "60000"
         environment["HELLO_RENDER_CAPTURE_EXIT"] = "0"
+    if args.pause_notifications:
+        environment["HELLOMINE3D_PAUSE_NOTIFICATIONS_DIR"] = str(output / "pause-notifications")
+        environment["HELLO_RENDER_CAPTURE_MS"] = "60000"
+        environment["HELLO_RENDER_CAPTURE_EXIT"] = "0"
     if args.terrain_fallback:
         environment["HELLOMINE3D_FORCE_LEGACY_TERRAIN"] = "1"
     if args.player_motion:
@@ -367,7 +388,8 @@ seed random
               "package_identity": identity,
               "scene": args.scene, "settings": settings, "environment": environment,
               "diagnostic_fixture": "camera-fixed-resident-origin" if args.camera_diagnostics else
-                  ("fern-natural-source-native-draw" if args.fern_wind else None),
+                  ("fern-natural-source-native-draw" if args.fern_wind else
+                   ("pause-notification-production-rail" if args.pause_notifications else None)),
               "inherited_diagnostic_environment": {
                   key: os.environ[key] for key in (
                       "HELLOMINE3D_VISUAL_CAMERA_SWEEP", "HELLOMINE3D_VISUAL_CAMERA_PATH",
@@ -387,13 +409,13 @@ seed random
         else:
             with (output / "client.log").open("w") as stdout, \
                     (output / "client-stderr.log").open("w") as stderr:
-                if args.fern_wind:
+                if args.fern_wind or args.pause_notifications:
                     child = subprocess.Popen(command,
                         env={**os.environ, **environment}, stdout=stdout, stderr=stderr)
                     record["child_pid"] = child.pid
                     record_path.write_text(json.dumps(record, indent=2) + "\n")
                     try:
-                        child.wait(timeout=100)
+                        child.wait(timeout=60 if args.pause_notifications else 100)
                     except subprocess.TimeoutExpired:
                         child.kill()
                         child.wait()
@@ -415,9 +437,10 @@ seed random
         frames = sorted((output / "material-identity").glob("client-*.png")) if args.material_identity else \
             sorted((output / "camera-diagnostics").glob("*.png")) if args.camera_diagnostics else \
             sorted((output / "fern-wind").glob("*.png")) if args.fern_wind else \
+            sorted((output / "pause-notifications").glob("frame-*.png")) if args.pause_notifications else \
             sorted((output / "frames").glob("*.png"))
         expected_frames = 9 if args.material_identity else (6 if args.camera_diagnostics else
-            (4 if args.fern_wind else (0 if args.performance else len(capture_times))))
+            (4 if args.fern_wind else (12 if args.pause_notifications else (0 if args.performance else len(capture_times)))))
         if len(frames) != expected_frames:
             raise RuntimeError(f"Expected {expected_frames} captured frames, got {len(frames)}")
         # Window points and framebuffer pixels differ on Retina displays. Require
@@ -451,6 +474,14 @@ seed random
             artifacts += [index]
             record["fern_wind_session"] = str(index)
             record["fern_wind_scope"] = "natural source native draw capture; independent oracle required; normal input remains false"
+        if args.pause_notifications:
+            index = output / "pause-notifications/index.json"
+            session = json.loads(index.read_text())
+            if session.get("status") != "CAPTURED" or len(session.get("frames", [])) != 12 or session.get("status_submit_count") != 3:
+                raise RuntimeError("Pause notification session did not complete twelve actual backend frames and three discrete status events")
+            artifacts += [index]
+            record["pause_notifications_session"] = str(index)
+            record["pause_notifications_scope"] = "actual production rail; independent glyph/clip/PNG oracle required; normal input false"
         if args.performance:
             record["framebuffer_size_pixels"] = performance_framebuffer(
                 (output / "client.log").read_text(), args.width, args.height, args.pixel_ratio)

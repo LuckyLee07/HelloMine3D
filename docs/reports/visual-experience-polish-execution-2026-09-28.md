@@ -2682,3 +2682,67 @@ Fern注册scale1，没有不同生长阶段；time0并非windOff。固定自然�
 用户已授权继续，本批推进可执行专项。公开CUA最近真实getState仍超时reset后UNKNOWN；隐藏GPU运行没有证明桌面输入
 恢复，未盲目重试或通过OS事件绕过。此前异常框PID23586受控ASan与PID66788测试setup崩溃归因保持，
 本批没有重跑原崩溃二进制，所有失败是正常exit1／无signal。继续完整范围的可执行项，必要普通自测不能冒充通过。
+
+
+## V10h：暂停长通知的新反馈滚动恢复（2026-10-05）
+
+### 已复现问题与修复
+
+从干净 `f093a4db` 开始，保留上一交付包为精确 Before，先只接入观察，再复现原通知窗口的滚动状态。
+旧消息 A 手动滚动53点后，新 B 的首帧与下一帧仍为53点；再次手动滚动后，同文案 B 重发仍为106点。
+三个新事件阶段全部18个首行字形未生成可见原quad，原PNG也看不到 `B_START_NEW_STATUS` 首行。
+这是真实UI的滚动继承缺陷，没有将单次wheel称为滚到最底部。
+
+状态的五处写入和两处清空统一经过 `replaceStatusMessage`，递增两个临时uint64 generation中的提交值。
+新状态在原 `##PauseNotifications` Begin前一次设置ScrollY=0，成功Begin后记已显示值；同字符串重发也算新事件。
+同事件重绘不复位，手动滚动、字幕提交／刷新／到期保持；四按钮及固定通知区域不挪动，原TTL、worldsDirty和操作语义保持。
+没有存档、World玩法、输入壳、资源或shader改动，未重跑无关完整World／资源门禁。
+
+Bootstrap拥有可选 `PauseNotificationCapture`，正常启动观察器null。入口在World创建前要求新隔离同会话的
+save／catalogue／output，拒绝既有目录、其他诊断及受控崩溃环境。640×480点／Retina2／1.25字号／RD1／First／Off，
+中英文各十二帧、三次状态及两次字幕事件，45秒上界、原缓冲4MiB／帧及总64MiB；工具只按本次PID限时等待。
+驱动使用公开flow.pause／setStatusMessage及OIS wheel，沿用真实focus状态，不伪造focusChanged(true)。
+初始暂停前可能有原updateSandbox执行，不声称整个新World初始状态不变；随后Paused模拟关闭。
+原UI AddText范围／font glyph／VBO／IBO／command clip在实际backend之后记录，Bootstrap保存原PNG并检查GL错误。
+回调角色只比较真实指针，不调用GL或读取字体图集。窄可读性是源几何与最终未遮挡前景存在，不能代称精确字形栅格或OCR。
+
+### 本批实际证据
+
+证据根 `build/visual-experience-polish-20260928/v10h/`；所有旧失败、候选与实际捕获身份保留。
+
+| 检查 | 实际结果与边界 |
+| --- | --- |
+| 正常双配置 | r1重新生成工程并正常Debug／Release构建0。首次产品补丁check因新增observer上下文不匹配exit1、未改源码；shell后续r2意外重复构建未修复源码，其PASS不作为修复证明。明确应用同一最小策略后r3通过；增加只读callback_role的r4最终两配置0／首方warning0，第三方旧警告保留。Release `ac28168f…78e7d`，Debug `b19eda5b…8bc36`；构建前后源码与十包1415文件保持。 |
+| 原Before | `before-zh-CN-r1`实际PID50903正常exit0／无signal，十二原始1280×960PNG。正式oracle414检查／fixture0／behavior57／OPEN18，117输入SHA保持。三阶段各scroll与18首行字形失败；旧包缺callback_role导致像素归属OPEN，未补改旧packet。 |
+| 修复后双语 | `after-zh-CN-r1` PID51874及`after-en-US-r1` PID51975正常exit0／无signal。新B首帧、下一帧和同文本重发均scroll0；其后wheel53与字幕三阶段scroll53保留。两个正式oracle各648检查／fixture0／behavior0／窄OPEN0，117输入各保持；四可见阶段各18原glyph／UV／texture／clip匹配，新B各1803未遮挡前景像素。状态4秒／字幕2.5秒实际时钟与四按钮几何通过。scope_open仍四项。 |
+| CPU与独立复核 | 正式工具三文件冻结SHA并实跑25正反例／0失败；包括隐藏首帧、稍后正确、同文案重发、暗首字亮后行、clip／UV／字体／时钟／sampler。独立helper不导入正式算法，原Before正常exit1／三行为FAIL、After中英文均exit0／无FAIL、各119输入保持。最初过严painter重叠OPEN报告保留；后续只在实际未遮挡三角形区域取样，暗区仍FAIL、全遮挡仍OPEN，未放宽亮度或门槛。英文终态和输入SHA另见本批独立收据。 |
+| HUD／地图 | 正式 `verify_hud_interaction.sh` Debug及Release各HUD44／地图74通过；无Cocoa输入改动，不重复Cocoa回归。纯helper耗时不是正常性能验收。 |
+| 既有目录拒绝 | 新隔离fake.marker入口实际PID52384正常exit1／signalnull，在World写入前拒绝；marker集合／SHA保持，catalogue和通知输出未创建，1552保护文件和两配置保持。未使用用户存档。 |
+| 普通菜单显示 | `menu-after-r1`没有Pause观察环境或World夹具，工具正常exit0／CAPTURED；两原始2560×1440PNG与V02c菜单SHA完全相同，2243保护文件及两配置保持、zeroPID。只确认菜单渲染；没有普通点击／开始玩法，normal_input=false。 |
+| 原图与交付 | 新归档一Before＋两After，精选38轮167张（107后／60前），全部原图不裁切／调色。十保护包1415文件保持；repo `bin/config.txt`为663B／SHAff28…5440，真正Workbench普通config为705B／SHA70d9…16047，这是不同路径且都未改。新独立 `v10h/After.app`以r4 Release打包，135管理项／2963源码／137完整文件；源码manifest `66df9943…116f`，干净提交身份以postcommit核对为准。捕获包仍记录f093＋实际dirty，不回写为新提交。 |
+
+实际复现／后续双语命令见validation-matrix的V10h行，正式判定：
+
+```sh
+python3 -B tools/tests/pause_notification_capture_oracle.py <本批pause-notifications目录> --output <新报告.json>
+```
+
+最终收据为 `v10h/closure-evidence-r1.json` 及 `postcommit-verification-r1.json`。
+窄检查通过不关闭独立字体图集Alpha采样／精确像素形状／OCR、原生普通输入／按钮交互、其他UI及完整地图覆盖。
+首行18字形是ASCII诊断前缀；双语界面与长正文参与实际布局，不将该前缀核对称为任意中文字形的独立栅格验证。
+首次归档角色统计helper漏读旧role字段而exit1，保留 `finalization-guard-failure-r1.json`；补读历史字段及文件角色后源／归档SHA全部通过，原归档未改。
+
+### 异常对话框与继续方式
+
+用户再次报告异常对话框后，暂停新的native运行，只读核对macOS DiagnosticReports和实际PID收据。
+系统保留14:13 `camera-world-test` PID66788的旧NULL RenderSystem setup SIGSEGV，和18:05
+`Codex (Renderer)` PID62788的SIGTRAP；今天未发现新增HelloMine3D游戏客户端ips。
+这两条不是同一进程，缺少弹窗程序名不能确定用户看到哪一条，也不能由SIGTRAP推断根因或将其归因于游戏测试。
+本批三次UI客户端全exit0、既有目录拒绝为正常exit1，当前无游戏／相机测试存活PID。
+报告和旧崩溃二进制保留、不重复触发、不关闭系统报告。具体摘要见 `crash-dialog-audit-r1.json`。
+官方[排障文档](https://learn.chatgpt.com/docs/reference/troubleshooting)给出app日志与反馈入口，未提供本次SIGTRAP根因；
+本次只读定位，不重启应用或发送反馈。继续完成已通过的文档、本地提交和独立打包，再推进其他可执行方向。
+
+完整V01–V10和V00／V11范围不缩减，Goal保持active，各方向整体Doing。CUA沿用最近真实超时reset后的UNKNOWN，
+不因隐藏UI通过而盲目重试或通过OS事件绕过；普通自测仍NOT_RUN。地图连续性、其余设置／背包／机器反馈、
+普通全路线及其他整合继续；严格配对性能沿用DEFERRED_BY_USER，没有新增人工批准关卡。

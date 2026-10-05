@@ -2,6 +2,7 @@
 #include "OgreItemGeometry.h"
 #include "GameInterfaceWidgets.h"
 #include "MaterialIdentityCapture.h"
+#include "PauseNotificationCapture.h"
 #ifdef __APPLE__
 #include "OgreMacClipboard.h"
 #endif
@@ -792,7 +793,7 @@ class OgreUserInterface::Impl
         if (flow->state() == GameApplicationState::Playing &&
             previousPlayerHealth > 0.f && stats.playerHealth <= 0.f)
         {
-            statusMessage = tr("death.respawn");
+            replaceStatusMessage(tr("death.respawn"));
             statusMessageSeconds = 4.f;
         }
         if (stats.playerMaxHealth > 0.f)
@@ -830,6 +831,12 @@ class OgreUserInterface::Impl
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui::NewFrame();
+        if (pauseNotificationCapture != nullptr)
+        {
+            const auto caption = captionTimeline.snapshot();
+            pauseNotificationCapture->beginUi(statusMessage, statusMessageSeconds,
+                caption.cueId, caption.fallback, caption.remainingSeconds, deltaSeconds);
+        }
         framePending = true;
         worldStats = stats;
         PlayerHandPresentation::updateLighting(heldLighting,
@@ -1289,7 +1296,7 @@ class OgreUserInterface::Impl
         const WorldSelectionDetails details = management->inspectWorld(entry.id);
         if (!details.succeeded())
         {
-            statusMessage = details.message;
+            replaceStatusMessage(details.message);
             return;
         }
         backups = details.backups;
@@ -1299,10 +1306,10 @@ class OgreUserInterface::Impl
     void reportResult(const WorldManagementResult &result,
                       const char* successKey)
     {
-        statusMessage = result.succeeded()
+        replaceStatusMessage(result.succeeded()
             ? tr(successKey, result.message)
             : tr("world.operation_failed", "World operation failed") +
-                  ": " + result.message;
+                  ": " + result.message);
         if (result.succeeded())
         {
             worldsDirty = true;
@@ -2085,6 +2092,8 @@ class OgreUserInterface::Impl
             ImGui::PushStyleColor(ImGuiCol_Border, WarmAccent);
         }
         const bool result = ImGui::Button(tr(key).c_str(), ImVec2(width, height));
+        if (pauseNotificationCapture != nullptr && flow->state() == GameApplicationState::Paused)
+            pauseNotificationCapture->observeButton(key);
         if (primary) ImGui::PopStyleColor(2);
         ImGui::PopStyleVar(2);
         if (icon)
@@ -2963,14 +2972,20 @@ class OgreUserInterface::Impl
             captionTimeline.clear();
         }
         settingsSession.acceptApplied();
-        statusMessage = settingsMessage;
+        replaceStatusMessage(settingsMessage);
         statusMessageSeconds = 4.f;
         playUiFeedback();
     }
 
-    void setStatusMessage(std::string message)
+    void replaceStatusMessage(std::string message)
     {
         statusMessage = std::move(message);
+        ++statusMessageGeneration;
+    }
+
+    void setStatusMessage(std::string message)
+    {
+        replaceStatusMessage(std::move(message));
         statusMessageSeconds = 4.f;
         worldsDirty = true;
     }
@@ -5850,6 +5865,10 @@ class OgreUserInterface::Impl
         ImGui::SetNextWindowPos(ImVec2((io.DisplaySize.x - width) * .5f,
             io.DisplaySize.y - 8.f - height), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
+        const bool resetStatusScroll = hasStatus &&
+            pauseStatusMessageGeneration != statusMessageGeneration;
+        if (resetStatusScroll)
+            ImGui::SetNextWindowScroll(ImVec2(-1.f, 0.f));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.f, 6.f * scale));
         const auto flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
@@ -5858,7 +5877,10 @@ class OgreUserInterface::Impl
             ImGuiWindowFlags_NoNav;
         if (ImGui::Begin("##PauseNotifications", nullptr, flags))
         {
-            const auto card = [&](const std::string& text) {
+            if (resetStatusScroll)
+                pauseStatusMessageGeneration = statusMessageGeneration;
+            if (pauseNotificationCapture != nullptr) pauseNotificationCapture->observeRail();
+            const auto card = [&](const std::string& text, bool status) {
                 const ImVec2 at = ImGui::GetCursorScreenPos();
                 const float cardWidth = ImGui::GetContentRegionAvail().x;
                 const float font = ImGui::GetFontSize() * .82f;
@@ -5871,17 +5893,23 @@ class OgreUserInterface::Impl
                 draw->AddRect(at, end, IM_COL32(105, 132, 131, 200), 3.f * scale);
                 draw->AddLine(ImVec2(at.x + 1.f, at.y + 4.f),
                     ImVec2(at.x + 1.f, end.y - 4.f), IM_COL32(153, 183, 174, 255), 2.f);
-                draw->AddText(ImGui::GetFont(), font,
-                    ImVec2(at.x + 10.f * scale, at.y + 6.f * scale),
-                    ImGui::GetColorU32(WarmText), text.c_str(), nullptr, wrap);
+                const int vertexBegin = draw->VtxBuffer.Size;
+                const int indexBegin = draw->IdxBuffer.Size;
+                const auto colour = ImGui::GetColorU32(WarmText);
+                const ImVec2 textOrigin(at.x + 10.f * scale, at.y + 6.f * scale);
+                draw->AddText(ImGui::GetFont(), font, textOrigin,
+                    colour, text.c_str(), nullptr, wrap);
+                if (status && pauseNotificationCapture != nullptr)
+                    pauseNotificationCapture->observeStatusText(*draw, *ImGui::GetFont(),
+                        font, textOrigin, wrap, text, colour, vertexBegin, indexBegin);
                 ImGui::Dummy(ImVec2(cardWidth, cardHeight));
             };
             // Action feedback comes first so ambient captions cannot push it
             // below the viewport. Both retain their complete wrapped text.
-            if (hasStatus) card(statusMessage);
+            if (hasStatus) card(statusMessage, true);
             if (caption.visible()) card("[" + tr("caption.prefix") + "] " +
                 LocalizedPresentation::audioCaption(appliedSettings.locale,
-                    caption.cueId, caption.fallback));
+                    caption.cueId, caption.fallback), false);
         }
         ImGui::End();
         ImGui::PopStyleVar(2);
@@ -7434,7 +7462,10 @@ class OgreUserInterface::Impl
     std::string pendingDeleteWorldId;
     std::string pendingPermanentDeleteWorldId;
     std::string pendingBackupId;
+    PauseNotificationCapture* pauseNotificationCapture = nullptr;
     std::string statusMessage;
+    std::uint64_t statusMessageGeneration = 0;
+    std::uint64_t pauseStatusMessageGeneration = 0;
     std::string worldCatalogueError;
     std::string worldRecoveryWarning;
     float statusMessageSeconds = 0.f;
@@ -7764,7 +7795,7 @@ void OgreUserInterface::setWorldContext(Player *player,
     m_impl->aimIndicatorOffsetY = 0.f;
     if (world != nullptr)
     {
-        m_impl->statusMessage.clear();
+        m_impl->replaceStatusMessage({});
         m_impl->statusMessageSeconds = 0.f;
         const DifficultyRuntimeSnapshot snapshot =
             world->getDifficultySnapshot();
@@ -7822,7 +7853,7 @@ void OgreUserInterface::showWorldBackups(const std::string& worldId)
     m_impl->selectedWorldId.clear();
     m_impl->backups.clear();
     m_impl->selectedWorldPreview.reset();
-    m_impl->statusMessage.clear();
+    m_impl->replaceStatusMessage({});
     m_impl->refreshCatalogue();
     const auto found = std::find_if(m_impl->worlds.begin(), m_impl->worlds.end(),
         [&](const auto& entry) { return entry.id == worldId; });
@@ -7834,6 +7865,11 @@ void OgreUserInterface::showWorldBackups(const std::string& worldId)
     m_impl->selectWorld(*found);
     if (m_impl->statusMessage.empty())
         m_impl->setStatusMessage(m_impl->tr("map.backup_choose"));
+}
+
+void OgreUserInterface::setPauseNotificationCapture(PauseNotificationCapture* observer) noexcept
+{
+    m_impl->pauseNotificationCapture = observer;
 }
 
 void OgreUserInterface::setStatusMessage(std::string message)
@@ -7881,6 +7917,9 @@ void OgreUserInterface::postViewportUpdate(
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     if (auto* capture = MaterialIdentityCapture::active())
         if (capture->isFrameOpen()) capture->finishFrame(ImGui::GetDrawData(), true);
+    if (m_impl->pauseNotificationCapture != nullptr)
+        m_impl->pauseNotificationCapture->afterBackend(*ImGui::GetDrawData(),
+            static_cast<int>(m_impl->pendingAction.type));
     m_impl->framePending = false;
 }
 

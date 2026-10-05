@@ -30,6 +30,7 @@ class Player;
 class World;
 class GameApplicationFlow;
 class WorldManagementService;
+class PauseNotificationCapture;
 struct WorldDebugStats;
 struct MiningProgressSnapshot;
 struct ActionFeedbackSnapshot;
@@ -106,6 +107,8 @@ class OgreUserInterface final : public Ogre::RenderTargetListener
     bool setMaterialIdentityMap3dVisible(bool visible) noexcept;
     void setThirdPersonAimIndicator(bool visible, float normalizedX,
                                     float normalizedY) noexcept;
+    // Optional diagnostic observer; non-owning, normal client remains null.
+    void setPauseNotificationCapture(PauseNotificationCapture* observer) noexcept;
     void setStatusMessage(std::string message);
     void showWorldBackups(const std::string& worldId);
     void setAudioCaption(std::string cueId, std::string caption);

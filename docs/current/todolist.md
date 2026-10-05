@@ -203,7 +203,7 @@ CUA当前实际超时reset，桌面UNKNOWN、普通输入NOT_RUN；诊断库存�
 本轮公开CUA仍30秒超时reset、桌面UNKNOWN／普通输入NOT_RUN；固定夹具与软件VBO不关闭普通近墙、连续动作或舒适度。
 继续现有Fern真实网格风摆／根部稳定及所有普通路线与其他余项，不缩减完整Goal；详见[执行报告](../reports/visual-experience-polish-execution-2026-09-28.md)。
 
-**最新：2026-10-05 V02c Fern 原网格与实际程序专项完成，完整 V01–V11 仍 Doing。**
+**历史检查点：2026-10-05 V02c Fern 原网格与实际程序专项完成，完整 V01–V11 仍 Doing。**
 既有几何／UV／shader／资源／生成／存档保持。真实World原软件缓冲新ABI双配置各991／0；
 生产GLSL两模式各162项／4新增repeatV1严格候选FAIL保留，既有根位移门槛通过，最大2.861e-6m，
 叶片约0.008636m；错误包裹时钟增加14行为FAIL、正常exit1／无signal，重放不冒充Ogre binder。
@@ -219,6 +219,20 @@ incarnation／ABA、内部VAO取数、可见像素、连续闪烁及普通输入
 宿主Goal初读blocked保留于`first-native-proof-r1.json`，本批后读实际active；Root未改生命周期，
 按用户继续授权推进。当前CUA沿用最近实际超时后的UNKNOWN，未因隐藏GPU通过冒充恢复。
 详见[执行报告](../reports/visual-experience-polish-execution-2026-09-28.md)。
+
+**最新：2026-10-05 V10h 暂停长通知的新反馈滚动已修复，完整 V01–V11 仍 Doing。**
+实际旧界面在手动滚动后遮掉新反馈首行；统一按状态提交 generation，在原通知窗口 Begin 前一次恢复顶部，
+同文案重发也恢复，同事件手动滚动及字幕提交／刷新／到期保持。双配置正常客户端构建、HUD各44／地图各74项通过；
+未修复原图414检查／57行为失败保留，修复后紧凑中英文各648检查／0失败，CPU正反例25／0。
+实际三次通知／十二帧及字体原几何／clip／PNG前景窄事实通过，独立CPU复核另存；不是字体Alpha重建或普通输入验收。
+新隔离假存档入口正常拒绝，主菜单两原图与V02c逐字节相同，所有本批客户端无崩溃信号。
+十保护包1415文件、两处普通配置保持，精选38轮167张（107后／60前）。新独立交付包
+`build/visual-experience-polish-20260928/v10h/After.app`，Release SHA`ac28168f…78e7d`，
+135管理项／2963源码／137完整文件及干净提交身份须以本批提交后核对为准；原捕获f093＋dirty身份保留。
+用户报告的异常对话框另核对系统ips：14:13旧相机测试SIGSEGV与18:05 Codex(Renderer)SIGTRAP分别记录，
+未发现今日新增游戏客户端报告；未得弹窗程序名不能确定对应哪条。保留报告，不重跑旧崩溃程序。
+当前CUA仍UNKNOWN、普通输入NOT_RUN；地图连续性、其余UI与全部方向余项继续，严格性能按用户延期。
+见[本阶段执行记录](../reports/visual-experience-polish-execution-2026-09-28.md)及`v10h/closure-evidence-r1.json`。
 
 **2026-09-28 冒险世界体验升级已由用户阶段放行，旧宿主 Goal 已删除。**
 B1–B9 主要功能已接入；用户确认按当前工程结果先行放行，人工核验及独立试玩暂缓。
