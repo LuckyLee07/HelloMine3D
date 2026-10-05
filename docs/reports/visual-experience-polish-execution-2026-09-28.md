@@ -2,7 +2,18 @@
 
 ## 恢复区
 
-- **当前：2026-10-05 V10j：256 m 小地图 step4 已接入同列细历史刷新，完整 V01–V11 仍 Doing，Goal active。**
+- **当前：2026-10-05 V06c：真实水岸编辑、原上传缓冲、HUD细历史与平面图像素专项通过，完整 V01–V11 仍 Doing，Goal active。**
+  seed42／terrain30 自然河流目标 `(220,64,-204)`，附近干岸距离3m；非直接相邻岸条件，不扩大冻结机位或伪造World。
+  标准PID98153／兼容PID98288六阶段实际正常exit0／无signal／GL0；独立检查各208项通过，原44B／u32缓冲与真实World深度、同列像素一致。
+  HUD256 step4回复先更新既有2m细历史，再重开Flat step2；捕获帧没有对目标再次查询。西／北邻格保持，恢复后公开World.save成功。
+  五类raw／facts克隆故障均在更新SHA后被语义拒绝；源码生产者负例NOT_RUN。两模式恢复态实际重开各58检查通过，不代称普通UI重开。
+  正常Release／Debug build0、first-party warning0；Release `10c392d3…e6356`、Debug `c40e063c…5bc7e`，2915构建源码输入保持。
+  原14包1973文件、用户试玩包135管理项、两普通配置与无关策略文档保持；精选41轮173张，旧40轮171图对象与字节保持。
+  异常报告复核新增ffmpeg PID85852：缺libtiff.5.dylib、DYLD终止／SIGABRT；没有新HelloMine3D报告，不直接归到用户刚才弹窗。
+  CUA实际部分原生inventory成功／浏览器分量失败，Codex app明确APP_DENIED；没有普通输入或系统弹框操作，不能称完整工具恢复。
+  独立 `v06c/After.app` 的干净提交身份、普通配置与135管理项以postcommit收据为准；捕获4224680d＋实际dirty身份保留。
+  本批所有构建／抓图／入口拒绝／重开handle须为terminal；下一步继续普通水域编辑、连续路线、三固定种子terrain30探索、切世界与全部方向余项，严格配对性能延期。详见文末V06c。
+- **历史检查点：2026-10-05 V10j：256 m 小地图 step4 已接入同列细历史刷新，完整 V01–V11 当时仍 Doing，Goal active。**
   正常两配置build0／first-party warning0，Release `7b5a9855…3c961`、Debug `dbc32a5a…1964`；源码复核通过。
   旧HUD44／地图88仅按未变输入SHA复用，两张新隐藏HUD／平面页原图只证明渲染启动，精选40轮171张。
   原13包1836文件、用户试玩包135管理项、两普通配置及V10i的79证据文件保持；未跟踪策略文档不纳入任务。
@@ -2841,3 +2852,89 @@ Ogre关闭，实际查询无游戏PID；LaunchServices退出码不可得，缺�
 本批本地提交后独立 `After.app` 以同一已验证Release、原普通配置及干净tracked身份交付，具体以postcommit收据为准。
 完整Goal保持active，V01–V10及V00／V11仍按原退出条件推进；下一批优先实际水岸编辑→匹配网格上传→地图同列刷新，
 普通连续路线、三固定种子当前terrain30的出生到地点／洞口、切世界及其他UI余项保持待验，严格配对性能继续延期。
+
+## V06c：自然水岸编辑、原上传存储与同列地图像素（2026-10-05）
+
+### 当前异常与继续边界
+
+用户确认看到程序异常对话框。`v06c/alarm-readonly-r1.json` 截至22:32:46复核90份ips，原89份名称／SHA保持；
+新增 `ffmpeg-2026-10-05-220139.ips`，PID85852／Python父PID85833／responsible ChatGPT67443。
+DYLD明确报告 `liblept.5.dylib` 引用的 `libtiff.5.dylib` 不存在，启动即EXC_CRASH／SIGABRT。
+程序调用路径、缺库事实有证据，但没有观察到弹框程序名／时间，不能断言就是用户刚才所见弹框或归咎某个chat。
+此复核没有新增HelloMine3D报告，缺报告仍不证明未发生游戏异常。没有重跑ffmpeg、修系统Homebrew、操作弹框或发送反馈。
+用户V10i试玩包、存档、配置和日志保留，不原位刷新／重启；21:35:48完整Ogre关闭和随后PID缺席已有证据，退出码不可得。
+
+公开CUA本轮只读 `getState` 实际0.813秒返回原生inventory，用户包显示未运行；浏览器分量失败。
+`getApp(com.openai.codex)` 明确APP_DENIED，仅说明Codex app访问限制，不等同整个游戏CUA不可用。
+见 `cua-readonly-inventory-r1.json` 与 `cua-readonly-codex-r1.json`；没有截图／AX／输入，普通玩法仍待验。
+
+### 实现与自然目标
+
+接线仅由显式shore诊断启用：严格要求隐藏窗口、全新且不同的同级save／catalogue／output、冻结V06b机位、seed42／time7000、
+RD1／FOV90／minimap256；在创建WorldManagementService前拒绝已有或共用路径。其他诊断／资源覆盖／旧存档入口拒绝。
+标准生产游戏关闭该路径，不增加常规World查询、保留195列／30Hz。没有改World、生成、存储格式、shader或资源。
+
+原始直接相邻岸条件下river／lake／sea／wetland均未找到合适深水列，旧失败完整保留。
+工程选择要求canonical4、自然depth≥2、附近干岸≤4m，后补观测内2m边界及真实已知fine邻点。
+最终 `shore-locate-r7-river-margin2/receipt.json` 找到 `(220,64,-204)`：Water64／Air65／Water63／Sand62，元数据均0，
+干岸 `(217,64,-204)` 距离3m，**非直接相邻岸条件**。实际1024列／4批、9驻留区块身份与修订保持。
+原r6目标处在观测边界，fineNorth未知，未拿去抓GPU；不以“找到目标”冒称完整邻格可验。
+
+六阶段：baseline → 生产PlaceSand63（库存2→1，surface仍Water64）→ 原Water63恢复 →
+生产PlaceSand64（1→0，surface Sand64）→ 生产BreakSand64（掉砂0→1，surface Water63）→ 原Water64恢复。
+生产命令FIFO、World更新、rebuild与原上传继续；模拟dt0冻结。两次恢复用实际原方块metadata，诊断不等同鼠标玩法。
+只保留目标列sections3／4的实际原上传CPU输入和原RenderOperation；所有live revision匹配、GpuResident且无CpuReady，
+并要求全局cpuReadyTotal0，避免把未处理就绪包误记为稳定。每阶段最多8操作、单buffer16MiB、会话raw256MiB、
+阶段10秒／会话60秒。有界读取GL_COPY_READ并恢复绑定／上下文，不重建、重放或伪造native存储。
+
+### 当前实际证据
+
+证据根 `build/visual-experience-polish-20260928/v06c/`；正式独立消费者为
+`tools/tests/shore_edit_capture_oracle.py`，执行源与正式源逐字节一致，SHA `022301d3…bd27`。
+
+| 检查 | 实际结果与声明范围 |
+| --- | --- |
+| 正常客户端 | `normal-build-r3/receipt.json` Release／Debug均exit0／无signal／BUILD SUCCEEDED／first-party warning0，2915源码输入保持；Release `10c392d3…e6356`、Debug `c40e063c…5bc7e`。r1两处OgreSharedPtr API compile失败保留，修实际接口后通过；未重跑无关完整World／资源。 |
+| 标准六阶段 | `shore-standard-r1/capture.json` PID98153，exit0／signal null／无timeout，实际UI帧4、109、379、656、922、1199，原操作数3、3、3、3、4、3，各GL0。 |
+| 兼容六阶段 | `shore-compatibility-r1/capture.json` PID98288，exit0／signal null／无timeout，实际UI帧5、118、402、680、948、1218，操作数同标准，各GL0；同一已验证Release，fresh独立save。 |
+| 独立World／原存储 | `dual-mode-oracle-r1.json` 两模式各208项，96输入文件保持；独立按44B stride、offset0／12／20／28／40及u32索引读取原CPU／GPU原件，范围／finite／byte equality／当前parts通过。真实3×3×10层90方块独立求四角深度，各角2→1.75→2→Sand无水顶面→1→2，与原GPU uv1一致。 |
+| HUD先于Flat | 修改后实际HUD256 step4新目标回复在编辑之后、进入Flat之前更新既有2m细历史；实际Flat为RD1 step2，同坐标fine后绘制／生产解析匹配。捕获Flat帧没有目标查询，不用Flat自刷新遮盖旧HUD历史。 |
+| 原窗口地图像素 | 六阶段各2560×1440未编辑原PNG，实际提交target／west／north矩形与framebuffer scale2；独立中央像素target Water64 `(58,133,158)` → Sand64 `(204,186,132)` → Water63 `(51,118,140)` → restored Water64，误差0。西／北fine与原PNG保持。3×3 World邻列保持；fine西／北点在3×3外，不宣称它们的World表面独立重算。 |
+| 消费端故障挑战 | `raw-fault-suite-r1/faults.json` 五个独立raw／facts克隆（NaN44B／stride32／OOBindex／staleUV／missingHUDfine）更新CPU／native副本与outer SHA后，先通过哈希再被目标语义拒绝。不是生产源码变体；skip upload／depth／old UI源码故障NOT_RUN。 |
+| 入口拒绝 | `runtime-path-guard-r1/receipt.json` 已有save PID99132、共用save／catalogue PID99143均预期exit1／无signal／无timeout，哨兵SHA保持，output／catalogue未创建。early guard在World／窗口前拒绝，不以SIGABRT挑战入口。 |
+| 诊断关闭 | `normal-menu-r1/capture.json` 普通设置路径隐藏主菜单两张原PNG正常渲染、工具exit0；generic direct没有单独记录孩子PID／退出码，不补造。此项只证明启动／渲染，不是菜单输入。 |
+| 重开 | 见下文保存重开记录，以实际新receipt为准。首轮helper的9个保存文件假设错误已保留，不归为游戏故障。 |
+| 源码与身份 | `integration-readonly-review-r2.json` 覆盖early路径与实际环境guard、原camera／fern段保持、normal-off、原上传、HUD-before-Flat、公开World.save。`capture-verification-r1.json` 独立复核192个capture artifact SHA，菜单2／标准95／兼容95；捕获保持4224680d＋实际dirty身份，不回写成最终提交。 |
+
+### 保存重开与交付
+
+首轮 `shore-standard-reopen-r1/receipt.json` deps／compile／link0，run正常exit1／无signal、input guard保持。
+helper误要求9个运行驻留区块都已保存，实际只有被编辑的 `chunk_13_-13.hmcchunk`；在World构造前拒绝。
+生产 `World.save()` 调用saveDirtyChunks，天然生成区块saveDirty=false，未改块不写文件；这不是丢失编辑。
+修helper后仍强制被改／恢复的目标文件存在、production codec身份和Water64／Water63 ID+metadata正确；
+其余已存邻块必须可解析，未改procedural邻块可由普通constructor生成。运行时9 resident门槛保持，旧失败不覆盖。
+
+`shore-standard-reopen-r2/receipt.json` 与 `shore-compatibility-reopen-r1/receipt.json` 实际deps／compile／link／run均exit0／
+无signal／inputs_unchanged，各 `world-run/reopen-validation.json` 58检查通过。正式助手
+`tools/tests/shore_world_reopen_test.cpp` 与修正后的执行源一致，SHA `721127a0…c52`。
+先用production WorldSave／ChunkStorageData／ExplorationMapStore codecs核对实际保存原件，保留before metadata／map／target chunk；
+移除强制seed／位置／旋转／时钟后，公开World(existingSave,false,1)实际重开，确认seed42／terrain30、9驻留、
+原Water64／Water63 ID+metadata、全部库存槽／选择／位置／时钟一致，Sand库存与手持均1。
+持久canonical Water64在调用observeSurfaceMap**之前**已存在，400归档格不增；pass1公开World.save返回true，
+普通析构后第二次production重开仍正确。只写各自新capture/save及其backup，未触碰用户存档。
+此检查仅证明恢复态存储／production重开，不证明中间编辑态存档、普通UI或GPU重开。
+
+`alarm-final-readonly-r1.json` 于23:26:28再次只读核对仍90份ips，名称／SHA全部保持；本轮双GPU和重开后无新增报告。
+此有限集合检查仍不提供用户弹框的直接观察或归因。
+
+Root已查看并归档当前标准phase003／phase005两张完整原图，source／archive SHA一致。
+`selected-archive-r1.json` 保留旧40轮171图对象／字节及8个未标角色；新增后共41轮173张，未裁剪或生成代图。
+旧14保护包1973项、用户V10i包135管理项、705B普通配置、663B源配置和无关策略文档均须最终复核。
+本地中文小提交只包含本批源码／工具／对应文档，不推送、发布或打标签；新独立 `v06c/After.app`
+显式使用r3 Release、原普通705B配置和提交后干净tracked身份。135管理项／2965源码／137完整文件及当前终态以
+`postcommit-verification-r1.json` 为准，用户包及原冻结包不刷新。
+
+本轮闭合自然同列改块→当前原上传存储→HUD细历史→实际平面图矩形像素的隔离工程链，
+普通输入／连续水域与全路线、三种子terrain30探索／切世界、原World列原子快照、incarnation／ABA、
+native内部VAO取数及地形像素归属仍OPEN。完整V01–V10与V00／V11退出条件不缩减，Goal active，
+各方向整项仍Doing；严格配对性能DEFERRED_BY_USER，没有人工核验或新批准关卡。

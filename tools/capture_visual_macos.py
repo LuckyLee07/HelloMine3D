@@ -34,6 +34,15 @@ SCENES = {
     "menu": None,
 }
 
+# Frozen V06b viewpoints; shore-edit targets must come from a current-world
+# locator in the local 32x32 region, never from the historical terrain output.
+SHORE_EDIT_SITES = {
+    "river": ("212 70 -192", "10 90 0"),
+    "lake": ("196 72 -144", "10 90 0"),
+    "sea": ("-89 67 602", "10 -75.6186 0"),
+    "wetland": ("-101 67 312", "10 -126.027 0"),
+}
+
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -109,6 +118,12 @@ def main():
                         help="Observe twelve actual pause-notification backend frames in a fresh compact hidden client (diagnostic input only)")
     parser.add_argument("--fern-wind", action="store_true",
                         help="Observe four actual draws of two natural Fern sources in a new isolated forest (diagnostic input only)")
+    parser.add_argument("--shore-edit", action="store_true",
+                        help="Observe six production shore-edit/world-map phases in a fresh hidden isolated world (diagnostic input only)")
+    parser.add_argument("--shore-edit-target", metavar="x y z",
+                        help="Canonical4 Water64 target from the current-world bounded locator; requires --shore-edit")
+    parser.add_argument("--shore-edit-site", choices=SHORE_EDIT_SITES,
+                        help="Frozen shore viewpoint (default: river); requires --shore-edit")
     parser.add_argument("--inspect-slot", type=int, choices=range(5), help="Item detail diagnostic; requires pointer panel and HUD fixture")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--panel", choices=("crafting", "container", "furnace", "crusher", "settings", "map", "journal", "pointer"))
@@ -143,6 +158,24 @@ def main():
         parser.error("--capture-ms applies only to render capture")
     if args.actor_distance is not None and not args.actor_visual:
         parser.error("--actor-distance requires --actor-visual")
+    if (args.shore_edit_target is not None or args.shore_edit_site is not None) and not args.shore_edit:
+        parser.error("--shore-edit-target and --shore-edit-site require --shore-edit")
+    shore_edit_site = args.shore_edit_site or "river"
+    shore_edit_target = None
+    if args.shore_edit:
+        try:
+            parts = args.shore_edit_target.split() if args.shore_edit_target else []
+            if len(parts) != 3:
+                raise ValueError
+            x, y, z = map(int, parts)
+            centre_x, _, centre_z = map(int, SHORE_EDIT_SITES[shore_edit_site][0].split())
+            if (y != 64 or x % 4 != 0 or z % 4 != 0 or
+                    not centre_x - 16 <= x < centre_x + 16 or
+                    not centre_z - 16 <= z < centre_z + 16):
+                raise ValueError
+            shore_edit_target = f"{x} {y} {z}"
+        except ValueError:
+            parser.error("--shore-edit requires --shore-edit-target 'x 64 z' with integer canonical4 x/z inside the frozen site's 32x32 locator region")
     if args.player_motion and (args.perspective != "third" or args.foreground or args.performance or args.scene == "menu"):
         parser.error("--player-motion requires hidden third-person world render capture")
     if "HELLOMINE3D_PLAYER_MOTION_CAPTURE" in os.environ:
@@ -155,9 +188,12 @@ def main():
         parser.error("Inherited Fern diagnostics are not accepted; use --fern-wind explicitly")
     if "HELLOMINE3D_PAUSE_NOTIFICATIONS_DIR" in os.environ:
         parser.error("Inherited pause notifications are not accepted; use --pause-notifications explicitly")
+    if any(name in os.environ for name in ("HELLOMINE3D_SHORE_EDIT_CAPTURE_DIR",
+            "HELLOMINE3D_SHORE_EDIT_TARGET", "HELLOMINE3D_SHORE_EDIT_SITE")):
+        parser.error("Inherited shore edit diagnostics are not accepted; use --shore-edit explicitly")
     if args.pause_notifications and (args.foreground or args.performance or args.player_motion or
             args.actor_visual or args.hud_fixture or args.panel or args.inspect_slot is not None or
-            args.material_identity or args.camera_diagnostics or args.fern_wind or args.scene == "menu" or
+            args.material_identity or args.camera_diagnostics or args.fern_wind or args.shore_edit or args.scene == "menu" or
             args.reuse_app or args.save_template or args.streaming or args.position or args.rotation or
             args.render_distance != 1 or args.visual_detail != "standard" or
             args.launch_method != "direct" or args.capture_ms != "5000,10000" or
@@ -167,7 +203,7 @@ def main():
         parser.error("--pause-notifications requires a fresh hidden default-pack standard RD1 world, direct launch, 640x480 points/scale1.25, first perspective, and no other diagnostics")
     if args.fern_wind and (args.foreground or args.performance or args.player_motion or
             args.actor_visual or args.hud_fixture or args.panel or args.inspect_slot is not None or
-            args.material_identity or args.camera_diagnostics or args.scene != "forest" or
+            args.material_identity or args.camera_diagnostics or args.shore_edit or args.scene != "forest" or
             args.reuse_app or args.save_template or args.streaming or args.position or args.rotation or
             args.render_distance != 1 or args.visual_detail not in ("standard", "compatibility") or
             args.launch_method != "direct" or args.capture_ms != "5000,10000" or
@@ -178,7 +214,7 @@ def main():
         parser.error("--fern-wind requires a new hidden default-pack forest, seed20260807/time6000, RD1, explicit standard/compatibility, direct launch, first perspective, FOV90 and 1280x720 points")
     if args.camera_diagnostics and (args.foreground or args.performance or args.player_motion or
             args.actor_visual or args.hud_fixture or args.panel or args.material_identity or
-            args.fern_wind or
+            args.fern_wind or args.shore_edit or
             args.scene == "menu" or args.reuse_app or args.save_template or args.streaming or
             args.position or args.rotation or
             args.render_distance != 1 or args.visual_detail not in ("standard", "compatibility") or
@@ -188,13 +224,32 @@ def main():
         parser.error("--camera-diagnostics requires a new hidden default-pack RD1 world, explicit standard/compatibility, direct launch, FOV120 and 1920x640 points")
     if args.material_identity and (args.foreground or args.performance or args.player_motion or
             args.actor_visual or args.hud_fixture or args.panel or args.inspect_slot is not None or
-            args.fern_wind or
+            args.fern_wind or args.shore_edit or
             args.scene == "menu" or args.reuse_app or args.save_template or
             args.render_distance != 1 or args.visual_detail not in ("standard", "compatibility") or
             args.launch_method != "direct" or args.capture_ms != "5000,10000" or
             args.terrain_fallback or args.atmosphere_fallback or os.environ.get("HELLOMINE3D_RESOURCE_PACKS")):
         parser.error("--material-identity requires a new hidden default-pack world, RD1, explicit standard/compatibility, direct launch, and no other fixtures")
-    if args.material_identity or args.camera_diagnostics or args.fern_wind or args.pause_notifications:
+    if args.shore_edit and (args.foreground or args.performance or args.player_motion or
+            args.actor_visual or args.actor_distance is not None or args.hud_fixture or args.panel or
+            args.inspect_slot is not None or args.debug or args.material_identity or
+            args.camera_diagnostics or args.fern_wind or args.pause_notifications or args.scene == "menu" or
+            args.reuse_app or args.save_template or args.streaming or args.position or args.rotation or
+            args.render_distance != 1 or args.visual_detail not in ("standard", "compatibility") or
+            args.launch_method != "direct" or args.capture_ms != "5000,10000" or
+            args.terrain_fallback or args.atmosphere_fallback or
+            args.seed != 42 or args.time != 7000 or args.perspective != "first" or
+            args.shadow != "off" or args.post != "off" or args.fov != 90 or args.minimap_range != 256 or
+            args.width != 1280 or args.height != 720):
+        parser.error("--shore-edit requires a fresh hidden default-pack world, seed42/time7000, RD1, explicit standard/compatibility, direct launch, first perspective, FOV90/minimap256, 1280x720 points and no other diagnostics")
+    if args.shore_edit and any(name in os.environ for name in (
+            "HELLOMINE3D_RESOURCE_PACKS", "HELLOMINE3D_ACTOR_VISUAL_DISTANCE",
+            "HELLOMINE3D_E2_BATCH_EVENTS", "HELLOMINE3D_E2_RENDER_PHASES",
+            "HELLOMINE3D_EXIT_AFTER_FRAMES", "HELLOMINE3D_SKIP_MAIN_MENU",
+            "HELLOMINE3D_P11_LIGHT_FIXTURE", "HELLOMINE3D_DISABLE_VERTEX_AO",
+            "HELLOMINE3D_PAUSE_NOTIFICATION_CAPTURE_DIR", "HELLO_PERF_CAPTURE")):
+        parser.error("Inherited diagnostic fixtures cannot be combined with shore edit capture")
+    if args.material_identity or args.camera_diagnostics or args.fern_wind or args.pause_notifications or args.shore_edit:
         other_fixtures = ("HELLOMINE3D_BLOCK_FEEDBACK_CAPTURE", "HELLOMINE3D_COMBAT_FIXTURE",
             "HELLOMINE3D_CONTAINER_FIXTURE", "HELLOMINE3D_CRAFTING_FIXTURE", "HELLOMINE3D_CROP_FIXTURE",
             "HELLOMINE3D_MACHINE_FIXTURE", "HELLOMINE3D_ORE_FIXTURE", "HELLOMINE3D_SPAWN_VALIDATION_ACTORS",
@@ -316,6 +371,12 @@ seed random
         environment["HELLOMINE3D_PAUSE_NOTIFICATIONS_DIR"] = str(output / "pause-notifications")
         environment["HELLO_RENDER_CAPTURE_MS"] = "60000"
         environment["HELLO_RENDER_CAPTURE_EXIT"] = "0"
+    if args.shore_edit:
+        environment["HELLOMINE3D_SHORE_EDIT_CAPTURE_DIR"] = str(output / "shore-edit")
+        environment["HELLOMINE3D_SHORE_EDIT_TARGET"] = shore_edit_target
+        environment["HELLOMINE3D_SHORE_EDIT_SITE"] = shore_edit_site
+        environment["HELLO_RENDER_CAPTURE_MS"] = "60000"
+        environment["HELLO_RENDER_CAPTURE_EXIT"] = "0"
     if args.terrain_fallback:
         environment["HELLOMINE3D_FORCE_LEGACY_TERRAIN"] = "1"
     if args.player_motion:
@@ -328,6 +389,8 @@ seed random
             position, rotation = "0.5 200 0.5", "0 0 0"
         if args.fern_wind:
             position, rotation = "966.5 81 -21.5", "30 0 0"
+        if args.shore_edit:
+            position, rotation = SHORE_EDIT_SITES[shore_edit_site]
         for value in (position, rotation):
             try:
                 if len(value.split()) != 3:
@@ -389,7 +452,8 @@ seed random
               "scene": args.scene, "settings": settings, "environment": environment,
               "diagnostic_fixture": "camera-fixed-resident-origin" if args.camera_diagnostics else
                   ("fern-natural-source-native-draw" if args.fern_wind else
-                   ("pause-notification-production-rail" if args.pause_notifications else None)),
+                   ("pause-notification-production-rail" if args.pause_notifications else
+                    ("shore-edit-production-world-map" if args.shore_edit else None))),
               "inherited_diagnostic_environment": {
                   key: os.environ[key] for key in (
                       "HELLOMINE3D_VISUAL_CAMERA_SWEEP", "HELLOMINE3D_VISUAL_CAMERA_PATH",
@@ -409,13 +473,16 @@ seed random
         else:
             with (output / "client.log").open("w") as stdout, \
                     (output / "client-stderr.log").open("w") as stderr:
-                if args.fern_wind or args.pause_notifications:
+                if args.fern_wind or args.pause_notifications or args.shore_edit:
                     child = subprocess.Popen(command,
                         env={**os.environ, **environment}, stdout=stdout, stderr=stderr)
                     record["child_pid"] = child.pid
+                    if args.shore_edit:
+                        record["child_timed_out"] = False
+                        record["child_wait_timeout_seconds"] = 60
                     record_path.write_text(json.dumps(record, indent=2) + "\n")
                     try:
-                        child.wait(timeout=60 if args.pause_notifications else 100)
+                        child.wait(timeout=60 if args.pause_notifications or args.shore_edit else 100)
                     except subprocess.TimeoutExpired:
                         child.kill()
                         child.wait()
@@ -438,11 +505,15 @@ seed random
             sorted((output / "camera-diagnostics").glob("*.png")) if args.camera_diagnostics else \
             sorted((output / "fern-wind").glob("*.png")) if args.fern_wind else \
             sorted((output / "pause-notifications").glob("frame-*.png")) if args.pause_notifications else \
+            sorted((output / "shore-edit").glob("phase-*.png")) if args.shore_edit else \
             sorted((output / "frames").glob("*.png"))
         expected_frames = 9 if args.material_identity else (6 if args.camera_diagnostics else
-            (4 if args.fern_wind else (12 if args.pause_notifications else (0 if args.performance else len(capture_times)))))
+            (4 if args.fern_wind else (12 if args.pause_notifications else
+            (6 if args.shore_edit else (0 if args.performance else len(capture_times))))))
         if len(frames) != expected_frames:
             raise RuntimeError(f"Expected {expected_frames} captured frames, got {len(frames)}")
+        if args.shore_edit and [frame.name for frame in frames] != [f"phase-{phase:03d}.png" for phase in range(6)]:
+            raise RuntimeError("Shore edit capture requires exactly phase-000.png through phase-005.png")
         # Window points and framebuffer pixels differ on Retina displays. Require
         # an explicit ratio so an unexpected resolution still fails the capture.
         import struct
@@ -482,6 +553,21 @@ seed random
             artifacts += [index]
             record["pause_notifications_session"] = str(index)
             record["pause_notifications_scope"] = "actual production rail; independent glyph/clip/PNG oracle required; normal input false"
+        if args.shore_edit:
+            index = output / "shore-edit/index.json"
+            session = json.loads(index.read_text())
+            if (session.get("schema") != "hellomine3d-shore-edit-capture-v1" or
+                    session.get("status") != "CAPTURED" or len(session.get("frames", [])) != 6):
+                raise RuntimeError("Shore edit session did not complete its six production world-map capture phases")
+            world_maps = [output / "shore-edit" / f"phase-{phase:03d}-world-map.json" for phase in range(6)]
+            for path in world_maps:
+                json.loads(path.read_text())
+            artifacts += sorted(path for path in (output / "shore-edit").iterdir()
+                                if path.is_file() and path not in artifacts)
+            record["shore_edit_session"] = str(index)
+            record["shore_edit_site"] = shore_edit_site
+            record["shore_edit_target"] = [int(part) for part in shore_edit_target.split()]
+            record["shore_edit_scope"] = "production Place/Break commands and diagnostic restore; actual world-map/UI facts; independent oracle required; normal input false"
         if args.performance:
             record["framebuffer_size_pixels"] = performance_framebuffer(
                 (output / "client.log").read_text(), args.width, args.height, args.pixel_ratio)
@@ -493,6 +579,10 @@ seed random
         record["artifacts"] = {str(p.relative_to(output)): digest(p) for p in artifacts}
         if args.scene != "menu":
             record["world_metadata"] = (output / "save/world.meta").read_text()
+            if args.shore_edit:
+                metadata_lines = record["world_metadata"].splitlines()
+                if metadata_lines.count("seed 42") != 1 or metadata_lines.count("terrain_generation_version 30") != 1:
+                    raise RuntimeError("Shore edit capture requires actual saved seed42/terrain30 metadata")
         record["result"] = "CAPTURED"
     except Exception as error:
         record["result"] = "FAIL"

@@ -13,6 +13,7 @@
 #include "MaterialIdentityCapture.h"
 #include "FloraWindCapture.h"
 #include "PauseNotificationCapture.h"
+#include "ShoreEditCapture.h"
 #include "../Presentation/LocalizedPresentation.h"
 #include "StartupErrorReporter.h"
 #include "StartupResourcePreflight.h"
@@ -103,6 +104,7 @@
 #include "../World/Environment/RegionalAtmosphere.h"
 #include "../World/Generation/Terrain/TerrainGenerator.h"
 #include "../World/World.h"
+#include "../World/Command/PlayerBlockInteractionCommand.h"
 #include "../World/Storage/WorldManagementService.h"
 
 namespace
@@ -346,6 +348,9 @@ namespace
         std::unique_ptr<ChunkMeshCollection> batchMeshes;
         // Optional diagnostic copy from the same safe CPU upload input; normal null.
         std::unique_ptr<ChunkMesh> fernDiagnosticFlora;
+        // Only the isolated shore observer retains direct upload inputs.
+        std::unique_ptr<ChunkMesh> shoreDiagnosticWater, shoreDiagnosticSolid;
+        std::uint64_t shoreUploadSerial = 0;
     };
 
     // Own only the solar light's projection, leaving Ogre's other lights alone.
@@ -643,6 +648,19 @@ namespace
                 if (parent != std::filesystem::weakly_canonical(std::filesystem::path(saveOverride).parent_path()) ||
                     parent != std::filesystem::weakly_canonical(std::filesystem::path(catalogueOverride).parent_path()))
                     throw std::runtime_error("Fern diagnostic directories must share the new session directory.");
+            }
+            const char* shoreDirectory = std::getenv("HELLOMINE3D_SHORE_EDIT_CAPTURE_DIR");
+            if (shoreDirectory && shoreDirectory[0])
+            {
+                if (!saveOverride || !saveOverride[0] || !catalogueOverride || !catalogueOverride[0])
+                    throw std::runtime_error("Shore edit requires explicit fresh save, catalogue and output paths.");
+                const auto save = std::filesystem::weakly_canonical(saveOverride);
+                const auto catalogue = std::filesystem::weakly_canonical(catalogueOverride);
+                const auto output = std::filesystem::weakly_canonical(shoreDirectory);
+                if (save == catalogue || save == output || catalogue == output ||
+                    save.parent_path() != output.parent_path() || catalogue.parent_path() != output.parent_path() ||
+                    std::filesystem::exists(save) || std::filesystem::exists(catalogue) || std::filesystem::exists(output))
+                    throw std::runtime_error("Shore edit paths must be distinct, nonexistent siblings in the new session directory.");
             }
             m_worldManagement =
                 std::make_unique<WorldManagementService>(
@@ -1201,6 +1219,70 @@ namespace
                 m_fernWindOutput = fernOutput;
                 std::cout << "[FERN_WIND_CAPTURE] normal_input=0 isolated_world=1 simulation_delta=0 camera_sweep=0\n";
             }
+            const char* shoreOutput = std::getenv("HELLOMINE3D_SHORE_EDIT_CAPTURE_DIR");
+            if (shoreOutput && shoreOutput[0])
+            {
+                if (!isTrueValue(std::getenv("HELLOMINE3D_WINDOW_HIDDEN")) ||
+                    !isTrueValue(std::getenv("HELLO_RENDER_CAPTURE")) ||
+                    initialSaveDirectory.empty() ||
+                    std::getenv("HELLOMINE3D_SAVE_DIR") == nullptr ||
+                    std::getenv("HELLOMINE3D_CATALOGUE_DIR") == nullptr ||
+                    std::filesystem::exists(std::filesystem::path(initialSaveDirectory) / "world.meta") ||
+                    RuntimePerformanceCapture::isEnabled() ||
+                    m_visualCameraSweep.enabled || !m_playerMotionCapture.empty() ||
+                    !m_actorVisualCapture.empty() || !m_materialIdentityOutput.empty() ||
+                    !m_cameraDiagnosticOutput.empty() || !m_fernWindOutput.empty() ||
+                    m_config.renderDistance != 1 || m_config.fov != 90 ||
+                    m_config.minimapRange != 256)
+                    throw std::runtime_error("Shore edit capture requires a hidden fresh isolated world and RD1/FOV90/minimap256.");
+                for (const char* key : {"HELLOMINE3D_RC_PERF_PROFILE", "HELLOMINE3D_E2_BATCH_MANIFEST",
+                         "HELLOMINE3D_PAUSE_NOTIFICATIONS_DIR", "HELLOMINE3D_RESOURCE_PACKS",
+                         "HELLOMINE3D_TERRAIN_FALLBACK", "HELLOMINE3D_V10C_FALLBACK",
+                         "HELLOMINE3D_BLOCK_FEEDBACK_CAPTURE", "HELLOMINE3D_COMBAT_FIXTURE",
+                         "HELLOMINE3D_CONTAINER_FIXTURE", "HELLOMINE3D_CRAFTING_FIXTURE",
+                         "HELLOMINE3D_CROP_FIXTURE", "HELLOMINE3D_MACHINE_FIXTURE",
+                         "HELLOMINE3D_ORE_FIXTURE", "HELLOMINE3D_SPAWN_VALIDATION_ACTORS",
+                         "HELLOMINE3D_TRANSPARENT_FIXTURE", "HELLOMINE3D_VERTEX_LIGHTING_FIXTURE",
+                         "HELLOMINE3D_VERTICAL_SLICE_FIXTURE", "HELLOMINE3D_HUD_FIXTURE",
+                         "HELLOMINE3D_HUD_PAGE_FIXTURE", "HELLOMINE3D_FORCE_LEGACY_TERRAIN",
+                         "HELLOMINE3D_P11_LIGHT_FIXTURE", "HELLOMINE3D_DISABLE_VERTEX_AO",
+                         "HELLOMINE3D_V10E_SETTINGS_FIXTURE", "HELLOMINE3D_V10D_SHADOW_FIXTURE",
+                         "HELLOMINE3D_V10D_SHADOW_FALLBACK", "HELLOMINE3D_V10E_POST_FIXTURE",
+                         "HELLOMINE3D_V10E_POST_FALLBACK", "HELLOMINE3D_CONTROLLED_CRASH",
+                         "HELLOMINE3D_EXIT_AFTER_FRAMES", "HELLOMINE3D_HUD_INSPECT_SLOT",
+                         "HELLOMINE3D_VISUAL_CAMERA_PATH", "HELLOMINE3D_E2_BATCH_EVENTS",
+                         "HELLOMINE3D_E2_RENDER_PHASES"})
+                    if (std::getenv(key))
+                        throw std::runtime_error(std::string("Shore edit capture cannot combine ") + key);
+                auto exact = [](const char* key, const char* value) {
+                    const char* actual = std::getenv(key);
+                    return actual && std::string(actual) == value;
+                };
+                const std::string site = std::getenv("HELLOMINE3D_SHORE_EDIT_SITE")
+                    ? std::getenv("HELLOMINE3D_SHORE_EDIT_SITE") : "river";
+                const char* position = nullptr; const char* rotation = nullptr;
+                if (site == "river") { position = "212 70 -192"; rotation = "10 90 0"; }
+                if (site == "lake") { position = "196 72 -144"; rotation = "10 90 0"; }
+                if (site == "sea") { position = "-89 67 602"; rotation = "10 -75.6186 0"; }
+                if (site == "wetland") { position = "-101 67 312"; rotation = "10 -126.027 0"; }
+                if (!position || !exact("HELLOMINE3D_PLAYER_POSITION", position) ||
+                    !exact("HELLOMINE3D_PLAYER_ROTATION", rotation) ||
+                    !exact("HELLOMINE3D_SEED", "42") || !exact("HELLOMINE3D_WORLD_TIME", "7000"))
+                    throw std::runtime_error("Shore edit capture requires a frozen V06b site and seed42/time7000.");
+                const char* target = std::getenv("HELLOMINE3D_SHORE_EDIT_TARGET");
+                std::istringstream parsed(target ? target : ""); std::string extra;
+                if (!(parsed >> m_shoreTarget.x >> m_shoreTarget.y >> m_shoreTarget.z) ||
+                    (parsed >> extra) || m_shoreTarget.y != 64 ||
+                    m_shoreTarget.x % 4 != 0 || m_shoreTarget.z % 4 != 0)
+                    throw std::runtime_error("Shore edit capture requires an exact canonical4 Water64 target.");
+                std::istringstream cameraPosition(position); glm::ivec3 centre(0);
+                cameraPosition >> centre.x >> centre.y >> centre.z;
+                if (m_shoreTarget.x < centre.x - 16 || m_shoreTarget.x >= centre.x + 16 ||
+                    m_shoreTarget.z < centre.z - 16 || m_shoreTarget.z >= centre.z + 16)
+                    throw std::runtime_error("Shore edit target is outside the frozen bounded locator region.");
+                m_shoreEditOutput = shoreOutput;
+                std::cout << "[SHORE_EDIT_CAPTURE] normal_input=0 isolated_world=1 simulation_delta=0 site=" << site << '\n';
+            }
             const bool hiddenWindow = isTrueValue(
                 std::getenv("HELLOMINE3D_WINDOW_HIDDEN"));
             m_hiddenWindow = hiddenWindow;
@@ -1264,6 +1346,8 @@ namespace
             if (!m_cameraDiagnosticOutput.empty())
                 m_cameraDiagnostics = std::make_unique<OgreCameraDiagnostics>(
                     m_cameraDiagnosticOutput, *m_sceneManager);
+            if (!m_shoreEditOutput.empty())
+                m_shoreEditCapture = std::make_unique<ShoreEditCapture>(m_shoreEditOutput);
             m_sceneManager->setAmbientLight(
                 Ogre::ColourValue(0.7f, 0.7f, 0.7f));
             m_sceneManager->setSkyBox(
@@ -2106,6 +2190,8 @@ namespace
                                 << sectionLocation.z;
                     Ogre::SceneNode *node = nullptr;
                     SectionVisual visual;
+                    visual.location = sectionLocation;
+                    if (m_shoreEditCapture) visual.shoreUploadSerial = ++m_shoreUploadSerial;
                     auto ensureNode = [&]() {
                         if (node != nullptr)
                         {
@@ -2170,6 +2256,7 @@ namespace
                                     sectionName.str() + "_" + layerName,
                                     mesh, sectionLocation, materialName,
                                     renderQueue);
+                            retainShoreUploadInput(visual, mesh, materialName, sectionLocation);
                             renderable->setCastShadows(
                                 std::string(materialName) ==
                                 "HelloMine3D/Terrain");
@@ -2214,7 +2301,7 @@ namespace
                                 key, std::move(visual));
                             m_sectionRenderStates[key] =
                                 ChunkRenderState::GpuResident;
-                            if (m_materialIdentityCapture || m_floraWindCapture)
+                            if (m_materialIdentityCapture || m_floraWindCapture || m_shoreEditCapture)
                                 m_materialIdentityMeshRevisions[key] = section->getBlockRevision();
                         }
                         else
@@ -2619,6 +2706,7 @@ namespace
             prepareMaterialIdentityCapture(event.timeSinceLastFrame);
             prepareCameraDiagnostics(event.timeSinceLastFrame);
             prepareFloraWindCapture(event.timeSinceLastFrame);
+            prepareShoreEditCapture();
             const bool sandboxAdvanced =
                 updateSandbox(event.timeSinceLastFrame);
             if (!sandboxAdvanced && m_sandbox != nullptr)
@@ -2724,6 +2812,7 @@ namespace
                     throw std::runtime_error("Pause notification actual PNG/backend reported GL error " + std::to_string(error));
                 m_pauseNotificationCapture->finishFrame();
             }
+            finishShoreEditFrame();
             ++m_frameCount;
             return true;
         }
@@ -2829,8 +2918,297 @@ namespace
                    !(m_cameraDiagnostics && m_cameraDiagnosticPhase >= 6) &&
                    !(m_floraWindCapture && m_floraWindCapture->isComplete()) &&
                    !(m_pauseNotificationCapture && m_pauseNotificationCapture->isComplete()) &&
+                   !m_shoreComplete &&
                    !captureComplete && !frameLimitReached &&
                    !RuntimePerformanceCapture::shouldCloseWindow();
+        }
+
+        bool shoreSectionSelected(glm::ivec3 section) const
+        {
+            const glm::ivec3 targetSection(
+                int(std::floor(m_shoreTarget.x / double(CHUNK_SIZE))), 4,
+                int(std::floor(m_shoreTarget.z / double(CHUNK_SIZE))));
+            return section.x == targetSection.x && section.z == targetSection.z &&
+                (section.y == 3 || section.y == 4);
+        }
+
+        void retainShoreUploadInput(SectionVisual& visual, const ChunkMesh& mesh,
+                                   const std::string& material, glm::ivec3 section)
+        {
+            if (!m_shoreEditCapture || !shoreSectionSelected(section) ||
+                (material != "HelloMine3D/Water" && material != "HelloMine3D/Terrain")) return;
+            const auto& cpu = mesh.getClientMesh();
+            const auto bytes = cpu.vertexPositions.size() / 3 * sizeof(TerrainRenderVertex) +
+                cpu.indices.size() * sizeof(std::uint32_t);
+            if (bytes > 16u * 1024u * 1024u)
+                throw std::runtime_error("Shore direct original CPU upload input exceeds bound.");
+            (material == "HelloMine3D/Water" ? visual.shoreDiagnosticWater :
+                visual.shoreDiagnosticSolid) = std::make_unique<ChunkMesh>(mesh);
+        }
+
+        std::vector<ShoreEditCapture::Binding> collectShoreEditBindings()
+        {
+            const auto snapshot = m_world->collectSectionMeshSnapshot(false);
+            std::vector<ShoreEditCapture::Binding> result;
+            // The snapshot offers at most eight ready meshes. A deferred mesh
+            // must not be mistaken for clean merely because it was not offered.
+            if (snapshot.cpuReadyTotal != 0) return {};
+            auto stateFor = [&](glm::ivec3 location, ShoreEditCapture::Part& part) {
+                const auto live = std::find_if(snapshot.liveSectionVersions.begin(),
+                    snapshot.liveSectionVersions.end(), [&](const auto& value) { return value.location == location; });
+                const auto key = sectionKey(location);
+                const auto uploaded = m_materialIdentityMeshRevisions.find(key);
+                const auto state = m_sectionRenderStates.find(key);
+                if (live == snapshot.liveSectionVersions.end() || uploaded == m_materialIdentityMeshRevisions.end() ||
+                    state == m_sectionRenderStates.end()) return false;
+                const bool ready = std::any_of(snapshot.cpuReadySections.begin(), snapshot.cpuReadySections.end(),
+                    [&](const auto& value) { return value.location == location; });
+                part = {location, uploaded->second, live->blockRevision, true,
+                    state->second == ChunkRenderState::GpuResident, ready};
+                return part.gpuResident && !part.stillCpuReady && part.uploadRevision == part.liveRevision;
+            };
+            auto append = [&](SectionVisual& visual, const std::string& key, bool batched) {
+                for (auto& object : visual.renderables)
+                {
+                    const auto material = object->getMaterial()->getName();
+                    if (material != "HelloMine3D/Water" && material != "HelloMine3D/Terrain") continue;
+                    if (batched && material != "HelloMine3D/Terrain") continue;
+                    ShoreEditCapture::Binding binding;
+                    binding.renderable = object.get(); binding.origin = visual.location;
+                    binding.ownerKey = key; binding.layer = material == "HelloMine3D/Water" ? "water" : "solid";
+                    binding.uploadSerial = visual.shoreUploadSerial;
+                    std::vector<TerrainRenderBatchPart> parts;
+                    if (batched)
+                    {
+                        for (int y = 0; y < TerrainRenderBatchSections; ++y)
+                        {
+                            const glm::ivec3 location(visual.location.x, visual.location.y + y, visual.location.z);
+                            const auto source = m_sectionVisuals.find(sectionKey(location));
+                            if (source == m_sectionVisuals.end() || !source->second.batchMeshes) continue;
+                            const auto& mesh = source->second.batchMeshes->solidMesh;
+                            if (mesh.getClientMesh().indices.empty()) continue;
+                            ShoreEditCapture::Part part;
+                            if (!stateFor(location, part)) return false;
+                            binding.parts.push_back(part); parts.push_back({location, &mesh});
+                        }
+                    }
+                    else
+                    {
+                        const auto& mesh = material == "HelloMine3D/Water" ? visual.shoreDiagnosticWater : visual.shoreDiagnosticSolid;
+                        if (!mesh) return false;
+                        ShoreEditCapture::Part part;
+                        if (!stateFor(visual.location, part)) return false;
+                        binding.parts.push_back(part); parts.push_back({visual.location, mesh.get()});
+                    }
+                    std::size_t bytes = 0;
+                    for (const auto& part : parts)
+                        bytes += part.mesh->getClientMesh().vertexPositions.size() / 3 * sizeof(TerrainRenderVertex) +
+                            part.mesh->getClientMesh().indices.size() * sizeof(std::uint32_t);
+                    if (parts.empty() || bytes > 16u * 1024u * 1024u)
+                        throw std::runtime_error("Shore original operation CPU pack exceeds bound or has no parts.");
+                    binding.cpu = packTerrainRenderBatch(parts, binding.origin);
+                    result.push_back(std::move(binding));
+                }
+                return true;
+            };
+            // Capture both sides of the vertical section boundary. Complete
+            // solid batches keep the exact original ascending constructor order.
+            const glm::ivec3 top(int(std::floor(m_shoreTarget.x / double(CHUNK_SIZE))), 4,
+                int(std::floor(m_shoreTarget.z / double(CHUNK_SIZE))));
+            for (int y : {3, 4})
+            {
+                const glm::ivec3 section(top.x, y, top.z);
+                ShoreEditCapture::Part state;
+                if (!stateFor(section, state)) return {};
+                const auto found = m_sectionVisuals.find(sectionKey(section));
+                if (found != m_sectionVisuals.end() && !append(found->second, found->first, false)) return {};
+                const auto batch = m_terrainBatchVisuals.find(sectionKey(terrainRenderBatchOrigin(section)));
+                if (batch != m_terrainBatchVisuals.end() && !append(batch->second, batch->first, true)) return {};
+            }
+            if (result.empty() || result.size() > 8 ||
+                std::none_of(result.begin(), result.end(), [](const auto& b) { return b.layer == "water"; })) return {};
+            return result;
+        }
+
+        OgreSurfaceMapDiagnosticSample shoreExpectedSurface() const
+        {
+            return {true, m_shorePhase == 4 ? 63 : 64,
+                int(m_shorePhase == 3 ? BlockId::Sand : BlockId::Water)};
+        }
+
+        static bool shoreSampleMatches(const OgreSurfaceMapDiagnosticSample& a,
+                                       const OgreSurfaceMapDiagnosticSample& b)
+        { return a.known == b.known && a.height == b.height && a.blockId == b.blockId; }
+
+        void prepareShoreEditCapture()
+        {
+            if (!m_shoreEditCapture || m_shoreComplete || !m_world || !m_worldPlayer || !m_userInterface) return;
+            const auto now = std::chrono::steady_clock::now();
+            if (m_shoreStarted == std::chrono::steady_clock::time_point{})
+            { m_shoreStarted = now; m_shorePhaseStarted = now; }
+            if (now - m_shoreStarted > std::chrono::seconds(60) ||
+                now - m_shorePhaseStarted > std::chrono::seconds(10))
+                throw std::runtime_error("Shore edit diagnostic could not join actual World/UI/upload revisions within its bounded phase.");
+            if (!m_shoreInitialized)
+            {
+                const auto p = m_shoreTarget;
+                m_shoreOriginalTop = m_world->getBlock(p.x, p.y, p.z);
+                m_shoreOriginalLower = m_world->getBlock(p.x, p.y - 1, p.z);
+                if (m_shoreOriginalTop.id != Block_t(BlockId::Water) ||
+                    m_shoreOriginalLower.id != Block_t(BlockId::Water) ||
+                    m_world->getBlock(p.x, p.y + 1, p.z).id != Block_t(BlockId::Air))
+                    throw std::runtime_error("Shore target disagrees with the preserved current natural World locator.");
+                PlayerSaveState inventory = m_worldPlayer->getSaveState();
+                inventory.inventory.assign(5, {}); inventory.inventory[0] = {Material::Sand, 2, 0};
+                inventory.heldItem = 0; m_worldPlayer->applySaveState(inventory);
+                m_userInterface->configureSurfaceMapDiagnostic(p.x, p.z);
+                if (!m_userInterface->setSurfaceMapDiagnosticView(SurfaceMapDiagnosticView::Flat))
+                    throw std::runtime_error("Shore baseline cannot open the actual Flat page.");
+                m_shoreInitialized = true; m_shoreActionApplied = true;
+            }
+            if (!m_shoreActionApplied)
+            {
+                const auto p = m_shoreTarget;
+                m_shoreEditUiFrame = m_userInterface->surfaceMapDiagnosticFacts().frameId;
+                if (!m_userInterface->setSurfaceMapDiagnosticView(SurfaceMapDiagnosticView::Hud))
+                    throw std::runtime_error("Shore edit cannot switch to actual HUD256 sampling.");
+                if (m_shorePhase == 1 || m_shorePhase == 3)
+                    m_world->addCommand<PlayerBlockInteractionCommand>(PlayerBlockInteractionAction::Place,
+                        glm::vec3(p.x, m_shorePhase == 1 ? p.y - 1 : p.y, p.z), *m_worldPlayer);
+                else if (m_shorePhase == 4)
+                    m_world->addCommand<PlayerBlockInteractionCommand>(PlayerBlockInteractionAction::Break,
+                        glm::vec3(p), *m_worldPlayer);
+                else
+                {
+                    const int y = m_shorePhase == 2 ? p.y - 1 : p.y;
+                    const auto original = m_shorePhase == 2 ? m_shoreOriginalLower : m_shoreOriginalTop;
+                    m_world->setBlock(p.x, y, p.z, original);
+                }
+                m_shoreActionApplied = true; m_shoreWaitHud = true; m_shorePhaseStarted = now;
+            }
+            if (m_shoreWaitHud)
+            {
+                const auto facts = m_userInterface->surfaceMapDiagnosticFacts();
+                const auto expected = shoreExpectedSurface();
+                if (facts.targetObservedFrame > m_shoreEditUiFrame &&
+                    facts.targetObservedView == SurfaceMapDiagnosticView::Hud && facts.targetObservedStep == 4 &&
+                    shoreSampleMatches(facts.lastObservedTarget, expected) && facts.fineTarget.available &&
+                    shoreSampleMatches(facts.fineTarget.surface, expected))
+                {
+                    // Freeze the actual HUD reply before Flat can query the
+                    // target. Flat's own refresh cannot conceal a stale HUD.
+                    m_shoreHudBeforeFlat = facts;
+                    if (!m_userInterface->setSurfaceMapDiagnosticView(SurfaceMapDiagnosticView::Flat))
+                        throw std::runtime_error("Shore edit cannot reopen Flat after actual HUD observation.");
+                    m_shoreWaitHud = false;
+                }
+            }
+        }
+
+        void writeShoreWorldMapFacts(const OgreSurfaceMapDiagnosticFacts& facts)
+        {
+            const auto path = std::filesystem::path(m_shoreEditCapture->phaseJsonPath());
+            std::ofstream out(path.parent_path() / (path.stem().string() + "-world-map.json"));
+            out << std::boolalpha;
+            auto sample = [&](const auto& s) { out << "{\"known\":" << s.known << ",\"height\":" << s.height << ",\"block_id\":" << s.blockId << '}'; };
+            auto cell = [&](const auto& c) {
+                out << "{\"available\":" << c.available << ",\"world_x\":" << c.worldX << ",\"world_z\":" << c.worldZ << ",\"step\":" << c.step << ",\"surface\":";
+                sample(c.surface); out << '}';
+            };
+            auto draw = [&](const auto& d) {
+                out << "{\"submitted\":" << d.submitted << ",\"layer\":" << int(d.layer)
+                    << ",\"step\":" << d.step << ",\"colour\":" << d.colour
+                    << ",\"rect\":[" << d.left << ',' << d.top << ',' << d.right << ',' << d.bottom
+                    << "],\"vertices\":[" << d.vertexBegin << ',' << d.vertexEnd
+                    << "],\"indices\":[" << d.indexBegin << ',' << d.indexEnd << "],\"surface\":";
+                sample(d.surface); out << '}';
+            };
+            const auto p = m_shoreTarget;
+            out << "{\"schema\":\"hellomine3d-shore-edit-world-map-v1\",\"normal_input\":false,\"phase\":" << m_shorePhase
+                << ",\"target\":[" << p.x << ',' << p.y << ',' << p.z << "],\"ui_frame\":" << facts.frameId
+                << ",\"edit_ui_frame\":" << m_shoreEditUiFrame << ",\"inventory_sand\":" << m_worldPlayer->getInventoryCount(Material::Sand)
+                << ",\"held_material\":" << int(m_worldPlayer->getHeldItems().getMaterial().id)
+                << ",\"held_amount\":" << m_worldPlayer->getHeldItems().getNumInStack() << ",\"column\":[";
+            // Independently readable real resident Water depth, including the
+            // four corner-source columns used by water top vertices.
+            for (int dz = -1; dz <= 1; ++dz) for (int dx = -1; dx <= 1; ++dx)
+            {
+                if (dx != -1 || dz != -1) out << ',';
+                out << "{\"x\":" << p.x + dx << ",\"z\":" << p.z + dz << ",\"blocks\":[";
+                for (int y = 56; y <= 65; ++y)
+                {
+                    if (y != 56) out << ',';
+                    const auto b = m_world->getBlock(p.x + dx, y, p.z + dz);
+                    out << '[' << y << ',' << int(b.id) << ',' << int(b.metadata) << ']';
+                }
+                out << "]}";
+            }
+            out << "],\"fine_target\":"; cell(facts.fineTarget);
+            out << ",\"fine_west\":"; cell(facts.fineWest);
+            out << ",\"fine_north\":"; cell(facts.fineNorth);
+            out << ",\"flat_live_target\":"; cell(facts.flatLiveTarget);
+            out << ",\"production_resolution\":"; cell(facts.diagnosticResolution);
+            out << ",\"draw_target\":"; draw(facts.drawTarget);
+            out << ",\"draw_west\":"; draw(facts.drawWest);
+            out << ",\"draw_north\":"; draw(facts.drawNorth);
+            out << ",\"backend_submitted\":" << facts.backendSubmitted
+                << ",\"backend_vertex_count\":" << facts.backendVertexCount << ",\"backend_index_count\":" << facts.backendIndexCount
+                << ",\"framebuffer_scale\":[" << facts.framebufferScaleX << ',' << facts.framebufferScaleY
+                << "],\"flat_target_queried_this_frame\":" << (facts.targetQueried && facts.queryView == SurfaceMapDiagnosticView::Flat)
+                << ",\"hud_before_flat\":{\"frame\":" << m_shoreHudBeforeFlat.frameId
+                << ",\"target_observed_frame\":" << m_shoreHudBeforeFlat.targetObservedFrame
+                << ",\"view\":" << int(m_shoreHudBeforeFlat.targetObservedView)
+                << ",\"step\":" << m_shoreHudBeforeFlat.targetObservedStep << ",\"sample\":";
+            sample(m_shoreHudBeforeFlat.lastObservedTarget);
+            out << ",\"fine_target\":"; cell(m_shoreHudBeforeFlat.fineTarget);
+            out << "},\"scope_open\":[\"ordinary_input\",\"inner_vao_fetch\",\"incarnation_ABA\",\"actual_mouse_selection\"]}\n";
+            if (!out) throw std::runtime_error("Shore World/UI evidence write failed.");
+        }
+
+        void finishShoreEditFrame()
+        {
+            if (!m_shoreEditCapture || !m_shoreInitialized || m_shoreWaitHud || m_shoreComplete) return;
+            const auto facts = m_userInterface->surfaceMapDiagnosticFacts();
+            const auto expected = shoreExpectedSurface();
+            if (facts.activeView != SurfaceMapDiagnosticView::Flat || !facts.backendSubmitted ||
+                !facts.fineTarget.available || !shoreSampleMatches(facts.fineTarget.surface, expected) ||
+                !facts.drawTarget.submitted || facts.drawTarget.layer != SurfaceMapDiagnosticLayer::FineHistory ||
+                !shoreSampleMatches(facts.drawTarget.surface, expected) ||
+                !facts.diagnosticResolution.available || !shoreSampleMatches(facts.diagnosticResolution.surface, expected) ||
+                !facts.fineWest.available || !facts.fineNorth.available ||
+                !facts.drawWest.submitted || !facts.drawNorth.submitted) return;
+            const auto p = m_shoreTarget;
+            const auto top = m_world->getBlock(p.x, p.y, p.z);
+            const auto lower = m_world->getBlock(p.x, p.y - 1, p.z);
+            const int topId = int(m_shorePhase == 3 ? BlockId::Sand : m_shorePhase == 4 ? BlockId::Air : BlockId::Water);
+            if (top.id != topId || lower.id != Block_t(m_shorePhase == 1 ? BlockId::Sand : BlockId::Water))
+                throw std::runtime_error("Shore production command did not produce the expected actual resident block.");
+            constexpr int inventory[]{2,1,1,0,1,1};
+            if (m_worldPlayer->getInventoryCount(Material::Sand) != inventory[m_shorePhase])
+                throw std::runtime_error("Shore production inventory consumption/drop disagrees with command.");
+            auto bindings = collectShoreEditBindings();
+            if (bindings.empty()) return;
+            constexpr const char* phases[]{"baseline_flat", "submerged_sand_flat", "restored_depth_flat",
+                "top_sand_flat", "lowered_water_flat", "restored_flat"};
+            m_shoreEditCapture->capturePhase(phases[m_shorePhase],
+                runtimeTerrainMaterialProfile().usesTextureArray() ? "standard" : "compatibility", facts.frameId, bindings);
+            writeShoreWorldMapFacts(facts);
+            m_window->writeContentsToFile(m_shoreEditCapture->phasePngPath());
+            if (glGetError() != GL_NO_ERROR) throw std::runtime_error("Shore actual framebuffer PNG reported GL error.");
+            std::cout << "[SHORE_EDIT_PHASE] phase=" << m_shorePhase << " ui_frame=" << facts.frameId
+                << " original_objects=" << bindings.size() << " sand=" << inventory[m_shorePhase] << '\n';
+            ++m_shorePhase; m_shoreActionApplied = false;
+            m_shorePhaseStarted = std::chrono::steady_clock::now();
+            if (m_shorePhase == 6)
+            {
+                if (!m_world->save()) throw std::runtime_error("Shore restored actual world save failed.");
+                std::ofstream index(std::filesystem::path(m_shoreEditOutput) / "index.json");
+                index << "{\"schema\":\"hellomine3d-shore-edit-capture-v1\",\"status\":\"CAPTURED\",\"normal_input\":false,\"restored_save_succeeded\":true,\"frames\":[";
+                for (int i = 0; i < 6; ++i) { if (i) index << ','; index << "\"phase-00" << i << ".png\""; }
+                index << "],\"scope_open\":[\"ordinary_input\",\"reopen_validation\",\"inner_vao_fetch\",\"incarnation_ABA\"]}\n";
+                if (!index) throw std::runtime_error("Shore index write failed.");
+                m_shoreComplete = true;
+            }
         }
 
         // Same ordinary World.update/mesh uploader as the client; the only
@@ -3308,7 +3686,7 @@ namespace
             {
                 return false;
             }
-            if (m_materialIdentityCapture || m_cameraDiagnostics || m_floraWindCapture)
+            if (m_materialIdentityCapture || m_cameraDiagnostics || m_floraWindCapture || m_shoreEditCapture)
             {
                 // This bounded diagnostic freezes simulation only in its isolated
                 // world. Normal World residency/mesh upload and renderer sync run.
@@ -4413,6 +4791,7 @@ namespace
             }
             SectionVisual visual;
             visual.location = section.location;
+            if (m_shoreEditCapture) visual.shoreUploadSerial = ++m_shoreUploadSerial;
             const std::string name = "ChunkSection_" + key;
             auto upload = [&](const ChunkMesh& mesh, const char* suffix,
                               const char* material, std::uint8_t queue, bool shadows) {
@@ -4430,6 +4809,7 @@ namespace
                         throw std::runtime_error("Natural Flora diagnostic CPU copy exceeds raw bound.");
                     visual.fernDiagnosticFlora=std::make_unique<ChunkMesh>(mesh);
                 }
+                retainShoreUploadInput(visual, mesh, material, section.location);
                 auto object = std::make_unique<ChunkSectionRenderable>(
                     name + suffix, mesh, section.location, material, queue);
                 object->setCastShadows(shadows);
@@ -4471,7 +4851,7 @@ namespace
             }
             if (!visual.node && !visual.batchMeshes) return false;
             m_sectionVisuals.emplace(key, std::move(visual));
-            if (m_materialIdentityCapture || m_cameraDiagnostics || m_floraWindCapture)
+            if (m_materialIdentityCapture || m_cameraDiagnostics || m_floraWindCapture || m_shoreEditCapture)
                 m_materialIdentityMeshRevisions[key] = section.blockRevision;
             return true;
         }
@@ -4500,6 +4880,8 @@ namespace
                         flora.push_back({location, &meshes.floraMesh});
                 }
                 SectionVisual visual;
+                visual.location = origin;
+                if (m_shoreEditCapture) visual.shoreUploadSerial = ++m_shoreUploadSerial;
                 const std::string name = "TerrainBatch_" + dirty.first;
                 auto upload = [&](const auto& parts, const char* suffix, const char* material,
                                   std::uint8_t queue, bool shadows) {
@@ -6659,6 +7041,16 @@ namespace
         std::unique_ptr<PauseNotificationCapture> m_pauseNotificationCapture;
         std::string m_pauseNotificationOutput;
         std::unique_ptr<FloraWindCapture> m_floraWindCapture;
+        std::unique_ptr<ShoreEditCapture> m_shoreEditCapture;
+        std::string m_shoreEditOutput;
+        glm::ivec3 m_shoreTarget{0};
+        ChunkBlock m_shoreOriginalTop, m_shoreOriginalLower;
+        std::uint64_t m_shoreUploadSerial = 0, m_shoreEditUiFrame = 0;
+        int m_shorePhase = 0;
+        bool m_shoreInitialized = false, m_shoreActionApplied = false;
+        bool m_shoreWaitHud = false, m_shoreComplete = false;
+        std::chrono::steady_clock::time_point m_shoreStarted{}, m_shorePhaseStarted{};
+        OgreSurfaceMapDiagnosticFacts m_shoreHudBeforeFlat;
         std::string m_fernWindOutput;
         std::chrono::steady_clock::time_point m_fernWindStarted{};
         float m_fernWindPhaseSeconds=0.f;

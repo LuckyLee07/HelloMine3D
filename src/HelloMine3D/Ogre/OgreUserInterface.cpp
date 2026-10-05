@@ -801,6 +801,7 @@ class OgreUserInterface::Impl
             previousPlayerHealth = stats.playerHealth;
         }
         hudElapsedSeconds = advancePresentationClock(hudElapsedSeconds, deltaSeconds);
+        beginSurfaceMapDiagnosticFrame();
         const float frameSeconds = std::max(0.f, deltaSeconds);
         if (frameSeconds > 0.f)
         {
@@ -933,6 +934,7 @@ class OgreUserInterface::Impl
         }
         drawCrashReportPrompt();
         drawCredits();
+        copySurfaceMapDiagnosticCaches();
     }
 
     void drawCrashReportPrompt()
@@ -3657,6 +3659,123 @@ class OgreUserInterface::Impl
     using MinimapCell = SurfaceMapSample;
     static constexpr int MinimapCellCount = 65;
 
+    static OgreSurfaceMapDiagnosticSample copiedMapSample(const MinimapCell& sample)
+    {
+        return {sample.known, sample.height, static_cast<int>(sample.material)};
+    }
+
+    void beginSurfaceMapDiagnosticFrame()
+    {
+        if (!surfaceMapDiagnostic) return;
+        const auto previous = *surfaceMapDiagnostic;
+        auto& facts = *surfaceMapDiagnostic;
+        facts = {};
+        facts.enabled = true;
+        facts.frameId = previous.frameId + 1;
+        facts.targetX = previous.targetX;
+        facts.targetZ = previous.targetZ;
+        facts.targetObservedFrame = previous.targetObservedFrame;
+        facts.targetObservedView = previous.targetObservedView;
+        facts.targetObservedStep = previous.targetObservedStep;
+        facts.lastObservedTarget = previous.lastObservedTarget;
+    }
+
+    template<class Queries>
+    void recordSurfaceMapDiagnosticQuery(SurfaceMapDiagnosticView view,
+        int step, int centerX, int centerZ, const Queries& queries,
+        const std::vector<MinimapCell>& samples)
+    {
+        if (!surfaceMapDiagnostic) return;
+        auto& facts = *surfaceMapDiagnostic;
+        facts.sampledThisFrame = true;
+        facts.queryView = view;
+        facts.queryStep = step;
+        facts.queryCenterX = centerX;
+        facts.queryCenterZ = centerZ;
+        facts.queryCount = queries.size();
+        facts.sampleCount = samples.size();
+        facts.sizeMatched = samples.size() == queries.size();
+        for (std::size_t i = 0; i < queries.size(); ++i)
+        {
+            if (queries[i].x != facts.targetX || queries[i].z != facts.targetZ) continue;
+            facts.targetQueried = true;
+            facts.targetSampleAvailable = i < samples.size();
+            if (facts.targetSampleAvailable) facts.targetSample = copiedMapSample(samples[i]);
+            if (facts.sizeMatched)
+            {
+                facts.targetObservedFrame = facts.frameId;
+                facts.targetObservedView = view;
+                facts.targetObservedStep = step;
+                facts.lastObservedTarget = facts.targetSample;
+            }
+            break;
+        }
+    }
+
+    void copySurfaceMapDiagnosticCaches()
+    {
+        if (!surfaceMapDiagnostic) return;
+        auto& facts = *surfaceMapDiagnostic;
+        facts.mapPageActive = hudInteraction.page() == HudInteraction::Page::Map;
+        facts.activeView = facts.mapPageActive && mapFlatOverview
+            ? SurfaceMapDiagnosticView::Flat : SurfaceMapDiagnosticView::Hud;
+        facts.minimapStep = minimapStep;
+        facts.fineTileCount = fineMapHistory.tileCount();
+        const auto fineAt = [&](double x, double z) {
+            OgreSurfaceMapDiagnosticCell result;
+            if (const auto observation = fineMapHistory.at(x, z))
+                result = {true, observation->x, observation->z, 2,
+                    copiedMapSample(observation->surface)};
+            return result;
+        };
+        facts.fineTarget = fineAt(facts.targetX, facts.targetZ);
+        facts.fineWest = fineAt(double(facts.targetX) - 2, facts.targetZ);
+        facts.fineNorth = fineAt(facts.targetX, double(facts.targetZ) - 2);
+        if (const int cell = flatMap.cellAt(facts.targetX, facts.targetZ); cell >= 0)
+        {
+            const auto x = std::int64_t(flatMap.centerX) + (cell % flatMap.count - flatMap.count / 2) * flatMap.step;
+            const auto z = std::int64_t(flatMap.centerZ) + (cell / flatMap.count - flatMap.count / 2) * flatMap.step;
+            if (x >= std::numeric_limits<int>::min() && x <= std::numeric_limits<int>::max() &&
+                z >= std::numeric_limits<int>::min() && z <= std::numeric_limits<int>::max())
+                facts.flatLiveTarget = {true, int(x), int(z), flatMap.step,
+                    copiedMapSample(flatMap.cells[cell])};
+        }
+        facts.flatPendingCount = flatMap.pendingCount();
+        facts.flatCursor = flatMap.cursor;
+        // Read the real queue without advancing it. Reopening Flat must not
+        // accidentally let its own target query conceal a missing HUD refresh.
+        for (const auto& query : flatMap.nextBatch())
+            if (query.x == facts.targetX && query.z == facts.targetZ)
+            {
+                facts.flatNextBatchContainsTarget = true;
+                break;
+            }
+        const auto& io = ImGui::GetIO();
+        facts.framebufferScaleX = io.DisplayFramebufferScale.x;
+        facts.framebufferScaleY = io.DisplayFramebufferScale.y;
+    }
+
+    OgreSurfaceMapDiagnosticDraw* surfaceMapDiagnosticDrawAt(int x, int z)
+    {
+        if (!surfaceMapDiagnostic) return nullptr;
+        auto& facts = *surfaceMapDiagnostic;
+        if (x == facts.targetX && z == facts.targetZ) return &facts.drawTarget;
+        if (std::int64_t(x) == std::int64_t(facts.targetX) - 2 && z == facts.targetZ) return &facts.drawWest;
+        if (x == facts.targetX && std::int64_t(z) == std::int64_t(facts.targetZ) - 2) return &facts.drawNorth;
+        return nullptr;
+    }
+
+    static void recordSurfaceMapDiagnosticDraw(OgreSurfaceMapDiagnosticDraw* facts,
+        SurfaceMapDiagnosticLayer layer, int x, int z, int step,
+        const MinimapCell& sample, ImU32 colour, ImVec2 at, ImVec2 edge,
+        const ImDrawList& draw, std::size_t vertexBegin, std::size_t indexBegin)
+    {
+        if (!facts) return;
+        *facts = {true, layer, x, z, step, copiedMapSample(sample), colour,
+            at.x, at.y, edge.x, edge.y, vertexBegin, std::size_t(draw.VtxBuffer.Size),
+            indexBegin, std::size_t(draw.IdxBuffer.Size)};
+    }
+
 
     static ImU32 mapSurfaceColour(const MinimapCell& cell,
         const MinimapCell& west, const MinimapCell& north)
@@ -3759,6 +3878,8 @@ class OgreUserInterface::Impl
                 centerZ + ((minimapRefreshRow + row) % MinimapCellCount -
                            MinimapCellCount / 2) * minimapStep});
         const auto samples = world->observeSurfaceMap(positions);
+        recordSurfaceMapDiagnosticQuery(SurfaceMapDiagnosticView::Hud,
+            minimapStep, centerX, centerZ, positions, samples);
         if (samples.size() != positions.size()) return; // Lock contention defers observation only.
         for (int row = 0; row < rowsPerRefresh; ++row)
         for (int x = 0; x < MinimapCellCount; ++x)
@@ -4260,18 +4381,42 @@ class OgreUserInterface::Impl
             if (!flatMap.cells[z*flatMap.count+x].known) continue;
             const ImVec2 at(liveOrigin.x+(x-.5f)*livePixel,liveOrigin.y+(z-.5f)*livePixel);
             if (at.x+livePixel<origin.x || at.y+livePixel<origin.y || at.x>edge.x || at.y>edge.y) continue;
-            draw->AddRectFilled(at,ImVec2(at.x+livePixel+.15f,at.y+livePixel+.15f),
-                mapCellColour(flatMap.cells.data(),flatMap.count,x,z));
+            const ImVec2 cellEdge(at.x+livePixel+.15f,at.y+livePixel+.15f);
+            const auto colour = mapCellColour(flatMap.cells.data(),flatMap.count,x,z);
+            const int worldX = static_cast<int>(std::int64_t(flatMap.centerX) + (x-flatMap.count/2)*flatMap.step);
+            const int worldZ = static_cast<int>(std::int64_t(flatMap.centerZ) + (z-flatMap.count/2)*flatMap.step);
+            auto* diagnostic = surfaceMapDiagnosticDrawAt(worldX, worldZ);
+            const auto vertexBegin = diagnostic ? std::size_t(draw->VtxBuffer.Size) : 0;
+            const auto indexBegin = diagnostic ? std::size_t(draw->IdxBuffer.Size) : 0;
+            draw->AddRectFilled(at,cellEdge,colour);
+            recordSurfaceMapDiagnosticDraw(diagnostic, SurfaceMapDiagnosticLayer::LiveCoarse,
+                worldX, worldZ, flatMap.step, flatMap.cells[z*flatMap.count+x], colour,
+                at, cellEdge, *draw, vertexBegin, indexBegin);
         }
         fineMapHistory.visit(centerX-size.x*.5/pixelsPerMetre,centerZ-size.y*.5/pixelsPerMetre,
             centerX+size.x*.5/pixelsPerMetre,centerZ+size.y*.5/pixelsPerMetre,
             [&](int x,int z,const MinimapCell& cell,const MinimapCell& west,const MinimapCell& north) {
                 const ImVec2 at(grid.x+side*.5f+float(std::int64_t(x)-centerX-1)*pixelsPerMetre,
                     grid.y+side*.5f+float(std::int64_t(z)-centerZ-1)*pixelsPerMetre);
-                draw->AddRectFilled(at,ImVec2(at.x+2*pixelsPerMetre+.15f,at.y+2*pixelsPerMetre+.15f),
-                    mapSurfaceColour(cell,west,north));
+                const ImVec2 cellEdge(at.x+2*pixelsPerMetre+.15f,at.y+2*pixelsPerMetre+.15f);
+                const auto colour = mapSurfaceColour(cell,west,north);
+                auto* diagnostic = surfaceMapDiagnosticDrawAt(x, z);
+                const auto vertexBegin = diagnostic ? std::size_t(draw->VtxBuffer.Size) : 0;
+                const auto indexBegin = diagnostic ? std::size_t(draw->IdxBuffer.Size) : 0;
+                draw->AddRectFilled(at,cellEdge,colour);
+                recordSurfaceMapDiagnosticDraw(diagnostic, SurfaceMapDiagnosticLayer::FineHistory,
+                    x, z, 2, cell, colour, at, cellEdge, *draw, vertexBegin, indexBegin);
             });
         draw->Flags = oldFlags;
+        if (surfaceMapDiagnostic)
+        {
+            // This exercises the production resolution at a configured world
+            // coordinate. It neither changes selected state nor claims a click.
+            auto& facts = *surfaceMapDiagnostic;
+            if (const auto resolution = inspectOverviewSurface(facts.targetX, facts.targetZ))
+                facts.diagnosticResolution = {true, resolution->x, resolution->z,
+                    resolution->step, copiedMapSample(resolution->surface)};
+        }
         const int hoveredX = hovered ? int(std::floor((io.MousePos.x - grid.x) / pixel)) : -1;
         const int hoveredZ = hovered ? int(std::floor((io.MousePos.y - grid.y) / pixel)) : -1;
         const int hoverCell = hoveredX >= 0 && hoveredX < count &&
@@ -4303,6 +4448,10 @@ class OgreUserInterface::Impl
             selectionAt = ImVec2(grid.x+side*.5f+float(std::int64_t(fineInspection->x)-centerX)*pixelsPerMetre-selectionPixels*.5f,
                 grid.y+side*.5f+float(std::int64_t(fineInspection->z)-centerZ)*pixelsPerMetre-selectionPixels*.5f);
         }
+        if (surfaceMapDiagnostic && inspectedSurface.known)
+            surfaceMapDiagnostic->actualInspection = {true, inspectedPosition.first,
+                inspectedPosition.second, fineInspection ? fineInspection->step : step,
+                copiedMapSample(inspectedSurface)};
         if (inspectedSurface.known)
             draw->AddRect(selectionAt,ImVec2(selectionAt.x+selectionPixels,selectionAt.y+selectionPixels),
                 IM_COL32(255,222,137,255),0.f,0,1.5f);
@@ -4677,6 +4826,9 @@ class OgreUserInterface::Impl
             positions.reserve(batch.size());
             for (const auto& query : batch) positions.push_back({query.x, query.z});
             const auto samples = world->observeSurfaceMap(positions);
+            if (mapFlatOverview)
+                recordSurfaceMapDiagnosticQuery(SurfaceMapDiagnosticView::Flat,
+                    region.step, region.centerX, region.centerZ, positions, samples);
             region.accept(batch, samples);
             if (!mapFlatOverview)
                 if (auto* capture = MaterialIdentityCapture::active())
@@ -7526,6 +7678,7 @@ class OgreUserInterface::Impl
     MapSurfaceRegion<MinimapCell> detailMap;
     MapSurfaceRegion<MinimapCell, 257, 2> flatMap;
     SurfaceMapHistory<MinimapCell> fineMapHistory;
+    std::optional<OgreSurfaceMapDiagnosticFacts> surfaceMapDiagnostic;
     std::optional<std::pair<int,int>> selectedOverviewFinePosition;
     double detailMapNextRefresh = 0;
     TerrainMapView::View mapView;
@@ -7778,6 +7931,7 @@ void OgreUserInterface::setWorldContext(Player *player,
     m_impl->detailMapNextRefresh = 0;
     m_impl->flatMap = {};
     m_impl->fineMapHistory = {};
+    m_impl->surfaceMapDiagnostic.reset();
     m_impl->selectedOverviewFinePosition.reset();
     m_impl->mapBuiltRevision = 0;
     m_impl->mapFaces.clear();
@@ -7842,6 +7996,43 @@ bool OgreUserInterface::setMaterialIdentityMap3dVisible(bool visible) noexcept
     m_impl->selectedMapCell = m_impl->selectedOverviewCell = -1;
     m_impl->selectedOverviewFinePosition.reset();
     return true;
+}
+
+void OgreUserInterface::configureSurfaceMapDiagnostic(int targetX, int targetZ) noexcept
+{
+    m_impl->surfaceMapDiagnostic.emplace();
+    auto& facts = *m_impl->surfaceMapDiagnostic;
+    facts.enabled = true;
+    facts.targetX = targetX;
+    facts.targetZ = targetZ;
+}
+
+bool OgreUserInterface::setSurfaceMapDiagnosticView(SurfaceMapDiagnosticView view) noexcept
+{
+    if (!m_impl->surfaceMapDiagnostic) return false;
+    if (view == SurfaceMapDiagnosticView::Hud)
+    {
+        m_impl->hudInteraction.dismiss();
+        return true;
+    }
+    if (m_impl->flow->state() != GameApplicationState::Playing ||
+        m_impl->player == nullptr || m_impl->world == nullptr ||
+        m_impl->player->hasOpenContainer() || m_impl->player->hasOpenCrafting())
+        return false;
+    if (!m_impl->hudInteraction.ownsInput()) m_impl->hudInteraction.togglePointer();
+    if (!m_impl->hudInteraction.open(HudInteraction::Page::Map)) return false;
+    m_impl->mapFlatOverview = true;
+    return true;
+}
+
+OgreSurfaceMapDiagnosticFacts OgreUserInterface::surfaceMapDiagnosticFacts() const noexcept
+{
+    return m_impl->surfaceMapDiagnostic.value_or(OgreSurfaceMapDiagnosticFacts{});
+}
+
+void OgreUserInterface::clearSurfaceMapDiagnostic() noexcept
+{
+    m_impl->surfaceMapDiagnostic.reset();
 }
 
 void OgreUserInterface::setThirdPersonAimIndicator(
@@ -7921,6 +8112,13 @@ void OgreUserInterface::postViewportUpdate(
     }
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    if (m_impl->surfaceMapDiagnostic)
+    {
+        auto& facts = *m_impl->surfaceMapDiagnostic;
+        facts.backendSubmitted = true;
+        facts.backendVertexCount = static_cast<std::size_t>(ImGui::GetDrawData()->TotalVtxCount);
+        facts.backendIndexCount = static_cast<std::size_t>(ImGui::GetDrawData()->TotalIdxCount);
+    }
     if (auto* capture = MaterialIdentityCapture::active())
         if (capture->isFrameOpen()) capture->finishFrame(ImGui::GetDrawData(), true);
     if (m_impl->pauseNotificationCapture != nullptr)

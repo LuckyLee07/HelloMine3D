@@ -3,6 +3,7 @@
 #include <OgreRenderTargetListener.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
@@ -67,6 +68,70 @@ struct OgreUserInterfaceValidation
     std::string message;
 };
 
+enum class SurfaceMapDiagnosticView { Hud, Flat };
+enum class SurfaceMapDiagnosticLayer { None, LiveCoarse, FineHistory };
+
+// Bounded copied facts from the actual UI. These do not own World or ImGui
+// objects, request terrain, or claim a diagnostic world-coordinate resolution
+// was a normal mouse click. Framebuffer evidence is captured by Bootstrap.
+struct OgreSurfaceMapDiagnosticSample
+{
+    bool known = false;
+    int height = 0;
+    int blockId = 0;
+};
+
+struct OgreSurfaceMapDiagnosticCell
+{
+    bool available = false;
+    int worldX = 0, worldZ = 0, step = 0;
+    OgreSurfaceMapDiagnosticSample surface;
+};
+
+struct OgreSurfaceMapDiagnosticDraw
+{
+    bool submitted = false;
+    SurfaceMapDiagnosticLayer layer = SurfaceMapDiagnosticLayer::None;
+    int worldX = 0, worldZ = 0, step = 0;
+    OgreSurfaceMapDiagnosticSample surface;
+    std::uint32_t colour = 0;
+    float left = 0.f, top = 0.f, right = 0.f, bottom = 0.f;
+    std::size_t vertexBegin = 0, vertexEnd = 0;
+    std::size_t indexBegin = 0, indexEnd = 0;
+};
+
+struct OgreSurfaceMapDiagnosticFacts
+{
+    bool enabled = false;
+    std::uint64_t frameId = 0;
+    int targetX = 0, targetZ = 0;
+    bool mapPageActive = false;
+    SurfaceMapDiagnosticView activeView = SurfaceMapDiagnosticView::Hud;
+    int minimapStep = 0;
+    bool sampledThisFrame = false;
+    SurfaceMapDiagnosticView queryView = SurfaceMapDiagnosticView::Hud;
+    int queryStep = 0, queryCenterX = 0, queryCenterZ = 0;
+    std::size_t queryCount = 0, sampleCount = 0;
+    bool sizeMatched = false, targetQueried = false;
+    bool targetSampleAvailable = false;
+    OgreSurfaceMapDiagnosticSample targetSample;
+    std::uint64_t targetObservedFrame = 0;
+    SurfaceMapDiagnosticView targetObservedView = SurfaceMapDiagnosticView::Hud;
+    int targetObservedStep = 0;
+    OgreSurfaceMapDiagnosticSample lastObservedTarget;
+    OgreSurfaceMapDiagnosticCell fineTarget, fineWest, fineNorth;
+    OgreSurfaceMapDiagnosticCell flatLiveTarget, diagnosticResolution;
+    std::size_t fineTileCount = 0, flatPendingCount = 0;
+    int flatCursor = 0;
+    bool flatNextBatchContainsTarget = false;
+    OgreSurfaceMapDiagnosticDraw drawTarget, drawWest, drawNorth;
+    // The actual hovered/selected branch, independent of diagnosticResolution.
+    OgreSurfaceMapDiagnosticCell actualInspection;
+    bool backendSubmitted = false;
+    std::size_t backendVertexCount = 0, backendIndexCount = 0;
+    float framebufferScaleX = 1.f, framebufferScaleY = 1.f;
+};
+
 class OgreUserInterface final : public Ogre::RenderTargetListener
 {
   public:
@@ -105,6 +170,12 @@ class OgreUserInterface final : public Ogre::RenderTargetListener
     bool isFirstPersonPresentationVisible() const noexcept;
     // Explicit diagnostic only; the normal client has no active observer.
     bool setMaterialIdentityMap3dVisible(bool visible) noexcept;
+    // Explicit isolated diagnostic only. Configuring the target does not open
+    // a page or change any map cache, sampling queue, deadline, or selection.
+    void configureSurfaceMapDiagnostic(int targetX, int targetZ) noexcept;
+    bool setSurfaceMapDiagnosticView(SurfaceMapDiagnosticView view) noexcept;
+    OgreSurfaceMapDiagnosticFacts surfaceMapDiagnosticFacts() const noexcept;
+    void clearSurfaceMapDiagnostic() noexcept;
     void setThirdPersonAimIndicator(bool visible, float normalizedX,
                                     float normalizedY) noexcept;
     // Optional diagnostic observer; non-owning, normal client remains null.

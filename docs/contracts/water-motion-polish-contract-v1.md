@@ -25,3 +25,53 @@
    远纹衰减／日照高光有界及关闭回退；旧shader或取消滤波的故障负例须能被检查检出。
 5. 四水域近岸／远水及昼昏多帧，保留2–3张升级后原图。普通入水／编辑通过公开输入另查，
    诊断相机和GPU样片不冒充普通玩法。严格配对性能与人工核验按Goal约定延期。
+
+## V06c 自然河流实际编辑观察（2026-10-05）
+
+以上32字节记录保留V06b历史语义；后续光源与rootTag演进后的当前顶点为44字节。V06c工程诊断
+使用当前terrain30、seed42的真实驻留自然河流，目标为`(220,64,-204)`，原块为Water64／Water63／Sand62，
+上方Air65。已观察的Sand岸为`(217,64,-204)`，水平距离3米；它提供附近河岸背景，未覆盖直接相邻岸条件。
+初始相机和两件Sand库存由诊断设置；放置／破坏沿原`PlayerBlockInteractionCommand`、World更新和网格上传路径，
+两次恢复通过显式诊断`setBlock`，不声明普通鼠标选中或公开输入。
+
+| 阶段 | 实际动作与目标列 | 原水面四角uv1深度 | Sand库存 |
+| --- | --- | --- | --- |
+| 0 | 原Water64／Water63／Sand62 | 2 | 2 |
+| 1 | 生产Place在y63放Sand，Water64保留 | 1.75 | 1 |
+| 2 | 诊断恢复Water63 | 2 | 1 |
+| 3 | 生产Place在y64放Sand | 目标顶面为Sand，无该Water顶面 | 0 |
+| 4 | 生产Break移除Sand64，Air64／Water63保留 | 1 | 1 |
+| 5 | 诊断恢复Water64并保存 | 2 | 1 |
+
+阶段1目标水柱实际深度为1；四个顶点各从相邻四列平滑取值，因此原uv1为1.75。阶段4不会自动回填Water64，
+实际水面降至Water63顶部。独立oracle只读每阶段真实3×3列的y56..65块id／metadata，从原u32索引恢复
+Water顶面三角形，在44字节顶点offset20读取uv1深度，并检查当前声明、有限值、索引界限、几何位置和Sand顶面。
+不调用生产pack／水深helper重建预期输出。
+
+CPU对照来自实际上传输入的锁内副本。Water沿原section直接上传，Sand观察原Terrain竖向批次的完整有序parts；
+读取原`ChunkSectionRenderable`的GL3Plus source0 VBO／u32 IBO，与CPU逐字节一致。每阶段要求
+`cpuReadyTotal==0`，各part当前上传revision等于live revision、`GpuResident`且不再`CpuReady`，编辑与恢复后
+上传revision更新。`ShoreEditCapture`只绑定`GL_COPY_READ_BUFFER`读取原存储，恢复并比较实际上下文状态，
+保留读取前后的GL错误及失败输出；6阶段、最多8对象／阶段、4parts／批次、原VBO＋IBO最多16MiB／操作、
+观察器写出最多256MiB／会话，接线等待最多10秒／阶段和60秒／会话。原窗口PNG由Bootstrap同帧另存。
+
+地图检查要求HUD256／step4的目标回复晚于编辑帧，回复在进入Flat前更新已有2米fine历史；Flat的生产解析和
+实际提交矩形继续使用该新值。本批RD1下Flat实际step2且坐标精确匹配目标，不声明Flat粗4米覆盖。
+独立oracle读取原PNG，核对目标中央矩形实际Water／Sand颜色变化及恢复，西／北fine样本和对应矩形像素保持。
+真实3×3 World邻列也保持；西／北fine点在该3×3列之外，其世界表面没有独立重算。所有引用原件实际SHA均核对。
+
+standard与compatibility各六阶段通过，恢复后保存成功。原件及回执位于
+`build/visual-experience-polish-20260928/v06c/shore-standard-r1/`和`shore-compatibility-r1/`；
+[双模式独立报告](../../build/visual-experience-polish-20260928/v06c/dual-mode-oracle-r1.json)的结论为
+`PASS_SCOPED_STORAGE_WORLD_MAP_PIXELS`。原raw／facts副本的NaN44B、stride32、OOBindex、staleUV、missingHUDfine
+五项在更新副本SHA后均被语义检查拒绝，失败包保留于
+[故障回执](../../build/visual-experience-polish-20260928/v06c/raw-fault-suite-r1/faults.json)。这些是证据消费端故障挑战；
+失效规划／上传／地图生产源码的故障变体仍为`NOT_RUN`。
+
+本次原存储一致性不证明native内部VAO取数、World incarnation／ABA或地形draw像素归因；地图像素证据仅覆盖
+已核对的实际矩形。普通鼠标选中／输入和原World列原子快照仍未验证。
+恢复态另用 `tools/tests/shore_world_reopen_test.cpp` 对两套实际capture/save各58项通过：严格解析已改目标chunk和持久地图，
+移除强制状态后公开World重开→save→再重开；Water64／Water63 metadata、库存与observe前canonical历史保持。
+未改procedural邻块本就不写save文件，目标已改chunk必须存在；原错误要求9个保存文件的失败保留。
+此项不声明中间编辑态保存、普通UI或GPU重开通过，详见执行报告V06c。
+V06b既有GLSL样片与历史检查继续保留，不能替代上述当前客户端边界。

@@ -890,6 +890,25 @@ postRender 读取已绑定的实际程序、uniform 和原生存储。自有 pri
 四个共享角点样本给出水覆盖和岸线切向，32字节顶点stride不变；水UV跳过植被图集染色编码，
 避免速度值偶然命中图集槽后造成波幅接缝。位移／法线同幅缩放，屏幕导数衰减远纹，日照高光收敛。
 双相位细纹表达表面运动，不模拟等高水体的流量、冲力或输运；见[水域运动合同](../contracts/water-motion-polish-contract-v1.md)。
+上述32字节是V06b实施时的格式记录；后续光源和rootTag演进后的当前`TerrainRenderVertex`为44字节，
+V06c按当前真实声明读取，不把旧记录改写成当前格式。可选`ShoreEditCapture`仅在隐藏、全新隔离世界
+的六阶段工程诊断中启用：CPU对照保留实际上传输入的锁内副本，Water按原section直接上传，
+Sand沿原Terrain竖向批次观察完整有序parts，不另建测试网格。捕获前要求当前公开快照
+`cpuReadyTotal==0`，各part上传revision等于live revision、`GpuResident`且不再`CpuReady`。
+观察器读取原`ChunkSectionRenderable`的source0 GL3Plus VBO和u32 IBO；只通过`GL_COPY_READ_BUFFER`
+调用`glGetBufferSubData`，恢复该binding并比较读取前后上下文状态，保留GL错误和失败输出。
+上限为6阶段、8原对象／阶段、4parts／批次、原VBO＋IBO 16MiB／操作、观察器写出256MiB／会话；
+接线等待上限为10秒／阶段、60秒／会话。它不扩展World API，不观察内部draw VAO取数或incarnation／ABA。
+
+V06c在当前terrain30自然河流`(220,64,-204)`观察Water64／Water63／Sand62；附近Sand岸`(217,64,-204)`
+距目标3米，直接相邻岸条件仍未覆盖。standard与compatibility均经生产放置／破坏命令和显式诊断恢复，
+实际World列独立计算的四角水深与原44字节上传存储一致：`2→1.75→2→Sand→1→2`，最后恢复并保存。
+同帧UI事实保留编辑后新的HUD256／step4回复、进入Flat前的2米fine历史和生产解析结果；本批RD1的
+Flat实际步长为2米，不声明Flat粗4米覆盖。原窗口PNG目标中央矩形的Water／Sand颜色变化和恢复已核对，
+西／北fine样本及对应像素保持；该像素证据限于地图矩形，不归因地形draw。
+双模式原件、SHA清单和独立报告位于`build/visual-experience-polish-20260928/v06c/`。
+五种原raw／facts故障副本更新SHA后仍被语义检查拒绝；源码producer故障变体为`NOT_RUN`。
+本条不关闭普通鼠标选中／输入或保存重开验收，详见[水域运动合同](../contracts/water-motion-polish-contract-v1.md)。
 岸床编辑通过既有 dirty planner 失效上方关联段。相机每帧最多观察两个驻留方块，
 在水面下 0.05–1.0 m 带内连续增加水下雾和轻微曝光衰减，地平线背景使用相同介质色。
 `WorldEnvironment::cameraWaterImmersion` 在顶层水块底部达到 1，与更深驻留水块连续，
