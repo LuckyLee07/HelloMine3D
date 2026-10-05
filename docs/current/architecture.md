@@ -973,6 +973,17 @@ UI/兼容路径使用独立16×16图集；V01精修的83个材质槽与标准数
 坏数组与坏 shader 明确失败，不伪装能力回退。最新范围见
 [M1 实施记录](../reports/warm-wilderness-m1-implementation-2026-09-12.md)。
 
+V01g 的 `MaterialIdentityCapture` 是显式开启的渲染线程诊断观察器；普通入口没有观察器。
+`HELLOMINE3D_MATERIAL_IDENTITY_CAPTURE_DIR` 只接受隐藏、独立 save/catalogue 的 v2 捕获，
+拒绝性能、相机、玩家和 HUD 等其他夹具组合。Bootstrap 在实际地图查询的已知驻留列上放置
+五个诊断方块，并通过真实库存和 ItemEntity 取得四种现有材料；世界模拟 delta 为零，
+World 的正常流送、网格提交和地图查询仍运行。世界记录必须匹配实际上传 revision、当前
+live section revision 和 GpuResident 状态，不用预置 revision 代替生产版本。
+观察器读取实际 pass/TUS、原生纹理各 mip、原 VBO/IBO 和真实 ImGui 提交数据；原缓冲的中性
+shader 重放与正常着色分开。每次 GPU 读取／重放后重新查询并核对状态恢复，包括独立 draw/read
+FBO 的 read selector。最多 24 帧、每帧 256 UI 标记／32 操作、64 个纹理身份、不可变观察载荷 512 MiB；
+index.json重写与Root原图另计，本批九帧、实际2560×1440帧尺寸另行约束。库存注入、静态地图和冻结模拟不证明普通采集、使用或连续移动。
+
 ## 12. Frozen Version and Boundary Facts
 
 | Identity | A0 value / later override |

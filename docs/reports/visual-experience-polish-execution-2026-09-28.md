@@ -2,7 +2,16 @@
 
 ## 恢复区
 
-- **2026-10-05 V01f已本地提交`f32c0535`，Goal仍为`active`，V01–V11整项仍`Doing`。**
+- **2026-10-05 V01g已本地提交`437a0465`，Goal仍active，V01–V11整项仍Doing。**
+  接入实际客户端材质观察器与独立oracle；四材料×六消费者×标准／兼容48条静态诊断身份闭合，1955／0，42独立源mip与四树皮控制通过。
+  两配置正常构建exit0、首方warning0；实际r2共18帧GL0、状态恢复通过，481输入保持。显式World／库存夹具与冻结模拟不计普通流程。
+  旧r1地图遮挡／revision0、旧oracle同列缓存漏检CPU exit3和Root链接前oracle版本差异均保留；最终5e03源独立CPU14通过。
+  两单TU故障成功编译／链接后，真实capture均exit0，再由oracle exit1拒绝：UI17FAIL／47链、array49FAIL／42链；3157新guard保持。
+  六旧包867项及Before137项保持；三张原图入精选区，35轮155张（99后／56前）源／归档SHA一致。
+  当前独立`v01g/After.app`Release SHA`d8227901…190f1`，普通配置保持；最终干净包与zeroPID证据见本批`postcommit-verification-r1.json`。
+  公开CUA当前实际30秒超时reset，桌面UNKNOWN、普通输入NOT_RUN；完整普通使用／连续动作、V07近墙与Fern风摆等所有余项继续。
+  异常框已归为受控ASan旧depth故障PID23586，当前错格／错上传样本无信号终止。详见文末V01g与原V11b证据。
+- **历史检查点：2026-10-05 V01f已本地提交`f32c0535`，Goal仍为`active`，V01–V11整项仍`Doing`。**
   修复合法v1非16列图集的生产手持／掉落UV路由与Alpha挤出mask；复用冻结profile的半像素格原点和tilePixels。
   v2非16列完整同owner资源包明确拒绝，合法v1的32／23列保持。双配置客户端／资源构建无first-party警告，资源各201／0，
   实际生产软件VBO三模式各63／0。r2原默认51／0及32列51／14保留；r3新增安全编码断言的默认12FAIL单独分类，未声称默认旧路由失败。
@@ -76,20 +85,20 @@
 - 当前方向：V01a（`a2b1046`）、V01b（`2f9203d`）、V02a（`b6f0e9e`）已提交；V02 风摆现有路径
   已通过当前 GPU 检查，V04a 云带精修已提交 `6011801`；V05a 接触阴影已提交 `8a0cf2c`。
   V03a追加v25局部地形与坡积材料，已提交`b1f2527`；V06a追加v26河湖岸形，已提交`cb2afd0`；V06b水域运动与河面接缝修复已提交`bd4d264`；V07a动物比例与动作过渡已提交`5385bf4`；V07b玩家工具阶段、前向挥动和遮挡修复已提交`c09fc9af`；V08a六套地点蓝图与路线保持已提交`fefd76ae`；V09a局部光源分离已提交`07ae4aba`；V09b地下形态与铺地已提交`64242e4c`；
-  V10a世界目录与继续入口已提交`d462b123`；V10b暂停通知布局已提交`cb96e34d`；V10c机器进度与领取反馈已提交`1223ddad`；V01c两树种与石面材质已提交`d06389f2`；V08b露天工位已提交`39d98d22`；V01d四自然材质已提交`d614f38d`；V10d生命信息行对比已提交`8790069b`；V10e机器部分转移提示已提交`c2baba2c`；V10f机器浮层避让与容量边界已提交`9e89552c`；V10g制作材料紧凑布局与输入定位已提交`e91f4b37`；V11a补整合静态矩阵及洞室水色修复已提交`9b20cd0a`；V05b修复斜射投影精度及雪地自阴影已提交`ddd9a053`；V02b树根统一退场已提交`6992b77b`；V03b稀疏岩柱与洞室露头支撑已提交`73f6af6c`；V07c四向移动混合已提交`d374640a`；V09c暗空气边界背景已提交`3fd7431a`；V01e煤铁矿围岩材质已提交`16b73097`；V07d已验动物路径重放已提交`76beeaf9`；V07e正常小步跨阶与退让已提交`58492a57`；V11b纹理集成修复已提交`818b6398`；V01f手持／掉落动态图集路由已提交`f32c0535`。V01–V11整项仍`Doing`。
+  V10a世界目录与继续入口已提交`d462b123`；V10b暂停通知布局已提交`cb96e34d`；V10c机器进度与领取反馈已提交`1223ddad`；V01c两树种与石面材质已提交`d06389f2`；V08b露天工位已提交`39d98d22`；V01d四自然材质已提交`d614f38d`；V10d生命信息行对比已提交`8790069b`；V10e机器部分转移提示已提交`c2baba2c`；V10f机器浮层避让与容量边界已提交`9e89552c`；V10g制作材料紧凑布局与输入定位已提交`e91f4b37`；V11a补整合静态矩阵及洞室水色修复已提交`9b20cd0a`；V05b修复斜射投影精度及雪地自阴影已提交`ddd9a053`；V02b树根统一退场已提交`6992b77b`；V03b稀疏岩柱与洞室露头支撑已提交`73f6af6c`；V07c四向移动混合已提交`d374640a`；V09c暗空气边界背景已提交`3fd7431a`；V01e煤铁矿围岩材质已提交`16b73097`；V07d已验动物路径重放已提交`76beeaf9`；V07e正常小步跨阶与退让已提交`58492a57`；V11b纹理集成修复已提交`818b6398`；V01f手持／掉落动态图集路由已提交`f32c0535`；V01g实际客户端材质身份已提交`437a0465`。V01–V11整项仍`Doing`。
 - 用户追加要求：每轮保留2–3张升级后游戏原图并在回复中展示。精选原图及索引位于
   `.local-evidence/visual-polish-20260928/`，不作为普通build缓存清理；本地保留、Git忽略。
-  目前34轮共152张（96张升级后及56张修改前／问题基线），`index.md`有说明，`manifest.json`有来源与哈希。
+  目前35轮共155张（99张后图及56张修改前／问题基线），`index.md`有说明，`manifest.json`有来源与哈希。
   V01f以`selected-archive-r2.json`归一早期四种role字段核对；r1错误统计保留，旧entry和原图未改写。
-- 当前交付候选：`build/visual-experience-polish-20260928/v01f/After.app`，独立bundle
-  `local.hellomine3d.visual-polish-items`；Release SHA`3064212b…890c01`，普通配置SHA`70d9f6e9…16047`保持。
-  已提交运行时为`f32c0535`；捕获用包仍记录`17751eca`与dirty diff`8b5e1243…573a62`，最终干净交付身份另由`postcommit-verification-r1.json`记录。
-  默认v30／兼容v1–v29、save12／map4／settings11保持；包内不强制seed／gallery／worldclock。
-  旧工作包、V07d／V07e／V11b及旧冒险用户包不原位刷新，730保护项和Before137项在捕获后核对。
-- 当前批次：V01f生产手持／掉落动态图集路由、合法32／23列软件及原缓冲GPU重放、v2边界拒绝和原图归档完成。
-  双配置正常客户端／资源构建与资源201项、三模式软件63项通过；完整默认五链和48项整合仍开放。
-  证据在`v01f/normal-verification-r1.json`、各Before／After receipt、`capture-audit-r1.json`及`selected-archive-r2.json`。
-  世界生成与actor领域、正式纹理／shader未改；复用对应有效范围，不冒充重跑完整World。普通输入仍未验。
+- 当前交付候选：`build/visual-experience-polish-20260928/v01g/After.app`，独立bundle
+  `local.hellomine3d.visual-polish-material-identity`；Release SHA`d8227901…190f1`、Debug SHA`c36374d9…5f3dc`，普通配置SHA`70d9f6e9…16047`保持。
+  已提交运行时`437a0465`；抓图保留实际`3b3ac36d`＋dirty diff`3f18da63…7fc18f`，最终干净交付身份另由`postcommit-verification-r1.json`记录。
+  默认v30／兼容v1–v29、save12／map4／settings11保持；135管理项／2955源码，普通launcher不强制seed／机位／worldclock。
+  六个旧工作／冻结／用户包不原位刷新，867保护项和Before137项按完整集合／字节核对。
+- 当前批次：V01g实际bootstrap纹理、原缓冲中性重放、实际ImGui库存／第一手持／地图已接线，标准与兼容48条静态诊断身份通过。
+  正常双配置build0，最终oracle1955／0、42参考、四树皮控制，3157guard和实际两生产故障拒错通过；普通菜单四图一致。
+  `v01g/oracle-client-r2-both-r2.json`、`oracle-negative-cpu-terminal-r1.json`及`selected-archive-r1.json`为终态；旧失败全部保留。
+  正式shader、资源及权威World／actor领域未改，未重跑完整World／资源。普通输入、连续动态、正常光照／远mip／Alpha GPU仍待验。
 - 上批V09c：双配置客户端／世界／资源r2构建完成，功能验证与原图归档已完成，旧Ogre启动基线仍FAIL。
   World缓存上限2048面，首snapshot扫描8面／2048格，确认false不扫描；renderer新面最多8个、
   固定696KiB，dirty／移除退化另计。原World块编辑照明路径与transient incarnation失效保持。
@@ -100,9 +109,8 @@
   V09c当时正常实例handle`17266`、PID`58567`／窗口`5382`受Mac锁屏阻止，无输入验收结果；
   V07d最新只读查询已无进程／窗口，该handle也不再可查询，退出原因／状态未知。保存配置SHA`70d9f6e9…16047`保持。
   故障负例、像素比例误判、r1暂存包身份差异和GPU r1／r2的53／1、Debug fixture断言与最终双配置54／1全部保留，分别按实际版本解释。
-- 下一步：继续V01现有OakPlank／Cobblestone／Chest／Workbench的完整默认五链与48项整合，补实际客户端bootstrap纹理、
-  世界方块、背包／地图和真实使用接线；V01f手持／掉落路由证据不代替这些消费者。只精修真实复现的问题，不新增类型或改配方／掉落。
-  随后补V07真实生产近墙／低顶镜头与玩家／手持整合，
+- 下一步：继续V01普通采集／放置／手持／掉落／详情使用、正常光照与近中远动态；V01g48条诊断身份不代替普通流程。
+  只精修真实复现的问题，不新增类型或改配方／掉落；补V07真实生产近墙／低顶镜头与玩家／手持整合，
   以及V02现有Fern网格的风摆／根部稳定与实际顶点接口。`remaining-scope-audit.json`保留具体范围；这些工程检查不替代普通输入。
   V11b已关闭本批旧Ogre格式探测及纹理语义反例；V07e正常20Hz卡阶与墙角工程通过，普通连续GPU和正常遭遇仍未关闭。
   推进V07近距离动物及普通动作，V03b已补少量岩柱；普通地形连续路线继续。河岸已复现叶团由V02b关闭；
@@ -2424,3 +2432,91 @@ After恢复灰色剑身和轮廓；默认第三人称保持。固定机位只证
 下一步整合实际生产纹理bootstrap、世界／背包／地图消费者及普通采集／放置／手持／掉落；
 随后推进V07近墙／低顶与现有Fern真实网格风摆。V01–V11全部剩余范围不缩减，Goal仍active／Doing；
 人类审美／听感、独立试玩和严格配对性能沿用原延期。
+
+
+## V01g：实际客户端材质身份核对（2026-10-05）
+
+### 实现与范围
+
+实现提交`437a0465`，七个文件；默认材料和素材、世界生成／权威领域、配方／掉落和保存版本保持。
+本批接入显式诊断观察器与独立CPU oracle，确认上批材质路由在实际客户端的各消费者中一致。
+固定四材料OakPlank35／Block22、Cobblestone36／Block23、Chest15／Block16、Workbench18／Block18，
+分别取固定语义tile `(5,1)`／`(7,1)`／`(0,1)`／`(1,1)`；OakBark侧 `(4,0)`、顶底 `(5,0)`单列控制。
+48是四材料×世界、第一手持、第三手持、真实ItemEntity、实际五槽快捷栏库存、立体地图×标准／兼容。
+两手持视角分别计数，树皮控制和997像素probe不扩增48。快捷栏是实际玩家库存表现，未宣称详情浮层全覆盖。
+
+Bootstrap真实TerrainArrayLoader、实际Ogre pass／TUS／native texture与原VBO／IBO在当前context内观察，
+记录实际声明、变换、索引和上传后的完整纹理mip。几何采样共享原GL缓冲，以已加载生产shader源码
+进行中性光照、LOD0重放；不上传替代语义quad，不把重放写成正常光照下屏幕中的世界像素。
+ImGui记录真实DrawData、顶点／索引／command、clip／tint／nearest sampler及backend实际framebuffer，
+CPU在有效可见区域独立取probe，并核对整格半像素UV，后续正确记录不能掩盖错误记录。
+独立stdlib PNG解码／线性光平均生成六固定语义源的42 mip参考，不导入生产材质builder；
+native数组七级与有效HMT精确一致，UI／兼容atlas基级与有效PNG精确一致。
+
+世界夹具来自真实地图查询的五个已知驻留列，正常setBlock／库存applySaveState／spawnItemEntity接线，
+World正常流送和GPU提交继续，模拟delta0；各世界记录必须实际uploaded revision等于live revision且GpuResident。
+地图每条fixture列记录必须与该真实World方块的x/z、height、blockId一致；天然其他列允许显示，不能代替fixture关闭。
+诊断只接受隐藏、新save/catalogue、v2和独立输出，拒绝其他夹具组合；九阶段自动结束，45秒wall-clock上限。
+观察器上限24帧、每帧256标记／32操作、64纹理身份、不可变观察载荷512MiB；两正向session实际169739297／164230139字节。
+512MiB计数不含index.json重写和Root保存的client PNG，这些由九阶段与实际2560×1440帧尺寸另行约束。
+GPU读取后重新查询并核对状态，包括两个FBO各自的read selector；正常入口观察器为空。
+
+### 实际执行与失败保留
+
+证据根`build/visual-experience-polish-20260928/v01g/`；实际macOS15.7.3、M1 Pro、Apple GL4.1、Xcode x86_64。
+`normal-build-r2.json`记录Debug／Release客户端均build0、first-party／duplicate warning0，412个首方文件输入保持。
+Premake由`./xcode.sh`生成新源接线，未手改生成工程；正式shader、资源与权威World代码未改，未重跑完整World／资源。
+两次正常构建和各隔离TU编译、独立复审均有实际退出与哈希，不将静态审查算作GPU或其他平台构建。
+
+| 检查 | 终态与实际边界 |
+| --- | --- |
+| 实际标准／兼容r2 | 各九帧、capture exit0；18帧均GL0、state restored真实核对通过；1955检查／0FAIL、48／48、四树皮控制PASS |
+| 最终oracle | `oracle-client-r2-both-r2.json`，SHA`9502508f…9e038a`；source42／42，map-source72／0，481项输入／345768227字节保持；ordinary input／continuous flicker仍NOT_RUN |
+| 冻结oracle源 | `5e03b892…1b3455`；本体CPU13与独立CPU14对抗通过。旧`5de138`同fixture列错高度被正确记录遮掩，独立实际CPU exit3 CONTRACT_FAIL保留；新列门禁拒绝，原捕获未改、无需重跑GPU |
+| 普通菜单路径 | Before／After各5／10秒两帧，均未启用材质观察器；四图SHA同为`601c06fe…d1561`，Root已查看，只有隐藏启动证据，没有CUA输入 |
+| CLI边界 | 16种非法组合实际parser exit2，无目录／子客户端创建，`cli-guards-r1/receipt.json`保持 |
+| 保护 | 六个旧包867项和Before137项完整集合／字节保持，含原用户存档；本批仅独立副本运行 |
+
+`client-standard-r1`原九帧保留：旧未导出的World revision0不满足门禁，地图工作台及树皮侧被树冠遮挡。
+旧CPU报告r1／r2只是同一r1 packet的adapter版本，952／38及960／38、19／48均不回写；
+新World记录导出实际GPU提交revision，夹具按真实已知查询最大高度抬高，之后真实r2两模式完整通过。
+单标准r2的24条通过与缺兼容26项报告保留。旧双模式1931／0报告也保留，其后新增24条fixture列门禁，
+最终1955／0；报告名中的r2和实际GPU r2在`oracle-execution-history-r1.json`与各执行收据明确区分。
+
+### 生产故障拒错校准
+
+两例均从最终r2生产源复制，只替换一个TU，正常141对象／17库保持；两次隔离编译、Root链接均exit0、warning0。
+UI复用实际r1编译argv前核对123项cached lineage，Bootstrap使用真实r2 argv，不捏造cached TU在r2重编。
+3150项编译输入保持。Root链接前3157 guard仅发现已授权的Python oracle更新，零链接执行并保留
+`root-link-preflight-failure-r1.json`；新guard明确这一个5de→5e03差异、其他3156项保持，旧guard不回写。
+新3157 guard在两次实际链接和两次GPU捕获后均保持，`root-link-receipt-r2.json`／`root-gpu-receipt-r2.json`记录。
+故障包带显式isolated TU／mutation／编译／链接哈希，formal source manifest仅作生产参考，不能冒充故障源码身份。
+
+| 实际故障 | 独立拒绝结果 |
+| --- | --- |
+| 标准UI把Workbench图标UV改Chest | 客户端九帧exit0、GL0；oracle exit1，1955／17FAIL、47／48，16元数据拒绝＋inventory／Workbench链。UV不在固定格，采样不足OPEN；不虚称已测出错误像素 |
+| 标准loader只在上传copy交换layer16／17七级 | 客户端九帧exit0、GL0；oracle exit1，1955／49FAIL、42／48：七级native上传拒绝、36原缓冲采样拒绝、Chest／Workbench的world／third held／drop共六链拒绝，元数据／独立源参考保持PASS |
+
+两负报告均配未修改的兼容正向r2；未运行故障二进制的兼容模式，不能据此宣称故障兼容分支实测。
+失败来自真实渲染数据，编译失败不是拒错证据。此次是有界错格／错上传，没有运行旧ASan越界故障；
+客户端实际正常退出，CPU检查exit1，无信号终止。原异常框的PID23586／SIGABRT及ASan正常失败退出复验保持原证据。
+
+### 原图、交付和下一步
+
+五次材质诊断（r1标准、r2两正向、两故障）共45张原图，加菜单四图共49张2560×1440PNG。
+Root已查看r1／r2真实第一／第三手持和地图、最终兼容工作台及普通菜单；RD1边界画面是诊断条件，
+不据其雾、残冠或边界缺面声称普通RD8场景通过或新的审美收益。
+精选`v01g-client-material-identity/`三后原图显示标准木板、兼容工作台及真实立体地图；
+35轮155张（99后／56前）全部源／归档SHA匹配，`selected-archive-r1.json`记录；未裁切／缩放／调色。
+捕获保留真实`3b3ac36d`＋dirty diff`3f18da63…7fc18f`，不回写成后续`437a0465`。
+
+新独立候选`v01g/After.app`，bundle `local.hellomine3d.visual-polish-material-identity`；
+Release SHA`d822790100a1c719869ab145bf5dc390fac71381bc267c9a2606771ecf0190f1`，
+Debug SHA`c36374d9b64b697b491996d670a97907cc417d4e0403fb2f49044611f2f5f3dc`。
+135管理项／2955源码、普通配置SHA`70d9f6e9…16047`及空packlist保持；launcher只设置资源根，
+普通菜单不强制机位、seed或worldclock，提交后的最终干净包与zeroPID核对见`postcommit-verification-r1.json`。
+
+公开CUA本轮实际getState仍30.0578秒超时并reset，`cua-current-r3.json`记录桌面UNKNOWN／普通输入NOT_RUN。
+本批只关闭48条诊断材质身份及对应上传／静态采样，不关闭普通采集、放置、使用、详情、连续动作、
+正常光照动态、远距离mip采样或Alpha轮廓GPU验收。继续V07真实resident World近墙／低顶相机与玩家／手持，
+V02现有Fern实际网格风摆／根稳定及所有其他未完子项；旧完整范围不缩水，Goal仍active，V01–V11整项仍Doing。

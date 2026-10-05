@@ -154,7 +154,7 @@ r1 SIGABRT触发系统异常对话框，用户ips PID23586已核对为受控ASan
 再补真实近墙／低顶镜头和现有Fern风摆；普通连续路线、视距／保存重进、动物遭遇及其他全部缺项继续，
 见[本阶段执行报告](../reports/visual-experience-polish-execution-2026-09-28.md)。
 
-**最新：2026-10-05 V01f已本地提交`f32c0535`，总Goal仍active，V01–V11仍Doing。**
+**历史检查点：2026-10-05 V01f已本地提交`f32c0535`，总Goal仍active，V01–V11仍Doing。**
 实际生产手持／掉落改用冻结profile的半像素格原点，Alpha挤出cache按tilePixels读取有效PNG，
 修复合法v1的32／23列图集路由与轮廓；v2固定256层数组只接受16列，同owner完整非16列包明确拒绝，合法v1保持。
 双配置客户端／资源正常构建first-party warning0，资源各201／0，实际生产软件VBO三模式各63／0。
@@ -171,6 +171,20 @@ menu r1与林地legacy32第一／第三人称r2各后／前共6图已归档，�
 `v01f/postcommit-verification-r1.json`。日志version=2是静态ContractVersion，实际legacy32 profile仍v1，字段歧义已核对。
 CUA仍UNKNOWN、普通输入NOT_RUN，完整默认五链／48项未闭合；继续实际bootstrap／世界／背包／地图接线和普通使用，
 再补近墙／低顶镜头与现有Fern生产网格风摆，不以非16列修复代替默认完整五链或总Goal完成。
+见[本阶段执行报告](../reports/visual-experience-polish-execution-2026-09-28.md)。
+
+**最新：2026-10-05 V01g已本地提交`437a0465`，总Goal仍active，V01–V11仍Doing。**
+实际bootstrap纹理、World原缓冲、两视角手持、真实ItemEntity、快捷栏库存和立体地图接入观察器；
+标准／兼容四材料×六消费者48条静态诊断身份闭合，最终oracle1955／0、42独立源mip和四树皮控制通过。
+正常双配置构建exit0、首方warning0；实际18帧GL0／状态恢复通过，481输入保持。原r1revision0／地图遮挡、
+旧oracle同fixture列漏检CPU exit3和链接前唯一授权oracleSHA变化均保留；修后独立CPU14对抗通过。
+两单TU故障实际编译／链接成功，真实九帧capture各exit0；oracle实际exit1分别17FAIL／47链和49FAIL／42链，
+3157新guard保持。未运行旧ASan越界，当前错格／上传样本无信号终止；原异常框归因PID23586的受控故障。
+六旧包867项＋Before137项保持，三张原图归档，精选35轮155张（99后／56前），全部原图／源SHA一致。
+独立`v01g/After.app`Release SHA`d8227901…190f1`，普通配置保持；提交后135管理项／2955源码和干净身份见
+`postcommit-verification-r1.json`。普通菜单Before／After四图完全一致，没有观察器或CUA输入。
+CUA当前实际超时reset，桌面UNKNOWN、普通输入NOT_RUN；诊断库存／方块注入与冻结模拟不关闭普通使用、动态、
+正常光照、远mip或Alpha GPU验收。继续真实近墙／低顶镜头、现有Fern网格风摆及所有其他余项，不缩减完整Goal。
 见[本阶段执行报告](../reports/visual-experience-polish-execution-2026-09-28.md)。
 
 **2026-09-28 冒险世界体验升级已由用户阶段放行，旧宿主 Goal 已删除。**
