@@ -101,6 +101,8 @@ def main():
     parser.add_argument("--actor-distance", type=int, choices=(6, 12, 24),
                         help="Diagnostic gallery distance; requires --actor-visual")
     parser.add_argument("--hud-fixture", action="store_true")
+    parser.add_argument("--material-identity", action="store_true",
+                        help="Capture nine actual material-consumer phases in a new isolated world (diagnostic input only)")
     parser.add_argument("--inspect-slot", type=int, choices=range(5), help="Item detail diagnostic; requires pointer panel and HUD fixture")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--panel", choices=("crafting", "container", "furnace", "crusher", "settings", "map", "journal", "pointer"))
@@ -139,6 +141,25 @@ def main():
         parser.error("--player-motion requires hidden third-person world render capture")
     if "HELLOMINE3D_PLAYER_MOTION_CAPTURE" in os.environ:
         parser.error("Inherited player motion fixture is not accepted; use --player-motion explicitly")
+    if "HELLOMINE3D_MATERIAL_IDENTITY_CAPTURE_DIR" in os.environ:
+        parser.error("Inherited material identity fixture is not accepted; use --material-identity explicitly")
+    if args.material_identity and (args.foreground or args.performance or args.player_motion or
+            args.actor_visual or args.hud_fixture or args.panel or args.inspect_slot is not None or
+            args.scene == "menu" or args.reuse_app or args.save_template or
+            args.render_distance != 1 or args.visual_detail not in ("standard", "compatibility") or
+            args.launch_method != "direct" or args.capture_ms != "5000,10000" or
+            args.terrain_fallback or args.atmosphere_fallback or os.environ.get("HELLOMINE3D_RESOURCE_PACKS")):
+        parser.error("--material-identity requires a new hidden default-pack world, RD1, explicit standard/compatibility, direct launch, and no other fixtures")
+    if args.material_identity:
+        other_fixtures = ("HELLOMINE3D_BLOCK_FEEDBACK_CAPTURE", "HELLOMINE3D_COMBAT_FIXTURE",
+            "HELLOMINE3D_CONTAINER_FIXTURE", "HELLOMINE3D_CRAFTING_FIXTURE", "HELLOMINE3D_CROP_FIXTURE",
+            "HELLOMINE3D_MACHINE_FIXTURE", "HELLOMINE3D_ORE_FIXTURE", "HELLOMINE3D_SPAWN_VALIDATION_ACTORS",
+            "HELLOMINE3D_TRANSPARENT_FIXTURE", "HELLOMINE3D_VERTEX_LIGHTING_FIXTURE",
+            "HELLOMINE3D_VERTICAL_SLICE_FIXTURE", "HELLOMINE3D_HUD_FIXTURE", "HELLOMINE3D_HUD_PAGE_FIXTURE",
+            "HELLOMINE3D_ACTOR_VISUAL_CAPTURE", "HELLOMINE3D_VISUAL_CAMERA_SWEEP", "HELLOMINE3D_VISUAL_CAMERA_PATH",
+            "HELLOMINE3D_RC_PERF_PROFILE", "HELLOMINE3D_E2_BATCH_MANIFEST", "HELLOMINE3D_V10C_FALLBACK")
+        if any(name in os.environ for name in other_fixtures):
+            parser.error("Inherited diagnostic fixtures cannot be combined with --material-identity")
     if platform.system() != "Darwin":
         parser.error("macOS required")
     if not 0 <= args.time < 24000:
@@ -232,6 +253,10 @@ seed random
         "HELLO_RENDER_CAPTURE_MAX_DELTA_MS": "5000",
         "HELLO_RENDER_CAPTURE_EXIT": "0" if args.performance else "1",
     }
+    if args.material_identity:
+        environment["HELLOMINE3D_MATERIAL_IDENTITY_CAPTURE_DIR"] = str(output / "material-identity")
+        environment["HELLO_RENDER_CAPTURE_MS"] = "60000"
+        environment["HELLO_RENDER_CAPTURE_EXIT"] = "0"
     if args.terrain_fallback:
         environment["HELLOMINE3D_FORCE_LEGACY_TERRAIN"] = "1"
     if args.player_motion:
@@ -325,8 +350,9 @@ seed random
             # is the child we waited for; LaunchServices mode cannot claim that.
             record["peak_child_rss_bytes"] = int(
                 resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss)
-        frames = sorted((output / "frames").glob("*.png"))
-        expected_frames = 0 if args.performance else len(capture_times)
+        frames = sorted((output / "material-identity").glob("client-*.png")) if args.material_identity else \
+            sorted((output / "frames").glob("*.png"))
+        expected_frames = 9 if args.material_identity else (0 if args.performance else len(capture_times))
         if len(frames) != expected_frames:
             raise RuntimeError(f"Expected {expected_frames} captured frames, got {len(frames)}")
         # Window points and framebuffer pixels differ on Retina displays. Require
@@ -344,6 +370,14 @@ seed random
                 raise RuntimeError(f"Actual frame is {width}x{height}, expected "
                                    f"{expected_size[0]}x{expected_size[1]} at pixel ratio {args.pixel_ratio}")
         artifacts = frames
+        if args.material_identity:
+            index = output / "material-identity/index.json"
+            session = json.loads(index.read_text())
+            if len(session.get("frames", [])) != 9:
+                raise RuntimeError("Material identity session did not finish its nine actual backend frames")
+            artifacts += [index]
+            record["material_identity_session"] = str(index)
+            record["material_identity_scope"] = "actual consumer capture; independent oracle required; normal input remains false"
         if args.performance:
             record["framebuffer_size_pixels"] = performance_framebuffer(
                 (output / "client.log").read_text(), args.width, args.height, args.pixel_ratio)

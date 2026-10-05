@@ -8,6 +8,7 @@
 #include "OgreBlockFeedback.h"
 #include "OgreRenderCapture.h"
 #include "OgreUserInterface.h"
+#include "MaterialIdentityCapture.h"
 #include "../Presentation/LocalizedPresentation.h"
 #include "StartupErrorReporter.h"
 #include "StartupResourcePreflight.h"
@@ -1055,6 +1056,35 @@ namespace
                 m_actorVisualDistance = std::stof(value);
                 std::cout << "[ACTOR_VISUAL_CAPTURE] distance=" << value << '\n';
             }
+            const char* identityOutput = std::getenv(
+                "HELLOMINE3D_MATERIAL_IDENTITY_CAPTURE_DIR");
+            if (identityOutput != nullptr && identityOutput[0] != '\0')
+            {
+                if (!isTrueValue(std::getenv("HELLOMINE3D_WINDOW_HIDDEN")) ||
+                    !isTrueValue(std::getenv("HELLO_RENDER_CAPTURE")) ||
+                    initialSaveDirectory.empty() ||
+                    std::getenv("HELLOMINE3D_SAVE_DIR") == nullptr ||
+                    std::getenv("HELLOMINE3D_CATALOGUE_DIR") == nullptr ||
+                    RuntimePerformanceCapture::isEnabled() ||
+                    std::getenv("HELLOMINE3D_RC_PERF_PROFILE") != nullptr ||
+                    std::getenv("HELLOMINE3D_E2_BATCH_MANIFEST") != nullptr ||
+                    m_visualCameraSweep.enabled || !m_playerMotionCapture.empty() ||
+                    !m_actorVisualCapture.empty() ||
+                    isTrueValue(std::getenv("HELLOMINE3D_HUD_FIXTURE")) ||
+                    std::getenv("HELLOMINE3D_HUD_PAGE_FIXTURE") != nullptr ||
+                    runtimeTerrainMaterialProfile().parameters().formatVersion != 2)
+                    throw std::runtime_error("Material identity capture requires a hidden isolated v2 world capture without other fixtures.");
+                for (const char* name : {"HELLOMINE3D_BLOCK_FEEDBACK_CAPTURE",
+                         "HELLOMINE3D_COMBAT_FIXTURE", "HELLOMINE3D_CONTAINER_FIXTURE",
+                         "HELLOMINE3D_CRAFTING_FIXTURE", "HELLOMINE3D_CROP_FIXTURE",
+                         "HELLOMINE3D_MACHINE_FIXTURE", "HELLOMINE3D_ORE_FIXTURE",
+                         "HELLOMINE3D_SPAWN_VALIDATION_ACTORS", "HELLOMINE3D_TRANSPARENT_FIXTURE",
+                         "HELLOMINE3D_VERTEX_LIGHTING_FIXTURE", "HELLOMINE3D_VERTICAL_SLICE_FIXTURE"})
+                    if (std::getenv(name) != nullptr)
+                        throw std::runtime_error(std::string("Material identity capture cannot combine fixture ") + name);
+                m_materialIdentityOutput = identityOutput;
+                std::cout << "[MATERIAL_IDENTITY_CAPTURE] evidence=developer-diagnostic normal_input=0 fixture=resident-query-columns simulation_delta=0\n";
+            }
             const bool hiddenWindow = isTrueValue(
                 std::getenv("HELLOMINE3D_WINDOW_HIDDEN"));
             m_hiddenWindow = hiddenWindow;
@@ -1109,6 +1139,9 @@ namespace
             configureTerrainAppearance();
             selectAtmosphereMode();
             syncTerrainMaterialParameters();
+            if (!m_materialIdentityOutput.empty())
+                m_materialIdentityCapture = std::make_unique<MaterialIdentityCapture>(
+                    m_materialIdentityOutput);
             m_sceneManager->setAmbientLight(
                 Ogre::ColourValue(0.7f, 0.7f, 0.7f));
             m_sceneManager->setSkyBox(
@@ -2052,6 +2085,8 @@ namespace
                                 key, std::move(visual));
                             m_sectionRenderStates[key] =
                                 ChunkRenderState::GpuResident;
+                            if (m_materialIdentityCapture)
+                                m_materialIdentityMeshRevisions[key] = section->getBlockRevision();
                         }
                         else
                         {
@@ -2140,6 +2175,7 @@ namespace
             m_sectionVisuals.clear();
             clearTerrainBatches();
             m_sectionRenderStates.clear();
+            m_materialIdentityMeshRevisions.clear();
             m_lastLiveSections.clear();
             if (m_caveBoundaryRenderer != nullptr)
             {
@@ -2451,6 +2487,7 @@ namespace
             {
                 activatePendingWorld();
             }
+            prepareMaterialIdentityCapture(event.timeSinceLastFrame);
             const bool sandboxAdvanced =
                 updateSandbox(event.timeSinceLastFrame);
             if (!sandboxAdvanced && m_sandbox != nullptr)
@@ -2477,6 +2514,7 @@ namespace
                     m_playerRenderer->setLighting(exposure);
                 }
             }
+            observeMaterialIdentityGeometry();
             if (m_userInterface != nullptr)
             {
                 const MiningProgressSnapshot progress =
@@ -2507,6 +2545,16 @@ namespace
                 // Ogre fires this callback after _updateAllRenderTargets and
                 // immediately before _swapAllRenderTargetBuffers.
                 m_sceneRenderEnd = std::chrono::steady_clock::now();
+            }
+            if (m_materialIdentityCapture && m_materialIdentityFramePending)
+            {
+                if (m_materialIdentityCapture->isFrameOpen())
+                    throw std::runtime_error("Material identity frame did not reach the actual ImGui backend.");
+                m_window->writeContentsToFile(m_materialIdentityOutput +
+                    "/client-" + std::to_string(m_materialIdentityPhase) + ".png");
+                ++m_materialIdentityPhase;
+                m_materialIdentityPhaseSeconds = 0.f;
+                m_materialIdentityFramePending = false;
             }
             ++m_frameCount;
             return true;
@@ -2609,8 +2657,226 @@ namespace
             const bool frameLimitReached =
                 m_exitAfterFrames > 0 &&
                 m_frameCount >= m_exitAfterFrames;
-            return !captureComplete && !frameLimitReached &&
+            return !(m_materialIdentityCapture && m_materialIdentityPhase >= 9) &&
+                   !captureComplete && !frameLimitReached &&
                    !RuntimePerformanceCapture::shouldCloseWindow();
+        }
+
+        void prepareMaterialIdentityCapture(float deltaSeconds)
+        {
+            if (!m_materialIdentityCapture || !m_world || !m_worldPlayer ||
+                !m_userInterface || m_materialIdentityPhase >= 9) return;
+            const float delta = std::isfinite(deltaSeconds)
+                ? std::clamp(deltaSeconds, 0.f, .25f) : 0.f;
+            const auto now = std::chrono::steady_clock::now();
+            if (m_materialIdentityStarted == std::chrono::steady_clock::time_point{})
+                m_materialIdentityStarted = now;
+            m_materialIdentityPhaseSeconds += delta;
+            if (now - m_materialIdentityStarted > std::chrono::seconds(45))
+                throw std::runtime_error("Material identity capture did not obtain all resident consumers within its bounded run.");
+            if (!m_materialIdentityFixturesPlaced)
+            {
+                if (!m_userInterface->setMaterialIdentityMap3dVisible(true))
+                    throw std::runtime_error("Cannot open the actual 3D map for material identity queries.");
+                const auto& samples = m_materialIdentityCapture->lastMapSamples();
+                std::vector<MaterialIdentityCapture::MapSample> columns;
+                for (const auto& sample : samples)
+                {
+                    if (!sample.sampleAvailable || !sample.known ||
+                        sample.height < 0 || sample.height > 250) continue;
+                    const float dx = sample.worldX + .5f - m_worldPlayer->position.x;
+                    const float dz = sample.worldZ + .5f - m_worldPlayer->position.z;
+                    if (dx * dx + dz * dz < 36.f || dx * dx + dz * dz > 144.f) continue;
+                    const bool duplicate = std::any_of(columns.begin(), columns.end(),
+                        [&](const auto& prior) { return prior.worldX == sample.worldX &&
+                            prior.worldZ == sample.worldZ; });
+                    if (!duplicate) columns.push_back(sample);
+                    if (columns.size() == m_materialIdentityFixtures.size()) break;
+                }
+                if (columns.size() != m_materialIdentityFixtures.size()) return;
+                int stageHeight = 0;
+                for (const auto& sample : samples)
+                    if (sample.sampleAvailable && sample.known && sample.height >= 0 && sample.height <= 246)
+                        stageHeight = std::max(stageHeight, sample.height + 4);
+                if (stageHeight == 0) return;
+                PlayerSaveState inventory = m_worldPlayer->getSaveState();
+                inventory.inventory.assign(5, {});
+                constexpr int amounts[]{7,11,13,17};
+                for (std::size_t index = 0; index < m_materialIdentityFixtures.size(); ++index)
+                {
+                    auto& fixture = m_materialIdentityFixtures[index];
+                    const auto& source = columns[index];
+                    fixture.position = {source.worldX, stageHeight, source.worldZ};
+                    fixture.mapCell = source.cell;
+                    m_world->setBlock(fixture.position.x, fixture.position.y,
+                                      fixture.position.z, fixture.block);
+                    if (m_world->getBlock(fixture.position.x, fixture.position.y,
+                                          fixture.position.z).id != static_cast<Block_t>(fixture.block))
+                        throw std::runtime_error("Material identity fixture was not accepted by its resident World column.");
+                    if (index < 4)
+                    {
+                        inventory.inventory[index] = {fixture.material, amounts[index], 0};
+                        fixture.actor = m_world->spawnItemEntity(fixture.material, 1,
+                            m_worldPlayer->position + glm::vec3(8.f + 2.f * index, .5f, 0.f));
+                        if (fixture.actor == 0)
+                            throw std::runtime_error("Material identity World rejected its bounded dropped item.");
+                    }
+                    std::cout << "[MATERIAL_IDENTITY_FIXTURE] material=" << int(fixture.material)
+                        << " block=" << int(fixture.block) << " position=" << fixture.position.x
+                        << ',' << fixture.position.y << ',' << fixture.position.z
+                        << " map_cell=" << fixture.mapCell << " actor=" << fixture.actor << '\n';
+                }
+                inventory.heldItem = 0;
+                m_worldPlayer->applySaveState(inventory);
+                m_materialIdentityFixturesPlaced = true;
+                m_materialIdentityPhaseSeconds = 0.f;
+                return;
+            }
+            if (!m_materialIdentityMapReady)
+            {
+                for (const auto& sample : m_materialIdentityCapture->lastMapSamples())
+                    for (auto& fixture : m_materialIdentityFixtures)
+                        if (sample.sampleAvailable && sample.known &&
+                            sample.worldX == fixture.position.x &&
+                            sample.worldZ == fixture.position.z &&
+                            sample.height == fixture.position.y &&
+                            sample.blockId == int(fixture.block)) fixture.observed = true;
+                const bool samplesReady = std::all_of(
+                    m_materialIdentityFixtures.begin(), m_materialIdentityFixtures.end(),
+                    [](const auto& fixture) { return fixture.observed; });
+                if (!samplesReady || m_materialIdentityPhaseSeconds < 2.f) return;
+                m_materialIdentityMapReady = true;
+                m_materialIdentityPhaseSeconds = 0.f;
+            }
+            const bool map = m_materialIdentityPhase == 8;
+            if (!m_userInterface->setMaterialIdentityMap3dVisible(map))
+                throw std::runtime_error("Cannot switch the material identity HUD phase.");
+            const int selected = m_materialIdentityPhase % 4;
+            PlayerInputState input;
+            input.hotbarSlot = selected;
+            m_worldPlayer->applyInput(input);
+            m_config.cameraPerspective = m_materialIdentityPhase >= 4 && !map
+                ? CameraPerspective::ThirdPerson : CameraPerspective::FirstPerson;
+            const float settle = m_materialIdentityPhase == 0 ? 1.f : .35f;
+            if (m_materialIdentityPhaseSeconds < settle) return;
+            const std::string phase = map ? "map_3d" :
+                std::string(m_materialIdentityPhase < 4 ? "first_slot_" : "third_slot_") +
+                std::to_string(selected);
+            m_materialIdentityCapture->beginFrame(phase,
+                runtimeTerrainMaterialProfile().usesTextureArray() ? "standard" : "compatibility",
+                static_cast<std::uint64_t>(m_frameCount));
+            m_materialIdentityFramePending = true;
+        }
+
+        void observeMaterialIdentityGeometry()
+        {
+            if (!m_materialIdentityCapture || !m_materialIdentityCapture->isFrameOpen() ||
+                m_materialIdentityPhase < 4 || m_materialIdentityPhase >= 8) return;
+            const int slot = m_materialIdentityPhase % 4;
+            auto iterator = m_sceneManager->getMovableObjectIterator("ManualObject");
+            Ogre::ManualObject* held = nullptr;
+            while (iterator.hasMoreElements())
+            {
+                auto* object = static_cast<Ogre::ManualObject*>(iterator.getNext());
+                const std::string& name = object->getName();
+                const std::string suffix = "_HeldItemMesh";
+                if (name.size() >= suffix.size() &&
+                    name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0)
+                {
+                    if (held != nullptr) throw std::runtime_error("Ambiguous actual player-held object.");
+                    held = object;
+                }
+            }
+            if (!held || held->getNumSections() != 1 || !m_playerAvatarWasVisible)
+                throw std::runtime_error("Actual third-person held material is unavailable.");
+            auto facts = [&](const MaterialIdentityFixture& fixture, const char* consumer)
+            {
+                MaterialIdentityCapture::Facts result;
+                result.consumer = consumer;
+                result.materialId = int(fixture.material);
+                result.materialName = Material::toStringId(fixture.material);
+                result.blockId = int(fixture.block);
+                result.worldX = fixture.position.x; result.worldY = fixture.position.y;
+                result.worldZ = fixture.position.z; result.mapCell = int(fixture.mapCell);
+                return result;
+            };
+            auto observe = [&](MaterialIdentityCapture::Facts source, Ogre::Renderable& renderable)
+            {
+                auto material = renderable.getMaterial();
+                material->load();
+                auto* technique = material->getBestTechnique();
+                if (!technique || technique->getNumPasses() != 1)
+                    throw std::runtime_error("Material identity requires the actual single production pass.");
+                m_materialIdentityCapture->observeRenderable(source, renderable,
+                    *technique->getPass(0), *m_camera);
+            };
+            const auto actualPlayer = m_worldPlayer->getSaveState();
+            const auto& actualHeld = m_worldPlayer->getHeldItems();
+            if (actualPlayer.heldItem != slot || actualHeld.isEmpty() ||
+                actualHeld.getMaterial().id != m_materialIdentityFixtures[slot].material)
+                throw std::runtime_error("Actual Player held source differs from the selected diagnostic phase.");
+            auto heldFacts = facts(m_materialIdentityFixtures[slot], "held_third");
+            heldFacts.materialId = int(actualHeld.getMaterial().id);
+            heldFacts.materialName = Material::toStringId(actualHeld.getMaterial().id);
+            heldFacts.slot = actualPlayer.heldItem;
+            heldFacts.amount = m_worldPlayer->getInventorySlot(slot).getNumInStack();
+            observe(heldFacts, *held->getSection(0));
+            if (slot != 0) return;
+            const auto resident = m_world->collectSectionMeshSnapshot(false);
+            for (const auto& fixture : m_materialIdentityFixtures)
+            {
+                if (m_world->getBlock(fixture.position.x, fixture.position.y,
+                    fixture.position.z).id != static_cast<Block_t>(fixture.block))
+                    throw std::runtime_error("Actual World source changed before material capture.");
+                Ogre::Renderable* world = nullptr;
+                const Ogre::Vector3 centre(fixture.position.x + .5f,
+                    fixture.position.y + .5f, fixture.position.z + .5f);
+                auto find = [&](const auto& visuals)
+                {
+                    for (const auto& entry : visuals)
+                        for (const auto& renderable : entry.second.renderables)
+                            if (renderable->getMaterial()->getName() == "HelloMine3D/Terrain" &&
+                                renderable->getWorldBoundingBox(true).contains(centre))
+                            {
+                                if (world != nullptr) throw std::runtime_error("Ambiguous actual World material buffer.");
+                                world = renderable.get();
+                            }
+                };
+                find(m_sectionVisuals); find(m_terrainBatchVisuals);
+                if (!world) throw std::runtime_error("Resident material fixture has not reached its actual World GPU buffer.");
+                const glm::ivec3 location(
+                    int(std::floor(float(fixture.position.x) / CHUNK_SIZE)),
+                    int(std::floor(float(fixture.position.y) / CHUNK_SIZE)),
+                    int(std::floor(float(fixture.position.z) / CHUNK_SIZE)));
+                const auto key = sectionKey(location);
+                const auto uploaded = m_materialIdentityMeshRevisions.find(key);
+                const auto gpu = m_sectionRenderStates.find(key);
+                const auto current = std::find_if(resident.liveSectionVersions.begin(),
+                    resident.liveSectionVersions.end(),
+                    [&](const auto& version) { return version.location == location; });
+                if (uploaded == m_materialIdentityMeshRevisions.end() ||
+                    current == resident.liveSectionVersions.end() ||
+                    uploaded->second != current->blockRevision ||
+                    gpu == m_sectionRenderStates.end() || gpu->second != ChunkRenderState::GpuResident)
+                    throw std::runtime_error("Material fixture mesh revision has not reached its current resident GPU buffer.");
+                auto worldFacts = facts(fixture, "world");
+                worldFacts.revision = uploaded->second;
+                observe(worldFacts, *world);
+                if (fixture.actor == 0) continue;
+                const auto snapshot = std::find_if(m_frameActorSnapshots.begin(), m_frameActorSnapshots.end(),
+                    [&](const auto& actor) { return actor.id == fixture.actor; });
+                if (snapshot == m_frameActorSnapshots.end() || snapshot->itemMaterialId != int(fixture.material))
+                    throw std::runtime_error("Actual World dropped-item snapshot is missing or has the wrong material.");
+                const std::string name = "Actor_" + std::to_string(fixture.actor) + "_Mesh";
+                if (!m_sceneManager->hasManualObject(name))
+                    throw std::runtime_error("Actual dropped-item renderer is missing.");
+                auto* object = m_sceneManager->getManualObject(name);
+                if (object->getNumSections() != 1)
+                    throw std::runtime_error("Actual dropped-item operation is ambiguous.");
+                auto dropFacts = facts(fixture, "drop");
+                dropFacts.actorId = fixture.actor; dropFacts.amount = snapshot->itemAmount;
+                observe(dropFacts, *object->getSection(0));
+            }
         }
 
         bool updateSandbox(float deltaSeconds)
@@ -2619,6 +2885,18 @@ namespace
             if (m_sandbox == nullptr)
             {
                 return false;
+            }
+            if (m_materialIdentityCapture)
+            {
+                // This bounded diagnostic freezes simulation only in its isolated
+                // world. Normal World residency/mesh upload and renderer sync run.
+                m_sandbox->update({}, 0.f, false);
+                clearTransientInput();
+                syncRenderCamera(deltaSeconds);
+                syncPlayerPresentation(0.f);
+                syncSectionMeshes();
+                syncActorVisuals(0.f);
+                return true;
             }
             updateRcPerformanceScenario(deltaSeconds);
             if (!m_applicationFlow.acceptsWorldSimulation() ||
@@ -3762,6 +4040,8 @@ namespace
             }
             if (!visual.node && !visual.batchMeshes) return false;
             m_sectionVisuals.emplace(key, std::move(visual));
+            if (m_materialIdentityCapture)
+                m_materialIdentityMeshRevisions[key] = section.blockRevision;
             return true;
         }
 
@@ -5902,6 +6182,7 @@ namespace
                 m_runtimeStarted = false;
             }
             m_renderCapture.reset();
+            m_materialIdentityCapture.reset();
             m_userInterface.reset();
             destroyPostProcessingResources();
             m_blockFeedback.reset();
@@ -5916,6 +6197,7 @@ namespace
             clearTerrainBatches();
             m_caveBoundaryRenderer.reset();
             m_sectionRenderStates.clear();
+            m_materialIdentityMeshRevisions.clear();
             m_lastLiveSections.clear();
             destroyDirectionalShadowResources();
             if (m_audio != nullptr)
@@ -5965,6 +6247,30 @@ namespace
         glm::vec3 m_visualCameraSweepOrigin{0.f};
         glm::vec3 m_visualCameraSweepRotation{0.f};
         std::unique_ptr<OgreUserInterface> m_userInterface;
+        struct MaterialIdentityFixture
+        {
+            Material::ID material;
+            BlockId block;
+            glm::ivec3 position{0};
+            std::size_t mapCell = 0;
+            ActorId actor = 0;
+            bool observed = false;
+        };
+        std::array<MaterialIdentityFixture, 5> m_materialIdentityFixtures{{
+            {Material::OakPlank, BlockId::OakPlank},
+            {Material::Cobblestone, BlockId::Cobblestone},
+            {Material::Chest, BlockId::Chest},
+            {Material::Workbench, BlockId::Workbench},
+            {Material::OakBark, BlockId::OakBark}}};
+        std::unique_ptr<MaterialIdentityCapture> m_materialIdentityCapture;
+        std::string m_materialIdentityOutput;
+        int m_materialIdentityPhase = 0;
+        std::chrono::steady_clock::time_point m_materialIdentityStarted;
+        float m_materialIdentityPhaseSeconds = 0.f;
+        bool m_materialIdentityFixturesPlaced = false;
+        bool m_materialIdentityMapReady = false;
+        bool m_materialIdentityFramePending = false;
+        std::unordered_map<std::string, std::uint32_t> m_materialIdentityMeshRevisions;
         std::unique_ptr<AudioRuntime> m_audio;
         std::unique_ptr<MusicRuntime> m_music;
         AdventureAudioPresentation::State m_adventureAudioState;

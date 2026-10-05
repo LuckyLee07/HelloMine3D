@@ -1,6 +1,7 @@
 #include "OgreUserInterface.h"
 #include "OgreItemGeometry.h"
 #include "GameInterfaceWidgets.h"
+#include "MaterialIdentityCapture.h"
 #ifdef __APPLE__
 #include "OgreMacClipboard.h"
 #endif
@@ -441,7 +442,8 @@ class OgreUserInterface::Impl
         {
             hudPageFixture = page;
             if ((!environmentFlagEnabled("HELLO_RENDER_CAPTURE") && !environmentFlagEnabled("HELLO_PERF_CAPTURE")) ||
-                (hudPageFixture != "map" && hudPageFixture != "journal" && hudPageFixture != "pointer"))
+                (hudPageFixture != "map" && hudPageFixture != "map3d" && hudPageFixture != "journal" && hudPageFixture != "pointer") ||
+                (hudPageFixture == "map3d" && MaterialIdentityCapture::active() == nullptr))
                 throw std::runtime_error("HUD page fixture requires diagnostic capture and a valid page.");
         }
         if (const char* slot = std::getenv("HELLOMINE3D_HUD_INSPECT_SLOT"))
@@ -864,8 +866,11 @@ class OgreUserInterface::Impl
             if (hudPageFixtureSeconds >= 3.f && player && !player->hasOpenContainer() && !player->hasOpenCrafting())
             {
                 hudInteraction.togglePointer();
-                if (hudPageFixture != "pointer") hudInteraction.open(hudPageFixture == "map" ? HudInteraction::Page::Map : HudInteraction::Page::Journal);
-                if (hudPageFixture == "map") mapFlatOverview = true;
+                if (hudPageFixture != "pointer") hudInteraction.open(
+                    hudPageFixture == "map" || hudPageFixture == "map3d"
+                        ? HudInteraction::Page::Map : HudInteraction::Page::Journal);
+                if (hudPageFixture == "map" || hudPageFixture == "map3d")
+                    mapFlatOverview = hudPageFixture == "map";
                 hudPageFixtureOpened = true;
                 std::cout << "[HUD_PAGE_FIXTURE] page=" << hudPageFixture << "\n";
             }
@@ -3031,7 +3036,8 @@ class OgreUserInterface::Impl
 
     bool drawMaterialIcon(ImDrawList *drawList, Material::ID id,
                           const ImVec2 &minimum, const ImVec2 &maximum,
-                          ImU32 tint = IM_COL32_WHITE) const
+                          ImU32 tint = IM_COL32_WHITE,
+                          int captureSlot = -1, int captureAmount = 0) const
     {
         ImVec2 uvMin;
         ImVec2 uvMax;
@@ -3039,6 +3045,11 @@ class OgreUserInterface::Impl
         {
             return false;
         }
+        auto* capture = captureSlot >= 0 ? MaterialIdentityCapture::active() : nullptr;
+        if (capture && (!capture->isFrameOpen() || !capture->wantsMaterial(static_cast<int>(id))))
+            capture = nullptr;
+        const auto range = capture ? capture->beginUiRange(drawList)
+            : MaterialIdentityCapture::UiRange{};
         const auto& callbacks = ImGui::GetPlatformIO();
         if (callbacks.DrawCallback_SetSamplerNearest)
             drawList->AddCallback(callbacks.DrawCallback_SetSamplerNearest, nullptr);
@@ -3046,6 +3057,22 @@ class OgreUserInterface::Impl
                            uvMin, uvMax, tint);
         if (callbacks.DrawCallback_SetSamplerLinear)
             drawList->AddCallback(callbacks.DrawCallback_SetSamplerLinear, nullptr);
+        if (capture)
+        {
+            const auto coordinate = Material::iconCoordinate(id);
+            MaterialIdentityCapture::Facts facts;
+            facts.consumer = "inventory";
+            facts.materialName = Material::toStringId(id);
+            facts.materialId = static_cast<int>(id);
+            facts.blockId = static_cast<int>(Material::toMaterial(id).toBlockID());
+            facts.slot = captureSlot;
+            facts.amount = captureAmount;
+            facts.tileX = coordinate.x;
+            facts.tileY = coordinate.y;
+            capture->recordUiRange(range, facts,
+                callbacks.DrawCallback_SetSamplerNearest,
+                callbacks.DrawCallback_SetSamplerLinear);
+        }
         return true;
     }
 
@@ -3126,12 +3153,14 @@ class OgreUserInterface::Impl
             float depth;
             ImU32 tint;
             bool textured;
+            int sourceFace = -1, tileX = -1, tileY = -1;
         };
         std::vector<ProjectedFace> faces;
         faces.reserve(geometry.size() + hand.size());
         const auto& atlas = runtimeTerrainMaterialProfile().parameters();
         const float exposure = heldLighting.exposure;
-        const auto project = [&](const ItemVisualGeometry::Face& face, glm::vec3 colour, bool textured) {
+        const auto project = [&](const ItemVisualGeometry::Face& face, glm::vec3 colour,
+                                 bool textured, int sourceFace) {
             const glm::vec3 normal = pose.rotate(face.normal);
             glm::vec3 midpoint(0.f);
             for (const auto& vertex : face.positions) midpoint += pose.rotate(vertex) * .25f;
@@ -3139,6 +3168,9 @@ class OgreUserInterface::Impl
             ProjectedFace projected{};
             projected.depth = midpoint.z;
             projected.textured = textured;
+            projected.sourceFace = sourceFace;
+            projected.tileX = static_cast<int>(face.tile.x);
+            projected.tileY = static_cast<int>(face.tile.y);
             const float light = exposure * (.60f + .40f * std::max(0.f,
                 glm::dot(normal, glm::normalize(glm::vec3(-.35f, .65f, 1.f)))));
             projected.tint = IM_COL32(static_cast<int>(colour.r * light),
@@ -3155,18 +3187,42 @@ class OgreUserInterface::Impl
             }
             faces.push_back(projected);
         };
-        for (const auto& face : geometry) project(face, glm::vec3(255.f), true);
-        for (const auto& face : hand) project(face.geometry, face.colour, false);
+        for (std::size_t face = 0; face < geometry.size(); ++face)
+            project(geometry[face], glm::vec3(255.f), true, static_cast<int>(face));
+        for (const auto& face : hand) project(face.geometry, face.colour, false, -1);
         std::sort(faces.begin(), faces.end(), [](const auto& a, const auto& b) { return a.depth < b.depth; });
         ImDrawList* draw = ImGui::GetForegroundDrawList();
         draw->PushClipRect(ImVec2(hudRight, io.DisplaySize.y * .5f), io.DisplaySize, true);
         const auto& callbacks = ImGui::GetPlatformIO();
+        auto* capture = hasItem ? MaterialIdentityCapture::active() : nullptr;
+        if (capture && (!capture->isFrameOpen() || !capture->wantsMaterial(static_cast<int>(slot.materialId))))
+            capture = nullptr;
         if (callbacks.DrawCallback_SetSamplerNearest)
             draw->AddCallback(callbacks.DrawCallback_SetSamplerNearest, nullptr);
         for (const auto& face : faces) {
             if (face.textured)
+            {
+                const auto range = capture ? capture->beginUiRange(draw)
+                    : MaterialIdentityCapture::UiRange{};
                 draw->AddImageQuad(ImTextureRef(atlasTextureId), face.points[0], face.points[1],
                     face.points[2], face.points[3], face.uv[0], face.uv[1], face.uv[2], face.uv[3], face.tint);
+                if (capture)
+                {
+                    MaterialIdentityCapture::Facts facts;
+                    facts.consumer = "held_first";
+                    facts.materialName = Material::toStringId(slot.materialId);
+                    facts.materialId = static_cast<int>(slot.materialId);
+                    facts.blockId = static_cast<int>(Material::toMaterial(slot.materialId).toBlockID());
+                    facts.slot = state.heldItem;
+                    facts.amount = slot.amount;
+                    facts.face = face.sourceFace;
+                    facts.tileX = face.tileX;
+                    facts.tileY = face.tileY;
+                    capture->recordUiRange(range, facts,
+                        callbacks.DrawCallback_SetSamplerNearest,
+                        callbacks.DrawCallback_SetSamplerLinear);
+                }
+            }
             else
                 draw->AddConvexPolyFilled(face.points.data(), 4, face.tint);
         }
@@ -3529,7 +3585,8 @@ class OgreUserInterface::Impl
         {
             drawMaterialIcon(drawList, slot.materialId,
                              ImVec2(minimum.x + 12.f * scale, minimum.y + 8.f * scale),
-                             ImVec2(maximum.x - 7.f * scale, maximum.y - 11.f * scale));
+                             ImVec2(maximum.x - 7.f * scale, maximum.y - 11.f * scale),
+                             IM_COL32_WHITE, static_cast<int>(index), slot.amount);
             const ToolDefinition *tool =
                 runtimeToolRegistry().find(slot.materialId);
             if (tool != nullptr && tool->maxDurability > 0)
@@ -4605,6 +4662,37 @@ class OgreUserInterface::Impl
             for (const auto& query : batch) positions.push_back({query.x, query.z});
             const auto samples = world->observeSurfaceMap(positions);
             region.accept(batch, samples);
+            if (!mapFlatOverview)
+                if (auto* capture = MaterialIdentityCapture::active())
+                {
+                    MaterialIdentityCapture::MapBatch facts;
+                    facts.centreX = region.centerX;
+                    facts.centreZ = region.centerZ;
+                    facts.countX = facts.countZ = region.count;
+                    facts.step = region.step;
+                    facts.revision = region.revision;
+                    facts.queryCount = batch.size();
+                    facts.sampleCount = samples.size();
+                    facts.sizeMatched = samples.size() == batch.size();
+                    std::vector<MaterialIdentityCapture::MapSample> observations;
+                    observations.reserve(batch.size());
+                    for (std::size_t i = 0; i < batch.size(); ++i)
+                    {
+                        MaterialIdentityCapture::MapSample observation;
+                        observation.cell = static_cast<std::size_t>(batch[i].cell);
+                        observation.worldX = batch[i].x;
+                        observation.worldZ = batch[i].z;
+                        observation.sampleAvailable = i < samples.size();
+                        if (observation.sampleAvailable)
+                        {
+                            observation.known = samples[i].known;
+                            observation.height = samples[i].height;
+                            observation.blockId = static_cast<int>(samples[i].material);
+                        }
+                        observations.push_back(observation);
+                    }
+                    capture->observeMapQueries(facts, observations);
+                }
             if (mapFlatOverview && region.step == 2 && samples.size() == batch.size())
                 for (std::size_t i=0;i<samples.size();++i)
                     fineMapHistory.observe(batch[i].x,batch[i].z,samples[i]);
@@ -4787,11 +4875,35 @@ class OgreUserInterface::Impl
                 const auto& render=BlockDatabase::get().getDefinition(cell.material).render;
                 const auto tile=face.top ? render.texTopCoord : render.texSideCoord;
                 if (atlasTextureId!=ImTextureID_Invalid && atlas.containsTile(int(tile.x),int(tile.y)) && cell.material!=BlockId::Air) {
+                    auto* capture = MaterialIdentityCapture::active();
+                    if (capture && !capture->isFrameOpen()) capture = nullptr;
+                    const auto material = capture ? Material::toMaterial(cell.material).id : Material::Nothing;
+                    if (capture && !capture->wantsMaterial(static_cast<int>(material))) capture = nullptr;
+                    const auto range = capture ? capture->beginUiRange(draw)
+                        : MaterialIdentityCapture::UiRange{};
                     const ImVec2 lo((tile.x*atlas.tilePixels+.5f)/atlas.atlasPixels,(tile.y*atlas.tilePixels+.5f)/atlas.atlasPixels);
                     const ImVec2 hi(((tile.x+1)*atlas.tilePixels-.5f)/atlas.atlasPixels,((tile.y+1)*atlas.tilePixels-.5f)/atlas.atlasPixels);
                     const int shade=int(245.f*face.shade);
                     draw->AddImageQuad(ImTextureRef(atlasTextureId),a,b,c,d,lo,ImVec2(hi.x,lo.y),hi,ImVec2(lo.x,hi.y),
                         IM_COL32(shade,shade,shade,255));
+                    if (capture)
+                    {
+                        MaterialIdentityCapture::Facts facts;
+                        facts.consumer = "map_3d";
+                        facts.materialName = Material::toStringId(material);
+                        facts.materialId = static_cast<int>(material);
+                        facts.blockId = static_cast<int>(cell.material);
+                        facts.mapCell = face.cell;
+                        facts.top = face.top;
+                        facts.known = cell.known;
+                        facts.height = cell.height;
+                        facts.revision = detailMap.revision;
+                        facts.tileX = static_cast<int>(tile.x);
+                        facts.tileY = static_cast<int>(tile.y);
+                        capture->recordUiRange(range, facts,
+                            callbacks.DrawCallback_SetSamplerNearest,
+                            callbacks.DrawCallback_SetSamplerLinear);
+                    }
                 } else {
                     auto colour=ImGui::ColorConvertU32ToFloat4(mapCellColour(mapCells.data(),mapCount,face.cell%mapCount,face.cell/mapCount));
                     colour.x*=face.shade; colour.y*=face.shade; colour.z*=face.shade;
@@ -7668,6 +7780,28 @@ void OgreUserInterface::setFirstPersonPresentationVisible(
     m_impl->firstPersonPresentationVisible = visible;
 }
 
+bool OgreUserInterface::setMaterialIdentityMap3dVisible(bool visible) noexcept
+{
+    if (MaterialIdentityCapture::active() == nullptr) return false;
+    if (!visible)
+    {
+        m_impl->hudInteraction.dismiss();
+        return true;
+    }
+    if (m_impl->flow->state() != GameApplicationState::Playing ||
+        m_impl->player == nullptr || m_impl->world == nullptr ||
+        m_impl->player->hasOpenContainer() || m_impl->player->hasOpenCrafting())
+        return false;
+    if (!m_impl->hudInteraction.ownsInput())
+        m_impl->hudInteraction.togglePointer();
+    if (!m_impl->hudInteraction.open(HudInteraction::Page::Map)) return false;
+    m_impl->mapFlatOverview = false;
+    m_impl->mapMarkerPanel = false;
+    m_impl->selectedMapCell = m_impl->selectedOverviewCell = -1;
+    m_impl->selectedOverviewFinePosition.reset();
+    return true;
+}
+
 void OgreUserInterface::setThirdPersonAimIndicator(
     bool visible, float normalizedX, float normalizedY) noexcept
 {
@@ -7740,6 +7874,8 @@ void OgreUserInterface::postViewportUpdate(
     }
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    if (auto* capture = MaterialIdentityCapture::active())
+        if (capture->isFrameOpen()) capture->finishFrame(ImGui::GetDrawData(), true);
     m_impl->framePending = false;
 }
 
