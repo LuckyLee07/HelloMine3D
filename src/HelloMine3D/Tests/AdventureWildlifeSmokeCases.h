@@ -4,6 +4,153 @@
 #include "../Actor/WildlifePresentation.h"
 
 namespace {
+// Optional test-only handoff. Both snapshots and every movement segment are
+// published by real WildlifeActor ticks against this World, not reconstructed
+// from a renderer formula or inserted into a client diagnostic gallery.
+void exportWildlifeVisualOracle(World& world,
+    const std::array<ActorSnapshot, 6>& samples)
+{
+    const char* path = std::getenv("HELLOMINE3D_WILDLIFE_VISUAL_ORACLE");
+    if (path == nullptr || *path == '\0') return;
+    const auto stone = world.getBlock(10,201,10);
+    const bool valid = samples[1].wildlifeMotionHistory.count == 1 &&
+        samples[3].wildlifeMotionHistory.count == 2 &&
+        samples[5].wildlifeMotionHistory.count == 5 &&
+        stone.id == static_cast<Block_t>(BlockId::Stone) &&
+        stone.getData().isCollidable && !std::filesystem::exists(path);
+    check("WILDLIFE-VISUAL/real-world-oracle-export-preconditions",valid);
+    if (!valid) return;
+    std::ofstream output(path,std::ios::binary);
+    output.precision(9);
+    output << "HMWILDLIFE_ORACLE 2\nBLOCK 10 201 10 1\n";
+    for (const char* type : {WildlifeSpecies::Sheep,WildlifeSpecies::Rabbit,
+                            WildlifeSpecies::MarshBird}) {
+        const WildlifeActor shape(900050,type,{0,201,0});
+        const auto dimensions = shape.getSnapshot().dimensions;
+        output << "SPECIES " << type << ' ' << dimensions.x << ' ' << dimensions.y
+               << ' ' << dimensions.z << '\n';
+    }
+    const auto writeSnapshot = [&](const ActorSnapshot& s) {
+        const auto& history = s.wildlifeMotionHistory;
+        output << "SNAPSHOT " << s.id << ' ' << s.type << ' '
+            << s.position.x << ' ' << s.position.y << ' ' << s.position.z << ' '
+            << s.rotation.y << ' ' << s.dimensions.x << ' ' << s.dimensions.y << ' '
+            << s.dimensions.z << ' ' << s.wildlifeActivity << ' '
+            << s.wildlifeMotionSeconds << ' ' << history.count << ' '
+            << history.newestSequence << '\n';
+        for (std::size_t i = 0; i < history.count; ++i) {
+            const auto& segment = history.segments[i];
+            output << "SEG " << segment.sequence << ' '
+                << segment.from.x << ' ' << segment.from.y << ' ' << segment.from.z << ' '
+                << segment.to.x << ' ' << segment.to.y << ' ' << segment.to.z << ' '
+                << segment.seconds << ' ' << int(segment.kind) << '\n';
+        }
+    };
+    const char* names[] = {"ASCENT", "DESCENT", "MULTI_FALL"};
+    for (std::size_t i = 0; i < 3; ++i) {
+        output << "CASE " << names[i] << '\n';
+        writeSnapshot(samples[i * 2]);
+        writeSnapshot(samples[i * 2 + 1]);
+    }
+    output << "END\n";
+    output.close();
+    check("WILDLIFE-VISUAL/real-world-oracle-exported",bool(output));
+}
+
+void caseWildlifeMotionHistory()
+{
+    clearDeterministicEnv();
+    setEnv("HELLOMINE3D_SEED", "42");
+    setEnv("HELLOMINE3D_PLAYER_POSITION", "8 201 8");
+    Config config = makeConfig(); Camera camera(config); Player player;
+    World world(camera, config, player,
+        freshSaveDirectory("wildlife_motion_history"), false, 0);
+    for (int x = 0; x < 16; ++x) for (int z = 0; z < 16; ++z) {
+        world.setBlock(x, 200, z, BlockId::Stone);
+        for (int y = 201; y <= 210; ++y) world.setBlock(x, y, z, BlockId::Air);
+    }
+    world.setBlock(10, 201, 10, BlockId::Stone);
+    std::array<ActorSnapshot, 6> samples;
+    WildlifeActor rabbit(910001, WildlifeSpecies::Rabbit, {11.24f,201.f,10.5f});
+    samples[0] = rabbit.getSnapshot();
+    player.position = rabbit.position + glm::vec3(1,0,0);
+    world.tick(1); rabbit.tick(world, .20f);
+    samples[1] = rabbit.getSnapshot();
+    const auto& rise = samples[1].wildlifeMotionHistory;
+    check("WILDLIFE-PATH/actor-publishes-real-accepted-ascent",
+        rise.count == 1 && rise.newestSequence == 1 &&
+        rise.segments[0].kind == WildlifeMotionPath::SupportRise &&
+        rise.segments[0].from == samples[0].position &&
+        rise.segments[0].to == samples[1].position &&
+        samples[1].position.y == 202.f && rise.segments[0].seconds == .20f);
+    samples[2] = samples[1];
+    player.position = rabbit.position - glm::vec3(1,0,0);
+    world.tick(2); rabbit.tick(world, .20f);
+    samples[3] = rabbit.getSnapshot();
+    const auto& descent = samples[3].wildlifeMotionHistory;
+    check("WILDLIFE-PATH/actor-publishes-connected-real-descent",
+        descent.count == 2 && descent.newestSequence == 2 &&
+        descent.segments[1].sequence == 2 &&
+        descent.segments[1].kind == WildlifeMotionPath::SupportDescent &&
+        descent.segments[1].from == samples[2].position &&
+        descent.segments[1].to == samples[3].position && samples[3].position.y == 201.f);
+    const auto settled = rabbit.position;
+    for (int y = 201; y <= 205; ++y) world.setBlock(12,y,10,BlockId::Stone);
+    player.position = rabbit.position - glm::vec3(1,0,0);
+    world.tick(3); rabbit.tick(world, .20f);
+    const auto blocked = rabbit.getSnapshot();
+    check("WILDLIFE-PATH/blocked-motion-does-not-publish-a-segment",
+        blocked.position == settled && blocked.wildlifeMotionHistory.newestSequence == 2);
+    bool denied = false;
+    glm::vec3 unused;
+    for (int i = 0; i < 48 && !denied; ++i)
+        denied = world.tryWildlifeStep({3.5f,201.f,3.5f}, {3.5f,201.f,3.5f},
+            {.22f,.27f,.22f}, unused) == World::WildlifeStepResult::BudgetDenied;
+    rabbit.tick(world, .05f);
+    const auto budget = rabbit.getSnapshot();
+    check("WILDLIFE-PATH/budget-denial-does-not-invent-motion",
+        denied && budget.position == settled && budget.wildlifeMotionHistory.newestSequence == 2);
+    rabbit.tick(world, 0.f);
+    check("WILDLIFE-PATH/paused-actor-keeps-history",
+        rabbit.getSnapshot().wildlifeMotionHistory.newestSequence == 2);
+
+    WildlifeActor falling(910002, WildlifeSpecies::Sheep, {5.5f,208.f,5.5f});
+    samples[4] = falling.getSnapshot();
+    player.position = {14,201,14};
+    for (int i = 0; i < 5; ++i) { world.tick(4+i); falling.tick(world, .20f); }
+    samples[5] = falling.getSnapshot();
+    const auto& falls = samples[5].wildlifeMotionHistory;
+    bool actualFalls = falls.count == 5 && falls.newestSequence == 5;
+    for (std::size_t i = 0; i < falls.count; ++i) {
+        const auto& step = falls.segments[i];
+        actualFalls &= step.sequence == i+1 && step.kind == WildlifeMotionPath::AirborneFall &&
+            step.from.x == step.to.x && step.from.z == step.to.z &&
+            step.from.y-step.to.y > 0.f && step.from.y-step.to.y <= .8001f &&
+            (i == 0 ? step.from == samples[4].position : step.from == falls.segments[i-1].to);
+    }
+    check("WILDLIFE-PATH/skipped-frame-copies-five-actual-falls", actualFalls);
+    check("WILDLIFE-PATH/multi-fall-is-not-a-support-step",
+        actualFalls && samples[4].position.y-samples[5].position.y > 3.f);
+    // The earlier snapshot is a value copy, not a live/consuming view.
+    check("WILDLIFE-PATH/snapshot-copy-keeps-original-history",
+        samples[1].wildlifeMotionHistory.count == 1 &&
+        samples[2].wildlifeMotionHistory.newestSequence == 1 &&
+        samples[4].wildlifeMotionHistory.count == 0);
+    exportWildlifeVisualOracle(world, samples);
+    for (int i = 5; i < 14; ++i) { world.tick(4+i); falling.tick(world, .20f); }
+    const auto retained = falling.getSnapshot().wildlifeMotionHistory;
+    bool bounded = retained.count == WildlifeMotionHistory::MaximumSegments &&
+        retained.newestSequence > WildlifeMotionHistory::MaximumSegments;
+    for (std::size_t i = 0; i < retained.count; ++i)
+        bounded &= retained.segments[i].sequence == retained.newestSequence-retained.count+i+1 &&
+            (i == 0 || retained.segments[i].from == retained.segments[i-1].to);
+    check("WILDLIFE-PATH/actual-history-is-bounded-and-chronological", bounded);
+    check("WILDLIFE-PATH/retained-export-remains-a-value-copy",
+        samples[5].wildlifeMotionHistory.count == 5 &&
+        samples[5].wildlifeMotionHistory.newestSequence == 5);
+    clearDeterministicEnv();
+}
+
 void caseWildlifeReviewRegressions()
 {
     clearDeterministicEnv();
@@ -115,6 +262,7 @@ void caseWildlifeReviewRegressions()
 
 void caseAdventureWildlife()
 {
+    caseWildlifeMotionHistory();
     caseWildlifeReviewRegressions();
     for (const char* type : {WildlifeSpecies::Sheep, WildlifeSpecies::Rabbit,
                             WildlifeSpecies::MarshBird}) {

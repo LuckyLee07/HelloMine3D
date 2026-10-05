@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 #include "../Player/Player.h"
 #include "../World/World.h"
@@ -87,15 +88,32 @@ void WildlifeActor::tick(World &world, float dt)
         std::min(.8f, fallSpeed * m_motionElapsed));
     glm::vec3 settled{0.f};
     bool grounded = false;
+    WildlifeMotionPath pathKind = WildlifeMotionPath::None;
     const World::WildlifeStepResult result = world.tryWildlifeStep(
-        position, candidate, box.dimensions, settled, &grounded);
+        position, candidate, box.dimensions, settled, &grounded, &pathKind);
     if (result == World::WildlifeStepResult::BudgetDenied) return;
+    const float motionSeconds = m_motionElapsed;
     m_motionElapsed = 0.f;
     if (result != World::WildlifeStepResult::Allowed) {
         if (decide) m_headingRadians += 1.57f;
         return;
     }
     m_fallSpeed = grounded ? 0.f : fallSpeed;
+    if (settled != position) {
+        // Overflow starts a new stream; renderers detect the sequence gap and
+        // explicitly rebase. Accepted zero-distance checks are not motion.
+        if (m_motionHistory.newestSequence ==
+            std::numeric_limits<std::uint64_t>::max())
+            m_motionHistory = {};
+        if (m_motionHistory.count == WildlifeMotionHistory::MaximumSegments) {
+            for (std::size_t i = 1; i < m_motionHistory.count; ++i)
+                m_motionHistory.segments[i - 1] = m_motionHistory.segments[i];
+            --m_motionHistory.count;
+        }
+        m_motionHistory.segments[m_motionHistory.count++] = {
+            ++m_motionHistory.newestSequence, position, settled,
+            motionSeconds, pathKind};
+    }
     position = settled;
     box.update(position);
     rotation.y = glm::degrees(m_headingRadians);
@@ -106,5 +124,6 @@ ActorSnapshot WildlifeActor::getSnapshot() const
     ActorSnapshot snapshot = LivingActor::getSnapshot();
     snapshot.wildlifeActivity = static_cast<int>(m_activity);
     snapshot.wildlifeMotionSeconds = m_ageSeconds;
+    snapshot.wildlifeMotionHistory = m_motionHistory;
     return snapshot;
 }

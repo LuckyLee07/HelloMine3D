@@ -3228,9 +3228,11 @@ void World::runNaturalWildlifePopulation(int worldTime)
 
 World::WildlifeStepResult World::tryWildlifeStep(
     const glm::vec3 &from, const glm::vec3 &to,
-    const glm::vec3 &halfDimensions, glm::vec3 &settled, bool* grounded)
+    const glm::vec3 &halfDimensions, glm::vec3 &settled, bool* grounded,
+    WildlifeMotionPath* pathKind)
 {
     if (grounded != nullptr) *grounded = false;
+    if (pathKind != nullptr) *pathKind = WildlifeMotionPath::None;
     const auto finitePosition = [](const glm::vec3& value) {
         return std::isfinite(value.x) && std::isfinite(value.y) &&
             std::isfinite(value.z) && std::abs(double(value.x)) < 2147483000. &&
@@ -3326,6 +3328,7 @@ World::WildlifeStepResult World::tryWildlifeStep(
                 }
         settled = {from.x, landing, from.z};
         if (grounded != nullptr) *grounded = landed;
+        if (pathKind != nullptr) *pathKind = WildlifeMotionPath::AirborneFall;
         return WildlifeStepResult::Allowed;
     }
 
@@ -3371,6 +3374,10 @@ World::WildlifeStepResult World::tryWildlifeStep(
         if (safe) {
             settled = {to.x, float(feet), to.z};
             if (grounded != nullptr) *grounded = true;
+            if (pathKind != nullptr)
+                *pathKind = rise == 1 ? WildlifeMotionPath::SupportRise :
+                    rise == -1 ? WildlifeMotionPath::SupportDescent :
+                    WildlifeMotionPath::GroundedLevel;
             return WildlifeStepResult::Allowed;
         }
     }

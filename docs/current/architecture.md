@@ -93,7 +93,7 @@ Core / Entity / Physics / Maths / Util
   调度。自然动物作为临时种群在区块卸载时移除，`World::saveWorldState` 过滤其 Actor 状态；
   重新进入时从已加载生态刷新，敌人／物品的 save v12 路径不变。地面与避障探测在 World
   的每 fixed tick 预算内完成，动物独立轮转，低频决策与逐 tick 局部碰撞／重力分开；
-  Ogre 仅插值快照的位置，不向生成器或 Ogre 反向持有状态，见[冒险动物合同](../contracts/adventure-wildlife-contract-v1.md)。
+  Ogre沿按值快照复制的成功移动段重放位置，不向生成器或 Ogre 反向持有状态，见[冒险动物合同](../contracts/adventure-wildlife-contract-v1.md)。
 - Sandbox 定义事件协议，但每个 `World` 实例实际拥有自己的 `SandboxEventBus`。
 - Event handler 当前同步执行；AL-A4 已把请求 mutation 的 typed Command、已发生的 immutable Event
   与不提交 Gameplay 的 Query 分开。订阅者不得假设异步或跨线程投递。
@@ -907,6 +907,10 @@ Spitter 用固定颈部体积桥接抬头时的间隙，占满既有 8 部件预
 实体ID仅提供稳定觅食错相；暂停不推进、传送或断帧重设，动画关闭立即中性化。
 平滑角度后重算连接偏移，足盒最低角按复制的支撑平面最多抬表现根4cm，兔跳仍≤7.5cm。
 不查询地形、不修改Actor行为／碰撞／预算／保存；见[动物动作精修合同](../contracts/wildlife-motion-polish-contract-v1.md)。
+V07d从World实际成功分支输出移动类别，动物保留最多8个非零段并复制到快照；Actor历史≤336字节、
+Ogre移动队列≤512字节，不增加堆分配／查询／保存字段。渲染连续重放上台阶先升后横、下台阶
+先横后降的通道，累计下落不猜成台阶；保留途中进度、全部转折及≤0.20秒追赶，缺段／容量超限／
+长断帧明确重置。局部-Z前方使用负逻辑yaw，暂停不消费新位置或Off模式新朝向。
 敌人 visual 的 `PoseBlend` 用帧时间平滑关节角度、缩放、前倾和步态起伏，再重算连接偏移；
 受击/死亡与蓄力眼色保持即时，暂停、传送和生命周期清理有明确边界。诊断展示通过
 `EnemyPresentationGallery` 读取冻结 registry 的真实体型和战斗 tick，不使用统一放大的身体尺寸。

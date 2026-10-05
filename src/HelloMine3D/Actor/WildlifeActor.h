@@ -57,6 +57,7 @@ class WildlifeActor final : public LivingActor {
     float m_fallSpeed = 0.f;
     float m_alarmSeconds = 0.f;
     float m_headingRadians = 0.f;
+    WildlifeMotionHistory m_motionHistory;
 };
 
 #endif // WILDLIFEACTOR_H_INCLUDED

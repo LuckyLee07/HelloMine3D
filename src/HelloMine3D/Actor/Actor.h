@@ -1,6 +1,9 @@
 #ifndef ACTOR_H_INCLUDED
 #define ACTOR_H_INCLUDED
 
+#include <array>
+#include <cstddef>
+#include <cstdint>
 #include <string>
 
 #include "../Entity/Entity.h"
@@ -34,6 +37,34 @@ struct ActorSaveState {
     int dropAmount = 0;
 };
 
+// Copied transient facts about successful wildlife movement. These are not
+// save data: the renderer follows the actual checked path without world queries.
+enum class WildlifeMotionPath {
+    None = 0,
+    GroundedLevel,
+    SupportRise,
+    SupportDescent,
+    AirborneFall
+};
+
+struct WildlifeMotionSegment {
+    std::uint64_t sequence = 0;
+    glm::vec3 from{0.f};
+    glm::vec3 to{0.f};
+    float seconds = 0.f;
+    WildlifeMotionPath kind = WildlifeMotionPath::None;
+};
+
+struct WildlifeMotionHistory {
+    static constexpr std::size_t MaximumSegments = 8;
+    // Oldest first. Unused entries are neutral and never consumed.
+    std::array<WildlifeMotionSegment, MaximumSegments> segments{};
+    std::size_t count = 0;
+    std::uint64_t newestSequence = 0;
+};
+static_assert(sizeof(WildlifeMotionHistory) <= 336,
+              "Copied animal movement history remains bounded");
+
 struct ActorSnapshot {
     ActorId id = InvalidActorId;
     std::string type;
@@ -43,6 +74,7 @@ struct ActorSnapshot {
     // Transient wildlife pose facts. Existing actors publish the neutral values.
     int wildlifeActivity = 0;
     float wildlifeMotionSeconds = 0.f;
+    WildlifeMotionHistory wildlifeMotionHistory;
     // Copied item presentation facts; inventory and lifetime remain on ItemEntity.
     int itemMaterialId = 0;
     int itemAmount = 0;

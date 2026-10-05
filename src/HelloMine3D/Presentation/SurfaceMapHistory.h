@@ -44,8 +44,8 @@ public:
             found = tiles.emplace(key,Tile{}).first;
             found->second.recent = recent.begin();
         } else recent.splice(recent.begin(),recent,found->second.recent);
-        const int ix = (std::int64_t(x)-std::int64_t(key.first)*16)/2;
-        const int iz = (std::int64_t(z)-std::int64_t(key.second)*16)/2;
+        const auto ix = (std::int64_t(x)-std::int64_t(key.first)*16)/2;
+        const auto iz = (std::int64_t(z)-std::int64_t(key.second)*16)/2;
         found->second.cells[iz*8+ix] = sample;
     }
 
@@ -58,8 +58,8 @@ public:
         const Key key{tileCoord(int(x)),tileCoord(int(z))};
         const auto tile = tiles.find(key);
         if (tile == tiles.end()) return {};
-        const int ix = (std::int64_t(x)-std::int64_t(key.first)*16)/2;
-        const int iz = (std::int64_t(z)-std::int64_t(key.second)*16)/2;
+        const auto ix = (std::int64_t(x)-std::int64_t(key.first)*16)/2;
+        const auto iz = (std::int64_t(z)-std::int64_t(key.second)*16)/2;
         const auto& sample = tile->second.cells[iz*8+ix];
         return sample.known ? std::optional<Observation>({int(x),int(z),sample}) : std::nullopt;
     }

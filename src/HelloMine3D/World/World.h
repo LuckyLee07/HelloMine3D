@@ -298,7 +298,7 @@ class World : public NonCopyable {
     WildlifeStepResult tryWildlifeStep(
         const glm::vec3 &from, const glm::vec3 &to,
         const glm::vec3 &halfDimensions, glm::vec3 &settled,
-        bool* grounded = nullptr);
+        bool* grounded = nullptr, WildlifeMotionPath* pathKind = nullptr);
     CombatAttackResult tryAttackActor(ActorId actorId,
                                       bool simulationRunning = true);
     bool attackActor(ActorId actorId);

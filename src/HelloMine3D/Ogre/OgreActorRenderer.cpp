@@ -576,7 +576,7 @@ void OgreActorRenderer::updateVisual(
             snapshot.dimensions.y * 2.f,
             snapshot.dimensions.z * 2.f);
         visual.node->setOrientation(Ogre::Quaternion(
-            Ogre::Degree(animated.yawDegrees), Ogre::Vector3::UNIT_Y));
+            Ogre::Degree(-animated.yawDegrees), Ogre::Vector3::UNIT_Y));
         const std::size_t count = std::min(
             visual.parts.size(), profile.partCount);
         for (std::size_t index = 0; index < count; ++index)
