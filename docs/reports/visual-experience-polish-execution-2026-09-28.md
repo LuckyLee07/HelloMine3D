@@ -2,11 +2,23 @@
 
 ## 恢复区
 
-- **2026-10-05 V11b已本地提交`818b6398`，Goal仍为`active`，V01–V11整项仍`Doing`。**
+- **2026-10-05 V01f已本地提交`f32c0535`，Goal仍为`active`，V01–V11整项仍`Doing`。**
+  修复合法v1非16列图集的生产手持／掉落UV路由与Alpha挤出mask；复用冻结profile的半像素格原点和tilePixels。
+  v2非16列完整同owner资源包明确拒绝，合法v1的32／23列保持。双配置客户端／资源构建无first-party警告，资源各201／0，
+  实际生产软件VBO三模式各63／0。r2原默认51／0及32列51／14保留；r3新增安全编码断言的默认12FAIL单独分类，未声称默认旧路由失败。
+  原VBO／IBO和生产GLSL重放Before默认480／0、32列240／240、23列240／144，After480／0＋240／0＋240／0，GL全0；
+  同owner完整包probe由CONTRACT_FAIL exit3变为specific RESOURCE_REJECTED exit1，两正控仍exit0，705输入保持。
+  14次后台冷启动／28张原PNG，林地32列第一／第三人称石剑由完全不可见恢复轮廓与灰色剑身；默认第三人称保持。
+  主菜单及这两组林地图3后／3前已归档，精选34轮152张（96后／56前），源／归档哈希全匹配；水下r1和统计元数据错误保留。
+  五个保护包730项与Before137项全部保持，捕获后无客户端PID；捕获身份仍`17751eca`＋实际dirty diff，未改写为`f32c0535`。
+  当前`v01f/After.app`Release SHA`3064212b…890c01`，普通配置SHA`70d9f6e9…16047`保持；最终干净包身份及保护复核见本批`postcommit-verification-r1.json`。
+  公开CUA状态仍`UNKNOWN`、普通输入`NOT_RUN`，完整48项材质链未闭合；下一步继续生产bootstrap／背包／地图和默认五链整合。
+  详见文末V01f；实际像素断言和固定机位不计普通采集／使用或总Goal完成。
+- **历史检查点：2026-10-05 V11b已本地提交`818b6398`，Goal仍为`active`，V01–V11整项仍`Doing`。**
   修复旧GL3Plus格式探测及A8 alpha传输、B5位序和八种SNORM输入格式；L8／LA、ImGui RGBA字体路径和保存格式保持。
   冻结旧源码新建最小基线仍1项／1FAIL、启动GL0x500；新库双配置严格启动各1／0、生产洞穴各54／0、纹理各68／0，GL全0。
   四个单对象功能故障由目标断言拒绝，alias的2个纹理GL错误保留；选定TU的ASan正控68／0，旧depth故障从16字节堆输入读32字节。
-  ASan r1的SIGABRT触发系统异常对话框，用户已确认；r2保留检测和失败退出，以相同二进制正常exit1拒绝，旧证据不删。
+  ASan r1的SIGABRT触发系统异常对话框，用户异常文件PID`23586`已核对为该受控故障进程；r2保留检测和失败退出，以相同二进制正常exit1拒绝，旧证据不删。
   新`v11b/After.app`运行时为`818b6398`，Release SHA`0312a17a…0db8a`，135管理项／2953源码（GL3Plus71）逐项哈希匹配，普通配置保持；
   文档提交后的最终干净包身份见本批`postcommit-verification-r1.json`。
   主菜单／洞室／森林3后／3前归档，精选33轮146张（93后／53前）；抓图保留真实`00a54934`与当时dirty身份。
@@ -64,19 +76,20 @@
 - 当前方向：V01a（`a2b1046`）、V01b（`2f9203d`）、V02a（`b6f0e9e`）已提交；V02 风摆现有路径
   已通过当前 GPU 检查，V04a 云带精修已提交 `6011801`；V05a 接触阴影已提交 `8a0cf2c`。
   V03a追加v25局部地形与坡积材料，已提交`b1f2527`；V06a追加v26河湖岸形，已提交`cb2afd0`；V06b水域运动与河面接缝修复已提交`bd4d264`；V07a动物比例与动作过渡已提交`5385bf4`；V07b玩家工具阶段、前向挥动和遮挡修复已提交`c09fc9af`；V08a六套地点蓝图与路线保持已提交`fefd76ae`；V09a局部光源分离已提交`07ae4aba`；V09b地下形态与铺地已提交`64242e4c`；
-  V10a世界目录与继续入口已提交`d462b123`；V10b暂停通知布局已提交`cb96e34d`；V10c机器进度与领取反馈已提交`1223ddad`；V01c两树种与石面材质已提交`d06389f2`；V08b露天工位已提交`39d98d22`；V01d四自然材质已提交`d614f38d`；V10d生命信息行对比已提交`8790069b`；V10e机器部分转移提示已提交`c2baba2c`；V10f机器浮层避让与容量边界已提交`9e89552c`；V10g制作材料紧凑布局与输入定位已提交`e91f4b37`；V11a补整合静态矩阵及洞室水色修复已提交`9b20cd0a`；V05b修复斜射投影精度及雪地自阴影已提交`ddd9a053`；V02b树根统一退场已提交`6992b77b`；V03b稀疏岩柱与洞室露头支撑已提交`73f6af6c`；V07c四向移动混合已提交`d374640a`；V09c暗空气边界背景已提交`3fd7431a`；V01e煤铁矿围岩材质已提交`16b73097`；V07d已验动物路径重放已提交`76beeaf9`；V07e正常小步跨阶与退让已提交`58492a57`；V11b纹理集成修复已提交`818b6398`。V01–V11整项仍`Doing`。
+  V10a世界目录与继续入口已提交`d462b123`；V10b暂停通知布局已提交`cb96e34d`；V10c机器进度与领取反馈已提交`1223ddad`；V01c两树种与石面材质已提交`d06389f2`；V08b露天工位已提交`39d98d22`；V01d四自然材质已提交`d614f38d`；V10d生命信息行对比已提交`8790069b`；V10e机器部分转移提示已提交`c2baba2c`；V10f机器浮层避让与容量边界已提交`9e89552c`；V10g制作材料紧凑布局与输入定位已提交`e91f4b37`；V11a补整合静态矩阵及洞室水色修复已提交`9b20cd0a`；V05b修复斜射投影精度及雪地自阴影已提交`ddd9a053`；V02b树根统一退场已提交`6992b77b`；V03b稀疏岩柱与洞室露头支撑已提交`73f6af6c`；V07c四向移动混合已提交`d374640a`；V09c暗空气边界背景已提交`3fd7431a`；V01e煤铁矿围岩材质已提交`16b73097`；V07d已验动物路径重放已提交`76beeaf9`；V07e正常小步跨阶与退让已提交`58492a57`；V11b纹理集成修复已提交`818b6398`；V01f手持／掉落动态图集路由已提交`f32c0535`。V01–V11整项仍`Doing`。
 - 用户追加要求：每轮保留2–3张升级后游戏原图并在回复中展示。精选原图及索引位于
   `.local-evidence/visual-polish-20260928/`，不作为普通build缓存清理；本地保留、Git忽略。
-  目前33轮共146张（93张升级后及53张修改前／问题基线），`index.md` 有具体变化说明，`manifest.json` 有来源与哈希。
-- 当前交付候选：`build/visual-experience-polish-20260928/v11b/After.app`，独立bundle
-  `local.hellomine3d.visual-polish-gl`；运行时提交`818b6398`，文档提交后最终干净身份见`postcommit-verification-r1.json`；
-  默认v30／兼容v1–v29、save12／map4／settings11保持。
-  普通配置与135管理项／2953源码（GL3Plus71）逐项哈希核对；Release SHA`0312a17a…0db8a`。
-  包内不强制seed／gallery／worldclock；旧工作包、V07d／V07e及其他冻结候选不原位刷新。
-- 当前批次：V11b局部纹理集成、双配置生产构建／严格启动／洞穴／纹理GPU、五个生产源码负例和原图归档完成。
-  `closure-evidence-r2.json`与`package-after-r2-verification.json`完整核对本批交付；独立审查及
-  `negative-build-r1/classification-r1.json`／`asan-exit-policy-r2.json`保留真实FAIL和ASan退出策略，抓图身份不改写为提交后身份。
-  原世界、动物、资源和shader未改；复用对应有效范围，不冒充重跑完整World。普通输入仍未验。
+  目前34轮共152张（96张升级后及56张修改前／问题基线），`index.md`有说明，`manifest.json`有来源与哈希。
+  V01f以`selected-archive-r2.json`归一早期四种role字段核对；r1错误统计保留，旧entry和原图未改写。
+- 当前交付候选：`build/visual-experience-polish-20260928/v01f/After.app`，独立bundle
+  `local.hellomine3d.visual-polish-items`；Release SHA`3064212b…890c01`，普通配置SHA`70d9f6e9…16047`保持。
+  已提交运行时为`f32c0535`；捕获用包仍记录`17751eca`与dirty diff`8b5e1243…573a62`，最终干净交付身份另由`postcommit-verification-r1.json`记录。
+  默认v30／兼容v1–v29、save12／map4／settings11保持；包内不强制seed／gallery／worldclock。
+  旧工作包、V07d／V07e／V11b及旧冒险用户包不原位刷新，730保护项和Before137项在捕获后核对。
+- 当前批次：V01f生产手持／掉落动态图集路由、合法32／23列软件及原缓冲GPU重放、v2边界拒绝和原图归档完成。
+  双配置正常客户端／资源构建与资源201项、三模式软件63项通过；完整默认五链和48项整合仍开放。
+  证据在`v01f/normal-verification-r1.json`、各Before／After receipt、`capture-audit-r1.json`及`selected-archive-r2.json`。
+  世界生成与actor领域、正式纹理／shader未改；复用对应有效范围，不冒充重跑完整World。普通输入仍未验。
 - 上批V09c：双配置客户端／世界／资源r2构建完成，功能验证与原图归档已完成，旧Ogre启动基线仍FAIL。
   World缓存上限2048面，首snapshot扫描8面／2048格，确认false不扫描；renderer新面最多8个、
   固定696KiB，dirty／移除退化另计。原World块编辑照明路径与transient incarnation失效保持。
@@ -87,8 +100,9 @@
   V09c当时正常实例handle`17266`、PID`58567`／窗口`5382`受Mac锁屏阻止，无输入验收结果；
   V07d最新只读查询已无进程／窗口，该handle也不再可查询，退出原因／状态未知。保存配置SHA`70d9f6e9…16047`保持。
   故障负例、像素比例误判、r1暂存包身份差异和GPU r1／r2的53／1、Debug fixture断言与最终双配置54／1全部保留，分别按实际版本解释。
-- 下一步：先查V01现有OakPlank／Cobblestone／Chest／Workbench在世界方块、手持、掉落、背包和地图五条表现路径的身份，
-  只精修真实复现的外观／身份问题，不因旧来源标签新增类型或改配方／掉落。随后补V07真实生产近墙／低顶镜头与玩家／手持整合，
+- 下一步：继续V01现有OakPlank／Cobblestone／Chest／Workbench的完整默认五链与48项整合，补实际客户端bootstrap纹理、
+  世界方块、背包／地图和真实使用接线；V01f手持／掉落路由证据不代替这些消费者。只精修真实复现的问题，不新增类型或改配方／掉落。
+  随后补V07真实生产近墙／低顶镜头与玩家／手持整合，
   以及V02现有Fern网格的风摆／根部稳定与实际顶点接口。`remaining-scope-audit.json`保留具体范围；这些工程检查不替代普通输入。
   V11b已关闭本批旧Ogre格式探测及纹理语义反例；V07e正常20Hz卡阶与墙角工程通过，普通连续GPU和正常遭遇仍未关闭。
   推进V07近距离动物及普通动作，V03b已补少量岩柱；普通地形连续路线继续。河岸已复现叶团由V02b关闭；
@@ -113,7 +127,7 @@
 | 编号 | 范围 | 状态与证据 |
 | --- | --- | --- |
 | V00 | 版本、保护、代表路线、对照条件 | Doing：版本与保护已核对；普通主路线待生产世界调查，当前固定机位只作诊断 |
-| V01 | 材质密度与同物身份 | Doing：V01a／b草土石沙木橡叶接入；V01c补两树种六槽与石／苔石，V01d补四自然材料，V01e补煤铁矿，共83槽共享身份、7级mip及双配置资源通过；两矿仅改变两层、14负例与标准／兼容／铁矿详情前后已查，洞室斜纹、树种近景／夜间和四材料小批已查；完整同物使用与动态待补 |
+| V01 | 材质密度与同物身份 | Doing：V01a／b草土石沙木橡叶接入；V01c补两树种六槽与石／苔石，V01d补四自然材料，V01e补煤铁矿，共83槽共享身份、7级mip及双配置资源通过；V01f修复生产手持／掉落的合法非16列路由与Alpha mask，双配置三模式各63／0、原缓冲生产GLSL默认480／0及32／23列各240／0，v2非16列明确拒绝；32列石剑前后原图已查。完整默认五链／48项、实际bootstrap与背包／地图、同物使用和动态待补 |
 | V02 | 植被轮廓与空间层次 | Doing：V02a追加v24树型及斑块；V02b按生产根关联修复已复现视距残冠，双配置资源180／Release完整2538／GPU及容量、公开切档重进通过，v1–v29调查保持；完整路线与全部场景待补 |
 | V03 | 局部地形和过渡 | Doing：V03a追加v25支脊／浅槽／平台及实际坡度材料，旧v1–v24逐字节保持，Release2243项／Debug相关198项通过；V06a联动河谷宽窄与非对称岸坡；V03b追加v30少量岩柱、双配置纯43／实际136及Release2674项通过，旧v1–v29输出和未来区块保持；普通连续路线、峡口／高台与完整覆盖待补 |
 | V04 | 天空、远景、昼夜 | Doing：V04a 拆分连续宽云带、收整云缘和低仰角条纹；GPU49项、双配置资源和林地日夜小批通过，V11a补三景24组四时段／FOV静态，其他生态及普通动态待补 |
@@ -2259,7 +2273,8 @@ Release替换配置与新目录；省略`--run`只编译／链接。须先完成
 
 功能负例与ASan正控／负例分别记录。ASan仅为生产TextureBuffer TU和同源码fixture加instrumentation；
 真实栈为fixture分配503行→public upload506行→生产memcpy266行。
-正常源depth正控exit0、68／0、GL0；旧depth故障r1实际SIGABRT（exit -6），触发系统异常对话框，用户已确认。
+正常源depth正控exit0、68／0、GL0；旧depth故障r1实际SIGABRT（exit -6），触发系统异常对话框。
+用户异常文件中的PID`23586`已核对为这次受控ASan故障进程；不归为普通客户端崩溃。
 `negative-build-r1/asan-exit-policy-r2.json`记录同二进制复验`abort_on_error=0:exitcode=1:halt_on_error=1`：
 正控仍exit0／68／0／GL0，故障正常exit1、非signal终止，仍保留heap-overflow READ32／16B检测。
 检测与失败退出仍开启，r1原日志／信号证据保留；不把退出策略改动称为关闭sanitizer。
@@ -2296,3 +2311,116 @@ launcher只设置资源根，不带诊断seed／机位／worldclock；旧工作�
 具体接点和证据边界在`remaining-scope-audit.json`，普通采集／使用／近墙／三seed探索／保存重进仍待正常输入。
 旧Ogre缺陷由V11b新版本关闭，V09c历史FAIL记录保持；V00路线、V01–V10全部余项和V11整合不缩水。
 严格配对性能、人类审美／听感及独立试玩按用户原延期；全部方向仍Doing，宿主Goal仍active。
+
+
+## V01f：手持与掉落物动态图集路由（2026-10-05）
+
+### 实现与语义边界
+
+实现提交`f32c053562619949d5f89380aa26706060e99279`，九个文件已按提交逐项哈希核对。
+生产Player／Actor原先把每面tile除以16；在合法v1的32／23列profile下，实际手持／掉落会落到错误格。
+两消费者现在共同取冻结`BlockTextureCoordinates`的半像素格原点；Alpha挤出缓存按冻结profile的
+`tilePixels`读取真实有效PNG，替换`atlas.width/16`。重复坐标、uv2光照、uv3显式root0、cube几何和声明／索引布局保持；
+挤出图标轮廓按有效mask恢复。
+
+合法v1仍允许非16列，分别以512／16／32和368／16／23的独立进程实际解析／冻结验证。
+v2的固定256层HMT绑定16×16语义格；同owner完整v2非16列包在profile freeze明确拒绝，
+不把这个不支持的数组布局静默降级为兼容路径。资源Smoke新增边界检查，双配置各201项。
+保存12／terrain30／map4／settings11、方块／物品ID、配方／掉落和正式资源／shader未改。
+
+独立tile身份由OakPlank `(5,1)`、Cobblestone `(7,1)`、Chest `(0,1)`、Workbench `(1,1)`及
+OakBark侧面 `(4,0)`／顶底 `(5,0)`固定语义坐标核对。软件检查采用实际float
+`floor(UV*tiles_per_row)`，不把生产表达式`tile/N`相等当作外部语义合同。
+23列的`7/23*23`在float32可为`6.9999995`；半像素内移保证格身份，新增12个
+`NEW_HALF_TEXEL/.../safe-cell-origin`工程断言单独分类。这些新增断言在旧默认包的FAIL
+不是默认旧材质路由缺陷；旧默认实际GPU采样保持通过。
+
+### 软件生产对象与Before／After
+
+证据根`build/visual-experience-polish-20260928/v01f/`。软件入口
+`bash scripts/verify_item_material_binding.sh Debug <仓库根> <新输出目录>`，Release替换配置；
+要求先完成对应正常客户端构建并检查实际依赖／对象新鲜度，记录源、对象、库、命令与各阶段exit。
+每种profile使用独立进程，从真实ResourcePackResolver冻结有效视图、runtime profile及BlockDatabase开始，
+调用实际OgrePlayerRenderer手持和OgreActorRenderer掉落，使用真实ItemEntity快照及软件VBO。
+没有GPU／窗口或私有访问；正式消费者对象接线不能由复制UV公式代替。
+
+| 软件证据 | 默认v2 | 合法v1 32列 | 合法v1 23列 | 分类 |
+| --- | --- | --- | --- | --- |
+| r2 Before | 51／0 | 51／14 | 未运行 | 原路由与Alpha mask基线，compile／link0；原证据保留 |
+| r3 Before旧语义／Alpha失败 | 0 | 14 | 8 | 独立实际格身份、root／重复与挤出mask；三种profile／PNG合法检查全部PASS |
+| r3 Before新增安全编码失败 | 12 | 12 | 12 | 新半像素工程预期；不计作原默认用户缺陷 |
+| r3 Before总计 | 63／12 | 63／26 | 63／20 | compile／link0，软件test各exit1，inputs保持 |
+| After Debug | 63／0 | 63／0 | 63／0 | 三模式compile／link／test／overall0、inputs保持 |
+| After Release | 63／0 | 63／0 | 63／0 | 同一冻结工具／脚本，实际对应生产对象，全部exit0 |
+
+32／23列fixture均为实际v1八键profile＋有效PNG的两项override；PNG保留独立固定语义格，
+WoodenPickaxe `(2,2)`使用三个不相邻Alpha像素，独立四邻边界期望12侧面＋前后面、56顶点。
+旧缓存错误输出264顶点，真实生产挤出路径由目标断言拒绝；它不是仅检查坐标公式的测试。
+r3的23列旧8FAIL与32列14FAIL不同，部分小坐标旧除16偶然仍落正确格，未增加重复计数。
+r1／r2完整原证据及r3所有原FAIL保留。冻结软件源SHA`ecff5854…2e74`、脚本SHA`f19d6bc9…6b51`。
+
+正常验证见`normal-verification-r1.json`：串行八次实际客户端／资源目标构建、资源运行和软件入口，
+Debug／Release客户端与资源构建全部exit0、first-party warning0，资源各201／0；409个首方源码输入保持。
+本轮未改World步进，未重跑完整World；既有有效World／动物／纹理范围按真实源码复用。
+
+### 原缓冲GPU重放与资源边界反例
+
+软件导出实际VBO／IBO完整byte、原vertex declaration的source／offset／type／component／stride、
+vertex／index start与count、indexType及world transform，协议`hellomine3d-item-binding-raw-operation-v1`。
+`tools/validate_item_material_binding_macos.cpp`读取原byte，绑定原声明，绘制原六索引面片；
+没有重新构造语义quad。Root运行同一冻结native二进制，实际生产Terrain.vert／Terrain.frag不改，
+数组变体只按生产入口加`TERRAIN_ARRAY`定义。命令为`<native helper> <仓库根> <软件模式输出目录> <新GPU目录>`。
+
+| 实际native重放 | Before | After | 范围 |
+| --- | --- | --- | --- |
+| 默认v2 | 480／0、exit0 | 480／0、exit0 | atlas与array两路各240像素断言 |
+| 合法v1 32列 | 240／240、exit1 | 240／0、exit0 | atlas原格路由失败→恢复 |
+| 合法v1 23列 | 240／144、exit1 | 240／0、exit0 | atlas部分旧格路由失败→恢复 |
+
+六次native执行均GL0、inputs保持；见`native-{before,after}-r1/runner-receipt.json`。
+240是五种cube材料×手持／掉落×六面×四个内部像素，480为默认双路径像素数；
+不是240个消费者身份链或完整48项验收。实际Apple M1 Pro／GL4.1 Metal，ImageIO读取有效PNG，
+生产有界CPU loader校验HMT后作诊断GL上传；nearest基级及中性光照／雾uniform隔离材质身份。
+这不等同实际客户端TerrainArrayLoader纹理上传／bootstrap TUS，也不覆盖ImGui背包／地图、
+图标GPU轮廓、mip、普通光照动态或正常使用。正式shader保持不变。
+
+`profile-boundary-probe/`在修改前用同owner完整profile／PNG／HMT三项override证明v2非16列
+实际资源门禁均接收，却将Workbench映射为layer33而非独立期望17，probe实际CONTRACT_FAIL exit3。
+`profile-boundary-after-r1/`用相同冻结probe与字节相同fixture、正常Release139对象／17库重验，
+compile／link0、warning0、705原输入保持；非法v2在`RuntimeTerrainMaterialProfile::freezeFromResourceView`
+得到specific RESOURCE_REJECTED exit1：`v2 requires tiles_per_row=16 for the fixed 256-layer array.`
+默认v2与合法v1两正控仍exit0，不将编译失败或不合法v1当作路由缺陷。见两份`terminal-audit.json`。
+普通客户端日志`version=2`打印静态ContractVersion，实际legacy32 pack／profile仍v1／512／16／32；
+`legacy32-log-version-origin-r1.json`核对该日志字段歧义，没有重写profile或旧捕获。
+
+`closure-evidence-r1.json`为上述工程范围PASS；它不关闭完整材质链或Goal。
+`alarm-origin-check-r1.json`直接核对系统异常ips的PID23586／SIGABRT来自V11b受控ASan故障，
+r2同一二进制正控68／0、故障普通exit1仍READ32／16B；未重跑故障或改系统全局设置。
+
+### 原图、保护、包装与剩余范围
+
+14次后台冷启动共28张2560×1440原生PNG，窗口1280×720点；全部CAPTURED且errorlines为空，
+`capture-audit-r1.json`PASS。Root已查看r1菜单及水下诊断图、r2真实森林六图；水下r1原证据保留。
+真实林地seed20260807、位置`976.5 86 -3.5`的32列石剑，第一／第三人称Before完全不可见，
+After恢复灰色剑身和轮廓；默认第三人称保持。固定机位只证明本次外观，不替代普通输入或动态。
+
+精选`v01f-item-material-binding/`保存menu r1及legacy32第一／第三人称forest r2各一后／一前，
+共3后／3前原图，不裁切／缩放／调色。全区34轮152图（96后／56前），全部源／归档SHA匹配，
+以`selected-archive-r2.json`为终态。r1统计脚本KeyError及错误119／33统计保留；r2统一早期
+`comparison_role/role/phase/kind`字段，仅修正统计元数据，没有回写旧manifest entry或改图。
+
+捕获后五个保护包172／137／137／147／137共730项和Before137项完整集合／字节保持，
+原用户存档与配置保留，原生进程查询无客户端PID。Before仍是干净旧`17751eca`；
+捕获package identity为`17751eca`＋dirty diff`8b5e1243…573a62`，不改写为后来`f32c0535`。
+新候选`v01f/After.app`，bundle `local.hellomine3d.visual-polish-items`，Release SHA
+`3064212bc328fa5c1a2cd4e9cacb442985fa9ff71ed0dca410e8cb3758890c01`，Debug SHA
+`9195a3b1eb9e047e757694cc8e7406ed75700d50573b02b88579d2065863bab3`。
+普通配置SHA`70d9f6e90b8c362a232f961cd2f768138a0f0f7245e1cb07b338e48a86316047`保持；
+普通launcher只设置资源根，不强制seed／机位／时刻，独立候选不原位刷新旧包。
+提交后的最终包身份、zeroPID、135管理项／2953源码、普通配置及730＋Before137保护复核见
+`v01f/postcommit-verification-r1.json`；抓图元数据保留当时身份，交付收据与抓图分开记录。
+
+普通CUA仍UNKNOWN、normal_input NOT_RUN，没有新普通客户端输入会话；完整默认五链／48项继续开放。
+下一步整合实际生产纹理bootstrap、世界／背包／地图消费者及普通采集／放置／手持／掉落；
+随后推进V07近墙／低顶与现有Fern真实网格风摆。V01–V11全部剩余范围不缩减，Goal仍active／Doing；
+人类审美／听感、独立试玩和严格配对性能沿用原延期。

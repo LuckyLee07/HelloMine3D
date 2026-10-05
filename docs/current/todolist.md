@@ -142,16 +142,35 @@ V07e（`58492a57`）以真实最高角列支持允许正常0.05秒小步跨一�
 普通路线、V09c的普通视距／保存重进及旧Ogre格式探测错误、工作台完整制作、其余UI／地图和超长错误通知滚动覆盖继续。
 
 
-**最新：2026-10-05 V11b已本地提交`818b6398`，总Goal仍active，V01–V11仍Doing。**
+**历史检查点：2026-10-05 V11b已本地提交`818b6398`，总Goal仍active，V01–V11仍Doing。**
 旧GL3Plus启动格式探测与A8 alpha／B5位序／八种SNORM语义已局部修复；冻结旧源码新基线仍1／1、GL0x500，
 新生产库双配置严格启动各1／0、洞穴各54／0、纹理各68／0、GL0，旧V09c总体FAIL保持历史。
 四个功能负例分别68／1、68／9、68／22（texture GL2）及68／8；ASan旧depth故障从16B堆源读32B。
-r1 SIGABRT触发用户确认的系统异常对话框；r2同二进制保留检测、故障正常exit1，正控68／0、GL0，NED内部staging边界不作声明。
+r1 SIGABRT触发系统异常对话框，用户ips PID23586已核对为受控ASan故障；r2同二进制保留检测、故障正常exit1，正控68／0、GL0，NED内部staging边界不作声明。
 新普通菜单候选`build/visual-experience-polish-20260928/v11b/After.app`运行时为`818b6398`，最终干净包身份见本批收据，Release SHA`0312a17a…0db8a`，
 135管理项／2953源码（GL3Plus71）逐项哈希及普通配置核对；旧包、存档保持。三组原图3后／3前归档，
 精选33轮146张（93后／53前），捕获保留`00a54934`及实际dirty身份。公开CUA r2超时／重置，桌面UNKNOWN、普通输入NOT_RUN。
 下一步查现有OakPlank／Cobblestone／Chest／Workbench在世界、手持、掉落、背包、地图五条身份链，
 再补真实近墙／低顶镜头和现有Fern风摆；普通连续路线、视距／保存重进、动物遭遇及其他全部缺项继续，
+见[本阶段执行报告](../reports/visual-experience-polish-execution-2026-09-28.md)。
+
+**最新：2026-10-05 V01f已本地提交`f32c0535`，总Goal仍active，V01–V11仍Doing。**
+实际生产手持／掉落改用冻结profile的半像素格原点，Alpha挤出cache按tilePixels读取有效PNG，
+修复合法v1的32／23列图集路由与轮廓；v2固定256层数组只接受16列，同owner完整非16列包明确拒绝，合法v1保持。
+双配置客户端／资源正常构建first-party warning0，资源各201／0，实际生产软件VBO三模式各63／0。
+原r2默认51／0、32列51／14不改写；r3 Before默认63／12、32列63／26、23列63／20，其中各12项
+为新增半像素安全编码工程断言，默认旧语义失败为0。GPU用原VBO／IBO与生产GLSL，Before默认480／0、
+32列240／240、23列240／144，After480／0＋240／0＋240／0，GL全0；像素数不等同完整材质链。
+同owner完整v2非16列probe从CONTRACT_FAIL exit3变为specific RESOURCE_REJECTED exit1，两正控0、705输入保持。
+`closure-evidence-r1.json`仅为本批工程范围PASS；世界生成与actor领域、正式纹理／shader未改，没有完整World重跑。
+14次后台冷启动／28张原PNG；合法32列石剑第一／第三人称Before不可见，After恢复轮廓与灰色剑身，默认第三人称保持。
+menu r1与林地legacy32第一／第三人称r2各后／前共6图已归档，精选34轮152张（96后／56前），全部源／归档SHA匹配；
+水下r1和统计元数据错误保留，以`selected-archive-r2.json`为终态。捕获后730保护项与Before137项保持，zeroPID。
+新候选`build/visual-experience-polish-20260928/v01f/After.app`Release SHA`3064212b…890c01`，普通配置SHA`70d9f6e9…16047`保持；
+捕获身份为`17751eca`＋dirty diff`8b5e1243…573a62`，不改写为后来的实现提交；最终干净包身份及保护核对见
+`v01f/postcommit-verification-r1.json`。日志version=2是静态ContractVersion，实际legacy32 profile仍v1，字段歧义已核对。
+CUA仍UNKNOWN、普通输入NOT_RUN，完整默认五链／48项未闭合；继续实际bootstrap／世界／背包／地图接线和普通使用，
+再补近墙／低顶镜头与现有Fern生产网格风摆，不以非16列修复代替默认完整五链或总Goal完成。
 见[本阶段执行报告](../reports/visual-experience-polish-execution-2026-09-28.md)。
 
 **2026-09-28 冒险世界体验升级已由用户阶段放行，旧宿主 Goal 已删除。**
