@@ -2590,6 +2590,11 @@ Release CPU运行使用r6测试代码（与正式文件仅头部注释不同）�
 5. 原图归档r1数字漏两种role，原图与SHA未错；r2使用comparison_role/role/phase/kind＋早期8upgrade-only归一，终态36／161／102／59。
    r1及历史条目不删、不回写失败，最终提交SHA只补当前新round。
 
+6. 首次最终包wrapper exit1：fresh After在刷新前后均136文件，尚未复制旧普通`bin/config.txt`；packager本身exit0，
+   仅build-identity和distribution收据改变，没有删除设置。`package-final-r1-failure.json`保留；
+   Root补回Before已核对705B／SHA70d9设置，新最终检查明确区分普通config.txt与Ogre Mine.cfg。
+   运行时和原GPU证据不变，不重跑已通过专项；刷新新文档Git身份后以137文件／全部SHA作为交付条件。
+
 公开Computer Use在用户确认异常对话框这一外部状态更新后尝试新观察：documentation成功，getState实际30.0097秒超时并reset；
 `v07f/cua-current-r1.json`状态UNKNOWN／普通输入NOT_RUN。未发送输入或通过OS事件、AppleScript绕过。
 

@@ -196,7 +196,7 @@ CUA当前实际超时reset，桌面UNKNOWN、普通输入NOT_RUN；诊断库存�
 与V11b旧受控ASan SIGABRT（PID23586）分开归因；不关闭系统报告，也不重复运行原崩溃二进制。
 标准／兼容实际六帧各GL0，独立矩阵／完整near quad SAT／驻留元数据各123／0；旧Before111／2SATFAIL、exit1保持。
 第一人称near约0.08621，恢复0.1；实际九对象队列／UI显示标志一致，原GPU几何、手部像素、ABA及bound uniform仍OPEN。
-早期45秒夹具超时、交接SHA拒绝和精选角色统计错误保留，修后必要检查通过。已有假存档入口正常exit1／无signal／marker保持；
+早期45秒夹具超时、交接SHA拒绝、精选角色统计和首次交付缺普通config.txt错误保留；补回旧配置后按137文件终态核对。已有假存档入口正常exit1／无signal／marker保持；
 普通菜单前后四PNG相同。七旧包1004项及Before137项保持，zeroPID；3后／3前归档，精选36轮161张（102后／59前）。
 新普通候选`build/visual-experience-polish-20260928/v07f/After.app`Release SHA`193c968d…61a9e`，
 普通配置保持；最终135管理项／2959源码与干净身份以本批`postcommit-verification-r1.json`的PASS为交付条件；捕获保留0fa3ac8b＋实际dirty，不改写为本地提交。
