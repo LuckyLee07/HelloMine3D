@@ -103,6 +103,8 @@ def main():
     parser.add_argument("--hud-fixture", action="store_true")
     parser.add_argument("--material-identity", action="store_true",
                         help="Capture nine actual material-consumer phases in a new isolated world (diagnostic input only)")
+    parser.add_argument("--camera-diagnostics", action="store_true",
+                        help="Capture six normal render-camera/scene phases in a new isolated world (diagnostic input only)")
     parser.add_argument("--inspect-slot", type=int, choices=range(5), help="Item detail diagnostic; requires pointer panel and HUD fixture")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--panel", choices=("crafting", "container", "furnace", "crusher", "settings", "map", "journal", "pointer"))
@@ -143,6 +145,17 @@ def main():
         parser.error("Inherited player motion fixture is not accepted; use --player-motion explicitly")
     if "HELLOMINE3D_MATERIAL_IDENTITY_CAPTURE_DIR" in os.environ:
         parser.error("Inherited material identity fixture is not accepted; use --material-identity explicitly")
+    if "HELLOMINE3D_CAMERA_DIAGNOSTICS_DIR" in os.environ:
+        parser.error("Inherited camera diagnostics are not accepted; use --camera-diagnostics explicitly")
+    if args.camera_diagnostics and (args.foreground or args.performance or args.player_motion or
+            args.actor_visual or args.hud_fixture or args.panel or args.material_identity or
+            args.scene == "menu" or args.reuse_app or args.save_template or args.streaming or
+            args.position or args.rotation or
+            args.render_distance != 1 or args.visual_detail not in ("standard", "compatibility") or
+            args.launch_method != "direct" or args.capture_ms != "5000,10000" or
+            args.terrain_fallback or args.atmosphere_fallback or os.environ.get("HELLOMINE3D_RESOURCE_PACKS") or
+            args.fov != 120 or args.width != 1920 or args.height != 640):
+        parser.error("--camera-diagnostics requires a new hidden default-pack RD1 world, explicit standard/compatibility, direct launch, FOV120 and 1920x640 points")
     if args.material_identity and (args.foreground or args.performance or args.player_motion or
             args.actor_visual or args.hud_fixture or args.panel or args.inspect_slot is not None or
             args.scene == "menu" or args.reuse_app or args.save_template or
@@ -150,7 +163,7 @@ def main():
             args.launch_method != "direct" or args.capture_ms != "5000,10000" or
             args.terrain_fallback or args.atmosphere_fallback or os.environ.get("HELLOMINE3D_RESOURCE_PACKS")):
         parser.error("--material-identity requires a new hidden default-pack world, RD1, explicit standard/compatibility, direct launch, and no other fixtures")
-    if args.material_identity:
+    if args.material_identity or args.camera_diagnostics:
         other_fixtures = ("HELLOMINE3D_BLOCK_FEEDBACK_CAPTURE", "HELLOMINE3D_COMBAT_FIXTURE",
             "HELLOMINE3D_CONTAINER_FIXTURE", "HELLOMINE3D_CRAFTING_FIXTURE", "HELLOMINE3D_CROP_FIXTURE",
             "HELLOMINE3D_MACHINE_FIXTURE", "HELLOMINE3D_ORE_FIXTURE", "HELLOMINE3D_SPAWN_VALIDATION_ACTORS",
@@ -257,6 +270,10 @@ seed random
         environment["HELLOMINE3D_MATERIAL_IDENTITY_CAPTURE_DIR"] = str(output / "material-identity")
         environment["HELLO_RENDER_CAPTURE_MS"] = "60000"
         environment["HELLO_RENDER_CAPTURE_EXIT"] = "0"
+    if args.camera_diagnostics:
+        environment["HELLOMINE3D_CAMERA_DIAGNOSTICS_DIR"] = str(output / "camera-diagnostics")
+        environment["HELLO_RENDER_CAPTURE_MS"] = "60000"
+        environment["HELLO_RENDER_CAPTURE_EXIT"] = "0"
     if args.terrain_fallback:
         environment["HELLOMINE3D_FORCE_LEGACY_TERRAIN"] = "1"
     if args.player_motion:
@@ -265,6 +282,8 @@ seed random
         position, rotation = SCENES[args.scene]
         position = args.position or position
         rotation = args.rotation or rotation
+        if args.camera_diagnostics:
+            position, rotation = "0.5 200 0.5", "0 0 0"
         for value in (position, rotation):
             try:
                 if len(value.split()) != 3:
@@ -324,6 +343,7 @@ seed random
               "save_template_meta_sha256": template_meta_sha256,
               "package_identity": identity,
               "scene": args.scene, "settings": settings, "environment": environment,
+              "diagnostic_fixture": "camera-fixed-resident-origin" if args.camera_diagnostics else None,
               "inherited_diagnostic_environment": {
                   key: os.environ[key] for key in (
                       "HELLOMINE3D_VISUAL_CAMERA_SWEEP", "HELLOMINE3D_VISUAL_CAMERA_PATH",
@@ -351,8 +371,9 @@ seed random
             record["peak_child_rss_bytes"] = int(
                 resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss)
         frames = sorted((output / "material-identity").glob("client-*.png")) if args.material_identity else \
+            sorted((output / "camera-diagnostics").glob("*.png")) if args.camera_diagnostics else \
             sorted((output / "frames").glob("*.png"))
-        expected_frames = 9 if args.material_identity else (0 if args.performance else len(capture_times))
+        expected_frames = 9 if args.material_identity else (6 if args.camera_diagnostics else (0 if args.performance else len(capture_times)))
         if len(frames) != expected_frames:
             raise RuntimeError(f"Expected {expected_frames} captured frames, got {len(frames)}")
         # Window points and framebuffer pixels differ on Retina displays. Require

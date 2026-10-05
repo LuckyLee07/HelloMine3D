@@ -1,6 +1,6 @@
 # 冒险玩家全身表现合同 v1
 
-状态：`V07c 四向移动混合已接入，连续输入验收待补`
+状态：`V07f 真实近墙相机整合工程通过，连续输入验收待补`
 适用范围：`src/HelloMine3D/Presentation/PlayerAvatarPresentation.h`、
 `src/HelloMine3D/Presentation/ThirdPersonCameraPresentation.h`、
 `src/HelloMine3D/Ogre/OgrePlayerRenderer.*`
@@ -62,9 +62,17 @@ B8c 固定以下运行时语义：
 - 第三人称相机只替换渲染相机。选取、攻击、流送和固定 tick 继续使用权威逻辑相机；
 - 肩后相机按实际垂直 FOV 在 2.4–6 m 内调整后距，固定 0.85 m 侧移和 0.25 m 抬高，始终朝向
   权威逻辑视线前方 6 m 的稳定汇聚点；目标距离变化不能带动整个镜头跳动；
-- 相机沿完整肩后对角线执行 sweep，半径由当前 near clip、垂直 FOV 和宽高比的近裁面角点包络派生。
+- 相机沿完整肩后对角线执行 sweep，半径由独立 nominal near clip、垂直 FOV 和宽高比的近裁面角点包络派生。
   正式支持 FOV 45–120、宽高比 0.5–3.0 和 near clip 0.01–0.1 m；输入超出该范围时安全回退
   第一人称，不能以过小碰撞体继续第三人称；
+- `OgreThirdPersonCameraRig` 只读实际逻辑相机、Player 尺寸和 World，写入渲染相机与表现状态。
+  第一人称及遮挡回退按眼部到附近可碰撞单位方块的最近距离，扣除原有 0.02 m 余量后，
+  以完整近裁面角点包络限制实际 render near；默认 nominal 为 0.1 m，最小实际 near 为 0.01 m。
+  缩小即时生效（包括 `delta=0`）；开放第一人称和恢复第三人称当帧回到 nominal。
+  动态 render near 不反馈第三人称投影支持或 sweep 半径，nominal 0.2 m 仍不得借缩小 near 进入第三人称。
+  额外探测最多 128 个方块，计入原有每帧 2048 查询总预算；先检查完整范围和剩余预算，
+  不以部分扫描声称安全。空 World、非法输入、预算拒绝、眼部嵌入或最小 near 仍无足够净空均明确标记 unresolved。
+  查询沿用 `World::getBlock` 的现有驻留语义，不加载新区块；未加载／并发变更的全局几何安全不由该标志证明。
 - 相机先按实际可碰撞方块 sweep／缩距，再检查玩家世界坐标 AABB。镜头仍落在角色体内时沿用滞回
   回退第一人称；离开遮挡后恢复用户请求的第三人称；
 - 白色主准星保持在稳定肩后镜头中心；当前帧已有方块／实体权威选择时，另以小型金色目标点显示
@@ -164,3 +172,21 @@ Reduced 强度；工具满包络的派生目标消除工作臂各轴步态，画
 定向纯值验证补充同相位四向脚端、yaw 旋转等价、对角与速度归一化、无效／零水平
 速度、Off／Reduced、完整工具包络抑制、独立角点脚底／腿分离、换向和停止，以及
 30／60 Hz 相同时间收敛。全部前进、取消脚底修正和只抑制 X 的故障应被拒绝。
+
+
+## 9. V07f 真实 World／Ogre 相机整合
+
+正常双配置客户端构建后，macOS x64 可用
+`python3 -B tools/tests/prepare_camera_world_oracle.py --configuration Debug --output <新目录> --run`
+（Release 替换配置）编译并链接同配置实际生产对象。默认不加 `--run` 仅编译和准备命令。
+当前两配置各 **5979／0**，208 个真实驻留场景样本；独立双精度两三角形／13 轴 SAT 检查整个实际
+Ogre 近裁面，涵盖宽 FOV、侧墙、低顶、墙角、30／120 Hz、暂停及回退／恢复。
+实际软件 VBO 校验八部件与持物的变换、可见性及缓存，Player／库存、逻辑相机和 World 修订保持。
+未初始化的生产 GL3Plus RenderSystem 提供实际深度投影转换，并枚举本机能力；不创建 context／窗口或绘制。
+
+实际客户端 `--camera-diagnostics` 在新隔离存档中注入六个固定场景；标准／兼容各六帧 GL0，
+独立 `tools/tests/camera_capture_oracle.py` 各 **123／0**。旧 near 策略的实际 Before 在第一人称侧墙和
+墙角回退两处 SAT 失败；新策略实际 near 约 0.08621 m，开放／第三人称恢复 0.1 m。
+观察器的 main-camera AutoParamDataSource 回调位于 GPU 参数绑定前，不是实际 GL uniform 读取。
+原 GPU 几何／三角形可见性、手部像素归因、原子驻留／ABA 以及普通输入／连续舒适度仍为 OPEN。
+静态夹具与软件 VBO 不关闭第 5 节普通动态验收；详见本阶段执行报告 V07f。

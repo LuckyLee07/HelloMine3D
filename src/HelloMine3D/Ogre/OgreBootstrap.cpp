@@ -1,6 +1,8 @@
 #include "OgreBootstrap.h"
 #include "OgreActorRenderer.h"
 #include "OgrePlayerRenderer.h"
+#include "OgreThirdPersonCameraRig.h"
+#include "OgreCameraDiagnostics.h"
 #include "OgreCaveBoundaryRenderer.h"
 #include "../Actor/EnemyPresentationGallery.h"
 #include "../Presentation/DirectionalShadowPresentation.h"
@@ -38,6 +40,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
+#include <filesystem>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -600,14 +603,31 @@ namespace
             configureRenderSystem();
             const char* catalogueOverride =
                 std::getenv("HELLOMINE3D_CATALOGUE_DIR");
+            const char* saveOverride = std::getenv("HELLOMINE3D_SAVE_DIR");
+            const char* cameraDiagnosticDirectory = std::getenv(
+                "HELLOMINE3D_CAMERA_DIAGNOSTICS_DIR");
+            if (cameraDiagnosticDirectory != nullptr && cameraDiagnosticDirectory[0] != '\0')
+            {
+                if (saveOverride == nullptr || saveOverride[0] == '\0' ||
+                    catalogueOverride == nullptr || catalogueOverride[0] == '\0' ||
+                    std::filesystem::exists(saveOverride) ||
+                    std::filesystem::exists(catalogueOverride) ||
+                    std::filesystem::exists(cameraDiagnosticDirectory))
+                    throw std::runtime_error("Camera diagnostics require fresh save, catalogue and output directories.");
+                const auto parent = std::filesystem::weakly_canonical(
+                    std::filesystem::path(cameraDiagnosticDirectory).parent_path());
+                if (parent != std::filesystem::weakly_canonical(
+                        std::filesystem::path(saveOverride).parent_path()) ||
+                    parent != std::filesystem::weakly_canonical(
+                        std::filesystem::path(catalogueOverride).parent_path()))
+                    throw std::runtime_error("Camera diagnostic directories must share the new session directory.");
+            }
             m_worldManagement =
                 std::make_unique<WorldManagementService>(
                     catalogueOverride != nullptr &&
                             catalogueOverride[0] != '\0'
                         ? catalogueOverride
                         : ResourcePaths::bin("saves"));
-            const char* saveOverride =
-                std::getenv("HELLOMINE3D_SAVE_DIR");
             const bool directLaunch =
                 (saveOverride != nullptr && saveOverride[0] != '\0') ||
                 isTrueValue(std::getenv(
@@ -1085,6 +1105,33 @@ namespace
                 m_materialIdentityOutput = identityOutput;
                 std::cout << "[MATERIAL_IDENTITY_CAPTURE] evidence=developer-diagnostic normal_input=0 fixture=resident-query-columns simulation_delta=0\n";
             }
+            const char* cameraOutput = std::getenv(
+                "HELLOMINE3D_CAMERA_DIAGNOSTICS_DIR");
+            if (cameraOutput != nullptr && cameraOutput[0] != '\0')
+            {
+                if (!isTrueValue(std::getenv("HELLOMINE3D_WINDOW_HIDDEN")) ||
+                    !isTrueValue(std::getenv("HELLO_RENDER_CAPTURE")) ||
+                    initialSaveDirectory.empty() ||
+                    std::getenv("HELLOMINE3D_SAVE_DIR") == nullptr ||
+                    std::getenv("HELLOMINE3D_CATALOGUE_DIR") == nullptr ||
+                    RuntimePerformanceCapture::isEnabled() ||
+                    std::getenv("HELLOMINE3D_RC_PERF_PROFILE") != nullptr ||
+                    std::getenv("HELLOMINE3D_E2_BATCH_MANIFEST") != nullptr ||
+                    m_visualCameraSweep.enabled || !m_playerMotionCapture.empty() ||
+                    !m_actorVisualCapture.empty() || !m_materialIdentityOutput.empty())
+                    throw std::runtime_error("Camera diagnostics require a hidden isolated world without other diagnostics.");
+                for (const char* name : {"HELLOMINE3D_BLOCK_FEEDBACK_CAPTURE",
+                         "HELLOMINE3D_COMBAT_FIXTURE", "HELLOMINE3D_CONTAINER_FIXTURE",
+                         "HELLOMINE3D_CRAFTING_FIXTURE", "HELLOMINE3D_CROP_FIXTURE",
+                         "HELLOMINE3D_MACHINE_FIXTURE", "HELLOMINE3D_ORE_FIXTURE",
+                         "HELLOMINE3D_SPAWN_VALIDATION_ACTORS", "HELLOMINE3D_TRANSPARENT_FIXTURE",
+                         "HELLOMINE3D_VERTEX_LIGHTING_FIXTURE", "HELLOMINE3D_VERTICAL_SLICE_FIXTURE",
+                         "HELLOMINE3D_HUD_FIXTURE", "HELLOMINE3D_HUD_PAGE_FIXTURE"})
+                    if (std::getenv(name) != nullptr)
+                        throw std::runtime_error(std::string("Camera diagnostics cannot combine fixture ") + name);
+                m_cameraDiagnosticOutput = cameraOutput;
+                std::cout << "[CAMERA_DIAGNOSTICS] normal_input=0 isolated_world=1 simulation_delta=0 camera_sweep=0\n";
+            }
             const bool hiddenWindow = isTrueValue(
                 std::getenv("HELLOMINE3D_WINDOW_HIDDEN"));
             m_hiddenWindow = hiddenWindow;
@@ -1123,7 +1170,7 @@ namespace
             m_camera = m_sceneManager->createCamera("PlayerCamera");
             m_camera->setPosition(0.0f, 1.0f, 5.0f);
             m_camera->lookAt(0.0f, 1.0f, 0.0f);
-            m_camera->setNearClipDistance(0.1f);
+            m_camera->setNearClipDistance(m_nominalCameraNearClipDistance);
             m_camera->setFarClipDistance(10000.0f);
             m_camera->setFOVy(
                 Ogre::Degree(static_cast<Ogre::Real>(m_config.fov)));
@@ -1142,6 +1189,9 @@ namespace
             if (!m_materialIdentityOutput.empty())
                 m_materialIdentityCapture = std::make_unique<MaterialIdentityCapture>(
                     m_materialIdentityOutput);
+            if (!m_cameraDiagnosticOutput.empty())
+                m_cameraDiagnostics = std::make_unique<OgreCameraDiagnostics>(
+                    m_cameraDiagnosticOutput, *m_sceneManager);
             m_sceneManager->setAmbientLight(
                 Ogre::ColourValue(0.7f, 0.7f, 0.7f));
             m_sceneManager->setSkyBox(
@@ -2488,6 +2538,7 @@ namespace
                 activatePendingWorld();
             }
             prepareMaterialIdentityCapture(event.timeSinceLastFrame);
+            prepareCameraDiagnostics(event.timeSinceLastFrame);
             const bool sandboxAdvanced =
                 updateSandbox(event.timeSinceLastFrame);
             if (!sandboxAdvanced && m_sandbox != nullptr)
@@ -2515,6 +2566,7 @@ namespace
                 }
             }
             observeMaterialIdentityGeometry();
+            observeCameraDiagnostics();
             if (m_userInterface != nullptr)
             {
                 const MiningProgressSnapshot progress =
@@ -2555,6 +2607,21 @@ namespace
                 ++m_materialIdentityPhase;
                 m_materialIdentityPhaseSeconds = 0.f;
                 m_materialIdentityFramePending = false;
+            }
+            if (m_cameraDiagnostics && m_cameraDiagnosticFramePending)
+            {
+                m_window->writeContentsToFile(m_cameraDiagnostics->framePngPath());
+                const auto error = glGetError();
+                std::cout << "[CAMERA_DIAGNOSTICS] phase=" << m_cameraDiagnosticPhase
+                    << " gl_error=" << error << '\n';
+                if (error != GL_NO_ERROR)
+                    throw std::runtime_error("Camera diagnostic backend reported a GL error.");
+                m_cameraDiagnostics->finishFrame(
+                    m_userInterface->isFirstPersonPresentationVisible());
+                ++m_cameraDiagnosticPhase;
+                m_cameraDiagnosticPhaseSeconds = 0.f;
+                m_cameraDiagnosticPhasePlaced = false;
+                m_cameraDiagnosticFramePending = false;
             }
             ++m_frameCount;
             return true;
@@ -2658,8 +2725,120 @@ namespace
                 m_exitAfterFrames > 0 &&
                 m_frameCount >= m_exitAfterFrames;
             return !(m_materialIdentityCapture && m_materialIdentityPhase >= 9) &&
+                   !(m_cameraDiagnostics && m_cameraDiagnosticPhase >= 6) &&
                    !captureComplete && !frameLimitReached &&
                    !RuntimePerformanceCapture::shouldCloseWindow();
+        }
+
+        void prepareCameraDiagnostics(float deltaSeconds)
+        {
+            if (!m_cameraDiagnostics || !m_world || !m_worldPlayer ||
+                !m_logicCamera || m_cameraDiagnosticPhase >= 6) return;
+            const auto now = std::chrono::steady_clock::now();
+            if (m_cameraDiagnosticStarted == std::chrono::steady_clock::time_point{})
+                m_cameraDiagnosticStarted = now;
+            if (now - m_cameraDiagnosticStarted > std::chrono::seconds(45))
+                throw std::runtime_error("Camera diagnostics exceeded the bounded resident run.");
+            m_cameraDiagnosticPhaseSeconds += std::isfinite(deltaSeconds)
+                ? std::clamp(deltaSeconds, 0.f, .25f) : 0.f;
+            if (m_cameraDiagnosticPhasePlaced) return;
+
+            // This fixture is confined to the new diagnostic world. Require the
+            // existing resident columns before writing; getBlock never loads.
+            const auto resident = m_world->collectSectionMeshSnapshot(false);
+            for (int x : {-1, 0}) for (int z : {-1, 0})
+                if (std::none_of(resident.liveSectionVersions.begin(),
+                        resident.liveSectionVersions.end(), [&](const auto& version)
+                        { return version.location.x == x && version.location.z == z; })) return;
+            int existingMaximumY = -1;
+            for (const auto& version : resident.liveSectionVersions)
+                existingMaximumY = std::max(existingMaximumY, version.location.y);
+            std::cout << "[CAMERA_DIAGNOSTICS] placing_phase=" << m_cameraDiagnosticPhase
+                << " existing_max_section_y=" << existingMaximumY << '\n';
+            for (int x = -7; x <= 7; ++x)
+                for (int z = -7; z <= 7; ++z)
+                    for (int y = 198; y <= 204; ++y)
+                        m_world->setBlock(x, y, z, BlockId::Air);
+            for (int x = -5; x <= 5; ++x)
+                for (int z = -5; z <= 5; ++z)
+                    m_world->setBlock(x, 198, z, BlockId::Stone);
+            auto sideWall = [&](int x)
+            {
+                for (int z = -1; z <= 4; ++z)
+                    for (int y = 199; y <= 204; ++y)
+                        m_world->setBlock(x, y, z, BlockId::Stone);
+            };
+            PlayerSaveState player = m_worldPlayer->getSaveState();
+            player.position = {.5f, 200.f, .5f};
+            player.rotation = {0.f, 0.f, 0.f};
+            if (m_cameraDiagnosticPhase == 0)
+            {
+                player.inventory.assign(5, {});
+                player.inventory[0] = {Material::OakPlank, 7, 0};
+                player.heldItem = 0;
+            }
+            if (m_cameraDiagnosticPhase == 1)
+            {
+                player.position.x = 1.05f;
+                sideWall(2);
+            }
+            else if (m_cameraDiagnosticPhase == 2)
+            {
+                player.rotation.x = 45.f;
+                for (int x = -3; x <= 4; ++x)
+                    for (int z = 1; z <= 6; ++z)
+                        m_world->setBlock(x, 202, z, BlockId::Stone);
+            }
+            else if (m_cameraDiagnosticPhase == 3 || m_cameraDiagnosticPhase == 4)
+            {
+                sideWall(1);
+                if (m_cameraDiagnosticPhase == 4)
+                    for (int x = -3; x <= 4; ++x)
+                        for (int y = 199; y <= 204; ++y)
+                            m_world->setBlock(x, y, 1, BlockId::Stone);
+            }
+            m_worldPlayer->applySaveState(player);
+            m_worldPlayer->box.update(m_worldPlayer->position);
+            m_logicCamera->update();
+            m_config.cameraPerspective = m_cameraDiagnosticPhase == 3
+                ? CameraPerspective::FirstPerson : CameraPerspective::ThirdPerson;
+            if (m_cameraDiagnosticPhase < 5) m_thirdPersonCameraState = {};
+            m_cameraDiagnosticPhasePlaced = true;
+            m_cameraDiagnosticPhaseSeconds = 0.f;
+        }
+
+        void observeCameraDiagnostics()
+        {
+            if (!m_cameraDiagnostics || !m_cameraDiagnosticPhasePlaced ||
+                m_cameraDiagnosticFramePending || m_cameraDiagnosticPhaseSeconds < 1.f)
+                return;
+            const auto resident = m_world->collectSectionMeshSnapshot(false);
+            for (int x : {-1, 0}) for (int z : {-1, 0})
+            {
+                const glm::ivec3 location(x, 12, z);
+                const auto current = std::find_if(resident.liveSectionVersions.begin(),
+                    resident.liveSectionVersions.end(), [&](const auto& version)
+                    { return version.location == location; });
+                const auto key = sectionKey(location);
+                const auto uploaded = m_materialIdentityMeshRevisions.find(key);
+                const auto gpu = m_sectionRenderStates.find(key);
+                if (current == resident.liveSectionVersions.end() ||
+                    uploaded == m_materialIdentityMeshRevisions.end() ||
+                    uploaded->second != current->blockRevision ||
+                    gpu == m_sectionRenderStates.end() || gpu->second != ChunkRenderState::GpuResident)
+                    return;
+            }
+            constexpr const char* phases[]{"clear_rear", "wide_sidewall",
+                "low_ceiling", "explicit_first", "corner_fallback", "release_clear"};
+            m_cameraDiagnostics->beginFrame(phases[m_cameraDiagnosticPhase],
+                *m_world, *m_worldPlayer, *m_logicCamera, *m_camera,
+                m_effectiveCameraMode, m_config.cameraPerspective,
+                static_cast<std::uint64_t>(m_frameCount),
+                m_nominalCameraNearClipDistance,
+                m_lastRenderCameraPose.nearClipQueries,
+                m_lastRenderCameraPose.nearClipSafetyUnresolved,
+                static_cast<int>(m_lastRenderCameraPose.nearClipStatus));
+            m_cameraDiagnosticFramePending = true;
         }
 
         void prepareMaterialIdentityCapture(float deltaSeconds)
@@ -2886,7 +3065,7 @@ namespace
             {
                 return false;
             }
-            if (m_materialIdentityCapture)
+            if (m_materialIdentityCapture || m_cameraDiagnostics)
             {
                 // This bounded diagnostic freezes simulation only in its isolated
                 // world. Normal World residency/mesh upload and renderer sync run.
@@ -4040,7 +4219,7 @@ namespace
             }
             if (!visual.node && !visual.batchMeshes) return false;
             m_sectionVisuals.emplace(key, std::move(visual));
-            if (m_materialIdentityCapture)
+            if (m_materialIdentityCapture || m_cameraDiagnostics)
                 m_materialIdentityMeshRevisions[key] = section.blockRevision;
             return true;
         }
@@ -4207,6 +4386,8 @@ namespace
         {
             if (m_logicCamera == nullptr || m_camera == nullptr)
             {
+                if (m_camera != nullptr)
+                    m_camera->setNearClipDistance(m_nominalCameraNearClipDistance);
                 m_effectiveCameraMode =
                     ThirdPersonCameraPresentation::Mode::FirstPerson;
                 if (m_userInterface != nullptr)
@@ -4256,29 +4437,7 @@ namespace
             }
             else
             {
-                ThirdPersonCameraPresentation::Input input;
-                input.eye = position;
-                input.rotation = rotation;
-                input.verticalFovDegrees = static_cast<float>(
-                    m_camera->getFOVy().valueDegrees());
-                input.aspectRatio = static_cast<float>(
-                    m_camera->getAspectRatio());
-                const float nearClipDistance = static_cast<float>(
-                    m_camera->getNearClipDistance());
-                input.desiredDistance =
-                    ThirdPersonCameraPresentation::distanceForVerticalFov(
-                        input.verticalFovDegrees);
-                input.radius =
-                    ThirdPersonCameraPresentation::radiusForProjection(
-                        input.verticalFovDegrees, input.aspectRatio,
-                        nearClipDistance);
-                input.shoulderOffset =
-                    ThirdPersonCameraPresentation::DefaultShoulderOffset;
-                input.verticalOffset =
-                    ThirdPersonCameraPresentation::DefaultVerticalOffset;
-                input.aimTargetDistance =
-                    ThirdPersonCameraPresentation::
-                        DefaultAimConvergenceDistance;
+                const glm::vec3* hitPoint = nullptr;
                 if (m_sandbox != nullptr)
                 {
                     // Selection remains authoritative on the logic-camera ray.
@@ -4289,53 +4448,17 @@ namespace
                         m_sandbox->getActorSelection();
                     const auto& blockSelection =
                         m_sandbox->getBlockSelection();
-                    const glm::vec3* hitPoint = actorSelection
+                    hitPoint = actorSelection
                         ? &actorSelection->hitPoint
                         : (blockSelection ? &blockSelection->hitPoint
                                           : nullptr);
-                    if (hitPoint != nullptr &&
-                        ThirdPersonCameraPresentation::finite(*hitPoint))
-                    {
-                        input.aimTargetDistance =
-                            glm::dot(
-                                *hitPoint - input.eye,
-                                ThirdPersonCameraPresentation::forward(
-                                    input.rotation));
-                        input.aimTargetVisible = true;
-                    }
                 }
-                if (m_worldPlayer != nullptr)
-                {
-                    const glm::vec3 playerCentre(
-                        m_logicCamera->position.x,
-                        m_logicCamera->position.y - .6f,
-                        m_logicCamera->position.z);
-                    input.subjectBoundsEnabled = true;
-                    input.subjectMinimum =
-                        playerCentre - m_worldPlayer->box.dimensions;
-                    input.subjectMaximum =
-                        playerCentre + m_worldPlayer->box.dimensions;
-                }
-                const ThirdPersonCameraPresentation::Mode requestedMode =
-                    m_config.cameraPerspective ==
-                            CameraPerspective::ThirdPerson &&
-                        ThirdPersonCameraPresentation::projectionSupported(
-                            input.verticalFovDegrees, input.aspectRatio,
-                            nearClipDistance)
-                        ? ThirdPersonCameraPresentation::Mode::ThirdPersonRear
-                        : ThirdPersonCameraPresentation::Mode::FirstPerson;
-                const auto pose = ThirdPersonCameraPresentation::update(
-                    m_thirdPersonCameraState,
-                    m_world != nullptr
-                        ? requestedMode
-                        : ThirdPersonCameraPresentation::Mode::FirstPerson,
-                    input, deltaSeconds,
-                    [this](int x, int y, int z)
-                    {
-                        return m_world != nullptr &&
-                               m_world->getBlock(x, y, z)
-                                   .getData().isCollidable;
-                    });
+                const auto pose = OgreThirdPersonCameraRig::updateCameraPose(
+                    *m_logicCamera, *m_camera, m_nominalCameraNearClipDistance,
+                    m_world, m_worldPlayer,
+                    m_config.cameraPerspective, m_thirdPersonCameraState,
+                    deltaSeconds, hitPoint);
+                m_lastRenderCameraPose = pose;
                 position = pose.position;
                 rotation = pose.rotation;
                 m_effectiveCameraMode = pose.effectiveMode;
@@ -4350,10 +4473,8 @@ namespace
                         thirdPerson ? pose.aimIndicatorNdc.y : 0.f);
                 }
             }
-            m_camera->setPosition(position.x, position.y, position.z);
-            m_camera->setOrientation(Ogre::Quaternion::IDENTITY);
-            m_camera->yaw(Ogre::Degree(-rotation.y));
-            m_camera->pitch(Ogre::Degree(-rotation.x));
+            OgreThirdPersonCameraRig::applyCameraPose(
+                *m_camera, position, rotation);
         }
 
         void syncPlayerPresentation(float deltaSeconds)
@@ -4511,12 +4632,14 @@ namespace
             {
                 pose.weights.hurt *= .55f;
             }
-            const bool visible = !m_visualCameraSweep.enabled &&
-                m_effectiveCameraMode ==
-                    ThirdPersonCameraPresentation::Mode::ThirdPersonRear;
+            const auto visibility =
+                OgreThirdPersonCameraRig::visibilityForCamera(
+                    m_effectiveCameraMode, m_visualCameraSweep.enabled);
+            const bool visible = visibility.avatarVisible;
             if (m_userInterface != nullptr)
             {
-                m_userInterface->setFirstPersonPresentationVisible(!visible);
+                m_userInterface->setFirstPersonPresentationVisible(
+                    visibility.firstPersonHandVisible);
             }
             if ((visible && !m_playerAvatarWasVisible) ||
                 m_applicationFlow.state() != GameApplicationState::Playing ||
@@ -4531,8 +4654,10 @@ namespace
             const Material::ID heldMaterial = heldItem.isEmpty()
                 ? Material::Nothing
                 : heldItem.getMaterial().id;
-            m_playerRenderer->sync(
-                m_playerAvatarProfile, pose, visible, heldMaterial);
+            OgreThirdPersonCameraRig::syncAvatarForCamera(
+                *m_playerRenderer, m_playerAvatarProfile, pose,
+                m_effectiveCameraMode, m_visualCameraSweep.enabled,
+                heldMaterial);
             if (!visible)
             {
                 m_playerAvatarPoseHistory = {};
@@ -6183,6 +6308,7 @@ namespace
             }
             m_renderCapture.reset();
             m_materialIdentityCapture.reset();
+            m_cameraDiagnostics.reset();
             m_userInterface.reset();
             destroyPostProcessingResources();
             m_blockFeedback.reset();
@@ -6233,6 +6359,8 @@ namespace
         Ogre::RenderWindow* m_window = nullptr;
         Ogre::SceneManager* m_sceneManager = nullptr;
         Ogre::Camera* m_camera = nullptr;
+        float m_nominalCameraNearClipDistance = .1f;
+        OgreThirdPersonCameraRig::CameraPose m_lastRenderCameraPose;
         Ogre::Light* m_directionalSunLight = nullptr;
         Ogre::SceneNode* m_directionalSunNode = nullptr;
         OIS::InputManager* m_inputManager = nullptr;
@@ -6271,6 +6399,13 @@ namespace
         bool m_materialIdentityMapReady = false;
         bool m_materialIdentityFramePending = false;
         std::unordered_map<std::string, std::uint32_t> m_materialIdentityMeshRevisions;
+        std::unique_ptr<OgreCameraDiagnostics> m_cameraDiagnostics;
+        std::string m_cameraDiagnosticOutput;
+        int m_cameraDiagnosticPhase = 0;
+        std::chrono::steady_clock::time_point m_cameraDiagnosticStarted;
+        float m_cameraDiagnosticPhaseSeconds = 0.f;
+        bool m_cameraDiagnosticPhasePlaced = false;
+        bool m_cameraDiagnosticFramePending = false;
         std::unique_ptr<AudioRuntime> m_audio;
         std::unique_ptr<MusicRuntime> m_music;
         AdventureAudioPresentation::State m_adventureAudioState;

@@ -101,6 +101,7 @@ class OgreUserInterface final : public Ogre::RenderTargetListener
     bool isDebugPanelVisible() const noexcept;
     void setWorldContext(Player *player, World *world) noexcept;
     void setFirstPersonPresentationVisible(bool visible) noexcept;
+    bool isFirstPersonPresentationVisible() const noexcept;
     // Explicit diagnostic only; the normal client has no active observer.
     bool setMaterialIdentityMap3dVisible(bool visible) noexcept;
     void setThirdPersonAimIndicator(bool visible, float normalizedX,

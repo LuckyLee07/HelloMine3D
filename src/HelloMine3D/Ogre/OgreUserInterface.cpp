@@ -7780,6 +7780,11 @@ void OgreUserInterface::setFirstPersonPresentationVisible(
     m_impl->firstPersonPresentationVisible = visible;
 }
 
+bool OgreUserInterface::isFirstPersonPresentationVisible() const noexcept
+{
+    return m_impl->firstPersonPresentationVisible;
+}
+
 bool OgreUserInterface::setMaterialIdentityMap3dVisible(bool visible) noexcept
 {
     if (MaterialIdentityCapture::active() == nullptr) return false;
