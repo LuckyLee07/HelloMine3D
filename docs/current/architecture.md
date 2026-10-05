@@ -820,6 +820,13 @@ Ogre用独立696KiB固定quad／R8 atlas表示暗空气后的有限区外背景�
 缓存零面、deferred和容量截断均显式保留；不能把全部RD32、底层直接光helper或普通地下探索记成已验证。
 预算和真实保护范围见[地下边界背景合同](../contracts/cave-boundary-background-contract-v1.md)。
 
+V11b局部修复现有GL3Plus纹理集成：A8使用R8存储并保留alpha语义，采样为`(0,0,0,A)`；
+L8／LA原有swizzle保持。A8跨格式上传／复制和完整／裁剪／缩放读回在传输边界转换，
+读取当前mip，像素pitch与GL pack状态保持；部分深度上传按实际源depth计算字节数。
+B5G6R5使用合法RGB＋反向565位序，八种SNORM使用基础分量上传格式和原有有符号类型／内部存储。
+格式探测和既有GL错误累计门槛保持，不改变World、字体的ImGui RGBA路径或保存格式。
+macOS包的源码身份清单覆盖整个`src`代码树，包含静态引擎和依赖；实际编译／链接库身份另留构建证据。
+
 POSIX Ogre `Timer` 的经过时间使用 `std::chrono::steady_clock`，毫秒/微秒 API 和各实例 reset 语义不变；
 避免系统墙钟校正经 Root 的无符号差值形成巨大帧增量。CPU 时间 API 保持原行为，世界仍按既有 fixed tick
 推进，存档时间戳不受此修改影响。真实长帧由诊断原样记录，不以截断帧耗时掩盖渲染停顿。

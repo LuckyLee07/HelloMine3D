@@ -355,7 +355,10 @@ class OgreCaveBoundaryRenderer::Impl
             const std::size_t top = (index / AtlasColumns) * TileEdge;
             const Ogre::PixelBox source(TileEdge, TileEdge, 1, Ogre::PF_L8, pixels.data());
             m_atlas->getBuffer(0, 0)->blitFromMemory(source,
-                Ogre::Image::Box(left, top, left + TileEdge, top + TileEdge));
+                Ogre::Image::Box(static_cast<Ogre::uint32>(left),
+                                 static_cast<Ogre::uint32>(top),
+                                 static_cast<Ogre::uint32>(left + TileEdge),
+                                 static_cast<Ogre::uint32>(top + TileEdge)));
             m_stats.texturePatchBytesThisSync += TileBytes;
             // No stale tile can be drawn: geometry becomes non-degenerate only
             // after this slot's complete 256-byte patch has succeeded.

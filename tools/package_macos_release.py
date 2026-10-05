@@ -138,10 +138,11 @@ exec ./HelloMine3D "$@"
                        "CFBundleVersion": "1",
                        "NSHighResolutionCapable": True}, stream)
     managed_paths.add((contents / "Info.plist").relative_to(output))
-    # git diff excludes new files; include their identities in a source receipt.
+    # Include backend and dependency sources as well as first-party code: a
+    # static Engine change must be visible in the packaged source identity.
     source_entries = []
-    for source in sorted((root / "src/HelloMine3D").rglob("*")):
-        if source.is_file() and source.suffix in (".h", ".cpp", ".m", ".mm"):
+    for source in sorted((root / "src").rglob("*")):
+        if source.is_file() and source.suffix in (".c", ".cpp", ".h", ".hpp", ".inl", ".m", ".mm"):
             source_entries.append(f"{digest(source)}  {source.relative_to(root).as_posix()}")
     source_receipt = package / "source-tree-sha256.txt"
     source_receipt.write_text("\n".join(source_entries) + "\n")
@@ -161,6 +162,7 @@ exec ./HelloMine3D "$@"
         "linkage": linkage.splitlines()[1:],
         "resource_manifest_sha256": digest(manifest),
         "source_file_count": len(source_entries),
+        "source_roots": ["src"],
         "source_manifest_sha256": digest(source_receipt),
         "source_tree_required": False,
         "acceptance": "NOT_RUN", "signed_or_notarized": False,

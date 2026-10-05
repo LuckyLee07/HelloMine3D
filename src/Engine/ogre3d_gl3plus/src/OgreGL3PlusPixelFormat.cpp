@@ -67,7 +67,7 @@ namespace Ogre  {
         case PF_DEPTH:
             return GL_DEPTH_COMPONENT;
         case PF_A8:
-            return GL_ALPHA;
+            return GL_RED;
         case PF_L8:
             return GL_RED;
         case PF_L16:
@@ -81,7 +81,7 @@ namespace Ogre  {
         case PF_R5G6B5:
             return GL_RGB;
         case PF_B5G6R5:
-            return GL_BGR;
+            return GL_RGB;
         case PF_A4R4G4B4:
             return GL_BGRA;
 #if OGRE_ENDIAN == OGRE_ENDIAN_BIG
@@ -168,21 +168,21 @@ namespace Ogre  {
         case PF_R9G9B9E5_SHAREDEXP:
             return GL_RGB;
         case PF_R8_SNORM:
-            return GL_R8_SNORM;
+            return GL_RED;
         case PF_R8G8_SNORM:
-            return GL_RG8_SNORM;
+            return GL_RG;
         case PF_R8G8B8_SNORM:
-            return GL_RGB8_SNORM;
+            return GL_RGB;
         case PF_R8G8B8A8_SNORM:
-            return GL_RGBA8_SNORM;
+            return GL_RGBA;
         case PF_R16_SNORM:
-            return GL_R16_SNORM;
+            return GL_RED;
         case PF_R16G16_SNORM:
-            return GL_RG16_SNORM;
+            return GL_RG;
         case PF_R16G16B16_SNORM:
-            return GL_RGB16_SNORM;
+            return GL_RGB;
         case PF_R16G16B16A16_SNORM:
-            return GL_RGBA16_SNORM;
+            return GL_RGBA;
         case PF_BC4_UNORM:
             return GL_COMPRESSED_RED_RGTC1;
         case PF_BC4_SNORM:
@@ -238,8 +238,9 @@ namespace Ogre  {
         case PF_A1R5G5B5:
             return GL_UNSIGNED_SHORT_1_5_5_5_REV;
         case PF_R5G6B5:
-        case PF_B5G6R5:
             return GL_UNSIGNED_SHORT_5_6_5;
+        case PF_B5G6R5:
+            return GL_UNSIGNED_SHORT_5_6_5_REV;
         case PF_A4R4G4B4:
             return GL_UNSIGNED_SHORT_4_4_4_4_REV;
         case PF_L16:

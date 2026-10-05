@@ -146,8 +146,16 @@ namespace Ogre {
         bool hasGL33 = mGLSupport.hasMinGLVersion(3, 3);
         bool hasGL42 = mGLSupport.hasMinGLVersion(4, 2);
 
-        // Set up texture swizzling.
-        if (PixelUtil::isLuminance(mFormat) && (mGLSupport.checkExtension("GL_ARB_texture_swizzle") || hasGL33))
+        // Core alpha-only textures store their alpha byte in the red channel.
+        if (mFormat == PF_A8 && (mGLSupport.checkExtension("GL_ARB_texture_swizzle") || hasGL33))
+        {
+            OGRE_CHECK_GL_ERROR(glTexParameteri(texTarget, GL_TEXTURE_SWIZZLE_R, GL_ZERO));
+            OGRE_CHECK_GL_ERROR(glTexParameteri(texTarget, GL_TEXTURE_SWIZZLE_G, GL_ZERO));
+            OGRE_CHECK_GL_ERROR(glTexParameteri(texTarget, GL_TEXTURE_SWIZZLE_B, GL_ZERO));
+            OGRE_CHECK_GL_ERROR(glTexParameteri(texTarget, GL_TEXTURE_SWIZZLE_A, GL_RED));
+        }
+        // Set up luminance texture swizzling.
+        else if (PixelUtil::isLuminance(mFormat) && (mGLSupport.checkExtension("GL_ARB_texture_swizzle") || hasGL33))
         {
             if (PixelUtil::getComponentCount(mFormat) == 2)
             {
@@ -493,7 +501,7 @@ namespace Ogre {
                                                                            face,
                                                                            mip,
                                                                            static_cast<HardwareBuffer::Usage>(mUsage),
-                                                                           mHwGamma, mFSAA);
+                                                                           mHwGamma, mFSAA, mFormat);
 
                 mSurfaceList.push_back(HardwarePixelBufferSharedPtr(buf));
 

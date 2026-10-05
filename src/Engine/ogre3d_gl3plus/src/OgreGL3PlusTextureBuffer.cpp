@@ -42,9 +42,60 @@
 
 namespace Ogre {
 
+    namespace
+    {
+        void convertAlphaPixels(const PixelBox &source, const PixelBox &destination)
+        {
+            assert(source.format == PF_A8);
+            assert(source.getWidth() == destination.getWidth() &&
+                   source.getHeight() == destination.getHeight() &&
+                   source.getDepth() == destination.getDepth());
+            const uint8 *sourceBase = static_cast<const uint8 *>(source.getTopLeftFrontPixelPtr());
+            uint8 *destinationBase = static_cast<uint8 *>(destination.getTopLeftFrontPixelPtr());
+            const size_t destinationPixelBytes = PixelUtil::getNumElemBytes(destination.format);
+            for (size_t z = 0; z < source.getDepth(); ++z)
+            {
+                for (size_t y = 0; y < source.getHeight(); ++y)
+                {
+                    const uint8 *sourceRow = sourceBase + z * source.slicePitch + y * source.rowPitch;
+                    uint8 *destinationRow = destinationBase +
+                        (z * destination.slicePitch + y * destination.rowPitch) * destinationPixelBytes;
+                    for (size_t x = 0; x < source.getWidth(); ++x)
+                        PixelUtil::packColour(static_cast<uint8>(0), static_cast<uint8>(0),
+                                              static_cast<uint8>(0), sourceRow[x], destination.format,
+                                              destinationRow + x * destinationPixelBytes);
+                }
+            }
+        }
+
+        // Read only this mip's raw storage; sampler swizzles do not affect GetTexImage.
+        void readTextureStorage(GLenum target, GLuint texture, GLenum faceTarget, GLint level,
+                                const PixelBox &destination)
+        {
+            GLint packBuffer = 0;
+            OGRE_CHECK_GL_ERROR(glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &packBuffer));
+            const GLenum names[] = {GL_PACK_ALIGNMENT, GL_PACK_ROW_LENGTH, GL_PACK_IMAGE_HEIGHT,
+                                    GL_PACK_SKIP_PIXELS, GL_PACK_SKIP_ROWS, GL_PACK_SKIP_IMAGES, GL_PACK_SWAP_BYTES};
+            GLint values[7];
+            for (size_t i = 0; i < 7; ++i)
+                OGRE_CHECK_GL_ERROR(glGetIntegerv(names[i], &values[i]));
+            OGRE_CHECK_GL_ERROR(glBindBuffer(GL_PIXEL_PACK_BUFFER, 0));
+            for (size_t i = 0; i < 7; ++i)
+                OGRE_CHECK_GL_ERROR(glPixelStorei(names[i], i == 0 ? 1 : 0));
+            OGRE_CHECK_GL_ERROR(glBindTexture(target, texture));
+            OGRE_CHECK_GL_ERROR(glGetTexImage(faceTarget, level,
+                                              GL3PlusPixelUtil::getGLOriginFormat(destination.format),
+                                              GL3PlusPixelUtil::getGLOriginDataType(destination.format),
+                                              destination.data));
+            for (size_t i = 0; i < 7; ++i)
+                OGRE_CHECK_GL_ERROR(glPixelStorei(names[i], values[i]));
+            OGRE_CHECK_GL_ERROR(glBindBuffer(GL_PIXEL_PACK_BUFFER, packBuffer));
+        }
+    }
+
     GL3PlusTextureBuffer::GL3PlusTextureBuffer(const String &baseName, GLenum target, GLuint id,
                                                GLint face, GLint level, Usage usage,
-                                               bool writeGamma, uint fsaa)
+                                               bool writeGamma, uint fsaa, PixelFormat semanticFormat)
         : GL3PlusHardwarePixelBuffer(0, 0, 0, PF_UNKNOWN, usage),
           mTarget(target), mTextureID(id), mBufferId(0), mFace(face), mLevel(level), mSliceTRT(0)
     {
@@ -80,6 +131,9 @@ namespace Ogre {
         OGRE_CHECK_GL_ERROR(glGetTexLevelParameteriv(mFaceTarget, level, GL_TEXTURE_INTERNAL_FORMAT, &value));
         mGLInternalFormat = value;
         mFormat = GL3PlusPixelUtil::getClosestOGREFormat(value);
+        // R8 also backs alpha-only textures; keep their transfer and copy semantics.
+        if (semanticFormat == PF_A8 && mGLInternalFormat == GL_R8)
+            mFormat = PF_A8;
 
         // Default
         mRowPitch = mWidth;
@@ -139,6 +193,25 @@ namespace Ogre {
 
     void GL3PlusTextureBuffer::upload(const PixelBox &data, const Image::Box &dest)
     {
+        if (mFormat == PF_A8 && (data.format != PF_A8 || !data.isConsecutive() ||
+                                 data.left != 0 || data.top != 0 || data.front != 0))
+        {
+            MemoryDataStreamPtr storage(new MemoryDataStream(
+                PixelUtil::getMemorySize(data.getWidth(), data.getHeight(), data.getDepth(), PF_A8)));
+            PixelBox alpha(data.getWidth(), data.getHeight(), data.getDepth(), PF_A8, storage->getPtr());
+            PixelUtil::bulkPixelConversion(data, alpha);
+            upload(alpha, dest);
+            return;
+        }
+        if (data.format == PF_A8 && mFormat != PF_A8 && !PixelUtil::isCompressed(mFormat))
+        {
+            MemoryDataStreamPtr storage(new MemoryDataStream(
+                PixelUtil::getMemorySize(data.getWidth(), data.getHeight(), data.getDepth(), mFormat)));
+            PixelBox pixels(data.getWidth(), data.getHeight(), data.getDepth(), mFormat, storage->getPtr());
+            convertAlphaPixels(data, pixels);
+            upload(pixels, dest);
+            return;
+        }
         OGRE_CHECK_GL_ERROR(glBindTexture(mTarget, mTextureID));
 
         OGRE_CHECK_GL_ERROR(glGenBuffers(1, &mBufferId));
@@ -148,13 +221,17 @@ namespace Ogre {
 
         // Calculate size for all mip levels of the texture.
         size_t dataSize = 0;
-        if (mTarget == GL_TEXTURE_2D_ARRAY)
+        if (mFormat == PF_A8)
+        {
+            dataSize = data.getConsecutiveSize();
+        }
+        else if (mTarget == GL_TEXTURE_2D_ARRAY)
         {
             dataSize = PixelUtil::getMemorySize(dest.getWidth(), dest.getHeight(), dest.getDepth(), data.format);
         }
         else
         {
-            dataSize = PixelUtil::getMemorySize(data.getWidth(), data.getHeight(), mDepth, data.format);
+            dataSize = PixelUtil::getMemorySize(data.getWidth(), data.getHeight(), data.getDepth(), data.format);
         }
 
         //TODO Is this the correct was to set buffer size in this case?
@@ -331,6 +408,21 @@ namespace Ogre {
             OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "only download of entire buffer is supported by GL",
                         "GL3PlusTextureBuffer::download");
 
+        if (mFormat == PF_A8 || data.format == PF_A8)
+        {
+            if (PixelUtil::isCompressed(mFormat))
+                OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, "alpha conversion from compressed storage is unsupported",
+                            "GL3PlusTextureBuffer::download");
+            MemoryDataStreamPtr storage(new MemoryDataStream(mSizeInBytes));
+            PixelBox pixels(mWidth, mHeight, mDepth, mFormat, storage->getPtr());
+            readTextureStorage(mTarget, mTextureID, mFaceTarget, mLevel, pixels);
+            if (mFormat == PF_A8 && data.format != PF_A8)
+                convertAlphaPixels(pixels, data);
+            else
+                PixelUtil::bulkPixelConversion(pixels, data);
+            return;
+        }
+
         // Upload data to PBO
         OGRE_CHECK_GL_ERROR(glGenBuffers(1, &mBufferId));
         OGRE_CHECK_GL_ERROR(glBindBuffer(GL_PIXEL_PACK_BUFFER, mBufferId));
@@ -460,6 +552,22 @@ namespace Ogre {
     void GL3PlusTextureBuffer::blit(const HardwarePixelBufferSharedPtr &src, const Image::Box &srcBox, const Image::Box &dstBox)
     {
         GL3PlusTextureBuffer *srct = static_cast<GL3PlusTextureBuffer *>(src.getPointer());
+        if ((mFormat == PF_A8 || srct->mFormat == PF_A8) && mFormat != srct->mFormat &&
+            !PixelUtil::isCompressed(mFormat) && !PixelUtil::isCompressed(srct->mFormat))
+        {
+            // Framebuffer copies ignore swizzles, so convert alpha at the transfer boundary.
+            MemoryDataStreamPtr storage(new MemoryDataStream(srct->mSizeInBytes));
+            PixelBox pixels(srct->mWidth, srct->mHeight, srct->mDepth, srct->mFormat, storage->getPtr());
+            readTextureStorage(srct->mTarget, srct->mTextureID, srct->mFaceTarget, srct->mLevel, pixels);
+            blitFromMemory(pixels.getSubVolume(srcBox), dstBox);
+            // Texture copies retain their mip regeneration policy after staging.
+            if ((mUsage & TU_AUTOMIPMAP) && mTarget != GL_TEXTURE_3D && mTarget != GL_TEXTURE_2D_ARRAY)
+            {
+                OGRE_CHECK_GL_ERROR(glBindTexture(mTarget, mTextureID));
+                OGRE_CHECK_GL_ERROR(glGenerateMipmap(mTarget));
+            }
+            return;
+        }
         // Check for FBO support first
         // Destination texture must be 1D, 2D, 3D, or Cube
         // Source texture must be 1D, 2D or 3D
@@ -654,6 +762,42 @@ namespace Ogre {
     // blitFromMemory doing hardware trilinear scaling
     void GL3PlusTextureBuffer::blitFromMemory(const PixelBox &src_orig, const Image::Box &dstBox)
     {
+        if ((mFormat == PF_A8 || src_orig.format == PF_A8) && !mBuffer.contains(dstBox))
+            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Destination box out of range",
+                        "GL3PlusTextureBuffer::blitFromMemory");
+        if (mFormat == PF_A8)
+        {
+            MemoryDataStreamPtr sourceStorage(new MemoryDataStream(
+                PixelUtil::getMemorySize(src_orig.getWidth(), src_orig.getHeight(), src_orig.getDepth(), PF_A8)));
+            PixelBox alpha(src_orig.getWidth(), src_orig.getHeight(), src_orig.getDepth(),
+                           PF_A8, sourceStorage->getPtr());
+            PixelUtil::bulkPixelConversion(src_orig, alpha);
+            if (alpha.getWidth() == dstBox.getWidth() && alpha.getHeight() == dstBox.getHeight() &&
+                alpha.getDepth() == dstBox.getDepth())
+            {
+                upload(alpha, dstBox);
+            }
+            else
+            {
+                MemoryDataStreamPtr scaledStorage(new MemoryDataStream(
+                    PixelUtil::getMemorySize(dstBox.getWidth(), dstBox.getHeight(), dstBox.getDepth(), PF_A8)));
+                PixelBox scaled(dstBox.getWidth(), dstBox.getHeight(), dstBox.getDepth(),
+                                PF_A8, scaledStorage->getPtr());
+                Image::scale(alpha, scaled, Image::FILTER_BILINEAR);
+                upload(scaled, dstBox);
+            }
+            return;
+        }
+        if (src_orig.format == PF_A8 && !PixelUtil::isCompressed(mFormat))
+        {
+            MemoryDataStreamPtr storage(new MemoryDataStream(
+                PixelUtil::getMemorySize(src_orig.getWidth(), src_orig.getHeight(), src_orig.getDepth(), mFormat)));
+            PixelBox pixels(src_orig.getWidth(), src_orig.getHeight(), src_orig.getDepth(),
+                            mFormat, storage->getPtr());
+            convertAlphaPixels(src_orig, pixels);
+            blitFromMemory(pixels, dstBox);
+            return;
+        }
         // Fall back to normal GLHardwarePixelBuffer::blitFromMemory in case
         // - FBO is not supported
         // - Either source or target is luminance due doesn't looks like supported by hardware
@@ -742,6 +886,51 @@ namespace Ogre {
 
         // Delete temp texture
         OGRE_CHECK_GL_ERROR(glDeleteTextures(1, &id));
+    }
+
+
+    void GL3PlusTextureBuffer::blitToMemory(const Image::Box &srcBox, const PixelBox &destination)
+    {
+        if (mFormat != PF_A8 && destination.format != PF_A8)
+        {
+            GL3PlusHardwarePixelBuffer::blitToMemory(srcBox, destination);
+            return;
+        }
+        if (!mBuffer.contains(srcBox))
+            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "source box out of range",
+                        "GL3PlusTextureBuffer::blitToMemory");
+        if (PixelUtil::isCompressed(mFormat))
+            OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, "alpha conversion from compressed storage is unsupported",
+                        "GL3PlusTextureBuffer::blitToMemory");
+        MemoryDataStreamPtr storage(new MemoryDataStream(mSizeInBytes));
+        PixelBox pixels(mWidth, mHeight, mDepth, mFormat, storage->getPtr());
+        readTextureStorage(mTarget, mTextureID, mFaceTarget, mLevel, pixels);
+        PixelBox alpha = pixels.getSubVolume(srcBox);
+        MemoryDataStreamPtr alphaStorage;
+        if (mFormat != PF_A8)
+        {
+            alphaStorage.bind(new MemoryDataStream(
+                PixelUtil::getMemorySize(alpha.getWidth(), alpha.getHeight(), alpha.getDepth(), PF_A8)));
+            PixelBox converted(alpha.getWidth(), alpha.getHeight(), alpha.getDepth(),
+                               PF_A8, alphaStorage->getPtr());
+            PixelUtil::bulkPixelConversion(alpha, converted);
+            alpha = converted;
+        }
+        MemoryDataStreamPtr scaledStorage;
+        if (alpha.getWidth() != destination.getWidth() || alpha.getHeight() != destination.getHeight() ||
+            alpha.getDepth() != destination.getDepth())
+        {
+            scaledStorage.bind(new MemoryDataStream(
+                PixelUtil::getMemorySize(destination.getWidth(), destination.getHeight(), destination.getDepth(), PF_A8)));
+            PixelBox scaled(destination.getWidth(), destination.getHeight(), destination.getDepth(),
+                            PF_A8, scaledStorage->getPtr());
+            Image::scale(alpha, scaled, Image::FILTER_BILINEAR);
+            alpha = scaled;
+        }
+        if (destination.format == PF_A8)
+            PixelUtil::bulkPixelConversion(alpha, destination);
+        else
+            convertAlphaPixels(alpha, destination);
     }
 
 

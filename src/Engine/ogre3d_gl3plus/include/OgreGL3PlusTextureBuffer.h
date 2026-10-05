@@ -41,7 +41,7 @@ namespace Ogre {
         /** Texture constructor */
         GL3PlusTextureBuffer(const String &baseName, GLenum target, GLuint id,
                              GLint face, GLint level, Usage usage,
-                             bool writeGamma, uint fsaa);
+                             bool writeGamma, uint fsaa, PixelFormat semanticFormat = PF_UNKNOWN);
         ~GL3PlusTextureBuffer();
 
         virtual void bindToFramebuffer(GLenum attachment, uint32 zoffset);
@@ -56,6 +56,9 @@ namespace Ogre {
 
         /// Hardware implementation of blitFromMemory.
         virtual void blitFromMemory(const PixelBox &src_orig, const Image::Box &dstBox);
+
+        /// Preserve alpha-only semantics for cropped and resized memory reads.
+        virtual void blitToMemory(const Image::Box &srcBox, const PixelBox &destination);
 
         /// Notify TextureBuffer of destruction of render target.
         void _clearSliceRTT(size_t zoffset)
