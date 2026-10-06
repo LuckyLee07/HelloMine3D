@@ -118,6 +118,10 @@ def main():
                         help="Observe twelve actual pause-notification backend frames in a fresh compact hidden client (diagnostic input only)")
     parser.add_argument("--fern-wind", action="store_true",
                         help="Observe four actual draws of two natural Fern sources in a new isolated forest (diagnostic input only)")
+    parser.add_argument("--water-seam", action="store_true",
+                        help="Observe a separate natural Z=-224 water seam for ten actual seconds in a fresh hidden seed42/terrain31 world; new frozen diagnostic view, independent oracle required")
+    parser.add_argument("--water-seam-roi", metavar="x y width height",
+                        help="Optional frozen bottom-left framebuffer-pixel ROI; requires --water-seam, otherwise Bootstrap derives it from the actual shared indexed surface")
     parser.add_argument("--shore-edit", action="store_true",
                         help="Observe six production shore-edit/world-map phases in a fresh hidden isolated world (diagnostic input only)")
     parser.add_argument("--shore-native-draw", action="store_true",
@@ -126,6 +130,8 @@ def main():
                         help="Canonical4 Water64 target from the current-world bounded locator; requires --shore-edit")
     parser.add_argument("--shore-edit-site", choices=SHORE_EDIT_SITES,
                         help="Frozen shore viewpoint (default: river); requires --shore-edit")
+    parser.add_argument("--shore-edit-terrain-version", type=int, choices=(30, 31),
+                        help="Exact expected fresh-world generation identity for shore regression; omitted preserves the frozen terrain30 expectation")
     parser.add_argument("--inspect-slot", type=int, choices=range(5), help="Item detail diagnostic; requires pointer panel and HUD fixture")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--panel", choices=("crafting", "container", "furnace", "crusher", "settings", "map", "journal", "pointer"))
@@ -162,8 +168,27 @@ def main():
         parser.error("--actor-distance requires --actor-visual")
     if (args.shore_edit_target is not None or args.shore_edit_site is not None) and not args.shore_edit:
         parser.error("--shore-edit-target and --shore-edit-site require --shore-edit")
+    if args.shore_edit_terrain_version is not None and not args.shore_edit:
+        parser.error("--shore-edit-terrain-version requires --shore-edit")
     if args.shore_native_draw and not args.shore_edit:
         parser.error("--shore-native-draw requires --shore-edit")
+    if args.water_seam_roi is not None and not args.water_seam:
+        parser.error("--water-seam-roi requires --water-seam")
+    water_seam_roi = None
+    if args.water_seam_roi is not None:
+        try:
+            parts = args.water_seam_roi.split()
+            if len(parts) != 4:
+                raise ValueError
+            x, y, width, height = map(int, parts)
+            if (x < 0 or y < 0 or width <= 0 or height <= 0 or
+                    x + width > args.width * args.pixel_ratio or
+                    y + height > args.height * args.pixel_ratio or
+                    width * height * 4 > 8 * 1024**2):
+                raise ValueError
+            water_seam_roi = f"{x} {y} {width} {height}"
+        except ValueError:
+            parser.error("--water-seam-roi requires four integers inside the declared framebuffer with positive width/height and at most 8MiB of RGBA pixels")
     shore_edit_site = args.shore_edit_site or "river"
     shore_edit_target = None
     if args.shore_edit:
@@ -190,6 +215,9 @@ def main():
         parser.error("Inherited camera diagnostics are not accepted; use --camera-diagnostics explicitly")
     if "HELLOMINE3D_FERN_WIND_CAPTURE_DIR" in os.environ:
         parser.error("Inherited Fern diagnostics are not accepted; use --fern-wind explicitly")
+    if any(name in os.environ for name in ("HELLOMINE3D_WATER_SEAM_CAPTURE_DIR",
+            "HELLOMINE3D_WATER_SEAM_MODE", "HELLOMINE3D_WATER_SEAM_ROI")):
+        parser.error("Inherited water seam diagnostics are not accepted; use --water-seam explicitly")
     if "HELLOMINE3D_PAUSE_NOTIFICATIONS_DIR" in os.environ:
         parser.error("Inherited pause notifications are not accepted; use --pause-notifications explicitly")
     if any(name in os.environ for name in ("HELLOMINE3D_SHORE_EDIT_CAPTURE_DIR",
@@ -254,7 +282,29 @@ def main():
             "HELLOMINE3D_P11_LIGHT_FIXTURE", "HELLOMINE3D_DISABLE_VERTEX_AO",
             "HELLOMINE3D_PAUSE_NOTIFICATION_CAPTURE_DIR", "HELLO_PERF_CAPTURE")):
         parser.error("Inherited diagnostic fixtures cannot be combined with shore edit capture")
-    if args.material_identity or args.camera_diagnostics or args.fern_wind or args.pause_notifications or args.shore_edit:
+    if args.water_seam and (args.foreground or args.performance or args.player_motion or
+            args.actor_visual or args.actor_distance is not None or args.hud_fixture or args.panel or
+            args.inspect_slot is not None or args.debug or args.material_identity or
+            args.camera_diagnostics or args.fern_wind or args.pause_notifications or args.shore_edit or
+            args.scene == "menu" or args.reuse_app or args.save_template or args.streaming or
+            args.position or args.rotation or args.render_distance != 1 or
+            args.visual_detail not in ("standard", "compatibility") or
+            args.launch_method != "direct" or args.capture_ms != "5000,10000" or
+            args.terrain_fallback or args.atmosphere_fallback or
+            args.seed != 42 or args.time != 7000 or args.perspective != "first" or
+            args.shadow != "off" or args.post != "off" or args.fov != 90 or
+            args.minimap_range not in (None, 128) or args.width != 1280 or args.height != 720):
+        parser.error("--water-seam requires a fresh hidden default-pack seed42/terrain31 world, time7000, RD1, explicit standard/compatibility, direct launch, first perspective, FOV90, shadow/post off, minimap128, 1280x720 points and no other diagnostics or pose overrides")
+    if args.water_seam and any(name in os.environ for name in (
+            "HELLOMINE3D_RESOURCE_PACKS", "HELLOMINE3D_ACTOR_VISUAL_DISTANCE",
+            "HELLOMINE3D_E2_BATCH_EVENTS", "HELLOMINE3D_E2_RENDER_PHASES",
+            "HELLOMINE3D_EXIT_AFTER_FRAMES", "HELLOMINE3D_SKIP_MAIN_MENU",
+            "HELLOMINE3D_P11_LIGHT_FIXTURE", "HELLOMINE3D_DISABLE_VERTEX_AO",
+            "HELLOMINE3D_PAUSE_NOTIFICATION_CAPTURE_DIR", "HELLO_PERF_CAPTURE",
+            "HELLO_RENDER_CAPTURE", "HELLO_RENDER_CAPTURE_DIR", "HELLO_RENDER_CAPTURE_MS",
+            "HELLO_RENDER_CAPTURE_EXIT")):
+        parser.error("Inherited capture/diagnostic fixtures cannot be combined with water seam capture")
+    if args.material_identity or args.camera_diagnostics or args.fern_wind or args.pause_notifications or args.shore_edit or args.water_seam:
         other_fixtures = ("HELLOMINE3D_BLOCK_FEEDBACK_CAPTURE", "HELLOMINE3D_COMBAT_FIXTURE",
             "HELLOMINE3D_CONTAINER_FIXTURE", "HELLOMINE3D_CRAFTING_FIXTURE", "HELLOMINE3D_CROP_FIXTURE",
             "HELLOMINE3D_MACHINE_FIXTURE", "HELLOMINE3D_ORE_FIXTURE", "HELLOMINE3D_SPAWN_VALIDATION_ACTORS",
@@ -372,6 +422,16 @@ seed random
         environment["HELLOMINE3D_FERN_WIND_CAPTURE_DIR"] = str(output / "fern-wind")
         environment["HELLO_RENDER_CAPTURE_MS"] = "60000"
         environment["HELLO_RENDER_CAPTURE_EXIT"] = "0"
+    if args.water_seam:
+        environment["HELLOMINE3D_WATER_SEAM_CAPTURE_DIR"] = str(output / "water-seam")
+        environment["HELLOMINE3D_WATER_SEAM_MODE"] = args.visual_detail
+        if water_seam_roi is not None:
+            environment["HELLOMINE3D_WATER_SEAM_ROI"] = water_seam_roi
+        # The native observer owns the ten-second pre-swap sequence and stops
+        # itself within the bounded session. Generic timed captures cannot end
+        # it at the normal 5/10-second screenshot defaults.
+        environment["HELLO_RENDER_CAPTURE_MS"] = "60000"
+        environment["HELLO_RENDER_CAPTURE_EXIT"] = "0"
     if args.pause_notifications:
         environment["HELLOMINE3D_PAUSE_NOTIFICATIONS_DIR"] = str(output / "pause-notifications")
         environment["HELLO_RENDER_CAPTURE_MS"] = "60000"
@@ -396,6 +456,8 @@ seed random
             position, rotation = "0.5 200 0.5", "0 0 0"
         if args.fern_wind:
             position, rotation = "966.5 81 -21.5", "30 0 0"
+        if args.water_seam:
+            position, rotation = "216 70 -216", "40 0 0"
         if args.shore_edit:
             position, rotation = SHORE_EDIT_SITES[shore_edit_site]
         for value in (position, rotation):
@@ -457,11 +519,12 @@ seed random
               "save_template_meta_sha256": template_meta_sha256,
               "package_identity": identity,
               "capture_tool_sha256": digest(Path(__file__)),
-              "scene": args.scene, "settings": settings, "environment": environment,
+              "scene": "water-seam" if args.water_seam else args.scene, "settings": settings, "environment": environment,
               "diagnostic_fixture": "camera-fixed-resident-origin" if args.camera_diagnostics else
                   ("fern-natural-source-native-draw" if args.fern_wind else
                    ("pause-notification-production-rail" if args.pause_notifications else
-                    ("shore-edit-production-world-map" if args.shore_edit else None))),
+                    ("shore-edit-production-world-map" if args.shore_edit else
+                     ("water-seam-natural-native-draw" if args.water_seam else None)))),
               "inherited_diagnostic_environment": {
                   key: os.environ[key] for key in (
                       "HELLOMINE3D_VISUAL_CAMERA_SWEEP", "HELLOMINE3D_VISUAL_CAMERA_PATH",
@@ -474,6 +537,26 @@ seed random
               "command": command, "launch_method": args.launch_method,
               "started_unix": time.time(), "result": "RUNNING"}
     record_path = output / "capture.json"
+    water_oracle_command = None
+    water_capture_error = None
+    if args.water_seam:
+        import sys
+        water_oracle_command = [sys.executable, str(Path(__file__).resolve().parent /
+            "tests/water_seam_capture_oracle.py"), "--capture", str(record_path),
+            "--output", str(output / "water-seam-independent-oracle.json")]
+        record["water_seam_requested"] = True
+        record["water_seam_view"] = {
+            "kind": "NEW_FROZEN_DIAGNOSTIC_VIEW", "position": [216, 70, -216], "rotation": [40, 0, 0],
+            "previous_view_pairing": "NOT_PAIRED_WITH_PRIOR_212_70_NEG192_YAW90_VIEW",
+            "roi_selection": "EXPLICIT_BOUNDED_FRAMEBUFFER_ROI" if water_seam_roi is not None else
+                "BOOTSTRAP_ACTUAL_SHARED_INDEXED_SURFACE_PROJECTION",
+            "explicit_roi": [int(part) for part in water_seam_roi.split()] if water_seam_roi else None}
+        record["water_seam_scope"] = ("one candidate natural River Z=-224 seam, actual original native draw inputs/uniforms, "
+            "three raw/full-PNG checkpoints and continuous pre-swap ROI; independent oracle and original image review required; "
+            "ordinary input, shader-displaced vertex output and per-object pixel attribution remain unproved")
+        record["water_seam_oracle_command"] = water_oracle_command
+        record["water_seam_oracle_report"] = str(output / "water-seam-independent-oracle.json")
+        record["water_seam_oracle_scope"] = "independent consumer runs after this capture record is finalized; its own report carries PASS/OPEN/FAIL"
     record_path.write_text(json.dumps(record, indent=2) + "\n")
     try:
         if args.launch_method == "open":
@@ -485,7 +568,7 @@ seed random
                     env={**os.environ, **environment}, stdout=stdout, stderr=stderr)
                 record["child_pid"] = child.pid
                 record["child_timed_out"] = False
-                record["child_wait_timeout_seconds"] = 60 if args.pause_notifications or args.shore_edit else 100
+                record["child_wait_timeout_seconds"] = 60 if args.pause_notifications or args.shore_edit or args.water_seam else 100
                 record_path.write_text(json.dumps(record, indent=2) + "\n")
                 try:
                     child.wait(timeout=record["child_wait_timeout_seconds"])
@@ -510,9 +593,32 @@ seed random
             sorted((output / "pause-notifications").glob("frame-*.png")) if args.pause_notifications else \
             sorted((output / "shore-edit").glob("phase-*.png")) if args.shore_edit else \
             sorted((output / "frames").glob("*.png"))
+        water_session = None
+        if args.water_seam:
+            index = output / "water-seam/index.json"
+            water_session = json.loads(index.read_text())
+            if (water_session.get("schema") != "hellomine3d-water-seam-capture-v1" or
+                    water_session.get("status") not in ("CAPTURED", "OPEN", "FAIL") or
+                    water_session.get("mode") != args.visual_detail or
+                    type(water_session.get("frames")) is not list or
+                    len(water_session["frames"]) > 480):
+                raise RuntimeError("Water seam capture has no valid bounded native session index")
+            if water_session["status"] == "FAIL":
+                raise RuntimeError("Water seam observer retained FAIL; keep its original artifacts")
+            frames = sorted((output / "water-seam").glob("frame-*-full.png"),
+                            key=lambda path: int(path.name.split('-')[1]))
+            if len(frames) > 3:
+                raise RuntimeError("Water seam observer exceeded its three original full-PNG checkpoints")
+            record["water_seam_session"] = str(index)
+            record["water_seam_observer_status"] = water_session["status"]
+            record["water_seam_frame_count"] = water_session.get("frame_count")
+            record["water_seam_duration_seconds"] = water_session.get("duration_seconds")
+            record["water_seam_completion_reason"] = water_session.get("completion_reason")
         expected_frames = 9 if args.material_identity else (6 if args.camera_diagnostics else
             (4 if args.fern_wind else (12 if args.pause_notifications else
             (6 if args.shore_edit else (0 if args.performance else len(capture_times))))))
+        if args.water_seam:
+            expected_frames = 3 if water_session["status"] == "CAPTURED" else len(frames)
         if len(frames) != expected_frames:
             raise RuntimeError(f"Expected {expected_frames} captured frames, got {len(frames)}")
         if args.shore_edit and [frame.name for frame in frames] != [f"phase-{phase:03d}.png" for phase in range(6)]:
@@ -578,10 +684,14 @@ seed random
             record["shore_edit_session"] = str(index)
             record["shore_edit_site"] = shore_edit_site
             record["shore_edit_target"] = [int(part) for part in shore_edit_target.split()]
+            record["shore_edit_expected_terrain_generation_version"] = args.shore_edit_terrain_version or 30
             record["shore_edit_scope"] = "production Place/Break commands and diagnostic restore; actual world-map/UI facts; independent oracle required; normal input false"
             record["shore_native_draw_requested"] = args.shore_native_draw
             if args.shore_native_draw:
                 record["shore_native_draw_scope"] = "actual warm draw VAO bindings; independent oracle required; shader output, terrain pixels and ordinary input remain unproved"
+        if args.water_seam:
+            artifacts += sorted(path for path in (output / "water-seam").iterdir()
+                                if path.is_file() and path not in artifacts)
         if args.performance:
             record["framebuffer_size_pixels"] = performance_framebuffer(
                 (output / "client.log").read_text(), args.width, args.height, args.pixel_ratio)
@@ -592,21 +702,70 @@ seed random
                 raise RuntimeError(f"Missing artifact {path}")
         record["artifacts"] = {str(p.relative_to(output)): digest(p) for p in artifacts}
         if args.scene != "menu":
-            record["world_metadata"] = (output / "save/world.meta").read_text()
+            metadata_path = output / "save/world.meta"
+            if args.water_seam and not metadata_path.is_file() and water_session["status"] == "OPEN":
+                record["water_seam_world_metadata_status"] = "OPEN_NO_SAVED_WORLD_METADATA"
+            else:
+                record["world_metadata"] = metadata_path.read_text()
             if args.shore_edit:
                 metadata_lines = record["world_metadata"].splitlines()
-                if metadata_lines.count("seed 42") != 1 or metadata_lines.count("terrain_generation_version 30") != 1:
-                    raise RuntimeError("Shore edit capture requires actual saved seed42/terrain30 metadata")
-        record["result"] = "CAPTURED"
+                expected_version = args.shore_edit_terrain_version or 30
+                if metadata_lines.count("seed 42") != 1 or metadata_lines.count(f"terrain_generation_version {expected_version}") != 1:
+                    raise RuntimeError(f"Shore edit capture requires actual saved seed42/terrain{expected_version} metadata")
+            if args.water_seam and "world_metadata" in record:
+                metadata_lines = record["world_metadata"].splitlines()
+                if metadata_lines.count("seed 42") != 1 or metadata_lines.count("terrain_generation_version 31") != 1:
+                    raise RuntimeError("Water seam capture requires actual saved seed42/terrain31 metadata")
+        record["result"] = "OPEN" if args.water_seam and water_session["status"] == "OPEN" else "CAPTURED"
     except Exception as error:
         record["result"] = "FAIL"
         record["error"] = str(error)
-        raise
+        if not args.water_seam:
+            raise
+        water_capture_error = error
     finally:
+        if args.water_seam:
+            # Retain bounded current-run evidence even after timeout, partial
+            # write, missing draw or OPEN. Never replace it with generic timed
+            # screenshots or omit failures to obtain a successful record.
+            try:
+                retained = sorted(path for path in (output / "water-seam").iterdir()
+                                  if path.is_file()) if (output / "water-seam").is_dir() else []
+                if len(retained) > 1024 or any(path.is_symlink() for path in retained):
+                    raise RuntimeError("Unsafe or excessive water seam artifact inventory")
+                if sum(path.stat().st_size for path in retained) > 256 * 1024**2:
+                    raise RuntimeError("Actual water seam artifacts exceeded the 256MiB session budget")
+                retained += [path for path in (output / "client.log", output / "client-stderr.log")
+                             if path.is_file() and path.stat().st_size]
+                record["artifacts"] = {str(path.relative_to(output)): digest(path) for path in retained}
+            except Exception as error:
+                record["result"] = "FAIL"
+                record["artifact_retention_error"] = str(error)
+                if water_capture_error is None:
+                    water_capture_error = error
         record["finished_unix"] = time.time()
         record_path.write_text(json.dumps(record, indent=2) + "\n")
+    if args.water_seam:
+        # The independent consumer reads a finalized capture.json. Do not
+        # rewrite that input after the audit has recorded its SHA256.
+        with (output / "water-seam-oracle-stdout.log").open("w") as stdout, \
+                (output / "water-seam-oracle-stderr.log").open("w") as stderr:
+            oracle = subprocess.run(water_oracle_command, stdout=stdout, stderr=stderr, timeout=180)
+        print(record_path)
+        print(output / "water-seam-independent-oracle.json")
+        if water_capture_error is not None:
+            raise water_capture_error
+        if oracle.returncode not in (0, 1, 2):
+            raise RuntimeError(f"Independent water seam oracle did not return a defined result: {oracle.returncode}")
+        oracle_report = json.loads((output / "water-seam-independent-oracle.json").read_text())
+        expected_status = {0: "PASS_SCOPED_NATIVE_INPUTS_AND_FRAME_SEQUENCE", 1: "FAIL", 2: "OPEN"}[oracle.returncode]
+        if (oracle_report.get("schema") != "hellomine3d-water-seam-independent-audit-v1" or
+                oracle_report.get("status") != expected_status or
+                (oracle.returncode == 0 and record["result"] != "CAPTURED")):
+            raise RuntimeError("Independent water seam oracle report disagrees with its result or capture scope")
+        return oracle.returncode
     print(record_path)
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

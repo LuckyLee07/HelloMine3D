@@ -915,6 +915,13 @@ GL4.3以上直接查ARRAY_LONG，GL4.1／4.2以实际FLOAT类型排除未转换d
 普通路径默认关闭；像素归因、非主相机／阴影、World原子快照及incarnation／ABA仍分别待验。
 具体证据与边界见[实际绘制观察合同](../contracts/shore-native-draw-observation-contract-v1.md)。
 
+V06i仅在显式`--water-seam`的新隐藏隔离世界观察两原Water对象的至少十秒实际暖帧，
+默认客户端关闭。每帧读取原draw绑定、实际linked六uniform和交换前framebuffer ROI，首／中／末
+另保留原上传CPU及native raw和同帧全窗；独立按真实World四列核水深与共享输入，不重放绘制。
+缺失／unsupported／时间间隔保留OPEN，格式／GL／身份损坏为FAIL；最多480帧、16MiB自有活跃
+缓冲、256MiB输出，codec内部内存未暴露。原shader／World／Player／保存不变，普通输入、
+GPU displaced output和逐对象像素归因分别未关闭，见[连续观察合同](../contracts/water-seam-continuity-observation-contract-v1.md)。
+
 V06c在当前terrain30自然河流`(220,64,-204)`观察Water64／Water63／Sand62；附近Sand岸`(217,64,-204)`
 距目标3米，直接相邻岸条件仍未覆盖。standard与compatibility均经生产放置／破坏命令和显式诊断恢复，
 实际World列独立计算的四角水深与原44字节上传存储一致：`2→1.75→2→Sand→1→2`，最后恢复并保存。

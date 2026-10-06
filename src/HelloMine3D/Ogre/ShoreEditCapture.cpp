@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <filesystem>
@@ -24,6 +25,9 @@ namespace {
 namespace fs = std::filesystem;
 constexpr std::size_t OperationLimit = 16u * 1024u * 1024u;
 constexpr std::size_t SessionLimit = 256u * 1024u * 1024u;
+constexpr std::size_t WaterLiveLimit = 16u * 1024u * 1024u;
+constexpr std::size_t WaterFrameLimit = 480;
+constexpr std::size_t WaterIndexReserve = 1024u * 1024u;
 using Fields = std::vector<std::pair<std::string, std::string>>;
 void require(bool ok, const std::string& message) {
     if (!ok) throw std::runtime_error("Shore edit storage capture: " + message);
@@ -64,6 +68,76 @@ std::string matrix(const Ogre::Matrix4& value) {
         values.push_back(number(value[r][c]));
     return array(values);
 }
+// Called only by the explicit WaterSeam observer, on the actual linked native
+// program after the original draw. These are not Ogre parameter CPU copies.
+std::string nativeUniform(GLuint program, const char* name, GLenum expected,
+                          std::size_t count, std::vector<float>& values) {
+    GLuint index = GL_INVALID_INDEX;
+    glGetUniformIndices(program, 1, &name, &index);
+    require(index != GL_INVALID_INDEX, std::string("missing native water uniform ") + name);
+    GLint type = 0, size = 0;
+    glGetActiveUniformsiv(program, 1, &index, GL_UNIFORM_TYPE, &type);
+    glGetActiveUniformsiv(program, 1, &index, GL_UNIFORM_SIZE, &size);
+    const auto location = glGetUniformLocation(program, name);
+    require(location >= 0 && type == GLint(expected) && size == 1,
+        std::string("unsupported native water uniform type/size ") + name);
+    values.resize(count);
+    glGetUniformfv(program, location, values.data());
+    std::vector<std::string> encoded;
+    for (auto value : values) encoded.push_back(number(value));
+    Fields fields{{"index", number(index)}, {"location", number(location)},
+        {"type", number(type)}, {"size", number(size)}};
+    if (count == 1) fields.push_back({"value", encoded.front()});
+    else fields.push_back({"values", array(encoded)});
+    if (expected == GL_FLOAT_MAT4) fields.push_back({"layout", quote("column_major")});
+    return object(fields);
+}
+// ROI readback mutates only pack state, READ_FRAMEBUFFER and its read selector.
+// No new readback, state query or allocation runs on the old constructor path.
+struct WaterReadState {
+    GLint packBuffer = 0, readFbo = 0, drawFbo = 0, read = 0, drawRead = 0, drawBuffer = 0;
+    std::array<GLint, 8> pack{};
+    const std::array<GLenum, 8> names{{GL_PACK_ALIGNMENT, GL_PACK_ROW_LENGTH, GL_PACK_IMAGE_HEIGHT,
+        GL_PACK_SKIP_PIXELS, GL_PACK_SKIP_ROWS, GL_PACK_SKIP_IMAGES, GL_PACK_SWAP_BYTES, GL_PACK_LSB_FIRST}};
+    bool restored = false;
+    WaterReadState() {
+        glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &packBuffer);
+        for (std::size_t i = 0; i < names.size(); ++i) glGetIntegerv(names[i], &pack[i]);
+        glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &readFbo);
+        glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &drawFbo);
+        glGetIntegerv(GL_READ_BUFFER, &read);
+        glGetIntegerv(GL_DRAW_BUFFER0, &drawBuffer);
+        if (drawFbo != readFbo) {
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, drawFbo);
+            glGetIntegerv(GL_READ_BUFFER, &drawRead);
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, readFbo);
+        } else drawRead = read;
+    }
+    void tightPack() {
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+        for (auto name : names) glPixelStorei(name, name == GL_PACK_ALIGNMENT ? 1 : 0);
+    }
+    void restore() noexcept {
+        if (restored) return;
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, packBuffer);
+        for (std::size_t i = 0; i < names.size(); ++i) glPixelStorei(names[i], pack[i]);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, drawFbo); glReadBuffer(drawRead);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, readFbo); glReadBuffer(read);
+        restored = true;
+    }
+    bool same(const WaterReadState& other) const noexcept {
+        return packBuffer == other.packBuffer && pack == other.pack && readFbo == other.readFbo &&
+            drawFbo == other.drawFbo && read == other.read && drawRead == other.drawRead && drawBuffer == other.drawBuffer;
+    }
+    std::string json() const {
+        std::vector<std::string> values;
+        for (auto value : pack) values.push_back(number(value));
+        return object({{"pack_buffer", number(packBuffer)}, {"pack", array(values)},
+            {"read_fbo", number(readFbo)}, {"draw_fbo", number(drawFbo)},
+            {"read_buffer", number(read)}, {"draw_read_buffer", number(drawRead)}, {"draw_buffer", number(drawBuffer)}});
+    }
+    ~WaterReadState() { restore(); }
+};
 // Comparison-only context snapshot. COPY_READ is the only binding mutated.
 // In particular, never bind ARRAY/ELEMENT_ARRAY or a VAO to read original bytes.
 struct ContextState {
@@ -196,6 +270,17 @@ struct ShoreEditCapture::Impl {
     Ogre::SceneManager& scene;
     Ogre::Camera& camera;
     const bool nativeDraw;
+    const bool waterSeam;
+    Ogre::RenderWindow* waterWindow = nullptr;
+    WaterSeamOptions waterOptions;
+    std::chrono::steady_clock::time_point waterStarted{};
+    std::vector<std::string> waterFrames;
+    std::map<std::string, std::string> waterCheckpoints;
+    bool waterFinished = false, waterAnyOpen = false, waterStoppedByBound = false;
+    double waterLastElapsed = 0, waterFirstNativeTime = 0, waterLastNativeTime = 0;
+    bool waterTimeKnown = false, waterTimeAdvanced = false, waterPhaseWrapped = false;
+    std::uint64_t waterLastFrameId = 0;
+    std::size_t waterPeakOwnedBytes = 0;
     bool frameOpen = false, nativeReady = false, nativeFailureWritten = false;
     std::uint64_t nativeFrameId = 0, attemptedFrames = 0;
     std::vector<Binding> nativeBindings;
@@ -231,25 +316,97 @@ struct ShoreEditCapture::Impl {
     struct NativeOperation {
         std::string json, file;
         std::vector<unsigned char> vertices, indices;
+        float waterTime = 0;
     };
     std::map<ChunkSectionRenderable*, Pending> pending;
     std::map<ChunkSectionRenderable*, NativeOperation> nativeOperations;
-    Impl(ShoreEditCapture& o, const std::string& output, Ogre::SceneManager& sm, Ogre::Camera& c, bool draw)
-        : directory(output), observer(o), scene(sm), camera(c), nativeDraw(draw) {
+    Impl(ShoreEditCapture& o, const std::string& output, Ogre::SceneManager& sm, Ogre::Camera& c, bool draw,
+         Ogre::RenderWindow* window = nullptr, const WaterSeamOptions* options = nullptr)
+        : directory(output), observer(o), scene(sm), camera(c), nativeDraw(draw), waterSeam(options != nullptr),
+          waterWindow(window), waterOptions(options ? *options : WaterSeamOptions{}) {
+        if (waterSeam) {
+            require(nativeDraw && waterWindow && (waterOptions.renderingMode == "standard" ||
+                waterOptions.renderingMode == "compatibility"), "invalid explicit water seam mode");
+            require(waterOptions.roiX >= 0 && waterOptions.roiY >= 0 && waterOptions.roiWidth > 0 &&
+                waterOptions.roiHeight > 0 && waterOptions.roiWidth <= 8192 && waterOptions.roiHeight <= 8192 &&
+                std::size_t(waterOptions.roiWidth) * waterOptions.roiHeight * 4 <= WaterLiveLimit / 2,
+                "invalid bounded frozen water ROI");
+            waterStarted = std::chrono::steady_clock::now();
+        }
         require(!output.empty() && !fs::exists(directory) && !fs::is_symlink(directory), "fresh output directory required");
         require(fs::create_directory(directory), "cannot create fresh output directory");
         if (nativeDraw) scene.addRenderObjectListener(&observer);
     }
     void write(const std::string& filename, const void* data, std::size_t bytes) {
-        require(bytes <= SessionLimit - written, "256MiB observer write bound exceeded");
+        const auto limit = waterSeam && !waterFinished ? SessionLimit - WaterIndexReserve : SessionLimit;
+        if (waterSeam) waterBound(written <= limit && bytes <= limit - written,
+            "256MiB observer write bound exceeded");
+        else require(written <= limit && bytes <= limit - written, "256MiB observer write bound exceeded");
         const auto path = directory / filename;
         require(!fs::exists(path), "refusing to overwrite retained observation");
         std::ofstream out(path, std::ios::binary);
         require(bool(out), "cannot create observation file");
+        // A failed Water write may leave a partial retained file. Charge its
+        // complete planned size before I/O so later failure/index writes cannot
+        // exceed the common budget. Successful writes equal the actual size;
+        // on FAIL this counter is explicitly conservative.
+        if (waterSeam) written += bytes;
         out.write(static_cast<const char*>(data), static_cast<std::streamsize>(bytes));
-        out.close(); require(bool(out), "observation write failed"); written += bytes;
+        out.close(); require(bool(out), "observation write failed");
+        if (!waterSeam) written += bytes;
     }
     void textFile(const std::string& filename, const std::string& value) { write(filename, value.data(), value.size()); }
+    void writeWaterPng(const std::string& filename, std::vector<unsigned char>& pixels,
+                       unsigned width, unsigned height, Ogre::PixelFormat format, unsigned components) {
+        // glReadPixels is bottom-up. Reverse only row order, without filtering,
+        // colour conversion or a second full-size observer-owned pixel buffer.
+        const auto row = std::size_t(width) * components;
+        for (std::size_t y = 0; y < height / 2; ++y)
+            std::swap_ranges(pixels.begin() + y * row, pixels.begin() + (y + 1) * row,
+                pixels.begin() + (height - 1 - y) * row);
+        Ogre::Image image;
+        image.loadDynamicImage(pixels.data(), width, height, 1, format, false);
+        auto encoded = image.encode("png");
+        require(!encoded.isNull() && encoded->size() > 0, "PNG codec returned no exact water image");
+        const auto bytes = encoded->size();
+        const auto limit = SessionLimit - WaterIndexReserve;
+        waterBound(written <= limit && bytes <= limit - written, "PNG would exceed 256MiB water output bound");
+        require(!fs::exists(directory / filename), "refusing to overwrite original water PNG");
+        ownedWaterBound(pixels.size() + 4096);
+        std::ofstream out(directory / filename, std::ios::binary);
+        require(bool(out), "cannot create original water PNG");
+        written += bytes;
+        encoded->seek(0); std::array<unsigned char, 4096> chunk{};
+        std::size_t remaining = bytes;
+        while (remaining) {
+            const auto count = std::min(remaining, chunk.size());
+            require(encoded->read(chunk.data(), count) == count, "truncated exact PNG codec stream");
+            out.write(reinterpret_cast<const char*>(chunk.data()), static_cast<std::streamsize>(count));
+            require(bool(out), "original water PNG write failed"); remaining -= count;
+        }
+        out.close(); require(bool(out), "original water PNG close failed");
+    }
+    void waterBound(bool within, const std::string& reason) {
+        if (!within) { waterStoppedByBound = true; waterAnyOpen = true; open(reason); }
+        require(within, reason);
+    }
+    void waterDeadline() {
+        require(!waterFinished, "water seam observation already finished");
+        waterBound(std::chrono::steady_clock::now() - waterStarted <= std::chrono::seconds(60),
+            "water seam observation exceeded 60-second session bound");
+    }
+    std::size_t waterOwnedBytes() const {
+        std::size_t result = 0;
+        for (const auto& b : nativeBindings) result += cpuBytes(b.cpu);
+        for (const auto& op : nativeOperations) result += op.second.vertices.size() + op.second.indices.size();
+        return result;
+    }
+    void ownedWaterBound(std::size_t extra) {
+        const auto current = waterOwnedBytes();
+        waterBound(current <= WaterLiveLimit && extra <= WaterLiveLimit - current,
+            "water observer owned buffer allocation exceeded 16MiB");
+        waterPeakOwnedBytes = std::max(waterPeakOwnedBytes, current + extra);
+    }
     bool retainGlErrors(const std::string& stage) {
         bool any = false;
         for (int i = 0; i < 32; ++i) {
@@ -329,6 +486,9 @@ struct ShoreEditCapture::Impl {
 
 ShoreEditCapture::ShoreEditCapture(const std::string& directory, Ogre::SceneManager& scene, Ogre::Camera& camera, bool nativeDraw)
     : m_impl(std::make_unique<Impl>(*this, directory, scene, camera, nativeDraw)) {}
+ShoreEditCapture::ShoreEditCapture(const std::string& directory, Ogre::SceneManager& scene,
+    Ogre::Camera& camera, Ogre::RenderWindow& window, const WaterSeamOptions& options)
+    : m_impl(std::make_unique<Impl>(*this, directory, scene, camera, true, &window, &options)) {}
 ShoreEditCapture::~ShoreEditCapture() {
     if (m_impl && m_impl->nativeDraw) {
         m_impl->detachAll(); m_impl->scene.removeRenderObjectListener(this);
@@ -358,14 +518,14 @@ void ShoreEditCapture::detachRenderable(ChunkSectionRenderable& renderable) noex
 void ShoreEditCapture::retainNativeFailure(const std::string& reason) noexcept {
     auto& s = *m_impl;
     if (!s.nativeDraw || s.nativeFailureWritten) return;
-    s.nativeFailureWritten = true; s.failed = true; s.detachAll();
+    s.nativeFailureWritten = true; s.failed = !(s.waterSeam && s.waterStoppedByBound); s.detachAll();
     try {
         s.retainGlErrors("native-draw-failure-after-cleanup");
         // Incomplete frames remain incomplete. Preserve any observed original
         // storage and metadata without claiming a six-phase successful capture.
-        try { s.writeNativeRaw(); } catch (...) {}
+        if (!s.waterSeam) { try { s.writeNativeRaw(); } catch (...) {} }
         const auto packet = object({{"schema", quote("hellomine3d-shore-native-draw-failure-v1")},
-            {"status", quote("FAIL")}, {"error", quote(reason)}, {"phase_index", number(s.phases)},
+            {"status", quote(s.failed ? "FAIL" : "OPEN")}, {"error", quote(reason)}, {"phase_index", number(s.phases)},
             {"native_draw_observation", s.nativeJson(0, false, false)}, {"gl_errors", array(s.glErrors)}});
         s.textFile("native-draw-failure.json", packet + '\n');
     } catch (...) {}
@@ -375,10 +535,19 @@ void ShoreEditCapture::beginNativeFrame(std::uint64_t frameId, std::vector<Bindi
     try {
     require(s.nativeDraw && !s.failed && std::this_thread::get_id() == s.owner && !s.frameOpen,
         "native frame requires the original render thread and enabled healthy observer");
-    require(s.phases < 6 && !bindings.empty() && bindings.size() <= 8, "native phase/object bound exceeded");
+    if (s.waterSeam) {
+        s.waterDeadline();
+        s.waterBound(s.waterFrames.size() < WaterFrameLimit,
+            "water seam reached 480 actual frame records");
+        require(bindings.size() <= 2, "water seam accepts at most two current original objects");
+        s.waterBound(s.waterFrames.empty() || s.waterLastElapsed < 10.0,
+            "water seam cannot capture another frame after the ten-second endpoint");
+        for (const auto& b : bindings) require(b.layer == "water" && b.parts.size() == 1,
+            "water seam cannot observe solid or vertically batched objects");
+    } else require(s.phases < 6 && !bindings.empty() && bindings.size() <= 8, "native phase/object bound exceeded");
     s.detachAll(); s.nativeReady = false; s.nativeOperations.clear(); s.nativeBindings.clear();
     s.openReasons.clear(); s.attempts.clear(); s.glErrors.clear(); s.nativeFrameId = frameId; ++s.attemptedFrames;
-    if (s.historyPhase != s.phases) { s.openHistory.clear(); s.historyPhase = s.phases; }
+    if (!s.waterSeam && s.historyPhase != s.phases) { s.openHistory.clear(); s.historyPhase = s.phases; }
     std::size_t rawBytes = 0; std::vector<ChunkSectionRenderable*> unique;
     for (const auto& b : bindings) {
         require(b.renderable && b.uploadSerial && std::find(unique.begin(), unique.end(), b.renderable) == unique.end(),
@@ -386,7 +555,12 @@ void ShoreEditCapture::beginNativeFrame(std::uint64_t frameId, std::vector<Bindi
         unique.push_back(b.renderable); partsJson(b); rawBytes += cpuBytes(b.cpu);
     }
     constexpr std::size_t metadataReserve = 128u * 1024u;
-    require(SessionLimit - s.written >= metadataReserve &&
+    if (s.waterSeam) {
+        s.waterBound(rawBytes <= WaterLiveLimit / 3, "water copied endpoints/native storage exceed 16MiB owned buffer bound");
+        s.waterBound(SessionLimit - s.written >= metadataReserve, "water metadata exceeds remaining session bytes");
+        s.waterPeakOwnedBytes = std::max(s.waterPeakOwnedBytes, rawBytes * 2);
+        if (bindings.size() != 2) s.open("this actual frame lacks two valid current original water bindings");
+    } else require(SessionLimit - s.written >= metadataReserve &&
         rawBytes <= (SessionLimit - s.written - metadataReserve) / 4,
         "native and existing storage writes exceed remaining 256MiB session bound");
     s.checkGl("native-frame-before-attachment");
@@ -518,10 +692,14 @@ void ShoreEditCapture::afterNativeDraw(ChunkSectionRenderable& renderable, Ogre:
         }
         if (!stagesMatch) { s.openAttempt(p, "actual attached stages do not match the selected main-camera pass"); return; }
         Ogre::RenderOperation op; renderable.getRenderOperation(op);
-        require(op.srcRenderable == &renderable && op.operationType == Ogre::RenderOperation::OT_TRIANGLE_LIST && op.useIndexes &&
+        require(op.srcRenderable == &renderable, "native original operation renderable identity differs");
+        const bool directTriangles = op.operationType == Ogre::RenderOperation::OT_TRIANGLE_LIST && op.useIndexes &&
             op.numberOfInstances == 1 && op.vertexData && op.indexData && op.vertexData->vertexDeclaration &&
-            op.vertexData->vertexBufferBinding && op.vertexData->vertexStart == 0 && op.indexData->indexStart == 0,
-            "native original operation is not production single-instance triangles");
+            op.vertexData->vertexBufferBinding && op.vertexData->vertexStart == 0 && op.indexData->indexStart == 0;
+        if (s.waterSeam && !directTriangles) {
+            s.openAttempt(p, "unsupported actual water operation topology, instance count or start"); return;
+        }
+        require(directTriangles, "native original operation is not production single-instance triangles");
         declarationJson(*op.vertexData->vertexDeclaration);
         const auto effectiveInstances = op.useGlobalInstancingVertexBufferIsAvailable ? p.globalInstances : std::size_t(1);
         if (effectiveInstances != 1) { s.openAttempt(p, "unsupported actual global instance count"); return; }
@@ -535,9 +713,13 @@ void ShoreEditCapture::afterNativeDraw(ChunkSectionRenderable& renderable, Ogre:
         const auto& hardware = buffers.begin()->second;
         auto* vertex = dynamic_cast<Ogre::GL3PlusHardwareVertexBuffer*>(hardware.get());
         auto* index = dynamic_cast<Ogre::GL3PlusHardwareIndexBuffer*>(op.indexData->indexBuffer.get());
-        require(vertex && index && hardware->getVertexSize() == 44 &&
+        const bool directStorage = vertex && index && hardware->getVertexSize() == 44 &&
             op.indexData->indexBuffer->getType() == Ogre::HardwareIndexBuffer::IT_32BIT &&
-            op.indexData->indexBuffer->getIndexSize() == 4, "native source0 must be production44B/u32");
+            op.indexData->indexBuffer->getIndexSize() == 4;
+        if (s.waterSeam && !directStorage) {
+            s.openAttempt(p, "unsupported actual water storage backend or vertex/index format"); return;
+        }
+        require(directStorage, "native source0 must be production44B/u32");
         const auto vbytes = hardware->getSizeInBytes(), ibytes = op.indexData->indexBuffer->getSizeInBytes();
         require(vbytes <= OperationLimit && ibytes <= OperationLimit - vbytes &&
             vbytes == binding.cpu.vertices.size() * sizeof(TerrainRenderVertex) &&
@@ -547,7 +729,8 @@ void ShoreEditCapture::afterNativeDraw(ChunkSectionRenderable& renderable, Ogre:
         GLint attributeCount = 0, maximumName = 0;
         glGetProgramiv(GLuint(entry.program), GL_ACTIVE_ATTRIBUTES, &attributeCount);
         glGetProgramiv(GLuint(entry.program), GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &maximumName);
-        if (attributeCount < 1 || attributeCount > 5 || maximumName < 1 || maximumName > 128) {
+        if (attributeCount < 1 || attributeCount > 5 || maximumName < 1 || maximumName > 128 ||
+            (s.waterSeam && attributeCount != 4)) {
             s.openAttempt(p, "unsupported actual active-input count or name extent"); return;
         }
         std::vector<std::string> attributes; bool attributesMatch = true; bool havePosition = false;
@@ -567,6 +750,7 @@ void ShoreEditCapture::afterNativeDraw(ChunkSectionRenderable& renderable, Ogre:
                 s.openAttempt(p, "unsupported active shader input or repeated native location"); return;
             }
             const auto slot = std::size_t(semantic - names.begin()); locations.push_back(location);
+            if (s.waterSeam && slot == 4) { s.openAttempt(p, "unsupported active water uv3 input"); return; }
             if (shaderType != shaderTypes[slot]) { s.openAttempt(p, "active shader input type differs from production mapping"); return; }
             havePosition = havePosition || slot == 0;
             GLint enabled = 0, buffer = 0, type = 0, size = 0, stride = 0, normalized = 0, integer = 0, divisor = 0, longType = 0;
@@ -603,10 +787,33 @@ void ShoreEditCapture::afterNativeDraw(ChunkSectionRenderable& renderable, Ogre:
         if (!havePosition) { s.openAttempt(p, "no active position input in the actual linked program"); return; }
         s.checkGl("native-active-input-reflection");
         Impl::NativeOperation captured;
-        std::ostringstream file; file << "phase-" << std::setw(3) << std::setfill('0') << s.phases << "-native-op-"
+        Fields uniforms;
+        if (s.waterSeam) {
+            try {
+                std::vector<float> values;
+                uniforms.push_back({"globalTime", nativeUniform(GLuint(entry.program), "globalTime", GL_FLOAT, 1, values)});
+                captured.waterTime = values.front();
+                uniforms.push_back({"waterDetailStrength", nativeUniform(GLuint(entry.program), "waterDetailStrength", GL_FLOAT, 1, values)});
+                uniforms.push_back({"world", nativeUniform(GLuint(entry.program), "world", GL_FLOAT_MAT4, 16, values)});
+                uniforms.push_back({"worldView", nativeUniform(GLuint(entry.program), "worldView", GL_FLOAT_MAT4, 16, values)});
+                uniforms.push_back({"worldViewProj", nativeUniform(GLuint(entry.program), "worldViewProj", GL_FLOAT_MAT4, 16, values)});
+                uniforms.push_back({"cameraPosition", nativeUniform(GLuint(entry.program), "cameraPosition", GL_FLOAT_VEC3, 3, values)});
+            } catch (const std::exception& error) {
+                s.openAttempt(p, std::string("unsupported actual water uniforms: ") + error.what());
+                s.checkGl("water-uniform-reflection-open");
+                return;
+            }
+            s.checkGl("water-actual-linked-program-uniforms");
+        }
+        std::ostringstream file;
+        if (s.waterSeam) file << "frame-" << s.nativeFrameId;
+        else file << "phase-" << std::setw(3) << std::setfill('0') << s.phases;
+        file << "-native-op-"
             << std::distance(s.nativeBindings.begin(), std::find_if(s.nativeBindings.begin(), s.nativeBindings.end(),
                 [&](const auto& b) { return b.renderable == &renderable; }));
-        captured.file = file.str(); captured.vertices.resize(vbytes); captured.indices.resize(ibytes);
+        captured.file = file.str();
+        if (s.waterSeam) s.ownedWaterBound(vbytes + ibytes);
+        captured.vertices.resize(vbytes); captured.indices.resize(ibytes);
         CopyReadGuard state; s.checkGl("native-storage-entry");
         require(vertex->getGLBufferId() && index->getGLBufferId() && glIsBuffer(vertex->getGLBufferId()) &&
             glIsBuffer(index->getGLBufferId()), "native original buffers are missing");
@@ -625,7 +832,7 @@ void ShoreEditCapture::afterNativeDraw(ChunkSectionRenderable& renderable, Ogre:
         const bool equal = std::memcmp(captured.vertices.data(), binding.cpu.vertices.data(), vbytes) == 0 &&
             std::memcmp(captured.indices.data(), binding.cpu.indices.data(), ibytes) == 0;
         const bool eboMatch = GLuint(entry.ebo) == index->getGLBufferId();
-        captured.json = object({{"object_name", quote(renderable.getName())},
+        Fields operationFields{{"object_name", quote(renderable.getName())},
             {"object_id", number(reinterpret_cast<std::uintptr_t>(&renderable))},
             {"camera_id", number(reinterpret_cast<std::uintptr_t>(p.callbackCamera))},
             {"upload_serial", number(binding.uploadSerial)}, {"material_name", quote(renderable.getMaterial()->getName())},
@@ -652,10 +859,23 @@ void ShoreEditCapture::afterNativeDraw(ChunkSectionRenderable& renderable, Ogre:
             {"active_attribute_count", number(attributeCount)}, {"active_attributes", array(attributes)},
             {"source0", object({{"stride", "44"}, {"vertices", number(op.vertexData->vertexCount)},
                 {"vertex_bytes", number(vbytes)}, {"index_bytes", number(ibytes)}, {"native_cpu_bytes_equal", boolean(equal)},
-                {"file", quote(captured.file + ".vbo0.bin")}, {"cpu_file", quote(captured.file + ".cpu-vbo0.bin")},
-                {"index_file", quote(captured.file + ".ibo.bin")}, {"cpu_index_file", quote(captured.file + ".cpu-ibo.bin")}})},
+                {"file", s.waterSeam ? "null" : quote(captured.file + ".vbo0.bin")},
+                {"cpu_file", s.waterSeam ? "null" : quote(captured.file + ".cpu-vbo0.bin")},
+                {"index_file", s.waterSeam ? "null" : quote(captured.file + ".ibo.bin")},
+                {"cpu_index_file", s.waterSeam ? "null" : quote(captured.file + ".cpu-ibo.bin")}})},
             {"context_before", state.before.json()}, {"context_after", after.json()},
-            {"state_restored", boolean(restored)}, {"gl_errors", array(s.glErrors)}});
+            {"state_restored", boolean(restored)}, {"gl_errors", array(s.glErrors)}};
+        if (s.waterSeam) {
+            Ogre::Matrix4 transform; renderable.getWorldTransforms(&transform);
+            operationFields.push_back({"layer", quote(binding.layer)});
+            operationFields.push_back({"owner_key", quote(binding.ownerKey)});
+            operationFields.push_back({"origin", xyz(binding.origin)});
+            operationFields.push_back({"parts", partsJson(binding)});
+            operationFields.push_back({"elements", declarationJson(*op.vertexData->vertexDeclaration)});
+            operationFields.push_back({"node_world_row_major", matrix(transform)});
+            operationFields.push_back({"uniforms", object(uniforms)});
+        }
+        captured.json = object(operationFields);
         s.nativeOperations.emplace(&renderable, std::move(captured));
         if (p.attempt < s.attempts.size()) s.attempts[p.attempt].status = "CAPTURED";
         require(attributesMatch && eboMatch, "actual warm VAO attribute/index bindings differ from original production operation");
@@ -670,6 +890,15 @@ bool ShoreEditCapture::finishNativeFrame(std::vector<Binding> endBindings) {
     try {
         require(std::this_thread::get_id() == s.owner && !s.failed, "native endpoint thread/session mismatch");
         s.detachAll(); s.checkGl("native-frame-after-detachment");
+        bool waterOwners = true;
+        if (s.waterSeam) {
+            require(endBindings.size() <= 2, "water endpoint accepts at most two current original objects");
+            std::size_t endBytes = 0;
+            for (const auto& b : endBindings) endBytes += cpuBytes(b.cpu);
+            s.ownedWaterBound(endBytes);
+            waterOwners = s.nativeBindings.size() == 2 && endBindings.size() == 2;
+            if (!waterOwners) s.open("this actual frame lacks two current original water owner endpoints");
+        }
         bool endpoints = endBindings.size() == s.nativeBindings.size();
         for (const auto& b : s.nativeBindings) {
             const auto found = std::find_if(endBindings.begin(), endBindings.end(),
@@ -688,14 +917,186 @@ bool ShoreEditCapture::finishNativeFrame(std::vector<Binding> endBindings) {
             actualPairs = actualPairs && main == 1;
         }
         if (!actualPairs) s.open("this frame lacks exactly one complete supported main-camera pair for every selected object");
-        s.nativeReady = endpoints && actualPairs && s.nativeOperations.size() == s.nativeBindings.size();
+        s.nativeReady = waterOwners && endpoints && actualPairs && s.nativeOperations.size() == s.nativeBindings.size();
         return s.nativeReady;
     } catch (const std::exception& e) { retainNativeFailure(e.what()); throw; }
+}
+std::size_t ShoreEditCapture::waterFrameCount() const noexcept { return m_impl->waterFrames.size(); }
+void ShoreEditCapture::captureWaterFrame(double elapsedSeconds, double deltaSeconds,
+                                        const std::string& checkpoint) {
+    auto& s = *m_impl;
+    try {
+        require(s.waterSeam && !s.frameOpen && !s.failed && std::this_thread::get_id() == s.owner,
+            "water frame requires the explicit observer after this original frame's draw");
+        s.waterDeadline();
+        s.waterBound(s.waterFrames.size() < WaterFrameLimit, "water seam reached 480 actual frame records");
+        require(std::isfinite(elapsedSeconds) &&
+            std::isfinite(deltaSeconds) && elapsedSeconds >= 0 && elapsedSeconds <= 60 &&
+            deltaSeconds >= 0 && deltaSeconds <= 60, "invalid bounded actual water frame clock");
+        require(checkpoint.empty() || checkpoint == "first" || checkpoint == "middle" || checkpoint == "last",
+            "unknown water checkpoint");
+        require(checkpoint.empty() || !s.waterCheckpoints.count(checkpoint), "duplicate water checkpoint");
+        require(s.waterFrames.empty() || s.nativeFrameId > s.waterLastFrameId,
+            "duplicate or reversed actual water frame");
+        if (!s.waterFrames.empty() && (s.nativeFrameId != s.waterLastFrameId + 1 ||
+            elapsedSeconds <= s.waterLastElapsed)) {
+            s.open("actual water frame ID or monotonic clock has a gap"); s.waterAnyOpen = true;
+        }
+        if (!s.nativeReady) s.waterAnyOpen = true;
+        if (s.nativeReady && (s.nativeBindings.size() != 2 || s.nativeOperations.size() != 2)) {
+            s.nativeReady = false; s.waterAnyOpen = true;
+            s.open("complete original water pair unavailable at framebuffer read");
+        }
+        if (s.nativeReady) {
+            const auto first = s.nativeOperations.find(s.nativeBindings.front().renderable);
+            const auto second = s.nativeOperations.find(s.nativeBindings.back().renderable);
+            const double time = first->second.waterTime;
+            if (time != second->second.waterTime) {
+                s.open("the two original water draws have different actual globalTime"); s.waterAnyOpen = true;
+            }
+            if (s.waterTimeKnown) {
+                if (time <= s.waterLastNativeTime) {
+                    s.open("actual water globalTime did not advance between retained frames"); s.waterAnyOpen = true;
+                } else s.waterTimeAdvanced = true;
+                s.waterPhaseWrapped = s.waterPhaseWrapped ||
+                    std::floor(time * .15) > std::floor(s.waterLastNativeTime * .15);
+            } else { s.waterTimeKnown = true; s.waterFirstNativeTime = time; }
+            s.waterLastNativeTime = time;
+        }
+        const auto prefix = std::string("frame-") + number(s.nativeFrameId);
+        const auto width = s.waterWindow->getWidth(), height = s.waterWindow->getHeight();
+        const auto& roi = s.waterOptions;
+        require(width > 0 && height > 0 && width <= 8192 && height <= 8192 &&
+            std::uint64_t(roi.roiX) + roi.roiWidth <= width && std::uint64_t(roi.roiY) + roi.roiHeight <= height,
+            "frozen water ROI falls outside the actual framebuffer");
+        std::vector<std::string> rawOperations;
+        if (!checkpoint.empty()) {
+            // Native buffers were read and compared on every actual draw, but
+            // independent raw consumption is limited to these three snapshots.
+            s.writeNativeRaw();
+            for (const auto& binding : s.nativeBindings) {
+                const auto found = s.nativeOperations.find(binding.renderable);
+                if (found == s.nativeOperations.end()) continue;
+                const auto& op = found->second;
+                rawOperations.push_back(object({{"object_id", number(reinterpret_cast<std::uintptr_t>(binding.renderable))},
+                    {"upload_serial", number(binding.uploadSerial)}, {"origin", xyz(binding.origin)},
+                    {"parts", partsJson(binding)},
+                    {"native_file", quote(op.file + ".vbo0.bin")}, {"cpu_file", quote(op.file + ".cpu-vbo0.bin")},
+                    {"native_index_file", quote(op.file + ".ibo.bin")}, {"cpu_index_file", quote(op.file + ".cpu-ibo.bin")}}));
+            }
+        }
+        const ContextState before;
+        WaterReadState read;
+        s.checkGl("water-framebuffer-before-read");
+        const auto readJsonBefore = read.json();
+        const auto roiBytes = std::size_t(roi.roiWidth) * roi.roiHeight * 4;
+        s.ownedWaterBound(roiBytes + 4096);
+        std::vector<unsigned char> pixels(roiBytes);
+        read.tightPack();
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, read.drawFbo); glReadBuffer(read.drawBuffer);
+        glReadPixels(roi.roiX, roi.roiY, roi.roiWidth, roi.roiHeight, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+        const bool srgb = glIsEnabled(GL_FRAMEBUFFER_SRGB);
+        s.checkGl("water-framebuffer-roi-read"); read.restore();
+        const ContextState after;
+        WaterReadState readAfter;
+        const bool restored = before.same(after) && read.same(readAfter);
+        const auto readJsonAfter = readAfter.json(); readAfter.restore();
+        s.checkGl("water-framebuffer-roi-state-restored");
+        require(restored, "water ROI framebuffer/pack/context state restoration mismatch");
+        s.writeWaterPng(prefix + "-roi.png", pixels, unsigned(roi.roiWidth), unsigned(roi.roiHeight), Ogre::PF_BYTE_RGBA, 4);
+        std::vector<unsigned char>().swap(pixels);
+        std::string fullPng = "null";
+        if (!checkpoint.empty()) {
+            // The whole original window uses the same actual draw framebuffer
+            // before swap. Encoding runs after state restoration; no draw or
+            // rendering replay occurs between these two reads.
+            const auto fullBytes = std::size_t(width) * height * 3;
+            s.ownedWaterBound(fullBytes + 4096);
+            std::vector<unsigned char> full(fullBytes);
+            const ContextState fullBefore; WaterReadState fullRead;
+            fullRead.tightPack();
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, fullRead.drawFbo); glReadBuffer(fullRead.drawBuffer);
+            glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, full.data());
+            s.checkGl("water-framebuffer-original-window-read"); fullRead.restore();
+            const ContextState fullAfter; WaterReadState fullReadAfter;
+            const bool fullRestored = fullBefore.same(fullAfter) && fullRead.same(fullReadAfter);
+            fullReadAfter.restore(); s.checkGl("water-framebuffer-original-window-state-restored");
+            require(fullRestored && fullRead.drawFbo == read.drawFbo && fullRead.drawBuffer == read.drawBuffer,
+                "original water PNG framebuffer or state differs from same-frame ROI");
+            s.writeWaterPng(prefix + "-full.png", full, width, height, Ogre::PF_BYTE_RGB, 3);
+            fullPng = quote(prefix + "-full.png");
+        }
+        const auto frame = object({{"schema", quote("hellomine3d-water-seam-frame-v1")},
+            {"status", quote(s.nativeReady && s.openReasons.empty() ? "CAPTURED" : "OPEN")},
+            {"mode", quote(s.waterOptions.renderingMode)}, {"frame_id", number(s.nativeFrameId)},
+            {"elapsed_seconds", number(elapsedSeconds)}, {"delta_seconds", number(deltaSeconds)},
+            {"checkpoint", quote(checkpoint)}, {"native_draw_observation", s.nativeJson(0, s.nativeReady, false)},
+            {"raw_checkpoint_operations", array(rawOperations)}, {"full_png", fullPng},
+            {"framebuffer", object({{"width", number(width)}, {"height", number(height)},
+                {"roi", object({{"x", number(roi.roiX)}, {"y", number(roi.roiY)},
+                    {"width", number(roi.roiWidth)}, {"height", number(roi.roiHeight)}})},
+                {"origin", quote("bottom_left")}, {"format", quote("RGBA8")},
+                {"file", quote(prefix + "-roi.png")}, {"png_origin", quote("top_left")},
+                {"read_fbo", number(read.drawFbo)}, {"read_buffer", number(read.drawBuffer)},
+                {"framebuffer_srgb", boolean(srgb)}, {"pack_context_before", readJsonBefore},
+                {"pack_context_after", readJsonAfter}, {"state_restored", boolean(restored)}})},
+            {"context_before", before.json()}, {"context_after", after.json()}, {"state_restored", boolean(restored)},
+            {"gl_errors", array(s.glErrors)}, {"ordinary_input", quote("NOT_RUN")},
+            {"pixel_attribution", quote("OPEN_FINAL_FRAMEBUFFER_NOT_PER_OBJECT_ATTRIBUTION")},
+            {"shader_displaced_vertex_output", quote("OPEN_NO_TRANSFORM_FEEDBACK_OR_VERTEX_OUTPUT_READBACK")}});
+        s.textFile(prefix + ".json", frame + '\n');
+        s.waterFrames.push_back(quote(prefix + ".json"));
+        if (!checkpoint.empty()) s.waterCheckpoints.emplace(checkpoint, prefix + ".json");
+        s.waterLastFrameId = s.nativeFrameId; s.waterLastElapsed = elapsedSeconds;
+        s.waterAnyOpen = s.waterAnyOpen || !s.openReasons.empty(); s.nativeReady = false;
+    } catch (const std::exception& error) { retainNativeFailure(error.what()); throw; }
+}
+void ShoreEditCapture::finishWaterSession(const std::string& sourceBeforeJson,
+                                         const std::string& sourceAfterJson,
+                                         const std::string& reason) {
+    auto& s = *m_impl;
+    require(s.waterSeam && !s.waterFinished && std::this_thread::get_id() == s.owner,
+        "water session finalization requires its original explicit observer");
+    require(sourceBeforeJson.size() <= 256u * 1024u && sourceAfterJson.size() <= 256u * 1024u &&
+        !sourceBeforeJson.empty() && !sourceAfterJson.empty() && sourceBeforeJson.front() == '{' &&
+        sourceBeforeJson.back() == '}' && sourceAfterJson.front() == '{' && sourceAfterJson.back() == '}' &&
+        reason.size() <= 512, "water source endpoint JSON/reason exceeds bounded object interface");
+    s.detachAll();
+    const bool complete = !s.failed && !s.waterAnyOpen && s.waterFrames.size() >= 2 &&
+        s.waterLastElapsed >= 10.0 && s.waterTimeAdvanced && s.waterPhaseWrapped &&
+        s.waterCheckpoints.size() == 3 && s.waterCheckpoints.count("first") &&
+        s.waterCheckpoints.count("middle") && s.waterCheckpoints.count("last");
+    Fields checkpoints;
+    for (const auto& entry : s.waterCheckpoints) checkpoints.push_back({entry.first, quote(entry.second)});
+    const auto index = object({{"schema", quote("hellomine3d-water-seam-capture-v1")},
+        {"status", quote(s.failed ? "FAIL" : complete ? "CAPTURED" : "OPEN")},
+        {"mode", quote(s.waterOptions.renderingMode)}, {"frame_count", number(s.waterFrames.size())},
+        {"frames", array(s.waterFrames)}, {"checkpoints", object(checkpoints)},
+        {"duration_seconds", number(s.waterLastElapsed)}, {"completion_reason", quote(reason)},
+        {"limits", object({{"max_frames", number(WaterFrameLimit)}, {"max_duration_seconds", "10"},
+            {"max_session_seconds", "60"}, {"max_session_bytes", number(SessionLimit)},
+            {"max_owned_live_bytes", number(WaterLiveLimit)}, {"codec_internal_live_bound", quote("OPEN_NOT_EXPOSED")}})},
+        {"observed_owned_buffer_peak_bytes", number(s.waterPeakOwnedBytes)},
+        {"bytes_written_before_index", number(s.written)},
+        {"write_budget_counter", quote(s.failed ? "CONSERVATIVE_PLANNED_SIZE_FOR_PARTIAL_FAILED_WRITES" : "ACTUAL_COMPLETED_FILE_BYTES")},
+        {"actual_native_time", object({{"known", boolean(s.waterTimeKnown)},
+            {"first", s.waterTimeKnown ? number(s.waterFirstNativeTime) : "null"},
+            {"last", s.waterTimeKnown ? number(s.waterLastNativeTime) : "null"},
+            {"advanced", boolean(s.waterTimeAdvanced)}, {"fragment_phase_wrap_sampled", boolean(s.waterPhaseWrapped)}})},
+        {"source_before", sourceBeforeJson}, {"source_after", sourceAfterJson},
+        {"ordinary_input", quote("NOT_RUN")}, {"atomic_world_snapshot", "false"},
+        {"scope", quote("one caller-selected candidate River seam; natural source and shared indexed surface require independent endpoint/raw validation; actual original native draw input/uniform chain and final framebuffer ROI; raw retained only first/middle/last")},
+        {"shader_displaced_vertex_output", quote("OPEN_NO_TRANSFORM_FEEDBACK_OR_VERTEX_OUTPUT_READBACK")},
+        {"pixel_attribution", quote("OPEN_FINAL_FRAMEBUFFER_NOT_PER_OBJECT_ATTRIBUTION")},
+        {"visual_no_objectionable_sparkle", quote("OPEN_REQUIRES_ORIGINAL_SEQUENCE_REVIEW")}});
+    require(index.size() < WaterIndexReserve, "bounded water session index reserve exceeded");
+    s.waterFinished = true; s.textFile("index.json", index + '\n');
 }
 void ShoreEditCapture::capturePhase(const std::string& phase, const std::string& mode,
                                   std::uint64_t frameId, const std::vector<Binding>& bindings) {
     auto& s = *m_impl;
-    require(std::this_thread::get_id() == s.owner && !s.failed, "render thread required; failed session cannot resume");
+    require(!s.waterSeam && std::this_thread::get_id() == s.owner && !s.failed,
+        "shore phases require the original shore observer; failed session cannot resume");
     require(s.phases < 6 && !bindings.empty() && bindings.size() <= 8, "phase/object bound exceeded");
     require(!phase.empty() && phase.size() <= 64 && (mode == "standard" || mode == "compatibility"), "invalid phase/profile");
     std::ostringstream name; name << "phase-" << std::setw(3) << std::setfill('0') << s.phases;

@@ -2,7 +2,14 @@
 
 ## 恢复区
 
-- **当前：2026-10-06 V11d：修复后普通第三人称单跳已核验，完整Goal active。**
+- **当前：2026-10-06 V06i：原水面共享边十秒连续观察工程通过，完整Goal active。**
+  起点HEAD `0cb28e9c`，新默认关闭观察入口已接Bootstrap／CLI／consumer并正常双配置构建；最终r2 Release `e3caad4c…3d64b`、Debug `b1cf7b38…3423c`。V07g基础动作修复继承，普通持续步态仍OPEN；本批不改shader／World／Player／输入／生成／保存。
+  新冻结诊断机位216 70 −216／40 0 0，fresh seed42／terrain31、RD1、FOV90、1280×720点／2560×1440。最终标准351实际帧／10.0221秒、兼容361／10.0032秒全部保留原ROI与native绑定／六真实linked uniform；首／中／末raw及全窗真实同帧，独立真实World四列水深与共享输入一致。
+  容量修复后当前序列各1439／1479 scoped PASS；旧原序列的深度消费者r2为1483／1435，原auto r1各1480／1432不改写；五实际语义副本正确FAIL／FAIL／OPEN／OPEN／FAIL，1486原件逐项SHA保持。原序列独立41组实物检查通过，当前r2另记，实看6全窗／32ROI未见明显裂缝／回绕跳变，微亮点与浓雾仍在；不关闭全部水面无闪点、GPU位移输出、逐对象像素或普通水域。
+  旧六阶段native标准／兼容各595、默认关闭各208实际通过，新保存31显式断言，省略仍严格期待30；历史v30不改写。当前Off／medium菜单渲染PID54295正常0／reaped，所有本批隐藏子进程normal0且无timeout；Root真实GPU handles87724／28118／34728／58442／84045均terminal；收尾r2构建13338／标准49775／兼容61416／菜单68227也均terminal。没有新增普通输入或用户窗口操作。
+  两次捕获各三张当前原图分别追加，最终56轮217图；r2保留旧55轮214对象／索引前缀；本批未新增水面效果。16项入口独审及实际抽取生产方法20项CPU边界通过，2MiB packed检查已在复制前执行，超界保留OPEN；干净独立普通菜单包、最终提交身份／保护结果及恢复入口见`v06i/batch-handoff-r1.json`与文末V06i，原Workbench实跑dirty身份保持，不重标为提交后捕获。
+  完整V00–V11继续，严格性能DEFERRED_BY_USER；下一步继续普通第三人称持续路线／坡面／近墙与四水域，声音、采集制作、地图往返等未验项仍留账，不能按旧51／68实现覆盖称整体完成。
+- **历史检查点：2026-10-06 V11d：修复后普通第三人称单跳已核验，完整Goal active。**
   当前运行包复用clean `f9246ba3`／Release `6cf57bb0…a9da85f`；新普通副本135管理项／137完整文件从V08c逐项复制，初始705B配置保持，无存档或诊断注入。Root唯一公开CUA输入，从普通菜单创建seed42／terrain31、进入、F5、保存返回／继续，最后普通保存退出。
   Space真实wrapper回执被80帧15.507秒原窗口序列覆盖：051／052腾空、臂腿轮廓变化，053／055恢复站姿。独立12/12、168/168原PNG完整性与时间链核过，只关闭本配置一次原地跳跃，不关闭持续行走。
   单次W及30次W短按均有公开回执；第二序列88帧16.468秒未观察位移／步姿，前后保存坐标相同、world_time1213→5421。没有公开hold／dwell事实，无位移原因未知；不修改游戏输入来迎合工具，不记普通连续步态PASS。
@@ -3967,3 +3974,90 @@ Bootstrap／CLI、编译或实机捕获，保持未提交且不纳入此次文�
 决定缺陷修复。普通连续行走、完整周期、停止／反向、坡面／近墙及三种子全部路线继续待验。
 整体Goal active，完整12方向未全闭；历史51/68实现覆盖不改称当前总完成率，严格配对性能
 仍DEFERRED_BY_USER，不加人工签字，不推送／发布／打标签。
+
+
+## V06i：原水面共享边十秒连续观察与真实水深核验（2026-10-06）
+
+本批补V06原两Water对象的当前连续证据。旧机位共享输入不在主相机视野的OPEN保持；新冻结机位
+`216 70 -216`／`40 0 0`是新诊断观察条件，不作旧机位配对或新增视觉效果。普通客户端默认关闭，
+只在显式隔离`--water-seam`使用fresh seed42／terrain31、time7000、RD1、first、FOV90、
+1280×720点、Retina2、shadow off／post off及指定standard／compatibility，不提供正常游戏输入。
+合同：[水面连续观察](../contracts/water-seam-continuity-observation-contract-v1.md)。
+
+Root以实际uploader后的当前原两对象为来源，在交换前逐帧保留原VAO／active输入／u32 EBO／VSFS、
+primitive query、post原VBO／IBO与实际CPU上传输入，以及六linked真实uniform；不重放draw或计算波浪补证。
+首／中／末保存raw与同帧全窗，其余每帧保留无损framebuffer ROI。前后源列各360次公开零加载块查询，
+36次生产biome查询与两owner读取前后revision，非原子快照；共享参考边为z−224、x217..224，实际源四列
+平均水深为`0.5,1.5,2,2,2,2.5,3,3`。独立consumer按Water64连续向下最多8格再平均，公差仍2e−5。
+
+| 当前实际检查 | 结果及原件 |
+| --- | --- |
+| 正常双配置客户端 | Release24.8301秒／Debug16.4329秒，exit0，无首方warning；422编译源输入冻结，只有受影响原TU重建，`v06i/build-clients-r1.json`。Release SHA `b63d1349d1b5acb516986b333c1862d4d289f40bc32c0ddc5d280154857634fb`；Debug `64cb83c982626cc36e07706e2655f3e37e6cdd1f4c3033eb478390ba049e4e0e`。 |
+| 标准真实连续序列 | PID48625，362帧0..361、10.02582275秒，checkpoint0／175／361；ROI `(1322,719,584,130)`，原全窗2560×1440。native0、signal null、无timeout、reaped，`v06i/water-standard-r1/capture.json`。 |
+| 兼容真实连续序列 | PID49057，350帧0..349、10.02567508秒，checkpoint0／180／349；同冻结ROI／尺寸。native0／reaped，`v06i/water-compatibility-r1/capture.json`。 |
+| 独立消费者r2 | 分别1483／1435全部PASS_SCOPED_NATIVE_INPUTS_AND_FRAME_SEQUENCE，含三个checkpoint实际World水深；`v06i/water-consumer-faults-r1/positive-{standard,compatibility}-r2/oracle-r2.json`。消费者SHA `b7824f0762808ce4c70d9f1bbfaa1c54afa2188d8fe0056cd54b45036f61f2e7`。最初auto r1为旧消费者1480／1432，缺该独立水柱检查；原件／标签保持，不回写。 |
+| 真实副本语义校准 | 单岸CPU/native共同改depth→共享UV FAIL；真实uv1 stride44→32→VAO FAIL；删除中间帧→连续链OPEN；实际WVP移出ROI→投影OPEN；三checkpoint双方12raw共同错depth→真实World FAIL。全部先通过重算SHA，非文件路径错误，实际exit1／1／2／2／1。`v06i/water-consumer-faults-r1/faults.json` SHA `12bd59248592baf79664815be2205a5491a88ef176e0fa298642e1fce5f1b55f`；1486原文件前后逐项SHA相等。 |
+| 独立实物审阅 | 41组PASS，所有362／350原ROI经SHA／PNG CRC／zlib／像素解码，两模式6全窗与32ROI实看，实际WVP共享点落入ROI、全窗对应ROI相等；`v06i/actual-independent-review-r1.json` SHA `3be07e683f3d5ddbb59def27332ceceb41fc69a519ad5d8dc7d55b2db6daae79`。未见明显裂缝或相位回绕跳变；微亮点与浓雾仍在，未关闭全水面闪点。 |
+| 原六阶段／默认关闭 | 四真实fresh31捕获native0／reaped；旧native消费者双模式各595／595，存储双模式各208／208。`v06i/legacy-native-dual-oracle-r1.json`／`legacy-storage-dual-oracle-r1.json`及`legacy-regressions-r1.json`（SHA `a1b55635c8b619cc423a75d37c1d36214deae0b1440460dcb94e50578f875ffb`）。显式`--shore-edit-terrain-version 31`只断言实际保存31，省略仍期待30；两非法parser路径在创建产物／启动游戏前exit2，旧v30不改写。 |
+| 边界与入口 | observer／consumer结构14／14，CLI40／40 mock，仅结构范围、不称GPU；新World深度副本及双实际正控另验证真实消费端。当前C++源、生成／配置／shader保护独立核实，未改生成规则或第三方。 |
+| 普通菜单渲染 | `v06i/normal-menu-r1/capture.json`，PID50991正常exit0／signal null／无timeout／reaped；1000／2000ms两2560×1440原PNG，Root实际看中文正常菜单。本项是无输入渲染启动，不能称普通玩法保存重开通过。 |
+
+实际命令由`v06i/build-clients-r1.json`、两`capture.json`、`legacy-regressions-r1.json`和
+`water-consumer-faults-r1/faults.json`保留完整argv与退出值。构建使用普通Xcode项目／scheme、
+Debug／Release、x86_64及`CODE_SIGNING_ALLOWED=NO`；捕获通过`python3 -B tools/capture_visual_macos.py`
+从独立Workbench副本direct启动，new water入口显式`--water-seam --scene shore --seed 42 --time 7000`
+`--render-distance 1 --visual-detail <模式> --perspective first --launch-method direct --pixel-ratio 2`
+`--width 1280 --height 720 --fov 90 --shadow off --post off --ui-scale 1 --locale zh-CN`。
+原捕获package identity为起点`0cb28e9c`＋真实dirty源，最终clean普通包的提交后身份单记，不倒改捕获。
+
+自有活跃缓冲两模式峰值11152896B，输出分别27936443／27084486B（索引前）均在256MiB内。
+codec内部内存仍`OPEN_NOT_EXPOSED`，不声明进程总内存上限；最多480帧／60秒，Bootstrap55秒
+保留终态为外层60秒留余量；界限不足为OPEN、GL／身份／格式损坏为FAIL，子进程0不替代oracle。
+未读GPU displaced vertex output，未逐对象像素归因，未证明World incarnation／ABA或原子源快照。
+没有修改水shader、World／Player／保存、输入或terrain规则，未因此重复完整World生成门禁。
+
+Root实际看三精选与正常菜单原图；三张未编辑当前全窗保留为
+`.local-evidence/visual-polish-20260928/v06i-water-seam-continuity/`，旧54轮211对象／index字面前缀保持，
+总55轮214图。全窗为当前精修水岸诊断原图，本批没有新增效果，也没有普通行走／涉水／编辑动作。
+V07g基础迈腿摆臂修复保留，V11d普通单跳有效范围保持；公开工具说明重读仍只有pressKey，无持续hold／
+dwell API，不重复短按来关闭普通连续路线。普通动作／坡面／近墙、四水域、音频与完整V00–V11继续。
+干净新普通菜单`v06i/After.app`、本地提交身份、保护项及终态见`v06i/batch-handoff-r1.json`。
+所有本批Root构建／捕获handles已terminal；用户旧客户端／存档不原位覆盖，不推送／发布／打标签，
+严格性能继续DEFERRED_BY_USER，完整Goal保持active。
+
+
+### V06i 收尾容量修复后的当前r2证据
+
+独立入口审查发现r1的2MiB packed检查仅在collect时执行，retain此前仍用旧16MiB门槛，可能先分配
+再拒绝。旧小网格实际通过不能证明分配前上限，此失败边界保留。Root将真实retain方法改为复制前
+安全除法／减法检查：water超过2MiB不复制、撤掉stale副本、source记录upload_copy_over_budget，
+真实uploader继续，缺当前binding为OPEN；旧shore16MiB异常保持。2MiB是packed输入字节上限，
+不是ChunkMesh内部cache总heap声明。默认关闭依然在访问输入前返回。
+
+真实生产方法及44B Vertex定义逐字抽取到CPU probe，编译／执行0、UBSan及warning严格检查，
+20／20通过：精确上限、顶点／索引超界、SIZE_MAX、默认关闭、原两owner、stale清除及旧16MiB。
+复制计数用stub，不冒充真实GPU超界或ChunkMesh内部内存；`v06i/budget-probe-r1/receipt.json`
+SHA `4de0a8f8edcbc76bd0fa7582126505efc2256715fcf2cd1d2a40fd15321b812e`，入口独审16项。
+
+最终双配置构建r2正常0、无首方warning，Release25.6305秒、Debug18.0427秒；
+`v06i/build-clients-r2.json` SHA `136831246a45e02c1726c3e12f99cf9e775ca7c0c9934285c2352a072425ee58`。
+Release SHA `e3caad4c7f32edae75025ddf3d61a4fc456148fb8983e7875b3d1079b1f3d64b`，
+Debug `b1cf7b381ecfa39919f6ff2816e4291b2a88b5b715494efd5897f89d8ea3423c`；422当前输入另核。
+当前玩家只读审查11项确认V07g相关头文件／renderer及Bootstrap两方法保持修复提交字节，
+`v06i/avatar-current-delivery-audit-r2.json`；V11d单跳仍是旧6cf客户端实跑，不重标为本b63／e3实跑。
+
+当前实际standard-r2 PID53703，351帧／10.02206846秒，checkpoint0／170／350、1439检查PASS；
+compatibility-r2 PID54016，361帧／10.00319479秒，checkpoint0／179／360、1479检查PASS。
+两模式actual0／signal null／无timeout／reaped，source前后超界事实均false，原ROI及三checkpoint
+真实World深度通过。自有缓冲峰值仍11152896B；索引前输出27215585／27803955B。
+原r1 capture／consumer／独审／故障原件不覆盖，新目录`v06i/water-{standard,compatibility}-r2/`；
+当前独立实物审阅见`v06i/actual-independent-review-r2.json`，原r1图像结论不自动改称新实跑。
+旧六阶段595／默认关闭208的r1证据保持在原版本；新修改限定水观察gate，旧路径16MiB语义经
+抽取生产方法核验，未再次启动四个旧场景。两者版本／覆盖分记，不将旧native receipt重标新二进制。
+
+当前反馈Off／shadow medium菜单PID54295、两2560×1440原帧，native0／reaped；
+`v06i/normal-menu-r2/capture.json`仍normal_input=false，是启动渲染证据，不证明普通保存或动作。
+Root查看当前三精选及菜单原图。新三图追加于`v06i-water-seam-capacity-r2/`，旧55轮214对象及index前缀
+保持，最终56轮217图；没有新增视觉效果，强雾／微亮点保留，普通路线与整Goal保持active。
+最终clean `v06i/After.app`使用实际Release-r2，另复制未改原705B普通Off配置，135管理项／137完整
+文件及2966源码清单核对；当前终态及版本在`v06i/batch-handoff-r1.json`，不覆盖任何用户客户端。

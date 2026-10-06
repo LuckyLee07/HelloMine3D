@@ -45,9 +45,11 @@
 #include <fstream>
 #include <filesystem>
 #include <iostream>
+#include <iomanip>
 #include <limits>
 #include <memory>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -1287,6 +1289,73 @@ namespace
                 m_shoreEditOutput = shoreOutput;
                 std::cout << "[SHORE_EDIT_CAPTURE] normal_input=0 isolated_world=1 simulation_delta=0 site=" << site << '\n';
             }
+            const char* waterOutput = std::getenv("HELLOMINE3D_WATER_SEAM_CAPTURE_DIR");
+            if (waterOutput && waterOutput[0])
+            {
+                auto exact = [](const char* key, const char* value) {
+                    const char* actual = std::getenv(key);
+                    return actual && std::string(actual) == value;
+                };
+                if (!isTrueValue(std::getenv("HELLOMINE3D_WINDOW_HIDDEN")) ||
+                    !isTrueValue(std::getenv("HELLO_RENDER_CAPTURE")) || initialSaveDirectory.empty() ||
+                    !std::getenv("HELLOMINE3D_SAVE_DIR") || !std::getenv("HELLOMINE3D_CATALOGUE_DIR") ||
+                    std::filesystem::exists(std::filesystem::path(initialSaveDirectory) / "world.meta") ||
+                    RuntimePerformanceCapture::isEnabled() || m_visualCameraSweep.enabled ||
+                    !m_playerMotionCapture.empty() || !m_actorVisualCapture.empty() ||
+                    !m_materialIdentityOutput.empty() || !m_cameraDiagnosticOutput.empty() ||
+                    !m_fernWindOutput.empty() || !m_shoreEditOutput.empty() || m_shoreNativeDraw ||
+                    m_config.renderDistance != 1 || m_config.fov != 90 ||
+                    m_config.windowX != 1280 || m_config.windowY != 720 ||
+                    m_config.cameraPerspective != CameraPerspective::FirstPerson ||
+                    m_config.directionalShadowQuality != DirectionalShadowQuality::Off ||
+                    m_config.postProcessingQuality != PostProcessingQuality::Off ||
+                    !exact("HELLOMINE3D_SEED", "42") || !exact("HELLOMINE3D_WORLD_TIME", "7000") ||
+                    !exact("HELLOMINE3D_PLAYER_POSITION", "216 70 -216") ||
+                    !exact("HELLOMINE3D_PLAYER_ROTATION", "40 0 0"))
+                    throw std::runtime_error("Water seam requires a hidden fresh isolated seed42 RD1/FOV90 new diagnostic view.");
+                for (const char* key : {"HELLOMINE3D_RC_PERF_PROFILE", "HELLOMINE3D_E2_BATCH_MANIFEST",
+                         "HELLOMINE3D_PAUSE_NOTIFICATIONS_DIR", "HELLOMINE3D_RESOURCE_PACKS",
+                         "HELLOMINE3D_TERRAIN_FALLBACK", "HELLOMINE3D_V10C_FALLBACK",
+                         "HELLOMINE3D_BLOCK_FEEDBACK_CAPTURE", "HELLOMINE3D_COMBAT_FIXTURE",
+                         "HELLOMINE3D_CONTAINER_FIXTURE", "HELLOMINE3D_CRAFTING_FIXTURE",
+                         "HELLOMINE3D_CROP_FIXTURE", "HELLOMINE3D_MACHINE_FIXTURE",
+                         "HELLOMINE3D_ORE_FIXTURE", "HELLOMINE3D_SPAWN_VALIDATION_ACTORS",
+                         "HELLOMINE3D_TRANSPARENT_FIXTURE", "HELLOMINE3D_VERTEX_LIGHTING_FIXTURE",
+                         "HELLOMINE3D_VERTICAL_SLICE_FIXTURE", "HELLOMINE3D_HUD_FIXTURE",
+                         "HELLOMINE3D_HUD_PAGE_FIXTURE", "HELLOMINE3D_FORCE_LEGACY_TERRAIN",
+                         "HELLOMINE3D_P11_LIGHT_FIXTURE", "HELLOMINE3D_DISABLE_VERTEX_AO",
+                         "HELLOMINE3D_V10E_SETTINGS_FIXTURE", "HELLOMINE3D_V10D_SHADOW_FIXTURE",
+                         "HELLOMINE3D_V10D_SHADOW_FALLBACK", "HELLOMINE3D_V10E_POST_FIXTURE",
+                         "HELLOMINE3D_V10E_POST_FALLBACK", "HELLOMINE3D_CONTROLLED_CRASH",
+                         "HELLOMINE3D_EXIT_AFTER_FRAMES", "HELLOMINE3D_HUD_INSPECT_SLOT",
+                         "HELLOMINE3D_VISUAL_CAMERA_PATH", "HELLOMINE3D_E2_BATCH_EVENTS",
+                         "HELLOMINE3D_E2_RENDER_PHASES", "HELLOMINE3D_SHORE_EDIT_SITE",
+                         "HELLOMINE3D_SHORE_EDIT_TARGET"})
+                    if (std::getenv(key))
+                        throw std::runtime_error(std::string("Water seam cannot combine ") + key);
+                const char* mode = std::getenv("HELLOMINE3D_WATER_SEAM_MODE");
+                if (!mode || (std::string(mode) != "standard" && std::string(mode) != "compatibility") ||
+                    std::string(mode) != visualDetailToken(m_config.visualDetail))
+                    throw std::runtime_error("Water seam mode must match actual terrain visual detail.");
+                m_waterSeamOutput = waterOutput;
+                m_waterSeamStarted = std::chrono::steady_clock::now();
+                m_waterSeamOptions.renderingMode = mode;
+                if (const char* roi = std::getenv("HELLOMINE3D_WATER_SEAM_ROI"))
+                {
+                    std::istringstream parsed(roi); std::string extra;
+                    if (!(parsed >> m_waterSeamOptions.roiX >> m_waterSeamOptions.roiY >>
+                          m_waterSeamOptions.roiWidth >> m_waterSeamOptions.roiHeight) || (parsed >> extra) ||
+                        m_waterSeamOptions.roiX < 0 || m_waterSeamOptions.roiY < 0 ||
+                        m_waterSeamOptions.roiWidth <= 0 || m_waterSeamOptions.roiHeight <= 0 ||
+                        m_waterSeamOptions.roiWidth > 8192 || m_waterSeamOptions.roiHeight > 8192 ||
+                        std::size_t(m_waterSeamOptions.roiWidth) * m_waterSeamOptions.roiHeight * 4 > 8u*1024u*1024u)
+                        throw std::runtime_error("Water seam ROI exceeds exact framebuffer observer bound.");
+                    m_waterSeamExplicitRoi = true;
+                }
+                std::cout << "[WATER_SEAM_CAPTURE] normal_input=0 isolated_world=1 simulation_delta=0 camera_pose=NEW_FROZEN_DIAGNOSTIC_VIEW old_pose=OPEN_SHARED_EDGE_OUTSIDE_MAIN_FRUSTUM\n";
+            }
+            else if (std::getenv("HELLOMINE3D_WATER_SEAM_MODE") || std::getenv("HELLOMINE3D_WATER_SEAM_ROI"))
+                throw std::runtime_error("Water seam mode/ROI requires its explicit capture entry.");
             const bool hiddenWindow = isTrueValue(
                 std::getenv("HELLOMINE3D_WINDOW_HIDDEN"));
             m_hiddenWindow = hiddenWindow;
@@ -2205,7 +2274,7 @@ namespace
                     Ogre::SceneNode *node = nullptr;
                     SectionVisual visual;
                     visual.location = sectionLocation;
-                    if (m_shoreEditCapture) visual.shoreUploadSerial = ++m_shoreUploadSerial;
+                    if (m_shoreEditCapture || !m_waterSeamOutput.empty()) visual.shoreUploadSerial = ++m_shoreUploadSerial;
                     auto ensureNode = [&]() {
                         if (node != nullptr)
                         {
@@ -2315,7 +2384,7 @@ namespace
                                 key, std::move(visual));
                             m_sectionRenderStates[key] =
                                 ChunkRenderState::GpuResident;
-                            if (m_materialIdentityCapture || m_floraWindCapture || m_shoreEditCapture)
+                            if (m_materialIdentityCapture || m_floraWindCapture || m_shoreEditCapture || !m_waterSeamOutput.empty())
                                 m_materialIdentityMeshRevisions[key] = section->getBlockRevision();
                         }
                         else
@@ -2752,6 +2821,7 @@ namespace
             observeCameraDiagnostics();
             observeFloraWindCapture();
             observeShoreNativeDraw();
+            observeWaterSeamFrame();
             if (m_userInterface != nullptr)
             {
                 const MiningProgressSnapshot progress =
@@ -2829,6 +2899,7 @@ namespace
                 m_pauseNotificationCapture->finishFrame();
             }
             finishShoreEditFrame();
+            finishWaterSeamFrame();
             ++m_frameCount;
             return true;
         }
@@ -2935,12 +3006,15 @@ namespace
                    !(m_floraWindCapture && m_floraWindCapture->isComplete()) &&
                    !(m_pauseNotificationCapture && m_pauseNotificationCapture->isComplete()) &&
                    !m_shoreComplete &&
+                   !m_waterSeamComplete &&
                    !captureComplete && !frameLimitReached &&
                    !RuntimePerformanceCapture::shouldCloseWindow();
         }
 
         bool shoreSectionSelected(glm::ivec3 section) const
         {
+            if (!m_waterSeamOutput.empty())
+                return section == glm::ivec3(13, 4, -14) || section == glm::ivec3(13, 4, -15);
             const glm::ivec3 targetSection(
                 int(std::floor(m_shoreTarget.x / double(CHUNK_SIZE))), 4,
                 int(std::floor(m_shoreTarget.z / double(CHUNK_SIZE))));
@@ -2951,13 +3025,25 @@ namespace
         void retainShoreUploadInput(SectionVisual& visual, const ChunkMesh& mesh,
                                    const std::string& material, glm::ivec3 section)
         {
-            if (!m_shoreEditCapture || !shoreSectionSelected(section) ||
+            if ((!m_shoreEditCapture && m_waterSeamOutput.empty()) || !shoreSectionSelected(section) ||
                 (material != "HelloMine3D/Water" && material != "HelloMine3D/Terrain")) return;
+            if (!m_waterSeamOutput.empty() && material != "HelloMine3D/Water") return;
             const auto& cpu = mesh.getClientMesh();
-            const auto bytes = cpu.vertexPositions.size() / 3 * sizeof(TerrainRenderVertex) +
-                cpu.indices.size() * sizeof(std::uint32_t);
-            if (bytes > 16u * 1024u * 1024u)
+            const std::size_t limit = m_waterSeamOutput.empty() ? 16u * 1024u * 1024u : 2u * 1024u * 1024u;
+            const auto vertices = cpu.vertexPositions.size() / 3;
+            // Check the packed input bound before copying the original mesh.
+            // An oversized observation must not interrupt the real uploader.
+            if (vertices > limit / sizeof(TerrainRenderVertex) ||
+                cpu.indices.size() > (limit - vertices * sizeof(TerrainRenderVertex)) / sizeof(std::uint32_t))
+            {
+                if (!m_waterSeamOutput.empty())
+                {
+                    visual.shoreDiagnosticWater.reset();
+                    m_waterSeamUploadCopyOverBudget = true;
+                    return; // Missing current input is retained as OPEN.
+                }
                 throw std::runtime_error("Shore direct original CPU upload input exceeds bound.");
+            }
             (material == "HelloMine3D/Water" ? visual.shoreDiagnosticWater :
                 visual.shoreDiagnosticSolid) = std::make_unique<ChunkMesh>(mesh);
         }
@@ -3060,7 +3146,7 @@ namespace
         {
             try
             {
-            if (!m_shoreEditCapture || m_shoreComplete || !m_world || !m_worldPlayer || !m_userInterface) return;
+            if (!m_waterSeamOutput.empty() || !m_shoreEditCapture || m_shoreComplete || !m_world || !m_worldPlayer || !m_userInterface) return;
             const auto now = std::chrono::steady_clock::now();
             if (m_shoreStarted == std::chrono::steady_clock::time_point{})
             { m_shoreStarted = now; m_shorePhaseStarted = now; }
@@ -3196,7 +3282,7 @@ namespace
         {
             try
             {
-            if (!m_shoreEditCapture || !m_shoreInitialized || m_shoreWaitHud || m_shoreComplete) return;
+            if (!m_waterSeamOutput.empty() || !m_shoreEditCapture || !m_shoreInitialized || m_shoreWaitHud || m_shoreComplete) return;
             const bool nativeReady = !m_shoreNativeDraw ||
                 m_shoreEditCapture->finishNativeFrame(collectShoreEditBindings());
             const auto facts = m_userInterface->surfaceMapDiagnosticFacts();
@@ -3259,6 +3345,237 @@ namespace
             // this arm. No object's result is carried from an earlier frame.
             auto bindings = collectShoreEditBindings();
             if (!bindings.empty()) m_shoreEditCapture->beginNativeFrame(m_frameCount, std::move(bindings));
+        }
+
+        std::vector<ShoreEditCapture::Binding> collectWaterSeamBindings()
+        {
+            std::vector<ShoreEditCapture::Binding> result;
+            if (!m_world) return result;
+            const auto snapshot = m_world->collectSectionMeshSnapshot(false);
+            if (snapshot.cpuReadyTotal != 0) return result;
+            for (const auto location : {glm::ivec3(13,4,-14), glm::ivec3(13,4,-15)})
+            {
+                const auto key = sectionKey(location);
+                const auto live = std::find_if(snapshot.liveSectionVersions.begin(), snapshot.liveSectionVersions.end(),
+                    [&](const auto& v) { return v.location == location; });
+                const auto uploaded = m_materialIdentityMeshRevisions.find(key);
+                const auto state = m_sectionRenderStates.find(key);
+                const auto visual = m_sectionVisuals.find(key);
+                const bool cpuReady = std::any_of(snapshot.cpuReadySections.begin(), snapshot.cpuReadySections.end(),
+                    [&](const auto& v) { return v.location == location; });
+                if (live == snapshot.liveSectionVersions.end() || uploaded == m_materialIdentityMeshRevisions.end() ||
+                    state == m_sectionRenderStates.end() || state->second != ChunkRenderState::GpuResident ||
+                    cpuReady || uploaded->second != live->blockRevision || visual == m_sectionVisuals.end() ||
+                    !visual->second.shoreDiagnosticWater || !visual->second.node) continue;
+                const auto& mesh = *visual->second.shoreDiagnosticWater;
+                const auto bytes = mesh.getClientMesh().vertexPositions.size()/3*sizeof(TerrainRenderVertex) +
+                    mesh.getClientMesh().indices.size()*sizeof(std::uint32_t);
+                if (bytes > 2u*1024u*1024u)
+                    throw std::runtime_error("Water seam original upload input exceeds its two-object bound.");
+                for (const auto& object : visual->second.renderables)
+                {
+                    if (object->getMaterial()->getName() != "HelloMine3D/Water") continue;
+                    ShoreEditCapture::Binding binding;
+                    binding.renderable = object.get(); binding.origin = location; binding.layer = "water";
+                    binding.ownerKey = key; binding.uploadSerial = visual->second.shoreUploadSerial;
+                    binding.parts.push_back({location, uploaded->second, live->blockRevision, true, true, false});
+                    binding.cpu = packTerrainRenderBatch({{location, &mesh}}, location);
+                    result.push_back(std::move(binding));
+                }
+            }
+            if (result.size() > 2) throw std::runtime_error("Water seam selected duplicate original Water objects.");
+            return result;
+        }
+
+        void freezeWaterSeamRoi(const std::vector<ShoreEditCapture::Binding>& bindings)
+        {
+            // These are only the original indexed flat inputs. The consumer
+            // separately checks actual linked-program WVP every retained frame.
+            const int width = int(m_window->getWidth()), height = int(m_window->getHeight());
+            if (width <= 0 || height <= 0 || width > 8192 || height > 8192)
+                throw std::runtime_error("Water seam actual window dimensions unsupported.");
+            std::array<std::set<int>,2> edge;
+            for (std::size_t b = 0; b < bindings.size(); ++b)
+            {
+                Ogre::Matrix4 world; bindings[b].renderable->getWorldTransforms(&world);
+                const auto& cpu = bindings[b].cpu;
+                for (std::size_t i = 0; i+2 < cpu.indices.size(); i += 3)
+                {
+                    std::array<Ogre::Vector4,3> points;
+                    bool top = true;
+                    for (int k = 0; k < 3; ++k)
+                    {
+                        const auto index = cpu.indices[i+k];
+                        if (index >= cpu.vertices.size()) throw std::runtime_error("Water seam source index out of range.");
+                        const auto& v = cpu.vertices[index];
+                        points[k] = world * Ogre::Vector4(v.x,v.y,v.z,1);
+                        top = top && std::abs(points[k].y-65.f) < .0001f;
+                    }
+                    if (!top) continue;
+                    for (const auto& p : points)
+                        if (std::abs(p.z+224.f) < .0001f && p.x >= 208 && p.x <= 224 &&
+                            std::abs(p.x-std::round(p.x)) < .0001f) edge[b].insert(int(std::round(p.x)));
+                }
+            }
+            const auto vp = m_camera->getProjectionMatrixWithRSDepth() * m_camera->getViewMatrix(true);
+            double minX = width, maxX = 0, minY = height, maxY = 0;
+            std::ostringstream selection; selection << std::setprecision(17);
+            selection << "{\"method\":\"original-indexed-input-and-current-Ogre-main-camera-projection\","
+                "\"actual_native_WVP_checked_independently\":true,\"explicit_roi\":"
+                << (m_waterSeamExplicitRoi ? "true" : "false") << ",\"projected_shared_inputs\":[";
+            bool comma = false, visible = false;
+            for (int x : edge[0])
+            {
+                if (!edge[1].count(x)) continue;
+                const auto q = vp * Ogre::Vector4(float(x),65.f,-224.f,1.f);
+                const bool finite = std::isfinite(q.x) && std::isfinite(q.y) && std::isfinite(q.z) &&
+                    std::isfinite(q.w) && q.w > 0;
+                const bool inside = finite && std::abs(q.x/q.w) <= 1 && std::abs(q.y/q.w) <= 1 && std::abs(q.z/q.w) <= 1;
+                if (comma) selection << ','; comma = true;
+                selection << "{\"world_x\":" << x << ",\"inside_frustum\":" << (inside ? "true" : "false");
+                if (finite)
+                {
+                    const double px = (q.x/q.w*.5+.5)*width, py = (q.y/q.w*.5+.5)*height;
+                    selection << ",\"pixel_bottom_left\":[" << px << ',' << py << ']';
+                    if (inside) { visible = true; minX=std::min(minX,px); maxX=std::max(maxX,px);
+                        minY=std::min(minY,py); maxY=std::max(maxY,py); }
+                }
+                selection << '}';
+            }
+            selection << "],\"shared_input_visible\":" << (visible ? "true" : "false") << '}';
+            m_waterSeamRoiSelection = selection.str();
+            if (!m_waterSeamExplicitRoi)
+            {
+                auto& roi = m_waterSeamOptions;
+                if (visible)
+                {
+                    roi.roiX = std::max(0,int(std::floor(minX))-32);
+                    roi.roiY = std::max(0,int(std::floor(minY))-64);
+                    roi.roiWidth = std::min(width,int(std::ceil(maxX))+33)-roi.roiX;
+                    roi.roiHeight = std::min(height,int(std::ceil(maxY))+65)-roi.roiY;
+                }
+                else { roi.roiX=0; roi.roiY=0; roi.roiWidth=std::min(width,512); roi.roiHeight=std::min(height,128); }
+            }
+        }
+
+        std::string waterSeamSourceFacts()
+        {
+            // Each getBlock takes the public World lock and only finds resident
+            // chunks. This bounded read has revision endpoints, not atomicity.
+            const auto before = m_world->collectSectionMeshSnapshot(false);
+            auto revision = [](const auto& snapshot, glm::ivec3 p) -> std::uint32_t {
+                const auto found = std::find_if(snapshot.liveSectionVersions.begin(), snapshot.liveSectionVersions.end(),
+                    [&](const auto& v) { return v.location == p; });
+                return found == snapshot.liveSectionVersions.end() ? 0 : found->blockRevision;
+            };
+            const auto& manager = m_world->getChunkManager();
+            std::ostringstream columns;
+            for (int x = 207; x <= 224; ++x) for (int z : {-225,-224})
+            {
+                if (x != 207 || z != -225) columns << ',';
+                const auto biome = manager.getTerrainGenerator().getBiomeAtWorld(x,z);
+                columns << "{\"x\":" << x << ",\"z\":" << z << ",\"biome\":" << int(biome)
+                    << ",\"biome_name\":\"" << (biome == TerrainBiome::River ? "River" : "other") << "\",\"blocks\":[";
+                for (int y = 56; y <= 65; ++y)
+                {
+                    if (y != 56) columns << ',';
+                    const auto block = m_world->getBlock(x,y,z);
+                    columns << "{\"y\":" << y << ",\"id\":" << unsigned(block.id)
+                        << ",\"metadata\":" << unsigned(block.metadata) << '}';
+                }
+                columns << "]}";
+            }
+            const auto after = m_world->collectSectionMeshSnapshot(false);
+            std::ostringstream out;
+            out << "{\"seed\":" << manager.getTerrainSeed() << ",\"terrain_generation_version\":"
+                << manager.getTerrainGenerationVersion() << ",\"seam\":{\"axis\":\"z\",\"coordinate\":-224,\"surface_y\":65},"
+                "\"atomic_copy\":false,\"camera_pose_kind\":\"NEW_FROZEN_DIAGNOSTIC_VIEW\","
+                "\"previous_pose_result\":\"OPEN_SHARED_EDGE_OUTSIDE_MAIN_FRUSTUM\",\"roi_selection\":"
+                << m_waterSeamRoiSelection << ",\"upload_copy_over_budget\":"
+                << (m_waterSeamUploadCopyOverBudget ? "true" : "false") << ",\"owners\":[";
+            bool comma = false;
+            for (const auto p : {glm::ivec3(13,4,-14),glm::ivec3(13,4,-15)})
+            {
+                if (comma) out << ','; comma = true;
+                const auto a=revision(before,p), b=revision(after,p);
+                out << "{\"section\":[" << p.x << ',' << p.y << ',' << p.z << "],\"known\":"
+                    << (a && b ? "true" : "false") << ",\"version_before\":" << a << ",\"version_after\":" << b << '}';
+            }
+            out << "],\"block_queries\":360,\"biome_queries\":36,\"columns\":[" << columns.str() << "]}";
+            return out.str();
+        }
+
+        void completeWaterSeam(const std::string& reason)
+        {
+            if (!m_shoreEditCapture || m_waterSeamComplete) return;
+            m_shoreEditCapture->finishWaterSession(m_waterSeamSourceBefore, waterSeamSourceFacts(), reason);
+            m_waterSeamComplete = true;
+        }
+
+        void retainWaterSeamTermination(const std::exception& error)
+        {
+            if (!m_shoreEditCapture) throw;
+            m_waterSeamArmed = false;
+            m_shoreEditCapture->retainNativeFailure(error.what());
+            completeWaterSeam(std::string(error.what()).substr(0,500));
+            // This explicit diagnostic result is consumed by the outer oracle:
+            // handled child exit does not promote an OPEN/FAIL index to PASS.
+            std::cerr << "[WATER_SEAM_CAPTURE] retained_termination=" << error.what() << '\n';
+        }
+
+        void observeWaterSeamFrame()
+        {
+            try
+            {
+            if (m_waterSeamOutput.empty() || m_waterSeamComplete || !m_world) return;
+            const auto now = std::chrono::steady_clock::now();
+            if (m_waterSeamStarted == std::chrono::steady_clock::time_point{}) m_waterSeamStarted = now;
+            auto bindings = collectWaterSeamBindings();
+            const double session = std::chrono::duration<double>(now-m_waterSeamStarted).count();
+            if (!m_shoreEditCapture)
+            {
+                if (bindings.size() != 2 && session < 10) return;
+                freezeWaterSeamRoi(bindings);
+                m_waterSeamSourceBefore = waterSeamSourceFacts();
+                m_shoreEditCapture = std::make_unique<ShoreEditCapture>(m_waterSeamOutput,
+                    *m_sceneManager,*m_camera,*m_window,m_waterSeamOptions);
+            }
+            if (session >= 55 || m_shoreEditCapture->waterFrameCount() >= 480)
+            { completeWaterSeam(session >= 55 ? "OPEN_BOOTSTRAP_CLOSE_MARGIN_55_SECONDS" : "OPEN_ACTUAL_FRAME_LIMIT_480"); return; }
+            m_shoreEditCapture->beginNativeFrame(m_frameCount,std::move(bindings));
+            m_waterSeamArmed = true;
+            }
+            catch (const std::exception& error) { retainWaterSeamTermination(error); }
+        }
+
+        void finishWaterSeamFrame()
+        {
+            try
+            {
+            if (m_waterSeamOutput.empty() || !m_shoreEditCapture || !m_waterSeamArmed || m_waterSeamComplete) return;
+            m_waterSeamArmed = false;
+            const bool ready = m_shoreEditCapture->finishNativeFrame(collectWaterSeamBindings());
+            const auto now = std::chrono::steady_clock::now();
+            if (m_waterSeamInterval == std::chrono::steady_clock::time_point{})
+            {
+                // First warm native frame starts the interval. A ten-second
+                // unsupported warmup also starts an OPEN interval; no frame
+                // inside the interval may subsequently be omitted.
+                if (!ready && now-m_waterSeamStarted < std::chrono::seconds(10)) return;
+                m_waterSeamInterval = now; m_waterSeamPrevious = now;
+            }
+            const double elapsed = std::chrono::duration<double>(now-m_waterSeamInterval).count();
+            const double delta = std::chrono::duration<double>(now-m_waterSeamPrevious).count();
+            std::string checkpoint;
+            if (!m_shoreEditCapture->waterFrameCount()) checkpoint = "first";
+            else if (elapsed >= 10) checkpoint = "last";
+            else if (elapsed >= 5 && !m_waterSeamMiddle) { checkpoint = "middle"; m_waterSeamMiddle = true; }
+            m_shoreEditCapture->captureWaterFrame(elapsed,delta,checkpoint);
+            m_waterSeamPrevious = now;
+            if (elapsed >= 10) completeWaterSeam("TEN_SECOND_ACTUAL_FRAME_ENDPOINT");
+            else if (m_shoreEditCapture->waterFrameCount() >= 480) completeWaterSeam("OPEN_ACTUAL_FRAME_LIMIT_480");
+            }
+            catch (const std::exception& error) { retainWaterSeamTermination(error); }
         }
 
         // Same ordinary World.update/mesh uploader as the client; the only
@@ -3736,7 +4053,7 @@ namespace
             {
                 return false;
             }
-            if (m_materialIdentityCapture || m_cameraDiagnostics || m_floraWindCapture || m_shoreEditCapture)
+            if (m_materialIdentityCapture || m_cameraDiagnostics || m_floraWindCapture || m_shoreEditCapture || !m_waterSeamOutput.empty())
             {
                 // This bounded diagnostic freezes simulation only in its isolated
                 // world. Normal World residency/mesh upload and renderer sync run.
@@ -4841,7 +5158,7 @@ namespace
             }
             SectionVisual visual;
             visual.location = section.location;
-            if (m_shoreEditCapture) visual.shoreUploadSerial = ++m_shoreUploadSerial;
+            if (m_shoreEditCapture || !m_waterSeamOutput.empty()) visual.shoreUploadSerial = ++m_shoreUploadSerial;
             const std::string name = "ChunkSection_" + key;
             auto upload = [&](const ChunkMesh& mesh, const char* suffix,
                               const char* material, std::uint8_t queue, bool shadows) {
@@ -4901,7 +5218,7 @@ namespace
             }
             if (!visual.node && !visual.batchMeshes) return false;
             m_sectionVisuals.emplace(key, std::move(visual));
-            if (m_materialIdentityCapture || m_cameraDiagnostics || m_floraWindCapture || m_shoreEditCapture)
+            if (m_materialIdentityCapture || m_cameraDiagnostics || m_floraWindCapture || m_shoreEditCapture || !m_waterSeamOutput.empty())
                 m_materialIdentityMeshRevisions[key] = section.blockRevision;
             return true;
         }
@@ -4931,7 +5248,7 @@ namespace
                 }
                 SectionVisual visual;
                 visual.location = origin;
-                if (m_shoreEditCapture) visual.shoreUploadSerial = ++m_shoreUploadSerial;
+                if (m_shoreEditCapture || !m_waterSeamOutput.empty()) visual.shoreUploadSerial = ++m_shoreUploadSerial;
                 const std::string name = "TerrainBatch_" + dirty.first;
                 auto upload = [&](const auto& parts, const char* suffix, const char* material,
                                   std::uint8_t queue, bool shadows) {
@@ -7094,6 +7411,12 @@ namespace
         std::string m_pauseNotificationOutput;
         std::unique_ptr<FloraWindCapture> m_floraWindCapture;
         std::unique_ptr<ShoreEditCapture> m_shoreEditCapture;
+        std::string m_waterSeamOutput, m_waterSeamSourceBefore, m_waterSeamRoiSelection = "{}";
+        ShoreEditCapture::WaterSeamOptions m_waterSeamOptions;
+        bool m_waterSeamExplicitRoi = false, m_waterSeamArmed = false, m_waterSeamComplete = false;
+        bool m_waterSeamUploadCopyOverBudget = false;
+        bool m_waterSeamMiddle = false;
+        std::chrono::steady_clock::time_point m_waterSeamStarted{}, m_waterSeamInterval{}, m_waterSeamPrevious{};
         std::string m_shoreEditOutput;
         glm::ivec3 m_shoreTarget{0};
         ChunkBlock m_shoreOriginalTop, m_shoreOriginalLower;
