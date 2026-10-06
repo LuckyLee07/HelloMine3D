@@ -1,4 +1,4 @@
-# V01 自然材质源
+# V01 材质源
 
 `ground-sheet-v1.png` 是内置 ImageGen 制作的原创 2×2 图集：左上／右上／左下为草地顶面 A／B／C，
 右下为林床。完整提示词、参考素材及构建方式见 `generation.json`。旧源图保持不变。
@@ -52,6 +52,17 @@ V01e新增两张1254×1254全不透明单格原创源`coal-ore-v1.png`和`iron-o
 只有这两槽改变，其余254层逐字节不变；数组和图集字节数保持。校验器独立锁定83个共享语义、
 两矿来源、槽位与不透明性，并从正式PNG独立采样核对图集，不只信任数组报告。
 标准／兼容及铁矿详情同机位生产诊断原图已查；普通采矿、手持／掉落和连续移动仍单列待验。
+
+V01h新增两张1254×1254全不透明原创单格源`cobblestone-planes-v1.png`和
+`oak-plank-planes-v1.png`，完整内置ImageGen提示词、工具原件、尺寸和SHA见
+[built-materials-generation.json](built-materials-generation.json)。圆石以宽石块和较浅短缝组织，
+橡木板以暖棕宽板面、较少木纹和端缝组织，减少旧黑白砌缝及亮金密纹。原源图和历史材质保留。
+每张独立最近邻采样16×16；图集固定`oak_planks`层21／`cobblestone`层23，
+标准数组沿用同一格的线性光7级mip，兼容与UI沿用图集。共享源为85槽、11张PNG；
+仅两既有槽改变，方块／物品ID、132语义和124空槽、profile、shader、生成与存档保持。
+本批固定机位日照前后和兼容原图单列记录；不以静态画面关闭普通使用、远近／背光／夜间
+和连续移动检查。严格85槽身份、旧83来源与其余254层全mip保护见
+`tools/validate_warm_texture_array.py`与独立`tools/tests/visual_built_materials_test.py`。
 
 纹理仍使用既有运行资源路径与语义地址，不新增运行时纹理内存。源图是正式素材，不属于可清理截图。
 最终采纳与证据见[视觉精修执行记录](../../reports/visual-experience-polish-execution-2026-09-28.md)。

@@ -1,0 +1,34 @@
+{
+  "batch": "V01h",
+  "date": "2026-10-06",
+  "generator": "built-in image_gen.imagegen",
+  "source_policy": "Two new original opaque assets. Original tool outputs copied byte-for-byte; previous art sources retained. No raster repaint.",
+  "style_reference_description": "Existing calm warm-grey stone-planes-v2.png and earthy oak bark in earth-wood-sheet-v1.png were inspected before generation. New-image requests used textual style descriptions, no image attachment.",
+  "sampling": "Each full 1254x1254 source is sampled independently with nearest-neighbor at authored 16x16. Standard array uses existing linear-light mips from the same final atlas cell; compatibility and UI use the atlas.",
+  "materials": [
+    {
+      "semantic": "cobblestone",
+      "layer": 23,
+      "file": "cobblestone-planes-v1.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "f6c65a685e8742feb99cabf9c38f15d6d2b67d41baee47536304f97d9bf1e782",
+      "prompt": "Create ONE original seamless tileable voxel-game COBBLESTONE texture, a flat front-on opaque albedo only, filling the whole square. Very clear intentional 16 by 16 square-pixel art grid enlarged crisply to a square image. Calm warm neutral grey palette, average color approximately RGB 117 115 109, restrained tonal range roughly 92 to 137. Show about 8 to 12 large irregular fitted stone pieces, each about 3 to 6 art-grid pixels across. Uneven staggered masonry, distinct from solid natural rock. Broad quiet planes, short subdued narrow seams in mid-grey. Some pieces and seams cross image edges so it tiles quietly in both directions. Avoid dark outlines, black grout, bright white edges, tiny pebbles, fine grit, checkerboards, diagonal stripe patterns. No lighting baked in, no bevels or shadows, no perspective, no labels, no framing, no gaps, no transparency, no other objects. Use a modest handmade cozy voxel style: substantial shapes, low contrast, and slightly warmer grey rather than blue or yellow. Keep the geometry legible after nearest-neighbor sampling to only 16 by 16 pixels.",
+      "tool_output_hint": "Generated images are saved to /Users/lizi/.codex/generated_images/01a0e39c-9491-7ec1-83df-8598028730c6 as /Users/lizi/.codex/generated_images/01a0e39c-9491-7ec1-83df-8598028730c6/exec-9dd346c2-fd6e-4525-bbe4-764e9937a887.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link."
+    },
+    {
+      "semantic": "oak_planks",
+      "layer": 21,
+      "file": "oak-plank-planes-v1.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "sha256": "d29f7203e6c96c897900329456e3db21fe70f68f7fd06cf511f6bb143824a9ff",
+      "prompt": "Create ONE original seamless tileable voxel-game OAK PLANK texture, a flat front-on opaque albedo only, filling the whole square. Intentional clear 16 by 16 square-pixel art grid enlarged crisply to a square image. A restrained earthy warm oak brown palette with modest desaturated honey color, average approximately RGB 137 103 65; broad subdued planes. Three or four wide horizontal wooden boards about 4 to 6 art-grid pixels tall, with slim low-contrast joins and only one or two staggered short end joins. A few broad understated grain patches aligned horizontally, mostly uninterrupted board surface. Edges connect quietly in both directions when tiled. Should be lighter than oak bark and distinctly manufactured wooden planks, without bright yellow or orange, without black grooves or dense stripe details. No nails, knots, fine grain, scratch lines, outlines, white highlights, baked lighting, bevels, shadows, perspective, labels, framing, transparent pixels or other objects. Modest handmade cozy voxel style, substantial broad square pixel clusters. Keep plank identity legible after nearest-neighbor sampling to only 16 by 16 pixels.",
+      "tool_output_hint": "Generated images are saved to /Users/lizi/.codex/generated_images/01a0e39c-9491-7ec1-83df-8598028730c6 as /Users/lizi/.codex/generated_images/01a0e39c-9491-7ec1-83df-8598028730c6/exec-bcdca148-2fe0-4e85-bfa3-9b3caeb8b68b.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link."
+    }
+  ]
+}

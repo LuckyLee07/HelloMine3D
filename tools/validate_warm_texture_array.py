@@ -22,6 +22,86 @@ ORE_SOURCES = {
 }
 
 
+# V01h official identities are frozen by reviewed source bytes, independently
+# of the production source table and report generated from that table.
+BUILT_MATERIAL_SOURCES = {
+    'oak_planks': ('oak-plank-planes-v1.png', 21,
+                   'd29f7203e6c96c897900329456e3db21fe70f68f7fd06cf511f6bb143824a9ff'),
+    'cobblestone': ('cobblestone-planes-v1.png', 23,
+                    'f6c65a685e8742feb99cabf9c38f15d6d2b67d41baee47536304f97d9bf1e782'),
+}
+ORIGINAL_POLISH_SOURCE_SHA256 = {
+    "ground-sheet-v1.png": "4fdca793a0a753639231d7707d89b2b745b8efdfd28593190214da749c2b25f9",
+    "earth-wood-sheet-v1.png": "c9d11749f61be9f889fc7b1ab8870004b8d40d2f63787b3155ab70d969bc3abe",
+    "foliage-sand-sheet-v1.png": "9e617ffddb01c76582ce89305f14292db99b4d7e25738050290cd1f240f094ae",
+    "birch-spruce-wood-v1.png": "d17e0d9438b59eae1e08e8b391e0f64af02d6a603325811719a66c032a5c2fff",
+    "birch-spruce-stone-v1.png": "1e7203e7c8b06d0fdde778b7e05450d31b8c8d25f3bcb1aa5d0b172c8af29f57",
+    "snow-sediment-v1.png": "0d4550dd42c49510dcca1bb881f543dc875bef99ba6f84203bcd6c99d41e2ac6",
+    "stone-planes-v2.png": "fba5a126ef6a70168ce5c23cbcb81c6db6ea05ac7148f0e06a0926c7f04e8581",
+    "coal-ore-v1.png": "59cfac7a05379144d919ed7563cfc9bfdb63bfa0f83d35b83dba57a7efc3cd8a",
+    "iron-ore-v1.png": "6cc18b8780b51928a514bf85e5fe749aa774e69d78cf0891bbe0b40a979c2b00"
+}
+
+
+def legacy_shared_identities(polished_adventure):
+    identities = {name: ('authored', ['visual-polish/' + name])
+                  for name in ('dirt', 'stone', 'oak_bark_side', 'oak_bark_top',
+                               'sand', 'tall_grass', 'coal_ore', 'iron_ore',
+                               *sorted(polished_adventure))}
+    identities['grass_top'] = ('authored', ['visual-polish/grass_top_a'])
+    identities['grass_side'] = ('derived', ['visual-polish/grass_top_a', 'visual-polish/dirt'])
+    identities['oak_leaves'] = ('authored', ['visual-polish/oak_leaves_a'])
+    for biome in ('desert', 'grassland', 'light_forest', 'temperate_forest', 'ocean'):
+        for variant in range(3):
+            grass = 'visual-polish/grass_top_' + 'abc'[variant]
+            leaf = 'visual-polish/oak_leaves_' + ('b' if variant == 1 else 'a')
+            for base, sources in (
+                    ('grass_top', [grass]), ('grass_side', [grass, 'visual-polish/dirt']),
+                    ('oak_leaves', [leaf]), ('tall_grass', ['visual-polish/tall_grass'])):
+                identities[f'{base}_{biome}_v{variant}'] = ('derived', sources)
+    assert len(identities) == 83
+    return identities
+
+
+def authored_grid(source):
+    # Direct centre sampling, independent of the builder's PIL resize chain.
+    width, height = source.size
+    result = Image.new('RGBA', (16, 16))
+    result.putdata([source.getpixel((int((x + .5) * width / 16),
+                                    int((y + .5) * height / 16)))
+                    for y in range(16) for x in range(16)])
+    return result
+
+
+def opaque_source_mip(authored, edge):
+    # IEC sRGB reference: equal-area means of the original 16px authored grid.
+    # Use double precision and direct cell integration; no producer resizer,
+    # intermediate image, tint function or mip builder is an oracle.
+    tile = list(authored.getdata())
+    assert len(tile) == 256 and all(p[3] == 255 for p in tile)
+    assert edge >= 16 or 16 % edge == 0
+    def linear(byte):
+        value = byte / 255.0
+        return value / 12.92 if value <= .04045 else ((value + .055) / 1.055) ** 2.4
+    def encoded(value):
+        value = value * 12.92 if value <= .0031308 else 1.055 * value ** (1 / 2.4) - .055
+        return max(0, min(255, int(value * 255 + .5)))
+    pixels = []
+    for y in range(edge):
+        for x in range(edge):
+            if edge >= 16:
+                pixel = tile[(y * 16 // edge) * 16 + x * 16 // edge]
+            else:
+                side = 16 // edge
+                block = [tile[yy * 16 + xx]
+                         for yy in range(y * side, (y + 1) * side)
+                         for xx in range(x * side, (x + 1) * side)]
+                pixel = tuple(encoded(sum(linear(p[c]) for p in block) / len(block))
+                              for c in range(3)) + (255,)
+            pixels.append(pixel)
+    return np.asarray(pixels, dtype=np.int16).reshape(edge, edge, 4)
+
+
 def validate(path, report_path):
     data = path.read_bytes()
     report = json.loads(report_path.read_text())
@@ -78,13 +158,18 @@ def validate(path, report_path):
         for biome in ('desert', 'grassland', 'light_forest', 'temperate_forest', 'ocean')
         for variant in range(3))
     assert len(expected_shared) == 83
+    legacy_identities = legacy_shared_identities(polished_adventure)
+    assert set(legacy_identities) == expected_shared
+    expected_shared.update(BUILT_MATERIAL_SOURCES)
+    assert len(expected_shared) == 85
     declared_shared = {r['semantic'] for r in report['semantics']
                        if all(source.startswith('visual-polish/') for source in r['sources'])}
     assert declared_shared == expected_shared, \
-        'Shared material semantics must match the independent 83-layer contract'
+        'Shared material semantics must match the independent original 83 plus two built-material layers'
     shared_records = [r for r in report['semantics'] if r['semantic'] in expected_shared]
-    assert len(shared_records) == 83
+    assert len(shared_records) == 85
     atlas = Image.open(ROOT / 'media/textures/DefaultPack.png').convert('RGBA')
+    source_references = {}
     for semantic, (filename, layer) in ORE_SOURCES.items():
         record = records[semantic]
         assert entries[semantic] == (layer * 16, 0, 'opaque'), \
@@ -105,6 +190,37 @@ def validate(path, report_path):
         x, y, _ = entries[semantic]
         assert atlas.crop((x, y, x + 16, y + 16)).tobytes() == authored.tobytes(), \
             'Ore atlas differs from the independent authored source: ' + semantic
+        source_references[layer] = (semantic, authored)
+    for semantic, (filename, layer, frozen_sha) in BUILT_MATERIAL_SOURCES.items():
+        record = records[semantic]
+        assert entries[semantic] == (layer % 16 * 16, layer // 16 * 16, 'opaque'), \
+            'Built material semantic slot differs: ' + semantic
+        assert (record['layer'], record['alpha'], record['provenance'], record['sources']) == \
+            (layer, 'opaque', 'authored', ['visual-polish/' + semantic]), \
+            'Built material authored provenance differs: ' + semantic
+        source_path = ROOT / 'docs/art-sources/visual-polish-20260928' / filename
+        with Image.open(source_path) as image:
+            assert image.size == (1254, 1254), 'Built material source dimensions differ: ' + semantic
+            source = image.convert('RGBA')
+        assert source.getchannel('A').getextrema() == (255, 255), \
+            'Built material source must be opaque: ' + semantic
+        assert report['polish_source_sha256'][filename] == frozen_sha == \
+            hashlib.sha256(source_path.read_bytes()).hexdigest(), \
+            'Built material frozen source SHA differs: ' + semantic
+        authored = authored_grid(source)
+        x, y, _ = entries[semantic]
+        assert atlas.crop((x, y, x + 16, y + 16)).tobytes() == authored.tobytes(), \
+            'Built material atlas differs from independent authored source: ' + semantic
+        source_references[layer] = (semantic, authored)
+    fixed_source_sha = dict(ORIGINAL_POLISH_SOURCE_SHA256)
+    fixed_source_sha.update({filename: digest for filename, _, digest in BUILT_MATERIAL_SOURCES.values()})
+    assert report['polish_source_sha256'] == fixed_source_sha, \
+        'Original nine plus two official polish source identities differ'
+    assert len({path.name for path in POLISH_SOURCES}) == len(POLISH_SOURCES) == 11
+    for semantic, identity in legacy_identities.items():
+        record = records[semantic]
+        assert (record['provenance'], record['sources']) == identity, \
+            'Original 83 authored provenance differs: ' + semantic
     offset, coverage = 36, {}
     for mip in range(mips):
         size = edge >> mip
@@ -130,6 +246,13 @@ def validate(path, report_path):
                     assert .75 <= float(np.mean(visible)) < 1, \
                         'Species canopy must keep both volume and authored holes'
 
+        for layer, (semantic, authored) in source_references.items():
+            reference = opaque_source_mip(authored, size)
+            actual = pixels[layer].astype(np.int16)
+            assert np.all(actual[:, :, 3] == 255) and \
+                np.max(np.abs(actual[:, :, :3] - reference[:, :, :3])) <= 1, \
+                f'Independent source mip differs: {semantic} mip {mip}'
+
         assert not pixels[list(set(range(256)) - active)].any(), f'Nonempty unused layer at mip {mip}'
         for record in report['semantics']:
             if record['alpha'] == 'opaque':
@@ -149,6 +272,8 @@ def validate(path, report_path):
                 retained_legacy_atlas_bytes=262144, alpha_layers=len(authored_cutout),
                 voxel_oak_leaf_layers=len(leaf_records),
                 shared_material_layers=len(shared_records),
+                preserved_original_shared_material_layers=len(legacy_identities),
+                independent_opaque_source_mips=len(source_references) * mips,
                 source_images=len(POLISH_SOURCES)+1+len(OVERRIDE_SOURCES),
                 adventure_materials=len(adventure_records), sha256=report['sha256'])
 

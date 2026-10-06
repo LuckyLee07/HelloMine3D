@@ -2,7 +2,15 @@
 
 ## 恢复区
 
-- **当前：2026-10-06 V07h：玩家交替脚步与移速步频工程通过，完整Goal active。**
+- **当前：2026-10-06 V01h：圆石／橡木板宽色块材质与固定机位实景通过，完整Goal active。**
+  起点HEAD `46d8d722`；两张内置ImageGen原创源1254²原字节保留，独立16格采样接旧槽21／23，共享源83→85／9→11；仅两纹理运行资源改变。原132语义／124空槽、profile／layout／shader／全部2966源码和V07h玩家步态保持，不改World、输入、生成或存档。
+  图集／数组／报告双重建一致，严格85身份／28单源mip参考与独立254×7差分通过；旧14＋新22合法FNV／SHA污染由组合门禁拒绝。双配置资源串行各201／0、资产91／0；复用V07h实际Release `0ddf954d…7151c`，不称客户端重建或全World重跑。
+  六隐藏实景原图均2560×1440、native0／signal null／无timeout／reaped；圆石高地terrain31、木板旧terrain30隔离模板均seed42，标准同机位前后与新兼容另列。Root实际查看六末帧、两源及16格预览；圆石黑白密缝减弱仍有块面，木板宽横板与深竖树皮可分。非普通输入，不关闭动态、夜间、完整远近或全材质身份链。
+  新独立普通`v01h/After.app`包含V07h步态修复和本批素材，完整原705B Off／first配置、135管理项／137文件。正常菜单独立副本PID64949、native0／reaped，两个原帧，未执行输入／世界。实跑dirty producer身份保留；最终clean提交与包身份／保护另见`v01h/batch-handoff-r1.json`，不重标旧capture。
+  三张升级后原图和两张标准基线追加至58轮226图；旧57轮221对象及index前缀保持。全部本批资源构建／隐藏game handle已终态，Root唯一GPU／窗口操作者，本批普通UI输入0。两个未读规划、旧V07h137文件及9源保持；不推送／发布／打标签。
+  完整V00–V11继续；材质其余源与远近／背光／夜间、普通第三人称连续行走／坡面／近墙、声音和普通路线仍待验，严格配对性能DEFERRED_BY_USER。本批不以静态原图或CPU同源关闭整项Goal。
+
+- **历史检查点：2026-10-06 V07h：玩家交替脚步与移速步频工程通过，完整Goal active。**
   起点HEAD `22ba0d0c`，正常反馈Off继续保留基础动作；腿／臂峰幅36／28度，前后与侧步分别消费对应半波，交替抬脚最多12cm。按实际水平速度和表现步幅调整有界时钟，暂停冻结，高速步频封顶；不改Player／World／输入／生成／存档或新增坡面查询。
   正常Release／Debug构建0、首方warning0、422编译输入保持；Release `0ddf954d…7151c`，Debug `14676c12…f788f`。最终纯动作各802/802，原501项保持，四隔离退化编译0后正常exit1；只读生产设计核验通过。标准前进Before／After和兼容右侧步各八实际2560×1440PNG，均7distinct、actual0退出／reaped；Root已查看相反迈腿、手臂摆动与侧步原帧。正常反馈Off、FOV90、冻结陆地机位与旧terrain30隔离模板同源；非普通输入或相位配对。
   首次Before误省Retina倍率并沿用已更新的默认场景，wrapper FAIL但游戏exit0／reaped，原水下八图与失败保留；r2显式恢复此前陆地机位和pixel-ratio2。公开窗口只读查询仍timeout／UNKNOWN，无游戏输入；普通持续步行、速度节奏、坡面／近墙和世界脚掌无滑移保持OPEN。
@@ -4127,3 +4135,59 @@ Debug SHA`14676c12236f2c44648c19802b461e770edc2592f06b2e39663f1a4b549f788f`；
 最终干净提交身份、正常完整配置菜单启动与保护结果在`batch-handoff-r1.json`和终态收据中核对；
 原V06i交付与两个未读规划保持，不推送、发布或打标签。完整V07与V00–V11仍Doing／Goal active，
 本批实际改进不关闭普通连续路线、近墙／坡面、四水域、声音、材质和整合的其余缺项。
+
+## V01h：圆石与橡木板宽色块材质（2026-10-06）
+
+从`46d8d722`继续完整视觉精修Goal。前轮实际高地工位的圆石在安静石柱旁仍有密集黑白砌缝，
+疏林房屋的橡木板仍为亮金密纹。本批只精修两个已经观察到的材料，不扩展方块ID、改变建筑几何
+或生成版本；完整V01和普通玩法缺项继续保留。V07h反馈Off基础动作、交替抬脚及速度步频保持。
+
+内置`image_gen.imagegen`分别生成全不透明单格`cobblestone-planes-v1.png`／`oak-plank-planes-v1.png`，
+均1254×1254，原工具输出复制后不重绘。完整提示词和原件路径见
+`docs/art-sources/visual-polish-20260928/built-materials-generation.json`；源SHA分别
+`f6c65a685e8742feb99cabf9c38f15d6d2b67d41baee47536304f97d9bf1e782`与
+`d29f7203e6c96c897900329456e3db21fe70f68f7fd06cf511f6bb143824a9ff`。
+圆石采用较宽暖灰石块、低对比短缝，木板采用暖棕宽横板、少量纹路与端缝。Root查看原图和16格
+编译预览后接入，旧9张源图及历史材质保持。源表和图集构建器只有两槽追加；数组／冒险构建器未改。
+
+`oak_planks`地址(5,1)／数组层21，`cobblestone`(7,1)／层23，均沿用既有opaque语义。
+它们不是Material ID35／36或Block ID22／23。标准数组从最终16格同源内容构建64基级和7级线性光mip，
+兼容与UI使用原图集路径。共享85槽／11源；profile、shader、132语义／124空槽、runtime预算保持。
+
+| 检查 | 本批实际结果与范围 |
+| --- | --- |
+| 正式构建 | `v01h/build-assets-r1.json`六命令正常0，图集／数组／报告两次重建逐字节相同；图集262488B、数组5592100B均不增加。图集SHA`c7f0c75d8fab44cc0e14f288e6a801cb33bbcf429f3afb9d5ef57905dd9a55f7`，数组SHA`593e19d19bb0f05f393892f6a1f03ab50d6798f525d8d495aac8a0f641151136`，报告SHA`b7389ea492287763d894237e483c0a07fd51443e4362585238fe269b75e39bcf`。 |
+| 图集与资产 | 原132distinct／124空槽、32 block分面／49 icon坐标、旧icon内容、5负例保持；`scripts/check_assets.sh`91／0。 |
+| 严格源身份 | array validator独立锁原83完整来源与9源SHA，再精确新增21／23两槽及两源SHA；85集合、固定槽／不透明、直接正式PNG采样以及含煤铁的四单源×7mip=28参考通过。没有只改83为85或放宽原门槛。 |
+| 独立前后 | `tools/tests/visual_built_materials_test.py`不import生产builder，读取冻结原PNG／atlas／HMT／报告；130未改语义记录、原83共享来源／9源SHA保持。每mip仅21／23变、其他254层逐字节相同；新两源14参考最大RGB delta实际0、Alpha255。`independent-material-handoff-r1.json`SHA`415519ea021fef75f333f609f10763e553b372f3f4cd363705d26946076a560f`。 |
+| 隔离退化 | 旧14＋新／严格22，共36副本合法重算FNV／SHA，由组合门禁拒绝；含两源交换、同数量共享语义替换、来源／SHA、同步atlas-array污染和末mip错误。未改层16末mipRGB正控main validator正常PASS、独立254层diff拒绝，证明新增oracle保护范围；不把它称main validator拒绝。实际输入前后SHA保持。负例receipt SHA`d67ebc1a39726faad9e6d09c8cbba69613460c57e91a76234a5e8adec2a26699`。 |
+| 资源双配置 | `resource-checks-r1.json`：Xcode macOS x86_64 Debug→Release顺序构建同一ResourcePackSmoke，正常0／首方warning0；实际运行各201／0。独立保存测试binary，公共resource_packs目录不并发。 |
+| 当前客户端 | 全部2966编译源及源清单保持V07h，复用真实Release native`0ddf954d03b008bf09f877fdfd359802841b0f983892549eb969c4b6a2a7151c`；没有本批C++客户端重建、shader修改或完整World重跑。旧V07h双构建／802动作与4退化保持原版本归属。 |
+| 实景与保护 | 六组两原PNG，各2560×1440、实际native0／无signal／timeout／reaped；旧包137完整文件、原9图、profile／layout／其它127个media、全部src和两个未读规划保持。当前实物独审24／24，`delivery-independent-review-r1.json`SHA`8394ccc1af4628fea70661a1d4710041dc77bd5c8d099ae94ae92b2114ea3621`；提交后clean另记r2。 |
+
+圆石机位：`--scene ridge --position '-39 136 0.5' --rotation '8 180 0'`，fresh seed42／terrain31。
+木板机位：`--scene grassland --save-template <V07g after-standard-off-r1/save>`，显式
+`--position '152.5 78.5 -58.5' --rotation '12 0 0'`，保留旧terrain30诊断模板，非用户存档。
+两场共用`--time 7000 --fov 90 --render-distance 8 --perspective first --feedback off --pixel-ratio 2
+--shadow medium --post off --capture-ms 5000,10000 --launch-method direct`。
+标准前后为`before-standard-r1`／`after-cobblestone-standard-r1`和
+`before-planks-standard-r1`／`after-planks-standard-r1`；兼容新两场另存
+`after-{cobblestone,planks}-compatibility-r1`，没有本批兼容模式Before。
+
+Root与独审实际查看末10s原帧：圆石黑白砌缝转为暖灰拟合块面，塔顶与腰部仍有石块结构；
+木板强黄／黑密纹转为较宽暖棕横板，接缝可见，与深棕竖向树皮区分。这是两机位日照固定帧观察，
+不声明连续移动无闪烁、所有距离、背光／夜间、普通使用或完整材质consumer链。
+描述性像素数据`tile-descriptors-r2.json`仅两选定槽；r1曾误把未改slot1标为stone，错误项不使用，
+r1保留。实际stone层3未改，此记录错误没有进入材质生成、guard或PASS门槛。
+
+新`After.app`使用同一native、新资源、135管理项／137完整文件、原705B普通Off／first配置。
+独立普通配置菜单副本PID64949，两个2560×1440原PNG、actual0／reaped、源137和config705保持；
+无世界夹具或输入，不计普通按钮／玩法，`ordinary-full-config-menu-r1/receipt.json`
+SHA`0e699b09ef4ff0b522d2b436451a9910d5d1c59c64fab65434ecbf418f1f3e41`。
+该实跑dirty producer身份保留，提交后只更新identity／distribution并另验clean包；不重标截图。
+
+五未编辑原图（三升级后／两标准基线）追加于
+`.local-evidence/visual-polish-20260928/v01h-built-materials-r1/`，旧57轮221图对象与index前缀保持，
+终态58轮226图。Root本批soleGPU／窗口、普通输入0，全部隐藏native与资源handle已终态。
+本地中文提交和最终clean普通包身份见`v01h/batch-handoff-r1.json`；两个未读规划未暂存，
+不推送／发布／打标签。完整V00–V11保持Doing／Goal active，继续其余材质、普通路线与声音等缺项。
