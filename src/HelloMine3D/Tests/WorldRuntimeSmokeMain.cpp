@@ -21267,6 +21267,7 @@ void caseWorldManager()
 #include "NaturalTreeOwnershipSmokeCases.h"
 #include "NaturalTreeRootTagSmokeCases.h"
 #include "CaveBoundarySmokeCases.h"
+#include "RetainedSectionMeshSmokeCases.h"
 #include "LocalReliefSmokeCases.h"
 #include "RockLandmarkSmokeCases.h"
 #include "WaterbankPolishSmokeCases.h"
@@ -21708,6 +21709,9 @@ int main()
         else if (focus != nullptr && std::string(focus) == "B6") {
             caseSpatialActivation();
         }
+        else if (focus != nullptr && std::string(focus) == "RETAINED_MESH") {
+            caseRetainedSectionMeshReplay();
+        }
         else if (focus != nullptr && std::string(focus) == "B10") {
             caseLargeWorldStressRegression();
         }
@@ -21816,6 +21820,7 @@ int main()
         caseWorldJobCancellation();
         caseStreamingBackpressure();
         caseSpatialActivation();
+        caseRetainedSectionMeshReplay();
         caseLargeWorldStressRegression();
         caseChunkResidencyStateMachine();
         caseSectionMeshUploadSnapshot();

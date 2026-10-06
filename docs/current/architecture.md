@@ -211,12 +211,12 @@ save v12。C3 topology 没有 tick 行为，因此不存在伪造的 Network wor
 `AL-A1` 为每个公开方法分配两个正交标签：API concept 描述调用语义，responsibility 描述当前主要
 实现领域。重载只列一次；完整声明、重载、公开常量和签名由 public-surface hash 共同保护。
 
-<!-- AL-A1-WORLD-API-HASH sha256=CEDBD82F40ED2EDF387D481572537354A5E38744EEBBDEA3EB72DC05201B57D0 -->
+<!-- AL-A1-WORLD-API-HASH sha256=9FF359DBFE6DB884939272104EDFACAAE782F2A5CE8FFBE23497896B4F2F50CC -->
 <!-- AL-A1-WORLD-API-MAP-BEGIN -->
 | API | Concept | Responsibility | Current boundary |
 | --- | ------- | -------------- | ---------------- |
 | `~World` | `Command` | `World Mutation` | 终止 loader 并释放组合根。 |
-| `acknowledgeSectionMeshUploads` | `Command` | `Streaming` | 仅确认同 revision 的 GPU upload。 |
+| `acknowledgeSectionMeshUploads` | `Command` | `Streaming` | 仅将当前Near、同revision的CpuReady网格确认Clean；实际生产版本携带非零incarnation时还须匹配同实例，0仅兼容既有调用。Clean重传不改变此状态。 |
 | `addCommand` | `Command` | `World Mutation` | 把 typed `IWorldCommand` 加入 frame-owned FIFO；执行后才可发布已发生事实。 |
 | `attackActor` | `Command` | `Combat` | 两个旧重载共享同一责任。 |
 | `canOccupyCombatPosition` | `Query` | `Combat` | 战斗移动占位查询。 |
@@ -225,8 +225,10 @@ save v12。C3 topology 没有 tick 行为，因此不存在伪造的 Network wor
 | `collectActorSnapshots` | `Query` | `Actor` | 发布不可变 Actor render 值。 |
 | `collectCombatProjectileSnapshots` | `Query` | `Combat` | 发布不可变 projectile render 值。 |
 | `collectDebugStats` | `Query` | `Diagnostics` | 聚合只读运行时指标。 |
+| `observeWorldIdentity` | `Query` | `Diagnostics` | 一次 World mutex 内按值复制当前已加载 worldId／seed／terrainGenerationVersion；不读磁盘副本、不加载区块、不修改保存或发布事件。 |
 | `collectLoadedBlockEntityPositions` | `Query` | `World Query` | 查询已驻留 block entity。 |
-| `collectSectionMeshSnapshot` | `Query` | `Streaming` | 发布 CPU-ready mesh snapshot。 |
+| `collectSectionMeshSnapshot` | `Query` | `Streaming` | 复制当前Near live revision／incarnation／meshState及有界CpuReady网格；CpuReady统计不含Clean重传。 |
+| `observeRetainedSectionMeshes` | `Query` | `Streaming` | 实际GPU退役后再次Near的恢复需要：World锁内find已有Resident／Clean section，匹配fullXYZ＋revision＋incarnation后按值复制原CPU网格；最多8请求，与当帧普通CpuReady提供量共享8个上传槽；不加载、dirty、变更版本、事件或保存。 |
 | `consumeWaystoneFeedbackKey` | `Command` | `Progression` | 读取并清除一次性反馈。 |
 | `createBlockEntity` | `Command` | `World Mutation` | 创建权威 block entity。 |
 | `damagePlayer` | `Command` | `Combat` | 提交玩家伤害。 |
@@ -259,6 +261,9 @@ save v12。C3 topology 没有 tick 行为，因此不存在伪造的 Network wor
 | `getWaystoneEncounterSnapshot` | `Query` | `Progression` | 路标遭遇快照。 |
 | `getWorldOutcomeSnapshot` | `Query` | `Progression` | 结局权威状态快照。 |
 | `getWorldTime` | `Query` | `World Query` | 当前世界时间查询。 |
+| `observeLocalLights` | `Query` | `World Query` | World mutex 内复制 resident-only 灯光值，最多27 sections／8 sources／12m；不加载、生成、提交 Gameplay 或保存。 |
+| `observeWaterSurfacePlane` | `Query` | `World Query` | World mutex 内最多1539组已驻留水面采样，返回可选渲染平面；不加载或保留区块。 |
+| `visualRevision` | `Query` | `World Query` | World mutex 内复制当前视觉修订号；只作帧输入身份，不等同GPU已上传版本。 |
 | `initializeWaystone` | `Command` | `Progression` | 初始化路标持久状态。 |
 | `isCombatTargetAvailable` | `Query` | `Combat` | 目标存活/可用性查询。 |
 | `isNaturalMobType` | `Query` | `Actor` | 纯敌人类型 helper。 |
@@ -309,7 +314,7 @@ save v12。C3 topology 没有 tick 行为，因此不存在伪造的 Network wor
 | `setHomeExplorationMarker` | `Command` | `Progression` | 设置单一基地标记。 |
 | `trackExplorationMarker` | `Command` | `Progression` | 设置或取消单一标记追踪。 |
 | `trackedExplorationMarker` | `Query` | `World Query` | 复制当前追踪标记，未跟踪返回空。 |
-| `tryWildlifeStep` | `Runtime Tick` | `Simulation` | 在全局 48 次预算内检查局部支撑、扫掠净空与落地；不加载区块。 |
+| `tryWildlifeStep` | `Runtime Tick` | `Simulation` | 在全局48次预算内检查局部支撑、扫掠净空与落地；不加载区块。可选 pathKind 输出已采用的移动路径，默认nullptr；不另增公开方法或保存状态。 |
 <!-- AL-A1-WORLD-API-MAP-END -->
 
 概念规则：
@@ -325,8 +330,12 @@ save v12。C3 topology 没有 tick 行为，因此不存在伪造的 Network wor
 当前调用关系把边界进一步钉死：`SandboxRuntime/WorldManager` 驱动 `tick/update` 和玩家命令，
 `OgreBootstrap` 消费 mesh/Actor/diagnostic snapshot 并确认 upload，Actor/Block/Interaction 代码通过
 Combat、Actor、World Mutation 与 EventBus 入口协作。AL-A2/AL-A3 都保持当时的 78 项公开面不变；
-C3 为正常 capability 观察新增 `getMechanicalNodeSnapshot`，当时为 79 项；后续扩展的当前责任图为 95 项（54 Query／38 Command／3 Runtime Tick）：Streaming 方法内部转发给
+C3 为正常 capability 观察新增 `getMechanicalNodeSnapshot`，当时为 79 项；后续扩展的当前责任图为 100 项（59 Query／38 Command／3 Runtime Tick）：Streaming 方法内部转发给
 `ChunkRuntime`，20 Hz `World::tick(int)` 内部转发给 `WorldSimulation::fixedTick`。
+
+本次责任图审计先保留旧基线失败：`c304e5b7` 的公开面已有98个方法，而旧表仅95个；遗漏了 `2f87fc67` 新增的三项只读渲染观察，并漏同步较早 `tryWildlifeStep` 的可选 `WildlifeMotionPath* pathKind` 签名。旧 hash 对应 `3fd7431a`，不是当前98项公开面。上述声明与实现逐项复审后补全三行及签名说明；本次新增 `observeWorldIdentity` 才使当前面成为99项。新观察仅在需要时取一次权威锁内值，不扩展每帧debug聚合、事件域、存档格式或World更新算法。实际r4返回失败进一步暴露GPU已离Near退役、Resident数据仍保留Clean网格时没有再次提供上传的连接。本次新增 `observeRetainedSectionMeshes` Query／Streaming使当前面成为100项；它在既有World mutex内只复制有界已有值，正常renderer仍与CpuReady共享每帧8次上传，不添加World更新、保存或事件语义。完整公开声明／锁／复制／预算与失败证据受 [驻留恢复合同](../contracts/reference-residency-render-contract-v1.md) 约束，当前实现与实证分别记录。
+
+Python portable checker沿用原PowerShell的边界、空白归一化、唯一方法与责任行规则；本机PowerShell不可用时只报告其 **NOT_RUN**，保留Windows原门禁。
 
 该表解释了 AL-A1 的真实动机：查询、命令、模拟、流送、持久化、Actor、战斗、进度和诊断目前
 都暴露在一个 facade 中。A1 只冻结责任与新增入口规则，不改变旧调用者或兼容性。

@@ -1,8 +1,25 @@
 # HelloMine3D 参考画质完整交付执行记录
 
-2026-10-06。宿主 Goal **blocked**，未设置 token 预算。仅当[提示词第6节](../current/reference-visual-goal-prompt-2026-10-06.md)五项退出条件全部成立才 complete。工程与静态画面通过不等于普通输入验收通过。[方案](../current/reference-visual-upgrade-plan-2026-10-06.md) A–E 范围保持；过程中的旧版本和失败见[集成历史](../archive/reference-visual-goal-integration-history-2026-10-06.md)。
+2026-10-06启动，持续执行至2026-10-07。宿主 Goal **active**（本次恢复审计第1个真实turn），未设置 token 预算。仅当[提示词第6节](../current/reference-visual-goal-prompt-2026-10-06.md)五项退出条件全部成立才 complete。工程与静态画面通过不等于普通输入验收通过。[方案](../current/reference-visual-upgrade-plan-2026-10-06.md) A–E 范围保持；过程中的旧版本和失败见[集成历史](../archive/reference-visual-goal-integration-history-2026-10-06.md)。
 
 ## 当前版本和保护
+
+当前普通候选为 `build/reference-visual-goal/HelloMine3D Reference Complete v8.app`，Release arm64，bundle `local.hellomine3d.reference-current-v8`，世界“临水建筑完整样板”／seed42／`world-9e312494bc82bd30e6e31915b728d461`。正常配置v12，spawn／player `208.5 68 -169.5`；真实作者构场保存，包含两栋不同布局建筑，不是普通输入建造证据。托管167文件、可写保存56文件、完整226文件分别记账。九个旧包1971文件对本次恢复起点逐SHA保护，新增v8使保护对象变为十包2197文件；不覆盖未知操作者已改变的 `WorkbenchCurrent`。创建后才在准备器加入v8保护，真实CLI4个拒绝检查通过、0游戏启动。
+
+| 当前身份 | SHA-256 |
+| --- | --- |
+| Release r7游戏 | `664dc919bb1d6faa8f449680d8f61823f530e9b62580917852d2b6e235860e06` |
+| Debug r7游戏 | `aa67e7a4abea352a78970944db840faad9fa4275a314ff65b8d66f8c44799779` |
+| 2988项src清单 | `4bf8f24faa1b7d22aca4545fe6e474b159eab72ecb9ae85fda05e5b12f4f41dd` |
+| 正式资源manifest（未改） | `f859433d9801ca4e41f34fc3c8ed91715d16f00ffb98e970f3b95870b956b91c` |
+| v8受管理清单 | `b2e0cbdd2d96086ed3280c450938c76dd4ae50e6a28c151c72fd861ae405d89e` |
+| v8全226文件清单 | `61077af6b0e797fe175c4992776a40f6d36629506b0a2224a3fa78393f351a49` |
+
+v8创建身份保留实际来源 `c304e5b720e13c5a8a15d42010432680a7dd53cc`＋tracked dirty `8ecfc8755824ad90c6f5a57a93b12e284493b627ee8fec80ef98caa44e1307dc`；本轮后续本地提交不回写该来源身份。当前双客户端、设置重启、probe-off街景及无PNG性能实际执行；World4491与真实驻留返回按精确不变源码域复用，不能称r7重跑所有历史阶段。`final-workbench-v8-r1/postcheck.json`27/0核全部src／资源／包／存档／backups和创建身份。
+
+以下v7段落、数字与原收据均属历史版本；本轮r5–r7差异、实际失败及有限复用另列。
+
+## 历次实现和v7保护证据
 
 实现工作树 `/Users/lizi/.codex/worktrees/reference-visual-v1/HelloMine3D`，分支 `codex/reference-visual-v1`。主工作区 master 和另一视觉 Goal 均未写入。首版提交 `552345675265f77f8a30dbf1ae205a52d1abb64f`；主体实现提交 `2f87fc67`，包含正常世界建筑、资源／制作、表面光照、真实倒影和普通 HDR 首选四倍多采样；水岸几何修复提交 `a7f42d0262bbd7a7d2a4a3361ef263ffb4bad64a`；水平水面反射修复及包保护提交 `ef6d4350c96dadcaede332089beda8c4e3f7d5e3`；正常资源释放、严格诊断入口和 v5 包保护提交 `32cf60a0b23d0e9e165d39b150d584ec46d2b693`；本轮真实世界编辑到原GPU受光／倒影工程证据提交 `671474ad13ff9e2533c9e90e3a38d1d8c3c0ed87`，已交付包／大小写别名保护和普通启动隔离提交 `a08a9d20`。仅本地提交，无推送、发布或标签。
 
@@ -31,7 +48,7 @@ v7完整全树副本在 `/private/tmp/hellomine3d-reference-goal-menu-v7-4c68wp_
 
 | 范围 | 正常运行路径与当前证据 | 尚需验收 |
 | --- | --- | --- |
-| A HDR | 固定曝光／真实 RGBA16F／独立 owned depth；坏资源／回退和旧包兼容已验；沿用上一轮v6同源生命周期代码的隐藏工程实际resize、A→B→A 正常保存关闭／重建、组件先于 Root 释放通过 | 普通窗口 resize、目录 UI 选世界、设置切档重启、行走卸载返回及长期释放 |
+| A HDR | 固定曝光／真实 RGBA16F／独立 owned depth；坏资源／回退和旧包兼容已验；沿用上一轮v6同源生命周期代码的隐藏工程实际resize、A→B→A 正常保存关闭／重建、组件先于 Root 释放通过 | 普通窗口 resize、目录 UI 选世界和设置操作、普通行走返回及长期释放；r6真实Player驻留工程往返和r7新进程切档另列 |
 | B 套件 | 12类单格部件，最多8盒、四向；BlockId33–44、Material49–60，11制作+1冶炼；选取方向归一化，opaque与邻面遮挡分离；真实 mesh/编辑/上传/保存路径 | 普通制作、四向摆放、登阶、窗洞选取、挖掘拾取及地图 |
 | C 材质与光照 | 四种正式 authored albedo，3×64²×256×7 mip；线性色彩 mip、法线归一化、roughness/metalness/emission；普通/阴影完整 shader；真实最多8灯源有界索引；内外阻光修复 | 普通增删灯／墙后受光、正常连续低太阳／近远；本轮隐藏真实编辑及8帧近远证据另列 |
 | D 倒影 | 单选水位、有绝对预算的半物理尺寸 RGBA16F镜像 RTT；真实镜像相机／裁切／独立参数／驻留世界；固定图确见房屋、桥／云；沿用上一轮v6同源代码实际resize／world reset的target、depth、private material、镜像相机释放通过 | 普通转头、入水出水、拆墙／增灯／改岸、行走卸载返回后更新及长期稳定性 |
@@ -45,15 +62,15 @@ v7完整全树副本在 `/private/tmp/hellomine3d-reference-goal-menu-v7-4c68wp_
 
 ## 工程、GPU和资源证据
 
-证据根为 `build/reference-visual-implementation/`，各记录保存准确源码、资源、二进制与命令。下面数字只描述对应范围，不作为未来固定门槛。r6 新增真实 mesh 三角裁剪、冻结启动能力、SectionMeshInput policy 与 WaterVS接触固定；当时重新完成客户端和World双配置。本轮新增默认关闭世界编辑观察入口及Planar纯数值观察，上一轮正常生命周期修复不变，当前双构建与真实编辑另列；World／材质／shader／正式资源未改，沿用精确对应范围证据。HDR resolve、C材质数组、围护／构场、配方和ResourceContract未变，复用对应同源范围。814检查不能扩称新水面全部验收。
+证据根为 `build/reference-visual-implementation/`，各记录保存准确源码、资源、二进制与命令。下面数字只描述对应范围，不作为未来固定门槛。r6 新增真实 mesh 三角裁剪、冻结启动能力、SectionMeshInput policy 与 WaterVS接触固定；当时重新完成客户端和World双配置。本轮新增默认关闭世界编辑观察入口及Planar纯数值观察，上一轮正常生命周期修复不变，当时双构建与真实编辑另列；旧v7轮World／材质／shader／正式资源未改；本恢复轮World增加只读身份和有界Clean mesh replay，已实跑4491双配置。材质／shader／正式资源仍未改，沿用精确对应范围证据。HDR resolve、C材质数组、围护／构场、配方和ResourceContract未变，复用对应同源范围。814检查不能扩称新水面全部验收。
 
 | 当前适用检查 | 结果与定位 |
 | --- | --- |
-| 最终 Debug／Release 客户端 | 两配置实际exit0；`reference-world-edit-build-r3/{debug,release}.log`，Debug `83a8916b…`／Release `3c426d5b…`；7个核心运行源码before／after一致，第三方警告保留；前r5和water-boundary构建按版本保留 |
-| 完整 World 双配置 | 各4465／0；`water-boundary-clip-r2/{Debug,Release}-full-world.log`；新boundary1201，实际WATER_DEPTH1230 |
-| 严格 World summary | 全量两日志验证通过；26正／负校准含当前真实4465和旧3264拒绝；旧3108、focus、失败或伪造计数不能冒充 full |
+| 最终 Debug／Release 客户端 | r7两配置实际自然exit0；`reference-settings-observation-build-r7`，Debug `aa67e7a4…`／Release `664dc919…`；完整2988src前后不变。旧r3/r5/r6构建与第三方警告保留 |
+| 完整 World 双配置 | r5真实各4491／0、RETAINED_MESH聚焦各26／0；`reference-retained-replay-world-validation-r5`。r7 World/Runtime/Tests全部源码不变限定复用；旧4465和超时原件保持 |
+| 严格 World summary | 4491真实双full通过、26项实际/正负校准通过；旧4465明确拒绝。只更新来自26新测试的期望计数和注释，旧工具与失败原件保留，解析/阈值不放宽 |
 | 纯 shape 双配置／生产 recipe 双配置 | 各2495／0；各184／0（含正常成本／发现／守恒） |
-| ResourcePack 双配置／生成工程 | 各201／0（unchanged合同）；新生成图31工程／396groups／3219memberships／54refs+9正／负校准（1正+8负），未手改工程 |
+| ResourcePack 双配置／生成工程 | 各201／0（unchanged合同）；新生成图31工程／396groups／3221memberships／54refs+9正／负校准（1正+8负），未手改工程 |
 | HDR完整生产GPU | 814／0；`hdr-gpu-r2`对应 resolve 及颜色域覆盖 |
 | 当前 C普通／阴影完整GPU | 3502／0、GL0；`reference-surface-gpu/r5`含当前道路和木色、三数组21mips、独立BRDF／法线／四向／退化／远原点与坏输入 |
 | 当前 C parser／包优先级 | 37／0；`integration-r1/surface-profile-r6`；确定性 export/check PASS，68保护输入哈希不变 |
@@ -177,12 +194,80 @@ r7先前无PNG的5s warmup＋30s采样4729帧：P95 8.933ms/P99 10.064ms/max23.1
 
 | 提示词第6节 | 当前结论 |
 | --- | --- |
-| 1 全部正常生产方向 | 实现与工程证据已接入，同源适用隐藏A循环及当前C/D真实edit工程通过；普通灯／编辑后倒影与设置重启仍未验，不能整体关闭 |
-| 2 画质和动态 | 建筑/材料/室内/HUD与真实静态倒影可见；共面细纹修复；水侧光学硬切局部修复并原图复审；当前低太阳8帧近远完成有限审查，近似着色和稀疏动态限制保留 |
-| 3 工程和稳定性 | 所列对应范围证据有效，FS严格压力8与VS TFfloat32压力16失败保留；沿用同源生命周期代码的v6构建13stage证据通过，普通设置重启／行走卸载返回和编辑可靠性未验 |
-| 4 普通输入保存重开 | BLOCKED_AT_PUBLIC_APP_SELECTION；全部路线 NOT_RUN，AI输入0 |
-| 5 交付和身份 | v7独立macOS完整样板候选包、2985src／资源／收据已备；离源码默认菜单通过；本轮真实edit／准备器已本地提交；全部退出条件未成立 |
+| 1 全部正常生产方向 | A–E实现与正常路径保持；当前World/replay、r6真实驻留、r7切档及同源C/D工程已接入并核对。普通获取／编辑／移动观察未验，不能整体关闭 |
+| 2 画质和动态 | 两栋建筑/材料/室内/HUD、真实RTT与返回树体有实际原图/动态工程证据；旧近远8帧局限、近似水侧光学与原六参考缺失保留；普通持续行走／入水出水与显著闪烁验收未完成 |
+| 3 工程和稳定性 | 当前双构建0、World4491×2/26focus×2、r6严格residency330×2/42cal/实际负控、r7三PID与有界无PNG性能有对应证据；旧FS/VS严格压力FAIL保留，普通编辑／碰撞／选取／拾取／地图／保存可靠性未完成 |
+| 4 普通输入保存重开 | BLOCKED_AT_PUBLIC_APP_SELECTION；全部12路线NOT_RUN/input0；工程设置和驻留不能关闭此项 |
+| 5 交付和身份 | v8普通macOS完整样板候选、2988src/资源/包/保存身份与27交付核对/4新保护CLI已备；离源码默认菜单实际列出样板，原尺寸假设FAIL保留并限定审查；本轮本地提交及最终保护见恢复点，整体退出条件未成立 |
 
-恢复须有公开 macOS getApp 初始观察在有效有界等待内返回可用 App 状态／handle，或工具提供文档化替代能力；届时先核对最新 v7 普通候选包窗口与进程身份、用户是否接管，再由唯一执行者完成普通路线及资源循环。无新公开能力证据不重复 getApp/getState，不合成输入或重启 Computer Use 服务。
+宿主保持active：本次恢复审计只计第1个真实turn，旧blocked三turn不累计；不complete，也不将工具调用、跨日、上下文压缩算成连续Goal turn。普通恢复条件仍是公开macOS `getApp` 初始观察在有效有界等待内返回可用App状态/handle，或工具提供文档化替代能力。届时先核对最新v8候选窗口/实际进程与用户是否接管，由唯一执行者完成普通12路线及编辑后保存重开。无新公开能力证据不重复getApp/getState、不合成输入或重启服务。原包、原失败和此前blocked检查点均保持历史；本轮补完此前漏列的两个独立工程项目，并保存新的active恢复点。
 
-本轮第三个真实宿主Goal turn，首次实际新能力审计 `blocker-audit-r3/audit.json`：公开文档0.3755秒返回但API未变，当前App/GoalApp绑定undefined（0.0139秒），选应用／launch／输入均0。原service PID1250身份仍同，service存在不证明应用选择恢复；后来的其它／未知归属游戏不操作。首轮审计发现真实独立C/D编辑证据及v6保护缺证，先完成本轮实现、双构建、实际正负控、当前视觉、v7和新保护，没有仅因三turn就blocked。当前性能、独立审查和交接已完成，最终保护18／0再核九包1971文件、2985src和5张精选原字节。剩余必须条件是公开CUA普通输入、连续动态／卸载及编辑保存重开，当前没有可用App绑定或文档化替代入口；不存在可继续关闭这些条件的独立实现／验证操作。宿主已实际返回 `blocked`（2026-10-06T13:25:34Z），未设置预算，未标记complete。新恢复点 `build/reference-visual-goal/reference-complete-v7-recovery-r2.json`，原v6/v4恢复点及失败不覆盖；记录当前普通候选、全部已关闭own进程、旧包保护、准确源／资源／binary／原图／工程证据和12条未执行路线。公开getApp初始观察有界返回可用App handle或文档化新入口后，先核对v7候选进程／窗口及是否已被用户接管，再由唯一执行者从普通菜单完成12路线；按用户恢复操作重新审计阻塞，不合成输入、不重启service、不无新证据重复失败。状态依据实际连续三turn及当前impasse，不以工具次数或上下文压缩当turn。
+**历史 blocked 检查点（本次恢复前）**：本轮第三个真实宿主Goal turn，首次实际新能力审计 `blocker-audit-r3/audit.json`：公开文档0.3755秒返回但API未变，当前App/GoalApp绑定undefined（0.0139秒），选应用／launch／输入均0。原service PID1250身份仍同，service存在不证明应用选择恢复；后来的其它／未知归属游戏不操作。首轮审计发现真实独立C/D编辑证据及v6保护缺证，先完成本轮实现、双构建、实际正负控、当前视觉、v7和新保护，没有仅因三turn就blocked。当前性能、独立审查和交接已完成，最终保护18／0再核九包1971文件、2985src和5张精选原字节。剩余必须条件是公开CUA普通输入、连续动态／卸载及编辑保存重开，当前没有可用App绑定或文档化替代入口；不存在可继续关闭这些条件的独立实现／验证操作。宿主已实际返回 `blocked`（2026-10-06T13:25:34Z），未设置预算，未标记complete。新恢复点 `build/reference-visual-goal/reference-complete-v7-recovery-r2.json`，原v6/v4恢复点及失败不覆盖；记录当前普通候选、全部已关闭own进程、旧包保护、准确源／资源／binary／原图／工程证据和12条未执行路线。公开getApp初始观察有界返回可用App handle或文档化新入口后，先核对v7候选进程／窗口及是否已被用户接管，再由唯一执行者从普通菜单完成12路线；按用户恢复操作重新审计阻塞，不合成输入、不重启service、不无新证据重复失败。状态依据实际连续三turn及当前impasse，不以工具次数或上下文压缩当turn。
+
+## 本次恢复审计与尚缺的独立工程证据
+
+宿主恢复后实际 `get_goal` 返回 active。`resumed-audit-r1/audit.json`（SHA `29b3fc7d44ff54f8ea95144cc2583624b2060657a19d15f19ce54feca02ee649`）保留首个新turn与能力审计：公开文档5.2765秒返回，API未变，App绑定均undefined、应用选择／launch／输入均0；service PID1250仍存在，不能由存在推断可用。fresh blocked audit从1开始，旧三turn不累计。
+
+重新完整核对第5节发现上一检查点的“独立工作已耗尽”结论漏了两个仍能推进的工程项目，现明确纠正：①真实 Player 带动常规驻留 demand，目标区块卸载／原GPU释放，再返回从同存档加载／新上传和主及镜像绘制；旧13stage整World切换、冻结edit、只动rendercamera的低太阳图和静态性能都不覆盖。②真实切换图形配置后由新的自有进程／Root载入同一持续存档；旧同Root切World、直接config写入或加载后覆盖玩家状态的截图脚本都不覆盖。上一blocked时间、恢复点、失败与保护收据原样保留为历史，不将遗漏工程项归到CUA阻塞。
+
+恢复初审时，卸载往返按新增 `docs/contracts/reference-residency-render-contract-v1.md` 冻结的3phase／正常模拟／2RTT／实际退役间隙／fromStorage和新incarnation执行，状态实现及native **NOT_RUN**；切档启动验证先冻结独立协议、保留同world／玩家和正常时间，不创建v8或覆盖v7。两个项目只补工程证据，普通12路线全部仍NOT_RUN、输入0，退出条件4未关闭。本次仍继续可独立工作，不因旧blocked状态停止，也不将Goal标为完成。
+
+
+## 恢复审计第1 turn：实际驻留返回及新身份 Query（r3）
+
+上一恢复点“独立工作耗尽”经本轮范围审计被纠正：13阶段切世界不等于实际 Player 驻留卸载返回，同Root切世界也不等于设置切档后的新进程重启。本轮继续 active，旧 blocked 三turn及包/证据原样保留，不计入此次恢复的阻塞门槛。
+
+最小 `World::observeWorldIdentity()` 在既有 mutex 内复制已加载身份，未改变存档、流送和模拟。责任图旧基线实际98方法、旧表95行及旧hash不一致，portable baseline原件保留真实FAIL；当前补齐3旧Query、Wildlife参数及新Query，99方法/58Query/38Command/3Tick，公共hash `C890E0E5009CB2353AAB1F532A95B85C70F0D5307E45B5A9227251F835746F4F`。新portable工具与原PowerShell使用相同边界/归一化，当前真实正例和7故障副本拒绝；macOS没有pwsh，Windows原入口NOT_RUN。
+
+当前r3两客户端构建实际exit0、src2986前后不变。Debug二进制 `380411c1390b844daa86c835802d09dc156e12d7d786f012c415c86d1d61569d`，Release `862500d5f41993fc900662fdeee059ea4e3ef99f2076718bff866ea6c00385d0`；两新自有工程包各168文件/167managed，源码清单 `f2666e0d1c0675b099c81c7c42a065a227e233b212a5def5d6ef2c86a0b863c0`，旧九用户包未刷新。r1 Debug编译错误、r2完整World外层180秒超时（4008 PASS/0语义FAIL但无完整结果/child PID未保存）原样保留，不算通过。r3真正完整World Debug281.899秒、Release38.119秒自然exit0，各4465 PASS/0 FAIL，原断言和独立summary工具不变；完整src2986前后相同，当前二进制与日志身份见 `build/reference-visual-implementation/reference-residency-world-validation-r3/results.json`。
+
+同World正常模拟的r3三个阶段实际运行：Release PID29889及Debug PID30362自然exit0、各44帧、2次线性RTT读回、输入0；两目标真实卸载后缓存缺席/旧GL退休，原存档fromStorage新incarnation返回、ID/meta和本帧主/反射上传独立核对。修后oracle各274/274；Release校准34/34为1实际正例+33故障副本。首个oracle-r1实际223/224 FAIL保留：release.before在clearSelection后仍有allocated native storage，误用了运行active门槛；新工具仅改为allocated-storage观测域，附件/预算/GL/旧id/name/删除门槛保留。原生skip-target-retirement PID30194自然exit1、真实 old target visual retained；B数据已卸载，但旧node/renderables/state及4个GL buffer仍alive，callback访问0不能掩盖cache残留。15新Debug入口负控全部自然exit1且在资源/Root/Window之前拒绝，原包168及模板56未改；所有这些是工程证据，普通输入路线仍NOT_RUN。
+
+r3取景局限必须保留：Root实际查看 A/returned 两原图，建筑/灯/水保持，但返回右侧白桦只剩叶条且背景尚缺；此时global CPU-ready176/deferred168，不能从两目标恢复宣称全视野恢复。B独立解码 exact r10 模板，树干(225,67,-175)4/meta2及叶(225,72,-177)5/meta2分属14,4,-11及14,4,-12，两chunk和r9逐字节相同。默认关闭探针将另加这两个固定section的post-return真实uploadserial/currentrevision/GpuResident/!offered见证及有界等待；此前r3不是新见证门槛的PASS。精选原件 `.local-evidence/reference-visual-20261006/residency-r3/index.json` SHA `374bbef78079e949a1e9878baed6ffe40311aa459b4b5b005941df3a28284277`，不覆盖早截取原图。
+
+设置重启合同和runner已准备，静态正/负输入51/0；三新PID/Root/同save连续保存实际native仍NOT_RUN，不能用配置token或旧同Root生命周期关闭。新代码/见证、当前原生重启、最终新包和本地提交尚待本轮后续。公开CUA没有新可用App能力，普通12路线/input仍0，退出条件4未满足；不合成输入、不擅自complete。
+
+
+## 恢复第1 turn：r4等待失败及实际三进程切档
+
+r4增加正确树/叶见证后重新生成工程：31projects/396groups/3221memberships/54refs，9正负例通过；Debug19.276秒/Release29.591秒exit0，完整2987src前后不变。新Debug `de58e9915df767002eccffbd848a297f8f32b4d4371c56cfe51e0bd88a14c859`、Release `a512c14bd0be79013719260f3686428aa99551cfb93ab06622826d47b3258024`，源码清单 `498eb7c07e37160e498a0f6f47589433cf40971c999ec95118a4737330864694`，两工程包各168/167，原用户包未刷新。
+
+必须纠正此前“早取景”的暂定解释：r4实际Release PID34614自然exit1，返回阶段已等待1024帧/约6.16秒，整probe1056帧/8.388秒；globalCpuReady=0，tree14,4,-11 live415/uploaded=null/GpuResident=false，而leaf14,4,-12已在45帧重传serial3。原两目标卸载/新incarnation重载/current上传仍正确，不能掩盖树体缺失。冻结337fed99 oracle及独立审查均保持FAIL，原件在 `reference-residency-native-r2`，独立review SHA `2f1fada4b359372a8cc2d17682359bbb3a35b106710f0775e0861b6b3f4cb1b4`。未扩大帧/时间门槛或归因shader。
+
+源审确认正常连接缺口：GPU退出Near被销毁；数据仍Resident、CPU经ack成为Clean并保留时，再入Near既不是CpuReady，也不会被只处理Dirty的worker重建，无法重新offer。r4尚未记录tree自己的实际meshState/incarnation，不能把该具体树的Clean说成已直接观测。新版将按World当前Near/Resident/Clean/revision/incarnation只读复制现有CPU mesh，经正常上传/确认恢复缺失GPU；普通CpuReady优先、normal+replay同帧最多8，不markDirty、不改blockrevision/存档、不额外保留World CPU镜像。新修复/当前World与原生证据仍待运行，旧失败不覆盖。
+
+设置重启r4首run真实stage1 PID34871自然exit0；另一游戏PID34882于阶段中出现，stage2启动前安全拒绝，launch1/FAIL原件保持，不操作该窗口。NEW r2显式busy-host engineering串行PIDs35102/35118/35143均自然exit0，三个真正新Root、同一save未重拷或reset，仅正常config两key切 standard-HDR→compatibility-legacy→standard-HDR。世界时间按磁盘加载6128→6258→6400，最终6530，玩家/库存继承及四采样ID/meta、同帧main Terrain/Water linked program/实际sampler、HDR4/legacy0/恢复HDR4、真实AAstrength0及legacy inactive/null域经runner核对；独立审查与三7000原图复审另存。legacy RTT/附件/实际采样为0，不声称CPUcamera/组件/缓存全销毁。期间并行宿主不称隔离/性能/普通输入。10个新Debug settings admission负控均自然exit1、pre-resource/Root/window、所有原包/模板/自有links原样，记录 `reference-settings-restart-startup-guards-r1/audit.json`。
+
+Settings runner静态差异r4真实33/4失败保留：有符号negative section错用GL计数非负门槛；只修section整数域，新r5差异33/0、runner `e5341cf7060c60983be3d5b6cc1a65226677c93ce51ebae1266884392c30723f`。不把这些静态数值副本叫native或普通输入。新版正式v8尚未创建；旧v7和全部旧包仍保护，公开CUA普通12路线及退出条件4仍未满足。
+
+
+## 恢复第1 turn：r5生产返回修复与r6真实往返
+
+真实缺失链路修复接入普通 `syncWorldGeometry`：GPU Near表示已销毁、World数据与CPU网格仍Resident且Clean时，`observeRetainedSectionMeshes` 只对实际Near／Resident／Loaded／当前revision与incarnation进行find-only复制，经正常上传和ack恢复。普通CpuReady优先，normal＋replay总计每帧≤8；请求或预留超过8直接拒绝，不load、不markDirty、不改blockrevision／存档、不额外长期保留CPU镜像。incarnation非零ack防ABA，原两字段0域兼容。合法empty mesh仅留数值fullXYZ/inc/revision，Near退出与World销毁清除，非GPU所有权。
+
+r5真实World Debug PID40476自然0／285.380秒、Release PID41240自然0／38.170秒，各4491 PASS/0 FAIL；两配置真实聚焦各26/0。26项覆盖复制完整生产mesh、不alias、block／savebyte不变、staleinc/rev、非Clean状态、缺失find-only、nonNear／resident-only、实际normal共享8预算、oversize拒绝及empty合法；不是删旧测试或改计数造PASS。全2988源前后逐SHA相同。责任图原baseline98方法与旧95表不一致真实FAIL保留；当前100方法=59Query/38Command/3Tick，公共hash `9FF359DBFE6DB884939272104EDFACAAE782F2A5CE8FFBE23497896B4F2F50CC`。Portable实际正控／7fault拒绝通过；原PowerShell/Windows NOT_RUN。新版summary期望4491来自真实26新测试，实际双full与26校准通过，旧4465工具／拒绝原件保留。
+
+r5原生结果必须保持混合：Release40465自然0，严格树见证327/327、40cal（1actual＋39fault）；Debug40656自然1于51帧，树同inc40/Clean已实际重传，leaf也上传，但地表见证column观察不可用；主图与RTT文件已经写入，不把snapshot计数1误写成物理readback1。真实fault40876自然1却先遇target-data-still-resident，未命中预期GPU缓存负控，不能称负控成功。原件与聚合 `reference-retained-replay-native-r5/independent-aggregate-r1.json` 保持INCOMPLETE_MIXED。
+
+源码发现SurfaceMap是try-lock best-effort batch，锁未取到返回空；r5失败未记录batchsize／mutex，不追认某次具体锁忙。r6只改默认关闭residency观察：A/return先收齐两个column及fixed nonAir严格ID/meta，B只有同批完整known=false才进入缓存门槛；不可用观察在既定帧/时间预算内等待，所有actual事实在draw/readback前冻结。固定样点 blocking existing `World.getBlock`，记录观察域与同帧号，实际mesh/inc/serial门槛不变；生产World/replay未改。
+
+r6 Release PID43395和Debug43744均自然0、各330/330；42cal=1实际正控＋41故障副本全部严格拒绝。两原目标实际退役间隙各6gap／12oldBuffersdead（合12gap／24），fromStorage新inc重载，same-inc40树体Clean通过正常replay返回：Release frame38 ordinary0＋replay8，Debug37 ordinary2＋replay6。真实fault43831自然1／frame32直接命中old-target-visual-retained，B同帧数据unknown但旧node1/renderables2/4bufferalive，oracle保留FAIL。两返回原图实际逐张查看，树干/冠体与建筑桥和倒影存在；正常关闭的cache含empty=0，私有cam/material/HDR/Planar旧native对象退出释放独立核对。聚合 `reference-residency-observation-native-r6/independent-aggregate-r1.json` SHA `d321cf31…82f81eb`，不是普通输入路线。
+
+r7仅SettingsHeader观察块相对r6改变，r5→r7只有Bootstrap＋SettingsHeader；全部World/Runtime/26测试及residency正常运行源码未改。独立 `reference-settings-observation-build-r7/source-scoped-reuse-r1.json` SHA `bcb1214abdec8a3a8a21294929ee8c8a8e439c56c581534b7b5324770431f8d6` 核四条真实World日志、actual PID/自然退出、bin/log SHA、r6正负原件及143运行资源；旧15 residency／10settings admission只复用精确未变函数字节和原case拒绝域，不冒称r7全流程重跑。
+
+## 恢复第1 turn：r7当前设置、性能和v8交付
+
+r6设置单次 PID43985自然exit1，Settings-restart-resident-samples-absent，launch1/snapshot0/PNG0；源168／template56／配置与旧包不变。该错误命中四样点SurfaceMap准入门槛；原件未记录实际size/known/锁所有权，不能证明数据实际缺失或追认具体锁忙。r7只在默认关闭settings Header替换四样点观察：existing blocking、find-only `getBlock`，非Air且完整ID/meta仍严格，known由真实非Air推导；每cell记录固定观察域与 `observed_frame==snapshot.frame` 真正正整数，before-firstupdate身份/玩家/health/库存/time读取不变。Header SHA `727b7859fbd86478bd110153e568252730e14b28d4f1dff7074f797ce14b23c5`。旧r6失败独立19核对原件保留，不重写为成功。
+
+r7 Debug21.386秒／Release32.199秒实际自然0；源2988前后相同，真实r5生成graph成员相同且生成规则未改，因此限定复用31projects/396groups/3221memberships/54refs/9cal。两个新工程包均168文件／167managed，创建c304＋dirty8ecf原样保留。r7实际三个新PID66710／66820／66932均自然0，从同一个隔离save正常连续保存，未重拷/reset：加载time6128→6255→6397，最终6527；stage1/3HDR4、stage2legacy0，sameframe实际Terrain/Water linked program与sampler、固定4cell读取、真实AAstrength0／legacyinactive-null、保存玩家/库存/身份链经独立52/0核对。`reference-settings-restart-native-r5/release-three-processes/audit-r1.json` SHA `71a5e845a9d4b30a6f7504beae137e0b96313c3eba92cc62e053081ac4ac7314`；11原fault＋4新cell观察域/同帧故障共15/15从真实快照校准严格拒绝。三张7000ms原图实际逐张查看，image-review SHA `19cce6d1…` 绑定run `a246d108…`。保护真实集合十包2197，旧字段名all_nine仍保留原件不影响实际集合核对。Settings工程输入0，不代表UI设置操作或普通重开。
+
+当前无PNG性能 owned driver66322／game66327自然0，5秒预热＋30秒采样4743帧；独立CSV P95 9.58292ms／P99 11.3186ms／max18.898ms，>33/50ms及最长串均0，峰child RSS294289408B；terrain7522752B全4743行恒定=145026×44＋285402×4。实际HDRRGBA16F4sample/resolve单sample、反射1280×720/GL0与更新递增；10完整ps／7份含唯一owned66327、lsof实际bin664dc919。周期5.1秒观察不证明全程无外部进程；不称严格三对／速度改善／长期／物理VRAM。CSV无逐帧replay ledger且render_phase_valid全0，8上传预算由不变源码和实际World/Residency证据限定，不冒称采样逐帧测得或GPU分阶段耗时。World6100→6700、tick总600实际推进。`reference-retained-replay-performance-r7/performance/independent-performance-audit-r2.json`51/51，SHA `f20d7a5d6e1e8fa1bb35b1096cdfd9de914b814b8eac472702514c5d6279a32e`。r1 50/51 FAIL是观察日志域误将合法先active0/no-selected-resident-water再active1当重复；新r2严格验证两事件顺序，原件保持，不改运行时或指标门槛。
+
+新街景首r11错误默认pixelratio1，native输出2560×1440使driver自然1/FAIL，原件保持；NEW r12明确1280×720点/ratio2，成功捕获真实5000/10000ms原图，完整freshsave56。Root实际view10000，两栋建筑、浅石/木/瓦、道路/花槽/HUD可见；front水条很窄，不凭此图单独断言清晰镜像。正常构场16chunk/62967写/443shell/49roof/2tree159格，材料/几何未改。
+
+v8普通包由r12fresh author-save创建，未用residency/settings fixture作用户世界；27/0交付核对，旧九包1971／src2988／来源168／freshcapture完整树／save56原样。v8创建后加保护，CLI4/0/0game。离源码完整副本 `/private/tmp/hellomine3d-reference-goal-menu-v8-m4pj2n9j/HelloMine3D Reference Complete v8.app` 实际PID67769自然0、lsof身份true/6.297秒；只ROOT/hidden/有界capture，无SAVE/CATALOGUE/world override/构场/edit/input。原script预期2560×1440却实际两图1280×720，保持FAIL原件；Root真正view05000显示继续游戏/临水建筑完整样板，NEW `menu-isolation/domain-audit-r2.json`26/0，SHA `9f1a9a0a95431b02f06d81a4f262f7479c7b2917624939b42aa716bcb87b17a0`；独立真实view两PNG及完整IHDR/IDAT/CRC/IEND核对。PNG÷config点尺寸=1仅该观察域，actualGL/Retina2未独立观测；cfg与Ogre/Cocoa hiddenwindow日志一致、stderr空、terrain0，普通菜单背景是静态森林，不将保存名当样板世界渲染。只读确认默认启动/保存列表读取/写入隔离，不再启动客户端或篡改旧FAIL。菜单输入0／未进入世界，普通12路线仍NOT_RUN。
+
+精选3原字节图在 `.local-evidence/reference-visual-20261006/delivery-v8/index.json` SHA `578c134740b122e6a63703e1b94d14912d4e5aea4015fce0f26e351b18cda7b6`：r7街道、r7/v8默认菜单、严格同源范围复用的r6返回树体。各图单独保存准确来源bin/src/resource/settings/env/尺寸/AI审查，不把不同Header版本称成统一native。所有历史失败／phase／v6/v7原图均保留，不提交图片。
+
+
+本轮范围的本地中文提交、当前实际HEAD、final保护收据、空own-live-handle集合和普通12路线恢复点保存到 `build/reference-visual-goal/reference-complete-v8-recovery-r1.json`。恢复前先读该新点与当前文件身份；v7被blocked历史与各失败不覆盖。Goal仍active／fresh audit1，原6参考缺失、普通输入NOT_RUN、WindowsNOT_RUN、人类审美/乐趣NOT_CLAIMED与严格配对性能延期均分别保留。五张补充城市参考用于候选套件讨论，不自动把本Goal12类扩为30–40类。

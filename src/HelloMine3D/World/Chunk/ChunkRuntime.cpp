@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cmath>
 #include <limits>
+#include <stdexcept>
 #include <tuple>
 #include <unordered_map>
 
@@ -580,7 +581,7 @@ WorldMeshSnapshot ChunkRuntime::collectSectionMeshSnapshot(
 
             snapshot.liveSections.push_back(section->getLocation());
             snapshot.liveSectionVersions.push_back(
-                {section->getLocation(), section->getBlockRevision()});
+                {section->getLocation(), section->getBlockRevision(), chunk.getIncarnation(), section->getMeshState()});
             for (std::size_t face = 0; face < boundaryFaces.size(); ++face) {
                 if (!boundaryFaces[face]) {
                     continue;
@@ -707,6 +708,8 @@ WorldMeshSnapshot ChunkRuntime::collectSectionMeshSnapshot(
         WorldSectionMeshSnapshot sectionSnapshot;
         sectionSnapshot.location = section->getLocation();
         sectionSnapshot.blockRevision = section->getBlockRevision();
+        sectionSnapshot.incarnation = chunk->getIncarnation();
+        sectionSnapshot.meshState = section->getMeshState();
         sectionSnapshot.meshes = section->getMeshes();
         snapshot.cpuReadySections.push_back(std::move(sectionSnapshot));
     }
@@ -714,6 +717,59 @@ WorldMeshSnapshot ChunkRuntime::collectSectionMeshSnapshot(
     m_lastSectionUploadsOffered.store(snapshot.cpuReadySections.size());
     m_lastSectionUploadsDeferred.store(snapshot.cpuReadyDeferred);
     return snapshot;
+}
+
+WorldRetainedMeshSnapshot ChunkRuntime::observeRetainedSectionMeshes(
+    const std::vector<WorldSectionMeshVersion>& missing,
+    std::size_t cpuReadyUploads)
+{
+    if (missing.size() > MaxSectionUploadsPerFrame ||
+        cpuReadyUploads > MaxSectionUploadsPerFrame)
+        throw std::invalid_argument("Retained mesh replay exceeds the upload budget");
+    WorldRetainedMeshSnapshot result;
+    result.requestedSections = missing.size();
+    result.cpuReadyUploadsReserved = cpuReadyUploads;
+    const auto budget = MaxSectionUploadsPerFrame - cpuReadyUploads;
+    if (!budget || missing.empty()) return result;
+    SpatialInterestSnapshot interestSnapshot;
+    VectorXZ origin{0, 0};
+    {
+        std::lock_guard<std::mutex> demandLock(m_demandMutex);
+        interestSnapshot = m_spatialInterestSnapshot;
+        origin = m_playerDemandCoord;
+    }
+    std::unique_lock<std::mutex> lock(m_worldMutex);
+    std::vector<glm::ivec3> eligible;
+    for (const auto& request : missing) {
+        const auto interest = SpatialInterestModel::interestAt(
+            interestSnapshot, {request.location.x, request.location.z});
+        if (!interest.requiresNearRepresentation || !interest.requiresResidentData)
+            continue;
+        const auto* chunk = m_chunkManager.findChunk(request.location.x, request.location.z);
+        if (!chunk || chunk->getDataResidencyState() != ChunkDataResidencyState::Resident ||
+            !chunk->hasLoaded() || chunk->getIncarnation() != request.incarnation)
+            continue;
+        const auto* section = chunk->findSection(request.location.y);
+        if (!section || section->getMeshState() != ChunkMeshState::Clean ||
+            request.meshState != ChunkMeshState::Clean ||
+            section->getBlockRevision() != request.blockRevision)
+            continue;
+        if (std::find(eligible.begin(), eligible.end(), request.location) == eligible.end())
+            eligible.push_back(request.location);
+    }
+    for (const auto& location : planSectionMeshUploads(eligible, origin, budget)) {
+        const auto* chunk = m_chunkManager.findChunk(location.x, location.z);
+        const auto* section = chunk->findSection(location.y);
+        WorldSectionMeshSnapshot copy;
+        copy.location = location;
+        copy.blockRevision = section->getBlockRevision();
+        copy.incarnation = chunk->getIncarnation();
+        copy.meshState = section->getMeshState();
+        copy.retainedCleanReplay = true;
+        copy.meshes = section->getMeshes();
+        result.sections.push_back(std::move(copy));
+    }
+    return result;
 }
 
 void ChunkRuntime::acknowledgeSectionMeshUploads(
@@ -733,7 +789,8 @@ void ChunkRuntime::acknowledgeSectionMeshUploads(
         }
         Chunk *chunk = m_chunkManager.findChunk(version.location.x,
                                                 version.location.z);
-        if (chunk == nullptr) {
+        if (chunk == nullptr || (version.incarnation != 0 &&
+                                chunk->getIncarnation() != version.incarnation)) {
             continue;
         }
 

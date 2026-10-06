@@ -3,7 +3,7 @@
 本文只回答：项目现在做到哪里、当前批准什么、下一候选是什么、什么会阻塞开发。详细历史、合同和
 封板证据分别进入 `docs/archive/`、`docs/contracts/` 和 `docs/reports/`。
 
-最后更新：2026-10-06。
+最后更新：2026-10-07。
 
 ## 项目目标
 
@@ -52,8 +52,8 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 本分支范围为独立线性 HDR、石台阶与石窗框的完整技术样件、可编辑保存的临水小屋。
 当前 `Engineering Done`：双配置构建、相关检查和最终包原图通过；普通输入因 Computer Use 服务不可用为 `BLOCKED`，结果分别记录，见[首版执行记录](../reports/reference-visual-prototype-execution-2026-10-06.md)
 及[合同](../contracts/reference-visual-prototype-contract-v1.md)。后续完整材质、倒影和套件按[方案](reference-visual-upgrade-plan-2026-10-06.md)推进，不把尚未实现部分写成完成。
-**2026-10-06 完整交付 Goal 已获用户明确启动，宿主 blocked。** 按[提示词](reference-visual-goal-prompt-2026-10-06.md)推进 A–E 全部范围，独立[执行记录](../reports/reference-visual-goal-execution-2026-10-06.md)维护完整材质、套件、真实倒影、植被／抗锯齿、第二样板及普通输入退出条件。
-主体实现 `2f87fc67`、水岸几何 `a7f42d02`、水平反射／包保护 `ef6d4350`、生命周期 `32cf60a0`；本轮真实edit→GPU受光／倒影工程证据 `671474ad`、已交付包／大小写别名保护和普通启动隔离 `a08a9d20`。12类正常获取部件、多通道材质、内外受光、真实倒影、MSAA4和第二栋街区保持。World／shader／正式资源未改，沿用对应同源双配置4465／0等范围与v6二进制13stage生命周期各895／0，不冒称新3c426二进制重跑旧阶段。当前双构建实际0，四真实edit正例1136／0、三校准101／101（3actual＋98故障拒绝）、跳过反射真实native/oracleFAIL保留；13入口负控按不变admission版本沿用。当前低太阳8帧安全近远有限审查、默认关闭probe街景与v7离源码默认菜单完成，宽透明水岸带／近似三角明暗和VS／FS严格GPU压力FAIL保留。当前30秒无PNG4621帧P95 9.362／P99 10.4006ms，无>33ms，另一游戏并行不称隔离／严格三对。v7含完整样板、226文件、2985src收据；九包1971文件最终原样保护。公开CUA getApp仍没有可用App，12普通路线全部NOT_RUN、输入0，未满足退出条件4。阻塞连续三真实turn；本轮先完成全部实质独立工作与交接，至实际impasse后宿主已blocked，未complete。恢复条件与新v7恢复点见执行报告，不能用后台截图或诊断改档代替普通输入。
+**2026-10-06 完整交付 Goal 已获用户明确启动，宿主 active（恢复审计第1个真实turn）。** 按[提示词](reference-visual-goal-prompt-2026-10-06.md)推进 A–E 全部范围，独立[执行记录](../reports/reference-visual-goal-execution-2026-10-06.md)维护完整材质、套件、真实倒影、植被／抗锯齿、第二样板及普通输入退出条件。
+主体实现 `2f87fc67`、水岸几何 `a7f42d02`、水平反射／包保护 `ef6d4350`、生命周期 `32cf60a0`、真实edit工程 `671474ad` 和普通启动保护 `a08a9d20` 保持。本恢复轮修复实际Near退役后Resident/Clean CPU mesh无法重传的生产缺口，normal＋replay每帧≤8/find-only/无存档变化，incarnation ack防ABA。真实World双full4491／0和RETAINED_MESH双focus26／0；责任图100方法及7负校准、4491 summary实际26校准通过，旧计数／超时／失败均保留。r6真实Player驻留返回两配置各330／0、42校准，真实old-target-retirement故障自然1直接命中缓存门槛；r5混合FAIL与观察域修正原件保留。当前r7仅默认关闭settings样点Header改变，精确源范围复用World/Residency及15/10 admission拒绝域，不称r7重跑全部阶段。r7 Debug/Release实际0、源2988；三新PID正常切档HDR→legacy→HDR、同save时间6128→6255→6397→6527，独立审核另见报告。12正常获取部件、多通道材质、内外受光、真实倒影、MSAA4和第二栋街区未撤回；材质/shader资源未改，沿用对应范围GPU与旧生命周期证据，严格VS/FS压力FAIL保持。当前无PNG4743帧P95 9.58292／P99 11.3186ms、max18.898、0帧>33／50；单次周期进程观察不称隔离／严格三对／速度改善／长期。v8普通候选含完整样板、226文件、2988src收据、Release664dc919；交付核27／0和新保护CLI4／0，旧九包1971逐SHA未变，新增v8保护后十包2197。离源码实际菜单PID67769自然0/继续游戏与样板名可读；两PNG实际1280×720，旧脚本误期望Retina2的FAIL保留，限定菜单审查另存。公开CUA getApp仍无可用App，12普通路线全部NOT_RUN/input0，退出条件4未满足；宿主active/本次恢复审计第1个真实turn，旧三turn blocked检查点不累计，未complete。上一“独立工作耗尽”遗漏已明确纠正，本轮实际补驻留往返与新Root切档；后台截图/诊断改档不替代普通输入。
 本分支不重置既有视觉 Goal 的状态和历史缺项。
 
 **2026-09-28 视觉精修 Goal 已启动，按方向分批推进。** 用户在文档同步后明确要求直接执行。

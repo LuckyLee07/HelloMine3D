@@ -104,6 +104,12 @@ struct ExplorationRewardSnapshot {
     int guardRecoverTicks = 0;
 };
 
+struct WorldIdentityObservation {
+    std::string worldId;
+    int seed = 0;
+    int terrainGenerationVersion = 0;
+};
+
 struct WorldDebugStats {
     ChunkDebugStats chunks;
     ChunkDemandDebugStats streamingDemand;
@@ -289,10 +295,17 @@ class World : public NonCopyable {
     ExplorationMarkers::Result trackExplorationMarker(std::uint32_t id);
     ExplorationMarkers::Result eraseExplorationMarker(std::uint32_t id);
     float getWorldTime() const;
+    /// Copied authority identity, under the existing World mutex. No loading.
+    WorldIdentityObservation observeWorldIdentity();
     WorldDebugStats collectDebugStats();
     std::vector<ActorSnapshot> collectActorSnapshots();
     WorldMeshSnapshot collectSectionMeshSnapshot(
         bool captureBoundaryMasks = true);
+    /// Bounded current Clean CPU mesh replay for missing Near representations.
+    /// Read-only/find-only: no loading, dirtying, revision or persistence change.
+    WorldRetainedMeshSnapshot observeRetainedSectionMeshes(
+        const std::vector<WorldSectionMeshVersion>& missing,
+        std::size_t cpuReadyUploads);
     void acknowledgeSectionMeshUploads(
         const std::vector<WorldSectionMeshVersion> &versions);
     void preloadAround(const glm::vec3 &position);

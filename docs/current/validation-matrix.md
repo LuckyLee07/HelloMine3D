@@ -159,7 +159,7 @@ CUA截图超时、kernel reset后服务启动失败，008实际仍空合成；�
 | ---- | ---------- | -------- |
 | Windows 工程生成 | `tools\premake\premake5.exe --os=windows --file=premake/premake.lua vs2017` | 构建系统或文件布局；当前正式工具链是 VS2017/v141 |
 | Windows 全量门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify_build.ps1 -VisualStudioVersion 2017` | 里程碑封板、跨目标源码或链接变化；无活动桌面时显式加 `-SkipRealWindow`，相关真实窗口结果记 `NOT_RUN` |
-| World 公开 API 责任门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_world_responsibility_map.ps1` | `World.h` 公开声明或 `docs/current/architecture.md` 责任地图变化；完整 Windows 门禁也会自动运行 |
+| World 公开 API 责任门禁 | Windows：`powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_world_responsibility_map.ps1`；macOS portable：`python3 tools/validate_world_responsibility_map.py --self-test` | `World.h` 公开声明或 `docs/current/architecture.md` 责任地图变化；portable沿用原边界／归一化／责任行规则，独立报告实际结果；本机无PowerShell时原检查为NOT_RUN，完整Windows门禁仍运行原命令 |
 | Chunk Runtime 边界门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_chunk_runtime_boundary.ps1` | `World` / `ChunkRuntime` / `ChunkManager` 的队列、worker、预算、mesh commit 或 unload 协调变化；完整 Windows 门禁也会自动运行 |
 | Simulation Runtime 边界门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_world_simulation_boundary.ps1` | `World::tick`、`WorldSimulation`、phase/context/raw timing、暂停入口或相关 debug snapshot 变化；完整 Windows 门禁也会自动运行 |
 | Event / Command / Query 边界门禁 | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_event_command_query_boundary.ps1` | command FIFO、EventBus、生产订阅者、查询或未来 Machine/Network 依赖变化；完整 Windows 门禁也会自动运行 |

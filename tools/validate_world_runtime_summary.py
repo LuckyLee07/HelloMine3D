@@ -3,10 +3,11 @@
 
 WorldRuntimeSmokeMain.cpp check() increments g_checkCount once per PASS/FAIL
 line, then main() emits checks/failures and a final status. The current full
-route includes caseHdrConfig, caseReferenceShapes and caseArchitecturalKit.
-Its exact 4465 checks were established by Debug/Release-full-world.log in
-water-boundary-clip-r2 after 1201 boundary-clipping checks; previous 3264-check
-full logs and focused architectural runs must not satisfy this current gate.
+route includes caseHdrConfig, caseReferenceShapes, caseArchitecturalKit and
+caseRetainedSectionMeshReplay. Its exact 4491 checks were established by the
+Debug/Release full-world.log files in reference-retained-replay-world-validation-r5:
+4465 previous checks plus 26 retained-Clean mesh replay assertions. Previous
+4465/3264-check full logs and focused runs do not satisfy this current gate.
 New suite checks require an explicit count update with full-run evidence.
 """
 from __future__ import annotations
@@ -17,7 +18,7 @@ from pathlib import Path
 import re
 import sys
 
-FULL_CHECKS = 4465
+FULL_CHECKS = 4491
 START = "[VALIDATION] world runtime smoke starting"
 PREFIX = "[VALIDATION]"
 SUMMARY = re.compile(r"\[VALIDATION\] checks=([0-9]+) failures=([0-9]+)")

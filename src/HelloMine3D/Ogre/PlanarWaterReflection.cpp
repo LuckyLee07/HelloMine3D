@@ -585,7 +585,7 @@ void PlanarWaterReflection::captureDiagnostic(const std::string& absoluteOutputP
 std::string PlanarWaterReflection::worldEditDiagnosticFacts() const
 {
     const auto& s=*m_impl;
-    if (!std::getenv("HELLOMINE3D_REFERENCE_EDIT_PROBE") || !s.camera || !s.target || !s.stats.active || s.rendering)
+    if ((!std::getenv("HELLOMINE3D_REFERENCE_EDIT_PROBE") && !std::getenv("HELLOMINE3D_REFERENCE_RESIDENCY_PROBE")) || !s.camera || !s.target || !s.stats.active || s.rendering)
         throw std::runtime_error("World-edit view facts require its admitted completed active view.");
     auto projection=s.camera->getProjectionMatrixWithRSDepth();
     const bool flip=s.target->requiresTextureFlipping();
@@ -598,6 +598,7 @@ std::string PlanarWaterReflection::worldEditDiagnosticFacts() const
         <<",\"camera_name\":"<<RenderLifecycle::quote(s.camera->getName())
         <<",\"view_row_major\":"<<matrix(s.camera->getViewMatrix())
         <<",\"projection_row_major\":"<<matrix(projection)<<",\"view_projection_row_major\":"<<matrix(s.viewProjection)
+        <<",\"target_clear_linear_rgba\":["<<s.viewport->getBackgroundColour().r<<','<<s.viewport->getBackgroundColour().g<<','<<s.viewport->getBackgroundColour().b<<','<<s.viewport->getBackgroundColour().a<<']'
         <<",\"target\":"<<s.facts().json()<<'}';
     return o.str();
 }

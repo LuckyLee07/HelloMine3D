@@ -3610,6 +3610,13 @@ WorldMeshSnapshot World::collectSectionMeshSnapshot(
     return m_chunkRuntime.collectSectionMeshSnapshot(captureBoundaryMasks);
 }
 
+WorldRetainedMeshSnapshot World::observeRetainedSectionMeshes(
+    const std::vector<WorldSectionMeshVersion>& missing,
+    std::size_t cpuReadyUploads)
+{
+    return m_chunkRuntime.observeRetainedSectionMeshes(missing, cpuReadyUploads);
+}
+
 void World::acknowledgeSectionMeshUploads(
     const std::vector<WorldSectionMeshVersion> &versions)
 {
@@ -3947,6 +3954,13 @@ void World::sampleExplorationSurface()
 float World::getWorldTime() const
 {
     return m_worldSaveData.worldTime;
+}
+
+WorldIdentityObservation World::observeWorldIdentity()
+{
+    std::lock_guard<std::mutex> lock(m_mainMutex);
+    return {m_worldSaveData.worldId, m_worldSaveData.seed,
+            m_worldSaveData.terrainGenerationVersion};
 }
 
 WorldDebugStats World::collectDebugStats()
