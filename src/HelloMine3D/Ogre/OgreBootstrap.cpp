@@ -6,6 +6,7 @@
 #include "OgreCaveBoundaryRenderer.h"
 #include "HdrPipeline.h"
 #include "PlanarWaterReflection.h"
+#include "RenderLifecycleDiagnostics.h"
 #include <GLSL/OgreGLSLShader.h>
 #include "HdrShaderContract.h"
 #include "../Actor/EnemyPresentationGallery.h"
@@ -35,6 +36,7 @@
 #include <OIS.h>
 #include <Ogre.h>
 #include <OgreCompositorManager.h>
+#include <OgreDepthBuffer.h>
 #include <OgreGL3PlusPlugin.h>
 #include <OgreGL3PlusPrerequisites.h>
 #include <OgreWindowEventUtilities.h>
@@ -49,6 +51,7 @@
 #include <fstream>
 #include <filesystem>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -613,6 +616,14 @@ namespace
             loadGameConfig();
             if (m_config.renderPipeline == RenderPipeline::LinearHdr)
                 validateHdrSceneShaderContract(runtimeResourcePackResolver());
+            const auto lifecycleDirectory = RenderLifecycleProbe::validateEnvironment(
+                m_config.renderPipeline == RenderPipeline::LinearHdr,
+                m_config.visualDetail == VisualDetail::Standard, m_config.isFullscreen,
+                unsigned(m_config.windowX), unsigned(m_config.windowY));
+            if (!lifecycleDirectory.empty()) {
+                m_lifecycleProbe=std::make_unique<RenderLifecycleProbe>(lifecycleDirectory);
+                m_lifecycleWorldDirectory=std::getenv("HELLOMINE3D_SAVE_DIR");
+            }
             initializeAudio();
             initializeMusic();
             createRoot();
@@ -759,7 +770,23 @@ namespace
             m_root->addFrameListener(this);
             Ogre::WindowEventUtilities::addWindowEventListener(m_window, this);
             m_listenersInstalled = true;
-            m_root->startRendering();
+            try {
+                m_root->startRendering();
+                if(m_lifecycleProbe) {
+                    if(m_lifecycleProbe->stage()!=11) throw std::runtime_error("Lifecycle rendering ended before all resize/world cycles.");
+                    shutdown();
+                    m_lifecycleProbe->finish();
+                }
+            } catch(const std::exception& error) {
+                if(m_lifecycleProbe) {
+                    // Retain actual post-operation facts, including Manager
+                    // names, when a strict lifecycle gate rejects the state.
+                    std::string snapshot="null";
+                    try {snapshot=lifecycleSnapshot();} catch(...) {}
+                    m_lifecycleProbe->fail(error.what(),snapshot);
+                }
+                throw;
+            }
             runtimeOperationTimings().completeLatestActive(
                 RuntimeOperationKind::WorldEntry, m_frameCount > 0);
             runtimeOperationTimings().completeLatestActive(
@@ -1372,6 +1399,7 @@ namespace
             m_window->setDeactivateOnFocusChange(false);
             m_sceneManager = m_root->createSceneManager(
                 Ogre::ST_GENERIC, "HelloMine3DScene");
+            if(m_lifecycleProbe)m_lifecycleProbe->rootIdentity(m_root.get(),m_sceneManager);
             m_camera = m_sceneManager->createCamera("PlayerCamera");
             m_camera->setPosition(0.0f, 1.0f, 5.0f);
             m_camera->lookAt(0.0f, 1.0f, 0.0f);
@@ -1389,11 +1417,16 @@ namespace
             Ogre::ResourceGroupManager::getSingleton()
                 .initialiseAllResourceGroups();
             m_hdrPipeline = std::make_unique<HdrPipeline>();
+            if(m_lifecycleProbe) m_hdrPipeline->setLifecycleReleaseObserver(
+                [this](const char* owner,const std::string& facts,bool pass){m_lifecycleProbe->release(owner,facts,pass);},
+                std::getenv("HELLOMINE3D_LIFECYCLE_FAULT")!=nullptr);
             m_hdrPipeline->initialize(*viewport, *m_root->getRenderSystem(),
                                       m_config.renderPipeline);
             configureWaterBoundaryPins();
             configureTerrainAppearance();
             m_waterReflection = std::make_unique<PlanarWaterReflection>();
+            if(m_lifecycleProbe) m_waterReflection->setLifecycleReleaseObserver(
+                [this](const char* owner,const std::string& facts,bool pass){m_lifecycleProbe->release(owner,facts,pass);});
             m_waterReflection->initialize(*m_sceneManager, *m_root->getRenderSystem());
             selectAtmosphereMode();
             syncTerrainMaterialParameters();
@@ -1586,6 +1619,10 @@ namespace
             {
                 m_referenceVisualApplied = buildReferenceVisualScene(
                     *m_world, *m_worldPlayer, *m_logicCamera);
+            }
+            if(m_lifecycleProbe) {
+                ++m_lifecycleWorldEpoch; m_lifecycleWorldDirectory=mainSaveDirectory; m_lifecycleCloseReturned=false;
+                lifecycleContext();
             }
             resetAdventureAudioPresentation(true);
             if (m_audio != nullptr)
@@ -3121,6 +3158,10 @@ namespace
                 }
             }
 
+            if(m_lifecycleProbe) {
+                advanceRenderLifecycleProbe();
+                if(m_lifecycleProbe->stage()==11) return false;
+            }
             const bool captureComplete =
                 m_renderCapture != nullptr &&
                 m_renderCapture->shouldCloseWindow();
@@ -3134,6 +3175,163 @@ namespace
                    !m_shoreComplete &&
                    !captureComplete && !frameLimitReached &&
                    !RuntimePerformanceCapture::shouldCloseWindow();
+        }
+
+        static void lifecycleRequire(bool condition,const char* reason)
+        { if(!condition)throw std::runtime_error(std::string("Render lifecycle: ")+reason); }
+        static std::string lifecycleAddress(const void* object)
+        { std::ostringstream out;out<<object;return RenderLifecycle::quote(out.str()); }
+        void lifecycleContext()
+        {
+            if(!m_lifecycleProbe)return;
+            std::string id;std::ifstream input(std::filesystem::path(m_lifecycleWorldDirectory)/"world.meta");
+            for(std::string line;std::getline(input,line);)if(line.compare(0,9,"world_id ")==0){id=line.substr(9);break;}
+            lifecycleRequire(!id.empty(),"Actual clone world identity missing.");
+            m_lifecycleProbe->context(m_lifecycleWorldEpoch,m_world,m_lifecycleWorldDirectory,id);
+        }
+        unsigned lifecycleCameraCount() const
+        {
+            if(!m_sceneManager)return 0;
+            unsigned count=0;auto it=m_sceneManager->getCameraIterator();while(it.hasMoreElements()){it.getNext();++count;}return count;
+        }
+        static std::vector<std::string> lifecycleManagerNames(Ogre::ResourceManager& manager)
+        {
+            std::vector<std::string> names;auto it=manager.getResourceIterator();
+            while(it.hasMoreElements()){const auto resource=it.getNext();names.push_back(resource->getGroup()+":"+resource->getName());}
+            std::sort(names.begin(),names.end());return names;
+        }
+        std::string lifecycleSnapshot() const
+        {
+            std::ostringstream o;o<<std::boolalpha;
+            o<<"{\"root_alive\":"<<bool(m_root)<<",\"scene_alive\":"<<(m_sceneManager!=nullptr)
+             <<",\"root_instance\":"<<lifecycleAddress(m_root.get())<<",\"scene_instance\":"<<lifecycleAddress(m_sceneManager)
+             <<",\"window_instance\":"<<lifecycleAddress(m_window)<<",\"world_present\":"<<(m_world!=nullptr)
+             <<",\"sandbox_present\":"<<bool(m_sandbox)<<",\"sandbox_instance\":"<<lifecycleAddress(m_sandbox.get())
+             <<",\"loader_lifetime_owner_present\":"<<bool(m_sandbox)<<",\"normal_close_save_and_join_returned\":"<<m_lifecycleCloseReturned<<",\"hidden\":"<<m_hiddenWindow
+             <<",\"input_event_count\":"<<m_lifecycleInputEvents<<",\"perf_enabled\":"<<RuntimePerformanceCapture::isEnabled()
+             <<",\"requested_points\":["<<m_lifecyclePointWidth<<','<<m_lifecyclePointHeight<<']'
+             <<",\"window_pixels\":["<<(m_window?m_window->getWidth():0)<<','<<(m_window?m_window->getHeight():0)<<']';
+            const auto* viewport=m_window && m_window->getNumViewports()?m_window->getViewport(0):nullptr;
+            o<<",\"main_viewport_bound\":"<<(m_camera && viewport && m_camera->getViewport()==viewport)
+             <<",\"viewport_pixels\":["<<(viewport?viewport->getActualWidth():0)<<','<<(viewport?viewport->getActualHeight():0)<<']'
+             <<",\"hdr_component\":"<<bool(m_hdrPipeline)<<",\"planar_component\":"<<bool(m_waterReflection)
+             <<",\"hdr\":"<<(m_hdrPipeline?m_hdrPipeline->lifecycleFacts():RenderLifecycleTargetFacts{}).json()
+             <<",\"planar\":"<<(m_waterReflection?m_waterReflection->lifecycleFacts():RenderLifecycleTargetFacts{}).json()
+             <<",\"scene_camera_count\":"<<lifecycleCameraCount()
+             <<",\"cache\":{\"sections\":"<<m_sectionVisuals.size()<<",\"batches\":"<<m_terrainBatchVisuals.size()
+             <<",\"dirty_batches\":"<<m_dirtyTerrainBatches.size()<<",\"render_states\":"<<m_sectionRenderStates.size()
+             <<",\"last_live_sections\":"<<m_lastLiveSections.size()
+             <<",\"material_identity_revisions\":"<<m_materialIdentityMeshRevisions.size()
+             <<",\"local_lights\":"<<m_localLights.count
+             <<",\"dynamic_shadow_off\":"<<(m_directionalShadowQuality==DirectionalShadowQuality::Off &&
+                 !m_directionalSunLight && !m_directionalSunNode &&
+                 (!m_sceneManager || m_sceneManager->getShadowTechnique()==Ogre::SHADOWTYPE_NONE))<<'}';
+            o<<",\"managers_available\":"<<bool(m_root)<<",\"manager\":";
+            if(!m_root)o<<"null";
+            else {
+                o<<'{';bool comma=false;
+                const auto manager=[&](const char* name,Ogre::ResourceManager& value){if(comma)o<<',';comma=true;const auto names=lifecycleManagerNames(value);o<<RenderLifecycle::quote(name)<<":{\"count\":"<<names.size()<<",\"memory_bytes\":"<<value.getMemoryUsage()<<",\"names\":"<<RenderLifecycle::namesJson(names)<<'}';};
+                manager("texture",Ogre::TextureManager::getSingleton());manager("material",Ogre::MaterialManager::getSingleton());
+                manager("mesh",Ogre::MeshManager::getSingleton());manager("program",Ogre::HighLevelGpuProgramManager::getSingleton());
+                manager("compositor",Ogre::CompositorManager::getSingleton());o<<'}';
+            }
+            o<<'}';return o.str();
+        }
+        void lifecycleLiveReady() const
+        {
+            lifecycleRequire(m_world && m_sandbox && m_hdrPipeline && m_waterReflection,"Actual world/components missing.");
+            const auto h=m_hdrPipeline->lifecycleFacts(),p=m_waterReflection->lifecycleFacts();
+            const auto* viewport=m_window->getViewport(0);
+            lifecycleRequire(m_camera->getViewport()==viewport,"Main camera retained a non-main viewport.");
+            lifecycleRequire(h.active && h.targetCount==1 && h.depthCount==1 && h.ownedDepthAttached && h.depthPool==Ogre::DepthBuffer::POOL_NO_DEPTH && h.native.colour.samples==4 &&
+                RenderLifecycle::valid(h.native,unsigned(viewport->getActualWidth()),unsigned(viewport->getActualHeight()),4),"Actual HDR attachment/4samples invalid.");
+            lifecycleRequire(p.active && p.updateCount>0 && p.targetCount==1 && p.depthCount==1 && p.ownedDepthAttached && p.depthPool==Ogre::DepthBuffer::POOL_NO_DEPTH && p.cameraCount==1 && p.privateMaterials>0 &&
+                p.privateMaterials<=PlanarWaterReflection::MaximumPrivateMaterials && p.privatePasses<=PlanarWaterReflection::MaximumPrivatePasses &&
+                p.waterSamplerBound && p.binderBound && !p.listenersActive && !h.observerFailures && !p.observerFailures,"Real reflected residents or scoped ownership absent.");
+            lifecycleRequire(RenderLifecycle::valid(p.native,p.width,p.height,0) && p.width==(h.width+1)/2 && p.height==(h.height+1)/2 &&
+                std::uint64_t(h.width)*h.height<=8294400 && std::uint64_t(p.width)*p.height<=PlanarWaterReflection::MaximumPixels,"Real target dimensions/budget invalid.");
+            lifecycleRequire(m_lifecycleInputEvents==0 && m_hiddenWindow,"Ordinary input encountered in hidden probe.");
+        }
+        void lifecycleEmptyReady(bool establishBaseline)
+        {
+            lifecycleRequire(!m_world && !m_sandbox && !m_logicCamera && !m_worldPlayer,"Normal World/Sandbox unload did not complete.");
+            lifecycleRequire(m_sectionVisuals.empty() && m_terrainBatchVisuals.empty() && m_dirtyTerrainBatches.empty() &&
+                m_sectionRenderStates.empty() && m_lastLiveSections.empty() && m_materialIdentityMeshRevisions.empty() &&
+                m_localLights.count==0,"Resident visual/cache/local light survived world close.");
+            lifecycleRequire(m_directionalShadowQuality==DirectionalShadowQuality::Off && !m_directionalSunLight &&
+                !m_directionalSunNode && m_sceneManager->getShadowTechnique()==Ogre::SHADOWTYPE_NONE,
+                "Dynamic shadow resources survived world close.");
+            const auto p=m_waterReflection->lifecycleFacts();
+            lifecycleRequire(!p.active && p.targetCount==0 && p.depthCount==0 && p.privateMaterials==0 && p.privatePasses==0 && p.cameraCount==1 &&
+                !p.selected && !p.binderBound && !p.waterSamplerBound && !p.lodCameraBound && !p.listenersActive && !p.observerFailures,"Planar world-reset retained owned resources/references.");
+            lifecycleRequire(m_hdrPipeline->active(),"Menu must retain the active HDR target.");
+            lifecycleRequire(m_camera && m_camera->getViewport()==m_window->getViewport(0),
+                "Menu camera retained a non-main viewport.");
+            const std::array<Ogre::ResourceManager*,5> managers{{&Ogre::TextureManager::getSingleton(),&Ogre::MaterialManager::getSingleton(),&Ogre::MeshManager::getSingleton(),&Ogre::HighLevelGpuProgramManager::getSingleton(),&Ogre::CompositorManager::getSingleton()}};
+            for(std::size_t i=0;i<managers.size();++i) {
+                const auto names=lifecycleManagerNames(*managers[i]);
+                if(establishBaseline)m_lifecycleEmptyManagerNames[i]=names;
+                else if(names!=m_lifecycleEmptyManagerNames[i]) {
+                    constexpr std::array<const char*,5> kinds{{"texture","material","mesh","program","compositor"}};
+                    std::vector<std::string> added,removed;
+                    std::set_difference(names.begin(),names.end(),m_lifecycleEmptyManagerNames[i].begin(),
+                        m_lifecycleEmptyManagerNames[i].end(),std::back_inserter(added));
+                    std::set_difference(m_lifecycleEmptyManagerNames[i].begin(),m_lifecycleEmptyManagerNames[i].end(),
+                        names.begin(),names.end(),std::back_inserter(removed));
+                    std::cerr<<"[RENDER_LIFECYCLE_MANAGER_DIFFERENCE] kind="<<kinds[i]
+                             <<" added="<<RenderLifecycle::namesJson(added)
+                             <<" removed="<<RenderLifecycle::namesJson(removed)<<'\n';
+                    lifecycleRequire(false,"Warm menu ResourceManager names changed after world cycle.");
+                }
+            }
+        }
+        void advanceRenderLifecycleProbe()
+        {
+            auto& probe=*m_lifecycleProbe;probe.observeFrame(unsigned(m_frameCount));lifecycleContext();
+            const unsigned stage=probe.stage();if(stage>=11)return;
+            if(!probe.begun()) {
+                probe.begin(unsigned(m_frameCount),lifecycleSnapshot());
+                if(stage>=1 && stage<=3) {
+                    const auto old=m_hdrPipeline->lifecycleFacts();m_lifecycleExpectedHdrGeneration=old.generation+1;
+                    const unsigned ratio=unsigned(m_window->getWidth())/m_lifecyclePointWidth;
+                    lifecycleRequire((ratio==1 || ratio==2) && m_window->getHeight()==m_lifecyclePointHeight*ratio,"Unknown native window point/pixel scale.");
+                    m_lifecyclePointWidth=stage==1?960u:stage==2?1600u:1280u;
+                    m_lifecyclePointHeight=stage==1?540u:stage==2?900u:720u;
+                    m_lifecycleExpectedWidth=m_lifecyclePointWidth*ratio;m_lifecycleExpectedHeight=m_lifecyclePointHeight*ratio;
+                    m_window->resize(m_lifecyclePointWidth,m_lifecyclePointHeight);
+                    // Same public native resize callback used by Cocoa delegates.
+                    // Next normal frame messagePump/beforeFrame performs target resize.
+                    m_window->windowMovedOrResized();windowResized(m_window);return;
+                }
+                if(stage==4 || stage==7 || stage==10) {
+                    lifecycleLiveReady();
+                    lifecycleRequire(clearActiveWorld(true),"Normal save/closeAllWorlds/stop-loader join failed.");
+                    m_lifecycleCloseReturned=true;
+                    m_applicationFlow.returnToMainMenu();lifecycleContext();lifecycleEmptyReady(stage==4);
+                    probe.commit(unsigned(m_frameCount),lifecycleSnapshot());return;
+                }
+                if(stage==5 || stage==8) {
+                    const std::string directory=stage==5?std::getenv("HELLOMINE3D_LIFECYCLE_SAVE_B"):std::getenv("HELLOMINE3D_SAVE_DIR");
+                    lifecycleRequire(m_applicationFlow.beginLoading(stage==5?"lifecycle-directory-b":"lifecycle-directory-a"),"Normal loading transition rejected.");
+                    buildTerrain(true,directory);
+                    lifecycleRequire(configureDirectionalShadows(m_config.directionalShadowQuality),"Normal shadow rebuild failed.");
+                    syncActorVisuals();m_userInterface->setWorldContext(m_worldPlayer,m_world);
+                    lifecycleRequire(m_applicationFlow.completeLoading(true),"Normal loading completion rejected.");
+                    lifecycleContext();probe.commit(unsigned(m_frameCount),lifecycleSnapshot());return;
+                }
+            }
+            // Wait for actual normal frames and actual reflection scene draws;
+            // no mock/native-field rewrite or direct HDR definition mutation.
+            if(unsigned(m_frameCount)-probe.stageFrame()<12)return;
+            if(!m_waterReflection->statistics().active || m_waterReflection->statistics().privateMaterials==0)return;
+            lifecycleLiveReady();
+            if(stage>=1 && stage<=3) {
+                const auto h=m_hdrPipeline->lifecycleFacts();
+                lifecycleRequire(m_window->getWidth()==m_lifecycleExpectedWidth && m_window->getHeight()==m_lifecycleExpectedHeight &&
+                    unsigned(m_camera->getViewport()->getActualWidth())==m_lifecycleExpectedWidth && unsigned(m_camera->getViewport()->getActualHeight())==m_lifecycleExpectedHeight &&
+                    h.width==m_lifecycleExpectedWidth && h.height==m_lifecycleExpectedHeight && h.generation==m_lifecycleExpectedHdrGeneration,"Real window/HDR resize or generation did not change exactly once.");
+            }
+            probe.commit(unsigned(m_frameCount),lifecycleSnapshot());
         }
 
         bool shoreSectionSelected(glm::ivec3 section) const
@@ -5906,6 +6104,13 @@ namespace
                     DirectionalShadowQuality::Off;
                 return;
             }
+            // CONTENT_SHADOW units own the last shadow TexturePtr. Drop our
+            // receiver units before SceneManager destroys its shadow textures
+            // and calls refcount-aware ShadowTextureManager::clearUnused().
+            // Other scenes' references remain protected by Ogre's own policy.
+            m_directionalShadowQuality = DirectionalShadowQuality::Off;
+            m_directionalShadowStrength = 0.f;
+            setDirectionalShadowReceiverPrograms(false);
             m_sceneManager->setShadowTechnique(Ogre::SHADOWTYPE_NONE);
             m_directionalShadowDiagnosticsEmitted = false;
             if (m_directionalSunLight != nullptr)
@@ -5923,10 +6128,6 @@ namespace
                 m_sceneManager->destroySceneNode(m_directionalSunNode);
                 m_directionalSunNode = nullptr;
             }
-            m_directionalShadowQuality =
-                DirectionalShadowQuality::Off;
-            m_directionalShadowStrength = 0.f;
-            setDirectionalShadowReceiverPrograms(false);
             if (m_actorRenderer != nullptr)
             {
                 m_actorRenderer->setCastShadows(false);
@@ -5945,7 +6146,6 @@ namespace
                 return false;
             }
 
-            m_sceneManager->setShadowTechnique(Ogre::SHADOWTYPE_NONE);
             if (m_directionalSunLight != nullptr)
             {
                 m_directionalSunLight->setCastShadows(false);
@@ -5954,6 +6154,9 @@ namespace
                 DirectionalShadowQuality::Off;
             m_directionalShadowStrength = 0.f;
             setDirectionalShadowReceiverPrograms(false);
+            // Match normal world-close ordering: base receiver references are
+            // gone before Ogre's refcount-aware shadow cache cleanup.
+            m_sceneManager->setShadowTechnique(Ogre::SHADOWTYPE_NONE);
             if (m_actorRenderer != nullptr)
             {
                 m_actorRenderer->setCastShadows(false);
@@ -6801,6 +7004,7 @@ namespace
 
         bool keyPressed(const OIS::KeyEvent& event) override
         {
+            if(m_lifecycleProbe) ++m_lifecycleInputEvents;
             const bool isJumpKey = event.key == toOisKey(
                 m_config.inputBindings.get(GameplayAction::Jump));
             const bool firstJumpPress = isJumpKey && m_jumpHeldKey != event.key;
@@ -6970,6 +7174,7 @@ namespace
 
         bool keyReleased(const OIS::KeyEvent& event) override
         {
+            if(m_lifecycleProbe) ++m_lifecycleInputEvents;
             if (m_jumpHeldKey == event.key) m_jumpHeldKey.reset();
             if (event.key == OIS::KC_GRAVE)
             {
@@ -6990,6 +7195,7 @@ namespace
 
         bool mouseMoved(const OIS::MouseEvent& event) override
         {
+            if(m_lifecycleProbe) ++m_lifecycleInputEvents;
             if (m_userInterface != nullptr)
             {
                 m_userInterface->mouseMoved(event);
@@ -7022,6 +7228,7 @@ namespace
         bool mousePressed(const OIS::MouseEvent& event,
                           OIS::MouseButtonID button) override
         {
+            if(m_lifecycleProbe) ++m_lifecycleInputEvents;
             // Decide ownership before the UI can consume/close on this click.
             for (std::size_t i = 0; i < GameplayMouseButtonCount; ++i)
             {
@@ -7042,6 +7249,7 @@ namespace
         bool mouseReleased(const OIS::MouseEvent& event,
                            OIS::MouseButtonID button) override
         {
+            if(m_lifecycleProbe) ++m_lifecycleInputEvents;
             if (m_userInterface != nullptr)
             {
                 m_userInterface->mouseButton(event, button, false);
@@ -7329,8 +7537,15 @@ namespace
             m_pauseNotificationCapture.reset();
             m_userInterface.reset();
             destroyPostProcessingResources();
+            if(m_lifecycleProbe && !m_lifecycleProbe->failed() && m_lifecycleProbe->stage()==11)
+                m_lifecycleProbe->begin(unsigned(m_frameCount),lifecycleSnapshot());
             m_waterReflection.reset();
             m_hdrPipeline.reset();
+            if(m_lifecycleProbe && !m_lifecycleProbe->failed() && m_lifecycleProbe->stage()==11 && m_lifecycleProbe->begun()) {
+                lifecycleRequire(m_root && m_sceneManager && !m_world && m_sectionVisuals.empty() && m_terrainBatchVisuals.empty(),"Components must release before live Scene/Root.");
+                lifecycleRequire(lifecycleCameraCount()==1,"Reflection camera survived component destruction.");
+                m_lifecycleProbe->commit(unsigned(m_frameCount),lifecycleSnapshot());
+            }
             m_blockFeedback.reset();
             m_actorRenderer.reset();
             m_playerRenderer.reset();
@@ -7362,18 +7577,29 @@ namespace
             m_music.reset();
             m_audio.reset();
 
+            if(m_lifecycleProbe && !m_lifecycleProbe->failed() && m_lifecycleProbe->stage()==12)
+                m_lifecycleProbe->begin(unsigned(m_frameCount),lifecycleSnapshot());
             m_camera = nullptr;
             m_sceneManager = nullptr;
             m_window = nullptr;
             m_terrainArray.setNull();
             for (auto &texture : m_referenceArrays) texture.setNull();
             m_root.reset();
+            if(m_lifecycleProbe && !m_lifecycleProbe->failed() && m_lifecycleProbe->stage()==12 && m_lifecycleProbe->begun())
+                m_lifecycleProbe->commit(unsigned(m_frameCount),lifecycleSnapshot());
             m_terrainArrayLoader.reset();
             for (auto &loader : m_referenceLoaders) loader.reset();
             m_gl3PlusPlugin.reset();
         }
 
         std::unique_ptr<Ogre::Root> m_root;
+        std::unique_ptr<RenderLifecycleProbe> m_lifecycleProbe;
+        std::uint64_t m_lifecycleWorldEpoch=0, m_lifecycleExpectedHdrGeneration=0;
+        bool m_lifecycleCloseReturned=false;
+        unsigned m_lifecycleInputEvents=0, m_lifecycleExpectedWidth=0, m_lifecycleExpectedHeight=0;
+        unsigned m_lifecyclePointWidth=1280, m_lifecyclePointHeight=720;
+        std::string m_lifecycleWorldDirectory;
+        std::array<std::vector<std::string>,5> m_lifecycleEmptyManagerNames;
         std::unique_ptr<HdrPipeline> m_hdrPipeline;
         std::unique_ptr<PlanarWaterReflection> m_waterReflection;
         bool m_planarDiagnosticCaptured = false;
@@ -7606,6 +7832,7 @@ int runOgreBootstrap(bool validateOnly,
 
     try
     {
+        RenderLifecycleProbe::validateEntrypoint(validateOnly);
         const std::string root = ResourcePaths::projectRoot();
         const std::vector<StartupResourceRequirement> startupResources =
             loadStartupResourceManifest(root);

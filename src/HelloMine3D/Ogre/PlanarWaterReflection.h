@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+struct RenderLifecycleTargetFacts;
 namespace Ogre { class Camera; class Pass; class RenderSystem; class SceneManager; class Viewport; }
 
 // Renders existing Ogre residents only. The owner selects one actual, animated
@@ -69,6 +70,8 @@ public:
     void captureDiagnostic(const std::string& absoluteOutputPrefix) const;
     // Call before destroying residents/SceneManager, including world switches.
     void resetWorld() noexcept;
+    RenderLifecycleTargetFacts lifecycleFacts() const;
+    void setLifecycleReleaseObserver(std::function<void(const char*,const std::string&,bool)> observer);
     const Statistics& statistics() const noexcept;
 private:
     struct Impl;

@@ -2,6 +2,10 @@
 #include "../Config.h"
 #include <cstddef>
 #include <memory>
+#include <cstdint>
+#include <functional>
+#include <string>
+struct RenderLifecycleTargetFacts;
 namespace Ogre { class Viewport; class RenderSystem; class CompositorInstance; class RenderTexture; class DepthBuffer; }
 class HdrPipeline {
 public:
@@ -13,6 +17,8 @@ public:
     static bool msaa4WindowSupported() noexcept;
     void initialize(Ogre::Viewport& viewport, Ogre::RenderSystem& renderer, RenderPipeline requested);
     void beforeFrame();
+    RenderLifecycleTargetFacts lifecycleFacts() const;
+    void setLifecycleReleaseObserver(std::function<void(const char*,const std::string&,bool)> observer, bool delayedDrainFault = false);
     void applySceneParameters() const;
     bool active() const noexcept { return m_active; }
     bool fallback() const noexcept { return m_requested == RenderPipeline::LinearHdr && !m_active; }
@@ -33,4 +39,8 @@ private:
     bool m_msaa4Preferred = false, m_msaa4Active = false;
     bool m_spatialAaRequested = true, m_hasSpatialAa = false;
     unsigned m_width = 0, m_height = 0;
+    std::uint64_t m_targetGeneration = 0;
+    unsigned m_lifecycleObserverFailures = 0;
+    bool m_lifecycleDelayedDrainFault = false;
+    std::function<void(const char*,const std::string&,bool)> m_lifecycleObserver;
 };

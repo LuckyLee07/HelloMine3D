@@ -22,6 +22,10 @@ PUBLISHED_V2_BUNDLE_ID = 'local.hellomine3d.reference-current-v2'
 PUBLISHED_V2_PATH = 'build/reference-visual-goal/HelloMine3D Reference Complete.app'
 PUBLISHED_V3_BUNDLE_ID = 'local.hellomine3d.reference-current-v3'
 PUBLISHED_V3_PATH = 'build/reference-visual-goal/HelloMine3D Reference Complete v3.app'
+PUBLISHED_V4_BUNDLE_ID = 'local.hellomine3d.reference-current-v4'
+PUBLISHED_V4_PATH = 'build/reference-visual-goal/HelloMine3D Reference Complete v4.app'
+PUBLISHED_V5_BUNDLE_ID = 'local.hellomine3d.reference-current-v5'
+PUBLISHED_V5_PATH = 'build/reference-visual-goal/HelloMine3D Reference Complete v5.app'
 LAUNCHER = '''#!/bin/bash
 set -euo pipefail
 # Diagnostics from the preparing shell must not reach ordinary gameplay.
@@ -223,12 +227,12 @@ def make_plan(args):
     protected = Path(protection['protected_app']).resolve(strict=True)
     old_work = Path(protection['work_app']).resolve(strict=True)
     snapshots = {}
-    protected_ids = {PUBLISHED_V2_BUNDLE_ID, PUBLISHED_V3_BUNDLE_ID}
+    protected_ids = {PUBLISHED_V2_BUNDLE_ID, PUBLISHED_V3_BUNDLE_ID, PUBLISHED_V4_BUNDLE_ID, PUBLISHED_V5_BUNDLE_ID}
     protected_apps = [protected, old_work]
     current = root/'build/reference-visual-goal/WorkbenchCurrent.app'
     if current.exists():
         protected_apps.append(current.resolve(strict=True))
-    for version, relative in [('v2', PUBLISHED_V2_PATH), ('v3', PUBLISHED_V3_PATH)]:
+    for version, relative in [('v2', PUBLISHED_V2_PATH), ('v3', PUBLISHED_V3_PATH), ('v4', PUBLISHED_V4_PATH), ('v5', PUBLISHED_V5_PATH)]:
         published = (root/relative).resolve()
         require(not (output == published or output.is_relative_to(published) or published.is_relative_to(output)), 'Output overlaps the published '+version+' app')
         if published.exists():

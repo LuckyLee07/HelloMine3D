@@ -2,8 +2,10 @@
 #define GL_SILENCE_DEPRECATION
 #endif
 #include "HdrPipeline.h"
+#include "RenderLifecycleDiagnostics.h"
 #include <Ogre.h>
 #include <OgreDepthBuffer.h>
+#include <OgreCompositorChain.h>
 #include <GLSL/OgreGLSLShader.h>
 #if defined(__APPLE__)
 #include <OpenGL/OpenGL.h>
@@ -273,15 +275,62 @@ bool HdrPipeline::msaa4WindowSupported() noexcept
     return true; // The renderer's advertised format and subsequent native probe remain required.
 #endif
 }
+void HdrPipeline::setLifecycleReleaseObserver(std::function<void(const char*,const std::string&,bool)> observer, bool delayedDrainFault)
+{
+    m_lifecycleObserver=std::move(observer);
+    m_lifecycleDelayedDrainFault=bool(m_lifecycleObserver) && delayedDrainFault;
+}
+RenderLifecycleTargetFacts HdrPipeline::lifecycleFacts() const
+{
+    RenderLifecycleTargetFacts f;
+    f.active=m_active; f.generation=m_targetGeneration; f.width=m_width; f.height=m_height;
+    f.targetCount=m_sceneTarget?1u:0u; f.depthCount=m_sceneDepth?1u:0u; f.observerFailures=m_lifecycleObserverFailures;
+    if(m_instance) {
+        const auto texture=m_instance->getTextureInstance("scene",0);
+        if(!texture.isNull()) f.textureName=texture->getName();
+    }
+    f.ownedDepthAttached=m_sceneTarget && m_sceneDepth && m_sceneTarget->getDepthBuffer()==m_sceneDepth.get();
+    f.depthPool=m_sceneTarget?m_sceneTarget->getDepthBufferPool():0;
+    f.native=RenderLifecycle::native(m_sceneTarget,m_msaa4Active);
+    return f;
+}
 void HdrPipeline::remove() noexcept
 {
-    // Owned depth never enters Ogre's lifetime pool; resize destroys it.
-    if (m_sceneTarget) { try { m_sceneTarget->detachDepthBuffer(); } catch (...) {} }
+    // Compiled compositor quad operations own material/TUS references to the
+    // previous texture. Drain them at this outer frame/shutdown boundary before
+    // allocating the replacement, not one draw later inside the engine.
+    RenderLifecycleTargetFacts retired;
+    const bool observe=bool(m_lifecycleObserver) && m_sceneTarget;
+    if(observe) {try {retired=lifecycleFacts();} catch(...) {++m_lifecycleObserverFailures;}}
+    const bool delayedDrain=observe && m_lifecycleDelayedDrainFault;
+    // Consume the fault only at a real allocated target retirement. Empty
+    // initialization/removal paths cannot consume it, and cleanup drains normally.
+    if(delayedDrain) m_lifecycleDelayedDrainFault=false;
+    bool drained=true;
+    if (m_sceneTarget) { try { m_sceneTarget->detachDepthBuffer(); } catch (...) {drained=false;} }
     m_sceneDepth.reset(); m_sceneTarget=nullptr;
     if (m_viewport && m_instance) {
-        try { Ogre::CompositorManager::getSingleton().removeCompositor(m_viewport, Compositor); } catch (...) {}
+        try {
+            auto& manager=Ogre::CompositorManager::getSingleton();
+            manager.removeCompositor(m_viewport, Compositor);
+            if(!delayedDrain) manager.getCompositorChain(m_viewport)->_compile();
+        } catch (const Ogre::Exception& error) {
+            drained=false;std::cerr<<"[HDR_RELEASE] compositor_drain_failed="<<error.getDescription()<<'\n';
+        } catch (...) {drained=false;std::cerr<<"[HDR_RELEASE] compositor_drain_failed=unknown\n";}
     }
+    // Viewport destruction does not clear Camera::mLastViewport. A complete
+    // main draw normally restores it, but interrupted RTT rendering/cleanup
+    // must also leave the camera bound to the still-live owning main viewport.
+    auto* mainCamera=m_viewport?m_viewport->getCamera():nullptr;
+    if(mainCamera) mainCamera->_notifyViewport(m_viewport);
+    const bool cameraRestored=mainCamera && mainCamera->getViewport()==m_viewport;
     m_instance = nullptr; m_active = false; m_msaa4Active = false;
+    if(observe) {
+        try {
+            const auto after=RenderLifecycle::retire(retired.native,{retired.textureName},{});
+            m_lifecycleObserver("hdr-target",std::string("{\"before\":")+retired.json()+",\"after\":"+after.json+",\"compiled_operations_drained\":"+(drained && !delayedDrain?"true":"false")+",\"camera_viewport_restored\":"+(cameraRestored?"true":"false")+"}",after.pass && drained && cameraRestored && !m_lifecycleObserverFailures && retired.targetCount==1 && !retired.native.errorBefore && !retired.native.errorAfter);
+        } catch(...) {++m_lifecycleObserverFailures;}
+    }
 }
 void HdrPipeline::setSpatialAa(bool multisample)
 {
@@ -349,7 +398,7 @@ bool HdrPipeline::installTarget(bool multisample)
         const auto windowExtra=windowPixels*(window.colourBytes()+window.depthBytes())*(windowSamples-1);
         const auto sceneMultisampleColour=multisample?pixels*8u*4u:0u;
         const auto sceneResolved=pixels*8u,sceneDepth=pixels*depthBytes*samples;
-        m_active=true; m_msaa4Active=multisample;
+        m_active=true; m_msaa4Active=multisample; ++m_targetGeneration;
         std::cout<<"[HDR_STORAGE_BUDGET] domain=format-logical-bytes scene_multisample_colour_bytes="<<sceneMultisampleColour
                  <<" scene_depth_stencil_bytes="<<sceneDepth<<" scene_single_or_resolved_colour_bytes="<<sceneResolved
                  <<" scene_total_bytes="<<sceneMultisampleColour+sceneDepth+sceneResolved

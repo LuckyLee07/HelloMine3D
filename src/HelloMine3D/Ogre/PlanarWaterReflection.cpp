@@ -1,4 +1,5 @@
 #include "PlanarWaterReflection.h"
+#include "RenderLifecycleDiagnostics.h"
 
 #include <Ogre.h>
 #include <OgreGL3PlusDepthBuffer.h>
@@ -112,6 +113,24 @@ struct PlanarWaterReflection::Impl final : Ogre::RenderQueue::RenderableListener
     bool selected = false, supported = false, rendering = false, submitted = false;
     std::uint64_t lastFrame = 0, materialSerial = 0;
     unsigned diagnosticCaptures = 0;
+    std::uint64_t targetGeneration = 0;
+    unsigned lifecycleObserverFailures = 0;
+    std::function<void(const char*,const std::string&,bool)> lifecycleObserver;
+
+    RenderLifecycleTargetFacts facts() const
+    {
+        RenderLifecycleTargetFacts f; f.active=stats.active; f.generation=targetGeneration; f.updateCount=stats.updateCount;
+        f.width=stats.width; f.height=stats.height; f.targetCount=target?1u:0u; f.depthCount=depth?1u:0u;
+        f.cameraCount=camera?1u:0u; f.cameraName=camera?camera->getName():std::string();
+        f.selected=selected; f.binderBound=bool(input.bindViewParameters); f.waterSamplerBound=boundWaterPass!=nullptr;
+        f.lodCameraBound=camera && camera->getLodCamera()!=camera; f.listenersActive=rendering || !observedShadowTargets.empty();
+        f.privateMaterials=materials.size(); f.privatePasses=stats.privatePasses; f.observerFailures=lifecycleObserverFailures;
+        if(!texture.isNull())f.textureName=texture->getName();
+        for(const auto& entry:materials)f.materialNames.push_back(entry.second.material->getName());
+        f.ownedDepthAttached=target && depth && target->getDepthBuffer()==depth.get();
+        f.depthPool=target?target->getDepthBufferPool():0;
+        f.native=RenderLifecycle::native(target,false);return f;
+    }
 
     void status(const char* reason)
     {
@@ -134,6 +153,8 @@ struct PlanarWaterReflection::Impl final : Ogre::RenderQueue::RenderableListener
     }
     void releaseTarget() noexcept
     {
+        RenderLifecycleTargetFacts retired; const bool observe=bool(lifecycleObserver) && target;
+        if(observe){try{retired=facts();}catch(...){++lifecycleObserverFailures;}}
         unbindWater();
         try { if (target) { target->removeAllViewports(); target->detachDepthBuffer(); } } catch (...) {}
         if (camera) camera->_notifyViewport(nullptr);
@@ -144,14 +165,18 @@ struct PlanarWaterReflection::Impl final : Ogre::RenderQueue::RenderableListener
         } catch (...) {}
         texture.setNull();
         stats.width = stats.height = 0; stats.colourBytes = stats.depthStencilBytes = 0;
+        if(observe){try{const auto after=RenderLifecycle::retire(retired.native,{retired.textureName},{});lifecycleObserver("planar-target",std::string("{\"before\":")+retired.json()+",\"after\":"+after.json+"}",after.pass && !lifecycleObserverFailures);}catch(...){++lifecycleObserverFailures;}}
     }
     void clearMaterials() noexcept
     {
+        RenderLifecycleTargetFacts retired; const bool observe=bool(lifecycleObserver) && !materials.empty();
+        if(observe){try{retired=facts();}catch(...){++lifecycleObserverFailures;}}
         for (auto& entry : materials) {
             try { if (Ogre::MaterialManager::getSingletonPtr())
                 Ogre::MaterialManager::getSingleton().remove(entry.second.material->getName()); } catch (...) {}
         }
         materials.clear(); stats.privateMaterials = stats.privatePasses = 0;
+        if(observe){try{const auto after=RenderLifecycle::retire({}, {},retired.materialNames);lifecycleObserver("planar-materials",std::string("{\"before\":")+retired.json()+",\"after\":"+after.json+"}",after.pass && !lifecycleObserverFailures);}catch(...){++lifecycleObserverFailures;}}
     }
     bool makeTarget(TargetSize size)
     {
@@ -205,6 +230,7 @@ struct PlanarWaterReflection::Impl final : Ogre::RenderQueue::RenderableListener
             stats.width = size.width; stats.height = size.height;
             stats.colourBytes = static_cast<std::size_t>(size.pixels() * 8);
             stats.depthStencilBytes = static_cast<std::size_t>(size.pixels() * depthBytes);
+            ++targetGeneration;
             return true;
         } catch (const Ogre::Exception& error) {
             std::cout << "[PLANAR_REFLECTION_STORAGE] allocation_failed=" << error.getDescription() << '\n';
@@ -305,8 +331,17 @@ PlanarWaterReflection::PlanarWaterReflection() : m_impl(new Impl) {}
 PlanarWaterReflection::~PlanarWaterReflection()
 {
     resetWorld();
-    if (m_impl->scene && m_impl->camera) m_impl->scene->destroyCamera(m_impl->camera);
+    if (m_impl->scene && m_impl->camera) {
+        const auto name=m_impl->camera->getName();
+        m_impl->scene->destroyCamera(m_impl->camera); m_impl->camera=nullptr;
+        if(m_impl->lifecycleObserver){try{const bool alive=m_impl->scene->hasCamera(name);m_impl->lifecycleObserver("planar-camera",std::string("{\"before\":{\"camera_name\":")+RenderLifecycle::quote(name)+"},\"after\":{\"camera_name_alive\":"+(alive?"true":"false")+"}}",!alive && !m_impl->lifecycleObserverFailures);}catch(...){++m_impl->lifecycleObserverFailures;}}
+    }
 }
+void PlanarWaterReflection::setLifecycleReleaseObserver(std::function<void(const char*,const std::string&,bool)> observer)
+{
+    m_impl->lifecycleObserver=std::move(observer);
+}
+RenderLifecycleTargetFacts PlanarWaterReflection::lifecycleFacts() const {return m_impl->facts();}
 void PlanarWaterReflection::initialize(Ogre::SceneManager& scene, Ogre::RenderSystem& renderer)
 {
     if (m_impl->scene) throw std::runtime_error("PlanarWaterReflection initialized twice.");
