@@ -3,7 +3,7 @@
 ## 恢复区
 
 - **当前：2026-10-06 V06f：实际暖帧绘制绑定与默认关闭双模式回归通过，完整V00–V11仍Doing，Goal active。**
-  当前Release `cd47a140…28394`／Debug `dfb46a69…170f5`；正常修后两配置构建0、首方warning0，原件及120聚焦保护保持。当前候选为`v06f/CandidateAfterR3.app`，本地提交与最终普通配置包身份另验。
+  当前Release `cd47a140…28394`／Debug `dfb46a69…170f5`；正常修后两配置构建0、首方warning0，原件及120聚焦保护保持。实现提交`7b39402b`；最终普通配置`v06f/After.app`同一cd47 Release、135管理项／137文件核对通过。捕获保持原nominal601d＋dirty，不重标为提交后实跑；普通交互验收仍OPEN。精选50轮198图，旧49轮195图保持。
   标准／兼容新native捕获均正常exit0、GL4.1、Retina2，各595项通过（原208包含）；9副本故障校准通过，独立实物1114项／12阶段38操作176属性通过。默认关闭双模式各原208通过，菜单渲染启动两原图通过，普通输入不作声明。
   GL4.1误查4.3 ARRAY_LONG已修，明示实测FLOAT排除DOUBLE的推导；初始三次GL启动失败与r2反射1280保留。获准沙箱外显示器各1／桌面已登录，同包同条件GL恢复；此前沙箱CG0不是物理桌面事实。
   公开CUA仍报Sky服务启动失败，普通副本确切查询无PID／窗口，不能关闭连续玩法、采集制作、完整UI／动态／音频或整体。全部恢复点见文末V06f与新实际收据，严格性能延期。
@@ -3586,3 +3586,31 @@ guard源码未变，修正只在构造窗口后观察路径；不把旧收据二
 采集制作、相机／动物连续动作、水岸鼠标交互、完整UI、音频、稳定性与整合仍继续；首解绑分支、
 非主相机／阴影、像素归因、World原子快照／incarnation／ABA也保持各自OPEN。Goal active，
 完整12方向仍Doing，严格配对性能DEFERRED_BY_USER。
+
+### V06f 本地交付与精选原图
+
+实现提交`7b39402bb0eda4ec8e9af035601a41f2fa319324`，中文小批次仅上述三C++、捕获工具、
+独立oracle、合同及四文档共10文件；两份无关未跟踪规划不暂存，未推送、发布或打标签。
+[最终包核对](../../build/visual-experience-polish-20260928/v06f/final-package-r3.json)
+确认新`v06f/After.app`实际Resources/bin Mach-O为已正常构建并实跑的cd47 Release，
+新来源提交7b39402b／tracked diff为空，2965源码manifest SHA`e7adaf23…657ba0`。
+135管理项及137完整文件均通过；与当前候选134文件相同，仅plist／构建身份／分发清单三个
+文件另立身份。705B普通配置SHA70d9来自旧已还原配置，没有复制用户存档或catalogue。
+六冻结输入与实现提交blob相同；包内acceptance仍NOT_RUN，普通入口未通过公开输入验收，
+不能把同二进制的隐藏菜单渲染启动写成按钮／普通玩法PASS。
+
+首次交付核对器在将相对冻结路径对绝对cwd取relative_to时ValueError，原失败另存
+`final-package-verifier-path-failure-r1.json`；解析路径后重新核对通过，未重建／重写候选、
+未修改原捕获或oracle。`focused-precommit-protection-r3.json`131聚焦文件保持，复用
+正常r3的120项保护及原保护凭据，没有新全量旧源码／客户端／图片扫描。
+
+[精选归档收据](../../build/visual-experience-polish-20260928/v06f/archive-selected-r3-r1/receipt.json)
+新增标准phase000水面基线、003填砂、004降低水面三张未裁剪2560×1440原PNG，逐字节与
+原捕获相同；归档50轮198图，旧49轮round对象／原字面前缀与index前缀保持，旧195图未写入。
+归档实现提交绑定7b39402b，捕获实际nominal601d、dirty来源及PID13102身份保持原件。
+这些图仅支持World／地图诊断接线与相邻的实际暖帧绑定收据，不代表新增审美提升、
+普通输入、shader输出或水面／地形像素归因。完整Goal继续active，全部12方向仍Doing。
+
+[独立交付复核](../../build/visual-experience-polish-20260928/v06f/independent-delivery-review-r3.json)
+312／312、174聚焦输入通过：仅必要的新包137文件／135清单、新增三图、旧元数据前缀和六个
+7b提交blob；未读旧195图、旧包或重扫src，没有GPU／UI／构建／git写操作。
