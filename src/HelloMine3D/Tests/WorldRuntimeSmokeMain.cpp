@@ -21226,6 +21226,7 @@ void caseWorldManager()
 #include "LandmarkPolishSmokeCases.h"
 #include "AdventureLandmarkApproachSmokeCases.h"
 #include "AdventureLandmarkWorkshopSmokeCases.h"
+#include "WorkshopSightlineSmokeCases.h"
 #include "AdventureUndergroundSmokeCases.h"
 #include "AdventureUndergroundSafetySmokeCases.h"
 #include "AdventureUndergroundPerformanceCases.h"
@@ -21316,6 +21317,9 @@ int main()
         }
         else if (focus != nullptr && std::string(focus) == "WORKSHOP_COURTYARD") {
             caseAdventureLandmarkWorkshops(WorkshopCourtyardTerrainGenerationVersion);
+        }
+        else if (focus != nullptr && std::string(focus) == "WORKSHOP_SIGHTLINE") {
+            caseWorkshopSightline();
         }
         else if (focus != nullptr && std::string(focus) == "ADVENTURE_WORKSHOP") {
             caseAdventureLandmarkWorkshops();
@@ -21801,6 +21805,7 @@ int main()
         caseAdventureLandmarkApproaches();
         caseAdventureLandmarkWorkshops();
         caseAdventureLandmarkWorkshops(WorkshopCourtyardTerrainGenerationVersion);
+        caseWorkshopSightline();
         caseUndergroundPolishV28();
         caseAdventureUndergroundV23();
         caseAdventureUndergroundSafetyV23();

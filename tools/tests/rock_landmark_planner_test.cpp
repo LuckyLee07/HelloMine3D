@@ -425,7 +425,8 @@ int main(int argc, char **argv)
     csv.precision(17);
     csv << "seed,kind,x,z,v29_height,height,delta,rock_core,biome,region,river_influence,lake_influence,protected\n";
     Checks checks;
-    checks.check("appended-v30-interface", CurrentTerrainGenerationVersion == CandidateVersion &&
+    checks.check("appended-v30-interface", CandidateVersion == 30 &&
+        CurrentTerrainGenerationVersion >= CandidateVersion &&
         WorkshopCourtyardTerrainGenerationVersion == BaselineVersion && HasRockCore<LocalTerrainPlanner::Sample>::value);
     for (std::size_t seedIndex = 0; seedIndex < Seeds.size(); ++seedIndex) {
         const int seed = Seeds[seedIndex];

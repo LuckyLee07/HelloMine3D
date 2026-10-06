@@ -440,12 +440,16 @@ void rockV30CheckSpawn(Camera &camera, Config &config, int seed)
     clearDeterministicEnv();
     setEnv("HELLOMINE3D_SEED", std::to_string(seed));
     const auto directory = freshSaveDirectory("rock30_spawn_" + std::to_string(seed));
+    const bool initialized = initializeTerrainIdentity(directory,
+        "rock30-spawn-" + std::to_string(seed), RockLandmarkTerrainGenerationVersion,
+        seed, false);
     Player player;
     World world(camera, config, player, directory, false, 1);
     const auto spawn = world.getPlayerSpawnPoint();
     const int x = World::toBlockCoord(spawn.x), y = World::toBlockCoord(spawn.y), z = World::toBlockCoord(spawn.z);
     const auto floor = world.getBlock(x, y - 2, z);
-    check("ROCK30/default-new-world-safe-real-spawn-" + std::to_string(seed),
+    check("ROCK30/frozen-v30-world-safe-real-spawn-" + std::to_string(seed),
+          initialized &&
           world.getChunkManager().getTerrainGenerationVersion() == RockLandmarkTerrainGenerationVersion &&
           floor != BlockId::Water && floor.getData().isCollidable &&
           world.getBlock(x, y - 1, z) == BlockId::Air && world.getBlock(x, y, z) == BlockId::Air,
@@ -1064,8 +1068,9 @@ void caseRockLandmarkV30()
 {
     check("ROCK30/version-and-save-boundary",
           RockLandmarkTerrainGenerationVersion == 30 && WorkshopCourtyardTerrainGenerationVersion == 29 &&
-          CurrentTerrainGenerationVersion == RockLandmarkTerrainGenerationVersion &&
-          ClassicOverWorldGenerator().getGenerationVersion() == RockLandmarkTerrainGenerationVersion &&
+          CurrentTerrainGenerationVersion >= RockLandmarkTerrainGenerationVersion &&
+          ClassicOverWorldGenerator(42, RockLandmarkTerrainGenerationVersion).getGenerationVersion() ==
+              RockLandmarkTerrainGenerationVersion &&
           WorldSaveFormatVersion == 12);
     // Frozen from the production planner's dense-site survey, not calculated
     // here from its anchor or shape equations. Each real rock crosses a chunk

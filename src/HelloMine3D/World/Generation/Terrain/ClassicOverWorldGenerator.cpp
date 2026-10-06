@@ -1353,7 +1353,8 @@ void ClassicOverWorldGenerator::applyLandmarkWorkshops(
                     m_pChunk->setBlock(lx, site.baseY + level, lz,
                         LandmarkWorkshop::blockAt(
                             site.style, across, depth, level,
-                            m_generationVersion >= WorkshopCourtyardTerrainGenerationVersion));
+                            m_generationVersion >= WorkshopCourtyardTerrainGenerationVersion,
+                            m_generationVersion >= HighlandWorkshopSightlineTerrainGenerationVersion));
             }
         const int localMachineX = site.machineX() - chunkX;
         const int localMachineZ = site.machineZ() - chunkZ;

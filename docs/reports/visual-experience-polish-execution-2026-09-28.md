@@ -2,7 +2,14 @@
 
 ## 恢复区
 
-- **当前：2026-10-06 V07g：用户报告第三人称移动无动作，已分离基础移动和可选反馈；完整Goal active。**
+- **当前：2026-10-06 V08c：高地工位前角单格遮挡修复已验证，完整Goal active。**
+  起点HEAD `66de1f17`，新默认terrain31仅将Highland工位`across2/depth0/level1`的Stone改为Air；旧1–30、机器／地面／主建筑／奖励／保存规则保持。
+  正常客户端与World各Debug／Release构建0、warning0；新专项各28/28，Debug旧22／29及岩柱／探索／生存通过，Release完整2864/2864。生产接线置false的隔离单对象故障28/2、exit1，全部原输入保持。
+  旧1–29复用v03b冻结生产CSV、30用本批修改前实跑，最终1–30两CSV均相同；31的463056地表列除version外保持，T0的32区块摘要保持。真实三地点区块id／metadata／实体另核，只高地一格不同。
+  本批四次后台实景正常0退出，实际旧30／新31，原机位及正前方机器可辨；另一侧兼容仍局部遮挡。独立174/174；三精选原件新增至53轮209图。固定机位不计普通发现／进入／使用或连续动态。
+  用户此前操作的旧普通客户端没有刷新、关闭、配置还原或新增输入；下一次普通操作重新核对窗口归属。最终普通包、提交身份与Root全部handle终态见`v08c/batch-handoff-r1.json`及终态收据。
+  继续V08普通路线、V07持续移动／跳跃与完整V00–V11余项；严格配对性能仍DEFERRED_BY_USER，未加人工签字，不推送／发布／打标签。
+- **历史检查点：2026-10-06 V07g：用户报告第三人称移动无动作，已分离基础移动和可选反馈；完整Goal active。**
   起点HEAD `7eec3ced`；实际普通工作客户端feedback Off令原玩家动作scale为0。Bootstrap现映射LocomotionOnly，基础四肢／腾空保留，装饰倾斜／着地／工具／受伤关闭；Reduced／Full与显式静态Off保持，不改变Player／World／保存。
   正常Debug／Release构建0、首方warning0；动作各501/501，隔离幅度置零负例501/9、exit1。Release `03c48621…4ca46`、Debug `415b3810…13c9a`。实际标准前进和兼容横移Off渲染已查，旧站姿→新步姿；六PNG仅四不同原帧，不宣称完整周期或普通输入。终态普通包、精选原图和本地提交见文末V07g。
   V11c当前7eec普通副本已实际创建seed42、进入、暂停、两次保存返回／重开；W前完整存档基线已冻结，单次W后坐标未变。独立r3为92/94 PARTIAL，两个配置期待未满足，初始705B与外部介入后706B分记，不能称全PASS。
@@ -3841,3 +3848,68 @@ PID18121／23330／23545各正常exit0、signal null、未超时、已回收。�
 `ordinary-full-config-menu-r1/receipt.json`。原CaptureCandidate的7eec＋dirty453234身份不改成未来提交。
 本批动作缺陷的工程与有限渲染修复不关闭完整V07或总Goal；继续普通持续动作和全部剩余范围，
 严格配对性能仍DEFERRED_BY_USER，不推送／发布／打标签。
+
+
+## V08c：高地工位前角单格遮挡（2026-10-06）
+
+### 变化与冻结边界
+
+当前HEAD66de的Release原机位复现了高地工位前角Stone挡住Crusher：seed42，主界石锚点
+`(-36,135,11)`，工位minimum`(-40,5)`／baseY134，机器`(-39,135,7)`。
+追加`HighlandWorkshopSightlineTerrainGenerationVersion=31`并作为新默认，只让Highland工位
+局部`across2/depth0/level1`变为Air；左右镜像使用同一规则。原v29上层净空、九格地面、
+两格入口、机器位置／类型／空payload、两后角墩、主建筑／布局／奖励、树来源与预算保持。
+旧v1–v30、已有区块与旧世界未来首次生成区块按原版本，不迁移或回填玩家改块；
+save12／map4／settings11及ID不变，见[合同](../contracts/highland-workshop-sightline-v31-contract-v1.md)。
+
+历史ROCK30专项继续显式30：原新世界出生夹具先初始化无玩家状态的terrain30身份，再走真实
+出生搜索；生产岩柱字段和期望不改。旧纯规划接口核对冻结Candidate30，当前默认严格31由新
+World专项单独证明，避免把历史30检查误写成默认新世界检查。
+
+### 工程、兼容与故障检查
+
+正常Xcode x86_64客户端和World各Debug／Release构建exit0，四日志本次warning均0。
+命令、422项首方编译输入和原日志以`build-runtime-r1.json`为准，不称其它工具链或平台通过。
+Release客户端SHA`6cf57bb08d0320b3ad8363bcb15dd4442b91af1164b0f97cba11b1aa5a9da85f`，
+Debug`cc579025d651f9812e7db3d71580d857252320214681ccbb7a700a9d1827cc22`；
+World Release`4d6bc7be…c90956e`／Debug`41b326b2…5b2a0b30`均冻结后执行。
+新`WORKSHOP_SIGHTLINE`两配置各28/28；完整相关生产区块逐块id+metadata和全部实体
+position/type/payload对比，林地／河岸0差、高地仅授权角位1差，正逆生成一致。
+真实生成Crusher投入Cobblestone、两次供能、40tick产Sand并取回；改角位／拆机保存重开不回填。
+旧v30保存重开后首次加载尚未知工位，与显式30完整方块／实体一致，玩家远块修改保持；
+该检查标签含`full-bytes`，实际证明上述内容一致，不是原始存档文件字节相同。
+新默认31未注入位置的真实出生`40.5 92 56.5`有干支撑／头部净空，保存重开身份31。
+
+Debug显式22工位21、显式29工位34、冻结30岩柱136、探索54、生存119均通过；
+Release完整2864/2864通过，`world-test-r1.json`保留39次实际执行。纯岩柱规划两配置各43/43，
+原移除岩柱负例均43/9、exit1。另用实际Release编译／链接命令，仅将隔离复制的生产CPP
+中31接线改为false，替换129对象中的唯一Classic对象；原Main及全部其它输入保持。
+编译0、链接0，同一新专项28/2、exit1，真实高地区块差异及角位负例均拒绝；
+`production-negative-r1/receipt.json`保留故障来源、原输入SHA和独立fixture根，不影响正式对象或世界。
+
+最终生产T0旧1–29与v03b/t0-r6冻结CSV比较，30与本批66de修改前实跑比较，
+每版`samples.csv`和`chunks.csv`逐字节相同。31的463056列除版本字段外与30相同，
+该T0集合32实际区块摘要也保持；这些抽样没有替代上述真实工位的精确单格差异检查。
+见`t0-comparison-r1.json`；不把timings.csv视为确定性字节门槛。
+
+### 当前原图与普通交付
+
+四次原图运行PID26842／33060／33791／33960各exit0、signal null、无timeout、已回收，
+GL4.1和完整Ogre关闭。旧正式v07g包为clean66de／terrain30／Release03c；新Workbench为实际
+66de＋dirty`7bfccf59…48c693`／terrain31／Release6cf，不回写成将来提交身份。
+同机位`-44.5 136 0.5`／`8 135 0`／FOV90／RD8／medium shadow／post off／Off／first，
+前角墩移除后露出机器正面；正前方`-39 136 0.5`／`8 180 0`同样可辨。
+另一侧`-33.5 136 0.5`／`8 225 0`兼容画质仍有后角墩局部遮挡，原件保留，
+不称全角度清晰。世界时刻存在加载推进差，未称所有图像像素仅差一格。
+
+独立`independent-native-review-r1.json`174/174、39聚焦输入：八原PNG实际RGB8、
+2560×1440，CRC／解压／行结构完整，实际版本、来源、生命周期及构建链保持；不称逐帧glGetError0。
+两张当前升级后和一张当前冻结前图原字节归档`v08c-highland-workshop-sightline/`，
+总53轮209图，旧52轮206的manifest对象与index字面前缀保持，未重扫旧媒体。
+
+最终`v08c/After.app`、完整705B正常配置、源码提交与普通菜单实际终态以
+`final-package-r1.json`／`postcommit-r1.json`／`ordinary-full-config-menu-r1/receipt.json`为准。
+正常配置不注入seed／position／动作夹具，新包包含V07g反馈关闭仍保留步态修复；
+用户此前操作的旧普通副本未刷新、关闭或还原配置。两份无关未跟踪规划保持，不暂存。
+全部Root进程／收据终态见`batch-handoff-r1.json`。本单格工程和固定机位改善不关闭V08
+普通发现／进入／使用、V07持续动作或完整Goal；严格性能继续延期，仅本地中文提交。

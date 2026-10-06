@@ -78,12 +78,19 @@ inline BlockId machine(LandmarkApproach::Style style) noexcept
 
 inline BlockId blockAt(LandmarkApproach::Style style,
                        int across, int depth, int level,
-                       bool openCourtyard = false) noexcept
+                       bool openCourtyard = false,
+                       bool clearHighlandFront = false) noexcept
 {
     if (style == LandmarkApproach::Style::Open) return BlockId::Air;
     // v29 keeps the exact floor, empty machine and low corner stores. Opening
     // the upper two layers separates the work yard from the landmark behind it.
     if (openCourtyard && level >= 2) return BlockId::Air;
+    // v31 removes only the front highland corner that hides the crusher on
+    // diagonal approaches. Historical yards retain their three low posts.
+    if (openCourtyard && clearHighlandFront &&
+        style == LandmarkApproach::Style::Highland &&
+        across == 2 && depth == 0 && level == 1)
+        return BlockId::Air;
     if (level == 0) {
         if (style == LandmarkApproach::Style::Forest)
             return across == 1 && depth == 1
