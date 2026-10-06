@@ -115,6 +115,25 @@ struct GameplayMouseBindings {
              GameplayMouseButton button) noexcept;
 };
 
+enum class GameplayBindingValidationKind {
+    None,
+    UnknownKey,
+    DuplicateKey,
+    UnknownMouseButton,
+    MouseConflict
+};
+
+/// Binding facts for presentation; error text remains a diagnostic detail.
+struct GameplayBindingValidationIssue {
+    GameplayBindingValidationKind kind = GameplayBindingValidationKind::None;
+    GameplayAction keyboardAction = GameplayAction::Count;
+    GameplayAction otherKeyboardAction = GameplayAction::Count;
+    GameplayKey key = GameplayKey::Count;
+    GameplayWorldAction mouseAction = GameplayWorldAction::Count;
+    GameplayWorldAction otherMouseAction = GameplayWorldAction::Count;
+    GameplayMouseButton button = GameplayMouseButton::Count;
+};
+
 struct GameplayLookDelta {
     float yaw = 0.f;
     float pitch = 0.f;
@@ -195,6 +214,9 @@ bool tryParseGameplayKey(const std::string &token,
                          GameplayKey &key) noexcept;
 bool validateGameplayInputBindings(const GameplayInputBindings &bindings,
                                    std::string &error) noexcept;
+bool validateGameplayInputBindings(const GameplayInputBindings &bindings,
+                                   std::string &error,
+                                   GameplayBindingValidationIssue &issue) noexcept;
 const char *gameplayWorldActionName(GameplayWorldAction action) noexcept;
 const char *gameplayWorldActionConfigKey(
     GameplayWorldAction action) noexcept;
@@ -208,6 +230,9 @@ bool tryParseGameplayHoldMode(const std::string &token,
                               GameplayHoldMode &mode) noexcept;
 bool validateGameplayMouseBindings(const GameplayMouseBindings &bindings,
                                    std::string &error) noexcept;
+bool validateGameplayMouseBindings(const GameplayMouseBindings &bindings,
+                                   std::string &error,
+                                   GameplayBindingValidationIssue &issue) noexcept;
 std::string describeGameplayMouseBindingSharing(
     const GameplayMouseBindings &bindings);
 GameplayLookDelta calculateGameplayLookDelta(

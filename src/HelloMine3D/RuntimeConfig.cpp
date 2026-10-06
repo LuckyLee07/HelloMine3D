@@ -16,6 +16,28 @@ struct ParsedRuntimeConfig {
     bool needsMigration = false;
 };
 
+class RuntimeSettingsValidationError final : public std::runtime_error {
+  public:
+    RuntimeSettingsValidationError(const std::string &message,
+                                   RuntimeSettingsValidationIssue issue)
+        : std::runtime_error(message), m_issue(issue) {}
+
+    const RuntimeSettingsValidationIssue &issue() const noexcept
+    {
+        return m_issue;
+    }
+
+  private:
+    RuntimeSettingsValidationIssue m_issue;
+};
+
+[[noreturn]] void rejectUserSetting(
+    RuntimeSettingsValidationKind kind, RuntimeSettingsField field,
+    const std::string &message, GameplayBindingValidationIssue binding = {})
+{
+    throw RuntimeSettingsValidationError(message, {kind, field, binding});
+}
+
 [[noreturn]] void fail(const std::string &path, const std::string &key,
                        const std::string &detail)
 {
@@ -137,11 +159,12 @@ GameplayFeedbackIntensity readGameplayFeedbackIntensity(
     return intensity;
 }
 
-void validateVolume(const char *name, float value)
+void validateVolume(const char *name, float value,
+                    RuntimeSettingsField field)
 {
     if (!std::isfinite(value) || value < 0.f || value > 1.f) {
-        throw std::runtime_error(std::string(name) +
-                                 " must be between 0.0 and 1.0");
+        rejectUserSetting(RuntimeSettingsValidationKind::OutOfRange, field,
+                          std::string(name) + " must be between 0.0 and 1.0");
     }
 }
 
@@ -598,10 +621,14 @@ void validateUserSettings(const UserSettings &settings)
 {
     if (settings.minimapRange != 64 && settings.minimapRange != 128 &&
         settings.minimapRange != 256) {
-        throw std::runtime_error("minimap range must be 64, 128, or 256 metres");
+        rejectUserSetting(RuntimeSettingsValidationKind::InvalidChoice,
+                          RuntimeSettingsField::MinimapRange,
+                          "minimap range must be 64, 128, or 256 metres");
     }
     if (settings.renderDistance < 1 || settings.renderDistance > 32) {
-        throw std::runtime_error("render distance must be between 1 and 32");
+        rejectUserSetting(RuntimeSettingsValidationKind::OutOfRange,
+                          RuntimeSettingsField::RenderDistance,
+                          "render distance must be between 1 and 32");
     }
     if (settings.directionalShadowQuality !=
             DirectionalShadowQuality::Off &&
@@ -609,74 +636,105 @@ void validateUserSettings(const UserSettings &settings)
             DirectionalShadowQuality::Medium &&
         settings.directionalShadowQuality !=
             DirectionalShadowQuality::High) {
-        throw std::runtime_error(
-            "directional shadow quality must be off, medium, or high");
+        rejectUserSetting(RuntimeSettingsValidationKind::InvalidChoice,
+                          RuntimeSettingsField::DirectionalShadowQuality,
+                          "directional shadow quality must be off, medium, or high");
     }
     if (settings.visualDetail != VisualDetail::Standard &&
         settings.visualDetail != VisualDetail::Compatibility) {
-        throw std::runtime_error("visual detail must be standard or compatibility");
+        rejectUserSetting(RuntimeSettingsValidationKind::InvalidChoice,
+                          RuntimeSettingsField::VisualDetail,
+                          "visual detail must be standard or compatibility");
     }
     if (settings.postProcessingQuality != PostProcessingQuality::Off &&
         settings.postProcessingQuality != PostProcessingQuality::On) {
-        throw std::runtime_error(
-            "post-processing quality must be off or on");
+        rejectUserSetting(RuntimeSettingsValidationKind::InvalidChoice,
+                          RuntimeSettingsField::PostProcessingQuality,
+                          "post-processing quality must be off or on");
     }
     if (settings.windowX < 640 || settings.windowX > 7680 ||
         settings.windowY < 480 || settings.windowY > 4320) {
-        throw std::runtime_error(
-            "window size must be between 640x480 and 7680x4320");
+        rejectUserSetting(RuntimeSettingsValidationKind::OutOfRange,
+                          RuntimeSettingsField::WindowSize,
+                          "window size must be between 640x480 and 7680x4320");
     }
     if (settings.fov < 45 || settings.fov > 120) {
-        throw std::runtime_error("FOV must be between 45 and 120 degrees");
+        rejectUserSetting(RuntimeSettingsValidationKind::OutOfRange,
+                          RuntimeSettingsField::Fov,
+                          "FOV must be between 45 and 120 degrees");
     }
     if (settings.cameraPerspective != CameraPerspective::FirstPerson &&
         settings.cameraPerspective != CameraPerspective::ThirdPerson) {
-        throw std::runtime_error(
-            "camera perspective must be first or third person");
+        rejectUserSetting(RuntimeSettingsValidationKind::InvalidChoice,
+                          RuntimeSettingsField::CameraPerspective,
+                          "camera perspective must be first or third person");
     }
     if (!std::isfinite(settings.mouseSensitivity) ||
         settings.mouseSensitivity < 0.005f ||
         settings.mouseSensitivity > 1.f) {
-        throw std::runtime_error(
-            "mouse sensitivity must be between 0.005 and 1.0");
+        rejectUserSetting(RuntimeSettingsValidationKind::OutOfRange,
+                          RuntimeSettingsField::MouseSensitivity,
+                          "mouse sensitivity must be between 0.005 and 1.0");
     }
-    validateVolume("master volume", settings.masterVolume);
-    validateVolume("UI volume", settings.uiVolume);
-    validateVolume("effects volume", settings.effectsVolume);
-    validateVolume("ambient volume", settings.ambientVolume);
-    validateVolume("music volume", settings.musicVolume);
+    validateVolume("master volume", settings.masterVolume,
+                   RuntimeSettingsField::MasterVolume);
+    validateVolume("UI volume", settings.uiVolume,
+                   RuntimeSettingsField::UiVolume);
+    validateVolume("effects volume", settings.effectsVolume,
+                   RuntimeSettingsField::EffectsVolume);
+    validateVolume("ambient volume", settings.ambientVolume,
+                   RuntimeSettingsField::AmbientVolume);
+    validateVolume("music volume", settings.musicVolume,
+                   RuntimeSettingsField::MusicVolume);
     if (!std::isfinite(settings.uiScale) || settings.uiScale < 0.75f ||
         settings.uiScale > 1.75f) {
-        throw std::runtime_error("UI scale must be between 0.75 and 1.75");
+        rejectUserSetting(RuntimeSettingsValidationKind::OutOfRange,
+                          RuntimeSettingsField::UiScale,
+                          "UI scale must be between 0.75 and 1.75");
     }
     if (settings.locale != "en-US" && settings.locale != "zh-CN") {
-        throw std::runtime_error(
-            "locale must be one of en-US or zh-CN");
+        rejectUserSetting(RuntimeSettingsValidationKind::InvalidChoice,
+                          RuntimeSettingsField::Locale,
+                          "locale must be one of en-US or zh-CN");
     }
     std::string bindingError;
+    GameplayBindingValidationIssue bindingIssue;
     if (!validateGameplayInputBindings(settings.inputBindings,
-                                       bindingError)) {
-        throw std::runtime_error("invalid gameplay bindings: " +
-                                 bindingError);
+                                       bindingError, bindingIssue)) {
+        const auto kind = bindingIssue.kind == GameplayBindingValidationKind::DuplicateKey
+            ? RuntimeSettingsValidationKind::BindingConflict
+            : RuntimeSettingsValidationKind::InvalidBinding;
+        rejectUserSetting(kind, RuntimeSettingsField::KeyboardBindings,
+                          "invalid gameplay bindings: " + bindingError,
+                          bindingIssue);
     }
     if (!validateGameplayMouseBindings(settings.mouseBindings,
-                                       bindingError)) {
-        throw std::runtime_error("invalid mouse bindings: " +
-                                 bindingError);
+                                       bindingError, bindingIssue)) {
+        const auto kind = bindingIssue.kind == GameplayBindingValidationKind::MouseConflict
+            ? RuntimeSettingsValidationKind::BindingConflict
+            : RuntimeSettingsValidationKind::InvalidBinding;
+        rejectUserSetting(kind, RuntimeSettingsField::MouseBindings,
+                          "invalid mouse bindings: " + bindingError,
+                          bindingIssue);
     }
     if (settings.sprintMode != GameplayHoldMode::Hold &&
         settings.sprintMode != GameplayHoldMode::Toggle) {
-        throw std::runtime_error("sprint mode must be hold or toggle");
+        rejectUserSetting(RuntimeSettingsValidationKind::InvalidChoice,
+                          RuntimeSettingsField::SprintMode,
+                          "sprint mode must be hold or toggle");
     }
     if (settings.sneakMode != GameplayHoldMode::Hold &&
         settings.sneakMode != GameplayHoldMode::Toggle) {
-        throw std::runtime_error("sneak mode must be hold or toggle");
+        rejectUserSetting(RuntimeSettingsValidationKind::InvalidChoice,
+                          RuntimeSettingsField::SneakMode,
+                          "sneak mode must be hold or toggle");
     }
     if (settings.feedbackIntensity != GameplayFeedbackIntensity::Off &&
         settings.feedbackIntensity != GameplayFeedbackIntensity::Reduced &&
         settings.feedbackIntensity != GameplayFeedbackIntensity::Full) {
-        throw std::runtime_error(
-            "feedback intensity must be off, reduced, or full");
+        rejectUserSetting(RuntimeSettingsValidationKind::InvalidChoice,
+                          RuntimeSettingsField::FeedbackIntensity,
+                          "feedback intensity must be off, reduced, or full");
     }
 }
 
@@ -796,7 +854,17 @@ void RuntimeSettingsSession::cancel() noexcept
 bool RuntimeSettingsSession::prepareApply(
     RuntimeSettingsApplyPlan &plan, std::string &error) const noexcept
 {
+    RuntimeSettingsValidationIssue issue;
+    return prepareApply(plan, error, issue);
+}
+
+bool RuntimeSettingsSession::prepareApply(
+    RuntimeSettingsApplyPlan &plan, std::string &error,
+    RuntimeSettingsValidationIssue &issue) const noexcept
+{
+    issue = {};
     if (!m_open) {
+        issue.kind = RuntimeSettingsValidationKind::NotOpen;
         error = "settings session is not open";
         return false;
     }
@@ -819,7 +887,13 @@ bool RuntimeSettingsSession::prepareApply(
         error.clear();
         return true;
     }
+    catch (const RuntimeSettingsValidationError &exception) {
+        issue = exception.issue();
+        error = exception.what();
+        return false;
+    }
     catch (const std::exception &exception) {
+        issue.kind = RuntimeSettingsValidationKind::UnexpectedFailure;
         error = exception.what();
         return false;
     }

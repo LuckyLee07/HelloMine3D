@@ -2,7 +2,16 @@
 
 ## 恢复区
 
-- **当前：2026-10-06 V01h：圆石／橡木板宽色块材质与固定机位实景通过，完整Goal active。**
+- **当前：2026-10-06 V10p：设置错误、紧凑操作区与制作结果反馈已验证，完整 Goal active。**
+  起点HEAD `74e4644e`。结构化设置问题与28个双语错误键、独立滚动反馈／固定操作区；制作每帧真实preview与4秒最近结果分离。settings v11／save v12、库存与配方权威、移动与碰撞保持。本批没有新增存档字段或系统级输入。
+  最终Release `9e95f591…69a79`／Debug `d15aa6e5…2a45c2`，正常双构建exit0、首方warning0、424输入保持；CAMERA_SETTINGS各95／P11A各159、Resource各201、craft各80、资产91、Release全World2896全部0失败。旧门禁实跑归属保持，后续只有Ogre UI布局变化，headless输入不变；最终UI原图另验，不称全目标或全平台通过。
+  普通主菜单中文1.0范围提示、早期中文按键冲突动作名已见；最终640×480点／英文1.75完整输入框与三个按钮、长提示首末行实际通过，非法Apply后配置SHA保持。r2最大字号仍裁切的实际反证与静态计算差异保留，r3仅缩小该档标题／页签，正常输入字号保持。
+  独立Root世界离线准备两原木，公开菜单／E／材料与网格／全部合成：原木2→木板8，当前材料不足与短时完成提示并存，随后完成提示消失、按钮不动。20秒50原窗帧、同进程保存返回／Continue／E重开与存档读回均核；不计普通采集或完整制作路线。用户新世界六文件SHA保持，正常1280×720／中文1／third配置恢复并保持。
+  用户直接确认“持续行走已验证，目前没问题了”，关闭原第三人称无动作反馈；此前Root短按与未观察位移原件不改，不关闭坡面／近墙／完整路线。所有本批owned会话已通过普通Quit结束、精确PID查询无进程；CUA不提供native退出码，不能记游戏exit0。唯一窗口／GPU操作者Root，用户停止操作后继续验收。
+  两旧设置基线与三最终原图追加至59轮231图，旧58轮226对象／index前缀保持。独立源审r3与制作序列核验通过。本批提交时独立普通包尚待生成与菜单验收；提交后`v10p/After.app`的实际身份／完整配置／保护及验收以`v10p/batch-handoff-r1.json`为准；Workbench含独立测试世界和用户世界，不能与无夹具交付包混称。旧V01h137文件与两个未读规划保持，不推送／发布／标签。
+  继续V00–V11剩余材质／水域／地下与地标普通路线、近墙／坡面、实际声音、完整UI与地图连续性和整合；严格配对性能仍DEFERRED_BY_USER，不再重复询问已关闭的持续行走反馈。
+
+- **历史检查点：2026-10-06 V01h：圆石／橡木板宽色块材质与固定机位实景通过，完整Goal active。**
   起点HEAD `46d8d722`；两张内置ImageGen原创源1254²原字节保留，独立16格采样接旧槽21／23，共享源83→85／9→11；仅两纹理运行资源改变。原132语义／124空槽、profile／layout／shader／全部2966源码和V07h玩家步态保持，不改World、输入、生成或存档。
   图集／数组／报告双重建一致，严格85身份／28单源mip参考与独立254×7差分通过；旧14＋新22合法FNV／SHA污染由组合门禁拒绝。双配置资源串行各201／0、资产91／0；复用V07h实际Release `0ddf954d…7151c`，不称客户端重建或全World重跑。
   六隐藏实景原图均2560×1440、native0／signal null／无timeout／reaped；圆石高地terrain31、木板旧terrain30隔离模板均seed42，标准同机位前后与新兼容另列。Root实际查看六末帧、两源及16格预览；圆石黑白密缝减弱仍有块面，木板宽横板与深竖树皮可分。非普通输入，不关闭动态、夜间、完整远近或全材质身份链。
@@ -4191,3 +4200,69 @@ SHA`0e699b09ef4ff0b522d2b436451a9910d5d1c59c64fab65434ecbf418f1f3e41`。
 终态58轮226图。Root本批soleGPU／窗口、普通输入0，全部隐藏native与资源handle已终态。
 本地中文提交和最终clean普通包身份见`v01h/batch-handoff-r1.json`；两个未读规划未暂存，
 不推送／发布／打标签。完整V00–V11保持Doing／Goal active，继续其余材质、普通路线与声音等缺项。
+
+## V10p：设置校验反馈与制作当前状态（2026-10-06）
+
+从`74e4644e`继续已批准的完整视觉Goal。用户明确报告“持续行走已验证，目前没问题了”，
+此反馈单列为USER_REPORTED_PASS，关闭此前第三人称无动作缺陷；Root自己的短按、无观察位移
+及诊断步姿历史不改写为持续输入。坡面、近墙和完整路线继续留账，见`v10p/user-walking-confirmation-r1.json`。
+
+### 改进与权威边界
+
+RuntimeSettingsSession新增结构化问题重载，返回失败字段或绑定冲突双方；旧英文what、旧接口、
+校验顺序和失败应用计划保持。UI按当前已应用语言映射28个错误键，指出范围或冲突动作及修改建议，
+保存失败的底层诊断只进悬停详情。错误不修改Config，不解析异常字符串；Cancel／Defaults／关闭清理反馈。
+内容、消息独立滚动，新错误复位消息顶部，三个操作按钮保留固定区域。最矮窗口最大字号只将标题／
+页签基字号24→19，编辑控件仍24；正常宽屏不变。
+
+制作新增纯派生`CraftingResultFeedback`，每帧真实CraftingPreview始终驱动当前状态、maxCrafts与按钮，
+最近装入／提交结果独立保留4秒。只有Playing且面板打开时计时，暂停冻结、重复提交刷新，关闭／
+会话重建／世界切换／材料或网格编辑清空。结果区预留定高行，成功不盖过材料用尽／容量已满的当前状态。
+Item／Inventory／CraftingSession／World／Player和Base.recipe无改动，settings11／save12无新字段。
+
+### 工程与原始窗口验收
+
+所有构建为macOS x86_64，arm64宿主执行；没有其他平台、完整Debug世界或本批ASan／崩溃注入声明。
+
+| 检查 | 实际结果与证据 |
+| --- | --- |
+| 最终客户端 | r3 Release24.933秒／Debug17.141秒，正常exit0、首方warning0、424输入保持。Release SHA `9e95f5919badca4817018dfaaf8b3aadb136d478d572463881dc58994fe69a79`，Debug `d15aa6e5c8d5344a1f1cb865bd094c40a05e192fca1f8e7ffb37395f432a45c2`；`v10p/build-clients-r3.json`。 |
+| 设置与输入 | 正式WorldRuntimeSmoke Debug／Release的CAMERA_SETTINGS各95／0、P11A各159／0；结构化问题新用例、旧诊断／顺序、失败计划与Cancel、有效重试和28双语必需错误键均在真实目标。registry实际各750键，双方同时漏键不放行。`formal-validation-r1.json`，31项早期生产核心probe另记`settings-typed-validation-r1`。 |
+| 完整世界 | 仅Release实际2896／0，75.839秒、exit0、statusPASS，log SHA `c00b627be906f8d33751ab8b469aaf4999e38c4c804bea595b0db80b4bb6e8dd`。verify_xcode旧2118总数更新为本次实际2896，其余guards保持；没有称完整脚本所有目标重跑。 |
+| 资源 | 两配置真实ResourcePackSmoke各201／0；check_assets一次91／0。测试二进制按配置先保存再执行，未并发覆盖公共输出；`formal-validation-r1.json`。 |
+| 制作派生状态 | `bash scripts/verify_crafting_result_feedback.sh <Debug或Release> <新目录>`，各80／0，真实Base.recipe／Inventory／2×2与3×3会话，涵盖耗尽与满容量后的新preview、陈旧／容量失败原子性、重试、计时与清空。`crafting-feedback-74e-receipt-r1.json`。 |
+| 检查复用边界 | 最终source与上述两实跑快照只有OgreUserInterface.cpp不同，后改为设置布局，headless目标／craft test不编译该文件；相关输入SHA保持。`gate-source-audit-r3.json`。最终两配置客户端和实际UI重新检查，不将旧日志重标为r3重跑。 |
+| 双语错误 | 升级前中文页实际显示英文窗口／按键错误；早期新native39db的中文窗口与冲突双方／W提示已见，非法Apply＋Cancel配置保持。最终9e95另从普通主菜单实测中文宽度100拒绝、范围与重试建议、固定操作区，`after-settings-window-error-r3`原PNG／receipt；最终配置仍d0cf…bbfa。 |
+| 最大字号 | 最终640×480点、en-US1.75，输入真实编辑100并Apply拒绝；Shift+Tab自动滚动到完整两个输入框，长提示从首行滚到apply again，三按钮位置保持。原窗1280×1016含28点标题栏，`after-settings-compact-maxscale-r3`、`after-settings-message-end-r3`；配置d0d8…e0b1逐字节保持，`compact-settings-verification-r3.json`。 |
+| 实际制作 | Root世界仅offline准备两OakBark，用户新世界未打开。公开世界列表进入、E、材料／网格和CraftMaximum点击，原木2→木板8；当前MissingIngredients与独立“合成完成”并存，然后仅当前状态保留，按钮不动。20.278秒50原窗帧、截图均exit0，017／018／027／028核验，`crafting-public-sequence-r3`；约4秒采样不称精确帧时钟。 |
+| 保存重开 | 独立测试世界普通SaveAndMain→Continue→E，八木板、空网格、无旧结果保持，实际save12读回inventory35×8、其余四格空。`after-crafting-save-reopen-r3`及`crafting-save-readback-r1.json`；同进程重开，不称应用重启或普通采集到制作完整路线。 |
+| 独立核验 | `independent-source-review-r3.json` SHA `5086641667730fed1129569c64a216729e984e068c38f2feb92644e73cb565e1`；当前source／两构建／两compact原图核验通过。`crafting-sequence-independent-review-r1.json` SHA `2265105b3e6e02c8359e4050012107cb3d97cad2d017c5d4d661efaa55738923`，50原PNG／receipt身份及SHA均保持；独立看017／018／027／028，同样限制库存准备与近4秒范围。 |
+
+### 失败保留、保护与交付
+
+制作test初次使用两原木，批量消耗后释放输入槽，未真正触发满容量；原FAIL保留，夹具改三原木
+后真实OutputFull检查通过，权威实现未放宽。客户端r1全目录冻结标记因并行新增Test用例为false，
+原INCOMPLETE_OR_FAIL保留，`build-clients-source-audit-r1.json`另证生产客户端输入保持。
+首次未指定window id因主窗＋52×20辅助窗CAPTURE失败，保留`after-settings-window-error-r1.json`，
+后续均精确选owned窗口。最大字号r1／r2输入区裁切原图保持；r2数学75／42不能替代实机56点反证，
+确切分配差异未定位，r3调整标题／页签后以实际完整输入边框和末行验收关闭该产品裁切问题。
+
+用户操作Workbench期间Root停止竞争输入；用户明确“已停止操作，可以继续验收”后继续。
+新世界通过普通SaveAndMain保护，六文件SHA在刷新、制作与收尾后均保持。测试窗口640×480／
+en-US1.75曾经普通有效Apply与重启，收尾普通Cancel／Quit后offline恢复Root三项测试值至
+1280×720／zh-CN1，原用户third与其余配置保留；此恢复不称普通Apply证据。
+Workbench保存两个世界，测试世界不删除。拟在本地提交后生成独立`v10p/After.app`，使用正常
+705B Off／first完整配置、不包含上述世界或准备材料；提交时普通包菜单验收尚未运行。最终
+metadata／distribution与实际普通菜单启动／收尾结果见
+`v10p/batch-handoff-r1.json`；实跑Workbench各dirty producer身份保持，不重标为提交后捕获。
+
+Root唯一窗口／GPU操作者。owned PID82890／90386／90802／92245／92602通过普通Quit结束，
+最新精确ps无PID；CUA不提供native退出状态，不能以截图工具exit0称游戏exit0。
+构建50915、只读连续采集82849均terminal0；前序正式构建与测试均完成，`terminal-workbench-r1.json`。
+保护旧V01h137完整文件和两个未读规划SHA；本批只暂存自身源码／脚本／双语文案和上述文档，
+不推送／发布／打标签。两设置基线与三最终原图追加于`v10p-settings-crafting-feedback-r3`，
+旧58轮226对象与index字面前缀保持，终态59轮231图，Root查看实际源图。
+
+本批没有关闭完整双语／尺寸／字号矩阵、保存写盘失败的正常UI、普通采集到制作、3×3手册／完整
+制作路线与地图移动连续性。材质、四水域、地下与地标路线、近墙／坡面、真实声音及全部V00–V11
+整合继续；严格配对性能DEFERRED_BY_USER，完整Goal保持active。

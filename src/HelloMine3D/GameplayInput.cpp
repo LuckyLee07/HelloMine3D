@@ -120,21 +120,39 @@ bool tryParseGameplayKey(const std::string &token,
 bool validateGameplayInputBindings(const GameplayInputBindings &bindings,
                                    std::string &error) noexcept
 {
-    std::array<bool, GameplayKeyCount> used{};
+    GameplayBindingValidationIssue issue;
+    return validateGameplayInputBindings(bindings, error, issue);
+}
+
+bool validateGameplayInputBindings(const GameplayInputBindings &bindings,
+                                   std::string &error,
+                                   GameplayBindingValidationIssue &issue) noexcept
+{
+    issue = {};
+    std::array<GameplayAction, GameplayKeyCount> owners;
+    owners.fill(GameplayAction::Count);
     for (std::size_t index = 0; index < bindings.keys.size(); ++index) {
         const std::size_t keyIndex = indexOf(bindings.keys[index]);
-        if (keyIndex >= used.size()) {
+        const auto action = static_cast<GameplayAction>(index);
+        if (keyIndex >= owners.size()) {
+            issue.kind = GameplayBindingValidationKind::UnknownKey;
+            issue.keyboardAction = action;
+            issue.key = bindings.keys[index];
             error = std::string(gameplayActionName(
-                        static_cast<GameplayAction>(index))) +
+                        action)) +
                     " uses an unknown key";
             return false;
         }
-        if (used[keyIndex]) {
+        if (owners[keyIndex] != GameplayAction::Count) {
+            issue.kind = GameplayBindingValidationKind::DuplicateKey;
+            issue.keyboardAction = owners[keyIndex];
+            issue.otherKeyboardAction = action;
+            issue.key = bindings.keys[index];
             error = std::string("key '") + gameplayKeyName(bindings.keys[index]) +
                     "' is assigned more than once";
             return false;
         }
-        used[keyIndex] = true;
+        owners[keyIndex] = action;
     }
     error.clear();
     return true;
@@ -211,8 +229,20 @@ bool tryParseGameplayHoldMode(const std::string &token,
 bool validateGameplayMouseBindings(const GameplayMouseBindings &bindings,
                                    std::string &error) noexcept
 {
+    GameplayBindingValidationIssue issue;
+    return validateGameplayMouseBindings(bindings, error, issue);
+}
+
+bool validateGameplayMouseBindings(const GameplayMouseBindings &bindings,
+                                   std::string &error,
+                                   GameplayBindingValidationIssue &issue) noexcept
+{
+    issue = {};
     for (std::size_t index = 0; index < bindings.buttons.size(); ++index) {
         if (indexOf(bindings.buttons[index]) >= GameplayMouseButtonCount) {
+            issue.kind = GameplayBindingValidationKind::UnknownMouseButton;
+            issue.mouseAction = static_cast<GameplayWorldAction>(index);
+            issue.button = bindings.buttons[index];
             error = std::string(gameplayWorldActionName(
                         static_cast<GameplayWorldAction>(index))) +
                     " uses an unknown mouse button";
@@ -227,6 +257,10 @@ bool validateGameplayMouseBindings(const GameplayMouseBindings &bindings,
              GameplayWorldAction::Place,
              GameplayWorldAction::Guard}) {
         if (bindings.get(action) == breakButton) {
+            issue.kind = GameplayBindingValidationKind::MouseConflict;
+            issue.mouseAction = GameplayWorldAction::BreakAttack;
+            issue.otherMouseAction = action;
+            issue.button = breakButton;
             error = std::string("mouse button '") +
                     gameplayMouseButtonName(breakButton) +
                     "' cannot be shared by Break / attack and " +

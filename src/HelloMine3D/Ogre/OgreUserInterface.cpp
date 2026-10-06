@@ -49,6 +49,7 @@
 #include "../Presentation/PresentationCaption.h"
 #include "../Presentation/PresentationLayout.h"
 #include "../Presentation/PresentationClock.h"
+#include "../Presentation/CraftingResultFeedback.h"
 #include "../Presentation/PlayerHandPresentation.h"
 #include "../Presentation/MinimapNavigation.h"
 #include "../Presentation/HudInteraction.h"
@@ -75,6 +76,7 @@ namespace
     const ImVec4 WarmText(0.957f, 0.933f, 0.863f, 1.f);
     const ImVec4 WarmMuted(0.68f, 0.74f, 0.77f, 1.f);
     const ImVec4 WarmAccent(0.871f, 0.714f, 0.431f, 1.f);
+    const ImVec4 WarmError(0.96f, 0.61f, 0.55f, 1.f);
 
     constexpr int MinimapClipSegments = 96;
 
@@ -556,6 +558,84 @@ class OgreUserInterface::Impl
         return tr("action." + suffix, gameplayWorldActionName(action));
     }
 
+    std::string settingsValidationMessage(
+        const RuntimeSettingsValidationIssue& issue) const
+    {
+        if (issue.kind == RuntimeSettingsValidationKind::NotOpen)
+            return tr("settings.error.session_closed");
+        const auto& binding = issue.binding;
+        switch (binding.kind)
+        {
+            case GameplayBindingValidationKind::DuplicateKey:
+                return tr("settings.error.key_conflict") +
+                    actionName(binding.otherKeyboardAction) +
+                    tr("input.action_separator", ", ") +
+                    actionName(binding.keyboardAction) + " (" +
+                    keyName(binding.key) + "). " +
+                    tr("settings.error.different_keys");
+            case GameplayBindingValidationKind::MouseConflict:
+                return tr("settings.error.mouse_conflict") +
+                    worldActionName(binding.otherMouseAction) +
+                    tr("input.action_separator", ", ") +
+                    worldActionName(binding.mouseAction) + " (" +
+                    mouseButtonName(binding.button) + "). " +
+                    tr("settings.error.different_mouse_buttons");
+            case GameplayBindingValidationKind::UnknownKey:
+                return actionName(binding.keyboardAction) + ": " +
+                    tr("settings.error.invalid_key");
+            case GameplayBindingValidationKind::UnknownMouseButton:
+                return worldActionName(binding.mouseAction) + ": " +
+                    tr("settings.error.invalid_mouse_button");
+            case GameplayBindingValidationKind::None:
+                break;
+        }
+        const char* messageKey = "settings.error.invalid_value";
+        switch (issue.field)
+        {
+            case RuntimeSettingsField::MinimapRange: messageKey = "settings.error.minimap_range"; break;
+            case RuntimeSettingsField::RenderDistance: messageKey = "settings.error.render_distance"; break;
+            case RuntimeSettingsField::DirectionalShadowQuality: messageKey = "settings.error.shadow"; break;
+            case RuntimeSettingsField::VisualDetail: messageKey = "settings.error.visual_detail"; break;
+            case RuntimeSettingsField::PostProcessingQuality: messageKey = "settings.error.post_processing"; break;
+            case RuntimeSettingsField::WindowSize: messageKey = "settings.error.window_size"; break;
+            case RuntimeSettingsField::Fov: messageKey = "settings.error.fov"; break;
+            case RuntimeSettingsField::CameraPerspective: messageKey = "settings.error.perspective"; break;
+            case RuntimeSettingsField::MouseSensitivity: messageKey = "settings.error.sensitivity"; break;
+            case RuntimeSettingsField::MasterVolume: messageKey = "settings.error.master_volume"; break;
+            case RuntimeSettingsField::UiVolume: messageKey = "settings.error.ui_volume"; break;
+            case RuntimeSettingsField::EffectsVolume: messageKey = "settings.error.effects_volume"; break;
+            case RuntimeSettingsField::AmbientVolume: messageKey = "settings.error.ambient_volume"; break;
+            case RuntimeSettingsField::MusicVolume: messageKey = "settings.error.music_volume"; break;
+            case RuntimeSettingsField::UiScale: messageKey = "settings.error.ui_scale"; break;
+            case RuntimeSettingsField::Locale: messageKey = "settings.error.locale"; break;
+            case RuntimeSettingsField::SprintMode: messageKey = "settings.error.sprint_mode"; break;
+            case RuntimeSettingsField::SneakMode: messageKey = "settings.error.sneak_mode"; break;
+            case RuntimeSettingsField::FeedbackIntensity: messageKey = "settings.error.feedback"; break;
+            case RuntimeSettingsField::KeyboardBindings:
+            case RuntimeSettingsField::MouseBindings:
+            case RuntimeSettingsField::None:
+                break;
+        }
+        return tr(messageKey);
+    }
+
+    void clearSettingsFeedback()
+    {
+        settingsMessage.clear();
+        settingsErrorDetails.clear();
+        settingsMessageIsError = false;
+        settingsMessageScrollReset = true;
+    }
+
+    void setSettingsFeedback(std::string message, bool error = false,
+                             std::string details = {})
+    {
+        settingsMessage = std::move(message);
+        settingsErrorDetails = std::move(details);
+        settingsMessageIsError = error;
+        settingsMessageScrollReset = true;
+    }
+
     std::string objectiveText(const std::string& id, const char* field,
                               const std::string& fallback) const
     {
@@ -782,6 +862,15 @@ class OgreUserInterface::Impl
         statusMessageSeconds = std::max(
             0.f, statusMessageSeconds - std::max(0.f, deltaSeconds));
         captionTimeline.update(deltaSeconds);
+        craftingFeedback.advance(deltaSeconds,
+            flow->state() == GameApplicationState::Playing &&
+            player != nullptr && player->hasOpenCrafting());
+        if (player == nullptr || !player->hasOpenCrafting())
+        {
+            craftingSession.reset();
+            selectedCraftingMaterial = Material::ID::Nothing;
+            craftingFeedback.clear();
+        }
         interactionFeedbackSeconds = std::max(
             0.f, interactionFeedbackSeconds -
                      std::max(0.f, deltaSeconds));
@@ -2341,7 +2430,7 @@ class OgreUserInterface::Impl
     void beginSettingsSession()
     {
         settingsSession.begin(appliedSettings);
-        settingsMessage.clear();
+        clearSettingsFeedback();
         settingsApplyPending = false;
         settingsPage = 0;
     }
@@ -2803,12 +2892,17 @@ class OgreUserInterface::Impl
                 flow->state() == GameApplicationState::MainMenu
                     ? "settings.title_main"
                     : "settings.title");
+            const bool shortHeader = compact && layout.height < 420.f * scale;
+            // Leave room for an editable row at the smallest window and largest
+            // user scale. Page controls keep their normal reading size.
+            if (shortHeader) ImGui::PushFont(nullptr, 19.f);
             if (adventureHeader(title, GameInterfaceWidgets::Glyph::Settings,
-                                tr("settings.subtitle"), compact,
+                                shortHeader ? std::string{} : tr("settings.subtitle"),
+                                compact && !shortHeader,
                                 !settingsApplyPending))
             {
                 settingsSession.cancel();
-                settingsMessage.clear();
+                clearSettingsFeedback();
                 playUiFeedback();
             }
 
@@ -2836,12 +2930,25 @@ class OgreUserInterface::Impl
                 settingsPage = 2;
                 playUiFeedback();
             }
+            if (shortHeader) ImGui::PopFont();
 
-            const float footerHeight = compact ? 92.f * scale : 82.f * scale;
+            const float remainingHeight = ImGui::GetContentRegionAvail().y;
+            const ImGuiStyle& style = ImGui::GetStyle();
+            const float footerOverhead = 38.f * scale +
+                2.f * style.CellPadding.y + 3.f * style.ItemSpacing.y + 1.f;
+            const float preferredMessageHeight = (compact ? 68.f : 44.f) * scale;
+            const float minimumMessageHeight = ImGui::GetTextLineHeight();
+            const float contentHeight = std::max(4.f, std::min(
+                std::max(ImGui::GetFrameHeightWithSpacing(),
+                         remainingHeight - footerOverhead - preferredMessageHeight),
+                remainingHeight - footerOverhead - minimumMessageHeight));
+            const float messageHeight = std::max(4.f, std::min(
+                preferredMessageHeight,
+                remainingHeight - footerOverhead - contentHeight));
             // Each page retains its own scroll position when revisited.
             ImGui::PushID(settingsPage);
             ImGui::BeginChild("##SettingsContent",
-                              ImVec2(0.f, -footerHeight), false);
+                              ImVec2(0.f, contentHeight), false);
             UserSettings& draft = settingsSession.draft();
             if (settingsPage == 0)
             {
@@ -2863,19 +2970,24 @@ class OgreUserInterface::Impl
             const std::string footerMessage = settingsMessage.empty()
                 ? tr("settings.restart_note")
                 : settingsMessage;
-            const std::string footerSummary = boundedHudText(
-                footerMessage, ImGui::GetFontSize(),
-                ImGui::GetContentRegionAvail().x);
+            if (settingsMessageScrollReset)
+                ImGui::SetNextWindowScroll(ImVec2(-1.f, 0.f));
+            ImGui::BeginChild("##SettingsMessage",
+                              ImVec2(0.f, messageHeight), false);
+            settingsMessageScrollReset = false;
             ImGui::PushStyleColor(ImGuiCol_Text,
-                                  settingsMessage.empty()
+                                  settingsMessageIsError
+                                      ? WarmError
+                                      : settingsMessage.empty()
                                       ? WarmMuted
                                       : WarmAccent);
-            ImGui::TextUnformatted(footerSummary.c_str());
+            ImGui::TextWrapped("%s", footerMessage.c_str());
             ImGui::PopStyleColor();
-            if (ImGui::IsItemHovered() && footerSummary != footerMessage)
+            if (ImGui::IsItemHovered() && !settingsErrorDetails.empty())
             {
-                drawWrappedTooltip(footerMessage);
+                drawWrappedTooltip(settingsErrorDetails);
             }
+            ImGui::EndChild();
 
             ImGui::BeginDisabled(settingsApplyPending);
             if (ImGui::BeginTable("##SettingsActions", 3,
@@ -2888,7 +3000,7 @@ class OgreUserInterface::Impl
                                     36.f * scale))
                 {
                     settingsSession.restoreDefaults();
-                    settingsMessage.clear();
+                    clearSettingsFeedback();
                     playUiFeedback();
                 }
                 ImGui::TableNextColumn();
@@ -2898,7 +3010,7 @@ class OgreUserInterface::Impl
                                     36.f * scale))
                 {
                     settingsSession.cancel();
-                    settingsMessage.clear();
+                    clearSettingsFeedback();
                     playUiFeedback();
                 }
                 ImGui::TableNextColumn();
@@ -2908,13 +3020,19 @@ class OgreUserInterface::Impl
                                     36.f * scale))
                 {
                     RuntimeSettingsApplyPlan plan;
-                    if (settingsSession.prepareApply(plan, settingsMessage))
+                    RuntimeSettingsValidationIssue issue;
+                    std::string diagnostic;
+                    if (settingsSession.prepareApply(plan, diagnostic, issue))
                     {
                         pendingAction.type =
                             OgreUserInterfaceActionType::ApplySettings;
                         pendingAction.settings = plan.settings;
-                        settingsMessage = tr("settings.saving");
+                        setSettingsFeedback(tr("settings.saving"));
                         settingsApplyPending = true;
+                    }
+                    else
+                    {
+                        setSettingsFeedback(settingsValidationMessage(issue), true);
                     }
                 }
                 if (ImGui::IsItemHovered())
@@ -2939,7 +3057,7 @@ class OgreUserInterface::Impl
             return true;
         }
         settingsSession.cancel();
-        settingsMessage.clear();
+        clearSettingsFeedback();
         return true;
     }
 
@@ -2950,9 +3068,12 @@ class OgreUserInterface::Impl
         settingsApplyPending = false;
         if (!succeeded)
         {
-            settingsMessage = std::move(message);
+            setSettingsFeedback(tr("settings.error.save_failed"), true,
+                                std::move(message));
             return;
         }
+        settingsMessageIsError = false;
+        settingsErrorDetails.clear();
         const bool restartRequired =
             appliedSettings.windowX != settings.windowX ||
             appliedSettings.windowY != settings.windowY ||
@@ -6802,6 +6923,8 @@ class OgreUserInterface::Impl
         if (player == nullptr || !player->hasOpenCrafting())
         {
             craftingSession.reset();
+            selectedCraftingMaterial = Material::ID::Nothing;
+            craftingFeedback.clear();
             return;
         }
         const int gridSize = player->getCraftingGridSize();
@@ -6810,7 +6933,7 @@ class OgreUserInterface::Impl
         {
             craftingSession = std::make_unique<CraftingSession>(gridSize);
             selectedCraftingMaterial = Material::ID::Nothing;
-            craftingMessage.clear();
+            craftingFeedback.clear();
         }
         std::size_t eligibleRecipes = 0;
         std::size_t learnedRecipes = 0;
@@ -6853,7 +6976,8 @@ class OgreUserInterface::Impl
             // Recipes and materials may scroll without moving the complete input
             // grid or the result controls out of view.
             const float resultHeight = std::max(58.f * appliedSettings.uiScale,
-                2.f * ImGui::GetTextLineHeightWithSpacing() + 2.f * ImGui::GetStyle().ItemSpacing.y);
+                ImGui::GetTextLineHeight() * (1.f + 3.f * .85f) +
+                    4.f * ImGui::GetStyle().ItemSpacing.y);
             const float resultFooterHeight = resultHeight + 32.f * appliedSettings.uiScale +
                 5.f * ImGui::GetStyle().ItemSpacing.y + 2.f;
             ImGui::BeginChild("##CraftingContent", ImVec2(0.f, -resultFooterHeight), false);
@@ -6897,9 +7021,10 @@ class OgreUserInterface::Impl
                         {
                             if (craftingSession->loadRecipe(recipe))
                             {
-                                craftingMessage =
+                                craftingFeedback.submit(
                                     materialName(recipe.outputMaterialId) +
-                                    ": " + tr("crafting.loaded");
+                                    ": " + tr("crafting.loaded"),
+                                    CraftingResultFeedback::Tone::Information);
                                 playUiFeedback();
                             }
                         }
@@ -6950,7 +7075,7 @@ class OgreUserInterface::Impl
                     compactInventory, 0, compactInventory))
                 {
                     selectedCraftingMaterial = slot.materialId;
-                    craftingMessage.clear();
+                    craftingFeedback.clear();
                 }
                 ImGui::EndDisabled();
             }
@@ -6959,6 +7084,7 @@ class OgreUserInterface::Impl
             if (ImGui::SmallButton(label("crafting.clear_selection", "##ClearSelection").c_str()))
             {
                 selectedCraftingMaterial = Material::ID::Nothing;
+                craftingFeedback.clear();
             }
 
             ImGui::EndChild();
@@ -6992,24 +7118,25 @@ class OgreUserInterface::Impl
                 {
                     craftingSession->setCell(
                         index, selectedCraftingMaterial);
-                    craftingMessage.clear();
+                    craftingFeedback.clear();
                 }
                 if (clearCell)
                 {
                     craftingSession->clearCell(index);
-                    craftingMessage.clear();
+                    craftingFeedback.clear();
                 }
             }
             if (ImGui::SmallButton(label("crafting.clear_grid", "##ClearGrid").c_str()))
             {
                 craftingSession->clear();
-                craftingMessage.clear();
+                craftingFeedback.clear();
             }
 
             ImGui::EndChild();
             ImGui::EndChild();
             const CraftingPreview preview = player->previewCrafting(
                 *craftingSession, runtimeRecipeRegistry());
+            const auto resultFeedback = craftingFeedback.view(preview);
             ImGui::Separator();
             ImGui::BeginChild("##CraftResult", ImVec2(0.f, resultHeight), false);
             const ImVec2 resultStart = ImGui::GetCursorScreenPos();
@@ -7027,12 +7154,23 @@ class OgreUserInterface::Impl
                 ImGui::TextColored(preview.ready() ? WarmAccent : WarmMuted, "%s  x%d",
                     materialName(preview.outputMaterialId).c_str(), preview.outputCount);
             ImGui::SetWindowFontScale(.85f);
-            if (!craftingMessage.empty())
-                ImGui::TextWrapped("%s", craftingMessage.c_str());
-            else if (preview.ready())
-                ImGui::TextWrapped("%s: %d", tr("crafting.maximum_crafts").c_str(), preview.maxCrafts);
+            if (resultFeedback.ready())
+                ImGui::TextWrapped("%s: %d", tr("crafting.maximum_crafts").c_str(),
+                    resultFeedback.maximumCrafts);
             else
-                ImGui::TextWrapped("%s", craftingPreviewMessage(preview.status).c_str());
+                ImGui::TextWrapped("%s", craftingPreviewMessage(resultFeedback.previewStatus).c_str());
+            if (!resultFeedback.recentMessage.empty())
+            {
+                const std::string recent(resultFeedback.recentMessage);
+                const std::string summary = boundedHudText(recent,
+                    ImGui::GetFontSize(), ImGui::GetContentRegionAvail().x);
+                ImGui::TextColored(
+                    resultFeedback.recentTone == CraftingResultFeedback::Tone::Failure
+                        ? ImVec4(.95f, .58f, .42f, 1.f) : WarmMuted,
+                    "%s", summary.c_str());
+                if (ImGui::IsItemHovered() && summary != recent)
+                    drawWrappedTooltip(recent);
+            }
             ImGui::SetWindowFontScale(1.f);
             ImGui::EndGroup();
             ImGui::EndChild();
@@ -7046,7 +7184,9 @@ class OgreUserInterface::Impl
                     player->commitCrafting(
                         *craftingSession, runtimeRecipeRegistry(), preview,
                         1);
-                craftingMessage = craftingCommitMessage(committed.status);
+                craftingFeedback.submit(craftingCommitMessage(committed.status),
+                    committed.succeeded() ? CraftingResultFeedback::Tone::Success
+                                          : CraftingResultFeedback::Tone::Failure);
             }
             ImGui::PopStyleColor(4);
             ImGui::SameLine();
@@ -7058,7 +7198,9 @@ class OgreUserInterface::Impl
                     player->commitCrafting(
                         *craftingSession, runtimeRecipeRegistry(), preview,
                         preview.maxCrafts);
-                craftingMessage = craftingCommitMessage(committed.status);
+                craftingFeedback.submit(craftingCommitMessage(committed.status),
+                    committed.succeeded() ? CraftingResultFeedback::Tone::Success
+                                          : CraftingResultFeedback::Tone::Failure);
             }
             ImGui::EndDisabled();
             ImGui::SameLine();
@@ -7073,6 +7215,8 @@ class OgreUserInterface::Impl
         {
             player->closeCrafting();
             craftingSession.reset();
+            selectedCraftingMaterial = Material::ID::Nothing;
+            craftingFeedback.clear();
         }
     }
 
@@ -7598,6 +7742,9 @@ class OgreUserInterface::Impl
     bool crashPopupOpened = false;
     RuntimeSettingsSession settingsSession;
     std::string settingsMessage;
+    std::string settingsErrorDetails;
+    bool settingsMessageIsError = false;
+    bool settingsMessageScrollReset = true;
     bool settingsApplyPending = false;
     bool firstPersonPresentationVisible = true;
     bool aimIndicatorVisible = false;
@@ -7606,7 +7753,7 @@ class OgreUserInterface::Impl
     int settingsPage = 0;
     std::unique_ptr<CraftingSession> craftingSession;
     Material::ID selectedCraftingMaterial = Material::ID::Nothing;
-    std::string craftingMessage;
+    CraftingResultFeedback craftingFeedback;
     std::string containerFeedbackKey;
     double containerFeedbackExpiresAt = 0.0;
     glm::ivec3 containerFeedbackPosition{0};
@@ -7909,6 +8056,9 @@ void OgreUserInterface::setWorldContext(Player *player,
     m_impl->world = world;
     m_impl->containerFeedbackKey.clear();
     m_impl->containerFeedbackBound = false;
+    m_impl->craftingSession.reset();
+    m_impl->selectedCraftingMaterial = Material::ID::Nothing;
+    m_impl->craftingFeedback.clear();
     m_impl->heldLighting = {};
     m_impl->dismissedVictoryEpoch = 0;
     m_impl->previousPlayerHealth = -1.f;

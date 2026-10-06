@@ -28,6 +28,48 @@ struct RuntimeSettingsApplyPlan {
     bool postProcessingQualityChanged = false;
 };
 
+enum class RuntimeSettingsValidationKind {
+    None,
+    NotOpen,
+    OutOfRange,
+    InvalidChoice,
+    InvalidBinding,
+    BindingConflict,
+    UnexpectedFailure
+};
+
+enum class RuntimeSettingsField {
+    None,
+    MinimapRange,
+    RenderDistance,
+    DirectionalShadowQuality,
+    VisualDetail,
+    PostProcessingQuality,
+    WindowSize,
+    Fov,
+    CameraPerspective,
+    MouseSensitivity,
+    MasterVolume,
+    UiVolume,
+    EffectsVolume,
+    AmbientVolume,
+    MusicVolume,
+    UiScale,
+    Locale,
+    KeyboardBindings,
+    MouseBindings,
+    SprintMode,
+    SneakMode,
+    FeedbackIntensity
+};
+
+/// Stable validation facts for localized UI; no exception-text parsing needed.
+struct RuntimeSettingsValidationIssue {
+    RuntimeSettingsValidationKind kind = RuntimeSettingsValidationKind::None;
+    RuntimeSettingsField field = RuntimeSettingsField::None;
+    GameplayBindingValidationIssue binding;
+};
+
 class RuntimeSettingsSession {
   public:
     void begin(const UserSettings &settings) noexcept;
@@ -38,6 +80,8 @@ class RuntimeSettingsSession {
     void cancel() noexcept;
     bool prepareApply(RuntimeSettingsApplyPlan &plan,
                       std::string &error) const noexcept;
+    bool prepareApply(RuntimeSettingsApplyPlan &plan, std::string &error,
+                      RuntimeSettingsValidationIssue &issue) const noexcept;
     void acceptApplied() noexcept;
 
   private:

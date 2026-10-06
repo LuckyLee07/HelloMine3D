@@ -18,6 +18,7 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <iterator>
 #include <limits>
@@ -27,6 +28,7 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -898,8 +900,172 @@ void caseBlockTextureCoordinates()
 // ---------------------------------------------------------------------------
 // A3 - runtime config is generated locally and remains user-owned
 // ---------------------------------------------------------------------------
+void caseRuntimeSettingsValidationIssues()
+{
+    using Kind = RuntimeSettingsValidationKind;
+    using Field = RuntimeSettingsField;
+    struct Rejection {
+        const char *name;
+        std::function<void(UserSettings &)> edit;
+        Kind kind;
+        Field field;
+        const char *diagnostic;
+    };
+    const std::vector<Rejection> rejections{
+        {"minimap", [](UserSettings &s) { s.minimapRange = 65; }, Kind::InvalidChoice, Field::MinimapRange,
+         "minimap range must be 64, 128, or 256 metres"},
+        {"distance", [](UserSettings &s) { s.renderDistance = 0; }, Kind::OutOfRange, Field::RenderDistance,
+         "render distance must be between 1 and 32"},
+        {"shadow", [](UserSettings &s) { s.directionalShadowQuality = static_cast<DirectionalShadowQuality>(99); }, Kind::InvalidChoice, Field::DirectionalShadowQuality,
+         "directional shadow quality must be off, medium, or high"},
+        {"detail", [](UserSettings &s) { s.visualDetail = static_cast<VisualDetail>(99); }, Kind::InvalidChoice, Field::VisualDetail,
+         "visual detail must be standard or compatibility"},
+        {"post", [](UserSettings &s) { s.postProcessingQuality = static_cast<PostProcessingQuality>(99); }, Kind::InvalidChoice, Field::PostProcessingQuality,
+         "post-processing quality must be off or on"},
+        {"width", [](UserSettings &s) { s.windowX = 639; }, Kind::OutOfRange, Field::WindowSize,
+         "window size must be between 640x480 and 7680x4320"},
+        {"height", [](UserSettings &s) { s.windowY = 4321; }, Kind::OutOfRange, Field::WindowSize,
+         "window size must be between 640x480 and 7680x4320"},
+        {"fov", [](UserSettings &s) { s.fov = 121; }, Kind::OutOfRange, Field::Fov,
+         "FOV must be between 45 and 120 degrees"},
+        {"perspective", [](UserSettings &s) { s.cameraPerspective = static_cast<CameraPerspective>(99); }, Kind::InvalidChoice, Field::CameraPerspective,
+         "camera perspective must be first or third person"},
+        {"sensitivity", [](UserSettings &s) { s.mouseSensitivity = std::numeric_limits<float>::quiet_NaN(); }, Kind::OutOfRange, Field::MouseSensitivity,
+         "mouse sensitivity must be between 0.005 and 1.0"},
+        {"master", [](UserSettings &s) { s.masterVolume = -1.f; }, Kind::OutOfRange, Field::MasterVolume,
+         "master volume must be between 0.0 and 1.0"},
+        {"ui-volume", [](UserSettings &s) { s.uiVolume = 2.f; }, Kind::OutOfRange, Field::UiVolume,
+         "UI volume must be between 0.0 and 1.0"},
+        {"effects", [](UserSettings &s) { s.effectsVolume = -1.f; }, Kind::OutOfRange, Field::EffectsVolume,
+         "effects volume must be between 0.0 and 1.0"},
+        {"ambient", [](UserSettings &s) { s.ambientVolume = 2.f; }, Kind::OutOfRange, Field::AmbientVolume,
+         "ambient volume must be between 0.0 and 1.0"},
+        {"music", [](UserSettings &s) { s.musicVolume = std::numeric_limits<float>::infinity(); }, Kind::OutOfRange, Field::MusicVolume,
+         "music volume must be between 0.0 and 1.0"},
+        {"ui-scale", [](UserSettings &s) { s.uiScale = .74f; }, Kind::OutOfRange, Field::UiScale,
+         "UI scale must be between 0.75 and 1.75"},
+        {"locale", [](UserSettings &s) { s.locale = "fr-FR"; }, Kind::InvalidChoice, Field::Locale,
+         "locale must be one of en-US or zh-CN"},
+        {"unknown-key", [](UserSettings &s) { s.inputBindings.set(GameplayAction::Jump, GameplayKey::Count); }, Kind::InvalidBinding, Field::KeyboardBindings,
+         "invalid gameplay bindings: Jump uses an unknown key"},
+        {"duplicate-key", [](UserSettings &s) { s.inputBindings.set(GameplayAction::Jump, GameplayKey::W); }, Kind::BindingConflict, Field::KeyboardBindings,
+         "invalid gameplay bindings: key 'W' is assigned more than once"},
+        {"unknown-mouse", [](UserSettings &s) { s.mouseBindings.set(GameplayWorldAction::Use, GameplayMouseButton::Count); }, Kind::InvalidBinding, Field::MouseBindings,
+         "invalid mouse bindings: Use uses an unknown mouse button"},
+        {"mouse-conflict", [](UserSettings &s) { s.mouseBindings.set(GameplayWorldAction::Use, GameplayMouseButton::Primary); }, Kind::BindingConflict, Field::MouseBindings,
+         "invalid mouse bindings: mouse button 'Mouse primary' cannot be shared by Break / attack and Use"},
+        {"sprint", [](UserSettings &s) { s.sprintMode = static_cast<GameplayHoldMode>(99); }, Kind::InvalidChoice, Field::SprintMode,
+         "sprint mode must be hold or toggle"},
+        {"sneak", [](UserSettings &s) { s.sneakMode = static_cast<GameplayHoldMode>(99); }, Kind::InvalidChoice, Field::SneakMode,
+         "sneak mode must be hold or toggle"},
+        {"feedback", [](UserSettings &s) { s.feedbackIntensity = static_cast<GameplayFeedbackIntensity>(99); }, Kind::InvalidChoice, Field::FeedbackIntensity,
+         "feedback intensity must be off, reduced, or full"}
+    };
+    // Compare all applied fields, not object padding or only the failing field.
+    const auto values = [](const UserSettings &s) {
+        return std::tie(s.visualDetail, s.windowX, s.windowY, s.isFullscreen,
+            s.renderDistance, s.directionalShadowQuality, s.postProcessingQuality,
+            s.fov, s.cameraPerspective, s.mouseSensitivity, s.invertMouseY,
+            s.masterVolume, s.uiVolume, s.effectsVolume, s.ambientVolume,
+            s.musicVolume, s.uiScale, s.minimapRange, s.locale, s.audioCaptions,
+            s.showActionHints, s.inputBindings.keys, s.mouseBindings.buttons,
+            s.sprintMode, s.sneakMode, s.feedbackIntensity);
+    };
+    Config applied;
+    applied.locale = "zh-CN";
+    applied.worldSeed = 90210;
+    RuntimeSettingsApplyPlan plan;
+    plan.settings = userSettings(applied);
+    plan.settings.fov = 73;
+    plan.settings.locale = "en-US";
+    plan.restartRequired = plan.renderDistanceChanged = true;
+    plan.directionalShadowQualityChanged = plan.postProcessingQualityChanged = true;
+    const RuntimeSettingsApplyPlan sentinel = plan;
+    const auto planUnchanged = [&] {
+        return values(plan.settings) == values(sentinel.settings) &&
+            plan.restartRequired == sentinel.restartRequired &&
+            plan.renderDistanceChanged == sentinel.renderDistanceChanged &&
+            plan.directionalShadowQualityChanged == sentinel.directionalShadowQualityChanged &&
+            plan.postProcessingQualityChanged == sentinel.postProcessingQualityChanged;
+    };
+    RuntimeSettingsSession session;
+    RuntimeSettingsValidationIssue issue;
+    std::string error, legacyError;
+    check("G4/settings-typed-not-open-keeps-plan",
+          !session.prepareApply(plan, error, issue) &&
+              issue.kind == Kind::NotOpen && issue.field == Field::None &&
+              error == "settings session is not open" && planUnchanged());
+    for (const auto &rejection : rejections) {
+        session.begin(userSettings(applied));
+        rejection.edit(session.draft());
+        const bool failed = !session.prepareApply(plan, error, issue);
+        const bool legacyFailed = !session.prepareApply(plan, legacyError);
+        bool diagnosticCompatible = false;
+        try {
+            validateUserSettings(session.draft());
+        }
+        catch (const std::runtime_error &exception) {
+            diagnosticCompatible = std::string(exception.what()) == rejection.diagnostic;
+        }
+        const bool rejectedWithoutPublish = failed && legacyFailed &&
+            issue.kind == rejection.kind && issue.field == rejection.field &&
+            error == rejection.diagnostic && legacyError == rejection.diagnostic &&
+            diagnosticCompatible && planUnchanged() && session.isOpen() &&
+            applied.worldSeed == std::optional<int>(90210);
+        session.cancel();
+        check(std::string("G4/settings-typed-failure-") + rejection.name,
+              rejectedWithoutPublish && !session.isOpen() &&
+                  values(session.draft()) == values(userSettings(applied)), error);
+    }
+    session.begin(userSettings(applied));
+    session.draft().inputBindings.set(GameplayAction::Jump, GameplayKey::W);
+    session.draft().mouseBindings.set(GameplayWorldAction::Use, GameplayMouseButton::Count);
+    check("G4/settings-keyboard-before-mouse-conflict-facts",
+          !session.prepareApply(plan, error, issue) && planUnchanged() &&
+              issue.binding.kind == GameplayBindingValidationKind::DuplicateKey &&
+              issue.binding.keyboardAction == GameplayAction::MoveForward &&
+              issue.binding.otherKeyboardAction == GameplayAction::Jump &&
+              issue.binding.key == GameplayKey::W &&
+              issue.binding.mouseAction == GameplayWorldAction::Count);
+    session.draft().inputBindings = GameplayInputBindings();
+    session.draft().mouseBindings.set(GameplayWorldAction::Use, GameplayMouseButton::Primary);
+    check("G4/settings-mouse-conflict-facts",
+          !session.prepareApply(plan, error, issue) && planUnchanged() &&
+              issue.binding.kind == GameplayBindingValidationKind::MouseConflict &&
+              issue.binding.mouseAction == GameplayWorldAction::BreakAttack &&
+              issue.binding.otherMouseAction == GameplayWorldAction::Use &&
+              issue.binding.button == GameplayMouseButton::Primary &&
+              issue.binding.keyboardAction == GameplayAction::Count);
+    session.draft().mouseBindings.set(GameplayWorldAction::Guard, GameplayMouseButton::Count);
+    check("G4/settings-invalid-button-before-sharing-conflict",
+          !session.prepareApply(plan, error, issue) && planUnchanged() &&
+              issue.binding.kind == GameplayBindingValidationKind::UnknownMouseButton &&
+              issue.binding.mouseAction == GameplayWorldAction::Guard &&
+              issue.binding.otherMouseAction == GameplayWorldAction::Count);
+    session.draft().minimapRange = 65;
+    session.draft().fov = 121;
+    check("G4/settings-first-invalid-field-order",
+          !session.prepareApply(plan, error, issue) && planUnchanged() &&
+              issue.field == Field::MinimapRange);
+    session.cancel();
+    session.begin(userSettings(applied));
+    session.draft().fov = 101;
+    check("G4/settings-valid-retry-clears-typed-error",
+          session.prepareApply(plan, error, issue) && error.empty() &&
+              issue.kind == Kind::None && issue.field == Field::None &&
+              issue.binding.kind == GameplayBindingValidationKind::None &&
+              issue.binding.keyboardAction == GameplayAction::Count &&
+              issue.binding.mouseAction == GameplayWorldAction::Count &&
+              plan.settings.fov == 101 && !plan.restartRequired &&
+              session.isOpen() && applied.fov == 90 && applied.locale == "zh-CN");
+    session.cancel();
+    check("G4/settings-valid-plan-still-cancels-to-applied",
+          !session.isOpen() && values(session.draft()) == values(userSettings(applied)));
+}
+
 void caseRuntimeConfigOwnership()
 {
+    caseRuntimeSettingsValidationIssues();
     const std::filesystem::path directory =
         freshSaveDirectory("runtime_config");
     const std::filesystem::path configPath = directory / "config.txt";
@@ -1657,11 +1823,48 @@ void caseWorldOutcomeAndLocalizedText()
         readTextFile(ResourcePaths::media("text/zh-CN.text"));
     LocalizedTextRegistry registry;
     registry.freeze({{"en-US.text", english}, {"zh-CN.text", chinese}});
+    const std::array<const char*, 28> requiredSettingsErrorKeys = {{
+        "settings.error.session_closed",
+        "settings.error.invalid_value",
+        "settings.error.save_failed",
+        "settings.error.key_conflict",
+        "settings.error.different_keys",
+        "settings.error.mouse_conflict",
+        "settings.error.different_mouse_buttons",
+        "settings.error.invalid_key",
+        "settings.error.invalid_mouse_button",
+        "settings.error.minimap_range",
+        "settings.error.render_distance",
+        "settings.error.shadow",
+        "settings.error.visual_detail",
+        "settings.error.post_processing",
+        "settings.error.window_size",
+        "settings.error.fov",
+        "settings.error.perspective",
+        "settings.error.sensitivity",
+        "settings.error.master_volume",
+        "settings.error.ui_volume",
+        "settings.error.effects_volume",
+        "settings.error.ambient_volume",
+        "settings.error.music_volume",
+        "settings.error.ui_scale",
+        "settings.error.locale",
+        "settings.error.sprint_mode",
+        "settings.error.sneak_mode",
+        "settings.error.feedback"
+    }};
+    bool settingsErrorsComplete = true;
+    for (const char* key : requiredSettingsErrorKeys) {
+        settingsErrorsComplete = settingsErrorsComplete &&
+            registry.hasKey("en-US", key) && registry.hasKey("zh-CN", key);
+    }
+    check("G4/settings-error-keys-complete-in-both-locales",
+          settingsErrorsComplete);
     check("N7A/locales-freeze-with-identical-semantic-keys",
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 722 &&
+              registry.keys("en-US").size() == 750 &&
               registry.lookup("en-US", "map.marker_name_hint") ==
                   "Up to 24 characters; no spaces at either end." &&
               registry.lookup("zh-CN", "map.marker_invalid_name") ==
