@@ -26,11 +26,15 @@ PUBLISHED_V4_BUNDLE_ID = 'local.hellomine3d.reference-current-v4'
 PUBLISHED_V4_PATH = 'build/reference-visual-goal/HelloMine3D Reference Complete v4.app'
 PUBLISHED_V5_BUNDLE_ID = 'local.hellomine3d.reference-current-v5'
 PUBLISHED_V5_PATH = 'build/reference-visual-goal/HelloMine3D Reference Complete v5.app'
+PUBLISHED_V6_BUNDLE_ID = 'local.hellomine3d.reference-current-v6'
+PUBLISHED_V6_PATH = 'build/reference-visual-goal/HelloMine3D Reference Complete v6.app'
+PUBLISHED_V7_BUNDLE_ID = 'local.hellomine3d.reference-current-v7'
+PUBLISHED_V7_PATH = 'build/reference-visual-goal/HelloMine3D Reference Complete v7.app'
 LAUNCHER = '''#!/bin/bash
 set -euo pipefail
 # Diagnostics from the preparing shell must not reach ordinary gameplay.
 for name in $(env | cut -d= -f1); do
-    case "$name" in HELLOMINE3D_*|HELLO_RENDER_*|HELLO_PERF_*) unset "$name";; esac
+    case "$name" in HELLOMINE3D_*|HELLO_RENDER_*|HELLO_PERF_*|HELLO_VISUAL_*) unset "$name";; esac
 done
 package_root="$(cd "$(dirname "$0")/../Resources" && pwd)"
 export HELLOMINE3D_ROOT="$package_root"
@@ -60,6 +64,20 @@ def safe_relative(text):
     path = Path(text)
     require(text and not path.is_absolute() and '..' not in path.parts and path.as_posix() == text, 'Unsafe relative path: '+text)
     return path
+
+
+def path_inside(path, boundary):
+    """Include existing physical ancestors: resolve() retains APFS case aliases."""
+    if path == boundary or path.is_relative_to(boundary):
+        return True
+    if boundary.exists():
+        return any(candidate.exists() and candidate.samefile(boundary)
+                   for candidate in (path, *path.parents))
+    return False
+
+
+def paths_overlap(first, second):
+    return path_inside(first, second) or path_inside(second, first)
 
 
 def tree_files(root):
@@ -227,21 +245,21 @@ def make_plan(args):
     protected = Path(protection['protected_app']).resolve(strict=True)
     old_work = Path(protection['work_app']).resolve(strict=True)
     snapshots = {}
-    protected_ids = {PUBLISHED_V2_BUNDLE_ID, PUBLISHED_V3_BUNDLE_ID, PUBLISHED_V4_BUNDLE_ID, PUBLISHED_V5_BUNDLE_ID}
+    protected_ids = {PUBLISHED_V2_BUNDLE_ID, PUBLISHED_V3_BUNDLE_ID, PUBLISHED_V4_BUNDLE_ID, PUBLISHED_V5_BUNDLE_ID, PUBLISHED_V6_BUNDLE_ID, PUBLISHED_V7_BUNDLE_ID}
     protected_apps = [protected, old_work]
     current = root/'build/reference-visual-goal/WorkbenchCurrent.app'
     if current.exists():
         protected_apps.append(current.resolve(strict=True))
-    for version, relative in [('v2', PUBLISHED_V2_PATH), ('v3', PUBLISHED_V3_PATH), ('v4', PUBLISHED_V4_PATH), ('v5', PUBLISHED_V5_PATH)]:
+    for version, relative in [('v2', PUBLISHED_V2_PATH), ('v3', PUBLISHED_V3_PATH), ('v4', PUBLISHED_V4_PATH), ('v5', PUBLISHED_V5_PATH), ('v6', PUBLISHED_V6_PATH), ('v7', PUBLISHED_V7_PATH)]:
         published = (root/relative).resolve()
-        require(not (output == published or output.is_relative_to(published) or published.is_relative_to(output)), 'Output overlaps the published '+version+' app')
+        require(not paths_overlap(output, published), 'Output overlaps the published '+version+' app')
         if published.exists():
             protected_apps.append(published.resolve(strict=True))
     for candidate in protected_apps:
-        require(not (output == candidate or output.is_relative_to(candidate) or candidate.is_relative_to(output)), 'Output overlaps a protected app')
+        require(not paths_overlap(output, candidate), 'Output overlaps a protected app')
         if args.record:
             record = args.record.resolve()
-            require(not (record == candidate or record.is_relative_to(candidate)), 'Evidence record overlaps a protected app')
+            require(not paths_overlap(record, candidate), 'Evidence record overlaps a protected app')
         snapshots[str(candidate)] = tree_files(candidate)
         with (candidate/'Contents/Info.plist').open('rb') as stream:
             protected_ids.add(plistlib.load(stream)['CFBundleIdentifier'])
@@ -250,7 +268,13 @@ def make_plan(args):
     for relative, expected in protection['copied_save_files'].items():
         require(snapshots[str(old_work)].get(relative) == expected, 'Old GoalWorkbench save changed: '+relative)
     bundle_id = validate_bundle_id(getattr(args, 'bundle_id', DEFAULT_BUNDLE_ID), protected_ids)
-    require(app not in protected_apps, 'A current independent Release source package is required')
+    require(not any(paths_overlap(app, candidate) for candidate in protected_apps), 'A current independent Release source package is required')
+    # Protect declared source/capture trees before validating version identities.
+    # This also catches a save child reached through a case alias of its parent.
+    for source in [app, capture_path.parent, menu, args.protection_receipt.resolve(strict=True)]:
+        require(not paths_overlap(output, source), 'Output overlaps an input')
+        if args.record:
+            require(not paths_overlap(args.record.resolve(), source), 'Evidence record overlaps a read-only input or bundle')
     tree_files(app)
     resources = app/'Contents/Resources'
     managed = read_inventory(resources/'distribution-sha256.txt', app)
@@ -279,8 +303,8 @@ def make_plan(args):
         require(capture['package_identity'][key] == identity[key], 'Fresh capture/package mismatch: '+key)
     save = Path(capture['environment']['HELLOMINE3D_SAVE_DIR']).resolve(strict=True)
     require(save == capture_path.parent/'save', 'Fresh save must be the capture sibling directory')
-    for source in [app, save, menu, capture_path, args.protection_receipt.resolve()]:
-        require(not (output == source or output.is_relative_to(source) or source.is_relative_to(output)), 'Output overlaps an input')
+    for source in [app, save, menu, capture_path.parent, args.protection_receipt.resolve()]:
+        require(not paths_overlap(output, source), 'Output overlaps an input')
     saved_files = tree_files(save); fields, metadata = read_world(save/'world.meta')
     require(capture['world_metadata'] == metadata, 'Save metadata changed after capture')
     chunks = {validate_chunk(path) for path in sorted((save/'chunks').glob('*.hmcchunk'))}
@@ -297,7 +321,7 @@ def make_plan(args):
     if args.record:
         record = args.record.resolve()
         for directory in protected_apps+[app, save, capture_path.parent, output]:
-            require(not (record == directory or record.is_relative_to(directory)), 'Evidence record overlaps a read-only input or bundle')
+            require(not paths_overlap(record, directory), 'Evidence record overlaps a read-only input or bundle')
     plan = {'schema': 1, 'status': 'VALIDATED_PLAN', 'source_app': str(app), 'source_capture': str(capture_path), 'source_save': str(save), 'output': str(output), 'bundle_id': bundle_id, 'bundle_name': output.stem, 'protected_bundle_ids': sorted(protected_ids), 'executable_sha256': identity['executable_sha256'], 'source_manifest_sha256': identity['source_manifest_sha256'], 'resource_manifest_sha256': identity['resource_manifest_sha256'], 'world_id': fields['world_id'], 'world_name': WORLD_NAME, 'save_target': 'Contents/Resources/bin/saves/'+fields['world_id'], 'save_input_files': saved_files, 'managed_input_files': managed, 'menu_config_sha256': sha(menu), 'protected_snapshots': snapshots, 'scene_facts': facts, 'launch_count': 0, 'normal_input': 'NOT_RUN', 'runtime_fixture': False, 'runtime_diagnostic_environment': False, 'mutable_paths': ['Contents/Resources/bin/config.txt', 'Contents/Resources/bin/saves/**', 'Contents/Resources/bin/Mine.cfg', 'Contents/Resources/bin/MineResources.cfg', 'Contents/Resources/bin/MineOgre.log', 'Contents/Resources/bin/imgui-ogre.ini', 'Contents/Resources/bin/resource-packs.txt'], 'live_state_except_display_name_and_spawn_preserved': True, 'world_id_preserved': True, 'preparation': {'ordinary_input': False, 'initial_authored_fixture': True, 'live_display_name_changed': True, 'original_spawn': fields['spawn'], 'prepared_spawn_body_center': fields['player_position'], 'spawn_from_actual_saved_player_position': True, 'actual_saved_body_and_road_support_checked': True}, 'backup_bytes_preserved': True, 'backup_restore_keeps_original_backup_name_and_spawn': True}
     return plan, app, save, menu, renamed
 
@@ -352,7 +376,7 @@ def main():
         plan, app, save, menu, metadata = make_plan(args)
         if args.create:plan = create(plan, app, save, menu, metadata)
         if args.record:
-            require(not any(args.record.resolve().is_relative_to(Path(p)) for p in plan['protected_snapshots']), 'Record may not touch protected inputs')
+            require(not any(paths_overlap(args.record.resolve(), Path(p)) for p in plan['protected_snapshots']), 'Record may not touch protected inputs')
             args.record.parent.mkdir(parents=True, exist_ok=True); args.record.write_text(json.dumps(plan, indent=2, ensure_ascii=False)+'\n')
         print('[REFERENCE_WORKBENCH] '+json.dumps({key: plan[key] for key in ['status', 'output', 'bundle_id', 'bundle_name', 'world_id', 'world_name', 'executable_sha256', 'launch_count', 'runtime_fixture']}, ensure_ascii=False, sort_keys=True))
     except (ValueError, KeyError, OSError, json.JSONDecodeError, struct.error) as error:
