@@ -68,6 +68,9 @@ public:
     // At most four per component lifetime. Writes native linear float pixels,
     // an sRGB camera-oriented preview and facts; never edits the scene/view.
     void captureDiagnostic(const std::string& absoluteOutputPrefix) const;
+    // Numeric view/storage facts for the strictly admitted owned World-edit
+    // probe. No readback, retained resource pointer or render occurs here.
+    std::string worldEditDiagnosticFacts() const;
     // Call before destroying residents/SceneManager, including world switches.
     void resetWorld() noexcept;
     RenderLifecycleTargetFacts lifecycleFacts() const;

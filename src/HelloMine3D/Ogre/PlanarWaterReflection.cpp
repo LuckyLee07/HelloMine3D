@@ -581,3 +581,23 @@ void PlanarWaterReflection::captureDiagnostic(const std::string& absoluteOutputP
     if (before != GL_NO_ERROR || after != GL_NO_ERROR || nonfinite)
         throw std::runtime_error("Planar native readback had GL errors or nonfinite pixels; failed evidence preserved.");
 }
+
+std::string PlanarWaterReflection::worldEditDiagnosticFacts() const
+{
+    const auto& s=*m_impl;
+    if (!std::getenv("HELLOMINE3D_REFERENCE_EDIT_PROBE") || !s.camera || !s.target || !s.stats.active || s.rendering)
+        throw std::runtime_error("World-edit view facts require its admitted completed active view.");
+    auto projection=s.camera->getProjectionMatrixWithRSDepth();
+    const bool flip=s.target->requiresTextureFlipping();
+    if(flip)for(unsigned c=0;c<4;++c)projection[1][c]=-projection[1][c];
+    const auto matrix=[](const Ogre::Matrix4& m){std::ostringstream o;o<<std::setprecision(17)<<'[';
+        for(unsigned r=0;r<4;++r)for(unsigned c=0;c<4;++c)o<<(r || c?",":"")<<m[r][c];return o.str()+']';};
+    std::ostringstream o;o<<std::boolalpha<<std::setprecision(17)
+        <<"{\"frame\":"<<s.stats.frameSerial<<",\"scene_revision\":"<<s.stats.sceneRevision<<",\"update_count\":"<<s.stats.updateCount
+        <<",\"plane_y\":"<<s.planeY<<",\"clip_y\":"<<s.planeY+.03f<<",\"texture_flip\":"<<flip
+        <<",\"camera_name\":"<<RenderLifecycle::quote(s.camera->getName())
+        <<",\"view_row_major\":"<<matrix(s.camera->getViewMatrix())
+        <<",\"projection_row_major\":"<<matrix(projection)<<",\"view_projection_row_major\":"<<matrix(s.viewProjection)
+        <<",\"target\":"<<s.facts().json()<<'}';
+    return o.str();
+}
