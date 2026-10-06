@@ -18,6 +18,7 @@ import platform
 import re
 import resource
 import shutil
+import struct
 import subprocess
 import time
 
@@ -46,6 +47,32 @@ SHORE_EDIT_SITES = {
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def capture_frame_size(data, capture_format):
+    """Read source-frame dimensions; never convert or repair a capture."""
+    if capture_format == "png":
+        if len(data) < 24 or data[:8] != b"\x89PNG\r\n\x1a\n" or data[12:16] != b"IHDR":
+            raise RuntimeError("Invalid PNG header")
+        return struct.unpack(">II", data[16:24])
+    if capture_format != "bmp":
+        raise RuntimeError("Unsupported capture format")
+    if len(data) < 54 or data[:2] != b"BM":
+        raise RuntimeError("Invalid or truncated BMP header")
+    file_size, reserved1, reserved2, offset = struct.unpack_from("<IHHI", data, 2)
+    dib_size = struct.unpack_from("<I", data, 14)[0]
+    if dib_size != 40:
+        raise RuntimeError("Unsupported BMP DIB header (requires BITMAPINFOHEADER)")
+    width, height, planes, bits, compression, image_size = struct.unpack_from("<iiHHII", data, 18)
+    colors_used = struct.unpack_from("<I", data, 46)[0]
+    if (width <= 0 or height == 0 or planes != 1 or bits not in (24, 32) or
+            compression != 0 or reserved1 or reserved2 or colors_used or offset < 54):
+        raise RuntimeError("Unsupported BMP layout (requires uncompressed 24/32-bit RGB)")
+    pixel_size = ((width * bits + 31) // 32) * 4 * abs(height)
+    if (file_size != len(data) or offset + pixel_size != len(data) or
+            image_size not in (0, pixel_size)):
+        raise RuntimeError("Truncated or inconsistent BMP pixel data")
+    return width, abs(height)
 
 
 def performance_framebuffer(client_log, width, height, pixel_ratio):
@@ -145,6 +172,8 @@ def main():
     parser.add_argument("--performance", action="store_true")
     parser.add_argument("--capture-ms", default="5000,10000",
                         help="Up to eight increasing render capture times in milliseconds (1..60000)")
+    parser.add_argument("--capture-format", choices=("png", "bmp"), default="png",
+                        help="Original frame format; BMP requires generic hidden direct capture without fixtures/performance")
     parser.add_argument("--streaming", action="store_true")
     parser.add_argument("--launch-method", choices=("open", "direct"), default="open")
     parser.add_argument("--foreground", action="store_true",
@@ -160,6 +189,12 @@ def main():
             raise ValueError
     except ValueError:
         parser.error("--capture-ms requires up to eight increasing integers in 1..60000")
+    if args.capture_format == "bmp" and (args.foreground or args.launch_method != "direct" or
+            args.performance or args.material_identity or args.camera_diagnostics or
+            args.fern_wind or args.pause_notifications or args.shore_edit or args.water_seam or
+            args.player_motion or args.actor_visual or args.hud_fixture or args.panel or
+            args.inspect_slot is not None):
+        parser.error("--capture-format bmp requires generic hidden direct timed capture without fixtures/performance")
     if args.inspect_slot is not None and (args.panel != "pointer" or not args.hud_fixture):
         parser.error("--inspect-slot requires --panel pointer --hud-fixture")
     if args.performance and args.capture_ms != "5000,10000":
@@ -304,7 +339,7 @@ def main():
             "HELLO_RENDER_CAPTURE", "HELLO_RENDER_CAPTURE_DIR", "HELLO_RENDER_CAPTURE_MS",
             "HELLO_RENDER_CAPTURE_EXIT")):
         parser.error("Inherited capture/diagnostic fixtures cannot be combined with water seam capture")
-    if args.material_identity or args.camera_diagnostics or args.fern_wind or args.pause_notifications or args.shore_edit or args.water_seam:
+    if args.material_identity or args.camera_diagnostics or args.fern_wind or args.pause_notifications or args.shore_edit or args.water_seam or args.capture_format == "bmp":
         other_fixtures = ("HELLOMINE3D_BLOCK_FEEDBACK_CAPTURE", "HELLOMINE3D_COMBAT_FIXTURE",
             "HELLOMINE3D_CONTAINER_FIXTURE", "HELLOMINE3D_CRAFTING_FIXTURE", "HELLOMINE3D_CROP_FIXTURE",
             "HELLOMINE3D_MACHINE_FIXTURE", "HELLOMINE3D_ORE_FIXTURE", "HELLOMINE3D_SPAWN_VALIDATION_ACTORS",
@@ -315,8 +350,15 @@ def main():
             "HELLOMINE3D_V10E_SETTINGS_FIXTURE", "HELLOMINE3D_V10D_SHADOW_FIXTURE", "HELLOMINE3D_V10E_POST_FIXTURE",
             "HELLOMINE3D_HUD_INSPECT_SLOT", "HELLOMINE3D_FORCE_LEGACY_TERRAIN", "HELLOMINE3D_TERRAIN_FALLBACK",
             "HELLOMINE3D_V10D_SHADOW_FALLBACK", "HELLOMINE3D_V10E_POST_FALLBACK", "HELLOMINE3D_CONTROLLED_CRASH")
+        if args.capture_format == "bmp":
+            # The existing render-only camera path is allowed; actor/input fixtures are not.
+            other_fixtures = tuple(name for name in other_fixtures if name not in (
+                "HELLOMINE3D_VISUAL_CAMERA_SWEEP", "HELLOMINE3D_VISUAL_CAMERA_PATH")) + (
+                    "HELLO_PERF_CAPTURE", "HELLOMINE3D_PLAYER_MOTION_CAPTURE",
+                    "HELLOMINE3D_ACTOR_VISUAL_DISTANCE")
         if any(name in os.environ for name in other_fixtures):
-            parser.error("Inherited diagnostic fixtures cannot be combined with a consumer observer")
+            parser.error("Inherited diagnostic fixtures cannot be combined with " +
+                         ("BMP capture" if args.capture_format == "bmp" else "a consumer observer"))
     if platform.system() != "Darwin":
         parser.error("macOS required")
     if not 0 <= args.time < 24000:
@@ -407,6 +449,7 @@ seed random
         "HELLO_RENDER_CAPTURE": "0" if args.performance else "1",
         "HELLO_RENDER_CAPTURE_DIR": str(output / "frames"),
         "HELLO_RENDER_CAPTURE_MS": ','.join(map(str, capture_times)),
+        "HELLO_RENDER_CAPTURE_FORMAT": args.capture_format,
         "HELLO_RENDER_CAPTURE_MAX_DELTA_MS": "5000",
         "HELLO_RENDER_CAPTURE_EXIT": "0" if args.performance else "1",
     }
@@ -519,6 +562,7 @@ seed random
               "save_template_meta_sha256": template_meta_sha256,
               "package_identity": identity,
               "capture_tool_sha256": digest(Path(__file__)),
+              "capture_format": args.capture_format,
               "scene": "water-seam" if args.water_seam else args.scene, "settings": settings, "environment": environment,
               "diagnostic_fixture": "camera-fixed-resident-origin" if args.camera_diagnostics else
                   ("fern-natural-source-native-draw" if args.fern_wind else
@@ -592,7 +636,7 @@ seed random
             sorted((output / "fern-wind").glob("*.png")) if args.fern_wind else \
             sorted((output / "pause-notifications").glob("frame-*.png")) if args.pause_notifications else \
             sorted((output / "shore-edit").glob("phase-*.png")) if args.shore_edit else \
-            sorted((output / "frames").glob("*.png"))
+            sorted((output / "frames").glob(f"*.{args.capture_format}"))
         water_session = None
         if args.water_seam:
             index = output / "water-seam/index.json"
@@ -625,18 +669,19 @@ seed random
             raise RuntimeError("Shore edit capture requires exactly phase-000.png through phase-005.png")
         # Window points and framebuffer pixels differ on Retina displays. Require
         # an explicit ratio so an unexpected resolution still fails the capture.
-        import struct
         record["frame_sizes_pixels"] = {}
         expected_size = (args.width * args.pixel_ratio, args.height * args.pixel_ratio)
         for frame in frames:
             data = frame.read_bytes()
-            if len(data) < 24 or data[:8] != b"\x89PNG\r\n\x1a\n" or data[12:16] != b"IHDR":
-                raise RuntimeError(f"Invalid PNG header: {frame.name}")
-            width, height = struct.unpack(">II", data[16:24])
+            try:
+                width, height = capture_frame_size(data, args.capture_format)
+            except RuntimeError as error:
+                raise RuntimeError(f"{frame.name}: {error}") from error
             record["frame_sizes_pixels"][frame.name] = [width, height]
             if (width, height) != expected_size:
                 raise RuntimeError(f"Actual frame is {width}x{height}, expected "
                                    f"{expected_size[0]}x{expected_size[1]} at pixel ratio {args.pixel_ratio}")
+        record["frame_format_actual"] = args.capture_format if frames else None
         artifacts = frames
         if args.material_identity:
             index = output / "material-identity/index.json"

@@ -38,6 +38,7 @@ P95／P99 ≤1.10 和细微调参统一为 `DEFERRED_BY_USER`，不再阻塞本�
 
 | 改动 | 最低必要验证 |
 | ---- | ------------ |
+| macOS 通用定时捕获格式 | `python3 -B tools/validate_visual_capture_macos.py` 无客户端检查格式头／BMP行填充与大小、非法组合及继承诊断、原八目标上限和性能无readback。`capture_visual_macos.py --capture-format png`为默认；BMP仅generic hidden／direct定时诊断，命名observer保持PNG。当前native的BMP实跑核对实际时刻、原件、正常退出和源包身份；展示PNG须标为无损转换并比较完整RGBA、保留BMP。八帧unique不证明每GPU帧、完整动作或普通玩法。见[执行记录V07m](../reports/visual-experience-polish-execution-2026-09-28.md)。 |
 | 所有 C++ 改动 | 受影响目标能够编译；运行对应定向自动测试。 |
 | 世界、区块、实体或持久化 | 定向自动测试 + `HelloMine3DWorldRuntimeSmoke`。 |
 | 冒险地图区域规划 | `bash scripts/verify_adventure_terrain.sh Debug` / `Release`；`HELLOMINE3D_WORLD_SMOKE_FOCUS=ADVENTURE` 生产区块、水柱、植被、正逆加载与默认版本保存重开；v1–v15 T0 生产摘要对照、完整世界回归、双配置客户端及适用视觉/性能。地区覆盖不代替实机效果，参见[区域骨架合同](../contracts/adventure-terrain-v16-contract-v1.md)。 |
