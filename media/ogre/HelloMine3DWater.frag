@@ -184,6 +184,15 @@ float filteredShoreRipple(float phase)
 vec3 planarReflection(vec3 approximate, vec3 normal, float fresnel,
                       float depthAmount, float detailVisibility)
 {
+    // Derivatives must precede the per-fragment early returns below. The
+    // shading normal deliberately keeps the old wave approximation on sides;
+    // only the geometric sheet may sample this horizontal planar reflection.
+    vec3 geometricNormal = cross(dFdx(waterWorldPosition), dFdy(waterWorldPosition));
+    float geometricLength = length(geometricNormal);
+    if (any(isnan(geometricNormal)) || any(isinf(geometricNormal)) ||
+        isnan(geometricLength) || isinf(geometricLength) || geometricLength <= 0.0 ||
+        abs(geometricNormal.y) < 0.5 * geometricLength) return approximate;
+
     // A single mean plane serves only its animated sheet. Other levels,
     // underwater/crossing views and legacy/off paths keep their approximation.
     if (planarReflectionEnabled < 0.5 || linearHdrMode < 0.5 ||

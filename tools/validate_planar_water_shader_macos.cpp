@@ -44,7 +44,13 @@ uniform vec3 fixturePosition; uniform vec3 fixtureNormal; uniform float fixtureD
 void main() {
     vec2 p = gl_VertexID == 0 ? vec2(-1.0,-1.0) : gl_VertexID == 1 ? vec2(3.0,-1.0) : vec2(-1.0,3.0);
     gl_Position = vec4(p,0.0,1.0);
-    waterWorldPosition=fixturePosition; waterWorldNormal=fixtureNormal; waterLight=1.0;
+    // The old fixture supplied a constant position, so it had no surface
+    // derivatives. This is a real horizontal plane. At the original readback
+    // pixel (1,1) in a 4x4 target, p=(-.25,-.25): its world centre and all
+    // existing radiance/guard/depth expectations remain fixturePosition.
+    vec2 offset=(p+vec2(.25))*.004;
+    waterWorldPosition=fixturePosition+vec3(offset.x,0,offset.y);
+    waterWorldNormal=fixtureNormal; waterLight=1.0;
     waterLightSources=vec2(1.0,0.0); waterDistance=0.0;
     waterSurfaceData=vec2(fixtureDepth,0.0); waterSurfaceDrift=vec2(0.0);
 })GLSL";
@@ -297,6 +303,239 @@ void shoreChecks(const std::string& source,const std::filesystem::path& evidence
     glDeleteProgram(linear);glDeleteProgram(base);glDeleteProgram(unfiltered);glDeleteProgram(filtered);
     check("shore-fixture-no-gl-errors",glGetError()==GL_NO_ERROR);
 }
+// Geometric reflection eligibility is exercised with actual smooth positions,
+// triangle coverage and reciprocal-W interpolation. This fixture never invents
+// a surface from gl_FragCoord or uses the old upward shading normal as geometry.
+const std::string surfaceVertex = R"GLSL(#version 150
+out vec3 waterWorldPosition; out vec3 waterWorldNormal; out float waterLight;
+out vec2 waterLightSources; out float waterDistance; out vec2 waterSurfaceData; out vec2 waterSurfaceDrift;
+uniform vec3 fixtureCentre, fixtureU, fixtureV;
+uniform float fixtureWave, fixturePerspective;
+uniform int fixtureDiagonal, fixtureReverse;
+void main() {
+    const vec2 corners[4]=vec2[4](vec2(-1,1),vec2(1,1),vec2(1,-1),vec2(-1,-1));
+    const int diagonal02[6]=int[6](0,1,2,2,3,0);
+    const int diagonal13[6]=int[6](0,1,3,1,2,3);
+    int index=gl_VertexID;
+    if(fixtureReverse!=0 && index%3!=0) index=index%3==1 ? index+1 : index-1;
+    int corner=fixtureDiagonal==0 ? diagonal02[index] : diagonal13[index];
+    vec2 p=corners[corner];
+    float w=1+fixturePerspective*(.25*p.x+.15*p.y);
+    gl_Position=vec4(p*w,0,w);
+    waterWorldPosition=fixtureCentre+fixtureU*p.x+fixtureV*p.y;
+    waterWorldPosition.y+=fixtureWave*(.3*p.x-.2*p.y+.5*p.x*p.y);
+    waterWorldNormal=normalize(vec3(.025,1,-.02));
+    waterLight=1; waterLightSources=vec2(1,0); waterDistance=0;
+    waterSurfaceData=vec2(3,.25); waterSurfaceDrift=vec2(.12,.09);
+})GLSL";
+struct SurfaceCase {
+    std::string name;
+    Point centre, u, v;
+    float plane=66.9f, wave=0, perspective=0;
+    int diagonal=0, reverse=0;
+    bool horizontal=false;
+};
+struct SurfaceGrid {
+    static constexpr int width=31, height=19;
+    GLuint fbo=0, colour=0, reflection=0, vao=0, vertices=0;
+    SurfaceGrid() {
+        glGenFramebuffers(1,&fbo); glGenTextures(1,&colour);
+        glGenTextures(1,&reflection); glBindTexture(GL_TEXTURE_2D,reflection);
+        const Pixel radiance{.5f,2.f,8.f,.2f};
+        glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA16F,1,1,0,GL_RGBA,GL_FLOAT,radiance.data());
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+        glGenVertexArrays(1,&vao); glGenBuffers(1,&vertices);
+    }
+    ~SurfaceGrid() { glDeleteBuffers(1,&vertices); glDeleteVertexArrays(1,&vao); glDeleteTextures(1,&reflection); glDeleteTextures(1,&colour); glDeleteFramebuffers(1,&fbo); }
+    std::vector<Pixel> draw(GLuint p,const SurfaceCase& c,bool enabled,float hdr=1,GLint storage=GL_RGBA16F,bool productionVertex=false) {
+        glBindFramebuffer(GL_FRAMEBUFFER,fbo); glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D,colour);
+        glTexImage2D(GL_TEXTURE_2D,0,storage,width,height,0,GL_RGBA,GL_FLOAT,nullptr);
+        glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,colour,0);
+        require(glCheckFramebufferStatus(GL_FRAMEBUFFER)==GL_FRAMEBUFFER_COMPLETE,"Surface framebuffer incomplete");
+        glBindVertexArray(vao); glViewport(0,0,width,height); glDisable(GL_CULL_FACE); glDisable(GL_DEPTH_TEST); glDisable(GL_BLEND); glDisable(GL_FRAMEBUFFER_SRGB);
+        glClearColor(0,0,0,0); glClear(GL_COLOR_BUFFER_BIT); glUseProgram(p);
+        vec3(p,"fixtureCentre",c.centre); vec3(p,"fixtureU",c.u); vec3(p,"fixtureV",c.v);
+        scalar(p,"fixtureWave",c.wave); scalar(p,"fixturePerspective",c.perspective);
+        glUniform1i(glGetUniformLocation(p,"fixtureDiagonal"),c.diagonal); glUniform1i(glGetUniformLocation(p,"fixtureReverse"),c.reverse);
+        scalar(p,"linearHdrMode",hdr); scalar(p,"globalTime",4); scalar(p,"environmentLight",1); scalar(p,"fogDensity",0);
+        scalar(p,"waterDetailStrength",0); scalar(p,"sunIntensity",0); vec3(p,"sunDirection",{0,1,0});
+        vec3(p,"cameraPosition",{c.centre[0],c.plane+2,c.centre[2]+10});
+        vec3(p,"waterShallowColour",{.12f,.43f,.53f}); vec3(p,"waterDeepColour",{.018f,.15f,.24f});
+        vec3(p,"skyHorizonColour",{.7f,.8f,.9f}); vec3(p,"skyZenithColour",{.2f,.4f,.7f});
+        scalar(p,"planarReflectionEnabled",enabled ? 1.f:0.f); scalar(p,"planarReflectionPlaneY",c.plane);
+        glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D,reflection); glUniform1i(glGetUniformLocation(p,"planarReflectionTexture"),0);
+        glUniform2f(glGetUniformLocation(p,"planarReflectionTexelSize"),1.f/64,1.f/64);
+        // Local reflection coordinates keep every test patch within the guard;
+        // the texture is constant, so the independent radiance oracle needs no
+        // shader UV reconstruction or texture-filter implementation.
+        float reflectionMatrix[16]={.5f,0,0,0, 0,0,1,0, 0,.5f,0,0, -.5f*c.centre[0],-.5f*c.centre[2],0,1};
+        glUniformMatrix4fv(glGetUniformLocation(p,"planarReflectionViewProj"),1,GL_FALSE,reflectionMatrix);
+        if(productionVertex) {
+            const float identity[16]={1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
+            glUniformMatrix4fv(glGetUniformLocation(p,"world"),1,GL_FALSE,identity);
+            glUniformMatrix4fv(glGetUniformLocation(p,"worldView"),1,GL_FALSE,identity);
+            scalar(p,"waterBoundaryPinsV1",1);
+            float matrix[16]={}; matrix[15]=1;
+            double uu=0,vv=0; for(int k=0;k<3;++k) { uu+=c.u[k]*c.u[k]; vv+=c.v[k]*c.v[k]; }
+            require(uu>0&&vv>0,"Production geometry basis degenerate");
+            for(int k=0;k<3;++k) { matrix[k*4]=float(c.u[k]/uu); matrix[k*4+1]=float(c.v[k]/vv); matrix[12]-=matrix[k*4]*c.centre[k]; matrix[13]-=matrix[k*4+1]*c.centre[k]; }
+            glUniformMatrix4fv(glGetUniformLocation(p,"worldViewProj"),1,GL_FALSE,matrix);
+            const std::array<std::array<float,2>,4> corners{{{{-1,1}},{{1,1}},{{1,-1}},{{-1,-1}}}};
+            const int diagonals[2][6]={{0,1,2,2,3,0},{0,1,3,1,2,3}};
+            std::array<std::array<float,11>,6> data{};
+            for(int i=0;i<6;++i) {
+                int index=i; if(c.reverse && i%3!=0) index=i%3==1 ? i+1:i-1;
+                const auto q=corners[std::size_t(diagonals[c.diagonal][index])];
+                auto& vertex=data[std::size_t(i)];
+                for(int k=0;k<3;++k) vertex[std::size_t(k)]=c.centre[k]+c.u[k]*q[0]+c.v[k]*q[1];
+                const bool pin=!c.horizontal&&q[1]<0;
+                if(!pin) vertex[1]+=.1f;
+                vertex[3]=.12f; vertex[4]=.09f; vertex[5]=3; vertex[6]=.25f;
+                vertex[7]=1; vertex[8]=1; vertex[9]=1; vertex[10]=pin ? 1.f:0.f;
+            }
+            glBindBuffer(GL_ARRAY_BUFFER,vertices); glBufferData(GL_ARRAY_BUFFER,sizeof(data),data.data(),GL_STREAM_DRAW);
+            const char* names[]={"vertex","uv0","uv1","uv2","uv3"}; const int sizes[]={3,2,2,3,1}, offsets[]={0,3,5,7,10};
+            for(int a=0;a<5;++a) {
+                const GLint location=glGetAttribLocation(p,names[a]); require(location>=0,"Production water attribute absent");
+                glEnableVertexAttribArray(GLuint(location)); glVertexAttribPointer(GLuint(location),sizes[a],GL_FLOAT,GL_FALSE,44,reinterpret_cast<void*>(std::size_t(offsets[a])*sizeof(float)));
+            }
+        }
+        glDrawArrays(GL_TRIANGLES,0,6);
+        std::vector<Pixel> result(width*height); glReadPixels(0,0,width,height,GL_RGBA,GL_FLOAT,result.data()); return result;
+    }
+};
+bool finitePixels(const std::vector<Pixel>& pixels) {
+    return std::all_of(pixels.begin(),pixels.end(),[](const Pixel& p){return std::all_of(p.begin(),p.end(),[](float v){return std::isfinite(v);});});
+}
+std::string previousGeometrySource(std::string source) {
+    const auto start=source.find("    // Derivatives must precede the per-fragment early returns below.");
+    const auto end=source.find("    // A single mean plane serves only its animated sheet.",start);
+    require(start!=std::string::npos&&end!=std::string::npos,"Geometry guard anchors absent");
+    source.erase(start,end-start); return source;
+}
+void surfaceChecks(const std::string& source,const std::string& vertex,const std::filesystem::path& evidence) {
+    const auto before=previousGeometrySource(source);
+    std::ofstream(evidence/"HelloMine3DWater-before-surface-guard.frag")<<before;
+    auto helper=replace(source,"void main()","void productionWaterMain()");
+    helper+="\nvoid main(){fragmentColour=vec4(planarReflection(vec3(.1,.2,.3),normalize(waterWorldNormal),.72,.8,0.),.42);}\n";
+    GLuint current=program(source,surfaceVertex), previous=program(before,surfaceVertex), isolated=program(helper,surfaceVertex);
+    GLuint actualVertex=program(source,vertex), previousActualVertex=program(before,vertex);
+    check("surface-whole-production-vs-fs-linked",actualVertex!=0);
+    const std::string oldGeometry="vec3 geometricNormal = cross(dFdx(waterWorldPosition), dFdy(waterWorldPosition));";
+    GLuint badShading=program(replace(helper,oldGeometry,"vec3 geometricNormal = normal;"),surfaceVertex);
+    GLuint badHeightOnly=program(previousGeometrySource(helper),surfaceVertex);
+    GLuint badSigned=program(replace(helper,"abs(geometricNormal.y) < 0.5 * geometricLength","geometricNormal.y < 0.5 * geometricLength"),surfaceVertex);
+    GLuint badAllOff=program(replace(helper,"abs(geometricNormal.y) < 0.5 * geometricLength","true"),surfaceVertex);
+    SurfaceGrid grid; std::ofstream quality(evidence/"surface-geometry.tsv");
+    quality<<"case\thorizontal\tdiagonal\treverse\tperspective\tside_on_off_max\thelper_double_max\told_height_only_max\n";
+    std::vector<SurfaceCase> sides;
+    for(int face=0;face<4;++face)for(int diagonal=0;diagonal<2;++diagonal)for(int reverse=0;reverse<2;++reverse)for(int perspective=0;perspective<2;++perspective) {
+        const Point u=face<2 ? Point{face==0 ? .5f:-.5f,0,0}:Point{0,0,face==2 ? .5f:-.5f};
+        sides.push_back({"vertical-"+std::to_string(face)+"-d"+std::to_string(diagonal)+"-r"+std::to_string(reverse)+"-p"+std::to_string(perspective),{192,66.7f,-183},u,{0,.2f,0},66.9f,0,float(perspective),diagonal,reverse,false});
+    }
+    for(const auto& c:sides) {
+        const auto on=grid.draw(current,c,true),off=grid.draw(current,c,false),h=grid.draw(isolated,c,true,1,GL_RGBA32F);
+        check(c.name+"-whole-rgba16f-on-off-exact",on==off,maxPixelDifference(on,off));
+        check(c.name+"-finite-and-covered",finitePixels(on)&&std::all_of(on.begin(),on.end(),[](const Pixel& p){return p[3]>0;}));
+        float error=0; for(const auto& p:h)for(int k=0;k<4;++k)error=std::max(error,std::abs(p[k]-Pixel{.1f,.2f,.3f,.42f}[k]));
+        check(c.name+"-independent-vertical-plane-fallback",finitePixels(h)&&error<.000002f,error,.000002f);
+        const auto old=grid.draw(badHeightOnly,c,true,1,GL_RGBA32F),up=grid.draw(badShading,c,true,1,GL_RGBA32F);
+        const float oldError=maxPixelDifference(h,old),upError=maxPixelDifference(h,up);
+        check(c.name+"-height-only-hard-boundary-negative-rejected",oldError>.5f,oldError,.5f);
+        // The removed height-only rule genuinely split the same vertical
+        // primitive: the lower row kept approximation, the upper row sampled
+        // the HDR reflection. Check both, rather than only a maximum delta.
+        bool lowerApprox=true,upperReflected=true;
+        for(int x=0;x<SurfaceGrid::width;++x) {
+            lowerApprox &= std::abs(old[std::size_t(x)][2]-.3f)<.000002f;
+            upperReflected &= old[std::size_t(SurfaceGrid::height-1)*SurfaceGrid::width+x][2]>1.f;
+        }
+        check(c.name+"-height-only-internal-step-upper-and-lower-negative",lowerApprox&&upperReflected);
+        check(c.name+"-up-shading-normal-negative-rejected",upError>.5f,upError,.5f);
+        const auto previousWhole=grid.draw(previous,c,true);
+        check(c.name+"-alpha-unmodified",std::equal(on.begin(),on.end(),previousWhole.begin(),[](const Pixel& a,const Pixel& b){return a[3]==b[3];}));
+        for(const GLint storage:{GL_RGBA8,GL_RGBA16F}) {
+            const auto legacy=grid.draw(current,c,true,0,storage),oldLegacy=grid.draw(previous,c,true,0,storage);
+            check(c.name+(storage==GL_RGBA8 ? "-legacy-rgba8-exact-before":"-legacy-rgba16f-exact-before"),legacy==oldLegacy,maxPixelDifference(legacy,oldLegacy));
+        }
+        quality<<c.name<<"\t0\t"<<c.diagonal<<'\t'<<c.reverse<<'\t'<<c.perspective<<'\t'<<maxPixelDifference(on,off)<<'\t'<<error<<'\t'<<oldError<<'\n';
+    }
+    const double blend=.72*.72*(.55+.45*.8);
+    const Pixel expected{float(.1*(1-blend)+.5*blend),float(.2*(1-blend)+2*blend),float(.3*(1-blend)+8*blend),.42f};
+    for(int sign:{-1,1})for(int diagonal=0;diagonal<2;++diagonal)for(int reverse=0;reverse<2;++reverse) {
+        const SurfaceCase c{"horizontal-s"+std::to_string(sign)+"-d"+std::to_string(diagonal)+"-r"+std::to_string(reverse),{0,66.9f,0},{.5f,0,0},{0,0,sign*.5f},66.9f,.025f,1,diagonal,reverse,true};
+        const auto on=grid.draw(current,c,true),old=grid.draw(previous,c,true),h=grid.draw(isolated,c,true,1,GL_RGBA32F),allOff=grid.draw(badAllOff,c,true,1,GL_RGBA32F);
+        check(c.name+"-whole-horizontal-exact-before",on==old,maxPixelDifference(on,old));
+        check(c.name+"-hdr-radiance-over-one",std::any_of(on.begin(),on.end(),[](const Pixel& p){return p[2]>1;})&&finitePixels(on));
+        float error=0;for(const auto& p:h)for(int k=0;k<4;++k)error=std::max(error,std::abs(p[k]-expected[k]));
+        check(c.name+"-independent-double-planar-blend",error<.000002f,error,.000002f);
+        check(c.name+"-blanket-disable-negative-rejected",maxPixelDifference(h,allOff)>.5f);
+        if(sign>0)check(c.name+"-signed-normal-negative-rejected",maxPixelDifference(h,grid.draw(badSigned,c,true,1,GL_RGBA32F))>.5f);
+        for(const GLint storage:{GL_RGBA8,GL_RGBA16F}) {
+            const auto a=grid.draw(current,c,true,0,storage),z=grid.draw(previous,c,true,0,storage);
+            check(c.name+(storage==GL_RGBA8 ? "-legacy-rgba8-exact-before":"-legacy-rgba16f-exact-before"),a==z,maxPixelDifference(a,z));
+        }
+        quality<<c.name<<"\t1\t"<<diagonal<<'\t'<<reverse<<"\t1\t0\t"<<error<<"\t0\n";
+    }
+    for(int face=0;face<4;++face) {
+        const auto& c=sides[std::size_t(face)*8];
+        const auto on=grid.draw(actualVertex,c,true,1,GL_RGBA16F,true),off=grid.draw(actualVertex,c,false,1,GL_RGBA16F,true);
+        check(c.name+"-actual-production-pinned-side-on-off-exact",on==off,maxPixelDifference(on,off));
+        check(c.name+"-actual-production-pinned-side-covered-finite",finitePixels(on)&&std::all_of(on.begin(),on.end(),[](const Pixel& p){return p[3]>0;}));
+    }
+    for(int face=0;face<4;++face)for(int diagonal=0;diagonal<2;++diagonal) {
+        auto c=sides[std::size_t(face)*8]; c.centre[1]=66.8875f; c.v[1]=.0125f;
+        c.diagonal=diagonal; c.reverse=1; c.name="maximum-eighth-cut-"+std::to_string(face)+"-d"+std::to_string(diagonal);
+        const auto on=grid.draw(actualVertex,c,true,1,GL_RGBA16F,true),off=grid.draw(actualVertex,c,false,1,GL_RGBA16F,true);
+        check(c.name+"-actual-production-thin-side-on-off-exact",on==off,maxPixelDifference(on,off));
+        check(c.name+"-thin-exposed-side-covered-finite",finitePixels(on)&&std::all_of(on.begin(),on.end(),[](const Pixel& p){return p[3]>0;}));
+    }
+    const SurfaceCase flat{"production-horizontal",{0,66.9f,0},{.5f,0,0},{0,0,.5f},66.9f,0,0,0,0,true};
+    const auto productionTop=grid.draw(actualVertex,flat,true,1,GL_RGBA16F,true),productionBase=grid.draw(actualVertex,flat,false,1,GL_RGBA16F,true);
+    check("actual-production-top-retains-planar-radiance",maxPixelDifference(productionTop,productionBase)>1.f&&finitePixels(productionTop));
+    const auto oldProductionTop=grid.draw(previousActualVertex,flat,true,1,GL_RGBA16F,true);
+    check("actual-production-top-rgba16f-exact-before",productionTop==oldProductionTop,maxPixelDifference(productionTop,oldProductionTop));
+    // Verify the replacement for the historical constant-position fixture:
+    // its old 4x4 readback centre is exact, while neighbours now span X/Z.
+    auto centreSource=replace(source,"void main()","void productionWaterMain()");
+    centreSource+="\nvoid main(){fragmentColour=vec4(waterWorldPosition,1); }\n";
+    GLuint centreProgram=program(centreSource);
+    { Fixture oldChecksFixture;
+      const auto centre=oldChecksFixture.draw(centreProgram,false,{.25f,.125f,-.125f});
+      samples<<"# nonzero_fixture_centre_rgba16f="<<std::setprecision(10)<<centre[0]<<','<<centre[1]<<','<<centre[2]<<','<<centre[3]<<'\n';
+      check("historical-fixture-nonzero-world-centre-exact-stress",centre==Pixel{.25f,.125f,-.125f,1},std::abs(centre[0]-.25f),0);
+      std::array<Pixel,16> pixels{};glReadPixels(0,0,4,4,GL_RGBA,GL_FLOAT,pixels.data());
+      check("historical-fixture-real-horizontal-varyings",pixels[0][0]!=pixels[3][0]&&pixels[0][2]!=pixels[12][2]&&std::all_of(pixels.begin(),pixels.end(),[](const Pixel& p){return p[1]==.125f;}));
+      glActiveTexture(GL_TEXTURE1);glBindTexture(GL_TEXTURE_2D,oldChecksFixture.colour);
+      glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA32F,4,4,0,GL_RGBA,GL_FLOAT,nullptr);
+      require(glCheckFramebufferStatus(GL_FRAMEBUFFER)==GL_FRAMEBUFFER_COMPLETE,"Centre diagnostic framebuffer incomplete");
+      const auto fullPrecision=oldChecksFixture.draw(centreProgram,false,{.25f,.125f,-.125f});
+      samples<<"# nonzero_fixture_centre_rgba32f="<<std::setprecision(10)<<fullPrecision[0]<<','<<fullPrecision[1]<<','<<fullPrecision[2]<<','<<fullPrecision[3]<<'\n';
+    }
+    { Fixture oldChecksFixture;
+      const auto origin=oldChecksFixture.draw(centreProgram,false,{0,0,0});
+      check("historical-original-radiance-fixture-origin-exact",origin==Pixel{0,0,0,1});
+    }
+    glDeleteProgram(centreProgram);
+    for(const SurfaceCase& c:std::vector<SurfaceCase>{
+        {"zero-derivative",{0,66.9f,0},{0,0,0},{0,0,0}},
+        {"underflow-derivative",{0,0,0},{1e-30f,0,0},{0,0,1e-30f},0},
+        {"nonfinite-derivative",{0,66.9f,0},{std::nanf(""),0,0},{0,0,.5f}},
+        {"infinite-derivative",{0,66.9f,0},{INFINITY,0,0},{0,0,.5f}},
+    }) {
+        const auto h=grid.draw(isolated,c,true,1,GL_RGBA32F);float error=0;
+        for(const auto& p:h)for(int k=0;k<4;++k)error=std::max(error,std::abs(p[k]-Pixel{.1f,.2f,.3f,.42f}[k]));
+        check(c.name+"-bounded-helper-fallback",finitePixels(h)&&error<.000002f,error,.000002f);
+    }
+    const SurfaceCase farTop{"far-origin-top",{100000,66.9f,-100000},{.5f,0,0},{0,0,.5f},66.9f,0,1,1,1,true};
+    const SurfaceCase farSide{"far-origin-side",{100000,66.7f,-100000},{.5f,0,0},{0,.2f,0},66.9f,0,1,1,1,false};
+    check("far-origin-horizontal-still-reflects",maxPixelDifference(grid.draw(current,farTop,true),grid.draw(current,farTop,false))>1.f);
+    const auto farOn=grid.draw(current,farSide,true),farOff=grid.draw(current,farSide,false);
+    check("far-origin-vertical-whole-fallback-exact",farOn==farOff&&finitePixels(farOn),maxPixelDifference(farOn,farOff));
+    check("surface-fixture-no-gl-errors",glGetError()==GL_NO_ERROR);
+    for(GLuint p:{current,previous,isolated,actualVertex,previousActualVertex,badShading,badHeightOnly,badSigned,badAllOff})glDeleteProgram(p);
+}
 }
 int main(int argc,char** argv) {
     CGLContextObj context=nullptr; CGLPixelFormatObj format=nullptr;
@@ -351,6 +590,9 @@ int main(int argc,char** argv) {
             glDeleteProgram(p);
             check("no-gl-errors",glGetError()==GL_NO_ERROR);
             shoreChecks(source,evidence);
+            const auto vertex=read(std::filesystem::path(argv[1])/"media/ogre/HelloMine3DWater.vert");
+            std::ofstream(evidence/"HelloMine3DWater.vert")<<vertex;
+            surfaceChecks(source,vertex,evidence);
         }
         std::ofstream(evidence/"result.txt") << "checks="<<checks<<" failures="<<failures<<" scope=production-water-GLSL-offscreen-CGL\n"
             << "native-Ogre-RTT=NOT_RUN normal-gameplay=NOT_RUN resident-streaming=NOT_RUN\n";

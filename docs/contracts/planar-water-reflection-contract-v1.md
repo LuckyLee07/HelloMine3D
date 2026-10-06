@@ -36,6 +36,11 @@
 
 新生产侧面按邻不透明compound的8×8固定边界覆盖裁剪、保留原三角属性与真实空隙，语义及预算见[套件合同](reference-architectural-kit-contract-v1.md)。Water沿用44B顶点和消费者独立uv3；可选 `waterBoundaryPinsV1` 与active float uv3由Ogre实际编译对象的临时完整GL链接证书确认，发生在World／worker创建前。缺接口的合法完整旧VS使用旧mesh路径，不新增mandatory资源token、不写save、不热切现有World。接口证书不证明任意第三方自定义shader遵守语义；bad compile／link继续明确失败。
 
-当前认证路径对raw shore>0接触角抑制Ywave但保留非pin −.10；真实新cut pin固定实Y。四侧top接触角rawshore≥.25，独立topface同值，固定top=.90大于最高eighth内切.875；开放水shore0与guard关闭保留旧波动。侧面法线仍为原有近似。新完整VS+FS CGL560／16：504语义／几何检查0失败，另56严格TFfloat32 bit压力比较有16失败（最大9.54e−7）如实保留，不能称整工具PASS。旧高cut反例失败已修；新源当前原生效果及旧VS路径须在重建客户端复验。
+当前认证路径对raw shore>0接触角抑制Ywave但保留非pin −.10；真实新cut pin固定实Y。四侧top接触角rawshore≥.25，独立topface同值，固定top=.90大于最高eighth内切.875；开放水shore0与guard关闭保留旧波动。侧面法线仍为原有近似。新完整VS+FS CGL560／16：504语义／几何检查0失败，另56严格TFfloat32 bit压力比较有16失败（最大9.54e−7）如实保留，不能称整工具PASS。旧高cut反例失败已修；r6重建客户端已实际复验当前cap1/clipped和完整旧VScap0/legacy-uncut、HDR无回退，两者都GL实际link1。
 
 HDR岸纹sin^12另有有界像素相位面积过滤，无新纹理／history／RTT。完整frag114／7的7失败为额外RGBA32F bit压力，实际RGBA8／16F各7组相同及独立面积oracle通过；不将该信号改善扩称实景共面缺陷已解决。
+
+
+r7仅在planarReflection入口新增几何判别：在任何非均匀early return前计算world-position dFdx/dFdy叉积，有限非退化且absNy≥0.5×length的几何水面可进入原planar流程，整片竖直侧面使用既有approximate；不改主wave normal、Fresnel、Alpha、geometry、RTT或预算。避免竖面在meanY−0.16内部突切光学路径，退化／非有限安全fallback。完整生产GPU491／8：483功能0失败；7历史RGBA32F bit压力＋1非零fixture数学中心与真实float／half插值精确位压力失败保留（.25→RGBA32F.2499999851→RGBA16F.2498779297），不声明整工具PASS。原45期望保持；旧常量worldPosition无有效derivative，改为真实水平varying且原radiance readback origin精确验证。四侧、两对角、两winding、透视、真实VS/FS/pin和.875最高切条、far origin、legacy8/16F、Alpha与坏normal／sign／全部禁RTT负控覆盖见 `planar-water/side-surface-gpu-r4`。
+
+r7原生current/oldVS/legacy/lowSun和8帧sweep已复验；22原件实际独立审查确认浅色平行／锯齿线明显减少、露出侧几何及屋／桥倒影保留，RTT两版nonfinite0。宽透明层边界、局部三角明暗及原近似侧面着色仍可见；不承诺完整物理水光学、全60Hz或普通输入验收，见 `scene-v2-native-r7/current-native-review.json`。
