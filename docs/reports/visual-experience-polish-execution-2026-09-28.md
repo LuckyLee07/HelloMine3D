@@ -2,7 +2,11 @@
 
 ## 恢复区
 
-- **当前检查点：2026-10-06 V07i：当前自然林兔辨识与短时运动补证；完整 Goal active。**
+- **当前检查点：2026-10-06 V07j：普通采集前零库存／零配方基线与输入辅助器准备；完整 Goal active。**
+  从V10s clean普通交付复制独立`v07j/OrdinaryWorkbench.app`，135管理项／137初始文件、2967当前源码身份已核；只有包标识与克隆来源变化，producer仍`823a2086`／native `a2e36575…34dd2`，源交付137文件保持。公开CUA普通菜单新建`RootOrdinary42`（seed42／terrain31／普通），进入后手册0/10、五空槽；正常保存退出，原PID31082无进程，日志完整正常关闭，不宣称native exit0或持续移动／采集通过。出生(40.5,92,56.5)与自然保存位置(36.2999992,92,56.5)分列，未把差异记作受控移动。
+  固定Root副本的CGEvent辅助器仅编译／dry及参数负例，20项准备检查与独立静态审查通过；从未发送事件或请求／改变系统权限。r1锁屏属性UNKNOWN失败保留，r2改用真实registry根节点后Root只读确认已登录／console／显式未锁屏；发事件权限仍false。使用CGEvent代替公开CUA缺失的持续键／左键按住／相对look，需要用户明确批准该技术与本轮自测范围；若系统要求新权限，再核实际接收对象。当前尚未获权，不运行send、不改游戏来迎合工具。两张当前普通基线原图保留在本批目录，精选升级归档仍63轮243图，未重复追加旧图。详见文末V07j及本批收据。
+
+- **历史检查点：2026-10-06 V07i：当前自然林兔辨识与短时运动补证；完整 Goal active。**
   复用clean `823a2086`／V10s Release `a2e36575…34dd2`，三次独立自然森林诊断各八原PNG，native均正常0／无signal或timeout／已回收。第二、三会话只沿既有有界诊断相机移近；玩家保持原位，无动物／库存／块注入。自然兔双耳与短身可辨，多时点位置改变；短序列请求100毫秒，但实际仅43.002／43.298／43.852秒三个不同画面，重复帧保留。不关闭具体AI state、实测近距、完整脚掌步态、滑步或连续GPU跨阶。
   没有生产源码／资源变化或重建；旧工程门禁复用，普通交付包保持V10s身份。三精选原图追加至63轮243图，旧62轮240对象与index字面前缀保持；本批会话／采集handle已终态。当前CUA没有持续hold API，准备的原生辅助器只作dry-run、系统输入权限为false，没有发送输入或变更系统权限；继续其他自然动物／场景动态与全部普通路线余项，不追加人工核验或其他角度全无遮挡门槛。
 
@@ -4489,3 +4493,38 @@ V10s原交付137完整文件及两个未读规划SHA前后保持，未操作用�
 CUA当前说明仍没有持续hold，原生辅助器只有编译／dry-run且系统输入权限false，没有发送输入；
 普通采集发现／制作、地图关闭→移动→重开／编辑、地表地标和三种子地下／四水域路线仍留账。
 其他自然动物与场景动态仍可继续，完整V00–V11和Goal保持Doing／active；严格性能DEFERRED_BY_USER。
+
+
+## V07j：普通采集基线与有界输入辅助器准备（2026-10-06）
+
+本批没有生产修改、重编客户端或扩大工程门禁。`v07j/client-preparation-r1.json`记录源V10s
+普通包137文件逐项保持、当前2967源码与包source manifest一致，以及新副本仅三处包身份差异。
+新副本未复制存档、材料、位姿或发现token；原705B正常配置保持。
+
+Root公开CUA实际创建`RootOrdinary42`／seed42／terrain31／普通，进入第一人称自然岩台；
+展开手册确为0/10，五个材料槽为空。两张原始窗口图为`ordinary-world-created-r1.png`和
+`ordinary-discovery-zero-r1.png`，只证明普通新建与采集前基线。经公开SaveQuit退出，CUA返回
+App quit（−10005），精确原PID31082查询为空、MineOgre.log完整正常关闭；没有native退出码。
+自然保存为v12，health20、五空槽、无发现token；出生x40.5与保存x36.2999992分列，原因未定，
+不能把差异当作Root持续移动。`ordinary-baseline-r1.json` SHA `70606088…4de5b1`记录自然保存与保护。
+
+`ordinary-input-r1.mm`／r2及说明只位于ignored本批目录。辅助器固定新副本路径、bundle与
+native SHA，send需显式原PID与两个启动标识；互斥WASD／左键hold100–2000ms／单event相对
+look±120，前台／明确解锁session／唯一大主窗及限定标题栏小窗／指针与物理状态检查。
+失焦或观察到HID变化即停止，释放仅向原PID/start，不等待前台或磁盘哈希；不保证硬实时、
+SIGKILL等异常释放、Playing状态、全部远程接管或游戏实际接收。唯一posting API为PostToPid，
+没有全局发送、激活、warp、任意文本、权限请求或存档改写；默认／dry在所有事件创建前返回。
+编译0且无warning，20项默认／dry及参数拒绝通过，独立静态审查限定通过，不等于live验收。
+
+r1实际Root只读查询发现锁属性UNKNOWN，原source SHA `60cc294d…e513f`及失败输出保留。
+r2修正IORegistryGetRootEntry，只取当前UID唯一console项与root明确CFBoolean IOConsoleLocked；
+Root最终查询login／console／lockKnown／sessionSafe为true、locked为false，posting权限仍false，
+副本已关闭故matching PID为0。新source SHA `d9475843…47e983`，binary `25d640fc…3fb27f`；
+`root-preflight-final-r2.json` SHA `546a67da…b82fdb`保存实际查询，事件创建／发送与权限变更均为0。
+
+公开CUA没有hold API；最短后续路线为自然取得4原木→真实发现工作台配方→制作→放置／使用。
+既有CUA菜单／制作／保存授权保持，但CGEvent技术例外与本轮普通代理自测范围尚未获明确授权，
+不能以“继续独立副本”倒推。若系统需要新发事件权限，先核实际接收对象；不授予未知对象权限。
+普通采集发现、地图移动编辑、地表／水域／地下与地标等余项保持OPEN，完整Goal active；
+持续行走投诉保持用户已确认关闭，严格配对性能仍DEFERRED_BY_USER。两个未批准规划只核SHA，
+用户客户端与世界未操作；本批没有向旧精选归档重复追加基线，也没有推送／发布／标签。
