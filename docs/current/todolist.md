@@ -53,6 +53,7 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 当前 `Engineering Done`：双配置构建、相关检查和最终包原图通过；普通输入因 Computer Use 服务不可用为 `BLOCKED`，结果分别记录，见[首版执行记录](../reports/reference-visual-prototype-execution-2026-10-06.md)
 及[合同](../contracts/reference-visual-prototype-contract-v1.md)。后续完整材质、倒影和套件按[方案](reference-visual-upgrade-plan-2026-10-06.md)推进，不把尚未实现部分写成完成。
 **2026-10-06 完整交付 Goal 已获用户明确启动，宿主 active。** 按[提示词](reference-visual-goal-prompt-2026-10-06.md)推进 A–E 全部范围，独立[执行记录](../reports/reference-visual-goal-execution-2026-10-06.md)维护完整材质、套件、真实倒影、植被／抗锯齿、第二样板及普通输入退出条件。
+主体实现 `2f87fc67`，水岸几何修复本地提交 `a7f42d02`、水平反射修复与包保护 `ef6d4350`：12类正常获取部件、多通道材质、内外受光、真实倒影、MSAA4和第二栋街区；新双配置完整World各4465／0，含1201水岸覆盖。独立完整样板v4在源码外默认菜单实测，旧包与存档全部保护。共面细纹已修并复审8帧，水侧光学硬切已局部修复并当前GPU／原图复验，近似着色局限保留；公开CUA getApp未返回可用App，普通路线与A生命周期保留 BLOCKED／NOT_RUN，未满足退出条件。
 本分支不重置既有视觉 Goal 的状态和历史缺项。
 
 **2026-09-28 视觉精修 Goal 已启动，按方向分批推进。** 用户在文档同步后明确要求直接执行。
@@ -935,6 +936,8 @@ Mac 锁定，因此 v10/v11 固定画面、三轮窗口性能及中文正常玩�
 | `D1` Simulation Phase Scheduler v0 | `Done` | 已证明 Managed Actors、Random-Tick Sections、Furnace/Crusher Block Entities 三条真实 workload 的共同 admission 问题，并实现确定性 64/4/32 item budget、稳定集合 round-robin/FIFO service window 和 copied diagnostics。VS2017 Debug 聚焦 24/24，AL-A5 14/14、B6 12/12、C2 51/51、C3 68/68 回归通过；完整 Debug/Release 门禁均为 WorldRuntime 991/991、Recipe 126/126、Resource Pack 80/80、启动负例 15/15，105 项隔离包 SHA-256 为 `0B34CD34265ED1A4F88FD5833975FD328FB026FCD6B13A0FAFE9710859F1B2F6`。save v12、20 Hz、8 phase barrier 不变；未进入 D2+。详见 `docs/reports/architecture-lab-d1-simulation-phase-scheduler-report-v1.md`。 |
 
 ## 下一候选
+
+2026-10-06 用户补充五张城市／木桥参考图并讨论更多建造部件。后续扩展候选为约30–40类可复用基础套件：配套墙体／半砖／台阶／屋面材质族，路缘转角、柱脚柱帽／斜撑、窗套立梃／百叶、灯柱吊链、花箱／绿篱／攀爬植物，以及连续铺路、区域填充、可旋转复用的墙段／屋顶组合。用同一套件验证城市街区和乡村院落；这是方向讨论，不自动扩张当前参考画质Goal的12类实施范围。新增原图及映射在本Goal `.local-evidence/reference-visual-20261006/reference-additions-20261006/index.json`，原六图缺项保持。
 
 2026-09-12 所有者要求的视觉升级方案已完成，见
 [暖野视觉升级实施方案 v2](visual-upgrade-plan-v2.md)，依据
