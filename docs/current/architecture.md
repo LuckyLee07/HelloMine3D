@@ -898,7 +898,15 @@ Sand沿原Terrain竖向批次观察完整有序parts，不另建测试网格。�
 观察器读取原`ChunkSectionRenderable`的source0 GL3Plus VBO和u32 IBO；只通过`GL_COPY_READ_BUFFER`
 调用`glGetBufferSubData`，恢复该binding并比较读取前后上下文状态，保留GL错误和失败输出。
 上限为6阶段、8原对象／阶段、4parts／批次、原VBO＋IBO 16MiB／操作、观察器写出256MiB／会话；
-接线等待上限为10秒／阶段、60秒／会话。它不扩展World API，不观察内部draw VAO取数或incarnation／ABA。
+接线等待上限为10秒／阶段、60秒／会话。默认存储路径不扩展World API，不观察内部draw VAO取数或incarnation／ABA。
+
+V06f显式`--shore-native-draw`时，既有主相机listener与原对象pre／post回调观察真正的暖帧绘制：
+完整原对象集合须在同一render frame完成，实际程序VS／FS、活跃输入、VAO／EBO及自有primitive
+query与原操作一致，post原缓冲和本帧上传CPU副本逐字节相同。初次updateVAO解绑为OPEN，
+不重绑或重放补证据；独立raw与原存储raw共享256MiB预算，销毁／换世界前解除observer与query。
+GL4.3以上直接查ARRAY_LONG，GL4.1／4.2以实际FLOAT类型排除未转换double并明示推导方式。
+普通路径默认关闭；像素归因、非主相机／阴影、World原子快照及incarnation／ABA仍分别待验。
+具体证据与边界见[实际绘制观察合同](../contracts/shore-native-draw-observation-contract-v1.md)。
 
 V06c在当前terrain30自然河流`(220,64,-204)`观察Water64／Water63／Sand62；附近Sand岸`(217,64,-204)`
 距目标3米，直接相邻岸条件仍未覆盖。standard与compatibility均经生产放置／破坏命令和显式诊断恢复，

@@ -1220,6 +1220,10 @@ namespace
                 std::cout << "[FERN_WIND_CAPTURE] normal_input=0 isolated_world=1 simulation_delta=0 camera_sweep=0\n";
             }
             const char* shoreOutput = std::getenv("HELLOMINE3D_SHORE_EDIT_CAPTURE_DIR");
+            const char* shoreNativeDraw = std::getenv("HELLOMINE3D_SHORE_NATIVE_DRAW");
+            if (shoreNativeDraw && (std::string(shoreNativeDraw) != "1" || !shoreOutput || !shoreOutput[0]))
+                throw std::runtime_error("Shore native draw requires explicit value1 and the existing isolated shore capture entry.");
+            m_shoreNativeDraw = shoreNativeDraw != nullptr;
             if (shoreOutput && shoreOutput[0])
             {
                 if (!isTrueValue(std::getenv("HELLOMINE3D_WINDOW_HIDDEN")) ||
@@ -1347,7 +1351,8 @@ namespace
                 m_cameraDiagnostics = std::make_unique<OgreCameraDiagnostics>(
                     m_cameraDiagnosticOutput, *m_sceneManager);
             if (!m_shoreEditOutput.empty())
-                m_shoreEditCapture = std::make_unique<ShoreEditCapture>(m_shoreEditOutput);
+                m_shoreEditCapture = std::make_unique<ShoreEditCapture>(
+                    m_shoreEditOutput, *m_sceneManager, *m_camera, m_shoreNativeDraw);
             m_sceneManager->setAmbientLight(
                 Ogre::ColourValue(0.7f, 0.7f, 0.7f));
             m_sceneManager->setSkyBox(
@@ -2380,6 +2385,7 @@ namespace
             {
                 m_userInterface->setWorldContext(nullptr, nullptr);
             }
+            if (m_shoreEditCapture) m_shoreEditCapture->cancelNativeFrame();
             if (m_blockFeedback != nullptr)
             {
                 m_blockFeedback->clear();
@@ -2736,6 +2742,7 @@ namespace
             observeMaterialIdentityGeometry();
             observeCameraDiagnostics();
             observeFloraWindCapture();
+            observeShoreNativeDraw();
             if (m_userInterface != nullptr)
             {
                 const MiningProgressSnapshot progress =
@@ -3042,13 +3049,18 @@ namespace
 
         void prepareShoreEditCapture()
         {
+            try
+            {
             if (!m_shoreEditCapture || m_shoreComplete || !m_world || !m_worldPlayer || !m_userInterface) return;
             const auto now = std::chrono::steady_clock::now();
             if (m_shoreStarted == std::chrono::steady_clock::time_point{})
             { m_shoreStarted = now; m_shorePhaseStarted = now; }
             if (now - m_shoreStarted > std::chrono::seconds(60) ||
                 now - m_shorePhaseStarted > std::chrono::seconds(10))
+            {
+                m_shoreEditCapture->retainNativeFailure("bounded shore phase/session wait expired without all original same-frame draw/UI endpoints");
                 throw std::runtime_error("Shore edit diagnostic could not join actual World/UI/upload revisions within its bounded phase.");
+            }
             if (!m_shoreInitialized)
             {
                 const auto p = m_shoreTarget;
@@ -3102,6 +3114,12 @@ namespace
                         throw std::runtime_error("Shore edit cannot reopen Flat after actual HUD observation.");
                     m_shoreWaitHud = false;
                 }
+            }
+            }
+            catch (const std::exception& error)
+            {
+                if (m_shoreEditCapture) m_shoreEditCapture->retainNativeFailure(error.what());
+                throw;
             }
         }
 
@@ -3167,7 +3185,11 @@ namespace
 
         void finishShoreEditFrame()
         {
+            try
+            {
             if (!m_shoreEditCapture || !m_shoreInitialized || m_shoreWaitHud || m_shoreComplete) return;
+            const bool nativeReady = !m_shoreNativeDraw ||
+                m_shoreEditCapture->finishNativeFrame(collectShoreEditBindings());
             const auto facts = m_userInterface->surfaceMapDiagnosticFacts();
             const auto expected = shoreExpectedSurface();
             if (facts.activeView != SurfaceMapDiagnosticView::Flat || !facts.backendSubmitted ||
@@ -3188,6 +3210,7 @@ namespace
                 throw std::runtime_error("Shore production inventory consumption/drop disagrees with command.");
             auto bindings = collectShoreEditBindings();
             if (bindings.empty()) return;
+            if (!nativeReady) return;
             constexpr const char* phases[]{"baseline_flat", "submerged_sand_flat", "restored_depth_flat",
                 "top_sand_flat", "lowered_water_flat", "restored_flat"};
             m_shoreEditCapture->capturePhase(phases[m_shorePhase],
@@ -3205,10 +3228,28 @@ namespace
                 std::ofstream index(std::filesystem::path(m_shoreEditOutput) / "index.json");
                 index << "{\"schema\":\"hellomine3d-shore-edit-capture-v1\",\"status\":\"CAPTURED\",\"normal_input\":false,\"restored_save_succeeded\":true,\"frames\":[";
                 for (int i = 0; i < 6; ++i) { if (i) index << ','; index << "\"phase-00" << i << ".png\""; }
-                index << "],\"scope_open\":[\"ordinary_input\",\"reopen_validation\",\"inner_vao_fetch\",\"incarnation_ABA\"]}\n";
+                index << "],\"scope_open\":[\"ordinary_input\",\"reopen_validation\",";
+                if (!m_shoreNativeDraw) index << "\"inner_vao_fetch\",";
+                index << "\"incarnation_ABA\"]}" << '\n';
                 if (!index) throw std::runtime_error("Shore index write failed.");
                 m_shoreComplete = true;
             }
+            }
+            catch (const std::exception& error)
+            {
+                if (m_shoreEditCapture) m_shoreEditCapture->retainNativeFailure(error.what());
+                throw;
+            }
+        }
+
+        void observeShoreNativeDraw()
+        {
+            if (!m_shoreNativeDraw || !m_shoreEditCapture || !m_shoreInitialized ||
+                m_shoreWaitHud || m_shoreComplete) return;
+            // updateSandbox has completed the actual production uploader before
+            // this arm. No object's result is carried from an earlier frame.
+            auto bindings = collectShoreEditBindings();
+            if (!bindings.empty()) m_shoreEditCapture->beginNativeFrame(m_frameCount, std::move(bindings));
         }
 
         // Same ordinary World.update/mesh uploader as the client; the only
@@ -4942,6 +4983,7 @@ namespace
             for (auto& renderable : visual.renderables)
             {
                 if (m_floraWindCapture) m_floraWindCapture->detachRenderable(*renderable);
+                if (m_shoreEditCapture) m_shoreEditCapture->detachRenderable(*renderable);
                 if (renderable->isAttached())
                 {
                     renderable->detachFromParent();
@@ -6946,6 +6988,7 @@ namespace
             m_materialIdentityCapture.reset();
             m_cameraDiagnostics.reset();
             m_floraWindCapture.reset();
+            m_shoreEditCapture.reset();
             if (m_userInterface) m_userInterface->setPauseNotificationCapture(nullptr);
             m_pauseNotificationCapture.reset();
             m_userInterface.reset();
@@ -7049,6 +7092,7 @@ namespace
         int m_shorePhase = 0;
         bool m_shoreInitialized = false, m_shoreActionApplied = false;
         bool m_shoreWaitHud = false, m_shoreComplete = false;
+        bool m_shoreNativeDraw = false;
         std::chrono::steady_clock::time_point m_shoreStarted{}, m_shorePhaseStarted{};
         OgreSurfaceMapDiagnosticFacts m_shoreHudBeforeFlat;
         std::string m_fernWindOutput;

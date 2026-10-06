@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ChunkSectionRenderable.h"
+#include <OgreRenderObjectListener.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -10,8 +11,11 @@
 
 // Explicit render-thread diagnostic of original production upload storage.
 // Bootstrap supplies copies from its actual uploader and locked live revisions.
-// No World access, render replay, draw query, context, or retained object pointer.
-class ShoreEditCapture final {
+// Optional native mode observes existing main-camera draw callbacks only. It
+// never reads World, replays rendering, or binds a VAO/ARRAY/ELEMENT_ARRAY buffer.
+namespace Ogre { class SceneManager; class Camera; }
+class ShoreEditCapture final : public ChunkSectionRenderable::NativeDrawObserver,
+                               public Ogre::RenderObjectListener {
 public:
     struct Part {
         glm::ivec3 section{0};
@@ -30,8 +34,9 @@ public:
 
     // Requires a fresh directory. At most six phases, eight original objects per
     // phase, 16 MiB VBO+IBO per object, and 256 MiB total observer writes.
-    explicit ShoreEditCapture(const std::string& newOutputDirectory);
-    ~ShoreEditCapture();
+    ShoreEditCapture(const std::string& newOutputDirectory, Ogre::SceneManager&,
+                     Ogre::Camera&, bool nativeDraw = false);
+    ~ShoreEditCapture() override;
     ShoreEditCapture(const ShoreEditCapture&) = delete;
     ShoreEditCapture& operator=(const ShoreEditCapture&) = delete;
 
@@ -43,6 +48,20 @@ public:
     std::size_t phaseCount() const noexcept;
     std::string phaseJsonPath() const;
     std::string phasePngPath() const;
+
+    bool nativeDrawEnabled() const noexcept;
+    // Arm after the actual uploader has finished, before this frame's draws.
+    void beginNativeFrame(std::uint64_t renderFrameId, std::vector<Binding>);
+    // Missing/unbound/unsupported draws remain OPEN; all original objects and
+    // their copied endpoints must agree in this one frame to return true.
+    bool finishNativeFrame(std::vector<Binding> endBindings);
+    void cancelNativeFrame() noexcept;
+    void detachRenderable(ChunkSectionRenderable&) noexcept;
+    void retainNativeFailure(const std::string& reason) noexcept;
+    void beforeNativeDraw(ChunkSectionRenderable&, Ogre::SceneManager*, Ogre::RenderSystem*) override;
+    void afterNativeDraw(ChunkSectionRenderable&, Ogre::SceneManager*, Ogre::RenderSystem*) override;
+    void notifyRenderSingleObject(Ogre::Renderable*, const Ogre::Pass*,
+        const Ogre::AutoParamDataSource*, const Ogre::LightList*, bool) override;
 
 private:
     struct Impl;

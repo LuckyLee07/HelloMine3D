@@ -120,6 +120,8 @@ def main():
                         help="Observe four actual draws of two natural Fern sources in a new isolated forest (diagnostic input only)")
     parser.add_argument("--shore-edit", action="store_true",
                         help="Observe six production shore-edit/world-map phases in a fresh hidden isolated world (diagnostic input only)")
+    parser.add_argument("--shore-native-draw", action="store_true",
+                        help="Also observe actual warm draw VAO bindings; requires --shore-edit and a supporting client")
     parser.add_argument("--shore-edit-target", metavar="x y z",
                         help="Canonical4 Water64 target from the current-world bounded locator; requires --shore-edit")
     parser.add_argument("--shore-edit-site", choices=SHORE_EDIT_SITES,
@@ -160,6 +162,8 @@ def main():
         parser.error("--actor-distance requires --actor-visual")
     if (args.shore_edit_target is not None or args.shore_edit_site is not None) and not args.shore_edit:
         parser.error("--shore-edit-target and --shore-edit-site require --shore-edit")
+    if args.shore_native_draw and not args.shore_edit:
+        parser.error("--shore-native-draw requires --shore-edit")
     shore_edit_site = args.shore_edit_site or "river"
     shore_edit_target = None
     if args.shore_edit:
@@ -189,7 +193,8 @@ def main():
     if "HELLOMINE3D_PAUSE_NOTIFICATIONS_DIR" in os.environ:
         parser.error("Inherited pause notifications are not accepted; use --pause-notifications explicitly")
     if any(name in os.environ for name in ("HELLOMINE3D_SHORE_EDIT_CAPTURE_DIR",
-            "HELLOMINE3D_SHORE_EDIT_TARGET", "HELLOMINE3D_SHORE_EDIT_SITE")):
+            "HELLOMINE3D_SHORE_EDIT_TARGET", "HELLOMINE3D_SHORE_EDIT_SITE",
+            "HELLOMINE3D_SHORE_NATIVE_DRAW")):
         parser.error("Inherited shore edit diagnostics are not accepted; use --shore-edit explicitly")
     if args.pause_notifications and (args.foreground or args.performance or args.player_motion or
             args.actor_visual or args.hud_fixture or args.panel or args.inspect_slot is not None or
@@ -375,6 +380,8 @@ seed random
         environment["HELLOMINE3D_SHORE_EDIT_CAPTURE_DIR"] = str(output / "shore-edit")
         environment["HELLOMINE3D_SHORE_EDIT_TARGET"] = shore_edit_target
         environment["HELLOMINE3D_SHORE_EDIT_SITE"] = shore_edit_site
+        if args.shore_native_draw:
+            environment["HELLOMINE3D_SHORE_NATIVE_DRAW"] = "1"
         environment["HELLO_RENDER_CAPTURE_MS"] = "60000"
         environment["HELLO_RENDER_CAPTURE_EXIT"] = "0"
     if args.terrain_fallback:
@@ -562,12 +569,23 @@ seed random
             world_maps = [output / "shore-edit" / f"phase-{phase:03d}-world-map.json" for phase in range(6)]
             for path in world_maps:
                 json.loads(path.read_text())
+            if args.shore_native_draw:
+                for phase in range(6):
+                    packet = json.loads((output / "shore-edit" / f"phase-{phase:03d}.json").read_text())
+                    observation = packet.get("native_draw_observation", {})
+                    if (observation.get("schema") != "hellomine3d-shore-native-draw-v1" or
+                            observation.get("status") != "CAPTURED" or
+                            not observation.get("operations")):
+                        raise RuntimeError("Requested shore native draw capture is missing an actual completed phase observation")
             artifacts += sorted(path for path in (output / "shore-edit").iterdir()
                                 if path.is_file() and path not in artifacts)
             record["shore_edit_session"] = str(index)
             record["shore_edit_site"] = shore_edit_site
             record["shore_edit_target"] = [int(part) for part in shore_edit_target.split()]
             record["shore_edit_scope"] = "production Place/Break commands and diagnostic restore; actual world-map/UI facts; independent oracle required; normal input false"
+            record["shore_native_draw_requested"] = args.shore_native_draw
+            if args.shore_native_draw:
+                record["shore_native_draw_scope"] = "actual warm draw VAO bindings; independent oracle required; shader output, terrain pixels and ordinary input remain unproved"
         if args.performance:
             record["framebuffer_size_pixels"] = performance_framebuffer(
                 (output / "client.log").read_text(), args.width, args.height, args.pixel_ratio)

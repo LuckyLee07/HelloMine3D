@@ -2,7 +2,12 @@
 
 ## 恢复区
 
-- **当前：2026-10-06 V06e：实际漏VBO写入校准与当前Retina2水岸正控完成，完整V00–V11仍Doing，Goal active。**
+- **当前：2026-10-06 V06f：实际暖帧绘制绑定与默认关闭双模式回归通过，完整V00–V11仍Doing，Goal active。**
+  当前Release `cd47a140…28394`／Debug `dfb46a69…170f5`；正常修后两配置构建0、首方warning0，原件及120聚焦保护保持。当前候选为`v06f/CandidateAfterR3.app`，本地提交与最终普通配置包身份另验。
+  标准／兼容新native捕获均正常exit0、GL4.1、Retina2，各595项通过（原208包含）；9副本故障校准通过，独立实物1114项／12阶段38操作176属性通过。默认关闭双模式各原208通过，菜单渲染启动两原图通过，普通输入不作声明。
+  GL4.1误查4.3 ARRAY_LONG已修，明示实测FLOAT排除DOUBLE的推导；初始三次GL启动失败与r2反射1280保留。获准沙箱外显示器各1／桌面已登录，同包同条件GL恢复；此前沙箱CG0不是物理桌面事实。
+  公开CUA仍报Sky服务启动失败，普通副本确切查询无PID／窗口，不能关闭连续玩法、采集制作、完整UI／动态／音频或整体。全部恢复点见文末V06f与新实际收据，严格性能延期。
+- **历史检查点：2026-10-06 V06e：实际漏VBO写入校准与当前Retina2水岸正控完成，完整V00–V11仍Doing，Goal active。**
   起点HEAD f27d01ea，正式运行时4f6d0c55／Release `10c392d3…e6356`保持；正常源码、正式包与用户客户端未改。
   新标准／兼容正控PID63345／63623均native0、六幅2560×1440原图，各208项通过；独立245项复核，旧V06d倍率／GL失败仍保留。
   隔离源副本仅省略VBO writeData，实际单TU编译链接0；146对象只换1个，145对象／17库及223聚焦输入保持，源包独立37项通过。
@@ -3481,3 +3486,103 @@ Root只读原生查询五个确切包均无PID／窗口，原查询另存 `v06e/
 所有方向及Goal仍Doing／active。下一步可在真实draw前后观察native VAO、活跃输入及原始存储，
 初次解绑／未draw／不支持的管线明确OPEN，不能靠重绑定或重放冒充；同时继续普通三种子路线、
 采集制作、近墙／动物连续动作、水岸实际编辑、完整UI及最终稳定性／整合。严格配对性能仍延期。
+
+## 2026-10-06 V06f：实际绘制观察实现、失败恢复与实物验证
+
+以下为首轮历史检查点（r1／r2修正前），后续实跑结果见下一节。
+
+当时HEAD为`601d74222d27b113d84dd19b71a4908b588facfe`；本批运行时代码、工具及合同尚未提交。
+当时正式已验证运行时为`4f6d0c5564f2898cfbb020f30b7ac54a5f6aa9fa`，新候选不作正式升级。
+范围见[实际绘制观察合同](../contracts/shore-native-draw-observation-contract-v1.md)。
+
+可选`HELLOMINE3D_SHORE_NATIVE_DRAW=1`接入现有隔离水岸入口，默认关闭；观察同一实际主相机暖帧
+全部原操作的VAO、活跃输入、EBO、真实链接程序、primitive query及draw后的原缓冲。
+不重新绑定VAO或重放绘制。新增独立oracle先执行原208项，随后检查实际绘制字段和独立raw；
+九类副本语义故障套件已实现，但当时没有有效新捕获，尚未执行。初次解绑、非主相机、
+不支持管线、原子incarnation／ABA、像素归属及普通流程继续保留各自缺项。
+独立代码复核15项、oracle源码复核27项通过，分别见`native-draw-code-independent-review-r1.json`
+及`native-oracle-source-review-r1.json`；这些结果不等于GPU实跑。
+
+| 实际已完成 | 结果与边界 |
+| --- | --- |
+| 正常Debug构建 | PID93082、exit0／无signal／timeout，首方warning0；原二进制SHA`23a3cbc1…62cd2`。r1随后因Engine MMD路径后处理失败而整体FAIL，原件保留。 |
+| 正常Release构建 | r2采用已有Debug，不重编；Release PID98323、exit0／无signal／timeout，首方warning0。两配置各146对象中仅Bootstrap／ShoreEditCapture两对象变化，144对象及17库保持；记录见`normal-build-r2/receipt.json`。 |
+| 首轮普通配置候选 | `v06f/CandidateAfter.app`，实际Resources/bin Mach-O SHA`0ba999d0cb5fec849ccc19d06accb641f6285a265aecc46df00ea49804af08ac`；135管理项／2965源码／137文件核对，配置705B／SHA70d9。没有复制旧存档，普通菜单验收未运行。 |
+| 运行入口保护 | 独立副本中native1缺原shore入口、native0非法值两例，PID6421／6448均正常exit1，无signal／timeout；精确guard、未创建窗口／World输出、原二进制及候选137项保持，共14检查PASS。见`runtime-entry-rejection-r1/receipt.json`。 |
+
+首轮图形失败原件分别保存在`native-standard-r1`、`legacy-off-standard-r1`和`old-baseline-standard-r1`。
+启用新观察、关闭新观察、旧冻结Release三例PID1954／3350／4070均在`createRenderWindow`
+的`GL3PlusRenderSystem::initialiseContext`正常exit1，错误为OpenGL3.0不支持，无signal／timeout；
+实际backing倍率1而非请求2，未构造Shore观察器，未生成阶段、raw或PNG。
+[独立失败边界复核](../../build/visual-experience-polish-20260928/v06f/failure-scope-independent-review-r1.json)
+确认失败早于query、反射及COPY_READ。相同旧包对照支持当时宿主／context初始化条件异常，
+确切原因仍未知，不能据此认定新观察器缺陷。当时标准／兼容暖帧观察、默认关闭原208项回归、
+新oracle及九类故障套件均为`NOT_RUN_PRE_OBSERVER_PLATFORM_GL_FAIL`，V06e旧245通过保持历史。
+
+公开CUA三次只读`getState`均超时并reset，未发送普通输入或启动额外普通实例；
+第三次在用户回复“桌面可见，连接正常”之后。CoreGraphics公开metadata查询两轮均返回
+活动／在线显示器各0、CGError0，第二轮UTC03:58:35；系统显示调查仅有GPU／Metal信息。
+用户桌面状态陈述和工具观测分别保留，锁屏未证实，外部原因未知。见
+`cua-readonly-timeouts-r1.json`、`active-display-readonly-r2.json`。
+
+恢复时先确认公开窗口／图形能力有实际变化，再用同一冻结二进制和另一个全新目录补当前标准、
+兼容捕获、原208项默认关闭回归及九类副本语义故障；随后独立核验、普通菜单及原图检查。
+保留全部失败目录，不覆盖候选，不用旧捕获代替新观察结果，不因环境问题重跑已通过构建。
+旧正式包、用户客户端／存档、旧ordinary配置现值、精选49轮195图保持；未推送、发布或打标签。
+
+[首轮恢复收据](../../build/visual-experience-polish-20260928/v06f/recovery-checkpoint-r1.json)
+记录实现／构建／入口限定PASS和当时实机缺项。用户进度答复仍使用10月5日完整68子项旧审计：
+13限定工程关闭、38已实现待验收、12普通／连续缺证、5效果未充分证明；后续地图、设置、合成、
+缓存及水岸专项单列，不把51／68当今天的整体完成率。全部12方向仍Doing，正式完整关闭0／12，
+Goal active。普通三种子连续路线、采集制作、相机／动物连续动作、完整UI、音频及最终稳定性／
+整合尚有实质工作；严格配对性能继续`DEFERRED_BY_USER`。
+
+### V06f 后续实际恢复与修正结果
+
+前述r1恢复检查点原件保持。默认沙箱随后明确拒绝`scutil`与`ps`；获准只读沙箱外查询
+`graphics-session-outside-sandbox-r1.json`确认UID501已登录OnConsole、WindowServer存在，
+活动／在线显示器各1（ID3）。默认沙箱的CG0不代表实际显示器或锁屏。按同Candidate、同参数仅
+改获准外层的`native-standard-r2`，PID10288正常exit1，但GL4.1／2560×1440初始化成功并进入
+观察器首帧；实际错误进展为reflection GL1280，不再是observer前启动失败。
+
+唯一超版本查询`VERTEX_ATTRIB_ARRAY_LONG`由[GL4.3 F.2](https://registry.khronos.org/OpenGL/specs/gl/glspec43.core.pdf)新增；
+[GL4.1 §2.8](https://registry.khronos.org/OpenGL/specs/gl/glspec41.core.pdf)规定VertexAttribLPointer只能使用DOUBLE。
+修正后GL4.3以上真实query，4.1／4.2以实际ARRAY_TYPE为FLOAT排除未转换double，
+每属性记录`DERIVED_GL_FLOAT_EXCLUDES_DOUBLE`，op记录实际GL major／minor；非FLOAT不接受，
+原GL0、44B、shader／query／raw门槛保持。native frame0符合实际m_frameCount初值，oracle仅
+更正这两个native字段下界，原UI门槛不变。源码独立复核15项、23聚焦输入保持，见
+`gl41-attribute-fix-independent-review-r1.json`；旧failure与source-freeze-r1／oracle-freeze-r2不覆盖。
+
+`source-freeze-r3/receipt.json` SHA`392a01c4…75a62`冻结六输入；正常r3实际Debug PID12543、
+Release PID12660均exit0／无signal／timeout，首方warning0，相对r2只有ShoreEditCapture.o改变，
+145对象及17库保持。新Debug SHA`dfb46a69ff37ef3495371589d683ebf99019d8f1a570e957cd357f70254170f5`，
+Release SHA`cd47a140ddf305c6f2e4cfbda49ca328c33caacf8e7e1ee3dc51e47702928394`；120聚焦保护保持。
+新独立`CandidateAfterR3.app`135管理项／2965源码／137完整文件均核对，普通705B配置SHA70d9；
+捕获保留实际nominal601d及dirty`a5d31242…82d44`，不回写为将来的本地提交身份。
+
+| 当前实跑 | 实际结果 |
+| --- | --- |
+| 新native standard | PID13102，native0／无signal／timeout，六阶段各2560×1440，实际GL4.1，正式oracle595／595，其中原208项完整包含。 |
+| 新native compatibility | 同一cd47 Release，native0／无signal／timeout，六阶段Retina2，正式oracle595／595。实际TerrainFragment／WaterFragment，标准则TerrainArrayFragment／WaterFragment。 |
+| 默认关闭standard／compatibility | PID13940／14245均native0，原oracle各208／208；环境无新flag，六packet没有native观察字段，仍OPEN_NOT_OBSERVED。 |
+| 九类副本故障 | 零VAO、错VBO／EBO、stride32、零primitives、compute stage、缺active input、post raw不等、未配对camera全部在原208通过后由新语义拒绝，原件保持。只改metadata／raw副本，不是生产GPU／源故障注入。 |
+| 主菜单渲染启动 | 当前cd47、无save／跳菜单／水岸变量，fresh catalogue；实际两幅2560×1440、GL4.1、空stderr、完整Ogre关闭。direct checked subprocess正常0，但generic wrapper未记录native PID，独立收据如实说明。仅为隐藏菜单启动／显示，不是按钮或普通玩法验收。 |
+
+双native实际共12阶段／38原操作，176活跃属性。每操作原程序VS／FS、暖VAO／原EBO、
+单instance／pass、完整primitive query与index_count/3一致；post原生VBO／IBO、arm CPU与
+旧storage原生／CPU共八份raw逐字节相同，44B浮点有限、u32范围合法。独立方法不导入正式
+oracle或生产恢复算法，`independent-native-draw-review-r3.json`1114／1114、338聚焦原件SHA保持，
+实际查看两张非黑原PNG。World／地图真值仍由未改原208项证明；实际水岸图主要为地图/UI，
+不能用它们宣布地形像素归因。Root读取预览的phase-* glob误包含HUD facts，原KeyError另存，
+只改只读预览为六个精确文件名，不修改捕获或oracle。
+
+正式双native及九fault收据为`native-dual-oracle-r3.json`、`native-fault-suite-r3/faults.json`，
+默认关闭为`legacy-off-dual-oracle-r3.json`，菜单为`menu-render-review-r3.json`；外层获准执行
+上下文另存，避免旧收据未记录外层权限再次误读。原14入口检查针对0ba候选，bootstrap／CLI
+guard源码未变，修正只在构造窗口后观察路径；不把旧收据二进制身份改成cd47。
+
+图形实机捕获恢复后公开CUA选择新普通副本，2.7766秒仍报Sky服务启动失败；确切包只读查询
+无PID／窗口，未实际发送输入或启动普通游戏。该服务缺项与GL恢复分列。普通三种子连续路线、
+采集制作、相机／动物连续动作、水岸鼠标交互、完整UI、音频、稳定性与整合仍继续；首解绑分支、
+非主相机／阴影、像素归因、World原子快照／incarnation／ABA也保持各自OPEN。Goal active，
+完整12方向仍Doing，严格配对性能DEFERRED_BY_USER。
