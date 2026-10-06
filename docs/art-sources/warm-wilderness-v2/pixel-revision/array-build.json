@@ -4,7 +4,7 @@
   "layers": 256,
   "mips": 7,
   "payload_bytes": 5592064,
-  "sha256": "1f55eba9993b9c92c884514fb991dbdce29d3657af76aaaba3661304aa2fc719",
+  "sha256": "88cc9a2a412f245b7ab542348da905d518c0b89c9a477e3b4967e76b1ca7d179",
   "adventure_source_sha256": "9c566473a6afdde477434d873c469fdcde1ad64d8591e10dbd85f5028615ede7",
   "adventure_override_sha256": {
     "clay": "e4b6cf474d7efc382430bbb0d3eda71fb1a6af5b26efc228a7b3e2e6b068d762"
@@ -52,8 +52,8 @@
   },
   "polish_authored_edge": 16,
   "polish_cutout_key_max": 12,
-  "active_slots": 132,
-  "empty_slots": 124,
+  "active_slots": 138,
+  "empty_slots": 118,
   "semantics": [
     {
       "semantic": "grass_top",
@@ -1257,6 +1257,60 @@
       "provenance": "authored",
       "sources": [
         "visual-polish/silt"
+      ]
+    },
+    {
+      "semantic": "pale_stone",
+      "layer": 144,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "reference-visual/pale_stone"
+      ]
+    },
+    {
+      "semantic": "rough_stone",
+      "layer": 145,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "reference-visual/rough_stone"
+      ]
+    },
+    {
+      "semantic": "terracotta",
+      "layer": 146,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "reference-visual/terracotta"
+      ]
+    },
+    {
+      "semantic": "timber",
+      "layer": 147,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "reference-visual/timber"
+      ]
+    },
+    {
+      "semantic": "metal",
+      "layer": 148,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "reference-visual/metal"
+      ]
+    },
+    {
+      "semantic": "lamp_glow",
+      "layer": 149,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "reference-visual/lamp_glow"
       ]
     }
   ],

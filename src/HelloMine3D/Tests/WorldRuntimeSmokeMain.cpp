@@ -1661,7 +1661,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 729 &&
+              registry.keys("en-US").size() == 739 &&
               registry.lookup("en-US", "map.marker_name_hint") ==
                   "Up to 24 characters; no spaces at either end." &&
               registry.lookup("zh-CN", "map.marker_invalid_name") ==
@@ -12456,6 +12456,11 @@ input hellomine:cobblestone
 output hellomine:stone 1
 ticks 80
 end
+smelt hellomine:clay_tile_step
+input hellomine:clay
+output hellomine:clay_tile_step 1
+ticks 80
+end
 fuel hellomine:coal_ore
 ticks 160
 end
@@ -21269,6 +21274,7 @@ void caseWorldManager()
 #include "AdventureSurvivalSmokeCases.h"
 #include "AdventureWildlifeSmokeCases.h"
 #include "ReferenceShapeSmokeCases.h"
+#include "ArchitecturalKitSmokeCases.h"
 #include "HdrConfigSmokeCases.h"
 
 int main()
@@ -21314,6 +21320,9 @@ int main()
         }
         else if (focus != nullptr && std::string(focus) == "REFERENCE_SHAPE") {
             caseReferenceShapes();
+        }
+        else if (focus != nullptr && std::string(focus) == "ARCHITECTURAL_KIT") {
+            caseArchitecturalKit();
         }
         else if (focus != nullptr && std::string(focus) == "HDR_PIPELINE") {
             caseRuntimeConfigOwnership();
@@ -21759,6 +21768,7 @@ int main()
         caseRuntimeConfigOwnership();
         caseHdrConfig();
         caseReferenceShapes();
+        caseArchitecturalKit();
         caseP11ACoreInput();
         caseP11BActionFeedback();
         caseEventCommandQueryBoundary();

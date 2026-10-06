@@ -3,142 +3,261 @@
 #include "../Core/Camera.h"
 #include "../Item/Material.h"
 #include "../Player/Player.h"
+#include "../Sandbox/Events/PlayerEvents.h"
+#include "../Sandbox/Events/SandboxEventBus.h"
 #include "../World/World.h"
+#include "../World/Block/ChestContainer.h"
+#include "../World/Block/FurnaceContainer.h"
+#include "../World/Generation/Structures/TreeGenerator.h"
+#include "../World/Generation/Ecology/AdventureEcologyPlanner.h"
 
-#include <algorithm>
+#include <array>
+#include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <map>
+#include <vector>
 #include <stdexcept>
 #include <string>
 
+namespace {
+struct SceneEdit {
+    int x0,y0,z0,x1,y1,z1;
+    BlockId block;
+    BlockMetadata_t yaw;
+};
+struct SceneView {
+    const char* name;
+    std::array<float,3> position;
+    std::array<float,3> rotation;
+};
+struct SceneCell {
+    int x,y,z;
+    BlockId block;
+    BlockMetadata_t yaw;
+};
+struct SceneTree {
+    const char* name;
+    std::array<int,3> root;
+    AdventureTreeKind kind;
+    int seed,stature;
+};
+struct SceneTreeWrite {
+    int x,y,z;
+    ChunkBlock block;
+};
+struct PlannedSceneTree {
+    const SceneTree* source;
+    std::vector<SceneTreeWrite> writes;
+    std::size_t uniqueCells=0;
+    double planMilliseconds=0;
+};
+#include "ReferenceVisualSceneData.inc"
+constexpr int CentreX=208,FloorY=66,CentreZ=-192;
+}
+
 bool buildReferenceVisualScene(World& world, Player& player, Camera& camera)
 {
-    const char* requested = std::getenv("HELLOMINE3D_REFERENCE_VISUAL_SCENE");
-    if (requested == nullptr || std::string(requested) != "1") return false;
-    const char* viewValue = std::getenv("HELLOMINE3D_REFERENCE_VISUAL_VIEW");
-    const std::string view = viewValue == nullptr ? "street" : viewValue;
-    if (view != "street" && view != "interior" && view != "details")
-        throw std::runtime_error("Reference visual view must be street, interior or details.");
+    const char* requested=std::getenv("HELLOMINE3D_REFERENCE_VISUAL_SCENE");
+    if(requested==nullptr || std::string(requested)!="1") return false;
+    const auto started=std::chrono::steady_clock::now();
+    const char* viewValue=std::getenv("HELLOMINE3D_REFERENCE_VISUAL_VIEW");
+    const std::string name=viewValue==nullptr?"street":viewValue;
+    const SceneView* view=nullptr;
+    for(const auto& candidate:kSceneViews) if(name==candidate.name) view=&candidate;
+    if(!view) throw std::runtime_error("Reference visual view must be street, interior, details, water, second or upstairs.");
 
-    constexpr int centreX = 208, floorY = 66, centreZ = -192;
-    player.position = {centreX + 3.5f, floorY + 2.02f, centreZ + 14.5f};
-    player.velocity = {0.f, 0.f, 0.f};
-    player.box.update(player.position);
-    world.preloadAround(player.position);
-    std::size_t writes = 0;
-    const auto place = [&](int x, int y, int z, ChunkBlock block) {
-        if (++writes > 24000u)
-            throw std::runtime_error("Reference visual scene exceeded its edit budget.");
-        world.setBlock(centreX + x, floorY + y, centreZ + z, block);
+    player.position={CentreX+.5f,FloorY+2.02f,CentreZ+22.5f};
+    player.velocity={0.f,0.f,0.f};player.box.update(player.position);
+    // Four radius-one preloads cover the exact 4x4 chunk site, including its
+    // negative-z edge. World retains locking and streaming ownership.
+    for(int z:{-8,8}) for(int x:{-8,8})
+        world.preloadAround({CentreX+float(x),FloorY+2.f,CentreZ+float(z)});
+    world.preloadAround({CentreX+.5f,FloorY+2.f,CentreZ+.5f});
+    std::size_t residentSceneChunks=0;
+    for(int z=World::floorDiv(CentreZ-24,16);z<=World::floorDiv(CentreZ+23,16);++z)
+    for(int x=World::floorDiv(CentreX-24,16);x<=World::floorDiv(CentreX+23,16);++x) {
+        const auto* chunk=world.getChunkManager().findChunk(x,z);
+        if(chunk && chunk->hasLoaded()) ++residentSceneChunks;
+    }
+    if(residentSceneChunks!=16u) throw std::runtime_error("Reference scene needs all sixteen resident site chunks before editing.");
+
+    // Native columns in the two preserved groves are absent from generated
+    // edits, including their soil and ownership tags. The town parcel is
+    // cleared before construction, keeping overhangs out of rooms and paths.
+    std::size_t nativeGroveTrunks=0;
+    for(int z=-24;z<=-20;++z) for(int x=-24;x<=23;++x)
+        if(x<=-20 || x>=19) for(int y=1;y<=28;++y)
+            nativeGroveTrunks+=world.getBlock(CentreX+x,FloorY+y,CentreZ+z)==BlockId::OakBark;
+
+    // Plan the production tree sequence against the completed scene before
+    // the first edit. No tree geometry or owner rules are duplicated here.
+    const auto futureBlock=[&](int x,int y,int z) {
+        ChunkBlock result=world.getBlock(CentreX+x,FloorY+y,CentreZ+z);
+        for(const auto& edit:kSceneEdits)
+            if(x>=edit.x0 && x<=edit.x1 && y>=edit.y0 && y<=edit.y1 && z>=edit.z0 && z<=edit.z1)
+                result=ChunkBlock(edit.block,edit.yaw);
+        return result;
     };
-
-    // Finite courtyard: ordinary World edits own every visible surface.
-    for (int z = -16; z <= 16; ++z)
-    for (int x = -16; x <= 16; ++x) {
-        place(x, -2, z, BlockId::Stone);
-        place(x, -1, z, BlockId::Stone);
-        place(x, 0, z, (x < -13 || x > 12 || z < -10) ?
-              BlockId::Grass : BlockId::Cobblestone);
-        for (int y = 1; y <= 13; ++y) place(x, y, z, BlockId::Air);
+    const auto replaceable=[](ChunkBlock block) {
+        const auto id=static_cast<BlockId>(block.id);
+        return id==BlockId::Air || id==BlockId::OakLeaf || id==BlockId::TallGrass ||
+               id==BlockId::Rose || id==BlockId::DeadShrub;
+    };
+    std::vector<PlannedSceneTree> trees;
+    std::map<std::array<int,3>,ChunkBlock> treeBefore,treeFinal;
+    std::size_t treePlannedAttempts=0;
+    for(const auto& tree:kSceneTrees) {
+        const auto planStarted=std::chrono::steady_clock::now();
+        PlannedSceneTree plan{&tree,{},0,0};
+        const auto support=futureBlock(tree.root[0],tree.root[1]-1,tree.root[2]);
+        if(support!=BlockId::Grass && support!=BlockId::Dirt && support!=BlockId::ForestFloor)
+            throw std::runtime_error("Reference planted tree has no authored soil support.");
+        visitPolishedAdventureTreeBlocks(tree.seed,tree.root[0],tree.root[1],tree.root[2],tree.kind,tree.stature,
+            [&](int x,int y,int z,ChunkBlock block) {
+                if(plan.writes.size()>=PolishedTreeMaximumPlannedBlocks)
+                    throw std::runtime_error("Reference planted tree exceeded 1024 production plan writes.");
+                if(x<-24 || x>23 || z<-24 || z>23 || y<1 || y>20 ||
+                   (static_cast<BlockId>(block.id)!=BlockId::OakBark && static_cast<BlockId>(block.id)!=BlockId::OakLeaf))
+                    throw std::runtime_error("Reference planted tree escaped its scene or material bounds.");
+                const auto* chunk=world.getChunkManager().findChunk(World::floorDiv(CentreX+x,16),World::floorDiv(CentreZ+z,16));
+                if(!chunk || !chunk->hasLoaded())
+                    throw std::runtime_error("Reference planted tree requires already resident site chunks.");
+                // Low trunks/leaves may not occupy streets or either bank's
+                // walking aisle. Higher canopy over water is real geometry.
+                if(y<=3 && ((x>=-2 && x<=3) || (z>=3 && z<=8) || (z>=15 && z<=16)))
+                    throw std::runtime_error("Reference planted tree would obstruct a walking aisle.");
+                for(const auto& cell:kSceneClearanceCells)
+                    if(x==cell.x && y==cell.y && z==cell.z)
+                        throw std::runtime_error("Reference planted tree would obstruct required clearance.");
+                for(const auto& candidate:kSceneViews) {
+                    const auto& p=candidate.position;
+                    if(p[0]+.3f>x && p[0]-.3f<x+1 && p[1]+1.f>y && p[1]-1.f<y+1 && p[2]+.3f>z && p[2]-.3f<z+1)
+                        throw std::runtime_error("Reference planted tree would obstruct a fixed view body.");
+                }
+                plan.writes.push_back({x,y,z,block});
+            });
+        if(plan.writes.empty()) throw std::runtime_error("Reference planted tree emitted an empty plan.");
+        treePlannedAttempts+=plan.writes.size();
+        if(kSceneBaseEditAttempts+treePlannedAttempts>kSceneEditBudget)
+            throw std::runtime_error("Reference scene and tree plans exceeded their joint edit budget.");
+        const auto previousCells=treeFinal.size();
+        for(const auto& write:plan.writes) {
+            const std::array<int,3> key{write.x,write.y,write.z};
+            const auto found=treeFinal.find(key);
+            const bool own=found!=treeFinal.end();
+            const ChunkBlock existing=own?found->second:futureBlock(write.x,write.y,write.z);
+            if(!own) treeBefore.emplace(key,existing);
+            // Mirror the production vegetation-only sequence: later leaves
+            // and duplicate branches never replace an earlier planned trunk.
+            if(own && static_cast<BlockId>(existing.id)==BlockId::OakBark) continue;
+            if(!replaceable(existing))
+                throw std::runtime_error("Reference planted tree would replace a building, water or existing trunk.");
+            treeFinal[key]=write.block;
+        }
+        plan.uniqueCells=treeFinal.size()-previousCells;
+        plan.planMilliseconds=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-planStarted).count();
+        trees.push_back(std::move(plan));
     }
 
-    // Canal and one bridge. Existing water depth, motion and material paths.
-    for (int z = 7; z <= 10; ++z)
-    for (int x = -16; x <= 16; ++x) {
-        place(x, -2, z, BlockId::Silt);
-        place(x, -1, z, BlockId::Water);
-        place(x, 0, z, BlockId::Air);
-        if (x >= -1 && x <= 1) place(x, 0, z, BlockId::OakPlank);
+    std::size_t attempts=0,changed=0;
+    for(const auto& edit:kSceneEdits)
+    for(int y=edit.y0;y<=edit.y1;++y)
+    for(int z=edit.z0;z<=edit.z1;++z)
+    for(int x=edit.x0;x<=edit.x1;++x) {
+        if(++attempts>kSceneEditBudget) throw std::runtime_error("Reference visual scene exceeded its edit budget.");
+        const ChunkBlock block(edit.block,edit.yaw);
+        if(world.getBlock(CentreX+x,FloorY+y,CentreZ+z)==block) continue;
+        world.setBlock(CentreX+x,FloorY+y,CentreZ+z,block);++changed;
     }
-    for (int x = -16; x <= 16; ++x) {
-        // Low banks expose the water from an ordinary standing eye height.
-        place(x, 0, 6, x < -1 || x > 1 ?
-              ChunkBlock(BlockId::StoneStep, 2) : ChunkBlock(BlockId::Stone));
-        place(x, 0, 11, x < -1 || x > 1 ?
-              ChunkBlock(BlockId::StoneStep, 0) : ChunkBlock(BlockId::Stone));
+    if(attempts!=kSceneBaseEditAttempts)
+        throw std::runtime_error("Reference scene base attempt count drifted from its deterministic export.");
+    // All completed background cells must match the preflight before the
+    // first tree write. Then use normal World edits, relighting and dirtying.
+    for(const auto& before:treeBefore)
+        if(world.getBlock(CentreX+before.first[0],FloorY+before.first[1],CentreZ+before.first[2])!=before.second)
+            throw std::runtime_error("Reference tree background changed after preflight.");
+    std::size_t plantedChanges=0;
+    for(const auto& tree:trees) {
+        const auto editStarted=std::chrono::steady_clock::now();
+        std::size_t treeChanges=0;
+        for(const auto& write:tree.writes) {
+            if(++attempts>kSceneEditBudget)
+                throw std::runtime_error("Reference scene and planted trees exceeded their edit budget.");
+            const auto existing=world.getBlock(CentreX+write.x,FloorY+write.y,CentreZ+write.z);
+            if(existing==write.block || static_cast<BlockId>(existing.id)==BlockId::OakBark) continue;
+            if(!replaceable(existing)) throw std::runtime_error("Reference tree edit encountered an unexpected protected block.");
+            world.setBlock(CentreX+write.x,FloorY+write.y,CentreZ+write.z,write.block);
+            ++changed;++treeChanges;++plantedChanges;
+        }
+        const auto editMilliseconds=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-editStarted).count();
+        std::cout<<"[REFERENCE_VISUAL_TREE] name="<<tree.source->name<<" kind="<<int(tree.source->kind)
+                 <<" seed="<<tree.source->seed<<" stature="<<tree.source->stature
+                 <<" root="<<CentreX+tree.source->root[0]<<','<<FloorY+tree.source->root[1]<<','<<CentreZ+tree.source->root[2]
+                 <<" attempts="<<tree.writes.size()<<" changed="<<treeChanges<<" final_cells="<<tree.uniqueCells
+                 <<" plan_ms="<<tree.planMilliseconds<<" edit_ms="<<editMilliseconds
+                 <<" source=ordinary_planted owner_override=0 world_edits=1\n";
     }
-
-    // Raised small workshop, with a two-cell doorway and real window holes.
-    for (int z = -6; z <= 3; ++z)
-    for (int x = -12; x <= -2; ++x) {
-        place(x, 1, z, BlockId::OakPlank);
-        for (int y = 2; y <= 7; ++y)
-            if (x == -12 || x == -2 || z == -6 || z == 3)
-                place(x, y, z, BlockId::Stone);
-    }
-    for (int y = 2; y <= 4; ++y)
-    for (int x = -8; x <= -7; ++x) place(x, y, 3, BlockId::Air);
-    for (const int x : {-11, -4})
-    for (int y = 3; y <= 4; ++y) {
-        place(x, y, 3, ChunkBlock(BlockId::StoneWindowFrame, 0));
-        place(x, y, 2, BlockId::GlassBorderless);
-    }
-    for (int x = -8; x <= -7; ++x)
-        place(x, 1, 4, ChunkBlock(BlockId::StoneStep, 2));
-    for (int z = -7; z <= 4; ++z) {
-        const int rise = std::min(z + 7, 4 - z) / 2;
-        for (int x = -13; x <= -1; ++x) place(x, 8 + rise, z, BlockId::OakPlank);
-        if (z >= -6 && z <= 3)
-            for (int y = 8; y < 8 + rise; ++y) {
-                place(-12, y, z, BlockId::Stone);
-                place(-2, y, z, BlockId::Stone);
-            }
-    }
-    place(-10, 2, -4, BlockId::Workbench);
-    place(-4, 2, -4, BlockId::Furnace);
-    place(-10, 2, 0, BlockId::Chest);
-    place(-11, 4, -4, BlockId::Torch);
-    place(-3, 4, -4, BlockId::Torch);
-    place(-11, 4, 1, BlockId::Torch);
-    place(-3, 4, 1, BlockId::Torch);
-
-    // Porch and flower boxes use existing, editable assets.
-    for (const int x : {-12, -2}) {
-        for (int y = 1; y <= 4; ++y) place(x, y, 5, BlockId::OakBark);
-        place(x + (x == -12 ? 1 : -1), 1, 5, BlockId::OakPlank);
-        place(x + (x == -12 ? 1 : -1), 2, 5, BlockId::Rose);
-    }
-    for (int x = -12; x <= -2; ++x) place(x, 5, 5, BlockId::OakPlank);
-    for (int x = 3; x <= 9; ++x) {
-        place(x, 0, -4, BlockId::OakPlank);
-        if (x == 3 || x == 9)
-            for (int y = 1; y <= 4; ++y) place(x, y, -4, BlockId::OakBark);
-        place(x, 5, -4, BlockId::OakLeaf);
-        place(x, 5, -3, BlockId::OakLeaf);
-    }
-
-    // Four directions remain visible and can be mined or used normally.
-    for (int yaw = 0; yaw < 4; ++yaw) {
-        place(3 + yaw * 2, 1, 2, ChunkBlock(BlockId::StoneStep, yaw));
-        place(3 + yaw * 2, 2, 2, ChunkBlock(BlockId::StoneWindowFrame, yaw));
-    }
-    if (world.getBlock(centreX + 3, floorY + 1, centreZ + 2) !=
-        ChunkBlock(BlockId::StoneStep, 0) ||
-        world.getBlock(centreX + 9, floorY + 2, centreZ + 2) !=
-        ChunkBlock(BlockId::StoneWindowFrame, 3))
+    for(const auto& final:treeFinal)
+        if(world.getBlock(CentreX+final.first[0],FloorY+final.first[1],CentreZ+final.first[2])!=final.second)
+            throw std::runtime_error("Reference tree production plan did not reach authoritative World.");
+    const auto verify=[&](const SceneCell& cell) {
+        return world.getBlock(CentreX+cell.x,FloorY+cell.y,CentreZ+cell.z)==ChunkBlock(cell.block,cell.yaw);
+    };
+    for(const auto& cell:kSceneRequiredCells) if(!verify(cell))
         throw std::runtime_error("Reference scene edits did not reach authoritative World.");
-
-    player.addItem(Material::STONE_STEP_BLOCK, 32);
-    player.addItem(Material::STONE_WINDOW_FRAME_BLOCK, 32);
-    player.addItem(Material::STONE_PICKAXE, 1);
-    player.addItem(Material::TORCH, 16);
-    player.addItem(Material::OAK_PLANK_BLOCK, 32);
-    if (view == "interior") {
-        player.position = {centreX - 6.5f, floorY + 3.02f, centreZ + 0.5f};
-        player.rotation = {-6.f, 0.f, 0.f};
-    } else if (view == "details") {
-        player.position = {centreX + 6.5f, floorY + 2.02f, centreZ + 5.5f};
-        player.rotation = {5.f, 0.f, 0.f};
-    } else {
-        player.rotation = {8.f, -30.f, 0.f};
+    for(const auto& cell:kSceneClearanceCells) if(!verify(cell))
+        throw std::runtime_error("Reference scene doorway, stair or bridge clearance was obstructed.");
+    std::size_t weatherChecks=0;
+    for(const auto& region:kSceneWeatherShellRegions)
+    for(int y=region.y0;y<=region.y1;++y)
+    for(int z=region.z0;z<=region.z1;++z)
+    for(int x=region.x0;x<=region.x1;++x) {
+        ++weatherChecks;
+        if(!verify({x,y,z,region.block,region.yaw}))
+            throw std::runtime_error("Reference scene weather wall or ceiling was not closed in World.");
     }
-    player.box.update(player.position);
-    player.resetInterpolation();
-    camera.hookEntity(player);
-    camera.update();
-    if (!world.save()) throw std::runtime_error("Reference scene initial save failed.");
-    std::cout << "[REFERENCE_VISUAL_SCENE] version=1 edits=" << writes
-              << " origin=" << centreX << ',' << floorY << ',' << centreZ
-              << " view=" << view << " saved=1 normal_world=1\n";
+    for(const auto& cell:kSceneWeatherRoofCells) if(!verify(cell))
+        throw std::runtime_error("Reference scene flat roof did not reach its wall-top connection.");
+
+    // The direct World construction path must create the same empty block
+    // entities as ordinary placement; otherwise a visible furnace/chest cannot
+    // be opened through normal Use. Reopening never runs this fresh-only path.
+    for(const auto& cell:kSceneRequiredCells) {
+        const glm::ivec3 position(CentreX+cell.x,FloorY+cell.y,CentreZ+cell.z);
+        if(cell.block==BlockId::Chest && !ChestContainer::initialize(world,position))
+            throw std::runtime_error("Reference scene chest initialization failed.");
+        if(cell.block==BlockId::Furnace && !FurnaceContainer::initialize(world,position))
+            throw std::runtime_error("Reference scene furnace initialization failed.");
+    }
+
+    // Explicit sample starter inputs. Recipes remain the production registry,
+    // and the normal Workbench/Furnace/Chest are usable World block entities.
+    // One stone/bark stack is consumed completely by its first formal recipe.
+    const std::array<std::pair<const Material*,int>,5> starter={{
+        {&Material::STONE_PICKAXE,1},{&Material::STONE_BLOCK,1},
+        {&Material::OAK_BARK_BLOCK,1},{&Material::CLAY_BLOCK,2},
+        {&Material::COAL_ORE_BLOCK,1}}};
+    for(const auto& item:starter) {
+        if(player.addItem(*item.first,item.second)!=item.second)
+            throw std::runtime_error("Reference scene starter inputs exceeded normal inventory capacity.");
+        world.getEventBus().publish(PlayerInventoryChangedEvent(
+            DefaultPlayerActorId,item.first->id,item.second,"reference_scene_starter"));
+    }
+    player.position={CentreX+view->position[0],FloorY+view->position[1],CentreZ+view->position[2]};
+    player.rotation={view->rotation[0],view->rotation[1],view->rotation[2]};
+    player.box.update(player.position);player.resetInterpolation();
+    camera.hookEntity(player);camera.update();
+    if(!world.save()) throw std::runtime_error("Reference scene initial save failed.");
+    const auto elapsed=std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-started).count();
+    std::cout<<"[REFERENCE_VISUAL_SCENE] version=2 edits="<<attempts<<" changed="<<changed
+             <<" regions="<<kSceneRegionCount<<" budget="<<kSceneEditBudget
+             <<" scene_chunks="<<residentSceneChunks<<" native_grove_trunks="<<nativeGroveTrunks
+             <<" kit_parts=12 layouts=two_storey_balcony,L_kiln_gallery starter_inputs=5"
+             <<" planted_trees="<<trees.size()<<" planted_tree_attempts="<<treePlannedAttempts
+             <<" planted_tree_cells="<<treeFinal.size()<<" planted_tree_changed="<<plantedChanges<<" tree_owner_override=0"
+             <<" weather_shell_checks="<<weatherChecks<<" weather_roof_checks="<<std::size(kSceneWeatherRoofCells)
+             <<" origin="<<CentreX<<','<<FloorY<<','<<CentreZ<<" water_mean_y=66.9 view="<<name
+             <<" generation_ms="<<elapsed<<" saved=1 normal_world=1\n";
     return true;
 }

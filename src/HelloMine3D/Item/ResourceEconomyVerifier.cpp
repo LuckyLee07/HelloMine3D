@@ -366,6 +366,8 @@ ResourceEconomyContract makeBaseResourceEconomyContract()
         {"forest.oak_bark", Material::ID::OakBark, 1, 30},
         {"forest.oak_leaf", Material::ID::OakLeaf, 1, 10},
         {"terrain.sand", Material::ID::Sand, 1, 20},
+        {"river.clay", Material::ID::Clay, 1, 20},
+        {"forest.floor", Material::ID::ForestFloor, 1, 20},
         {"desert.cactus", Material::ID::Cactus, 1, 20},
         {"grassland.rose", Material::ID::Rose, 1, 10},
         {"grassland.tall_grass", Material::ID::TallGrass, 1, 10},
@@ -392,6 +394,11 @@ ResourceEconomyContract makeBaseResourceEconomyContract()
         Material::ID::OakDoor, Material::ID::WoodenAxe,
         Material::ID::WoodenShovel,
         Material::ID::Crusher,
+        Material::ID::StoneStep, Material::ID::StoneWindowFrame,
+        Material::ID::StoneBrick, Material::ID::StoneSlab, Material::ID::StoneCornice,
+        Material::ID::ClayTileStep, Material::ID::ClayTileEave,
+        Material::ID::TimberBeam, Material::ID::TimberRailing,
+        Material::ID::StoneWindowSill, Material::ID::StonePlanter, Material::ID::Lantern,
     };
     contract.trackedNewMaterials = {
         Material::ID::RawMeat, Material::ID::CookedMeat,

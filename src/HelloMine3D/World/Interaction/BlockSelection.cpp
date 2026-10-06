@@ -64,14 +64,18 @@ BlockSelectionSystem::pick(World &world, const glm::vec3 &origin,
 
     Ray directionRay(origin,rotation);directionRay.step(1.f);
     const glm::vec3 rawDirection=directionRay.getEnd()-origin;
-    if(!std::isfinite(rawDirection.x)||!std::isfinite(rawDirection.y)||!std::isfinite(rawDirection.z) || glm::length(rawDirection)<0.000001f)
+    const float directionLength=glm::length(rawDirection);
+    if(!std::isfinite(rawDirection.x)||!std::isfinite(rawDirection.y)||!std::isfinite(rawDirection.z) ||
+       !std::isfinite(directionLength) || directionLength<0.000001f)
         return std::nullopt;
-    const glm::vec3 direction=glm::normalize(rawDirection);
+    const glm::vec3 direction=rawDirection/directionLength;
     glm::ivec3 previousPosition = toBlockPosition(origin);
     glm::ivec3 testedPosition = previousPosition + glm::ivec3(1, 1, 1);
 
     for (Ray ray(origin, rotation); ray.getLength() < maxDistance;
-         ray.step(stepSize)) {
+         // Ray::step measures horizontal travel. Bound each sample by actual
+         // world distance so a steep look cannot skip a whole voxel cell.
+         ray.step(stepSize/directionLength)) {
         const glm::ivec3 blockPosition = toBlockPosition(ray.getEnd());
         if (blockPosition == testedPosition) {
             continue;

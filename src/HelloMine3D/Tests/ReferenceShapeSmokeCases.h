@@ -24,7 +24,7 @@ void caseReferenceShapes()
             const auto &material=Material::toMaterial(id);
             check("REFERENCE_SHAPE/registered-"+std::to_string(int(id)),material.isBlock && material.toBlockID()==id &&
                 definition.render.shape.isCompound() && definition.collidable && !definition.occludesFaces &&
-                !definition.fullCellSolid && !definition.aoOccluder && !definition.blocksLight &&
+                !definition.fullCellSolid && !definition.aoOccluder && definition.blocksLight==(id==BlockId::StoneStep) &&
                 definition.defaultDrop==material.id);
             for(int yaw=0;yaw<4;++yaw) {
                 const glm::ivec3 cell(2+yaw*3,210,id==BlockId::StoneStep?2:5);
@@ -38,7 +38,7 @@ void caseReferenceShapes()
                 const auto &surfaces=definition.render.shape.variants[yaw].surfaces;
                 bool matches=feedback.size()==surfaces.size();
                 for(std::size_t i=0;i<feedback.size() && matches;++i)
-                    matches &= feedback[i].positions==surfaces[i].positions && feedback[i].repeat==surfaces[i].repeat && feedback[i].tile==glm::ivec2(3,0);
+                    matches &= feedback[i].positions==surfaces[i].positions && feedback[i].repeat==surfaces[i].repeat && feedback[i].tile==glm::ivec2(0,9);
                 const auto item=ItemVisualGeometry::compound(definition.render.shape,definition.render.texTopCoord,
                     definition.render.texSideCoord,definition.render.texBottomCoord,yaw);
                 matches &= item.size()==surfaces.size();

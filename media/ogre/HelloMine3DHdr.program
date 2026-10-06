@@ -6,5 +6,7 @@ fragment_program HelloMine3D/HdrResolveFragment glsl
     {
         param_named sceneTexture int 0
         param_named exposure float 1.0
+        param_named spatialAaStrength float 1.0
+        param_named_auto inverseTextureSize inverse_texture_size 0
     }
 }

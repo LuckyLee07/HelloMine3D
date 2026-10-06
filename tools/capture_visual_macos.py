@@ -103,7 +103,14 @@ def main():
     parser.add_argument("--shadow", choices=("off", "medium", "high"), default="off")
     parser.add_argument("--post", choices=("off", "on"), default="off")
     parser.add_argument("--render-pipeline", choices=("legacy", "linear-hdr"))
-    parser.add_argument("--reference-scene", choices=("street", "interior", "details"),
+    parser.add_argument("--msaa4", action="store_true", help="Request bounded actual four-sample HDR scene comparison")
+    parser.add_argument("--spatial-aa-off", action="store_true",
+                        help="Disable only the bounded spatial HDR resolve for paired diagnostics")
+    parser.add_argument("--planar-reflection-off", action="store_true",
+                        help="Use the normal water fallback for paired diagnostics")
+    parser.add_argument("--planar-diagnostic", action="store_true",
+                        help="Read the actual reflection RTT once; hidden visual capture only")
+    parser.add_argument("--reference-scene", choices=("street", "interior", "details", "water", "second", "upstairs"),
                         help="Build the bounded reference sample in a fresh save; normal reopening preserves edits")
     parser.add_argument("--locale", choices=("en-US", "zh-CN"), default="zh-CN")
     parser.add_argument("--ui-scale", type=float, choices=(0.85, 1.0, 1.25), default=1.0)
@@ -149,6 +156,8 @@ def main():
     parser.add_argument("--reuse-app", action="store_true",
                         help="Run the supplied stable app in place; its diagnostic config is updated")
     args = parser.parse_args()
+    if args.planar_diagnostic and (args.performance or args.foreground):
+        parser.error("--planar-diagnostic requires a hidden visual capture without performance readback")
     if "HELLOMINE3D_REFERENCE_VISUAL_SCENE" in os.environ and not args.reference_scene:
         parser.error("Inherited reference scene requires explicit --reference-scene")
     if args.reference_scene and (args.scene == "menu" or args.save_template or
@@ -378,6 +387,14 @@ seed random
         "HELLO_RENDER_CAPTURE_MAX_DELTA_MS": "5000",
         "HELLO_RENDER_CAPTURE_EXIT": "0" if args.performance else "1",
     }
+    # Freeze each comparison route independently of the ordinary HDR default
+    # and inherited shell diagnostics. Active MSAA disables spatial AA in-engine.
+    environment["HELLOMINE3D_MSAA4"] = "1" if args.msaa4 else "0"
+    environment["HELLOMINE3D_SPATIAL_AA_OFF"] = "1" if args.spatial_aa_off else "0"
+    if args.planar_reflection_off:
+        environment["HELLOMINE3D_PLANAR_REFLECTION_OFF"] = "1"
+    if args.planar_diagnostic:
+        environment["HELLOMINE3D_PLANAR_DIAGNOSTIC"] = "1"
     if args.reference_scene:
         environment["HELLOMINE3D_REFERENCE_VISUAL_SCENE"] = "1"
         environment["HELLOMINE3D_REFERENCE_VISUAL_VIEW"] = args.reference_scene
@@ -485,7 +502,8 @@ seed random
               "inherited_diagnostic_environment": {
                   key: os.environ[key] for key in (
                       "HELLOMINE3D_VISUAL_CAMERA_SWEEP", "HELLOMINE3D_VISUAL_CAMERA_PATH",
-                      "HELLOMINE3D_BLOCK_FEEDBACK_CAPTURE") if key in os.environ},
+                      "HELLOMINE3D_BLOCK_FEEDBACK_CAPTURE", "HELLOMINE3D_MSAA4", "HELLOMINE3D_SPATIAL_AA_OFF",
+                      "HELLOMINE3D_PLANAR_DIAGNOSTIC", "HELLOMINE3D_PLANAR_REFLECTION_OFF") if key in os.environ},
               "window_size_points": [args.width, args.height],
               "window_mode": "foreground" if args.foreground else "hidden",
               "render_readback": not args.performance,
@@ -537,7 +555,7 @@ seed random
             sorted((output / "fern-wind").glob("*.png")) if args.fern_wind else \
             sorted((output / "pause-notifications").glob("frame-*.png")) if args.pause_notifications else \
             sorted((output / "shore-edit").glob("phase-*.png")) if args.shore_edit else \
-            sorted((output / "frames").glob("*.png"))
+            sorted((output / "frames").glob("capture_*.png"))
         expected_frames = 9 if args.material_identity else (6 if args.camera_diagnostics else
             (4 if args.fern_wind else (12 if args.pause_notifications else
             (6 if args.shore_edit else (0 if args.performance else len(capture_times))))))
@@ -559,7 +577,13 @@ seed random
             if (width, height) != expected_size:
                 raise RuntimeError(f"Actual frame is {width}x{height}, expected "
                                    f"{expected_size[0]}x{expected_size[1]} at pixel ratio {args.pixel_ratio}")
-        artifacts = frames
+        artifacts = list(frames)
+        if args.planar_diagnostic:
+            planar = [output / "frames" / ("planar-diagnostic" + suffix) for suffix in
+                      (".native-linear.rgba32f", ".camera-preview.png", ".facts.txt")]
+            if not all(path.is_file() for path in planar):
+                raise RuntimeError("Actual planar diagnostic did not produce its complete native readback")
+            artifacts += planar
         if args.material_identity:
             index = output / "material-identity/index.json"
             session = json.loads(index.read_text())

@@ -337,7 +337,7 @@ void Player::collide(World& world, const glm::vec3& vel, float dt)
                         const BlockGeometry::Bounds body{position-box.dimensions,position+box.dimensions};
                         if(!BlockGeometry::intersects(part,body)) return;
                         const float rise=part.maximum.y-(before.y-box.dimensions.y);
-                        if(block.id==static_cast<Block_t>(BlockId::StoneStep) && axis!=1 &&
+                        if(BlockGeometry::allowsHalfStep(static_cast<BlockId>(block.id)) && axis!=1 &&
                            velocity.y<=0.f && rise>BoundaryEpsilon && rise<=.5f+BoundaryEpsilon) {
                             glm::vec3 raised=position;raised.y=part.maximum.y+box.dimensions.y;
                             if(clearAt(raised)) {position=raised;m_isOnGround=true;return;}

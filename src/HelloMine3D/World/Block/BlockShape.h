@@ -2,6 +2,7 @@
 #define BLOCKSHAPE_H_INCLUDED
 
 #include <array>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -20,10 +21,14 @@ struct BlockShapeSurface {
     BlockShapeFace positions{};
     std::array<float, 8> repeat{};
     unsigned char material = 1;
+    // 0..5 front/back/left/right/top/bottom; 6 is an interior plane.
+    unsigned char boundaryFace = 6;
+    std::uint64_t boundaryMask = 0;
 };
 struct BlockShapeVariant {
     std::vector<BlockShapeBox> boxes;
     std::vector<BlockShapeSurface> surfaces;
+    std::array<std::uint64_t, 6> boundaryCoverage{};
 };
 struct BlockShape {
     std::string name = "Cube";

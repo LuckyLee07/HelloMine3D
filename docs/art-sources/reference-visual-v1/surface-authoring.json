@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "normal_convention": "+U right, +V down in exported image; tangent derivative basis",
+  "materials": {
+    "pale_stone": {
+      "layer": 144,
+      "roughness": 0.76,
+      "metalness": 0,
+      "emission": 0,
+      "relief": 0.008,
+      "courses": 4,
+      "columns": 3
+    },
+    "rough_stone": {
+      "layer": 145,
+      "roughness": 0.92,
+      "metalness": 0,
+      "emission": 0,
+      "relief": 0.012,
+      "courses": 5,
+      "columns": 3
+    },
+    "terracotta": {
+      "layer": 146,
+      "roughness": 0.52,
+      "metalness": 0,
+      "emission": 0,
+      "relief": 0.01,
+      "courses": 4,
+      "columns": 6
+    },
+    "timber": {
+      "layer": 147,
+      "roughness": 0.67,
+      "metalness": 0,
+      "emission": 0,
+      "relief": 0.004,
+      "courses": 0,
+      "columns": 4
+    },
+    "metal": {
+      "layer": 148,
+      "roughness": 0.39,
+      "metalness": 0.92,
+      "emission": 0,
+      "relief": 0,
+      "courses": 0,
+      "columns": 0
+    },
+    "lamp_glow": {
+      "layer": 149,
+      "roughness": 0.86,
+      "metalness": 0,
+      "emission": 0.8,
+      "relief": 0,
+      "courses": 0,
+      "columns": 0
+    }
+  },
+  "colour_aliases": {
+    "21": 147,
+    "23": 145
+  },
+  "colour_alias_reason": "Only HDR ReferenceColour oak-plank floors/structural wood (layer21 -> authored timber147) and cobblestone roads (layer23 -> authored rough_stone145) reuse the corresponding complete authored colour mip families. The road normal/RME already use rough_stone145; this removes the observed old black/white crossed pixel noise from HDR street roads. Legacy Warm array, shared atlas/inventory UI, natural grass/leaves, geometry, shaders and recipes remain unchanged."
+}

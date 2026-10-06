@@ -45,8 +45,24 @@ enum class BlockId : Block_t {
 
     StoneStep = 33,
     StoneWindowFrame = 34,
+    StoneBrick = 35,
+    StoneSlab = 36,
+    StoneCornice = 37,
+    ClayTileStep = 38,
+    ClayTileEave = 39,
+    TimberBeam = 40,
+    TimberRailing = 41,
+    StoneWindowSill = 42,
+    StonePlanter = 43,
+    Lantern = 44,
 
     NUM_TYPES
 };
+
+// Registered single-cell shape v2 identities; legacy metadata is unchanged.
+inline bool isArchitecturalBlock(BlockId id) noexcept
+{
+    return id >= BlockId::StoneStep && id <= BlockId::Lantern;
+}
 
 #endif // BLOCKID_H_INCLUDED

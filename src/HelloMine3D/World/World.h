@@ -22,6 +22,7 @@
 #include "../Sandbox/Events/SandboxEventBus.h"
 #include "../Util/NonCopyable.h"
 #include "Chunk/Chunk.h"
+#include "Light/LocalLightSnapshot.h"
 #include "Chunk/ChunkManager.h"
 #include "Chunk/ChunkRuntime.h"
 #include "Environment/WorldEnvironment.h"
@@ -238,6 +239,11 @@ class World : public NonCopyable {
     LightLevel getSunlight(int x, int y, int z);
     LightLevel getBlockLight(int x, int y, int z);
     void setBlock(int x, int y, int z, ChunkBlock block);
+    /// Copied resident-only renderer data, capped at 27 sections / eight sources.
+    LocalLightSnapshot observeLocalLights(const glm::vec3 &eye);
+    std::uint64_t visualRevision();
+    std::optional<float> observeWaterSurfacePlane(const glm::vec3 &eye);
+
     std::optional<BlockEntityRecord>
     getBlockEntity(const glm::ivec3 &position);
     bool createBlockEntity(const glm::ivec3 &position,
@@ -428,6 +434,8 @@ class World : public NonCopyable {
         std::vector<glm::ivec3> &changedPositions);
     void propagateBlockLight(std::deque<glm::ivec3> &pending,
                              std::vector<glm::ivec3> &changedPositions);
+    // ChunkSection mutation paths already hold the authoritative World lock.
+    void notifyVisualEditUnlocked() noexcept { ++m_visualRevision; }
     void reconcileBlockLightAfterChunkLoad(int chunkX, int chunkZ);
     void reconcileBlockLightAfterChunkUnload(int chunkX, int chunkZ,
                                              int height);
@@ -499,6 +507,7 @@ class World : public NonCopyable {
     MechanicalTopology m_mechanicalTopology;
     ChunkManager m_chunkManager;
     std::mutex m_mainMutex;
+    std::uint64_t m_visualRevision = 1;
     ChunkRuntime m_chunkRuntime;
     WorldSimulation m_worldSimulation;
     ActorManager m_actorManager;

@@ -52,6 +52,11 @@ $profileSource = Get-Content -LiteralPath (Join-Path $Root "media/materials/Base
 foreach ($match in [regex]::Matches($profileSource, '(?m)^array_texture=(\S+)\s*$')) {
     Add-ManifestEntry "texture" $match.Groups[1].Value
 }
+Add-ManifestEntry "material-profile" "media/materials/Reference.surface-material"
+$surfaceSource = Get-Content -LiteralPath (Join-Path $Root "media/materials/Reference.surface-material") -Raw
+foreach ($match in [regex]::Matches($surfaceSource, '(?m)^(colour|normal|surface)_texture=(\S+)\s*$')) {
+    Add-ManifestEntry "texture" $match.Groups[2].Value
+}
 Add-ManifestEntry "atlas-layout" `
     "media/materials/Base.terrain-atlas"
 Add-ManifestEntry "font" "media/fonts/rs.ttf"

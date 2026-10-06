@@ -1,0 +1,31 @@
+{
+  "generator": "OpenAI imagegen",
+  "date": "2026-10-06",
+  "use": "formal runtime albedo source; deterministic multi-channel export",
+  "assets": [
+    {
+      "name": "pale_stone",
+      "prompt": "Use case: stylized-concept. Asset type: one seamless square diffuse albedo texture for pale warm limestone masonry in a fine voxel Mediterranean waterfront game. Orthographic flat 2D texture fills the ENTIRE square, no frame or margin. Four horizontal courses of long rectangular limestone blocks with staggered joints, moderate broad irregular mineral colour, very thin shallow warm-grey mortar seams. Low saturation ivory sand beige, clean crafted coastal building, readable large forms when reduced to 64x64 pixels. Treat it as an unlit base colour map: even ambient lighting, NO cast shadow, no bevel lighting, no highlight, no vignette, no perspective, no object or scene, no text or watermark. Seamless tile repeats at left/right and top/bottom. Calm restrained surface, not noisy photoreal speckles, no crack grids, no black outlines. One single texture only, no collage or contact sheet. Square high-quality source.",
+      "file": "pale_stone-albedo-source.png",
+      "sha256": "e20855578bddefd86fb72f0129a9b8f96018a2eb434302bfa2394e819f03e7ff"
+    },
+    {
+      "name": "rough_stone",
+      "prompt": "Use case: stylized-concept. Asset type: a single seamless square diffuse albedo texture for a refined editable voxel Mediterranean waterfront game. Orthographic flat 2D material covers the ENTIRE image edge to edge; no frame, no scene, no object, no text. Unlit albedo only: absolutely no cast shadow, no baked shading, no specular highlight, no rim light, no perspective. Harmonious muted warm natural colours, restrained fine detail, no black pits or high contrast bright speckles. The left/right and top/bottom edges must match for seamless repetition. Texture: coarse warm-grey natural limestone rubble masonry. Five to seven irregular horizontally elongated pale grey tan stones, narrow flat mortar seams, varied quiet grain; tactile but low contrast. Small irregular stones arranged as repeating square tile.",
+      "file": "rough_stone-albedo-source.png",
+      "sha256": "da9348b5b601b7b896906d1d154c893e6ee5395f5f145323e10a916c4d3ca49c"
+    },
+    {
+      "name": "terracotta",
+      "prompt": "Use case: stylized-concept. Asset type: a single seamless square diffuse albedo texture for a refined editable voxel Mediterranean waterfront game. Orthographic flat 2D material covers the ENTIRE image edge to edge; no frame, no scene, no object, no text. Unlit albedo only: absolutely no cast shadow, no baked shading, no specular highlight, no rim light, no perspective. Harmonious muted warm natural colours, restrained fine detail, no black pits or high contrast bright speckles. The left/right and top/bottom edges must match for seamless repetition. Texture: warm terracotta roof tile ceramic, a simple flat pattern of six vertical columns and four horizontal rows of overlapping roof tiles indicated by thin muted burnt-sienna joint lines. Muted orange clay with pale worn edges; no volumetric lighting. Even repeating grid suitable for individually shaped voxel roof stair surfaces. Warm but not saturated red.",
+      "file": "terracotta-albedo-source.png",
+      "sha256": "817a465795ec0411088c327b6b8af6b27ff8cbf105472222983d52808224b84e"
+    },
+    {
+      "name": "timber",
+      "prompt": "Use case: stylized-concept. Asset type: a single seamless square diffuse albedo texture for a refined editable voxel Mediterranean waterfront game. Orthographic flat 2D material covers the ENTIRE image edge to edge; no frame, no scene, no object, no text. Unlit albedo only: absolutely no cast shadow, no baked shading, no specular highlight, no rim light, no perspective. Harmonious muted warm natural colours, restrained fine detail, no black pits or high contrast bright speckles. The left/right and top/bottom edges must match for seamless repetition. Texture: honey-brown weathered timber planks with fine vertical straight wood grain, four equal-width vertical boards, subtle thin board seams, small understated knot marks. Warm medium brown, no painted gloss and no overly dark streaks. Flat wood albedo suitable for a repeating 1 metre building beam, rail, floor and wall.",
+      "file": "timber-albedo-source.png",
+      "sha256": "44d2733183409ccc2b5e994699bcf19ffbbb6bed5dc5fdaa4109e577e568ef6c"
+    }
+  ]
+}

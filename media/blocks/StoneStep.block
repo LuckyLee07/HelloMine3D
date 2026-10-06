@@ -4,8 +4,14 @@ StoneStep
 Id
 33
 
-TexAll
-3 0
+TexTop
+0 9
+
+TexSide
+0 9
+
+TexBottom
+0 9
 
 Opaque
 1
@@ -20,7 +26,7 @@ AoOccluder
 0
 
 BlocksLight
-0
+1
 
 MeshType
 1

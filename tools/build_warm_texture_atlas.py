@@ -39,8 +39,8 @@ def layout(path):
             raise ValueError(f'Invalid layout entry: {line}')
         entries[name] = (x * 16, y * 16, alpha)
         coordinates.add((x, y))
-    if len(entries) != 132:
-        raise ValueError('Expected 132 semantics')
+    if len(entries) != 138:
+        raise ValueError('Expected 138 semantics')
     return entries
 
 
@@ -112,6 +112,9 @@ def build(base=BASE, layout_path=LAYOUT):
                         image.putpixel((x, y), (*rgb, rgba[3]))
                 put(f'{name}_{biome}_v{variant}', image)
     for name, image in adventure_tiles(16).items():
+        put(name, image)
+    from reference_material_source import tiles as reference_tiles
+    for name, image in reference_tiles(16).items():
         put(name, image)
     return atlas
 

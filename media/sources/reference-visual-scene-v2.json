@@ -1,0 +1,6235 @@
+{
+  "version": 2,
+  "origin": [
+    208,
+    66,
+    -192
+  ],
+  "bounds": [
+    -24,
+    -4,
+    -24,
+    23,
+    20,
+    23
+  ],
+  "edit_budget": 72000,
+  "chunk_budget": 16,
+  "preserved_groves": [
+    [
+      -24,
+      -24,
+      -20,
+      -20
+    ],
+    [
+      19,
+      -24,
+      23,
+      -20
+    ]
+  ],
+  "buildings": [
+    {
+      "name": "canal-house",
+      "bounds": [
+        -19,
+        -15,
+        -8,
+        -4
+      ],
+      "floors": [
+        1,
+        6
+      ],
+      "roof_ridge": "east-west",
+      "interior_stair": [
+        -10,
+        -7,
+        -9,
+        -11
+      ],
+      "reuse": "ten shared building parts; the full twelve-part kit also supplies shared street furniture"
+    },
+    {
+      "name": "kiln-workshop",
+      "bounds": [
+        8,
+        -17,
+        20,
+        -7
+      ],
+      "annex": [
+        8,
+        -6,
+        14,
+        0
+      ],
+      "floors": [
+        1
+      ],
+      "roof_ridge": "north-south",
+      "reuse": "same kit; L footprint, low gallery and three working stations"
+    }
+  ],
+  "views": [
+    {
+      "name": "street",
+      "position": [
+        0.5,
+        2.02,
+        22.5
+      ],
+      "rotation": [
+        -8,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "interior",
+      "position": [
+        14.5,
+        3.02,
+        -10.5
+      ],
+      "rotation": [
+        -6,
+        -50,
+        0
+      ]
+    },
+    {
+      "name": "details",
+      "position": [
+        -17.5,
+        2.02,
+        0.5
+      ],
+      "rotation": [
+        -8,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "water",
+      "position": [
+        -16.5,
+        2.02,
+        15.8
+      ],
+      "rotation": [
+        5,
+        45,
+        0
+      ]
+    },
+    {
+      "name": "second",
+      "position": [
+        14.5,
+        2.02,
+        4.5
+      ],
+      "rotation": [
+        -8,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "upstairs",
+      "position": [
+        -15.5,
+        8.02,
+        -8.5
+      ],
+      "rotation": [
+        5,
+        180,
+        0
+      ]
+    }
+  ],
+  "required_cells": [
+    {
+      "at": [
+        -14,
+        1,
+        -3
+      ],
+      "block": "StoneStep",
+      "yaw": 2
+    },
+    {
+      "at": [
+        -10,
+        6,
+        -11
+      ],
+      "block": "StoneStep",
+      "yaw": 2
+    },
+    {
+      "at": [
+        -18,
+        7,
+        -2
+      ],
+      "block": "TimberRailing",
+      "yaw": 0
+    },
+    {
+      "at": [
+        10,
+        2,
+        -13
+      ],
+      "block": "Workbench",
+      "yaw": 0
+    },
+    {
+      "at": [
+        17,
+        2,
+        -13
+      ],
+      "block": "Furnace",
+      "yaw": 0
+    },
+    {
+      "at": [
+        11,
+        5,
+        -3
+      ],
+      "block": "Lantern",
+      "yaw": 0
+    },
+    {
+      "at": [
+        0,
+        -1,
+        12
+      ],
+      "block": "Water",
+      "yaw": 0
+    },
+    {
+      "at": [
+        -6,
+        2,
+        0
+      ],
+      "block": "StoneWindowFrame",
+      "yaw": 0
+    },
+    {
+      "at": [
+        -24,
+        0,
+        23
+      ],
+      "block": "Grass",
+      "yaw": 0
+    },
+    {
+      "at": [
+        23,
+        0,
+        23
+      ],
+      "block": "Grass",
+      "yaw": 0
+    },
+    {
+      "at": [
+        -24,
+        0,
+        -18
+      ],
+      "block": "Grass",
+      "yaw": 0
+    },
+    {
+      "at": [
+        23,
+        0,
+        -18
+      ],
+      "block": "Grass",
+      "yaw": 0
+    },
+    {
+      "at": [
+        -17,
+        2,
+        -13
+      ],
+      "block": "Chest",
+      "yaw": 0
+    },
+    {
+      "at": [
+        17,
+        2,
+        -9
+      ],
+      "block": "Chest",
+      "yaw": 0
+    }
+  ],
+  "clearance_cells": [
+    [
+      -14,
+      2,
+      -4
+    ],
+    [
+      -14,
+      3,
+      -4
+    ],
+    [
+      -10,
+      6,
+      -7
+    ],
+    [
+      10,
+      2,
+      0
+    ],
+    [
+      10,
+      3,
+      0
+    ],
+    [
+      11,
+      2,
+      -6
+    ],
+    [
+      11,
+      3,
+      -6
+    ],
+    [
+      0,
+      2,
+      12
+    ],
+    [
+      0,
+      1,
+      5
+    ],
+    [
+      0,
+      2,
+      5
+    ],
+    [
+      0,
+      3,
+      12
+    ]
+  ],
+  "operations": [
+    {
+      "group": "site",
+      "block": "Stone",
+      "yaw": 0,
+      "box": [
+        -24,
+        -2,
+        -24,
+        23,
+        -2,
+        23
+      ],
+      "exclude_preserved_groves": true
+    },
+    {
+      "group": "site",
+      "block": "Dirt",
+      "yaw": 0,
+      "box": [
+        -24,
+        -1,
+        -24,
+        23,
+        -1,
+        23
+      ],
+      "exclude_preserved_groves": true
+    },
+    {
+      "group": "site",
+      "block": "Grass",
+      "yaw": 0,
+      "box": [
+        -24,
+        0,
+        -24,
+        23,
+        0,
+        23
+      ],
+      "exclude_preserved_groves": true
+    },
+    {
+      "group": "site",
+      "block": "Air",
+      "yaw": 0,
+      "box": [
+        -24,
+        1,
+        -24,
+        23,
+        20,
+        23
+      ],
+      "exclude_preserved_groves": true
+    },
+    {
+      "group": "street",
+      "block": "Cobblestone",
+      "yaw": 0,
+      "box": [
+        -2,
+        0,
+        -24,
+        3,
+        0,
+        23
+      ]
+    },
+    {
+      "group": "street",
+      "block": "Cobblestone",
+      "yaw": 0,
+      "box": [
+        -24,
+        0,
+        3,
+        23,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "water",
+      "block": "Air",
+      "yaw": 0,
+      "box": [
+        -24,
+        0,
+        9,
+        23,
+        20,
+        14
+      ]
+    },
+    {
+      "group": "water",
+      "block": "Silt",
+      "yaw": 0,
+      "box": [
+        -24,
+        -3,
+        9,
+        23,
+        -3,
+        14
+      ]
+    },
+    {
+      "group": "water",
+      "block": "Water",
+      "yaw": 0,
+      "box": [
+        -24,
+        -2,
+        9,
+        23,
+        0,
+        14
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -24,
+        0,
+        8,
+        -24,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -24,
+        0,
+        15,
+        -24,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -23,
+        0,
+        8,
+        -23,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -23,
+        0,
+        15,
+        -23,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -22,
+        0,
+        8,
+        -22,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -22,
+        0,
+        15,
+        -22,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -21,
+        0,
+        8,
+        -21,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -21,
+        0,
+        15,
+        -21,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -20,
+        0,
+        8,
+        -20,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -20,
+        0,
+        15,
+        -20,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -19,
+        0,
+        8,
+        -19,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -19,
+        0,
+        15,
+        -19,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -18,
+        0,
+        8,
+        -18,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -18,
+        0,
+        15,
+        -18,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -17,
+        0,
+        8,
+        -17,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -17,
+        0,
+        15,
+        -17,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -16,
+        0,
+        8,
+        -16,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -16,
+        0,
+        15,
+        -16,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -15,
+        0,
+        8,
+        -15,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -15,
+        0,
+        15,
+        -15,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -14,
+        0,
+        8,
+        -14,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -14,
+        0,
+        15,
+        -14,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -13,
+        0,
+        8,
+        -13,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -13,
+        0,
+        15,
+        -13,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -12,
+        0,
+        8,
+        -12,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -12,
+        0,
+        15,
+        -12,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -11,
+        0,
+        8,
+        -11,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -11,
+        0,
+        15,
+        -11,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -10,
+        0,
+        8,
+        -10,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -10,
+        0,
+        15,
+        -10,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -9,
+        0,
+        8,
+        -9,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -9,
+        0,
+        15,
+        -9,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -8,
+        0,
+        8,
+        -8,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -8,
+        0,
+        15,
+        -8,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -7,
+        0,
+        8,
+        -7,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -7,
+        0,
+        15,
+        -7,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -6,
+        0,
+        8,
+        -6,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -6,
+        0,
+        15,
+        -6,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -5,
+        0,
+        8,
+        -5,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -5,
+        0,
+        15,
+        -5,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -4,
+        0,
+        8,
+        -4,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -4,
+        0,
+        15,
+        -4,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -3,
+        0,
+        8,
+        -3,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -3,
+        0,
+        15,
+        -3,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        4,
+        0,
+        8,
+        4,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        4,
+        0,
+        15,
+        4,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        5,
+        0,
+        8,
+        5,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        5,
+        0,
+        15,
+        5,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        6,
+        0,
+        8,
+        6,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        6,
+        0,
+        15,
+        6,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        7,
+        0,
+        8,
+        7,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        7,
+        0,
+        15,
+        7,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        8,
+        0,
+        8,
+        8,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        8,
+        0,
+        15,
+        8,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        9,
+        0,
+        8,
+        9,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        9,
+        0,
+        15,
+        9,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        10,
+        0,
+        8,
+        10,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        10,
+        0,
+        15,
+        10,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        11,
+        0,
+        8,
+        11,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        11,
+        0,
+        15,
+        11,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        12,
+        0,
+        8,
+        12,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        12,
+        0,
+        15,
+        12,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        13,
+        0,
+        8,
+        13,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        13,
+        0,
+        15,
+        13,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        14,
+        0,
+        8,
+        14,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        14,
+        0,
+        15,
+        14,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        15,
+        0,
+        8,
+        15,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        15,
+        0,
+        15,
+        15,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        16,
+        0,
+        8,
+        16,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        16,
+        0,
+        15,
+        16,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        17,
+        0,
+        8,
+        17,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        17,
+        0,
+        15,
+        17,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        18,
+        0,
+        8,
+        18,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        18,
+        0,
+        15,
+        18,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        19,
+        0,
+        8,
+        19,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        19,
+        0,
+        15,
+        19,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        20,
+        0,
+        8,
+        20,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        20,
+        0,
+        15,
+        20,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        21,
+        0,
+        8,
+        21,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        21,
+        0,
+        15,
+        21,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        22,
+        0,
+        8,
+        22,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        22,
+        0,
+        15,
+        22,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "north-bank",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        23,
+        0,
+        8,
+        23,
+        0,
+        8
+      ]
+    },
+    {
+      "group": "south-bank",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        23,
+        0,
+        15,
+        23,
+        0,
+        15
+      ]
+    },
+    {
+      "group": "bridge",
+      "block": "OakPlank",
+      "yaw": 0,
+      "box": [
+        -2,
+        1,
+        9,
+        3,
+        1,
+        14
+      ]
+    },
+    {
+      "group": "bridge",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -2,
+        -3,
+        10,
+        -2,
+        0,
+        10
+      ]
+    },
+    {
+      "group": "bridge",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -2,
+        -3,
+        13,
+        -2,
+        0,
+        13
+      ]
+    },
+    {
+      "group": "bridge",
+      "block": "TimberRailing",
+      "yaw": 1,
+      "box": [
+        -2,
+        2,
+        10,
+        -2,
+        2,
+        13
+      ]
+    },
+    {
+      "group": "bridge",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        3,
+        -3,
+        10,
+        3,
+        0,
+        10
+      ]
+    },
+    {
+      "group": "bridge",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        3,
+        -3,
+        13,
+        3,
+        0,
+        13
+      ]
+    },
+    {
+      "group": "bridge",
+      "block": "TimberRailing",
+      "yaw": 1,
+      "box": [
+        3,
+        2,
+        10,
+        3,
+        2,
+        13
+      ]
+    },
+    {
+      "group": "bridge",
+      "block": "TimberBeam",
+      "yaw": 1,
+      "box": [
+        -2,
+        0,
+        10,
+        3,
+        0,
+        10
+      ]
+    },
+    {
+      "group": "bridge",
+      "block": "TimberBeam",
+      "yaw": 1,
+      "box": [
+        -2,
+        0,
+        13,
+        3,
+        0,
+        13
+      ]
+    },
+    {
+      "group": "house-ground-floor",
+      "block": "OakPlank",
+      "yaw": 0,
+      "box": [
+        -19,
+        1,
+        -15,
+        -8,
+        1,
+        -4
+      ]
+    },
+    {
+      "group": "house-walls",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -19,
+        2,
+        -15,
+        -8,
+        10,
+        -15
+      ]
+    },
+    {
+      "group": "house-walls",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -19,
+        2,
+        -4,
+        -8,
+        10,
+        -4
+      ]
+    },
+    {
+      "group": "house-walls",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -19,
+        2,
+        -15,
+        -19,
+        10,
+        -4
+      ]
+    },
+    {
+      "group": "house-walls",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -8,
+        2,
+        -15,
+        -8,
+        10,
+        -4
+      ]
+    },
+    {
+      "group": "house-upper-floor",
+      "block": "OakPlank",
+      "yaw": 0,
+      "box": [
+        -19,
+        6,
+        -15,
+        -8,
+        6,
+        -4
+      ]
+    },
+    {
+      "group": "house-upper-room",
+      "block": "Air",
+      "yaw": 0,
+      "box": [
+        -18,
+        7,
+        -14,
+        -9,
+        10,
+        -5
+      ]
+    },
+    {
+      "group": "house-door",
+      "block": "Air",
+      "yaw": 0,
+      "box": [
+        -14,
+        2,
+        -4,
+        -13,
+        4,
+        -4
+      ]
+    },
+    {
+      "group": "house-entry-stair",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -14,
+        1,
+        -3,
+        -13,
+        1,
+        -3
+      ]
+    },
+    {
+      "group": "house-stairwell",
+      "block": "Air",
+      "yaw": 0,
+      "box": [
+        -10,
+        6,
+        -10,
+        -9,
+        6,
+        -7
+      ]
+    },
+    {
+      "group": "house-interior-stair",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -10,
+        2,
+        -7,
+        -9,
+        2,
+        -7
+      ]
+    },
+    {
+      "group": "house-interior-stair",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -10,
+        3,
+        -8,
+        -9,
+        3,
+        -8
+      ]
+    },
+    {
+      "group": "house-interior-stair",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -10,
+        4,
+        -9,
+        -9,
+        4,
+        -9
+      ]
+    },
+    {
+      "group": "house-interior-stair",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -10,
+        5,
+        -10,
+        -9,
+        5,
+        -10
+      ]
+    },
+    {
+      "group": "house-interior-stair",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -10,
+        6,
+        -11,
+        -9,
+        6,
+        -11
+      ]
+    },
+    {
+      "group": "house-front-windows",
+      "block": "StoneWindowFrame",
+      "yaw": 0,
+      "box": [
+        -18,
+        3,
+        -4,
+        -18,
+        4,
+        -4
+      ]
+    },
+    {
+      "group": "house-front-windows",
+      "block": "GlassBorderless",
+      "yaw": 0,
+      "box": [
+        -18,
+        3,
+        -5,
+        -18,
+        4,
+        -5
+      ]
+    },
+    {
+      "group": "house-front-windows",
+      "block": "StoneWindowSill",
+      "yaw": 0,
+      "box": [
+        -18,
+        2,
+        -4,
+        -18,
+        2,
+        -4
+      ]
+    },
+    {
+      "group": "house-upper-windows",
+      "block": "StoneWindowFrame",
+      "yaw": 0,
+      "box": [
+        -18,
+        8,
+        -4,
+        -18,
+        9,
+        -4
+      ]
+    },
+    {
+      "group": "house-upper-windows",
+      "block": "GlassBorderless",
+      "yaw": 0,
+      "box": [
+        -18,
+        8,
+        -5,
+        -18,
+        9,
+        -5
+      ]
+    },
+    {
+      "group": "house-upper-windows",
+      "block": "StoneWindowSill",
+      "yaw": 0,
+      "box": [
+        -18,
+        7,
+        -4,
+        -18,
+        7,
+        -4
+      ]
+    },
+    {
+      "group": "house-front-windows",
+      "block": "StoneWindowFrame",
+      "yaw": 0,
+      "box": [
+        -11,
+        3,
+        -4,
+        -11,
+        4,
+        -4
+      ]
+    },
+    {
+      "group": "house-front-windows",
+      "block": "GlassBorderless",
+      "yaw": 0,
+      "box": [
+        -11,
+        3,
+        -5,
+        -11,
+        4,
+        -5
+      ]
+    },
+    {
+      "group": "house-front-windows",
+      "block": "StoneWindowSill",
+      "yaw": 0,
+      "box": [
+        -11,
+        2,
+        -4,
+        -11,
+        2,
+        -4
+      ]
+    },
+    {
+      "group": "house-upper-windows",
+      "block": "StoneWindowFrame",
+      "yaw": 0,
+      "box": [
+        -11,
+        8,
+        -4,
+        -11,
+        9,
+        -4
+      ]
+    },
+    {
+      "group": "house-upper-windows",
+      "block": "GlassBorderless",
+      "yaw": 0,
+      "box": [
+        -11,
+        8,
+        -5,
+        -11,
+        9,
+        -5
+      ]
+    },
+    {
+      "group": "house-upper-windows",
+      "block": "StoneWindowSill",
+      "yaw": 0,
+      "box": [
+        -11,
+        7,
+        -4,
+        -11,
+        7,
+        -4
+      ]
+    },
+    {
+      "group": "house-west-windows",
+      "block": "StoneWindowFrame",
+      "yaw": 1,
+      "box": [
+        -19,
+        3,
+        -13,
+        -19,
+        4,
+        -13
+      ]
+    },
+    {
+      "group": "house-west-windows",
+      "block": "GlassBorderless",
+      "yaw": 0,
+      "box": [
+        -18,
+        3,
+        -13,
+        -18,
+        4,
+        -13
+      ]
+    },
+    {
+      "group": "house-west-windows",
+      "block": "StoneWindowSill",
+      "yaw": 1,
+      "box": [
+        -19,
+        2,
+        -13,
+        -19,
+        2,
+        -13
+      ]
+    },
+    {
+      "group": "house-west-upper-windows",
+      "block": "StoneWindowFrame",
+      "yaw": 1,
+      "box": [
+        -19,
+        8,
+        -13,
+        -19,
+        9,
+        -13
+      ]
+    },
+    {
+      "group": "house-west-upper-windows",
+      "block": "GlassBorderless",
+      "yaw": 0,
+      "box": [
+        -18,
+        8,
+        -13,
+        -18,
+        9,
+        -13
+      ]
+    },
+    {
+      "group": "house-west-upper-windows",
+      "block": "StoneWindowSill",
+      "yaw": 1,
+      "box": [
+        -19,
+        7,
+        -13,
+        -19,
+        7,
+        -13
+      ]
+    },
+    {
+      "group": "house-west-windows",
+      "block": "StoneWindowFrame",
+      "yaw": 1,
+      "box": [
+        -19,
+        3,
+        -6,
+        -19,
+        4,
+        -6
+      ]
+    },
+    {
+      "group": "house-west-windows",
+      "block": "GlassBorderless",
+      "yaw": 0,
+      "box": [
+        -18,
+        3,
+        -6,
+        -18,
+        4,
+        -6
+      ]
+    },
+    {
+      "group": "house-west-windows",
+      "block": "StoneWindowSill",
+      "yaw": 1,
+      "box": [
+        -19,
+        2,
+        -6,
+        -19,
+        2,
+        -6
+      ]
+    },
+    {
+      "group": "house-west-upper-windows",
+      "block": "StoneWindowFrame",
+      "yaw": 1,
+      "box": [
+        -19,
+        8,
+        -6,
+        -19,
+        9,
+        -6
+      ]
+    },
+    {
+      "group": "house-west-upper-windows",
+      "block": "GlassBorderless",
+      "yaw": 0,
+      "box": [
+        -18,
+        8,
+        -6,
+        -18,
+        9,
+        -6
+      ]
+    },
+    {
+      "group": "house-west-upper-windows",
+      "block": "StoneWindowSill",
+      "yaw": 1,
+      "box": [
+        -19,
+        7,
+        -6,
+        -19,
+        7,
+        -6
+      ]
+    },
+    {
+      "group": "house-east-windows",
+      "block": "StoneWindowFrame",
+      "yaw": 1,
+      "box": [
+        -8,
+        3,
+        -14,
+        -8,
+        4,
+        -14
+      ]
+    },
+    {
+      "group": "house-east-windows",
+      "block": "GlassBorderless",
+      "yaw": 0,
+      "box": [
+        -9,
+        3,
+        -14,
+        -9,
+        4,
+        -14
+      ]
+    },
+    {
+      "group": "house-east-windows",
+      "block": "StoneWindowSill",
+      "yaw": 1,
+      "box": [
+        -8,
+        2,
+        -14,
+        -8,
+        2,
+        -14
+      ]
+    },
+    {
+      "group": "house-east-windows",
+      "block": "StoneWindowFrame",
+      "yaw": 1,
+      "box": [
+        -8,
+        3,
+        -5,
+        -8,
+        4,
+        -5
+      ]
+    },
+    {
+      "group": "house-east-windows",
+      "block": "GlassBorderless",
+      "yaw": 0,
+      "box": [
+        -9,
+        3,
+        -5,
+        -9,
+        4,
+        -5
+      ]
+    },
+    {
+      "group": "house-east-windows",
+      "block": "StoneWindowSill",
+      "yaw": 1,
+      "box": [
+        -8,
+        2,
+        -5,
+        -8,
+        2,
+        -5
+      ]
+    },
+    {
+      "group": "house-balcony",
+      "block": "OakPlank",
+      "yaw": 0,
+      "box": [
+        -18,
+        6,
+        -3,
+        -11,
+        6,
+        -2
+      ]
+    },
+    {
+      "group": "house-balcony-door",
+      "block": "Air",
+      "yaw": 0,
+      "box": [
+        -15,
+        7,
+        -4,
+        -14,
+        9,
+        -4
+      ]
+    },
+    {
+      "group": "house-balcony",
+      "block": "TimberRailing",
+      "yaw": 0,
+      "box": [
+        -18,
+        7,
+        -2,
+        -11,
+        7,
+        -2
+      ]
+    },
+    {
+      "group": "house-balcony",
+      "block": "TimberRailing",
+      "yaw": 1,
+      "box": [
+        -18,
+        7,
+        -3,
+        -18,
+        7,
+        -3
+      ]
+    },
+    {
+      "group": "house-balcony-posts",
+      "block": "OakBark",
+      "yaw": 0,
+      "box": [
+        -18,
+        1,
+        -2,
+        -18,
+        5,
+        -2
+      ]
+    },
+    {
+      "group": "house-balcony",
+      "block": "TimberRailing",
+      "yaw": 1,
+      "box": [
+        -11,
+        7,
+        -3,
+        -11,
+        7,
+        -3
+      ]
+    },
+    {
+      "group": "house-balcony-posts",
+      "block": "OakBark",
+      "yaw": 0,
+      "box": [
+        -11,
+        1,
+        -2,
+        -11,
+        5,
+        -2
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        -19,
+        10,
+        -16,
+        -19,
+        10,
+        -16
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 2,
+      "box": [
+        -19,
+        10,
+        -3,
+        -19,
+        10,
+        -3
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        -18,
+        10,
+        -16,
+        -18,
+        10,
+        -16
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 2,
+      "box": [
+        -18,
+        10,
+        -3,
+        -18,
+        10,
+        -3
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        -17,
+        10,
+        -16,
+        -17,
+        10,
+        -16
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 2,
+      "box": [
+        -17,
+        10,
+        -3,
+        -17,
+        10,
+        -3
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        -16,
+        10,
+        -16,
+        -16,
+        10,
+        -16
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 2,
+      "box": [
+        -16,
+        10,
+        -3,
+        -16,
+        10,
+        -3
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        -15,
+        10,
+        -16,
+        -15,
+        10,
+        -16
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 2,
+      "box": [
+        -15,
+        10,
+        -3,
+        -15,
+        10,
+        -3
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        -14,
+        10,
+        -16,
+        -14,
+        10,
+        -16
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 2,
+      "box": [
+        -14,
+        10,
+        -3,
+        -14,
+        10,
+        -3
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        -13,
+        10,
+        -16,
+        -13,
+        10,
+        -16
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 2,
+      "box": [
+        -13,
+        10,
+        -3,
+        -13,
+        10,
+        -3
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        -12,
+        10,
+        -16,
+        -12,
+        10,
+        -16
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 2,
+      "box": [
+        -12,
+        10,
+        -3,
+        -12,
+        10,
+        -3
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        -11,
+        10,
+        -16,
+        -11,
+        10,
+        -16
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 2,
+      "box": [
+        -11,
+        10,
+        -3,
+        -11,
+        10,
+        -3
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        -10,
+        10,
+        -16,
+        -10,
+        10,
+        -16
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 2,
+      "box": [
+        -10,
+        10,
+        -3,
+        -10,
+        10,
+        -3
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        -9,
+        10,
+        -16,
+        -9,
+        10,
+        -16
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 2,
+      "box": [
+        -9,
+        10,
+        -3,
+        -9,
+        10,
+        -3
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        -8,
+        10,
+        -16,
+        -8,
+        10,
+        -16
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 2,
+      "box": [
+        -8,
+        10,
+        -3,
+        -8,
+        10,
+        -3
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 3,
+      "box": [
+        -20,
+        10,
+        -14,
+        -20,
+        10,
+        -14
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 1,
+      "box": [
+        -7,
+        10,
+        -14,
+        -7,
+        10,
+        -14
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 3,
+      "box": [
+        -20,
+        10,
+        -13,
+        -20,
+        10,
+        -13
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 1,
+      "box": [
+        -7,
+        10,
+        -13,
+        -7,
+        10,
+        -13
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 3,
+      "box": [
+        -20,
+        10,
+        -12,
+        -20,
+        10,
+        -12
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 1,
+      "box": [
+        -7,
+        10,
+        -12,
+        -7,
+        10,
+        -12
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 3,
+      "box": [
+        -20,
+        10,
+        -11,
+        -20,
+        10,
+        -11
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 1,
+      "box": [
+        -7,
+        10,
+        -11,
+        -7,
+        10,
+        -11
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 3,
+      "box": [
+        -20,
+        10,
+        -10,
+        -20,
+        10,
+        -10
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 1,
+      "box": [
+        -7,
+        10,
+        -10,
+        -7,
+        10,
+        -10
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 3,
+      "box": [
+        -20,
+        10,
+        -9,
+        -20,
+        10,
+        -9
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 1,
+      "box": [
+        -7,
+        10,
+        -9,
+        -7,
+        10,
+        -9
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 3,
+      "box": [
+        -20,
+        10,
+        -8,
+        -20,
+        10,
+        -8
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 1,
+      "box": [
+        -7,
+        10,
+        -8,
+        -7,
+        10,
+        -8
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 3,
+      "box": [
+        -20,
+        10,
+        -7,
+        -20,
+        10,
+        -7
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 1,
+      "box": [
+        -7,
+        10,
+        -7,
+        -7,
+        10,
+        -7
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 3,
+      "box": [
+        -20,
+        10,
+        -6,
+        -20,
+        10,
+        -6
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 1,
+      "box": [
+        -7,
+        10,
+        -6,
+        -7,
+        10,
+        -6
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 3,
+      "box": [
+        -20,
+        10,
+        -5,
+        -20,
+        10,
+        -5
+      ]
+    },
+    {
+      "group": "house-cornice",
+      "block": "StoneCornice",
+      "yaw": 1,
+      "box": [
+        -7,
+        10,
+        -5,
+        -7,
+        10,
+        -5
+      ]
+    },
+    {
+      "group": "house-terracotta-roof",
+      "block": "ClayTileEave",
+      "yaw": 0,
+      "box": [
+        -20,
+        11,
+        -16,
+        -7,
+        11,
+        -16
+      ]
+    },
+    {
+      "group": "house-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 0,
+      "box": [
+        -20,
+        12,
+        -15,
+        -7,
+        12,
+        -15
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -19,
+        11,
+        -15,
+        -19,
+        11,
+        -15
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -8,
+        11,
+        -15,
+        -8,
+        11,
+        -15
+      ]
+    },
+    {
+      "group": "house-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 0,
+      "box": [
+        -20,
+        13,
+        -14,
+        -7,
+        13,
+        -14
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -19,
+        11,
+        -14,
+        -19,
+        12,
+        -14
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -8,
+        11,
+        -14,
+        -8,
+        12,
+        -14
+      ]
+    },
+    {
+      "group": "house-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 0,
+      "box": [
+        -20,
+        14,
+        -13,
+        -7,
+        14,
+        -13
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -19,
+        11,
+        -13,
+        -19,
+        13,
+        -13
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -8,
+        11,
+        -13,
+        -8,
+        13,
+        -13
+      ]
+    },
+    {
+      "group": "house-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 0,
+      "box": [
+        -20,
+        15,
+        -12,
+        -7,
+        15,
+        -12
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -19,
+        11,
+        -12,
+        -19,
+        14,
+        -12
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -8,
+        11,
+        -12,
+        -8,
+        14,
+        -12
+      ]
+    },
+    {
+      "group": "house-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 0,
+      "box": [
+        -20,
+        16,
+        -11,
+        -7,
+        16,
+        -11
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -19,
+        11,
+        -11,
+        -19,
+        15,
+        -11
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -8,
+        11,
+        -11,
+        -8,
+        15,
+        -11
+      ]
+    },
+    {
+      "group": "house-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 0,
+      "box": [
+        -20,
+        17,
+        -10,
+        -7,
+        17,
+        -10
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -19,
+        11,
+        -10,
+        -19,
+        16,
+        -10
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -8,
+        11,
+        -10,
+        -8,
+        16,
+        -10
+      ]
+    },
+    {
+      "group": "house-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 2,
+      "box": [
+        -20,
+        17,
+        -9,
+        -7,
+        17,
+        -9
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -19,
+        11,
+        -9,
+        -19,
+        16,
+        -9
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -8,
+        11,
+        -9,
+        -8,
+        16,
+        -9
+      ]
+    },
+    {
+      "group": "house-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 2,
+      "box": [
+        -20,
+        16,
+        -8,
+        -7,
+        16,
+        -8
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -19,
+        11,
+        -8,
+        -19,
+        15,
+        -8
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -8,
+        11,
+        -8,
+        -8,
+        15,
+        -8
+      ]
+    },
+    {
+      "group": "house-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 2,
+      "box": [
+        -20,
+        15,
+        -7,
+        -7,
+        15,
+        -7
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -19,
+        11,
+        -7,
+        -19,
+        14,
+        -7
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -8,
+        11,
+        -7,
+        -8,
+        14,
+        -7
+      ]
+    },
+    {
+      "group": "house-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 2,
+      "box": [
+        -20,
+        14,
+        -6,
+        -7,
+        14,
+        -6
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -19,
+        11,
+        -6,
+        -19,
+        13,
+        -6
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -8,
+        11,
+        -6,
+        -8,
+        13,
+        -6
+      ]
+    },
+    {
+      "group": "house-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 2,
+      "box": [
+        -20,
+        13,
+        -5,
+        -7,
+        13,
+        -5
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -19,
+        11,
+        -5,
+        -19,
+        12,
+        -5
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -8,
+        11,
+        -5,
+        -8,
+        12,
+        -5
+      ]
+    },
+    {
+      "group": "house-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 2,
+      "box": [
+        -20,
+        12,
+        -4,
+        -7,
+        12,
+        -4
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -19,
+        11,
+        -4,
+        -19,
+        11,
+        -4
+      ]
+    },
+    {
+      "group": "house-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -8,
+        11,
+        -4,
+        -8,
+        11,
+        -4
+      ]
+    },
+    {
+      "group": "house-terracotta-roof",
+      "block": "ClayTileEave",
+      "yaw": 2,
+      "box": [
+        -20,
+        11,
+        -3,
+        -7,
+        11,
+        -3
+      ]
+    },
+    {
+      "group": "house-roof-bearing",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -18,
+        11,
+        -15,
+        -9,
+        11,
+        -15
+      ]
+    },
+    {
+      "group": "house-roof-bearing",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -18,
+        11,
+        -4,
+        -9,
+        11,
+        -4
+      ]
+    },
+    {
+      "group": "house-light",
+      "block": "Lantern",
+      "yaw": 0,
+      "box": [
+        -17,
+        5,
+        -12,
+        -17,
+        5,
+        -12
+      ]
+    },
+    {
+      "group": "house-light",
+      "block": "Lantern",
+      "yaw": 0,
+      "box": [
+        -12,
+        5,
+        -6,
+        -12,
+        5,
+        -6
+      ]
+    },
+    {
+      "group": "house-light",
+      "block": "Lantern",
+      "yaw": 0,
+      "box": [
+        -17,
+        10,
+        -12,
+        -17,
+        10,
+        -12
+      ]
+    },
+    {
+      "group": "house-light",
+      "block": "Lantern",
+      "yaw": 0,
+      "box": [
+        -12,
+        10,
+        -6,
+        -12,
+        10,
+        -6
+      ]
+    },
+    {
+      "group": "house-storage",
+      "block": "Chest",
+      "yaw": 0,
+      "box": [
+        -17,
+        2,
+        -13,
+        -17,
+        2,
+        -13
+      ]
+    },
+    {
+      "group": "workshop-floor",
+      "block": "OakPlank",
+      "yaw": 0,
+      "box": [
+        8,
+        1,
+        -17,
+        20,
+        1,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-gallery-floor",
+      "block": "OakPlank",
+      "yaw": 0,
+      "box": [
+        8,
+        1,
+        -6,
+        14,
+        1,
+        0
+      ]
+    },
+    {
+      "group": "workshop-walls",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        8,
+        2,
+        -17,
+        20,
+        6,
+        -17
+      ]
+    },
+    {
+      "group": "workshop-walls",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        8,
+        2,
+        -7,
+        20,
+        6,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-walls",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        8,
+        2,
+        -17,
+        8,
+        6,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-walls",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        20,
+        2,
+        -17,
+        20,
+        6,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-gallery-walls",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        8,
+        2,
+        -6,
+        14,
+        5,
+        -6
+      ]
+    },
+    {
+      "group": "workshop-gallery-walls",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        8,
+        2,
+        0,
+        14,
+        5,
+        0
+      ]
+    },
+    {
+      "group": "workshop-gallery-walls",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        8,
+        2,
+        -6,
+        8,
+        5,
+        0
+      ]
+    },
+    {
+      "group": "workshop-gallery-walls",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        14,
+        2,
+        -6,
+        14,
+        5,
+        0
+      ]
+    },
+    {
+      "group": "workshop-gallery-connection",
+      "block": "Air",
+      "yaw": 0,
+      "box": [
+        10,
+        2,
+        -7,
+        12,
+        4,
+        -6
+      ]
+    },
+    {
+      "group": "workshop-door",
+      "block": "Air",
+      "yaw": 0,
+      "box": [
+        10,
+        2,
+        0,
+        11,
+        4,
+        0
+      ]
+    },
+    {
+      "group": "workshop-entry-stair",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        10,
+        1,
+        1,
+        11,
+        1,
+        1
+      ]
+    },
+    {
+      "group": "workshop-east-windows",
+      "block": "StoneWindowFrame",
+      "yaw": 1,
+      "box": [
+        20,
+        3,
+        -15,
+        20,
+        4,
+        -15
+      ]
+    },
+    {
+      "group": "workshop-east-windows",
+      "block": "GlassBorderless",
+      "yaw": 0,
+      "box": [
+        19,
+        3,
+        -15,
+        19,
+        4,
+        -15
+      ]
+    },
+    {
+      "group": "workshop-east-windows",
+      "block": "StoneWindowSill",
+      "yaw": 1,
+      "box": [
+        20,
+        2,
+        -15,
+        20,
+        2,
+        -15
+      ]
+    },
+    {
+      "group": "workshop-east-windows",
+      "block": "StoneWindowFrame",
+      "yaw": 1,
+      "box": [
+        20,
+        3,
+        -10,
+        20,
+        4,
+        -10
+      ]
+    },
+    {
+      "group": "workshop-east-windows",
+      "block": "GlassBorderless",
+      "yaw": 0,
+      "box": [
+        19,
+        3,
+        -10,
+        19,
+        4,
+        -10
+      ]
+    },
+    {
+      "group": "workshop-east-windows",
+      "block": "StoneWindowSill",
+      "yaw": 1,
+      "box": [
+        20,
+        2,
+        -10,
+        20,
+        2,
+        -10
+      ]
+    },
+    {
+      "group": "workshop-back-windows",
+      "block": "StoneWindowFrame",
+      "yaw": 0,
+      "box": [
+        10,
+        3,
+        -17,
+        10,
+        4,
+        -17
+      ]
+    },
+    {
+      "group": "workshop-back-windows",
+      "block": "GlassBorderless",
+      "yaw": 0,
+      "box": [
+        10,
+        3,
+        -16,
+        10,
+        4,
+        -16
+      ]
+    },
+    {
+      "group": "workshop-back-windows",
+      "block": "StoneWindowSill",
+      "yaw": 0,
+      "box": [
+        10,
+        2,
+        -17,
+        10,
+        2,
+        -17
+      ]
+    },
+    {
+      "group": "workshop-back-windows",
+      "block": "StoneWindowFrame",
+      "yaw": 0,
+      "box": [
+        17,
+        3,
+        -17,
+        17,
+        4,
+        -17
+      ]
+    },
+    {
+      "group": "workshop-back-windows",
+      "block": "GlassBorderless",
+      "yaw": 0,
+      "box": [
+        17,
+        3,
+        -16,
+        17,
+        4,
+        -16
+      ]
+    },
+    {
+      "group": "workshop-back-windows",
+      "block": "StoneWindowSill",
+      "yaw": 0,
+      "box": [
+        17,
+        2,
+        -17,
+        17,
+        2,
+        -17
+      ]
+    },
+    {
+      "group": "workshop-gallery-window",
+      "block": "StoneWindowFrame",
+      "yaw": 1,
+      "box": [
+        8,
+        3,
+        -3,
+        8,
+        4,
+        -3
+      ]
+    },
+    {
+      "group": "workshop-gallery-window",
+      "block": "GlassBorderless",
+      "yaw": 0,
+      "box": [
+        9,
+        3,
+        -3,
+        9,
+        4,
+        -3
+      ]
+    },
+    {
+      "group": "workshop-gallery-window",
+      "block": "StoneWindowSill",
+      "yaw": 1,
+      "box": [
+        8,
+        2,
+        -3,
+        8,
+        2,
+        -3
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        8,
+        6,
+        -18,
+        8,
+        6,
+        -18
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        9,
+        6,
+        -18,
+        9,
+        6,
+        -18
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        10,
+        6,
+        -18,
+        10,
+        6,
+        -18
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        11,
+        6,
+        -18,
+        11,
+        6,
+        -18
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        12,
+        6,
+        -18,
+        12,
+        6,
+        -18
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        13,
+        6,
+        -18,
+        13,
+        6,
+        -18
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        14,
+        6,
+        -18,
+        14,
+        6,
+        -18
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        15,
+        6,
+        -18,
+        15,
+        6,
+        -18
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 2,
+      "box": [
+        15,
+        6,
+        -6,
+        15,
+        6,
+        -6
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        16,
+        6,
+        -18,
+        16,
+        6,
+        -18
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 2,
+      "box": [
+        16,
+        6,
+        -6,
+        16,
+        6,
+        -6
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        17,
+        6,
+        -18,
+        17,
+        6,
+        -18
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 2,
+      "box": [
+        17,
+        6,
+        -6,
+        17,
+        6,
+        -6
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        18,
+        6,
+        -18,
+        18,
+        6,
+        -18
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 2,
+      "box": [
+        18,
+        6,
+        -6,
+        18,
+        6,
+        -6
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        19,
+        6,
+        -18,
+        19,
+        6,
+        -18
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 2,
+      "box": [
+        19,
+        6,
+        -6,
+        19,
+        6,
+        -6
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 0,
+      "box": [
+        20,
+        6,
+        -18,
+        20,
+        6,
+        -18
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 2,
+      "box": [
+        20,
+        6,
+        -6,
+        20,
+        6,
+        -6
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 3,
+      "box": [
+        7,
+        6,
+        -16,
+        7,
+        6,
+        -16
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 1,
+      "box": [
+        21,
+        6,
+        -16,
+        21,
+        6,
+        -16
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 3,
+      "box": [
+        7,
+        6,
+        -15,
+        7,
+        6,
+        -15
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 1,
+      "box": [
+        21,
+        6,
+        -15,
+        21,
+        6,
+        -15
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 3,
+      "box": [
+        7,
+        6,
+        -14,
+        7,
+        6,
+        -14
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 1,
+      "box": [
+        21,
+        6,
+        -14,
+        21,
+        6,
+        -14
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 3,
+      "box": [
+        7,
+        6,
+        -13,
+        7,
+        6,
+        -13
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 1,
+      "box": [
+        21,
+        6,
+        -13,
+        21,
+        6,
+        -13
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 3,
+      "box": [
+        7,
+        6,
+        -12,
+        7,
+        6,
+        -12
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 1,
+      "box": [
+        21,
+        6,
+        -12,
+        21,
+        6,
+        -12
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 3,
+      "box": [
+        7,
+        6,
+        -11,
+        7,
+        6,
+        -11
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 1,
+      "box": [
+        21,
+        6,
+        -11,
+        21,
+        6,
+        -11
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 3,
+      "box": [
+        7,
+        6,
+        -10,
+        7,
+        6,
+        -10
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 1,
+      "box": [
+        21,
+        6,
+        -10,
+        21,
+        6,
+        -10
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 3,
+      "box": [
+        7,
+        6,
+        -9,
+        7,
+        6,
+        -9
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 1,
+      "box": [
+        21,
+        6,
+        -9,
+        21,
+        6,
+        -9
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 3,
+      "box": [
+        7,
+        6,
+        -8,
+        7,
+        6,
+        -8
+      ]
+    },
+    {
+      "group": "workshop-cornice",
+      "block": "StoneCornice",
+      "yaw": 1,
+      "box": [
+        21,
+        6,
+        -8,
+        21,
+        6,
+        -8
+      ]
+    },
+    {
+      "group": "workshop-terracotta-roof",
+      "block": "ClayTileEave",
+      "yaw": 3,
+      "box": [
+        7,
+        7,
+        -18,
+        7,
+        7,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 3,
+      "box": [
+        8,
+        8,
+        -18,
+        8,
+        8,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        8,
+        7,
+        -17,
+        8,
+        7,
+        -17
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        8,
+        7,
+        -7,
+        8,
+        7,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 3,
+      "box": [
+        9,
+        9,
+        -18,
+        9,
+        9,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        9,
+        7,
+        -17,
+        9,
+        8,
+        -17
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        9,
+        7,
+        -7,
+        9,
+        8,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 3,
+      "box": [
+        10,
+        10,
+        -18,
+        10,
+        10,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        10,
+        7,
+        -17,
+        10,
+        9,
+        -17
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        10,
+        7,
+        -7,
+        10,
+        9,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 3,
+      "box": [
+        11,
+        11,
+        -18,
+        11,
+        11,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        11,
+        7,
+        -17,
+        11,
+        10,
+        -17
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        11,
+        7,
+        -7,
+        11,
+        10,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 3,
+      "box": [
+        12,
+        12,
+        -18,
+        12,
+        12,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        12,
+        7,
+        -17,
+        12,
+        11,
+        -17
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        12,
+        7,
+        -7,
+        12,
+        11,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 3,
+      "box": [
+        13,
+        13,
+        -18,
+        13,
+        13,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        13,
+        7,
+        -17,
+        13,
+        12,
+        -17
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        13,
+        7,
+        -7,
+        13,
+        12,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 1,
+      "box": [
+        14,
+        14,
+        -18,
+        14,
+        14,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        14,
+        7,
+        -17,
+        14,
+        13,
+        -17
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        14,
+        7,
+        -7,
+        14,
+        13,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 1,
+      "box": [
+        15,
+        13,
+        -18,
+        15,
+        13,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        15,
+        7,
+        -17,
+        15,
+        12,
+        -17
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        15,
+        7,
+        -7,
+        15,
+        12,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 1,
+      "box": [
+        16,
+        12,
+        -18,
+        16,
+        12,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        16,
+        7,
+        -17,
+        16,
+        11,
+        -17
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        16,
+        7,
+        -7,
+        16,
+        11,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 1,
+      "box": [
+        17,
+        11,
+        -18,
+        17,
+        11,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        17,
+        7,
+        -17,
+        17,
+        10,
+        -17
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        17,
+        7,
+        -7,
+        17,
+        10,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 1,
+      "box": [
+        18,
+        10,
+        -18,
+        18,
+        10,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        18,
+        7,
+        -17,
+        18,
+        9,
+        -17
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        18,
+        7,
+        -7,
+        18,
+        9,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 1,
+      "box": [
+        19,
+        9,
+        -18,
+        19,
+        9,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        19,
+        7,
+        -17,
+        19,
+        8,
+        -17
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        19,
+        7,
+        -7,
+        19,
+        8,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-terracotta-roof",
+      "block": "ClayTileStep",
+      "yaw": 1,
+      "box": [
+        20,
+        8,
+        -18,
+        20,
+        8,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        20,
+        7,
+        -17,
+        20,
+        7,
+        -17
+      ]
+    },
+    {
+      "group": "workshop-gable",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        20,
+        7,
+        -7,
+        20,
+        7,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-terracotta-roof",
+      "block": "ClayTileEave",
+      "yaw": 1,
+      "box": [
+        21,
+        7,
+        -18,
+        21,
+        7,
+        -7
+      ]
+    },
+    {
+      "group": "workshop-gallery-roof",
+      "block": "ClayTileStep",
+      "yaw": 2,
+      "box": [
+        7,
+        6,
+        -6,
+        15,
+        6,
+        1
+      ]
+    },
+    {
+      "group": "workshop-stations",
+      "block": "Workbench",
+      "yaw": 0,
+      "box": [
+        10,
+        2,
+        -13,
+        10,
+        2,
+        -13
+      ]
+    },
+    {
+      "group": "workshop-stations",
+      "block": "Furnace",
+      "yaw": 0,
+      "box": [
+        17,
+        2,
+        -13,
+        17,
+        2,
+        -13
+      ]
+    },
+    {
+      "group": "workshop-stations",
+      "block": "Chest",
+      "yaw": 0,
+      "box": [
+        17,
+        2,
+        -9,
+        17,
+        2,
+        -9
+      ]
+    },
+    {
+      "group": "workshop-light",
+      "block": "Lantern",
+      "yaw": 0,
+      "box": [
+        12,
+        5,
+        -12,
+        12,
+        5,
+        -12
+      ]
+    },
+    {
+      "group": "workshop-light-anchor",
+      "block": "OakPlank",
+      "yaw": 0,
+      "box": [
+        12,
+        6,
+        -12,
+        12,
+        6,
+        -12
+      ]
+    },
+    {
+      "group": "workshop-gallery-light",
+      "block": "Lantern",
+      "yaw": 0,
+      "box": [
+        11,
+        5,
+        -3,
+        11,
+        5,
+        -3
+      ]
+    },
+    {
+      "group": "workshop-light-anchor",
+      "block": "OakPlank",
+      "yaw": 0,
+      "box": [
+        11,
+        6,
+        -3,
+        11,
+        6,
+        -3
+      ]
+    },
+    {
+      "group": "garden-planter-edging",
+      "block": "StonePlanter",
+      "yaw": 0,
+      "box": [
+        -22,
+        1,
+        2,
+        -22,
+        1,
+        2
+      ]
+    },
+    {
+      "group": "garden-planter-edging",
+      "block": "StonePlanter",
+      "yaw": 0,
+      "box": [
+        -21,
+        1,
+        2,
+        -21,
+        1,
+        2
+      ]
+    },
+    {
+      "group": "garden-planter-edging",
+      "block": "StonePlanter",
+      "yaw": 0,
+      "box": [
+        -20,
+        1,
+        2,
+        -20,
+        1,
+        2
+      ]
+    },
+    {
+      "group": "garden-planter-edging",
+      "block": "StonePlanter",
+      "yaw": 0,
+      "box": [
+        -19,
+        1,
+        2,
+        -19,
+        1,
+        2
+      ]
+    },
+    {
+      "group": "garden-planter-edging",
+      "block": "StonePlanter",
+      "yaw": 0,
+      "box": [
+        -18,
+        1,
+        2,
+        -18,
+        1,
+        2
+      ]
+    },
+    {
+      "group": "garden-planter-edging",
+      "block": "StonePlanter",
+      "yaw": 0,
+      "box": [
+        -17,
+        1,
+        2,
+        -17,
+        1,
+        2
+      ]
+    },
+    {
+      "group": "garden-flora",
+      "block": "Rose",
+      "yaw": 0,
+      "box": [
+        -21,
+        1,
+        0,
+        -21,
+        1,
+        0
+      ]
+    },
+    {
+      "group": "garden-flora",
+      "block": "Rose",
+      "yaw": 0,
+      "box": [
+        -19,
+        1,
+        1,
+        -19,
+        1,
+        1
+      ]
+    },
+    {
+      "group": "garden-flora",
+      "block": "TallGrass",
+      "yaw": 0,
+      "box": [
+        -18,
+        1,
+        -1,
+        -18,
+        1,
+        -1
+      ]
+    },
+    {
+      "group": "garden-flora",
+      "block": "TallGrass",
+      "yaw": 0,
+      "box": [
+        -21,
+        1,
+        -2,
+        -21,
+        1,
+        -2
+      ]
+    },
+    {
+      "group": "garden-planter-edging",
+      "block": "StonePlanter",
+      "yaw": 0,
+      "box": [
+        17,
+        1,
+        2,
+        17,
+        1,
+        2
+      ]
+    },
+    {
+      "group": "garden-planter-edging",
+      "block": "StonePlanter",
+      "yaw": 0,
+      "box": [
+        18,
+        1,
+        2,
+        18,
+        1,
+        2
+      ]
+    },
+    {
+      "group": "garden-planter-edging",
+      "block": "StonePlanter",
+      "yaw": 0,
+      "box": [
+        19,
+        1,
+        2,
+        19,
+        1,
+        2
+      ]
+    },
+    {
+      "group": "garden-planter-edging",
+      "block": "StonePlanter",
+      "yaw": 0,
+      "box": [
+        20,
+        1,
+        2,
+        20,
+        1,
+        2
+      ]
+    },
+    {
+      "group": "garden-planter-edging",
+      "block": "StonePlanter",
+      "yaw": 0,
+      "box": [
+        21,
+        1,
+        2,
+        21,
+        1,
+        2
+      ]
+    },
+    {
+      "group": "garden-planter-edging",
+      "block": "StonePlanter",
+      "yaw": 0,
+      "box": [
+        22,
+        1,
+        2,
+        22,
+        1,
+        2
+      ]
+    },
+    {
+      "group": "garden-flora",
+      "block": "Rose",
+      "yaw": 0,
+      "box": [
+        18,
+        1,
+        0,
+        18,
+        1,
+        0
+      ]
+    },
+    {
+      "group": "garden-flora",
+      "block": "Rose",
+      "yaw": 0,
+      "box": [
+        20,
+        1,
+        1,
+        20,
+        1,
+        1
+      ]
+    },
+    {
+      "group": "garden-flora",
+      "block": "TallGrass",
+      "yaw": 0,
+      "box": [
+        21,
+        1,
+        -1,
+        21,
+        1,
+        -1
+      ]
+    },
+    {
+      "group": "garden-flora",
+      "block": "TallGrass",
+      "yaw": 0,
+      "box": [
+        18,
+        1,
+        -2,
+        18,
+        1,
+        -2
+      ]
+    },
+    {
+      "group": "sparse-ground-flora",
+      "block": "TallGrass",
+      "yaw": 0,
+      "box": [
+        -23,
+        1,
+        18,
+        -23,
+        1,
+        18
+      ]
+    },
+    {
+      "group": "sparse-ground-flora",
+      "block": "TallGrass",
+      "yaw": 0,
+      "box": [
+        -20,
+        1,
+        21,
+        -20,
+        1,
+        21
+      ]
+    },
+    {
+      "group": "sparse-ground-flora",
+      "block": "TallGrass",
+      "yaw": 0,
+      "box": [
+        -17,
+        1,
+        19,
+        -17,
+        1,
+        19
+      ]
+    },
+    {
+      "group": "sparse-ground-flora",
+      "block": "TallGrass",
+      "yaw": 0,
+      "box": [
+        18,
+        1,
+        18,
+        18,
+        1,
+        18
+      ]
+    },
+    {
+      "group": "sparse-ground-flora",
+      "block": "TallGrass",
+      "yaw": 0,
+      "box": [
+        21,
+        1,
+        21,
+        21,
+        1,
+        21
+      ]
+    },
+    {
+      "group": "sparse-ground-flora",
+      "block": "TallGrass",
+      "yaw": 0,
+      "box": [
+        23,
+        1,
+        17,
+        23,
+        1,
+        17
+      ]
+    },
+    {
+      "group": "sparse-ground-flora",
+      "block": "TallGrass",
+      "yaw": 0,
+      "box": [
+        -22,
+        1,
+        -18,
+        -22,
+        1,
+        -18
+      ]
+    },
+    {
+      "group": "sparse-ground-flora",
+      "block": "TallGrass",
+      "yaw": 0,
+      "box": [
+        22,
+        1,
+        -19,
+        22,
+        1,
+        -19
+      ]
+    },
+    {
+      "group": "sparse-ground-flora",
+      "block": "TallGrass",
+      "yaw": 0,
+      "box": [
+        5,
+        1,
+        -20,
+        5,
+        1,
+        -20
+      ]
+    },
+    {
+      "group": "sparse-ground-flora",
+      "block": "Rose",
+      "yaw": 0,
+      "box": [
+        -20,
+        1,
+        17,
+        -20,
+        1,
+        17
+      ]
+    },
+    {
+      "group": "sparse-ground-flora",
+      "block": "Rose",
+      "yaw": 0,
+      "box": [
+        20,
+        1,
+        18,
+        20,
+        1,
+        18
+      ]
+    },
+    {
+      "group": "sparse-ground-flora",
+      "block": "Rose",
+      "yaw": 0,
+      "box": [
+        -23,
+        1,
+        -18,
+        -23,
+        1,
+        -18
+      ]
+    },
+    {
+      "group": "sparse-ground-flora",
+      "block": "Rose",
+      "yaw": 0,
+      "box": [
+        22,
+        1,
+        -18,
+        22,
+        1,
+        -18
+      ]
+    },
+    {
+      "group": "canal-seating",
+      "block": "StoneSlab",
+      "yaw": 0,
+      "box": [
+        -13,
+        0,
+        18,
+        -8,
+        0,
+        18
+      ]
+    },
+    {
+      "group": "canal-seating",
+      "block": "TimberBeam",
+      "yaw": 1,
+      "box": [
+        -13,
+        1,
+        18,
+        -8,
+        1,
+        18
+      ]
+    },
+    {
+      "group": "canal-seating-ends",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -13,
+        1,
+        19,
+        -13,
+        1,
+        19
+      ]
+    },
+    {
+      "group": "canal-seating-ends",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -8,
+        1,
+        19,
+        -8,
+        1,
+        19
+      ]
+    },
+    {
+      "group": "canal-seating",
+      "block": "StoneSlab",
+      "yaw": 0,
+      "box": [
+        8,
+        0,
+        18,
+        13,
+        0,
+        18
+      ]
+    },
+    {
+      "group": "canal-seating",
+      "block": "TimberBeam",
+      "yaw": 1,
+      "box": [
+        8,
+        1,
+        18,
+        13,
+        1,
+        18
+      ]
+    },
+    {
+      "group": "canal-seating-ends",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        8,
+        1,
+        19,
+        8,
+        1,
+        19
+      ]
+    },
+    {
+      "group": "canal-seating-ends",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        13,
+        1,
+        19,
+        13,
+        1,
+        19
+      ]
+    },
+    {
+      "group": "street-light-post",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -6,
+        1,
+        6,
+        -6,
+        3,
+        6
+      ]
+    },
+    {
+      "group": "street-light-bracket",
+      "block": "TimberBeam",
+      "yaw": 1,
+      "box": [
+        -6,
+        4,
+        6,
+        -6,
+        4,
+        6
+      ]
+    },
+    {
+      "group": "street-light-anchor",
+      "block": "OakPlank",
+      "yaw": 0,
+      "box": [
+        -7,
+        4,
+        6,
+        -7,
+        4,
+        6
+      ]
+    },
+    {
+      "group": "street-light",
+      "block": "Lantern",
+      "yaw": 0,
+      "box": [
+        -7,
+        3,
+        6,
+        -7,
+        3,
+        6
+      ]
+    },
+    {
+      "group": "street-light-post",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        6,
+        1,
+        6,
+        6,
+        3,
+        6
+      ]
+    },
+    {
+      "group": "street-light-bracket",
+      "block": "TimberBeam",
+      "yaw": 1,
+      "box": [
+        6,
+        4,
+        6,
+        6,
+        4,
+        6
+      ]
+    },
+    {
+      "group": "street-light-anchor",
+      "block": "OakPlank",
+      "yaw": 0,
+      "box": [
+        7,
+        4,
+        6,
+        7,
+        4,
+        6
+      ]
+    },
+    {
+      "group": "street-light",
+      "block": "Lantern",
+      "yaw": 0,
+      "box": [
+        7,
+        3,
+        6,
+        7,
+        3,
+        6
+      ]
+    },
+    {
+      "group": "editable-wall",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        -7,
+        1,
+        0,
+        -4,
+        2,
+        0
+      ]
+    },
+    {
+      "group": "editable-wall",
+      "block": "StoneWindowFrame",
+      "yaw": 0,
+      "box": [
+        -6,
+        2,
+        0,
+        -6,
+        2,
+        0
+      ]
+    },
+    {
+      "group": "editable-wall",
+      "block": "StoneCornice",
+      "yaw": 2,
+      "box": [
+        -7,
+        3,
+        0,
+        -4,
+        3,
+        0
+      ]
+    },
+    {
+      "group": "editable-step-four-yaws",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -7,
+        1,
+        1,
+        -7,
+        1,
+        1
+      ]
+    },
+    {
+      "group": "editable-step-four-yaws",
+      "block": "StoneStep",
+      "yaw": 1,
+      "box": [
+        -6,
+        1,
+        1,
+        -6,
+        1,
+        1
+      ]
+    },
+    {
+      "group": "editable-step-four-yaws",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -5,
+        1,
+        1,
+        -5,
+        1,
+        1
+      ]
+    },
+    {
+      "group": "editable-step-four-yaws",
+      "block": "StoneStep",
+      "yaw": 3,
+      "box": [
+        -4,
+        1,
+        1,
+        -4,
+        1,
+        1
+      ]
+    },
+    {
+      "group": "bridge-entry-stair",
+      "block": "StoneStep",
+      "yaw": 0,
+      "box": [
+        -2,
+        1,
+        8,
+        3,
+        1,
+        8
+      ]
+    },
+    {
+      "group": "bridge-entry-stair",
+      "block": "StoneStep",
+      "yaw": 2,
+      "box": [
+        -2,
+        1,
+        15,
+        3,
+        1,
+        15
+      ]
+    },
+    {
+      "group": "house-closed-ceiling",
+      "block": "OakPlank",
+      "yaw": 0,
+      "box": [
+        -18,
+        11,
+        -14,
+        -9,
+        11,
+        -5
+      ]
+    },
+    {
+      "group": "workshop-closed-ceiling",
+      "block": "OakPlank",
+      "yaw": 0,
+      "box": [
+        9,
+        7,
+        -16,
+        19,
+        7,
+        -8
+      ]
+    },
+    {
+      "group": "workshop-side-roof-bearing",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        8,
+        7,
+        -16,
+        8,
+        7,
+        -8
+      ]
+    },
+    {
+      "group": "workshop-side-roof-bearing",
+      "block": "StoneBrick",
+      "yaw": 0,
+      "box": [
+        20,
+        7,
+        -16,
+        20,
+        7,
+        -8
+      ]
+    },
+    {
+      "group": "house-balcony-cantilever",
+      "block": "TimberBeam",
+      "yaw": 0,
+      "box": [
+        -17,
+        5,
+        -3,
+        -17,
+        5,
+        -3
+      ]
+    },
+    {
+      "group": "house-balcony-cantilever",
+      "block": "TimberBeam",
+      "yaw": 0,
+      "box": [
+        -15,
+        5,
+        -3,
+        -15,
+        5,
+        -3
+      ]
+    },
+    {
+      "group": "house-balcony-cantilever",
+      "block": "TimberBeam",
+      "yaw": 0,
+      "box": [
+        -13,
+        5,
+        -3,
+        -13,
+        5,
+        -3
+      ]
+    },
+    {
+      "group": "house-balcony-cantilever",
+      "block": "TimberBeam",
+      "yaw": 0,
+      "box": [
+        -12,
+        5,
+        -3,
+        -12,
+        5,
+        -3
+      ]
+    },
+    {
+      "group": "workshop-eave-cantilever",
+      "block": "TimberBeam",
+      "yaw": 0,
+      "box": [
+        16,
+        5,
+        -6,
+        16,
+        5,
+        -6
+      ]
+    },
+    {
+      "group": "workshop-eave-cantilever",
+      "block": "TimberBeam",
+      "yaw": 0,
+      "box": [
+        18,
+        5,
+        -6,
+        18,
+        5,
+        -6
+      ]
+    }
+  ],
+  "trees": [
+    {
+      "name": "south-bank-oak",
+      "root": [
+        -17,
+        1,
+        17
+      ],
+      "kind": "Oak",
+      "seed": 42107,
+      "stature": 0,
+      "origin_type": "ordinary_planted"
+    },
+    {
+      "name": "south-bank-birch",
+      "root": [
+        17,
+        1,
+        17
+      ],
+      "kind": "Birch",
+      "seed": 42109,
+      "stature": 0,
+      "origin_type": "ordinary_planted"
+    }
+  ],
+  "weather_shell_regions": [
+    {
+      "box": [
+        -19,
+        5,
+        -15,
+        -8,
+        5,
+        -15
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        -19,
+        5,
+        -4,
+        -8,
+        5,
+        -4
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        -19,
+        5,
+        -14,
+        -19,
+        5,
+        -5
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        -8,
+        5,
+        -14,
+        -8,
+        5,
+        -5
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        -19,
+        10,
+        -15,
+        -8,
+        10,
+        -15
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        -19,
+        10,
+        -4,
+        -8,
+        10,
+        -4
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        -19,
+        10,
+        -14,
+        -19,
+        10,
+        -5
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        -8,
+        10,
+        -14,
+        -8,
+        10,
+        -5
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        8,
+        5,
+        -17,
+        20,
+        5,
+        -17
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        8,
+        5,
+        -7,
+        20,
+        5,
+        -7
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        8,
+        5,
+        -16,
+        8,
+        5,
+        -8
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        20,
+        5,
+        -16,
+        20,
+        5,
+        -8
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        8,
+        6,
+        -17,
+        20,
+        6,
+        -17
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        8,
+        6,
+        -7,
+        20,
+        6,
+        -7
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        8,
+        6,
+        -16,
+        8,
+        6,
+        -8
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        20,
+        6,
+        -16,
+        20,
+        6,
+        -8
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        8,
+        7,
+        -17,
+        20,
+        7,
+        -17
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        8,
+        7,
+        -7,
+        20,
+        7,
+        -7
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        8,
+        7,
+        -16,
+        8,
+        7,
+        -8
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        20,
+        7,
+        -16,
+        20,
+        7,
+        -8
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        8,
+        5,
+        -6,
+        14,
+        5,
+        -6
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        8,
+        5,
+        0,
+        14,
+        5,
+        0
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        8,
+        5,
+        -5,
+        8,
+        5,
+        -1
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        14,
+        5,
+        -5,
+        14,
+        5,
+        -1
+      ],
+      "block": "StoneBrick",
+      "yaw": 0
+    },
+    {
+      "box": [
+        -18,
+        11,
+        -14,
+        -9,
+        11,
+        -5
+      ],
+      "block": "OakPlank",
+      "yaw": 0
+    },
+    {
+      "box": [
+        9,
+        7,
+        -16,
+        19,
+        7,
+        -8
+      ],
+      "block": "OakPlank",
+      "yaw": 0
+    }
+  ],
+  "roof_profiles": [
+    {
+      "name": "house",
+      "axis": 2,
+      "fixed_coordinate": -13,
+      "group": "house-terracotta-roof"
+    },
+    {
+      "name": "workshop",
+      "axis": 0,
+      "fixed_coordinate": -12,
+      "group": "workshop-terracotta-roof"
+    }
+  ],
+  "flat_roof_regions": [
+    [
+      8,
+      6,
+      -6,
+      14,
+      6,
+      0
+    ]
+  ]
+}

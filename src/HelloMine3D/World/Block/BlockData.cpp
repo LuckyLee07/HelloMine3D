@@ -303,7 +303,7 @@ void BlockData::load(const std::string &path,
     }
 
     const bool compound=m_data.shape.isCompound();
-    const bool newId=m_data.id==BlockId::StoneStep || m_data.id==BlockId::StoneWindowFrame;
+    const bool newId=isArchitecturalBlock(m_data.id);
     if(compound != newId) fail(path,"Shape","compound shapes require the registered architectural ID");
     for(const char *key:{"OccludesFaces","AoOccluder","BlocksLight"}) {
         if(compound) requireKey(key,seenKeys.count(key)!=0);

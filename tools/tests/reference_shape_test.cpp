@@ -49,6 +49,66 @@ int main(int argc,char **argv) {
             }
             require(std::abs(area-(shape==&step?5.5f:2.625f))<.00001f,"union-area-four-yaws");
         }
+        struct KitPart { BlockId id; const char *name; float volume; };
+        const KitPart kit[]={{BlockId::StoneStep,"StoneStep",.75f},{BlockId::StoneWindowFrame,"StoneWindowFrame",.109375f},
+            {BlockId::StoneBrick,"StoneBrick",1.f},{BlockId::StoneSlab,"StoneSlab",.5f},
+            {BlockId::StoneCornice,"StoneCornice",.3125f},{BlockId::ClayTileStep,"ClayTileStep",.75f},
+            {BlockId::ClayTileEave,"ClayTileEave",.375f},{BlockId::TimberBeam,"TimberBeam",.0625f},
+            {BlockId::TimberRailing,"TimberRailing",.1328125f},{BlockId::StoneWindowSill,"StoneWindowSill",.125f},
+            {BlockId::StonePlanter,"StonePlanter",.4296875f},{BlockId::Lantern,"Lantern",.1328125f}};
+        for(const auto &part:kit) {
+            const auto shape=source(part.name);
+            require(BlockGeometry::usesCompound(part.id) && shape.version==2 && shape.variants[0].boxes.size()<=8,"kit-registered-bounded-shape");
+            require(shape.fillsCollisionCell==(part.id==BlockId::StoneBrick) && shape.fillsCell==shape.fillsCollisionCell,"kit-full-cell-identity");
+            for(int yaw=0;yaw<4;++yaw) {
+                const auto &variant=shape.variants[yaw];
+                std::array<bool,512> occupied{};
+                const auto at=[](int x,int y,int z){return x+8*(z+8*y);};
+                for(const auto &box:variant.boxes)
+                    for(int y=int(box.minimum[1]*8);y<int(box.maximum[1]*8);++y)
+                    for(int z=int(box.minimum[2]*8);z<int(box.maximum[2]*8);++z)
+                    for(int x=int(box.minimum[0]*8);x<int(box.maximum[0]*8);++x) occupied[at(x,y,z)]=true;
+                const int volume=int(std::count(occupied.begin(),occupied.end(),true));
+                require(std::abs(volume/512.f-part.volume)<.000001f,"kit-independent-volume-reference");
+                require(BlockGeometry::validMetadata(blockValue(part.id,yaw)),"kit-four-legal-metadata");
+                const int axes[6]={2,2,0,0,1,1}, boundary[6]={7,0,0,7,7,0};
+                for(int f=0;f<6;++f) {
+                    std::uint64_t expected=0;
+                    const int a=axes[f],u=(a+1)%3,v=(a+2)%3;
+                    for(int j=0;j<8;++j) for(int i=0;i<8;++i) {
+                        int q[3]{};q[a]=boundary[f];q[u]=i;q[v]=j;
+                        if(occupied[at(q[0],q[1],q[2])]) expected|=std::uint64_t(1)<<(i+8*j);
+                    }
+                    require(variant.boundaryCoverage[f]==expected,"kit-rotated-boundary-coverage-reference");
+                }
+                for(const auto &face:variant.surfaces) {
+                    const glm::vec3 a(face.positions[0],face.positions[1],face.positions[2]);
+                    const glm::vec3 b(face.positions[3],face.positions[4],face.positions[5]);
+                    const glm::vec3 c(face.positions[6],face.positions[7],face.positions[8]);
+                    const float area=glm::length(glm::cross(b-a,c-a));
+                    float minU=1,maxU=0,minV=1,maxV=0;
+                    for(int k=0;k<4;++k) {minU=std::min(minU,face.repeat[k*2]);maxU=std::max(maxU,face.repeat[k*2]);minV=std::min(minV,face.repeat[k*2+1]);maxV=std::max(maxV,face.repeat[k*2+1]);}
+                    require(area>0 && std::abs((maxU-minU)*(maxV-minV)-area)<.000001f,"kit-four-yaw-metre-uv");
+                    require(face.material<3 && (face.boundaryFace==6 || face.boundaryMask!=0),"kit-bounded-face-material-and-mask");
+                }
+            }
+            require(!BlockGeometry::validMetadata(blockValue(part.id,4)) && !BlockGeometry::validMetadata(blockValue(part.id,255)),"kit-illegal-metadata-rejected");
+        }
+        const auto slab=source("StoneSlab"),brick=source("StoneBrick"),railing=source("TimberRailing");
+        BlockDefinition slabDefinition;slabDefinition.id=BlockId::StoneSlab;slabDefinition.transparent=false;slabDefinition.render.shape=slab;
+        for(const auto &face:slab.variants[0].surfaces) if(face.boundaryFace<4)
+            require(BlockGeometry::surfaceOccluded(face,slabDefinition,blockValue(BlockId::StoneSlab,0)),"matching-partial-boundary-culls-hidden-face");
+        for(const auto &face:brick.variants[0].surfaces) if(face.boundaryFace<4)
+            require(!BlockGeometry::surfaceOccluded(face,slabDefinition,blockValue(BlockId::StoneSlab,0)),"partial-boundary-never-hides-whole-neighbour");
+        BlockDefinition solidDefinition;solidDefinition.occludesFaces=true;
+        for(const auto &face:slab.variants[0].surfaces)
+            require(BlockGeometry::surfaceOccluded(face,solidDefinition,blockValue(BlockId::Stone,0))==(face.boundaryFace<6),"only-boundary-faces-cull-against-full-cube");
+        BlockDefinition railingDefinition;railingDefinition.id=BlockId::TimberRailing;railingDefinition.collidable=true;railingDefinition.render.shape=railing;
+        for(int yaw=0;yaw<4;++yaw) {
+            const glm::vec3 direction=yaw%2?glm::vec3(1,0,0):glm::vec3(0,0,1),origin=glm::vec3(.5f)-direction*2.f;
+            float distance=0;glm::ivec3 normal(0);
+            require(!BlockGeometry::pick(railingDefinition,blockValue(BlockId::TimberRailing,yaw),{0,0,0},origin,direction,4,distance,normal),"railing-ray-gap-four-yaws");
+        }
         BlockDefinition definition;definition.id=BlockId::StoneWindowFrame;definition.collidable=true;definition.render.shape=frame;
         const ChunkBlock frameBlock=blockValue(BlockId::StoneWindowFrame,0);
         require(!BlockGeometry::collides(definition,frameBlock,{0,0,0},{{.3f,.3f,.4f},{.7f,.7f,.6f}}),"frame-hole-no-collision");

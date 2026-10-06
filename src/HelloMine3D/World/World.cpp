@@ -753,6 +753,7 @@ void World::removeBlockLight(
 
 void World::reconcileBlockLightAfterChunkLoad(int chunkX, int chunkZ)
 {
+    notifyVisualEditUnlocked();
     Chunk *chunk = m_chunkManager.findChunk(chunkX, chunkZ);
     if (chunk == nullptr || !chunk->hasLoaded()) {
         return;
@@ -844,6 +845,7 @@ void World::reconcileBlockLightAfterChunkLoad(int chunkX, int chunkZ)
 void World::reconcileBlockLightAfterChunkUnload(int chunkX, int chunkZ,
                                                 int height)
 {
+    notifyVisualEditUnlocked();
     const int baseX = chunkX * CHUNK_SIZE;
     const int baseZ = chunkZ * CHUNK_SIZE;
     // These four outside faces have no overlapping coordinates. Preserve all
@@ -883,6 +885,101 @@ void World::reconcileBlockLightAfterChunkUnload(int chunkX, int chunkZ,
 
     removeBlockLight(removalQueue, additionQueue, changedPositions);
     m_chunkRuntime.queueLightingUpdatesLocked(changedPositions);
+}
+
+
+std::uint64_t World::visualRevision()
+{
+    std::lock_guard<std::mutex> lock(m_mainMutex);
+    return m_visualRevision;
+}
+
+
+std::optional<float> World::observeWaterSurfacePlane(const glm::vec3 &eye)
+{
+    if (!std::isfinite(eye.x) || !std::isfinite(eye.y) || !std::isfinite(eye.z) ||
+        std::abs(eye.x)>1000000.f || std::abs(eye.y)>1000000.f || std::abs(eye.z)>1000000.f)
+        return {};
+    std::lock_guard<std::mutex> lock(m_mainMutex);
+    const glm::ivec3 centre{toBlockCoord(eye.x),toBlockCoord(eye.y),toBlockCoord(eye.z)};
+    float best=std::numeric_limits<float>::max();
+    std::optional<float> result;
+    // 9*9*19 = 1539 bounded sample pairs, only resident authoritative data.
+    for(int dz=-16;dz<=16;dz+=4) for(int dx=-16;dx<=16;dx+=4)
+        for(int dy=-16;dy<=2;++dy)
+        {
+            const glm::ivec3 position=centre+glm::ivec3(dx,dy,dz);
+            if (getBlockUnlocked(position.x,position.y,position.z)!=BlockId::Water ||
+                getBlockUnlocked(position.x,position.y+1,position.z)==BlockId::Water) continue;
+            const float score=float(dx*dx+dz*dz)+float(dy*dy)*.25f;
+            if (score<best) { best=score; result=float(position.y)+.9f; }
+        }
+    return result;
+}
+
+LocalLightSnapshot World::observeLocalLights(const glm::vec3 &eye)
+{
+    LocalLightSnapshot result;
+    if (!std::isfinite(eye.x) || !std::isfinite(eye.y) || !std::isfinite(eye.z) ||
+        std::abs(eye.x)>1000000.f || std::abs(eye.y)>1000000.f || std::abs(eye.z)>1000000.f)
+        return result;
+    std::lock_guard<std::mutex> lock(m_mainMutex);
+    result.revision=m_visualRevision;
+    const auto centre=getChunkXZ(toBlockCoord(eye.x),toBlockCoord(eye.z));
+    const int centreY=WorldCoordinates::floorDiv(toBlockCoord(eye.y),CHUNK_SIZE);
+    struct Candidate { LocalLightSource light; float distanceSquared; glm::ivec3 block; };
+    std::array<Candidate,LocalLightSnapshot::MaximumSources> nearest{};
+    const auto before=[](const Candidate &a,const Candidate &b) {
+        if (a.distanceSquared!=b.distanceSquared) return a.distanceSquared<b.distanceSquared;
+        if (a.block.x!=b.block.x) return a.block.x<b.block.x;
+        if (a.block.y!=b.block.y) return a.block.y<b.block.y;
+        return a.block.z<b.block.z;
+    };
+    for (int dz=-1;dz<=1;++dz) for(int dx=-1;dx<=1;++dx)
+    {
+        const auto *chunk=m_chunkManager.findChunk(centre.x+dx,centre.z+dz);
+        if (chunk==nullptr || !chunk->hasLoaded()) continue;
+        for (int sy=centreY-1;sy<=centreY+1;++sy)
+        {
+            const auto *section=chunk->findSection(sy);
+            if (!section) continue;
+            ++result.inspectedSections;
+            const auto &index=section->emittingCells();
+            if (index.none()) continue;
+            for(int y=0;y<CHUNK_SIZE;++y) for(int z=0;z<CHUNK_SIZE;++z)
+                for(int x=0;x<CHUNK_SIZE;++x)
+            {
+                ++result.inspectedCells;
+                const int cell=x+CHUNK_SIZE*(z+CHUNK_SIZE*y);
+                if (!index.test(static_cast<std::size_t>(cell))) continue;
+                const auto block=section->getBlock(x,y,z);
+                const int emission=blockEmission(block);
+                if (emission<=0) continue;
+                Candidate candidate;
+                candidate.block={ (centre.x+dx)*CHUNK_SIZE+x,sy*CHUNK_SIZE+y,
+                                  (centre.z+dz)*CHUNK_SIZE+z };
+                candidate.light.position=glm::vec3(candidate.block)+glm::vec3(.5f);
+                const auto delta=candidate.light.position-eye;
+                candidate.distanceSquared=glm::dot(delta,delta);
+                if (candidate.distanceSquared>LocalLightSnapshot::MaximumRadius*
+                                               LocalLightSnapshot::MaximumRadius) continue;
+                ++result.candidates;
+                candidate.light.radius=float(LocalLightSnapshot::MaximumRadius);
+                candidate.light.energy=std::clamp(float(emission)/MAX_LIGHT_LEVEL,0.f,1.f)*3.f;
+                if (static_cast<BlockId>(block.id)==BlockId::WaystoneCore)
+                    candidate.light.colour={.12f,.78f,1.f};
+                std::size_t insertion=0;
+                while(insertion<result.count && !before(candidate,nearest[insertion])) ++insertion;
+                if (insertion>=LocalLightSnapshot::MaximumSources) continue;
+                const auto last=std::min(result.count,LocalLightSnapshot::MaximumSources-1);
+                for(std::size_t i=last;i>insertion;--i) nearest[i]=nearest[i-1];
+                nearest[insertion]=candidate;
+                result.count=std::min(result.count+1,LocalLightSnapshot::MaximumSources);
+            }
+        }
+    }
+    for(std::size_t i=0;i<result.count;++i) result.sources[i]=nearest[i].light;
+    return result;
 }
 
 void World::setBlock(int x, int y, int z, ChunkBlock block)

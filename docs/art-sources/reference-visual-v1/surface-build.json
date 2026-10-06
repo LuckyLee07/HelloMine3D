@@ -1,0 +1,1342 @@
+{
+  "version": 1,
+  "colour": "sRGB RGBA8; hardware decode, linear-light mip",
+  "normal": "linear XYZ encoded [0,1], mip normalized",
+  "surface": "linear roughness/metalness/emission/1; variance-adjusted roughness mip",
+  "records": {
+    "colour": {
+      "path": "media/textures/ReferenceColour64.hmt",
+      "fnv64": "58c974f7785dc42b",
+      "sha256": "5232b1c87d25a8bef1b26ace87e07bbe7eea9520ed17601ec6446bf4eef36a95",
+      "bytes": 5592100
+    },
+    "normal": {
+      "path": "media/textures/ReferenceNormal64.hmt",
+      "fnv64": "e972c14f1195c6d1",
+      "sha256": "853af45c552f7a603f9452c1ce8ceae6ca12eca4b72cd948668f110184c3ed32",
+      "bytes": 5592100
+    },
+    "surface": {
+      "path": "media/textures/ReferenceSurface64.hmt",
+      "fnv64": "b9fa90aee15b9ce7",
+      "sha256": "7e8df2db6028b9fe27329df3b189537b66f7f8364e9a8d0f666ddadc11f6463d",
+      "bytes": 5592100
+    }
+  },
+  "mips": [
+    {
+      "mip": 0,
+      "edge": 64,
+      "normal_min_length": 0.9999999403953552,
+      "min_roughness": 0.38999998569488525
+    },
+    {
+      "mip": 1,
+      "edge": 32,
+      "normal_min_length": 0.9999999403953552,
+      "min_roughness": 0.38999998569488525
+    },
+    {
+      "mip": 2,
+      "edge": 16,
+      "normal_min_length": 0.9999999403953552,
+      "min_roughness": 0.38999998569488525
+    },
+    {
+      "mip": 3,
+      "edge": 8,
+      "normal_min_length": 0.9999999403953552,
+      "min_roughness": 0.38999998569488525
+    },
+    {
+      "mip": 4,
+      "edge": 4,
+      "normal_min_length": 0.9999999403953552,
+      "min_roughness": 0.38999998569488525
+    },
+    {
+      "mip": 5,
+      "edge": 2,
+      "normal_min_length": 1.0,
+      "min_roughness": 0.38999998569488525
+    },
+    {
+      "mip": 6,
+      "edge": 1,
+      "normal_min_length": 1.0,
+      "min_roughness": 0.38999998569488525
+    }
+  ],
+  "semantics": [
+    {
+      "semantic": "grass_top",
+      "layer": 0,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/grass_top_a"
+      ]
+    },
+    {
+      "semantic": "grass_side",
+      "layer": 1,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_a",
+        "visual-polish/dirt"
+      ]
+    },
+    {
+      "semantic": "dirt",
+      "layer": 2,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/dirt"
+      ]
+    },
+    {
+      "semantic": "stone",
+      "layer": 3,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/stone"
+      ]
+    },
+    {
+      "semantic": "oak_bark_side",
+      "layer": 4,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/oak_bark_side"
+      ]
+    },
+    {
+      "semantic": "oak_bark_top",
+      "layer": 5,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/oak_bark_top"
+      ]
+    },
+    {
+      "semantic": "oak_leaves",
+      "layer": 6,
+      "alpha": "cutout",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/oak_leaves_a"
+      ]
+    },
+    {
+      "semantic": "sand",
+      "layer": 7,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/sand"
+      ]
+    },
+    {
+      "semantic": "water",
+      "layer": 8,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water"
+      ]
+    },
+    {
+      "semantic": "cactus",
+      "layer": 9,
+      "alpha": "opaque",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / cactus"
+      ]
+    },
+    {
+      "semantic": "rose",
+      "layer": 10,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / rose"
+      ]
+    },
+    {
+      "semantic": "tall_grass",
+      "layer": 11,
+      "alpha": "cutout",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/tall_grass"
+      ]
+    },
+    {
+      "semantic": "dead_shrub",
+      "layer": 12,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / dead_shrub"
+      ]
+    },
+    {
+      "semantic": "coal_ore",
+      "layer": 13,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/coal_ore"
+      ]
+    },
+    {
+      "semantic": "iron_ore",
+      "layer": 14,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/iron_ore"
+      ]
+    },
+    {
+      "semantic": "waystone_core",
+      "layer": 15,
+      "alpha": "opaque",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / waystone_core"
+      ]
+    },
+    {
+      "semantic": "chest",
+      "layer": 16,
+      "alpha": "opaque",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / chest"
+      ]
+    },
+    {
+      "semantic": "workbench",
+      "layer": 17,
+      "alpha": "opaque",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / workbench"
+      ]
+    },
+    {
+      "semantic": "furnace",
+      "layer": 18,
+      "alpha": "opaque",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / furnace"
+      ]
+    },
+    {
+      "semantic": "glass",
+      "layer": 19,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / glass"
+      ]
+    },
+    {
+      "semantic": "glass_borderless",
+      "layer": 20,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / glass_borderless"
+      ]
+    },
+    {
+      "semantic": "oak_planks",
+      "layer": 21,
+      "alpha": "opaque",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / oak_planks"
+      ]
+    },
+    {
+      "semantic": "torch",
+      "layer": 22,
+      "alpha": "cutout",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / torch"
+      ]
+    },
+    {
+      "semantic": "cobblestone",
+      "layer": 23,
+      "alpha": "opaque",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / cobblestone"
+      ]
+    },
+    {
+      "semantic": "oak_door",
+      "layer": 24,
+      "alpha": "opaque",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / oak_door"
+      ]
+    },
+    {
+      "semantic": "ancient_compass",
+      "layer": 25,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / ancient_compass"
+      ]
+    },
+    {
+      "semantic": "raider_ward",
+      "layer": 26,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / raider_ward"
+      ]
+    },
+    {
+      "semantic": "crusher",
+      "layer": 27,
+      "alpha": "opaque",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / crusher"
+      ]
+    },
+    {
+      "semantic": "wheat_seeds",
+      "layer": 32,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / wheat_seeds"
+      ]
+    },
+    {
+      "semantic": "wheat",
+      "layer": 33,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / wheat"
+      ]
+    },
+    {
+      "semantic": "wooden_pickaxe",
+      "layer": 34,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / wooden_pickaxe"
+      ]
+    },
+    {
+      "semantic": "stone_pickaxe",
+      "layer": 35,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / stone_pickaxe"
+      ]
+    },
+    {
+      "semantic": "iron_ingot",
+      "layer": 36,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / iron_ingot"
+      ]
+    },
+    {
+      "semantic": "iron_pickaxe",
+      "layer": 37,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / iron_pickaxe"
+      ]
+    },
+    {
+      "semantic": "iron_sword",
+      "layer": 38,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / iron_sword"
+      ]
+    },
+    {
+      "semantic": "bread",
+      "layer": 39,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / bread"
+      ]
+    },
+    {
+      "semantic": "wooden_sword",
+      "layer": 40,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / wooden_sword"
+      ]
+    },
+    {
+      "semantic": "stone_sword",
+      "layer": 41,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / stone_sword"
+      ]
+    },
+    {
+      "semantic": "raw_meat",
+      "layer": 42,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / raw_meat"
+      ]
+    },
+    {
+      "semantic": "cooked_meat",
+      "layer": 43,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / cooked_meat"
+      ]
+    },
+    {
+      "semantic": "cactus_salad",
+      "layer": 44,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / cactus_salad"
+      ]
+    },
+    {
+      "semantic": "trail_ration",
+      "layer": 45,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / trail_ration"
+      ]
+    },
+    {
+      "semantic": "plant_fiber",
+      "layer": 46,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / plant_fiber"
+      ]
+    },
+    {
+      "semantic": "wooden_axe",
+      "layer": 47,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / wooden_axe"
+      ]
+    },
+    {
+      "semantic": "wooden_shovel",
+      "layer": 63,
+      "alpha": "icon",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / wooden_shovel"
+      ]
+    },
+    {
+      "semantic": "grass_top_desert_v0",
+      "layer": 48,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_a"
+      ]
+    },
+    {
+      "semantic": "grass_top_desert_v1",
+      "layer": 49,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_b"
+      ]
+    },
+    {
+      "semantic": "grass_top_desert_v2",
+      "layer": 50,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_c"
+      ]
+    },
+    {
+      "semantic": "grass_side_desert_v0",
+      "layer": 51,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_a",
+        "visual-polish/dirt"
+      ]
+    },
+    {
+      "semantic": "grass_side_desert_v1",
+      "layer": 52,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_b",
+        "visual-polish/dirt"
+      ]
+    },
+    {
+      "semantic": "grass_side_desert_v2",
+      "layer": 53,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_c",
+        "visual-polish/dirt"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_desert_v0",
+      "layer": 54,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/oak_leaves_a"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_desert_v1",
+      "layer": 55,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/oak_leaves_b"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_desert_v2",
+      "layer": 56,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/oak_leaves_a"
+      ]
+    },
+    {
+      "semantic": "water_desert_v0",
+      "layer": 57,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_desert_v0"
+      ]
+    },
+    {
+      "semantic": "water_desert_v1",
+      "layer": 58,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_desert_v1"
+      ]
+    },
+    {
+      "semantic": "water_desert_v2",
+      "layer": 59,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_desert_v2"
+      ]
+    },
+    {
+      "semantic": "tall_grass_desert_v0",
+      "layer": 60,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/tall_grass"
+      ]
+    },
+    {
+      "semantic": "tall_grass_desert_v1",
+      "layer": 61,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/tall_grass"
+      ]
+    },
+    {
+      "semantic": "tall_grass_desert_v2",
+      "layer": 62,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/tall_grass"
+      ]
+    },
+    {
+      "semantic": "grass_top_grassland_v0",
+      "layer": 64,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_a"
+      ]
+    },
+    {
+      "semantic": "grass_top_grassland_v1",
+      "layer": 65,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_b"
+      ]
+    },
+    {
+      "semantic": "grass_top_grassland_v2",
+      "layer": 66,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_c"
+      ]
+    },
+    {
+      "semantic": "grass_side_grassland_v0",
+      "layer": 67,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_a",
+        "visual-polish/dirt"
+      ]
+    },
+    {
+      "semantic": "grass_side_grassland_v1",
+      "layer": 68,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_b",
+        "visual-polish/dirt"
+      ]
+    },
+    {
+      "semantic": "grass_side_grassland_v2",
+      "layer": 69,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_c",
+        "visual-polish/dirt"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_grassland_v0",
+      "layer": 70,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/oak_leaves_a"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_grassland_v1",
+      "layer": 71,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/oak_leaves_b"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_grassland_v2",
+      "layer": 72,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/oak_leaves_a"
+      ]
+    },
+    {
+      "semantic": "water_grassland_v0",
+      "layer": 73,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_grassland_v0"
+      ]
+    },
+    {
+      "semantic": "water_grassland_v1",
+      "layer": 74,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_grassland_v1"
+      ]
+    },
+    {
+      "semantic": "water_grassland_v2",
+      "layer": 75,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_grassland_v2"
+      ]
+    },
+    {
+      "semantic": "tall_grass_grassland_v0",
+      "layer": 76,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/tall_grass"
+      ]
+    },
+    {
+      "semantic": "tall_grass_grassland_v1",
+      "layer": 77,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/tall_grass"
+      ]
+    },
+    {
+      "semantic": "tall_grass_grassland_v2",
+      "layer": 78,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/tall_grass"
+      ]
+    },
+    {
+      "semantic": "grass_top_light_forest_v0",
+      "layer": 80,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_a"
+      ]
+    },
+    {
+      "semantic": "grass_top_light_forest_v1",
+      "layer": 81,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_b"
+      ]
+    },
+    {
+      "semantic": "grass_top_light_forest_v2",
+      "layer": 82,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_c"
+      ]
+    },
+    {
+      "semantic": "grass_side_light_forest_v0",
+      "layer": 83,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_a",
+        "visual-polish/dirt"
+      ]
+    },
+    {
+      "semantic": "grass_side_light_forest_v1",
+      "layer": 84,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_b",
+        "visual-polish/dirt"
+      ]
+    },
+    {
+      "semantic": "grass_side_light_forest_v2",
+      "layer": 85,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_c",
+        "visual-polish/dirt"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_light_forest_v0",
+      "layer": 86,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/oak_leaves_a"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_light_forest_v1",
+      "layer": 87,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/oak_leaves_b"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_light_forest_v2",
+      "layer": 88,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/oak_leaves_a"
+      ]
+    },
+    {
+      "semantic": "water_light_forest_v0",
+      "layer": 89,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_light_forest_v0"
+      ]
+    },
+    {
+      "semantic": "water_light_forest_v1",
+      "layer": 90,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_light_forest_v1"
+      ]
+    },
+    {
+      "semantic": "water_light_forest_v2",
+      "layer": 91,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_light_forest_v2"
+      ]
+    },
+    {
+      "semantic": "tall_grass_light_forest_v0",
+      "layer": 92,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/tall_grass"
+      ]
+    },
+    {
+      "semantic": "tall_grass_light_forest_v1",
+      "layer": 93,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/tall_grass"
+      ]
+    },
+    {
+      "semantic": "tall_grass_light_forest_v2",
+      "layer": 94,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/tall_grass"
+      ]
+    },
+    {
+      "semantic": "grass_top_temperate_forest_v0",
+      "layer": 96,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_a"
+      ]
+    },
+    {
+      "semantic": "grass_top_temperate_forest_v1",
+      "layer": 97,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_b"
+      ]
+    },
+    {
+      "semantic": "grass_top_temperate_forest_v2",
+      "layer": 98,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_c"
+      ]
+    },
+    {
+      "semantic": "grass_side_temperate_forest_v0",
+      "layer": 99,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_a",
+        "visual-polish/dirt"
+      ]
+    },
+    {
+      "semantic": "grass_side_temperate_forest_v1",
+      "layer": 100,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_b",
+        "visual-polish/dirt"
+      ]
+    },
+    {
+      "semantic": "grass_side_temperate_forest_v2",
+      "layer": 101,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_c",
+        "visual-polish/dirt"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_temperate_forest_v0",
+      "layer": 102,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/oak_leaves_a"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_temperate_forest_v1",
+      "layer": 103,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/oak_leaves_b"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_temperate_forest_v2",
+      "layer": 104,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/oak_leaves_a"
+      ]
+    },
+    {
+      "semantic": "water_temperate_forest_v0",
+      "layer": 105,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_temperate_forest_v0"
+      ]
+    },
+    {
+      "semantic": "water_temperate_forest_v1",
+      "layer": 106,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_temperate_forest_v1"
+      ]
+    },
+    {
+      "semantic": "water_temperate_forest_v2",
+      "layer": 107,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_temperate_forest_v2"
+      ]
+    },
+    {
+      "semantic": "tall_grass_temperate_forest_v0",
+      "layer": 108,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/tall_grass"
+      ]
+    },
+    {
+      "semantic": "tall_grass_temperate_forest_v1",
+      "layer": 109,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/tall_grass"
+      ]
+    },
+    {
+      "semantic": "tall_grass_temperate_forest_v2",
+      "layer": 110,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/tall_grass"
+      ]
+    },
+    {
+      "semantic": "grass_top_ocean_v0",
+      "layer": 112,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_a"
+      ]
+    },
+    {
+      "semantic": "grass_top_ocean_v1",
+      "layer": 113,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_b"
+      ]
+    },
+    {
+      "semantic": "grass_top_ocean_v2",
+      "layer": 114,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_c"
+      ]
+    },
+    {
+      "semantic": "grass_side_ocean_v0",
+      "layer": 115,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_a",
+        "visual-polish/dirt"
+      ]
+    },
+    {
+      "semantic": "grass_side_ocean_v1",
+      "layer": 116,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_b",
+        "visual-polish/dirt"
+      ]
+    },
+    {
+      "semantic": "grass_side_ocean_v2",
+      "layer": 117,
+      "alpha": "opaque",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/grass_top_c",
+        "visual-polish/dirt"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_ocean_v0",
+      "layer": 118,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/oak_leaves_a"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_ocean_v1",
+      "layer": 119,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/oak_leaves_b"
+      ]
+    },
+    {
+      "semantic": "oak_leaves_ocean_v2",
+      "layer": 120,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/oak_leaves_a"
+      ]
+    },
+    {
+      "semantic": "water_ocean_v0",
+      "layer": 121,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_ocean_v0"
+      ]
+    },
+    {
+      "semantic": "water_ocean_v1",
+      "layer": 122,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_ocean_v1"
+      ]
+    },
+    {
+      "semantic": "water_ocean_v2",
+      "layer": 123,
+      "alpha": "translucent",
+      "provenance": "retained",
+      "sources": [
+        "Warm Wilderness v1 / water_ocean_v2"
+      ]
+    },
+    {
+      "semantic": "tall_grass_ocean_v0",
+      "layer": 124,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/tall_grass"
+      ]
+    },
+    {
+      "semantic": "tall_grass_ocean_v1",
+      "layer": 125,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/tall_grass"
+      ]
+    },
+    {
+      "semantic": "tall_grass_ocean_v2",
+      "layer": 126,
+      "alpha": "cutout",
+      "provenance": "derived",
+      "sources": [
+        "visual-polish/tall_grass"
+      ]
+    },
+    {
+      "semantic": "spruce_bark_side",
+      "layer": 128,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/spruce_bark_side"
+      ]
+    },
+    {
+      "semantic": "spruce_bark_top",
+      "layer": 129,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/spruce_bark_top"
+      ]
+    },
+    {
+      "semantic": "spruce_leaves",
+      "layer": 130,
+      "alpha": "cutout",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/spruce_leaves"
+      ]
+    },
+    {
+      "semantic": "birch_bark_side",
+      "layer": 131,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/birch_bark_side"
+      ]
+    },
+    {
+      "semantic": "birch_bark_top",
+      "layer": 132,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/birch_bark_top"
+      ]
+    },
+    {
+      "semantic": "birch_leaves",
+      "layer": 133,
+      "alpha": "cutout",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/birch_leaves"
+      ]
+    },
+    {
+      "semantic": "snow",
+      "layer": 134,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/snow"
+      ]
+    },
+    {
+      "semantic": "gravel",
+      "layer": 135,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/gravel"
+      ]
+    },
+    {
+      "semantic": "clay",
+      "layer": 136,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/clay"
+      ]
+    },
+    {
+      "semantic": "forest_floor",
+      "layer": 137,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/forest_floor"
+      ]
+    },
+    {
+      "semantic": "moss_stone",
+      "layer": 138,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/moss_stone"
+      ]
+    },
+    {
+      "semantic": "silt",
+      "layer": 139,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "visual-polish/silt"
+      ]
+    },
+    {
+      "semantic": "pale_stone",
+      "layer": 144,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "reference-visual/pale_stone"
+      ]
+    },
+    {
+      "semantic": "rough_stone",
+      "layer": 145,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "reference-visual/rough_stone"
+      ]
+    },
+    {
+      "semantic": "terracotta",
+      "layer": 146,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "reference-visual/terracotta"
+      ]
+    },
+    {
+      "semantic": "timber",
+      "layer": 147,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "reference-visual/timber"
+      ]
+    },
+    {
+      "semantic": "metal",
+      "layer": 148,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "reference-visual/metal"
+      ]
+    },
+    {
+      "semantic": "lamp_glow",
+      "layer": 149,
+      "alpha": "opaque",
+      "provenance": "authored",
+      "sources": [
+        "reference-visual/lamp_glow"
+      ]
+    }
+  ],
+  "colour_aliases": {
+    "21": 147,
+    "23": 145
+  },
+  "source_hashes": {
+    "rough_stone-albedo-source.png": "da9348b5b601b7b896906d1d154c893e6ee5395f5f145323e10a916c4d3ca49c",
+    "terracotta-albedo-source.png": "817a465795ec0411088c327b6b8af6b27ff8cbf105472222983d52808224b84e",
+    "pale_stone-albedo-source.png": "e20855578bddefd86fb72f0129a9b8f96018a2eb434302bfa2394e819f03e7ff",
+    "timber-albedo-source.png": "44d2733183409ccc2b5e994699bcf19ffbbb6bed5dc5fdaa4109e577e568ef6c"
+  },
+  "authoring_sha256": "39eabab24a57aec9f59585d22686ca6f2e9a90c005b36467e08721ada23d6655",
+  "channels_total_bytes": 16776300
+}

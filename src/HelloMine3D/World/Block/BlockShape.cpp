@@ -127,6 +127,38 @@ BlockShapeVariant buildVariant(const std::vector<BlockShapeBox> &boxes,
     return result;
 }
 
+// Exact fixed 8x8 boundary coverage is derived after each cached rotation.
+// Opposite faces use the same world-axis bit ordering, never mirrored UV order.
+void freezeBoundaryCoverage(BlockShapeVariant &variant)
+{
+    variant.boundaryCoverage.fill(0);
+    for (auto &face : variant.surfaces) {
+        face.boundaryFace = 6; face.boundaryMask = 0;
+        int axis = -1;
+        for (int a = 0; a < 3; ++a) {
+            bool constant = true;
+            for (int k = 1; k < 4; ++k) constant &= face.positions[k*3+a] == face.positions[a];
+            if (constant) { axis = a; break; }
+        }
+        if (axis < 0 || (face.positions[axis] != 0.f && face.positions[axis] != 1.f)) continue;
+        const int positive = face.positions[axis] == 1.f;
+        const int boundary = axis == 2 ? (positive ? 0 : 1) :
+            axis == 0 ? (positive ? 3 : 2) : (positive ? 4 : 5);
+        const int u = (axis+1)%3, v = (axis+2)%3;
+        int minU = 8, maxU = 0, minV = 8, maxV = 0;
+        for (int k = 0; k < 4; ++k) {
+            const int a = static_cast<int>(std::round(face.positions[k*3+u]*8));
+            const int b = static_cast<int>(std::round(face.positions[k*3+v]*8));
+            minU = std::min(minU,a); maxU = std::max(maxU,a);
+            minV = std::min(minV,b); maxV = std::max(maxV,b);
+        }
+        for (int j = minV; j < maxV; ++j) for (int i = minU; i < maxU; ++i)
+            face.boundaryMask |= std::uint64_t(1) << (i+8*j);
+        face.boundaryFace = static_cast<unsigned char>(boundary);
+        variant.boundaryCoverage[boundary] |= face.boundaryMask;
+    }
+}
+
 void freezeCompound(BlockShape &shape,std::vector<BlockShapeBox> boxes,
                     const std::string &path)
 {
@@ -156,6 +188,7 @@ void freezeCompound(BlockShape &shape,std::vector<BlockShapeBox> boxes,
         }
         shape.variants[yaw]=std::move(variant);
     }
+    for (auto &variant : shape.variants) freezeBoundaryCoverage(variant);
 }
 
 BlockShapeBox parseBox(const std::string &path,const std::string &value)

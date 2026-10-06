@@ -428,7 +428,8 @@ BlockDefinition makeDefinition(const std::string &fileName,
     definition.fullCellSolid = data.fullCellSolid;
     definition.aoOccluder = data.aoOccluder;
     definition.blocksLight = data.blocksLight;
-    definition.transparent = !data.occludesFaces;
+    // Alpha and whole-cell neighbour coverage are independent for v2 parts.
+    definition.transparent = !data.isOpaque;
     definition.liquid = data.id == BlockId::Water ||
                         data.shaderType == BlockShaderType::Liquid;
     definition.solid = data.fullCellSolid;
@@ -526,6 +527,16 @@ BlockDatabase::BlockDatabase()
     addBlock(BlockId::Silt, "Silt");
     addBlock(BlockId::StoneStep, "StoneStep");
     addBlock(BlockId::StoneWindowFrame, "StoneWindowFrame");
+    addBlock(BlockId::StoneBrick, "StoneBrick");
+    addBlock(BlockId::StoneSlab, "StoneSlab");
+    addBlock(BlockId::StoneCornice, "StoneCornice");
+    addBlock(BlockId::ClayTileStep, "ClayTileStep");
+    addBlock(BlockId::ClayTileEave, "ClayTileEave");
+    addBlock(BlockId::TimberBeam, "TimberBeam");
+    addBlock(BlockId::TimberRailing, "TimberRailing");
+    addBlock(BlockId::StoneWindowSill, "StoneWindowSill");
+    addBlock(BlockId::StonePlanter, "StonePlanter");
+    addBlock(BlockId::Lantern, "Lantern");
 }
 
 BlockDatabase &BlockDatabase::get()

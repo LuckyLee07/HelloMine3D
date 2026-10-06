@@ -68,6 +68,11 @@ void ChunkSection::setBlock(int x, int y, int z, ChunkBlock block)
 
     m_layers[y].update(currentBlock, block);
     currentBlock = block;
+    const auto &definition = BlockDatabase::get().getDefinition(static_cast<BlockId>(block.id));
+    const int emission = definition.behavior != nullptr
+        ? definition.behavior->emission(definition, block) : definition.light;
+    m_emittingCells.set(static_cast<std::size_t>(blockIndex), emission > 0);
+    if (m_worldIndexUpdatesEnabled) m_pWorld->notifyVisualEditUnlocked();
     invalidateMeshInput();
 
     const bool sectionIsActive = !m_randomTickBlocks.empty();

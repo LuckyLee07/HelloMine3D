@@ -5,6 +5,8 @@
 #include "OgreCameraDiagnostics.h"
 #include "OgreCaveBoundaryRenderer.h"
 #include "HdrPipeline.h"
+#include "PlanarWaterReflection.h"
+#include <GLSL/OgreGLSLShader.h>
 #include "HdrShaderContract.h"
 #include "../Actor/EnemyPresentationGallery.h"
 #include "../Presentation/DirectionalShadowPresentation.h"
@@ -103,6 +105,7 @@
 #include "../World/Block/FurnaceContainer.h"
 #include "../World/Block/TerrainMaterialProfile.h"
 #include "../World/Block/TerrainTextureArray.h"
+#include "../World/Block/ReferenceSurfaceProfile.h"
 #include "../World/Environment/AtmosphereShaderContract.h"
 #include "../World/Environment/RegionalAtmosphere.h"
 #include "../World/Generation/Terrain/TerrainGenerator.h"
@@ -1067,7 +1070,16 @@ namespace
             setOptionIfAvailable(*selected, "Full Screen",
                                  m_config.isFullscreen ? "Yes" : "No");
             setOptionIfAvailable(*selected, "VSync", "Yes");
-            setOptionIfAvailable(*selected, "FSAA", "0");
+            const bool requestedMsaa4=HdrPipeline::preferMsaa4(m_config.renderPipeline);
+            const auto& rendererOptions=selected->getConfigOptions();
+            const auto sampleOption=rendererOptions.find("FSAA");
+            const bool fourAdvertised=sampleOption!=rendererOptions.end() &&
+                std::find(sampleOption->second.possibleValues.begin(),sampleOption->second.possibleValues.end(),"4")!=
+                    sampleOption->second.possibleValues.end();
+            const bool fourAvailable=requestedMsaa4 && fourAdvertised && HdrPipeline::msaa4WindowSupported();
+            setOptionIfAvailable(*selected,"FSAA",fourAvailable?"4":"0");
+            if(requestedMsaa4) std::cout<<"[HDR_MSAA4_WINDOW] requested=4 selected="<<(fourAvailable?4:0)
+                <<" configuration_only=1 reason="<<(fourAvailable?"native-pixel-format-supported":"window-format-unavailable")<<'\n';
             // Both pipelines output display encoded RGB explicitly. HUD shares
             // that window, so hardware gamma must not encode either one again.
             setOptionIfAvailable(*selected, "sRGB Gamma Conversion", "No");
@@ -1330,6 +1342,10 @@ namespace
                 windowParameters["hidden"] = "true";
                 windowParameters["noActivate"] = "true";
                 windowParameters["gamma"] = "false";
+                const auto& rendererOptions = m_root->getRenderSystem()->getConfigOptions();
+                const auto fsaaOption = rendererOptions.find("FSAA");
+                windowParameters["FSAA"] = fsaaOption == rendererOptions.end()
+                    ? "0" : fsaaOption->second.currentValue;
                 m_window = m_root->createRenderWindow(
                     WindowTitle,
                     static_cast<unsigned int>(m_config.windowX),
@@ -1376,6 +1392,8 @@ namespace
             m_hdrPipeline->initialize(*viewport, *m_root->getRenderSystem(),
                                       m_config.renderPipeline);
             configureTerrainAppearance();
+            m_waterReflection = std::make_unique<PlanarWaterReflection>();
+            m_waterReflection->initialize(*m_sceneManager, *m_root->getRenderSystem());
             selectAtmosphereMode();
             syncTerrainMaterialParameters();
             if (!m_materialIdentityOutput.empty())
@@ -2429,6 +2447,8 @@ namespace
                 m_userInterface->setWorldContext(nullptr, nullptr);
             }
             if (m_shoreEditCapture) m_shoreEditCapture->cancelNativeFrame();
+            if (m_waterReflection) m_waterReflection->resetWorld();
+            m_localLights = {};
             if (m_blockFeedback != nullptr)
             {
                 m_blockFeedback->clear();
@@ -2731,6 +2751,7 @@ namespace
             if (m_hdrPipeline)
             {
                 m_hdrPipeline->beforeFrame();
+                syncReferenceSurfaceMode();
                 if (m_userInterface)
                     m_userInterface->setRenderPipelineFallback(m_hdrPipeline->fallback());
             }
@@ -2777,6 +2798,10 @@ namespace
             m_frameWorldStats = collectRuntimeStats();
             if (m_world != nullptr)
             {
+                if (m_referenceSurfaceEnabled && m_camera)
+                    m_localLights=m_world->observeLocalLights(glm::vec3(
+                        m_camera->getDerivedPosition().x,m_camera->getDerivedPosition().y,
+                        m_camera->getDerivedPosition().z));
                 syncEnvironment(m_frameWorldStats.environment, event.timeSinceLastFrame);
                 if (m_playerRenderer != nullptr)
                 {
@@ -2787,6 +2812,57 @@ namespace
                         m_frameWorldStats.environment.daylight,
                         event.timeSinceLastFrame);
                     m_playerRenderer->setLighting(exposure);
+                }
+            }
+            if (m_waterReflection && m_world && m_camera && m_camera->getViewport())
+            {
+                const auto position=m_camera->getDerivedPosition();
+                const glm::vec3 eye(position.x,position.y,position.z);
+                const auto plane=m_world->observeWaterSurfacePlane(eye);
+                if (plane) m_waterReflection->selectPlaneY(*plane);
+                else m_waterReflection->clearSelection();
+                PlanarWaterReflection::FrameInput reflection;
+                reflection.enabled=m_config.visualDetail==VisualDetail::Standard &&
+                    !isTrueValue(std::getenv("HELLOMINE3D_PLANAR_REFLECTION_OFF"));
+                reflection.linearHdr=m_hdrPipeline && m_hdrPipeline->active();
+                reflection.cameraUnderwater=m_world->getBlock(World::toBlockCoord(eye.x),
+                    World::toBlockCoord(eye.y),World::toBlockCoord(eye.z))==BlockId::Water;
+                reflection.frameSerial=static_cast<std::uint64_t>(m_frameCount);
+                reflection.sceneRevision=m_world->visualRevision();
+                reflection.authoredBackground=m_camera->getViewport()->getBackgroundColour();
+                reflection.bindViewParameters=[this](const Ogre::String&,Ogre::Pass &pass,
+                                                       const Ogre::Camera&) {
+                    // Mirror is a virtual air view, even though its eye lies
+                    // below the plane. Main frame already supplied dry-air fog;
+                    // underwater frames are rejected before this callback.
+                    bindLocalLightParameters(pass.getFragmentProgramParameters());
+                };
+                m_waterReflection->render(*m_camera,*m_camera->getViewport(),reflection);
+                m_waterReflection->bindWaterPass(*materialPass("HelloMine3D/Water"));
+                if (!m_planarDiagnosticCaptured && m_hiddenWindow && m_frameCount >= 240 &&
+                    m_waterReflection->statistics().active &&
+                    isTrueValue(std::getenv("HELLO_RENDER_CAPTURE")) &&
+                    isTrueValue(std::getenv("HELLOMINE3D_PLANAR_DIAGNOSTIC")))
+                {
+                    const char* directory = std::getenv("HELLO_RENDER_CAPTURE_DIR");
+                    if (directory && directory[0])
+                    {
+                        m_waterReflection->captureDiagnostic(
+                            std::string(directory) + "/planar-diagnostic");
+                        m_planarDiagnosticCaptured = true;
+                    }
+                }
+                if (m_frameCount%240==0)
+                {
+                    const auto &stats=m_waterReflection->statistics();
+                    std::cout<<"[REFERENCE_FRAME] frame="<<m_frameCount<<" reflection="<<stats.active
+                             <<" reason="<<stats.reason<<" updates="<<stats.updateCount
+                             <<" colour_bytes="<<stats.colourBytes<<" depth_stencil_bytes="<<stats.depthStencilBytes
+                             <<" private_passes="<<stats.privatePasses<<" batches="<<stats.colourBatches
+                             <<" shadow_updates="<<stats.shadowUpdates<<" shadow_batches="<<stats.shadowBatches
+                             <<" cpu_ms="<<stats.cpuMilliseconds<<" sources="<<m_localLights.count
+                             <<" source_sections="<<m_localLights.inspectedSections
+                             <<" source_cells="<<m_localLights.inspectedCells<<'\n';
                 }
             }
             observeMaterialIdentityGeometry();
@@ -5592,7 +5668,9 @@ namespace
                     enabled ? receiver.shadowVertex : receiver.vertex);
                 const bool terrain = std::string(receiver.fragment) == "HelloMine3D/TerrainFragment";
                 pass->setFragmentProgram(terrain && runtimeTerrainMaterialProfile().usesTextureArray()
-                    ? (enabled ? "HelloMine3D/TerrainShadowArrayFragment" : "HelloMine3D/TerrainArrayFragment")
+                    ? (m_referenceSurfaceEnabled
+                        ? (enabled ? "HelloMine3D/TerrainShadowSurfaceFragment" : "HelloMine3D/TerrainSurfaceFragment")
+                        : (enabled ? "HelloMine3D/TerrainShadowArrayFragment" : "HelloMine3D/TerrainArrayFragment"))
                     : (enabled ? receiver.shadowFragment : receiver.fragment));
                 if (enabled)
                 {
@@ -6140,10 +6218,133 @@ namespace
                           << " retained_cpu_bytes=" << data.rgba.size()
                           << " legacy_atlas_bytes=262144 reloadable=1\n";
             }
+            syncReferenceSurfaceMode();
             std::cout << "[TERRAIN_APPEARANCE] standard=" << profile.usesTextureArray()
                       << " leaf_geometry=cube"
                       << " reason=" << profile.renderingModeReason()
                       << " max_array_layers=" << maxLayers << '\n';
+        }
+
+        void syncReferenceSurfaceMode()
+        {
+            bool surfaceShaderAvailable=false;
+            if (m_hdrPipeline && m_hdrPipeline->active())
+            {
+                unsigned supported=0;
+                for (const char* name:{"HelloMine3D/TerrainSurfaceFragment",
+                                      "HelloMine3D/TerrainShadowSurfaceFragment"})
+                {
+                    auto program=Ogre::HighLevelGpuProgramManager::getSingleton().getByName(name);
+                    if (program.isNull()) continue; // Complete old program set.
+                    const auto parameters=program->getDefaultParameters();
+                    unsigned fields=0;
+                    for (const char* field:{"terrainNormalArray","terrainSurfaceArray",
+                                           "localLightCount","localLightPositionRadius","localLightColourEnergy"})
+                        fields+=parameters->_findNamedConstantDefinition(field,false)!=nullptr;
+                    if (fields!=0 && fields!=5)
+                        throw std::runtime_error(std::string("Incomplete reference surface shader interface: ")+name);
+                    supported+=fields==5;
+                }
+                if (supported==1)
+                    throw std::runtime_error("Reference surface shader interfaces disagree between receiver variants.");
+                surfaceShaderAvailable=supported==2;
+            }
+            const bool enabled = m_hdrPipeline && m_hdrPipeline->active() &&
+                runtimeTerrainMaterialProfile().usesTextureArray() && surfaceShaderAvailable &&
+                runtimeReferenceSurfaceProfile().usableWithEffectiveTerrain();
+            if (enabled == m_referenceSurfaceEnabled) return;
+            if (enabled && m_referenceArrays[0].isNull())
+            {
+                const auto &profile = runtimeReferenceSurfaceProfile().parameters();
+                std::size_t bytes = 0;
+                for (unsigned channel=0;channel<3;++channel)
+                {
+                    m_referenceLoaders[channel] = std::make_unique<TerrainArrayLoader>(
+                        TerrainTextureArray::load(runtimeResourcePackResolver().resolve(profile.textures[channel])));
+                    const auto &data=m_referenceLoaders[channel]->data;
+                    m_referenceArrays[channel]=Ogre::TextureManager::getSingleton().createManual(
+                        "HelloMine3D/ReferenceSurface"+std::to_string(channel),
+                        Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+                        Ogre::TEX_TYPE_2D_ARRAY,data.edge,data.edge,data.layers,
+                        static_cast<int>(data.mipCount-1),Ogre::PF_BYTE_RGBA,
+                        Ogre::TU_STATIC_WRITE_ONLY,m_referenceLoaders[channel].get(),channel==0);
+                    if (m_referenceArrays[channel].isNull() ||
+                        m_referenceArrays[channel]->isHardwareGammaEnabled()!=(channel==0))
+                        throw std::runtime_error("Invalid reference surface channel gamma/storage.");
+                    m_referenceArrays[channel]->load();
+                    bytes+=data.rgba.size();
+                }
+                for (const char *name:{"HelloMine3D/TerrainSurfaceFragment",
+                                      "HelloMine3D/TerrainShadowSurfaceFragment"})
+                {
+                    auto program=Ogre::HighLevelGpuProgramManager::getSingleton().getByName(name);
+                    if (program.isNull()) throw std::runtime_error(std::string("Missing surface shader: ")+name);
+                    program->load();
+                    auto *shader=dynamic_cast<Ogre::GLSLShader*>(program.get());
+                    if (!shader || !shader->compile(true) || program->hasCompileError())
+                        throw std::runtime_error(std::string("Invalid surface shader: ")+name);
+                }
+                std::cout<<"[REFERENCE_SURFACE] channels=3 edge=64 layers=256 mips=7"
+                         <<" colour_srgb=1 data_srgb=0 gpu_bytes="<<bytes
+                         <<" reload_cpu_bytes="<<bytes<<" source_index_bytes_per_section=512\n";
+            }
+            m_referenceSurfaceEnabled=enabled;
+            for (const char *name:{"HelloMine3D/Terrain","HelloMine3D/Transparent",
+                                  OgrePlayerRenderer::HeldMaterialName,
+                                  OgrePlayerRenderer::HeldTransparentMaterialName,"HelloMine3D/Flora"})
+            {
+                auto *pass=materialPass(name);
+                for(int i=static_cast<int>(pass->getNumTextureUnitStates())-1;i>=1;--i)
+                {
+                    auto *unit=pass->getTextureUnitState(static_cast<unsigned short>(i));
+                    if (unit->getName()=="referenceNormal" || unit->getName()=="referenceSurface" ||
+                        unit->getContentType()==Ogre::TextureUnitState::CONTENT_SHADOW)
+                        pass->removeTextureUnitState(static_cast<unsigned short>(i));
+                }
+                pass->getTextureUnitState(0)->setTexture(enabled?m_referenceArrays[0]:m_terrainArray);
+                if (enabled)
+                {
+                    pass->getTextureUnitState(0)->setTextureFiltering(Ogre::TFO_TRILINEAR);
+                    for(unsigned channel=1;channel<3;++channel)
+                    {
+                        auto *unit=pass->createTextureUnitState();
+                        unit->setName(channel==1?"referenceNormal":"referenceSurface");
+                        unit->setTexture(m_referenceArrays[channel]);
+                        unit->setTextureAddressingMode(Ogre::TextureUnitState::TAM_WRAP);
+                        unit->setTextureFiltering(Ogre::TFO_TRILINEAR);
+                    }
+                }
+                else
+                {
+                    auto *unit=pass->getTextureUnitState(0);
+                    unit->setTextureFiltering(Ogre::FT_MIN,Ogre::FO_POINT);
+                    unit->setTextureFiltering(Ogre::FT_MAG,Ogre::FO_POINT);
+                    unit->setTextureFiltering(Ogre::FT_MIP,Ogre::FO_LINEAR);
+                }
+            }
+            setDirectionalShadowReceiverPrograms(m_directionalShadowQuality!=DirectionalShadowQuality::Off);
+            std::cout<<"[REFERENCE_SURFACE_MODE] active="<<enabled
+                     <<" resource_reason="<<runtimeReferenceSurfaceProfile().selectionReason()
+                     <<" shader_available="<<surfaceShaderAvailable<<" colour_domain="
+                     <<(enabled?"linear-srgb-sampled":"authored-legacy")<<'\n';
+        }
+
+        void bindLocalLightParameters(Ogre::GpuProgramParametersSharedPtr parameters)
+        {
+            if (!m_referenceSurfaceEnabled ||
+                !parameters->_findNamedConstantDefinition("localLightCount",false)) return;
+            std::array<float,32> positions{},radiance{};
+            for(std::size_t i=0;i<m_localLights.count;++i)
+            {
+                const auto &light=m_localLights.sources[i];
+                positions[i*4]=light.position.x; positions[i*4+1]=light.position.y;
+                positions[i*4+2]=light.position.z; positions[i*4+3]=light.radius;
+                radiance[i*4]=light.colour.r; radiance[i*4+1]=light.colour.g;
+                radiance[i*4+2]=light.colour.b; radiance[i*4+3]=light.energy;
+            }
+            parameters->setNamedConstant("localLightCount",static_cast<int>(m_localLights.count));
+            parameters->setNamedConstant("localLightPositionRadius",positions.data(),8,4);
+            parameters->setNamedConstant("localLightColourEnergy",radiance.data(),8,4);
         }
 
         void syncTerrainMaterialParameters()
@@ -6329,6 +6530,7 @@ namespace
                 Ogre::GpuProgramParametersSharedPtr parameters =
                     materialPass(materialName)
                         ->getFragmentProgramParameters();
+                bindLocalLightParameters(parameters);
                 parameters->setNamedConstant(
                     "environmentLight", state.daylight);
                 parameters->setNamedConstant("fogColour", fogVector);
@@ -6399,6 +6601,7 @@ namespace
                         ->getFragmentProgramParameters();
                 parameters->setNamedConstant("actorSurfaceStrength",
                     m_v10cAtmosphereEnabled ? 1.f : 0.f);
+                bindLocalLightParameters(parameters);
                 parameters->setNamedConstant(
                     "environmentLight", state.daylight);
                 parameters->setNamedConstant("fogColour", fogVector);
@@ -7046,6 +7249,7 @@ namespace
             m_pauseNotificationCapture.reset();
             m_userInterface.reset();
             destroyPostProcessingResources();
+            m_waterReflection.reset();
             m_hdrPipeline.reset();
             m_blockFeedback.reset();
             m_actorRenderer.reset();
@@ -7082,13 +7286,21 @@ namespace
             m_sceneManager = nullptr;
             m_window = nullptr;
             m_terrainArray.setNull();
+            for (auto &texture : m_referenceArrays) texture.setNull();
             m_root.reset();
             m_terrainArrayLoader.reset();
+            for (auto &loader : m_referenceLoaders) loader.reset();
             m_gl3PlusPlugin.reset();
         }
 
         std::unique_ptr<Ogre::Root> m_root;
         std::unique_ptr<HdrPipeline> m_hdrPipeline;
+        std::unique_ptr<PlanarWaterReflection> m_waterReflection;
+        bool m_planarDiagnosticCaptured = false;
+        std::array<std::unique_ptr<TerrainArrayLoader>,3> m_referenceLoaders;
+        std::array<Ogre::TexturePtr,3> m_referenceArrays;
+        bool m_referenceSurfaceEnabled = false;
+        LocalLightSnapshot m_localLights;
         bool m_referenceVisualRequested = false;
         bool m_referenceVisualApplied = false;
         std::unique_ptr<TerrainArrayLoader> m_terrainArrayLoader;
@@ -7329,6 +7541,10 @@ int runOgreBootstrap(bool validateOnly,
         validateStartupResources(root, startupResources);
         runtimeTerrainMaterialProfile().freezeFromResourceView(
             runtimeResourcePackResolver());
+        runtimeReferenceSurfaceProfile().freezeFromResourceView(runtimeResourcePackResolver());
+        std::cout<<"[REFERENCE_SURFACE_PROFILE] available="<<runtimeReferenceSurfaceProfile().available()
+                 <<" compatible="<<runtimeReferenceSurfaceProfile().usableWithEffectiveTerrain()
+                 <<" reason="<<runtimeReferenceSurfaceProfile().selectionReason()<<'\n';
         validateAtmosphereShaderContract(
             runtimeResourcePackResolver());
         validateDirectionalShadowShaderContract(

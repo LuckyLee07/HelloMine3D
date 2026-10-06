@@ -31,3 +31,10 @@ end
 fuel hellomine:plant_fiber
 ticks 40
 end
+
+# Clay roof pieces use the normal three-slot furnace and existing fuels.
+smelt hellomine:clay_tile_step
+input hellomine:clay
+output hellomine:clay_tile_step 1
+ticks 80
+end

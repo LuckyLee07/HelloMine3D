@@ -27,7 +27,20 @@ if [ "$(uname -s)" != "Darwin" ]; then
     exit 2
 fi
 
-for tool in premake5 xcodebuild python3; do
+# Use the hardware architecture even if the invoking shell runs via Rosetta.
+NATIVE_ARCH="$(uname -m)"
+if [ "$(/usr/sbin/sysctl -n hw.optional.arm64 2>/dev/null || true)" = "1" ]; then
+    NATIVE_ARCH="arm64"
+fi
+case "$NATIVE_ARCH" in
+    arm64|x86_64) ;;
+    *)
+        echo "[XCODE_VERIFY] Unsupported native architecture: $NATIVE_ARCH" >&2
+        exit 2
+        ;;
+esac
+
+for tool in premake5 xcodebuild python3 lipo; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         echo "[XCODE_VERIFY] Required tool not found: $tool" >&2
         exit 2
@@ -35,6 +48,9 @@ for tool in premake5 xcodebuild python3; do
 done
 
 mkdir -p "$LOG_DIR"
+echo "[XCODE_VERIFY] native_architecture=$NATIVE_ARCH"
+python3 -B "$ROOT_DIR/tools/validate_world_runtime_summary.py" --self-test |
+    tee "$LOG_DIR/world_summary_calibration.log"
 echo "[XCODE_VERIFY] Validate performance contracts"
 python3 "$ROOT_DIR/tools/validate_perf_comparison.py" |
     tee "$LOG_DIR/performance_contracts.log"
@@ -68,8 +84,10 @@ build_target() {
         -project "$project" \
         -scheme "$target" \
         -configuration "$configuration" \
-        -arch x86_64 \
+        -arch "$NATIVE_ARCH" \
         -derivedDataPath "$LOG_DIR/DerivedData" \
+        "ARCHS=$NATIVE_ARCH" \
+        ONLY_ACTIVE_ARCH=YES \
         CODE_SIGNING_ALLOWED=NO \
         build 2>&1 | tee "$log"
 
@@ -80,6 +98,7 @@ build_target() {
         "manual Xcode target ordering"
     reject_build_warning "$log" "/src/HelloMine3D/.*: warning:" \
         "first-party compiler warning"
+    verify_native_binary "$BIN_DIR/$target"
 }
 
 reject_build_warning() {
@@ -90,6 +109,20 @@ reject_build_warning() {
     if grep -E "$pattern" "$log" >/dev/null; then
         echo "[XCODE_VERIFY] Unexpected $label in $log" >&2
         grep -E "$pattern" "$log" >&2
+        exit 1
+    fi
+}
+
+verify_native_binary() {
+    local executable="$1"
+    local actual_architecture
+    if [ ! -x "$executable" ]; then
+        echo "[XCODE_VERIFY] Expected native executable is missing: $executable" >&2
+        exit 1
+    fi
+    actual_architecture="$(lipo -archs "$executable")"
+    if [ "$actual_architecture" != "$NATIVE_ARCH" ]; then
+        echo "[XCODE_VERIFY] Expected $NATIVE_ARCH executable, got $actual_architecture: $executable" >&2
         exit 1
     fi
 }
@@ -108,13 +141,15 @@ run_binary() {
     echo "[XCODE_VERIFY] Run $configuration $name"
     (
         cd "$BIN_DIR"
+        if [ "$name" = "HelloMine3DWorldRuntimeSmoke" ]; then
+            # This route requires the whole suite, regardless of shell focus.
+            unset HELLOMINE3D_WORLD_SMOKE_FOCUS
+        fi
         "$executable"
     ) 2>&1 | tee "$log"
 
-    if [ "$name" = "HelloMine3DWorldRuntimeSmoke" ] &&
-       ! grep -F "[VALIDATION] checks=2118 failures=0" "$log" >/dev/null; then
-        echo "[XCODE_VERIFY] World runtime summary is missing or failed." >&2
-        exit 1
+    if [ "$name" = "HelloMine3DWorldRuntimeSmoke" ]; then
+        python3 -B "$ROOT_DIR/tools/validate_world_runtime_summary.py" "$log"
     fi
     if [ "$name" = "HelloMine3DWorldCatalogueSmoke" ] &&
        ! grep -F "[WORLD_CATALOGUE_TEST] checks=60 failures=0" \

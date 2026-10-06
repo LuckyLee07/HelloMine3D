@@ -41,6 +41,13 @@ uniform float viewRangeStrength;
 uniform float globalTime;
 uniform float waterDetailStrength;
 
+// The RTT already stores lit linear radiance. Never decode or tone-map it here.
+uniform sampler2D planarReflectionTexture;
+uniform mat4 planarReflectionViewProj;
+uniform float planarReflectionEnabled;
+uniform float planarReflectionPlaneY;
+uniform vec2 planarReflectionTexelSize;
+
 
 // Only the final view-distance band loses coverage. Keep near-field lighting
 // and atmospheric fog unchanged; the sky is visible through retired pixels.
@@ -84,6 +91,36 @@ float surfaceStreak(vec2 position)
 {
     return sin(position.x * 3.1 + sin(position.y * 1.7)) *
            sin(position.y * 4.3 - position.x * 0.8);
+}
+
+vec3 planarReflection(vec3 approximate, vec3 normal, float fresnel,
+                      float depthAmount, float detailVisibility)
+{
+    // A single mean plane serves only its animated sheet. Other levels,
+    // underwater/crossing views and legacy/off paths keep their approximation.
+    if (planarReflectionEnabled < 0.5 || linearHdrMode < 0.5 ||
+        abs(waterWorldPosition.y - planarReflectionPlaneY) > 0.16 ||
+        cameraPosition.y <= planarReflectionPlaneY + 0.15) return approximate;
+    vec4 projected = planarReflectionViewProj * vec4(waterWorldPosition, 1.0);
+    if (any(isnan(projected)) || any(isinf(projected)) || projected.w <= 0.0001)
+        return approximate;
+    vec2 uv = projected.xy / projected.w * 0.5 + 0.5;
+    vec2 guard = max(planarReflectionTexelSize * 1.5, vec2(0.00001));
+    if (any(lessThan(uv, guard)) || any(greaterThan(uv, vec2(1.0) - guard)))
+        return approximate;
+    vec2 warp = clamp(normal.xz * 0.018 + waterSurfaceDrift *
+        sin(globalTime * 0.7 + dot(waterWorldPosition.xz, vec2(0.13, 0.09))) * 0.001,
+        vec2(-0.012), vec2(0.012));
+    warp *= clamp(waterDetailStrength, 0.0, 1.0) * detailVisibility;
+    vec2 sampledUv = uv + warp;
+    if (any(lessThan(sampledUv, guard)) || any(greaterThan(sampledUv, vec2(1.0) - guard)))
+        return approximate;
+    vec3 radiance = texture(planarReflectionTexture, sampledUv).rgb;
+    if (any(isnan(radiance)) || any(isinf(radiance))) return approximate;
+    vec2 edge = min(sampledUv - guard, vec2(1.0) - guard - sampledUv);
+    float edgeFade = smoothstep(0.0, 0.035, min(edge.x, edge.y));
+    float amount = fresnel * 0.72 * mix(0.55, 1.0, depthAmount) * edgeFade;
+    return mix(approximate, max(radiance, vec3(0.0)), amount);
 }
 
 void main()
@@ -154,6 +191,9 @@ void main()
     float aboveSurface = smoothstep(-0.20, 0.20, eyeHeight);
     colour = mix(mix(deepColour * 0.72 * exposure, colour, 0.20),
                  colour, aboveSurface);
+
+    // Blend after body illumination: reflected scene radiance is already lit.
+    colour = planarReflection(colour, normal, fresnel, depthAmount, detailVisibility);
 
     float fogVisibility = clamp(
         exp(-waterDistance * waterDistance * fogDensity * fogDensity),

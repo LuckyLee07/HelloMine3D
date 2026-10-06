@@ -9,7 +9,10 @@
 // collision/selection; only registered v2 architectural IDs use precise boxes.
 namespace BlockGeometry {
 inline bool usesCompound(BlockId id) noexcept {
-    return id==BlockId::StoneStep || id==BlockId::StoneWindowFrame;
+    return isArchitecturalBlock(id);
+}
+inline bool allowsHalfStep(BlockId id) noexcept {
+    return id==BlockId::StoneStep || id==BlockId::StoneSlab || id==BlockId::ClayTileStep;
 }
 inline bool validMetadata(Block_t id,BlockMetadata_t metadata) noexcept {
     return !usesCompound(static_cast<BlockId>(id)) || metadata<4;
@@ -20,6 +23,19 @@ inline BlockMetadata_t orientationFromYaw(float yaw) noexcept {
     if(!std::isfinite(yaw)) return 0;
     float angle=std::fmod(yaw,360.f);if(angle<0) angle+=360.f;
     return static_cast<BlockMetadata_t>(static_cast<unsigned>(std::floor((angle+45.f)/90.f)) & 3u);
+}
+inline bool surfaceOccluded(const BlockShapeSurface &surface,
+                            const BlockDefinition &adjacent, ChunkBlock block) noexcept {
+    if (surface.boundaryFace >= 6 || surface.boundaryMask == 0) return false;
+    if (adjacent.occludesFaces) return true;
+    if (!usesCompound(adjacent.id) || adjacent.transparent || !adjacent.render.shape.isCompound()) return false;
+    const unsigned opposite = surface.boundaryFace ^ 1u;
+    const auto coverage = adjacent.render.shape.variants[orientation(block)].boundaryCoverage[opposite];
+    return (coverage & surface.boundaryMask) == surface.boundaryMask;
+}
+inline glm::ivec3 boundaryOffset(unsigned face) noexcept {
+    static const glm::ivec3 offsets[6]={{0,0,1},{0,0,-1},{-1,0,0},{1,0,0},{0,1,0},{0,-1,0}};
+    return face < 6 ? offsets[face] : glm::ivec3(0);
 }
 struct Bounds { glm::vec3 minimum;glm::vec3 maximum; };
 inline bool intersects(const Bounds &a,const Bounds &b,float epsilon=0.0001f) noexcept {
