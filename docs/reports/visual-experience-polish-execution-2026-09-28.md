@@ -2,7 +2,18 @@
 
 ## 恢复区
 
-- **当前：2026-10-06 V10n：普通设置取消、应用与重启持久化专项完成，完整 V01–V11 仍 Doing，Goal active。**
+- **当前：2026-10-06 V06e：实际漏VBO写入校准与当前Retina2水岸正控完成，完整V00–V11仍Doing，Goal active。**
+  起点HEAD f27d01ea，正式运行时4f6d0c55／Release `10c392d3…e6356`保持；正常源码、正式包与用户客户端未改。
+  新标准／兼容正控PID63345／63623均native0、六幅2560×1440原图，各208项通过；独立245项复核，旧V06d倍率／GL失败仍保留。
+  隔离源副本仅省略VBO writeData，实际单TU编译链接0；146对象只换1个，145对象／17库及223聚焦输入保持，源包独立37项通过。
+  标准／兼容源故障PID66170／67106均正常exit1，无signal／timeout，首solid原VBO≠CPU而IBO=CPU，GL0、状态恢复；新检查各26项、独立98项通过。
+  原r1driver／checker及复核标签误读FAIL保留；新检查器只补实际错误固定前缀。六阶段故障oracle未运行，旧revision、内部VAO、ABA、地形像素及普通输入不作声明。
+  旧普通PID46826／5144只读确认无进程／窗口，有10:42:21完整Ogre关闭；游戏退出码不可得，退出操作者及保存按钮输入未观察，Root本批没有普通输入。
+  当前第三人称配置及24保存文件完整另存；8路径较旧活动副本变化，全部保留不回滚；独立70项复核，旧恢复配置70d9收据保持历史。
+  公开CUA在新条件下只读重检一次，2.3014秒service startup failed，没有重启普通包或增加人工核验环节。
+  精选49轮195图、旧48轮192图保持；新增三张是同正式运行时的正常水岸诊断原图，不宣称新视觉代码效果。
+  终态见文末V06e、`v06e/source-upload-calibration-result-r1.json`及聚焦保护收据。下一步补真实draw的native绑定观察，并继续普通连续路线／采集制作／完整UI与全部方向余项；严格性能延期。
+- **历史检查点：2026-10-06 V10n：普通设置取消、应用与重启持久化专项完成，完整 V01–V11 当时仍 Doing，Goal active。**
   文档起点01d0e6ac，运行时仍4f6d0c55／Release `10c392d3…e6356`；复用 `v10m/OrdinaryUiWorkbench.app`，不重建或注入存档。
   初次Continue被Mac锁屏拒绝的原收据保留；用户回复“已解锁”后重新观察同一窗口，再通过公开CUA继续，历史锁屏已解除。
   Cancel丢弃960×540／FOV60／第三人称草稿，重开恢复原值；仅应用FOV90→60后投影收窄，第三人称角色可见。
@@ -3388,3 +3399,85 @@ after-input→活动时点副本仅last_played变化，world_time与actor文本�
 后续地图跨世界／跨进程、紧凑双语空合成、设置及本批限定成果单列，不把旧分类当今天精确
 完成率，也不把检查数或精选图片数换算整体进度。开发实现大部分落地，普通玩法及整合仍有
 实质缺项，不能称只差最后几项小问题。
+
+## 2026-10-06 V06e：实际漏VBO写入校准与当前Retina2匹配正控
+
+起点HEAD `f27d01ea9de53a9378abe223adb0fdad77ba21a3`，正式运行时仍
+`4f6d0c5564f2898cfbb020f30b7ac54a5f6aa9fa`。正常生产源码、正常Debug／Release二进制、
+冻结 `v06c/After.app`及用户客户端保持；本批没有正常游戏改造或完整World重跑。
+上个用户进度答复属于状态核对，本批的实际进展是补齐尚缺的生产源漏上传校准和当前倍率2正控。
+
+正常控制沿V06c冻结命令，以新的 `v06e/control-standard-r1` 和 `control-compatibility-r1`
+输出，seed42、river目标 `(220,64,-204)`、time7000、RD1、第一人称、地图256m、中文UI1，
+请求1280×720点／倍率2。实际两模式GL4.1.0.0、六幅2560×1440，完整关闭且native0；
+没有已知或设置的额外GL环境覆盖，不把本次条件回写旧V06d初始化／倍率失败。
+原独立oracle分别运行一次，各208／208；[双模式汇总](../../build/visual-experience-polish-20260928/v06e/control-dual-r1.json)
+为 `PASS_SCOPED_STORAGE_WORLD_MAP_PIXELS_RETINA2`。
+[独立正常复核](../../build/visual-experience-polish-20260928/v06e/normal-control-independent-review-r1.json)
+245／245，480聚焦文件哈希保持，实际独立解码CPU／原生缓冲、World四角水深与地图RGB，并查看三原图。
+
+故障只在隔离副本省略 `ChunkSectionRenderable.cpp` 的VBO `writeData`，分配、绑定、计数、
+IBO上传和readiness／storage guard保持。沿真实正常Release日志提取编译及链接argv，
+146对象只替换1个，145正常对象＋17库、8个真实TU依赖及223聚焦输入保持。
+[实际构建](../../build/visual-experience-polish-20260928/v06e/build-r2.json)编译PID64701／链接64717
+均exit0，无signal／timeout，warning0；[包身份](../../build/visual-experience-polish-20260928/v06e/package-r2.json)
+明确nominal4f6及effective source／object／binary override，不冒称HEAD f27的干净生产包。
+实际Mach-O为 `Contents/Resources/bin/HelloMine3D`，SHA `493339000cd424e7e0ae6ef55952f1ab0d4a6278ec6d6bea83eee04c443c13ad`；
+`Contents/MacOS/HelloMine3D`仅是176B launcher，不能用其SHA代替实际二进制。
+新故障包135管理项核对通过，[独立源包复核](../../build/visual-experience-polish-20260928/v06e/independent-source-package-review-r1.json)37／37。
+
+| 当前实际执行 | native终态 | 检查与适用范围 |
+| --- | --- | --- |
+| 正常standard，PID63345 | exit0，无signal／timeout | 六阶段原oracle208／208，当前Retina2限定World／存储／地图像素 |
+| 正常compatibility，PID63623 | exit0，无signal／timeout | 六阶段原oracle208／208，同条件限定正控 |
+| 漏VBO写入standard，PID66170 | exit1，无signal／timeout | 首阶段guard拒绝，新r2原件检查26／26 |
+| 漏VBO写入compatibility，PID67106 | exit1，无signal／timeout | 首阶段guard拒绝，新r2原件检查26／26 |
+
+两个负例均在首solid操作 `ChunkSection_13_3_-13_Solid`：971个44B顶点／42724B VBO，
+2166个u32索引／8664B IBO、maxindex970、live／uploaded revision4660。
+实测native VBO全零，与有限CPU记录有18668个字节不同；IBO逐字节相等，GpuResident true，
+CpuReady false，GL错误为空、上下文状态恢复。原四个CPU／native raw缓冲在guard抛出前完整保留。
+实际错误全文为 `Shore edit storage capture: original native/actual uploader CPU bytes differ`。
+[标准r2检查](../../build/visual-experience-polish-20260928/v06e/negative-standard-storage-review-r2.json)和
+[兼容r2检查](../../build/visual-experience-polish-20260928/v06e/negative-compatibility-storage-review-r2.json)各26／26；
+[独立实际负例复核r2](../../build/visual-experience-polish-20260928/v06e/negative-storage-independent-review-r2.json)98／98，
+SHA `c2381277727246ed679546a6b33b597fdb6afa9ad8f8ff7b6e8cec7cf1dedfc7`。
+
+失败原件不覆盖：准备r1错误列出不存在的TerrainRenderBatch.cpp，18输入保持，未执行编译／GPU；
+Root准备r1错误预期oracle状态为裸PASS，原FAIL保留，r2按实际限定状态核对。
+原GPU driver r1执行标准后，因为checker误期望无固定前缀的错误文本而FAIL，兼容当时未运行；
+新 `verify_failure_r2.py`仅补生产固定前缀，复用原标准capture，不重跑标准GPU，再仅补兼容。
+[字面预期更正](../../build/visual-experience-polish-20260928/v06e/checker-expectation-correction-r1.json)保留一行差异和完整错误来源，生产guard及原oracle不变。
+正常独立复核初次把phase4预期为Water64的两错误保留于其initial attempt，实际为Air64／Water63。
+负例独立r1又误把正常原存储包CAPTURED预期为PASS，两FAIL原始字节恢复核SHA
+`12af1ea4e0beaf90180534c4ecb990bd2be917467909382360885b986eee8e40`并冻结；r2另写，不改原capture。
+早期launcher路径误读在独立复核更正，实际Mach-O身份无差异；以上均非新增正常游戏缺陷。
+
+本负例是新分配VBO没有写入，未证明旧revision GPU复用。故障在phase0首solid的字节guard即停，
+没有PNG、Water操作或完整六阶段捕获；完整故障oracle明确 `NOT_RUN_INCOMPLETE_CAPTURE`。
+仅关闭opt-in诊断的真实生产源／存储guard校准，不宣称普通客户端自动检查漏上传，
+不关闭内部VAO实际取数、World原子快照／incarnation／ABA、地形像素归属或普通鼠标编辑。
+
+Root只读原生查询五个确切包均无PID／窗口，原查询另存 `v06e/root-native-queries-r1.json`。
+旧普通PID46826／窗口5144日志有10:42:21完整Ogre关闭，native自身退出码
+`UNAVAILABLE_NOT_ROOT_OWNED_PROCESS`，退出操作者 `UNATTRIBUTED`、保存按钮输入 `NOT_OBSERVED`；
+本批Root没有普通输入，不归因到用户或旧排队请求。当前配置仅first→third，SHA
+`d0cfdb628d6ce1a5c36bd03ef9ae577654e21d04c7eed8f70611facf6da4bbfa`，现值保留，不回滚。
+24保存文件中8路径较V10o活动副本变化；seed42当前位置约 `(0.3,98,61.3)`、world_time59829，
+完整当前副本及日志另存 `ordinary-session-final-observed-r1/`。
+[独立终态保存复核](../../build/visual-experience-polish-20260928/v06e/ordinary-terminal-independent-review-r1.json)
+70／70：三世界metadata、8地图／3预览、5备份manifest／10成员长度与FNV有效；普通137静态文件保持。
+旧恢复配置70d9、旧会话与原活动副本保持历史；保存变化与终态不能关闭未观察的普通操作／路线。
+
+新条件下公开CUA先恢复文档，再只读listApps一次；2.3014秒报
+`Sky Computer Use service startup request failed`，见 `cua-readonly-recheck-r1.json`。
+没有重启普通客户端或重复同一失败，也不以旧锁屏说明当前状态，不增加人工玩法核验关卡。
+精选新增三个正常标准控制的未裁剪2560×1440原图：水面基线、Sand64填砂和Water63降低水面。
+[原图归档收据](../../build/visual-experience-polish-20260928/v06e/selected-archive-r1.json)49轮195张，旧48轮192对象／字节保持。
+这是同4f6正式运行时的当前诊断证据，无新视觉代码提升，不能用故障未完成图或地图图代替普通玩法。
+
+终态汇总见 `v06e/source-upload-calibration-result-r1.json`，聚焦保护见 `focused-final-protection-r1.json`；
+复用旧保护收据，不重扫5508输入或15冻结包。完整68项仍沿10月5日旧全量审计，后续专项单列，
+所有方向及Goal仍Doing／active。下一步可在真实draw前后观察native VAO、活跃输入及原始存储，
+初次解绑／未draw／不支持的管线明确OPEN，不能靠重绑定或重放冒充；同时继续普通三种子路线、
+采集制作、近墙／动物连续动作、水岸实际编辑、完整UI及最终稳定性／整合。严格配对性能仍延期。

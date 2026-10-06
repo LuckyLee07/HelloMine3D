@@ -220,7 +220,17 @@ incarnation／ABA、内部VAO取数、可见像素、连续闪烁及普通输入
 按用户继续授权推进。当前CUA沿用最近实际超时后的UNKNOWN，未因隐藏GPU通过冒充恢复。
 详见[执行报告](../reports/visual-experience-polish-execution-2026-09-28.md)。
 
-**最新：2026-10-06 V09d 同对象直接加载缓存回归完成，V10o 新增四个宽屏空合成覆盖；完整 V00–V11 仍 Doing，Goal active。**
+**最新：2026-10-06 V06e 当前 Retina2 水岸正控与实际漏 VBO 写入校准完成；完整 V00–V11 仍 Doing，Goal active。**
+正式运行时仍4f6d0c55，正常源码与正式包未改；两次新的标准／兼容捕获均native正常exit0、实际2560×1440，各208项通过，独立正控复核245／245。
+仅隔离副本省略ChunkSectionRenderable的VBO writeData，实际单TU编译／链接成功；146对象中仅替换1个，145正常对象、17库及223聚焦输入保持，源包独立复核37／37。
+两个实际源故障均在首阶段原存储guard正常exit1拒绝：实际VBO与当前CPU不等、IBO相等，GL0、状态恢复；新检查各26／26、独立复核98／98。新分配未写入不证明旧revision复用、内部VAO取数或完整六阶段故障oracle。
+准备、检查器错误前缀预期及独立标签误读的r1失败均保留，只在新收据更正；未删测试、改生产guard或重跑已通过正控。
+普通旧PID46826／5144随后只读确认无进程／窗口，10:42:21完整Ogre关闭；native退出码不可得、退出操作者与保存按钮输入未观察。本批Root没有普通输入。
+当前配置仅first→third，24保存文件中8路径较旧活动副本变化，现值及完整关闭日志另存并保留；独立70／70。不能归因到人工，也不回滚或据此关闭普通路线。
+公开CUA一次只读重检2.3014秒报service startup failed，未重启普通客户端。精选49轮195图，旧48轮192图保持；新增三张为同运行时正常水岸诊断原图，不宣称新视觉代码效果。
+完整68子项计数仍是10月5日旧全量审计，后续专项进展单列；所有普通连续路线、采集制作、完整UI矩阵和必要整合余项继续，严格性能延期。详见[执行报告](../reports/visual-experience-polish-execution-2026-09-28.md) V06e。
+
+**历史检查点：2026-10-06 V09d 同对象直接加载缓存回归完成，V10o 新增四个宽屏空合成覆盖；完整 V00–V11 当时仍 Doing，Goal active。**
 仅测试头文件新增8项：合法Loading前置、同Chunk／同revision、加载incarnation更新、false快照即时拒旧mask、原数据／单bit真值及8面／2048格预算保持。
 Debug／Release实际CAVE_BOUNDARY各43／0；仅移除loadBlockData身份更新的隔离单TU负控各43项／精确2 FAIL，编译链接0、正常exit1，无signal／timeout；两个独立复核通过。
 r1非法Resident→Resident测试前置的Debug SIGABRT与Release错误日志保留，不认定正常loader缺陷；未改生产代码或重建普通客户端。
