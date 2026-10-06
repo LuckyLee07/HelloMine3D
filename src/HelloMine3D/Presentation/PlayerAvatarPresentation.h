@@ -98,7 +98,7 @@ namespace PlayerAvatarPresentation
         Vec3 velocity{};
         bool grounded = true;
         ActionFeedback feedback{};
-        // Accumulated movement time is the gait clock. Strength is the
+        // Render-owned movement time is a bounded gait clock. Strength is the
         // caller's normalized horizontal movement fact.
         float movementSeconds = 0.f;
         float movementStrength = 0.f;
@@ -172,6 +172,26 @@ namespace PlayerAvatarPresentation
     inline float clamp01(float value) noexcept
     {
         return clamp(value, 0.f, 1.f);
+    }
+
+    constexpr float GaitAngularSpeed = 12.f;
+    constexpr float GaitCycleSeconds = 6.28318530718f / GaitAngularSpeed;
+
+    inline float advanceMovementSeconds(float current, float deltaSeconds,
+                                        float horizontalSpeed) noexcept
+    {
+        // Only the cosmetic clock advances. Shorter, slower steps need a
+        // shorter stride as well as a smaller limb swing; otherwise sneaking
+        // carries the body a full walking stride while both feet slide.
+        const float speed = std::max(finiteOr(horizontalSpeed), 0.f);
+        const float normalized = clamp01(speed / 4.5f);
+        const float strideScale = .25f + .75f * normalized;
+        const float rate = speed > .09f
+            ? clamp(speed / 4.5f / strideScale, 0.f, 1.25f) : 0.f;
+        const float dt = clamp(deltaSeconds, 0.f, .1f);
+        float clock = std::fmod(finiteOr(current), GaitCycleSeconds);
+        if (clock < 0.f) clock += GaitCycleSeconds;
+        return std::fmod(clock + dt * rate, GaitCycleSeconds);
     }
 
     inline Vec3 sanitize(Vec3 value) noexcept
@@ -401,17 +421,39 @@ namespace PlayerAvatarPresentation
         addRotation(pose, profile, PartRole::Head,
                     {clamp(source.rotationDegrees.x, -35.f, 35.f), 0.f, 0.f});
 
-        const float gaitClock = finiteOr(source.movementSeconds);
-        const float gait = std::sin(std::remainder(gaitClock * 8.2f, 6.28318530718f));
+        const float gaitClock = std::remainder(
+            finiteOr(source.movementSeconds), GaitCycleSeconds);
+        const float phase = gaitClock * GaitAngularSpeed;
+        const float gait = std::sin(phase);
         const float walk = pose.weights.walk * locomotionScale;
-        const float legSwing = gait * 32.f * forward * walk;
-        const float armSwing = gait * 25.f * forward * walk;
+        const float legSwing = gait * 36.f * forward * walk;
+        const float armSwing = gait * 28.f * forward * walk;
         // Lateral steps open outward only. Opposing inward leg rolls would
         // cross the default profile's narrow 2 cm gap.
         const float stepRight = std::max(gait * right, 0.f) * walk;
         const float stepLeft = std::max(-gait * right, 0.f) * walk;
         addRotation(pose, profile, PartRole::LeftLeg, {legSwing, 0.f, -12.f * stepLeft});
         addRotation(pose, profile, PartRole::RightLeg, {-legSwing, 0.f, 12.f * stepRight});
+        // One foot swings clear while the other supports the body. The
+        // squared half-wave joins the support phase with zero lift velocity.
+        // Existing feet-plane correction also runs after pose smoothing.
+        const float liftPhase = std::cos(phase);
+        const float directionTotal = std::abs(forward) + std::abs(right);
+        const float forwardLift = directionTotal > 0.f
+            ? std::abs(forward) / directionTotal : 0.f;
+        const float lateralLift = 1.f - forwardLift;
+        const float sidePhase = right < 0.f ? -gait : gait;
+        for (const auto role : {PartRole::LeftLeg, PartRole::RightLeg}) {
+            const auto index = partIndex(profile, role);
+            if (index >= std::min(profile.partCount, profile.parts.size())) continue;
+            const float swing = std::max(
+                role == PartRole::LeftLeg ? liftPhase : -liftPhase, 0.f);
+            const float sideSwing = std::max(
+                role == PartRole::LeftLeg ? -sidePhase : sidePhase, 0.f);
+            pose.parts[index].offset.y += .12f * walk *
+                (forwardLift * swing * swing +
+                 lateralLift * sideSwing * sideSwing);
+        }
         addRotation(pose, profile, PartRole::LeftArm, {-armSwing, 0.f, (-2.f * scale - 8.f * stepRight)});
         addRotation(pose, profile, PartRole::RightArm, {armSwing, 0.f, (2.f * scale + 8.f * stepLeft)});
         pose.rootRotationDegrees.x += 3.f * forward * pose.weights.walk * scale;

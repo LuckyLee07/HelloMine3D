@@ -2,7 +2,13 @@
 
 ## 恢复区
 
-- **当前：2026-10-06 V06i：原水面共享边十秒连续观察工程通过，完整Goal active。**
+- **当前：2026-10-06 V07h：玩家交替脚步与移速步频工程通过，完整Goal active。**
+  起点HEAD `22ba0d0c`，正常反馈Off继续保留基础动作；腿／臂峰幅36／28度，前后与侧步分别消费对应半波，交替抬脚最多12cm。按实际水平速度和表现步幅调整有界时钟，暂停冻结，高速步频封顶；不改Player／World／输入／生成／存档或新增坡面查询。
+  正常Release／Debug构建0、首方warning0、422编译输入保持；Release `0ddf954d…7151c`，Debug `14676c12…f788f`。最终纯动作各802/802，原501项保持，四隔离退化编译0后正常exit1；只读生产设计核验通过。标准前进Before／After和兼容右侧步各八实际2560×1440PNG，均7distinct、actual0退出／reaped；Root已查看相反迈腿、手臂摆动与侧步原帧。正常反馈Off、FOV90、冻结陆地机位与旧terrain30隔离模板同源；非普通输入或相位配对。
+  首次Before误省Retina倍率并沿用已更新的默认场景，wrapper FAIL但游戏exit0／reaped，原水下八图与失败保留；r2显式恢复此前陆地机位和pixel-ratio2。公开窗口只读查询仍timeout／UNKNOWN，无游戏输入；普通持续步行、速度节奏、坡面／近墙和世界脚掌无滑移保持OPEN。
+  新独立普通包 `v07h/After.app`、双配置与原图、保护／干净提交身份见`v07h/batch-handoff-r1.json`及文末V07h；旧V06i137完整文件、用户旧包与两个未读规划文件保持。四原图追加至57轮221图，旧56轮217对象／索引前缀保持。
+  本轮全部构建／隐藏采集均已终态，Root唯一窗口/GPU操作者。继续完整V00–V11，材质圆石／木板对比与叶面细亮点是后续可执行产品改进候选；普通路线与声音等缺项照旧，严格配对性能DEFERRED_BY_USER，不标总Goal完成。
+- **历史检查点：2026-10-06 V06i：原水面共享边十秒连续观察工程通过，完整Goal active。**
   起点HEAD `0cb28e9c`，新默认关闭观察入口已接Bootstrap／CLI／consumer并正常双配置构建；最终r2 Release `e3caad4c…3d64b`、Debug `b1cf7b38…3423c`。V07g基础动作修复继承，普通持续步态仍OPEN；本批不改shader／World／Player／输入／生成／保存。
   新冻结诊断机位216 70 −216／40 0 0，fresh seed42／terrain31、RD1、FOV90、1280×720点／2560×1440。最终标准351实际帧／10.0221秒、兼容361／10.0032秒全部保留原ROI与native绑定／六真实linked uniform；首／中／末raw及全窗真实同帧，独立真实World四列水深与共享输入一致。
   容量修复后当前序列各1439／1479 scoped PASS；旧原序列的深度消费者r2为1483／1435，原auto r1各1480／1432不改写；五实际语义副本正确FAIL／FAIL／OPEN／OPEN／FAIL，1486原件逐项SHA保持。原序列独立41组实物检查通过，当前r2另记，实看6全窗／32ROI未见明显裂缝／回绕跳变，微亮点与浓雾仍在；不关闭全部水面无闪点、GPU位移输出、逐对象像素或普通水域。
@@ -4061,3 +4067,63 @@ Root查看当前三精选及菜单原图。新三图追加于`v06i-water-seam-ca
 保持，最终56轮217图；没有新增视觉效果，强雾／微亮点保留，普通路线与整Goal保持active。
 最终clean `v06i/After.app`使用实际Release-r2，另复制未改原705B普通Off配置，135管理项／137完整
 文件及2966源码清单核对；当前终态及版本在`v06i/batch-handoff-r1.json`，不覆盖任何用户客户端。
+
+## V07h：第三人称交替脚步与移速步频（2026-10-06）
+
+从`22ba0d0c`继续用户“角色只有平移”的反馈。V07g已修复正常反馈Off同时关闭基础步态的接线；
+本批生产公式复核发现，前进时两腿反相旋转后的最低点相同，脚底修正使两脚同时贴地，仍像滑行。
+原4.5m/s、8.2rad/s半周期身体前进约1.724m，超过原足盒整个前后包络；这是公式缺陷分析，
+不是将未执行的普通连续输入记成实机故障复现。近左墙臂宽超出碰撞盒约22cm的风险另留待真实复现。
+
+### 改进与边界
+
+`PlayerAvatarPresentation.h`参考周期改为`2π/12`秒，腿／臂峰幅36／28度；左右腿反相、对侧手臂协调。
+前后移动用正／负cos平方半波抬脚，横移与既有向外迈步sin半波对齐，斜向按绝对方向分量归一混合。
+偏移只在腿Y轴，最多12cm；实际足盒修正仍在派生与平滑后执行，保留至少一脚支撑和腿分离。
+没有新增膝部、节点、纹理、World查询或脚掌锁定状态，仍为八部件／96三角形、固定大小纯值。
+
+Bootstrap从真实水平速度使用`hypot`，表现步幅系数`0.25+0.75*normalizedSpeed`，相位速率按归一速度
+除以该系数并限1.25。普通4.5m/s约3.82步/s，潜行1.8m/s约2.78步/s，高速封顶约4.77步/s。
+dt沿用0–100ms，速度≤0.09m/s冻结，时钟逐周期回绕；暂停dt0和世界／位置epoch重置沿用原路径。
+正常反馈Off的LocomotionOnly保留动作，Reduced缩小幅度，显式静态Off仍静止。
+玩家速度、碰撞、输入、相机请求、逻辑射线、工具结果、生成与存档版本未改。
+
+初版14rad/s／rate1.65被只读审查指出高速约7.35步/s，因此在正式构建前收敛。
+初版横移复用cos抬脚与向外腿错配也已在正式构建前修正为方向混合；r1纯测试不重称最终版本。
+半波lift是C1，不代表完整root支撑切换也为C1；没有声称消除所有世界空间接触滑移或坡面穿插。
+
+### 验证与实际画面
+
+| 证据 | 实际结果与范围 |
+| --- | --- |
+| 最终纯动作 | `bash scripts/verify_player_avatar_presentation.sh Debug|Release <新目录>`，`v07h/agent-avatar-lift-{debug,release}-r2/`各802/802。原501项保持，新增301项；独立八角点覆盖八向32／64相位、支撑／腿分离、交替离地、侧步相位、反馈档位、输入字节保持、暂停／停止／反向、30／120Hz、低速／高速／非有限／长时回绕。 |
+| 真实退化负例 | 最终头隔离副本编译全0；zero-lift802/52、旧线性慢速clock802/3、旧8.2参考周期802/1、横移错误cos相位802/4，均正常exit1。生产头／test／ToolAction SHA前后保持，未触发系统崩溃。 |
+| 正常客户端 | `v07h/build-clients-r1.json`：实际Xcode Release23.68s／Debug16.17s，exit0、无timeout／首方warning、422编译输入保持。macOS x86_64，在arm64宿主运行；不称其他平台验证。 |
+| 独立设计 | `runtime-review-r1.json`无阻断；34,560个解析目标盒样本的rootY约[-.06257,.02251]m、脚底残差0、腿间至少18.53mm、髋顶部仍与torso相交。这是纯几何采样，不是实际GPU或坡面证明。 |
+| 标准前进 | `before-standard-off-r2`与`after-standard-off-r1`各八2560×1440原PNG、7distinct；actual PID58126／58274正常0、无timeout、reaped。旧包已有摆腿；新包原帧显示左右相反迈腿、抬脚和手臂摆动。读回会重复flush，未记录同动作相位，不称相位配对或完整正常周期。 |
+| 兼容横移 | `after-compatibility-off-r1`八原PNG、7distinct、正常0退出／reaped；Root查看向外腿离地与相反侧步姿。没有本批该模式Before，不称同模式前后像素配对。 |
+| 普通配置菜单 | `ordinary-full-config-menu-r1/receipt.json`使用新包的完整705B Off／first配置启动独立副本，两个主菜单原图、正常0退出／reaped，配置与源包137文件保持；没有世界夹具或输入，不计普通按钮／玩法。Root查看原图。 |
+| 普通窗口 | 本轮只读getState约30.03s超时reset，见`public-window-observation-r1.json`；UNKNOWN、输入0。既有V11d单跳保持原包适用范围，普通持续行走、停止／反向路线、坡面／近墙和节奏舒适度仍OPEN。 |
+
+真实渲染命令沿用`capture_visual_macos.py --reuse-app --scene grassland --save-template <既有V07g隔离save>`，
+显式`--position '152.5 78.5 -58.5' --rotation '12 0 0' --time 7000 --seed 42 --fov 90 --pixel-ratio 2`，
+`--perspective third --feedback off --capture-ms 5000,5250,5500,5750,6000,6250,6500,6750 --launch-method direct`。
+标准前后使用`--player-motion forward --visual-detail standard`，兼容后用`right／compatibility`。
+三套同一terrain30模板来自本项目诊断存档，非用户存档；快照不写Player位置、速度或输入。
+Root串行四次实际隐藏启动，没有竞争用户窗口。资源与World生产入口保持，未为纯动作重复完整World／shader门禁。
+
+首次`before-standard-off-r1`忘记pixel-ratio2，wrapper保留FAIL；实际游戏PID57624正常0且八图保留。
+默认grassland已改为另一坐标，首次图实际在水下，不作为陆地配对。r2显式恢复此前陆地冻结机位后通过；
+不修改失败收据或把r1错误称产品崩溃。初版14rad/s的两配置798/798保留，最终802版本分记。
+
+最终Release SHA`0ddf954d03b008bf09f877fdfd359802841b0f983892549eb969c4b6a2a7151c`，
+Debug SHA`14676c12236f2c44648c19802b461e770edc2592f06b2e39663f1a4b549f788f`；
+头`32d8f04f…4fa8f`、Bootstrap`45fe4a45…e8fc`、test`29c74101…fd015`。
+测试手交收据SHA`9860a54a…5e4eb6`，负例收据`8f285fc5…b593a`；当前独立实物审阅另见`actual-review-r1.json`。
+四未编辑原图追加至`.local-evidence/visual-polish-20260928/v07h-alternating-player-step-r1/`，
+旧56轮217图对象及索引前缀保持，终态57轮221图；标准Before也保留，未提交媒体。
+
+本批交付新独立普通`v07h/After.app`，复制原705B Off／first／FOV90配置，135管理项／137完整文件。
+最终干净提交身份、正常完整配置菜单启动与保护结果在`batch-handoff-r1.json`和终态收据中核对；
+原V06i交付与两个未读规划保持，不推送、发布或打标签。完整V07与V00–V11仍Doing／Goal active，
+本批实际改进不关闭普通连续路线、近墙／坡面、四水域、声音、材质和整合的其余缺项。

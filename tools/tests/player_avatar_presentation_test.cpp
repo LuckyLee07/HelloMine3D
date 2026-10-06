@@ -113,7 +113,7 @@ namespace
         check(Avatar::derivePose(input, profile).kind == Avatar::PoseKind::Idle,
               "stationary grounded pose is Idle");
         input.grounded = true;
-        input.movementSeconds = .19f;
+        input.movementSeconds = Avatar::GaitCycleSeconds * .25f;
         input.movementStrength = 1.f;
         input.velocity = {0.f, 0.f, -4.5f};
         const Avatar::Pose pose = Avatar::derivePose(
@@ -183,7 +183,7 @@ namespace
     {
         const Avatar::Profile profile = Avatar::defaultProfile();
         Avatar::Snapshot input;
-        input.movementSeconds = .19f;
+        input.movementSeconds = Avatar::GaitCycleSeconds * .25f;
         input.movementStrength = 1.f;
         input.velocity = {0.f, 0.f, -4.5f};
         input.feedback.landing = .7f;
@@ -276,7 +276,7 @@ namespace
 
     Avatar::Snapshot moving(float forward, float right, float yaw = 0.f,
                             float speed = 4.5f, float strength = 1.f,
-                            float seconds = .19f)
+                            float seconds = Avatar::GaitCycleSeconds * .25f)
     {
         constexpr float radians = 3.14159265359f / 180.f;
         const float angle = yaw * radians;
@@ -494,7 +494,7 @@ namespace
         check(sameLocalPose(Avatar::derivePose(thresholdAxis, profile),
                             Avatar::derivePose(moving(0.f, 1.f), profile), profile),
               "horizontal length just above epsilon preserves caller strength");
-        for (float clock : {0.f, .19f, .4f, 1000.f}) {
+        for (float clock : {0.f, Avatar::GaitCycleSeconds * .25f, .4f, 1000.f}) {
             auto fake = moving(0.f, 0.f, 0.f, 0.f, 1.f, clock);
             check(sameLocalPose(Avatar::derivePose(fake, profile), idle, profile),
                   "stationary fake clock and strength remain the stationary pose");
@@ -524,7 +524,7 @@ namespace
     void groundedGeometryCase()
     {
         const auto profile = Avatar::defaultProfile();
-        constexpr float cycleSeconds = 6.28318530718f / 8.2f;
+        constexpr float cycleSeconds = Avatar::GaitCycleSeconds;
         for (const auto& direction : travelDirections)
             for (const auto strength : {Avatar::MotionStrength::Off, Avatar::MotionStrength::Reduced, Avatar::MotionStrength::Full}) {
                 bool ground = true, separated = true;
@@ -570,7 +570,7 @@ namespace
     void directionalSmoothingCase()
     {
         const auto profile = Avatar::defaultProfile();
-        constexpr float cycleSeconds = 6.28318530718f / 8.2f;
+        constexpr float cycleSeconds = Avatar::GaitCycleSeconds;
         for (const auto& direction : travelDirections)
             for (const auto strength : {Avatar::MotionStrength::Full, Avatar::MotionStrength::Reduced}) {
                 bool ground = true, separated = true, frameRatesMatch = true, converges = true, gradual = true;
@@ -646,7 +646,7 @@ namespace
     {
         const auto profile = Avatar::defaultProfile();
         constexpr auto strength = Avatar::MotionStrength::LocomotionOnly;
-        constexpr float cycleSeconds = 6.28318530718f / 8.2f;
+        constexpr float cycleSeconds = Avatar::GaitCycleSeconds;
         const auto idle = Avatar::derivePose({}, profile, strength);
         check(idle.kind == Avatar::PoseKind::Idle &&
               near(articulationMagnitude(idle, profile), 0.f) &&
@@ -778,6 +778,271 @@ namespace
         }
     }
 
+    void alternatingLiftGeometryCase()
+    {
+        const auto profile = Avatar::defaultProfile();
+        const auto leftRole = Avatar::PartRole::LeftLeg;
+        const auto rightRole = Avatar::PartRole::RightLeg;
+        constexpr float cycle = Avatar::GaitCycleSeconds;
+        // Public cycle endpoints select opposite leg extremes. Geometry below
+        // reconstructs all eight box corners, rather than trusting offset.y.
+        const auto quarter = Avatar::derivePose(
+            moving(1.f, 0.f, 0.f, 4.5f, 1.f, cycle * .25f),
+            profile, Avatar::MotionStrength::LocomotionOnly);
+        const auto threeQuarter = Avatar::derivePose(
+            moving(1.f, 0.f, 0.f, 4.5f, 1.f, cycle * .75f),
+            profile, Avatar::MotionStrength::LocomotionOnly);
+        check(near(part(quarter, profile, leftRole).rotationDegrees.x, 36.f) &&
+              near(part(quarter, profile, rightRole).rotationDegrees.x, -36.f) &&
+              near(part(threeQuarter, profile, leftRole).rotationDegrees.x, -36.f) &&
+              near(part(threeQuarter, profile, rightRole).rotationDegrees.x, 36.f),
+              "public quarter-cycle selects opposing full forward leg extremes");
+        check(near(part(quarter, profile, Avatar::PartRole::LeftArm).rotationDegrees.x, -28.f) &&
+              near(part(quarter, profile, Avatar::PartRole::RightArm).rotationDegrees.x, 28.f),
+              "new gait cadence preserves contralateral 28-degree arm swing");
+
+        for (float sideways : {-1.f, 1.f})
+            for (const auto strength : {Avatar::MotionStrength::Full,
+                                       Avatar::MotionStrength::LocomotionOnly}) {
+                const auto pose = Avatar::derivePose(
+                    moving(0.f, sideways, 0.f, 4.5f, 1.f, cycle * .25f), profile, strength);
+                const auto swingRole = sideways > 0.f ? rightRole : leftRole;
+                const auto supportRole = sideways > 0.f ? leftRole : rightRole;
+                const auto swing = legBounds(pose, profile, swingRole);
+                const auto support = legBounds(pose, profile, supportRole);
+                check(std::abs(part(pose, profile, swingRole).rotationDegrees.z) > 10.f &&
+                      swing.minimumY > .07f && near(support.minimumY, 0.f),
+                      "pure sideways quarter-cycle lifts the outward moving leg and keeps the opposite support: " +
+                          std::to_string(sideways) + " strength=" + std::to_string(static_cast<int>(strength)));
+            }
+
+        for (const auto& direction : travelDirections)
+            for (const auto strength : {Avatar::MotionStrength::Off,
+                                       Avatar::MotionStrength::Reduced,
+                                       Avatar::MotionStrength::Full,
+                                       Avatar::MotionStrength::LocomotionOnly})
+                for (int phaseCount : {32, 64}) {
+                    bool supported = true, separated = true, bounded = true;
+                    bool inputPreserved = true;
+                    float firstHalfLeftPeak = 0.f, firstHalfRightPeak = 0.f;
+                    float secondHalfLeftPeak = 0.f, secondHalfRightPeak = 0.f;
+                    float leftPeak = 0.f, rightPeak = 0.f;
+                    for (int phase = 0; phase < phaseCount; ++phase) {
+                        const float seconds = phase * cycle / phaseCount;
+                        auto input = moving(direction.forward, direction.right,
+                                            37.f, 4.5f, 1.f, seconds);
+                        input.position = {10.f, 20.f, -30.f};
+                        std::array<unsigned char, sizeof input> original{};
+                        std::memcpy(original.data(), &input, sizeof input);
+                        const auto pose = Avatar::derivePose(input, profile, strength);
+                        inputPreserved &= std::memcmp(original.data(), &input, sizeof input) == 0 &&
+                            nearVector(pose.worldPosition, input.position) && near(pose.facingYawDegrees, 37.f);
+                        const auto left = legBounds(pose, profile, leftRole);
+                        const auto right = legBounds(pose, profile, rightRole);
+                        supported &= groundedLegCorners(pose, profile);
+                        separated &= separatedLegCorners(pose, profile);
+                        bounded &= left.allFinite && right.allFinite &&
+                            left.minimumY <= .16f && right.minimumY <= .16f &&
+                            part(pose, profile, leftRole).offset.y >= 0.f &&
+                            part(pose, profile, leftRole).offset.y <= .12001f &&
+                            part(pose, profile, rightRole).offset.y >= 0.f &&
+                            part(pose, profile, rightRole).offset.y <= .12001f &&
+                            near(part(pose, profile, leftRole).offset.x, 0.f) &&
+                            near(part(pose, profile, leftRole).offset.z, 0.f) &&
+                            near(part(pose, profile, rightRole).offset.x, 0.f) &&
+                            near(part(pose, profile, rightRole).offset.z, 0.f);
+                        leftPeak = std::max(leftPeak, left.minimumY);
+                        rightPeak = std::max(rightPeak, right.minimumY);
+                        // A swing peak at phase 0 belongs to the first half;
+                        // its opposite at phase pi belongs to the second.
+                        if (phase < phaseCount / 4 || phase >= phaseCount * 3 / 4) {
+                            firstHalfLeftPeak = std::max(firstHalfLeftPeak, left.minimumY);
+                            firstHalfRightPeak = std::max(firstHalfRightPeak, right.minimumY);
+                        } else {
+                            secondHalfLeftPeak = std::max(secondHalfLeftPeak, left.minimumY);
+                            secondHalfRightPeak = std::max(secondHalfRightPeak, right.minimumY);
+                        }
+                        if (strength == Avatar::MotionStrength::Off)
+                            bounded &= nearVector(part(pose, profile, leftRole).offset, {}) &&
+                                nearVector(part(pose, profile, rightRole).offset, {}) &&
+                                near(left.minimumY, 0.f) && near(right.minimumY, 0.f);
+                    }
+                    const std::string label = std::string(direction.name) +
+                        " strength=" + std::to_string(static_cast<int>(strength)) +
+                        " phases=" + std::to_string(phaseCount);
+                    check(supported && separated,
+                          "all eight leg corners retain support and separation during alternating lift: " + label);
+                    check(bounded && inputPreserved,
+                          "foot lift is bounded, vertical-only and preserves copied authority: " + label);
+                    if (strength == Avatar::MotionStrength::Off) {
+                        check(leftPeak < .001f && rightPeak < .001f,
+                              "explicit static Off keeps both feet on the support plane: " + label);
+                    } else {
+                        const bool diagonal = direction.forward != 0.f && direction.right != 0.f;
+                        // Diagonal blending shares the 12 cm lift across the
+                        // two perpendicular phases. The actual lowest box
+                        // corner must still clear support, including Reduced.
+                        const float minimumPeak = strength == Avatar::MotionStrength::Reduced
+                            ? (diagonal ? .015f : .03f) : (diagonal ? .035f : .07f);
+                        bool alternating = leftPeak > minimumPeak && rightPeak > minimumPeak;
+                        if (direction.right == 0.f)
+                            alternating &= firstHalfLeftPeak > minimumPeak &&
+                                secondHalfRightPeak > minimumPeak &&
+                                firstHalfRightPeak < .04f && secondHalfLeftPeak < .04f;
+                        check(alternating,
+                              "left and right feet visibly alternate above the other support foot: " + label);
+                        if (strength == Avatar::MotionStrength::Reduced)
+                            check(leftPeak < .09f && rightPeak < .09f,
+                                  "Reduced retains a smaller bounded foot clearance: " + label);
+                    }
+                }
+
+        for (const auto& direction : travelDirections) {
+            bool liftMatchesFull = true;
+            for (int phase = 0; phase < 64; ++phase) {
+                const auto input = moving(direction.forward, direction.right,
+                                          37.f, 4.5f, 1.f, phase * cycle / 64.f);
+                const auto full = Avatar::derivePose(input, profile, Avatar::MotionStrength::Full);
+                const auto base = Avatar::derivePose(input, profile, Avatar::MotionStrength::LocomotionOnly);
+                for (const auto role : {leftRole, rightRole})
+                    liftMatchesFull &= nearVector(part(full, profile, role).offset,
+                                                  part(base, profile, role).offset);
+            }
+            check(liftMatchesFull,
+                  "feedback Off retains Full foot lift without optional root lean: " + std::string(direction.name));
+        }
+
+        // Transition tests keep the existing .002/ .0002 convergence limits.
+        // At constant target, exponential settling must agree by real elapsed
+        // time, including translated foot geometry, at 30 and 120 Hz.
+        for (const auto& direction : travelDirections)
+            for (const auto strength : {Avatar::MotionStrength::Reduced,
+                                       Avatar::MotionStrength::Full,
+                                       Avatar::MotionStrength::LocomotionOnly}) {
+                bool supported = true, separated = true, paused = true, settled = true;
+                bool offsetsStayBetweenTargets = true;
+                Avatar::Pose at30, at120;
+                for (int fps : {30, 120}) {
+                    Avatar::PoseHistory history;
+                    const auto initial = Avatar::derivePose(
+                        moving(direction.forward, direction.right, 37.f, 4.5f, 1.f, 0.f), profile, strength);
+                    const auto reverse = Avatar::derivePose(
+                        moving(-direction.forward, -direction.right, 37.f, 4.5f, 1.f, cycle * .5f), profile, strength);
+                    Avatar::smoothPose(history, initial, profile, 0.f);
+                    paused &= sameLocalPose(Avatar::smoothPose(history, reverse, profile, 0.f), initial, profile);
+                    Avatar::Pose result;
+                    for (int frame = 0; frame < fps; ++frame) {
+                        result = Avatar::smoothPose(history, reverse, profile, 1.f / fps);
+                        supported &= groundedLegCorners(result, profile);
+                        separated &= separatedLegCorners(result, profile);
+                        for (const auto role : {leftRole, rightRole}) {
+                            const float y = part(result, profile, role).offset.y;
+                            const float a = part(initial, profile, role).offset.y;
+                            const float b = part(reverse, profile, role).offset.y;
+                            offsetsStayBetweenTargets &= y >= std::min(a, b) - .00001f &&
+                                y <= std::max(a, b) + .00001f;
+                        }
+                        if (frame + 1 == fps / 5) { if (fps == 30) at30 = result; else at120 = result; }
+                    }
+                    settled &= sameLocalPose(result, reverse, profile, .002f);
+                    const auto idle = Avatar::derivePose({}, profile, strength);
+                    for (int frame = 0; frame < fps; ++frame) {
+                        result = Avatar::smoothPose(history, idle, profile, 1.f / fps);
+                        supported &= groundedLegCorners(result, profile);
+                        separated &= separatedLegCorners(result, profile);
+                    }
+                    settled &= sameLocalPose(result, idle, profile, .002f);
+                }
+                bool feetAgree = true;
+                for (const auto role : {leftRole, rightRole})
+                    feetAgree &= nearVector(foot(at30, profile, role), foot(at120, profile, role), .0002f);
+                const std::string label = std::string(direction.name) +
+                    " strength=" + std::to_string(static_cast<int>(strength));
+                check(supported && separated && paused && settled && offsetsStayBetweenTargets,
+                      "lift reversal, pause and stopping retain support without target overshoot: " + label);
+                check(sameLocalPose(at30, at120, profile, .002f) && feetAgree,
+                      "lift transitions agree at 30/120 Hz after the same 200 ms: " + label);
+            }
+    }
+
+    void boundedMovementClockCase()
+    {
+        constexpr float cycle = Avatar::GaitCycleSeconds;
+        const float infinity = std::numeric_limits<float>::infinity();
+        const float nan = std::numeric_limits<float>::quiet_NaN();
+        const float start = cycle * .25f;
+        check(std::isfinite(cycle) && cycle > .5f && cycle < .55f &&
+              near(cycle * Avatar::GaitAngularSpeed, 6.28318530718f, .00001f),
+              "public gait cycle is a finite physical interval for the faster reference cadence");
+        for (float dt : {-1.f, 0.f, nan, infinity})
+            check(near(Avatar::advanceMovementSeconds(start, dt, 4.5f), start, .000001f),
+                  "pause or invalid render delta does not advance the movement clock");
+        for (float speed : {-1.f, 0.f, .05f, .09f, nan, infinity})
+            check(near(Avatar::advanceMovementSeconds(start, .05f, speed), start, .000001f),
+                  "stationary, deadband or invalid speed freezes the movement phase");
+        check(Avatar::advanceMovementSeconds(start, .05f, .091f) > start,
+              "a speed above the locomotion deadband advances phase");
+        check(near(Avatar::advanceMovementSeconds(start, 1.f, 4.5f),
+                   Avatar::advanceMovementSeconds(start, .1f, 4.5f), .000001f),
+              "long frame delta is capped at 100 ms of presentation time");
+        for (float invalidClock : {nan, infinity, -infinity}) {
+            const float value = Avatar::advanceMovementSeconds(invalidClock, 0.f, 4.5f);
+            check(std::isfinite(value) && value >= 0.f && value < cycle,
+                  "invalid prior clock is restored to a finite bounded phase");
+        }
+        for (float oldClock : {-123.f, 123.f, 1.e20f, std::numeric_limits<float>::max()}) {
+            const float value = Avatar::advanceMovementSeconds(oldClock, .05f, 4.5f);
+            check(std::isfinite(value) && value >= 0.f && value < cycle,
+                  "large or negative prior movement time wraps inside one reference cycle");
+        }
+
+        // Independent expected physical durations at normal movement speeds;
+        // rates are checked by unwrapped advances within this one frame.
+        struct SpeedSample { float speed, rate; };
+        const std::array<SpeedSample, 5> samples{{
+            {.18f, .142857143f}, {1.125f, .571428571f}, {1.8f, .727272727f},
+            {4.5f, 1.f}, {7.f, 1.25f}}};
+        float previousRate = 0.f;
+        for (const auto sample : samples) {
+            const float advanced = Avatar::advanceMovementSeconds(0.f, .05f, sample.speed);
+            const float actualRate = advanced / .05f;
+            check(near(actualRate, sample.rate, .00001f) && actualRate > previousRate,
+                  "cadence follows actual movement speed with visible slow-walk compensation: " + std::to_string(sample.speed));
+            previousRate = actualRate;
+        }
+        check(near(Avatar::advanceMovementSeconds(0.f, .05f, 45.f) / .05f, 1.25f, .00001f),
+              "extreme finite speed cannot exceed the 1.25 reference cadence cap");
+
+        const auto profile = Avatar::defaultProfile();
+        for (float speed : {.18f, 1.8f, 4.5f, 7.f}) {
+            float clock30 = start, clock120 = start;
+            bool bounded = true;
+            for (int frame = 0; frame < 300; ++frame) {
+                clock30 = Avatar::advanceMovementSeconds(clock30, 1.f / 30.f, speed);
+                for (int subframe = 0; subframe < 4; ++subframe)
+                    clock120 = Avatar::advanceMovementSeconds(clock120, 1.f / 120.f, speed);
+                bounded &= std::isfinite(clock30) && clock30 >= 0.f && clock30 < cycle &&
+                    std::isfinite(clock120) && clock120 >= 0.f && clock120 < cycle;
+            }
+            const float phaseDifference = std::abs(std::remainder(clock30 - clock120, cycle));
+            const float strength = std::min(speed / 4.5f, 1.f);
+            const auto pose30 = Avatar::derivePose(moving(1.f, 0.f, 0.f, speed, strength, clock30),
+                profile, Avatar::MotionStrength::LocomotionOnly);
+            const auto pose120 = Avatar::derivePose(moving(1.f, 0.f, 0.f, speed, strength, clock120),
+                profile, Avatar::MotionStrength::LocomotionOnly);
+            check(bounded && phaseDifference < .00002f && sameLocalPose(pose30, pose120, profile, .002f),
+                  "bounded gait clock and derived geometry agree at 30/120 Hz after ten seconds: " + std::to_string(speed));
+        }
+        float longClock = start;
+        bool longBounded = true;
+        for (int frame = 0; frame < 100000; ++frame) {
+            longClock = Avatar::advanceMovementSeconds(longClock, .1f, 7.f);
+            longBounded &= std::isfinite(longClock) && longClock >= 0.f && longClock < cycle;
+        }
+        check(longBounded,
+              "100000 updates retain a finite single-cycle clock without long-session growth");
+    }
+
     void toolDirectionCase()
     {
         const auto profile = Avatar::defaultProfile();
@@ -905,6 +1170,8 @@ int main()
     workingArmGaitCase();
     directionalSmoothingCase();
     feedbackOffLocomotionCase();
+    alternatingLiftGeometryCase();
+    boundedMovementClockCase();
     std::cout << "[PLAYER_AVATAR] checks=" << checks
               << " failures=" << failures << '\n';
     return failures == 0 ? 0 : 1;

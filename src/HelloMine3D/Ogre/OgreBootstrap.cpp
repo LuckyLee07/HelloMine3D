@@ -5519,17 +5519,13 @@ namespace
             m_previousPlayerGrounded = grounded;
             m_playerGroundStateInitialized = true;
 
-            const float horizontalSpeed = std::sqrt(
-                m_worldPlayer->velocity.x * m_worldPlayer->velocity.x +
-                m_worldPlayer->velocity.z * m_worldPlayer->velocity.z);
+            const float horizontalSpeed = std::hypot(
+                m_worldPlayer->velocity.x, m_worldPlayer->velocity.z);
             const float movementStrength = std::clamp(
                 horizontalSpeed / 4.5f, 0.f, 1.f);
-            const float gaitRate = std::clamp(
-                horizontalSpeed / 4.5f, 0.f, 1.65f);
-            if (gaitRate > .02f)
-            {
-                m_playerMovementSeconds += elapsed * gaitRate;
-            }
+            m_playerMovementSeconds =
+                PlayerAvatarPresentation::advanceMovementSeconds(
+                    m_playerMovementSeconds, elapsed, horizontalSpeed);
 
             const ActionFeedbackSnapshot actionFeedback =
                 m_sandbox->getActionFeedback();
@@ -5612,7 +5608,9 @@ namespace
             if (!m_playerMotionCapture.empty()) {
                 // Exercise the real avatar path with copied render facts only.
                 // The diagnostic never writes Player velocity or input state.
-                m_playerMotionCaptureSeconds += elapsed;
+                m_playerMotionCaptureSeconds =
+                    PlayerAvatarPresentation::advanceMovementSeconds(
+                        m_playerMotionCaptureSeconds, elapsed, 4.5f);
                 const float yaw = PlayerAvatarPresentation::wrapDegrees(snapshot.rotationDegrees.y) *
                     3.14159265359f / 180.f;
                 const bool lateral = m_playerMotionCapture == "left" || m_playerMotionCapture == "right";
