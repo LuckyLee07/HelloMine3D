@@ -62,3 +62,8 @@ V10p 的 `bash scripts/verify_crafting_result_feedback.sh Debug`／`Release` 各
 直接使用真实 `Base.recipe`、Inventory 与 2×2／3×3 CraftingSession，覆盖材料用尽／容量填满后的
 新预览与成功信息并存、满容量／陈旧库存失败原子性、有效重试、4 秒寿命及暂停／清空。
 正常 UI 布局、点击和完整制作路线另见[执行记录](../reports/visual-experience-polish-execution-2026-09-28.md)V10p。
+
+V10q 复用同一最终客户端，公开验证既存 2×2 配方列表／装入：木板单格、火把竖列符合真实
+配方，缺材料时仍显示真实不可制作状态，装入不消耗八木板。关闭及正常保存后跨进程重开
+清空临时网格／反馈，四条已发现配方与库存保持。发现记录来自准备的 Root 存档，不证明原始
+采集发现；3×3、制作命令拒绝与完整采集制作路线仍开放，详见执行记录 V10q。
