@@ -2,7 +2,14 @@
 
 ## 恢复区
 
-- **当前：2026-10-06 V06f：实际暖帧绘制绑定与默认关闭双模式回归通过，完整V00–V11仍Doing，Goal active。**
+- **当前：2026-10-06 V06g：实际水面亮线复现及两隔离对照完成，生产修复仍OPEN，完整V00–V11仍Doing，Goal active。**
+  起点文档HEAD `a7fb140e`；生产运行时仍`7b39402b`／Release `cd47a140…28394`，V06f冻结包135管理项／137原文件保持。仅捕获工具新增generic direct生命周期字段；没有生产C++／shader改动、重编或刷新正式包。
+  RD8细亮线相邻RGB差139；geometry-zero降10／9／10，公共viewProj保波对照仍139／139／139。不是正式修复，不关闭World面归因、跨区块持续稳定或普通输入。
+  两次新实际捕获PID39079／49669均正常0、signal null、timeout false、reaped true、100秒等待上限，四帧各2560×1440；所有本批游戏采集handle已terminal。generic成功路径经真实客户端验证，timeout／信号清理校准未运行。
+  独立控制包52／52、geometry-zero原件与像素60／60；5→6秒加载调度不同、世界时间与实际uniform相位未冻结。不能把CaveBoundary首条0扩成RD8全程0；6／7／8秒两原日志为399 candidates／140 live。
+  CUA仅只读getState重检30.0422秒超时reset，无启动／输入；用户桌面及连接正常，不恢复旧锁屏结论。生产水面保持，下一步相邻原Water属性、实际同帧uniform与World halo来源。
+  三张诊断原图另保留，旧精选50轮198图／索引不改；不伪称新增升级。严格性能延期，完整12方向仍Doing，68项旧全量口径保持。证据及恢复路线见文末V06g。
+- **历史检查点：2026-10-06 V06f：实际暖帧绘制绑定与默认关闭双模式回归通过，完整V00–V11当时仍Doing，Goal active。**
   当前Release `cd47a140…28394`／Debug `dfb46a69…170f5`；正常修后两配置构建0、首方warning0，原件及120聚焦保护保持。实现提交`7b39402b`；最终普通配置`v06f/After.app`同一cd47 Release、135管理项／137文件核对通过。捕获保持原nominal601d＋dirty，不重标为提交后实跑；普通交互验收仍OPEN。精选50轮198图，旧49轮195图保持。
   标准／兼容新native捕获均正常exit0、GL4.1、Retina2，各595项通过（原208包含）；9副本故障校准通过，独立实物1114项／12阶段38操作176属性通过。默认关闭双模式各原208通过，菜单渲染启动两原图通过，普通输入不作声明。
   GL4.1误查4.3 ARRAY_LONG已修，明示实测FLOAT排除DOUBLE的推导；初始三次GL启动失败与r2反射1280保留。获准沙箱外显示器各1／桌面已登录，同包同条件GL恢复；此前沙箱CG0不是物理桌面事实。
@@ -3614,3 +3621,81 @@ guard源码未变，修正只在构造窗口后观察路径；不把旧收据二
 [独立交付复核](../../build/visual-experience-polish-20260928/v06f/independent-delivery-review-r3.json)
 312／312、174聚焦输入通过：仅必要的新包137文件／135清单、新增三图、旧元数据前缀和六个
 7b提交blob；未读旧195图、旧包或重扫src，没有GPU／UI／构建／git写操作。
+
+## V06g 水面细亮线定位与直接捕获生命周期（2026-10-06）
+
+沿V06f已冻结普通包及同一cd47 Release继续真实3D水面观察，所有自动捕获隐藏且不激活，
+不复制用户保存。当前正式代码及两个生产Water shader保持；新资源变体仅位于单独诊断包，
+名义7b／原源码manifest与effective shader override分记，不能将它们称正式修复或普通客户端。
+
+### 实际条件与发现
+
+固定seed42／terrain30，初始玩家`212 70 -192`、旋转`10 90 0`、世界时间7000、FOV90、
+1280×720点／倍率2、first、中文1.0、medium shadow、post／feedback off、standard、minimap128，
+在5／6／7／8秒保存原始2560×1440 PNG。未启用camera sweep、HUD夹具、native shore观察或库存注入。
+没有sweep时相机不在4秒锚定；只知道初始及终态位姿，实际每帧相机uniform未捕获。
+世界时间正常推进，Water globalTime是Ogre帧时钟；world_time7000不冻结shader动画。
+
+| 新诊断 | 实际结果与范围 |
+| --- | --- |
+| `water-motion-pilot-r1` | RD1加debug，四图正常获取，但面板遮住大部分水域；`OPEN_INSUFFICIENT_WATER_VIEW_DIAGNOSTIC_PANEL_OCCLUSION`，不计水波连续性。 |
+| `water-motion-pilot-r2` | 同条件仅移除debug；水域无遮挡，低视距远端有深色阶梯形。近水原RGB相邻最大3／2／2，不能据此归因shader或宣布连续稳定。 |
+| `water-rd8-boundary-control-r1` | 仅RD1→8，远端自然岸与河床可见、原深色阶梯消失；左侧水域出现细长移动亮线。视距同时改变驻留、遮罩和几何，不能断言CaveBoundary像素原因。 |
+| `wave-geometry-zero-r1` | 两条animatedVertex波幅0.035／0.025→0.0，其余字节、slope／normal、固定−0.10及fragment保持。真实PID39079、正常0／无signal／timeout、已回收；亮线首尾原图消失。此方案只用于因果对照，不能用关闭波浪完成V06。 |
+| `wave-shared-projection-r1` | 完整波浪保持；只将Water的投影改为公共viewProj×已有worldPosition，并改WaterVertex auto绑定。真实PID49669、正常0／无signal／timeout、已回收；亮线仍存在，`COMMON_PROJECTION_NOT_AN_EFFECTIVE_FIX`。 |
+
+前三轮generic direct包装器原来未记录native PID，真实checked subprocess及外层正常0只按原证据表述，
+不补写虚构PID。后两轮已使用新增工具SHA`54cd6253…e637dd`，真实记录child_pid、child_returncode、
+child_signal、child_timed_out、child_wait_timeout_seconds与child_reaped；两次100秒等待上限均未超时。
+每组四帧及GL4.1原件保留，不把稀疏PNG称连续录像、同相位配对或正常玩法。
+
+### 独立原图／像素复核与反证
+
+从原RD8第一张图固定亮线ROI`[40,730,1100,1125]`，共418700像素；近水87300像素与干沙44000像素
+作为对照。只读未重采样RGB比较，不写裁剪／调色图。
+
+| 相邻对 | 原水波max／>25像素 | geometry-zero max／>25 | 公共投影max／>25 |
+| --- | --- | --- | --- |
+| 5→6秒 | 139／154 | 10／0 | 139／161 |
+| 6→7秒 | 139／131 | 9／0 | 139／122 |
+| 7→8秒 | 139／86 | 10／0 | 139／89 |
+
+干沙三对最大均1，近水最大1–3。限定结论为几何位移参与该区域亮线变化；不证明World面所有者、
+具体裂缝或持续无闪烁。源码世界角点相位、四列流速／深度／岸值按cornerY−1采样；Water逐块面，
+不是greedy大面，不能把亮线直接归到greedy T接点或凭岸pin抹掉。
+
+[控制包独立复核](../../build/visual-experience-polish-20260928/v06g/wave-geometry-control-independent-package-review-r1.json)
+52／52检查、22窄输入；[实际geometry-zero复核](../../build/visual-experience-polish-20260928/v06g/wave-geometry-zero-independent-render-review-r1.json)
+60／60、20窄输入，独立核8原PNG及18组ROI数值、实际binary／effective shader及生命周期。
+两轮5秒前CaveBoundary分别289／109及342／124，6／7／8秒均399／140；首条0不是全程0。
+World终态7147／7151不同、shader相位未冻结，5→6秒存在加载调度差异，均保留为结论局限。
+
+按源码相机eye`212 70.6 -192`／FOV及平均水位64.9反投影，6→7秒131个>25像素都在某X或Z
+16m边界0.25m内，多数接近Z=−224；该位置关联是`HYPOTHESIS`，并非捕获的camera／WVP／World面事实。
+vendored Ogre的原WVP为P×(V×W)，公共VP为P×V；实际公共投影对照没有消除亮线，因此不改生产shader，
+停止扩展该候选探针。`water-clip-projection-design-r1.json`记`NOT_RUN_SUPERSEDED_BY_REAL_SHARED_PROJECTION_COUNTEREVIDENCE`，
+未创建C++／编译／另跑GPU；不把未执行的合成矩阵设计变成PASS。
+
+### 工具、保护与恢复
+
+本批只修改`tools/capture_visual_macos.py`：所有direct启动统一使用已有Popen等待／异常处理，
+记录实际子进程与工具SHA；generic正常成功路径已由两次真实客户端证明。
+LaunchServices分支不造PID，60／100秒原等待语义保持。独立源码AST21项通过；超时及信号清理
+未作实际校准，不宣称该范围。未改变截图门槛、环境、存档、shader或World；无需重编C++、重跑原208／595检查。
+
+控制准备r1因读取无关19.85MB旧MMD收据超过16MiB而FAIL，旧扩大界限的r2亦保留；最终新r2脚本／r3预检
+只固定7份指定收据，共182169B，恢复单份16MiB界限。Root apply核原包137／135及恰好两处shader字节替换，
+不再扫描309旧JSON。`protection-before-control-r1.json`复用137聚焦保护，`current-source-guard-r1.json`核
+旧六冻结输入中5项保持及生产Water原样，唯一capture工具改变明示；不重扫5508源码／15包／旧图片。
+
+CUA公开getState仅只读一次30.0422秒超时reset，未启动应用／输入；
+`cua-readonly-service-recheck-r1.json`保留原错误。用户确认桌面可见、远程连接正常，不能继续使用锁屏归因。
+本批所有五个实际采集已terminal，新两个native正常回收；旧普通客户端及保存保持。
+
+三张未编辑基线／geometry-zero／公共投影原PNG及source SHA另保存于
+`.local-evidence/visual-polish-20260928/v06g-water-wave-controls/selection.json`；不改旧精选索引或50轮198图，
+不计新增正式视觉升级。完整12方向仍Doing，0／12正式关闭；68项仍为10月5日旧全量审计的
+13限定工程关闭／38已实现待验收／12普通连续缺证／5效果未充分证明，51／68不是当前整体完成率。
+下一步观察Z=−224附近两个相邻Water实际原上传uv0／uv1、同帧uniform、revision及World halo来源，
+再据原因修复；不放宽旧RD1 shore guard。继续全部普通路线／制作／完整UI／动态／音频与必要整合，
+严格配对性能仍DEFERRED_BY_USER，Goal active；两份无关未跟踪规划不暂存，未推送／发布／打标签。

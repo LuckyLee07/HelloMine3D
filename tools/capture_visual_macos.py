@@ -456,6 +456,7 @@ seed random
               "save_template": str(template) if template else None,
               "save_template_meta_sha256": template_meta_sha256,
               "package_identity": identity,
+              "capture_tool_sha256": digest(Path(__file__)),
               "scene": args.scene, "settings": settings, "environment": environment,
               "diagnostic_fixture": "camera-fixed-resident-origin" if args.camera_diagnostics else
                   ("fern-natural-source-native-draw" if args.fern_wind else
@@ -480,30 +481,25 @@ seed random
         else:
             with (output / "client.log").open("w") as stdout, \
                     (output / "client-stderr.log").open("w") as stderr:
-                if args.fern_wind or args.pause_notifications or args.shore_edit:
-                    child = subprocess.Popen(command,
-                        env={**os.environ, **environment}, stdout=stdout, stderr=stderr)
-                    record["child_pid"] = child.pid
-                    if args.shore_edit:
-                        record["child_timed_out"] = False
-                        record["child_wait_timeout_seconds"] = 60
-                    record_path.write_text(json.dumps(record, indent=2) + "\n")
-                    try:
-                        child.wait(timeout=60 if args.pause_notifications or args.shore_edit else 100)
-                    except subprocess.TimeoutExpired:
-                        child.kill()
-                        child.wait()
-                        record["child_timed_out"] = True
-                        raise
-                    finally:
-                        record["child_returncode"] = child.returncode
-                        record["child_signal"] = -child.returncode if child.returncode is not None and child.returncode < 0 else None
-                    if child.returncode:
-                        raise subprocess.CalledProcessError(child.returncode, command)
-                else:
-                    subprocess.run(command, check=True, timeout=100,
-                                   env={**os.environ, **environment},
-                                   stdout=stdout, stderr=stderr)
+                child = subprocess.Popen(command,
+                    env={**os.environ, **environment}, stdout=stdout, stderr=stderr)
+                record["child_pid"] = child.pid
+                record["child_timed_out"] = False
+                record["child_wait_timeout_seconds"] = 60 if args.pause_notifications or args.shore_edit else 100
+                record_path.write_text(json.dumps(record, indent=2) + "\n")
+                try:
+                    child.wait(timeout=record["child_wait_timeout_seconds"])
+                except subprocess.TimeoutExpired:
+                    child.kill()
+                    child.wait()
+                    record["child_timed_out"] = True
+                    raise
+                finally:
+                    record["child_returncode"] = child.returncode
+                    record["child_signal"] = -child.returncode if child.returncode is not None and child.returncode < 0 else None
+                    record["child_reaped"] = child.returncode is not None
+                if child.returncode:
+                    raise subprocess.CalledProcessError(child.returncode, command)
             # macOS reports ru_maxrss in bytes. In direct mode the executable
             # is the child we waited for; LaunchServices mode cannot claim that.
             record["peak_child_rss_bytes"] = int(
